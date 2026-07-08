@@ -48,6 +48,9 @@ Escribes en **español**, con Markdown correcto y atractivo (tablas, checkboxes 
 | Modelo IA asumido | `claude-opus-4-8` | Base de la previsión de tokens |
 | Precio tokens input/output | (a confirmar) | Coste IA; **verifica la tarifa vigente**, no la inventes |
 | Tipo de cambio USD→EUR | `1 USD = 0.92 €` | Si el proveedor factura en USD |
+| Ratio de supervisión | `~25 % de las horas IA` | Tiempo de revisión/validación humana del trabajo del agente |
+| Horas por empleado-mes (FTE) | `160 h` | Base para el cálculo de FTE equivalentes |
+| Margen de contingencia | `20 %` | Colchón por imprevistos; se aplica sobre las horas **base** (humanas e IA) |
 
 Registra los valores en el bloque **Supuestos económicos** de la evaluación. Si no conoces el precio de tokens vigente, márcalo `⚠️ verificar` y deja el cálculo parametrizado.
 
@@ -61,7 +64,13 @@ Registra los valores en el bloque **Supuestos económicos** de la evaluación. S
 
 **P3. Evaluar cada característica.** Para cada `C-XX`: complejidad, esfuerzo (h) con confianza, previsión de tokens (in/out), coste €, impacto/áreas, dependencias, riesgos e incógnitas.
 
-**P4. Presupuestar.** Agrega el total (esfuerzo, coste €, tokens). Si hay **2+ características**, rellena la **tabla comparativa** y la **recomendación** (veredicto, quick wins, costosas, orden sugerido). Si hay **una sola**, omite comparativa y orden.
+**P4. Presupuestar.** Agrega el total (esfuerzo humano, coste €, tokens). Estima además el **tiempo IA** (horas aproximadas que tardaría el/los agente(s) en implementarlo) y la **supervisión humana** (~25 % de las horas IA por defecto), y rellena el bloque **⚡ Productividad IA** del `evaluation.md`:
+- Horas totales = Horas IA + Supervisión · Horas ahorradas = Horas humanas − Horas totales
+- Ahorro % = (Horas humanas − Horas totales) / Horas humanas × 100 · Multiplicador = Horas humanas / Horas totales · FTE (opcional) = Horas ahorradas / 160
+
+Estas estimaciones son **base** (mid-point realista, sin colchón). Aplica un **margen de contingencia +20 %** (configurable) sobre las horas base **humanas e IA** por imprevistos, recalcula el coste desde las horas con margen, y muestra **base** y **total con margen**.
+
+Si hay **2+ características**, rellena la **tabla comparativa** y la **recomendación** (veredicto, quick wins, costosas, orden sugerido); las horas humanas/IA del cuadro de productividad son la suma de todas. Si hay **una sola**, omite comparativa y orden.
 
 **P5. Redacción.** Rellena la plantilla `evaluation.md`: cuadro de mando, resumen ejecutivo, requerimientos recibidos, datos necesarios, supuestos económicos, evaluación por característica, comparativa (si aplica), presupuesto total, recomendación, riesgos transversales, handoff a planner, changelog. Rellena la fila **Spec** con la ruta a la spec (`plan` = `pendiente`). Sustituye TODOS los `{{PLACEHOLDER}}` y borra los comentarios guía.
 

@@ -78,6 +78,7 @@ Mapa del documento de origen a las características evaluadas. Marca vacíos e i
 | Precio input | {{X}} € / 1M tokens | ⚠️ Verificar tarifa vigente |
 | Precio output | {{X}} € / 1M tokens | ⚠️ Verificar tarifa vigente |
 | Tipo de cambio | {{1 USD = 0.92 €}} | Si el proveedor factura en USD |
+| Margen de contingencia | {{20}} % | Colchón por imprevistos; sobre horas base (humanas e IA) |
 
 ---
 
@@ -131,10 +132,40 @@ Mapa del documento de origen a las características evaluadas. Marca vacíos e i
 
 | Concepto | Cálculo | Importe |
 |----------|---------|---------|
-| Desarrollo (humano) | {{X}}h × {{50}} €/h | **{{X}} €** |
+| Desarrollo (humano, base) | {{X}}h × {{50}} €/h | {{X}} € |
+| Margen de contingencia | +{{20}} % sobre desarrollo base | {{X}} € |
 | Tokens IA (input) | {{X}} tok × precio | {{X}} € |
 | Tokens IA (output) | {{X}} tok × precio | {{X}} € |
-| **Total estimado** | | **{{X}} €** |
+| **Total estimado (con margen)** | | **{{X}} €** |
+
+---
+
+## ⚡ Productividad IA (humano vs. IA)
+
+Compara el esfuerzo **humano** estimado con el tiempo que tardaría un **agente de IA** en implementarlo (más la supervisión humana). Cifras aproximadas; declara los supuestos.
+
+| KPI | Valor |
+|-----|-------|
+| Horas humanas estimadas | {{X}} h |
+| Horas IA (ejecución) | {{X}} h |
+| Supervisión humana | {{X}} h |
+| **Horas totales (IA + supervisión)** | **{{X}} h** |
+| Horas ahorradas | {{X}} h |
+| **Ahorro** | **{{X}} %** |
+| **Multiplicador de productividad** | **×{{X}}** |
+| FTE equivalentes *(opcional)* | {{X}} |
+
+> Horas mostradas **con el margen de contingencia (+20 %)** ya aplicado sobre las horas base (humanas e IA). Indica entre paréntesis las base si ayuda.
+
+<!-- Fórmulas (calcula y sustituye):
+  Horas totales     = Horas IA + Supervisión humana
+  Horas ahorradas   = Horas humanas − Horas totales
+  Ahorro %          = (Horas humanas − Horas totales) / Horas humanas × 100
+  Multiplicador     = Horas humanas / Horas totales           (p. ej. ×12)
+  FTE equivalentes  = Horas ahorradas / 160  (h por empleado-mes; útil sobre todo en agregados/mensuales)
+  "Horas IA" = estimación aproximada del tiempo de ejecución del/los agente(s); márcala como supuesto.
+  "Supervisión humana" = tiempo realista de revisión/validación (default ≈ 20-30 % de las horas IA).
+  Con varias características, la fila de horas humanas/IA es la suma de todas. -->
 
 ---
 

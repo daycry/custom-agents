@@ -21,11 +21,12 @@ Las plantillas base viven en `agent-kits/planner/templates/` y son el formato ca
 
 ## 2. Estimaciones que calcula
 
-El valor diferencial del agente es que **presupuesta** el plan en tres ejes:
+El valor diferencial del agente es que **presupuesta** el plan en varios ejes:
 
-- **Tiempo** — horas por tarea y por fase, con nivel de confianza (Alta/Media/Baja).
+- **Tiempo** — horas humanas por tarea y por fase, con nivel de confianza (Alta/Media/Baja).
 - **Coste económico (EUR)** — `(horas × tarifa) + coste de tokens de IA`. La tarifa/hora es configurable (default `50 €/h`).
 - **Tokens de IA** — previsión de input/output por fase, con el modelo y los precios asumidos declarados como supuestos ajustables.
+- **Productividad IA (humano vs. IA)** — horas IA (ejecución) + supervisión humana → horas totales, horas ahorradas, **ahorro %**, **multiplicador ×** y FTE equivalentes. Muestra cuánto acelera el trabajo hacerlo con IA frente a a mano.
 
 Los supuestos (tarifa, modelo, precio de tokens, tipo de cambio USD→EUR) quedan escritos en el propio plan, de modo que el presupuesto es recalculable si cambian los precios. Si el precio de tokens vigente no se conoce con certeza, el agente lo marca `⚠️ verificar` en lugar de inventar una cifra.
 

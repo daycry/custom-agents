@@ -22,7 +22,7 @@ Cada característica se evalúa con: requisito origen, descripción, complejidad
 
 ## 3. Estimaciones
 
-Igual que `planner`, presupuesta en tres ejes: **tiempo** (horas), **coste económico en EUR** (`horas × tarifa + tokens de IA`) y **tokens de IA** (input/output). Los supuestos (tarifa/hora, modelo, precio de tokens, tipo de cambio) quedan escritos y son ajustables, de modo que el presupuesto es recalculable. Si el precio de tokens vigente no se conoce con certeza, se marca `⚠️ verificar` en lugar de inventar una cifra. Cuando el documento de requerimientos es ambiguo o incompleto, el agente lo declara, presupuesta bajo supuestos explícitos y baja la confianza.
+Igual que `planner`, presupuesta en varios ejes: **tiempo** (horas humanas), **coste económico en EUR** (`horas × tarifa + tokens de IA`), **tokens de IA** (input/output) y **productividad IA** (horas IA + supervisión → horas totales, horas ahorradas, **ahorro %**, **multiplicador ×** y FTE equivalentes). Los supuestos (tarifa/hora, modelo, precio de tokens, tipo de cambio, ratio de supervisión, horas/empleado-mes) quedan escritos y son ajustables, de modo que el presupuesto es recalculable. Si el precio de tokens vigente no se conoce con certeza, se marca `⚠️ verificar` en lugar de inventar una cifra. Cuando la spec es ambigua o incompleta, el agente lo declara, presupuesta bajo supuestos explícitos y baja la confianza.
 
 ---
 

@@ -46,6 +46,9 @@ Necesarios para el presupuesto. Propón los defaults y deja que el usuario los a
 | Modelo IA asumido | `claude-opus-4-8` | Base de la previsión de tokens |
 | Precio tokens input/output | (a confirmar) | Coste IA; **verifica la tarifa vigente**, no la inventes |
 | Tipo de cambio USD→EUR | `1 USD = 0.92 €` | Si el proveedor factura en USD |
+| Ratio de supervisión | `~25 % de las horas IA` | Tiempo de revisión/validación humana del trabajo del agente |
+| Horas por empleado-mes (FTE) | `160 h` | Base para el cálculo de FTE equivalentes |
+| Margen de contingencia | `20 %` | Colchón por imprevistos; se aplica sobre las horas **base** (humanas e IA) |
 
 Registra los valores usados en el bloque **Supuestos** del `improvement-plan.md`. Si no conoces el precio de tokens vigente, márcalo como `⚠️ verificar` y deja el cálculo parametrizado en lugar de dar una cifra falsa.
 
@@ -60,9 +63,15 @@ Registra los valores usados en el bloque **Supuestos** del `improvement-plan.md`
 **P3. Descomposición.** Divide el trabajo en **fases** y, dentro de cada fase, en **tareas** con ID `T-01`, `T-02`… Cada tarea debe tener descripción, criterios de aceptación verificables y subtareas.
 
 **P4. Estimación.** Para cada tarea/fase estima:
-- **Tiempo** (horas) — realista, con confianza (Alta/Media/Baja).
+- **Tiempo humano** (horas) — esfuerzo humano realista, con confianza (Alta/Media/Baja).
 - **Tokens** (input/output) — método declarado (p. ej. nº de ficheros a leer × tamaño medio + generación de código/tests).
 - **Coste €** — `(horas × tarifa) + (tokens × precio)`. Agrega totales por fase y global.
+- **Tiempo IA + productividad** — estima las **horas IA** (tiempo aproximado que tardaría el/los agente(s) en ejecutarlo) y la **supervisión humana** (revisión/validación, ~25 % de las horas IA por defecto). Con eso rellena el bloque **⚡ Productividad IA** del `improvement-plan.md`:
+  - Horas totales = Horas IA + Supervisión · Horas ahorradas = Horas humanas − Horas totales
+  - Ahorro % = (Horas humanas − Horas totales) / Horas humanas × 100 · Multiplicador = Horas humanas / Horas totales
+  - FTE (opcional) = Horas ahorradas / 160
+  Marca las horas IA como estimación aproximada (supuesto), igual que los tokens.
+- **Margen de contingencia** — las estimaciones anteriores son **base** (mid-point realista, sin inflar; NO llevan colchón). Aplica un **+20 %** (configurable) sobre las horas base **humanas e IA** por imprevistos y recalcula el coste desde las horas con margen. Muestra siempre **base** y **total con margen** para que sea transparente.
 
 **P5. Redacción.** Rellena las dos plantillas:
 - `improvement-plan.md`: cuadro de mando, estimación por fase, presupuesto económico (con supuestos), previsión de tokens, resumen ejecutivo, objetivos, datos necesarios, impacto, arquitectura, archivos, dependencias, criterios de aceptación, riesgos, métricas de éxito, changelog.
