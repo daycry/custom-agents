@@ -1,0 +1,38 @@
+# === Salidas sensibles de los agentes (nunca versionar) ===
+# Informes de auditoría de nemesis (contienen hallazgos y evidencias sensibles).
+docs/security-scan/
+**/security-scan/
+
+# === Binarios y dependencias de herramientas ===
+# El toolkit de nemesis se instala fuera del repo (~/.claude/security-tools/).
+# Por si algo cae dentro del árbol, no versionar binarios ni vendored tools.
+**/bin/
+**/vendor/
+**/*.download
+agent-kits/**/tools/bin/
+agent-kits/**/tools/vendor/
+
+# === Dependencias / entornos ===
+node_modules/
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# === Logs y temporales ===
+*.log
+*.tmp
+tmp/
+.cache/
+
+# === Sistema operativo / sincronización ===
+.DS_Store
+Thumbs.db
+desktop.ini
+*~
+
+# === Editores / IDE ===
+.idea/
+.vscode/
+*.swp
+*.swo
