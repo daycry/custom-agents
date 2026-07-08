@@ -1,0 +1,20 @@
+{
+  "name": "custom-agents",
+  "version": "1.0.0",
+  "description": "Agentes custom para Claude Code: nemesis (auditoría de ciberseguridad SAST+DAST), planner (planes de implementación presupuestados) y evaluator (evaluación/presupuesto de requerimientos). Incluye la skill compartida cybersecurity.",
+  "author": {
+    "name": "daycry",
+    "email": "jmano@mediapro.tv"
+  },
+  "homepage": "https://github.com/daycry/claude-agents",
+  "repository": "https://github.com/daycry/claude-agents.git",
+  "license": "Apache-2.0",
+  "keywords": [
+    "security",
+    "audit",
+    "planning",
+    "estimation",
+    "sast",
+    "dast"
+  ]
+}

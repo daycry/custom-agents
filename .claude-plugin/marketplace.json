@@ -1,0 +1,22 @@
+{
+  "name": "daycry",
+  "owner": {
+    "name": "daycry",
+    "email": "jmano@mediapro.tv",
+    "url": "https://github.com/daycry"
+  },
+  "metadata": {
+    "description": "Marketplace de agentes custom de daycry para Claude Code.",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "custom-agents",
+      "source": "./",
+      "description": "nemesis (auditoría SAST+DAST), planner (planes presupuestados) y evaluator (evaluación de requerimientos) + skill cybersecurity.",
+      "version": "1.0.0",
+      "strict": true,
+      "tags": ["security", "planning", "estimation"]
+    }
+  ]
+}

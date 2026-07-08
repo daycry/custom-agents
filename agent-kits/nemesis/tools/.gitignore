@@ -1,0 +1,10 @@
+# NUNCA versionar binarios descargados ni clones de herramientas.
+# Solo se versionan los scripts fuente (*.sh, *.py, *.md, .gitignore, catalog).
+bin/
+vendor/
+*.zip
+*.tar.gz
+*.tgz
+*.exe
+install.log
+manifest.txt

@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Informe de Auditoría de Seguridad</title>
+<style>
+  :root{
+    --bg:#0f1420; --panel:#ffffff; --ink:#1c2431; --muted:#5b6472; --line:#e6e9ef;
+    --crit:#b3123b; --high:#e0561c; --med:#c99408; --low:#2f8f4e; --info:#516079;
+    --brand:#3a6df0; --brand2:#7a5cff;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--ink);background:#eef1f6;line-height:1.5;font-size:15px}
+  a{color:var(--brand)}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 20px 64px}
+  /* header */
+  .hero{background:linear-gradient(135deg,#141b2d 0%,#1d2740 60%,#243a63 100%);color:#eaf0ff;padding:34px 0 30px}
+  .hero .wrap{padding-bottom:0}
+  .kick{letter-spacing:.14em;text-transform:uppercase;font-size:11px;color:#9fb3e6;font-weight:700}
+  .htitle{font-size:26px;font-weight:800;margin:6px 0 2px}
+  .hmeta{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+  .chip{background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.16);border-radius:999px;
+    padding:4px 12px;font-size:12.5px;color:#dbe6ff}
+  .chip b{color:#fff}
+  .auth{background:rgba(47,143,78,.22);border-color:rgba(47,143,78,.5);color:#c7f2d4}
+  /* score band */
+  .band{display:grid;grid-template-columns:auto 1fr;gap:26px;align-items:center;margin-top:24px}
+  .ring{--v:0;--c:var(--info);position:relative;width:132px;height:132px;border-radius:50%;
+    background:conic-gradient(var(--c) calc(var(--v)*1%),rgba(255,255,255,.14) 0);display:grid;place-items:center}
+  .ring::after{content:"";position:absolute;inset:11px;border-radius:50%;background:#18213a}
+  .ring .val{position:relative;text-align:center;color:#fff}
+  .ring .num{font-size:30px;font-weight:800;line-height:1}
+  .ring .lab{font-size:11px;color:#a9b8de;letter-spacing:.08em}
+  .grade{font-size:52px;font-weight:900;line-height:1}
+  .verdict{color:#cdd8f2;max-width:640px;margin-top:4px}
+  .sevrow{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}
+  .sevpill{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.07);border-radius:10px;
+    padding:8px 12px;font-size:13px;color:#e7eeff}
+  .dot{width:11px;height:11px;border-radius:3px;display:inline-block}
+  /* panels */
+  section{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px 24px;margin-top:22px;
+    box-shadow:0 1px 2px rgba(20,30,60,.04)}
+  h2{font-size:17px;margin:0 0 4px;font-weight:800}
+  .sub{color:var(--muted);font-size:13.5px;margin:0 0 16px}
+  .grid2{display:grid;grid-template-columns:220px 1fr;gap:26px;align-items:center}
+  @media(max-width:720px){.grid2{grid-template-columns:1fr}.band{grid-template-columns:1fr;text-align:center;justify-items:center}}
+  .donut{width:200px;height:200px;border-radius:50%;margin:0 auto;position:relative}
+  .donut::after{content:"";position:absolute;inset:32px;background:#fff;border-radius:50%}
+  .legend{display:flex;flex-direction:column;gap:9px}
+  .legend .li{display:flex;align-items:center;gap:10px;font-size:13.5px}
+  .legend .li b{margin-left:auto;font-variant-numeric:tabular-nums}
+  /* area bars */
+  .area{margin:13px 0}
+  .area .top{display:flex;justify-content:space-between;font-size:13.5px;margin-bottom:5px}
+  .area .name{font-weight:600}
+  .area .sc{font-variant-numeric:tabular-nums;color:var(--muted)}
+  .track{height:9px;background:#eef1f6;border-radius:6px;overflow:hidden}
+  .fill{height:100%;border-radius:6px}
+  .area .desc{color:var(--muted);font-size:12.5px;margin-top:5px}
+  /* trend */
+  .trend{display:flex;gap:14px;flex-wrap:wrap}
+  .tcard{flex:1;min-width:150px;border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .tcard .n{font-size:26px;font-weight:800}
+  .tcard .l{color:var(--muted);font-size:12.5px}
+  /* remediation */
+  .queue{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:720px){.queue{grid-template-columns:1fr}}
+  .qbox{border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .qbox h3{margin:0 0 8px;font-size:14px}
+  .qbox ol{margin:0;padding-left:18px}
+  .qbox li{font-size:13px;margin:4px 0}
+  /* findings */
+  .fcard{border:1px solid var(--line);border-left-width:5px;border-radius:12px;padding:0;margin:12px 0;overflow:hidden}
+  .fhead{display:flex;gap:12px;align-items:flex-start;padding:14px 16px;cursor:pointer;background:#fbfcfe}
+  .fhead:hover{background:#f4f7fd}
+  .badge{font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#fff;
+    border-radius:6px;padding:4px 8px;white-space:nowrap}
+  .ftitle{font-weight:700;font-size:14.5px}
+  .fmeta{color:var(--muted);font-size:12px;margin-top:3px;display:flex;flex-wrap:wrap;gap:6px}
+  .tag{background:#eef2fb;border:1px solid #e0e7f6;border-radius:5px;padding:1px 7px;font-size:11px;color:#3a4a68}
+  .src{border-radius:5px;padding:1px 7px;font-size:11px;font-weight:700}
+  .src.sast{background:#eae6ff;color:#5a3ec8} .src.dast{background:#e2f3ff;color:#1668a8}
+  .fid{margin-left:auto;color:#9aa4b5;font-size:12px;font-weight:700}
+  .fbody{padding:4px 16px 18px;display:none}
+  .fbody.open{display:block}
+  .block{margin-top:12px}
+  .block .k{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+  .block .v{margin-top:3px}
+  .block.exploit .v{border-left:3px solid var(--high);padding-left:10px}
+  .block.fix .v{border-left:3px solid var(--low);padding-left:10px}
+  pre{background:#0f1626;color:#d7e2ff;border-radius:8px;padding:11px 13px;overflow:auto;font-size:12px;margin:6px 0 0}
+  .loc{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px;color:#334}
+  /* tools + footer */
+  .tools{display:flex;flex-wrap:wrap;gap:8px}
+  .tool{background:#f2f5fb;border:1px solid var(--line);border-radius:8px;padding:5px 11px;font-size:12.5px}
+  footer{color:var(--muted);font-size:12px;margin-top:26px;text-align:center;line-height:1.7}
+  .disc{background:#fff8ec;border:1px solid #f0e2c4;color:#7a5b16;border-radius:10px;padding:11px 15px;font-size:12.5px;margin-top:22px}
+  @media print{body{background:#fff}.hero{background:#141b2d !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .fbody{display:block !important}section{break-inside:avoid;box-shadow:none}}
+</style>
+</head>
+<body>
+<div class="hero"><div class="wrap">
+  <div class="kick">Evaluación de seguridad · uso autorizado en entorno local</div>
+  <div class="htitle" id="h-title">Informe de Auditoría de Seguridad</div>
+  <div class="hmeta" id="h-meta"></div>
+  <div class="band">
+    <div class="ring" id="ring"><div class="val"><div class="num" id="score">0</div><div class="lab">/ 100</div></div></div>
+    <div>
+      <div class="grade" id="grade">–</div>
+      <div class="verdict" id="verdict"></div>
+      <div class="sevrow" id="sevrow"></div>
+    </div>
+  </div>
+</div></div>
+
+<div class="wrap">
+  <section>
+    <h2>Resumen por área</h2>
+    <p class="sub">Distribución de hallazgos y puntuación por dimensión auditada.</p>
+    <div class="grid2">
+      <div><div class="donut" id="donut"></div></div>
+      <div class="legend" id="legend"></div>
+    </div>
+    <div id="areas" style="margin-top:20px"></div>
+  </section>
+
+  <section id="trend-sec" style="display:none">
+    <h2>Evolución respecto al scan anterior</h2>
+    <p class="sub" id="trend-prev"></p>
+    <div class="trend" id="trend"></div>
+  </section>
+
+  <section>
+    <h2>Cola de remediación priorizada</h2>
+    <p class="sub">Orden de actuación recomendado según severidad y explotabilidad.</p>
+    <div class="queue" id="queue"></div>
+  </section>
+
+  <section>
+    <h2>Hallazgos detallados</h2>
+    <p class="sub">Cada hallazgo explica qué es, por qué importa, cómo se explotaría y cómo se corrige. Pulsa para expandir.</p>
+    <div id="findings"></div>
+  </section>
+
+  <section>
+    <h2>Metodología y herramientas</h2>
+    <p class="sub">OWASP Top 10, CWE, análisis estático (SAST) + activo local (DAST) con verificación calibrada.</p>
+    <div class="tools" id="tools"></div>
+  </section>
+
+  <div class="disc" id="disc"></div>
+  <footer id="foot"></footer>
+</div>
+
+<script>
+const AUDIT = __AUDIT_DATA__;
+(function(){
+  const SEV = {
+    critical:{c:'var(--crit)',l:'Crítico'}, high:{c:'var(--high)',l:'Alto'},
+    medium:{c:'var(--med)',l:'Medio'}, low:{c:'var(--low)',l:'Bajo'}, info:{c:'var(--info)',l:'Info'}
+  };
+  const RANK = {critical:0,high:1,medium:2,low:3,info:4};
+  const A = AUDIT || {}; const M = A.meta||{}; const C = A.counts||{};
+  const esc = s => String(s==null?'':s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const $ = id => document.getElementById(id);
+
+  // header
+  document.title = 'Auditoría · ' + (M.project||'proyecto');
+  $('h-title').textContent = 'Auditoría de Seguridad · ' + (M.project||'');
+  const meta = $('h-meta');
+  const chip=(html,cls)=>{const d=document.createElement('div');d.className='chip'+(cls?' '+cls:'');d.innerHTML=html;meta.appendChild(d);};
+  if(M.target_url) chip('Objetivo <b>'+esc(M.target_url)+'</b>');
+  chip('Alcance <b>'+esc(M.scope||'full')+'</b>');
+  chip('Fecha <b>'+esc(M.date||'')+'</b>');
+  if(M.scan_id) chip('Scan <b>'+esc(M.scan_id)+'</b>');
+  if(M.authorized_by) chip('Autorizado por <b>'+esc(M.authorized_by)+'</b>','auth');
+
+  // score ring + grade
+  const score = Math.max(0,Math.min(100,+M.overall_score||0));
+  const gradeColor = score>=90?'var(--low)':score>=75?'#3d9970':score>=50?'var(--med)':score>=25?'var(--high)':'var(--crit)';
+  const ring=$('ring'); ring.style.setProperty('--v',score); ring.style.setProperty('--c',gradeColor);
+  $('score').textContent=score;
+  $('grade').textContent=M.grade||'–'; $('grade').style.color=gradeColor;
+  $('verdict').textContent=M.verdict||'';
+
+  // severity pills
+  const sevrow=$('sevrow');
+  ['critical','high','medium','low','info'].forEach(k=>{
+    const n=+C[k]||0; const d=document.createElement('div'); d.className='sevpill';
+    d.innerHTML='<span class="dot" style="background:'+SEV[k].c+'"></span>'+SEV[k].l+' <b style="margin-left:4px">'+n+'</b>';
+    sevrow.appendChild(d);
+  });
+
+  // donut + legend
+  const total=['critical','high','medium','low','info'].reduce((s,k)=>s+(+C[k]||0),0)||1;
+  let acc=0,stops=[];
+  ['critical','high','medium','low','info'].forEach(k=>{
+    const n=+C[k]||0; if(!n)return; const from=acc/total*360, to=(acc+n)/total*360; acc+=n;
+    stops.push(SEV[k].c+' '+from.toFixed(1)+'deg '+to.toFixed(1)+'deg');
+  });
+  $('donut').style.background = stops.length?'conic-gradient('+stops.join(',')+')':'#eef1f6';
+  const legend=$('legend');
+  ['critical','high','medium','low','info'].forEach(k=>{
+    const n=+C[k]||0; const li=document.createElement('div'); li.className='li';
+    li.innerHTML='<span class="dot" style="background:'+SEV[k].c+'"></span>'+SEV[k].l+' <b>'+n+'</b>';
+    legend.appendChild(li);
+  });
+
+  // areas
+  const areas=$('areas');
+  (A.areas||[]).forEach(ar=>{
+    const sc=Math.max(0,Math.min(100,+ar.score||0));
+    const col=sc>=75?'var(--low)':sc>=50?'var(--med)':sc>=25?'var(--high)':'var(--crit)';
+    const d=document.createElement('div'); d.className='area';
+    d.innerHTML='<div class="top"><span class="name">'+esc(ar.name||ar.key)+
+      (ar.weight?' <span class="tag">peso '+esc(ar.weight)+'%</span>':'')+
+      '</span><span class="sc">'+sc+'/100</span></div>'+
+      '<div class="track"><div class="fill" style="width:'+sc+'%;background:'+col+'"></div></div>'+
+      (ar.summary?'<div class="desc">'+esc(ar.summary)+'</div>':'');
+    areas.appendChild(d);
+  });
+
+  // trend
+  if(A.trend){
+    $('trend-sec').style.display='';
+    $('trend-prev').textContent = A.trend.previous_scan? ('Comparado con '+A.trend.previous_scan):'';
+    const t=$('trend'); const tc=(n,l,c)=>{const d=document.createElement('div');d.className='tcard';
+      d.innerHTML='<div class="n" style="color:'+c+'">'+n+'</div><div class="l">'+l+'</div>';t.appendChild(d);};
+    tc((A.trend.new||[]).length,'Nuevos','var(--high)');
+    tc((A.trend.fixed||[]).length,'Corregidos','var(--low)');
+    tc((A.trend.recurring||[]).length,'Recurrentes','var(--med)');
+  }
+
+  // sort findings
+  const F=(A.findings||[]).slice().sort((a,b)=>(RANK[a.severity]??9)-(RANK[b.severity]??9));
+
+  // remediation queue
+  const buckets={now:[],sprint:[],month:[],backlog:[]};
+  F.forEach(f=>{const s=f.severity;
+    if(s==='critical')buckets.now.push(f); else if(s==='high')buckets.sprint.push(f);
+    else if(s==='medium')buckets.month.push(f); else buckets.backlog.push(f);});
+  const q=$('queue');
+  const qbox=(title,arr)=>{const d=document.createElement('div');d.className='qbox';
+    let ol='<ol>'+(arr.length?arr.map(f=>'<li>'+esc(f.title)+'</li>').join(''):'<li style="color:var(--muted)">— nada —</li>')+'</ol>';
+    d.innerHTML='<h3>'+title+' <span class="tag">'+arr.length+'</span></h3>'+ol;q.appendChild(d);};
+  qbox('Ahora (crítico)',buckets.now); qbox('Este sprint (alto)',buckets.sprint);
+  qbox('Este mes (medio)',buckets.month); qbox('Backlog (bajo/info)',buckets.backlog);
+
+  // findings cards
+  const box=$('findings');
+  if(!F.length){box.innerHTML='<p class="sub">Sin hallazgos registrados.</p>';}
+  F.forEach(f=>{
+    const sev=SEV[f.severity]||SEV.info;
+    const card=document.createElement('div'); card.className='fcard'; card.style.borderLeftColor=sev.c;
+    const head=document.createElement('div'); head.className='fhead';
+    head.innerHTML=
+      '<span class="badge" style="background:'+sev.c+'">'+sev.l+'</span>'+
+      '<div><div class="ftitle">'+esc(f.title||'')+'</div>'+
+      '<div class="fmeta">'+
+        (f.source?'<span class="src '+esc(f.source)+'">'+esc(f.source.toUpperCase())+'</span>':'')+
+        (f.cwe?'<span class="tag">'+esc(f.cwe)+'</span>':'')+
+        (f.owasp?'<span class="tag">'+esc(f.owasp)+'</span>':'')+
+        (f.confidence?'<span class="tag">confianza '+esc(f.confidence)+'</span>':'')+
+        (f.location?'<span class="loc">'+esc(f.location)+'</span>':'')+
+      '</div></div>'+
+      '<span class="fid">'+esc(f.id||'')+'</span>';
+    const body=document.createElement('div'); body.className='fbody';
+    const blk=(k,v,cls)=>v?('<div class="block '+(cls||'')+'"><div class="k">'+k+'</div><div class="v">'+esc(v)+'</div></div>'):'';
+    body.innerHTML=blk('Qué es',f.what)+blk('Por qué importa',f.why)+
+      blk('Cómo se explota',f.exploit,'exploit')+blk('Cómo corregirlo',f.fix,'fix')+
+      (f.evidence?'<div class="block"><div class="k">Evidencia</div><pre>'+esc(f.evidence)+'</pre></div>':'');
+    head.addEventListener('click',()=>body.classList.toggle('open'));
+    card.appendChild(head); card.appendChild(body); box.appendChild(card);
+  });
+
+  // tools
+  const tools=$('tools');
+  (M.tools_used||[]).forEach(t=>{const d=document.createElement('div');d.className='tool';d.textContent=t;tools.appendChild(d);});
+
+  // disclaimer + footer
+  $('disc').innerHTML='<b>Alcance autorizado.</b> Esta evaluación se ha realizado sobre un entorno '+
+    '<b>local/privado</b> propiedad del solicitante, con fines defensivos. El componente activo (DAST) '+
+    'solo opera contra hosts locales; no debe usarse contra sistemas de terceros sin autorización expresa.';
+  $('foot').innerHTML='Generado por el agente <b>nemesis</b> · '+esc(M.date||'')+
+    ' · informe autocontenido (sin conexión).';
+})();
+</script>
+</body>
+</html>
