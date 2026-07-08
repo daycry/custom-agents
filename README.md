@@ -1,6 +1,6 @@
 # claude-agents
 
-Agentes custom para **Claude Code**, empaquetados como plugin instalable. Incluye tres agentes y una skill compartida, pensados para reutilizarse en cualquier proyecto.
+Agentes custom para **Claude Code**, empaquetados como plugin instalable. Incluye cuatro agentes y dos skills compartidas, pensados para reutilizarse en cualquier proyecto.
 
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
@@ -9,10 +9,13 @@ Agentes custom para **Claude Code**, empaquetados como plugin instalable. Incluy
 | Agente | Qué hace |
 |--------|----------|
 | **nemesis** | Auditoría de ciberseguridad end-to-end: SAST (análisis estático, skill `cybersecurity`) + DAST (pentest activo **solo local**), con memoria persistente e informe visual `index.html`. |
+| **evaluator** | Evalúa/presupuesta una **especificación** de `docs/specs/` (la crea si llega por el prompt) en `docs/evaluations/`: esfuerzo, coste € y previsión de tokens. Hace *handoff* a `planner`. |
 | **planner** | Genera planes de implementación detallados y **presupuestados** (tiempo, coste €, previsión de tokens) en `docs/plans/`. |
-| **evaluator** | Evalúa/presupuesta el coste de implementar características a partir de un documento de requerimientos, en `docs/evaluations/`. Hace *handoff* a `planner`. |
+| **pdfy** | Convierte archivos a **PDF con aspecto moderno** (Markdown, HTML y Word → PDF vía Chromium headless + tema CSS), usando la skill `to-pdf`. |
 
-Skill compartida: **cybersecurity** (revisión de seguridad en 8 dimensiones: OWASP, CWE, secretos, dependencias, IaC, threat intel, autorización, compliance).
+Skills compartidas:
+- **cybersecurity** — revisión de seguridad en 8 dimensiones (OWASP, CWE, secretos, dependencias, IaC, threat intel, autorización, compliance). La usa `nemesis`.
+- **to-pdf** — conversión de Markdown/HTML/Word a PDF con tema moderno. La usa `pdfy`.
 
 ## Instalación (recomendada: plugin)
 
@@ -23,7 +26,9 @@ En Claude Code, dentro de cualquier proyecto:
 /plugin install custom-agents@daycry
 ```
 
-Los tres agentes quedan disponibles en **todos los proyectos** de la máquina. Comprueba con `/agents`.
+Los agentes quedan disponibles en **todos los proyectos** de la máquina. Comprueba con `/agents`.
+
+> **Nota:** los comandos `/plugin` funcionan en la **CLI de Claude Code** (terminal), no en la extensión de VS Code ni en la app de escritorio. Si usas un IDE, instala a nivel usuario (ver abajo).
 
 <details>
 <summary>Otras vías (probar rápido o nivel usuario)</summary>
@@ -51,16 +56,24 @@ Detalle completo en [`docs/INSTALL.md`](docs/INSTALL.md).
 Invoca un agente por su nombre, o deja que Claude delegue automáticamente:
 
 ```
-@nemesis audita la seguridad de este proyecto
+@evaluator presupuesta esta especificación: …
 @planner prepara un plan para añadir autenticación 2FA
-@evaluator presupuesta lo que pide docs/requerimientos/RFP.md
+@nemesis audita la seguridad de este proyecto
+@pdfy convierte a PDF docs/informe.docx
 ```
 
-Cada agente hace un onboarding breve la primera vez (confirma parámetros y, en el caso de `nemesis`, pide permiso antes de instalar herramientas).
+Cada agente hace un onboarding breve la primera vez (confirma parámetros y, en el caso de `nemesis`/`pdfy`, pide permiso antes de instalar herramientas).
 
 ## Cómo encaja
 
-`evaluator` → decides **qué** hacer y cuánto cuesta → `planner` genera el **plan** detallado → `nemesis` **audita** la seguridad de lo construido.
+Cadena de trabajo:
+
+```
+docs/specs/<slug>.md          →  docs/evaluations/<fecha>-<slug>/  →  docs/plans/<fecha>-<slug>/
+   (spec: QUÉ)                     (evaluator: CUÁNTO / conviene)       (planner: CÓMO, paso a paso)
+```
+
+`evaluator` especifica y presupuesta → `planner` genera el plan detallado → se implementa → `nemesis` **audita** la seguridad de lo construido. Los tres artefactos (spec, evaluación, plan) se **referencian entre sí** y se actualizan según se crean. `pdfy` exporta cualquiera de esos documentos (u otros) a **PDF** con aspecto moderno.
 
 ## Estructura
 

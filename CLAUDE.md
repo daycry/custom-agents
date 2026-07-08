@@ -30,13 +30,14 @@ custom-agents/               (se despliega como .claude/)
 - **Un agente = un nombre único en kebab-case**, usado igual en `agents/<nombre>.md`, `agent-kits/<nombre>/` y `docs/agents/<nombre>.md`. El `name:` del frontmatter debe coincidir.
 - **Compartido vs. privado:** si un recurso lo usará más de un agente, va en `skills/`; si es específico de uno, en `agent-kits/<agente>/`.
 - **Dependencias en el frontmatter del agente** (bloque `dependencies:` con `skills`, `kits`, `agents`). Es la fuente de verdad; Claude Code ignora esas claves extra pero a nosotros nos dan el grafo de un vistazo.
-- **Rutas en scripts:** relativas entre sí (`dirname "$BASH_SOURCE"`), nunca absolutas del repo. El agente `.md` invoca su toolkit con la ruta de despliegue `.claude/agent-kits/<nombre>/...` y las skills con `.claude/skills/<skill>/`.
+- **Rutas en scripts:** relativas entre sí (`dirname "$BASH_SOURCE"`), nunca absolutas del repo. El agente `.md` **no** usa rutas fijas a su kit/skill: las resuelve en runtime con `find` sobre `$PWD/.claude` y `$HOME/.claude`, para que funcione en scope proyecto, usuario o plugin (ver regla 5 de `docs/CONVENTIONS.md`).
 
 ## Agentes actuales
 
 - **nemesis** — auditoría de ciberseguridad end-to-end: SAST (skill `cybersecurity`) + DAST/pentest activo local (kit `agent-kits/nemesis`), con memoria e informe visual. Doc: `docs/agents/nemesis.md`.
 - **planner** — genera planes de implementación detallados y presupuestados (tiempo, coste €, tokens) en `docs/plans/<fecha>-<slug>/` (kit `agent-kits/planner`). Doc: `docs/agents/planner.md`.
 - **evaluator** — evalúa/presupuesta una spec de `docs/specs/` (si llega por prompt, la crea primero) y escribe en `docs/evaluations/<fecha>-<slug>/` (kit `agent-kits/evaluator`); enlaza spec↔evaluación y hace handoff a `planner`. Doc: `docs/agents/evaluator.md`.
+- **pdfy** — convierte archivos a PDF con aspecto moderno (Markdown, HTML y Word → PDF vía Chromium headless + tema CSS), usando la skill compartida `to-pdf`. Doc: `docs/agents/pdfy.md`.
 
 **Cadena de artefactos:** `docs/specs/<slug>.md` → `docs/evaluations/<fecha>-<slug>/` → `docs/plans/<fecha>-<slug>/`, con referencias bidireccionales que se rellenan según se crea cada uno (ver regla 7 de `docs/CONVENTIONS.md`).
 

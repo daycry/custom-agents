@@ -1,0 +1,12 @@
+{
+  "name": "to-pdf",
+  "private": true,
+  "type": "module",
+  "version": "1.0.0",
+  "description": "Conversor a PDF (md/html/docx -> HTML+CSS -> PDF con Chromium headless).",
+  "dependencies": {
+    "markdown-it": "^14.1.0",
+    "mammoth": "^1.8.0",
+    "puppeteer": "^23.0.0"
+  }
+}
