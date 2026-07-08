@@ -17,7 +17,8 @@
 | **Estado** | 📝 borrador |
 | **Prioridad global** | 🟡 Media |
 | **Solicitante** | {{nombre}} |
-| **Documento de requerimientos** | {{ruta o referencia del doc origen}} |
+| **Spec** | [`docs/specs/{{slug}}.md`](../../specs/{{slug}}.md) |
+| **Plan** | {{[`docs/plans/<fecha>-<slug>/improvement-plan.md`](../../plans/<fecha>-<slug>/improvement-plan.md) — o «pendiente (handoff a planner)»}} |
 | **Características evaluadas** | {{N}} |
 
 ---

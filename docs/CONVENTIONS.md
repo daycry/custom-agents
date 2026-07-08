@@ -80,3 +80,26 @@ Notas:
 4. Escribe la doc en `docs/agents/<nombre>.md`.
 5. Añade la fila correspondiente en `docs/README.md` (agentes y, si aplica, skills).
 6. Verifica que no haya rutas absolutas rotas ni nombres duplicados.
+
+## 7. Cadena de artefactos: spec → evaluación → plan
+
+Los agentes `evaluator` y `planner` producen artefactos en el proyecto, enlazados en una cadena. **Comparten `<slug>`** para que sea trazable de punta a punta.
+
+```
+docs/specs/<slug>.md                          # QUÉ se quiere (especificación)
+   └─ docs/evaluations/<fecha>-<slug>/evaluation.md   # CUÁNTO cuesta / si conviene
+         └─ docs/plans/<fecha>-<slug>/improvement-plan.md (+ TASKS.md)  # CÓMO se ejecuta
+```
+
+Estados por artefacto (vocabularios distintos, a propósito):
+
+- **spec:** `borrador` · `aprobada` · `implementada` · `obsoleta`.
+- **evaluación / plan:** `borrador` 📝 · `en-progreso` 🚧 · `en-revision` 🔍 · `completado` ✅ · `cancelado` ❌.
+
+Reglas de enlazado (**bidireccional** y **se informa según se crea**):
+
+- La `spec` lleva en su frontmatter `evaluacion:` y `plan:` (o `pendiente`), más callouts al inicio.
+- La `evaluation.md` lleva filas **Spec** y **Plan**; el `improvement-plan.md` lleva filas **Spec** y **Evaluación**.
+- Al **crear la evaluación** desde una spec: rellena su fila **Spec** y **actualiza la spec** (`evaluacion:` + callout) para que apunte a la evaluación.
+- Al **crear el plan** desde una evaluación/spec: rellena sus filas **Spec/Evaluación** y **actualiza hacia atrás** el `plan:` de la spec y la fila **Plan** de la evaluación.
+- Rutas de enlace **relativas** entre carpetas de `docs/` (p. ej. desde `docs/evaluations/<f>-<slug>/` a la spec: `../../specs/<slug>.md`).

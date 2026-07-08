@@ -17,6 +17,8 @@
 | **Prioridad** | 🟡 Media |
 | **Solicitante** | {{nombre}} |
 | **Responsable** | {{nombre}} |
+| **Spec** | {{[`docs/specs/<slug>.md`](../../specs/<slug>.md) — o «n/a»}} |
+| **Evaluación** | {{[`docs/evaluations/<fecha>-<slug>/evaluation.md`](../../evaluations/<fecha>-<slug>/evaluation.md) — o «n/a»}} |
 
 ---
 
