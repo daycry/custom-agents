@@ -10,7 +10,7 @@ Antes de añadir o tocar un agente, lee [`CONVENTIONS.md`](CONVENTIONS.md): defi
 |--------|----------|--------------|---------------|
 | **nemesis** | Auditoría de ciberseguridad end-to-end: SAST (estático) + DAST (pentest activo local), memoria e informe visual. | skill `cybersecurity`, kit `agent-kits/nemesis` | [nemesis.md](agents/nemesis.md) · [presentación](agents/nemesis-presentacion.md) · [toolkit](agents/nemesis-toolkit.md) |
 | **planner** | Genera planes de implementación detallados y presupuestados (tiempo, coste €, tokens) en `docs/plans/`. | kit `agent-kits/planner` | [planner.md](agents/planner.md) |
-| **evaluator** | Evalúa/presupuesta el coste de implementar características a partir de un documento de requerimientos (`docs/evaluations/`). Handoff a `planner`. | kit `agent-kits/evaluator`, agente `planner` | [evaluator.md](agents/evaluator.md) |
+| **evaluator** | Evalúa/presupuesta una spec de `docs/specs/` (la crea si llega por prompt) → `docs/evaluations/`. Enlaza spec↔evaluación y hace handoff a `planner`. | kit `agent-kits/evaluator`, agente `planner` | [evaluator.md](agents/evaluator.md) |
 
 ## Skills compartidas
 

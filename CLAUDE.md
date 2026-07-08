@@ -36,7 +36,9 @@ custom-agents/               (se despliega como .claude/)
 
 - **nemesis** — auditoría de ciberseguridad end-to-end: SAST (skill `cybersecurity`) + DAST/pentest activo local (kit `agent-kits/nemesis`), con memoria e informe visual. Doc: `docs/agents/nemesis.md`.
 - **planner** — genera planes de implementación detallados y presupuestados (tiempo, coste €, tokens) en `docs/plans/<fecha>-<slug>/` (kit `agent-kits/planner`). Doc: `docs/agents/planner.md`.
-- **evaluator** — evalúa/presupuesta el coste de implementar características a partir de un documento de requerimientos, en `docs/evaluations/<fecha>-<slug>/` (kit `agent-kits/evaluator`); hace handoff a `planner`. Doc: `docs/agents/evaluator.md`.
+- **evaluator** — evalúa/presupuesta una spec de `docs/specs/` (si llega por prompt, la crea primero) y escribe en `docs/evaluations/<fecha>-<slug>/` (kit `agent-kits/evaluator`); enlaza spec↔evaluación y hace handoff a `planner`. Doc: `docs/agents/evaluator.md`.
+
+**Cadena de artefactos:** `docs/specs/<slug>.md` → `docs/evaluations/<fecha>-<slug>/` → `docs/plans/<fecha>-<slug>/`, con referencias bidireccionales que se rellenan según se crea cada uno (ver regla 7 de `docs/CONVENTIONS.md`).
 
 ## Invariante de seguridad (no negociable)
 

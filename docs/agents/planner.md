@@ -1,6 +1,8 @@
 # Documentación del agente `planner`
 
-Agente que convierte una petición ("quiero hacer X") en un **plan de implementación detallado y presupuestado**. No implementa: planifica. Su salida son dos ficheros Markdown por plan, guardados en `docs/plans/` del proyecto.
+Agente que convierte una petición ("quiero hacer X") — o una **spec/evaluación aprobada** — en un **plan de implementación detallado y presupuestado**. No implementa: planifica. Su salida son dos ficheros Markdown por plan, guardados en `docs/plans/` del proyecto.
+
+Es el último eslabón de la cadena **spec → evaluación → plan**: cuando el plan nace de una spec/evaluación, las referencia (filas **Spec** y **Evaluación** del `improvement-plan.md`) y **actualiza hacia atrás** el `plan:` de la spec y la fila **Plan** de la evaluación al crearse. Comparte `<slug>` con ellas.
 
 ---
 
