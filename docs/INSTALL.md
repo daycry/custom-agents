@@ -1,10 +1,10 @@
 # Instalación y despliegue
 
-Bundle de agentes custom para Claude Code: **nemesis** (auditoría SAST+DAST), **planner** (planes presupuestados) y **evaluator** (evaluación de requerimientos), más la skill compartida **cybersecurity**.
+Bundle de agentes custom para Claude Code: **nemesis** (auditoría SAST+DAST), **evaluator** (evalúa/presupuesta specs), **planner** (planes presupuestados) y **pdfy** (conversión a PDF), más las skills compartidas **cybersecurity** y **to-pdf**.
 
 Contenido (todo cuelga de la raíz del bundle, que se despliega como `.claude/`):
 - `agents/*.md` — definiciones de los agentes.
-- `skills/cybersecurity/` — skill SAST compartida.
+- `skills/<skill>/` — skills compartidas (`cybersecurity`, `to-pdf`).
 - `agent-kits/<agente>/` — toolkits/plantillas privadas de cada agente.
 - `.claude-plugin/` — manifiesto de plugin y marketplace (para la vía 3).
 - `docs/` — documentación (no se carga como código; el loader la ignora).
@@ -25,7 +25,7 @@ ln -s "/ruta/al/repo/custom-agents" "/ruta/al/proyecto/.claude"
 cp -r "/ruta/al/repo/custom-agents/." "/ruta/al/proyecto/.claude/"
 ```
 
-En Claude Code, dentro del proyecto: `/agents` para verlos e invócalos con `@nemesis`, `@planner`, `@evaluator` (o "usa el agente …").
+En Claude Code, dentro del proyecto: `/agents` para verlos e invócalos con `@nemesis`, `@evaluator`, `@planner`, `@pdfy` (o "usa el agente …").
 
 ---
 
@@ -45,16 +45,62 @@ El resolvedor de ruta encuentra los kits en `~/.claude/agent-kits/…` automáti
 
 ## Vía 3 — Plugin + marketplace (recomendado, escalable y para el equipo)
 
-El bundle ya incluye `.claude-plugin/plugin.json` y `.claude-plugin/marketplace.json`. Publica el repo en git (GitHub/GitLab) y, en cualquier proyecto:
+El bundle ya incluye `.claude-plugin/plugin.json` y `.claude-plugin/marketplace.json`. Publica el repo en git (GitHub) y añádelo como marketplace. Dos formas según dónde trabajes:
+
+**a) CLI de Claude Code (terminal).** Abre una terminal, lanza `claude` y, dentro de la sesión:
 
 ```
 /plugin marketplace add daycry/claude-agents
 /plugin install custom-agents@daycry
 ```
 
-Tras instalar, los tres agentes quedan disponibles en **todos los proyectos** de la máquina. Actualizaciones: publicas nueva versión en git y `/plugin` la ofrece.
+**b) Claude Desktop / Cowork (interfaz).** Menú **Customize** (barra lateral) → pestaña **Plugins**. En Cowork, abre antes la pestaña **Cowork**. En **Personal plugins**, botón **"+"** → **Add marketplace** → **Add from a repository** → pega la URL del repo (`https://github.com/daycry/claude-agents.git`). Después **Install** en el plugin `custom-agents`.
 
-> **Caveat conocido.** En Claude Code, `${CLAUDE_PLUGIN_ROOT}` no se expande dentro del markdown de agentes/skills. Por eso los agentes NO usan rutas fijas: resuelven su kit con `find` sobre `$PWD/.claude` y `$HOME/.claude` (el segundo cubre tanto `~/.claude/` como el caché de plugins `~/.claude/plugins/…`). Es la razón de que las tres vías funcionen sin tocar nada.
+Tras instalar, los agentes quedan disponibles en **todos los proyectos** de la máquina.
+
+> **Dónde corre cada cosa.** Los **comandos `/plugin …` solo funcionan en una sesión de Claude Code** (terminal con `claude`), **no** en la caja de chat normal. Los **sub-agentes se ejecutan solo en Cowork** (en el chat normal aparecen en gris); las **skills** funcionan en chat web, Chat de Desktop y Cowork.
+
+> **Caveat de rutas.** En Claude Code, `${CLAUDE_PLUGIN_ROOT}` no se expande dentro del markdown de agentes/skills. Por eso los agentes NO usan rutas fijas: resuelven su kit con `find` sobre `$PWD/.claude` y `$HOME/.claude` (el segundo cubre tanto `~/.claude/` como el caché de plugins `~/.claude/plugins/…`). Es la razón de que las tres vías funcionen sin tocar nada.
+
+---
+
+## Actualizar el plugin tras cambios en el repo
+
+**Regla de oro:** Claude Code detecta actualizaciones **por número de versión**, no por commit. Si publicas cambios sin subir la versión, `update` no verá nada.
+
+### Al publicar (autor del repo)
+1. Haz los cambios.
+2. **Sube la versión** en `.claude-plugin/plugin.json` **y** `.claude-plugin/marketplace.json` (p. ej. `1.1.0` → `1.1.1`).
+3. Commit + push al repo.
+
+### Al actualizar — CLI de Claude Code
+En una sesión `claude`:
+
+```
+/plugin marketplace update daycry
+/plugin update custom-agents@daycry
+/reload-plugins
+```
+
+### Al actualizar — Claude Desktop / Cowork (interfaz)
+**Customize → Plugins**, localiza el marketplace `daycry` y abre su menú (**⋯**).
+
+- Si el botón **Update / Actualizar** está activo, úsalo.
+- **Si el botón de actualizar aparece deshabilitado** (caso conocido): **quita el marketplace y vuelve a añadirlo** — menú **⋯ → Remove**, luego **"+" → Add marketplace → Add from a repository** con la URL del repo. Eso re-sincroniza la última versión. Reinstala el plugin si hiciera falta.
+
+### Si sigue mostrando la versión antigua (caché)
+El caché vive en `~/.claude/plugins/cache/` (una carpeta por versión). Reinstala:
+
+```
+/plugin uninstall custom-agents@daycry
+/plugin install custom-agents@daycry
+```
+
+o, opción nuclear, borra el caché y reinstala:
+
+```
+rm -rf ~/.claude/plugins/cache/
+```
 
 ---
 
