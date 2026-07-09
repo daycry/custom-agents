@@ -52,6 +52,18 @@ cp -r claude-agents/agent-kits/. "$HOME/.claude/agent-kits/"
 Detalle completo en [`docs/INSTALL.md`](docs/INSTALL.md).
 </details>
 
+## Actualizar
+
+Los plugins **no se auto-actualizan**, y la actualización se detecta **por número de versión** (sube `version` en `.claude-plugin/plugin.json` **y** `marketplace.json` al publicar).
+
+1. **Publica** los cambios en el repo (nueva versión + push; opcional tag).
+2. **Actualiza en tu cliente:**
+   - **CLI de Claude Code:** `/plugin marketplace update daycry` → `/plugin update custom-agents@daycry` → `/reload-plugins`.
+   - **Claude Desktop / Cowork (UI):** menú **Customize → Plugins**, en el marketplace `daycry` usa **Actualizar**. Si el botón está **deshabilitado**, **quítalo y vuelve a añadirlo** (menú **⋯ → Remove**, luego **"+" → Add marketplace → Add from a repository** con la URL del repo).
+3. Si sigue mostrando la versión antigua (caché): reinstala (`/plugin uninstall` + `/plugin install`) o borra `~/.claude/plugins/cache/`.
+
+Detalle en [`docs/INSTALL.md`](docs/INSTALL.md) (sección *Actualizar el plugin*).
+
 ## Uso
 
 Invoca un agente por su nombre, o deja que Claude delegue automáticamente:

@@ -70,8 +70,10 @@ Tras instalar, los agentes quedan disponibles en **todos los proyectos** de la m
 
 ### Al publicar (autor del repo)
 1. Haz los cambios.
-2. **Sube la versión** en `.claude-plugin/plugin.json` **y** `.claude-plugin/marketplace.json` (p. ej. `1.1.0` → `1.1.1`).
-3. Commit + push al repo.
+2. **Sube la versión** en `.claude-plugin/plugin.json` **y** `.claude-plugin/marketplace.json` (p. ej. `1.2.0` → `1.2.1`). Ambos deben quedar con el **mismo** número; si no coinciden o no suben, el cliente no detecta la actualización.
+3. Commit + push al repo (opcional: tag `vX.Y.Z`).
+
+> Versión actual publicada-pendiente: **1.2.0** (ya reflejada en ambos manifiestos).
 
 ### Al actualizar — CLI de Claude Code
 En una sesión `claude`:
