@@ -120,6 +120,11 @@ Calcula `SCAN=$(date +%Y-%m-%d_%H%M)` y `DIR="docs/security-scan/$SCAN"` (créal
 **F2. SAST (código)** — ejecuta el skill `cybersecurity`:
 - Si tienes disponible la herramienta Skill, invócala: skill `cybersecurity` con el path del proyecto y el `--scope`.
 - Si no, localiza y sigue el `SKILL.md` de la skill `cybersecurity` (`SKILL=$(find "$PWD/.claude" "$HOME/.claude" -type f -path '*skills/cybersecurity/SKILL.md' 2>/dev/null | head -1)`): haz la recon, lanza los agentes especialistas (Agent tool) con sus ficheros de `references/`, y agrega. Guarda el resultado en `$DIR/static-audit.md`.
+- **Escáneres estáticos reales** (si están instalados; complementan la skill, sin guardrail porque no hay host):
+  ```bash
+  bash "$NEMKIT/tools/run-static.sh" "<PROYECTO>" "$DIR"   # trivy fs (deps) + hadolint (iac) -> raw/
+  ```
+  Lee `$DIR/raw/trivy.json` y `$DIR/raw/hadolint.json` e interprétalos en F4 (ver §5).
 
 **F3. DAST (target vivo)** — solo si hay target local y alcance incluye DAST:
 ```bash
@@ -155,6 +160,8 @@ Si no hay `php`, usa el fallback: `node`/`python` para inyectar el JSON en `__AU
 - **httpx**: fingerprint (tech/título/server) → contexto, normalmente Info.
 - **wafw00f**: presencia/ausencia de WAF → Info.
 - **gitleaks** (opcional, sobre el repo): `gitleaks detect --no-git -s <proyecto>` para secretos en árbol de trabajo.
+- **trivy** (estático): `$DIR/raw/trivy.json` — vulnerabilidades de dependencias. Cada `Results[].Vulnerabilities[]` → un finding `source=sast`, `area=deps`, severidad mapeada (CRITICAL/HIGH/MEDIUM/LOW), `id`=`VulnerabilityID` (CVE), `location`=`Target` + `PkgName@InstalledVersion`, `fix`=`FixedVersion` si existe. **Deduplica** contra dependencias ya señaladas por la skill (sube confianza, no dupliques). Si `raw/trivy.err` indica fallo de BD/red, decláralo en `tools_used` (cobertura parcial).
+- **hadolint** (estático): `$DIR/raw/hadolint.json` — array de objetos `{file,line,code,level,message}`. Cada uno → finding `source=sast`, `area=iac`, severidad por `level` (error→High, warning→Medium, info/style→Low), `location`=`file:line`, regla=`code` (`DLxxxx`). Si no había Dockerfile, anótalo como N/A.
 
 ---
 

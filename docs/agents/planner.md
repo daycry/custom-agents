@@ -1,6 +1,6 @@
 # Documentación del agente `planner`
 
-Agente que convierte una petición ("quiero hacer X") — o una **spec/evaluación aprobada** — en un **plan de implementación detallado y presupuestado**. No implementa: planifica. Su salida son dos ficheros Markdown por plan, guardados en `docs/plans/` del proyecto.
+Agente que convierte una petición ("quiero hacer X") — o una **spec/evaluación aprobada** — en un **plan de implementación detallado y presupuestado**. No implementa: planifica. Su salida son dos ficheros Markdown por plan, guardados en `docs/roadmap/` del proyecto.
 
 Es el último eslabón de la cadena **spec → evaluación → plan**: cuando el plan nace de una spec/evaluación, las referencia (filas **Spec** y **Evaluación** del `improvement-plan.md`) y **actualiza hacia atrás** el `plan:` de la spec y la fila **Plan** de la evaluación al crearse. Comparte `<slug>` con ellas.
 
@@ -8,12 +8,12 @@ Es el último eslabón de la cadena **spec → evaluación → plan**: cuando el
 
 ## 1. Qué produce
 
-Por cada plan crea una carpeta `docs/plans/<YYYY-MM-DD>-<slug>/` con dos ficheros de formato fijo:
+Por cada plan crea una carpeta `docs/roadmap/<YYYY-MM-DD>-<slug>/` con dos ficheros de formato fijo:
 
 | Fichero | Contenido |
 |---------|-----------|
 | `improvement-plan.md` | Cuadro de mando, estimación por fase, presupuesto económico, previsión de tokens, resumen ejecutivo, objetivos, datos necesarios, análisis de impacto, cambios arquitectónicos, archivos, dependencias, criterios de aceptación, riesgos y mitigaciones, métricas de éxito, changelog. |
-| `TASKS.md` | Resumen de progreso + fases, con cada tarea estructurada: descripción, estado, tiempo, previsión de tokens/coste, dependencias, archivos, criterios de aceptación (checkboxes) y subtareas. |
+| `tasks.md` | Resumen de progreso + fases, con cada tarea estructurada: descripción, estado, tiempo, previsión de tokens/coste, dependencias, archivos, criterios de aceptación (checkboxes) y subtareas. |
 
 Las plantillas base viven en `agent-kits/planner/templates/` y son el formato canónico: el agente las copia y rellena, no improvisa otro formato.
 
@@ -39,7 +39,7 @@ Los supuestos (tarifa, modelo, precio de tokens, tipo de cambio USD→EUR) queda
 3. **Descomposición** — fases → tareas con ID `T-01`, `T-02`…
 4. **Estimación** — tiempo, tokens y coste por tarea/fase, con método declarado.
 5. **Redacción** — rellena las dos plantillas (sustituye placeholders, elimina comentarios guía).
-6. **Cierre** — escribe los ficheros, actualiza `docs/plans/README.md` y resume ruta, tiempo, coste, tokens y nº de tareas.
+6. **Cierre** — escribe los ficheros, actualiza `docs/roadmap/README.md` y resume ruta, tiempo, coste, tokens y nº de tareas.
 
 ---
 
@@ -51,13 +51,13 @@ Dentro del proyecto, en Claude Code:
 - `planner, prepara un plan para añadir autenticación 2FA`
 - `genera un plan de refactor del módulo de caché`
 
-La primera vez confirma los parámetros de estimación (tarifa/hora, modelo, precios de tokens). Los planes quedan en `docs/plans/<fecha>-<slug>/`.
+La primera vez confirma los parámetros de estimación (tarifa/hora, modelo, precios de tokens). Los planes quedan en `docs/roadmap/<fecha>-<slug>/`.
 
 ---
 
 ## 5. Reglas clave
 
-El agente no implementa ni toca el código: solo lee el proyecto y escribe dentro de `docs/plans/`. Toda cifra lleva un método o supuesto detrás; lo no verificable se marca en lugar de inventarse. El formato es siempre el de las dos plantillas, con Markdown válido (línea en blanco antes de listas y tras encabezados, checkboxes reales). Los IDs de tarea son estables y, al actualizar un plan, se editan sus ficheros y se añade una línea al changelog en vez de duplicar carpetas.
+El agente no implementa ni toca el código: solo lee el proyecto y escribe dentro de `docs/roadmap/`. Toda cifra lleva un método o supuesto detrás; lo no verificable se marca en lugar de inventarse. El formato es siempre el de las dos plantillas, con Markdown válido (línea en blanco antes de listas y tras encabezados, checkboxes reales). Los IDs de tarea son estables y, al actualizar un plan, se editan sus ficheros y se añade una línea al changelog en vez de duplicar carpetas.
 
 ---
 

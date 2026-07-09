@@ -35,11 +35,12 @@ custom-agents/               (se despliega como .claude/)
 ## Agentes actuales
 
 - **nemesis** — auditoría de ciberseguridad end-to-end: SAST (skill `cybersecurity`) + DAST/pentest activo local (kit `agent-kits/nemesis`), con memoria e informe visual. Doc: `docs/agents/nemesis.md`.
-- **planner** — genera planes de implementación detallados y presupuestados (tiempo, coste €, tokens) en `docs/plans/<fecha>-<slug>/` (kit `agent-kits/planner`). Doc: `docs/agents/planner.md`.
-- **evaluator** — evalúa/presupuesta una spec de `docs/specs/` (si llega por prompt, la crea primero) y escribe en `docs/evaluations/<fecha>-<slug>/` (kit `agent-kits/evaluator`); enlaza spec↔evaluación y hace handoff a `planner`. Doc: `docs/agents/evaluator.md`.
+- **planner** — genera planes de implementación detallados y presupuestados (tiempo, coste €, tokens) en `docs/roadmap/<fecha>-<slug>/` (kit `agent-kits/planner`). Doc: `docs/agents/planner.md`.
+- **evaluator** — evalúa/presupuesta una spec (si llega por prompt, la crea primero) y escribe en `docs/roadmap/<fecha>-<slug>/` (kit `agent-kits/evaluator`); enlaza spec↔evaluación y hace handoff a `planner`. Doc: `docs/agents/evaluator.md`.
 - **pdfy** — convierte archivos a PDF con aspecto moderno (Markdown, HTML y Word → PDF vía Chromium headless + tema CSS), usando la skill compartida `to-pdf`. Doc: `docs/agents/pdfy.md`.
+- **qa** — audita un plan ejecutando E2E con Playwright (solo local, guardrail), captura evidencias y genera informe md+pdf con checklist manual en `docs/roadmap/<fecha>-<slug>/testing/` (kit `agent-kits/qa`, skill `to-pdf`). Doc: `docs/agents/qa.md`.
 
-**Cadena de artefactos:** `docs/specs/<slug>.md` → `docs/evaluations/<fecha>-<slug>/` → `docs/plans/<fecha>-<slug>/`, con referencias bidireccionales que se rellenan según se crea cada uno (ver regla 7 de `docs/CONVENTIONS.md`).
+**Cadena de artefactos (carpeta única por iniciativa):** `docs/roadmap/<fecha>-<slug>/` contiene `spec.md` → `evaluation.md` → `improvement-plan.md` + `tasks.md` (+ `testing/`), enlazados entre sí y rellenados según se crea cada uno (ver regla 7 de `docs/CONVENTIONS.md`).
 
 ## Invariante de seguridad (no negociable)
 

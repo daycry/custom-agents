@@ -1,0 +1,10 @@
+{
+  "name": "qa-runner",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Runner Playwright del agente qa: ejecuta los E2E-xx y produce results.json + capturas + trazas.",
+  "dependencies": {
+    "@playwright/test": "^1.47.0"
+  }
+}

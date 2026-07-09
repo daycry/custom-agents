@@ -1,20 +1,20 @@
 <!--
-  TEMPLATE: TASKS.md  ·  usado por el agente `planner`
+  TEMPLATE: tasks.md  · usado por el agente `planner`
   Sustituye todos los {{PLACEHOLDER}}. Una fase agrupa varias tareas; cada tarea lleva ID T-XX.
-  Estados (plan, fase y tarea): 📝 borrador · 🚧 en-progreso · 🔍 en-revision · ✅ completado · ❌ cancelado
+  Estados (plan, fase y tarea): borrador · en-progreso · en-revision · completado · cancelado
 -->
 
 # Checklist de Tareas — {{Título del plan}}
 
 | | |
 |---|---|
-| **Estado** | 📝 borrador |
+| **Estado** | borrador |
 | **Fecha** | {{YYYY-MM-DD}} |
 | **Plan** | [`improvement-plan.md`](./improvement-plan.md) |
 
 ---
 
-## 📊 Resumen de progreso
+## Resumen de progreso
 
 | Fase | Completadas | Total | Progreso | Horas (real/est) | Tokens (real/est) |
 |------|------------|-------|----------|------------------|-------------------|
@@ -25,20 +25,21 @@
 
 ---
 
-## 🏗️ Fase 1 — {{nombre}}
+## Fase 1 — {{nombre}}
 
-**Estado**: 📝 borrador · **Estimado**: {{X}}h · **Real**: — · **Coste est.**: {{X}} € · **Tokens est.**: {{X}}
+**Estado**: borrador · **Estimado**: {{X}}h · **Real**: — · **Coste est.**: {{X}} € · **Tokens est.**: {{X}}
 
 <!-- ============ BLOQUE DE TAREA (copia uno por cada tarea) ============ -->
 
 ### T-01 — {{Título de la tarea}}
 
 - **Descripción**: {{Qué hay que hacer y por qué, en 1-3 frases.}}
-- **Estado**: 📝 borrador
+- **Estado**: borrador
 - **Tiempo**: est. {{0.5}}h · real —
 - **Previsión IA**: {{15k}} in / {{5k}} out tok · {{X}} €
 - **Dependencias**: {{ninguna / T-00 / acceso a X}}
 - **Archivos**: `{{ruta}}`, `{{ruta}}`
+- **Cubre (tests)**: {{si es tarea de UI: E2E-0X / M-0X del `test-plan.md`; si no aplica: —}}
 
 **Criterios de aceptación**
 - [ ] {{Criterio verificable 1}}
@@ -55,7 +56,7 @@
 ### T-02 — {{Título de la tarea}}
 
 - **Descripción**: {{...}}
-- **Estado**: 📝 borrador
+- **Estado**: borrador
 - **Tiempo**: est. {{X}}h · real —
 - **Previsión IA**: {{X}} in / {{X}} out tok · {{X}} €
 - **Dependencias**: {{T-01}}
@@ -73,14 +74,14 @@
 
 ---
 
-## ⚙️ Fase 2 — {{nombre}}
+## Fase 2 — {{nombre}}
 
-**Estado**: 📝 borrador · **Estimado**: {{X}}h · **Real**: — · **Coste est.**: {{X}} € · **Tokens est.**: {{X}}
+**Estado**: borrador · **Estimado**: {{X}}h · **Real**: — · **Coste est.**: {{X}} € · **Tokens est.**: {{X}}
 
 ### T-03 — {{Título de la tarea}}
 
 - **Descripción**: {{...}}
-- **Estado**: 📝 borrador
+- **Estado**: borrador
 - **Tiempo**: est. {{X}}h · real —
 - **Previsión IA**: {{X}} in / {{X}} out tok · {{X}} €
 - **Dependencias**: {{...}}
@@ -96,14 +97,14 @@
 
 ---
 
-## 🧪 Fase N — Testing y validación
+## Fase N — Testing y validación
 
-**Estado**: 📝 borrador · **Estimado**: {{X}}h · **Real**: — · **Coste est.**: {{X}} € · **Tokens est.**: {{X}}
+**Estado**: borrador · **Estimado**: {{X}}h · **Real**: — · **Coste est.**: {{X}} € · **Tokens est.**: {{X}}
 
 ### T-NN — {{Título}}
 
 - **Descripción**: {{...}}
-- **Estado**: 📝 borrador
+- **Estado**: borrador
 - **Tiempo**: est. {{X}}h · real —
 - **Previsión IA**: {{X}} in / {{X}} out tok · {{X}} €
 - **Dependencias**: {{tareas previas}}
@@ -120,6 +121,6 @@
 
 ---
 
-## 📝 Notas de implementación
+## Notas de implementación
 
 _A completar durante la ejecución. Registra decisiones, desvíos de la estimación y aprendizajes._

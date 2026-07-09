@@ -1,6 +1,6 @@
 # claude-agents
 
-Agentes custom para **Claude Code**, empaquetados como plugin instalable. Incluye cuatro agentes y dos skills compartidas, pensados para reutilizarse en cualquier proyecto.
+Agentes custom para **Claude Code**, empaquetados como plugin instalable. Incluye cinco agentes y dos skills compartidas, pensados para reutilizarse en cualquier proyecto.
 
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
@@ -9,13 +9,14 @@ Agentes custom para **Claude Code**, empaquetados como plugin instalable. Incluy
 | Agente | Qué hace |
 |--------|----------|
 | **nemesis** | Auditoría de ciberseguridad end-to-end: SAST (análisis estático, skill `cybersecurity`) + DAST (pentest activo **solo local**), con memoria persistente e informe visual `index.html`. |
-| **evaluator** | Evalúa/presupuesta una **especificación** de `docs/specs/` (la crea si llega por el prompt) en `docs/evaluations/`: esfuerzo, coste € y previsión de tokens. Hace *handoff* a `planner`. |
-| **planner** | Genera planes de implementación detallados y **presupuestados** (tiempo, coste €, previsión de tokens) en `docs/plans/`. |
+| **evaluator** | Evalúa/presupuesta una **especificación** (la crea si llega por el prompt) en `docs/roadmap/<fecha>-<slug>/`: esfuerzo, coste € y previsión de tokens. Hace *handoff* a `planner`. |
+| **planner** | Genera planes de implementación detallados y **presupuestados** (tiempo, coste €, previsión de tokens) en `docs/roadmap/`. |
 | **pdfy** | Convierte archivos a **PDF con aspecto moderno** (Markdown, HTML y Word → PDF vía Chromium headless + tema CSS), usando la skill `to-pdf`. |
+| **qa** | Audita un plan ejecutando **E2E con Playwright** (solo local), captura evidencias y genera un informe md+pdf con checklist manual en `docs/roadmap/<slug>/testing/`. |
 
 Skills compartidas:
 - **cybersecurity** — revisión de seguridad en 8 dimensiones (OWASP, CWE, secretos, dependencias, IaC, threat intel, autorización, compliance). La usa `nemesis`.
-- **to-pdf** — conversión de Markdown/HTML/Word a PDF con tema moderno. La usa `pdfy`.
+- **to-pdf** — conversión de Markdown/HTML/Word a PDF con tema moderno. La usan `pdfy` y `qa`.
 
 ## Instalación (recomendada: plugin)
 
@@ -69,8 +70,12 @@ Cada agente hace un onboarding breve la primera vez (confirma parámetros y, en 
 Cadena de trabajo:
 
 ```
-docs/specs/<slug>.md          →  docs/evaluations/<fecha>-<slug>/  →  docs/plans/<fecha>-<slug>/
-   (spec: QUÉ)                     (evaluator: CUÁNTO / conviene)       (planner: CÓMO, paso a paso)
+docs/roadmap/<fecha>-<slug>/
+├── spec.md              (QUÉ se quiere)
+├── evaluation.md        (evaluator: CUÁNTO / si conviene)
+├── improvement-plan.md  (planner: CÓMO, paso a paso)
+├── tasks.md             (checklist de tareas)
+└── testing/             (qa: E2E + informe)
 ```
 
 `evaluator` especifica y presupuesta → `planner` genera el plan detallado → se implementa → `nemesis` **audita** la seguridad de lo construido. Los tres artefactos (spec, evaluación, plan) se **referencian entre sí** y se actualizan según se crean. `pdfy` exporta cualquiera de esos documentos (u otros) a **PDF** con aspecto moderno.

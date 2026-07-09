@@ -1,8 +1,8 @@
 <!--
-  TEMPLATE: improvement-plan.md  ·  usado por el agente `planner`
+  TEMPLATE: improvement-plan.md  · usado por el agente `planner`
   Sustituye todos los {{PLACEHOLDER}}. Borra este comentario y las notas <!-- guía --> al generar.
-  Estados válidos: 📝 borrador · 🚧 en-progreso · 🔍 en-revision · ✅ completado · ❌ cancelado
-  Prioridad: 🟢 Baja · 🟡 Media · 🟠 Alta · 🔴 Crítica
+  Estados válidos: borrador · en-progreso · en-revision · completado · cancelado
+  Prioridad: Baja · Media · Alta · Crítica
 -->
 
 # {{YYYY-MM-DD-slug}}
@@ -12,30 +12,32 @@
 | | |
 |---|---|
 | **Fecha** | {{YYYY-MM-DD}} |
-| **Estado** | 📝 borrador |
+| **Estado** | borrador |
 | **Tipo** | {{Nueva Funcionalidad / Refactor / Bugfix / Infra / Investigación}} |
-| **Prioridad** | 🟡 Media |
+| **Prioridad** | Media |
 | **Solicitante** | {{nombre}} |
 | **Responsable** | {{nombre}} |
-| **Spec** | {{[`docs/specs/<slug>.md`](../../specs/<slug>.md) — o «n/a»}} |
-| **Evaluación** | {{[`docs/evaluations/<fecha>-<slug>/evaluation.md`](../../evaluations/<fecha>-<slug>/evaluation.md) — o «n/a»}} |
+| **Spec** | {{[`spec.md`](spec.md) — o «n/a»}} |
+| **Evaluación** | {{[`evaluation.md`](evaluation.md) — o «n/a»}} |
 
 ---
 
-## 🎛️ Cuadro de mando
+## Cuadro de mando
 
 | Métrica | Estimado | Real | Confianza |
 |--------|---------|------|-----------|
-| ⏱️ Tiempo | **{{X}}h** | {{0}}h | {{Alta / Media / Baja}} |
-| 💶 Coste total | **{{X}} €** | {{0}} € | {{Alta / Media / Baja}} |
-| 🔢 Tokens IA | **{{X}}** (in {{X}} / out {{X}}) | {{0}} | {{Alta / Media / Baja}} |
-| 📦 Tareas | **{{N}}** | {{0}} hechas | — |
+| Tiempo humano | **{{X}}h** ({{X}}h base +20 %) | {{0}}h | {{Alta / Media / Baja}} |
+| Tiempo IA (ejecución) | **{{X}}h** (+ {{X}}h supervisión) | {{0}}h | {{Alta / Media / Baja}} |
+| Coste total | **{{X}} €** | {{0}} € | {{Alta / Media / Baja}} |
+| Tokens IA | **{{X}}** (in {{X}} / out {{X}}) | {{0}} | {{Alta / Media / Baja}} |
+| Multiplicador productividad | **×{{X}}** | — | — |
+| Tareas | **{{N}}** | {{0}} hechas | — |
 
 <!-- guía: "Confianza" refleja lo firme que es la estimación dado lo que se sabe hoy. -->
 
 ---
 
-## ⏱️ Estimación por fase
+## Estimación por fase
 
 | Fase | Estimado (h) | Tokens (in / out) | Coste € |
 |------|-------------|-------------------|---------|
@@ -47,7 +49,7 @@
 
 ---
 
-## 💶 Presupuesto económico
+## Presupuesto económico
 
 **Coste = (horas × tarifa) + coste de tokens de IA.** Todos los importes en **EUR**.
 
@@ -57,8 +59,8 @@
 |-----------|-------|------|
 | Tarifa de desarrollo | {{50}} €/h | Configurable por proyecto/perfil |
 | Modelo IA asumido | {{claude-opus-4-8}} | Modelo previsto para la ejecución |
-| Precio input | {{X}} € / 1M tokens | ⚠️ Verificar tarifa vigente antes de fijar el presupuesto |
-| Precio output | {{X}} € / 1M tokens | ⚠️ Verificar tarifa vigente |
+| Precio input | {{X}} € / 1M tokens | Verificar tarifa vigente antes de fijar el presupuesto |
+| Precio output | {{X}} € / 1M tokens | Verificar tarifa vigente |
 | Tipo de cambio | {{1 USD = 0.92 €}} | Si la tarifa del proveedor está en USD |
 | Margen de contingencia | {{20}} % | Colchón por imprevistos; sobre horas base (humanas e IA) |
 
@@ -78,7 +80,7 @@
 
 ---
 
-## 🔢 Previsión de tokens (por fase)
+## Previsión de tokens (por fase)
 
 Estimación del consumo de tokens del modelo por fase. Base: {{modelo}} · precios de la tabla de supuestos.
 
@@ -93,7 +95,7 @@ Estimación del consumo de tokens del modelo por fase. Base: {{modelo}} · preci
 
 ---
 
-## ⚡ Productividad IA (humano vs. IA)
+## Productividad IA (humano vs. IA)
 
 Compara el esfuerzo **humano** estimado con el tiempo que tardaría un **agente de IA** en ejecutarlo (más la supervisión humana necesaria). Cifras aproximadas; declara los supuestos.
 
@@ -121,11 +123,11 @@ Compara el esfuerzo **humano** estimado con el tiempo que tardaría un **agente 
 
 ---
 
-## 📋 Resumen ejecutivo
+## Resumen ejecutivo
 
 {{2-4 frases: qué se va a hacer, para quién y por qué. Sin jerga innecesaria.}}
 
-### 🎯 Objetivos
+### Objetivos
 
 - {{Objetivo 1 — medible}}
 - {{Objetivo 2}}
@@ -133,7 +135,7 @@ Compara el esfuerzo **humano** estimado con el tiempo que tardaría un **agente 
 
 ---
 
-## 📥 Datos necesarios para un informe completo
+## Datos necesarios para un informe completo
 
 <!-- guía: checklist de insumos que el plan necesita para estar completo y ser ejecutable.
      Marca [x] lo que ya tienes; lo que quede en [ ] es un bloqueante a resolver. -->
@@ -150,7 +152,7 @@ Compara el esfuerzo **humano** estimado con el tiempo que tardaría un **agente 
 
 ---
 
-## 🔍 Análisis de impacto
+## Análisis de impacto
 
 <!-- guía: qué zonas del sistema toca. Rutas/módulos reales. -->
 
@@ -159,14 +161,14 @@ Compara el esfuerzo **humano** estimado con el tiempo que tardaría un **agente 
 
 ---
 
-## 🏗️ Cambios arquitectónicos
+## Cambios arquitectónicos
 
 - {{Decisión de diseño 1 y su porqué}}
 - {{Decisión de diseño 2}}
 
 ---
 
-## 📁 Archivos a crear/modificar
+## Archivos a crear/modificar
 
 | Archivo | Acción | Propósito |
 |---------|--------|-----------|
@@ -175,14 +177,14 @@ Compara el esfuerzo **humano** estimado con el tiempo que tardaría un **agente 
 
 ---
 
-## 🔗 Dependencias y prerequisitos
+## Dependencias y prerequisitos
 
 - {{Depende de X / Requiere que Y esté hecho antes}}
 - {{Bloqueado por Z (si aplica)}}
 
 ---
 
-## ✅ Criterios de aceptación (global)
+## Criterios de aceptación (global)
 
 - [ ] {{Criterio verificable 1}}
 - [ ] {{Criterio verificable 2}}
@@ -190,7 +192,7 @@ Compara el esfuerzo **humano** estimado con el tiempo que tardaría un **agente 
 
 ---
 
-## ⚠️ Riesgos y mitigaciones
+## Riesgos y mitigaciones
 
 | Riesgo | Probabilidad | Impacto | Mitigación |
 |--------|-------------|---------|------------|
@@ -199,19 +201,6 @@ Compara el esfuerzo **humano** estimado con el tiempo que tardaría un **agente 
 
 ---
 
-## 📊 Métricas de éxito
+## Métricas de éxito
 
-- {{KPI 1 — cómo se medirá que el plan cumplió su objetivo}}
-- {{KPI 2}}
-
----
-
-## ⏱️ Agregación de tiempo
-
-- {{YYYY-MM-DD}}: Creación del plan (`Tiempo consumido`: 0h)
-
----
-
-## 📝 Changelog
-
-- {{YYYY-MM-DD}}: Creación del plan.
+- {{KPI 1 — cómo se medirá que el plan cum

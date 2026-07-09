@@ -1,9 +1,9 @@
 <!--
-  TEMPLATE: evaluation.md  ·  usado por el agente `evaluator`
+  TEMPLATE: evaluation.md  · usado por el agente `evaluator`
   Entrada: un documento de toma de requerimientos (una o varias características/requisitos).
   Salida: esta evaluación/presupuesto. Sustituye todos los {{PLACEHOLDER}} y borra los comentarios guía.
-  Estados: 📝 borrador · 🚧 en-progreso · 🔍 en-revision · ✅ completado · ❌ cancelado
-  Prioridad: 🟢 Baja · 🟡 Media · 🟠 Alta · 🔴 Crítica
+  Estados: borrador · en-progreso · en-revision · completado · cancelado
+  Prioridad: Baja · Media · Alta · Crítica
   Si solo hay UNA característica: omite la tabla comparativa (§6) y la recomendación de orden.
 -->
 
@@ -14,46 +14,48 @@
 | | |
 |---|---|
 | **Fecha** | {{YYYY-MM-DD}} |
-| **Estado** | 📝 borrador |
-| **Prioridad global** | 🟡 Media |
+| **Estado** | borrador |
+| **Prioridad global** | Media |
 | **Solicitante** | {{nombre}} |
-| **Spec** | [`docs/specs/{{slug}}.md`](../../specs/{{slug}}.md) |
-| **Plan** | {{[`docs/plans/<fecha>-<slug>/improvement-plan.md`](../../plans/<fecha>-<slug>/improvement-plan.md) — o «pendiente (handoff a planner)»}} |
+| **Spec** | [`spec.md`](spec.md) |
+| **Plan** | {{[`improvement-plan.md`](improvement-plan.md) — o «pendiente (handoff a planner)»}} |
 | **Características evaluadas** | {{N}} |
 
 ---
 
-## 🎛️ Cuadro de mando
+## Cuadro de mando
 
 | Métrica | Total estimado | Confianza |
 |--------|----------------|-----------|
-| ⏱️ Esfuerzo | **{{X}}h** | {{Alta / Media / Baja}} |
-| 💶 Coste | **{{X}} €** | {{Alta / Media / Baja}} |
-| 🔢 Tokens IA | **{{X}}** (in {{X}} / out {{X}}) | {{Alta / Media / Baja}} |
-| 📦 Características | **{{N}}** | — |
+| Esfuerzo humano | **{{X}}h** ({{X}}h base +20 %) | {{Alta / Media / Baja}} |
+| Tiempo IA (ejecución) | **{{X}}h** (+ {{X}}h supervisión) | {{Alta / Media / Baja}} |
+| Coste | **{{X}} €** | {{Alta / Media / Baja}} |
+| Tokens IA | **{{X}}** (in {{X}} / out {{X}}) | {{Alta / Media / Baja}} |
+| Multiplicador productividad | **×{{X}}** | — |
+| Características | **{{N}}** | — |
 
 ---
 
-## 📋 Resumen ejecutivo
+## Resumen ejecutivo
 
 {{2-4 frases: qué requerimientos han llegado, qué se presupuesta y qué decisión soporta esta evaluación (p. ej. priorizar el roadmap del trimestre).}}
 
 ---
 
-## 📄 Requerimientos recibidos
+## Requerimientos recibidos
 
 Mapa del documento de origen a las características evaluadas. Marca vacíos e incógnitas.
 
 | ID | Característica | Requisito origen (ref.) | ¿Claro? |
 |----|---------------|-------------------------|---------|
-| C-01 | {{nombre}} | {{sección/página del doc}} | ✅ / ⚠️ ambiguo |
-| C-02 | {{nombre}} | {{ref.}} | ✅ / ⚠️ ambiguo |
+| C-01 | {{nombre}} | {{sección/página del doc}} | /  ambiguo |
+| C-02 | {{nombre}} | {{ref.}} | /  ambiguo |
 
 **Ambigüedades / información que falta:** {{lista de puntos poco claros del documento que afectan a la estimación. Si algo es un supuesto, decláralo.}}
 
 ---
 
-## 📥 Datos necesarios para una evaluación completa
+## Datos necesarios para una evaluación completa
 
 <!-- guía: marca [x] lo que el documento de requerimientos ya cubre; lo que quede en [ ] es un bloqueante. -->
 
@@ -67,7 +69,7 @@ Mapa del documento de origen a las características evaluadas. Marca vacíos e i
 
 ---
 
-## 💶 Supuestos económicos (ajustables)
+## Supuestos económicos (ajustables)
 
 **Coste = (horas × tarifa) + coste de tokens de IA.** Importes en **EUR**.
 
@@ -75,14 +77,14 @@ Mapa del documento de origen a las características evaluadas. Marca vacíos e i
 |-----------|-------|------|
 | Tarifa de desarrollo | {{50}} €/h | Configurable por proyecto/perfil |
 | Modelo IA asumido | {{claude-opus-4-8}} | Base de la previsión de tokens |
-| Precio input | {{X}} € / 1M tokens | ⚠️ Verificar tarifa vigente |
-| Precio output | {{X}} € / 1M tokens | ⚠️ Verificar tarifa vigente |
+| Precio input | {{X}} € / 1M tokens | Verificar tarifa vigente |
+| Precio output | {{X}} € / 1M tokens | Verificar tarifa vigente |
 | Tipo de cambio | {{1 USD = 0.92 €}} | Si el proveedor factura en USD |
 | Margen de contingencia | {{20}} % | Colchón por imprevistos; sobre horas base (humanas e IA) |
 
 ---
 
-## 🔎 Evaluación por característica
+## Evaluación por característica
 
 <!-- ============ BLOQUE (copia uno por cada característica del documento) ============ -->
 
@@ -116,19 +118,19 @@ Mapa del documento de origen a las características evaluadas. Marca vacíos e i
 
 ---
 
-## 📊 Comparativa
+## Comparativa
 
 <!-- guía: incluir SOLO si hay 2+ características. Ordena por lo que ayude a decidir (coste, prioridad o valor). -->
 
 | # | Característica | Complejidad | Horas | Coste € | Tokens | Prioridad | Confianza |
 |---|---------------|-------------|-------|---------|--------|-----------|-----------|
-| C-01 | {{nombre}} | {{Media}} | {{12}}h | {{600}} € | {{180k}} | 🟡 Media | {{Alta}} |
-| C-02 | {{nombre}} | {{Alta}} | {{40}}h | {{2.000}} € | {{520k}} | 🟠 Alta | {{Media}} |
+| C-01 | {{nombre}} | {{Media}} | {{12}}h | {{600}} € | {{180k}} | Media | {{Alta}} |
+| C-02 | {{nombre}} | {{Alta}} | {{40}}h | {{2.000}} € | {{520k}} | Alta | {{Media}} |
 | | **Total** | | **{{X}}h** | **{{X}} €** | **{{X}}** | | |
 
 ---
 
-## 💶 Presupuesto total
+## Presupuesto total
 
 | Concepto | Cálculo | Importe |
 |----------|---------|---------|
@@ -140,7 +142,7 @@ Mapa del documento de origen a las características evaluadas. Marca vacíos e i
 
 ---
 
-## ⚡ Productividad IA (humano vs. IA)
+## Productividad IA (humano vs. IA)
 
 Compara el esfuerzo **humano** estimado con el tiempo que tardaría un **agente de IA** en implementarlo (más la supervisión humana). Cifras aproximadas; declara los supuestos.
 
@@ -169,7 +171,7 @@ Compara el esfuerzo **humano** estimado con el tiempo que tardaría un **agente 
 
 ---
 
-## 🧭 Recomendación
+## Recomendación
 
 <!-- guía: apoya la decisión. Con varias características, sugiere orden (quick-wins vs. caras, alta prioridad, dependencias). -->
 
@@ -181,7 +183,7 @@ Compara el esfuerzo **humano** estimado con el tiempo que tardaría un **agente 
 
 ---
 
-## ⚠️ Riesgos transversales
+## Riesgos transversales
 
 | Riesgo | Probabilidad | Impacto | Mitigación |
 |--------|-------------|---------|------------|
@@ -189,12 +191,6 @@ Compara el esfuerzo **humano** estimado con el tiempo que tardaría un **agente 
 
 ---
 
-## 🔗 Siguiente paso
+## Siguiente paso
 
-Para **ejecutar** lo aprobado, genera el plan detallado con el agente **`planner`** (crea `docs/plans/<fecha>-<slug>/` con `improvement-plan.md` + `TASKS.md`). Indica qué características se aprueban para planificar: {{C-0X, C-0X}}.
-
----
-
-## 📝 Changelog
-
-- {{YYYY-MM-DD}}: Creación de la evaluación a partir de `{{documento de requerimientos}}`.
+Para **ejecutar** lo aprobado, genera el plan detallado con el agente **`planner`** (crea `docs/roadmap/<fecha>-<slug>/` con `improvement-plan.md` + `tasks.md`). Indica qué caract

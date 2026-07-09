@@ -1,12 +1,11 @@
 <!--
-  TEMPLATE: spec.md  ·  especificación funcional/técnica
-  Vive en docs/specs/<slug>.md (identidad estable; las fechas van en el frontmatter).
+  TEMPLATE: spec.md  · especificación funcional/técnica
+  Vive en docs/roadmap/<fecha>-<slug>/spec.md junto a evaluation.md, improvement-plan.md, tasks.md.
   Estados de una spec: borrador | aprobada | implementada | obsoleta
   Rellena/borra secciones según el caso (una spec pequeña no necesita todas).
-  Enlace cruzado (rellena cuando existan; "pendiente" si aún no):
-    - evaluacion: docs/evaluations/<fecha>-<slug>/evaluation.md
-    - plan:       docs/plans/<fecha>-<slug>/improvement-plan.md
-  Rutas relativas desde docs/specs/: evaluación → ../evaluations/... · plan → ../plans/...
+  Enlace cruzado (misma carpeta; rellena cuando existan, "pendiente" si aún no):
+    - evaluacion: evaluation.md
+    - plan: improvement-plan.md
 -->
 ---
 spec: {{slug}}
@@ -20,8 +19,8 @@ plan: pendiente           # ruta al plan cuando exista
 
 # {{Título legible de la spec}}
 
-> **Evaluación:** {{[`docs/evaluations/<fecha>-<slug>/evaluation.md`](../evaluations/<fecha>-<slug>/evaluation.md) — o «pendiente»}}
-> **Plan de implementación:** {{[`docs/plans/<fecha>-<slug>/improvement-plan.md`](../plans/<fecha>-<slug>/improvement-plan.md) — o «pendiente»}}
+> **Evaluación:** {{[`evaluation.md`](evaluation.md) — o «pendiente»}}
+> **Plan de implementación:** {{[`improvement-plan.md`](improvement-plan.md) — o «pendiente»}}
 
 <!-- Terminología: incluye solo si hay términos que puedan confundir. -->
 > **Terminología:** {{define aquí cualquier término ambiguo del dominio}}

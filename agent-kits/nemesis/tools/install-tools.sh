@@ -82,6 +82,22 @@ install_go_bin(){  # $1 repo   $2 binary-name
   say "  [OK] $name -> bin/$name$EXE"; record "$name" installed "$BIN/$name$EXE"
 }
 
+install_raw_bin(){  # $1 repo   $2 binary-name   (asset IS the binary, no archive)
+  local repo="$1" name="$2"
+  if [ "$FORCE" = 0 ] && [ -x "$BIN/$name$EXE" ]; then
+    say "  [--] $name (already installed)"; record "$name" present "$BIN/$name$EXE"; return; fi
+  [ -z "$PY" ] && { say "  [--] $name (needs python to resolve asset)"; record "$name" skipped no-python; return; }
+  log "install $name (raw) from $repo"
+  local url; url="$(gh_json "$repo" | "$PY" "$SCRIPT_DIR/pick_asset.py" "$OS" "$ARCH" --raw 2>>"$LOG")"
+  if [ -z "$url" ]; then say "  [!!] $name: no release asset for $OS/$ARCH"; record "$name" failed no-asset; return; fi
+  if curl -fsSL -o "$BIN/$name$EXE" "$url"; then
+    chmod +x "$BIN/$name$EXE" 2>/dev/null
+    say "  [OK] $name -> bin/$name$EXE"; record "$name" installed "$BIN/$name$EXE"
+  else
+    say "  [!!] $name: download failed"; record "$name" failed download
+  fi
+}
+
 write_shim(){  # $1 shim-name   $2 command-line (absolute)
   local name="$1"; shift
   { echo '#!/usr/bin/env bash'; echo "exec $* \"\$@\""; } > "$BIN/$name"
@@ -117,11 +133,13 @@ install_pip_tool(){  # $1 pip-package  $2 console-name
 # Category B: git-cloned script tools (need a runtime already present)
 # Category C: pip packages
 # ============================================================================
-say ""; say "== A. Prebuilt binaries (nuclei/httpx/ffuf/gitleaks) =="
+say ""; say "== A. Prebuilt binaries (nuclei/httpx/ffuf/gitleaks/trivy/hadolint) =="
 install_go_bin projectdiscovery/nuclei nuclei
 install_go_bin projectdiscovery/httpx  httpx
 install_go_bin ffuf/ffuf               ffuf
 install_go_bin gitleaks/gitleaks       gitleaks
+install_go_bin aquasecurity/trivy      trivy      # SCA de dependencias (area deps)
+install_raw_bin hadolint/hadolint      hadolint   # lint de Dockerfile (area iac); asset = binario
 
 say ""; say "== B. Script tools (testssl/sqlmap/nikto) =="
 if have git && have openssl; then
@@ -146,6 +164,8 @@ verify nuclei   "./nuclei$EXE -version"
 verify httpx    "./httpx$EXE -version"
 verify ffuf     "./ffuf$EXE -V"
 verify gitleaks "./gitleaks$EXE version"
+verify trivy    "./trivy$EXE --version"
+verify hadolint "./hadolint$EXE --version"
 verify testssl  "./testssl --version 2>&1 | grep -i testssl"
 verify sqlmap   "./sqlmap --version"
 verify nikto    "./nikto -Version 2>&1 | grep -i nikto"
@@ -154,3 +174,4 @@ verify nikto    "./nikto -Version 2>&1 | grep -i nikto"
 say ""; say ">> Done. Tools in: $BIN"
 say ">> Add to PATH for manual use:  export PATH=\"$BIN:\$PATH\""
 say ">> nuclei templates download on first run (nuclei -update-templates)."
+say ">> trivy downloads its vulnerability DB on first use (needs network once)."

@@ -2,13 +2,13 @@
 
 | | |
 |---|---|
-| **Estado** | 📝 borrador |
+| **Estado** | borrador |
 | **Fecha** | 2026-07-08 |
 | **Plan** | [`improvement-plan.md`](improvement-plan.md) |
 
 ---
 
-## 📊 Resumen de progreso
+## Resumen de progreso
 
 | Fase | Completadas | Total | Progreso | Horas (real/est) | Tokens (real/est) |
 |------|------------|-------|----------|------------------|-------------------|
@@ -22,14 +22,14 @@
 
 ---
 
-## 🏗️ F1 — Setup CI4 + configuración de email
+## F1 — Setup CI4 + configuración de email
 
-**Estado**: 📝 borrador · **Estimado**: 3h · **Real**: — · **Coste est.**: 150 € · **Tokens est.**: 38k
+**Estado**: borrador · **Estimado**: 3h · **Real**: — · **Coste est.**: 150 € · **Tokens est.**: 38k
 
 ### T-01 — Inicializar proyecto CI4
 
 - **Descripción**: crear el proyecto CodeIgniter 4, estructura base y `.env`.
-- **Estado**: 📝 borrador
+- **Estado**: borrador
 - **Tiempo**: est. 1h · real —
 - **Previsión IA**: 10k in / 3k out tok · 0,3 €
 - **Dependencias**: ninguna
@@ -45,7 +45,7 @@
 ### T-02 — Configurar servicio Email (SMTP)
 
 - **Descripción**: configurar `Config/Email` + credenciales SMTP en `.env` (`mailType=html`, `protocol=smtp`).
-- **Estado**: 📝 borrador
+- **Estado**: borrador
 - **Tiempo**: est. 2h · real —
 - **Previsión IA**: 20k in / 5k out tok · 0,5 €
 - **Dependencias**: T-01
@@ -60,14 +60,14 @@
 
 ---
 
-## 📨 F2 — Formulario de contacto + email de notificación
+## F2 — Formulario de contacto + email de notificación
 
-**Estado**: 📝 borrador · **Estimado**: 6h · **Real**: — · **Coste est.**: 300 € · **Tokens est.**: 102k
+**Estado**: borrador · **Estimado**: 6h · **Real**: — · **Coste est.**: 300 € · **Tokens est.**: 102k
 
 ### T-03 — Vista y ruta del formulario de contacto
 
 - **Descripción**: vista `contact/form` (nombre, email, mensaje) con CSRF + honeypot, y ruta `GET /contacto`.
-- **Estado**: 📝 borrador
+- **Estado**: borrador
 - **Tiempo**: est. 2h · real —
 - **Previsión IA**: 25k in / 7k out tok · 0,7 €
 - **Dependencias**: T-01
@@ -83,7 +83,7 @@
 ### T-04 — Controlador y validación del envío
 
 - **Descripción**: `ContactController::submit()` con reglas de Validation y patrón PRG.
-- **Estado**: 📝 borrador
+- **Estado**: borrador
 - **Tiempo**: est. 2h · real —
 - **Previsión IA**: 30k in / 8k out tok · 0,8 €
 - **Dependencias**: T-03
@@ -99,7 +99,7 @@
 ### T-05 — Email de notificación al equipo
 
 - **Descripción**: plantilla `emails/contact_notify` y envío al buzón del equipo (`CONTACT_TO`).
-- **Estado**: 📝 borrador
+- **Estado**: borrador
 - **Tiempo**: est. 2h · real —
 - **Previsión IA**: 25k in / 7k out tok · 0,7 €
 - **Dependencias**: T-02, T-04
@@ -114,14 +114,14 @@
 
 ---
 
-## 📝 F3 — Formulario de solicitud + email de confirmación
+## F3 — Formulario de solicitud + email de confirmación
 
-**Estado**: 📝 borrador · **Estimado**: 7h · **Real**: — · **Coste est.**: 350 € · **Tokens est.**: 115k
+**Estado**: borrador · **Estimado**: 7h · **Real**: — · **Coste est.**: 350 € · **Tokens est.**: 115k
 
 ### T-06 — Vista y ruta del formulario de solicitud
 
 - **Descripción**: vista `quote/form` (nombre, email, empresa, detalle) con CSRF + honeypot, ruta `GET /solicitud`.
-- **Estado**: 📝 borrador
+- **Estado**: borrador
 - **Tiempo**: est. 2h · real —
 - **Previsión IA**: 25k in / 7k out tok · 0,7 €
 - **Dependencias**: T-01
@@ -137,7 +137,7 @@
 ### T-07 — Controlador y validación de la solicitud
 
 - **Descripción**: `QuoteController::submit()` con Validation y PRG.
-- **Estado**: 📝 borrador
+- **Estado**: borrador
 - **Tiempo**: est. 2,5h · real —
 - **Previsión IA**: 35k in / 9k out tok · 0,9 €
 - **Dependencias**: T-06
@@ -153,7 +153,7 @@
 ### T-08 — Email de confirmación al usuario
 
 - **Descripción**: plantilla `emails/quote_confirm` (acuse con los datos) y envío al email del usuario.
-- **Estado**: 📝 borrador
+- **Estado**: borrador
 - **Tiempo**: est. 2,5h · real —
 - **Previsión IA**: 30k in / 9k out tok · 0,9 €
 - **Dependencias**: T-02, T-07
@@ -168,14 +168,14 @@
 
 ---
 
-## 🛡️ F4 — Anti-spam + UX
+## F4 — Anti-spam + UX
 
-**Estado**: 📝 borrador · **Estimado**: 2h · **Real**: — · **Coste est.**: 100 € · **Tokens est.**: 40k
+**Estado**: borrador · **Estimado**: 2h · **Real**: — · **Coste est.**: 100 € · **Tokens est.**: 40k
 
 ### T-09 — CSRF + honeypot en las rutas POST
 
 - **Descripción**: activar CSRF y filtro honeypot en `/contacto` y `/solicitud`.
-- **Estado**: 📝 borrador
+- **Estado**: borrador
 - **Tiempo**: est. 1h · real —
 - **Previsión IA**: 15k in / 5k out tok · 0,5 €
 - **Dependencias**: T-04, T-07
@@ -191,7 +191,7 @@
 ### T-10 — Rate-limit y mensajes de UX
 
 - **Descripción**: throttler por IP en los POST + mensajes flash de éxito/error.
-- **Estado**: 📝 borrador
+- **Estado**: borrador
 - **Tiempo**: est. 1h · real —
 - **Previsión IA**: 15k in / 5k out tok · 0,5 €
 - **Dependencias**: T-09
@@ -206,14 +206,14 @@
 
 ---
 
-## 🧪 F5 — Tests
+## F5 — Tests
 
-**Estado**: 📝 borrador · **Estimado**: 3h · **Real**: — · **Coste est.**: 150 € · **Tokens est.**: 75k
+**Estado**: borrador · **Estimado**: 3h · **Real**: — · **Coste est.**: 150 € · **Tokens est.**: 75k
 
 ### T-11 — Feature tests del formulario de contacto
 
 - **Descripción**: tests de GET/POST (válido e inválido) con email en modo mock.
-- **Estado**: 📝 borrador
+- **Estado**: borrador
 - **Tiempo**: est. 1,5h · real —
 - **Previsión IA**: 28k in / 10k out tok · 0,9 €
 - **Dependencias**: T-05
@@ -230,7 +230,7 @@
 ### T-12 — Feature tests del formulario de solicitud
 
 - **Descripción**: tests equivalentes para `/solicitud`.
-- **Estado**: 📝 borrador
+- **Estado**: borrador
 - **Tiempo**: est. 1,5h · real —
 - **Previsión IA**: 27k in / 10k out tok · 0,9 €
 - **Dependencias**: T-08
@@ -244,14 +244,14 @@
 
 ---
 
-## 📚 F6 — Documentación
+## F6 — Documentación
 
-**Estado**: 📝 borrador · **Estimado**: 1h · **Real**: — · **Coste est.**: 50 € · **Tokens est.**: 20k
+**Estado**: borrador · **Estimado**: 1h · **Real**: — · **Coste est.**: 50 € · **Tokens est.**: 20k
 
 ### T-13 — README de uso y configuración
 
 - **Descripción**: documentar rutas, variables `.env` de SMTP y cómo probar.
-- **Estado**: 📝 borrador
+- **Estado**: borrador
 - **Tiempo**: est. 1h · real —
 - **Previsión IA**: 15k in / 5k out tok · 0,5 €
 - **Dependencias**: T-10
@@ -266,6 +266,6 @@
 
 ---
 
-## 📝 Notas de implementación
+## Notas de implementación
 
 _A completar durante la ejecución. Registra decisiones, desvíos de la estimación y aprendizajes._

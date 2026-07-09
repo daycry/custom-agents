@@ -1,7 +1,7 @@
 {
   "name": "custom-agents",
-  "version": "1.1.0",
-  "description": "Agentes custom para Claude Code: nemesis (auditoría de ciberseguridad SAST+DAST), evaluator (evalúa/presupuesta specs), planner (planes de implementación presupuestados) y pdfy (conversión a PDF con aspecto moderno). Incluye las skills compartidas cybersecurity y to-pdf.",
+  "version": "1.2.0",
+  "description": "Agentes custom para Claude Code: nemesis (auditoría SAST+DAST), evaluator (evalúa/presupuesta specs), planner (planes presupuestados), pdfy (conversión a PDF) y qa (E2E con Playwright + informe). Incluye las skills compartidas cybersecurity y to-pdf.",
   "author": {
     "name": "daycry",
     "email": "7590335+daycry@users.noreply.github.com"

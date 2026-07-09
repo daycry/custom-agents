@@ -102,14 +102,17 @@ La skill se apoya en una amplia biblioteca de referencias en `skills/cybersecuri
 | `pick_asset.py` | Selecciona el binario de release correcto según OS/arquitectura. |
 | `lib-guardrail.sh` | Gate de autorización: solo permite hosts locales/privados. |
 | `active-scan.sh` | Harness DAST propio, sin dependencias (solo curl). |
-| `run-external.sh` | Wrappers guardrailed de nuclei, httpx, testssl, nikto, wafw00f, sqlmap. |
+| `run-external.sh` | Wrappers guardrailed de nuclei, httpx, testssl, nikto, wafw00f, sqlmap (DAST). |
+| `run-static.sh` | Escáneres estáticos **sin guardrail** (no hay host): `trivy fs` (deps) + `hadolint` (iac). |
 | `catalog.md` | Catálogo declarativo de la biblioteca de herramientas instalables. |
 
 **Biblioteca de herramientas** (todas open-source, uso defensivo):
 
-- **Binarios Go** (release por OS/arch): `nuclei` (escáner por plantillas), `httpx` (fingerprint HTTP), `ffuf` (descubrimiento de contenido), `gitleaks` (secretos).
-- **Herramientas de script** (git clone + runtime): `testssl.sh` (auditoría TLS), `sqlmap` (SQLi, opt-in), `nikto` (escáner de servidor).
+- **Binarios de release** (por OS/arch): `nuclei` (plantillas), `httpx` (fingerprint), `ffuf` (contenido), `gitleaks` (secretos), `trivy` (SCA de dependencias → `deps`), `hadolint` (lint de Dockerfile → `iac`).
+- **Herramientas de script** (git clone + runtime): `testssl.sh` (TLS), `sqlmap` (SQLi, opt-in), `nikto` (servidor).
 - **Paquetes pip**: `wafw00f` (detección de WAF).
+
+`trivy` y `hadolint` son **estáticos** (escanean el árbol del proyecto): corren en la fase SAST vía `run-static.sh`, no contra un host, y sus hallazgos se funden en las áreas ya existentes `deps` e `iac` (sin cambios de esquema ni de informe). `trivy` descarga su BD de CVEs en el primer uso.
 
 Los binarios viven en `~/.claude/security-tools/`, fuera del repo y gitignored.
 

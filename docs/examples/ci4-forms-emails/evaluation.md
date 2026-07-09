@@ -5,8 +5,8 @@
 | | |
 |---|---|
 | **Fecha** | 2026-07-08 |
-| **Estado** | ✅ completado |
-| **Prioridad global** | 🟡 Media |
+| **Estado** | completado |
+| **Prioridad global** | Media |
 | **Solicitante** | Daycry |
 | **Spec** | [`spec.md`](spec.md) |
 | **Plan** | [`improvement-plan.md`](improvement-plan.md) |
@@ -14,35 +14,37 @@
 
 ---
 
-## 🎛️ Cuadro de mando
+## Cuadro de mando
 
 | Métrica | Total estimado | Confianza |
 |--------|----------------|-----------|
-| ⏱️ Esfuerzo | **26,4 h** (22 h base +20 %) | Alta |
-| 💶 Coste | **~1.329 €** | Alta |
-| 🔢 Tokens IA | **390k** (in 300k / out 90k) | Media |
-| 📦 Características | **2** | — |
+| Esfuerzo humano | **26,4 h** (22 h base +20 %) | Alta |
+| Tiempo IA (ejecución) | **1,8 h** (+ 0,45 h supervisión) | Media |
+| Coste | **~1.329 €** | Alta |
+| Tokens IA | **390k** (in 300k / out 90k) | Media |
+| Multiplicador productividad | **×11,7** | — |
+| Características | **2** | — |
 
 ---
 
-## 📋 Resumen ejecutivo
+## Resumen ejecutivo
 
 La spec pide una app CI4 con dos formularios públicos (contacto y solicitud de presupuesto), cada uno con un envío de email (notificación al equipo y confirmación al usuario). Es un desarrollo **pequeño y de baja incertidumbre**: todo se resuelve con lo nativo de CodeIgniter 4. Se presupuesta para decidir su inclusión en el sprint.
 
 ---
 
-## 📄 Requerimientos recibidos
+## Requerimientos recibidos
 
 | ID | Característica | Requisito origen (ref.) | ¿Claro? |
 |----|---------------|-------------------------|---------|
-| C-01 | Formulario de contacto + email de notificación | spec §Flujo (Contacto) | ✅ |
-| C-02 | Formulario de solicitud + email de confirmación | spec §Flujo (Solicitud) | ✅ |
+| C-01 | Formulario de contacto + email de notificación | spec §Flujo (Contacto) | |
+| C-02 | Formulario de solicitud + email de confirmación | spec §Flujo (Solicitud) | |
 
 **Ambigüedades / información que falta:** ninguna bloqueante. Pendiente solo el **servidor SMTP** y los textos definitivos de los emails (asumidos provisionales).
 
 ---
 
-## 📥 Datos necesarios para una evaluación completa
+## Datos necesarios para una evaluación completa
 
 - [x] Requerimientos completos y sin ambigüedades
 - [x] Alcance de cada característica acotado (spec §Alcance)
@@ -53,7 +55,7 @@ La spec pide una app CI4 con dos formularios públicos (contacto y solicitud de 
 
 ---
 
-## 💶 Supuestos económicos (ajustables)
+## Supuestos económicos (ajustables)
 
 **Coste = (horas × tarifa) + coste de tokens de IA.** Importes en **EUR**.
 
@@ -61,14 +63,14 @@ La spec pide una app CI4 con dos formularios públicos (contacto y solicitud de 
 |-----------|-------|------|
 | Tarifa de desarrollo | 50 €/h | — |
 | Modelo IA asumido | claude-opus-4-8 | Base de la previsión de tokens |
-| Precio input | 12 € / 1M tokens | ⚠️ ilustrativo, verificar tarifa vigente |
-| Precio output | 60 € / 1M tokens | ⚠️ ilustrativo, verificar tarifa vigente |
+| Precio input | 12 € / 1M tokens | ilustrativo, verificar tarifa vigente |
+| Precio output | 60 € / 1M tokens | ilustrativo, verificar tarifa vigente |
 | Ratio de supervisión | ~25 % de las horas IA | — |
 | Margen de contingencia | 20 % | Sobre horas base (humanas e IA) |
 
 ---
 
-## 🔎 Evaluación por característica
+## Evaluación por característica
 
 ### C-01 — Formulario de contacto + email de notificación
 
@@ -98,17 +100,17 @@ La spec pide una app CI4 con dos formularios públicos (contacto y solicitud de 
 
 ---
 
-## 📊 Comparativa
+## Comparativa
 
 | # | Característica | Complejidad | Horas | Coste € | Tokens | Prioridad | Confianza |
 |---|---------------|-------------|-------|---------|--------|-----------|-----------|
-| C-01 | Contacto + email notificación | Baja-Media | 10 h | ~502 € | 180k | 🟡 Media | Alta |
-| C-02 | Solicitud + email confirmación | Media | 12 h | ~605 € | 210k | 🟡 Media | Media |
+| C-01 | Contacto + email notificación | Baja-Media | 10 h | ~502 € | 180k | Media | Alta |
+| C-02 | Solicitud + email confirmación | Media | 12 h | ~605 € | 210k | Media | Media |
 | | **Total** | | **22 h** | **~1.109 €** | **390k** | | |
 
 ---
 
-## 💶 Presupuesto total
+## Presupuesto total
 
 | Concepto | Cálculo | Importe |
 |----------|---------|---------|
@@ -120,7 +122,7 @@ La spec pide una app CI4 con dos formularios públicos (contacto y solicitud de 
 
 ---
 
-## ⚡ Productividad IA (humano vs. IA)
+## Productividad IA (humano vs. IA)
 
 | KPI | Valor |
 |-----|-------|
@@ -137,7 +139,7 @@ La spec pide una app CI4 con dos formularios públicos (contacto y solicitud de 
 
 ---
 
-## 🧭 Recomendación
+## Recomendación
 
 - **Veredicto**: **go**. Bajo coste, baja incertidumbre, alto valor (captación de leads).
 - **Quick win**: C-01 (contacto) — más simple y desbloquea el canal de contacto ya.
@@ -146,7 +148,7 @@ La spec pide una app CI4 con dos formularios públicos (contacto y solicitud de 
 
 ---
 
-## ⚠️ Riesgos transversales
+## Riesgos transversales
 
 | Riesgo | Probabilidad | Impacto | Mitigación |
 |--------|-------------|---------|------------|
@@ -155,13 +157,13 @@ La spec pide una app CI4 con dos formularios públicos (contacto y solicitud de 
 
 ---
 
-## 🔗 Siguiente paso
+## Siguiente paso
 
 Para **ejecutar** lo aprobado, el plan detallado está en [`improvement-plan.md`](improvement-plan.md) (generado por `planner`). Características aprobadas para planificar: **C-01 y C-02**.
 
 ---
 
-## 📝 Changelog
+## Changelog
 
 - 2026-07-08: Evaluación creada a partir de [`spec.md`](spec.md).
 - 2026-07-08: Handoff a `planner`; enlazado el plan.

@@ -4,8 +4,6 @@ Juego de artefactos **de ejemplo** (relleno) para ver cómo quedan los documento
 
 - [`spec.md`](spec.md) — especificación (qué se quiere).
 - [`evaluation.md`](evaluation.md) — evaluación/presupuesto (cuánto cuesta, si conviene).
-- [`improvement-plan.md`](improvement-plan.md) + [`TASKS.md`](TASKS.md) — plan de implementación (cómo se ejecuta).
+- [`improvement-plan.md`](improvement-plan.md) + [`tasks.md`](tasks.md) — plan de implementación (cómo se ejecuta).
 
-> **Nota:** en un proyecto real cada artefacto vive en su carpeta (`docs/specs/`, `docs/evaluations/<fecha>-<slug>/`, `docs/plans/<fecha>-<slug>/`) y los enlaces son relativos entre esas carpetas. Aquí están juntos en una sola carpeta de ejemplo y se enlazan con `./` para poder leerlos de un vistazo.
->
-> Las cifras (horas, coste, tokens, horas IA) son **ilustrativas** y coherentes entre los tres documentos.
+> **Nota:** en un proyecto real, todos estos ficheros viven juntos en `docs/roadmap/<fecha>-<slug>/` (misma estructura que este ejemplo). Las cifras (horas, coste, tokens, horas IA) son **ilustrativas** y coherentes entre los documentos.

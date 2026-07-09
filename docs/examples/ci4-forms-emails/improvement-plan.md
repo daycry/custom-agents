@@ -5,9 +5,9 @@
 | | |
 |---|---|
 | **Fecha** | 2026-07-08 |
-| **Estado** | 📝 borrador |
+| **Estado** | borrador |
 | **Tipo** | Nueva Funcionalidad |
-| **Prioridad** | 🟡 Media |
+| **Prioridad** | Media |
 | **Solicitante** | Daycry |
 | **Responsable** | — |
 | **Spec** | [`spec.md`](spec.md) |
@@ -15,18 +15,20 @@
 
 ---
 
-## 🎛️ Cuadro de mando
+## Cuadro de mando
 
 | Métrica | Estimado | Real | Confianza |
 |--------|---------|------|-----------|
-| ⏱️ Tiempo (humano) | **26,4 h** (22 h base +20 %) | 0 h | Alta |
-| 💶 Coste total | **~1.329 €** | 0 € | Alta |
-| 🔢 Tokens IA | **390k** (in 300k / out 90k) | 0 | Media |
-| 📦 Tareas | **13** | 0 hechas | — |
+| Tiempo humano | **26,4 h** (22 h base +20 %) | 0 h | Alta |
+| Tiempo IA (ejecución) | **1,8 h** (+ 0,45 h supervisión) | 0 h | Alta |
+| Coste total | **~1.329 €** | 0 € | Alta |
+| Tokens IA | **390k** (in 300k / out 90k) | 0 | Media |
+| Multiplicador productividad | **×11,7** | — | — |
+| Tareas | **13** | 0 hechas | — |
 
 ---
 
-## ⏱️ Estimación por fase
+## Estimación por fase
 
 | Fase | Estimado (h) | Tokens (in / out) | Coste € |
 |------|-------------|-------------------|---------|
@@ -40,7 +42,7 @@
 
 ---
 
-## 💶 Presupuesto económico
+## Presupuesto económico
 
 **Coste = (horas × tarifa) + coste de tokens de IA.** Importes en **EUR**.
 
@@ -50,8 +52,8 @@
 |-----------|-------|------|
 | Tarifa de desarrollo | 50 €/h | — |
 | Modelo IA asumido | claude-opus-4-8 | Base de la previsión de tokens |
-| Precio input | 12 € / 1M tokens | ⚠️ ilustrativo, verificar tarifa vigente |
-| Precio output | 60 € / 1M tokens | ⚠️ ilustrativo, verificar tarifa vigente |
+| Precio input | 12 € / 1M tokens | ilustrativo, verificar tarifa vigente |
+| Precio output | 60 € / 1M tokens | ilustrativo, verificar tarifa vigente |
 | Ratio de supervisión | ~25 % de las horas IA | — |
 | Horas por empleado-mes (FTE) | 160 h | — |
 | Margen de contingencia | 20 % | Sobre horas base (humanas e IA) |
@@ -70,7 +72,7 @@
 
 ---
 
-## 🔢 Previsión de tokens (por fase)
+## Previsión de tokens (por fase)
 
 | Fase | Input (tok) | Output (tok) | Total (tok) | Coste € |
 |------|------------|-------------|-------------|---------|
@@ -86,7 +88,7 @@
 
 ---
 
-## ⚡ Productividad IA (humano vs. IA)
+## Productividad IA (humano vs. IA)
 
 | KPI | Valor |
 |-----|-------|
@@ -103,11 +105,11 @@
 
 ---
 
-## 📋 Resumen ejecutivo
+## Resumen ejecutivo
 
 Implementar en CodeIgniter 4 dos formularios públicos (contacto y solicitud de presupuesto), cada uno con un envío de email (notificación al equipo y confirmación al usuario), usando solo componentes nativos de CI4 (Email/SMTP, Validation, CSRF, Honeypot, Throttler). Desarrollo pequeño, cerrado y de baja incertidumbre.
 
-### 🎯 Objetivos
+### Objetivos
 
 - Dos formularios funcionales con validación server-side y anti-spam.
 - Dos envíos de email con plantillas HTML.
@@ -115,7 +117,7 @@ Implementar en CodeIgniter 4 dos formularios públicos (contacto y solicitud de 
 
 ---
 
-## 📥 Datos necesarios para un informe completo
+## Datos necesarios para un informe completo
 
 - [x] Requisitos funcionales confirmados (spec aprobada)
 - [x] Alcance cerrado (spec §Alcance)
@@ -126,7 +128,7 @@ Implementar en CodeIgniter 4 dos formularios públicos (contacto y solicitud de 
 
 ---
 
-## 🔍 Análisis de impacto
+## Análisis de impacto
 
 - **`app/Controllers/`** — nuevos `ContactController` y `QuoteController`.
 - **`app/Views/`** — vistas de formularios y de emails (`emails/*`).
@@ -136,7 +138,7 @@ Implementar en CodeIgniter 4 dos formularios públicos (contacto y solicitud de 
 
 ---
 
-## 🏗️ Cambios arquitectónicos
+## Cambios arquitectónicos
 
 - Un controlador por formulario; patrón **PRG** (Post/Redirect/Get) tras el envío.
 - Emails vía `service('email')` con vistas HTML como cuerpo.
@@ -144,7 +146,7 @@ Implementar en CodeIgniter 4 dos formularios públicos (contacto y solicitud de 
 
 ---
 
-## 📁 Archivos a crear/modificar
+## Archivos a crear/modificar
 
 | Archivo | Acción | Propósito |
 |---------|--------|-----------|
@@ -159,14 +161,14 @@ Implementar en CodeIgniter 4 dos formularios públicos (contacto y solicitud de 
 
 ---
 
-## 🔗 Dependencias y prerequisitos
+## Dependencias y prerequisitos
 
 - Proyecto CI4 inicializado (F1 antes que el resto).
 - Servidor **SMTP** con credenciales (bloquea las fases de envío F2/F3 hasta tenerlo).
 
 ---
 
-## ✅ Criterios de aceptación (global)
+## Criterios de aceptación (global)
 
 - [ ] `/contacto` y `/solicitud` responden `200` y renderizan sus campos.
 - [ ] Envío válido → email enviado al destinatario correcto + mensaje de éxito (PRG).
@@ -176,7 +178,7 @@ Implementar en CodeIgniter 4 dos formularios públicos (contacto y solicitud de 
 
 ---
 
-## ⚠️ Riesgos y mitigaciones
+## Riesgos y mitigaciones
 
 | Riesgo | Probabilidad | Impacto | Mitigación |
 |--------|-------------|---------|------------|
@@ -186,19 +188,19 @@ Implementar en CodeIgniter 4 dos formularios públicos (contacto y solicitud de 
 
 ---
 
-## 📊 Métricas de éxito
+## Métricas de éxito
 
 - Formularios operativos con tasa de error de validación razonable.
 - Emails entregados correctamente (comprobado en buzón de prueba).
 
 ---
 
-## ⏱️ Agregación de tiempo
+## Agregación de tiempo
 
 - 2026-07-08: Creación del plan (`Tiempo consumido`: 0h).
 
 ---
 
-## 📝 Changelog
+## Changelog
 
 - 2026-07-08: Plan creado a partir de [`evaluation.md`](evaluation.md) (aprobadas C-01 y C-02) y [`spec.md`](spec.md).

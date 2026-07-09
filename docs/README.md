@@ -9,18 +9,19 @@ Antes de añadir o tocar un agente, lee [`CONVENTIONS.md`](CONVENTIONS.md): defi
 | Agente | Qué hace | Dependencias | Documentación |
 |--------|----------|--------------|---------------|
 | **nemesis** | Auditoría de ciberseguridad end-to-end: SAST (estático) + DAST (pentest activo local), memoria e informe visual. | skill `cybersecurity`, kit `agent-kits/nemesis` | [nemesis.md](agents/nemesis.md) · [presentación](agents/nemesis-presentacion.md) · [toolkit](agents/nemesis-toolkit.md) |
-| **planner** | Genera planes de implementación detallados y presupuestados (tiempo, coste €, tokens) en `docs/plans/`. | kit `agent-kits/planner` | [planner.md](agents/planner.md) |
-| **evaluator** | Evalúa/presupuesta una spec de `docs/specs/` (la crea si llega por prompt) → `docs/evaluations/`. Enlaza spec↔evaluación y hace handoff a `planner`. | kit `agent-kits/evaluator`, agente `planner` | [evaluator.md](agents/evaluator.md) |
+| **planner** | Genera planes de implementación detallados y presupuestados (tiempo, coste €, tokens) en `docs/roadmap/`. | kit `agent-kits/planner` | [planner.md](agents/planner.md) |
+| **evaluator** | Evalúa/presupuesta una spec (la crea si llega por prompt) en `docs/roadmap/<fecha>-<slug>/`. Enlaza spec↔evaluación y hace handoff a `planner`. | kit `agent-kits/evaluator`, agente `planner` | [evaluator.md](agents/evaluator.md) |
 | **pdfy** | Convierte archivos a PDF con aspecto moderno (Markdown, HTML y Word → PDF vía Chromium headless + tema CSS). | skill `to-pdf` | [pdfy.md](agents/pdfy.md) |
+| **qa** | Audita un plan ejecutando E2E con Playwright (solo local), captura evidencias y genera informe md+pdf con checklist manual en `docs/roadmap/<slug>/testing/`. | skill `to-pdf`, kit `agent-kits/qa` | [qa.md](agents/qa.md) |
 
-**Cadena de trabajo:** `docs/specs/<slug>.md` (spec) → `docs/evaluations/<fecha>-<slug>/` (evaluator) → `docs/plans/<fecha>-<slug>/` (planner). Los tres artefactos se referencian entre sí y se actualizan según se crean (ver regla 7 de [`CONVENTIONS.md`](CONVENTIONS.md)). `pdfy` exporta cualquier documento a PDF.
+**Cadena de trabajo (carpeta única por iniciativa):** `docs/roadmap/<fecha>-<slug>/` contiene `spec.md` (qué) → `evaluation.md` (cuánto/si conviene) → `improvement-plan.md` + `tasks.md` (cómo) (+ `testing/`). Se referencian entre sí y se actualizan según se crean (ver regla 7 de [`CONVENTIONS.md`](CONVENTIONS.md)). `pdfy` exporta cualquier documento a PDF.
 
 ## Skills compartidas
 
 | Skill | Qué hace | Usada por |
 |-------|----------|-----------|
 | **cybersecurity** | Análisis estático de seguridad en 8 dimensiones (OWASP, CWE, secretos, deps, IaC, threat intel, authz, compliance). | nemesis |
-| **to-pdf** | Convierte Markdown/HTML/Word a PDF con tema moderno (Chromium headless + CSS). | pdfy |
+| **to-pdf** | Convierte Markdown/HTML/Word a PDF con tema moderno (Chromium headless + CSS). | pdfy, qa |
 
 ## Mapa del repositorio
 

@@ -11,9 +11,13 @@ Todo es open-source, de repos oficiales, y de uso **defensivo / pentest autoriza
 | **httpx** | Sondeo/fingerprint HTTP (tech, título, server, status) | projectdiscovery/httpx | idem |
 | **ffuf** | Descubrimiento de contenido / fuzzing de rutas y params | ffuf/ffuf | idem |
 | **gitleaks** | Detección de secretos en árbol/repo | gitleaks/gitleaks | idem |
+| **trivy** | SCA: vulnerabilidades de dependencias contra BD de CVEs (`trivy fs`) → area `deps` | aquasecurity/trivy | idem (asset `.tar.gz`/`.zip`, naming `64bit`) |
+| **hadolint** | Lint de Dockerfile (buenas prácticas/seguridad) → area `iac` | hadolint/hadolint | idem (asset = **binario raw**, sin archivo) |
 
 `pick_asset.py` elige el asset correcto tolerando las distintas convenciones de nombre
-(`amd64`/`x64`/`x86_64`, `darwin`/`macOS`/`osx`, `.zip`/`.tar.gz`).
+(`amd64`/`x64`/`x86_64`/`64bit`, `darwin`/`macOS`/`osx`, `.zip`/`.tar.gz`, y binarios **raw** con `--raw`).
+
+**Estáticos vs. DAST:** `trivy fs` y `hadolint` escanean el **árbol del proyecto** (no un host), así que corren desde `run-static.sh` (sin guardrail), no desde `run-external.sh`. trivy descarga su BD de CVEs en el primer uso (red una vez).
 
 ## B. Herramientas de script (git clone + runtime presente)
 | Tool | Uso | Fuente | Requiere |

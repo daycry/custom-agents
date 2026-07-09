@@ -22,6 +22,8 @@ TOOLS=(
   "sqlmap|SQLi (opt-in, activo)"
   "nikto|escáner de servidor web"
   "wafw00f|detección de WAF"
+  "trivy|SCA de dependencias con BD de CVEs (area deps)"
+  "hadolint|lint de Dockerfile (area iac)"
 )
 
 present(){ local t="$1"; [ -x "$BIN/$t$EXE" ] || [ -x "$BIN/$t" ] || command -v "$t" >/dev/null 2>&1; }
