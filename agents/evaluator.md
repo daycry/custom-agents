@@ -5,7 +5,8 @@ tools: Read, Grep, Glob, Bash, Write, Edit
 # Dependencias declaradas (convención del repo; ver docs/CONVENTIONS.md).
 # Campos informativos: Claude Code ignora claves extra del frontmatter.
 dependencies:
-  skills: []                 # no depende de skills compartidas
+  skills:                    # publicar la spec/evaluación en Confluence (opcional)
+    - confluence-publish
   kits:                      # plantilla en .claude/agent-kits/
     - agent-kits/evaluator
   agents:                    # handoff: lo aprobado se ejecuta con planner
@@ -75,6 +76,8 @@ Si hay **2+ características**, rellena la **tabla comparativa** y la **recomend
 **P5. Redacción.** Rellena la plantilla `evaluation.md`: cuadro de mando, resumen ejecutivo, requerimientos recibidos, datos necesarios, supuestos económicos, evaluación por característica, comparativa (si aplica), presupuesto total, recomendación, riesgos transversales, handoff a planner, changelog. Rellena la fila **Spec** con la ruta a la spec (`plan` = `pendiente`). Sustituye TODOS los `{{PLACEHOLDER}}` y borra los comentarios guía.
 
 **P6. Enlazar y cerrar.** Escribe la evaluación y **actualiza la spec** para que apunte a ella (`evaluacion:` en el frontmatter de la spec + su callout). Actualiza `docs/roadmap/README.md`. Resume al usuario: spec de origen, coste total (€), esfuerzo (h), tokens, nº de características y veredicto. Recuerda el handoff: lo aprobado se ejecuta con el agente **`planner`** (que rellenará el campo `Plan` de la evaluación y el `plan:` de la spec al crearse).
+
+**P7. Sincronizar con Confluence (opcional).** Tras escribir/actualizar cualquier fichero en `docs/` (spec, evaluación, índice), invoca la skill **`confluence-publish`** pasándole las rutas afectadas. La skill aplica el **opt-in**: si el proyecto aún no lo ha decidido, preguntará **una vez** si se quiere sincronizar (sí → conecta y publica; no → lo recuerda y no vuelve a preguntar); si ya está en `enabled: false`, no hace nada. No bloquees el trabajo por esto. Nunca sincroniza `docs/security-scan/`.
 
 ---
 

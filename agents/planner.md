@@ -5,7 +5,8 @@ tools: Read, Grep, Glob, Bash, Write, Edit
 # Dependencias declaradas (convención del repo; ver docs/CONVENTIONS.md).
 # Campos informativos: Claude Code ignora claves extra del frontmatter.
 dependencies:
-  skills: []                 # no depende de skills compartidas
+  skills:                    # publicar el plan en Confluence (opcional)
+    - confluence-publish
   kits:                      # plantillas en .claude/agent-kits/
     - agent-kits/planner
   agents: []                 # otros agentes de los que depende (ninguno)
@@ -79,6 +80,8 @@ Registra los valores usados en el bloque **Supuestos** del `improvement-plan.md`
 Sustituye TODOS los `{{PLACEHOLDER}}` y borra los comentarios guía `<!-- ... -->` de las plantillas.
 
 **P6. Cierre.** Escribe ambos ficheros, actualiza `docs/roadmap/README.md` y resume al usuario: ruta del plan, tiempo total, coste total (€), tokens previstos y nº de tareas. Ofrece abrir el `improvement-plan.md`.
+
+**P7. Sincronizar con Confluence (opcional).** Tras escribir/actualizar cualquier fichero en `docs/`, invoca la skill **`confluence-publish`** pasándole las rutas afectadas. La skill aplica el **opt-in**: si el proyecto aún no lo ha decidido, preguntará **una vez** si se quiere sincronizar con Confluence (si sí → conecta y publica; si no → lo recuerda y no vuelve a preguntar); si ya está en `enabled: false`, no hace nada. No bloquees el trabajo por esto. Nunca sincroniza `docs/security-scan/`.
 
 ---
 

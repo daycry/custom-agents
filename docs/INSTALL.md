@@ -1,10 +1,10 @@
 # Instalación y despliegue
 
-Bundle de agentes custom para Claude Code: **nemesis** (auditoría SAST+DAST), **evaluator** (evalúa/presupuesta specs), **planner** (planes presupuestados) y **pdfy** (conversión a PDF), más las skills compartidas **cybersecurity** y **to-pdf**.
+Bundle de agentes custom para Claude Code: **nemesis** (auditoría SAST+DAST), **evaluator** (evalúa/presupuesta specs), **planner** (planes presupuestados), **qa** (E2E con Playwright), **pdfy** (conversión a PDF) y **documenter** (documentación técnica y de producto), más las skills compartidas **cybersecurity**, **to-pdf** y **confluence-publish**.
 
 Contenido (todo cuelga de la raíz del bundle, que se despliega como `.claude/`):
 - `agents/*.md` — definiciones de los agentes.
-- `skills/<skill>/` — skills compartidas (`cybersecurity`, `to-pdf`).
+- `skills/<skill>/` — skills compartidas (`cybersecurity`, `to-pdf`, `confluence-publish`).
 - `agent-kits/<agente>/` — toolkits/plantillas privadas de cada agente.
 - `.claude-plugin/` — manifiesto de plugin y marketplace (para la vía 3).
 - `docs/` — documentación (no se carga como código; el loader la ignora).
@@ -73,7 +73,7 @@ Tras instalar, los agentes quedan disponibles en **todos los proyectos** de la m
 2. **Sube la versión** en `.claude-plugin/plugin.json` **y** `.claude-plugin/marketplace.json` (p. ej. `1.2.0` → `1.2.1`). Ambos deben quedar con el **mismo** número; si no coinciden o no suben, el cliente no detecta la actualización.
 3. Commit + push al repo (opcional: tag `vX.Y.Z`).
 
-> Versión actual publicada-pendiente: **1.2.0** (ya reflejada en ambos manifiestos).
+> Versión actual publicada-pendiente: **1.3.0** (ya reflejada en ambos manifiestos).
 
 ### Al actualizar — CLI de Claude Code
 En una sesión `claude`:
@@ -103,6 +103,44 @@ o, opción nuclear, borra el caché y reinstala:
 ```
 rm -rf ~/.claude/plugins/cache/
 ```
+
+---
+
+## Conector de Atlassian (Confluence) — para `confluence-publish`
+
+La skill `confluence-publish` publica/espeja la documentación de `docs/` en Confluence, y los
+agentes `planner`, `evaluator` y `qa` la invocan al escribir en `docs/` (paso "Sincronizar con
+Confluence"). Es **opcional (opt-in)**: la primera vez la skill pregunta si quieres sincronizar
+con Confluence; si dices que **no**, lo recuerda (`"enabled": false` en `.claude/confluence.json`)
+y no vuelve a preguntar ni sincroniza. Si dices que **sí**, se conecta y se ejecuta el asistente.
+Todo va por el **conector oficial de Atlassian (Rovo MCP)** — no hay integración propia. Si vas a
+usar la sincronización, da de alta el conector **una vez** por entorno:
+
+- **Claude Desktop / Cowork (UI):** menú **Customize → Connectors** (o **Conectores**) → añade
+  **Atlassian (Jira & Confluence)** y completa el login OAuth. Es lo que se usa en la app.
+- **Claude Code CLI (terminal):** registra el MCP remoto y autentícate:
+  ```bash
+  claude mcp add --transport http atlassian https://mcp.atlassian.com/v1/mcp
+  # luego, dentro de una sesión `claude`, sigue el flujo OAuth que aparezca
+  ```
+- **Extensión de VS Code:** usa la misma configuración MCP de Claude Code (el `claude mcp add`
+  anterior sirve; la extensión comparte los servidores MCP del CLI).
+
+Comportamiento por entorno:
+
+- **Cowork / escritorio:** el paso de "elegir dónde publicar" abre un **navegador de árbol
+  interactivo** (artefacto) que expande páginas en vivo.
+- **CLI / VS Code:** no hay host de artefactos, así que ese paso es **conversacional**
+  (la skill lista espacios y páginas por texto y eliges por número). El resto —crear/actualizar
+  páginas y la sincronización de los agentes— es **idéntico** en los tres entornos.
+
+Notas:
+
+- La primera vez, la skill te guía para elegir espacio y anclaje (raíz o bajo una página) y
+  guarda la decisión en `.claude/confluence.json` del proyecto; después es automático.
+- **Nunca** se sincroniza `docs/security-scan/**` (datos sensibles de `nemesis`).
+- El conector Atlassian **no** permite borrar páginas: al eliminar un `.md`, la página se marca
+  como obsoleta y se lista para borrado manual.
 
 ---
 
