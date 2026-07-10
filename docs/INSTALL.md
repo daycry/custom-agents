@@ -138,6 +138,13 @@ Notas:
 
 - La primera vez, la skill te guía para elegir espacio y anclaje (raíz o bajo una página) y
   guarda la decisión en `.claude/confluence.json` del proyecto; después es automático.
+- **Detección de cambios sin git:** la skill mantiene un manifiesto `.claude/confluence-state.json`
+  (hash de contenido + `pageId` por documento) y publica solo lo que cambió (crear/actualizar/
+  marcar obsoleto). Es idempotente e independiente de commits o fechas.
+- **Hook opcional (disparador):** el plugin incluye un hook `PostToolUse` (`hooks/hooks.json`) que,
+  al editar ficheros bajo `docs/`, deja una marca `.claude/.confluence-pending`; no publica nada.
+  La sincronización real la hace la skill (respetando el opt-in). Los hooks de un plugin se activan
+  al instalarlo; tras cambios en `hooks/` hace falta `/reload-plugins`.
 - **Nunca** se sincroniza `docs/security-scan/**` (datos sensibles de `nemesis`).
 - El conector Atlassian **no** permite borrar páginas: al eliminar un `.md`, la página se marca
   como obsoleta y se lista para borrado manual.
