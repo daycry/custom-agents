@@ -93,3 +93,5 @@ Sustituye TODOS los `{{PLACEHOLDER}}` y borra los comentarios guía `<!-- ... --
 - **Prioridades (cuatro niveles con color).** `Baja` 🟢 · `Media` 🟡 · `Alta` 🟠 · `Crítica` 🔴. Default `Media` si no se indica otra.
 - **Trazabilidad.** IDs de tarea estables (`T-01`). Al actualizar un plan existente, edita sus ficheros y añade una línea al `Changelog`; no crees carpetas duplicadas.
 - **Un slug único por plan.** Si ya existe la carpeta del día con ese slug, actualízala o añade sufijo `-2`.
+- **`tasks.md` es el ledger canónico de progreso.** La plantilla incluye el banner que lo declara; consérvalo. Lo consumen `implementer` y `qa`, y debe respetarlo cualquier implementador (incl. orquestadores externos como *superpowers SDD*); ver regla 8 de `docs/CONVENTIONS.md`.
+- **Transiciones de estado.** El plan y las tareas nacen en `borrador`; pasan a `en-progreso` cuando arranca la implementación y a `completado` al cerrarse (lo coordinan `implementer`/`qa`/`/dev-cycle`). No dejes el plan en `borrador` una vez en marcha; ver regla 7 de `docs/CONVENTIONS.md`.

@@ -88,5 +88,6 @@ Si hay **2+ características**, rellena la **tabla comparativa** y la **recomend
 - **Formato fijo.** Siempre las plantillas `spec.md` / `evaluation.md`. Markdown válido: línea en blanco antes de listas y tras encabezados, checkboxes `- [ ]`.
 - **Vocabulario coherente con el repo.** Estado de la **evaluación**: `borrador` 📝 · `en-progreso` 🚧 · `en-revision` 🔍 · `completado` ✅ · `cancelado` ❌ (nace en `borrador`). Estado de la **spec**: `borrador` · `aprobada` · `implementada` · `obsoleta`. Prioridad: `Baja` 🟢 · `Media` 🟡 · `Alta` 🟠 · `Crítica` 🔴 (default `Media`).
 - **Enlazado siempre.** Al crear/actualizar la evaluación, deja la spec apuntando a ella; usa el mismo `<slug>` en toda la cadena.
+- **Transiciones de estado (no dejar en `borrador`).** Al terminar de evaluar, la evaluación pasa a `en-revision`. Cuando el usuario aprueba (go): spec → `aprobada` y evaluación → `completado`; si es no-go: evaluación → `cancelado` (spec → `obsoleta` si se descarta). Ver regla 7 de `docs/CONVENTIONS.md`.
 - **Handoff a planner.** Cierra siempre indicando qué características se aprueban para planificar con `planner`. No generes tú el plan de ejecución.
 - **Un slug único por evaluación.** Si ya existe la carpeta del día con ese slug, actualízala o añade sufijo `-2`.

@@ -1,6 +1,6 @@
 # claude-agents
 
-Agentes custom para **Claude Code**, empaquetados como plugin instalable. Incluye seis agentes y tres skills compartidas, pensados para reutilizarse en cualquier proyecto.
+Agentes custom para **Claude Code**, empaquetados como plugin instalable. Incluye siete agentes, tres skills compartidas y un command orquestador (`/dev-cycle`), pensados para reutilizarse en cualquier proyecto.
 
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
@@ -11,6 +11,7 @@ Agentes custom para **Claude Code**, empaquetados como plugin instalable. Incluy
 | **nemesis** | Auditoría de ciberseguridad end-to-end: SAST (análisis estático, skill `cybersecurity`) + DAST (pentest activo **solo local**), con memoria persistente e informe visual `index.html`. |
 | **evaluator** | Evalúa/presupuesta una **especificación** (la crea si llega por el prompt) en `docs/roadmap/<fecha>-<slug>/`: esfuerzo, coste € y previsión de tokens. Hace *handoff* a `planner`. |
 | **planner** | Genera planes de implementación detallados y **presupuestados** (tiempo, coste €, previsión de tokens) en `docs/roadmap/`. |
+| **implementer** | **Implementa** un plan aprobado fase a fase (escribe código, sobre rama), marcando `tasks.md` como ledger canónico por tarea. Handoff a `qa`. |
 | **pdfy** | Convierte archivos a **PDF con aspecto moderno** (Markdown, HTML y Word → PDF vía Chromium headless + tema CSS), usando la skill `to-pdf`. |
 | **qa** | Audita un plan ejecutando **E2E con Playwright** (solo local), captura evidencias y genera un informe md+pdf con checklist manual en `docs/roadmap/<slug>/testing/`. |
 | **documenter** | Genera y mantiene la **documentación** técnica y de producto del proyecto bajo `docs/`, con estructura **derivada del propio proyecto** (índice, RAG-INDEX, arquitectura, stack, unidades, guías, producto). Sincroniza en Confluence. |
@@ -92,7 +93,7 @@ docs/roadmap/<fecha>-<slug>/
 └── testing/             (qa: E2E + informe)
 ```
 
-`evaluator` especifica y presupuesta → `planner` genera el plan detallado → se implementa → `qa` prueba (E2E) → con los tests en verde, `qa` hace handoff a `documenter`, que **actualiza la documentación** del proyecto reflejando lo implementado y probado (una vez al final del plan, no por tarea). `nemesis` **audita** la seguridad de lo construido. Los tres artefactos (spec, evaluación, plan) se **referencian entre sí** y se actualizan según se crean. `pdfy` exporta cualquiera de esos documentos (u otros) a **PDF** con aspecto moderno.
+`evaluator` especifica y presupuesta → `planner` genera el plan detallado → `implementer` lo **implementa** fase a fase (marcando `tasks.md`) → `qa` prueba (E2E) → con los tests en verde, `qa` hace handoff a `documenter`, que **actualiza la documentación** del proyecto reflejando lo implementado y probado (una vez al final del plan, no por tarea). `nemesis` **audita** la seguridad de lo construido. El command **`/dev-cycle <objetivo>`** orquesta toda esa cadena llamando a cada agente por nombre, con puertas de control. Los tres artefactos (spec, evaluación, plan) se **referencian entre sí** y se actualizan según se crean. `pdfy` exporta cualquiera de esos documentos (u otros) a **PDF** con aspecto moderno.
 
 ## Publicación en Confluence
 

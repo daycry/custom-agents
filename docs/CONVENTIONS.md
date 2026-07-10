@@ -101,9 +101,30 @@ Estados por artefacto (vocabularios distintos, a propósito):
 - **spec:** `borrador` · `aprobada` · `implementada` · `obsoleta`.
 - **evaluación / plan:** `borrador` · `en-progreso` · `en-revision` · `completado` · `cancelado`.
 
+**Transiciones a lo largo del ciclo (no dejar en `borrador`).** Todo artefacto nace en `borrador`,
+pero cada fase que se supera **debe** moverlo al estado que toca (lo garantiza `/dev-cycle`, y los
+agentes al ejecutarse sueltos):
+
+- Tras **evaluar**: evaluación → `en-revision`. En la puerta **go**: spec → `aprobada`, evaluación → `completado`. En **no-go**: evaluación → `cancelado` (spec → `obsoleta` si se descarta).
+- Al **crear el plan**: plan/tasks → `borrador`. Al **arrancar la implementación** (OK del plan): plan y fase activa → `en-progreso`.
+- Durante la **implementación**: cada tarea `en-progreso` → `completado`; la fase → `completado` al cerrar sus tareas.
+- En el **cierre** (qa en verde + documentado): plan → `completado` y spec → `implementada`.
+- **Cancelación** en cualquier punto: plan/evaluación → `cancelado` (spec → `obsoleta` si aplica).
+
 Reglas de enlazado (**bidireccional**, y como todo está en la misma carpeta, los enlaces son **nombres simples**):
 
 - La `spec` lleva en su frontmatter `evaluacion: evaluation.md` y `plan: improvement-plan.md` (o `pendiente`), más callouts al inicio.
 - La `evaluation.md` lleva filas **Spec** (`spec.md`) y **Plan** (`improvement-plan.md`); el `improvement-plan.md` lleva filas **Spec** (`spec.md`) y **Evaluación** (`evaluation.md`).
 - Al **crear la evaluación**: rellena su fila **Spec** y **actualiza la spec** (`evaluacion:` + callout) para que apunte a la evaluación.
 - Al **crear el plan**: rellena sus filas **Spec/Evaluación** y **actualiza hacia atrás** el `plan:` de la spec y la fila **Plan** de la evaluación.
+
+## 8. Progreso de un plan: `tasks.md` es el ledger canónico
+
+El avance de un plan se registra en **un único sitio**: `docs/roadmap/<fecha>-<slug>/tasks.md`
+(checkbox + estado por tarea T-XX + tabla de resumen). Es la **fuente única de verdad**.
+
+- **Cualquier implementador** debe actualizar `tasks.md` al completar cada tarea: el agente `implementer`, el chat principal, o un **orquestador externo** (p. ej. *superpowers subagent-driven-development*).
+- Si una herramienta lleva su propio registro (todo-list interna, `.superpowers/sdd/progress.md`, etc.), ese registro es **espejo**, no fuente: `tasks.md` manda. Ante discrepancia, gana `tasks.md`.
+- El orquestador `/dev-cycle` y el agente `implementer` aplican esta regla de serie. Para que la respeten orquestadores externos, `/dev-cycle` ofrece añadir esta regla al `CLAUDE.md` del proyecto consumidor.
+- **Estados con motor externo (p. ej. superpowers):** cuando la implementación se delega a un orquestador externo, ese motor **no** actualiza tus artefactos. Por tanto, `/dev-cycle` (o tú) aplica las **transiciones de estado** de la regla 7 y mantiene `tasks.md` al día en su nombre. Las transiciones valen igual haya o no motor externo.
+- El cierre del ciclo (documentación con `documenter`) se hace **una vez** tras implementar y con `qa` en verde, no tarea a tarea.

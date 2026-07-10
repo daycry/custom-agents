@@ -12,6 +12,8 @@
 | **Fecha** | {{YYYY-MM-DD}} |
 | **Plan** | [`improvement-plan.md`](./improvement-plan.md) |
 
+> **⚠️ Ledger canónico de progreso.** Este fichero es la **fuente única de verdad** del avance del plan. **Cualquier** implementador —el agente `implementer`, el chat principal, o un orquestador externo (p. ej. *superpowers SDD*)— **debe** marcar aquí cada tarea (checkbox + estado) al completarla y actualizar el resumen. Los ledgers propios de otras herramientas son **espejo**, no fuente.
+
 ---
 
 ## Resumen de progreso

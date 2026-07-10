@@ -58,7 +58,7 @@ Recoge `raw/results.json`, capturas y trazas. Un fallo de un escenario no aborta
 
 **P7. Sincronizar con Confluence (opcional).** Tras generar el `report.md` en `docs/roadmap/<fecha>-<slug>/testing/`, invoca la skill **`confluence-publish`** pasándole la ruta del informe. La skill aplica el **opt-in**: si el proyecto aún no lo ha decidido, preguntará **una vez** si se quiere sincronizar (sí → conecta y publica; no → lo recuerda y no vuelve a preguntar); si ya está en `enabled: false`, no hace nada. No bloquees el trabajo por esto. Nunca sincroniza `docs/security-scan/`.
 
-**P8. Handoff a documenter (si verde).** Este es el **cierre del ciclo del plan**. Si los tests automáticos han pasado (estado global verde), haz handoff al agente **`documenter`** para que genere/actualice la documentación del proyecto reflejando lo implementado y probado (una sola pasada al final, no por tarea). Si hay fallos (rojo), **no** documentes: primero se corrigen y se vuelve a probar. Recuerda que `documenter` documenta solo el estado final estable.
+**P8. Handoff a documenter + estados (si verde).** Este es el **cierre del ciclo del plan**. Si los tests automáticos han pasado (estado global verde): actualiza estados (no dejar en `borrador`/`en-progreso`) — plan → `completado` y spec → `implementada` (ver regla 7 de `docs/CONVENTIONS.md`) — y haz handoff al agente **`documenter`** para que genere/actualice la documentación reflejando lo implementado y probado (una sola pasada al final, no por tarea). Si hay fallos (rojo), **no** documentes ni cierres estados: la(s) tarea(s)/plan afectadas vuelven a `en-progreso`, se corrigen y se reprueba.
 
 ## 3) REGLAS
 - **Solo local/privado** (guardrail). Nunca contra terceros.
