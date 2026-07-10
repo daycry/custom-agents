@@ -1,7 +1,7 @@
 {
   "name": "custom-agents",
-  "version": "1.2.0",
-  "description": "Agentes custom para Claude Code: nemesis (auditoría SAST+DAST), evaluator (evalúa/presupuesta specs), planner (planes presupuestados), pdfy (conversión a PDF) y qa (E2E con Playwright + informe). Incluye las skills compartidas cybersecurity y to-pdf.",
+  "version": "1.3.0",
+  "description": "Agentes custom para Claude Code: nemesis (auditoría SAST+DAST), evaluator (evalúa/presupuesta specs), planner (planes presupuestados), pdfy (conversión a PDF), qa (E2E con Playwright + informe) y documenter (documentación técnica y de producto). Incluye las skills compartidas cybersecurity, to-pdf y confluence-publish (publicación opcional de docs en Confluence).",
   "author": {
     "name": "daycry",
     "email": "jmano@mediapro.tv"
@@ -15,6 +15,8 @@
     "planning",
     "estimation",
     "sast",
-    "dast"
+    "dast",
+    "confluence",
+    "documentation"
   ]
 }

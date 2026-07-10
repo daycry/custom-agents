@@ -39,8 +39,17 @@ custom-agents/               (se despliega como .claude/)
 - **evaluator** — evalúa/presupuesta una spec (si llega por prompt, la crea primero) y escribe en `docs/roadmap/<fecha>-<slug>/` (kit `agent-kits/evaluator`); enlaza spec↔evaluación y hace handoff a `planner`. Doc: `docs/agents/evaluator.md`.
 - **pdfy** — convierte archivos a PDF con aspecto moderno (Markdown, HTML y Word → PDF vía Chromium headless + tema CSS), usando la skill compartida `to-pdf`. Doc: `docs/agents/pdfy.md`.
 - **qa** — audita un plan ejecutando E2E con Playwright (solo local, guardrail), captura evidencias y genera informe md+pdf con checklist manual en `docs/roadmap/<fecha>-<slug>/testing/` (kit `agent-kits/qa`, skill `to-pdf`). Doc: `docs/agents/qa.md`.
+- **documenter** — genera/mantiene la documentación técnica y de producto del proyecto bajo `docs/`, con estructura **derivada del propio proyecto** (no hardcodea carpetas; deriva del reparto y vocabulario del repo). Cubre índice, RAG-INDEX, arquitectura, stack, unidades del sistema, guías y producto (kit `agent-kits/documenter`, skill `confluence-publish`). No toca `docs/roadmap/` ni `docs/security-scan/`. Doc: `docs/agents/documenter.md`.
 
 **Cadena de artefactos (carpeta única por iniciativa):** `docs/roadmap/<fecha>-<slug>/` contiene `spec.md` → `evaluation.md` → `improvement-plan.md` + `tasks.md` (+ `testing/`), enlazados entre sí y rellenados según se crea cada uno (ver regla 7 de `docs/CONVENTIONS.md`).
+
+**Cierre del ciclo:** tras implementar un plan y con las pruebas automáticas de `qa` en verde, `qa` hace handoff a `documenter`, que actualiza la documentación de referencia del proyecto (bajo `docs/`) reflejando lo implementado y probado. `documenter` se ejecuta **una vez al final del plan**, no tarea a tarea.
+
+## Skills compartidas
+
+- **cybersecurity** — SAST en 8 dimensiones (la usa `nemesis`).
+- **to-pdf** — Markdown/HTML/Word → PDF con tema moderno (la usan `pdfy`, `qa`).
+- **confluence-publish** — publica/espeja `docs/` en Confluence vía el conector Atlassian (Rovo MCP), con asistente guiado (elige espacio y anclaje raíz/hijo) e idempotente. Es **opcional (opt-in)**: la primera vez pregunta si se quiere sincronizar y guarda la decisión en `.claude/confluence.json` (`enabled: true/false`); si es `false`, no vuelve a preguntar ni sincroniza. La usan `planner`, `evaluator`, `qa` y `documenter`, que la invocan al escribir en `docs/` para sincronizar (crear/actualizar; borrado → obsoleto, porque el conector no permite borrar páginas). **Nunca** publica `docs/security-scan/`. En Cowork el paso de elegir destino usa un artefacto de árbol interactivo (`skills/confluence-publish/assets/tree-browser.template.html`); en CLI/VSCode es conversacional. Alta del conector: ver `docs/INSTALL.md`.
 
 ## Invariante de seguridad (no negociable)
 

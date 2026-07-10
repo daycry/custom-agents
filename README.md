@@ -1,6 +1,6 @@
 # claude-agents
 
-Agentes custom para **Claude Code**, empaquetados como plugin instalable. Incluye cinco agentes y dos skills compartidas, pensados para reutilizarse en cualquier proyecto.
+Agentes custom para **Claude Code**, empaquetados como plugin instalable. Incluye seis agentes y tres skills compartidas, pensados para reutilizarse en cualquier proyecto.
 
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
@@ -13,10 +13,12 @@ Agentes custom para **Claude Code**, empaquetados como plugin instalable. Incluy
 | **planner** | Genera planes de implementación detallados y **presupuestados** (tiempo, coste €, previsión de tokens) en `docs/roadmap/`. |
 | **pdfy** | Convierte archivos a **PDF con aspecto moderno** (Markdown, HTML y Word → PDF vía Chromium headless + tema CSS), usando la skill `to-pdf`. |
 | **qa** | Audita un plan ejecutando **E2E con Playwright** (solo local), captura evidencias y genera un informe md+pdf con checklist manual en `docs/roadmap/<slug>/testing/`. |
+| **documenter** | Genera y mantiene la **documentación** técnica y de producto del proyecto bajo `docs/`, con estructura **derivada del propio proyecto** (índice, RAG-INDEX, arquitectura, stack, unidades, guías, producto). Sincroniza en Confluence. |
 
 Skills compartidas:
 - **cybersecurity** — revisión de seguridad en 8 dimensiones (OWASP, CWE, secretos, dependencias, IaC, threat intel, autorización, compliance). La usa `nemesis`.
 - **to-pdf** — conversión de Markdown/HTML/Word a PDF con tema moderno. La usan `pdfy` y `qa`.
+- **confluence-publish** — publica/espeja `docs/` en **Confluence** vía el conector Atlassian (asistente guiado; elige espacio y anclaje raíz/hijo; idempotente). La usan `planner`, `evaluator` y `qa`, que sincronizan sus cambios de `docs/` automáticamente.
 
 ## Instalación (recomendada: plugin)
 
@@ -90,7 +92,23 @@ docs/roadmap/<fecha>-<slug>/
 └── testing/             (qa: E2E + informe)
 ```
 
-`evaluator` especifica y presupuesta → `planner` genera el plan detallado → se implementa → `nemesis` **audita** la seguridad de lo construido. Los tres artefactos (spec, evaluación, plan) se **referencian entre sí** y se actualizan según se crean. `pdfy` exporta cualquiera de esos documentos (u otros) a **PDF** con aspecto moderno.
+`evaluator` especifica y presupuesta → `planner` genera el plan detallado → se implementa → `qa` prueba (E2E) → con los tests en verde, `qa` hace handoff a `documenter`, que **actualiza la documentación** del proyecto reflejando lo implementado y probado (una vez al final del plan, no por tarea). `nemesis` **audita** la seguridad de lo construido. Los tres artefactos (spec, evaluación, plan) se **referencian entre sí** y se actualizan según se crean. `pdfy` exporta cualquiera de esos documentos (u otros) a **PDF** con aspecto moderno.
+
+## Publicación en Confluence
+
+La skill `confluence-publish` espeja `docs/` en **Confluence** usando el conector oficial de
+Atlassian (Rovo MCP). Es **opcional (opt-in)**: la primera vez la skill pregunta si quieres
+sincronizar; si dices que no, lo recuerda (`enabled: false`) y no vuelve a preguntar ni sincroniza.
+Si dices que sí, eliges espacio y dónde anclar el árbol (raíz del espacio o bajo una página
+existente); la decisión se guarda en `.claude/confluence.json` y a partir de ahí es automática.
+`planner`, `evaluator` y `qa` invocan la skill al escribir en `docs/`, de modo que —si está
+activada— la documentación en Confluence se mantiene al día (crear/actualizar; el borrado se marca
+como obsoleto porque el conector no permite eliminar páginas). **`docs/security-scan/` nunca se publica.**
+
+Requiere dar de alta el conector de Atlassian una vez: en **Cowork/Desktop** desde
+*Customize → Connectors*; en **CLI/VS Code** con `claude mcp add`. En Cowork el paso de elegir
+destino usa un navegador de árbol interactivo; en CLI/VS Code es conversacional. Detalle en
+[`docs/INSTALL.md`](docs/INSTALL.md).
 
 ## Estructura
 
@@ -103,7 +121,7 @@ claude-agents/               (se despliega como .claude/)
 └── docs/                    # documentación (índice, convenciones, por agente)
 ```
 
-Documentación: [índice](docs/README.md) · [convenciones](docs/CONVENTIONS.md) · [instalación](docs/INSTALL.md).
+Documentación: [índice](docs/README.md) · [convenciones](docs/CONVENTIONS.md) · [instalación](docs/INSTALL.md) · [changelog](CHANGELOG.md).
 
 ## Seguridad
 

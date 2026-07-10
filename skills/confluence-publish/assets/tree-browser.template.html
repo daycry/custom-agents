@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Confluence · elegir destino</title>
+<!--
+  PLANTILLA del navegador de árbol de Confluence para la skill confluence-publish.
+  El asistente COPIA este fichero, sustituye los marcadores {{...}} y lo publica con
+  create_artifact (mcp_tools = [el getConfluencePageDescendants del conector Atlassian]).
+  Marcadores a sustituir:
+    {{SERVER}}        -> nombre completo mcp__<uuid>__getConfluencePageDescendants del conector conectado
+    {{CLOUD_ID}}      -> cloudId del site (getAccessibleAtlassianResources)
+    {{HOME_ID}}       -> homepageId del espacio elegido (getConfluenceSpaces -> homepageId)
+    {{SPACE_KEY}}     -> clave del espacio (p.ej. TDEV)
+    {{SPACE_NAME}}    -> nombre legible del espacio (p.ej. TSI - DTI Dev)
+    {{SPACE_INITIALS}}-> 2 letras para el avatar (p.ej. TD)
+    {{DEFAULT_NAME}}  -> nombre por defecto de la página del proyecto (p.ej. la carpeta del repo)
+  El destino elegido queda en window.__dest = {mode, parentPageId, parentPath, name}:
+    mode 'existing'    -> publicar dentro de una página existente (parentPageId), sin crear home nueva
+    mode 'child'       -> crear página hija «name» bajo parentPageId y colgar de ella
+    mode 'root-child'  -> crear página «name» en la raíz del espacio y colgar de ella
+-->
+<style>
+:root{color-scheme:light}
+*{box-sizing:border-box}
+body{margin:0;background:#fff;color:#1b1b19;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;font-size:14px;line-height:1.5}
+.wrap{max-width:760px;margin:0 auto;padding:16px}
+.head{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.badge{width:36px;height:36px;border-radius:50%;background:#e6f1fb;color:#185fa5;display:flex;align-items:center;justify-content:center;font-weight:600;flex:none}
+.head h1{font-size:16px;font-weight:600;margin:0}
+.head p{margin:0;color:#6b6b66;font-size:13px}
+.rootopt{display:flex;justify-content:space-between;align-items:center;gap:10px;background:#e6f1fb;border-radius:10px;padding:10px 12px;margin-bottom:12px}
+.rootopt span{color:#185fa5;font-size:13px}
+input[type=text]{width:100%;height:34px;padding:0 12px;border:1px solid #dcdcd5;border-radius:8px;font-size:14px;background:#fff;color:#1b1b19}
+input[type=text]:focus{outline:none;border-color:#378add;box-shadow:0 0 0 3px #e6f1fb}
+#filter{margin-bottom:12px}
+button{font:inherit;cursor:pointer;background:#fff;border:1px solid #c9c9c1;border-radius:8px;padding:5px 11px;font-size:12px;color:#1b1b19}
+button:hover{background:#f4f3ee}
+button.pri{background:#185fa5;color:#fff;border-color:#185fa5}
+button.pri:hover{background:#124b82}
+button.sel{color:#185fa5;border-color:#b5d4f4}
+.tree{border:1px solid #eceae3;border-radius:10px;overflow:hidden}
+.row{display:flex;align-items:center;gap:6px;padding:8px 10px;border-top:1px solid #f1efe8}
+.row:hover{background:#faf9f5}
+.tw{display:flex;align-items:center;gap:8px;min-width:0;flex:1}
+.chev{width:20px;height:20px;border:none;background:none;padding:0;display:flex;align-items:center;justify-content:center;color:#88877f;flex:none;font-size:12px;transition:transform .12s}
+.chev.open{transform:rotate(90deg)}
+.chev.leaf{visibility:hidden}
+.ttl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ico{color:#88877f;flex:none;font-size:14px;width:16px;text-align:center}
+.muted{color:#9a9a92;font-size:12px;padding:8px 10px}
+.kids{background:#fcfcfa}
+.ask{background:#f4f8fd;border:1px solid #cfe1f5;border-radius:10px;margin:2px 10px 8px;padding:10px 12px}
+.ask .q{font-size:13px;font-weight:600;margin-bottom:8px;color:#124b82}
+.ask .opts{display:flex;flex-direction:column;gap:8px}
+.ask .opt{display:flex;gap:8px;align-items:flex-start}
+.ask .opt label{font-size:13px}
+.ask .opt small{color:#6b6b66;display:block}
+.ask .namebox{margin:8px 0 4px;display:none}
+.ask .actions{margin-top:10px;display:flex;gap:8px}
+.banner{margin-top:14px;background:#e1f5ee;border:1px solid #9fe1cb;border-radius:10px;padding:12px;display:none}
+.banner.on{display:block}
+.banner .path{font-weight:600;color:#0f6e56;margin-top:2px}
+.banner .hint{color:#0f6e56;font-size:12px;margin-top:8px}
+.spin{display:inline-block;width:12px;height:12px;border:2px solid #cdd;border-top-color:#378add;border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.err{color:#a32d2d;font-size:12px;padding:8px 10px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="head">
+    <div class="badge">{{SPACE_INITIALS}}</div>
+    <div>
+      <h1>Elegir dónde publicar</h1>
+      <p>{{SPACE_NAME}} ({{SPACE_KEY}}) · navega el árbol y elige un destino</p>
+    </div>
+  </div>
+
+  <div class="rootopt">
+    <span>▲ Publicar en la raíz del espacio (como sección nueva)</span>
+    <button class="sel" onclick="askRoot(this)">Elegir aquí</button>
+  </div>
+
+  <input type="text" id="filter" placeholder="Filtrar el primer nivel…" oninput="applyFilter()">
+
+  <div class="tree" id="tree"><div class="muted"><span class="spin"></span> Cargando primer nivel…</div></div>
+
+  <div class="banner" id="banner">
+    <div>Destino elegido:</div>
+    <div class="path" id="bpath"></div>
+    <div class="hint" id="bhint"></div>
+  </div>
+</div>
+
+<script>
+const SERVER="{{SERVER}}";
+const CLOUD="{{CLOUD_ID}}";
+const HOME="{{HOME_ID}}";
+const SPACE_KEY="{{SPACE_KEY}}";
+const DEFAULT_NAME="{{DEFAULT_NAME}}";
+const cache={};
+
+async function descendants(pageId){
+  if(cache[pageId]) return cache[pageId];
+  const r=await window.cowork.callMcpTool(SERVER,{cloudId:CLOUD,pageId:pageId,depth:1,limit:100});
+  if(r.isError) throw new Error((r.content&&r.content[0]&&r.content[0].text)||"error");
+  const data=r.structuredContent ?? JSON.parse(r.content[0].text);
+  const list=(data.results||[]).sort((a,b)=>(a.childPosition||0)-(b.childPosition||0));
+  cache[pageId]=list; return list;
+}
+
+function askBox(parentTitle, onConfirm){
+  const box=document.createElement("div"); box.className="ask";
+  const isRoot = parentTitle===null;
+  box.innerHTML=
+    '<div class="q">¿Cómo publico'+(isRoot?' en la raíz del espacio?':' en «'+parentTitle+'»?')+'</div>'+
+    '<div class="opts">'+
+      (isRoot?'':'<div class="opt"><input type="radio" name="m" value="here" id="o1"><label for="o1"><b>Usar esta página como destino</b><small>El contenido cuelga directamente de «'+parentTitle+'».</small></label></div>')+
+      '<div class="opt"><input type="radio" name="m" value="child" id="o2"'+(isRoot?' checked':'')+'><label for="o2"><b>Crear una página hija nueva</b><small>Se crea una página con el nombre que indiques y el contenido cuelga de ella.</small></label></div>'+
+    '</div>'+
+    '<div class="namebox" id="nb"><input type="text" id="cname" placeholder="Nombre de la página"></div>'+
+    '<div class="actions"><button class="pri" id="ok">Confirmar destino</button><button id="cancel">Cancelar</button></div>';
+  const nb=box.querySelector("#nb"), cname=box.querySelector("#cname");
+  cname.value=DEFAULT_NAME;
+  box.querySelectorAll('input[name=m]').forEach(function(r){
+    r.onchange=function(){ nb.style.display = (r.value==="child"&&r.checked)?"block":"none"; if(r.value==="child") cname.focus(); };
+  });
+  if(isRoot) nb.style.display="block";
+  box.querySelector("#cancel").onclick=function(){ box.remove(); };
+  box.querySelector("#ok").onclick=function(){
+    const sel=box.querySelector('input[name=m]:checked');
+    if(!sel){ box.querySelector(".q").textContent="Elige una opción primero."; return; }
+    if(sel.value==="child" && !cname.value.trim()){ cname.focus(); return; }
+    onConfirm(sel.value, cname.value.trim());
+    box.remove();
+  };
+  return box;
+}
+
+function rowEl(node,path){
+  const wrap=document.createElement("div");
+  wrap.style.paddingLeft=(path.length*16)+"px";
+  const row=document.createElement("div"); row.className="row";
+  const tw=document.createElement("div"); tw.className="tw";
+  const chev=document.createElement("button"); chev.className="chev"; chev.textContent="▶"; chev.setAttribute("aria-label","Expandir");
+  const ico=document.createElement("span"); ico.className="ico"; ico.textContent="📄";
+  const ttl=document.createElement("span"); ttl.className="ttl"; ttl.textContent=node.title;
+  tw.appendChild(chev); tw.appendChild(ico); tw.appendChild(ttl);
+  const pick=document.createElement("button"); pick.className="sel"; pick.textContent="Elegir aquí";
+  const askHost=document.createElement("div");
+  const kids=document.createElement("div"); kids.className="kids"; kids.style.display="none";
+  const myPath=[...path,node.title];
+  let loaded=false, open=false;
+  chev.onclick=async()=>{
+    open=!open; chev.classList.toggle("open",open); kids.style.display=open?"block":"none";
+    ico.textContent=open?"📂":"📄";
+    if(open&&!loaded){
+      loaded=true; kids.innerHTML='<div class="muted" style="padding-left:26px"><span class="spin"></span> Cargando…</div>';
+      try{
+        const ch=await descendants(node.id);
+        kids.innerHTML="";
+        if(!ch.length){kids.innerHTML='<div class="muted" style="padding-left:26px">Sin subpáginas</div>';ico.textContent="📄";chev.classList.add("leaf");}
+        ch.forEach(c=>kids.appendChild(rowEl(c,myPath)));
+      }catch(e){kids.innerHTML='<div class="err" style="padding-left:26px">No se pudo cargar: '+e.message+'</div>';}
+    }
+  };
+  pick.onclick=()=>{
+    askHost.innerHTML="";
+    askHost.appendChild(askBox(node.title,function(mode,name){
+      if(mode==="here") choose(myPath,node.id,null);
+      else choose(myPath,node.id,name);
+    }));
+  };
+  row.appendChild(tw); row.appendChild(pick);
+  wrap.appendChild(row); wrap.appendChild(askHost); wrap.appendChild(kids);
+  return wrap;
+}
+
+function choose(path,parentId,childName){
+  const b=document.getElementById("banner"), p=document.getElementById("bpath"), h=document.getElementById("bhint");
+  if(childName){
+    p.textContent=SPACE_KEY+" › "+[...path,childName].join(" › ");
+    h.textContent="Se creará una página nueva «"+childName+"» y el contenido colgará de ella. Dime “publica aquí” para continuar.";
+    window.__dest={mode:"child",parentPageId:parentId,parentPath:path,name:childName};
+  }else{
+    p.textContent=SPACE_KEY+" › "+path.join(" › ");
+    h.textContent="El contenido colgará directamente de «"+path[path.length-1]+"». Dime “publica aquí” para continuar.";
+    window.__dest={mode:"existing",parentPageId:parentId,parentPath:path,name:null};
+  }
+  b.classList.add("on");
+}
+function askRoot(btn){
+  const host=document.createElement("div");
+  btn.parentElement.parentElement.insertBefore(host, document.getElementById("filter"));
+  host.appendChild(askBox(null,function(mode,name){
+    document.getElementById("bpath").textContent=SPACE_KEY+" › "+name;
+    document.getElementById("bhint").textContent="Se creará «"+name+"» en la raíz del espacio y el contenido colgará de ella. Dime “publica aquí” para continuar.";
+    window.__dest={mode:"root-child",parentPageId:null,parentPath:[],name:name};
+    document.getElementById("banner").classList.add("on"); host.remove();
+  }));
+}
+
+let TOP=[];
+async function init(){
+  const tree=document.getElementById("tree");
+  try{ TOP=await descendants(HOME); render(TOP); }
+  catch(e){ tree.innerHTML='<div class="err">No se pudo cargar el espacio: '+e.message+'</div>'; }
+}
+function render(list){
+  const tree=document.getElementById("tree"); tree.innerHTML="";
+  if(!list.length){tree.innerHTML='<div class="muted">Sin páginas.</div>';return;}
+  list.forEach(n=>tree.appendChild(rowEl(n,[])));
+}
+function applyFilter(){
+  const q=document.getElementById("filter").value.toLowerCase();
+  render(TOP.filter(n=>n.title.toLowerCase().includes(q)));
+}
+init();
+</script>
+</body>
+</html>

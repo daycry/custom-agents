@@ -1,0 +1,31 @@
+{
+  "_comment": "Config por proyecto para la skill confluence-publish. Cópialo a .claude/confluence.json en la raiz del proyecto y ajusta los valores. Ver skills/confluence-publish/SKILL.md.",
+
+  "_comment_enabled": "Opt-in de sincronización. true = sincroniza con Confluence (conecta + asistente). false = NO sincroniza y no se vuelve a preguntar. Si el fichero no existe, la skill pregunta una vez.",
+  "enabled": true,
+
+  "cloudId": "REEMPLAZA-uuid-del-site-atlassian",
+  "spaceKey": "IMAG",
+
+  "anchor": {
+    "_comment": "mode='root' -> la pagina-directorio cuelga del espacio (se omite parentId). mode='child' -> cuelga de parentPageId (o parentTitle si no sabes el id).",
+    "mode": "child",
+    "parentPageId": "123456",
+    "parentTitle": "Documentacion de Proyectos"
+  },
+
+  "home": {
+    "_comment": "Pagina-directorio del proyecto. pageId se rellena solo tras crearla (cache de idempotencia).",
+    "title": "Custom Agents",
+    "pageId": null
+  },
+
+  "publish": {
+    "_comment": "Que se espeja y como. layout='mirror-tree': carpetas->paginas, .md->paginas hijas. onConflict='update'|'skip'.",
+    "source": "docs",
+    "layout": "mirror-tree",
+    "include": ["**/*.md"],
+    "exclude": ["**/node_modules/**", "docs/security-scan/**"],
+    "onConflict": "update"
+  }
+}
