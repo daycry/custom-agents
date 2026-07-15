@@ -1,6 +1,6 @@
 # custom-agents
 
-Agentes custom para **Claude Code**, empaquetados como plugin instalable. Incluye siete agentes, tres skills compartidas y un command orquestador (`/dev-cycle`), pensados para reutilizarse en cualquier proyecto.
+Agentes custom para **Claude Code**, empaquetados como plugin instalable. Incluye siete agentes, varias skills compartidas y comandos orquestadores (`/pm-cycle`, `/dev-cycle`, `/pm-backlog`, `/roadmap-status`, `/confluence-pull`), pensados para reutilizarse en cualquier proyecto.
 
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
@@ -19,7 +19,20 @@ Agentes custom para **Claude Code**, empaquetados como plugin instalable. Incluy
 Skills compartidas:
 - **cybersecurity** — revisión de seguridad en 8 dimensiones (OWASP, CWE, secretos, dependencias, IaC, threat intel, autorización, compliance). La usa `nemesis`.
 - **to-pdf** — conversión de Markdown/HTML/Word a PDF con tema moderno. La usan `pdfy` y `qa`.
-- **confluence-publish** — publica/espeja `docs/` en **Confluence** vía el conector Atlassian (asistente guiado; elige espacio y anclaje raíz/hijo; idempotente). La usan `planner`, `evaluator` y `qa`, que sincronizan sus cambios de `docs/` automáticamente.
+- **confluence-publish** — publica/espeja `docs/` en **Confluence** vía el conector Atlassian (asistente guiado; elige espacio y anclaje raíz/hijo; idempotente). La usan `planner`, `evaluator` y `qa`.
+- **confluence-pull** — sentido **inverso**: baja Confluence → `docs/` local para PMs sin git, preservando el frontmatter y avisando de conflictos.
+- **roadmap-dashboard** — genera un dashboard (HTML local / Markdown para Confluence / JSON) con el estado, prioridad y presupuesto de cada iniciativa del roadmap.
+- **jira-sync** — vuelca un plan a **Jira** (un issue por tarea bajo el proyecto/épica elegidos, con selector artefacto o conversacional), imputa horas al completar (Tiempo IA + Supervisión, tope de jornada + banco) y marca *Done*. Opt-in. La usan `planner` e `implementer`.
+
+## Comandos
+
+| Comando | Rol | Qué hace |
+|---------|-----|----------|
+| **`/pm-cycle <objetivo>`** | Producto | `spec → evaluación`; cierra en go/no-go y ofrece el handoff a `/dev-cycle`. |
+| **`/dev-cycle <objetivo>`** | Desarrollo | Ciclo completo `evaluación → plan → implementación → pruebas → documentación` (detecta superpowers). |
+| **`/pm-backlog [criterio]`** | Cartera | Prioriza todas las iniciativas evaluadas en `docs/roadmap/BACKLOG.md` (solo lectura). |
+| **`/roadmap-status`** | Visibilidad | Genera el dashboard del roadmap (skill `roadmap-dashboard`). |
+| **`/confluence-pull [subcarpeta]`** | Sin git | Baja Confluence → `docs/` local (skill `confluence-pull`). |
 
 ## Instalación (recomendada: plugin)
 
@@ -59,7 +72,7 @@ Detalle completo en [`docs/INSTALL.md`](docs/INSTALL.md).
 
 Los plugins **no se auto-actualizan**, y la actualización se detecta **por número de versión** (sube `version` en `.claude-plugin/plugin.json` **y** `marketplace.json` al publicar).
 
-1. **Publica** los cambios en el repo (nueva versión + push; opcional tag).
+1. **Publica** los cambios en el repo. Sube la versión con `python scripts/release.py X.Y.Z` (la deja coherente en `plugin.json` y `marketplace.json`, y crea commit + tag), y `git push origin HEAD && git push origin vX.Y.Z`.
 2. **Actualiza en tu cliente:**
    - **CLI de Claude Code:** `/plugin marketplace update daycry` → `/plugin update custom-agents@daycry` → `/reload-plugins`.
    - **Claude Desktop / Cowork (UI):** menú **Customize → Plugins**, en el marketplace `daycry` usa **Actualizar**. Si el botón está **deshabilitado**, **quítalo y vuelve a añadirlo** (menú **⋯ → Remove**, luego **"+" → Add marketplace → Add from a repository** con la URL del repo).

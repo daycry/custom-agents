@@ -5,6 +5,36 @@ Todos los cambios notables de este proyecto se documentan aquí.
 El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
+## [1.6.0] - 2026-07-15
+
+### Añadido
+- **Skill `jira-sync`**: vuelca un plan (`tasks.md`) a Jira vía el conector Atlassian (Rovo MCP). Se ofrece **al crear el plan** (opt-in en `.claude/jira.json`, como Confluence). Selector de destino **con doble modo**: artefacto interactivo en Cowork/escritorio (`assets/jira-picker.template.html` — busca proyecto, resuelve claves/URLs de issue, busca padre por clave/texto/JQL) y **conversacional** en CLI/VS Code. El **tipo de issue se deriva de la jerarquía del padre** (Épica/Iniciativa → Tarea/Historia; Tarea/Historia → Subtarea; sin padre → Tarea suelta), descubierto vía metadatos, no hardcodeado. Permite **crear una épica nueva** para la iniciativa. Idempotente vía `.claude/jira-state.json`.
+- **Imputación automática de horas + cierre en Jira**: al completar cada tarea, `implementer` invoca `jira-sync` para imputar **Tiempo IA (ejec.) + Supervisión** (real→estimación) y transicionar el issue a *Done* (transición descubierta, no fija). **Tope de jornada diario** configurable (`horasJornada`, 8h/7h) con **banco de horas por issue**: al cubrir la jornada pregunta (parar / seguir / banco) y el excedente se imputa en jornadas posteriores, siempre con fecha del día en curso (nunca post-datado).
+- **Plantilla `tasks.md` del `planner`** ampliada con **Tiempo IA (ejec.)** y **Supervisión** por tarea (además del tiempo humano), y columnas equivalentes en el resumen de progreso.
+
+### Cambiado
+- `planner` (ofrece el volcado al crear el plan) e `implementer` (refleja el progreso) declaran la skill `jira-sync`; `/dev-cycle` lo integra; `/pm-cycle` deja de duplicar el handoff conversacional a Jira.
+
+## [1.5.1] - 2026-07-15
+
+### Añadido
+- **`scripts/release.py`**: sube la versión de forma **coherente** en los tres sitios (`plugin.json` y los dos campos de `marketplace.json`), valida que coinciden y crea commit + tag. Evita el fallo de olvidar `marketplace.json` (que deja al cliente sin ver la actualización).
+- **Tests del dashboard** (`tests/` con fixtures) y **avisos** en `roadmap-dashboard`: el generador emite por `stderr` cuando no puede leer un campo esperado (posible cambio de etiquetas en las plantillas) o detecta incoherencias de estado, con `--strict` para CI.
+
+### Cambiado
+- `docs/INSTALL.md`: aviso de **no ubicar el repo git en carpeta sincronizada en la nube** (OneDrive/Dropbox…) por conflictos de locks/índice, y uso del script de release.
+
+## [1.5.0] - 2026-07-15
+
+### Añadido
+- **Rol PM (producto) separado del desarrollo**: command **`/pm-cycle`** (spec → evaluación; cierra en la puerta go/no-go y ofrece handoff a `/dev-cycle`; salidas opt-in: brief PDF y épica en Jira) y **`/pm-backlog`** (prioriza la cartera leyendo todas las `evaluation.md` → `docs/roadmap/BACKLOG.md`).
+- **Skill `roadmap-dashboard`** + command **`/roadmap-status`**: escanea `docs/roadmap/*/` y genera un dashboard **HTML** (vista local), **Markdown** (para Confluence) o **JSON** con estado, prioridad y presupuesto por iniciativa.
+- **Skill `confluence-pull`** + command **`/confluence-pull`**: sentido **inverso** de la publicación (Confluence → `docs/` local) para PMs sin git; preserva el frontmatter local, avisa de conflictos y confirma antes de escribir. Reutiliza el mapa `.claude/confluence-state.json`.
+- **Dashboard del roadmap publicable en Confluence**: `confluence-publish` regenera `dashboard.md` antes de publicar cuando cambia `docs/roadmap/`, para que un PM vea el estado real sin git.
+
+### Cambiado
+- Documentación e índices (`CLAUDE.md`, `docs/README.md`) con los nuevos comandos y skills; sincronización con Confluence descrita como **bidireccional**.
+
 ## [1.3.1] - 2026-07-10
 
 ### Añadido
@@ -44,5 +74,8 @@ y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
 Versiones anteriores a la introducción de este changelog: bundle con los agentes `nemesis`, `evaluator`, `planner`, `pdfy` y `qa`, y las skills compartidas `cybersecurity` y `to-pdf`. Empaquetado como plugin + marketplace.
 
+[1.6.0]: https://github.com/daycry/custom-agents/releases/tag/v1.6.0
+[1.5.1]: https://github.com/daycry/custom-agents/releases/tag/v1.5.1
+[1.5.0]: https://github.com/daycry/custom-agents/releases/tag/v1.5.0
 [1.3.1]: https://github.com/daycry/custom-agents/releases/tag/v1.3.1
 [1.3.0]: https://github.com/daycry/custom-agents/releases/tag/v1.3.0
