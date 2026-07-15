@@ -5,8 +5,9 @@ tools: Read, Grep, Glob, Bash, Write, Edit
 # Dependencias declaradas (convención del repo; ver docs/CONVENTIONS.md).
 # Campos informativos: Claude Code ignora claves extra del frontmatter.
 dependencies:
-  skills:                    # publicar el plan en Confluence (opcional)
+  skills:                    # publicar el plan en Confluence (opcional) y volcarlo a Jira (opcional)
     - confluence-publish
+    - jira-sync
   kits:                      # plantillas en .claude/agent-kits/
     - agent-kits/planner
   agents: []                 # otros agentes de los que depende (ninguno)
@@ -80,6 +81,8 @@ Registra los valores usados en el bloque **Supuestos** del `improvement-plan.md`
 Sustituye TODOS los `{{PLACEHOLDER}}` y borra los comentarios guía `<!-- ... -->` de las plantillas.
 
 **P6. Cierre.** Escribe ambos ficheros, actualiza `docs/roadmap/README.md` y resume al usuario: ruta del plan, tiempo total, coste total (€), tokens previstos y nº de tareas. Ofrece abrir el `improvement-plan.md`.
+
+**P7. Volcado a Jira (opcional, opt-in).** Recién creado el plan, **ofrece** volcar las tareas a Jira con la skill **`jira-sync`** (crear un issue por tarea bajo el proyecto/épica que el usuario elija; selector visual en Cowork o conversacional en CLI/VS Code). Aplica el opt-in de `.claude/jira.json` igual que Confluence: aunque el conector esté conectado, si Jira no está activado para el proyecto, pregunta una vez y respeta la decisión. No crees nada sin confirmación; no bloquees el cierre por esto.
 
 **P7. Sincronizar con Confluence (opcional).** Tras escribir/actualizar cualquier fichero en `docs/`, invoca la skill **`confluence-publish`** pasándole las rutas afectadas. La skill aplica el **opt-in**: si el proyecto aún no lo ha decidido, preguntará **una vez** si se quiere sincronizar con Confluence (si sí → conecta y publica; si no → lo recuerda y no vuelve a preguntar); si ya está en `enabled: false`, no hace nada. No bloquees el trabajo por esto. Nunca sincroniza `docs/security-scan/`.
 

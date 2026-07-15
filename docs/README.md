@@ -9,8 +9,8 @@ Antes de añadir o tocar un agente, lee [`CONVENTIONS.md`](CONVENTIONS.md): defi
 | Agente | Qué hace | Dependencias | Documentación |
 |--------|----------|--------------|---------------|
 | **nemesis** | Auditoría de ciberseguridad end-to-end: SAST (estático) + DAST (pentest activo local), memoria e informe visual. | skill `cybersecurity`, kit `agent-kits/nemesis` | [nemesis.md](agents/nemesis.md) · [presentación](agents/nemesis-presentacion.md) · [toolkit](agents/nemesis-toolkit.md) |
-| **planner** | Genera planes de implementación detallados y presupuestados (tiempo, coste €, tokens) en `docs/roadmap/`. Sincroniza sus docs en Confluence. | kit `agent-kits/planner`, skill `confluence-publish` | [planner.md](agents/planner.md) |
-| **implementer** | Implementa un plan aprobado fase a fase (escribe código real, sobre rama), marcando `tasks.md` como ledger canónico por tarea. Handoff a `qa`. | agente `qa` | [implementer.md](agents/implementer.md) |
+| **planner** | Genera planes de implementación detallados y presupuestados (tiempo, coste €, tokens) en `docs/roadmap/`. Sincroniza sus docs en Confluence. | kit `agent-kits/planner`, skills `confluence-publish` · `jira-sync` | [planner.md](agents/planner.md) |
+| **implementer** | Implementa un plan aprobado fase a fase (escribe código real, sobre rama), marcando `tasks.md` como ledger canónico por tarea. Handoff a `qa`. Al completar tareas, refleja progreso en Jira (opt-in). | agente `qa`, skill `jira-sync` | [implementer.md](agents/implementer.md) |
 | **evaluator** | Evalúa/presupuesta una spec (la crea si llega por prompt) en `docs/roadmap/<fecha>-<slug>/`. Enlaza spec↔evaluación y hace handoff a `planner`. Sincroniza sus docs en Confluence. | kit `agent-kits/evaluator`, agente `planner`, skill `confluence-publish` | [evaluator.md](agents/evaluator.md) |
 | **pdfy** | Convierte archivos a PDF con aspecto moderno (Markdown, HTML y Word → PDF vía Chromium headless + tema CSS). | skill `to-pdf` | [pdfy.md](agents/pdfy.md) |
 | **qa** | Audita un plan ejecutando E2E con Playwright (solo local), captura evidencias y genera informe md+pdf con checklist manual en `docs/roadmap/<slug>/testing/`. Sincroniza el informe en Confluence. | skill `to-pdf`, kit `agent-kits/qa`, skill `confluence-publish` | [qa.md](agents/qa.md) |
@@ -45,6 +45,7 @@ Así se separan los roles: **`/pm-cycle`** decide *qué* y *cuánto cuesta* (una
 | **confluence-publish** | Publica/espeja la doc del proyecto en Confluence vía el conector Atlassian (Rovo MCP). Cada proyecto elige espacio y anclaje (raíz o hijo del árbol) en `.claude/confluence.json`; idempotente (crea/actualiza). | planner, evaluator, qa |
 | **confluence-pull** | Sentido **inverso**: baja Confluence → `docs/` local, para PMs sin git. Reutiliza `confluence.json` y el mapa `confluence-state.json`; preserva el frontmatter local, avisa de conflictos y confirma antes de escribir. Solo lee de Confluence. | comando `/confluence-pull` |
 | **roadmap-dashboard** | Escanea `docs/roadmap/*/` y genera un dashboard **HTML** (vista local), **Markdown** (para publicar en Confluence) o **JSON** (estado, prioridad y presupuesto por iniciativa). Solo lectura. | comandos `/roadmap-status`, `/pm-backlog`; skill `confluence-publish` |
+| **jira-sync** | Vuelca un plan (`tasks.md`) a Jira vía el conector Atlassian: un issue por tarea bajo el proyecto/épica elegidos (selector artefacto en Cowork o conversacional en CLI/VS Code), tipo derivado de la jerarquía del padre. Al completar tareas, imputa horas (Tiempo IA + Supervisión, tope jornada) y marca *Done*. Opt-in (`.claude/jira.json`), idempotente. | planner, implementer |
 
 ## Mapa del repositorio
 

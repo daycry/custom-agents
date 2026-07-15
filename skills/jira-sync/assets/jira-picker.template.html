@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Jira · elegir destino</title>
+<!--
+  PLANTILLA del selector de destino de Jira para la skill jira-sync.
+  El asistente COPIA este fichero, sustituye los marcadores {{...}} y lo publica con
+  create_artifact, pasando en mcp_tools los DOS nombres completos del conector Atlassian:
+    - {{SERVER_PROJECTS}} -> mcp__<uuid>__getVisibleJiraProjects
+    - {{SERVER_SEARCH}}   -> mcp__<uuid>__searchJiraIssuesUsingJql
+    - {{CLOUD_ID}}        -> cloudId del site (getAccessibleAtlassianResources)
+  El destino elegido queda en window.__dest:
+    { projectKey, projectName, parentKey|null, parentSummary|null, parentLevel|null,
+      childKind ("Tareas"|"Subtareas"), createEpicName|null }
+  - createEpicName != null -> crear una épica nueva y colgar las tareas de ella (como Tareas).
+  - parentKey != null      -> colgar del issue existente; el TIPO lo decide la jerarquía del padre
+                              (nivel >=1 -> Tareas; nivel 0 -> Subtareas; el artefacto ya lo muestra).
+  - todo null              -> crear Tareas sueltas en la raíz del proyecto.
+
+  Notas de conector (verificadas contra mediaprosuite):
+   - getVisibleJiraProjects: searchString + maxResults; devuelve { values:[{key,name,id}] }.
+   - searchJiraIssuesUsingJql: REQUIERE searchResultMode:"issues" y JQL ACOTADA (rechaza sin
+     restricción). Devuelve issues en issues.nodes (a veces issues[]). Cada issue trae
+     fields.issuetype.hierarchyLevel y fields.project. Acotamos con project = KEY, salvo key = X.
+-->
+<style>
+:root{color-scheme:light}
+*{box-sizing:border-box}
+body{margin:0;background:#fff;color:#1b1b19;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;font-size:14px;line-height:1.5}
+.wrap{max-width:760px;margin:0 auto;padding:16px}
+.head{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.badge{width:36px;height:36px;border-radius:8px;background:#deebff;color:#0747a6;display:flex;align-items:center;justify-content:center;font-weight:700;flex:none}
+.head h1{font-size:16px;font-weight:600;margin:0}
+.head p{margin:0;color:#6b6b66;font-size:13px}
+.step{border:1px solid #eceae3;border-radius:10px;padding:12px;margin-bottom:12px}
+.step.done{background:#f4f9f4;border-color:#c3e6c3}
+.step h2{font-size:13px;margin:0 0 8px;color:#0747a6}
+.step.done h2{color:#216e21}
+input[type=text]{width:100%;height:34px;padding:0 12px;border:1px solid #dcdcd5;border-radius:8px;font-size:14px;background:#fff;color:#1b1b19}
+input[type=text]:focus{outline:none;border-color:#4c9aff;box-shadow:0 0 0 3px #deebff}
+button{font:inherit;cursor:pointer;background:#fff;border:1px solid #c9c9c1;border-radius:8px;padding:5px 11px;font-size:12px;color:#1b1b19}
+button:hover{background:#f4f3ee}
+button.pri{background:#0747a6;color:#fff;border-color:#0747a6}
+button.pri:hover{background:#063282}
+button.sel{color:#0747a6;border-color:#b3d0f5;flex:none}
+.list{border:1px solid #eceae3;border-radius:8px;overflow:hidden;margin-top:8px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;border-top:1px solid #f1efe8}
+.row:first-child{border-top:none}
+.row:hover{background:#faf9f5}
+.row .m{min-width:0}
+.row .k{font-weight:600;color:#0747a6;font-size:12px}
+.row .s{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .t{color:#6b6b66;font-size:11px}
+.muted{color:#9a9a92;font-size:12px;padding:8px 10px}
+.hintline{color:#6b6b66;font-size:12px;margin:6px 2px}
+.opt{display:flex;justify-content:space-between;align-items:center;gap:10px;border-radius:8px;padding:10px 12px;margin-top:8px}
+.opt.blue{background:#deebff}.opt.blue span{color:#0747a6;font-size:13px}
+.opt.amber{background:#fff7e6}.opt.amber span{color:#8a5a00;font-size:13px}
+.epicbox{margin-top:8px;display:flex;gap:8px}
+.epicbox input{flex:1}
+.banner{margin-top:6px;background:#e1f5ee;border:1px solid #9fe1cb;border-radius:10px;padding:12px;display:none}
+.banner.on{display:block}
+.banner .path{font-weight:600;color:#0f6e56;margin-top:2px}
+.banner .hint{color:#0f6e56;font-size:12px;margin-top:8px}
+.banner.warn{background:#fdecec;border-color:#f2b8b5}
+.banner.warn .path,.banner.warn .hint{color:#a32d2d}
+.spin{display:inline-block;width:12px;height:12px;border:2px solid #cdd;border-top-color:#4c9aff;border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.err{color:#a32d2d;font-size:12px;padding:8px 10px}
+.hide{display:none}
+code{background:#f1efe8;padding:1px 5px;border-radius:4px;font-size:12px}
+.chip{display:inline-block;background:#eae6ff;color:#403294;font-weight:600;border-radius:5px;padding:1px 7px;font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="head">
+    <div class="badge">JR</div>
+    <div>
+      <h1>Volcar el plan a Jira — elegir destino</h1>
+      <p>Nada se crea hasta que confirmes en el chat.</p>
+    </div>
+  </div>
+
+  <div class="step" id="step1">
+    <h2>1 · Proyecto o issue</h2>
+    <input type="text" id="pq" placeholder='Proyecto (nombre/clave) o pega una clave/URL de issue: DM5985-59' oninput="deb()">
+    <div class="hintline">Si pegas una clave/URL de issue, lo uso directamente como padre. Si escribes texto, busco proyectos.</div>
+    <div class="list hide" id="plist"></div>
+  </div>
+
+  <div class="step hide" id="step2">
+    <h2>2 · ¿Cómo agrupar las tareas en Jira?</h2>
+    <div class="hintline">Las tareas del plan pueden <b>agruparse bajo una épica</b>, <b>colgar de un issue existente</b>, o quedar <b>sueltas</b>. Para una iniciativa lo normal es agruparlas en una épica.</div>
+
+    <div class="opt amber">
+      <span>➕ <b>Crear una épica nueva</b> y agrupar en ella las tareas &nbsp;<span class="chip">recomendado</span></span>
+      <button class="sel" onclick="toggleEpic()">Crear épica</button>
+    </div>
+    <div class="epicbox hide" id="epicbox">
+      <input type="text" id="epicname" placeholder="Nombre de la épica nueva (p. ej. el título de la iniciativa)…">
+      <button class="pri" onclick="chooseNewEpic()">Usar</button>
+    </div>
+
+    <div class="opt" style="background:#f4f3ee;align-items:flex-start">
+      <span>○ <b>Dejarlas sueltas en el proyecto</b>, sin agrupar bajo ninguna épica ni tarea<br><small style="color:#6b6b66">Cada tarea será un issue independiente en el backlog. Útil solo si no necesitan agruparse.</small></span>
+      <button class="sel" onclick="chooseNoParent()">Elegir</button>
+    </div>
+
+    <div class="hintline" style="margin-top:12px">…o <b>colgar de un issue existente</b>: si es una <b>épica</b> → se crean Tareas; si es una <b>tarea/historia</b> → se crean Subtareas. Búscalo por <b>clave</b> (<code>DM5985-59</code>), <b>texto</b> o <b>JQL</b> (<code>issuetype = Epic</code>).</div>
+    <input type="text" id="jq" placeholder='clave, texto o JQL…' onkeydown="if(event.key==='Enter')runJql()">
+    <div class="hintline">Vacío = issues recientes del proyecto. <button onclick="runJql()">Buscar</button></div>
+    <div class="list hide" id="ilist"></div>
+  </div>
+
+  <div class="banner" id="banner">
+    <div>Destino elegido:</div>
+    <div class="path" id="bpath"></div>
+    <div class="hint" id="bhint"></div>
+  </div>
+</div>
+
+<script>
+const SERVER_PROJECTS="{{SERVER_PROJECTS}}";
+const SERVER_SEARCH="{{SERVER_SEARCH}}";
+const CLOUD="{{CLOUD_ID}}";
+const KEY_RE=/\b([A-Za-z][A-Za-z0-9]+-\d+)\b/;
+let PROJECT=null;
+
+function parse(r){
+  if(r.isError) throw new Error((r.content&&r.content[0]&&r.content[0].text)||"error");
+  return r.structuredContent ?? JSON.parse(r.content[0].text);
+}
+function issuesOf(data){
+  if(data.issues&&Array.isArray(data.issues.nodes)) return data.issues.nodes;
+  if(Array.isArray(data.issues)) return data.issues;
+  if(Array.isArray(data.results)) return data.results;
+  return [];
+}
+async function search(jql){
+  const r=await window.cowork.callMcpTool(SERVER_SEARCH,{cloudId:CLOUD,jql:jql,searchResultMode:"issues",maxResults:25,fields:["summary","issuetype","status","project"]});
+  return issuesOf(parse(r));
+}
+function buildJql(project,raw){
+  raw=(raw||"").trim();
+  if(!raw) return 'project = "'+project+'" ORDER BY updated DESC';
+  const km=raw.match(KEY_RE);
+  if(km && km[1].length===raw.length) return 'key = "'+km[1]+'"';
+  const looksJql=/[=~<>]|\b(in|is|not|and|or|order\s+by)\b/i.test(raw);
+  if(looksJql) return 'project = "'+project+'" AND ('+raw+') ORDER BY updated DESC';
+  return 'project = "'+project+'" AND summary ~ "'+raw.replace(/"/g,'')+'" ORDER BY updated DESC';
+}
+function childKind(level){
+  if(level===null||level===undefined) return "Tareas";
+  if(level>=1) return "Tareas";
+  if(level===0) return "Subtareas";
+  return null;
+}
+
+let t=null;
+function deb(){ clearTimeout(t); t=setTimeout(smart,300); }
+async function smart(){
+  const q=document.getElementById("pq").value.trim();
+  const box=document.getElementById("plist");
+  const km=q.match(KEY_RE);
+  if(km){ return resolveIssue(km[1], box); }
+  if(q.length<2){ box.className="list hide"; return; }
+  box.className="list"; box.innerHTML='<div class="muted"><span class="spin"></span> Buscando proyectos…</div>';
+  try{
+    const r=await window.cowork.callMcpTool(SERVER_PROJECTS,{cloudId:CLOUD,action:"create",searchString:q,maxResults:15,expandIssueTypes:false});
+    const items=(parse(r).values)||[];
+    if(!items.length){ box.innerHTML='<div class="muted">Sin proyectos que coincidan.</div>'; return; }
+    box.innerHTML="";
+    items.forEach(p=>{
+      const row=document.createElement("div"); row.className="row";
+      row.innerHTML='<div class="m"><span class="k">'+p.key+'</span> <span class="s">'+(p.name||"")+'</span></div>';
+      const b=document.createElement("button"); b.className="sel"; b.textContent="Elegir proyecto";
+      b.onclick=()=>pickProject(p.key,p.name||p.key);
+      row.appendChild(b); box.appendChild(row);
+    });
+  }catch(e){ box.innerHTML='<div class="err">No se pudo buscar: '+e.message+'</div>'; }
+}
+async function resolveIssue(key, box){
+  box.className="list"; box.innerHTML='<div class="muted"><span class="spin"></span> Resolviendo '+key+'…</div>';
+  try{
+    const items=await search('key = "'+key+'"');
+    if(!items.length){ box.innerHTML='<div class="muted">No existe el issue '+key+' (o sin acceso).</div>'; return; }
+    box.innerHTML=""; items.forEach(it=>box.appendChild(issueRow(it)));
+    const f0=items[0].fields||{};
+    if(f0.project&&f0.project.key){ PROJECT={key:f0.project.key,name:f0.project.name||f0.project.key}; openStep2("Proyecto (de "+key+"): "+PROJECT.key+" — "+PROJECT.name); }
+  }catch(e){ box.innerHTML='<div class="err">No se pudo resolver: '+e.message+'</div>'; }
+}
+function openStep2(label){
+  const s2=document.getElementById("step2");
+  s2.classList.remove("hide");
+  if(label) s2.querySelector("h2").textContent="2 · Destino en "+label;
+}
+function issueRow(it){
+  const f=it.fields||{};
+  const proj=(f.project&&f.project.key)||(PROJECT&&PROJECT.key)||"";
+  const projName=(f.project&&f.project.name)||(PROJECT&&PROJECT.name)||proj;
+  const itype=f.issuetype||{};
+  const type=itype.name||"";
+  const level=(typeof itype.hierarchyLevel==="number")?itype.hierarchyLevel:null;
+  const st=(f.status&&f.status.name)||"";
+  const row=document.createElement("div"); row.className="row";
+  row.innerHTML='<div class="m"><span class="k">'+it.key+'</span> <span class="s">'+(f.summary||"")+'</span>'+
+                '<div class="t">'+(proj?proj+" · ":"")+type+(st?" · "+st:"")+'</div></div>';
+  const b=document.createElement("button"); b.className="sel"; b.textContent="Usar como padre";
+  b.onclick=()=>{ PROJECT={key:proj,name:projName}; chooseParent(it.key,f.summary||"",level,type); };
+  row.appendChild(b); return row;
+}
+function pickProject(key,name){
+  PROJECT={key,name};
+  const s1=document.getElementById("step1");
+  s1.className="step done";
+  s1.querySelector("h2").textContent="1 · Proyecto: "+key+" — "+name+"  ✓";
+  document.getElementById("plist").className="list hide";
+  document.getElementById("pq").className="hide";
+  document.getElementById("step2").classList.remove("hide");
+}
+async function runJql(){
+  if(!PROJECT){ return; }
+  const box=document.getElementById("ilist");
+  const jql=buildJql(PROJECT.key, document.getElementById("jq").value);
+  box.className="list"; box.innerHTML='<div class="muted"><span class="spin"></span> Buscando…</div>';
+  try{
+    const items=await search(jql);
+    if(!items.length){ box.innerHTML='<div class="muted">Sin issues. Prueba otra búsqueda.</div>'; return; }
+    box.innerHTML=""; items.forEach(it=>box.appendChild(issueRow(it)));
+  }catch(e){ box.innerHTML='<div class="err">Error de búsqueda: '+e.message+'</div>'; }
+}
+function toggleEpic(){ document.getElementById("epicbox").classList.toggle("hide"); document.getElementById("epicname").focus(); }
+
+function setBanner(pathTxt, hintHtml, warn){
+  const b=document.getElementById("banner");
+  b.className="banner on"+(warn?" warn":"");
+  document.getElementById("bpath").textContent=pathTxt;
+  document.getElementById("bhint").innerHTML=hintHtml;
+}
+function chooseNoParent(){
+  window.__dest={projectKey:PROJECT.key,projectName:PROJECT.name,parentKey:null,parentSummary:null,parentLevel:null,childKind:"Tareas",createEpicName:null};
+  setBanner(PROJECT.key+" · sueltas (sin agrupar)",'Las tareas se crearán como <span class="chip">Tareas</span> <b>sueltas</b> en el proyecto, sin agrupar bajo ninguna épica. Dime “crea los issues” para continuar.',false);
+}
+function chooseNewEpic(){
+  const name=document.getElementById("epicname").value.trim();
+  if(!name){ document.getElementById("epicname").focus(); return; }
+  window.__dest={projectKey:PROJECT.key,projectName:PROJECT.name,parentKey:null,parentSummary:null,parentLevel:1,childKind:"Tareas",createEpicName:name};
+  setBanner(PROJECT.key+" › (épica nueva) "+name,'Se creará una <span class="chip">Épica</span> nueva «'+name+'» y las tareas colgarán de ella como <span class="chip">Tareas</span>. Dime “crea los issues” para continuar.',false);
+}
+function chooseParent(key,summary,level,typeName){
+  const kind=childKind(level);
+  if(kind===null){
+    setBanner("«"+key+"» no puede ser padre",'«'+key+'» es una <span class="chip">'+(typeName||"Subtarea")+'</span> (nivel más bajo): no puede tener hijos. Elige una tarea, historia o épica.',true);
+    return;
+  }
+  window.__dest={projectKey:PROJECT.key,projectName:PROJECT.name,parentKey:key,parentSummary:summary,parentLevel:level,childKind:kind,createEpicName:null};
+  setBanner(PROJECT.key+" › "+key+" — "+summary,
+    'Las tareas del plan se crearán como <span class="chip">'+kind+'</span> bajo «'+key+'»'+(typeName?' ('+typeName+')':'')+'. Dime “crea los issues” para continuar.',false);
+}
+</script>
+</body>
+</html>
