@@ -18,12 +18,14 @@
 
 ## Resumen de progreso
 
-| Fase | Completadas | Total | Progreso | Horas (real/est) | Tokens (real/est) |
-|------|------------|-------|----------|------------------|-------------------|
-| Fase 1 — {{nombre}} | 0 | {{N}} | 0% | 0 / {{X}}h | 0 / {{X}} |
-| Fase 2 — {{nombre}} | 0 | {{N}} | 0% | 0 / {{X}}h | 0 / {{X}} |
-| Fase N — {{nombre}} | 0 | {{N}} | 0% | 0 / {{X}}h | 0 / {{X}} |
-| **TOTAL** | **0** | **{{N}}** | **0%** | **0 / {{X}}h** | **0 / {{X}}** |
+| Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervisión (real/est) | Tokens (real/est) |
+|------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
+| Fase 1 — {{nombre}} | 0 | {{N}} | 0% | 0 / {{X}}h | 0 / {{X}}h | 0 / {{X}}h | 0 / {{X}} |
+| Fase 2 — {{nombre}} | 0 | {{N}} | 0% | 0 / {{X}}h | 0 / {{X}}h | 0 / {{X}}h | 0 / {{X}} |
+| Fase N — {{nombre}} | 0 | {{N}} | 0% | 0 / {{X}}h | 0 / {{X}}h | 0 / {{X}}h | 0 / {{X}} |
+| **TOTAL** | **0** | **{{N}}** | **0%** | **0 / {{X}}h** | **0 / {{X}}h** | **0 / {{X}}h** | **0 / {{X}}** |
+
+> **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada. Ver `skills/jira-sync/SKILL.md`.
 
 ---
 
@@ -37,7 +39,9 @@
 
 - **Descripción**: {{Qué hay que hacer y por qué, en 1-3 frases.}}
 - **Estado**: borrador
-- **Tiempo**: est. {{0.5}}h · real —
+- **Tiempo humano**: est. {{0.5}}h · real —
+- **Tiempo IA (ejec.)**: est. {{X}}h · real —
+- **Supervisión**: est. {{X}}h (≈25 % IA) · real —
 - **Previsión IA**: {{15k}} in / {{5k}} out tok · {{X}} €
 - **Dependencias**: {{ninguna / T-00 / acceso a X}}
 - **Archivos**: `{{ruta}}`, `{{ruta}}`
@@ -59,7 +63,9 @@
 
 - **Descripción**: {{...}}
 - **Estado**: borrador
-- **Tiempo**: est. {{X}}h · real —
+- **Tiempo humano**: est. {{X}}h · real —
+- **Tiempo IA (ejec.)**: est. {{X}}h · real —
+- **Supervisión**: est. {{X}}h (≈25 % IA) · real —
 - **Previsión IA**: {{X}} in / {{X}} out tok · {{X}} €
 - **Dependencias**: {{T-01}}
 - **Archivos**: `{{ruta}}`
@@ -84,7 +90,9 @@
 
 - **Descripción**: {{...}}
 - **Estado**: borrador
-- **Tiempo**: est. {{X}}h · real —
+- **Tiempo humano**: est. {{X}}h · real —
+- **Tiempo IA (ejec.)**: est. {{X}}h · real —
+- **Supervisión**: est. {{X}}h (≈25 % IA) · real —
 - **Previsión IA**: {{X}} in / {{X}} out tok · {{X}} €
 - **Dependencias**: {{...}}
 - **Archivos**: `{{ruta}}`
@@ -107,7 +115,9 @@
 
 - **Descripción**: {{...}}
 - **Estado**: borrador
-- **Tiempo**: est. {{X}}h · real —
+- **Tiempo humano**: est. {{X}}h · real —
+- **Tiempo IA (ejec.)**: est. {{X}}h · real —
+- **Supervisión**: est. {{X}}h (≈25 % IA) · real —
 - **Previsión IA**: {{X}} in / {{X}} out tok · {{X}} €
 - **Dependencias**: {{tareas previas}}
 - **Archivos**: `{{ruta}}`
