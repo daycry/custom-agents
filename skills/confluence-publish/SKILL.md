@@ -253,6 +253,26 @@ de sincronización"), no uses git ni fechas. Regla por tipo de cambio (idempoten
 Alcance: solo lo que ha cambiado según el manifiesto (no reespejes todo el árbol en cada
 ejecución). No importa quién ni cómo editó los ficheros.
 
+### Dashboard del roadmap (regenerar ANTES de publicar)
+
+Para que el PM vea el **estado real** del roadmap en Confluence sin tocar git, el dashboard se
+publica como una página más — pero **generada**, no escrita a mano. Antes de calcular los cambios
+a publicar, **si en el conjunto pendiente hay algo bajo `docs/roadmap/`** (o existe la carpeta y ha
+cambiado respecto al manifiesto), **regenera el markdown del dashboard** con la skill
+`roadmap-dashboard`, de modo que la página refleje el último estado:
+
+```bash
+DASH="$(find "$PWD/.claude" "$HOME/.claude" -type f -path '*skills/roadmap-dashboard/scripts/build_dashboard.py' 2>/dev/null | head -1)"
+[ -d docs/roadmap ] && python3 "$DASH" --root docs/roadmap --md docs/roadmap/dashboard.md
+```
+
+Luego sigue el flujo normal: `docs/roadmap/dashboard.md` entra en el espejo como cualquier `.md`
+(su hash cambiará y se publicará/actualizará su página). Notas:
+
+- **Solo el `.md` va a Confluence.** El `dashboard.html` es vista local y, al no ser `.md`, el espejo lo ignora; no lo publiques.
+- Así el disparo es determinista y honesto: la página se refresca **en la misma publicación** que provocó el cambio del roadmap, y su cabecera lleva la marca `generado <fecha/hora>` para que se vea la frescura. No es tiempo real: si nadie publica, el PM ve la última versión con su fecha.
+- Si `docs/roadmap/` no existe, no generes nada.
+
 **Exclusión obligatoria:** nunca publiques `docs/security-scan/**` (datos sensibles del agente
 nemesis). Respeta también los `exclude` de la config.
 
