@@ -1,4 +1,4 @@
-# claude-agents
+# custom-agents
 
 Agentes custom para **Claude Code**, empaquetados como plugin instalable. Incluye siete agentes, tres skills compartidas y un command orquestador (`/dev-cycle`), pensados para reutilizarse en cualquier proyecto.
 
@@ -26,7 +26,7 @@ Skills compartidas:
 En Claude Code, dentro de cualquier proyecto:
 
 ```
-/plugin marketplace add daycry/claude-agents
+/plugin marketplace add daycry/custom-agents
 /plugin install custom-agents@daycry
 ```
 
@@ -40,16 +40,16 @@ Los agentes quedan disponibles en **todos los proyectos** de la máquina. Compru
 **Probar en un proyecto** (symlink del repo como `.claude/`):
 
 ```bash
-git clone https://github.com/daycry/claude-agents.git
-ln -s "$(pwd)/claude-agents" "/ruta/al/proyecto/.claude"
+git clone https://github.com/daycry/custom-agents.git
+ln -s "$(pwd)/custom-agents" "/ruta/al/proyecto/.claude"
 ```
 
 **Nivel usuario** (disponible en todos tus proyectos, sin plugin):
 
 ```bash
-cp -r claude-agents/agents/.     "$HOME/.claude/agents/"
-cp -r claude-agents/skills/.     "$HOME/.claude/skills/"
-cp -r claude-agents/agent-kits/. "$HOME/.claude/agent-kits/"
+cp -r custom-agents/agents/.     "$HOME/.claude/agents/"
+cp -r custom-agents/skills/.     "$HOME/.claude/skills/"
+cp -r custom-agents/agent-kits/. "$HOME/.claude/agent-kits/"
 ```
 
 Detalle completo en [`docs/INSTALL.md`](docs/INSTALL.md).
@@ -114,7 +114,7 @@ destino usa un navegador de árbol interactivo; en CLI/VS Code es conversacional
 ## Estructura
 
 ```
-claude-agents/               (se despliega como .claude/)
+custom-agents/               (se despliega como .claude/)
 ├── .claude-plugin/          # manifiesto del plugin + marketplace
 ├── agents/<nombre>.md       # definiciones de los agentes
 ├── skills/<skill>/          # skills compartidas

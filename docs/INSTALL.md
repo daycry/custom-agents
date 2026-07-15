@@ -11,7 +11,7 @@ Contenido (todo cuelga de la raíz del bundle, que se despliega como `.claude/`)
 
 Las rutas de los kits se resuelven en tiempo de ejecución con un `find` sobre `$PWD/.claude` y `$HOME/.claude`, así que **los agentes funcionan igual en las tres vías** siguientes.
 
-> ⚠️ **No clones el repositorio dentro de una carpeta sincronizada en la nube** (OneDrive, Dropbox, Google Drive, iCloud…). El sincronizador y git se pisan: bloquea los ficheros `.lock` y objetos de `.git` mientras sube, lo que provoca errores tipo `Unable to create '.git/HEAD.lock'`, "index file corrupt" o ficheros que se leen a medias. Clónalo en una ruta local **fuera** del área sincronizada (p. ej. `C:\dev\claude-agents` o `~/code/claude-agents`). Si ya lo tienes en una carpeta sincronizada y ves esos errores: pausa la sincronización, borra los `.git/*.lock`, ejecuta `git status` para reconstruir el índice, y considera mover el repo fuera.
+> ⚠️ **No clones el repositorio dentro de una carpeta sincronizada en la nube** (OneDrive, Dropbox, Google Drive, iCloud…). El sincronizador y git se pisan: bloquea los ficheros `.lock` y objetos de `.git` mientras sube, lo que provoca errores tipo `Unable to create '.git/HEAD.lock'`, "index file corrupt" o ficheros que se leen a medias. Clónalo en una ruta local **fuera** del área sincronizada (p. ej. `C:\dev\custom-agents` o `~/code/custom-agents`). Si ya lo tienes en una carpeta sincronizada y ves esos errores: pausa la sincronización, borra los `.git/*.lock`, ejecuta `git status` para reconstruir el índice, y considera mover el repo fuera.
 
 ---
 
@@ -52,11 +52,11 @@ El bundle ya incluye `.claude-plugin/plugin.json` y `.claude-plugin/marketplace.
 **a) CLI de Claude Code (terminal).** Abre una terminal, lanza `claude` y, dentro de la sesión:
 
 ```
-/plugin marketplace add daycry/claude-agents
+/plugin marketplace add daycry/custom-agents
 /plugin install custom-agents@daycry
 ```
 
-**b) Claude Desktop / Cowork (interfaz).** Menú **Customize** (barra lateral) → pestaña **Plugins**. En Cowork, abre antes la pestaña **Cowork**. En **Personal plugins**, botón **"+"** → **Add marketplace** → **Add from a repository** → pega la URL del repo (`https://github.com/daycry/claude-agents.git`). Después **Install** en el plugin `custom-agents`.
+**b) Claude Desktop / Cowork (interfaz).** Menú **Customize** (barra lateral) → pestaña **Plugins**. En Cowork, abre antes la pestaña **Cowork**. En **Personal plugins**, botón **"+"** → **Add marketplace** → **Add from a repository** → pega la URL del repo (`https://github.com/daycry/custom-agents.git`). Después **Install** en el plugin `custom-agents`.
 
 Tras instalar, los agentes quedan disponibles en **todos los proyectos** de la máquina.
 

@@ -44,5 +44,5 @@ y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
 Versiones anteriores a la introducción de este changelog: bundle con los agentes `nemesis`, `evaluator`, `planner`, `pdfy` y `qa`, y las skills compartidas `cybersecurity` y `to-pdf`. Empaquetado como plugin + marketplace.
 
-[1.3.1]: https://github.com/daycry/claude-agents/releases/tag/v1.3.1
-[1.3.0]: https://github.com/daycry/claude-agents/releases/tag/v1.3.0
+[1.3.1]: https://github.com/daycry/custom-agents/releases/tag/v1.3.1
+[1.3.0]: https://github.com/daycry/custom-agents/releases/tag/v1.3.0
