@@ -4,7 +4,8 @@ description: Implementa un plan aprobado ejecutándolo fase a fase. Lee el `impr
 tools: Read, Grep, Glob, Bash, Write, Edit
 # Dependencias declaradas (convención del repo; ver docs/CONVENTIONS.md).
 dependencies:
-  skills: []                 # no depende de skills compartidas
+  skills:                    # reflejar el progreso en Jira (opcional, opt-in)
+    - jira-sync
   kits: []                   # usa los artefactos del plan (agent-kits/planner)
   agents:                    # handoff al terminar: pruebas E2E
     - qa
@@ -50,7 +51,8 @@ El **único** registro de progreso válido es `tasks.md` del plan. Por cada tare
 - Marca la tarea `en-progreso` en `tasks.md`.
 - Implementa el cambio mínimo que cumple sus **criterios de aceptación**; sigue las convenciones del proyecto.
 - Verifica localmente lo que puedas (compilar, lint, tests unitarios de esa zona).
-- Marca la tarea `completado` (checkbox + estado) y actualiza el resumen de progreso.
+- Marca la tarea `completado` (checkbox + estado) y actualiza el resumen de progreso. Rellena las horas **reales** (humano, IA ejec., supervisión) de la tarea.
+- **Reflejo en Jira (opcional, opt-in):** si el proyecto tiene Jira activado (`.claude/jira.json` `enabled: true`) y la tarea está mapeada a un issue, invoca **`jira-sync`** (Paso 7) para imputar horas (Tiempo IA + Supervisión, real→est, tope jornada) y transicionar el issue a *Done*. Si Jira no está activado, no hagas nada. `tasks.md` sigue siendo el ledger canónico; Jira es espejo.
 - Si una tarea se bloquea o cambia de alcance, decláralo en `tasks.md` (nota) y sigue con lo desbloqueable; no marques completado lo que no lo está.
 
 **P4. Commits lógicos.** Agrupa cambios por tarea/fase en commits con mensaje claro (`T-XX: …`). No mezcles tareas no relacionadas en un commit.

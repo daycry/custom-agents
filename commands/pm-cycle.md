@@ -53,13 +53,13 @@ bloquean el cierre del ciclo PM.
   a partir de `spec.md` + `evaluation.md` y conviértelo con el agente **`pdfy`** / skill `to-pdf`;
   guárdalo como `docs/roadmap/<fecha>-<slug>/decision-brief.pdf`. Preséntalo al usuario.
 
-- **Handoff a Jira.** Si hay un conector Atlassian disponible, crea un **epic/issue** desde la spec
-  aprobada para que el equipo lo recoja. Antes de crear nada: confirma **proyecto** y **tipo de
-  issue** con el usuario (no asumas). Vuelca en el issue el título de la spec, el resumen ejecutivo
-  y el presupuesto de la evaluación (coste €, esfuerzo, tokens), y enlaza de vuelta a la carpeta
-  `docs/roadmap/<fecha>-<slug>/`. Tras crearlo, **anota la clave/URL del issue** en el frontmatter
-  de la spec (p. ej. `jira: PROJ-123`) y en el índice `docs/roadmap/README.md`, para trazar
-  decisión ↔ ejecución. Es un puente al equipo; **no sustituye** a `/dev-cycle`.
+- **Épica en Jira (opcional).** El volcado de tareas a Jira vive en el ciclo de desarrollo (skill
+  **`jira-sync`**, al crear el plan): ahí se crea un issue por tarea bajo el proyecto/épica elegidos,
+  con selector visual o conversacional. En pm-cycle **no dupliques esa mecánica**; como mucho, si el
+  usuario quiere adelantar un contenedor, ofrece crear **una épica** desde la spec aprobada (título +
+  resumen ejecutivo + presupuesto de la evaluación) con `jira-sync`, y **anota su clave** en el
+  frontmatter de la spec (`jira: PROJ-123`) para que `/dev-cycle` cuelgue después las tareas de ella.
+  Confirma proyecto antes de crear nada; no asumas.
 
 > Si el usuario no quiere ninguna, cierra sin más. Estas salidas convierten la decisión en algo
 > accionable (documento para decidir / ticket para el equipo) sin salir del rol PM.
