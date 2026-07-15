@@ -125,11 +125,30 @@ chat), refleja ese avance en su issue de Jira. Se invoca **por tarea completada*
 2. **Calcula el worklog (tiempo de producción):**
    - `horas = Tiempo IA (ejec.) + Supervisión`, tomando el valor **real** de cada uno; si un `real` falta, usa su **estimación**. Si además falta la supervisión, derívala como `Tiempo IA × ratioSupervision` (por defecto `0.25`).
    - **Fallback**: si la tarea no tiene tiempo IA (tarea puramente humana), usa el **tiempo humano** (real→est).
-   - **Tope de jornada**: si `horas > horasJornada` (por defecto 8; 7 en periodos intensivos), imputa `horasJornada` y **avisa** de que se ha capado.
    - El **+20 % de contingencia no se imputa** (es margen de presupuesto, no tiempo real).
+   - El **tope de jornada es DIARIO** (acumulado de todas las tareas del día), no por tarea. Antes de imputar, aplica el "Tope de jornada diario" de abajo.
 3. **Imputa** con `addWorklogToJiraIssue` (issueKey, `timeSpent` en horas/minutos, con un comentario tipo "Imputado automáticamente al completar T-XX"). Opcional: anota el **tiempo IA** por separado en un comentario/label para reporting.
 4. **Marca Done (descubierto, no hardcodeado):** `getTransitionsForJiraIssue(issueKey)` → localiza la transición cuyo estado destino es de categoría *Done* (o el nombre configurado) y aplícala con `transitionJiraIssue`. Si hay varias o ninguna clara, pregunta/omite con aviso; no fuerces un id fijo.
 5. **Actualiza** el manifiesto (`T-XX → {issueKey, worklogImputado, done:true}`) para no re-imputar en reejecuciones (idempotente).
+
+### Tope de jornada diario (banco de horas)
+
+El **acumulado de horas imputadas por día** no debe pasar de `horasJornada` (por defecto 8; 7 en
+periodos intensivos). Lleva ese acumulado por fecha en `.claude/jira-state.json`
+(`imputadoPorDia: { "YYYY-MM-DD": 6.5 }`). Antes de imputar el worklog de una tarea:
+
+- Calcula `restante = horasJornada − imputado_hoy`.
+- **Si cabe** (`horas ≤ restante`): imputa normal y suma al acumulado del día.
+- **Si NO cabe** (superaría la jornada): aplica la preferencia `alCubrirJornada` de `.claude/jira.json`:
+  - **`preguntar`** (por defecto): para y ofrece las **tres** opciones; actúa según la respuesta y ofrece **recordarla** (guardarla en `alCubrirJornada` para no volver a preguntar):
+    1. **Parar** — imputa solo `restante` (hasta cubrir la jornada) y **detén la implementación**; informa de cuántas horas y tareas quedan pendientes. (El `implementer` debe respetar esta parada.)
+    2. **Seguir imputando** — imputa las `horas` completas aunque el día supere la jornada.
+    3. **Banco (día siguiente)** — imputa `restante` hoy (hasta cubrir la jornada) y **guarda el exceso** en `bancoHoras` como una **entrada con su tarea e issue** (`{ task:"T-XX", issueKey:"…", horas, origen }`); sigue implementando. El excedente **no** se imputa hoy: queda pendiente para una jornada posterior, y sabe **a qué issue** imputarse.
+  - Si `alCubrirJornada` ya tiene un valor (`parar`/`seguir`/`banco`), aplícalo sin preguntar.
+
+> **Ejemplo (banco).** Llevas 6 h imputadas hoy y una tarea consume 3 h (tope 8 h): imputa **2 h hoy** (llegas a 8 h) y guarda **1 h** en el banco. Esa 1 h **no** se registra hoy con fecha de mañana.
+
+- **Solo se imputan horas del día en curso.** Todo worklog se registra con la **fecha de hoy** (la real); **nunca** se post-datan horas a días futuros. Por eso el banco no se imputa por adelantado: cada entrada del banco se imputa **a su `issueKey`** cuando ese día posterior sea realmente *hoy* (en una ejecución de ese día), consumiendo el presupuesto de esa jornada. Si una entrada no cabe entera, imputa lo que quepa a su issue y **re-banca el resto de esa misma entrada**. Así, en Jira, cada día solo lleva horas registradas ese mismo día y nunca más de `horasJornada`, y cada hora va a la tarea que le corresponde.
 
 > Igual que el volcado, esto es **opt-in**: solo ocurre si `.claude/jira.json` tiene `enabled: true`. Aunque el conector esté conectado, si no se ha activado Jira para el proyecto, no se imputa ni se transiciona nada.
 
@@ -139,9 +158,12 @@ La escribe/actualiza la skill; el usuario puede ajustarla. Campos:
 
 - `enabled` (`true`/`false`) — opt-in del proyecto (como Confluence).
 - `cloudId` — site Atlassian (se resuelve solo si falta).
-- `horasJornada` (por defecto `8`) — **máximo de horas a imputar por tarea**; bájalo a `7` en periodos de jornada intensiva. Editable en cualquier momento; puedes pedir a la skill que lo confirme al arrancar.
+- `horasJornada` (por defecto `8`) — **máximo de horas imputables por DÍA** (acumulado de todas las tareas), no por tarea; bájalo a `7` en periodos de jornada intensiva. Editable en cualquier momento; puedes pedir a la skill que lo confirme al arrancar.
+- `alCubrirJornada` (por defecto `preguntar`) — qué hacer al llegar al tope diario: `preguntar` · `parar` · `seguir` · `banco`. Ver "Tope de jornada diario".
 - `ratioSupervision` (por defecto `0.25`) — para derivar la supervisión cuando no viene como `real`.
 - `defaults` (opcional) — `projectKey`, `parentKey`, `issueType`, `labels` para repetir de un clic.
+
+Estado en `.claude/jira-state.json`: el **mapeo `T-XX → issueKey`** (clave Jira de cada tarea; el mismo valor se anota en `tasks.md`, Paso 6), `imputadoPorDia` (horas imputadas por fecha) y `bancoHoras` — una **lista de entradas por tarea/issue**, p. ej. `[{ "task":"T-08", "issueKey":"DM5985-123", "horas":1, "origen":"2026-07-15" }]` — para que cada excedente sepa a qué issue imputarse al drenarse.
 
 ## Reglas
 

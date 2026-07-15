@@ -52,7 +52,8 @@ El **único** registro de progreso válido es `tasks.md` del plan. Por cada tare
 - Implementa el cambio mínimo que cumple sus **criterios de aceptación**; sigue las convenciones del proyecto.
 - Verifica localmente lo que puedas (compilar, lint, tests unitarios de esa zona).
 - Marca la tarea `completado` (checkbox + estado) y actualiza el resumen de progreso. Rellena las horas **reales** (humano, IA ejec., supervisión) de la tarea.
-- **Reflejo en Jira (opcional, opt-in):** si el proyecto tiene Jira activado (`.claude/jira.json` `enabled: true`) y la tarea está mapeada a un issue, invoca **`jira-sync`** (Paso 7) para imputar horas (Tiempo IA + Supervisión, real→est, tope jornada) y transicionar el issue a *Done*. Si Jira no está activado, no hagas nada. `tasks.md` sigue siendo el ledger canónico; Jira es espejo.
+- **Reflejo en Jira (opcional, opt-in):** si el proyecto tiene Jira activado (`.claude/jira.json` `enabled: true`) y la tarea está mapeada a un issue, invoca **`jira-sync`** (Paso 7) para imputar horas (Tiempo IA + Supervisión, real→est, con tope **diario** de jornada) y transicionar el issue a *Done*. Si Jira no está activado, no hagas nada. `tasks.md` sigue siendo el ledger canónico; Jira es espejo.
+- **Respeta la parada por jornada:** si al imputar se alcanza el tope diario y la preferencia (o la elección del usuario) es **parar**, detén la implementación tras la tarea actual e informa de lo pendiente; no sigas abriendo tareas. Con **banco** o **seguir**, continúa normalmente.
 - Si una tarea se bloquea o cambia de alcance, decláralo en `tasks.md` (nota) y sigue con lo desbloqueable; no marques completado lo que no lo está.
 
 **P4. Commits lógicos.** Agrupa cambios por tarea/fase en commits con mensaje claro (`T-XX: …`). No mezcles tareas no relacionadas en un commit.
