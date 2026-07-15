@@ -130,6 +130,28 @@ def scan(root):
     return inits
 
 
+def warnings_for(inits):
+    """Avisos no fatales: campos que no se han podido leer (posible desajuste de
+    etiquetas entre las plantillas y este parser) e incoherencias de estado."""
+    warns = []
+    for r in inits:
+        s = r["slug"]
+        if r["has_eval"]:
+            missing = [k for k in ("eval_estado", "coste", "esfuerzo") if not r.get(k)]
+            if missing:
+                warns.append(f"{s}: evaluation.md presente pero no se leyeron "
+                             f"{', '.join(missing)} (¿cambiaron las etiquetas de la tabla?)")
+        if r["has_spec"] and not r["spec_estado"]:
+            warns.append(f"{s}: spec.md sin 'estado' en el frontmatter")
+        if r["spec_estado"] == "aprobada" and r["has_eval"] \
+                and r["eval_estado"] not in (None, "completado"):
+            warns.append(f"{s}: spec 'aprobada' pero evaluación '{r['eval_estado']}' "
+                         f"(se esperaba 'completado')")
+        if r["spec_estado"] == "implementada" and not r["has_plan"]:
+            warns.append(f"{s}: spec 'implementada' pero sin improvement-plan.md")
+    return warns
+
+
 # ---- HTML (vista local) -----------------------------------------------------
 def pill(text, color):
     text = html.escape(str(text))
@@ -300,6 +322,8 @@ def main():
     ap.add_argument("--html", help="ruta de salida del HTML (vista local)")
     ap.add_argument("--md", help="ruta de salida del Markdown (para Confluence)")
     ap.add_argument("--json", action="store_true", help="volcar JSON a stdout")
+    ap.add_argument("--strict", action="store_true",
+                    help="salir con código 1 si hay avisos (para CI)")
     args = ap.parse_args()
 
     if not os.path.isdir(args.root):
@@ -307,6 +331,10 @@ def main():
         sys.exit(2)
 
     inits = scan(args.root)
+    warns = warnings_for(inits)
+    for w in warns:
+        print(f"[roadmap-dashboard][aviso] {w}", file=sys.stderr)
+
     if args.json:
         print(json.dumps(inits, ensure_ascii=False, indent=2))
     if args.html:
@@ -321,6 +349,9 @@ def main():
         print(f"[roadmap-dashboard] MD: {len(inits)} iniciativa(s) -> {args.md}")
     if not any([args.html, args.md, args.json]):
         print(f"[roadmap-dashboard] {len(inits)} iniciativa(s) encontradas")
+
+    if args.strict and warns:
+        sys.exit(1)
 
 
 if __name__ == "__main__":

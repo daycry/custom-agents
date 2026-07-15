@@ -11,6 +11,8 @@ Contenido (todo cuelga de la raíz del bundle, que se despliega como `.claude/`)
 
 Las rutas de los kits se resuelven en tiempo de ejecución con un `find` sobre `$PWD/.claude` y `$HOME/.claude`, así que **los agentes funcionan igual en las tres vías** siguientes.
 
+> ⚠️ **No clones el repositorio dentro de una carpeta sincronizada en la nube** (OneDrive, Dropbox, Google Drive, iCloud…). El sincronizador y git se pisan: bloquea los ficheros `.lock` y objetos de `.git` mientras sube, lo que provoca errores tipo `Unable to create '.git/HEAD.lock'`, "index file corrupt" o ficheros que se leen a medias. Clónalo en una ruta local **fuera** del área sincronizada (p. ej. `C:\dev\claude-agents` o `~/code/claude-agents`). Si ya lo tienes en una carpeta sincronizada y ves esos errores: pausa la sincronización, borra los `.git/*.lock`, ejecuta `git status` para reconstruir el índice, y considera mover el repo fuera.
+
 ---
 
 ## Vía 1 — Probar en un proyecto (rápido)
@@ -70,10 +72,17 @@ Tras instalar, los agentes quedan disponibles en **todos los proyectos** de la m
 
 ### Al publicar (autor del repo)
 1. Haz los cambios.
-2. **Sube la versión** en `.claude-plugin/plugin.json` **y** `.claude-plugin/marketplace.json` (p. ej. `1.2.0` → `1.2.1`). Ambos deben quedar con el **mismo** número; si no coinciden o no suben, el cliente no detecta la actualización.
-3. Commit + push al repo (opcional: tag `vX.Y.Z`).
+2. **Sube la versión** con el script (recomendado), que la deja coherente en los **tres** sitios donde vive (`plugin.json`, y en `marketplace.json` tanto `metadata.version` como la entrada del plugin) y crea commit + tag:
 
-> Versión actual publicada-pendiente: **1.3.1** (ya reflejada en ambos manifiestos).
+   ```bash
+   python scripts/release.py 1.5.1        # bump coherente + commit + tag v1.5.1
+   python scripts/release.py --check      # solo verifica que las 3 versiones coinciden
+   ```
+
+   Si prefieres a mano: edita esos **tres** campos al **mismo** número. Si no coinciden o no suben, el cliente no detecta la actualización (es el fallo más común).
+3. `git push origin HEAD && git push origin vX.Y.Z`.
+
+> Versión actual publicada: **1.5.0** (coherente en ambos manifiestos). Usa `python scripts/release.py --check` para confirmarlo antes de publicar.
 
 ### Al actualizar — CLI de Claude Code
 En una sesión `claude`:
