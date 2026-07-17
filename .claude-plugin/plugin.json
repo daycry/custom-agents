@@ -1,6 +1,6 @@
 {
   "name": "custom-agents",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "description": "Agentes custom para Claude Code que cubren el ciclo de una iniciativa (requisitos → presupuesto → plan → implementación → pruebas → documentación) con contabilidad de tiempo/coste y trazabilidad en Jira/Confluence. Agentes: analyst (toma de requerimientos), evaluator, planner, implementer, qa, documenter, pdfy y nemesis (auditoría SAST+DAST). Comandos: /setup, /pm-cycle, /dev-cycle, /pm-backlog, /roadmap-status, /roadmap-metrics, /roadmap-brief, /roadmap-live, /retro y /confluence-pull. Skills: cybersecurity, to-pdf, confluence-publish, confluence-pull, roadmap-dashboard, jira-sync y discovery. Config de presupuesto compartida en .claude/rates.json; integraciones Atlassian opt-in.",
   "author": {
     "name": "daycry",
