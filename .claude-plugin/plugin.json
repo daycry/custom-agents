@@ -1,6 +1,6 @@
 {
   "name": "custom-agents",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "description": "Agentes custom para Claude Code: nemesis (auditoría SAST+DAST), evaluator (evalúa/presupuesta specs), planner (planes presupuestados), implementer (ejecuta el plan fase a fase), pdfy (conversión a PDF), qa (E2E con Playwright + informe) y documenter (documentación técnica y de producto). Incluye los commands /pm-cycle (rol producto: spec→evaluación), /dev-cycle (ciclo completo de desarrollo), /pm-backlog (prioriza la cartera), /roadmap-status (dashboard del roadmap) y /confluence-pull (baja Confluence→docs para PMs sin git), y las skills compartidas cybersecurity, to-pdf, confluence-publish y confluence-pull (sincronización bidireccional opcional de docs con Confluence) y roadmap-dashboard.",
   "author": {
     "name": "daycry",

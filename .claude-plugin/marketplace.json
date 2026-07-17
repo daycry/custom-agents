@@ -7,14 +7,14 @@
   },
   "metadata": {
     "description": "Marketplace de agentes custom de daycry para Claude Code.",
-    "version": "1.6.0"
+    "version": "1.7.0"
   },
   "plugins": [
     {
       "name": "custom-agents",
       "source": "./",
       "description": "nemesis (auditoría SAST+DAST), evaluator (specs), planner (planes), implementer (ejecuta el plan), pdfy (PDF), qa (E2E Playwright) y documenter (documentación) + commands /pm-cycle, /dev-cycle, /pm-backlog, /roadmap-status y /confluence-pull + skills cybersecurity, to-pdf, confluence-publish, confluence-pull y roadmap-dashboard.",
-      "version": "1.6.0",
+      "version": "1.7.0",
       "strict": true,
       "tags": ["security", "planning", "estimation", "confluence", "product"]
     }
