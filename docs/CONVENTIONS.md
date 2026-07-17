@@ -79,7 +79,8 @@ Notas:
 3. Si necesita scripts propios → `agent-kits/<nombre>/`. Si es reutilizable → `skills/<skill>/`.
 4. Escribe la doc en `docs/agents/<nombre>.md`.
 5. Añade la fila correspondiente en `docs/README.md` (agentes y, si aplica, skills).
-6. Verifica que no haya rutas absolutas rotas ni nombres duplicados.
+6. **Actualiza los diagramas de `docs/FLOWS.md`** si el agente/comando/skill cambia algún flujo.
+7. Verifica que no haya rutas absolutas rotas ni nombres duplicados.
 
 ## 7. Cadena de artefactos: spec → evaluación → plan (carpeta única por iniciativa)
 

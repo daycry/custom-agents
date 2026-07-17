@@ -1,13 +1,15 @@
 # Instalación y despliegue
 
-Bundle de agentes custom para Claude Code: **nemesis** (auditoría SAST+DAST), **evaluator** (evalúa/presupuesta specs), **planner** (planes presupuestados), **qa** (E2E con Playwright), **pdfy** (conversión a PDF) y **documenter** (documentación técnica y de producto), más las skills compartidas **cybersecurity**, **to-pdf** y **confluence-publish**.
+Bundle de agentes custom para Claude Code que cubren el ciclo de una iniciativa (requisitos → presupuesto → plan → implementación → pruebas → documentación) con contabilidad de tiempo/coste y trazabilidad opcional en Jira/Confluence. Agentes: **analyst** (toma de requerimientos), **evaluator** (evalúa/presupuesta), **planner** (planes), **implementer** (implementa), **qa** (E2E Playwright), **documenter** (documentación), **pdfy** (PDF) y **nemesis** (auditoría SAST+DAST). Skills compartidas: **cybersecurity**, **to-pdf**, **confluence-publish**, **confluence-pull**, **roadmap-dashboard**, **jira-sync** y **discovery**. Comandos: **/setup**, **/pm-cycle**, **/dev-cycle**, **/pm-backlog**, **/roadmap-status**, **/roadmap-metrics**, **/roadmap-brief**, **/roadmap-live**, **/retro** y **/confluence-pull**.
 
 Contenido (todo cuelga de la raíz del bundle, que se despliega como `.claude/`):
 - `agents/*.md` — definiciones de los agentes.
-- `skills/<skill>/` — skills compartidas (`cybersecurity`, `to-pdf`, `confluence-publish`).
+- `skills/<skill>/` — skills compartidas (algunas con `scripts/` y `assets/`).
+- `commands/*.md` — comandos orquestadores (`/…`).
 - `agent-kits/<agente>/` — toolkits/plantillas privadas de cada agente.
 - `.claude-plugin/` — manifiesto de plugin y marketplace (para la vía 3).
-- `docs/` — documentación (no se carga como código; el loader la ignora).
+- `docs/` — documentación (no se carga como código; el loader la ignora). Ver [`README.md`](README.md) (índice), [`FLOWS.md`](FLOWS.md) (diagramas), [`CONVENTIONS.md`](CONVENTIONS.md) y [`atlassian-connector-notes.md`](atlassian-connector-notes.md).
+- `.github/workflows/ci.yml` — CI (tests + sintaxis + coherencia de versión).
 
 Las rutas de los kits se resuelven en tiempo de ejecución con un `find` sobre `$PWD/.claude` y `$HOME/.claude`, así que **los agentes funcionan igual en las tres vías** siguientes.
 
@@ -27,7 +29,7 @@ ln -s "/ruta/al/repo/custom-agents" "/ruta/al/proyecto/.claude"
 cp -r "/ruta/al/repo/custom-agents/." "/ruta/al/proyecto/.claude/"
 ```
 
-En Claude Code, dentro del proyecto: `/agents` para verlos e invócalos con `@nemesis`, `@evaluator`, `@planner`, `@pdfy` (o "usa el agente …").
+En Claude Code, dentro del proyecto: `/agents` para verlos e invócalos con `@analyst`, `@evaluator`, `@planner`, `@implementer`, `@qa`, `@nemesis`, `@pdfy` (o "usa el agente …"). Para el flujo completo, usa los comandos (`/setup`, `/pm-cycle`, `/dev-cycle`…).
 
 ---
 
@@ -115,10 +117,16 @@ rm -rf ~/.claude/plugins/cache/
 
 ---
 
-## Conector de Atlassian (Confluence) — para `confluence-publish`
+## Conector de Atlassian (Jira & Confluence) — para `confluence-publish`, `confluence-pull` y `jira-sync`
+
+El mismo **conector oficial de Atlassian (Rovo MCP)** da servicio a tres integraciones, **todas
+opt-in** e independientes: **Confluence** (`confluence-publish` sube `docs/`; `confluence-pull` los
+baja) y **Jira** (`jira-sync` vuelca el plan a issues, imputa horas y marca *Done*; `/roadmap-live`
+lee el estado en vivo). Un alta única del conector cubre las tres. Comportamientos verificados del
+conector en [`atlassian-connector-notes.md`](atlassian-connector-notes.md).
 
 La skill `confluence-publish` publica/espeja la documentación de `docs/` en Confluence, y los
-agentes `planner`, `evaluator` y `qa` la invocan al escribir en `docs/` (paso "Sincronizar con
+agentes `planner`, `evaluator`, `qa` y `documenter` la invocan al escribir en `docs/` (paso "Sincronizar con
 Confluence"). Es **opcional (opt-in)**: la primera vez la skill pregunta si quieres sincronizar
 con Confluence; si dices que **no**, lo recuerda (`"enabled": false` en `.claude/confluence.json`)
 y no vuelve a preguntar ni sincroniza. Si dices que **sí**, se conecta y se ejecuta el asistente.

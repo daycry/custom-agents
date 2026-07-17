@@ -1,6 +1,6 @@
 # custom-agents
 
-Agentes custom para **Claude Code**, empaquetados como plugin instalable. Incluye siete agentes, varias skills compartidas y comandos orquestadores (`/pm-cycle`, `/dev-cycle`, `/pm-backlog`, `/roadmap-status`, `/confluence-pull`), pensados para reutilizarse en cualquier proyecto.
+Agentes custom para **Claude Code**, empaquetados como plugin instalable. Cubren el ciclo de una iniciativa (requisitos → presupuesto → plan → implementación → pruebas → documentación) con contabilidad de tiempo/coste y trazabilidad opcional en Jira/Confluence. Incluye **ocho agentes**, varias skills compartidas y comandos orquestadores (`/setup`, `/pm-cycle`, `/dev-cycle`, `/pm-backlog`, `/roadmap-status`, `/roadmap-metrics`, `/roadmap-brief`, `/roadmap-live`, `/retro`, `/confluence-pull`). Reutilizables en cualquier proyecto. Diagramas de todos los flujos en [`docs/FLOWS.md`](docs/FLOWS.md).
 
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
@@ -9,7 +9,8 @@ Agentes custom para **Claude Code**, empaquetados como plugin instalable. Incluy
 | Agente | Qué hace |
 |--------|----------|
 | **nemesis** | Auditoría de ciberseguridad end-to-end: SAST (análisis estático, skill `cybersecurity`) + DAST (pentest activo **solo local**), con memoria persistente e informe visual `index.html`. |
-| **evaluator** | Evalúa/presupuesta una **especificación** (la crea si llega por el prompt) en `docs/roadmap/<fecha>-<slug>/`: esfuerzo, coste € y previsión de tokens. Hace *handoff* a `planner`. |
+| **analyst** | **Toma de requerimientos**: conversa con el humano (entrevista, ejemplos, user stories, contraejemplos) y convierte una idea vaga en una `spec.md` sólida en formato fijo; itera hasta la **aprobación** y hace *handoff* a `evaluator`. |
+| **evaluator** | Evalúa/presupuesta una **especificación** (la crea si llega por el prompt) en `docs/roadmap/<fecha>-<slug>/`: esfuerzo, coste € y previsión de tokens. Calibra con el histórico (`CALIBRATION.md`). Hace *handoff* a `planner`. |
 | **planner** | Genera planes de implementación detallados y **presupuestados** (tiempo, coste €, previsión de tokens) en `docs/roadmap/`. |
 | **implementer** | **Implementa** un plan aprobado fase a fase (escribe código, sobre rama), marcando `tasks.md` como ledger canónico por tarea. Handoff a `qa`. |
 | **pdfy** | Convierte archivos a **PDF con aspecto moderno** (Markdown, HTML y Word → PDF vía Chromium headless + tema CSS), usando la skill `to-pdf`. |
@@ -23,6 +24,7 @@ Skills compartidas:
 - **confluence-pull** — sentido **inverso**: baja Confluence → `docs/` local para PMs sin git, preservando el frontmatter y avisando de conflictos.
 - **roadmap-dashboard** — genera un dashboard (HTML local / Markdown para Confluence / JSON) con el estado, prioridad y presupuesto de cada iniciativa del roadmap.
 - **jira-sync** — vuelca un plan a **Jira** (un issue por tarea bajo el proyecto/épica elegidos, con selector artefacto o conversacional), imputa horas al completar (Tiempo IA + Supervisión, tope de jornada + banco) y marca *Done*. Opt-in. La usan `planner` e `implementer`.
+- **discovery** — checklist de descubrimiento que ayuda a convertir una idea vaga en una `spec.md` sólida antes de evaluar (la usan `analyst` y `/pm-cycle`).
 
 ## Comandos
 
@@ -102,11 +104,14 @@ docs/roadmap/<fecha>-<slug>/
 ├── spec.md              (QUÉ se quiere)
 ├── evaluation.md        (evaluator: CUÁNTO / si conviene)
 ├── improvement-plan.md  (planner: CÓMO, paso a paso)
-├── tasks.md             (checklist de tareas)
-└── testing/             (qa: E2E + informe)
+├── tasks.md             (checklist de tareas + horas reales)
+├── testing/             (qa: E2E + informe)
+└── retro.md             (/retro: real vs estimado + aprendizajes)
 ```
 
-`evaluator` especifica y presupuesta → `planner` genera el plan detallado → `implementer` lo **implementa** fase a fase (marcando `tasks.md`) → `qa` prueba (E2E) → con los tests en verde, `qa` hace handoff a `documenter`, que **actualiza la documentación** del proyecto reflejando lo implementado y probado (una vez al final del plan, no por tarea). `nemesis` **audita** la seguridad de lo construido. El command **`/dev-cycle <objetivo>`** orquesta toda esa cadena llamando a cada agente por nombre, con puertas de control. Los tres artefactos (spec, evaluación, plan) se **referencian entre sí** y se actualizan según se crean. `pdfy` exporta cualquiera de esos documentos (u otros) a **PDF** con aspecto moderno.
+`analyst` toma los requisitos y deja una **spec aprobada** → `evaluator` especifica y presupuesta (calibrando con el histórico) → `planner` genera el plan detallado → `implementer` lo **implementa** fase a fase (marcando `tasks.md` e imputando horas en Jira si está activado) → `qa` prueba (E2E) → con los tests en verde, `qa` hace handoff a `documenter`, que **actualiza la documentación** del proyecto (una vez al final del plan, no por tarea). `nemesis` **audita** la seguridad y puede convertir hallazgos críticos en nuevas iniciativas. `pdfy` exporta cualquier documento a **PDF**.
+
+Dos comandos orquestan la cadena por nombre y con puertas de control: **`/pm-cycle`** (rol producto: define y presupuesta, cierra en go/no-go) y **`/dev-cycle`** (desarrollo completo). Los comandos de cartera (`/pm-backlog`, `/roadmap-status`, `/roadmap-metrics`, `/roadmap-brief`, `/roadmap-live`) dan visibilidad y `/retro` cierra el bucle de aprendizaje. Ver [`docs/FLOWS.md`](docs/FLOWS.md) para los diagramas. Los parámetros de presupuesto (tarifa, tokens, jornada) viven en `.claude/rates.json` (`/setup` lo crea).
 
 ## Publicación en Confluence
 
