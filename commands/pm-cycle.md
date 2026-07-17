@@ -17,6 +17,7 @@ para que, cuando se decida ejecutar, `/dev-cycle` recoja el testigo sin repetir 
 ## Fase 0 — Preparación
 1. Deriva un `<slug>` corto en kebab-case del objetivo y fija/crea la carpeta `docs/roadmap/<fecha>-<slug>/` (reutilízala si ya existe; usa el mismo slug en toda la cadena).
 2. Si el usuario pasa una spec ya existente en esa carpeta, se evaluará; si pasa la idea/requisitos por el prompt, el `evaluator` **creará primero** la `spec.md` (estado `borrador`) y luego la evaluará.
+3. **Discovery (opcional).** Si el objetivo llega **poco definido** (idea vaga, sin alcance/criterios claros), **ofrece** un paso previo con la skill **`discovery`**: afina la idea con preguntas dirigidas y deja una `spec.md` sólida antes de presupuestar (no se estima sobre ambigüedades). Si ya hay una spec madura, sáltalo y ve directo a evaluar.
 
 ## Fase 1 — Evaluar (agente `evaluator`)
 Invoca **`evaluator`** con el objetivo. El agente:

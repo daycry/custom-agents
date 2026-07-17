@@ -43,6 +43,9 @@ Escribes en **español**, con Markdown correcto y atractivo (tablas, checkboxes 
 ---
 
 ## 1) PARÁMETROS DE ESTIMACIÓN (confírmalos, con defaults)
+
+> **Fuente única: `.claude/rates.json`.** Si existe esa config compartida (plantilla en `agent-kits/evaluator/templates/rates.example.json`), **lee de ahí** la tarifa, el precio de tokens, el tipo de cambio, el ratio de supervisión, el margen y la jornada — así `evaluator`, `planner` y `jira-sync` usan los mismos números. Localízala con `find "$PWD/.claude" "$HOME/.claude" -type f -path '*rates.json'`. Los valores de la tabla siguiente son solo el **fallback** si no existe; si la creas o cambias, esos mandan.
+
 | Parámetro | Default | Uso |
 |-----------|---------|-----|
 | Tarifa de desarrollo | `50 €/h` | Coste humano = horas × tarifa |

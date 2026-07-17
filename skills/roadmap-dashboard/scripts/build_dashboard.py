@@ -67,6 +67,52 @@ def table_value(text, key):
     return None
 
 
+def _num(cell):
+    """De una celda 'real / est' (p. ej. '34 / 40h', '380k / 420k', '—') → (real, est)."""
+    parts = cell.split("/")
+
+    def one(p):
+        m = re.search(r"([\d]+(?:[.,]\d+)?)\s*([kKmM]?)", p.strip())
+        if not m:
+            return None
+        v = float(m.group(1).replace(",", "."))
+        s = m.group(2).lower()
+        return v * 1000 if s == "k" else v * 1000000 if s == "m" else v
+    return (one(parts[0]), one(parts[1])) if len(parts) >= 2 else (None, None)
+
+
+def parse_progress_totals(text):
+    """Lee la fila TOTAL del 'Resumen de progreso' de tasks.md → real/est por categoría."""
+    header = total = None
+    for ln in text.splitlines():
+        if "|" not in ln:
+            continue
+        low = ln.lower()
+        if "progreso" in low and "fase" in low:
+            header = ln
+        elif re.search(r"\btotal\b", low) and "**" in ln and header:
+            total = ln
+    if not header or not total:
+        return None
+    hc = [c.strip() for c in header.strip().strip("|").split("|")]
+    tc = [c.strip() for c in total.strip().strip("|").split("|")]
+    res = {}
+    for i, h in enumerate(hc):
+        if i >= len(tc):
+            continue
+        hl = re.sub(r"[*`]", "", h).lower()
+        cell = re.sub(r"[*`]", "", tc[i])
+        if "human" in hl:
+            res["humanas"] = _num(cell)
+        elif "ia" in hl:
+            res["ia"] = _num(cell)
+        elif "supervis" in hl:
+            res["supervision"] = _num(cell)
+        elif "token" in hl:
+            res["tokens"] = _num(cell)
+    return res or None
+
+
 def scan(root):
     inits = []
     for path in sorted(glob.glob(os.path.join(root, "*"))):
@@ -87,7 +133,7 @@ def scan(root):
             "spec_estado": None, "eval_estado": None,
             "prioridad": None, "coste": None, "esfuerzo": None,
             "tokens": None, "multiplicador": None, "caracteristicas": None,
-            "creado": None, "actualizado": None,
+            "creado": None, "actualizado": None, "progreso": None,
             "has_spec": os.path.exists(spec_p),
             "has_eval": os.path.exists(eval_p),
             "has_plan": os.path.exists(plan_p),
@@ -116,6 +162,10 @@ def scan(root):
             rec["esfuerzo"] = table_value(t, "Esfuerzo humano")
             rec["tokens"] = table_value(t, "Tokens IA")
             rec["multiplicador"] = table_value(t, "Multiplicador productividad")
+
+        if rec["has_tasks"]:
+            rec["progreso"] = parse_progress_totals(
+                open(tasks_p, encoding="utf-8", errors="replace").read())
 
         # fase derivada para ordenar/priorizar
         if rec["has_testing"]:
@@ -316,11 +366,61 @@ def render_markdown(inits, root):
     return "\n".join(out)
 
 
+def _fmt(x):
+    if x is None:
+        return "—"
+    return str(int(x)) if float(x).is_integer() else f"{x:.1f}"
+
+
+def render_metrics_md(inits, root):
+    """Informe real vs estimado. Producción = Tiempo IA (ejec.) + Supervisión (lo imputable)."""
+    now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+    out = ["# 📊 Roadmap — real vs estimado", "",
+           f"> Generado el **{now}**. «Producción» = Tiempo IA (ejec.) + Supervisión "
+           "(lo que se imputa en Jira). Real/est de la fila TOTAL de cada `tasks.md`.", ""]
+    tot = {"pr": 0.0, "pe": 0.0, "hr": 0.0, "he": 0.0, "tr": 0.0, "te": 0.0}
+    rows = []
+    for r in inits:
+        p = r.get("progreso")
+        if not p:
+            continue
+        ia = p.get("ia") or (None, None)
+        su = p.get("supervision") or (None, None)
+        hu = p.get("humanas") or (None, None)
+        tk = p.get("tokens") or (None, None)
+        pr = (ia[0] or 0) + (su[0] or 0)
+        pe = (ia[1] or 0) + (su[1] or 0)
+        desv = ((pr - pe) / pe * 100) if pe else None
+        tot["pr"] += pr; tot["pe"] += pe
+        tot["hr"] += hu[0] or 0; tot["he"] += hu[1] or 0
+        tot["tr"] += tk[0] or 0; tot["te"] += tk[1] or 0
+        rows.append("| {t} | {pr} / {pe}h | {d} | {hr} / {he}h | {tr} / {te} |".format(
+            t=md_cell(r["titulo"]), pr=_fmt(pr), pe=_fmt(pe),
+            d=(f"{desv:+.0f}%" if desv is not None else "—"),
+            hr=_fmt(hu[0]), he=_fmt(hu[1]), tr=_fmt(tk[0]), te=_fmt(tk[1])))
+    if not rows:
+        out += ["_Aún no hay horas reales registradas en ningún `tasks.md`._", ""]
+        return "\n".join(out)
+    out += ["| Iniciativa | Producción real/est | Desv. | Humanas real/est | Tokens real/est |",
+            "|---|---|---|---|---|"]
+    out += rows
+    dtot = ((tot["pr"] - tot["pe"]) / tot["pe"] * 100) if tot["pe"] else None
+    out.append("| **TOTAL** | **{}/{}h** | **{}** | **{}/{}h** | **{}/{}** |".format(
+        _fmt(tot["pr"]), _fmt(tot["pe"]),
+        (f"{dtot:+.0f}%" if dtot is not None else "—"),
+        _fmt(tot["hr"]), _fmt(tot["he"]), _fmt(tot["tr"]), _fmt(tot["te"])))
+    out += ["", "_Desv. negativa = menos horas reales que estimadas (más eficiente). "
+            "Coste € = horas × tarifa de `.claude/rates.json`._"]
+    return "\n".join(out)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--root", default="docs/roadmap")
     ap.add_argument("--html", help="ruta de salida del HTML (vista local)")
     ap.add_argument("--md", help="ruta de salida del Markdown (para Confluence)")
+    ap.add_argument("--metrics-md", dest="metrics_md",
+                    help="ruta de salida del informe real vs estimado (Markdown)")
     ap.add_argument("--json", action="store_true", help="volcar JSON a stdout")
     ap.add_argument("--strict", action="store_true",
                     help="salir con código 1 si hay avisos (para CI)")
@@ -347,7 +447,12 @@ def main():
         with open(args.md, "w", encoding="utf-8") as f:
             f.write(render_markdown(inits, args.root))
         print(f"[roadmap-dashboard] MD: {len(inits)} iniciativa(s) -> {args.md}")
-    if not any([args.html, args.md, args.json]):
+    if args.metrics_md:
+        os.makedirs(os.path.dirname(os.path.abspath(args.metrics_md)), exist_ok=True)
+        with open(args.metrics_md, "w", encoding="utf-8") as f:
+            f.write(render_metrics_md(inits, args.root))
+        print(f"[roadmap-dashboard] MÉTRICAS: -> {args.metrics_md}")
+    if not any([args.html, args.md, args.metrics_md, args.json]):
         print(f"[roadmap-dashboard] {len(inits)} iniciativa(s) encontradas")
 
     if args.strict and warns:

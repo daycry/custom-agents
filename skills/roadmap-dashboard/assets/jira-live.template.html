@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Roadmap · estado en vivo (Jira)</title>
+<!--
+  PLANTILLA del dashboard VIVO desde Jira (skill roadmap-dashboard, comando /roadmap-live).
+  El asistente COPIA este fichero, sustituye {{...}} y lo publica con create_artifact
+  (mcp_tools = [ {{SERVER_SEARCH}} ]). Lee en vivo del conector al abrirse; el host ya
+  ofrece botón de recarga (no añadir uno propio).
+  Marcadores:
+    {{SERVER_SEARCH}} -> mcp__<uuid>__searchJiraIssuesUsingJql
+    {{CLOUD_ID}}      -> cloudId del site
+    {{LABEL}}         -> label a filtrar (p. ej. el <slug> de una iniciativa, o 'roadmap' para toda la cartera)
+    {{TITULO}}        -> texto de cabecera (nombre de la iniciativa o 'Cartera')
+  Requiere que jira-sync haya creado los issues con labels 'roadmap' y '<slug>' (Paso 5).
+  searchJiraIssuesUsingJql: searchResultMode:"issues", JQL acotada (labels = ...); issues en issues.nodes.
+-->
+<style>
+:root{color-scheme:light}
+*{box-sizing:border-box}
+body{margin:0;background:#fff;color:#1b1b19;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;font-size:14px;line-height:1.5}
+.wrap{max-width:820px;margin:0 auto;padding:20px}
+h1{font-size:18px;margin:0 0 2px}
+.sub{color:#6b6b66;font-size:13px;margin-bottom:16px}
+.cards{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:16px}
+.card{flex:1;min-width:120px;background:#f4f6fa;border:1px solid #e6e9f0;border-radius:12px;padding:12px 14px}
+.card .n{font-size:22px;font-weight:700}
+.card .l{font-size:12px;color:#6b6b66}
+.bar{height:12px;border-radius:6px;background:#e6e9f0;overflow:hidden;display:flex;margin:6px 0 18px}
+.bar > i{display:block;height:100%}
+.seg-done{background:#22a06b}.seg-prog{background:#e2b203}.seg-todo{background:#8993a4}
+.legend{font-size:12px;color:#6b6b66;margin-bottom:16px}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin:0 4px 0 12px;vertical-align:middle}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:7px 8px;border-bottom:1px solid #eef0f4;vertical-align:top}
+th{color:#6b6b66;font-weight:600}
+.k{font-weight:600;color:#0747a6;white-space:nowrap}
+.pill{font-size:11px;font-weight:600;padding:1px 8px;border-radius:999px;color:#fff;white-space:nowrap}
+.st-done{background:#22a06b}.st-prog{background:#b38600}.st-todo{background:#626f86}
+.muted{color:#9a9a92;padding:16px 0}
+.err{color:#a32d2d;padding:12px 0}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid #cdd;border-top-color:#4c9aff;border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px}
+@keyframes sp{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🗺️ Roadmap en vivo — {{TITULO}}</h1>
+  <div class="sub">Estado real desde Jira (label <code>{{LABEL}}</code>). Usa el botón de recarga para refrescar.</div>
+  <div id="body"><div class="muted"><span class="spin"></span> Cargando issues de Jira…</div></div>
+</div>
+<script>
+const SERVER_SEARCH="{{SERVER_SEARCH}}";
+const CLOUD="{{CLOUD_ID}}";
+const LABEL="{{LABEL}}";
+
+function parse(r){
+  if(r.isError) throw new Error((r.content&&r.content[0]&&r.content[0].text)||"error");
+  return r.structuredContent ?? JSON.parse(r.content[0].text);
+}
+function issuesOf(d){ return (d.issues&&d.issues.nodes)||d.issues||d.results||[]; }
+function cat(f){
+  const c=((f.status&&f.status.statusCategory&&f.status.statusCategory.key)||"").toLowerCase();
+  if(c==="done") return "done";
+  if(c==="indeterminate"||c==="inprogress") return "prog";
+  return "todo";
+}
+function secs(f){
+  const tt=f.timetracking||{};
+  return tt.timeSpentSeconds || f.aggregatetimespent || f.timespent || 0;
+}
+function hrs(s){ return Math.round((s/3600)*10)/10; }
+
+async function load(){
+  const body=document.getElementById("body");
+  try{
+    const jql='labels = "'+LABEL+'" ORDER BY status ASC, updated DESC';
+    const r=await window.cowork.callMcpTool(SERVER_SEARCH,{cloudId:CLOUD,jql:jql,searchResultMode:"issues",maxResults:100,fields:["summary","status","issuetype","timetracking","aggregatetimespent","parent"]});
+    const items=issuesOf(parse(r));
+    if(!items.length){ body.innerHTML='<div class="muted">No hay issues con el label <code>'+LABEL+'</code>. ¿Se ha volcado el plan a Jira con jira-sync?</div>'; return; }
+    let done=0,prog=0,todo=0,tsec=0;
+    items.forEach(it=>{ const f=it.fields||{}; const c=cat(f); if(c==="done")done++;else if(c==="prog")prog++;else todo++; tsec+=secs(f); });
+    const tot=items.length, pd=Math.round(done/tot*100);
+    let rows="";
+    items.forEach(it=>{ const f=it.fields||{}; const c=cat(f);
+      const cls=c==="done"?"st-done":c==="prog"?"st-prog":"st-todo";
+      rows+='<tr><td class="k">'+it.key+'</td><td>'+(f.summary||"")+'</td>'+
+            '<td><span class="pill '+cls+'">'+((f.status&&f.status.name)||"")+'</span></td>'+
+            '<td>'+(secs(f)?hrs(secs(f))+'h':'—')+'</td></tr>';
+    });
+    body.innerHTML=
+      '<div class="cards">'+
+        '<div class="card"><div class="n">'+tot+'</div><div class="l">issues</div></div>'+
+        '<div class="card"><div class="n">'+pd+'%</div><div class="l">completado</div></div>'+
+        '<div class="card"><div class="n">'+hrs(tsec)+'h</div><div class="l">imputadas (total)</div></div>'+
+      '</div>'+
+      '<div class="bar">'+
+        '<i class="seg-done" style="width:'+(done/tot*100)+'%"></i>'+
+        '<i class="seg-prog" style="width:'+(prog/tot*100)+'%"></i>'+
+        '<i class="seg-todo" style="width:'+(todo/tot*100)+'%"></i>'+
+      '</div>'+
+      '<div class="legend"><span class="dot seg-done"></span>Done '+done+
+        '<span class="dot seg-prog"></span>En curso '+prog+
+        '<span class="dot seg-todo"></span>Pendiente '+todo+'</div>'+
+      '<table><thead><tr><th>Issue</th><th>Resumen</th><th>Estado</th><th>Imputado</th></tr></thead><tbody>'+rows+'</tbody></table>';
+  }catch(e){ body.innerHTML='<div class="err">No se pudo cargar de Jira: '+e.message+'</div>'; }
+}
+load();
+</script>
+</body>
+</html>

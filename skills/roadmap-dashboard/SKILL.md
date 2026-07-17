@@ -18,7 +18,8 @@ nunca edita spec/evaluación/plan. Es la fuente del comando `/roadmap-status` (H
   Es la **vista local**.
 - **Markdown** (`--md RUTA`): el mismo estado en tablas Markdown, pensado para **publicarse como
   página de Confluence** (lo espeja `confluence-publish`). Lleva la marca `generado <fecha/hora>`.
-- **JSON** (`--json`): lista de iniciativas con todos esos campos, para consumir desde otro comando.
+- **Métricas real vs estimado** (`--metrics-md RUTA`): informe que compara, por iniciativa y en total, la **producción** (Tiempo IA ejec. + Supervisión), horas humanas y tokens **reales vs estimados** (de la fila TOTAL de cada `tasks.md`), con desviaciones. Lo usa `/roadmap-metrics`.
+- **JSON** (`--json`): lista de iniciativas con todos esos campos (incluye `progreso`: real/est parseado de `tasks.md`), para consumir desde otro comando.
 
 ## Cómo se ejecuta
 
@@ -29,6 +30,9 @@ DASHKIT="$(find "$PWD/.claude" "$HOME/.claude" -type f -path '*skills/roadmap-da
 
 # Dashboard HTML (vista local) + Markdown (para Confluence) — lo usa /roadmap-status
 python3 "$DASHKIT" --root docs/roadmap --html docs/roadmap/dashboard.html --md docs/roadmap/dashboard.md
+
+# Informe real vs estimado (lo usa /roadmap-metrics)
+python3 "$DASHKIT" --root docs/roadmap --metrics-md docs/roadmap/metrics.md
 
 # Resumen JSON (lo usa /pm-backlog)
 python3 "$DASHKIT" --root docs/roadmap --json

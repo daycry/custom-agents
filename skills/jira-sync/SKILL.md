@@ -103,8 +103,9 @@ Indica claramente **cuántos** issues, de **qué tipo** y **dónde** cuelgan.
 Con el "sí", por cada tarea `T-XX` de `tasks.md`:
 - `createJiraIssue(projectKey, issueTypeName, summary, description, parent?)`:
   - `summary` = `"T-XX · <título de la tarea>"`.
-  - `description` = detalle/criterios de aceptación de la tarea (formato markdown).
+  - `description` = detalle/criterios de aceptación de la tarea (formato markdown) **+ enlace de vuelta** a la iniciativa (`docs/roadmap/<fecha>-<slug>/`) para no perder el contexto.
   - `parent` = la clave del padre (si aplica).
+  - **Labels** (via `additional_fields`): `roadmap` y `<slug>` de la iniciativa, para poder filtrarla luego por JQL (`labels = "<slug>"`) — lo aprovecha el dashboard vivo desde Jira.
 - **Idempotencia — manifiesto `.claude/jira-state.json`:** mapea `carpeta+T-XX → issueKey`. Antes de crear, consulta el manifiesto:
   - Ya tiene issueKey y existe (`getJiraIssue`) → **no dupliques** (salta o, si cambió el título, ofrece actualizar con `editJiraIssue`).
   - No está → crea y registra `T-XX → issueKey`.
@@ -152,15 +153,33 @@ periodos intensivos). Lleva ese acumulado por fecha en `.claude/jira-state.json`
 
 > Igual que el volcado, esto es **opt-in**: solo ocurre si `.claude/jira.json` tiene `enabled: true`. Aunque el conector esté conectado, si no se ha activado Jira para el proyecto, no se imputa ni se transiciona nada.
 
+## Paso 8 — traer estado desde Jira (read-back, opcional)
+
+Sentido inverso del volcado, para no perder de vista lo que el equipo mueve en Jira. Se invoca a
+demanda ("trae el estado de Jira", "sincroniza el estado desde Jira") o al **retomar** un plan.
+`tasks.md` es el **ledger canónico**: Jira es espejo, así que el read-back **informa** y solo
+actualiza `tasks.md` con confirmación.
+
+1. Para cada `T-XX → issueKey` del manifiesto, lee el issue con `getJiraIssue` (campo `status` y su categoría).
+2. Compara el estado del issue con el de la tarea en `tasks.md` (mapa aproximado: categoría *Done* ↔ `completado`; *In Progress* ↔ `en-progreso`; *To Do* ↔ `borrador`/`en-progreso`).
+3. **Clasifica y muestra** las divergencias, sin tocar nada aún:
+   - Issue *Done* en Jira pero tarea no `completado` en `tasks.md` (alguien la cerró en Jira).
+   - Tarea `completado` en `tasks.md` pero issue abierto en Jira (no se sincronizó el cierre; ver Paso 7).
+   - Coinciden → nada que hacer.
+4. **Con confirmación**, aplica los cambios acordados en `tasks.md` (y su resumen de progreso). Nunca sobreescribas el ledger en silencio; ante duda, deja la divergencia listada para que el usuario decida.
+5. No imputa horas en el read-back (eso es del Paso 7, al completar la tarea desde la implementación).
+
+> Es **opt-in** como el resto: solo si `.claude/jira.json` `enabled: true`. Útil al reabrir una iniciativa (`/dev-cycle` sobre una carpeta existente) para alinear `tasks.md` con lo que haya pasado en Jira entretanto.
+
 ## Config `.claude/jira.json` (gestión interna, editable)
 
 La escribe/actualiza la skill; el usuario puede ajustarla. Campos:
 
 - `enabled` (`true`/`false`) — opt-in del proyecto (como Confluence).
 - `cloudId` — site Atlassian (se resuelve solo si falta).
-- `horasJornada` (por defecto `8`) — **máximo de horas imputables por DÍA** (acumulado de todas las tareas), no por tarea; bájalo a `7` en periodos de jornada intensiva. Editable en cualquier momento; puedes pedir a la skill que lo confirme al arrancar.
-- `alCubrirJornada` (por defecto `preguntar`) — qué hacer al llegar al tope diario: `preguntar` · `parar` · `seguir` · `banco`. Ver "Tope de jornada diario".
-- `ratioSupervision` (por defecto `0.25`) — para derivar la supervisión cuando no viene como `real`.
+- `horasJornada` — **máximo de horas imputables por DÍA** (acumulado de todas las tareas), no por tarea; `8` por defecto, `7` en jornada intensiva. **Se lee de `.claude/rates.json`** (config compartida); `jira.json` solo lo sobreescribe si quieres un valor distinto para Jira.
+- `alCubrirJornada` (por defecto `preguntar`) — qué hacer al llegar al tope diario: `preguntar` · `parar` · `seguir` · `banco`. Ver "Tope de jornada diario". (Específico de Jira → vive en `jira.json`.)
+- `ratioSupervision` — para derivar la supervisión cuando no viene como `real`; también **de `.claude/rates.json`** (`0.25` por defecto).
 - `defaults` (opcional) — `projectKey`, `parentKey`, `issueType`, `labels` para repetir de un clic.
 
 Estado en `.claude/jira-state.json`: el **mapeo `T-XX → issueKey`** (clave Jira de cada tarea; el mismo valor se anota en `tasks.md`, Paso 6), `imputadoPorDia` (horas imputadas por fecha) y `bancoHoras` — una **lista de entradas por tarea/issue**, p. ej. `[{ "task":"T-08", "issueKey":"DEMO-123", "horas":1, "origen":"2026-07-15" }]` — para que cada excedente sepa a qué issue imputarse al drenarse.

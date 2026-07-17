@@ -1,0 +1,18 @@
+{
+  "_comment": "Parámetros ECONÓMICOS y de estimación compartidos por evaluator, planner y jira-sync. Cópialo a .claude/rates.json en el proyecto y ajústalo. Todos los agentes de presupuesto lo leen; si falta, usan estos valores por defecto.",
+  "tarifaHora": 50,
+  "monedaCoste": "EUR",
+  "modeloIA": "claude-opus-4-8",
+  "precioTokens": {
+    "moneda": "USD",
+    "unidad": "por_millon",
+    "input": 0,
+    "output": 0,
+    "_nota": "⚠️ Pon aquí la tarifa VIGENTE del proveedor (por millón de tokens). Si se deja en 0, el coste de IA se marca como 'a verificar' y se parametriza, no se inventa."
+  },
+  "tipoCambioUsdEur": 0.92,
+  "ratioSupervision": 0.25,
+  "margenContingencia": 0.20,
+  "horasJornada": 8,
+  "horasMesFTE": 160
+}

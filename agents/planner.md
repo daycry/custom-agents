@@ -40,7 +40,7 @@ Escribes en **español**, con Markdown correcto y atractivo (tablas, emojis de s
 ---
 
 ## 1) PARÁMETROS DE ESTIMACIÓN (confírmalos en el onboarding, con defaults)
-Necesarios para el presupuesto. Propón los defaults y deja que el usuario los ajuste:
+Necesarios para el presupuesto. **Si existe `.claude/rates.json`** (config compartida con `evaluator`/`jira-sync`; plantilla en `agent-kits/evaluator/templates/rates.example.json`), lee de ahí tarifa, precio de tokens, tipo de cambio, ratio de supervisión, margen y jornada. Los defaults de la tabla son el **fallback**. Propón los defaults y deja que el usuario los ajuste:
 
 | Parámetro | Default | Uso |
 |-----------|---------|-----|
