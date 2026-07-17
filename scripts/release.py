@@ -95,6 +95,12 @@ def main():
     cur = current_versions()[0]
     if new == cur:
         print(f"AVISO: la versión ya es {new}; no hay cambio.")
+
+    changelog = os.path.join(ROOT, "CHANGELOG.md")
+    if os.path.exists(changelog) and f"[{new}]" not in read(changelog):
+        print(f"⚠️  CHANGELOG.md no tiene entrada para [{new}]. "
+              f"Añádela (## [{new}] - fecha + enlace al final) antes de publicar.")
+
     print(f"Subiendo versión {cur} -> {new}:")
     bump(new)
 

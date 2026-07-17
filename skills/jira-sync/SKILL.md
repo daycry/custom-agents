@@ -88,7 +88,17 @@ hay padre, `parent`. **Si hay algún campo obligatorio adicional sin valor por d
 custom field), **pregúntalo al usuario** una vez y pásalo en `additional_fields`; no lo inventes ni
 falles en silencio.
 
-## Paso 4 — previsualizar y CONFIRMAR (obligatorio)
+> **Comportamientos del conector**: los hechos verificados (searchResultMode, `issues.nodes`, JQL
+> acotada, jerarquía por `hierarchyLevel`, campos obligatorios) están centralizados en
+> `docs/atlassian-connector-notes.md` del plugin. Ante cualquier duda o error del conector, consulta ahí.
+
+## Paso 4 — previsualizar y CONFIRMAR (obligatorio) — la previsualización ES un dry-run
+
+La previsualización se construye con **verificaciones reales de solo lectura** (no de memoria):
+tipos del proyecto (`getJiraProjectIssueTypesMetadata`), nivel del padre (`getJiraIssue`) y campos
+obligatorios (`getJiraIssueTypeMetaWithFields`). Si el usuario pide "simúlalo" / "sin crear nada",
+detente tras este paso y entrega el informe de lo que se crearía (n.º de issues, tipo, dónde,
+campos) — ese es el modo **dry-run** de primera clase.
 
 Muestra un resumen humano y **espera "sí"** antes de crear nada:
 
@@ -122,8 +132,21 @@ Con el "sí", por cada tarea `T-XX` de `tasks.md`:
 Cuando una tarea `T-XX` pasa a **`completado`** en `tasks.md` (lo marca `implementer`, `qa` o el
 chat), refleja ese avance en su issue de Jira. Se invoca **por tarea completada**, no al final.
 
+> **El cálculo NO se hace a mano: usa el script probado del kit.** Toda la aritmética (real→est,
+> ratio de supervisión, tope diario, banco por issue, re-banco) vive en
+> `scripts/worklog.py` y devuelve JSON. Tú orquestas: llamas al script, aplicas su salida en Jira
+> y confirmas con `--apply`. Localízalo:
+> ```bash
+> WL="$(find "$PWD/.claude" "$HOME/.claude" -type f -path '*skills/jira-sync/scripts/worklog.py' 2>/dev/null | head -1)"
+> # cuánto imputar hoy (y qué banca):   python3 "$WL" plan --task T-08 --issue KEY --ia-real 4 --sup-real 1
+> # si sale requiereDecision: pregunta al usuario y reejecuta con --policy <parar|seguir|banco>
+> # tras registrar el worklog en Jira:  el MISMO comando con --apply (persiste el estado)
+> # al empezar el día / retomar:        python3 "$WL" drain            (banco → pagos de hoy por issue) y --apply tras imputarlos
+> # vista rápida:                       python3 "$WL" status
+> ```
+
 1. **Localiza el issue** de la tarea en el manifiesto `.claude/jira-state.json` (`T-XX → issueKey`). Si no está mapeada (no se volcó a Jira), no hagas nada.
-2. **Calcula el worklog (tiempo de producción):**
+2. **Calcula el worklog (tiempo de producción)** — con `worklog.py plan` (regla que implementa):
    - `horas = Tiempo IA (ejec.) + Supervisión`, tomando el valor **real** de cada uno; si un `real` falta, usa su **estimación**. Si además falta la supervisión, derívala como `Tiempo IA × ratioSupervision` (por defecto `0.25`).
    - **Fallback**: si la tarea no tiene tiempo IA (tarea puramente humana), usa el **tiempo humano** (real→est).
    - El **+20 % de contingencia no se imputa** (es margen de presupuesto, no tiempo real).

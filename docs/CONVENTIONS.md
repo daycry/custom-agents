@@ -128,3 +128,21 @@ El avance de un plan se registra en **un único sitio**: `docs/roadmap/<fecha>-<
 - El orquestador `/dev-cycle` y el agente `implementer` aplican esta regla de serie. Para que la respeten orquestadores externos, `/dev-cycle` ofrece añadir esta regla al `CLAUDE.md` del proyecto consumidor.
 - **Estados con motor externo (p. ej. superpowers):** cuando la implementación se delega a un orquestador externo, ese motor **no** actualiza tus artefactos. Por tanto, `/dev-cycle` (o tú) aplica las **transiciones de estado** de la regla 7 y mantiene `tasks.md` al día en su nombre. Las transiciones valen igual haya o no motor externo.
 - El cierre del ciclo (documentación con `documenter`) se hace **una vez** tras implementar y con `qa` en verde, no tarea a tarea.
+
+## 9. Ficheros de config/estado en `.claude/` del proyecto consumidor
+
+Cada skill guarda su config (decisiones del usuario) y su estado (memoria de máquina) en
+`.claude/` del proyecto. Mapa único — quién escribe qué y cómo se recupera si se pierde:
+
+| Fichero | Qué es | Lo escribe | Si se corrompe/pierde |
+|---|---|---|---|
+| `rates.json` | Config compartida de presupuesto (tarifa, tokens, jornada, ratios) | `/setup` o a mano | Recrear desde `agent-kits/evaluator/templates/rates.example.json` |
+| `confluence.json` | Opt-in + destino de publicación (espacio/anclaje) | skill `confluence-publish` | Relanzar el alta guiada (elige espacio de nuevo) |
+| `confluence-state.json` | Manifiesto página↔fichero (hash + pageId) | `confluence-publish`/`pull` | Se reconstruye: publish busca por título bajo el anclaje antes de crear |
+| `jira.json` | Opt-in + política de jornada (`alCubrirJornada`) | skill `jira-sync` o `/setup` | Recrear con `/setup`; defaults seguros |
+| `jira-state.json` | Mapeo T-XX↔issue, imputado por día, banco de horas | `jira-sync` (vía `worklog.py`) | Mapeo: re-derivable de las claves anotadas en `tasks.md`; imputado/banco: revisar worklogs en Jira |
+| `.confluence-pending` | Marca efímera del hook (hay docs sin sincronizar) | hook `PostToolUse` | Borrarla es inocuo; la skill re-detecta por manifiesto |
+
+Reglas: **config ≠ estado** (la config la decide el usuario; el estado lo mantiene la máquina y
+nunca se edita a mano); toda skill nueva que necesite memoria sigue este patrón (`<skill>.json` +
+`<skill>-state.json`) y añade su fila aquí.

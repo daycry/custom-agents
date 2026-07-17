@@ -66,6 +66,8 @@ Registra los valores en el bloque **Supuestos económicos** de la evaluación. S
 
 **P2. Recon del proyecto.** Si hay acceso al repo, explóralo (Read/Grep/Glob) para fundamentar complejidad e impacto con módulos/rutas reales.
 
+**P2-bis. Calibración con el histórico.** Si existe `docs/roadmap/CALIBRATION.md` (lo alimenta `/retro` con el real-vs-estimado de iniciativas cerradas), léelo y **ajusta tus estimaciones** con esa evidencia: si un tipo de trabajo viene desviándose (+X %), aplícalo y cítalo en los supuestos ("histórico: integraciones +40 % → margen ampliado"); si el histórico avala tus números, súbele la confianza. Con pocas filas (<3) trátalo como indicio, no como ley.
+
 **P3. Evaluar cada característica.** Para cada `C-XX`: complejidad, esfuerzo (h) con confianza, previsión de tokens (in/out), coste €, impacto/áreas, dependencias, riesgos e incógnitas.
 
 **P4. Presupuestar.** Agrega el total (esfuerzo humano, coste €, tokens). Estima además el **tiempo IA** (horas aproximadas que tardaría el/los agente(s) en implementarlo) y la **supervisión humana** (~25 % de las horas IA por defecto), y rellena el bloque **⚡ Productividad IA** del `evaluation.md`:

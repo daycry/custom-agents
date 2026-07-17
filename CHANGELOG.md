@@ -5,6 +5,23 @@ Todos los cambios notables de este proyecto se documentan aquí.
 El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
+## [1.8.0] - 2026-07-17
+
+### Añadido
+- **Agente `analyst`** (toma de requerimientos): conversa con el humano eligiendo la técnica (entrevista, ejemplos, user stories, contraejemplos) y produce **siempre** la `spec.md` en formato fijo; itera hasta la aprobación del usuario y hace handoff a `evaluator`.
+- **Config compartida de presupuesto `.claude/rates.json`** (tarifa, precio de tokens, tipo de cambio, ratio de supervisión, margen, jornada); la leen `evaluator`, `planner` y `jira-sync`. Plantilla en `agent-kits/evaluator/templates/rates.example.json`.
+- **Métricas real vs estimado**: `/roadmap-metrics` + salida `--metrics-md` del generador (producción IA+supervisión, horas humanas y tokens, con desviaciones y total de cartera).
+- **`/retro`** (retrospectiva de iniciativa cerrada) → `docs/roadmap/CALIBRATION.md`; el `evaluator` lee ese histórico para **calibrar** futuras estimaciones (bucle de aprendizaje).
+- **`/setup`** (onboarding en una pasada: rates + opt-ins de Confluence/Jira).
+- **`/roadmap-brief`** (one-pager de cartera a PDF vía `to-pdf`) y **`/roadmap-live`** (estado en vivo desde Jira: issues + horas imputadas por label; artefacto o conversacional).
+- **Script `worklog.py`** (kit de `jira-sync`) con tests: cálculo determinista del worklog, tope de jornada **diario** y **banco de horas por issue** (con re-banco); saca la aritmética de la prosa. Modo **dry-run** de primera clase en `jira-sync`.
+- **CI** (`.github/workflows/ci.yml`): corre los tests, valida sintaxis Python y JSON, y comprueba coherencia de versión (`release.py --check`). `release.py` avisa si falta la entrada de CHANGELOG.
+- **Referencia única del conector Atlassian** (`docs/atlassian-connector-notes.md`) y **tabla de ficheros de config/estado** (regla 9 de `CONVENTIONS.md`).
+
+### Cambiado
+- `nemesis`: handoff opcional (F8) para convertir hallazgos High/Critical en iniciativas del roadmap (vía `analyst`/`evaluator`), conectándolo con la cadena.
+- `implementer`/`jira-sync`: la imputación de horas usa el script `worklog.py`, no cálculo a mano.
+
 ## [1.6.0] - 2026-07-15
 
 ### Añadido
@@ -74,6 +91,7 @@ y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
 Versiones anteriores a la introducción de este changelog: bundle con los agentes `nemesis`, `evaluator`, `planner`, `pdfy` y `qa`, y las skills compartidas `cybersecurity` y `to-pdf`. Empaquetado como plugin + marketplace.
 
+[1.8.0]: https://github.com/daycry/custom-agents/releases/tag/v1.8.0
 [1.6.0]: https://github.com/daycry/custom-agents/releases/tag/v1.6.0
 [1.5.1]: https://github.com/daycry/custom-agents/releases/tag/v1.5.1
 [1.5.0]: https://github.com/daycry/custom-agents/releases/tag/v1.5.0

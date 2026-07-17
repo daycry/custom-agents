@@ -1,0 +1,44 @@
+name: CI
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Tests (dashboard + worklog)
+        run: |
+          python tests/test_dashboard.py
+          python tests/test_worklog.py
+
+      - name: Sintaxis de todos los scripts Python
+        run: |
+          python - <<'PY'
+          import ast, pathlib, sys
+          bad = []
+          for p in pathlib.Path('.').rglob('*.py'):
+              if '.git' in p.parts: continue
+              try: ast.parse(p.read_text(encoding='utf-8'))
+              except SyntaxError as e: bad.append(f"{p}: {e}")
+          if bad: sys.exit("\n".join(bad))
+          print("sintaxis OK")
+          PY
+
+      - name: JSONs válidos + versiones coherentes
+        run: |
+          python - <<'PY'
+          import json, pathlib, sys
+          for p in pathlib.Path('.').rglob('*.json'):
+              if '.git' in p.parts: continue
+              try: json.load(open(p, encoding='utf-8'))
+              except Exception as e: sys.exit(f"JSON inválido {p}: {e}")
+          print("JSONs OK")
+          PY
+          python scripts/release.py --check

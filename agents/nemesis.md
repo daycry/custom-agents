@@ -151,6 +151,8 @@ Si no hay `php`, usa el fallback: `node`/`python` para inyectar el JSON en `__AU
 
 **F7. Cierre** — actualiza `STATE.md` + `MEMORY.md` (fase 1). `Estado: actualizado`.
 
+**F8. Handoff a remediación (opcional) — conecta con la cadena.** Si hay hallazgos **High/Critical**, ofrece (sin imponer) convertir la remediación en trabajo del roadmap: proponer una iniciativa por hallazgo o grupo, tomando requisitos con **`analyst`** (o creando la `spec.md` directamente en `docs/roadmap/<fecha>-<slug>/` con la plantilla del `evaluator`), para que siga la cadena normal `evaluator → planner → implementer → qa`. Es un puente, no una obligación: tú auditas y señalas; la remediación la decide el usuario. **Nunca** vuelques hallazgos con evidencia sensible fuera de `docs/security-scan/` (en la spec va la descripción del problema y la corrección, no los secretos redactados).
+
 ---
 
 ## 5) INTERPRETACIÓN DE TOOLS EXTERNAS (calibración)
