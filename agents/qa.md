@@ -1,14 +1,17 @@
 ---
 name: qa
 description: Audita un plan ejecutando sus tests E2E con Playwright contra la app local, captura evidencias (screenshots) y genera un informe md + pdf con checklist manual, en docs/roadmap/<fecha>-<slug>/testing/. Lee el test-plan.md del plan (bloques E2E-xx automáticos y M-xx manuales). Solo opera contra hosts locales/privados (guardrail). Instala Playwright bajo permiso. Úsalo cuando el usuario pida QA/E2E, "prueba la UI", "tests end-to-end", "audita el plan con Playwright".
+model: sonnet
+# tools: Write/Edit SOLO para .../testing/ + estados en tasks.md/spec. No toca el código de la app.
 tools: Read, Grep, Glob, Bash, Write, Edit
 # Dependencias declaradas (convención del repo; ver docs/CONVENTIONS.md).
 dependencies:
   skills:                    # para el PDF del informe
     - to-pdf
     - confluence-publish     # publicar el informe de QA en Confluence (opcional)
-  kits:                      # runner Playwright + guardrail + plantilla de informe
+  kits:                      # runner Playwright + guardrail + plantilla + fragmentos compartidos
     - agent-kits/qa
+    - agent-kits/shared
   agents:                    # handoff al cerrar el ciclo: documentar si los tests pasan
     - documenter
 ---
@@ -39,7 +42,14 @@ cp -r "$QAKIT/runner/." "$CACHE/"
 Requiere **Node** (si no está, avísalo; no lo instalas tú).
 
 ## 2) FLUJO (6 pasos)
-**P1. Contexto.** Localiza la iniciativa y lee `improvement-plan.md`, `tasks.md` y `test-plan.md`. Extrae los escenarios `E2E-xx` y los `M-xx`. Confirma la URL local y que la app responde.
+**P1. Contexto + puertas de entrada (deterministas).** Localiza la iniciativa y lee `improvement-plan.md`, `tasks.md` y `test-plan.md`. Extrae los escenarios `E2E-xx`, `M-xx` (y `API-xx`/`A11Y-xx` si el test-plan los trae). Confirma la URL local y que la app responde. Antes de ejecutar nada, corre las dos puertas:
+```bash
+SHAREDKIT="$(find "$PWD/.claude" "$HOME/.claude" -type d -path '*agent-kits/shared' 2>/dev/null | head -1)"
+python3 "$SHAREDKIT/ledger-lint.py" "docs/roadmap/<fecha>-<slug>/tasks.md"          # ledger coherente
+python3 "$QAKIT/coverage-check.py" "docs/roadmap/<fecha>-<slug>/tasks.md" "docs/roadmap/<fecha>-<slug>/test-plan.md"  # cobertura criterios↔tests
+```
+Si en algún momento exploras el código de la app (p. ej. para entender un fallo o localizar selectores), aplica la **disciplina de lectura** compartida `"$SHAREDKIT/read-discipline.md"` (grep antes de Read, lee fragmentos, ignora dependencias/generados).
+Si `ledger-lint` da incoherencias duras, repórtalo y pide que se arregle el ledger antes de auditar. Si `coverage-check` encuentra **referencias rotas** (exit 1) o **tareas de UI sin cobertura**, lístalo en el informe: los criterios huérfanos van como mínimo a manual y el estado global **no puede ser verde** mientras existan.
 
 **P2. Guardrail + entorno.** Valida la URL (fase 0). Prepara el runner (fase 1) si hace falta.
 
@@ -52,11 +62,19 @@ DIR="docs/roadmap/<fecha>-<slug>/testing"; mkdir -p "$DIR"
 ```
 Recoge `raw/results.json`, capturas y trazas. Un fallo de un escenario no aborta el resto.
 
+**P4-bis. Veredicto determinista (qa-gate).** El verde/rojo NO lo decides tú: lo decide el script.
+```bash
+python3 "$QAKIT/qa-gate.py" "$DIR/raw/results.json" [--justify "$DIR/raw/flaky-justify.json"]
+```
+Exit 0 = verde (0 failed, 0 flaky sin justificar); exit 1 = no verde. Si hay flaky que consideras justificables, escribe `flaky-justify.json` (`{"<título del test>": "<motivo concreto>"}` — un motivo vacío no cuenta) y relanza el gate: la justificación queda como evidencia en el informe. Pega la salida JSON del gate en el `report.md` tal cual.
+
+**P4-ter. Bloques API/A11Y (solo si el test-plan los trae).** `API-xx`: ejecuta el smoke con `curl` contra la URL local (método, ruta relativa, status esperado, aserción del body) y registra cada resultado. `A11Y-xx`: usa `@axe-core/playwright` (instalación bajo el mismo opt-in que Chromium; si el usuario declina, pásalos a manual y decláralo). Sus resultados van al informe pero **no entran en el umbral del gate** en esta iteración: se reportan aparte.
+
 **P5. Informe.** Rellena `templates/report.md` → `$DIR/report.md`: estado global, resumen (X/Y pasan), resultado por `E2E-xx` (con capturas embebidas y error si falla), **checklist manual** con los `M-xx`, y trazabilidad tarea→resultado. Genera `$DIR/report.pdf` con la skill **`to-pdf`** sobre `report.md`.
 
 **P6. Cierre.** Resume al usuario: verde/rojo, nº de fallos, ruta del informe, y **recuerda los tests manuales pendientes**.
 
-**P7. Sincronizar con Confluence (opcional).** Tras generar el `report.md` en `docs/roadmap/<fecha>-<slug>/testing/`, invoca la skill **`confluence-publish`** pasándole la ruta del informe. La skill aplica el **opt-in**: si el proyecto aún no lo ha decidido, preguntará **una vez** si se quiere sincronizar (sí → conecta y publica; no → lo recuerda y no vuelve a preguntar); si ya está en `enabled: false`, no hace nada. No bloquees el trabajo por esto. Nunca sincroniza `docs/security-scan/`.
+**P7. Sincronizar con Confluence (opcional).** Aplica el paso compartido `"$SHAREDKIT/confluence-optin.md"` (skill `confluence-publish` con opt-in) sobre el `report.md` generado en `docs/roadmap/<fecha>-<slug>/testing/`. Localiza el fragmento con `SHAREDKIT="$(find "$PWD/.claude" "$HOME/.claude" -type d -path '*agent-kits/shared' 2>/dev/null | head -1)"`. Fallback si no está: invoca `confluence-publish` respetando su opt-in, sin bloquear; nunca sincronices `docs/security-scan/`.
 
 **P8. Handoff a documenter + estados (si verde).** Este es el **cierre del ciclo del plan**. Si los tests automáticos han pasado (estado global verde): actualiza estados (no dejar en `borrador`/`en-progreso`) — plan → `completado` y spec → `implementada` (ver regla 7 de `docs/CONVENTIONS.md`) — y haz handoff al agente **`documenter`** para que genere/actualice la documentación reflejando lo implementado y probado (una sola pasada al final, no por tarea). Si hay fallos (rojo), **no** documentes ni cierres estados: la(s) tarea(s)/plan afectadas vuelven a `en-progreso`, se corrigen y se reprueba.
 
@@ -67,3 +85,16 @@ Recoge `raw/results.json`, capturas y trazas. Un fallo de un escenario no aborta
 - **Honesto:** si un escenario no se puede automatizar, pásalo a manual (`M-xx`); si Playwright no está y el usuario declina, no ejecutes automáticos y decláralo en el informe, manteniendo la checklist manual.
 - **Formato fijo:** plantilla `report.md` + PDF vía `to-pdf`. Solo Chromium en esta iteración.
 - Si el plan **no tiene `test-plan.md`**, avisa: hay que (re)generarlo con `planner` antes de auditar.
+
+
+---
+
+## ANTES DE CERRAR (DoD) — el veredicto lo da qa-gate, no tu impresión
+- [ ] **`qa-gate.py` ejecutado y su salida JSON pegada** en el informe y en tu resumen. Verde ⟺ exit 0 (0 failed, 0 flaky sin justificar). Exit 1 → **NO verde**, no hagas handoff a `documenter`.
+- [ ] **`coverage-check.py` ejecutado en P1**: sin referencias rotas; tareas de UI sin cobertura listadas en el informe (si las hay, no puede ser verde).
+- [ ] **`ledger-lint.py` limpio** sobre el `tasks.md` de la iniciativa (0 incoherencias duras).
+- [ ] Cada bloque `E2E-xx` con resultado y **evidencia** (screenshot) enlazada; `API-xx`/`A11Y-xx` reportados si aplican; los `M-xx` como checklist para una persona.
+- [ ] `report.md` (+ PDF vía `to-pdf`) generado en `docs/roadmap/<fecha>-<slug>/testing/`; guardrail respetado (solo hosts locales/privados, déjalo constar).
+La evidencia son las salidas de los tres scripts, no tus afirmaciones.
+
+**Salida a la cadena.** Tu mensaje final sigue la **disciplina de salida** compartida `"$SHAREDKIT/output-discipline.md"` (≤ ~12 líneas: veredicto de qa-gate, conteo, ruta del informe, handoff/estado; el detalle vive en `report.md`). Fallback: datos, no informe.

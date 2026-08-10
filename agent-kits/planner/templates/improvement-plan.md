@@ -203,4 +203,19 @@ Compara el esfuerzo **humano** estimado con el tiempo que tardaría un **agente 
 
 ## Métricas de éxito
 
-- {{KPI 1 — cómo se medirá que el plan cum
+- {{KPI 1 — cómo se medirá que el plan cumplió su objetivo}}
+- {{KPI 2 — métrica observable tras la implementación}}
+
+---
+
+## Changelog del plan
+
+| Fecha | Cambio | Autor |
+|-------|--------|-------|
+| {{YYYY-MM-DD}} | Creación del plan | {{planner}} |
+
+---
+
+## Siguiente paso
+
+Con el **OK del plan** del usuario (puerta de control), el agente **`implementer`** lo ejecuta fase a fase sobre una rama, marcando `tasks.md` como **ledger canónico** (checkbox + estado por tarea). Al terminar, handoff a `qa` (si hay `test-plan.md`) y cierre con `documenter`.

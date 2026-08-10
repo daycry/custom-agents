@@ -10,13 +10,20 @@ const OUT = process.env.QA_OUT || 'testing';
 export default defineConfig({
   testDir: process.env.QA_TESTS || './tests',
   outputDir: `${OUT}/raw/artifacts`,
-  timeout: 30_000,
+  // Modo estricto (iniciativa qa-strict): timeouts explícitos, sin test.only
+  // accidental, y 2 reintentos para que el reporter marque los flaky — el
+  // veredicto lo decide qa-gate.py sobre results.json, no el LLM.
+  timeout: (() => {                       // QA_TIMEOUT_MS no numérico o ≤0 → default seguro
+    const t = Number(process.env.QA_TIMEOUT_MS);
+    return Number.isFinite(t) && t > 0 ? t : 30_000;
+  })(),
   expect: { timeout: 5_000 },
-  retries: 1,
+  retries: 2,                 // flaky = falla y pasa al reintento → lo evalúa qa-gate
+  forbidOnly: true,           // un test.only olvidado rompe la ejecución, no la esconde
   fullyParallel: false,
   reporter: [
     ['list'],
-    ['json', { outputFile: `${OUT}/raw/results.json` }],
+    ['json', { outputFile: `${OUT}/raw/results.json` }],  // evidencia para qa-gate.py
   ],
   use: {
     baseURL: process.env.QA_BASE_URL,

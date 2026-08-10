@@ -62,6 +62,8 @@ El bundle ya incluye `.claude-plugin/plugin.json` y `.claude-plugin/marketplace.
 
 Tras instalar, los agentes quedan disponibles en **todos los proyectos** de la máquina.
 
+> **Namespacing (por qué la Vía 3 es la preferente).** Instalado como plugin, Claude Code **prefija** automáticamente todo con el nombre del plugin: los agentes y commands se invocan como `custom-agents:evaluator`, `/custom-agents:dev-cycle`, etc. — igual que hace *superpowers*. Así **nunca chocan** con agentes/commands de otro plugin, aunque compartan nombre. En cambio, en las **Vías 1 y 2** (copiar el bundle a un `.claude/`) los nombres van "pelados" (`evaluator`, `/dev-cycle`) y **pueden colisionar** con otro `.claude/` que use el mismo nombre. El linter avisa de los nombres más genéricos (`setup`, `retro`, …) precisamente por esto. Regla práctica: para uso real y en equipo, **instala como plugin** (Vía 3); reserva las Vías 1/2 para desarrollo del propio bundle.
+
 > **Dónde corre cada cosa.** Los **comandos `/plugin …` solo funcionan en una sesión de Claude Code** (terminal con `claude`), **no** en la caja de chat normal. Los **sub-agentes se ejecutan solo en Cowork** (en el chat normal aparecen en gris); las **skills** funcionan en chat web, Chat de Desktop y Cowork.
 
 > **Caveat de rutas.** En Claude Code, `${CLAUDE_PLUGIN_ROOT}` no se expande dentro del markdown de agentes/skills. Por eso los agentes NO usan rutas fijas: resuelven su kit con `find` sobre `$PWD/.claude` y `$HOME/.claude` (el segundo cubre tanto `~/.claude/` como el caché de plugins `~/.claude/plugins/…`). Es la razón de que las tres vías funcionen sin tocar nada.

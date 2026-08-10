@@ -5,6 +5,49 @@ Todos los cambios notables de este proyecto se documentan aquí.
 El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
+## [1.9.0] - 2026-08-10
+
+Adopción de las mejores prácticas de las colecciones top de agentes (wshobson/agents, VoltAgent, superpowers y las best practices oficiales de Claude Code), endurecimiento de qa y del orquestador con puertas deterministas, dieta de tokens y granularidad de Jira por fase/tarea con publicación de la revisión. Ver `docs/roadmap/2026-08-10-agent-best-practices/`, `docs/roadmap/2026-08-10-qa-strict/`, `docs/roadmap/2026-08-10-token-diet/` y `docs/roadmap/2026-08-10-jira-granularity/`.
+
+### Añadido (jira-granularity — granularidad + revisión en Jira)
+- **Granularidad de volcado elegible** en `jira-sync` (`.claude/jira.json` → `granularidad: "tarea" | "fase"`; defecto `"tarea"`, no rompe instalaciones). **Modo fase**: un issue por Fase con sus `T-XX` como checklist en la descripción; comentario y worklog por tarea sobre el issue de la fase; checklist marcada con `editJiraIssue`; Done de la fase solo cuando todas sus tareas están `completado`.
+- **Resultado del revisor → Jira** (`jira-sync` Paso 9, solo Modo B): el revisor de `/dev-cycle` emite salida **estructurada por criterio** (`T-XX` → criterio → ✓/✗); se publica un comentario con el **resultado final + "revisión superada en N intento(s)"** contra la plantilla fija `agent-kits/shared/review-report.template.md`, con la granularidad del volcado. Idempotente (`reviewComentado`).
+- **Bucle reviewer→implementer acotado a 3 intentos** en `/dev-cycle` (patrón del bucle qa→implementer): reviewer→corrige→re-review; al 3.º con gaps, para y pregunta.
+- **Worklog de revisión** en `worklog.py`: nuevo `--kind implementacion|revision`; la entrada `[revisión]` acumula todas las pasadas del bucle y lleva desglose `worklogImpl`/`worklogRevision` en `jira-state.json` (para `/retro`) sin distorsionar el tope de jornada ni el total del issue. Tests en `tests/test_worklog.py` (12/12).
+
+### Añadido (token-diet — reducción de consumo de tokens)
+- **`agent-kits/shared/read-discipline.md`**: disciplina de lectura del recon (grep/glob antes de `Read`, `Read` con `limit`, ignorar `node_modules`/`vendor`/lockfiles/minificados, muestrear patrones). La adoptan documenter, nemesis y evaluator en su recon vía `$SHAREDKIT`.
+- **`agent-kits/shared/output-discipline.md`**: disciplina de salida en los handoffs (mensaje final del agente ≤ ~12 líneas, datos y no informe; el detalle vive en los artefactos). La adoptan evaluator, planner, implementer, qa y documenter.
+- **Filtrado de payloads Atlassian**: regla en `jira-sync` de pedir `fields` explícitos y acotar `maxResults` en toda llamada al conector (roadmap-live ya lo hacía).
+- **Progressive disclosure**: el detalle por-fase de documenter (guía de redacción → `agent-kits/documenter/redaction-guide.md`) y de nemesis (interpretación de tools → `agent-kits/nemesis/interpretation.md`) se lee on-demand al entrar en esa fase, no siempre.
+- **Skill `rates-verify`**: consulta la doc oficial de precios (WebFetch) y escribe `precioTokens` + `verificadoEl` en `.claude/rates.json`; nunca inventa precio si no puede leer la doc. Se ofrece en `/setup`; evaluator/planner dejan de marcar `⚠️ verificar` cuando el precio es fiable y reciente.
+
+### Añadido (qa-strict — puertas deterministas)
+- **`agent-kits/qa/qa-gate.py`**: el veredicto verde/rojo de qa lo decide un script con exit code sobre `results.json` (0 failed, 0 flaky sin justificar; justificaciones con texto real vía `--justify`). La ausencia de evidencia es rojo. Tests en `tests/test_qa_gate.py` (8/8).
+- **`agent-kits/shared/ledger-lint.py`**: validación mecánica del ledger `tasks.md` (vocabulario de estados, `completado` ⟹ criterios marcados, resumen cuadrado, IDs únicos; legacy degrada a aviso). Lo invocan implementer (DoD), qa (P1) y /dev-cycle. Tests en `tests/test_ledger_lint.py` (8/8).
+- **`agent-kits/qa/coverage-check.py`**: puerta de cobertura criterios↔tests — referencias rotas del campo «Cubre (tests)» son error; tareas sin cobertura y tests sin referenciar se listan para triage.
+- **Hook `hooks/ledger-lint-warn.sh`** (PostToolUse sobre `docs/roadmap/*/tasks.md`): ejecuta ledger-lint en modo aviso en cada edición del ledger; nunca bloquea, sale en silencio sin python3.
+- **Playwright estricto** en el runner de qa: `retries: 2` (flaky identificado para el gate), `forbidOnly: true`, timeout configurable por `QA_TIMEOUT_MS`, trazas en fallo.
+- **/dev-cycle**: bucle de corrección qa→implementer **acotado a 3 intentos** con contador explícito (al 3.º rojo: parar y preguntar), y revisión adversarial de **dos lentes en paralelo** (conformidad con spec · calidad/robustez) con fusión y dedupe de gaps.
+- **Bloques opcionales `API-xx` y `A11Y-xx`** en la plantilla `test-plan.md` (smoke de endpoints con curl; accesibilidad con axe-core bajo opt-in); qa los ejecuta y reporta fuera del umbral del gate en esta iteración.
+
+### Añadido
+- **Model tiering** en los 8 agentes: campo `model` proporcional a la complejidad (criterio wshobson) — `pdfy` = haiku; `documenter`/`qa`/`implementer`/`analyst`/`planner` = sonnet; `evaluator`/`nemesis` = opus.
+- **Sección `## ANTES DE CERRAR (DoD)`** en los 8 agentes: definition-of-done con comprobaciones ejecutables y obligación de **mostrar evidencia** ("evidence over claims", superpowers). `qa` define el umbral «verde» explícito (0 `failed`, 0 `flaky` sin justificar en `results.json`).
+- **Revisión adversarial del diff** en `/dev-cycle` (Modo B): un subagente con contexto fresco revisa el diff contra el plan y reporta solo gaps de corrección/requisitos, antes de `qa`.
+- **`agent-kits/shared/`**: fragmentos compartidos con fuente única — `estimation-defaults.md` (parámetros de estimación) y `confluence-optin.md` (paso de sincronización) — referenciados por `evaluator`, `planner`, `qa` y `documenter` (DRY).
+- **Linter del plugin** `scripts/lint_plugin.py` + tests (`tests/test_lint_plugin.py`), integrado en CI: valida frontmatter (`model`, `tools`, `description`), unicidad de nombres, grafo `dependencies` (skills/kits/agents existen, sin ciclos) y avisa de nombres genéricos con riesgo de colisión en modo copia-directa a `.claude/`.
+
+### Cambiado
+- **Descriptions de enrutado** de `evaluator`, `planner` y `nemesis` reescritas con frases-gatillo ("Úsalo cuando…", nemesis con "PROACTIVAMENTE") para mejorar la auto-delegación; el detalle de rutas/plantillas se movió al cuerpo del prompt.
+- `evaluator` y `planner` leen los parámetros de estimación del fragmento compartido en vez de duplicar la tabla; `qa`/`documenter` usan el fragmento de opt-in de Confluence.
+- Frontmatter de `tools` documentado con el porqué de cada herramienta en los 8 agentes (la restricción de "no tocar código" se mantiene semántica; `pdfy` es el único sin `Edit`).
+
+### Arreglado
+- `planner.md`: doble paso «P7» renumerado (P7 Jira / P8 Confluence).
+- `nemesis.md`: eliminadas las referencias «§6/§11/§14/§17» a un system base que no viajaba con el plugin.
+- Plantillas truncadas completadas: `agent-kits/evaluator/templates/evaluation.md` (sección «Siguiente paso») y `agent-kits/planner/templates/improvement-plan.md` (secciones «Métricas de éxito», «Changelog» y «Siguiente paso»).
+
 ## [1.8.0] - 2026-07-17
 
 ### Añadido

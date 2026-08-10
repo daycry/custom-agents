@@ -35,6 +35,10 @@ custom-agents/               (raíz; se despliega como .claude/ del proyecto)
 
 Regla práctica: si dudas, empieza en el kit privado. Promociónalo a `skills/` el día que un segundo agente lo necesite (y actualiza las dependencias de ambos).
 
+**Excepción — `agent-kits/shared/` (fragmentos de prompt compartidos):** cuando un **trozo de texto del prompt** (no un script ni una skill invocable) debe ser idéntico en varios agentes —la tabla de parámetros de estimación, el paso de opt-in de Confluence—, vive en `agent-kits/shared/` con **una sola fuente de verdad**, y los agentes lo referencian con la misma resolución `find` que sus kits. No es el kit de un agente concreto; es la excepción documentada a "un kit por agente". Un agente que no lo encuentre (instalación parcial) usa el fallback de una línea de su propio prompt. Ver `agent-kits/shared/README.md`. La tabla de transiciones de estado **no** se duplica: su única fuente es la §7.
+
+**Model tiering (obligatorio):** todo agente declara `model` en su frontmatter, proporcional a la complejidad de su tarea (`haiku` mecánico · `sonnet` desarrollo estándar · `opus` razonamiento crítico · `inherit` si se quiere heredar la sesión). El linter (`scripts/lint_plugin.py`) exige que el campo esté presente y sea válido.
+
 ## 4. Dependencias — se declaran en el frontmatter del agente
 
 Cada agente declara de qué depende en su propio `agents/<nombre>.md`. Fuente de verdad única, junto al agente.
@@ -129,6 +133,7 @@ El avance de un plan se registra en **un único sitio**: `docs/roadmap/<fecha>-<
 - El orquestador `/dev-cycle` y el agente `implementer` aplican esta regla de serie. Para que la respeten orquestadores externos, `/dev-cycle` ofrece añadir esta regla al `CLAUDE.md` del proyecto consumidor.
 - **Estados con motor externo (p. ej. superpowers):** cuando la implementación se delega a un orquestador externo, ese motor **no** actualiza tus artefactos. Por tanto, `/dev-cycle` (o tú) aplica las **transiciones de estado** de la regla 7 y mantiene `tasks.md` al día en su nombre. Las transiciones valen igual haya o no motor externo.
 - El cierre del ciclo (documentación con `documenter`) se hace **una vez** tras implementar y con `qa` en verde, no tarea a tarea.
+- **Validación mecánica:** `agent-kits/shared/ledger-lint.py` comprueba el ledger con exit code (vocabulario de estados, `completado` ⟹ criterios marcados, resumen cuadrado, IDs únicos). Lo corren `implementer` (DoD), `qa` (P1) y `/dev-cycle` en sus puertas; además un hook PostToolUse (`hooks/ledger-lint-warn.sh`) lo ejecuta en **modo aviso** en cada edición de un `tasks.md`. El «verde» de qa también es mecánico: `agent-kits/qa/qa-gate.py` sobre `results.json`.
 
 ## 9. Ficheros de config/estado en `.claude/` del proyecto consumidor
 

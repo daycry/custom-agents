@@ -193,4 +193,4 @@ Compara el esfuerzo **humano** estimado con el tiempo que tardaría un **agente 
 
 ## Siguiente paso
 
-Para **ejecutar** lo aprobado, genera el plan detallado con el agente **`planner`** (crea `docs/roadmap/<fecha>-<slug>/` con `improvement-plan.md` + `tasks.md`). Indica qué caract
+Para **ejecutar** lo aprobado, genera el plan detallado con el agente **`planner`** (crea `docs/roadmap/<fecha>-<slug>/` con `improvement-plan.md` + `tasks.md`). Indica qué características se aprueban para planificar (todas, o un subconjunto por orden de prioridad) y cualquier requisito de secuencia entre ellas. El `planner` heredará las horas y costes de esta evaluación por característica — no re-estima desde cero — y actualizará la fila **Plan** de esta evaluación y el campo `plan:` de la spec al crear el plan.

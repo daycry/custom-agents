@@ -8,15 +8,41 @@
 | | |
 |---|---|
 | **Fecha** | {{YYYY-MM-DD HH:MM}} |
-| **Estado global** | {{VERDE (todo pasa) / ROJO (hay fallos)}} |
+| **Estado global** | {{VERDE / NO-VERDE — lo decide `qa-gate.py`, no una impresión}} |
 | **URL auditada** | {{http://localhost:PORT}} |
 | **Plan** | [`../improvement-plan.md`](../improvement-plan.md) · [`../test-plan.md`](../test-plan.md) |
+
+## Veredicto (qa-gate)
+
+<!-- Pega AQUÍ la salida JSON de qa-gate.py tal cual: es la evidencia del estado global. -->
+```json
+{{salida de: python3 "$QAKIT/qa-gate.py" raw/results.json [--justify raw/flaky-justify.json]}}
+```
+
+{{Si hay flaky justificados: 1 línea por test con su motivo.}}
 
 ## Resumen
 
 - **Automáticos (E2E):** {{X}}/{{Y}} pasan.
 - **Manuales pendientes:** {{N}}.
 - {{1 frase de veredicto}}.
+
+## Cobertura (coverage-check)
+
+<!-- Resultado de coverage-check.py. Si hay criterios/tareas huérfanos, el estado global NO puede ser verde. -->
+
+- **Referencias rotas:** {{0 / lista}}
+- **Tareas sin cobertura declarada (triage):** {{— / T-0X: es de UI → huérfana / T-0Y: sin UI, no aplica}}
+- **Tests sin referenciar desde ninguna tarea:** {{— / lista}}
+
+## API y accesibilidad (si el test-plan los trae)
+
+<!-- Fuera del umbral del gate en esta iteración: se reportan aparte. Borra la sección si no aplica. -->
+
+| Bloque | Resultado | Detalle |
+|--------|-----------|---------|
+| API-01 | {{pasa / falla}} | {{status obtenido vs esperado; aserción del body}} |
+| A11Y-01 | {{pasa / falla}} | {{violaciones serious/critical encontradas}} |
 
 ## Resultados automáticos (E2E)
 

@@ -1,7 +1,9 @@
 ---
 name: pdfy
 description: Convierte archivos a PDF con aspecto moderno. Soporta Markdown (.md/.markdown), HTML (.html/.htm) y Word (.docx). Orquesta la skill compartida to-pdf, que transforma la entrada a HTML (markdown-it / mammoth / passthrough), le aplica un tema CSS moderno y la renderiza a PDF con Chromium headless (puppeteer). Convierte uno o varios ficheros, permite título/tema personalizados y elige dónde guardar el PDF. Úsalo cuando el usuario pida convertir/exportar/pasar algo a PDF.
+# tools: sin Edit a propósito — solo lee la entrada y escribe el PDF (no modifica el original).
 tools: Read, Grep, Glob, Bash, Write
+model: haiku
 # Dependencias declaradas (convención del repo; ver docs/CONVENTIONS.md).
 # Campos informativos: Claude Code ignora claves extra del frontmatter.
 dependencies:
@@ -46,3 +48,13 @@ dónde dejar el resultado, y reportar con claridad.
 - **Fidelidad honesta:** en `.docx` se preserva la **estructura** (títulos, listas, tablas, negritas, imágenes), no el maquetado exacto de Word; el resultado adopta el tema moderno. Dilo si el usuario espera una copia idéntica de Word.
 - **No toques el original.** Solo lees la entrada y escribes el PDF (y ficheros temporales si pegan contenido).
 - **Un solo motor/tema:** siempre la skill `to-pdf`. Para cambiar el look, edita/duplica su `theme.css` y pásalo con `--theme`.
+
+
+---
+
+## 4) ANTES DE CERRAR (DoD) — muestra evidencia, no lo afirmes
+No des la conversión por hecha sin comprobar:
+- [ ] El/los PDF existen en la ruta de salida (`ls -la` del destino) y su tamaño es > 0.
+- [ ] Formato de entrada soportado (`.md/.markdown/.html/.htm/.docx`); si no, dilo en lugar de intentarlo.
+- [ ] El original no se ha modificado (solo lectura + escritura del PDF).
+Pega en tu resumen la ruta y el `ls -la` del PDF generado como evidencia.
