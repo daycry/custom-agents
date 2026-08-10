@@ -53,10 +53,20 @@ y spec → `implementada`. Si superpowers marca su propio ledger, vuélcalo a `t
 
 **Modo B (nativo, sin superpowers):**
 1. **`implementer`** → implementa fase a fase sobre rama, marcando `tasks.md` por tarea.
-2. **`qa`** → pruebas E2E (solo local), informe y evidencias.
+2. **Revisión adversarial de DOS LENTES (contexto fresco, en paralelo).** Antes de `qa`, lanza **dos subagentes genéricos en paralelo** (Task tool) con contexto limpio — que NO hayan visto implementar — cada uno con una lente distinta:
+   - **Lente A — conformidad con la spec/plan:** "Revisa el diff de la iniciativa `docs/roadmap/<fecha>-<slug>/` contra `improvement-plan.md` y `tasks.md`. Comprueba: (1) cada `T-XX` marcada como hecha está realmente implementada y cumple sus criterios; (2) nada fuera del alcance del plan (`git diff --stat`); (3) los criterios con test tienen su test. **Devuelve salida ESTRUCTURADA por criterio: `T-XX` → cada criterio de aceptación → ✓/✗**, más los gaps (fichero:línea). Solo gaps de requisitos, no estilo."
+   - **Lente B — calidad y robustez del código:** "Revisa el diff de la iniciativa buscando SOLO defectos de corrección: casos límite sin manejar, errores silenciados, condiciones de carrera, inputs que rompen, regresiones probables. NO reportes preferencias de estilo ni sugerencias de refactor. Lista de defectos (fichero:línea, escenario concreto de fallo) o 'sin defectos'."
 
-En ambos modos, al salir debes tener: código implementado, pruebas en verde y `tasks.md` al día.
-La puerta de pruebas aplica igual: si rojo, corrige; si verde, sigue.
+   **Fusiona** los dos resultados (deduplica gaps que señalen lo mismo). La lente A da el **veredicto por criterio** (✓/✗); la lente B aporta defectos de robustez a los gaps.
+
+   **Bucle reviewer→implementer ACOTADO (regla dura).** Si hay gaps de corrección/requisitos: las tareas afectadas vuelven a `en-progreso`, `implementer` corrige (ese tiempo es **implementación**), y **relanzas la revisión** sobre el nuevo diff. Contador explícito ("revisión, intento 2 de 3"). **Máximo 3 intentos**; al 3.º con gaps, PARA y pregunta (seguir / re-planificar con `planner` / aceptar como deuda). Lo estilo/sobre-ingeniería se descarta (un revisor siempre encuentra algo). Solo Modo B (en Modo A superpowers trae su `requesting-code-review`).
+
+   **Publicar el resultado en Jira (si `jira.json` `enabled` y se volcó el plan).** Con el resultado FINAL (tras el bucle), invoca el **Paso 9 de `jira-sync`**: renderiza contra `agent-kits/shared/review-report.template.md`, publica el comentario con la granularidad del volcado (modo fase: uno por fase al cerrarla; modo tarea: uno por tarea) incluyendo "revisión superada en N intento(s)", e imputa el **worklog de revisión** (`worklog.py plan --kind revision`, acumula todas las pasadas). Idempotente (`reviewComentado`).
+3. **`qa`** → pruebas E2E (solo local), informe y evidencias. El veredicto verde/rojo lo da `qa-gate.py` (exit code), no una impresión.
+
+**Bucle de corrección de qa ACOTADO (regla dura).** Si qa sale rojo: la(s) tarea(s) afectadas vuelven a `implementer`, se corrigen y qa **re-ejecuta**. Contador explícito ("intento 2 de 3"). **Máximo 3 intentos**; si el 3.º sigue rojo, PARA: resume los fallos persistentes (con la salida de qa-gate de cada intento) y pregunta al usuario qué hacer — seguir intentando, re-planificar la tarea con `planner`, o cancelarla. No cierres estados en rojo y no degrades el umbral para "pasar".
+
+En ambos modos, al salir debes tener: código implementado, revisión pasada, `qa-gate` en verde y `tasks.md` al día (validado con `ledger-lint.py`).
 
 ## Fase 4 — Documentar (siempre, agente `documenter`)
 Con las pruebas en verde, invoca **`documenter`** para generar/actualizar la documentación del proyecto (una vez al final, no por tarea).

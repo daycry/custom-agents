@@ -31,8 +31,9 @@ antes de crear**. Nada se escribe en Jira sin un "sí" explícito.
 - Herramientas del conector (por su función; el prefijo `mcp__…__` puede variar):
   `getAccessibleAtlassianResources`, `getVisibleJiraProjects`, `searchJiraIssuesUsingJql`,
   `getJiraProjectIssueTypesMetadata`, `getJiraIssueTypeMetaWithFields`, `createJiraIssue`,
-  `getJiraIssue`, y para la sincronización de progreso `addWorklogToJiraIssue`,
-  `getTransitionsForJiraIssue`, `transitionJiraIssue`.
+  `getJiraIssue`, `editJiraIssue` (checklist de la descripción en modo fase), y para la
+  sincronización de progreso `addWorklogToJiraIssue`, `addCommentToJiraIssue` (comentarios de
+  progreso y de revisión), `getTransitionsForJiraIssue`, `transitionJiraIssue`.
 - Un plan existente: `docs/roadmap/<fecha>-<slug>/tasks.md` (tareas `T-XX`).
 
 ## Paso 0 — opt-in y conexión
@@ -43,6 +44,17 @@ antes de crear**. Nada se escribe en Jira sin un "sí" explícito.
    ```
    - `enabled: false` → no hagas nada. Sin config (primera vez) → pregunta **una vez**: "¿Quieres volcar los planes a Jira?"; guarda la decisión en `.claude/jira.json`.
 2. Comprueba conexión con `getAccessibleAtlassianResources`; si no está, guía a conectarla y detente. Resuelve el `cloudId` (uno solo → úsalo; varios → pregunta por nombre) y persístelo.
+
+## Paso 0-bis — granularidad del volcado (por TAREA o por FASE)
+
+Antes de crear nada, decide la **granularidad** (campo `granularidad` en `.claude/jira.json`):
+
+- **`tarea`** (por defecto): un issue de Jira **por cada `T-XX`** del plan. Es el comportamiento clásico; no rompe instalaciones existentes.
+- **`fase`**: un issue **por cada Fase** del plan, con las `T-XX` de esa fase como **checklist** en la descripción del issue.
+
+Si `granularidad` no está en `.claude/jira.json`, **pregunta una vez** ("¿Un issue por tarea, o uno por fase con sus tareas dentro?"; en Cowork puede ir en el mismo artefacto del Paso 1, en CLI conversacional) y **persiste** la decisión. A partir de aquí, cada paso indica su comportamiento **[modo tarea]** / **[modo fase]**.
+
+> **Cambiar de granularidad con issues ya creados:** si el manifiesto ya tiene claves del otro modo (`T-XX → …` vs `fase-N → …`), **avisa** del choque y ofrece continuar en el modo ya volcado o empezar limpio (carpeta nueva o borrar el manifiesto). **Nunca** dupliques en silencio.
 
 ## Paso 1 — elegir destino (proyecto + padre opcional)
 
@@ -110,7 +122,7 @@ Indica claramente **cuántos** issues, de **qué tipo** y **dónde** cuelgan.
 
 ## Paso 5 — crear (idempotente)
 
-Con el "sí", por cada tarea `T-XX` de `tasks.md`:
+**[modo tarea]** Con el "sí", por cada tarea `T-XX` de `tasks.md`:
 - `createJiraIssue(projectKey, issueTypeName, summary, description, parent?)`:
   - `summary` = `"T-XX · <título de la tarea>"`.
   - `description` = detalle/criterios de aceptación de la tarea (formato markdown) **+ enlace de vuelta** a la iniciativa (`docs/roadmap/<fecha>-<slug>/`) para no perder el contexto.
@@ -120,6 +132,20 @@ Con el "sí", por cada tarea `T-XX` de `tasks.md`:
   - Ya tiene issueKey y existe (`getJiraIssue`) → **no dupliques** (salta o, si cambió el título, ofrece actualizar con `editJiraIssue`).
   - No está → crea y registra `T-XX → issueKey`.
 - Muestra progreso ligero si son muchas ("Creando… 3 de 6").
+
+**[modo fase]** Antes de agrupar, **valida el ledger** con el script compartido — un `tasks.md` mal formado (una `T-XX` fuera de fase, resumen descuadrado) crearía issues incorrectos:
+```bash
+LL="$(find "$PWD/.claude" "$HOME/.claude" -type f -path '*agent-kits/shared/ledger-lint.py' 2>/dev/null | head -1)"
+python3 "$LL" "docs/roadmap/<fecha>-<slug>/tasks.md"   # exit 0 obligatorio para volcar en modo fase
+```
+Si da incoherencias duras, repórtalas y no vuelques hasta que el ledger esté limpio. Con el ledger en verde y el "sí", por cada **Fase** del plan (agrupa las `T-XX` por su fase leyendo `tasks.md`):
+- `createJiraIssue(...)`:
+  - `summary` = `"Fase N · <título de la fase>"`.
+  - `description` = objetivo de la fase + **checklist de sus tareas** en markdown (`- [ ] T-XX · <título>` una por tarea) + enlace de vuelta a la iniciativa.
+  - `parent`, tipo y labels igual que en modo tarea (el tipo se descubre por jerarquía, Paso 2).
+- **Fase sin tareas → no se crea issue** (avísalo).
+- **Idempotencia:** el manifiesto mapea `fase-N → issueKey`. Mismo criterio: si ya existe, no dupliques; si no, crea y registra `fase-N → issueKey`.
+- Escribe la clave Jira en la **cabecera de cada fase** de `tasks.md` (Paso 6).
 
 ## Paso 6 — escribir de vuelta y cerrar
 
@@ -139,13 +165,16 @@ chat), refleja ese avance en su issue de Jira. Se invoca **por tarea completada*
 > ```bash
 > WL="$(find "$PWD/.claude" "$HOME/.claude" -type f -path '*skills/jira-sync/scripts/worklog.py' 2>/dev/null | head -1)"
 > # cuánto imputar hoy (y qué banca):   python3 "$WL" plan --task T-08 --issue KEY --ia-real 4 --sup-real 1
+> # entrada de revisión (C-07, acumulativa): añade --kind revision  (por defecto: implementacion)
 > # si sale requiereDecision: pregunta al usuario y reejecuta con --policy <parar|seguir|banco>
 > # tras registrar el worklog en Jira:  el MISMO comando con --apply (persiste el estado)
 > # al empezar el día / retomar:        python3 "$WL" drain            (banco → pagos de hoy por issue) y --apply tras imputarlos
 > # vista rápida:                       python3 "$WL" status
 > ```
 
-1. **Localiza el issue** de la tarea en el manifiesto `.claude/jira-state.json` (`T-XX → issueKey`). Si no está mapeada (no se volcó a Jira), no hagas nada.
+> **[modo fase] Dónde va cada cosa.** El issue objetivo de una tarea `T-XX` es el de **su fase** (`fase-N → issueKey` en el manifiesto), no uno propio. Al completar cada `T-XX`: (a) añade un **comentario** en el issue de la fase (tarea, evidencia, horas); (b) marca `- [x]` esa tarea en la **checklist de la descripción** del issue (`editJiraIssue`); (c) imputa su worklog al issue de la fase (abajo). El issue de la fase pasa a **Done** solo cuando **todas** sus tareas están `completado` en `tasks.md`. El resto del cálculo (worklog, tope, banco) es idéntico; solo cambia el `issueKey` destino.
+
+1. **Localiza el issue**: **[modo tarea]** `T-XX → issueKey`; **[modo fase]** el de su fase (`fase-N → issueKey`). Si no está mapeado (no se volcó), no hagas nada.
 2. **Calcula el worklog (tiempo de producción)** — con `worklog.py plan` (regla que implementa):
    - `horas = Tiempo IA (ejec.) + Supervisión`, tomando el valor **real** de cada uno; si un `real` falta, usa su **estimación**. Si además falta la supervisión, derívala como `Tiempo IA × ratioSupervision` (por defecto `0.25`).
    - **Fallback**: si la tarea no tiene tiempo IA (tarea puramente humana), usa el **tiempo humano** (real→est).
@@ -183,8 +212,8 @@ demanda ("trae el estado de Jira", "sincroniza el estado desde Jira") o al **ret
 `tasks.md` es el **ledger canónico**: Jira es espejo, así que el read-back **informa** y solo
 actualiza `tasks.md` con confirmación.
 
-1. Para cada `T-XX → issueKey` del manifiesto, lee el issue con `getJiraIssue` (campo `status` y su categoría).
-2. Compara el estado del issue con el de la tarea en `tasks.md` (mapa aproximado: categoría *Done* ↔ `completado`; *In Progress* ↔ `en-progreso`; *To Do* ↔ `borrador`/`en-progreso`).
+1. **[modo tarea]** Para cada `T-XX → issueKey`, lee el issue con `getJiraIssue` (`status` y categoría). **[modo fase]** Para cada `fase-N → issueKey`, lee el issue de la fase y compáralo con el **agregado** de sus tareas en `tasks.md` (la fase está *Done* ⟺ todas sus `T-XX` `completado`).
+2. Compara el estado del issue con el de la tarea/fase en `tasks.md` (mapa aproximado: categoría *Done* ↔ `completado`; *In Progress* ↔ `en-progreso`; *To Do* ↔ `borrador`/`en-progreso`).
 3. **Clasifica y muestra** las divergencias, sin tocar nada aún:
    - Issue *Done* en Jira pero tarea no `completado` en `tasks.md` (alguien la cerró en Jira).
    - Tarea `completado` en `tasks.md` pero issue abierto en Jira (no se sincronizó el cierre; ver Paso 7).
@@ -194,24 +223,51 @@ actualiza `tasks.md` con confirmación.
 
 > Es **opt-in** como el resto: solo si `.claude/jira.json` `enabled: true`. Útil al reabrir una iniciativa (`/dev-cycle` sobre una carpeta existente) para alinear `tasks.md` con lo que haya pasado en Jira entretanto.
 
+## Paso 9 — publicar el resultado del revisor (comentario + worklog `[revisión]`)
+
+El agente **revisor** (revisión adversarial de dos lentes de `/dev-cycle` Modo B, iniciativa `qa-strict`) produce, tras su **bucle acotado a 3 intentos** con `implementer`, un resultado **estructurado por criterio** (`T-XX` → criterio → ✓/✗ + gaps + nº de intentos + tiempo de revisión). Este paso lo lleva a Jira. Lo invoca el orquestador `/dev-cycle` (o `implementer` al cerrar), **solo en Modo B** (en Modo A superpowers revisa con otro formato → no aplica).
+
+1. **Localiza la plantilla fija** del comentario y renderiza el resultado del revisor contra ella (formato idéntico siempre):
+   ```bash
+   RT="$(find "$PWD/.claude" "$HOME/.claude" -type f -path '*agent-kits/shared/review-report.template.md' 2>/dev/null | head -1)"
+   ```
+   Si el revisor devolvió prosa sin la estructura por criterio, **no inventes ✓/✗**: publica solo el resumen + gaps y deja constancia del aviso.
+2. **Publica el comentario** con `addCommentToJiraIssue`, con la **granularidad del volcado**:
+   - **[modo tarea]** un comentario en el issue de cada `T-XX` revisada.
+   - **[modo fase]** un **único** comentario en el issue de la fase, al cerrarla, agregando el pasa/falla por criterio de **todas** sus tareas.
+   - El comentario refleja el **resultado FINAL** (tras el bucle) e incluye la línea *"revisión superada en N intento(s)"*. **No** publiques un comentario por intento.
+3. **Imputa el worklog de revisión** con `worklog.py plan --kind revision` sobre el mismo issue destino (de tarea o de fase según el modo). Acumula **todas las pasadas** del bucle; el script lleva el desglose `worklogRevision` aparte de `worklogImpl`, pero ambos suman al total del issue y respetan el tope de jornada y el banco:
+   ```bash
+   # [modo tarea] la revisión de cada tarea se registra bajo su propia T-XX:
+   python3 "$WL" plan --task T-XX      --issue <issueKey_tarea> --kind revision --ia-real <h> --apply
+   # [modo fase] revisión agregada de la fase → clave sintética rev-fase-N (issue destino = el de la fase):
+   python3 "$WL" plan --task rev-fase-N --issue <issueKey_fase>  --kind revision --ia-real <h> --apply
+   ```
+   La clave sintética `rev-fase-N` evita pisar el registro de una `T-XX` real; el issue destino sigue siendo el de la fase.
+4. **Idempotencia:** marca en `.claude/jira-state.json` `reviewComentado` por `T-XX`/`fase-N` para no re-comentar ni re-imputar la revisión en reejecuciones.
+
+> Las **correcciones** que hace el `implementer` durante el bucle son tiempo de **implementación**: van a la entrada normal (`--kind implementacion`, la de por defecto), no a `[revisión]`. Así el total del issue = implementación + revisión, con el desglose intacto para `/retro`.
+
 ## Config `.claude/jira.json` (gestión interna, editable)
 
 La escribe/actualiza la skill; el usuario puede ajustarla. Campos:
 
 - `enabled` (`true`/`false`) — opt-in del proyecto (como Confluence).
+- `granularidad` (`"tarea"` por defecto · `"fase"`) — un issue por tarea, o uno por fase con sus tareas como checklist (Paso 0-bis). Si falta, se pregunta una vez y se persiste.
 - `cloudId` — site Atlassian (se resuelve solo si falta).
 - `horasJornada` — **máximo de horas imputables por DÍA** (acumulado de todas las tareas), no por tarea; `8` por defecto, `7` en jornada intensiva. **Se lee de `.claude/rates.json`** (config compartida); `jira.json` solo lo sobreescribe si quieres un valor distinto para Jira.
 - `alCubrirJornada` (por defecto `preguntar`) — qué hacer al llegar al tope diario: `preguntar` · `parar` · `seguir` · `banco`. Ver "Tope de jornada diario". (Específico de Jira → vive en `jira.json`.)
 - `ratioSupervision` — para derivar la supervisión cuando no viene como `real`; también **de `.claude/rates.json`** (`0.25` por defecto).
 - `defaults` (opcional) — `projectKey`, `parentKey`, `issueType`, `labels` para repetir de un clic.
 
-Estado en `.claude/jira-state.json`: el **mapeo `T-XX → issueKey`** (clave Jira de cada tarea; el mismo valor se anota en `tasks.md`, Paso 6), `imputadoPorDia` (horas imputadas por fecha) y `bancoHoras` — una **lista de entradas por tarea/issue**, p. ej. `[{ "task":"T-08", "issueKey":"DM5985-123", "horas":1, "origen":"2026-07-15" }]` — para que cada excedente sepa a qué issue imputarse al drenarse.
+Estado en `.claude/jira-state.json`: el **mapeo `T-XX → issueKey`** (modo tarea) o **`fase-N → issueKey`** (modo fase; el valor se anota en la cabecera de la fase de `tasks.md`, Paso 6), `imputadoPorDia` (horas imputadas por fecha), `bancoHoras` — lista de entradas por tarea/issue con su `kind` (`implementacion`/`revision`), p. ej. `[{ "task":"T-08", "issueKey":"DM5985-123", "horas":1, "origen":"2026-07-15", "kind":"implementacion" }]` — y, por tarea, el **desglose** `worklogImpl` / `worklogRevision` y el flag `reviewComentado` (para no re-publicar la revisión).
 
 ## Reglas
 
 - **Opt-in y confirmación:** nunca creas en Jira sin que el proyecto lo haya activado y sin un "sí" a la previsualización.
 - **Doble modo:** artefacto en Cowork/escritorio; conversacional en CLI/VS Code. Mismo resultado (`{projectKey, parentKey}`); no dependas de que exista el host de artefactos.
 - **No hardcodees tipos ni búsquedas:** descubre los tipos por jerarquía; construye la JQL acotada al proyecto; `searchResultMode:"issues"` siempre.
+- **Payloads mínimos (ahorro de tokens):** en toda llamada al conector (`searchJiraIssuesUsingJql`, `getJiraIssue`…) pide **solo los campos que vas a usar** con `fields:[…]` (p. ej. `["summary","status","issuetype","parent"]` al buscar padre; `["summary","status","timetracking","aggregatetimespent"]` al leer progreso) y acota `maxResults` (p. ej. 25-50) en vez de traer la respuesta completa por defecto, que es enorme. Nunca pidas "todos los campos" salvo que de verdad los necesites; si falta uno, añádelo a la lista explícita.
 - **Idempotente:** el manifiesto evita duplicados al reejecutar. `tasks.md` sigue siendo el ledger canónico del progreso; Jira es un espejo para el equipo.
 - **Errores en llano:** sin conexión / sin permiso / campo obligatorio inesperado / issue padre inválido → una frase clara y el siguiente paso, no un volcado técnico.
 - **Solo el plan indicado:** trabaja sobre la carpeta `docs/roadmap/<fecha>-<slug>/` en curso; no toques otras iniciativas.

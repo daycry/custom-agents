@@ -35,7 +35,9 @@ flowchart LR
     evaluator -->|go| planner["🗺️ planner\nplan + tasks"]
     evaluator -.->|no-go| fin1(["✋ se descarta"])
     planner --> implementer["⚙️ implementer\ncódigo + ledger"]
-    implementer --> qa["✅ qa\nE2E Playwright"]
+    implementer --> review["🔍 revisión adversarial\n(2 lentes en paralelo,\ncontexto fresco) diff vs plan"]
+    review -->|sin gaps| qa["✅ qa\nE2E Playwright"]
+    review -.->|gaps de corrección| implementer
     qa -->|verde| documenter["📚 documenter\ndocs del proyecto"]
     qa -.->|rojo| implementer
     documenter --> retro["🔁 /retro\ncalibración"]
@@ -78,11 +80,13 @@ flowchart TD
     C -->|no-go| X(["parar"])
     D --> E["opt-in: volcar plan a Jira\njira-sync: 1 issue por tarea"]
     E --> F{"¿superpowers\ninstalado?"}
-    F -->|Modo A| G["superpowers ejecuta\ncontra TU tasks.md"]
+    F -->|Modo A| G["superpowers ejecuta\ncontra TU tasks.md\n(review propio)"]
     F -->|Modo B| H["implementer\ntarea a tarea"]
-    G --> I["qa · E2E local"]
-    H --> I
-    I -->|rojo| H
+    H --> R["🔍 revisión adversarial\nDOS lentes en paralelo:\nspec-conformidad · calidad\n(fusión + dedupe)"]
+    R -.->|gaps| H
+    G --> I["qa · E2E local\nveredicto: qa-gate.py"]
+    R --> I
+    I -->|"rojo (máx. 3 intentos,\nluego preguntar)"| H
     I -->|verde| J["documenter\nuna vez al final"]
     J --> K["opcional: nemesis\nauditoría"]
     K --> L(["cierre: plan completado\nspec implementada"])
@@ -94,9 +98,11 @@ flowchart TD
 
 ## 4 · Jira (opt-in) — volcado del plan al crearlo
 
+> **Granularidad** (`.claude/jira.json` → `granularidad`): **tarea** = un issue por `T-XX` (defecto); **fase** = un issue por Fase con sus tareas como checklist. En modo fase, comentarios/worklog/Done van al issue de la fase; el issue cierra cuando todas sus tareas están `completado`. Además, el **resultado del revisor** (Modo B) se publica como comentario (por criterio ✓/✗ + nº intentos) y su tiempo se imputa como worklog `[revisión]` aparte — con la granularidad elegida.
+
 ```mermaid
 flowchart TD
-    A["selector de destino\nartefacto en Cowork /\nconversacional en CLI"] --> B{"¿padre?"}
+    A["selector de destino\n+ granularidad tarea/fase\nartefacto o conversacional"] --> B{"¿padre?"}
     B -->|épica nueva| C["crear Épica\n+ Tareas debajo"]
     B -->|issue existente| D{"nivel del padre\ndescubierto"}
     B -->|sin padre| E["Tareas sueltas\nen el proyecto"]

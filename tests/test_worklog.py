@@ -10,13 +10,14 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCRIPT = os.path.join(ROOT, "skills", "jira-sync", "scripts", "worklog.py")
 
 
-def run(tmp, *extra):
+def run(tmp, *extra, allow_fail=False):
     cmd = [sys.executable, SCRIPT, *extra,
            "--state", os.path.join(tmp, "jira-state.json"),
            "--rates", os.path.join(tmp, "rates.json"),
            "--jira", os.path.join(tmp, "jira.json")]
     r = subprocess.run(cmd, capture_output=True, text=True)
-    assert r.returncode == 0, f"exit {r.returncode}: {r.stderr}"
+    if not allow_fail:
+        assert r.returncode == 0, f"exit {r.returncode}: {r.stderr}"
     return json.loads(r.stdout)
 
 
@@ -67,7 +68,43 @@ def main():
                 "--human-real", "2", "--fecha", "2026-07-19")
         assert o["base"] == "humano" and o["horas"] == 2, o
 
-    print("OK: worklog.py — 8 casos en verde.")
+    # --- C-07 jira-granularity: entrada [revisión] y desglose ---
+    def state(tmp):
+        return json.load(open(os.path.join(tmp, "jira-state.json")))
+
+    with tempfile.TemporaryDirectory() as tmp:
+        json.dump({"horasJornada": 8, "ratioSupervision": 0.25},
+                  open(os.path.join(tmp, "rates.json"), "w"))
+        json.dump({"alCubrirJornada": "banco"}, open(os.path.join(tmp, "jira.json"), "w"))
+
+        # 9) implementación (kind por defecto) → worklogImpl, no worklogRevision
+        o = run(tmp, "plan", "--task", "T-01", "--issue", "K-1",
+                "--ia-real", "3", "--sup-real", "0", "--fecha", "2026-08-01", "--apply")
+        assert o["kind"] == "implementacion" and o["imputarHoy"] == 3, o
+        t = state(tmp)["tasks"]["T-01"]
+        assert t["worklogImpl"] == 3 and "worklogRevision" not in t, t
+
+        # 10) revisión sobre el MISMO issue → suma al total y al desglose de revisión
+        o = run(tmp, "plan", "--task", "T-01", "--issue", "K-1", "--kind", "revision",
+                "--ia-real", "0.5", "--sup-real", "0", "--fecha", "2026-08-01", "--apply")
+        assert o["kind"] == "revision" and o["imputarHoy"] == 0.5, o
+        t = state(tmp)["tasks"]["T-01"]
+        assert t["worklog"] == 3.5 and t["worklogImpl"] == 3 and t["worklogRevision"] == 0.5, t
+
+        # 11) segunda pasada de revisión (bucle) → acumula en worklogRevision
+        o = run(tmp, "plan", "--task", "T-01", "--issue", "K-1", "--kind", "revision",
+                "--ia-real", "0.4", "--sup-real", "0", "--fecha", "2026-08-01", "--apply")
+        t = state(tmp)["tasks"]["T-01"]
+        assert t["worklogRevision"] == 0.9 and t["worklog"] == 3.9, t
+        # el tope diario ve el total (impl+revisión), no cada parte por separado
+        assert state(tmp)["imputadoPorDia"]["2026-08-01"] == 3.9, state(tmp)
+
+        # 12) kind inválido → error
+        o = run(tmp, "plan", "--task", "T-02", "--issue", "K-2", "--kind", "otro",
+                "--ia-real", "1", allow_fail=True)
+        assert "error" in o, o
+
+    print("OK: worklog.py — 12 casos en verde.")
 
 
 if __name__ == "__main__":

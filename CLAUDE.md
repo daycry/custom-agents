@@ -28,7 +28,9 @@ custom-agents/               (se despliega como .claude/)
 - **Antes de crear o mover nada, lee `docs/CONVENTIONS.md`.** Define dónde va cada artefacto y cómo evitar colisiones. Para la vista visual de los flujos, ver `docs/FLOWS.md` (actualízalo si cambias un flujo).
 - **La documentación va SIEMPRE en `docs/`**, nunca junto al código. Al añadir un agente, escribe su doc en `docs/agents/<nombre>.md` y añade la fila en `docs/README.md`.
 - **Un agente = un nombre único en kebab-case**, usado igual en `agents/<nombre>.md`, `agent-kits/<nombre>/` y `docs/agents/<nombre>.md`. El `name:` del frontmatter debe coincidir.
-- **Compartido vs. privado:** si un recurso lo usará más de un agente, va en `skills/`; si es específico de uno, en `agent-kits/<agente>/`.
+- **Compartido vs. privado:** si un recurso lo usará más de un agente, va en `skills/`; si es específico de uno, en `agent-kits/<agente>/`. **Fragmentos de prompt** repetidos entre agentes (parámetros de estimación, opt-in de Confluence) van en `agent-kits/shared/` con fuente única (ver regla 3 de `docs/CONVENTIONS.md`).
+- **Model tiering:** todo agente declara `model` en su frontmatter según la complejidad de su tarea (`haiku`/`sonnet`/`opus`/`inherit`). Lo valida el linter.
+- **Linter del plugin:** `python scripts/lint_plugin.py` valida frontmatter, grafo `dependencies` (sin ciclos) y avisa de nombres con riesgo de colisión; corre en CI junto a los tests. Pásalo antes de publicar.
 - **Dependencias en el frontmatter del agente** (bloque `dependencies:` con `skills`, `kits`, `agents`). Es la fuente de verdad; Claude Code ignora esas claves extra pero a nosotros nos dan el grafo de un vistazo.
 - **Rutas en scripts:** relativas entre sí (`dirname "$BASH_SOURCE"`), nunca absolutas del repo. El agente `.md` **no** usa rutas fijas a su kit/skill: las resuelve en runtime con `find` sobre `$PWD/.claude` y `$HOME/.claude`, para que funcione en scope proyecto, usuario o plugin (ver regla 5 de `docs/CONVENTIONS.md`).
 

@@ -7,12 +7,18 @@ orquesta y llama a Jira; este script calcula y lleva el estado. Salida siempre J
 
 Comandos:
   plan   --task T-08 --issue KEY [--ia-real H --ia-est H --sup-real H --sup-est H
-         --human-real H --human-est H] [--policy banco|parar|seguir|preguntar]
-         [--fecha YYYY-MM-DD] [--apply]
+         --human-real H --human-est H] [--kind implementacion|revision]
+         [--policy banco|parar|seguir|preguntar] [--fecha YYYY-MM-DD] [--apply]
          → cuánto imputar HOY a ese issue, cuánto va al banco y si hace falta decisión.
   drain  [--fecha YYYY-MM-DD] [--apply]
          → qué entradas del banco caben hoy (por issue), respetando la jornada.
   status → resumen del estado (imputado por día, banco pendiente).
+
+Tipos de entrada (`--kind`, C-07 jira-granularity): `implementacion` (por defecto) o
+`revision`. Ambas cuentan igual para el tope diario y el total del issue; la etiqueta solo
+lleva el DESGLOSE (state.tasks[T].worklogImpl / worklogRevision) para que /retro separe
+implementación de revisión. La entrada `revision` es acumulativa (varias pasadas del bucle
+reviewer→implementer suman a worklogRevision).
 
 Estado:  .claude/jira-state.json  (imputadoPorDia, bancoHoras[], tasks{})
 Config:  .claude/rates.json (horasJornada, ratioSupervision) y .claude/jira.json
@@ -104,10 +110,14 @@ def cmd_plan(args):
         print(json.dumps({"error": "sin horas: pasa --ia-real/--ia-est o --human-real/--human-est"}))
         return 2
 
+    kind = (args.kind or "implementacion").lower()
+    if kind not in ("implementacion", "revision"):
+        print(json.dumps({"error": "kind debe ser implementacion|revision"}))
+        return 2
     imputado = float(st["imputadoPorDia"].get(fecha, 0))
     restante = max(0.0, round(jornada - imputado, 2))
     out = {"task": args.task, "issue": args.issue, "fecha": fecha, "base": base,
-           "horas": horas, "jornada": jornada, "imputadoHoy": imputado,
+           "kind": kind, "horas": horas, "jornada": jornada, "imputadoHoy": imputado,
            "restanteJornada": restante, "politica": policy,
            "imputarHoy": 0.0, "banco": 0.0, "parar": False, "requiereDecision": False}
 
@@ -131,10 +141,13 @@ def cmd_plan(args):
         st["imputadoPorDia"][fecha] = round(imputado + out["imputarHoy"], 2)
         if out["banco"] > 0:
             st["bancoHoras"].append({"task": args.task, "issueKey": args.issue,
-                                     "horas": out["banco"], "origen": fecha})
+                                     "horas": out["banco"], "origen": fecha, "kind": kind})
         t = st["tasks"].setdefault(args.task, {})
         t["issueKey"] = args.issue
         t["worklog"] = round(float(t.get("worklog", 0)) + out["imputarHoy"], 2)
+        # desglose implementación vs revisión (C-07): acumulativo, para /retro
+        campo = "worklogRevision" if kind == "revision" else "worklogImpl"
+        t[campo] = round(float(t.get(campo, 0)) + out["imputarHoy"], 2)
         save_json(state_path(args), st)
         out["aplicado"] = True
     print(json.dumps(out, ensure_ascii=False))
@@ -155,7 +168,7 @@ def cmd_drain(args):
             continue
         h = min(float(e["horas"]), restante)
         pagos.append({"task": e["task"], "issue": e["issueKey"], "horas": round(h, 2),
-                      "origen": e.get("origen")})
+                      "origen": e.get("origen"), "kind": e.get("kind", "implementacion")})
         restante = round(restante - h, 2)
         sobra = round(float(e["horas"]) - h, 2)
         if sobra > 0:
@@ -170,6 +183,8 @@ def cmd_drain(args):
             t = st["tasks"].setdefault(p["task"], {})
             t.setdefault("issueKey", p["issue"])
             t["worklog"] = round(float(t.get("worklog", 0)) + p["horas"], 2)
+            campo = "worklogRevision" if p.get("kind") == "revision" else "worklogImpl"
+            t[campo] = round(float(t.get(campo, 0)) + p["horas"], 2)
         save_json(state_path(args), st)
         out["aplicado"] = True
     print(json.dumps(out, ensure_ascii=False))
@@ -191,6 +206,7 @@ def main():
     ap.add_argument("--task"); ap.add_argument("--issue")
     for f in ("ia-real", "ia-est", "sup-real", "sup-est", "human-real", "human-est"):
         ap.add_argument("--" + f, type=float, dest=f.replace("-", "_"))
+    ap.add_argument("--kind")  # implementacion|revision; validado en cmd_plan (error JSON)
     ap.add_argument("--policy", choices=["banco", "parar", "seguir", "preguntar"])
     ap.add_argument("--fecha"); ap.add_argument("--apply", action="store_true")
     ap.add_argument("--state"); ap.add_argument("--rates"); ap.add_argument("--jira")

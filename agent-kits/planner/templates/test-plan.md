@@ -27,6 +27,25 @@
 - **Capturas esperadas**: {{momentos clave: p. ej. formulario relleno, mensaje de éxito}}
 - **Cubre tareas**: {{T-0X, T-0X}}
 
+## API (opcional, opt-in — smoke de endpoints, los ejecuta `qa` con curl)
+
+<!-- Incluye esta sección SOLO si la iniciativa expone/toca endpoints. Sin dependencias extra. -->
+
+### API-01 — {{nombre del endpoint}}
+- **Método y ruta**: {{GET /api/v1/…}} (relativa a la URL local)
+- **Status esperado**: {{200}}
+- **Aserción sobre el body**: {{campo/fragmento que debe estar presente, p. ej. `"status":"ok"`}}
+- **Cubre tareas**: {{T-0X}}
+
+## Accesibilidad (opcional, opt-in — axe-core vía Playwright)
+
+<!-- Incluye esta sección solo si el usuario la pide. Instalación de @axe-core/playwright con el mismo opt-in que Chromium; si declina, estos bloques pasan a checklist manual. -->
+
+### A11Y-01 — {{página o flujo}}
+- **Página(s)**: {{ruta(s) relativas}}
+- **Umbral**: {{0 violaciones `serious`/`critical` (ajustable)}}
+- **Cubre tareas**: {{T-0X}}
+
 ## Manuales (M — los realiza una persona)
 
 <!-- Lo que NO conviene automatizar: juicio visual/UX, email real, captcha, pagos, accesibilidad, multidispositivo. -->
