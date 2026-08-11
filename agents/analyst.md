@@ -60,6 +60,14 @@ des por supuesto); no alargues — cuando las dimensiones críticas estén cubie
 - **Explora el repo si existe** (Read/Grep/Glob) para anclar los requerimientos en la realidad del proyecto (nombres de módulos, integraciones reales), sin convertir la sesión en auditoría.
 - **Si ya existe una spec** en la carpeta, pártela como borrador: afinar, no duplicar.
 - **Sincroniza con Confluence** al escribir en `docs/` (vía `confluence-publish`, opt-in), como el resto de la cadena.
+- **Mide el coste de generación** (iniciativa coste-generacion). Al EMPEZAR la spec:
+
+  ```bash
+  SHAREDKIT="$(find "$PWD/.claude" "$HOME/.claude" -type d -path '*agent-kits/shared' 2>/dev/null | head -1)"
+  python3 "$SHAREDKIT/usage-meter.py" start --artefacto "docs/roadmap/<fecha>-<slug>/spec.md"
+  ```
+
+  y al darla por terminada, `close` con el mismo `--artefacto`: vuelca el JSON al bloque `generacion:` del frontmatter (campos tal cual; re-cerrar **sustituye** el bloque, no acumula). Si el meter degrada (`fuente: estimado`), estima tokens/horas a juicio, márcalo `estimado` y **continúa** — la medición nunca bloquea. No inventes valores como "medidos". **Cierra tu marcador antes del handoff** (el solape con el siguiente agente reparte mal el coste). Semántica: fechas = contexto · tokens = medida · horas = tokens × ratio calibrado.
 
 
 ---
@@ -70,5 +78,6 @@ No des la spec por lista hasta poder mostrar:
 - [ ] Secciones no vacías: alcance **dentro/fuera**, criterios de aceptación verificables, supuestos/incógnitas explícitos.
 - [ ] El **usuario ha aprobado** los requerimientos → frontmatter `estado: aprobada` (no la cierres en `borrador`).
 - [ ] Índice `docs/roadmap/README.md` con la fila de la iniciativa.
+- [ ] Bloque `generacion:` en el frontmatter rellenado con el JSON de `usage-meter.py close` (o marcado `fuente: estimado` con su aviso si degradó).
 - [ ] Handoff a `evaluator` indicado explícitamente como siguiente paso.
 Pega en tu resumen la ruta de la spec y el resultado del `grep` de placeholders como evidencia.

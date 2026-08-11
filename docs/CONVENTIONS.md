@@ -123,6 +123,19 @@ Reglas de enlazado (**bidireccional**, y como todo está en la misma carpeta, lo
 - Al **crear la evaluación**: rellena su fila **Spec** y **actualiza la spec** (`evaluacion:` + callout) para que apunte a la evaluación.
 - Al **crear el plan**: rellena sus filas **Spec/Evaluación** y **actualiza hacia atrás** el `plan:` de la spec y la fila **Plan** de la evaluación.
 
+**Coste de generación (bloque `generacion:`).** Cada artefacto de la cadena lleva en su
+frontmatter un bloque `generacion:` con lo que costó **producirlo**, medido por
+`agent-kits/shared/usage-meter.py` (`start` al abrirlo, `close` al cerrarlo): fechas de
+inicio/fin (solo **contexto**, nunca fuente de horas), `tokens_reales` (la **medida**, leída de la
+transcripción de la sesión), `eur`, `horas_ia` (**derivadas**: tokens facturables × ratio
+calibrado — mediana de `CALIBRATION.md` > default de `estimation-defaults.md`) y `fuente:
+medido|estimado`. Reglas: el meter **nunca bloquea** (si no puede leer la transcripción, degrada
+a `estimado` con aviso); re-cerrar **sustituye** el bloque (no acumula); cada agente **cierra su
+marcador antes del handoff** (ventanas solapadas reparten mal el coste); los artefactos legacy
+sin bloque son válidos. Las duraciones presentadas a personas van en formato humano `XhYm`
+(`usage-meter.py fmt`: `32m` · `1h 32m` · `18h`). `/roadmap-metrics` agrega estos bloques como
+**coste de proceso** (separado del de implementación) y `/retro` calibra con ellos el ratio.
+
 ## 8. Progreso de un plan: `tasks.md` es el ledger canónico
 
 El avance de un plan se registra en **un único sitio**: `docs/roadmap/<fecha>-<slug>/tasks.md`

@@ -60,11 +60,13 @@ Fallback si el fragmento no está (instalación parcial): tarifa `50 €/h`, sup
 
 ## 2) FLUJO DE TRABAJO (6 pasos)
 
+**P0. Arrancar el medidor de coste.** Antes de empezar, marca el inicio de TU artefacto: `python3 "$SHAREDKIT/usage-meter.py" start --artefacto "docs/roadmap/<fecha>-<slug>/evaluation.md"`. (Regla: cada agente cierra su marcador antes del handoff; no solapes ventanas.)
+
 **P1. Conseguir la spec.** Si te pasan una spec de `docs/roadmap/<fecha>-<slug>/`, léela. Si te pasan la especificación por el prompt o requisitos sueltos, **crea primero** `docs/roadmap/<fecha>-<slug>/spec.md` desde `spec.md` (estado `borrador`) y regístrala en `docs/roadmap/README.md`. Extrae las características/requisitos y asígnales ID `C-01`, `C-02`… Registra en el mapa **"Requerimientos recibidos"** la referencia a la sección de la spec de cada uno y marca lo **ambiguo o incompleto**.
 
 **P2. Recon del proyecto.** Si hay acceso al repo, explóralo (Read/Grep/Glob) para fundamentar complejidad e impacto con módulos/rutas reales. Aplica la **disciplina de lectura** compartida (`"$SHAREDKIT/read-discipline.md"`: grep/glob antes de Read, `Read` con `limit`, ignora `node_modules`/`vendor`/lockfiles/minificados, muestrea patrones) para no gastar tokens de más. Fallback si el fragmento no está: grep antes de abrir, lee fragmentos, ignora dependencias/generados.
 
-**P2-bis. Calibración con el histórico.** Si existe `docs/roadmap/CALIBRATION.md` (lo alimenta `/retro` con el real-vs-estimado de iniciativas cerradas), léelo y **ajusta tus estimaciones** con esa evidencia: si un tipo de trabajo viene desviándose (+X %), aplícalo y cítalo en los supuestos ("histórico: integraciones +40 % → margen ampliado"); si el histórico avala tus números, súbele la confianza. Con pocas filas (<3) trátalo como indicio, no como ley.
+**P2-bis. Calibración con el histórico.** Si existe `docs/roadmap/CALIBRATION.md` (lo alimenta `/retro` con el real-vs-estimado de iniciativas cerradas), léelo y **ajusta tus estimaciones** con esa evidencia: si un tipo de trabajo viene desviándose (+X %), aplícalo y cítalo en los supuestos ("histórico: integraciones +40 % → margen ampliado"); si el histórico avala tus números, súbele la confianza. Con pocas filas (<3) trátalo como indicio, no como ley. Para las **horas-IA**, usa el **ratio tokens→hora** con precedencia `CALIBRATION.md` (mediana de la columna `tokens/hora`) > default de `estimation-defaults.md` (no calibrado); cita cuál usaste.
 
 **P3. Evaluar cada característica.** Para cada `C-XX`: complejidad, esfuerzo (h) con confianza, previsión de tokens (in/out), coste €, impacto/áreas, dependencias, riesgos e incógnitas.
 
@@ -78,7 +80,7 @@ Si hay **2+ características**, rellena la **tabla comparativa** y la **recomend
 
 **P5. Redacción.** Rellena la plantilla `evaluation.md`: cuadro de mando, resumen ejecutivo, requerimientos recibidos, datos necesarios, supuestos económicos, evaluación por característica, comparativa (si aplica), presupuesto total, recomendación, riesgos transversales, handoff a planner, changelog. Rellena la fila **Spec** con la ruta a la spec (`plan` = `pendiente`). Sustituye TODOS los `{{PLACEHOLDER}}` y borra los comentarios guía.
 
-**P6. Enlazar y cerrar.** Escribe la evaluación y **actualiza la spec** para que apunte a ella (`evaluacion:` en el frontmatter de la spec + su callout). Actualiza `docs/roadmap/README.md`. Resume al usuario: spec de origen, coste total (€), esfuerzo (h), tokens, nº de características y veredicto. Recuerda el handoff: lo aprobado se ejecuta con el agente **`planner`** (que rellenará el campo `Plan` de la evaluación y el `plan:` de la spec al crearse).
+**P6. Enlazar y cerrar.** Cierra el medidor: `python3 "$SHAREDKIT/usage-meter.py" close --artefacto "docs/roadmap/<fecha>-<slug>/evaluation.md"` y vuelca su JSON al bloque `generacion:` del frontmatter de la evaluación (campos tal cual; re-cerrar **sustituye**, no acumula; si degrada a `fuente: estimado`, estima a juicio, márcalo y **continúa** — nunca bloquea). Si creaste tú la spec en P1, mide también su ventana (marcador propio) o marca su bloque `estimado`. Escribe la evaluación y **actualiza la spec** para que apunte a ella (`evaluacion:` en el frontmatter de la spec + su callout). Actualiza `docs/roadmap/README.md`. Resume al usuario: spec de origen, coste total (€), esfuerzo (h), tokens, nº de características y veredicto. Recuerda el handoff: lo aprobado se ejecuta con el agente **`planner`** (que rellenará el campo `Plan` de la evaluación y el `plan:` de la spec al crearse).
 
 **P7. Sincronizar con Confluence (opcional).** Aplica el paso compartido `"$SHAREDKIT/confluence-optin.md"` (skill `confluence-publish` con opt-in) sobre las rutas de `docs/` que hayas tocado. Fallback si el fragmento no está: invoca `confluence-publish` respetando su opt-in y sin bloquear el cierre; nunca sincronices `docs/security-scan/`.
 
@@ -105,6 +107,7 @@ No des la evaluación por lista hasta poder mostrar:
 - [ ] Cifras **justificadas**: método o supuesto por número; lo no verificable marcado `⚠️ verificar` (no inventado).
 - [ ] Enlace **bidireccional** hecho: spec `evaluacion:` → evaluation.md y fila **Spec** de la evaluación → spec.md.
 - [ ] Transición de estado aplicada: evaluación `en-revision` (o `completado`/`cancelado` según el veredicto del usuario); índice `README.md` actualizado.
+- [ ] Bloque `generacion:` rellenado con el JSON de `usage-meter.py close` (o `fuente: estimado` con aviso si degradó); duraciones presentadas en formato `XhYm`.
 Pega en tu resumen el cuadro de mando y el resultado del `grep` de placeholders como evidencia.
 
 **Salida a la cadena.** Cuando te invoca un orquestador, tu mensaje final sigue la **disciplina de salida** compartida `"$SHAREDKIT/output-discipline.md"` (≤ ~12 líneas: rutas + cifras + veredicto + handoff; el detalle ya está en `evaluation.md`). Fallback si no está: resumen breve de datos, sin re-explicar el artefacto.

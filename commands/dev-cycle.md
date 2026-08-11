@@ -33,6 +33,10 @@ Antes de arrancar, **pregunta al usuario** cómo quiere abordarlo (una sola preg
 
 > **Por qué la vía rápida NO salta la calidad.** El papeleo de PM (spec/evaluación/plan) es lo caro y prescindible en un cambio pequeño; la revisión de dos lentes y `qa-gate` son baratas y son la red que evita meter un bug "por ir rápido". Por eso la vía rápida ahorra ceremonia, no seguridad. El `tasks.md` ligero conserva el **ledger canónico**, así que el progreso, la imputación de horas y el volcado a Jira siguen funcionando igual. Si el usuario pide algo **trivial de verdad** (un typo, una línea), puede pedir explícitamente saltarse también la revisión/qa — pero no es el defecto.
 
+> **Medición del coste (vía rápida).** El `tasks.md` ligero también se mide: al crearlo, `usage-meter.py start --artefacto "docs/roadmap/<fecha>-<slug>/tasks.md"` y, al dejarlo escrito, `close` → vuelca el JSON a su bloque `generacion:` (script en `agent-kits/shared/`; si degrada a `fuente: estimado`, anótalo y sigue — nunca bloquea).
+>
+> **Regla de no-solape (todo el ciclo).** Cada agente/fase mide su propio artefacto o tarea; como orquestador, asegúrate de que cada marcador se **cierra antes de abrir el siguiente** (evaluator cierra la evaluación antes de que planner abra el plan; una tarea cierra antes de lanzar la revisión): ventanas solapadas cuentan los mismos tokens dos veces y reparten mal el coste.
+
 Si es **vía rápida**, salta a la Fase 3 (implementación) usando el `tasks.md` ligero; si es **flujo completo**, sigue en la Fase 1.
 
 ## Fase 1 — Evaluar (siempre en flujo completo, agente `evaluator`)
@@ -71,6 +75,8 @@ y spec → `implementada`. Si superpowers marca su propio ledger, vuélcalo a `t
 
 **Modo B (nativo, sin superpowers):**
 1. **`implementer`** → implementa fase a fase sobre rama, marcando `tasks.md` por tarea.
+
+   **Medición por tarea (usage-meter).** Al ARRANCAR cada `T-XX`: `usage-meter.py start --artefacto "<slug>/T-XX"`; al COMPLETARLA: `close` con la misma clave. Las **horas-IA medidas** del JSON (`horas_ia`, con `fuente: medido`) se escriben como tiempo IA **real** de la tarea en `tasks.md` — anota `(medido)` junto al valor — y son las que usa la imputación a Jira (`worklog.py plan` ya prefiere real sobre estimado; su aritmética de jornada/banco NO cambia). Reglas: (a) si el meter degrada, deja la estimación a juicio marcada `(estimado)` y sigue; (b) reabrir y re-cerrar una tarea **sustituye** su medición, no la suma; (c) los tokens del bucle de revisión NO van a la tarea — la revisión tiene su propia imputación `[revisión]` por intento (ver más abajo); cierra el marcador de la tarea ANTES de lanzar la revisión. Duraciones presentadas en formato `XhYm` (`usage-meter.py fmt`).
 2. **Revisión adversarial de DOS LENTES (contexto fresco, en paralelo).** Antes de `qa`, lanza **dos subagentes genéricos en paralelo** (Task tool) con contexto limpio — que NO hayan visto implementar — cada uno con una lente distinta:
    - **Lente A — conformidad con la spec/plan:** "Revisa el diff de la iniciativa `docs/roadmap/<fecha>-<slug>/` contra `improvement-plan.md` y `tasks.md`. Comprueba: (1) cada `T-XX` marcada como hecha está realmente implementada y cumple sus criterios; (2) nada fuera del alcance del plan (`git diff --stat`); (3) los criterios con test tienen su test. **Devuelve salida ESTRUCTURADA por criterio: `T-XX` → cada criterio de aceptación → ✓/✗**, más los gaps (fichero:línea). Solo gaps de requisitos, no estilo."
    - **Lente B — calidad y robustez del código:** "Revisa el diff de la iniciativa buscando SOLO defectos de corrección: casos límite sin manejar, errores silenciados, condiciones de carrera, inputs que rompen, regresiones probables. NO reportes preferencias de estilo ni sugerencias de refactor. Lista de defectos (fichero:línea, escenario concreto de fallo) o 'sin defectos'."

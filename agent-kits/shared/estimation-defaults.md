@@ -17,6 +17,7 @@
 | Ratio de supervisión | `~25 % de las horas IA` | Tiempo de revisión/validación humana del trabajo del agente |
 | Horas por empleado-mes (FTE) | `160 h` | Base para el cálculo de FTE equivalentes |
 | Margen de contingencia | `20 %` | Colchón por imprevistos; se aplica sobre las horas **base** (humanas e IA) |
+| Ratio tokens→hora-IA | `300.000 tok/h` ⚠️ no calibrado | Deriva horas-IA de tokens **facturables** (entrada + creación de caché + salida; la lectura de caché no cuenta). **Precedencia:** mediana de la columna `tokens/hora` de `docs/roadmap/CALIBRATION.md` (lo alimenta `/retro` con datos medidos) > este default. Lo aplican `usage-meter.py` y `evaluator`. Ejecuta `/retro` en cuanto cierres iniciativas medidas para calibrarlo |
 
 Registra los valores usados en el bloque de **Supuestos** del artefacto que generes. Si no conoces el precio de tokens vigente, márcalo `⚠️ verificar` y deja el cálculo parametrizado en lugar de dar una cifra falsa.
 

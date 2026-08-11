@@ -5,6 +5,18 @@ Todos los cambios notables de este proyecto se documentan aquí.
 El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
+## [1.10.0] - 2026-08-11
+
+### Añadido — iniciativa `coste-generacion`
+
+- **`agent-kits/shared/usage-meter.py`** (+ 35 tests): mide el **coste real de generación** de cada artefacto del ciclo y de cada tarea leyendo los tokens del `usage` de la transcripción de la sesión por ventanas (`start`/`close`/`status` por artefacto, dedupe por respuesta, sidechains incluidas). Convierte a € (`rates.json`, regla de fiabilidad) y a **horas-IA por ratio calibrado** (mediana `tokens/hora` de `CALIBRATION.md` > default no calibrado de `estimation-defaults.md`). Modelo confirmado con el usuario: **fechas = contexto · tokens = medida · horas = tokens × ratio** — nunca reloj de pared. Degrada a `fuente: estimado` sin bloquear jamás el flujo.
+- **Bloque `generacion:`** en el frontmatter de spec/evaluation/plan/tasks (plantillas de evaluator y planner + `tasks.md` ligero de la vía rápida); analyst/evaluator/planner y `/dev-cycle` arrancan/cierran el meter (regla de no-solape en los orquestadores).
+- **`/roadmap-metrics` — sección "Coste de proceso"**: lo que costó *producir* los artefactos de cada iniciativa (separado del coste de implementación); "sin datos" honesto para artefactos sin bloque, nunca 0 inventado.
+- **Medición por tarea (Modo B)**: marcador por `T-XX`; las horas-IA **medidas** entran como "real" en el ledger (`(medido)`) y en el worklog de Jira, sin tocar la aritmética de jornada/banco de `worklog.py`.
+- **`/retro` calibra el ratio tokens→hora**: columna `tokens/hora` + línea-resumen "Ratio vigente (mediana de N muestras)" en `CALIBRATION.md`, que consumen evaluator y el meter.
+- **Formato humano de duraciones `XhYm`** (estilo Jira, fijado por el usuario: `32m` · `1h 32m` · `18h`): helper único `usage-meter.py fmt`, aplicado en frontmatter, informes y plantilla de revisión (las columnas parseadas por máquina del ledger permanecen en decimal, excepción declarada en la spec).
+- Revisión adversarial de dos lentes superada en 2 intentos (22 hallazgos del intento 1 corregidos y verificados 19/19 en el intento 2, incl. parser de calibración con notación `300k`, state corrupto, truncado de transcripciones y "0 tok" inventado).
+
 ## [1.9.1] - 2026-08-11
 
 Ajustes sobre la 1.9.0 tras el rodaje de diseño con el usuario: traza por intento en el worklog de revisión y puerta de entrada en `/dev-cycle`.

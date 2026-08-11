@@ -10,6 +10,7 @@ Fragmentos de prompt que usan **varios** agentes y que deben tener **una única 
 | `read-discipline.md` | Disciplina de lectura del recon (grep antes de Read, límites, ignorar deps/generados) | `documenter`, `nemesis`, `evaluator`, `qa` |
 | `output-discipline.md` | Disciplina de salida en handoffs (mensaje final ≤ ~12 líneas, datos no informe) | `evaluator`, `planner`, `implementer`, `qa`, `documenter` |
 | `review-report.template.md` | Plantilla fija del comentario de revisión (veredicto por criterio ✓/✗ + gaps + nº intentos + tiempo) | `/dev-cycle` (Modo B) → `jira-sync` Paso 9 |
+| `usage-meter.py` (+ tests) | Coste real de generación: tokens medidos de la transcripción por ventana (`start`/`close`/`status`), €, horas-IA por ratio calibrado y formato humano `fmt` (`XhYm`). Degrada a `estimado` sin bloquear | `analyst`, `evaluator`, `planner`, `/dev-cycle` (vía rápida + medición por tarea), `/retro` |
 
 Resolución en runtime (igual que el resto de kits):
 

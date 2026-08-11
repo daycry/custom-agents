@@ -147,18 +147,22 @@ flowchart LR
 
 ## 6 · Visibilidad y aprendizaje (todo solo-lectura)
 
+> **Coste de generación (usage-meter):** cada artefacto del ciclo (y cada tarea en Modo B) se **mide** con tokens reales de la transcripción (`agent-kits/shared/usage-meter.py`); el bloque `generacion:` de su frontmatter alimenta la sección **coste de proceso** de `/roadmap-metrics`, y `/retro` calibra con ello el **ratio tokens→hora** que usan el evaluator y el propio meter. Fechas = contexto · tokens = medida · horas = derivadas.
+
 ```mermaid
 flowchart TD
+    M["usage-meter.py\nstart/close por artefacto y tarea\n(tokens reales de la transcripción)"] -->|bloque generacion:| R
     R[("docs/roadmap/*/\nspec · evaluación · plan · tasks")] --> S["/roadmap-status\ndashboard HTML + md"]
     R --> T["/pm-backlog\nprioriza la cartera\nBACKLOG.md"]
-    R --> U["/roadmap-metrics\nreal vs estimado\nmetrics.md"]
+    R --> U["/roadmap-metrics\nreal vs estimado\n+ coste de proceso\nmetrics.md"]
     S --> V["/roadmap-brief\none-pager PDF\npara dirección"]
     T --> V
     U --> V
     J[("Jira\nissues + worklogs")] --> W["/roadmap-live\nestado en tiempo real"]
-    U --> X["/retro por iniciativa\ncausas de desviación"]
+    U --> X["/retro por iniciativa\ncausas de desviación\n+ ratio tokens/hora medido"]
     X --> Y[("CALIBRATION.md")]
-    Y -->|calibra estimaciones| Z["evaluator"]
+    Y -->|calibra estimaciones\ny ratio tokens→hora| Z["evaluator"]
+    Y -.->|ratio| M
 ```
 
 ## 7 · Configuración (una pasada con `/setup`)

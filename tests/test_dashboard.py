@@ -66,6 +66,55 @@ def run():
     contains(html, "Roadmap", "html tiene cabecera")
     assert html.strip().startswith("<!doctype html>"), "html arranca como documento"
 
+    # --- coste de proceso (bloque generacion:, iniciativa coste-generacion) ---
+    gen = a.get("generacion")
+    assert gen and "spec" in gen, f"alpha debería traer generacion.spec; got {gen}"
+    eq(gen["spec"]["fuente"], "medido", "alpha generacion fuente")
+    eq(gen["spec"]["tokens_reales"]["salida"], 99000, "alpha generacion tokens salida")
+    eq(gen["spec"]["horas_ia"], 1.0, "alpha generacion horas")
+    eq(gen["spec"]["eur"], 3.5, "alpha generacion eur")
+    eq(g.get("generacion"), None, "gamma sin bloque generacion → None (no 0 inventado)")
+    metrics = bd.render_metrics_md(inits, FIX)
+    contains(metrics, "Coste de proceso", "métricas incluyen sección de proceso")
+    # facturables = 1000 + 200000 + 99000 = 300.000 (la lectura de caché NO cuenta)
+    contains(metrics, "300.000 tok", "métricas suman facturables sin cache_lectura")
+    contains(metrics, "1h", "métricas muestran duración XhYm")
+    contains(metrics, "_sin datos_", "iniciativas sin bloque salen como 'sin datos'")
+    eq(bd._xhym(1.53), "1h 32m", "formato XhYm mixto")
+    eq(bd._xhym(0.53), "32m", "formato XhYm solo minutos")
+    # bloque degradado (fuente: estimado, tokens null) no debe romper el render
+    g_est = bd.parse_generacion(
+        "---\ngeneracion:\n  fuente: estimado\n  tokens_reales: null\n"
+        "  eur: null\n  horas_ia: 0.5\n  duracion: 30m\n---\n\n# x\n")
+    eq(g_est["tokens_reales"], None, "tokens null → None (no la cadena 'null')")
+    eq(g_est["eur"], None, "eur null → None")
+    fake = [{"slug": "x", "titulo": "X", "generacion": {"spec": g_est}, "progreso": None}]
+    proc = bd.render_proceso_md(fake)
+    contains(proc, "estimado", "proceso renderiza bloque degradado")
+    assert "0 tok" not in proc, "tokens null NO debe mostrarse como '0 tok' (0 inventado)"
+    contains(proc, "sin tokens", "tokens null → celda 'sin tokens', no un número")
+
+    # robustez del parser (revisión lente B): claves entrecomilladas (JSON pegado tal cual)
+    g_json = bd.parse_generacion(
+        '---\ngeneracion:\n  fuente: medido\n'
+        '  tokens_reales: { "entrada": 1000, "salida": 2000, "cache_creacion": 3000 }\n'
+        '  horas_ia: 0.02\n---\n\n# x\n')
+    eq(g_json["tokens_reales"]["entrada"], 1000, "dict inline con comillas JSON parsea")
+    # bloque anidado estilo YAML estándar
+    g_nested = bd.parse_generacion(
+        "---\ngeneracion:\n  fuente: medido\n  tokens_reales:\n"
+        "    entrada: 111\n    salida: 222\n  horas_ia: 0.01\n---\n\n# x\n")
+    eq(g_nested["tokens_reales"]["salida"], 222, "tokens_reales anidado parsea")
+    assert "entrada" not in g_nested, "los hijos anidados no contaminan el bloque padre"
+    # eur con texto no debe convertirse en número (p. ej. 'verificar 2026' → 2026 €)
+    g_txt = bd.parse_generacion(
+        "---\ngeneracion:\n  fuente: medido\n  eur: verificar 2026\n---\n\n# x\n")
+    eq(g_txt["eur"], None, "eur textual no se convierte en número")
+    # comentario a columna 0 dentro del bloque no corta el parseo
+    g_com = bd.parse_generacion(
+        "---\ngeneracion:\n  fuente: medido\n# comentario suelto\n  horas_ia: 2.0\n---\n\n# x\n")
+    eq(g_com["horas_ia"], 2.0, "comentario a columna 0 no corta el bloque")
+
     # --- avisos: beta es incoherente (spec aprobada, eval en-revision) ---
     warns = bd.warnings_for(inits)
     assert any("2026-01-12-beta" in w and "aprobada" in w for w in warns), \
