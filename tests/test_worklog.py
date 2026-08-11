@@ -104,7 +104,25 @@ def main():
                 "--ia-real", "1", allow_fail=True)
         assert "error" in o, o
 
-    print("OK: worklog.py — 12 casos en verde.")
+        # 13) traza por intento: una entrada de revisión POR PASADA del bucle
+        run(tmp, "plan", "--task", "T-03", "--issue", "K-3", "--kind", "revision",
+            "--attempt", "1", "--ia-real", "0.5", "--sup-real", "0",
+            "--fecha", "2026-08-02", "--apply")
+        run(tmp, "plan", "--task", "T-03", "--issue", "K-3", "--kind", "revision",
+            "--attempt", "2", "--ia-real", "0.3", "--sup-real", "0",
+            "--fecha", "2026-08-02", "--apply")
+        t = state(tmp)["tasks"]["T-03"]
+        assert t["worklogRevision"] == 0.8, t                      # el total suma los intentos
+        assert [a["intento"] for a in t["reviewAttempts"]] == [1, 2], t
+        assert [a["horas"] for a in t["reviewAttempts"]] == [0.5, 0.3], t
+        assert all(a["fecha"] == "2026-08-02" for a in t["reviewAttempts"]), t
+        # sin --attempt no se registra traza (retrocompatible)
+        run(tmp, "plan", "--task", "T-03", "--issue", "K-3", "--kind", "revision",
+            "--ia-real", "0.1", "--sup-real", "0", "--fecha", "2026-08-02", "--apply")
+        t = state(tmp)["tasks"]["T-03"]
+        assert len(t["reviewAttempts"]) == 2 and t["worklogRevision"] == 0.9, t
+
+    print("OK: worklog.py — 13 casos en verde.")
 
 
 if __name__ == "__main__":

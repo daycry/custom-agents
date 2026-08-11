@@ -20,6 +20,11 @@ lleva el DESGLOSE (state.tasks[T].worklogImpl / worklogRevision) para que /retro
 implementación de revisión. La entrada `revision` es acumulativa (varias pasadas del bucle
 reviewer→implementer suman a worklogRevision).
 
+Traza por intento (`--attempt N`, solo con --kind revision): cada pasada del bucle se
+imputa como SU PROPIA entrada (una llamada a `plan` por intento) y, con --apply, se
+registra en state.tasks[T].reviewAttempts = [{intento, fecha, horas}] — así /retro ve
+cuánto costó cada vuelta y en Jira cada intento es una entrada de worklog con su fecha.
+
 Estado:  .claude/jira-state.json  (imputadoPorDia, bancoHoras[], tasks{})
 Config:  .claude/rates.json (horasJornada, ratioSupervision) y .claude/jira.json
          (alCubrirJornada; horasJornada opcional que sobreescribe).
@@ -148,6 +153,11 @@ def cmd_plan(args):
         # desglose implementación vs revisión (C-07): acumulativo, para /retro
         campo = "worklogRevision" if kind == "revision" else "worklogImpl"
         t[campo] = round(float(t.get(campo, 0)) + out["imputarHoy"], 2)
+        # traza por intento del bucle reviewer→implementer (una entrada por pasada)
+        if kind == "revision" and args.attempt is not None:
+            t.setdefault("reviewAttempts", []).append(
+                {"intento": int(args.attempt), "fecha": fecha,
+                 "horas": out["imputarHoy"]})
         save_json(state_path(args), st)
         out["aplicado"] = True
     print(json.dumps(out, ensure_ascii=False))
@@ -207,6 +217,7 @@ def main():
     for f in ("ia-real", "ia-est", "sup-real", "sup-est", "human-real", "human-est"):
         ap.add_argument("--" + f, type=float, dest=f.replace("-", "_"))
     ap.add_argument("--kind")  # implementacion|revision; validado en cmd_plan (error JSON)
+    ap.add_argument("--attempt", type=int)  # nº de intento del bucle (solo con --kind revision)
     ap.add_argument("--policy", choices=["banco", "parar", "seguir", "preguntar"])
     ap.add_argument("--fecha"); ap.add_argument("--apply", action="store_true")
     ap.add_argument("--state"); ap.add_argument("--rates"); ap.add_argument("--jira")

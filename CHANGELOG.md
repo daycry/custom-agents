@@ -5,6 +5,17 @@ Todos los cambios notables de este proyecto se documentan aquí.
 El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
+## [1.9.1] - 2026-08-11
+
+Ajustes sobre la 1.9.0 tras el rodaje de diseño con el usuario: traza por intento en el worklog de revisión y puerta de entrada en `/dev-cycle`.
+
+### Añadido
+- **Traza por intento en el worklog de revisión** (`worklog.py --attempt N`, solo con `--kind revision`): cada pasada del bucle reviewer→implementer se imputa como **su propia entrada de worklog** (duración + fecha por intento, comentario `"[revisión] intento N de 3 — T-XX"`), y `jira-state.json` guarda `reviewAttempts: [{intento, fecha, horas}]` para que `/retro` vea cuánto costó cada vuelta. El total sigue siendo la suma (implementación + todas las revisiones); sin `--attempt` el comportamiento es el de 1.9.0. Tests en `tests/test_worklog.py` (13/13). El comentario de Jira sigue siendo único y final ("revisión superada en N intento(s)").
+- **Puerta de entrada en `/dev-cycle` (Fase 0-bis):** al arrancar pregunta **flujo completo** vs **vía rápida** — o el usuario lo **indica explícitamente** ("vía rápida"/"rápido"/`rapido`, "flujo completo"/`completo`) y no se pregunta. La vía rápida salta spec/evaluación/plan (crea un `tasks.md` ligero y va directo a `implementer`) pero **conserva** la revisión adversarial de dos lentes y `qa-gate`; el ledger ligero mantiene progreso, horas y volcado a Jira. Para cambios pequeños que se describen en una o dos frases.
+
+### Arreglado
+- **CI** (`.github/workflows/ci.yml`): incorpora los tests de 1.9.0 que faltaban por cablear (`test_lint_plugin`, `test_qa_gate`, `test_ledger_lint`) y el paso `lint_plugin.py`. ⚠️ Este fichero hay que copiarlo **a mano** al repo (ruta protegida para las herramientas remotas); el publicado en 1.9.0 seguía corriendo solo dashboard+worklog.
+
 ## [1.9.0] - 2026-08-10
 
 Adopción de las mejores prácticas de las colecciones top de agentes (wshobson/agents, VoltAgent, superpowers y las best practices oficiales de Claude Code), endurecimiento de qa y del orquestador con puertas deterministas, dieta de tokens y granularidad de Jira por fase/tarea con publicación de la revisión. Ver `docs/roadmap/2026-08-10-agent-best-practices/`, `docs/roadmap/2026-08-10-qa-strict/`, `docs/roadmap/2026-08-10-token-diet/` y `docs/roadmap/2026-08-10-jira-granularity/`.

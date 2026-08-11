@@ -236,14 +236,15 @@ El agente **revisor** (revisión adversarial de dos lentes de `/dev-cycle` Modo 
    - **[modo tarea]** un comentario en el issue de cada `T-XX` revisada.
    - **[modo fase]** un **único** comentario en el issue de la fase, al cerrarla, agregando el pasa/falla por criterio de **todas** sus tareas.
    - El comentario refleja el **resultado FINAL** (tras el bucle) e incluye la línea *"revisión superada en N intento(s)"*. **No** publiques un comentario por intento.
-3. **Imputa el worklog de revisión** con `worklog.py plan --kind revision` sobre el mismo issue destino (de tarea o de fase según el modo). Acumula **todas las pasadas** del bucle; el script lleva el desglose `worklogRevision` aparte de `worklogImpl`, pero ambos suman al total del issue y respetan el tope de jornada y el banco:
+3. **Imputa el worklog de revisión POR INTENTO** con `worklog.py plan --kind revision --attempt N`: **cada pasada del bucle es su propia entrada de worklog** (con su duración y su fecha en Jira, comentario tipo `"[revisión] intento N de 3 — T-XX"`), de modo que quede la traza de cuánto costó cada vuelta. El script acumula el total en `worklogRevision` (aparte de `worklogImpl`) y registra `reviewAttempts: [{intento, fecha, horas}]` para `/retro`; todo suma al total del issue y respeta el tope de jornada y el banco:
    ```bash
-   # [modo tarea] la revisión de cada tarea se registra bajo su propia T-XX:
-   python3 "$WL" plan --task T-XX      --issue <issueKey_tarea> --kind revision --ia-real <h> --apply
+   # [modo tarea] la revisión de cada tarea se registra bajo su propia T-XX (una llamada POR intento):
+   python3 "$WL" plan --task T-XX      --issue <issueKey_tarea> --kind revision --attempt 1 --ia-real <h_intento1> --apply
+   python3 "$WL" plan --task T-XX      --issue <issueKey_tarea> --kind revision --attempt 2 --ia-real <h_intento2> --apply
    # [modo fase] revisión agregada de la fase → clave sintética rev-fase-N (issue destino = el de la fase):
-   python3 "$WL" plan --task rev-fase-N --issue <issueKey_fase>  --kind revision --ia-real <h> --apply
+   python3 "$WL" plan --task rev-fase-N --issue <issueKey_fase>  --kind revision --attempt N --ia-real <h> --apply
    ```
-   La clave sintética `rev-fase-N` evita pisar el registro de una `T-XX` real; el issue destino sigue siendo el de la fase.
+   La clave sintética `rev-fase-N` evita pisar el registro de una `T-XX` real; el issue destino sigue siendo el de la fase. Las horas por intento son las estimadas/reales del bloque de trabajo (como el resto de imputaciones del plugin), no un cronómetro; el "cuándo" de cada intento lo da la fecha de su entrada de worklog.
 4. **Idempotencia:** marca en `.claude/jira-state.json` `reviewComentado` por `T-XX`/`fase-N` para no re-comentar ni re-imputar la revisión en reejecuciones.
 
 > Las **correcciones** que hace el `implementer` durante el bucle son tiempo de **implementación**: van a la entrada normal (`--kind implementacion`, la de por defecto), no a `[revisión]`. Así el total del issue = implementación + revisión, con el desglose intacto para `/retro`.
