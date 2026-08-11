@@ -71,9 +71,14 @@ flowchart TD
 
 ## 3 · `/dev-cycle` — ciclo de desarrollo (con puertas)
 
+> **Puerta de entrada (Fase 0-bis):** `/dev-cycle` pregunta primero **flujo completo** vs **vía rápida**. La vía rápida salta evaluator+planner (crea un `tasks.md` ligero) y entra directa en implementación, pero mantiene revisión de dos lentes + qa.
+
 ```mermaid
 flowchart TD
-    A["/dev-cycle objetivo"] --> B{"¿carpeta con\nspec+evaluación\nde /pm-cycle?"}
+    A["/dev-cycle objetivo"] --> Z{"flujo completo\no vía rápida?"}
+    Z -->|vía rápida| Q["tasks.md ligero\n(sin spec/eval/plan)"]
+    Q --> H
+    Z -->|completo| B{"¿carpeta con\nspec+evaluación\nde /pm-cycle?"}
     B -->|sí| D
     B -->|no| C["evaluator → puerta go/no-go"]
     C -->|go| D["planner\nimprovement-plan + tasks.md"]

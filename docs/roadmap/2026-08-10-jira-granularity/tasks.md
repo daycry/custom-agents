@@ -197,6 +197,8 @@
 
 ### T-07 — Worklog de revisión `[revisión]` en ambos modos, acumulando todas las pasadas (C-07)
 
+**Ampliación (decisión del usuario, 2026-08-10):** el worklog de revisión se imputa **una entrada POR INTENTO** (`worklog.py --kind revision --attempt N`), con registro `reviewAttempts: [{intento, fecha, horas}]` en jira-state para `/retro`. Implementado con test (caso 13 de `test_worklog.py`, 13/13 en verde). El comentario de Jira sigue siendo único y final.
+
 - **Descripción**: Imputar el tiempo del revisor como entrada de worklog **separada** marcada `[revisión]`, distinta de la de implementación, en ambos modos (issue de fase / issue de tarea según granularidad). La entrada **acumula todas las pasadas** del bucle (intento 1 + reintentos); las correcciones del implementer suman a `[implementación]`. `worklog.py` gana el tipo/etiqueta de entrada; `jira-state.json` guarda el desglose implementación vs revisión para `/retro`. Respeta tope de jornada y banco como cualquier entrada.
 - **Estado**: completado
 - **Tiempo humano**: est. 1,75h · real —

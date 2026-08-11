@@ -1,6 +1,6 @@
 ---
 description: Orquesta el ciclo completo de una iniciativa (spec → evaluación → plan → implementación → pruebas → documentación). Detecta si superpowers está disponible: si lo está, delega en él el backbone de desarrollo y añade la capa de dominio; si no, usa la cadena nativa. Invoca los agentes por nombre y con puertas de control.
-argument-hint: <objetivo de la iniciativa>
+argument-hint: <objetivo de la iniciativa> [rapido | completo]
 ---
 
 # /dev-cycle — orquestador del ciclo de desarrollo
@@ -19,12 +19,28 @@ ciclo (ver regla 8 de `docs/CONVENTIONS.md`), sea cual sea el motor de implement
 
 > La **capa de dominio** (evaluación/presupuesto, seguridad, documentación, Confluence, PDF) es de este plugin y se ejecuta **en ambos modos**. Lo único que cambia entre A y B es **quién hace el backbone** (spec/plan/implementación/pruebas/review).
 
-## Fase 1 — Evaluar (siempre, agente `evaluator`)
+## Fase 0-bis — PUERTA DE ENTRADA: flujo completo vs. vía rápida
+Antes de arrancar, **pregunta al usuario** cómo quiere abordarlo (una sola pregunta, con recomendación según el tamaño aparente del cambio):
+
+- **Flujo completo** (Fases 1→6): `evaluator` (spec + presupuesto) → `planner` → implementación → revisión → qa → documentación. Para trabajo no trivial, con incógnitas, multi-fichero, o cuando quieras el presupuesto en €/tokens y la traza PM completa.
+- **Vía rápida** (salta el papeleo PM, conserva la red de calidad): **omite Fases 1 y 2** (sin spec, sin evaluación, sin plan detallado). El orquestador crea directamente un **`tasks.md` ligero** en `docs/roadmap/<fecha>-<slug>/` (solo ese fichero: banner de ledger canónico + una fase + las tareas mínimas con criterios de aceptación verificables), va directo a **`implementer`**, y **mantiene las puertas de calidad**: la **revisión adversarial de dos lentes** (Fase 3) y **`qa`** con `qa-gate`. Cierra con `documenter` solo si el usuario lo pide. Para cambios pequeños/claros que se describen en una o dos frases.
+
+**Si el usuario ya indica el modo, NO preguntes.** Respeta lo que pidió y arranca directo en ese modo:
+- **Vía rápida explícita:** el objetivo trae "vía rápida", "rápido", "directo", "sin papeleo", "solo impleméntalo", o el argumento `rapido`/`--rapido`/`--quick`.
+- **Flujo completo explícito:** "flujo completo", "con evaluación/presupuesto", "hazlo formal", o `--completo`/`--full`.
+
+**Recomendación por defecto (solo si el usuario NO indicó modo):** si el objetivo se describe en una frase y toca pocos ficheros, propón **vía rápida**; si hay incógnitas, varias fases o el usuario quiere presupuesto, propón **flujo completo**. El usuario decide; respeta su elección.
+
+> **Por qué la vía rápida NO salta la calidad.** El papeleo de PM (spec/evaluación/plan) es lo caro y prescindible en un cambio pequeño; la revisión de dos lentes y `qa-gate` son baratas y son la red que evita meter un bug "por ir rápido". Por eso la vía rápida ahorra ceremonia, no seguridad. El `tasks.md` ligero conserva el **ledger canónico**, así que el progreso, la imputación de horas y el volcado a Jira siguen funcionando igual. Si el usuario pide algo **trivial de verdad** (un typo, una línea), puede pedir explícitamente saltarse también la revisión/qa — pero no es el defecto.
+
+Si es **vía rápida**, salta a la Fase 3 (implementación) usando el `tasks.md` ligero; si es **flujo completo**, sigue en la Fase 1.
+
+## Fase 1 — Evaluar (siempre en flujo completo, agente `evaluator`)
 Invoca **`evaluator`** con el objetivo: crea/lee `spec.md` y produce `evaluation.md` (coste, esfuerzo, veredicto). Esto es valor propio (presupuesto en €/tokens) y va en los dos modos.
 
 **Puerta go/no-go:** muestra el veredicto y pregunta si continuar. Si no-go, para.
 
-## Fase 2 — Planificar (siempre, agente `planner`)
+## Fase 2 — Planificar (solo en flujo completo, agente `planner`)
 **En los dos modos**, tu `planner` genera **tus artefactos** en `docs/roadmap/<…>/`:
 `improvement-plan.md` + `tasks.md` (+ `test-plan.md` si hay UI). Estos ficheros son tuyos y con
 tus plantillas — **no se delega la planificación**, para que tu estructura y tu ledger existan
@@ -41,6 +57,8 @@ siempre. Puerta: OK del plan.
 > para el proyecto, no se toca nada.
 
 ## Fase 3 — Implementar y probar (según el modo)
+
+> **Punto de entrada de la vía rápida.** Si se eligió vía rápida, aquí se entra directamente con el `tasks.md` ligero (sin spec/evaluación/plan). El resto de la fase —implementación, revisión de dos lentes y qa— es idéntico; solo se ha saltado el papeleo PM.
 
 **Modo A (con superpowers):** delega solo la **ejecución** en superpowers —
 `subagent-driven-development`/`executing-plans`, `test-driven-development`, `requesting-code-review` —
@@ -61,7 +79,7 @@ y spec → `implementada`. Si superpowers marca su propio ledger, vuélcalo a `t
 
    **Bucle reviewer→implementer ACOTADO (regla dura).** Si hay gaps de corrección/requisitos: las tareas afectadas vuelven a `en-progreso`, `implementer` corrige (ese tiempo es **implementación**), y **relanzas la revisión** sobre el nuevo diff. Contador explícito ("revisión, intento 2 de 3"). **Máximo 3 intentos**; al 3.º con gaps, PARA y pregunta (seguir / re-planificar con `planner` / aceptar como deuda). Lo estilo/sobre-ingeniería se descarta (un revisor siempre encuentra algo). Solo Modo B (en Modo A superpowers trae su `requesting-code-review`).
 
-   **Publicar el resultado en Jira (si `jira.json` `enabled` y se volcó el plan).** Con el resultado FINAL (tras el bucle), invoca el **Paso 9 de `jira-sync`**: renderiza contra `agent-kits/shared/review-report.template.md`, publica el comentario con la granularidad del volcado (modo fase: uno por fase al cerrarla; modo tarea: uno por tarea) incluyendo "revisión superada en N intento(s)", e imputa el **worklog de revisión** (`worklog.py plan --kind revision`, acumula todas las pasadas). Idempotente (`reviewComentado`).
+   **Publicar el resultado en Jira (si `jira.json` `enabled` y se volcó el plan).** El **worklog de revisión se imputa POR INTENTO**: al cerrar cada pasada del bucle, imputa esa pasada (`worklog.py plan --kind revision --attempt N`) — así cada intento queda como su propia entrada en Jira con su duración y fecha, y `reviewAttempts` guarda la traza para `/retro`. El **comentario** es único y FINAL (tras el bucle): invoca el **Paso 9 de `jira-sync`**, renderiza contra `agent-kits/shared/review-report.template.md` y publícalo con la granularidad del volcado (modo fase: uno por fase al cerrarla; modo tarea: uno por tarea), incluyendo "revisión superada en N intento(s)". Idempotente (`reviewComentado`).
 3. **`qa`** → pruebas E2E (solo local), informe y evidencias. El veredicto verde/rojo lo da `qa-gate.py` (exit code), no una impresión.
 
 **Bucle de corrección de qa ACOTADO (regla dura).** Si qa sale rojo: la(s) tarea(s) afectadas vuelven a `implementer`, se corrigen y qa **re-ejecuta**. Contador explícito ("intento 2 de 3"). **Máximo 3 intentos**; si el 3.º sigue rojo, PARA: resume los fallos persistentes (con la salida de qa-gate de cada intento) y pregunta al usuario qué hacer — seguir intentando, re-planificar la tarea con `planner`, o cancelarla. No cierres estados en rojo y no degrades el umbral para "pasar".
@@ -82,6 +100,8 @@ Los artefactos nacen en `borrador`. En **cada fase/puerta** que se supera, actua
 (frontmatter + cabecera) al que toque; **no dejes nada en `borrador`** al avanzar. Vocabularios:
 spec = `borrador · aprobada · implementada · obsoleta`; evaluación/plan/tareas = `borrador ·
 en-progreso · en-revision · completado · cancelado`.
+
+> **Vía rápida:** no hay spec/evaluación/plan que transicionar — solo el `tasks.md` ligero, que sigue el vocabulario de tareas (`borrador → en-progreso → completado`). Todo lo demás de esta tabla se salta.
 
 | Momento | spec | evaluación | plan / tasks |
 |---|---|---|---|
