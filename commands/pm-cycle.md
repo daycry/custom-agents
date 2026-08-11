@@ -25,6 +25,12 @@ Invoca **`evaluator`** con el objetivo. El agente:
 - Enlaza spec↔evaluación (bidireccional) y mantiene el índice `docs/roadmap/README.md`.
 - Al terminar de evaluar, deja la evaluación en `en-revision`.
 
+> **Medición del coste de generación (usage-meter) — regla de no-solape.** Cada agente de la
+> cadena mide su propio artefacto (`usage-meter.py start`/`close`, bloque `generacion:` del
+> frontmatter). Como orquestador, asegúrate de que cada agente **cierra su marcador antes de
+> invocar al siguiente** (analyst cierra la spec antes de que evaluator abra la evaluación):
+> dos ventanas solapadas cuentan los mismos tokens en ambos artefactos y reparten mal el coste.
+
 > El campo **Plan** de la evaluación y el `plan:` de la spec quedan **`pendiente`**: en pm-cycle
 > el plan **no** se crea (eso es `/dev-cycle` → `planner`).
 

@@ -177,6 +177,7 @@ chat), refleja ese avance en su issue de Jira. Se invoca **por tarea completada*
 1. **Localiza el issue**: **[modo tarea]** `T-XX → issueKey`; **[modo fase]** el de su fase (`fase-N → issueKey`). Si no está mapeado (no se volcó), no hagas nada.
 2. **Calcula el worklog (tiempo de producción)** — con `worklog.py plan` (regla que implementa):
    - `horas = Tiempo IA (ejec.) + Supervisión`, tomando el valor **real** de cada uno; si un `real` falta, usa su **estimación**. Si además falta la supervisión, derívala como `Tiempo IA × ratioSupervision` (por defecto `0.25`).
+   - **De dónde sale el "real" del tiempo IA:** si la tarea se ejecutó en `/dev-cycle` Modo B con medición por tarea (iniciativa coste-generacion), el real viene **medido** (`usage-meter.py`: tokens reales × ratio calibrado; marcado `(medido)` en `tasks.md`) — es el valor preferente. Si no hay medición, el real es el que anote el implementador a juicio, y si tampoco, cae a la estimación (regla anterior). La aritmética de jornada/banco no cambia en ningún caso.
    - **Fallback**: si la tarea no tiene tiempo IA (tarea puramente humana), usa el **tiempo humano** (real→est).
    - El **+20 % de contingencia no se imputa** (es margen de presupuesto, no tiempo real).
    - El **tope de jornada es DIARIO** (acumulado de todas las tareas del día), no por tarea. Antes de imputar, aplica el "Tope de jornada diario" de abajo.

@@ -15,6 +15,15 @@ creado: {{YYYY-MM-DD}}
 actualizado: {{YYYY-MM-DD}}
 evaluacion: pendiente     # ruta a la evaluación cuando exista
 plan: pendiente           # ruta al plan cuando exista
+generacion:               # coste real de producir ESTE documento — lo rellena `usage-meter.py close` (kit shared)
+  inicio: {{ISO-8601}}    # fechas = CONTEXTO informativo; NUNCA se usan para calcular horas
+  fin: {{ISO-8601}}
+  fuente: medido          # medido (tokens de la transcripción) | estimado (degradación)
+  tokens_reales: { entrada: {{N}}, salida: {{N}}, cache_creacion: {{N}}, cache_lectura: {{N}} }
+  eur: {{N.NN | null}}    # null + aviso si precioTokens no es fiable (ejecuta rates-verify)
+  horas_ia: {{N.NN}}      # tokens facturables ÷ ratio (tokens = medida; horas = derivadas)
+  duracion: {{XhYm}}      # formato humano (usage-meter.py fmt): 32m · 1h 32m · 18h
+  ratio_usado: {{N}}      # tokens→hora; origen: CALIBRATION.md (mediana) o default no calibrado
 ---
 
 # {{Título legible de la spec}}

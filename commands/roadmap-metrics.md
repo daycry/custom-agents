@@ -22,6 +22,7 @@ tokens), este comando muestra lo que **de verdad ha costado**, leyendo las horas
 
 ## Notas
 - **Producción = Tiempo IA (ejec.) + Supervisión** (lo que `jira-sync` imputa). Se compara real/est de la fila TOTAL de cada `tasks.md`; también muestra horas humanas y tokens.
+- El informe incluye la sección **Coste de proceso**: lo que costó *producir* spec/evaluación/plan/tasks (bloque `generacion:` del frontmatter, medido con tokens reales por `usage-meter`), separado del coste de implementación. Duraciones en formato `XhYm`. Iniciativas sin bloque → "sin datos" (no se inventa 0).
 - Desviación negativa = menos horas reales que estimadas (más eficiente); positiva = sobrecoste.
 - El **coste €** sale de multiplicar horas por la tarifa de `.claude/rates.json` (config compartida de presupuesto).
 - Si aún no hay horas `real` registradas, lo indica en vez de inventar cifras.

@@ -8,7 +8,7 @@
 -->
 ## 🔍 Revisión de la implementación — {{Fase N · título  |  T-XX · título}}
 
-**Veredicto:** {{✅ APROBADA  |  ❌ CON GAPS}} · **Revisión superada en {{N}} intento(s)** · **Tiempo de revisión:** {{H}} h
+**Veredicto:** {{✅ APROBADA  |  ❌ CON GAPS}} · **Revisión superada en {{N}} intento(s)** · **Tiempo de revisión:** {{XhYm — formato humano de usage-meter.py fmt, p. ej. 1h 32m}}
 
 <!-- Un bloque por tarea. En modo tarea hay uno solo; en modo fase, uno por cada T-XX de la fase. -->
 ### {{T-XX · título de la tarea}}

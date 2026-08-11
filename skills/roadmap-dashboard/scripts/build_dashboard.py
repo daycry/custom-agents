@@ -52,6 +52,113 @@ def parse_frontmatter(text):
     return fm
 
 
+def parse_generacion(text):
+    """Lee el bloque `generacion:` del frontmatter (iniciativa coste-generacion):
+    coste real de producir el documento. Devuelve dict o None (sin bloque = sin datos,
+    NUNCA 0 inventado). Parser tolerante: claves anidadas por indentación y dict
+    inline para tokens_reales."""
+    m = re.match(r"^\s*---\s*\n(.*?)\n---\s*\n", text, re.S)
+    if not m:
+        return None
+    lines = m.group(1).splitlines()
+    try:
+        start = next(i for i, ln in enumerate(lines)
+                     if re.match(r"^generacion\s*:", ln))
+    except StopIteration:
+        return None
+
+    def _toks_inline(v):
+        """Dict inline con o sin comillas: { entrada: 1, \"salida\": 2 }."""
+        toks = {}
+        for tk, tv in re.findall(r"[\"']?([\w_]+)[\"']?\s*:\s*([\d]+)", v):
+            toks[tk] = int(tv)
+        return toks or None
+
+    gen = {}
+    i = start + 1
+    while i < len(lines):
+        ln = lines[i]
+        if ln.lstrip().startswith("#"):
+            i += 1
+            continue  # comentario suelto (aunque esté a columna 0) no corta el bloque
+        if ln.strip() and not ln.startswith((" ", "\t")):
+            break  # fin del bloque anidado
+        mm = re.match(r"(\s+)[\"']?([\w_]+)[\"']?\s*:\s*(.*)", ln)
+        if not mm:
+            i += 1
+            continue
+        indent, k, v = mm.group(1), mm.group(2), mm.group(3).split("#", 1)[0].strip()
+        if k == "tokens_reales":
+            if v.startswith("{"):
+                gen[k] = _toks_inline(v)
+            elif not v or v.lower() in ("null", "~", "none"):
+                # posible bloque anidado estilo YAML estándar: consumir hijos más indentados
+                toks = {}
+                j = i + 1
+                while j < len(lines):
+                    hijo = re.match(r"(\s+)[\"']?([\w_]+)[\"']?\s*:\s*([\d]+)\s*(?:#.*)?$",
+                                    lines[j])
+                    if not hijo or len(hijo.group(1)) <= len(indent):
+                        break
+                    toks[hijo.group(2)] = int(hijo.group(3))
+                    j += 1
+                gen[k] = toks or None
+                i = j - 1 if toks else i
+            else:
+                gen[k] = None  # escalar no-dict → sin medida
+        elif k in ("eur", "horas_ia", "ratio_usado"):
+            # numérico solo si el valor EMPIEZA por número (evita "verificar 2026" → 2026)
+            mnum = re.match(r"~?\s*(-?[\d]+(?:[.,]\d+)?)", v)
+            gen[k] = float(mnum.group(1).replace(",", ".")) if mnum else None
+        else:
+            v = v.strip("'\"")
+            gen[k] = None if v.lower() in ("", "null", "~", "none") else v
+        i += 1
+    return gen or None
+
+
+def _miles(n):
+    """42123 → '42.123' (separador de miles europeo)."""
+    return f"{int(n):,}".replace(",", ".")
+
+
+def _load_fmt_horas():
+    """Helper ÚNICO de formato XhYm: se importa de agent-kits/shared/usage-meter.py
+    (mismo bundle: skills/roadmap-dashboard/scripts → ../../.. → agent-kits/shared).
+    Solo si el bundle está incompleto se usa el fallback local equivalente."""
+    import importlib.util
+    base = os.path.dirname(os.path.abspath(__file__))
+    cand = os.path.normpath(os.path.join(
+        base, "..", "..", "..", "agent-kits", "shared", "usage-meter.py"))
+    try:
+        spec = importlib.util.spec_from_file_location("usage_meter", cand)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod.fmt_horas
+    except Exception:
+        def _fallback(horas):
+            total_min = round(float(horas) * 60)
+            h, mnt = divmod(total_min, 60)
+            return f"{h}h {mnt}m" if h and mnt else (f"{h}h" if h else f"{mnt}m")
+        return _fallback
+
+
+_FMT_HORAS = None
+
+
+def _xhym(horas):
+    """Duración legible XhYm (delegado en usage-meter.fmt_horas — helper único C-08)."""
+    global _FMT_HORAS
+    if horas is None:
+        return "—"
+    if _FMT_HORAS is None:
+        _FMT_HORAS = _load_fmt_horas()
+    try:
+        return _FMT_HORAS(horas)
+    except (ValueError, OverflowError):
+        return "—"
+
+
 def table_value(text, key):
     """Extrae el valor de una fila markdown tipo | **key** | valor | ... |."""
     for line in text.splitlines():
@@ -166,6 +273,17 @@ def scan(root):
         if rec["has_tasks"]:
             rec["progreso"] = parse_progress_totals(
                 open(tasks_p, encoding="utf-8", errors="replace").read())
+
+        # coste de proceso (bloque generacion: de cada artefacto, si existe)
+        gen = {}
+        for label, p in (("spec", spec_p), ("eval", eval_p),
+                         ("plan", plan_p), ("tasks", tasks_p)):
+            if os.path.exists(p):
+                g = parse_generacion(
+                    open(p, encoding="utf-8", errors="replace").read())
+                if g:
+                    gen[label] = g
+        rec["generacion"] = gen or None
 
         # fase derivada para ordenar/priorizar
         if rec["has_testing"]:
@@ -399,7 +517,8 @@ def render_metrics_md(inits, root):
             d=(f"{desv:+.0f}%" if desv is not None else "—"),
             hr=_fmt(hu[0]), he=_fmt(hu[1]), tr=_fmt(tk[0]), te=_fmt(tk[1])))
     if not rows:
-        out += ["_Aún no hay horas reales registradas en ningún `tasks.md`._", ""]
+        out += ["_Aún no hay horas reales registradas en ningún `tasks.md`._",
+                "", render_proceso_md(inits)]
         return "\n".join(out)
     out += ["| Iniciativa | Producción real/est | Desv. | Humanas real/est | Tokens real/est |",
             "|---|---|---|---|---|"]
@@ -411,6 +530,70 @@ def render_metrics_md(inits, root):
         _fmt(tot["hr"]), _fmt(tot["he"]), _fmt(tot["tr"]), _fmt(tot["te"])))
     out += ["", "_Desv. negativa = menos horas reales que estimadas (más eficiente). "
             "Coste € = horas × tarifa de `.claude/rates.json`._"]
+    out += ["", render_proceso_md(inits)]
+    return "\n".join(out)
+
+
+def render_proceso_md(inits):
+    """Sección 'Coste de proceso': lo que costó PRODUCIR los artefactos del ciclo
+    (spec/eval/plan/tasks), medido por usage-meter (bloque generacion:). Separado
+    del coste de implementación. Sin bloque → 'sin datos' (nunca 0 inventado)."""
+    out = ["## 🧾 Coste de proceso (generación de artefactos)", "",
+           "> Lo que costó **producir** spec / evaluación / plan / tasks "
+           "(tokens reales de `usage-meter`; horas = tokens × ratio calibrado; "
+           "fechas solo contexto). Separado del coste de implementación de arriba.", ""]
+    rows, tot_tok, tot_h, tot_eur, con_datos = [], 0, 0.0, 0.0, 0
+    eur_incompleto = False
+    for r in inits:
+        gen = r.get("generacion")
+        if not gen:
+            rows.append(f"| {md_cell(r['titulo'])} | _sin datos_ | — | — | — |")
+            continue
+        con_datos += 1
+        toks = horas = docs_con_tokens = 0
+        eur = 0.0
+        eur_ok = True
+        fuentes = set()
+        for g in gen.values():
+            t = g.get("tokens_reales")
+            if isinstance(t, dict):
+                # facturables: entrada + creación de caché + salida (convención usage-meter)
+                toks += (t.get("entrada") or 0) + (t.get("cache_creacion") or 0) + (t.get("salida") or 0)
+                docs_con_tokens += 1
+            horas += g.get("horas_ia") or 0
+            if g.get("eur") is not None:
+                eur += g["eur"]
+            else:
+                eur_ok = False
+            fuentes.add(g.get("fuente") or "?")
+        tot_tok += toks
+        tot_h += horas
+        if eur_ok:
+            tot_eur += eur
+        else:
+            eur_incompleto = True
+        fuente = "medido" if fuentes == {"medido"} else "/".join(sorted(fuentes))
+        eur_cell = f"{eur:.2f} €" if eur_ok else "⚠️ verificar"
+        # sin NINGÚN dato de tokens → '—', no un 0 inventado (regla C-04)
+        tok_cell = (f"{_miles(toks)} tok ({docs_con_tokens}/{len(gen)} docs con medida, {fuente})"
+                    if docs_con_tokens else f"— (sin tokens; {len(gen)} docs, {fuente})")
+        rows.append(f"| {md_cell(r['titulo'])} | {tok_cell} "
+                    f"| {_xhym(horas) if horas else '—'} | {eur_cell} | "
+                    f"{', '.join(sorted(gen))} |")
+    out += ["| Iniciativa | Tokens facturables | Horas-IA | Coste | Artefactos medidos |",
+            "|---|---|---|---|---|"]
+    out += rows
+    if con_datos:
+        if eur_incompleto and not tot_eur:
+            tot_eur_cell = "⚠️ verificar"
+        else:
+            tot_eur_cell = f"{tot_eur:.2f} €" + (" (parcial ⚠️)" if eur_incompleto else "")
+        out.append(f"| **TOTAL ({con_datos} con datos)** | "
+                   f"**{_miles(tot_tok) + ' tok' if tot_tok else '—'}** | "
+                   f"**{_xhym(tot_h) if tot_h else '—'}** | **{tot_eur_cell}** | |")
+    else:
+        out += ["", "_Ninguna iniciativa tiene aún bloque `generacion:` "
+                "(se rellena con usage-meter a partir de la iniciativa coste-generacion)._"]
     return "\n".join(out)
 
 

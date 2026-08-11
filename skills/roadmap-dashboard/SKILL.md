@@ -18,7 +18,7 @@ nunca edita spec/evaluación/plan. Es la fuente del comando `/roadmap-status` (H
   Es la **vista local**.
 - **Markdown** (`--md RUTA`): el mismo estado en tablas Markdown, pensado para **publicarse como
   página de Confluence** (lo espeja `confluence-publish`). Lleva la marca `generado <fecha/hora>`.
-- **Métricas real vs estimado** (`--metrics-md RUTA`): informe que compara, por iniciativa y en total, la **producción** (Tiempo IA ejec. + Supervisión), horas humanas y tokens **reales vs estimados** (de la fila TOTAL de cada `tasks.md`), con desviaciones. Lo usa `/roadmap-metrics`.
+- **Métricas real vs estimado** (`--metrics-md RUTA`): informe que compara, por iniciativa y en total, la **producción** (Tiempo IA ejec. + Supervisión), horas humanas y tokens **reales vs estimados** (de la fila TOTAL de cada `tasks.md`), con desviaciones. Incluye además la sección **Coste de proceso**: lo que costó *producir* los artefactos del ciclo (spec/eval/plan/tasks) según el bloque `generacion:` de su frontmatter (medido por `usage-meter`, kit shared) — separado del coste de implementación; artefactos sin bloque salen como "sin datos", nunca como 0. Lo usa `/roadmap-metrics`.
 - **JSON** (`--json`): lista de iniciativas con todos esos campos (incluye `progreso`: real/est parseado de `tasks.md`), para consumir desde otro comando.
 
 ## Cómo se ejecuta

@@ -3,7 +3,21 @@
   Sustituye todos los {{PLACEHOLDER}}. Borra este comentario y las notas <!-- guía --> al generar.
   Estados válidos: borrador · en-progreso · en-revision · completado · cancelado
   Prioridad: Baja · Media · Alta · Crítica
+  El bloque `generacion:` (frontmatter YAML, PRIMERA línea del fichero generado) registra el
+  coste real de producir este documento; lo rellena `usage-meter.py close` (kit shared).
+  Semántica: fechas = contexto · tokens = medida · horas = tokens × ratio calibrado.
 -->
+---
+generacion:
+  inicio: {{ISO-8601}}
+  fin: {{ISO-8601}}
+  fuente: medido          # medido | estimado (degradación: nunca bloquea)
+  tokens_reales: { entrada: {{N}}, salida: {{N}}, cache_creacion: {{N}}, cache_lectura: {{N}} }
+  eur: {{N.NN | null}}
+  horas_ia: {{N.NN}}
+  duracion: {{XhYm}}      # usage-meter.py fmt — 32m · 1h 32m · 18h
+  ratio_usado: {{N}}
+---
 
 # {{YYYY-MM-DD-slug}}
 

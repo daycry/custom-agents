@@ -56,6 +56,8 @@ SHAREDKIT="$(find "$PWD/.claude" "$HOME/.claude" -type d -path '*agent-kits/shar
 
 ## 2) FLUJO DE TRABAJO (6 pasos)
 
+**P0. Arrancar el medidor de coste.** Antes de empezar, marca el inicio: `python3 "$SHAREDKIT/usage-meter.py" start --artefacto "docs/roadmap/<fecha>-<slug>/improvement-plan.md"` (una ventana cubre los DOS ficheros del plan: `improvement-plan.md` + `tasks.md`; el bloque `generacion:` del `tasks.md` referencia la misma medición). Regla: cierra tu marcador antes del handoff; no solapes ventanas con otro agente.
+
 **P1. Recepción.** Entiende la petición. Si faltan datos bloqueantes (alcance, criterios de éxito, accesos), pregunta lo mínimo imprescindible. Rellena el checklist **"Datos necesarios para un informe completo"** marcando lo que ya tienes.
 
 **P2. Recon del proyecto.** Explora el repo (Read/Grep/Glob) para fundamentar el análisis de impacto con **rutas y módulos reales**, no genéricos.
@@ -78,7 +80,7 @@ SHAREDKIT="$(find "$PWD/.claude" "$HOME/.claude" -type d -path '*agent-kits/shar
 - `tasks.md`: resumen de progreso + fases con cada tarea estructurada (descripción · estado · tiempo · previsión · dependencias · archivos · criterios de aceptación con checkbox · subtareas · notas).
 Sustituye TODOS los `{{PLACEHOLDER}}` y borra los comentarios guía `<!-- ... -->` de las plantillas.
 
-**P6. Cierre.** Escribe ambos ficheros, actualiza `docs/roadmap/README.md` y resume al usuario: ruta del plan, tiempo total, coste total (€), tokens previstos y nº de tareas. Ofrece abrir el `improvement-plan.md`.
+**P6. Cierre.** Cierra el medidor (`python3 "$SHAREDKIT/usage-meter.py" close --artefacto "docs/roadmap/<fecha>-<slug>/improvement-plan.md"`) y vuelca su JSON al bloque `generacion:` del frontmatter de **ambos** ficheros del plan (misma medición; re-cerrar **sustituye**, no acumula; si degrada a `fuente: estimado`, estima a juicio, márcalo y **continúa** — nunca bloquea). Escribe ambos ficheros, actualiza `docs/roadmap/README.md` y resume al usuario: ruta del plan, tiempo total, coste total (€), tokens previstos y nº de tareas. Duraciones del resumen en formato humano `XhYm` (`usage-meter.py fmt`). Ofrece abrir el `improvement-plan.md`.
 
 **P7. Volcado a Jira (opcional, opt-in).** Recién creado el plan, **ofrece** volcar las tareas a Jira con la skill **`jira-sync`** (crear un issue por tarea bajo el proyecto/épica que el usuario elija; selector visual en Cowork o conversacional en CLI/VS Code). Aplica el opt-in de `.claude/jira.json` igual que Confluence: aunque el conector esté conectado, si Jira no está activado para el proyecto, pregunta una vez y respeta la decisión. No crees nada sin confirmación; no bloquees el cierre por esto.
 
@@ -107,6 +109,7 @@ No des el plan por listo hasta poder mostrar:
 - [ ] Si viene de `evaluation.md`: las horas/coste por característica **heredan** la evaluación (diferencias declaradas), no re-estimadas desde cero.
 - [ ] `tasks.md` conserva el banner de **ledger canónico**.
 - [ ] Enlaces de la cadena actualizados: spec `plan:` → improvement-plan.md y fila **Plan** de la evaluación; índice `README.md` con la fila.
+- [ ] Bloque `generacion:` rellenado en ambos ficheros con el JSON de `usage-meter.py close` (o `fuente: estimado` con aviso si degradó).
 Pega en tu resumen el nº de tareas, el total (h/€/tokens) y el resultado del `grep` de placeholders.
 
 **Salida a la cadena.** Cuando te invoca un orquestador, aplica la **disciplina de salida** compartida `"$SHAREDKIT/output-discipline.md"` (≤ ~12 líneas: rutas + cifras + siguiente paso; el detalle vive en `improvement-plan.md`/`tasks.md`). Fallback: datos, no informe.
