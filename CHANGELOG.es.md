@@ -7,7 +7,7 @@ Todos los cambios notables de este proyecto se documentan aquí.
 El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
-## [Sin publicar]
+## [1.11.1] - 2026-08-13
 
 ### Añadido — documentación bilingüe EN/ES (2026-08-13)
 
@@ -15,6 +15,7 @@ y el versionado sigue [SemVer](https://semver.org/lang/es/).
 - README: badge vivo de CI (GitHub Actions) + badge de versión (último tag) y sección «Calidad y CI» con lo que valida cada push.
 - README (EN y ES): **panel de badges en tres bloques** — estado (CI · versión · licencia · Python 3.11+), comunidad (estrellas · forks · issues abiertas · último commit · commits/mes) y naturaleza del proyecto (plugin de Claude Code · Spec-Driven · 8 agentes · 11 comandos). Descartado el badge de descargas: GitHub solo cuenta descargas de **assets** de release, no instalaciones por marketplace ni clones, así que no refleja el uso real del plugin.
 - Nuevo workflow `release.yml` (copia manual, como ci.yml): al empujar un tag `v*` empaqueta el plugin como zip, crea la GitHub Release y adjunta el zip, con las notas de la versión extraídas automáticamente del CHANGELOG.
+- README (EN y ES): **badge de skills** (10) junto a agentes y comandos. Nueva guarda `tests/test_readme_badges.py`: compara cada badge-contador estático con lo que hay de verdad en `agents/`, `skills/` y `commands/`, en los dos idiomas, para que los números no se queden obsoletos en silencio. `ci.yml` pasa a ejecutar las suites del repo en **bucle** (`for t in tests/test_*.py`) en vez de una lista fija, así cualquier suite nueva entra sola en la CI.
 
 ### Cambiado — documentación centrada en el propio plugin (2026-08-13)
 
@@ -215,6 +216,7 @@ Adopción de las mejores prácticas de las colecciones top de agentes (coleccion
 
 Versiones anteriores a la introducción de este changelog: bundle con los agentes `nemesis`, `evaluator`, `planner`, `pdfy` y `qa`, y las skills compartidas `cybersecurity` y `to-pdf`. Empaquetado como plugin + marketplace.
 
+[1.11.1]: https://github.com/daycry/custom-agents/releases/tag/v1.11.1
 [1.11.0]: https://github.com/daycry/custom-agents/releases/tag/v1.11.0
 [1.8.0]: https://github.com/daycry/custom-agents/releases/tag/v1.8.0
 [1.6.0]: https://github.com/daycry/custom-agents/releases/tag/v1.6.0
