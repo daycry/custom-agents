@@ -74,9 +74,12 @@ flowchart TD
 ## 3 · `/dev-cycle` — ciclo de desarrollo (con puertas)
 
 > **Puerta de entrada (Fase 0-bis):** `/dev-cycle` pregunta primero **flujo completo** vs **vía rápida**. La vía rápida salta evaluator+planner (crea un `tasks.md` ligero) y entra directa en implementación, pero mantiene revisión de dos lentes + qa.
+>
+> **Dos puertas de entrada al mismo gate:** el command `/dev-cycle` (explícito, con la barra) y la skill `quick-implement`, que se auto-invoca por lenguaje natural («implementa X rápido») y entra por la rama de vía rápida tras su filtro de idoneidad. La skill no define método propio: delega en esta misma Fase 0-bis.
 
 ```mermaid
 flowchart TD
+    NL(["petición en lenguaje natural<br/>«implementa X rápido»"]) -.->|"skill quick-implement<br/>(filtro de idoneidad)"| Z
     A["/dev-cycle objetivo"] --> Z{"flujo completo<br/>o vía rápida?"}
     Z -->|vía rápida| Q["tasks.md ligero<br/>(sin spec/eval/plan)"]
     Q --> H

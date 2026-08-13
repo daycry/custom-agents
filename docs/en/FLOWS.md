@@ -74,9 +74,12 @@ flowchart TD
 ## 3 · `/dev-cycle` — development cycle (with gates)
 
 > **Entry gate (Phase 0-bis):** `/dev-cycle` first asks **full flow** vs **fast track**. The fast track skips evaluator+planner (creates a lightweight `tasks.md`) and goes straight into implementation, but keeps the two-lens review + qa.
+>
+> **Two entry points into the same gate:** the `/dev-cycle` command (explicit, with the slash) and the `quick-implement` skill, which auto-invokes from natural language ("implement X quickly") and enters through the fast-track branch after its suitability filter. The skill defines no method of its own: it delegates to this very Phase 0-bis.
 
 ```mermaid
 flowchart TD
+    NL(["natural-language request<br/>\"implement X quickly\""]) -.->|"quick-implement skill<br/>(suitability filter)"| Z
     A["/dev-cycle objective"] --> Z{"full flow<br/>or fast track?"}
     Z -->|fast track| Q["lightweight tasks.md<br/>(no spec/eval/plan)"]
     Q --> H

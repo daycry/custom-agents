@@ -76,6 +76,7 @@ Invocan a los agentes **por nombre** y con puertas de control sobre la carpeta d
 | `debug-root-cause` | Causa raíz en 4 fases con evidencia; prohibido arreglar a ciegas. (/dev-cycle al 3.er rojo; a demanda) |
 | `rates-verify` | Actualiza `precioTokens` de `rates.json` desde la doc oficial, con fecha. (evaluator, /setup) |
 | `plugin-dev` | Meta-skill para desarrollar ESTE plugin: árbol de decisión de piezas, frontmatter/tiering/tools mínimos, validación TDD-ish, doc obligatoria, anti-patrones; plantillas de agente/skill/comando. (crear/modificar piezas del plugin) |
+| `quick-implement` | Atajo en lenguaje natural a la vía rápida de `/dev-cycle` (delegando en su fuente única): filtro de idoneidad + ledger + puertas. (peticiones «implementa X rápido» sin barra) |
 | `cybersecurity` · `to-pdf` | SAST 8 dimensiones (nemesis) · conversión a PDF (pdfy, qa). |
 
 **Configs en `.claude/` del proyecto consumidor** (mapa completo: regla 9 de CONVENTIONS): `rates.json` (presupuesto), `jira.json`/`jira-state.json`, `confluence.json`/`confluence-state.json`, `dev.json` (tdd/worktree/subagentes/constitución), `usage-state.json` (marcadores del meter).

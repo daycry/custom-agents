@@ -274,12 +274,20 @@ def scan(root):
         if rec["has_tasks"]:
             tasks_text = open(tasks_p, encoding="utf-8", errors="replace").read()
             rec["progreso"] = parse_progress_totals(tasks_text)
-            if not rec["has_spec"]:
-                # vía rápida: el título sale del propio ledger
-                hm = re.search(r"^#\s+(?:Checklist de Tareas\s*[—-]\s*)?(.+)$", tasks_text, re.M)
-                if hm:
-                    rec["titulo"] = hm.group(1).strip()
+            # Vía rápida: o no hay spec, o el propio ledger la DECLARA en su fila Plan
+            # («| **Plan** | n/a — **vía rápida** …»). Lo segundo cubre las vías rápidas
+            # que nacen de una spec de backlog, que sí tienen spec.md.
+            declarada = bool(re.search(
+                r"^\|\s*\*\*Plan\*\*\s*\|.*v[íi]a\s+r[áa]pida", tasks_text,
+                re.M | re.I))
+            if not rec["has_spec"] or declarada:
                 rec["via_rapida"] = True
+                if not rec["has_spec"]:
+                    # sin spec, el título sale del propio ledger
+                    hm = re.search(
+                        r"^#\s+(?:Checklist de Tareas\s*[—-]\s*)?(.+)$", tasks_text, re.M)
+                    if hm:
+                        rec["titulo"] = hm.group(1).strip()
 
         # coste de proceso (bloque generacion: de cada artefacto, si existe)
         gen = {}
@@ -336,7 +344,9 @@ def warnings_for(inits):
                 and _norm_estado(r["eval_estado"]) not in (None, "completado"):
             warns.append(f"{s}: spec 'aprobada' pero evaluación '{r['eval_estado']}' "
                          f"(se esperaba 'completado')")
-        if _norm_estado(r["spec_estado"]) == "implementada" and not r["has_plan"]:
+        if _norm_estado(r["spec_estado"]) == "implementada" and not r["has_plan"] \
+                and not r.get("via_rapida"):
+            # en vía rápida NO hay improvement-plan.md por diseño: el ledger es todo el plan
             warns.append(f"{s}: spec 'implementada' pero sin improvement-plan.md")
     return warns
 

@@ -7,6 +7,17 @@ Todos los cambios notables de este proyecto se documentan aquí.
 El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
+## [1.12.0] - 2026-08-13
+
+### Añadido
+
+- **Skill `quick-implement`** — atajo en **lenguaje natural** a la vía rápida de `/dev-cycle`, para cuando el usuario no escribe la barra: los commands solo se disparan con `/`, las skills se auto-invocan por su descripción. Es una puerta de entrada delgada, no un segundo método: resuelve `commands/dev-cycle.md` con `find` y sigue su vía rápida (fuente única: si el método cambia allí, cambia aquí), y para con aviso si no lo encuentra. Nace con el riesgo de secuestro mitigado por diseño: **disparadores negativos** en la descripción (no usarla con incógnitas, multi-fichero, cuando se quiere presupuesto, si el usuario ya escribió `/dev-cycle`, o para un cambio de una línea) más un **filtro de idoneidad obligatorio** como paso 1. Se conservan el ledger, la revisión de dos lentes y `qa-gate`.
+- Revisión de dos lentes superada con 10 hallazgos corregidos: un puntero de fases erróneo en la skill (decía «Fase 4 (qa)», pero `qa` va DENTRO de la Fase 3 y la Fase 4 es `documenter` — seguirlo al pie de la letra se habría saltado el `qa-gate` y habría disparado la documentación que la vía rápida deja opt-in), el `find` sin cubrir el caso «trabajar sobre el propio repo del plugin» (ganaba la copia instalada), el protocolo de medición contradiciendo la regla de no-solape, la lista de skills sin actualizar en `plugin.json`/`marketplace.json` ni en la lista en prosa de los README mientras el badge ya decía 11, la falta de actualización de `docs/FLOWS.md` (en los dos idiomas), y duplicación de método aún presente en el paso 2.
+
+### Corregido
+
+- `roadmap-dashboard`: una vía rápida que nace de una **spec de backlog** (y por tanto sí tiene `spec.md`) ahora se detecta por el marcador que declara el propio ledger (`| **Plan** | n/a — vía rápida`) en vez de por la ausencia de spec — antes se clasificaba como «solo spec» y emitía un aviso espurio de «spec `implementada` pero sin improvement-plan.md», que con `--strict` saldría rojo en CI. Corrige también `subagent-personas`, que tenía la misma forma. Test de regresión nuevo.
+
 ## [1.11.2] - 2026-08-13
 
 ### Corregido
@@ -223,6 +234,7 @@ Adopción de las mejores prácticas de las colecciones top de agentes (coleccion
 
 Versiones anteriores a la introducción de este changelog: bundle con los agentes `nemesis`, `evaluator`, `planner`, `pdfy` y `qa`, y las skills compartidas `cybersecurity` y `to-pdf`. Empaquetado como plugin + marketplace.
 
+[1.12.0]: https://github.com/daycry/custom-agents/releases/tag/v1.12.0
 [1.11.2]: https://github.com/daycry/custom-agents/releases/tag/v1.11.2
 [1.11.1]: https://github.com/daycry/custom-agents/releases/tag/v1.11.1
 [1.11.0]: https://github.com/daycry/custom-agents/releases/tag/v1.11.0

@@ -7,6 +7,17 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and versioning follows [SemVer](https://semver.org/).
 
+## [1.12.0] - 2026-08-13
+
+### Added
+
+- **`quick-implement` skill** — a **natural-language** shortcut into the `/dev-cycle` fast track, for the case where the user does not type the slash: commands only fire with `/`, while skills auto-invoke from their description. It is a thin entry point, not a second method — it resolves `commands/dev-cycle.md` with `find` and follows its fast track (single source: if the method changes there, it changes here), and stops with a warning if it cannot find it. Ships with the hijacking risk mitigated by design: **negative triggers** in the description (do not use it with unknowns, multi-file work, when a budget is wanted, when the user already typed `/dev-cycle`, or for a one-line change) plus a **mandatory suitability filter** as step 1. The ledger, the two-lens review and `qa-gate` are all preserved.
+- Two-lens review passed with 10 findings fixed: a wrong phase pointer in the skill (it said "Phase 4 (qa)", but `qa` lives INSIDE Phase 3 and Phase 4 is `documenter` — following it literally would have skipped the `qa-gate` and triggered documentation the fast track leaves opt-in), the `find` not covering "work on the plugin repo itself" (the installed copy won), the measurement protocol contradicting the no-overlap rule, the skills list missing from `plugin.json`/`marketplace.json` and from the READMEs' prose list while the badge already said 11, the missing `docs/FLOWS.md` update (both languages), and remaining method duplication in step 2.
+
+### Fixed
+
+- `roadmap-dashboard`: a fast track that comes from a **backlog spec** (so it does have `spec.md`) is now detected by the marker the ledger itself declares (`| **Plan** | n/a — vía rápida`) instead of by the absence of a spec — before, it was classified as "spec only" and raised a spurious "spec `implementada` but no improvement-plan.md" warning, which would go red in CI with `--strict`. Also fixes `subagent-personas`, which had the same shape. New regression test.
+
 ## [1.11.2] - 2026-08-13
 
 ### Fixed
@@ -223,6 +234,7 @@ Adoption of best practices from the top agent collections (reference agent colle
 
 Versions predating the introduction of this changelog: a bundle with the `nemesis`, `evaluator`, `planner`, `pdfy` and `qa` agents, and the shared `cybersecurity` and `to-pdf` skills. Packaged as a plugin + marketplace.
 
+[1.12.0]: https://github.com/daycry/custom-agents/releases/tag/v1.12.0
 [1.11.2]: https://github.com/daycry/custom-agents/releases/tag/v1.11.2
 [1.11.1]: https://github.com/daycry/custom-agents/releases/tag/v1.11.1
 [1.11.0]: https://github.com/daycry/custom-agents/releases/tag/v1.11.0

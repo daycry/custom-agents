@@ -132,6 +132,27 @@ def run():
     assert vr_inits[0]["generacion"], "generacion: de la vía rápida se agrega"
     shutil.rmtree(tmp)
 
+    # --- vía rápida CON spec (backlog implementado): se detecta por el marcador
+    # del ledger, no por la ausencia de spec, y no genera aviso espurio de plan ---
+    tmp2 = tempfile.mkdtemp()
+    vr2 = os.path.join(tmp2, "2026-03-01-rapida-con-spec")
+    os.makedirs(vr2)
+    open(os.path.join(vr2, "spec.md"), "w", encoding="utf-8").write(
+        "---\nspec: rapida-con-spec\nestado: implementada\n---\n\n# Rápida con spec\n")
+    open(os.path.join(vr2, "tasks.md"), "w", encoding="utf-8").write(
+        "# Checklist de Tareas — Rapida con spec (fixture)\n\n"
+        "| | |\n|---|---|\n| **Estado** | completado |\n"
+        "| **Plan** | n/a — **vía rápida** sobre [`spec.md`](spec.md) |\n")
+    vr2_inits = bd.scan(tmp2)
+    eq(len(vr2_inits), 1, "iniciativa de vía rápida con spec escaneada")
+    assert vr2_inits[0]["via_rapida"], \
+        "vía rápida declarada en el ledger (| **Plan** | n/a — vía rápida) debe detectarse aunque HAYA spec.md"
+    eq(vr2_inits[0]["fase"], "vía rápida", "fase de vía rápida con spec presente")
+    w2 = bd.warnings_for(vr2_inits)
+    assert not any("improvement-plan" in w for w in w2), \
+        f"vía rápida declarada NO debe avisar de improvement-plan.md ausente; avisos={w2}"
+    shutil.rmtree(tmp2)
+
     # --- avisos: beta es incoherente (spec aprobada, eval en-revision) ---
     warns = bd.warnings_for(inits)
     assert any("2026-01-12-beta" in w and "aprobada" in w for w in warns), \
