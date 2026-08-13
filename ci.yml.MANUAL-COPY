@@ -1,6 +1,6 @@
-> ⚠️ COPIA MANUAL: este contenido va en `.github/workflows/ci.yml` (ruta protegida para
-> las herramientas remotas). Sustituye el fichero actual por lo que hay bajo la línea.
----
+# ⚠️ COPIA MANUAL: este fichero se copia TAL CUAL a .github/workflows/ci.yml
+# (ruta protegida para las herramientas remotas). Estas líneas son comentarios
+# YAML válidos: no hace falta borrar nada.
 name: CI
 on:
   push:
