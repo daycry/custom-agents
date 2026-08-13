@@ -7,7 +7,7 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and versioning follows [SemVer](https://semver.org/).
 
-## [Unreleased]
+## [1.11.1] - 2026-08-13
 
 ### Added — bilingual EN/ES documentation (2026-08-13)
 
@@ -15,6 +15,7 @@ and versioning follows [SemVer](https://semver.org/).
 - README: live CI badge (GitHub Actions) plus a version badge (latest tag) and a "Quality and CI" section describing what every push validates.
 - README (EN and ES): **badge panel in three blocks** — status (CI · version · license · Python 3.11+), community (stars · forks · open issues · last commit · commits/month) and project nature (Claude Code plugin · Spec-Driven · 8 agents · 11 commands). The downloads badge was dropped: GitHub only counts downloads of release **assets**, not marketplace installs or clones, so it does not reflect real plugin usage.
 - New `release.yml` workflow (manual copy, like ci.yml): pushing a `v*` tag packages the plugin as a zip, creates the GitHub Release and attaches the zip, with the release notes extracted automatically from the CHANGELOG.
+- README (EN and ES): **skills badge** (10) next to agents and commands. New `tests/test_readme_badges.py` guard: it compares each static counter badge against what is actually in `agents/`, `skills/` and `commands/`, in both languages, so the counts cannot silently drift. `ci.yml` now runs the repo suites in a **loop** (`for t in tests/test_*.py`) instead of a fixed list, so any new suite joins CI automatically.
 
 ### Changed — documentation focused on the plugin itself (2026-08-13)
 
@@ -215,6 +216,7 @@ Adoption of best practices from the top agent collections (reference agent colle
 
 Versions predating the introduction of this changelog: a bundle with the `nemesis`, `evaluator`, `planner`, `pdfy` and `qa` agents, and the shared `cybersecurity` and `to-pdf` skills. Packaged as a plugin + marketplace.
 
+[1.11.1]: https://github.com/daycry/custom-agents/releases/tag/v1.11.1
 [1.11.0]: https://github.com/daycry/custom-agents/releases/tag/v1.11.0
 [1.8.0]: https://github.com/daycry/custom-agents/releases/tag/v1.8.0
 [1.6.0]: https://github.com/daycry/custom-agents/releases/tag/v1.6.0

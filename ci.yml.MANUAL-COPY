@@ -23,13 +23,12 @@ jobs:
         run: python scripts/lint_plugin.py
 
       - name: Tests (suites del repo)
+        # bucle, no lista fija: cualquier tests/test_*.py nuevo entra solo en la CI
         run: |
-          python tests/test_dashboard.py
-          python tests/test_worklog.py
-          python tests/test_lint_plugin.py
-          python tests/test_qa_gate.py
-          python tests/test_ledger_lint.py
-          python tests/test_coverage_check.py
+          for t in tests/test_*.py; do
+            echo "── $t"
+            python "$t" || exit 1
+          done
 
       - name: Tests (pytest — usage-meter + task-brief)
         run: python -m pytest agent-kits/shared/test_usage_meter.py agent-kits/shared/test_task_brief.py -q

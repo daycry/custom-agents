@@ -18,6 +18,7 @@
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2.svg)](docs/en/INSTALL.md)
 [![SDD](https://img.shields.io/badge/methodology-Spec--Driven-2ea44f.svg)](docs/en/FLOWS.md)
 [![Agents](https://img.shields.io/badge/agents-8-0ea5e9.svg)](docs/en/README.md)
+[![Skills](https://img.shields.io/badge/skills-10-0ea5e9.svg)](docs/en/README.md)
 [![Commands](https://img.shields.io/badge/commands-11-0ea5e9.svg)](docs/en/README.md)
 
 From idea to tested, documented code: `requirements → budget → plan → implementation → adversarial review → E2E → docs`, with **control gates** at every step, **real cost measured in tokens**, and learning that calibrates the next estimates. Eight agents, eleven commands, self-contained (no dependencies on other plugins).
