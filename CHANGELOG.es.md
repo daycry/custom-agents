@@ -7,6 +7,13 @@ Todos los cambios notables de este proyecto se documentan aquí.
 El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
+## [1.11.2] - 2026-08-13
+
+### Corregido
+
+- **Los diagramas Mermaid no renderizaban en GitHub** («Unable to render rich display · Cannot read properties of undefined (reading 'render')»): las etiquetas usaban `\n` como salto de línea, que el renderizador de GitHub no acepta. Los **26 diagramas** del repo (los dos README, `docs/FLOWS.md` ×9, `docs/en/FLOWS.md` ×9, los índices de doc y las docs de los agentes implementer/qa) pasan al `<br/>` portable, verificado renderizándolos todos con mermaid-cli.
+- Nueva guarda `tests/test_mermaid_blocks.py`: falla si algún bloque `mermaid` usa `\n` como salto, tiene la fence sin cerrar o no declara tipo de diagrama en su primera línea. Estática y sin dependencias, así que corre en CI.
+
 ## [1.11.1] - 2026-08-13
 
 ### Añadido — documentación bilingüe EN/ES (2026-08-13)
@@ -216,6 +223,7 @@ Adopción de las mejores prácticas de las colecciones top de agentes (coleccion
 
 Versiones anteriores a la introducción de este changelog: bundle con los agentes `nemesis`, `evaluator`, `planner`, `pdfy` y `qa`, y las skills compartidas `cybersecurity` y `to-pdf`. Empaquetado como plugin + marketplace.
 
+[1.11.2]: https://github.com/daycry/custom-agents/releases/tag/v1.11.2
 [1.11.1]: https://github.com/daycry/custom-agents/releases/tag/v1.11.1
 [1.11.0]: https://github.com/daycry/custom-agents/releases/tag/v1.11.0
 [1.8.0]: https://github.com/daycry/custom-agents/releases/tag/v1.8.0

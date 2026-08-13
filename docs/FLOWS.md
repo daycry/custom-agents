@@ -12,15 +12,15 @@ Visión visual de cómo encajan agentes, comandos y skills. Los diagramas son Me
 ```mermaid
 flowchart TD
     PM(["👤 PM / producto"]) --> S0["/setup"]
-    PM --> P1["/pm-cycle\ndefine y presupuesta"]
-    PM --> P2["/pm-backlog\nprioriza cartera"]
-    PM --> P3["/confluence-pull\ndocs sin git"]
-    DEV(["👩‍💻 Dev / equipo"]) --> D1["/dev-cycle\nconstruye"]
-    DEV --> D2["/retro\naprende"]
-    DIR(["👔 Dirección"]) --> V1["/roadmap-brief\none-pager PDF"]
-    TODOS(["👀 Cualquiera"]) --> V2["/roadmap-status\ndashboard"]
-    TODOS --> V3["/roadmap-metrics\nreal vs estimado"]
-    TODOS --> V4["/roadmap-live\nJira en vivo"]
+    PM --> P1["/pm-cycle<br/>define y presupuesta"]
+    PM --> P2["/pm-backlog<br/>prioriza cartera"]
+    PM --> P3["/confluence-pull<br/>docs sin git"]
+    DEV(["👩‍💻 Dev / equipo"]) --> D1["/dev-cycle<br/>construye"]
+    DEV --> D2["/retro<br/>aprende"]
+    DIR(["👔 Dirección"]) --> V1["/roadmap-brief<br/>one-pager PDF"]
+    TODOS(["👀 Cualquiera"]) --> V2["/roadmap-status<br/>dashboard"]
+    TODOS --> V3["/roadmap-metrics<br/>real vs estimado"]
+    TODOS --> V4["/roadmap-live<br/>Jira en vivo"]
     P1 -->|go| D1
     D1 --> V3
     D2 -.->|CALIBRATION.md| P1
@@ -32,18 +32,18 @@ Fase de **producto**: `analyst → evaluator`. Fase de **desarrollo**: `planner 
 
 ```mermaid
 flowchart LR
-    idea(["💡 Idea / petición"]) --> analyst["🗣️ analyst\ntoma de requerimientos"]
-    analyst -->|spec aprobada| evaluator["💶 evaluator\npresupuesta"]
-    evaluator -->|go| planner["🗺️ planner\nplan + tasks"]
+    idea(["💡 Idea / petición"]) --> analyst["🗣️ analyst<br/>toma de requerimientos"]
+    analyst -->|spec aprobada| evaluator["💶 evaluator<br/>presupuesta"]
+    evaluator -->|go| planner["🗺️ planner<br/>plan + tasks"]
     evaluator -.->|no-go| fin1(["✋ se descarta"])
-    planner --> implementer["⚙️ implementer\ncódigo + ledger"]
-    implementer --> review["🔍 revisión adversarial\n(2 lentes en paralelo,\ncontexto fresco) diff vs plan"]
-    review -->|sin gaps| qa["✅ qa\nE2E Playwright"]
+    planner --> implementer["⚙️ implementer<br/>código + ledger"]
+    implementer --> review["🔍 revisión adversarial<br/>(2 lentes en paralelo,<br/>contexto fresco) diff vs plan"]
+    review -->|sin gaps| qa["✅ qa<br/>E2E Playwright"]
     review -.->|gaps de corrección| implementer
-    qa -->|verde| documenter["📚 documenter\ndocs del proyecto"]
+    qa -->|verde| documenter["📚 documenter<br/>docs del proyecto"]
     qa -.->|rojo| implementer
-    documenter --> retro["🔁 /retro\ncalibración"]
-    nemesis["🛡️ nemesis\nauditoría"] -.->|hallazgos críticos| analyst
+    documenter --> retro["🔁 /retro<br/>calibración"]
+    nemesis["🛡️ nemesis<br/>auditoría"] -.->|hallazgos críticos| analyst
     retro -.->|CALIBRATION.md| evaluator
     style fin1 fill:#fdecea,stroke:#ef9a9a
     style documenter fill:#e8f5e9,stroke:#81c784
@@ -56,16 +56,16 @@ Todo vive en **una carpeta por iniciativa**: `docs/roadmap/<fecha>-<slug>/`
 
 ```mermaid
 flowchart TD
-    A["/pm-cycle objetivo"] --> B{"¿objetivo\nbien definido?"}
-    B -->|no| C["skill discovery / @analyst\nentrevista → spec.md"]
-    B -->|sí| D["evaluator\nspec + evaluation.md"]
+    A["/pm-cycle objetivo"] --> B{"¿objetivo<br/>bien definido?"}
+    B -->|no| C["skill discovery / @analyst<br/>entrevista → spec.md"]
+    B -->|sí| D["evaluator<br/>spec + evaluation.md"]
     C --> D
-    D --> E{"puerta\ngo / no-go"}
-    E -->|no-go| F["evaluación → cancelado\nspec → obsoleta"]
+    D --> E{"puerta<br/>go / no-go"}
+    E -->|no-go| F["evaluación → cancelado<br/>spec → obsoleta"]
     E -->|a revisar| C
-    E -->|go| G["spec → aprobada\nevaluación → completado"]
-    G --> H["salidas opt-in:\n📄 brief PDF · 🎫 épica en Jira"]
-    H --> I(["ofrece handoff a /dev-cycle\nsin ejecutarlo"])
+    E -->|go| G["spec → aprobada<br/>evaluación → completado"]
+    G --> H["salidas opt-in:<br/>📄 brief PDF · 🎫 épica en Jira"]
+    H --> I(["ofrece handoff a /dev-cycle<br/>sin ejecutarlo"])
     style F fill:#fdecea,stroke:#ef9a9a
     style G fill:#e8f5e9,stroke:#81c784
     style I fill:#e8f5e9,stroke:#81c784
@@ -77,26 +77,26 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A["/dev-cycle objetivo"] --> Z{"flujo completo\no vía rápida?"}
-    Z -->|vía rápida| Q["tasks.md ligero\n(sin spec/eval/plan)"]
+    A["/dev-cycle objetivo"] --> Z{"flujo completo<br/>o vía rápida?"}
+    Z -->|vía rápida| Q["tasks.md ligero<br/>(sin spec/eval/plan)"]
     Q --> H
-    Z -->|completo| B{"¿carpeta con\nspec+evaluación\nde /pm-cycle?"}
+    Z -->|completo| B{"¿carpeta con<br/>spec+evaluación<br/>de /pm-cycle?"}
     B -->|sí| D
     B -->|no| C["evaluator → puerta go/no-go"]
-    C -->|go| D["planner\nimprovement-plan + tasks.md"]
+    C -->|go| D["planner<br/>improvement-plan + tasks.md"]
     C -->|no-go| X(["parar"])
-    D --> E["opt-in: volcar plan a Jira\njira-sync: 1 issue por tarea"]
-    E --> F{"¿pidió el usuario\nun motor externo\nexplícitamente?"}
-    F -->|"sí (opt-in explícito)"| G["motor externo ejecuta\ncontra TU tasks.md\n(review propio)"]
-    F -->|"no (defecto):\ncadena NATIVA"| H["implementer\ntarea a tarea\n(dev.json opt-in: TDD ·\nworktree · subagentes frescos)"]
-    H --> R["🔍 revisión adversarial\nDOS lentes en paralelo:\nspec-conformidad · calidad\n(fusión + dedupe)"]
+    D --> E["opt-in: volcar plan a Jira<br/>jira-sync: 1 issue por tarea"]
+    E --> F{"¿pidió el usuario<br/>un motor externo<br/>explícitamente?"}
+    F -->|"sí (opt-in explícito)"| G["motor externo ejecuta<br/>contra TU tasks.md<br/>(review propio)"]
+    F -->|"no (defecto):<br/>cadena NATIVA"| H["implementer<br/>tarea a tarea<br/>(dev.json opt-in: TDD ·<br/>worktree · subagentes frescos)"]
+    H --> R["🔍 revisión adversarial<br/>DOS lentes en paralelo:<br/>spec-conformidad · calidad<br/>(fusión + dedupe)"]
     R -.->|gaps| H
-    G --> I["qa · E2E local\nveredicto: qa-gate.py"]
+    G --> I["qa · E2E local<br/>veredicto: qa-gate.py"]
     R --> I
-    I -->|"rojo (máx. 3 intentos,\nluego preguntar)"| H
-    I -->|verde| J["documenter\nuna vez al final"]
-    J --> K["opcional: nemesis\nauditoría"]
-    K --> L(["cierre: plan completado\nspec implementada"])
+    I -->|"rojo (máx. 3 intentos,<br/>luego preguntar)"| H
+    I -->|verde| J["documenter<br/>una vez al final"]
+    J --> K["opcional: nemesis<br/>auditoría"]
+    K --> L(["cierre: plan completado<br/>spec implementada"])
     style X fill:#fdecea,stroke:#ef9a9a
     style L fill:#e8f5e9,stroke:#81c784
 ```
@@ -109,42 +109,42 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A["selector de destino\n+ granularidad tarea/fase\nartefacto o conversacional"] --> B{"¿padre?"}
-    B -->|épica nueva| C["crear Épica\n+ Tareas debajo"]
-    B -->|issue existente| D{"nivel del padre\ndescubierto"}
-    B -->|sin padre| E["Tareas sueltas\nen el proyecto"]
+    A["selector de destino<br/>+ granularidad tarea/fase<br/>artefacto o conversacional"] --> B{"¿padre?"}
+    B -->|épica nueva| C["crear Épica<br/>+ Tareas debajo"]
+    B -->|issue existente| D{"nivel del padre<br/>descubierto"}
+    B -->|sin padre| E["Tareas sueltas<br/>en el proyecto"]
     D -->|épica / iniciativa| C2["Tareas"]
     D -->|tarea / historia| C3["Subtareas"]
-    C --> F["dry-run + confirmación\n→ crear issues\nclaves → tasks.md"]
+    C --> F["dry-run + confirmación<br/>→ crear issues<br/>claves → tasks.md"]
     C2 --> F
     C3 --> F
     E --> F
-    O["/roadmap-live\nestado en vivo por label"] -.->|lee| F
+    O["/roadmap-live<br/>estado en vivo por label"] -.->|lee| F
 ```
 
 ## 4b · Jira (opt-in) — imputación al completar cada tarea
 
 ```mermaid
 flowchart TD
-    G["tarea completado\nen tasks.md"] --> H["worklog.py plan\nIA + supervisión, real→est"]
-    H --> I{"¿cabe en la\njornada de hoy?"}
-    I -->|sí| J["imputar worklog\n+ issue → Done"]
+    G["tarea completado<br/>en tasks.md"] --> H["worklog.py plan<br/>IA + supervisión, real→est"]
+    H --> I{"¿cabe en la<br/>jornada de hoy?"}
+    I -->|sí| J["imputar worklog<br/>+ issue → Done"]
     I -->|no| K{"política"}
-    K -->|banco| L["imputar resto de hoy\nexceso → banco por issue\nse paga en días siguientes"]
-    K -->|parar| M["imputar resto\ny DETENER implementación"]
-    K -->|seguir| N["imputar todo\naunque supere jornada"]
-    P["read-back\nJira → tasks.md con confirmación"] -.-> G
+    K -->|banco| L["imputar resto de hoy<br/>exceso → banco por issue<br/>se paga en días siguientes"]
+    K -->|parar| M["imputar resto<br/>y DETENER implementación"]
+    K -->|seguir| N["imputar todo<br/>aunque supere jornada"]
+    P["read-back<br/>Jira → tasks.md con confirmación"] -.-> G
 ```
 
 ## 5 · Confluence — bidireccional (opt-in)
 
 ```mermaid
 flowchart LR
-    A["docs/ local: escriben los agentes\nevaluator · planner · qa · documenter"] -->|hook marca pendiente| C["confluence-publish\nmanifiesto hash+pageId\ncrear/actualizar sin duplicar"]
-    B["dashboard.md\nregenerado si cambia el roadmap"] --> C
-    C --> D[("🌐 Confluence\nárbol de páginas")]
-    D -->|"confluence-pull · PM sin git"| E["docs/ local al día\npreserva frontmatter\navisa de conflictos"]
-    D -.->|no permite borrar| F["página obsoleta\n→ borrado manual"]
+    A["docs/ local: escriben los agentes<br/>evaluator · planner · qa · documenter"] -->|hook marca pendiente| C["confluence-publish<br/>manifiesto hash+pageId<br/>crear/actualizar sin duplicar"]
+    B["dashboard.md<br/>regenerado si cambia el roadmap"] --> C
+    C --> D[("🌐 Confluence<br/>árbol de páginas")]
+    D -->|"confluence-pull · PM sin git"| E["docs/ local al día<br/>preserva frontmatter<br/>avisa de conflictos"]
+    D -.->|no permite borrar| F["página obsoleta<br/>→ borrado manual"]
 ```
 
 ## 6 · Visibilidad y aprendizaje (todo solo-lectura)
@@ -153,19 +153,19 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-    M["usage-meter.py\nstart/close por artefacto y tarea\n(tokens reales de la transcripción)"] -->|bloque generacion:| R
-    R[("docs/roadmap/*/\nspec · evaluación · plan · tasks")] --> S["/roadmap-status\ndashboard HTML + md"]
-    R --> T["/pm-backlog\nprioriza la cartera\nBACKLOG.md"]
-    R --> U["/roadmap-metrics\nreal vs estimado\n+ coste de proceso\nmetrics.md"]
-    S --> V["/roadmap-brief\none-pager PDF\npara dirección"]
+    M["usage-meter.py<br/>start/close por artefacto y tarea<br/>(tokens reales de la transcripción)"] -->|bloque generacion:| R
+    R[("docs/roadmap/*/<br/>spec · evaluación · plan · tasks")] --> S["/roadmap-status<br/>dashboard HTML + md"]
+    R --> T["/pm-backlog<br/>prioriza la cartera<br/>BACKLOG.md"]
+    R --> U["/roadmap-metrics<br/>real vs estimado<br/>+ coste de proceso<br/>metrics.md"]
+    S --> V["/roadmap-brief<br/>one-pager PDF<br/>para dirección"]
     T --> V
     U --> V
-    J[("Jira\nissues + worklogs")] --> W["/roadmap-live\nestado en tiempo real"]
-    U --> X["/retro por iniciativa\ncausas de desviación\n+ ratio tokens/hora medido"]
-    R --> DR["/spec-drift\nderiva spec↔código\nvigente ✓ · derivado ✗ · no verificable\n→ DRIFT.md"]
+    J[("Jira<br/>issues + worklogs")] --> W["/roadmap-live<br/>estado en tiempo real"]
+    U --> X["/retro por iniciativa<br/>causas de desviación<br/>+ ratio tokens/hora medido"]
+    R --> DR["/spec-drift<br/>deriva spec↔código<br/>vigente ✓ · derivado ✗ · no verificable<br/>→ DRIFT.md"]
     DR -.->|"deriva → /pm-cycle"| R
     X --> Y[("CALIBRATION.md")]
-    Y -->|calibra estimaciones\ny ratio tokens→hora| Z["evaluator"]
+    Y -->|calibra estimaciones<br/>y ratio tokens→hora| Z["evaluator"]
     Y -.->|ratio| M
 ```
 
@@ -173,13 +173,13 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-    A["/setup"] --> B[".claude/rates.json\ntarifa · tokens · jornada · ratios\nla leen evaluator, planner y jira-sync"]
-    A --> C[".claude/confluence.json\nopt-in + destino"]
-    A --> D[".claude/jira.json\nopt-in + política de jornada"]
-    A --> G[".claude/dev.json\ntdd · worktree · subagentes\n(+ decisión constitución)"]
-    A --> H["docs/CONSTITUTION.md\nprincipios permanentes (opt-in)\nlos leen TODOS los agentes;\nla lente A los hace cumplir"]
+    A["/setup"] --> B[".claude/rates.json<br/>tarifa · tokens · jornada · ratios<br/>la leen evaluator, planner y jira-sync"]
+    A --> C[".claude/confluence.json<br/>opt-in + destino"]
+    A --> D[".claude/jira.json<br/>opt-in + política de jornada"]
+    A --> G[".claude/dev.json<br/>tdd · worktree · subagentes<br/>(+ decisión constitución)"]
+    A --> H["docs/CONSTITUTION.md<br/>principios permanentes (opt-in)<br/>los leen TODOS los agentes;<br/>la lente A los hace cumplir"]
     C -.->|estado| E[".claude/confluence-state.json"]
-    D -.->|estado| F[".claude/jira-state.json\nmapeo · imputado/día · banco"]
+    D -.->|estado| F[".claude/jira-state.json<br/>mapeo · imputado/día · banco"]
 ```
 
 Detalle de cada fichero: regla 9 de [`CONVENTIONS.md`](CONVENTIONS.md). Comportamientos del

@@ -8,11 +8,11 @@ Repository of **custom agents** for Claude Code, with their skills and toolkits.
 flowchart LR
     subgraph ciclo["🔄 The lifecycle of an initiative"]
         direction LR
-        A["analyst\nrequirements"] --> E["evaluator\nbudget + go/no-go"] --> P["planner\nplan + tasks"] --> I["implementer\ncode"] --> R["review\n2 lenses"] --> Q["qa\nE2E + qa-gate"] --> D["documenter"]
+        A["analyst<br/>requirements"] --> E["evaluator<br/>budget + go/no-go"] --> P["planner<br/>plan + tasks"] --> I["implementer<br/>code"] --> R["review<br/>2 lenses"] --> Q["qa<br/>E2E + qa-gate"] --> D["documenter"]
     end
-    ciclo --> M["📊 metrics + measured cost\n/roadmap-metrics"]
-    M --> RT["/retro → CALIBRATION.md\n(calibrates the next ones)"]
-    J[("🎫 Jira · 🌐 Confluence\nopt-in")] -.-> ciclo
+    ciclo --> M["📊 metrics + measured cost<br/>/roadmap-metrics"]
+    M --> RT["/retro → CALIBRATION.md<br/>(calibrates the next ones)"]
+    J[("🎫 Jira · 🌐 Confluence<br/>opt-in")] -.-> ciclo
 ```
 
 **Reading guide:** this index locates each piece · [`FLOWS.md`](FLOWS.md) draws all the flows · [`CONVENTIONS.md`](CONVENTIONS.md) sets the rules · each agent has its own doc in [`agents/`](../agents/) (Spanish).

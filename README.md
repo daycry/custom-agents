@@ -25,17 +25,17 @@ From idea to tested, documented code: `requirements → budget → plan → impl
 
 ```mermaid
 flowchart LR
-    idea(["💡 idea"]) --> A["🗣️ analyst\nrequirements"]
-    A --> E["💶 evaluator\nhow much? worth it?"]
-    E -->|go| P["🗺️ planner\nplan + tasks"]
+    idea(["💡 idea"]) --> A["🗣️ analyst<br/>requirements"]
+    A --> E["💶 evaluator<br/>how much? worth it?"]
+    E -->|go| P["🗺️ planner<br/>plan + tasks"]
     E -.->|no-go| stop(["✋"])
-    P --> I["⚙️ implementer\ncode\n(TDD · worktrees ·\nopt-in subagents)"]
-    I --> R["🔍 review\n2 adversarial lenses"]
-    R -->|"✓"| Q["✅ qa\nE2E + qa-gate"]
+    P --> I["⚙️ implementer<br/>code<br/>(TDD · worktrees ·<br/>opt-in subagents)"]
+    I --> R["🔍 review<br/>2 adversarial lenses"]
+    R -->|"✓"| Q["✅ qa<br/>E2E + qa-gate"]
     R -.->|gaps| I
     Q -->|green| D["📚 documenter"]
-    Q -.->|"red ×3 →\n🔬 debug-root-cause"| I
-    D --> retro["🔁 /retro\ncalibration"]
+    Q -.->|"red ×3 →<br/>🔬 debug-root-cause"| I
+    D --> retro["🔁 /retro<br/>calibration"]
     retro -.->|measured ratio| E
     style stop fill:#fdecea,stroke:#ef9a9a
     style D fill:#e8f5e9,stroke:#81c784
@@ -95,13 +95,13 @@ Small change? `/dev-cycle fix the header typo, quick` — the **fast track** ski
 
 ```mermaid
 flowchart LR
-    S["/setup\n(once)"] --> PM["/pm-cycle\ndefine and budget"]
-    PM -->|go| DEV["/dev-cycle\nbuild with gates"]
-    DEV --> MET["/roadmap-metrics\nactual vs estimated\n+ process cost"]
-    MET --> RET["/retro\ncalibrate"]
+    S["/setup<br/>(once)"] --> PM["/pm-cycle<br/>define and budget"]
+    PM -->|go| DEV["/dev-cycle<br/>build with gates"]
+    DEV --> MET["/roadmap-metrics<br/>actual vs estimated<br/>+ process cost"]
+    MET --> RET["/retro<br/>calibrate"]
     RET -.-> PM
-    BL["/pm-backlog\nprioritize portfolio"] -.-> DEV
-    ST["/roadmap-status · /roadmap-live\n/roadmap-brief · /spec-drift"] -.->|visibility and governance| DEV
+    BL["/pm-backlog<br/>prioritize portfolio"] -.-> DEV
+    ST["/roadmap-status · /roadmap-live<br/>/roadmap-brief · /spec-drift"] -.->|visibility and governance| DEV
 ```
 
 <details>
