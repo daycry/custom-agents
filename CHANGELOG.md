@@ -5,6 +5,42 @@ Todos los cambios notables de este proyecto se documentan aquí.
 El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
+## [1.11.0] - 2026-08-12
+
+### Añadido — iniciativa `sdd-hardening` (2026-08-12)
+
+- **Autosuficiencia frente a superpowers**: la **cadena nativa es SIEMPRE el motor por defecto** de `/dev-cycle` (superpowers solo bajo petición explícita: "usa superpowers" o `--superpowers`). Nueva config **`.claude/dev.json`** (opt-in, defaults off, la crea `/setup`): `tdd` (RED-GREEN-REFACTOR con **evidencia del rojo** en el ledger), `worktree` (iniciativa en worktree de git aislado, con degradación) y `subagentes` (**cada tarea la implementa un subagente de contexto FRESCO**, con las 4 mecánicas del ciclo de superpowers: brief determinista por el nuevo **`task-brief.py`** (+6 tests), brief-only, estados ricos `DONE/DONE_WITH_CONCERNS/NEEDS_CONTEXT/BLOCKED` y revisor persistente con severidades `Critical/Important/Minor`).
+- **Constitución del proyecto consumidor** (`docs/CONSTITUTION.md`, opt-in vía `/setup` con plantilla en el kit shared): principios permanentes que los 6 agentes que escriben leen y citan (`constitution-check.md`), y que la **lente A hace cumplir** (violación de principio explícito = gap con cita de línea). E2E verificado.
+- **`/spec-drift`** (nuevo command, solo lectura): deriva spec↔código de las specs `implementada` — subagentes frescos verifican cada criterio contra el código de hoy (`vigente ✓ / derivado ✗ / no verificable` con evidencia) → `docs/roadmap/DRIFT.md` + oferta de `/pm-cycle` para lo derivado. E2E verificado.
+- **Criterios Given/When/Then opcionales** (`- [ ] [GWT] CA-XX — Dado…, Cuando…, Entonces…`): plantilla de spec, analyst/discovery los ofrecen para comportamiento observable, qa los traduce 1:1 a E2E, y **`coverage-check.py` los exige** en el test-plan (nuevos tests, incl. GWT sin test-plan = rojo).
+- **Skill `debug-root-cause`**: depuración sistemática en 4 fases con evidencia obligatoria (reproducción mínima → aislamiento → hipótesis probada → fix + regresión); `/dev-cycle` la dispara al 3.er rojo de qa ANTES de rendirse — la pregunta al usuario llega con diagnóstico.
+- **`docs/observability.md`**: posicionamiento coste (usage-meter) vs actividad en vivo (monitores tipo Agent-Monitor) y coexistencia de hooks verificada.
+- Backlog: spec borrador `subagent-personas` (perfiles de dominio para el subagente fresco).
+- Revisión adversarial de dos lentes superada en 2 intentos: 21 hallazgos del intento 1 corregidos y verificados 21/21 (incl. parser de briefs tolerante a bloques de código, regex GWT robusto, medición por tarea asignada en el flujo clásico, revisor persistente por traspaso y fix propuesto —no aplicado— en el gancho del 3.er rojo). Suites: 45 tests pytest + 6 suites de repo en verde.
+
+### Añadido — vía rápida `workflow-polish` (2026-08-12)
+
+- **Las 3 skills de superpowers que faltaban** (con esto, cobertura 14/14 nativa): (1) **disciplina al RECIBIR la revisión** — el implementador verifica cada gap antes de corregirlo y **rebate con evidencia** los señalamientos erróneos (`descartado (rebatido)` con arbitraje del orquestador; rebatir no consume intento); (2) **despacho PARALELO de tareas independientes** (`subagentes: true`): lotes de máx. 3 en worktrees temporales por tarea, reintegración validada en `feature/<slug>` antes de la revisión, y **medición honesta por lote** (`(medido, lote)`, reparto proporcional); (3) **ritual de CIERRE de rama** en 6 pasos (verificación final, commits por tarea, resumen de PR derivado del ledger, integración preguntando si no está claro, limpieza de worktrees y marcadores, estados finales). Primera vía rápida **medida** del plugin (3m de IA, 16k tokens facturables).
+
+### Añadido — vía rápida `plugin-dev` (2026-08-12)
+
+- **Skill `plugin-dev`** (meta-skill, equivalente nativo al *writing-skills* de superpowers pero para TODO el plugin): proceso canónico para crear/modificar agentes, skills, comandos, kits y hooks — árbol de decisión de tipo de pieza, reglas de nombre y colisiones, frontmatter obligatorio (model tiering, tools mínimos, `dependencies`), determinismo (scripts con tests + exit codes) y degradación sin bloquear, validación TDD-ish en orden estricto (test primero → `lint_plugin.py` → suites con la misma invocación que la CI → auto-revisión adversarial), obligaciones de documentación por tipo de pieza y catálogo de **anti-patrones vistos en revisiones reales** del repo. Incluye plantillas rellenables de agente, skill y comando (`templates/`) — la de agente verificada empíricamente contra el parser del linter; la de comando con frontmatter `description`/`argument-hint` y `$ARGUMENTS`, como los comandos reales.
+- Revisión de dos lentes superada: 7 hallazgos corregidos y re-verificados, 2 de ellos críticos (la invocación de pytest citada no recogía las suites-script de `tests/`; los comentarios inline del template de agente hacían que el linter rechazara cualquier agente creado desde la plantilla). Vía rápida **medida**: 10m de IA, ~49k tokens facturables.
+
+### Añadido — vía rápida `subagent-personas` (2026-08-12)
+
+- **Personas de dominio para el subagente fresco** (cierra la spec de backlog anotada en sdd-hardening): catálogo CORTO de 6 perfiles en `agent-kits/shared/personas/` (`frontend` · `backend` · `db` · `devops` · `test` · `docs` — prioridades, trampas típicas, calidad y evidencia exigibles de cada dominio, ~10 líneas por persona para que el catálogo se mantenga), campo **opcional** `- **Tipo**:` por tarea en la plantilla del planner (se asigna solo con dominio claro; sin tipo → subagente genérico, como hasta ahora) y **inyección determinista en el brief** por `task-brief.py` (sección "Persona de dominio" antes de la tarea). Degradación sin bloquear: etiqueta sin persona en el catálogo → aviso + genérico. TDD estricto (+7 tests, incl. regresión: un `Tipo` de ejemplo dentro de un bloque de código no inyecta persona; tipos con `/` o `..` no escapan del catálogo).
+- Revisión de dos lentes superada: 1 defecto real (el `Tipo` dentro de fences, cazado por la lente B ejecutando) + 4 gaps de documentación, todos corregidos y re-verificados.
+
+### Verificación global del roadmap (2026-08-12)
+
+- **Las 9 iniciativas del roadmap auditadas y coherentes**: ledger-lint en verde en todos los `tasks.md`; estados cerrados donde el trabajo estaba publicado (qa-agent y nemesis-sca-iac **reconciliados con nota explícita** — ledgers anteriores a la disciplina de ledger canónico; agent-best-practices, qa-strict y token-diet → `completado`/`implementada`); jira-granularity se mantiene en `en-revision` a propósito (T-08, dry-run contra DM5985, sigue pendiente).
+- `roadmap-dashboard`: las iniciativas de **vía rápida** (solo `tasks.md`) ahora aparecen en dashboard y métricas (fase "vía rápida", título desde el ledger, coste medido agregado); los estados con emoji (`completado ✅`) ya no generan falsos avisos de incoherencia. Tests nuevos.
+
+### Corregido
+
+- `ledger-lint.py`: «Fase 3» y «Fase 3-bis» ya no colisionan en la validación del resumen (test de regresión 9/9).
+
 ## [1.10.0] - 2026-08-11
 
 ### Añadido — iniciativa `coste-generacion`
@@ -157,6 +193,7 @@ Adopción de las mejores prácticas de las colecciones top de agentes (wshobson/
 
 Versiones anteriores a la introducción de este changelog: bundle con los agentes `nemesis`, `evaluator`, `planner`, `pdfy` y `qa`, y las skills compartidas `cybersecurity` y `to-pdf`. Empaquetado como plugin + marketplace.
 
+[1.11.0]: https://github.com/daycry/custom-agents/releases/tag/v1.11.0
 [1.8.0]: https://github.com/daycry/custom-agents/releases/tag/v1.8.0
 [1.6.0]: https://github.com/daycry/custom-agents/releases/tag/v1.6.0
 [1.5.1]: https://github.com/daycry/custom-agents/releases/tag/v1.5.1

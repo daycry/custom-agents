@@ -45,7 +45,10 @@ registra como **incógnita/supuesto**, no se inventa.
    # plantilla en "$EVALKIT/templates/spec.md"
    ```
    Rellena contexto/objetivo, alcance in/out, criterios de aceptación, restricciones, datos y un
-   bloque de **supuestos e incógnitas**. Estado inicial `borrador`. Registra la iniciativa en `docs/roadmap/README.md`.
+   bloque de **supuestos e incógnitas**. Para los criterios que describan **comportamiento observable**
+   (UI, API, CLI), ofrece la variante `[GWT] CA-XX — Dado…, Cuando…, Entonces…` (se traduce 1:1 a un
+   test E2E; opcional, no la fuerces para criterios de proceso). Estado inicial `borrador`. Registra la
+   iniciativa en `docs/roadmap/README.md`.
 4. **Cierra con handoff a evaluación**: resume la spec en 3-4 líneas, señala las incógnitas que más afectan al coste, y ofrece continuar con `evaluator` (o con `/pm-cycle`, que ya lo encadena). No presupuestes tú.
 
 ## Reglas

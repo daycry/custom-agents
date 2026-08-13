@@ -88,7 +88,55 @@ def main():
     code, out = run(doc(t2estado="en-progreso 🚧"))
     assert code == 0, out
 
-    print("test_ledger_lint: 8/8 OK")
+    # 9) «Fase 3» y «Fase 3-bis» NO colisionan en el resumen (regresión sdd-hardening)
+    bis = """# Tareas
+
+| | |
+|---|---|
+| **Estado** | en-progreso |
+
+## Resumen de progreso
+
+| Fase | Completadas | Total | Progreso |
+|------|------------|-------|----------|
+| Fase 3 — Nucleo | 2 | 2 | 100% |
+| Fase 3-bis — Extra | 1 | 1 | 100% |
+| **TOTAL** | **3** | **3** | **100%** |
+
+## Fase 3 — Nucleo
+
+### T-01 — a
+
+- **Estado**: completado
+
+**Criterios de aceptación**
+- [x] ok
+
+### T-02 — b
+
+- **Estado**: completado
+
+**Criterios de aceptación**
+- [x] ok
+
+## Fase 3-bis — Extra
+
+### T-03 — c
+
+- **Estado**: completado
+
+**Criterios de aceptación**
+- [x] ok
+"""
+    code, out = run(bis)
+    assert code == 0 and "descuadrado" not in out, f"colisión Fase 3 / 3-bis: {out}"
+
+    # 10) numeración multinivel: «Fase 3.2» y «Fase 3.2.1» tampoco colisionan
+    multi = bis.replace("Fase 3 —", "Fase 3.2 —").replace("Fase 3-bis —", "Fase 3.2.1 —")
+    code, out = run(multi)
+    assert code == 0 and "descuadrado" not in out, f"colisión Fase 3.2 / 3.2.1: {out}"
+
+    print("test_ledger_lint: 10/10 OK")
 
 
 if __name__ == "__main__":

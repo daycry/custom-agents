@@ -2,7 +2,20 @@
 
 Repositorio de **agentes custom** para Claude Code, con sus skills y toolkits. Se despliega en la carpeta `.claude/` de un proyecto (ver [`INSTALL.md`](INSTALL.md)).
 
-Antes de añadir o tocar un agente, lee [`CONVENTIONS.md`](CONVENTIONS.md): define dónde va cada cosa y cómo se declaran las dependencias entre agentes para que no se pisen. Para una **visión visual de los flujos** (cadena de agentes, ciclos PM/dev, Jira, Confluence, métricas), ver [`FLOWS.md`](FLOWS.md).
+```mermaid
+flowchart LR
+    subgraph ciclo["🔄 El ciclo de una iniciativa"]
+        direction LR
+        A["analyst\nrequisitos"] --> E["evaluator\npresupuesto + go/no-go"] --> P["planner\nplan + tareas"] --> I["implementer\ncódigo"] --> R["revisión\n2 lentes"] --> Q["qa\nE2E + qa-gate"] --> D["documenter"]
+    end
+    ciclo --> M["📊 métricas + coste medido\n/roadmap-metrics"]
+    M --> RT["/retro → CALIBRATION.md\n(calibra las siguientes)"]
+    J[("🎫 Jira · 🌐 Confluence\nopt-in")] -.-> ciclo
+```
+
+**Guía de lectura:** este índice ubica cada pieza · [`FLOWS.md`](FLOWS.md) dibuja todos los flujos · [`CONVENTIONS.md`](CONVENTIONS.md) fija las reglas · cada agente tiene su doc en [`agents/`](agents/).
+
+Antes de añadir o tocar un agente, lee [`CONVENTIONS.md`](CONVENTIONS.md): define dónde va cada cosa y cómo se declaran las dependencias entre agentes para que no se pisen. Para una **visión visual de los flujos** (cadena de agentes, ciclos PM/dev, Jira, Confluence, métricas), ver [`FLOWS.md`](FLOWS.md). Para qué mide el plugin (coste por artefacto/tarea) y cómo convive con monitores de sesión en vivo, ver [`observability.md`](observability.md).
 
 ## Agentes disponibles
 
@@ -30,14 +43,15 @@ Dirigen la cadena invocando a los agentes **por nombre** y con puertas de contro
 | Comando | Rol | Alcance | Cierre |
 |---------|-----|---------|--------|
 | **`/pm-cycle <objetivo>`** | Producto / PM | `spec → evaluación` (agente `evaluator`) | Cierra en la puerta go/no-go. En *go* deja spec `aprobada` + evaluación `completado` y **ofrece** el handoff a `/dev-cycle` (sin ejecutarlo). Salidas opt-in de cierre: brief PDF (`pdfy`) y handoff a Jira. No planifica ni implementa. |
-| **`/dev-cycle <objetivo>`** | Desarrollo | Ciclo completo `evaluación → plan → implementación → pruebas → documentación` | Detecta superpowers (modo A/B). Si arranca sobre una carpeta con spec+evaluación de `/pm-cycle`, sigue directo en la planificación. |
+| **`/dev-cycle <objetivo>`** | Desarrollo | Ciclo completo `evaluación → plan → implementación → pruebas → documentación` | **Cadena nativa SIEMPRE por defecto** (disciplina opt-in en `.claude/dev.json`: TDD, worktrees, subagentes frescos); superpowers solo bajo petición explícita (`--superpowers`). Si arranca sobre una carpeta con spec+evaluación de `/pm-cycle`, sigue directo en la planificación. |
 | **`/pm-backlog [criterio]`** | Producto / cartera | Lee todas las `evaluation.md` y **prioriza** (solo lectura) | Escribe `docs/roadmap/BACKLOG.md` con orden recomendado (quick wins vs. apuestas grandes). No planifica; remite a `/dev-cycle` para ejecutar. |
 | **`/roadmap-status`** | Visibilidad | Escanea `docs/roadmap/*/` (solo lectura) | Genera el dashboard `docs/roadmap/dashboard.html` (local) y `dashboard.md` (se publica en Confluence para PMs sin git) vía skill `roadmap-dashboard`. |
 | **`/roadmap-metrics`** | Presupuesto | Compara real vs estimado (solo lectura) | Informe `docs/roadmap/metrics.md`: producción (IA+supervisión), horas humanas y tokens **reales vs estimados** con desviaciones y total de cartera (skill `roadmap-dashboard`). |
 | **`/roadmap-brief`** | Dirección | One-pager de cartera → PDF | Combina estado + prioridades + real vs estimado en un brief ejecutivo (`brief.pdf`) vía `to-pdf`. |
 | **`/roadmap-live [slug]`** | Estado en vivo | Lee Jira en tiempo real | Dashboard de issues + horas imputadas por label (artefacto en Cowork; conversacional en CLI). |
 | **`/retro <slug>`** | Aprendizaje | Retro de iniciativa cerrada | Real vs estimado + causas → `CALIBRATION.md`, histórico que calibra las estimaciones del `evaluator`. |
-| **`/setup`** | Onboarding | Configura el proyecto en una pasada | Crea `.claude/rates.json` y decide los opt-ins de Confluence y Jira. Idempotente. |
+| **`/setup`** | Onboarding | Configura el proyecto en una pasada | Crea `.claude/rates.json`, decide los opt-ins de Confluence y Jira, ofrece la constitución (`docs/CONSTITUTION.md`) y la disciplina de desarrollo (`.claude/dev.json`). Idempotente. |
+| **`/spec-drift [slug]`** | Gobernanza | Deriva spec↔código de las specs `implementada` (solo lectura) | Subagentes frescos verifican cada criterio contra el código de hoy (`vigente ✓ / derivado ✗ / no verificable` con evidencia) → `docs/roadmap/DRIFT.md` + oferta de `/pm-cycle` para lo derivado. |
 | **`/confluence-pull [subcarpeta]`** | Producto / sin git | Baja Confluence → `docs/` local (skill `confluence-pull`) | Trae el estado actual sin git; preserva frontmatter, avisa de conflictos y confirma antes de escribir. Complemento inverso de la publicación. |
 
 Así se separan los roles: **`/pm-cycle`** decide *qué* y *cuánto cuesta* (una iniciativa), **`/pm-backlog`** decide *en qué orden* (la cartera), **`/roadmap-status`** da visibilidad, y **`/dev-cycle`** construye. Todos comparten carpeta y `<slug>`, de modo que el traspaso es sin fricción (ver reglas 7 y 8 de [`CONVENTIONS.md`](CONVENTIONS.md)).
@@ -51,7 +65,9 @@ Así se separan los roles: **`/pm-cycle`** decide *qué* y *cuánto cuesta* (una
 | **confluence-publish** | Publica/espeja la doc del proyecto en Confluence vía el conector Atlassian (Rovo MCP). Cada proyecto elige espacio y anclaje (raíz o hijo del árbol) en `.claude/confluence.json`; idempotente (crea/actualiza). | planner, evaluator, qa |
 | **confluence-pull** | Sentido **inverso**: baja Confluence → `docs/` local, para PMs sin git. Reutiliza `confluence.json` y el mapa `confluence-state.json`; preserva el frontmatter local, avisa de conflictos y confirma antes de escribir. Solo lee de Confluence. | comando `/confluence-pull` |
 | **roadmap-dashboard** | Escanea `docs/roadmap/*/` y genera un dashboard **HTML** (vista local), **Markdown** (para publicar en Confluence) o **JSON** (estado, prioridad y presupuesto por iniciativa). Solo lectura. | comandos `/roadmap-status`, `/pm-backlog`; skill `confluence-publish` |
+| **debug-root-cause** | Depuración sistemática hasta la causa raíz en 4 fases con evidencia obligatoria (reproducción mínima → aislamiento → hipótesis probada → fix + regresión); prohibido arreglar a ciegas. | `/dev-cycle` (gancho automático al 3.er rojo de qa); a demanda |
 | **discovery** | Convierte una idea vaga en una `spec.md` sólida con entrevista guiada (objetivo, alcance/fuera de alcance, criterios, restricciones, supuestos) antes de evaluar. No estima. | comando `/pm-cycle` (opt-in) |
+| **plugin-dev** | Meta-skill para desarrollar ESTE plugin: árbol de decisión (agente/skill/comando/kit/fragmento shared/hook), frontmatter obligatorio con model tiering y tools mínimos, validación TDD-ish (test primero → linter → suites → auto-revisión), obligaciones de doc y anti-patrones reales. Incluye plantillas de agente, skill y comando. | quien desarrolle ESTE plugin (sesiones de trabajo sobre el propio repo; ningún agente la declara como dependencia) |
 | **jira-sync** | Vuelca un plan (`tasks.md`) a Jira vía el conector Atlassian: un issue por tarea bajo el proyecto/épica elegidos (selector artefacto en Cowork o conversacional en CLI/VS Code), tipo derivado de la jerarquía del padre. Al completar tareas, imputa horas (Tiempo IA + Supervisión, tope jornada) y marca *Done*. Opt-in (`.claude/jira.json`), idempotente. | planner, implementer |
 
 ## Config compartida de presupuesto (`.claude/rates.json`)

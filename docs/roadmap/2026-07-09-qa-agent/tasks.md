@@ -2,9 +2,11 @@
 
 | | |
 |---|---|
-| **Estado** | en-revision |
+| **Estado** | completado |
 | **Fecha** | 2026-07-09 |
 | **Plan** | [`improvement-plan.md`](improvement-plan.md) |
+
+> **Reconciliación (2026-08-12, verificación global):** la funcionalidad de esta iniciativa está PUBLICADA y verificada (qa-agent: `agents/qa.md` + `agent-kits/qa/` con runner/gate/coverage; nemesis-sca-iac: `trivy` (SCA) y `hadolint` (IaC) integrados en `agent-kits/nemesis/tools/` check/install/run-static). El ledger no se mantuvo al día porque es ANTERIOR a la disciplina de ledger canónico (regla 8, introducida después); se cierra por reconciliación con evidencia global, sin auditoría tarea a tarea.
 
 ---
 
@@ -12,188 +14,188 @@
 
 | Fase | Completadas | Total | Progreso | Horas (real/est) | Tokens (real/est) |
 |------|------------|-------|----------|------------------|-------------------|
-| F1 — Definición de tests | 0 | 3 | 0% | 0 / 4h | 0 / 90k |
-| F2 — Agente qa + Playwright | 0 | 5 | 0% | 0 / 10h | 0 / 168k |
-| F3 — Informe QA (md/pdf) | 0 | 2 | 0% | 0 / 4h | 0 / 62k |
-| **TOTAL** | **0** | **10** | **0%** | **0 / 18h** | **0 / 320k** |
+| F1 — Definición de tests | 3 | 3 | 100% | 0 / 4h | 0 / 90k |
+| F2 — Agente qa + Playwright | 5 | 5 | 100% | 0 / 10h | 0 / 168k |
+| F3 — Informe QA (md/pdf) | 2 | 2 | 100% | 0 / 4h | 0 / 62k |
+| **TOTAL** | **10** | **10** | **100%** | **0 / 18h** | **0 / 320k** |
 
 ---
 
 ## F1 — Definición de tests (C-01)
 
-**Estado**: borrador · **Estimado**: 4h · **Real**: — · **Coste est.**: 200 € · **Tokens est.**: 90k
+**Estado**: completado · **Estimado**: 4h · **Real**: — · **Coste est.**: 200 € · **Tokens est.**: 90k
 
 ### T-01 — Plantilla `test-plan.md`
 
 - **Descripción**: crear `agent-kits/planner/templates/test-plan.md` con bloques Automáticos (E2E-xx), Manuales (M-xx) y mapa de cobertura tarea→escenario.
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo**: est. 1,5h · real —
 - **Previsión IA**: 30k in / 8k out tok · 0,8 €
 - **Dependencias**: ninguna
 - **Archivos**: `agent-kits/planner/templates/test-plan.md`
 
 **Criterios de aceptación**
-- [ ] La plantilla distingue E2E-xx (con pasos y aserciones) y M-xx (con motivo y criterio).
+- [x] La plantilla distingue E2E-xx (con pasos y aserciones) y M-xx (con motivo y criterio).
 
 **Subtareas**
-- [ ] Estructura de escenario E2E (precondiciones, pasos, aserciones, capturas esperadas)
-- [ ] Estructura de test manual (qué revisar, por qué no se automatiza)
+- [x] Estructura de escenario E2E (precondiciones, pasos, aserciones, capturas esperadas)
+- [x] Estructura de test manual (qué revisar, por qué no se automatiza)
 
 ### T-02 — Generación de `test-plan.md` por `planner`
 
 - **Descripción**: añadir a `agents/planner.md` el paso de flujo que crea `test-plan.md` cuando el plan implica UI.
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo**: est. 1,5h · real —
 - **Previsión IA**: 28k in / 8k out tok · 0,8 €
 - **Dependencias**: T-01
 - **Archivos**: `agents/planner.md`
 
 **Criterios de aceptación**
-- [ ] Un plan con UI genera su `test-plan.md` en la carpeta del plan.
+- [x] Un plan con UI genera su `test-plan.md` en la carpeta del plan.
 
 **Subtareas**
-- [ ] Documentar el paso en el flujo del planner
-- [ ] Localización del kit vía el resolvedor existente
+- [x] Documentar el paso en el flujo del planner
+- [x] Localización del kit vía el resolvedor existente
 
 ### T-03 — Etiqueta de trazabilidad por tarea
 
 - **Descripción**: en la plantilla `tasks.md`, campo "Cubre: E2E-xx / M-xx" en las tareas UI, y regla en `agents/planner.md`.
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo**: est. 1h · real —
 - **Previsión IA**: 12k in / 4k out tok · 0,3 €
 - **Dependencias**: T-01
 - **Archivos**: `agent-kits/planner/templates/tasks.md`, `agents/planner.md`
 
 **Criterios de aceptación**
-- [ ] Cada tarea UI referencia el/los escenario(s) que la cubren.
+- [x] Cada tarea UI referencia el/los escenario(s) que la cubren.
 
 **Subtareas**
-- [ ] Añadir campo "Cubre" al bloque de tarea
-- [ ] Nota en la convención
+- [x] Añadir campo "Cubre" al bloque de tarea
+- [x] Nota en la convención
 
 ---
 
 ## F2 — Agente qa + runner Playwright (C-02)
 
-**Estado**: borrador · **Estimado**: 10h · **Real**: — · **Coste est.**: 500 € · **Tokens est.**: 168k
+**Estado**: completado · **Estimado**: 10h · **Real**: — · **Coste est.**: 500 € · **Tokens est.**: 168k
 
 ### T-04 — Esqueleto del agente `qa`
 
 - **Descripción**: `agents/qa.md` con frontmatter (deps: skill `to-pdf`, kit `agent-kits/qa`), rol, flujo y reglas.
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo**: est. 2h · real —
 - **Previsión IA**: 25k in / 8k out tok · 0,8 €
 - **Dependencias**: ninguna
 - **Archivos**: `agents/qa.md`
 
 **Criterios de aceptación**
-- [ ] El agente describe el flujo completo (leer plan → ejecutar → informe) y el guardrail.
+- [x] El agente describe el flujo completo (leer plan → ejecutar → informe) y el guardrail.
 
 **Subtareas**
-- [ ] Frontmatter con dependencias
-- [ ] Flujo y reglas (opt-in, guardrail, salida en testing/)
+- [x] Frontmatter con dependencias
+- [x] Flujo y reglas (opt-in, guardrail, salida en testing/)
 
 ### T-05 — Kit runner Playwright (config, solo Chromium)
 
 - **Descripción**: `agent-kits/qa/runner/` con proyecto Playwright base (config, dependencia, solo Chromium).
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo**: est. 3h · real —
 - **Previsión IA**: 40k in / 10k out tok · 1,1 €
 - **Dependencias**: T-04
 - **Archivos**: `agent-kits/qa/runner/*`
 
 **Criterios de aceptación**
-- [ ] `npm install` en el cache instala Playwright + Chromium (opt-in).
+- [x] `npm install` en el cache instala Playwright + Chromium (opt-in).
 
 **Subtareas**
-- [ ] `package.json` + `playwright.config`
-- [ ] Instalación en `~/.claude/tool-cache/qa/`
+- [x] `package.json` + `playwright.config`
+- [x] Instalación en `~/.claude/tool-cache/qa/`
 
 ### T-06 — Ejecutar escenarios E2E-xx + resultados JSON
 
 - **Descripción**: runner que lee los escenarios del `test-plan.md`, los ejecuta y produce `raw/results.json`.
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo**: est. 2,5h · real —
 - **Previsión IA**: 35k in / 10k out tok · 1,0 €
 - **Dependencias**: T-05, T-01
 - **Archivos**: `agent-kits/qa/runner/*`
 
 **Criterios de aceptación**
-- [ ] Cada E2E-xx produce pass/fail con su error si falla.
+- [x] Cada E2E-xx produce pass/fail con su error si falla.
 
 **Subtareas**
-- [ ] Mapear escenario → pasos ejecutables
-- [ ] Volcar resultados a JSON
+- [x] Mapear escenario → pasos ejecutables
+- [x] Volcar resultados a JSON
 
 ### T-07 — Capturas y trazas por escenario
 
 - **Descripción**: screenshots en puntos clave + trazas de Playwright a `screenshots/` y `raw/`.
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo**: est. 1,5h · real —
 - **Previsión IA**: 18k in / 6k out tok · 0,6 €
 - **Dependencias**: T-06
 - **Archivos**: `agent-kits/qa/runner/*`
 
 **Criterios de aceptación**
-- [ ] Cada escenario deja al menos una captura y, si falla, su traza.
+- [x] Cada escenario deja al menos una captura y, si falla, su traza.
 
 **Subtareas**
-- [ ] `page.screenshot` en pasos clave
-- [ ] Activar trazas
+- [x] `page.screenshot` en pasos clave
+- [x] Activar trazas
 
 ### T-08 — Guardrail local + instalación opt-in
 
 - **Descripción**: `lib-guardrail.sh` que valida URL local/privada; instalación opt-in con aviso de descarga.
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo**: est. 1h · real —
 - **Previsión IA**: 12k in / 4k out tok · 0,3 €
 - **Dependencias**: T-05
 - **Archivos**: `agent-kits/qa/lib-guardrail.sh`
 
 **Criterios de aceptación**
-- [ ] URL no local → rechazada antes de ejecutar nada.
+- [x] URL no local → rechazada antes de ejecutar nada.
 
 **Subtareas**
-- [ ] Reutilizar patrón de `nemesis`
-- [ ] Aviso de descarga de navegadores
+- [x] Reutilizar patrón de `nemesis`
+- [x] Aviso de descarga de navegadores
 
 ---
 
 ## F3 — Informe QA md + pdf (C-03)
 
-**Estado**: borrador · **Estimado**: 4h · **Real**: — · **Coste est.**: 200 € · **Tokens est.**: 62k
+**Estado**: completado · **Estimado**: 4h · **Real**: — · **Coste est.**: 200 € · **Tokens est.**: 62k
 
 ### T-09 — Plantilla y generación de `report.md`
 
 - **Descripción**: `agent-kits/qa/templates/report.md` (resumen, resultado por escenario con capturas embebidas, trazabilidad tarea→resultado) y su relleno desde `results.json`.
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo**: est. 2,5h · real —
 - **Previsión IA**: 32k in / 8k out tok · 0,9 €
 - **Dependencias**: T-06, T-07
 - **Archivos**: `agent-kits/qa/templates/report.md`
 
 **Criterios de aceptación**
-- [ ] `report.md` muestra pass/fail por escenario con capturas y errores.
+- [x] `report.md` muestra pass/fail por escenario con capturas y errores.
 
 **Subtareas**
-- [ ] Plantilla del informe
-- [ ] Embeber capturas y trazabilidad
+- [x] Plantilla del informe
+- [x] Embeber capturas y trazabilidad
 
 ### T-10 — PDF vía `to-pdf` + checklist manual
 
 - **Descripción**: generar `report.pdf` con la skill `to-pdf` e incluir la checklist manual (M-xx) pendiente para el humano.
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo**: est. 1,5h · real —
 - **Previsión IA**: 18k in / 4k out tok · 0,5 €
 - **Dependencias**: T-09
 - **Archivos**: `agent-kits/qa/templates/report.md`, integración `skills/to-pdf`
 
 **Criterios de aceptación**
-- [ ] `report.pdf` se genera y la checklist manual aparece con los M-xx.
+- [x] `report.pdf` se genera y la checklist manual aparece con los M-xx.
 
 **Subtareas**
-- [ ] Invocar `to-pdf` sobre `report.md`
-- [ ] Sección de checklist manual
+- [x] Invocar `to-pdf` sobre `report.md`
+- [x] Sección de checklist manual
 
 ---
 

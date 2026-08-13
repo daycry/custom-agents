@@ -160,6 +160,8 @@ Cada skill guarda su config (decisiones del usuario) y su estado (memoria de má
 | `confluence-state.json` | Manifiesto página↔fichero (hash + pageId) | `confluence-publish`/`pull` | Se reconstruye: publish busca por título bajo el anclaje antes de crear |
 | `jira.json` | Opt-in + política de jornada (`alCubrirJornada`) | skill `jira-sync` o `/setup` | Recrear con `/setup`; defaults seguros |
 | `jira-state.json` | Mapeo T-XX↔issue, imputado por día, banco de horas | `jira-sync` (vía `worklog.py`) | Mapeo: re-derivable de las claves anotadas en `tasks.md`; imputado/banco: revisar worklogs en Jira |
+| `dev.json` | Disciplina de la cadena nativa de `/dev-cycle`: `tdd` (RED-GREEN-REFACTOR con evidencia del rojo), `worktree` (iniciativa en worktree aislado), `subagentes` (una tarea = un subagente fresco), `constitucion` (decisión del opt-in de `docs/CONSTITUTION.md` — distingue "declinado" de "nunca preguntado"). Todo opt-in, defaults `false` | `/setup` o a mano | Recrear con `/setup`; sin fichero o corrupto → defaults `false` + aviso (comportamiento clásico) |
+| `usage-state.json` | Marcadores de medición de coste (`usage-meter.py`: offsets por transcripción y artefacto) | `usage-meter.py` | Borrarlo es inocuo: se pierden los marcadores abiertos; los siguientes `start` lo recrean |
 | `.confluence-pending` | Marca efímera del hook (hay docs sin sincronizar) | hook `PostToolUse` | Borrarla es inocuo; la skill re-detecta por manifiesto |
 
 Reglas: **config ≠ estado** (la config la decide el usuario; el estado lo mantiene la máquina y

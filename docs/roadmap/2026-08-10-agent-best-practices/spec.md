@@ -1,7 +1,7 @@
 ---
 spec: agent-best-practices
 descripcion: Adoptar en el plugin las estrategias contrastadas de las colecciones top de agentes (model tiering, tools mínimos, DoD verificable, revisión adversarial, descriptions de enrutado, DRY)
-estado: aprobada          # borrador | aprobada | implementada | obsoleta
+estado: implementada          # borrador | aprobada | implementada | obsoleta
 creado: 2026-08-10
 actualizado: 2026-08-10
 evaluacion: evaluation.md # ruta a la evaluación cuando exista

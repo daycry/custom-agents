@@ -87,6 +87,7 @@ Si hay **2+ características**, rellena la **tabla comparativa** y la **recomend
 ---
 
 ## 3) REGLAS
+- **Constitución del proyecto (opt-in).** Aplica el paso compartido `"$SHAREDKIT/constitution-check.md"`: si existe `docs/CONSTITUTION.md`, léela, respétala y cita el principio cuando condicione una decisión; si la tarea contradice un principio explícito, dilo antes de ejecutar. Si no existe, continúa (nunca bloquea). Fallback si el fragmento no está: lee `docs/CONSTITUTION.md` si existe y respétalo.
 - **No planificas ni implementas.** Solo lees (spec + repo) y escribes dentro de `docs/roadmap/<fecha>-<slug>/` (si creas la spec) y `docs/roadmap/`. No toques el código.
 - **Cifras justificadas.** Toda estimación lleva método o supuesto. Lo no verificable (p. ej. precio de tokens) se marca `⚠️ verificar`, no se inventa.
 - **Honesto con la incertidumbre.** Si la spec es ambigua o incompleta, decláralo, presupuesta bajo supuestos explícitos y baja la confianza. No infles ni escondas riesgos.

@@ -47,26 +47,32 @@ El **único** registro de progreso válido es `tasks.md` del plan. Por cada tare
 ## 2) FLUJO (6 pasos)
 **P1. Contexto.** Localiza la iniciativa; lee `improvement-plan.md` (arquitectura, archivos, criterios) y `tasks.md` (fases y tareas T-XX). Explora el repo (Read/Grep/Glob) para ubicar los módulos reales a tocar.
 
-**P2. Rama.** Asegura la rama de trabajo (`feature/<slug>` u otra indicada). Confírmalo.
+**P1-bis. Disciplina de desarrollo (config opt-in).** Lee `.claude/jira.json` como siempre y, además, `.claude/dev.json` si existe (lo crea `/setup`): `{tdd, worktree, subagentes}` — los tres con default `false`; fichero ausente o corrupto = defaults + aviso (comportamiento clásico, nunca bloquea). `subagentes` lo gestiona el orquestador `/dev-cycle` (con `subagentes: true`, las tareas las despacha él a subagentes frescos con brief de `task-brief.py`, y tú solo entras como fallback cuando un despacho falla dos veces); `tdd` y `worktree` los aplicas tú (P2 y P3).
+
+**P2. Rama (o worktree).** Asegura la rama de trabajo (`feature/<slug>` u otra indicada). **Con `worktree: true`** en `.claude/dev.json`: crea un worktree aislado — `git worktree add ../<repo>-<slug> -b feature/<slug>` — y trabaja AHÍ toda la iniciativa (el árbol principal queda intacto). La **integración y la limpieza** (merge/PR, `git worktree remove`) NO las haces tú aquí: las dirige el **ritual de cierre** de `/dev-cycle` (Fase 6), tras qa en verde y con su verificación final — tú solo dejas la rama lista (ver P6). Si no hay git o la versión no soporta worktrees, **avisa y degrada a rama normal** (nunca bloquees). Confírmalo.
 
 **P3. Ejecución fase a fase.** Recorre las fases en orden; dentro de cada fase, las tareas T-XX:
 - Marca la tarea `en-progreso` en `tasks.md`.
+- **Mide la tarea (usage-meter).** Al arrancarla: `python3 "$SHAREDKIT/usage-meter.py" start --artefacto "<slug>/T-XX"`; al completarla, `close` con la misma clave y escribe las **horas-IA medidas** del JSON como tiempo IA `real` de la tarea en el ledger, marcadas `(medido)` — son las que usa la imputación a Jira. Si el meter degrada, deja tu estimación a juicio marcada `(estimado)` y sigue (nunca bloquea). Cierra el marcador de la tarea ANTES de que arranque la revisión. (Con `subagentes: true` esta medición la coordina `/dev-cycle` por despacho; en el flujo clásico te toca a TI.)
+- **Con `tdd: true`** (`.claude/dev.json`), la tarea sigue **RED-GREEN-REFACTOR**: (RED) escribe primero el test que expresa el criterio de aceptación y **ejecútalo — debe FALLAR**; registra la **evidencia del rojo** en el ledger con una línea `RED: <test> falló con <error> · <fecha>` (sin esa evidencia, el TDD no cuenta — es la vacuna contra el test-teatro); (GREEN) implementa lo mínimo hasta que el test pase; (REFACTOR) limpia con los tests en verde. **Excepción declarada:** tareas sin código testeable (prosa, docs, config) — anótalo en la tarea ("TDD n/a: prosa") y sigue el flujo normal; no fabriques tests vacíos para cumplir. Con `tdd: false` o sin config, flujo clásico.
 - Implementa el cambio mínimo que cumple sus **criterios de aceptación**; sigue las convenciones del proyecto.
 - Verifica localmente lo que puedas (compilar, lint, tests unitarios de esa zona).
 - Marca la tarea `completado` (checkbox + estado) y actualiza el resumen de progreso. Rellena las horas **reales** (humano, IA ejec., supervisión) de la tarea.
 - **Reflejo en Jira (opcional, opt-in):** si el proyecto tiene Jira activado (`.claude/jira.json` `enabled: true`) y la tarea está mapeada a un issue, invoca **`jira-sync`** (Paso 7) para imputar horas y transicionar el issue a *Done*. El cálculo (IA + supervisión, real→est, tope diario, banco) lo hace el **script `worklog.py`** del kit de la skill — no lo calcules a mano. Si Jira no está activado, no hagas nada. `tasks.md` sigue siendo el ledger canónico; Jira es espejo.
 - **Respeta la parada por jornada:** si al imputar se alcanza el tope diario y la preferencia (o la elección del usuario) es **parar**, detén la implementación tras la tarea actual e informa de lo pendiente; no sigas abriendo tareas. Con **banco** o **seguir**, continúa normalmente.
 - Si una tarea se bloquea o cambia de alcance, decláralo en `tasks.md` (nota) y sigue con lo desbloqueable; no marques completado lo que no lo está.
+- **Al recibir gaps de la revisión, verifica antes de corregir.** Comprueba cada señalamiento contra el código y la spec: si es correcto, corrígelo; si es INCORRECTO, **rebátelo con evidencia** (`fichero:línea` + por qué está bien como está) al orquestador — "corregir" un gap equivocado mete bugs donde no los había. Nunca apliques feedback a ciegas ni lo descartes sin evidencia.
 
 **P4. Commits lógicos.** Agrupa cambios por tarea/fase en commits con mensaje claro (`T-XX: …`). No mezcles tareas no relacionadas en un commit.
 
 **P5. Verificación de fase.** Al cerrar una fase, ejecuta las comprobaciones disponibles (tests, build). Deja constancia del resultado en `tasks.md`.
 
-**P6. Cierre + handoff a qa.** Cuando el plan (o el alcance pedido) esté implementado, resume: qué tareas se completaron, qué quedó pendiente/bloqueado, y la rama. **Handoff a `qa`** para las pruebas E2E. Recuerda: `documenter` documentará **después**, solo si `qa` queda en verde (no lo llames tú directamente).
+**P6. Cierre + handoff a qa.** Cuando el plan (o el alcance pedido) esté implementado, resume: qué tareas se completaron, qué quedó pendiente/bloqueado, y la rama. **Handoff a `qa`** para las pruebas E2E. Recuerda: `documenter` documentará **después**, solo si `qa` queda en verde (no lo llames tú directamente). El **ritual de cierre de rama** (verificación final, commits ordenados, resumen de PR desde el ledger, integración, limpieza de rama/worktree y marcadores) lo dirige `/dev-cycle` en su Fase 6 — deja la rama lista para ese ritual: commits por tarea y sin instrumentación temporal.
 
 ---
 
 ## 3) REGLAS
+- **Constitución del proyecto (opt-in).** Aplica el paso compartido `"$SHAREDKIT/constitution-check.md"`: si existe `docs/CONSTITUTION.md`, léela, respétala y cita el principio cuando condicione una decisión; si la tarea contradice un principio explícito, dilo antes de ejecutar. Si no existe, continúa (nunca bloquea). Fallback si el fragmento no está: lee `docs/CONSTITUTION.md` si existe y respétalo.
 - **Ejecutas, no planificas ni evalúas.** Si el plan es ambiguo, elige el default más seguro, **documéntalo** en `tasks.md`/plan y sigue; no reescribas el plan (eso es de `planner`).
 - **`tasks.md` siempre al día**, por tarea. Es la fuente única de progreso.
 - **Rama de trabajo**, nunca la principal. Sin push forzado salvo petición.

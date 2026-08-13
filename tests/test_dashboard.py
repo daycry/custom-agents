@@ -115,6 +115,23 @@ def run():
         "---\ngeneracion:\n  fuente: medido\n# comentario suelto\n  horas_ia: 2.0\n---\n\n# x\n")
     eq(g_com["horas_ia"], 2.0, "comentario a columna 0 no corta el bloque")
 
+
+    # --- vía rápida: carpeta con SOLO tasks.md aparece en el escaneo ---
+    import tempfile, shutil
+    tmp = tempfile.mkdtemp()
+    vr = os.path.join(tmp, "2026-02-01-rapida")
+    os.makedirs(vr)
+    open(os.path.join(vr, "tasks.md"), "w", encoding="utf-8").write(
+        "---\ngeneracion:\n  fuente: medido\n  tokens_reales: { entrada: 5, salida: 10, cache_creacion: 1 }\n"
+        "  horas_ia: 0.1\n---\n\n# Checklist de Tareas — Rapida (fixture)\n\n"
+        "| | |\n|---|---|\n| **Estado** | completado |\n")
+    vr_inits = bd.scan(tmp)
+    eq(len(vr_inits), 1, "vía rápida detectada")
+    eq(vr_inits[0]["fase"], "vía rápida", "fase derivada de vía rápida")
+    contains(vr_inits[0]["titulo"], "Rapida (fixture)", "título desde el ledger")
+    assert vr_inits[0]["generacion"], "generacion: de la vía rápida se agrega"
+    shutil.rmtree(tmp)
+
     # --- avisos: beta es incoherente (spec aprobada, eval en-revision) ---
     warns = bd.warnings_for(inits)
     assert any("2026-01-12-beta" in w and "aprobada" in w for w in warns), \

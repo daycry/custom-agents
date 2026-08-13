@@ -1,6 +1,17 @@
 # Documentación del agente `qa`
 
-Agente que **audita un plan** ejecutando sus tests E2E con **Playwright** contra la app local, captura evidencias y entrega un informe **md + pdf** con checklist manual. Es el equivalente funcional de `nemesis` pero para **QA/UI**.
+Agente que **audita un plan** ejecutando sus tests E2E con **Playwright** contra la app local, captura evidencias y entrega un informe **md + pdf** con checklist manual. El veredicto verde/rojo **no es una impresión**: lo dan scripts con exit code.
+
+```mermaid
+flowchart LR
+    IN["test-plan.md\n(E2E-xx · M-xx · API/A11Y opt-in)\n+ criterios [GWT] de la spec"] --> G1["puertas deterministas:\nledger-lint · coverage-check"]
+    G1 --> RUN["Playwright\n(solo hosts locales)"]
+    RUN --> V{"qa-gate.py\nexit code"}
+    V -->|verde| OK["informe md+pdf\n→ handoff a documenter"]
+    V -.->|"rojo (máx. 3;\nal 3.º debug-root-cause)"| BACK["vuelve a implementer"]
+    style OK fill:#e8f5e9,stroke:#81c784
+    style BACK fill:#fdecea,stroke:#ef9a9a
+```
 
 ---
 
@@ -13,7 +24,7 @@ Agente que **audita un plan** ejecutando sus tests E2E con **Playwright** contra
 
 ## 2. Cómo funciona
 
-`planner` define los tests en `test-plan.md`; `qa` los ejecuta. Traduce cada escenario `E2E-xx` a un test Playwright, los corre (solo Chromium en esta iteración) contra la URL local, captura screenshots en los puntos clave y recoge resultados en JSON. Luego rellena el informe: estado global, resultado por escenario con capturas y errores, **checklist manual** con los `M-xx` para la persona, y trazabilidad tarea→resultado. El PDF se genera con la skill compartida **`to-pdf`**.
+`planner` define los tests en `test-plan.md`; `qa` los ejecuta. Antes de nada corre dos **puertas deterministas**: `ledger-lint.py` (ledger coherente) y `coverage-check.py` (cobertura criterios↔tests — incluye los **criterios `[GWT]`** de la spec: cada `- [ ] [GWT] CA-XX — Dado…, Cuando…, Entonces…` debe tener su bloque E2E; un GWT sin cubrir es rojo). Luego traduce cada escenario `E2E-xx` a un test Playwright (los `[GWT]` se traducen 1:1: Dado→setup, Cuando→acciones, Entonces→aserciones), los corre contra la URL local, captura screenshots y recoge resultados en JSON. El **veredicto verde/rojo lo emite `qa-gate.py`** sobre ese JSON (verde ⟺ 0 fallos, 0 flaky sin justificar, 0 interrumpidos, ≥1 test ejecutado). El informe incluye estado global, resultado por escenario con capturas, checklist manual `M-xx` y trazabilidad tarea→resultado; el PDF se genera con **`to-pdf`**.
 
 ---
 
@@ -46,4 +57,6 @@ La primera vez pide permiso para instalar Playwright/Chromium y confirma la URL 
 
 - `runner/` — proyecto Playwright (config con reporter JSON + capturas + trazas; `tests/E2E-example.spec.mjs` como patrón).
 - `lib-guardrail.sh` — gate local-only de la URL.
+- `qa-gate.py` — **veredicto determinista** verde/rojo sobre `results.json` (exit code; con tests).
+- `coverage-check.py` — cobertura criterios↔tests: `tasks.md` ↔ `test-plan.md` ↔ criterios `[GWT]` de la spec (con tests).
 - `templates/report.md` — plantilla del informe.
