@@ -25,17 +25,17 @@ De la idea al código probado y documentado: `requisitos → presupuesto → pla
 
 ```mermaid
 flowchart LR
-    idea(["💡 idea"]) --> A["🗣️ analyst\nrequisitos"]
-    A --> E["💶 evaluator\n¿cuánto? ¿conviene?"]
-    E -->|go| P["🗺️ planner\nplan + tareas"]
+    idea(["💡 idea"]) --> A["🗣️ analyst<br/>requisitos"]
+    A --> E["💶 evaluator<br/>¿cuánto? ¿conviene?"]
+    E -->|go| P["🗺️ planner<br/>plan + tareas"]
     E -.->|no-go| stop(["✋"])
-    P --> I["⚙️ implementer\ncódigo\n(TDD · worktrees ·\nsubagentes opt-in)"]
-    I --> R["🔍 revisión\n2 lentes adversariales"]
-    R -->|"✓"| Q["✅ qa\nE2E + qa-gate"]
+    P --> I["⚙️ implementer<br/>código<br/>(TDD · worktrees ·<br/>subagentes opt-in)"]
+    I --> R["🔍 revisión<br/>2 lentes adversariales"]
+    R -->|"✓"| Q["✅ qa<br/>E2E + qa-gate"]
     R -.->|gaps| I
     Q -->|verde| D["📚 documenter"]
-    Q -.->|"rojo ×3 →\n🔬 debug-root-cause"| I
-    D --> retro["🔁 /retro\ncalibración"]
+    Q -.->|"rojo ×3 →<br/>🔬 debug-root-cause"| I
+    D --> retro["🔁 /retro<br/>calibración"]
     retro -.->|ratio medido| E
     style stop fill:#fdecea,stroke:#ef9a9a
     style D fill:#e8f5e9,stroke:#81c784
@@ -95,13 +95,13 @@ Después, en tu proyecto:
 
 ```mermaid
 flowchart LR
-    S["/setup\n(una vez)"] --> PM["/pm-cycle\ndefine y presupuesta"]
-    PM -->|go| DEV["/dev-cycle\nconstruye con puertas"]
-    DEV --> MET["/roadmap-metrics\nreal vs estimado\n+ coste de proceso"]
-    MET --> RET["/retro\ncalibra"]
+    S["/setup<br/>(una vez)"] --> PM["/pm-cycle<br/>define y presupuesta"]
+    PM -->|go| DEV["/dev-cycle<br/>construye con puertas"]
+    DEV --> MET["/roadmap-metrics<br/>real vs estimado<br/>+ coste de proceso"]
+    MET --> RET["/retro<br/>calibra"]
     RET -.-> PM
-    BL["/pm-backlog\nprioriza cartera"] -.-> DEV
-    ST["/roadmap-status · /roadmap-live\n/roadmap-brief · /spec-drift"] -.->|visibilidad y gobernanza| DEV
+    BL["/pm-backlog<br/>prioriza cartera"] -.-> DEV
+    ST["/roadmap-status · /roadmap-live<br/>/roadmap-brief · /spec-drift"] -.->|visibilidad y gobernanza| DEV
 ```
 
 <details>

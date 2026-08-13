@@ -4,11 +4,11 @@ Agente que **audita un plan** ejecutando sus tests E2E con **Playwright** contra
 
 ```mermaid
 flowchart LR
-    IN["test-plan.md\n(E2E-xx · M-xx · API/A11Y opt-in)\n+ criterios [GWT] de la spec"] --> G1["puertas deterministas:\nledger-lint · coverage-check"]
-    G1 --> RUN["Playwright\n(solo hosts locales)"]
-    RUN --> V{"qa-gate.py\nexit code"}
-    V -->|verde| OK["informe md+pdf\n→ handoff a documenter"]
-    V -.->|"rojo (máx. 3;\nal 3.º debug-root-cause)"| BACK["vuelve a implementer"]
+    IN["test-plan.md<br/>(E2E-xx · M-xx · API/A11Y opt-in)<br/>+ criterios [GWT] de la spec"] --> G1["puertas deterministas:<br/>ledger-lint · coverage-check"]
+    G1 --> RUN["Playwright<br/>(solo hosts locales)"]
+    RUN --> V{"qa-gate.py<br/>exit code"}
+    V -->|verde| OK["informe md+pdf<br/>→ handoff a documenter"]
+    V -.->|"rojo (máx. 3;<br/>al 3.º debug-root-cause)"| BACK["vuelve a implementer"]
     style OK fill:#e8f5e9,stroke:#81c784
     style BACK fill:#fdecea,stroke:#ef9a9a
 ```

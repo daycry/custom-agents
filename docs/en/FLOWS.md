@@ -12,15 +12,15 @@ Visual overview of how agents, commands and skills fit together. The diagrams ar
 ```mermaid
 flowchart TD
     PM(["👤 PM / product"]) --> S0["/setup"]
-    PM --> P1["/pm-cycle\ndefines and budgets"]
-    PM --> P2["/pm-backlog\nprioritizes portfolio"]
-    PM --> P3["/confluence-pull\ndocs without git"]
-    DEV(["👩‍💻 Dev / team"]) --> D1["/dev-cycle\nbuilds"]
-    DEV --> D2["/retro\nlearns"]
-    DIR(["👔 Management"]) --> V1["/roadmap-brief\none-pager PDF"]
-    TODOS(["👀 Anyone"]) --> V2["/roadmap-status\ndashboard"]
-    TODOS --> V3["/roadmap-metrics\nactual vs estimated"]
-    TODOS --> V4["/roadmap-live\nlive Jira"]
+    PM --> P1["/pm-cycle<br/>defines and budgets"]
+    PM --> P2["/pm-backlog<br/>prioritizes portfolio"]
+    PM --> P3["/confluence-pull<br/>docs without git"]
+    DEV(["👩‍💻 Dev / team"]) --> D1["/dev-cycle<br/>builds"]
+    DEV --> D2["/retro<br/>learns"]
+    DIR(["👔 Management"]) --> V1["/roadmap-brief<br/>one-pager PDF"]
+    TODOS(["👀 Anyone"]) --> V2["/roadmap-status<br/>dashboard"]
+    TODOS --> V3["/roadmap-metrics<br/>actual vs estimated"]
+    TODOS --> V4["/roadmap-live<br/>live Jira"]
     P1 -->|go| D1
     D1 --> V3
     D2 -.->|CALIBRATION.md| P1
@@ -32,18 +32,18 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-    idea(["💡 Idea / request"]) --> analyst["🗣️ analyst\nrequirements gathering"]
-    analyst -->|spec aprobada| evaluator["💶 evaluator\nbudgets"]
-    evaluator -->|go| planner["🗺️ planner\nplan + tasks"]
+    idea(["💡 Idea / request"]) --> analyst["🗣️ analyst<br/>requirements gathering"]
+    analyst -->|spec aprobada| evaluator["💶 evaluator<br/>budgets"]
+    evaluator -->|go| planner["🗺️ planner<br/>plan + tasks"]
     evaluator -.->|no-go| fin1(["✋ discarded"])
-    planner --> implementer["⚙️ implementer\ncode + ledger"]
-    implementer --> review["🔍 adversarial review\n(2 lenses in parallel,\nfresh context) diff vs plan"]
-    review -->|no gaps| qa["✅ qa\nE2E Playwright"]
+    planner --> implementer["⚙️ implementer<br/>code + ledger"]
+    implementer --> review["🔍 adversarial review<br/>(2 lenses in parallel,<br/>fresh context) diff vs plan"]
+    review -->|no gaps| qa["✅ qa<br/>E2E Playwright"]
     review -.->|correctness gaps| implementer
-    qa -->|green| documenter["📚 documenter\nproject docs"]
+    qa -->|green| documenter["📚 documenter<br/>project docs"]
     qa -.->|red| implementer
-    documenter --> retro["🔁 /retro\ncalibration"]
-    nemesis["🛡️ nemesis\naudit"] -.->|critical findings| analyst
+    documenter --> retro["🔁 /retro<br/>calibration"]
+    nemesis["🛡️ nemesis<br/>audit"] -.->|critical findings| analyst
     retro -.->|CALIBRATION.md| evaluator
     style fin1 fill:#fdecea,stroke:#ef9a9a
     style documenter fill:#e8f5e9,stroke:#81c784
@@ -56,16 +56,16 @@ Everything lives in **one folder per initiative**: `docs/roadmap/<fecha>-<slug>/
 
 ```mermaid
 flowchart TD
-    A["/pm-cycle objective"] --> B{"objective\nwell defined?"}
-    B -->|no| C["discovery skill / @analyst\ninterview → spec.md"]
-    B -->|yes| D["evaluator\nspec + evaluation.md"]
+    A["/pm-cycle objective"] --> B{"objective<br/>well defined?"}
+    B -->|no| C["discovery skill / @analyst<br/>interview → spec.md"]
+    B -->|yes| D["evaluator<br/>spec + evaluation.md"]
     C --> D
-    D --> E{"gate\ngo / no-go"}
-    E -->|no-go| F["evaluation → cancelado\nspec → obsoleta"]
+    D --> E{"gate<br/>go / no-go"}
+    E -->|no-go| F["evaluation → cancelado<br/>spec → obsoleta"]
     E -->|needs revision| C
-    E -->|go| G["spec → aprobada\nevaluation → completado"]
-    G --> H["opt-in outputs:\n📄 brief PDF · 🎫 epic in Jira"]
-    H --> I(["offers handoff to /dev-cycle\nwithout running it"])
+    E -->|go| G["spec → aprobada<br/>evaluation → completado"]
+    G --> H["opt-in outputs:<br/>📄 brief PDF · 🎫 epic in Jira"]
+    H --> I(["offers handoff to /dev-cycle<br/>without running it"])
     style F fill:#fdecea,stroke:#ef9a9a
     style G fill:#e8f5e9,stroke:#81c784
     style I fill:#e8f5e9,stroke:#81c784
@@ -77,26 +77,26 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A["/dev-cycle objective"] --> Z{"full flow\nor fast track?"}
-    Z -->|fast track| Q["lightweight tasks.md\n(no spec/eval/plan)"]
+    A["/dev-cycle objective"] --> Z{"full flow<br/>or fast track?"}
+    Z -->|fast track| Q["lightweight tasks.md<br/>(no spec/eval/plan)"]
     Q --> H
-    Z -->|full| B{"folder with\nspec+evaluation\nfrom /pm-cycle?"}
+    Z -->|full| B{"folder with<br/>spec+evaluation<br/>from /pm-cycle?"}
     B -->|yes| D
     B -->|no| C["evaluator → go/no-go gate"]
-    C -->|go| D["planner\nimprovement-plan + tasks.md"]
+    C -->|go| D["planner<br/>improvement-plan + tasks.md"]
     C -->|no-go| X(["stop"])
-    D --> E["opt-in: push plan to Jira\njira-sync: 1 issue per task"]
-    E --> F{"did the user ask for\nan external engine\nexplicitly?"}
-    F -->|"yes (explicit opt-in)"| G["external engine executes\nagainst YOUR tasks.md\n(its own review)"]
-    F -->|"no (default):\nNATIVE chain"| H["implementer\ntask by task\n(dev.json opt-in: TDD ·\nworktree · fresh subagents)"]
-    H --> R["🔍 adversarial review\nTWO lenses in parallel:\nspec conformance · quality\n(merge + dedupe)"]
+    D --> E["opt-in: push plan to Jira<br/>jira-sync: 1 issue per task"]
+    E --> F{"did the user ask for<br/>an external engine<br/>explicitly?"}
+    F -->|"yes (explicit opt-in)"| G["external engine executes<br/>against YOUR tasks.md<br/>(its own review)"]
+    F -->|"no (default):<br/>NATIVE chain"| H["implementer<br/>task by task<br/>(dev.json opt-in: TDD ·<br/>worktree · fresh subagents)"]
+    H --> R["🔍 adversarial review<br/>TWO lenses in parallel:<br/>spec conformance · quality<br/>(merge + dedupe)"]
     R -.->|gaps| H
-    G --> I["qa · local E2E\nverdict: qa-gate.py"]
+    G --> I["qa · local E2E<br/>verdict: qa-gate.py"]
     R --> I
-    I -->|"red (max 3 attempts,\nthen ask)"| H
-    I -->|green| J["documenter\nonce at the end"]
-    J --> K["optional: nemesis\naudit"]
-    K --> L(["closeout: plan completado\nspec implementada"])
+    I -->|"red (max 3 attempts,<br/>then ask)"| H
+    I -->|green| J["documenter<br/>once at the end"]
+    J --> K["optional: nemesis<br/>audit"]
+    K --> L(["closeout: plan completado<br/>spec implementada"])
     style X fill:#fdecea,stroke:#ef9a9a
     style L fill:#e8f5e9,stroke:#81c784
 ```
@@ -109,42 +109,42 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A["destination selector\n+ task/phase granularity\nartifact or conversational"] --> B{"parent?"}
-    B -->|new epic| C["create Epic\n+ Tasks below it"]
-    B -->|existing issue| D{"parent level\ndiscovered"}
-    B -->|no parent| E["standalone Tasks\nin the project"]
+    A["destination selector<br/>+ task/phase granularity<br/>artifact or conversational"] --> B{"parent?"}
+    B -->|new epic| C["create Epic<br/>+ Tasks below it"]
+    B -->|existing issue| D{"parent level<br/>discovered"}
+    B -->|no parent| E["standalone Tasks<br/>in the project"]
     D -->|epic / initiative| C2["Tasks"]
     D -->|task / story| C3["Subtasks"]
-    C --> F["dry-run + confirmation\n→ create issues\nkeys → tasks.md"]
+    C --> F["dry-run + confirmation<br/>→ create issues<br/>keys → tasks.md"]
     C2 --> F
     C3 --> F
     E --> F
-    O["/roadmap-live\nlive status by label"] -.->|reads| F
+    O["/roadmap-live<br/>live status by label"] -.->|reads| F
 ```
 
 ## 4b · Jira (opt-in) — time logging when each task is completed
 
 ```mermaid
 flowchart TD
-    G["task completado\nin tasks.md"] --> H["worklog.py plan\nAI + supervision, actual→est"]
-    H --> I{"does it fit in\ntoday's workday?"}
-    I -->|yes| J["log worklog\n+ issue → Done"]
+    G["task completado<br/>in tasks.md"] --> H["worklog.py plan<br/>AI + supervision, actual→est"]
+    H --> I{"does it fit in<br/>today's workday?"}
+    I -->|yes| J["log worklog<br/>+ issue → Done"]
     I -->|no| K{"policy"}
-    K -->|bank| L["log the rest of today\nexcess → bank per issue\npaid off on following days"]
-    K -->|stop| M["log the rest\nand HALT implementation"]
-    K -->|continue| N["log everything\neven beyond the workday"]
-    P["read-back\nJira → tasks.md with confirmation"] -.-> G
+    K -->|bank| L["log the rest of today<br/>excess → bank per issue<br/>paid off on following days"]
+    K -->|stop| M["log the rest<br/>and HALT implementation"]
+    K -->|continue| N["log everything<br/>even beyond the workday"]
+    P["read-back<br/>Jira → tasks.md with confirmation"] -.-> G
 ```
 
 ## 5 · Confluence — bidirectional (opt-in)
 
 ```mermaid
 flowchart LR
-    A["local docs/: written by the agents\nevaluator · planner · qa · documenter"] -->|hook marks pending| C["confluence-publish\nhash+pageId manifest\ncreate/update without duplicating"]
-    B["dashboard.md\nregenerated if the roadmap changes"] --> C
-    C --> D[("🌐 Confluence\npage tree")]
-    D -->|"confluence-pull · PM without git"| E["local docs/ up to date\npreserves frontmatter\nwarns about conflicts"]
-    D -.->|deletion not allowed| F["obsolete page\n→ manual deletion"]
+    A["local docs/: written by the agents<br/>evaluator · planner · qa · documenter"] -->|hook marks pending| C["confluence-publish<br/>hash+pageId manifest<br/>create/update without duplicating"]
+    B["dashboard.md<br/>regenerated if the roadmap changes"] --> C
+    C --> D[("🌐 Confluence<br/>page tree")]
+    D -->|"confluence-pull · PM without git"| E["local docs/ up to date<br/>preserves frontmatter<br/>warns about conflicts"]
+    D -.->|deletion not allowed| F["obsolete page<br/>→ manual deletion"]
 ```
 
 ## 6 · Visibility and learning (all read-only)
@@ -153,19 +153,19 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-    M["usage-meter.py\nstart/close per artifact and task\n(real tokens from the transcript)"] -->|generacion: block| R
-    R[("docs/roadmap/*/\nspec · evaluation · plan · tasks")] --> S["/roadmap-status\nHTML + md dashboard"]
-    R --> T["/pm-backlog\nprioritizes the portfolio\nBACKLOG.md"]
-    R --> U["/roadmap-metrics\nactual vs estimated\n+ process cost\nmetrics.md"]
-    S --> V["/roadmap-brief\none-pager PDF\nfor management"]
+    M["usage-meter.py<br/>start/close per artifact and task<br/>(real tokens from the transcript)"] -->|generacion: block| R
+    R[("docs/roadmap/*/<br/>spec · evaluation · plan · tasks")] --> S["/roadmap-status<br/>HTML + md dashboard"]
+    R --> T["/pm-backlog<br/>prioritizes the portfolio<br/>BACKLOG.md"]
+    R --> U["/roadmap-metrics<br/>actual vs estimated<br/>+ process cost<br/>metrics.md"]
+    S --> V["/roadmap-brief<br/>one-pager PDF<br/>for management"]
     T --> V
     U --> V
-    J[("Jira\nissues + worklogs")] --> W["/roadmap-live\nreal-time status"]
-    U --> X["/retro per initiative\ncauses of deviation\n+ measured tokens/hour ratio"]
-    R --> DR["/spec-drift\nspec↔code drift\ncurrent ✓ · drifted ✗ · not verifiable\n→ DRIFT.md"]
+    J[("Jira<br/>issues + worklogs")] --> W["/roadmap-live<br/>real-time status"]
+    U --> X["/retro per initiative<br/>causes of deviation<br/>+ measured tokens/hour ratio"]
+    R --> DR["/spec-drift<br/>spec↔code drift<br/>current ✓ · drifted ✗ · not verifiable<br/>→ DRIFT.md"]
     DR -.->|"drift → /pm-cycle"| R
     X --> Y[("CALIBRATION.md")]
-    Y -->|calibrates estimates\nand tokens→hour ratio| Z["evaluator"]
+    Y -->|calibrates estimates<br/>and tokens→hour ratio| Z["evaluator"]
     Y -.->|ratio| M
 ```
 
@@ -173,13 +173,13 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-    A["/setup"] --> B[".claude/rates.json\nrate · tokens · workday · ratios\nread by evaluator, planner and jira-sync"]
-    A --> C[".claude/confluence.json\nopt-in + destination"]
-    A --> D[".claude/jira.json\nopt-in + workday policy"]
-    A --> G[".claude/dev.json\ntdd · worktree · subagents\n(+ constitution decision)"]
-    A --> H["docs/CONSTITUTION.md\npermanent principles (opt-in)\nread by ALL agents;\nlens A enforces them"]
+    A["/setup"] --> B[".claude/rates.json<br/>rate · tokens · workday · ratios<br/>read by evaluator, planner and jira-sync"]
+    A --> C[".claude/confluence.json<br/>opt-in + destination"]
+    A --> D[".claude/jira.json<br/>opt-in + workday policy"]
+    A --> G[".claude/dev.json<br/>tdd · worktree · subagents<br/>(+ constitution decision)"]
+    A --> H["docs/CONSTITUTION.md<br/>permanent principles (opt-in)<br/>read by ALL agents;<br/>lens A enforces them"]
     C -.->|state| E[".claude/confluence-state.json"]
-    D -.->|state| F[".claude/jira-state.json\nmapping · logged/day · bank"]
+    D -.->|state| F[".claude/jira-state.json<br/>mapping · logged/day · bank"]
 ```
 
 Details on each file: rule 9 of [`CONVENTIONS.md`](CONVENTIONS.md). Atlassian connector

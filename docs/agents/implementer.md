@@ -5,10 +5,10 @@ Implementa un **plan aprobado** ejecutándolo **fase a fase**. Es el eslabón en
 
 ```mermaid
 flowchart LR
-    P["plan aprobado\n(tasks.md)"] --> B{"dev.json"}
-    B -->|"worktree: true"| W["worktree aislado\n../repo-slug"]
+    P["plan aprobado<br/>(tasks.md)"] --> B{"dev.json"}
+    B -->|"worktree: true"| W["worktree aislado<br/>../repo-slug"]
     B -->|default| R["rama feature/slug"]
-    W --> T & R --> T["por cada T-XX:\n📏 usage-meter (medido)\n🔴 RED→🟢GREEN→refactor si tdd\n✅ ledger + Jira opt-in"]
+    W --> T & R --> T["por cada T-XX:<br/>📏 usage-meter (medido)<br/>🔴 RED→🟢GREEN→refactor si tdd<br/>✅ ledger + Jira opt-in"]
     T --> H["handoff a qa"]
 ```
 
