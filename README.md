@@ -2,6 +2,8 @@
 
 **El ciclo de vida completo de una iniciativa de software — con presupuesto, medición de coste real y trazabilidad en Jira/Confluence — dentro de Claude Code.**
 
+[![CI](https://github.com/daycry/custom-agents/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/daycry/custom-agents/actions/workflows/ci.yml)
+[![Versión](https://img.shields.io/github/v/tag/daycry/custom-agents?label=versi%C3%B3n&color=informational)](CHANGELOG.md)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2.svg)](docs/INSTALL.md)
 [![SDD](https://img.shields.io/badge/metodolog%C3%ADa-Spec--Driven-2ea44f.svg)](docs/FLOWS.md)
@@ -161,6 +163,10 @@ Detalle en [`docs/INSTALL.md`](docs/INSTALL.md).
 | 🔌 [INSTALL](docs/INSTALL.md) | instalación, conector Atlassian, actualización |
 | 📡 [observability](docs/observability.md) | qué mide el plugin vs monitores de sesión |
 | 📜 [CHANGELOG](CHANGELOG.md) | historia versión a versión |
+
+## Calidad y CI
+
+Cada push a `master` (y cada PR) pasa por [GitHub Actions](https://github.com/daycry/custom-agents/actions/workflows/ci.yml): linter del plugin (frontmatter, model tiering, grafo de dependencias sin ciclos, colisiones de nombres), las 6 suites deterministas del repo (dashboard, worklog, lint, qa-gate, ledger-lint, coverage-check), los 52 tests pytest de los scripts del kit shared (usage-meter, task-brief), la sintaxis de todos los scripts Python y la coherencia de versiones entre `plugin.json` y `marketplace.json`. El badge de arriba refleja el estado real de la última ejecución.
 
 ## Seguridad
 
