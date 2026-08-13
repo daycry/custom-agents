@@ -149,8 +149,9 @@ def lint(path):
 
 
 def norm_fase(s):
-    m = re.match(r"\s*Fase\s+(\d+)", s)
-    return f"fase-{m.group(1)}" if m else s.strip().lower()
+    # captura sufijos ("Fase 3-bis") para que no colisionen con "Fase 3"
+    m = re.match(r"\s*Fase\s+(\d+(?:[.-]\w+)*)", s)
+    return f"fase-{m.group(1).lower()}" if m else s.strip().lower()
 
 
 def main():

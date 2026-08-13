@@ -2,6 +2,8 @@
 
 Agente que **evalúa y presupuesta** el coste de implementar una **especificación (spec)**. Responde a "¿cuánto costaría esto y conviene hacerlo?" — para decidir, no para ejecutar. Es el eslabón central de la cadena **spec → evaluación → plan**: primero se especifica, luego se evalúa/decide con `evaluator`, y por último se planifica el detalle con `planner`.
 
+> **Coste medido:** este agente arranca/cierra `usage-meter.py` sobre su artefacto: el frontmatter `generacion:` registra los tokens REALES consumidos al producirlo (fechas = contexto · tokens = medida · horas = tokens × ratio calibrado). `/roadmap-metrics` lo agrega como coste de proceso.
+
 ---
 
 ## 1. Entrada y salida

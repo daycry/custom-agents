@@ -176,3 +176,12 @@ Notas:
 - La primera vez comprueba su toolkit y PIDE PERMISO antes de instalar lo que falte (binarios en `~/.claude/security-tools/`, fuera del repo).
 - Informes en `docs/security-scan/<fecha>/index.html` del proyecto auditado. Esa subruta va en el `.gitignore` del proyecto (los hallazgos son sensibles); el resto de `docs/` sí se versiona.
 - Requisitos por máquina: git, curl y python o php. El instalador resuelve el resto.
+
+---
+
+## Observabilidad y monitores de sesión
+
+El plugin mide el **coste** (tokens/€/horas por artefacto y tarea — `usage-meter`); para ver la
+**actividad de sesión en vivo** (herramientas, subagentes, kanban) puedes instalar al lado un
+monitor externo como Claude-Code-Agent-Monitor: los hooks de ambos conviven sin interferirse.
+Detalle y chuleta de "dónde mirar cada cosa": [`observability.md`](observability.md).

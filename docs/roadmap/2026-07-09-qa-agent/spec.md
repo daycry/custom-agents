@@ -1,7 +1,7 @@
 ---
 spec: qa-agent
 descripcion: Nuevo agente qa que audita un plan ejecutando tests E2E con Playwright contra la app local, captura screenshots y genera un informe md+pdf (con checklist manual para el humano) en docs/roadmap/<slug>/testing/. Incluye extender planner para generar un test-plan.md por plan.
-estado: aprobada
+estado: implementada
 creado: 2026-07-09
 actualizado: 2026-07-09
 evaluacion: evaluation.md

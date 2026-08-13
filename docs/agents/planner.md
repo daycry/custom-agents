@@ -2,6 +2,8 @@
 
 Agente que convierte una petición ("quiero hacer X") — o una **spec/evaluación aprobada** — en un **plan de implementación detallado y presupuestado**. No implementa: planifica. Su salida son dos ficheros Markdown por plan, guardados en `docs/roadmap/` del proyecto.
 
+> **Coste medido:** este agente arranca/cierra `usage-meter.py` sobre su artefacto: el frontmatter `generacion:` registra los tokens REALES consumidos al producirlo (fechas = contexto · tokens = medida · horas = tokens × ratio calibrado). `/roadmap-metrics` lo agrega como coste de proceso.
+
 Es el último eslabón de la cadena **spec → evaluación → plan**: cuando el plan nace de una spec/evaluación, las referencia (filas **Spec** y **Evaluación** del `improvement-plan.md`) y **actualiza hacia atrás** el `plan:` de la spec y la fila **Plan** de la evaluación al crearse. Comparte `<slug>` con ellas.
 
 ---
@@ -13,7 +15,7 @@ Por cada plan crea una carpeta `docs/roadmap/<YYYY-MM-DD>-<slug>/` con dos fiche
 | Fichero | Contenido |
 |---------|-----------|
 | `improvement-plan.md` | Cuadro de mando, estimación por fase, presupuesto económico, previsión de tokens, resumen ejecutivo, objetivos, datos necesarios, análisis de impacto, cambios arquitectónicos, archivos, dependencias, criterios de aceptación, riesgos y mitigaciones, métricas de éxito, changelog. |
-| `tasks.md` | Resumen de progreso + fases, con cada tarea estructurada: descripción, estado, tiempo, previsión de tokens/coste, dependencias, archivos, criterios de aceptación (checkboxes) y subtareas. |
+| `tasks.md` | Resumen de progreso + fases, con cada tarea estructurada: descripción, estado, tiempo, previsión de tokens/coste, dependencias, tipo (opcional: dominio `frontend/backend/db/devops/test/docs` — activa la persona del despacho por subagentes), archivos, criterios de aceptación (checkboxes) y subtareas. |
 
 Las plantillas base viven en `agent-kits/planner/templates/` y son el formato canónico: el agente las copia y rellena, no improvisa otro formato.
 

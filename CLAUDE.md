@@ -4,86 +4,90 @@ Contexto para Claude Code al trabajar en este repositorio.
 
 ## Qué es esto
 
-Repositorio de **agentes custom** para Claude Code, con sus skills y toolkits. El contenido se despliega en la carpeta `.claude/` de un proyecto (ver `docs/INSTALL.md`). No es una aplicación: es un bundle de agentes reutilizables.
-
-También está empaquetado como **plugin** (`.claude-plugin/plugin.json` + `marketplace.json`): puede instalarse vía marketplace git y reutilizarse en cualquier proyecto. Por eso los agentes **no** usan rutas fijas a sus kits; las resuelven en runtime con `find` sobre `$PWD/.claude` y `$HOME/.claude` (ver regla 5 de `docs/CONVENTIONS.md`).
-
-## Estructura
+Repositorio de **agentes custom** para Claude Code (bundle reutilizable + **plugin** instalable vía marketplace: `.claude-plugin/plugin.json` + `marketplace.json`). Se despliega como `.claude/` de un proyecto (ver `docs/INSTALL.md`). No es una aplicación. Por ser plugin, los agentes **no** usan rutas fijas a sus kits: las resuelven en runtime con `find` sobre `$PWD/.claude` y `$HOME/.claude` (regla 5 de `docs/CONVENTIONS.md`).
 
 ```
 custom-agents/               (se despliega como .claude/)
-├── agents/<nombre>.md       # definición de cada agente (plano, uno por fichero)
-├── skills/<skill>/          # skills COMPARTIDAS (reutilizables entre agentes)
-├── agent-kits/<agente>/     # toolkits PRIVADOS por agente (scripts, plantillas)
-├── docs/                    # TODA la documentación
-│   ├── README.md            # índice maestro de agentes y skills
-│   ├── CONVENTIONS.md       # convención de organización y dependencias
-│   ├── INSTALL.md           # despliegue del bundle
-│   └── agents/<nombre>*.md  # documentación por agente
-└── CLAUDE.md                # este fichero
+├── agents/<nombre>.md       # definición de cada agente (uno por fichero)
+├── commands/<nombre>.md     # orquestadores (/pm-cycle, /dev-cycle, …)
+├── skills/<skill>/          # skills COMPARTIDAS
+├── agent-kits/<agente>/     # toolkits PRIVADOS por agente (shared/ = fragmentos y scripts comunes)
+├── hooks/                   # PostToolUse no bloqueantes
+├── scripts/                 # lint_plugin.py, release.py
+├── tests/                   # suites del repo (corren en CI)
+└── docs/                    # TODA la documentación (README índice, CONVENTIONS, FLOWS, INSTALL, agents/)
 ```
 
 ## Reglas al trabajar aquí
 
-- **Antes de crear o mover nada, lee `docs/CONVENTIONS.md`.** Define dónde va cada artefacto y cómo evitar colisiones. Para la vista visual de los flujos, ver `docs/FLOWS.md` (actualízalo si cambias un flujo).
-- **La documentación va SIEMPRE en `docs/`**, nunca junto al código. Al añadir un agente, escribe su doc en `docs/agents/<nombre>.md` y añade la fila en `docs/README.md`.
-- **Un agente = un nombre único en kebab-case**, usado igual en `agents/<nombre>.md`, `agent-kits/<nombre>/` y `docs/agents/<nombre>.md`. El `name:` del frontmatter debe coincidir.
-- **Compartido vs. privado:** si un recurso lo usará más de un agente, va en `skills/`; si es específico de uno, en `agent-kits/<agente>/`. **Fragmentos de prompt** repetidos entre agentes (parámetros de estimación, opt-in de Confluence) van en `agent-kits/shared/` con fuente única (ver regla 3 de `docs/CONVENTIONS.md`).
-- **Model tiering:** todo agente declara `model` en su frontmatter según la complejidad de su tarea (`haiku`/`sonnet`/`opus`/`inherit`). Lo valida el linter.
-- **Linter del plugin:** `python scripts/lint_plugin.py` valida frontmatter, grafo `dependencies` (sin ciclos) y avisa de nombres con riesgo de colisión; corre en CI junto a los tests. Pásalo antes de publicar.
-- **Dependencias en el frontmatter del agente** (bloque `dependencies:` con `skills`, `kits`, `agents`). Es la fuente de verdad; Claude Code ignora esas claves extra pero a nosotros nos dan el grafo de un vistazo.
-- **Rutas en scripts:** relativas entre sí (`dirname "$BASH_SOURCE"`), nunca absolutas del repo. El agente `.md` **no** usa rutas fijas a su kit/skill: las resuelve en runtime con `find` sobre `$PWD/.claude` y `$HOME/.claude`, para que funcione en scope proyecto, usuario o plugin (ver regla 5 de `docs/CONVENTIONS.md`).
+| Regla | Resumen |
+|---|---|
+| Convenciones primero | Antes de crear/mover nada: `docs/CONVENTIONS.md`. Flujos visuales: `docs/FLOWS.md` (actualízalo si cambias un flujo). |
+| Documentación en `docs/` | Nunca junto al código. Agente nuevo → `docs/agents/<nombre>.md` + fila en `docs/README.md`. |
+| Nombres | Un agente = un nombre kebab-case único, igual en `agents/`, `agent-kits/` y `docs/agents/`; el `name:` del frontmatter coincide. |
+| Compartido vs privado | Lo usan 2+ agentes → `skills/`; de uno solo → `agent-kits/<agente>/`; fragmentos de prompt repetidos → `agent-kits/shared/` (fuente única). |
+| Model tiering | Todo agente declara `model` (`haiku`/`sonnet`/`opus`/`inherit`). Lo valida el linter. |
+| Linter + tests | `python scripts/lint_plugin.py` (frontmatter, grafo `dependencies` sin ciclos, colisiones) + suites de `tests/` antes de publicar. |
+| Dependencias | Bloque `dependencies:` en el frontmatter del agente (skills/kits/agents) — fuente de verdad del grafo. |
+| Rutas en scripts | Relativas entre sí (`dirname "$BASH_SOURCE"`); nunca absolutas del repo. |
+| Determinismo | Los cálculos y veredictos van en **scripts con tests y exit codes** (patrón `worklog`/`qa-gate`/`ledger-lint`/`usage-meter`/`task-brief`), no en prosa del agente. |
+| Degradación, no bloqueo | Las piezas opcionales (medición, constitución, Jira, Confluence) degradan con aviso; NUNCA bloquean el ciclo. |
 
-## Agentes actuales
+## Agentes
 
-- **nemesis** — auditoría de ciberseguridad end-to-end: SAST (skill `cybersecurity`) + DAST/pentest activo local (kit `agent-kits/nemesis`), con memoria e informe visual. Doc: `docs/agents/nemesis.md`.
-- **planner** — genera planes de implementación detallados y presupuestados (tiempo, coste €, tokens) en `docs/roadmap/<fecha>-<slug>/` (kit `agent-kits/planner`). Doc: `docs/agents/planner.md`.
-- **analyst** — experto en **toma de requerimientos**: conversa con el humano (elige la técnica: entrevista, ejemplos, user stories, contraejemplos) y convierte una idea vaga en una `spec.md` sólida en **formato fijo** (plantilla del `evaluator`), itera hasta que el usuario **aprueba**, y hace handoff a `evaluator`. No estima ni planifica. Doc: `docs/agents/analyst.md`.
-- **evaluator** — evalúa/presupuesta una spec (si llega por prompt, la crea primero) y escribe en `docs/roadmap/<fecha>-<slug>/` (kit `agent-kits/evaluator`); enlaza spec↔evaluación y hace handoff a `planner`. Doc: `docs/agents/evaluator.md`.
-- **implementer** — implementa un plan aprobado fase a fase (escribe código real del proyecto, sobre rama), marcando `tasks.md` como **ledger canónico** por tarea; respeta guardrails y hace handoff a `qa`. Es el único agente que toca código. Doc: `docs/agents/implementer.md`.
-- **pdfy** — convierte archivos a PDF con aspecto moderno (Markdown, HTML y Word → PDF vía Chromium headless + tema CSS), usando la skill compartida `to-pdf`. Doc: `docs/agents/pdfy.md`.
-- **qa** — audita un plan ejecutando E2E con Playwright (solo local, guardrail), captura evidencias y genera informe md+pdf con checklist manual en `docs/roadmap/<fecha>-<slug>/testing/` (kit `agent-kits/qa`, skill `to-pdf`). Doc: `docs/agents/qa.md`.
-- **documenter** — genera/mantiene la documentación técnica y de producto del proyecto bajo `docs/`, con estructura **derivada del propio proyecto** (no hardcodea carpetas; deriva del reparto y vocabulario del repo). Cubre índice, RAG-INDEX, arquitectura, stack, unidades del sistema, guías y producto (kit `agent-kits/documenter`, skill `confluence-publish`). No toca `docs/roadmap/` ni `docs/security-scan/`. Doc: `docs/agents/documenter.md`.
+| Agente | Rol (doc en `docs/agents/<nombre>.md`) |
+|---|---|
+| **analyst** | Toma de requerimientos → `spec.md` aprobada (formato fijo, plantilla del evaluator). No estima ni planifica. |
+| **evaluator** | Presupuesta la spec (h/€/tokens, riesgos, veredicto), calibrando con `CALIBRATION.md`. Handoff a planner. |
+| **planner** | Plan ejecutable: `improvement-plan.md` + `tasks.md` (fases, T-XX, criterios, presupuesto por fase). |
+| **implementer** | Único que toca código. Fase a fase sobre rama/worktree; `tasks.md` = ledger canónico; mide cada tarea con usage-meter; TDD/worktree según `.claude/dev.json`. Handoff a qa. |
+| **qa** | E2E Playwright solo local; veredicto por `qa-gate.py`; cobertura criterios↔tests por `coverage-check.py` (incl. `[GWT]`); informe md+pdf. |
+| **documenter** | Documentación técnica/producto del proyecto bajo `docs/`, derivada del repo. Una vez al cierre del ciclo. No toca `docs/roadmap/` ni `docs/security-scan/`. |
+| **nemesis** | Auditoría de seguridad: SAST (skill `cybersecurity`) + DAST **solo hosts locales/privados** (guardrail `lib-guardrail.sh`, no negociable). |
+| **pdfy** | Markdown/HTML/Word → PDF moderno (skill `to-pdf`). |
 
-**Cadena de artefactos (carpeta única por iniciativa):** `docs/roadmap/<fecha>-<slug>/` contiene `spec.md` → `evaluation.md` → `improvement-plan.md` + `tasks.md` (+ `testing/`), enlazados entre sí y rellenados según se crea cada uno (ver regla 7 de `docs/CONVENTIONS.md`).
+**Cadena de artefactos (carpeta única por iniciativa):** `docs/roadmap/<fecha>-<slug>/` con `spec.md → evaluation.md → improvement-plan.md + tasks.md (+ testing/ + retro.md)`, enlazados bidireccionalmente (regla 7 de CONVENTIONS). `tasks.md` es el **ledger canónico** (regla 8): cualquier implementador lo marca; otros registros son espejo. Cada artefacto lleva su **coste de generación medido** en el frontmatter (`generacion:`, script `usage-meter.py`; fechas = contexto, tokens = medida, horas = tokens × ratio calibrado).
 
-**Cierre del ciclo:** tras implementar un plan y con las pruebas automáticas de `qa` en verde, `qa` hace handoff a `documenter`, que actualiza la documentación de referencia del proyecto (bajo `docs/`) reflejando lo implementado y probado. `documenter` se ejecuta **una vez al final del plan**, no tarea a tarea.
+## Comandos (orquestación)
 
-**Orquestación:** hay dos commands que dirigen la cadena invocando a los agentes **por nombre** (fiable, sin auto-selección) y con puertas de control, sobre la **misma carpeta por iniciativa** `docs/roadmap/<fecha>-<slug>/`:
+Invocan a los agentes **por nombre** y con puertas de control sobre la carpeta de la iniciativa.
 
-- **`/pm-cycle <objetivo>`** (`commands/pm-cycle.md`) — rol **PM/producto**: solo `spec → evaluación` y **cierra** en la puerta go/no-go. No planifica ni implementa. Si es *go*, deja spec `aprobada` + evaluación `completado` y **ofrece** (sin ejecutar) el handoff a `/dev-cycle` sobre la misma carpeta. Salidas opt-in de cierre: **brief PDF** (`pdfy`) y **handoff a Jira** (conector Atlassian). Separa el rol de definir/presupuestar del de construir.
-- **`/dev-cycle <objetivo>`** (`commands/dev-cycle.md`) — ciclo de desarrollo. **Puerta de entrada (Fase 0-bis):** pregunta **flujo completo** (spec→evaluación→plan→impl→qa→docs) o **vía rápida** (salta el papeleo PM y va directo a `implementer` con un `tasks.md` ligero, pero **conserva** la revisión de dos lentes y `qa`). Ante una petición de "implementa X / haz Y", arráncalo y deja que la puerta elija el peso del proceso. Si el usuario **indica el modo explícitamente** (p. ej. "por la vía rápida", "rápido", "directo", o el argumento `rapido`/`completo`), NO pregunta: arranca en ese modo. Si arranca sobre una carpeta que ya trae spec+evaluación de `/pm-cycle`, sigue directo en la planificación.
-- **`/pm-backlog [criterio]`** (`commands/pm-backlog.md`) — rol **PM de cartera**: lee todas las `docs/roadmap/*/evaluation.md` y escribe un backlog **priorizado** (`docs/roadmap/BACKLOG.md`, quick wins vs. apuestas grandes). Solo lectura; remite a `/dev-cycle` para ejecutar.
-- **`/roadmap-status`** (`commands/roadmap-status.md`) — **visibilidad**: genera el dashboard `docs/roadmap/dashboard.html` con el estado, prioridad y presupuesto de cada iniciativa (skill `roadmap-dashboard`). Solo lectura.
-- **`/roadmap-metrics`** (`commands/roadmap-metrics.md`) — **cierre del presupuesto**: informe **real vs estimado** (horas de producción IA+supervisión, humanas y tokens) leyendo lo real de cada `tasks.md`, con desviaciones y total de cartera (skill `roadmap-dashboard`, salida `--metrics-md`). Solo lectura.
-- **`/confluence-pull [subcarpeta]`** (`commands/confluence-pull.md`) — **PM sin git**: baja `Confluence → docs/` local (skill `confluence-pull`), preservando frontmatter y avisando de conflictos. Complemento inverso de la publicación.
-- **`/setup`** (`commands/setup.md`) — **onboarding**: en una pasada crea `.claude/rates.json` y decide los opt-ins de Confluence y Jira, en vez de preguntarlos dispersos. Idempotente.
-- **`/roadmap-brief`** (`commands/roadmap-brief.md`) — **dirección**: one-pager de cartera (estado + prioridades + real vs estimado) exportado a PDF con `to-pdf`.
-- **`/roadmap-live [slug]`** (`commands/roadmap-live.md`) — **estado en vivo desde Jira** (issues + horas imputadas por label): artefacto en Cowork, conversacional en CLI.
-- **`/retro <slug>`** (`commands/retro.md`) — **aprendizaje**: retro de una iniciativa cerrada (real vs estimado + causas) que alimenta `docs/roadmap/CALIBRATION.md`, el histórico que `evaluator` usa para calibrar futuras estimaciones.
+| Comando | Qué hace |
+|---|---|
+| `/pm-cycle <objetivo>` | Rol producto: spec → evaluación → **puerta go/no-go** y cierra. En go, ofrece handoff a /dev-cycle. Salidas opt-in: brief PDF, épica en Jira. |
+| `/dev-cycle <objetivo> [rapido\|completo] [--superpowers]` | Ciclo de desarrollo. **Cadena nativa SIEMPRE por defecto** (superpowers solo bajo petición explícita). Puerta de entrada: flujo completo vs vía rápida (la rápida salta el papeleo PM pero conserva la revisión de dos lentes y qa). Disciplina opt-in en `.claude/dev.json`: `tdd` (RED-GREEN-REFACTOR con evidencia del rojo), `worktree`, `subagentes` (una tarea = un subagente fresco con brief de `task-brief.py`, estados DONE/DONE_WITH_CONCERNS/NEEDS_CONTEXT/BLOCKED, revisor con severidades). Bucles acotados a 3; al 3.er rojo de qa, skill `debug-root-cause` antes de preguntar. |
+| `/setup` | Onboarding en una pasada: `rates.json`, opt-ins Confluence/Jira, constitución (`docs/CONSTITUTION.md`), `dev.json`. Idempotente. |
+| `/pm-backlog` · `/roadmap-status` · `/roadmap-metrics` · `/roadmap-live` · `/roadmap-brief` | Cartera y visibilidad (solo lectura): backlog priorizado · dashboard · real vs estimado + coste de proceso medido · Jira en vivo · one-pager PDF. |
+| `/spec-drift [slug]` | Gobernanza: deriva spec↔código de las specs `implementada` (vigente/derivado/no-verificable con evidencia) → `docs/roadmap/DRIFT.md`. Solo lectura; la corrección va por /pm-cycle. |
+| `/retro <slug>` | Cierre de aprendizaje: real vs estimado + causas + **ratio tokens/hora medido** → `docs/roadmap/CALIBRATION.md` (lo leen evaluator y usage-meter). |
+| `/confluence-pull` | Confluence → `docs/` local (PM sin git). |
 
-Además, `/dev-cycle` **detecta superpowers**: si está, delega el backbone de desarrollo (plan/implementación/TDD/review) en superpowers y aporta la capa de dominio (evaluación/presupuesto, `documenter`, `nemesis`, `confluence-publish`); si **no** está, cae a la cadena nativa completa `evaluator → planner → implementer → qa → documenter`. No hay dependencia dura de superpowers. **Ledger canónico:** el progreso de un plan vive solo en `docs/roadmap/<…>/tasks.md`; lo respetan `implementer`, `qa` y `/dev-cycle`, y debe respetarlo cualquier orquestador externo (p. ej. *superpowers SDD*) — ver regla 8 de `docs/CONVENTIONS.md`.
+**Revisión adversarial (en /dev-cycle):** dos lentes en paralelo con contexto fresco — A: conformidad con spec/plan/constitución (salida estructurada por criterio ✓/✗, gaps con cita); B: solo defectos de corrección. Bucle reviewer→implementer acotado a 3; resultado publicable en Jira (comentario por criterio + worklog `[revisión]` por intento).
 
 ## Skills compartidas
 
-- **cybersecurity** — SAST en 8 dimensiones (la usa `nemesis`).
-- **to-pdf** — Markdown/HTML/Word → PDF con tema moderno (la usan `pdfy`, `qa`).
-- **discovery** — paso previo a evaluar: convierte una idea vaga en una `spec.md` sólida con una entrevista guiada (objetivo, usuarios, alcance/fuera de alcance, criterios, restricciones, datos, supuestos), usando la plantilla `spec.md` del `evaluator`. No estima ni planifica; deja la spec lista para `evaluator`. Se ofrece en `/pm-cycle` cuando el objetivo llega poco definido.
-- **jira-sync** — vuelca un plan (`tasks.md`) a Jira vía el conector Atlassian (Rovo MCP): un issue por tarea bajo el proyecto/épica elegidos, con **selector interactivo** (artefacto en Cowork/escritorio) o **conversacional** (CLI/VS Code). El **tipo** de issue se deriva de la jerarquía del padre (Épica→Tarea, Tarea→Subtarea; descubierto, no hardcodeado). Al completar cada tarea, imputa horas (**Tiempo IA + Supervisión**, real→est, tope de jornada configurable 8h/7h) y transiciona el issue a *Done*. Es **opt-in** como Confluence (`.claude/jira.json` `enabled`); idempotente vía `.claude/jira-state.json`. La usan `planner` (ofrecer al crear el plan) e `implementer` (reflejar progreso). Se ofrece en `/dev-cycle`.
-- **roadmap-dashboard** — escanea `docs/roadmap/*/` y genera un dashboard **HTML** (vista local), **Markdown** (`dashboard.md`, para publicar en Confluence) o **JSON**, con estado, prioridad y presupuesto por iniciativa; solo lectura (la usan `/roadmap-status`, `/pm-backlog` y `confluence-publish`). El `dashboard.md` permite que un **PM sin git** vea el estado real en Confluence: `confluence-publish` lo regenera antes de publicar cuando cambia `docs/roadmap/` y lo espeja como una página más (no es tiempo real; lleva marca de generación).
-- **confluence-pull** — sentido **inverso** de la publicación: baja `Confluence → docs/` local para PMs sin git. Reutiliza `.claude/confluence.json` y el mapa `.claude/confluence-state.json`; preserva el frontmatter local (que Confluence no conserva fiel), avisa de conflictos (ambos lados cambiaron) y confirma antes de escribir. Solo lee de Confluence (no publica); la usa el comando `/confluence-pull`.
-- **confluence-publish** — publica/espeja `docs/` en Confluence vía el conector Atlassian (Rovo MCP), con asistente guiado (elige espacio y anclaje raíz/hijo) e idempotente. Es **opcional (opt-in)**: la primera vez pregunta si se quiere sincronizar y guarda la decisión en `.claude/confluence.json` (`enabled: true/false`); si es `false`, no vuelve a preguntar ni sincroniza. La usan `planner`, `evaluator`, `qa` y `documenter`, que la invocan al escribir en `docs/` para sincronizar (crear/actualizar; borrado → obsoleto, porque el conector no permite borrar páginas). **Nunca** publica `docs/security-scan/`. En Cowork el paso de elegir destino usa un artefacto de árbol interactivo (`skills/confluence-publish/assets/tree-browser.template.html`); en CLI/VSCode es conversacional. La detección de cambios **no usa git**: se apoya en un manifiesto de estado `.claude/confluence-state.json` (hash + `pageId` por documento). El plugin incluye un hook `PostToolUse` (`hooks/hooks.json`) que solo marca `docs/` como pendiente; publica la skill. Alta del conector: ver `docs/INSTALL.md`.
+| Skill | Para qué (usuarios) |
+|---|---|
+| `jira-sync` | Plan → Jira (issue por tarea o por fase, tipo por jerarquía, idempotente); worklog al completar (IA+supervisión, tope jornada + banco, `worklog.py`); publica el resultado del revisor. Opt-in `.claude/jira.json`. (planner, implementer, /dev-cycle) |
+| `confluence-publish` / `confluence-pull` | Espejo `docs/` ↔ Confluence, opt-in, idempotente por manifiesto; nunca `docs/security-scan/`. (evaluator, planner, qa, documenter / comando) |
+| `roadmap-dashboard` | Escaneo de `docs/roadmap/` → HTML/md/JSON + métricas real-vs-estimado y coste de proceso (`build_dashboard.py`). (/roadmap-status, /pm-backlog, /roadmap-metrics) |
+| `discovery` | Entrevista guiada idea→spec sólida antes de evaluar. (analyst, /pm-cycle) |
+| `debug-root-cause` | Causa raíz en 4 fases con evidencia; prohibido arreglar a ciegas. (/dev-cycle al 3.er rojo; a demanda) |
+| `rates-verify` | Actualiza `precioTokens` de `rates.json` desde la doc oficial, con fecha. (evaluator, /setup) |
+| `plugin-dev` | Meta-skill para desarrollar ESTE plugin: árbol de decisión de piezas, frontmatter/tiering/tools mínimos, validación TDD-ish, doc obligatoria, anti-patrones; plantillas de agente/skill/comando. (crear/modificar piezas del plugin) |
+| `cybersecurity` · `to-pdf` | SAST 8 dimensiones (nemesis) · conversión a PDF (pdfy, qa). |
+
+**Configs en `.claude/` del proyecto consumidor** (mapa completo: regla 9 de CONVENTIONS): `rates.json` (presupuesto), `jira.json`/`jira-state.json`, `confluence.json`/`confluence-state.json`, `dev.json` (tdd/worktree/subagentes/constitución), `usage-state.json` (marcadores del meter).
 
 ## Invariante de seguridad (no negociable)
 
-El agente `nemesis` hace pentest **activo** solo contra hosts **locales/privados** (`localhost`, `127.0.0.1`, `*.test`, redes privadas), impuesto por `agent-kits/nemesis/tools/lib-guardrail.sh`. Nunca puentees el guardrail ni apuntes a sistemas de terceros. La explotación activa (`sqlmap`) requiere opt-in explícito del usuario.
+`nemesis` hace pentest **activo** solo contra hosts **locales/privados** (`localhost`, `127.0.0.1`, `*.test`, redes privadas), impuesto por `agent-kits/nemesis/tools/lib-guardrail.sh`. Nunca puentees el guardrail ni apuntes a sistemas de terceros. La explotación activa (`sqlmap`) requiere opt-in explícito del usuario.
 
 ## Añadir un agente nuevo (resumen)
 
-1. Nombre único en kebab-case.
-2. `agents/<nombre>.md` con frontmatter (incluido `dependencies`).
-3. Scripts propios → `agent-kits/<nombre>/`; reutilizables → `skills/<skill>/`.
-4. Doc en `docs/agents/<nombre>.md` + fila en `docs/README.md`.
-5. Verifica que no haya nombres duplicados ni rutas absolutas rotas.
+1. Nombre único kebab-case → `agents/<nombre>.md` con frontmatter (incl. `model` y `dependencies`).
+2. Scripts propios → `agent-kits/<nombre>/`; reutilizables → `skills/`.
+3. Doc en `docs/agents/<nombre>.md` + fila en `docs/README.md` (+ FLOWS si cambia un flujo).
+4. `python scripts/lint_plugin.py` y suites en verde.
 
 Detalle completo en `docs/CONVENTIONS.md`.

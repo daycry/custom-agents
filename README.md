@@ -1,150 +1,170 @@
 # custom-agents
 
-Agentes custom para **Claude Code**, empaquetados como plugin instalable. Cubren el ciclo de una iniciativa (requisitos → presupuesto → plan → implementación → pruebas → documentación) con contabilidad de tiempo/coste y trazabilidad opcional en Jira/Confluence. Incluye **ocho agentes**, varias skills compartidas y comandos orquestadores (`/setup`, `/pm-cycle`, `/dev-cycle`, `/pm-backlog`, `/roadmap-status`, `/roadmap-metrics`, `/roadmap-brief`, `/roadmap-live`, `/retro`, `/confluence-pull`). Reutilizables en cualquier proyecto. Diagramas de todos los flujos en [`docs/FLOWS.md`](docs/FLOWS.md).
+**El ciclo de vida completo de una iniciativa de software — con presupuesto, medición de coste real y trazabilidad en Jira/Confluence — dentro de Claude Code.**
 
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![Claude Code](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2.svg)](docs/INSTALL.md)
+[![SDD](https://img.shields.io/badge/metodolog%C3%ADa-Spec--Driven-2ea44f.svg)](docs/FLOWS.md)
 
-## Agentes
+De la idea al código probado y documentado: `requisitos → presupuesto → plan → implementación → revisión adversarial → E2E → docs`, con **puertas de control** en cada paso, **coste real medido en tokens** y aprendizaje que calibra las siguientes estimaciones. Ocho agentes, once comandos, autosuficiente (sin dependencias de otros plugins).
 
-| Agente | Qué hace |
-|--------|----------|
-| **nemesis** | Auditoría de ciberseguridad end-to-end: SAST (análisis estático, skill `cybersecurity`) + DAST (pentest activo **solo local**), con memoria persistente e informe visual `index.html`. |
-| **analyst** | **Toma de requerimientos**: conversa con el humano (entrevista, ejemplos, user stories, contraejemplos) y convierte una idea vaga en una `spec.md` sólida en formato fijo; itera hasta la **aprobación** y hace *handoff* a `evaluator`. |
-| **evaluator** | Evalúa/presupuesta una **especificación** (la crea si llega por el prompt) en `docs/roadmap/<fecha>-<slug>/`: esfuerzo, coste € y previsión de tokens. Calibra con el histórico (`CALIBRATION.md`). Hace *handoff* a `planner`. |
-| **planner** | Genera planes de implementación detallados y **presupuestados** (tiempo, coste €, previsión de tokens) en `docs/roadmap/`. |
-| **implementer** | **Implementa** un plan aprobado fase a fase (escribe código, sobre rama), marcando `tasks.md` como ledger canónico por tarea. Handoff a `qa`. |
-| **pdfy** | Convierte archivos a **PDF con aspecto moderno** (Markdown, HTML y Word → PDF vía Chromium headless + tema CSS), usando la skill `to-pdf`. |
-| **qa** | Audita un plan ejecutando **E2E con Playwright** (solo local), captura evidencias y genera un informe md+pdf con checklist manual en `docs/roadmap/<slug>/testing/`. |
-| **documenter** | Genera y mantiene la **documentación** técnica y de producto del proyecto bajo `docs/`, con estructura **derivada del propio proyecto** (índice, RAG-INDEX, arquitectura, stack, unidades, guías, producto). Sincroniza en Confluence. |
+```mermaid
+flowchart LR
+    idea(["💡 idea"]) --> A["🗣️ analyst\nrequisitos"]
+    A --> E["💶 evaluator\n¿cuánto? ¿conviene?"]
+    E -->|go| P["🗺️ planner\nplan + tareas"]
+    E -.->|no-go| stop(["✋"])
+    P --> I["⚙️ implementer\ncódigo\n(TDD · worktrees ·\nsubagentes opt-in)"]
+    I --> R["🔍 revisión\n2 lentes adversariales"]
+    R -->|"✓"| Q["✅ qa\nE2E + qa-gate"]
+    R -.->|gaps| I
+    Q -->|verde| D["📚 documenter"]
+    Q -.->|"rojo ×3 →\n🔬 debug-root-cause"| I
+    D --> retro["🔁 /retro\ncalibración"]
+    retro -.->|ratio medido| E
+    style stop fill:#fdecea,stroke:#ef9a9a
+    style D fill:#e8f5e9,stroke:#81c784
+```
 
-Skills compartidas:
-- **cybersecurity** — revisión de seguridad en 8 dimensiones (OWASP, CWE, secretos, dependencias, IaC, threat intel, autorización, compliance). La usa `nemesis`.
-- **to-pdf** — conversión de Markdown/HTML/Word a PDF con tema moderno. La usan `pdfy` y `qa`.
-- **confluence-publish** — publica/espeja `docs/` en **Confluence** vía el conector Atlassian (asistente guiado; elige espacio y anclaje raíz/hijo; idempotente). La usan `planner`, `evaluator` y `qa`.
-- **confluence-pull** — sentido **inverso**: baja Confluence → `docs/` local para PMs sin git, preservando el frontmatter y avisando de conflictos.
-- **roadmap-dashboard** — genera un dashboard (HTML local / Markdown para Confluence / JSON) con el estado, prioridad y presupuesto de cada iniciativa del roadmap.
-- **jira-sync** — vuelca un plan a **Jira** (un issue por tarea bajo el proyecto/épica elegidos, con selector artefacto o conversacional), imputa horas al completar (Tiempo IA + Supervisión, tope de jornada + banco) y marca *Done*. Opt-in. La usan `planner` e `implementer`.
-- **discovery** — checklist de descubrimiento que ayuda a convertir una idea vaga en una `spec.md` sólida antes de evaluar (la usan `analyst` y `/pm-cycle`).
+## ¿Por qué este y no otro?
 
-## Comandos
+Hay plugins excelentes de *metodología* (superpowers), de *SDD* (Spec Kit) y de *observabilidad* (Agent-Monitor). Este cubre lo que ninguno: **la capa de negocio** — y desde la v1.11 incorpora, nativas y opt-in, sus mejores mecánicas.
 
-| Comando | Rol | Qué hace |
-|---------|-----|----------|
-| **`/pm-cycle <objetivo>`** | Producto | `spec → evaluación`; cierra en go/no-go y ofrece el handoff a `/dev-cycle`. |
-| **`/dev-cycle <objetivo>`** | Desarrollo | Ciclo completo `evaluación → plan → implementación → pruebas → documentación` (detecta superpowers). |
-| **`/pm-backlog [criterio]`** | Cartera | Prioriza todas las iniciativas evaluadas en `docs/roadmap/BACKLOG.md` (solo lectura). |
-| **`/roadmap-status`** | Visibilidad | Genera el dashboard del roadmap (skill `roadmap-dashboard`). |
-| **`/confluence-pull [subcarpeta]`** | Sin git | Baja Confluence → `docs/` local (skill `confluence-pull`). |
+| | custom-agents | superpowers | Spec Kit | Agent-Monitor |
+|---|:---:|:---:|:---:|:---:|
+| Presupuesto por iniciativa (h · € · tokens) | ✅ | — | — | — |
+| **Coste REAL medido** por artefacto y tarea (`usage-meter`) | ✅ | — | — | por sesión |
+| Puerta económica go/no-go antes de construir | ✅ | — | — | — |
+| Jira: issues + worklog + Done (opt-in, por tarea o por fase) | ✅ | — | — | — |
+| Confluence bidireccional (PM sin git) | ✅ | — | — | — |
+| Calibración con datos reales (`/retro` → `CALIBRATION.md`) | ✅ | — | — | — |
+| Cadena spec → eval → plan → tasks (ledger canónico) | ✅ | plan | ✅ | — |
+| Constitución del proyecto con **enforcement** en la revisión | ✅ | — | ✅ (sin enforcement) | — |
+| Deriva spec↔código (`/spec-drift`) | ✅ | — | ✅ | — |
+| TDD estricto · worktrees · subagentes de contexto fresco | ✅ opt-in | ✅ | — | — |
+| Debugging sistemático a causa raíz | ✅ | ✅ | — | — |
+| Puertas deterministas por script (qa-gate, ledger-lint, coverage) | ✅ | — | — | — |
 
-## Instalación (recomendada: plugin)
+> Con superpowers instalado no chocan: la cadena nativa manda por defecto y superpowers solo entra si lo pides (`--superpowers`). Con monitores de sesión, [conviven](docs/observability.md).
 
-En Claude Code, dentro de cualquier proyecto:
+## Lo que lo hace distinto
+
+**💶 Cada iniciativa nace presupuestada y muere medida.** El `evaluator` presupuesta (horas, €, tokens) ANTES de construir y una puerta go/no-go decide. Durante el ciclo, `usage-meter` mide los **tokens reales** consumidos por cada artefacto y cada tarea (frontmatter `generacion:`, horas-IA imputables a Jira). `/roadmap-metrics` enseña estimado vs real, y `/retro` convierte cada cierre en **calibración** para estimar mejor la siguiente.
+
+**🔍 La calidad no es opinión: son puertas.** Revisión adversarial de **dos lentes en paralelo** con contexto fresco (conformidad con la spec + robustez del código), veredicto de qa por **script con exit code** (`qa-gate.py`), cobertura criterios↔tests verificada (`coverage-check.py`, con criterios `[GWT]` Given/When/Then traducibles 1:1 a E2E), ledger validado (`ledger-lint.py`) y bucles de corrección **acotados** (máx. 3 intentos — y al tercero, la skill `debug-root-cause` diagnostica la causa raíz con evidencia antes de preguntarte).
+
+**⚖️ Disciplina de ingeniería opt-in (`.claude/dev.json`, defaults off).** Actívala por proyecto: **TDD** RED-GREEN-REFACTOR con evidencia del rojo en el ledger, **worktrees** de git aislados por iniciativa, y **subagentes de contexto fresco** — cada tarea la implementa un subagente con un brief determinista (`task-brief.py`) que solo contiene su tarea, sus criterios y la constitución: sin arrastrar el ruido de las tareas anteriores.
+
+**📜 Constitución del proyecto.** Principios permanentes en `docs/CONSTITUTION.md` (los ofrece `/setup`) que **todos los agentes leen y la revisión hace cumplir**: violar un principio explícito es gap de corrección con cita de línea. Y `/spec-drift` re-verifica cuando quieras que el código siga cumpliendo lo que las specs `implementada` prometieron.
+
+**🎫 Jira y Confluence sin fricción (opt-in).** El plan se vuelca a Jira (un issue por tarea o por fase, tipo descubierto por jerarquía), las horas se imputan al completar (con tope de jornada y banco), el resultado de la revisión se publica como comentario, y `docs/` se espeja en Confluence en ambos sentidos — pensado para que un PM sin git vea todo al día.
+
+## Empezar en 2 minutos
 
 ```
 /plugin marketplace add daycry/custom-agents
 /plugin install custom-agents@daycry
 ```
 
-Los agentes quedan disponibles en **todos los proyectos** de la máquina. Comprueba con `/agents`.
+> Los comandos `/plugin` funcionan en la **CLI de Claude Code**; en VS Code o la app de escritorio, instala desde el menú *Customize → Plugins* o a nivel usuario (ver [INSTALL](docs/INSTALL.md)).
 
-> **Nota:** los comandos `/plugin` funcionan en la **CLI de Claude Code** (terminal), no en la extensión de VS Code ni en la app de escritorio. Si usas un IDE, instala a nivel usuario (ver abajo).
+Después, en tu proyecto:
+
+```
+/setup                          ← una pasada: tarifa, Jira, Confluence, constitución, disciplina
+/pm-cycle añadir login con 2FA  ← define y presupuesta (cierra en go/no-go)
+/dev-cycle                      ← construye: plan → código → revisión → E2E → docs
+```
+
+¿Cambio pequeño? `/dev-cycle arregla el typo del header, rápido` — la **vía rápida** salta el papeleo PM pero conserva la revisión y qa.
+
+```mermaid
+flowchart LR
+    S["/setup\n(una vez)"] --> PM["/pm-cycle\ndefine y presupuesta"]
+    PM -->|go| DEV["/dev-cycle\nconstruye con puertas"]
+    DEV --> MET["/roadmap-metrics\nreal vs estimado\n+ coste de proceso"]
+    MET --> RET["/retro\ncalibra"]
+    RET -.-> PM
+    BL["/pm-backlog\nprioriza cartera"] -.-> DEV
+    ST["/roadmap-status · /roadmap-live\n/roadmap-brief · /spec-drift"] -.->|visibilidad y gobernanza| DEV
+```
 
 <details>
-<summary>Otras vías (probar rápido o nivel usuario)</summary>
+<summary><b>Los 8 agentes y los 11 comandos</b> (clic para desplegar)</summary>
 
-**Probar en un proyecto** (symlink del repo como `.claude/`):
+| Agente | Qué hace |
+|--------|----------|
+| **analyst** | Toma de requerimientos: convierte una idea vaga en una `spec.md` aprobada (entrevista, ejemplos, user stories, contraejemplos). |
+| **evaluator** | Presupuesta la spec: esfuerzo, coste €, tokens, riesgos, veredicto — calibrando con el histórico real. |
+| **planner** | Plan ejecutable: fases y tareas `T-XX` con criterios de aceptación verificables y presupuesto por fase. |
+| **implementer** | Escribe el código fase a fase sobre rama/worktree, con `tasks.md` como ledger canónico y coste medido por tarea. |
+| **qa** | E2E con Playwright (solo hosts locales), veredicto por `qa-gate.py`, informe md+pdf con evidencias. |
+| **documenter** | Documentación técnica y de producto derivada del propio proyecto, una vez al cierre del ciclo. |
+| **nemesis** | Auditoría de ciberseguridad: SAST 8 dimensiones + pentest activo **solo local** (guardrail no negociable). |
+| **pdfy** | Cualquier documento → PDF con aspecto moderno. |
 
-```bash
-git clone https://github.com/daycry/custom-agents.git
-ln -s "$(pwd)/custom-agents" "/ruta/al/proyecto/.claude"
-```
+| Comando | Qué hace |
+|---------|----------|
+| `/setup` | Onboarding en una pasada: `rates.json`, Jira, Confluence, constitución, `dev.json`. |
+| `/pm-cycle` | Rol producto: spec → evaluación → puerta go/no-go. |
+| `/dev-cycle` | Ciclo de desarrollo completo (o vía rápida), con todas las puertas. |
+| `/pm-backlog` | Prioriza la cartera de iniciativas evaluadas. |
+| `/roadmap-status` | Dashboard del roadmap (HTML + md para Confluence). |
+| `/roadmap-metrics` | Real vs estimado + **coste de proceso** medido. |
+| `/roadmap-live` | Estado en vivo leyendo Jira. |
+| `/roadmap-brief` | One-pager PDF para dirección. |
+| `/spec-drift` | ¿El código sigue cumpliendo las specs implementadas? |
+| `/retro` | Cierra el bucle: desviaciones + causas → `CALIBRATION.md`. |
+| `/confluence-pull` | Confluence → `docs/` local (PM sin git). |
 
-**Nivel usuario** (disponible en todos tus proyectos, sin plugin):
+Skills compartidas: `jira-sync` · `confluence-publish` / `confluence-pull` · `roadmap-dashboard` · `discovery` · `debug-root-cause` · `cybersecurity` · `to-pdf` · `rates-verify`. Scripts deterministas (todos con tests): `usage-meter` · `task-brief` · `worklog` · `qa-gate` · `ledger-lint` · `coverage-check` · `build_dashboard` · `lint_plugin`.
 
-```bash
-cp -r custom-agents/agents/.     "$HOME/.claude/agents/"
-cp -r custom-agents/skills/.     "$HOME/.claude/skills/"
-cp -r custom-agents/agent-kits/. "$HOME/.claude/agent-kits/"
-```
-
-Detalle completo en [`docs/INSTALL.md`](docs/INSTALL.md).
 </details>
 
-## Actualizar
-
-Los plugins **no se auto-actualizan**, y la actualización se detecta **por número de versión** (sube `version` en `.claude-plugin/plugin.json` **y** `marketplace.json` al publicar).
-
-1. **Publica** los cambios en el repo. Sube la versión con `python scripts/release.py X.Y.Z` (la deja coherente en `plugin.json` y `marketplace.json`, y crea commit + tag), y `git push origin HEAD && git push origin vX.Y.Z`.
-2. **Actualiza en tu cliente:**
-   - **CLI de Claude Code:** `/plugin marketplace update daycry` → `/plugin update custom-agents@daycry` → `/reload-plugins`.
-   - **Claude Desktop / Cowork (UI):** menú **Customize → Plugins**, en el marketplace `daycry` usa **Actualizar**. Si el botón está **deshabilitado**, **quítalo y vuelve a añadirlo** (menú **⋯ → Remove**, luego **"+" → Add marketplace → Add from a repository** con la URL del repo).
-3. Si sigue mostrando la versión antigua (caché): reinstala (`/plugin uninstall` + `/plugin install`) o borra `~/.claude/plugins/cache/`.
-
-Detalle en [`docs/INSTALL.md`](docs/INSTALL.md) (sección *Actualizar el plugin*).
-
-## Uso
-
-Invoca un agente por su nombre, o deja que Claude delegue automáticamente:
-
-```
-@evaluator presupuesta esta especificación: …
-@planner prepara un plan para añadir autenticación 2FA
-@nemesis audita la seguridad de este proyecto
-@pdfy convierte a PDF docs/informe.docx
-```
-
-Cada agente hace un onboarding breve la primera vez (confirma parámetros y, en el caso de `nemesis`/`pdfy`, pide permiso antes de instalar herramientas).
-
-## Cómo encaja
-
-Cadena de trabajo:
+<details>
+<summary><b>Cómo encaja todo</b> — la carpeta por iniciativa</summary>
 
 ```
 docs/roadmap/<fecha>-<slug>/
-├── spec.md              (QUÉ se quiere)
-├── evaluation.md        (evaluator: CUÁNTO / si conviene)
-├── improvement-plan.md  (planner: CÓMO, paso a paso)
-├── tasks.md             (checklist de tareas + horas reales)
-├── testing/             (qa: E2E + informe)
-└── retro.md             (/retro: real vs estimado + aprendizajes)
+├── spec.md              QUÉ se quiere (+ coste real de producirla, medido)
+├── evaluation.md        CUÁNTO cuesta / si conviene
+├── improvement-plan.md  CÓMO, paso a paso, presupuestado
+├── tasks.md             ledger canónico (estados + horas medidas por tarea)
+├── testing/             informe E2E de qa con evidencias
+└── retro.md             real vs estimado + aprendizajes
 ```
 
-`analyst` toma los requisitos y deja una **spec aprobada** → `evaluator` especifica y presupuesta (calibrando con el histórico) → `planner` genera el plan detallado → `implementer` lo **implementa** fase a fase (marcando `tasks.md` e imputando horas en Jira si está activado) → `qa` prueba (E2E) → con los tests en verde, `qa` hace handoff a `documenter`, que **actualiza la documentación** del proyecto (una vez al final del plan, no por tarea). `nemesis` **audita** la seguridad y puede convertir hallazgos críticos en nuevas iniciativas. `pdfy` exporta cualquier documento a **PDF**.
+Todos los artefactos se enlazan entre sí, llevan su coste de generación **medido** en el frontmatter (`generacion:`) y alimentan los dashboards y la calibración. Diagramas completos de cada flujo: [`docs/FLOWS.md`](docs/FLOWS.md).
 
-Dos comandos orquestan la cadena por nombre y con puertas de control: **`/pm-cycle`** (rol producto: define y presupuesta, cierra en go/no-go) y **`/dev-cycle`** (desarrollo completo). Los comandos de cartera (`/pm-backlog`, `/roadmap-status`, `/roadmap-metrics`, `/roadmap-brief`, `/roadmap-live`) dan visibilidad y `/retro` cierra el bucle de aprendizaje. Ver [`docs/FLOWS.md`](docs/FLOWS.md) para los diagramas. Los parámetros de presupuesto (tarifa, tokens, jornada) viven en `.claude/rates.json` (`/setup` lo crea).
+</details>
 
-## Publicación en Confluence
+<details>
+<summary><b>Actualizar el plugin</b></summary>
 
-La skill `confluence-publish` espeja `docs/` en **Confluence** usando el conector oficial de
-Atlassian (Rovo MCP). Es **opcional (opt-in)**: la primera vez la skill pregunta si quieres
-sincronizar; si dices que no, lo recuerda (`enabled: false`) y no vuelve a preguntar ni sincroniza.
-Si dices que sí, eliges espacio y dónde anclar el árbol (raíz del espacio o bajo una página
-existente); la decisión se guarda en `.claude/confluence.json` y a partir de ahí es automática.
-`planner`, `evaluator` y `qa` invocan la skill al escribir en `docs/`, de modo que —si está
-activada— la documentación en Confluence se mantiene al día (crear/actualizar; el borrado se marca
-como obsoleto porque el conector no permite eliminar páginas). **`docs/security-scan/` nunca se publica.**
+Los plugins no se auto-actualizan; la actualización se detecta por versión.
 
-Requiere dar de alta el conector de Atlassian una vez: en **Cowork/Desktop** desde
-*Customize → Connectors*; en **CLI/VS Code** con `claude mcp add`. En Cowork el paso de elegir
-destino usa un navegador de árbol interactivo; en CLI/VS Code es conversacional. Detalle en
-[`docs/INSTALL.md`](docs/INSTALL.md).
+1. **Publica**: `python scripts/release.py X.Y.Z` (deja coherentes `plugin.json` y `marketplace.json`, crea commit + tag) → `git push origin HEAD && git push origin vX.Y.Z`.
+2. **Actualiza en tu cliente**: CLI → `/plugin marketplace update daycry` + `/plugin update custom-agents@daycry` + `/reload-plugins`. Desktop/Cowork → *Customize → Plugins → Actualizar* (si está deshabilitado: quita y re-añade el marketplace).
+3. Si persiste la versión vieja: reinstala o borra `~/.claude/plugins/cache/`.
 
-## Estructura
+Detalle en [`docs/INSTALL.md`](docs/INSTALL.md).
 
-```
-custom-agents/               (se despliega como .claude/)
-├── .claude-plugin/          # manifiesto del plugin + marketplace
-├── agents/<nombre>.md       # definiciones de los agentes
-├── skills/<skill>/          # skills compartidas
-├── agent-kits/<agente>/     # toolkits/plantillas privadas por agente
-└── docs/                    # documentación (índice, convenciones, por agente)
-```
+</details>
 
-Documentación: [índice](docs/README.md) · [convenciones](docs/CONVENTIONS.md) · [instalación](docs/INSTALL.md) · [changelog](CHANGELOG.md).
+## Documentación
+
+| | |
+|---|---|
+| 📖 [Índice maestro](docs/README.md) | agentes, comandos y skills con sus dependencias |
+| 🗺️ [FLOWS](docs/FLOWS.md) | **todos los flujos en diagramas Mermaid** |
+| 📏 [CONVENTIONS](docs/CONVENTIONS.md) | dónde va cada cosa, estados, configs, ledger |
+| 🔌 [INSTALL](docs/INSTALL.md) | instalación, conector Atlassian, actualización |
+| 📡 [observability](docs/observability.md) | qué mide el plugin vs monitores de sesión |
+| 📜 [CHANGELOG](CHANGELOG.md) | historia versión a versión |
 
 ## Seguridad
 
-El agente `nemesis` hace pentest **activo solo contra hosts locales/privados** (`localhost`, `127.0.0.1`, `*.test`, redes privadas), impuesto por un guardrail. No apunta a sistemas de terceros; la explotación activa (`sqlmap`) requiere opt-in explícito. Los informes con hallazgos son sensibles y quedan gitignored.
+`nemesis` hace pentest activo **solo contra hosts locales/privados** (`localhost`, `*.test`, redes privadas), impuesto por guardrail de script — nunca contra terceros. La explotación activa requiere opt-in explícito y los informes con hallazgos quedan gitignored.
 
 ## Licencia
 

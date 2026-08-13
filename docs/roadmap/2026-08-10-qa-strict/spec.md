@@ -1,7 +1,7 @@
 ---
 spec: qa-strict
 descripcion: Endurecer qa y el orquestador /dev-cycle con puertas deterministas (qa-gate, ledger-lint), Playwright estricto, cobertura criterios↔tests, bucle acotado de corrección y revisión de dos lentes
-estado: aprobada          # borrador | aprobada | implementada | obsoleta
+estado: implementada          # borrador | aprobada | implementada | obsoleta
 creado: 2026-08-10
 actualizado: 2026-08-10
 evaluacion: evaluation.md # ruta a la evaluación cuando exista

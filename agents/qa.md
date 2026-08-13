@@ -42,11 +42,11 @@ cp -r "$QAKIT/runner/." "$CACHE/"
 Requiere **Node** (si no está, avísalo; no lo instalas tú).
 
 ## 2) FLUJO (6 pasos)
-**P1. Contexto + puertas de entrada (deterministas).** Localiza la iniciativa y lee `improvement-plan.md`, `tasks.md` y `test-plan.md`. Extrae los escenarios `E2E-xx`, `M-xx` (y `API-xx`/`A11Y-xx` si el test-plan los trae). Confirma la URL local y que la app responde. Antes de ejecutar nada, corre las dos puertas:
+**P1. Contexto + puertas de entrada (deterministas).** Localiza la iniciativa y lee `improvement-plan.md`, `tasks.md` y `test-plan.md`. Extrae los escenarios `E2E-xx`, `M-xx` (y `API-xx`/`A11Y-xx` si el test-plan los trae). **Criterios `[GWT]` de la spec:** si la spec trae criterios `- [ ] [GWT] CA-XX — Dado…, Cuando…, Entonces…`, cada uno se traduce **1:1** a un bloque E2E — Dado → setup/estado inicial, Cuando → acciones, Entonces → aserciones — y su ID `CA-XX` debe aparecer en el test-plan (es lo que valida `coverage-check.py`); un `[GWT]` sin bloque E2E es cobertura que falta, no detalle opcional. Confirma la URL local y que la app responde. Antes de ejecutar nada, corre las dos puertas:
 ```bash
 SHAREDKIT="$(find "$PWD/.claude" "$HOME/.claude" -type d -path '*agent-kits/shared' 2>/dev/null | head -1)"
 python3 "$SHAREDKIT/ledger-lint.py" "docs/roadmap/<fecha>-<slug>/tasks.md"          # ledger coherente
-python3 "$QAKIT/coverage-check.py" "docs/roadmap/<fecha>-<slug>/tasks.md" "docs/roadmap/<fecha>-<slug>/test-plan.md"  # cobertura criterios↔tests
+python3 "$QAKIT/coverage-check.py" "docs/roadmap/<fecha>-<slug>/tasks.md" "docs/roadmap/<fecha>-<slug>/test-plan.md" "docs/roadmap/<fecha>-<slug>/spec.md"  # cobertura criterios↔tests (+ criterios [GWT] de la spec)
 ```
 Si en algún momento exploras el código de la app (p. ej. para entender un fallo o localizar selectores), aplica la **disciplina de lectura** compartida `"$SHAREDKIT/read-discipline.md"` (grep antes de Read, lee fragmentos, ignora dependencias/generados).
 Si `ledger-lint` da incoherencias duras, repórtalo y pide que se arregle el ledger antes de auditar. Si `coverage-check` encuentra **referencias rotas** (exit 1) o **tareas de UI sin cobertura**, lístalo en el informe: los criterios huérfanos van como mínimo a manual y el estado global **no puede ser verde** mientras existan.
@@ -79,6 +79,7 @@ Exit 0 = verde (0 failed, 0 flaky sin justificar); exit 1 = no verde. Si hay fla
 **P8. Handoff a documenter + estados (si verde).** Este es el **cierre del ciclo del plan**. Si los tests automáticos han pasado (estado global verde): actualiza estados (no dejar en `borrador`/`en-progreso`) — plan → `completado` y spec → `implementada` (ver regla 7 de `docs/CONVENTIONS.md`) — y haz handoff al agente **`documenter`** para que genere/actualice la documentación reflejando lo implementado y probado (una sola pasada al final, no por tarea). Si hay fallos (rojo), **no** documentes ni cierres estados: la(s) tarea(s)/plan afectadas vuelven a `en-progreso`, se corrigen y se reprueba.
 
 ## 3) REGLAS
+- **Constitución del proyecto (opt-in).** Aplica el paso compartido `"$SHAREDKIT/constitution-check.md"`: si existe `docs/CONSTITUTION.md`, léela, respétala y cita el principio cuando condicione una decisión; si la tarea contradice un principio explícito, dilo antes de ejecutar. Si no existe, continúa (nunca bloquea). Fallback si el fragmento no está: lee `docs/CONSTITUTION.md` si existe y respétalo.
 - **Solo local/privado** (guardrail). Nunca contra terceros.
 - **No instalas en silencio:** Playwright/Chromium requieren OK del usuario; Node debe existir.
 - **No implementas ni tocas el código** de la app: solo lees el plan y escribes en `.../testing/`.

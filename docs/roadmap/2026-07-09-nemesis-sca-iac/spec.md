@@ -1,7 +1,7 @@
 ---
 spec: nemesis-sca-iac
 descripcion: Reforzar nemesis con dos escáneres reales - trivy (SCA de dependencias con BD de CVEs, area deps) y hadolint (lint de Dockerfile, area iac) - alimentando areas ya existentes del findings.json.
-estado: aprobada
+estado: implementada
 creado: 2026-07-09
 actualizado: 2026-07-09
 evaluacion: evaluation.md

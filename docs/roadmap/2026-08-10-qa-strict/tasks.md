@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Estado** | en-revision |
+| **Estado** | completado |
 | **Fecha** | 2026-08-10 |
 | **Plan** | [`improvement-plan.md`](./improvement-plan.md) |
 

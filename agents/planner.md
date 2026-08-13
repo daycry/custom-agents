@@ -77,7 +77,7 @@ SHAREDKIT="$(find "$PWD/.claude" "$HOME/.claude" -type d -path '*agent-kits/shar
 
 **P5. Redacción.** Rellena las dos plantillas:
 - `improvement-plan.md`: cuadro de mando, estimación por fase, presupuesto económico (con supuestos), previsión de tokens, resumen ejecutivo, objetivos, datos necesarios, impacto, arquitectura, archivos, dependencias, criterios de aceptación, riesgos, métricas de éxito, changelog.
-- `tasks.md`: resumen de progreso + fases con cada tarea estructurada (descripción · estado · tiempo · previsión · dependencias · archivos · criterios de aceptación con checkbox · subtareas · notas).
+- `tasks.md`: resumen de progreso + fases con cada tarea estructurada (descripción · estado · tiempo · previsión · dependencias · tipo · archivos · criterios de aceptación con checkbox · subtareas · notas). El campo **Tipo** es OPCIONAL (`frontend / backend / db / devops / test / docs`): asígnalo solo cuando la tarea tenga un dominio claro — el despacho por subagentes de `/dev-cycle` lo usa para inyectar la **persona de dominio** (`agent-kits/shared/personas/`) en el brief; sin tipo, subagente genérico. No lo fuerces: una tarea mixta o de pegamento va mejor sin etiqueta.
 Sustituye TODOS los `{{PLACEHOLDER}}` y borra los comentarios guía `<!-- ... -->` de las plantillas.
 
 **P6. Cierre.** Cierra el medidor (`python3 "$SHAREDKIT/usage-meter.py" close --artefacto "docs/roadmap/<fecha>-<slug>/improvement-plan.md"`) y vuelca su JSON al bloque `generacion:` del frontmatter de **ambos** ficheros del plan (misma medición; re-cerrar **sustituye**, no acumula; si degrada a `fuente: estimado`, estima a juicio, márcalo y **continúa** — nunca bloquea). Escribe ambos ficheros, actualiza `docs/roadmap/README.md` y resume al usuario: ruta del plan, tiempo total, coste total (€), tokens previstos y nº de tareas. Duraciones del resumen en formato humano `XhYm` (`usage-meter.py fmt`). Ofrece abrir el `improvement-plan.md`.
@@ -89,6 +89,7 @@ Sustituye TODOS los `{{PLACEHOLDER}}` y borra los comentarios guía `<!-- ... --
 ---
 
 ## 3) REGLAS
+- **Constitución del proyecto (opt-in).** Aplica el paso compartido `"$SHAREDKIT/constitution-check.md"`: si existe `docs/CONSTITUTION.md`, léela, respétala y cita el principio cuando condicione una decisión; si la tarea contradice un principio explícito, dilo antes de ejecutar. Si no existe, continúa (nunca bloquea). Fallback si el fragmento no está: lee `docs/CONSTITUTION.md` si existe y respétalo.
 - **No implementas.** Solo lees el proyecto y escribes dentro de `docs/roadmap/`. No toques el código.
 - **Cifras justificadas.** Toda estimación lleva método o supuesto detrás. Lo no verificable (p. ej. precio de tokens desconocido) se marca `⚠️ verificar`, no se inventa.
 - **Formato fijo.** Siempre las dos plantillas; mismo formato entre planes. Markdown válido: línea en blanco antes de listas y después de encabezados, checkboxes `- [ ]`/`- [x]`.

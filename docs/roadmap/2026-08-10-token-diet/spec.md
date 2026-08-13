@@ -1,7 +1,7 @@
 ---
 spec: token-diet
 descripcion: Reducir el consumo de tokens del plugin (disciplina de lectura en el recon, filtrado de payloads Atlassian, progressive disclosure de prompts largos, disciplina de salida en handoffs) y resolver el precio de tokens con una mini-skill rates-verify
-estado: aprobada          # borrador | aprobada | implementada | obsoleta
+estado: implementada          # borrador | aprobada | implementada | obsoleta
 creado: 2026-08-10
 actualizado: 2026-08-10
 evaluacion: evaluation.md

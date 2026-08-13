@@ -231,8 +231,8 @@ def scan(root):
         plan_p = os.path.join(path, "improvement-plan.md")
         tasks_p = os.path.join(path, "tasks.md")
         testing_p = os.path.join(path, "testing")
-        if not (os.path.exists(spec_p) or os.path.exists(eval_p)):
-            continue  # no es carpeta de iniciativa
+        if not (os.path.exists(spec_p) or os.path.exists(eval_p) or os.path.exists(tasks_p)):
+            continue  # no es carpeta de iniciativa (la vía rápida solo trae tasks.md)
 
         rec = {
             "slug": name, "path": path,
@@ -246,6 +246,7 @@ def scan(root):
             "has_plan": os.path.exists(plan_p),
             "has_tasks": os.path.exists(tasks_p),
             "has_testing": os.path.isdir(testing_p),
+            "via_rapida": False,
         }
 
         if rec["has_spec"]:
@@ -271,8 +272,14 @@ def scan(root):
             rec["multiplicador"] = table_value(t, "Multiplicador productividad")
 
         if rec["has_tasks"]:
-            rec["progreso"] = parse_progress_totals(
-                open(tasks_p, encoding="utf-8", errors="replace").read())
+            tasks_text = open(tasks_p, encoding="utf-8", errors="replace").read()
+            rec["progreso"] = parse_progress_totals(tasks_text)
+            if not rec["has_spec"]:
+                # vía rápida: el título sale del propio ledger
+                hm = re.search(r"^#\s+(?:Checklist de Tareas\s*[—-]\s*)?(.+)$", tasks_text, re.M)
+                if hm:
+                    rec["titulo"] = hm.group(1).strip()
+                rec["via_rapida"] = True
 
         # coste de proceso (bloque generacion: de cada artefacto, si existe)
         gen = {}
@@ -292,15 +299,29 @@ def scan(root):
             rec["fase"] = "planificada"
         elif rec["has_eval"]:
             rec["fase"] = "evaluada"
+        elif rec.get("via_rapida"):
+            rec["fase"] = "vía rápida"
         else:
             rec["fase"] = "solo spec"
         inits.append(rec)
     return inits
 
 
+def _norm_estado(s):
+    """Normaliza un estado para comparar: quita emojis/decoración en cualquier posición
+    ('completado ✅' y '✅ completado' → 'completado'). Devuelve la primera palabra de
+    estado encontrada — los sufijos textuales raros se conservan para no suprimir avisos."""
+    if not s:
+        return s
+    palabras = re.findall(r"[a-záéíóúü-]+", s.strip().lower())
+    return "-".join(palabras) if palabras else s.strip().lower()
+
+
 def warnings_for(inits):
     """Avisos no fatales: campos que no se han podido leer (posible desajuste de
-    etiquetas entre las plantillas y este parser) e incoherencias de estado."""
+    etiquetas entre las plantillas y este parser) e incoherencias de estado.
+    Las comparaciones de estado se hacen NORMALIZADAS (los emojis de decoración
+    no son incoherencias)."""
     warns = []
     for r in inits:
         s = r["slug"]
@@ -311,11 +332,11 @@ def warnings_for(inits):
                              f"{', '.join(missing)} (¿cambiaron las etiquetas de la tabla?)")
         if r["has_spec"] and not r["spec_estado"]:
             warns.append(f"{s}: spec.md sin 'estado' en el frontmatter")
-        if r["spec_estado"] == "aprobada" and r["has_eval"] \
-                and r["eval_estado"] not in (None, "completado"):
+        if _norm_estado(r["spec_estado"]) == "aprobada" and r["has_eval"] \
+                and _norm_estado(r["eval_estado"]) not in (None, "completado"):
             warns.append(f"{s}: spec 'aprobada' pero evaluación '{r['eval_estado']}' "
                          f"(se esperaba 'completado')")
-        if r["spec_estado"] == "implementada" and not r["has_plan"]:
+        if _norm_estado(r["spec_estado"]) == "implementada" and not r["has_plan"]:
             warns.append(f"{s}: spec 'implementada' pero sin improvement-plan.md")
     return warns
 

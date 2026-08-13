@@ -5,6 +5,8 @@ Convertir una idea o petición vaga en una **especificación aprobada**, mediant
 entrada humana de la cadena: se sienta con la persona, pregunta bien y deja una `spec.md` sólida y
 **en formato fijo** para que `evaluator` la presupueste. No estima, no planifica, no implementa.
 
+> **Coste medido:** este agente arranca/cierra `usage-meter.py` sobre su artefacto: el frontmatter `generacion:` registra los tokens REALES consumidos al producirlo (fechas = contexto · tokens = medida · horas = tokens × ratio calibrado). `/roadmap-metrics` lo agrega como coste de proceso.
+
 ## Entrada / salida
 - **Entrada:** una idea, petición o requisitos sueltos (por chat), o una `spec.md` existente a afinar.
 - **Salida (invariante):** `docs/roadmap/<fecha>-<slug>/spec.md` con la **plantilla `spec.md` del kit del `evaluator`** — contexto/objetivo, usuarios, alcance in/out, criterios de aceptación, restricciones, datos/integraciones y supuestos/incógnitas. Registra la iniciativa en `docs/roadmap/README.md`.

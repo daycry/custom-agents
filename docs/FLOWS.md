@@ -84,9 +84,9 @@ flowchart TD
     C -->|go| D["planner\nimprovement-plan + tasks.md"]
     C -->|no-go| X(["parar"])
     D --> E["opt-in: volcar plan a Jira\njira-sync: 1 issue por tarea"]
-    E --> F{"¿superpowers\ninstalado?"}
-    F -->|Modo A| G["superpowers ejecuta\ncontra TU tasks.md\n(review propio)"]
-    F -->|Modo B| H["implementer\ntarea a tarea"]
+    E --> F{"¿pidió el usuario\nsuperpowers\nexplícitamente?"}
+    F -->|"sí (--superpowers)"| G["superpowers ejecuta\ncontra TU tasks.md\n(review propio)"]
+    F -->|"no (defecto):\ncadena NATIVA"| H["implementer\ntarea a tarea\n(dev.json opt-in: TDD ·\nworktree · subagentes frescos)"]
     H --> R["🔍 revisión adversarial\nDOS lentes en paralelo:\nspec-conformidad · calidad\n(fusión + dedupe)"]
     R -.->|gaps| H
     G --> I["qa · E2E local\nveredicto: qa-gate.py"]
@@ -160,6 +160,8 @@ flowchart TD
     U --> V
     J[("Jira\nissues + worklogs")] --> W["/roadmap-live\nestado en tiempo real"]
     U --> X["/retro por iniciativa\ncausas de desviación\n+ ratio tokens/hora medido"]
+    R --> DR["/spec-drift\nderiva spec↔código\nvigente ✓ · derivado ✗ · no verificable\n→ DRIFT.md"]
+    DR -.->|"deriva → /pm-cycle"| R
     X --> Y[("CALIBRATION.md")]
     Y -->|calibra estimaciones\ny ratio tokens→hora| Z["evaluator"]
     Y -.->|ratio| M
@@ -172,6 +174,8 @@ flowchart LR
     A["/setup"] --> B[".claude/rates.json\ntarifa · tokens · jornada · ratios\nla leen evaluator, planner y jira-sync"]
     A --> C[".claude/confluence.json\nopt-in + destino"]
     A --> D[".claude/jira.json\nopt-in + política de jornada"]
+    A --> G[".claude/dev.json\ntdd · worktree · subagentes\n(+ decisión constitución)"]
+    A --> H["docs/CONSTITUTION.md\nprincipios permanentes (opt-in)\nlos leen TODOS los agentes;\nla lente A los hace cumplir"]
     C -.->|estado| E[".claude/confluence-state.json"]
     D -.->|estado| F[".claude/jira-state.json\nmapeo · imputado/día · banco"]
 ```

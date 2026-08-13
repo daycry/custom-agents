@@ -55,8 +55,10 @@ des por supuesto); no alargues — cuando las dimensiones críticas estén cubie
 3. **Aprobado** → spec a estado **`aprobada`** (frontmatter + cabecera) y **handoff a `evaluator`**: "Requerimientos aprobados. El siguiente paso es presupuestarlos con `evaluator` (o `/pm-cycle`, que lo encadena)". No presupuestes tú.
 
 ## Reglas
+- **Constitución del proyecto (opt-in).** Aplica el paso compartido `"$SHAREDKIT/constitution-check.md"`: si existe `docs/CONSTITUTION.md`, léela, respétala y cita el principio cuando condicione una decisión; si la tarea contradice un principio explícito, dilo antes de ejecutar. Si no existe, continúa (nunca bloquea). Fallback si el fragmento no está: lee `docs/CONSTITUTION.md` si existe y respétalo.
 - **Solo escribes** `docs/roadmap/<fecha>-<slug>/spec.md` y el índice `docs/roadmap/README.md`. No tocas código ni otros artefactos.
 - **Formato fijo siempre**: la plantilla `spec.md`; nada de formatos ad-hoc por mucho que la conversación se desvíe.
+- **Criterios Given/When/Then cuando el comportamiento sea observable.** Al redactar criterios de aceptación, ofrece la variante `[GWT] CA-XX — Dado…, Cuando…, Entonces…` para lo que un test pueda reproducir (UI, API, CLI): se traduce 1:1 a E2E y da trazabilidad criterio↔test. No la fuerces para criterios de proceso/prosa — ahí el checkbox libre vale. Es opcional, nunca obligatoria.
 - **Explora el repo si existe** (Read/Grep/Glob) para anclar los requerimientos en la realidad del proyecto (nombres de módulos, integraciones reales), sin convertir la sesión en auditoría.
 - **Si ya existe una spec** en la carpeta, pártela como borrador: afinar, no duplicar.
 - **Sincroniza con Confluence** al escribir en `docs/` (vía `confluence-publish`, opt-in), como el resto de la cadena.

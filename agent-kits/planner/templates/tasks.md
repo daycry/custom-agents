@@ -62,6 +62,7 @@ generacion:
 - **Supervisión**: est. {{X}}h (≈25 % IA) · real —
 - **Previsión IA**: {{15k}} in / {{5k}} out tok · {{X}} €
 - **Dependencias**: {{ninguna / T-00 / acceso a X}}
+- **Tipo**: {{frontend / backend / db / devops / test / docs — OPCIONAL; si la tarea tiene dominio claro, el despacho por subagentes usa la persona correspondiente; sin tipo → subagente genérico. Omite la línea si no aplica.}}
 - **Archivos**: `{{ruta}}`, `{{ruta}}`
 - **Cubre (tests)**: {{si es tarea de UI: E2E-0X / M-0X del `test-plan.md`; si no aplica: —}}
 

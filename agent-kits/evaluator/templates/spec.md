@@ -75,9 +75,25 @@ generacion:               # coste real de producir ESTE documento — lo rellena
 |---|---|
 | {{caso}} | {{qué ocurre}} |
 
+## Criterios de aceptación
+
+<!--
+  Dos variantes, combinables criterio a criterio:
+  · Checkbox libre (default) — para criterios de proceso, documentación o difíciles de observar:
+      - [ ] {{criterio verificable en una frase}}
+  · Given/When/Then, marcado [GWT] — para COMPORTAMIENTO OBSERVABLE del sistema; qa lo traduce
+    1:1 a un bloque E2E y coverage-check.py exige su ID en test-plan.md:
+      - [ ] [GWT] CA-01 — Dado {{estado inicial}}, Cuando {{acción}}, Entonces {{resultado observable}}
+  Usa [GWT] cuando el criterio describa algo que un test puede reproducir (UI, API, CLI);
+  no lo fuerces para criterios de prosa/proceso. Los IDs CA-XX dan la trazabilidad criterio↔test.
+-->
+
+- [ ] {{criterio libre}}
+- [ ] [GWT] CA-01 — Dado {{estado}}, Cuando {{acción}}, Entonces {{resultado observable}}
+
 ## Pruebas
 
-{{Qué se prueba y cómo (tipo de test, criterios). Lista verificable.}}
+{{Qué se prueba y cómo (tipo de test, criterios). Lista verificable. Los criterios [GWT] de arriba se traducen 1:1 a bloques E2E del test-plan (mismo ID CA-XX).}}
 
 ## Referencias
 

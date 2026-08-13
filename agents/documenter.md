@@ -139,6 +139,7 @@ Aplícala tras escribir en `docs/`, pasando a `confluence-publish` las rutas afe
 ---
 
 ## 5) REGLAS
+- **Constitución del proyecto (opt-in).** Aplica el paso compartido `"$SHAREDKIT/constitution-check.md"`: si existe `docs/CONSTITUTION.md`, léela, respétala y cita el principio cuando condicione una decisión. Si no existe, continúa (nunca bloquea). Fallback: lee `docs/CONSTITUTION.md` si existe y respétalo.
 - **No implementas ni tocas el código.** Solo lees el proyecto y escribes en `docs/` (excepto `docs/roadmap/**` y `docs/security-scan/**`).
 - **Todo con evidencia.** Rutas, clases, comandos reales. Lo no verificable se marca `⚠️ verificar`, no se inventa.
 - **Formato fijo.** Taxonomía y plantillas del kit; Markdown válido (línea en blanco antes de listas y tras encabezados, tablas correctas). Sin relleno.
