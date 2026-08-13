@@ -1,177 +1,189 @@
 # custom-agents
 
-**El ciclo de vida completo de una iniciativa de software — con presupuesto, medición de coste real y trazabilidad en Jira/Confluence — dentro de Claude Code.**
+**English** · [Español](README.es.md)
+
+**The complete lifecycle of a software initiative — with budgeting, real cost measurement and Jira/Confluence traceability — inside Claude Code.**
 
 [![CI](https://github.com/daycry/custom-agents/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/daycry/custom-agents/actions/workflows/ci.yml)
-[![Versión](https://img.shields.io/github/v/tag/daycry/custom-agents?label=versi%C3%B3n&color=informational)](CHANGELOG.md)
+[![Version](https://img.shields.io/github/v/tag/daycry/custom-agents?label=version&color=informational)](CHANGELOG.md)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
-[![Claude Code](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2.svg)](docs/INSTALL.md)
-[![SDD](https://img.shields.io/badge/metodolog%C3%ADa-Spec--Driven-2ea44f.svg)](docs/FLOWS.md)
+[![Python](https://img.shields.io/badge/python-3.11%2B-3776AB.svg?logo=python&logoColor=white)](docs/en/INSTALL.md)
 
-De la idea al código probado y documentado: `requisitos → presupuesto → plan → implementación → revisión adversarial → E2E → docs`, con **puertas de control** en cada paso, **coste real medido en tokens** y aprendizaje que calibra las siguientes estimaciones. Ocho agentes, once comandos, autosuficiente (sin dependencias de otros plugins).
+[![Stars](https://img.shields.io/github/stars/daycry/custom-agents?style=flat&label=stars&color=yellow&logo=github)](https://github.com/daycry/custom-agents/stargazers)
+[![Forks](https://img.shields.io/github/forks/daycry/custom-agents?style=flat&label=forks&color=blueviolet&logo=github)](https://github.com/daycry/custom-agents/forks)
+[![Open issues](https://img.shields.io/github/issues/daycry/custom-agents?label=open%20issues)](https://github.com/daycry/custom-agents/issues)
+[![Last commit](https://img.shields.io/github/last-commit/daycry/custom-agents/master?label=last%20commit)](https://github.com/daycry/custom-agents/commits/master)
+[![Commit activity](https://img.shields.io/github/commit-activity/m/daycry/custom-agents?label=commits%2Fmonth)](https://github.com/daycry/custom-agents/pulse)
+
+[![Claude Code](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2.svg)](docs/en/INSTALL.md)
+[![SDD](https://img.shields.io/badge/methodology-Spec--Driven-2ea44f.svg)](docs/en/FLOWS.md)
+[![Agents](https://img.shields.io/badge/agents-8-0ea5e9.svg)](docs/en/README.md)
+[![Commands](https://img.shields.io/badge/commands-11-0ea5e9.svg)](docs/en/README.md)
+
+From idea to tested, documented code: `requirements → budget → plan → implementation → adversarial review → E2E → docs`, with **control gates** at every step, **real cost measured in tokens**, and learning that calibrates the next estimates. Eight agents, eleven commands, self-contained (no dependencies on other plugins).
 
 ```mermaid
 flowchart LR
-    idea(["💡 idea"]) --> A["🗣️ analyst\nrequisitos"]
-    A --> E["💶 evaluator\n¿cuánto? ¿conviene?"]
-    E -->|go| P["🗺️ planner\nplan + tareas"]
+    idea(["💡 idea"]) --> A["🗣️ analyst\nrequirements"]
+    A --> E["💶 evaluator\nhow much? worth it?"]
+    E -->|go| P["🗺️ planner\nplan + tasks"]
     E -.->|no-go| stop(["✋"])
-    P --> I["⚙️ implementer\ncódigo\n(TDD · worktrees ·\nsubagentes opt-in)"]
-    I --> R["🔍 revisión\n2 lentes adversariales"]
+    P --> I["⚙️ implementer\ncode\n(TDD · worktrees ·\nopt-in subagents)"]
+    I --> R["🔍 review\n2 adversarial lenses"]
     R -->|"✓"| Q["✅ qa\nE2E + qa-gate"]
     R -.->|gaps| I
-    Q -->|verde| D["📚 documenter"]
-    Q -.->|"rojo ×3 →\n🔬 debug-root-cause"| I
-    D --> retro["🔁 /retro\ncalibración"]
-    retro -.->|ratio medido| E
+    Q -->|green| D["📚 documenter"]
+    Q -.->|"red ×3 →\n🔬 debug-root-cause"| I
+    D --> retro["🔁 /retro\ncalibration"]
+    retro -.->|measured ratio| E
     style stop fill:#fdecea,stroke:#ef9a9a
     style D fill:#e8f5e9,stroke:#81c784
 ```
 
-## ¿Por qué este y no otro?
+## Why this one and not another?
 
-Hay plugins excelentes de *metodología* (superpowers), de *SDD* (Spec Kit) y de *observabilidad* (Agent-Monitor). Este cubre lo que ninguno: **la capa de negocio** — y desde la v1.11 incorpora, nativas y opt-in, sus mejores mecánicas.
+There are excellent plugins for *methodology* (superpowers), *SDD* (Spec Kit) and *observability* (Agent-Monitor). This one covers what none of them do: **the business layer** — and since v1.11 it ships their best mechanics natively, as opt-ins.
 
 | | custom-agents | superpowers | Spec Kit | Agent-Monitor |
 |---|:---:|:---:|:---:|:---:|
-| Presupuesto por iniciativa (h · € · tokens) | ✅ | — | — | — |
-| **Coste REAL medido** por artefacto y tarea (`usage-meter`) | ✅ | — | — | por sesión |
-| Puerta económica go/no-go antes de construir | ✅ | — | — | — |
-| Jira: issues + worklog + Done (opt-in, por tarea o por fase) | ✅ | — | — | — |
-| Confluence bidireccional (PM sin git) | ✅ | — | — | — |
-| Calibración con datos reales (`/retro` → `CALIBRATION.md`) | ✅ | — | — | — |
-| Cadena spec → eval → plan → tasks (ledger canónico) | ✅ | plan | ✅ | — |
-| Constitución del proyecto con **enforcement** en la revisión | ✅ | — | ✅ (sin enforcement) | — |
-| Deriva spec↔código (`/spec-drift`) | ✅ | — | ✅ | — |
-| TDD estricto · worktrees · subagentes de contexto fresco | ✅ opt-in | ✅ | — | — |
-| Debugging sistemático a causa raíz | ✅ | ✅ | — | — |
-| Puertas deterministas por script (qa-gate, ledger-lint, coverage) | ✅ | — | — | — |
+| Per-initiative budget (h · € · tokens) | ✅ | — | — | — |
+| **REAL measured cost** per artifact and task (`usage-meter`) | ✅ | — | — | per session |
+| Economic go/no-go gate before building | ✅ | — | — | — |
+| Jira: issues + worklog + Done (opt-in, per task or per phase) | ✅ | — | — | — |
+| Bidirectional Confluence (PM without git) | ✅ | — | — | — |
+| Calibration with real data (`/retro` → `CALIBRATION.md`) | ✅ | — | — | — |
+| spec → eval → plan → tasks chain (canonical ledger) | ✅ | plan | ✅ | — |
+| Project constitution with **enforcement** in the review | ✅ | — | ✅ (no enforcement) | — |
+| Spec↔code drift (`/spec-drift`) | ✅ | — | ✅ | — |
+| Strict TDD · worktrees · fresh-context subagents | ✅ opt-in | ✅ | — | — |
+| Systematic root-cause debugging | ✅ | ✅ | — | — |
+| Deterministic script-driven gates (qa-gate, ledger-lint, coverage) | ✅ | — | — | — |
 
-> Con superpowers instalado no chocan: la cadena nativa manda por defecto y superpowers solo entra si lo pides (`--superpowers`). Con monitores de sesión, [conviven](docs/observability.md).
+> With superpowers installed there's no clash: the native chain rules by default and superpowers only steps in if you ask for it (`--superpowers`). With session monitors, [they coexist](docs/en/observability.md).
 
-## Lo que lo hace distinto
+## What makes it different
 
-**💶 Cada iniciativa nace presupuestada y muere medida.** El `evaluator` presupuesta (horas, €, tokens) ANTES de construir y una puerta go/no-go decide. Durante el ciclo, `usage-meter` mide los **tokens reales** consumidos por cada artefacto y cada tarea (frontmatter `generacion:`, horas-IA imputables a Jira). `/roadmap-metrics` enseña estimado vs real, y `/retro` convierte cada cierre en **calibración** para estimar mejor la siguiente.
+**💶 Every initiative is born budgeted and dies measured.** The `evaluator` budgets (hours, €, tokens) BEFORE building and a go/no-go gate decides. During the cycle, `usage-meter` measures the **real tokens** consumed by each artifact and each task (`generacion:` frontmatter, AI hours billable to Jira). `/roadmap-metrics` shows estimated vs actual, and `/retro` turns every closure into **calibration** for better estimates next time.
 
-**🔍 La calidad no es opinión: son puertas.** Revisión adversarial de **dos lentes en paralelo** con contexto fresco (conformidad con la spec + robustez del código), veredicto de qa por **script con exit code** (`qa-gate.py`), cobertura criterios↔tests verificada (`coverage-check.py`, con criterios `[GWT]` Given/When/Then traducibles 1:1 a E2E), ledger validado (`ledger-lint.py`) y bucles de corrección **acotados** (máx. 3 intentos — y al tercero, la skill `debug-root-cause` diagnostica la causa raíz con evidencia antes de preguntarte).
+**🔍 Quality is not an opinion: it's gates.** Adversarial review with **two parallel lenses** on fresh context (spec conformance + code robustness), a qa verdict issued by **script with exit code** (`qa-gate.py`), criteria↔tests coverage verified (`coverage-check.py`, with `[GWT]` Given/When/Then criteria that translate 1:1 to E2E), a validated ledger (`ledger-lint.py`) and **bounded** correction loops (max 3 attempts — and on the third one, the `debug-root-cause` skill diagnoses the root cause with evidence before asking you).
 
-**⚖️ Disciplina de ingeniería opt-in (`.claude/dev.json`, defaults off).** Actívala por proyecto: **TDD** RED-GREEN-REFACTOR con evidencia del rojo en el ledger, **worktrees** de git aislados por iniciativa, y **subagentes de contexto fresco** — cada tarea la implementa un subagente con un brief determinista (`task-brief.py`) que solo contiene su tarea, sus criterios y la constitución: sin arrastrar el ruido de las tareas anteriores.
+**⚖️ Opt-in engineering discipline (`.claude/dev.json`, defaults off).** Turn it on per project: **TDD** RED-GREEN-REFACTOR with red-phase evidence in the ledger, isolated git **worktrees** per initiative, and **fresh-context subagents** — each task is implemented by a subagent with a deterministic brief (`task-brief.py`) containing only its task, its criteria and the constitution: no noise carried over from previous tasks.
 
-**📜 Constitución del proyecto.** Principios permanentes en `docs/CONSTITUTION.md` (los ofrece `/setup`) que **todos los agentes leen y la revisión hace cumplir**: violar un principio explícito es gap de corrección con cita de línea. Y `/spec-drift` re-verifica cuando quieras que el código siga cumpliendo lo que las specs `implementada` prometieron.
+**📜 Project constitution.** Permanent principles in `docs/CONSTITUTION.md` (offered by `/setup`) that **every agent reads and the review enforces**: violating an explicit principle is a correction gap with a line citation. And `/spec-drift` re-verifies, whenever you want, that the code still honors what the `implementada` (implemented) specs promised.
 
-**🎫 Jira y Confluence sin fricción (opt-in).** El plan se vuelca a Jira (un issue por tarea o por fase, tipo descubierto por jerarquía), las horas se imputan al completar (con tope de jornada y banco), el resultado de la revisión se publica como comentario, y `docs/` se espeja en Confluence en ambos sentidos — pensado para que un PM sin git vea todo al día.
+**🎫 Frictionless Jira and Confluence (opt-in).** The plan is pushed to Jira (one issue per task or per phase, issue type discovered from the hierarchy), hours are logged on completion (with a daily cap and a bank), the review outcome is posted as a comment, and `docs/` is mirrored to Confluence in both directions — designed so a PM without git sees everything up to date.
 
-## Empezar en 2 minutos
+## Get started in 2 minutes
 
 ```
 /plugin marketplace add daycry/custom-agents
 /plugin install custom-agents@daycry
 ```
 
-> Los comandos `/plugin` funcionan en la **CLI de Claude Code**; en VS Code o la app de escritorio, instala desde el menú *Customize → Plugins* o a nivel usuario (ver [INSTALL](docs/INSTALL.md)).
+> The `/plugin` commands work in the **Claude Code CLI**; in VS Code or the desktop app, install from the *Customize → Plugins* menu or at user level (see [INSTALL](docs/en/INSTALL.md)).
 
-Después, en tu proyecto:
+Then, in your project:
 
 ```
-/setup                          ← una pasada: tarifa, Jira, Confluence, constitución, disciplina
-/pm-cycle añadir login con 2FA  ← define y presupuesta (cierra en go/no-go)
-/dev-cycle                      ← construye: plan → código → revisión → E2E → docs
+/setup                          ← one pass: rates, Jira, Confluence, constitution, discipline
+/pm-cycle add login with 2FA    ← define and budget (closes at go/no-go)
+/dev-cycle                      ← build: plan → code → review → E2E → docs
 ```
 
-¿Cambio pequeño? `/dev-cycle arregla el typo del header, rápido` — la **vía rápida** salta el papeleo PM pero conserva la revisión y qa.
+Small change? `/dev-cycle fix the header typo, quick` — the **fast track** skips the PM paperwork but keeps the review and qa.
 
 ```mermaid
 flowchart LR
-    S["/setup\n(una vez)"] --> PM["/pm-cycle\ndefine y presupuesta"]
-    PM -->|go| DEV["/dev-cycle\nconstruye con puertas"]
-    DEV --> MET["/roadmap-metrics\nreal vs estimado\n+ coste de proceso"]
-    MET --> RET["/retro\ncalibra"]
+    S["/setup\n(once)"] --> PM["/pm-cycle\ndefine and budget"]
+    PM -->|go| DEV["/dev-cycle\nbuild with gates"]
+    DEV --> MET["/roadmap-metrics\nactual vs estimated\n+ process cost"]
+    MET --> RET["/retro\ncalibrate"]
     RET -.-> PM
-    BL["/pm-backlog\nprioriza cartera"] -.-> DEV
-    ST["/roadmap-status · /roadmap-live\n/roadmap-brief · /spec-drift"] -.->|visibilidad y gobernanza| DEV
+    BL["/pm-backlog\nprioritize portfolio"] -.-> DEV
+    ST["/roadmap-status · /roadmap-live\n/roadmap-brief · /spec-drift"] -.->|visibility and governance| DEV
 ```
 
 <details>
-<summary><b>Los 8 agentes y los 11 comandos</b> (clic para desplegar)</summary>
+<summary><b>The 8 agents and the 11 commands</b> (click to expand)</summary>
 
-| Agente | Qué hace |
+| Agent | What it does |
 |--------|----------|
-| **analyst** | Toma de requerimientos: convierte una idea vaga en una `spec.md` aprobada (entrevista, ejemplos, user stories, contraejemplos). |
-| **evaluator** | Presupuesta la spec: esfuerzo, coste €, tokens, riesgos, veredicto — calibrando con el histórico real. |
-| **planner** | Plan ejecutable: fases y tareas `T-XX` con criterios de aceptación verificables y presupuesto por fase. |
-| **implementer** | Escribe el código fase a fase sobre rama/worktree, con `tasks.md` como ledger canónico y coste medido por tarea. |
-| **qa** | E2E con Playwright (solo hosts locales), veredicto por `qa-gate.py`, informe md+pdf con evidencias. |
-| **documenter** | Documentación técnica y de producto derivada del propio proyecto, una vez al cierre del ciclo. |
-| **nemesis** | Auditoría de ciberseguridad: SAST 8 dimensiones + pentest activo **solo local** (guardrail no negociable). |
-| **pdfy** | Cualquier documento → PDF con aspecto moderno. |
+| **analyst** | Requirements gathering: turns a vague idea into an approved `spec.md` (interview, examples, user stories, counterexamples). |
+| **evaluator** | Budgets the spec: effort, € cost, tokens, risks, verdict — calibrating against the real track record. |
+| **planner** | Executable plan: phases and `T-XX` tasks with verifiable acceptance criteria and a per-phase budget. |
+| **implementer** | Writes the code phase by phase on a branch/worktree, with `tasks.md` as the canonical ledger and per-task measured cost. |
+| **qa** | E2E with Playwright (local hosts only), verdict via `qa-gate.py`, md+pdf report with evidence. |
+| **documenter** | Technical and product documentation derived from the project itself, once at cycle close. |
+| **nemesis** | Cybersecurity audit: 8-dimension SAST + active pentest **local only** (non-negotiable guardrail). |
+| **pdfy** | Any document → modern-looking PDF. |
 
-| Comando | Qué hace |
+| Command | What it does |
 |---------|----------|
-| `/setup` | Onboarding en una pasada: `rates.json`, Jira, Confluence, constitución, `dev.json`. |
-| `/pm-cycle` | Rol producto: spec → evaluación → puerta go/no-go. |
-| `/dev-cycle` | Ciclo de desarrollo completo (o vía rápida), con todas las puertas. |
-| `/pm-backlog` | Prioriza la cartera de iniciativas evaluadas. |
-| `/roadmap-status` | Dashboard del roadmap (HTML + md para Confluence). |
-| `/roadmap-metrics` | Real vs estimado + **coste de proceso** medido. |
-| `/roadmap-live` | Estado en vivo leyendo Jira. |
-| `/roadmap-brief` | One-pager PDF para dirección. |
-| `/spec-drift` | ¿El código sigue cumpliendo las specs implementadas? |
-| `/retro` | Cierra el bucle: desviaciones + causas → `CALIBRATION.md`. |
-| `/confluence-pull` | Confluence → `docs/` local (PM sin git). |
+| `/setup` | One-pass onboarding: `rates.json`, Jira, Confluence, constitution, `dev.json`. |
+| `/pm-cycle` | Product role: spec → evaluation → go/no-go gate. |
+| `/dev-cycle` | Full development cycle (or fast track), with every gate. |
+| `/pm-backlog` | Prioritizes the portfolio of evaluated initiatives. |
+| `/roadmap-status` | Roadmap dashboard (HTML + md for Confluence). |
+| `/roadmap-metrics` | Actual vs estimated + measured **process cost**. |
+| `/roadmap-live` | Live status reading from Jira. |
+| `/roadmap-brief` | One-pager PDF for leadership. |
+| `/spec-drift` | Does the code still honor the implemented specs? |
+| `/retro` | Closes the loop: deviations + causes → `CALIBRATION.md`. |
+| `/confluence-pull` | Confluence → local `docs/` (PM without git). |
 
-Skills compartidas: `jira-sync` · `confluence-publish` / `confluence-pull` · `roadmap-dashboard` · `discovery` · `debug-root-cause` · `cybersecurity` · `to-pdf` · `rates-verify`. Scripts deterministas (todos con tests): `usage-meter` · `task-brief` · `worklog` · `qa-gate` · `ledger-lint` · `coverage-check` · `build_dashboard` · `lint_plugin`.
+Shared skills: `jira-sync` · `confluence-publish` / `confluence-pull` · `roadmap-dashboard` · `discovery` · `debug-root-cause` · `cybersecurity` · `to-pdf` · `rates-verify`. Deterministic scripts (all with tests): `usage-meter` · `task-brief` · `worklog` · `qa-gate` · `ledger-lint` · `coverage-check` · `build_dashboard` · `lint_plugin`.
 
 </details>
 
 <details>
-<summary><b>Cómo encaja todo</b> — la carpeta por iniciativa</summary>
+<summary><b>How it all fits together</b> — the per-initiative folder</summary>
 
 ```
 docs/roadmap/<fecha>-<slug>/
-├── spec.md              QUÉ se quiere (+ coste real de producirla, medido)
-├── evaluation.md        CUÁNTO cuesta / si conviene
-├── improvement-plan.md  CÓMO, paso a paso, presupuestado
-├── tasks.md             ledger canónico (estados + horas medidas por tarea)
-├── testing/             informe E2E de qa con evidencias
-└── retro.md             real vs estimado + aprendizajes
+├── spec.md              WHAT is wanted (+ real, measured cost of producing it)
+├── evaluation.md        HOW MUCH it costs / whether it's worth it
+├── improvement-plan.md  HOW, step by step, budgeted
+├── tasks.md             canonical ledger (states + measured hours per task)
+├── testing/             qa E2E report with evidence
+└── retro.md             actual vs estimated + lessons learned
 ```
 
-Todos los artefactos se enlazan entre sí, llevan su coste de generación **medido** en el frontmatter (`generacion:`) y alimentan los dashboards y la calibración. Diagramas completos de cada flujo: [`docs/FLOWS.md`](docs/FLOWS.md).
+All artifacts link to each other, carry their **measured** generation cost in the frontmatter (`generacion:`) and feed the dashboards and the calibration. Full diagrams of every flow: [`docs/FLOWS.md`](docs/en/FLOWS.md).
 
 </details>
 
 <details>
-<summary><b>Actualizar el plugin</b></summary>
+<summary><b>Updating the plugin</b></summary>
 
-Los plugins no se auto-actualizan; la actualización se detecta por versión.
+Plugins do not auto-update; updates are detected by version.
 
-1. **Publica**: `python scripts/release.py X.Y.Z` (deja coherentes `plugin.json` y `marketplace.json`, crea commit + tag) → `git push origin HEAD && git push origin vX.Y.Z`.
-2. **Actualiza en tu cliente**: CLI → `/plugin marketplace update daycry` + `/plugin update custom-agents@daycry` + `/reload-plugins`. Desktop/Cowork → *Customize → Plugins → Actualizar* (si está deshabilitado: quita y re-añade el marketplace).
-3. Si persiste la versión vieja: reinstala o borra `~/.claude/plugins/cache/`.
+1. **Publish**: `python scripts/release.py X.Y.Z` (keeps `plugin.json` and `marketplace.json` consistent, creates commit + tag) → `git push origin HEAD && git push origin vX.Y.Z`.
+2. **Update in your client**: CLI → `/plugin marketplace update daycry` + `/plugin update custom-agents@daycry` + `/reload-plugins`. Desktop/Cowork → *Customize → Plugins → Update* (if disabled: remove and re-add the marketplace).
+3. If the old version persists: reinstall or delete `~/.claude/plugins/cache/`.
 
-Detalle en [`docs/INSTALL.md`](docs/INSTALL.md).
+Details in [`docs/INSTALL.md`](docs/en/INSTALL.md).
 
 </details>
 
-## Documentación
+## Documentation
 
 | | |
 |---|---|
-| 📖 [Índice maestro](docs/README.md) | agentes, comandos y skills con sus dependencias |
-| 🗺️ [FLOWS](docs/FLOWS.md) | **todos los flujos en diagramas Mermaid** |
-| 📏 [CONVENTIONS](docs/CONVENTIONS.md) | dónde va cada cosa, estados, configs, ledger |
-| 🔌 [INSTALL](docs/INSTALL.md) | instalación, conector Atlassian, actualización |
-| 📡 [observability](docs/observability.md) | qué mide el plugin vs monitores de sesión |
-| 📜 [CHANGELOG](CHANGELOG.md) | historia versión a versión |
+| 📖 [Master index](docs/en/README.md) | agents, commands and skills with their dependencies |
+| 🗺️ [FLOWS](docs/en/FLOWS.md) | **every flow as Mermaid diagrams** |
+| 📏 [CONVENTIONS](docs/en/CONVENTIONS.md) | where everything goes, states, configs, ledger |
+| 🔌 [INSTALL](docs/en/INSTALL.md) | installation, Atlassian connector, updating |
+| 📡 [observability](docs/en/observability.md) | what the plugin measures vs session monitors |
+| 📜 [CHANGELOG](CHANGELOG.md) | version-by-version history |
 
-## Calidad y CI
+## Quality and CI
 
-Cada push a `master` (y cada PR) pasa por [GitHub Actions](https://github.com/daycry/custom-agents/actions/workflows/ci.yml): linter del plugin (frontmatter, model tiering, grafo de dependencias sin ciclos, colisiones de nombres), las 6 suites deterministas del repo (dashboard, worklog, lint, qa-gate, ledger-lint, coverage-check), los 52 tests pytest de los scripts del kit shared (usage-meter, task-brief), la sintaxis de todos los scripts Python y la coherencia de versiones entre `plugin.json` y `marketplace.json`. El badge de arriba refleja el estado real de la última ejecución.
+Every push to `master` (and every PR) goes through [GitHub Actions](https://github.com/daycry/custom-agents/actions/workflows/ci.yml): the plugin linter (frontmatter, model tiering, dependency graph with no cycles, name collisions), the repo's 6 deterministic suites (dashboard, worklog, lint, qa-gate, ledger-lint, coverage-check), the 52 pytest tests for the shared kit's scripts (usage-meter, task-brief), the syntax of every Python script, and version consistency between `plugin.json` and `marketplace.json`. The badge above reflects the actual state of the latest run.
 
-## Seguridad
+## Security
 
-`nemesis` hace pentest activo **solo contra hosts locales/privados** (`localhost`, `*.test`, redes privadas), impuesto por guardrail de script — nunca contra terceros. La explotación activa requiere opt-in explícito y los informes con hallazgos quedan gitignored.
+`nemesis` runs active pentests **only against local/private hosts** (`localhost`, `*.test`, private networks), enforced by a script guardrail — never against third parties. Active exploitation requires explicit opt-in and reports with findings stay gitignored.
 
-## Licencia
+## License
 
 [Apache-2.0](LICENSE) © 2026 daycry

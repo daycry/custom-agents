@@ -1,5 +1,7 @@
 # custom-agents — índice de documentación
 
+[English](en/README.md) · **Español**
+
 Repositorio de **agentes custom** para Claude Code, con sus skills y toolkits. Se despliega en la carpeta `.claude/` de un proyecto (ver [`INSTALL.md`](INSTALL.md)).
 
 ```mermaid

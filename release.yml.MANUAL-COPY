@@ -1,0 +1,47 @@
+# ⚠️ COPIA MANUAL: este fichero se copia TAL CUAL a .github/workflows/release.yml
+# (ruta protegida para las herramientas remotas). Estas líneas son comentarios
+# YAML válidos: no hace falta borrar nada.
+#
+# Al empujar un tag v* : empaqueta el plugin como zip, crea la GitHub Release
+# y adjunta el zip como asset. El badge de descargas del README cuenta SOLO
+# descargas de assets — sin esto marcaría 0 para siempre.
+name: Release
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Empaquetar el plugin
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          mkdir -p /tmp/pkg
+          rsync -a --exclude '.git' --exclude '.github' --exclude 'docs/roadmap' \
+                --exclude '*.MANUAL-COPY' ./ "/tmp/pkg/custom-agents/"
+          (cd /tmp/pkg && zip -qr "custom-agents-${VERSION}.zip" custom-agents)
+          mv "/tmp/pkg/custom-agents-${VERSION}.zip" .
+          ls -la custom-agents-*.zip
+
+      - name: Extraer las notas del CHANGELOG
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          awk -v ver="$VERSION" '
+            $0 ~ "^## \\[" ver "\\]" {on=1; next}
+            on && /^## \[/ {exit}
+            on {print}
+          ' CHANGELOG.md > /tmp/notes.md
+          # fallback si la versión no está en el CHANGELOG
+          [ -s /tmp/notes.md ] || echo "Ver [CHANGELOG.md](https://github.com/${GITHUB_REPOSITORY}/blob/master/CHANGELOG.md)" > /tmp/notes.md
+
+      - name: Crear la release con el zip
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: /tmp/notes.md
+          files: custom-agents-*.zip

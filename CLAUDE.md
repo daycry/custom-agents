@@ -24,6 +24,7 @@ custom-agents/               (se despliega como .claude/)
 |---|---|
 | Convenciones primero | Antes de crear/mover nada: `docs/CONVENTIONS.md`. Flujos visuales: `docs/FLOWS.md` (actualízalo si cambias un flujo). |
 | Documentación en `docs/` | Nunca junto al código. Agente nuevo → `docs/agents/<nombre>.md` + fila en `docs/README.md`. |
+| Bilingüe EN/ES | Inglés es el principal: `README.md` (EN) + `README.es.md` (ES); docs clave con espejo en `docs/en/` (README, INSTALL, CONVENTIONS, FLOWS, observability). **Al cambiar uno, actualiza su espejo** en el mismo cambio. Los docs de agentes y el roadmap son solo ES. Los tokens parseados por máquina (estados `borrador/aprobada/…`, `generacion:`, `- **Tipo**:`) quedan en español también en la doc EN. |
 | Nombres | Un agente = un nombre kebab-case único, igual en `agents/`, `agent-kits/` y `docs/agents/`; el `name:` del frontmatter coincide. |
 | Compartido vs privado | Lo usan 2+ agentes → `skills/`; de uno solo → `agent-kits/<agente>/`; fragmentos de prompt repetidos → `agent-kits/shared/` (fuente única). |
 | Model tiering | Todo agente declara `model` (`haiku`/`sonnet`/`opus`/`inherit`). Lo valida el linter. |

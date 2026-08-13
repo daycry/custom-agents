@@ -1,5 +1,7 @@
 # Convención de organización — agentes custom
 
+[English](en/CONVENTIONS.md) · **Español**
+
 Reglas para añadir agentes sin que se pisen entre sí, permitiendo que unos dependan de otros o de recursos compartidos. **Léela antes de crear o mover nada.**
 
 ## 1. Principio

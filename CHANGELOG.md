@@ -5,6 +5,19 @@ Todos los cambios notables de este proyecto se documentan aquí.
 El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
+## [Sin publicar]
+
+### Añadido — documentación bilingüe EN/ES (2026-08-13)
+
+- **Inglés como idioma principal del repo**: `README.md` reescrito en inglés (mismo escaparate: badges, mermaid de portada, comparativa, quick start) + `README.es.md` con el original en español, con selector de idioma en ambos. Docs clave con espejo inglés en **`docs/en/`**: README (índice), INSTALL, CONVENTIONS (misma numeración §1-§9 — las citas «regla N» siguen valiendo), FLOWS (los 9 diagramas Mermaid con etiquetas traducidas) y observability; selector de idioma también en los originales. Los docs por agente y el roadmap siguen solo en español (anotado en el índice EN). Los tokens que parsean los scripts (estados `borrador/aprobada/…`, `generacion:`, `- **Tipo**:`) se conservan en español también en la doc EN, con glosa la primera vez. Regla de sincronización bilingüe añadida a `CLAUDE.md`.
+- README: badge vivo de CI (GitHub Actions) + badge de versión (último tag) y sección «Calidad y CI» con lo que valida cada push.
+- README (EN y ES): **panel de badges en tres bloques** — estado (CI · versión · licencia · Python 3.11+), comunidad (estrellas · forks · issues abiertas · último commit · commits/mes) y naturaleza del proyecto (plugin de Claude Code · Spec-Driven · 8 agentes · 11 comandos). Descartado el badge de descargas: GitHub solo cuenta descargas de **assets** de release, no instalaciones por marketplace ni clones, así que no refleja el uso real del plugin.
+- Nuevo workflow `release.yml` (copia manual, como ci.yml): al empujar un tag `v*` empaqueta el plugin como zip, crea la GitHub Release y adjunta el zip, con las notas de la versión extraídas automáticamente del CHANGELOG.
+
+### Corregido
+
+- `ci.yml.MANUAL-COPY`: la cabecera de aviso era Markdown (rompía el workflow al copiarla tal cual — YAML inválido en L1); ahora son comentarios `#` y el fichero se copia entero sin editar.
+
 ## [1.11.0] - 2026-08-12
 
 ### Añadido — iniciativa `sdd-hardening` (2026-08-12)

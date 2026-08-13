@@ -1,5 +1,7 @@
 # Instalación y despliegue
 
+[English](en/INSTALL.md) · **Español**
+
 Bundle de agentes custom para Claude Code que cubren el ciclo de una iniciativa (requisitos → presupuesto → plan → implementación → pruebas → documentación) con contabilidad de tiempo/coste y trazabilidad opcional en Jira/Confluence. Agentes: **analyst** (toma de requerimientos), **evaluator** (evalúa/presupuesta), **planner** (planes), **implementer** (implementa), **qa** (E2E Playwright), **documenter** (documentación), **pdfy** (PDF) y **nemesis** (auditoría SAST+DAST). Skills compartidas: **cybersecurity**, **to-pdf**, **confluence-publish**, **confluence-pull**, **roadmap-dashboard**, **jira-sync** y **discovery**. Comandos: **/setup**, **/pm-cycle**, **/dev-cycle**, **/pm-backlog**, **/roadmap-status**, **/roadmap-metrics**, **/roadmap-brief**, **/roadmap-live**, **/retro** y **/confluence-pull**.
 
 Contenido (todo cuelga de la raíz del bundle, que se despliega como `.claude/`):
