@@ -5,7 +5,7 @@
 **El ciclo de vida completo de una iniciativa de software — con presupuesto, medición de coste real y trazabilidad en Jira/Confluence — dentro de Claude Code.**
 
 [![CI](https://github.com/daycry/custom-agents/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/daycry/custom-agents/actions/workflows/ci.yml)
-[![Versión](https://img.shields.io/github/v/tag/daycry/custom-agents?label=versi%C3%B3n&color=informational)](CHANGELOG.md)
+[![Versión](https://img.shields.io/github/v/tag/daycry/custom-agents?label=versi%C3%B3n&color=informational)](CHANGELOG.es.md)
 [![Licencia](https://img.shields.io/badge/licencia-Apache--2.0-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.11%2B-3776AB.svg?logo=python&logoColor=white)](docs/INSTALL.md)
 
@@ -40,26 +40,26 @@ flowchart LR
     style D fill:#e8f5e9,stroke:#81c784
 ```
 
-## ¿Por qué este y no otro?
+## Qué te llevas
 
-Hay plugins excelentes de *metodología* (superpowers), de *SDD* (Spec Kit) y de *observabilidad* (Agent-Monitor). Este cubre lo que ninguno: **la capa de negocio** — y desde la v1.11 incorpora, nativas y opt-in, sus mejores mecánicas.
+Casi todo el utillaje alrededor de los agentes de código responde a *cómo* escribir el código. Este plugin responde además a **cuánto cuesta, si merece la pena construirlo y cómo se demuestra que se hizo bien** — la capa de negocio alrededor del código, dentro del mismo ciclo.
 
-| | custom-agents | superpowers | Spec Kit | Agent-Monitor |
-|---|:---:|:---:|:---:|:---:|
-| Presupuesto por iniciativa (h · € · tokens) | ✅ | — | — | — |
-| **Coste REAL medido** por artefacto y tarea (`usage-meter`) | ✅ | — | — | por sesión |
-| Puerta económica go/no-go antes de construir | ✅ | — | — | — |
-| Jira: issues + worklog + Done (opt-in, por tarea o por fase) | ✅ | — | — | — |
-| Confluence bidireccional (PM sin git) | ✅ | — | — | — |
-| Calibración con datos reales (`/retro` → `CALIBRATION.md`) | ✅ | — | — | — |
-| Cadena spec → eval → plan → tasks (ledger canónico) | ✅ | plan | ✅ | — |
-| Constitución del proyecto con **enforcement** en la revisión | ✅ | — | ✅ (sin enforcement) | — |
-| Deriva spec↔código (`/spec-drift`) | ✅ | — | ✅ | — |
-| TDD estricto · worktrees · subagentes de contexto fresco | ✅ opt-in | ✅ | — | — |
-| Debugging sistemático a causa raíz | ✅ | ✅ | — | — |
-| Puertas deterministas por script (qa-gate, ledger-lint, coverage) | ✅ | — | — | — |
+| Capacidad | Cómo se garantiza |
+|---|---|
+| **Presupuesto por iniciativa** (horas · € · tokens) | El `evaluator` pone precio a la spec antes de construir nada, con el `rates.json` del proyecto |
+| **Coste REAL medido** por artefacto y por tarea | `usage-meter.py` lee los tokens reales de la transcripción de la sesión — medición, no estimación a ojo |
+| **Puerta económica go/no-go** | `/pm-cycle` cierra en la decisión: no se construye nada sin un *go* explícito |
+| **Real vs estimado + calibración** | `/roadmap-metrics` los compara; `/retro` convierte cada cierre en un ratio tokens/hora medido en `CALIBRATION.md` que afina la siguiente estimación |
+| **Jira sin fricción** (opt-in) | Un issue por tarea o por fase, tipo deducido de la jerarquía, worklog al completar con tope de jornada, resultado de la revisión publicado como comentario |
+| **Confluence bidireccional** (opt-in) | `docs/` ⇄ Confluence, idempotente, para que un PM sin git vea siempre el estado actual |
+| **Cadena spec → eval → plan → tasks** | Una carpeta por iniciativa, artefactos enlazados en ambos sentidos y `tasks.md` como **ledger canónico** validado por `ledger-lint.py` |
+| **Constitución del proyecto con enforcement** | Principios permanentes que leen todos los agentes que escriben — y la revisión convierte una violación en un gap de corrección con cita de línea |
+| **Deriva spec↔código** | `/spec-drift` reverifica las specs implementadas contra el código de hoy (`vigente` / `derivado` / no verificable, con evidencia) |
+| **Disciplina de ingeniería, opt-in** | `.claude/dev.json`: TDD estricto con evidencia del rojo, worktrees aislados y subagentes de contexto fresco con personas de dominio |
+| **Depuración a causa raíz** | Al tercer intento fallido de qa, `debug-root-cause` diagnostica con evidencia en 4 fases antes de preguntarte — nada de parches a ciegas |
+| **Puertas deterministas** | Los veredictos salen de scripts con exit codes y tests propios (`qa-gate`, `ledger-lint`, `coverage-check`), nunca de la prosa del agente |
 
-> Con superpowers instalado no chocan: la cadena nativa manda por defecto y superpowers solo entra si lo pides (`--superpowers`). Con monitores de sesión, [conviven](docs/observability.md).
+> Autosuficiente: sin dependencias de otros plugins. Si ya usas un motor SDD externo, `/dev-cycle` puede delegarle la ejecución manteniendo `tasks.md` como ledger canónico; y [convive](docs/observability.md) con monitores de sesión en vivo.
 
 ## Lo que lo hace distinto
 
@@ -174,7 +174,7 @@ Detalle en [`docs/INSTALL.md`](docs/INSTALL.md).
 | 📏 [CONVENTIONS](docs/CONVENTIONS.md) | dónde va cada cosa, estados, configs, ledger |
 | 🔌 [INSTALL](docs/INSTALL.md) | instalación, conector Atlassian, actualización |
 | 📡 [observability](docs/observability.md) | qué mide el plugin vs monitores de sesión |
-| 📜 [CHANGELOG](CHANGELOG.md) | historia versión a versión |
+| 📜 [CHANGELOG](CHANGELOG.es.md) | historia versión a versión |
 
 ## Calidad y CI
 

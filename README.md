@@ -40,26 +40,26 @@ flowchart LR
     style D fill:#e8f5e9,stroke:#81c784
 ```
 
-## Why this one and not another?
+## What you get
 
-There are excellent plugins for *methodology* (superpowers), *SDD* (Spec Kit) and *observability* (Agent-Monitor). This one covers what none of them do: **the business layer** — and since v1.11 it ships their best mechanics natively, as opt-ins.
+Most tooling around coding agents answers *how* to write the code. This plugin also answers **what it costs, whether it's worth building, and how you prove it was done right** — the business layer around the code, wired into the same cycle.
 
-| | custom-agents | superpowers | Spec Kit | Agent-Monitor |
-|---|:---:|:---:|:---:|:---:|
-| Per-initiative budget (h · € · tokens) | ✅ | — | — | — |
-| **REAL measured cost** per artifact and task (`usage-meter`) | ✅ | — | — | per session |
-| Economic go/no-go gate before building | ✅ | — | — | — |
-| Jira: issues + worklog + Done (opt-in, per task or per phase) | ✅ | — | — | — |
-| Bidirectional Confluence (PM without git) | ✅ | — | — | — |
-| Calibration with real data (`/retro` → `CALIBRATION.md`) | ✅ | — | — | — |
-| spec → eval → plan → tasks chain (canonical ledger) | ✅ | plan | ✅ | — |
-| Project constitution with **enforcement** in the review | ✅ | — | ✅ (no enforcement) | — |
-| Spec↔code drift (`/spec-drift`) | ✅ | — | ✅ | — |
-| Strict TDD · worktrees · fresh-context subagents | ✅ opt-in | ✅ | — | — |
-| Systematic root-cause debugging | ✅ | ✅ | — | — |
-| Deterministic script-driven gates (qa-gate, ledger-lint, coverage) | ✅ | — | — | — |
+| Capability | How it's guaranteed |
+|---|---|
+| **Per-initiative budget** (hours · € · tokens) | The `evaluator` prices the spec before anything gets built, using the project's `rates.json` |
+| **REAL measured cost** per artifact and per task | `usage-meter.py` reads the actual tokens from the session transcript — measurement, not guesswork |
+| **Economic go/no-go gate** | `/pm-cycle` closes at the decision: nothing is built without an explicit *go* |
+| **Estimated vs actual + calibration** | `/roadmap-metrics` compares them; `/retro` turns each closure into a measured tokens/hour ratio in `CALIBRATION.md` that sharpens the next estimate |
+| **Jira without friction** (opt-in) | One issue per task or per phase, issue type inferred from the hierarchy, worklog on completion with a daily cap, review outcome posted as a comment |
+| **Bidirectional Confluence** (opt-in) | `docs/` ⇄ Confluence, idempotent, so a PM without git always sees the current state |
+| **spec → eval → plan → tasks chain** | One folder per initiative, artifacts linked both ways, `tasks.md` as the **canonical ledger** validated by `ledger-lint.py` |
+| **Project constitution with enforcement** | Permanent principles that every writing agent reads — and the review turns a violation into a correction gap with a line citation |
+| **Spec↔code drift** | `/spec-drift` re-verifies implemented specs against today's code (`vigente` / `derivado` / not verifiable, with evidence) |
+| **Engineering discipline, opt-in** | `.claude/dev.json`: strict TDD with red-phase evidence, isolated worktrees, and fresh-context subagents with domain personas |
+| **Root-cause debugging** | On the third failed qa attempt, `debug-root-cause` diagnoses with evidence in 4 phases before asking you — no blind fixes |
+| **Deterministic gates** | Verdicts come from scripts with exit codes and their own tests (`qa-gate`, `ledger-lint`, `coverage-check`), never from agent prose |
 
-> With superpowers installed there's no clash: the native chain rules by default and superpowers only steps in if you ask for it (`--superpowers`). With session monitors, [they coexist](docs/en/observability.md).
+> Self-contained: no dependency on other plugins. If you already use an external SDD engine, `/dev-cycle` can delegate execution to it while `tasks.md` remains the canonical ledger; and it [coexists](docs/en/observability.md) with live session monitors.
 
 ## What makes it different
 

@@ -36,7 +36,7 @@ fallando o criterios sin cumplir.
 ## Ledger canónico
 
 `tasks.md` es la **fuente única de verdad** del progreso. Si conviven otras herramientas con su
-propio registro (todo-list, orquestadores externos como *superpowers SDD*), esos registros son
+propio registro (todo-list, orquestadores SDD externos), esos registros son
 espejo, no fuente. Ver regla 8 de [`CONVENTIONS.md`](../CONVENTIONS.md).
 
 ## Uso
@@ -47,8 +47,8 @@ espejo, no fuente. Ver regla 8 de [`CONVENTIONS.md`](../CONVENTIONS.md).
 ```
 
 O, dentro del ciclo completo, mediante el command `/dev-cycle`. `implementer` es el motor de
-implementación de la **cadena nativa — el defecto SIEMPRE**; superpowers solo entra si el usuario
-lo pide explícitamente (`--superpowers`), y aun así `tasks.md` sigue siendo el ledger canónico.
+implementación de la **cadena nativa — el defecto SIEMPRE**; un motor SDD externo solo entra si el
+usuario lo pide explícitamente, y aun así `tasks.md` sigue siendo el ledger canónico.
 Con `subagentes: true` en `dev.json`, las tareas las despacha `/dev-cycle` a **subagentes de
 contexto fresco** (brief determinista de `task-brief.py`) y `implementer` actúa como fallback
 cuando un despacho falla dos veces.

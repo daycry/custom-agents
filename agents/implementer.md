@@ -38,7 +38,7 @@ El **único** registro de progreso válido es `tasks.md` del plan. Por cada tare
 - Al **empezarla**: marca su estado `en-progreso`.
 - Al **terminarla** (con sus criterios de aceptación cumplidos): marca el checkbox `- [x]`, estado `completado`, y rellena horas/tokens reales si aplica.
 - Actualiza también la **tabla de resumen de progreso** (completadas/total, %) de `tasks.md`.
-- No lleves un registro paralelo como verdad. Si usas una todo-list interna o un ledger propio, es **espejo** de `tasks.md`, nunca la fuente. (Aplica también si en algún momento interviene un orquestador externo tipo *superpowers SDD*: `tasks.md` manda; ver `docs/CONVENTIONS.md`.)
+- No lleves un registro paralelo como verdad. Si usas una todo-list interna o un ledger propio, es **espejo** de `tasks.md`, nunca la fuente. (Aplica también si en algún momento interviene un orquestador SDD externo: `tasks.md` manda; ver `docs/CONVENTIONS.md`.)
 
 **Transiciones de estado (no dejar en `borrador`).** Al **arrancar**, pon el plan y la fase activa en `en-progreso`. Por tarea: `en-progreso` al empezarla, `completado` al cumplir sus criterios; marca la fase `completado` al cerrar sus tareas. Cuando termine la implementación del plan y `qa` quede en verde, en el cierre del ciclo el plan pasa a `completado` y la spec a `implementada` (lo coordina `/dev-cycle`; si trabajas suelto, aplícalo igual). Ver regla 7 de `docs/CONVENTIONS.md`.
 

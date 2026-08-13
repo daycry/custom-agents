@@ -1,210 +1,219 @@
 # Changelog
 
-Todos los cambios notables de este proyecto se documentan aquí.
+**English** · [Español](CHANGELOG.es.md)
 
-El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
-y el versionado sigue [SemVer](https://semver.org/lang/es/).
+All notable changes to this project are documented here.
 
-## [Sin publicar]
+The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
+and versioning follows [SemVer](https://semver.org/).
 
-### Añadido — documentación bilingüe EN/ES (2026-08-13)
+## [Unreleased]
 
-- **Inglés como idioma principal del repo**: `README.md` reescrito en inglés (mismo escaparate: badges, mermaid de portada, comparativa, quick start) + `README.es.md` con el original en español, con selector de idioma en ambos. Docs clave con espejo inglés en **`docs/en/`**: README (índice), INSTALL, CONVENTIONS (misma numeración §1-§9 — las citas «regla N» siguen valiendo), FLOWS (los 9 diagramas Mermaid con etiquetas traducidas) y observability; selector de idioma también en los originales. Los docs por agente y el roadmap siguen solo en español (anotado en el índice EN). Los tokens que parsean los scripts (estados `borrador/aprobada/…`, `generacion:`, `- **Tipo**:`) se conservan en español también en la doc EN, con glosa la primera vez. Regla de sincronización bilingüe añadida a `CLAUDE.md`.
-- README: badge vivo de CI (GitHub Actions) + badge de versión (último tag) y sección «Calidad y CI» con lo que valida cada push.
-- README (EN y ES): **panel de badges en tres bloques** — estado (CI · versión · licencia · Python 3.11+), comunidad (estrellas · forks · issues abiertas · último commit · commits/mes) y naturaleza del proyecto (plugin de Claude Code · Spec-Driven · 8 agentes · 11 comandos). Descartado el badge de descargas: GitHub solo cuenta descargas de **assets** de release, no instalaciones por marketplace ni clones, así que no refleja el uso real del plugin.
-- Nuevo workflow `release.yml` (copia manual, como ci.yml): al empujar un tag `v*` empaqueta el plugin como zip, crea la GitHub Release y adjunta el zip, con las notas de la versión extraídas automáticamente del CHANGELOG.
+### Added — bilingual EN/ES documentation (2026-08-13)
 
-### Corregido
+- **English as the repo's primary language**: `README.md` rewritten in English (same showcase: badges, cover Mermaid diagram, comparison, quick start) plus `README.es.md` holding the Spanish original, with a language switcher in both. Key docs now have an English mirror under **`docs/en/`**: README (index), INSTALL, CONVENTIONS (same §1-§9 numbering — existing "rule N" citations still hold), FLOWS (all 9 Mermaid diagrams with translated labels) and observability; the originals carry the language switcher too. Per-agent docs and the roadmap remain Spanish-only (noted in the EN index). Tokens parsed by the scripts (states `borrador/aprobada/…` — draft/approved, `generacion:`, `- **Tipo**:`) stay in Spanish in the English docs as well, with a gloss on first use. Bilingual sync rule added to `CLAUDE.md`.
+- README: live CI badge (GitHub Actions) plus a version badge (latest tag) and a "Quality and CI" section describing what every push validates.
+- README (EN and ES): **badge panel in three blocks** — status (CI · version · license · Python 3.11+), community (stars · forks · open issues · last commit · commits/month) and project nature (Claude Code plugin · Spec-Driven · 8 agents · 11 commands). The downloads badge was dropped: GitHub only counts downloads of release **assets**, not marketplace installs or clones, so it does not reflect real plugin usage.
+- New `release.yml` workflow (manual copy, like ci.yml): pushing a `v*` tag packages the plugin as a zip, creates the GitHub Release and attaches the zip, with the release notes extracted automatically from the CHANGELOG.
 
-- `ci.yml.MANUAL-COPY`: la cabecera de aviso era Markdown (rompía el workflow al copiarla tal cual — YAML inválido en L1); ahora son comentarios `#` y el fichero se copia entero sin editar.
+### Changed — documentation focused on the plugin itself (2026-08-13)
+
+- **Dropped the "vs other plugins" comparison** from the README (EN and ES): the section becomes **"What you get" / "Qué te llevas"**, a 12-capability table stated positively along with **how each one is guaranteed** (a specific script, gate or agent). The documentation no longer defines itself by contrast with third-party products.
+- **References to external engines are now generic** across the documentation and in the agent/skill/kit prompts: "external SDD orchestrator", "external engine". `/dev-cycle` Mode A interoperability **remains intact** (the flag still works); only the way it is documented changes.
+
+- **Bilingual CHANGELOG**: `CHANGELOG.md` is now the English one (and the source for the GitHub Release notes), with `CHANGELOG.es.md` mirroring it in Spanish — same version headings, same order, same footer links. `release.py` warns if either of the two is missing the entry for the version being published.
+
+### Fixed
+
+- `ci.yml.MANUAL-COPY`: the warning header was Markdown (it broke the workflow when copied as-is — invalid YAML on L1); it is now `#` comments and the file can be copied whole without editing.
 
 ## [1.11.0] - 2026-08-12
 
-### Añadido — iniciativa `sdd-hardening` (2026-08-12)
+### Added — `sdd-hardening` initiative (2026-08-12)
 
-- **Autosuficiencia frente a superpowers**: la **cadena nativa es SIEMPRE el motor por defecto** de `/dev-cycle` (superpowers solo bajo petición explícita: "usa superpowers" o `--superpowers`). Nueva config **`.claude/dev.json`** (opt-in, defaults off, la crea `/setup`): `tdd` (RED-GREEN-REFACTOR con **evidencia del rojo** en el ledger), `worktree` (iniciativa en worktree de git aislado, con degradación) y `subagentes` (**cada tarea la implementa un subagente de contexto FRESCO**, con las 4 mecánicas del ciclo de superpowers: brief determinista por el nuevo **`task-brief.py`** (+6 tests), brief-only, estados ricos `DONE/DONE_WITH_CONCERNS/NEEDS_CONTEXT/BLOCKED` y revisor persistente con severidades `Critical/Important/Minor`).
-- **Constitución del proyecto consumidor** (`docs/CONSTITUTION.md`, opt-in vía `/setup` con plantilla en el kit shared): principios permanentes que los 6 agentes que escriben leen y citan (`constitution-check.md`), y que la **lente A hace cumplir** (violación de principio explícito = gap con cita de línea). E2E verificado.
-- **`/spec-drift`** (nuevo command, solo lectura): deriva spec↔código de las specs `implementada` — subagentes frescos verifican cada criterio contra el código de hoy (`vigente ✓ / derivado ✗ / no verificable` con evidencia) → `docs/roadmap/DRIFT.md` + oferta de `/pm-cycle` para lo derivado. E2E verificado.
-- **Criterios Given/When/Then opcionales** (`- [ ] [GWT] CA-XX — Dado…, Cuando…, Entonces…`): plantilla de spec, analyst/discovery los ofrecen para comportamiento observable, qa los traduce 1:1 a E2E, y **`coverage-check.py` los exige** en el test-plan (nuevos tests, incl. GWT sin test-plan = rojo).
-- **Skill `debug-root-cause`**: depuración sistemática en 4 fases con evidencia obligatoria (reproducción mínima → aislamiento → hipótesis probada → fix + regresión); `/dev-cycle` la dispara al 3.er rojo de qa ANTES de rendirse — la pregunta al usuario llega con diagnóstico.
-- **`docs/observability.md`**: posicionamiento coste (usage-meter) vs actividad en vivo (monitores tipo Agent-Monitor) y coexistencia de hooks verificada.
-- Backlog: spec borrador `subagent-personas` (perfiles de dominio para el subagente fresco).
-- Revisión adversarial de dos lentes superada en 2 intentos: 21 hallazgos del intento 1 corregidos y verificados 21/21 (incl. parser de briefs tolerante a bloques de código, regex GWT robusto, medición por tarea asignada en el flujo clásico, revisor persistente por traspaso y fix propuesto —no aplicado— en el gancho del 3.er rojo). Suites: 45 tests pytest + 6 suites de repo en verde.
+- **Full self-sufficiency (no dependency on external engines)**: the **native chain is ALWAYS the default engine** for `/dev-cycle` (an external SDD engine only on explicit request). New **`.claude/dev.json`** config (opt-in, defaults off, created by `/setup`): `tdd` (RED-GREEN-REFACTOR with **evidence of the red** in the ledger), `worktree` (initiative in an isolated git worktree, with graceful degradation) and `subagentes` (**every task is implemented by a FRESH-context subagent**, with the 4 mechanics of the subagent cycle: deterministic brief produced by the new **`task-brief.py`** (+6 tests), brief-only, rich states `DONE/DONE_WITH_CONCERNS/NEEDS_CONTEXT/BLOCKED` and a persistent reviewer with `Critical/Important/Minor` severities).
+- **Consumer project constitution** (`docs/CONSTITUTION.md`, opt-in via `/setup` with a template in the shared kit): permanent principles that the 6 writing agents read and cite (`constitution-check.md`), and that **lens A enforces** (violating an explicit principle = gap with a line citation). Verified end to end.
+- **`/spec-drift`** (new read-only command): spec↔code drift for `implementada` (implemented) specs — fresh subagents check every criterion against today's code (`vigente ✓ / derivado ✗ / no verificable` — current / drifted / not verifiable, with evidence) → `docs/roadmap/DRIFT.md` plus an offer to run `/pm-cycle` on whatever drifted. Verified end to end.
+- **Optional Given/When/Then criteria** (`- [ ] [GWT] CA-XX — Dado…, Cuando…, Entonces…`): spec template, analyst/discovery offer them for observable behaviour, qa translates them 1:1 into E2E tests, and **`coverage-check.py` requires them** in the test plan (new tests, including GWT without a test plan = red).
+- **`debug-root-cause` skill**: systematic 4-phase debugging with mandatory evidence (minimal reproduction → isolation → tested hypothesis → fix + regression); `/dev-cycle` triggers it on qa's 3rd red BEFORE giving up — so the question that reaches the user comes with a diagnosis.
+- **`docs/observability.md`**: positioning of cost (usage-meter) vs live activity (Agent-Monitor-style monitors), with hook coexistence verified.
+- Backlog: `subagent-personas` draft spec (domain profiles for the fresh subagent).
+- Two-lens adversarial review passed in 2 attempts: 21 findings from attempt 1 fixed and verified 21/21 (including a brief parser tolerant of code blocks, a robust GWT regex, per-assigned-task measurement in the classic flow, a persistent reviewer across handoffs, and a proposed — not applied — fix in the 3rd-red hook). Suites: 45 pytest tests plus 6 repo suites green.
 
-### Añadido — vía rápida `workflow-polish` (2026-08-12)
+### Added — `workflow-polish` fast track (2026-08-12)
 
-- **Las 3 skills de superpowers que faltaban** (con esto, cobertura 14/14 nativa): (1) **disciplina al RECIBIR la revisión** — el implementador verifica cada gap antes de corregirlo y **rebate con evidencia** los señalamientos erróneos (`descartado (rebatido)` con arbitraje del orquestador; rebatir no consume intento); (2) **despacho PARALELO de tareas independientes** (`subagentes: true`): lotes de máx. 3 en worktrees temporales por tarea, reintegración validada en `feature/<slug>` antes de la revisión, y **medición honesta por lote** (`(medido, lote)`, reparto proporcional); (3) **ritual de CIERRE de rama** en 6 pasos (verificación final, commits por tarea, resumen de PR derivado del ledger, integración preguntando si no está claro, limpieza de worktrees y marcadores, estados finales). Primera vía rápida **medida** del plugin (3m de IA, 16k tokens facturables).
+- **The 3 missing workflow disciplines** (completing the native method repertoire): (1) **discipline when RECEIVING a review** — the implementer verifies each gap before fixing it and **rebuts incorrect findings with evidence** (`descartado (rebatido)` — dismissed (rebutted) — arbitrated by the orchestrator; rebutting does not consume an attempt); (2) **PARALLEL dispatch of independent tasks** (`subagentes: true`): batches of at most 3 in per-task temporary worktrees, reintegration validated on `feature/<slug>` before review, and **honest per-batch measurement** (`(medido, lote)` — measured, batch — with proportional distribution); (3) **6-step branch CLOSING ritual** (final verification, per-task commits, PR summary derived from the ledger, integration asking when unclear, worktree and marker cleanup, final states). First **measured** fast track of the plugin (3m of AI, 16k billable tokens).
 
-### Añadido — vía rápida `plugin-dev` (2026-08-12)
+### Added — `plugin-dev` fast track (2026-08-12)
 
-- **Skill `plugin-dev`** (meta-skill, equivalente nativo al *writing-skills* de superpowers pero para TODO el plugin): proceso canónico para crear/modificar agentes, skills, comandos, kits y hooks — árbol de decisión de tipo de pieza, reglas de nombre y colisiones, frontmatter obligatorio (model tiering, tools mínimos, `dependencies`), determinismo (scripts con tests + exit codes) y degradación sin bloquear, validación TDD-ish en orden estricto (test primero → `lint_plugin.py` → suites con la misma invocación que la CI → auto-revisión adversarial), obligaciones de documentación por tipo de pieza y catálogo de **anti-patrones vistos en revisiones reales** del repo. Incluye plantillas rellenables de agente, skill y comando (`templates/`) — la de agente verificada empíricamente contra el parser del linter; la de comando con frontmatter `description`/`argument-hint` y `$ARGUMENTS`, como los comandos reales.
-- Revisión de dos lentes superada: 7 hallazgos corregidos y re-verificados, 2 de ellos críticos (la invocación de pytest citada no recogía las suites-script de `tests/`; los comentarios inline del template de agente hacían que el linter rechazara cualquier agente creado desde la plantilla). Vía rápida **medida**: 10m de IA, ~49k tokens facturables.
+- **`plugin-dev` skill** (meta-skill for developing the plugin itself, covering ALL of its pieces): canonical process for creating/modifying agents, skills, commands, kits and hooks — decision tree for the type of piece, naming and collision rules, mandatory frontmatter (model tiering, minimal tools, `dependencies`), determinism (scripts with tests + exit codes) and degradation without blocking, TDD-ish validation in strict order (test first → `lint_plugin.py` → suites with the same invocation as CI → adversarial self-review), documentation obligations per type of piece, and a catalogue of **anti-patterns seen in real reviews** of this repo. Includes fill-in templates for agents, skills and commands (`templates/`) — the agent one empirically verified against the linter's parser; the command one with `description`/`argument-hint` frontmatter and `$ARGUMENTS`, like the real commands.
+- Two-lens review passed: 7 findings fixed and re-verified, 2 of them critical (the cited pytest invocation did not pick up the script suites in `tests/`; inline comments in the agent template made the linter reject any agent created from it). **Measured** fast track: 10m of AI, ~49k billable tokens.
 
-### Añadido — vía rápida `subagent-personas` (2026-08-12)
+### Added — `subagent-personas` fast track (2026-08-12)
 
-- **Personas de dominio para el subagente fresco** (cierra la spec de backlog anotada en sdd-hardening): catálogo CORTO de 6 perfiles en `agent-kits/shared/personas/` (`frontend` · `backend` · `db` · `devops` · `test` · `docs` — prioridades, trampas típicas, calidad y evidencia exigibles de cada dominio, ~10 líneas por persona para que el catálogo se mantenga), campo **opcional** `- **Tipo**:` por tarea en la plantilla del planner (se asigna solo con dominio claro; sin tipo → subagente genérico, como hasta ahora) y **inyección determinista en el brief** por `task-brief.py` (sección "Persona de dominio" antes de la tarea). Degradación sin bloquear: etiqueta sin persona en el catálogo → aviso + genérico. TDD estricto (+7 tests, incl. regresión: un `Tipo` de ejemplo dentro de un bloque de código no inyecta persona; tipos con `/` o `..` no escapan del catálogo).
-- Revisión de dos lentes superada: 1 defecto real (el `Tipo` dentro de fences, cazado por la lente B ejecutando) + 4 gaps de documentación, todos corregidos y re-verificados.
+- **Domain personas for the fresh subagent** (closes the backlog spec noted in sdd-hardening): a SHORT catalogue of 6 profiles in `agent-kits/shared/personas/` (`frontend` · `backend` · `db` · `devops` · `test` · `docs` — priorities, typical pitfalls, and the quality and evidence each domain demands, ~10 lines per persona so the catalogue stays maintainable), an **optional** `- **Tipo**:` (type) field per task in the planner template (assigned only when the domain is clear; no type → generic subagent, as before) and **deterministic injection into the brief** by `task-brief.py` (a "Persona de dominio" section ahead of the task). Degrades without blocking: a label with no persona in the catalogue → warning + generic. Strict TDD (+7 tests, including regressions: an example `Tipo` inside a code block does not inject a persona; types containing `/` or `..` cannot escape the catalogue).
+- Two-lens review passed: 1 real defect (the `Tipo` inside fences, caught by lens B by execution) plus 4 documentation gaps, all fixed and re-verified.
 
-### Verificación global del roadmap (2026-08-12)
+### Roadmap-wide verification (2026-08-12)
 
-- **Las 9 iniciativas del roadmap auditadas y coherentes**: ledger-lint en verde en todos los `tasks.md`; estados cerrados donde el trabajo estaba publicado (qa-agent y nemesis-sca-iac **reconciliados con nota explícita** — ledgers anteriores a la disciplina de ledger canónico; agent-best-practices, qa-strict y token-diet → `completado`/`implementada`); jira-granularity se mantiene en `en-revision` a propósito (T-08, dry-run contra DM5985, sigue pendiente).
-- `roadmap-dashboard`: las iniciativas de **vía rápida** (solo `tasks.md`) ahora aparecen en dashboard y métricas (fase "vía rápida", título desde el ledger, coste medido agregado); los estados con emoji (`completado ✅`) ya no generan falsos avisos de incoherencia. Tests nuevos.
+- **All 9 roadmap initiatives audited and consistent**: ledger-lint green across every `tasks.md`; states closed where the work had shipped (qa-agent and nemesis-sca-iac **reconciled with an explicit note** — their ledgers predate the canonical ledger discipline; agent-best-practices, qa-strict and token-diet → `completado`/`implementada` — completed/implemented); jira-granularity deliberately stays at `en-revision` (in review) (T-08, dry-run against DM5985, still pending).
+- `roadmap-dashboard`: **fast-track** initiatives (with only a `tasks.md`) now show up in the dashboard and the metrics ("fast track" phase, title taken from the ledger, aggregated measured cost); states carrying an emoji (`completado ✅`) no longer raise false inconsistency warnings. New tests.
 
-### Corregido
+### Fixed
 
-- `ledger-lint.py`: «Fase 3» y «Fase 3-bis» ya no colisionan en la validación del resumen (test de regresión 9/9).
+- `ledger-lint.py`: "Fase 3" and "Fase 3-bis" no longer collide in summary validation (regression test 9/9).
 
 ## [1.10.0] - 2026-08-11
 
-### Añadido — iniciativa `coste-generacion`
+### Added — `coste-generacion` initiative
 
-- **`agent-kits/shared/usage-meter.py`** (+ 35 tests): mide el **coste real de generación** de cada artefacto del ciclo y de cada tarea leyendo los tokens del `usage` de la transcripción de la sesión por ventanas (`start`/`close`/`status` por artefacto, dedupe por respuesta, sidechains incluidas). Convierte a € (`rates.json`, regla de fiabilidad) y a **horas-IA por ratio calibrado** (mediana `tokens/hora` de `CALIBRATION.md` > default no calibrado de `estimation-defaults.md`). Modelo confirmado con el usuario: **fechas = contexto · tokens = medida · horas = tokens × ratio** — nunca reloj de pared. Degrada a `fuente: estimado` sin bloquear jamás el flujo.
-- **Bloque `generacion:`** en el frontmatter de spec/evaluation/plan/tasks (plantillas de evaluator y planner + `tasks.md` ligero de la vía rápida); analyst/evaluator/planner y `/dev-cycle` arrancan/cierran el meter (regla de no-solape en los orquestadores).
-- **`/roadmap-metrics` — sección "Coste de proceso"**: lo que costó *producir* los artefactos de cada iniciativa (separado del coste de implementación); "sin datos" honesto para artefactos sin bloque, nunca 0 inventado.
-- **Medición por tarea (Modo B)**: marcador por `T-XX`; las horas-IA **medidas** entran como "real" en el ledger (`(medido)`) y en el worklog de Jira, sin tocar la aritmética de jornada/banco de `worklog.py`.
-- **`/retro` calibra el ratio tokens→hora**: columna `tokens/hora` + línea-resumen "Ratio vigente (mediana de N muestras)" en `CALIBRATION.md`, que consumen evaluator y el meter.
-- **Formato humano de duraciones `XhYm`** (estilo Jira, fijado por el usuario: `32m` · `1h 32m` · `18h`): helper único `usage-meter.py fmt`, aplicado en frontmatter, informes y plantilla de revisión (las columnas parseadas por máquina del ledger permanecen en decimal, excepción declarada en la spec).
-- Revisión adversarial de dos lentes superada en 2 intentos (22 hallazgos del intento 1 corregidos y verificados 19/19 en el intento 2, incl. parser de calibración con notación `300k`, state corrupto, truncado de transcripciones y "0 tok" inventado).
+- **`agent-kits/shared/usage-meter.py`** (+ 35 tests): measures the **real generation cost** of every cycle artifact and every task by reading the tokens from the session transcript's `usage` over windows (`start`/`close`/`status` per artifact, dedupe by response, sidechains included). Converts to € (`rates.json`, reliability rule) and to **AI-hours via a calibrated ratio** (median `tokens/hora` from `CALIBRATION.md` > uncalibrated default from `estimation-defaults.md`). Model confirmed with the user: **dates = context · tokens = measurement · hours = tokens × ratio** — never wall clock. Degrades to `fuente: estimado` (source: estimated) and never blocks the flow.
+- **`generacion:` block** in the frontmatter of spec/evaluation/plan/tasks (evaluator and planner templates plus the lightweight fast-track `tasks.md`); analyst/evaluator/planner and `/dev-cycle` start/close the meter (no-overlap rule in the orchestrators).
+- **`/roadmap-metrics` — "Process cost" section**: what it cost to *produce* each initiative's artifacts (kept separate from implementation cost); an honest "no data" for artifacts without the block, never a made-up 0.
+- **Per-task measurement (Mode B)**: a marker per `T-XX`; **measured** AI-hours land as "actual" in the ledger (`(medido)` — measured) and in the Jira worklog, without touching the working-day/hour-bank arithmetic in `worklog.py`.
+- **`/retro` calibrates the tokens→hour ratio**: `tokens/hora` column plus a "Ratio vigente (mediana de N muestras)" summary line in `CALIBRATION.md`, consumed by the evaluator and the meter.
+- **Human-readable `XhYm` durations** (Jira style, fixed by the user: `32m` · `1h 32m` · `18h`): single `usage-meter.py fmt` helper, applied in frontmatter, reports and the review template (the machine-parsed ledger columns stay decimal, an exception declared in the spec).
+- Two-lens adversarial review passed in 2 attempts (22 findings from attempt 1 fixed and verified 19/19 on attempt 2, including the calibration parser with `300k` notation, corrupt state, transcript truncation and invented "0 tok").
 
 ## [1.9.1] - 2026-08-11
 
-Ajustes sobre la 1.9.0 tras el rodaje de diseño con el usuario: traza por intento en el worklog de revisión y puerta de entrada en `/dev-cycle`.
+Adjustments on top of 1.9.0 after the design run-in with the user: per-attempt tracing in the review worklog and an entry gate in `/dev-cycle`.
 
-### Añadido
-- **Traza por intento en el worklog de revisión** (`worklog.py --attempt N`, solo con `--kind revision`): cada pasada del bucle reviewer→implementer se imputa como **su propia entrada de worklog** (duración + fecha por intento, comentario `"[revisión] intento N de 3 — T-XX"`), y `jira-state.json` guarda `reviewAttempts: [{intento, fecha, horas}]` para que `/retro` vea cuánto costó cada vuelta. El total sigue siendo la suma (implementación + todas las revisiones); sin `--attempt` el comportamiento es el de 1.9.0. Tests en `tests/test_worklog.py` (13/13). El comentario de Jira sigue siendo único y final ("revisión superada en N intento(s)").
-- **Puerta de entrada en `/dev-cycle` (Fase 0-bis):** al arrancar pregunta **flujo completo** vs **vía rápida** — o el usuario lo **indica explícitamente** ("vía rápida"/"rápido"/`rapido`, "flujo completo"/`completo`) y no se pregunta. La vía rápida salta spec/evaluación/plan (crea un `tasks.md` ligero y va directo a `implementer`) pero **conserva** la revisión adversarial de dos lentes y `qa-gate`; el ledger ligero mantiene progreso, horas y volcado a Jira. Para cambios pequeños que se describen en una o dos frases.
+### Added
+- **Per-attempt tracing in the review worklog** (`worklog.py --attempt N`, only with `--kind revision`): each pass of the reviewer→implementer loop is logged as **its own worklog entry** (duration and date per attempt, comment `"[revisión] intento N de 3 — T-XX"`), and `jira-state.json` stores `reviewAttempts: [{intento, fecha, horas}]` so `/retro` can see what each round cost. The total is still the sum (implementation + all reviews); without `--attempt` the behaviour matches 1.9.0. Tests in `tests/test_worklog.py` (13/13). The Jira comment remains single and final ("review passed in N attempt(s)").
+- **Entry gate in `/dev-cycle` (Phase 0-bis):** on start it asks **full flow** vs **fast track** — or the user **states it explicitly** ("fast track"/"quick"/`rapido`, "full flow"/`completo`) and no question is asked. The fast track skips spec/evaluation/plan (it creates a lightweight `tasks.md` and goes straight to `implementer`) but **keeps** the two-lens adversarial review and `qa-gate`; the lightweight ledger still tracks progress, hours and the Jira dump. Meant for small changes that can be described in a sentence or two.
 
-### Arreglado
-- **CI** (`.github/workflows/ci.yml`): incorpora los tests de 1.9.0 que faltaban por cablear (`test_lint_plugin`, `test_qa_gate`, `test_ledger_lint`) y el paso `lint_plugin.py`. ⚠️ Este fichero hay que copiarlo **a mano** al repo (ruta protegida para las herramientas remotas); el publicado en 1.9.0 seguía corriendo solo dashboard+worklog.
+### Fixed
+- **CI** (`.github/workflows/ci.yml`): wires in the 1.9.0 tests that were still missing (`test_lint_plugin`, `test_qa_gate`, `test_ledger_lint`) plus the `lint_plugin.py` step. ⚠️ This file has to be copied **by hand** into the repo (path protected for the remote tooling); the one published in 1.9.0 was still running only dashboard+worklog.
 
 ## [1.9.0] - 2026-08-10
 
-Adopción de las mejores prácticas de las colecciones top de agentes (wshobson/agents, VoltAgent, superpowers y las best practices oficiales de Claude Code), endurecimiento de qa y del orquestador con puertas deterministas, dieta de tokens y granularidad de Jira por fase/tarea con publicación de la revisión. Ver `docs/roadmap/2026-08-10-agent-best-practices/`, `docs/roadmap/2026-08-10-qa-strict/`, `docs/roadmap/2026-08-10-token-diet/` y `docs/roadmap/2026-08-10-jira-granularity/`.
+Adoption of best practices from the top agent collections (reference agent collections and the official Claude Code best practices), hardening of qa and of the orchestrator with deterministic gates, a token diet, and Jira granularity per phase/task with review publishing. See `docs/roadmap/2026-08-10-agent-best-practices/`, `docs/roadmap/2026-08-10-qa-strict/`, `docs/roadmap/2026-08-10-token-diet/` and `docs/roadmap/2026-08-10-jira-granularity/`.
 
-### Añadido (jira-granularity — granularidad + revisión en Jira)
-- **Granularidad de volcado elegible** en `jira-sync` (`.claude/jira.json` → `granularidad: "tarea" | "fase"`; defecto `"tarea"`, no rompe instalaciones). **Modo fase**: un issue por Fase con sus `T-XX` como checklist en la descripción; comentario y worklog por tarea sobre el issue de la fase; checklist marcada con `editJiraIssue`; Done de la fase solo cuando todas sus tareas están `completado`.
-- **Resultado del revisor → Jira** (`jira-sync` Paso 9, solo Modo B): el revisor de `/dev-cycle` emite salida **estructurada por criterio** (`T-XX` → criterio → ✓/✗); se publica un comentario con el **resultado final + "revisión superada en N intento(s)"** contra la plantilla fija `agent-kits/shared/review-report.template.md`, con la granularidad del volcado. Idempotente (`reviewComentado`).
-- **Bucle reviewer→implementer acotado a 3 intentos** en `/dev-cycle` (patrón del bucle qa→implementer): reviewer→corrige→re-review; al 3.º con gaps, para y pregunta.
-- **Worklog de revisión** en `worklog.py`: nuevo `--kind implementacion|revision`; la entrada `[revisión]` acumula todas las pasadas del bucle y lleva desglose `worklogImpl`/`worklogRevision` en `jira-state.json` (para `/retro`) sin distorsionar el tope de jornada ni el total del issue. Tests en `tests/test_worklog.py` (12/12).
+### Added (jira-granularity — granularity + review in Jira)
+- **Selectable dump granularity** in `jira-sync` (`.claude/jira.json` → `granularidad: "tarea" | "fase"`; default `"tarea"`, does not break existing installs). **Phase mode**: one issue per phase with its `T-XX` items as a checklist in the description; per-task comment and worklog on the phase issue; checklist ticked with `editJiraIssue`; the phase is Done only when all its tasks are `completado` (completed).
+- **Reviewer result → Jira** (`jira-sync` Step 9, Mode B only): the `/dev-cycle` reviewer emits output **structured per criterion** (`T-XX` → criterion → ✓/✗); a comment is posted with the **final result + "review passed in N attempt(s)"** against the fixed `agent-kits/shared/review-report.template.md` template, honouring the dump granularity. Idempotent (`reviewComentado`).
+- **reviewer→implementer loop capped at 3 attempts** in `/dev-cycle` (same pattern as the qa→implementer loop): reviewer→fix→re-review; on the 3rd with gaps it stops and asks.
+- **Review worklog** in `worklog.py`: new `--kind implementacion|revision`; the `[revisión]` entry accumulates all passes of the loop and carries a `worklogImpl`/`worklogRevision` breakdown in `jira-state.json` (for `/retro`) without distorting the daily cap or the issue total. Tests in `tests/test_worklog.py` (12/12).
 
-### Añadido (token-diet — reducción de consumo de tokens)
-- **`agent-kits/shared/read-discipline.md`**: disciplina de lectura del recon (grep/glob antes de `Read`, `Read` con `limit`, ignorar `node_modules`/`vendor`/lockfiles/minificados, muestrear patrones). La adoptan documenter, nemesis y evaluator en su recon vía `$SHAREDKIT`.
-- **`agent-kits/shared/output-discipline.md`**: disciplina de salida en los handoffs (mensaje final del agente ≤ ~12 líneas, datos y no informe; el detalle vive en los artefactos). La adoptan evaluator, planner, implementer, qa y documenter.
-- **Filtrado de payloads Atlassian**: regla en `jira-sync` de pedir `fields` explícitos y acotar `maxResults` en toda llamada al conector (roadmap-live ya lo hacía).
-- **Progressive disclosure**: el detalle por-fase de documenter (guía de redacción → `agent-kits/documenter/redaction-guide.md`) y de nemesis (interpretación de tools → `agent-kits/nemesis/interpretation.md`) se lee on-demand al entrar en esa fase, no siempre.
-- **Skill `rates-verify`**: consulta la doc oficial de precios (WebFetch) y escribe `precioTokens` + `verificadoEl` en `.claude/rates.json`; nunca inventa precio si no puede leer la doc. Se ofrece en `/setup`; evaluator/planner dejan de marcar `⚠️ verificar` cuando el precio es fiable y reciente.
+### Added (token-diet — reducing token consumption)
+- **`agent-kits/shared/read-discipline.md`**: reading discipline for recon (grep/glob before `Read`, `Read` with `limit`, ignore `node_modules`/`vendor`/lockfiles/minified files, sample patterns). Adopted by documenter, nemesis and evaluator in their recon via `$SHAREDKIT`.
+- **`agent-kits/shared/output-discipline.md`**: output discipline in handoffs (agent's final message ≤ ~12 lines, data rather than a report; the detail lives in the artifacts). Adopted by evaluator, planner, implementer, qa and documenter.
+- **Atlassian payload filtering**: a rule in `jira-sync` to request explicit `fields` and bound `maxResults` on every connector call (roadmap-live already did this).
+- **Progressive disclosure**: the per-phase detail for documenter (writing guide → `agent-kits/documenter/redaction-guide.md`) and for nemesis (tool interpretation → `agent-kits/nemesis/interpretation.md`) is read on demand when entering that phase, not always.
+- **`rates-verify` skill**: queries the official pricing docs (WebFetch) and writes `precioTokens` + `verificadoEl` into `.claude/rates.json`; never invents a price if it cannot read the docs. Offered in `/setup`; evaluator/planner stop flagging `⚠️ verificar` when the price is reliable and recent.
 
-### Añadido (qa-strict — puertas deterministas)
-- **`agent-kits/qa/qa-gate.py`**: el veredicto verde/rojo de qa lo decide un script con exit code sobre `results.json` (0 failed, 0 flaky sin justificar; justificaciones con texto real vía `--justify`). La ausencia de evidencia es rojo. Tests en `tests/test_qa_gate.py` (8/8).
-- **`agent-kits/shared/ledger-lint.py`**: validación mecánica del ledger `tasks.md` (vocabulario de estados, `completado` ⟹ criterios marcados, resumen cuadrado, IDs únicos; legacy degrada a aviso). Lo invocan implementer (DoD), qa (P1) y /dev-cycle. Tests en `tests/test_ledger_lint.py` (8/8).
-- **`agent-kits/qa/coverage-check.py`**: puerta de cobertura criterios↔tests — referencias rotas del campo «Cubre (tests)» son error; tareas sin cobertura y tests sin referenciar se listan para triage.
-- **Hook `hooks/ledger-lint-warn.sh`** (PostToolUse sobre `docs/roadmap/*/tasks.md`): ejecuta ledger-lint en modo aviso en cada edición del ledger; nunca bloquea, sale en silencio sin python3.
-- **Playwright estricto** en el runner de qa: `retries: 2` (flaky identificado para el gate), `forbidOnly: true`, timeout configurable por `QA_TIMEOUT_MS`, trazas en fallo.
-- **/dev-cycle**: bucle de corrección qa→implementer **acotado a 3 intentos** con contador explícito (al 3.º rojo: parar y preguntar), y revisión adversarial de **dos lentes en paralelo** (conformidad con spec · calidad/robustez) con fusión y dedupe de gaps.
-- **Bloques opcionales `API-xx` y `A11Y-xx`** en la plantilla `test-plan.md` (smoke de endpoints con curl; accesibilidad con axe-core bajo opt-in); qa los ejecuta y reporta fuera del umbral del gate en esta iteración.
+### Added (qa-strict — deterministic gates)
+- **`agent-kits/qa/qa-gate.py`**: qa's green/red verdict is decided by a script with an exit code over `results.json` (0 failed, 0 unjustified flaky; justifications with real text via `--justify`). Absence of evidence is red. Tests in `tests/test_qa_gate.py` (8/8).
+- **`agent-kits/shared/ledger-lint.py`**: mechanical validation of the `tasks.md` ledger (state vocabulary, `completado` ⟹ criteria ticked, summary adds up, unique IDs; legacy degrades to a warning). Invoked by implementer (DoD), qa (P1) and /dev-cycle. Tests in `tests/test_ledger_lint.py` (8/8).
+- **`agent-kits/qa/coverage-check.py`**: criteria↔tests coverage gate — broken references in the "Cubre (tests)" field are errors; tasks with no coverage and unreferenced tests are listed for triage.
+- **`hooks/ledger-lint-warn.sh` hook** (PostToolUse on `docs/roadmap/*/tasks.md`): runs ledger-lint in warning mode on every ledger edit; never blocks, exits silently without python3.
+- **Strict Playwright** in the qa runner: `retries: 2` (flaky identified for the gate), `forbidOnly: true`, timeout configurable via `QA_TIMEOUT_MS`, traces on failure.
+- **/dev-cycle**: qa→implementer correction loop **capped at 3 attempts** with an explicit counter (on the 3rd red: stop and ask), and adversarial review with **two lenses in parallel** (spec conformance · quality/robustness) with gap merging and dedupe.
+- **Optional `API-xx` and `A11Y-xx` blocks** in the `test-plan.md` template (endpoint smoke tests with curl; accessibility with axe-core under opt-in); qa runs and reports them outside the gate threshold in this iteration.
 
-### Añadido
-- **Model tiering** en los 8 agentes: campo `model` proporcional a la complejidad (criterio wshobson) — `pdfy` = haiku; `documenter`/`qa`/`implementer`/`analyst`/`planner` = sonnet; `evaluator`/`nemesis` = opus.
-- **Sección `## ANTES DE CERRAR (DoD)`** en los 8 agentes: definition-of-done con comprobaciones ejecutables y obligación de **mostrar evidencia** ("evidence over claims", superpowers). `qa` define el umbral «verde» explícito (0 `failed`, 0 `flaky` sin justificar en `results.json`).
-- **Revisión adversarial del diff** en `/dev-cycle` (Modo B): un subagente con contexto fresco revisa el diff contra el plan y reporta solo gaps de corrección/requisitos, antes de `qa`.
-- **`agent-kits/shared/`**: fragmentos compartidos con fuente única — `estimation-defaults.md` (parámetros de estimación) y `confluence-optin.md` (paso de sincronización) — referenciados por `evaluator`, `planner`, `qa` y `documenter` (DRY).
-- **Linter del plugin** `scripts/lint_plugin.py` + tests (`tests/test_lint_plugin.py`), integrado en CI: valida frontmatter (`model`, `tools`, `description`), unicidad de nombres, grafo `dependencies` (skills/kits/agents existen, sin ciclos) y avisa de nombres genéricos con riesgo de colisión en modo copia-directa a `.claude/`.
+### Added
+- **Model tiering** across the 8 agents: `model` field proportional to complexity (wshobson's criterion) — `pdfy` = haiku; `documenter`/`qa`/`implementer`/`analyst`/`planner` = sonnet; `evaluator`/`nemesis` = opus.
+- **`## ANTES DE CERRAR (DoD)` section** in the 8 agents: a definition of done with executable checks and the obligation to **show evidence** ("evidence over claims"). `qa` defines the explicit "green" threshold (0 `failed`, 0 unjustified `flaky` in `results.json`).
+- **Adversarial diff review** in `/dev-cycle` (Mode B): a fresh-context subagent reviews the diff against the plan and reports only correctness/requirement gaps, before `qa`.
+- **`agent-kits/shared/`**: shared fragments with a single source — `estimation-defaults.md` (estimation parameters) and `confluence-optin.md` (sync step) — referenced by `evaluator`, `planner`, `qa` and `documenter` (DRY).
+- **Plugin linter** `scripts/lint_plugin.py` + tests (`tests/test_lint_plugin.py`), wired into CI: validates frontmatter (`model`, `tools`, `description`), name uniqueness, the `dependencies` graph (skills/kits/agents exist, no cycles) and warns about generic names at risk of collision in direct-copy-to-`.claude/` mode.
 
-### Cambiado
-- **Descriptions de enrutado** de `evaluator`, `planner` y `nemesis` reescritas con frases-gatillo ("Úsalo cuando…", nemesis con "PROACTIVAMENTE") para mejorar la auto-delegación; el detalle de rutas/plantillas se movió al cuerpo del prompt.
-- `evaluator` y `planner` leen los parámetros de estimación del fragmento compartido en vez de duplicar la tabla; `qa`/`documenter` usan el fragmento de opt-in de Confluence.
-- Frontmatter de `tools` documentado con el porqué de cada herramienta en los 8 agentes (la restricción de "no tocar código" se mantiene semántica; `pdfy` es el único sin `Edit`).
+### Changed
+- **Routing descriptions** for `evaluator`, `planner` and `nemesis` rewritten with trigger phrases ("Use it when…", nemesis with "PROACTIVELY") to improve auto-delegation; the routing/template detail moved into the prompt body.
+- `evaluator` and `planner` read the estimation parameters from the shared fragment instead of duplicating the table; `qa`/`documenter` use the Confluence opt-in fragment.
+- The `tools` frontmatter is documented with the rationale for each tool across the 8 agents (the "do not touch code" restriction remains semantic; `pdfy` is the only one without `Edit`).
 
-### Arreglado
-- `planner.md`: doble paso «P7» renumerado (P7 Jira / P8 Confluence).
-- `nemesis.md`: eliminadas las referencias «§6/§11/§14/§17» a un system base que no viajaba con el plugin.
-- Plantillas truncadas completadas: `agent-kits/evaluator/templates/evaluation.md` (sección «Siguiente paso») y `agent-kits/planner/templates/improvement-plan.md` (secciones «Métricas de éxito», «Changelog» y «Siguiente paso»).
+### Fixed
+- `planner.md`: duplicated "P7" step renumbered (P7 Jira / P8 Confluence).
+- `nemesis.md`: removed the "§6/§11/§14/§17" references to a base system that did not travel with the plugin.
+- Truncated templates completed: `agent-kits/evaluator/templates/evaluation.md` ("Next step" section) and `agent-kits/planner/templates/improvement-plan.md` ("Success metrics", "Changelog" and "Next step" sections).
 
 ## [1.8.0] - 2026-07-17
 
-### Añadido
-- **Agente `analyst`** (toma de requerimientos): conversa con el humano eligiendo la técnica (entrevista, ejemplos, user stories, contraejemplos) y produce **siempre** la `spec.md` en formato fijo; itera hasta la aprobación del usuario y hace handoff a `evaluator`.
-- **Config compartida de presupuesto `.claude/rates.json`** (tarifa, precio de tokens, tipo de cambio, ratio de supervisión, margen, jornada); la leen `evaluator`, `planner` y `jira-sync`. Plantilla en `agent-kits/evaluator/templates/rates.example.json`.
-- **Métricas real vs estimado**: `/roadmap-metrics` + salida `--metrics-md` del generador (producción IA+supervisión, horas humanas y tokens, con desviaciones y total de cartera).
-- **`/retro`** (retrospectiva de iniciativa cerrada) → `docs/roadmap/CALIBRATION.md`; el `evaluator` lee ese histórico para **calibrar** futuras estimaciones (bucle de aprendizaje).
-- **`/setup`** (onboarding en una pasada: rates + opt-ins de Confluence/Jira).
-- **`/roadmap-brief`** (one-pager de cartera a PDF vía `to-pdf`) y **`/roadmap-live`** (estado en vivo desde Jira: issues + horas imputadas por label; artefacto o conversacional).
-- **Script `worklog.py`** (kit de `jira-sync`) con tests: cálculo determinista del worklog, tope de jornada **diario** y **banco de horas por issue** (con re-banco); saca la aritmética de la prosa. Modo **dry-run** de primera clase en `jira-sync`.
-- **CI** (`.github/workflows/ci.yml`): corre los tests, valida sintaxis Python y JSON, y comprueba coherencia de versión (`release.py --check`). `release.py` avisa si falta la entrada de CHANGELOG.
-- **Referencia única del conector Atlassian** (`docs/atlassian-connector-notes.md`) y **tabla de ficheros de config/estado** (regla 9 de `CONVENTIONS.md`).
+### Added
+- **`analyst` agent** (requirements gathering): converses with the human choosing the technique (interview, examples, user stories, counterexamples) and **always** produces `spec.md` in a fixed format; iterates until the user approves and hands off to `evaluator`.
+- **Shared budget config `.claude/rates.json`** (rate, token price, exchange rate, supervision ratio, margin, working day); read by `evaluator`, `planner` and `jira-sync`. Template in `agent-kits/evaluator/templates/rates.example.json`.
+- **Actual vs estimated metrics**: `/roadmap-metrics` plus the generator's `--metrics-md` output (AI+supervision production, human hours and tokens, with deviations and a portfolio total).
+- **`/retro`** (retrospective of a closed initiative) → `docs/roadmap/CALIBRATION.md`; the `evaluator` reads that history to **calibrate** future estimates (learning loop).
+- **`/setup`** (onboarding in a single pass: rates + Confluence/Jira opt-ins).
+- **`/roadmap-brief`** (portfolio one-pager to PDF via `to-pdf`) and **`/roadmap-live`** (live status from Jira: issues + hours logged by label; artifact or conversational).
+- **`worklog.py` script** (part of the `jira-sync` kit) with tests: deterministic worklog computation, **daily** working-day cap and a **per-issue hour bank** (with re-banking); takes the arithmetic out of the prose. First-class **dry-run** mode in `jira-sync`.
+- **CI** (`.github/workflows/ci.yml`): runs the tests, validates Python and JSON syntax, and checks version consistency (`release.py --check`). `release.py` warns if the CHANGELOG entry is missing.
+- **Single reference for the Atlassian connector** (`docs/atlassian-connector-notes.md`) and a **table of config/state files** (rule 9 of `CONVENTIONS.md`).
 
-### Cambiado
-- `nemesis`: handoff opcional (F8) para convertir hallazgos High/Critical en iniciativas del roadmap (vía `analyst`/`evaluator`), conectándolo con la cadena.
-- `implementer`/`jira-sync`: la imputación de horas usa el script `worklog.py`, no cálculo a mano.
+### Changed
+- `nemesis`: optional handoff (F8) to turn High/Critical findings into roadmap initiatives (via `analyst`/`evaluator`), connecting it to the chain.
+- `implementer`/`jira-sync`: hour logging uses the `worklog.py` script rather than manual arithmetic.
 
 ## [1.6.0] - 2026-07-15
 
-### Añadido
-- **Skill `jira-sync`**: vuelca un plan (`tasks.md`) a Jira vía el conector Atlassian (Rovo MCP). Se ofrece **al crear el plan** (opt-in en `.claude/jira.json`, como Confluence). Selector de destino **con doble modo**: artefacto interactivo en Cowork/escritorio (`assets/jira-picker.template.html` — busca proyecto, resuelve claves/URLs de issue, busca padre por clave/texto/JQL) y **conversacional** en CLI/VS Code. El **tipo de issue se deriva de la jerarquía del padre** (Épica/Iniciativa → Tarea/Historia; Tarea/Historia → Subtarea; sin padre → Tarea suelta), descubierto vía metadatos, no hardcodeado. Permite **crear una épica nueva** para la iniciativa. Idempotente vía `.claude/jira-state.json`.
-- **Imputación automática de horas + cierre en Jira**: al completar cada tarea, `implementer` invoca `jira-sync` para imputar **Tiempo IA (ejec.) + Supervisión** (real→estimación) y transicionar el issue a *Done* (transición descubierta, no fija). **Tope de jornada diario** configurable (`horasJornada`, 8h/7h) con **banco de horas por issue**: al cubrir la jornada pregunta (parar / seguir / banco) y el excedente se imputa en jornadas posteriores, siempre con fecha del día en curso (nunca post-datado).
-- **Plantilla `tasks.md` del `planner`** ampliada con **Tiempo IA (ejec.)** y **Supervisión** por tarea (además del tiempo humano), y columnas equivalentes en el resumen de progreso.
+### Added
+- **`jira-sync` skill**: dumps a plan (`tasks.md`) to Jira via the Atlassian connector (Rovo MCP). Offered **when the plan is created** (opt-in in `.claude/jira.json`, like Confluence). Destination picker with **dual mode**: interactive artifact in Cowork/desktop (`assets/jira-picker.template.html` — search projects, resolve issue keys/URLs, find a parent by key/text/JQL) and **conversational** in CLI/VS Code. The **issue type is derived from the parent's hierarchy** (Epic/Initiative → Task/Story; Task/Story → Subtask; no parent → standalone Task), discovered via metadata rather than hardcoded. It can **create a new epic** for the initiative. Idempotent via `.claude/jira-state.json`.
+- **Automatic hour logging + closing in Jira**: on completing each task, `implementer` invokes `jira-sync` to log **AI time (exec.) + Supervision** (actual→estimate) and transition the issue to *Done* (transition discovered, not fixed). Configurable **daily working-day cap** (`horasJornada`, 8h/7h) with a **per-issue hour bank**: when the day is filled it asks (stop / continue / bank) and the excess is logged on later days, always dated to the current day (never post-dated).
+- **`planner`'s `tasks.md` template** extended with **AI time (exec.)** and **Supervision** per task (on top of human time), and equivalent columns in the progress summary.
 
-### Cambiado
-- `planner` (ofrece el volcado al crear el plan) e `implementer` (refleja el progreso) declaran la skill `jira-sync`; `/dev-cycle` lo integra; `/pm-cycle` deja de duplicar el handoff conversacional a Jira.
+### Changed
+- `planner` (offers the dump when creating the plan) and `implementer` (reflects progress) declare the `jira-sync` skill; `/dev-cycle` integrates it; `/pm-cycle` no longer duplicates the conversational Jira handoff.
 
 ## [1.5.1] - 2026-07-15
 
-### Añadido
-- **`scripts/release.py`**: sube la versión de forma **coherente** en los tres sitios (`plugin.json` y los dos campos de `marketplace.json`), valida que coinciden y crea commit + tag. Evita el fallo de olvidar `marketplace.json` (que deja al cliente sin ver la actualización).
-- **Tests del dashboard** (`tests/` con fixtures) y **avisos** en `roadmap-dashboard`: el generador emite por `stderr` cuando no puede leer un campo esperado (posible cambio de etiquetas en las plantillas) o detecta incoherencias de estado, con `--strict` para CI.
+### Added
+- **`scripts/release.py`**: bumps the version **consistently** in all three places (`plugin.json` and the two fields in `marketplace.json`), validates that they match and creates a commit + tag. Prevents the failure of forgetting `marketplace.json` (which leaves the client unable to see the update).
+- **Dashboard tests** (`tests/` with fixtures) and **warnings** in `roadmap-dashboard`: the generator emits on `stderr` when it cannot read an expected field (possible label change in the templates) or detects state inconsistencies, with `--strict` for CI.
 
-### Cambiado
-- `docs/INSTALL.md`: aviso de **no ubicar el repo git en carpeta sincronizada en la nube** (OneDrive/Dropbox…) por conflictos de locks/índice, y uso del script de release.
+### Changed
+- `docs/INSTALL.md`: warning about **not placing the git repo in a cloud-synced folder** (OneDrive/Dropbox…) because of lock/index conflicts, plus use of the release script.
 
 ## [1.5.0] - 2026-07-15
 
-### Añadido
-- **Rol PM (producto) separado del desarrollo**: command **`/pm-cycle`** (spec → evaluación; cierra en la puerta go/no-go y ofrece handoff a `/dev-cycle`; salidas opt-in: brief PDF y épica en Jira) y **`/pm-backlog`** (prioriza la cartera leyendo todas las `evaluation.md` → `docs/roadmap/BACKLOG.md`).
-- **Skill `roadmap-dashboard`** + command **`/roadmap-status`**: escanea `docs/roadmap/*/` y genera un dashboard **HTML** (vista local), **Markdown** (para Confluence) o **JSON** con estado, prioridad y presupuesto por iniciativa.
-- **Skill `confluence-pull`** + command **`/confluence-pull`**: sentido **inverso** de la publicación (Confluence → `docs/` local) para PMs sin git; preserva el frontmatter local, avisa de conflictos y confirma antes de escribir. Reutiliza el mapa `.claude/confluence-state.json`.
-- **Dashboard del roadmap publicable en Confluence**: `confluence-publish` regenera `dashboard.md` antes de publicar cuando cambia `docs/roadmap/`, para que un PM vea el estado real sin git.
+### Added
+- **PM (product) role separated from development**: the **`/pm-cycle`** command (spec → evaluation; closes at the go/no-go gate and offers a handoff to `/dev-cycle`; opt-in outputs: PDF brief and a Jira epic) and **`/pm-backlog`** (prioritizes the portfolio by reading every `evaluation.md` → `docs/roadmap/BACKLOG.md`).
+- **`roadmap-dashboard` skill** + **`/roadmap-status`** command: scans `docs/roadmap/*/` and generates a dashboard in **HTML** (local view), **Markdown** (for Confluence) or **JSON** with status, priority and budget per initiative.
+- **`confluence-pull` skill** + **`/confluence-pull`** command: the **reverse** direction of publishing (Confluence → local `docs/`) for PMs without git; preserves the local frontmatter, warns about conflicts and confirms before writing. Reuses the `.claude/confluence-state.json` map.
+- **Roadmap dashboard publishable to Confluence**: `confluence-publish` regenerates `dashboard.md` before publishing whenever `docs/roadmap/` changes, so a PM can see the real status without git.
 
-### Cambiado
-- Documentación e índices (`CLAUDE.md`, `docs/README.md`) con los nuevos comandos y skills; sincronización con Confluence descrita como **bidireccional**.
+### Changed
+- Documentation and indexes (`CLAUDE.md`, `docs/README.md`) updated with the new commands and skills; Confluence sync described as **bidirectional**.
 
 ## [1.3.1] - 2026-07-10
 
-### Añadido
-- **Agente `documenter`**: genera y mantiene la documentación técnica y de producto del proyecto bajo `docs/`, con estructura **derivada del propio proyecto** (no impone nombres de carpeta; deriva del reparto y vocabulario del repo). Cubre índice, RAG-INDEX, arquitectura, stack, unidades del sistema, guías y producto; idempotente; propone estructura y confirma antes de redactar. Se ejecuta **al cerrar el ciclo de un plan** (implementación hecha + pruebas automáticas de `qa` en verde), como handoff de `qa`, **no tarea a tarea**. Incluye kit `agent-kits/documenter` (`taxonomy.md` + plantillas de formato genéricas). Sincroniza los docs en Confluence (opt-in).
-- **Agente `implementer`**: implementa un plan aprobado fase a fase (escribe código real del proyecto, sobre rama), marcando `docs/roadmap/<…>/tasks.md` como **ledger canónico** de progreso por tarea; respeta guardrails y hace handoff a `qa`. Es el único agente que modifica código.
-- **Command `/dev-cycle <objetivo>`** (`commands/dev-cycle.md`): orquestador que dirige la cadena invocando cada agente por nombre (sin depender de la auto-selección), con puertas de control (go/no-go, OK de plan, verde de qa). Tu `evaluator` y `planner` **siempre** generan los artefactos en `docs/roadmap/` (spec, evaluación, plan, tasks); no se delega la planificación. **Detecta superpowers**: si está, delega solo la **ejecución** (implementación/TDD/review) trabajando contra tu `tasks.md`; si no, usa la cadena nativa (`implementer` + `qa`). Sin dependencia dura de superpowers.
-- **Regla de ledger canónico** (regla 8 de `CONVENTIONS.md` + banner en la plantilla `tasks.md`): el progreso de un plan se registra solo en `tasks.md`; cualquier implementador —incluidos orquestadores externos como *superpowers subagent-driven-development*— debe actualizarlo; los ledgers propios son espejo, no fuente.
+### Added
+- **`documenter` agent**: generates and maintains the project's technical and product documentation under `docs/`, with a structure **derived from the project itself** (it does not impose folder names; it derives them from the repo's layout and vocabulary). Covers index, RAG-INDEX, architecture, stack, system units, guides and product; idempotent; proposes a structure and confirms before writing. It runs **when a plan's cycle closes** (implementation done + `qa`'s automated tests green), as a handoff from `qa`, **not task by task**. Includes the `agent-kits/documenter` kit (`taxonomy.md` + generic format templates). Syncs the docs to Confluence (opt-in).
+- **`implementer` agent**: implements an approved plan phase by phase (writes the project's real code, on a branch), marking `docs/roadmap/<…>/tasks.md` as the **canonical ledger** of per-task progress; honours guardrails and hands off to `qa`. It is the only agent that modifies code.
+- **`/dev-cycle <objetivo>` command** (`commands/dev-cycle.md`): orchestrator that drives the chain by invoking each agent by name (without relying on auto-selection), with control gates (go/no-go, plan OK, qa green). Your `evaluator` and `planner` **always** generate the artifacts under `docs/roadmap/` (spec, evaluation, plan, tasks); planning is never delegated. **Optional external engine**: if the user asks for it, it delegates only **execution** (implementation/TDD/review) working against your `tasks.md`; if not, it uses the native chain (`implementer` + `qa`). No hard dependency on external engines.
+- **Canonical ledger rule** (rule 8 of `CONVENTIONS.md` + a banner in the `tasks.md` template): a plan's progress is recorded only in `tasks.md`; any implementer — including external SDD orchestrators — must update it; their own ledgers are mirrors, not the source.
 
-### Cambiado
-- **Transiciones de estado por fase**: los artefactos ya no se quedan en `borrador`. `/dev-cycle` (y los agentes al ejecutarse sueltos) mueven spec/evaluación/plan/tareas al estado que toca en cada puerta (go → spec `aprobada`/eval `completado`; arranque impl. → plan `en-progreso`; cierre en verde → plan `completado`/spec `implementada`; no-go/cancelación → `cancelado`/`obsoleta`). Mapa en regla 7 de `CONVENTIONS.md`.
-- Cadena de trabajo ampliada a `evaluator → planner → implementer → qa → documenter`; `qa` hace handoff a `documenter` con las pruebas en verde.
-- Documentación e índices actualizados (`README.md`, `docs/README.md`, `docs/CONVENTIONS.md`, `CLAUDE.md`) con los nuevos agentes, el command y los modos con/sin superpowers.
+### Changed
+- **Per-phase state transitions**: artifacts no longer stay at `borrador` (draft). `/dev-cycle` (and the agents when run standalone) move spec/evaluation/plan/tasks to the state that applies at each gate (go → spec `aprobada`/eval `completado`; implementation start → plan `en-progreso`; green close → plan `completado`/spec `implementada`; no-go/cancellation → `cancelado`/`obsoleta`). Map in rule 7 of `CONVENTIONS.md`.
+- Work chain extended to `evaluator → planner → implementer → qa → documenter`; `qa` hands off to `documenter` once the tests are green.
+- Documentation and indexes updated (`README.md`, `docs/README.md`, `docs/CONVENTIONS.md`, `CLAUDE.md`) with the new agents, the command and the with/without external-engine modes.
 
 ## [1.3.0] - 2026-07-10
 
-### Añadido
-- **Skill compartida `confluence-publish`**: publica/espeja `docs/` en Confluence usando el conector oficial de Atlassian (Rovo MCP), sin integración propia. Asistente guiado para personas no técnicas: conexión → elegir espacio (con búsqueda) → navegar el árbol → elegir destino (raíz del espacio o bajo una página existente) → nombrar la página del proyecto → subir. Idempotente (crea/actualiza, no duplica).
-- **Sincronización opt-in** en `planner`, `evaluator` y `qa` (nuevo paso "P7. Sincronizar con Confluence"): al escribir en `docs/`, invocan la skill para reflejar los cambios. La primera vez se pregunta si se quiere sincronizar; la decisión se guarda en `.claude/confluence.json` (`enabled: true/false`) y no se vuelve a preguntar.
-- **Navegador de árbol interactivo** (`skills/confluence-publish/assets/tree-browser.template.html`): en Cowork/escritorio expande páginas en vivo vía el conector; al elegir un destino pregunta si usar esa página o crear una hija (con nombre).
-- **Fallback conversacional** del paso del árbol para Claude Code CLI y la extensión de VS Code (sin host de artefactos).
-- **Detección de cambios sin git**: manifiesto de estado `.claude/confluence-state.json` (hash de contenido + `pageId` por documento); publica solo lo cambiado (crear/actualizar/obsoleto), idempotente e independiente de commits/fechas.
-- **Hook `PostToolUse`** (`hooks/hooks.json` + `hooks/mark-docs-pending.sh`): disparador determinista que, al editar bajo `docs/`, deja una marca `.claude/.confluence-pending` (no publica; excluye `docs/security-scan/`). La publicación real la hace la skill.
-- Config de ejemplo `skills/confluence-publish/assets/confluence.example.json`.
+### Added
+- **Shared `confluence-publish` skill**: publishes/mirrors `docs/` to Confluence using the official Atlassian connector (Rovo MCP), with no bespoke integration. Guided assistant for non-technical people: connect → pick a space (with search) → browse the tree → pick a destination (space root or under an existing page) → name the project page → upload. Idempotent (creates/updates, does not duplicate).
+- **Opt-in sync** in `planner`, `evaluator` and `qa` (new step "P7. Sync with Confluence"): when writing under `docs/`, they invoke the skill to reflect the changes. The first time it asks whether to sync; the decision is stored in `.claude/confluence.json` (`enabled: true/false`) and is not asked again.
+- **Interactive tree browser** (`skills/confluence-publish/assets/tree-browser.template.html`): in Cowork/desktop it expands pages live via the connector; when a destination is picked it asks whether to use that page or create a child (with a name).
+- **Conversational fallback** for the tree step in the Claude Code CLI and the VS Code extension (no artifact host).
+- **Change detection without git**: `.claude/confluence-state.json` state manifest (content hash + `pageId` per document); publishes only what changed (create/update/obsolete), idempotent and independent of commits/dates.
+- **`PostToolUse` hook** (`hooks/hooks.json` + `hooks/mark-docs-pending.sh`): deterministic trigger that, on editing under `docs/`, leaves a `.claude/.confluence-pending` marker (it does not publish; it excludes `docs/security-scan/`). The actual publishing is done by the skill.
+- Example config `skills/confluence-publish/assets/confluence.example.json`.
 
-### Cambiado
-- Documentación actualizada (`README.md`, `docs/README.md`, `docs/INSTALL.md`, `CLAUDE.md`): nueva skill, alta del conector Atlassian por entorno (Cowork vs CLI/VS Code), comportamiento opt-in y matriz de compatibilidad.
-- Dependencias declaradas de `planner`, `evaluator` y `qa`: añadida la skill `confluence-publish`.
+### Changed
+- Documentation updated (`README.md`, `docs/README.md`, `docs/INSTALL.md`, `CLAUDE.md`): new skill, registering the Atlassian connector per environment (Cowork vs CLI/VS Code), opt-in behaviour and compatibility matrix.
+- Declared dependencies of `planner`, `evaluator` and `qa`: added the `confluence-publish` skill.
 
-### Seguridad
-- `docs/security-scan/**` (datos sensibles del agente `nemesis`) queda **excluido** de la sincronización con Confluence de forma explícita.
+### Security
+- `docs/security-scan/**` (sensitive data from the `nemesis` agent) is explicitly **excluded** from the Confluence sync.
 
-### Notas / Limitaciones
-- El borrado de un `.md` no elimina la página en Confluence: el conector Atlassian no expone borrado/archivado, así que la página se marca como obsoleta y se lista para borrado manual.
-- La sincronización requiere dar de alta el conector de Atlassian una vez por entorno (ver `docs/INSTALL.md`).
+### Notes / Limitations
+- Deleting a `.md` does not delete the page in Confluence: the Atlassian connector exposes no delete/archive operation, so the page is marked as obsolete and listed for manual deletion.
+- Syncing requires registering the Atlassian connector once per environment (see `docs/INSTALL.md`).
 
-## [1.2.0] - anterior
+## [1.2.0] - earlier
 
-Versiones anteriores a la introducción de este changelog: bundle con los agentes `nemesis`, `evaluator`, `planner`, `pdfy` y `qa`, y las skills compartidas `cybersecurity` y `to-pdf`. Empaquetado como plugin + marketplace.
+Versions predating the introduction of this changelog: a bundle with the `nemesis`, `evaluator`, `planner`, `pdfy` and `qa` agents, and the shared `cybersecurity` and `to-pdf` skills. Packaged as a plugin + marketplace.
 
 [1.11.0]: https://github.com/daycry/custom-agents/releases/tag/v1.11.0
 [1.8.0]: https://github.com/daycry/custom-agents/releases/tag/v1.8.0

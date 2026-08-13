@@ -63,8 +63,9 @@ diagnóstico automático; se pregunta directamente con todo lo acumulado. Una so
 skill no alarga el bucle indefinidamente. El tiempo consumido se imputa como implementación
 de la tarea afectada (no es revisión).
 
-Aplica en la **cadena nativa** de `/dev-cycle`. Si el usuario pidió explícitamente delegar en
-superpowers, ahí manda su `systematic-debugging` (no dupliques métodos en la misma sesión).
+Aplica en la **cadena nativa** de `/dev-cycle`. Si el usuario pidió explícitamente delegar en un
+motor SDD externo, manda el método de depuración de ese motor (no dupliques métodos en la
+misma sesión).
 
 ## Reglas
 

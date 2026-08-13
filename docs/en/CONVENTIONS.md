@@ -143,10 +143,10 @@ without the block are valid. Durations presented to people use the human format 
 A plan's progress is recorded in **a single place**: `docs/roadmap/<fecha>-<slug>/tasks.md`
 (checkbox + per-task T-XX state + summary table). It is the **single source of truth**.
 
-- **Any implementer** must update `tasks.md` upon completing each task: the `implementer` agent, the main chat, or an **external orchestrator** (e.g. *superpowers subagent-driven-development*).
-- If a tool keeps its own record (internal todo-list, `.superpowers/sdd/progress.md`, etc.), that record is a **mirror**, not a source: `tasks.md` rules. On discrepancy, `tasks.md` wins.
+- **Any implementer** must update `tasks.md` upon completing each task: the `implementer` agent, the main chat, or an **external orchestrator** (any third-party SDD engine).
+- If a tool keeps its own record (internal todo-list, the external engine's own progress file, etc.), that record is a **mirror**, not a source: `tasks.md` rules. On discrepancy, `tasks.md` wins.
 - The `/dev-cycle` orchestrator and the `implementer` agent apply this rule out of the box. So that external orchestrators respect it, `/dev-cycle` offers to add this rule to the consuming project's `CLAUDE.md`.
-- **States with an external engine (e.g. superpowers):** when implementation is delegated to an external orchestrator, that engine does **not** update your artifacts. Therefore `/dev-cycle` (or you) applies the **state transitions** of rule 7 and keeps `tasks.md` up to date on its behalf. The transitions apply equally with or without an external engine.
+- **States with an external engine:** when implementation is delegated to an external orchestrator, that engine does **not** update your artifacts. Therefore `/dev-cycle` (or you) applies the **state transitions** of rule 7 and keeps `tasks.md` up to date on its behalf. The transitions apply equally with or without an external engine.
 - The cycle closeout (documentation with `documenter`) happens **once**, after implementing and with `qa` green, not task by task.
 - **Mechanical validation:** `agent-kits/shared/ledger-lint.py` checks the ledger with an exit code (state vocabulary, `completado` ⟹ criteria checked, summary adding up, unique IDs). It is run by `implementer` (DoD), `qa` (P1) and `/dev-cycle` at their gates; additionally, a PostToolUse hook (`hooks/ledger-lint-warn.sh`) runs it in **warning mode** on every edit of a `tasks.md`. The qa "green" is mechanical too: `agent-kits/qa/qa-gate.py` over `results.json`.
 
