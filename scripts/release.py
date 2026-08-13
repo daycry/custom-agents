@@ -96,10 +96,13 @@ def main():
     if new == cur:
         print(f"AVISO: la versión ya es {new}; no hay cambio.")
 
-    changelog = os.path.join(ROOT, "CHANGELOG.md")
-    if os.path.exists(changelog) and f"[{new}]" not in read(changelog):
-        print(f"⚠️  CHANGELOG.md no tiene entrada para [{new}]. "
-              f"Añádela (## [{new}] - fecha + enlace al final) antes de publicar.")
+    # changelog bilingüe: EN es el principal, ES su espejo (ver regla bilingüe de CLAUDE.md).
+    # Aviso, nunca bloqueo.
+    for nombre in ("CHANGELOG.md", "CHANGELOG.es.md"):
+        changelog = os.path.join(ROOT, nombre)
+        if os.path.exists(changelog) and f"[{new}]" not in read(changelog):
+            print(f"⚠️  {nombre} no tiene entrada para [{new}]. "
+                  f"Añádela (## [{new}] - fecha + enlace al final) antes de publicar.")
 
     print(f"Subiendo versión {cur} -> {new}:")
     bump(new)

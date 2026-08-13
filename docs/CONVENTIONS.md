@@ -143,10 +143,10 @@ sin bloque son válidos. Las duraciones presentadas a personas van en formato hu
 El avance de un plan se registra en **un único sitio**: `docs/roadmap/<fecha>-<slug>/tasks.md`
 (checkbox + estado por tarea T-XX + tabla de resumen). Es la **fuente única de verdad**.
 
-- **Cualquier implementador** debe actualizar `tasks.md` al completar cada tarea: el agente `implementer`, el chat principal, o un **orquestador externo** (p. ej. *superpowers subagent-driven-development*).
-- Si una herramienta lleva su propio registro (todo-list interna, `.superpowers/sdd/progress.md`, etc.), ese registro es **espejo**, no fuente: `tasks.md` manda. Ante discrepancia, gana `tasks.md`.
+- **Cualquier implementador** debe actualizar `tasks.md` al completar cada tarea: el agente `implementer`, el chat principal, o un **orquestador externo** (cualquier motor SDD de terceros).
+- Si una herramienta lleva su propio registro (todo-list interna, el fichero de progreso del motor externo, etc.), ese registro es **espejo**, no fuente: `tasks.md` manda. Ante discrepancia, gana `tasks.md`.
 - El orquestador `/dev-cycle` y el agente `implementer` aplican esta regla de serie. Para que la respeten orquestadores externos, `/dev-cycle` ofrece añadir esta regla al `CLAUDE.md` del proyecto consumidor.
-- **Estados con motor externo (p. ej. superpowers):** cuando la implementación se delega a un orquestador externo, ese motor **no** actualiza tus artefactos. Por tanto, `/dev-cycle` (o tú) aplica las **transiciones de estado** de la regla 7 y mantiene `tasks.md` al día en su nombre. Las transiciones valen igual haya o no motor externo.
+- **Estados con motor externo:** cuando la implementación se delega a un orquestador externo, ese motor **no** actualiza tus artefactos. Por tanto, `/dev-cycle` (o tú) aplica las **transiciones de estado** de la regla 7 y mantiene `tasks.md` al día en su nombre. Las transiciones valen igual haya o no motor externo.
 - El cierre del ciclo (documentación con `documenter`) se hace **una vez** tras implementar y con `qa` en verde, no tarea a tarea.
 - **Validación mecánica:** `agent-kits/shared/ledger-lint.py` comprueba el ledger con exit code (vocabulario de estados, `completado` ⟹ criterios marcados, resumen cuadrado, IDs únicos). Lo corren `implementer` (DoD), `qa` (P1) y `/dev-cycle` en sus puertas; además un hook PostToolUse (`hooks/ledger-lint-warn.sh`) lo ejecuta en **modo aviso** en cada edición de un `tasks.md`. El «verde» de qa también es mecánico: `agent-kits/qa/qa-gate.py` sobre `results.json`.
 

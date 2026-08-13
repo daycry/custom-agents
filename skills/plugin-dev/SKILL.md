@@ -5,7 +5,7 @@ description: Meta-skill para DESARROLLAR este plugin — crear o modificar agent
 
 # plugin-dev — cómo se construye este plugin (fuente única del proceso)
 
-Equivalente nativo al *writing-skills* de superpowers, pero para **todo** el plugin: no solo
+Meta-skill de desarrollo del propio plugin: cubre **todas** sus piezas, no solo
 skills, también agentes, comandos, kits y hooks. La regla que gobierna todo:
 
 > **Las convenciones se LEEN antes de crear, no se recuerdan de memoria.** El primer paso de
@@ -103,7 +103,7 @@ Orden estricto; no se avanza con un paso en rojo:
 | Skill nueva | fila en "Skills compartidas" de `docs/README.md` + fila en `CLAUDE.md` |
 | Comando nuevo | fila en tabla de comandos de `docs/README.md` + fila en `CLAUDE.md` |
 | Cualquiera que cambie un flujo | actualizar el diagrama en `docs/FLOWS.md` |
-| Todo | entrada en `CHANGELOG.md` bajo `[Sin publicar]` |
+| Todo | entrada en **los dos** changelogs: `CHANGELOG.md` (EN, bajo `[Unreleased]`) y `CHANGELOG.es.md` (ES, bajo `[Sin publicar]`) — mismos encabezados de versión en ambos |
 
 ## Paso 5 — Cierre
 

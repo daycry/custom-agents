@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """task-brief.py — brief DETERMINISTA de una tarea para el subagente de contexto fresco.
 
-(Iniciativa sdd-hardening, C-08 — mecánica adoptada del ciclo de superpowers:
+(Iniciativa sdd-hardening, C-08 — mecánica del ciclo de subagentes:
 el brief lo extrae un script del plan, no lo redacta el orquestador a mano.)
 
 Extrae de la carpeta de una iniciativa (docs/roadmap/<fecha>-<slug>/) todo lo que un

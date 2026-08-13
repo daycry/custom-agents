@@ -226,7 +226,7 @@ actualiza `tasks.md` con confirmación.
 
 ## Paso 9 — publicar el resultado del revisor (comentario + worklog `[revisión]`)
 
-El agente **revisor** (revisión adversarial de dos lentes de `/dev-cycle` Modo B, iniciativa `qa-strict`) produce, tras su **bucle acotado a 3 intentos** con `implementer`, un resultado **estructurado por criterio** (`T-XX` → criterio → ✓/✗ + gaps + nº de intentos + tiempo de revisión). Este paso lo lleva a Jira. Lo invoca el orquestador `/dev-cycle` (o `implementer` al cerrar), **solo en Modo B** (en Modo A superpowers revisa con otro formato → no aplica).
+El agente **revisor** (revisión adversarial de dos lentes de `/dev-cycle` Modo B, iniciativa `qa-strict`) produce, tras su **bucle acotado a 3 intentos** con `implementer`, un resultado **estructurado por criterio** (`T-XX` → criterio → ✓/✗ + gaps + nº de intentos + tiempo de revisión). Este paso lo lleva a Jira. Lo invoca el orquestador `/dev-cycle` (o `implementer` al cerrar), **solo en Modo B** (en Modo A el motor externo revisa con otro formato → no aplica).
 
 1. **Localiza la plantilla fija** del comentario y renderiza el resultado del revisor contra ella (formato idéntico siempre):
    ```bash

@@ -86,8 +86,8 @@ flowchart TD
     C -->|go| D["planner\nimprovement-plan + tasks.md"]
     C -->|no-go| X(["parar"])
     D --> E["opt-in: volcar plan a Jira\njira-sync: 1 issue por tarea"]
-    E --> F{"¿pidió el usuario\nsuperpowers\nexplícitamente?"}
-    F -->|"sí (--superpowers)"| G["superpowers ejecuta\ncontra TU tasks.md\n(review propio)"]
+    E --> F{"¿pidió el usuario\nun motor externo\nexplícitamente?"}
+    F -->|"sí (opt-in explícito)"| G["motor externo ejecuta\ncontra TU tasks.md\n(review propio)"]
     F -->|"no (defecto):\ncadena NATIVA"| H["implementer\ntarea a tarea\n(dev.json opt-in: TDD ·\nworktree · subagentes frescos)"]
     H --> R["🔍 revisión adversarial\nDOS lentes en paralelo:\nspec-conformidad · calidad\n(fusión + dedupe)"]
     R -.->|gaps| H
