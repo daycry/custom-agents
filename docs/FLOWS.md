@@ -1,5 +1,7 @@
 # Flujos del plugin — diagramas
 
+[English](en/FLOWS.md) · **Español**
+
 Visión visual de cómo encajan agentes, comandos y skills. Los diagramas son Mermaid
 (se renderizan en GitHub y editores compatibles).
 

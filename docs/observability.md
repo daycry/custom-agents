@@ -1,5 +1,7 @@
 # Observabilidad — qué mide este plugin y cómo convive con monitores de sesión
 
+[English](en/observability.md) · **Español**
+
 Dos preguntas distintas necesitan herramientas distintas:
 
 | Pregunta | Herramienta | Qué obtienes |
