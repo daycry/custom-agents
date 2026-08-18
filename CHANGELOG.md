@@ -7,7 +7,7 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and versioning follows [SemVer](https://semver.org/).
 
-## [Unreleased]
+## [1.13.0] - 2026-08-18
 
 ### Added
 
@@ -252,6 +252,7 @@ Adoption of best practices from the top agent collections (reference agent colle
 
 Versions predating the introduction of this changelog: a bundle with the `nemesis`, `evaluator`, `planner`, `pdfy` and `qa` agents, and the shared `cybersecurity` and `to-pdf` skills. Packaged as a plugin + marketplace.
 
+[1.13.0]: https://github.com/daycry/custom-agents/releases/tag/v1.13.0
 [1.12.0]: https://github.com/daycry/custom-agents/releases/tag/v1.12.0
 [1.11.2]: https://github.com/daycry/custom-agents/releases/tag/v1.11.2
 [1.11.1]: https://github.com/daycry/custom-agents/releases/tag/v1.11.1
