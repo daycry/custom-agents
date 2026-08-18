@@ -7,7 +7,7 @@ Todos los cambios notables de este proyecto se documentan aquí.
 El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
-## [Sin publicar]
+## [1.13.0] - 2026-08-18
 
 ### Añadido
 
@@ -252,6 +252,7 @@ Adopción de las mejores prácticas de las colecciones top de agentes (coleccion
 
 Versiones anteriores a la introducción de este changelog: bundle con los agentes `nemesis`, `evaluator`, `planner`, `pdfy` y `qa`, y las skills compartidas `cybersecurity` y `to-pdf`. Empaquetado como plugin + marketplace.
 
+[1.13.0]: https://github.com/daycry/custom-agents/releases/tag/v1.13.0
 [1.12.0]: https://github.com/daycry/custom-agents/releases/tag/v1.12.0
 [1.11.2]: https://github.com/daycry/custom-agents/releases/tag/v1.11.2
 [1.11.1]: https://github.com/daycry/custom-agents/releases/tag/v1.11.1
