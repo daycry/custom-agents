@@ -4,10 +4,10 @@ generacion:               # vía rápida MEDIDA (usage-meter; primera vía rápi
   fin: 2026-08-12T20:15:14Z
   fuente: medido
   tokens_reales: { entrada: 14, salida: 7134, cache_creacion: 9229, cache_lectura: 5188431 }
-  eur: null                 # precioTokens sin verificar (rates-verify)
-  horas_ia: 0.05
-  duracion: 3m
-  ratio_usado: 300000       # default no calibrado
+  eur: 2.60                  # verificado con rates-verify (Opus 4.8; incluye caché) el 2026-08-18
+  horas_ia: 0.03
+  duracion: 2m                 
+  ratio_usado: 479326       # calibrado (mediana de CALIBRATION.md; re-derivado en la retro del 2026-08-18)
 ---
 
 # Checklist de Tareas — workflow-polish (vía rápida: las 3 skills de superpowers que faltaban)
@@ -28,8 +28,8 @@ generacion:               # vía rápida MEDIDA (usage-meter; primera vía rápi
 
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervisión (real/est) | Tokens (real/est) |
 |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
-| Fase 1 — Workflow polish | 3 | 3 | 100% | 0 / 3,5h | 0,05 (medido) / 1,1h | 0 / 0,3h | 16k (medido) / 330k |
-| **TOTAL** | **3** | **3** | **100%** | **0 / 3,5h** | **0,05 (medido) / 1,1h** | **0 / 0,3h** | **16k (medido) / 330k** |
+| Fase 1 — Workflow polish | 3 | 3 | 100% | 0 / 3,5h | 0,03 (medido) / 1,1h | 0 / 0,3h | 16k (medido) / 330k |
+| **TOTAL** | **3** | **3** | **100%** | **0 / 3,5h** | **0,03 (medido) / 1,1h** | **0 / 0,3h** | **16k (medido) / 330k** |
 
 ---
 

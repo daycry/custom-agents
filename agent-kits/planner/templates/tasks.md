@@ -4,6 +4,8 @@
   Estados (plan, fase y tarea): borrador · en-progreso · en-revision · completado · cancelado
   El bloque `generacion:` (frontmatter YAML, PRIMERA línea del fichero generado) registra el
   coste real de producir este documento; lo rellena `usage-meter.py close` (kit shared).
+  Si el plan y este ledger comparten ventana (el caso normal), copia el bloque IDÉNTICO en
+  ambos y anota `# ventana compartida con improvement-plan.md`: el dashboard lo cuenta una vez.
   En las tareas: el tiempo IA "real" puede venir MEDIDO por tarea (usage-meter, /dev-cycle
   Modo B) — cuando así sea, márcalo con «(medido)»; si es a juicio, «(estimado)».
   Duraciones: las columnas real/est de tareas y resumen van en DECIMAL (X,Xh) porque las

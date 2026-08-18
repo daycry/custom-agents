@@ -5,10 +5,10 @@ generacion:               # vía rápida MEDIDA (usage-meter) — SOLO la ventan
   fin: 2026-08-13T12:22:14Z
   fuente: medido
   tokens_reales: { entrada: 10, salida: 3793, cache_creacion: 20661, cache_lectura: 2273469 }
-  eur: null                 # precioTokens sin verificar (rates-verify)
-  horas_ia: 0.08
-  duracion: 5m
-  ratio_usado: 300000       # default no calibrado
+  eur: 1.25                  # verificado con rates-verify (Opus 4.8; incluye caché) el 2026-08-18
+  horas_ia: 0.05
+  duracion: 3m                 
+  ratio_usado: 479326       # calibrado (mediana de CALIBRATION.md; re-derivado en la retro del 2026-08-18)
 ---
 
 # Checklist de Tareas — quick-implement (vía rápida: atajo en lenguaje natural a la vía rápida)
@@ -29,8 +29,8 @@ generacion:               # vía rápida MEDIDA (usage-meter) — SOLO la ventan
 
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervisión (real/est) | Tokens (real/est) |
 |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
-| Fase 1 — Atajo en lenguaje natural | 2 | 2 | 100% | 0 / 1,0h | 0,11 (medido, iniciativa) / 0,3h | 0 / 0,1h | 34k (medido, iniciativa) / 100k |
-| **TOTAL** | **2** | **2** | **100%** | **0 / 1,0h** | **0,11 (medido, iniciativa) / 0,3h** | **0 / 0,1h** | **34k (medido, iniciativa) / 100k** |
+| Fase 1 — Atajo en lenguaje natural | 2 | 2 | 100% | 0 / 1,0h | 0,07 (medido, iniciativa) / 0,3h | 0 / 0,1h | 34k (medido, iniciativa) / 100k |
+| **TOTAL** | **2** | **2** | **100%** | **0 / 1,0h** | **0,07 (medido, iniciativa) / 0,3h** | **0 / 0,1h** | **34k (medido, iniciativa) / 100k** |
 
 ---
 

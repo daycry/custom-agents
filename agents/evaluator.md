@@ -68,6 +68,11 @@ Fallback si el fragmento no está (instalación parcial): tarifa `50 €/h`, sup
 
 **P2-bis. Calibración con el histórico.** Si existe `docs/roadmap/CALIBRATION.md` (lo alimenta `/retro` con el real-vs-estimado de iniciativas cerradas), léelo y **ajusta tus estimaciones** con esa evidencia: si un tipo de trabajo viene desviándose (+X %), aplícalo y cítalo en los supuestos ("histórico: integraciones +40 % → margen ampliado"); si el histórico avala tus números, súbele la confianza. Con pocas filas (<3) trátalo como indicio, no como ley. Para las **horas-IA**, usa el **ratio tokens→hora** con precedencia `CALIBRATION.md` (mediana de la columna `tokens/hora`) > default de `estimation-defaults.md` (no calibrado); cita cuál usaste.
 
+> **Tres lecciones de la primera calibración real (2026-08-18) — aplícalas salvo que el histórico las contradiga:**
+> 1. **Separa lo que mides de lo que vendes.** Las *horas humanas equivalentes* (lo que costaría a una persona: justifican el valor) y las *horas-IA previstas* (lo que va a tardar el ciclo: fijan el plazo) son magnitudes distintas; preséntalas en filas separadas y no sumes una con otra. En el histórico, las horas-IA se desviaron entre −77 % y −96 %; las humanas nunca se han validado.
+> 2. **Presupuesta el coste de PROCESO aparte.** Producir spec + evaluación + plan consume tokens medibles (58.914 en la iniciativa más grande del histórico) que antes no aparecían en ninguna previsión. Estímalo con el ratio calibrado y ponlo como línea propia.
+> 3. **La revisión es la partida grande, no escribir.** En el histórico, la revisión adversarial de dos lentes encontró entre 1 y 10 hallazgos por iniciativa y ahí se fue el esfuerzo real. Dale su propia línea. Y calibra el tamaño según el tipo: **prosa** (minutos) · **prosa + tests** (×2) · **código de producto** (horas).
+
 **P3. Evaluar cada característica.** Para cada `C-XX`: complejidad, esfuerzo (h) con confianza, previsión de tokens (in/out), coste €, impacto/áreas, dependencias, riesgos e incógnitas.
 
 **P4. Presupuestar.** Agrega el total (esfuerzo humano, coste €, tokens). Estima además el **tiempo IA** (horas aproximadas que tardaría el/los agente(s) en implementarlo) y la **supervisión humana** (~25 % de las horas IA por defecto), y rellena el bloque **⚡ Productividad IA** del `evaluation.md`:

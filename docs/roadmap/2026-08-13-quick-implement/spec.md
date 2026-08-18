@@ -11,10 +11,10 @@ generacion:
   fin: 2026-08-13T11:21:29Z
   fuente: medido
   tokens_reales: { entrada: 8, salida: 3031, cache_creacion: 6559, cache_lectura: 1715071 }
-  eur: null
-  horas_ia: 0.03
-  duracion: 2m
-  ratio_usado: 300000
+  eur: 0.90                  # verificado con rates-verify (Opus 4.8; incluye caché) el 2026-08-18
+  horas_ia: 0.02
+  duracion: 1m                 
+  ratio_usado: 479326       # calibrado (mediana de CALIBRATION.md; re-derivado en la retro del 2026-08-18)
 ---
 
 # Vía rápida sin barra: skill `quick-implement`

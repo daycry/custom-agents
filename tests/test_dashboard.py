@@ -153,6 +153,47 @@ def run():
         f"vía rápida declarada NO debe avisar de improvement-plan.md ausente; avisos={w2}"
     shutil.rmtree(tmp2)
 
+    # --- coste de proceso: la ventana del plan la declaran DOS ficheros
+    # (improvement-plan.md y tasks.md comparten medición, por diseño del planner):
+    # debe contarse UNA vez, no dos ---
+    tmp3 = tempfile.mkdtemp()
+    dup = os.path.join(tmp3, "2026-04-01-ventana-compartida")
+    os.makedirs(dup)
+    BLOQUE = ("---\ngeneracion:\n  inicio: 2026-04-01T10:00:00Z\n  fin: 2026-04-01T10:02:00Z\n"
+              "  fuente: medido\n  tokens_reales: { entrada: 100, salida: 900, cache_creacion: 0,"
+              " cache_lectura: 5000 }\n  horas_ia: 0.10\n---\n\n")
+    open(os.path.join(dup, "spec.md"), "w", encoding="utf-8").write(
+        "---\nspec: dup\nestado: implementada\n---\n\n# Ventana compartida\n")
+    open(os.path.join(dup, "improvement-plan.md"), "w", encoding="utf-8").write(
+        BLOQUE + "# Plan\n")
+    open(os.path.join(dup, "tasks.md"), "w", encoding="utf-8").write(
+        BLOQUE + "# Checklist de Tareas — dup\n\n| | |\n|---|---|\n| **Estado** | completado |\n")
+    dup_inits = bd.scan(tmp3)
+    md = bd.render_proceso_md(dup_inits)
+    assert "1.000 tok" in md or "1000 tok" in md, \
+        f"la ventana compartida plan/tasks debe contarse UNA vez (1.000 tok facturables), no 2.000; md={md}"
+    assert "2.000 tok" not in md and "2000 tok" not in md, \
+        f"doble conteo de la ventana compartida detectado; md={md}"
+    shutil.rmtree(tmp3)
+
+    # --- ...pero los bloques ESTIMADOS que comparten fechas de referencia NO se
+    # deduplican: son estimaciones distintas por artefacto (defecto propio detectado
+    # al calibrar: colapsarlos perdía 0,8 h de coste-generacion) ---
+    tmp4 = tempfile.mkdtemp()
+    est = os.path.join(tmp4, "2026-05-01-estimados")
+    os.makedirs(est)
+    def blq(h):
+        return ("---\ngeneracion:\n  inicio: 2026-05-01T12:00:00Z\n  fin: 2026-05-01T13:00:00Z\n"
+                f"  fuente: estimado\n  tokens_reales: null\n  horas_ia: {h}\n---\n\n")
+    open(os.path.join(est, "spec.md"), "w", encoding="utf-8").write(
+        blq(0.2) + "---\nspec: est\nestado: implementada\n---\n\n# Estimados\n")
+    open(os.path.join(est, "improvement-plan.md"), "w", encoding="utf-8").write(blq(0.3) + "# Plan\n")
+    open(os.path.join(est, "tasks.md"), "w", encoding="utf-8").write(
+        blq(0.3) + "# Checklist de Tareas — est\n\n| | |\n|---|---|\n| **Estado** | completado |\n")
+    md4 = bd.render_proceso_md(bd.scan(tmp4))
+    assert "48m" in md4, f"las horas estimadas por artefacto deben sumarse (0,2+0,3+0,3=0,8h=48m); md={md4}"
+    shutil.rmtree(tmp4)
+
     # --- avisos: beta es incoherente (spec aprobada, eval en-revision) ---
     warns = bd.warnings_for(inits)
     assert any("2026-01-12-beta" in w and "aprobada" in w for w in warns), \
