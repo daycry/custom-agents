@@ -4,10 +4,10 @@ generacion:               # vía rápida MEDIDA (usage-meter)
   fin: 2026-08-12T21:07:02Z
   fuente: medido
   tokens_reales: { entrada: 1832, salida: 21132, cache_creacion: 42747, cache_lectura: 3925456 }
-  eur: null                 # precioTokens sin verificar (rates-verify)
-  horas_ia: 0.22
-  duracion: 13m
-  ratio_usado: 300000       # default no calibrado
+  eur: 2.55                  # verificado con rates-verify (Opus 4.8; incluye caché) el 2026-08-18
+  horas_ia: 0.14
+  duracion: 8m                 
+  ratio_usado: 479326       # calibrado (mediana de CALIBRATION.md; re-derivado en la retro del 2026-08-18)
 ---
 
 # Checklist de Tareas — subagent-personas (vía rápida: perfiles de dominio para el subagente fresco)
@@ -28,8 +28,8 @@ generacion:               # vía rápida MEDIDA (usage-meter)
 
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervisión (real/est) | Tokens (real/est) |
 |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
-| Fase 1 — Personas de dominio | 3 | 3 | 100% | 0 / 2,5h | 0,22 (medido) / 0,8h | 0 / 0,25h | 66k (medido) / 250k |
-| **TOTAL** | **3** | **3** | **100%** | **0 / 2,5h** | **0,22 (medido) / 0,8h** | **0 / 0,25h** | **66k (medido) / 250k** |
+| Fase 1 — Personas de dominio | 3 | 3 | 100% | 0 / 2,5h | 0,14 (medido) / 0,8h | 0 / 0,25h | 66k (medido) / 250k |
+| **TOTAL** | **3** | **3** | **100%** | **0 / 2,5h** | **0,14 (medido) / 0,8h** | **0 / 0,25h** | **66k (medido) / 250k** |
 
 ---
 

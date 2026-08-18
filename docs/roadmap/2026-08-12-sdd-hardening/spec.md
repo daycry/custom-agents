@@ -1,6 +1,6 @@
 ---
 spec: sdd-hardening
-descripcion: Cerrar los gaps del plugin frente a superpowers, GitHub Spec Kit y Agent-Monitor — constitución del proyecto consumidor, /spec-drift (deriva spec↔código), criterios Given/When/Then opcionales, TDD y worktrees opt-in, skill debug-root-cause, compatibilidad con monitores externos, cadena nativa SIEMPRE por defecto (superpowers solo bajo petición explícita) y desarrollo por subagentes de contexto fresco opt-in — autosuficiencia sin depender de superpowers
+descripcion: Cerrar los gaps del plugin frente a los motores SDD y monitores externos — constitución del proyecto consumidor, /spec-drift (deriva spec↔código), criterios Given/When/Then opcionales, TDD y worktrees opt-in, skill debug-root-cause, compatibilidad con monitores externos, cadena nativa SIEMPRE por defecto (motor SDD externo solo bajo petición explícita) y desarrollo por subagentes de contexto fresco opt-in — autosuficiencia sin depender de referencia externas
 estado: implementada      # borrador | aprobada | implementada | obsoleta
 creado: 2026-08-12
 actualizado: 2026-08-12
@@ -11,13 +11,13 @@ generacion:               # MEDIDO por usage-meter.py (primera spec con medició
   fin: 2026-08-12T07:49:09Z
   fuente: medido
   tokens_reales: { entrada: 4, salida: 6276, cache_creacion: 8331, cache_lectura: 754285 }
-  eur: null                 # precioTokens sin verificar (rates-verify)
-  horas_ia: 0.05
-  duracion: 3m
-  ratio_usado: 300000       # default no calibrado
+  eur: 0.54                  # verificado con rates-verify (Opus 4.8; incluye caché) el 2026-08-18
+  horas_ia: 0.03
+  duracion: 2m                 
+  ratio_usado: 479326       # calibrado (mediana de CALIBRATION.md; re-derivado en la retro del 2026-08-18)
 ---
 
-# SDD hardening — completar el plugin frente a superpowers, Spec Kit y Agent-Monitor
+# SDD hardening — completar el plugin para ser autosuficiente (sin motores SDD externos)
 
 > **Evaluación:** [`evaluation.md`](evaluation.md) — 8 características (ampliada 2026-08-12 ×2: autosuficiencia + 4 mecánicas de subagentes) · 18,5 h base (22,2 h con margen), ~1.150 €, ~1,76 M tokens; veredicto **go** (condición ligera: E2E de juguete para drift y puerta constitucional).
 > **Plan de implementación:** [`improvement-plan.md`](improvement-plan.md) + [`tasks.md`](tasks.md) — 5 fases · 13 tareas · 19,25 h base (23,1 h con margen) · ~1.195 €.

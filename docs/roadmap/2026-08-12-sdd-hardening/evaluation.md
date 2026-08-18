@@ -4,10 +4,10 @@ generacion:               # MEDIDO por usage-meter.py
   fin: 2026-08-12T07:51:03Z
   fuente: medido
   tokens_reales: { entrada: 6, salida: 8852, cache_creacion: 9282, cache_lectura: 1154847 }
-  eur: null                 # precioTokens sin verificar (rates-verify)
-  horas_ia: 0.06
-  duracion: 4m
-  ratio_usado: 300000       # default no calibrado
+  eur: 0.79                  # verificado con rates-verify (Opus 4.8; incluye caché) el 2026-08-18
+  horas_ia: 0.04
+  duracion: 2m                 
+  ratio_usado: 479326       # calibrado (mediana de CALIBRATION.md; re-derivado en la retro del 2026-08-18)
 ---
 
 # 2026-08-12-sdd-hardening

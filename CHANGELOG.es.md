@@ -7,6 +7,24 @@ Todos los cambios notables de este proyecto se documentan aquí.
 El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
+## [Sin publicar]
+
+### Añadido
+
+- **Bucle de estimación cerrado con cifras verificadas.** Tras el primer `/retro`, sus hallazgos quedan arreglados en el origen y no solo anotados:
+  - **Horas-IA re-derivadas con el ratio calibrado** en los 9 bloques `generacion:` medidos y en todas las filas de resumen de los ledgers (~40 % más bajas — se habían derivado con el default sin calibrar de 300.000). Los tokens no se tocan: son la medición, las horas son el derivado, y el `ratio_usado` de cada bloque dice ahora con qué ratio se calculó, así que la cuenta sigue siendo auditable. Retros y `CALIBRATION.md` reexpresados en consecuencia.
+  - **Coste real en €, por fin.** `rates-verify` leyó la página oficial de precios y escribió las tarifas estándar de Claude Opus 4.8 en `.claude/rates.json` ($5/M entrada · $25/M salida · $6,25/M escritura de caché · $0,50/M lecturas): el coste de proceso de las 5 iniciativas medidas es **12,35 €**, en lugar de nueve `eur: null`. Los mismos precios verificados quedan en `rates.example.json` para que un proyecto nuevo arranque con cifras reales. `tipoCambioUsdEur` sigue marcado como **supuesto**, no como dato verificado.
+  - **El `evaluator` incorpora las tres lecciones** de la calibración: separar horas humanas equivalentes (valor) de horas-IA (plazo) en vez de mezclarlas; presupuestar el **coste de proceso** como línea propia; y dar su propia línea a la revisión adversarial, dimensionándola por tipo (prosa = minutos · prosa + tests = ×2 · código de producto = horas).
+  - **Causa raíz del doble conteo arreglada donde nace:** P0 del `planner` y la plantilla de `tasks.md` explican ahora que la ventana del plan se escribe **idéntica** en los dos ficheros y por qué (el dashboard la deduplica), para que nadie lo "arregle" haciéndolos diferir.
+  - `.gitignore`: el estado local (`usage-state.json`, `jira-state.json`, `confluence-state.json`) queda excluido — es estado de máquina, no del proyecto; `rates.json` sí se versiona a propósito. Como `.claude/` es ruta protegida para las herramientas remotas, el fichero se entrega como **`rates.json.MANUAL-COPY`** en la raíz (JSON válido; cópialo a `.claude/rates.json`) — mismo patrón que `ci.yml.MANUAL-COPY`.
+  - Los títulos que salen en dashboards publicables (H1 de `spec.md` y `descripcion:`) ya no nombran productos de terceros.
+- **Primer `/retro` del proyecto — el bucle de estimación queda cerrado con datos reales.** Nuevo `docs/roadmap/CALIBRATION.md` con una fila por iniciativa medida y un **ratio calibrado de 479.326 tokens/hora** (mediana de 5 muestras), que `usage-meter.py` ya toma en lugar del default sin calibrar de 300.000 — las horas-IA reportadas (y por tanto las que se imputan a Jira) bajan ~40 % y se ajustan al reloj. El fichero documenta la **definición exacta y no circular** del ratio: tokens facturables medidos ÷ tiempo de reloj de las ventanas de medición, nunca las horas que deriva el propio meter, más sus límites conocidos. `retro.md` escrito para las 5 iniciativas con datos medidos (`sdd-hardening`, `workflow-polish`, `plugin-dev`, `subagent-personas`, `quick-implement`), cada uno con estimado vs real, causa y ajuste sugerido, y 4 aprendizajes acumulados.
+
+### Corregido
+
+- `roadmap-dashboard`: una ventana de medición declarada por **dos artefactos** (el `planner` mide `improvement-plan.md` y `tasks.md` juntos y escribe el mismo bloque en ambos, por diseño) se contaba **dos veces** en el «coste de proceso» — `sdd-hardening` mostraba 85.077 tokens en vez de sus 58.914 reales (+44 %), y el total de cartera se inflaba lo mismo. Ahora una medición real idéntica se deduplica (misma ventana, mismos tokens, mismas horas) y la celda lo indica con `ventana compartida`. Dos tests de regresión: la ventana compartida cuenta una vez, y los bloques `estimado` que comparten fechas de referencia pero llevan estimaciones **distintas** por artefacto siguen sumándose (defecto de la primera versión de este mismo fix, que perdía 0,8 h de `coste-generacion`).
+- `docs/roadmap/*/spec.md`: el campo `descripcion:` ya no nombra productos de terceros — es el que aparece como título de la iniciativa en dashboards y métricas publicables en Confluence. Los cuerpos conservan su redacción histórica.
+
 ## [1.12.0] - 2026-08-13
 
 ### Añadido

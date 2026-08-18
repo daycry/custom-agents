@@ -36,3 +36,10 @@ desktop.ini
 .vscode/
 *.swp
 *.swo
+
+# === Estado LOCAL de las configs del plugin (no versionar) ===
+# Marcadores del medidor y mapas de sincronización: son de la máquina/sesión,
+# no del proyecto. `.claude/rates.json` SÍ se versiona (config económica del repo).
+.claude/usage-state.json
+.claude/jira-state.json
+.claude/confluence-state.json

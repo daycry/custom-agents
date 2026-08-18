@@ -585,8 +585,25 @@ def render_proceso_md(inits):
         eur = 0.0
         eur_ok = True
         fuentes = set()
+        # Una MISMA ventana de medición puede estar declarada en dos artefactos
+        # (el planner mide improvement-plan.md + tasks.md juntos y escribe el mismo
+        # bloque en los dos). Se cuenta UNA vez: dedupe por (inicio, fin, tokens).
+        # Solo se deduplica una medición REAL idéntica (mismos tokens, misma ventana y
+        # mismas horas): los bloques `estimado` comparten fechas de referencia pero son
+        # estimaciones distintas por artefacto y deben sumarse.
+        vistas = set()
         for g in gen.values():
             t = g.get("tokens_reales")
+            clave = None
+            if isinstance(t, dict) and g.get("inicio") and g.get("fin"):
+                clave = (g.get("inicio"), g.get("fin"), g.get("horas_ia"),
+                         tuple(sorted(t.items())))
+            duplicada = clave is not None and clave in vistas
+            if clave is not None:
+                vistas.add(clave)
+            fuentes.add(g.get("fuente") or "?")
+            if duplicada:
+                continue  # ventana compartida ya contada
             if isinstance(t, dict):
                 # facturables: entrada + creación de caché + salida (convención usage-meter)
                 toks += (t.get("entrada") or 0) + (t.get("cache_creacion") or 0) + (t.get("salida") or 0)
@@ -596,7 +613,7 @@ def render_proceso_md(inits):
                 eur += g["eur"]
             else:
                 eur_ok = False
-            fuentes.add(g.get("fuente") or "?")
+        ventanas = len(vistas) or len(gen)
         tot_tok += toks
         tot_h += horas
         if eur_ok:
@@ -606,7 +623,9 @@ def render_proceso_md(inits):
         fuente = "medido" if fuentes == {"medido"} else "/".join(sorted(fuentes))
         eur_cell = f"{eur:.2f} €" if eur_ok else "⚠️ verificar"
         # sin NINGÚN dato de tokens → '—', no un 0 inventado (regla C-04)
-        tok_cell = (f"{_miles(toks)} tok ({docs_con_tokens}/{len(gen)} docs con medida, {fuente})"
+        compartida = " · ventana compartida" if ventanas < len(gen) else ""
+        tok_cell = (f"{_miles(toks)} tok ({docs_con_tokens}/{len(gen)} docs con medida, "
+                    f"{fuente}{compartida})"
                     if docs_con_tokens else f"— (sin tokens; {len(gen)} docs, {fuente})")
         rows.append(f"| {md_cell(r['titulo'])} | {tok_cell} "
                     f"| {_xhym(horas) if horas else '—'} | {eur_cell} | "

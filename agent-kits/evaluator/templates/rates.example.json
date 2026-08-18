@@ -6,13 +6,18 @@
   "precioTokens": {
     "moneda": "USD",
     "unidad": "por_millon",
-    "input": 0,
-    "output": 0,
-    "_nota": "⚠️ Pon aquí la tarifa VIGENTE del proveedor (por millón de tokens). Si se deja en 0, el coste de IA se marca como 'a verificar' y se parametriza, no se inventa."
+    "input": 5,
+    "output": 25,
+    "_nota": "Precios estándar de Claude Opus 4.8 verificados el 2026-08-18 con la skill rates-verify (incluye escritura de caché 5m y lecturas/refrescos). RELÁNZALA en tu proyecto: evaluator/planner dejan de considerarlos fiables a los 90 días. Si se dejan en 0, el coste de IA se marca 'a verificar' y no se inventa.",
+    "cacheCreacion": 6.25,
+    "cacheLectura": 0.5,
+    "verificadoEl": "2026-08-18",
+    "fuente": "https://platform.claude.com/docs/en/about-claude/pricing"
   },
   "tipoCambioUsdEur": 0.92,
   "ratioSupervision": 0.25,
-  "margenContingencia": 0.20,
+  "margenContingencia": 0.2,
   "horasJornada": 8,
-  "horasMesFTE": 160
+  "horasMesFTE": 160,
+  "_nota_fx": "tipoCambioUsdEur es un SUPUESTO fijo, no un dato verificado: revísalo si el coste en € va a usarse para facturar."
 }

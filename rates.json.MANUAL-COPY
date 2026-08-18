@@ -1,0 +1,24 @@
+{
+  "_copiar_a": "COPIA MANUAL: este fichero va en .claude/rates.json (ruta protegida para las herramientas remotas, igual que .github/workflows/). Cópialo tal cual: es JSON válido y los lectores ignoran esta clave.",
+  "_comment": "Parámetros económicos de ESTE repo (el plugin trabajando sobre sí mismo). Los leen evaluator, planner, jira-sync y usage-meter. Plantilla: agent-kits/evaluator/templates/rates.example.json",
+  "tarifaHora": 50,
+  "monedaCoste": "EUR",
+  "modeloIA": "claude-opus-4-8",
+  "precioTokens": {
+    "moneda": "USD",
+    "unidad": "por_millon",
+    "input": 5,
+    "output": 25,
+    "cacheCreacion": 6.25,
+    "cacheLectura": 0.5,
+    "verificadoEl": "2026-08-18",
+    "fuente": "https://platform.claude.com/docs/en/about-claude/pricing",
+    "_nota": "Precios estándar de Claude Opus 4.8 verificados con la skill rates-verify (fila del modelo asumido; escritura de caché a 5 min y lecturas/refrescos de caché incluidos). Relanza la skill si pasan >90 días: evaluator/planner dejan de considerarlos fiables."
+  },
+  "tipoCambioUsdEur": 0.92,
+  "_nota_fx": "tipoCambioUsdEur es un SUPUESTO fijo, no un dato verificado: revísalo si el coste en € va a usarse para facturar.",
+  "ratioSupervision": 0.25,
+  "margenContingencia": 0.2,
+  "horasJornada": 8,
+  "horasMesFTE": 160
+}

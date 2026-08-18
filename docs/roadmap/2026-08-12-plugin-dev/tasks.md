@@ -4,10 +4,10 @@ generacion:               # vía rápida MEDIDA (usage-meter)
   fin: 2026-08-12T20:43:33Z
   fuente: medido
   tokens_reales: { entrada: 40, salida: 16104, cache_creacion: 33031, cache_lectura: 2091654 }
-  eur: null                 # precioTokens sin verificar (rates-verify)
-  horas_ia: 0.16
-  duracion: 10m
-  ratio_usado: 300000       # default no calibrado
+  eur: 1.52                  # verificado con rates-verify (Opus 4.8; incluye caché) el 2026-08-18
+  horas_ia: 0.1
+  duracion: 6m                 
+  ratio_usado: 479326       # calibrado (mediana de CALIBRATION.md; re-derivado en la retro del 2026-08-18)
 ---
 
 # Checklist de Tareas — plugin-dev (vía rápida: meta-skill de desarrollo del plugin)
@@ -28,8 +28,8 @@ generacion:               # vía rápida MEDIDA (usage-meter)
 
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervisión (real/est) | Tokens (real/est) |
 |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
-| Fase 1 — Meta-skill plugin-dev | 2 | 2 | 100% | 0 / 2,5h | 0,16 (medido) / 0,8h | 0 / 0,25h | 49k (medido) / 250k |
-| **TOTAL** | **2** | **2** | **100%** | **0 / 2,5h** | **0,16 (medido) / 0,8h** | **0 / 0,25h** | **49k (medido) / 250k** |
+| Fase 1 — Meta-skill plugin-dev | 2 | 2 | 100% | 0 / 2,5h | 0,10 (medido) / 0,8h | 0 / 0,25h | 49k (medido) / 250k |
+| **TOTAL** | **2** | **2** | **100%** | **0 / 2,5h** | **0,10 (medido) / 0,8h** | **0 / 0,25h** | **49k (medido) / 250k** |
 
 ---
 

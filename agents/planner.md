@@ -56,7 +56,7 @@ SHAREDKIT="$(find "$PWD/.claude" "$HOME/.claude" -type d -path '*agent-kits/shar
 
 ## 2) FLUJO DE TRABAJO (6 pasos)
 
-**P0. Arrancar el medidor de coste.** Antes de empezar, marca el inicio: `python3 "$SHAREDKIT/usage-meter.py" start --artefacto "docs/roadmap/<fecha>-<slug>/improvement-plan.md"` (una ventana cubre los DOS ficheros del plan: `improvement-plan.md` + `tasks.md`; el bloque `generacion:` del `tasks.md` referencia la misma medición). Regla: cierra tu marcador antes del handoff; no solapes ventanas con otro agente.
+**P0. Arrancar el medidor de coste.** Antes de empezar, marca el inicio: `python3 "$SHAREDKIT/usage-meter.py" start --artefacto "docs/roadmap/<fecha>-<slug>/improvement-plan.md"` (una ventana cubre los DOS ficheros del plan: `improvement-plan.md` + `tasks.md`; el bloque `generacion:` del `tasks.md` **repite el mismo bloque** — misma `inicio`/`fin`, mismos tokens, mismas horas — porque es la misma medición. Escríbelo idéntico en los dos y añade el comentario `# ventana compartida con improvement-plan.md`: `roadmap-dashboard` deduplica mediciones reales idénticas y la cuenta UNA vez; si los cambias para que difieran, el coste de proceso se duplica). Regla: cierra tu marcador antes del handoff; no solapes ventanas con otro agente.
 
 **P1. Recepción.** Entiende la petición. Si faltan datos bloqueantes (alcance, criterios de éxito, accesos), pregunta lo mínimo imprescindible. Rellena el checklist **"Datos necesarios para un informe completo"** marcando lo que ya tienes.
 

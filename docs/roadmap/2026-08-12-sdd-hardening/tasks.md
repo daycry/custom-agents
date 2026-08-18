@@ -4,10 +4,10 @@ generacion:               # misma medición que improvement-plan.md (una ventana
   fin: 2026-08-12T07:53:41Z
   fuente: medido
   tokens_reales: { entrada: 8, salida: 12820, cache_creacion: 13335, cache_lectura: 1581487 }
-  eur: null                 # precioTokens sin verificar (rates-verify)
-  horas_ia: 0.09
-  duracion: 5m
-  ratio_usado: 300000       # default no calibrado
+  eur: 1.10                  # verificado con rates-verify (Opus 4.8; incluye caché) el 2026-08-18
+  horas_ia: 0.05
+  duracion: 3m                 
+  ratio_usado: 479326       # calibrado (mediana de CALIBRATION.md; re-derivado en la retro del 2026-08-18)
 ---
 
 # Checklist de Tareas — SDD hardening (constitución · drift · G/W/T · TDD/worktrees · debug-root-cause · observabilidad)
@@ -26,12 +26,12 @@ generacion:               # misma medición que improvement-plan.md (una ventana
 
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervisión (real/est) | Tokens (real/est) |
 |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
-| Fase 1 — Gobernanza (constitución) | 2 | 2 | 100% | 0 / 2,5h | 0,11 (medido) / 0,8h | 0 / 0,2h | 34k (medido) / 235k |
-| Fase 2 — Specs verificables (G/W/T + drift) | 3 | 3 | 100% | 0 / 5,0h | 0,09 (medido) / 1,6h | 0 / 0,4h | 28k (medido) / 485k |
-| Fase 3 — Disciplina nativa | 4 | 4 | 100% | 0 / 6,0h | 0,05 (medido) / 1,9h | 0 / 0,5h | 16k (medido) / 560k |
-| Fase 3-bis — Autosuficiencia | 2 | 2 | 100% | 0 / 4,0h | 0,08 (medido) / 1,25h | 0 / 0,3h | 23k (medido) / 375k |
-| Fase 4 — Ecosistema y cierre | 2 | 2 | 100% | 0 / 1,75h | 0,07 (medido) / 0,65h | 0 / 0,15h | 22k (medido) / 180k |
-| **TOTAL** | **13** | **13** | **100%** | **0 / 19,25h** | **0,40 (medido) / 6,2h** | **0 / 1,55h** | **123k (medido) / 1.835k** |
+| Fase 1 — Gobernanza (constitución) | 2 | 2 | 100% | 0 / 2,5h | 0,07 (medido) / 0,8h | 0 / 0,2h | 34k (medido) / 235k |
+| Fase 2 — Specs verificables (G/W/T + drift) | 3 | 3 | 100% | 0 / 5,0h | 0,06 (medido) / 1,6h | 0 / 0,4h | 28k (medido) / 485k |
+| Fase 3 — Disciplina nativa | 4 | 4 | 100% | 0 / 6,0h | 0,03 (medido) / 1,9h | 0 / 0,5h | 16k (medido) / 560k |
+| Fase 3-bis — Autosuficiencia | 2 | 2 | 100% | 0 / 4,0h | 0,05 (medido) / 1,25h | 0 / 0,3h | 23k (medido) / 375k |
+| Fase 4 — Ecosistema y cierre | 2 | 2 | 100% | 0 / 1,75h | 0,05 (medido) / 0,65h | 0 / 0,15h | 22k (medido) / 180k |
+| **TOTAL** | **13** | **13** | **100%** | **0 / 19,25h** | **0,26 (medido) / 6,2h** | **0 / 1,55h** | **123k (medido) / 1.835k** |
 
 > **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada.
 >

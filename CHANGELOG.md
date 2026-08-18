@@ -7,6 +7,24 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and versioning follows [SemVer](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- **Estimation loop closed with verified numbers.** Following the first `/retro`, the findings it surfaced are now fixed at the source rather than only noted:
+  - **AI hours re-derived with the calibrated ratio** in the 9 measured `generacion:` blocks and in every ledger summary row (~40 % lower — they had been derived with the uncalibrated 300.000 default). Tokens are untouched: they are the measurement, hours are the derivative, and each block's `ratio_usado` now says which ratio produced it, so the arithmetic stays auditable. Retros and `CALIBRATION.md` restated to match.
+  - **Real cost in €, at last.** `rates-verify` read the official pricing page and wrote Claude Opus 4.8's standard prices into `.claude/rates.json` ($5/M input · $25/M output · $6.25/M cache writes · $0.50/M cache reads): the process cost of the 5 measured initiatives is **12,35 €**, replacing nine `eur: null`. The same verified prices seed `rates.example.json` so a new project starts with real figures. `tipoCambioUsdEur` stays flagged as an **assumption**, not a verified datum.
+  - **`evaluator` now carries the three lessons** from the calibration: separate human-equivalent hours (value) from AI hours (schedule) instead of mixing them; budget the **process cost** as its own line; and give the adversarial review its own line, sizing by type (prose = minutes · prose + tests = ×2 · product code = hours).
+  - **Root cause of the double count fixed where it originates:** `planner` P0 and the `tasks.md` template now state that the plan window is written **identically** in both files and why (the dashboard deduplicates it), so nobody "fixes" it by making them differ.
+  - `.gitignore`: local state (`usage-state.json`, `jira-state.json`, `confluence-state.json`) excluded — machine state, not project state; `rates.json` is versioned on purpose. Since `.claude/` is a protected path for remote tools, the file ships as **`rates.json.MANUAL-COPY`** at the repo root (valid JSON, copy it to `.claude/rates.json`) — same pattern as `ci.yml.MANUAL-COPY`.
+  - Titles that surface in publishable dashboards (`spec.md` H1 and `descripcion:`) no longer name third-party products.
+- **First `/retro` of the project — the estimation loop is now closed with real data.** New `docs/roadmap/CALIBRATION.md` with one row per measured initiative and a **calibrated ratio of 479.326 tokens/hour** (median of 5 samples), which `usage-meter.py` already picks up in place of the uncalibrated 300.000 default — AI hours reported (and therefore logged to Jira) drop ~40 % and line up with the clock. The file documents the **exact, non-circular definition** of the ratio: measured billable tokens ÷ wall-clock time of the measurement windows, never the meter's own derived hours, plus its known limits. `retro.md` written for the 5 initiatives with measured data (`sdd-hardening`, `workflow-polish`, `plugin-dev`, `subagent-personas`, `quick-implement`), each with estimated-vs-actual, cause and suggested adjustment, and 4 accumulated learnings.
+
+### Fixed
+
+- `roadmap-dashboard`: a measurement window declared by **two artifacts** (the `planner` measures `improvement-plan.md` and `tasks.md` together and writes the same block in both, by design) was counted **twice** in "process cost" — `sdd-hardening` showed 85.077 tokens instead of its real 58.914 (+44 %), and the portfolio total was inflated by the same amount. Now an identical real measurement is deduplicated (same window, same tokens, same hours) and the cell notes `ventana compartida`. Two regression tests: the shared window counts once, and `estimado` blocks that share reference dates but hold **different** per-artifact estimates are still summed (a defect in the first version of this very fix, which lost 0,8 h from `coste-generacion`).
+- `docs/roadmap/*/spec.md`: the `descripcion:` field no longer names third-party products — it is the field that surfaces as the initiative title in dashboards and metrics that get published to Confluence. Bodies keep their historical wording.
+
 ## [1.12.0] - 2026-08-13
 
 ### Added

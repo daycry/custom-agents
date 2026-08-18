@@ -228,9 +228,15 @@ def test_ratio_de_calibration_mediana(entorno, tmp_path):
     assert res["horas_ia"] == 1.0
 
 
-def test_ratio_default_marcado_no_calibrado(entorno):
+def test_ratio_default_marcado_no_calibrado(entorno, tmp_path):
+    """Sin CALIBRATION.md se usa el default y se marca como no calibrado.
+    El test apunta --calibration a una ruta INEXISTENTE a propósito: si no, leería
+    el CALIBRATION.md real del repo (que ya está calibrado) y el resultado dependería
+    del cwd — así fallaba al crear el fichero de calibración de verdad."""
     _, tdir, state = entorno
-    res = _start_close(tdir, state, antes=[], despues=[_rec("m1", inp=100)])
+    inexistente = tmp_path / "no-hay" / "CALIBRATION.md"
+    res = _start_close(tdir, state, antes=[], despues=[_rec("m1", inp=100)],
+                       close_args=["--calibration", str(inexistente)])
     assert res["ratio_usado"] == um.DEFAULT_RATIO
     assert "no calibrado" in res["ratio_origen"]
 
