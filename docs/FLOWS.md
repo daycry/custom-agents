@@ -150,6 +150,46 @@ flowchart LR
     D -.->|no permite borrar| F["página obsoleta<br/>→ borrado manual"]
 ```
 
+> **Política de publicación (2026-08-20-confluence-policy):** opt-out sobre `include: ["**/*.md"]`
+> — un documento nuevo se publica salvo que caiga en una exclusión conocida. Detalle normativo y
+> tabla completa de exclusiones: `skills/confluence-publish/SKILL.md`, sección "qué sube y qué no".
+
+**Matriz disparador → artefacto → ¿se publica?** (los 10 disparadores conocidos que aplican, o
+declaran que no aplican, el paso `agent-kits/shared/confluence-optin.md`):
+
+| Disparador | Artefacto(s) que produce | ¿Se publica? |
+|---|---|---|
+| `analyst` | `spec.md` | ✅ Sí |
+| `evaluator` | `evaluation.md` (+ `spec.md` si lo crea) | ✅ Sí |
+| `planner` | `improvement-plan.md`, `tasks.md` | ❌ No — plan y ledger (D1): su sitio es el repo y Jira, no Confluence |
+| `implementer` | actualiza `tasks.md` por tarea; dispara la sincronización **al cerrar cada fase** (D3) | ⚠️ El disparo sí ocurre, pero `tasks.md` en sí **no** sube (D1) — refresca lo demás que haya cambiado bajo `docs/` (típicamente `dashboard.md`) |
+| `qa` | `testing/report.md` + `report.pdf`, `screenshots/`, `raw/` | ❌ No — `**/testing/**` (D4): el informe embebe capturas que el conector no puede adjuntar; queda solo-local |
+| `documenter` | documentación de referencia bajo `docs/` (arquitectura, stack, guías, producto…) | ✅ Sí |
+| `/pm-backlog` | `docs/roadmap/BACKLOG.md` | ✅ Sí |
+| `/retro` | `retro.md` + `docs/roadmap/CALIBRATION.md` | ✅ Sí |
+| `/spec-drift` | `docs/roadmap/DRIFT.md` | ✅ Sí |
+| `/roadmap-brief` | `docs/roadmap/brief.md` + `brief.pdf` | ⚠️ El `.md` sí; el `.pdf` no entra en el espejo (no es `.md`) |
+
+**"No" estructurales** (no dependen de un disparador concreto — son exclusiones de la política que
+aplican siempre, escriba quien escriba): `docs/en/**` (árbol EN duplicado, para lectores de
+GitHub), `docs/examples/**` y `docs/agents/**` (documentación interna del plugin, no del producto
+del proyecto consumidor), `docs/**/atlassian-connector-notes.md` y, como siempre,
+`docs/security-scan/**` (invariante no negociable de `nemesis`). Verificable con
+`confluence-scope.py --status` / `--check` (`skills/confluence-publish/scripts/`).
+
+**Puntos de nacimiento de `docs/knowledge/`** (memoria técnica, `2026-08-20-knowledge-capture`) —
+**sí entra en el espejo por defecto**, no está en el `exclude` (a diferencia del plan/ledger de la
+fila `planner` de arriba): `planner`/`implementer` escriben un ADR en `docs/knowledge/adr/` cuando
+una decisión de diseño cruza el umbral (ver regla 10 de `CONVENTIONS.md`); `debug-root-cause`
+escribe un gotcha en `docs/knowledge/gotchas/GOT-NNN-<slug>.md` (fichero nuevo) al cerrar su Fase 4
+(causa raíz confirmada); `qa` escribe un gotcha cuando un flaky justificado resulta ser un patrón,
+no un accidente; `/retro` produce una segunda salida con lecciones de proceso en
+`docs/knowledge/lessons/LES-NNN-<agente>-<slug>.md` (fichero nuevo), además de su
+fila numérica en `CALIBRATION.md`. Los cinco agentes lectores (`evaluator`, `planner`,
+`implementer`, `qa`, `documenter`) aplican `agent-kits/shared/knowledge-check.md` antes de
+trabajar (progressive disclosure: solo el índice + su área). Detalle completo: regla 10 de
+[`CONVENTIONS.md`](CONVENTIONS.md).
+
 ## 6 · Visibilidad y aprendizaje (todo solo-lectura)
 
 > **Coste de generación (usage-meter):** cada artefacto del ciclo (y cada tarea en Modo B) se **mide** con tokens reales de la transcripción (`agent-kits/shared/usage-meter.py`); el bloque `generacion:` de su frontmatter alimenta la sección **coste de proceso** de `/roadmap-metrics`, y `/retro` calibra con ello el **ratio tokens→hora** que usan el evaluator y el propio meter. Fechas = contexto · tokens = medida · horas = derivadas.

@@ -21,11 +21,26 @@
   },
 
   "publish": {
-    "_comment": "Que se espeja y como. layout='mirror-tree': carpetas->paginas, .md->paginas hijas. onConflict='update'|'skip'.",
-    "source": "docs",
+    "_comment": "Que se espeja y como. layout='mirror-tree': carpetas->paginas, .md->paginas hijas. onConflict='update'|'skip'. La politica es opt-out: include='**/*.md' y exclude cierra lo que NO se publica (ver _comment_exclude). Detalle normativo en skills/confluence-publish/SKILL.md seccion 'que sube y que no'.",
+    "_comment_staging": "D5 (spec confluence-policy): con staging=true, confluence-scope.py --stage regenera docs/confluence/ (copia exacta de lo que se publica) ANTES de comparar con el manifiesto, y source pasa a apuntar ahi. Si el script falla o no esta disponible, la skill degrada a source='docs' y resuelve la politica en linea, sin bloquear.",
+    "source": "docs/confluence",
+    "staging": true,
     "layout": "mirror-tree",
     "include": ["**/*.md"],
-    "exclude": ["**/node_modules/**", "docs/security-scan/**"],
+    "_comment_exclude": "Cada patron, por que: **/node_modules/** = dependencias, nunca doc. docs/security-scan/** = invariante NO NEGOCIABLE (datos sensibles de nemesis). docs/en/** = arbol EN duplicado, es para lectores de GitHub, no del espacio. docs/examples/** y docs/agents/** = doc interna del PLUGIN (como se construyen los agentes), no del producto del proyecto consumidor. docs/**/atlassian-connector-notes.md = notas de trabajo sobre el propio conector. docs/roadmap/**/improvement-plan.md, tasks.md, test-plan.md = tablero de EJECUCION (plan y ledger): su sitio es el repo y Jira, no Confluence (D1 de la spec confluence-policy). **/testing/** = informe de qa con capturas embebidas que el conector no puede adjuntar; queda solo-local (D4). **/_STAGING-LEEME.md = cinturon y tirantes (revision adversarial, ronda 3): la autoexclusion por codigo de docs/confluence/** solo cubre el ESCANEO del canonico al generar el staging; el recorrido de PUBLICACION (paso 4 de SKILL.md) camina el arbol STAGED, así que sin esta linea el marcador se publicaria como pagina boilerplate y quedaria huerfano perpetuo en cada pull. NOTA: cuando el staging (D5) esta activo, docs/confluence/** se autoexcluye ademas por codigo en confluence-scope.py (ver skills/confluence-publish/scripts/confluence-scope.py) para que un --stage no se anide dentro del anterior; no hace falta listarla aqui.",
+    "exclude": [
+      "**/node_modules/**",
+      "docs/security-scan/**",
+      "docs/en/**",
+      "docs/examples/**",
+      "docs/agents/**",
+      "docs/**/atlassian-connector-notes.md",
+      "docs/roadmap/**/improvement-plan.md",
+      "docs/roadmap/**/tasks.md",
+      "docs/roadmap/**/test-plan.md",
+      "**/testing/**",
+      "**/_STAGING-LEEME.md"
+    ],
     "onConflict": "update"
   }
 }

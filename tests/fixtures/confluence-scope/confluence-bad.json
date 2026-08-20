@@ -1,0 +1,9 @@
+{
+  "publish": {
+    "source": "docs",
+    "layout": "mirror-tree",
+    "include": ["**/*.md"],
+    "exclude": ["**/node_modules/**"],
+    "onConflict": "update"
+  }
+}

@@ -38,6 +38,7 @@ parchea desde aquí. Objetivo: **$ARGUMENTS** (vacío = todas).
    criterios), y **ofrece abrir una iniciativa** con `/pm-cycle <slug>-drift` para cada spec
    derivada — la deriva se corrige por el cauce normal (spec → evaluación → puerta), no con
    un parche directo.
+5. **Sincronizar con Confluence (opcional).** Aplica el paso compartido `"$SHAREDKIT/confluence-optin.md"` (skill `confluence-publish` con opt-in) sobre `docs/roadmap/DRIFT.md`. Localízalo con `SHAREDKIT="$(find "$PWD/.claude" "$HOME/.claude" -type d -path '*agent-kits/shared' 2>/dev/null | head -1)"`. Fallback si no está: invoca `confluence-publish` respetando su opt-in, sin bloquear el cierre; nunca sincronices `docs/security-scan/`.
 
 ## Reglas
 

@@ -151,9 +151,3 @@ generacion:
 - [ ] {{...}}
 
 **Notas**: {{...}}
-
----
-
-## Notas de implementación
-
-_A completar durante la ejecución. Registra decisiones, desvíos de la estimación y aprendizajes._

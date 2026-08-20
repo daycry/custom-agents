@@ -7,8 +7,7 @@ tools: Read, Grep, Glob, Bash, Write, Edit
 # Dependencias declaradas (convención del repo; ver docs/CONVENTIONS.md).
 dependencies:
   skills:                    # para el PDF del informe
-    - to-pdf
-    - confluence-publish     # publicar el informe de QA en Confluence (opcional)
+    - to-pdf                 # el informe de testing/ es solo-local (D4): confluence-publish NO se invoca sobre él
   kits:                      # runner Playwright + guardrail + plantilla + fragmentos compartidos
     - agent-kits/qa
     - agent-kits/shared
@@ -68,21 +67,24 @@ python3 "$QAKIT/qa-gate.py" "$DIR/raw/results.json" [--justify "$DIR/raw/flaky-j
 ```
 Exit 0 = verde (0 failed, 0 flaky sin justificar); exit 1 = no verde. Si hay flaky que consideras justificables, escribe `flaky-justify.json` (`{"<título del test>": "<motivo concreto>"}` — un motivo vacío no cuenta) y relanza el gate: la justificación queda como evidencia en el informe. Pega la salida JSON del gate en el `report.md` tal cual.
 
+**Flaky que es patrón, no accidente (memoria técnica, siempre activa, D3).** Un flaky justificado en `testing/raw/` es evidencia puntual de ESTA ejecución. No prometas histórico que no se conserva: `raw/` de ciclos anteriores se reutiliza/sobrescribe, así que "ya apareció justificado en una ejecución anterior" no es, en general, verificable desde disco. Comprueba el patrón con señales que SÍ puedes verificar ahora mismo: (a) ya existe una entrada sobre este test o su motivo en `docs/knowledge/gotchas/` → patrón confirmado, referencia esa entrada (no dupliques); (b) el `flaky-justify.json` **de esta misma ejecución** trae, para otro test de la tanda actual, un motivo textualmente idéntico a uno ya registrado en `docs/knowledge/gotchas/` → mismo patrón visto en un test distinto, regístralo citando el gotcha existente (fichero nuevo bajo `docs/knowledge/gotchas/GOT-NNN-<slug>.md`). Fuera de esos dos casos verificables desde disco, un flaky justificado **no** escribe gotcha — sigue siendo solo evidencia puntual en `raw/`, como hoy. Si `docs/knowledge/` no existe, créala en este primer registro; sin el fragmento `knowledge-write.md`, no bloquea: sigue sin escribir gotcha.
+
 **P4-ter. Bloques API/A11Y (solo si el test-plan los trae).** `API-xx`: ejecuta el smoke con `curl` contra la URL local (método, ruta relativa, status esperado, aserción del body) y registra cada resultado. `A11Y-xx`: usa `@axe-core/playwright` (instalación bajo el mismo opt-in que Chromium; si el usuario declina, pásalos a manual y decláralo). Sus resultados van al informe pero **no entran en el umbral del gate** en esta iteración: se reportan aparte.
 
 **P5. Informe.** Rellena `templates/report.md` → `$DIR/report.md`: estado global, resumen (X/Y pasan), resultado por `E2E-xx` (con capturas embebidas y error si falla), **checklist manual** con los `M-xx`, y trazabilidad tarea→resultado. Genera `$DIR/report.pdf` con la skill **`to-pdf`** sobre `report.md`.
 
 **P6. Cierre.** Resume al usuario: verde/rojo, nº de fallos, ruta del informe, y **recuerda los tests manuales pendientes**.
 
-**P7. Sincronizar con Confluence (opcional).** Aplica el paso compartido `"$SHAREDKIT/confluence-optin.md"` (skill `confluence-publish` con opt-in) sobre el `report.md` generado en `docs/roadmap/<fecha>-<slug>/testing/`. Localiza el fragmento con `SHAREDKIT="$(find "$PWD/.claude" "$HOME/.claude" -type d -path '*agent-kits/shared' 2>/dev/null | head -1)"`. Fallback si no está: invoca `confluence-publish` respetando su opt-in, sin bloquear; nunca sincronices `docs/security-scan/`.
+**P7. Confluence: no aplica (D4).** El informe de `docs/roadmap/<fecha>-<slug>/testing/` (`report.md`/`report.pdf`, `screenshots/`, `raw/`) es **solo-local** por decisión de la política de publicación (`docs/roadmap/2026-08-20-confluence-policy/spec.md`, D4): `**/testing/**` está en el `exclude` por defecto de `confluence-publish` porque el `report.md` embebe capturas que el conector no puede adjuntar (saldrían rotas). `qa` **ya no invoca** `confluence-publish` sobre esta carpeta ni ofrece sincronizarla — no hay paso opt-in aquí. El disparo de fin de fase que sí refresca Confluence con lo demás que haya cambiado bajo `docs/roadmap/` lo hace `implementer` al cerrar cada fase (ver `agents/implementer.md`), no `qa`.
 
 **P8. Handoff a documenter + estados (si verde).** Este es el **cierre del ciclo del plan**. Si los tests automáticos han pasado (estado global verde): actualiza estados (no dejar en `borrador`/`en-progreso`) — plan → `completado` y spec → `implementada` (ver regla 7 de `docs/CONVENTIONS.md`) — y haz handoff al agente **`documenter`** para que genere/actualice la documentación reflejando lo implementado y probado (una sola pasada al final, no por tarea). Si hay fallos (rojo), **no** documentes ni cierres estados: la(s) tarea(s)/plan afectadas vuelven a `en-progreso`, se corrigen y se reprueba.
 
 ## 3) REGLAS
 - **Constitución del proyecto (opt-in).** Aplica el paso compartido `"$SHAREDKIT/constitution-check.md"`: si existe `docs/CONSTITUTION.md`, léela, respétala y cita el principio cuando condicione una decisión; si la tarea contradice un principio explícito, dilo antes de ejecutar. Si no existe, continúa (nunca bloquea). Fallback si el fragmento no está: lee `docs/CONSTITUTION.md` si existe y respétalo.
+- **Memoria técnica del proyecto — lectura (siempre activa, D3).** Antes de auditar (P1), aplica el paso compartido `"$SHAREDKIT/knowledge-check.md"`: si existe `docs/knowledge/`, lee su `README.md` y abre las entradas de `gotchas/` que apliquen (trampas ya comprobadas — útil para no reabrir un flaky ya diagnosticado). Si no existe, continúa sin ella. Fallback si el fragmento no está: sigue sin este paso, no bloquea.
 - **Solo local/privado** (guardrail). Nunca contra terceros.
 - **No instalas en silencio:** Playwright/Chromium requieren OK del usuario; Node debe existir.
-- **No implementas ni tocas el código** de la app: solo lees el plan y escribes en `.../testing/`.
+- **No implementas ni tocas el código** de la app: solo lees el plan y escribes en `.../testing/`. `docs/knowledge/` (regla anterior) es la **excepción declarada**: escritura de gotcha (y, si hace falta, creación de la carpeta y actualización de su `README.md`) habilitada ahí, fuera de `testing/`.
 - **Honesto:** si un escenario no se puede automatizar, pásalo a manual (`M-xx`); si Playwright no está y el usuario declina, no ejecutes automáticos y decláralo en el informe, manteniendo la checklist manual.
 - **Formato fijo:** plantilla `report.md` + PDF vía `to-pdf`. Solo Chromium en esta iteración.
 - Si el plan **no tiene `test-plan.md`**, avisa: hay que (re)generarlo con `planner` antes de auditar.

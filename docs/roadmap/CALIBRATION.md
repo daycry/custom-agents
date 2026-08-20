@@ -25,6 +25,8 @@ Cada fila sale de un `/retro` de una iniciativa **cerrada**. Lo leen dos piezas:
 | 2026-08-12 | plugin-dev | −88 % (0,10 h reales vs 0,8 h est.) | −80 % (49.175 vs 250k est.) | 300050 | Ídem prosa + plantillas; el coste real se fue en la **revisión** (2 hallazgos críticos), no en escribir | Presupuestar explícitamente la revisión de dos lentes como línea aparte: es donde se va el trabajo real en piezas de prosa |
 | 2026-08-12 | subagent-personas | −83 % (0,14 h reales vs 0,8 h est.) | −74 % (65.711 vs 250k est.) | 421674 | La única con **TDD real** (7 tests): más tokens y más tiempo que las de prosa pura, y aun así por debajo de la estimación | Cuando la tarea lleva tests, multiplicar la estimación de la vía rápida por ~2 respecto a una de prosa |
 | 2026-08-13 | quick-implement | −77 % (0,07 h reales vs 0,3 h est.) | −66 % (34.062 vs 100k est.) | 1048061 | Alcance minúsculo y bien definido de antemano (la spec de backlog ya estaba escrita) | Una spec previa reduce el coste de implementación de forma medible: el trabajo de definir no se repite |
+| 2026-08-20 | confluence-policy | — (sin horas reales) | — (medición parcial) | | «Las specs llegaron muy maduras» (D1-D5 cerradas en la puerta PM) | Presupuestar la revisión como línea propia |
+| 2026-08-20 | knowledge-capture | — (sin horas reales) | — (medición parcial) | | «Las specs llegaron muy maduras» (D1-D3 cerradas en la puerta PM) | Presupuestar la revisión como línea propia |
 
 > Ratio vigente: 479326 tokens/hora (mediana de 5 muestras)
 

@@ -169,3 +169,58 @@ Cada skill guarda su config (decisiones del usuario) y su estado (memoria de má
 Reglas: **config ≠ estado** (la config la decide el usuario; el estado lo mantiene la máquina y
 nunca se edita a mano); toda skill nueva que necesite memoria sigue este patrón (`<skill>.json` +
 `<skill>-state.json`) y añade su fila aquí.
+
+## 10. Memoria técnica del proyecto — `docs/knowledge/`
+
+Además del roadmap (regla 7, decisión+resultado por iniciativa) y de la configuración (regla 9),
+el plugin mantiene una **memoria técnica transversal** en `docs/knowledge/` del proyecto
+consumidor: decisiones de diseño (ADR), trampas ya comprobadas (gotchas) y lecciones de proceso —
+lo que "ya no hay que volver a descubrir" cada vez, generalizando el patrón de bookends de
+`agents/nemesis.md` (`docs/security-scan/STATE.md`+`MEMORY.md`).
+
+- **Dónde vive.** `docs/knowledge/adr/ADR-NNN-<slug>.md` (una por decisión, plantilla
+  `agent-kits/shared/templates/adr.md`), `docs/knowledge/gotchas/GOT-NNN-<slug>.md` (una por
+  entrada) y `docs/knowledge/lessons/LES-NNN-<agente>-<slug>.md` (una por entrada, agrupada por
+  agente en el nombre),
+  con un `README.md` **índice de entrada** (el índice generado + `knowledge-lint.py` quedan
+  diferidos hasta que haya evidencia de que hacen falta: más de 15 entradas o la primera colisión
+  de ID en cualquiera de las tres familias, en un lote paralelo). Un fichero por entrada en los
+  tres tipos elimina la colisión de FICHERO en escritura paralela; la colisión de `id:` sigue
+  siendo posible en las tres familias (ADR/GOT/LES), con la misma mitigación (renumerar y
+  declararlo en la retro), ver regla anterior.
+- **Siempre activa, sin opt-in.** Si `docs/knowledge/` no existiera, ningún agente se queja: la
+  carpeta nace en el primer registro. Es la misma filosofía de degradación silenciosa que el resto
+  del plugin (constitución, Jira, Confluence), pero sin interruptor — no hay nada que activar.
+- **Umbral de registro (anti-burocracia).** Un ADR solo si la decisión **cierra una alternativa
+  real** Y (afecta a 2+ piezas del repo O se tomó en una puerta de decisión) — **no** merece ADR
+  elegir el nombre de una variable, ni una decisión reversible sin coste, ni algo que ya estaba
+  implícito en una regla existente. Un gotcha solo si costó **al menos un ciclo de depuración real**
+  o casi rompió una garantía del producto — **no** merece gotcha una intuición sin comprobar ni un
+  typo corregido al vuelo. El objetivo es 0-2 entradas por iniciativa, no un registro exhaustivo.
+- **Quién escribe.** `planner`/`implementer` escriben un ADR cuando su decisión de diseño (al
+  descomponer el plan o al resolver una ambigüedad en ejecución) cruza el umbral, con
+  `estado: propuesta` a validar por la revisión de dos lentes o el usuario. `debug-root-cause`
+  escribe un gotcha al cerrar su Fase 4 (causa raíz confirmada, no diagnóstico parcial). `qa`
+  escribe un gotcha cuando un flaky justificado resulta ser un **patrón** (2+ ciclos con el mismo
+  motivo), no un accidente aislado. `/retro` produce, además de la fila numérica de
+  `CALIBRATION.md`, una **segunda salida** con los aprendizajes técnicos cualitativos del cierre de
+  la iniciativa. Fragmento compartido: `agent-kits/shared/knowledge-write.md`.
+- **Quién lee.** `evaluator`, `planner`, `implementer`, `qa` y `documenter` aplican el paso
+  compartido `agent-kits/shared/knowledge-check.md` antes de trabajar: leen el índice de entrada
+  (`README.md`) y abren **solo el fichero de la entrada concreta** de su área (lectura SELECTIVA,
+  progressive disclosure — protege la inversión de `2026-08-10-token-diet`, nunca "todo
+  `gotchas/`" ni "todo `lessons/`"). Reparto: `evaluator` → `lessons/LES-*-evaluator-*`; `planner` →
+  `adr/` + `lessons/`; `implementer` → `adr/` + `gotchas/`; `qa` → `gotchas/`; `documenter` → todo
+  lo que liste el índice (es quien la indexa en la documentación de producto).
+- **Prueba del mecanismo (fila "Prueba del mecanismo" de la spec de `knowledge-capture`, no D3).**
+  Las "tres lecciones de la primera calibración real" que vivían hardcodeadas en
+  `agents/evaluator.md` se migraron a `docs/knowledge/LESSONS.md#evaluator` (hoy repartidas en
+  tres ficheros bajo `docs/knowledge/lessons/`, tras `knowledge-split`): el prompt las lee de ahí,
+  no las lleva incrustadas. Es el criterio de que el bucle de lectura funciona de verdad — las
+  lecciones pueden salir del prompt sin dejar de aplicarse. **Ojo:** esto solo pasa cuando el
+  proyecto tiene `docs/knowledge/` poblado con ellas (este repo, tras el backfill); un proyecto
+  consumidor recién instalado arranca con memoria vacía (D3: siempre activa, sin opt-in, pero sin
+  contenido hasta el primer registro) y las va poblando con `/retro` y las puertas de decisión.
+- **Nota (D2):** la sección "Notas de implementación" de la plantilla `agent-kits/planner/templates/tasks.md`
+  se retiró (iniciativa `knowledge-capture`, tarea T-14) — el registro cualitativo de una
+  iniciativa vive en `docs/knowledge/`, no en un cajón de sastre al final del ledger.

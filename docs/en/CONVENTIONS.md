@@ -169,3 +169,59 @@ Each skill stores its config (user decisions) and its state (machine memory) in 
 Rules: **config ≠ state** (config is decided by the user; state is maintained by the machine and
 is never edited by hand); every new skill that needs memory follows this pattern (`<skill>.json` +
 `<skill>-state.json`) and adds its row here.
+
+## 10. Project technical memory — `docs/knowledge/`
+
+Besides the roadmap (rule 7, decision+outcome per initiative) and configuration (rule 9), the
+plugin keeps a **cross-cutting technical memory** in the consuming project's `docs/knowledge/`:
+design decisions (ADR), already-proven traps (gotchas) and process lessons — "what should never
+have to be re-discovered", generalizing the bookend pattern from `agents/nemesis.md`
+(`docs/security-scan/STATE.md`+`MEMORY.md`).
+
+- **Where it lives.** `docs/knowledge/adr/ADR-NNN-<slug>.md` (one per decision, template
+  `agent-kits/shared/templates/adr.md`), `docs/knowledge/gotchas/GOT-NNN-<slug>.md` (one per
+  entry) and `docs/knowledge/lessons/LES-NNN-<agent>-<slug>.md` (one per entry, grouped by agent
+  in the filename),
+  with an **entry-point** index `README.md` (the generated index + `knowledge-lint.py` remain
+  deferred until there is evidence they are needed: more than 15 entries, or the first ID
+  collision in any of the three families, in a parallel batch). One file per entry across all
+  three types removes the FILE collision risk in parallel writes; the `id:` collision risk
+  remains possible across all three families (ADR/GOT/LES), with the same mitigation (renumber
+  and declare it in the retro), see previous rule.
+- **Always active, no opt-in.** If `docs/knowledge/` did not exist, no agent would complain: the
+  folder is created on first write. Same silent-degradation philosophy as the rest of the plugin
+  (constitution, Jira, Confluence), but without a switch — there is nothing to turn on.
+- **Registration threshold (anti-bureaucracy).** An ADR only if the decision **closes a real
+  alternative** AND (it affects 2+ pieces of the repo OR it was taken at a decision gate) — naming
+  a variable, a freely reversible decision, or something already implicit in an existing rule does
+  **not** deserve an ADR. A gotcha only if it cost **at least one real debugging cycle** or nearly
+  broke a product guarantee — an unverified hunch or a typo fixed on the fly does **not** deserve a
+  gotcha. The goal is 0-2 entries per initiative, not an exhaustive log.
+- **Who writes.** `planner`/`implementer` write an ADR when a design decision (while decomposing
+  the plan, or resolving an ambiguity during execution) crosses the threshold, with
+  `estado: propuesta` to be validated by the two-lens review or the user. `debug-root-cause` writes
+  a gotcha when it closes its Phase 4 (root cause confirmed, not a partial diagnosis). `qa` writes
+  a gotcha when a justified flaky turns out to be a **pattern** (2+ cycles with the same cause), not
+  an isolated accident. `/retro` produces, in addition to `CALIBRATION.md`'s numeric row, a
+  **second output** with the qualitative technical learnings from the initiative's closeout. Shared
+  fragment: `agent-kits/shared/knowledge-write.md`.
+- **Who reads.** `evaluator`, `planner`, `implementer`, `qa` and `documenter` apply the shared step
+  `agent-kits/shared/knowledge-check.md` before working: they read the entry index (`README.md`)
+  and open **only the specific entry file** in their area (SELECTIVE reading, progressive
+  disclosure — protects the `2026-08-10-token-diet` investment; never "all of `gotchas/`" or "all
+  of `lessons/`"). Split: `evaluator` → `lessons/LES-*-evaluator-*`; `planner` → `adr/` + `lessons/`;
+  `implementer` → `adr/` + `gotchas/`; `qa` → `gotchas/`; `documenter` → everything the index
+  lists (it is the one that indexes it into product documentation).
+- **Proof of the mechanism ("Prueba del mecanismo" row of `knowledge-capture`'s spec, not D3).**
+  The "three lessons from the first real calibration" that used to live hardcoded in
+  `agents/evaluator.md` were migrated to `docs/knowledge/LESSONS.md#evaluator` (now split across
+  three files under `docs/knowledge/lessons/`, after `knowledge-split`): the prompt now
+  reads them from there instead of carrying them inline. That is the test that the reading loop
+  truly works — the lessons can leave the prompt and keep applying. **Note:** this only happens
+  once the project's `docs/knowledge/` is populated with them (this repo, after the backfill); a
+  freshly installed consuming project starts with an empty memory (D3: always active, no opt-in,
+  but no content until the first write) and fills it via `/retro` and the decision gates.
+- **Note (D2):** the "Notas de implementación" section of the planner's
+  `agent-kits/planner/templates/tasks.md` template was retired (`knowledge-capture` initiative,
+  task T-14) — an initiative's qualitative record now lives in `docs/knowledge/`, not in a
+  catch-all drawer at the end of the ledger.

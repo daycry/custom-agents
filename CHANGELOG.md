@@ -7,6 +7,44 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and versioning follows [SemVer](https://semver.org/).
 
+## [Unreleased]
+
+## [1.14.0] - 2026-08-20
+
+### Added — `knowledge-split` initiative (2026-08-20)
+
+- **One file per entry for `docs/knowledge/gotchas` and `LESSONS`, matching `adr/`'s pattern.** Predictable growth, selective reading and parallel-write collisions motivated the split: `docs/knowledge/gotchas/<slug>.md` and `docs/knowledge/lessons/<agent>-<slug>.md` replace the two aggregate files, migrated verbatim (same text, same acceptance trace) — recorded as [`ADR-006`](docs/knowledge/adr/).
+  - **`README.md` becomes the entry index**: every row now links straight to its own file instead of `gotchas.md`/`LESSONS.md#agent`.
+  - **`agent-kits/shared/knowledge-check.md` goes SELECTIVE**: read the index, then open only the specific entry file that matches the task's area — never the whole folder.
+  - **File collision disappears for gotchas/lessons** (like `adr/` already had it): only the ADR's `id:` collision risk remains (D4, still deferred).
+  - **Old `gotchas.md`/`LESSONS.md` become ≤5-line redirect stubs** (remote writes cannot delete files on a user's disk); freshly installed projects never see a stub — the folders are born directly.
+  - Updated every writer (`/retro`, `debug-root-cause`, `qa`) and reader (`evaluator`, `planner`, `implementer`, `qa`, `documenter`) that cited the old paths, plus `docs/CONVENTIONS.md` rule 10, `docs/FLOWS.md` and `docs/INSTALL.md` (+ English mirrors), and a new Confluence-scope test fixture under `docs/knowledge/gotchas/`.
+
+### Added — `knowledge-ids` extension (2026-08-20)
+
+- **ADR-style IDs for gotchas and lessons, agent kept in the slug.** Extends `knowledge-split`'s one-file-per-entry split with sequential IDs matching the `ADR-NNN` pattern: `docs/knowledge/gotchas/GOT-NNN-<slug>.md` and `docs/knowledge/lessons/LES-NNN-<agent>-<slug>.md`, with `id: GOT-NNN`/`id: LES-NNN` in the frontmatter — the 12 existing files were `git mv`'d (real renames, content untouched) and numbered chronologically (backfill first, then by index order). `README.md` shows the ID per row; `knowledge-check.md`'s selective-reading globs and every writer/reader that cited a path pattern were updated to match. The `id:` collision note in `knowledge-write.md` now applies to all three families (ADR/GOT/LES), same mitigation (renumber + declare in the retro) — recorded as an amendment to [`ADR-006`](docs/knowledge/adr/).
+
+### Added — `knowledge-capture` initiative (2026-08-20)
+
+- **Cross-cutting technical memory for the plugin's agents, `docs/knowledge/`.** Generalizes the bookend pattern from `agents/nemesis.md` (`docs/security-scan/STATE.md`+`MEMORY.md`) into a project-wide, always-active (no opt-in) memory of design decisions (ADR), proven traps (gotchas) and process lessons — "what should never have to be re-discovered".
+  - **Where it lives:** `docs/knowledge/adr/ADR-NNN-<slug>.md` (template `agent-kits/shared/templates/adr.md`), `docs/knowledge/gotchas.md` and `docs/knowledge/LESSONS.md` (grouped by agent), with a manual index `README.md` (the generated index + linter stay deferred until there is evidence of need — >15 entries or an ADR ID collision).
+  - **Anti-bureaucracy threshold:** an ADR only if a decision closes a real alternative AND (affects 2+ pieces or was taken at a decision gate); a gotcha only if it cost at least one debugging cycle or nearly broke a product guarantee. Target: 0-2 entries per initiative.
+  - **Writers:** `planner`/`implementer` write an ADR when a design decision crosses the threshold; `debug-root-cause` writes a gotcha when it closes its Phase 4 (confirmed root cause); `qa` writes a gotcha when a justified flaky turns out to be a pattern (2+ cycles), not an accident; `/retro` now produces a **second output** of qualitative technical learnings, in addition to its numeric `CALIBRATION.md` row.
+  - **Reading loop (`agent-kits/shared/knowledge-check.md`):** `evaluator`, `planner`, `implementer`, `qa` and `documenter` read the short index first and open only the entries in their area (progressive disclosure, protecting the `2026-08-10-token-diet` investment) — `evaluator` → `LESSONS.md`; `planner` → `adr/`+`LESSONS.md`; `implementer` → `adr/`+`gotchas.md`; `qa` → `gotchas.md`; `documenter` → everything.
+  - **Proof of the mechanism:** the "three lessons from the first real calibration" that used to live hardcoded in `agents/evaluator.md` were migrated verbatim to `docs/knowledge/LESSONS.md#evaluator` — the prompt now reads them from the file. Verified with a disposable smoke-test evaluation: the three lessons are still cited and applied, sourced from the file, not the prompt.
+  - **Seed backfill:** the 5 existing `retro.md` files' technical learnings, and `confluence-policy`'s 5 design decisions as the first 5 ADR.
+  - Retires the "Notas de implementación" section from the planner's `tasks.md` template (the qualitative record now belongs in `docs/knowledge/`, not a catch-all drawer). `docs/knowledge/**` is explicitly documented as publishable by default in `confluence-publish`'s scope (with its own fixture/test). New rule 10 in `docs/CONVENTIONS.md` (+ English mirror) and an extension of `docs/FLOWS.md`'s trigger→artifact matrix (+ English mirror).
+
+### Added — `confluence-policy` initiative (2026-08-20)
+
+- **Explicit publication policy for Confluence, closing 5 gaps of the publish/pull circuit before the first real `enabled: true`.** The mirror had a policy-free default (`include: ["**/*.md"]` + two exclusions): it would have published the duplicated EN tree, the plugin's own internal docs (`docs/examples/`, `docs/agents/`) and all 11 roadmap initiatives in full. Now the default `exclude` is **curated** (opt-out, decision D1): out go `docs/en/**`, `docs/examples/**`, `docs/agents/**`, `docs/**/atlassian-connector-notes.md`, and each initiative's plan/ledger (`improvement-plan.md`, `tasks.md`, `test-plan.md`) — Confluence keeps the **decision** (`spec.md`), the **budget** (`evaluation.md`) and the **result** (`retro.md`), not the execution board.
+  - **Missing triggers closed** (D3): `implementer` now syncs Confluence when **closing each phase** (not per task, not only at the end) — with an explicit note that `tasks.md` itself stays out of the mirror by policy even though the trigger fires. `/retro`, `/spec-drift` and `/roadmap-brief` now apply the shared opt-in step at their close, same as the rest of the chain.
+  - **qa's binary evidence** (D4): `**/testing/**` is excluded by default — the qa report embeds screenshots the Atlassian connector cannot attach, which used to publish with broken images. The report stays local-only; `agents/qa.md` no longer declares `confluence-publish` as a dependency.
+  - **New `confluence-scope.py`** (`skills/confluence-publish/scripts/`, +23 tests): the scope's single source of truth, with `--check` (fails with a named-invariant message if `docs/security-scan/**` is missing from `exclude`), `--status` (classifies every doc as in-scope/excluded and, in-scope, as synced/stale/pending against the manifest) and `--stage` (regenerates `docs/confluence/` from scratch, byte-for-byte, idempotently, refusing to touch a non-empty `--out` unless it is a recognizable prior staging, with a reserved marker file `_STAGING-LEEME.md` — never `README.md`, so it can never overwrite a real one — warning it is derived and must not be hand-edited). A custom `**`-aware glob-to-regex translator matches `glob.glob(..., recursive=True)` semantics (`**/x` also matches zero directories) rather than naive `fnmatch`. Hardened after an adversarial review round (3 critical, 3 important, 2 minor gaps, all with regression tests).
+  - **Reverse mapping staged → canonical** exposed as a pure function (`staged_to_canonical`) plus a `--map` subcommand, consumed by `confluence-pull` so it always writes to the **canonical** file under `docs/`, never under the generated `docs/confluence/`.
+  - `hooks/mark-docs-pending.sh` ignores `docs/confluence/**` so regenerating the staging does not mark itself "pending" in a loop.
+  - Documentation: a normative "what ships and what doesn't" section in both Confluence skills, a trigger→artifact→publishes? matrix covering the 10 known triggers in `docs/FLOWS.md` (+ English mirror), and the bidirectional-sync paragraph in both READMEs rewritten to reflect the curated policy and the generated staging folder.
+
 ## [1.13.0] - 2026-08-18
 
 ### Added
@@ -252,6 +290,7 @@ Adoption of best practices from the top agent collections (reference agent colle
 
 Versions predating the introduction of this changelog: a bundle with the `nemesis`, `evaluator`, `planner`, `pdfy` and `qa` agents, and the shared `cybersecurity` and `to-pdf` skills. Packaged as a plugin + marketplace.
 
+[1.14.0]: https://github.com/daycry/custom-agents/releases/tag/v1.14.0
 [1.13.0]: https://github.com/daycry/custom-agents/releases/tag/v1.13.0
 [1.12.0]: https://github.com/daycry/custom-agents/releases/tag/v1.12.0
 [1.11.2]: https://github.com/daycry/custom-agents/releases/tag/v1.11.2
