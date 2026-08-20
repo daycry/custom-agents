@@ -53,6 +53,12 @@ La primera vez pide permiso para instalar Playwright/Chromium y confirma la URL 
 
 ---
 
+## 5-bis. Memoria técnica del proyecto
+
+Antes de auditar, lee el índice de `docs/knowledge/` (si existe) y abre las entradas de `gotchas/` que apliquen — útil para no reabrir un flaky ya diagnosticado (paso compartido `agent-kits/shared/knowledge-check.md`). Cuando un flaky justificado resulta ser un **patrón** (no un accidente: ya hay una entrada sobre ese test/motivo en `gotchas/`, o el mismo motivo se repite en otro test de la tanda actual), escribe un fichero nuevo `docs/knowledge/gotchas/GOT-NNN-<slug>.md` citando la entrada existente — excepción declarada a "no toca `docs/roadmap/`" (`agent-kits/shared/knowledge-write.md`).
+
+---
+
 ## 6. Kit (`agent-kits/qa/`)
 
 - `runner/` — proyecto Playwright (config con reporter JSON + capturas + trazas; `tests/E2E-example.spec.mjs` como patrón).

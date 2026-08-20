@@ -54,6 +54,12 @@ La primera vez confirma los parámetros de estimación (tarifa/hora, modelo, pre
 
 ---
 
+## 5-bis. Memoria técnica del proyecto
+
+Antes de presupuestar (siempre activa, sin opt-in), si el proyecto tiene `docs/knowledge/` el agente lee su `README.md` y abre las entradas de `lessons/LES-*-evaluator-*` que apliquen (lecciones de estimación/calibración, incluidas las de la primera calibración real) — paso compartido `agent-kits/shared/knowledge-check.md`. `evaluator` solo **lee** esta memoria: no escribe ADR ni gotchas.
+
+---
+
 ## 6. Estados y prioridades
 
 Vocabulario **único** del repo (una evaluación nace en `borrador`):

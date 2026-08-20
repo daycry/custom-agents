@@ -57,6 +57,12 @@ La primera vez confirma los parámetros de estimación (tarifa/hora, modelo, pre
 
 ---
 
+## 4-bis. Memoria técnica del proyecto
+
+Antes de descomponer, lee el índice de `docs/knowledge/` (si existe) y abre las entradas de `adr/` + `lessons/` que apliquen — paso compartido `agent-kits/shared/knowledge-check.md`. Cuando una decisión de diseño del plan **cruza el umbral** de `agent-kits/shared/knowledge-write.md` (cierra una alternativa y afecta a 2+ piezas, o se tomó en una puerta), escribe un ADR `estado: propuesta` en `docs/knowledge/adr/` con la plantilla `agent-kits/shared/templates/adr.md` y actualiza el índice en el mismo cambio; si no cruza el umbral, no escribe nada.
+
+---
+
 ## 5. Reglas clave
 
 El agente no implementa ni toca el código: solo lee el proyecto y escribe dentro de `docs/roadmap/`. Toda cifra lleva un método o supuesto detrás; lo no verificable se marca en lugar de inventarse. El formato es siempre el de las dos plantillas, con Markdown válido (línea en blanco antes de listas y tras encabezados, checkboxes reales). Los IDs de tarea son estables y, al actualizar un plan, se editan sus ficheros y se añade una línea al changelog en vez de duplicar carpetas.

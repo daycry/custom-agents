@@ -45,6 +45,10 @@ y el versionado sigue [SemVer](https://semver.org/lang/es/).
   - `hooks/mark-docs-pending.sh` ignora `docs/confluence/**` para que regenerar el staging no se marque a sí mismo como "pendiente" en bucle.
   - Documentación: sección normativa "qué sube y qué no" en las dos skills de Confluence, matriz disparador→artefacto→¿se publica? cubriendo los 10 disparadores conocidos en `docs/FLOWS.md` (+ espejo EN), y el párrafo de sincronización bidireccional de ambos README reescrito para reflejar la política curada y la carpeta de staging generada.
 
+### Docs
+
+- Cerrado el hueco documental de las dos iniciativas de esta versión (política curada de Confluence, memoria técnica `docs/knowledge/`): tabla "Qué te llevas" de `README.md`/`README.es.md` raíz, `CLAUDE.md`, ambos índices de documentación (`docs/README.md`, `docs/en/README.md`), el inventario de fragmentos de `agent-kits/shared/README.md`, y una nota breve de "memoria técnica" en la página de cada agente implicado (`docs/agents/evaluator.md`, `planner.md`, `implementer.md`, `qa.md`, `documenter.md`).
+
 ## [1.13.0] - 2026-08-18
 
 ### Añadido

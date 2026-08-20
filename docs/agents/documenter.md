@@ -34,6 +34,10 @@ repositorio** y de su vocabulario, respetando convenciones y docs existentes. El
 proyecto webscorpo (CI4 modular) sirve de **referencia de estilo y nivel de detalle**, no como
 esquema a clonar. Guía completa en `agent-kits/documenter/taxonomy.md`.
 
+## Memoria técnica del proyecto
+
+Antes de documentar (siempre activa, sin opt-in), si existe `docs/knowledge/` lee su `README.md` y abre **todo lo que liste** (`adr/`, `gotchas/`, `lessons/` — paso compartido `agent-kits/shared/knowledge-check.md`). `documenter` es el único agente que la lee entera: la **indexa** en la categoría "arquitectura y decisiones" de la taxonomía sin volver a derivar las decisiones leyendo el código; la memoria técnica es la fuente, `documenter` la organiza.
+
 ## Sincronización con Confluence (opt-in)
 
 Tras escribir en `docs/`, invoca la skill compartida `confluence-publish` para reflejar los
