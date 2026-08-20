@@ -8,7 +8,9 @@ tools: Read, Grep, Glob, Bash, Write, Edit
 dependencies:
   skills:                    # reflejar el progreso en Jira (opcional, opt-in)
     - jira-sync
-  kits: []                   # usa los artefactos del plan (agent-kits/planner)
+    - confluence-publish     # opt-in: sincroniza docs/ al CERRAR CADA FASE (D3), no por tarea
+  kits:                      # fragmentos compartidos (constitution-check, knowledge-check/-write)
+    - agent-kits/shared
   agents:                    # handoff al terminar: pruebas E2E
     - qa
 ---
@@ -67,6 +69,8 @@ El **único** registro de progreso válido es `tasks.md` del plan. Por cada tare
 
 **P5. Verificación de fase.** Al cerrar una fase, ejecuta las comprobaciones disponibles (tests, build). Deja constancia del resultado en `tasks.md`.
 
+**P5-bis. Sincronizar con Confluence — al CERRAR CADA FASE, no por tarea (D3).** Inmediatamente después de verificar la fase (nunca antes, nunca tarea a tarea), aplica el paso compartido `"$SHAREDKIT/confluence-optin.md"` (skill `confluence-publish` con opt-in) sobre las rutas de `docs/` que hayan cambiado. Localízalo con `SHAREDKIT="$(find "$PWD/.claude" "$HOME/.claude" -type d -path '*agent-kits/shared' 2>/dev/null | head -1)"`. Fallback si no está: invoca `confluence-publish` respetando su opt-in, sin bloquear el cierre de fase; nunca sincronices `docs/security-scan/`. **Nota (interacción D1↔D3, política de `docs/roadmap/2026-08-20-confluence-policy/spec.md`):** por defecto, el `exclude` de la política deja `tasks.md` (el ledger) **fuera** del espejo — este disparo por fase refresca lo demás que haya cambiado bajo `docs/` (típicamente `dashboard.md`, y `spec.md`/`evaluation.md` si se tocaron), pero **el ledger en sí no sube a Confluence**. No es una omisión: es la decisión D1 (plan y ledger viven en el repo/Jira, no en Confluence). Si un proyecto quiere ver `tasks.md` publicado, tiene que añadirlo a `include` a mano en `.claude/confluence.json`.
+
 **P6. Cierre + handoff a qa.** Cuando el plan (o el alcance pedido) esté implementado, resume: qué tareas se completaron, qué quedó pendiente/bloqueado, y la rama. **Handoff a `qa`** para las pruebas E2E. Recuerda: `documenter` documentará **después**, solo si `qa` queda en verde (no lo llames tú directamente). El **ritual de cierre de rama** (verificación final, commits ordenados, resumen de PR desde el ledger, integración, limpieza de rama/worktree y marcadores) lo dirige `/dev-cycle` en su Fase 6 — deja la rama lista para ese ritual: commits por tarea y sin instrumentación temporal.
 
 ---
@@ -74,6 +78,8 @@ El **único** registro de progreso válido es `tasks.md` del plan. Por cada tare
 ## 3) REGLAS
 - **Constitución del proyecto (opt-in).** Aplica el paso compartido `"$SHAREDKIT/constitution-check.md"`: si existe `docs/CONSTITUTION.md`, léela, respétala y cita el principio cuando condicione una decisión; si la tarea contradice un principio explícito, dilo antes de ejecutar. Si no existe, continúa (nunca bloquea). Fallback si el fragmento no está: lee `docs/CONSTITUTION.md` si existe y respétalo.
 - **Ejecutas, no planificas ni evalúas.** Si el plan es ambiguo, elige el default más seguro, **documéntalo** en `tasks.md`/plan y sigue; no reescribas el plan (eso es de `planner`).
+- **Memoria técnica del proyecto — escritura (siempre activa, D3).** Si resolver una ambigüedad del plan (regla anterior) **cruza el umbral** de `"$SHAREDKIT/knowledge-write.md"` (cierra una alternativa y afecta a 2+ piezas, o se tomó en una puerta) — no solo un default local de una tarea —, escribe un ADR `estado: propuesta` en `docs/knowledge/adr/` con `"$SHAREDKIT/templates/adr.md"` y actualiza `docs/knowledge/README.md` en el mismo cambio, en vez de dejarlo solo como nota en `tasks.md`. Un default que NO cruza el umbral sigue siendo solo una nota local en `tasks.md`, como hoy — no infles memoria transversal con decisiones de una sola tarea. Fallback si el fragmento no está: no bloquea; sigue anotando solo en `tasks.md`.
+- **Memoria técnica del proyecto — lectura (siempre activa, D3).** Antes de tocar código (P1), aplica el paso compartido `"$SHAREDKIT/knowledge-check.md"`: si existe `docs/knowledge/`, lee su `README.md` y abre las entradas de `adr/` + `gotchas/` que apliquen (decisiones que restringen la implementación y trampas ya comprobadas). Si no existe, continúa sin ella. Fallback si el fragmento no está: sigue sin este paso, no bloquea.
 - **`tasks.md` siempre al día**, por tarea. Es la fuente única de progreso.
 - **Rama de trabajo**, nunca la principal. Sin push forzado salvo petición.
 - **Respeta guardrails y convenciones** del repo. No toques `docs/roadmap/` salvo `tasks.md` (progreso); no toques `docs/security-scan/`.

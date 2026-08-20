@@ -181,6 +181,20 @@ Notas:
 
 ---
 
+## Memoria técnica del proyecto (`docs/knowledge/`)
+
+En un proyecto recién instalado, `docs/knowledge/` **todavía no existe** — nace vacía y se puebla
+con el tiempo, a medida que `planner`/`implementer` cruzan el umbral de una decisión de diseño,
+`debug-root-cause`/`qa` registran una trampa comprobada, y `/retro` cierra iniciativas con
+aprendizajes técnicos. No hay que crearla a mano ni esperar contenido desde el primer día: ver
+regla 10 de [`CONVENTIONS.md`](CONVENTIONS.md). Las carpetas `gotchas/` y `lessons/` (una entrada
+por fichero, igual que `adr/`) nacen **directas** en el primer registro — sin los ficheros stub
+`gotchas.md`/`LESSONS.md` que sí existen en este repo (arrastrados desde antes del split
+`docs/knowledge/adr/ADR-006-*`, porque la escritura remota no puede borrarlos del disco de quien
+ya los tenía).
+
+---
+
 ## Observabilidad y monitores de sesión
 
 El plugin mide el **coste** (tokens/€/horas por artefacto y tarea — `usage-meter`); para ver la

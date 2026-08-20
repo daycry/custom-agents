@@ -56,6 +56,12 @@ publicado.
 ### Paso 1 — construir el conjunto remoto
 1. A partir del **anclaje** guardado (página raíz del proyecto), recorre el subárbol con `getConfluencePageDescendants` para obtener todas las páginas del proyecto (título, `pageId`, jerarquía).
 2. Cruza con el **manifiesto**: cada `pageId` conocido → su **fichero local**. Las páginas del árbol que **no** estén en el manifiesto son "**nuevas en Confluence**" (creadas allí directamente): propón una ruta local coherente con el árbol (carpeta por página con hijos, `.md` por hoja), pero **márcalas aparte** para que el usuario confirme dónde van.
+3. **Simetría con `confluence-publish` (misma política, mismo alcance).** El pull aplica el **mismo** `include`/`exclude` de `.claude/confluence.json` que usa `confluence-publish` para decidir qué se sube (fuente de la lista vigente: `assets/confluence.example.json` — no la dupliques aquí). Una página remota cuyo destino local caería **fuera** del alcance actual (p. ej. porque la política cambió después de publicarla) se trata como "**no gestionada por el circuito**": no se recrea ni se sobrescribe sin más — se lista aparte y se pregunta antes de tocar nada. Con el **staging activo** (D5), el destino de escritura de cada página se resuelve con el **mapeo inverso staged → canónico** de `confluence-scope.py` — nunca lo reimplementes con tus propios cálculos de ruta:
+   ```bash
+   SCOPE="$(find "$PWD/.claude" "$HOME/.claude" -type f -path '*skills/confluence-publish/scripts/confluence-scope.py' 2>/dev/null | head -1)"
+   python3 "$SCOPE" --map "docs/confluence/<ruta-de-la-pagina>.md" --root "$PWD"
+   ```
+   Exit 0 + la ruta canónica por stdout → escribe **ahí** (nunca bajo `docs/confluence/`). Exit 1 (página huérfana, sin fichero canónico correspondiente) → avisa y **no escribas nada**. Si el script no está disponible, degrada a `docs/` directamente (staging desactivado) sin bloquear el pull.
 
 ### Paso 2 — leer y clasificar (sin escribir aún)
 Para cada página mapeada, obtén su cuerpo con `getConfluencePage`. **Pide el cuerpo en el formato
@@ -111,9 +117,21 @@ Cierra en llano: "Listo ✅ Actualicé 3 y creé 1. Tienes conflicto en 1, te lo
 - **Sin config → no inventes.** Si el proyecto nunca publicó, remite a `confluence-publish` para el alta; no adivines espacio ni anclaje.
 - **Fidelidad honesta.** La conversión Confluence→Markdown puede no ser idéntica al original (tablas complejas, paneles, imágenes/adjuntos). Si detectas pérdida, dilo en el cierre; no afirmes fidelidad perfecta.
 
+## Qué sube y qué no (política — resumen; fuente en confluence-publish)
+
+El pull respeta la misma política que `confluence-publish` (detalle normativo y tabla completa en
+`skills/confluence-publish/SKILL.md`, sección "qué sube y qué no"): lo que no está en el espejo
+por `exclude` (doc interna del plugin, plan/ledger del roadmap, `**/testing/**`, `docs/en/**`,
+`docs/security-scan/**`…) tampoco puede "bajar" de Confluence, porque nunca subió. La regla que
+sí es propia del pull: **el destino de escritura es SIEMPRE el fichero canónico de `docs/`**, con
+staging activo o sin él — `docs/confluence/` es una salida de `confluence-publish`, nunca una
+entrada de `confluence-pull` (ver Paso 1, punto 3).
+
 ## Relación con confluence-publish
 
-Comparten `.claude/confluence.json` (destino) y `.claude/confluence-state.json` (mapa + hashes).
-`publish` sube y `pull` baja; el manifiesto es la memoria común que hace ambos idempotentes. Un PM
-típico: `pull` al empezar (traer lo último) → trabaja/crea specs con `/pm-cycle` → `publish`
-(o lo hace el hook) al terminar.
+Comparten `.claude/confluence.json` (destino, y su `include`/`exclude` — mismo alcance en los dos
+sentidos, ver Paso 1) y `.claude/confluence-state.json` (mapa + hashes). `publish` sube y `pull`
+baja; el manifiesto es la memoria común que hace ambos idempotentes. Un PM típico: `pull` al
+empezar (traer lo último) → trabaja/crea specs con `/pm-cycle` → `publish` (o lo hace el hook) al
+terminar. Con staging activo, `pull` **siempre** escribe en el fichero canónico de `docs/`, nunca
+en `docs/confluence/` (esa carpeta es una salida derivada de `publish`, no una entrada del pull).

@@ -27,6 +27,10 @@ while IFS= read -r p; do
   [ -n "$p" ] || continue
   case "$p" in
     *docs/security-scan/*) continue ;;   # nunca sincronizar datos sensibles de nemesis
+    *docs/confluence/*) continue ;;      # carpeta STAGED (D5, generada por --stage): regenerarla
+                                          # no es una edicion de documentacion de usuario; si no se
+                                          # ignora aqui, cada --stage marca "pendiente" y dispara
+                                          # otro --stage en bucle
     *docs/*) hit=1 ;;                     # cambio bajo docs/ -> pendiente
   esac
 done <<EOF

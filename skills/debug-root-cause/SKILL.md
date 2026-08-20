@@ -41,6 +41,19 @@ de la Fase 1 convertida en test). Re-ejecuta la suite completa: el fix no puede 
 cosa.
 *Evidencia:* diff del fix + test de regresión en verde + suite en verde.
 
+**Cierre de Fase 4 — memoria técnica (siempre activa, D3).** Localiza el kit compartido:
+`SHAREDKIT="$(find "$PWD/.claude" "$HOME/.claude" -type d -path '*agent-kits/shared' 2>/dev/null | head -1)"`.
+Con la Fase 4 completa (fix aplicado, no propuesto), comprueba el umbral de
+`"$SHAREDKIT/knowledge-write.md"`: si esta causa raíz
+costó **≥1 ciclo de depuración** (llegaste a esta skill) o **rompió/casi rompió una garantía del
+producto**, escribe un gotcha en un fichero nuevo `docs/knowledge/gotchas/GOT-NNN-<slug>.md` con los 4 campos — **síntoma** (de la
+Fase 1), **causa raíz** (de la Fase 3, la hipótesis probada), **qué hacer en su lugar**, y
+**evidencia** (enlace/referencia al test de regresión de esta misma fase) — y actualiza el índice
+`docs/knowledge/README.md` en el mismo cambio. Si no cruza el umbral (fix trivial, o causa ya
+documentada en un gotcha existente — enlázalo, no dupliques), **no escribas nada**: decláralo así
+en la evidencia de cierre. Si `docs/knowledge/` no existe, créala en este primer registro; si el
+fragmento no está disponible, no bloquea: sigue sin escribir gotcha.
+
 ## Integración con /dev-cycle (gancho del 3.er rojo)
 
 Cuando el bucle qa→implementer llega al **3.er rojo**, `/dev-cycle` ejecuta **UNA pasada** de
@@ -56,6 +69,11 @@ completas. Resultado del gancho:
   PREGUNTA igual que hoy — pero con evidencia sobre la mesa. Dentro de la pasada, el ciclo
   Fase 3→Fase 2 se recorre como máximo **2 veces**; a la segunda hipótesis caída, se reporta
   parcial (la pasada es acotada, no una investigación abierta).
+
+En el gancho, el cierre de Fase 4 (memoria técnica) **solo aplica cuando la Fase 4 se completa de
+verdad** (el usuario decidió "seguir con el fix" y el fix quedó aplicado con su test). Con
+diagnóstico parcial, o con Fase 4 detenida en "fix propuesto sin aplicar", no se escribe gotcha —
+no hay causa raíz probada en la mano, solo hipótesis vivas o un fix sin confirmar.
 
 Si el usuario elige "seguir con el fix", aplicarlo (Fase 4) abre un ciclo de qa nuevo con el
 contador a cero — **una sola vez**: si ese ciclo vuelve a agotar sus 3 rojos, NO se repite el

@@ -1,0 +1,20 @@
+{
+  "publish": {
+    "source": "docs",
+    "layout": "mirror-tree",
+    "include": ["**/*.md"],
+    "exclude": [
+      "**/node_modules/**",
+      "docs/security-scan/**",
+      "docs/en/**",
+      "docs/examples/**",
+      "docs/agents/**",
+      "docs/**/atlassian-connector-notes.md",
+      "docs/roadmap/**/improvement-plan.md",
+      "docs/roadmap/**/tasks.md",
+      "docs/roadmap/**/test-plan.md",
+      "**/testing/**"
+    ],
+    "onConflict": "update"
+  }
+}

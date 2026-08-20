@@ -181,6 +181,19 @@ Notes:
 
 ---
 
+## Project technical memory (`docs/knowledge/`)
+
+In a freshly installed project, `docs/knowledge/` **does not exist yet** — it is born empty and
+gets populated over time, as `planner`/`implementer` cross the threshold of a design decision,
+`debug-root-cause`/`qa` register a proven trap, and `/retro` closes initiatives with technical
+learnings. There is no need to create it by hand or expect content from day one: see rule 10 of
+[`CONVENTIONS.md`](CONVENTIONS.md). The `gotchas/` and `lessons/` folders (one file per entry,
+same as `adr/`) are born **directly** on first write — without the `gotchas.md`/`LESSONS.md` stub
+files that do exist in this repo (carried over from before the `docs/knowledge/adr/ADR-006-*`
+split, because remote writes cannot delete them from a disk that already had them).
+
+---
+
 ## Observability and session monitors
 
 The plugin measures **cost** (tokens/€/hours per artifact and task — `usage-meter`); to see

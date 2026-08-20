@@ -2,6 +2,10 @@
 # Informes de auditoría de nemesis (contienen hallazgos y evidencias sensibles).
 docs/security-scan/
 **/security-scan/
+# Excepción: fixtures de test bajo control de versión (contenido inventado,
+# no un hallazgo real) que necesitan un docs/security-scan/ de mentira para
+# probar la invariante de confluence-scope.py (gap I1, revisión adversarial).
+!tests/fixtures/**
 
 # === Binarios y dependencias de herramientas ===
 # El toolkit de nemesis se instala fuera del repo (~/.claude/security-tools/).

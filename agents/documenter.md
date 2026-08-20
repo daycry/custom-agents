@@ -71,10 +71,12 @@ Cómo decidir (detalle en `taxonomy.md`):
 
 Cubre, **cuando apliquen**, estas **categorías de contenido** (el nombre lo eliges tú a partir del
 proyecto): índice/punto de entrada (típicamente `docs/README.md`), índice de conocimiento para
-IA/RAG (típicamente `docs/RAG-INDEX.md`), arquitectura y decisiones, stack técnico, unidades del
-sistema (una página por módulo/paquete/servicio/componente según el reparto real del código),
-guías how-to, y documentación de producto/usuario. Declara en el índice las categorías que se
-omiten y por qué.
+IA/RAG (típicamente `docs/RAG-INDEX.md`), **arquitectura y decisiones** (si existe `docs/knowledge/`,
+**indexa** sus entradas de `adr/` y `gotchas/` en esta categoría — no vuelvas a derivar decisiones
+leyendo el código: la memoria técnica del proyecto es la fuente, tú la organizas), stack técnico,
+unidades del sistema (una página por módulo/paquete/servicio/componente según el reparto real del
+código), guías how-to, y documentación de producto/usuario. Declara en el índice las categorías que
+se omiten y por qué.
 
 - **`docs/roadmap/`** (spec/evaluación/plan/testing) NO lo gestionas tú; solo **enlázalo** desde el índice si existe.
 - El ejemplo `docs/` de webscorpo es una **referencia de estilo y nivel de detalle**, no una plantilla a copiar: otro proyecto tendrá otras carpetas.
@@ -93,7 +95,7 @@ reales:
   `pyproject.toml`, `go.mod`…) → stack y versiones.
 - Estructura de carpetas, módulos/paquetes/componentes, puntos de entrada, rutas/endpoints.
 - Configuración, variables de entorno (`.env.example`), scripts (build/test/lint), CI.
-- README existente, ADRs, comentarios relevantes. Reutiliza lo que ya haya; no dupliques.
+- README existente, comentarios relevantes. Si existe `docs/knowledge/`, **indexa** sus ADR y gotchas en la taxonomía correspondiente (categoría "arquitectura y decisiones" de arriba); no los reescribas ni vuelvas a derivarlos del código.
 
 **P3. Proponer estructura y confirmar.** A partir del recon (P2), **propón** la estructura de
 `docs/` derivada del proyecto: las carpetas/ficheros con los **nombres propios del proyecto** y
@@ -140,6 +142,7 @@ Aplícala tras escribir en `docs/`, pasando a `confluence-publish` las rutas afe
 
 ## 5) REGLAS
 - **Constitución del proyecto (opt-in).** Aplica el paso compartido `"$SHAREDKIT/constitution-check.md"`: si existe `docs/CONSTITUTION.md`, léela, respétala y cita el principio cuando condicione una decisión. Si no existe, continúa (nunca bloquea). Fallback: lee `docs/CONSTITUTION.md` si existe y respétalo.
+- **Memoria técnica del proyecto — lectura (siempre activa, D3).** Antes de documentar, aplica el paso compartido `"$SHAREDKIT/knowledge-check.md"`: si existe `docs/knowledge/`, lee su `README.md` y abre **todo lo que liste** (`adr/`, `gotchas/`, `lessons/` — eres quien indexa esta memoria en la documentación de producto, ver §categorías). Si no existe, continúa sin ella. Fallback si el fragmento no está: sigue sin este paso, no bloquea.
 - **No implementas ni tocas el código.** Solo lees el proyecto y escribes en `docs/` (excepto `docs/roadmap/**` y `docs/security-scan/**`).
 - **Todo con evidencia.** Rutas, clases, comandos reales. Lo no verificable se marca `⚠️ verificar`, no se inventa.
 - **Formato fijo.** Taxonomía y plantillas del kit; Markdown válido (línea en blanco antes de listas y tras encabezados, tablas correctas). Sin relleno.
