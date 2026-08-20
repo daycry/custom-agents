@@ -33,6 +33,7 @@ custom-agents/               (se despliega como .claude/)
 | Rutas en scripts | Relativas entre sí (`dirname "$BASH_SOURCE"`); nunca absolutas del repo. |
 | Determinismo | Los cálculos y veredictos van en **scripts con tests y exit codes** (patrón `worklog`/`qa-gate`/`ledger-lint`/`usage-meter`/`task-brief`), no en prosa del agente. |
 | Degradación, no bloqueo | Las piezas opcionales (medición, constitución, Jira, Confluence) degradan con aviso; NUNCA bloquean el ciclo. |
+| Memoria técnica | `docs/knowledge/` (siempre activa, sin opt-in): `adr/ADR-NNN-<slug>.md`, `gotchas/GOT-NNN-<slug>.md`, `lessons/LES-NNN-<agente>-<slug>.md`, con `README.md` como única puerta de entrada (índice). Lectura selectiva por área (`agent-kits/shared/knowledge-check.md`: evaluator/planner/implementer/qa/documenter); escritura con umbral anti-burocracia (`agent-kits/shared/knowledge-write.md`: ADR solo si cierra alternativa y afecta 2+ piezas, gotcha solo si costó ≥1 ciclo de depuración). |
 
 ## Agentes
 

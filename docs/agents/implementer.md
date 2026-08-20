@@ -33,6 +33,10 @@ Es el **único agente que modifica el código** del proyecto. Por eso trabaja so
 los guardrails del repo (p. ej. el local-only de `nemesis`) y no marca completado nada con tests
 fallando o criterios sin cumplir.
 
+## Memoria técnica del proyecto
+
+Antes de tocar código, lee el índice de `docs/knowledge/` (si existe) y abre las entradas de `adr/` + `gotchas/` que apliquen (decisiones que restringen la implementación, trampas ya comprobadas) — paso compartido `agent-kits/shared/knowledge-check.md`. Si resolver una ambigüedad del plan cruza el umbral de `agent-kits/shared/knowledge-write.md` (cierra una alternativa y afecta a 2+ piezas, o se tomó en una puerta), escribe un ADR `estado: propuesta` en `docs/knowledge/adr/` en vez de dejarlo solo como nota en `tasks.md`.
+
 ## Ledger canónico
 
 `tasks.md` es la **fuente única de verdad** del progreso. Si conviven otras herramientas con su

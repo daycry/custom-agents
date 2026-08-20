@@ -52,8 +52,9 @@ Casi todo el utillaje alrededor de los agentes de código responde a *cómo* esc
 | **Puerta económica go/no-go** | `/pm-cycle` cierra en la decisión: no se construye nada sin un *go* explícito |
 | **Real vs estimado + calibración** | `/roadmap-metrics` los compara; `/retro` convierte cada cierre en un ratio tokens/hora medido en `CALIBRATION.md` que afina la siguiente estimación |
 | **Jira sin fricción** (opt-in) | Un issue por tarea o por fase, tipo deducido de la jerarquía, worklog al completar con tope de jornada, resultado de la revisión publicado como comentario |
-| **Confluence bidireccional** (opt-in) | `docs/` ⇄ Confluence, idempotente, para que un PM sin git vea siempre el estado actual |
+| **Confluence bidireccional** (opt-in) | `docs/` ⇄ Confluence, idempotente, con **alcance de publicación curado** (`exclude` opt-out sobre `include: ["**/*.md"]`, `confluence-scope.py`) para que un PM sin git vea siempre el estado actual — nunca el tablero de ejecución del roadmap |
 | **Cadena spec → eval → plan → tasks** | Una carpeta por iniciativa, artefactos enlazados en ambos sentidos y `tasks.md` como **ledger canónico** validado por `ledger-lint.py` |
+| **Memoria técnica que sobrevive al chat** | `docs/knowledge/` (ADR/gotchas/lecciones, un fichero por entrada) recoge decisiones de diseño, trampas comprobadas y lecciones de proceso; la leen en su puerta `evaluator`/`planner`/`implementer`/`qa`, y la indexa `documenter` |
 | **Constitución del proyecto con enforcement** | Principios permanentes que leen todos los agentes que escriben — y la revisión convierte una violación en un gap de corrección con cita de línea |
 | **Deriva spec↔código** | `/spec-drift` reverifica las specs implementadas contra el código de hoy (`vigente` / `derivado` / no verificable, con evidencia) |
 | **Disciplina de ingeniería, opt-in** | `.claude/dev.json`: TDD estricto con evidencia del rojo, worktrees aislados y subagentes de contexto fresco con personas de dominio |

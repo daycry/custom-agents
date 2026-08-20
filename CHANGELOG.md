@@ -45,6 +45,10 @@ and versioning follows [SemVer](https://semver.org/).
   - `hooks/mark-docs-pending.sh` ignores `docs/confluence/**` so regenerating the staging does not mark itself "pending" in a loop.
   - Documentation: a normative "what ships and what doesn't" section in both Confluence skills, a trigger→artifact→publishes? matrix covering the 10 known triggers in `docs/FLOWS.md` (+ English mirror), and the bidirectional-sync paragraph in both READMEs rewritten to reflect the curated policy and the generated staging folder.
 
+### Docs
+
+- Closed the documentation gap for this release's two initiatives (curated Confluence policy, `docs/knowledge/` technical memory): root `README.md`/`README.es.md` "What you get" table, `CLAUDE.md`, both documentation indexes (`docs/README.md`, `docs/en/README.md`), `agent-kits/shared/README.md`'s fragment inventory, and a short "technical memory" note on each involved agent's page (`docs/agents/evaluator.md`, `planner.md`, `implementer.md`, `qa.md`, `documenter.md`).
+
 ## [1.13.0] - 2026-08-18
 
 ### Added

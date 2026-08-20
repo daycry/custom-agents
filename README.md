@@ -52,8 +52,9 @@ Most tooling around coding agents answers *how* to write the code. This plugin a
 | **Economic go/no-go gate** | `/pm-cycle` closes at the decision: nothing is built without an explicit *go* |
 | **Estimated vs actual + calibration** | `/roadmap-metrics` compares them; `/retro` turns each closure into a measured tokens/hour ratio in `CALIBRATION.md` that sharpens the next estimate |
 | **Jira without friction** (opt-in) | One issue per task or per phase, issue type inferred from the hierarchy, worklog on completion with a daily cap, review outcome posted as a comment |
-| **Bidirectional Confluence** (opt-in) | `docs/` ⇄ Confluence, idempotent, so a PM without git always sees the current state |
+| **Bidirectional Confluence** (opt-in) | `docs/` ⇄ Confluence, idempotent, with a **curated publish scope** (opt-out `exclude` over `include: ["**/*.md"]`, `confluence-scope.py`) so a PM without git always sees the current state — never the roadmap's execution board |
 | **spec → eval → plan → tasks chain** | One folder per initiative, artifacts linked both ways, `tasks.md` as the **canonical ledger** validated by `ledger-lint.py` |
+| **Technical memory that outlives a chat** | `docs/knowledge/` (ADR/gotchas/lessons, one file per entry) captures design decisions, proven traps and process lessons; read at the right gate by `evaluator`/`planner`/`implementer`/`qa`, indexed by `documenter` |
 | **Project constitution with enforcement** | Permanent principles that every writing agent reads — and the review turns a violation into a correction gap with a line citation |
 | **Spec↔code drift** | `/spec-drift` re-verifies implemented specs against today's code (`vigente` / `derivado` / not verifiable, with evidence) |
 | **Engineering discipline, opt-in** | `.claude/dev.json`: strict TDD with red-phase evidence, isolated worktrees, and fresh-context subagents with domain personas |
