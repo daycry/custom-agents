@@ -8,7 +8,7 @@
 | **Estado** | borrador |
 | **Tipo** | Refactor / Infra (optimización de consumo de tokens) |
 | **Prioridad** | Media |
-| **Solicitante** | jmano@mediapro.tv |
+| **Solicitante** | daycry |
 | **Responsable** | equipo de plugin (agente `implementer`) |
 | **Spec** | [`spec.md`](spec.md) |
 | **Evaluación** | [`evaluation.md`](evaluation.md) |
@@ -129,7 +129,7 @@ Esta iniciativa recorta el **número de tokens** que consume el plugin —no el 
 - [x] **Criterios de éxito / métricas** acordados (spec §Pruebas: inspección de prompts, prueba real+red-caída de `rates-verify`, lint verde)
 - [x] **Accesos y credenciales** — solo dependencia externa blanda: doc de precios accesible por WebFetch para C-05 (degradación controlada si falla)
 - [x] **Entornos** disponibles — trabajo sobre el propio repo del plugin; no requiere staging/prod
-- [x] **Stakeholders** identificados (solicitante jmano@mediapro.tv; validación del usuario en la puerta del plan)
+- [x] **Stakeholders** identificados (solicitante daycry; validación del usuario en la puerta del plan)
 - [x] **Dependencias externas** mapeadas (doc de precios API para C-05; resto sin dependencias duras)
 - [x] **Restricciones** conocidas (retrocompatibilidad vía fallback de una línea; sin deadline; no reinventar lo que trae Claude Code)
 - [x] **Tarifa/hora y supuestos de coste** — defaults del evaluator (50 €/h) como base, no bloqueante; el precio de tokens queda `⚠️ verificar` y lo cierra C-05

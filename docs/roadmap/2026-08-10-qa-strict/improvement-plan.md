@@ -8,8 +8,8 @@
 | **Estado** | borrador |
 | **Tipo** | Infra (tooling del plugin: scripts, hooks, prompts y plantillas) |
 | **Prioridad** | Media |
-| **Solicitante** | jmano@mediapro.tv |
-| **Responsable** | `implementer` (agente) · supervisión: jmano@mediapro.tv |
+| **Solicitante** | daycry |
+| **Responsable** | `implementer` (agente) · supervisión: daycry |
 | **Spec** | [`spec.md`](spec.md) |
 | **Evaluación** | [`evaluation.md`](evaluation.md) |
 

@@ -7,7 +7,7 @@
 | **Fecha** | 2026-07-09 |
 | **Estado** | completado |
 | **Prioridad global** | Media |
-| **Solicitante** | Jordi |
+| **Solicitante** | daycry |
 | **Spec** | [`spec.md`](spec.md) |
 | **Plan** | [`improvement-plan.md`](improvement-plan.md) |
 | **Características evaluadas** | 2 |

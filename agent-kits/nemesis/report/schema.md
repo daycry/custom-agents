@@ -5,12 +5,12 @@ El agente normaliza SAST (skill `cybersecurity`) + DAST (`active-scan.sh` + tool
 ```jsonc
 {
   "meta": {
-    "project": "bloonde-laravel",
-    "target_url": "https://bloonde-laravel.test",   // null si solo SAST
+    "project": "miapp",
+    "target_url": "https://miapp.test",   // null si solo SAST
     "scan_id": "2026-07-02_1530",
     "date": "2026-07-02 15:30",
     "scope": "full",                                  // full | quick | diff | dast
-    "authorized_by": "jcode",                          // registro de autorización
+    "authorized_by": "<usuario que autoriza>",                          // registro de autorización
     "tools_used": ["cybersecurity-skill","active-scan","nuclei","testssl"],
     "overall_score": 63,                               // 0-100
     "grade": "C",                                      // A|B|C|D|F
@@ -27,14 +27,14 @@ El agente normaliza SAST (skill `cybersecurity`) + DAST (`active-scan.sh` + tool
   "findings": [
     {
       "id":"F-001",
-      "title":"Path traversal en borrado de ficheros vía original_filename",
+      "title":"Path traversal en la descarga de ficheros vía nombre de fichero",
       "severity":"high",            // critical|high|medium|low|info
       "confidence":"high",          // high|medium|low
       "area":"vuln",                // vuln|authz|secrets|deps|iac|threat|ai|logic|dast
       "cwe":"CWE-22",
       "owasp":"A01:2021",
       "source":"sast",              // sast | dast
-      "location":"app/Http/Controllers/Admin/PostAdminController.php:175",
+      "location":"src/Controllers/FileController.php:120",
       "what":"Qué es, en 1-2 frases.",
       "why":"Por qué importa / impacto.",
       "exploit":"Cómo lo explotaría un atacante (didáctico).",

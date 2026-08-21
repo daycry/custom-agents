@@ -9,6 +9,16 @@ and versioning follows [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.14.1] - 2026-08-20
+
+### Changed
+
+- **Neutral placeholders across every example, so the public repo carries no environment-specific values.** The plugin metadata's author email now uses the maintainer's GitHub noreply identity, and every sample that named a concrete Atlassian site, Jira project key, Confluence space or in-house project was replaced with neutral stand-ins (`PROJ` / `PROJ-59`, `DOCS`, `miapp`, `<usuario que autoriza>`, generic source paths). Touches `skills/jira-sync/SKILL.md` and its picker template, `skills/confluence-publish`'s asset templates and `confluence.example.json`, `agents/nemesis.md` plus its report schema, `agents/documenter.md` with `agent-kits/documenter/taxonomy.md`, and the roadmap history. **No behaviour change** — prompts, scripts and tests are untouched in substance; only the illustrative values differ.
+
+### Docs
+
+- Closed the documentation gap for this release's two initiatives (curated Confluence policy, `docs/knowledge/` technical memory): root `README.md`/`README.es.md` "What you get" table, `CLAUDE.md`, both documentation indexes (`docs/README.md`, `docs/en/README.md`), `agent-kits/shared/README.md`'s fragment inventory, and a short "technical memory" note on each involved agent's page (`docs/agents/evaluator.md`, `planner.md`, `implementer.md`, `qa.md`, `documenter.md`).
+
 ## [1.14.0] - 2026-08-20
 
 ### Added — `knowledge-split` initiative (2026-08-20)
@@ -44,10 +54,6 @@ and versioning follows [SemVer](https://semver.org/).
   - **Reverse mapping staged → canonical** exposed as a pure function (`staged_to_canonical`) plus a `--map` subcommand, consumed by `confluence-pull` so it always writes to the **canonical** file under `docs/`, never under the generated `docs/confluence/`.
   - `hooks/mark-docs-pending.sh` ignores `docs/confluence/**` so regenerating the staging does not mark itself "pending" in a loop.
   - Documentation: a normative "what ships and what doesn't" section in both Confluence skills, a trigger→artifact→publishes? matrix covering the 10 known triggers in `docs/FLOWS.md` (+ English mirror), and the bidirectional-sync paragraph in both READMEs rewritten to reflect the curated policy and the generated staging folder.
-
-### Docs
-
-- Closed the documentation gap for this release's two initiatives (curated Confluence policy, `docs/knowledge/` technical memory): root `README.md`/`README.es.md` "What you get" table, `CLAUDE.md`, both documentation indexes (`docs/README.md`, `docs/en/README.md`), `agent-kits/shared/README.md`'s fragment inventory, and a short "technical memory" note on each involved agent's page (`docs/agents/evaluator.md`, `planner.md`, `implementer.md`, `qa.md`, `documenter.md`).
 
 ## [1.13.0] - 2026-08-18
 
@@ -135,7 +141,7 @@ and versioning follows [SemVer](https://semver.org/).
 
 ### Roadmap-wide verification (2026-08-12)
 
-- **All 9 roadmap initiatives audited and consistent**: ledger-lint green across every `tasks.md`; states closed where the work had shipped (qa-agent and nemesis-sca-iac **reconciled with an explicit note** — their ledgers predate the canonical ledger discipline; agent-best-practices, qa-strict and token-diet → `completado`/`implementada` — completed/implemented); jira-granularity deliberately stays at `en-revision` (in review) (T-08, dry-run against DM5985, still pending).
+- **All 9 roadmap initiatives audited and consistent**: ledger-lint green across every `tasks.md`; states closed where the work had shipped (qa-agent and nemesis-sca-iac **reconciled with an explicit note** — their ledgers predate the canonical ledger discipline; agent-best-practices, qa-strict and token-diet → `completado`/`implementada` — completed/implemented); jira-granularity deliberately stays at `en-revision` (in review) (T-08, dry-run against PROJ, still pending).
 - `roadmap-dashboard`: **fast-track** initiatives (with only a `tasks.md`) now show up in the dashboard and the metrics ("fast track" phase, title taken from the ledger, aggregated measured cost); states carrying an emoji (`completado ✅`) no longer raise false inconsistency warnings. New tests.
 
 ### Fixed
@@ -294,6 +300,7 @@ Adoption of best practices from the top agent collections (reference agent colle
 
 Versions predating the introduction of this changelog: a bundle with the `nemesis`, `evaluator`, `planner`, `pdfy` and `qa` agents, and the shared `cybersecurity` and `to-pdf` skills. Packaged as a plugin + marketplace.
 
+[1.14.1]: https://github.com/daycry/custom-agents/releases/tag/v1.14.1
 [1.14.0]: https://github.com/daycry/custom-agents/releases/tag/v1.14.0
 [1.13.0]: https://github.com/daycry/custom-agents/releases/tag/v1.13.0
 [1.12.0]: https://github.com/daycry/custom-agents/releases/tag/v1.12.0

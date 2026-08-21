@@ -19,7 +19,7 @@ generacion:               # usage-meter.py NO disponible en este entorno (sandbo
 | **Fecha** | 2026-08-20 |
 | **Estado** | completado |
 | **Prioridad global** | Alta |
-| **Solicitante** | Jordi (jmano@mediapro.tv) vía `/pm-cycle` |
+| **Solicitante** | daycry (vía `/pm-cycle`) |
 | **Spec** | [`spec.md`](spec.md) |
 | **Plan** | [`improvement-plan.md`](improvement-plan.md) |
 | **Características evaluadas** | 7 — 6 comprometidas + 1 diferida (C-06) |

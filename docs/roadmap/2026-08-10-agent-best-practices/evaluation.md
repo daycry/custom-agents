@@ -7,7 +7,7 @@
 | **Fecha** | 2026-08-10 |
 | **Estado** | completado |
 | **Prioridad global** | Media 🟡 |
-| **Solicitante** | jmano@mediapro.tv |
+| **Solicitante** | daycry |
 | **Spec** | [`spec.md`](spec.md) |
 | **Plan** | [`improvement-plan.md`](improvement-plan.md) (2026-08-10 · 20,7 h · ~1.069 €) |
 | **Características evaluadas** | 8 |

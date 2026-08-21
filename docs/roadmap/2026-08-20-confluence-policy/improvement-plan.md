@@ -20,7 +20,7 @@ generacion:
 | **Estado** | completado |
 | **Tipo** | Infra |
 | **Prioridad** | Media |
-| **Solicitante** | jmano@mediapro.tv (vía `/pm-cycle`) |
+| **Solicitante** | daycry (vía `/pm-cycle`) |
 | **Responsable** | implementer (vía `/dev-cycle`) |
 | **Spec** | [`spec.md`](spec.md) |
 | **Evaluación** | [`evaluation.md`](evaluation.md) |
@@ -153,7 +153,7 @@ El circuito `docs/ ↔ Confluence` funciona en mecánica pero no tiene política
 - [x] **Criterios de éxito / métricas** acordados — CA-01 a CA-12 (spec §Criterios de aceptación)
 - [ ] **Accesos y credenciales** necesarios (entornos, APIs, repos) — no aplica a esta iteración: no hay prueba end-to-end contra un espacio real de Confluence (fuera de alcance automatizado, spec §Pruebas)
 - [x] **Entornos** disponibles y datos de prueba — fixtures locales para `confluence-scope.py` (sin red, sin conector; spec §Pruebas)
-- [x] **Stakeholders** identificados — jmano@mediapro.tv, puerta cruzada el 2026-08-20
+- [x] **Stakeholders** identificados — daycry, puerta cruzada el 2026-08-20
 - [ ] **Dependencias externas** — pendiente confirmar el espacio de Confluence real y las capacidades exactas del conector Rovo MCP (evaluación §Sigue abierto); no bloquea esta implementación (es prosa + script sin red)
 - [x] **Restricciones** conocidas — determinismo (scripts con tests y exit codes), bilingüe EN/ES, degradación sin bloqueo, invariante `docs/security-scan/**`, rutas relativas en scripts
 - [x] **Tarifa/hora y supuestos de coste** confirmados — `.claude/rates.json`, verificado 2026-08-18

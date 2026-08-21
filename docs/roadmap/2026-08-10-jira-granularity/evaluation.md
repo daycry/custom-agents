@@ -7,7 +7,7 @@
 | **Fecha** | 2026-08-10 |
 | **Estado** | completado ✅ |
 | **Prioridad global** | Media 🟡 |
-| **Solicitante** | jmano@mediapro.tv |
+| **Solicitante** | daycry |
 | **Spec** | [`spec.md`](spec.md) |
 | **Plan** | [`improvement-plan.md`](improvement-plan.md) + [`tasks.md`](tasks.md) (2026-08-10) |
 | **Características evaluadas** | 7 |
@@ -31,7 +31,7 @@
 
 ## Resumen ejecutivo
 
-La spec (confirmada y **ampliada** con el usuario el 2026-08-10, de 5 a 7 características) pide dos cosas: **(1)** extender `jira-sync` para ofrecer, junto al modo actual "un issue por tarea `T-XX`", un nuevo **modo fase** (un issue por Fase, tareas como checklist, comentarios / worklog / Done coherentes) — C-01…C-05; y **(2)** publicar en Jira el **resultado del agente revisor** de `/dev-cycle` Modo B: un **comentario estructurado por criterio** contra una plantilla fija y un **worklog de revisión `[revisión]`** separado, en ambos modos — C-06 y C-07. El grueso sigue siendo **prosa de instrucciones al agente** (SKILL.md y dev-cycle.md) más un cambio acotado en `worklog.py` + tests y una plantilla nueva. Se presupuestan **18,75 h base (22,5 h con margen), ~1.168 €** y ~1,96 M tokens. La evaluación soporta **aprobar la iniciativa con condición**: coherente y de coste contenido, pero con dependencias no verificadas del conector (ahora también comentario + worklog de revisión) y de `qa-strict`; se recomienda un dry-run empírico contra DM5985 antes de dar por cerrados C-03/C-04 y C-06/C-07.
+La spec (confirmada y **ampliada** con el usuario el 2026-08-10, de 5 a 7 características) pide dos cosas: **(1)** extender `jira-sync` para ofrecer, junto al modo actual "un issue por tarea `T-XX`", un nuevo **modo fase** (un issue por Fase, tareas como checklist, comentarios / worklog / Done coherentes) — C-01…C-05; y **(2)** publicar en Jira el **resultado del agente revisor** de `/dev-cycle` Modo B: un **comentario estructurado por criterio** contra una plantilla fija y un **worklog de revisión `[revisión]`** separado, en ambos modos — C-06 y C-07. El grueso sigue siendo **prosa de instrucciones al agente** (SKILL.md y dev-cycle.md) más un cambio acotado en `worklog.py` + tests y una plantilla nueva. Se presupuestan **18,75 h base (22,5 h con margen), ~1.168 €** y ~1,96 M tokens. La evaluación soporta **aprobar la iniciativa con condición**: coherente y de coste contenido, pero con dependencias no verificadas del conector (ahora también comentario + worklog de revisión) y de `qa-strict`; se recomienda un dry-run empírico contra PROJ antes de dar por cerrados C-03/C-04 y C-06/C-07.
 
 ---
 
@@ -117,7 +117,7 @@ Mapa de la spec a las características evaluadas.
 - **Impacto / áreas afectadas**: `skills/jira-sync/SKILL.md` (Pasos 4–6 con rama de fase), `.claude/jira-state.json` (clave `fase-N`), `tasks.md` (cabecera de fase).
 - **Dependencias y prerequisitos**: C-01 (necesita la config para saber en qué modo volcar). Se apoya en `ledger-lint.py` para validar el ledger antes de volcar.
 - **Riesgos**: parseo de "fase → tareas" en `tasks.md` si el formato de cabecera no es homogéneo; colisión de manifiesto si se cambia de granularidad con issues ya creados (la spec lo cubre con aviso).
-- **Incógnitas / preguntas abiertas**: sintaxis exacta de la checklist en la descripción (lista markdown en el cuerpo vs. panel nativo). Un **dry-run** contra el proyecto de pruebas DM5985 resolvería esto y calibraría C-03/C-04.
+- **Incógnitas / preguntas abiertas**: sintaxis exacta de la checklist en la descripción (lista markdown en el cuerpo vs. panel nativo). Un **dry-run** contra el proyecto de pruebas PROJ resolvería esto y calibraría C-03/C-04.
 
 ### C-03 — Progreso en modo fase (comentarios + checklist)
 
@@ -169,7 +169,7 @@ Mapa de la spec a las características evaluadas.
 - **Impacto / áreas afectadas**: `commands/dev-cycle.md` (revisor de Modo B emite salida estructurada por criterio; el orquestador invoca el paso de comentario al cerrar fase/tarea), `skills/jira-sync/SKILL.md` (nuevo paso: publicar el comentario de revisión con granularidad fase/tarea + idempotencia `reviewComentado`), **nuevo** `agent-kits/shared/review-report.template.md`, `.claude/jira-state.json` (`reviewComentado` por `T-XX`/`fase-N`).
 - **Dependencias y prerequisitos**: **`qa-strict` desplegado** (el revisor de dos lentes cuya salida se extiende y publica); C-02 (mapeo `fase-N` para saber a qué issue comentar en modo fase). En modo tarea puede publicarse sobre el issue de tarea existente.
 - **Riesgos**: cambiar el contrato del revisor puede afectar a otros consumidores de su salida en `/dev-cycle`; `addCommentToJiraIssue` **no ejercitado end-to-end**; si el revisor devuelve prosa (no estructura), el paso no debe publicar un comentario mal formado (la spec exige degradar a "resumen + gaps" con aviso, sin inventar ✓/✗).
-- **Incógnitas / preguntas abiertas**: ¿cómo está escrito hoy el paso de revisión en `dev-cycle.md` (cuánto cuesta imponerle un esquema de salida)? ¿el conector renderiza bien la checklist del comentario (ADF)? Un dry-run contra DM5985 con un `tasks.md` de juguete lo resuelve.
+- **Incógnitas / preguntas abiertas**: ¿cómo está escrito hoy el paso de revisión en `dev-cycle.md` (cuánto cuesta imponerle un esquema de salida)? ¿el conector renderiza bien la checklist del comentario (ADF)? Un dry-run contra PROJ con un `tasks.md` de juguete lo resuelve.
 
 ### C-07 — Worklog de revisión (entrada `[revisión]`, ambos modos)
 
@@ -238,7 +238,7 @@ Compara el esfuerzo **humano** estimado con el tiempo que tardaría un **agente 
 
 ## Recomendación
 
-- **Veredicto**: **go CONDICIONADO** a un dry-run empírico contra el conector (proyecto de pruebas DM5985) que verifique las incógnitas de integración **antes** de dar por cerrados C-03/C-04 y —ahora también— C-06/C-07 (publicar un **comentario de revisión** y un **worklog `[revisión]`** de prueba, además de la checklist y el worklog de fase). Condición adicional para C-06/C-07: **`qa-strict` debe estar desplegado** (si no, esas dos quedan fuera de esta iteración). El coste sigue contenido (~1.168 €) y el trabajo, sobre todo prosa sobre skill/command existentes, es de bajo riesgo de ejecución; el riesgo vive en la integración y en el cambio de contrato del revisor.
+- **Veredicto**: **go CONDICIONADO** a un dry-run empírico contra el conector (proyecto de pruebas PROJ) que verifique las incógnitas de integración **antes** de dar por cerrados C-03/C-04 y —ahora también— C-06/C-07 (publicar un **comentario de revisión** y un **worklog `[revisión]`** de prueba, además de la checklist y el worklog de fase). Condición adicional para C-06/C-07: **`qa-strict` debe estar desplegado** (si no, esas dos quedan fuera de esta iteración). El coste sigue contenido (~1.168 €) y el trabajo, sobre todo prosa sobre skill/command existentes, es de bajo riesgo de ejecución; el riesgo vive en la integración y en el cambio de contrato del revisor.
 - **Quick wins** (bajo coste, alto valor): **C-01** (config, 1,5 h, habilita todo el modo) y **C-02** (el volcado en sí, entrega el valor visible: menos issues por fase). **C-07** es barata (1,75 h) pero encadenada a C-04/C-06.
 - **Costosas / a valorar**: **C-03**, **C-04**, **C-06** — no por horas, sino por dependencias no verificadas: `editJiraIssue` sobre descripción (C-03), múltiples worklogs por issue (C-04/C-07), `addComment`/`addWorklog` de revisión y cambio de contrato del revisor + dependencia de `qa-strict` (C-06/C-07). C-03 tiene plan B barato ("solo comentarios"); C-06 tiene degradación prevista ("resumen + gaps" si el revisor no da estructura).
 - **Orden sugerido**: **C-01 → C-02 → C-03 → C-04 → C-05 → C-06 → C-07** — config primero (habilita el modo); luego el volcado (crea issues de fase y mapeo); el progreso (comentarios + checklist); el worklog/Done cuando ya hay issues a los que imputar; el read-back, que agrega lo que los anteriores producen; después **C-06** (necesita el mapeo `fase-N` y `qa-strict`, e introduce el comentario de revisión); y por último **C-07**, que depende de C-04 (destino del worklog por fase) y de C-06 (de dónde sale el tiempo de revisión). Tras C-02, hacer el dry-run antes de invertir en C-03/C-04; extenderlo a comentario + worklog de revisión antes de cerrar C-06/C-07.
@@ -251,7 +251,7 @@ Compara el esfuerzo **humano** estimado con el tiempo que tardaría un **agente 
 | Riesgo | Probabilidad | Impacto | Mitigación |
 |--------|-------------|---------|------------|
 | El conector no permite editar la descripción para la checklist (`editJiraIssue`) | Media | Alto (C-03) | Dry-run temprano; plan B "solo comentarios" ya previsto en la spec; documentar la limitación |
-| El conector no acumula bien varias entradas de worklog en un issue (fase + `[revisión]`) | Media | Medio (C-04/C-07) | Verificar en DM5985 con issue desechable; si falla, replantear a "worklog agregado" y desglose solo interno |
+| El conector no acumula bien varias entradas de worklog en un issue (fase + `[revisión]`) | Media | Medio (C-04/C-07) | Verificar en PROJ con issue desechable; si falla, replantear a "worklog agregado" y desglose solo interno |
 | `addComment`/`addWorklog` de revisión no ejercitados end-to-end | Media | Medio (C-06/C-07) | Ampliar el dry-run a publicar un comentario de revisión y un worklog `[revisión]` de prueba antes de cerrar C-06/C-07 |
 | `qa-strict` no desplegado o su revisor cambia de forma | Media | Alto (C-06/C-07) | Condición de aprobación explícita: sin `qa-strict`, C-06/C-07 quedan fuera; acoplar C-06 al contrato de salida versionado del revisor |
 | Cambiar el contrato del revisor rompe otros consumidores de su salida en `/dev-cycle` | Baja | Medio (C-06) | Añadir el esquema estructurado sin quitar el resumen; degradación prevista si falta estructura (aviso, no ✓/✗ inventados) |

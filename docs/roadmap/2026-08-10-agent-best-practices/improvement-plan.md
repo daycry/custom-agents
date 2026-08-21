@@ -8,7 +8,7 @@
 | **Estado** | borrador |
 | **Tipo** | Refactor (mejora del propio plugin) |
 | **Prioridad** | Media |
-| **Solicitante** | jmano@mediapro.tv |
+| **Solicitante** | daycry |
 | **Responsable** | pendiente de asignar (previsto: agente `implementer`) |
 | **Spec** | [`spec.md`](spec.md) |
 | **Evaluación** | [`evaluation.md`](evaluation.md) |
@@ -127,7 +127,7 @@ Se incorporan al plugin las prácticas que el análisis comparativo (2026-08-10)
 - [x] **Criterios de éxito / métricas** acordados (spec §Pruebas: autovalidación linter, fixtures pytest, prueba manual de `/dev-cycle`, verificación de enrutado)
 - [x] **Accesos y credenciales** — n/a: todo es interno al repo del plugin
 - [x] **Entornos** disponibles (repo local + CI GitHub Actions existente + `scripts/release.py`)
-- [x] **Stakeholders** identificados (jmano@mediapro.tv; puerta «OK del plan» antes de implementar)
+- [x] **Stakeholders** identificados (daycry; puerta «OK del plan» antes de implementar)
 - [x] **Dependencias externas** — ninguna
 - [x] **Restricciones** conocidas (retrocompatibilidad declarada en spec §Manejo de errores; sin deadline)
 - [x] **Tarifa/hora y supuestos de coste** — defaults declarados (no hay `.claude/rates.json`); mismos que la evaluación

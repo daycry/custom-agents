@@ -20,7 +20,7 @@ generacion:
 | **Estado** | completado |
 | **Tipo** | Infra |
 | **Prioridad** | Alta |
-| **Solicitante** | Jordi (jmano@mediapro.tv) vía `/pm-cycle` |
+| **Solicitante** | daycry (vía `/pm-cycle`) |
 | **Responsable** | implementer (vía `/dev-cycle`) |
 | **Spec** | [`spec.md`](spec.md) |
 | **Evaluación** | [`evaluation.md`](evaluation.md) |
@@ -178,7 +178,7 @@ El plugin **produce** conocimiento técnico bueno y lo **pierde**: nadie escribe
 - [x] **Criterios de éxito / métricas** acordados — CA-01 a CA-12 (spec §Criterios de aceptación), CA-07 como criterio de éxito real
 - [x] **Accesos y credenciales** — ninguno: todo el trabajo es prosa + ficheros locales, sin red ni conector
 - [x] **Entornos** disponibles y datos de prueba — los 5 `retro.md` existentes y la `spec.md` de `confluence-policy` (fuente del backfill), disponibles en el repo
-- [x] **Stakeholders** identificados — Jordi (jmano@mediapro.tv), puerta cruzada el 2026-08-20
+- [x] **Stakeholders** identificados — daycry, puerta cruzada el 2026-08-20
 - [x] **Dependencias externas/internas** — **resueltas por la inspección previa** de este plan (ver sección arriba): las 4 piezas que preocupaban a la evaluación ya están inspeccionadas y no cambian horas
 - [x] **Restricciones** conocidas — degradación sin bloqueo (D3, siempre activa sin opt-in), bilingüe EN/ES, tokens máquina en español, umbral anti-burocracia, linter en verde
 - [x] **Tarifa/hora y supuestos de coste** confirmados — `.claude/rates.json`, verificado 2026-08-18

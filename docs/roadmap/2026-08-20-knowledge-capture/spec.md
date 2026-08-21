@@ -43,7 +43,7 @@ Hoy el plugin **produce** conocimiento técnico de calidad y lo **pierde**. El a
 
 **Objetivo:** que el conocimiento técnico se capture **donde nace**, en **pocas entradas de calidad**, y que los agentes lo **lean al arrancar**. La prueba de que funciona no es que existan ficheros: es que las tres lecciones hardcodeadas del evaluator puedan salir del prompt y seguir aplicándose.
 
-**Lo que importa al solicitante (Jordi):** el bucle. Escribir sin leer es archivo; el valor está en que lo aprendido condicione la siguiente ejecución.
+**Lo que importa al solicitante:** el bucle. Escribir sin leer es archivo; el valor está en que lo aprendido condicione la siguiente ejecución.
 
 ## Decisiones de diseño
 

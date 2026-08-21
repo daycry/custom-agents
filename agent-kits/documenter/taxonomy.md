@@ -42,7 +42,7 @@ No todas aplican a todo proyecto: incluye las que tengan sentido y **declara en 
 que se omiten y por qué (una línea).
 
 ## Referencia (NO copiar literalmente)
-`docs/` del proyecto webscorpo (CI4 modular) es un buen ejemplo de resultado: índice + RAG-INDEX +
+un `docs/` de un proyecto modular bien documentado es un buen ejemplo de resultado: índice + RAG-INDEX +
 carpetas por arquitectura, stack, módulos, guías. Sirve para ver **el nivel de detalle y el estilo**
 esperados, no como esquema a clonar: otro proyecto tendrá otras carpetas y otros nombres.
 

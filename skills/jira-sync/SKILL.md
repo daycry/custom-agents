@@ -75,7 +75,7 @@ Si la herramienta de crear artefactos está disponible:
 ### Paso 1-B — conversacional (CLI / VS Code, sin artefactos)
 Mismo resultado, en texto (no intentes `create_artifact`):
 1. **Proyecto:** pide un término y llama `getVisibleJiraProjects` (`action:"create"`, `searchString`, `maxResults` pequeño). Muestra los resultados **numerados por clave y nombre**; el usuario elige uno. (Si el usuario ya da una clave/URL de issue, ve directo al padre.)
-2. **Padre:** ofrece: (a) **sin padre** (crear en la raíz del proyecto), o (b) indicar un **issue padre**. Para (b) acepta **clave** (`DM5985-59`), **texto** o **JQL**; construye la JQL **acotada al proyecto** (`project = "KEY" AND (…)`, salvo `key = X` que es global) — el conector **exige** `searchResultMode:"issues"` y **rechaza** JQL sin restricción. Lista los resultados numerados y el usuario elige.
+2. **Padre:** ofrece: (a) **sin padre** (crear en la raíz del proyecto), o (b) indicar un **issue padre**. Para (b) acepta **clave** (`PROJ-59`), **texto** o **JQL**; construye la JQL **acotada al proyecto** (`project = "KEY" AND (…)`, salvo `key = X` que es global) — el conector **exige** `searchResultMode:"issues"` y **rechaza** JQL sin restricción. Lista los resultados numerados y el usuario elige.
 
 En ambos modos, **no hardcodees la forma de buscar el padre**: clave exacta → `key = X`; texto → `summary ~ "…"`; expresión JQL → tal cual (acotada al proyecto).
 
@@ -114,7 +114,7 @@ campos) — ese es el modo **dry-run** de primera clase.
 
 Muestra un resumen humano y **espera "sí"** antes de crear nada:
 
-> "Voy a crear en Jira, en **DM5985** › bajo **DM5985-59**:
+> "Voy a crear en Jira, en **PROJ** › bajo **PROJ-59**:
 > • **6 Subtareas** (una por tarea del plan): T-01 «…», T-02 «…», …
 > ¿Las creo? [Sí / Cambiar destino / Cancelar]"
 
@@ -149,9 +149,9 @@ Si da incoherencias duras, repórtalas y no vuelques hasta que el ledger esté l
 
 ## Paso 6 — escribir de vuelta y cerrar
 
-- En `tasks.md`, anota junto a cada `T-XX` su **clave Jira** (p. ej. una columna "Jira" o un sufijo `→ DM5985-123`). Si se usó un padre/épica, anótalo en `improvement-plan.md`.
+- En `tasks.md`, anota junto a cada `T-XX` su **clave Jira** (p. ej. una columna "Jira" o un sufijo `→ PROJ-123`). Si se usó un padre/épica, anótalo en `improvement-plan.md`.
 - Actualiza `.claude/jira-state.json`.
-- Cierra en llano con el recuento y **enlaces clicables**: "Creé 6 subtareas bajo DM5985-59. Aquí las tienes: <URLs>."
+- Cierra en llano con el recuento y **enlaces clicables**: "Creé 6 subtareas bajo PROJ-59. Aquí las tienes: <URLs>."
 
 ## Paso 7 — sincronizar progreso: imputar horas + marcar Done
 
@@ -262,7 +262,7 @@ La escribe/actualiza la skill; el usuario puede ajustarla. Campos:
 - `ratioSupervision` — para derivar la supervisión cuando no viene como `real`; también **de `.claude/rates.json`** (`0.25` por defecto).
 - `defaults` (opcional) — `projectKey`, `parentKey`, `issueType`, `labels` para repetir de un clic.
 
-Estado en `.claude/jira-state.json`: el **mapeo `T-XX → issueKey`** (modo tarea) o **`fase-N → issueKey`** (modo fase; el valor se anota en la cabecera de la fase de `tasks.md`, Paso 6), `imputadoPorDia` (horas imputadas por fecha), `bancoHoras` — lista de entradas por tarea/issue con su `kind` (`implementacion`/`revision`), p. ej. `[{ "task":"T-08", "issueKey":"DM5985-123", "horas":1, "origen":"2026-07-15", "kind":"implementacion" }]` — y, por tarea, el **desglose** `worklogImpl` / `worklogRevision` y el flag `reviewComentado` (para no re-publicar la revisión).
+Estado en `.claude/jira-state.json`: el **mapeo `T-XX → issueKey`** (modo tarea) o **`fase-N → issueKey`** (modo fase; el valor se anota en la cabecera de la fase de `tasks.md`, Paso 6), `imputadoPorDia` (horas imputadas por fecha), `bancoHoras` — lista de entradas por tarea/issue con su `kind` (`implementacion`/`revision`), p. ej. `[{ "task":"T-08", "issueKey":"PROJ-123", "horas":1, "origen":"2026-07-15", "kind":"implementacion" }]` — y, por tarea, el **desglose** `worklogImpl` / `worklogRevision` y el flag `reviewComentado` (para no re-publicar la revisión).
 
 ## Reglas
 

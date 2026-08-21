@@ -8,8 +8,8 @@
 | **Estado** | borrador |
 | **Tipo** | Nueva Funcionalidad |
 | **Prioridad** | Media |
-| **Solicitante** | jmano@mediapro.tv |
-| **Responsable** | implementer (ejecución) · jmano@mediapro.tv (dry-run y aprobación) |
+| **Solicitante** | daycry |
+| **Responsable** | implementer (ejecución) · daycry (dry-run y aprobación) |
 | **Spec** | [`spec.md`](spec.md) |
 | **Evaluación** | [`evaluation.md`](evaluation.md) |
 
@@ -26,7 +26,7 @@
 | Multiplicador productividad | **×2,4** | — | — |
 | Tareas | **9** | 0 hechas | — |
 
-> **Herencia y delta.** Las horas por característica se **heredan de la evaluación sin re-estimar**: C-01 1,5 h · C-02 4,0 h · C-03 3,0 h · C-04 3,0 h · C-05 2,5 h · C-06 3,0 h · C-07 1,75 h = **18,75 h base (22,5 h con margen, ~1.168 €, ~1,96 M tokens)**. Este plan añade una **Fase 4 de cierre** no presupuestada en la evaluación: puerta de dry-run manual contra DM5985 (T-08, 1,0 h) + cierre documental (T-09, 0,5 h) → **delta +1,5 h base (+1,8 h con margen, +~93 €, +118k tokens)**. Total del plan: **20,25 h base / 24,3 h con margen / ~1.261 € / ~2,07 M tokens**.
+> **Herencia y delta.** Las horas por característica se **heredan de la evaluación sin re-estimar**: C-01 1,5 h · C-02 4,0 h · C-03 3,0 h · C-04 3,0 h · C-05 2,5 h · C-06 3,0 h · C-07 1,75 h = **18,75 h base (22,5 h con margen, ~1.168 €, ~1,96 M tokens)**. Este plan añade una **Fase 4 de cierre** no presupuestada en la evaluación: puerta de dry-run manual contra PROJ (T-08, 1,0 h) + cierre documental (T-09, 0,5 h) → **delta +1,5 h base (+1,8 h con margen, +~93 €, +118k tokens)**. Total del plan: **20,25 h base / 24,3 h con margen / ~1.261 € / ~2,07 M tokens**.
 
 ---
 
@@ -111,14 +111,14 @@ Compara el esfuerzo **humano** estimado con el tiempo que tardaría un **agente 
 
 ## Resumen ejecutivo
 
-Extender la skill `jira-sync` para ofrecer, junto al modo actual "un issue por tarea `T-XX`", un **modo fase**: un issue de Jira por cada Fase del plan, con sus tareas como checklist en la descripción, y progreso (comentarios por tarea, worklog tarea a tarea, Done al cerrar todas) coherente con esa granularidad. Además, publicar en Jira el **resultado del agente revisor** de `/dev-cycle` Modo B: comentario estructurado por criterio contra una plantilla fija (con bucle reviewer→implementer acotado a 3 intentos) y worklog separado `[revisión]` que acumula todas las pasadas, en ambos modos. El ledger `tasks.md` sigue siendo la fuente de verdad; Jira es el espejo. La iniciativa se cierra solo tras superar la **puerta de dry-run** contra el proyecto de pruebas DM5985 (condición del veredicto go de la evaluación).
+Extender la skill `jira-sync` para ofrecer, junto al modo actual "un issue por tarea `T-XX`", un **modo fase**: un issue de Jira por cada Fase del plan, con sus tareas como checklist en la descripción, y progreso (comentarios por tarea, worklog tarea a tarea, Done al cerrar todas) coherente con esa granularidad. Además, publicar en Jira el **resultado del agente revisor** de `/dev-cycle` Modo B: comentario estructurado por criterio contra una plantilla fija (con bucle reviewer→implementer acotado a 3 intentos) y worklog separado `[revisión]` que acumula todas las pasadas, en ambos modos. El ledger `tasks.md` sigue siendo la fuente de verdad; Jira es el espejo. La iniciativa se cierra solo tras superar la **puerta de dry-run** contra el proyecto de pruebas PROJ (condición del veredicto go de la evaluación).
 
 ### Objetivos
 
 - Ofrecer las dos granularidades elegibles vía `.claude/jira.json` (`granularidad: "tarea" | "fase"`), con `"tarea"` por defecto reproduciendo el comportamiento actual **bit a bit**.
 - En modo fase: 1 issue por fase con checklist de tareas, comentario + marca `- [x]` al completar cada `T-XX`, worklog tarea a tarea en el issue de fase y Done solo con todas las tareas `completado`.
 - Publicar el resultado FINAL del revisor (pasa/falla por criterio + "revisión superada en N intento(s)") como comentario en Jira y su tiempo como worklog `[revisión]`, en ambos modos, idempotente.
-- Validar empíricamente contra DM5985 las cuatro capacidades no ejercitadas del conector antes de dar la iniciativa por cerrada.
+- Validar empíricamente contra PROJ las cuatro capacidades no ejercitadas del conector antes de dar la iniciativa por cerrada.
 
 ---
 
@@ -127,9 +127,9 @@ Extender la skill `jira-sync` para ofrecer, junto al modo actual "un issue por t
 - [x] **Requisitos funcionales** confirmados por el solicitante (spec `aprobada` + §Decisiones confirmadas 2026-08-10)
 - [x] **Alcance** cerrado (spec §Alcance: dentro C-01…C-07; fuera modo mixto, subtareas, migración, Modo A, gaps intra-fase)
 - [x] **Criterios de éxito / métricas** acordados (spec §Pruebas)
-- [ ] **Accesos y credenciales** — conector Atlassian conectado a mediaprosuite con permiso de escritura en DM5985 (necesario para la Fase 4; verificar antes del dry-run)
-- [x] **Entornos** disponibles (repo local; proyecto de pruebas DM5985 para el dry-run)
-- [x] **Stakeholders** identificados (jmano@mediapro.tv; ejecuta el dry-run de la Fase 4)
+- [ ] **Accesos y credenciales** — conector Atlassian conectado al site del proyecto con permiso de escritura en PROJ (necesario para la Fase 4; verificar antes del dry-run)
+- [x] **Entornos** disponibles (repo local; proyecto de pruebas PROJ para el dry-run)
+- [x] **Stakeholders** identificados (daycry; ejecuta el dry-run de la Fase 4)
 - [ ] **Dependencias externas** — `editJiraIssue` sobre descripción, N worklogs por issue, `addCommentToJiraIssue` y `addWorklogToJiraIssue` **no ejercitados end-to-end** (se resuelven en la Fase 4); **`qa-strict` desplegado** es prerequisito de la Fase 3
 - [x] **Restricciones** conocidas (opt-in, no romper modo tarea, no hardcodear tipos, C-06/C-07 solo Modo B)
 - [x] **Tarifa/hora y supuestos de coste** confirmados (defaults compartidos; sin `.claude/rates.json`)
@@ -178,7 +178,7 @@ Extender la skill `jira-sync` para ofrecer, junto al modo actual "un issue por t
 - **`qa-strict` desplegado** (revisor de dos lentes en `/dev-cycle` Modo B) — prerequisito duro de la Fase 3 (C-06/C-07); ya implementado en este repo (`docs/roadmap/2026-08-10-qa-strict/`).
 - **Orden interno**: C-01 antes que todo (la config habilita el modo); C-02 antes que C-03/C-04/C-05 (necesitan issues de fase y mapeo `fase-N`); C-06 antes que C-07 (el worklog `[revisión]` imputa el tiempo que sale del bucle de revisión).
 - **La Fase 4 está bloqueada por todas las anteriores**: el dry-run ejercita creación en modo fase, checklist, comentario de revisión y worklog `[revisión]` — necesita todo implementado.
-- **Conector Atlassian (Rovo MCP)** conectado a mediaprosuite con acceso de escritura al proyecto de pruebas DM5985 (Fase 4).
+- **Conector Atlassian (Rovo MCP)** conectado al site del proyecto con acceso de escritura al proyecto de pruebas PROJ (Fase 4).
 - `ledger-lint.py` (ya existente) valida el ledger antes del volcado en modo fase.
 
 ---
@@ -189,7 +189,7 @@ Extender la skill `jira-sync` para ofrecer, junto al modo actual "un issue por t
 - [ ] Con `granularidad: "fase"`, el volcado crea 1 issue por fase con las `T-XX` como checklist, idempotente (`fase-N → issueKey`), sin issue para fases sin tareas, y el progreso (comentario + `- [x]` + worklog tarea a tarea + Done al cerrar todas) funciona end-to-end.
 - [ ] El resultado FINAL del revisor se publica como comentario con la plantilla fija (+ "revisión superada en N intento(s)") y su tiempo como worklog `[revisión]` que acumula todas las pasadas, en ambos modos, sin duplicar en reejecución (`reviewComentado`).
 - [ ] `python3 -m pytest tests/test_worklog.py` en verde (casos existentes + 2 nuevos).
-- [ ] **Dry-run contra DM5985 superado** (creación modo fase, `editJiraIssue` de checklist, `addComment` de revisión, `addWorklog [revisión]`) — puerta manual antes de dar la iniciativa por cerrada.
+- [ ] **Dry-run contra PROJ superado** (creación modo fase, `editJiraIssue` de checklist, `addComment` de revisión, `addWorklog [revisión]`) — puerta manual antes de dar la iniciativa por cerrada.
 
 ---
 
@@ -198,7 +198,7 @@ Extender la skill `jira-sync` para ofrecer, junto al modo actual "un issue por t
 | Riesgo | Probabilidad | Impacto | Mitigación |
 |--------|-------------|---------|------------|
 | El conector no permite editar la descripción para la checklist (`editJiraIssue`) | Media | Alto (T-03) | Puerta de dry-run (T-08); plan B previsto en la spec: degradar a "solo comentarios" y documentar la limitación |
-| El conector no acumula bien N worklogs por issue (fase + `[revisión]`) | Media | Medio (T-04/T-07) | Verificar en DM5985 con issue desechable; si falla, worklog agregado y desglose solo interno en `jira-state.json` |
+| El conector no acumula bien N worklogs por issue (fase + `[revisión]`) | Media | Medio (T-04/T-07) | Verificar en PROJ con issue desechable; si falla, worklog agregado y desglose solo interno en `jira-state.json` |
 | `addComment`/`addWorklog` de revisión no ejercitados end-to-end | Media | Medio (T-06/T-07) | El dry-run (T-08) incluye publicar un comentario de revisión y un worklog `[revisión]` de prueba |
 | Cambiar el contrato del revisor rompe otros consumidores en `/dev-cycle` | Baja | Medio (T-06) | Añadir el esquema estructurado sin quitar el resumen en prosa; degradación prevista (resumen + gaps con aviso, sin ✓/✗ inventados) |
 | Regresión del modo tarea al introducir el modo fase | Media | Alto | Criterio explícito "bit a bit" en T-01/T-02; claves de manifiesto separadas por modo; revisar los Pasos 4–8 con la rama tarea intacta |
@@ -211,7 +211,7 @@ Extender la skill `jira-sync` para ofrecer, junto al modo actual "un issue por t
 
 - **0 regresiones** en modo tarea: un volcado con `"tarea"` produce exactamente los mismos issues/comentarios/worklogs que antes del cambio.
 - **Reducción de issues en modo fase**: un plan de N tareas en F fases genera F issues (no N), con el desglose íntegro (checklist + comentarios + worklogs por tarea).
-- **Dry-run DM5985 con las 4 capacidades verificadas** (o sus planes B documentados) — condición del go de la evaluación cumplida.
+- **Dry-run PROJ con las 4 capacidades verificadas** (o sus planes B documentados) — condición del go de la evaluación cumplida.
 - **Trazabilidad de revisión en Jira**: cada tarea/fase cerrada en Modo B tiene su comentario de revisión (formato de plantilla fija) y su worklog `[revisión]`; `/retro` puede leer el desglose implementación/revisión del manifiesto.
 
 ---
@@ -226,10 +226,10 @@ Extender la skill `jira-sync` para ofrecer, junto al modo actual "un issue por t
 
 ## Siguiente paso
 
-Con el **OK del plan** del usuario (puerta de control), el agente **`implementer`** lo ejecuta fase a fase sobre una rama, marcando `tasks.md` como **ledger canónico** (checkbox + estado por tarea). La **Fase 4 (T-08)** es una puerta manual: el dry-run contra DM5985 lo ejecuta el usuario antes de dar la iniciativa por cerrada. Sin `test-plan.md` (no hay UI): las pruebas son pytest de `worklog.py` + el dry-run manual. Al terminar, cierre con `documenter`.
+Con el **OK del plan** del usuario (puerta de control), el agente **`implementer`** lo ejecuta fase a fase sobre una rama, marcando `tasks.md` como **ledger canónico** (checkbox + estado por tarea). La **Fase 4 (T-08)** es una puerta manual: el dry-run contra PROJ lo ejecuta el usuario antes de dar la iniciativa por cerrada. Sin `test-plan.md` (no hay UI): las pruebas son pytest de `worklog.py` + el dry-run manual. Al terminar, cierre con `documenter`.
 
 ---
 
 ## Revisión adversarial de dos lentes (2026-08-10)
 
-Dos subagentes con contexto fresco (conformidad + calidad/robustez), ejecutando los tests. Resultado: **worklog.py sin defectos de corrección** (total = impl+revisión en todos los caminos; el tope diario cuenta el total sin importar el kind; el banco conserva y re-imputa el kind; retrocompatibilidad de entradas legadas sin kind; 12/12 tests). Los dos apuntes de las lentes ya estaban cubiertos en el estado final del SKILL (invocación de `ledger-lint.py` antes de volcar en modo fase; clave `rev-fase-N` para el worklog de revisión agregada en modo fase) — y se arregló un **bloque de código a medio cerrar** en el Paso 9. C-01…C-07 conformes. **T-08 (dry-run del conector contra DM5985) queda como puerta manual pendiente**: es la condición del go y no es ejercitable en el sandbox.
+Dos subagentes con contexto fresco (conformidad + calidad/robustez), ejecutando los tests. Resultado: **worklog.py sin defectos de corrección** (total = impl+revisión en todos los caminos; el tope diario cuenta el total sin importar el kind; el banco conserva y re-imputa el kind; retrocompatibilidad de entradas legadas sin kind; 12/12 tests). Los dos apuntes de las lentes ya estaban cubiertos en el estado final del SKILL (invocación de `ledger-lint.py` antes de volcar en modo fase; clave `rev-fase-N` para el worklog de revisión agregada en modo fase) — y se arregló un **bloque de código a medio cerrar** en el Paso 9. C-01…C-07 conformes. **T-08 (dry-run del conector contra PROJ) queda como puerta manual pendiente**: es la condición del go y no es ejercitable en el sandbox.

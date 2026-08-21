@@ -9,6 +9,16 @@ y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+## [1.14.1] - 2026-08-20
+
+### Changed
+
+- **Placeholders neutros en todos los ejemplos, para que el repo público no arrastre valores de ningún entorno concreto.** El email de autor de los metadatos del plugin pasa a la identidad noreply de GitHub del mantenedor, y todo ejemplo que nombraba un site de Atlassian, una clave de proyecto Jira, un espacio de Confluence o un proyecto propio se sustituye por marcadores neutros (`PROJ` / `PROJ-59`, `DOCS`, `miapp`, `<usuario que autoriza>`, rutas de código genéricas). Afecta a `skills/jira-sync/SKILL.md` y su plantilla de selector, las plantillas de assets de `skills/confluence-publish` y `confluence.example.json`, `agents/nemesis.md` y su esquema de informe, `agents/documenter.md` con `agent-kits/documenter/taxonomy.md`, y el histórico del roadmap. **Sin cambio de comportamiento**: prompts, scripts y tests quedan intactos en sustancia; solo cambian los valores de ejemplo.
+
+### Docs
+
+- Cerrado el hueco documental de las dos iniciativas de esta versión (política curada de Confluence, memoria técnica `docs/knowledge/`): tabla "Qué te llevas" de `README.md`/`README.es.md` raíz, `CLAUDE.md`, ambos índices de documentación (`docs/README.md`, `docs/en/README.md`), el inventario de fragmentos de `agent-kits/shared/README.md`, y una nota breve de "memoria técnica" en la página de cada agente implicado (`docs/agents/evaluator.md`, `planner.md`, `implementer.md`, `qa.md`, `documenter.md`).
+
 ## [1.14.0] - 2026-08-20
 
 ### Añadido — iniciativa `knowledge-split` (2026-08-20)
@@ -44,10 +54,6 @@ y el versionado sigue [SemVer](https://semver.org/lang/es/).
   - **Mapeo inverso staged → canónico** expuesto como función pura (`staged_to_canonical`) más un subcomando `--map`, que consume `confluence-pull` para escribir siempre en el fichero **canónico** de `docs/`, nunca en la carpeta generada `docs/confluence/`.
   - `hooks/mark-docs-pending.sh` ignora `docs/confluence/**` para que regenerar el staging no se marque a sí mismo como "pendiente" en bucle.
   - Documentación: sección normativa "qué sube y qué no" en las dos skills de Confluence, matriz disparador→artefacto→¿se publica? cubriendo los 10 disparadores conocidos en `docs/FLOWS.md` (+ espejo EN), y el párrafo de sincronización bidireccional de ambos README reescrito para reflejar la política curada y la carpeta de staging generada.
-
-### Docs
-
-- Cerrado el hueco documental de las dos iniciativas de esta versión (política curada de Confluence, memoria técnica `docs/knowledge/`): tabla "Qué te llevas" de `README.md`/`README.es.md` raíz, `CLAUDE.md`, ambos índices de documentación (`docs/README.md`, `docs/en/README.md`), el inventario de fragmentos de `agent-kits/shared/README.md`, y una nota breve de "memoria técnica" en la página de cada agente implicado (`docs/agents/evaluator.md`, `planner.md`, `implementer.md`, `qa.md`, `documenter.md`).
 
 ## [1.13.0] - 2026-08-18
 
@@ -135,7 +141,7 @@ y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ### Verificación global del roadmap (2026-08-12)
 
-- **Las 9 iniciativas del roadmap auditadas y coherentes**: ledger-lint en verde en todos los `tasks.md`; estados cerrados donde el trabajo estaba publicado (qa-agent y nemesis-sca-iac **reconciliados con nota explícita** — ledgers anteriores a la disciplina de ledger canónico; agent-best-practices, qa-strict y token-diet → `completado`/`implementada`); jira-granularity se mantiene en `en-revision` a propósito (T-08, dry-run contra DM5985, sigue pendiente).
+- **Las 9 iniciativas del roadmap auditadas y coherentes**: ledger-lint en verde en todos los `tasks.md`; estados cerrados donde el trabajo estaba publicado (qa-agent y nemesis-sca-iac **reconciliados con nota explícita** — ledgers anteriores a la disciplina de ledger canónico; agent-best-practices, qa-strict y token-diet → `completado`/`implementada`); jira-granularity se mantiene en `en-revision` a propósito (T-08, dry-run contra PROJ, sigue pendiente).
 - `roadmap-dashboard`: las iniciativas de **vía rápida** (solo `tasks.md`) ahora aparecen en dashboard y métricas (fase "vía rápida", título desde el ledger, coste medido agregado); los estados con emoji (`completado ✅`) ya no generan falsos avisos de incoherencia. Tests nuevos.
 
 ### Corregido
@@ -294,6 +300,7 @@ Adopción de las mejores prácticas de las colecciones top de agentes (coleccion
 
 Versiones anteriores a la introducción de este changelog: bundle con los agentes `nemesis`, `evaluator`, `planner`, `pdfy` y `qa`, y las skills compartidas `cybersecurity` y `to-pdf`. Empaquetado como plugin + marketplace.
 
+[1.14.1]: https://github.com/daycry/custom-agents/releases/tag/v1.14.1
 [1.14.0]: https://github.com/daycry/custom-agents/releases/tag/v1.14.0
 [1.13.0]: https://github.com/daycry/custom-agents/releases/tag/v1.13.0
 [1.12.0]: https://github.com/daycry/custom-agents/releases/tag/v1.12.0

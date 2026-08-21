@@ -20,8 +20,8 @@ generacion:               # MEDIDO por usage-meter.py (una ventana cubre plan + 
 | **Estado** | completado |
 | **Tipo** | Nueva Funcionalidad |
 | **Prioridad** | Media |
-| **Solicitante** | jmano@mediapro.tv |
-| **Responsable** | implementer (ejecución) · jmano@mediapro.tv (aprobación) |
+| **Solicitante** | daycry |
+| **Responsable** | implementer (ejecución) · daycry (aprobación) |
 | **Spec** | [`spec.md`](spec.md) |
 | **Evaluación** | [`evaluation.md`](evaluation.md) |
 

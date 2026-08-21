@@ -46,7 +46,7 @@ El model tiering (iniciativa `agent-best-practices`) ya atacó el **coste por to
 - **Fuera (siguientes specs):**
   - Cachés de prompt propias / memoization entre ejecuciones — complejidad alta, ahorro dudoso; Claude Code ya gestiona el caché de contexto.
   - Versiones "lite" de los agentes — duplicaría mantenimiento; el tiering + progressive disclosure cubren el caso.
-  - Telemetría de tokens propia — `/cost` y `/context` de Claude Code ya lo dan; ver [[preferencias-jordi]] sobre no reinventar.
+  - Telemetría de tokens propia — `/cost` y `/context` de Claude Code ya lo dan; ver preferencias del usuario (memoria del proyecto) sobre no reinventar.
   - Medición automatizada del ahorro (A/B) — se valora tras rodar; el real por token entra en CALIBRATION vía `/retro`.
 
 ## Manejo de errores
@@ -70,7 +70,7 @@ El model tiering (iniciativa `agent-best-practices`) ya atacó el **coste por to
 
 - Best practices oficiales — gestión de contexto y subagentes: https://code.claude.com/docs/en/best-practices
 - Iniciativa previa `agent-best-practices` (model tiering, agent-kits/shared).
-- [[preferencias-jordi]] — no hardcodear, no reinventar lo que trae Claude Code.
+- preferencias del usuario (memoria del proyecto) — no hardcodear, no reinventar lo que trae Claude Code.
 
 ## Decisiones confirmadas (revisión del usuario · 2026-08-10)
 

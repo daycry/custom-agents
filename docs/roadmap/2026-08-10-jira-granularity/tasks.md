@@ -229,9 +229,9 @@
 
 **Estado**: completado · **Estimado**: 1,5h · **Real**: — · **Coste est.**: ~78 € · **Tokens est.**: 118k
 
-### T-08 — 🚦 PUERTA MANUAL: dry-run contra DM5985 (condición del go de la evaluación)
+### T-08 — 🚦 PUERTA MANUAL: dry-run contra PROJ (condición del go de la evaluación)
 
-- **Descripción**: **Tarea manual del usuario** (asistido por el agente): dry-run contra el proyecto de pruebas DM5985 de mediaprosuite, con issue desechable, que ejercite las cuatro capacidades no verificadas del conector antes de dar la iniciativa por cerrada: creación en modo fase, `editJiraIssue` de la checklist, `addComment` del comentario de revisión y `addWorklog` de la entrada `[revisión]`.
+- **Descripción**: **Tarea manual del usuario** (asistido por el agente): dry-run contra el proyecto de pruebas de Jira, con issue desechable, que ejercite las cuatro capacidades no verificadas del conector antes de dar la iniciativa por cerrada: creación en modo fase, `editJiraIssue` de la checklist, `addComment` del comentario de revisión y `addWorklog` de la entrada `[revisión]`.
 - **Estado**: en-progreso
 - **Tiempo humano**: est. 1,0h · real —
 - **Tiempo IA (ejec.)**: est. 0,3h · real —
@@ -242,18 +242,18 @@
 - **Cubre (tests)**: —
 
 **Criterios de aceptación**
-- [ ] Creación en modo fase verificada en DM5985: 1 issue por fase con checklist correcta, manifiesto `fase-N` escrito, reejecución sin duplicados
+- [ ] Creación en modo fase verificada en PROJ: 1 issue por fase con checklist correcta, manifiesto `fase-N` escrito, reejecución sin duplicados
 - [ ] `editJiraIssue` verificado: la checklist de la descripción se marca `- [x]` sin perder contenido — o plan B "solo comentarios" activado y documentado
 - [ ] `addCommentToJiraIssue` verificado: comentario de revisión publicado con el formato de la plantilla fija
 - [ ] `addWorklogToJiraIssue` verificado: entrada `[revisión]` conviviendo con la de implementación en el mismo issue; el total suma ambas
 - [ ] Resultado del dry-run (ok / limitaciones / planes B activados) anotado en las **Notas de implementación** de este ledger
 
 **Subtareas**
-- [ ] Preparar `tasks.md` de juguete y verificar acceso de escritura a DM5985
+- [ ] Preparar `tasks.md` de juguete y verificar acceso de escritura a PROJ
 - [ ] Ejecutar el dry-run de las 4 capacidades sobre issue desechable
 - [ ] Limpiar/cerrar el issue desechable y anotar el resultado
 
-**Notas**: es la **condición del veredicto go** de la evaluación; sin esta puerta en verde (o con planes B documentados), la iniciativa NO se da por cerrada. La ejecuta jmano@mediapro.tv.
+**Notas**: es la **condición del veredicto go** de la evaluación; sin esta puerta en verde (o con planes B documentados), la iniciativa NO se da por cerrada. La ejecuta el usuario.
 
 ### T-09 — Cierre: CHANGELOG, documentación y nota de release
 
@@ -283,6 +283,6 @@
 
 ## Notas de implementación
 
-**Estado (2026-08-10):** implementado en la sesión Cowork (dogfooding) todo salvo la **puerta de dry-run T-08**, que es MANUAL y requiere Jira en vivo (DM5985) — queda pendiente para Jordi. Lo implementado sin conector: config `granularidad` (C-01), modo fase completo en el SKILL (C-02..C-05), publicación del revisor con plantilla + bucle acotado en dev-cycle (C-06), y `worklog.py --kind revision` con desglose + tests 12/12 (C-07). Revisión de dos lentes pasada. Pendiente además del cierre de estados y el release (usuario).
+**Estado (2026-08-10):** implementado en la sesión Cowork (dogfooding) todo salvo la **puerta de dry-run T-08**, que es MANUAL y requiere Jira en vivo (PROJ) — queda pendiente para el usuario. Lo implementado sin conector: config `granularidad` (C-01), modo fase completo en el SKILL (C-02..C-05), publicación del revisor con plantilla + bucle acotado en dev-cycle (C-06), y `worklog.py --kind revision` con desglose + tests 12/12 (C-07). Revisión de dos lentes pasada. Pendiente además del cierre de estados y el release (usuario).
 
 _A completar durante la ejecución. Registra decisiones, desvíos de la estimación y aprendizajes. Aquí se anota el resultado del dry-run de T-08 (capacidades verificadas / planes B activados)._

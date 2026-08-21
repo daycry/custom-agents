@@ -79,7 +79,7 @@ código), guías how-to, y documentación de producto/usuario. Declara en el ín
 se omiten y por qué.
 
 - **`docs/roadmap/`** (spec/evaluación/plan/testing) NO lo gestionas tú; solo **enlázalo** desde el índice si existe.
-- El ejemplo `docs/` de webscorpo es una **referencia de estilo y nivel de detalle**, no una plantilla a copiar: otro proyecto tendrá otras carpetas.
+- Un `docs/` de referencia de un proyecto modular es una **referencia de estilo y nivel de detalle**, no una plantilla a copiar: otro proyecto tendrá otras carpetas.
 
 ---
 

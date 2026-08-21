@@ -8,7 +8,7 @@
 | **Estado** | borrador |
 | **Tipo** | Nueva Funcionalidad |
 | **Prioridad** | Media |
-| **Solicitante** | Jordi |
+| **Solicitante** | daycry |
 | **Responsable** | — |
 | **Spec** | [`spec.md`](spec.md) |
 | **Evaluación** | [`evaluation.md`](evaluation.md) |

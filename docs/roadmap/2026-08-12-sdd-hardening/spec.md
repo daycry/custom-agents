@@ -97,7 +97,7 @@ El análisis comparativo (2026-08-12) contra superpowers, GitHub Spec Kit / Lior
 
 - Análisis comparativo (2026-08-12): [obra/superpowers](https://github.com/obra/superpowers) · [GitHub Spec Kit](https://www.fundesk.io/spec-driven-development-github-spec-kit-guide) · [LiorCohen/sdd](https://github.com/LiorCohen/sdd) · [hoangsonww/Claude-Code-Agent-Monitor](https://github.com/hoangsonww/Claude-Code-Agent-Monitor).
 - Internas: revisión de dos lentes (qa-strict C-06), `coverage-check.py`, `/setup`, patrón de fragmentos shared, iniciativa coste-generacion (medición).
-- [[preferencias-jordi]] — no reinventar lo existente, opt-ins persistentes, no hardcodear, degradación sin bloquear.
+- preferencias del usuario (memoria del proyecto) — no reinventar lo existente, opt-ins persistentes, no hardcodear, degradación sin bloquear.
 
 ## Decisiones confirmadas (conversación con el usuario · 2026-08-12)
 

@@ -11,7 +11,7 @@ plan: improvement-plan.md
 # Granularidad del volcado a Jira: por fase o por tarea
 
 > **Evaluación:** [`evaluation.md`](evaluation.md) — 7 características · 18,75 h base (22,5 h con margen), ~1.168 €, ~1,96 M tokens; veredicto go CONDICIONADO a dry-run del conector (comentario + worklog de revisión incl.) y a `qa-strict` desplegado para C-06/C-07 (en-revision).
-> **Plan de implementación:** [`improvement-plan.md`](improvement-plan.md) + [`tasks.md`](tasks.md) — 4 fases · 9 tareas · 20,25 h base (24,3 h con margen) · ~1.261 € · puerta de dry-run contra DM5985 antes del cierre (T-08)
+> **Plan de implementación:** [`improvement-plan.md`](improvement-plan.md) + [`tasks.md`](tasks.md) — 4 fases · 9 tareas · 20,25 h base (24,3 h con margen) · ~1.261 € · puerta de dry-run contra PROJ antes del cierre (T-08)
 
 > **Terminología:** «modo tarea» = un issue de Jira por cada `T-XX` (comportamiento actual). «modo fase» = un issue por cada Fase del plan, con sus tareas como checklist en la descripción. «ledger» = `tasks.md`, fuente única de progreso. «revisor» = el agente de revisión adversarial (dos lentes) que corre en `/dev-cycle` Modo B tras la implementación (iniciativa `qa-strict`, C-06). «worklog de revisión» = entrada de tiempo separada, marcada `[revisión]`, distinta de la de implementación.
 
@@ -84,7 +84,7 @@ Se toca: `skills/jira-sync/SKILL.md` (modo fase: creación, comentarios, worklog
 
 - `worklog.py`: los tests existentes siguen verdes; añadir caso de imputación a issue de fase (mismo cálculo, distinto destino) y caso de **entrada `[revisión]` separada** (el desglose implementación/revisión cuadra con el total del issue).
 - Prueba de manifiesto: modo fase escribe `fase-N → issueKey`; reejecución no duplica; modo tarea intacto; `reviewComentado` evita re-comentar/re-imputar la revisión.
-- Dry-run/previsualización en ambos modos contra la instancia real (mediaprosuite, proyecto de pruebas DM5985) sin crear de verdad, o creando en un issue desechable — incluye publicar un comentario de revisión y un worklog `[revisión]` de prueba.
+- Dry-run/previsualización en ambos modos contra la instancia real (site del proyecto, proyecto de pruebas de Jira) sin crear de verdad, o creando en un issue desechable — incluye publicar un comentario de revisión y un worklog `[revisión]` de prueba.
 - Salida estructurada del revisor: con un tasks.md de juguete, el revisor devuelve `T-XX` → criterio → ✓/✗ y el comentario se renderiza contra la plantilla fija (mismo formato siempre).
 - Coherencia: `ledger-lint.py` valida el ledger antes del volcado en modo fase.
 - Verificación de que `granularidad` ausente → pregunta una vez y persiste; `"tarea"` reproduce el comportamiento actual bit a bit.
@@ -92,8 +92,8 @@ Se toca: `skills/jira-sync/SKILL.md` (modo fase: creación, comentarios, worklog
 ## Referencias
 
 - `skills/jira-sync/SKILL.md` (Pasos 1–8, config, manifiesto) y `skills/jira-sync/scripts/worklog.py`.
-- [[atlassian-mediaprosuite]] — cloudId, proyecto de pruebas DM5985 para dry-run.
-- [[preferencias-jordi]] — no hardcodear tipos, opt-ins persistentes, paridad artefacto/conversacional.
+- Notas del conector Atlassian del proyecto — cloudId y proyecto de pruebas para el dry-run.
+- preferencias del usuario (memoria del proyecto) — no hardcodear tipos, opt-ins persistentes, paridad artefacto/conversacional.
 
 ## Decisiones confirmadas (revisión del usuario · 2026-08-10)
 

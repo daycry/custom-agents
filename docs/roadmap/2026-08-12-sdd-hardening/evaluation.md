@@ -19,7 +19,7 @@ generacion:               # MEDIDO por usage-meter.py
 | **Fecha** | 2026-08-12 |
 | **Estado** | en-revision 🔍 |
 | **Prioridad global** | Media 🟡 |
-| **Solicitante** | jmano@mediapro.tv |
+| **Solicitante** | daycry |
 | **Spec** | [`spec.md`](spec.md) |
 | **Plan** | [`improvement-plan.md`](improvement-plan.md) + [`tasks.md`](tasks.md) (2026-08-12) |
 | **Características evaluadas** | 8 |

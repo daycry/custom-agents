@@ -19,7 +19,7 @@ generacion:
 | **Fecha** | 2026-08-11 |
 | **Estado** | completado ✅ |
 | **Prioridad global** | Media 🟡 |
-| **Solicitante** | jmano@mediapro.tv |
+| **Solicitante** | daycry |
 | **Spec** | [`spec.md`](spec.md) |
 | **Plan** | [`improvement-plan.md`](improvement-plan.md) + [`tasks.md`](tasks.md) (2026-08-11) — 4 fases · 10 tareas · 16,75 h base (20,1 h con margen) · ~1.044 € |
 | **Características evaluadas** | 8 |

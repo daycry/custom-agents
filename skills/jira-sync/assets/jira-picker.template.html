@@ -19,7 +19,7 @@
                               (nivel >=1 -> Tareas; nivel 0 -> Subtareas; el artefacto ya lo muestra).
   - todo null              -> crear Tareas sueltas en la raíz del proyecto.
 
-  Notas de conector (verificadas contra mediaprosuite):
+  Notas de conector (verificadas contra una instancia real):
    - getVisibleJiraProjects: searchString + maxResults; devuelve { values:[{key,name,id}] }.
    - searchJiraIssuesUsingJql: REQUIERE searchResultMode:"issues" y JQL ACOTADA (rechaza sin
      restricción). Devuelve issues en issues.nodes (a veces issues[]). Cada issue trae
@@ -86,7 +86,7 @@ code{background:#f1efe8;padding:1px 5px;border-radius:4px;font-size:12px}
 
   <div class="step" id="step1">
     <h2>1 · Proyecto o issue</h2>
-    <input type="text" id="pq" placeholder='Proyecto (nombre/clave) o pega una clave/URL de issue: DM5985-59' oninput="deb()">
+    <input type="text" id="pq" placeholder='Proyecto (nombre/clave) o pega una clave/URL de issue: PROJ-59' oninput="deb()">
     <div class="hintline">Si pegas una clave/URL de issue, lo uso directamente como padre. Si escribes texto, busco proyectos.</div>
     <div class="list hide" id="plist"></div>
   </div>
@@ -109,7 +109,7 @@ code{background:#f1efe8;padding:1px 5px;border-radius:4px;font-size:12px}
       <button class="sel" onclick="chooseNoParent()">Elegir</button>
     </div>
 
-    <div class="hintline" style="margin-top:12px">…o <b>colgar de un issue existente</b>: si es una <b>épica</b> → se crean Tareas; si es una <b>tarea/historia</b> → se crean Subtareas. Búscalo por <b>clave</b> (<code>DM5985-59</code>), <b>texto</b> o <b>JQL</b> (<code>issuetype = Epic</code>).</div>
+    <div class="hintline" style="margin-top:12px">…o <b>colgar de un issue existente</b>: si es una <b>épica</b> → se crean Tareas; si es una <b>tarea/historia</b> → se crean Subtareas. Búscalo por <b>clave</b> (<code>PROJ-59</code>), <b>texto</b> o <b>JQL</b> (<code>issuetype = Epic</code>).</div>
     <input type="text" id="jq" placeholder='clave, texto o JQL…' onkeydown="if(event.key==='Enter')runJql()">
     <div class="hintline">Vacío = issues recientes del proyecto. <button onclick="runJql()">Buscar</button></div>
     <div class="list hide" id="ilist"></div>

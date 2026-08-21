@@ -99,7 +99,7 @@ Se crea: **`agent-kits/shared/usage-meter.py`** (start/close, suma de `usage`, s
 - Transcripciones JSONL de Claude Code (`~/.claude/projects/`) y su bloque `usage` — misma fuente que `ccusage`.
 - `agent-kits/shared/estimation-defaults.md`, `.claude/rates.json` + skill `rates-verify` (token-diet).
 - `commands/retro.md` y formato de `docs/roadmap/CALIBRATION.md` (aún sin estrenar — esta iniciativa le da su primera columna medida).
-- [[preferencias-jordi]] — no hardcodear, deterministas con tests, degradación sin bloquear, opt-ins persistentes.
+- preferencias del usuario (memoria del proyecto) — no hardcodear, deterministas con tests, degradación sin bloquear, opt-ins persistentes.
 
 ## Decisiones confirmadas (conversación con el usuario · 2026-08-11)
 
