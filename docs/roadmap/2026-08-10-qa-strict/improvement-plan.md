@@ -8,8 +8,8 @@
 | **Estado** | borrador |
 | **Tipo** | Infra (tooling del plugin: scripts, hooks, prompts y plantillas) |
 | **Prioridad** | Media |
-| **Solicitante** | 7590335+daycry@users.noreply.github.com |
-| **Responsable** | `implementer` (agente) · supervisión: 7590335+daycry@users.noreply.github.com |
+| **Solicitante** | daycry |
+| **Responsable** | `implementer` (agente) · supervisión: daycry |
 | **Spec** | [`spec.md`](spec.md) |
 | **Evaluación** | [`evaluation.md`](evaluation.md) |
 

@@ -31,7 +31,7 @@ impone nombres de carpeta.
 
 No hay carpetas obligatorias. La organización de `docs/` se **deriva de cómo está partido el
 repositorio** y de su vocabulario, respetando convenciones y docs existentes. El `docs/` del
-proyecto webscorpo (CI4 modular) sirve de **referencia de estilo y nivel de detalle**, no como
+un proyecto modular bien documentado sirve de **referencia de estilo y nivel de detalle**, no como
 esquema a clonar. Guía completa en `agent-kits/documenter/taxonomy.md`.
 
 ## Memoria técnica del proyecto

@@ -20,8 +20,8 @@ generacion:               # MEDIDO por usage-meter.py (una ventana cubre plan + 
 | **Estado** | completado |
 | **Tipo** | Nueva Funcionalidad |
 | **Prioridad** | Media |
-| **Solicitante** | 7590335+daycry@users.noreply.github.com |
-| **Responsable** | implementer (ejecución) · 7590335+daycry@users.noreply.github.com (aprobación) |
+| **Solicitante** | daycry |
+| **Responsable** | implementer (ejecución) · daycry (aprobación) |
 | **Spec** | [`spec.md`](spec.md) |
 | **Evaluación** | [`evaluation.md`](evaluation.md) |
 

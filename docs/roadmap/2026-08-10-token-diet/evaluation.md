@@ -7,7 +7,7 @@
 | **Fecha** | 2026-08-10 |
 | **Estado** | completado ✅ |
 | **Prioridad global** | Media 🟡 |
-| **Solicitante** | 7590335+daycry@users.noreply.github.com |
+| **Solicitante** | daycry |
 | **Spec** | [`spec.md`](spec.md) |
 | **Plan** | [`improvement-plan.md`](improvement-plan.md) (+ [`tasks.md`](tasks.md)) |
 | **Características evaluadas** | 5 |

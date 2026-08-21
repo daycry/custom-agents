@@ -5,7 +5,7 @@
   "enabled": true,
 
   "cloudId": "REEMPLAZA-uuid-del-site-atlassian",
-  "spaceKey": "IMAG",
+  "spaceKey": "DOCS",
 
   "anchor": {
     "_comment": "mode='root' -> la pagina-directorio cuelga del espacio (se omite parentId). mode='child' -> cuelga de parentPageId (o parentTitle si no sabes el id).",
