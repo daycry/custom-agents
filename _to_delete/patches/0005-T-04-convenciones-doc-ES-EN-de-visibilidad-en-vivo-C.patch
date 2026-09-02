@@ -1,0 +1,463 @@
+From 238796f10c115965c1e131d007247abca855f647 Mon Sep 17 00:00:00 2001
+From: daycry <7590335+daycry@users.noreply.github.com>
+Date: Wed, 2 Sep 2026 10:02:08 +0000
+Subject: [PATCH 05/32] T-04: convenciones/doc ES+EN de visibilidad en vivo
+ (CONVENTIONS, FLOWS 6b, observability, READMEs, CLAUDE.md, plugin-dev, shared
+ README, roadmap index) + lint_hooks() en lint_plugin.py (+3 tests) + cierre
+ del ledger
+
+Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VA3zi8RqekY9weD2S1RyWL
+
+Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VA3zi8RqekY9weD2S1RyWL
+
+---
+ CLAUDE.md                                     |  8 ++--
+ README.es.md                                  |  1 +
+ README.md                                     |  1 +
+ agent-kits/shared/README.md                   |  3 +-
+ docs/CONVENTIONS.md                           |  1 +
+ docs/FLOWS.md                                 | 23 +++++++++-
+ docs/README.md                                |  2 +-
+ docs/en/CONVENTIONS.md                        |  1 +
+ docs/en/FLOWS.md                              | 23 +++++++++-
+ docs/en/README.md                             |  2 +-
+ .../2026-09-02-live-visibility/tasks.md       | 32 ++++++++-----
+ docs/roadmap/README.md                        |  1 +
+ scripts/lint_plugin.py                        | 41 +++++++++++++++++
+ skills/plugin-dev/SKILL.md                    |  2 +-
+ tests/test_lint_plugin.py                     | 46 ++++++++++++++++++-
+ 15 files changed, 165 insertions(+), 22 deletions(-)
+
+diff --git a/CLAUDE.md b/CLAUDE.md
+index 5b1e228..e64fa0b 100755
+--- a/CLAUDE.md
++++ b/CLAUDE.md
+@@ -12,7 +12,8 @@ custom-agents/               (se despliega como .claude/)
+ ├── commands/<nombre>.md     # orquestadores (/pm-cycle, /dev-cycle, …)
+ ├── skills/<skill>/          # skills COMPARTIDAS
+ ├── agent-kits/<agente>/     # toolkits PRIVADOS por agente (shared/ = fragmentos y scripts comunes)
+-├── hooks/                   # PostToolUse no bloqueantes
++├── hooks/                   # PostToolUse · SubagentStop · SessionStart — informan (systemMessage/additionalContext), no deciden; siempre exit 0
++├── statusline/              # roadmap-statusline.sh (opt-in en /setup): modelo · coste sesión · ctx · progreso roadmap
+ ├── scripts/                 # lint_plugin.py, release.py
+ ├── tests/                   # suites del repo (corren en CI)
+ └── docs/                    # TODA la documentación (README índice, CONVENTIONS, FLOWS, INSTALL, agents/)
+@@ -28,10 +29,11 @@ custom-agents/               (se despliega como .claude/)
+ | Nombres | Un agente = un nombre kebab-case único, igual en `agents/`, `agent-kits/` y `docs/agents/`; el `name:` del frontmatter coincide. |
+ | Compartido vs privado | Lo usan 2+ agentes → `skills/`; de uno solo → `agent-kits/<agente>/`; fragmentos de prompt repetidos → `agent-kits/shared/` (fuente única). |
+ | Model tiering | Todo agente declara `model` (`haiku`/`sonnet`/`opus`/`inherit`). Lo valida el linter. |
+-| Linter + tests | `python scripts/lint_plugin.py` (frontmatter, grafo `dependencies` sin ciclos, colisiones) + suites de `tests/` antes de publicar. |
++| Linter + tests | `python scripts/lint_plugin.py` (frontmatter, grafo `dependencies` sin ciclos, colisiones, `hooks/hooks.json` con commands existentes y ejecutables) + suites de `tests/` antes de publicar. |
+ | Dependencias | Bloque `dependencies:` en el frontmatter del agente (skills/kits/agents) — fuente de verdad del grafo. |
+ | Rutas en scripts | Relativas entre sí (`dirname "$BASH_SOURCE"`); nunca absolutas del repo. |
+-| Determinismo | Los cálculos y veredictos van en **scripts con tests y exit codes** (patrón `worklog`/`qa-gate`/`ledger-lint`/`usage-meter`/`task-brief`), no en prosa del agente. |
++| Determinismo | Los cálculos y veredictos van en **scripts con tests y exit codes** (patrón `worklog`/`qa-gate`/`ledger-lint`/`usage-meter`/`task-brief`/`progress-report`), no en prosa del agente. |
++| Hooks | Informan, no deciden: `hooks/` emite `systemMessage`/`hookSpecificOutput.additionalContext` y SIEMPRE exit 0 (sin `python3` → silencio). Progreso en vivo = `agent-kits/shared/progress-report.py` sobre el ledger canónico (ver `docs/observability.md`). |
+ | Degradación, no bloqueo | Las piezas opcionales (medición, constitución, Jira, Confluence) degradan con aviso; NUNCA bloquean el ciclo. |
+ | Memoria técnica | `docs/knowledge/` (siempre activa, sin opt-in): `adr/ADR-NNN-<slug>.md`, `gotchas/GOT-NNN-<slug>.md`, `lessons/LES-NNN-<agente>-<slug>.md`, con `README.md` como única puerta de entrada (índice). Lectura selectiva por área (`agent-kits/shared/knowledge-check.md`: evaluator/planner/implementer/qa/documenter); escritura con umbral anti-burocracia (`agent-kits/shared/knowledge-write.md`: ADR solo si cierra alternativa y afecta 2+ piezas, gotcha solo si costó ≥1 ciclo de depuración). |
+ 
+diff --git a/README.es.md b/README.es.md
+index 8a2476b..0c8f677 100755
+--- a/README.es.md
++++ b/README.es.md
+@@ -60,6 +60,7 @@ Casi todo el utillaje alrededor de los agentes de código responde a *cómo* esc
+ | **Disciplina de ingeniería, opt-in** | `.claude/dev.json`: TDD estricto con evidencia del rojo, worktrees aislados y subagentes de contexto fresco con personas de dominio |
+ | **Depuración a causa raíz** | Al tercer intento fallido de qa, `debug-root-cause` diagnostica con evidencia en 4 fases antes de preguntarte — nada de parches a ciegas |
+ | **Puertas deterministas** | Los veredictos salen de scripts con exit codes y tests propios (`qa-gate`, `ledger-lint`, `coverage-check`), nunca de la prosa del agente |
++| **Progreso en vivo mientras corren las tareas** | Hooks no bloqueantes leen el ledger canónico y muestran una línea de progreso por edición (`📋 slug · T-04/12 (33%) · en curso T-05`), el estado de las iniciativas activas al terminar un subagente y reinyectan el contexto de retoma al arrancar/retomar/compactar; una **statusline opt-in** añade modelo · coste de sesión · contexto · progreso del roadmap |
+ 
+ > Autosuficiente: sin dependencias de otros plugins. Si ya usas un motor SDD externo, `/dev-cycle` puede delegarle la ejecución manteniendo `tasks.md` como ledger canónico; y [convive](docs/observability.md) con monitores de sesión en vivo.
+ 
+diff --git a/README.md b/README.md
+index f7704e1..1d65a07 100755
+--- a/README.md
++++ b/README.md
+@@ -60,6 +60,7 @@ Most tooling around coding agents answers *how* to write the code. This plugin a
+ | **Engineering discipline, opt-in** | `.claude/dev.json`: strict TDD with red-phase evidence, isolated worktrees, and fresh-context subagents with domain personas |
+ | **Root-cause debugging** | On the third failed qa attempt, `debug-root-cause` diagnoses with evidence in 4 phases before asking you — no blind fixes |
+ | **Deterministic gates** | Verdicts come from scripts with exit codes and their own tests (`qa-gate`, `ledger-lint`, `coverage-check`), never from agent prose |
++| **Live progress while tasks run** | Non-blocking hooks read the canonical ledger and show one progress line per edit (`📋 slug · T-04/12 (33%) · en curso T-05`), the state of active initiatives when a subagent finishes, and re-inject the resume context on startup/resume/compaction; an **opt-in status line** adds model · session cost · context · roadmap progress |
+ 
+ > Self-contained: no dependency on other plugins. If you already use an external SDD engine, `/dev-cycle` can delegate execution to it while `tasks.md` remains the canonical ledger; and it [coexists](docs/en/observability.md) with live session monitors.
+ 
+diff --git a/agent-kits/shared/README.md b/agent-kits/shared/README.md
+index 3c23e37..d87b88a 100755
+--- a/agent-kits/shared/README.md
++++ b/agent-kits/shared/README.md
+@@ -6,7 +6,8 @@ Fragmentos de prompt que usan **varios** agentes y que deben tener **una única
+ |-----------|--------------|---------|
+ | `estimation-defaults.md` | Parámetros de estimación (tarifa, supervisión, margen, FTE…) + regla de `.claude/rates.json` | `evaluator`, `planner` |
+ | `confluence-optin.md` | Paso «Sincronizar con Confluence (opt-in)» | `evaluator`, `planner`, `qa`, `documenter` |
+-| `ledger-lint.py` | Validación mecánica del ledger `tasks.md` (exit code; `--warn-only` para el hook) | `implementer`, `qa`, `/dev-cycle`, hook `ledger-lint-warn.sh` |
++| `ledger-lint.py` | Validación mecánica del ledger `tasks.md` (exit code; `--warn-only` para el hook); expone `parse_ledger()` como módulo | `implementer`, `qa`, `/dev-cycle`, hook `ledger-lint-warn.sh`, `progress-report.py` |
++| `progress-report.py` (+ tests) | Línea de progreso DETERMINISTA del ledger (`line`: `📋 slug · T-04/12 (33%) · fase 2/4 · en curso T-05 · IA real XhYm`), `active` (iniciativas en-progreso del roadmap), `session` (bloque ≤15 líneas de contexto de retoma), `--json`. Exit 0 siempre en `active`/`session`; nunca bloquea | hooks `progress-line.sh` / `subagent-progress.sh` / `session-context.sh`, `statusline/roadmap-statusline.sh` |
+ | `read-discipline.md` | Disciplina de lectura del recon (grep antes de Read, límites, ignorar deps/generados) | `documenter`, `nemesis`, `evaluator`, `qa` |
+ | `output-discipline.md` | Disciplina de salida en handoffs (mensaje final ≤ ~12 líneas, datos no informe) | `evaluator`, `planner`, `implementer`, `qa`, `documenter` |
+ | `knowledge-check.md` | Paso «Memoria técnica del proyecto — lectura»: si existe `docs/knowledge/`, lee su `README.md` y abre SELECTIVAMENTE solo las entradas de `adr/`/`gotchas/`/`lessons/` del área de la tarea (nunca la carpeta entera); siempre activa, sin opt-in, degrada en silencio si no existe | `evaluator`, `planner`, `implementer`, `qa`, `documenter` |
+diff --git a/docs/CONVENTIONS.md b/docs/CONVENTIONS.md
+index ae9e864..448e15e 100755
+--- a/docs/CONVENTIONS.md
++++ b/docs/CONVENTIONS.md
+@@ -149,6 +149,7 @@ El avance de un plan se registra en **un único sitio**: `docs/roadmap/<fecha>-<
+ - **Estados con motor externo:** cuando la implementación se delega a un orquestador externo, ese motor **no** actualiza tus artefactos. Por tanto, `/dev-cycle` (o tú) aplica las **transiciones de estado** de la regla 7 y mantiene `tasks.md` al día en su nombre. Las transiciones valen igual haya o no motor externo.
+ - El cierre del ciclo (documentación con `documenter`) se hace **una vez** tras implementar y con `qa` en verde, no tarea a tarea.
+ - **Validación mecánica:** `agent-kits/shared/ledger-lint.py` comprueba el ledger con exit code (vocabulario de estados, `completado` ⟹ criterios marcados, resumen cuadrado, IDs únicos). Lo corren `implementer` (DoD), `qa` (P1) y `/dev-cycle` en sus puertas; además un hook PostToolUse (`hooks/ledger-lint-warn.sh`) lo ejecuta en **modo aviso** en cada edición de un `tasks.md`. El «verde» de qa también es mecánico: `agent-kits/qa/qa-gate.py` sobre `results.json`.
++- **Visibilidad en vivo (hooks):** el plugin registra hooks en `PostToolUse` (aviso de lint + **línea de progreso** `progress-report.py line` al editar un `tasks.md`), `SubagentStop` (estado de las iniciativas `en-progreso` al terminar un subagente) y `SessionStart` (`startup|resume|compact`: contexto de retoma con `progress-report.py session`). Principio: **los hooks informan (`systemMessage` / `hookSpecificOutput.additionalContext`), no deciden; siempre exit 0** — sin `python3` callan; un hook roto es una pieza muerta, no un guardrail (el linter comprueba que cada `command` de `hooks/hooks.json` exista y sea ejecutable). La statusline (`statusline/roadmap-statusline.sh`) es **opt-in** en `/setup` y se escribe con ruta absoluta en `.claude/settings.json` (la doc oficial no expande `${CLAUDE_PLUGIN_ROOT}` en `statusLine.command`).
+ 
+ ## 9. Ficheros de config/estado en `.claude/` del proyecto consumidor
+ 
+diff --git a/docs/FLOWS.md b/docs/FLOWS.md
+index 2b72cfe..0154e7b 100755
+--- a/docs/FLOWS.md
++++ b/docs/FLOWS.md
+@@ -212,6 +212,26 @@ flowchart TD
+     Y -.->|ratio| M
+ ```
+ 
++## 6b · Visibilidad en vivo (hooks deterministas + statusline opt-in)
++
++> Mientras `implementer`/subagentes trabajan, el usuario ve el avance sin que nadie lo redacte:
++> todo sale de `progress-report.py` sobre el **ledger canónico** (`tasks.md`). Los hooks
++> **informan, no deciden** (siempre exit 0). Detalle: [`observability.md`](observability.md).
++
++```mermaid
++flowchart LR
++    L[("docs/roadmap/*/tasks.md<br/>ledger canónico")] -->|Write/Edit| H1["hook PostToolUse<br/>progress-line.sh"]
++    H1 -->|"systemMessage (con debounce)"| U(["👀 usuario<br/>📋 slug · T-04/12 (33%) · fase 2/4 · en curso T-05"])
++    SA["subagente termina"] --> H2["hook SubagentStop<br/>subagent-progress.sh"]
++    H2 -->|"systemMessage: iniciativas activas"| U
++    SS["sesión: startup · resume · compact"] --> H3["hook SessionStart<br/>session-context.sh"]
++    H3 -->|"additionalContext ≤ 15 líneas<br/>(retoma desde la tarea en-progreso)"| C(["🧠 contexto de Claude"])
++    L --> P["progress-report.py<br/>line · active · session · --json"]
++    P --> H1 & H2 & H3
++    P -.->|"active --json"| SL["statusline/roadmap-statusline.sh<br/>(opt-in en /setup 5-bis)"]
++    SL -.->|"[Opus] $0.01 ctx 8% · 📋 slug T-04/12 33%"| U
++```
++
+ ## 7 · Configuración (una pasada con `/setup`)
+ 
+ ```mermaid
+@@ -219,7 +239,8 @@ flowchart LR
+     A["/setup"] --> B[".claude/rates.json<br/>tarifa · tokens · jornada · ratios<br/>la leen evaluator, planner y jira-sync"]
+     A --> C[".claude/confluence.json<br/>opt-in + destino"]
+     A --> D[".claude/jira.json<br/>opt-in + política de jornada"]
+-    A --> G[".claude/dev.json<br/>tdd · worktree · subagentes<br/>(+ decisión constitución)"]
++    A --> G[".claude/dev.json<br/>tdd · worktree · subagentes · statusline<br/>(+ decisión constitución)"]
++    A -.->|"opt-in 5-bis"| SL[".claude/settings.json<br/>statusLine → roadmap-statusline.sh<br/>(ruta absoluta)"]
+     A --> H["docs/CONSTITUTION.md<br/>principios permanentes (opt-in)<br/>los leen TODOS los agentes;<br/>la lente A los hace cumplir"]
+     C -.->|estado| E[".claude/confluence-state.json"]
+     D -.->|estado| F[".claude/jira-state.json<br/>mapeo · imputado/día · banco"]
+diff --git a/docs/README.md b/docs/README.md
+index f22e58a..f33fdb5 100755
+--- a/docs/README.md
++++ b/docs/README.md
+@@ -17,7 +17,7 @@ flowchart LR
+ 
+ **Guía de lectura:** este índice ubica cada pieza · [`FLOWS.md`](FLOWS.md) dibuja todos los flujos · [`CONVENTIONS.md`](CONVENTIONS.md) fija las reglas · cada agente tiene su doc en [`agents/`](agents/).
+ 
+-Antes de añadir o tocar un agente, lee [`CONVENTIONS.md`](CONVENTIONS.md): define dónde va cada cosa y cómo se declaran las dependencias entre agentes para que no se pisen. Para una **visión visual de los flujos** (cadena de agentes, ciclos PM/dev, Jira, Confluence, métricas), ver [`FLOWS.md`](FLOWS.md). Para qué mide el plugin (coste por artefacto/tarea) y cómo convive con monitores de sesión en vivo, ver [`observability.md`](observability.md).
++Antes de añadir o tocar un agente, lee [`CONVENTIONS.md`](CONVENTIONS.md): define dónde va cada cosa y cómo se declaran las dependencias entre agentes para que no se pisen. Para una **visión visual de los flujos** (cadena de agentes, ciclos PM/dev, Jira, Confluence, métricas), ver [`FLOWS.md`](FLOWS.md). Para qué mide el plugin (coste por artefacto/tarea), la **visibilidad en vivo** (línea de progreso del ledger por hook, contexto de retoma al arrancar/compactar, statusline opt-in) y cómo convive con monitores de sesión, ver [`observability.md`](observability.md).
+ 
+ ## Agentes disponibles
+ 
+diff --git a/docs/en/CONVENTIONS.md b/docs/en/CONVENTIONS.md
+index 545f284..5319ea0 100755
+--- a/docs/en/CONVENTIONS.md
++++ b/docs/en/CONVENTIONS.md
+@@ -149,6 +149,7 @@ A plan's progress is recorded in **a single place**: `docs/roadmap/<fecha>-<slug
+ - **States with an external engine:** when implementation is delegated to an external orchestrator, that engine does **not** update your artifacts. Therefore `/dev-cycle` (or you) applies the **state transitions** of rule 7 and keeps `tasks.md` up to date on its behalf. The transitions apply equally with or without an external engine.
+ - The cycle closeout (documentation with `documenter`) happens **once**, after implementing and with `qa` green, not task by task.
+ - **Mechanical validation:** `agent-kits/shared/ledger-lint.py` checks the ledger with an exit code (state vocabulary, `completado` ⟹ criteria checked, summary adding up, unique IDs). It is run by `implementer` (DoD), `qa` (P1) and `/dev-cycle` at their gates; additionally, a PostToolUse hook (`hooks/ledger-lint-warn.sh`) runs it in **warning mode** on every edit of a `tasks.md`. The qa "green" is mechanical too: `agent-kits/qa/qa-gate.py` over `results.json`.
++- **Live visibility (hooks):** the plugin registers hooks on `PostToolUse` (lint warning + **progress line** `progress-report.py line` when a `tasks.md` is edited), `SubagentStop` (state of the `en-progreso` initiatives when a subagent finishes) and `SessionStart` (`startup|resume|compact`: resume context via `progress-report.py session`). Principle: **hooks inform (`systemMessage` / `hookSpecificOutput.additionalContext`), they never decide; always exit 0** — without `python3` they stay silent; a broken hook is a dead piece, not a guardrail (the linter checks that every `command` in `hooks/hooks.json` exists and is executable). The status line (`statusline/roadmap-statusline.sh`) is **opt-in** in `/setup` and is written with an absolute path into `.claude/settings.json` (the official docs do not expand `${CLAUDE_PLUGIN_ROOT}` in `statusLine.command`).
+ 
+ ## 9. Config/state files in the consuming project's `.claude/`
+ 
+diff --git a/docs/en/FLOWS.md b/docs/en/FLOWS.md
+index b49cfcb..fde374a 100755
+--- a/docs/en/FLOWS.md
++++ b/docs/en/FLOWS.md
+@@ -212,6 +212,26 @@ flowchart TD
+     Y -.->|ratio| M
+ ```
+ 
++## 6b · Live visibility (deterministic hooks + opt-in status line)
++
++> While `implementer`/subagents work, the user sees progress without anyone writing it up:
++> everything comes from `progress-report.py` over the **canonical ledger** (`tasks.md`). Hooks
++> **inform, they never decide** (always exit 0). Details: [`observability.md`](observability.md).
++
++```mermaid
++flowchart LR
++    L[("docs/roadmap/*/tasks.md<br/>canonical ledger")] -->|Write/Edit| H1["PostToolUse hook<br/>progress-line.sh"]
++    H1 -->|"systemMessage (debounced)"| U(["👀 user<br/>📋 slug · T-04/12 (33%) · fase 2/4 · en curso T-05"])
++    SA["subagent finishes"] --> H2["SubagentStop hook<br/>subagent-progress.sh"]
++    H2 -->|"systemMessage: active initiatives"| U
++    SS["session: startup · resume · compact"] --> H3["SessionStart hook<br/>session-context.sh"]
++    H3 -->|"additionalContext ≤ 15 lines<br/>(resume from the in-progress task)"| C(["🧠 Claude's context"])
++    L --> P["progress-report.py<br/>line · active · session · --json"]
++    P --> H1 & H2 & H3
++    P -.->|"active --json"| SL["statusline/roadmap-statusline.sh<br/>(opt-in in /setup 5-bis)"]
++    SL -.->|"[Opus] $0.01 ctx 8% · 📋 slug T-04/12 33%"| U
++```
++
+ ## 7 · Configuration (one pass with `/setup`)
+ 
+ ```mermaid
+@@ -219,7 +239,8 @@ flowchart LR
+     A["/setup"] --> B[".claude/rates.json<br/>rate · tokens · workday · ratios<br/>read by evaluator, planner and jira-sync"]
+     A --> C[".claude/confluence.json<br/>opt-in + destination"]
+     A --> D[".claude/jira.json<br/>opt-in + workday policy"]
+-    A --> G[".claude/dev.json<br/>tdd · worktree · subagents<br/>(+ constitution decision)"]
++    A --> G[".claude/dev.json<br/>tdd · worktree · subagents · statusline<br/>(+ constitution decision)"]
++    A -.->|"opt-in 5-bis"| SL[".claude/settings.json<br/>statusLine → roadmap-statusline.sh<br/>(absolute path)"]
+     A --> H["docs/CONSTITUTION.md<br/>permanent principles (opt-in)<br/>read by ALL agents;<br/>lens A enforces them"]
+     C -.->|state| E[".claude/confluence-state.json"]
+     D -.->|state| F[".claude/jira-state.json<br/>mapping · logged/day · bank"]
+diff --git a/docs/en/README.md b/docs/en/README.md
+index cfdde50..df48259 100755
+--- a/docs/en/README.md
++++ b/docs/en/README.md
+@@ -17,7 +17,7 @@ flowchart LR
+ 
+ **Reading guide:** this index locates each piece · [`FLOWS.md`](FLOWS.md) draws all the flows · [`CONVENTIONS.md`](CONVENTIONS.md) sets the rules · each agent has its own doc in [`agents/`](../agents/) (Spanish).
+ 
+-Before adding or touching an agent, read [`CONVENTIONS.md`](CONVENTIONS.md): it defines where everything goes and how dependencies between agents are declared so they do not step on each other. For a **visual overview of the flows** (agent chain, PM/dev cycles, Jira, Confluence, metrics), see [`FLOWS.md`](FLOWS.md). For what the plugin measures (cost per artifact/task) and how it coexists with live session monitors, see [`observability.md`](observability.md).
++Before adding or touching an agent, read [`CONVENTIONS.md`](CONVENTIONS.md): it defines where everything goes and how dependencies between agents are declared so they do not step on each other. For a **visual overview of the flows** (agent chain, PM/dev cycles, Jira, Confluence, metrics), see [`FLOWS.md`](FLOWS.md). For what the plugin measures (cost per artifact/task), the **live visibility** (ledger progress line per hook, resume context on startup/compaction, opt-in status line) and how it coexists with live session monitors, see [`observability.md`](observability.md).
+ 
+ ## Available agents
+ 
+diff --git a/docs/roadmap/2026-09-02-live-visibility/tasks.md b/docs/roadmap/2026-09-02-live-visibility/tasks.md
+index d0eeb10..7cb28f1 100644
+--- a/docs/roadmap/2026-09-02-live-visibility/tasks.md
++++ b/docs/roadmap/2026-09-02-live-visibility/tasks.md
+@@ -1,7 +1,7 @@
+ ---
+ tasks: live-visibility
+ descripcion: Información en vivo mientras corren las tareas — línea de progreso determinista del ledger (hook PostToolUse), estado de iniciativas al terminar subagentes (SubagentStop), contexto al arrancar/retomar/compactar (SessionStart) y statusline opt-in con coste de sesión.
+-estado: en-progreso       # borrador | en-progreso | completado | cancelado
++estado: completado        # borrador | en-progreso | completado | cancelado
+ creado: 2026-09-02
+ actualizado: 2026-09-02
+ via: rapida               # vía rápida de /dev-cycle: sin spec/evaluación/plan; conserva revisión de dos lentes + suites
+@@ -13,7 +13,7 @@ generacion:
+ 
+ | | |
+ |---|---|
+-| **Estado** | en-progreso |
++| **Estado** | completado |
+ | **Fecha** | 2026-09-02 |
+ | **Plan** | n/a — **vía rápida** (sin spec/evaluación/plan; ledger ligero + revisión de dos lentes + verificación) |
+ 
+@@ -34,14 +34,14 @@ generacion:
+ 
+ | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervisión (real/est) | Tokens (real/est) |
+ |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
+-| Fase única — visibilidad en vivo | 3 | 4 | 75% | 3,1 / 4,0h | 0,17 / 0,20h | 0,04 / 0,05h | 58k / 90k |
+-| **TOTAL** | **3** | **4** | **75%** | **3,1 / 4,0h** | **0,17 / 0,20h** | **0,04 / 0,05h** | **58k / 90k** |
++| Fase única — visibilidad en vivo | 4 | 4 | 100% | 3,8 / 4,0h | 0,20 / 0,20h | 0,05 / 0,05h | 78k / 90k |
++| **TOTAL** | **4** | **4** | **100%** | **3,8 / 4,0h** | **0,20 / 0,20h** | **0,05 / 0,05h** | **78k / 90k** |
+ 
+ ---
+ 
+ ## Fase única — visibilidad en vivo
+ 
+-**Estado**: en-progreso · **Estimado**: 4,0h · **Real**: — · **Coste est.**: ≈210 € · **Tokens est.**: 90k
++**Estado**: completado · **Estimado**: 4,0h · **Real**: 3,8h (estimado) · **Coste est.**: ≈210 € · **Tokens est.**: 90k
+ 
+ ### T-01 — `progress-report.py` (script determinista + tests)
+ 
+@@ -94,14 +94,22 @@ generacion:
+ ### T-04 — Documentación, convenciones y linter
+ 
+ - **Descripción**: `docs/CONVENTIONS.md` + EN (regla 8: eventos usados y principio «los hooks informan, no deciden; siempre exit 0»), `skills/plugin-dev/SKILL.md` (fila hook del Paso 0), `docs/FLOWS.md` + EN (flujo «visibilidad en vivo»), `README.md` + `README.es.md` («qué obtienes»), `docs/README.md` + EN si indexan hooks/scripts, `agent-kits/shared/README.md` (inventario), `CLAUDE.md` (árbol `statusline/` + fila hooks), `docs/roadmap/README.md` (fila). `scripts/lint_plugin.py`: comprobación mínima de `hooks/hooks.json` (JSON válido; cada `command` referencia un fichero existente y ejecutable) + test en `tests/test_lint_plugin.py`. NO se toca `CHANGELOG*.md` (lo hace el orquestador).
+-- **Estado**: en-progreso
+-- **Tiempo humano**: est. 0,7h · real — (estimado)
+-- **Tiempo IA (ejec.)**: est. 0,03h · real — (estimado)
+-- **Supervisión**: est. 0,01h · real — (estimado)
++- **Estado**: completado
++- **Tiempo humano**: est. 0,7h · real 0,7h (estimado)
++- **Tiempo IA (ejec.)**: est. 0,03h · real 0,03h (estimado)
++- **Supervisión**: est. 0,01h · real 0,01h (estimado)
+ - **Dependencias**: T-01, T-02, T-03
+ - **Archivos**: `docs/CONVENTIONS.md`, `docs/en/CONVENTIONS.md`, `skills/plugin-dev/SKILL.md`, `docs/FLOWS.md`, `docs/en/FLOWS.md`, `README.md`, `README.es.md`, `docs/README.md`, `docs/en/README.md`, `agent-kits/shared/README.md`, `CLAUDE.md`, `docs/roadmap/README.md`, `scripts/lint_plugin.py`, `tests/test_lint_plugin.py`
+ 
+ **Criterios de aceptación**
+-- [ ] Cada doc ES tocada tiene su espejo EN actualizado en el mismo cambio.
+-- [ ] `python3 scripts/lint_plugin.py` 0 errores y detecta un `command` de hook que apunta a fichero inexistente (test nuevo en `tests/test_lint_plugin.py`).
+-- [ ] `python3 -m pytest -q tests agent-kits/shared` verde (77 previos + nuevos); `ledger-lint.py` de este fichero exit 0.
++- [x] Cada doc ES tocada tiene su espejo EN actualizado en el mismo cambio: `CONVENTIONS` (regla 8, nota «Visibilidad en vivo (hooks)»), `FLOWS` (flujo 6b + nodo `statusline`/`settings.json` en el 7), `observability` (sección nueva + coexistencia de hooks), `README`/`README.es` (fila «Progreso en vivo»), `docs/README` + `docs/en/README` (frase de observabilidad; no indexan hooks/scripts). Solo ES por convención: `CLAUDE.md` (árbol `statusline/`, filas Linter/Determinismo/Hooks), `skills/plugin-dev/SKILL.md` (fila hook del Paso 0), `agent-kits/shared/README.md` (inventario), `docs/roadmap/README.md` (fila). `test_mermaid_blocks: 28 diagrama(s) OK`.
++- [x] `python3 scripts/lint_plugin.py` → `8 agentes · 0 errores · 3 avisos` (avisos previos de nombres genéricos). Comprobación nueva `lint_hooks()`: JSON válido con raíz `hooks`, cada `command` con `${CLAUDE_PLUGIN_ROOT}/<ruta>` debe existir y ser ejecutable. TDD: RED `test_lint_plugin` falló en el caso 10 (`AssertionError` — el linter daba 0 errores con `hooks/fantasma.sh`), GREEN tras implementar → `test_lint_plugin: 11/11 OK` (casos 9 válido, 10 inexistente, 11 no-ejecutable + JSON inválido). Bits de ejecución verificados en git (`100755` en los 5 hooks y la statusline → seguro en clon limpio, GOT-002).
++- [x] `python3 -m pytest -q tests agent-kits/shared` → `95 passed` (77 previos + 18 de `test_progress_report.py`); las 9 suites-script de CI en verde (`confluence_scope 25/25 · coverage-check OK · dashboard OK · ledger_lint 10/10 · lint_plugin 11/11 · mermaid 28 · qa_gate 13/13 · readme_badges 6 · worklog 13`); `bash -n` OK en los 5 hooks + statusline; `ledger-lint.py` de este fichero → `0 incoherencias · 1 avisos` (aviso legacy «Fase única», idéntico al de `knowledge-split`), exit 0.
++
++---
++
++## Dudas y decisiones para el orquestador
++
++- **Doc oficial vs brief:** (1) `${CLAUDE_PLUGIN_ROOT}` NO está documentado para `statusLine.command` → ruta absoluta resuelta en `/setup` (caso por defecto del brief). (2) `SubagentStop` sí admite `hookSpecificOutput.additionalContext`, pero va al **subagente**, no al usuario → el hook usa `systemMessage` (al usuario), como pedía el brief. (3) El matcher de `SessionStart` omite `clear`/`fork` a propósito (el brief pedía `startup|resume|compact`).
++- **Dato heredado:** `docs/roadmap/2026-08-20-knowledge-split/tasks.md` sigue con `estado: en-progreso` (frontmatter y tabla) pese a estar al 100 % y cerrada en el índice → aparece como «activa» en `active`/`session`/statusline. No se ha tocado (fuera de alcance); un cambio de una palabra a `completado` lo limpia.
++- **CHANGELOG** no tocado (lo hace el orquestador). Tests de hooks: no hay suite de shell en el repo; la evidencia es la simulación manual de stdin anotada arriba (reproducible) + `bash -n` + linter de `hooks.json`.
+diff --git a/docs/roadmap/README.md b/docs/roadmap/README.md
+index 18a85ed..381a4ab 100755
+--- a/docs/roadmap/README.md
++++ b/docs/roadmap/README.md
+@@ -20,5 +20,6 @@ Estados: borrador · en-progreso · en-revision · completado · cancelado (spec
+ | 2026-08-13 | quick-implement — **vía rápida**: atajo en lenguaje natural a la vía rápida de `/dev-cycle` (los commands solo se disparan con la barra; las skills se auto-invocan por su descripción) — puerta de entrada delgada que delega en la fuente única, con disparadores negativos y filtro de idoneidad obligatorio | 1 h | ~52 € | [spec](2026-08-13-quick-implement/spec.md) · [tasks](2026-08-13-quick-implement/tasks.md) (ledger ligero) · [retro](2026-08-13-quick-implement/retro.md) |
+ | 2026-08-20 | confluence-policy — política explícita de qué documentación de `docs/` se publica en Confluence y qué no: **selección curada** (fuera `docs/en/`, `examples/`, `agents/`, planes, `tasks.md` y `testing/**`), disparadores de fin de ciclo `/retro` · `/spec-drift` · `/roadmap-brief` + ledger por fase, doc ES+EN y matriz de disparadores, **verificador + staging generado** (`confluence-scope.py --status`/`--stage` → carpeta derivada `docs/confluence/`, no editable a mano) — **spec `implementada` · evaluación `completado` · plan `completado` (4 fases, 13 tareas; revisión de dos lentes superada en 3 intentos; suites y linter en verde)** | 21,6 h | ~1.085 € | [spec](2026-08-20-confluence-policy/spec.md) · [eval](2026-08-20-confluence-policy/evaluation.md) · [plan](2026-08-20-confluence-policy/improvement-plan.md) · [tasks](2026-08-20-confluence-policy/tasks.md) |
+ | 2026-08-20 | knowledge-capture — **memoria técnica de los agentes**: ADR ligero con umbral, registro de gotchas en los puntos donde el conocimiento nace (`debug-root-cause` F4, flaky justificado de qa, retro), **bucle de lectura** (`knowledge-check.md`) en 5 agentes con las lecciones hardcodeadas del evaluator migradas a `LESSONS.md`, `/retro` de dos salidas, **backfill semilla** (5 `retro.md` + las 5 decisiones de confluence-policy) y doc ES+EN; índice+lint determinista **diferido** (>15 entradas o 1.ª colisión de IDs) — **spec `implementada` · evaluación `completado` · plan `completado` (5 fases, 16 tareas; revisión de dos lentes superada en 3 intentos; suites y linter en verde)** | 24 h | ~1.205 € | [spec](2026-08-20-knowledge-capture/spec.md) · [eval](2026-08-20-knowledge-capture/evaluation.md) · [plan](2026-08-20-knowledge-capture/improvement-plan.md) · [tasks](2026-08-20-knowledge-capture/tasks.md) |
++| 2026-09-02 | live-visibility — **vía rápida**: información en vivo mientras corren las tareas — `progress-report.py` (línea de progreso determinista del ledger, `active`, `session`, `--json`), hooks no bloqueantes `PostToolUse` (línea con debounce) · `SubagentStop` (iniciativas activas) · `SessionStart` (contexto de retoma, sobrevive a la compactación), statusline opt-in (modelo · coste · ctx · roadmap) en `/setup` 5-bis, linter de `hooks.json`; contratos oficiales verificados 2026-09-02 | 4 h | ~210 € | [tasks](2026-09-02-live-visibility/tasks.md) (ledger ligero) |
+ 
+ **Calibración:** las iniciativas con `retro.md` alimentan [`CALIBRATION.md`](CALIBRATION.md), de donde `evaluator` toma el histórico y `usage-meter.py` la mediana `tokens/hora` para convertir tokens medidos en horas-IA.
+diff --git a/scripts/lint_plugin.py b/scripts/lint_plugin.py
+index b1a33d6..088105f 100755
+--- a/scripts/lint_plugin.py
++++ b/scripts/lint_plugin.py
+@@ -10,6 +10,9 @@ Valida, sin dependencias externas (solo stdlib):
+   5. El grafo `dependencies` (skills / kits / agents) apunta a artefactos que EXISTEN.
+   6. No hay ciclos en el grafo de dependencias entre agentes.
+   7. Nombres de agente únicos.
++  8. `hooks/hooks.json` (si existe): JSON válido con raíz `hooks`, y cada `command` de tipo
++     `command` referencia un fichero del plugin que EXISTE y es EJECUTABLE (los hooks
++     informan, no bloquean: un hook roto es una pieza muerta, no un guardrail).
+ 
+ Avisos (no rompen el build):
+   - `description` sin frase-gatillo ("Úsalo/Úsala cuando…", "PROACTIVAMENTE", "Use when").
+@@ -22,6 +25,7 @@ Uso:
+ Salida: informe por stdout; exit 0 si no hay ERRORES, 1 si los hay.
+ """
+ import argparse
++import json
+ import os
+ import re
+ import sys
+@@ -176,6 +180,9 @@ def lint(root):
+         if color[n] == WHITE:
+             dfs(n, [n])
+ 
++    # --- hooks/hooks.json: JSON válido + commands que existen y son ejecutables ---
++    errors.extend(lint_hooks(root))
++
+     # --- Namespacing: nombres genéricos en commands/skills (warning) ---
+     for d, kind, get_names in (
+         (commands_dir, "command", lambda dd: [f[:-3] for f in os.listdir(dd) if f.endswith(".md")]),
+@@ -192,6 +199,40 @@ def lint(root):
+     return errors, warnings
+ 
+ 
++HOOK_PATH_RE = re.compile(r"\$\{CLAUDE_PLUGIN_ROOT\}/([^\s\"']+)")
++
++
++def lint_hooks(root):
++    """Errores de hooks/hooks.json (lista vacía si no existe el fichero)."""
++    path = os.path.join(root, "hooks", "hooks.json")
++    if not os.path.isfile(path):
++        return []
++    errs = []
++    try:
++        data = json.load(open(path, encoding="utf-8"))
++    except (ValueError, UnicodeDecodeError) as e:
++        return [f"hooks/hooks.json: no es JSON válido ({e})"]
++    hooks = data.get("hooks") if isinstance(data, dict) else None
++    if not isinstance(hooks, dict):
++        return ["hooks/hooks.json: falta la raíz `hooks` (objeto evento → lista de grupos)"]
++    for evento, grupos in hooks.items():
++        if not isinstance(grupos, list):
++            errs.append(f"hooks/hooks.json: `{evento}` debe ser una lista de grupos")
++            continue
++        for g in grupos:
++            for h in (g.get("hooks", []) if isinstance(g, dict) else []):
++                if not isinstance(h, dict) or h.get("type") != "command":
++                    continue
++                cmd = str(h.get("command", ""))
++                for rel in HOOK_PATH_RE.findall(cmd):
++                    fp = os.path.join(root, rel)
++                    if not os.path.isfile(fp):
++                        errs.append(f"hooks/hooks.json [{evento}]: el command referencia `{rel}`, que no existe")
++                    elif not os.access(fp, os.X_OK):
++                        errs.append(f"hooks/hooks.json [{evento}]: `{rel}` no es ejecutable (chmod +x)")
++    return errs
++
++
+ def main():
+     ap = argparse.ArgumentParser()
+     ap.add_argument("--root", default=".")
+diff --git a/skills/plugin-dev/SKILL.md b/skills/plugin-dev/SKILL.md
+index af6faf5..e2f2fc0 100755
+--- a/skills/plugin-dev/SKILL.md
++++ b/skills/plugin-dev/SKILL.md
+@@ -28,7 +28,7 @@ PLUGROOT="$(find "$PWD/.claude" "$HOME/.claude" -type d -path '*skills/plugin-de
+ | Capacidad reutilizable por 2+ agentes (o pensada para reutilizar) | **skill compartida** | `skills/<nombre>/SKILL.md` | `templates/skill.template.md` |
+ | Script/plantilla de UN solo agente | **kit privado** | `agent-kits/<agente>/` | — |
+ | Trozo de PROMPT idéntico en varios agentes (no invocable) | **fragmento shared** | `agent-kits/shared/` | — |
+-| Reacción automática a eventos de herramienta | **hook** | `hooks/` (PostToolUse, NO bloqueante) | — |
++| Reacción automática a eventos del ciclo de vida | **hook** | `hooks/` + registro en `hooks/hooks.json` (eventos usados: `PostToolUse`, `SubagentStop`, `SessionStart`). **Informan, no deciden**: `systemMessage`/`additionalContext`, SIEMPRE exit 0, silencio sin `python3`; el linter exige que cada `command` exista y sea ejecutable | `hooks/progress-line.sh` como referencia |
+ 
+ Duda entre kit privado y skill → **empieza privado**; promociona a `skills/` el día que un
+ segundo agente lo necesite (regla 3). Duda entre agente y comando → si decide *puertas* y
+diff --git a/tests/test_lint_plugin.py b/tests/test_lint_plugin.py
+index 549e0a1..36f0a4f 100755
+--- a/tests/test_lint_plugin.py
++++ b/tests/test_lint_plugin.py
+@@ -1,5 +1,6 @@
+ #!/usr/bin/env python3
+ """Tests de lint_plugin.py con fixtures sintéticas. Ejecuta: python tests/test_lint_plugin.py"""
++import json
+ import os
+ import subprocess
+ import sys
+@@ -102,7 +103,50 @@ def main():
+         assert code == 0, f"el trigger es aviso, no error\n{out}"
+         assert "frase-gatillo" in out, out
+ 
+-    print("test_lint_plugin: 8/8 OK")
++    # 9) hooks/hooks.json: JSON válido y cada `command` apunta a un fichero existente y ejecutable
++    with tempfile.TemporaryDirectory() as tmp:
++        make_plugin(tmp, {"alpha": AGENT_OK.format(name="alpha")})
++        os.makedirs(os.path.join(tmp, "hooks"))
++        hook = os.path.join(tmp, "hooks", "ok.sh")
++        open(hook, "w").write("#!/usr/bin/env bash\nexit 0\n")
++        os.chmod(hook, 0o755)
++        open(os.path.join(tmp, "hooks", "hooks.json"), "w").write(json.dumps({"hooks": {
++            "PostToolUse": [{"matcher": "Write|Edit", "hooks": [
++                {"type": "command", "command": 'bash "${CLAUDE_PLUGIN_ROOT}/hooks/ok.sh"'}]}],
++            "SessionStart": [{"matcher": "startup|resume|compact", "hooks": [
++                {"type": "command", "command": 'bash "${CLAUDE_PLUGIN_ROOT}/hooks/ok.sh"'}]}],
++            "SubagentStop": [{"hooks": [
++                {"type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/ok.sh"}]}],
++        }}))
++        code, out = run(tmp)
++        assert code == 0 and "0 errores" in out, out
++
++    # 10) hook cuyo command referencia un fichero inexistente → error
++    with tempfile.TemporaryDirectory() as tmp:
++        make_plugin(tmp, {"alpha": AGENT_OK.format(name="alpha")})
++        os.makedirs(os.path.join(tmp, "hooks"))
++        open(os.path.join(tmp, "hooks", "hooks.json"), "w").write(json.dumps({"hooks": {
++            "PostToolUse": [{"matcher": "Write", "hooks": [
++                {"type": "command", "command": 'bash "${CLAUDE_PLUGIN_ROOT}/hooks/fantasma.sh"'}]}]}}))
++        code, out = run(tmp)
++        assert code == 1 and "fantasma.sh" in out and "no existe" in out, out
++
++    # 11) hook existente pero NO ejecutable → error; hooks.json inválido → error
++    with tempfile.TemporaryDirectory() as tmp:
++        make_plugin(tmp, {"alpha": AGENT_OK.format(name="alpha")})
++        os.makedirs(os.path.join(tmp, "hooks"))
++        hook = os.path.join(tmp, "hooks", "noexec.sh")
++        open(hook, "w").write("exit 0\n")
++        os.chmod(hook, 0o644)
++        open(os.path.join(tmp, "hooks", "hooks.json"), "w").write(json.dumps({"hooks": {
++            "PostToolUse": [{"hooks": [{"type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/noexec.sh"}]}]}}))
++        code, out = run(tmp)
++        assert code == 1 and "no es ejecutable" in out, out
++        open(os.path.join(tmp, "hooks", "hooks.json"), "w").write("{ esto no es json")
++        code, out = run(tmp)
++        assert code == 1 and "hooks.json" in out and "JSON" in out, out
++
++    print("test_lint_plugin: 11/11 OK")
+ 
+ 
+ if __name__ == "__main__":
+-- 
+2.43.0
+

@@ -67,7 +67,7 @@ dilo en la retro.
   `revisión de dos lentes` (con `, intento N`) o `usuario` (sin intento, no aplica). No hay un
   tercer formato; si ves uno distinto en una entrada existente, es un gap de esta misma regla y se
   corrige a este formato en el mismo cambio que lo detecte.
-- **Promotor 1 — Contrato de promoción (`/dev-cycle`, revisión de dos lentes).** Al cerrar el
+- **Promotor 1 — Contrato de promoción (revisión de dos lentes — skill `adversarial-review` §6, invocada por `/dev-cycle`).** Al cerrar el
   bucle de revisión de una iniciativa **sin gaps de corrección pendientes** (0 gaps, todos
   rebatidos con evidencia, o aceptados como deuda por el usuario), las entradas `propuesta` que
   esa iniciativa escribió se promueven a `estado: aceptada (validada: revisión de dos lentes,

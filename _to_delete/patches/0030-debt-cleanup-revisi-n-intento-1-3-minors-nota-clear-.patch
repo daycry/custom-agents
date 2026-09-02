@@ -1,0 +1,67 @@
+From 0eab39f10775eb887b48582437ec077a8ae6c23c Mon Sep 17 00:00:00 2001
+From: daycry <7590335+daycry@users.noreply.github.com>
+Date: Wed, 2 Sep 2026 14:30:43 +0000
+Subject: [PATCH 30/32] =?UTF-8?q?debt-cleanup:=20revisi=C3=B3n=20intento?=
+ =?UTF-8?q?=201=20=E2=80=94=203=20minors=20(nota=20/clear,=20cifra=20ledge?=
+ =?UTF-8?q?rs)?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VA3zi8RqekY9weD2S1RyWL
+
+---
+ docs/en/observability.md                      | 2 +-
+ docs/observability.md                         | 2 +-
+ docs/roadmap/2026-09-02-debt-cleanup/tasks.md | 4 +++-
+ 3 files changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/docs/en/observability.md b/docs/en/observability.md
+index 3e9895a..10fd37c 100755
+--- a/docs/en/observability.md
++++ b/docs/en/observability.md
+@@ -61,7 +61,7 @@ installing or updating the plugin, in three steps (write down the actual result,
+ 1. **Progress line.** With an `en-progreso` initiative, edit its `docs/roadmap/<slug>/tasks.md` (tick a
+    criterion, say) → the `📋 <slug> · T-XX/N …` line must show up as a system message. Repeat the same
+    edit without changing the state → silence (debounce).
+-2. **Session context.** `/clear` and resume the session (or wait for a compaction) → the
++2. **Session context.** resume the session (`claude --resume`, or wait for a compaction; `/clear` does NOT fire the hook: the matcher is `startup|resume|compact`) → the
+    `progress-report.py session` block (active initiatives, task in progress, "resume from…") comes in as
+    context; with nothing active, nothing comes in.
+ 3. **Implementer guard hook.** As `implementer` (e.g. `@implementer …`), try to write
+diff --git a/docs/observability.md b/docs/observability.md
+index 9cd24e7..2a85654 100755
+--- a/docs/observability.md
++++ b/docs/observability.md
+@@ -61,7 +61,7 @@ instalar o actualizar el plugin, en tres pasos (anota el resultado real, no el e
+ 1. **Línea de progreso.** Con una iniciativa `en-progreso`, edita su `docs/roadmap/<slug>/tasks.md`
+    (marca un criterio, por ejemplo) → debe aparecer la línea `📋 <slug> · T-XX/N …` como mensaje del
+    sistema. Repite la misma edición sin cambiar el estado → silencio (debounce).
+-2. **Contexto de sesión.** `/clear` y reanuda la sesión (o espera a una compactación) → el bloque de
++2. **Contexto de sesión.** reanuda la sesión (`claude --resume`, o espera a una compactación; `/clear` NO dispara el hook: el matcher es `startup|resume|compact`) → el bloque de
+    `progress-report.py session` (iniciativas activas, tarea en curso, «retoma desde…») entra como
+    contexto; con nada activo, no entra nada.
+ 3. **Hook de guardia del implementer.** Como `implementer` (p. ej. `@implementer …`), intenta escribir
+diff --git a/docs/roadmap/2026-09-02-debt-cleanup/tasks.md b/docs/roadmap/2026-09-02-debt-cleanup/tasks.md
+index 29e914d..52027fa 100644
+--- a/docs/roadmap/2026-09-02-debt-cleanup/tasks.md
++++ b/docs/roadmap/2026-09-02-debt-cleanup/tasks.md
+@@ -47,7 +47,7 @@ generacion:
+ 
+ **Criterios de aceptación**
+ - [x] (a) 6 invocaciones concurrentes de `progress-line.sh` con la misma línea → **exactamente 1** `systemMessage` con `flock` (medido: 5 rondas manuales y `test_progress_line_seis_concurrentes_debounce_atomico`, 3 ejecuciones de la suite). **Honestidad sobre la degradación sin `flock`:** medido con un PATH sin `flock` en 5 rondas de 6 → 2, 4, 2, 2 y 1 emitidas (el rename es atómico, pero dos lectores pueden ver el estado viejo a la vez) → la aserción del test en esa rama es «≥ 1, todas idénticas, `.progress-last` íntegro y sin temporales huérfanos», y el comentario de cabecera del hook lo dice tal cual. Sin `flock` no se crea `.progress-last.lock` (`test_progress_line_sin_flock_degrada_a_rename_atomico`). `.gitignore` cubre `.progress-last.lock` y los temporales `.progress-last.*`.
+-- [x] (b) `test_titulo_con_negrita_interior_sale_sin_asteriscos` (`### T-03 — **Bold** resto del título` → línea `en curso: T-03 Bold resto del título`, sin `**`; `resumir()` devuelve `titulo: "Bold resto del título"`). Salida de `ledger-lint.py` **byte-idéntica en los 18 ledgers** de `docs/roadmap/*/tasks.md` frente a `git show HEAD:agent-kits/shared/ledger-lint.py` (salida completa + exit code; ninguno usa negrita en el título → idéntica, como se esperaba).
++- [x] (b) `test_titulo_con_negrita_interior_sale_sin_asteriscos` (`### T-03 — **Bold** resto del título` → línea `en curso: T-03 Bold resto del título`, sin `**`; `resumir()` devuelve `titulo: "Bold resto del título"`). Salida de `ledger-lint.py` **byte-idéntica en los 18 ledgers previos (19 con este)** de `docs/roadmap/*/tasks.md` frente a `git show HEAD:agent-kits/shared/ledger-lint.py` (salida completa + exit code; ninguno usa negrita en el título → idéntica, como se esperaba).
+ - [x] (c) `git ls-files -s hooks/hooks.json` → `100644`. `lint_plugin` caso 16: `hooks.json` con `0o755` → aviso `hooks/hooks.json: un .json no debería ser ejecutable`; con `0o644` → sin aviso; sigue exit 0 (aviso, no error). `test_todos_los_hooks_son_bash_valido_y_ejecutables` (suite de shell) afirma además que los `.sh` son ejecutables y `bash -n` limpio y que ningún `.json` de `hooks/` lo es.
+ 
+ ### T-02 — deterministic-guardrails: rutas case-insensitive e índice del roadmap permitido
+@@ -137,3 +137,5 @@ generacion:
+ - **`docs/roadmap/README.md` permitido al implementer** invierte la decisión de deterministic-guardrails («lo toca el orquestador»): es el único fichero de la raíz que el cierre de cada iniciativa edita y tenía que hacerse a mano fuera del hook. `CALIBRATION`/`DRIFT`/`BACKLOG` siguen bloqueados y ahora documentados como diseño.
+ - **Stems ampliados a plural** (`sessions?`, `tokens?`, `secrets?`, `permissions?`): el ancla de inicio de token ya los cubría como prefijo; con el límite final en `token` hacía falta el plural explícito para `tokens.py`. Sin cambio de comportamiento en el resto.
+ - **CHANGELOG** no tocado (orquestador). Verificación manual en sesión real: pendiente del usuario tras el release (lista en `docs/observability.md`).
++
++## Revisión de dos lentes — intento 1: 0 gaps de corrección (0 Critical, 0 Important, 3 Minor: nota de `/clear` en observability ES/EN corregida; cifra «18 ledgers» precisada; `docs/roadmap/readme.md` en minúsculas permitido = decisión case-insensitive, aceptado como diseño). 184 tests · lint 0 errores · 3 avisos · 19/19 ledgers idénticos en ledger-lint.
+-- 
+2.43.0
+

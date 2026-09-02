@@ -1,0 +1,238 @@
+From 2fc6ec922ec987907bfbdc78a606ea285e37778b Mon Sep 17 00:00:00 2001
+From: daycry <7590335+daycry@users.noreply.github.com>
+Date: Wed, 2 Sep 2026 14:22:37 +0000
+Subject: [PATCH 24/32] =?UTF-8?q?T-02:=20deterministic-guardrails=20?=
+ =?UTF-8?q?=E2=80=94=20guardrail-check=20case-insensitive=20(Docs/Roadmap?=
+ =?UTF-8?q?=20deny,=20DOCS/ROADMAP/x/TASKS.md=20allow),=20docs/roadmap/REA?=
+ =?UTF-8?q?DME.md=20permitido=20al=20implementer=20(CALIBRATION/DRIFT/BACK?=
+ =?UTF-8?q?LOG=20deny=20documentado=20como=20dise=C3=B1o)=20(+2=20tests);?=
+ =?UTF-8?q?=20CONVENTIONS=20ES/EN:=20suite=20de=20shell=20de=20hooks,=20re?=
+ =?UTF-8?q?gla=209=20revision.excluir;=20deudas=20saldadas=20en=20el=20led?=
+ =?UTF-8?q?ger=20de=20origen?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VA3zi8RqekY9weD2S1RyWL
+
+Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VA3zi8RqekY9weD2S1RyWL
+
+---
+ agent-kits/shared/guardrail-check.py          | 30 ++++++++++++++-----
+ agent-kits/shared/test_guardrail_check.py     | 26 ++++++++++++++++
+ agents/implementer.md                         |  2 +-
+ docs/CONVENTIONS.md                           |  6 ++--
+ docs/agents/implementer.md                    |  4 +--
+ docs/en/CONVENTIONS.md                        |  6 ++--
+ .../tasks.md                                  |  6 ++--
+ 7 files changed, 61 insertions(+), 19 deletions(-)
+
+diff --git a/agent-kits/shared/guardrail-check.py b/agent-kits/shared/guardrail-check.py
+index 895b502..bcc71c1 100755
+--- a/agent-kits/shared/guardrail-check.py
++++ b/agent-kits/shared/guardrail-check.py
+@@ -14,7 +14,12 @@ Uso:
+ Reglas (cada una desactivable en `.claude/dev.json` → `"guardrails": {…}`):
+   alcance        Write/Edit/MultiEdit/NotebookEdit sobre docs/roadmap/** que no sea `tasks.md`
+                  (incl. testing/**, que es de qa) → deny. docs/security-scan/** → deny.
+-                 docs/knowledge/** → permitido (ADR del implementer).
++                 docs/knowledge/** → permitido (ADR del implementer). Rutas CASE-INSENSITIVE
++                 (`Docs/Roadmap/x/Spec.md` también deny: Windows/macOS no distinguen mayúsculas).
++                 Excepción en la raíz de docs/roadmap/: `README.md` (índice de iniciativas, que el
++                 cierre de cada iniciativa actualiza) → permitido. `CALIBRATION.md`, `DRIFT.md` y
++                 `BACKLOG.md` siguen deny POR DISEÑO: los escriben /retro, /spec-drift y /pm-backlog,
++                 que son comandos (no pasan por este hook), no el implementer.
+   git            Bash: `git push --force|-f|--force-with-lease` → deny; `git branch -D` → deny;
+                  `git checkout|switch main|master` → deny solo si la rama actual es una feature;
+                  `rm -rf` sobre `/`, `~`, `.git`, `.` → deny; refspec `+rama` en push = force;
+@@ -96,17 +101,24 @@ def extract_paths(tool_input):
+     return paths
+ 
+ 
+-_ROADMAP_RE = re.compile(r"(?:^|/)docs/roadmap/(.*)$")
+-_SECSCAN_RE = re.compile(r"(?:^|/)docs/security-scan(?:/|$)")
++# re.I: `Docs/Roadmap/x/Spec.md` casa igual (deuda de deterministic-guardrails: los patrones eran
++# case-sensitive «como git en Linux», pero el implementer también corre en Windows/macOS).
++_ROADMAP_RE = re.compile(r"(?:^|/)docs/roadmap/(.*)$", re.I)
++_SECSCAN_RE = re.compile(r"(?:^|/)docs/security-scan(?:/|$)", re.I)
++# Único fichero de la RAÍZ de docs/roadmap/ que el implementer puede tocar: el índice de iniciativas
++# (lo actualiza el cierre de cada iniciativa). CALIBRATION/DRIFT/BACKLOG los escriben comandos.
++_RAIZ_PERMITIDOS = {"readme.md"}
+ 
+ 
+ def es_ledger(rel):
+-    """docs/roadmap/<algo>/…/tasks.md fuera de testing/ (lo único del roadmap que toca el implementer)."""
++    """docs/roadmap/<algo>/…/tasks.md fuera de testing/ (lo único del roadmap que toca el implementer),
++    o docs/roadmap/README.md (índice). Comparación en minúsculas."""
+     m = _ROADMAP_RE.search(rel)
+     if not m:
+         return False
+-    resto = m.group(1)
+-    partes = resto.split("/")
++    partes = [x.lower() for x in m.group(1).split("/")]
++    if len(partes) == 1:
++        return partes[0] in _RAIZ_PERMITIDOS
+     return partes[-1] == "tasks.md" and "testing" not in partes[:-1]
+ 
+ 
+@@ -117,9 +129,13 @@ def check_alcance(rel):
+                 f"no escribe ahí — deja el hallazgo en tasks.md y sigue.")
+     m = _ROADMAP_RE.search(rel)
+     if m and not es_ledger(rel):
+-        if "/testing/" in "/" + m.group(1):
++        if "/testing/" in ("/" + m.group(1)).lower():
+             return (f"«{rel}» está bajo docs/roadmap/**/testing/ (propiedad de qa): el implementer "
+                     f"solo toca tasks.md en docs/roadmap/ — no escribas informes de prueba.")
++        if "/" not in m.group(1):
++            return (f"«{rel}» está en la raíz de docs/roadmap/: el implementer solo toca README.md (índice) "
++                    f"ahí; CALIBRATION.md, DRIFT.md y BACKLOG.md los escriben /retro, /spec-drift y "
++                    f"/pm-backlog — anota la duda en tasks.md y sigue.")
+         return (f"«{rel}» está en docs/roadmap/: el implementer solo toca tasks.md (ledger); "
+                 f"el plan/spec/evaluación los cambia planner — anota la duda en tasks.md y sigue.")
+     return None
+diff --git a/agent-kits/shared/test_guardrail_check.py b/agent-kits/shared/test_guardrail_check.py
+index 605f52b..890d992 100644
+--- a/agent-kits/shared/test_guardrail_check.py
++++ b/agent-kits/shared/test_guardrail_check.py
+@@ -77,6 +77,32 @@ def test_alcance_allow_codigo_normal():
+     assert decide(write("docs/README.md")) is None
+ 
+ 
++def test_cleanup_alcance_case_insensitive():
++    """Deuda de deterministic-guardrails saldada en debt-cleanup T-02a: mayúsculas en la ruta."""
++    r = decide(write("Docs/Roadmap/2026-01-01-x/Spec.md"))
++    assert r and "solo toca tasks.md" in r
++    assert decide(write("DOCS/ROADMAP/2026-01-01-x/TASKS.md", "Edit")) is None
++    r = decide(write("Docs/Security-Scan/STATE.md"))
++    assert r and "security-scan" in r
++    r = decide(write("docs/roadmap/x/Testing/tasks.md"))
++    assert r and "qa" in r
++
++
++def test_cleanup_raiz_roadmap_readme_permitido_resto_deny():
++    """T-02b: docs/roadmap/README.md (índice) permitido; CALIBRATION/DRIFT/BACKLOG deny por diseño
++    (los escriben /retro, /spec-drift, /pm-backlog — comandos, no el implementer)."""
++    assert decide(write("docs/roadmap/README.md", "Edit")) is None
++    assert decide(write("/proy/docs/roadmap/readme.md", "Edit")) is None
++    for f in ("CALIBRATION.md", "DRIFT.md", "BACKLOG.md"):
++        r = decide(write(f"docs/roadmap/{f}"))
++        assert r and "raíz de docs/roadmap/" in r and "/retro" in r, (f, r)
++    # el README de una INICIATIVA no es el índice → deny como cualquier otro fichero de la carpeta
++    r = decide(write("docs/roadmap/2026-01-01-x/README.md"))
++    assert r and "solo toca tasks.md" in r
++    # en rama principal, el índice cuenta como ledger (no dispara ramaPrincipal)
++    assert decide(write("docs/roadmap/README.md"), branch="main") is None
++
++
+ # ----------------------------------------------------------------- git ----
+ def test_git_deny_push_force_variantes():
+     for cmd in ("git push --force", "git push -f origin main", "git push --force-with-lease",
+diff --git a/agents/implementer.md b/agents/implementer.md
+index fb022c3..6be6efe 100755
+--- a/agents/implementer.md
++++ b/agents/implementer.md
+@@ -44,7 +44,7 @@ Formas parte de la cadena: `evaluator` → `planner` → **`implementer`** → `
+ - **Entrada:** una iniciativa en `docs/roadmap/<fecha>-<slug>/` con `improvement-plan.md` y `tasks.md` (y `test-plan.md` si hay UI). Si falta el plan, avisa: hay que generarlo con `planner` antes.
+ - **Salida:** cambios en el **código del proyecto** + `tasks.md` actualizado por tarea. No escribes documentación de referencia (eso es de `documenter`) ni informes de test (de `qa`).
+ - **Rama:** trabaja sobre una **rama de trabajo** (no en la principal). Si no existe una, propón `feature/<slug>` y créala antes de tocar código. No fuerces push salvo que el usuario lo pida.
+-- **Guardrails impuestos por hook (`agent-kits/shared/guardrail-check.py`, PreToolUse solo de este agente):** en `docs/roadmap/` solo `tasks.md` (ni `testing/`, ni `docs/security-scan/`); Write/Edit fuera del ledger con HEAD en `main`/`master` → bloqueado; `git push --force`, `git branch -D`, salir de la rama de trabajo a `main` y `rm -rf` de `/`, `~`, `.git` → bloqueados. **Un DENY no es un error:** lee la razón y cambia de fichero/rama (o anota la duda en `tasks.md`); no busques rodeos. Se desactivan por regla en `.claude/dev.json` (`"guardrails": {"alcance","ramaPrincipal","git"}` o `false`); sin `python3` el hook avisa y no bloquea. Además respeta los invariantes en prosa del repo (guardrail local-only de `nemesis`, `CLAUDE.md`/`CONVENTIONS.md`).
++- **Guardrails impuestos por hook (`agent-kits/shared/guardrail-check.py`, PreToolUse solo de este agente):** en `docs/roadmap/` solo `tasks.md` y el índice `docs/roadmap/README.md` (ni `testing/`, ni `docs/security-scan/`; `CALIBRATION.md`/`DRIFT.md`/`BACKLOG.md` los escriben los comandos `/retro`, `/spec-drift`, `/pm-backlog` — bloqueados por diseño); Write/Edit fuera del ledger con HEAD en `main`/`master` → bloqueado; `git push --force`, `git branch -D`, salir de la rama de trabajo a `main` y `rm -rf` de `/`, `~`, `.git` → bloqueados. **Un DENY no es un error:** lee la razón y cambia de fichero/rama (o anota la duda en `tasks.md`); no busques rodeos. Se desactivan por regla en `.claude/dev.json` (`"guardrails": {"alcance","ramaPrincipal","git"}` o `false`); sin `python3` el hook avisa y no bloquea. Además respeta los invariantes en prosa del repo (guardrail local-only de `nemesis`, `CLAUDE.md`/`CONVENTIONS.md`).
+ 
+ ---
+ 
+diff --git a/docs/CONVENTIONS.md b/docs/CONVENTIONS.md
+index 1f78c68..1455307 100755
+--- a/docs/CONVENTIONS.md
++++ b/docs/CONVENTIONS.md
+@@ -150,8 +150,8 @@ El avance de un plan se registra en **un único sitio**: `docs/roadmap/<fecha>-<
+ - **Estados con motor externo:** cuando la implementación se delega a un orquestador externo, ese motor **no** actualiza tus artefactos. Por tanto, `/dev-cycle` (o tú) aplica las **transiciones de estado** de la regla 7 y mantiene `tasks.md` al día en su nombre. Las transiciones valen igual haya o no motor externo.
+ - El cierre del ciclo (documentación con `documenter`) se hace **una vez** tras implementar y con `qa` en verde, no tarea a tarea.
+ - **Validación mecánica:** `agent-kits/shared/ledger-lint.py` comprueba el ledger con exit code (vocabulario de estados, `completado` ⟹ criterios marcados, resumen cuadrado, IDs únicos). Lo corren `implementer` (DoD), `qa` (P1) y `/dev-cycle` en sus puertas; además un hook PostToolUse (`hooks/ledger-lint-warn.sh`) lo ejecuta en **modo aviso** en cada edición de un `tasks.md`. El «verde» de qa también es mecánico: `agent-kits/qa/qa-gate.py` sobre `results.json`.
+-- **Dos clases de hooks.** (a) **Informativos** — globales, en `hooks/hooks.json`, `PostToolUse`/`SubagentStop`/`SessionStart`; informan (`systemMessage`/`additionalContext`) y **siempre exit 0**. (b) **De guardia** — `PreToolUse` con `permissionDecision: deny`, **SOLO en el frontmatter `hooks:` de un agente** (alcance del agente), con la decisión en un **script determinista con tests** (`agent-kits/shared/guardrail-check.py`), razón en una frase con cómo proceder, desactivables por regla en `.claude/dev.json` (`guardrails`), y que degradan sin bloquear (sin `python3` → aviso único, exit 0; error interno → allow). **Un deny global está prohibido**: `planner`/`evaluator`/`analyst` escriben en `docs/roadmap/` legítimamente y un hook en `hooks.json` los rompería (ADR-007). Hoy el único hook de guardia es el del `implementer` (`hooks/implementer-guardrail.sh`: alcance `docs/roadmap/` solo `tasks.md` y nunca `docs/security-scan/`, rama de trabajo, git no destructivo). El alcance del **diff** completo lo comprueba aparte `agent-kits/shared/scope-check.py` (ficheros cambiados vs. campos `Archivos` del ledger) como puerta previa a la revisión de dos lentes (skill `adversarial-review`, fuente única del método; su `review-lens-select.py` decide si se añade la lente C de seguridad) y en el DoD del implementer.
+-- **Visibilidad en vivo (hooks informativos):** el plugin registra hooks en `PostToolUse` (aviso de lint + **línea de progreso** `progress-report.py line` al editar un `tasks.md`), `SubagentStop` (estado de las iniciativas `en-progreso` al terminar un subagente) y `SessionStart` (`startup|resume|compact`: contexto de retoma con `progress-report.py session`). Principio: **los hooks informan (`systemMessage` / `hookSpecificOutput.additionalContext`), no deciden; siempre exit 0** — sin `python3` callan; un hook roto es una pieza muerta, no un guardrail (el linter comprueba que cada `command` de `hooks/hooks.json` exista y sea ejecutable). La statusline (`statusline/roadmap-statusline.sh`) es **opt-in** en `/setup` y se escribe con ruta absoluta en `.claude/settings.json` (la doc oficial no expande `${CLAUDE_PLUGIN_ROOT}` en `statusLine.command`).
++- **Dos clases de hooks.** (a) **Informativos** — globales, en `hooks/hooks.json`, `PostToolUse`/`SubagentStop`/`SessionStart`; informan (`systemMessage`/`additionalContext`) y **siempre exit 0**. (b) **De guardia** — `PreToolUse` con `permissionDecision: deny`, **SOLO en el frontmatter `hooks:` de un agente** (alcance del agente), con la decisión en un **script determinista con tests** (`agent-kits/shared/guardrail-check.py`), razón en una frase con cómo proceder, desactivables por regla en `.claude/dev.json` (`guardrails`), y que degradan sin bloquear (sin `python3` → aviso único, exit 0; error interno → allow). **Un deny global está prohibido**: `planner`/`evaluator`/`analyst` escriben en `docs/roadmap/` legítimamente y un hook en `hooks.json` los rompería (ADR-007). Hoy el único hook de guardia es el del `implementer` (`hooks/implementer-guardrail.sh`: alcance `docs/roadmap/` solo `tasks.md` —más el índice `docs/roadmap/README.md`— y nunca `docs/security-scan/`, rutas case-insensitive, rama de trabajo, git no destructivo). El alcance del **diff** completo lo comprueba aparte `agent-kits/shared/scope-check.py` (ficheros cambiados vs. campos `Archivos` del ledger) como puerta previa a la revisión de dos lentes (skill `adversarial-review`, fuente única del método; su `review-lens-select.py` decide si se añade la lente C de seguridad) y en el DoD del implementer.
++- **Visibilidad en vivo (hooks informativos):** el plugin registra hooks en `PostToolUse` (aviso de lint + **línea de progreso** `progress-report.py line` al editar un `tasks.md`), `SubagentStop` (estado de las iniciativas `en-progreso` al terminar un subagente) y `SessionStart` (`startup|resume|compact`: contexto de retoma con `progress-report.py session`). Principio: **los hooks informan (`systemMessage` / `hookSpecificOutput.additionalContext`), no deciden; siempre exit 0** — sin `python3` callan; un hook roto es una pieza muerta, no un guardrail (el linter comprueba que cada `command` de `hooks/hooks.json` exista y sea ejecutable). Los hooks tienen **suite de shell** (`tests/test_hooks_shell.py`: pytest lanza cada `hooks/*.sh` con `bash` sobre un proyecto temporal con un ledger de fixture y afirma el JSON de salida, el debounce —incluida su atomicidad con 6 invocaciones concurrentes—, la degradación sin `python3` y `exit 0` en todos los casos; se salta entera si no hay `bash`). La statusline (`statusline/roadmap-statusline.sh`) es **opt-in** en `/setup` y se escribe con ruta absoluta en `.claude/settings.json` (la doc oficial no expande `${CLAUDE_PLUGIN_ROOT}` en `statusLine.command`).
+ 
+ ## 9. Ficheros de config/estado en `.claude/` del proyecto consumidor
+ 
+@@ -165,7 +165,7 @@ Cada skill guarda su config (decisiones del usuario) y su estado (memoria de má
+ | `confluence-state.json` | Manifiesto página↔fichero (hash + pageId) | `confluence-publish`/`pull` | Se reconstruye: publish busca por título bajo el anclaje antes de crear |
+ | `jira.json` | Opt-in + política de jornada (`alCubrirJornada`) | skill `jira-sync` o `/setup` | Recrear con `/setup`; defaults seguros |
+ | `jira-state.json` | Mapeo T-XX↔issue, imputado por día, banco de horas | `jira-sync` (vía `worklog.py`) | Mapeo: re-derivable de las claves anotadas en `tasks.md`; imputado/banco: revisar worklogs en Jira |
+-| `dev.json` | Disciplina de la cadena nativa de `/dev-cycle`: `tdd` (RED-GREEN-REFACTOR con evidencia del rojo), `worktree` (iniciativa en worktree aislado), `subagentes` (una tarea = un subagente fresco), `constitucion` (decisión del opt-in de `docs/CONSTITUTION.md` — distingue "declinado" de "nunca preguntado"), `guardrails` (hook de guardia del implementer: `true` por defecto; `false` o `{"alcance","ramaPrincipal","git"}` por regla), `revision.lenteSeguridad` (`auto` por defecto: la lente C de seguridad de `adversarial-review` solo si `review-lens-select.py` detecta rutas/líneas sensibles; `siempre` · `nunca`). Todo opt-in con defaults `false` salvo `guardrails` (activo) y `revision.lenteSeguridad` (`auto`) | `/setup` o a mano | Recrear con `/setup`; sin fichero o corrupto → defaults `false` + aviso (comportamiento clásico) |
++| `dev.json` | Disciplina de la cadena nativa de `/dev-cycle`: `tdd` (RED-GREEN-REFACTOR con evidencia del rojo), `worktree` (iniciativa en worktree aislado), `subagentes` (una tarea = un subagente fresco), `constitucion` (decisión del opt-in de `docs/CONSTITUTION.md` — distingue "declinado" de "nunca preguntado"), `guardrails` (hook de guardia del implementer: `true` por defecto; `false` o `{"alcance","ramaPrincipal","git"}` por regla), `revision.lenteSeguridad` (`auto` por defecto: la lente C de seguridad de `adversarial-review` solo si `review-lens-select.py` detecta rutas/líneas sensibles; `siempre` · `nunca`; lo pregunta `/setup` paso 5-ter), `revision.excluir` (lista de globs `**`-aware que se sacan de la heurística de **ruta** de la lente C, no de la de contenido — p. ej. `["hooks/**"]` en un repo cuyos hooks se llamen `session-*.sh`; ajuste manual). Todo opt-in con defaults `false` salvo `guardrails` (activo) y `revision.lenteSeguridad` (`auto`) | `/setup` o a mano | Recrear con `/setup`; sin fichero o corrupto → defaults `false` + aviso (comportamiento clásico) |
+ | `usage-state.json` | Marcadores de medición de coste (`usage-meter.py`: offsets por transcripción y artefacto) | `usage-meter.py` | Borrarlo es inocuo: se pierden los marcadores abiertos; los siguientes `start` lo recrean |
+ | `.confluence-pending` | Marca efímera del hook (hay docs sin sincronizar) | hook `PostToolUse` | Borrarla es inocuo; la skill re-detecta por manifiesto |
+ 
+diff --git a/docs/agents/implementer.md b/docs/agents/implementer.md
+index 1d2d047..140c9fb 100755
+--- a/docs/agents/implementer.md
++++ b/docs/agents/implementer.md
+@@ -25,7 +25,7 @@ flowchart LR
+ 
+ - No planifica ni evalúa (eso es `planner`/`evaluator`).
+ - No prueba el producto (E2E lo hace `qa`) ni escribe la documentación de referencia (`documenter`).
+-- No toca `docs/roadmap/` salvo `tasks.md` (progreso), ni `docs/security-scan/`.
++- No toca `docs/roadmap/` salvo `tasks.md` (progreso) y el índice `docs/roadmap/README.md`, ni `docs/security-scan/`.
+ 
+ ## A diferencia del resto
+ 
+@@ -42,7 +42,7 @@ escriben en `docs/roadmap/` legítimamente (ADR-007). Deniega, con la razón y c
+ 
+ | Regla (`dev.json` → `guardrails`) | Qué bloquea |
+ |---|---|
+-| `alcance` | Write/Edit/MultiEdit/NotebookEdit sobre `docs/roadmap/**` que no sea `tasks.md` (incl. `testing/`, de qa) y sobre `docs/security-scan/**`. `docs/knowledge/**` se permite (ADR). |
++| `alcance` | Write/Edit/MultiEdit/NotebookEdit sobre `docs/roadmap/**` que no sea `tasks.md` (incl. `testing/`, de qa) y sobre `docs/security-scan/**`; rutas case-insensitive (`Docs/Roadmap/…` también). `docs/knowledge/**` se permite (ADR). En la raíz de `docs/roadmap/` solo se permite `README.md` (índice de iniciativas, que el cierre de cada iniciativa actualiza); `CALIBRATION.md`, `DRIFT.md` y `BACKLOG.md` quedan bloqueados **por diseño**: los escriben `/retro`, `/spec-drift` y `/pm-backlog`, que son comandos y no pasan por este hook. |
+ | `ramaPrincipal` | Escrituras fuera del ledger con HEAD en `main`/`master` («trabaja en `feature/<slug>`»). Sin git → no aplica. |
+ | `git` | `git push --force|-f|--force-with-lease`, `git branch -D`, `git checkout|switch main|master` desde una rama de trabajo, `rm -rf` de `/`, `~`, `.git`. Todo lo demás pasa. |
+ 
+diff --git a/docs/en/CONVENTIONS.md b/docs/en/CONVENTIONS.md
+index 243f2dc..32fa052 100755
+--- a/docs/en/CONVENTIONS.md
++++ b/docs/en/CONVENTIONS.md
+@@ -150,8 +150,8 @@ A plan's progress is recorded in **a single place**: `docs/roadmap/<fecha>-<slug
+ - **States with an external engine:** when implementation is delegated to an external orchestrator, that engine does **not** update your artifacts. Therefore `/dev-cycle` (or you) applies the **state transitions** of rule 7 and keeps `tasks.md` up to date on its behalf. The transitions apply equally with or without an external engine.
+ - The cycle closeout (documentation with `documenter`) happens **once**, after implementing and with `qa` green, not task by task.
+ - **Mechanical validation:** `agent-kits/shared/ledger-lint.py` checks the ledger with an exit code (state vocabulary, `completado` ⟹ criteria checked, summary adding up, unique IDs). It is run by `implementer` (DoD), `qa` (P1) and `/dev-cycle` at their gates; additionally, a PostToolUse hook (`hooks/ledger-lint-warn.sh`) runs it in **warning mode** on every edit of a `tasks.md`. The qa "green" is mechanical too: `agent-kits/qa/qa-gate.py` over `results.json`.
+-- **Two classes of hooks.** (a) **Informative** — global, in `hooks/hooks.json`, `PostToolUse`/`SubagentStop`/`SessionStart`; they inform (`systemMessage`/`additionalContext`) and **always exit 0**. (b) **Guard** — `PreToolUse` with `permissionDecision: deny`, **ONLY in an agent's frontmatter `hooks:`** (agent scope), with the decision in a **deterministic script with tests** (`agent-kits/shared/guardrail-check.py`), a one-sentence reason saying how to proceed, per-rule opt-out in `.claude/dev.json` (`guardrails`), and graceful degradation (no `python3` → single warning, exit 0; internal error → allow). **A global deny is forbidden**: `planner`/`evaluator`/`analyst` legitimately write to `docs/roadmap/` and a hook in `hooks.json` would break them (ADR-007). Today the only guard hook is the `implementer`'s (`hooks/implementer-guardrail.sh`: `docs/roadmap/` scope — only `tasks.md`, never `docs/security-scan/` —, working branch, non-destructive git). The scope of the whole **diff** is checked separately by `agent-kits/shared/scope-check.py` (changed files vs. the ledger's `Archivos` fields) as a gate before the two-lens review (`adversarial-review` skill, single source of the method; its `review-lens-select.py` decides whether the security lens C is added) and in the implementer's DoD.
+-- **Live visibility (informative hooks):** the plugin registers hooks on `PostToolUse` (lint warning + **progress line** `progress-report.py line` when a `tasks.md` is edited), `SubagentStop` (state of the `en-progreso` initiatives when a subagent finishes) and `SessionStart` (`startup|resume|compact`: resume context via `progress-report.py session`). Principle: **hooks inform (`systemMessage` / `hookSpecificOutput.additionalContext`), they never decide; always exit 0** — without `python3` they stay silent; a broken hook is a dead piece, not a guardrail (the linter checks that every `command` in `hooks/hooks.json` exists and is executable). The status line (`statusline/roadmap-statusline.sh`) is **opt-in** in `/setup` and is written with an absolute path into `.claude/settings.json` (the official docs do not expand `${CLAUDE_PLUGIN_ROOT}` in `statusLine.command`).
++- **Two classes of hooks.** (a) **Informative** — global, in `hooks/hooks.json`, `PostToolUse`/`SubagentStop`/`SessionStart`; they inform (`systemMessage`/`additionalContext`) and **always exit 0**. (b) **Guard** — `PreToolUse` with `permissionDecision: deny`, **ONLY in an agent's frontmatter `hooks:`** (agent scope), with the decision in a **deterministic script with tests** (`agent-kits/shared/guardrail-check.py`), a one-sentence reason saying how to proceed, per-rule opt-out in `.claude/dev.json` (`guardrails`), and graceful degradation (no `python3` → single warning, exit 0; internal error → allow). **A global deny is forbidden**: `planner`/`evaluator`/`analyst` legitimately write to `docs/roadmap/` and a hook in `hooks.json` would break them (ADR-007). Today the only guard hook is the `implementer`'s (`hooks/implementer-guardrail.sh`: `docs/roadmap/` scope — only `tasks.md` plus the `docs/roadmap/README.md` index, never `docs/security-scan/`, case-insensitive paths —, working branch, non-destructive git). The scope of the whole **diff** is checked separately by `agent-kits/shared/scope-check.py` (changed files vs. the ledger's `Archivos` fields) as a gate before the two-lens review (`adversarial-review` skill, single source of the method; its `review-lens-select.py` decides whether the security lens C is added) and in the implementer's DoD.
++- **Live visibility (informative hooks):** the plugin registers hooks on `PostToolUse` (lint warning + **progress line** `progress-report.py line` when a `tasks.md` is edited), `SubagentStop` (state of the `en-progreso` initiatives when a subagent finishes) and `SessionStart` (`startup|resume|compact`: resume context via `progress-report.py session`). Principle: **hooks inform (`systemMessage` / `hookSpecificOutput.additionalContext`), they never decide; always exit 0** — without `python3` they stay silent; a broken hook is a dead piece, not a guardrail (the linter checks that every `command` in `hooks/hooks.json` exists and is executable). Hooks have a **shell test suite** (`tests/test_hooks_shell.py`: pytest runs every `hooks/*.sh` with `bash` against a temporary project holding a fixture ledger and asserts the output JSON, the debounce — including its atomicity under 6 concurrent invocations —, the degradation without `python3` and `exit 0` in every case; the whole suite is skipped when there is no `bash`). The status line (`statusline/roadmap-statusline.sh`) is **opt-in** in `/setup` and is written with an absolute path into `.claude/settings.json` (the official docs do not expand `${CLAUDE_PLUGIN_ROOT}` in `statusLine.command`).
+ 
+ ## 9. Config/state files in the consuming project's `.claude/`
+ 
+@@ -165,7 +165,7 @@ Each skill stores its config (user decisions) and its state (machine memory) in
+ | `confluence-state.json` | Page↔file manifest (hash + pageId) | `confluence-publish`/`pull` | Rebuilds itself: publish searches by title under the anchor before creating |
+ | `jira.json` | Opt-in + workday policy (`alCubrirJornada`) | `jira-sync` skill or `/setup` | Recreate with `/setup`; safe defaults |
+ | `jira-state.json` | T-XX↔issue mapping, logged time per day, hours bank | `jira-sync` (via `worklog.py`) | Mapping: re-derivable from the keys annotated in `tasks.md`; logged time/bank: review worklogs in Jira |
+-| `dev.json` | Discipline of `/dev-cycle`'s native chain: `tdd` (RED-GREEN-REFACTOR with evidence of the red), `worktree` (initiative in an isolated worktree), `subagentes` (one task = one fresh subagent), `constitucion` (decision on the `docs/CONSTITUTION.md` opt-in — distinguishes "declined" from "never asked"), `guardrails` (the implementer's guard hook: `true` by default; `false` or `{"alcance","ramaPrincipal","git"}` per rule), `revision.lenteSeguridad` (`auto` by default: the security lens C of `adversarial-review` only when `review-lens-select.py` detects sensitive paths/lines; `siempre` · `nunca`). All opt-in with defaults `false` except `guardrails` (on) and `revision.lenteSeguridad` (`auto`) | `/setup` or by hand | Recreate with `/setup`; missing or corrupted file → defaults `false` + warning (classic behavior) |
++| `dev.json` | Discipline of `/dev-cycle`'s native chain: `tdd` (RED-GREEN-REFACTOR with evidence of the red), `worktree` (initiative in an isolated worktree), `subagentes` (one task = one fresh subagent), `constitucion` (decision on the `docs/CONSTITUTION.md` opt-in — distinguishes "declined" from "never asked"), `guardrails` (the implementer's guard hook: `true` by default; `false` or `{"alcance","ramaPrincipal","git"}` per rule), `revision.lenteSeguridad` (`auto` by default: the security lens C of `adversarial-review` only when `review-lens-select.py` detects sensitive paths/lines; `siempre` · `nunca`; asked by `/setup` step 5-ter), `revision.excluir` (list of `**`-aware globs removed from lens C's **path** heuristic, not from the content one — e.g. `["hooks/**"]` for a repo whose hooks are named `session-*.sh`; manual setting). All opt-in with defaults `false` except `guardrails` (on) and `revision.lenteSeguridad` (`auto`) | `/setup` or by hand | Recreate with `/setup`; missing or corrupted file → defaults `false` + warning (classic behavior) |
+ | `usage-state.json` | Cost-measurement markers (`usage-meter.py`: offsets per transcript and artifact) | `usage-meter.py` | Deleting it is harmless: open markers are lost; subsequent `start` calls recreate it |
+ | `.confluence-pending` | Ephemeral hook flag (there are unsynced docs) | `PostToolUse` hook | Deleting it is harmless; the skill re-detects via manifest |
+ 
+diff --git a/docs/roadmap/2026-09-02-deterministic-guardrails/tasks.md b/docs/roadmap/2026-09-02-deterministic-guardrails/tasks.md
+index ffc34d2..1dc8dc4 100644
+--- a/docs/roadmap/2026-09-02-deterministic-guardrails/tasks.md
++++ b/docs/roadmap/2026-09-02-deterministic-guardrails/tasks.md
+@@ -136,7 +136,7 @@ Cada gap se reprodujo antes de corregir (todos reales; ninguno rebatido):
+ 
+ **Verificado OK por la revisión (sin cambios):** `..` hacia dentro, `./`, MultiEdit `edits[]`, absolutas bajo el proyecto, `src/docs/roadmap-view.tsx` y `mydocs/roadmap/` permitidos, `push -f`/`--force-with-lease`/encadenado, `rm -rf .git|$HOME`, `rm -rf node_modules` permitido, `branch -d`, `checkout -b`, `checkout main` desde feature, detached HEAD, rama `master`, `dev.json` parcial/corrupto, stdin vacío/no-JSON, sin git en PATH, ~40 ms por invocación; `scope-check` exit 1/0/2 y mensaje sin main/master; `lint_plugin` con `skills: nope`, `hooks: "string"` y command inexistente (sin traceback).
+ 
+-**Aceptados como deuda:** mayúsculas en rutas (`Docs/Roadmap`) no casan (los patrones son case-sensitive, como git en Linux); `docs/roadmap/README.md`/`CALIBRATION.md`/`DRIFT.md` bloqueados para el implementer por diseño (los toca el orquestador/comandos).
++**Aceptados como deuda:** mayúsculas en rutas (`Docs/Roadmap`) no casan (los patrones son case-sensitive, como git en Linux) — **saldada en 2026-09-02-debt-cleanup (T-02a)**; `docs/roadmap/README.md`/`CALIBRATION.md`/`DRIFT.md` bloqueados para el implementer por diseño (los toca el orquestador/comandos) — **saldada en 2026-09-02-debt-cleanup (T-02b: `README.md` permitido; `CALIBRATION`/`DRIFT`/`BACKLOG` siguen deny, documentados como diseño)**.
+ 
+ Tras la corrección: `pytest -q tests agent-kits/shared` → **136 passed** (133 + 3 nuevos); 9 suites-script verdes; `lint_plugin` → 0 errores · 3 avisos; `bash -n` OK; `scope-check.py` de esta iniciativa → 28 en alcance, 0 fuera, exit 0.
+ 
+@@ -144,5 +144,5 @@ Tras la corrección: `pytest -q tests agent-kits/shared` → **136 passed** (133
+ 
+ - **Doc oficial vs brief:** (1) `${CLAUDE_PLUGIN_ROOT}` no está documentado en los `command` del frontmatter de sub-agents (solo en `hooks.md` como variable del proceso) → la línea del hook lleva fallback `find` + `exit 0`; probado con y sin la variable. (2) La doc confirma `skills:` (precarga de contenido completo); el linter y las convenciones lo soportan, pero el implementer NO lo usa (revisión intento 1: ≈15k tokens por arranque para skills opt-in) — regla documentada: solo skills necesarias en TODAS las ejecuciones; el linter avisa con >16 KB de precarga. (3) `isolation: worktree` descartado (ADR-007 alternativas). (4) Se elige JSON `deny` + exit 0 en vez de exit 2 (razón estructurada; error interno ≠ bloqueo).
+ - **Efecto sobre este mismo trabajo:** el hook no estaba activo en esta sesión (el implementer corrió como agente sin el frontmatter nuevo cargado), pero las reglas se cumplieron a mano: rama `feature/deterministic-guardrails` creada antes de tocar código; en `docs/roadmap/` solo `tasks.md` propio y `README.md` (índice — lo toca el cierre, T-04, como en live-visibility; con el hook activo esa edición del índice la tendría que hacer el orquestador, no el implementer).
+-- **Alcance del deny en `docs/roadmap/README.md`, `CALIBRATION.md`, `DRIFT.md`:** quedan bloqueados para el implementer (los escriben comandos/orquestador). Si se prefiere permitir el índice, es una línea en `es_ledger()` + test.
+-- **Tests de shell:** no hay suite de shell en el repo; la evidencia del wrapper es la simulación de stdin anotada en T-02 (reproducible) + `bash -n` + linter. **CHANGELOG** no tocado (orquestador). Tabla de revisión de dos lentes: pendiente de añadir al final cuando llegue.
++- **Alcance del deny en `docs/roadmap/README.md`, `CALIBRATION.md`, `DRIFT.md`:** quedan bloqueados para el implementer (los escriben comandos/orquestador). Si se prefiere permitir el índice, es una línea en `es_ledger()` + test. — **saldada en 2026-09-02-debt-cleanup (T-02b)**
++- **Tests de shell:** no hay suite de shell en el repo; la evidencia del wrapper es la simulación de stdin anotada en T-02 (reproducible) + `bash -n` + linter. — **saldada en 2026-09-02-debt-cleanup (T-06)** **CHANGELOG** no tocado (orquestador). Tabla de revisión de dos lentes: pendiente de añadir al final cuando llegue.
+-- 
+2.43.0
+

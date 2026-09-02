@@ -1,5 +1,5 @@
 ---
-description: Onboarding del plugin en un proyecto — en UNA pasada guiada crea la config compartida de presupuesto (.claude/rates.json), decide los opt-ins de Confluence y Jira, ofrece la constitución del proyecto (docs/CONSTITUTION.md) y las opciones de disciplina de desarrollo (.claude/dev.json: TDD, worktrees, subagentes), en vez de que cada skill pregunte por su cuenta la primera vez. Idempotente; se puede relanzar para cambiar decisiones.
+description: Onboarding del plugin en un proyecto — en UNA pasada guiada crea la config compartida de presupuesto (.claude/rates.json), decide los opt-ins de Confluence y Jira, ofrece la constitución del proyecto (docs/CONSTITUTION.md), las opciones de disciplina de desarrollo (.claude/dev.json: TDD, worktrees, subagentes), la statusline opt-in (progreso del roadmap + coste de sesión) y la lente de seguridad de la revisión adversarial (dev.json revision.lenteSeguridad: auto/siempre/nunca), en vez de que cada skill pregunte por su cuenta la primera vez. Idempotente; se puede relanzar para cambiar decisiones.
 argument-hint: "(sin argumentos)"
 ---
 
@@ -24,7 +24,25 @@ los valores actuales y ofrece cambiarlos.
    - `tdd` — "¿Test antes del código (RED-GREEN-REFACTOR, con evidencia del rojo en el ledger)? [No]"
    - `worktree` — "¿Cada iniciativa en un worktree de git aislado? [No]"
    - `subagentes` — "¿Cada tarea implementada por un subagente de contexto fresco (más calidad por tarea, más tokens)? [No]"
+   - `guardrails` — **default ACTIVADO** (solo se ofrece desactivar): "El `implementer` lleva un hook de guardia determinista (en `docs/roadmap/` solo `tasks.md`, trabajar en rama, sin `git push --force`/`branch -D`/`rm -rf` peligrosos). ¿Mantenerlo activo? [Sí]". Solo si el usuario dice no, escribe `"guardrails": false` (o por regla: `{"alcance": true, "ramaPrincipal": false, "git": true}`); si dice sí, no escribas la clave (ausente = activo).
    Escribe `.claude/dev.json` con lo elegido (p. ej. `{"tdd": false, "worktree": false, "subagentes": false}`). Si ya existe, resume y ofrece cambiar.
+5-bis. **Statusline (opt-in, default No).** Pregunta: "¿Mostrar el progreso del roadmap y el coste de la sesión en la barra de estado de Claude Code? [No]".
+   - **No** → persiste `"statusline": false` en `.claude/dev.json` y no toca `settings.json`.
+   - **Sí** → resuelve la ruta del script **en tiempo de setup** y escríbela **ABSOLUTA** (la doc oficial de `statusLine` solo documenta `~` en `command`, no `${CLAUDE_PLUGIN_ROOT}`, y el `settings.json` de un plugin no admite la clave `statusLine`; verificado 2026-09-02):
+     ```bash
+     SL="$(find "$PWD/.claude" "$HOME/.claude" -type f -path '*statusline/roadmap-statusline.sh' 2>/dev/null | head -1)"
+     ```
+     Luego **mergea** (sin pisar otras claves) en `.claude/settings.json` del proyecto el bloque oficial:
+     ```json
+     { "statusLine": { "type": "command", "command": "<ruta absoluta de $SL>" } }
+     ```
+     Si `settings.json` no existe, créalo con solo ese bloque. **Si ya hay una `statusLine` del usuario**, muéstrala y **no la sustituyas** sin confirmación explícita (por defecto se conserva la suya y se anota `"statusline": false`). Persiste `"statusline": true` en `.claude/dev.json`. Si `$SL` está vacío (instalación parcial), avisa y no escribas nada.
+   - Qué muestra (una línea, ≤ ~100 caracteres): `[Opus] $0.01 ctx 8% · 📋 <slug> T-04/12 33%` (varias iniciativas activas → `📋 N iniciativas activas`). Sin `jq` usa `python3`; sin ninguno, solo el modelo. Nunca falla.
+   - **Reversión**: borrar la clave `statusLine` de `.claude/settings.json` (o `/statusline remove`) y poner `"statusline": false` en `dev.json`. Relanzar `/setup` también lo ofrece.
+5-ter. **Lente de seguridad de la revisión (opt-in, default `auto`).** Pregunta: "¿Añadir una tercera lente de SEGURIDAD a la revisión adversarial cuando el cambio toque auth/sesiones/secretos/config sensible? [auto (recomendado) / siempre / nunca]". Explica en una frase: `auto` = solo si `review-lens-select.py` detecta rutas o líneas sensibles en el diff (coste cero en cambios de prosa); `siempre` = un tercer revisor en cada revisión; `nunca` = solo las lentes A+B.
+   - Persiste `"revision": {"lenteSeguridad": "<auto|siempre|nunca>"}` en `.claude/dev.json` **mergeando** (sin pisar `tdd`/`worktree`/`subagentes`/`guardrails`/`statusline` ni otras claves de `revision`). Si el usuario elige `auto`, escribe la clave igualmente (deja constancia de que se preguntó).
+   - Menciona como **ajuste manual** (no preguntes): `"revision": {"excluir": ["hooks/**"]}` saca globs de la heurística de **ruta** de la lente (para repos cuyos ficheros inocuos casen los stems, p. ej. hooks llamados `session-*.sh`) sin sacarlos del escaneo de contenido. Detalle en la skill `adversarial-review` §1 y en `docs/CONVENTIONS.md` regla 9.
+   - Idempotente: si `revision.lenteSeguridad` ya existe, resume el valor actual y ofrece cambiarlo.
 6. **Resumen final**: tabla corta con lo decidido y dónde vive cada config, y los siguientes pasos naturales (`/pm-cycle <idea>` para la primera iniciativa, o `@analyst` si la idea está verde).
 
 ## Reglas

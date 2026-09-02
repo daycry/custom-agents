@@ -56,6 +56,18 @@ Si `granularidad` no está en `.claude/jira.json`, **pregunta una vez** ("¿Un i
 
 > **Cambiar de granularidad con issues ya creados:** si el manifiesto ya tiene claves del otro modo (`T-XX → …` vs `fase-N → …`), **avisa** del choque y ofrece continuar en el modo ya volcado o empezar limpio (carpeta nueva o borrar el manifiesto). **Nunca** dupliques en silencio.
 
+## Paso 0-ter — asignación de los issues creados (`assignee`)
+
+Algunos proyectos de Jira tienen "asignado por defecto" activo: un `createJiraIssue` sin
+`assignee` explícito puede terminar auto-asignado a otra persona del equipo (con notificación),
+según ese default del proyecto (verificado en dry-run, ver `docs/atlassian-connector-notes.md`).
+Para no depender de ese comportamiento: si `assignee` no está en `.claude/jira.json`, **pregunta
+una vez** ("¿Los issues que cree se asignan a ti, o los dejo sin asignar?") y **persiste** la
+respuesta como `assignee: "me" | "none"` (defecto `"me"` si el usuario no tiene preferencia). En
+el Paso 5, al crear, fija siempre el campo `assignee` de forma explícita en `additional_fields`
+según ese valor (`"me"` → el accountId propio, resuelto una vez con `atlassianUserInfo` y
+cacheado; `"none"` → sin asignar) — nunca confíes en el default del proyecto.
+
 ## Paso 1 — elegir destino (proyecto + padre opcional)
 
 Resultado buscado, sea cual sea el modo: **`{ projectKey, parentKey|null }`**.
@@ -128,6 +140,7 @@ Indica claramente **cuántos** issues, de **qué tipo** y **dónde** cuelgan.
   - `description` = detalle/criterios de aceptación de la tarea (formato markdown) **+ enlace de vuelta** a la iniciativa (`docs/roadmap/<fecha>-<slug>/`) para no perder el contexto.
   - `parent` = la clave del padre (si aplica).
   - **Labels** (via `additional_fields`): `roadmap` y `<slug>` de la iniciativa, para poder filtrarla luego por JQL (`labels = "<slug>"`) — lo aprovecha el dashboard vivo desde Jira.
+  - **`assignee`** (via `additional_fields`, siempre explícito): según `.claude/jira.json` (Paso 0-ter) — accountId propio si `"me"`, sin asignar si `"none"`. No dejes que el "asignado por defecto" del proyecto decida.
 - **Idempotencia — manifiesto `.claude/jira-state.json`:** mapea `carpeta+T-XX → issueKey`. Antes de crear, consulta el manifiesto:
   - Ya tiene issueKey y existe (`getJiraIssue`) → **no dupliques** (salta o, si cambió el título, ofrece actualizar con `editJiraIssue`).
   - No está → crea y registra `T-XX → issueKey`.
@@ -142,7 +155,7 @@ Si da incoherencias duras, repórtalas y no vuelques hasta que el ledger esté l
 - `createJiraIssue(...)`:
   - `summary` = `"Fase N · <título de la fase>"`.
   - `description` = objetivo de la fase + **checklist de sus tareas** en markdown (`- [ ] T-XX · <título>` una por tarea) + enlace de vuelta a la iniciativa.
-  - `parent`, tipo y labels igual que en modo tarea (el tipo se descubre por jerarquía, Paso 2).
+  - `parent`, tipo, labels y `assignee` igual que en modo tarea (el tipo se descubre por jerarquía, Paso 2; el `assignee` sale de `.claude/jira.json`, Paso 0-ter).
 - **Fase sin tareas → no se crea issue** (avísalo).
 - **Idempotencia:** el manifiesto mapea `fase-N → issueKey`. Mismo criterio: si ya existe, no dupliques; si no, crea y registra `fase-N → issueKey`.
 - Escribe la clave Jira en la **cabecera de cada fase** de `tasks.md` (Paso 6).
@@ -182,7 +195,7 @@ chat), refleja ese avance en su issue de Jira. Se invoca **por tarea completada*
    - El **+20 % de contingencia no se imputa** (es margen de presupuesto, no tiempo real).
    - El **tope de jornada es DIARIO** (acumulado de todas las tareas del día), no por tarea. Antes de imputar, aplica el "Tope de jornada diario" de abajo.
 3. **Imputa** con `addWorklogToJiraIssue` (issueKey, `timeSpent` en horas/minutos, con un comentario tipo "Imputado automáticamente al completar T-XX"). Opcional: anota el **tiempo IA** por separado en un comentario/label para reporting.
-4. **Marca Done (descubierto, no hardcodeado):** `getTransitionsForJiraIssue(issueKey)` → localiza la transición cuyo estado destino es de categoría *Done* (o el nombre configurado) y aplícala con `transitionJiraIssue`. Si hay varias o ninguna clara, pregunta/omite con aviso; no fuerces un id fijo.
+4. **Marca Done (descubierto, no hardcodeado):** `getTransitionsForJiraIssue(issueKey)` → localiza la transición cuyo `to.statusCategory.key == "done"` y aplícala con `transitionJiraIssue`. **Nunca** la resuelvas por el nombre de la transición ni del estado destino (verificado en dry-run: una transición llamada "Done" puede apuntar a un estado localizado, p. ej. "HECHO", y los ids de transición varían por workflow) ni por un id fijo. Si hay varias con `statusCategory.key == "done"` o ninguna clara, pregunta/omite con aviso.
 5. **Actualiza** el manifiesto (`T-XX → {issueKey, worklogImputado, done:true}`) para no re-imputar en reejecuciones (idempotente).
 
 ### Tope de jornada diario (banco de horas)
@@ -256,6 +269,7 @@ La escribe/actualiza la skill; el usuario puede ajustarla. Campos:
 
 - `enabled` (`true`/`false`) — opt-in del proyecto (como Confluence).
 - `granularidad` (`"tarea"` por defecto · `"fase"`) — un issue por tarea, o uno por fase con sus tareas como checklist (Paso 0-bis). Si falta, se pregunta una vez y se persiste.
+- `assignee` (`"me"` por defecto · `"none"`) — a quién se asignan los issues que crea la skill (Paso 0-ter): `"me"` fija el accountId propio, `"none"` los deja sin asignar. Evita depender del "asignado por defecto" del proyecto. Si falta, se pregunta una vez y se persiste.
 - `cloudId` — site Atlassian (se resuelve solo si falta).
 - `horasJornada` — **máximo de horas imputables por DÍA** (acumulado de todas las tareas), no por tarea; `8` por defecto, `7` en jornada intensiva. **Se lee de `.claude/rates.json`** (config compartida); `jira.json` solo lo sobreescribe si quieres un valor distinto para Jira.
 - `alCubrirJornada` (por defecto `preguntar`) — qué hacer al llegar al tope diario: `preguntar` · `parar` · `seguir` · `banco`. Ver "Tope de jornada diario". (Específico de Jira → vive en `jira.json`.)

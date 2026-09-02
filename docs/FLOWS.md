@@ -37,7 +37,9 @@ flowchart LR
     evaluator -->|go| planner["🗺️ planner<br/>plan + tasks"]
     evaluator -.->|no-go| fin1(["✋ se descarta"])
     planner --> implementer["⚙️ implementer<br/>código + ledger"]
-    implementer --> review["🔍 revisión adversarial<br/>(2 lentes en paralelo,<br/>contexto fresco) diff vs plan"]
+    implementer --> scope{"scope-check.py<br/>diff ⊆ Archivos?"}
+    scope -.->|fuera de alcance| implementer
+    scope -->|exit 0| review["🔍 skill adversarial-review<br/>lentes A+B en paralelo, contexto fresco<br/>(+ lente C seguridad si el diff lo amerita)"]
     review -->|sin gaps| qa["✅ qa<br/>E2E Playwright"]
     review -.->|gaps de corrección| implementer
     qa -->|verde| documenter["📚 documenter<br/>docs del proyecto"]
@@ -73,7 +75,7 @@ flowchart TD
 
 ## 3 · `/dev-cycle` — ciclo de desarrollo (con puertas)
 
-> **Puerta de entrada (Fase 0-bis):** `/dev-cycle` pregunta primero **flujo completo** vs **vía rápida**. La vía rápida salta evaluator+planner (crea un `tasks.md` ligero) y entra directa en implementación, pero mantiene revisión de dos lentes + qa.
+> **Puerta de entrada (Fase 0-bis):** `/dev-cycle` pregunta primero **flujo completo** vs **vía rápida**. La vía rápida salta evaluator+planner (crea un `tasks.md` ligero) y entra directa en implementación, pero mantiene revisión de dos lentes + qa. **La revisión es la skill `adversarial-review`** (fuente única del método: puerta `scope-check.py`, lentes A/B, lente C de seguridad condicional decidida por `review-lens-select.py`, bucle acotado a 3); `/dev-cycle` solo la invoca, lleva el contador de intentos e imputa el worklog `[revisión]`. También se usa a demanda («revísame este diff») sin ledger.
 >
 > **Dos puertas de entrada al mismo gate:** el command `/dev-cycle` (explícito, con la barra) y la skill `quick-implement`, que se auto-invoca por lenguaje natural («implementa X rápido») y entra por la rama de vía rápida tras su filtro de idoneidad. La skill no define método propio: delega en esta misma Fase 0-bis.
 
@@ -92,7 +94,9 @@ flowchart TD
     E --> F{"¿pidió el usuario<br/>un motor externo<br/>explícitamente?"}
     F -->|"sí (opt-in explícito)"| G["motor externo ejecuta<br/>contra TU tasks.md<br/>(review propio)"]
     F -->|"no (defecto):<br/>cadena NATIVA"| H["implementer<br/>tarea a tarea<br/>(dev.json opt-in: TDD ·<br/>worktree · subagentes frescos)"]
-    H --> R["🔍 revisión adversarial<br/>DOS lentes en paralelo:<br/>spec-conformidad · calidad<br/>(fusión + dedupe)"]
+    H --> SC{"scope-check.py<br/>ficheros cambiados ⊆<br/>Archivos del ledger?"}
+    SC -.->|"exit 1: gap Important<br/>(sin gastar revisores)"| H
+    SC -->|exit 0| R["🔍 skill adversarial-review<br/>lentes A+B en paralelo:<br/>spec-conformidad · calidad<br/>+ C seguridad (review-lens-select.py)<br/>(fusión + dedupe)"]
     R -.->|gaps| H
     G --> I["qa · E2E local<br/>veredicto: qa-gate.py"]
     R --> I
@@ -212,6 +216,45 @@ flowchart TD
     Y -.->|ratio| M
 ```
 
+## 6b · Visibilidad en vivo (hooks deterministas + statusline opt-in)
+
+> Mientras `implementer`/subagentes trabajan, el usuario ve el avance sin que nadie lo redacte:
+> todo sale de `progress-report.py` sobre el **ledger canónico** (`tasks.md`). Los hooks
+> **informan, no deciden** (siempre exit 0). Detalle: [`observability.md`](observability.md).
+
+```mermaid
+flowchart LR
+    L[("docs/roadmap/*/tasks.md<br/>ledger canónico")] -->|Write/Edit| H1["hook PostToolUse<br/>progress-line.sh"]
+    H1 -->|"systemMessage (con debounce)"| U(["👀 usuario<br/>📋 slug · T-04/12 (33%) · fase 2/4 · en curso T-05"])
+    SA["subagente termina"] --> H2["hook SubagentStop<br/>subagent-progress.sh"]
+    H2 -->|"systemMessage: iniciativas activas"| U
+    SS["sesión: startup · resume · compact"] --> H3["hook SessionStart<br/>session-context.sh"]
+    H3 -->|"additionalContext ≤ 15 líneas<br/>(retoma desde la tarea en-progreso)"| C(["🧠 contexto de Claude"])
+    L --> P["progress-report.py<br/>line · active · session · --json"]
+    P --> H1 & H2 & H3
+    P -.->|"active --json"| SL["statusline/roadmap-statusline.sh<br/>(opt-in en /setup 5-bis)"]
+    SL -.->|"[Opus] $0.01 ctx 8% · 📋 slug T-04/12 33%"| U
+```
+
+## 6c · Guardrails deterministas del `implementer` (hook de guardia con alcance de agente)
+
+> Las reglas duras del `implementer` no dependen de que el modelo las recuerde: un hook
+> `PreToolUse` registrado **solo en su frontmatter** (`agents/implementer.md`) las impone con
+> `guardrail-check.py` (script con tests). Los demás agentes no lo llevan: `planner`/`evaluator`
+> escriben en `docs/roadmap/` legítimamente (ADR-007). Desactivable en `.claude/dev.json`.
+
+```mermaid
+flowchart LR
+    T["implementer intenta<br/>Write · Edit · MultiEdit · NotebookEdit · Bash"] --> W["hook PreToolUse<br/>implementer-guardrail.sh"]
+    W -->|"sin python3"| M(["systemMessage (1 vez)<br/>+ exit 0: no bloquea"])
+    W --> G["guardrail-check.py pre-tool<br/>(dev.json → guardrails)"]
+    G -->|"docs/roadmap/** ≠ tasks.md<br/>docs/security-scan/**"| D(["❌ deny + razón:<br/>«solo tasks.md; el plan lo cambia planner»"])
+    G -->|"HEAD en main/master<br/>+ escritura fuera del ledger"| D2(["❌ deny: «trabaja en feature/<slug>»"])
+    G -->|"git push --force · branch -D<br/>checkout main desde feature<br/>rm -rf / ~ .git"| D3(["❌ deny + cómo proceder"])
+    G -->|"todo lo demás"| A(["✅ sin salida, exit 0<br/>(flujo normal de permisos)"])
+    D & D2 & D3 -.->|"lee la razón, cambia de fichero/rama"| T
+```
+
 ## 7 · Configuración (una pasada con `/setup`)
 
 ```mermaid
@@ -219,7 +262,8 @@ flowchart LR
     A["/setup"] --> B[".claude/rates.json<br/>tarifa · tokens · jornada · ratios<br/>la leen evaluator, planner y jira-sync"]
     A --> C[".claude/confluence.json<br/>opt-in + destino"]
     A --> D[".claude/jira.json<br/>opt-in + política de jornada"]
-    A --> G[".claude/dev.json<br/>tdd · worktree · subagentes<br/>(+ decisión constitución)"]
+    A --> G[".claude/dev.json<br/>tdd · worktree · subagentes · statusline<br/>(+ decisión constitución)"]
+    A -.->|"opt-in 5-bis"| SL[".claude/settings.json<br/>statusLine → roadmap-statusline.sh<br/>(ruta absoluta)"]
     A --> H["docs/CONSTITUTION.md<br/>principios permanentes (opt-in)<br/>los leen TODOS los agentes;<br/>la lente A los hace cumplir"]
     C -.->|estado| E[".claude/confluence-state.json"]
     D -.->|estado| F[".claude/jira-state.json<br/>mapeo · imputado/día · banco"]

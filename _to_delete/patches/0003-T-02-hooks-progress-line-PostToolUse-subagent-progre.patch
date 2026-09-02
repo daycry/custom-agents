@@ -1,0 +1,294 @@
+From bdb4817e6d2fd6913d8f66677d1c29e95063e6e1 Mon Sep 17 00:00:00 2001
+From: daycry <7590335+daycry@users.noreply.github.com>
+Date: Wed, 2 Sep 2026 09:55:17 +0000
+Subject: [PATCH 03/32] T-02: hooks progress-line (PostToolUse),
+ subagent-progress (SubagentStop), session-context (SessionStart) + registro
+ en hooks.json + .progress-last en .gitignore
+
+Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VA3zi8RqekY9weD2S1RyWL
+
+Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VA3zi8RqekY9weD2S1RyWL
+
+---
+ .gitignore                                    |  2 +
+ .../2026-09-02-live-visibility/tasks.md       | 23 ++++---
+ hooks/hooks.json                              | 25 +++++++
+ hooks/progress-line.sh                        | 68 +++++++++++++++++++
+ hooks/session-context.sh                      | 46 +++++++++++++
+ hooks/subagent-progress.sh                    | 39 +++++++++++
+ 6 files changed, 193 insertions(+), 10 deletions(-)
+ create mode 100755 hooks/progress-line.sh
+ create mode 100755 hooks/session-context.sh
+ create mode 100755 hooks/subagent-progress.sh
+
+diff --git a/.gitignore b/.gitignore
+index b228da9..e521bf1 100755
+--- a/.gitignore
++++ b/.gitignore
+@@ -47,3 +47,5 @@ desktop.ini
+ .claude/usage-state.json
+ .claude/jira-state.json
+ .claude/confluence-state.json
++# Debounce del hook de progreso (última línea emitida; live-visibility).
++.claude/.progress-last
+diff --git a/docs/roadmap/2026-09-02-live-visibility/tasks.md b/docs/roadmap/2026-09-02-live-visibility/tasks.md
+index d2f2ef8..a1b56d5 100644
+--- a/docs/roadmap/2026-09-02-live-visibility/tasks.md
++++ b/docs/roadmap/2026-09-02-live-visibility/tasks.md
+@@ -34,8 +34,8 @@ generacion:
+ 
+ | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervisión (real/est) | Tokens (real/est) |
+ |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
+-| Fase única — visibilidad en vivo | 1 | 4 | 25% | 1,4 / 4,0h | 0,08 / 0,20h | 0,02 / 0,05h | 22k / 90k |
+-| **TOTAL** | **1** | **4** | **25%** | **1,4 / 4,0h** | **0,08 / 0,20h** | **0,02 / 0,05h** | **22k / 90k** |
++| Fase única — visibilidad en vivo | 2 | 4 | 50% | 2,3 / 4,0h | 0,13 / 0,20h | 0,03 / 0,05h | 40k / 90k |
++| **TOTAL** | **2** | **4** | **50%** | **2,3 / 4,0h** | **0,13 / 0,20h** | **0,03 / 0,05h** | **40k / 90k** |
+ 
+ ---
+ 
+@@ -61,22 +61,25 @@ generacion:
+ ### T-02 — Hooks de progreso y de sesión
+ 
+ - **Descripción**: `hooks/progress-line.sh` (PostToolUse Write|Edit|MultiEdit sobre `*docs/roadmap/*tasks.md` → `{"systemMessage": "<línea>"}`, debounce por `.claude/.progress-last`), `hooks/subagent-progress.sh` (SubagentStop → `systemMessage` con las activas, solo si hay), `hooks/session-context.sh` (SessionStart `startup|resume|compact` → `hookSpecificOutput.additionalContext`; línea neutra → nada). Registro en `hooks/hooks.json`; `.claude/.progress-last` en `.gitignore`. Misma resolución de rutas que `ledger-lint-warn.sh`. Nunca exit ≠ 0.
+-- **Estado**: en-progreso
+-- **Tiempo humano**: est. 1,0h · real — (estimado)
+-- **Tiempo IA (ejec.)**: est. 0,05h · real — (estimado)
+-- **Supervisión**: est. 0,01h · real — (estimado)
++- **Estado**: completado
++- **Tiempo humano**: est. 1,0h · real 0,9h (estimado)
++- **Tiempo IA (ejec.)**: est. 0,05h · real 0,05h (estimado)
++- **Supervisión**: est. 0,01h · real 0,01h (estimado)
+ - **Dependencias**: T-01
+ - **Archivos**: `hooks/progress-line.sh` (nuevo), `hooks/subagent-progress.sh` (nuevo), `hooks/session-context.sh` (nuevo), `hooks/hooks.json`, `.gitignore`
+ 
+ **Criterios de aceptación**
+-- [ ] Simulación de stdin de los 3 hooks con salida real anotada en este ledger (comando + salida).
+-- [ ] Segunda edición idéntica del mismo ledger → `progress-line.sh` no emite nada (debounce).
+-- [ ] `bash -n` de los 3 hooks OK; `hooks/hooks.json` JSON válido con los eventos `PostToolUse`, `SubagentStop`, `SessionStart`.
++- [x] Simulación de stdin de los 3 hooks con salida real (desde la raíz del repo, con `export CLAUDE_PLUGIN_ROOT=$PWD CLAUDE_PROJECT_DIR=$PWD` — Claude Code exporta ambas; sin ellas el hook resuelve por `find` sobre `.claude/`, como `ledger-lint-warn.sh`):
++  - `echo '{"tool_input":{"file_path":"'"$PWD"'/docs/roadmap/2026-09-02-live-visibility/tasks.md"}}' | bash hooks/progress-line.sh` → `{"systemMessage": "📋 live-visibility · T-01/4 completadas (25%) · fase 1/1 «visibilidad en vivo» · en curso: T-02 Hooks de progreso y de sesión · IA real 5m"}` · exit 0.
++  - `echo '{"hook_event_name":"SubagentStop","agent_type":"implementer"}' | bash hooks/subagent-progress.sh` → `{"systemMessage": "📋 knowledge-split · T-05/5 completadas (100%) · …\n📋 live-visibility · T-01/4 completadas (25%) · …"}` · exit 0.
++  - `echo '{"hook_event_name":"SessionStart","source":"resume"}' | bash hooks/session-context.sh` → `{"hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": "Roadmap en progreso (ledger canónico = tasks.md):\n- 📋 knowledge-split · …\n- 📋 live-visibility · … en curso: T-02 …\n  · en-progreso: T-02 Hooks de progreso y de sesión\nLedger canónico: docs/roadmap/<…>/tasks.md — retoma desde la tarea en-progreso"}}` · exit 0. Con `CLAUDE_PROJECT_DIR=/tmp` (sin `docs/roadmap/`) → sin salida, exit 0. Con `PATH=/nonexistent` (sin python3) → sin salida, exit 0.
++- [x] Segunda edición idéntica del mismo ledger → `progress-line.sh` no emite nada (debounce vía `.claude/.progress-last`, verificado: 2.ª invocación sin stdout, exit 0). Fichero fuera de `docs/roadmap/` (incl. forma `edits[]` de MultiEdit) → sin salida.
++- [x] `bash -n` de los 3 hooks OK; `hooks/hooks.json` JSON válido (`json.load` OK) con `PostToolUse` (matcher `Write|Edit|MultiEdit`), `SubagentStop` (sin matcher = todos los tipos de agente) y `SessionStart` (matcher `startup|resume|compact`; se excluye `clear` a propósito: tras `/clear` el usuario empieza de cero y `fork` hereda el contexto). Ambos JSON de salida validados con `json.load`.
+ 
+ ### T-03 — Statusline opt-in
+ 
+ - **Descripción**: `statusline/roadmap-statusline.sh` lee el JSON de stdin (`model.display_name`, `cost.total_cost_usd`, `context_window.used_percentage`) y añade `progress-report.py active --json` (una iniciativa: `slug T-04/12 33%`; varias: `N iniciativas activas`). Una línea ≤ ~100 caracteres. Degrada: sin `jq` → `python3`; sin ninguno → solo el modelo. Paso 5-bis en `commands/setup.md` (opt-in, default No; mergea `statusLine` en `.claude/settings.json` con ruta ABSOLUTA; no pisa una `statusLine` previa sin confirmación; persiste `"statusline"` en `dev.json`; reversión documentada). Mención en `docs/observability.md` + EN.
+-- **Estado**: borrador
++- **Estado**: en-progreso
+ - **Tiempo humano**: est. 0,8h · real — (estimado)
+ - **Tiempo IA (ejec.)**: est. 0,04h · real — (estimado)
+ - **Supervisión**: est. 0,01h · real — (estimado)
+diff --git a/hooks/hooks.json b/hooks/hooks.json
+index b77aec2..d98dff1 100755
+--- a/hooks/hooks.json
++++ b/hooks/hooks.json
+@@ -11,6 +11,31 @@
+           {
+             "type": "command",
+             "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/ledger-lint-warn.sh\""
++          },
++          {
++            "type": "command",
++            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/progress-line.sh\""
++          }
++        ]
++      }
++    ],
++    "SubagentStop": [
++      {
++        "hooks": [
++          {
++            "type": "command",
++            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/subagent-progress.sh\""
++          }
++        ]
++      }
++    ],
++    "SessionStart": [
++      {
++        "matcher": "startup|resume|compact",
++        "hooks": [
++          {
++            "type": "command",
++            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/session-context.sh\""
+           }
+         ]
+       }
+diff --git a/hooks/progress-line.sh b/hooks/progress-line.sh
+new file mode 100755
+index 0000000..889418a
+--- /dev/null
++++ b/hooks/progress-line.sh
+@@ -0,0 +1,68 @@
++#!/usr/bin/env bash
++# Hook PostToolUse (Write/Edit/MultiEdit): cuando se edita un ledger canónico
++# `docs/roadmap/*/tasks.md`, emite UNA línea de progreso determinista
++# (`progress-report.py line`) como `systemMessage` — el usuario ve el avance sin
++# que el agente tenga que redactarlo. INFORMA, no decide: siempre exit 0.
++#
++# Contrato oficial (code.claude.com/docs/en/hooks, verificado 2026-09-02):
++#   stdin  → { tool_name, tool_input: { file_path | edits[].file_path }, tool_response, … }
++#   stdout → {"systemMessage": "<texto>"}   (campo universal de primer nivel; en
++#            PostToolUse se muestra al usuario; el tool ya corrió, no hay bloqueo)
++#
++# Debounce trivial: la última línea emitida se guarda en
++# ${CLAUDE_PROJECT_DIR:-$PWD}/.claude/.progress-last (estado local, en .gitignore);
++# si la nueva línea es idéntica, no se emite nada (ediciones consecutivas sin cambio
++# de estado no hacen ruido).
++#
++# Prueba manual:
++#   echo '{"tool_input":{"file_path":"'"$PWD"'/docs/roadmap/<slug>/tasks.md"}}' | bash hooks/progress-line.sh
++set -u
++
++INPUT="$(cat 2>/dev/null || true)"
++
++# Sin python3 no hay informe: salir en silencio (el hook jamás rompe el flujo).
++command -v python3 >/dev/null 2>&1 || exit 0
++
++# Extraer ruta(s) del payload (jq si está; grep de respaldo — mismo patrón que
++# ledger-lint-warn.sh).
++paths=""
++if command -v jq >/dev/null 2>&1; then
++  paths="$(printf '%s' "$INPUT" | jq -r '[.tool_input.file_path, (.tool_input.edits[]?.file_path)] | map(select(. != null)) | .[]' 2>/dev/null)"
++else
++  paths="$(printf '%s' "$INPUT" | grep -oE '"file_path"[[:space:]]*:[[:space:]]*"[^"]+"' | sed -E 's/.*:[[:space:]]*"([^"]+)"/\1/')"
++fi
++[ -n "$paths" ] || exit 0
++
++# Localizar progress-report.py: primero junto al plugin, después por find (scope
++# proyecto/usuario), como el resto de kits (regla 5 de CONVENTIONS).
++REPORT="${CLAUDE_PLUGIN_ROOT:-}/agent-kits/shared/progress-report.py"
++if [ ! -f "$REPORT" ]; then
++  REPORT="$(find "${CLAUDE_PROJECT_DIR:-$PWD}/.claude" "$HOME/.claude" -type f -path '*agent-kits/shared/progress-report.py' 2>/dev/null | head -1)"
++fi
++[ -n "$REPORT" ] && [ -f "$REPORT" ] || exit 0
++
++STATE_DIR="${CLAUDE_PROJECT_DIR:-$PWD}/.claude"
++LAST="$STATE_DIR/.progress-last"
++
++while IFS= read -r p; do
++  [ -n "$p" ] || continue
++  case "$p" in
++    *docs/roadmap/*tasks.md)
++      [ -f "$p" ] || continue
++      line="$(python3 "$REPORT" line "$p" 2>/dev/null || true)"
++      [ -n "$line" ] || continue
++      # Debounce: misma línea que la última vez → silencio.
++      if [ -f "$LAST" ] && [ "$(cat "$LAST" 2>/dev/null)" = "$line" ]; then
++        continue
++      fi
++      { mkdir -p "$STATE_DIR" && printf '%s' "$line" > "$LAST"; } 2>/dev/null || true
++      # JSON seguro (escapa comillas, backslashes, unicode) vía python3.
++      printf '%s' "$line" | python3 -c 'import json,sys; print(json.dumps({"systemMessage": sys.stdin.read()}, ensure_ascii=False))' 2>/dev/null || true
++      break   # una sola línea por invocación (el JSON de stdout debe ser un único objeto)
++      ;;
++  esac
++done <<EOF
++$paths
++EOF
++
++exit 0
+diff --git a/hooks/session-context.sh b/hooks/session-context.sh
+new file mode 100755
+index 0000000..3ba813a
+--- /dev/null
++++ b/hooks/session-context.sh
+@@ -0,0 +1,46 @@
++#!/usr/bin/env bash
++# Hook SessionStart (matcher `startup|resume|compact`): inyecta como contexto de sesión
++# el bloque corto de `progress-report.py session` — iniciativas en progreso, tareas
++# en curso, marcadores abiertos del usage-meter y la línea de retoma del ledger
++# canónico. Sobrevive a la compactación (matcher `compact`) y al retomar (`resume`).
++# Si no hay nada activo, NO emite nada (cero coste de contexto). Siempre exit 0.
++#
++# Contrato oficial (code.claude.com/docs/en/hooks, verificado 2026-09-02):
++#   stdin  → { hook_event_name: "SessionStart", source: startup|resume|clear|compact|fork, cwd, … }
++#   stdout → {"hookSpecificOutput": {"hookEventName": "SessionStart",
++#                                    "additionalContext": "<texto>"}}
++#            `additionalContext` DEBE ir anidado en hookSpecificOutput (en primer nivel
++#            se ignora en silencio); `hookEventName` es obligatorio.
++#
++# Prueba manual:
++#   echo '{"hook_event_name":"SessionStart","source":"resume"}' | bash hooks/session-context.sh
++set -u
++
++INPUT="$(cat 2>/dev/null || true)"
++
++command -v python3 >/dev/null 2>&1 || exit 0
++
++REPORT="${CLAUDE_PLUGIN_ROOT:-}/agent-kits/shared/progress-report.py"
++if [ ! -f "$REPORT" ]; then
++  REPORT="$(find "${CLAUDE_PROJECT_DIR:-$PWD}/.claude" "$HOME/.claude" -type f -path '*agent-kits/shared/progress-report.py' 2>/dev/null | head -1)"
++fi
++[ -n "$REPORT" ] && [ -f "$REPORT" ] || exit 0
++
++# Raíz del proyecto: CLAUDE_PROJECT_DIR (lo exporta Claude Code) > cwd del payload > $PWD.
++ROOT="${CLAUDE_PROJECT_DIR:-}"
++if [ -z "$ROOT" ] && command -v jq >/dev/null 2>&1; then
++  ROOT="$(printf '%s' "$INPUT" | jq -r '.cwd // empty' 2>/dev/null)"
++fi
++ROOT="${ROOT:-$PWD}"
++[ -d "$ROOT/docs/roadmap" ] || exit 0
++
++out="$(python3 "$REPORT" session --root "$ROOT" 2>/dev/null || true)"
++[ -n "$out" ] || exit 0
++# Línea neutra (nada activo) → no gastar contexto.
++case "$out" in
++  "roadmap: sin iniciativas en progreso") exit 0 ;;
++esac
++
++printf '%s' "$out" | python3 -c 'import json,sys; print(json.dumps({"hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": sys.stdin.read()}}, ensure_ascii=False))' 2>/dev/null || true
++
++exit 0
+diff --git a/hooks/subagent-progress.sh b/hooks/subagent-progress.sh
+new file mode 100755
+index 0000000..6ff7659
+--- /dev/null
++++ b/hooks/subagent-progress.sh
+@@ -0,0 +1,39 @@
++#!/usr/bin/env bash
++# Hook SubagentStop: cuando termina un subagente (p. ej. una tarea despachada por
++# /dev-cycle con `subagentes: true`), emite el estado de las iniciativas del roadmap
++# que están `en-progreso` (`progress-report.py active`) como `systemMessage`, para que
++# el usuario vea el avance entre tareas sin leer el ledger. Solo emite si hay alguna
++# activa. INFORMA, no decide: siempre exit 0 (jamás retiene al subagente).
++#
++# Contrato oficial (code.claude.com/docs/en/hooks, verificado 2026-09-02):
++#   stdin  → { hook_event_name: "SubagentStop", agent_id, agent_type,
++#              last_assistant_message, stop_hook_active, … }   (no se usa: el estado
++#              se lee del ledger, no del mensaje del subagente)
++#   stdout → {"systemMessage": "<texto>"}   (campo universal; se muestra al usuario).
++#            NO se emite `decision`/`continue`/`additionalContext`: no se quiere
++#            retener ni instruir al subagente.
++#
++# Prueba manual:
++#   echo '{"hook_event_name":"SubagentStop","agent_type":"implementer"}' | bash hooks/subagent-progress.sh
++set -u
++
++cat >/dev/null 2>&1 || true   # consumir stdin (no se usa)
++
++command -v python3 >/dev/null 2>&1 || exit 0
++
++REPORT="${CLAUDE_PLUGIN_ROOT:-}/agent-kits/shared/progress-report.py"
++if [ ! -f "$REPORT" ]; then
++  REPORT="$(find "${CLAUDE_PROJECT_DIR:-$PWD}/.claude" "$HOME/.claude" -type f -path '*agent-kits/shared/progress-report.py' 2>/dev/null | head -1)"
++fi
++[ -n "$REPORT" ] && [ -f "$REPORT" ] || exit 0
++
++ROOT="${CLAUDE_PROJECT_DIR:-$PWD}/docs/roadmap"
++[ -d "$ROOT" ] || exit 0
++
++out="$(python3 "$REPORT" active --root "$ROOT" 2>/dev/null || true)"
++[ -n "$out" ] || exit 0
++[ "$out" != "sin iniciativas en progreso" ] || exit 0
++
++printf '%s' "$out" | python3 -c 'import json,sys; print(json.dumps({"systemMessage": sys.stdin.read()}, ensure_ascii=False))' 2>/dev/null || true
++
++exit 0
+-- 
+2.43.0
+

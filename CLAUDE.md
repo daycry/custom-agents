@@ -12,7 +12,8 @@ custom-agents/               (se despliega como .claude/)
 ├── commands/<nombre>.md     # orquestadores (/pm-cycle, /dev-cycle, …)
 ├── skills/<skill>/          # skills COMPARTIDAS
 ├── agent-kits/<agente>/     # toolkits PRIVADOS por agente (shared/ = fragmentos y scripts comunes)
-├── hooks/                   # PostToolUse no bloqueantes
+├── hooks/                   # PostToolUse · SubagentStop · SessionStart — informan (systemMessage/additionalContext), no deciden; siempre exit 0
+├── statusline/              # roadmap-statusline.sh (opt-in en /setup): modelo · coste sesión · ctx · progreso roadmap
 ├── scripts/                 # lint_plugin.py, release.py
 ├── tests/                   # suites del repo (corren en CI)
 └── docs/                    # TODA la documentación (README índice, CONVENTIONS, FLOWS, INSTALL, agents/)
@@ -28,10 +29,11 @@ custom-agents/               (se despliega como .claude/)
 | Nombres | Un agente = un nombre kebab-case único, igual en `agents/`, `agent-kits/` y `docs/agents/`; el `name:` del frontmatter coincide. |
 | Compartido vs privado | Lo usan 2+ agentes → `skills/`; de uno solo → `agent-kits/<agente>/`; fragmentos de prompt repetidos → `agent-kits/shared/` (fuente única). |
 | Model tiering | Todo agente declara `model` (`haiku`/`sonnet`/`opus`/`inherit`). Lo valida el linter. |
-| Linter + tests | `python scripts/lint_plugin.py` (frontmatter, grafo `dependencies` sin ciclos, colisiones) + suites de `tests/` antes de publicar. |
+| Linter + tests | `python scripts/lint_plugin.py` (frontmatter, grafo `dependencies` sin ciclos, colisiones, `hooks/hooks.json` con commands existentes y ejecutables) + suites de `tests/` antes de publicar. |
 | Dependencias | Bloque `dependencies:` en el frontmatter del agente (skills/kits/agents) — fuente de verdad del grafo. |
 | Rutas en scripts | Relativas entre sí (`dirname "$BASH_SOURCE"`); nunca absolutas del repo. |
-| Determinismo | Los cálculos y veredictos van en **scripts con tests y exit codes** (patrón `worklog`/`qa-gate`/`ledger-lint`/`usage-meter`/`task-brief`), no en prosa del agente. |
+| Determinismo | Los cálculos y veredictos van en **scripts con tests y exit codes** (patrón `worklog`/`qa-gate`/`ledger-lint`/`usage-meter`/`task-brief`/`progress-report`/`guardrail-check`/`scope-check`/`review-lens-select`), no en prosa del agente. Hooks: los globales (`hooks/hooks.json`) solo informan; un deny solo vive en el frontmatter `hooks:` de un agente (ADR-007). |
+| Hooks | Informan, no deciden: `hooks/` emite `systemMessage`/`hookSpecificOutput.additionalContext` y SIEMPRE exit 0 (sin `python3` → silencio). Progreso en vivo = `agent-kits/shared/progress-report.py` sobre el ledger canónico (ver `docs/observability.md`). |
 | Degradación, no bloqueo | Las piezas opcionales (medición, constitución, Jira, Confluence) degradan con aviso; NUNCA bloquean el ciclo. |
 | Memoria técnica | `docs/knowledge/` (siempre activa, sin opt-in): `adr/ADR-NNN-<slug>.md`, `gotchas/GOT-NNN-<slug>.md`, `lessons/LES-NNN-<agente>-<slug>.md`, con `README.md` como única puerta de entrada (índice). Lectura selectiva por área (`agent-kits/shared/knowledge-check.md`: evaluator/planner/implementer/qa/documenter); escritura con umbral anti-burocracia (`agent-kits/shared/knowledge-write.md`: ADR solo si cierra alternativa y afecta 2+ piezas, gotcha solo si costó ≥1 ciclo de depuración). |
 
@@ -42,7 +44,7 @@ custom-agents/               (se despliega como .claude/)
 | **analyst** | Toma de requerimientos → `spec.md` aprobada (formato fijo, plantilla del evaluator). No estima ni planifica. |
 | **evaluator** | Presupuesta la spec (h/€/tokens, riesgos, veredicto), calibrando con `CALIBRATION.md`. Handoff a planner. |
 | **planner** | Plan ejecutable: `improvement-plan.md` + `tasks.md` (fases, T-XX, criterios, presupuesto por fase). |
-| **implementer** | Único que toca código. Fase a fase sobre rama/worktree; `tasks.md` = ledger canónico; mide cada tarea con usage-meter; TDD/worktree según `.claude/dev.json`. Handoff a qa. |
+| **implementer** | Único que toca código. Fase a fase sobre rama/worktree; `tasks.md` = ledger canónico; mide cada tarea con usage-meter; TDD/worktree según `.claude/dev.json`. Guardrails **impuestos por hook de guardia** propio (`guardrail-check.py`: solo `tasks.md` en `docs/roadmap/`, rama de trabajo, git no destructivo; `dev.json` `guardrails`) y alcance del diff por `scope-check.py` (DoD). Handoff a qa. |
 | **qa** | E2E Playwright solo local; veredicto por `qa-gate.py`; cobertura criterios↔tests por `coverage-check.py` (incl. `[GWT]`); informe md+pdf. |
 | **documenter** | Documentación técnica/producto del proyecto bajo `docs/`, derivada del repo. Una vez al cierre del ciclo. No toca `docs/roadmap/` ni `docs/security-scan/`. |
 | **nemesis** | Auditoría de seguridad: SAST (skill `cybersecurity`) + DAST **solo hosts locales/privados** (guardrail `lib-guardrail.sh`, no negociable). |
@@ -58,13 +60,13 @@ Invocan a los agentes **por nombre** y con puertas de control sobre la carpeta d
 |---|---|
 | `/pm-cycle <objetivo>` | Rol producto: spec → evaluación → **puerta go/no-go** y cierra. En go, ofrece handoff a /dev-cycle. Salidas opt-in: brief PDF, épica en Jira. |
 | `/dev-cycle <objetivo> [rapido\|completo] [--superpowers]` | Ciclo de desarrollo. **Cadena nativa SIEMPRE por defecto** (motor SDD externo solo bajo petición explícita con el flag; ver `commands/dev-cycle.md` Modo A). Puerta de entrada: flujo completo vs vía rápida (la rápida salta el papeleo PM pero conserva la revisión de dos lentes y qa). Disciplina opt-in en `.claude/dev.json`: `tdd` (RED-GREEN-REFACTOR con evidencia del rojo), `worktree`, `subagentes` (una tarea = un subagente fresco con brief de `task-brief.py`, estados DONE/DONE_WITH_CONCERNS/NEEDS_CONTEXT/BLOCKED, revisor con severidades). Bucles acotados a 3; al 3.er rojo de qa, skill `debug-root-cause` antes de preguntar. |
-| `/setup` | Onboarding en una pasada: `rates.json`, opt-ins Confluence/Jira, constitución (`docs/CONSTITUTION.md`), `dev.json`. Idempotente. |
+| `/setup` | Onboarding en una pasada: `rates.json`, opt-ins Confluence/Jira, constitución (`docs/CONSTITUTION.md`), `dev.json` (disciplina, statusline 5-bis, lente de seguridad de la revisión 5-ter). Idempotente. |
 | `/pm-backlog` · `/roadmap-status` · `/roadmap-metrics` · `/roadmap-live` · `/roadmap-brief` | Cartera y visibilidad (solo lectura): backlog priorizado · dashboard · real vs estimado + coste de proceso medido · Jira en vivo · one-pager PDF. |
 | `/spec-drift [slug]` | Gobernanza: deriva spec↔código de las specs `implementada` (vigente/derivado/no-verificable con evidencia) → `docs/roadmap/DRIFT.md`. Solo lectura; la corrección va por /pm-cycle. |
 | `/retro <slug>` | Cierre de aprendizaje: real vs estimado + causas + **ratio tokens/hora medido** → `docs/roadmap/CALIBRATION.md` (lo leen evaluator y usage-meter). |
 | `/confluence-pull` | Confluence → `docs/` local (PM sin git). |
 
-**Revisión adversarial (en /dev-cycle):** dos lentes en paralelo con contexto fresco — A: conformidad con spec/plan/constitución (salida estructurada por criterio ✓/✗, gaps con cita); B: solo defectos de corrección. Bucle reviewer→implementer acotado a 3; resultado publicable en Jira (comentario por criterio + worklog `[revisión]` por intento).
+**Revisión adversarial (skill `adversarial-review`, fuente única del método; la invocan /dev-cycle Fase 3 y quick-implement, y se usa a demanda):** lentes en paralelo con contexto fresco — A: conformidad con spec/plan/constitución (salida estructurada por criterio ✓/✗, gaps con cita); B: solo defectos de corrección; C: seguridad del diff, **condicional** (`review-lens-select.py`: rutas/líneas sensibles; `dev.json` `revision.lenteSeguridad`). Bucle reviewer→implementer acotado a 3 (el contador y el worklog `[revisión]` por intento son del orquestador); traza «Revisión de dos lentes — intento N» en el ledger; comentario en Jira opt-in.
 
 ## Skills compartidas
 
@@ -75,6 +77,7 @@ Invocan a los agentes **por nombre** y con puertas de control sobre la carpeta d
 | `roadmap-dashboard` | Escaneo de `docs/roadmap/` → HTML/md/JSON + métricas real-vs-estimado y coste de proceso (`build_dashboard.py`). (/roadmap-status, /pm-backlog, /roadmap-metrics) |
 | `discovery` | Entrevista guiada idea→spec sólida antes de evaluar. (analyst, /pm-cycle) |
 | `debug-root-cause` | Causa raíz en 4 fases con evidencia; prohibido arreglar a ciegas. (/dev-cycle al 3.er rojo; a demanda) |
+| `adversarial-review` | Revisión adversarial del diff: lentes A (spec/plan) + B (corrección) + C seguridad condicional (`review-lens-select.py`, con tests); fusión, Critical/Important/Minor, bucle acotado, rebate con evidencia, traza en el ledger. Fuente única del método. (/dev-cycle Fase 3, quick-implement; a demanda «revísame este diff») |
 | `rates-verify` | Actualiza `precioTokens` de `rates.json` desde la doc oficial, con fecha. (evaluator, /setup) |
 | `plugin-dev` | Meta-skill para desarrollar ESTE plugin: árbol de decisión de piezas, frontmatter/tiering/tools mínimos, validación TDD-ish, doc obligatoria, anti-patrones; plantillas de agente/skill/comando. (crear/modificar piezas del plugin) |
 | `quick-implement` | Atajo en lenguaje natural a la vía rápida de `/dev-cycle` (delegando en su fuente única): filtro de idoneidad + ledger + puertas. (peticiones «implementa X rápido» sin barra) |

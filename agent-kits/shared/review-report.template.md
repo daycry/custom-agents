@@ -22,4 +22,4 @@
 
 ---
 <!-- Pie fijo -->
-> Revisión adversarial de dos lentes (conformidad con spec/plan · calidad/robustez), contexto fresco. Solo se reportan gaps de corrección o de requisitos, no preferencias de estilo. Generado por `/dev-cycle` (Modo B).
+> Revisión adversarial de dos lentes (conformidad con spec/plan · calidad/robustez; lente C de seguridad si el diff lo amerita), contexto fresco. Solo se reportan gaps de corrección o de requisitos, no preferencias de estilo. Generado por la skill `adversarial-review` (desde `/dev-cycle` Modo B o a demanda).

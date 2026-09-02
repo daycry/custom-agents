@@ -1,0 +1,654 @@
+From ab5d88da86b7af70317bb202467a269c373d1a21 Mon Sep 17 00:00:00 2001
+From: daycry <7590335+daycry@users.noreply.github.com>
+Date: Wed, 2 Sep 2026 10:25:34 +0000
+Subject: [PATCH 08/32] T-01: guardrail-check.py (hook PreToolUse determinista
+ del implementer: alcance docs/roadmap|security-scan, git destructivo, rama
+ principal; dev.json guardrails) + 20 tests + ledger de la iniciativa
+
+Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VA3zi8RqekY9weD2S1RyWL
+
+Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VA3zi8RqekY9weD2S1RyWL
+
+---
+ agent-kits/shared/guardrail-check.py          | 298 ++++++++++++++++++
+ agent-kits/shared/test_guardrail_check.py     | 200 ++++++++++++
+ .../tasks.md                                  | 113 +++++++
+ 3 files changed, 611 insertions(+)
+ create mode 100755 agent-kits/shared/guardrail-check.py
+ create mode 100644 agent-kits/shared/test_guardrail_check.py
+ create mode 100644 docs/roadmap/2026-09-02-deterministic-guardrails/tasks.md
+
+diff --git a/agent-kits/shared/guardrail-check.py b/agent-kits/shared/guardrail-check.py
+new file mode 100755
+index 0000000..f36fef1
+--- /dev/null
++++ b/agent-kits/shared/guardrail-check.py
+@@ -0,0 +1,298 @@
++#!/usr/bin/env python3
++"""
++guardrail-check.py — guardrails DETERMINISTAS del `implementer` (hook PreToolUse).
++
++(Iniciativa deterministic-guardrails: las reglas «no toques docs/roadmap/ salvo tasks.md»,
++«trabaja en rama» y «sin git destructivo» pasan de prosa a script con tests. Lo invoca el
++wrapper `hooks/implementer-guardrail.sh`, registrado SOLO en el frontmatter `hooks:` de
++`agents/implementer.md` — nunca en `hooks/hooks.json` global: planner/evaluator/analyst
++escriben en docs/roadmap/ legítimamente. Ver docs/knowledge/adr/ADR-007.)
++
++Uso:
++  guardrail-check.py pre-tool [--project-dir DIR]     # lee el JSON del hook por stdin
++
++Reglas (cada una desactivable en `.claude/dev.json` → `"guardrails": {…}`):
++  alcance        Write/Edit/MultiEdit/NotebookEdit sobre docs/roadmap/** que no sea `tasks.md`
++                 (incl. testing/**, que es de qa) → deny. docs/security-scan/** → deny.
++                 docs/knowledge/** → permitido (ADR del implementer).
++  git            Bash: `git push --force|-f|--force-with-lease` → deny; `git branch -D` → deny;
++                 `git checkout|switch main|master` → deny solo si la rama actual es una feature;
++                 `rm -rf` sobre `/`, `~`, `.git` → deny. Todo lo demás permitido.
++  ramaPrincipal  HEAD en main/master + Write/Edit fuera de docs/roadmap/**/tasks.md → deny.
++                 Sin git → no aplica.
++  `"guardrails": false` apaga todo (aviso una vez por proyecto vía systemMessage).
++  Fichero ausente/corrupto → defaults (todo activo).
++
++Salida: contrato oficial de PreToolUse (https://code.claude.com/docs/en/hooks.md, 2026-09-02):
++  deny  → stdout {"hookSpecificOutput": {"hookEventName": "PreToolUse",
++                  "permissionDecision": "deny", "permissionDecisionReason": "…"}} · exit 0
++  allow → sin stdout · exit 0 (sin decisión: sigue el flujo normal de permisos)
++Nunca exit ≠ 0 por error interno: se registra en stderr y se permite (un guardrail roto no
++debe convertirse en un bloqueo fantasma).
++"""
++import argparse
++import json
++import os
++import re
++import shlex
++import subprocess
++import sys
++
++WRITE_TOOLS = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
++MAIN_BRANCHES = {"main", "master"}
++DEFAULTS = {"alcance": True, "git": True, "ramaPrincipal": True}
++
++
++# ---------------------------------------------------------------- config ----
++def load_config(project_dir):
++    """Devuelve (config dict con las 3 claves, activo bool). Nunca lanza."""
++    path = os.path.join(project_dir, ".claude", "dev.json")
++    try:
++        with open(path, encoding="utf-8") as fh:
++            data = json.load(fh)
++    except (OSError, ValueError, UnicodeDecodeError):
++        return dict(DEFAULTS), True
++    g = data.get("guardrails", True) if isinstance(data, dict) else True
++    if g is False:
++        return {k: False for k in DEFAULTS}, False
++    cfg = dict(DEFAULTS)
++    if isinstance(g, dict):
++        for k in DEFAULTS:
++            if k in g:
++                cfg[k] = bool(g[k])
++    return cfg, True
++
++
++# ----------------------------------------------------------------- rutas ----
++def normalize_path(p, project_dir):
++    """`\\`→`/`, absolutas bajo el proyecto → relativas, sin `./` inicial."""
++    if not isinstance(p, str) or not p:
++        return ""
++    p = p.replace("\\", "/")
++    root = (project_dir or "").replace("\\", "/").rstrip("/")
++    if root and (p == root or p.startswith(root + "/")):
++        p = p[len(root):].lstrip("/")
++    # Windows: C:/proy/docs/… no bajo el proyecto → se deja tal cual (los patrones buscan
++    # `docs/roadmap/` en cualquier posición, así que sigue casando).
++    while p.startswith("./"):
++        p = p[2:]
++    return p
++
++
++def extract_paths(tool_input):
++    paths = []
++    if not isinstance(tool_input, dict):
++        return paths
++    for k in ("file_path", "notebook_path", "path"):
++        v = tool_input.get(k)
++        if isinstance(v, str):
++            paths.append(v)
++    for e in tool_input.get("edits", []) if isinstance(tool_input.get("edits"), list) else []:
++        if isinstance(e, dict) and isinstance(e.get("file_path"), str):
++            paths.append(e["file_path"])
++    return paths
++
++
++_ROADMAP_RE = re.compile(r"(?:^|/)docs/roadmap/(.*)$")
++_SECSCAN_RE = re.compile(r"(?:^|/)docs/security-scan(?:/|$)")
++
++
++def es_ledger(rel):
++    """docs/roadmap/<algo>/…/tasks.md fuera de testing/ (lo único del roadmap que toca el implementer)."""
++    m = _ROADMAP_RE.search(rel)
++    if not m:
++        return False
++    resto = m.group(1)
++    partes = resto.split("/")
++    return partes[-1] == "tasks.md" and "testing" not in partes[:-1]
++
++
++def check_alcance(rel):
++    """Razón de deny o None."""
++    if _SECSCAN_RE.search(rel):
++        return (f"«{rel}» está bajo docs/security-scan/ (propiedad de nemesis): el implementer "
++                f"no escribe ahí — deja el hallazgo en tasks.md y sigue.")
++    m = _ROADMAP_RE.search(rel)
++    if m and not es_ledger(rel):
++        if "/testing/" in "/" + m.group(1):
++            return (f"«{rel}» está bajo docs/roadmap/**/testing/ (propiedad de qa): el implementer "
++                    f"solo toca tasks.md en docs/roadmap/ — no escribas informes de prueba.")
++        return (f"«{rel}» está en docs/roadmap/: el implementer solo toca tasks.md (ledger); "
++                f"el plan/spec/evaluación los cambia planner — anota la duda en tasks.md y sigue.")
++    return None
++
++
++# ------------------------------------------------------------------- git ----
++def current_branch(project_dir):
++    """Nombre de la rama o None si no hay git / no se puede saber."""
++    try:
++        r = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=project_dir or None,
++                           capture_output=True, text=True, timeout=5)
++    except (OSError, subprocess.SubprocessError):
++        return None
++    if r.returncode != 0:
++        return None
++    b = r.stdout.strip()
++    return b or None
++
++
++def _segmentos(command):
++    """Trocea por `;`, `&&`, `||`, `|` y devuelve listas de tokens (shlex tolerante)."""
++    segs = re.split(r"\s*(?:;|&&|\|\||\|)\s*", command)
++    out = []
++    for s in segs:
++        if not s.strip():
++            continue
++        try:
++            toks = shlex.split(s, posix=True)
++        except ValueError:
++            toks = s.split()
++        if toks:
++            out.append(toks)
++    return out
++
++
++def _es_git(toks, sub):
++    """toks = ['git', <opciones globales…>, sub, …] → índice del subcomando o -1."""
++    if not toks or os.path.basename(toks[0]) != "git":
++        return -1
++    i = 1
++    while i < len(toks) and toks[i].startswith("-"):
++        # opciones globales con valor: -C <dir>, -c <k=v>
++        if toks[i] in ("-C", "-c") and i + 1 < len(toks):
++            i += 2
++        else:
++            i += 1
++    return i if i < len(toks) and toks[i] == sub else -1
++
++
++def check_git(command, branch):
++    """Razón de deny o None. `branch` = rama actual (None si no hay git)."""
++    for toks in _segmentos(command):
++        i = _es_git(toks, "push")
++        if i >= 0:
++            for t in toks[i + 1:]:
++                if t == "--force" or t.startswith("--force-with-lease") or t.startswith("--force=") \
++                        or (re.fullmatch(r"-[a-zA-Z]+", t) and "f" in t):
++                    return ("`git push` forzado bloqueado: reescribe historia compartida — "
++                            "haz push normal; si de verdad hace falta, que lo pida el usuario.")
++        i = _es_git(toks, "branch")
++        if i >= 0:
++            rest = toks[i + 1:]
++            if any(t == "-D" or (re.fullmatch(r"-[a-zA-Z]+", t) and "D" in t) for t in rest) \
++                    or ("--delete" in rest and "--force" in rest):
++                return ("`git branch -D` bloqueado: borra una rama sin comprobar que esté integrada — "
++                        "usa `-d`, o que lo haga el ritual de cierre de /dev-cycle (Fase 6).")
++        for sub in ("checkout", "switch"):
++            i = _es_git(toks, sub)
++            if i >= 0:
++                if "--" in toks[i + 1:]:
++                    continue          # `git checkout main -- fichero` restaura ficheros, no cambia de rama
++                args = [t for t in toks[i + 1:] if not t.startswith("-")]
++                flags = [t for t in toks[i + 1:] if t.startswith("-")]
++                if args and args[0] in MAIN_BRANCHES and not any(f in ("-b", "-B", "-c", "-C") for f in flags) \
++                        and branch and branch not in MAIN_BRANCHES and branch != "HEAD":
++                    return (f"`git {sub} {args[0]}` bloqueado: estás en la rama de trabajo «{branch}» "
++                            f"y el implementer no sale de ella — la integración la dirige /dev-cycle (Fase 6).")
++        if toks and os.path.basename(toks[0]) == "rm":
++            flags = [t for t in toks[1:] if t.startswith("-")]
++            targets = [t for t in toks[1:] if not t.startswith("-")]
++            rec = any(f in ("--recursive",) or (re.fullmatch(r"-[a-zA-Z]+", f) and ("r" in f or "R" in f)) for f in flags)
++            frc = any(f == "--force" or (re.fullmatch(r"-[a-zA-Z]+", f) and "f" in f) for f in flags)
++            if rec and frc:
++                home = os.path.expanduser("~").replace("\\", "/").rstrip("/")
++                for t in targets:
++                    n = t.replace("\\", "/").rstrip("/") or "/"
++                    if n in ("/", "/*", "~", "~/*", "$HOME", "${HOME}", ".git", "./.git") \
++                            or (home and n == home) or n.endswith("/.git") or n == "/*":
++                        return (f"`rm -rf {t}` bloqueado: destruiría el sistema, el home o el repositorio "
++                                f"(.git) — si es intencional, que lo ejecute el usuario a mano.")
++    return None
++
++
++# --------------------------------------------------------------- decisión ----
++def decide(payload, project_dir, cfg=None, branch=None, branch_fn=None):
++    """Devuelve la razón de deny (str) o None. Pura salvo `branch_fn` (inyectable en tests)."""
++    cfg = cfg or DEFAULTS
++    tool = payload.get("tool_name") if isinstance(payload, dict) else None
++    tool_input = payload.get("tool_input", {}) if isinstance(payload, dict) else {}
++    if tool in WRITE_TOOLS:
++        rels = [normalize_path(p, project_dir) for p in extract_paths(tool_input)]
++        rels = [r for r in rels if r]
++        if cfg.get("alcance", True):
++            for rel in rels:
++                razon = check_alcance(rel)
++                if razon:
++                    return razon
++        if cfg.get("ramaPrincipal", True) and rels:
++            if branch is None and branch_fn is not None:
++                branch = branch_fn(project_dir)
++            if branch in MAIN_BRANCHES:
++                fuera = [r for r in rels if not es_ledger(r)]
++                if fuera:
++                    return (f"estás en «{branch}» y vas a escribir «{fuera[0]}»: trabaja en una rama "
++                            f"(feature/<slug>) — P2 del implementer. Crea la rama (`git checkout -b feature/<slug>`) "
++                            f"y repite la edición; el ledger tasks.md sí puede tocarse aquí.")
++        return None
++    if tool == "Bash" and cfg.get("git", True):
++        cmd = tool_input.get("command") if isinstance(tool_input, dict) else None
++        if isinstance(cmd, str) and cmd.strip():
++            if branch is None and branch_fn is not None and re.search(r"\bgit\b", cmd):
++                branch = branch_fn(project_dir)
++            return check_git(cmd, branch)
++    return None
++
++
++def deny_json(reason):
++    return json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse",
++                                              "permissionDecision": "deny",
++                                              "permissionDecisionReason": reason}},
++                      ensure_ascii=False)
++
++
++def _aviso_off_una_vez(project_dir):
++    """`guardrails: false` → systemMessage la primera vez (marca inocua en .claude/)."""
++    marca = os.path.join(project_dir, ".claude", ".guardrail-off")
++    if os.path.exists(marca):
++        return None
++    try:
++        os.makedirs(os.path.dirname(marca), exist_ok=True)
++        open(marca, "w").close()
++    except OSError:
++        pass
++    return json.dumps({"systemMessage": "⚠️ guardrails del implementer DESACTIVADOS "
++                                        "(.claude/dev.json → guardrails: false): alcance, rama y git "
++                                        "no se comprueban."}, ensure_ascii=False)
++
++
++def main():
++    ap = argparse.ArgumentParser()
++    ap.add_argument("modo", choices=["pre-tool"])
++    ap.add_argument("--project-dir", default=None,
++                    help="raíz del proyecto (default: $CLAUDE_PROJECT_DIR o cwd)")
++    args = ap.parse_args()
++    project_dir = args.project_dir or os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd()
++    try:
++        raw = sys.stdin.read()
++        try:
++            payload = json.loads(raw) if raw.strip() else {}
++        except ValueError:
++            print("guardrail-check: stdin no es JSON — se permite", file=sys.stderr)
++            return 0
++        cfg, activo = load_config(project_dir)
++        if not activo:
++            msg = _aviso_off_una_vez(project_dir)
++            if msg:
++                print(msg)
++            return 0
++        razon = decide(payload, project_dir, cfg, branch_fn=current_branch)
++        if razon:
++            print(deny_json(razon))
++        return 0
++    except Exception as e:  # noqa: BLE001 — un guardrail roto nunca bloquea
++        print(f"guardrail-check: error interno ({e!r}) — se permite", file=sys.stderr)
++        return 0
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+diff --git a/agent-kits/shared/test_guardrail_check.py b/agent-kits/shared/test_guardrail_check.py
+new file mode 100644
+index 0000000..00e30ea
+--- /dev/null
++++ b/agent-kits/shared/test_guardrail_check.py
+@@ -0,0 +1,200 @@
++#!/usr/bin/env python3
++"""Tests de guardrail-check.py (hook PreToolUse del implementer). Ejecuta: pytest -q."""
++import importlib.util
++import json
++import os
++import subprocess
++import sys
++import tempfile
++
++HERE = os.path.dirname(os.path.abspath(__file__))
++SCRIPT = os.path.join(HERE, "guardrail-check.py")
++
++spec = importlib.util.spec_from_file_location("guardrail_check", SCRIPT)
++gc = importlib.util.module_from_spec(spec)
++spec.loader.exec_module(gc)
++
++PROJ = "/proy"
++
++
++def write(path, tool="Write"):
++    return {"tool_name": tool, "tool_input": {"file_path": path, "content": "x"}}
++
++
++def bash(cmd):
++    return {"tool_name": "Bash", "tool_input": {"command": cmd}}
++
++
++def decide(payload, branch="feature/x", cfg=None):
++    return gc.decide(payload, PROJ, cfg, branch=branch)
++
++
++# ------------------------------------------------------------- alcance ----
++def test_alcance_deny_plan_en_roadmap():
++    r = decide(write("docs/roadmap/2026-01-01-x/improvement-plan.md"))
++    assert r and "solo toca tasks.md" in r
++
++
++def test_alcance_allow_tasks_md():
++    assert decide(write("docs/roadmap/2026-01-01-x/tasks.md", "Edit")) is None
++
++
++def test_alcance_deny_testing_es_de_qa():
++    r = decide(write("docs/roadmap/2026-01-01-x/testing/tasks.md"))
++    assert r and "qa" in r
++
++
++def test_alcance_deny_security_scan():
++    r = decide(write("docs/security-scan/STATE.md", "MultiEdit"))
++    assert r and "security-scan" in r
++
++
++def test_alcance_allow_knowledge():
++    assert decide(write("docs/knowledge/adr/ADR-009-x.md")) is None
++
++
++def test_alcance_ruta_absoluta_relativa_al_proyecto():
++    r = decide(write(PROJ + "/docs/roadmap/2026-01-01-x/spec.md"))
++    assert r and "docs/roadmap/2026-01-01-x/spec.md" in r
++
++
++def test_alcance_ruta_windows():
++    r = decide(write(r"C:\proy\docs\roadmap\2026-01-01-x\evaluation.md"))
++    assert r and "solo toca tasks.md" in r
++    assert decide(write(r"C:\proy\docs\roadmap\2026-01-01-x\tasks.md")) is None
++
++
++def test_alcance_multiedit_edits_y_notebook():
++    p = {"tool_name": "MultiEdit", "tool_input": {"edits": [{"file_path": "src/a.py"},
++                                                            {"file_path": "docs/roadmap/x/spec.md"}]}}
++    assert decide(p)
++    nb = {"tool_name": "NotebookEdit", "tool_input": {"notebook_path": "docs/roadmap/x/nb.ipynb"}}
++    assert decide(nb)
++
++
++def test_alcance_allow_codigo_normal():
++    assert decide(write("src/app.py")) is None
++    assert decide(write("docs/README.md")) is None
++
++
++# ----------------------------------------------------------------- git ----
++def test_git_deny_push_force_variantes():
++    for cmd in ("git push --force", "git push -f origin main", "git push --force-with-lease",
++                "git -C /r push -uf origin x", "npm test && git push --force"):
++        assert decide(bash(cmd)), cmd
++
++
++def test_git_allow_push_normal_y_otros():
++    for cmd in ("git push", "git push -u origin feature/x", "git status", "git checkout -b feature/y",
++                "grep -rf pat .", "rm -rf build/", "rm -rf ./dist node_modules"):
++        assert decide(bash(cmd)) is None, cmd
++
++
++def test_git_checkout_main_solo_desde_feature():
++    assert decide(bash("git checkout main"), branch="feature/x")
++    assert decide(bash("git switch master"), branch="feature/x")
++    assert decide(bash("git checkout main"), branch="main") is None
++    assert decide(bash("git checkout main"), branch=None) is None       # sin git → no aplica
++    assert decide(bash("git checkout -b main-fix"), branch="feature/x") is None
++    assert decide(bash("git checkout main -- src/a.py"), branch="feature/x") is None  # restaura fichero, no cambia de rama
++
++
++def test_git_deny_branch_D_y_rm_rf_peligroso():
++    assert decide(bash("git branch -D feature/x"))
++    assert decide(bash("git branch --delete --force old"))
++    assert decide(bash("git branch -d feature/x")) is None
++    for cmd in ("rm -rf /", "rm -rf ~", "rm -rf .git", "rm -fr $HOME", "rm -rf /tmp/x/.git"):
++        assert decide(bash(cmd)), cmd
++
++
++# ------------------------------------------------------- rama principal ----
++def test_rama_principal_deny_codigo_allow_ledger():
++    r = decide(write("src/app.py"), branch="main")
++    assert r and "feature/<slug>" in r
++    assert decide(write("docs/roadmap/2026-01-01-x/tasks.md"), branch="master") is None
++    assert decide(write("src/app.py"), branch="feature/x") is None
++    assert decide(write("src/app.py"), branch=None) is None     # sin git → no aplica
++
++
++def test_config_apaga_reglas_individuales():
++    cfg = {"alcance": False, "git": True, "ramaPrincipal": False}
++    assert decide(write("docs/roadmap/x/spec.md"), branch="main", cfg=cfg) is None
++    assert decide(bash("git push --force"), cfg=cfg)
++
++
++# --------------------------------------------------------------- config ----
++def test_load_config_defaults_off_y_corrupto():
++    with tempfile.TemporaryDirectory() as tmp:
++        assert gc.load_config(tmp) == (gc.DEFAULTS, True)               # ausente
++        os.makedirs(os.path.join(tmp, ".claude"))
++        p = os.path.join(tmp, ".claude", "dev.json")
++        open(p, "w").write("{ no json")
++        assert gc.load_config(tmp) == (gc.DEFAULTS, True)               # corrupto
++        open(p, "w").write(json.dumps({"tdd": True, "guardrails": False}))
++        cfg, activo = gc.load_config(tmp)
++        assert not activo and not any(cfg.values())
++        open(p, "w").write(json.dumps({"guardrails": {"git": False}}))
++        cfg, activo = gc.load_config(tmp)
++        assert activo and cfg == {"alcance": True, "git": False, "ramaPrincipal": True}
++
++
++# ------------------------------------------------------------------ CLI ----
++def run_cli(payload, cwd, env_extra=None):
++    env = dict(os.environ, CLAUDE_PROJECT_DIR=cwd)
++    env.update(env_extra or {})
++    r = subprocess.run([sys.executable, SCRIPT, "pre-tool"], input=payload, cwd=cwd,
++                       capture_output=True, text=True, env=env)
++    return r.returncode, r.stdout, r.stderr
++
++
++def _git(cwd, *args):
++    subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True,
++                   env=dict(os.environ, GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@t",
++                            GIT_COMMITTER_NAME="t", GIT_COMMITTER_EMAIL="t@t"))
++
++
++def test_cli_json_invalido_y_vacio_permiten():
++    with tempfile.TemporaryDirectory() as tmp:
++        code, out, err = run_cli("{ esto no es json", tmp)
++        assert code == 0 and out == "" and "se permite" in err
++        code, out, _ = run_cli("", tmp)
++        assert code == 0 and out == ""
++
++
++def test_cli_deny_contrato_oficial_y_sin_git():
++    with tempfile.TemporaryDirectory() as tmp:
++        # sin git: alcance sigue aplicando; rama principal no
++        code, out, _ = run_cli(json.dumps(write(tmp + "/docs/roadmap/x/spec.md")), tmp)
++        assert code == 0
++        d = json.loads(out)["hookSpecificOutput"]
++        assert d["hookEventName"] == "PreToolUse" and d["permissionDecision"] == "deny"
++        assert d["permissionDecisionReason"]
++        code, out, _ = run_cli(json.dumps(write(tmp + "/src/a.py")), tmp)
++        assert code == 0 and out == ""
++
++
++def test_cli_rama_principal_con_git_real():
++    with tempfile.TemporaryDirectory() as tmp:
++        _git(tmp, "init", "-q", "-b", "main")
++        open(os.path.join(tmp, "a"), "w").write("a")
++        _git(tmp, "add", "a")
++        _git(tmp, "commit", "-qm", "init")
++        code, out, _ = run_cli(json.dumps(write(tmp + "/src/a.py")), tmp)
++        assert code == 0 and "feature/<slug>" in out
++        code, out, _ = run_cli(json.dumps(write(tmp + "/docs/roadmap/x/tasks.md")), tmp)
++        assert code == 0 and out == ""
++        _git(tmp, "checkout", "-qb", "feature/x")
++        code, out, _ = run_cli(json.dumps(write(tmp + "/src/a.py")), tmp)
++        assert code == 0 and out == ""
++        code, out, _ = run_cli(json.dumps(bash("git checkout main")), tmp)
++        assert code == 0 and "feature/x" in out
++
++
++def test_cli_guardrails_off_avisa_una_vez():
++    with tempfile.TemporaryDirectory() as tmp:
++        os.makedirs(os.path.join(tmp, ".claude"))
++        open(os.path.join(tmp, ".claude", "dev.json"), "w").write(json.dumps({"guardrails": False}))
++        code, out, _ = run_cli(json.dumps(bash("git push --force")), tmp)
++        assert code == 0 and "systemMessage" in out and "DESACTIVADOS" in out
++        code, out, _ = run_cli(json.dumps(bash("git push --force")), tmp)
++        assert code == 0 and out == ""
+diff --git a/docs/roadmap/2026-09-02-deterministic-guardrails/tasks.md b/docs/roadmap/2026-09-02-deterministic-guardrails/tasks.md
+new file mode 100644
+index 0000000..e279f7d
+--- /dev/null
++++ b/docs/roadmap/2026-09-02-deterministic-guardrails/tasks.md
+@@ -0,0 +1,113 @@
++---
++tasks: deterministic-guardrails
++descripcion: Los guardrails duros del implementer (alcance en docs/roadmap/, rama de trabajo, git destructivo) pasan de prosa a script determinista con tests, impuestos por un hook PreToolUse con alcance SOLO del agente implementer; comprobación de alcance del diff (scope-check) antes de la revisión de dos lentes; linter que valida los campos nativos `hooks`/`skills` del frontmatter.
++estado: en-progreso        # borrador | en-progreso | completado | cancelado
++creado: 2026-09-02
++actualizado: 2026-09-02
++via: rapida               # vía rápida de /dev-cycle: sin spec/evaluación/plan; conserva revisión de dos lentes + suites
++generacion:
++  fuente: estimado        # usage-meter no disponible en este entorno (sandbox cloud)
++---
++
++# Checklist de Tareas — deterministic-guardrails (vía rápida)
++
++| | |
++|---|---|
++| **Estado** | en-progreso |
++| **Fecha** | 2026-09-02 |
++| **Plan** | n/a — **vía rápida** (sin spec/evaluación/plan; ledger ligero + revisión de dos lentes + verificación) |
++
++> **⚠️ Ledger canónico de progreso.** Este fichero es la **fuente única de verdad** del avance del cambio. **Cualquier** implementador —el agente `implementer`, el chat principal, o un orquestador externo— **debe** marcar aquí cada tarea (checkbox + estado) al completarla y actualizar el resumen. Los ledgers propios de otras herramientas son **espejo**, no fuente.
++
++> **Decisión del usuario (2026-09-02).** Las reglas «no toques `docs/roadmap/` salvo `tasks.md`», «trabaja en rama» y «sin push forzado» del `implementer` viven hoy solo en prosa: se cumplen si el modelo las recuerda. Se quieren **impuestas por script determinista con tests** (patrón `ledger-lint`/`qa-gate`), pero **sin romper a los demás agentes**: `planner`/`evaluator`/`analyst` escriben en `docs/roadmap/` legítimamente, así que el deny tiene alcance SOLO del `implementer` (frontmatter `hooks:` del agente), nunca en `hooks/hooks.json` global. Degradación: sin `python3` el hook no bloquea (exit 0) y avisa una vez por `systemMessage`; desactivable en `.claude/dev.json` (`guardrails`).
++
++> **Contratos oficiales verificados (2026-09-02, WebFetch).** Fuente: `https://code.claude.com/docs/en/hooks.md` y `https://code.claude.com/docs/en/sub-agents.md`. Hallazgos que fijan el diseño:
++> - **PreToolUse** — stdin: `tool_name`, `tool_input` (`file_path` en Write/Edit; `command` en Bash), `tool_use_id`; en hooks de subagente también `agent_id`/`agent_type`. Salida de decisión: `{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow|deny|ask","permissionDecisionReason":"…"}}` (los campos `decision`/`reason` de primer nivel están **deprecados**). Exit 2 = bloqueo con stderr al modelo; **exit 0 sin stdout = sin decisión** (sigue el flujo normal de permisos — el silencio no aprueba). `systemMessage` es campo universal. `${CLAUDE_PROJECT_DIR}` y `${CLAUDE_PLUGIN_ROOT}` se exportan al proceso del hook. Se elige **exit 0 + JSON `deny`** (no exit 2): la razón llega estructurada y un fallo interno del script nunca se confunde con un bloqueo.
++> - **Frontmatter de agente** — campo `hooks:` («Lifecycle hooks scoped to this subagent», se registran solo mientras corre el subagente) con la MISMA forma que `settings.json`: `hooks: { PreToolUse: [ { matcher: "…", hooks: [ { type: command, command: "…" } ] } ] }`. Campo `skills:` = lista de nombres a **precargar** (se inyecta el contenido completo al arrancar; una skill ausente se salta con aviso). `isolation: worktree` = worktree temporal ramificado desde la rama por defecto (no desde HEAD) — **no se usa**: choca con el opt-in `worktree` de `dev.json` (worktree único por iniciativa ramificado desde la rama de trabajo, integrado por el ritual de la Fase 6).
++> - **Contradicción con el brief:** la doc de sub-agents **no** menciona `${CLAUDE_PLUGIN_ROOT}` en los `command` del frontmatter (solo `./scripts/...` y `$TOOL_INPUT`); `hooks.md` sí lo declara disponible «en todos los hooks» como variable de entorno del proceso. Como la expansión ocurre en la shell, el `command` del frontmatter la usa **con fallback `find`** en la propia línea: si la variable no está, resuelve el wrapper por `find` sobre `.claude/`; si tampoco, `exit 0` (sin decisión, nunca rompe).
++
++---
++
++## Resumen de progreso
++
++| Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervisión (real/est) | Tokens (real/est) |
++|------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
++| Fase única — guardrails deterministas | 1 | 5 | 20% | 1,2 / 5,0h | 0,07 / 0,25h | 0,02 / 0,06h | 22k / 110k |
++| **TOTAL** | **1** | **5** | **20%** | **1,2 / 5,0h** | **0,07 / 0,25h** | **0,02 / 0,06h** | **22k / 110k** |
++
++---
++
++## Fase única — guardrails deterministas
++
++**Estado**: en-progreso · **Estimado**: 5,0h · **Real**: — · **Coste est.**: ≈260 € · **Tokens est.**: 110k
++
++### T-01 — `guardrail-check.py` (script determinista + tests)
++
++- **Descripción**: `agent-kits/shared/guardrail-check.py pre-tool` lee el JSON del PreToolUse por stdin y decide. Reglas: (alcance) Write/Edit/MultiEdit/NotebookEdit sobre `docs/roadmap/**` que no sea `tasks.md` → deny (incl. `testing/**`, que es de qa); `docs/security-scan/**` → deny; `docs/knowledge/**` → permitido. (git) `git push --force|-f|--force-with-lease` → deny; `git checkout|switch main|master` → deny solo si la rama actual es una feature; `git branch -D` → deny; `rm -rf` sobre `/`, `~`, `.git` → deny. (rama) HEAD en `main`/`master` + Write/Edit fuera de `docs/roadmap/**/tasks.md` → deny; sin git → no aplica. Configurable en `.claude/dev.json` `guardrails: {ramaPrincipal, alcance, git}` (defaults `true`; `guardrails: false` apaga todo con aviso; fichero ausente/corrupto → defaults). Salida: JSON oficial `permissionDecision: deny` + razón en una frase (regla + cómo proceder); allow → sin stdout, exit 0. Normaliza `\`→`/` y absolutas → relativas a `CLAUDE_PROJECT_DIR`. Nunca exit ≠ 0 por error interno (stderr + allow).
++- **Estado**: completado
++- **Tiempo humano**: est. 1,5h · real 1,2h (estimado)
++- **Tiempo IA (ejec.)**: est. 0,08h · real 0,07h (estimado)
++- **Supervisión**: est. 0,02h · real 0,02h (estimado)
++- **Archivos**: `agent-kits/shared/guardrail-check.py` (nuevo), `agent-kits/shared/test_guardrail_check.py` (nuevo)
++
++**Criterios de aceptación**
++- [x] `pytest agent-kits/shared/test_guardrail_check.py` → `20 passed` (cada regla allow/deny, ruta Windows `C:\proy\docs\roadmap\…`, ruta absoluta relativizada a `CLAUDE_PROJECT_DIR`, `dev.json` `guardrails: false` (aviso una vez, marca `.claude/.guardrail-off`) y por regla, sin git → rama no aplica, JSON inválido/vacío → allow con aviso en stderr, repo git real en `main`→deny / `feature/x`→allow). Ajuste tras la prueba: `git checkout main -- fichero` NO se bloquea (restaura ficheros, no cambia de rama).
++- [x] Simulación (`CLAUDE_PROJECT_DIR=$PWD`, rama `feature/deterministic-guardrails`): Write `…/spec.md` → `{"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "deny", "permissionDecisionReason": "«docs/roadmap/2026-09-02-deterministic-guardrails/spec.md» está en docs/roadmap/: el implementer solo toca tasks.md (ledger); el plan/spec/evaluación los cambia planner — anota la duda en tasks.md y sigue."}}` exit 0 · Bash `git push --force origin feature/x` → deny «`git push` forzado bloqueado: reescribe historia compartida — haz push normal…» exit 0 · Edit `…/tasks.md` → sin stdout, exit 0 · Write `scripts/lint_plugin.py` → sin stdout, exit 0.
++- [x] El JSON de deny valida contra el contrato oficial (`hookSpecificOutput.hookEventName = PreToolUse`, `permissionDecision = deny`, `permissionDecisionReason` no vacío).
++
++### T-02 — Cableado en `agents/implementer.md` + wrapper `hooks/implementer-guardrail.sh`
++
++- **Descripción**: frontmatter `hooks:` (PreToolUse, matcher `Write|Edit|MultiEdit|NotebookEdit|Bash`) → wrapper `hooks/implementer-guardrail.sh` con la misma resolución de rutas que los otros hooks (`CLAUDE_PLUGIN_ROOT` → `find`); sin `python3` → exit 0 + `systemMessage` una vez por sesión (marca `${CLAUDE_PROJECT_DIR:-$PWD}/.claude/.guardrail-nopython`). Frontmatter `skills:` con `jira-sync` y `confluence-publish` (precarga nativa confirmada por la doc); `dependencies:` se mantiene (grafo del linter). Cuerpo §0 y §3: las reglas de alcance/rama/git están impuestas por hook; cómo desactivarlas; un DENY no es un error. Token-diet: sustituye prosa, no la duplica. `isolation: worktree` NO se usa (ver nota de contratos).
++- **Estado**: en-progreso
++- **Tiempo humano**: est. 0,7h · real —
++- **Tiempo IA (ejec.)**: est. 0,04h · real —
++- **Supervisión**: est. 0,01h · real —
++- **Dependencias**: T-01
++- **Archivos**: `agents/implementer.md`, `hooks/implementer-guardrail.sh` (nuevo), `.gitignore`
++
++**Criterios de aceptación**
++- [ ] `bash -n hooks/implementer-guardrail.sh` OK; el wrapper con `PATH=/nonexistent` → `{"systemMessage": …}` la 1.ª vez, silencio la 2.ª, exit 0 ambas.
++- [ ] Simulación de los 4 casos del T-01 a través del wrapper (salida real, exit 0).
++- [ ] `agents/implementer.md`: el cuerpo no crece (líneas ≤ las actuales ±3) y `lint_plugin.py` → 0 errores.
++
++### T-03 — `scope-check.py` (pre-revisión) + tests + cableado
++
++- **Descripción**: `agent-kits/shared/scope-check.py <carpeta-iniciativa> [--base <ref>] [--warn-only] [--json]`: ficheros cambiados (`git diff --name-only <base>...HEAD` + `git status --porcelain`); base = merge-base con `main`/`master` si existe, si no `--base` obligatorio con mensaje claro; lee los campos `Archivos` de TODAS las tareas (vía `parse_ledger` + regex de campo; globs, carpetas con `/`, «(nuevo)», listas por coma); clasifica en alcance / fuera / declarados sin tocar. El propio `tasks.md` y `docs/knowledge/**` siempre en alcance. Exit 0 sin fuera de alcance, 1 si hay (con `--warn-only` siempre 0). Cableado: `commands/dev-cycle.md` Fase 3 paso 2 (antes de las lentes; exit 1 → gap Important al implementer sin gastar revisores); DoD de `agents/implementer.md`; `skills/quick-implement/SKILL.md` si describe la revisión.
++- **Estado**: borrador
++- **Tiempo humano**: est. 1,3h · real —
++- **Tiempo IA (ejec.)**: est. 0,07h · real —
++- **Supervisión**: est. 0,02h · real —
++- **Archivos**: `agent-kits/shared/scope-check.py` (nuevo), `agent-kits/shared/test_scope_check.py` (nuevo), `commands/dev-cycle.md`, `agents/implementer.md`, `skills/quick-implement/SKILL.md`
++
++**Criterios de aceptación**
++- [ ] `pytest agent-kits/shared/test_scope_check.py` ≥ 8 casos con repo git temporal (fuera de alcance, glob, «(nuevo)», sin base, warn-only, declarados sin tocar, tasks.md propio, knowledge).
++- [ ] `scope-check.py docs/roadmap/2026-09-02-deterministic-guardrails` sobre ESTA iniciativa → exit 0 (salida real pegada).
++- [ ] `dev-cycle.md` Fase 3 paso 2 y el DoD del implementer invocan el script (sin check manual duplicado).
++
++### T-04 — Linter + documentación + ADR
++
++- **Descripción**: `scripts/lint_plugin.py` acepta `hooks`/`skills` en agentes; cada skill de `skills:` existe en `skills/` y está en `dependencies.skills`; los `command` de `hooks:` del frontmatter referencian ficheros existentes (reutiliza `lint_hooks`). Tests. Docs: `docs/CONVENTIONS.md` + EN (dos clases de hooks: informativos globales vs de guardia por agente; deny global prohibido; `skills:` nativo ⊆ `dependencies.skills`), `skills/plugin-dev/SKILL.md` (Paso 0 + Paso 2), `docs/FLOWS.md` + EN (scope-check antes de la revisión), `docs/agents/implementer.md` (guardrails), `commands/setup.md` paso 5 (`guardrails`, default activado), `agent-kits/shared/README.md` (+2 scripts), `CLAUDE.md`, `README.md`/`README.es.md`. ADR «deny solo con alcance de agente, nunca global» (`estado: propuesta`) + fila en `docs/knowledge/README.md`. NO se toca `CHANGELOG*.md`.
++- **Estado**: borrador
++- **Tiempo humano**: est. 1,0h · real —
++- **Tiempo IA (ejec.)**: est. 0,04h · real —
++- **Supervisión**: est. 0,01h · real —
++- **Dependencias**: T-01, T-02, T-03
++- **Archivos**: `scripts/lint_plugin.py`, `tests/test_lint_plugin.py`, `docs/CONVENTIONS.md`, `docs/en/CONVENTIONS.md`, `skills/plugin-dev/SKILL.md`, `docs/FLOWS.md`, `docs/en/FLOWS.md`, `docs/agents/implementer.md`, `commands/setup.md`, `agent-kits/shared/README.md`, `CLAUDE.md`, `README.md`, `README.es.md`, `docs/knowledge/adr/ADR-007-deny-solo-con-alcance-de-agente.md` (nuevo), `docs/knowledge/README.md`, `docs/roadmap/README.md`
++
++**Criterios de aceptación**
++- [ ] `test_lint_plugin` con casos nuevos (skill en `skills:` inexistente → error; en `skills:` pero no en `dependencies.skills` → error; `command` de `hooks:` a fichero inexistente → error; agente válido con ambos campos → 0 errores).
++- [ ] `python3 scripts/lint_plugin.py` → 0 errores sobre el repo; `test_mermaid_blocks` en verde tras tocar FLOWS.
++- [ ] Cada doc ES tocada tiene su espejo EN en el mismo cambio; ADR-007 con frontmatter de la plantilla y fila en el índice.
++
++### T-05 — Housekeeping: «Fase única» en la tabla de resumen de `ledger-lint.py`
++
++- **Descripción**: la tabla de resumen solo reconocía filas `Fase\s+\d+`; «Fase única — …» disparaba el aviso falso «sin tabla Resumen de progreso (legacy)». Admite `Fase\s+(\d+|única)` (y `norm_fase` la casa con la sección `## Fase única — …`); test; comprobación sobre los 16 ledgers de que la única diferencia frente a `git show 4e94deb:agent-kits/shared/ledger-lint.py` es la desaparición de ese aviso.
++- **Estado**: borrador
++- **Tiempo humano**: est. 0,5h · real —
++- **Tiempo IA (ejec.)**: est. 0,02h · real —
++- **Supervisión**: est. 0,00h · real —
++- **Archivos**: `agent-kits/shared/ledger-lint.py`, `tests/test_ledger_lint.py`
++
++**Criterios de aceptación**
++- [ ] `tests/test_ledger_lint.py` con caso «Fase única» (antes: aviso legacy; después: 0 avisos, y descuadre en esa fila → error).
++- [ ] Diff de salida sobre los 16 ledgers frente a `4e94deb`: solo desaparece el aviso legacy en los ledgers con «Fase única» (lista de cuáles).
+-- 
+2.43.0
+

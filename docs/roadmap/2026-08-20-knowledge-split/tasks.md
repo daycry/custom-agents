@@ -1,7 +1,7 @@
 ---
 tasks: knowledge-split
 descripcion: Partir docs/knowledge/ a un fichero por entrada (gotchas/ y lessons/) con lectura selectiva vía índice, y registrar la decisión como ADR-006.
-estado: en-progreso       # borrador | en-progreso | completado | cancelado
+estado: completado       # borrador | en-progreso | completado | cancelado
 creado: 2026-08-20
 actualizado: 2026-08-20
 via: rapida               # vía rápida de /dev-cycle: sin spec/evaluación/plan; conserva revisión de dos lentes + suites
@@ -13,7 +13,7 @@ generacion:
 
 | | |
 |---|---|
-| **Estado** | en-progreso |
+| **Estado** | completado |
 | **Fecha** | 2026-08-20 |
 | **Plan** | n/a — **vía rápida** (sin spec/evaluación/plan; ledger ligero + revisión de dos lentes + verificación) |
 
