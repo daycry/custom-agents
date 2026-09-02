@@ -26,12 +26,13 @@ fi
 # proyecto/usuario), como el resto de kits.
 LINT="${CLAUDE_PLUGIN_ROOT:-}/agent-kits/shared/ledger-lint.py"
 if [ ! -f "$LINT" ]; then
-  LINT="$(find "${CLAUDE_PROJECT_DIR:-$PWD}/.claude" "$HOME/.claude" -type f -path '*agent-kits/shared/ledger-lint.py' 2>/dev/null | head -1)"
+  LINT="$(find "${CLAUDE_PROJECT_DIR:-$PWD}/.claude" "${HOME:-}/.claude" -type f -path '*agent-kits/shared/ledger-lint.py' 2>/dev/null | head -1)"
 fi
 [ -n "$LINT" ] && [ -f "$LINT" ] || exit 0
 
 while IFS= read -r p; do
   [ -n "$p" ] || continue
+  p="${p//\\//}"   # rutas Windows nativas (C:\proy\docs\roadmap\...) → separador '/'
   case "$p" in
     *docs/roadmap/*tasks.md)
       python3 "$LINT" "$p" --warn-only 2>/dev/null || true

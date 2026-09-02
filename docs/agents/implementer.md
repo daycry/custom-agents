@@ -25,13 +25,39 @@ flowchart LR
 
 - No planifica ni evalúa (eso es `planner`/`evaluator`).
 - No prueba el producto (E2E lo hace `qa`) ni escribe la documentación de referencia (`documenter`).
-- No toca `docs/roadmap/` salvo `tasks.md` (progreso), ni `docs/security-scan/`.
+- No toca `docs/roadmap/` salvo `tasks.md` (progreso) y el índice `docs/roadmap/README.md`, ni `docs/security-scan/`.
 
 ## A diferencia del resto
 
 Es el **único agente que modifica el código** del proyecto. Por eso trabaja sobre rama, respeta
 los guardrails del repo (p. ej. el local-only de `nemesis`) y no marca completado nada con tests
 fallando o criterios sin cumplir.
+
+## Guardrails deterministas (hook de guardia con alcance del agente)
+
+Sus reglas duras no dependen de la prosa: el frontmatter `hooks:` de `agents/implementer.md`
+registra un hook `PreToolUse` (`hooks/implementer-guardrail.sh` → `agent-kits/shared/guardrail-check.py`,
+con tests) que solo corre mientras trabaja este agente — nunca es global, porque `planner`/`evaluator`
+escriben en `docs/roadmap/` legítimamente (ADR-007). Deniega, con la razón y cómo proceder:
+
+| Regla (`dev.json` → `guardrails`) | Qué bloquea |
+|---|---|
+| `alcance` | Write/Edit/MultiEdit/NotebookEdit sobre `docs/roadmap/**` que no sea `tasks.md` (incl. `testing/`, de qa) y sobre `docs/security-scan/**`; rutas case-insensitive (`Docs/Roadmap/…` también). `docs/knowledge/**` se permite (ADR). En la raíz de `docs/roadmap/` solo se permite `README.md` (índice de iniciativas, que el cierre de cada iniciativa actualiza); `CALIBRATION.md`, `DRIFT.md` y `BACKLOG.md` quedan bloqueados **por diseño**: los escriben `/retro`, `/spec-drift` y `/pm-backlog`, que son comandos y no pasan por este hook. |
+| `ramaPrincipal` | Escrituras fuera del ledger con HEAD en `main`/`master` («trabaja en `feature/<slug>`»). Sin git → no aplica. |
+| `git` | `git push --force|-f|--force-with-lease`, `git branch -D`, `git checkout|switch main|master` desde una rama de trabajo, `rm -rf` de `/`, `~`, `.git`. Todo lo demás pasa. |
+
+Degradación: sin `python3` el hook avisa una vez (`systemMessage`) y no bloquea; un error interno
+del script permite (nunca bloqueo fantasma). Desactivación: `.claude/dev.json` →
+`"guardrails": false` (todo, con aviso) o `{"alcance": false, …}` por regla. **Un DENY no es un
+error**: el agente lee la razón y cambia de fichero o rama.
+
+Sus skills (`jira-sync`, `confluence-publish`) son opt-in y se invocan bajo demanda: el agente
+**no** las precarga con el campo nativo `skills:` (≈15k tokens por arranque; regla token-diet de
+la regla 4 de `CONVENTIONS.md`).
+
+Aparte, el alcance del **diff completo** lo comprueba `agent-kits/shared/scope-check.py`
+(ficheros cambiados vs. campos `Archivos` del ledger; exit 0 obligatorio en su DoD y como puerta
+previa a la revisión de dos lentes en `/dev-cycle`).
 
 ## Memoria técnica del proyecto
 

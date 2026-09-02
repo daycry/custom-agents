@@ -1,0 +1,538 @@
+From 05bb438edd393e32b3ca82cfda557e3cf50b9f10 Mon Sep 17 00:00:00 2001
+From: daycry <7590335+daycry@users.noreply.github.com>
+Date: Wed, 2 Sep 2026 10:31:10 +0000
+Subject: [PATCH 10/32] T-03: scope-check.py (alcance del diff vs. campos
+ Archivos del ledger; exit 0/1/2; --warn-only/--json) + 9 tests; puerta previa
+ a las dos lentes en /dev-cycle Fase 3, DoD del implementer y quick-implement
+
+Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VA3zi8RqekY9weD2S1RyWL
+
+Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VA3zi8RqekY9weD2S1RyWL
+
+---
+ agent-kits/shared/scope-check.py              | 217 ++++++++++++++++++
+ agent-kits/shared/test_scope_check.py         | 181 +++++++++++++++
+ agents/implementer.md                         |   2 +-
+ commands/dev-cycle.md                         |  13 +-
+ .../tasks.md                                  |  20 +-
+ skills/quick-implement/SKILL.md               |   5 +-
+ 6 files changed, 423 insertions(+), 15 deletions(-)
+ create mode 100755 agent-kits/shared/scope-check.py
+ create mode 100644 agent-kits/shared/test_scope_check.py
+
+diff --git a/agent-kits/shared/scope-check.py b/agent-kits/shared/scope-check.py
+new file mode 100755
+index 0000000..f8c1814
+--- /dev/null
++++ b/agent-kits/shared/scope-check.py
+@@ -0,0 +1,217 @@
++#!/usr/bin/env python3
++"""
++scope-check.py — comprobación DETERMINISTA de alcance del diff de una iniciativa.
++
++(Iniciativa deterministic-guardrails: sustituye el check manual «git status / git diff --stat
++solo dentro del alcance» del DoD del implementer y se ejecuta en /dev-cycle Fase 3 ANTES de
++lanzar las dos lentes de revisión — un fichero fuera de alcance vuelve al implementer como gap
++Important sin gastar revisores.)
++
++Qué hace:
++  1. Ficheros cambiados = `git diff --name-only <base> HEAD` ∪ `git status --porcelain`
++     (comiteado + staged + sin comitear + sin seguimiento).
++     base: `--base <ref>`; si no, merge-base con `main`/`master` (el que exista); si la rama
++     actual ES la principal, base = HEAD (solo cambios sin comitear); si nada de eso → exit 2
++     con mensaje (hay que pasar `--base`).
++  2. Alcance declarado = campos `- **Archivos**:` de TODAS las tareas del ledger `tasks.md`
++     (tokens entre acentos graves; globs `*`, llaves `{a,b}`, carpetas con `/` final o
++     existentes, «(nuevo)» y otros apuntes entre paréntesis se ignoran, listas por coma).
++     Siempre en alcance: el propio `tasks.md` de la iniciativa y `docs/knowledge/**`.
++  3. Clasifica: en alcance · fuera de alcance · declarados sin tocar.
++
++Uso:
++  scope-check.py <docs/roadmap/<fecha>-<slug>> [--base <ref>] [--warn-only] [--json]
++Exit: 0 nada fuera de alcance · 1 hay ficheros fuera (con --warn-only siempre 0) ·
++      2 error de uso (carpeta/ledger inválidos, sin git, sin base determinable).
++"""
++import argparse
++import fnmatch
++import importlib.util
++import json
++import os
++import re
++import subprocess
++import sys
++
++HERE = os.path.dirname(os.path.abspath(__file__))
++MAIN_BRANCHES = ("main", "master")
++SIEMPRE_EN_ALCANCE = ("docs/knowledge/",)
++
++
++def _load_parse_ledger():
++    spec = importlib.util.spec_from_file_location("ledger_lint", os.path.join(HERE, "ledger-lint.py"))
++    mod = importlib.util.module_from_spec(spec)
++    spec.loader.exec_module(mod)
++    return mod.parse_ledger
++
++
++# ------------------------------------------------------------------- git ----
++def git(root, *args, check=True):
++    r = subprocess.run(["git", *args], cwd=root, capture_output=True, text=True)
++    if check and r.returncode != 0:
++        raise RuntimeError(f"git {' '.join(args)}: {r.stderr.strip()}")
++    return r.stdout
++
++
++def repo_root(path):
++    try:
++        return git(path, "rev-parse", "--show-toplevel").strip()
++    except (RuntimeError, OSError):
++        return None
++
++
++def resolver_base(root, base):
++    """Devuelve (ref, descripción) o lanza RuntimeError con mensaje claro."""
++    if base:
++        git(root, "rev-parse", "--verify", "--quiet", base + "^{commit}")
++        return base, f"--base {base}"
++    actual = git(root, "rev-parse", "--abbrev-ref", "HEAD").strip()
++    if actual in MAIN_BRANCHES:
++        return "HEAD", f"HEAD (rama principal «{actual}»: solo cambios sin comitear)"
++    for b in MAIN_BRANCHES:
++        if subprocess.run(["git", "rev-parse", "--verify", "--quiet", b], cwd=root,
++                          capture_output=True).returncode == 0:
++            mb = git(root, "merge-base", b, "HEAD").strip()
++            return mb, f"merge-base {b}…HEAD ({mb[:8]})"
++    raise RuntimeError(
++        f"no hay base clara: la rama «{actual}» no es main/master y no existe ninguna de las dos "
++        f"en el repo — pasa `--base <ref>` (p. ej. el commit desde el que partió la rama).")
++
++
++def ficheros_cambiados(root, base):
++    out = set()
++    if base != "HEAD":
++        out.update(l.strip() for l in git(root, "diff", "--name-only", base, "HEAD").splitlines() if l.strip())
++    for ln in git(root, "status", "--porcelain", "--untracked-files=all").splitlines():
++        if len(ln) < 4:
++            continue
++        p = ln[3:]
++        if " -> " in p:
++            p = p.split(" -> ", 1)[1]
++        p = p.strip().strip('"')
++        if p:
++            out.add(p.rstrip("/"))
++    return sorted(out)
++
++
++# --------------------------------------------------------------- ledger ----
++_TOKEN_RE = re.compile(r"`([^`\n]+)`")
++_PATH_OK = re.compile(r"^[\w./*?\[\]{},~@+\-]+$")
++
++
++def _expandir_llaves(tok):
++    m = re.search(r"\{([^{}]*)\}", tok)
++    if not m:
++        return [tok]
++    out = []
++    for alt in m.group(1).split(","):
++        out.extend(_expandir_llaves(tok[:m.start()] + alt.strip() + tok[m.end():]))
++    return out
++
++
++def patrones_del_ledger(text, parse_ledger):
++    """[(patrón, T-XX)] a partir de los campos Archivos de cada tarea (tokens en acentos graves)."""
++    parsed = parse_ledger(text)
++    ids = [t["id"] for t in parsed["tareas"]]
++    patrones = []
++    # trocear por cabeceras de tarea para atribuir cada campo a su T-XX
++    chunks = re.split(r"^(?=###\s+T-\d+\b)", text, flags=re.M)
++    for ch in chunks:
++        m = re.match(r"###\s+(T-\d+)\b", ch)
++        tid = m.group(1) if m and m.group(1) in ids else None
++        if not tid:
++            continue
++        for ln in ch.splitlines():
++            if not re.match(r"^\s*-\s*\*\*Archivos\*\*\s*:", ln):
++                continue
++            campo = ln.split(":", 1)[1]
++            for tok in _TOKEN_RE.findall(campo):
++                tok = tok.strip().replace("\\", "/")
++                tok = re.sub(r"^\./", "", tok)
++                if not tok or " " in tok or not _PATH_OK.match(tok):
++                    continue          # «sus tests», «CI», frases… no son rutas
++                if tok.startswith("/"):
++                    continue          # rutas absolutas fuera del repo (/tmp/…) no cuentan
++                for p in _expandir_llaves(tok):
++                    patrones.append((p, tid))
++    return patrones
++
++
++def casa(path, patron, root):
++    pat = patron.rstrip("/")
++    if patron.endswith("/") or os.path.isdir(os.path.join(root, pat)):
++        return path == pat or path.startswith(pat + "/")
++    if any(c in pat for c in "*?["):
++        return fnmatch.fnmatchcase(path, pat)     # `*` también cruza `/` (agents/*.md, kit/**)
++    return path == pat
++
++
++def clasificar(cambiados, patrones, tasks_rel, root):
++    en, fuera, usados = [], [], set()
++    for f in cambiados:
++        if f == tasks_rel or any(f.startswith(p) for p in SIEMPRE_EN_ALCANCE):
++            en.append(f)
++            continue
++        hit = [i for i, (p, _) in enumerate(patrones) if casa(f, p, root)]
++        if hit:
++            en.append(f)
++            usados.update(hit)
++        else:
++            fuera.append(f)
++    sin_tocar = sorted({f"{p} ({t})" for i, (p, t) in enumerate(patrones) if i not in usados})
++    return en, fuera, sin_tocar
++
++
++def main():
++    ap = argparse.ArgumentParser()
++    ap.add_argument("iniciativa", help="carpeta docs/roadmap/<fecha>-<slug>")
++    ap.add_argument("--base", default=None, help="ref base del diff (default: merge-base con main/master)")
++    ap.add_argument("--warn-only", action="store_true", help="siempre exit 0 (solo informa)")
++    ap.add_argument("--json", action="store_true")
++    args = ap.parse_args()
++
++    carpeta = os.path.abspath(args.iniciativa)
++    tasks = os.path.join(carpeta, "tasks.md")
++    if not os.path.isfile(tasks):
++        print(f"scope-check: no existe {tasks}", file=sys.stderr)
++        return 2
++    root = repo_root(carpeta)
++    if not root:
++        print("scope-check: la iniciativa no está dentro de un repositorio git", file=sys.stderr)
++        return 2
++    root = os.path.realpath(root)
++    tasks_rel = os.path.relpath(os.path.realpath(tasks), root).replace("\\", "/")
++    slug = os.path.basename(carpeta)
++    try:
++        base, base_desc = resolver_base(root, args.base)
++        cambiados = ficheros_cambiados(root, base)
++    except RuntimeError as e:
++        print(f"scope-check: {e}", file=sys.stderr)
++        return 2
++
++    parse_ledger = _load_parse_ledger()
++    text = open(tasks, encoding="utf-8", errors="replace").read()
++    patrones = patrones_del_ledger(text, parse_ledger)
++    en, fuera, sin_tocar = clasificar(cambiados, patrones, tasks_rel, root)
++
++    if args.json:
++        print(json.dumps({"slug": slug, "base": base, "base_desc": base_desc, "cambiados": len(cambiados),
++                          "en_alcance": en, "fuera_de_alcance": fuera, "declarados_sin_tocar": sin_tocar,
++                          "patrones": [p for p, _ in patrones]}, ensure_ascii=False, indent=2))
++    else:
++        print(f"scope-check: {slug} · base {base_desc} · {len(cambiados)} fichero(s) cambiado(s) · "
++              f"{len(patrones)} patrón(es) declarados en Archivos")
++        print(f"✅ en alcance ({len(en)}):" + ("".join(f"\n   {f}" for f in en) or " —"))
++        print(f"❌ fuera de alcance ({len(fuera)}):" + ("".join(f"\n   {f}" for f in fuera) or " —"))
++        if sin_tocar:
++            print(f"ℹ️  declarados sin tocar ({len(sin_tocar)}):" + "".join(f"\n   {f}" for f in sin_tocar))
++        if fuera:
++            print("→ o el fichero es necesario (añádelo al campo Archivos de su tarea y anótalo) "
++                  "o revierte el cambio; hasta entonces la revisión no arranca.")
++    if fuera and not args.warn_only:
++        return 1
++    return 0
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+diff --git a/agent-kits/shared/test_scope_check.py b/agent-kits/shared/test_scope_check.py
+new file mode 100644
+index 0000000..e47f974
+--- /dev/null
++++ b/agent-kits/shared/test_scope_check.py
+@@ -0,0 +1,181 @@
++#!/usr/bin/env python3
++"""Tests de scope-check.py con repo git temporal. Ejecuta: pytest -q."""
++import json
++import os
++import subprocess
++import sys
++import tempfile
++
++HERE = os.path.dirname(os.path.abspath(__file__))
++SCRIPT = os.path.join(HERE, "scope-check.py")
++INI = "docs/roadmap/2026-01-01-demo"
++
++LEDGER = """---
++tasks: demo
++estado: en-progreso
++---
++# Checklist — demo
++
++> Ledger canónico de progreso.
++
++## Resumen de progreso
++
++| Fase | Completadas | Total | Progreso |
++|---|---|---|---|
++| Fase 1 — Uno | 0 | 2 | 0% |
++
++## Fase 1 — Uno
++
++### T-01 — Código
++
++- **Descripción**: x
++- **Estado**: en-progreso
++- **Archivos**: `src/app.py`, `src/util/` (carpeta), `tests/test_*.py` (nuevo), `docs/{a,b}.md`, sus tests, `/tmp/fuera.txt`
++
++**Criterios de aceptación**
++- [ ] c
++
++### T-02 — Doc
++
++- **Descripción**: y
++- **Estado**: borrador
++- **Archivos**: `README.md` (nuevo)
++
++**Criterios de aceptación**
++- [ ] c
++"""
++
++GIT_ENV = dict(os.environ, GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@t",
++               GIT_COMMITTER_NAME="t", GIT_COMMITTER_EMAIL="t@t")
++
++
++def git(cwd, *args):
++    subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True, env=GIT_ENV)
++
++
++def touch(root, rel, content="x"):
++    p = os.path.join(root, rel)
++    os.makedirs(os.path.dirname(p), exist_ok=True)
++    open(p, "w").write(content)
++
++
++def repo(tmp, main="main", feature=True):
++    git(tmp, "init", "-q", "-b", main)
++    touch(tmp, INI + "/tasks.md", LEDGER)
++    touch(tmp, "base.txt")
++    git(tmp, "add", "-A")
++    git(tmp, "commit", "-qm", "init")
++    if feature:
++        git(tmp, "checkout", "-qb", "feature/demo")
++    return tmp
++
++
++def run(tmp, *extra):
++    r = subprocess.run([sys.executable, SCRIPT, INI, *extra], cwd=tmp, capture_output=True, text=True)
++    return r.returncode, r.stdout, r.stderr
++
++
++def commit_all(tmp, msg="wip"):
++    git(tmp, "add", "-A")
++    git(tmp, "commit", "-qm", msg)
++
++
++def test_en_alcance_exit_0_y_declarados_sin_tocar():
++    with tempfile.TemporaryDirectory() as tmp:
++        repo(tmp)
++        touch(tmp, "src/app.py")
++        commit_all(tmp)
++        code, out, _ = run(tmp)
++        assert code == 0, out
++        assert "fuera de alcance (0)" in out
++        assert "declarados sin tocar" in out and "README.md (T-02)" in out
++
++
++def test_fuera_de_alcance_exit_1_y_warn_only_0():
++    with tempfile.TemporaryDirectory() as tmp:
++        repo(tmp)
++        touch(tmp, "src/app.py")
++        touch(tmp, "otro/colado.py")
++        commit_all(tmp)
++        code, out, _ = run(tmp)
++        assert code == 1 and "otro/colado.py" in out and "fuera de alcance (1)" in out
++        code, out, _ = run(tmp, "--warn-only")
++        assert code == 0 and "otro/colado.py" in out
++
++
++def test_glob_carpeta_nuevo_y_llaves():
++    with tempfile.TemporaryDirectory() as tmp:
++        repo(tmp)
++        touch(tmp, "tests/test_app.py")          # glob tests/test_*.py + «(nuevo)»
++        touch(tmp, "src/util/deep/x.py")         # carpeta src/util/
++        touch(tmp, "docs/b.md")                  # llaves {a,b}
++        touch(tmp, "README.md")                  # (nuevo) sin glob
++        commit_all(tmp)
++        code, out, _ = run(tmp, "--json")
++        d = json.loads(out)
++        assert code == 0, out
++        assert sorted(d["en_alcance"]) == ["README.md", "docs/b.md", "src/util/deep/x.py", "tests/test_app.py"]
++        assert "/tmp/fuera.txt" not in d["patrones"] and "sus tests" not in d["patrones"]
++
++
++def test_sin_comitear_y_sin_seguimiento_cuentan():
++    with tempfile.TemporaryDirectory() as tmp:
++        repo(tmp)
++        touch(tmp, "base.txt", "modificado")     # modificado sin comitear → fuera
++        touch(tmp, "nuevo-sin-add.py")           # untracked → fuera
++        code, out, _ = run(tmp)
++        assert code == 1 and "base.txt" in out and "nuevo-sin-add.py" in out
++
++
++def test_tasks_md_propio_y_knowledge_siempre_en_alcance():
++    with tempfile.TemporaryDirectory() as tmp:
++        repo(tmp)
++        touch(tmp, INI + "/tasks.md", LEDGER + "\nnota\n")
++        touch(tmp, "docs/knowledge/adr/ADR-001-x.md")
++        commit_all(tmp)
++        code, out, _ = run(tmp)
++        assert code == 0, out
++        assert INI + "/tasks.md" in out and "ADR-001-x.md" in out
++        # pero OTRO fichero del roadmap (spec.md) sí está fuera
++        touch(tmp, INI + "/spec.md")
++        code, out, _ = run(tmp)
++        assert code == 1 and "spec.md" in out
++
++
++def test_sin_base_clara_exit_2_y_con_base_explicita():
++    with tempfile.TemporaryDirectory() as tmp:
++        repo(tmp, main="trunk")                  # ni main ni master; estamos en feature/demo
++        touch(tmp, "src/app.py")
++        commit_all(tmp)
++        code, out, err = run(tmp)
++        assert code == 2 and "--base" in err and "trunk" not in out
++        code, out, _ = run(tmp, "--base", "trunk")
++        assert code == 0 and "src/app.py" in out
++
++
++def test_en_rama_principal_base_es_head():
++    with tempfile.TemporaryDirectory() as tmp:
++        repo(tmp, feature=False)                 # seguimos en main
++        touch(tmp, "src/app.py")                 # sin comitear
++        code, out, _ = run(tmp)
++        assert code == 0 and "rama principal" in out and "src/app.py" in out
++
++
++def test_master_como_principal_y_ledger_inexistente():
++    with tempfile.TemporaryDirectory() as tmp:
++        repo(tmp, main="master")
++        touch(tmp, "src/app.py")
++        commit_all(tmp)
++        code, out, _ = run(tmp)
++        assert code == 0 and "merge-base master" in out
++        r = subprocess.run([sys.executable, SCRIPT, "docs/roadmap/no-existe"], cwd=tmp,
++                           capture_output=True, text=True)
++        assert r.returncode == 2 and "no existe" in r.stderr
++
++
++def test_fuera_de_git_exit_2():
++    with tempfile.TemporaryDirectory() as tmp:
++        touch(tmp, INI + "/tasks.md", LEDGER)
++        r = subprocess.run([sys.executable, SCRIPT, INI], cwd=tmp, capture_output=True, text=True,
++                           env=dict(os.environ, GIT_CEILING_DIRECTORIES=os.path.dirname(tmp)))
++        assert r.returncode == 2 and "git" in r.stderr
+diff --git a/agents/implementer.md b/agents/implementer.md
+index 608192e..cc6635d 100755
+--- a/agents/implementer.md
++++ b/agents/implementer.md
+@@ -112,7 +112,7 @@ No marques una tarea (ni el plan) como completada sin mostrar la evidencia:
+   python3 "$SHAREDKIT/ledger-lint.py" "docs/roadmap/<fecha>-<slug>/tasks.md"   # exit 0 obligatorio
+   ```
+   Si da incoherencias duras (estado inválido, completado con criterios sin marcar, resumen descuadrado), arréglalas antes de cerrar; pega la salida como evidencia.
+-- [ ] `git status` / `git diff --stat` muestra que **solo** se han tocado ficheros dentro del alcance del plan (nada fuera; `docs/roadmap/` intacto salvo `tasks.md`; `docs/security-scan/` intacto).
++- [ ] **Alcance mecánico:** `python3 "$SHAREDKIT/scope-check.py" "docs/roadmap/<fecha>-<slug>"` → exit 0 (los ficheros cambiados están en los campos `Archivos` del ledger; `tasks.md` y `docs/knowledge/` siempre cuentan). Si un fichero fuera de alcance es necesario, añádelo al `Archivos` de su tarea con una nota y repite; si no, revierte. Es la misma puerta que abre la revisión en `/dev-cycle`, así que pasarla aquí ahorra un intento.
+ - [ ] Trabajo sobre **rama**, no la principal.
+ - [ ] Handoff a `qa` indicado (si hay `test-plan.md`) al terminar el plan.
+ Si algún check falla, la tarea sigue `en-progreso`: no la cierres.
+diff --git a/commands/dev-cycle.md b/commands/dev-cycle.md
+index a1fd12a..a7f02bc 100755
+--- a/commands/dev-cycle.md
++++ b/commands/dev-cycle.md
+@@ -97,8 +97,17 @@ y spec → `implementada`. Si superpowers marca su propio ledger, vuélcalo a `t
+    **TDD en modo subagentes:** con `tdd: true`, el subagente devuelve la evidencia del rojo junto a su estado; como el subagente tiene PROHIBIDO tocar el ledger, **eres tú (orquestador)** quien registra la línea `RED: <test> falló con <error> · <fecha>` en la tarea del ledger al validar el `DONE` — sin esa línea, el TDD de la tarea no cuenta.
+ 
+    **Medición por tarea (usage-meter).** Al ARRANCAR cada `T-XX`: `usage-meter.py start --artefacto "<slug>/T-XX"`; al COMPLETARLA: `close` con la misma clave (en el flujo clásico lo ejecuta el `implementer` — su P3 lo trae; con `subagentes: true` lo coordinas tú por despacho). Las **horas-IA medidas** del JSON (`horas_ia`, con `fuente: medido`) se escriben como tiempo IA **real** de la tarea en `tasks.md` — anota `(medido)` junto al valor — y son las que usa la imputación a Jira (`worklog.py plan` ya prefiere real sobre estimado; su aritmética de jornada/banco NO cambia). Reglas: (a) si el meter degrada, deja la estimación a juicio marcada `(estimado)` y sigue; (b) re-medir la MISMA ventana (re-close inmediato) sustituye; pero una **corrección posterior** (gaps de revisión) se mide con clave nueva `"<slug>/T-XX-fix<N>"` y sus horas se **SUMAN** al real de la tarea en el ledger — la implementación original no se pierde; (c) los tokens del bucle de revisión (los revisores) NO van a la tarea — la revisión tiene su propia imputación `[revisión]` por intento (ver más abajo); cierra el marcador de la tarea ANTES de lanzar la revisión. Duraciones presentadas en formato `XhYm` (`usage-meter.py fmt`).
+-2. **Revisión adversarial de DOS LENTES (contexto fresco, en paralelo).** Antes de `qa`, lanza **dos subagentes genéricos en paralelo** (Task tool) con contexto limpio — que NO hayan visto implementar — cada uno con una lente distinta:
+-   - **Lente A — conformidad con la spec/plan (y la constitución si existe):** "Revisa el diff de la iniciativa `docs/roadmap/<fecha>-<slug>/` contra `improvement-plan.md` y `tasks.md`. Comprueba: (1) cada `T-XX` marcada como hecha está realmente implementada y cumple sus criterios; (2) nada fuera del alcance del plan (`git diff --stat`); (3) los criterios con test tienen su test; (4) **si existe `docs/CONSTITUTION.md`**, ningún cambio viola un principio EXPLÍCITO del fichero — si lo viola, es gap de corrección **citando la línea del principio**; lo que no esté escrito ahí es estilo, no gap (no inventes principios). **Devuelve salida ESTRUCTURADA por criterio: `T-XX` → cada criterio de aceptación → ✓/✗**, más los gaps (fichero:línea). Solo gaps de requisitos/constitución, no estilo."
++2. **Revisión adversarial de DOS LENTES (contexto fresco, en paralelo).** **Puerta previa — alcance del diff (determinista, sin gastar revisores):**
++
++   ```bash
++   SHAREDKIT="$(find "$PWD/.claude" "$HOME/.claude" -type d -path '*agent-kits/shared' 2>/dev/null | head -1)"
++   python3 "$SHAREDKIT/scope-check.py" "docs/roadmap/<fecha>-<slug>"      # exit 0 obligatorio para lanzar las lentes
++   ```
++
++   Compara los ficheros cambiados (comiteados + sin comitear) con los campos `Archivos` de TODAS las tareas del ledger (`tasks.md` propio y `docs/knowledge/**` siempre en alcance). **Exit 1** → devuelve al `implementer` la lista de ficheros fuera de alcance como **gap Important** ANTES de lanzar las lentes: o revierte el cambio, o justifica que es necesario — en ese caso se añade al campo `Archivos` de su tarea con una nota y se relanza el check. **Exit 2** (sin base clara: ni `main` ni `master`) → pásale `--base <ref>`. Sin git → salta la puerta con aviso (las lentes conservan su comprobación (2) como red).
++
++   Con la puerta en verde, lanza **dos subagentes genéricos en paralelo** (Task tool) con contexto limpio — que NO hayan visto implementar — cada uno con una lente distinta:
++   - **Lente A — conformidad con la spec/plan (y la constitución si existe):** "Revisa el diff de la iniciativa `docs/roadmap/<fecha>-<slug>/` contra `improvement-plan.md` y `tasks.md`. Comprueba: (1) cada `T-XX` marcada como hecha está realmente implementada y cumple sus criterios; (2) nada fuera del alcance del plan (`scope-check.py` acaba de pasar; confirma que lo declarado en `Archivos` es lo que el plan pedía); (3) los criterios con test tienen su test; (4) **si existe `docs/CONSTITUTION.md`**, ningún cambio viola un principio EXPLÍCITO del fichero — si lo viola, es gap de corrección **citando la línea del principio**; lo que no esté escrito ahí es estilo, no gap (no inventes principios). **Devuelve salida ESTRUCTURADA por criterio: `T-XX` → cada criterio de aceptación → ✓/✗**, más los gaps (fichero:línea). Solo gaps de requisitos/constitución, no estilo."
+    - **Lente B — calidad y robustez del código:** "Revisa el diff de la iniciativa buscando SOLO defectos de corrección: casos límite sin manejar, errores silenciados, condiciones de carrera, inputs que rompen, regresiones probables. NO reportes preferencias de estilo ni sugerencias de refactor. Lista de defectos (fichero:línea, escenario concreto de fallo) o 'sin defectos'."
+ 
+    **Fusiona** los dos resultados (deduplica gaps que señalen lo mismo). La lente A da el **veredicto por criterio** (✓/✗); la lente B aporta defectos de robustez a los gaps.
+diff --git a/docs/roadmap/2026-09-02-deterministic-guardrails/tasks.md b/docs/roadmap/2026-09-02-deterministic-guardrails/tasks.md
+index e3f7397..9d9d323 100644
+--- a/docs/roadmap/2026-09-02-deterministic-guardrails/tasks.md
++++ b/docs/roadmap/2026-09-02-deterministic-guardrails/tasks.md
+@@ -32,8 +32,8 @@ generacion:
+ 
+ | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervisión (real/est) | Tokens (real/est) |
+ |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
+-| Fase única — guardrails deterministas | 2 | 5 | 40% | 1,8 / 5,0h | 0,10 / 0,25h | 0,03 / 0,06h | 36k / 110k |
+-| **TOTAL** | **2** | **5** | **40%** | **1,8 / 5,0h** | **0,10 / 0,25h** | **0,03 / 0,06h** | **36k / 110k** |
++| Fase única — guardrails deterministas | 3 | 5 | 60% | 2,9 / 5,0h | 0,16 / 0,25h | 0,05 / 0,06h | 60k / 110k |
++| **TOTAL** | **3** | **5** | **60%** | **2,9 / 5,0h** | **0,16 / 0,25h** | **0,05 / 0,06h** | **60k / 110k** |
+ 
+ ---
+ 
+@@ -73,16 +73,16 @@ generacion:
+ ### T-03 — `scope-check.py` (pre-revisión) + tests + cableado
+ 
+ - **Descripción**: `agent-kits/shared/scope-check.py <carpeta-iniciativa> [--base <ref>] [--warn-only] [--json]`: ficheros cambiados (`git diff --name-only <base>...HEAD` + `git status --porcelain`); base = merge-base con `main`/`master` si existe, si no `--base` obligatorio con mensaje claro; lee los campos `Archivos` de TODAS las tareas (vía `parse_ledger` + regex de campo; globs, carpetas con `/`, «(nuevo)», listas por coma); clasifica en alcance / fuera / declarados sin tocar. El propio `tasks.md` y `docs/knowledge/**` siempre en alcance. Exit 0 sin fuera de alcance, 1 si hay (con `--warn-only` siempre 0). Cableado: `commands/dev-cycle.md` Fase 3 paso 2 (antes de las lentes; exit 1 → gap Important al implementer sin gastar revisores); DoD de `agents/implementer.md`; `skills/quick-implement/SKILL.md` si describe la revisión.
+-- **Estado**: en-progreso
+-- **Tiempo humano**: est. 1,3h · real —
+-- **Tiempo IA (ejec.)**: est. 0,07h · real —
+-- **Supervisión**: est. 0,02h · real —
++- **Estado**: completado
++- **Tiempo humano**: est. 1,3h · real 1,1h (estimado)
++- **Tiempo IA (ejec.)**: est. 0,07h · real 0,06h (estimado)
++- **Supervisión**: est. 0,02h · real 0,02h (estimado)
+ - **Archivos**: `agent-kits/shared/scope-check.py` (nuevo), `agent-kits/shared/test_scope_check.py` (nuevo), `commands/dev-cycle.md`, `agents/implementer.md`, `skills/quick-implement/SKILL.md`
+ 
+ **Criterios de aceptación**
+-- [ ] `pytest agent-kits/shared/test_scope_check.py` ≥ 8 casos con repo git temporal (fuera de alcance, glob, «(nuevo)», sin base, warn-only, declarados sin tocar, tasks.md propio, knowledge).
+-- [ ] `scope-check.py docs/roadmap/2026-09-02-deterministic-guardrails` sobre ESTA iniciativa → exit 0 (salida real pegada).
+-- [ ] `dev-cycle.md` Fase 3 paso 2 y el DoD del implementer invocan el script (sin check manual duplicado).
++- [x] `pytest agent-kits/shared/test_scope_check.py` → `9 passed` (repo git temporal: fuera de alcance → exit 1 y `--warn-only` → 0; glob `tests/test_*.py`, carpeta `src/util/`, llaves `docs/{a,b}.md`, «(nuevo)»; frases y rutas absolutas `/tmp/…` del campo se ignoran; sin comitear + sin seguimiento cuentan; `tasks.md` propio y `docs/knowledge/**` en alcance pero `spec.md` de la misma carpeta fuera; sin `main`/`master` → exit 2 con mensaje `--base` y con `--base trunk` → 0; en rama principal base = HEAD; `master` como principal; ledger inexistente y fuera de git → exit 2).
++- [x] Sobre ESTA iniciativa (tras T-01..T-03): `scope-check: 2026-09-02-deterministic-guardrails · base merge-base master…HEAD (4e94debb) · 8 fichero(s) cambiado(s) · 28 patrón(es) declarados en Archivos` · `✅ en alcance (8)` (`.gitignore`, los 4 scripts/tests shared, `agents/implementer.md`, el ledger, `hooks/implementer-guardrail.sh`) · `❌ fuera de alcance (0): —` · `ℹ️ declarados sin tocar (20)` (los de T-04/T-05 aún no empezadas) · exit 0.
++- [x] `commands/dev-cycle.md` Fase 3 paso 2: puerta previa `scope-check.py` (exit 1 → gap Important al implementer sin lanzar lentes; exit 2 → `--base`; sin git → aviso) y la comprobación (2) de la lente A remite al check; DoD de `agents/implementer.md`: el check manual `git status / git diff --stat` se sustituye por `scope-check.py` exit 0; `skills/quick-implement/SKILL.md` punto 4 lo lista como puerta.
+ 
+ ### T-04 — Linter + documentación + ADR
+ 
+@@ -102,7 +102,7 @@ generacion:
+ ### T-05 — Housekeeping: «Fase única» en la tabla de resumen de `ledger-lint.py`
+ 
+ - **Descripción**: la tabla de resumen solo reconocía filas `Fase\s+\d+`; «Fase única — …» disparaba el aviso falso «sin tabla Resumen de progreso (legacy)». Admite `Fase\s+(\d+|única)` (y `norm_fase` la casa con la sección `## Fase única — …`); test; comprobación sobre los 16 ledgers de que la única diferencia frente a `git show 4e94deb:agent-kits/shared/ledger-lint.py` es la desaparición de ese aviso.
+-- **Estado**: borrador
++- **Estado**: en-progreso
+ - **Tiempo humano**: est. 0,5h · real —
+ - **Tiempo IA (ejec.)**: est. 0,02h · real —
+ - **Supervisión**: est. 0,00h · real —
+diff --git a/skills/quick-implement/SKILL.md b/skills/quick-implement/SKILL.md
+index c45332a..44b3757 100755
+--- a/skills/quick-implement/SKILL.md
++++ b/skills/quick-implement/SKILL.md
+@@ -55,8 +55,9 @@ solo van los nombres, para no mantener una copia que se desincronice:
+    ventana por cada `T-XX`** (`<slug>/T-XX`). Nunca una ventana global que englobe a las de las
+    tareas: contaría los mismos tokens dos veces.
+ 3. **Implementación** por `implementer`, con la disciplina de `.claude/dev.json` si está activa.
+-4. **Las puertas NO se saltan**: revisión adversarial de dos lentes y `qa` con `qa-gate` (ambas
+-   dentro de la Fase 3). Es lo que separa la vía rápida de "escribir código a lo loco": ahorra
++4. **Las puertas NO se saltan**: `scope-check.py` (alcance del diff vs. `Archivos` del ledger,
++   exit 0 antes de gastar revisores), revisión adversarial de dos lentes y `qa` con `qa-gate`
++   (todas dentro de la Fase 3). Es lo que separa la vía rápida de "escribir código a lo loco": ahorra
+    ceremonia, no seguridad. Solo se omiten a petición **explícita** del usuario.
+ 5. **Cierre**: estados finales del ledger y ritual de cierre de rama si hay rama.
+ 
+-- 
+2.43.0
+

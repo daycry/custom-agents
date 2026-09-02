@@ -1,0 +1,540 @@
+From 4e94debba223da926ffa1aefaef34bf48882d542 Mon Sep 17 00:00:00 2001
+From: daycry <7590335+daycry@users.noreply.github.com>
+Date: Wed, 2 Sep 2026 10:13:48 +0000
+Subject: [PATCH 07/32] =?UTF-8?q?T-fix1:=20revisi=C3=B3n=20intento=201=20?=
+ =?UTF-8?q?=E2=80=94=20BOM=20en=20parse=5Fledger,=20IA=20real/est.=20+=20X?=
+ =?UTF-8?q?hYm,=20usage-state=20bajo=20--root,=20HOME:-=20en=20hooks,=20ru?=
+ =?UTF-8?q?tas=20Windows,=20statusline=20coste=20num=C3=A9rico,=20ejecutab?=
+ =?UTF-8?q?le=3Daviso=20en=20lint=5Fhooks=20(+9=20tests)?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VA3zi8RqekY9weD2S1RyWL
+
+Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VA3zi8RqekY9weD2S1RyWL
+
+---
+ agent-kits/shared/ledger-lint.py              | 23 ++++--
+ agent-kits/shared/progress-report.py          | 35 ++++++---
+ agent-kits/shared/test_progress_report.py     | 73 +++++++++++++++++++
+ .../2026-09-02-live-visibility/tasks.md       | 23 +++++-
+ hooks/ledger-lint-warn.sh                     |  3 +-
+ hooks/mark-docs-pending.sh                    |  1 +
+ hooks/progress-line.sh                        |  3 +-
+ hooks/session-context.sh                      |  2 +-
+ hooks/subagent-progress.sh                    |  2 +-
+ scripts/lint_plugin.py                        | 25 ++++---
+ statusline/roadmap-statusline.sh              | 21 +++---
+ tests/test_lint_plugin.py                     |  4 +-
+ 12 files changed, 170 insertions(+), 45 deletions(-)
+
+diff --git a/agent-kits/shared/ledger-lint.py b/agent-kits/shared/ledger-lint.py
+index ba37c77..a019c44 100755
+--- a/agent-kits/shared/ledger-lint.py
++++ b/agent-kits/shared/ledger-lint.py
+@@ -45,9 +45,11 @@ def parse_ledger(text):
+       huerfanas: [tarea, …]  (tareas `### T-XX` fuera de toda fase)
+       tareas: todas las tareas en orden de aparición
+     Cada tarea: {"id", "titulo", "estado" (normalizado o None), "checked", "unchecked",
+-                 "tiene_criterios", "ia_real_h" (float o None), "ia_est_h" (float o None)}.
++                 "tiene_criterios", "ia_real_h" (float o None), "ia_est_h" (float o None),
++                 "ia_real_fuente" ("medido" | "estimado" | None: cómo se obtuvo el real)}.
+     Lo consumen `lint()` (aquí) y `progress-report.py` (línea de progreso).
+     """
++    text = text.lstrip("\ufeff")          # BOM UTF-8: sin esto el frontmatter no se reconoce
+     lines = text.splitlines()
+ 
+     # ---- frontmatter (claves planas) y tabla de cabecera ----
+@@ -99,7 +101,8 @@ def parse_ledger(text):
+             close_task()
+             cur_task = {"id": m.group(1), "titulo": m.group(2).strip().strip("*").strip(),
+                         "estado": None, "unchecked": 0, "checked": 0,
+-                        "tiene_criterios": False, "ia_real_h": None, "ia_est_h": None}
++                        "tiene_criterios": False, "ia_real_h": None, "ia_est_h": None,
++                        "ia_real_fuente": None}
+             in_criterios = False
+             continue
+         if cur_task is not None:
+@@ -110,6 +113,9 @@ def parse_ledger(text):
+             m = ia_re.match(ln)
+             if m and cur_task["ia_real_h"] is None and cur_task["ia_est_h"] is None:
+                 cur_task["ia_est_h"], cur_task["ia_real_h"] = _parse_horas(m.group(1))
++                if cur_task["ia_real_h"] is not None:
++                    cur_task["ia_real_fuente"] = "estimado" if re.search(
++                        r"\(\s*estimad[oa]\s*\)", m.group(1), re.I) else "medido"
+                 continue
+             if re.match(r"^(\*\*|#{3,5}\s*)Criterios de aceptación", ln.strip()):
+                 in_criterios = True
+@@ -133,17 +139,22 @@ def parse_ledger(text):
+             "fases": fases, "huerfanas": huerfanas, "tareas": tareas}
+ 
+ 
++_HORAS_RE = r"[.:]?\s*(\d+(?:[.,]\d+)?)\s*h(?:\s*(\d{1,2})\s*m(?:in)?)?"
++
++
+ def _parse_horas(campo):
+-    """'est. 0,3h · real 1,2h (medido)' → (0.3, 1.2); 'real —' → None. Tolerante."""
++    """'est. 0,3h · real 1,2h (medido)' → (0.3, 1.2); 'real 1h30m' → 1.5; 'real: 2h' → 2.0;
++    'real —' → None. Tolerante."""
+     def num(m):
+         if not m:
+             return None
+         try:
+-            return float(m.group(1).replace(",", "."))
++            h = float(m.group(1).replace(",", "."))
++            return h + (int(m.group(2)) / 60 if m.group(2) else 0)
+         except ValueError:
+             return None
+-    est = num(re.search(r"est\.?\s*([\d]+(?:[.,]\d+)?)\s*h", campo, re.I))
+-    real = num(re.search(r"real\s*([\d]+(?:[.,]\d+)?)\s*h", campo, re.I))
++    est = num(re.search(r"\best" + _HORAS_RE, campo, re.I))
++    real = num(re.search(r"\breal" + _HORAS_RE, campo, re.I))
+     return est, real
+ 
+ 
+diff --git a/agent-kits/shared/progress-report.py b/agent-kits/shared/progress-report.py
+index caa1283..e651f4f 100755
+--- a/agent-kits/shared/progress-report.py
++++ b/agent-kits/shared/progress-report.py
+@@ -13,7 +13,8 @@ Subcomandos:
+       UNA línea:
+       📋 <slug> · T-04/12 completadas (33%) · fase 2/4 «<nombre>» · en curso: T-05 <título> · IA real 1h12m
+       Tramos opcionales: «fase» solo si hay ≥1 fase; «en curso» solo si hay una tarea
+-      en-progreso; «IA real» solo si alguna tarea tiene horas IA reales (formato XhYm).
++      en-progreso; «IA real» solo si alguna tarea tiene horas IA reales MEDIDAS (formato
++      XhYm); si todas las reales están marcadas «(estimado)», el tramo se rotula «IA est.».
+   active [--root docs/roadmap] [--json]
+       Una línea por iniciativa con estado `en-progreso` (frontmatter `estado:` o, si falta,
+       tabla `| **Estado** |`). Sin ninguna → `sin iniciativas en progreso`. Ficheros que no
+@@ -90,7 +91,7 @@ def nombre_fase(nombre):
+ def resumir(path):
+     """Lee y resume un ledger. Lanza ValueError si es ilegible o no tiene tareas."""
+     try:
+-        text = open(path, encoding="utf-8", errors="replace").read()
++        text = open(path, encoding="utf-8-sig", errors="replace").read()   # tolera BOM
+     except OSError as e:
+         raise ValueError(f"no se puede leer: {e}") from e
+     parsed = parse_ledger(text)
+@@ -115,8 +116,18 @@ def resumir(path):
+                         if any(t["estado"] != "completado" for t in f["tareas"])), len(fases) - 1)
+         fase = {"indice": idx + 1, "total": len(fases), "nombre": nombre_fase(fases[idx]["nombre"])}
+ 
+-    reales = [t["ia_real_h"] for t in tareas if t["ia_real_h"] is not None]
+-    ia_real_h = round(sum(reales), 4) if reales else None
++    # Horas IA: solo cuentan como «real» las NO marcadas «(estimado)»; si todas las que hay
++    # son estimadas, se suman igual pero se rotulan «IA est.» (no se vende estimado como medido).
++    medidas = [t["ia_real_h"] for t in tareas if t["ia_real_h"] is not None
++               and t["ia_real_fuente"] != "estimado"]
++    estimadas = [t["ia_real_h"] for t in tareas if t["ia_real_h"] is not None
++                 and t["ia_real_fuente"] == "estimado"]
++    if medidas:
++        ia_real_h, ia_fuente = round(sum(medidas), 4), "medido"
++    elif estimadas:
++        ia_real_h, ia_fuente = round(sum(estimadas), 4), "estimado"
++    else:
++        ia_real_h, ia_fuente = None, None
+ 
+     estado = norm_estado(parsed["frontmatter"]["estado"]) if parsed["frontmatter"].get("estado") \
+         else parsed["estado_tabla"]
+@@ -133,6 +144,7 @@ def resumir(path):
+         "en_progreso": [{"id": t["id"], "titulo": t["titulo"]}
+                         for t in tareas if t["estado"] == "en-progreso"],
+         "ia_real_h": ia_real_h,
++        "ia_fuente": ia_fuente,
+         "ia_real_fmt": fmt_horas(ia_real_h) if ia_real_h is not None else None,
+     }
+ 
+@@ -146,7 +158,8 @@ def linea(r):
+         t = r["en_curso"]
+         partes.append(f"en curso: {t['id']} {t['titulo']}".rstrip())
+     if r["ia_real_fmt"]:
+-        partes.append(f"IA real {r['ia_real_fmt']}")
++        rotulo = "IA real" if r.get("ia_fuente") == "medido" else "IA est."
++        partes.append(f"{rotulo} {r['ia_real_fmt']}")
+     return " · ".join(partes)
+ 
+ 
+@@ -169,14 +182,16 @@ def activas(root):
+     return out
+ 
+ 
+-def marcadores_huerfanos():
+-    """Marcadores abiertos (sin cierre) de usage-meter.py status; None si no disponible."""
++def marcadores_huerfanos(root="."):
++    """Marcadores abiertos (sin cierre) de usage-meter.py status sobre el estado del PROYECTO
++    (`<root>/.claude/usage-state.json`, no el cwd); None si el meter no está o falla."""
+     meter = os.path.join(HERE, "usage-meter.py")
+     if not os.path.isfile(meter):
+         return None
+     try:
+-        res = subprocess.run([sys.executable, meter, "status"], capture_output=True,
+-                             text=True, timeout=10, check=False)
++        state = os.path.join(root, ".claude", "usage-state.json")
++        res = subprocess.run([sys.executable, meter, "status", "--state", state],
++                             capture_output=True, text=True, timeout=10, check=False)
+         data = json.loads(res.stdout or "{}")
+         return [m.get("artefacto", "?") for m in data.get("marcadores", []) if not m.get("cerrado")]
+     except Exception:  # noqa: BLE001 — cualquier fallo del meter = no disponible
+@@ -228,7 +243,7 @@ def cmd_session(args):
+         out.append("- " + linea(r))
+         for t in r["en_progreso"]:
+             out.append(f"  · en-progreso: {t['id']} {t['titulo']}".rstrip())
+-    huerf = marcadores_huerfanos()
++    huerf = marcadores_huerfanos(args.root)
+     if huerf is None:
+         out.append("usage-meter: no disponible")
+     elif huerf:
+diff --git a/agent-kits/shared/test_progress_report.py b/agent-kits/shared/test_progress_report.py
+index eb86512..43a0b29 100644
+--- a/agent-kits/shared/test_progress_report.py
++++ b/agent-kits/shared/test_progress_report.py
+@@ -103,6 +103,28 @@ estado: completado
+ 
+ CORRUPTO = "esto no es un ledger\n| tabla rota | \n### sin id\n"
+ 
++ESTIMADO = """---
++estado: en-progreso
++---
++## Fase 1 — Cierre
++
++### T-01 — hecho
++
++- **Estado**: completado
++- **Tiempo IA (ejec.)**: est. 0,5h · real 0,5h (estimado)
++
++**Criterios de aceptación**
++- [x] x
++
++### T-02 — mixto
++
++- **Estado**: en-progreso
++- **Tiempo IA (ejec.)**: est: 1h · real: 1h30m (estimado)
++
++**Criterios de aceptación**
++- [ ] y
++"""
++
+ 
+ def run(*args):
+     r = subprocess.run([sys.executable, str(SCRIPT), *args], capture_output=True, text=True)
+@@ -230,6 +252,57 @@ def test_session_sin_roadmap_exit_0(tmp_path):
+     assert code == 0 and out.strip() == pr.LINEA_NEUTRA
+ 
+ 
++# ------------------------------------------------------------------ revisión intento 1
++
++def test_bom_utf8_no_oculta_la_iniciativa(tmp_path):
++    p = ledger(tmp_path, "2026-09-02-bom", DOS_FASES)
++    p.write_bytes(b"\xef\xbb\xbf" + DOS_FASES.encode("utf-8"))
++    assert pr.resumir(str(p))["estado"] == "en-progreso"
++    code, out, _ = run("active", "--root", str(tmp_path / "docs" / "roadmap"))
++    assert code == 0 and out.startswith("📋 bom ·")
++
++
++def test_horas_estimadas_se_rotulan_ia_est(tmp_path):
++    p = ledger(tmp_path, "2026-09-02-est", ESTIMADO)
++    r = pr.resumir(str(p))
++    assert r["ia_fuente"] == "estimado" and r["ia_real_h"] == 2.0     # 0,5 + 1h30m
++    assert pr.linea(r).endswith("IA est. 2h")
++    assert "IA real" not in pr.linea(r)
++
++
++def test_horas_medidas_ignoran_las_estimadas():
++    ll = pr._ll
++    parsed = ll.parse_ledger(DOS_FASES.replace(
++        "real 0,5h (medido)", "real 0,5h (estimado)"))
++    t1, t2 = parsed["tareas"][0], parsed["tareas"][1]
++    assert (t1["ia_real_h"], t1["ia_real_fuente"]) == (0.7, "medido")
++    assert (t2["ia_real_h"], t2["ia_real_fuente"]) == (0.5, "estimado")
++
++
++@pytest.mark.parametrize("campo,esperado", [
++    ("est. 0,3h · real 1,2h (medido)", (0.3, 1.2)),
++    ("est. 1h30m · real 1h30m", (1.5, 1.5)),
++    ("est: 2h · real: 2h", (2.0, 2.0)),
++    ("est. 0,35h · real —", (0.35, None)),
++    ("real 45m", (None, None)),          # sin horas → no se interpreta
++])
++def test_parse_horas(campo, esperado):
++    assert pr._ll._parse_horas(campo) == esperado
++
++
++def test_session_lee_usage_state_del_root_no_del_cwd(tmp_path):
++    ledger(tmp_path, "2026-09-02-demo", DOS_FASES)
++    (tmp_path / ".claude").mkdir()
++    (tmp_path / ".claude" / "usage-state.json").write_text(json.dumps({
++        "docs/roadmap/2026-09-02-demo/T-03": {"inicio": "2026-09-02T08:00:00Z", "offsets": {}},
++        "docs/roadmap/2026-09-02-demo/T-01": {"inicio": "2026-09-01T08:00:00Z", "ultimoCierre": "x"},
++    }), encoding="utf-8")
++    code, out, _ = run("session", "--root", str(tmp_path))   # cwd = repo, root = tmp_path
++    assert code == 0
++    assert "usage-meter: marcadores abiertos → docs/roadmap/2026-09-02-demo/T-03" in out
++    assert "T-01" not in [l for l in out.splitlines() if "marcadores" in l][0]
++
++
+ # ------------------------------------------------------------------ unidades
+ 
+ @pytest.mark.parametrize("nombre,esperado", [
+diff --git a/docs/roadmap/2026-09-02-live-visibility/tasks.md b/docs/roadmap/2026-09-02-live-visibility/tasks.md
+index 7cb28f1..32bb86a 100644
+--- a/docs/roadmap/2026-09-02-live-visibility/tasks.md
++++ b/docs/roadmap/2026-09-02-live-visibility/tasks.md
+@@ -99,7 +99,7 @@ generacion:
+ - **Tiempo IA (ejec.)**: est. 0,03h · real 0,03h (estimado)
+ - **Supervisión**: est. 0,01h · real 0,01h (estimado)
+ - **Dependencias**: T-01, T-02, T-03
+-- **Archivos**: `docs/CONVENTIONS.md`, `docs/en/CONVENTIONS.md`, `skills/plugin-dev/SKILL.md`, `docs/FLOWS.md`, `docs/en/FLOWS.md`, `README.md`, `README.es.md`, `docs/README.md`, `docs/en/README.md`, `agent-kits/shared/README.md`, `CLAUDE.md`, `docs/roadmap/README.md`, `scripts/lint_plugin.py`, `tests/test_lint_plugin.py`
++- **Archivos**: `docs/CONVENTIONS.md`, `docs/en/CONVENTIONS.md`, `skills/plugin-dev/SKILL.md`, `docs/FLOWS.md`, `docs/en/FLOWS.md`, `README.md`, `README.es.md`, `docs/README.md`, `docs/en/README.md`, `agent-kits/shared/README.md`, `CLAUDE.md`, `docs/roadmap/README.md`, `scripts/lint_plugin.py`, `tests/test_lint_plugin.py`, `docs/roadmap/2026-08-20-knowledge-split/tasks.md` (estado a `completado`, orquestador `7dae657`)
+ 
+ **Criterios de aceptación**
+ - [x] Cada doc ES tocada tiene su espejo EN actualizado en el mismo cambio: `CONVENTIONS` (regla 8, nota «Visibilidad en vivo (hooks)»), `FLOWS` (flujo 6b + nodo `statusline`/`settings.json` en el 7), `observability` (sección nueva + coexistencia de hooks), `README`/`README.es` (fila «Progreso en vivo»), `docs/README` + `docs/en/README` (frase de observabilidad; no indexan hooks/scripts). Solo ES por convención: `CLAUDE.md` (árbol `statusline/`, filas Linter/Determinismo/Hooks), `skills/plugin-dev/SKILL.md` (fila hook del Paso 0), `agent-kits/shared/README.md` (inventario), `docs/roadmap/README.md` (fila). `test_mermaid_blocks: 28 diagrama(s) OK`.
+@@ -108,8 +108,27 @@ generacion:
+ 
+ ---
+ 
++## Revisión de dos lentes — intento 1: 8 gaps corregidos, 3 aceptados como deuda (commit `T-fix1`)
++
++Cada gap se verificó reproduciéndolo antes de corregir (todos eran reales; ninguno rebatido):
++
++| # | Gap | Tarea | Corrección | Evidencia |
++|---|---|---|---|---|
++| 1 | Nota del ledger decía que `knowledge-split` no se tocó, pero el orquestador lo cerró (`7dae657`) | T-04 | Nota corregida + fichero en `Archivos` | — |
++| 2 | `parse_ledger` ignoraba el frontmatter con BOM UTF-8 → iniciativa invisible en `active`/statusline | T-01 | `text.lstrip("\ufeff")` en `parse_ledger` + `utf-8-sig` en `resumir` | `test_bom_utf8_no_oculta_la_iniciativa` (antes: `frontmatter == {}`) |
++| 3 | `set -u` + `HOME` sin definir abortaba el `find` de los hooks (y de la statusline) | T-02, T-03 | `"${HOME:-}/.claude"` en los 3 hooks nuevos, `ledger-lint-warn.sh` y la statusline | `unset HOME` sin `CLAUDE_PLUGIN_ROOT` → exit 0 |
++| 4 | `marcadores_huerfanos` leía `.claude/usage-state.json` del cwd, no de `--root` | T-01 | `usage-meter.py status --state <root>/.claude/usage-state.json` | `test_session_lee_usage_state_del_root_no_del_cwd` |
++| 5 | «IA real» sumaba valores marcados `(estimado)`; `1h30m` → 1.0; `real: 2h` → None | T-01 | `ia_real_fuente` medido/estimado en el parser; solo lo medido rotula «IA real», si todo es estimado → «IA est.»; `_parse_horas` admite `XhYm` y `:` | `test_horas_estimadas_se_rotulan_ia_est`, `test_horas_medidas_ignoran_las_estimadas`, `test_parse_horas` (5 casos); salida de `ledger-lint.py` **idéntica en 16/16 ledgers** frente a `git show 721c67e:agent-kits/shared/ledger-lint.py` (salida completa, no solo la última línea) |
++| 6 | Statusline: coste no numérico → `$0.00abc`; ruido stderr sin jq/python3 | T-03 | Coste/ctx solo si numéricos (si no, se omite el tramo); `2>/dev/null` en el camino sin parser | `{"cost":{"total_cost_usd":"abc"}}` → `[Opus] ctx 8%` |
++| 7 | Linter: bit ejecutable como ERROR daría 5 falsos positivos con `core.fileMode=false` | T-04 | `lint_hooks()` devuelve `(errores, avisos)`; fichero inexistente = error, no ejecutable = aviso | `test_lint_plugin` caso 11 ajustado → `11/11 OK` |
++| 8 | Rutas Windows nativas (`C:\…\docs\roadmap\…\tasks.md`) no casaban con el `case` | T-02 | `p="${p//\\//}"` antes del `case` en `progress-line.sh`, `ledger-lint-warn.sh` y `mark-docs-pending.sh` | payload con `\\` → misma `systemMessage` |
++
++**Aceptados como deuda (no corregidos):** debounce de `.progress-last` no atómico bajo concurrencia (solo ruido, nunca pérdida); título de tarea con negrita interna en `### T-XX` se muestra con los `**`; `hooks/hooks.json` con modo `100755` heredado del repo.
++
++Tras la corrección: `pytest -q tests agent-kits/shared` → **104 passed** (95 + 9 nuevos); 9 suites-script verdes; `lint_plugin` → 0 errores · 3 avisos; `bash -n` OK en 5 hooks + statusline. Nota: la línea de progreso de ESTA iniciativa ahora rotula `IA est. 12m` (sus horas están marcadas `(estimado)`, como manda el gap 5).
++
+ ## Dudas y decisiones para el orquestador
+ 
+ - **Doc oficial vs brief:** (1) `${CLAUDE_PLUGIN_ROOT}` NO está documentado para `statusLine.command` → ruta absoluta resuelta en `/setup` (caso por defecto del brief). (2) `SubagentStop` sí admite `hookSpecificOutput.additionalContext`, pero va al **subagente**, no al usuario → el hook usa `systemMessage` (al usuario), como pedía el brief. (3) El matcher de `SessionStart` omite `clear`/`fork` a propósito (el brief pedía `startup|resume|compact`).
+-- **Dato heredado:** `docs/roadmap/2026-08-20-knowledge-split/tasks.md` sigue con `estado: en-progreso` (frontmatter y tabla) pese a estar al 100 % y cerrada en el índice → aparece como «activa» en `active`/`session`/statusline. No se ha tocado (fuera de alcance); un cambio de una palabra a `completado` lo limpia.
++- **Dato heredado (corregido por el orquestador, commit `7dae657`):** `docs/roadmap/2026-08-20-knowledge-split/tasks.md` estaba `en-progreso` pese a estar al 100 % → aparecía como «activa» en `active`/`session`/statusline. Puesto a `completado` (frontmatter + tabla); hoy `active` solo lista `live-visibility`.
+ - **CHANGELOG** no tocado (lo hace el orquestador). Tests de hooks: no hay suite de shell en el repo; la evidencia es la simulación manual de stdin anotada arriba (reproducible) + `bash -n` + linter de `hooks.json`.
+diff --git a/hooks/ledger-lint-warn.sh b/hooks/ledger-lint-warn.sh
+index 25427a5..6ef1dc1 100755
+--- a/hooks/ledger-lint-warn.sh
++++ b/hooks/ledger-lint-warn.sh
+@@ -26,12 +26,13 @@ fi
+ # proyecto/usuario), como el resto de kits.
+ LINT="${CLAUDE_PLUGIN_ROOT:-}/agent-kits/shared/ledger-lint.py"
+ if [ ! -f "$LINT" ]; then
+-  LINT="$(find "${CLAUDE_PROJECT_DIR:-$PWD}/.claude" "$HOME/.claude" -type f -path '*agent-kits/shared/ledger-lint.py' 2>/dev/null | head -1)"
++  LINT="$(find "${CLAUDE_PROJECT_DIR:-$PWD}/.claude" "${HOME:-}/.claude" -type f -path '*agent-kits/shared/ledger-lint.py' 2>/dev/null | head -1)"
+ fi
+ [ -n "$LINT" ] && [ -f "$LINT" ] || exit 0
+ 
+ while IFS= read -r p; do
+   [ -n "$p" ] || continue
++  p="${p//\\//}"   # rutas Windows nativas (C:\proy\docs\roadmap\...) → separador '/'
+   case "$p" in
+     *docs/roadmap/*tasks.md)
+       python3 "$LINT" "$p" --warn-only 2>/dev/null || true
+diff --git a/hooks/mark-docs-pending.sh b/hooks/mark-docs-pending.sh
+index 6e542ac..4812b76 100755
+--- a/hooks/mark-docs-pending.sh
++++ b/hooks/mark-docs-pending.sh
+@@ -25,6 +25,7 @@ fi
+ hit=0
+ while IFS= read -r p; do
+   [ -n "$p" ] || continue
++  p="${p//\\//}"   # rutas Windows nativas (C:\proy\docs\roadmap\...) → separador '/'
+   case "$p" in
+     *docs/security-scan/*) continue ;;   # nunca sincronizar datos sensibles de nemesis
+     *docs/confluence/*) continue ;;      # carpeta STAGED (D5, generada por --stage): regenerarla
+diff --git a/hooks/progress-line.sh b/hooks/progress-line.sh
+index 889418a..683b6f9 100755
+--- a/hooks/progress-line.sh
++++ b/hooks/progress-line.sh
+@@ -37,7 +37,7 @@ fi
+ # proyecto/usuario), como el resto de kits (regla 5 de CONVENTIONS).
+ REPORT="${CLAUDE_PLUGIN_ROOT:-}/agent-kits/shared/progress-report.py"
+ if [ ! -f "$REPORT" ]; then
+-  REPORT="$(find "${CLAUDE_PROJECT_DIR:-$PWD}/.claude" "$HOME/.claude" -type f -path '*agent-kits/shared/progress-report.py' 2>/dev/null | head -1)"
++  REPORT="$(find "${CLAUDE_PROJECT_DIR:-$PWD}/.claude" "${HOME:-}/.claude" -type f -path '*agent-kits/shared/progress-report.py' 2>/dev/null | head -1)"
+ fi
+ [ -n "$REPORT" ] && [ -f "$REPORT" ] || exit 0
+ 
+@@ -46,6 +46,7 @@ LAST="$STATE_DIR/.progress-last"
+ 
+ while IFS= read -r p; do
+   [ -n "$p" ] || continue
++  p="${p//\\//}"   # rutas Windows nativas (C:\proy\docs\roadmap\...) → separador '/'
+   case "$p" in
+     *docs/roadmap/*tasks.md)
+       [ -f "$p" ] || continue
+diff --git a/hooks/session-context.sh b/hooks/session-context.sh
+index 3ba813a..945174b 100755
+--- a/hooks/session-context.sh
++++ b/hooks/session-context.sh
+@@ -22,7 +22,7 @@ command -v python3 >/dev/null 2>&1 || exit 0
+ 
+ REPORT="${CLAUDE_PLUGIN_ROOT:-}/agent-kits/shared/progress-report.py"
+ if [ ! -f "$REPORT" ]; then
+-  REPORT="$(find "${CLAUDE_PROJECT_DIR:-$PWD}/.claude" "$HOME/.claude" -type f -path '*agent-kits/shared/progress-report.py' 2>/dev/null | head -1)"
++  REPORT="$(find "${CLAUDE_PROJECT_DIR:-$PWD}/.claude" "${HOME:-}/.claude" -type f -path '*agent-kits/shared/progress-report.py' 2>/dev/null | head -1)"
+ fi
+ [ -n "$REPORT" ] && [ -f "$REPORT" ] || exit 0
+ 
+diff --git a/hooks/subagent-progress.sh b/hooks/subagent-progress.sh
+index 6ff7659..f8cc124 100755
+--- a/hooks/subagent-progress.sh
++++ b/hooks/subagent-progress.sh
+@@ -23,7 +23,7 @@ command -v python3 >/dev/null 2>&1 || exit 0
+ 
+ REPORT="${CLAUDE_PLUGIN_ROOT:-}/agent-kits/shared/progress-report.py"
+ if [ ! -f "$REPORT" ]; then
+-  REPORT="$(find "${CLAUDE_PROJECT_DIR:-$PWD}/.claude" "$HOME/.claude" -type f -path '*agent-kits/shared/progress-report.py' 2>/dev/null | head -1)"
++  REPORT="$(find "${CLAUDE_PROJECT_DIR:-$PWD}/.claude" "${HOME:-}/.claude" -type f -path '*agent-kits/shared/progress-report.py' 2>/dev/null | head -1)"
+ fi
+ [ -n "$REPORT" ] && [ -f "$REPORT" ] || exit 0
+ 
+diff --git a/scripts/lint_plugin.py b/scripts/lint_plugin.py
+index 088105f..e15ebb3 100755
+--- a/scripts/lint_plugin.py
++++ b/scripts/lint_plugin.py
+@@ -11,8 +11,9 @@ Valida, sin dependencias externas (solo stdlib):
+   6. No hay ciclos en el grafo de dependencias entre agentes.
+   7. Nombres de agente únicos.
+   8. `hooks/hooks.json` (si existe): JSON válido con raíz `hooks`, y cada `command` de tipo
+-     `command` referencia un fichero del plugin que EXISTE y es EJECUTABLE (los hooks
+-     informan, no bloquean: un hook roto es una pieza muerta, no un guardrail).
++     `command` referencia un fichero del plugin que EXISTE (los hooks informan, no bloquean:
++     un hook roto es una pieza muerta, no un guardrail). Fichero sin bit ejecutable → AVISO
++     (se lanzan con `bash "…"`; checkouts con core.fileMode=false lo perderían).
+ 
+ Avisos (no rompen el build):
+   - `description` sin frase-gatillo ("Úsalo/Úsala cuando…", "PROACTIVAMENTE", "Use when").
+@@ -180,8 +181,10 @@ def lint(root):
+         if color[n] == WHITE:
+             dfs(n, [n])
+ 
+-    # --- hooks/hooks.json: JSON válido + commands que existen y son ejecutables ---
+-    errors.extend(lint_hooks(root))
++    # --- hooks/hooks.json: JSON válido + commands que existen (ejecutable = aviso) ---
++    h_err, h_warn = lint_hooks(root)
++    errors.extend(h_err)
++    warnings.extend(h_warn)
+ 
+     # --- Namespacing: nombres genéricos en commands/skills (warning) ---
+     for d, kind, get_names in (
+@@ -203,18 +206,18 @@ HOOK_PATH_RE = re.compile(r"\$\{CLAUDE_PLUGIN_ROOT\}/([^\s\"']+)")
+ 
+ 
+ def lint_hooks(root):
+-    """Errores de hooks/hooks.json (lista vacía si no existe el fichero)."""
++    """(errores, avisos) de hooks/hooks.json (vacíos si no existe el fichero)."""
+     path = os.path.join(root, "hooks", "hooks.json")
+     if not os.path.isfile(path):
+-        return []
+-    errs = []
++        return [], []
++    errs, warns = [], []
+     try:
+         data = json.load(open(path, encoding="utf-8"))
+     except (ValueError, UnicodeDecodeError) as e:
+-        return [f"hooks/hooks.json: no es JSON válido ({e})"]
++        return [f"hooks/hooks.json: no es JSON válido ({e})"], []
+     hooks = data.get("hooks") if isinstance(data, dict) else None
+     if not isinstance(hooks, dict):
+-        return ["hooks/hooks.json: falta la raíz `hooks` (objeto evento → lista de grupos)"]
++        return ["hooks/hooks.json: falta la raíz `hooks` (objeto evento → lista de grupos)"], []
+     for evento, grupos in hooks.items():
+         if not isinstance(grupos, list):
+             errs.append(f"hooks/hooks.json: `{evento}` debe ser una lista de grupos")
+@@ -229,8 +232,8 @@ def lint_hooks(root):
+                     if not os.path.isfile(fp):
+                         errs.append(f"hooks/hooks.json [{evento}]: el command referencia `{rel}`, que no existe")
+                     elif not os.access(fp, os.X_OK):
+-                        errs.append(f"hooks/hooks.json [{evento}]: `{rel}` no es ejecutable (chmod +x)")
+-    return errs
++                        warns.append(f"hooks/hooks.json [{evento}]: `{rel}` no es ejecutable (chmod +x recomendado; se lanza con `bash`)")
++    return errs, warns
+ 
+ 
+ def main():
+diff --git a/statusline/roadmap-statusline.sh b/statusline/roadmap-statusline.sh
+index 4a4bab7..ce4c7fa 100755
+--- a/statusline/roadmap-statusline.sh
++++ b/statusline/roadmap-statusline.sh
+@@ -24,7 +24,7 @@
+ set -u
+ 
+ INPUT="$(cat 2>/dev/null || true)"
+-HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
++HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)"
+ 
+ model="" cost="" ctx=""
+ if command -v jq >/dev/null 2>&1; then
+@@ -46,27 +46,28 @@ print("ctx=" + shlex.quote(str(g("context_window", "used_percentage"))))
+ ' 2>/dev/null)"
+ else
+   # Sin parser JSON: solo el modelo, por grep (mejor esfuerzo).
+-  model="$(printf '%s' "$INPUT" | grep -oE '"display_name"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed -E 's/.*:[[:space:]]*"([^"]*)"/\1/')"
+-  [ -n "$model" ] && printf '[%s]\n' "$model"
++  model="$(printf '%s' "$INPUT" | grep -oE '"display_name"[[:space:]]*:[[:space:]]*"[^"]*"' 2>/dev/null | head -1 | sed -E 's/.*:[[:space:]]*"([^"]*)"/\1/' 2>/dev/null)"
++  [ -n "$model" ] && printf '[%s]\n' "$model" 2>/dev/null
+   exit 0
+ fi
+ 
+ out=""
+ [ -n "$model" ] && out="[$model]"
+-if [ -n "$cost" ]; then
+-  cost_fmt="$(printf '%.2f' "$cost" 2>/dev/null || printf '%s' "$cost")"
+-  out="${out:+$out }\$${cost_fmt}"
++# Coste y contexto solo si son numéricos (un valor raro se omite, no se imprime a medias).
++if printf '%s' "$cost" | grep -qE '^[0-9]+([.][0-9]+)?$'; then
++  cost_fmt="$(printf '%.2f' "$cost" 2>/dev/null)"
++  [ -n "$cost_fmt" ] && out="${out:+$out }\$${cost_fmt}"
+ fi
+-if [ -n "$ctx" ]; then
+-  ctx_int="$(printf '%.0f' "$ctx" 2>/dev/null || printf '%s' "$ctx")"
+-  out="${out:+$out }ctx ${ctx_int}%"
++if printf '%s' "$ctx" | grep -qE '^[0-9]+([.][0-9]+)?$'; then
++  ctx_int="$(printf '%.0f' "$ctx" 2>/dev/null)"
++  [ -n "$ctx_int" ] && out="${out:+$out }ctx ${ctx_int}%"
+ fi
+ 
+ # ---- roadmap (progress-report.py active --json) ----
+ if command -v python3 >/dev/null 2>&1; then
+   REPORT="$HERE/../agent-kits/shared/progress-report.py"
+   if [ ! -f "$REPORT" ]; then
+-    REPORT="$(find "$PWD/.claude" "$HOME/.claude" -type f -path '*agent-kits/shared/progress-report.py' 2>/dev/null | head -1)"
++    REPORT="$(find "$PWD/.claude" "${HOME:-}/.claude" -type f -path '*agent-kits/shared/progress-report.py' 2>/dev/null | head -1)"
+   fi
+   ROOT="${CLAUDE_PROJECT_DIR:-$PWD}/docs/roadmap"
+   if [ -n "$REPORT" ] && [ -f "$REPORT" ] && [ -d "$ROOT" ]; then
+diff --git a/tests/test_lint_plugin.py b/tests/test_lint_plugin.py
+index 36f0a4f..32ce1b0 100755
+--- a/tests/test_lint_plugin.py
++++ b/tests/test_lint_plugin.py
+@@ -131,7 +131,7 @@ def main():
+         code, out = run(tmp)
+         assert code == 1 and "fantasma.sh" in out and "no existe" in out, out
+ 
+-    # 11) hook existente pero NO ejecutable → error; hooks.json inválido → error
++    # 11) hook existente pero NO ejecutable → AVISO (no error); hooks.json inválido → error
+     with tempfile.TemporaryDirectory() as tmp:
+         make_plugin(tmp, {"alpha": AGENT_OK.format(name="alpha")})
+         os.makedirs(os.path.join(tmp, "hooks"))
+@@ -141,7 +141,7 @@ def main():
+         open(os.path.join(tmp, "hooks", "hooks.json"), "w").write(json.dumps({"hooks": {
+             "PostToolUse": [{"hooks": [{"type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/noexec.sh"}]}]}}))
+         code, out = run(tmp)
+-        assert code == 1 and "no es ejecutable" in out, out
++        assert code == 0 and "no es ejecutable" in out, f"ejecutable es aviso, no error\n{out}"
+         open(os.path.join(tmp, "hooks", "hooks.json"), "w").write("{ esto no es json")
+         code, out = run(tmp)
+         assert code == 1 and "hooks.json" in out and "JSON" in out, out
+-- 
+2.43.0
+

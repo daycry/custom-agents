@@ -5,7 +5,7 @@
 | | |
 |---|---|
 | **Fecha** | 2026-08-10 |
-| **Estado** | borrador |
+| **Estado** | completado |
 | **Tipo** | Nueva Funcionalidad |
 | **Prioridad** | Media |
 | **Solicitante** | daycry |

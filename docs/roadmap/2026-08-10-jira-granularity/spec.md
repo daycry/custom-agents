@@ -1,9 +1,9 @@
 ---
 spec: jira-granularity
 descripcion: Añadir a jira-sync la opción de volcar el plan con granularidad por FASE (un issue por fase con sus tareas como checklist) además del modo por TAREA actual, con comentarios/worklog/Done coherentes con cada modo, y publicar en Jira el resultado del agente revisor (comentario por criterio + worklog de revisión) en ambos modos
-estado: aprobada          # borrador | aprobada | implementada | obsoleta
+estado: implementada          # borrador | aprobada | implementada | obsoleta
 creado: 2026-08-10
-actualizado: 2026-08-10
+actualizado: 2026-09-02
 evaluacion: evaluation.md
 plan: improvement-plan.md
 ---

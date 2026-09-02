@@ -18,7 +18,7 @@
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2.svg)](docs/INSTALL.md)
 [![SDD](https://img.shields.io/badge/metodolog%C3%ADa-Spec--Driven-2ea44f.svg)](docs/FLOWS.md)
 [![Agentes](https://img.shields.io/badge/agentes-8-0ea5e9.svg)](docs/README.md)
-[![Skills](https://img.shields.io/badge/skills-11-0ea5e9.svg)](docs/README.md)
+[![Skills](https://img.shields.io/badge/skills-12-0ea5e9.svg)](docs/README.md)
 [![Comandos](https://img.shields.io/badge/comandos-11-0ea5e9.svg)](docs/README.md)
 
 De la idea al código probado y documentado: `requisitos → presupuesto → plan → implementación → revisión adversarial → E2E → docs`, con **puertas de control** en cada paso, **coste real medido en tokens** y aprendizaje que calibra las siguientes estimaciones. Ocho agentes, once comandos, autosuficiente (sin dependencias de otros plugins).
@@ -60,6 +60,8 @@ Casi todo el utillaje alrededor de los agentes de código responde a *cómo* esc
 | **Disciplina de ingeniería, opt-in** | `.claude/dev.json`: TDD estricto con evidencia del rojo, worktrees aislados y subagentes de contexto fresco con personas de dominio |
 | **Depuración a causa raíz** | Al tercer intento fallido de qa, `debug-root-cause` diagnostica con evidencia en 4 fases antes de preguntarte — nada de parches a ciegas |
 | **Puertas deterministas** | Los veredictos salen de scripts con exit codes y tests propios (`qa-gate`, `ledger-lint`, `coverage-check`), nunca de la prosa del agente |
+| **Guardrails deterministas del implementer** | Un hook `PreToolUse` con alcance del agente (nunca global) deniega, con razón, escribir en `docs/roadmap/` fuera de `tasks.md`, editar en `main`/`master` y el git destructivo (`push --force`, `branch -D`, `rm -rf /`); `scope-check.py` condiciona la revisión a «ficheros cambiados ⊆ `Archivos` del ledger». Ambos son scripts con tests, desactivables por regla en `.claude/dev.json` |
+| **Progreso en vivo mientras corren las tareas** | Hooks no bloqueantes leen el ledger canónico y muestran una línea de progreso por edición (`📋 slug · T-04/12 (33%) · en curso T-05`), el estado de las iniciativas activas al terminar un subagente y reinyectan el contexto de retoma al arrancar/retomar/compactar; una **statusline opt-in** añade modelo · coste de sesión · contexto · progreso del roadmap |
 
 > Autosuficiente: sin dependencias de otros plugins. Si ya usas un motor SDD externo, `/dev-cycle` puede delegarle la ejecución manteniendo `tasks.md` como ledger canónico; y [convive](docs/observability.md) con monitores de sesión en vivo.
 
@@ -67,7 +69,7 @@ Casi todo el utillaje alrededor de los agentes de código responde a *cómo* esc
 
 **💶 Cada iniciativa nace presupuestada y muere medida.** El `evaluator` presupuesta (horas, €, tokens) ANTES de construir y una puerta go/no-go decide. Durante el ciclo, `usage-meter` mide los **tokens reales** consumidos por cada artefacto y cada tarea (frontmatter `generacion:`, horas-IA imputables a Jira). `/roadmap-metrics` enseña estimado vs real, y `/retro` convierte cada cierre en **calibración** para estimar mejor la siguiente.
 
-**🔍 La calidad no es opinión: son puertas.** Revisión adversarial de **dos lentes en paralelo** con contexto fresco (conformidad con la spec + robustez del código), veredicto de qa por **script con exit code** (`qa-gate.py`), cobertura criterios↔tests verificada (`coverage-check.py`, con criterios `[GWT]` Given/When/Then traducibles 1:1 a E2E), ledger validado (`ledger-lint.py`) y bucles de corrección **acotados** (máx. 3 intentos — y al tercero, la skill `debug-root-cause` diagnostica la causa raíz con evidencia antes de preguntarte).
+**🔍 La calidad no es opinión: son puertas.** Revisión adversarial (skill `adversarial-review`, reutilizable a demanda) de **dos lentes en paralelo** con contexto fresco (conformidad con la spec + robustez del código) más una **lente de seguridad condicional** cuando el diff toca rutas o líneas sensibles (`review-lens-select.py`), veredicto de qa por **script con exit code** (`qa-gate.py`), cobertura criterios↔tests verificada (`coverage-check.py`, con criterios `[GWT]` Given/When/Then traducibles 1:1 a E2E), ledger validado (`ledger-lint.py`) y bucles de corrección **acotados** (máx. 3 intentos — y al tercero, la skill `debug-root-cause` diagnostica la causa raíz con evidencia antes de preguntarte).
 
 **⚖️ Disciplina de ingeniería opt-in (`.claude/dev.json`, defaults off).** Actívala por proyecto: **TDD** RED-GREEN-REFACTOR con evidencia del rojo en el ledger, **worktrees** de git aislados por iniciativa, y **subagentes de contexto fresco** — cada tarea la implementa un subagente con un brief determinista (`task-brief.py`) que solo contiene su tarea, sus criterios y la constitución: sin arrastrar el ruido de las tareas anteriores.
 
@@ -121,7 +123,7 @@ flowchart LR
 
 | Comando | Qué hace |
 |---------|----------|
-| `/setup` | Onboarding en una pasada: `rates.json`, Jira, Confluence, constitución, `dev.json`. |
+| `/setup` | Onboarding en una pasada: `rates.json`, Jira, Confluence, constitución, `dev.json` (disciplina, statusline, lente de seguridad de la revisión: `auto`/`siempre`/`nunca`). |
 | `/pm-cycle` | Rol producto: spec → evaluación → puerta go/no-go. |
 | `/dev-cycle` | Ciclo de desarrollo completo (o vía rápida), con todas las puertas. |
 | `/pm-backlog` | Prioriza la cartera de iniciativas evaluadas. |
@@ -133,7 +135,7 @@ flowchart LR
 | `/retro` | Cierra el bucle: desviaciones + causas → `CALIBRATION.md`. |
 | `/confluence-pull` | Confluence → `docs/` local (PM sin git). |
 
-Skills compartidas: `jira-sync` · `confluence-publish` / `confluence-pull` · `roadmap-dashboard` · `discovery` · `debug-root-cause` · `cybersecurity` · `to-pdf` · `rates-verify` · `plugin-dev` · `quick-implement`. Scripts deterministas (todos con tests): `usage-meter` · `task-brief` · `worklog` · `qa-gate` · `ledger-lint` · `coverage-check` · `build_dashboard` · `lint_plugin`.
+Skills compartidas: `jira-sync` · `confluence-publish` / `confluence-pull` · `roadmap-dashboard` · `discovery` · `debug-root-cause` · `adversarial-review` · `cybersecurity` · `to-pdf` · `rates-verify` · `plugin-dev` · `quick-implement`. Scripts deterministas (todos con tests): `usage-meter` · `task-brief` · `worklog` · `qa-gate` · `ledger-lint` · `coverage-check` · `build_dashboard` · `lint_plugin`.
 
 </details>
 

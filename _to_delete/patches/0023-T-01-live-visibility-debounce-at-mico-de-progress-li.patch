@@ -1,0 +1,178 @@
+From 8739834a30b1458a00a8b5b343ce6d81115d1b3b Mon Sep 17 00:00:00 2001
+From: daycry <7590335+daycry@users.noreply.github.com>
+Date: Wed, 2 Sep 2026 14:22:37 +0000
+Subject: [PATCH 23/32] =?UTF-8?q?T-01:=20live-visibility=20=E2=80=94=20deb?=
+ =?UTF-8?q?ounce=20at=C3=B3mico=20de=20progress-line.sh=20(flock=20+=20mkt?=
+ =?UTF-8?q?emp/mv=20-f;=20sin=20flock=20solo=20rename,=20honesto),=20t?=
+ =?UTF-8?q?=C3=ADtulo=20de=20tarea=20sin=20negrita=20interior=20en=20ledge?=
+ =?UTF-8?q?r-lint=20(+1=20test;=20salida=20id=C3=A9ntica=20en=2018=20ledge?=
+ =?UTF-8?q?rs),=20hooks.json=20a=20100644;=20deudas=20marcadas=20como=20sa?=
+ =?UTF-8?q?ldadas=20en=20el=20ledger=20de=20origen?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VA3zi8RqekY9weD2S1RyWL
+
+Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VA3zi8RqekY9weD2S1RyWL
+
+---
+ .gitignore                                    |  4 +-
+ agent-kits/shared/ledger-lint.py              |  5 ++-
+ agent-kits/shared/test_progress_report.py     | 16 ++++++++
+ .../2026-09-02-live-visibility/tasks.md       |  4 +-
+ hooks/hooks.json                              |  0
+ hooks/progress-line.sh                        | 40 +++++++++++++++----
+ 6 files changed, 58 insertions(+), 11 deletions(-)
+ mode change 100755 => 100644 hooks/hooks.json
+
+diff --git a/.gitignore b/.gitignore
+index 628c4c5..2b44026 100755
+--- a/.gitignore
++++ b/.gitignore
+@@ -47,8 +47,10 @@ desktop.ini
+ .claude/usage-state.json
+ .claude/jira-state.json
+ .claude/confluence-state.json
+-# Debounce del hook de progreso (última línea emitida; live-visibility).
++# Debounce del hook de progreso (última línea emitida + cerrojo flock; live-visibility, debt-cleanup).
+ .claude/.progress-last
++.claude/.progress-last.lock
++.claude/.progress-last.*
+ # Marcas del hook de guardia del implementer (aviso único sin python3 / guardrails off).
+ .claude/.guardrail-nopython
+ .claude/.guardrail-off
+diff --git a/agent-kits/shared/ledger-lint.py b/agent-kits/shared/ledger-lint.py
+index c2ef028..99ee5af 100755
+--- a/agent-kits/shared/ledger-lint.py
++++ b/agent-kits/shared/ledger-lint.py
+@@ -99,7 +99,10 @@ def parse_ledger(text):
+         m = task_re.match(ln)
+         if m:
+             close_task()
+-            cur_task = {"id": m.group(1), "titulo": m.group(2).strip().strip("*").strip(),
++            # Título sin énfasis: `**Bold** resto` → `Bold resto` (la negrita interior salía con
++            # los `**` en la línea de progreso — deuda de live-visibility, saldada en debt-cleanup)
++            titulo = re.sub(r"\*\*(.+?)\*\*", r"\1", m.group(2)).strip().strip("*").strip()
++            cur_task = {"id": m.group(1), "titulo": titulo,
+                         "estado": None, "unchecked": 0, "checked": 0,
+                         "tiene_criterios": False, "ia_real_h": None, "ia_est_h": None,
+                         "ia_real_fuente": None}
+diff --git a/agent-kits/shared/test_progress_report.py b/agent-kits/shared/test_progress_report.py
+index 43a0b29..590e840 100644
+--- a/agent-kits/shared/test_progress_report.py
++++ b/agent-kits/shared/test_progress_report.py
+@@ -319,3 +319,19 @@ def test_fmt_horas():
+     assert pr.fmt_horas(1.2) == "1h 12m"
+     assert pr.fmt_horas(0.15) == "9m"
+     assert pr.fmt_horas(2.0) == "2h"
++
++
++def test_titulo_con_negrita_interior_sale_sin_asteriscos(tmp_path):
++    """Deuda de live-visibility (saldada en debt-cleanup T-01b): `### T-XX — **Bold** resto` se
++    mostraba con los `**` en la línea de progreso. Ahora el parser quita el énfasis interior."""
++    ledger = DOS_FASES.replace("### T-03 — tercera tarea", "### T-03 — **Bold** resto del título")
++    p = tmp_path / "docs" / "roadmap" / "2026-01-01-demo" / "tasks.md"
++    p.parent.mkdir(parents=True)
++    p.write_text(ledger, encoding="utf-8")
++    r = subprocess.run([sys.executable, str(SCRIPT), "line", str(p)], capture_output=True, text=True)
++    assert r.returncode == 0
++    assert "T-03 Bold resto del título" in r.stdout, r.stdout
++    assert "**" not in r.stdout
++    # también en el parser compartido (ledger-lint.parse_ledger), que es la fuente del título
++    data = pr.resumir(p)
++    assert data["en_curso"] == {"id": "T-03", "titulo": "Bold resto del título"}
+diff --git a/docs/roadmap/2026-09-02-live-visibility/tasks.md b/docs/roadmap/2026-09-02-live-visibility/tasks.md
+index 32bb86a..4526ed0 100644
+--- a/docs/roadmap/2026-09-02-live-visibility/tasks.md
++++ b/docs/roadmap/2026-09-02-live-visibility/tasks.md
+@@ -123,7 +123,7 @@ Cada gap se verificó reproduciéndolo antes de corregir (todos eran reales; nin
+ | 7 | Linter: bit ejecutable como ERROR daría 5 falsos positivos con `core.fileMode=false` | T-04 | `lint_hooks()` devuelve `(errores, avisos)`; fichero inexistente = error, no ejecutable = aviso | `test_lint_plugin` caso 11 ajustado → `11/11 OK` |
+ | 8 | Rutas Windows nativas (`C:\…\docs\roadmap\…\tasks.md`) no casaban con el `case` | T-02 | `p="${p//\\//}"` antes del `case` en `progress-line.sh`, `ledger-lint-warn.sh` y `mark-docs-pending.sh` | payload con `\\` → misma `systemMessage` |
+ 
+-**Aceptados como deuda (no corregidos):** debounce de `.progress-last` no atómico bajo concurrencia (solo ruido, nunca pérdida); título de tarea con negrita interna en `### T-XX` se muestra con los `**`; `hooks/hooks.json` con modo `100755` heredado del repo.
++**Aceptados como deuda (no corregidos):** debounce de `.progress-last` no atómico bajo concurrencia (solo ruido, nunca pérdida) — **saldada en 2026-09-02-debt-cleanup (T-01a)**; título de tarea con negrita interna en `### T-XX` se muestra con los `**` — **saldada en 2026-09-02-debt-cleanup (T-01b)**; `hooks/hooks.json` con modo `100755` heredado del repo — **saldada en 2026-09-02-debt-cleanup (T-01c)**.
+ 
+ Tras la corrección: `pytest -q tests agent-kits/shared` → **104 passed** (95 + 9 nuevos); 9 suites-script verdes; `lint_plugin` → 0 errores · 3 avisos; `bash -n` OK en 5 hooks + statusline. Nota: la línea de progreso de ESTA iniciativa ahora rotula `IA est. 12m` (sus horas están marcadas `(estimado)`, como manda el gap 5).
+ 
+@@ -131,4 +131,4 @@ Tras la corrección: `pytest -q tests agent-kits/shared` → **104 passed** (95
+ 
+ - **Doc oficial vs brief:** (1) `${CLAUDE_PLUGIN_ROOT}` NO está documentado para `statusLine.command` → ruta absoluta resuelta en `/setup` (caso por defecto del brief). (2) `SubagentStop` sí admite `hookSpecificOutput.additionalContext`, pero va al **subagente**, no al usuario → el hook usa `systemMessage` (al usuario), como pedía el brief. (3) El matcher de `SessionStart` omite `clear`/`fork` a propósito (el brief pedía `startup|resume|compact`).
+ - **Dato heredado (corregido por el orquestador, commit `7dae657`):** `docs/roadmap/2026-08-20-knowledge-split/tasks.md` estaba `en-progreso` pese a estar al 100 % → aparecía como «activa» en `active`/`session`/statusline. Puesto a `completado` (frontmatter + tabla); hoy `active` solo lista `live-visibility`.
+-- **CHANGELOG** no tocado (lo hace el orquestador). Tests de hooks: no hay suite de shell en el repo; la evidencia es la simulación manual de stdin anotada arriba (reproducible) + `bash -n` + linter de `hooks.json`.
++- **CHANGELOG** no tocado (lo hace el orquestador). Tests de hooks: no hay suite de shell en el repo; la evidencia es la simulación manual de stdin anotada arriba (reproducible) + `bash -n` + linter de `hooks.json` — **saldada en 2026-09-02-debt-cleanup (T-06: `tests/test_hooks_shell.py`; verificación en sesión real → lista manual en `docs/observability.md`, T-05)**.
+diff --git a/hooks/hooks.json b/hooks/hooks.json
+old mode 100755
+new mode 100644
+diff --git a/hooks/progress-line.sh b/hooks/progress-line.sh
+index 683b6f9..5eb4301 100755
+--- a/hooks/progress-line.sh
++++ b/hooks/progress-line.sh
+@@ -9,10 +9,15 @@
+ #   stdout → {"systemMessage": "<texto>"}   (campo universal de primer nivel; en
+ #            PostToolUse se muestra al usuario; el tool ya corrió, no hay bloqueo)
+ #
+-# Debounce trivial: la última línea emitida se guarda en
++# Debounce: la última línea emitida se guarda en
+ # ${CLAUDE_PROJECT_DIR:-$PWD}/.claude/.progress-last (estado local, en .gitignore);
+ # si la nueva línea es idéntica, no se emite nada (ediciones consecutivas sin cambio
+-# de estado no hacen ruido).
++# de estado no hacen ruido). La comparación+escritura es ATÓMICA (debt-cleanup T-01):
++# si hay `flock`, la sección crítica se serializa sobre `.progress-last.lock` (N
++# invocaciones concurrentes con la misma línea → exactamente UNA systemMessage); sin
++# `flock` (macOS sin coreutils) la escritura sigue siendo atómica (temporal en el mismo
++# directorio + `mv -f`, rename POSIX: nunca un fichero a medias), pero dos lectores
++# pueden ver el estado viejo a la vez → como mucho alguna línea duplicada, nunca perdida.
+ #
+ # Prueba manual:
+ #   echo '{"tool_input":{"file_path":"'"$PWD"'/docs/roadmap/<slug>/tasks.md"}}' | bash hooks/progress-line.sh
+@@ -43,6 +48,29 @@ fi
+ 
+ STATE_DIR="${CLAUDE_PROJECT_DIR:-$PWD}/.claude"
+ LAST="$STATE_DIR/.progress-last"
++mkdir -p "$STATE_DIR" 2>/dev/null || true
++
++# Cerrojo del debounce: con `flock`, sobre .progress-last.lock (fd 9; se libera al salir, la
++# sección crítica dura milisegundos); sin `flock`, solo la escritura atómica (degradación).
++cerrojo_debounce() {
++  command -v flock >/dev/null 2>&1 && [ -d "$STATE_DIR" ] || return 0
++  { exec 9>"$STATE_DIR/.progress-last.lock"; } 2>/dev/null && flock -w 5 9 2>/dev/null || true
++}
++
++# ¿Es la misma línea que la última emitida? (1 = repetida → silencio). Si no, la guarda de
++# forma ATÓMICA: temporal en el MISMO directorio + `mv -f` (rename), nunca un fichero a medias.
++debounce_repetida() {
++  local line="$1" tmp
++  if [ -f "$LAST" ] && [ "$(cat "$LAST" 2>/dev/null)" = "$line" ]; then
++    return 0
++  fi
++  tmp="$(mktemp "$STATE_DIR/.progress-last.XXXXXX" 2>/dev/null)" || return 1
++  if printf '%s' "$line" > "$tmp" 2>/dev/null && mv -f "$tmp" "$LAST" 2>/dev/null; then
++    return 1
++  fi
++  rm -f "$tmp" 2>/dev/null
++  return 1
++}
+ 
+ while IFS= read -r p; do
+   [ -n "$p" ] || continue
+@@ -52,11 +80,9 @@ while IFS= read -r p; do
+       [ -f "$p" ] || continue
+       line="$(python3 "$REPORT" line "$p" 2>/dev/null || true)"
+       [ -n "$line" ] || continue
+-      # Debounce: misma línea que la última vez → silencio.
+-      if [ -f "$LAST" ] && [ "$(cat "$LAST" 2>/dev/null)" = "$line" ]; then
+-        continue
+-      fi
+-      { mkdir -p "$STATE_DIR" && printf '%s' "$line" > "$LAST"; } 2>/dev/null || true
++      # Debounce (bajo cerrojo): misma línea que la última vez → silencio.
++      cerrojo_debounce
++      debounce_repetida "$line" && continue
+       # JSON seguro (escapa comillas, backslashes, unicode) vía python3.
+       printf '%s' "$line" | python3 -c 'import json,sys; print(json.dumps({"systemMessage": sys.stdin.read()}, ensure_ascii=False))' 2>/dev/null || true
+       break   # una sola línea por invocación (el JSON de stdout debe ser un único objeto)
+-- 
+2.43.0
+

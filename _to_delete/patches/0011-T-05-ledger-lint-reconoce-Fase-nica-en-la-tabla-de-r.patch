@@ -1,0 +1,121 @@
+From 491f0b8caa0fdac6d4c691d22e5fd4cddc0be3c4 Mon Sep 17 00:00:00 2001
+From: daycry <7590335+daycry@users.noreply.github.com>
+Date: Wed, 2 Sep 2026 10:32:25 +0000
+Subject: [PATCH 11/32] =?UTF-8?q?T-05:=20ledger-lint=20reconoce=20=C2=ABFa?=
+ =?UTF-8?q?se=20=C3=BAnica=C2=BB=20en=20la=20tabla=20de=20resumen=20(adi?=
+ =?UTF-8?q?=C3=B3s=20al=20aviso=20legacy=20falso=20en=20los=20ledgers=20de?=
+ =?UTF-8?q?=20v=C3=ADa=20r=C3=A1pida)=20+=20test=2011?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VA3zi8RqekY9weD2S1RyWL
+
+Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VA3zi8RqekY9weD2S1RyWL
+
+---
+ agent-kits/shared/ledger-lint.py               | 10 ++++++----
+ .../tasks.md                                   | 18 +++++++++---------
+ tests/test_ledger_lint.py                      | 13 ++++++++++++-
+ 3 files changed, 27 insertions(+), 14 deletions(-)
+
+diff --git a/agent-kits/shared/ledger-lint.py b/agent-kits/shared/ledger-lint.py
+index a019c44..c2ef028 100755
+--- a/agent-kits/shared/ledger-lint.py
++++ b/agent-kits/shared/ledger-lint.py
+@@ -196,7 +196,8 @@ def lint(path):
+ 
+     # ---- tabla de resumen (completadas/total por fase) ----
+     resumen_rows = re.findall(
+-        r"^\|\s*\*{0,2}\s*(Fase\s+\d+[^|*]*)\*{0,2}\s*\|\s*\*{0,2}(\d+)\*{0,2}\*?\s*\|\s*\*{0,2}(\d+)\*{0,2}\s*\|", text, re.M)
++        r"^\|\s*\*{0,2}\s*(Fase\s+(?:\d+|única|unica)\b[^|*]*)\*{0,2}\s*\|\s*\*{0,2}(\d+)\*{0,2}\*?\s*\|\s*\*{0,2}(\d+)\*{0,2}\s*\|",
++        text, re.M | re.I)
+     if not resumen_rows:
+         warnings.append("sin tabla «Resumen de progreso» reconocible (legacy)")
+     else:
+@@ -219,9 +220,10 @@ def lint(path):
+ 
+ 
+ def norm_fase(s):
+-    # captura sufijos ("Fase 3-bis") para que no colisionen con "Fase 3"
+-    m = re.match(r"\s*Fase\s+(\d+(?:[.-]\w+)*)", s)
+-    return f"fase-{m.group(1).lower()}" if m else s.strip().lower()
++    # captura sufijos ("Fase 3-bis") para que no colisionen con "Fase 3"; «Fase única» (vía
++    # rápida: una sola fase sin número) también es una clave válida
++    m = re.match(r"\s*Fase\s+(\d+(?:[.-]\w+)*|única|unica)\b", s, re.I)
++    return f"fase-{m.group(1).lower().replace('ú', 'u')}" if m else s.strip().lower()
+ 
+ 
+ def main():
+diff --git a/docs/roadmap/2026-09-02-deterministic-guardrails/tasks.md b/docs/roadmap/2026-09-02-deterministic-guardrails/tasks.md
+index 9d9d323..ecb036d 100644
+--- a/docs/roadmap/2026-09-02-deterministic-guardrails/tasks.md
++++ b/docs/roadmap/2026-09-02-deterministic-guardrails/tasks.md
+@@ -32,8 +32,8 @@ generacion:
+ 
+ | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervisión (real/est) | Tokens (real/est) |
+ |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
+-| Fase única — guardrails deterministas | 3 | 5 | 60% | 2,9 / 5,0h | 0,16 / 0,25h | 0,05 / 0,06h | 60k / 110k |
+-| **TOTAL** | **3** | **5** | **60%** | **2,9 / 5,0h** | **0,16 / 0,25h** | **0,05 / 0,06h** | **60k / 110k** |
++| Fase única — guardrails deterministas | 4 | 5 | 80% | 3,2 / 5,0h | 0,18 / 0,25h | 0,05 / 0,06h | 66k / 110k |
++| **TOTAL** | **4** | **5** | **80%** | **3,2 / 5,0h** | **0,18 / 0,25h** | **0,05 / 0,06h** | **66k / 110k** |
+ 
+ ---
+ 
+@@ -87,7 +87,7 @@ generacion:
+ ### T-04 — Linter + documentación + ADR
+ 
+ - **Descripción**: `scripts/lint_plugin.py` acepta `hooks`/`skills` en agentes; cada skill de `skills:` existe en `skills/` y está en `dependencies.skills`; los `command` de `hooks:` del frontmatter referencian ficheros existentes (reutiliza `lint_hooks`). Tests. Docs: `docs/CONVENTIONS.md` + EN (dos clases de hooks: informativos globales vs de guardia por agente; deny global prohibido; `skills:` nativo ⊆ `dependencies.skills`), `skills/plugin-dev/SKILL.md` (Paso 0 + Paso 2), `docs/FLOWS.md` + EN (scope-check antes de la revisión), `docs/agents/implementer.md` (guardrails), `commands/setup.md` paso 5 (`guardrails`, default activado), `agent-kits/shared/README.md` (+2 scripts), `CLAUDE.md`, `README.md`/`README.es.md`. ADR «deny solo con alcance de agente, nunca global» (`estado: propuesta`) + fila en `docs/knowledge/README.md`. NO se toca `CHANGELOG*.md`.
+-- **Estado**: borrador
++- **Estado**: en-progreso
+ - **Tiempo humano**: est. 1,0h · real —
+ - **Tiempo IA (ejec.)**: est. 0,04h · real —
+ - **Supervisión**: est. 0,01h · real —
+@@ -102,12 +102,12 @@ generacion:
+ ### T-05 — Housekeeping: «Fase única» en la tabla de resumen de `ledger-lint.py`
+ 
+ - **Descripción**: la tabla de resumen solo reconocía filas `Fase\s+\d+`; «Fase única — …» disparaba el aviso falso «sin tabla Resumen de progreso (legacy)». Admite `Fase\s+(\d+|única)` (y `norm_fase` la casa con la sección `## Fase única — …`); test; comprobación sobre los 16 ledgers de que la única diferencia frente a `git show 4e94deb:agent-kits/shared/ledger-lint.py` es la desaparición de ese aviso.
+-- **Estado**: en-progreso
+-- **Tiempo humano**: est. 0,5h · real —
+-- **Tiempo IA (ejec.)**: est. 0,02h · real —
+-- **Supervisión**: est. 0,00h · real —
++- **Estado**: completado
++- **Tiempo humano**: est. 0,5h · real 0,3h (estimado)
++- **Tiempo IA (ejec.)**: est. 0,02h · real 0,02h (estimado)
++- **Supervisión**: est. 0,00h · real 0,00h (estimado)
+ - **Archivos**: `agent-kits/shared/ledger-lint.py`, `tests/test_ledger_lint.py`
+ 
+ **Criterios de aceptación**
+-- [ ] `tests/test_ledger_lint.py` con caso «Fase única» (antes: aviso legacy; después: 0 avisos, y descuadre en esa fila → error).
+-- [ ] Diff de salida sobre los 16 ledgers frente a `4e94deb`: solo desaparece el aviso legacy en los ledgers con «Fase única» (lista de cuáles).
++- [x] `tests/test_ledger_lint.py` caso 11: ledger con «Fase única — Todo» → exit 0 sin el aviso «Resumen de progreso»; misma fila descuadrada (2/3 vs 3 tareas) → exit 1 `descuadrado`. `test_ledger_lint: 11/11 OK`. Cambio: regex de filas `Fase\s+(?:\d+|única|unica)\b` (case-insensitive) y `norm_fase` → clave `fase-unica`.
++- [x] Salida completa de `ledger-lint.py` sobre los 17 ledgers de `docs/roadmap/*/tasks.md` (16 previos + este) frente a `git show 4e94deb:agent-kits/shared/ledger-lint.py`: `diff` muestra ÚNICAMENTE la desaparición de la línea `⚠️ sin tabla «Resumen de progreso» reconocible (legacy)` (y el contador `1 avisos` → `0 avisos`) en los 3 ledgers con «Fase única»: `2026-08-20-knowledge-split`, `2026-09-02-live-visibility` y `2026-09-02-deterministic-guardrails`. Los otros 14 son idénticos; exit codes idénticos en los 17.
+diff --git a/tests/test_ledger_lint.py b/tests/test_ledger_lint.py
+index 60da85d..8ca7c74 100755
+--- a/tests/test_ledger_lint.py
++++ b/tests/test_ledger_lint.py
+@@ -136,7 +136,18 @@ def main():
+     code, out = run(multi)
+     assert code == 0 and "descuadrado" not in out, f"colisión Fase 3.2 / 3.2.1: {out}"
+ 
+-    print("test_ledger_lint: 10/10 OK")
++    # 11) «Fase única — …» (vía rápida) se reconoce en el resumen: sin aviso legacy, y su descuadre
++    #     es ERROR (antes la fila no casaba con `Fase\s+\d+` y disparaba el aviso falso)
++    unica = bis.replace("Fase 3 — Nucleo | 2 | 2", "Fase única — Todo | 3 | 3") \
++               .replace("| Fase 3-bis — Extra | 1 | 1 | 100% |\n", "") \
++               .replace("## Fase 3 — Nucleo", "## Fase única — Todo") \
++               .replace("## Fase 3-bis — Extra\n", "")
++    code, out = run(unica)
++    assert code == 0 and "Resumen de progreso" not in out, f"aviso legacy falso con Fase única: {out}"
++    code, out = run(unica.replace("Fase única — Todo | 3 | 3", "Fase única — Todo | 2 | 3"))
++    assert code == 1 and "descuadrado" in out, f"descuadre en Fase única debe ser error: {out}"
++
++    print("test_ledger_lint: 11/11 OK")
+ 
+ 
+ if __name__ == "__main__":
+-- 
+2.43.0
+

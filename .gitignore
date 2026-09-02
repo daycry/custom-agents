@@ -47,3 +47,10 @@ desktop.ini
 .claude/usage-state.json
 .claude/jira-state.json
 .claude/confluence-state.json
+# Debounce del hook de progreso (última línea emitida + cerrojo flock; live-visibility, debt-cleanup).
+.claude/.progress-last
+.claude/.progress-last.lock
+.claude/.progress-last.*
+# Marcas del hook de guardia del implementer (aviso único sin python3 / guardrails off).
+.claude/.guardrail-nopython
+.claude/.guardrail-off

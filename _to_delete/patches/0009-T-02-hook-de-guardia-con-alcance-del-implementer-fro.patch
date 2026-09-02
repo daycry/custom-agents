@@ -1,0 +1,177 @@
+From efa5162b94a92e733dca7281acc5229c1ed9dd7e Mon Sep 17 00:00:00 2001
+From: daycry <7590335+daycry@users.noreply.github.com>
+Date: Wed, 2 Sep 2026 10:27:50 +0000
+Subject: [PATCH 09/32] =?UTF-8?q?T-02:=20hook=20de=20guardia=20con=20alcan?=
+ =?UTF-8?q?ce=20del=20implementer=20=E2=80=94=20frontmatter=20hooks:=20(Pr?=
+ =?UTF-8?q?eToolUse)=20+=20skills:=20precargadas,=20wrapper=20hooks/implem?=
+ =?UTF-8?q?enter-guardrail.sh=20(sin=20python3=20=E2=86=92=20aviso=20?=
+ =?UTF-8?q?=C3=BAnico,=20exit=200),=20=C2=A70/=C2=A73=20remiten=20al=20hoo?=
+ =?UTF-8?q?k=20(token-diet)?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VA3zi8RqekY9weD2S1RyWL
+
+Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VA3zi8RqekY9weD2S1RyWL
+
+---
+ .gitignore                                    |  3 ++
+ agents/implementer.md                         | 22 +++++++++--
+ .../tasks.md                                  | 20 +++++-----
+ hooks/implementer-guardrail.sh                | 37 +++++++++++++++++++
+ 4 files changed, 68 insertions(+), 14 deletions(-)
+ create mode 100755 hooks/implementer-guardrail.sh
+
+diff --git a/.gitignore b/.gitignore
+index e521bf1..628c4c5 100755
+--- a/.gitignore
++++ b/.gitignore
+@@ -49,3 +49,6 @@ desktop.ini
+ .claude/confluence-state.json
+ # Debounce del hook de progreso (última línea emitida; live-visibility).
+ .claude/.progress-last
++# Marcas del hook de guardia del implementer (aviso único sin python3 / guardrails off).
++.claude/.guardrail-nopython
++.claude/.guardrail-off
+diff --git a/agents/implementer.md b/agents/implementer.md
+index 876469f..608192e 100755
+--- a/agents/implementer.md
++++ b/agents/implementer.md
+@@ -4,6 +4,21 @@ description: Implementa un plan aprobado ejecutándolo fase a fase. Lee el `impr
+ model: sonnet
+ # tools: Write/Edit sobre el CÓDIGO del proyecto (único agente que lo hace) + tasks.md como ledger. Sobre rama.
+ tools: Read, Grep, Glob, Bash, Write, Edit
++# Skills PRECARGADAS (campo nativo de Claude Code: inyecta su contenido al arrancar). Debe ser
++# subconjunto de dependencies.skills (lo comprueba scripts/lint_plugin.py).
++skills:
++  - jira-sync
++  - confluence-publish
++# Hook DE GUARDIA con alcance SOLO de este agente (nunca en hooks/hooks.json: planner/evaluator/
++# analyst escriben en docs/roadmap/ legítimamente — ADR-007). Decide guardrail-check.py
++# (determinista, con tests); sin python3 no bloquea; desactivable en .claude/dev.json `guardrails`.
++# ${CLAUDE_PLUGIN_ROOT} es variable de entorno del proceso del hook; si no está, fallback `find`.
++hooks:
++  PreToolUse:
++    - matcher: "Write|Edit|MultiEdit|NotebookEdit|Bash"
++      hooks:
++        - type: command
++          command: 'f="${CLAUDE_PLUGIN_ROOT}/hooks/implementer-guardrail.sh"; [ -f "$f" ] || f="$(find "${CLAUDE_PROJECT_DIR:-$PWD}/.claude" "${HOME:-}/.claude" -type f -path "*hooks/implementer-guardrail.sh" 2>/dev/null | head -1)"; [ -f "$f" ] && exec bash "$f"; exit 0'
+ # Dependencias declaradas (convención del repo; ver docs/CONVENTIONS.md).
+ dependencies:
+   skills:                    # reflejar el progreso en Jira (opcional, opt-in)
+@@ -30,8 +45,8 @@ Formas parte de la cadena: `evaluator` → `planner` → **`implementer`** → `
+ ## 0) ENTRADA / SALIDA / GUARDRAILS — INVARIANTE
+ - **Entrada:** una iniciativa en `docs/roadmap/<fecha>-<slug>/` con `improvement-plan.md` y `tasks.md` (y `test-plan.md` si hay UI). Si falta el plan, avisa: hay que generarlo con `planner` antes.
+ - **Salida:** cambios en el **código del proyecto** + `tasks.md` actualizado por tarea. No escribes documentación de referencia (eso es de `documenter`) ni informes de test (de `qa`).
+-- **Rama:** trabaja sobre una **rama de trabajo** (no en la principal). Si no existe uno, propón `feature/<slug>` y créala antes de tocar código. No fuerces push salvo que el usuario lo pida.
+-- **Guardrails:** respeta los invariantes del repo (p. ej. el guardrail local-only de `nemesis`, las reglas de `CLAUDE.md`/`CONVENTIONS.md` del proyecto). No los puentees.
++- **Rama:** trabaja sobre una **rama de trabajo** (no en la principal). Si no existe una, propón `feature/<slug>` y créala antes de tocar código. No fuerces push salvo que el usuario lo pida.
++- **Guardrails impuestos por hook (`agent-kits/shared/guardrail-check.py`, PreToolUse solo de este agente):** en `docs/roadmap/` solo `tasks.md` (ni `testing/`, ni `docs/security-scan/`); Write/Edit fuera del ledger con HEAD en `main`/`master` → bloqueado; `git push --force`, `git branch -D`, salir de la rama de trabajo a `main` y `rm -rf` de `/`, `~`, `.git` → bloqueados. **Un DENY no es un error:** lee la razón y cambia de fichero/rama (o anota la duda en `tasks.md`); no busques rodeos. Se desactivan por regla en `.claude/dev.json` (`"guardrails": {"alcance","ramaPrincipal","git"}` o `false`); sin `python3` el hook avisa y no bloquea. Además respeta los invariantes en prosa del repo (guardrail local-only de `nemesis`, `CLAUDE.md`/`CONVENTIONS.md`).
+ 
+ ---
+ 
+@@ -81,8 +96,7 @@ El **único** registro de progreso válido es `tasks.md` del plan. Por cada tare
+ - **Memoria técnica del proyecto — escritura (siempre activa, D3).** Si resolver una ambigüedad del plan (regla anterior) **cruza el umbral** de `"$SHAREDKIT/knowledge-write.md"` (cierra una alternativa y afecta a 2+ piezas, o se tomó en una puerta) — no solo un default local de una tarea —, escribe un ADR `estado: propuesta` en `docs/knowledge/adr/` con `"$SHAREDKIT/templates/adr.md"` y actualiza `docs/knowledge/README.md` en el mismo cambio, en vez de dejarlo solo como nota en `tasks.md`. Un default que NO cruza el umbral sigue siendo solo una nota local en `tasks.md`, como hoy — no infles memoria transversal con decisiones de una sola tarea. Fallback si el fragmento no está: no bloquea; sigue anotando solo en `tasks.md`.
+ - **Memoria técnica del proyecto — lectura (siempre activa, D3).** Antes de tocar código (P1), aplica el paso compartido `"$SHAREDKIT/knowledge-check.md"`: si existe `docs/knowledge/`, lee su `README.md` y abre las entradas de `adr/` + `gotchas/` que apliquen (decisiones que restringen la implementación y trampas ya comprobadas). Si no existe, continúa sin ella. Fallback si el fragmento no está: sigue sin este paso, no bloquea.
+ - **`tasks.md` siempre al día**, por tarea. Es la fuente única de progreso.
+-- **Rama de trabajo**, nunca la principal. Sin push forzado salvo petición.
+-- **Respeta guardrails y convenciones** del repo. No toques `docs/roadmap/` salvo `tasks.md` (progreso); no toques `docs/security-scan/`.
++- **Rama de trabajo, alcance de `docs/roadmap/` (solo `tasks.md`) y git no destructivo** los impone el hook de §0; aquí solo se recuerda que un DENY se resuelve cambiando de fichero/rama, nunca desactivando el guardrail por tu cuenta. Respeta el resto de convenciones del repo.
+ - **Honesto con el estado:** no marques completado con tests fallando, implementación parcial o criterios sin cumplir.
+ - **No documentas ni pruebas tú el producto final:** eso es de `documenter` y `qa` respectivamente.
+ 
+diff --git a/docs/roadmap/2026-09-02-deterministic-guardrails/tasks.md b/docs/roadmap/2026-09-02-deterministic-guardrails/tasks.md
+index e279f7d..e3f7397 100644
+--- a/docs/roadmap/2026-09-02-deterministic-guardrails/tasks.md
++++ b/docs/roadmap/2026-09-02-deterministic-guardrails/tasks.md
+@@ -32,8 +32,8 @@ generacion:
+ 
+ | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervisión (real/est) | Tokens (real/est) |
+ |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
+-| Fase única — guardrails deterministas | 1 | 5 | 20% | 1,2 / 5,0h | 0,07 / 0,25h | 0,02 / 0,06h | 22k / 110k |
+-| **TOTAL** | **1** | **5** | **20%** | **1,2 / 5,0h** | **0,07 / 0,25h** | **0,02 / 0,06h** | **22k / 110k** |
++| Fase única — guardrails deterministas | 2 | 5 | 40% | 1,8 / 5,0h | 0,10 / 0,25h | 0,03 / 0,06h | 36k / 110k |
++| **TOTAL** | **2** | **5** | **40%** | **1,8 / 5,0h** | **0,10 / 0,25h** | **0,03 / 0,06h** | **36k / 110k** |
+ 
+ ---
+ 
+@@ -58,22 +58,22 @@ generacion:
+ ### T-02 — Cableado en `agents/implementer.md` + wrapper `hooks/implementer-guardrail.sh`
+ 
+ - **Descripción**: frontmatter `hooks:` (PreToolUse, matcher `Write|Edit|MultiEdit|NotebookEdit|Bash`) → wrapper `hooks/implementer-guardrail.sh` con la misma resolución de rutas que los otros hooks (`CLAUDE_PLUGIN_ROOT` → `find`); sin `python3` → exit 0 + `systemMessage` una vez por sesión (marca `${CLAUDE_PROJECT_DIR:-$PWD}/.claude/.guardrail-nopython`). Frontmatter `skills:` con `jira-sync` y `confluence-publish` (precarga nativa confirmada por la doc); `dependencies:` se mantiene (grafo del linter). Cuerpo §0 y §3: las reglas de alcance/rama/git están impuestas por hook; cómo desactivarlas; un DENY no es un error. Token-diet: sustituye prosa, no la duplica. `isolation: worktree` NO se usa (ver nota de contratos).
+-- **Estado**: en-progreso
+-- **Tiempo humano**: est. 0,7h · real —
+-- **Tiempo IA (ejec.)**: est. 0,04h · real —
+-- **Supervisión**: est. 0,01h · real —
++- **Estado**: completado
++- **Tiempo humano**: est. 0,7h · real 0,6h (estimado)
++- **Tiempo IA (ejec.)**: est. 0,04h · real 0,03h (estimado)
++- **Supervisión**: est. 0,01h · real 0,01h (estimado)
+ - **Dependencias**: T-01
+ - **Archivos**: `agents/implementer.md`, `hooks/implementer-guardrail.sh` (nuevo), `.gitignore`
+ 
+ **Criterios de aceptación**
+-- [ ] `bash -n hooks/implementer-guardrail.sh` OK; el wrapper con `PATH=/nonexistent` → `{"systemMessage": …}` la 1.ª vez, silencio la 2.ª, exit 0 ambas.
+-- [ ] Simulación de los 4 casos del T-01 a través del wrapper (salida real, exit 0).
+-- [ ] `agents/implementer.md`: el cuerpo no crece (líneas ≤ las actuales ±3) y `lint_plugin.py` → 0 errores.
++- [x] `bash -n hooks/implementer-guardrail.sh` OK. Con un PATH sin `python3` (solo bash/cat/mkdir/find): 1.ª invocación → `{"systemMessage": "⚠️ guardrails del implementer sin efecto: no hay python3 en PATH (alcance docs/roadmap/, rama y git NO se comprueban en esta sesión)."}` exit 0; 2.ª → sin stdout, exit 0 (marca `.claude/.guardrail-nopython`, en `.gitignore` junto a `.guardrail-off`).
++- [x] Los 4 casos del T-01 a través del wrapper dan la misma salida (deny alcance · deny push · allow ledger · allow código), exit 0; también con `CLAUDE_PLUGIN_ROOT` y `HOME` sin definir (resuelve por `dirname $BASH_SOURCE`). La línea `command` del frontmatter, ejecutada con `sh -c` tal cual: con `CLAUDE_PLUGIN_ROOT` → deny; sin ella y con una copia en `$HOME/.claude/` → deny vía `find`; sin ninguna instalación → sin stdout, exit 0.
++- [x] `agents/implementer.md`: cuerpo 78 → 77 líneas (la prosa de rama/alcance de §0 y §3 se sustituye por la referencia al hook); frontmatter YAML válido (`yaml.safe_load`: `name, description, model, tools, skills, hooks, dependencies`); `lint_plugin.py` → 0 errores · 3 avisos (los previos). `isolation: worktree` nativo NO se usa: ramifica desde la rama por defecto (no desde `feature/<slug>`) y lo limpia Claude Code, lo que choca con el opt-in `worktree` de `dev.json` (worktree único por iniciativa que integra el ritual de la Fase 6).
+ 
+ ### T-03 — `scope-check.py` (pre-revisión) + tests + cableado
+ 
+ - **Descripción**: `agent-kits/shared/scope-check.py <carpeta-iniciativa> [--base <ref>] [--warn-only] [--json]`: ficheros cambiados (`git diff --name-only <base>...HEAD` + `git status --porcelain`); base = merge-base con `main`/`master` si existe, si no `--base` obligatorio con mensaje claro; lee los campos `Archivos` de TODAS las tareas (vía `parse_ledger` + regex de campo; globs, carpetas con `/`, «(nuevo)», listas por coma); clasifica en alcance / fuera / declarados sin tocar. El propio `tasks.md` y `docs/knowledge/**` siempre en alcance. Exit 0 sin fuera de alcance, 1 si hay (con `--warn-only` siempre 0). Cableado: `commands/dev-cycle.md` Fase 3 paso 2 (antes de las lentes; exit 1 → gap Important al implementer sin gastar revisores); DoD de `agents/implementer.md`; `skills/quick-implement/SKILL.md` si describe la revisión.
+-- **Estado**: borrador
++- **Estado**: en-progreso
+ - **Tiempo humano**: est. 1,3h · real —
+ - **Tiempo IA (ejec.)**: est. 0,07h · real —
+ - **Supervisión**: est. 0,02h · real —
+diff --git a/hooks/implementer-guardrail.sh b/hooks/implementer-guardrail.sh
+new file mode 100755
+index 0000000..2b11730
+--- /dev/null
++++ b/hooks/implementer-guardrail.sh
+@@ -0,0 +1,37 @@
++#!/usr/bin/env bash
++# Hook PreToolUse DE GUARDIA del agente `implementer` (Write|Edit|MultiEdit|NotebookEdit|Bash).
++# Registrado SOLO en el frontmatter `hooks:` de agents/implementer.md — NUNCA en hooks/hooks.json
++# (planner/evaluator/analyst escriben en docs/roadmap/ legítimamente; ADR-007).
++#
++# Delega la decisión en agent-kits/shared/guardrail-check.py (determinista, con tests):
++#   deny  → JSON oficial {"hookSpecificOutput":{"permissionDecision":"deny",…}} · exit 0
++#   allow → sin stdout · exit 0
++# Degradación: sin python3 → NO bloquea (exit 0) y avisa por systemMessage UNA vez por
++# proyecto (marca ${CLAUDE_PROJECT_DIR:-$PWD}/.claude/.guardrail-nopython). Desactivable en
++# .claude/dev.json → "guardrails": false | {"alcance","git","ramaPrincipal"}.
++set -u
++
++INPUT="$(cat 2>/dev/null || true)"
++PROJ="${CLAUDE_PROJECT_DIR:-$PWD}"
++
++if ! command -v python3 >/dev/null 2>&1; then
++  MARK="$PROJ/.claude/.guardrail-nopython"
++  if [ ! -e "$MARK" ]; then
++    mkdir -p "$PROJ/.claude" 2>/dev/null && : > "$MARK" 2>/dev/null
++    printf '%s\n' '{"systemMessage": "⚠️ guardrails del implementer sin efecto: no hay python3 en PATH (alcance docs/roadmap/, rama y git NO se comprueban en esta sesión)."}'
++  fi
++  exit 0
++fi
++
++# Localizar guardrail-check.py: junto al plugin, después por find (mismo patrón que el resto de hooks).
++CHECK="${CLAUDE_PLUGIN_ROOT:-}/agent-kits/shared/guardrail-check.py"
++if [ ! -f "$CHECK" ]; then
++  CHECK="$(dirname "${BASH_SOURCE[0]}")/../agent-kits/shared/guardrail-check.py"
++fi
++if [ ! -f "$CHECK" ]; then
++  CHECK="$(find "$PROJ/.claude" "${HOME:-}/.claude" -type f -path '*agent-kits/shared/guardrail-check.py' 2>/dev/null | head -1)"
++fi
++[ -n "$CHECK" ] && [ -f "$CHECK" ] || exit 0
++
++printf '%s' "$INPUT" | CLAUDE_PROJECT_DIR="$PROJ" python3 "$CHECK" pre-tool 2>/dev/null || true
++exit 0
+-- 
+2.43.0
+

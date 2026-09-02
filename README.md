@@ -18,7 +18,7 @@
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2.svg)](docs/en/INSTALL.md)
 [![SDD](https://img.shields.io/badge/methodology-Spec--Driven-2ea44f.svg)](docs/en/FLOWS.md)
 [![Agents](https://img.shields.io/badge/agents-8-0ea5e9.svg)](docs/en/README.md)
-[![Skills](https://img.shields.io/badge/skills-11-0ea5e9.svg)](docs/en/README.md)
+[![Skills](https://img.shields.io/badge/skills-12-0ea5e9.svg)](docs/en/README.md)
 [![Commands](https://img.shields.io/badge/commands-11-0ea5e9.svg)](docs/en/README.md)
 
 From idea to tested, documented code: `requirements → budget → plan → implementation → adversarial review → E2E → docs`, with **control gates** at every step, **real cost measured in tokens**, and learning that calibrates the next estimates. Eight agents, eleven commands, self-contained (no dependencies on other plugins).
@@ -60,6 +60,8 @@ Most tooling around coding agents answers *how* to write the code. This plugin a
 | **Engineering discipline, opt-in** | `.claude/dev.json`: strict TDD with red-phase evidence, isolated worktrees, and fresh-context subagents with domain personas |
 | **Root-cause debugging** | On the third failed qa attempt, `debug-root-cause` diagnoses with evidence in 4 phases before asking you — no blind fixes |
 | **Deterministic gates** | Verdicts come from scripts with exit codes and their own tests (`qa-gate`, `ledger-lint`, `coverage-check`), never from agent prose |
+| **Deterministic guardrails for the implementer** | An agent-scoped `PreToolUse` hook (never global) denies, with a reason, writes to `docs/roadmap/` other than `tasks.md`, edits on `main`/`master` and destructive git (`push --force`, `branch -D`, `rm -rf /`); `scope-check.py` gates the review on "changed files ⊆ the ledger's `Archivos`". Both are scripts with tests, opt-out per rule in `.claude/dev.json` |
+| **Live progress while tasks run** | Non-blocking hooks read the canonical ledger and show one progress line per edit (`📋 slug · T-04/12 (33%) · en curso T-05`), the state of active initiatives when a subagent finishes, and re-inject the resume context on startup/resume/compaction; an **opt-in status line** adds model · session cost · context · roadmap progress |
 
 > Self-contained: no dependency on other plugins. If you already use an external SDD engine, `/dev-cycle` can delegate execution to it while `tasks.md` remains the canonical ledger; and it [coexists](docs/en/observability.md) with live session monitors.
 
@@ -67,7 +69,7 @@ Most tooling around coding agents answers *how* to write the code. This plugin a
 
 **💶 Every initiative is born budgeted and dies measured.** The `evaluator` budgets (hours, €, tokens) BEFORE building and a go/no-go gate decides. During the cycle, `usage-meter` measures the **real tokens** consumed by each artifact and each task (`generacion:` frontmatter, AI hours billable to Jira). `/roadmap-metrics` shows estimated vs actual, and `/retro` turns every closure into **calibration** for better estimates next time.
 
-**🔍 Quality is not an opinion: it's gates.** Adversarial review with **two parallel lenses** on fresh context (spec conformance + code robustness), a qa verdict issued by **script with exit code** (`qa-gate.py`), criteria↔tests coverage verified (`coverage-check.py`, with `[GWT]` Given/When/Then criteria that translate 1:1 to E2E), a validated ledger (`ledger-lint.py`) and **bounded** correction loops (max 3 attempts — and on the third one, the `debug-root-cause` skill diagnoses the root cause with evidence before asking you).
+**🔍 Quality is not an opinion: it's gates.** Adversarial review (skill `adversarial-review`, reusable on demand) with **two parallel lenses** on fresh context (spec conformance + code robustness) plus a **conditional security lens** when the diff touches sensitive paths or lines (`review-lens-select.py`), a qa verdict issued by **script with exit code** (`qa-gate.py`), criteria↔tests coverage verified (`coverage-check.py`, with `[GWT]` Given/When/Then criteria that translate 1:1 to E2E), a validated ledger (`ledger-lint.py`) and **bounded** correction loops (max 3 attempts — and on the third one, the `debug-root-cause` skill diagnoses the root cause with evidence before asking you).
 
 **⚖️ Opt-in engineering discipline (`.claude/dev.json`, defaults off).** Turn it on per project: **TDD** RED-GREEN-REFACTOR with red-phase evidence in the ledger, isolated git **worktrees** per initiative, and **fresh-context subagents** — each task is implemented by a subagent with a deterministic brief (`task-brief.py`) containing only its task, its criteria and the constitution: no noise carried over from previous tasks.
 
@@ -121,7 +123,7 @@ flowchart LR
 
 | Command | What it does |
 |---------|----------|
-| `/setup` | One-pass onboarding: `rates.json`, Jira, Confluence, constitution, `dev.json`. |
+| `/setup` | One-pass onboarding: `rates.json`, Jira, Confluence, constitution, `dev.json` (discipline, status line, security lens of the review: `auto`/`siempre`/`nunca`). |
 | `/pm-cycle` | Product role: spec → evaluation → go/no-go gate. |
 | `/dev-cycle` | Full development cycle (or fast track), with every gate. |
 | `/pm-backlog` | Prioritizes the portfolio of evaluated initiatives. |
@@ -133,7 +135,7 @@ flowchart LR
 | `/retro` | Closes the loop: deviations + causes → `CALIBRATION.md`. |
 | `/confluence-pull` | Confluence → local `docs/` (PM without git). |
 
-Shared skills: `jira-sync` · `confluence-publish` / `confluence-pull` · `roadmap-dashboard` · `discovery` · `debug-root-cause` · `cybersecurity` · `to-pdf` · `rates-verify` · `plugin-dev` · `quick-implement`. Deterministic scripts (all with tests): `usage-meter` · `task-brief` · `worklog` · `qa-gate` · `ledger-lint` · `coverage-check` · `build_dashboard` · `lint_plugin`.
+Shared skills: `jira-sync` · `confluence-publish` / `confluence-pull` · `roadmap-dashboard` · `discovery` · `debug-root-cause` · `adversarial-review` · `cybersecurity` · `to-pdf` · `rates-verify` · `plugin-dev` · `quick-implement`. Deterministic scripts (all with tests): `usage-meter` · `task-brief` · `worklog` · `qa-gate` · `ledger-lint` · `coverage-check` · `build_dashboard` · `lint_plugin`.
 
 </details>
 

@@ -1,0 +1,92 @@
+From 7e36af967e8905e1fa61f82039f8b74b1eeb4e7d Mon Sep 17 00:00:00 2001
+From: daycry <7590335+daycry@users.noreply.github.com>
+Date: Wed, 2 Sep 2026 14:33:03 +0000
+Subject: [PATCH 32/32] =?UTF-8?q?lint=5Fplugin:=20bit=20ejecutable=20de=20?=
+ =?UTF-8?q?hooks/*.json=20seg=C3=BAn=20el=20=C3=ADndice=20de=20git=20(fals?=
+ =?UTF-8?q?o=20positivo=20en=20montajes=20OneDrive/WSL)=20+=20test=2016b?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VA3zi8RqekY9weD2S1RyWL
+
+---
+ docs/roadmap/2026-09-02-debt-cleanup/tasks.md |  2 ++
+ scripts/lint_plugin.py                        | 17 ++++++++++++++++-
+ tests/test_lint_plugin.py                     | 11 +++++++++++
+ 3 files changed, 29 insertions(+), 1 deletion(-)
+
+diff --git a/docs/roadmap/2026-09-02-debt-cleanup/tasks.md b/docs/roadmap/2026-09-02-debt-cleanup/tasks.md
+index 52027fa..5cc9f90 100644
+--- a/docs/roadmap/2026-09-02-debt-cleanup/tasks.md
++++ b/docs/roadmap/2026-09-02-debt-cleanup/tasks.md
+@@ -139,3 +139,5 @@ generacion:
+ - **CHANGELOG** no tocado (orquestador). Verificación manual en sesión real: pendiente del usuario tras el release (lista en `docs/observability.md`).
+ 
+ ## Revisión de dos lentes — intento 1: 0 gaps de corrección (0 Critical, 0 Important, 3 Minor: nota de `/clear` en observability ES/EN corregida; cifra «18 ledgers» precisada; `docs/roadmap/readme.md` en minúsculas permitido = decisión case-insensitive, aceptado como diseño). 184 tests · lint 0 errores · 3 avisos · 19/19 ledgers idénticos en ledger-lint.
++
++**Post-volcado (verificación en el disco del usuario):** el aviso «hooks.json ejecutable» saltaba en falso porque el montaje OneDrive/WSL muestra TODO como ejecutable → `lint_plugin.py` pasa a leer el modo del ÍNDICE de git (`git ls-files -s`, 100755) y solo cae a `os.access` sin git (+ caso 16b en `tests/test_lint_plugin.py`). En el disco: 0 errores · 3 avisos.
+diff --git a/scripts/lint_plugin.py b/scripts/lint_plugin.py
+index ccf7186..da44fff 100755
+--- a/scripts/lint_plugin.py
++++ b/scripts/lint_plugin.py
+@@ -293,6 +293,19 @@ def lint_manual_copies(root):
+ HOOK_PATH_RE = re.compile(r"\$\{CLAUDE_PLUGIN_ROOT\}/([^\s\"']+)")
+ 
+ 
++def _es_ejecutable(fp):
++    """Bit ejecutable según el índice de git (100755) si el fichero está versionado; si no, os.access."""
++    try:
++        import subprocess
++        r = subprocess.run(["git", "ls-files", "-s", "--", os.path.basename(fp)],
++                           cwd=os.path.dirname(fp), capture_output=True, text=True, timeout=5)
++        if r.returncode == 0 and r.stdout.strip():
++            return r.stdout.split()[0] == "100755"
++    except (OSError, subprocess.SubprocessError):
++        pass
++    return os.access(fp, os.X_OK)
++
++
+ def lint_hooks(root):
+     """(errores, avisos) de hooks/hooks.json (vacíos si no existe el fichero)."""
+     path = os.path.join(root, "hooks", "hooks.json")
+@@ -308,10 +321,12 @@ def lint_hooks(root):
+         return ["hooks/hooks.json: falta la raíz `hooks` (objeto evento → lista de grupos)"], []
+     # Un .json de hooks/ con bit ejecutable no rompe nada, pero es un modo heredado sin sentido
+     # (el JSON se lee, no se ejecuta) → aviso (debt-cleanup T-01c).
++    # El modo de verdad es el del ÍNDICE de git (en montajes OneDrive/Windows/WSL el sistema de
++    # ficheros muestra TODO como ejecutable y os.access daría un falso positivo); sin git → modo fs.
+     hooks_dir = os.path.dirname(path)
+     for fn in sorted(os.listdir(hooks_dir)):
+         fp = os.path.join(hooks_dir, fn)
+-        if fn.endswith(".json") and os.path.isfile(fp) and os.access(fp, os.X_OK):
++        if fn.endswith(".json") and os.path.isfile(fp) and _es_ejecutable(fp):
+             warns.append(f"hooks/{fn}: un .json no debería ser ejecutable (chmod -x; `git update-index --chmod=-x`)")
+     for evento, grupos in hooks.items():
+         if not isinstance(grupos, list):
+diff --git a/tests/test_lint_plugin.py b/tests/test_lint_plugin.py
+index 8a48291..74b1922 100755
+--- a/tests/test_lint_plugin.py
++++ b/tests/test_lint_plugin.py
+@@ -222,6 +222,17 @@ dependencies:
+         os.chmod(hj, 0o755)
+         code, out = run(tmp)
+         assert code == 0 and "hooks/hooks.json: un .json no debería ser ejecutable" in out, out
++        # 16b) versionado en git con modo 100644 pero bit ejecutable en el FS (montajes OneDrive/
++        # Windows/WSL muestran todo como ejecutable) → manda el ÍNDICE: sin aviso.
++        import subprocess as _sp
++        if _sp.run(["git", "--version"], capture_output=True).returncode == 0:
++            g = ["git", "-C", tmp]
++            _sp.run(g + ["init", "-q"], check=True)
++            _sp.run(g + ["-c", "core.fileMode=true", "add", "hooks/hooks.json"], check=True)
++            _sp.run(g + ["update-index", "--chmod=-x", "hooks/hooks.json"], check=True)
++            os.chmod(hj, 0o755)
++            code, out = run(tmp)
++            assert code == 0 and "no debería ser ejecutable" not in out, f"el índice manda\n{out}"
+ 
+     # 17) [debt-cleanup T-04b] nombre genérico: skill compuesta `adversarial-review` sin aviso;
+     #     skill `review` con aviso; command `setup` con aviso (regla original para commands)
+-- 
+2.43.0
+

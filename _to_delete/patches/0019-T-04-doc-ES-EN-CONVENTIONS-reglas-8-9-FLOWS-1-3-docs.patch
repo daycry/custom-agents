@@ -1,0 +1,502 @@
+From 50293e586e78cd2267bd8f0322b7a135924cc553 Mon Sep 17 00:00:00 2001
+From: daycry <7590335+daycry@users.noreply.github.com>
+Date: Wed, 2 Sep 2026 13:24:09 +0000
+Subject: [PATCH 19/32] =?UTF-8?q?T-04:=20doc=20ES+EN=20(CONVENTIONS=20regl?=
+ =?UTF-8?q?as=208/9,=20FLOWS=20=C2=A71/=C2=A73,=20docs/README,=20README=20?=
+ =?UTF-8?q?badge=20skills-12),=20CLAUDE.md,=20plugin.json=20description=20?=
+ =?UTF-8?q?(+adversarial-review,=20version=20intacta),=20LES-010=20con=20l?=
+ =?UTF-8?q?as=205=20evidencias=20de=20los=20ledgers=20+=20=C3=ADndices;=20?=
+ =?UTF-8?q?ledger=20de=20la=20iniciativa=20a=20completado?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VA3zi8RqekY9weD2S1RyWL
+
+Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VA3zi8RqekY9weD2S1RyWL
+
+---
+ .claude-plugin/plugin.json                    |  2 +-
+ CLAUDE.md                                     |  5 +-
+ README.es.md                                  |  6 +-
+ README.md                                     |  6 +-
+ docs/CONVENTIONS.md                           |  4 +-
+ docs/FLOWS.md                                 |  6 +-
+ docs/README.md                                |  1 +
+ docs/en/CONVENTIONS.md                        |  4 +-
+ docs/en/FLOWS.md                              |  6 +-
+ docs/en/README.md                             |  1 +
+ docs/knowledge/README.md                      |  1 +
+ ...-dev-cycle-revision-adversarial-a-skill.md | 57 +++++++++++++
+ .../2026-09-02-adversarial-review/tasks.md    | 83 +++++++++++--------
+ docs/roadmap/README.md                        |  1 +
+ 14 files changed, 129 insertions(+), 54 deletions(-)
+ create mode 100644 docs/knowledge/lessons/LES-010-dev-cycle-revision-adversarial-a-skill.md
+
+diff --git a/.claude-plugin/plugin.json b/.claude-plugin/plugin.json
+index 151934e..c92daf4 100755
+--- a/.claude-plugin/plugin.json
++++ b/.claude-plugin/plugin.json
+@@ -1,7 +1,7 @@
+ {
+   "name": "custom-agents",
+   "version": "1.14.1",
+-  "description": "Agentes custom para Claude Code que cubren el ciclo de una iniciativa (requisitos → presupuesto → plan → implementación → pruebas → documentación) con contabilidad de tiempo/coste y trazabilidad en Jira/Confluence. Agentes: analyst (toma de requerimientos), evaluator, planner, implementer, qa, documenter, pdfy y nemesis (auditoría SAST+DAST). Comandos: /setup, /pm-cycle, /dev-cycle, /pm-backlog, /roadmap-status, /roadmap-metrics, /roadmap-brief, /roadmap-live, /retro, /spec-drift y /confluence-pull. Skills: cybersecurity, to-pdf, confluence-publish, confluence-pull, roadmap-dashboard, jira-sync, discovery, debug-root-cause, rates-verify, plugin-dev y quick-implement. SDD autosuficiente: constitución del proyecto, criterios G/W/T, TDD/worktrees/subagentes de contexto fresco con personas de dominio (opt-in en .claude/dev.json) y coste real medido por artefacto y tarea (usage-meter). Config de presupuesto compartida en .claude/rates.json; integraciones Atlassian opt-in.",
++  "description": "Agentes custom para Claude Code que cubren el ciclo de una iniciativa (requisitos → presupuesto → plan → implementación → pruebas → documentación) con contabilidad de tiempo/coste y trazabilidad en Jira/Confluence. Agentes: analyst (toma de requerimientos), evaluator, planner, implementer, qa, documenter, pdfy y nemesis (auditoría SAST+DAST). Comandos: /setup, /pm-cycle, /dev-cycle, /pm-backlog, /roadmap-status, /roadmap-metrics, /roadmap-brief, /roadmap-live, /retro, /spec-drift y /confluence-pull. Skills: cybersecurity, to-pdf, confluence-publish, confluence-pull, roadmap-dashboard, jira-sync, discovery, debug-root-cause, adversarial-review (revisión de dos lentes + lente de seguridad condicional), rates-verify, plugin-dev y quick-implement. SDD autosuficiente: constitución del proyecto, criterios G/W/T, TDD/worktrees/subagentes de contexto fresco con personas de dominio (opt-in en .claude/dev.json) y coste real medido por artefacto y tarea (usage-meter). Config de presupuesto compartida en .claude/rates.json; integraciones Atlassian opt-in.",
+   "author": {
+     "name": "daycry",
+     "email": "7590335+daycry@users.noreply.github.com"
+diff --git a/CLAUDE.md b/CLAUDE.md
+index 58d41c9..cfa2ca4 100755
+--- a/CLAUDE.md
++++ b/CLAUDE.md
+@@ -32,7 +32,7 @@ custom-agents/               (se despliega como .claude/)
+ | Linter + tests | `python scripts/lint_plugin.py` (frontmatter, grafo `dependencies` sin ciclos, colisiones, `hooks/hooks.json` con commands existentes y ejecutables) + suites de `tests/` antes de publicar. |
+ | Dependencias | Bloque `dependencies:` en el frontmatter del agente (skills/kits/agents) — fuente de verdad del grafo. |
+ | Rutas en scripts | Relativas entre sí (`dirname "$BASH_SOURCE"`); nunca absolutas del repo. |
+-| Determinismo | Los cálculos y veredictos van en **scripts con tests y exit codes** (patrón `worklog`/`qa-gate`/`ledger-lint`/`usage-meter`/`task-brief`/`progress-report`/`guardrail-check`/`scope-check`), no en prosa del agente. Hooks: los globales (`hooks/hooks.json`) solo informan; un deny solo vive en el frontmatter `hooks:` de un agente (ADR-007). |
++| Determinismo | Los cálculos y veredictos van en **scripts con tests y exit codes** (patrón `worklog`/`qa-gate`/`ledger-lint`/`usage-meter`/`task-brief`/`progress-report`/`guardrail-check`/`scope-check`/`review-lens-select`), no en prosa del agente. Hooks: los globales (`hooks/hooks.json`) solo informan; un deny solo vive en el frontmatter `hooks:` de un agente (ADR-007). |
+ | Hooks | Informan, no deciden: `hooks/` emite `systemMessage`/`hookSpecificOutput.additionalContext` y SIEMPRE exit 0 (sin `python3` → silencio). Progreso en vivo = `agent-kits/shared/progress-report.py` sobre el ledger canónico (ver `docs/observability.md`). |
+ | Degradación, no bloqueo | Las piezas opcionales (medición, constitución, Jira, Confluence) degradan con aviso; NUNCA bloquean el ciclo. |
+ | Memoria técnica | `docs/knowledge/` (siempre activa, sin opt-in): `adr/ADR-NNN-<slug>.md`, `gotchas/GOT-NNN-<slug>.md`, `lessons/LES-NNN-<agente>-<slug>.md`, con `README.md` como única puerta de entrada (índice). Lectura selectiva por área (`agent-kits/shared/knowledge-check.md`: evaluator/planner/implementer/qa/documenter); escritura con umbral anti-burocracia (`agent-kits/shared/knowledge-write.md`: ADR solo si cierra alternativa y afecta 2+ piezas, gotcha solo si costó ≥1 ciclo de depuración). |
+@@ -66,7 +66,7 @@ Invocan a los agentes **por nombre** y con puertas de control sobre la carpeta d
+ | `/retro <slug>` | Cierre de aprendizaje: real vs estimado + causas + **ratio tokens/hora medido** → `docs/roadmap/CALIBRATION.md` (lo leen evaluator y usage-meter). |
+ | `/confluence-pull` | Confluence → `docs/` local (PM sin git). |
+ 
+-**Revisión adversarial (en /dev-cycle):** dos lentes en paralelo con contexto fresco — A: conformidad con spec/plan/constitución (salida estructurada por criterio ✓/✗, gaps con cita); B: solo defectos de corrección. Bucle reviewer→implementer acotado a 3; resultado publicable en Jira (comentario por criterio + worklog `[revisión]` por intento).
++**Revisión adversarial (skill `adversarial-review`, fuente única del método; la invocan /dev-cycle Fase 3 y quick-implement, y se usa a demanda):** lentes en paralelo con contexto fresco — A: conformidad con spec/plan/constitución (salida estructurada por criterio ✓/✗, gaps con cita); B: solo defectos de corrección; C: seguridad del diff, **condicional** (`review-lens-select.py`: rutas/líneas sensibles; `dev.json` `revision.lenteSeguridad`). Bucle reviewer→implementer acotado a 3 (el contador y el worklog `[revisión]` por intento son del orquestador); traza «Revisión de dos lentes — intento N» en el ledger; comentario en Jira opt-in.
+ 
+ ## Skills compartidas
+ 
+@@ -77,6 +77,7 @@ Invocan a los agentes **por nombre** y con puertas de control sobre la carpeta d
+ | `roadmap-dashboard` | Escaneo de `docs/roadmap/` → HTML/md/JSON + métricas real-vs-estimado y coste de proceso (`build_dashboard.py`). (/roadmap-status, /pm-backlog, /roadmap-metrics) |
+ | `discovery` | Entrevista guiada idea→spec sólida antes de evaluar. (analyst, /pm-cycle) |
+ | `debug-root-cause` | Causa raíz en 4 fases con evidencia; prohibido arreglar a ciegas. (/dev-cycle al 3.er rojo; a demanda) |
++| `adversarial-review` | Revisión adversarial del diff: lentes A (spec/plan) + B (corrección) + C seguridad condicional (`review-lens-select.py`, con tests); fusión, Critical/Important/Minor, bucle acotado, rebate con evidencia, traza en el ledger. Fuente única del método. (/dev-cycle Fase 3, quick-implement; a demanda «revísame este diff») |
+ | `rates-verify` | Actualiza `precioTokens` de `rates.json` desde la doc oficial, con fecha. (evaluator, /setup) |
+ | `plugin-dev` | Meta-skill para desarrollar ESTE plugin: árbol de decisión de piezas, frontmatter/tiering/tools mínimos, validación TDD-ish, doc obligatoria, anti-patrones; plantillas de agente/skill/comando. (crear/modificar piezas del plugin) |
+ | `quick-implement` | Atajo en lenguaje natural a la vía rápida de `/dev-cycle` (delegando en su fuente única): filtro de idoneidad + ledger + puertas. (peticiones «implementa X rápido» sin barra) |
+diff --git a/README.es.md b/README.es.md
+index 5cb3aa9..cc147fb 100755
+--- a/README.es.md
++++ b/README.es.md
+@@ -18,7 +18,7 @@
+ [![Claude Code](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2.svg)](docs/INSTALL.md)
+ [![SDD](https://img.shields.io/badge/metodolog%C3%ADa-Spec--Driven-2ea44f.svg)](docs/FLOWS.md)
+ [![Agentes](https://img.shields.io/badge/agentes-8-0ea5e9.svg)](docs/README.md)
+-[![Skills](https://img.shields.io/badge/skills-11-0ea5e9.svg)](docs/README.md)
++[![Skills](https://img.shields.io/badge/skills-12-0ea5e9.svg)](docs/README.md)
+ [![Comandos](https://img.shields.io/badge/comandos-11-0ea5e9.svg)](docs/README.md)
+ 
+ De la idea al código probado y documentado: `requisitos → presupuesto → plan → implementación → revisión adversarial → E2E → docs`, con **puertas de control** en cada paso, **coste real medido en tokens** y aprendizaje que calibra las siguientes estimaciones. Ocho agentes, once comandos, autosuficiente (sin dependencias de otros plugins).
+@@ -69,7 +69,7 @@ Casi todo el utillaje alrededor de los agentes de código responde a *cómo* esc
+ 
+ **💶 Cada iniciativa nace presupuestada y muere medida.** El `evaluator` presupuesta (horas, €, tokens) ANTES de construir y una puerta go/no-go decide. Durante el ciclo, `usage-meter` mide los **tokens reales** consumidos por cada artefacto y cada tarea (frontmatter `generacion:`, horas-IA imputables a Jira). `/roadmap-metrics` enseña estimado vs real, y `/retro` convierte cada cierre en **calibración** para estimar mejor la siguiente.
+ 
+-**🔍 La calidad no es opinión: son puertas.** Revisión adversarial de **dos lentes en paralelo** con contexto fresco (conformidad con la spec + robustez del código), veredicto de qa por **script con exit code** (`qa-gate.py`), cobertura criterios↔tests verificada (`coverage-check.py`, con criterios `[GWT]` Given/When/Then traducibles 1:1 a E2E), ledger validado (`ledger-lint.py`) y bucles de corrección **acotados** (máx. 3 intentos — y al tercero, la skill `debug-root-cause` diagnostica la causa raíz con evidencia antes de preguntarte).
++**🔍 La calidad no es opinión: son puertas.** Revisión adversarial (skill `adversarial-review`, reutilizable a demanda) de **dos lentes en paralelo** con contexto fresco (conformidad con la spec + robustez del código) más una **lente de seguridad condicional** cuando el diff toca rutas o líneas sensibles (`review-lens-select.py`), veredicto de qa por **script con exit code** (`qa-gate.py`), cobertura criterios↔tests verificada (`coverage-check.py`, con criterios `[GWT]` Given/When/Then traducibles 1:1 a E2E), ledger validado (`ledger-lint.py`) y bucles de corrección **acotados** (máx. 3 intentos — y al tercero, la skill `debug-root-cause` diagnostica la causa raíz con evidencia antes de preguntarte).
+ 
+ **⚖️ Disciplina de ingeniería opt-in (`.claude/dev.json`, defaults off).** Actívala por proyecto: **TDD** RED-GREEN-REFACTOR con evidencia del rojo en el ledger, **worktrees** de git aislados por iniciativa, y **subagentes de contexto fresco** — cada tarea la implementa un subagente con un brief determinista (`task-brief.py`) que solo contiene su tarea, sus criterios y la constitución: sin arrastrar el ruido de las tareas anteriores.
+ 
+@@ -135,7 +135,7 @@ flowchart LR
+ | `/retro` | Cierra el bucle: desviaciones + causas → `CALIBRATION.md`. |
+ | `/confluence-pull` | Confluence → `docs/` local (PM sin git). |
+ 
+-Skills compartidas: `jira-sync` · `confluence-publish` / `confluence-pull` · `roadmap-dashboard` · `discovery` · `debug-root-cause` · `cybersecurity` · `to-pdf` · `rates-verify` · `plugin-dev` · `quick-implement`. Scripts deterministas (todos con tests): `usage-meter` · `task-brief` · `worklog` · `qa-gate` · `ledger-lint` · `coverage-check` · `build_dashboard` · `lint_plugin`.
++Skills compartidas: `jira-sync` · `confluence-publish` / `confluence-pull` · `roadmap-dashboard` · `discovery` · `debug-root-cause` · `adversarial-review` · `cybersecurity` · `to-pdf` · `rates-verify` · `plugin-dev` · `quick-implement`. Scripts deterministas (todos con tests): `usage-meter` · `task-brief` · `worklog` · `qa-gate` · `ledger-lint` · `coverage-check` · `build_dashboard` · `lint_plugin`.
+ 
+ </details>
+ 
+diff --git a/README.md b/README.md
+index e066dc6..914e459 100755
+--- a/README.md
++++ b/README.md
+@@ -18,7 +18,7 @@
+ [![Claude Code](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2.svg)](docs/en/INSTALL.md)
+ [![SDD](https://img.shields.io/badge/methodology-Spec--Driven-2ea44f.svg)](docs/en/FLOWS.md)
+ [![Agents](https://img.shields.io/badge/agents-8-0ea5e9.svg)](docs/en/README.md)
+-[![Skills](https://img.shields.io/badge/skills-11-0ea5e9.svg)](docs/en/README.md)
++[![Skills](https://img.shields.io/badge/skills-12-0ea5e9.svg)](docs/en/README.md)
+ [![Commands](https://img.shields.io/badge/commands-11-0ea5e9.svg)](docs/en/README.md)
+ 
+ From idea to tested, documented code: `requirements → budget → plan → implementation → adversarial review → E2E → docs`, with **control gates** at every step, **real cost measured in tokens**, and learning that calibrates the next estimates. Eight agents, eleven commands, self-contained (no dependencies on other plugins).
+@@ -69,7 +69,7 @@ Most tooling around coding agents answers *how* to write the code. This plugin a
+ 
+ **💶 Every initiative is born budgeted and dies measured.** The `evaluator` budgets (hours, €, tokens) BEFORE building and a go/no-go gate decides. During the cycle, `usage-meter` measures the **real tokens** consumed by each artifact and each task (`generacion:` frontmatter, AI hours billable to Jira). `/roadmap-metrics` shows estimated vs actual, and `/retro` turns every closure into **calibration** for better estimates next time.
+ 
+-**🔍 Quality is not an opinion: it's gates.** Adversarial review with **two parallel lenses** on fresh context (spec conformance + code robustness), a qa verdict issued by **script with exit code** (`qa-gate.py`), criteria↔tests coverage verified (`coverage-check.py`, with `[GWT]` Given/When/Then criteria that translate 1:1 to E2E), a validated ledger (`ledger-lint.py`) and **bounded** correction loops (max 3 attempts — and on the third one, the `debug-root-cause` skill diagnoses the root cause with evidence before asking you).
++**🔍 Quality is not an opinion: it's gates.** Adversarial review (skill `adversarial-review`, reusable on demand) with **two parallel lenses** on fresh context (spec conformance + code robustness) plus a **conditional security lens** when the diff touches sensitive paths or lines (`review-lens-select.py`), a qa verdict issued by **script with exit code** (`qa-gate.py`), criteria↔tests coverage verified (`coverage-check.py`, with `[GWT]` Given/When/Then criteria that translate 1:1 to E2E), a validated ledger (`ledger-lint.py`) and **bounded** correction loops (max 3 attempts — and on the third one, the `debug-root-cause` skill diagnoses the root cause with evidence before asking you).
+ 
+ **⚖️ Opt-in engineering discipline (`.claude/dev.json`, defaults off).** Turn it on per project: **TDD** RED-GREEN-REFACTOR with red-phase evidence in the ledger, isolated git **worktrees** per initiative, and **fresh-context subagents** — each task is implemented by a subagent with a deterministic brief (`task-brief.py`) containing only its task, its criteria and the constitution: no noise carried over from previous tasks.
+ 
+@@ -135,7 +135,7 @@ flowchart LR
+ | `/retro` | Closes the loop: deviations + causes → `CALIBRATION.md`. |
+ | `/confluence-pull` | Confluence → local `docs/` (PM without git). |
+ 
+-Shared skills: `jira-sync` · `confluence-publish` / `confluence-pull` · `roadmap-dashboard` · `discovery` · `debug-root-cause` · `cybersecurity` · `to-pdf` · `rates-verify` · `plugin-dev` · `quick-implement`. Deterministic scripts (all with tests): `usage-meter` · `task-brief` · `worklog` · `qa-gate` · `ledger-lint` · `coverage-check` · `build_dashboard` · `lint_plugin`.
++Shared skills: `jira-sync` · `confluence-publish` / `confluence-pull` · `roadmap-dashboard` · `discovery` · `debug-root-cause` · `adversarial-review` · `cybersecurity` · `to-pdf` · `rates-verify` · `plugin-dev` · `quick-implement`. Deterministic scripts (all with tests): `usage-meter` · `task-brief` · `worklog` · `qa-gate` · `ledger-lint` · `coverage-check` · `build_dashboard` · `lint_plugin`.
+ 
+ </details>
+ 
+diff --git a/docs/CONVENTIONS.md b/docs/CONVENTIONS.md
+index 010ce98..1f78c68 100755
+--- a/docs/CONVENTIONS.md
++++ b/docs/CONVENTIONS.md
+@@ -150,7 +150,7 @@ El avance de un plan se registra en **un único sitio**: `docs/roadmap/<fecha>-<
+ - **Estados con motor externo:** cuando la implementación se delega a un orquestador externo, ese motor **no** actualiza tus artefactos. Por tanto, `/dev-cycle` (o tú) aplica las **transiciones de estado** de la regla 7 y mantiene `tasks.md` al día en su nombre. Las transiciones valen igual haya o no motor externo.
+ - El cierre del ciclo (documentación con `documenter`) se hace **una vez** tras implementar y con `qa` en verde, no tarea a tarea.
+ - **Validación mecánica:** `agent-kits/shared/ledger-lint.py` comprueba el ledger con exit code (vocabulario de estados, `completado` ⟹ criterios marcados, resumen cuadrado, IDs únicos). Lo corren `implementer` (DoD), `qa` (P1) y `/dev-cycle` en sus puertas; además un hook PostToolUse (`hooks/ledger-lint-warn.sh`) lo ejecuta en **modo aviso** en cada edición de un `tasks.md`. El «verde» de qa también es mecánico: `agent-kits/qa/qa-gate.py` sobre `results.json`.
+-- **Dos clases de hooks.** (a) **Informativos** — globales, en `hooks/hooks.json`, `PostToolUse`/`SubagentStop`/`SessionStart`; informan (`systemMessage`/`additionalContext`) y **siempre exit 0**. (b) **De guardia** — `PreToolUse` con `permissionDecision: deny`, **SOLO en el frontmatter `hooks:` de un agente** (alcance del agente), con la decisión en un **script determinista con tests** (`agent-kits/shared/guardrail-check.py`), razón en una frase con cómo proceder, desactivables por regla en `.claude/dev.json` (`guardrails`), y que degradan sin bloquear (sin `python3` → aviso único, exit 0; error interno → allow). **Un deny global está prohibido**: `planner`/`evaluator`/`analyst` escriben en `docs/roadmap/` legítimamente y un hook en `hooks.json` los rompería (ADR-007). Hoy el único hook de guardia es el del `implementer` (`hooks/implementer-guardrail.sh`: alcance `docs/roadmap/` solo `tasks.md` y nunca `docs/security-scan/`, rama de trabajo, git no destructivo). El alcance del **diff** completo lo comprueba aparte `agent-kits/shared/scope-check.py` (ficheros cambiados vs. campos `Archivos` del ledger) como puerta previa a la revisión de dos lentes y en el DoD del implementer.
++- **Dos clases de hooks.** (a) **Informativos** — globales, en `hooks/hooks.json`, `PostToolUse`/`SubagentStop`/`SessionStart`; informan (`systemMessage`/`additionalContext`) y **siempre exit 0**. (b) **De guardia** — `PreToolUse` con `permissionDecision: deny`, **SOLO en el frontmatter `hooks:` de un agente** (alcance del agente), con la decisión en un **script determinista con tests** (`agent-kits/shared/guardrail-check.py`), razón en una frase con cómo proceder, desactivables por regla en `.claude/dev.json` (`guardrails`), y que degradan sin bloquear (sin `python3` → aviso único, exit 0; error interno → allow). **Un deny global está prohibido**: `planner`/`evaluator`/`analyst` escriben en `docs/roadmap/` legítimamente y un hook en `hooks.json` los rompería (ADR-007). Hoy el único hook de guardia es el del `implementer` (`hooks/implementer-guardrail.sh`: alcance `docs/roadmap/` solo `tasks.md` y nunca `docs/security-scan/`, rama de trabajo, git no destructivo). El alcance del **diff** completo lo comprueba aparte `agent-kits/shared/scope-check.py` (ficheros cambiados vs. campos `Archivos` del ledger) como puerta previa a la revisión de dos lentes (skill `adversarial-review`, fuente única del método; su `review-lens-select.py` decide si se añade la lente C de seguridad) y en el DoD del implementer.
+ - **Visibilidad en vivo (hooks informativos):** el plugin registra hooks en `PostToolUse` (aviso de lint + **línea de progreso** `progress-report.py line` al editar un `tasks.md`), `SubagentStop` (estado de las iniciativas `en-progreso` al terminar un subagente) y `SessionStart` (`startup|resume|compact`: contexto de retoma con `progress-report.py session`). Principio: **los hooks informan (`systemMessage` / `hookSpecificOutput.additionalContext`), no deciden; siempre exit 0** — sin `python3` callan; un hook roto es una pieza muerta, no un guardrail (el linter comprueba que cada `command` de `hooks/hooks.json` exista y sea ejecutable). La statusline (`statusline/roadmap-statusline.sh`) es **opt-in** en `/setup` y se escribe con ruta absoluta en `.claude/settings.json` (la doc oficial no expande `${CLAUDE_PLUGIN_ROOT}` en `statusLine.command`).
+ 
+ ## 9. Ficheros de config/estado en `.claude/` del proyecto consumidor
+@@ -165,7 +165,7 @@ Cada skill guarda su config (decisiones del usuario) y su estado (memoria de má
+ | `confluence-state.json` | Manifiesto página↔fichero (hash + pageId) | `confluence-publish`/`pull` | Se reconstruye: publish busca por título bajo el anclaje antes de crear |
+ | `jira.json` | Opt-in + política de jornada (`alCubrirJornada`) | skill `jira-sync` o `/setup` | Recrear con `/setup`; defaults seguros |
+ | `jira-state.json` | Mapeo T-XX↔issue, imputado por día, banco de horas | `jira-sync` (vía `worklog.py`) | Mapeo: re-derivable de las claves anotadas en `tasks.md`; imputado/banco: revisar worklogs en Jira |
+-| `dev.json` | Disciplina de la cadena nativa de `/dev-cycle`: `tdd` (RED-GREEN-REFACTOR con evidencia del rojo), `worktree` (iniciativa en worktree aislado), `subagentes` (una tarea = un subagente fresco), `constitucion` (decisión del opt-in de `docs/CONSTITUTION.md` — distingue "declinado" de "nunca preguntado"), `guardrails` (hook de guardia del implementer: `true` por defecto; `false` o `{"alcance","ramaPrincipal","git"}` por regla). Todo opt-in con defaults `false` salvo `guardrails` (activo) | `/setup` o a mano | Recrear con `/setup`; sin fichero o corrupto → defaults `false` + aviso (comportamiento clásico) |
++| `dev.json` | Disciplina de la cadena nativa de `/dev-cycle`: `tdd` (RED-GREEN-REFACTOR con evidencia del rojo), `worktree` (iniciativa en worktree aislado), `subagentes` (una tarea = un subagente fresco), `constitucion` (decisión del opt-in de `docs/CONSTITUTION.md` — distingue "declinado" de "nunca preguntado"), `guardrails` (hook de guardia del implementer: `true` por defecto; `false` o `{"alcance","ramaPrincipal","git"}` por regla), `revision.lenteSeguridad` (`auto` por defecto: la lente C de seguridad de `adversarial-review` solo si `review-lens-select.py` detecta rutas/líneas sensibles; `siempre` · `nunca`). Todo opt-in con defaults `false` salvo `guardrails` (activo) y `revision.lenteSeguridad` (`auto`) | `/setup` o a mano | Recrear con `/setup`; sin fichero o corrupto → defaults `false` + aviso (comportamiento clásico) |
+ | `usage-state.json` | Marcadores de medición de coste (`usage-meter.py`: offsets por transcripción y artefacto) | `usage-meter.py` | Borrarlo es inocuo: se pierden los marcadores abiertos; los siguientes `start` lo recrean |
+ | `.confluence-pending` | Marca efímera del hook (hay docs sin sincronizar) | hook `PostToolUse` | Borrarla es inocuo; la skill re-detecta por manifiesto |
+ 
+diff --git a/docs/FLOWS.md b/docs/FLOWS.md
+index b2dfe6c..b004940 100755
+--- a/docs/FLOWS.md
++++ b/docs/FLOWS.md
+@@ -39,7 +39,7 @@ flowchart LR
+     planner --> implementer["⚙️ implementer<br/>código + ledger"]
+     implementer --> scope{"scope-check.py<br/>diff ⊆ Archivos?"}
+     scope -.->|fuera de alcance| implementer
+-    scope -->|exit 0| review["🔍 revisión adversarial<br/>(2 lentes en paralelo,<br/>contexto fresco) diff vs plan"]
++    scope -->|exit 0| review["🔍 skill adversarial-review<br/>lentes A+B en paralelo, contexto fresco<br/>(+ lente C seguridad si el diff lo amerita)"]
+     review -->|sin gaps| qa["✅ qa<br/>E2E Playwright"]
+     review -.->|gaps de corrección| implementer
+     qa -->|verde| documenter["📚 documenter<br/>docs del proyecto"]
+@@ -75,7 +75,7 @@ flowchart TD
+ 
+ ## 3 · `/dev-cycle` — ciclo de desarrollo (con puertas)
+ 
+-> **Puerta de entrada (Fase 0-bis):** `/dev-cycle` pregunta primero **flujo completo** vs **vía rápida**. La vía rápida salta evaluator+planner (crea un `tasks.md` ligero) y entra directa en implementación, pero mantiene revisión de dos lentes + qa.
++> **Puerta de entrada (Fase 0-bis):** `/dev-cycle` pregunta primero **flujo completo** vs **vía rápida**. La vía rápida salta evaluator+planner (crea un `tasks.md` ligero) y entra directa en implementación, pero mantiene revisión de dos lentes + qa. **La revisión es la skill `adversarial-review`** (fuente única del método: puerta `scope-check.py`, lentes A/B, lente C de seguridad condicional decidida por `review-lens-select.py`, bucle acotado a 3); `/dev-cycle` solo la invoca, lleva el contador de intentos e imputa el worklog `[revisión]`. También se usa a demanda («revísame este diff») sin ledger.
+ >
+ > **Dos puertas de entrada al mismo gate:** el command `/dev-cycle` (explícito, con la barra) y la skill `quick-implement`, que se auto-invoca por lenguaje natural («implementa X rápido») y entra por la rama de vía rápida tras su filtro de idoneidad. La skill no define método propio: delega en esta misma Fase 0-bis.
+ 
+@@ -96,7 +96,7 @@ flowchart TD
+     F -->|"no (defecto):<br/>cadena NATIVA"| H["implementer<br/>tarea a tarea<br/>(dev.json opt-in: TDD ·<br/>worktree · subagentes frescos)"]
+     H --> SC{"scope-check.py<br/>ficheros cambiados ⊆<br/>Archivos del ledger?"}
+     SC -.->|"exit 1: gap Important<br/>(sin gastar revisores)"| H
+-    SC -->|exit 0| R["🔍 revisión adversarial<br/>DOS lentes en paralelo:<br/>spec-conformidad · calidad<br/>(fusión + dedupe)"]
++    SC -->|exit 0| R["🔍 skill adversarial-review<br/>lentes A+B en paralelo:<br/>spec-conformidad · calidad<br/>+ C seguridad (review-lens-select.py)<br/>(fusión + dedupe)"]
+     R -.->|gaps| H
+     G --> I["qa · E2E local<br/>veredicto: qa-gate.py"]
+     R --> I
+diff --git a/docs/README.md b/docs/README.md
+index f33fdb5..f73025f 100755
+--- a/docs/README.md
++++ b/docs/README.md
+@@ -70,6 +70,7 @@ Así se separan los roles: **`/pm-cycle`** decide *qué* y *cuánto cuesta* (una
+ | **confluence-pull** | Sentido **inverso**: baja Confluence → `docs/` local, para PMs sin git. Reutiliza `confluence.json` y el mapa `confluence-state.json`; preserva el frontmatter local, avisa de conflictos y confirma antes de escribir. Solo lee de Confluence. | comando `/confluence-pull` |
+ | **roadmap-dashboard** | Escanea `docs/roadmap/*/` y genera un dashboard **HTML** (vista local), **Markdown** (para publicar en Confluence) o **JSON** (estado, prioridad y presupuesto por iniciativa). Solo lectura. | comandos `/roadmap-status`, `/pm-backlog`; skill `confluence-publish` |
+ | **debug-root-cause** | Depuración sistemática hasta la causa raíz en 4 fases con evidencia obligatoria (reproducción mínima → aislamiento → hipótesis probada → fix + regresión); prohibido arreglar a ciegas. | `/dev-cycle` (gancho automático al 3.er rojo de qa); a demanda |
++| **adversarial-review** | Revisión adversarial de un diff con lentes de contexto fresco en paralelo: A (conformidad con spec/plan/constitución, ✓/✗ por criterio), B (solo defectos de corrección) y C (seguridad, **condicional**: la decide `review-lens-select.py` por rutas/líneas sensibles del diff; `dev.json` `revision.lenteSeguridad`). Fusión, graduación Critical/Important/Minor, bucle acotado a 3 con rebate por evidencia, traza «Revisión de dos lentes — intento N» en el ledger. **Fuente única del método**; también a demanda sobre una rama sin ledger. | `/dev-cycle` (Fase 3), `quick-implement`; a demanda («revísame este diff») |
+ | **discovery** | Convierte una idea vaga en una `spec.md` sólida con entrevista guiada (objetivo, alcance/fuera de alcance, criterios, restricciones, supuestos) antes de evaluar. No estima. | comando `/pm-cycle` (opt-in) |
+ | **quick-implement** | Atajo en **lenguaje natural** a la vía rápida de `/dev-cycle` (los commands solo se disparan con la barra; las skills se auto-invocan por su descripción): filtro de idoneidad obligatorio y delegación en la fuente única del método, conservando ledger, revisión de dos lentes y `qa-gate`. | peticiones tipo «implementa X rápido» sin escribir el comando |
+ | **plugin-dev** | Meta-skill para desarrollar ESTE plugin: árbol de decisión (agente/skill/comando/kit/fragmento shared/hook), frontmatter obligatorio con model tiering y tools mínimos, validación TDD-ish (test primero → linter → suites → auto-revisión), obligaciones de doc y anti-patrones reales. Incluye plantillas de agente, skill y comando. | quien desarrolle ESTE plugin (sesiones de trabajo sobre el propio repo; ningún agente la declara como dependencia) |
+diff --git a/docs/en/CONVENTIONS.md b/docs/en/CONVENTIONS.md
+index 777a0d0..243f2dc 100755
+--- a/docs/en/CONVENTIONS.md
++++ b/docs/en/CONVENTIONS.md
+@@ -150,7 +150,7 @@ A plan's progress is recorded in **a single place**: `docs/roadmap/<fecha>-<slug
+ - **States with an external engine:** when implementation is delegated to an external orchestrator, that engine does **not** update your artifacts. Therefore `/dev-cycle` (or you) applies the **state transitions** of rule 7 and keeps `tasks.md` up to date on its behalf. The transitions apply equally with or without an external engine.
+ - The cycle closeout (documentation with `documenter`) happens **once**, after implementing and with `qa` green, not task by task.
+ - **Mechanical validation:** `agent-kits/shared/ledger-lint.py` checks the ledger with an exit code (state vocabulary, `completado` ⟹ criteria checked, summary adding up, unique IDs). It is run by `implementer` (DoD), `qa` (P1) and `/dev-cycle` at their gates; additionally, a PostToolUse hook (`hooks/ledger-lint-warn.sh`) runs it in **warning mode** on every edit of a `tasks.md`. The qa "green" is mechanical too: `agent-kits/qa/qa-gate.py` over `results.json`.
+-- **Two classes of hooks.** (a) **Informative** — global, in `hooks/hooks.json`, `PostToolUse`/`SubagentStop`/`SessionStart`; they inform (`systemMessage`/`additionalContext`) and **always exit 0**. (b) **Guard** — `PreToolUse` with `permissionDecision: deny`, **ONLY in an agent's frontmatter `hooks:`** (agent scope), with the decision in a **deterministic script with tests** (`agent-kits/shared/guardrail-check.py`), a one-sentence reason saying how to proceed, per-rule opt-out in `.claude/dev.json` (`guardrails`), and graceful degradation (no `python3` → single warning, exit 0; internal error → allow). **A global deny is forbidden**: `planner`/`evaluator`/`analyst` legitimately write to `docs/roadmap/` and a hook in `hooks.json` would break them (ADR-007). Today the only guard hook is the `implementer`'s (`hooks/implementer-guardrail.sh`: `docs/roadmap/` scope — only `tasks.md`, never `docs/security-scan/` —, working branch, non-destructive git). The scope of the whole **diff** is checked separately by `agent-kits/shared/scope-check.py` (changed files vs. the ledger's `Archivos` fields) as a gate before the two-lens review and in the implementer's DoD.
++- **Two classes of hooks.** (a) **Informative** — global, in `hooks/hooks.json`, `PostToolUse`/`SubagentStop`/`SessionStart`; they inform (`systemMessage`/`additionalContext`) and **always exit 0**. (b) **Guard** — `PreToolUse` with `permissionDecision: deny`, **ONLY in an agent's frontmatter `hooks:`** (agent scope), with the decision in a **deterministic script with tests** (`agent-kits/shared/guardrail-check.py`), a one-sentence reason saying how to proceed, per-rule opt-out in `.claude/dev.json` (`guardrails`), and graceful degradation (no `python3` → single warning, exit 0; internal error → allow). **A global deny is forbidden**: `planner`/`evaluator`/`analyst` legitimately write to `docs/roadmap/` and a hook in `hooks.json` would break them (ADR-007). Today the only guard hook is the `implementer`'s (`hooks/implementer-guardrail.sh`: `docs/roadmap/` scope — only `tasks.md`, never `docs/security-scan/` —, working branch, non-destructive git). The scope of the whole **diff** is checked separately by `agent-kits/shared/scope-check.py` (changed files vs. the ledger's `Archivos` fields) as a gate before the two-lens review (`adversarial-review` skill, single source of the method; its `review-lens-select.py` decides whether the security lens C is added) and in the implementer's DoD.
+ - **Live visibility (informative hooks):** the plugin registers hooks on `PostToolUse` (lint warning + **progress line** `progress-report.py line` when a `tasks.md` is edited), `SubagentStop` (state of the `en-progreso` initiatives when a subagent finishes) and `SessionStart` (`startup|resume|compact`: resume context via `progress-report.py session`). Principle: **hooks inform (`systemMessage` / `hookSpecificOutput.additionalContext`), they never decide; always exit 0** — without `python3` they stay silent; a broken hook is a dead piece, not a guardrail (the linter checks that every `command` in `hooks/hooks.json` exists and is executable). The status line (`statusline/roadmap-statusline.sh`) is **opt-in** in `/setup` and is written with an absolute path into `.claude/settings.json` (the official docs do not expand `${CLAUDE_PLUGIN_ROOT}` in `statusLine.command`).
+ 
+ ## 9. Config/state files in the consuming project's `.claude/`
+@@ -165,7 +165,7 @@ Each skill stores its config (user decisions) and its state (machine memory) in
+ | `confluence-state.json` | Page↔file manifest (hash + pageId) | `confluence-publish`/`pull` | Rebuilds itself: publish searches by title under the anchor before creating |
+ | `jira.json` | Opt-in + workday policy (`alCubrirJornada`) | `jira-sync` skill or `/setup` | Recreate with `/setup`; safe defaults |
+ | `jira-state.json` | T-XX↔issue mapping, logged time per day, hours bank | `jira-sync` (via `worklog.py`) | Mapping: re-derivable from the keys annotated in `tasks.md`; logged time/bank: review worklogs in Jira |
+-| `dev.json` | Discipline of `/dev-cycle`'s native chain: `tdd` (RED-GREEN-REFACTOR with evidence of the red), `worktree` (initiative in an isolated worktree), `subagentes` (one task = one fresh subagent), `constitucion` (decision on the `docs/CONSTITUTION.md` opt-in — distinguishes "declined" from "never asked"), `guardrails` (the implementer's guard hook: `true` by default; `false` or `{"alcance","ramaPrincipal","git"}` per rule). All opt-in with defaults `false` except `guardrails` (on) | `/setup` or by hand | Recreate with `/setup`; missing or corrupted file → defaults `false` + warning (classic behavior) |
++| `dev.json` | Discipline of `/dev-cycle`'s native chain: `tdd` (RED-GREEN-REFACTOR with evidence of the red), `worktree` (initiative in an isolated worktree), `subagentes` (one task = one fresh subagent), `constitucion` (decision on the `docs/CONSTITUTION.md` opt-in — distinguishes "declined" from "never asked"), `guardrails` (the implementer's guard hook: `true` by default; `false` or `{"alcance","ramaPrincipal","git"}` per rule), `revision.lenteSeguridad` (`auto` by default: the security lens C of `adversarial-review` only when `review-lens-select.py` detects sensitive paths/lines; `siempre` · `nunca`). All opt-in with defaults `false` except `guardrails` (on) and `revision.lenteSeguridad` (`auto`) | `/setup` or by hand | Recreate with `/setup`; missing or corrupted file → defaults `false` + warning (classic behavior) |
+ | `usage-state.json` | Cost-measurement markers (`usage-meter.py`: offsets per transcript and artifact) | `usage-meter.py` | Deleting it is harmless: open markers are lost; subsequent `start` calls recreate it |
+ | `.confluence-pending` | Ephemeral hook flag (there are unsynced docs) | `PostToolUse` hook | Deleting it is harmless; the skill re-detects via manifest |
+ 
+diff --git a/docs/en/FLOWS.md b/docs/en/FLOWS.md
+index 9dfe1ee..2165a67 100755
+--- a/docs/en/FLOWS.md
++++ b/docs/en/FLOWS.md
+@@ -39,7 +39,7 @@ flowchart LR
+     planner --> implementer["⚙️ implementer<br/>code + ledger"]
+     implementer --> scope{"scope-check.py<br/>diff ⊆ Archivos?"}
+     scope -.->|out of scope| implementer
+-    scope -->|exit 0| review["🔍 adversarial review<br/>(2 lenses in parallel,<br/>fresh context) diff vs plan"]
++    scope -->|exit 0| review["🔍 skill adversarial-review<br/>lenses A+B in parallel, fresh context<br/>(+ security lens C when the diff warrants it)"]
+     review -->|no gaps| qa["✅ qa<br/>E2E Playwright"]
+     review -.->|correctness gaps| implementer
+     qa -->|green| documenter["📚 documenter<br/>project docs"]
+@@ -75,7 +75,7 @@ flowchart TD
+ 
+ ## 3 · `/dev-cycle` — development cycle (with gates)
+ 
+-> **Entry gate (Phase 0-bis):** `/dev-cycle` first asks **full flow** vs **fast track**. The fast track skips evaluator+planner (creates a lightweight `tasks.md`) and goes straight into implementation, but keeps the two-lens review + qa.
++> **Entry gate (Phase 0-bis):** `/dev-cycle` first asks **full flow** vs **fast track**. The fast track skips evaluator+planner (creates a lightweight `tasks.md`) and goes straight into implementation, but keeps the two-lens review + qa. **The review is the `adversarial-review` skill** (single source of the method: `scope-check.py` gate, lenses A/B, conditional security lens C decided by `review-lens-select.py`, loop bounded to 3); `/dev-cycle` only invokes it, keeps the attempt counter and logs the `[revisión]` worklog. It is also used on demand ("review this diff") without a ledger.
+ >
+ > **Two entry points into the same gate:** the `/dev-cycle` command (explicit, with the slash) and the `quick-implement` skill, which auto-invokes from natural language ("implement X quickly") and enters through the fast-track branch after its suitability filter. The skill defines no method of its own: it delegates to this very Phase 0-bis.
+ 
+@@ -96,7 +96,7 @@ flowchart TD
+     F -->|"no (default):<br/>NATIVE chain"| H["implementer<br/>task by task<br/>(dev.json opt-in: TDD ·<br/>worktree · fresh subagents)"]
+     H --> SC{"scope-check.py<br/>changed files ⊆<br/>ledger's Archivos?"}
+     SC -.->|"exit 1: Important gap<br/>(no reviewers spent)"| H
+-    SC -->|exit 0| R["🔍 adversarial review<br/>TWO lenses in parallel:<br/>spec conformance · quality<br/>(merge + dedupe)"]
++    SC -->|exit 0| R["🔍 skill adversarial-review<br/>lenses A+B in parallel:<br/>spec conformance · quality<br/>+ C security (review-lens-select.py)<br/>(merge + dedupe)"]
+     R -.->|gaps| H
+     G --> I["qa · local E2E<br/>verdict: qa-gate.py"]
+     R --> I
+diff --git a/docs/en/README.md b/docs/en/README.md
+index df48259..1fe26b4 100755
+--- a/docs/en/README.md
++++ b/docs/en/README.md
+@@ -72,6 +72,7 @@ This is how roles are separated: **`/pm-cycle`** decides *what* and *how much it
+ | **confluence-pull** | The **reverse** direction: pulls Confluence → local `docs/`, for PMs without git. Reuses `confluence.json` and the `confluence-state.json` map; preserves local frontmatter, warns about conflicts and confirms before writing. Only reads from Confluence. | command `/confluence-pull` |
+ | **roadmap-dashboard** | Scans `docs/roadmap/*/` and generates an **HTML** dashboard (local view), **Markdown** (for publishing to Confluence) or **JSON** (state, priority and budget per initiative). Read-only. | commands `/roadmap-status`, `/pm-backlog`; skill `confluence-publish` |
+ | **debug-root-cause** | Systematic debugging down to the root cause in 4 phases with mandatory evidence (minimal reproduction → isolation → tested hypothesis → fix + regression); blind fixing is forbidden. | `/dev-cycle` (automatic hook on qa's 3rd red); on demand |
++| **adversarial-review** | Adversarial review of a diff with fresh-context lenses in parallel: A (conformance with spec/plan/constitution, ✓/✗ per criterion), B (correctness defects only) and C (security, **conditional**: decided by `review-lens-select.py` from sensitive paths/lines in the diff; `dev.json` `revision.lenteSeguridad`). Merge, Critical/Important/Minor grading, loop bounded to 3 with evidence-based rebuttal, "Revisión de dos lentes — intento N" trace in the ledger. **Single source of the method**; also on demand over a branch without a ledger. | `/dev-cycle` (Phase 3), `quick-implement`; on demand ("review this diff") |
+ | **discovery** | Turns a vague idea into a solid `spec.md` through a guided interview (goal, scope/out of scope, criteria, constraints, assumptions) before evaluating. It does not estimate. | command `/pm-cycle` (opt-in) |
+ | **quick-implement** | **Natural-language** shortcut into the `/dev-cycle` fast track (commands only fire with the slash; skills auto-invoke from their description): mandatory suitability filter and delegation to the single source of the method, keeping the ledger, the two-lens review and `qa-gate`. | requests like "implement X quickly" without typing the command |
+ | **plugin-dev** | Meta-skill for developing THIS plugin: decision tree (agent/skill/command/kit/shared fragment/hook), mandatory frontmatter with model tiering and minimal tools, TDD-ish validation (test first → linter → suites → self-review), documentation obligations and real anti-patterns. Includes agent, skill and command templates. | whoever develops THIS plugin (work sessions on the repo itself; no agent declares it as a dependency) |
+diff --git a/docs/knowledge/README.md b/docs/knowledge/README.md
+index 2eb57cf..2fcf449 100755
+--- a/docs/knowledge/README.md
++++ b/docs/knowledge/README.md
+@@ -41,3 +41,4 @@ y se crearía en el primer registro. Umbral de registro y quién escribe/lee: ve
+ | [`adr/ADR-006-un-fichero-por-entrada-gotchas-y-lecciones.md`](adr/ADR-006-un-fichero-por-entrada-gotchas-y-lecciones.md) | ADR-006 | ADR | Memoria técnica / lectura-escritura | aceptada (validada: usuario, 2026-08-20) | `2026-08-20-knowledge-split/tasks.md` |
+ | [`adr/ADR-007-deny-solo-con-alcance-de-agente.md`](adr/ADR-007-deny-solo-con-alcance-de-agente.md) — un hook de guardia (deny) solo en el frontmatter `hooks:` de un agente, nunca en `hooks/hooks.json` | ADR-007 | ADR | Hooks / implementer | aceptada (validada: revisión de dos lentes, 2026-09-02, intento 2) | `2026-09-02-deterministic-guardrails/tasks.md` |
+ | [`gotchas/GOT-004-conector-jira-transicion-por-nombre-y-assignee-default.md`](gotchas/GOT-004-conector-jira-transicion-por-nombre-y-assignee-default.md) — transición de cierre por nombre y asignado por defecto rompen contra Jira real | GOT-004 | Gotcha | Jira / conector | aceptada (validada: usuario, 2026-09-02) | `2026-08-10-jira-granularity/tasks.md` (T-08, dry-run PROJ-60) |
++| [`lessons/LES-010-dev-cycle-revision-adversarial-a-skill.md`](lessons/LES-010-dev-cycle-revision-adversarial-a-skill.md) — "Un mecanismo que caza críticos de forma repetida pasa a ser skill reutilizable" (revisión de dos lentes → `adversarial-review`, 5 ledgers) | LES-010 | Lección | Proceso / revisión adversarial | propuesta | `2026-09-02-adversarial-review/tasks.md` + tablas de revisión de 5 ledgers |
+diff --git a/docs/knowledge/lessons/LES-010-dev-cycle-revision-adversarial-a-skill.md b/docs/knowledge/lessons/LES-010-dev-cycle-revision-adversarial-a-skill.md
+new file mode 100644
+index 0000000..b671c5c
+--- /dev/null
++++ b/docs/knowledge/lessons/LES-010-dev-cycle-revision-adversarial-a-skill.md
+@@ -0,0 +1,57 @@
++---
++id: LES-010
++tipo: leccion
++area: Proceso / revisión adversarial
++estado: propuesta
++fuente: docs/roadmap/2026-09-02-adversarial-review/tasks.md (decisión del usuario) + tablas de revisión de 5 ledgers
++---
++
++## dev-cycle
++
++- **Un mecanismo de proceso que caza críticos de forma repetida deja de ser "un paso del ciclo" y
++  pasa a ser una capacidad reutilizable (skill).** La revisión adversarial de dos lentes nació
++  incrustada en `commands/dev-cycle.md` Fase 3 y solo corría dentro del ciclo; en cinco ledgers
++  consecutivos fue la única puerta que vio defectos que **ninguna suite en verde habría detectado**,
++  así que su tasa de captura justificó extraerla a `skills/adversarial-review/` (fuente única del
++  método, invocable desde `/dev-cycle`, `quick-implement` y a demanda sobre una rama sin ledger) y
++  añadirle una tercera lente de seguridad **condicional** decidida por script
++  (`review-lens-select.py`). Evidencia, cifras literales de los ledgers/retros:
++  1. **2026-08-20 `confluence-policy`** — 3 intentos, **11 hallazgos**: **2 críticos** (el README
++     staged pisado por la plantilla del marcador, con riesgo de pérdida del canónico vía pull; un
++     `rmtree` sin salvaguarda que podía borrar `docs/` entero), 1 fixture no versionada por un
++     patrón de `.gitignore` (suite rota en clon limpio, invisible en local) y 8 gaps más. «Ninguna
++     suite en verde habría detectado los dos críticos: solo el ataque adversarial los reprodujo».
++     Coste medido: ≈230k tokens en las dos lentes del intento 1 frente a 363k del implementer.
++     → `GOT-002`, `GOT-003`.
++  2. **2026-08-20 `knowledge-capture`** — 3 intentos, **12 gaps** en el 1.º (5 Important, 7 Minor)
++     y **5 residuales** en el 3.º (1 Important, 4 Minor). El mayor fue un hueco de **diseño**, no de
++     código: las entradas `propuesta` se aplicaban como doctrina sin circuito de promoción
++     `propuesta`→`aceptada` — cerrado con dos promotores explícitos que hoy usan `knowledge-write.md`
++     y `/retro`.
++  3. **2026-08-20 `knowledge-split`** (vía rápida) — 2 intentos: 3 ficheros nacían del mismo heading
++     al partir las lecciones (enmendado con sufijo `— N/3`) y un glob muerto derivado del rename
++     (`lessons/evaluator-*` en `docs/CONVENTIONS.md`/EN casaba 0 ficheros).
++  4. **2026-09-02 `live-visibility`** (vía rápida) — intento 1: **8 gaps corregidos**, 3 aceptados
++     como deuda, 0 rebatidos: BOM UTF-8 que hacía invisible la iniciativa, `set -u` + `HOME` sin
++     definir abortando los hooks, horas `(estimado)` sumadas como «IA real», rutas Windows sin casar
++     en el `case` de los hooks…
++  5. **2026-09-02 `deterministic-guardrails`** (vía rápida) — intento 1: **4 gaps** (2 Important,
++     2 Minor), entre ellos tres **evasiones del guardrail git** (`git push origin +main`,
++     `sh -c "git push --force"`, `rm -rf .`) y una precarga `skills:` de ≈15k tokens por arranque;
++     intento 2: 1 regresión introducida por la propia corrección (recursión demasiado ancha en
++     `check_git`). Todos reproducidos antes de corregir.
++
++  Patrón común: los gaps aparecen en **lo que el implementador no puede ver desde dentro**
++  (evasiones, entornos ajenos —BOM, Windows, clon limpio—, huecos de diseño), y el 2.º/3.º intento
++  encuentra regresiones de la corrección del 1.º — por eso el bucle acotado y el traspaso de la
++  tabla entre intentos forman parte del método. La lente C se añade **condicional** porque un tercer
++  revisor fijo sería coste sin captura en iniciativas de prosa y scripts: `review-lens-select.py`
++  aplicado a posteriori sobre los dos rangos disponibles en git da `false` para
++  `deterministic-guardrails` (28 ficheros, `4e94deb..f627bda`) y `true` para `live-visibility` solo
++  por la ruta `hooks/session-context.sh` (patrón `session` — la heurística es conservadora: un falso
++  positivo cuesta un revisor, un falso negativo cuesta un agujero). — *Fuente:* [`2026-08-20-confluence-policy/retro.md`](../../roadmap/2026-08-20-confluence-policy/retro.md#aprendizajes),
++  [`2026-08-20-knowledge-capture/tasks.md`](../../roadmap/2026-08-20-knowledge-capture/tasks.md),
++  [`2026-08-20-knowledge-split/tasks.md`](../../roadmap/2026-08-20-knowledge-split/tasks.md),
++  [`2026-09-02-live-visibility/tasks.md`](../../roadmap/2026-09-02-live-visibility/tasks.md),
++  [`2026-09-02-deterministic-guardrails/tasks.md`](../../roadmap/2026-09-02-deterministic-guardrails/tasks.md).
++  `estado: propuesta`.
+diff --git a/docs/roadmap/2026-09-02-adversarial-review/tasks.md b/docs/roadmap/2026-09-02-adversarial-review/tasks.md
+index fd95fb2..8b55e86 100644
+--- a/docs/roadmap/2026-09-02-adversarial-review/tasks.md
++++ b/docs/roadmap/2026-09-02-adversarial-review/tasks.md
+@@ -1,7 +1,7 @@
+ ---
+ tasks: adversarial-review
+ descripcion: La revisión adversarial de dos lentes sale de `commands/dev-cycle.md` a una skill compartida `adversarial-review` (fuente única del método) reutilizable desde /dev-cycle, quick-implement y a demanda («revísame este diff»), con una tercera lente de seguridad CONDICIONAL decidida por script determinista (`review-lens-select.py`).
+-estado: en-progreso        # borrador | en-progreso | completado | cancelado
++estado: completado        # borrador | en-progreso | completado | cancelado
+ creado: 2026-09-02
+ actualizado: 2026-09-02
+ via: rapida               # vía rápida de /dev-cycle: sin spec/evaluación/plan; conserva revisión de dos lentes + suites
+@@ -13,7 +13,7 @@ generacion:
+ 
+ | | |
+ |---|---|
+-| **Estado** | en-progreso |
++| **Estado** | completado |
+ | **Fecha** | 2026-09-02 |
+ | **Plan** | n/a — **vía rápida** (sin spec/evaluación/plan; ledger ligero + revisión de dos lentes + verificación) |
+ 
+@@ -27,75 +27,88 @@ generacion:
+ 
+ | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervisión (real/est) | Tokens (real/est) |
+ |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
+-| Fase única — skill adversarial-review | 0 | 4 | 0% | 0,0 / 4,5h | 0,00 / 0,22h | 0,00 / 0,05h | 0k / 95k |
+-| **TOTAL** | **0** | **4** | **0%** | **0,0 / 4,5h** | **0,00 / 0,22h** | **0,00 / 0,05h** | **0k / 95k** |
++| Fase única — skill adversarial-review | 4 | 4 | 100% | 4,1 / 4,5h | 0,21 / 0,22h | 0,05 / 0,05h | 90k / 95k |
++| **TOTAL** | **4** | **4** | **100%** | **4,1 / 4,5h** | **0,21 / 0,22h** | **0,05 / 0,05h** | **90k / 95k** |
+ 
+ ---
+ 
+ ## Fase única — skill adversarial-review
+ 
+-**Estado**: en-progreso · **Estimado**: 4,5h · **Real**: — · **Coste est.**: ≈235 € · **Tokens est.**: 95k
++**Estado**: completado · **Estimado**: 4,5h · **Real**: 4,1h (estimado) · **Coste est.**: ≈235 € · **Tokens est.**: 95k
+ 
+ ### T-01 — `skills/adversarial-review/SKILL.md` (fuente única del método)
+ 
+ - **Descripción**: skill compartida con frontmatter (`name`, `description` con disparadores «revisa este diff», «revisión adversarial», «pasa las dos lentes», «revisión de dos lentes», «busca gaps en la rama» y negativos: no sustituye a `qa` ni a `nemesis`, no revisa estilo). Cuerpo: entradas (iniciativa con ledger, O rama/rango `<base>..HEAD` sin ledger → modo «sin plan»: la Lente A revisa contra el objetivo declarado por el usuario y los mensajes de commit); puerta `scope-check.py` (solo con ledger); **Lente A** y **Lente B** con los prompts literales que HOY viven en dev-cycle (se MUEVEN aquí); **Lente C — seguridad, CONDICIONAL** (solo si `review-lens-select.py` → `lente_c: true`; prompt acotado al diff: inyección, auth/sesión, secretos, deserialización, path traversal, SSRF, permisos; CWE cuando aplique; NO auditoría completa — eso es `nemesis`; usa solo las listas de `skills/cybersecurity/references/`); fusión y deduplicación de las 2-3 salidas; graduación Critical/Important/Minor; bucle acotado (máx 3, contador explícito); disciplina al recibir (verificar antes de corregir, rebatir con evidencia, `descartado (rebatido)` no consume intento); traspaso de estado del revisor entre intentos; salida (tabla por criterio ✓/✗ + gaps; con ledger: tabla «Revisión de dos lentes — intento N» en `tasks.md` + promoción `docs/knowledge/` `propuesta`→`aceptada`); publicación en Jira (Paso 9 jira-sync, `review-report.template.md`) solo con opt-in y plan volcado; personas (`- **Tipo**:` → la Lente B antepone `agent-kits/shared/personas/<tipo>.md`); disciplina de salida (`output-discipline.md`); rutas por `find` (regla 5); sección «Qué NO hace». La etiqueta «Revisión de dos lentes» no cambia aunque corra la lente C.
+-- **Estado**: en-progreso
+-- **Tiempo humano**: est. 1,5h · real — 
+-- **Tiempo IA (ejec.)**: est. 0,07h · real —
+-- **Supervisión**: est. 0,02h · real —
++- **Estado**: completado
++- **Tiempo humano**: est. 1,5h · real 1,3h (estimado)
++- **Tiempo IA (ejec.)**: est. 0,07h · real 0,07h (estimado)
++- **Supervisión**: est. 0,02h · real 0,02h (estimado)
+ - **Archivos**: `skills/adversarial-review/SKILL.md` (nuevo)
+ 
+ **Criterios de aceptación**
+-- [ ] `skills/adversarial-review/SKILL.md` existe con frontmatter `name: adversarial-review` (== carpeta) y `description` con los 5 disparadores y los negativos; `python3 scripts/lint_plugin.py` → 0 errores (sin aviso de nombre genérico).
+-- [ ] Los prompts de las Lentes A y B aparecen en la skill y **no** en `commands/dev-cycle.md` (`grep -c "Lente A" commands/dev-cycle.md` = 0). La Lente C cita rutas REALES de `skills/cybersecurity/references/` (comprobadas con `ls`), no la skill entera.
+-- [ ] La skill cubre: modo con ledger y modo «sin plan», puerta scope-check, bucle acotado 3 con contador, rebate con evidencia sin consumir intento, traspaso de estado entre intentos, tabla «Revisión de dos lentes — intento N», promoción de `docs/knowledge/`, Jira opt-in, personas, output-discipline, «Qué NO hace».
++- [x] `skills/adversarial-review/SKILL.md` (167 líneas) con frontmatter `name: adversarial-review` (== carpeta) y `description` (bloque plegado `>` — la forma inline rompía el YAML por el `: ` de «CONDICIONAL:») con los 5 disparadores y los negativos (`qa`, `nemesis`, estilo); `yaml.safe_load` OK; `python3 scripts/lint_plugin.py` → 0 errores · 4 avisos (el nuevo es el esperado «nombre genérico» por el token `review` de `GENERIC_NAME_TOKENS`, igual que `retro`/`setup`/`qa` — nombre fijado por el usuario).
++- [x] Los prompts de las Lentes A y B viven en la skill §2 (texto literal movido) y **no** en `commands/dev-cycle.md` (`grep -c "Lente A\|Lente B" commands/dev-cycle.md` = 0). La Lente C cita rutas REALES comprobadas con `ls`: `references/vulnerability-taxonomy.md`, `references/language-patterns/<lenguaje>.md` (11 ficheros), `references/iac-patterns/{dockerfile,github-actions,kubernetes,terraform}.md`, `references/false-positive-suppression.md` — no la `SKILL.md` de 976 líneas.
++- [x] La skill cubre: «Entradas — dos modos» (con ledger / sin plan), §0 puerta scope-check, §1 review-lens-select, §2 lentes (persona de dominio en B, referencias en C), §3 fusión + Critical/Important/Minor, §4 disciplina al recibir (rebate con evidencia, `descartado (rebatido)` no consume intento), §5 bucle acotado 3 + traspaso de la tabla, §6 salida (tabla ✓/✗, sección «Revisión de dos lentes — intento N», promoción `propuesta`→`aceptada`, Jira solo opt-in + plan volcado, output-discipline), nota de compatibilidad de la etiqueta, «Qué NO hace», «Degradación». Rutas por `find` (`SHAREDKIT`, `REVSKILL`).
+ 
+ ### T-02 — `skills/adversarial-review/scripts/review-lens-select.py` (+ tests)
+ 
+ - **Descripción**: `review-lens-select.py [--base <ref>] [--files f1 f2 …] [--json]` decide si la Lente C aplica. Ficheros cambiados = `git diff --name-only <base>...HEAD` ∪ `git status --porcelain` (o `--files`). Heurística por RUTA (`auth|login|session|token|oauth|jwt|password|passwd|secret|crypt|permission|acl|rbac|cors|csrf|upload|payment|billing|\.env|docker|Dockerfile|nginx|k8s|helm|\.github/workflows`, case-insensitive) y por CONTENIDO de las líneas AÑADIDAS del diff (`eval(|exec(|subprocess|os.system|innerHTML|dangerouslySetInnerHTML|pickle.loads|yaml.load(|SELECT .* \+|f"SELECT|API_KEY|PRIVATE KEY|BEGIN RSA|Authorization:|Set-Cookie`); las líneas borradas no cuentan; binarios se saltan. Config `.claude/dev.json` `"revision": {"lenteSeguridad": "auto" | "siempre" | "nunca"}` (default `auto`; fichero ausente/corrupto → `auto` + aviso). Salida: `lente_c: true|false` + motivos (fichero + patrón). Exit 0 siempre (aviso en stderr ante error).
+-- **Estado**: en-progreso
+-- **Tiempo humano**: est. 1,3h · real —
+-- **Tiempo IA (ejec.)**: est. 0,07h · real —
+-- **Supervisión**: est. 0,02h · real —
+-- **Archivos**: `skills/adversarial-review/scripts/review-lens-select.py` (nuevo), `skills/adversarial-review/scripts/test_review_lens_select.py` (nuevo), `ci.yml.MANUAL-COPY`, `.github/workflows/ci.yml`
++- **Estado**: completado
++- **Tiempo humano**: est. 1,3h · real 1,3h (estimado)
++- **Tiempo IA (ejec.)**: est. 0,07h · real 0,07h (estimado)
++- **Supervisión**: est. 0,02h · real 0,02h (estimado)
++- **Archivos**: `skills/adversarial-review/scripts/review-lens-select.py` (nuevo), `skills/adversarial-review/scripts/test_review_lens_select.py` (nuevo), `ci.yml.MANUAL-COPY`
+ 
+ **Criterios de aceptación**
+-- [ ] `pytest -q skills/adversarial-review/scripts` → ≥ 8 passed: ruta `auth/login.py` → true; contenido `eval(` añadido → true; nada sensible → false con motivos vacíos; `lenteSeguridad: siempre` → true sin motivos de heurística; `nunca` → false aunque haya `auth/`; sin git con `--files` → funciona; `dev.json` corrupto → `auto` + aviso stderr, exit 0; patrón solo en línea BORRADA → false; fichero binario → se salta sin error.
+-- [ ] Sobre ESTE repo (`--base f627bda`) → `lente_c: false`, motivos vacíos, exit 0. Sobre un fixture con `auth/login.py` → `lente_c: true`, exit 0.
+-- [ ] Exit 0 en todos los casos (incl. fuera de git sin `--files`: aviso stderr + `lente_c: false`).
++- [x] `pytest -q skills/adversarial-review/scripts` → **14 passed** (TDD: RED `13 failed` sin el script, GREEN tras implementarlo): ruta `auth/login.py` → true; contenido `eval(` en línea añadida → true con `linea: 2`; nada sensible (incl. `.md` con payload) → false y `motivos == []`; `siempre` → true con motivo `config`; `nunca` → false aunque haya `auth/`; sin git con `--files` → ruta + contenido; sin git y sin `--files` → aviso + false; `dev.json` corrupto y valor desconocido → `auto` + aviso stderr; patrón solo en línea BORRADA → false; binario (NUL, untracked y comiteado) → se salta sin traceback; sin comitear + untracked cuentan; tests/fixtures no se escanean por contenido pero sí por ruta; salida texto con `--base`; **regresión**: el propio script no se dispara a sí mismo (la 1.ª versión listaba los patrones literales en docstring y etiquetas → `lente_c: true` sobre este repo; corregido con etiquetas kebab-case y regex `[.]`/`[ ]`).
++- [x] Sobre ESTE repo: `review-lens-select.py --base f627bda` → `lente_c: false · modo auto · base --base f627bda · 24 fichero(s) cambiado(s)` · `motivos: —` · exit 0. Fixture (repo temporal, rama `feature/login` con `auth/login.py`) → `lente_c: true · … · 1 fichero(s)` · `ruta auth/login.py ~ auth` · exit 0; con `--files auth/login.py` sin rama → true. A posteriori sobre rangos reales: `4e94deb..f627bda` (deterministic-guardrails, 28 ficheros) → false; `721c67e..4e94deb` (live-visibility, 30 ficheros) → true solo por `hooks/session-context.sh ~ session` (falso positivo conservador, anotado en LES-010).
++- [x] Exit 0 en todos los casos (14 tests lo afirman; el `main` envuelve la evaluación del diff en `try/except` → aviso + `lente_c: false`). CI: `ci.yml.MANUAL-COPY` paso pytest pasa de la lista fija (`test_usage_meter` + `test_task_brief`) a carpetas (`agent-kits/shared skills/adversarial-review/scripts`), con lo que también entran `test_guardrail_check`/`test_scope_check`, que la CI no ejecutaba. `.github/workflows/ci.yml` NO se toca (copia manual por diseño, ruta protegida; además casaría el patrón `\.github/workflows` de la lente C).
+ 
+ ### T-03 — Cableado (sin duplicar el método)
+ 
+ - **Descripción**: `commands/dev-cycle.md` Fase 3 paso 2 sustituye el bloque de las dos lentes por una invocación a la skill `adversarial-review` (qué le pasa: iniciativa, intento N, tabla previa; qué espera: veredicto, gaps graduados, ledger actualizado), conservando SOLO lo del orquestador: contador de intentos y decisión al 3.º, imputación `[revisión]` por intento en Jira. La puerta scope-check, la promoción de `docs/knowledge/` y el comentario Jira final se delegan en la skill (un único sitio). `skills/quick-implement/SKILL.md` referencia la skill; `agents/implementer.md` P3 «Al recibir gaps» cita la skill; `commands/retro.md` y `agent-kits/shared/knowledge-write.md` la enlazan en una línea sin cambiar el formato `validada: revisión de dos lentes`; `agent-kits/shared/review-report.template.md` pie: generado por la skill. `agents/nemesis.md` `dependencies` NO cambia.
+-- **Estado**: en-progreso
+-- **Tiempo humano**: est. 0,8h · real —
+-- **Tiempo IA (ejec.)**: est. 0,04h · real —
+-- **Supervisión**: est. 0,01h · real —
++- **Estado**: completado
++- **Tiempo humano**: est. 0,8h · real 0,7h (estimado)
++- **Tiempo IA (ejec.)**: est. 0,04h · real 0,03h (estimado)
++- **Supervisión**: est. 0,01h · real 0,01h (estimado)
+ - **Dependencias**: T-01, T-02
+ - **Archivos**: `commands/dev-cycle.md`, `skills/quick-implement/SKILL.md`, `agents/implementer.md`, `commands/retro.md`, `agent-kits/shared/knowledge-write.md`, `agent-kits/shared/review-report.template.md`
+ 
+ **Criterios de aceptación**
+-- [ ] `wc -l commands/dev-cycle.md`: 181 antes → ≤ 156 después (≥ 25 líneas netas menos); `grep -c "Lente A" commands/dev-cycle.md` = 0 y `grep -c "Lente B"` = 0.
+-- [ ] En dev-cycle queda: contador de intentos + decisión al 3.º + worklog `[revisión]` por intento; el resto remite a la skill por nombre. `quick-implement`, `implementer` P3, `retro` 4-bis y `knowledge-write` §Autoría nombran la skill (una línea cada uno).
+-- [ ] `python3 scripts/lint_plugin.py` → 0 errores; `python3 tests/test_lint_plugin.py` OK.
++- [x] `wc -l commands/dev-cycle.md`: **181 → 156** (−25). Desglose: bloque de las dos lentes (22 líneas: puerta, prompts, fusión, bucle, disciplina, promoción, Jira) → 3 líneas (invocación + 2 bullets del orquestador) = −19; párrafo de traspaso de estado en modo subagentes → cubierto por la skill §5 = −2; nota «Punto de entrada de la vía rápida» redundante con la Fase 0-bis («salta a la Fase 3…») = −2; el «por qué la vía rápida NO salta la calidad» fundido en su propio bullet (mismo texto, sin pérdida) = −2. `grep -c "Lente A\|Lente B"` = 0.
++- [x] En dev-cycle paso 2 queda: invocación con entradas (iniciativa, intento N, tabla previa) y salidas esperadas (veredicto ✓/✗, gaps graduados, lentes, ledger con `ledger-lint` 0) + bullets «Tuyo (orquestador)»: bucle acotado 3 con decisión al 3.º y worklog `[revisión]` por intento. Puerta scope-check, promoción de `docs/knowledge/` y comentario Jira final delegados en la skill (un único sitio). `quick-implement` punto 4, `implementer` P3 («Al recibir gaps … skill `adversarial-review` §4»), `retro` 4-bis, `knowledge-write` Promotor 1 y el pie de `review-report.template.md` nombran la skill en una línea; el formato `validada: revisión de dos lentes` no cambia. `agents/nemesis.md` intacto.
++- [x] `python3 scripts/lint_plugin.py` → `8 agentes · 0 errores · 4 avisos`; `test_lint_plugin: 15/15 OK`; `test_mermaid_blocks: 30 diagrama(s) OK`.
+ 
+ ### T-04 — Doc, linter, CI y memoria
+ 
+ - **Descripción**: `docs/CONVENTIONS.md` + EN (regla 8: la puerta scope-check abre la skill; regla 9: fila `dev.json` + `revision.lenteSeguridad`), `docs/FLOWS.md` + EN (§1 y §3: nodo de revisión = skill `adversarial-review`, 2 lentes + lente C condicional), `docs/README.md` + `docs/en/README.md` (fila de skills), `README.md` + `README.es.md` (lista de skills + badge `skills-12`), `CLAUDE.md` (tabla de skills + párrafo «Revisión adversarial»), `.claude-plugin/plugin.json` `description` (+`adversarial-review`, sin tocar `version`), `ci.yml.MANUAL-COPY` (suite nueva en el paso pytest). Lección `docs/knowledge/lessons/LES-010-dev-cycle-revision-adversarial-a-skill.md` (`estado: propuesta`) con las 5 evidencias reales de los ledgers + fila en `docs/knowledge/README.md`. Fila en `docs/roadmap/README.md`. NO se toca `CHANGELOG*.md`.
+-- **Estado**: en-progreso
+-- **Tiempo humano**: est. 0,9h · real —
+-- **Tiempo IA (ejec.)**: est. 0,04h · real —
+-- **Supervisión**: est. 0,01h · real —
++- **Estado**: completado
++- **Tiempo humano**: est. 0,9h · real 0,8h (estimado)
++- **Tiempo IA (ejec.)**: est. 0,04h · real 0,04h (estimado)
++- **Supervisión**: est. 0,01h · real 0,01h (estimado)
+ - **Dependencias**: T-01, T-02, T-03
+ - **Archivos**: `docs/CONVENTIONS.md`, `docs/en/CONVENTIONS.md`, `docs/FLOWS.md`, `docs/en/FLOWS.md`, `docs/README.md`, `docs/en/README.md`, `README.md`, `README.es.md`, `CLAUDE.md`, `.claude-plugin/plugin.json`, `docs/knowledge/lessons/LES-010-dev-cycle-revision-adversarial-a-skill.md` (nuevo), `docs/knowledge/README.md`, `docs/roadmap/README.md`
+ 
+ **Criterios de aceptación**
+-- [ ] Espejos EN actualizados en el mismo cambio (CONVENTIONS, FLOWS, docs/README, README); `python3 tests/test_readme_badges.py` OK con `skills-12`; `python3 tests/test_mermaid_blocks.py` OK.
+-- [ ] `plugin.json` `description` lista `adversarial-review`; `version` intacta (`1.14.1`); `python3 scripts/release.py --check` OK.
+-- [ ] `LES-010` con formato de las lecciones existentes, `estado: propuesta`, cifras tomadas de los ledgers/retros (no inventadas) + fila en `docs/knowledge/README.md`; `CHANGELOG*.md` sin cambios (`git diff --stat` no los lista).
++- [x] Espejos EN en el mismo cambio: `CONVENTIONS` (regla 8: la puerta abre la skill; regla 9: fila `dev.json` + `revision.lenteSeguridad`), `FLOWS` (§1 y §3: nodo «skill adversarial-review, lentes A+B + C condicional»; nota de la Fase 0-bis), `docs/README` (fila de skills), `README` (párrafo «calidad = puertas», lista de skills, badge `skills-11`→`skills-12`). Solo ES por convención: `CLAUDE.md` (párrafo «Revisión adversarial», fila de skills, fila Determinismo). `test_readme_badges: 6 badge(s) verificados OK`; `test_mermaid_blocks: 30 diagrama(s) OK`.
++- [x] `plugin.json` `description` lista `adversarial-review (revisión de dos lentes + lente de seguridad condicional)`; `version` = `1.14.1` intacta; `python3 scripts/release.py --check` → `OK: todas coinciden en 1.14.1`. `scripts/lint_plugin.py` no tiene listas explícitas de skills (valida por carpeta) → nada que añadir.
++- [x] `docs/knowledge/lessons/LES-010-dev-cycle-revision-adversarial-a-skill.md` (frontmatter `id/tipo/area/estado: propuesta/fuente`, sección `## dev-cycle`, bullet + *Fuente* con enlaces relativos como LES-004) con las 5 evidencias literales: confluence-policy 3 intentos/11 hallazgos/2 críticos (≈230k vs 363k tokens); knowledge-capture 12 + 5 gaps (hueco de diseño de la promoción); knowledge-split 2 enmiendas; live-visibility 8 gaps/3 deuda/0 rebatidos; deterministic-guardrails 4 gaps + 1 regresión (evasiones git). Fila en `docs/knowledge/README.md` y en `docs/roadmap/README.md`. `git diff --stat HEAD -- CHANGELOG.md CHANGELOG.es.md` → vacío.
+ 
+ ---
+ 
++## Verificación final (DoD del implementer, rama `feature/deterministic-guardrails`)
++
++- `python3 -m pytest -q tests agent-kits/shared skills/adversarial-review/scripts` → **150 passed** (136 previos + 14 `test_review_lens_select`). 9 suites-script de CI verdes (`confluence_scope · coverage-check · dashboard · ledger_lint 11/11 · lint_plugin 15/15 · mermaid 30 · qa_gate · readme_badges 6 · worklog`).
++- `python3 scripts/lint_plugin.py` → `8 agentes · 0 errores · 4 avisos` (3 previos + «nombre genérico» esperado de `adversarial-review`). `ledger-lint.py` de este fichero → `0 incoherencias · 0 avisos`, exit 0.
++- `review-lens-select.py --base f627bda` sobre este repo → `lente_c: false`, `motivos: —`, exit 0; fixture `auth/login.py` → `lente_c: true`, exit 0.
++- `wc -l commands/dev-cycle.md` → 181 antes / **156** después; `grep -c "Lente A" commands/dev-cycle.md` → 0.
++- `scope-check.py docs/roadmap/2026-09-02-adversarial-review --base f627bda` → `24 fichero(s) cambiado(s) · 23 patrón(es)` · `✅ en alcance (24)` · `❌ fuera de alcance (0)` · exit 0 (`--base` necesario porque la rama `feature/deterministic-guardrails` es compartida con la iniciativa anterior: con merge-base master aparecen sus 15 ficheros como «fuera»).
++- Commits lógicos por tarea: `T-01` (`45324fd`), `T-02` (`eb4acf0`), `T-03` (`b320e25`), `T-04`. Sin push. Tabla «Revisión de dos lentes» pendiente de añadir al final cuando llegue.
++
+ ## Dudas y decisiones para el orquestador
+ 
+-- (se rellena al cerrar)
++- **Heurística de contenido más precisa que el brief (documentado en el script):** `subprocess` solo cuenta con `shell=True` en la misma línea (el patrón plano casaría `import subprocess` de cualquier script del repo, incluido `review-lens-select.py`, y forzaría la lente C en cada cambio de un script shared); prosa (`.md/.txt/.rst`), tests y fixtures NO se escanean por contenido (contienen payloads a propósito) pero sí por ruta. Sin estas dos reglas el DoD «este repo → false» era imposible: la skill, el ledger y los tests nombran los patrones literalmente.
++- **Falsos positivos conocidos de la heurística por ruta** (conservadora a propósito): `session` casa `hooks/session-context.sh` (live-visibility habría lanzado la lente C), `token` casaría `2026-08-10-token-diet/`, `auth` casa `author`, `acl` casa `oracle`. Un falso positivo cuesta un revisor; se puede apagar por proyecto con `revision.lenteSeguridad: nunca` o afinar la regex con test.
++- **`/setup` no ofrece `revision.lenteSeguridad`** (fuera del alcance pedido): se documenta en CONVENTIONS regla 9 como clave manual de `dev.json` con default `auto`. Si se quiere en el asistente, es un paso más en `commands/setup.md`.
++- **CI:** la lista fija del paso pytest de `ci.yml.MANUAL-COPY` no incluía `test_guardrail_check`/`test_scope_check` (deuda previa); al pasar a carpetas entran los tres. La copia a `.github/workflows/ci.yml` es manual por diseño (ruta protegida) — pendiente de quien haga la copia.
++- **Linter:** `adversarial-review` dispara el aviso «nombre genérico» por el token `review` (mismo caso que `retro`, `setup`, `qa`); es aviso, no error, y el nombre lo fijó el usuario. **CHANGELOG** no tocado (orquestador).
+diff --git a/docs/roadmap/README.md b/docs/roadmap/README.md
+index 9886701..69e86f7 100755
+--- a/docs/roadmap/README.md
++++ b/docs/roadmap/README.md
+@@ -22,5 +22,6 @@ Estados: borrador · en-progreso · en-revision · completado · cancelado (spec
+ | 2026-08-20 | knowledge-capture — **memoria técnica de los agentes**: ADR ligero con umbral, registro de gotchas en los puntos donde el conocimiento nace (`debug-root-cause` F4, flaky justificado de qa, retro), **bucle de lectura** (`knowledge-check.md`) en 5 agentes con las lecciones hardcodeadas del evaluator migradas a `LESSONS.md`, `/retro` de dos salidas, **backfill semilla** (5 `retro.md` + las 5 decisiones de confluence-policy) y doc ES+EN; índice+lint determinista **diferido** (>15 entradas o 1.ª colisión de IDs) — **spec `implementada` · evaluación `completado` · plan `completado` (5 fases, 16 tareas; revisión de dos lentes superada en 3 intentos; suites y linter en verde)** | 24 h | ~1.205 € | [spec](2026-08-20-knowledge-capture/spec.md) · [eval](2026-08-20-knowledge-capture/evaluation.md) · [plan](2026-08-20-knowledge-capture/improvement-plan.md) · [tasks](2026-08-20-knowledge-capture/tasks.md) |
+ | 2026-09-02 | deterministic-guardrails — **vía rápida**: los guardrails duros del `implementer` pasan de prosa a script — `guardrail-check.py` (alcance `docs/roadmap/` solo `tasks.md`, rama de trabajo, git destructivo) impuesto por un hook `PreToolUse` con alcance SOLO del agente (frontmatter `hooks:`, nunca global — ADR-007), `scope-check.py` (diff ⊆ `Archivos` del ledger) como puerta previa a la revisión, linter de los campos nativos `hooks`/`skills`, «Fase única» en `ledger-lint`; contratos oficiales verificados 2026-09-02 | 5 h | ~260 € | [tasks](2026-09-02-deterministic-guardrails/tasks.md) (ledger ligero) |
+ | 2026-09-02 | live-visibility — **vía rápida**: información en vivo mientras corren las tareas — `progress-report.py` (línea de progreso determinista del ledger, `active`, `session`, `--json`), hooks no bloqueantes `PostToolUse` (línea con debounce) · `SubagentStop` (iniciativas activas) · `SessionStart` (contexto de retoma, sobrevive a la compactación), statusline opt-in (modelo · coste · ctx · roadmap) en `/setup` 5-bis, linter de `hooks.json`; contratos oficiales verificados 2026-09-02 | 4 h | ~210 € | [tasks](2026-09-02-live-visibility/tasks.md) (ledger ligero) |
++| 2026-09-02 | adversarial-review — **vía rápida**: la revisión adversarial de dos lentes sale de `commands/dev-cycle.md` a la skill compartida `adversarial-review` (fuente única del método: puerta `scope-check`, lentes A/B, **lente C de seguridad condicional** decidida por `review-lens-select.py` con tests, fusión y graduación, bucle acotado a 3, rebate con evidencia, traza «Revisión de dos lentes — intento N»), reutilizable desde /dev-cycle, quick-implement y a demanda; dev-cycle 181→156 líneas; lección LES-010 con las 5 evidencias | 4,5 h | ~235 € | [tasks](2026-09-02-adversarial-review/tasks.md) (ledger ligero) |
+ 
+ **Calibración:** las iniciativas con `retro.md` alimentan [`CALIBRATION.md`](CALIBRATION.md), de donde `evaluator` toma el histórico y `usage-meter.py` la mediana `tokens/hora` para convertir tokens medidos en horas-IA.
+-- 
+2.43.0
+

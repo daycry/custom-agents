@@ -25,6 +25,7 @@ fi
 hit=0
 while IFS= read -r p; do
   [ -n "$p" ] || continue
+  p="${p//\\//}"   # rutas Windows nativas (C:\proy\docs\roadmap\...) → separador '/'
   case "$p" in
     *docs/security-scan/*) continue ;;   # nunca sincronizar datos sensibles de nemesis
     *docs/confluence/*) continue ;;      # carpeta STAGED (D5, generada por --stage): regenerarla

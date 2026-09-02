@@ -30,8 +30,10 @@ jobs:
             python "$t" || exit 1
           done
 
-      - name: Tests (pytest — usage-meter + task-brief)
-        run: python -m pytest agent-kits/shared/test_usage_meter.py agent-kits/shared/test_task_brief.py -q
+      - name: Tests (pytest — scripts shared + skills con suite propia)
+        # carpetas, no lista fija: cualquier test_*.py nuevo en agent-kits/shared/ o en
+        # skills/*/scripts/ entra solo en la CI (review-lens-select vive junto a su skill)
+        run: python -m pytest agent-kits/shared skills/adversarial-review/scripts -q
 
       - name: Sintaxis de todos los scripts Python
         run: |

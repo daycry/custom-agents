@@ -28,7 +28,8 @@ PLUGROOT="$(find "$PWD/.claude" "$HOME/.claude" -type d -path '*skills/plugin-de
 | Capacidad reutilizable por 2+ agentes (o pensada para reutilizar) | **skill compartida** | `skills/<nombre>/SKILL.md` | `templates/skill.template.md` |
 | Script/plantilla de UN solo agente | **kit privado** | `agent-kits/<agente>/` | — |
 | Trozo de PROMPT idéntico en varios agentes (no invocable) | **fragmento shared** | `agent-kits/shared/` | — |
-| Reacción automática a eventos de herramienta | **hook** | `hooks/` (PostToolUse, NO bloqueante) | — |
+| Reacción automática a eventos del ciclo de vida, para INFORMAR | **hook informativo** | `hooks/` + registro global en `hooks/hooks.json` (eventos usados: `PostToolUse`, `SubagentStop`, `SessionStart`). **Informan, no deciden**: `systemMessage`/`additionalContext`, SIEMPRE exit 0, silencio sin `python3`; el linter exige que cada `command` exista y sea ejecutable | `hooks/progress-line.sh` como referencia |
+| Impedir que UN agente haga algo prohibido (deny) | **hook de guardia** | wrapper en `hooks/` registrado SOLO en el frontmatter `hooks:` de ese agente (`PreToolUse` → JSON `permissionDecision: deny`); la decisión en un script de `agent-kits/shared/` con tests; desactivable en `.claude/dev.json`; sin `python3` → aviso y exit 0. **Nunca en `hooks/hooks.json`** (regla 8 de CONVENTIONS, ADR-007) | `hooks/implementer-guardrail.sh` + `agent-kits/shared/guardrail-check.py` |
 
 Duda entre kit privado y skill → **empieza privado**; promociona a `skills/` el día que un
 segundo agente lo necesite (regla 3). Duda entre agente y comando → si decide *puertas* y
@@ -48,6 +49,7 @@ segundo agente lo necesite (regla 3). Duda entre agente y comando → si decide 
 **Agente** — claves que interpreta Claude Code + las nuestras:
 
 - `name` (== fichero) · `description` (párrafo con disparadores: termina con "Úsalo cuando el usuario diga …") · `tools` (**mínimos**: solo los que usa de verdad; pedir `Bash` sin usarlo es deuda) · `model` (**obligatorio**, tiering: `haiku` mecánico · `sonnet` desarrollo estándar · `opus` razonamiento crítico · `inherit`) · `dependencies` (skills/kits/agents que EXISTEN; sin ciclos A→B→A).
+- Opcionales nativos: `skills:` (precarga el contenido COMPLETO de esas skills al arrancar — solo las que el agente necesita en TODAS sus ejecuciones; las opt-in se invocan bajo demanda con la herramienta Skill; cada una debe estar también en `dependencies.skills` y el linter avisa si la precarga supera 16 KB — regla token-diet) · `hooks:` (hooks con alcance del agente; único sitio para un hook de guardia — `command` con `${CLAUDE_PLUGIN_ROOT}` + fallback `find` en la misma línea, el linter comprueba que el fichero exista). No uses `isolation: worktree` nativo: choca con el opt-in `worktree` de `dev.json`.
 
 **Skill** — `name` + `description` (misma regla de disparadores). Todo lo demás es el cuerpo.
 

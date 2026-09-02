@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Estado** | en-revision |
+| **Estado** | completado |
 | **Fecha** | 2026-08-10 |
 | **Plan** | [`improvement-plan.md`](./improvement-plan.md) |
 
@@ -17,8 +17,8 @@
 | Fase 1 — Config de granularidad | 1 | 1 | 100% | 0 / 1,5h | 0 / 0,5h | 0 / 0,15h | 0 / 140k |
 | Fase 2 — Modo fase | 4 | 4 | 100% | 0 / 12,5h | 0 / 3,95h | 0 / 1,0h | 0 / 1.250k |
 | Fase 3 — Revisor → Jira | 2 | 2 | 100% | 0 / 4,75h | 0 / 1,55h | 0 / 0,4h | 0 / 565k |
-| Fase 4 — Puerta de dry-run y cierre | 1 | 2 | 50% | 0 / 1,5h | 0 / 0,6h | 0 / 0,2h | 0 / 118k |
-| **TOTAL** | **8** | **9** | **89%** | **0 / 20,25h** | **0 / 6,6h** | **0 / 1,75h** | **0 / 2.073k** |
+| Fase 4 — Puerta de dry-run y cierre | 2 | 2 | 100% | 0 / 1,5h | 0 / 0,6h | 0 / 0,2h | 0 / 118k |
+| **TOTAL** | **9** | **9** | **100%** | **0 / 20,25h** | **0 / 6,6h** | **0 / 1,75h** | **0 / 2.073k** |
 
 > **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada. Ver `skills/jira-sync/SKILL.md`.
 >
@@ -232,7 +232,7 @@
 ### T-08 — 🚦 PUERTA MANUAL: dry-run contra PROJ (condición del go de la evaluación)
 
 - **Descripción**: **Tarea manual del usuario** (asistido por el agente): dry-run contra el proyecto de pruebas de Jira, con issue desechable, que ejercite las cuatro capacidades no verificadas del conector antes de dar la iniciativa por cerrada: creación en modo fase, `editJiraIssue` de la checklist, `addComment` del comentario de revisión y `addWorklog` de la entrada `[revisión]`.
-- **Estado**: en-progreso
+- **Estado**: completado
 - **Tiempo humano**: est. 1,0h · real —
 - **Tiempo IA (ejec.)**: est. 0,3h · real —
 - **Supervisión**: est. 0,1h (≈25 % IA) · real —
@@ -242,16 +242,16 @@
 - **Cubre (tests)**: —
 
 **Criterios de aceptación**
-- [ ] Creación en modo fase verificada en PROJ: 1 issue por fase con checklist correcta, manifiesto `fase-N` escrito, reejecución sin duplicados
-- [ ] `editJiraIssue` verificado: la checklist de la descripción se marca `- [x]` sin perder contenido — o plan B "solo comentarios" activado y documentado
-- [ ] `addCommentToJiraIssue` verificado: comentario de revisión publicado con el formato de la plantilla fija
-- [ ] `addWorklogToJiraIssue` verificado: entrada `[revisión]` conviviendo con la de implementación en el mismo issue; el total suma ambas
-- [ ] Resultado del dry-run (ok / limitaciones / planes B activados) anotado en las **Notas de implementación** de este ledger
+- [x] Creación en modo fase verificada en PROJ: 1 issue por fase con checklist correcta, manifiesto `fase-N` escrito, reejecución sin duplicados
+- [x] `editJiraIssue` verificado: la checklist de la descripción se marca `- [x]` sin perder contenido — o plan B "solo comentarios" activado y documentado
+- [x] `addCommentToJiraIssue` verificado: comentario de revisión publicado con el formato de la plantilla fija
+- [x] `addWorklogToJiraIssue` verificado: entrada `[revisión]` conviviendo con la de implementación en el mismo issue; el total suma ambas
+- [x] Resultado del dry-run (ok / limitaciones / planes B activados) anotado en las **Notas de implementación** de este ledger
 
 **Subtareas**
-- [ ] Preparar `tasks.md` de juguete y verificar acceso de escritura a PROJ
-- [ ] Ejecutar el dry-run de las 4 capacidades sobre issue desechable
-- [ ] Limpiar/cerrar el issue desechable y anotar el resultado
+- [x] Preparar `tasks.md` de juguete y verificar acceso de escritura a PROJ
+- [x] Ejecutar el dry-run de las 4 capacidades sobre issue desechable
+- [x] Limpiar/cerrar el issue desechable y anotar el resultado
 
 **Notas**: es la **condición del veredicto go** de la evaluación; sin esta puerta en verde (o con planes B documentados), la iniciativa NO se da por cerrada. La ejecuta el usuario.
 
@@ -285,4 +285,17 @@
 
 **Estado (2026-08-10):** implementado en la sesión Cowork (dogfooding) todo salvo la **puerta de dry-run T-08**, que es MANUAL y requiere Jira en vivo (PROJ) — queda pendiente para el usuario. Lo implementado sin conector: config `granularidad` (C-01), modo fase completo en el SKILL (C-02..C-05), publicación del revisor con plantilla + bucle acotado en dev-cycle (C-06), y `worklog.py --kind revision` con desglose + tests 12/12 (C-07). Revisión de dos lentes pasada. Pendiente además del cierre de estados y el release (usuario).
 
-_A completar durante la ejecución. Registra decisiones, desvíos de la estimación y aprendizajes. Aquí se anota el resultado del dry-run de T-08 (capacidades verificadas / planes B activados)._
+**Resultado del dry-run T-08 (2026-09-02):** puerta manual ejecutada contra el proyecto de pruebas de Jira, issue desechable `PROJ-60` (subtarea bajo `PROJ-59`). Las cuatro capacidades quedan **verificadas, sin plan B necesario**:
+- `createJiraIssue` con `contentFormat: markdown` y checklist `- [ ]` en la descripción → se crea y la checklist se conserva.
+- `editJiraIssue` (`fields.description`, markdown) marcando `- [x]` → descripción íntegra, sin pérdida de contenido.
+- `addWorklogToJiraIssue` invocado dos veces sobre el mismo issue (45 min implementación + 20 min `[revisión]`) → las dos entradas conviven; `timespent` = 3900 s (suma correcta) y `timetracking.timeSpent` legible.
+- `addCommentToJiraIssue` con la plantilla `agent-kits/shared/review-report.template.md` (tabla + blockquote, markdown) → se publica y se relee en markdown. Detalle a tener en cuenta: el carácter `|` dentro de una celda de tabla debe escaparse `\|`.
+- `transitionJiraIssue` a Done: ok.
+
+**Gotchas detectadas y ya documentadas en `docs/knowledge/gotchas/` y `docs/atlassian-connector-notes.md`:**
+1. El nombre de la transición ("Done") y el del estado destino ("HECHO", localizado) **no coinciden**, y los ids de transición varían por workflow → la transición de cierre se resuelve por `to.statusCategory.key == "done"` (`getTransitionsForJiraIssue`), nunca por nombre ni id fijo.
+2. El proyecto de pruebas tenía "asignado por defecto" activo y el issue se auto-asignó a otra persona del equipo (con notificación) → `jira-sync` debe fijar `assignee` de forma explícita al crear (usuario actual o sin asignar, a elección del usuario, preguntado una vez y persistido en `.claude/jira.json` como `assignee: "me" | "none"`, opt-in).
+
+Ambas quedan registradas como `GOT-004-…` (memoria técnica, `estado: aceptada (validada: usuario, 2026-09-02)`) e incorporadas al SKILL de `jira-sync` (assignee explícito al crear; transición de cierre por `statusCategory`).
+
+_A completar durante la ejecución. Registra decisiones, desvíos de la estimación y aprendizajes._

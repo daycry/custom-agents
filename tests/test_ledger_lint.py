@@ -136,7 +136,18 @@ def main():
     code, out = run(multi)
     assert code == 0 and "descuadrado" not in out, f"colisión Fase 3.2 / 3.2.1: {out}"
 
-    print("test_ledger_lint: 10/10 OK")
+    # 11) «Fase única — …» (vía rápida) se reconoce en el resumen: sin aviso legacy, y su descuadre
+    #     es ERROR (antes la fila no casaba con `Fase\s+\d+` y disparaba el aviso falso)
+    unica = bis.replace("Fase 3 — Nucleo | 2 | 2", "Fase única — Todo | 3 | 3") \
+               .replace("| Fase 3-bis — Extra | 1 | 1 | 100% |\n", "") \
+               .replace("## Fase 3 — Nucleo", "## Fase única — Todo") \
+               .replace("## Fase 3-bis — Extra\n", "")
+    code, out = run(unica)
+    assert code == 0 and "Resumen de progreso" not in out, f"aviso legacy falso con Fase única: {out}"
+    code, out = run(unica.replace("Fase única — Todo | 3 | 3", "Fase única — Todo | 2 | 3"))
+    assert code == 1 and "descuadrado" in out, f"descuadre en Fase única debe ser error: {out}"
+
+    print("test_ledger_lint: 11/11 OK")
 
 
 if __name__ == "__main__":

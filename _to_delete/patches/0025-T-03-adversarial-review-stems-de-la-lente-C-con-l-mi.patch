@@ -1,0 +1,438 @@
+From dc01b935a84a8c9875937dc4e0f3e4bfa8618eef Mon Sep 17 00:00:00 2001
+From: daycry <7590335+daycry@users.noreply.github.com>
+Date: Wed, 2 Sep 2026 14:22:37 +0000
+Subject: [PATCH 25/32] =?UTF-8?q?T-03:=20adversarial-review=20=E2=80=94=20?=
+ =?UTF-8?q?stems=20de=20la=20lente=20C=20con=20l=C3=ADmite=20final=20(toke?=
+ =?UTF-8?q?ns/helm/acl/rbac/cors;=20tokenizer/helmet=20fuera),=20revision.?=
+ =?UTF-8?q?excluir=20(globs=20**-aware,=20solo=20heur=C3=ADstica=20de=20ru?=
+ =?UTF-8?q?ta)=20(+2=20tests,=2022=20passed),=20/setup=20paso=205-ter=20le?=
+ =?UTF-8?q?nteSeguridad=20(auto/siempre/nunca),=20filas=20de=20/setup=20en?=
+ =?UTF-8?q?=20README/CLAUDE/docs;=20deudas=20saldadas=20en=20el=20ledger?=
+ =?UTF-8?q?=20de=20origen?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VA3zi8RqekY9weD2S1RyWL
+
+Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01VA3zi8RqekY9weD2S1RyWL
+
+---
+ CLAUDE.md                                     |   2 +-
+ README.es.md                                  |   2 +-
+ README.md                                     |   2 +-
+ commands/setup.md                             |   6 +-
+ docs/README.md                                |   2 +-
+ docs/en/README.md                             |   2 +-
+ .../2026-09-02-adversarial-review/tasks.md    |   8 +-
+ skills/adversarial-review/SKILL.md            |  15 ++-
+ .../scripts/review-lens-select.py             | 127 ++++++++++++++----
+ .../scripts/test_review_lens_select.py        |  48 ++++++-
+ 10 files changed, 168 insertions(+), 46 deletions(-)
+
+diff --git a/CLAUDE.md b/CLAUDE.md
+index cfa2ca4..89899e0 100755
+--- a/CLAUDE.md
++++ b/CLAUDE.md
+@@ -60,7 +60,7 @@ Invocan a los agentes **por nombre** y con puertas de control sobre la carpeta d
+ |---|---|
+ | `/pm-cycle <objetivo>` | Rol producto: spec → evaluación → **puerta go/no-go** y cierra. En go, ofrece handoff a /dev-cycle. Salidas opt-in: brief PDF, épica en Jira. |
+ | `/dev-cycle <objetivo> [rapido\|completo] [--superpowers]` | Ciclo de desarrollo. **Cadena nativa SIEMPRE por defecto** (motor SDD externo solo bajo petición explícita con el flag; ver `commands/dev-cycle.md` Modo A). Puerta de entrada: flujo completo vs vía rápida (la rápida salta el papeleo PM pero conserva la revisión de dos lentes y qa). Disciplina opt-in en `.claude/dev.json`: `tdd` (RED-GREEN-REFACTOR con evidencia del rojo), `worktree`, `subagentes` (una tarea = un subagente fresco con brief de `task-brief.py`, estados DONE/DONE_WITH_CONCERNS/NEEDS_CONTEXT/BLOCKED, revisor con severidades). Bucles acotados a 3; al 3.er rojo de qa, skill `debug-root-cause` antes de preguntar. |
+-| `/setup` | Onboarding en una pasada: `rates.json`, opt-ins Confluence/Jira, constitución (`docs/CONSTITUTION.md`), `dev.json`. Idempotente. |
++| `/setup` | Onboarding en una pasada: `rates.json`, opt-ins Confluence/Jira, constitución (`docs/CONSTITUTION.md`), `dev.json` (disciplina, statusline 5-bis, lente de seguridad de la revisión 5-ter). Idempotente. |
+ | `/pm-backlog` · `/roadmap-status` · `/roadmap-metrics` · `/roadmap-live` · `/roadmap-brief` | Cartera y visibilidad (solo lectura): backlog priorizado · dashboard · real vs estimado + coste de proceso medido · Jira en vivo · one-pager PDF. |
+ | `/spec-drift [slug]` | Gobernanza: deriva spec↔código de las specs `implementada` (vigente/derivado/no-verificable con evidencia) → `docs/roadmap/DRIFT.md`. Solo lectura; la corrección va por /pm-cycle. |
+ | `/retro <slug>` | Cierre de aprendizaje: real vs estimado + causas + **ratio tokens/hora medido** → `docs/roadmap/CALIBRATION.md` (lo leen evaluator y usage-meter). |
+diff --git a/README.es.md b/README.es.md
+index cc147fb..2464a21 100755
+--- a/README.es.md
++++ b/README.es.md
+@@ -123,7 +123,7 @@ flowchart LR
+ 
+ | Comando | Qué hace |
+ |---------|----------|
+-| `/setup` | Onboarding en una pasada: `rates.json`, Jira, Confluence, constitución, `dev.json`. |
++| `/setup` | Onboarding en una pasada: `rates.json`, Jira, Confluence, constitución, `dev.json` (disciplina, statusline, lente de seguridad de la revisión: `auto`/`siempre`/`nunca`). |
+ | `/pm-cycle` | Rol producto: spec → evaluación → puerta go/no-go. |
+ | `/dev-cycle` | Ciclo de desarrollo completo (o vía rápida), con todas las puertas. |
+ | `/pm-backlog` | Prioriza la cartera de iniciativas evaluadas. |
+diff --git a/README.md b/README.md
+index 914e459..9e1d720 100755
+--- a/README.md
++++ b/README.md
+@@ -123,7 +123,7 @@ flowchart LR
+ 
+ | Command | What it does |
+ |---------|----------|
+-| `/setup` | One-pass onboarding: `rates.json`, Jira, Confluence, constitution, `dev.json`. |
++| `/setup` | One-pass onboarding: `rates.json`, Jira, Confluence, constitution, `dev.json` (discipline, status line, security lens of the review: `auto`/`siempre`/`nunca`). |
+ | `/pm-cycle` | Product role: spec → evaluation → go/no-go gate. |
+ | `/dev-cycle` | Full development cycle (or fast track), with every gate. |
+ | `/pm-backlog` | Prioritizes the portfolio of evaluated initiatives. |
+diff --git a/commands/setup.md b/commands/setup.md
+index 87fabd0..130b87b 100755
+--- a/commands/setup.md
++++ b/commands/setup.md
+@@ -1,5 +1,5 @@
+ ---
+-description: Onboarding del plugin en un proyecto — en UNA pasada guiada crea la config compartida de presupuesto (.claude/rates.json), decide los opt-ins de Confluence y Jira, ofrece la constitución del proyecto (docs/CONSTITUTION.md), las opciones de disciplina de desarrollo (.claude/dev.json: TDD, worktrees, subagentes) y la statusline opt-in (progreso del roadmap + coste de sesión), en vez de que cada skill pregunte por su cuenta la primera vez. Idempotente; se puede relanzar para cambiar decisiones.
++description: Onboarding del plugin en un proyecto — en UNA pasada guiada crea la config compartida de presupuesto (.claude/rates.json), decide los opt-ins de Confluence y Jira, ofrece la constitución del proyecto (docs/CONSTITUTION.md), las opciones de disciplina de desarrollo (.claude/dev.json: TDD, worktrees, subagentes), la statusline opt-in (progreso del roadmap + coste de sesión) y la lente de seguridad de la revisión adversarial (dev.json revision.lenteSeguridad: auto/siempre/nunca), en vez de que cada skill pregunte por su cuenta la primera vez. Idempotente; se puede relanzar para cambiar decisiones.
+ argument-hint: "(sin argumentos)"
+ ---
+ 
+@@ -39,6 +39,10 @@ los valores actuales y ofrece cambiarlos.
+      Si `settings.json` no existe, créalo con solo ese bloque. **Si ya hay una `statusLine` del usuario**, muéstrala y **no la sustituyas** sin confirmación explícita (por defecto se conserva la suya y se anota `"statusline": false`). Persiste `"statusline": true` en `.claude/dev.json`. Si `$SL` está vacío (instalación parcial), avisa y no escribas nada.
+    - Qué muestra (una línea, ≤ ~100 caracteres): `[Opus] $0.01 ctx 8% · 📋 <slug> T-04/12 33%` (varias iniciativas activas → `📋 N iniciativas activas`). Sin `jq` usa `python3`; sin ninguno, solo el modelo. Nunca falla.
+    - **Reversión**: borrar la clave `statusLine` de `.claude/settings.json` (o `/statusline remove`) y poner `"statusline": false` en `dev.json`. Relanzar `/setup` también lo ofrece.
++5-ter. **Lente de seguridad de la revisión (opt-in, default `auto`).** Pregunta: "¿Añadir una tercera lente de SEGURIDAD a la revisión adversarial cuando el cambio toque auth/sesiones/secretos/config sensible? [auto (recomendado) / siempre / nunca]". Explica en una frase: `auto` = solo si `review-lens-select.py` detecta rutas o líneas sensibles en el diff (coste cero en cambios de prosa); `siempre` = un tercer revisor en cada revisión; `nunca` = solo las lentes A+B.
++   - Persiste `"revision": {"lenteSeguridad": "<auto|siempre|nunca>"}` en `.claude/dev.json` **mergeando** (sin pisar `tdd`/`worktree`/`subagentes`/`guardrails`/`statusline` ni otras claves de `revision`). Si el usuario elige `auto`, escribe la clave igualmente (deja constancia de que se preguntó).
++   - Menciona como **ajuste manual** (no preguntes): `"revision": {"excluir": ["hooks/**"]}` saca globs de la heurística de **ruta** de la lente (para repos cuyos ficheros inocuos casen los stems, p. ej. hooks llamados `session-*.sh`) sin sacarlos del escaneo de contenido. Detalle en la skill `adversarial-review` §1 y en `docs/CONVENTIONS.md` regla 9.
++   - Idempotente: si `revision.lenteSeguridad` ya existe, resume el valor actual y ofrece cambiarlo.
+ 6. **Resumen final**: tabla corta con lo decidido y dónde vive cada config, y los siguientes pasos naturales (`/pm-cycle <idea>` para la primera iniciativa, o `@analyst` si la idea está verde).
+ 
+ ## Reglas
+diff --git a/docs/README.md b/docs/README.md
+index f73025f..eed9a64 100755
+--- a/docs/README.md
++++ b/docs/README.md
+@@ -54,7 +54,7 @@ Dirigen la cadena invocando a los agentes **por nombre** y con puertas de contro
+ | **`/roadmap-brief`** | Dirección | One-pager de cartera → PDF | Combina estado + prioridades + real vs estimado en un brief ejecutivo (`brief.pdf`) vía `to-pdf`. |
+ | **`/roadmap-live [slug]`** | Estado en vivo | Lee Jira en tiempo real | Dashboard de issues + horas imputadas por label (artefacto en Cowork; conversacional en CLI). |
+ | **`/retro <slug>`** | Aprendizaje | Retro de iniciativa cerrada | Real vs estimado + causas → `CALIBRATION.md`, histórico que calibra las estimaciones del `evaluator`. |
+-| **`/setup`** | Onboarding | Configura el proyecto en una pasada | Crea `.claude/rates.json`, decide los opt-ins de Confluence y Jira, ofrece la constitución (`docs/CONSTITUTION.md`) y la disciplina de desarrollo (`.claude/dev.json`). Idempotente. |
++| **`/setup`** | Onboarding | Configura el proyecto en una pasada | Crea `.claude/rates.json`, decide los opt-ins de Confluence y Jira, ofrece la constitución (`docs/CONSTITUTION.md`), la disciplina de desarrollo, la statusline y la lente de seguridad de la revisión (`.claude/dev.json`). Idempotente. |
+ | **`/spec-drift [slug]`** | Gobernanza | Deriva spec↔código de las specs `implementada` (solo lectura) | Subagentes frescos verifican cada criterio contra el código de hoy (`vigente ✓ / derivado ✗ / no verificable` con evidencia) → `docs/roadmap/DRIFT.md` + oferta de `/pm-cycle` para lo derivado. |
+ | **`/confluence-pull [subcarpeta]`** | Producto / sin git | Baja Confluence → `docs/` local (skill `confluence-pull`) | Trae el estado actual sin git; preserva frontmatter, avisa de conflictos y confirma antes de escribir. Complemento inverso de la publicación. |
+ 
+diff --git a/docs/en/README.md b/docs/en/README.md
+index 1fe26b4..201930c 100755
+--- a/docs/en/README.md
++++ b/docs/en/README.md
+@@ -56,7 +56,7 @@ They drive the chain by invoking agents **by name** and with control gates, over
+ | **`/roadmap-brief`** | Management | Portfolio one-pager → PDF | Combines status + priorities + actual vs. estimated into an executive brief (`brief.pdf`) via `to-pdf`. |
+ | **`/roadmap-live [slug]`** | Live status | Reads Jira in real time | Dashboard of issues + hours logged per label (artifact in Cowork; conversational in the CLI). |
+ | **`/retro <slug>`** | Learning | Retro of a closed initiative | Actual vs. estimated + causes → `CALIBRATION.md`, the history that calibrates the `evaluator`'s estimates. |
+-| **`/setup`** | Onboarding | Configures the project in one pass | Creates `.claude/rates.json`, decides the Confluence and Jira opt-ins, offers the constitution (`docs/CONSTITUTION.md`) and the development discipline (`.claude/dev.json`). Idempotent. |
++| **`/setup`** | Onboarding | Configures the project in one pass | Creates `.claude/rates.json`, decides the Confluence and Jira opt-ins, offers the constitution (`docs/CONSTITUTION.md`), the development discipline, the status line and the security lens of the review (`.claude/dev.json`). Idempotent. |
+ | **`/spec-drift [slug]`** | Governance | Spec↔code drift of `implementada` (implemented) specs (read-only) | Fresh subagents verify each criterion against today's code (`vigente ✓ / derivado ✗ / no verificable` — current / drifted / unverifiable — with evidence) → `docs/roadmap/DRIFT.md` + offer of `/pm-cycle` for what has drifted. |
+ | **`/confluence-pull [subfolder]`** | Product / no git | Pulls Confluence → local `docs/` (skill `confluence-pull`) | Fetches the current state without git; preserves frontmatter, warns about conflicts and confirms before writing. Inverse counterpart of publishing. |
+ 
+diff --git a/docs/roadmap/2026-09-02-adversarial-review/tasks.md b/docs/roadmap/2026-09-02-adversarial-review/tasks.md
+index 8d2aebe..df1a09b 100644
+--- a/docs/roadmap/2026-09-02-adversarial-review/tasks.md
++++ b/docs/roadmap/2026-09-02-adversarial-review/tasks.md
+@@ -130,7 +130,7 @@ Tras la corrección: `pytest -q tests agent-kits/shared skills/adversarial-revie
+ ## Dudas y decisiones para el orquestador
+ 
+ - **Heurística más precisa que el brief (documentado en el script y en la skill §1):** `subprocess` solo cuenta con `shell=True` en la misma línea (el patrón plano casaría `import subprocess` de cualquier script del repo, incluido `review-lens-select.py`, y forzaría la lente C en cada cambio de un script shared); prosa (`.md/.txt/.rst`), tests y fixtures NO se escanean por contenido (contienen payloads a propósito) pero sí por ruta. Sin estas dos reglas el DoD «este repo → false» era imposible: la skill, el ledger y los tests nombran los patrones literalmente.
+-- **Falsos positivos de la heurística por ruta tras `T-fix1`** (stems anclados al inicio de token; prosa y `docs/**` fuera): `author.md`, `token-diet/`, `oracle.py` ya NO disparan; siguen disparando los prefijos legítimos (`tokenizer.py`, `helmet.py`, `session-context.sh`) — conservador a propósito: un falso positivo cuesta un revisor. Apagable por proyecto con `revision.lenteSeguridad: nunca`.
+-- **`/setup` no ofrece `revision.lenteSeguridad`** (fuera del alcance pedido): se documenta en CONVENTIONS regla 9 como clave manual de `dev.json` con default `auto`. Si se quiere en el asistente, es un paso más en `commands/setup.md`.
+-- **CI:** la lista fija del paso pytest de `ci.yml.MANUAL-COPY` no incluía `test_guardrail_check`/`test_scope_check` (deuda previa); al pasar a carpetas entran los tres. La copia a `.github/workflows/ci.yml` es manual por diseño (ruta protegida) — pendiente de quien haga la copia.
+-- **Linter:** `adversarial-review` dispara el aviso «nombre genérico» por el token `review` (mismo caso que `retro`, `setup`, `qa`); es aviso, no error, y el nombre lo fijó el usuario. **CHANGELOG** no tocado (orquestador).
++- **Falsos positivos de la heurística por ruta tras `T-fix1`** (stems anclados al inicio de token; prosa y `docs/**` fuera): `author.md`, `token-diet/`, `oracle.py` ya NO disparan; siguen disparando los prefijos legítimos (`tokenizer.py`, `helmet.py`, `session-context.sh`) — conservador a propósito: un falso positivo cuesta un revisor. Apagable por proyecto con `revision.lenteSeguridad: nunca`. — **saldada en 2026-09-02-debt-cleanup (T-03a: `tokenizer`/`helmet` ya no disparan por límite final del stem; `session-context.sh` sigue, y `revision.excluir` permite sacar globs de la heurística de ruta, T-03b)**
++- **`/setup` no ofrece `revision.lenteSeguridad`** (fuera del alcance pedido): se documenta en CONVENTIONS regla 9 como clave manual de `dev.json` con default `auto`. Si se quiere en el asistente, es un paso más en `commands/setup.md`. — **saldada en 2026-09-02-debt-cleanup (T-03c: paso 5-ter)**
++- **CI:** la lista fija del paso pytest de `ci.yml.MANUAL-COPY` no incluía `test_guardrail_check`/`test_scope_check` (deuda previa); al pasar a carpetas entran los tres. La copia a `.github/workflows/ci.yml` es manual por diseño (ruta protegida) — pendiente de quien haga la copia. — **saldada en 2026-09-02-debt-cleanup (T-04a: copia hecha + `tests/test_ci_manual_copy.py` y aviso del linter vigilan la deriva)**
++- **Linter:** `adversarial-review` dispara el aviso «nombre genérico» por el token `review` (mismo caso que `retro`, `setup`, `qa`); es aviso, no error, y el nombre lo fijó el usuario — **saldada en 2026-09-02-debt-cleanup (T-04b: para skills solo avisa el nombre completo/un solo token)**. **CHANGELOG** no tocado (orquestador).
+diff --git a/skills/adversarial-review/SKILL.md b/skills/adversarial-review/SKILL.md
+index f9fc56b..85f61e8 100644
+--- a/skills/adversarial-review/SKILL.md
++++ b/skills/adversarial-review/SKILL.md
+@@ -73,16 +73,21 @@ python3 "$REVSKILL/scripts/review-lens-select.py" [--base <ref>] [--json]   # ex
+ ```
+ 
+ Devuelve `lente_c: true|false` + motivos (fichero + patrón). Heurística por **RUTA** (stems anclados
+-al inicio de un token de la ruta: `auth(?!or)`, login, session, token, oauth, jwt, password, secret,
+-crypt, permission, acl, rbac, cors, csrf, upload, payment, billing, docker, nginx, k8s, helm; más
+-`.env*`, `Dockerfile*` y `.github/workflows/` — `authz.py`/`session-context.sh` sí, `oracle.py` no;
+-la prosa `.md/.txt/.rst` y `docs/**` no se evalúan por ruta, `tests/**` sí) y por **CONTENIDO de las
++al inicio de un token de la ruta y, los que son prefijo de palabras inocuas, con límite final:
++`auth(?!or)`, login, session(s), token(s)¹, oauth, jwt, password, secret(s), crypt, permission(s),
++acl¹, rbac¹, cors¹, csrf, upload, payment, billing, docker, nginx, k8s, helm¹; más `.env*`,
++`Dockerfile*` y `.github/workflows/` — `authz.py`/`session-context.sh`/`tokens.py`/`token_store.py`
++sí; `oracle.py`/`tokenizer.py`/`helmet.py`/`author.md` no (¹ = con límite `(?![a-z])`); la prosa
++`.md/.txt/.rst` y `docs/**` no se evalúan por ruta, `tests/**` sí; `"revision": {"excluir": ["hooks/**"]}`
++en `dev.json` saca globs de la heurística de ruta —para un repo cuyos hooks se llamen `session-*.sh`—
++**sin** sacarlos del escaneo de contenido) y por **CONTENIDO de las
+ líneas añadidas** del diff (las borradas no cuentan): `eval(`/`exec(`, `subprocess` **solo con
+ `shell=True` en la misma línea**, `os.system(`/`os.popen(`, `innerHTML`/`dangerouslySetInnerHTML`,
+ `pickle.loads(`, `yaml.load(`, SQL concatenado o en f-string, `API_KEY`, `PRIVATE KEY`/`BEGIN RSA`,
+ `Authorization:`, `Set-Cookie`. La prosa, `docs/**`, los tests y las fixtures no se escanean por
+ contenido (contienen payloads a propósito); los binarios se saltan. Configurable en
+-`.claude/dev.json` → `"revision": {"lenteSeguridad": "auto" | "siempre" | "nunca"}` (default `auto`).
++`.claude/dev.json` → `"revision": {"lenteSeguridad": "auto" | "siempre" | "nunca", "excluir": ["glob", …]}`
++(default `auto`, sin exclusiones; `/setup` paso 5-ter pregunta el modo; `excluir` es ajuste manual).
+ El script nunca bloquea: ante error avisa por stderr y devuelve `false`. La lista exacta de patrones
+ es el contrato: `CONTENIDO`/`RUTA_RE` en el propio script, con sus tests.
+ 
+diff --git a/skills/adversarial-review/scripts/review-lens-select.py b/skills/adversarial-review/scripts/review-lens-select.py
+index 4b2d393..5d6ab2e 100755
+--- a/skills/adversarial-review/scripts/review-lens-select.py
++++ b/skills/adversarial-review/scripts/review-lens-select.py
+@@ -14,11 +14,17 @@ Qué hace:
+      principal → HEAD (solo cambios sin comitear); si no hay base clara → aviso y HEAD.
+   2. Heurística por RUTA (case-insensitive), con los stems ANCLADOS al inicio de un token de la
+      ruta (`(?<![a-z0-9])`: `authz.py`, `session-context.sh`, `jwt_utils.py` sí; `oracle.py`,
+-     `tokenizer.py`, `helmet.py` no): auth(?!or)|login|session|token|oauth|jwt|password|passwd|
+-     secret|crypt|permission|acl|rbac|cors|csrf|upload|payment|billing|docker|nginx|k8s|helm; y
+-     como casos aparte `.env*`, `Dockerfile*` y `.github/workflows/`. La ruta NO se evalúa para
+-     prosa (.md/.txt/.rst) ni para `docs/**` (`docs/author.md`, `docs/roadmap/…-token-diet/` no
+-     son superficie de ataque); `tests/**` sí se evalúa por ruta.
++     `myacl.py` no) y, en los stems que son también prefijo de palabras inocuas, con LÍMITE final
++     (`(?![a-z])`: `tokens.py`/`token_store.py` sí, `tokenizer.py` no; `helm/` sí, `helmet.py` no;
++     `acl.py` sí, `aclimate.py` no; `auth(?!or)`: `auth_middleware.py` sí, `author.md` no). Lista
++     exacta = RUTA_RE (abajo): auth|login|session(s)|token(s)|oauth|jwt|password|passwd|secret(s)|
++     crypt|permission(s)|acl|rbac|cors|csrf|upload|payment|billing|docker|nginx|k8s|helm; y como
++     casos aparte `.env*`, `Dockerfile*` y `.github/workflows/`. La ruta NO se evalúa para prosa
++     (.md/.txt/.rst) ni para `docs/**` (`docs/author.md`, `docs/roadmap/…-token-diet/` no son
++     superficie de ataque); `tests/**` sí se evalúa por ruta. `.claude/dev.json` →
++     "revision": {"excluir": ["hooks/**", …]} excluye globs (`**` = cero o más directorios, `*` =
++     un nivel; traductor de `confluence-scope.py`) SOLO de la heurística de ruta: un fichero
++     excluido sigue escaneándose por CONTENIDO (una línea con ejecución dinámica añadida en `hooks/x.sh` dispara).
+   3. Heurística por CONTENIDO sobre las líneas AÑADIDAS del diff (las borradas no cuentan; los
+      untracked cuentan enteros): ejecución dinámica de código (eval/exec), shell vía subprocess con
+      shell activado, os.system/popen, inyección en el DOM (React incluido), deserialización
+@@ -27,8 +33,9 @@ Qué hace:
+      (abajo). No se escanea el contenido de prosa (.md/.txt/.rst), de tests ni de fixtures
+      (contienen payloads a propósito); la ruta sí se evalúa siempre. Binarios (NUL en la cabecera
+      o «Binary files differ») se saltan.
+-  4. Config: `.claude/dev.json` → "revision": {"lenteSeguridad": "auto" | "siempre" | "nunca"}
+-     (default auto; fichero ausente/corrupto/valor desconocido → auto + aviso en stderr).
++  4. Config: `.claude/dev.json` → "revision": {"lenteSeguridad": "auto" | "siempre" | "nunca",
++     "excluir": ["glob", …]} (default auto y sin exclusiones; fichero ausente/corrupto/valor
++     desconocido → auto + aviso en stderr; `excluir` que no sea lista de cadenas → se ignora + aviso).
+ 
+ Uso:
+   review-lens-select.py [--base <ref>] [--files f1 f2 …] [--json] [--root <dir>]
+@@ -36,20 +43,61 @@ Salida: `lente_c: true|false` + motivos (tipo ruta|contenido|config, fichero, pa
+ Exit: 0 SIEMPRE (nunca bloquea la revisión; ante error, aviso en stderr y lente_c: false).
+ """
+ import argparse
++import importlib.util
+ import json
+ import os
+ import re
+ import subprocess
+ import sys
+ 
++HERE = os.path.dirname(os.path.abspath(__file__))
+ MAIN_BRANCHES = ("main", "master")
+ MODOS = ("auto", "siempre", "nunca")
+ 
++# Stems anclados al inicio de token; los marcados con (?![a-z]) llevan además límite final porque son
++# prefijo de palabras inocuas (tokenizer, helmet, aclimate…). Los demás siguen amplios a propósito
++# (`sessions`, `oauth2`, `jwt_utils`, `passwd`, `secrets`, `cryptography`, `uploads`, `docker-compose`).
+ RUTA_RE = re.compile(
+-    r"(?<![a-z0-9])(auth(?!or)|login|session|token|oauth|jwt|password|passwd|secret|crypt|permission|acl|rbac|"
+-    r"cors|csrf|upload|payment|billing|docker|nginx|k8s|helm)"
++    r"(?<![a-z0-9])(auth(?!or)|login|sessions?|tokens?(?![a-z])|oauth|jwt|password|passwd|secrets?|crypt|"
++    r"permissions?|acl(?![a-z])|rbac(?![a-z])|cors(?![a-z])|csrf|upload|payment|billing|docker|nginx|"
++    r"k8s|helm(?![a-z]))"
+     r"|(^|/)\.env(?=[^/]*$)|(^|/)Dockerfile(?=[^/]*$)|(^|/)\.github/workflows/",
+     re.IGNORECASE)
++
++
++def _load_glob_to_regex():
++    """Reutiliza el traductor glob→regex de confluence-scope.py (`**/` = cero o más directorios, `*` =
++    un nivel), fuente única de esa semántica en el repo (scope-check.py hace lo mismo); si la skill
++    no está instalada, copia local equivalente."""
++    cand = os.path.join(HERE, "..", "..", "confluence-publish", "scripts", "confluence-scope.py")
++    if os.path.isfile(cand):
++        try:
++            spec = importlib.util.spec_from_file_location("confluence_scope", cand)
++            mod = importlib.util.module_from_spec(spec)
++            spec.loader.exec_module(mod)
++            return mod.glob_to_regex
++        except Exception:  # noqa: BLE001 — degradación al traductor local
++            pass
++
++    def local(pattern):
++        pattern = pattern.replace("\\", "/")
++        out, i, n = [], 0, len(pattern)
++        while i < n:
++            if pattern[i:i + 3] == "**/":
++                out.append("(?:.*/)?"); i += 3
++            elif pattern[i:i + 2] == "**":
++                out.append(".*"); i += 2
++            elif pattern[i] == "*":
++                out.append("[^/]*"); i += 1
++            elif pattern[i] == "?":
++                out.append("[^/]"); i += 1
++            else:
++                out.append(re.escape(pattern[i])); i += 1
++        return re.compile("^" + "".join(out) + "$")
++    return local
++
++
++GLOB_TO_REGEX = _load_glob_to_regex()
+ DOCS_RE = re.compile(r"(^|/)docs/", re.IGNORECASE)
+ 
+ # (etiqueta, regex). Etiquetas y regex escritas para que ESTE fichero no se dispare a sí mismo
+@@ -83,27 +131,53 @@ def avisar(msg):
+ 
+ # ------------------------------------------------------------------ config ----
+ 
+-def leer_modo(root):
+-    """Devuelve (modo, aviso|None). Nunca lanza."""
++def leer_config(root):
++    """Devuelve (modo, excluir[list[str]], avisos[list[str]]). Nunca lanza."""
+     path = os.path.join(root, ".claude", "dev.json")
+     if not os.path.isfile(path):
+-        return "auto", None
++        return "auto", [], []
+     try:
+         with open(path, encoding="utf-8-sig") as f:
+             cfg = json.load(f)
+     except (OSError, ValueError) as e:
+-        return "auto", f".claude/dev.json ilegible ({e.__class__.__name__}): lenteSeguridad = auto"
++        return "auto", [], [f".claude/dev.json ilegible ({e.__class__.__name__}): lenteSeguridad = auto"]
+     rev = cfg.get("revision") if isinstance(cfg, dict) else None
+     if rev is None:
+-        return "auto", None
++        return "auto", [], []
+     if not isinstance(rev, dict):
+-        return "auto", f".claude/dev.json revision = {rev!r} no es un objeto {{\"lenteSeguridad\": …}}: uso auto"
+-    if "lenteSeguridad" not in rev:
+-        return "auto", None
+-    val = rev.get("lenteSeguridad")
+-    if isinstance(val, str) and val.strip().lower() in MODOS:
+-        return val.strip().lower(), None
+-    return "auto", f".claude/dev.json revision.lenteSeguridad = {val!r} desconocido (auto|siempre|nunca): uso auto"
++        return "auto", [], [f".claude/dev.json revision = {rev!r} no es un objeto {{\"lenteSeguridad\": …}}: uso auto"]
++    modo, avisos = "auto", []
++    if "lenteSeguridad" in rev:
++        val = rev.get("lenteSeguridad")
++        if isinstance(val, str) and val.strip().lower() in MODOS:
++            modo = val.strip().lower()
++        else:
++            avisos.append(f".claude/dev.json revision.lenteSeguridad = {val!r} desconocido (auto|siempre|nunca): uso auto")
++    excluir = []
++    if "excluir" in rev:
++        ex = rev.get("excluir")
++        if isinstance(ex, list) and all(isinstance(x, str) for x in ex):
++            excluir = [re.sub(r"^(\./)+", "", x.replace("\\", "/").strip()) for x in ex if x.strip()]
++        else:
++            avisos.append(f".claude/dev.json revision.excluir = {ex!r} no es una lista de globs: se ignora")
++    return modo, excluir, avisos
++
++
++def leer_modo(root):
++    """Compatibilidad: (modo, primer aviso|None)."""
++    modo, _, avisos = leer_config(root)
++    return modo, (avisos[0] if avisos else None)
++
++
++def excluido_de_ruta(rel, excluir):
++    """¿La ruta casa algún glob de `revision.excluir`? Solo afecta a la heurística de RUTA."""
++    for g in excluir:
++        try:
++            if GLOB_TO_REGEX(g).match(rel):
++                return True
++        except re.error:
++            continue
++    return False
+ 
+ 
+ # --------------------------------------------------------------------- git ----
+@@ -244,10 +318,10 @@ def evaluar_ruta(rel):
+ 
+ # ---------------------------------------------------------------- decisión ----
+ 
+-def motivos_de(ficheros, lineas_por_fichero):
++def motivos_de(ficheros, lineas_por_fichero, excluir=()):
+     motivos = []
+     for f in ficheros:
+-        m = RUTA_RE.search(f) if evaluar_ruta(f) else None
++        m = RUTA_RE.search(f) if evaluar_ruta(f) and not excluido_de_ruta(f, excluir) else None
+         if m:
+             motivos.append({"tipo": "ruta", "fichero": f, "patron": m.group(0)})
+         if not escanear_contenido(f):
+@@ -281,9 +355,8 @@ def main():
+ 
+     avisos = []
+     root = os.path.abspath(args.root)
+-    modo, aviso = leer_modo(root)
+-    if aviso:
+-        avisos.append(aviso)
++    modo, excluir, avisos_cfg = leer_config(root)
++    avisos.extend(avisos_cfg)
+ 
+     base_desc, ficheros, lineas = "—", [], {}
+     try:
+@@ -308,7 +381,7 @@ def main():
+         avisos.append(f"error evaluando el diff ({e.__class__.__name__}: {e}); lente_c: false")
+         ficheros, lineas = [], {}
+ 
+-    motivos = motivos_de(ficheros, lineas) if ficheros else []
++    motivos = motivos_de(ficheros, lineas, excluir) if ficheros else []
+     lente_c, motivos = decidir(modo, motivos)
+ 
+     for a in avisos:
+diff --git a/skills/adversarial-review/scripts/test_review_lens_select.py b/skills/adversarial-review/scripts/test_review_lens_select.py
+index f4ef55c..f17c482 100644
+--- a/skills/adversarial-review/scripts/test_review_lens_select.py
++++ b/skills/adversarial-review/scripts/test_review_lens_select.py
+@@ -259,11 +259,11 @@ def test_fix1_ruta_anclada_a_inicio_de_token_y_sin_prosa_ni_docs():
+     d = tempfile.mkdtemp(prefix="rls-nogit-")
+     positivos = ["src/authentication.py", "src/authz.py", "sessions/store.py", "hooks/session-context.sh",
+                  "lib/jwt_utils.py", "deploy/Dockerfile.prod", ".env.local", ".github/workflows/ci.yml",
+-                 "tests/test_auth.py", "app/crypto/keys.py",
+-                 # anclado al INICIO de token, no al final: prefijos cuentan (como `authentication`)
+-                 "src/tokenizer.py", "src/helmet.py"]
++                 "tests/test_auth.py", "app/crypto/keys.py"]
+     negativos = ["docs/author.md", "docs/roadmap/2026-08-10-token-diet/tasks.md", "src/oracle.py",
+-                 "docs/auth/README.md", "notes/session.txt", "src/encrypt.py", "lib/myacl.py"]
++                 "docs/auth/README.md", "notes/session.txt", "src/encrypt.py", "lib/myacl.py",
++                 # debt-cleanup T-03a: stems con límite final — ya no cuentan como prefijo
++                 "src/tokenizer.py", "src/helmet.py"]
+     for f in positivos + negativos:
+         write(d, f, "x = 1\n")
+     code, data, _ = run(d, "--files", *positivos, *negativos)
+@@ -278,3 +278,43 @@ def test_fix1_repo_sin_commits_no_rompe():
+     write(d, "auth/login.py", "x = 1\n")
+     code, data, err = run(d)
+     assert code == 0 and data["lente_c"] is True and "Traceback" not in err
++
++
++def test_cleanup_stems_con_limite_final():
++    """Debt-cleanup T-03a: `token(s)`, `helm`, `acl` con límite final; `auth(?!or)`; `session(s)` amplio."""
++    d = tempfile.mkdtemp(prefix="rls-stems-")
++    positivos = ["src/tokens.py", "src/token_store.py", "src/auth_middleware.py", "sessions/x.py",
++                 "hooks/session-context.sh", "deploy/helm/values.yaml", "src/acl.py", "src/cors-config.js",
++                 "auth/oauth2.py", "src/secrets_loader.py"]
++    negativos = ["src/tokenizer.py", "src/helmet.py", "src/author.md", "src/authors.py", "src/aclimate.py",
++                 "src/corsair.py", "src/helmets.py"]
++    for f in positivos + negativos:
++        write(d, f, "x = 1\n")
++    code, data, _ = run(d, "--files", *positivos, *negativos)
++    assert code == 0
++    disparan = {m["fichero"] for m in data["motivos"] if m["tipo"] == "ruta"}
++    assert disparan == set(positivos), disparan ^ set(positivos)
++
++
++def test_cleanup_revision_excluir_aplica_a_ruta_no_a_contenido():
++    """Debt-cleanup T-03b: `revision.excluir` (globs `**`-aware) saca ficheros de la heurística de RUTA;
++    el CONTENIDO añadido sigue contando (una línea con ejecución dinámica en un fichero excluido dispara)."""
++    d = repo_git()
++    dev_json(d, json.dumps({"revision": {"lenteSeguridad": "auto", "excluir": ["hooks/**", "deploy/*.yaml"]}}))
++    write(d, "hooks/session-context.sh", "echo hi\n")
++    write(d, "deploy/helm.yaml", "a: 1\n")
++    write(d, "deploy/sub/helm.yaml", "a: 1\n")          # `*` es un nivel: NO excluido
++    code, data, err = run(d)
++    assert code == 0 and "excluir" not in err
++    rutas = {m["fichero"] for m in data["motivos"] if m["tipo"] == "ruta"}
++    assert rutas == {"deploy/sub/helm.yaml"}, data["motivos"]
++    # contenido añadido en un fichero excluido por ruta → sí dispara (la exclusión es solo de ruta)
++    write(d, "hooks/session-context.sh", "echo hi\nx = " + EVAL + "\n")
++    code, data, _ = run(d)
++    assert code == 0 and data["lente_c"] is True
++    assert {"tipo": "contenido", "fichero": "hooks/session-context.sh", "patron": "eval", "linea": 2} in data["motivos"]
++    # `excluir` que no es lista de cadenas → se ignora con aviso; `hooks/**` deja de excluir
++    dev_json(d, json.dumps({"revision": {"excluir": "hooks/**"}}))
++    code, data, err = run(d)
++    assert code == 0 and "excluir" in err
++    assert "hooks/session-context.sh" in {m["fichero"] for m in data["motivos"] if m["tipo"] == "ruta"}
+-- 
+2.43.0
+

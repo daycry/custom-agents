@@ -55,8 +55,9 @@ solo van los nombres, para no mantener una copia que se desincronice:
    ventana por cada `T-XX`** (`<slug>/T-XX`). Nunca una ventana global que englobe a las de las
    tareas: contaría los mismos tokens dos veces.
 3. **Implementación** por `implementer`, con la disciplina de `.claude/dev.json` si está activa.
-4. **Las puertas NO se saltan**: revisión adversarial de dos lentes y `qa` con `qa-gate` (ambas
-   dentro de la Fase 3). Es lo que separa la vía rápida de "escribir código a lo loco": ahorra
+4. **Las puertas NO se saltan**: la revisión adversarial es la skill **`adversarial-review`** (fuente
+   única del método: puerta `scope-check.py` antes de gastar revisores, lentes A/B + lente C de
+   seguridad condicional, bucle acotado a 3) y después `qa` con `qa-gate` (todo dentro de la Fase 3). Es lo que separa la vía rápida de "escribir código a lo loco": ahorra
    ceremonia, no seguridad. Solo se omiten a petición **explícita** del usuario.
 5. **Cierre**: estados finales del ledger y ritual de cierre de rama si hay rama.
 
