@@ -9,6 +9,8 @@ and versioning follows [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.15.0] - 2026-09-02
+
 ### Added — `live-visibility` initiative (2026-09-02)
 
 - **Live progress while tasks run.** New deterministic script `agent-kits/shared/progress-report.py` (`line` / `active` / `session`, `--json`) built on a `parse_ledger()` now exposed by `ledger-lint.py` (CLI output byte-identical on every existing ledger). Three new informative hooks in `hooks/hooks.json`: `progress-line.sh` (PostToolUse on any `docs/roadmap/*/tasks.md` edit → one-line `systemMessage` "📋 <slug> · T-04/12 (33%) · phase 2/4 · in progress: T-05 …", debounced), `subagent-progress.sh` (SubagentStop → active initiatives) and `session-context.sh` (SessionStart `startup|resume|compact` → `additionalContext` with active initiatives, open tasks and orphan usage-meter markers, so a resumed or compacted session picks up where the ledger says). Zero output when nothing is active.
@@ -323,6 +325,7 @@ Adoption of best practices from the top agent collections (reference agent colle
 
 Versions predating the introduction of this changelog: a bundle with the `nemesis`, `evaluator`, `planner`, `pdfy` and `qa` agents, and the shared `cybersecurity` and `to-pdf` skills. Packaged as a plugin + marketplace.
 
+[1.15.0]: https://github.com/daycry/custom-agents/releases/tag/v1.15.0
 [1.14.1]: https://github.com/daycry/custom-agents/releases/tag/v1.14.1
 [1.14.0]: https://github.com/daycry/custom-agents/releases/tag/v1.14.0
 [1.13.0]: https://github.com/daycry/custom-agents/releases/tag/v1.13.0
