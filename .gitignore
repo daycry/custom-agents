@@ -54,3 +54,6 @@ desktop.ini
 # Marcas del hook de guardia del implementer (aviso único sin python3 / guardrails off).
 .claude/.guardrail-nopython
 .claude/.guardrail-off
+
+# Papelera local (device_bash no puede borrar): nunca versionar
+_to_delete/
