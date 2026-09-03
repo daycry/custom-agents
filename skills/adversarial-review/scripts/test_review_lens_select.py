@@ -14,6 +14,15 @@ SCRIPT = os.path.join(HERE, "review-lens-select.py")
 EVAL = "ev" + "al(" + "'1+1')"
 FSELECT = 'f"SEL' + 'ECT * FROM u WHERE id={uid}"'
 
+# Lente D (rendimiento, superiority T-04): mismo cuidado por concatenación.
+SLEEP = "sle" + "ep(2)"
+READFILESYNC = "read" + "FileSync('x.json')"
+JSON_DOBLE = "JSON.par" + "se(JSON.stringify(obj))"
+DB_QUERY = "db.qu" + "ery(uid)"
+AWAIT_CALL = "aw" + "ait fetch(uid)"
+REGEX_COMPILE = "re.comp" + "ile(pat)"
+CONCAT_MAS_IGUAL = 's ' + '+= "x"'
+
 
 def sh(cwd, *args):
     subprocess.run(args, cwd=cwd, check=True, capture_output=True, text=True)
@@ -318,3 +327,144 @@ def test_cleanup_revision_excluir_aplica_a_ruta_no_a_contenido():
     code, data, err = run(d)
     assert code == 0 and "excluir" in err
     assert "hooks/session-context.sh" in {m["fichero"] for m in data["motivos"] if m["tipo"] == "ruta"}
+
+
+# ---------------------------------------------- Lente D (rendimiento, superiority T-04) ----
+
+def test_lente_d_ruta_repository_activa():
+    d = repo_git()
+    write(d, "repository/user_repo.py", "def find(id):\n    return id\n")
+    sh(d, "git", "add", "-A"); sh(d, "git", "commit", "-q", "-m", "repo")
+    code, data, _ = run(d)
+    assert code == 0 and data["lente_d"] is True
+    assert any(m["tipo"] == "ruta" and m["fichero"] == "repository/user_repo.py" for m in data["motivos_d"])
+    assert data["lente_c"] is False  # independiente de la Lente C
+
+
+def test_lente_d_contenido_sleep_independiente():
+    d = repo_git()
+    write(d, "src/wait.py", "def espera():\n    " + SLEEP + "\n")
+    sh(d, "git", "add", "-A"); sh(d, "git", "commit", "-q", "-m", "sleep")
+    code, data, _ = run(d)
+    assert code == 0 and data["lente_d"] is True
+    m = [m for m in data["motivos_d"] if m["tipo"] == "contenido"]
+    assert m and m[0]["patron"] == "sleep-bloqueante" and m[0]["fichero"] == "src/wait.py"
+
+
+def test_lente_d_contenido_readfilesync_y_json_doble_vuelta():
+    d = repo_git()
+    write(d, "src/io.py", "def leer():\n    d = " + READFILESYNC + "\n    return " + JSON_DOBLE + "\n")
+    sh(d, "git", "add", "-A"); sh(d, "git", "commit", "-q", "-m", "io")
+    code, data, _ = run(d)
+    assert code == 0 and data["lente_d"] is True
+    patrones = {m["patron"] for m in data["motivos_d"] if m["tipo"] == "contenido"}
+    assert {"read-file-sync", "json-doble-vuelta"} <= patrones
+
+
+def test_lente_d_bucle_con_query_es_n_mas_uno():
+    d = repo_git()
+    write(d, "src/loader.py", "def cargar(users):\n    for u in users:\n        " + DB_QUERY + "\n")
+    sh(d, "git", "add", "-A"); sh(d, "git", "commit", "-q", "-m", "n+1")
+    code, data, _ = run(d)
+    assert code == 0 and data["lente_d"] is True
+    m = [m for m in data["motivos_d"] if m["tipo"] == "contenido"]
+    assert m and m[0]["patron"] == "n-plus-one" and m[0]["linea"] == 2  # línea de apertura del bucle
+
+
+def test_lente_d_bucle_con_await_regex_y_concat():
+    d = repo_git()
+    write(d, "src/asincrono.py",
+          "async def f(items):\n    for it in items:\n        " + AWAIT_CALL + "\n")
+    sh(d, "git", "add", "-A"); sh(d, "git", "commit", "-q", "-m", "await")
+    code, data, _ = run(d)
+    assert code == 0 and data["lente_d"] is True
+    assert any(m["patron"] == "await-en-bucle" for m in data["motivos_d"])
+
+    write(d, "src/regex_loop.py", "def f(items):\n    for it in items:\n        " + REGEX_COMPILE + "\n")
+    write(d, "src/concat_loop.py", "def f(items):\n    r = ''\n    for it in items:\n        r " + CONCAT_MAS_IGUAL + "\n")
+    sh(d, "git", "add", "-A"); sh(d, "git", "commit", "-q", "-m", "regex y concat")
+    code, data, _ = run(d)
+    assert code == 0 and data["lente_d"] is True
+    patrones = {m["patron"] for m in data["motivos_d"]}
+    assert {"regex-en-bucle", "concat-en-bucle"} <= patrones
+
+
+def test_lente_d_bucle_sin_patron_peligroso_no_dispara():
+    """Fichero con ruta neutra (sin ningún stem de RUTA_RE_D) y un bucle sin ninguno de los
+    patrones de PATRONES_TRAS_BUCLE_D/CONTENIDO_D_INDEPENDIENTE: no debe activar la Lente D."""
+    d = repo_git()
+    write(d, "src/sumar.py", "def total(items):\n    t = 0\n    for it in items:\n        t = t + it\n    return t\n")
+    sh(d, "git", "add", "-A"); sh(d, "git", "commit", "-q", "-m", "suma inocua")
+    code, data, _ = run(d)
+    assert code == 0 and data["lente_d"] is False and data["motivos_d"] == []
+
+
+def test_lente_d_bucle_anidado_con_llamada_marca_ambos_motivos():
+    d = repo_git()
+    write(d, "src/matriz.py",
+          "def f(filas):\n    for fila in filas:\n        for celda in fila:\n            " + DB_QUERY + "\n")
+    sh(d, "git", "add", "-A"); sh(d, "git", "commit", "-q", "-m", "anidado")
+    code, data, _ = run(d)
+    assert code == 0 and data["lente_d"] is True
+    patrones_bucle_externo = {m["patron"] for m in data["motivos_d"] if m.get("linea") == 2}
+    assert {"n-plus-one", "bucle-anidado-con-llamada"} <= patrones_bucle_externo
+
+
+def test_lente_d_ventana_no_cuenta_patrones_lejanos():
+    """VENTANA_D = 6: un patrón que aparece más allá de esa ventana de líneas AÑADIDAS del mismo
+    fichero, tras la apertura del bucle, no debe contar."""
+    d = repo_git()
+    relleno = "\n".join(f"        x{i} = {i}" for i in range(8))  # 8 líneas de relleno > VENTANA_D
+    write(d, "src/lejos.py", "def f(items):\n    for it in items:\n" + relleno + "\n        " + DB_QUERY + "\n")
+    sh(d, "git", "add", "-A"); sh(d, "git", "commit", "-q", "-m", "lejos")
+    code, data, _ = run(d)
+    assert code == 0 and data["lente_d"] is False and data["motivos_d"] == []
+
+
+def test_lente_d_config_nunca_fuerza_false():
+    d = repo_git()
+    dev_json(d, json.dumps({"revision": {"lenteRendimiento": "nunca"}}))
+    write(d, "repository/x.py", "def f():\n    " + SLEEP + "\n")
+    sh(d, "git", "add", "-A"); sh(d, "git", "commit", "-q", "-m", "x")
+    code, data, _ = run(d)
+    assert code == 0 and data["lente_d"] is False and data["modo_d"] == "nunca"
+
+
+def test_lente_d_config_siempre_fuerza_true():
+    d = repo_git()
+    dev_json(d, json.dumps({"revision": {"lenteRendimiento": "siempre"}}))
+    write(d, "src/util.py", "x = 1\n")
+    sh(d, "git", "add", "-A"); sh(d, "git", "commit", "-q", "-m", "x")
+    code, data, _ = run(d)
+    assert code == 0 and data["lente_d"] is True and data["modo_d"] == "siempre"
+    assert all(m["tipo"] == "config" for m in data["motivos_d"])
+
+
+def test_lente_d_excluir_aplica_a_ruta_no_a_contenido():
+    d = repo_git()
+    dev_json(d, json.dumps({"revision": {"excluir": ["repository/**"]}}))
+    write(d, "repository/x.py", "def f():\n    " + SLEEP + "\n")
+    sh(d, "git", "add", "-A"); sh(d, "git", "commit", "-q", "-m", "x")
+    code, data, _ = run(d)
+    assert code == 0 and data["lente_d"] is True
+    assert data["motivos_d"] == [{"tipo": "contenido", "fichero": "repository/x.py",
+                                  "patron": "sleep-bloqueante", "linea": 2}]
+
+
+def test_lente_c_y_lente_d_son_independientes_en_el_mismo_diff():
+    d = repo_git()
+    write(d, "auth/login.py", "def login():\n    return " + EVAL + "\n")   # solo Lente C
+    write(d, "src/wait.py", "def f():\n    " + SLEEP + "\n")               # solo Lente D
+    sh(d, "git", "add", "-A"); sh(d, "git", "commit", "-q", "-m", "c y d")
+    code, data, _ = run(d)
+    assert code == 0 and data["lente_c"] is True and data["lente_d"] is True
+    assert {m["fichero"] for m in data["motivos"]} == {"auth/login.py"}
+    assert {m["fichero"] for m in data["motivos_d"]} == {"src/wait.py"}
+
+
+def test_el_propio_script_no_dispara_la_lente_d():
+    """Regresión (T-04): igual que `test_el_propio_script_no_se_dispara_a_si_mismo` pero para la
+    Lente D — ninguna etiqueta/regex/comentario de este fichero debe casar con su propia heurística
+    de rendimiento cuando se escanea a sí mismo."""
+    code, data, _ = run(HERE, "--files", "review-lens-select.py")
+    assert code == 0 and data["lente_d"] is False and data["motivos_d"] == []

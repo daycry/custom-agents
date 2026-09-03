@@ -1,0 +1,48 @@
+{
+  "target": "skill:code-health",
+  "cases": [
+    {
+      "id": "code-health-literal",
+      "prompt": "Dame un informe de deuda técnica del repo: dónde hay código duplicado, qué ficheros son hotspots y cuántos TODO viejos hay. No toques nada, solo mide.",
+      "trigger": "literal",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "code-health"
+        ],
+        "must_not": []
+      },
+      "notes": "Disparador literal «informe de deuda técnica» / «dónde hay código duplicado» / «hotspots» / «TODO viejos»."
+    },
+    {
+      "id": "code-health-parafrasis",
+      "prompt": "Antes de presupuestar la iniciativa demo quiero saber si el código de scripts/ está en buen estado: bloques repetidos entre ficheros, funciones kilométricas y qué partes cambian más en los últimos meses.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "duplicad"
+        ]
+      },
+      "notes": "Describe las 4 medidas sin nombrar la skill."
+    },
+    {
+      "id": "code-health-neg-refactorizar",
+      "prompt": "Refactoriza scripts/export.py: quita el bloque duplicado con scripts/import.py extrayendo una función común, con sus tests en verde.",
+      "expect": {
+        "activates": false,
+        "redirect": "skill:quick-implement"
+      },
+      "notes": "Vecino: cambiar código es quick-implement/implementer; code-health solo mide."
+    },
+    {
+      "id": "code-health-neg-seguridad",
+      "prompt": "Escanea el repo en busca de vulnerabilidades y secretos hardcodeados en el código.",
+      "expect": {
+        "activates": false,
+        "redirect": "agent:nemesis"
+      },
+      "notes": "Vecino: seguridad es nemesis/cybersecurity, no salud del código."
+    }
+  ]
+}

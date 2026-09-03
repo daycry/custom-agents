@@ -1,0 +1,34 @@
+{
+  "target": "agent:nemesis",
+  "cases": [
+    {
+      "id": "nemesis-literal",
+      "prompt": "Haz una auditoría de seguridad completa de la app: SAST del código y pentest contra http://localhost:8080.",
+      "trigger": "literal",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "local"
+        ]
+      },
+      "notes": "Disparador literal «auditoría de seguridad» / «pentest»; host local permitido por el guardrail."
+    },
+    {
+      "id": "nemesis-parafrasis",
+      "prompt": "¿Es segura mi app? Quiero un escaneo de vulnerabilidades del código y pruebas activas contra el entorno local de desarrollo (127.0.0.1:8080), con informe por fecha.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true
+      }
+    },
+    {
+      "id": "nemesis-neg-diff",
+      "prompt": "Revisa solo la seguridad de lo que introduce este diff frente a main, no el proyecto entero.",
+      "expect": {
+        "activates": false,
+        "redirect": "skill:adversarial-review"
+      },
+      "notes": "Seguridad del DIFF es la Lente C de adversarial-review."
+    }
+  ]
+}

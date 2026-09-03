@@ -1,0 +1,12 @@
+{
+  "_comment": "fixture de evals: valores inventados",
+  "tarifaHora": 50,
+  "monedaCoste": "EUR",
+  "modeloIA": "claude-opus-4-8",
+  "precioTokens": {"moneda": "USD", "unidad": "por_millon", "input": 5, "output": 25, "cacheCreacion": 6.25, "cacheLectura": 0.5, "verificadoEl": "2026-08-18", "fuente": "https://platform.claude.com/docs/en/about-claude/pricing"},
+  "tipoCambioUsdEur": 0.92,
+  "ratioSupervision": 0.25,
+  "margenContingencia": 0.2,
+  "horasJornada": 8,
+  "horasMesFTE": 160
+}

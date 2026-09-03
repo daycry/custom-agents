@@ -22,8 +22,9 @@ y lo deja en un PDF presentable. Solo lectura del roadmap. Foco opcional: **$ARG
    - **Resumen de cartera**: nº de iniciativas por estado (spec/eval), coste **estimado** total (€) y, si hay reales, **coste real** (horas × tarifa de `.claude/rates.json`) y **desviación**; multiplicador de productividad IA agregado si está disponible.
    - **Prioridades**: los primeros quick wins / apuestas del `BACKLOG.md`.
    - **Estado por iniciativa**: una línea cada una (título, estado, fase, coste, y real vs est si aplica).
+   - **Salud del código** (opcional, una fila): si el usuario la pide o ya existe un `code-health.json` reciente en `docs/roadmap/`, pega la cabecera del informe de la skill `code-health` (`% duplicado · funciones largas · hotspots · TODO viejos`) — números del script, nunca estimados.
    - **Nota de método** al pie: cifras estimadas vs reales, y qué se imputa.
-3. **Exporta a PDF** con la skill **`to-pdf`** (o el agente `pdfy`): `docs/roadmap/brief.pdf`.
+3. **Exporta a PDF** con la skill **`to-pdf`**: `docs/roadmap/brief.pdf`.
 4. Presenta el PDF y resume en 2-3 líneas lo esencial (inversión, eficiencia, próximas apuestas).
 5. **Sincronizar con Confluence (opcional).** Aplica el paso compartido `"$SHAREDKIT/confluence-optin.md"` (skill `confluence-publish` con opt-in) sobre `docs/roadmap/brief.md` (el `.pdf` no entra en el espejo, no es `.md`). Localízalo con `SHAREDKIT="$(find "$PWD/.claude" "$HOME/.claude" -type d -path '*agent-kits/shared' 2>/dev/null | head -1)"`. Fallback si no está: invoca `confluence-publish` respetando su opt-in, sin bloquear el cierre; nunca sincronices `docs/security-scan/`.
 

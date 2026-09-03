@@ -1,0 +1,43 @@
+{
+  "target": "command:pm-cycle",
+  "cases": [
+    {
+      "id": "pm-cycle-literal",
+      "prompt": "Arranca el ciclo de producto de una iniciativa: «alertas de stock bajo». Quiero spec y evaluación con veredicto go/no-go, y parar ahí.",
+      "trigger": "literal",
+      "expect": {
+        "activates": true,
+        "artifacts": [
+          "docs/roadmap/*/spec.md",
+          "docs/roadmap/*/evaluation.md"
+        ],
+        "mentions": [
+          "go"
+        ]
+      },
+      "notes": "Ventana literal «ciclo de producto de una iniciativa»."
+    },
+    {
+      "id": "pm-cycle-parafrasis",
+      "prompt": "Como PM quiero definir y presupuestar «importación masiva de clientes» antes de decidir si se construye; no implementes nada.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true,
+        "artifacts": [
+          "docs/roadmap/*/evaluation.md"
+        ],
+        "must_not": [
+          "implementado"
+        ]
+      }
+    },
+    {
+      "id": "pm-cycle-neg-implementer",
+      "prompt": "Implementa el plan de docs/roadmap/2026-01-01-demo fase a fase y marca las tareas en tasks.md.",
+      "expect": {
+        "activates": false,
+        "redirect": "agent:implementer"
+      }
+    }
+  ]
+}

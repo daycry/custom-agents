@@ -257,3 +257,70 @@ def test_cli_guardrails_off_avisa_una_vez():
         assert code == 0 and "systemMessage" in out and "DESACTIVADOS" in out
         code, out, _ = run_cli(json.dumps(bash("git push --force")), tmp)
         assert code == 0 and out == ""
+
+
+# ---------------------------------------------- modo architect (parity-core T-fix1) ----
+def arch(payload, branch="main"):
+    return gc.decide(payload, PROJ, None, branch=branch, agent="architect")
+
+
+def edit(path, old, new):
+    return {"tool_name": "Edit", "tool_input": {"file_path": path, "old_string": old, "new_string": new}}
+
+
+def test_architect_allow_design_adr_e_indice_knowledge():
+    assert arch(write("docs/roadmap/2026-01-01-x/design.md")) is None
+    assert arch(write("docs/knowledge/adr/ADR-010-x.md")) is None
+    assert arch(write("docs/knowledge/README.md", "Edit")) is None
+
+
+def test_architect_deny_codigo_y_tasks_y_evaluation():
+    r = arch(write("src/app.py"))
+    assert r and "architect" in r and "design.md" in r
+    r = arch(write("docs/roadmap/2026-01-01-x/tasks.md", "Edit"))
+    assert r and "architect" in r
+    assert arch(write("docs/roadmap/2026-01-01-x/evaluation.md", "Edit"))
+    assert arch(write("docs/knowledge/gotchas/GOT-009-x.md"))          # solo adr/ + README
+    assert arch(write("docs/security-scan/x.md"))
+
+
+def test_architect_spec_y_plan_solo_edit_de_frontmatter_design():
+    spec = "docs/roadmap/2026-01-01-x/spec.md"
+    assert arch(edit(spec, "plan: pendiente", "design: design.md\nplan: pendiente")) is None
+    assert arch(edit(spec, "> **Evaluación:**", "> **Diseño:** [`design.md`](design.md)\n> **Evaluación:**")) is None
+    r = arch(edit(spec, "## Alcance", "## Alcance ampliado"))
+    assert r and "design:" in r
+    r = arch(write(spec))                                              # Write completo → deny
+    assert r and "Edit" in r
+    plan = "docs/roadmap/2026-01-01-x/improvement-plan.md"
+    assert arch(edit(plan, "| **Evaluación** |", "| **Diseño** | design.md |\n| **Evaluación** |")) is None
+
+
+def test_architect_no_aplica_rama_principal_pero_si_git():
+    assert arch(write("docs/roadmap/2026-01-01-x/design.md"), branch="main") is None
+    assert arch(bash("git push --force origin feature/x"))
+    assert arch(bash("git status")) is None
+
+
+def test_architect_razon_de_deny_nombra_a_architect_no_a_planner():
+    r = arch(write("docs/roadmap/2026-01-01-x/tasks.md", "Edit"))
+    assert "planner" not in r and "architect" in r
+
+
+def test_implementer_razon_design_nombra_a_architect():
+    r = decide(write("docs/roadmap/2026-01-01-x/design.md"))
+    assert r and "architect" in r and "solo toca tasks.md" in r
+
+
+def test_cli_agent_flag_y_env(tmp_path):
+    payload = json.dumps(write("src/app.py"))
+    r = subprocess.run([sys.executable, SCRIPT, "pre-tool", "--agent", "architect", "--project-dir", str(tmp_path)],
+                       input=payload, capture_output=True, text=True)
+    assert r.returncode == 0 and '"deny"' in r.stdout and "architect" in r.stdout
+    env = dict(os.environ, CLAUDE_AGENT_NAME="architect")
+    r = subprocess.run([sys.executable, SCRIPT, "pre-tool", "--project-dir", str(tmp_path)],
+                       input=payload, capture_output=True, text=True, env=env)
+    assert r.returncode == 0 and '"deny"' in r.stdout
+    r = subprocess.run([sys.executable, SCRIPT, "pre-tool", "--project-dir", str(tmp_path)],
+                       input=payload, capture_output=True, text=True, env={k: v for k, v in os.environ.items() if k != "CLAUDE_AGENT_NAME"})
+    assert r.returncode == 0 and r.stdout.strip() == "", "implementer por defecto: src/app.py permitido en rama (sin git → sin ramaPrincipal)"

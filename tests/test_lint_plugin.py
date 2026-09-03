@@ -13,6 +13,7 @@ AGENT_OK = """---
 name: {name}
 description: Hace algo útil. Úsalo cuando el usuario diga "haz X".
 model: sonnet
+effort: medium
 tools: Read, Grep, Glob, Bash, Write, Edit
 dependencies:
   skills:
@@ -64,6 +65,25 @@ def main():
         make_plugin(tmp, {"alpha": body})
         code, out = run(tmp)
         assert code == 1 and "no es válido" in out, out
+
+    # 3b) falta el campo effort → error (parity-core T-01)
+    with tempfile.TemporaryDirectory() as tmp:
+        body = AGENT_OK.format(name="alpha").replace("effort: medium\n", "")
+        make_plugin(tmp, {"alpha": body})
+        code, out = run(tmp)
+        assert code == 1 and "requerido `effort`" in out, out
+
+    # 3c) effort inválido → error (valores oficiales low|medium|high|xhigh|max)
+    with tempfile.TemporaryDirectory() as tmp:
+        body = AGENT_OK.format(name="alpha").replace("effort: medium", "effort: ultra")
+        make_plugin(tmp, {"alpha": body})
+        code, out = run(tmp)
+        assert code == 1 and "`effort: ultra` no es válido" in out, out
+    with tempfile.TemporaryDirectory() as tmp:
+        body = AGENT_OK.format(name="alpha").replace("effort: medium", "effort: xhigh")
+        make_plugin(tmp, {"alpha": body})
+        code, out = run(tmp)
+        assert code == 0, out
 
     # 4) dependencia a agente inexistente → error
     with tempfile.TemporaryDirectory() as tmp:
@@ -151,6 +171,7 @@ def main():
 name: alpha
 description: Hace algo útil. Úsalo cuando el usuario diga "haz X".
 model: sonnet
+effort: medium
 tools: Read, Write
 skills:
   - my-skill
@@ -267,7 +288,143 @@ dependencies:
         code, out = run(tmp)
         assert code == 0 and "difieren" in out and "cp ci.yml.MANUAL-COPY .github/workflows/ci.yml" in out, out
 
-    print("test_lint_plugin: 18/18 OK")
+    # 19) [activation-reliability T-04] cobertura en evals/cases/: pieza sin caso positivo → AVISO (no error);
+    #     con positivo → sin aviso; sin carpeta evals/cases/ → sin aviso (plugin consumidor)
+    import shutil
+    with tempfile.TemporaryDirectory() as tmp:
+        make_plugin(tmp, {"alpha": AGENT_OK.format(name="alpha")})
+        code, out = run(tmp)
+        assert code == 0 and "sin caso positivo" not in out, f"sin evals/cases no se avisa\n{out}"
+        os.makedirs(os.path.join(tmp, "evals", "cases"))
+        shutil.copy(os.path.join(ROOT, "evals", "check.py"), os.path.join(tmp, "evals", "check.py"))
+        # solo el agente tiene caso positivo; la skill `my-skill` no tiene fichero
+        open(os.path.join(tmp, "evals", "cases", "agent-alpha.json"), "w", encoding="utf-8").write(json.dumps({
+            "target": "agent:alpha", "cases": [{"id": "alpha-literal", "prompt": "haz X por favor", "trigger": "literal",
+                                                "expect": {"activates": True}}]}))
+        # fichero con SOLO negativos → también cuenta como sin positivo
+        open(os.path.join(tmp, "evals", "cases", "skill-my-skill.json"), "w", encoding="utf-8").write(json.dumps({
+            "target": "skill:my-skill", "cases": [{"id": "my-skill-neg", "prompt": "otra cosa", "expect": {"activates": False}}]}))
+        code, out = run(tmp)
+        assert code == 0, out
+        assert "skill:my-skill: sin caso positivo en evals/cases/skill-my-skill.json" in out, out
+        assert "agent:alpha: sin caso positivo" not in out, out
+        # añadido el positivo → desaparece el aviso
+        open(os.path.join(tmp, "evals", "cases", "skill-my-skill.json"), "w", encoding="utf-8").write(json.dumps({
+            "target": "skill:my-skill", "cases": [{"id": "my-skill-pos", "prompt": "usa my-skill", "trigger": "parafrasis",
+                                                   "expect": {"activates": True}}]}))
+        code, out = run(tmp)
+        assert code == 0 and "sin caso positivo" not in out, out
+
+    # 20) [activation-reliability T-04] description > 1.200 caracteres → AVISO token-diet (agente, y skill con
+    #     bloque plegado `>` leído por el lector local cuando no hay evals/check.py); ≤ 1.200 → sin aviso
+    with tempfile.TemporaryDirectory() as tmp:
+        larga = ("Hace algo útil. " * 82).strip()          # ≈1.300 caracteres, con gatillo al final
+        larga += ' Úsalo cuando el usuario diga "haz X".'
+        assert len(larga) > 1200
+        body = AGENT_OK.format(name="alpha").replace(
+            'description: Hace algo útil. Úsalo cuando el usuario diga "haz X".', f"description: {larga}")
+        make_plugin(tmp, {"alpha": body})
+        open(os.path.join(tmp, "skills", "my-skill", "SKILL.md"), "w", encoding="utf-8").write(
+            "---\nname: my-skill\ndescription: >\n  " + ("palabra " * 200).strip() + "\n---\n# skill\n")
+        code, out = run(tmp)
+        assert code == 0, out
+        assert f"agent:alpha: description de {len(larga)} caracteres (> 1200)" in out, out
+        assert "skill:my-skill: description de 1599 caracteres (> 1200)" in out, out
+        # corta → sin aviso
+        make_plugin(tmp + "/b", {"alpha": AGENT_OK.format(name="alpha")})
+        code, out = run(tmp + "/b")
+        assert code == 0 and "caracteres (>" not in out, out
+
+    # 21) [plan-and-diet T-01] SKILL.md > 200 líneas → AVISO token-diet (skills cortas + references/);
+    #     de 150 líneas → sin aviso. El umbral duro (250) lo impone tests/test_skill_size.py, no el linter.
+    with tempfile.TemporaryDirectory() as tmp:
+        make_plugin(tmp, {"alpha": AGENT_OK.format(name="alpha")})
+        open(os.path.join(tmp, "skills", "my-skill", "SKILL.md"), "w", encoding="utf-8").write(
+            "---\nname: my-skill\ndescription: Corta. Úsala cuando el usuario diga \"x\".\n---\n" + "línea\n" * 197)
+        code, out = run(tmp)
+        assert code == 0, out
+        assert "skill `my-skill`: SKILL.md de 201 líneas (> 200)" in out, out
+        assert "references/<tema>.md" in out, out
+        open(os.path.join(tmp, "skills", "my-skill", "SKILL.md"), "w", encoding="utf-8").write(
+            "---\nname: my-skill\ndescription: Corta. Úsala cuando el usuario diga \"x\".\n---\n" + "línea\n" * 146)
+        code, out = run(tmp)
+        assert code == 0 and "SKILL.md de" not in out, out
+
+    # 22) [plan-and-diet T-03] el aviso de copia manual está generalizado a TODO `*.yml.MANUAL-COPY`:
+    #     headless.yml.MANUAL-COPY ≠ .github/workflows/headless.yml → aviso con el `cp` exacto; idénticos → nada
+    with tempfile.TemporaryDirectory() as tmp:
+        make_plugin(tmp, {"alpha": AGENT_OK.format(name="alpha")})
+        os.makedirs(os.path.join(tmp, ".github", "workflows"))
+        open(os.path.join(tmp, "headless.yml.MANUAL-COPY"), "w").write("name: Headless\n")
+        open(os.path.join(tmp, ".github", "workflows", "headless.yml"), "w").write("name: Headless\n# atrasada\n")
+        code, out = run(tmp)
+        assert code == 0, out
+        assert "cp headless.yml.MANUAL-COPY .github/workflows/headless.yml" in out, out
+        open(os.path.join(tmp, ".github", "workflows", "headless.yml"), "w").write("name: Headless\n")
+        code, out = run(tmp)
+        assert code == 0 and "difieren" not in out, out
+
+    # 23) [roles-and-jira-flow T-01] disparador literal entrecomillado duplicado entre DOS piezas
+    #     distintas → AVISO (heurístico ADR-011, no error, no bloquea); frases distintas → sin aviso
+    with tempfile.TemporaryDirectory() as tmp:
+        body = AGENT_OK.format(name="alpha").replace(
+            'description: Hace algo útil. Úsalo cuando el usuario diga "haz X".',
+            'description: Hace algo útil. Úsalo cuando el usuario diga "haz algo especial".')
+        make_plugin(tmp, {"alpha": body})
+        open(os.path.join(tmp, "skills", "my-skill", "SKILL.md"), "w", encoding="utf-8").write(
+            '---\nname: my-skill\ndescription: Otra cosa. Úsala cuando el usuario diga "haz algo especial".\n---\n# skill\n')
+        code, out = run(tmp)
+        assert code == 0, f"es aviso, no error\n{out}"
+        assert 'disparador duplicado "haz algo especial" en agent:alpha, skill:my-skill' in out, out
+        # frase distinta entre las dos piezas → sin aviso
+        open(os.path.join(tmp, "skills", "my-skill", "SKILL.md"), "w", encoding="utf-8").write(
+            '---\nname: my-skill\ndescription: Otra cosa. Úsala cuando el usuario diga "haz otra cosa".\n---\n# skill\n')
+        code, out = run(tmp)
+        assert code == 0 and "disparador duplicado" not in out, out
+
+    # 24) [roles-and-jira-flow T-fix1] el aviso de disparador duplicado, afinado:
+    #     (a) plega ACENTOS y mayúsculas («revisión de código» ≡ «Revision de codigo»);
+    #     (b) solo mira las frases de ≥3 palabras que siguen a «Úsalo/Úsala cuando…»
+    #         → una cita corta, o una cita fuera de esa cola, ya NO avisan (era ruido).
+    with tempfile.TemporaryDirectory() as tmp:
+        body = AGENT_OK.format(name="alpha").replace(
+            'description: Hace algo útil. Úsalo cuando el usuario diga "haz X".',
+            'description: Hace algo útil. Úsalo cuando el usuario diga "revisión de código".')
+        make_plugin(tmp, {"alpha": body})
+        open(os.path.join(tmp, "skills", "my-skill", "SKILL.md"), "w", encoding="utf-8").write(
+            '---\nname: my-skill\ndescription: Otra cosa. Úsala cuando el usuario diga '
+            '"Revision de codigo".\n---\n# skill\n')
+        code, out = run(tmp)
+        assert code == 0, f"es aviso, no error\n{out}"
+        assert 'disparador duplicado "revision de codigo" en agent:alpha, skill:my-skill' in out, out
+        assert "sin acentos" in out, out
+
+    with tempfile.TemporaryDirectory() as tmp:
+        # cita CORTA (2 palabras) repetida en las dos piezas → sin aviso
+        body = AGENT_OK.format(name="alpha").replace(
+            'description: Hace algo útil. Úsalo cuando el usuario diga "haz X".',
+            'description: Lee el "ledger canónico". Úsalo cuando el usuario diga "ledger canónico".')
+        make_plugin(tmp, {"alpha": body})
+        open(os.path.join(tmp, "skills", "my-skill", "SKILL.md"), "w", encoding="utf-8").write(
+            '---\nname: my-skill\ndescription: Otra cosa. Úsala cuando el usuario diga '
+            '"ledger canónico".\n---\n# skill\n')
+        code, out = run(tmp)
+        assert code == 0 and "disparador duplicado" not in out, out
+
+    with tempfile.TemporaryDirectory() as tmp:
+        # frase larga compartida pero ANTES del marcador de disparadores → sin aviso
+        body = AGENT_OK.format(name="alpha").replace(
+            'description: Hace algo útil. Úsalo cuando el usuario diga "haz X".',
+            'description: Escribe el "informe de revisión adversarial" del ciclo. '
+            'Úsalo cuando el usuario diga "audita el diseño".')
+        make_plugin(tmp, {"alpha": body})
+        open(os.path.join(tmp, "skills", "my-skill", "SKILL.md"), "w", encoding="utf-8").write(
+            '---\nname: my-skill\ndescription: Lee el "informe de revisión adversarial". '
+            'Úsala cuando el usuario diga "pásalo a PDF".\n---\n# skill\n')
+        code, out = run(tmp)
+        assert code == 0 and "disparador duplicado" not in out, out
+
+    print("test_lint_plugin: 24/24 OK")
 
 
 if __name__ == "__main__":

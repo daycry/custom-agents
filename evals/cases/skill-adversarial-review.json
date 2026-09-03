@@ -1,0 +1,64 @@
+{
+  "target": "skill:adversarial-review",
+  "cases": [
+    {
+      "id": "adversarial-review-literal",
+      "prompt": "Acabo de terminar la rama feature/pagos. ¿Puedes hacer una revisión adversarial del diff contra main antes de que abra la PR? Quiero gaps con fichero:línea, no comentarios de estilo.",
+      "trigger": "literal",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "Lente",
+          "gap"
+        ],
+        "must_not": [
+          "refactor sugerido"
+        ]
+      },
+      "notes": "Disparador literal «revisión adversarial» de la description. Modo sin plan (rama)."
+    },
+    {
+      "id": "adversarial-review-parafrasis",
+      "prompt": "Antes de mergear quiero que dos revisores con contexto limpio miren solo lo que cambia en esta rama y me digan qué criterios del plan de docs/roadmap/2026-01-01-demo no se cumplen, con evidencia.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "scope-check",
+          "intento"
+        ]
+      },
+      "notes": "Sin nombrar la skill: «dos revisores con contexto limpio» + criterios del plan → modo con ledger."
+    },
+    {
+      "id": "adversarial-review-lente-d",
+      "prompt": "Revisa el diff de la rama feature/informes contra main: toca el repositorio de informes y mete un bucle que consulta la base de datos en cada vuelta. Dime si hay problemas de rendimiento con fichero:línea y el escenario de carga.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "rendimiento"
+        ]
+      },
+      "notes": "Contenido que activa la Lente D (ruta `repository` + N+1 en bucle) sin nombrar la skill ni «Lente D»."
+    },
+    {
+      "id": "adversarial-review-neg-auditoria",
+      "prompt": "Hazme una auditoría de seguridad completa del proyecto: OWASP Top 10, dependencias con CVEs, secretos hardcodeados e IaC. Quiero puntuación por dimensión.",
+      "expect": {
+        "activates": false,
+        "redirect": "agent:nemesis"
+      },
+      "notes": "Vecino: auditoría completa del PROYECTO es nemesis/cybersecurity; la lente C solo mira el diff."
+    },
+    {
+      "id": "adversarial-review-neg-verde-qa",
+      "prompt": "Dame el verde de pruebas de la iniciativa demo: ejecuta los E2E del test-plan contra http://localhost:3000 y pega el veredicto.",
+      "expect": {
+        "activates": false,
+        "redirect": "agent:qa"
+      },
+      "notes": "Vecino: el verde de pruebas lo da qa con qa-gate, no la revisión."
+    }
+  ]
+}

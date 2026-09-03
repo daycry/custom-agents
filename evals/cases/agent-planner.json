@@ -1,0 +1,36 @@
+{
+  "target": "agent:planner",
+  "cases": [
+    {
+      "id": "planner-literal",
+      "prompt": "Genera el plan de implementación de la iniciativa demo: fases y tareas con criterios de aceptación, tiempo y coste por fase.",
+      "trigger": "literal",
+      "expect": {
+        "activates": true,
+        "artifacts": [
+          "docs/roadmap/2026-01-01-demo/tasks.md"
+        ]
+      },
+      "notes": "Disparador literal «genera el plan de implementación»."
+    },
+    {
+      "id": "planner-parafrasis",
+      "prompt": "Divide la iniciativa demo en fases y tareas T-XX ejecutables, cada una con criterios verificables y presupuesto, enlazadas a la spec y a la evaluación.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "T-0"
+        ]
+      }
+    },
+    {
+      "id": "planner-neg-implementer",
+      "prompt": "Ejecuta el plan de la iniciativa demo escribiendo el código y ve marcando las tareas en tasks.md.",
+      "expect": {
+        "activates": false,
+        "redirect": "agent:implementer"
+      }
+    }
+  ]
+}

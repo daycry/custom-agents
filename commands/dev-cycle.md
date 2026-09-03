@@ -20,8 +20,8 @@ ciclo (ver regla 8 de `docs/CONVENTIONS.md`), sea cual sea el motor de implement
 ## Fase 0-bis — PUERTA DE ENTRADA: flujo completo vs. vía rápida
 Antes de arrancar, **pregunta al usuario** cómo quiere abordarlo (una sola pregunta, con recomendación según el tamaño aparente del cambio):
 
-- **Flujo completo** (Fases 1→6): `evaluator` (spec + presupuesto) → `planner` → implementación → revisión → qa → documentación. Para trabajo no trivial, con incógnitas, multi-fichero, o cuando quieras el presupuesto en €/tokens y la traza PM completa.
-- **Vía rápida** (salta el papeleo PM, conserva la red de calidad): **omite Fases 1 y 2** (sin spec, sin evaluación, sin plan detallado). El orquestador crea directamente un **`tasks.md` ligero** en `docs/roadmap/<fecha>-<slug>/` (solo ese fichero: banner de ledger canónico + una fase + las tareas mínimas con criterios de aceptación verificables), va directo a **`implementer`**, y **mantiene las puertas de calidad**: la **revisión adversarial de dos lentes** (Fase 3) y **`qa`** con `qa-gate`. Cierra con `documenter` solo si el usuario lo pide. Para cambios pequeños/claros que se describen en una o dos frases. **Por qué la vía rápida NO salta la calidad.** El papeleo de PM (spec/evaluación/plan) es lo caro y prescindible en un cambio pequeño; la revisión de dos lentes y `qa-gate` son baratas y son la red que evita meter un bug "por ir rápido". Por eso la vía rápida ahorra ceremonia, no seguridad. El `tasks.md` ligero conserva el **ledger canónico**, así que el progreso, la imputación de horas y el volcado a Jira siguen funcionando igual. Si el usuario pide algo **trivial de verdad** (un typo, una línea), puede pedir explícitamente saltarse también la revisión/qa — pero no es el defecto.
+- **Flujo completo** (Fases 1→6): `evaluator` (spec + presupuesto) → `architect` (opcional: opciones de diseño) → `planner` → implementación → revisión → qa → documentación. Para trabajo no trivial, con incógnitas, multi-fichero, o cuando quieras el presupuesto en €/tokens y la traza PM completa.
+- **Vía rápida** (salta el papeleo PM, conserva la red de calidad): **omite Fases 1 y 2** (sin spec, sin evaluación, sin plan detallado). El orquestador crea directamente un **`tasks.md` ligero** en `docs/roadmap/<fecha>-<slug>/` (solo ese fichero: banner de ledger canónico + frontmatter con `verificacion: obligatoria` + una fase + las tareas mínimas con criterios de aceptación verificables y su campo `- **Verificación**: \`<comando>\` → <resultado esperado>` — `ledger-lint.py` exige el campo cuando el frontmatter lo declara), va directo a **`implementer`**, y **mantiene las puertas de calidad**: la **revisión adversarial de dos lentes** (Fase 3) y **`qa`** con `qa-gate`. Cierra con `documenter` solo si el usuario lo pide. Para cambios pequeños/claros que se describen en una o dos frases. **Por qué la vía rápida NO salta la calidad.** El papeleo de PM (spec/evaluación/plan) es lo caro y prescindible en un cambio pequeño; la revisión de dos lentes y `qa-gate` son baratas y son la red que evita meter un bug "por ir rápido". Por eso la vía rápida ahorra ceremonia, no seguridad. El `tasks.md` ligero conserva el **ledger canónico**, así que el progreso, la imputación de horas y el volcado a Jira siguen funcionando igual. Si el usuario pide algo **trivial de verdad** (un typo, una línea), puede pedir explícitamente saltarse también la revisión/qa — pero no es el defecto.
 
 **Si el usuario ya indica el modo, NO preguntes.** Respeta lo que pidió y arranca directo en ese modo:
 - **Vía rápida explícita:** el objetivo trae "vía rápida", "rápido", "directo", "sin papeleo", "solo impleméntalo", o el argumento `rapido`/`--rapido`/`--quick`.
@@ -35,16 +35,41 @@ Antes de arrancar, **pregunta al usuario** cómo quiere abordarlo (una sola preg
 
 Si es **vía rápida**, salta a la Fase 3 (implementación) usando el `tasks.md` ligero; si es **flujo completo**, sigue en la Fase 1.
 
+> **Modelo del agente (tiering configurable, capa 2).** Antes de despachar CUALQUIER agente por nombre (`evaluator`, `architect`, `planner`, `implementer`, `qa`, `documenter`, `nemesis`), resuelve su tier efectivo y pasa `model` en el parámetro `model` del Agent tool (contrato oficial sub-agents.md, verificado 2026-09-03: el parámetro por invocación tiene prioridad sobre el frontmatter):
+>
+> ```bash
+> SHAREDKIT="$(find "$PWD/.claude" "$HOME/.claude" -type d -path '*agent-kits/shared' 2>/dev/null | head -1)"
+> python3 "$SHAREDKIT/model-tier.py" <agente> --json     # {"model": "...", "effort": "...", "fuente": {"model": "frontmatter|dev.json", ...}}
+> ```
+>
+> Si `fuente.model` es `dev.json`, pasa ese `model`; si es `frontmatter`, no pases nada (el agente ya lo declara). El `effort` de `dev.json` es **informativo**: el Agent tool no documenta ese parámetro, así que el efectivo es el del frontmatter — anúncialo («effort configurado high; efectivo: el del frontmatter») sin fingir que lo aplicas. Sin el script (instalación parcial) → frontmatter y sigue. Las lentes de la revisión resuelven su propio tier dentro de la skill `adversarial-review` (agente `reviewer`).
+
 ## Fase 1 — Evaluar (siempre en flujo completo, agente `evaluator`)
 Invoca **`evaluator`** con el objetivo: crea/lee `spec.md` y produce `evaluation.md` (coste, esfuerzo, veredicto). Esto es valor propio (presupuesto en €/tokens) y va en los dos modos.
 
 **Puerta go/no-go:** muestra el veredicto y pregunta si continuar. Si no-go, para.
 
-## Fase 2 — Planificar (solo en flujo completo, agente `planner`)
-**En los dos modos**, tu `planner` genera **tus artefactos** en `docs/roadmap/<…>/`:
+## Fase 2 — Planificar (solo en flujo completo: `architect` opcional → `planner`)
+
+**Fase 2-a — Diseño (agente `architect`, opt-in).** Invoca **`architect`** ANTES de `planner` si (a) la
+carpeta ya tiene `design.md` (lo creó `/pm-cycle` 2-bis) — si está `aprobado`, salta a 2-b; si está en
+`borrador` (`opcion_elegida: pendiente`), retoma en el paso 2 de abajo — o (b) el usuario lo pide («explora
+el diseño», «compara opciones antes de planificar»). Si no se da ninguna, **ofrécelo en una línea** cuando
+la evaluación marque complejidad Alta o riesgo arquitectónico; si no, ve directo a 2-b. **Dos pasadas** (el
+subagente devuelve UN mensaje; la validación por trozos es tuya, como la puerta go/no-go):
+1. Invoca `architect` SIN `elegida:` → `design.md` en `borrador` + resumen estructurado (una línea por
+   opción, recomendada, pregunta).
+2. **Presenta al usuario por trozos**: AskUserQuestion en Cowork (una opción por entrada, recomendada
+   marcada) / lista numerada + pregunta en CLI. Recoge la elección (o una variante).
+3. Re-invoca `architect` con `elegida: O<n>` (o `variante: …` → repite 1-2). Fija la opción, escribe el
+   ADR `propuesta`, enlaza `design:` en spec/plan y pasa `design.md` a `aprobado`.
+**Puerta:** `design.md` en `aprobado` (o el usuario decide seguir sin diseño).
+
+**Fase 2-b — Plan (agente `planner`).** **En los dos modos**, tu `planner` genera **tus artefactos** en `docs/roadmap/<…>/`:
 `improvement-plan.md` + `tasks.md` (+ `test-plan.md` si hay UI). Estos ficheros son tuyos y con
 tus plantillas — **no se delega la planificación**, para que tu estructura y tu ledger existan
-siempre. Puerta: OK del plan.
+siempre. Si existe `design.md` aprobado, `planner` lo lee y **respeta la opción elegida** (enlaza
+`design:` ↔ `plan:`). Puerta: OK del plan.
 
 > Si en Modo A superpowers aporta un `brainstorming`/design doc, incorpóralo como contenido de la
 > `spec.md`; el plan ejecutable y el progreso viven en TU `improvement-plan.md` + `tasks.md`.
@@ -69,7 +94,7 @@ y spec → `implementada`. Si superpowers marca su propio ledger, vuélcalo a `t
 
 **Modo B — cadena NATIVA (el defecto, siempre):**
 
-> **Disciplina de desarrollo (`.claude/dev.json`, opt-in, defaults off — la crea `/setup`).** Antes de implementar, lee la config: `tdd: true` → el implementer sigue RED-GREEN-REFACTOR por tarea con evidencia del rojo en el ledger; `worktree: true` → la iniciativa se trabaja en un worktree de git aislado (degradación a rama normal con aviso si no hay soporte); `subagentes: true` → el despacho por subagentes de contexto fresco (ver más abajo). Sin fichero o corrupto: defaults `false` + aviso — comportamiento clásico. Las tres opciones son combinables.
+> **Disciplina de desarrollo (`.claude/dev.json`, opt-in, defaults off — la crea `/setup`).** Antes de implementar, lee la config: `tdd: true` → el implementer sigue la skill **`tdd`** (fuente única de RED-GREEN-REFACTOR) por tarea con evidencia del rojo en el ledger; `worktree: true` → la iniciativa se trabaja en un worktree de git aislado (degradación a rama normal con aviso si no hay soporte); `subagentes: true` → el despacho por subagentes de contexto fresco (ver más abajo). Sin fichero o corrupto: defaults `false` + aviso — comportamiento clásico. Las tres opciones son combinables.
 
 1. **`implementer`** → implementa fase a fase sobre rama (o worktree, si `worktree: true`), marcando `tasks.md` por tarea (con RED-GREEN-REFACTOR si `tdd: true`).
 
@@ -81,8 +106,8 @@ y spec → `implementada`. Si superpowers marca su propio ledger, vuélcalo a `t
       python3 "$SHAREDKIT/task-brief.py" "docs/roadmap/<fecha>-<slug>" T-XX
       ```
 
-      El script valida el ledger (`ledger-lint`), y extrae SOLO la tarea + criterios + fase + **persona de dominio** (si la tarea lleva `- **Tipo**: frontend|backend|db|devops|test|docs`, el brief antepone el perfil corto de `agent-kits/shared/personas/<tipo>.md`: prioridades, trampas típicas y evidencia exigible del dominio; sin etiqueta → subagente genérico; etiqueta sin persona en el catálogo → aviso y genérico, nunca bloquea) + arquitectura + constitución (si existe) + el contrato de retorno. Exit ≠ 0 → arregla la causa antes de despachar.
-   2. **Despacho brief-only** — lanza el subagente con el brief como único contexto (más las opciones activas: si `tdd: true`, el subagente sigue RED-GREEN-REFACTOR y devuelve la evidencia del rojo). El subagente NO explora el repo entero: el brief y los ficheros que referencia.
+      El script valida el ledger (`ledger-lint`), y extrae SOLO la tarea + criterios + fase + **persona de dominio** (si la tarea lleva `- **Tipo**: frontend|backend|db|devops|test|docs`, el brief antepone el perfil corto de `agent-kits/shared/personas/<tipo>.md`: prioridades, trampas típicas y evidencia exigible del dominio; sin etiqueta → subagente genérico; etiqueta sin persona en el catálogo → aviso y genérico, nunca bloquea) + la **opción elegida de `design.md`** (si existe y está `aprobado`; solo esa sección) + arquitectura + constitución (si existe) + el contrato de retorno. Exit ≠ 0 → arregla la causa antes de despachar.
+   2. **Despacho brief-only** — lanza el subagente con el brief como único contexto (con `tdd: true`, `task-brief.py` ya incluye la sección «TDD» que manda seguir la skill `tdd` y devolver la evidencia del rojo). El subagente NO explora el repo entero: el brief y los ficheros que referencia.
    3. **Estados de retorno** — el subagente termina en uno de: `DONE` (valida tú contra los criterios ANTES de marcar `completado` en el ledger) · `DONE_WITH_CONCERNS: <duda>` (valida y pasa la duda a la revisión de dos lentes) · `NEEDS_CONTEXT: <qué>` (re-despacha UNA vez añadiendo al brief exactamente lo pedido — el subagente tiene PROHIBIDO inventar) · `BLOCKED: <qué>` (resuélvelo tú o pregunta al usuario; no re-despaches a ciegas).
    4. **Re-despacho acotado** — máximo **1** re-despacho por tarea (por gap de validación o por `NEEDS_CONTEXT`); si el segundo intento tampoco cierra, la tarea pasa al **flujo normal** (`implementer` en contexto principal) con aviso en el ledger.
    5. **Las puertas no cambian**: la medición por tarea (usage-meter), la revisión de dos lentes y `qa-gate` se ejecutan exactamente igual — el despacho solo cambia QUIÉN implementa, no qué se valida.
@@ -97,6 +122,37 @@ y spec → `implementada`. Si superpowers marca su propio ledger, vuélcalo a `t
 3. **`qa`** → pruebas E2E (solo local), informe y evidencias. El veredicto verde/rojo lo da `qa-gate.py` (exit code), no una impresión.
 
 **Bucle de corrección de qa ACOTADO (regla dura).** Si qa sale rojo: la(s) tarea(s) afectadas vuelven a `implementer`, se corrigen y qa **re-ejecuta**. Contador explícito ("intento 2 de 3"). **Máximo 3 intentos**; si el 3.º sigue rojo, ANTES de parar ejecuta **UNA pasada de la skill `debug-root-cause`** (4 fases con evidencia: reproducción mínima → aislamiento → hipótesis probada → fix propuesto; solo cadena nativa — con superpowers explícito manda su systematic-debugging). Luego PARA y pregunta al usuario qué hacer — seguir con el fix propuesto, re-planificar con `planner`, o cancelar — presentando el **diagnóstico** (causa probada, o lo descartado + hipótesis vivas si no concluyó) junto a la salida de qa-gate de cada intento. El tiempo del diagnóstico se imputa como implementación de la tarea afectada. No cierres estados en rojo y no degrades el umbral para "pasar".
+
+### Ciclo Jira de la Fase 3 (opt-in, `.claude/jira.json` `enabled: true`) — la secuencia, UNA sola vez
+
+El estado del issue, los comentarios y las horas los produce **`jira-flow.py`** (skill `jira-sync`,
+Paso 7): tú no redactas comentarios ni compones llamadas — el script devuelve `ops` (etiqueta →
+transición → comentario → worklog) **ya firmadas por el agente** y en orden; ejecútalas seguidas con
+las tools del conector. Una llamada por evento y tarea (con granularidad `fase`, `--batch` agrupa las
+tareas de la fase en un comentario). El **ledger sigue siendo la fuente**; Jira es espejo.
+
+| Evento | Cuándo | Quién lo dispara | Transición | Comentario (firma) | Worklog |
+|---|---|---|---|---|---|
+| `arrancar` | al abrir `T-XX` | `implementer` | → *En curso* | — | — |
+| `implementado` | criterios cumplidos | `implementer` | *(sigue En curso)* | `ca-implementer`: qué hizo, evidencia, ficheros | implementación (horas medidas) |
+| `revision` | cierre de intento sin gaps | `adversarial-review` | — | `ca-reviewer`: veredicto por criterio | `[revisión] --attempt N` |
+| `gaps` | cierre de intento con gaps | `adversarial-review` | → *En curso* (reabre) | `ca-reviewer`: gaps graduados | `[revisión] --attempt N` |
+| `qa-verde` / `qa-rojo` | veredicto de `qa-gate.py` | `qa` | — | `ca-qa`: X/Y del gate + evidencias | — |
+| `aprobado` | revisión sin gaps **y** qa verde | **el orquestador (tú)**, `--actor orquestador --qa-verde` | → *Done* | `ca-orquestador`: cierre con la evidencia | — |
+
+**`aprobado` es TUYO y con evidencia (no a ciegas).** `jira-flow.py` lo rechaza (exit 2, `ops: []`,
+con la razón) si el ledger no tiene una última sección `## Revisión de dos lentes — intento N` sin
+gaps pendientes para esas tareas, o si no le pasas `--qa-verde` — flag que pasas **solo tras leer el
+exit 0 de `agent-kits/qa/qa-gate.py`**, nunca por el resumen de `qa`. Es el único evento que ve los
+dos veredictos, y por eso el único que puede cerrar el issue.
+
+**Cómo se entera el `implementer` de los gaps:** por su **brief** (`task-brief.py` inyecta los gaps
+del último intento desde el ledger), no por Jira — el comentario `gaps` es el espejo para el equipo.
+Sin Jira activado, el ciclo es idéntico salvo que no se publica nada: el script lee
+`.claude/jira.json` y con `enabled` ≠ `true` devuelve `ops: []` y `jira: "desactivado"` (exit 0, sin
+ruido). Reejecutar una fase tampoco duplica: cada plan con `ops` queda anotado en `jira-state.json`
+(`flow[...]`) y repetir el mismo evento da `ops: []` + `yaRealizado: true` (`--force` para repetirlo
+a propósito). En `revision`/`gaps`, `--intento N` es obligatorio.
 
 En ambos modos, al salir debes tener: código implementado, revisión pasada, `qa-gate` en verde y `tasks.md` al día (validado con `ledger-lint.py`).
 
@@ -115,7 +171,8 @@ Si el usuario lo pide o la iniciativa lo amerita, invoca **`nemesis`** para audi
 3. **Resumen de merge/PR derivado del LEDGER** (no de memoria): título, qué se hizo tarea a tarea, criterios de aceptación cumplidos, veredicto de qa-gate y ruta de las evidencias. Es la descripción del PR o el mensaje del merge.
 4. **Integración según el flujo del repo**: merge directo o PR — si no está claro cuál usa el equipo, **pregunta**; no mergees por defecto.
 5. **Limpieza**: rama integrada eliminada; worktrees retirados (`git worktree remove` + `prune`); marcadores de usage-meter sin huérfanos (`usage-meter.py status` limpio).
-6. **Estados finales**: plan/tasks → `completado`, spec → `implementada` (tabla de abajo), fila del índice al día.
+6. **Notas de cambios**: con el ledger ya en `completado`, invoca la skill **`changelog-sync`** (determinista, idempotente) para generar las entradas `[Unreleased]`/`[Sin publicar]` de esta iniciativa en ambos CHANGELOG, y afina la redacción sin ampliar alcance. No crea la sección de versión: eso es del release.
+7. **Estados finales**: plan/tasks → `completado`, spec → `implementada` (tabla de abajo), fila del índice al día.
 
 La documentación/artefactos se sincronizan con Confluence vía `confluence-publish` (opt-in; la invocan los agentes al escribir en `docs/`). Cierra con un resumen: modo usado (nativa/superpowers), iniciativa, tareas completadas, estado de pruebas, coste medido (usage-meter), ruta de la doc y enlaces. Ofrece `/retro` como siguiente paso natural.
 
@@ -123,21 +180,26 @@ La documentación/artefactos se sincronizan con Confluence vía `confluence-publ
 Los artefactos nacen en `borrador`. En **cada fase/puerta** que se supera, actualiza su estado
 (frontmatter + cabecera) al que toque; **no dejes nada en `borrador`** al avanzar. Vocabularios:
 spec = `borrador · aprobada · implementada · obsoleta`; evaluación/plan/tareas = `borrador ·
-en-progreso · en-revision · completado · cancelado`.
+en-progreso · en-revision · completado · cancelado`; design = `borrador · aprobado · obsoleto`.
 
 > **Vía rápida:** no hay spec/evaluación/plan que transicionar — solo el `tasks.md` ligero, que sigue el vocabulario de tareas (`borrador → en-progreso → completado`). Todo lo demás de esta tabla se salta.
+>
+> **`design.md` (opcional, agente `architect`):** vocabulario propio `borrador · aprobado · obsoleto`. Solo existe si se hizo el paso de diseño; la columna queda `—` si no.
 
-| Momento | spec | evaluación | plan / tasks |
-|---|---|---|---|
-| Tras evaluar (Fase 1) | borrador | `en-revision` | — |
-| Puerta **go** | `aprobada` | `completado` | — |
-| Puerta **no-go** | (obsoleta si se descarta) | `cancelado` | — |
-| Plan creado (Fase 2) | aprobada | completado | `borrador` |
-| Puerta OK del plan → arranca impl. | aprobada | completado | `en-progreso` (plan y fase activa) |
-| Durante impl. (Fase 3) | aprobada | completado | tareas `en-progreso`→`completado`; fase `completado` al cerrar |
-| qa en rojo | aprobada | completado | tarea/plan → `en-progreso` (reabrir) |
-| Cierre (qa verde + documentado) | `implementada` | completado | plan `completado` |
-| Cancelación en cualquier punto | (obsoleta) | `cancelado` | `cancelado` |
+| Momento | spec | evaluación | design (opcional) | plan / tasks |
+|---|---|---|---|---|
+| Tras evaluar (Fase 1) | borrador | `en-revision` | — | — |
+| Puerta **go** | `aprobada` | `completado` | — | — |
+| Puerta **no-go** | (obsoleta si se descarta) | `cancelado` | — | — |
+| Diseño presentado (Fase 2-a) | aprobada | completado | `borrador` (opciones abiertas) | — |
+| Opción validada por el usuario | aprobada | completado | `aprobado` | — |
+| Plan creado (Fase 2-b) | aprobada | completado | aprobado (`plan:` relleno) | `borrador` |
+| Puerta OK del plan → arranca impl. | aprobada | completado | aprobado | `en-progreso` (plan y fase activa) |
+| Durante impl. (Fase 3) | aprobada | completado | aprobado | tareas `en-progreso`→`completado`; fase `completado` al cerrar |
+| qa en rojo | aprobada | completado | aprobado | tarea/plan → `en-progreso` (reabrir) |
+| Re-diseño (se descarta la opción) | aprobada | completado | `obsoleto` → nuevo `design.md` `borrador` | plan `en-revision` |
+| Cierre (qa verde + documentado) | `implementada` | completado | aprobado | plan `completado` |
+| Cancelación en cualquier punto | (obsoleta) | `cancelado` | `obsoleto` | `cancelado` |
 
 Aplica la transición **en el mismo paso** en que se cruza la puerta, y mantén coherente la tabla
 de resumen de `tasks.md`.

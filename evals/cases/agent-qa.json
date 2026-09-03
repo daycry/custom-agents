@@ -1,0 +1,45 @@
+{
+  "target": "agent:qa",
+  "cases": [
+    {
+      "id": "qa-literal",
+      "prompt": "Audita el plan con Playwright: ejecuta los tests end-to-end de la iniciativa demo contra http://localhost:3000 y dame el informe con evidencias.",
+      "trigger": "literal",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "qa-gate"
+        ]
+      },
+      "notes": "Disparadores literales «audita el plan con Playwright» / «tests end-to-end»."
+    },
+    {
+      "id": "qa-parafrasis",
+      "prompt": "La iniciativa demo ya está implementada en la rama; corre los escenarios del test-plan contra mi app local en el puerto 3000, captura pantallazos y dime si está en verde.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "report.md"
+        ]
+      }
+    },
+    {
+      "id": "qa-neg-review",
+      "prompt": "Revisa el diff de la rama buscando defectos de corrección antes de pasar a pruebas; no ejecutes nada contra la app.",
+      "expect": {
+        "activates": false,
+        "redirect": "skill:adversarial-review"
+      }
+    },
+    {
+      "id": "qa-neg-unit-tests",
+      "prompt": "Sube la cobertura de tests unitarios de los ficheros que he tocado y ponme un umbral mínimo; no levantes la app ni ejecutes el E2E.",
+      "expect": {
+        "activates": false,
+        "redirect": "skill:unit-tests"
+      },
+      "notes": "Frontera ADR-011 caso 3: E2E es del agente qa; unitarios/cobertura son la skill compartida unit-tests."
+    }
+  ]
+}

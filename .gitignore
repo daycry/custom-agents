@@ -54,6 +54,15 @@ desktop.ini
 # Marcas del hook de guardia del implementer (aviso único sin python3 / guardrails off).
 .claude/.guardrail-nopython
 .claude/.guardrail-off
+# Caché del índice de piezas inyectado al arrancar (skill-index.py; se regenera por hash).
+.claude/.skill-index.cache
+.claude/.skill-index.cache.*
 
 # Papelera local (device_bash no puede borrar): nunca versionar
 _to_delete/
+
+# Informes locales de evals/run.py (cuestan tokens; se citan en el ledger, no se versionan).
+evals/reports/
+
+# Paquete portable «solo skills» generado por scripts/export-skills.py (la Release lo adjunta como zip).
+dist/

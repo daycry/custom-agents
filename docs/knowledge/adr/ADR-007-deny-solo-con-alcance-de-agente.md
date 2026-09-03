@@ -26,6 +26,19 @@ Un hook que **deniega** se registra **únicamente en el frontmatter `hooks:` del
 
 Cada agente que necesite reglas duras las declara en su propio frontmatter y reutiliza el patrón (wrapper en `hooks/` + script en `agent-kits/shared/` con tests); el resto de agentes no cambian de comportamiento. El linter valida que cada skill de `skills:` esté en `dependencies.skills` y que los `command` de `hooks:` referencien ficheros existentes. Queda condicionado a la doc oficial: `${CLAUDE_PLUGIN_ROOT}` no está documentado para los `command` del frontmatter, por lo que la línea del hook lleva fallback `find`.
 
+## Enmienda (2026-09-03, iniciativa `parity-core`, T-fix1)
+
+El patrón se extiende a un **segundo agente** sin cambiar la decisión: `agents/architect.md` registra en su
+frontmatter `hooks:` el wrapper `hooks/architect-guardrail.sh`, que reutiliza el MISMO script con
+`guardrail-check.py --agent architect` (alcance propio: solo `docs/roadmap/<inic>/design.md`,
+`docs/knowledge/adr/**` + `README.md`, y `spec.md`/`improvement-plan.md` únicamente con `Edit` que contenga
+`design:`; git destructivo igual; sin regla de rama principal). El selector de reglas es explícito
+(`--agent`, o `CLAUDE_AGENT_NAME` si el entorno lo define), nunca inferido del stdin global — la
+alternativa descartada «deny global filtrando por `agent_type`» sigue descartada. Riesgo documentado: el
+hook no puede diffear un `Edit`, así que un Edit de spec/plan que incluya `design:` junto a otros cambios
+pasa; lo caza la Lente A. Tests: `agent-kits/shared/test_guardrail_check.py` (modo architect) y
+`tests/test_hooks_shell.py` (`architect-guardrail.sh`).
+
 ## Estado
 
 `propuesta` — a validar por la revisión de dos lentes o el usuario en la puerta. Pasa a `aceptada` cuando se valida; a `obsoleta` si una decisión posterior la reemplaza (enlaza aquí a la que la sustituye, nunca se borra el rastro).

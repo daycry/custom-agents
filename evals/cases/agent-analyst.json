@@ -1,0 +1,51 @@
+{
+  "target": "agent:analyst",
+  "cases": [
+    {
+      "id": "analyst-literal",
+      "prompt": "Ayúdame a definir esto: quiero «un panel de incidencias» pero no sé bien lo que necesito; haz la toma de requisitos hasta que apruebe la spec.",
+      "trigger": "literal",
+      "expect": {
+        "activates": true,
+        "artifacts": [
+          "docs/roadmap/*/spec.md"
+        ]
+      },
+      "notes": "Disparadores literales «ayúdame a definir esto» / «toma de requisitos»."
+    },
+    {
+      "id": "analyst-parafrasis",
+      "prompt": "Tengo una petición vaga de negocio («mejorar la búsqueda»); entrevístame con preguntas dirigidas y ejemplos concretos hasta dejar una especificación con alcance, criterios y supuestos en docs/roadmap/.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true,
+        "artifacts": [
+          "docs/roadmap/*/spec.md"
+        ],
+        "must_not": [
+          "horas estimadas"
+        ]
+      }
+    },
+    {
+      "id": "analyst-literal-discovery",
+      "prompt": "Define bien esto antes de presupuestar: la idea de sincronizar el inventario con el ERP está aún muy verde y quiero acordar el alcance antes de nada.",
+      "trigger": "literal",
+      "expect": {
+        "activates": true,
+        "artifacts": [
+          "docs/roadmap/*/spec.md"
+        ]
+      },
+      "notes": "Disparador absorbido de la skill `discovery` (retirada, ADR-011): «define bien esto antes de presupuestar»."
+    },
+    {
+      "id": "analyst-neg-evaluator",
+      "prompt": "Presupuesta la spec aprobada de la iniciativa demo: horas, coste en euros y tokens.",
+      "expect": {
+        "activates": false,
+        "redirect": "agent:evaluator"
+      }
+    }
+  ]
+}

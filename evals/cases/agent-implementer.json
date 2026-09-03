@@ -1,0 +1,39 @@
+{
+  "target": "agent:implementer",
+  "cases": [
+    {
+      "id": "implementer-literal",
+      "prompt": "Implementa el plan de docs/roadmap/2026-01-01-demo fase a fase sobre una rama y marca cada tarea en tasks.md.",
+      "trigger": "literal",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "tasks.md"
+        ],
+        "must_not": [
+          "main"
+        ]
+      },
+      "notes": "Disparador literal «implementa el plan». Debe trabajar en rama y mantener el ledger."
+    },
+    {
+      "id": "implementer-parafrasis",
+      "prompt": "El plan de la iniciativa demo está aprobado: escribe el código de cada tarea T-XX cumpliendo sus criterios, en una rama feature, y deja el ledger al día con los tests pasando.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "ledger"
+        ]
+      }
+    },
+    {
+      "id": "implementer-neg-qa",
+      "prompt": "Prueba la UI de la iniciativa demo con tests end-to-end contra http://localhost:3000 y dame el informe.",
+      "expect": {
+        "activates": false,
+        "redirect": "agent:qa"
+      }
+    }
+  ]
+}

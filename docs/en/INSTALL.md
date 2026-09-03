@@ -2,7 +2,7 @@
 
 **English** · [Español](../INSTALL.md)
 
-Bundle of custom agents for Claude Code covering the lifecycle of an initiative (requirements → budget → plan → implementation → tests → documentation) with time/cost accounting and optional traceability in Jira/Confluence. Agents: **analyst** (requirements gathering), **evaluator** (evaluates/budgets), **planner** (plans), **implementer** (implements), **qa** (Playwright E2E), **documenter** (documentation), **pdfy** (PDF) and **nemesis** (SAST+DAST audit). Shared skills: **cybersecurity**, **to-pdf**, **confluence-publish**, **confluence-pull**, **roadmap-dashboard**, **jira-sync** and **discovery**. Commands: **/setup**, **/pm-cycle**, **/dev-cycle**, **/pm-backlog**, **/roadmap-status**, **/roadmap-metrics**, **/roadmap-brief**, **/roadmap-live**, **/retro** and **/confluence-pull**.
+Bundle of custom agents for Claude Code covering the lifecycle of an initiative (requirements → budget → plan → implementation → tests → documentation) with time/cost accounting and optional traceability in Jira/Confluence. Agents: **analyst** (requirements gathering), **evaluator** (evaluates/budgets), **planner** (plans), **implementer** (implements), **qa** (Playwright E2E), **documenter** (documentation) and **nemesis** (SAST+DAST audit). Shared skills: **cybersecurity**, **to-pdf**, **confluence-publish**, **confluence-pull**, **roadmap-dashboard** and **jira-sync**. Commands: **/setup**, **/pm-cycle**, **/dev-cycle**, **/pm-backlog**, **/roadmap-status**, **/roadmap-metrics**, **/roadmap-brief**, **/roadmap-live**, **/retro** and **/confluence-pull**.
 
 Contents (everything hangs from the bundle root, which is deployed as `.claude/`):
 - `agents/*.md` — agent definitions.
@@ -31,7 +31,7 @@ ln -s "/path/to/repo/custom-agents" "/path/to/project/.claude"
 cp -r "/path/to/repo/custom-agents/." "/path/to/project/.claude/"
 ```
 
-In Claude Code, inside the project: `/agents` to see them, and invoke them with `@analyst`, `@evaluator`, `@planner`, `@implementer`, `@qa`, `@nemesis`, `@pdfy` (or "use the … agent"). For the full flow, use the commands (`/setup`, `/pm-cycle`, `/dev-cycle`…).
+In Claude Code, inside the project: `/agents` to see them, and invoke them with `@analyst`, `@evaluator`, `@planner`, `@implementer`, `@qa`, `@nemesis` (or "use the … agent"). For the full flow, use the commands (`/setup`, `/pm-cycle`, `/dev-cycle`…).
 
 ---
 
@@ -77,18 +77,21 @@ After installing, the agents become available in **all projects** on the machine
 **Golden rule:** Claude Code detects updates **by version number**, not by commit. If you publish changes without bumping the version, `update` will see nothing.
 
 ### When publishing (repo author)
-1. Make your changes.
-2. **Bump the version** with the script (recommended), which keeps it consistent across the **three** places where it lives (`plugin.json`, and in `marketplace.json` both `metadata.version` and the plugin entry) and creates a commit + tag:
+1. Write the release notes in `CHANGELOG.md` (`## [Unreleased]`) and `CHANGELOG.es.md` (`## [Sin publicar]`) — **the script never invents notes**: if they are empty, it aborts.
+2. Run the **complete mechanical release** (recommended). One step, and nothing is touched if anything fails before writing:
 
    ```bash
-   python scripts/release.py 1.5.1        # consistent bump + commit + tag v1.5.1
-   python scripts/release.py --check      # only verifies that the 3 versions match
+   python scripts/release.py 1.5.1 --dry-run   # prints the full plan without touching anything
+   python scripts/release.py 1.5.1             # release: changelog + checks + bump + chmod + commit + tag v1.5.1
+   python scripts/release.py --check           # consistent versions AND a [X.Y.Z] section in both CHANGELOGs
    ```
 
-   If you prefer doing it by hand: edit those **three** fields to the **same** number. If they do not match or do not increase, the client will not detect the update (this is the most common failure).
-3. `git push origin HEAD && git push origin vX.Y.Z`.
+   What it does: (a) moves the content of `[Unreleased]`/`[Sin publicar]` to `## [1.5.1] - <today>` in **both** CHANGELOGs and adds the `[1.5.1]: …/releases/tag/v1.5.1` link (aborts if they are empty, unless `--allow-empty-notes`); (b) runs `scripts/lint_plugin.py` and `evals/check.py` and checks that every `*.MANUAL-COPY` matches its copy under `.github/` (aborts on failure; `--skip-checks` skips them); (c) bumps the version in the **three** places where it lives (`plugin.json`, and in `marketplace.json` both `metadata.version` and the plugin entry); (d) fixes with `git update-index --chmod=+x` any versioned `.sh` that arrived in mode `100644` (the usual Windows trap), with a warning; (e) `commit` `chore: release v1.5.1` + `tag v1.5.1`. `--no-git` only touches the files. Tests: `tests/test_release.py` (temporary git repo).
 
-> Current published version: **1.5.0** (consistent in both manifests). Use `python scripts/release.py --check` to confirm it before publishing.
+   If you prefer doing it by hand: edit those **three** fields to the **same** number and move the notes in both CHANGELOGs. If the versions do not match or do not increase, the client will not detect the update (this is the most common failure).
+3. `git push origin HEAD && git push origin vX.Y.Z`. The `release.yml` workflow creates the GitHub Release with the notes of that CHANGELOG section and attaches the plugin zip and the portable skills zip.
+
+> Confirm before publishing with `python scripts/release.py --check` (consistent versions in both manifests and a section for the version in both CHANGELOGs).
 
 ### When updating — Claude Code CLI
 In a `claude` session:
@@ -118,6 +121,27 @@ or, nuclear option, delete the cache and reinstall:
 ```
 rm -rf ~/.claude/plugins/cache/
 ```
+
+---
+
+## Using the skills outside Claude Code (portable package)
+
+The **skills** are markdown + Python and do not depend on the Claude Code runtime; agents, commands, hooks and the status line do. That is why the repo exports a **portable "skills-only" package** (superpowers' multi-environment pattern) you can use in **Codex, GitHub Copilot, Cursor, Jules** or any tool that reads [`AGENTS.md`](https://agents.md) or Cursor rules:
+
+```bash
+python3 scripts/export-skills.py --out dist/portable --format all   # claude | agents-md | cursor | all
+python3 scripts/export-skills.py --check dist/portable              # validates the package (references, hash, no dangling `find`)
+```
+
+Every GitHub Release attaches the same package as `custom-agents-skills-portable-<version>.zip` (next to the plugin zip), so you do not need to clone the repo.
+
+| Format | What it generates | How to use it |
+|---|---|---|
+| `claude` | `skills/` + `agent-kits/shared/` (only the cited fragments) + `README.md` | copy `skills/*` into `.claude/skills/` and `agent-kits/shared/` into `.claude/agent-kits/shared/` of a project without the plugin |
+| `agents-md` | + a root `AGENTS.md` with the compact skill index ("read `skills/<n>/SKILL.md` when it applies") | Codex, Copilot, Jules… read `AGENTS.md` at the repo root (plain markdown, no frontmatter) |
+| `cursor` | + `.cursor/rules/custom-agents-skills.mdc` (frontmatter `description` + `alwaysApply: false` → *Agent-Selected* rule) | Cursor attaches it when the request matches the description |
+
+**What travels and what does not** is documented in the package's `README.md` (ES+EN, "what travels / what does not / why" table, sha256 content hash). Not included: `agents/`, `commands/`, `hooks/`, `statusline/`, private kits and the skills that are pointers to pieces that do not travel (`quick-implement`, `plugin-dev`). **Paths:** in the copy, the `find` over `$PWD/.claude` and `$HOME/.claude` is rewritten to `find "${PORTABLE_ROOT:-.}"` — run from the folder holding `skills/` and `agent-kits/shared/` or export `PORTABLE_ROOT`; a skill citing something that did not travel degrades with a warning, never blocks. The package is deterministic (same input → same tree and hash) and `tests/test_export_skills.py` covers it.
 
 ---
 

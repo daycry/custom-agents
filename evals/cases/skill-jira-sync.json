@@ -1,0 +1,36 @@
+{
+  "target": "skill:jira-sync",
+  "cases": [
+    {
+      "id": "jira-sync-literal",
+      "prompt": "Vuelca el plan a Jira: crea un issue por tarea del tasks.md de docs/roadmap/2026-01-01-demo y anota las claves en el ledger.",
+      "trigger": "literal",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "previsualiz",
+          "confirm"
+        ]
+      },
+      "notes": "Disparador literal «vuelca el plan a Jira»."
+    },
+    {
+      "id": "jira-sync-parafrasis",
+      "prompt": "Ya tenemos el plan de la iniciativa demo aprobado; quiero que cada T-XX exista como ticket en nuestro proyecto de Jira bajo la épica que te indique, sin duplicar si ya lo hicimos antes.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true
+      },
+      "notes": "Sin «volcar/sincronizar»: ticket por tarea + épica padre + idempotencia."
+    },
+    {
+      "id": "jira-sync-neg-live",
+      "prompt": "Abre un dashboard vivo con lo que hay ahora mismo en Jira para el roadmap: issues y horas imputadas por label.",
+      "expect": {
+        "activates": false,
+        "redirect": "command:roadmap-live"
+      },
+      "notes": "Leer Jira en vivo es /roadmap-live; jira-sync escribe issues."
+    }
+  ]
+}

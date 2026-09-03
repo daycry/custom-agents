@@ -1,0 +1,46 @@
+{
+  "target": "command:retro",
+  "cases": [
+    {
+      "id": "retro-literal",
+      "prompt": "Haz la retrospectiva de una iniciativa cerrada: la demo de docs/roadmap/2026-01-01-demo. Compara estimado vs real y anota los aprendizajes.",
+      "trigger": "literal",
+      "expect": {
+        "activates": true,
+        "artifacts": [
+          "docs/roadmap/2026-01-01-demo/retro.md",
+          "docs/roadmap/CALIBRATION.md"
+        ]
+      },
+      "notes": "Ventana literal «retrospectiva de una iniciativa cerrada»."
+    },
+    {
+      "id": "retro-parafrasis",
+      "prompt": "La iniciativa demo ya se entregó; quiero saber cuánto nos desviamos en horas y tokens frente a lo previsto y guardar las causas para calibrar la siguiente estimación.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true,
+        "artifacts": [
+          "docs/roadmap/2026-01-01-demo/retro.md"
+        ]
+      }
+    },
+    {
+      "id": "retro-neg-metrics",
+      "prompt": "Informe real vs estimado de TODO el roadmap, sin escribir nada en los ficheros.",
+      "expect": {
+        "activates": false,
+        "redirect": "command:roadmap-metrics"
+      }
+    },
+    {
+      "id": "retro-neg-memoria-tecnica",
+      "prompt": "Guarda esto en la memoria técnica del proyecto: hemos decidido que las migraciones de base de datos se ejecutan siempre en una transacción, y descartamos hacerlas por lotes. Que quede como decisión, no como nota de sesión.",
+      "expect": {
+        "activates": false,
+        "redirect": "agent:implementer"
+      },
+      "notes": "Vecino del journal (memory-health): una DECISIÓN va a docs/knowledge/adr/ vía knowledge-write.md (la escribe el agente en la puerta: implementer/planner/architect), no a la bitácora docs/knowledge/journal/ (que solo escribe el hook SessionEnd) ni a /retro (que cierra iniciativas)."
+    }
+  ]
+}

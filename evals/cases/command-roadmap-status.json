@@ -1,0 +1,36 @@
+{
+  "target": "command:roadmap-status",
+  "cases": [
+    {
+      "id": "roadmap-status-literal",
+      "prompt": "Genera un dashboard HTML con el estado de todas las iniciativas del roadmap.",
+      "trigger": "literal",
+      "expect": {
+        "activates": true,
+        "artifacts": [
+          "docs/roadmap/dashboard.html"
+        ]
+      },
+      "notes": "Ventana literal «dashboard HTML con el estado»."
+    },
+    {
+      "id": "roadmap-status-parafrasis",
+      "prompt": "Enséñame en una sola página el estado de cada iniciativa de docs/roadmap/ (spec, evaluación, plan, tareas, testing) con prioridad y presupuesto.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true,
+        "artifacts": [
+          "docs/roadmap/dashboard.html"
+        ]
+      }
+    },
+    {
+      "id": "roadmap-status-neg-backlog",
+      "prompt": "Prioriza el backlog de la cartera a partir de las evaluaciones: quick wins vs costosas.",
+      "expect": {
+        "activates": false,
+        "redirect": "command:pm-backlog"
+      }
+    }
+  ]
+}

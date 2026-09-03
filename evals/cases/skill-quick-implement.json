@@ -1,0 +1,52 @@
+{
+  "target": "skill:quick-implement",
+  "cases": [
+    {
+      "id": "quick-implement-literal",
+      "prompt": "Hazme este cambio pequeño sin papeleo: el botón Guardar del formulario de perfil debe deshabilitarse mientras la petición está en vuelo.",
+      "trigger": "literal",
+      "expect": {
+        "activates": true,
+        "artifacts": [
+          "docs/roadmap/*/tasks.md"
+        ],
+        "mentions": [
+          "ledger"
+        ]
+      },
+      "notes": "Disparador literal «hazme este cambio pequeño». Debe crear el ledger ligero de la vía rápida."
+    },
+    {
+      "id": "quick-implement-parafrasis",
+      "prompt": "Añade directo un parámetro opcional `separador` a exportar_csv en src/app.py (por defecto la coma); es un cambio acotado, no hace falta spec ni presupuesto, pero que pase por la revisión de dos lentes.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true,
+        "artifacts": [
+          "docs/roadmap/*/tasks.md"
+        ]
+      },
+      "notes": "Cambio acotado + «sin spec ni presupuesto» + revisión."
+    },
+    {
+      "id": "quick-implement-neg-incognitas",
+      "prompt": "Necesito un módulo de facturación multi-moneda con integración bancaria; no sé aún qué proveedores ni qué normativa aplica, y quiero un presupuesto antes.",
+      "expect": {
+        "activates": false,
+        "mentions": [
+          "pm-cycle"
+        ],
+        "redirect": "command:pm-cycle"
+      },
+      "notes": "Incógnitas + presupuesto → /pm-cycle (la propia description lo manda ahí)."
+    },
+    {
+      "id": "quick-implement-neg-trivial",
+      "prompt": "Cambia el texto del botón «Enviar» por «Guardar» en la plantilla templates/perfil.html.",
+      "expect": {
+        "activates": false
+      },
+      "notes": "Trivial de una línea: se hace directo, sin ciclo (disparador negativo de la description)."
+    }
+  ]
+}

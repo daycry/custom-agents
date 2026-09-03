@@ -1,0 +1,34 @@
+{
+  "target": "skill:rates-verify",
+  "cases": [
+    {
+      "id": "rates-verify-literal",
+      "prompt": "Verifica las tarifas de tokens de la API de Claude y actualiza .claude/rates.json con la fecha de verificación.",
+      "trigger": "literal",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "precioTokens"
+        ]
+      },
+      "notes": "Disparador literal «verifica las tarifas»."
+    },
+    {
+      "id": "rates-verify-parafrasis",
+      "prompt": "Las evaluaciones siguen saliendo con el aviso de precio sin verificar; consulta la doc oficial de precios del modelo que usamos y deja los valores reales de entrada/salida en la config compartida.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true
+      },
+      "notes": "Sin «tarifas»: aviso ⚠️ verificar + doc oficial + rates.json."
+    },
+    {
+      "id": "rates-verify-neg-tarifa-hora",
+      "prompt": "Cambia la tarifa por hora del equipo en .claude/rates.json a 60 € y déjalo comiteado.",
+      "expect": {
+        "activates": false
+      },
+      "notes": "Edición manual de la tarifa humana, no del precio de tokens: no aplica la skill."
+    }
+  ]
+}

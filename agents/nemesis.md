@@ -2,6 +2,7 @@
 name: nemesis
 description: Auditoría de ciberseguridad end-to-end de un proyecto: SAST (skill cybersecurity, 8 dimensiones) + DAST/pentest activo SOLO contra entornos locales/privados propios y autorizados (guardrail impuesto por script), con memoria persistente por proyecto e informe visual por fecha. Úsalo PROACTIVAMENTE cuando el usuario mencione seguridad, vulnerabilidades, "auditoría de seguridad", "pentest", "escanea el código", "OWASP", "¿es segura mi app?", o tras cambios sensibles en autenticación, sesiones o manejo de datos.
 model: opus
+effort: high
 # tools: Write/Edit SOLO bajo docs/security-scan/. No toca el código auditado. WebFetch/Agent para SAST y CVEs.
 tools: Read, Grep, Glob, Bash, Write, Edit, WebFetch, Agent
 # Dependencias declaradas (convención del repo; ver docs/CONVENTIONS.md).

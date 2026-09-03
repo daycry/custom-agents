@@ -1,0 +1,36 @@
+{
+  "target": "command:roadmap-brief",
+  "cases": [
+    {
+      "id": "roadmap-brief-literal",
+      "prompt": "Genera un brief ejecutivo de la cartera para el comité de dirección de mañana, en PDF.",
+      "trigger": "literal",
+      "expect": {
+        "activates": true,
+        "artifacts": [
+          "docs/roadmap/*.pdf"
+        ]
+      },
+      "notes": "Ventana literal «brief ejecutivo de la cartera»."
+    },
+    {
+      "id": "roadmap-brief-parafrasis",
+      "prompt": "Necesito un one-pager para dirección con el estado del roadmap, prioridades y desvíos real vs estimado, exportado a PDF con buen aspecto.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true,
+        "artifacts": [
+          "docs/roadmap/*.pdf"
+        ]
+      }
+    },
+    {
+      "id": "roadmap-brief-neg-topdf",
+      "prompt": "Convierte docs/INSTALL.md a PDF con aspecto moderno.",
+      "expect": {
+        "activates": false,
+        "redirect": "skill:to-pdf"
+      }
+    }
+  ]
+}

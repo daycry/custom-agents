@@ -5,9 +5,11 @@ description: Atajo en lenguaje natural para la VÍA RÁPIDA de /dev-cycle — im
 
 # quick-implement — la vía rápida, sin tener que escribir el comando
 
-Existe por una razón concreta y verificada: los **commands** (`/dev-cycle`) solo se disparan si el
-usuario escribe la barra, mientras que las **skills** se activan por su descripción. Esta skill es
-esa puerta de entrada — y nada más.
+Existe por una razón histórica: cuando nació, los **commands** (`/dev-cycle`) solo se disparaban
+con la barra. Hoy Claude Code los invoca también por descripción (como a las skills), pero esta
+puerta de entrada sigue aportando lo que el comando no puede: un filtro de idoneidad en lenguaje
+natural que redirige a `/pm-cycle` o al flujo completo cuando el cambio NO es pequeño y claro
+(los evals `evals/cases/skill-quick-implement.json` lo miden). Es esa puerta — y nada más.
 
 > **Fuente única, cero duplicación (regla del repo).** Esta skill **NO** reimplementa la vía
 > rápida: la resuelve y la sigue. Si el método cambia en `commands/dev-cycle.md`, cambia aquí
@@ -54,7 +56,10 @@ solo van los nombres, para no mantener una copia que se desincronice:
    ledger, que se **cierra en cuanto queda escrito** (antes de implementar), y después **una
    ventana por cada `T-XX`** (`<slug>/T-XX`). Nunca una ventana global que englobe a las de las
    tareas: contaría los mismos tokens dos veces.
-3. **Implementación** por `implementer`, con la disciplina de `.claude/dev.json` si está activa.
+3. **Implementación** por `implementer`, con la disciplina de `.claude/dev.json` si está activa
+   (si `tdd: true`, el implementer sigue la skill **`tdd`**). Antes de despacharlo, resuelve su tier
+   con `python3 "$SHAREDKIT/model-tier.py" implementer --json` (`SHAREDKIT="$(find "$PWD/.claude" "$HOME/.claude" -type d -path '*agent-kits/shared' 2>/dev/null | head -1)"`) y pasa `model` al Agent tool solo si
+   `fuente.model` es `dev.json` (el `effort` de `dev.json` es informativo; sin script → frontmatter).
 4. **Las puertas NO se saltan**: la revisión adversarial es la skill **`adversarial-review`** (fuente
    única del método: puerta `scope-check.py` antes de gastar revisores, lentes A/B + lente C de
    seguridad condicional, bucle acotado a 3) y después `qa` con `qa-gate` (todo dentro de la Fase 3). Es lo que separa la vía rápida de "escribir código a lo loco": ahorra
@@ -64,6 +69,9 @@ solo van los nombres, para no mantener una copia que se desincronice:
 Ante cualquier duda sobre el *cómo* de un hito, la respuesta está en `$DEVCYCLE`, no aquí.
 
 ## Paso 3 — Cierra diciendo qué traza queda
+
+Al cerrar (ledger en `completado`), invoca la skill **`changelog-sync`** para dejar la entrada de
+`[Unreleased]` en ambos CHANGELOG — es un script, no cuesta redacción.
 
 Dos líneas al terminar: qué se implementó, qué puertas pasó (revisión, qa) y qué se omitió por ser
 vía rápida (spec, evaluación, plan, presupuesto y —salvo que el usuario la pidiera— la

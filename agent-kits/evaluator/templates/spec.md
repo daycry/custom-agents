@@ -5,6 +5,7 @@
   Rellena/borra secciones según el caso (una spec pequeña no necesita todas).
   Enlace cruzado (misma carpeta; rellena cuando existan, "pendiente" si aún no):
     - evaluacion: evaluation.md
+    - design: design.md   (opcional: solo si el agente architect hizo el paso de diseño)
     - plan: improvement-plan.md
 -->
 ---
@@ -14,6 +15,7 @@ estado: borrador          # borrador | aprobada | implementada | obsoleta
 creado: {{YYYY-MM-DD}}
 actualizado: {{YYYY-MM-DD}}
 evaluacion: pendiente     # ruta a la evaluación cuando exista
+design: n/a               # design.md si el agente architect hizo el paso de diseño (opcional); n/a si no
 plan: pendiente           # ruta al plan cuando exista
 generacion:               # coste real de producir ESTE documento — lo rellena `usage-meter.py close` (kit shared)
   inicio: {{ISO-8601}}    # fechas = CONTEXTO informativo; NUNCA se usan para calcular horas

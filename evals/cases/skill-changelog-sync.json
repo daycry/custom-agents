@@ -1,0 +1,42 @@
+{
+  "target": "skill:changelog-sync",
+  "cases": [
+    {
+      "id": "changelog-sync-literal",
+      "prompt": "Sincroniza el CHANGELOG: acabo de cerrar una iniciativa y quiero las entradas de [Unreleased].",
+      "trigger": "literal",
+      "expect": {
+        "activates": true,
+        "mentions": ["Unreleased"]
+      },
+      "notes": "Ventana literal «sincroniza el CHANGELOG» + «actualiza [Unreleased]»."
+    },
+    {
+      "id": "changelog-sync-parafrasis",
+      "prompt": "Escríbeme las notas de los cambios pendientes de publicar a partir de los tasks.md cerrados del roadmap, en español e inglés.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true,
+        "mentions": ["CHANGELOG"]
+      }
+    },
+    {
+      "id": "changelog-sync-neg-release",
+      "prompt": "Haz el release 1.16.0: sube la versión, crea el tag y publícalo.",
+      "expect": {
+        "activates": false,
+        "redirect": "skill:plugin-dev"
+      },
+      "notes": "Vecino: el release (bump + tag + sección de versión) es scripts/release.py vía plugin-dev, no esta skill."
+    },
+    {
+      "id": "changelog-sync-neg-documenter",
+      "prompt": "Documenta la arquitectura y los módulos del proyecto en docs/.",
+      "expect": {
+        "activates": false,
+        "redirect": "agent:documenter"
+      },
+      "notes": "Vecino: documentación de referencia es documenter; esto solo son notas de cambios."
+    }
+  ]
+}

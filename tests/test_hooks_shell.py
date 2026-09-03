@@ -200,9 +200,123 @@ def test_session_context_con_activa_additional_context_anidado(tmp_path):
     assert hso["hookEventName"] == "SessionStart" and "demo" in hso["additionalContext"]
 
 
-def test_session_context_sin_activas_vacio(tmp_path):
+def test_session_context_startup_indice_mas_roadmap_bajo_el_tope(tmp_path):
+    """T-02 activation-reliability: en `startup` el contexto lleva el ÍNDICE de piezas (3 bloques) y,
+    detrás, el bloque del roadmap; total < 10.000 caracteres; se escribe la caché del índice."""
+    proj, _ = proyecto(tmp_path)
+    rc, out, _ = hook("session-context.sh", {"hook_event_name": "SessionStart", "source": "startup"}, env_de(proj, tmp_path))
+    assert rc == 0
+    ctx = un_json(out)["hookSpecificOutput"]["additionalContext"]
+    assert ctx.startswith("Plugin custom-agents") and "Comandos:" in ctx and "Skills:" in ctx and "Agentes:" in ctx
+    assert "/dev-cycle" in ctx and "quick-implement" in ctx and "implementer" in ctx
+    assert ctx.index("Agentes:") < ctx.index("demo")            # índice primero, roadmap después
+    assert len(ctx) < 10_000
+    assert (proj / ".claude" / ".skill-index.cache").read_text(encoding="utf-8").startswith("# skill-index ")
+    # `compact` también reinyecta el índice (la compactación resume la conversación; guía oficial)
+    rc, out, _ = hook("session-context.sh", {"hook_event_name": "SessionStart", "source": "compact"}, env_de(proj, tmp_path))
+    assert rc == 0 and "Comandos:" in un_json(out)["hookSpecificOutput"]["additionalContext"]
+
+
+def test_session_context_indice_false_solo_roadmap(tmp_path):
+    proj, _ = proyecto(tmp_path)
+    (proj / ".claude" / "dev.json").write_text('{"sesion": {"indice": false}}', encoding="utf-8")
+    rc, out, _ = hook("session-context.sh", {"hook_event_name": "SessionStart", "source": "startup"}, env_de(proj, tmp_path))
+    assert rc == 0
+    ctx = un_json(out)["hookSpecificOutput"]["additionalContext"]
+    assert "Comandos:" not in ctx and "demo" in ctx
+    assert not (proj / ".claude" / ".skill-index.cache").exists()
+
+
+def test_session_context_sin_activas_solo_indice(tmp_path):
     proj, _ = proyecto(tmp_path, activa=False)
+    rc, out, _ = hook("session-context.sh", {"hook_event_name": "SessionStart", "source": "startup"}, env_de(proj, tmp_path))
+    assert rc == 0
+    ctx = un_json(out)["hookSpecificOutput"]["additionalContext"]
+    assert "Comandos:" in ctx and "demo" not in ctx and "Ledger canónico" not in ctx
+
+
+def test_session_context_sin_activas_e_indice_off_vacio(tmp_path):
+    proj, _ = proyecto(tmp_path, activa=False)
+    (proj / ".claude" / "dev.json").write_text('{"sesion": {"indice": false}}', encoding="utf-8")
     assert hook("session-context.sh", {"hook_event_name": "SessionStart", "source": "startup"}, env_de(proj, tmp_path)) == (0, "", "")
+
+
+def test_session_context_sin_python3_silencio(tmp_path):
+    proj, _ = proyecto(tmp_path)
+    assert hook("session-context.sh", {"hook_event_name": "SessionStart", "source": "startup"}, env_de(proj, tmp_path, sin_python=True)) == (0, "", "")
+
+
+# ------------------------------------------------------------- session-journal ----
+
+def session_end(proj, sid="s1", reason="other"):
+    return {"hook_event_name": "SessionEnd", "session_id": sid, "reason": reason, "cwd": str(proj),
+            "transcript_path": str(proj / "no-existe.jsonl")}
+
+
+def entradas_journal(proj):
+    d = proj / "docs" / "knowledge" / "journal"
+    return sorted(f for f in os.listdir(d) if f != "README.md") if d.is_dir() else []
+
+
+def test_session_journal_escribe_entrada_y_es_idempotente_por_session_id(tmp_path):
+    """memory-health T-01: SessionEnd (contrato oficial 2026-09-03: session_id/reason/cwd; salida
+    ignorada) → UNA entrada en docs/knowledge/journal/; el mismo session_id ACTUALIZA, otro añade."""
+    proj, _ = proyecto(tmp_path)
+    env = env_de(proj, tmp_path)
+    assert hook("session-journal.sh", session_end(proj), env) == (0, "", "")      # stdout se ignora: vacío
+    assert len(entradas_journal(proj)) == 1
+    texto = (proj / "docs" / "knowledge" / "journal" / entradas_journal(proj)[0]).read_text(encoding="utf-8")
+    assert 'session_id: "s1"' in texto and "iniciativa: demo" in texto and "reason: other" in texto
+    assert hook("session-journal.sh", session_end(proj), env)[0] == 0
+    assert len(entradas_journal(proj)) == 1                                         # actualizada, no duplicada
+    assert hook("session-journal.sh", session_end(proj, sid="s2", reason="clear"), env)[0] == 0
+    assert len(entradas_journal(proj)) == 2
+    assert (proj / "docs" / "knowledge" / "journal" / "README.md").read_text(encoding="utf-8").count("| demo |") == 2
+
+
+def test_session_journal_stdin_vacio_sin_session_id_opt_out_y_sin_python3(tmp_path):
+    proj, _ = proyecto(tmp_path)
+    env = env_de(proj, tmp_path)
+    assert hook("session-journal.sh", "", env) == (0, "", "")
+    assert hook("session-journal.sh", {"hook_event_name": "SessionEnd", "reason": "other"}, env) == (0, "", "")
+    (proj / ".claude" / "dev.json").write_text('{"sesion": {"journal": false}}', encoding="utf-8")
+    assert hook("session-journal.sh", session_end(proj), env) == (0, "", "")
+    assert entradas_journal(proj) == []                                             # nada escrito en los 3 casos
+    (proj / ".claude" / "dev.json").unlink()
+    assert hook("session-journal.sh", session_end(proj), env_de(proj, tmp_path, sin_python=True)) == (0, "", "")
+    assert entradas_journal(proj) == []
+
+
+def test_session_journal_repo_ajeno_sin_rastro_del_plugin_no_siembra_nada(tmp_path):
+    """T-fix1 (I1): repo temporal con solo a.txt (sin docs/roadmap, docs/knowledge ni .claude/dev.json)
+    → el hook sale en silencio y NO aparece docs/knowledge/journal/."""
+    ajeno = tmp_path / "ajeno"
+    ajeno.mkdir()
+    (ajeno / "a.txt").write_text("x", encoding="utf-8")
+    env = env_de(ajeno, tmp_path)
+    assert hook("session-journal.sh", session_end(ajeno), env) == (0, "", "")
+    assert sorted(os.listdir(ajeno)) == ["a.txt"]
+    # con .claude/dev.json (rastro del plugin) sí escribe, con slug `sesion` al no haber iniciativa
+    (ajeno / ".claude").mkdir()
+    (ajeno / ".claude" / "dev.json").write_text("{}", encoding="utf-8")
+    assert hook("session-journal.sh", session_end(ajeno), env) == (0, "", "")
+    assert entradas_journal(ajeno) and entradas_journal(ajeno)[0].endswith("-sesion.md")
+
+
+def test_session_context_reinyecta_journal_en_resume_no_en_compact(tmp_path):
+    proj, _ = proyecto(tmp_path)
+    env = env_de(proj, tmp_path)
+    hook("session-journal.sh", session_end(proj), env)
+    for src in ("startup", "resume"):
+        rc, out, _ = hook("session-context.sh", {"hook_event_name": "SessionStart", "source": src}, env)
+        assert rc == 0
+        ctx = un_json(out)["hookSpecificOutput"]["additionalContext"]
+        assert "Journal de sesión" in ctx and "· demo ·" in ctx, src
+        bloque = ctx[ctx.index("Journal de sesión"):]
+        assert len(bloque.splitlines()) <= 25 and len(ctx) < 10_000
+        assert ctx.index("Ledger canónico") < ctx.index("Journal de sesión")        # roadmap antes, journal después
+    rc, out, _ = hook("session-context.sh", {"hook_event_name": "SessionStart", "source": "compact"}, env)
+    assert rc == 0 and "Journal de sesión" not in un_json(out)["hookSpecificOutput"]["additionalContext"]
 
 
 # -------------------------------------------------------- implementer-guardrail ----
@@ -242,6 +356,27 @@ def test_guardrail_sin_python3_avisa_una_vez_y_no_bloquea(tmp_path):
     assert set(d) == {"systemMessage"} and "python3" in d["systemMessage"]   # aviso, NO deny
     assert (proj / ".claude" / ".guardrail-nopython").exists()
     assert hook("implementer-guardrail.sh", payload, env) == (0, "", "")        # 2.ª vez: silencio
+
+
+# ---------------------------------------------------------- architect-guardrail ----
+
+def test_architect_guardrail_deny_codigo_allow_design(tmp_path):
+    proj, _ = proyecto(tmp_path)
+    payload = {"tool_name": "Write", "tool_input": {"file_path": str(proj / "src" / "app.py"), "content": "x"}}
+    rc, out, _ = hook("architect-guardrail.sh", payload, env_de(proj, tmp_path))
+    assert rc == 0
+    hso = un_json(out)["hookSpecificOutput"]
+    assert hso["permissionDecision"] == "deny" and "architect" in hso["permissionDecisionReason"]
+    payload = {"tool_name": "Write", "tool_input": {"file_path": str(proj / "docs" / "roadmap" / "2026-01-01-demo" / "design.md"), "content": "x"}}
+    assert hook("architect-guardrail.sh", payload, env_de(proj, tmp_path)) == (0, "", "")
+
+
+def test_architect_guardrail_sin_python3_avisa_como_architect(tmp_path):
+    proj, _ = proyecto(tmp_path)
+    env = env_de(proj, tmp_path, sin_python=True)
+    payload = {"tool_name": "Write", "tool_input": {"file_path": str(proj / "src" / "app.py")}}
+    rc, out, _ = hook("architect-guardrail.sh", payload, env)
+    assert rc == 0 and "architect" in un_json(out)["systemMessage"]
 
 
 # -------------------------------------------- mark-docs-pending · ledger-lint-warn ----

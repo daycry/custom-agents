@@ -114,20 +114,30 @@ def test_status_categories_and_scope():
     # esperados y no lista nada fuera de docs/, con exit 0.
     code, out, _ = run(["--status", "--root", str(FIXTURE), "--config", str(FIXTURE / "confluence.json")])
     assert code == 0, out
-    for pat in ("docs/en/**", "docs/examples/**", "docs/agents/**", "**/testing/**", "docs/security-scan/**"):
+    for pat in ("docs/en/**", "docs/examples/**", "docs/agents/**", "**/testing/**", "docs/security-scan/**",
+                "docs/knowledge/journal/**"):
         assert pat in out, f"falta el patrón {pat!r} en la salida:\n{out}"
     for rel in ("docs/en/README.md", "docs/examples/foo/README.md", "docs/agents/bar.md",
                 "docs/security-scan/finding.md", "docs/roadmap/init1/testing/report.md",
-                "docs/roadmap/init1/tasks.md"):
+                "docs/roadmap/init1/tasks.md", "docs/knowledge/journal/2026-01-01-demo.md"):
         assert rel in out, f"falta {rel!r} entre los excluidos:\n{out}"
     for rel in ("docs/README.md", "docs/roadmap/init1/spec.md"):
         assert rel in out, f"falta {rel!r} en alcance:\n{out}"
+    # parity-core: design.md (agente architect) es DECISIÓN de arquitectura → se publica (no está en exclude)
+    design_lines = [line for line in out.splitlines() if "docs/roadmap/init1/design.md" in line]
+    assert design_lines, f"falta docs/roadmap/init1/design.md en la salida:\n{out}"
+    assert all("[excluido:" not in line for line in design_lines), (
+        f"design.md aparece excluido (debe publicarse como spec.md):\n{design_lines}")
     # T-16 (knowledge-capture): docs/knowledge/** NO está en el exclude, así que
     # un fichero de ejemplo bajo esa carpeta debe aparecer EN ALCANCE (pendiente,
     # no excluido) -- no un assert True, se comprueba la clasificación real.
     assert "docs/knowledge/README.md" in out, f"falta docs/knowledge/README.md en alcance:\n{out}"
     knowledge_lines = [line for line in out.splitlines() if "docs/knowledge/README.md" in line]
     assert knowledge_lines, f"docs/knowledge/README.md no aparece en ninguna línea:\n{out}"
+    # memory-health: el journal de sesión (bitácora, no decisión) SÍ está excluido aunque viva en docs/knowledge/
+    journal_lines = [line for line in out.splitlines() if "docs/knowledge/journal/2026-01-01-demo.md" in line]
+    assert journal_lines and all("[excluido:" in line for line in journal_lines), (
+        f"docs/knowledge/journal/** debe aparecer EXCLUIDO:\n{journal_lines}")
     assert all("[excluido:" not in line for line in knowledge_lines), (
         f"docs/knowledge/README.md aparece excluido (no debería):\n{knowledge_lines}")
     # knowledge-split: el subárbol docs/knowledge/gotchas/ (un fichero por entrada)
@@ -189,9 +199,9 @@ def test_stage_creates_exact_scope_and_marker():
         # + el marcador de staging (gap C1: NO se llama README.md, para no
         # colisionar/pisar la copia real)
         assert set(staged) == {
-            cs.STAGE_MARKER_NAME, "README.md", "roadmap/init1/spec.md", "knowledge/README.md",
-            "knowledge/gotchas/ejemplo.md",
-        }, staged
+            cs.STAGE_MARKER_NAME, "README.md", "roadmap/init1/spec.md", "roadmap/init1/design.md",
+            "knowledge/README.md", "knowledge/gotchas/ejemplo.md",
+        }, staged   # design.md (architect) se publica como spec.md — parity-core
         assert (out_dir / cs.STAGE_MARKER_NAME).read_text(encoding="utf-8").startswith(
             f"# {cs.STAGE_MARKER_NAME} — carpeta GENERADA")
         # ningún excluido aparece dentro
@@ -199,6 +209,7 @@ def test_stage_creates_exact_scope_and_marker():
             assert not (out_dir / bad).exists(), f"{bad} no debería estar en el staging"
         assert not (out_dir / "roadmap" / "init1" / "tasks.md").exists()
         assert not (out_dir / "roadmap" / "init1" / "testing").exists()
+        assert not (out_dir / "knowledge" / "journal").exists()          # bitácora fuera del staging (memory-health)
     print("test_stage_creates_exact_scope_and_marker: OK")
 
 

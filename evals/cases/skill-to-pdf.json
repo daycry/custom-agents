@@ -1,0 +1,37 @@
+{
+  "target": "skill:to-pdf",
+  "cases": [
+    {
+      "id": "to-pdf-literal",
+      "prompt": "Genera un PDF de docs/roadmap/2026-01-01-demo/spec.md con un aspecto moderno y guárdalo junto al markdown.",
+      "trigger": "literal",
+      "expect": {
+        "activates": true,
+        "artifacts": [
+          "docs/roadmap/2026-01-01-demo/*.pdf"
+        ]
+      },
+      "notes": "Disparador literal «genera un PDF de»."
+    },
+    {
+      "id": "to-pdf-parafrasis",
+      "prompt": "Necesito entregar README.md a dirección en un formato imprimible con buena tipografía; conviértelo y guárdalo en docs/exports/.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true,
+        "artifacts": [
+          "docs/exports/*.pdf"
+        ]
+      },
+      "notes": "Sin la palabra PDF explícita como verbo: «formato imprimible» + convertir."
+    },
+    {
+      "id": "to-pdf-neg-leer",
+      "prompt": "Lee el PDF docs/contrato.pdf, extrae la tabla de precios y resúmela en tres líneas.",
+      "expect": {
+        "activates": false
+      },
+      "notes": "Leer/extraer de un PDF no es convertir a PDF."
+    }
+  ]
+}
