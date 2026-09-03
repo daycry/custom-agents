@@ -1,0 +1,79 @@
+# ⚠️ COPIA MANUAL: este árbol (github-templates.MANUAL-COPY/) se copia TAL CUAL a .github/
+# (ruta protegida para las herramientas remotas). tests/test_ci_manual_copy.py compara ambos.
+name: Bug report · Informe de error
+description: Something does not work as documented (an agent, skill, command, hook or script). · Algo no funciona como dice la doc.
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. Please fill in what you can — the repro and the actual output matter most.
+        *Gracias. Rellena lo que puedas — lo que más importa es la reproducción y la salida real.*
+  - type: dropdown
+    id: piece
+    attributes:
+      label: Piece · Pieza
+      description: Which kind of piece misbehaves? · ¿Qué tipo de pieza falla?
+      options:
+        - agent (agents/*.md)
+        - command (/pm-cycle, /dev-cycle, …)
+        - skill (skills/*/SKILL.md)
+        - hook / statusline
+        - script (agent-kits/shared/*.py, scripts/*.py, skills/*/scripts)
+        - docs
+        - other
+    validations:
+      required: true
+  - type: input
+    id: name
+    attributes:
+      label: Name of the piece · Nombre de la pieza
+      placeholder: e.g. jira-sync, /dev-cycle, ledger-lint.py
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Plugin version · Versión del plugin
+      description: From `.claude-plugin/plugin.json` or `/plugin` list. · De `plugin.json` o `/plugin`.
+      placeholder: "1.15.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: client
+    attributes:
+      label: Client · Cliente
+      options:
+        - Claude Code CLI
+        - Claude Code in VS Code
+        - Claude Desktop / Cowork
+        - Outside Claude Code (portable skills · AGENTS.md · Cursor)
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce · Pasos para reproducir
+      description: Prompt or command, project state (ledger, configs in `.claude/`), what you expected. · Prompt o comando, estado del proyecto, qué esperabas.
+      placeholder: |
+        1. /setup with defaults
+        2. /dev-cycle "…"
+        3. …
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual output · Salida real
+      description: Paste the output (script output, hook message, agent text). · Pega la salida.
+      render: shell
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks already run · Comprobaciones hechas
+      options:
+        - label: "`python3 scripts/lint_plugin.py` shows 0 errors on my checkout · muestra 0 errores"
+        - label: "I searched existing issues · He buscado issues existentes"

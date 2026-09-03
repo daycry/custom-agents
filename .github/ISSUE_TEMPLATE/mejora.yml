@@ -1,0 +1,47 @@
+# ⚠️ COPIA MANUAL: este árbol (github-templates.MANUAL-COPY/) se copia TAL CUAL a .github/
+# (ruta protegida para las herramientas remotas). tests/test_ci_manual_copy.py compara ambos.
+name: Improvement · Mejora
+description: Improve an existing piece (behaviour, wording, guardrail, doc). · Mejorar una pieza existente.
+title: "[improvement] "
+labels: ["enhancement"]
+body:
+  - type: input
+    id: piece
+    attributes:
+      label: Piece to improve · Pieza a mejorar
+      placeholder: e.g. skills/adversarial-review, agents/planner.md, /setup
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is wrong or missing today · Qué falla o falta hoy
+      description: Concrete situation, with the current behaviour. · Situación concreta y comportamiento actual.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal · Propuesta
+      description: What should change and how you would verify it (command → expected result). · Qué cambiaría y cómo se verifica.
+    validations:
+      required: true
+  - type: dropdown
+    id: impact
+    attributes:
+      label: Does it change an existing contract? · ¿Cambia un contrato existente?
+      description: Ledger format, config keys in `.claude/*.json`, script exit codes, hook output…
+      options:
+        - "No"
+        - "Yes — backwards compatible · Sí, compatible"
+        - "Yes — breaking · Sí, rompe compatibilidad"
+    validations:
+      required: true
+  - type: checkboxes
+    id: ready
+    attributes:
+      label: I can help with · Puedo ayudar con
+      options:
+        - label: the implementation (PR) · la implementación
+        - label: the bilingual docs (ES + EN) · la doc bilingüe
+        - label: the activation evals (`evals/cases/`) · los evals de activación
