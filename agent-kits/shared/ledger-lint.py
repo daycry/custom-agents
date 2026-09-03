@@ -10,11 +10,21 @@ ERRORES (exit 1, incoherencias duras):
   - IDs de tarea `T-XX` duplicados.
   - Tarea `completado` con criterios de aceptación sin marcar (`- [ ]`).
   - Tabla de resumen que no cuadra con las tareas (completadas/total por fase).
+  - Con `verificacion: obligatoria` en el frontmatter: tarea sin campo `- **Verificación**:` o con
+    el campo VACÍO (plan-and-diet T-02 — sin verificación ejecutable la tarea no está bien definida).
+    Formas aceptadas (T-fix1): en línea `- **Verificación**: cmd → res · cmd2 → res2`, sub-lista
+    (`- **Verificación**:` + ítems `  - cmd → res` indentados debajo) y la variante ya ejecutada
+    `- **Verificación** (ejecutada <fecha> — salida: …): cmd → res` (el paréntesis se parsea aparte;
+    `parse_verificacion()` es importable — lo reutiliza `task-brief.py`).
 
 AVISOS (no rompen; formato/legacy):
   - Falta el banner de ledger canónico.
   - Falta la tabla «Resumen de progreso».
   - Tarea sin campo Estado o sin bloque de criterios.
+  - Tarea sin `Verificación` cuando el ledger NO declara `verificacion: obligatoria` pero ya usa el
+    campo en otras tareas (adopción parcial) o declara `verificacion:` con otro valor. Un ledger
+    legacy sin la clave y sin ningún `Verificación` no recibe aviso (los ledgers previos validan
+    idéntico).
 
 Uso:
   python3 ledger-lint.py <ruta/a/tasks.md> [--warn-only]
@@ -35,6 +45,48 @@ def norm_estado(s):
     return re.sub(r"[^a-z\-]", "", s).strip("-")    # "en-progreso 🚧" → "en-progreso"
 
 
+# `- **Verificación**: …` · `- **Verificación** (ejecutada … — salida: …): …` (paréntesis con un nivel de
+# anidamiento, consumido ANTES de los dos puntos: la salida grabada no se confunde con el comando)
+VERIF_RE = re.compile(
+    r"^\s*-\s*\*\*Verificaci[oó]n\*\*\s*(?P<paren>\((?:[^()]|\([^()]*\))*\))?\s*:\s*(?P<inline>.*)$", re.I)
+_SUBITEM_RE = re.compile(r"^\s+[-*]\s+(.*\S)\s*$")
+
+# ---------------------------------------------------------------------------------------------
+# Cabecera de una sección de revisión adversarial: FUENTE ÚNICA del criterio de parseo
+# [roles-and-jira-flow T-fix1]. La usan `task-brief.py` (inyección de gaps al implementer) y
+# `skills/jira-sync/scripts/jira-flow.py` (eventos `revision`/`gaps`). Antes cada uno tenía su
+# copia y NO coincidían: jira-flow exigía `:` tras el número de intento y task-brief no, así que
+# una cabecera sin `:` daba brief CON gaps y Jira exit 2 sobre el MISMO ledger. Criterio único (el
+# laxo): los dos puntos y el resumen son OPCIONALES; grupo 1 = número de intento, grupo 2 = resumen
+# (None si no hay). Quien necesite una copia local (paquete portable sin este kit) debe replicar
+# este patrón LITERALMENTE — hay test que compara las dos cadenas.
+REVISION_HDR_PATTERN = \
+    r"^##\s+Revisi[oó]n de dos lentes\s*[\u2014\u2013-]\s*intento\s+(\d+)\s*(?::\s*(.*))?$"
+REVISION_HDR_RE = re.compile(REVISION_HDR_PATTERN, re.M)
+
+
+def parse_verificacion(lines, i):
+    """Parsea el campo Verificación que EMPIEZA en lines[i]. Devuelve (info, siguiente_i) o (None, i)
+    si la línea no es el campo. info = {"items": [str], "ejecutada": str|None, "inline": str}.
+    Formas: en línea (ítems separados por ` · `), sub-lista (`  - ítem` indentados justo debajo; termina
+    en la primera línea que no sea un ítem indentado) o mezcla de ambas."""
+    m = VERIF_RE.match(lines[i])
+    if not m:
+        return None, i
+    paren = m.group("paren")
+    inline = m.group("inline").strip()
+    items = [s.strip() for s in re.split(r"\s+·\s+", inline) if s.strip()] if inline else []
+    j = i + 1
+    while j < len(lines):
+        ms = _SUBITEM_RE.match(lines[j])
+        if not ms:
+            break
+        items.append(ms.group(1).strip())
+        j += 1
+    ejecutada = paren[1:-1].strip() if paren else None
+    return {"items": items, "ejecutada": ejecutada, "inline": inline}, j
+
+
 def parse_ledger(text):
     """Parser ESTRUCTURAL del ledger (sin efectos secundarios, importable).
 
@@ -46,7 +98,11 @@ def parse_ledger(text):
       tareas: todas las tareas en orden de aparición
     Cada tarea: {"id", "titulo", "estado" (normalizado o None), "checked", "unchecked",
                  "tiene_criterios", "ia_real_h" (float o None), "ia_est_h" (float o None),
-                 "ia_real_fuente" ("medido" | "estimado" | None: cómo se obtuvo el real)}.
+                 "ia_real_fuente" ("medido" | "estimado" | None: cómo se obtuvo el real),
+                 "verificacion" (texto plano del campo `- **Verificación**:`: ítems unidos por ` · `,
+                 "" si el campo existe pero está vacío, None si no existe),
+                 "verificacion_items" ([str]: un ítem por comando → resultado),
+                 "verificacion_ejecutada" (texto del paréntesis `(ejecutada …)` o None)}.
     Lo consumen `lint()` (aquí) y `progress-report.py` (línea de progreso).
     """
     text = text.lstrip("\ufeff")          # BOM UTF-8: sin esto el frontmatter no se reconoce
@@ -84,7 +140,10 @@ def parse_ledger(text):
             (cur_fase["tareas"] if cur_fase else huerfanas).append(cur_task)
             cur_task = None
 
-    for ln in lines:
+    idx = 0
+    while idx < len(lines):
+        ln = lines[idx]
+        idx += 1
         m = fase_re.match(ln)
         if m:
             close_task()
@@ -105,13 +164,21 @@ def parse_ledger(text):
             cur_task = {"id": m.group(1), "titulo": titulo,
                         "estado": None, "unchecked": 0, "checked": 0,
                         "tiene_criterios": False, "ia_real_h": None, "ia_est_h": None,
-                        "ia_real_fuente": None}
+                        "ia_real_fuente": None, "verificacion": None,
+                        "verificacion_items": [], "verificacion_ejecutada": None}
             in_criterios = False
             continue
         if cur_task is not None:
             m = estado_re.match(ln)
             if m and cur_task["estado"] is None:
                 cur_task["estado"] = norm_estado(m.group(1))
+                continue
+            if cur_task["verificacion"] is None and VERIF_RE.match(ln):
+                info, nxt = parse_verificacion(lines, idx - 1)
+                cur_task["verificacion"] = " · ".join(info["items"])
+                cur_task["verificacion_items"] = info["items"]
+                cur_task["verificacion_ejecutada"] = info["ejecutada"]
+                idx = nxt          # los ítems de la sub-lista ya están consumidos
                 continue
             m = ia_re.match(ln)
             if m and cur_task["ia_real_h"] is None and cur_task["ia_est_h"] is None:
@@ -196,6 +263,21 @@ def lint(path):
         if t["estado"] == "completado" and t["unchecked"] > 0:
             errors.append(f"{t['id']}: marcado `completado` con {t['unchecked']} "
                           f"criterio(s) sin marcar `- [ ]` — incoherencia dura")
+
+    # ---- Verificación por tarea (plan-and-diet T-02) ----
+    verif_fm = norm_estado(parsed["frontmatter"].get("verificacion", "")) if parsed["frontmatter"].get("verificacion") else ""
+    usa_verif = any(t["verificacion"] for t in all_tasks)
+    for t in all_tasks:
+        if t["verificacion"]:
+            continue
+        que = ("campo **Verificación** VACÍO (ni texto en línea ni sub-lista `  - cmd → resultado` debajo)"
+               if t["verificacion"] == "" else "sin campo **Verificación**")
+        if verif_fm == "obligatoria":
+            errors.append(f"{t['id']}: {que} (el ledger declara "
+                          f"verificacion: obligatoria) — sin verificación ejecutable la tarea no está bien definida")
+        elif verif_fm or usa_verif:
+            warnings.append(f"{t['id']}: {que}"
+                            + (" (otras tareas lo declaran)" if usa_verif else ""))
 
     # ---- tabla de resumen (completadas/total por fase) ----
     resumen_rows = re.findall(

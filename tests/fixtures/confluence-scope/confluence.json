@@ -13,6 +13,7 @@
       "docs/roadmap/**/improvement-plan.md",
       "docs/roadmap/**/tasks.md",
       "docs/roadmap/**/test-plan.md",
+      "docs/knowledge/journal/**",
       "**/testing/**"
     ],
     "onConflict": "update"

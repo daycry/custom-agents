@@ -1,0 +1,53 @@
+{
+  "target": "agent:architect",
+  "cases": [
+    {
+      "id": "architect-literal",
+      "prompt": "La spec de la iniciativa demo ya está aprobada. Antes de planificar, diseña la arquitectura: explora las opciones de diseño con sus trade-offs y deja el design.md en docs/roadmap/2026-01-01-demo/.",
+      "trigger": "literal",
+      "expect": {
+        "activates": true,
+        "artifacts": [
+          "docs/roadmap/2026-01-01-demo/design.md"
+        ],
+        "mentions": [
+          "opci"
+        ]
+      },
+      "notes": "Disparador literal «diseña la arquitectura» / «explora las opciones de diseño»."
+    },
+    {
+      "id": "architect-parafrasis",
+      "prompt": "Para la iniciativa demo quiero ver dos o tres formas técnicas de construirlo, comparadas por riesgo, complejidad y lo fácil que sería deshacerlas, y elegir una contigo antes de que nadie haga el plan de tareas.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "O1"
+        ],
+        "must_not": [
+          "T-01"
+        ]
+      },
+      "notes": "Describe opciones + trade-offs + validación sin nombrar al agente; no debe descomponer en tareas."
+    },
+    {
+      "id": "architect-neg-planner",
+      "prompt": "Planifica las tareas de la iniciativa demo: fases, T-XX con criterios de aceptación, horas y coste por fase.",
+      "expect": {
+        "activates": false,
+        "redirect": "agent:planner"
+      },
+      "notes": "Vecino: descomponer en tareas y presupuestar por fase es del planner, no del arquitecto."
+    },
+    {
+      "id": "architect-neg-evaluator",
+      "prompt": "¿Cuánto costaría en horas y euros la iniciativa demo? Dame el presupuesto y el veredicto go/no-go.",
+      "expect": {
+        "activates": false,
+        "redirect": "agent:evaluator"
+      },
+      "notes": "Vecino: presupuestar es del evaluator; el arquitecto no estima horas."
+    }
+  ]
+}

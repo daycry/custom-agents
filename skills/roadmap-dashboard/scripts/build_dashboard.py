@@ -229,6 +229,7 @@ def scan(root):
         spec_p = os.path.join(path, "spec.md")
         eval_p = os.path.join(path, "evaluation.md")
         plan_p = os.path.join(path, "improvement-plan.md")
+        design_p = os.path.join(path, "design.md")   # opcional (agente architect, parity-core)
         tasks_p = os.path.join(path, "tasks.md")
         testing_p = os.path.join(path, "testing")
         if not (os.path.exists(spec_p) or os.path.exists(eval_p) or os.path.exists(tasks_p)):
@@ -244,6 +245,8 @@ def scan(root):
             "has_spec": os.path.exists(spec_p),
             "has_eval": os.path.exists(eval_p),
             "has_plan": os.path.exists(plan_p),
+            "has_design": os.path.exists(design_p),
+            "design_estado": None,
             "has_tasks": os.path.exists(tasks_p),
             "has_testing": os.path.isdir(testing_p),
             "via_rapida": False,
@@ -271,6 +274,10 @@ def scan(root):
             rec["tokens"] = table_value(t, "Tokens IA")
             rec["multiplicador"] = table_value(t, "Multiplicador productividad")
 
+        if rec["has_design"]:
+            fm = parse_frontmatter(open(design_p, encoding="utf-8", errors="replace").read())
+            rec["design_estado"] = fm.get("estado")   # borrador | aprobado | obsoleto
+
         if rec["has_tasks"]:
             tasks_text = open(tasks_p, encoding="utf-8", errors="replace").read()
             rec["progreso"] = parse_progress_totals(tasks_text)
@@ -291,7 +298,7 @@ def scan(root):
 
         # coste de proceso (bloque generacion: de cada artefacto, si existe)
         gen = {}
-        for label, p in (("spec", spec_p), ("eval", eval_p),
+        for label, p in (("spec", spec_p), ("eval", eval_p), ("design", design_p),
                          ("plan", plan_p), ("tasks", tasks_p)):
             if os.path.exists(p):
                 g = parse_generacion(
@@ -386,10 +393,11 @@ def render_html(inits, root):
 
         arts = []
         for label, flag in [("spec", "has_spec"), ("evaluación", "has_eval"),
-                            ("plan", "has_plan"), ("tasks", "has_tasks"),
-                            ("testing", "has_testing")]:
+                            ("diseño", "has_design"), ("plan", "has_plan"),
+                            ("tasks", "has_tasks"), ("testing", "has_testing")]:
             cls = "on" if r[flag] else "off"
-            arts.append(f'<span class="art {cls}">{label}</span>')
+            extra = f" · {html.escape(str(r['design_estado']))}" if flag == "has_design" and r.get("design_estado") else ""
+            arts.append(f'<span class="art {cls}">{label}{extra}</span>')
 
         desc = html.escape(r["descripcion"]) if r["descripcion"] else ""
         cards.append(f"""
@@ -503,12 +511,13 @@ def render_markdown(inits, root):
     out.append("")
     out.append("## Artefactos por iniciativa")
     out.append("")
-    out.append("| Iniciativa | spec | evaluación | plan | tasks | testing |")
-    out.append("|---|---|---|---|---|---|")
+    out.append("| Iniciativa | spec | evaluación | diseño | plan | tasks | testing |")
+    out.append("|---|---|---|---|---|---|---|")
     mark = lambda b: "✅" if b else "—"
     for r in inits:
+        diseno = (f"✅ {md_cell(r['design_estado'])}" if r.get("design_estado") else "✅") if r.get("has_design") else "—"
         out.append("| " + " | ".join([
-            md_cell(r["slug"]), mark(r["has_spec"]), mark(r["has_eval"]),
+            md_cell(r["slug"]), mark(r["has_spec"]), mark(r["has_eval"]), diseno,
             mark(r["has_plan"]), mark(r["has_tasks"]), mark(r["has_testing"]),
         ]) + " |")
     out.append("")

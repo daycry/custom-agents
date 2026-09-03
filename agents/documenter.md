@@ -2,6 +2,7 @@
 name: documenter
 description: Genera y mantiene la documentación técnica y de producto de un proyecto, de forma estructurada y detallada, dentro de `docs/`. Explora el repositorio (código, config, dependencias) y produce una taxonomía completa — índice, RAG-INDEX, arquitectura, stack técnico, módulos/componentes, guías de desarrollo y documentación de producto/usuario — con Markdown correcto, tablas y ejemplos reales del código. Idempotente: crea lo que falta, actualiza lo existente y mantiene el índice y la fecha. Al escribir en `docs/` sincroniza con Confluence (opt-in) vía la skill `confluence-publish`. Úsalo cuando el usuario diga "documenta el proyecto", "genera la documentación", "crea los docs", "documenta la arquitectura/módulos", "actualiza la documentación".
 model: sonnet
+effort: medium
 # tools: Write/Edit SOLO bajo docs/ (excepto docs/roadmap y docs/security-scan). No toca código.
 tools: Read, Grep, Glob, Bash, Write, Edit
 # Dependencias declaradas (convención del repo; ver docs/CONVENTIONS.md).
@@ -103,7 +104,7 @@ qué categoría de contenido cubre cada uno (mapeadas a las de `taxonomy.md`). E
 Pide luz verde o ajustes antes de redactarlo todo. Si el proyecto ya tiene docs, propón cómo
 **ampliarlas** respetando sus nombres. Con el OK, crea el esqueleto (índices de sección primero).
 
-**P4. Redacción.** Completa cada documento con contenido real (con los nombres decididos en P3). El **detalle por categoría** (arquitectura, stack, unidades del sistema, guías how-to, producto/usuario) vive en la guía del kit y se lee **al entrar en esta fase**:
+**P4. Redacción.** Redacta según la guía compartida `"$SHAREDKIT/docs-style.md"` (frases cortas, voz activa, un concepto por párrafo, tablas para comparar y prosa para explicar, ejemplos reales del código, sin adjetivos vacíos, títulos que responden preguntas, bilingüe sin traducción literal; fallback si no está: frases cortas + ejemplos reales). Completa cada documento con contenido real (con los nombres decididos en P3). El **detalle por categoría** (arquitectura, stack, unidades del sistema, guías how-to, producto/usuario) vive en la guía del kit y se lee **al entrar en esta fase**:
 
 ```bash
 cat "$DOCKIT/redaction-guide.md"   # $DOCKIT resuelto en §0

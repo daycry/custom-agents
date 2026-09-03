@@ -80,345 +80,92 @@ El asistente encadena estos pasos, cada uno alimenta al siguiente:
 
 Si el proyecto ya se configuró antes (`.claude/confluence.json`), se salta directo a una confirmación de una línea (**Modo rápido**, Paso 3-bis).
 
+> **Lectura bajo demanda (token-diet).** Este fichero es el mapa: cada paso trae su regla en 1-3 líneas
+> y remite a `references/<tema>.md` para los guiones y la casuística completa. **Abre una referencia
+> solo cuando llegues al paso que la cita** (tabla al final); no las cargues todas al arrancar.
+
 ---
 
 ## Paso 1 — conectar con Confluence (interactivo)
 
-Es lo primero, y se hace acompañando al usuario, no fallando en silencio:
-
-1. Comprueba la conexión con `getAccessibleAtlassianResources`.
-2. **Si NO está conectado:** explícalo en llano y guía la acción, sin jerga:
-   > "Para publicar necesito conectarme a vuestro Confluence. Ábrelo en los conectores de Claude (Atlassian) y dime cuando esté; lo compruebo al instante."
-   Ofrece reintentar ("¿Ya está? Vuelvo a comprobar"). Reintenta `getAccessibleAtlassianResources` cuando el usuario confirme. No sigas hasta que conecte.
-3. **Si hay varios sites Atlassian**, muéstralos por su nombre y deja elegir (guarda el `cloudId` por debajo). Si solo hay uno, úsalo sin preguntar.
-4. Cuando conecte, confírmalo con naturalidad: "Conectado ✅ a **<nombre del site>**." y sigue.
-5. Ahora localiza la config del proyecto:
-   ```bash
-   CFG="$(find "$PWD/.claude" "$HOME/.claude" -type f -path '*confluence.json' 2>/dev/null | head -1)"
-   ```
-   - **Si existe** → **Modo rápido** (Paso 3-bis).
-   - **Si no** → sigue al Paso 2.
-
----
+`getAccessibleAtlassianResources`; si no conecta, guía en llano y **reintenta** cuando el usuario confirme
+(no sigas sin conexión). Varios sites → elige por nombre (el `cloudId` se guarda por debajo). Luego localiza
+`.claude/confluence.json`: **si existe → Modo rápido (Paso 3-bis)**; si no → Paso 2. → `references/wizard.md`.
 
 ## Paso 2 — buscar y elegir espacio
 
-El usuario puede tener muchos espacios: **permite buscar por nombre**, no solo listar.
-
-1. Ofrece de entrada los más probables y la opción de buscar:
-   > "¿En qué espacio lo publico? Puedes escribir parte del nombre para buscar.
-   > 1) Ingeniería   2) Operaciones   3) Marketing   4) 🔎 Buscar otro…"
-2. Si escribe texto para buscar, filtra con `getConfluenceSpaces` (por nombre/clave) y muestra las coincidencias **por su nombre**, numeradas. Si no hay coincidencias, dilo y deja reintentar.
-3. Al elegir, guarda internamente el espacio (spaceKey/spaceId) y **pasa a mostrar su árbol** (Paso 3). El propio hecho de elegir espacio dispara la vista del árbol.
-
----
+Permite **buscar por nombre** (`getConfluenceSpaces`), muestra coincidencias numeradas por nombre y, al
+elegir, pasa directamente a mostrar el árbol del espacio (Paso 3). → `references/wizard.md`.
 
 ## Paso 3 — ver el árbol del espacio y elegir dónde
 
-**Detecta el entorno primero:**
-
-- **Con artefactos (Cowork / app de escritorio):** usa el navegador visual (Paso 3-A).
-- **Sin artefactos (Claude Code CLI o extensión de VSCode):** el host de artefactos no existe; usa el **modo conversacional** del árbol (Paso 3-B). No intentes `create_artifact`.
-
-Para saberlo, comprueba si la herramienta de crear artefactos está disponible; si no lo está, ve directo al Paso 3-B.
-
-### Paso 3-A — navegador de árbol (artefacto del plugin)
-
-Nada más elegir espacio, **abre el navegador de árbol del plugin** para que el usuario
-explore y elija. **No improvises un HTML**: usa siempre la plantilla incluida y publícala como
-artefacto (así todos usan el mismo).
-
-1. Localiza la plantilla sin depender del scope:
-   ```bash
-   TPL="$(find "$PWD/.claude" "$HOME/.claude" -type f -path '*skills/confluence-publish/assets/tree-browser.template.html' 2>/dev/null | head -1)"
-   ```
-2. Resuelve los datos: `cloudId` (de `getAccessibleAtlassianResources`), `homepageId` del espacio elegido (viene en `getConfluenceSpaces`), la clave y el nombre del espacio, y el `DEFAULT_NAME` (nombre de la carpeta del proyecto).
-3. **Copia la plantilla y sustituye los marcadores** `{{SERVER}}` (el nombre completo `mcp__<uuid>__getConfluencePageDescendants` del conector conectado), `{{CLOUD_ID}}`, `{{HOME_ID}}`, `{{SPACE_KEY}}`, `{{SPACE_NAME}}`, `{{SPACE_INITIALS}}`, `{{DEFAULT_NAME}}`.
-4. Publica el resultado con `create_artifact` (con `mcp_tools=[el getConfluencePageDescendants del conector]`). El artefacto **navega el árbol en vivo**: al expandir un nodo llama a `getConfluencePageDescendants`, sin volcar nada al chat.
-5. **Al pulsar "Elegir aquí"** el propio artefacto pregunta al usuario:
-   - **Usar esa página como destino** → el contenido colgará directamente de ella (no se crea página nueva).
-   - **Crear una página hija nueva** → pide el **nombre** y colgará el contenido de esa página nueva.
-   - En la **raíz del espacio** siempre se crea una página nueva (pide nombre).
-   La elección queda en `window.__dest = {mode, parentPageId, parentPath, name}` (`mode`: `existing` | `child` | `root-child`). Cuando el usuario te diga "publica aquí", lee esa decisión y continúa.
-
-### Paso 3-B — navegación conversacional (CLI/VSCode, sin artefactos)
-
-Mismo resultado, en texto. Navega el árbol bajo demanda con el conector:
-
-1. Carga el primer nivel con `getConfluencePageDescendants` sobre el `homepageId` del espacio (o `getPagesInConfluenceSpace`). Muestra las páginas **numeradas por título**, indicando cuáles tienen subpáginas.
-2. Ofrece siempre estas acciones: **abrir** una página (número → recarga sus hijas con `getConfluencePageDescendants`), **subir** un nivel, o **elegir** el destino actual.
-3. Al elegir una página, pregunta en texto lo mismo que el artefacto:
-   > "¿Cómo publico en «X»? 1) Usar esta página como destino  2) Crear una página hija (dime el nombre)"
-   Y para la raíz del espacio, siempre se crea página nueva (pide nombre).
-4. Registra la decisión equivalente (`mode`: `existing` | `child` | `root-child`, más `parentPageId` y `name`) y continúa igual que en 3-A.
-
----
+Detecta el entorno: **Paso 3-A** navegador de árbol como artefacto (plantilla
+`assets/tree-browser.template.html`, nunca un HTML improvisado) o **Paso 3-B** navegación conversacional
+(CLI/VS Code: abrir · subir · elegir). Resultado en ambos: `{mode: existing|child|root-child, parentPageId,
+name}`. → `references/wizard.md`.
 
 ## Paso 4 — confirmar el nombre (si procede)
 
-El nombre ya se ha capturado en el artefacto salvo que el usuario eligiese "usar esta página"
-(modo `existing`), en cuyo caso no se crea página nueva. Si hace falta, confírmalo en una línea.
-
----
+Solo si se crea página nueva (`child` / `root-child`); en `existing` no hay página nueva. → `references/wizard.md`.
 
 ## Paso 5 — confirmar y subir
 
-**Previsualiza y confirma** (ver bloque de confirmación) y, con el "sí":
-
-- `mode: "existing"` → **no crees home**; usa `parentPageId` como contenedor y cuelga de él el árbol de `docs/`.
-- `mode: "child"` → crea la página `name` bajo `parentPageId` y cuelga de ella.
-- `mode: "root-child"` → crea la página `name` en la raíz del espacio (sin `parentId`) y cuelga de ella.
-
-Luego **sube el contenido** espejando `docs/` (Paso "publicar"). Al terminar, **guarda
-`.claude/confluence.json`** con todo lo elegido (conexión, espacio, ubicación, modo, nombre)
-usando `assets/confluence.example.json` como base: "Lo he recordado; la próxima vez será directo."
-
----
+Previsualiza (bloque «Confirmación»), espera el "sí", aplica el `mode` (existing → sin home; child /
+root-child → crea la página `name`) y sube espejando `docs/` («Publicar»). Al terminar guarda
+`.claude/confluence.json` con lo elegido. → `references/wizard.md`.
 
 ## Confirmación (SIEMPRE, antes de escribir)
 
-Antes de crear/actualizar, enseña un resumen claro y humano y **espera un sí**:
-
-> "Voy a hacer esto:
-> • Espacio: **Ingeniería**
-> • Ubicación: dentro de **Documentación de Proyectos**
-> • Página principal: **Custom Agents**
-> • Debajo colgaré 8 páginas (una por documento).
-> ¿Lo publico? [Sí / Cambiar algo]"
-
-Si dice "cambiar algo", vuelve a la pregunta correspondiente. No escribas hasta el "sí".
-
----
+Resumen humano: espacio · ubicación · página principal · nº de páginas → **espera un sí**; "cambiar algo"
+vuelve a la pregunta correspondiente. → `references/wizard.md`.
 
 ## Paso 3-bis — modo rápido (config ya existe)
 
-Cuando ya hay `.claude/confluence.json`, no interrogues: **confirma en una línea** y publica.
-
-> "Publico la doc en **Ingeniería › Documentación de Proyectos › Custom Agents** (como la última vez). ¿Actualizo? [Sí / Cambiar destino]"
-
-Si dice "cambiar destino", reusa los pasos 2–3 del asistente (espacio / ubicación) y actualiza la config.
-
----
+Confirma en una línea («Publico la doc en **A › B › C** como la última vez. ¿Actualizo?») y publica;
+"cambiar destino" reusa los Pasos 2-3. → `references/wizard.md`.
 
 ## Publicar (idempotente; por debajo)
 
-Resuelto el destino, ejecuta sin más preguntas:
-
-0. **Regenerar el staging (si `publish.staging: true`, D5) — ANTES de calcular nada.** Igual que el
-   dashboard se regenera antes de publicar (ver más abajo), el staging se regenera antes de
-   comparar con el manifiesto: es la política materializada en disco, y siempre tiene que reflejar
-   el `docs/` de HOY.
-   ```bash
-   SCOPE="$(find "$PWD/.claude" "$HOME/.claude" -type f -path '*skills/confluence-publish/scripts/confluence-scope.py' 2>/dev/null | head -1)"
-   [ -n "$SCOPE" ] && python3 "$SCOPE" --stage --root "$PWD"
-   ```
-   Si el script falla o no se encuentra, **degrada sin bloquear**: usa `publish.source = "docs"` y
-   resuelve `include`/`exclude` en línea, como antes de D5. Con el staging activo,
-   `publish.source` (`docs/confluence`) es la raíz que recorre el paso 4 más abajo — el `.md`
-   staged es idéntico byte a byte al canónico (no hay transformación de contenido), así que el
-   único efecto de esta regeneración es garantizar que el árbol publicado es el alcance vigente.
-1. **Espacio:** `getConfluenceSpaces` → `spaceId` desde el espacio elegido.
-2. **Anclaje:** raíz → sin `parentId`; bajo una página → `parentId` de la elegida (valida con `getConfluencePageAncestors`). ⚠️ En API v2 `parentId` debe ser una **página** (no folder/database).
-3. **Página principal del proyecto (idempotente):** si ya la conoces (guardada), verifícala; si no, búscala por su nombre en el espacio; si no existe, créala con `createConfluencePage` (`contentFormat: "markdown"`, `parentId` según el anclaje). Guarda su id como caché.
-4. **Árbol de docs (`layout: "mirror-tree"`):** recorre `publish.source` respetando `include`/`exclude`. Cada subcarpeta → una página; cada `.md` → página hija de la de su carpeta; el cuerpo de la página-carpeta sale de su `README.md`/`index.md` si existe. Título = `# H1` del documento o el nombre del fichero. **Nunca espejes el marcador `_STAGING-LEEME.md`**: con staging activo este recorrido pasa por `docs/confluence/` (el árbol staged), no por `docs/` canónico, así que la autoexclusión por código de `confluence-scope.py` (que actúa sobre el ESCANEO del canónico al generar el staging) no cubre este segundo recorrido — el `exclude` de la config sí debe listarlo explícitamente (`**/_STAGING-LEEME.md`, ver `assets/confluence.example.json`) para que no se publique como página boilerplate ni quede huérfana en cada pull.
-5. **Idempotencia (clave) — vía manifiesto de estado (sin git):** consulta el manifiesto `.claude/confluence-state.json` (ver sección "Estado de sincronización"). Con staging activo, los hashes se calculan sobre los ficheros **staged** (`docs/confluence/…`, que es lo que de verdad se publica), no sobre los canónicos — como son idénticos byte a byte, el hash coincide siempre entre ambos. Para cada `.md`:
-   - Está en el manifiesto y el **hash coincide** → sin cambios, no toques nada.
-   - Está en el manifiesto y el **hash difiere** → `updateConfluencePage` por su `pageId`.
-   - No está en el manifiesto → `createConfluencePage` y registra `pageId` + hash.
-   - Como respaldo (manifiesto ausente o `pageId` no válido), busca la página por título bajo su padre (`getConfluencePageDescendants`/búsqueda) antes de crear, para no duplicar.
-   Al terminar, **actualiza el manifiesto** (hash + pageId de cada página) y limpia la marca de pendiente si existía. **Nunca dupliques.**
-6. Muestra progreso ligero si son muchas ("Publicando… 5 de 8").
-
----
+Orden fijo: (0) regenerar el **staging** si `publish.staging: true` (`confluence-scope.py --stage --root
+"$PWD"`; si falla, degrada a `publish.source = "docs"` sin bloquear) → (1) espacio → (2) anclaje
+(`parentId` debe ser una **página**) → (3) página principal idempotente → (4) árbol `mirror-tree`
+(nunca espejes `_STAGING-LEEME.md`) → (5) **idempotencia por manifiesto** `.claude/confluence-state.json`
+(hash igual → nada; distinto → `updateConfluencePage`; ausente → `createConfluencePage`; respaldo: buscar
+por título antes de crear). **Nunca dupliques.** → `references/publish-and-sync.md`.
 
 ## Cierre (en lenguaje humano)
 
-Resume sin tecnicismos y **da el enlace clicable** a la página principal:
-
-> "Listo ✅ He publicado **Custom Agents** en el espacio **Ingeniería**, dentro de
-> «Documentación de Proyectos». Creé 6 páginas y actualicé 2. Aquí lo tienes: <URL>."
-
-Si algo se omitió o falló, dilo por página, en una frase, con el porqué y qué hacer.
-
----
+Resumen sin tecnicismos + **enlace clicable** a la página principal; lo omitido o fallido, por página y
+en una frase. → `references/wizard.md`.
 
 ## Modo sincronización (invocada por otros agentes, sin interacción)
 
-Cuando **otro agente** (planner, evaluator, qa…) crea, modifica o elimina ficheros en
-`docs/`, invoca esta skill para **reflejar el cambio en Confluence**. Primero aplica el opt-in
-(Paso 0):
-
-- **`enabled: true`** → sincroniza en silencio (sin asistente).
-- **`enabled: false`** → no hagas nada.
-- **Sin config (primera vez)** → pregunta una sola vez si se quiere sincronizar con Confluence
-  (Paso 0). Si dice que sí, ejecuta el alta (conexión + espacio + árbol) y luego sincroniza; si
-  dice que no, guarda `enabled: false` y no vuelvas a preguntar. No bloquees el trabajo del
-  agente por esto.
-
-Detección de cambios: **compara `docs/` contra el manifiesto de estado** (ver sección "Estado
-de sincronización"), no uses git ni fechas. Regla por tipo de cambio (idempotente):
-
-- **Crear** (fichero nuevo, no en el manifiesto) → `createConfluencePage` en su sitio del árbol y registra `pageId` + hash.
-- **Modificar** (hash distinto al del manifiesto) → `updateConfluencePage` por su `pageId`.
-- **Sin cambios** (hash igual) → no toques nada.
-- **Eliminar** (entrada en el manifiesto cuyo fichero ya no existe) → el conector Atlassian **no** expone borrado/archivado. Marca la página como obsoleta: `updateConfluencePage` anteponiendo un aviso (p. ej. un panel “⚠️ Documento eliminado del repositorio el <fecha>; pendiente de borrar”), **quítala del manifiesto** y **lístala al usuario** para que la borre a mano. No dejes contenido eliminado como si estuviera vigente.
-
-Alcance: solo lo que ha cambiado según el manifiesto (no reespejes todo el árbol en cada
-ejecución). No importa quién ni cómo editó los ficheros.
-
-### Dashboard del roadmap (regenerar ANTES de publicar)
-
-Para que el PM vea el **estado real** del roadmap en Confluence sin tocar git, el dashboard se
-publica como una página más — pero **generada**, no escrita a mano. Antes de calcular los cambios
-a publicar, **si en el conjunto pendiente hay algo bajo `docs/roadmap/`** (o existe la carpeta y ha
-cambiado respecto al manifiesto), **regenera el markdown del dashboard** con la skill
-`roadmap-dashboard`, de modo que la página refleje el último estado:
-
-```bash
-DASH="$(find "$PWD/.claude" "$HOME/.claude" -type f -path '*skills/roadmap-dashboard/scripts/build_dashboard.py' 2>/dev/null | head -1)"
-[ -d docs/roadmap ] && python3 "$DASH" --root docs/roadmap --md docs/roadmap/dashboard.md
-```
-
-Luego sigue el flujo normal: `docs/roadmap/dashboard.md` entra en el espejo como cualquier `.md`
-(su hash cambiará y se publicará/actualizará su página). Notas:
-
-- **Solo el `.md` va a Confluence.** El `dashboard.html` es vista local y, al no ser `.md`, el espejo lo ignora; no lo publiques.
-- Así el disparo es determinista y honesto: la página se refresca **en la misma publicación** que provocó el cambio del roadmap, y su cabecera lleva la marca `generado <fecha/hora>` para que se vea la frescura. No es tiempo real: si nadie publica, el PM ve la última versión con su fecha.
-- Si `docs/roadmap/` no existe, no generes nada.
-
-**Exclusión obligatoria:** nunca publiques `docs/security-scan/**` (datos sensibles del agente
-nemesis). Respeta también los `exclude` de la config.
-
-### Staging (regenerar DESPUÉS del dashboard, ANTES de comparar — D5)
-
-Con `publish.staging: true`, tras regenerar `dashboard.md` (si tocaba) pero **antes** de calcular
-qué se crea/actualiza, regenera `docs/confluence/`:
-
-```bash
-SCOPE="$(find "$PWD/.claude" "$HOME/.claude" -type f -path '*skills/confluence-publish/scripts/confluence-scope.py' 2>/dev/null | head -1)"
-[ -n "$SCOPE" ] && python3 "$SCOPE" --stage --root "$PWD"
-```
-
-Así `dashboard.md` (si cambió) entra en el staging de esta misma pasada. Si el script falla o no
-se encuentra, degrada a `publish.source = "docs"` sin bloquear la sincronización del agente que
-llamó. Detalle completo del contrato de `docs/confluence/` en la sección "qué sube y qué no" más
-abajo.
+Aplica el opt-in (Paso 0); con `enabled: true` sincroniza en silencio **solo lo que cambió según el
+manifiesto** (crear / modificar / sin cambios / eliminar → marcar obsoleta y listar, el conector no borra).
+Antes de comparar: regenera `docs/roadmap/dashboard.md` (skill `roadmap-dashboard`) si hay cambios bajo
+`docs/roadmap/`, y después el staging (D5). **Exclusión obligatoria: nunca publiques
+`docs/security-scan/**`.** → `references/publish-and-sync.md`.
 
 ## Estado de sincronización — manifiesto `.claude/confluence-state.json` (sin git)
 
-La detección de cambios **no depende de git** ni de fechas: se hace con un **manifiesto por
-contenido** que mapea cada documento local con su página en Confluence y un hash de su contenido.
-La skill lo mantiene; el usuario no lo toca.
-
-```json
-{
-  "docs/README.md":                 { "hash": "9f2b…", "pageId": "1317535764" },
-  "docs/architecture/overview.md":  { "hash": "0a4c…", "pageId": "1317540001" }
-}
-```
-
-Uso en cada ejecución:
-
-1. Recorre `docs/` (respetando `include`/`exclude` y la exclusión de `docs/security-scan/**`), calcula el hash de cada `.md` (p. ej. sha256 del contenido).
-2. Compara con el manifiesto para clasificar cada fichero en crear / modificar / sin cambios, y detecta **eliminados** (entradas del manifiesto sin fichero en disco).
-3. Publica solo lo que cambió (ver "Publicar" y "Modo sincronización").
-4. **Actualiza el manifiesto** con los hashes y `pageId` resultantes. Si nada cambió, no se toca Confluence.
-
-Ventajas: determinista, detecta creado/modificado/eliminado, idempotente, e independiente de
-quién editó los ficheros (agente o chat) y de si hubo commit o no.
-
-### Marca de "pendiente" (para el hook, opcional)
-Si el plugin instala el hook `PostToolUse`, éste solo deja una **marca** `.claude/.confluence-pending`
-cuando se edita algo bajo `docs/` (no publica). Al ejecutarse, la skill: si existe la marca o hay
-diferencias con el manifiesto, sincroniza; y al acabar **borra la marca**. Así el hook es un mero
-disparador determinista y todo el trabajo real (con el conector) lo hace la skill.
+Mapa `ruta → {hash, pageId}` por contenido, sin git ni fechas; clasifica crear / modificar / sin cambios /
+eliminados y se actualiza al final de cada ejecución. Marca opcional `.claude/.confluence-pending` del
+hook `PostToolUse` (disparador, no publicador). → `references/publish-and-sync.md`.
 
 ## Config `.claude/confluence.json` (gestión interna, no la pide el usuario)
 
-La escribe/actualiza la skill; el usuario no la edita a mano. Formato en
-`assets/confluence.example.json`. Campos: `cloudId`, `spaceKey`, `anchor` (`mode`
-root/child + `parentPageId`/`parentTitle`), `home` (`title` + `pageId` de caché) y `publish`
-(`source`, `layout`, `include`, `exclude`, `onConflict`). Si falta `cloudId`, resuélvelo con
-`getAccessibleAtlassianResources` (uno solo → úsalo; varios → pregunta por nombre) y persístelo.
-
-**`publish` — defaults aprobados de la política (ver sección normativa más abajo):**
-
-| Campo | Default | Nota |
-|---|---|---|
-| `staging` | `true` | D5: con `staging=true`, `--stage` regenera `docs/confluence/` antes de cada publicación (ver más abajo) |
-| `source` | `docs/confluence` con staging activo; `docs` si `staging=false` o el script degrada | Raíz que se recorre para construir el árbol de páginas |
-| `layout` | `mirror-tree` | Carpetas → páginas, `.md` → páginas hijas |
-| `include` | `["**/*.md"]` | Sin cambio: la política se expresa en `exclude` (opt-out) |
-| `exclude` | ver `assets/confluence.example.json` (`_comment_exclude` explica cada patrón) | `docs/security-scan/**` es invariante no negociable; `docs/confluence/**` se autoexcluye siempre por código, no hace falta listarla |
-| `onConflict` | `update` | Sin cambio |
-
-`SKILL.md` y `confluence.example.json` deben ir siempre sincronizados: si cambia una lista,
-cambia la otra en el mismo commit.
+Formato en `assets/confluence.example.json`: `cloudId`, `spaceKey`, `anchor`, `home`, `publish`
+(`staging: true`, `source`, `layout: mirror-tree`, `include: ["**/*.md"]`, `exclude`, `onConflict`).
+`SKILL.md`/referencias y `confluence.example.json` van siempre sincronizados. → `references/config-and-policy.md`.
 
 ## Qué sube y qué no (política de publicación — normativa)
 
-> Fuente completa de la decisión: `docs/roadmap/2026-08-20-confluence-policy/spec.md`. Esta
-> sección resume la política **vigente** para quien configure o audite un espacio. Matriz
-> disparador → artefacto → ¿se publica? (los 10 disparadores conocidos): `docs/FLOWS.md`
-> sección "5 · Confluence".
-
-La política es **opt-out**: `include: ["**/*.md"]` y una lista de `exclude` cierra lo que NO se
-publica. Un documento nuevo bajo `docs/` se publica **por defecto**, salvo que caiga en una de
-estas exclusiones:
-
-| Exclusión | Por qué |
-|---|---|
-| `docs/security-scan/**` | **Invariante no negociable** — datos sensibles del agente `nemesis`. Verificable con `confluence-scope.py --check` (exit ≠ 0 si falta). |
-| `docs/en/**` | Árbol EN duplicado: es la traducción para lectores de GitHub, no del espacio de Confluence. |
-| `docs/examples/**` | Documentación interna del **plugin** (ejemplos de cómo se construyen los agentes), no del producto del proyecto consumidor. |
-| `docs/agents/**` | Ídem: documentación de cómo está hecho cada agente, no de qué hace el proyecto. |
-| `docs/**/atlassian-connector-notes.md` | Notas de trabajo sobre el propio conector Atlassian. |
-| `docs/roadmap/**/improvement-plan.md`, `tasks.md`, `test-plan.md` | Tablero de **ejecución** (plan y ledger): su sitio es el repo y Jira, no Confluence (D1). Confluence guarda la **decisión** (`spec.md`), el **presupuesto** (`evaluation.md`) y el **resultado** (`retro.md`) de cada iniciativa — no el plan detallado ni el progreso tarea a tarea. |
-| `**/testing/**` | El informe de `qa` (`report.md`/`report.pdf`, `screenshots/`, `raw/`) embebe capturas que el conector no puede adjuntar (saldrían rotas). Queda **solo-local** (D4); sigue disponible completo en el repo. |
-| `docs/confluence/**` | La propia carpeta **staged** generada por `--stage` (D5) — se autoexcluye SIEMPRE (por código, no por config) para que un `--stage` no se anide dentro del anterior. |
-| `**/node_modules/**` | Dependencias, nunca documentación. |
-
-**Consecuencia visible:** con esta política, el ledger `tasks.md` de una iniciativa **nunca**
-aparece en Confluence, aunque `implementer` dispare la sincronización al cerrar cada fase (D3) —
-ese disparo refresca lo demás que haya cambiado bajo `docs/` (típicamente `dashboard.md`), no el
-ledger en sí. Un proyecto que quiera verlo publicado tiene que añadirlo a `include` a mano; no es
-opción de primera clase (D2: sin presets de audiencia).
-
-**`docs/knowledge/**` SÍ se publica** (memoria técnica del proyecto —
-`2026-08-20-knowledge-capture`): no está en el `exclude` de arriba, así que entra en el espejo como
-cualquier otra documentación de **decisión/resultado** — igual que `spec.md`/`evaluation.md`/
-`retro.md` por iniciativa. Contiene ADR (`adr/`), trampas comprobadas (`gotchas/`) y lecciones de
-proceso (`lessons/`) — un fichero por entrada; a diferencia de `tasks.md`, no es tablero de ejecución, así que no cae en
-la exclusión D1. Verificable con `confluence-scope.py --status`: un fichero de ejemplo bajo
-`docs/knowledge/` aparece **en alcance**, no en la lista de excluidos.
-
-**Stubs `gotchas.md`/`LESSONS.md` (`knowledge-split`): no requieren caso especial.** Solo existen
-en este repo (que no publica — no hay `confluence.json` propio) y en proyectos que ya tenían el
-árbol antiguo; un consumidor nuevo nace con `gotchas/`/`lessons/` directas, sin stub que publicar.
-Si un proyecto heredara un stub y no quisiera publicarlo, lo añade a su propio `exclude`.
-
-**`docs/confluence/` — la carpeta staged (D5):**
-
-- **Derivada, no editable.** `confluence-scope.py --stage` la regenera POR COMPLETO en cada
-  ejecución; cualquier edición manual se pierde en la siguiente. Lleva un fichero de aviso con el
-  comando que la produjo llamado **`_STAGING-LEEME.md`** (nombre reservado, nunca `README.md`): así
-  no pisa la copia real de un `docs/README.md` canónico ni colisiona con ningún otro README del
-  árbol — queda excluido del alcance en cualquier carpeta.
-- **Es la respuesta visual a "¿qué sube?"**: copia byte a byte de los `.md` en alcance, misma
-  estructura de carpetas (sin el prefijo `docs/`). No hay que interpretar los `exclude`: lo que
-  está ahí es exactamente lo que se publica.
-- **`confluence-pull` nunca escribe aquí.** Un cambio bajado de Confluence se escribe siempre en
-  el fichero **canónico** de `docs/`, resuelto con el mapeo inverso `confluence-scope.py --map`
-  (ver `skills/confluence-pull/SKILL.md`).
-- **Degradación:** si `confluence-scope.py` falla o no está disponible, la skill vuelve a
-  `publish.source = "docs"` y resuelve `include`/`exclude` en línea (comportamiento anterior a
-  D5), sin bloquear el ciclo del agente que llamó.
-- **Invocación normal: siempre `--root "$PWD"`, nunca `--out`/`--docs` a mano** (ver bloques bash
-  arriba). Si alguna vez invocas `confluence-scope.py` manualmente con `--out`/`--docs`, son
-  relativos a `--root` (ubicaciones DENTRO del proyecto), no al directorio desde el que lanzas el
-  comando — al revés que `--config`/`--state`, que sí son relativos al cwd (documentado en el
-  `--help` del script tras la revisión adversarial: `--root demo --out demo/docs` anida en
-  `demo/demo/docs` si se le pasa un `--out` ya prefijado con la ruta de `--root`).
+Política **opt-out** (`include: ["**/*.md"]` + `exclude`). Fuera: `docs/security-scan/**` (**invariante no
+negociable**, `confluence-scope.py --check`), `docs/en/**`, `docs/examples/**`, `docs/agents/**`,
+`atlassian-connector-notes.md`, `improvement-plan.md`/`tasks.md`/`test-plan.md` (D1), `docs/knowledge/journal/**` (bitácora de sesión, no decisión), `**/testing/**` (D4),
+`docs/confluence/**` (staged, D5), `**/node_modules/**`. **Dentro:** `spec.md`, `evaluation.md`,
+`design.md` (decisión de arquitectura, `architect`), `retro.md` y `docs/knowledge/**` (menos `journal/`). Tabla completa con razones, consecuencias y el contrato de la carpeta
+staged → `references/config-and-policy.md`.
 
 ## Reglas
 
@@ -430,3 +177,20 @@ Si un proyecto heredara un stub y no quisiera publicarlo, lo añade a su propio 
 - **`parentId` = ubicación** (oculto al usuario): presente → hija; ausente → raíz. Debe apuntar a una página.
 - **Un proyecto → una página principal.** Todo cuelga de ella; usa el id guardado como caché para no duplicarla.
 - **Errores en llano:** sin conexión / sin permiso / página fallida → una frase clara y el siguiente paso, no un volcado técnico.
+
+## Qué NO hace
+
+- No reimplementa la API de Confluence ni instala nada: solo el conector Atlassian (Rovo MCP).
+- No escribe nada sin opt-in (`enabled: true`) ni sin el "sí" a la previsualización.
+- No publica `docs/security-scan/**` bajo ninguna configuración, ni el ledger `tasks.md` salvo `include` manual.
+- No baja contenido de Confluence a `docs/` (eso es `confluence-pull`) ni edita `docs/confluence/` a mano.
+
+## Referencias (lectura bajo demanda)
+
+| Fichero | Léelo SOLO cuando… | Contiene |
+|---|---|---|
+| `references/wizard.md` | el opt-in sea `true` y acompañes al usuario (**Pasos 1-5**, Confirmación, **3-bis**, Cierre) | guiones literales de cada pregunta, navegador de árbol 3-A (plantilla + marcadores) y modo conversacional 3-B |
+| `references/publish-and-sync.md` | vayas a escribir en Confluence (**Publicar**), te invoque otro agente (**Modo sincronización**) o toques el manifiesto / dashboard / staging | algoritmo idempotente completo, regla por tipo de cambio, regeneración del dashboard y del staging (D5), formato del manifiesto y marca de pendiente |
+| `references/config-and-policy.md` | tengas que crear/explicar la config o decidir si un fichero entra en el espejo (**Qué sube y qué no**) | campos y defaults de `publish`, tabla normativa de exclusiones con razones, `docs/knowledge/**` y stubs, contrato de `docs/confluence/` |
+| `assets/confluence.example.json` | escribas `.claude/confluence.json` | formato con `_comment_exclude` por patrón |
+| `skills/confluence-pull/SKILL.md` | el usuario quiera el sentido inverso (Confluence → `docs/`) | la skill pareja; no mezcles sentidos en la misma pasada |

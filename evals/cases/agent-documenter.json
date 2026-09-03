@@ -1,0 +1,45 @@
+{
+  "target": "agent:documenter",
+  "cases": [
+    {
+      "id": "documenter-literal",
+      "prompt": "Documenta el proyecto: genera la documentación técnica y de producto en docs/ a partir del código real.",
+      "trigger": "literal",
+      "expect": {
+        "activates": true,
+        "artifacts": [
+          "docs/README.md"
+        ]
+      },
+      "notes": "Disparador literal «documenta el proyecto»."
+    },
+    {
+      "id": "documenter-parafrasis",
+      "prompt": "Este repo no tiene docs; explora el código y crea el índice, la arquitectura, el stack, los módulos y una guía de desarrollo en docs/, con ejemplos reales del código.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true,
+        "artifacts": [
+          "docs/README.md"
+        ]
+      }
+    },
+    {
+      "id": "documenter-neg-to-pdf",
+      "prompt": "Convierte docs/README.md a PDF con aspecto moderno.",
+      "expect": {
+        "activates": false,
+        "redirect": "skill:to-pdf"
+      }
+    },
+    {
+      "id": "documenter-neg-api-contract",
+      "prompt": "Valida el openapi.yaml de este servicio y dime si el cambio frente a la versión anterior rompe a los clientes.",
+      "expect": {
+        "activates": false,
+        "redirect": "skill:api-contract"
+      },
+      "notes": "Vecino: documentar la API es documenter; VALIDAR el contrato y su diff rompedor es api-contract."
+    }
+  ]
+}

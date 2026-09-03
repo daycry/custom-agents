@@ -22,6 +22,11 @@ jobs:
       - name: Linter del plugin
         run: python scripts/lint_plugin.py
 
+      - name: Evals — validación estática (cobertura y disparadores literales)
+        # evals/run.py NO corre aquí (cuesta tokens); check.py garantiza que la suite exista y siga
+        # atada a las descriptions reales
+        run: python evals/check.py
+
       - name: Tests (suites del repo)
         # bucle, no lista fija: cualquier tests/test_*.py nuevo entra solo en la CI
         run: |
@@ -30,10 +35,10 @@ jobs:
             python "$t" || exit 1
           done
 
-      - name: Tests (pytest — scripts shared + skills con suite propia)
-        # carpetas, no lista fija: cualquier test_*.py nuevo en agent-kits/shared/ o en
-        # skills/*/scripts/ entra solo en la CI (review-lens-select vive junto a su skill)
-        run: python -m pytest agent-kits/shared skills/adversarial-review/scripts -q
+      - name: Tests (pytest — scripts shared + skills con suite propia + evals)
+        # carpetas, no lista fija: cualquier test_*.py nuevo en agent-kits/shared/, en
+        # skills/*/scripts/ o en evals/ entra solo en la CI (review-lens-select vive junto a su skill)
+        run: python -m pytest agent-kits/shared skills/adversarial-review/scripts skills/code-health/scripts skills/dependency-upgrade/scripts skills/changelog-sync/scripts skills/unit-tests/scripts skills/api-contract/scripts skills/jira-sync/scripts evals -q
 
       - name: Sintaxis de todos los scripts Python
         run: |

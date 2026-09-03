@@ -11,6 +11,14 @@
   Duraciones: las columnas real/est de tareas y resumen van en DECIMAL (X,Xh) porque las
   parsea máquina (dashboard/worklog) — NO las cambies a XhYm. El formato humano XhYm
   (usage-meter.py fmt: 32m · 1h 32m · 18h) va en el frontmatter (duracion) y en informes.
+  Verificación (obligatoria): cada tarea lleva `- **Verificación**: <comando> → <resultado esperado>`
+  (uno o varios; en tareas de prosa: «lectura: <qué comprobar>»). Dos formas válidas: EN LÍNEA, ítems
+  separados por ` · ` (`- **Verificación**: \`a\` → 1 · \`b\` → 2`), o SUB-LISTA (`- **Verificación**:` y
+  debajo `  - \`a\` → 1` / `  - \`b\` → 2`, indentados). Al ejecutarla, el implementer puede anotar
+  `- **Verificación** (ejecutada <fecha> — salida: …): …` sin romper el parseo. El frontmatter declara
+  `verificacion: obligatoria` y `ledger-lint.py` falla (exit 1) si una tarea no la tiene: sin
+  verificación ejecutable la tarea no está bien definida. El implementer la ejecuta al cerrar la
+  tarea y pega la salida; `task-brief.py` la inyecta en el brief del subagente.
 -->
 ---
 generacion:
@@ -22,6 +30,7 @@ generacion:
   horas_ia: {{N.NN}}
   duracion: {{XhYm}}
   ratio_usado: {{N}}
+verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige ledger-lint (exit 1 si falta)
 ---
 
 # Checklist de Tareas — {{Título del plan}}
@@ -31,6 +40,7 @@ generacion:
 | **Estado** | borrador |
 | **Fecha** | {{YYYY-MM-DD}} |
 | **Plan** | [`improvement-plan.md`](./improvement-plan.md) |
+| **Diseño** | {{[`design.md`](./design.md) — opción O<n> — o «n/a»}} |
 
 > **⚠️ Ledger canónico de progreso.** Este fichero es la **fuente única de verdad** del avance del plan. **Cualquier** implementador —el agente `implementer`, el chat principal, o un orquestador SDD externo— **debe** marcar aquí cada tarea (checkbox + estado) al completarla y actualizar el resumen. Los ledgers propios de otras herramientas son **espejo**, no fuente.
 
@@ -67,6 +77,7 @@ generacion:
 - **Tipo**: {{frontend / backend / db / devops / test / docs — OPCIONAL; si la tarea tiene dominio claro, el despacho por subagentes usa la persona correspondiente; sin tipo → subagente genérico. Omite la línea si no aplica.}}
 - **Archivos**: `{{ruta}}`, `{{ruta}}`
 - **Cubre (tests)**: {{si es tarea de UI: E2E-0X / M-0X del `test-plan.md`; si no aplica: —}}
+- **Verificación**: `{{comando exacto, p. ej. python3 -m pytest -q tests/test_x.py}}` → {{resultado esperado, p. ej. `3 passed`}} {{· otro comando → resultado; en prosa/docs: «lectura: <qué comprobar>»}}
 
 **Criterios de aceptación**
 - [ ] {{Criterio verificable 1}}
@@ -90,6 +101,9 @@ generacion:
 - **Previsión IA**: {{X}} in / {{X}} out tok · {{X}} €
 - **Dependencias**: {{T-01}}
 - **Archivos**: `{{ruta}}`
+- **Verificación**:
+  - `{{comando 1}}` → {{resultado esperado}}
+  - `{{comando 2}}` → {{resultado esperado}}   <!-- forma sub-lista; la forma en línea con ` · ` también vale -->
 
 **Criterios de aceptación**
 - [ ] {{Criterio 1}}
@@ -117,6 +131,7 @@ generacion:
 - **Previsión IA**: {{X}} in / {{X}} out tok · {{X}} €
 - **Dependencias**: {{...}}
 - **Archivos**: `{{ruta}}`
+- **Verificación**: `{{comando}}` → {{resultado esperado}}
 
 **Criterios de aceptación**
 - [ ] {{Criterio 1}}
@@ -142,6 +157,7 @@ generacion:
 - **Previsión IA**: {{X}} in / {{X}} out tok · {{X}} €
 - **Dependencias**: {{tareas previas}}
 - **Archivos**: `{{ruta}}`
+- **Verificación**: `{{comando}}` → {{resultado esperado}}
 
 **Criterios de aceptación**
 - [ ] {{Todos los tests pasan}}

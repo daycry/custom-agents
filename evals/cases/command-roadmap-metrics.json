@@ -1,0 +1,33 @@
+{
+  "target": "command:roadmap-metrics",
+  "cases": [
+    {
+      "id": "roadmap-metrics-literal",
+      "prompt": "Dame el informe real vs estimado del roadmap: horas y tokens previstos frente a lo imputado en los tasks.md, con desviaciones y total de cartera.",
+      "trigger": "literal",
+      "expect": {
+        "activates": true
+      },
+      "notes": "Ventana literal «informe real vs estimado del roadmap»."
+    },
+    {
+      "id": "roadmap-metrics-parafrasis",
+      "prompt": "¿Cuánto nos estamos desviando de los presupuestos en todas las iniciativas? Quiero la comparación entre lo evaluado y lo real y un total de cartera; solo lectura.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true,
+        "must_not": [
+          "retro.md"
+        ]
+      }
+    },
+    {
+      "id": "roadmap-metrics-neg-retro",
+      "prompt": "Haz la retro de la iniciativa demo y escribe retro.md con las causas de desviación.",
+      "expect": {
+        "activates": false,
+        "redirect": "command:retro"
+      }
+    }
+  ]
+}

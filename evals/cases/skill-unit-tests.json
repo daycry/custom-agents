@@ -1,0 +1,47 @@
+{
+  "target": "skill:unit-tests",
+  "cases": [
+    {
+      "id": "unit-tests-literal",
+      "prompt": "Necesito subir la cobertura de tests del proyecto: dime el % actual solo de los ficheros que he tocado, y pon un gate que falle si no llega al 80%.",
+      "trigger": "literal",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "changed-only"
+        ]
+      },
+      "notes": "Disparador literal «sube la cobertura de tests» / «pon un gate de cobertura»."
+    },
+    {
+      "id": "unit-tests-parafrasis",
+      "prompt": "Antes de cerrar cada fase quiero que se compruebe automáticamente qué porcentaje del código NUEVO está cubierto por tests unitarios, con la herramienta oficial del stack, y que avise sin bloquear si esa herramienta no está instalada.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "cobertura"
+        ]
+      },
+      "notes": "Describe el gate por diff y la degradación sin nombrar la skill."
+    },
+    {
+      "id": "unit-tests-neg-e2e",
+      "prompt": "Prueba la interfaz de la iniciativa demo de principio a fin con Playwright contra el entorno local y dame el informe con capturas.",
+      "expect": {
+        "activates": false,
+        "redirect": "agent:qa"
+      },
+      "notes": "Vecino: pruebas end-to-end con evidencia visual es qa (qa-gate), no la capa unitaria de esta skill."
+    },
+    {
+      "id": "unit-tests-neg-tdd",
+      "prompt": "Implementa la T-02 con TDD: escribe primero el test, quiero verlo fallar en rojo antes de tocar el código.",
+      "expect": {
+        "activates": false,
+        "redirect": "skill:tdd"
+      },
+      "notes": "Vecino: el MÉTODO de escribir el test (rojo antes que verde) es tdd; esta skill solo mide el % agregado."
+    }
+  ]
+}

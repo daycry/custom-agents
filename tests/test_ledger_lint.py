@@ -147,7 +147,61 @@ def main():
     code, out = run(unica.replace("Fase única — Todo | 3 | 3", "Fase única — Todo | 2 | 3"))
     assert code == 1 and "descuadrado" in out, f"descuadre en Fase única debe ser error: {out}"
 
-    print("test_ledger_lint: 11/11 OK")
+    # 12) [plan-and-diet T-02] frontmatter `verificacion: obligatoria` + tarea sin `Verificación` → ERROR (exit 1)
+    fm_obl = "---\ntasks: demo\nverificacion: obligatoria   # comentario\n---\n"
+    con_verif_t1 = doc().replace("- **Estado**: completado\n",
+                                 "- **Estado**: completado\n- **Verificación**: `pytest -q` → passed\n", 1)
+    code, out = run(fm_obl + con_verif_t1)
+    assert code == 1 and "T-02: sin campo **Verificación** (el ledger declara verificacion: obligatoria)" in out, out
+    assert "T-01: sin campo" not in out, out
+    # la variante `- **Verificación** (ejecutada …): …` también cuenta como campo presente
+    ejecutada = con_verif_t1.replace("- **Verificación**: `pytest -q` → passed",
+                                     "- **Verificación** (ejecutada 2026-09-03 — passed): `pytest -q` → passed")
+    code, out = run(fm_obl + ejecutada)
+    assert code == 1 and "T-01: sin campo" not in out and "T-02: sin campo" in out, out
+
+    # 13) mismo ledger SIN la clave → adopción parcial: solo AVISO (exit 0); y sin la clave y sin ningún
+    #     `Verificación` (los 20 ledgers previos) → NI aviso: salida idéntica a la versión anterior
+    code, out = run(con_verif_t1)
+    assert code == 0 and "⚠️  T-02: sin campo **Verificación** (otras tareas lo declaran)" in out, out
+    code, out = run(doc())
+    assert code == 0 and "Verificación" not in out, out
+    code, out = run("---\nverificacion: recomendada\n---\n" + doc())     # clave con otro valor → aviso sin «otras»
+    assert code == 0 and "⚠️  T-01: sin campo **Verificación**\n" in out and "otras tareas" not in out, out
+
+    # 14) con la clave y TODAS las tareas con el campo → exit 0 sin aviso de Verificación
+    todas = con_verif_t1.replace("- **Estado**: en-progreso\n",
+                                 "- **Estado**: en-progreso\n- **Verificación**: lectura: la doc dice X\n", 1)
+    code, out = run(fm_obl + todas)
+    assert code == 0 and "Verificación" not in out, out
+
+    # 15) [T-fix1, gap Important #1] sub-lista bajo el campo → cuenta como Verificación (los ítems indentados
+    #     se consumen y NO se confunden con criterios); campo VACÍO (sin texto ni sub-lista) → error distinto
+    #     de «sin campo»; variante `(ejecutada … — salida: …): cmd` → el paréntesis no rompe el parseo
+    sublista = doc().replace("- **Estado**: completado\n",
+                             "- **Estado**: completado\n- **Verificación**:\n  - `pytest -q` → passed\n  - `lint` → 0 errores\n", 1)
+    sublista = sublista.replace("- **Estado**: en-progreso\n",
+                                "- **Estado**: en-progreso\n- **Verificación** (ejecutada 2026-09-03 — salida: `ok: 3`): `make check` → `ok: 3`\n", 1)
+    code, out = run(fm_obl + sublista)
+    assert code == 0 and "Verificación" not in out, out
+    vacio = doc().replace("- **Estado**: completado\n", "- **Estado**: completado\n- **Verificación**:\n", 1) \
+                 .replace("- **Estado**: en-progreso\n", "- **Estado**: en-progreso\n- **Verificación**: `x` → y\n", 1)
+    code, out = run(fm_obl + vacio)
+    assert code == 1 and "T-01: campo **Verificación** VACÍO" in out and "T-01: sin campo" not in out, out
+    # el parser importable expone ítems y paréntesis por separado
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("ledger_lint", SCRIPT)
+    ll = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(ll)
+    tareas = {x["id"]: x for x in ll.parse_ledger(fm_obl + sublista)["tareas"]}
+    assert tareas["T-01"]["verificacion_items"] == ["`pytest -q` → passed", "`lint` → 0 errores"], tareas["T-01"]
+    assert tareas["T-01"]["checked"] == 2, "la sub-lista no se come los criterios"
+    assert tareas["T-02"]["verificacion_items"] == ["`make check` → `ok: 3`"], tareas["T-02"]
+    assert tareas["T-02"]["verificacion_ejecutada"] == "ejecutada 2026-09-03 — salida: `ok: 3`"
+    inline = ll.parse_verificacion(["- **Verificación**: `a` → 1 · `b` → 2"], 0)[0]
+    assert inline["items"] == ["`a` → 1", "`b` → 2"] and inline["ejecutada"] is None
+
+    print("test_ledger_lint: 15/15 OK")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,50 @@
+{
+  "target": "agent:reviewer",
+  "cases": [
+    {
+      "id": "reviewer-literal",
+      "prompt": "Actúa como revisor de la lente B sobre el diff de la rama feature/demo (base main): solo defectos de corrección con fichero:línea y escenario, sin estilo, en la tabla estructurada de adversarial-review. No toques nada.",
+      "trigger": "literal",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "fichero"
+        ],
+        "must_not": [
+          "he corregido"
+        ]
+      },
+      "notes": "Disparador literal «actúa como revisor de la lente A/B/C»."
+    },
+    {
+      "id": "reviewer-parafrasis",
+      "prompt": "Necesito un segundo par de ojos que no haya visto el código: mira únicamente la parte de seguridad de los cambios de esta rama (inyección, secretos, sesiones) y devuélveme hallazgos con línea y CWE o «sin hallazgos», sin arreglar nada.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "CWE"
+        ]
+      },
+      "notes": "Una sola lente (C), contexto fresco, solo lectura — sin nombrar al agente."
+    },
+    {
+      "id": "reviewer-neg-skill",
+      "prompt": "Revisa este diff con la revisión de dos lentes antes de pasar a qa: iniciativa docs/roadmap/2026-01-01-demo/, intento 1.",
+      "expect": {
+        "activates": false,
+        "redirect": "skill:adversarial-review"
+      },
+      "notes": "Vecino: la revisión completa (puerta scope-check, lentes, fusión, traza) es la skill; el agente es solo una lente que la skill despacha."
+    },
+    {
+      "id": "reviewer-neg-nemesis",
+      "prompt": "Haz una auditoría de seguridad completa del proyecto: OWASP, dependencias, IaC y un pentest contra localhost.",
+      "expect": {
+        "activates": false,
+        "redirect": "agent:nemesis"
+      },
+      "notes": "Vecino: auditoría completa del proyecto es nemesis; la lente C solo mira lo que introduce el diff."
+    }
+  ]
+}

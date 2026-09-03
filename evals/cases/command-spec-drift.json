@@ -1,0 +1,36 @@
+{
+  "target": "command:spec-drift",
+  "cases": [
+    {
+      "id": "spec-drift-literal",
+      "prompt": "Detecta la deriva entre las specs implementadas y el código actual: qué criterios de aceptación ya no se cumplen hoy.",
+      "trigger": "literal",
+      "expect": {
+        "activates": true,
+        "artifacts": [
+          "docs/roadmap/DRIFT.md"
+        ]
+      },
+      "notes": "Ventana literal «deriva entre las specs implementadas»."
+    },
+    {
+      "id": "spec-drift-parafrasis",
+      "prompt": "Las specs marcadas como implementadas tienen meses; comprueba criterio a criterio contra el código de hoy cuáles siguen vigentes y cuáles no, con evidencia, y escríbelo en el roadmap.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true,
+        "artifacts": [
+          "docs/roadmap/DRIFT.md"
+        ]
+      }
+    },
+    {
+      "id": "spec-drift-neg-review",
+      "prompt": "Revisa el diff de la rama actual buscando gaps contra el plan de la iniciativa demo.",
+      "expect": {
+        "activates": false,
+        "redirect": "skill:adversarial-review"
+      }
+    }
+  ]
+}

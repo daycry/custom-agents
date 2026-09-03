@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """
-review-lens-select.py — decide de forma DETERMINISTA si la Lente C (seguridad) de la skill
-`adversarial-review` aplica a un diff.
+review-lens-select.py — decide de forma DETERMINISTA si la Lente C (seguridad) y/o la Lente D
+(rendimiento) de la skill `adversarial-review` aplican a un diff.
 
-(Iniciativa adversarial-review: la revisión de dos lentes A+B se lanza siempre; la lente C solo
-si el diff toca algo sensible — así no se gasta un tercer revisor en cambios de prosa o de
-scripts inocuos. La decisión va en script con tests, no en el juicio del orquestador.)
+(Iniciativa adversarial-review: la revisión de dos lentes A+B se lanza siempre; C y D solo si el
+diff toca algo sensible/costoso — así no se gastan revisores de más en cambios de prosa o de
+scripts inocuos. La decisión va en script con tests, no en el juicio del orquestador. Iniciativa
+superiority T-04: añade la Lente D con el mismo contrato y el mismo script.)
 
 Qué hace:
   1. Ficheros cambiados = `git diff --name-only <base>` (base…working tree: comiteado + sin
@@ -36,11 +37,28 @@ Qué hace:
   4. Config: `.claude/dev.json` → "revision": {"lenteSeguridad": "auto" | "siempre" | "nunca",
      "excluir": ["glob", …]} (default auto y sin exclusiones; fichero ausente/corrupto/valor
      desconocido → auto + aviso en stderr; `excluir` que no sea lista de cadenas → se ignora + aviso).
+  5. **Lente D (rendimiento, superiority T-04):** mismo `--base`/`--files`/`excluir`, decisión
+     independiente. Por RUTA (stems anclados): repository|repo|dao|query|sql|migration|cache|
+     queue|worker|batch|export|import|report|loop|scheduler — lista exacta RUTA_RE_D (abajo); misma
+     exclusión de prosa/`docs/**` y mismo `revision.excluir` (comparte glob, no el resto de la
+     config). Por CONTENIDO de las líneas añadidas: dos familias. (a) **Independientes de contexto**
+     (bastan en cualquier línea): una llamada `sleep` bloqueante, `readFileSync` síncrono, la doble
+     conversión `JSON.parse`/`JSON.stringify` para clonar un objeto. (b) **Dependientes de un bucle
+     previo** (`for`/`foreach` de una sola línea, mirado en las siguientes líneas AÑADIDAS del mismo
+     fichero — ventana corta, heurística de proximidad, no un parser real): una llamada de consulta
+     dentro (`.query`/`.all()`/`->get()`/`->first()`/`SELECT` → N+1), `await` dentro del bucle,
+     compilar una expresión regular dentro del bucle, concatenar cadenas con `+=` dentro del bucle, o
+     un segundo bucle dentro del primero que a su vez contiene una llamada (bucle anidado con
+     llamada). Config: `.claude/dev.json` → "revision": {"lenteRendimiento": "auto|siempre|nunca"}
+     (mismo vocabulario y mismo default `auto` que `lenteSeguridad`; valor desconocido → auto +
+     aviso). Contrato exacto: constantes `RUTA_RE_D`/`CONTENIDO_D_INDEPENDIENTE`/`PATRONES_TRAS_BUCLE_D`
+     de este fichero, con sus tests.
 
 Uso:
   review-lens-select.py [--base <ref>] [--files f1 f2 …] [--json] [--root <dir>]
-Salida: `lente_c: true|false` + motivos (tipo ruta|contenido|config, fichero, patrón, línea).
-Exit: 0 SIEMPRE (nunca bloquea la revisión; ante error, aviso en stderr y lente_c: false).
+Salida: `lente_c`/`lente_d`: true|false + motivos de cada una (tipo ruta|contenido|config, fichero,
+patrón, línea).
+Exit: 0 SIEMPRE (nunca bloquea la revisión; ante error, aviso en stderr y ambas `false`).
 """
 import argparse
 import importlib.util
@@ -62,6 +80,14 @@ RUTA_RE = re.compile(
     r"permissions?|acl(?![a-z])|rbac(?![a-z])|cors(?![a-z])|csrf|upload|payment|billing|docker|nginx|"
     r"k8s|helm(?![a-z]))"
     r"|(^|/)\.env(?=[^/]*$)|(^|/)Dockerfile(?=[^/]*$)|(^|/)\.github/workflows/",
+    re.IGNORECASE)
+
+# Lente D (rendimiento, superiority T-04): stems anclados al inicio de token, sin límite final (no
+# son prefijo de palabras inocuas habituales en este repo). `dao`/`sql` cortos pero anclados evitan
+# falsos positivos tipo `oracle.py`/`nginx-sql-proxy.py` (el stem no empieza donde no hay separador).
+RUTA_RE_D = re.compile(
+    r"(?<![a-z0-9])(repository|repo|dao|query|sql|migrations?|cache|queue|worker|batch|export|"
+    r"import|report|loop|scheduler)",
     re.IGNORECASE)
 
 
@@ -120,6 +146,35 @@ CONTENIDO = [
     ("set-cookie", re.compile(r"Set[-]Cookie")),
 ]
 
+# ---- Lente D (rendimiento, superiority T-04) --------------------------------------------------
+# Mismo cuidado de auto-inmunidad que CONTENIDO: ninguna etiqueta/regex de aquí abajo debe casar
+# consigo misma NI con ninguna línea de este bloque de constantes (van todas ANTES de cualquier
+# bucle real del script, así que un `for` añadido más abajo nunca las tiene delante en su ventana).
+
+# Apertura de un bucle de una sola línea: `for x in y:` de Python, o la forma con paréntesis de
+# otros lenguajes — for/foreach clásicos, sin mostrar aquí el símbolo exacto para que este propio
+# comentario no case con la regex que describe. Heurística de PROXIMIDAD sobre líneas añadidas, no
+# un parser del lenguaje — por diseño puede tener falsos positivos que `revision.excluir` o el
+# rebate con evidencia (§4 de adversarial-review) resuelven.
+LOOP_D_RE = re.compile(r"^\s*for\s+\S.*:\s*$|\bforeach\s*\(|\bfor\s*\(")
+
+# Independientes de contexto: basta con que aparezcan en cualquier línea añadida.
+CONTENIDO_D_INDEPENDIENTE = [
+    ("sleep-bloqueante", re.compile(r"\bsleep\s*\(")),
+    ("read-file-sync", re.compile(r"\breadFileSync\s*\(")),
+    ("json-doble-vuelta", re.compile(r"JSON[.]parse\s*\(\s*JSON[.]stringify\s*\(")),
+]
+
+# Dependientes de un LOOP_D_RE previo: solo cuentan dentro de VENTANA_D líneas añadidas siguientes
+# (mismo fichero). `n-plus-one` cubre `.query(`/`.all()`/`->get()`/`->first()`/`SELECT` a la vez.
+PATRONES_TRAS_BUCLE_D = [
+    ("n-plus-one", re.compile(r"[.]query\s*\(|[.]all\s*\(\s*\)|->get\s*\(\s*\)|->first\s*\(\s*\)|\bSELECT\b")),
+    ("await-en-bucle", re.compile(r"\bawait\b")),
+    ("regex-en-bucle", re.compile(r"\bre[.]compile\s*\(")),
+    ("concat-en-bucle", re.compile(r"[+]=\s*['\"]")),
+]
+VENTANA_D = 6   # líneas añadidas siguientes (del mismo fichero) que cuentan como "dentro del bucle"
+
 PROSA_EXT = (".md", ".markdown", ".txt", ".rst")
 TEST_RE = re.compile(r"(^|/)(tests?|__tests__|spec|fixtures?)/|(^|/)test_[^/]*$|_test\.[^/]+$|\.(test|spec)\.[^/]+$",
                      re.IGNORECASE)
@@ -131,28 +186,37 @@ def avisar(msg):
 
 # ------------------------------------------------------------------ config ----
 
+def _leer_modo_clave(rev, clave, avisos):
+    """Lee `rev[clave]` (lenteSeguridad|lenteRendimiento) validado contra MODOS; auto + aviso si
+    falta o es desconocido. `rev` ya se sabe dict."""
+    if clave not in rev:
+        return "auto"
+    val = rev.get(clave)
+    if isinstance(val, str) and val.strip().lower() in MODOS:
+        return val.strip().lower()
+    avisos.append(f".claude/dev.json revision.{clave} = {val!r} desconocido (auto|siempre|nunca): uso auto")
+    return "auto"
+
+
 def leer_config(root):
-    """Devuelve (modo, excluir[list[str]], avisos[list[str]]). Nunca lanza."""
+    """Devuelve (modo_c, modo_d, excluir[list[str]], avisos[list[str]]). Nunca lanza. `excluir` es
+    COMPARTIDO por las lentes C y D (mismos globs, solo afectan a la heurística de RUTA de cada una)."""
     path = os.path.join(root, ".claude", "dev.json")
     if not os.path.isfile(path):
-        return "auto", [], []
+        return "auto", "auto", [], []
     try:
         with open(path, encoding="utf-8-sig") as f:
             cfg = json.load(f)
     except (OSError, ValueError) as e:
-        return "auto", [], [f".claude/dev.json ilegible ({e.__class__.__name__}): lenteSeguridad = auto"]
+        return "auto", "auto", [], [f".claude/dev.json ilegible ({e.__class__.__name__}): lenteSeguridad/lenteRendimiento = auto"]
     rev = cfg.get("revision") if isinstance(cfg, dict) else None
     if rev is None:
-        return "auto", [], []
+        return "auto", "auto", [], []
     if not isinstance(rev, dict):
-        return "auto", [], [f".claude/dev.json revision = {rev!r} no es un objeto {{\"lenteSeguridad\": …}}: uso auto"]
-    modo, avisos = "auto", []
-    if "lenteSeguridad" in rev:
-        val = rev.get("lenteSeguridad")
-        if isinstance(val, str) and val.strip().lower() in MODOS:
-            modo = val.strip().lower()
-        else:
-            avisos.append(f".claude/dev.json revision.lenteSeguridad = {val!r} desconocido (auto|siempre|nunca): uso auto")
+        return "auto", "auto", [], [f".claude/dev.json revision = {rev!r} no es un objeto {{\"lenteSeguridad\": …}}: uso auto"]
+    avisos = []
+    modo_c = _leer_modo_clave(rev, "lenteSeguridad", avisos)
+    modo_d = _leer_modo_clave(rev, "lenteRendimiento", avisos)
     excluir = []
     if "excluir" in rev:
         ex = rev.get("excluir")
@@ -160,13 +224,13 @@ def leer_config(root):
             excluir = [re.sub(r"^(\./)+", "", x.replace("\\", "/").strip()) for x in ex if x.strip()]
         else:
             avisos.append(f".claude/dev.json revision.excluir = {ex!r} no es una lista de globs: se ignora")
-    return modo, excluir, avisos
+    return modo_c, modo_d, excluir, avisos
 
 
 def leer_modo(root):
-    """Compatibilidad: (modo, primer aviso|None)."""
-    modo, _, avisos = leer_config(root)
-    return modo, (avisos[0] if avisos else None)
+    """Compatibilidad (solo Lente C): (modo, primer aviso|None)."""
+    modo_c, _modo_d, _excluir, avisos = leer_config(root)
+    return modo_c, (avisos[0] if avisos else None)
 
 
 def excluido_de_ruta(rel, excluir):
@@ -345,6 +409,54 @@ def decidir(modo, motivos):
     return bool(motivos), motivos
 
 
+# ---- Lente D (rendimiento, superiority T-04) --------------------------------------------------
+
+def motivos_de_d(ficheros, lineas_por_fichero, excluir=()):
+    """Mismo contrato que `motivos_de` (Lente C) pero con la heurística de rendimiento: RUTA_RE_D +
+    CONTENIDO_D_INDEPENDIENTE (por línea) + PATRONES_TRAS_BUCLE_D (por ventana tras LOOP_D_RE)."""
+    motivos = []
+    for f in ficheros:
+        m = RUTA_RE_D.search(f) if evaluar_ruta(f) and not excluido_de_ruta(f, excluir) else None
+        if m:
+            motivos.append({"tipo": "ruta", "fichero": f, "patron": m.group(0)})
+        if not escanear_contenido(f):
+            continue
+        lineas = lineas_por_fichero.get(f, [])
+        vistos = set()
+        for nline, texto in lineas:
+            for nombre, rx in CONTENIDO_D_INDEPENDIENTE:
+                if nombre in vistos:
+                    continue
+                if rx.search(texto):
+                    vistos.add(nombre)
+                    motivos.append({"tipo": "contenido", "fichero": f, "patron": nombre, "linea": nline})
+        aperturas = [i for i, (_n, t) in enumerate(lineas) if LOOP_D_RE.search(t)]
+        for idx in aperturas:
+            nline_apertura = lineas[idx][0]
+            ventana = lineas[idx + 1: idx + 1 + VENTANA_D]
+            hallados = set()
+            for _n2, texto2 in ventana:
+                for nombre, rx in PATRONES_TRAS_BUCLE_D:
+                    if nombre in hallados:
+                        continue
+                    if rx.search(texto2):
+                        hallados.add(nombre)
+                        motivos.append({"tipo": "contenido", "fichero": f, "patron": nombre, "linea": nline_apertura})
+            hay_bucle_anidado = any(idx < j <= idx + VENTANA_D for j in aperturas)
+            if "n-plus-one" in hallados and hay_bucle_anidado:
+                motivos.append({"tipo": "contenido", "fichero": f, "patron": "bucle-anidado-con-llamada",
+                                "linea": nline_apertura})
+    return motivos
+
+
+def decidir_d(modo, motivos):
+    if modo == "siempre":
+        return True, [{"tipo": "config", "fichero": ".claude/dev.json", "patron": "lenteRendimiento: siempre"}] + motivos
+    if modo == "nunca":
+        return False, []
+    return bool(motivos), motivos
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--base", default=None, help="ref base del diff (default: merge-base con main/master)")
@@ -355,7 +467,7 @@ def main():
 
     avisos = []
     root = os.path.abspath(args.root)
-    modo, excluir, avisos_cfg = leer_config(root)
+    modo_c, modo_d, excluir, avisos_cfg = leer_config(root)
     avisos.extend(avisos_cfg)
 
     base_desc, ficheros, lineas = "—", [], {}
@@ -367,7 +479,7 @@ def main():
         else:
             groot = repo_root(root)
             if not groot:
-                avisos.append("fuera de un repositorio git y sin --files: no hay diff que evaluar (lente_c: false)")
+                avisos.append("fuera de un repositorio git y sin --files: no hay diff que evaluar (lente_c/lente_d: false)")
             else:
                 root_git = groot
                 base, base_desc, av = resolver_base(root_git, args.base)
@@ -378,27 +490,39 @@ def main():
                 for f in unt:
                     lineas[f] = lineas_fichero_entero(os.path.join(root_git, f))
     except Exception as e:  # noqa: BLE001 — nunca bloquea
-        avisos.append(f"error evaluando el diff ({e.__class__.__name__}: {e}); lente_c: false")
+        avisos.append(f"error evaluando el diff ({e.__class__.__name__}: {e}); lente_c/lente_d: false")
         ficheros, lineas = [], {}
 
-    motivos = motivos_de(ficheros, lineas, excluir) if ficheros else []
-    lente_c, motivos = decidir(modo, motivos)
+    motivos_c = motivos_de(ficheros, lineas, excluir) if ficheros else []
+    lente_c, motivos_c = decidir(modo_c, motivos_c)
+    motivos_d = motivos_de_d(ficheros, lineas, excluir) if ficheros else []
+    lente_d, motivos_d = decidir_d(modo_d, motivos_d)
 
     for a in avisos:
         avisar(a)
     if args.json:
-        print(json.dumps({"lente_c": lente_c, "modo": modo, "base": base_desc, "ficheros": len(ficheros),
-                          "motivos": motivos, "avisos": avisos}, ensure_ascii=False, indent=2))
+        print(json.dumps({"lente_c": lente_c, "modo": modo_c, "motivos": motivos_c,
+                          "lente_d": lente_d, "modo_d": modo_d, "motivos_d": motivos_d,
+                          "base": base_desc, "ficheros": len(ficheros), "avisos": avisos},
+                         ensure_ascii=False, indent=2))
     else:
-        print(f"review-lens-select: lente_c: {'true' if lente_c else 'false'} · modo {modo} · base {base_desc} · "
+        print(f"review-lens-select: lente_c: {'true' if lente_c else 'false'} · modo {modo_c} · "
+              f"lente_d: {'true' if lente_d else 'false'} · modo {modo_d} · base {base_desc} · "
               f"{len(ficheros)} fichero(s) cambiado(s)")
-        if motivos:
-            print(f"motivos ({len(motivos)}):")
-            for m in motivos:
+        if motivos_c:
+            print(f"motivos lente_c ({len(motivos_c)}):")
+            for m in motivos_c:
                 pos = f":{m['linea']}" if "linea" in m else ""
                 print(f"   {m['tipo']:<9} {m['fichero']}{pos}  ~ {m['patron']}")
         else:
-            print("motivos: —")
+            print("motivos lente_c: —")
+        if motivos_d:
+            print(f"motivos lente_d ({len(motivos_d)}):")
+            for m in motivos_d:
+                pos = f":{m['linea']}" if "linea" in m else ""
+                print(f"   {m['tipo']:<9} {m['fichero']}{pos}  ~ {m['patron']}")
+        else:
+            print("motivos lente_d: —")
     return 0
 
 

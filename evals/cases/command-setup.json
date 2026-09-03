@@ -1,0 +1,45 @@
+{
+  "target": "command:setup",
+  "cases": [
+    {
+      "id": "setup-literal",
+      "prompt": "Haz el onboarding del plugin en un proyecto nuevo: config de presupuesto, opt-ins de Jira/Confluence y disciplina de desarrollo, todo en una pasada.",
+      "trigger": "literal",
+      "expect": {
+        "activates": true,
+        "artifacts": [
+          ".claude/rates.json"
+        ]
+      },
+      "notes": "Ventana literal «onboarding del plugin en un proyecto»."
+    },
+    {
+      "id": "setup-parafrasis",
+      "prompt": "Acabo de instalar custom-agents en este repo; configúramelo entero (tarifas, integraciones, constitución, TDD/worktrees) sin que cada skill me pregunte por separado.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true,
+        "artifacts": [
+          ".claude/dev.json"
+        ]
+      }
+    },
+    {
+      "id": "setup-neg-rates",
+      "prompt": "Verifica el precio de tokens vigente de la API y actualiza .claude/rates.json con la fecha.",
+      "expect": {
+        "activates": false,
+        "redirect": "skill:rates-verify"
+      }
+    },
+    {
+      "id": "setup-neg-doctor",
+      "prompt": "No me reconfigures nada: solo comprueba si el plugin está bien instalado en este proyecto (hooks registrados, statusline, configs de .claude/) y dime qué falta.",
+      "expect": {
+        "activates": false,
+        "redirect": "command:doctor"
+      },
+      "notes": "Vecino: DIAGNOSTICAR sin escribir es /doctor; /setup escribe la config."
+    }
+  ]
+}

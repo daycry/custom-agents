@@ -1,0 +1,35 @@
+{
+  "target": "skill:cybersecurity",
+  "cases": [
+    {
+      "id": "cybersecurity-literal",
+      "prompt": "Haz un security audit de src/ con OWASP Top 10 y CWE Top 25; revisa también secretos hardcodeados y dependencias con CVEs.",
+      "trigger": "literal",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "OWASP"
+        ]
+      },
+      "notes": "Disparador literal «security audit» (description en inglés; prompt mixto como un usuario real)."
+    },
+    {
+      "id": "cybersecurity-parafrasis",
+      "prompt": "Repasa el código de la API buscando vulnerabilidades, credenciales en claro y librerías con fallos conocidos; quiero una puntuación global y un informe por dimensión, con supresión de falsos positivos del framework.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true
+      },
+      "notes": "Sin «audit/scan»: vulnerabilidades + credenciales + deps + puntuación."
+    },
+    {
+      "id": "cybersecurity-neg-correccion",
+      "prompt": "Revisa este diff buscando solo bugs de corrección: casos límite y errores silenciados. No es una auditoría de seguridad, es una revisión antes de mergear.",
+      "expect": {
+        "activates": false,
+        "redirect": "skill:adversarial-review"
+      },
+      "notes": "Vecino: revisión de corrección del diff es adversarial-review (Lente B)."
+    }
+  ]
+}

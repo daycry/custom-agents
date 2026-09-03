@@ -1,0 +1,38 @@
+{
+  "target": "skill:confluence-publish",
+  "cases": [
+    {
+      "id": "confluence-publish-literal",
+      "prompt": "Publica en Confluence la documentación de docs/ del proyecto; elige conmigo el espacio y bajo qué página cuelga, y enséñame qué vas a subir antes.",
+      "trigger": "literal",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "espacio"
+        ]
+      },
+      "notes": "Disparador literal «publica en Confluence»."
+    },
+    {
+      "id": "confluence-publish-parafrasis",
+      "prompt": "Quiero que la carpeta docs/ quede espejada en nuestro wiki de Atlassian sin duplicar páginas si ya existen, con una previsualización antes de tocar nada y que recuerdes mi elección para la próxima vez.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "confluence.json"
+        ]
+      },
+      "notes": "Sin la palabra publicar: «espejada en el wiki de Atlassian» + idempotencia + preferencias."
+    },
+    {
+      "id": "confluence-publish-neg-pull",
+      "prompt": "Tráeme a local los cambios que el PM hizo en Confluence esta semana en las páginas del roadmap; no quiero subir nada.",
+      "expect": {
+        "activates": false,
+        "redirect": "skill:confluence-pull"
+      },
+      "notes": "Sentido inverso: Confluence → docs/ es confluence-pull."
+    }
+  ]
+}

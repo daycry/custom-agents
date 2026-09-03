@@ -1,0 +1,36 @@
+{
+  "target": "command:pm-backlog",
+  "cases": [
+    {
+      "id": "pm-backlog-literal",
+      "prompt": "Lee todas las evaluaciones del roadmap y dame un backlog priorizado de la cartera: quick wins primero, las costosas después.",
+      "trigger": "literal",
+      "expect": {
+        "activates": true,
+        "artifacts": [
+          "docs/roadmap/BACKLOG.md"
+        ]
+      },
+      "notes": "Ventana literal «lee todas las evaluaciones del»."
+    },
+    {
+      "id": "pm-backlog-parafrasis",
+      "prompt": "Tenemos varias iniciativas evaluadas y no sabemos por dónde empezar; ordénamelas por valor frente a coste para este trimestre y deja el resultado escrito en el roadmap.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true,
+        "artifacts": [
+          "docs/roadmap/BACKLOG.md"
+        ]
+      }
+    },
+    {
+      "id": "pm-backlog-neg-status",
+      "prompt": "Genera el dashboard HTML del estado del roadmap con cada iniciativa y su presupuesto.",
+      "expect": {
+        "activates": false,
+        "redirect": "command:roadmap-status"
+      }
+    }
+  ]
+}

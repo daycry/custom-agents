@@ -1,0 +1,30 @@
+{
+  "target": "command:roadmap-live",
+  "cases": [
+    {
+      "id": "roadmap-live-literal",
+      "prompt": "Abre un dashboard vivo del estado del roadmap leyendo Jira en tiempo real, con las horas imputadas por label.",
+      "trigger": "literal",
+      "expect": {
+        "activates": true
+      },
+      "notes": "Ventana literal «dashboard vivo del estado del roadmap»."
+    },
+    {
+      "id": "roadmap-live-parafrasis",
+      "prompt": "Quiero ver cómo va la cartera según lo que hay AHORA en Jira (issues y worklogs por label), no según los ficheros locales.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true
+      }
+    },
+    {
+      "id": "roadmap-live-neg-sync",
+      "prompt": "Vuelca el plan de la iniciativa demo a Jira creando un issue por tarea.",
+      "expect": {
+        "activates": false,
+        "redirect": "skill:jira-sync"
+      }
+    }
+  ]
+}

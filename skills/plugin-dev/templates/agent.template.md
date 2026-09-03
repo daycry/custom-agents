@@ -4,6 +4,9 @@ name: <nombre-kebab>
 description: <Qué hace, en 2-4 frases con el CRITERIO que aporta (no solo el qué). Termina SIEMPRE con los disparadores:> Úsalo cuando el usuario diga "<frase 1>", "<frase 2>", "<frase 3>".
 # model: haiku (mecánico) · sonnet (desarrollo estándar) · opus (razonamiento crítico) · inherit
 model: sonnet
+# effort: medium por defecto · high si model es opus (low|medium|high|xhigh|max — oficiales). Override por
+# proyecto: .claude/dev.json `modelos.<agente>` (lo resuelve agent-kits/shared/model-tier.py, no el agente)
+effort: medium
 # tools MÍNIMOS reales; añade Bash/Write/Edit solo si los usa de verdad
 tools: Read, Grep, Glob
 dependencies:

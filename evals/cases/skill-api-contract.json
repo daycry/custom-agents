@@ -1,0 +1,47 @@
+{
+  "target": "skill:api-contract",
+  "cases": [
+    {
+      "id": "api-contract-literal",
+      "prompt": "Antes de mergear la nueva versión del OpenAPI, dime si hay algún campo de respuesta eliminado o cualquier otro cambio que rompa el contrato con los clientes actuales.",
+      "trigger": "literal",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "rompedor"
+        ]
+      },
+      "notes": "Disparador literal «cambios ROMPEDORES» / «compara estas dos versiones del OpenAPI» de la description."
+    },
+    {
+      "id": "api-contract-parafrasis",
+      "prompt": "Vamos a añadir un parámetro obligatorio nuevo al endpoint de pedidos. Antes de tocar el código, comprueba si eso rompe el contrato que ya tienen los clientes de la API.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "contrato"
+        ]
+      },
+      "notes": "Describe el flujo contract-first (spec antes que código) sin nombrar la skill."
+    },
+    {
+      "id": "api-contract-neg-documentar",
+      "prompt": "Documenta la API de pedidos para el equipo de integraciones: qué hace cada endpoint, ejemplos de request/response y errores comunes, en un lenguaje claro para desarrolladores externos.",
+      "expect": {
+        "activates": false,
+        "redirect": "agent:documenter"
+      },
+      "notes": "Vecino: documentar la API PARA HUMANOS es documenter; esta skill valida la estructura del contrato, no la explica."
+    },
+    {
+      "id": "api-contract-neg-seguridad",
+      "prompt": "Audita la seguridad de la API de pagos: autenticación, rate limiting, exposición de datos sensibles en las respuestas, OWASP API Security Top 10.",
+      "expect": {
+        "activates": false,
+        "redirect": "agent:nemesis"
+      },
+      "notes": "Vecino: auditoría de seguridad de la API es nemesis/cybersecurity; esta skill solo mira la estructura del contrato OpenAPI."
+    }
+  ]
+}

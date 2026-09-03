@@ -1,0 +1,43 @@
+{
+  "target": "command:doctor",
+  "cases": [
+    {
+      "id": "doctor-literal",
+      "prompt": "Comprueba mi configuración del plugin: ¿está bien instalado?",
+      "trigger": "literal",
+      "expect": {
+        "activates": true,
+        "mentions": ["python3", "hooks"]
+      },
+      "notes": "Ventana literal «¿está bien instalado?» + «comprueba mi configuración» de la description."
+    },
+    {
+      "id": "doctor-parafrasis-hook",
+      "prompt": "El hook de progreso no me sale nunca en las sesiones de este proyecto; diagnostica qué falta.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true,
+        "mentions": ["hooks"]
+      },
+      "notes": "Síntoma típico: hook que no dispara → diagnóstico, no reconfiguración."
+    },
+    {
+      "id": "doctor-neg-setup",
+      "prompt": "Configura este proyecto desde cero: tarifas, opt-in de Jira y disciplina de desarrollo.",
+      "expect": {
+        "activates": false,
+        "redirect": "command:setup"
+      },
+      "notes": "Vecino: configurar y ESCRIBIR es /setup; /doctor solo lee."
+    },
+    {
+      "id": "doctor-neg-roadmap-status",
+      "prompt": "Dime cómo van las iniciativas del roadmap y su presupuesto.",
+      "expect": {
+        "activates": false,
+        "redirect": "command:roadmap-status"
+      },
+      "notes": "Vecino: estado del TRABAJO es /roadmap-status; /doctor es estado de la INSTALACIÓN."
+    }
+  ]
+}

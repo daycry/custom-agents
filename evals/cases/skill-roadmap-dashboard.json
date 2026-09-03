@@ -1,0 +1,38 @@
+{
+  "target": "skill:roadmap-dashboard",
+  "cases": [
+    {
+      "id": "roadmap-dashboard-literal",
+      "prompt": "¿Cómo van las iniciativas del roadmap? Quiero un panel con el estado de cada una (spec, evaluación, plan, tasks) y su presupuesto.",
+      "trigger": "literal",
+      "expect": {
+        "activates": true,
+        "artifacts": [
+          "docs/roadmap/dashboard.html"
+        ]
+      },
+      "notes": "Disparador literal «cómo van las iniciativas»."
+    },
+    {
+      "id": "roadmap-dashboard-parafrasis",
+      "prompt": "Genera una vista HTML autocontenida del estado de todo lo que hay en docs/roadmap/, con prioridad y coste estimado por iniciativa; no modifiques los ficheros del roadmap.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true,
+        "artifacts": [
+          "docs/roadmap/dashboard.html"
+        ]
+      },
+      "notes": "Sin «dashboard/roadmap-status»: vista HTML del estado + solo lectura."
+    },
+    {
+      "id": "roadmap-dashboard-neg-retro",
+      "prompt": "Haz la retrospectiva de la iniciativa demo comparando estimado y real y anota los aprendizajes.",
+      "expect": {
+        "activates": false,
+        "redirect": "command:retro"
+      },
+      "notes": "Retro de una iniciativa cerrada es /retro (escribe), no el dashboard (lee)."
+    }
+  ]
+}

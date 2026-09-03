@@ -1,0 +1,176 @@
+# ⚠️ COPIA MANUAL: este fichero se copia TAL CUAL a .github/workflows/headless.yml
+# (ruta protegida para las herramientas remotas). Estas líneas son comentarios
+# YAML válidos: no hace falta borrar nada. `tests/test_ci_manual_copy.py` y
+# `scripts/lint_plugin.py` avisan si las dos copias divergen.
+#
+# Job OPCIONAL (plan-and-diet T-03): cuesta tokens reales, así que NO va en ci.yml.
+#   · Se lanza a mano (workflow_dispatch) o el lunes a las 06:00 UTC (schedule).
+#   · Necesita el secret ANTHROPIC_API_KEY. Sin él, el job termina en VERDE con un aviso:
+#     los secrets no pueden ir en un `if:` directamente (docs.github.com, «Using secrets in
+#     conditional statements», verificado 2026-09-03) → se pasa a `env` del job y cada paso
+#     comprueba `env.ANTHROPIC_API_KEY != ''`.
+#   · Qué cierra: (a) un subconjunto BARATO de evals/run.py (activación real de 2 piezas en
+#     `claude -p --bare`; `--bare` exige ANTHROPIC_API_KEY — code.claude.com/docs/en/headless,
+#     verificado 2026-09-03); (b) la verificación «hooks en sesión real» que docs/observability.md
+#     describe como manual: una sesión headless con el plugin edita el ledger del fixture y el
+#     hook PostToolUse `progress-line.sh` debe escribir su fichero-testigo `.claude/.progress-last`.
+#     La evidencia es el FICHERO, no la salida: la doc de stream-json solo documenta eventos
+#     `hook_started/hook_progress/hook_response` para hooks SessionStart/Setup, no garantiza que
+#     el `systemMessage` de un PostToolUse aparezca en el stream. Además el `system/init` debe
+#     listar el plugin en `plugins` («Fail CI when a plugin or MCP server doesn't load»).
+#   · Duda documentada: la doc dice que `--bare` «salta la auto-detección de hooks» y que
+#     `--plugin-dir` sí carga el plugin en bare mode, pero NO dice si los hooks de ese plugin
+#     corren. Por eso el paso (b) prueba primero con --bare y, si el plugin cargó pero no hay
+#     testigo, repite SIN --bare y deja constancia de en qué modo hubo evidencia.
+#   · REGLA PARA TODO PASO NUEVO (T-fix1): lleva `if: env.ANTHROPIC_API_KEY != ''` (o `always() &&
+#     …` si debe correr también tras un fallo). El paso `gate` fija `outputs.skip` y el paso final
+#     `Guardia del skip` FALLA si, sin secret, algún paso posterior llegó a ejecutarse (revisa
+#     `steps.<id>.outcome != 'skipped'`) — un paso nuevo sin `if:` rompe el job en el repo sin secret,
+#     que es exactamente cuando se quiere detectar. Al añadir un paso, dale `id:` y súmalo a la guardia.
+name: Headless (evals + hooks reales)
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 6 * * 1"   # lunes 06:00 UTC
+
+jobs:
+  headless:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    outputs:
+      skip: ${{ steps.gate.outputs.skip }}   # 'true' si no había secret (job saltado en verde)
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Puerta — ¿hay secret?
+        id: gate
+        run: |
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "::warning::ANTHROPIC_API_KEY no está configurado como secret del repo: se saltan los evals headless y la comprobación de hooks reales (job opcional; ver evals/README.md)."
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-python@v5
+        id: python
+        if: env.ANTHROPIC_API_KEY != ''
+        with:
+          python-version: "3.11"
+
+      - uses: actions/setup-node@v4
+        id: node
+        if: env.ANTHROPIC_API_KEY != ''
+        with:
+          node-version: "20"
+
+      - name: Instalar Claude Code
+        id: install
+        if: env.ANTHROPIC_API_KEY != ''
+        run: |
+          npm install -g @anthropic-ai/claude-code
+          claude --version
+
+      - name: Validación estática previa (barata; la misma de ci.yml)
+        id: static
+        if: env.ANTHROPIC_API_KEY != ''
+        run: |
+          python3 scripts/lint_plugin.py
+          python3 evals/check.py
+
+      - name: Evals de activación — subconjunto barato (claude -p --bare)
+        id: evals
+        if: env.ANTHROPIC_API_KEY != ''
+        run: |
+          mkdir -p evals/reports
+          python3 evals/run.py --bare --max-turns 4 --timeout 600 \
+            --target skill:quick-implement --target command:setup \
+            --report evals/reports/headless-evals.json
+
+      - name: Hooks reales — PostToolUse progress-line.sh en una sesión headless con el plugin
+        id: hooks
+        if: env.ANTHROPIC_API_KEY != ''
+        run: |
+          set -uo pipefail
+          PLUGIN="$PWD"
+          mkdir -p "$PLUGIN/evals/reports"
+          PROMPT="Edita docs/roadmap/2026-01-01-demo/tasks.md marcando la tarea T-01 como completada: checkbox de sus criterios, estado completado y la fila del resumen de progreso. No hagas nada más."
+          intento() {  # $1 = etiqueta (bare|full) · $2… = flags extra
+            local tag="$1"; shift
+            local WORK; WORK="$(mktemp -d)"
+            cp -R "$PLUGIN/evals/fixtures/project/." "$WORK/"
+            ( cd "$WORK" && git init -q && git add -A && git -c user.email=ci@example.com -c user.name=ci commit -q -m fixture )
+            ( cd "$WORK" && claude -p "$@" --plugin-dir "$PLUGIN" --output-format stream-json --verbose \
+                --permission-mode acceptEdits --max-turns 6 "$PROMPT" ) \
+                > "$PLUGIN/evals/reports/headless-hooks-$tag.jsonl" 2> "$PLUGIN/evals/reports/headless-hooks-$tag.stderr" || true
+            python3 - "$PLUGIN/evals/reports/headless-hooks-$tag.jsonl" "$WORK" "$tag" <<'PY'
+          import json, os, sys
+          stream, work, tag = sys.argv[1:4]
+          init, result = None, None
+          for ln in open(stream, encoding="utf-8", errors="replace"):
+              try:
+                  ev = json.loads(ln)
+              except ValueError:
+                  continue
+              if ev.get("type") == "system" and ev.get("subtype") == "init":
+                  init = ev
+              if ev.get("type") == "result":
+                  result = ev
+          plugins = [p.get("name") for p in (init or {}).get("plugins", []) if isinstance(p, dict)]
+          errores = (init or {}).get("plugin_errors", [])
+          cargado = "custom-agents" in plugins
+          testigo = os.path.join(work, ".claude", ".progress-last")
+          hay_testigo = os.path.isfile(testigo) and os.path.getsize(testigo) > 0
+          print(f"[{tag}] system/init: plugins={plugins} plugin_errors={errores}")
+          print(f"[{tag}] result: subtype={(result or {}).get('subtype')} is_error={(result or {}).get('is_error')} turns={(result or {}).get('num_turns')} cost=${(result or {}).get('total_cost_usd')}")
+          print(f"[{tag}] testigo del hook PostToolUse ({testigo}): {'PRESENTE → ' + open(testigo, encoding='utf-8').read().strip() if hay_testigo else 'AUSENTE'}")
+          # 0 = evidencia completa · 10 = plugin cargó pero sin testigo (reintentar sin --bare) · 1 = el plugin no cargó
+          sys.exit(0 if (cargado and hay_testigo) else (10 if cargado else 1))
+          PY
+          }
+          intento bare --bare; rc=$?
+          if [ "$rc" -eq 10 ]; then
+            echo "::notice::Con --bare el plugin cargó pero el hook PostToolUse no dejó testigo (la doc no garantiza hooks de plugin en bare mode). Reintento SIN --bare."
+            intento full; rc=$?
+            [ "$rc" -eq 0 ] && echo "::warning::Evidencia de hooks obtenida SIN --bare: anótalo en docs/observability.md si se repite (bare mode no ejecuta los hooks del plugin)."
+          fi
+          if [ "$rc" -ne 0 ]; then
+            echo "::error::Sin evidencia de que los hooks del plugin corran en una sesión real (rc=$rc). Revisa evals/reports/headless-hooks-*.jsonl en el artifact."
+            exit 1
+          fi
+          echo "hooks en sesión real: OK"
+
+      - name: Subir informes (evals + stream de la comprobación de hooks)
+        id: upload
+        if: always() && env.ANTHROPIC_API_KEY != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: headless-reports
+          path: |
+            evals/reports/*.json
+            evals/reports/*.jsonl
+            evals/reports/*.stderr
+          if-no-files-found: ignore
+          retention-days: 30
+
+      - name: Guardia del skip — sin secret, ningún paso posterior debe haber corrido
+        if: always() && steps.gate.outputs.skip == 'true'
+        env:
+          OUTCOMES: >-
+            python=${{ steps.python.outcome }}
+            node=${{ steps.node.outcome }}
+            install=${{ steps.install.outcome }}
+            static=${{ steps.static.outcome }}
+            evals=${{ steps.evals.outcome }}
+            hooks=${{ steps.hooks.outcome }}
+            upload=${{ steps.upload.outcome }}
+        run: |
+          echo "outcomes: $OUTCOMES"
+          bad=0
+          for kv in $OUTCOMES; do
+            case "$kv" in *=skipped) ;; *) echo "::error::el paso '${kv%%=*}' corrió sin secret (outcome=${kv#*=}): le falta \`if: env.ANTHROPIC_API_KEY != ''\`"; bad=1;; esac
+          done
+          [ "$bad" -eq 0 ] && echo "skip limpio: todos los pasos posteriores quedaron 'skipped'"
+          exit $bad

@@ -1,0 +1,35 @@
+{
+  "target": "skill:confluence-pull",
+  "cases": [
+    {
+      "id": "confluence-pull-literal",
+      "prompt": "Actualiza mis docs desde Confluence: el PM tocó varias páginas y quiero la copia local al día sin usar git.",
+      "trigger": "literal",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "conflicto"
+        ]
+      },
+      "notes": "Disparador literal «actualiza mis docs desde Confluence»."
+    },
+    {
+      "id": "confluence-pull-parafrasis",
+      "prompt": "Baja a docs/ lo que hay ahora mismo en las páginas de Confluence del proyecto, avisándome si algo choca con lo que tengo en local antes de escribir.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true
+      },
+      "notes": "Sin «actualiza/sincroniza»: «baja a docs/ lo que hay en Confluence» + conflictos."
+    },
+    {
+      "id": "confluence-pull-neg-publish",
+      "prompt": "Sube a Confluence la última versión de docs/INSTALL.md bajo la página del proyecto.",
+      "expect": {
+        "activates": false,
+        "redirect": "skill:confluence-publish"
+      },
+      "notes": "Sentido docs/ → Confluence es confluence-publish."
+    }
+  ]
+}

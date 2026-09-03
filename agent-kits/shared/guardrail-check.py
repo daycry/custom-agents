@@ -9,7 +9,18 @@ wrapper `hooks/implementer-guardrail.sh`, registrado SOLO en el frontmatter `hoo
 escriben en docs/roadmap/ legítimamente. Ver docs/knowledge/adr/ADR-007.)
 
 Uso:
-  guardrail-check.py pre-tool [--project-dir DIR]     # lee el JSON del hook por stdin
+  guardrail-check.py pre-tool [--project-dir DIR] [--agent implementer|architect]   # JSON del hook por stdin
+  (sin --agent: $CLAUDE_AGENT_NAME si existe, si no `implementer`)
+
+Modo `architect` (parity-core T-fix1, wrapper hooks/architect-guardrail.sh; enmienda a ADR-007):
+  alcance        permitido SOLO `docs/roadmap/<inic>/design.md`, `docs/knowledge/adr/**` y
+                 `docs/knowledge/README.md`; `spec.md`/`improvement-plan.md` de la iniciativa SOLO con
+                 la herramienta Edit y si `old_string`/`new_string` contienen `design:` o `design.md`
+                 (el enlace de la regla 7) — un Write completo o un Edit sin esa marca → deny. Riesgo
+                 asumido y documentado: un Edit que incluya `design:` junto a otros cambios pasa (el
+                 hook no puede diffear el fichero); lo caza la Lente A. Todo lo demás (código,
+                 tasks.md, evaluation.md, gotchas/lessons, security-scan) → deny.
+  git            igual que el implementer. ramaPrincipal NO aplica (escribe solo documentos, como planner).
 
 Reglas (cada una desactivable en `.claude/dev.json` → `"guardrails": {…}`):
   alcance        Write/Edit/MultiEdit/NotebookEdit sobre docs/roadmap/** que no sea `tasks.md`
@@ -122,6 +133,44 @@ def es_ledger(rel):
     return partes[-1] == "tasks.md" and "testing" not in partes[:-1]
 
 
+_DESIGN_MARK_RE = re.compile(r"design:|design\.md", re.I)
+
+
+def _inic_fichero(rel):
+    """(carpeta-iniciativa, nombre) para docs/roadmap/<inic>/<fichero> (2 niveles), o (None, None)."""
+    m = _ROADMAP_RE.search(rel)
+    if not m:
+        return None, None
+    partes = m.group(1).split("/")
+    if len(partes) != 2:
+        return None, None
+    return partes[0], partes[1].lower()
+
+
+def check_alcance_architect(rel, tool, tool_input):
+    """Razón de deny o None — alcance del `architect` (solo diseño, ADR e índice de knowledge)."""
+    low = rel.lower()
+    if _SECSCAN_RE.search(rel):
+        return f"«{rel}» está bajo docs/security-scan/ (propiedad de nemesis): el architect no escribe ahí."
+    if re.search(r"(?:^|/)docs/knowledge/(adr/[^/]+|readme\.md)$", low):
+        return None
+    inic, fn = _inic_fichero(rel)
+    if inic and fn == "design.md":
+        return None
+    if inic and fn in ("spec.md", "improvement-plan.md"):
+        if tool != "Edit":
+            return (f"«{rel}»: el architect solo añade el enlace `design:` (frontmatter + callout) a spec/plan, "
+                    f"y solo con Edit — no reescribas el fichero (Write); el contenido es de analyst/planner.")
+        blob = " ".join(str(tool_input.get(k, "")) for k in ("old_string", "new_string"))
+        if _DESIGN_MARK_RE.search(blob):
+            return None
+        return (f"«{rel}»: el architect solo toca el enlace `design:`/`design.md` de spec/plan (regla 7 de "
+                f"CONVENTIONS); ese Edit no lo contiene — deja la observación en «Preguntas abiertas» de design.md.")
+    return (f"«{rel}» está fuera del alcance del architect: escribe SOLO docs/roadmap/<inic>/design.md, el enlace "
+            f"`design:` en spec/plan (Edit) y docs/knowledge/adr/ + README.md. Ni código, ni tasks.md, ni "
+            f"evaluation.md — anótalo en «Preguntas abiertas» de design.md y sigue.")
+
+
 def check_alcance(rel):
     """Razón de deny o None."""
     if _SECSCAN_RE.search(rel):
@@ -136,6 +185,9 @@ def check_alcance(rel):
             return (f"«{rel}» está en la raíz de docs/roadmap/: el implementer solo toca README.md (índice) "
                     f"ahí; CALIBRATION.md, DRIFT.md y BACKLOG.md los escriben /retro, /spec-drift y "
                     f"/pm-backlog — anota la duda en tasks.md y sigue.")
+        if m.group(1).lower().endswith("/design.md"):
+            return (f"«{rel}» está en docs/roadmap/: el implementer solo toca tasks.md (ledger); "
+                    f"el diseño lo cambia architect — anota la duda en tasks.md y sigue.")
         return (f"«{rel}» está en docs/roadmap/: el implementer solo toca tasks.md (ledger); "
                 f"el plan/spec/evaluación los cambia planner — anota la duda en tasks.md y sigue.")
     return None
@@ -268,8 +320,9 @@ def check_git(command, branch, _depth=0):
 
 
 # --------------------------------------------------------------- decisión ----
-def decide(payload, project_dir, cfg=None, branch=None, branch_fn=None):
-    """Devuelve la razón de deny (str) o None. Pura salvo `branch_fn` (inyectable en tests)."""
+def decide(payload, project_dir, cfg=None, branch=None, branch_fn=None, agent="implementer"):
+    """Devuelve la razón de deny (str) o None. Pura salvo `branch_fn` (inyectable en tests).
+    `agent`: `implementer` (default) o `architect` (alcance propio; sin regla ramaPrincipal)."""
     cfg = cfg or DEFAULTS
     tool = payload.get("tool_name") if isinstance(payload, dict) else None
     tool_input = payload.get("tool_input", {}) if isinstance(payload, dict) else {}
@@ -278,9 +331,12 @@ def decide(payload, project_dir, cfg=None, branch=None, branch_fn=None):
         rels = [r for r in rels if r]
         if cfg.get("alcance", True):
             for rel in rels:
-                razon = check_alcance(rel)
+                razon = (check_alcance_architect(rel, tool, tool_input if isinstance(tool_input, dict) else {})
+                         if agent == "architect" else check_alcance(rel))
                 if razon:
                     return razon
+        if agent == "architect":
+            return None
         if cfg.get("ramaPrincipal", True) and rels:
             if branch is None and branch_fn is not None:
                 branch = branch_fn(project_dir)
@@ -317,7 +373,7 @@ def _aviso_off_una_vez(project_dir):
         open(marca, "w").close()
     except OSError:
         pass
-    return json.dumps({"systemMessage": "⚠️ guardrails del implementer DESACTIVADOS "
+    return json.dumps({"systemMessage": "⚠️ guardrails del implementer/architect DESACTIVADOS "
                                         "(.claude/dev.json → guardrails: false): alcance, rama y git "
                                         "no se comprueban."}, ensure_ascii=False)
 
@@ -327,7 +383,10 @@ def main():
     ap.add_argument("modo", choices=["pre-tool"])
     ap.add_argument("--project-dir", default=None,
                     help="raíz del proyecto (default: $CLAUDE_PROJECT_DIR o cwd)")
+    ap.add_argument("--agent", default=None, choices=["implementer", "architect"],
+                    help="agente cuyas reglas aplican (default: $CLAUDE_AGENT_NAME si es uno de ellos, si no implementer)")
     args = ap.parse_args()
+    agent = args.agent or (os.environ.get("CLAUDE_AGENT_NAME") if os.environ.get("CLAUDE_AGENT_NAME") in ("implementer", "architect") else None) or "implementer"
     project_dir = args.project_dir or os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd()
     try:
         raw = sys.stdin.read()
@@ -342,7 +401,7 @@ def main():
             if msg:
                 print(msg)
             return 0
-        razon = decide(payload, project_dir, cfg, branch_fn=current_branch)
+        razon = decide(payload, project_dir, cfg, branch_fn=current_branch, agent=agent)
         if razon:
             print(deny_json(razon))
         return 0

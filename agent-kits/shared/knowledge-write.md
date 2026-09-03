@@ -1,7 +1,7 @@
 <!--
   FRAGMENTO COMPARTIDO: cuándo y dónde escribir memoria técnica del proyecto.
   Lo referencian los agentes/skills que ESCRIBEN conocimiento en su puerta de
-  decisión o punto de nacimiento: planner, implementer (ADR), debug-root-cause
+  decisión o punto de nacimiento: architect (ADR de la opción de diseño elegida), planner, implementer (ADR), debug-root-cause
   (gotcha de causa raíz), qa (gotcha de flaky-patrón), /retro (lección técnica).
   Molde: mismo patrón que constitution-check.md. Si cambias el umbral aquí,
   cambia para todos — no lo dupliques en prompts.
@@ -17,6 +17,18 @@ nunca bloquea el trabajo en curso. **En proyectos consumidores nuevos, `gotchas/
 nacen directas** (sin los stubs `gotchas.md`/`LESSONS.md` que arrastra este repo desde antes del
 split de `knowledge-split` — la escritura remota no puede borrar ficheros en el disco del usuario,
 así que los stubs solo existen aquí como redirección histórica).
+
+## Journal ≠ memoria curada (dónde va cada cosa)
+
+`docs/knowledge/journal/` es la **memoria de SESIÓN** (episódica, cronológica, **no curada**): la escribe
+el hook `SessionEnd` con `agent-kits/shared/journal.py` (borrador determinista: fecha, iniciativa activa,
+ficheros tocados, tareas que cambiaron de estado, marcadores del meter; `decisiones`/`pendientes` solo si
+alguien las anota con `journal.py write --enrich`). **Ningún agente escribe ahí a mano** salvo para
+enriquecer la entrada de la sesión en curso. Lo que merezca doctrina **se promueve**: una decisión del
+journal que cruce el umbral de abajo pasa a `adr/`; una trampa que costó un ciclo, a `gotchas/`; una
+lección de proceso, a `lessons/` (con enlace a la entrada del journal como fuente). El journal **no se
+publica en Confluence** (`docs/knowledge/journal/**` excluido: es bitácora, no decisión) y no entra en el
+índice `docs/knowledge/README.md` entrada por entrada — tiene su propio `journal/README.md` generado.
 
 ## Umbral de registro (anti-burocracia)
 
@@ -41,7 +53,7 @@ número también va en `id:` dentro del frontmatter (`id: ADR-NNN` / `id: GOT-NN
 
 | Tipo | Ruta | Plantilla |
 |---|---|---|
-| ADR | `docs/knowledge/adr/ADR-NNN-<slug>.md`. | `agent-kits/shared/templates/adr.md` |
+| ADR | `docs/knowledge/adr/ADR-NNN-<slug>.md`. Lo escriben `architect` (opción de diseño elegida, con las descartadas como alternativas — casi siempre cruza el umbral), `planner` e `implementer`. | `agent-kits/shared/templates/adr.md` |
 | Gotcha | Fichero nuevo en `docs/knowledge/gotchas/GOT-NNN-<slug>.md` (frontmatter `id`/`tipo`/`area`/`estado`/`fuente` + síntoma · causa raíz · qué hacer en su lugar · evidencia/enlace al test de regresión). | ver ejemplo en cualquier entrada existente |
 | Lección | Fichero nuevo en `docs/knowledge/lessons/LES-NNN-<agente>-<slug>.md` (frontmatter `id`/`tipo`/`area`/`estado`/`fuente`), agrupada por agente en el propio nombre del fichero. | ver ejemplo en cualquier entrada existente |
 

@@ -1,0 +1,59 @@
+{
+  "target": "skill:tdd",
+  "cases": [
+    {
+      "id": "tdd-literal",
+      "prompt": "Implementa la T-01 de la iniciativa demo pero hazlo con TDD: escribe primero el test, quiero evidencia del rojo en el ledger antes de tocar el código.",
+      "trigger": "literal",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "RED"
+        ],
+        "must_not": [
+          "assert True"
+        ]
+      },
+      "notes": "Disparador literal «hazlo con TDD» / «escribe primero el test» / «evidencia del rojo»."
+    },
+    {
+      "id": "tdd-parafrasis",
+      "prompt": "Antes de escribir la función de exportar CSV en scripts/export.py quiero un test que falle, verlo en rojo con pytest, y solo entonces el código mínimo que lo ponga en verde.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "pytest"
+        ]
+      },
+      "notes": "Describe el ciclo rojo→verde sin decir TDD."
+    },
+    {
+      "id": "tdd-neg-correr-tests",
+      "prompt": "Corre los tests de la iniciativa demo y dime si todo pasa; si hay alguno rojo, dame el informe con la evidencia.",
+      "expect": {
+        "activates": false,
+        "redirect": "agent:qa"
+      },
+      "notes": "Vecino: ejecutar la suite y dar el veredicto es de qa (qa-gate), no del método TDD."
+    },
+    {
+      "id": "tdd-neg-debug",
+      "prompt": "Este test lleva tres intentos y sigue rojo: tests/test_app.py::test_exportar_csv. Encuentra la causa raíz antes de tocar nada.",
+      "expect": {
+        "activates": false,
+        "redirect": "skill:debug-root-cause"
+      },
+      "notes": "Vecino: un rojo que ya existe se depura con debug-root-cause, no se «hace con TDD»."
+    },
+    {
+      "id": "tdd-neg-cobertura",
+      "prompt": "El código ya está escrito: mide qué cobertura unitaria tienen los ficheros del diff y dime si llegan al 80 %.",
+      "expect": {
+        "activates": false,
+        "redirect": "skill:unit-tests"
+      },
+      "notes": "Vecino: TDD es el MÉTODO (test antes del código); medir cobertura sobre código ya escrito es unit-tests."
+    }
+  ]
+}

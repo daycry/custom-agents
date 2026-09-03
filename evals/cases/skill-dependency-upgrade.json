@@ -1,0 +1,54 @@
+{
+  "target": "skill:dependency-upgrade",
+  "cases": [
+    {
+      "id": "dependency-upgrade-literal",
+      "prompt": "Actualiza las dependencias del proyecto: dime qué dependencias están desactualizadas, cuáles son saltos de major y prepárame la spec para presupuestarlo. No cambies nada todavía.",
+      "trigger": "literal",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "major"
+        ],
+        "must_not": [
+          "npm update",
+          "composer update"
+        ]
+      },
+      "notes": "Disparador literal «actualiza las dependencias» / «qué dependencias están desactualizadas»."
+    },
+    {
+      "id": "dependency-upgrade-parafrasis",
+      "prompt": "Quiero subir el framework del proyecto a la siguiente versión mayor. Antes necesito una lista de lo que tenemos en package.json y composer.json con la versión bloqueada, qué se rompe según el changelog upstream y una iniciativa en docs/roadmap/ para que el evaluator la presupueste.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true,
+        "artifacts": [
+          "docs/roadmap/*upgrade*/spec.md"
+        ],
+        "mentions": [
+          "breaking"
+        ]
+      },
+      "notes": "Describe inventario + changelog + spec sin nombrar la skill."
+    },
+    {
+      "id": "dependency-upgrade-neg-vulnerabilidades",
+      "prompt": "Busca vulnerabilidades en las dependencias del proyecto: CVE conocidos, paquetes con advisories y riesgo de supply chain.",
+      "expect": {
+        "activates": false,
+        "redirect": "agent:nemesis"
+      },
+      "notes": "Vecino: seguridad de dependencias (CVE/advisories) es nemesis/cybersecurity, no versiones ni breaking changes."
+    },
+    {
+      "id": "dependency-upgrade-neg-ejecutar",
+      "prompt": "Sube lodash a la última versión en package.json, regenera el lockfile y corre los tests; si algo rompe, arréglalo.",
+      "expect": {
+        "activates": false,
+        "redirect": "skill:quick-implement"
+      },
+      "notes": "Vecino: ejecutar el cambio concreto es quick-implement; esta skill solo inventaría y especifica."
+    }
+  ]
+}

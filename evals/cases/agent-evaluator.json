@@ -1,0 +1,36 @@
+{
+  "target": "agent:evaluator",
+  "cases": [
+    {
+      "id": "evaluator-literal",
+      "prompt": "Presupuesta esto: la spec docs/roadmap/2026-01-01-demo/spec.md. ¿Cuánto costaría en horas, euros y tokens, y merece la pena?",
+      "trigger": "literal",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "veredicto"
+        ]
+      },
+      "notes": "Disparadores literales «presupuesta esto» / «cuánto costaría»."
+    },
+    {
+      "id": "evaluator-parafrasis",
+      "prompt": "Antes de aprobar la iniciativa demo quiero una estimación de esfuerzo y coste por característica, con complejidad, riesgos e incógnitas, y una recomendación de si conviene.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "riesgo"
+        ]
+      }
+    },
+    {
+      "id": "evaluator-neg-planner",
+      "prompt": "Haz un plan de implementación por fases y tareas T-XX para la iniciativa demo, con criterios de aceptación.",
+      "expect": {
+        "activates": false,
+        "redirect": "agent:planner"
+      }
+    }
+  ]
+}

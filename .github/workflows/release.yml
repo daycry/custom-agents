@@ -2,9 +2,10 @@
 # (ruta protegida para las herramientas remotas). Estas líneas son comentarios
 # YAML válidos: no hace falta borrar nada.
 #
-# Al empujar un tag v* : empaqueta el plugin como zip, crea la GitHub Release
-# y adjunta el zip como asset. El badge de descargas del README cuenta SOLO
-# descargas de assets — sin esto marcaría 0 para siempre.
+# Al empujar un tag v* : empaqueta el plugin como zip, genera el paquete PORTABLE
+# «solo skills» (scripts/export-skills.py --format all, validado con --check) como
+# segundo zip, crea la GitHub Release y adjunta ambos zips como assets. El badge de
+# descargas del README cuenta SOLO descargas de assets — sin esto marcaría 0 para siempre.
 name: Release
 on:
   push:
@@ -29,6 +30,19 @@ jobs:
           mv "/tmp/pkg/custom-agents-${VERSION}.zip" .
           ls -la custom-agents-*.zip
 
+      - name: Paquete portable «solo skills» (AGENTS.md · Cursor · skills/)
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          python3 scripts/export-skills.py --out /tmp/portable --format all
+          python3 scripts/export-skills.py --check /tmp/portable
+          # zip reproducible: mtimes = fecha del commit del tag (SOURCE_DATE_EPOCH), sin extras
+          # de sistema (-X), TZ fija; así el mismo tag produce el mismo zip byte a byte.
+          export SOURCE_DATE_EPOCH="${SOURCE_DATE_EPOCH:-$(git log -1 --pretty=%ct)}"
+          find /tmp/portable -exec touch -d "@${SOURCE_DATE_EPOCH}" {} +
+          (cd /tmp && TZ=UTC zip -X -qr "custom-agents-skills-portable-${VERSION}.zip" portable)
+          mv "/tmp/custom-agents-skills-portable-${VERSION}.zip" .
+          ls -la custom-agents-skills-portable-*.zip
+
       - name: Extraer las notas del CHANGELOG
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
@@ -44,4 +58,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           body_path: /tmp/notes.md
-          files: custom-agents-*.zip
+          files: |
+            custom-agents-[0-9]*.zip
+            custom-agents-skills-portable-*.zip

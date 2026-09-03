@@ -1,0 +1,41 @@
+{
+  "target": "skill:debug-root-cause",
+  "cases": [
+    {
+      "id": "debug-root-cause-literal",
+      "prompt": "Este test lleva tres intentos y sigue rojo; encuentra la causa raíz en vez de parchear a ciegas: tests/test_app.py::test_exportar_csv.",
+      "trigger": "literal",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "reproduc"
+        ],
+        "must_not": [
+          "arreglo rápido sin reproducir"
+        ]
+      },
+      "notes": "Disparador literal «encuentra la causa raíz» / «lleva tres intentos y sigue rojo»."
+    },
+    {
+      "id": "debug-root-cause-parafrasis",
+      "prompt": "El export CSV devuelve filas vacías de forma intermitente y ya hemos tocado tres cosas sin éxito. Reproduce el fallo con un caso mínimo, aísla dónde se pierde el dato, prueba la hipótesis y añade un test de regresión antes de arreglar nada.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "regresión"
+        ]
+      },
+      "notes": "Describe las 4 fases sin nombrarlas."
+    },
+    {
+      "id": "debug-root-cause-neg-quick",
+      "prompt": "Implementa rápido un flag --quiet en scripts/export.py que silencie los logs; es un cambio pequeño y claro.",
+      "expect": {
+        "activates": false,
+        "redirect": "skill:quick-implement"
+      },
+      "notes": "No hay fallo que depurar: es un cambio pequeño → quick-implement."
+    }
+  ]
+}

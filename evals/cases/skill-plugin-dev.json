@@ -1,0 +1,38 @@
+{
+  "target": "skill:plugin-dev",
+  "cases": [
+    {
+      "id": "plugin-dev-literal",
+      "prompt": "Añade una skill al plugin que verifique enlaces rotos en docs/, con su script determinista, su test y su fila en docs/README.md.",
+      "trigger": "literal",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "CONVENTIONS"
+        ]
+      },
+      "notes": "Disparador literal «añade una skill al plugin»."
+    },
+    {
+      "id": "plugin-dev-parafrasis",
+      "prompt": "Quiero un agente nuevo en este repo, release-notes, que redacte las notas de versión desde el CHANGELOG; que nazca con el frontmatter correcto, model tiering, dependencias declaradas y su doc en docs/agents/.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "lint_plugin"
+        ]
+      },
+      "notes": "Sin «plugin-dev»: crear agente siguiendo convenciones del repo."
+    },
+    {
+      "id": "plugin-dev-neg-documenter",
+      "prompt": "Documenta la arquitectura y los módulos de mi proyecto en docs/ a partir del código real.",
+      "expect": {
+        "activates": false,
+        "redirect": "agent:documenter"
+      },
+      "notes": "Documentar un proyecto consumidor es documenter, no desarrollar el plugin."
+    }
+  ]
+}

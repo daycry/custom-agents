@@ -50,6 +50,16 @@
 | `qa` | `gotchas/GOT-*.md` que apliquen (trampas ya comprobadas, útil para no repetir un flaky ya diagnosticado) |
 | `documenter` | todo lo que liste el índice (`adr/`, `gotchas/`, `lessons/`) — es quien indexa/deriva la documentación de producto |
 
+**Journal de sesión (`docs/knowledge/journal/`, memoria EPISÓDICA — iniciativa `memory-health`).**
+Es la bitácora cronológica que deja el hook `SessionEnd` (`agent-kits/shared/journal.py`): qué pasó en
+la última sesión, qué ficheros se tocaron, qué tareas cambiaron de estado, qué quedó pendiente. No es
+doctrina (no está curada ni validada) y NO sustituye a `adr/`/`gotchas/`/`lessons/`. `evaluator`,
+`planner` y `architect` abren **solo la última entrada** (`journal.py latest --n 1`, o el fichero más
+reciente de la carpeta) y **solo si su `iniciativa:` coincide con la iniciativa en la que trabajan** —
+para retomar el hilo (pendientes, decisiones apuntadas), nunca para leer el histórico entero. Al
+arrancar/retomar la sesión ya viene inyectada por `session-context.sh`; si la ves en el contexto, no la
+releas. Sin carpeta → nada que hacer.
+
 No leas por leer: si el índice no tiene ninguna entrada de tu área para esta tarea, sigue sin
 abrir nada más — la progressive disclosure es la protección contra el coste de "leer memoria" en
 cada invocación.

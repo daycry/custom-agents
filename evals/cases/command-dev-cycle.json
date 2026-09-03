@@ -1,0 +1,48 @@
+{
+  "target": "command:dev-cycle",
+  "cases": [
+    {
+      "id": "dev-cycle-literal",
+      "prompt": "Quiero el ciclo completo de una iniciativa para «exportación de informes a Excel»: spec, evaluación, plan, implementación, pruebas y documentación, con puertas de control.",
+      "trigger": "literal",
+      "expect": {
+        "activates": true,
+        "artifacts": [
+          "docs/roadmap/*/spec.md"
+        ],
+        "mentions": [
+          "puerta"
+        ]
+      },
+      "notes": "Ventana literal «ciclo completo de una iniciativa»."
+    },
+    {
+      "id": "dev-cycle-parafrasis",
+      "prompt": "Llévame de principio a fin la mejora «caché de consultas frecuentes»: define, presupuesta, planifica, implementa con revisión y prueba, todo con el ledger en docs/roadmap/.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true,
+        "artifacts": [
+          "docs/roadmap/*/tasks.md"
+        ]
+      }
+    },
+    {
+      "id": "dev-cycle-neg-pm",
+      "prompt": "Solo quiero la spec y el presupuesto de «caché de consultas»; la decisión de construirlo la tomamos después en comité.",
+      "expect": {
+        "activates": false,
+        "redirect": "command:pm-cycle"
+      },
+      "notes": "Cierra en la puerta go/no-go → /pm-cycle."
+    },
+    {
+      "id": "dev-cycle-neg-trivial",
+      "prompt": "Corrige la errata «Hla» → «Hola» en src/app.py.",
+      "expect": {
+        "activates": false
+      },
+      "notes": "Trivial de una línea: sin ciclo."
+    }
+  ]
+}

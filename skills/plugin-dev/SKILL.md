@@ -31,9 +31,19 @@ PLUGROOT="$(find "$PWD/.claude" "$HOME/.claude" -type d -path '*skills/plugin-de
 | Reacción automática a eventos del ciclo de vida, para INFORMAR | **hook informativo** | `hooks/` + registro global en `hooks/hooks.json` (eventos usados: `PostToolUse`, `SubagentStop`, `SessionStart`). **Informan, no deciden**: `systemMessage`/`additionalContext`, SIEMPRE exit 0, silencio sin `python3`; el linter exige que cada `command` exista y sea ejecutable | `hooks/progress-line.sh` como referencia |
 | Impedir que UN agente haga algo prohibido (deny) | **hook de guardia** | wrapper en `hooks/` registrado SOLO en el frontmatter `hooks:` de ese agente (`PreToolUse` → JSON `permissionDecision: deny`); la decisión en un script de `agent-kits/shared/` con tests; desactivable en `.claude/dev.json`; sin `python3` → aviso y exit 0. **Nunca en `hooks/hooks.json`** (regla 8 de CONVENTIONS, ADR-007) | `hooks/implementer-guardrail.sh` + `agent-kits/shared/guardrail-check.py` |
 
+**Contratos oficiales de Claude Code (regla antes de cualquier WebFetch):** consulta
+`references/claude-code-contracts.md` (hooks, frontmatter de agente y skill, CLI headless, `statusLine`,
+`plugin.json`, cada uno con URL + fecha). Si el contrato está ahí con menos de 90 días, úsalo; **si dudas o
+han pasado > 90 días, re-verifica** con su sección «cómo re-verificar» y actualiza la fecha de la fila en el
+mismo cambio. Redacción de docs/agentes/skills: `agent-kits/shared/docs-style.md`.
+
 Duda entre kit privado y skill → **empieza privado**; promociona a `skills/` el día que un
 segundo agente lo necesite (regla 3). Duda entre agente y comando → si decide *puertas* y
 *orquesta* a otros, es comando; si *hace* un trabajo con criterio propio, es agente.
+Duda entre **skill y agente nuevo** → es agente SOLO si aporta un rol que **decide y escribe un
+artefacto propio** que hoy nadie decide; una **capacidad** que 2+ agentes invocan es skill, aunque
+suene a oficio («tester», «revisor de rendimiento»). Síntoma de haber elegido mal: repartir la misma
+responsabilidad entre dos piezas («este escribe el test, aquel dice si vale») — `LES-013`, `ADR-011`.
 
 ## Paso 1 — Nombre y colisiones
 
@@ -48,10 +58,15 @@ segundo agente lo necesite (regla 3). Duda entre agente y comando → si decide 
 
 **Agente** — claves que interpreta Claude Code + las nuestras:
 
-- `name` (== fichero) · `description` (párrafo con disparadores: termina con "Úsalo cuando el usuario diga …") · `tools` (**mínimos**: solo los que usa de verdad; pedir `Bash` sin usarlo es deuda) · `model` (**obligatorio**, tiering: `haiku` mecánico · `sonnet` desarrollo estándar · `opus` razonamiento crítico · `inherit`) · `dependencies` (skills/kits/agents que EXISTEN; sin ciclos A→B→A).
+- `name` (== fichero) · `description` (párrafo con disparadores: termina con "Úsalo cuando el usuario diga …") · `tools` (**mínimos**: solo los que usa de verdad; pedir `Bash` sin usarlo es deuda) · `model` + `effort` (**obligatorios**, tabla de tiering de CONVENTIONS: `haiku`/`sonnet` → `effort: medium` · `opus` razonamiento crítico → `effort: high`; el override por proyecto vive en `dev.json` `modelos` y lo resuelve `agent-kits/shared/model-tier.py`, no el agente) · `dependencies` (skills/kits/agents que EXISTEN; sin ciclos A→B→A).
 - Opcionales nativos: `skills:` (precarga el contenido COMPLETO de esas skills al arrancar — solo las que el agente necesita en TODAS sus ejecuciones; las opt-in se invocan bajo demanda con la herramienta Skill; cada una debe estar también en `dependencies.skills` y el linter avisa si la precarga supera 16 KB — regla token-diet) · `hooks:` (hooks con alcance del agente; único sitio para un hook de guardia — `command` con `${CLAUDE_PLUGIN_ROOT}` + fallback `find` en la misma línea, el linter comprueba que el fichero exista). No uses `isolation: worktree` nativo: choca con el opt-in `worktree` de `dev.json`.
 
-**Skill** — `name` + `description` (misma regla de disparadores). Todo lo demás es el cuerpo.
+**Skill** — `name` + `description` (misma regla de disparadores). El cuerpo es el **mapa**, no el manual:
+≤ 200 líneas (aviso del linter; 250 = umbral duro en `tests/test_skill_size.py`) con propósito, disparadores,
+pasos en 1-3 líneas, guardrails, «qué NO hace» y una **tabla de referencias**; el detalle va a
+`skills/<nombre>/references/<tema>.md` enlazado con «lee X solo cuando llegues al paso Y» (regla «skills
+cortas» de CONVENTIONS, ADR-008). Si adelgazas una existente: `tests/test_skill_size.py --diet-check <skill>
+<ref>` → `0 párrafos perdidos`, y no renumeres pasos que otras piezas citan.
 
 **Comando** — frontmatter YAML con `description` y `argument-hint` (lo interpreta Claude Code
 para el picker de `/`), cuerpo con `$ARGUMENTS`, y fases con puertas explícitas (qué pregunta,
@@ -84,13 +99,23 @@ Orden estricto; no se avanza con un paso en rojo:
    que HOY falla, míralo fallar, implementa, míralo pasar (evidencia estilo TDD:
    `RED: <test> falló con <error>`).
 2. **Linter**: `python scripts/lint_plugin.py` — frontmatter completo, `model` válido, grafo
-   `dependencies` sin ciclos ni referencias muertas, colisiones de nombres.
+   `dependencies` sin ciclos ni referencias muertas, colisiones de nombres; avisa si la pieza no
+   tiene caso positivo en `evals/cases/`, si su `description` pasa de 1.200 caracteres o si un
+   `SKILL.md` pasa de 200 líneas (detalle a `references/`).
+2-bis. **Evals de activación (checklist de pieza nueva):** `evals/cases/<kind>-<nombre>.json` con
+   **≥ 1 caso positivo y 1 negativo** (en la práctica 2 positivos —uno `literal` con una frase de la
+   description, otro `parafrasis`— y un negativo VECINO con `redirect`); `python3 evals/check.py`
+   exit 0. La description es una promesa de activación: aquí se prueba (`evals/README.md`).
+2-ter. **Tabla de racionalización si la pieza tiene DoD o veredicto:** justo antes de ese bloque,
+   con el formato de `agent-kits/shared/rationalization-table.md` (6-8 filas en primera persona,
+   acción concreta al cierre, ≤ 25 líneas). Añade la pieza a `tests/test_rationalization_tables.py`.
 3. **Suites del repo** (misma invocación que la CI — las de `tests/` son suites-script, pytest
    NO las recoge):
 
    ```bash
    for t in tests/test_*.py; do python "$t" || exit 1; done   # suites del repo
-   python -m pytest agent-kits/shared/ -q                     # tests de los scripts shared
+   python -m pytest agent-kits/shared/ skills/*/scripts evals -q   # scripts shared + skills con suite propia + evals
+   python3 evals/check.py                                     # cobertura y disparadores literales
    ```
 4. **Auto-revisión adversarial** (piezas no triviales): lente de conformidad con CONVENTIONS
    (¿cumple cada regla citable?) + lente de defectos (¿qué input rompe el script? ¿qué pasa en

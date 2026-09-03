@@ -8,6 +8,7 @@
   Semántica: fechas = contexto · tokens = medida · horas = tokens × ratio calibrado.
 -->
 ---
+design: n/a               # design.md si el agente architect hizo el paso de diseño (regla 7); n/a si no
 generacion:
   inicio: {{ISO-8601}}
   fin: {{ISO-8601}}
@@ -33,6 +34,7 @@ generacion:
 | **Responsable** | {{nombre}} |
 | **Spec** | {{[`spec.md`](spec.md) — o «n/a»}} |
 | **Evaluación** | {{[`evaluation.md`](evaluation.md) — o «n/a»}} |
+| **Diseño** | {{[`design.md`](design.md) — opción elegida O<n> — o «n/a» (sin paso de diseño)}} |
 
 ---
 

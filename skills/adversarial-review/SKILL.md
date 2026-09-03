@@ -2,31 +2,28 @@
 name: adversarial-review
 description: >
   Revisión ADVERSARIAL de un diff con lentes de contexto fresco en paralelo — A (conformidad con
-  spec/plan/constitución, veredicto por criterio ✓/✗), B (solo defectos de corrección) y C
-  (seguridad, CONDICIONAL: solo si `review-lens-select.py` detecta ficheros o líneas sensibles en
-  el diff) — con fusión, graduación Critical/Important/Minor, bucle acotado a 3 intentos, rebate
+  spec/plan/constitución, ✓/✗ por criterio), B (defectos de corrección), C (seguridad, CONDICIONAL)
+  y D (rendimiento, CONDICIONAL — ambas por `review-lens-select.py` sobre ficheros/líneas sensibles
+  o costosas) — con fusión, graduación Critical/Important/Minor, bucle acotado a 3 intentos, rebate
   con evidencia y traza en el ledger («Revisión de dos lentes — intento N»). Fuente única del
   método que usan /dev-cycle (Fase 3) y quick-implement; también a demanda sobre una rama o rango
-  sin ledger. NO sustituye a `qa` (E2E + qa-gate) ni a `nemesis` (auditoría de seguridad
-  completa), y NO revisa estilo ni propone refactors. Úsala cuando el usuario diga "revisa este
-  diff", "revisión adversarial", "pasa las dos lentes", "revisión de dos lentes", "busca gaps en
-  la rama", o cuando /dev-cycle o quick-implement lleguen a la puerta de revisión.
+  sin ledger. NO sustituye a `qa` (E2E + qa-gate) ni a `nemesis` (auditoría de seguridad completa),
+  y NO revisa estilo ni propone refactors. Úsala cuando el usuario diga "revisa este diff",
+  "revisión adversarial", "pasa las dos lentes", "revisión de dos lentes", "busca gaps en la rama",
+  o cuando /dev-cycle o quick-implement lleguen a la puerta de revisión.
 ---
 
-# adversarial-review — dos lentes (+ una condicional) contra el diff, con bucle acotado
+# adversarial-review — dos lentes (+ dos condicionales) contra el diff, con bucle acotado
 
-Patrón que más críticos reales ha cazado en este repo (ver `docs/knowledge/lessons/LES-010-*`):
-revisores de **contexto fresco** que NO han visto implementar, cada uno con una lente distinta,
-sobre el **diff** y no sobre el repo entero. Esta skill es la **fuente única del método**: los
-orquestadores (`/dev-cycle`, `quick-implement`) la invocan por nombre y conservan solo lo suyo
-(contador de intentos, decisión al 3.º, imputación de horas).
+Patrón que más críticos reales ha cazado en este repo (`docs/knowledge/lessons/LES-010-*`): revisores
+de **contexto fresco** que NO han visto implementar, cada uno con una lente, sobre el **diff**. Fuente
+única del método: `/dev-cycle` y `quick-implement` la invocan y conservan solo lo suyo (intentos, horas).
 
 > **Regla dura.** Un revisor siempre encuentra algo: aquí solo cuentan gaps de **requisitos**,
 > **corrección** o **seguridad introducida**, con `fichero:línea` y escenario. Estilo,
 > preferencias y sobre-ingeniería se descartan sin discusión.
 
 Resolución de rutas (regla 5 de CONVENTIONS — nunca rutas fijas):
-
 ```bash
 SHAREDKIT="$(find "$PWD/.claude" "$HOME/.claude" -type d -path '*agent-kits/shared' 2>/dev/null | head -1)"
 REVSKILL="$(find "$PWD/.claude" "$PWD/skills" "$HOME/.claude" -type d -path '*skills/adversarial-review' 2>/dev/null | head -1)"
@@ -54,11 +51,8 @@ ficheros que el usuario indique y dilo (la puerta de alcance no aplica).
 
 ### 0. Puerta previa — alcance del diff (solo con ledger; determinista, sin gastar revisores)
 
-```bash
-python3 "$SHAREDKIT/scope-check.py" "docs/roadmap/<fecha>-<slug>"      # exit 0 obligatorio para lanzar las lentes
-```
-
-Compara los ficheros cambiados (comiteados + sin comitear) con los campos `Archivos` de TODAS las
+`python3 "$SHAREDKIT/scope-check.py" "docs/roadmap/<fecha>-<slug>"` — **exit 0 obligatorio** para
+lanzar las lentes. Compara los ficheros cambiados (comiteados + sin comitear) con los campos `Archivos` de TODAS las
 tareas del ledger (`tasks.md` propio y `docs/knowledge/**` siempre en alcance). **Exit 1** → los
 ficheros fuera de alcance vuelven al `implementer` como **gap Important** ANTES de lanzar las
 lentes: o revierte el cambio, o justifica que es necesario — entonces se añade al campo `Archivos`
@@ -66,51 +60,49 @@ de su tarea con una nota y se relanza el check. **Exit 2** (sin base clara: ni `
 → pásale `--base <ref>`. Sin git → salta la puerta con aviso (la Lente A conserva su comprobación
 (2) como red).
 
-### 1. ¿Aplica la Lente C? (determinista)
+### 1. ¿Aplican las Lentes C (seguridad) y D (rendimiento)? (determinista, un solo script)
 
 ```bash
 python3 "$REVSKILL/scripts/review-lens-select.py" [--base <ref>] [--json]   # exit 0 siempre
 ```
 
-Devuelve `lente_c: true|false` + motivos (fichero + patrón). Heurística por **RUTA** (stems anclados
-al inicio de un token de la ruta y, los que son prefijo de palabras inocuas, con límite final:
-`auth(?!or)`, login, session(s), token(s)¹, oauth, jwt, password, secret(s), crypt, permission(s),
-acl¹, rbac¹, cors¹, csrf, upload, payment, billing, docker, nginx, k8s, helm¹; más `.env*`,
-`Dockerfile*` y `.github/workflows/` — `authz.py`/`session-context.sh`/`tokens.py`/`token_store.py`
-sí; `oracle.py`/`tokenizer.py`/`helmet.py`/`author.md` no (¹ = con límite `(?![a-z])`); la prosa
-`.md/.txt/.rst` y `docs/**` no se evalúan por ruta, `tests/**` sí; `"revision": {"excluir": ["hooks/**"]}`
-en `dev.json` saca globs de la heurística de ruta —para un repo cuyos hooks se llamen `session-*.sh`—
-**sin** sacarlos del escaneo de contenido) y por **CONTENIDO de las
-líneas añadidas** del diff (las borradas no cuentan): `eval(`/`exec(`, `subprocess` **solo con
-`shell=True` en la misma línea**, `os.system(`/`os.popen(`, `innerHTML`/`dangerouslySetInnerHTML`,
-`pickle.loads(`, `yaml.load(`, SQL concatenado o en f-string, `API_KEY`, `PRIVATE KEY`/`BEGIN RSA`,
-`Authorization:`, `Set-Cookie`. La prosa, `docs/**`, los tests y las fixtures no se escanean por
-contenido (contienen payloads a propósito); los binarios se saltan. Configurable en
-`.claude/dev.json` → `"revision": {"lenteSeguridad": "auto" | "siempre" | "nunca", "excluir": ["glob", …]}`
-(default `auto`, sin exclusiones; `/setup` paso 5-ter pregunta el modo; `excluir` es ajuste manual).
-El script nunca bloquea: ante error avisa por stderr y devuelve `false`. La lista exacta de patrones
-es el contrato: `CONTENIDO`/`RUTA_RE` en el propio script, con sus tests.
+Devuelve `lente_c`/`lente_d: true|false` + motivos (fichero + patrón), dos heurísticas
+INDEPENDIENTES sobre el mismo diff. RUTA: C = stems auth/sesión/secretos/pagos/IaC · D =
+repository/dao/query/cache/worker/batch/scheduler…; prosa y `docs/**` excluidas de ambas. CONTENIDO
+de líneas añadidas: C = `eval(`, `shell=True`, `innerHTML`, SQL concatenado, claves… · D = `sleep`
+bloqueante, `readFileSync`, N+1/`await`/regex-compile/concat **dentro de un bucle** (proximidad, no
+parser). Config por separado en `.claude/dev.json`: `revision.lenteSeguridad`/`lenteRendimiento`
+(`auto`|`siempre`|`nunca`) y `revision.excluir` (compartido, solo RUTA). Nunca bloquea (error →
+aviso + ambas `false`). Contrato = constantes del script (`RUTA_RE`/`CONTENIDO`/`RUTA_RE_D`/
+`CONTENIDO_D_INDEPENDIENTE`/`PATRONES_TRAS_BUCLE_D`), con tests; detalle en
+`references/lens-c-heuristics.md`/`lens-d-heuristics.md` si un motivo sorprende.
 
-### 2. Lanzar las lentes en PARALELO (subagentes genéricos, contexto limpio, que NO hayan visto implementar)
+### 2. Lanzar las lentes en PARALELO → agente `reviewer` (solo lectura, contexto fresco)
 
 Cada lente recibe SOLO: el diff (o cómo obtenerlo), las rutas de los artefactos contra los que
-revisa, y si N > 1 la tabla del intento anterior (ver §5). Prompts literales:
+revisa, y si N > 1 la tabla del intento anterior (ver §5). Despacho:
 
-- **Lente A — conformidad con la spec/plan (y la constitución si existe):** "Revisa el diff de la iniciativa `docs/roadmap/<fecha>-<slug>/` contra `improvement-plan.md` y `tasks.md`. Comprueba: (1) cada `T-XX` marcada como hecha está realmente implementada y cumple sus criterios; (2) nada fuera del alcance del plan (`scope-check.py` acaba de pasar; confirma que lo declarado en `Archivos` es lo que el plan pedía); (3) los criterios con test tienen su test; (4) **si existe `docs/CONSTITUTION.md`**, ningún cambio viola un principio EXPLÍCITO del fichero — si lo viola, es gap de corrección **citando la línea del principio**; lo que no esté escrito ahí es estilo, no gap (no inventes principios). **Devuelve salida ESTRUCTURADA por criterio: `T-XX` → cada criterio de aceptación → ✓/✗**, más los gaps (fichero:línea). Solo gaps de requisitos/constitución, no estilo."
-  *Modo sin plan:* sustituye «contra `improvement-plan.md` y `tasks.md`» por «contra el objetivo declarado: <objetivo> y los mensajes de commit del rango `<base>..HEAD`», y (1)-(3) por «cada objetivo/commit hace lo que dice y nada más; lo que cambia y no lo explica ningún commit es gap».
-- **Lente B — calidad y robustez del código:** "Revisa el diff de la iniciativa buscando SOLO defectos de corrección: casos límite sin manejar, errores silenciados, condiciones de carrera, inputs que rompen, regresiones probables. NO reportes preferencias de estilo ni sugerencias de refactor. Lista de defectos (fichero:línea, escenario concreto de fallo) o 'sin defectos'."
-  *Persona de dominio:* si la tarea (o la mayoría de las tareas del diff) lleva `- **Tipo**: frontend|backend|db|devops|test|docs`, antepón al prompt el perfil corto de `"$SHAREDKIT/personas/<tipo>.md"` (misma mecánica que `task-brief.py`: prioridades, trampas típicas y evidencia exigible del dominio). Sin etiqueta o sin perfil en el catálogo → lente genérica, nunca bloquea.
-- **Lente C — seguridad del diff (SOLO si `lente_c: true`):** "Contexto fresco. Revisa SOLO el diff `<base>..HEAD` buscando vulnerabilidades introducidas o reabiertas: inyección (SQL/comando/plantilla), autenticación y sesión, secretos hardcodeados, deserialización insegura, path traversal, SSRF, permisos/autorización. Cita el CWE cuando aplique. NO hagas una auditoría completa del proyecto (eso es `nemesis`): solo lo que este diff introduce o reabre. Devuelve defectos con fichero:línea + escenario de explotación concreto, o 'sin hallazgos'. Motivos que activaron esta lente: <salida de review-lens-select>."
-  Referencias que puede consultar (solo las listas, NO la skill `cybersecurity` entera —976 líneas—): `skills/cybersecurity/references/vulnerability-taxonomy.md` (OWASP/CWE unificado), `skills/cybersecurity/references/language-patterns/<lenguaje>.md` (patrones peligrosos por lenguaje), `skills/cybersecurity/references/iac-patterns/{dockerfile,github-actions,kubernetes,terraform}.md` si el diff toca IaC, y `skills/cybersecurity/references/false-positive-suppression.md` para no reportar lo que el framework ya mitiga. Resuélvelas con `find "$PWD/.claude" "$HOME/.claude" -type f -path '*skills/cybersecurity/references/…'`; si no están instaladas, la lente corre con su propio criterio y lo dice.
+1. **Tier del revisor:** `python3 "$SHAREDKIT/model-tier.py" reviewer --json` → pasa `model` al Agent
+   tool si `fuente.model` es `dev.json` (el `effort` de dev.json es informativo; sin script → frontmatter).
+2. **Agente por nombre:** una llamada al Agent tool por lente con `subagent_type: reviewer`
+   (`agents/reviewer.md`: `tools: Read, Grep, Glob, Bash` — NO puede escribir; Bash solo para ejecutar
+   tests/scripts como evidencia) y el prompt literal de la lente. Las 2-4 llamadas van en paralelo.
+3. **Fallback (degradación, no bloqueo):** si el agente `reviewer` no está disponible (instalación
+   parcial, `Agent(reviewer)` rechazado), lanza un subagente genérico con el MISMO prompt y anótalo en la
+   salida («lentes por subagente genérico: reviewer no disponible»).
+
+**Prompts literales de A, B, C y D** (+ criterio docs-style en prosa): lee
+`"$REVSKILL/references/lens-prompts.md"` **al llegar aquí**. C solo si `lente_c: true`; D solo si
+`lente_d: true` (pueden ambas a la vez: hasta 4 lentes en paralelo).
 
 ### 3. Fusionar y graduar
 
-**Fusiona** las 2-3 salidas: deduplica gaps que señalen lo mismo (mismo `fichero:línea` o mismo
-escenario); la Lente A da el **veredicto por criterio** (✓/✗); B y C aportan defectos a la lista de
-gaps (los de C llevan su CWE). Gradúa cada gap **`Critical / Important / Minor`**: Critical
-(pérdida de datos, seguridad explotable, criterio de aceptación incumplido que rompe el objetivo)
-e Important (defecto real reproducible, fuera de alcance, constitución violada) **obligan
-corrección**; Minor se anota en el ledger sin bloquear el cierre.
+**Fusiona** las 2-4 salidas: deduplica gaps que señalen lo mismo (mismo `fichero:línea` o mismo
+escenario); A da el **veredicto por criterio** (✓/✗); B, C y D aportan defectos (los de C con su
+CWE; los de D, el escenario de carga que lo justifica). Gradúa cada gap **`Critical / Important /
+Minor`**: Critical (pérdida de datos, seguridad explotable, criterio incumplido que rompe el
+objetivo) e Important (defecto reproducible, fuera de alcance, constitución violada) **obligan
+corrección**; Minor se anota sin bloquear el cierre.
 
 ### 4. Disciplina al RECIBIR (nada de obediencia ciega)
 
@@ -134,11 +126,26 @@ completa de veredictos y gaps del intento N — incluidos los `descartado (rebat
 evidencia** — con la instrucción "esto ya lo juzgaste así; re-evalúa SOLO lo corregido; no reabras
 ni lo aprobado ni lo rebatido salvo evidencia nueva".
 
+### Racionalizaciones del REVISOR que NO valen
+
+Formato y reglas: `"$SHAREDKIT/rationalization-table.md"`. Aplican a cada lente y a la fusión.
+
+| Excusa que el modelo se da | Por qué no vale | Qué hacer en su lugar |
+|---|---|---|
+| «Parece correcto; el implementador sabe lo que hace» | Confianza no es evidencia; la revisión existe para lo que él no puede ver desde dentro. | Lee el diff completo y verifica cada criterio con `fichero:línea`. |
+| «La suite está en verde, así que apruebo» | Los críticos de `LES-010` pasaban suites: el verde no cubre requisitos ni huecos de diseño. | Reproduce el escenario de cada criterio; ✓ solo con evidencia. |
+| «Este nombre/estructura no me gusta; lo reporto como gap» | Estilo, preferencias y refactors están excluidos por la regla dura. | Descártalo sin discusión; solo requisitos, corrección o seguridad introducida. |
+| «El diff es largo; reviso los ficheros importantes y extrapolo» | Los gaps aparecen donde nadie mira (BOM, rutas Windows, fixtures, evasiones). | Recorre TODO el diff; si no cabe, divídelo por ficheros y dilo en la salida. |
+| «Aquel gap rebatido en el intento anterior sigue pareciéndome gap» | Reabrir sin evidencia nueva rompe el traspaso y el bucle acotado a 3. | Re-evalúa SOLO lo corregido; reabre únicamente con evidencia nueva citada. |
+| «Es Critical, pero lo bajo a Minor para no bloquear el cierre» | La graduación sigue la definición, no el calendario; suavizarlo es deuda oculta. | Gradúa por definición; que el usuario decida si lo acepta como deuda. |
+| «Lo señalo sin línea ni escenario; ya lo encontrará el implementador» | Sin `fichero:línea` + escenario no es verificable ni rebatible. | Cada gap con `fichero:línea` y escenario concreto de fallo. |
+| «Encontré algo, con eso ya justifico la revisión» | Un revisor «siempre encuentra algo»; el objetivo es cobertura por criterio, no volumen. | Entrega la tabla ✓/✗ completa; «sin defectos» es una salida válida. |
+
 ### 6. Salida y traza
 
 - **Siempre:** tabla por criterio (u objetivo) ✓/✗ + lista de gaps graduados con `fichero:línea`,
   escenario y veredicto (`corregido` · `descartado (rebatido)` · `deuda aceptada` · `pendiente`),
-  y qué lentes corrieron (A+B, o A+B+C con los motivos).
+  y qué lentes corrieron (A+B, o A+B+C/D con sus motivos).
 - **Con ledger, además:** sección **`## Revisión de dos lentes — intento N: …`** al final de
   `tasks.md` (tabla `# · Grado · Gap · Tarea · Corrección · Evidencia`; ver
   `docs/roadmap/2026-09-02-deterministic-guardrails/tasks.md` como referencia de formato) y, al
@@ -148,35 +155,39 @@ ni lo aprobado ni lo rebatido salvo evidencia nueva".
   lentes, AAAA-MM-DD, intento N)` (formato único de `"$SHAREDKIT/knowledge-write.md"` §Autoría).
   Si el 3.º intento sigue con gaps sin resolver, quedan en `propuesta`. `ledger-lint.py` exit 0
   tras escribir.
-- **Jira (solo si `.claude/jira.json` `enabled` Y el plan se volcó):** el comentario es único y
-  FINAL tras el bucle — Paso 9 de la skill `jira-sync`, renderizado contra
-  `"$SHAREDKIT/review-report.template.md"` con la granularidad del volcado, incluyendo "revisión
-  superada en N intento(s)"; idempotente (`reviewComentado`). El **worklog** `[revisión]` por
-  intento lo imputa el orquestador (es contabilidad del ciclo, no del método).
+- **Jira (solo si `.claude/jira.json` `enabled` Y el plan se volcó):** el orquestador dispara, POR
+  CADA intento (no solo al cerrar), el evento `revision` (sin gaps) o `gaps` (con la tabla) de
+  `jira-flow.py` — Paso 7 de `jira-sync`, `--intento N` obligatorio —, que comenta YA FIRMADO por el
+  `reviewer` (`ca-reviewer`) leyendo la sección `## Revisión de dos lentes` recién escrita; con gaps
+  el issue **se reabre** a *En curso* y el aviso al `implementer` va por el ledger (`task-brief.py`),
+  no por Jira. El **worklog** `[revisión]` por intento lo imputa el orquestador (contabilidad del
+  ciclo, no del método) con las horas medidas. Done es el evento `aprobado` aparte, del
+  **orquestador** (`--actor orquestador` + evidencia en el ledger + `--qa-verde`): nunca aquí, nunca `qa`.
 - **Mensaje final al orquestador:** disciplina de `"$SHAREDKIT/output-discipline.md"` (≤ ~12
   líneas: veredicto, nº de gaps por grado, lentes que corrieron, ruta del ledger actualizado,
   siguiente paso). El detalle vive en el ledger.
 
-> **Compatibilidad de la etiqueta.** El nombre de la sección en los ledgers y del promotor en
-> `docs/knowledge/` sigue siendo **«Revisión de dos lentes»** aunque haya corrido la Lente C —
-> `/retro`, `knowledge-write.md` y los dashboards lo buscan literal. La lente C es opcional y no
-> cambia la etiqueta; anótala en el texto de la sección ("lentes: A+B+C").
+> **Compatibilidad de la etiqueta.** La sección en los ledgers y el promotor de `docs/knowledge/`
+> siguen llamándose **«Revisión de dos lentes»** aunque hayan corrido C y/o D (`/retro` y
+> `knowledge-write.md` lo buscan literal); anota en el texto qué corrió de verdad (p. ej. "lentes:
+> A+B+C", "A+B+D" o "A+B+C+D").
 
 ## Scripts propios
 
-- `scripts/review-lens-select.py` — decide si aplica la Lente C (heurística ruta+contenido sobre
-  las líneas añadidas del diff; `dev.json` `revision.lenteSeguridad`); determinista, tests junto al
-  script (`pytest -q skills/adversarial-review/scripts`), **exit 0 siempre** (error → aviso stderr +
-  `lente_c: false`).
-- Reutiliza sin duplicar: `agent-kits/shared/scope-check.py` (puerta), `ledger-lint.py`,
-  `personas/`, `knowledge-write.md`, `review-report.template.md`, `output-discipline.md`.
+- `scripts/review-lens-select.py` — decide si aplican las Lentes C y D (ruta+contenido de las líneas
+  añadidas; `dev.json` `revision.lenteSeguridad`/`lenteRendimiento`); determinista, con tests junto
+  al script, **exit 0 siempre** (error → ambas `false`).
+- Reutiliza sin duplicar, de `agent-kits/shared/`: `scope-check.py` (puerta), `ledger-lint.py`,
+  `personas/`, `knowledge-write.md`, `review-report.template.md`, `output-discipline.md`,
+  `model-tier.py` (tier del `reviewer`) y `docs-style.md` (Lente A en prosa).
+- Referencias propias (bajo demanda): `references/lens-prompts.md` (prompts literales + criterio
+  docs-style) · `references/lens-c-heuristics.md` · `references/lens-d-heuristics.md`.
 
 ## Qué NO hace
 
 - No implementa ni corrige: devuelve gaps; corrige el `implementer` (o quien pidió la revisión).
 - No da el verde de pruebas (`qa`/`qa-gate.py`) ni audita seguridad completa (`nemesis`).
-- No toca `docs/roadmap/` salvo la sección de revisión del `tasks.md` de la iniciativa, ni
-  `docs/knowledge/` salvo el campo `estado` de las entradas que promueve.
+- No toca `docs/roadmap/` salvo la sección de revisión del `tasks.md`, ni `docs/knowledge/` salvo el `estado` de lo que promueve.
 - No imputa horas: el worklog `[revisión]` por intento es del orquestador (`/dev-cycle`).
 - No decide qué hacer al 3.º intento con gaps: lo devuelve al orquestador/usuario.
 
@@ -184,5 +195,6 @@ ni lo aprobado ni lo rebatido salvo evidencia nueva".
 
 Sin `scope-check.py` o sin git → puerta saltada con aviso. Sin `review-lens-select.py` → solo A+B
 (dilo). Sin `skills/cybersecurity/references/` → la Lente C corre con criterio propio y lo anota.
-Sin `personas/` → Lente B genérica. Sin Jira activo → nada se publica. Nada de esto bloquea la
-revisión; lo único obligatorio es el bucle acotado y la traza en el ledger cuando hay ledger.
+Sin `personas/` → Lente B genérica. Sin agente `reviewer` → subagente genérico con el mismo prompt
+(dilo). Sin `model-tier.py` → frontmatter. Sin Jira activo → nada se publica. Nada de esto bloquea
+la revisión; lo obligatorio es el bucle acotado y la traza en el ledger cuando hay ledger.

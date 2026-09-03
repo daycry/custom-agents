@@ -119,8 +119,9 @@ Cierra en llano: "Listo ✅ Actualicé 3 y creé 1. Tienes conflicto en 1, te lo
 
 ## Qué sube y qué no (política — resumen; fuente en confluence-publish)
 
-El pull respeta la misma política que `confluence-publish` (detalle normativo y tabla completa en
-`skills/confluence-publish/SKILL.md`, sección "qué sube y qué no"): lo que no está en el espejo
+El pull respeta la misma política que `confluence-publish` (resumen en `skills/confluence-publish/SKILL.md`,
+sección "qué sube y qué no"; detalle normativo y tabla completa en
+`skills/confluence-publish/references/config-and-policy.md`): lo que no está en el espejo
 por `exclude` (doc interna del plugin, plan/ledger del roadmap, `**/testing/**`, `docs/en/**`,
 `docs/security-scan/**`…) tampoco puede "bajar" de Confluence, porque nunca subió. La regla que
 sí es propia del pull: **el destino de escritura es SIEMPRE el fichero canónico de `docs/`**, con

@@ -43,6 +43,12 @@ def run():
     contains(a["esfuerzo"], "32h", "alpha esfuerzo")
     contains(a["tokens"], "420.000", "alpha tokens")
     eq(a["titulo"], "Alpha (fixture)", "alpha título (H1)")
+    eq(a["has_design"], True, "alpha con design.md (architect)")
+    eq(a["design_estado"], "aprobado", "alpha design_estado")
+
+    # --- beta: sin design.md → columna tolerada, vacía ---
+    eq(by["2026-01-12-beta"]["has_design"], False, "beta sin design.md")
+    eq(by["2026-01-12-beta"]["design_estado"], None, "beta design_estado None")
 
     # --- beta: evaluada, sin plan ---
     b = by["2026-01-12-beta"]
@@ -58,6 +64,8 @@ def run():
 
     # --- render markdown / html ---
     md = bd.render_markdown(inits, FIX)
+    contains(md, "| diseño |", "markdown: columna diseño en Artefactos")
+    contains(md, "✅ aprobado", "markdown: estado del diseño de alpha")
     contains(md, "Alpha (fixture)", "markdown incluye alpha")
     contains(md, "1.850 €", "markdown incluye coste alpha")
     contains(md, "| Iniciativa |", "markdown tiene tabla")

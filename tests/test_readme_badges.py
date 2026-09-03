@@ -1,10 +1,16 @@
 #!/usr/bin/env python3
-"""Guarda de los badges ESTÁTICOS de los README (agentes · skills · comandos).
+"""Guarda de los conteos de piezas de los README: badges ESTÁTICOS **y la prosa**.
 
 Los badges que cuentan piezas del plugin no se actualizan solos: si añades un
 agente, una skill o un comando y olvidas el badge, el README miente. Este test
 compara el número del badge con lo que hay de verdad en el repo, en los DOS
 idiomas (regla bilingüe de CLAUDE.md).
+
+La FRASE de presentación repite ese conteo en palabras («Nine agents, twelve
+commands…» / «Nueve agentes, doce comandos…») y también se desincroniza: tras
+retirar `pdfy` los badges bajaron a 9 y la frase siguió diciendo «Ten agents» /
+«Diez agentes» dos líneas más abajo (T-fix1). Así que aquí se valida igual que un
+badge: palabra → número → conteo real del repo.
 
 Ejecuta: python tests/test_readme_badges.py
 """
@@ -27,6 +33,22 @@ PIEZAS = {
 READMES = ("README.md", "README.es.md")
 # badge estático de shields con contador: [![Label](.../badge/<etiqueta>-<N>-color.svg)](...)
 BADGE = re.compile(r"img\.shields\.io/badge/([a-zA-Z]+)-(\d+)-")
+
+# frase de presentación con el conteo EN PALABRAS. Si la reescribes, actualiza este patrón: que el
+# test falle es lo que impide que la prosa vuelva a mentir en silencio.
+PROSA = {
+    "README.md": re.compile(r"\b([A-Za-z]+) agents, ([A-Za-z]+) commands\b"),
+    "README.es.md": re.compile(r"\b([A-Za-zÁÉÍÓÚáéíóú]+) agentes, ([A-Za-zÁÉÍÓÚáéíóú]+) comandos\b"),
+}
+# solo los numerales que pueden aparecer de verdad en este conteo (5-25), en los dos idiomas
+NUMERALES = {
+    "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10, "eleven": 11,
+    "twelve": 12, "thirteen": 13, "fourteen": 14, "fifteen": 15, "sixteen": 16,
+    "seventeen": 17, "eighteen": 18, "nineteen": 19, "twenty": 20,
+    "cinco": 5, "seis": 6, "siete": 7, "ocho": 8, "nueve": 9, "diez": 10, "once": 11,
+    "doce": 12, "trece": 13, "catorce": 14, "quince": 15, "dieciséis": 16, "dieciseis": 16,
+    "diecisiete": 17, "dieciocho": 18, "diecinueve": 19, "veinte": 20,
+}
 
 
 def contar(carpeta, listar):
@@ -67,7 +89,26 @@ def main():
         if faltan and contar("agents", PIEZAS["agents"][1]) is not None:
             raise AssertionError(f"{readme}: faltan badges de piezas: {sorted(faltan)}")
 
-    print(f"test_readme_badges: {comprobados} badge(s) verificados OK")
+        # --- la PROSA, con el mismo criterio que el badge
+        m = PROSA[readme].search(texto)
+        assert m, (f"{readme}: no encuentro la frase con el conteo en palabras "
+                   f"(patrón {PROSA[readme].pattern!r}). Si la reescribiste, actualiza PROSA en "
+                   f"tests/test_readme_badges.py — no la borres: es la guarda de que la prosa "
+                   f"no vuelva a contradecir a los badges.")
+        for palabra, carpeta in ((m.group(1), "agents"), (m.group(2), "commands")):
+            real = contar(carpeta, PIEZAS[carpeta][1])
+            if real is None:
+                continue
+            declarado = NUMERALES.get(palabra.lower())
+            assert declarado is not None, (
+                f"{readme}: «{palabra}» no es un numeral que este test conozca (frase: "
+                f"«{m.group(0)}»). Añádelo a NUMERALES o escribe el conteo con un numeral normal.")
+            assert declarado == real, (
+                f"{readme}: la frase dice «{m.group(0)}» ({palabra} = {declarado}) pero hay {real} "
+                f"en {carpeta}/. Actualiza la frase (y su gemela del otro idioma), no solo el badge.")
+            comprobados += 1
+
+    print(f"test_readme_badges: {comprobados} conteo(s) verificados OK (badges + prosa)")
 
 
 if __name__ == "__main__":

@@ -1,9 +1,12 @@
-# Agente: analyst (toma de requerimientos)
+# Agente: analyst (toma de requerimientos y descubrimiento)
 
 ## Propósito
 Convertir una idea o petición vaga en una **especificación aprobada**, mediante conversación. Es la
 entrada humana de la cadena: se sienta con la persona, pregunta bien y deja una `spec.md` sólida y
 **en formato fijo** para que `evaluator` la presupueste. No estima, no planifica, no implementa.
+**Puerta de entrada única** al descubrimiento (`docs/agents/ROLES.md`, `ADR-011`): existía una skill
+`discovery` paralela que producía la misma `spec.md` con el mismo handoff; se retiró por redundante
+y su checklist vive ahora dentro de este agente.
 
 > **Coste medido:** este agente arranca/cierra `usage-meter.py` sobre su artefacto: el frontmatter `generacion:` registra los tokens REALES consumidos al producirlo (fechas = contexto · tokens = medida · horas = tokens × ratio calibrado). `/roadmap-metrics` lo agrega como coste de proceso.
 
@@ -12,7 +15,8 @@ entrada humana de la cadena: se sienta con la persona, pregunta bien y deja una 
 - **Salida (invariante):** `docs/roadmap/<fecha>-<slug>/spec.md` con la **plantilla `spec.md` del kit del `evaluator`** — contexto/objetivo, usuarios, alcance in/out, criterios de aceptación, restricciones, datos/integraciones y supuestos/incógnitas. Registra la iniciativa en `docs/roadmap/README.md`.
 
 ## Cómo trabaja
-Usa la skill `discovery` como checklist de dimensiones, pero **elige la técnica** según el caso:
+Cubre 8 dimensiones internas (objetivo, usuarios, alcance in/out, criterios de éxito,
+restricciones, datos/integraciones, supuestos/incógnitas) **eligiendo la técnica** según el caso:
 entrevista dirigida (default), ejemplos concretos, user stories/escenarios, contraejemplos y límites
 ("¿y si…?", "¿qué NO debe hacer?") y reformulación para detectar contradicciones. Una pregunta por
 turno, lenguaje llano, prioriza lo que mueve coste/riesgo, y lo que el usuario no sabe se registra
@@ -24,7 +28,7 @@ Presenta un resumen ejecutivo de la spec y pide aprobación explícita. Con camb
 encadena). El analyst nunca presupuesta.
 
 ## Dependencias
-- Skill `discovery` (dimensiones de descubrimiento) · plantilla `spec.md` del kit `agent-kits/evaluator`.
+- Plantilla `spec.md` del kit `agent-kits/evaluator` (el checklist de descubrimiento es interno, ver arriba).
 - Handoff al agente `evaluator`.
 - Sincroniza con Confluence (opt-in) al escribir en `docs/`.
 

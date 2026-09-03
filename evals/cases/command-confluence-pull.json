@@ -1,0 +1,30 @@
+{
+  "target": "command:confluence-pull",
+  "cases": [
+    {
+      "id": "cmd-confluence-pull-literal",
+      "prompt": "Trae a mi carpeta local el estado actual de Confluence de las páginas del roadmap; no uso git.",
+      "trigger": "literal",
+      "expect": {
+        "activates": true
+      },
+      "notes": "Ventana literal «el estado actual de Confluence»."
+    },
+    {
+      "id": "cmd-confluence-pull-parafrasis",
+      "prompt": "Soy PM y no tengo git: ponme al día la carpeta docs/ con lo que hay hoy en Confluence y avísame de conflictos antes de escribir.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true
+      }
+    },
+    {
+      "id": "cmd-confluence-pull-neg-publish",
+      "prompt": "Publica el árbol de docs/ en Confluence bajo la página del proyecto.",
+      "expect": {
+        "activates": false,
+        "redirect": "skill:confluence-publish"
+      }
+    }
+  ]
+}
