@@ -1,0 +1,64 @@
+# ⚠️ COPIA MANUAL: este árbol (github-templates.MANUAL-COPY/) se copia TAL CUAL a .github/
+# (ruta protegida para las herramientas remotas). tests/test_ci_manual_copy.py compara ambos.
+name: New piece · Pieza nueva
+description: Propose a new agent, skill, command, shared fragment or hook. · Proponer una pieza nueva.
+title: "[new piece] "
+labels: ["enhancement", "new-piece"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Read `CONTRIBUTING.md` §1 first. Inside Claude Code the `plugin-dev` skill walks the decision tree and creates the piece with the right frontmatter.
+        *Lee `CONTRIBUTING.md` §1. Dentro de Claude Code, la skill `plugin-dev` recorre el árbol de decisión y crea la pieza con el frontmatter correcto.*
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Kind · Tipo
+      description: Used by 2+ agents → skill; private to one agent → agent-kit; orchestration → command; repeated prompt → shared fragment.
+      options:
+        - skill (skills/<name>/)
+        - agent (agents/<name>.md + agent-kits/<name>/)
+        - command (commands/<name>.md)
+        - shared fragment / script (agent-kits/shared/)
+        - hook (informative, global) · hook informativo
+        - hook (guard, agent-scoped) · hook de guardia
+    validations:
+      required: true
+  - type: input
+    id: name
+    attributes:
+      label: Proposed name (kebab-case) · Nombre propuesto
+      placeholder: e.g. release-notes
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem it solves · Problema que resuelve
+      description: Who invokes it, when, and what happens today without it. · Quién la invoca, cuándo y qué pasa hoy sin ella.
+    validations:
+      required: true
+  - type: textarea
+    id: triggers
+    attributes:
+      label: Trigger phrases · Frases de activación
+      description: 2-3 things a user would say that must activate it, and 1 neighbouring request that must NOT (they become `evals/cases/`). · 2-3 frases que deben activarla y 1 vecina que NO.
+      placeholder: |
+        + "…"
+        + "…"
+        - "…" (should go to <other piece>)
+    validations:
+      required: true
+  - type: textarea
+    id: deps
+    attributes:
+      label: Dependencies and touched pieces · Dependencias y piezas que toca
+      description: Existing skills/kits/agents it uses; docs and configs (`.claude/*.json`) it reads or writes.
+  - type: checkboxes
+    id: contract
+    attributes:
+      label: Design contract · Contrato de diseño
+      options:
+        - label: Any calculation or verdict goes in a script with tests and exit codes, not in prose · Cálculos/veredictos en script con tests
+        - label: It degrades with a warning, never blocks the cycle · Degrada con aviso, nunca bloquea
+        - label: It will ship with docs in ES + EN and a CHANGELOG entry · Llegará con doc ES+EN y CHANGELOG
