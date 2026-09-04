@@ -9,6 +9,8 @@ and versioning follows [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.17.0] - 2026-09-04
+
 ### Changed — `changelog-brief` initiative (2026-09-04)
 
 - **T-01 — The summary ladder (`Changelog:` field → 1st sentence → main clause → title)** Each task's bullet is now a one- or two-sentence summary, and when no material fits it falls back to the task title rather than truncating a sentence mid-way. (`skills/changelog-sync/scripts/changelog-sync.py`, `skills/changelog-sync/scripts/test_changelog_sync.py`)
@@ -391,6 +393,7 @@ Adoption of best practices from the top agent collections (reference agent colle
 
 Versions predating the introduction of this changelog: a bundle with the `nemesis`, `evaluator`, `planner`, `pdfy` and `qa` agents, and the shared `cybersecurity` and `to-pdf` skills. Packaged as a plugin + marketplace.
 
+[1.17.0]: https://github.com/daycry/custom-agents/releases/tag/v1.17.0
 [1.16.0]: https://github.com/daycry/custom-agents/releases/tag/v1.16.0
 [1.15.0]: https://github.com/daycry/custom-agents/releases/tag/v1.15.0
 [1.14.1]: https://github.com/daycry/custom-agents/releases/tag/v1.14.1
