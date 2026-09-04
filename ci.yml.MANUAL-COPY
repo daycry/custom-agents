@@ -35,10 +35,15 @@ jobs:
             python "$t" || exit 1
           done
 
-      - name: Tests (pytest — scripts shared + skills con suite propia + evals)
-        # carpetas, no lista fija: cualquier test_*.py nuevo en agent-kits/shared/, en
+      - name: Tests (pytest — tests/ + scripts shared + skills con suite propia + evals)
+        # carpetas, no lista fija: cualquier test_*.py nuevo en tests/, en agent-kits/shared/, en
         # skills/*/scripts/ o en evals/ entra solo en la CI (review-lens-select vive junto a su skill)
-        run: python -m pytest agent-kits/shared skills/adversarial-review/scripts skills/code-health/scripts skills/dependency-upgrade/scripts skills/changelog-sync/scripts skills/unit-tests/scripts skills/api-contract/scripts skills/jira-sync/scripts evals -q
+        # `tests` va PRIMERO y es lo que arregla el hueco del intento 2: el bucle de arriba ejecuta
+        # `python tests/test_X.py`, que en los ficheros SIN bloque `__main__` no ejecuta NADA, así
+        # que 68 casos de tests/ (test_export_skills, test_release, test_roadmap_index) no corrían
+        # en CI. Y al revés, las 8 suites de tests/ que son scripts (sin `def test_*`) pytest no las
+        # recoge: las ejecuta `tests/test_suites_no_pytest.py`, para que la puerta local sea la de CI.
+        run: python -m pytest tests agent-kits/shared skills/adversarial-review/scripts skills/code-health/scripts skills/dependency-upgrade/scripts skills/changelog-sync/scripts skills/unit-tests/scripts skills/api-contract/scripts skills/jira-sync/scripts evals -q
 
       - name: Sintaxis de todos los scripts Python
         run: |

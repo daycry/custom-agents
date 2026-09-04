@@ -9,6 +9,16 @@ and versioning follows [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed — `changelog-brief` initiative (2026-09-04)
+
+- **T-01 — The summary ladder (`Changelog:` field → 1st sentence → main clause → title)** Each task's bullet is now a one- or two-sentence summary, and when no material fits it falls back to the task title rather than truncating a sentence mid-way. (`skills/changelog-sync/scripts/changelog-sync.py`, `skills/changelog-sync/scripts/test_changelog_sync.py`)
+- **T-02 — Key files: three, and none when the list says nothing** Bullets no longer drag along lists of five repeated paths: up to three are shown, and none at all when the task touches so many that the list would not inform. (`skills/changelog-sync/scripts/changelog-sync.py`, `skills/changelog-sync/scripts/test_changelog_sync.py`)
+- **T-03 — The nudge that gets the field written (`--check` and `ledger-lint`)** When checking the changelog before a release, the script names the closed tasks whose summary is unwritten — without blocking anything. (`skills/changelog-sync/scripts/changelog-sync.py`, `skills/changelog-sync/scripts/test_changelog_sync.py`, `agent-kits/shared/ledger-lint.py`)
+- **T-04 — Getting the field written: `implementer`, task template and `/dev-cycle`** On closing a task, the implementing agent writes one sentence in the ledger about what changes for whoever uses the project, and that sentence is what reaches the release notes. (`agents/implementer.md`, `agent-kits/planner/templates/tasks.md`, `commands/dev-cycle.md`)
+- **T-05 — Docs and memory** The skill's documentation and the ledger conventions describe the real ladder and the new field, with the measurement that picked each cap and the cases where the result is still poor.
+- **T-06 — Closing the gaps from review attempt 1 (field parsing, abbreviation guard, tests pinned with literals, figures re-measured)** An empty or half-written summary in the ledger no longer leaks into the CHANGELOG as if it were the task's note, and the two-sentence trim no longer eats the second sentence over an abbreviation.
+- **T-07 — Closing the gaps from review attempt 2 (the script prints the figure, not the prose)** Figures the docs assert are now measured by the script and checked by the suite. And a hand-written summary no longer gets lost for quoting a template, ending in an abbreviation, or carrying a glob.
+
 ## [1.16.0] - 2026-09-04
 
 ### Added — `parity-core` initiative (2026-09-03)

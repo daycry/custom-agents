@@ -370,6 +370,10 @@ def _modos():
             [("spec", lambda w: [os.path.join(w, "api.json")], (0, 1), None)],
         "skills/changelog-sync/scripts/changelog-sync.py":
             [("--check", lambda w: ["--check"], (0, 1), None)],
+        # `--list` y no la campaña: imprime la lista (con `«»`) en ~0,1 s, mientras que la campaña
+        # completa lanza un pytest por mutante (~2 min).
+        "skills/changelog-sync/scripts/mutantes.py":
+            [("--list", lambda w: ["--list"], (0,), None)],
         "skills/code-health/scripts/code-health.py":
             [("informe", lambda w: [w], (0,), None)],
         "skills/confluence-publish/scripts/confluence-scope.py":
