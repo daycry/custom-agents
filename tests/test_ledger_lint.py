@@ -201,7 +201,93 @@ def main():
     inline = ll.parse_verificacion(["- **Verificación**: `a` → 1 · `b` → 2"], 0)[0]
     assert inline["items"] == ["`a` → 1", "`b` → 2"] and inline["ejecutada"] is None
 
-    print("test_ledger_lint: 15/15 OK")
+    # 16) campo `Changelog:` — OPCIONAL por diseño: nunca es incoherencia, y un ledger que no lo
+    #     usa en NINGUNA tarea no recibe aviso (los 13 ledgers cerrados previos —63 tareas—
+    #     validan idéntico).
+    code, out = run(doc())
+    assert code == 0 and "Changelog" not in out, out
+    #     adopción PARCIAL (una tarea lo trae y la otra no) → AVISO, exit 0
+    parcial = doc().replace("- **Estado**: completado\n",
+                            "- **Estado**: completado\n- **Changelog**: Arregla el arranque sin config.\n", 1)
+    code, out = run(parcial)
+    assert code == 0, out
+    assert "⚠️" in out and "T-02: sin campo **Changelog**" in out, out
+    assert "T-01" not in out.split("ledger-lint:")[0], out
+    #     campo presente pero VACÍO → aviso, nunca error
+    vacio_cl = doc().replace("- **Estado**: completado\n",
+                             "- **Estado**: completado\n- **Changelog**:\n", 1)
+    code, out = run(vacio_cl)
+    assert code == 0 and "T-01: campo **Changelog** VACÍO" in out, out
+    #     el parser lo expone
+    tareas = {x["id"]: x for x in ll.parse_ledger(parcial)["tareas"]}
+    assert tareas["T-01"]["changelog"] == "Arregla el arranque sin config."
+    assert tareas["T-02"]["changelog"] is None
+
+    # 17) `--warn-only` (modo hook) con el campo: exit 0 y el aviso sigue saliendo. Faltaba el
+    #     caso, y el criterio T-03#3 promete «ni con --warn-only ni sin él».
+    code, out = run(parcial, warn_only=True)
+    assert code == 0 and "T-02: sin campo **Changelog**" in out, out
+    assert "❌" not in out, out
+    code, out = run(vacio_cl, warn_only=True)
+    assert code == 0 and "T-01: campo **Changelog** VACÍO" in out and "❌" not in out, out
+
+    # 18) placeholder `{{…}}` de plantilla sin sustituir: no es un resumen escrito (changelog-sync
+    #     lo IGNORA y degrada al título), así que se avisa en vez de darlo por bueno.
+    ph = doc().replace(
+        "- **Estado**: completado\n",
+        "- **Estado**: completado\n- **Changelog**: {{qué cambia para quien USA el proyecto}}\n", 1)
+    code, out = run(ph)
+    assert code == 0 and "T-01: campo **Changelog** sin sustituir" in out, out
+    assert "T-02: sin campo **Changelog**" not in out, "con placeholder no hay adopción parcial"
+    code, out = run(ph, warn_only=True)
+    assert code == 0 and "placeholder" in out and "❌" not in out, out
+
+    # 18-bis) …pero un `{{…}}` CITADO es texto humano: el criterio es «el campo ES el placeholder»,
+    #     no «lo menciona». Antes se descartaban los dos casos de abajo (pérdida silenciosa de
+    #     texto escrito a mano) y el aviso diagnosticaba «placeholder sin sustituir».
+    for escrito in ("Ahora la plantilla del planner trae `{{qué cambia para quien USA el "
+                    "proyecto}}` en vez del párrafo largo.",
+                    "El generador acepta {{slug}} y {{fecha}} en el nombre de la sección."):
+        cita = doc().replace("- **Estado**: completado\n",
+                             f"- **Estado**: completado\n- **Changelog**: {escrito}\n", 1)
+        code, out = run(cita)
+        assert code == 0 and "sin sustituir" not in out, (escrito, out)
+        tareas = {x["id"]: x for x in ll.parse_ledger(cita)["tareas"]}
+        assert tareas["T-01"]["changelog"] == escrito, tareas["T-01"]
+        assert not ll.es_placeholder(escrito), escrito
+    for plantilla in ("{{qué cambia para quien USA el proyecto, en una frase}}",
+                      "{{OPCIONAL, lo rellena quien CIERRA la tarea: una frase}}",
+                      "  {{sin sustituir}}  "):
+        assert ll.es_placeholder(plantilla), plantilla
+
+    # 19) continuación INDENTADA del campo: una persona parte la frase en dos líneas y el Markdown
+    #     la lee como un párrafo. Se absorbe (no se pierde en silencio) y no se come los criterios.
+    multi = doc().replace(
+        "- **Estado**: completado\n",
+        "- **Estado**: completado\n- **Changelog**: El script deja de reventar sin config\n"
+        "  y aplica los defaults documentados.\n", 1)
+    code, out = run(multi)
+    assert code == 0, out
+    tareas = {x["id"]: x for x in ll.parse_ledger(multi)["tareas"]}
+    assert tareas["T-01"]["changelog"] == \
+        "El script deja de reventar sin config y aplica los defaults documentados.", tareas["T-01"]
+    assert tareas["T-01"]["checked"] == 2, "la continuación no se come los criterios"
+
+    # 20) el patrón del campo es la FUENTE ÚNICA que replica `changelog-sync.py`. `[^\\S\\n]*` y no
+    #     `\\s*`: con `re.M` sobre un bloque, `\\s*` se come el salto de línea y un campo VACÍO
+    #     captura la línea siguiente entera (se publicaba `- **Estado**: completado` como resumen).
+    import importlib.util as _iu
+    _spec = _iu.spec_from_file_location(
+        "changelog_sync_t", os.path.join(ROOT, "skills", "changelog-sync", "scripts",
+                                         "changelog-sync.py"))
+    _cs = _iu.module_from_spec(_spec)
+    _spec.loader.exec_module(_cs)
+    assert ll.CHANGELOG_FIELD_PATTERN == _cs.CHANGELOG_FIELD_PATTERN, "los dos criterios divergen"
+    assert "[^\\S\\n]*" in ll.CHANGELOG_FIELD_PATTERN and "\\s*" not in ll.CHANGELOG_FIELD_PATTERN
+    _b = "### T-01 — x\n\n- **Changelog**:\n- **Estado**: completado\n"
+    assert _cs.RE_CAMPO_CHANGELOG.search(_b).group("txt") == "", "el campo vacío es VACÍO"
+
+    print("test_ledger_lint: 21/21 OK")
 
 
 if __name__ == "__main__":

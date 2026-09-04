@@ -68,6 +68,10 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 ### T-01 — {{Título de la tarea}}
 
 - **Descripción**: {{Qué hay que hacer y por qué, en 1-3 frases.}}
+<!-- Changelog: OPCIONAL, lo rellena quien CIERRA la tarea. Va TAL CUAL al CHANGELOG
+(skill `changelog-sync`, tope 200 caracteres): sin jerga del ledger ni nombres de
+fichero. Sin el campo —o con el `{{…}}` sin sustituir— el bullet degrada al título. -->
+- **Changelog**: {{qué cambia para quien USA el proyecto, en una frase}}
 - **Estado**: borrador
 - **Tiempo humano**: est. {{0.5}}h · real —
 - **Tiempo IA (ejec.)**: est. {{X}}h · real —

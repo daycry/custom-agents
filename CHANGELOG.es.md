@@ -9,6 +9,16 @@ y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Changed — iniciativa `changelog-brief` (2026-09-04)
+
+- **T-01 — La escalera del resumen (campo `Changelog:` → 1.ª frase → oración principal → título)** El bullet de cada tarea pasa a ser un resumen de una o dos frases, y cuando no hay material que quepa dice el título de la tarea en vez de truncar la frase por la mitad. (`skills/changelog-sync/scripts/changelog-sync.py`, `skills/changelog-sync/scripts/test_changelog_sync.py`)
+- **T-02 — Ficheros clave: 3, y ninguno cuando la lista no informa** Los bullets del CHANGELOG dejan de arrastrar listas de cinco ficheros repetidos: se muestran hasta tres, y ninguno cuando la tarea toca tantos que la lista no informaría. (`skills/changelog-sync/scripts/changelog-sync.py`, `skills/changelog-sync/scripts/test_changelog_sync.py`)
+- **T-03 — El empuje para que el campo se escriba (`--check` y `ledger-lint`)** Al comprobar el changelog antes de una release, el script dice qué tareas cerradas no traen su resumen escrito, sin bloquear nada. (`skills/changelog-sync/scripts/changelog-sync.py`, `skills/changelog-sync/scripts/test_changelog_sync.py`, `agent-kits/shared/ledger-lint.py`)
+- **T-04 — Que el campo se escriba: `implementer`, plantilla de tarea y `/dev-cycle`** Al cerrar una tarea, el agente que la implementa escribe en el ledger una frase con lo que cambia para quien usa el proyecto, y esa frase es la que acaba en las notas de la release. (`agents/implementer.md`, `agent-kits/planner/templates/tasks.md`, `commands/dev-cycle.md`)
+- **T-05 — Doc y memoria** La documentación de la skill y las convenciones del ledger describen la escalera real y el campo nuevo, con la medición que eligió cada tope y los casos en los que el resultado sigue siendo pobre.
+- **T-06 — Cierre de los gaps del intento 1 (parseo del campo, guarda de abreviaturas, tests con literales y cifras re-medidas)** Un resumen vacío o a medio escribir en el ledger ya no se cuela en el CHANGELOG como si fuera la nota de la tarea, y el recorte a dos frases deja de comerse la segunda por una abreviatura.
+- **T-07 — Cierre de los gaps del intento 2 (la cifra la imprime el script, no la prosa)** Las cifras que la doc afirma las mide ahora el script y las compara la suite. Y un resumen escrito a mano deja de perderse por citar una plantilla, por acabar en abreviatura o por llevar un glob.
+
 ## [1.16.0] - 2026-09-04
 
 ### Added — iniciativa `parity-core` (2026-09-03)

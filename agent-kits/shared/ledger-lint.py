@@ -25,6 +25,16 @@ AVISOS (no rompen; formato/legacy):
     campo en otras tareas (adopción parcial) o declara `verificacion:` con otro valor. Un ledger
     legacy sin la clave y sin ningún `Verificación` no recibe aviso (los ledgers previos validan
     idéntico).
+  - Tarea sin `- **Changelog**:` (resumen del cambio para el CHANGELOG, skill `changelog-sync`)
+    cuando el ledger ya usa el campo en otra tarea — adopción PARCIAL. El campo es **opcional por
+    diseño**: un ledger que no lo usa en ninguna tarea no recibe aviso (los ledgers previos validan
+    idéntico) y el empuje para escribirlo lo da `changelog-sync.py --check`, no este linter. Nunca
+    es incoherencia dura. El TOPE de longitud vive solo en `changelog-sync.py` (`RESUMEN_MAX`), que
+    es quien renderiza: aquí no se duplica la constante.
+  - Campo `- **Changelog**:` VACÍO, o que ES todavía el placeholder `{{…}}` de la plantilla: en los
+    dos casos `changelog-sync` degrada el bullet al título, así que el campo no está escrito. Un
+    `{{…}}` CITADO (entre acentos graves, o dentro de una frase que dice algo más) sí está escrito
+    y se publica: el criterio es «el campo ES el placeholder», no «lo menciona».
 
 Uso:
   python3 ledger-lint.py <ruta/a/tasks.md> [--warn-only]
@@ -55,6 +65,107 @@ def norm_estado(s):
 VERIF_RE = re.compile(
     r"^\s*-\s*\*\*Verificaci[oó]n\*\*\s*(?P<paren>\((?:[^()]|\([^()]*\))*\))?\s*:\s*(?P<inline>.*)$", re.I)
 _SUBITEM_RE = re.compile(r"^\s+[-*]\s+(.*\S)\s*$")
+# `- **Changelog**: …` — resumen del cambio que consume la skill `changelog-sync` (opcional).
+# FUENTE ÚNICA del criterio de este campo: `skills/changelog-sync/scripts/changelog-sync.py` guarda
+# una copia LITERAL de esta cadena (su paquete portable viaja sin este kit) y su suite compara las
+# dos byte a byte. Antes cada uno tenía su criterio —aquí `^\s*-\s*` (indentación y espaciado
+# libres), allí `^- ` exacto—, así que un `-  **Changelog**: …` con dos espacios pasaba este linter
+# y el generador lo descartaba en silencio, devolviendo el bullet a la `Descripción` cruda.
+# `[^\S\n]*` y no `\s*`: usado con `re.M` sobre un bloque de varias líneas, `\s*` se come el salto
+# de línea y un campo VACÍO captura la línea siguiente entera.
+CHANGELOG_FIELD_PATTERN = \
+    r"^[^\S\n]*-[^\S\n]*\*\*Changelog\*\*[^\S\n]*:[^\S\n]*(?P<txt>.*)$"
+CHANGELOG_RE = re.compile(CHANGELOG_FIELD_PATTERN, re.I)
+# --- Criterios que `changelog-sync.py` REPLICA LITERAL (su paquete portable viaja sin este kit).
+# La suite compara las tres cadenas byte a byte y enfrenta los dos PARSERS sobre bloques de ledger
+# COMPLETOS (con `Verificación` + sub-lista, `### Fase`, valla de código y cola tras la última
+# tarea), no dos regex sobre una línea suelta: el test del intento 1 comparaba las regex, y por eso
+# no cazó que un `- **Changelog**:` indentado bajo `- **Verificación**:` lo publicaba el generador
+# y este linter lo daba por ausente (el bug del intento 1 con los papeles invertidos).
+#
+# (a) Valla de código: un `## Ejemplo` citado dentro de una valla ```markdown NO cierra la tarea.
+VALLA_PATTERN = r"^[^\S\n]*(?:`{3,}|~{3,})"
+# (b) Campos del bloque de una tarea: una línea que es uno de ellos no es prosa de continuación ni
+#     ítem de la sub-lista de `Verificación`.
+CAMPO_LEDGER_PATTERN = (r"^[^\S\n]*(?:[-*+][^\S\n]*)?\*\*(?:Changelog|Descripci[oó]n|Archivos|"
+                        r"Estado|Verificaci[oó]n|Tiempo[^*]*|Supervisi[oó]n|Notas|"
+                        r"Criterios[^*]*)\*\*")
+# (c) Continuación indentada del campo (una persona parte una frase larga en dos líneas): se
+#     absorbe, no se pierde en silencio — pero SOLO si es prosa.
+CONTINUACION_PATTERN = r"^[ \t]{1,3}(?![-*+>|]\s|\d+[.)]\s|<!--|\|)\S"
+_VALLA_RE = re.compile(VALLA_PATTERN)
+_CAMPO_LEDGER_RE = re.compile(CAMPO_LEDGER_PATTERN, re.I)
+_CONTINUACION_RE = re.compile(CONTINUACION_PATTERN)
+
+
+def sin_vallas(text):
+    """`text` con las líneas DENTRO de una valla de código vaciadas (mismo número de líneas)."""
+    out, cerco = [], None
+    for ln in text.split("\n"):
+        m = _VALLA_RE.match(ln)
+        if cerco is None:
+            if m:
+                cerco = m.group(0).strip()[0] * len(m.group(0).strip())
+                out.append("")
+                continue
+        else:
+            out.append("")
+            if m and m.group(0).strip()[0] == cerco[0] and len(m.group(0).strip()) >= len(cerco):
+                cerco = None
+            continue
+        out.append(ln)
+    return "\n".join(out)
+
+
+def es_continuacion(ln):
+    """¿`ln` es la continuación indentada (prosa) del campo anterior?"""
+    return bool(_CONTINUACION_RE.match(ln)) and not _CAMPO_LEDGER_RE.match(ln)
+# Placeholder de plantilla sin sustituir: `{{OPCIONAL, lo rellena quien CIERRA la tarea: …}}` no es
+# un resumen escrito. `changelog-sync.py` lo ignora y degrada al título; aquí se avisa.
+#
+# FUENTE ÚNICA del criterio, igual que `CHANGELOG_FIELD_PATTERN`: `changelog-sync.py` guarda una
+# copia LITERAL de `PLACEHOLDER_PATTERN` y replica `es_placeholder()`, y su suite compara las dos
+# cadenas byte a byte y las dos FUNCIONES sobre la misma tabla de casos. El criterio es «el campo
+# ES el placeholder» (quitando los tramos de código y los bloques `{{…}}` no queda prosa propia),
+# NO «el campo menciona un `{{…}}`»: en un repo cuyas plantillas van llenas de `{{…}}`, una CITA
+# entre acentos graves es texto humano legítimo y descartarla era pérdida silenciosa.
+PLACEHOLDER_PATTERN = r"\{\{.*?\}\}"
+_PLACEHOLDER_RE = re.compile(PLACEHOLDER_PATTERN, re.S)
+PLACEHOLDER_RELLENO = " \t\n.,;:!?—–·-*_`\"'()[]{}«»"
+_RUN_CODIGO_RE = re.compile(r"`+")
+
+
+def sin_codigo(s):
+    """`s` con los tramos entre acentos graves sustituidos por un espacio, emparejando los
+    delimitadores por RUNS (regla CommonMark). Réplica del criterio de `changelog-sync.py`
+    (`sin_codigo`), comparado por la suite sobre la misma tabla de casos."""
+    runs = [(m.start(), m.end()) for m in _RUN_CODIGO_RE.finditer(s)]
+    tramos, k = [], 0
+    while k < len(runs):
+        largo = runs[k][1] - runs[k][0]
+        cierre = next((j for j in range(k + 1, len(runs))
+                       if runs[j][1] - runs[j][0] == largo), None)
+        if cierre is None:
+            k += 1
+            continue
+        tramos.append((runs[k][0], runs[cierre][1]))
+        k = cierre + 1
+    out, pos = [], 0
+    for a, b in tramos:
+        out.append(s[pos:a])
+        out.append(" ")
+        pos = b
+    out.append(s[pos:])
+    return "".join(out)
+
+
+def es_placeholder(t):
+    """¿El campo NO está escrito porque ES (todavía) el placeholder de la plantilla?"""
+    s = (t or "").strip()
+    if not s:
+        return False
+    resto = _PLACEHOLDER_RE.sub(" ", sin_codigo(s))
+    return not resto.strip(PLACEHOLDER_RELLENO)
 
 # ---------------------------------------------------------------------------------------------
 # Cabecera de una sección de revisión adversarial: FUENTE ÚNICA del criterio de parseo
@@ -84,7 +195,10 @@ def parse_verificacion(lines, i):
     j = i + 1
     while j < len(lines):
         ms = _SUBITEM_RE.match(lines[j])
-        if not ms:
+        if not ms or _CAMPO_LEDGER_RE.match(lines[j]):
+            # un `  - **Changelog**: …` indentado bajo `- **Verificación**:` es EL CAMPO, no un
+            # ítem de la verificación: si esta sub-lista se lo comía, el generador lo publicaba y
+            # este linter avisaba de «sin campo Changelog» sobre el MISMO ledger.
             break
         items.append(ms.group(1).strip())
         j += 1
@@ -107,11 +221,14 @@ def parse_ledger(text):
                  "verificacion" (texto plano del campo `- **Verificación**:`: ítems unidos por ` · `,
                  "" si el campo existe pero está vacío, None si no existe),
                  "verificacion_items" ([str]: un ítem por comando → resultado),
-                 "verificacion_ejecutada" (texto del paréntesis `(ejecutada …)` o None)}.
+                 "verificacion_ejecutada" (texto del paréntesis `(ejecutada …)` o None),
+                 "changelog" (texto del campo `- **Changelog**:`, "" si existe vacío, None si no)}.
     Lo consumen `lint()` (aquí) y `progress-report.py` (línea de progreso).
     """
     text = text.lstrip("\ufeff")          # BOM UTF-8: sin esto el frontmatter no se reconoce
-    lines = text.splitlines()
+    # Las líneas DENTRO de una valla de código se vacían antes de parsear: un `## Ejemplo` o un
+    # `- **Changelog**:` citados en una valla ```markdown no son estructura del ledger.
+    lines = sin_vallas(text).splitlines()
 
     # ---- frontmatter (claves planas) y tabla de cabecera ----
     frontmatter = {}
@@ -160,6 +277,12 @@ def parse_ledger(text):
             close_task()
             cur_fase = None
             continue
+        if re.match(r"^###\s+Fase\b", ln):
+            # MINOR 8: `### Fase …` cierra el bloque de la tarea en `changelog-sync` (parte ahí) y
+            # aquí no lo cerraba, así que un campo escrito bajo `### Fase 2` se atribuía distinto en
+            # cada parser. Mismo criterio en los dos.
+            close_task()
+            continue
         m = task_re.match(ln)
         if m:
             close_task()
@@ -170,7 +293,8 @@ def parse_ledger(text):
                         "estado": None, "unchecked": 0, "checked": 0,
                         "tiene_criterios": False, "ia_real_h": None, "ia_est_h": None,
                         "ia_real_fuente": None, "verificacion": None,
-                        "verificacion_items": [], "verificacion_ejecutada": None}
+                        "verificacion_items": [], "verificacion_ejecutada": None,
+                        "changelog": None}
             in_criterios = False
             continue
         if cur_task is not None:
@@ -184,6 +308,14 @@ def parse_ledger(text):
                 cur_task["verificacion_items"] = info["items"]
                 cur_task["verificacion_ejecutada"] = info["ejecutada"]
                 idx = nxt          # los ítems de la sub-lista ya están consumidos
+                continue
+            m = CHANGELOG_RE.match(ln)
+            if m and cur_task["changelog"] is None:
+                partes = [m.group("txt").strip()]
+                while idx < len(lines) and es_continuacion(lines[idx]):
+                    partes.append(lines[idx].strip())
+                    idx += 1               # continuación indentada: absorbida, no perdida
+                cur_task["changelog"] = " ".join(p for p in partes if p).strip()
                 continue
             m = ia_re.match(ln)
             if m and cur_task["ia_real_h"] is None and cur_task["ia_est_h"] is None:
@@ -283,6 +415,31 @@ def lint(path):
         elif verif_fm or usa_verif:
             warnings.append(f"{t['id']}: {que}"
                             + (" (otras tareas lo declaran)" if usa_verif else ""))
+
+    # ---- Changelog por tarea (changelog-brief): AVISO, nunca incoherencia ----
+    # Opcional por diseño. Solo se avisa en ADOPCIÓN PARCIAL (alguna tarea lo trae y otra no) o
+    # con el campo presente y vacío: un ledger que no lo usa en ninguna tarea valida idéntico a
+    # antes. El recordatorio a escribirlo lo da `changelog-sync.py --check`.
+    # Un campo con placeholder `{{…}}` NO cuenta como escrito, igual que para `changelog-sync`:
+    # si contara, un ledger recién copiado de la plantilla acusaría de «adopción parcial» a las
+    # tareas honestas que todavía no lo traen.
+    usa_changelog = any(t["changelog"] and not es_placeholder(t["changelog"])
+                        for t in all_tasks)
+    for t in all_tasks:
+        if es_placeholder(t["changelog"]):
+            warnings.append(f"{t['id']}: campo **Changelog** sin sustituir (ES el placeholder "
+                            f"`{{{{…}}}}` de la plantilla) — `changelog-sync` lo IGNORA y el "
+                            f"bullet degrada al título; escribe la frase de verdad o quita el "
+                            f"campo")
+            continue
+        if t["changelog"]:
+            continue
+        if t["changelog"] == "":
+            warnings.append(f"{t['id']}: campo **Changelog** VACÍO — escribe una frase (qué cambia "
+                            f"para quien USA el proyecto) o quita el campo")
+        elif usa_changelog:
+            warnings.append(f"{t['id']}: sin campo **Changelog** (otras tareas lo declaran) — su "
+                            f"bullet del CHANGELOG degradará al título")
 
     # ---- tabla de resumen (completadas/total por fase) ----
     resumen_rows = re.findall(
