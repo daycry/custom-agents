@@ -9,6 +9,8 @@ y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+## [1.16.0] - 2026-09-04
+
 ### Added — iniciativa `parity-core` (2026-09-03)
 
 - **Tiering de modelos configurable en dos capas** ([`ADR-009`](docs/knowledge/adr/)): cada agente declara `model` **y `effort`** (valores oficiales `low|medium|high|xhigh|max`, exigidos por el linter), y `.claude/dev.json` `"modelos": {"<agente>": {...}}` lo sobrescribe por agente. `agent-kits/shared/model-tier.py` resuelve el tier efectivo (frontmatter + config, con `fuente` por campo) y los cuatro orquestadores pasan `model` al Agent tool. Límite declarado con honestidad: el Agent tool no documenta `effort` por invocación, así que esa clave es informativa — solo el del frontmatter es efectivo. `/setup` paso 5-quater lo edita.
@@ -379,6 +381,7 @@ Adopción de las mejores prácticas de las colecciones top de agentes (coleccion
 
 Versiones anteriores a la introducción de este changelog: bundle con los agentes `nemesis`, `evaluator`, `planner`, `pdfy` y `qa`, y las skills compartidas `cybersecurity` y `to-pdf`. Empaquetado como plugin + marketplace.
 
+[1.16.0]: https://github.com/daycry/custom-agents/releases/tag/v1.16.0
 [1.15.0]: https://github.com/daycry/custom-agents/releases/tag/v1.15.0
 [1.14.1]: https://github.com/daycry/custom-agents/releases/tag/v1.14.1
 [1.14.0]: https://github.com/daycry/custom-agents/releases/tag/v1.14.0
