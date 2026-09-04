@@ -33,6 +33,11 @@ import re
 import sys
 import unicodedata
 
+# Consola Windows (cp1252) o tuberías: reconfigurar ANTES de leer o imprimir nada (GOT-005).
+for _s in (sys.stdin, sys.stdout, sys.stderr):
+    try: _s.reconfigure(encoding="utf-8", errors="replace")
+    except Exception: pass  # noqa: BLE001 — sin reconfigure, ya leído o None (capsys, pythonw)
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 KINDS = ("skill", "command", "agent")
 ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")

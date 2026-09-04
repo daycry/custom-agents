@@ -40,6 +40,11 @@ import os
 import re
 import sys
 
+# Consola Windows (cp1252) o tuberías: reconfigurar ANTES de leer o imprimir nada (GOT-005).
+for _s in (sys.stdin, sys.stdout, sys.stderr):
+    try: _s.reconfigure(encoding="utf-8", errors="replace")
+    except Exception: pass  # noqa: BLE001 — sin reconfigure, ya leído o None (capsys, pythonw)
+
 METODOS_HTTP = ("get", "put", "post", "delete", "options", "head", "patch", "trace")
 
 _DQ_ESCAPES = {"n": "\n", "t": "\t", '"': '"', "\\": "\\", "/": "/", "r": "\r", "b": "\b", "f": "\f"}

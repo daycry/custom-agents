@@ -15,7 +15,7 @@ def run(tmp, *extra, allow_fail=False):
            "--state", os.path.join(tmp, "jira-state.json"),
            "--rates", os.path.join(tmp, "rates.json"),
            "--jira", os.path.join(tmp, "jira.json")]
-    r = subprocess.run(cmd, capture_output=True, text=True)
+    r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
     if not allow_fail:
         assert r.returncode == 0, f"exit {r.returncode}: {r.stderr}"
     return json.loads(r.stdout)

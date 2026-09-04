@@ -89,6 +89,17 @@ Reglas de cuerpo (las que más se incumplen):
    `ls agent-kits/*/ skills/*/scripts/ 2>/dev/null` — `usage-meter`, `task-brief` y `ledger-lint`
    viven en `agent-kits/shared/`; `qa-gate` y `coverage-check` en `agent-kits/qa/`; `worklog` en
    `skills/jira-sync/scripts/`.
+6. **Codificación segura en cualquier consola, en las dos direcciones**: si el script imprime
+   símbolos **o lee de `sys.stdin`**, copia tras los imports el snippet de 4 líneas que reconfigura
+   `stdin`/`stdout`/`stderr` a UTF-8 con `errors="replace"` (LITERAL, a nivel de módulo, los scripts
+   son standalone — CONVENTIONS regla 8, `GOT-005`); si no, revienta con `UnicodeEncodeError` al
+   imprimir un símbolo o `UnicodeDecodeError` al leer un payload con emoji, en consola `cp1252` o con
+   la salida a un pipe en Windows. **Que tu fuente sea ASCII pura no te libra**: quien lee depende
+   del payload, no del fuente. Y si el script LANZA a otro y lee su salida, pásale
+   `encoding="utf-8", errors="replace"`: los scripts del plugin escriben UTF-8 siempre, así que
+   decodificarlos con el codec del locale revienta al padre. Las dos mitades las avisa
+   `lint_plugin.py` y las prueba `tests/test_console_encoding.py`. En un `.sh`, el `python3 -c` en
+   línea que lea `stdin` o imprima símbolos lleva delante `PYTHONIOENCODING=utf-8:replace`.
 
 ## Paso 3 — Validación (TDD-ish: la puerta se escribe ANTES de dar por hecha la pieza)
 

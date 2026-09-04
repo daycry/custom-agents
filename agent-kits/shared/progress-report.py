@@ -37,6 +37,11 @@ import re
 import subprocess
 import sys
 
+# Consola Windows (cp1252) o tuberías: reconfigurar ANTES de leer o imprimir nada (GOT-005).
+for _s in (sys.stdin, sys.stdout, sys.stderr):
+    try: _s.reconfigure(encoding="utf-8", errors="replace")
+    except Exception: pass  # noqa: BLE001 — sin reconfigure, ya leído o None (capsys, pythonw)
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 LINEA_NEUTRA = "roadmap: sin iniciativas en progreso"
 SIN_ACTIVAS = "sin iniciativas en progreso"
@@ -191,7 +196,7 @@ def marcadores_huerfanos(root="."):
     try:
         state = os.path.join(root, ".claude", "usage-state.json")
         res = subprocess.run([sys.executable, meter, "status", "--state", state],
-                             capture_output=True, text=True, timeout=10, check=False)
+                             capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10, check=False)
         data = json.loads(res.stdout or "{}")
         return [m.get("artefacto", "?") for m in data.get("marcadores", []) if not m.get("cerrado")]
     except Exception:  # noqa: BLE001 — cualquier fallo del meter = no disponible

@@ -32,6 +32,11 @@ import os
 import re
 import sys
 
+# Consola Windows (cp1252) o tuberías: reconfigurar ANTES de leer o imprimir nada (GOT-005).
+for _s in (sys.stdin, sys.stdout, sys.stderr):
+    try: _s.reconfigure(encoding="utf-8", errors="replace")
+    except Exception: pass  # noqa: BLE001 — sin reconfigure, ya leído o None (capsys, pythonw)
+
 LEDGER_GLOB = re.compile(r"^(\d{4}-\d{2}-\d{2})-(.+)$")
 CHANGELOGS = {  # fichero → (cabecera de la sección abierta, plantilla de subsección)
     "CHANGELOG.md": ("## [Unreleased]", "### {cat} — `{slug}` initiative ({fecha})"),

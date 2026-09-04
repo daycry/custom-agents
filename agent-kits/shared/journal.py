@@ -46,6 +46,11 @@ import re
 import subprocess
 import sys
 
+# Consola Windows (cp1252) o tuberías: reconfigurar ANTES de leer o imprimir nada (GOT-005).
+for _s in (sys.stdin, sys.stdout, sys.stderr):
+    try: _s.reconfigure(encoding="utf-8", errors="replace")
+    except Exception: pass  # noqa: BLE001 — sin reconfigure, ya leído o None (capsys, pythonw)
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 JOURNAL_REL = os.path.join("docs", "knowledge", "journal")
 TOP_FICHEROS = 10
@@ -90,7 +95,7 @@ def proyecto_con_plugin(root):
 def _git(root, *args):
     """stdout de git o None si git no está / no es repo / falla (nunca lanza)."""
     try:
-        r = subprocess.run(["git", "-C", root, *args], capture_output=True, text=True,
+        r = subprocess.run(["git", "-C", root, *args], capture_output=True, text=True, encoding="utf-8", errors="replace",
                            timeout=GIT_TIMEOUT, check=False)
     except (OSError, subprocess.SubprocessError):
         return None

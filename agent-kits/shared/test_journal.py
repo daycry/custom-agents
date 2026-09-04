@@ -26,7 +26,7 @@ spec.loader.exec_module(journal)
 
 
 def _git(root, *args):
-    return subprocess.run([GIT, "-C", str(root), *args], capture_output=True, text=True, check=True,
+    return subprocess.run([GIT, "-C", str(root), *args], capture_output=True, text=True, encoding="utf-8", errors="replace", check=True,
                           env={**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@x",
                                "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@x"})
 
@@ -61,7 +61,7 @@ def run(*args, root=None, stdin=None):
     cmd = [sys.executable, SCRIPT, *args]
     if root is not None:
         cmd += ["--root", str(root)]
-    r = subprocess.run(cmd, capture_output=True, text=True, input=stdin, timeout=60)
+    r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", input=stdin, timeout=60)
     return r.returncode, r.stdout, r.stderr
 
 

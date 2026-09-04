@@ -17,6 +17,15 @@ Las rutas de los kits se resuelven en tiempo de ejecución con un `find` sobre `
 
 > ⚠️ **No clones el repositorio dentro de una carpeta sincronizada en la nube** (OneDrive, Dropbox, Google Drive, iCloud…). El sincronizador y git se pisan: bloquea los ficheros `.lock` y objetos de `.git` mientras sube, lo que provoca errores tipo `Unable to create '.git/HEAD.lock'`, "index file corrupt" o ficheros que se leen a medias. Clónalo en una ruta local **fuera** del área sincronizada (p. ej. `C:\dev\custom-agents` o `~/code/custom-agents`). Si ya lo tienes en una carpeta sincronizada y ves esos errores: pausa la sincronización, borra los `.git/*.lock`, ejecuta `git status` para reconstruir el índice, y considera mover el repo fuera.
 
+> ℹ️ **Windows — símbolos en la consola.** Los scripts del plugin imprimen `✅ ⚠️ ❌`. Desde la
+> versión que arregla `GOT-005` reconfiguran su salida a UTF-8 al arrancar, así que **no** revientan
+> con `UnicodeEncodeError` aunque el locale sea `cp1252` (Windows español) o la salida vaya a un
+> pipe — que es como `release.py` lanza sus checks. En una consola moderna (Windows Terminal,
+> PowerShell 7) los símbolos se ven bien; en una **consola legacy** (`cmd.exe` con codepage antiguo o
+> `PYTHONLEGACYWINDOWSSTDIO=1`) se ven como caracteres raros (`âœ…`), no como `?` (medido): es **esperado**
+> y solo afecta a cómo se dibuja el símbolo — el veredicto, el texto y el exit code son correctos. Si
+> te molesta, `chcp 65001` antes de ejecutar, o usa Windows Terminal.
+
 ---
 
 ## Vía 1 — Probar en un proyecto (rápido)

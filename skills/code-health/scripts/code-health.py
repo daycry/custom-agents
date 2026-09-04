@@ -35,6 +35,11 @@ import subprocess
 import sys
 from collections import defaultdict
 
+# Consola Windows (cp1252) o tuberías: reconfigurar ANTES de leer o imprimir nada (GOT-005).
+for _s in (sys.stdin, sys.stdout, sys.stderr):
+    try: _s.reconfigure(encoding="utf-8", errors="replace")
+    except Exception: pass  # noqa: BLE001 — sin reconfigure, ya leído o None (capsys, pythonw)
+
 LANGS_DEFAULT = "py,js,ts,tsx,jsx,php,go,java,rb,cs,kt,rs"
 EXCLUDE_DIRS = {"vendor", "node_modules", "dist", "build", ".git", "__pycache__", ".venv", "venv",
                 "target", ".next", "coverage", ".idea", ".vscode"}
@@ -262,7 +267,7 @@ def tamano(src, umbral, top):
 
 def git(root, *args):
     try:
-        r = subprocess.run(["git", "-C", root, *args], capture_output=True, text=True,
+        r = subprocess.run(["git", "-C", root, *args], capture_output=True, text=True, encoding="utf-8", errors="replace",
                            timeout=GIT_TIMEOUT, check=False)
     except (OSError, subprocess.SubprocessError):
         return None

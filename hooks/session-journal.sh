@@ -36,7 +36,7 @@ fi
 [ -n "$JOURNAL" ] && [ -f "$JOURNAL" ] || exit 0
 
 # session_id · reason · transcript_path · cwd del payload (en una sola pasada de python).
-eval "$(printf '%s' "$INPUT" | python3 -c '
+eval "$(printf '%s' "$INPUT" | PYTHONIOENCODING=utf-8:replace python3 -c '
 import json, shlex, sys
 try: d = json.load(sys.stdin)
 except Exception: d = {}
@@ -51,7 +51,7 @@ ROOT="${CLAUDE_PROJECT_DIR:-${J_CWD:-$PWD}}"
 
 # Opt-out del consumidor: .claude/dev.json → {"sesion": {"journal": false}}
 if [ -f "$ROOT/.claude/dev.json" ]; then
-  activo="$(python3 -c '
+  activo="$(PYTHONIOENCODING=utf-8:replace python3 -c '
 import json, sys
 try: d = json.load(open(sys.argv[1], encoding="utf-8"))
 except Exception: d = {}

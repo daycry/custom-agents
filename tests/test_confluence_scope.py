@@ -43,7 +43,7 @@ def fresh_root(tmp):
 
 def run(args, cwd=None):
     r = subprocess.run([sys.executable, str(SCRIPT)] + args,
-                        capture_output=True, text=True, cwd=cwd)
+                        capture_output=True, text=True, encoding="utf-8", errors="replace", cwd=cwd)
     return r.returncode, r.stdout, r.stderr
 
 
@@ -416,7 +416,7 @@ def run_hook(file_path, project_dir):
     env = dict(os.environ)
     env["CLAUDE_PROJECT_DIR"] = str(project_dir)
     r = subprocess.run(["bash", str(HOOK)], input=payload, capture_output=True,
-                        text=True, cwd=str(project_dir), env=env)
+                        text=True, encoding="utf-8", errors="replace", cwd=str(project_dir), env=env)
     return r.returncode, project_dir / ".claude" / ".confluence-pending"
 
 

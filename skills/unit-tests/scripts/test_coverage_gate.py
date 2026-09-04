@@ -20,7 +20,7 @@ spec.loader.exec_module(cg)
 
 
 def sh(cwd, *args):
-    subprocess.run(args, cwd=cwd, check=True, capture_output=True, text=True)
+    subprocess.run(args, cwd=cwd, check=True, capture_output=True, text=True, encoding="utf-8", errors="replace")
 
 
 def write(d, rel, text):
@@ -34,7 +34,7 @@ def run(cwd, *args, env_extra=None):
     env = dict(os.environ)
     env.update(env_extra or {})
     r = subprocess.run([sys.executable, SCRIPT, "--json", *args], cwd=cwd,
-                       capture_output=True, text=True, env=env)
+                       capture_output=True, text=True, encoding="utf-8", errors="replace", env=env)
     data = json.loads(r.stdout) if r.stdout.strip() else None
     return r.returncode, data, r.stderr
 
@@ -244,14 +244,14 @@ def test_json_y_md_coherentes_en_exit():
     runner = _runner_que_escribe(d, "coverage.json", cov)
     code_json, data, _ = run(d, ".", "--min", "80", "--runner", runner)
     r_md = subprocess.run([sys.executable, SCRIPT, ".", "--min", "80", "--runner", runner],
-                          cwd=d, capture_output=True, text=True)
+                          cwd=d, capture_output=True, text=True, encoding="utf-8", errors="replace")
     assert code_json == 0 and r_md.returncode == 0
     assert "CUMPLE" in r_md.stdout and "90.0" in r_md.stdout
     assert data["detalle"]["porcentaje"] == 90.0
 
 
 def test_ruta_inexistente_exit_2():
-    r = subprocess.run([sys.executable, SCRIPT, "/no/existe/esta/ruta"], capture_output=True, text=True)
+    r = subprocess.run([sys.executable, SCRIPT, "/no/existe/esta/ruta"], capture_output=True, text=True, encoding="utf-8", errors="replace")
     assert r.returncode == 2
 
 

@@ -42,6 +42,11 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+# Consola Windows (cp1252) o tuberías: reconfigurar ANTES de leer o imprimir nada (GOT-005).
+for _s in (sys.stdin, sys.stdout, sys.stderr):
+    try: _s.reconfigure(encoding="utf-8", errors="replace")
+    except Exception: pass  # noqa: BLE001 — sin reconfigure, ya leído o None (capsys, pythonw)
+
 DEFAULT_STATE = ".claude/usage-state.json"
 # Ratio tokens→hora por defecto (NO calibrado; ver agent-kits/shared/estimation-defaults.md).
 # Se calibra con /retro → docs/roadmap/CALIBRATION.md (mediana). Convención de facturables:

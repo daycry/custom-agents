@@ -71,7 +71,7 @@ def repo(tmp, main="main", feature=True):
 
 
 def run(tmp, *extra):
-    r = subprocess.run([sys.executable, SCRIPT, INI, *extra], cwd=tmp, capture_output=True, text=True)
+    r = subprocess.run([sys.executable, SCRIPT, INI, *extra], cwd=tmp, capture_output=True, text=True, encoding="utf-8", errors="replace")
     return r.returncode, r.stdout, r.stderr
 
 
@@ -169,7 +169,7 @@ def test_master_como_principal_y_ledger_inexistente():
         code, out, _ = run(tmp)
         assert code == 0 and "merge-base master" in out
         r = subprocess.run([sys.executable, SCRIPT, "docs/roadmap/no-existe"], cwd=tmp,
-                           capture_output=True, text=True)
+                           capture_output=True, text=True, encoding="utf-8", errors="replace")
         assert r.returncode == 2 and "no existe" in r.stderr
 
 
@@ -192,6 +192,6 @@ def test_fix1_doble_asterisco_cero_o_mas_directorios_y_asterisco_un_nivel():
 def test_fuera_de_git_exit_2():
     with tempfile.TemporaryDirectory() as tmp:
         touch(tmp, INI + "/tasks.md", LEDGER)
-        r = subprocess.run([sys.executable, SCRIPT, INI], cwd=tmp, capture_output=True, text=True,
+        r = subprocess.run([sys.executable, SCRIPT, INI], cwd=tmp, capture_output=True, text=True, encoding="utf-8", errors="replace",
                            env=dict(os.environ, GIT_CEILING_DIRECTORIES=os.path.dirname(tmp)))
         assert r.returncode == 2 and "git" in r.stderr

@@ -25,14 +25,14 @@ CONCAT_MAS_IGUAL = 's ' + '+= "x"'
 
 
 def sh(cwd, *args):
-    subprocess.run(args, cwd=cwd, check=True, capture_output=True, text=True)
+    subprocess.run(args, cwd=cwd, check=True, capture_output=True, text=True, encoding="utf-8", errors="replace")
 
 
 def run(cwd, *args, env_extra=None):
     env = dict(os.environ)
     env.update(env_extra or {})
     r = subprocess.run([sys.executable, SCRIPT, "--json", *args], cwd=cwd,
-                       capture_output=True, text=True, env=env)
+                       capture_output=True, text=True, encoding="utf-8", errors="replace", env=env)
     data = json.loads(r.stdout) if r.stdout.strip() else None
     return r.returncode, data, r.stderr
 
@@ -203,7 +203,7 @@ def test_salida_texto_legible_y_base_explicita():
     d = repo_git()
     write(d, "Dockerfile", "FROM python:3.11\n")
     sh(d, "git", "add", "-A"); sh(d, "git", "commit", "-q", "-m", "docker")
-    r = subprocess.run([sys.executable, SCRIPT, "--base", "master"], cwd=d, capture_output=True, text=True)
+    r = subprocess.run([sys.executable, SCRIPT, "--base", "master"], cwd=d, capture_output=True, text=True, encoding="utf-8", errors="replace")
     assert r.returncode == 0
     assert "lente_c: true" in r.stdout and "Dockerfile" in r.stdout and "--base master" in r.stdout
 

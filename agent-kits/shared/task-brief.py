@@ -50,6 +50,11 @@ import re
 import subprocess
 import sys
 
+# Consola Windows (cp1252) o tuberías: reconfigurar ANTES de leer o imprimir nada (GOT-005).
+for _s in (sys.stdin, sys.stdout, sys.stderr):
+    try: _s.reconfigure(encoding="utf-8", errors="replace")
+    except Exception: pass  # noqa: BLE001 — sin reconfigure, ya leído o None (capsys, pythonw)
+
 CONTRATO = """## Contrato de retorno (obligatorio)
 
 Trabaja SOLO con este brief y los ficheros que referencia (no explores el repo entero).
@@ -368,7 +373,7 @@ def main(argv=None):
         lint = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ledger-lint.py")
         if os.path.isfile(lint):
             r = subprocess.run([sys.executable, lint, tasks_p],
-                               capture_output=True, text=True)
+                               capture_output=True, text=True, encoding="utf-8", errors="replace")
             if r.returncode != 0:
                 print("❌ ledger inválido — arregla tasks.md antes de despachar "
                       f"(ledger-lint exit {r.returncode}):\n{r.stdout}{r.stderr}",

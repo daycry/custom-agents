@@ -18,6 +18,12 @@ Qué hace `release.py X.Y.Z` (en este orden; si algo falla ANTES de escribir, no
      salir 0; cada `*.MANUAL-COPY` (ficheros `<x>.yml.MANUAL-COPY` → `.github/workflows/<x>.yml`;
      carpeta `github-templates.MANUAL-COPY/` → `.github/`) coincide byte a byte con su copia; y se
      detectan los `.sh` versionados en modo 100644 (`git ls-files -s`).
+     Cada check se clasifica en `OK` · `FALLA (exit N)` · `ERROR al ejecutar` (`clasificar()`:
+     `Traceback` en stderr, o exit ∉ {0,1}). «No se pudo ejecutar» imprime las 3 últimas líneas de
+     stderr y BLOQUEA siempre — también en `changelog-sync`, cuyo veredicto normal solo avisa: la
+     deuda de notas se puede publicar a sabiendas, un entorno roto no. Sin esa distinción, el
+     `UnicodeEncodeError` de `lint_plugin.py` del 2026-09-03 se presentó como «PENDIENTE»
+     [windows-console T-02].
   3. Bump de la versión en los TRES sitios (plugin.json; marketplace.json metadata + entrada).
   4. Escribe los dos CHANGELOG conservando su final de línea original (CRLF se mantiene CRLF).
   5. git: `update-index --chmod=+x` de los `.sh` en 100644 (avisando), `add` de manifiestos +
@@ -46,6 +52,11 @@ import os
 import re
 import subprocess
 import sys
+
+# Consola Windows (cp1252) o tuberías: reconfigurar ANTES de leer o imprimir nada (GOT-005).
+for _s in (sys.stdin, sys.stdout, sys.stderr):
+    try: _s.reconfigure(encoding="utf-8", errors="replace")
+    except Exception: pass  # noqa: BLE001 — sin reconfigure, ya leído o None (capsys, pythonw)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SEMVER = re.compile(r"^\d+\.\d+\.\d+$")
@@ -216,7 +227,58 @@ def check_changelogs(root, version):
 # ------------------------------------------------------------------ checks previos
 
 def _run(cmd, cwd):
-    return subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
+    """Lanza un check y lee sus pipes como UTF-8 (windows-console T-02).
+
+    `text=True` a secas decodifica con el ANSI codepage del locale (cp1252 en un Windows español) y
+    los scripts del plugin escriben UTF-8 desde T-01: bytes como `0x8D` —que aparecen dentro de
+    emojis muy comunes, p. ej. 👍 = `F0 9F 91 8D`— no existen en cp1252 y harían reventar aquí, en el
+    padre, lo que se acaba de arreglar en el hijo. `errors="replace"` como red de seguridad.
+    """
+    return subprocess.run(cmd, cwd=cwd, capture_output=True, text=True,
+                          encoding="utf-8", errors="replace")
+
+
+TRACEBACK_MARK = "Traceback (most recent call last)"
+# Línea de iniciativa pendiente de `changelog-sync --check`: «  · <slug> (AAAA-MM-DD) — …».
+SLUG_PENDIENTE = re.compile(r"^\s*\S\s+([\w.-]+)\s+\(\d{4}-\d{2}-\d{2}\)")
+
+
+def clasificar(r):
+    """Veredicto de un check: `ok` · `falla` (dijo que no) · `error` (NO se pudo ejecutar).
+
+    La distinción existe porque el 2026-09-03 un `UnicodeEncodeError` en `lint_plugin.py` salió con
+    exit 1 —indistinguible del 1 de «hay entradas pendientes»— y `release.py` presentó el crash como
+    `changelog-sync --check: PENDIENTE`. Un `Traceback` en stderr MANDA sobre el exit code: un
+    traceback nunca es un veredicto. Un exit que no es 0 ni 1 tampoco lo es: estos scripts reservan
+    el 2 para «no puedo opinar» y el shell devuelve ≥ 126 cuando ni siquiera pudo lanzar el proceso.
+    «No puedo opinar» no siempre es culpa del entorno —`changelog-sync` sale 2 cuando FALTA un
+    CHANGELOG, que es un hecho del repo—, pero sigue sin ser un veredicto, y por eso bloquea igual
+    (a ese caso concreto lo bloquea además `check_changelogs`). [windows-console T-04]
+    """
+    if TRACEBACK_MARK in (r.stderr or ""):
+        return "error"
+    if r.returncode == 0:
+        return "ok"
+    if r.returncode == 1:
+        return "falla"
+    return "error"
+
+
+def cola_stderr(r, n=3):
+    """Las n últimas líneas NO vacías de stderr — lo que de verdad dice por qué no se pudo ejecutar."""
+    lineas = [ln.rstrip() for ln in (r.stderr or "").splitlines() if ln.strip()]
+    return lineas[-n:] or ["(sin stderr)"]
+
+
+def _reporta_error(rel, r):
+    """Imprime `ERROR al ejecutar` con las 3 últimas líneas de stderr y devuelve el fallo bloqueante."""
+    print(f"  {rel}: ERROR al ejecutar (exit {r.returncode})")
+    for ln in cola_stderr(r):
+        print(f"      {ln}")
+    return (f"{rel} NO se pudo ejecutar (exit {r.returncode}) — eso NO es su veredicto: o el entorno "
+            f"está roto, o al check le falta algo para poder opinar (`changelog-sync` sale 2 si no "
+            f"encuentra un CHANGELOG, y eso es un hecho del repo). Arréglalo, o usa --skip-checks "
+            f"a sabiendas:\n    " + "\n    ".join(cola_stderr(r)))
 
 
 def run_checks(root):
@@ -228,29 +290,39 @@ def run_checks(root):
             print(f"⚠️  {rel} no existe; check omitido")
             continue
         r = _run([sys.executable, p], root)
-        print(f"  {rel}: {'OK' if r.returncode == 0 else f'FALLA (exit {r.returncode})'}")
-        if r.returncode != 0:
+        estado = clasificar(r)
+        if estado == "ok":
+            print(f"  {rel}: OK")
+        elif estado == "falla":
+            print(f"  {rel}: FALLA (exit {r.returncode})")
             fallos.append(f"{rel} salió con {r.returncode}:\n{(r.stdout + r.stderr).strip()[-2000:]}")
+        else:
+            fallos.append(_reporta_error(rel, r))
     return fallos
 
 
-def aviso_changelog_sync(root):
-    """`changelog-sync.py --check`: AVISO (no bloqueo) si hay ledgers cerrados sin entrada.
+def check_changelog_sync(root):
+    """`changelog-sync.py --check` → (estado, dato) con estado ∈ omitido · ok · falla · error.
 
-    Un release puede publicar deuda de notas a sabiendas; lo que no debe pasar es publicarla
-    sin saberlo (superiority T-02).
+    Su veredicto negativo (`falla`, exit 1: ledgers cerrados sin entrada) es AVISO y no bloquea — un
+    release puede publicar deuda de notas a sabiendas; lo que no debe pasar es publicarla sin saberlo
+    (superiority T-02). Que el script no se pueda EJECUTAR (`error`) es otra cosa y sí bloquea: no es
+    deuda de notas, es el entorno roto — y taparlo como «PENDIENTE» fue el bug de windows-console.
     """
     cls = os.path.join(root, "skills", "changelog-sync", "scripts", "changelog-sync.py")
     if not os.path.exists(cls):
-        return None
+        return "omitido", None
     r = _run([sys.executable, cls, "--check"], root)
-    if r.returncode == 1:
-        slugs = [ln.strip().lstrip("· ").split(" ")[0] for ln in r.stdout.splitlines()
-                 if ln.strip().startswith("·")]
-        return ("iniciativas cerradas sin entrada en el CHANGELOG: "
-                + (", ".join(slugs) if slugs else "ver `changelog-sync.py --check`")
-                + " — genera las notas con la skill `changelog-sync` (aviso, no bloquea)")
-    return None
+    estado = clasificar(r)
+    if estado == "falla":
+        # La viñeta puede no sobrevivir la decodificación si el hijo NO escribe UTF-8 (un script
+        # legacy o de otro plugin): se reconoce la FORMA de la línea («<viñeta> <slug> (AAAA-MM-DD)»),
+        # no el glifo concreto, para no perder los slugs por un `·` degradado a `�`.
+        slugs = [m.group(1) for m in (SLUG_PENDIENTE.match(ln) for ln in r.stdout.splitlines()) if m]
+        return estado, ("iniciativas cerradas sin entrada en el CHANGELOG: "
+                        + (", ".join(slugs) if slugs else "ver `changelog-sync.py --check`")
+                        + " — genera las notas con la skill `changelog-sync` (aviso, no bloquea)")
+    return estado, r
 
 
 def _cmp(src, dst):
@@ -359,10 +431,14 @@ def do_release(root, new, args):
             if estado == "diff":
                 fallos.append(f"copia manual atrasada: cp {src} {dst}")
             print(f"  {src} → {dst}: {estado}")
-        av = aviso_changelog_sync(root)
-        print(f"  changelog-sync --check: {'PENDIENTE' if av else 'OK'}")
-        if av:
-            print(f"  ⚠️  {av}")
+        estado_cls, dato = check_changelog_sync(root)
+        if estado_cls == "falla":
+            print("  changelog-sync --check: PENDIENTE")
+            print(f"  ⚠️  {dato}")
+        elif estado_cls == "error":
+            fallos.append(_reporta_error("changelog-sync --check", dato))
+        else:
+            print("  changelog-sync --check: OK")
     if fallos:
         raise ReleaseError("checks previos fallidos — nada se ha tocado:\n  - " + "\n  - ".join(fallos))
     sh_644 = sh_sin_ejecutable(root) if git_ok else []

@@ -41,6 +41,11 @@ import subprocess
 import sys
 import xml.etree.ElementTree as ET
 
+# Consola Windows (cp1252) o tuberías: reconfigurar ANTES de leer o imprimir nada (GOT-005).
+for _s in (sys.stdin, sys.stdout, sys.stderr):
+    try: _s.reconfigure(encoding="utf-8", errors="replace")
+    except Exception: pass  # noqa: BLE001 — sin reconfigure, ya leído o None (capsys, pythonw)
+
 MAIN_BRANCHES = ("main", "master")
 
 # Ficheros de cobertura que cada stack debe DEJAR (propios o vía --runner), relativos a <ruta>.
@@ -184,7 +189,7 @@ def ejecutar_cobertura(stack, ruta, runner):
     """Corre el comando (runner si se da, si no el de defecto) con cwd=ruta. No lanza."""
     try:
         cmd = shlex.split(runner) if runner else comando_defecto(stack, ruta)
-        subprocess.run(cmd, cwd=ruta, capture_output=True, text=True, timeout=600)
+        subprocess.run(cmd, cwd=ruta, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=600)
     except (OSError, subprocess.SubprocessError, ValueError) as e:
         avisar(f"la ejecución de cobertura falló ({e.__class__.__name__}: {e})")
 
@@ -282,7 +287,7 @@ PARSERS = {"pytest": parsear_pytest, "jest": parsear_jest, "vitest": parsear_jes
 # ------------------------------------------------------------------------ git ----
 
 def git(ruta, *args):
-    r = subprocess.run(["git", *args], cwd=ruta, capture_output=True, text=True, errors="replace")
+    r = subprocess.run(["git", *args], cwd=ruta, capture_output=True, text=True, encoding="utf-8", errors="replace")
     if r.returncode != 0:
         raise RuntimeError(f"git {' '.join(args)}: {r.stderr.strip()}")
     return r.stdout
