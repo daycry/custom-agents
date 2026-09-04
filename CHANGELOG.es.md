@@ -9,6 +9,8 @@ y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+## [1.17.1] - 2026-09-04
+
 ### Fixed — iniciativa `ci-sin-identidad-git` (2026-09-04)
 
 - **T-01 — La identidad va EN el repo, no en los `git` del test** La suite del repo deja de depender de que quien la ejecute tenga identidad de git configurada, así que la CI vuelve a verde. (`tests/test_release.py`)
@@ -398,6 +400,7 @@ Adopción de las mejores prácticas de las colecciones top de agentes (coleccion
 
 Versiones anteriores a la introducción de este changelog: bundle con los agentes `nemesis`, `evaluator`, `planner`, `pdfy` y `qa`, y las skills compartidas `cybersecurity` y `to-pdf`. Empaquetado como plugin + marketplace.
 
+[1.17.1]: https://github.com/daycry/custom-agents/releases/tag/v1.17.1
 [1.17.0]: https://github.com/daycry/custom-agents/releases/tag/v1.17.0
 [1.16.0]: https://github.com/daycry/custom-agents/releases/tag/v1.16.0
 [1.15.0]: https://github.com/daycry/custom-agents/releases/tag/v1.15.0

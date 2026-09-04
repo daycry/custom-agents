@@ -9,6 +9,8 @@ and versioning follows [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.17.1] - 2026-09-04
+
 ### Fixed — `ci-sin-identidad-git` initiative (2026-09-04)
 
 - **T-01 — The identity belongs IN the repo, not in the test's `git` calls** The repo's suite no longer depends on whoever runs it having a git identity configured, so CI is green again. On a GitHub Actions runner there is no global identity, git exits 128 and `release.py`'s own commit fails — which is why 11 tests were red there while passing on every development machine. (`tests/test_release.py`)
@@ -398,6 +400,7 @@ Adoption of best practices from the top agent collections (reference agent colle
 
 Versions predating the introduction of this changelog: a bundle with the `nemesis`, `evaluator`, `planner`, `pdfy` and `qa` agents, and the shared `cybersecurity` and `to-pdf` skills. Packaged as a plugin + marketplace.
 
+[1.17.1]: https://github.com/daycry/custom-agents/releases/tag/v1.17.1
 [1.17.0]: https://github.com/daycry/custom-agents/releases/tag/v1.17.0
 [1.16.0]: https://github.com/daycry/custom-agents/releases/tag/v1.16.0
 [1.15.0]: https://github.com/daycry/custom-agents/releases/tag/v1.15.0
