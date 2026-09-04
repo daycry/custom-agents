@@ -6,7 +6,7 @@ antes de esta iniciativa) y sus **63 tareas**;<!--m:base_ledgers=13,base_tareas=
 sin frontmatter se ignoran con aviso, como siempre.<!--m:ledgers_legacy=6--> **13 ledgers, 63
 tareas**: donde se lea «los 63 ledgers» es un error de redacción que la revisión de dos lentes cazó
 en 10 ficheros y está corregido. Con el ledger de esta iniciativa cerrado el corpus de HOY es de
-**14 ledgers y 70 tareas**,<!--m:ledgers_cerrados=14,tareas=70--> y donde importa la diferencia se
+**15 ledgers y 72 tareas**,<!--m:ledgers_cerrados=15,tareas=72--> y donde importa la diferencia se
 dice cuál de los dos se está midiendo.
 
 **Cada cifra de este documento la imprime el script**, no la memoria de nadie:
@@ -146,19 +146,19 @@ un bullet por tarea):
 | `titulo` | 42 | 115 | 168 | 117 | `debt-cleanup/T-03` |<!--m:base_camino_titulo=42,base_titulo_mediana=115,base_titulo_max=168,base_titulo_media=117-->
 | **TOTAL** | **63** | **128** | **325** | **153** | — |<!--m:base_tareas=63,base_bullet_mediana=128,base_bullet_max=325,base_bullet_media=153-->
 
-Y con el ledger de esta iniciativa cerrado (14 ledgers, 70 tareas) aparece el camino que se
+Y con los ledgers que ya usan el campo (15 ledgers, 72 tareas) aparece el camino que se
 promueve, que es **el que produce los bullets más largos**:
 
 | Camino | N | Mediana | Máximo |
 |---|---|---|---|
-| `changelog` | 7 | **347** | **376** |<!--m:camino_changelog=7,changelog_mediana=347,changelog_max=376-->
+| `changelog` | 9 | **347** | **400** |<!--m:camino_changelog=9,changelog_mediana=347,changelog_max=400-->
 | `frase` | 12 | 260 | 325 |<!--m:camino_frase=12,frase_mediana=260,frase_max=325-->
 | `corte` | 9 | 170 | 280 |<!--m:camino_corte=9,corte_mediana=170,corte_max=280-->
 | `titulo` | 42 | 115 | 168 |<!--m:camino_titulo=42,titulo_mediana=115,titulo_max=168-->
-| **TOTAL** | **70** | **133** | **376** |<!--m:tareas=70,bullet_mediana=133,bullet_max=376-->
+| **TOTAL** | **72** | **135** | **400** |<!--m:tareas=72,bullet_mediana=135,bullet_max=400-->
 
-**El techo real del bullet completo, medido con los títulos y las rutas de este repo, es 376
-caracteres**<!--m:bullet_max=376--> (`changelog-brief/T-01`), no 325. No es una contradicción del diseño: `RESUMEN_MAX`
+**El techo real del bullet completo, medido con los títulos y las rutas de este repo, es 400
+caracteres**<!--m:bullet_max=400--> (`changelog-brief/T-01`), no 325. No es una contradicción del diseño: `RESUMEN_MAX`
 acota **el resumen**, no el bullet, y el resto lo ponen el título del ledger (que no se toca) y la
 lista de ficheros. Escribir el campo alarga el bullet a cambio de que DIGA algo: el `titulo` es
 corto porque no dice nada. Por eso `RESUMEN_MAX` **no** se toca por esto: 200 para el resumen sigue
@@ -201,8 +201,8 @@ solo cubre las iniciativas que faltan en el CHANGELOG):
 | **TOTAL** | **63** | `titulo` **42** · `frase` **12** · `corte` **9** |<!--m:base_tareas=63,base_camino_titulo=42,base_camino_frase=12,base_camino_corte=9-->
 
 Con el ledger de esta iniciativa cerrado se le suma `changelog-brief`, con todas sus tareas por el
-camino `changelog`, así que el TOTAL de hoy es `titulo` 42 · `frase` 12 · `corte` 9 · `changelog` 7
-sobre 70 tareas.<!--m:camino_titulo=42,camino_frase=12,camino_corte=9,camino_changelog=7,tareas=70-->
+camino `changelog`, así que el TOTAL de hoy es `titulo` 42 · `frase` 12 · `corte` 9 · `changelog` 9
+sobre 72 tareas.<!--m:camino_titulo=42,camino_frase=12,camino_corte=9,camino_changelog=9,tareas=72-->
 (Ese `changelog` pasó de 6 a 7 y su mediana de 350 a 347 al cerrar T-07, y **el test de las cifras
 lo cazó en los cinco ficheros que lo copiaban**: es exactamente la clase de error que T-07 cierra,
 demostrada sobre sí misma.)
@@ -262,9 +262,9 @@ que hay que saber antes de fiarse del número:
 - **La cola del ledger contaba como parte de la última tarea.** El split solo partía en `### T-XX`
   y `### Fase`, así que `## Notas de cierre`, `## Resumen de progreso` o un apéndice quedaban
   dentro del bloque de la ÚLTIMA tarea; un `- **Changelog**:` citado ahí como ejemplo se publicaba
-  como su resumen. Medido: **21 de 28** ledgers del repo tienen cola tras su última `### T-XX` (de
-  4 a 148 líneas) y **13 de los 14 cerrados** tenían la última tarea
-  expuesta.<!--m:ledgers_con_cola=21,ledgers_totales=28,cerrados_con_cola=13,ledgers_cerrados=14-->
+  como su resumen. Medido: **21 de 29** ledgers del repo tienen cola tras su última `### T-XX` (de
+  4 a 148 líneas) y **13 de los 15 cerrados** tenían la última tarea
+  expuesta.<!--m:ledgers_con_cola=21,ledgers_totales=29,cerrados_con_cola=13,ledgers_cerrados=15-->
   Ahora el bloque cierra en cualquier `^## ` **fuera de una valla de código**, el mismo criterio que
   `ledger-lint.py`. (Este documento decía «12 de los 14»: son **13**, y ahora lo mide el script.)
 - **Los dos parsers del campo no reconocían lo mismo.** `ledger-lint.py` aceptaba indentación y

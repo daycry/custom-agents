@@ -91,21 +91,21 @@ Ese agregado, solo, engaña, y la revisión de dos lentes lo midió: la mediana 
 corpus donde **42 de 63 bullets son solo el título**,<!--m:base_camino_titulo=42,base_tareas=63-->
 o sea del camino que esta decisión quiere EVITAR. Desglose por camino — **atención al corpus**: las
 tres primeras filas son los 13 ledgers / 63 tareas de arriba, y la fila `changelog` solo existe con
-el ledger de ESTA iniciativa cerrado, así que la tabla completa mide **14 ledgers** y **70
-tareas**<!--m:ledgers_cerrados=14,tareas=70--> (la primera versión de este ADR encabezaba con «los
+el ledger de ESTA iniciativa cerrado, así que la tabla completa mide **15 ledgers** y **72
+tareas**<!--m:ledgers_cerrados=15,tareas=72--> (la primera versión de este ADR encabezaba con «los
 mismos 13 ledgers (63 tareas)» una tabla que sumaba 69: era la misma clase de error que el propio
 ADR describe, y por eso las cifras de esta tabla las imprime ahora el script):
 
 | Camino | N | Mediana | Máximo | Corpus |
 |---|---|---|---|---|
-| `titulo` | 42 | 115 | 168 | 13 y 14 ledgers (igual) |<!--m:camino_titulo=42,titulo_mediana=115,titulo_max=168-->
-| `corte` | 9 | 170 | 280 | 13 y 14 ledgers (igual) |<!--m:camino_corte=9,corte_mediana=170,corte_max=280-->
-| `frase` | 12 | 260 | 325 | 13 y 14 ledgers (igual) |<!--m:camino_frase=12,frase_mediana=260,frase_max=325-->
-| `changelog` (el que se promueve) | 7 | **347** | **376** | solo el 14.º |<!--m:camino_changelog=7,changelog_mediana=347,changelog_max=376-->
-| **TOTAL** | **70** | **133** | **376** | 14 ledgers |<!--m:tareas=70,bullet_mediana=133,bullet_max=376-->
+| `titulo` | 42 | 115 | 168 | la base y el corpus de hoy (igual) |<!--m:camino_titulo=42,titulo_mediana=115,titulo_max=168-->
+| `corte` | 9 | 170 | 280 | la base y el corpus de hoy (igual) |<!--m:camino_corte=9,corte_mediana=170,corte_max=280-->
+| `frase` | 12 | 260 | 325 | la base y el corpus de hoy (igual) |<!--m:camino_frase=12,frase_mediana=260,frase_max=325-->
+| `changelog` (el que se promueve) | 9 | **347** | **400** | solo los ledgers que usan el campo |<!--m:camino_changelog=9,changelog_mediana=347,changelog_max=400-->
+| **TOTAL** | **72** | **135** | **400** | el corpus de hoy |<!--m:tareas=72,bullet_mediana=135,bullet_max=400-->
 
 Es decir: **el camino bueno produce los bullets más largos**, y el techo real del bullet completo,
-medido con los títulos y las rutas de este repo, es **376 caracteres**<!--m:bullet_max=376-->, no
+medido con los títulos y las rutas de este repo, es **400 caracteres**<!--m:bullet_max=400-->, no
 325. Ninguna de estas cifras se escribe a mano: las imprime `changelog-sync.py --medicion` y
 `tests/test_cifras_medidas.py` las compara con esta tabla en cada ejecución de la suite. No cambia la
 decisión ni el tope: `RESUMEN_MAX` acota **el resumen**, y el resto lo ponen el título del ledger
