@@ -9,6 +9,11 @@ and versioning follows [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed — `ci-sin-identidad-git` initiative (2026-09-04)
+
+- **T-01 — The identity belongs IN the repo, not in the test's `git` calls** The repo's suite no longer depends on whoever runs it having a git identity configured, so CI is green again. On a GitHub Actions runner there is no global identity, git exits 128 and `release.py`'s own commit fails — which is why 11 tests were red there while passing on every development machine. (`tests/test_release.py`)
+- **T-02 — The guard, and the product's contract** If anyone writes another fixture that creates a git repo without an identity, the suite goes red saying why; and it is now proven that `release.py` without a configured identity writes the files and explains what to do instead of blowing up. (`tests/test_release.py`, `docs/knowledge/gotchas/GOT-006-sin-identidad-git-en-ci.md`, `docs/knowledge/README.md`)
+
 ## [1.17.0] - 2026-09-04
 
 ### Changed — `changelog-brief` initiative (2026-09-04)

@@ -14,6 +14,7 @@ estado: completado        # borrador | en-progreso | completado | cancelado
 creado: 2026-09-04
 actualizado: 2026-09-04
 via: rapida               # vía rápida de /dev-cycle: sin spec/evaluación/plan; conserva verificación
+changelog: Fixed          # es un arreglo: la heurística lo leía como Added por los títulos de las tareas
 verificacion: obligatoria # cada `### T-XX` lleva `- **Verificación**:`; ledger-lint lo exige
 generacion:
   fuente: estimado        # usage-meter no disponible en este entorno (sandbox cloud)

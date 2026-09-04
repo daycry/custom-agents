@@ -9,6 +9,11 @@ y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Fixed — iniciativa `ci-sin-identidad-git` (2026-09-04)
+
+- **T-01 — La identidad va EN el repo, no en los `git` del test** La suite del repo deja de depender de que quien la ejecute tenga identidad de git configurada, así que la CI vuelve a verde. (`tests/test_release.py`)
+- **T-02 — Guardarraíl y contrato del producto** Si alguien vuelve a escribir una fixture que crea un repo git sin identidad, la suite se pone roja diciendo por qué, y queda probado que `release.py` sin identidad configurada escribe los ficheros y explica qué hacer en vez de reventar. (`tests/test_release.py`, `docs/knowledge/gotchas/GOT-006-sin-identidad-git-en-ci.md`, `docs/knowledge/README.md`)
+
 ## [1.17.0] - 2026-09-04
 
 ### Changed — iniciativa `changelog-brief` (2026-09-04)
