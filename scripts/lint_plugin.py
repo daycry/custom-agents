@@ -51,6 +51,20 @@ Avisos (no rompen el build):
     solo mira las frases de ≥3 palabras que van DESPUÉS de «Úsalo/Úsala cuando…» / «Use when…» — no
     cualquier cita de la description [T-fix1]. No detecta solapes semánticos con frases distintas —
     esos siguen siendo criterio humano [roles-and-jira-flow T-01].
+  - `.py` del plugin que escribe símbolos (no ASCII en el fuente) **o** lee de `sys.stdin`, y NO
+    reconfigura `sys.stdin`/`stdout`/`stderr` a UTF-8 al arrancar (`lint_console_encoding`): en una
+    consola cp1252 —o con la salida a un pipe en Windows, que es como lo lanza `release.py`— el
+    primer `print` de un símbolo revienta con `UnicodeEncodeError` y el primer `stdin.read()` de un
+    payload con emoji con `UnicodeDecodeError`. Los dos motivos son independientes: el que LEE no
+    depende de su fuente sino del payload, así que un `.py` ASCII puro entra igual [T-05].
+    La comprobación es ESTRUCTURAL (`ast`): la marca dentro de `main()` o citada en un docstring no
+    cuenta, porque medido no protege [windows-console T-01/T-04/T-05, GOT-005].
+  - `.py` del plugin que captura un subproceso en modo TEXTO sin `encoding=`
+    (`lint_subprocess_encoding`): el LADO PADRE del mismo bug — los hijos escriben UTF-8 siempre, así
+    que decodificarlos con el codec del locale revienta en cp1252 [windows-console T-04].
+    Ambas reglas comparten con `tests/test_console_encoding.py` el bloque `es_pieza` /
+    `snippet_al_arrancar` / `lee_stdin` / `exige_snippet` / `subprocess_sin_encoding`, replicado
+    LITERAL y comparado byte a byte por la suite.
 
 Uso:
   python scripts/lint_plugin.py            # lint del repo (cwd = raíz del plugin)
@@ -58,11 +72,17 @@ Uso:
 Salida: informe por stdout; exit 0 si no hay ERRORES, 1 si los hay.
 """
 import argparse
+import ast
 import json
 import os
 import re
 import sys
 import unicodedata
+
+# Consola Windows (cp1252) o tuberías: reconfigurar ANTES de leer o imprimir nada (GOT-005).
+for _s in (sys.stdin, sys.stdout, sys.stderr):
+    try: _s.reconfigure(encoding="utf-8", errors="replace")
+    except Exception: pass  # noqa: BLE001 — sin reconfigure, ya leído o None (capsys, pythonw)
 
 VALID_MODELS = {"haiku", "sonnet", "opus", "inherit"}
 VALID_EFFORTS = {"low", "medium", "high", "xhigh", "max"}   # sub-agents.md (2026-09-03); el override por
@@ -75,6 +95,207 @@ VALID_TOOLS = {
     "Read", "Write", "Edit", "Grep", "Glob", "Bash",
     "WebFetch", "WebSearch", "Agent", "Task", "NotebookEdit",
 }
+# --8<-- criterio de consola COMPARTIDO (windows-console T-04/T-05) — REPLICADO LITERAL en
+# scripts/lint_plugin.py y en tests/test_console_encoding.py. No lo edites en uno solo:
+# `test_linter_y_suite_replican_el_mismo_bloque` compara los dos textos byte a byte, y
+# `test_linter_y_suite_dan_el_mismo_veredicto` compara sus veredictos sobre árboles reales.
+# Se replica (en vez de importarse) por el mismo contrato que el snippet: los scripts del plugin
+# son standalone y el paquete portable los copia sueltos, sin PYTHONPATH ni módulo común.
+CONSOLE_MARK = 'reconfigure(encoding="utf-8", errors="replace")'
+
+
+def es_pieza(rel):
+    """¿`rel` es una pieza del plugin a la que aplican las reglas de consola (CONVENTIONS 8)?
+
+    Fuera del criterio, y solo esto:
+      - las suites: basename que empieza por `test_` (no imprimen a la consola de nadie);
+      - cualquier ruta con un segmento de directorio `fixtures`: es código del proyecto CONSUMIDOR
+        simulado (lo que ejecutan los evals), no una pieza nuestra, y su salida no es nuestra.
+    """
+    partes = rel.replace("\\", "/").split("/")
+    return not partes[-1].startswith("test_") and "fixtures" not in partes[:-1]
+
+
+def _es_reconfigure(nodo):
+    """¿`nodo` es la llamada `<stream>.reconfigure(encoding="utf-8", errors="replace")` del snippet?
+
+    Se mira el NODO, no el texto: así una mención en un docstring o en un comentario no cuenta.
+    """
+    if not (isinstance(nodo, ast.Call) and isinstance(nodo.func, ast.Attribute)
+            and nodo.func.attr == "reconfigure"):
+        return False
+    kws = {k.arg: k.value for k in nodo.keywords}
+    return all(isinstance(kws.get(a), ast.Constant) and kws[a].value == v
+               for a, v in (("encoding", "utf-8"), ("errors", "replace")))
+
+
+def _previo_admitido(nodo):
+    """Sentencias de módulo que pueden ir ANTES del snippet: no leen ni escriben en los streams."""
+    if isinstance(nodo, (ast.Import, ast.ImportFrom)):     # incluye `from __future__ import …`
+        return True
+    return (isinstance(nodo, ast.Expr) and isinstance(nodo.value, ast.Constant)
+            and isinstance(nodo.value.value, str))        # docstring del módulo
+
+
+def snippet_al_arrancar(src):
+    """¿El snippet de CONVENTIONS 8 protege de verdad a este fichero? (True/False/None)
+
+    ESTRUCTURAL con `ast`, no `grep` de subcadena: medido (T-04) que la marca dentro de `main()` con
+    un `print` de símbolos a nivel de módulo antes, o citada solo en un docstring, daba 0 avisos y el
+    script reventaba igual bajo cp1252. Exige las dos cosas:
+      (a) la llamada a `reconfigure` está en una sentencia de NIVEL DE MÓDULO (no dentro de un `def`
+          ni de una `class`: ahí no protege el arranque), y
+      (b) esa sentencia va antes de cualquier otra sentencia de módulo que no sea el docstring o un
+          `import`/`from … import` — es decir, antes del primer `print` o del primer `stdin.read()`.
+    `None` = el fichero no es Python parseable: ni se afirma ni se niega (no se opina a ciegas).
+    """
+    try:
+        arbol = ast.parse(src)
+    except (SyntaxError, ValueError):
+        return None
+    for i, nodo in enumerate(arbol.body):
+        if isinstance(nodo, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            continue
+        if any(_es_reconfigure(n) for n in ast.walk(nodo)):
+            return all(_previo_admitido(p) for p in arbol.body[:i])
+    return False
+
+
+def _sys_alias(arbol):
+    """Nombres con los que este módulo nombra a `sys` y a `sys.stdin` (`import sys as s`,
+    `from sys import stdin as entrada`)."""
+    alias, directos = {"sys"}, set()
+    for n in ast.walk(arbol):
+        if isinstance(n, ast.Import):
+            for a in n.names:
+                if a.name == "sys":
+                    alias.add(a.asname or "sys")
+        elif isinstance(n, ast.ImportFrom) and n.module == "sys":
+            for a in n.names:
+                if a.name == "stdin":
+                    directos.add(a.asname or "stdin")
+    return alias, directos
+
+
+def lee_stdin(src):
+    """¿Este fichero USA `sys.stdin`? El lado que LEE no depende de su fuente, sino del PAYLOAD.
+
+    Un `.py` 100 % ASCII revienta igual: `json.load(sys.stdin)` decodifica con el codec del locale, y
+    el JSON de una release de GitHub trae emojis en `body` (🐛 = `F0 9F 90 9B`, con el byte `0x90`, y
+    👍 con `0x8D`; ninguno existe en cp1252). Medido en `agent-kits/nemesis/tools/pick_asset.py`, que
+    era la 28.ª pieza versionada y quedaba invisible para el criterio del lado que ESCRIBE.
+    Con `ast`, no con `grep`: una mención en un comentario o dentro de una cadena no cuenta. El propio
+    snippet nombra `sys.stdin`, así que queda fuera SOLO el `iter` de su `for` — si no, todo fichero
+    con snippet «leería» stdin y el criterio se volvería circular. Excluir la sentencia entera sería
+    peor que circular: apagaría la detección en todo el cuerpo de la función que alojase el snippet.
+    """
+    try:
+        arbol = ast.parse(src)
+    except (SyntaxError, ValueError):
+        return False
+    alias, directos = _sys_alias(arbol)
+    del_snippet = set()
+    for n in ast.walk(arbol):
+        # SOLO el `sys.stdin` que el propio snippet nombra en su `iter`: excluir la sentencia entera
+        # (o peor, cualquier ancestro que la contenga) apagaba la detección en todo el cuerpo de la
+        # función donde estuviera el snippet — justo el anti-patrón «snippet dentro de `main()`» que
+        # el linter existe para cazar. Medido en la revisión, intento 3.
+        if isinstance(n, ast.For) and any(_es_reconfigure(c) for c in ast.walk(n)):
+            del_snippet.update(id(x) for x in ast.walk(n.iter))
+    for n in ast.walk(arbol):
+        if id(n) in del_snippet:
+            continue
+        if (isinstance(n, ast.Attribute) and n.attr == "stdin"
+                and isinstance(n.value, ast.Name) and n.value.id in alias):
+            return True
+        if isinstance(n, ast.Name) and n.id in directos:
+            return True
+        # `input()` y `fileinput.input()` leen del mismo stdin y con el mismo codec del locale.
+        if isinstance(n, ast.Call):
+            f = n.func
+            if isinstance(f, ast.Name) and f.id == "input":
+                return True
+            if (isinstance(f, ast.Attribute) and f.attr in ("input", "FileInput")
+                    and isinstance(f.value, ast.Name) and f.value.id == "fileinput"):
+                return True
+    return False
+
+
+def exige_snippet(data, src):
+    """¿Esta pieza TIENE que llevar el snippet? Dos motivos independientes, no uno:
+
+      (a) su FUENTE trae caracteres no ASCII — los imprime, y en cp1252 el primer `print` revienta
+          con `UnicodeEncodeError`;
+      (b) LEE de `sys.stdin` — el payload puede traerlos aunque el fuente sea ASCII puro, y entonces
+          revienta con `UnicodeDecodeError`.
+    `data` son los bytes del fichero y `src` su texto. El `or` corta a la izquierda: solo se parsea
+    (b) cuando (a) no ha decidido ya.
+    """
+    return any(b > 127 for b in data) or lee_stdin(src)
+
+
+def _kw(nodo, nombre):
+    for k in nodo.keywords:
+        if k.arg == nombre:
+            return k
+    return None
+
+
+def _kw_verdadero(k):
+    return k is not None and not (isinstance(k.value, ast.Constant) and k.value.value in (False, None))
+
+
+SUBPROCESS_FUNCS = {"run", "Popen", "check_output", "check_call", "call", "getoutput", "getstatusoutput"}
+
+
+def subprocess_sin_encoding(src):
+    """Líneas con una llamada a `subprocess` en modo TEXTO y SIN `encoding=` (el lado PADRE, T-04).
+
+    Desde T-01 los hijos escriben UTF-8 SIEMPRE; un padre que los decodifique con el codec del
+    locale (`text=True` a secas) revienta con `UnicodeDecodeError` en una consola cp1252 — justo
+    donde antes daba su veredicto. `capture_output=True` a solas NO entra: devuelve bytes y no
+    decodifica nada. Lo que enciende el modo texto es `text=` / `universal_newlines=` / `errors=`.
+    Se reconoce la llamada por el nombre (`subprocess.run`, alias de import, `from subprocess import
+    run`) y también por llevar `capture_output=`, que solo existe en `subprocess.run` — así entra el
+    invocador indirecto (`runner(cmd, capture_output=True, text=True, …)` de `evals/run.py`).
+    `[]` si el fichero no es Python parseable.
+    """
+    try:
+        arbol = ast.parse(src)
+    except (SyntaxError, ValueError):
+        return []
+    alias = {"subprocess"}
+    directos = set()
+    for n in ast.walk(arbol):
+        if isinstance(n, ast.Import):
+            for a in n.names:
+                if a.name == "subprocess":
+                    alias.add(a.asname or "subprocess")
+        elif isinstance(n, ast.ImportFrom) and n.module == "subprocess":
+            for a in n.names:
+                directos.add(a.asname or a.name)
+    fuera = []
+    for n in ast.walk(arbol):
+        if not isinstance(n, ast.Call):
+            continue
+        f = n.func
+        es = ((isinstance(f, ast.Attribute) and f.attr in SUBPROCESS_FUNCS
+               and isinstance(f.value, ast.Name) and f.value.id in alias)
+              or (isinstance(f, ast.Name) and f.id in directos)
+              or _kw(n, "capture_output") is not None)
+        if not es:
+            continue
+        texto = (_kw_verdadero(_kw(n, "text")) or _kw_verdadero(_kw(n, "universal_newlines"))
+                 or _kw(n, "errors") is not None
+                 or (isinstance(f, ast.Attribute) and f.attr in ("getoutput", "getstatusoutput")))
+        if texto and _kw(n, "encoding") is None:
+            fuera.append(n.lineno)
+    return sorted(set(fuera))
+# --8<-- fin del criterio de consola COMPARTIDO
+# Directorios que no son código fuente NUESTRO: se podan del `os.walk` por coste y ruido. No son
+# parte del criterio (`es_pieza` lo es): `git ls-files` —lo que usa la suite— tampoco los lista.
+CONSOLE_SKIP_DIRS = {".git", "__pycache__", ".pytest_cache", "node_modules", "vendor", "dist", "build",
+                     ".venv", "venv", "target", ".next", "coverage", "bin", "obj"}
 # Tokens de nombre genéricos: alto riesgo de choque en modo copia-directa a .claude/.
 GENERIC_NAME_TOKENS = {
     "setup", "retro", "qa", "status", "build", "test", "review",
@@ -294,7 +515,105 @@ def lint(root):
 
     # --- Un rol, un dueño (ADR-011): disparador literal entrecomillado duplicado entre piezas ---
     warnings.extend(lint_duplicate_triggers(root))
+
+    # --- Consola no-UTF8 (windows-console T-01/T-04, GOT-005): las dos mitades del mismo bug ---
+    warnings.extend(lint_console_encoding(root))      # lado propio: imprime/lee sin reconfigurar
+    warnings.extend(lint_subprocess_encoding(root))   # lado padre: decodifica al hijo sin encoding=
     return errors, warnings
+
+
+def _py_del_plugin(root):
+    """[(ruta absoluta, ruta relativa)] de los `.py` del plugin en DISCO, según `es_pieza`.
+
+    El linter mira el disco (tiene que funcionar sobre un plugin desempaquetado, sin git); la suite
+    `tests/test_console_encoding.py` mira `git ls-files`. Esa diferencia es deliberada y es la ÚNICA:
+    el criterio de qué cuenta como pieza (`es_pieza`) es el mismo texto en los dos sitios.
+    """
+    out = []
+    for dp, dn, fn in os.walk(root):
+        dn[:] = [d for d in dn if d not in CONSOLE_SKIP_DIRS]
+        for f in sorted(fn):
+            if not f.endswith(".py"):
+                continue
+            p = os.path.join(dp, f)
+            rel = os.path.relpath(p, root).replace(os.sep, "/")
+            if es_pieza(rel):
+                out.append((p, rel))
+    return sorted(out, key=lambda t: t[1])
+
+
+def _leer(p):
+    """El fichero como bytes y como texto, o (None, None) si no se puede leer."""
+    try:
+        with open(p, "rb") as fh:
+            data = fh.read()
+    except OSError:
+        return None, None
+    return data, data.decode("utf-8", "replace")
+
+
+def lint_console_encoding(root):
+    """Avisos: `.py` del plugin que TIENE que reconfigurar los streams al arrancar y no lo hace.
+
+    Quién tiene que llevarlo lo decide `exige_snippet`, y son DOS motivos independientes:
+      - **escribe símbolos** (no ASCII en el fuente): el primer `print` revienta con
+        `UnicodeEncodeError` en cuanto la salida no es UTF-8 —consola Windows legacy y, sobre todo,
+        la salida a un PIPE, donde Python cae al ANSI codepage del locale (`cp1252` en un Windows
+        español), que es exactamente cómo `release.py` lanza los checks—;
+      - **lee de `sys.stdin`**: ahí no manda el fuente sino el PAYLOAD, así que un script ASCII puro
+        revienta igual con `UnicodeDecodeError` en cuanto el JSON de entrada trae un emoji (así se
+        apagaba el guardrail del implementer en T-04, y así `pick_asset.py` presentaba un fallo de
+        codificación como «no hay binario para tu plataforma» — T-05).
+    Aviso, no error: es una regla de robustez, y un plugin consumidor puede tener `.py` que ni
+    imprimen ni leen de stdin — esos quedan FUERA del criterio y no se les avisa de nada.
+
+    La comprobación es ESTRUCTURAL (`snippet_al_arrancar`): la marca dentro de `main()` o citada en
+    un docstring NO cuenta, porque medido no protege de nada.
+    """
+    warns = []
+    for p, rel in _py_del_plugin(root):
+        data, texto = _leer(p)
+        if data is None or not exige_snippet(data, texto):
+            continue
+        if snippet_al_arrancar(texto) is not False:
+            continue
+        motivos = []
+        if any(b > 127 for b in data):
+            motivos.append("imprime caracteres no ASCII")
+        if lee_stdin(texto):
+            motivos.append("lee de `sys.stdin`")
+        warns.append(
+            f"`{rel}`: {' y '.join(motivos)}, y no reconfigura los streams AL ARRANCAR — "
+            f"en una consola cp1252 (o con la salida a un pipe en Windows) el primer print revienta "
+            f"con UnicodeEncodeError, y el primer stdin.read() con UnicodeDecodeError. Copia el "
+            f"snippet de 4 líneas tras los imports, a nivel de módulo — dentro de `main()` o citado "
+            f"en un docstring no vale (CONVENTIONS regla 8, GOT-005); "
+            f"`tests/test_console_encoding.py` lo prueba bajo cp1252")
+    return warns
+
+
+def lint_subprocess_encoding(root):
+    """Avisos: `.py` del plugin que captura un subproceso en modo TEXTO sin `encoding=` (lado PADRE).
+
+    La otra mitad de GOT-005, la que causó los dos fallos críticos de T-04: desde T-01 los hijos
+    escriben UTF-8 SIEMPRE, así que el padre que los decodifique con el codec del locale revienta en
+    consola cp1252 justo donde antes daba su veredicto (`task-brief.py` → `ledger-lint.py`).
+    """
+    warns = []
+    for p, rel in _py_del_plugin(root):
+        _data, texto = _leer(p)
+        if texto is None:
+            continue
+        lineas = subprocess_sin_encoding(texto)
+        if not lineas:
+            continue
+        donde = ", ".join(f"línea {n}" for n in lineas)
+        warns.append(
+            f"`{rel}`: captura un subproceso en modo texto SIN `encoding=` ({donde}) — los scripts "
+            f"del plugin escriben UTF-8 siempre (CONVENTIONS regla 8), así que en una consola "
+            f"cp1252 el PADRE revienta con UnicodeDecodeError al leerlos. Añade "
+            f'`encoding="utf-8", errors="replace"` a la llamada (GOT-005, lado padre)')
+    return warns
 
 
 def lint_skill_sizes(root):
@@ -526,7 +845,7 @@ def _es_ejecutable(fp):
     try:
         import subprocess
         r = subprocess.run(["git", "ls-files", "-s", "--", os.path.basename(fp)],
-                           cwd=os.path.dirname(fp), capture_output=True, text=True, timeout=5)
+                           cwd=os.path.dirname(fp), capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=5)
         if r.returncode == 0 and r.stdout.strip():
             return r.stdout.split()[0] == "100755"
     except (OSError, subprocess.SubprocessError):

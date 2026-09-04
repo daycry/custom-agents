@@ -6,6 +6,8 @@ Ejecutar:  python3 -m pytest agent-kits/shared/test_task_brief.py -q
 import importlib.util
 import io
 import contextlib
+import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -585,3 +587,58 @@ def test_gaps_tarea_sin_gaps_en_el_ultimo_intento_no_inyecta(inic):
     (inic / "tasks.md").write_text(tasks_solo_t01, encoding="utf-8")
     rc, out = _run([str(inic), "T-02", "--sin-lint", "--constitucion", str(inic / "no.md")])
     assert rc == 0 and "## Gaps pendientes" not in out
+
+
+# --------------------------------------------------------- el lado PADRE de GOT-005 (T-04) ----
+
+SCRIPT = str(Path(__file__).parent / "task-brief.py")
+
+# Locale sin UTF-8: `locale.getpreferredencoding()` cae a ASCII, que es lo que hace un Windows
+# español con cp1252. `PYTHONCOERCECLOCALE=0` + `PYTHONUTF8=0` desactivan la coerción de PEP 538 y
+# el modo UTF-8 de PEP 540, que si no dejarían el locale en C.UTF-8 y no reproducirían nada.
+ENV_LOCALE_ASCII = {"LC_ALL": "C", "LANG": "C", "PYTHONCOERCECLOCALE": "0", "PYTHONUTF8": "0"}
+
+
+def _preferred(env):
+    r = subprocess.run([sys.executable, "-c",
+                        "import locale; print(locale.getpreferredencoding(False))"],
+                       capture_output=True, encoding="utf-8", errors="replace", env=env)
+    return (r.stdout or "").strip().lower()
+
+
+def test_el_ledger_invalido_sigue_dando_exit_2_con_el_locale_sin_utf8(tmp_path):
+    """T-04 CRITICAL 2: `task-brief` lanzaba `ledger-lint.py` con `text=True` y SIN `encoding=`.
+
+    Desde T-01 los hijos escriben UTF-8 SIEMPRE, así que en una consola cp1252 (o con cualquier
+    locale no-UTF-8) el PADRE reventaba al decodificarlos: `UnicodeDecodeError`, exit 1 y traceback
+    crudo, justo donde antes salía su veredicto. Y está en el camino caliente de `/dev-cycle`
+    (despacho de la tarea al implementer). El arreglo es el mismo de `release.py::_run`:
+    `encoding="utf-8", errors="replace"` al capturar al hijo.
+    """
+    env = dict(os.environ, **ENV_LOCALE_ASCII)
+    if "utf" in _preferred(env):
+        pytest.skip("este Python no deja bajar el locale por debajo de UTF-8: nada que reproducir")
+
+    ledger = tmp_path / "tasks.md"
+    # Ledger con un estado fuera del vocabulario → ledger-lint sale 1 e imprime «❌ …» en UTF-8.
+    ledger.write_text(TASKS.replace("- **Estado**: en-progreso", "- **Estado**: inventado"),
+                      encoding="utf-8")
+    r = subprocess.run([sys.executable, SCRIPT, str(tmp_path), "T-01"],
+                       capture_output=True, encoding="utf-8", errors="replace", env=env)
+    assert "UnicodeDecodeError" not in r.stderr, (
+        f"el padre reventó al decodificar a ledger-lint:\n{r.stderr[-1200:]}")
+    assert "Traceback" not in r.stderr, r.stderr[-1200:]
+    assert r.returncode == 2, f"esperaba exit 2 (ledger inválido), fue {r.returncode}\n{r.stderr[-1200:]}"
+    assert "ledger inválido — arregla tasks.md antes de despachar" in r.stderr, r.stderr[-1200:]
+
+
+def test_el_ledger_valido_sigue_saliendo_0_con_el_locale_sin_utf8(tmp_path):
+    """El mismo camino, con veredicto positivo: ni crash ni cambio de exit code."""
+    env = dict(os.environ, **ENV_LOCALE_ASCII)
+    if "utf" in _preferred(env):
+        pytest.skip("este Python no deja bajar el locale por debajo de UTF-8: nada que reproducir")
+    (tmp_path / "tasks.md").write_text(TASKS, encoding="utf-8")
+    r = subprocess.run([sys.executable, SCRIPT, str(tmp_path), "T-01"],
+                       capture_output=True, encoding="utf-8", errors="replace", env=env)
+    assert r.returncode == 0, f"exit {r.returncode}\n{r.stderr[-1200:]}"
+    assert "Traceback" not in r.stderr, r.stderr[-1200:]

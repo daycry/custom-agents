@@ -42,7 +42,7 @@ def run(text, warn_only=False):
         p = os.path.join(tmp, "tasks.md")
         open(p, "w", encoding="utf-8").write(text)
         cmd = [sys.executable, SCRIPT, p] + (["--warn-only"] if warn_only else [])
-        r = subprocess.run(cmd, capture_output=True, text=True)
+        r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
         return r.returncode, r.stdout
 
 

@@ -83,7 +83,7 @@ def test_check_repo_real_exit_0_y_minimo_90_casos():
     errores, stats = check.check(ROOT)
     assert errores == [], errores
     assert stats["casos"] >= 90 and stats["ficheros"] == stats["targets"] >= 31, stats
-    r = subprocess.run([sys.executable, os.path.join(HERE, "check.py")], capture_output=True, text=True, cwd=ROOT)
+    r = subprocess.run([sys.executable, os.path.join(HERE, "check.py")], capture_output=True, text=True, encoding="utf-8", errors="replace", cwd=ROOT)
     assert r.returncode == 0 and "0 errores" in r.stdout, r.stdout + r.stderr
 
 
@@ -175,7 +175,7 @@ def test_check_json_invalido_y_cli_exit_1(tmp_path):
     root = plugin_min(tmp_path)
     (root / "evals" / "cases" / "skill-cosa.json").write_text("{ no es json", encoding="utf-8")
     r = subprocess.run([sys.executable, os.path.join(HERE, "check.py"), "--root", str(root), "--json"],
-                       capture_output=True, text=True)
+                       capture_output=True, text=True, encoding="utf-8", errors="replace")
     assert r.returncode == 1
     out = json.loads(r.stdout)
     assert out["ok"] is False and any("JSON inválido" in e for e in out["errores"])
@@ -320,7 +320,10 @@ def test_run_con_subprocess_mockeado_informe_y_exit_codes(tmp_path):
     (fixture / "README.md").write_text("fixture", encoding="utf-8")
     vistos = []
 
-    def runner(cmd, cwd, capture_output, text, timeout):
+    def runner(cmd, cwd, capture_output, text, timeout, encoding=None, errors=None):
+        # `encoding`/`errors`: el padre decodifica al hijo como UTF-8 (T-04) — el falso runner
+        # los recibe para que la firma siga siendo el contrato real de `subprocess.run`.
+        assert (encoding, errors) == ("utf-8", "replace")
         vistos.append((cmd, cwd))
         prompt = cmd[cmd.index("-p") + 1]
         assert cmd[0] == "claude" and "--plugin-dir" in cmd and os.path.isfile(os.path.join(cwd, "README.md"))
@@ -378,7 +381,7 @@ def test_run_fixture_real_es_ledger_valido_y_se_copia(tmp_path):
     cwd = run.preparar_cwd(run.FIXTURE, str(tmp_path))
     assert os.path.isfile(os.path.join(cwd, "src", "app.py")) and os.path.isfile(os.path.join(cwd, ".claude", "rates.json"))
     ll = os.path.join(ROOT, "agent-kits", "shared", "ledger-lint.py")
-    r = subprocess.run([sys.executable, ll, os.path.join(cwd, "docs", "roadmap", "2026-01-01-demo", "tasks.md")], capture_output=True, text=True)
+    r = subprocess.run([sys.executable, ll, os.path.join(cwd, "docs", "roadmap", "2026-01-01-demo", "tasks.md")], capture_output=True, text=True, encoding="utf-8", errors="replace")
     assert r.returncode == 0, r.stdout + r.stderr
     shutil.rmtree(cwd)
 

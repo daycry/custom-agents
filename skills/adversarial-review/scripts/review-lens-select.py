@@ -68,6 +68,11 @@ import re
 import subprocess
 import sys
 
+# Consola Windows (cp1252) o tuberías: reconfigurar ANTES de leer o imprimir nada (GOT-005).
+for _s in (sys.stdin, sys.stdout, sys.stderr):
+    try: _s.reconfigure(encoding="utf-8", errors="replace")
+    except Exception: pass  # noqa: BLE001 — sin reconfigure, ya leído o None (capsys, pythonw)
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 MAIN_BRANCHES = ("main", "master")
 MODOS = ("auto", "siempre", "nunca")
@@ -249,7 +254,7 @@ def excluido_de_ruta(rel, excluir):
 def git(root, *args):
     # core.quotepath=false: rutas no-ASCII tal cual (con el default git escribe "caf\303\251.py")
     r = subprocess.run(["git", "-c", "core.quotepath=false", *args], cwd=root, capture_output=True,
-                       text=True, errors="replace")
+                       text=True, encoding="utf-8", errors="replace")
     if r.returncode != 0:
         raise RuntimeError(f"git {' '.join(args)}: {r.stderr.strip()}")
     return r.stdout

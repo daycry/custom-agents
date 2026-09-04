@@ -41,7 +41,7 @@ fi
 
 # Raíz del proyecto: CLAUDE_PROJECT_DIR (lo exporta Claude Code) > cwd del payload > $PWD.
 # `source` del payload (startup|resume|clear|compact|fork) decide si entra el journal.
-eval "$(printf '%s' "$INPUT" | python3 -c 'import json,shlex,sys
+eval "$(printf '%s' "$INPUT" | PYTHONIOENCODING=utf-8:replace python3 -c 'import json,shlex,sys
 try: d = json.load(sys.stdin)
 except Exception: d = {}
 if not isinstance(d, dict): d = {}
@@ -83,7 +83,7 @@ esac
 
 [ -n "$partes" ] || exit 0
 
-printf '%s' "$partes" | python3 -c '
+printf '%s' "$partes" | PYTHONIOENCODING=utf-8:replace python3 -c '
 import json, sys
 TOPE_CHARS = 9500   # margen bajo el tope de 10.000 caracteres de la salida del hook
 t = sys.stdin.read()

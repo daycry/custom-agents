@@ -43,7 +43,7 @@ def plugin(tmp_path, n_skills=2, n_cmds=1, n_agents=1, desc=None):
 def run(args, env_extra=None, cwd=None):
     env = {k: v for k, v in os.environ.items() if k not in ("CLAUDE_PROJECT_DIR", "CLAUDE_PLUGIN_ROOT")}
     env.update(env_extra or {})
-    r = subprocess.run([sys.executable, str(SCRIPT)] + args, capture_output=True, text=True, env=env, cwd=cwd)
+    r = subprocess.run([sys.executable, str(SCRIPT)] + args, capture_output=True, text=True, encoding="utf-8", errors="replace", env=env, cwd=cwd)
     return r.returncode, r.stdout, r.stderr
 
 

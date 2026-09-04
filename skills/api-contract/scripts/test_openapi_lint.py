@@ -24,7 +24,7 @@ spec.loader.exec_module(oal)
 
 
 def run(*args):
-    r = subprocess.run([sys.executable, SCRIPT, *args], capture_output=True, text=True)
+    r = subprocess.run([sys.executable, SCRIPT, *args], capture_output=True, text=True, encoding="utf-8", errors="replace")
     return r.returncode, r.stdout, r.stderr
 
 

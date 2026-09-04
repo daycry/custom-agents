@@ -34,6 +34,11 @@ import re
 import subprocess
 import sys
 
+# Consola Windows (cp1252) o tuberías: reconfigurar ANTES de leer o imprimir nada (GOT-005).
+for _s in (sys.stdin, sys.stdout, sys.stderr):
+    try: _s.reconfigure(encoding="utf-8", errors="replace")
+    except Exception: pass  # noqa: BLE001 — sin reconfigure, ya leído o None (capsys, pythonw)
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 MODELOS_ALIAS = {"haiku", "sonnet", "opus", "inherit", "fable"}
 MODEL_ID_RE = re.compile(r"^claude-[a-z0-9][a-z0-9.-]*$")
@@ -65,7 +70,7 @@ def localizar_root(explicito=None):
             continue
         try:
             r = subprocess.run(["find", base, "-type", "d", "-path", "*agent-kits/shared"],
-                               capture_output=True, text=True, timeout=10)
+                               capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10)
             for line in r.stdout.splitlines():
                 cand = os.path.dirname(os.path.dirname(line.strip()))
                 if es_plugin(cand):

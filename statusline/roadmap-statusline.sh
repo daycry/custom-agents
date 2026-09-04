@@ -32,7 +32,7 @@ if command -v jq >/dev/null 2>&1; then
   cost="$(printf '%s' "$INPUT" | jq -r '.cost.total_cost_usd // empty' 2>/dev/null)"
   ctx="$(printf '%s' "$INPUT" | jq -r '.context_window.used_percentage // empty' 2>/dev/null)"
 elif command -v python3 >/dev/null 2>&1; then
-  eval "$(printf '%s' "$INPUT" | python3 -c '
+  eval "$(printf '%s' "$INPUT" | PYTHONIOENCODING=utf-8:replace python3 -c '
 import json, sys, shlex
 try:
     d = json.load(sys.stdin)
@@ -71,7 +71,7 @@ if command -v python3 >/dev/null 2>&1; then
   fi
   ROOT="${CLAUDE_PROJECT_DIR:-$PWD}/docs/roadmap"
   if [ -n "$REPORT" ] && [ -f "$REPORT" ] && [ -d "$ROOT" ]; then
-    rm_seg="$(python3 "$REPORT" active --root "$ROOT" --json 2>/dev/null | python3 -c '
+    rm_seg="$(python3 "$REPORT" active --root "$ROOT" --json 2>/dev/null | PYTHONIOENCODING=utf-8:replace python3 -c '
 import json, sys
 try:
     a = json.load(sys.stdin).get("activas", [])

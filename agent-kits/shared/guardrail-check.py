@@ -56,6 +56,11 @@ import shlex
 import subprocess
 import sys
 
+# Consola Windows (cp1252) o tuberías: reconfigurar ANTES de leer o imprimir nada (GOT-005).
+for _s in (sys.stdin, sys.stdout, sys.stderr):
+    try: _s.reconfigure(encoding="utf-8", errors="replace")
+    except Exception: pass  # noqa: BLE001 — sin reconfigure, ya leído o None (capsys, pythonw)
+
 WRITE_TOOLS = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
 MAIN_BRANCHES = {"main", "master"}
 DEFAULTS = {"alcance": True, "git": True, "ramaPrincipal": True}
@@ -198,7 +203,7 @@ def current_branch(project_dir):
     """Nombre de la rama o None si no hay git / no se puede saber."""
     try:
         r = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=project_dir or None,
-                           capture_output=True, text=True, timeout=5)
+                           capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=5)
     except (OSError, subprocess.SubprocessError):
         return None
     if r.returncode != 0:

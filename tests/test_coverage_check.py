@@ -46,7 +46,7 @@ def run(tasks, plan, spec=None):
         sp = os.path.join(d, "spec.md")
         open(sp, "w", encoding="utf-8").write(spec)
         args.append(sp)
-    r = subprocess.run(args, capture_output=True, text=True)
+    r = subprocess.run(args, capture_output=True, text=True, encoding="utf-8", errors="replace")
     last = r.stdout.strip().splitlines()[-1]
     return r.returncode, json.loads(last), r.stdout
 

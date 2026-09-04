@@ -39,7 +39,7 @@ def run(res_obj, justify=None, no_file=False):
             jp = os.path.join(tmp, "justify.json")
             json.dump(justify, open(jp, "w"))
             cmd += ["--justify", jp]
-        r = subprocess.run(cmd, capture_output=True, text=True)
+        r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
         return r.returncode, r.stdout
 
 

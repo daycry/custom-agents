@@ -156,7 +156,7 @@ def test_cli_real_del_repo():
     if not os.path.isfile(os.path.join(repo, "agents", "architect.md")):
         pytest.skip("agents/architect.md aún no existe")
     r = subprocess.run([sys.executable, SCRIPT, "architect", "--root", repo, "--project", str(os.devnull),
-                        "--json"], capture_output=True, text=True)
+                        "--json"], capture_output=True, text=True, encoding="utf-8", errors="replace")
     assert r.returncode == 0, r.stderr
     data = json.loads(r.stdout)
     assert data["model"] == "opus" and data["effort"] == "high"

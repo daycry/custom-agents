@@ -105,7 +105,7 @@ def _run(*args, cwd=None):
         for i, a in enumerate(args):
             if a == "--ledger" and i + 1 < len(args):
                 cwd = os.path.dirname(os.path.abspath(args[i + 1]))
-    r = subprocess.run([sys.executable, SCRIPT, "plan", *args], capture_output=True, text=True,
+    r = subprocess.run([sys.executable, SCRIPT, "plan", *args], capture_output=True, text=True, encoding="utf-8", errors="replace",
                        cwd=cwd)
     return r.returncode, r.stdout, r.stderr
 

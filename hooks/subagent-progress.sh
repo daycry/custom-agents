@@ -34,6 +34,6 @@ out="$(python3 "$REPORT" active --root "$ROOT" 2>/dev/null || true)"
 [ -n "$out" ] || exit 0
 [ "$out" != "sin iniciativas en progreso" ] || exit 0
 
-printf '%s' "$out" | python3 -c 'import json,sys; print(json.dumps({"systemMessage": sys.stdin.read()}, ensure_ascii=False))' 2>/dev/null || true
+printf '%s' "$out" | PYTHONIOENCODING=utf-8:replace python3 -c 'import json,sys; print(json.dumps({"systemMessage": sys.stdin.read()}, ensure_ascii=False))' 2>/dev/null || true
 
 exit 0

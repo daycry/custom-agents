@@ -84,7 +84,7 @@ while IFS= read -r p; do
       cerrojo_debounce
       debounce_repetida "$line" && continue
       # JSON seguro (escapa comillas, backslashes, unicode) vía python3.
-      printf '%s' "$line" | python3 -c 'import json,sys; print(json.dumps({"systemMessage": sys.stdin.read()}, ensure_ascii=False))' 2>/dev/null || true
+      printf '%s' "$line" | PYTHONIOENCODING=utf-8:replace python3 -c 'import json,sys; print(json.dumps({"systemMessage": sys.stdin.read()}, ensure_ascii=False))' 2>/dev/null || true
       break   # una sola línea por invocación (el JSON de stdout debe ser un único objeto)
       ;;
   esac

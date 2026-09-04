@@ -17,6 +17,15 @@ Kit paths are resolved at runtime with a `find` over `$PWD/.claude` and `$HOME/.
 
 > ⚠️ **Do not clone the repository inside a cloud-synced folder** (OneDrive, Dropbox, Google Drive, iCloud…). The sync client and git step on each other: it locks `.lock` files and `.git` objects while uploading, causing errors like `Unable to create '.git/HEAD.lock'`, "index file corrupt" or half-read files. Clone it into a local path **outside** the synced area (e.g. `C:\dev\custom-agents` or `~/code/custom-agents`). If it is already in a synced folder and you see those errors: pause syncing, delete the `.git/*.lock` files, run `git status` to rebuild the index, and consider moving the repo out.
 
+> ℹ️ **Windows — symbols in the console.** The plugin scripts print `✅ ⚠️ ❌`. Since the release that
+> fixes `GOT-005` they reconfigure their output to UTF-8 at startup, so they do **not** blow up with
+> `UnicodeEncodeError` even when the locale is `cp1252` (Spanish Windows) or the output goes to a
+> pipe — which is how `release.py` launches its checks. On a modern console (Windows Terminal,
+> PowerShell 7) the symbols render fine; on a **legacy console** (`cmd.exe` with an old codepage, or
+> `PYTHONLEGACYWINDOWSSTDIO=1`) they show as odd characters (`âœ…`), not as `?` (measured): that is
+> **expected** and only affects how the glyph is drawn — the verdict, the text and the exit code are
+> correct. If it bothers you, run `chcp 65001` first, or use Windows Terminal.
+
 ---
 
 ## Option 1 — Try it in a project (quick)

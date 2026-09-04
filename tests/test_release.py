@@ -40,11 +40,11 @@ CHANGELOG_ES = CHANGELOG_EN.replace("## [Unreleased]", "## [Sin publicar]").repl
 
 def git(repo, *args, check=True):
     return subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", *args],
-                          cwd=repo, capture_output=True, text=True, check=check)
+                          cwd=repo, capture_output=True, text=True, encoding="utf-8", errors="replace", check=check)
 
 
 def run(repo, *args):
-    return subprocess.run([sys.executable, SCRIPT, "--root", str(repo), *args], capture_output=True, text=True)
+    return subprocess.run([sys.executable, SCRIPT, "--root", str(repo), *args], capture_output=True, text=True, encoding="utf-8", errors="replace")
 
 
 def _w(p, s, mode=None):
@@ -212,6 +212,107 @@ def test_lint_fallando_aborta_y_skip_checks_lo_salta(repo):
     r = run(repo, "1.2.3", "--skip-checks")
     assert r.returncode == 0 and "--skip-checks" in r.stdout
     assert _versions(repo) == ("1.2.3", "1.2.3", "1.2.3")
+
+
+# --- el check que CRASHEA no se disfraza de veredicto (windows-console T-02) -------------------
+#
+# El 2026-09-03 `lint_plugin.py` reventó con `UnicodeEncodeError` (salida a un pipe con locale
+# cp1252) y salió con exit 1 — el mismo exit que «hay entradas pendientes» —, así que `release.py`
+# imprimió `changelog-sync --check: PENDIENTE` y el usuario creyó que le faltaban notas.
+
+# Crash REAL (traceback en stderr + exit 1), no un mock del mensaje.
+CRASH = ("import sys\n"
+         "sys.stdout.write('salida parcial\\n')\n"
+         "raise UnicodeEncodeError('charmap', 'x', 0, 1, 'character maps to <undefined>')\n")
+
+
+def _changelog_sync(repo, body):
+    _w(repo / "skills" / "changelog-sync" / "scripts" / "changelog-sync.py", body)
+    git(repo, "add", "-A"); git(repo, "commit", "-q", "-m", "changelog-sync")
+
+
+def test_lint_que_crashea_se_reporta_como_error_no_como_falla(repo):
+    (repo / "scripts" / "lint_plugin.py").write_text(CRASH, encoding="utf-8")
+    git(repo, "add", "-A"); git(repo, "commit", "-q", "-m", "lint que revienta")
+    antes = _snapshot(repo)
+    r = run(repo, "1.2.3")
+    salida = r.stdout + r.stderr
+    assert r.returncode == 1, salida
+    assert "ERROR al ejecutar (exit 1)" in r.stdout, r.stdout
+    assert "FALLA" not in r.stdout, "un traceback no es un veredicto"
+    assert "UnicodeEncodeError" in salida, "faltan las últimas líneas de stderr"
+    assert "NO se pudo ejecutar" in r.stderr and "NO es su veredicto" in r.stderr, r.stderr
+    assert _snapshot(repo) == antes and "v1.2.3" not in git(repo, "tag").stdout
+
+
+def test_changelog_sync_que_crashea_bloquea_en_vez_de_decir_pendiente(repo):
+    _changelog_sync(repo, CRASH)
+    antes = _snapshot(repo)
+    r = run(repo, "1.2.3")
+    assert r.returncode == 1, r.stdout + r.stderr
+    assert "changelog-sync --check: ERROR al ejecutar (exit 1)" in r.stdout, r.stdout
+    assert "PENDIENTE" not in r.stdout, "el bug era exactamente presentar el crash como PENDIENTE"
+    assert "UnicodeEncodeError" in r.stdout + r.stderr
+    assert _snapshot(repo) == antes, "un entorno roto no debe publicar nada"
+
+
+def test_changelog_sync_con_entradas_pendientes_sigue_siendo_aviso_que_no_bloquea(repo):
+    _changelog_sync(repo, "import sys\n"
+                          "print('changelog-sync --check: entradas PENDIENTES en el CHANGELOG:')\n"
+                          "print('  \\u00b7 mi-slug (2026-09-03) \\u2014 Fixed')\n"
+                          "sys.exit(1)\n")
+    r = run(repo, "1.2.3")
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "changelog-sync --check: PENDIENTE" in r.stdout and "mi-slug" in r.stdout
+    assert "ERROR al ejecutar" not in r.stdout
+    assert _versions(repo) == ("1.2.3", "1.2.3", "1.2.3"), "la deuda de notas no bloquea el release"
+
+
+def test_el_slug_pendiente_se_lee_aunque_la_vineta_no_sobreviva(repo):
+    """El hijo aquí NO lleva el snippet de T-01: bajo cp1252 escribe `·` en cp1252 y el padre, que
+    decodifica UTF-8, lo ve como `�`. El resumen debe seguir nombrando la iniciativa."""
+    _changelog_sync(repo, "import sys\n"
+                          "print('changelog-sync --check: entradas PENDIENTES en el CHANGELOG:')\n"
+                          "print('  \\u00b7 mi-slug (2026-09-03) \\u2014 Fixed')\n"
+                          "sys.exit(1)\n")
+    env = dict(os.environ, PYTHONIOENCODING="cp1252")
+    r = subprocess.run([sys.executable, SCRIPT, "--root", str(repo), "1.2.3", "--dry-run"],
+                       capture_output=True, text=True, encoding="utf-8", errors="replace", env=env)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "changelog-sync --check: PENDIENTE" in r.stdout, r.stdout
+    assert "mi-slug" in r.stdout, r.stdout
+
+
+def test_exit_que_no_es_0_ni_1_es_error_aunque_no_haya_traceback(repo):
+    (repo / "evals" / "check.py").write_text(
+        "import sys\nsys.stderr.write('uno\\ndos\\ntres\\ncuatro\\n')\nsys.exit(3)\n", encoding="utf-8")
+    git(repo, "add", "-A"); git(repo, "commit", "-q", "-m", "evals con exit 3")
+    r = run(repo, "1.2.3")
+    assert r.returncode == 1
+    assert "ERROR al ejecutar (exit 3)" in r.stdout, r.stdout
+    # exactamente las 3 ÚLTIMAS líneas de stderr, no la primera
+    assert "dos" in r.stdout and "tres" in r.stdout and "cuatro" in r.stdout, r.stdout
+    assert "uno" not in r.stdout.split("ERROR al ejecutar")[1], r.stdout
+
+
+def test_clasificar_distingue_veredicto_de_crash():
+    """La regla, sin subprocess: `Traceback` en stderr manda sobre el exit code."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("release_mod", SCRIPT)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    class R:
+        def __init__(self, code, err=""):
+            self.returncode, self.stderr = code, err
+
+    assert mod.clasificar(R(0)) == "ok"
+    assert mod.clasificar(R(1)) == "falla"
+    assert mod.clasificar(R(2)) == "error" and mod.clasificar(R(127)) == "error"
+    assert mod.clasificar(R(1, "Traceback (most recent call last):\n  ...\n")) == "error"
+    assert mod.clasificar(R(0, "Traceback (most recent call last):\n")) == "error"
+    assert mod.cola_stderr(R(1, "a\n\nb\nc\nd\n")) == ["b", "c", "d"]
+    assert mod.cola_stderr(R(1, "")) == ["(sin stderr)"]
 
 
 def test_copia_manual_divergente_aborta(repo):

@@ -39,7 +39,7 @@ def make_plugin(tmp, agents):
 
 def run(tmp):
     r = subprocess.run([sys.executable, SCRIPT, "--root", tmp],
-                       capture_output=True, text=True)
+                       capture_output=True, text=True, encoding="utf-8", errors="replace")
     return r.returncode, r.stdout + r.stderr
 
 
@@ -424,7 +424,122 @@ dependencies:
         code, out = run(tmp)
         assert code == 0 and "disparador duplicado" not in out, out
 
-    print("test_lint_plugin: 24/24 OK")
+    # 25) `.py` con símbolos y SIN el snippet de consola → aviso (no error) [windows-console T-01]
+    with tempfile.TemporaryDirectory() as tmp:
+        make_plugin(tmp, {"alpha": AGENT_OK.format(name="alpha")})
+        os.makedirs(os.path.join(tmp, "scripts"))
+        with open(os.path.join(tmp, "scripts", "grita.py"), "w", encoding="utf-8") as f:
+            f.write('import sys\nprint("✅ listo")\n')
+        code, out = run(tmp)
+        assert code == 0, f"es aviso, no error\n{out}"
+        assert "grita.py" in out and "no reconfigura los streams AL ARRANCAR" in out, out
+        assert "UnicodeEncodeError" in out and "GOT-005" in out, out
+
+    # 26) el mismo fichero CON el snippet → sin aviso; y un `.py` solo-ASCII tampoco avisa
+    with tempfile.TemporaryDirectory() as tmp:
+        make_plugin(tmp, {"alpha": AGENT_OK.format(name="alpha")})
+        os.makedirs(os.path.join(tmp, "scripts"))
+        with open(os.path.join(tmp, "scripts", "grita.py"), "w", encoding="utf-8") as f:
+            f.write('import sys\nfor _s in (sys.stdin, sys.stdout, sys.stderr):\n'
+                    '    try: _s.reconfigure(encoding="utf-8", errors="replace")\n'
+                    '    except Exception: pass\nprint("✅ listo")\n')
+        with open(os.path.join(tmp, "scripts", "mudo.py"), "w", encoding="utf-8") as f:
+            f.write('print("plain ascii")\n')
+        # las suites (`test_*.py`) y los fixtures del consumidor quedan fuera del criterio
+        with open(os.path.join(tmp, "scripts", "test_grita.py"), "w", encoding="utf-8") as f:
+            f.write('print("✅ suite")\n')
+        os.makedirs(os.path.join(tmp, "evals", "fixtures", "project"))
+        with open(os.path.join(tmp, "evals", "fixtures", "project", "app.py"), "w", encoding="utf-8") as f:
+            f.write('print("✅ código del consumidor simulado")\n')
+        code, out = run(tmp)
+        assert code == 0 and "no reconfigura los streams" not in out, out
+
+    # 27) la marca DENTRO de `main()`, con un print de símbolos a nivel de módulo antes → aviso.
+    #     Antes se buscaba por subcadena (`CONSOLE_MARK in data`) y daba 0 avisos mientras el script
+    #     reventaba igual bajo cp1252 [windows-console T-04].
+    with tempfile.TemporaryDirectory() as tmp:
+        make_plugin(tmp, {"alpha": AGENT_OK.format(name="alpha")})
+        os.makedirs(os.path.join(tmp, "scripts"))
+        with open(os.path.join(tmp, "scripts", "tarde.py"), "w", encoding="utf-8") as f:
+            f.write('import sys\nprint("⚠️  a nivel de módulo")\n\n\ndef main():\n'
+                    '    for _s in (sys.stdin, sys.stdout, sys.stderr):\n'
+                    '        try: _s.reconfigure(encoding="utf-8", errors="replace")\n'
+                    '        except Exception: pass\n')
+        code, out = run(tmp)
+        assert code == 0, f"es aviso, no error\n{out}"
+        assert "tarde.py" in out and "AL ARRANCAR" in out, out
+
+    # 28) la marca SOLO citada en un docstring → aviso (no es una llamada, no protege nada) [T-04]
+    with tempfile.TemporaryDirectory() as tmp:
+        make_plugin(tmp, {"alpha": AGENT_OK.format(name="alpha")})
+        os.makedirs(os.path.join(tmp, "scripts"))
+        with open(os.path.join(tmp, "scripts", "cita.py"), "w", encoding="utf-8") as f:
+            f.write('"""Debería llamar a reconfigure(encoding="utf-8", errors="replace").\n"""\n'
+                    'print("⚠️  sin snippet de verdad")\n')
+        code, out = run(tmp)
+        assert code == 0 and "cita.py" in out and "AL ARRANCAR" in out, out
+
+    # 29) lado PADRE: capturar un subproceso en modo texto sin `encoding=` → aviso; con él, no [T-04]
+    with tempfile.TemporaryDirectory() as tmp:
+        make_plugin(tmp, {"alpha": AGENT_OK.format(name="alpha")})
+        os.makedirs(os.path.join(tmp, "scripts"))
+        with open(os.path.join(tmp, "scripts", "padre.py"), "w", encoding="utf-8") as f:
+            f.write('import subprocess\nr = subprocess.run(["git", "log"], capture_output=True, text=True)\n')
+        code, out = run(tmp)
+        assert code == 0, f"es aviso, no error\n{out}"
+        assert "padre.py" in out and "modo texto SIN `encoding=`" in out and "línea 2" in out, out
+
+        # el mismo fichero CON encoding, y uno que solo mira el returncode (bytes: no decodifica)
+        with open(os.path.join(tmp, "scripts", "padre.py"), "w", encoding="utf-8") as f:
+            f.write('import subprocess\nr = subprocess.run(["git", "log"], capture_output=True, '
+                    'text=True, encoding="utf-8", errors="replace")\n'
+                    'ok = subprocess.run(["git", "status"], capture_output=True).returncode == 0\n')
+        code, out = run(tmp)
+        assert code == 0 and "modo texto SIN" not in out, out
+
+    # 30) lector de `stdin` ASCII PURO → aviso, aunque su fuente no tenga un solo símbolo. El lado
+    #     que LEE no depende del fuente sino del payload: era el caso de `pick_asset.py`, la 28.ª
+    #     pieza del repo, invisible para el criterio de T-04 [windows-console T-05].
+    with tempfile.TemporaryDirectory() as tmp:
+        make_plugin(tmp, {"alpha": AGENT_OK.format(name="alpha")})
+        os.makedirs(os.path.join(tmp, "scripts"))
+        with open(os.path.join(tmp, "scripts", "lector.py"), "w", encoding="utf-8") as f:
+            f.write('import json, sys\nprint(json.load(sys.stdin)["url"])\n')
+        code, out = run(tmp)
+        assert code == 0, f"es aviso, no error\n{out}"
+        assert "lector.py" in out and "lee de `sys.stdin`" in out, out
+        assert "imprime caracteres no ASCII" not in out, (
+            f"el motivo del aviso debe ser SOLO la lectura de stdin\n{out}")
+
+        # el mismo lector CON el snippet → sin aviso
+        with open(os.path.join(tmp, "scripts", "lector.py"), "w", encoding="utf-8") as f:
+            f.write('import json, sys\nfor _s in (sys.stdin, sys.stdout, sys.stderr):\n'
+                    '    try: _s.reconfigure(encoding="utf-8", errors="replace")\n'
+                    '    except Exception: pass\nprint(json.load(sys.stdin)["url"])\n')
+        code, out = run(tmp)
+        assert code == 0 and "no reconfigura los streams" not in out, out
+
+    # 31) `sys.stdin` citado en un comentario o dentro de una cadena NO cuenta como lectura: el
+    #     criterio es `ast`, no `grep`, y un fichero ASCII sin lectura real queda fuera [T-05].
+    with tempfile.TemporaryDirectory() as tmp:
+        make_plugin(tmp, {"alpha": AGENT_OK.format(name="alpha")})
+        os.makedirs(os.path.join(tmp, "scripts"))
+        with open(os.path.join(tmp, "scripts", "menciona.py"), "w", encoding="utf-8") as f:
+            f.write('# algun dia leera de sys.stdin\nprint("usa sys.stdin")\n')
+        code, out = run(tmp)
+        assert code == 0 and "no reconfigura los streams" not in out, out
+
+    # 32) los dos motivos a la vez → el aviso los NOMBRA a los dos (el mensaje no miente) [T-05]
+    with tempfile.TemporaryDirectory() as tmp:
+        make_plugin(tmp, {"alpha": AGENT_OK.format(name="alpha")})
+        os.makedirs(os.path.join(tmp, "scripts"))
+        with open(os.path.join(tmp, "scripts", "ambos.py"), "w", encoding="utf-8") as f:
+            f.write('import sys\nprint("⚠️ ", sys.stdin.read())\n')
+        code, out = run(tmp)
+        assert code == 0, f"es aviso, no error\n{out}"
+        assert "imprime caracteres no ASCII y lee de `sys.stdin`" in out, out
+
+    print("test_lint_plugin: 32/32 OK")
 
 
 if __name__ == "__main__":

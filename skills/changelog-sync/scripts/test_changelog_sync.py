@@ -79,7 +79,7 @@ def proyecto(tmp, slug="demo", estado="completado", desc="Añade la cosa nueva."
 
 def run(*args, root=None):
     cmd = [sys.executable, SCRIPT] + (["--root", root] if root else []) + list(args)
-    return subprocess.run(cmd, capture_output=True, text=True)
+    return subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
 
 
 def test_genera_en_y_es_con_un_bullet_por_tarea(tmp_path):

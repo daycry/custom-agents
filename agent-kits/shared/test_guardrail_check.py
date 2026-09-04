@@ -202,7 +202,7 @@ def run_cli(payload, cwd, env_extra=None):
     env = dict(os.environ, CLAUDE_PROJECT_DIR=cwd)
     env.update(env_extra or {})
     r = subprocess.run([sys.executable, SCRIPT, "pre-tool"], input=payload, cwd=cwd,
-                       capture_output=True, text=True, env=env)
+                       capture_output=True, text=True, encoding="utf-8", errors="replace", env=env)
     return r.returncode, r.stdout, r.stderr
 
 
@@ -315,12 +315,12 @@ def test_implementer_razon_design_nombra_a_architect():
 def test_cli_agent_flag_y_env(tmp_path):
     payload = json.dumps(write("src/app.py"))
     r = subprocess.run([sys.executable, SCRIPT, "pre-tool", "--agent", "architect", "--project-dir", str(tmp_path)],
-                       input=payload, capture_output=True, text=True)
+                       input=payload, capture_output=True, text=True, encoding="utf-8", errors="replace")
     assert r.returncode == 0 and '"deny"' in r.stdout and "architect" in r.stdout
     env = dict(os.environ, CLAUDE_AGENT_NAME="architect")
     r = subprocess.run([sys.executable, SCRIPT, "pre-tool", "--project-dir", str(tmp_path)],
-                       input=payload, capture_output=True, text=True, env=env)
+                       input=payload, capture_output=True, text=True, encoding="utf-8", errors="replace", env=env)
     assert r.returncode == 0 and '"deny"' in r.stdout
     r = subprocess.run([sys.executable, SCRIPT, "pre-tool", "--project-dir", str(tmp_path)],
-                       input=payload, capture_output=True, text=True, env={k: v for k, v in os.environ.items() if k != "CLAUDE_AGENT_NAME"})
+                       input=payload, capture_output=True, text=True, encoding="utf-8", errors="replace", env={k: v for k, v in os.environ.items() if k != "CLAUDE_AGENT_NAME"})
     assert r.returncode == 0 and r.stdout.strip() == "", "implementer por defecto: src/app.py permitido en rama (sin git → sin ramaPrincipal)"

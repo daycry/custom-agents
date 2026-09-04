@@ -68,7 +68,7 @@ def fixture(tmp_path, con_git=True):
 
 
 def run(*args):
-    r = subprocess.run([sys.executable, SCRIPT, *args], capture_output=True, text=True, timeout=120)
+    r = subprocess.run([sys.executable, SCRIPT, *args], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120)
     return r.returncode, r.stdout, r.stderr
 
 

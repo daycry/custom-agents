@@ -127,7 +127,7 @@ estado: en-progreso
 
 
 def run(*args):
-    r = subprocess.run([sys.executable, str(SCRIPT), *args], capture_output=True, text=True)
+    r = subprocess.run([sys.executable, str(SCRIPT), *args], capture_output=True, text=True, encoding="utf-8", errors="replace")
     return r.returncode, r.stdout, r.stderr
 
 
@@ -328,7 +328,7 @@ def test_titulo_con_negrita_interior_sale_sin_asteriscos(tmp_path):
     p = tmp_path / "docs" / "roadmap" / "2026-01-01-demo" / "tasks.md"
     p.parent.mkdir(parents=True)
     p.write_text(ledger, encoding="utf-8")
-    r = subprocess.run([sys.executable, str(SCRIPT), "line", str(p)], capture_output=True, text=True)
+    r = subprocess.run([sys.executable, str(SCRIPT), "line", str(p)], capture_output=True, text=True, encoding="utf-8", errors="replace")
     assert r.returncode == 0
     assert "T-03 Bold resto del título" in r.stdout, r.stdout
     assert "**" not in r.stdout

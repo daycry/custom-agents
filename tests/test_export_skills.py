@@ -79,7 +79,7 @@ def plugin(tmp_path):
 
 
 def _run(*args):
-    return subprocess.run([sys.executable, SCRIPT, *args], capture_output=True, text=True)
+    return subprocess.run([sys.executable, SCRIPT, *args], capture_output=True, text=True, encoding="utf-8", errors="replace")
 
 
 # ------------------------------------------------------------------ formatos y exclusiones

@@ -28,6 +28,11 @@ import os
 import re
 import sys
 
+# Consola Windows (cp1252) o tuberías: reconfigurar ANTES de leer o imprimir nada (GOT-005).
+for _s in (sys.stdin, sys.stdout, sys.stderr):
+    try: _s.reconfigure(encoding="utf-8", errors="replace")
+    except Exception: pass  # noqa: BLE001 — sin reconfigure, ya leído o None (capsys, pythonw)
+
 TEST_ID = re.compile(r"\b((?:E2E|M|API|A11Y)-\d+)\b", re.I)
 # criterio G/W/T de la spec: "- [ ] [GWT] CA-01 — Dado…" — tolerante: viñeta -/*,
 # checkbox marcado o no, [GWT] en cualquier caja, ID opcionalmente en **negrita**

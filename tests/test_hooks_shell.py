@@ -78,7 +78,7 @@ def hook(nombre, payload, env, cwd=None):
     """Lanza hooks/<nombre> con el payload por stdin. Devuelve (rc, stdout, stderr)."""
     script = STATUSLINE if nombre == "statusline" else os.path.join(HOOKS, nombre)
     data = payload if isinstance(payload, str) else json.dumps(payload, ensure_ascii=False)
-    r = subprocess.run([BASH, script], input=data, capture_output=True, text=True, env=env,
+    r = subprocess.run([BASH, script], input=data, capture_output=True, text=True, encoding="utf-8", errors="replace", env=env,
                        cwd=cwd or env["CLAUDE_PROJECT_DIR"], timeout=60)
     return r.returncode, r.stdout, r.stderr
 

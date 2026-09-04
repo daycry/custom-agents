@@ -70,6 +70,11 @@ import shutil
 import sys
 from pathlib import Path
 
+# Consola Windows (cp1252) o tuberías: reconfigurar ANTES de leer o imprimir nada (GOT-005).
+for _s in (sys.stdin, sys.stdout, sys.stderr):
+    try: _s.reconfigure(encoding="utf-8", errors="replace")
+    except Exception: pass  # noqa: BLE001 — sin reconfigure, ya leído o None (capsys, pythonw)
+
 SCRIPT_DIR = Path(__file__).resolve().parent
 DEFAULT_ASSET = SCRIPT_DIR.parent / "assets" / "confluence.example.json"
 

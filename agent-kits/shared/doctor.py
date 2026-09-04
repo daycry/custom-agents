@@ -46,6 +46,11 @@ import shutil
 import subprocess
 import sys
 
+# Consola Windows (cp1252) o tuberías: reconfigurar ANTES de leer o imprimir nada (GOT-005).
+for _s in (sys.stdin, sys.stdout, sys.stderr):
+    try: _s.reconfigure(encoding="utf-8", errors="replace")
+    except Exception: pass  # noqa: BLE001 — sin reconfigure, ya leído o None (capsys, pythonw)
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 OK, AVISO, ERROR, INFO = "ok", "aviso", "error", "info"
@@ -92,7 +97,7 @@ def _leer_json(path):
 def _correr(cmd, cwd=None):
     """(stdout, ok). Nunca lanza: un script hermano ausente o roto degrada a (\"\", False)."""
     try:
-        r = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, timeout=TIMEOUT)
+        r = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=TIMEOUT)
         return r.stdout, r.returncode == 0
     except (OSError, subprocess.SubprocessError):
         return "", False
