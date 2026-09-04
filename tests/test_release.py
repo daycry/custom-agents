@@ -70,6 +70,12 @@ def repo(tmp_path):
     _w(r / "hooks" / "hook.sh", "#!/bin/sh\necho hi\n", 0o644)          # la trampa de Windows
     _w(r / "hooks" / "ok.sh", "#!/bin/sh\n", 0o755)
     git(r, "init", "-q")
+    # Identidad EN EL REPO, no solo en los `git` del test: `release.py` corre como subproceso y hace
+    # su propio `git commit`, que sin `user.email`/`user.name` falla. En una máquina de desarrollo hay
+    # identidad global y no se nota; en un runner de CI no hay ninguna y estos tests se ponían rojos
+    # (GOT-006). Con esto la fixture es hermética: no depende del git config de quien la ejecute.
+    git(r, "config", "user.name", "t")
+    git(r, "config", "user.email", "t@t")
     git(r, "add", "-A")
     git(r, "commit", "-q", "-m", "init")
     return r
@@ -408,3 +414,42 @@ def test_crlf_se_conserva(repo):
     # y un fichero LF sigue LF
     (repo / "CHANGELOG.md").write_text(CHANGELOG_EN.replace("## [1.1.0]", "## [1.2.3] - x\n\n## [1.1.0]"), encoding="utf-8")
     assert b"\r\n" not in (repo / "CHANGELOG.md").read_bytes()
+
+
+# --------------------------------------------------------- identidad de git: la trampa del runner
+
+def test_la_fixture_configura_la_identidad_DENTRO_del_repo(repo):
+    """La fixture no puede depender del `git config --global` de quien ejecute la suite (GOT-006).
+
+    `release.py` corre como SUBPROCESO y hace su propio `git commit`. Los `git` del test pasan
+    `-c user.name/-c user.email`, pero eso no alcanza al subproceso: la identidad tiene que estar
+    en el repo. En una máquina de desarrollo hay identidad global y estos 11 tests pasaban; en un
+    runner de GitHub Actions no hay ninguna y se ponían rojos — y no se vio antes porque
+    `tests/test_release.py` no entraba en el `pytest` de la CI hasta `changelog-brief` T-07.
+    """
+    for clave in ("user.name", "user.email"):
+        r = subprocess.run(["git", "config", "--local", "--get", clave], cwd=repo,
+                           capture_output=True, text=True, encoding="utf-8", errors="replace")
+        assert r.returncode == 0 and r.stdout.strip(), (
+            f"la fixture debe fijar {clave} en el repo: sin identidad LOCAL, el `git commit` de "
+            f"release.py falla en cualquier entorno sin identidad global (CI)")
+
+
+def test_sin_identidad_release_degrada_con_mensaje_y_no_revienta(repo):
+    """Y el contrato del PRODUCTO bajo esa misma condición: degrada, no revienta.
+
+    Un usuario con git recién instalado y sin identidad configurada existe. `release.py` debe
+    escribir los ficheros, decir qué falta y dar el comando a mano — nunca un traceback.
+    """
+    subprocess.run(["git", "config", "--local", "--unset-all", "user.name"], cwd=repo, capture_output=True)  # bytes: solo se mira el rc
+    subprocess.run(["git", "config", "--local", "--unset-all", "user.email"], cwd=repo, capture_output=True)  # bytes: solo se mira el rc
+    entorno = {**os.environ, "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_SYSTEM": os.devnull}
+    r = subprocess.run([sys.executable, SCRIPT, "--root", str(repo), "1.2.3"],
+                       capture_output=True, text=True, encoding="utf-8", errors="replace", env=entorno)
+    assert "Traceback" not in r.stderr, f"no debe reventar; stderr:\n{r.stderr[-400:]}"
+    assert r.returncode == 1
+    # el aviso de degradación va a stderr (es un error de entorno, no salida del plan)
+    assert "git commit" in r.stderr, f"debe dar el comando a mano; stderr:\n{r.stderr[-400:]}"
+    assert "los ficheros quedaron actualizados" in r.stderr
+    # y los ficheros SÍ quedaron escritos: el trabajo no se pierde por no poder comitear
+    assert _versions(repo) == ("1.2.3", "1.2.3", "1.2.3")

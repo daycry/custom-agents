@@ -88,8 +88,8 @@ es. Si un bullet sale pobre, la respuesta es escribir el campo `Changelog:` de e
 el tope.
 
 `RESUMEN_MAX` acota **el resumen, no el bullet**: el resto lo ponen el título del ledger y la lista
-de ficheros. Techo real medido con los títulos y rutas de este repo: **376
-caracteres**.<!--m:bullet_max=376--> Y el camino que se promueve es, medido, el que produce los
+de ficheros. Techo real medido con los títulos y rutas de este repo: **400
+caracteres**.<!--m:bullet_max=400--> Y el camino que se promueve es, medido, el que produce los
 bullets más LARGOS (`changelog` mediana 347 · `titulo` mediana 115)<!--m:changelog_mediana=347,titulo_mediana=115--> — es el precio de que el bullet diga algo. `RESUMEN_FRASES_MAX` es un tope
 **tipográfico**: `FIN_FRASE` reconoce «punto + espacio + apertura de frase», con una guarda de
 abreviaturas (`p. ej.`, `vs.`, `etc.`, `Sr.`, `pág.`, `EE. UU.`…), así que un texto cuyas frases

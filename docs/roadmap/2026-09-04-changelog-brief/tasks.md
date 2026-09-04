@@ -167,7 +167,7 @@ generacion:
 - **Archivos**: `skills/changelog-sync/scripts/changelog-sync.py`, `skills/changelog-sync/scripts/test_changelog_sync.py`, `skills/changelog-sync/SKILL.md`, `skills/changelog-sync/references/medicion-escalera.md`, `agent-kits/shared/ledger-lint.py`, `agent-kits/planner/templates/tasks.md`, `tests/test_ledger_lint.py`, `docs/CONVENTIONS.md`, `docs/en/CONVENTIONS.md`, `docs/knowledge/adr/ADR-012-resumen-del-changelog-lo-escribe-quien-cierra-la-tarea.md`, `docs/knowledge/README.md`, `docs/roadmap/README.md`, `docs/roadmap/2026-09-04-changelog-brief/tasks.md`
 - **Verificación** (ejecutada 2026-09-04):
   - **Reproducción del CRITICAL 1** (ledger real con `- **Changelog**:` vacío). ANTES: `ledger-lint` → `⚠️  T-01: campo **Changelog** VACÍO …` **exit 0** (solo aviso, como el diseño quiere) · `changelog-sync --check` → **no menciona T-01** (para él el campo tiene contenido) · publicado → `- **T-01 — Arranque sin config** - **Estado**: completado`. DESPUÉS: `--check` → `⚠️  demo: 1/1 tarea(s) sin \`- **Changelog**:\` [T-01] — su bullet degrada al título; …` · publicado → `- **T-01 — Arranque sin config** ([ledger](docs/roadmap/2026-05-05-demo/tasks.md))`. Unitario del patrón: `re.search(r"^- \*\*Changelog\*\*\s*:\s*(.*)$", b, re.M).group(1)` → `'- **Estado**: completado'`; con `[^\S\n]*` → `''`. El mismo unitario sobre `Descripción` (fallo ya presente en `a7a11b0`) → `'- **Estado**: completado'` → `''`
-  - **Reproducción del IMPORTANT 2** (un `- **Changelog**: EJEMPLO DE DOCUMENTACION…` dentro de `## Notas de cierre`). ANTES: `- **T-02 — Segunda tarea** EJEMPLO DE DOCUMENTACION — esto NO es el resumen de ninguna tarea.` DESPUÉS: `- **T-02 — Segunda tarea** \`agent-kits/shared/loquesea.py\` gana tres subcomandos nuevos que hacen cosas distintas.` (cae al camino `corte`, como debe). Exposición medida: **21 de 28** ledgers del repo tienen cola tras su última `### T-XX` (de 4 a 148 líneas) y **13 de los 14 cerrados** tenían la última tarea expuesta<!--m:ledgers_con_cola=21,ledgers_totales=28,cerrados_con_cola=13,ledgers_cerrados=14--> (esta línea decía «12 de los 14»; son 13, y hoy lo mide `--medicion`)
+  - **Reproducción del IMPORTANT 2** (un `- **Changelog**: EJEMPLO DE DOCUMENTACION…` dentro de `## Notas de cierre`). ANTES: `- **T-02 — Segunda tarea** EJEMPLO DE DOCUMENTACION — esto NO es el resumen de ninguna tarea.` DESPUÉS: `- **T-02 — Segunda tarea** \`agent-kits/shared/loquesea.py\` gana tres subcomandos nuevos que hacen cosas distintas.` (cae al camino `corte`, como debe). Exposición medida: **21 de 29** ledgers del repo tienen cola tras su última `### T-XX` (de 4 a 148 líneas) y **13 de los 15 cerrados** tenían la última tarea expuesta<!--m:ledgers_con_cola=21,ledgers_totales=29,cerrados_con_cola=13,ledgers_cerrados=15--> (esta línea decía «12 de los 14»; son 13, y hoy lo mide `--medicion`)
   - **IMPORTANT 3**: `-  **Changelog**: Frase.` (dos espacios) y `  - **Changelog**: Frase.` (indentado) → ANTES `sync=NO · lint=SI`; DESPUÉS los dos `SI`, y `test_los_dos_parsers_del_campo_reconocen_LOS_MISMOS_casos` los enfrenta sobre 11 casos + `test_el_patron_del_campo_es_el_canonico_del_kit` compara las cadenas byte a byte
   - **IMPORTANT 4**: `resumen(None, "Corrige el orden Sr. Pérez en la firma del comentario. Ahora el CHANGELOG sale en dos idiomas.")` → ANTES `('Corrige el orden Sr. Pérez en la firma del comentario.', 'changelog', ['campo \`Changelog:\` de más de 2 frases — se usan las dos primeras'])`; DESPUÉS el texto ENTERO y `avisos=[]`. Igual con `vs.` y `p. ej.` seguidos de mayúscula
   - **IMPORTANT 5 — campaña de mutantes** (misma campaña, mismo fichero de tests, ejecutada en un árbol temporal): **intento 1 → 14 de 25 sobreviven** (`ABRE` sin `(`/`[`/`{`, `CIERRA` sin `]`, `CORTES` sin `;`/`—`/`–`/ambas rayas, corte por `(` desactivado, `RESUMEN_MAX` 200→120 y →400, `ARCHIVOS_MAX_TOCADOS` 2×→4×, `CORTE_MIN_PALABRAS` 5→1 y →9). **Ahora: 0 de 40 sobreviven** (las 25 anteriores + 15 del criterio nuevo: campo que se come el `\n`, `Descripción` idem, campo que exige `- ` exacto, bloque que no acaba en `^## `, `ABREVIATURAS` vacío / sin `vs.` / sin `sr.` / con `uu.`, placeholder ignorado, continuación no absorbida, negrita borrada en vez de cerrada, enlace Markdown sin guarda, acentos graves de uno en uno, `degradacion` sin `titulo`, prosa sin diéresis)
@@ -320,10 +320,10 @@ Ese agregado engaña, y T-06 lo re-midió: la mediana de 128 sale de un corpus d
 bullets son solo el título**, o sea del camino que la iniciativa quiere EVITAR. Por camino:
 `titulo` 42 · mediana 115 · máx 168 | `corte` 9 · 170 · 280 | `frase` 12 · 260 ·
 325.<!--m:camino_titulo=42,titulo_mediana=115,titulo_max=168,camino_corte=9,corte_mediana=170,corte_max=280,camino_frase=12,frase_mediana=260,frase_max=325-->
-Y con este ledger cerrado (14 ledgers, 70 tareas) aparece el camino que se promueve, que es **el
-que produce los bullets más largos**: `changelog` 7 · mediana **347** · máx
-**376**.<!--m:ledgers_cerrados=14,tareas=70,camino_changelog=7,changelog_mediana=347,changelog_max=376-->
-El techo real del bullet completo es por tanto **376**, no 325.<!--m:bullet_max=376--> La descomposición del de 325 (`windows-console/T-06`) es
+Y con este ledger cerrado (15 ledgers, 72 tareas) aparece el camino que se promueve, que es **el
+que produce los bullets más largos**: `changelog` 9 · mediana **347** · máx
+**400**.<!--m:ledgers_cerrados=15,tareas=72,camino_changelog=9,changelog_mediana=347,changelog_max=400-->
+El techo real del bullet completo es por tanto **400**, no 325.<!--m:bullet_max=400--> La descomposición del de 325 (`windows-console/T-06`) es
 cabecera 83 + espacio + resumen **152** + lista de 3 ficheros **89** (una versión anterior decía
 «resumen 150 · título 68 · lista 96»: el total 325 y la conclusión eran correctos, las tres
 componentes no).<!--m:base_peor_cabecera=83,base_peor_resumen=152,base_peor_ficheros=89,base_bullet_max=325-->
@@ -383,8 +383,8 @@ genéricos de `retro`/`roadmap-status`/`setup`, preexistentes.
   descartada en `ADR-012` con su motivo; si al leer las notas molesta, es un cambio de una línea en
   `bullets()`.
 - **`RESUMEN_MAX` no acota el bullet completo**, solo el resumen. Techo real medido con los títulos
-  y las rutas de este repo: **376 caracteres** (`changelog-brief/T-01`, camino `changelog`), no
-  325.<!--m:bullet_max=376-->
+  y las rutas de este repo: **400 caracteres** (`changelog-brief/T-01`, camino `changelog`), no
+  325.<!--m:bullet_max=400-->
   Y el desglose por camino dice algo incómodo que la doc ahora escribe: el camino que la iniciativa
   PROMUEVE es el que produce los bullets más largos (`changelog` mediana 350 · máximo 376;
   `titulo` mediana 115 · máximo 168). Es el precio de que el bullet DIGA algo, no un fallo del
@@ -411,8 +411,8 @@ genéricos de `retro`/`roadmap-status`/`setup`, preexistentes.
   cual: en este repo son casi siempre literales (`evals/**`, `docs/*`, nombres con guion bajo) y
   cerrarlos corrompería el texto. Exposición medida: **0 desbalanceados en los 69 bullets reales**,
   y ahora hay test (`test_los_bullets_reales_del_repo_estan_equilibrados_en_markdown`) que lo
-  vigila en cada ejecución de la suite en vez de fiarse de un barrido de una vez (hoy son 70
-  bullets).<!--m:tareas=70-->
+  vigila en cada ejecución de la suite en vez de fiarse de un barrido de una vez (hoy son 72
+  bullets).<!--m:tareas=72-->
 - **Los 6 avisos de ledger legacy sin frontmatter siguen ahí** (`--check` los repite en cada
   ejecución). Es correcto —son ledgers que no se pueden sincronizar— y es anterior a esta
   iniciativa; si molestan, el arreglo natural es la misma receta que T-06 aplicó al aviso del
