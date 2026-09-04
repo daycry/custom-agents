@@ -9,6 +9,8 @@ y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+## [1.17.0] - 2026-09-04
+
 ### Changed — iniciativa `changelog-brief` (2026-09-04)
 
 - **T-01 — La escalera del resumen (campo `Changelog:` → 1.ª frase → oración principal → título)** El bullet de cada tarea pasa a ser un resumen de una o dos frases, y cuando no hay material que quepa dice el título de la tarea en vez de truncar la frase por la mitad. (`skills/changelog-sync/scripts/changelog-sync.py`, `skills/changelog-sync/scripts/test_changelog_sync.py`)
@@ -391,6 +393,7 @@ Adopción de las mejores prácticas de las colecciones top de agentes (coleccion
 
 Versiones anteriores a la introducción de este changelog: bundle con los agentes `nemesis`, `evaluator`, `planner`, `pdfy` y `qa`, y las skills compartidas `cybersecurity` y `to-pdf`. Empaquetado como plugin + marketplace.
 
+[1.17.0]: https://github.com/daycry/custom-agents/releases/tag/v1.17.0
 [1.16.0]: https://github.com/daycry/custom-agents/releases/tag/v1.16.0
 [1.15.0]: https://github.com/daycry/custom-agents/releases/tag/v1.15.0
 [1.14.1]: https://github.com/daycry/custom-agents/releases/tag/v1.14.1
