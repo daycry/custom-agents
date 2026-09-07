@@ -227,7 +227,7 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 - **Previsión IA**: 65k in / 16k out tok · 0,67 €
 - **Dependencias**: T-01
 - **Tipo**: backend
-- **Archivos**: `agent-kits/shared/task-brief.py`, `agent-kits/shared/test_task_brief.py`, `agent-kits/shared/knowledge-find.py`, `tests/test_knowledge_find.py` (los dos últimos añadidos al cerrar: el ENRUTADO por área vive UNA vez, en la capa 1 del script —`--contexto/--tipo-tarea/--iniciativa`, tabla `TIPO_TAREA_AREAS`— y lo consumen el brief (T-05) y el hook (T-06) con la misma orden; duplicarlo en cada consumidor habría sido dos criterios de «qué área toca esta tarea»)
+- **Archivos**: `agent-kits/shared/task-brief.py`, `agent-kits/shared/test_task_brief.py`, `agent-kits/shared/knowledge-find.py`, `tests/test_knowledge_find.py` (los dos últimos añadidos al cerrar: el ENRUTADO por área vive UNA vez, en la capa 1 del script —«--contexto/--tipo-tarea/--iniciativa», tabla «TIPO_TAREA_AREAS»— y lo consumen el brief (T-05) y el hook (T-06) con la misma orden; duplicarlo en cada consumidor habría sido dos criterios de «qué área toca esta tarea»)
 - **Changelog**: El brief que recibe cada subagente trae ahora los aciertos de la memoria técnica que tocan su tarea (por tipo, título e iniciativa), con tope de 600 tokens y el estado de cada entrada delante; sin memoria en el proyecto el brief sale como antes.
 - **Verificación** (ejecutada 2026-09-07):
   - `RED: tests/test_knowledge_find.py -k enrutado falló con knowledge-find.py: error: unrecognized arguments: --tipo-tarea (8 failed, 55 deselected) · 2026-09-07`; GREEN después → `63 passed`. `RED: agent-kits/shared/test_task_brief.py -k memoria falló con AssertionError: la tarea es devops y hay una entrada de área Hooks: la sección tiene que estar (assert '') (6 failed, 1 passed) · 2026-09-07`; GREEN después → **`43 passed`**.
@@ -262,7 +262,7 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 - **Previsión IA**: 40k in / 10k out tok · 0,41 €
 - **Dependencias**: T-01
 - **Tipo**: devops
-- **Archivos**: `hooks/session-context.sh`, `tests/test_hooks_shell.py`, `agent-kits/shared/doctor.py`, `agent-kits/shared/test_doctor.py` (los dos últimos añadidos al cerrar: `sesion.memoria` entra en el vocabulario de `dev.json` que valida `/doctor` — sin eso el opt-out nuevo saldría como «clave desconocida»)
+- **Archivos**: `hooks/session-context.sh`, `tests/test_hooks_shell.py`, `agent-kits/shared/doctor.py`, `agent-kits/shared/test_doctor.py` (los dos últimos añadidos al cerrar: «sesion.memoria» entra en el vocabulario de «dev.json» que valida «/doctor» — sin eso el opt-out nuevo saldría como «clave desconocida»)
 - **Changelog**: Al arrancar o retomar una sesión (también tras compactar), el contexto trae los aciertos de la memoria técnica del área de la iniciativa activa, topados a 300 tokens y sin desplazar el índice de piezas ni el roadmap; se apaga con `sesion.memoria: false`.
 - **Verificación** (ejecutada 2026-09-07):
   - `RED: tests/test_hooks_shell.py -k "memoria or bloque" falló con AssertionError: [startup] falta el bloque de memoria del área activa (assert '') (2 failed, 3 passed) · 2026-09-07`; GREEN después → `python3 -m pytest -q tests/test_hooks_shell.py` → **`34 passed`** (4 tests nuevos: bloque bajo el tope en `startup|resume|compact` y detrás del roadmap · sin `docs/knowledge/`, sin aciertos o sin activa → mismo contexto que hoy · `sesion.memoria: false` lo apaga · 41 entradas del área → bloque ≤ 1.200 con «… y N más» y el índice/roadmap enteros, sin recorte global).
@@ -297,7 +297,7 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 - **Previsión IA**: 15k in / 4k out tok · 0,16 €
 - **Dependencias**: T-01
 - **Tipo**: docs
-- **Archivos**: `agent-kits/shared/knowledge-check.md`, `agents/evaluator.md`, `agents/planner.md`, `agents/implementer.md`, `agents/qa.md`, `agents/documenter.md`, `agents/architect.md`, `agents/reviewer.md` (los agentes añadidos al cerrar, por encargo del orquestador: la línea de §REGLAS de cada agente que cita el fragmento nombra su orden exacta —UNA línea, sin duplicar la tabla—, y `reviewer`, que no leía memoria nunca, gana la suya)
+- **Archivos**: `agent-kits/shared/knowledge-check.md`, `agents/evaluator.md`, `agents/planner.md`, `agents/implementer.md`, `agents/qa.md`, `agents/documenter.md`, `agents/architect.md`, `agents/reviewer.md` (los agentes añadidos al cerrar, por encargo del orquestador: la línea de §REGLAS de cada agente que cita el fragmento nombra su orden exacta —UNA línea, sin duplicar la tabla—, y «reviewer», que no leía memoria nunca, gana la suya)
 - **Changelog**: Cada agente sabe ya qué orden exacta de la memoria técnica le toca ejecutar (por área, tipo de entrada o tarea) en vez de leer el índice entero y decidir; el revisor adversarial también consulta los ADR del área del diff.
 - **Verificación** (ejecutada 2026-09-07):
   - `TDD n/a: prosa` (fragmento compartido y líneas de prompt; se verifica por lectura y por grep, como declara la tarea).
@@ -374,7 +374,7 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 - **Previsión IA**: 25k in / 7k out tok · 0,28 €
 - **Dependencias**: T-08
 - **Tipo**: test
-- **Archivos**: `evals/cases/agent-implementer.json`, `evals/cases/agent-evaluator.json`, `evals/fixtures/project/`, `.gitignore` (añadido al cerrar: al pedir el brief de una tarea del fixture, `knowledge-find.py` crea su índice en `evals/fixtures/project/.claude/`; la regla pasa a `**/.claude/knowledge-index.sqlite` para cubrir también proyectos anidados)
+- **Archivos**: `evals/cases/agent-implementer.json`, `evals/cases/agent-evaluator.json`, `evals/fixtures/project/`, `.gitignore` (añadido al cerrar: al pedir el brief de una tarea del fixture, «knowledge-find.py» crea su índice en «evals/fixtures/project/.claude/»; la regla pasa a «**/.claude/knowledge-index.sqlite» para cubrir también proyectos anidados)
 - **Changelog**: La suite de evals comprueba que el implementador cita el gotcha de su área y el evaluador la lección de estimación que le toca, y no al revés, sobre un proyecto de prueba con memoria técnica inventada.
 - **Verificación** (ejecutada 2026-09-07):
   - `TDD n/a: casos de eval (JSON) y fixture inventado; el gate mecánico es evals/check.py` — RED equivalente: antes de añadir los casos, `check.py` daba 133 casos; el fixture no tenía `docs/knowledge/`.
