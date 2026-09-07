@@ -119,10 +119,13 @@ What we could **NOT** measure here is the token cost of a real session with a li
 project: `usage-meter.py start --artefacto "<slug>/T-XX"` before the first event and `close` after
 `aprobado`.
 
-**Design rule (a rule of this repo — rule 8 of `CONVENTIONS.md` —, taken to the integration
-layer):** whatever can be deterministic is not written by the model. And its corollary in context
-cost: the *one subagent per task* pattern multiplies it, so the Jira cycle spawns no subagent —
-they are calls from the agent already at work.
+**Design rule (a rule of this repo — the «Determinismo» row of `CLAUDE.md` § «Reglas al trabajar
+aquí» and body rule 1 of the `plugin-dev` skill: «computations and verdicts go in scripts with tests
+and exit codes […], not in agent prose»; rule 8 of `CONVENTIONS.md` does not state it, it is where it
+is APPLIED to the ledger with `ledger-lint`/`qa-gate` —, taken to the integration layer):** whatever
+can be deterministic is not written by the model. And its corollary in context cost: the *one
+subagent per task* pattern multiplies it, so the Jira cycle spawns no subagent — they are calls from
+the agent already at work.
 
 ## Where to look for what (cheat sheet)
 

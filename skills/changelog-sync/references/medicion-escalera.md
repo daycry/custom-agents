@@ -266,7 +266,8 @@ que hay que saber antes de fiarse del número:
   4 a 148 líneas) y **14 de los 16 cerrados** tenían la última tarea
   expuesta.<!--m:ledgers_con_cola=23,ledgers_totales=31,cerrados_con_cola=14,ledgers_cerrados=16-->
   Ahora el bloque cierra en cualquier `^## ` **fuera de una valla de código**, el mismo criterio que
-  `ledger-lint.py`. (Este documento decía «12 de los 14»: son **13**, y ahora lo mide el script.)
+  `ledger-lint.py`. (La primera versión de este documento escribió esa exposición a mano y no
+  reproducía; hoy la cifra la imprime `--medicion` y el marcador de la línea anterior la vigila.)
 - **Los dos parsers del campo no reconocían lo mismo.** `ledger-lint.py` aceptaba indentación y
   espaciado libres y el generador exigía `- ` exacto, así que un `-  **Changelog**: …` con dos
   espacios pasaba el linter (lo que ve la persona) y el generador lo descartaba en silencio (lo que
