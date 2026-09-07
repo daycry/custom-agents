@@ -43,12 +43,12 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
 | Fase 1 — Recuperación | 4 | 4 | 100% | 0 / 9,0h | 0,60 (est.) / 0,51h | 0,16 (est.) / 0,13h | n/d / 245.000 |
 | Fase 2 — Llegada | 3 | 3 | 100% | 0 / 4,0h | 0,46 (est.) / 0,31h | 0,12 (est.) / 0,08h | n/d / 150.000 |
-| Fase 3 — Prueba de que se recorre | 1 | 3 | 33% | 0 / 4,0h | 0,10 (est.) / 0,27h | 0,03 (est.) / 0,07h | n/d / 128.000 |
+| Fase 3 — Prueba de que se recorre | 2 | 3 | 67% | 0 / 4,0h | 0,16 (est.) / 0,27h | 0,05 (est.) / 0,07h | n/d / 128.000 |
 | Fase 4 — Captura episódica | 0 | 4 | 0% | 0 / 7,0h | 0 / 0,43h | 0 / 0,11h | 0 / 205.000 |
 | Fase 5 — Que la doctrina viaje | 0 | 2 | 0% | 0 / 3,0h | 0 / 0,24h | 0 / 0,06h | 0 / 115.000 |
 | Fase 6 — Cerrar el bucle | 0 | 2 | 0% | 0 / 3,0h | 0 / 0,30h | 0 / 0,08h | 0 / 145.000 |
 | Revisión de dos lentes (transversal, línea propia) | — | — | — | 0 / 4,0h | 0 / 0,54h | 0 / 0,13h | 0 / 260.000 |
-| **TOTAL** | **8** | **18** | **44%** | **0 / 34,0h** | **1,16 (est.) / 2,60h** | **0,31 (est.) / 0,66h** | **n/d / 1.248.000** |
+| **TOTAL** | **9** | **18** | **50%** | **0 / 34,0h** | **1,22 (est.) / 2,60h** | **0,33 (est.) / 0,66h** | **n/d / 1.248.000** |
 
 > **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada (8 h). Ver `skills/jira-sync/SKILL.md`.
 >
@@ -324,7 +324,7 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 
 ## Fase 3 — Prueba de que se recorre
 
-**Estado**: en-progreso · **Estimado**: 4,0h · **Real**: 0h humanas · 0,10h IA (estimado) + 0,03h supervisión (estimado) · **Coste est.**: 201 € · **Tokens est.**: 128.000
+**Estado**: en-progreso · **Estimado**: 4,0h · **Real**: 0h humanas · 0,16h IA (estimado) + 0,05h supervisión (estimado) · **Coste est.**: 201 € · **Tokens est.**: 128.000
 
 > **Esto no lo tiene nadie —ni nosotros ni `claude-mem`— y es la diferencia entre una intención y una
 > garantía.** El gate es determinista y no gasta tokens; la eval de activación es la comprobación de
@@ -367,29 +367,37 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 ### T-09 — Casos en `evals/` para el camino de memoria
 
 - **Descripción**: casos nuevos en `evals/cases/agent-implementer.json` y `agent-evaluator.json` que afirmen que el agente **usa** la memoria de su área (menciona el ID que le corresponde) en vez de ignorarla. Formato ya fijado por `evals/check.py` (38 ficheros y 133 casos de precedente); el fixture de `evals/fixtures/project/` gana las entradas de memoria necesarias.
-- **Estado**: borrador
-- **Tiempo humano**: est. 1,0h · real —
-- **Tiempo IA (ejec.)**: est. 0,07h · real —
-- **Supervisión**: est. 0,02h (≈25 % IA) · real —
+- **Estado**: completado
+- **Tiempo humano**: est. 1,0h · real 0h (sin intervención humana en la ejecución)
+- **Tiempo IA (ejec.)**: est. 0,07h · real 0,06h (estimado: el usage-meter no lee la transcripción en este entorno)
+- **Supervisión**: est. 0,02h (≈25 % IA) · real 0,02h (estimado)
 - **Previsión IA**: 25k in / 7k out tok · 0,28 €
 - **Dependencias**: T-08
 - **Tipo**: test
-- **Archivos**: `evals/cases/agent-implementer.json`, `evals/cases/agent-evaluator.json`, `evals/fixtures/project/`
-- **Verificación**: `python3 evals/check.py` → exit 0 (línea base de hoy: 38 ficheros · 133 casos · 0 errores; después: 133 + los nuevos) · `python3 -m pytest -q evals` → todos passed · `python3 evals/run.py --target agent:implementer` sin `claude` en PATH → **exit 2** con aviso (degrada, no falla) · lectura: ningún prompt nuevo trae datos corporativos (`check.py` lo vigila)
+- **Archivos**: `evals/cases/agent-implementer.json`, `evals/cases/agent-evaluator.json`, `evals/fixtures/project/`, `.gitignore` (añadido al cerrar: al pedir el brief de una tarea del fixture, `knowledge-find.py` crea su índice en `evals/fixtures/project/.claude/`; la regla pasa a `**/.claude/knowledge-index.sqlite` para cubrir también proyectos anidados)
+- **Changelog**: La suite de evals comprueba que el implementador cita el gotcha de su área y el evaluador la lección de estimación que le toca, y no al revés, sobre un proyecto de prueba con memoria técnica inventada.
+- **Verificación** (ejecutada 2026-09-07):
+  - `TDD n/a: casos de eval (JSON) y fixture inventado; el gate mecánico es evals/check.py` — RED equivalente: antes de añadir los casos, `check.py` daba 133 casos; el fixture no tenía `docs/knowledge/`.
+  - `python3 evals/check.py` → **`evals/check: 38 ficheros · 135 casos (80 positivos, 55 negativos) · 38 piezas del repo · 0 errores`**, exit 0 (línea base: 38 · 133 · 0; +2 casos: `implementer-memoria-gotcha-del-area` y `evaluator-memoria-leccion-de-estimacion`, ids únicos en toda la suite).
+  - `python3 -m pytest -q evals` → `23 passed`.
+  - `PATH=/usr/bin:/bin python3 evals/run.py --target agent:implementer` → `evals/run: \`claude\` no está en PATH — … Nada ejecutado.`, **exit 2** (degrada, no falla: la eval no es un gate que dependa de una clave).
+  - Lectura: los prompts nuevos hablan de `docs/roadmap/2026-01-01-demo` y `docs/knowledge` del fixture inventado (`demo-app`); ningún correo, host, URL ni clave Jira (`check.py` regla 6, 0 errores). El fixture gana `docs/knowledge/README.md` + `gotchas/GOT-001-csv-comillas-dobles-rfc4180.md` (área «Backend / exportación CSV») + `lessons/LES-001-evaluator-csv-parece-trivial.md` (área «Estimación / calibración»), todo inventado.
+  - Comprobado que el camino determinista enruta el fixture como esperan los casos: `knowledge-find.py --root evals/fixtures/project --tipo-tarea backend --contexto "Escapado de comas y comillas" --iniciativa demo` → solo `GOT-001`; `--area estimacion --tipo lesson` → solo `LES-001`; el brief de `T-02` del fixture trae la sección de memoria con `GOT-001`.
+  - `git check-ignore -v evals/fixtures/project/.claude/knowledge-index.sqlite` → `.gitignore:63:**/.claude/knowledge-index.sqlite`; `tests/test_knowledge_find.py -k gitignore` → passed.
 
 **Criterios de aceptación**
-- [ ] `evals/check.py` sigue en **exit 0** con los casos nuevos (spec CA-13).
-- [ ] Los casos nuevos tienen `expect.mentions` con el **ID de la entrada** de su área, no una frase vaga.
-- [ ] Se mantiene la cobertura que `check.py` exige (≥ 2 positivos + ≥ 1 negativo por pieza) y los **ids únicos** en toda la suite.
-- [ ] **Ni un dato corporativo** en los prompts nuevos (repo público).
-- [ ] `run.py` sigue degradando a **exit 2** sin `claude` en PATH: la eval **no** se convierte en un gate que dependa de una clave.
+- [x] `evals/check.py` sigue en **exit 0** con los casos nuevos (spec CA-13).
+- [x] Los casos nuevos tienen `expect.mentions` con el **ID de la entrada** de su área, no una frase vaga (`GOT-001` para el implementer, `LES-001` para el evaluator), y `must_not` con el ID del área vecina.
+- [x] Se mantiene la cobertura que `check.py` exige (≥ 2 positivos + ≥ 1 negativo por pieza) y los **ids únicos** en toda la suite.
+- [x] **Ni un dato corporativo** en los prompts nuevos (repo público).
+- [x] `run.py` sigue degradando a **exit 2** sin `claude` en PATH: la eval **no** se convierte en un gate que dependa de una clave.
 
 **Subtareas**
-- [ ] Añadir las entradas de memoria al fixture del proyecto de mentira.
-- [ ] Escribir los casos (positivo con el ID esperado, negativo de área vecina).
-- [ ] Comprobar los ids únicos en toda la suite.
+- [x] Añadir las entradas de memoria al fixture del proyecto de mentira.
+- [x] Escribir los casos (positivo con el ID esperado, negativo de área vecina). *El «negativo de área vecina» va como `must_not` dentro del positivo: en el esquema de `check.py` un caso negativo es «el agente NO se activa», y aquí el agente sí debe activarse — lo que no debe hacer es citar la entrada del área ajena.*
+- [x] Comprobar los ids únicos en toda la suite.
 
-**Notas**: `LES-011`: «la description es una promesa de activación, y una promesa se prueba, no se asume». Aquí la promesa que se prueba es la de la memoria.
+**Notas**: `LES-011`: «la description es una promesa de activación, y una promesa se prueba, no se asume». Aquí la promesa que se prueba es la de la memoria. Los casos cuestan tokens reales y viven donde ya viven las caras (`run.py` local / `headless.yml`); el gate barato es T-08.
 
 ### T-10 — `/doctor` puntúa la salud de la memoria
 
