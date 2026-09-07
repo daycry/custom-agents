@@ -3,7 +3,7 @@
 doctor.py — diagnóstico DETERMINISTA y SIN EFECTOS de la instalación del plugin en un proyecto
 (agent-kits/shared: lo invocan el comando `/doctor` y el paso 0 de `/setup`).
 
-Cinco bloques, un veredicto por línea (✅ ok · ⚠️ aviso · ❌ error · ℹ️ informativo) y, en TODA
+Seis bloques, un veredicto por línea (✅ ok · ⚠️ aviso · ❌ error · ℹ️ informativo) y, en TODA
 línea ⚠️/❌, el **arreglo sugerido** en llano:
 
   a) herramientas  `python3` (≥ 3.9), `git`, `bash`, `jq` (opcional: la statusline lo usa con
@@ -21,9 +21,24 @@ línea ⚠️/❌, el **arreglo sugerido** en llano:
                    `.claude/jira.json` y `.claude/confluence.json` (si `enabled: true`, campos
                    obligatorios presentes; fichero ausente → «no configurado» informativo).
   d) estado        marcadores huérfanos de `usage-state.json` (`usage-meter.py status`), iniciativas
-                   `en-progreso` (`progress-report.py active`), última entrada del journal
-                   (`docs/knowledge/journal/`) y último informe de `evals/reports/` con su fecha.
-  e) versión       `version` de `plugin.json` frente a `.claude/.plugin-version-seen` si existe.
+                   `en-progreso` (`progress-report.py active`) y último informe de `evals/reports/`.
+  e) memoria       salud de la memoria técnica (memory-retrieval T-10 — hasta entonces `/doctor` daba
+                   «Instalación sana» con 0 entradas de journal, sin contar las curadas ni validar nada):
+                   entradas CURADAS de `docs/knowledge/{adr,gotchas,lessons}` por familia y por `estado`
+                   (✅; carpeta vacía → ℹ️; sin carpeta → ℹ️ «un proyecto recién instalado nace sin
+                   memoria»); índice `README.md` (biyección ficheros ↔ filas + «Área», delegado en
+                   `lint_knowledge_index` de `scripts/lint_plugin.py` si está —el MISMO criterio que el
+                   linter y `tests/test_knowledge_index.py`—, comprobación local equivalente si no) →
+                   ❌ nombrando fichero/ID; índice FTS5 `.claude/knowledge-index.sqlite` (caché de
+                   `knowledge-find.py`: ℹ️ ausente o desfasado —se (re)construye en la próxima consulta—,
+                   ⚠️ corrupto o `sqlite3` sin FTS5) — se LEE en modo `ro`, nunca se construye aquí;
+                   journal (`docs/knowledge/journal/`): ⚠️ a 0 entradas CON memoria curada presente
+                   (la episódica no se está escribiendo), ℹ️ en cualquier otro caso; y
+                   `docs/roadmap/CALIBRATION.md`: ⚠️ si lleva > CALIBRACION_DIAS_MAX días sin fila y hay
+                   iniciativas cerradas (`estado: completado`) después, diciendo cuántas y cuáles.
+                   Solo ❌ el índice inválido; el resto son ⚠️ con su arreglo: si todo es rojo, la
+                   gente lo ignora.
+  f) versión       `version` de `plugin.json` frente a `.claude/.plugin-version-seen` si existe.
                    **SIN RED**: no consulta marketplace, GitHub ni npm, así que solo dice «versión X;
                    la última vez que se vio este proyecto era Y» (o «sin registro»). NUNCA afirma
                    que haya una actualización disponible — no tiene forma de saberlo.
@@ -32,13 +47,15 @@ línea ⚠️/❌, el **arreglo sugerido** en llano:
 lectura, así que se puede lanzar sin miedo tantas veces como haga falta.
 
 Uso:
-  doctor.py [--root DIR] [--plugin-root DIR] [--json]
+  doctor.py [--root DIR] [--plugin-root DIR] [--json] [--hoy AAAA-MM-DD]
+  (`--hoy` fija la fecha de referencia de la antigüedad de CALIBRATION.md; default: hoy. Para tests.)
 Exit:
   0  sin ❌ (los ⚠️/ℹ️ no bloquean: el plugin degrada, no rompe)
   1  al menos un ❌
   2  error de USO: `--root`/`--plugin-root` que no existen como directorio
 """
 import argparse
+import datetime
 import json
 import os
 import re
@@ -72,6 +89,11 @@ JIRA_OBLIGATORIOS = ("cloudId", "granularidad", "assignee", "alCubrirJornada")
 CONFLUENCE_OBLIGATORIOS = ("cloudId", "spaceKey", "anchor", "home")
 
 PLAYWRIGHT_REL = os.path.join(".claude", "tool-cache", "qa", "node_modules", "@playwright")
+
+# --- memoria técnica (memory-retrieval T-10) ---------------------------------------------
+KNOWLEDGE_CARPETAS = (("adr", "ADR"), ("gotchas", "gotcha"), ("lessons", "lección"))
+CALIBRACION_DIAS_MAX = 14        # días sin fila en CALIBRATION.md que, con iniciativas cerradas después, son ⚠️
+FECHA_RE = re.compile(r"(\d{4}-\d{2}-\d{2})")
 
 
 # ------------------------------------------------------------------ utilidades
@@ -573,17 +595,27 @@ def _iniciativas(plugin_root, project):
     return [linea(INFO, "iniciativa en progreso", a.get("linea") or a.get("slug", "")) for a in activas]
 
 
-def _journal(project):
+def _journal(project, n_curadas=0):
+    """Journal (memoria EPISÓDICA). A 0 entradas CON memoria curada presente es ⚠️: la bitácora que
+    prometía `memory-health` no se está escribiendo (medido en el análisis de `memory-retrieval`: 0
+    entradas desde que se construyó). Sin memoria curada, ℹ️: un proyecto nuevo no está roto."""
     d = os.path.join(project, "docs", "knowledge", "journal")
+    entradas = sorted(f for f in os.listdir(d) if f.endswith(".md") and f != "README.md") if os.path.isdir(d) else []
+    if entradas:
+        return [linea(INFO, "journal de sesión", f"{len(entradas)} entrada(s) · última `{entradas[-1]}`")]
+    if n_curadas:
+        return [linea(AVISO, "journal de sesión",
+                      f"0 entradas con {n_curadas} entrada(s) curada(s): la memoria episódica no se está escribiendo"
+                      + ("" if os.path.isdir(d) else " (ni existe `docs/knowledge/journal/`)"),
+                      "comprueba que el hook `SessionEnd` está registrado (bloque Plugin de este informe) y que "
+                      "`dev.json` no trae `sesion.journal: false`; la primera sesión cerrada con el plugin cargado "
+                      "escribe la entrada (`hooks/session-journal.sh` → `journal.py write`)")]
     if not os.path.isdir(d):
         return [linea(INFO, "journal de sesión", "sin `docs/knowledge/journal/`",
                       "lo crea el hook `SessionEnd` al cerrar la primera sesión (opt-out: "
                       "`dev.json` `sesion.journal: false`)")]
-    entradas = sorted(f for f in os.listdir(d) if f.endswith(".md") and f != "README.md")
-    if not entradas:
-        return [linea(INFO, "journal de sesión", "carpeta sin entradas todavía",
-                      "la escribe el hook `SessionEnd` al cerrar la sesión")]
-    return [linea(INFO, "journal de sesión", f"{len(entradas)} entrada(s) · última `{entradas[-1]}`")]
+    return [linea(INFO, "journal de sesión", "carpeta sin entradas todavía",
+                  "la escribe el hook `SessionEnd` al cerrar la sesión")]
 
 
 def _informes(project):
@@ -602,12 +634,231 @@ def _informes(project):
 
 
 def bloque_estado(plugin_root, project):
-    ls = _marcadores(plugin_root, project) + _iniciativas(plugin_root, project) \
-        + _journal(project) + _informes(project)
+    ls = _marcadores(plugin_root, project) + _iniciativas(plugin_root, project) + _informes(project)
     return {"clave": "estado", "titulo": "Estado del trabajo", "lineas": ls}
 
 
-# ------------------------------------------------------------------ e) versión
+# ------------------------------------------------------------------ e) memoria técnica (memory-retrieval T-10)
+
+def _cargar_knowledge_find(plugin_root):
+    """`knowledge-find.py` como módulo (sin efectos): su parser del corpus y su lector del índice en
+    modo `ro`. None si no está (instalación parcial) → recuento local mínimo."""
+    for base in ((os.path.join(plugin_root, "agent-kits", "shared") if plugin_root else None), HERE):
+        path = os.path.join(base, "knowledge-find.py") if base else None
+        if path and os.path.isfile(path):
+            previo = sys.dont_write_bytecode
+            sys.dont_write_bytecode = True
+            try:
+                import importlib.util
+                spec = importlib.util.spec_from_file_location("knowledge_find_doctor", path)
+                mod = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(mod)
+                return mod
+            except Exception:        # noqa: BLE001 — degradación: recuento local
+                return None
+            finally:
+                sys.dont_write_bytecode = previo
+    return None
+
+
+def _frontmatter_estado(path):
+    try:
+        with open(path, encoding="utf-8-sig", errors="replace") as fh:
+            texto = fh.read(4000)
+    except OSError:
+        return ""
+    m = re.search(r"^estado:\s*([a-záéíóú-]+)", texto, re.M | re.I)
+    return m.group(1).lower() if m else ""
+
+
+def _curadas(project, kf):
+    """[(tipo, estado)] de las entradas curadas, con el parser del script si está, o local si no."""
+    base = os.path.join(project, "docs", "knowledge")
+    if kf is not None:
+        try:
+            return [(e["tipo"], e["estado"]) for e in kf.cargar_corpus(project)]
+        except Exception:            # noqa: BLE001
+            pass
+    out = []
+    for carpeta, _etq in KNOWLEDGE_CARPETAS:
+        d = os.path.join(base, carpeta)
+        if not os.path.isdir(d):
+            continue
+        for fn in sorted(os.listdir(d)):
+            if fn.endswith(".md") and fn.lower() != "readme.md":
+                tipo = {"adr": "adr", "gotchas": "gotcha", "lessons": "leccion"}[carpeta]
+                out.append((tipo, _frontmatter_estado(os.path.join(d, fn)) or "?"))
+    return out
+
+
+def _indice_readme(project, plugin_root, kf, n_curadas):
+    """Biyección ficheros ↔ filas + «Área»: delega en `lint_knowledge_index` (criterio ÚNICO del repo); sin el
+    linter, comprobación local con el parser del índice de knowledge-find.py."""
+    linter = _cargar_linter(plugin_root)
+    errs, fuente = None, ""
+    if linter is not None and hasattr(linter, "lint_knowledge_index"):
+        try:
+            errs, fuente = list(linter.lint_knowledge_index(project)), "criterio de `lint_plugin.py`"
+        except Exception:            # noqa: BLE001
+            errs = None
+    if errs is None:
+        fuente = "comprobación local"
+        readme = os.path.join(project, "docs", "knowledge", "README.md")
+        if not os.path.isfile(readme):
+            errs = [f"docs/knowledge/README.md: no existe y hay {n_curadas} entrada(s)"] if n_curadas else []
+        else:
+            try:
+                texto = open(readme, encoding="utf-8-sig", errors="replace").read()
+                filas = kf.parse_indice(texto) if kf is not None else []
+                rutas = {f["ruta_rel"] for f in filas}
+                errs = []
+                for carpeta, _e in KNOWLEDGE_CARPETAS:
+                    d = os.path.join(project, "docs", "knowledge", carpeta)
+                    for fn in sorted(os.listdir(d)) if os.path.isdir(d) else []:
+                        if fn.endswith(".md") and fn.lower() != "readme.md" and f"{carpeta}/{fn}" not in rutas:
+                            errs.append(f"docs/knowledge/{carpeta}/{fn}: entrada sin fila en docs/knowledge/README.md")
+                errs += [f"docs/knowledge/README.md:{f['linea']} ({f['id']}): fila sin «Área»" for f in filas if not f["area"]]
+            except OSError as e:
+                errs = [f"docs/knowledge/README.md: no se puede leer ({e.__class__.__name__})"]
+    if not errs:
+        return [linea(OK, "índice de memoria (README)",
+                      f"biyección ficheros ↔ filas y «Área» en las {n_curadas} entrada(s) ({fuente})")]
+    resto = f" · … y {len(errs) - 3} más" if len(errs) > 3 else ""
+    return [linea(ERROR, "índice de memoria (README)", " · ".join(errs[:3]) + resto,
+                  "añade la fila (con «Área») o corrige el enlace en `docs/knowledge/README.md`: una entrada sin "
+                  "fila es INVISIBLE para el único camino de lectura y para los ADR el área solo vive ahí; "
+                  "`python3 scripts/lint_plugin.py` y `tests/test_knowledge_index.py` lo comprueban")]
+
+
+def _indice_fts5(project, kf):
+    """Caché de búsqueda: se LEE en `mode=ro`, nunca se construye aquí (solo lectura)."""
+    path = os.path.join(project, ".claude", "knowledge-index.sqlite")
+    if kf is None:
+        return [linea(INFO, "índice de búsqueda (FTS5)", "`knowledge-find.py` no está para comprobarlo",
+                      "instalación parcial: reinstala el plugin si quieres la búsqueda de memoria")]
+    try:
+        if not kf.fts5_disponible():
+            return [linea(AVISO, "índice de búsqueda (FTS5)", "`sqlite3` de este Python no trae FTS5",
+                          "las consultas de `knowledge-find.py` van en recorrido plano (mismos aciertos, más lentas); "
+                          "un Python con SQLite ≥ 3.9 compilado con FTS5 lo arregla")]
+        if not os.path.isfile(path):
+            return [linea(INFO, "índice de búsqueda (FTS5)", "sin `.claude/knowledge-index.sqlite`",
+                          "se construye en la primera consulta de `knowledge-find.py` (caché reconstruible, en .gitignore)")]
+        h = kf.hash_corpus(kf.ficheros_corpus(project))
+        entradas, estado = kf.leer_indice(path, h)
+        if entradas is not None:
+            return [linea(OK, "índice de búsqueda (FTS5)", f"válido · al día con el corpus ({len(entradas)} entrada(s))")]
+        try:
+            import sqlite3
+            con = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+            try:
+                con.execute("SELECT valor FROM meta WHERE clave = 'hash'").fetchone()
+            finally:
+                con.close()
+            return [linea(INFO, "índice de búsqueda (FTS5)", "desfasado respecto al corpus",
+                          "normal tras editar `docs/knowledge/`: se reconstruye solo en la próxima consulta")]
+        except Exception:            # noqa: BLE001 — bytes basura, esquema viejo…
+            return [linea(AVISO, "índice de búsqueda (FTS5)", "corrupto (no abre o no tiene el esquema)",
+                          "se reconstruye solo en la próxima consulta; si no, bórralo: `rm .claude/knowledge-index.sqlite` "
+                          "(es caché, no el almacén)")]
+    except Exception as e:           # noqa: BLE001
+        return [linea(INFO, "índice de búsqueda (FTS5)", f"no comprobable ({e.__class__.__name__})",
+                      "ejecuta `python3 agent-kits/shared/knowledge-find.py --limit 1 --json` y mira `indice`")]
+
+
+def _ledgers_cerrados(roadmap):
+    """[(slug sin fecha, fecha de cierre)] de los `tasks.md` con `estado: completado`; la fecha es
+    `actualizado:` del frontmatter (o la del nombre de la carpeta si falta)."""
+    out = []
+    for d in sorted(os.listdir(roadmap)) if os.path.isdir(roadmap) else []:
+        t = os.path.join(roadmap, d, "tasks.md")
+        if not os.path.isfile(t):
+            continue
+        try:
+            cab = open(t, encoding="utf-8-sig", errors="replace").read(3000)
+        except OSError:
+            continue
+        if not re.search(r"^estado:\s*completado\b", cab, re.M):
+            continue
+        m = re.search(r"^actualizado:\s*(\d{4}-\d{2}-\d{2})", cab, re.M) or FECHA_RE.match(d)
+        try:
+            fecha = datetime.date.fromisoformat(m.group(1)) if m else None
+        except ValueError:
+            fecha = None
+        out.append((re.sub(r"^\d{4}-\d{2}-\d{2}-", "", d), fecha))
+    return out
+
+
+def _calibracion(project, hoy=None):
+    roadmap = os.path.join(project, "docs", "roadmap")
+    if not os.path.isdir(roadmap):
+        return []
+    hoy = hoy or datetime.date.today()
+    cal = os.path.join(roadmap, "CALIBRATION.md")
+    ultima, con_fila = None, set()
+    if os.path.isfile(cal):
+        try:
+            for ln in open(cal, encoding="utf-8-sig", errors="replace"):
+                m = re.match(r"^\|\s*(\d{4}-\d{2}-\d{2})\s*\|\s*([^|]+?)\s*\|", ln)
+                if m:
+                    try:
+                        f = datetime.date.fromisoformat(m.group(1))
+                    except ValueError:
+                        continue
+                    ultima = max(ultima, f) if ultima else f
+                    con_fila.add(m.group(2).strip().strip("`"))
+        except OSError:
+            return [linea(AVISO, "calibración (CALIBRATION.md)", "no se puede leer", "revisa permisos del fichero")]
+    cerrados = _ledgers_cerrados(roadmap)
+    pendientes = [s for s, f in cerrados if s not in con_fila and (ultima is None or (f is not None and f > ultima))]
+    que = "calibración (CALIBRATION.md)"
+    arreglo = ("`/retro docs/roadmap/<fecha>-<slug>` de cada una: escribe su fila en CALIBRATION.md y recalibra el "
+               "ratio tokens→hora que usan `evaluator` y `usage-meter.py` (la memoria episódica solo se vuelve "
+               "lección pasando por ahí)")
+    if ultima is None:
+        if pendientes:
+            return [linea(AVISO, que, f"sin fila (o sin fichero) y {len(pendientes)} iniciativa(s) cerrada(s) sin retro: "
+                                      f"{', '.join(pendientes[:6])}{' …' if len(pendientes) > 6 else ''}", arreglo)]
+        return [linea(INFO, que, "sin filas todavía", "`/retro` la crea al cerrar la primera iniciativa")]
+    dias = (hoy - ultima).days
+    if dias > CALIBRACION_DIAS_MAX and pendientes:
+        return [linea(AVISO, que, f"última fila {ultima.isoformat()}: {dias} días sin fila y {len(pendientes)} "
+                                  f"iniciativa(s) cerrada(s) después sin retro: {', '.join(pendientes[:6])}"
+                                  f"{' …' if len(pendientes) > 6 else ''}", arreglo)]
+    if pendientes:
+        return [linea(INFO, que, f"última fila {ultima.isoformat()} ({dias} días) · {len(pendientes)} cerrada(s) después "
+                                 f"sin retro todavía: {', '.join(pendientes[:6])}", arreglo)]
+    return [linea(OK, que, f"última fila {ultima.isoformat()} ({dias} días) · ninguna iniciativa cerrada sin retro")]
+
+
+def bloque_memoria(plugin_root, project, hoy=None):
+    base = os.path.join(project, "docs", "knowledge")
+    if not os.path.isdir(base):
+        ls = [linea(INFO, "memoria técnica", "sin `docs/knowledge/` — un proyecto recién instalado nace sin memoria, y es correcto",
+                    "la crea el primer registro: un ADR/gotcha/lección de una puerta de decisión, o `/retro` al cerrar una iniciativa")]
+        ls += _journal(project, 0) + _calibracion(project, hoy)
+        return {"clave": "memoria", "titulo": "Memoria técnica (`docs/knowledge/`)", "lineas": ls}
+    kf = _cargar_knowledge_find(plugin_root)
+    curadas = _curadas(project, kf)
+    n = len(curadas)
+    if not n:
+        ls = [linea(INFO, "memoria curada", "`docs/knowledge/` sin entradas todavía (adr/, gotchas/, lessons/)",
+                    "se pobla con las puertas de decisión y con `/retro`; nada que arreglar")]
+    else:
+        por_tipo = {t: sum(1 for x, _ in curadas if x == t) for t in ("adr", "gotcha", "leccion")}
+        estados = {}
+        for _t, e in curadas:
+            estados[e or "?"] = estados.get(e or "?", 0) + 1
+        det_estados = " · ".join(f"{v} {k}" for k, v in sorted(estados.items(), key=lambda kv: (-kv[1], kv[0])))
+        ls = [linea(OK, "memoria curada", f"{n} entrada(s): {por_tipo['adr']} ADR · {por_tipo['gotcha']} gotcha(s) · "
+                                          f"{por_tipo['leccion']} lección(es) · estados: {det_estados}")]
+    ls += _indice_readme(project, plugin_root, kf, n)
+    ls += _indice_fts5(project, kf) if n else []
+    ls += _journal(project, n) + _calibracion(project, hoy)
+    return {"clave": "memoria", "titulo": "Memoria técnica (`docs/knowledge/`)", "lineas": ls}
+
+
+# ------------------------------------------------------------------ f) versión
 
 AVISO_SIN_RED = ("sin red por diseño: `/doctor` NO consulta el marketplace, así que no puede "
                  "decirte si hay una versión más nueva")
@@ -657,12 +908,13 @@ def bloque_version(plugin_root, project):
 
 # ------------------------------------------------------------------ informe
 
-def diagnostico(project, plugin_root_explicito=None):
+def diagnostico(project, plugin_root_explicito=None, hoy=None):
     plugin_root = localizar_plugin(plugin_root_explicito)
     bloques = [bloque_herramientas(),
                bloque_plugin(plugin_root, project, plugin_root_explicito),
                bloque_configs(plugin_root, project),
                bloque_estado(plugin_root, project),
+               bloque_memoria(plugin_root, project, hoy),
                bloque_version(plugin_root, project)]
     resumen = {e: 0 for e in ORDEN}
     for b in bloques:
@@ -711,8 +963,16 @@ def main(argv=None):
     ap.add_argument("--root", default=".", help="proyecto a diagnosticar (default: cwd)")
     ap.add_argument("--plugin-root", default=None, help="raíz del plugin (default: autodetección)")
     ap.add_argument("--json", action="store_true")
+    ap.add_argument("--hoy", default=None, help="fecha de referencia AAAA-MM-DD para la antigüedad de CALIBRATION.md (tests)")
     args = ap.parse_args(argv)
 
+    hoy = None
+    if args.hoy:
+        try:
+            hoy = datetime.date.fromisoformat(args.hoy)
+        except ValueError:
+            print(f"❌ uso: --hoy `{args.hoy}` no es una fecha AAAA-MM-DD", file=sys.stderr)
+            return 2
     if not os.path.isdir(args.root):
         print(f"❌ uso: --root `{args.root}` no es un directorio", file=sys.stderr)
         return 2
@@ -720,7 +980,7 @@ def main(argv=None):
         print(f"❌ uso: --plugin-root `{args.plugin_root}` no es un directorio", file=sys.stderr)
         return 2
 
-    inf = diagnostico(args.root, args.plugin_root)
+    inf = diagnostico(args.root, args.plugin_root, hoy)
     print(json.dumps(inf, ensure_ascii=False, indent=2) if args.json else render_md(inf))
     return inf["exit"]
 

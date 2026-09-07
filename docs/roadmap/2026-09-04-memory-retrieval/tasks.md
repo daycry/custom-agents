@@ -1,6 +1,6 @@
 ---
 tasks: memory-retrieval
-estado: en-progreso       # borrador | en-progreso | completado | cancelado — Fase 1 completada (2026-09-07); Fases 2-6 pendientes
+estado: en-progreso       # borrador | en-progreso | completado | cancelado — Fases 1-3 completadas (2026-09-07); Fases 4-6 pendientes
 creado: 2026-09-04
 actualizado: 2026-09-07
 generacion:            # ventana compartida con spec.md · evaluation.md · improvement-plan.md (se cuenta UNA vez)
@@ -29,11 +29,11 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 
 > **⚠️ Ledger canónico de progreso.** Este fichero es la **fuente única de verdad** del avance del plan. **Cualquier** implementador —el agente `implementer`, el chat principal, o un orquestador SDD externo— **debe** marcar aquí cada tarea (checkbox + estado) al completarla y actualizar el resumen. Los ledgers propios de otras herramientas son **espejo**, no fuente.
 
-> **Fase 1 completada el 2026-09-07 (T-01…T-04, rama `feature/pendiente`)**; las Fases 2-6 siguen en
+> **Fases 1-3 completadas el 2026-09-07 (T-01…T-10, rama `feature/pendiente`)**; las Fases 4-6 siguen en
 > `borrador`. El campo opcional `- **Changelog**:` lo escribe quien CIERRA cada tarea (`ADR-012`): las
-> cuatro cerradas lo llevan y las catorce pendientes no (los avisos de adopción parcial de
-> `ledger-lint` son la señal esperada hasta que se cierren). Las horas IA «reales» de la Fase 1 van
-> marcadas `(estimado)`: el `usage-meter` no puede leer la transcripción en este entorno.
+> diez cerradas lo llevan y las ocho pendientes no (los avisos de adopción parcial de `ledger-lint`
+> son la señal esperada hasta que se cierren). Las horas IA «reales» van marcadas `(estimado)`: el
+> `usage-meter` no puede leer la transcripción en este entorno.
 
 ---
 
@@ -43,12 +43,12 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
 | Fase 1 — Recuperación | 4 | 4 | 100% | 0 / 9,0h | 0,60 (est.) / 0,51h | 0,16 (est.) / 0,13h | n/d / 245.000 |
 | Fase 2 — Llegada | 3 | 3 | 100% | 0 / 4,0h | 0,46 (est.) / 0,31h | 0,12 (est.) / 0,08h | n/d / 150.000 |
-| Fase 3 — Prueba de que se recorre | 2 | 3 | 67% | 0 / 4,0h | 0,16 (est.) / 0,27h | 0,05 (est.) / 0,07h | n/d / 128.000 |
+| Fase 3 — Prueba de que se recorre | 3 | 3 | 100% | 0 / 4,0h | 0,31 (est.) / 0,27h | 0,09 (est.) / 0,07h | n/d / 128.000 |
 | Fase 4 — Captura episódica | 0 | 4 | 0% | 0 / 7,0h | 0 / 0,43h | 0 / 0,11h | 0 / 205.000 |
 | Fase 5 — Que la doctrina viaje | 0 | 2 | 0% | 0 / 3,0h | 0 / 0,24h | 0 / 0,06h | 0 / 115.000 |
 | Fase 6 — Cerrar el bucle | 0 | 2 | 0% | 0 / 3,0h | 0 / 0,30h | 0 / 0,08h | 0 / 145.000 |
 | Revisión de dos lentes (transversal, línea propia) | — | — | — | 0 / 4,0h | 0 / 0,54h | 0 / 0,13h | 0 / 260.000 |
-| **TOTAL** | **9** | **18** | **50%** | **0 / 34,0h** | **1,22 (est.) / 2,60h** | **0,33 (est.) / 0,66h** | **n/d / 1.248.000** |
+| **TOTAL** | **10** | **18** | **56%** | **0 / 34,0h** | **1,37 (est.) / 2,60h** | **0,37 (est.) / 0,66h** | **n/d / 1.248.000** |
 
 > **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada (8 h). Ver `skills/jira-sync/SKILL.md`.
 >
@@ -324,7 +324,7 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 
 ## Fase 3 — Prueba de que se recorre
 
-**Estado**: en-progreso · **Estimado**: 4,0h · **Real**: 0h humanas · 0,16h IA (estimado) + 0,05h supervisión (estimado) · **Coste est.**: 201 € · **Tokens est.**: 128.000
+**Estado**: completado · **Estimado**: 4,0h · **Real**: 0h humanas · 0,31h IA (estimado) + 0,09h supervisión (estimado) · **Coste est.**: 201 € · **Tokens est.**: 128.000
 
 > **Esto no lo tiene nadie —ni nosotros ni `claude-mem`— y es la diferencia entre una intención y una
 > garantía.** El gate es determinista y no gasta tokens; la eval de activación es la comprobación de
@@ -402,30 +402,37 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 ### T-10 — `/doctor` puntúa la salud de la memoria
 
 - **Descripción**: hoy `/doctor` da «Instalación sana» con **0** entradas de journal, **sin contar** las 31 curadas, **sin validar** el índice y **sin avisar** de que `CALIBRATION.md` lleva 15 días sin fila con 13 iniciativas cerradas detrás. Gana una sección de salud de memoria: entradas curadas por familia, estado del índice (válido / reconstruible / degradado), entradas de journal y antigüedad de la última fila de calibración.
-- **Estado**: borrador
-- **Tiempo humano**: est. 1,5h · real —
-- **Tiempo IA (ejec.)**: est. 0,10h · real —
-- **Supervisión**: est. 0,02h (≈25 % IA) · real —
+- **Estado**: completado
+- **Tiempo humano**: est. 1,5h · real 0h (sin intervención humana en la ejecución)
+- **Tiempo IA (ejec.)**: est. 0,10h · real 0,15h (estimado: el usage-meter no lee la transcripción en este entorno)
+- **Supervisión**: est. 0,02h (≈25 % IA) · real 0,04h (estimado)
 - **Previsión IA**: 37k in / 11k out tok · 0,42 €
 - **Dependencias**: T-03
 - **Tipo**: backend
 - **Archivos**: `agent-kits/shared/doctor.py`, `agent-kits/shared/test_doctor.py`
-- **Verificación**: `python3 agent-kits/shared/doctor.py | grep -i "memoria"` → líneas con las 31 curadas, el estado del índice, las entradas de journal y la antigüedad de `CALIBRATION.md` · `python3 agent-kits/shared/doctor.py` sobre un árbol con índice inválido → **no** imprime «Instalación sana» · `python3 -m pytest -q agent-kits/shared/test_doctor.py` → todos passed · `python3 agent-kits/shared/doctor.py` en un árbol sin `docs/knowledge/` → línea informativa, exit 0, sin ❌
+- **Changelog**: `/doctor` deja de dar por sana una instalación con la memoria a medias: cuenta las entradas curadas por familia y estado, valida el índice de la memoria (❌ si una entrada no tiene fila), avisa si el journal sigue a 0 con memoria curada y si CALIBRATION.md lleva más de 14 días sin fila con iniciativas cerradas después, diciendo cuántas y cuáles.
+- **Verificación** (ejecutada 2026-09-07):
+  - `RED: agent-kits/shared/test_doctor.py falló con StopIteration (bloque "memoria" inexistente) y assert 0 == 1 (sin línea "memoria curada") (7 failed, 25 passed) · 2026-09-07`; GREEN después → **`33 passed`** (7 tests nuevos + `test_los_seis_bloques_estan_siempre`, antes «cinco»).
+  - `python3 agent-kits/shared/doctor.py | grep -i "memoria"` → `✅ memoria curada · 32 entrada(s): 12 ADR · 6 gotcha(s) · 14 lección(es) · estados: 32 aceptada` · `✅ índice de memoria (README) · biyección ficheros ↔ filas y «Área» en las 32 entrada(s) (criterio de lint_plugin.py)` · `✅ índice de búsqueda (FTS5) · válido · al día con el corpus` · `⚠️ journal de sesión · 0 entradas con 32 entrada(s) curada(s): la memoria episódica no se está escribiendo` · `⚠️ calibración (CALIBRATION.md) · última fila 2026-08-20: 18 días sin fila y 15 iniciativa(s) cerrada(s) después sin retro: adversarial-review, debt-cleanup, deterministic-guardrails, live-visibility, activation-reliability, distribution …`. Resumen: **`12 ✅ · 2 ⚠️ · 0 ❌ · 9 ℹ️`** → «Nada roto: 2 aviso(s) …», **ya no dice «Instalación sana»** (antes: `9 ✅ · 0 ⚠️ · 0 ❌ · 10 ℹ️ · Instalación sana`). Las 31 de la spec son hoy **32** (`GOT-006`, medido en T-01); los 15 días / 13 cerradas del análisis son hoy **18 / 15** (han pasado tres días y se han cerrado `ci-sin-identidad-git` y `sin-motor-externo`).
+  - Árbol con índice inválido (copia de `docs/knowledge` + `docs/roadmap` en `mktemp -d`, fila de `ADR-007` borrada): `❌ índice de memoria (README) · docs/knowledge/adr/ADR-007-…: entrada sin fila en docs/knowledge/README.md — invisible para el único camino de lectura …` · `Hay 1 problema(s) que rompen algo del plugin …`, **exit 1**, y **no** imprime «Instalación sana».
+  - `python3 -m pytest -q agent-kits/shared/test_doctor.py` → `33 passed` · `tests/test_console_encoding.py -k doctor` → `8 passed` · `PYTHONIOENCODING=cp1252 python3 agent-kits/shared/doctor.py | grep -c memoria` → 5 (símbolos íntegros).
+  - Árbol sin `docs/knowledge/` (`mktemp -d`): `ℹ️ memoria técnica · sin docs/knowledge/ — un proyecto recién instalado nace sin memoria, y es correcto` · `ℹ️ journal de sesión · sin docs/knowledge/journal/`, **exit 0**, `0 ❌`, sigue diciendo «Instalación sana».
+  - Solo lectura afirmada: el índice FTS5 se lee en `mode=ro` y NUNCA se construye desde el doctor (`test_indice_fts5_ausente_informa_valido_ok_y_corrupto_avisa_sin_escribir` compara el snapshot del proyecto antes y después); la antigüedad de `CALIBRATION.md` es determinista en tests con `hoy=` (`diagnostico(project, plugin_root, hoy)` y `--hoy AAAA-MM-DD`).
 
 **Criterios de aceptación**
-- [ ] Con 31 curadas, 0 de journal e índice inválido, **no** dice «Instalación sana»; nombra las tres cosas (spec CA-14).
-- [ ] Avisa cuando `CALIBRATION.md` lleva **> 14 días** sin fila (hoy: 15) y dice **cuántas iniciativas** se han cerrado desde entonces.
-- [ ] Cada línea trae su **arreglo concreto**, como el resto de `/doctor`.
-- [ ] Sin `docs/knowledge/`: línea **informativa** y exit 0 — un proyecto recién instalado no está roto por nacer sin memoria.
-- [ ] Los avisos de memoria son **⚠️**, no ❌, salvo índice inválido: `/doctor` no se vuelve alarmista (si todo es rojo, la gente lo ignora).
-- [ ] Sigue sin usar red y sigue siendo de **solo lectura**.
+- [x] Con 31 curadas, 0 de journal e índice inválido, **no** dice «Instalación sana»; nombra las tres cosas (spec CA-14). *Medido: 32 curadas; el índice inválido es ❌ (exit 1) nombrando el fichero sin fila; el journal a 0 con memoria curada es ⚠️.*
+- [x] Avisa cuando `CALIBRATION.md` lleva **> 14 días** sin fila (hoy: 15) y dice **cuántas iniciativas** se han cerrado desde entonces (`CALIBRACION_DIAS_MAX = 14`; hoy 18 días y 15 cerradas, nombradas).
+- [x] Cada línea trae su **arreglo concreto**, como el resto de `/doctor` (`test_toda_linea_de_aviso_o_error_trae_arreglo` sigue verde).
+- [x] Sin `docs/knowledge/`: línea **informativa** y exit 0 — un proyecto recién instalado no está roto por nacer sin memoria.
+- [x] Los avisos de memoria son **⚠️**, no ❌, salvo índice inválido: `/doctor` no se vuelve alarmista (si todo es rojo, la gente lo ignora). *El índice FTS5 corrupto o `sqlite3` sin FTS5 son ⚠️ (la búsqueda degrada a plano, no se rompe); ausente o desfasado, ℹ️.*
+- [x] Sigue sin usar red y sigue siendo de **solo lectura**.
 
 **Subtareas**
-- [ ] Test RED con árboles de `tmp_path` para los cuatro estados.
-- [ ] Función `_memoria(project)` al estilo del `_journal(project)` que ya existe.
-- [ ] Enganchar en el veredicto y en la lista de secciones.
+- [x] Test RED con árboles de `tmp_path` para los cuatro estados.
+- [x] Función `_memoria(project)` al estilo del `_journal(project)` que ya existe. *Es `bloque_memoria(plugin_root, project, hoy)`: un bloque propio «Memoria técnica (docs/knowledge/)» —el sexto— que absorbe `_journal` (ahora con el aviso a 0 CON memoria curada) y añade `_curadas`, `_indice_readme` (delega en `lint_knowledge_index` de T-04), `_indice_fts5` y `_calibracion`.*
+- [x] Enganchar en el veredicto y en la lista de secciones.
 
-**Notas**: el `_journal(project)` actual ya informa de «carpeta sin entradas todavía» pero **no cambia el veredicto**; eso es exactamente lo que se corrige.
+**Notas**: el `_journal(project)` actual ya informa de «carpeta sin entradas todavía» pero **no cambia el veredicto**; eso es exactamente lo que se corrige. **Deuda declarada para T-18:** `commands/doctor.md` (description y cuerpo), `docs/README.md` y `docs/FLOWS.md` describen cinco bloques sin la memoria — la description está atada al caso literal de `evals/cases/command-doctor.json` (`check.py` regla 4), así que se cambia con su eval, en la fase de doc.
 
 ---
 
