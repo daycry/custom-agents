@@ -310,6 +310,89 @@ def test_area_inexistente_sobre_el_corpus_real_no_imprime_nada(real):
     assert (code, out) == (0, ""), (code, out, err)
 
 
+# --------------------------------------------------------------- consulta libre: solo puntúan los tokens con contenido
+#
+# Revisión de dos lentes, intento 1 (IMPORTANT 1): la consulta libre no filtraba stopwords y puntuaba las
+# 32 entradas con «cual es el ratio de tokens por hora que uso para estimar» (las 9 lecciones de estimación
+# en las posiciones 15-32: con `--limit 10` no llegaba ninguna), «de» traía 10 líneas y «quiero saber si el
+# pato vuela hacia marte» las 32. Solo devolvía 0 con tokens inventados, que era el único caso probado.
+
+def test_una_sola_lista_de_stopwords_para_los_tres_caminos():
+    """El criterio vive UNA vez: `STOPWORDS` la usan la consulta libre, el enrutado y «misma área»."""
+    src = open(SCRIPT, encoding="utf-8").read()
+    assert "CONTEXTO_STOPWORDS" not in src and "AREA_STOPWORDS" not in src, "quedó una lista paralela"
+    assert isinstance(kf.STOPWORDS, frozenset) and len(kf.STOPWORDS) > 150
+    # ES + EN, normalizadas como salen de `tokens()` (sin acentos): las dos lenguas de la doc del repo
+    assert {"de", "el", "cual", "es", "que", "para", "the", "of", "what", "is", "how"} <= kf.STOPWORDS
+    assert not {"estimacion", "tokens", "hooks", "cp1252", "ci", "qa"} & kf.STOPWORDS, "contenido, no relleno"
+    assert kf.tokens_consulta("cual es el ratio de tokens por hora que uso para estimar") == ["ratio", "token", "hora", "estim"]
+    assert kf.tokens_consulta("de") == [] and kf.tokens_consulta("cual es el") == []
+    assert kf.claves_enrutado("Presupuestar la estimación de la iniciativa")[0] == ["presupuestar", "estimacion"]
+    assert kf._area_significativa("Proceso / desarrollo del plugin") == {"proceso", "desarrollo", "plugin"}
+
+
+def test_raiz_reduce_la_misma_palabra_en_otra_forma_a_la_misma_raiz():
+    assert kf.raiz("estimar") == kf.raiz("estimacion") == kf.raiz("estimaciones") == "estim"
+    assert kf.raiz("tokens") == "token" and kf.raiz("horas") == "hora" and kf.raiz("hooks") == "hook"
+    assert kf.raiz("cp1252") == "cp1252" and kf.raiz("hora") == "hora", "sin sufijo que quitar, intacto"
+    assert kf.raiz("es") == "es" and kf.raiz("tres") == "tres", f"la raíz conserva ≥ {kf.RAIZ_MIN} caracteres"
+    # la raíz casa por PREFIJO con el campo, igual que `"raiz"*` en la FTS5
+    assert kf.casa("estim", kf.tokens("Estimación / calibración"))
+    assert kf.casa("token", kf.tokens("tokens facturables por hora"))
+
+
+def test_consulta_de_solo_stopwords_devuelve_cero_y_no_el_corpus(proyecto):
+    for texto in ("de", "cual es el", "the of", "que es lo que hay"):
+        code, out, err = run(texto, "--root", str(proyecto))
+        assert (code, out) == (0, ""), (texto, code, out, err)
+        d = json.loads(run(texto, "--json", "--limit", "0", "--root", str(proyecto))[1])
+        assert d["aciertos"] == [] and d["total"] == 0 and d["consulta"]["tokens"] == [], texto
+
+
+def test_consulta_con_contenido_que_no_casa_nada_devuelve_cero(proyecto):
+    code, out, _ = run("quiero saber si el pato vuela hacia marte", "--limit", "0", "--root", str(proyecto))
+    assert (code, out) == (0, "")
+    d = json.loads(run("quiero saber si el pato vuela hacia marte", "--json", "--root", str(proyecto))[1])
+    assert d["consulta"]["tokens"] == ["pato", "vuela", "marte"], "las stopwords no llegan ni al JSON"
+    assert d["total"] == 0
+
+
+def test_titulo_area_e_id_pesan_por_encima_del_cuerpo(proyecto):
+    """Una raíz que solo está en el cuerpo (por muchas veces que aparezca) no puede ordenar el corpus:
+    «revisión» está en el TITULAR de LES-001 y en el cuerpo de otras (ADR-003, LES-002)."""
+    d = json.loads(run("revisión", "--json", "--root", str(proyecto))[1])
+    ids = [a["id"] for a in d["aciertos"]]
+    assert ids[0] == "LES-001", ids
+    e_cuerpo = dict(id="X-001", titular="nada", area="nada", texto="revisión " * 50)
+    e_titulo = dict(id="X-002", titular="la revisión", area="nada", texto="")
+    assert kf.puntuacion(e_titulo, ["revi"]) > kf.puntuacion(e_cuerpo, ["revi"]) > 0
+    assert kf.puntuacion(e_cuerpo, ["revi"]) == kf.PESO_CUERPO * 2, "el cuerpo suma +1 y +1 más si se repite, nada más"
+    assert (kf.PESO_ID, kf.PESO_TITULAR, kf.PESO_AREA) == (12, 6, 4) and kf.PESO_CUERPO == 1
+
+
+def test_real_tokens_por_hora_trae_las_lecciones_de_estimacion_arriba(real):
+    """La consulta que motivó el arreglo: con `--limit 10` (el default) llegan las 9 de estimación."""
+    code, out, err = run("cual es el ratio de tokens por hora que uso para estimar", "--json")
+    assert code == 0, err
+    d = json.loads(out)
+    assert d["consulta"]["tokens"] == ["ratio", "token", "hora", "estim"]
+    ids = [a["id"] for a in d["aciertos"]]
+    estimacion = [i for i in ids if a_area(d, i) == "Estimación / calibración"]
+    assert len(estimacion) == 9, (len(estimacion), ids)
+    assert ids[0] in estimacion, "la primera es de estimación, no GOT-005"
+    assert d["total"] < 32, "ya no puntúa el corpus entero"
+
+
+def a_area(d, id_):
+    return next(a["area"] for a in d["aciertos"] if a["id"] == id_)
+
+
+def test_real_de_y_pato_devuelven_cero(real):
+    for texto in ("de", "quiero saber si el pato vuela hacia marte"):
+        code, out, err = run(texto, "--limit", "0")
+        assert (code, out) == (0, ""), (texto, code, out, err)
+
+
 # =============================================================== T-02 · capa 2: --related <ID> (grafo curado)
 
 def _related(proyecto, id_, *extra):
