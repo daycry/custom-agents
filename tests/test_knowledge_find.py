@@ -13,6 +13,7 @@ Dos planos, a propósito:
 Ningún test usa red, `claude` ni una clave. Ejecutar: python3 -m pytest -q tests/test_knowledge_find.py
 """
 import importlib.util
+import re
 import json
 import os
 import subprocess
@@ -306,3 +307,140 @@ def test_todas_las_entradas_reales_caben_en_120_caracteres_por_linea(real):
 def test_area_inexistente_sobre_el_corpus_real_no_imprime_nada(real):
     code, out, err = run("--area", "no-existe-esta-area")
     assert (code, out) == (0, ""), (code, out, err)
+
+
+# =============================================================== T-02 · capa 2: --related <ID> (grafo curado)
+
+def _related(proyecto, id_, *extra):
+    return run("--related", id_, *extra, "--root", str(proyecto))
+
+
+def test_related_agrupa_las_tres_relaciones_etiquetadas_y_separadas(proyecto):
+    code, out, err = _related(proyecto, "ADR-003")
+    assert code == 0, err
+    assert out.startswith("ADR-003 · aceptada · Scripts / consola y codificación · "), out
+    etiquetas = [l for l in out.split("\n") if l.endswith(":") or l.startswith(("Sucesión", "Misma iniciativa", "Misma área"))]
+    assert [l.split(" (")[0].rstrip(":") for l in etiquetas] == ["Sucesión", "Misma iniciativa", "Misma área"], out
+    # y en ese orden dentro del texto
+    assert out.index("Sucesión") < out.index("Misma iniciativa") < out.index("Misma área")
+
+
+def test_related_una_aceptada_que_sustituyo_a_otra_muestra_a_quien_sustituyo(proyecto):
+    code, out, _ = _related(proyecto, "ADR-003")
+    bloque = out.split("Sucesión")[1].split("Misma iniciativa")[0]
+    assert "sustituye a" in bloque and "ADR-002 · obsoleta · " in bloque, bloque
+
+
+def test_related_una_obsoleta_muestra_su_sucesor(proyecto):
+    code, out, _ = _related(proyecto, "ADR-002")
+    assert code == 0
+    bloque = out.split("Sucesión")[1].split("Misma iniciativa")[0]
+    assert "sustituida por" in bloque and "ADR-003 · aceptada · " in bloque, bloque
+
+
+def test_related_la_sucesion_se_deduce_tambien_desde_el_otro_extremo(proyecto):
+    """Si solo ADR-003 declarara `sustituye: ADR-002`, el grafo de ADR-002 igual muestra a su sucesor."""
+    p = proyecto / "docs" / "knowledge" / "adr" / "ADR-002-consola-ascii.md"
+    p.write_text(p.read_text(encoding="utf-8").replace("sucesor: ADR-003\n", "").replace(
+        "estado: obsoleta (sustituida por ADR-003)", "estado: obsoleta"), encoding="utf-8")
+    code, out, _ = _related(proyecto, "ADR-002")
+    bloque = out.split("Sucesión")[1].split("Misma iniciativa")[0]
+    assert "sustituida por" in bloque and "ADR-003" in bloque, bloque
+
+
+def test_related_misma_iniciativa_sale_del_frontmatter_o_de_la_fuente(proyecto):
+    """`iniciativa:` en los ADR; en gotchas/lecciones se deduce del `<fecha>-<slug>/tasks.md` de la fuente."""
+    code, out, _ = _related(proyecto, "ADR-003")
+    bloque = out.split("Misma iniciativa")[1].split("Misma área")[0]
+    assert "(demo-dos)" in out.split("Misma iniciativa")[1].split("\n")[0]
+    ids = [l.split(" · ")[0] for l in bloque.split("\n") if " · " in l]
+    assert ids == ["GOT-001", "ADR-002"], ids       # doctrina antes que obsoleta; nunca la propia entrada
+    assert "ADR-003" not in ids
+
+
+def test_related_misma_area_casa_normalizada_y_no_incluye_la_propia_entrada(proyecto):
+    code, out, _ = _related(proyecto, "GOT-001")
+    bloque = out.split("Misma área")[1]
+    ids = [l.split(" · ")[0] for l in bloque.split("\n") if " · " in l]
+    assert ids == ["ADR-003", "ADR-002"], ids
+    assert "GOT-001" not in ids and "LES-001" not in ids
+
+
+def test_related_sin_relaciones_lo_dice_en_una_linea_por_grupo_y_no_inventa(proyecto):
+    code, out, _ = _related(proyecto, "LES-002")
+    assert code == 0
+    bloque = out.split("Sucesión")[1].split("Misma iniciativa")[0]
+    assert "ninguna" in bloque.lower()
+    # misma área: LES-001; misma iniciativa (demo-uno): LES-001 y ADR-001
+    assert "LES-001 · aceptada" in out.split("Misma área")[1]
+
+
+def test_related_no_es_una_cronologia(proyecto):
+    """Decisión de diseño (spec): grafo curado, no `timeline`. Ni fechas por línea ni «antes/después»."""
+    code, out, _ = _related(proyecto, "ADR-003")
+    assert code == 0 and out
+    for l in out.split("\n"):
+        assert not re.match(r"^\s*\d{4}-\d{2}-\d{2}", l), f"línea cronológica: {l!r}"
+    assert not re.search(r"(?i)cronolog|timeline|anterior:|siguiente:|antes de|después de", out), out
+
+
+def test_related_json_es_estructurado(proyecto):
+    code, out, _ = _related(proyecto, "ADR-002", "--json")
+    data = json.loads(out)
+    assert code == 0
+    assert set(data) - {"indice_motivo"} == {"version", "indice", "entrada", "relaciones"}
+    assert data["entrada"]["id"] == "ADR-002"
+    assert list(data["relaciones"]) == ["sucesion", "iniciativa", "area"]
+    suc = data["relaciones"]["sucesion"]
+    assert [(s["relacion"], s["id"]) for s in suc] == [("sustituida por", "ADR-003")]
+    assert data["relaciones"]["iniciativa"]["clave"] == "demo-dos"
+    assert [a["id"] for a in data["relaciones"]["iniciativa"]["aciertos"]] == ["ADR-003", "GOT-001"]
+    assert data["relaciones"]["area"]["clave"] == "Scripts / consola y codificación"
+    assert list(suc[0]) == ["relacion"] + list(kf.acierto_json(dict(kf.cargar_corpus(str(proyecto))[0])))
+
+
+def test_related_con_id_inexistente_exit_1_y_una_linea_en_stderr(proyecto):
+    code, out, err = _related(proyecto, "ID-INEXISTENTE")
+    assert code == 1 and out == "" and err.count("\n") == 1 and "ID-INEXISTENTE" in err, (code, out, err)
+    code, out, err = _related(proyecto, "ADR-999", "--json")
+    assert code == 1 and out == "" and err.count("\n") == 1, (code, out, err)
+
+
+def test_related_acepta_el_id_en_minusculas(proyecto):
+    code, out, _ = _related(proyecto, "adr-003")
+    assert code == 0 and out.startswith("ADR-003 · ")
+
+
+def test_related_se_topa_a_1600_caracteres_y_lo_dice(tmp_path):
+    """Un área con muchas entradas no puede reventar el presupuesto de la capa 2 (≤ 400 tokens)."""
+    kn = tmp_path / "docs" / "knowledge" / "lessons"
+    kn.mkdir(parents=True)
+    filas = []
+    for i in range(1, 41):
+        (kn / f"LES-{i:03d}-evaluator-leccion-{i}.md").write_text(_fm(
+            id=f"LES-{i:03d}", tipo="leccion", area="Estimación / calibración", estado="aceptada",
+            fuente="2026-01-01-demo/retro.md") + f"\n## evaluator\n\n- **Lección número {i} con un titular largo "
+            f"para ocupar la línea entera del acierto compacto.**\n", encoding="utf-8")
+        filas.append(f"| [`lessons/LES-{i:03d}-evaluator-leccion-{i}.md`](lessons/LES-{i:03d}-evaluator-leccion-{i}.md) "
+                     f"— \"Lección número {i} con un titular largo para ocupar la línea entera del acierto compacto.\" "
+                     f"| LES-{i:03d} | Lección | Estimación / calibración | aceptada | `2026-01-01-demo/retro.md` |")
+    (tmp_path / "docs" / "knowledge" / "README.md").write_text(
+        "| Entrada | ID | Tipo | Área | Estado | Fuente |\n|---|---|---|---|---|---|\n" + "\n".join(filas) + "\n",
+        encoding="utf-8")
+    code, out, err = run("--related", "LES-001", "--root", str(tmp_path))
+    assert code == 0, err
+    assert len(out) <= kf.RELATED_TOPE_CHARS == 1600, len(out)
+    assert re.search(r"… y \d+ más", out), "el recorte se declara, no se esconde"
+
+
+def test_ca03_related_adr010_grafo_curado_en_menos_de_1600_caracteres(real):
+    code, out, err = run("--related", "ADR-010")
+    assert code == 0, err
+    assert len(out) <= 1600, len(out)
+    assert out.startswith("ADR-010 · aceptada · Memoria técnica / hooks · ")
+    assert "Sucesión" in out and "Misma iniciativa (memory-health)" in out and "Misma área" in out
+    # comparte «Memoria técnica» con ADR-006 y «hooks» con ADR-007: eso es el grafo, no la fecha
+    area = out.split("Misma área")[1]
+    assert "ADR-006 · " in area and "ADR-007 · " in area, area
+    for l in out.split("\n"):
+        assert not re.match(r"^\s*\d{4}-\d{2}-\d{2}", l), l
