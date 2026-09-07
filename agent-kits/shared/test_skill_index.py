@@ -111,13 +111,23 @@ def test_hint_corto():
 
 def test_hint_largo_se_recorta_en_la_linea():
     """El recorte del hint LARGO ocurre al pintar la línea (no en `hint_corto`): no roba más de
-    media línea, corta en palabra y acaba en «…»."""
+    media línea, corta en palabra y acaba en «…».
+
+    «Corta en palabra» se afirma de verdad: lo que queda antes de «…» es un prefijo del hint que
+    termina justo donde el hint tiene un espacio (la palabra siguiente cae ENTERA). Un assert del
+    tipo `" " in etiqueta` no vale, porque lo satisface el propio prefijo `/dev-cycle ` aunque el
+    corte partiera una palabra por la mitad (mutante `h = h[:tope - 1] + "…"`: sobrevivía)."""
+    hint = "<objetivo de la iniciativa> [rapido | completo]"
     ps = [("command", "dev-cycle", "Orquesta el ciclo completo de una iniciativa con puertas.",
-           '"<objetivo de la iniciativa> [rapido | completo]"', "raw")]
+           f'"{hint}"', "raw")]
     linea = [l for l in si._lineas(ps, 60) if l.startswith("/dev-cycle")][0]
     etiqueta = linea.split(" — ")[0]
     assert etiqueta.startswith("/dev-cycle <objetivo")
-    assert etiqueta.endswith("…") and " " in etiqueta.rstrip("…")   # cortado en palabra
+    assert etiqueta.endswith("…")
+    recorte = etiqueta[len("/dev-cycle "):-1]                       # lo que quedó del hint
+    assert recorte and hint.startswith(recorte)                     # es un prefijo del hint…
+    assert hint[len(recorte)] == " "                                # …que acaba en frontera de palabra
+    assert recorte[-1] not in ",;:( "                               # y sin puntuación colgando
     assert len(etiqueta) <= 60 // 2                                 # media línea como tope
     # con ancho de sobra el hint entra completo
     ancha = [l for l in si._lineas(ps, 200) if l.startswith("/dev-cycle")][0]
