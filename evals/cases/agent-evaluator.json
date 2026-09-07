@@ -31,13 +31,11 @@
       "expect": {
         "activates": true,
         "mentions": [
-          "LES-001"
-        ],
-        "must_not": [
-          "GOT-001"
+          "LES-001",
+          "escapado"
         ]
       },
-      "notes": "Camino de memoria (memory-retrieval T-09): el evaluator lee lecciones de «Estimación / calibración» (LES-001: «exportar a CSV nunca es trivial») y NO el gotcha de implementación (GOT-001), que es del área del implementer."
+      "notes": "Camino de memoria (memory-retrieval T-09): el evaluator lee lecciones de «Estimación / calibración» (LES-001: «exportar a CSV nunca es trivial»: presupuesta el escapado y la codificación como tareas propias) y tiene que citar el ID Y aplicarla (el escapado aparece como partida o riesgo de la estimación). No se prohíbe citar GOT-001 (revisión intento 1, MINOR 7): es justo el gotcha del escapado que LES-001 manda presupuestar; citarlo es aplicar la lección, no confundir áreas."
     },
     {
       "id": "evaluator-neg-planner",
