@@ -99,15 +99,12 @@ flowchart TD
     AD -->|no| D["planner<br/>improvement-plan + tasks.md"]
     C -->|no-go| X(["stop"])
     D --> E["opt-in: push plan to Jira<br/>jira-sync: 1 issue per task"]
-    E --> F{"did the user ask for<br/>an external engine<br/>explicitly?"}
-    F -->|"yes (explicit opt-in)"| G["external engine executes<br/>against YOUR tasks.md<br/>(its own review)"]
-    F -->|"no (default):<br/>NATIVE chain"| H["implementer<br/>task by task<br/>(dev.json opt-in: TDD ·<br/>worktree · fresh subagents)<br/>P5: coverage gate, unit-tests skill<br/>(coverage-gate.py --changed-only)"]
+    E --> H["implementer<br/>task by task<br/>(dev.json opt-in: TDD ·<br/>worktree · fresh subagents)<br/>P5: coverage gate, unit-tests skill<br/>(coverage-gate.py --changed-only)"]
     H --> SC{"scope-check.py<br/>changed files ⊆<br/>ledger's Archivos?"}
     SC -.->|"exit 1: Important gap<br/>(no reviewers spent)"| H
     SC -->|exit 0| R["🔍 skill adversarial-review<br/>lenses A+B → reviewer agent<br/>(read-only, tier from model-tier.py)<br/>+ C security + D performance<br/>(conditional: review-lens-select.py)<br/>(merge + dedupe)"]
     R -.->|gaps| H
-    G --> I["qa · local E2E<br/>verdict: qa-gate.py"]
-    R --> I
+    R --> I["qa · local E2E<br/>verdict: qa-gate.py"]
     I -->|"red (max 3 attempts,<br/>then ask)"| H
     I -->|green| J["documenter<br/>once at the end"]
     J --> CS["changelog-sync skill<br/>[Unreleased] EN + [Sin publicar] ES<br/>from the closed ledger"]
@@ -117,11 +114,11 @@ flowchart TD
     style L fill:#e8f5e9,stroke:#81c784
 ```
 
-`tasks.md` is the **canonical ledger** of progress in both modes.
+`tasks.md` is the **canonical ledger** of progress for the whole cycle.
 
 ## 4 · Jira (opt-in) — pushing the plan when it is created
 
-> **Granularity** (`.claude/jira.json` → `granularidad`): **task** = one issue per `T-XX` (default); **phase** = one issue per Phase with its tasks as a checklist. In phase mode, comments/worklog/Done go to the phase's issue; the issue closes when all its tasks are `completado`. Additionally, the **reviewer's result** (Mode B) is published as a comment (per criterion ✓/✗ + number of attempts) and its time is logged as a separate `[revisión]` worklog — at the chosen granularity.
+> **Granularity** (`.claude/jira.json` → `granularidad`): **task** = one issue per `T-XX` (default); **phase** = one issue per Phase with its tasks as a checklist. In phase mode, comments/worklog/Done go to the phase's issue; the issue closes when all its tasks are `completado`. Additionally, the **reviewer's result** is published as a comment (per criterion ✓/✗ + number of attempts) and its time is logged as a separate `[revisión]` worklog — at the chosen granularity.
 
 ```mermaid
 flowchart TD
@@ -251,7 +248,7 @@ whatever deserves doctrine is promoted to an ADR/gotcha/lesson. Full detail: `CO
 
 ## 6 · Visibility and learning (all read-only)
 
-> **Generation cost (usage-meter):** each artifact of the cycle (and each task in Mode B) is **measured** with real tokens from the transcript (`agent-kits/shared/usage-meter.py`); the `generacion:` block in its frontmatter feeds the **process cost** section of `/roadmap-metrics`, and `/retro` uses it to calibrate the **tokens→hour ratio** used by the evaluator and by the meter itself. Dates = context · tokens = measurement · hours = derived.
+> **Generation cost (usage-meter):** each artifact of the cycle (and each task) is **measured** with real tokens from the transcript (`agent-kits/shared/usage-meter.py`); the `generacion:` block in its frontmatter feeds the **process cost** section of `/roadmap-metrics`, and `/retro` uses it to calibrate the **tokens→hour ratio** used by the evaluator and by the meter itself. Dates = context · tokens = measurement · hours = derived.
 
 ```mermaid
 flowchart TD

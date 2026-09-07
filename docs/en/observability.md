@@ -119,11 +119,10 @@ What we could **NOT** measure here is the token cost of a real session with a li
 project: `usage-meter.py start --artefacto "<slug>/T-XX"` before the first event and `close` after
 `aprobado`.
 
-**Design rule (the same one superpowers applies to its skills, taken to the integration layer):**
-whatever can be deterministic is not written by the model. Superpowers has no project-tracker
-integration, so there is nothing to copy here — but there is something not to repeat: its *one
-subagent per task* pattern multiplies context; the Jira cycle spawns no subagent, they are calls
-from the agent already at work.
+**Design rule (a rule of this repo — rule 8 of `CONVENTIONS.md` —, taken to the integration
+layer):** whatever can be deterministic is not written by the model. And its corollary in context
+cost: the *one subagent per task* pattern multiplies it, so the Jira cycle spawns no subagent —
+they are calls from the agent already at work.
 
 ## Where to look for what (cheat sheet)
 

@@ -119,11 +119,10 @@ comparación de arriba es estructural (qué entra en el contexto y qué no), no 
 sesión. Para medirla en tu proyecto: `usage-meter.py start --artefacto "<slug>/T-XX"` antes del
 primer evento y `close` tras `aprobado`.
 
-**Regla de diseño (la misma que superpowers aplica a sus skills, llevada a la integración):** lo que
-puede ser determinista no lo redacta el modelo. Superpowers no tiene integración con herramientas de
-gestión, así que aquí no hay nada que copiar — sí hay algo que no repetir: su patrón de *un subagente
-por tarea* multiplica el contexto; el ciclo Jira no lanza ningún subagente, son llamadas del agente
-que ya está trabajando.
+**Regla de diseño (regla del repo — regla 8 de `CONVENTIONS.md` —, llevada a la capa de
+integración):** lo que puede ser determinista no lo redacta el modelo. Y su corolario en coste de
+contexto: el patrón de *un subagente por tarea* lo multiplica, así que el ciclo Jira no lanza ningún
+subagente — son llamadas del agente que ya está trabajando.
 
 ## Dónde mirar cada cosa (chuleta)
 

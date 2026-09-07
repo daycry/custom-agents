@@ -99,15 +99,12 @@ flowchart TD
     AD -->|no| D["planner<br/>improvement-plan + tasks.md"]
     C -->|no-go| X(["parar"])
     D --> E["opt-in: volcar plan a Jira<br/>jira-sync: 1 issue por tarea"]
-    E --> F{"¿pidió el usuario<br/>un motor externo<br/>explícitamente?"}
-    F -->|"sí (opt-in explícito)"| G["motor externo ejecuta<br/>contra TU tasks.md<br/>(review propio)"]
-    F -->|"no (defecto):<br/>cadena NATIVA"| H["implementer<br/>tarea a tarea<br/>(dev.json opt-in: TDD ·<br/>worktree · subagentes frescos)<br/>P5: gate de cobertura skill unit-tests<br/>(coverage-gate.py --changed-only)"]
+    E --> H["implementer<br/>tarea a tarea<br/>(dev.json opt-in: TDD ·<br/>worktree · subagentes frescos)<br/>P5: gate de cobertura skill unit-tests<br/>(coverage-gate.py --changed-only)"]
     H --> SC{"scope-check.py<br/>ficheros cambiados ⊆<br/>Archivos del ledger?"}
     SC -.->|"exit 1: gap Important<br/>(sin gastar revisores)"| H
     SC -->|exit 0| R["🔍 skill adversarial-review<br/>lentes A+B → agente reviewer<br/>(solo lectura, tier model-tier.py)<br/>+ C seguridad + D rendimiento<br/>(condicionales: review-lens-select.py)<br/>(fusión + dedupe)"]
     R -.->|gaps| H
-    G --> I["qa · E2E local<br/>veredicto: qa-gate.py"]
-    R --> I
+    R --> I["qa · E2E local<br/>veredicto: qa-gate.py"]
     I -->|"rojo (máx. 3 intentos,<br/>luego preguntar)"| H
     I -->|verde| J["documenter<br/>una vez al final"]
     J --> CS["skill changelog-sync<br/>[Unreleased] EN + [Sin publicar] ES<br/>desde el ledger cerrado"]
@@ -117,11 +114,11 @@ flowchart TD
     style L fill:#e8f5e9,stroke:#81c784
 ```
 
-`tasks.md` es el **ledger canónico** de progreso en los dos modos.
+`tasks.md` es el **ledger canónico** de progreso de todo el ciclo.
 
 ## 4 · Jira (opt-in) — volcado del plan al crearlo
 
-> **Granularidad** (`.claude/jira.json` → `granularidad`): **tarea** = un issue por `T-XX` (defecto); **fase** = un issue por Fase con sus tareas como checklist. En modo fase, comentarios/worklog/Done van al issue de la fase; el issue cierra cuando todas sus tareas están `completado`. Además, el **resultado del revisor** (Modo B) se publica como comentario (por criterio ✓/✗ + nº intentos) y su tiempo se imputa como worklog `[revisión]` aparte — con la granularidad elegida.
+> **Granularidad** (`.claude/jira.json` → `granularidad`): **tarea** = un issue por `T-XX` (defecto); **fase** = un issue por Fase con sus tareas como checklist. En modo fase, comentarios/worklog/Done van al issue de la fase; el issue cierra cuando todas sus tareas están `completado`. Además, el **resultado del revisor** se publica como comentario (por criterio ✓/✗ + nº intentos) y su tiempo se imputa como worklog `[revisión]` aparte — con la granularidad elegida.
 
 ```mermaid
 flowchart TD
@@ -249,7 +246,7 @@ Detalle completo: regla 10 de [`CONVENTIONS.md`](CONVENTIONS.md).
 
 ## 6 · Visibilidad y aprendizaje (todo solo-lectura)
 
-> **Coste de generación (usage-meter):** cada artefacto del ciclo (y cada tarea en Modo B) se **mide** con tokens reales de la transcripción (`agent-kits/shared/usage-meter.py`); el bloque `generacion:` de su frontmatter alimenta la sección **coste de proceso** de `/roadmap-metrics`, y `/retro` calibra con ello el **ratio tokens→hora** que usan el evaluator y el propio meter. Fechas = contexto · tokens = medida · horas = derivadas.
+> **Coste de generación (usage-meter):** cada artefacto del ciclo (y cada tarea) se **mide** con tokens reales de la transcripción (`agent-kits/shared/usage-meter.py`); el bloque `generacion:` de su frontmatter alimenta la sección **coste de proceso** de `/roadmap-metrics`, y `/retro` calibra con ello el **ratio tokens→hora** que usan el evaluator y el propio meter. Fechas = contexto · tokens = medida · horas = derivadas.
 
 ```mermaid
 flowchart TD

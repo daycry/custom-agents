@@ -101,11 +101,27 @@ def test_recorte_de_description_primera_frase_o_gatillo():
 
 
 def test_hint_corto():
-    assert si.hint_corto('"<objetivo de la iniciativa> [rapido | completo] [--superpowers]"') == "<objetivo de la iniciativa> [rapido | completo] [--superpowers]"
+    # hint real de /dev-cycle: varios tokens `<…>`/`[…]` → se conservan TODOS, sin las comillas
+    assert si.hint_corto('"<objetivo de la iniciativa> [rapido | completo]"') == "<objetivo de la iniciativa> [rapido | completo]"
     assert si.hint_corto('"(opcional) ruta al roadmap; por defecto docs/roadmap"') == "[opcional]"
     assert si.hint_corto('"(sin argumentos)"') == ""
     assert si.hint_corto("prosa cualquiera") == "<args>"
     assert si.hint_corto("") == ""
+
+
+def test_hint_largo_se_recorta_en_la_linea():
+    """El recorte del hint LARGO ocurre al pintar la línea (no en `hint_corto`): no roba más de
+    media línea, corta en palabra y acaba en «…»."""
+    ps = [("command", "dev-cycle", "Orquesta el ciclo completo de una iniciativa con puertas.",
+           '"<objetivo de la iniciativa> [rapido | completo]"', "raw")]
+    linea = [l for l in si._lineas(ps, 60) if l.startswith("/dev-cycle")][0]
+    etiqueta = linea.split(" — ")[0]
+    assert etiqueta.startswith("/dev-cycle <objetivo")
+    assert etiqueta.endswith("…") and " " in etiqueta.rstrip("…")   # cortado en palabra
+    assert len(etiqueta) <= 60 // 2                                 # media línea como tope
+    # con ancho de sobra el hint entra completo
+    ancha = [l for l in si._lineas(ps, 200) if l.startswith("/dev-cycle")][0]
+    assert ancha.split(" — ")[0] == "/dev-cycle <objetivo de la iniciativa> [rapido | completo]"
 
 
 def test_cache_invalidada_por_cambio_de_frontmatter(tmp_path):

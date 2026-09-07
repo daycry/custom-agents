@@ -76,9 +76,9 @@ espejo, no fuente. Ver regla 8 de [`CONVENTIONS.md`](../CONVENTIONS.md).
 @implementer ejecuta la fase 2
 ```
 
-O, dentro del ciclo completo, mediante el command `/dev-cycle`. `implementer` es el motor de
-implementación de la **cadena nativa — el defecto SIEMPRE**; un motor SDD externo solo entra si el
-usuario lo pide explícitamente, y aun así `tasks.md` sigue siendo el ledger canónico.
+O, dentro del ciclo completo, mediante el command `/dev-cycle`. `implementer` es **el** motor de
+implementación del plugin: el ciclo no delega la implementación en ningún orquestador externo.
+`tasks.md` es siempre el ledger canónico.
 Con `subagentes: true` en `dev.json`, las tareas las despacha `/dev-cycle` a **subagentes de
 contexto fresco** (brief determinista de `task-brief.py`) y `implementer` actúa como fallback
 cuando un despacho falla dos veces.

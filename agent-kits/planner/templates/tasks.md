@@ -7,7 +7,7 @@
   Si el plan y este ledger comparten ventana (el caso normal), copia el bloque IDÉNTICO en
   ambos y anota `# ventana compartida con improvement-plan.md`: el dashboard lo cuenta una vez.
   En las tareas: el tiempo IA "real" puede venir MEDIDO por tarea (usage-meter, /dev-cycle
-  Modo B) — cuando así sea, márcalo con «(medido)»; si es a juicio, «(estimado)».
+  Fase 3) — cuando así sea, márcalo con «(medido)»; si es a juicio, «(estimado)».
   Duraciones: las columnas real/est de tareas y resumen van en DECIMAL (X,Xh) porque las
   parsea máquina (dashboard/worklog) — NO las cambies a XhYm. El formato humano XhYm
   (usage-meter.py fmt: 32m · 1h 32m · 18h) va en el frontmatter (duracion) y en informes.

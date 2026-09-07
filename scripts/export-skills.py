@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 export-skills.py — exporta las SKILLS del plugin como paquete PORTABLE, agnóstico de Claude Code
-(patrón multi-entorno de superpowers): lo que viaja son los `skills/<n>/SKILL.md` con sus
+(paquete multi-entorno de SOLO skills): lo que viaja son los `skills/<n>/SKILL.md` con sus
 `references/`, `scripts/` y `assets/`, más los fragmentos de `agent-kits/shared/` que esas skills
 citan. NO viajan agentes, comandos, hooks ni statusline (dependen del runtime de Claude Code), ni
 las skills que solo son punteros a piezas que no viajan (`quick-implement` → `commands/dev-cycle.md`,

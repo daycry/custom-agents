@@ -135,7 +135,7 @@ rm -rf ~/.claude/plugins/cache/
 
 ## Usar las skills fuera de Claude Code (paquete portable)
 
-Las **skills** son markdown + Python y no dependen del runtime de Claude Code; los agentes, comandos, hooks y la statusline sí. Por eso el repo exporta un **paquete portable «solo skills»** (patrón multi-entorno de superpowers) que puedes usar en **Codex, GitHub Copilot, Cursor, Jules** o cualquier herramienta que lea [`AGENTS.md`](https://agents.md) o reglas de Cursor:
+Las **skills** son markdown + Python y no dependen del runtime de Claude Code; los agentes, comandos, hooks y la statusline sí. Por eso el repo exporta un **paquete portable «solo skills»** (multi-entorno, sin runtime propio) que puedes usar en **Codex, GitHub Copilot, Cursor, Jules** o cualquier herramienta que lea [`AGENTS.md`](https://agents.md) o reglas de Cursor:
 
 ```bash
 python3 scripts/export-skills.py --out dist/portable --format all   # claude | agents-md | cursor | all
