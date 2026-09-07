@@ -16,6 +16,7 @@ Se salta entera si no hay `bash`. Ejecutar: python3 -m pytest -q tests/test_hook
 """
 import json
 import os
+import re
 import shutil
 import stat
 import subprocess
@@ -425,6 +426,115 @@ def test_session_context_el_tope_de_memoria_va_antes_del_recorte_global(tmp_path
     assert "más" in bloque, "recortado Y dicho"
     assert "Comandos:" in ctx and "Agentes:" in ctx and "Ledger canónico" in ctx and len(ctx) <= 9500
     assert not ctx.endswith("…"), "no hizo falta el recorte global"
+
+
+def _segunda_activa(proj, led, slug, titulo=None):
+    """Otra iniciativa ACTIVA (copia del ledger de fixture), opcionalmente con otro título H1 (→ otra área)."""
+    d = proj / "docs" / "roadmap" / slug
+    d.mkdir()
+    text = led.read_text(encoding="utf-8")
+    if titulo:
+        text = re.sub(r"(?m)^# .*$", f"# Checklist de Tareas — {titulo}", text, count=1)
+    (d / "tasks.md").write_text(text, encoding="utf-8")
+    return d
+
+
+def _total_cabecera(bloque):
+    m = re.search(r"· (\d+) acierto\(s\) de knowledge-find\.py", bloque)
+    return int(m.group(1)) if m else None
+
+
+def test_session_context_dos_activas_del_mismo_area_deduplican_antes_de_contar(tmp_path):
+    """Revisión intento 1 (IMPORTANT 3): con dos ledgers `en-progreso` de la misma área, la cabecera decía
+    «4 acierto(s)», mostraba 2 y añadía «… y 2 más» que no existían (total sumaba por iniciativa y las
+    líneas deduplicaban por ID). Ahora: únicos reales, sin «y N más» falso."""
+    proj, led = proyecto(tmp_path)
+    _knowledge(proj, n_extra=2)                                     # 3 entradas del área activa
+    _segunda_activa(proj, led, "2026-01-02-demo-b")                 # mismo título → misma área
+    rc, out, _ = hook("session-context.sh", {"hook_event_name": "SessionStart", "source": "startup"}, env_de(proj, tmp_path))
+    assert rc == 0
+    bloque = _bloque_memoria(_ctx(out))
+    assert _total_cabecera(bloque) == 3, bloque
+    assert bloque.count("- ADR-") == 3 and "más:" not in bloque, "3 únicos, los 3 mostrados: no hay «y N más»"
+    for id_ in ("ADR-001", "ADR-002", "ADR-003"):
+        assert bloque.count(f"- {id_} · ") == 1, f"{id_} repetido"
+    assert "iniciativas activas" not in bloque, "con 2 activas no hay nada que avisar"
+
+
+def test_session_context_dos_activas_de_areas_distintas_suman_sin_solape(tmp_path):
+    proj, led = proyecto(tmp_path)
+    _knowledge(proj)                                                # ADR-001 (adversarial) + LES-001 (estimación)
+    _segunda_activa(proj, led, "2026-01-02-presupuesto", titulo="Estimación y calibración del presupuesto")
+    rc, out, _ = hook("session-context.sh", {"hook_event_name": "SessionStart", "source": "startup"}, env_de(proj, tmp_path))
+    assert rc == 0
+    bloque = _bloque_memoria(_ctx(out))
+    assert _total_cabecera(bloque) == 2 and "ADR-001" in bloque and "LES-001" in bloque, bloque
+    assert "más:" not in bloque
+    assert "--iniciativa demo" in bloque or "--show" in bloque
+
+
+def test_session_context_tres_activas_lo_dice_en_la_cabecera_y_nombra_la_que_queda_fuera(tmp_path):
+    """`activas[:2]` descartaba la tercera en silencio: ahora la cabecera lo declara."""
+    proj, led = proyecto(tmp_path)
+    _knowledge(proj, n_extra=1)
+    _segunda_activa(proj, led, "2026-01-02-demo-b")
+    _segunda_activa(proj, led, "2026-01-03-demo-c")
+    rc, out, _ = hook("session-context.sh", {"hook_event_name": "SessionStart", "source": "startup"}, env_de(proj, tmp_path))
+    assert rc == 0
+    bloque = _bloque_memoria(_ctx(out))
+    assert "3 iniciativas activas, consultadas las 2 primeras; fuera: demo-c" in bloque, bloque
+    assert _total_cabecera(bloque) == 2 and bloque.count("- ADR-") == 2
+    assert len(bloque) <= 1200
+
+
+def test_session_context_con_el_tope_apretando_el_y_n_mas_es_real_y_no_desaloja_aciertos(tmp_path):
+    """41 entradas del área y DOS activas que las comparten: antes `total` era 82 (41 × 2) y el «… y N más»
+    inflado; el N tiene que ser exactamente únicos − mostrados, y mostrar tantas líneas como con UNA activa."""
+    proj, led = proyecto(tmp_path)
+    _knowledge(proj, n_extra=40)
+    payload = {"hook_event_name": "SessionStart", "source": "startup"}
+    rc, out_una, _ = hook("session-context.sh", payload, env_de(proj, tmp_path))
+    una = _bloque_memoria(_ctx(out_una))
+    _segunda_activa(proj, led, "2026-01-02-demo-b")
+    rc, out_dos, _ = hook("session-context.sh", payload, env_de(proj, tmp_path))
+    assert rc == 0
+    dos = _bloque_memoria(_ctx(out_dos))
+    assert 0 < len(dos) <= 1200
+    assert _total_cabecera(dos) == _total_cabecera(una) == 41, (una, dos)
+    mostradas = dos.count("\n- ")
+    m = re.search(r"… y (\d+) más", dos)
+    assert m and int(m.group(1)) == 41 - mostradas, dos
+    # la línea «… y N más» nombra una orden por iniciativa consultada (más larga con dos): cuesta a lo sumo UNA
+    # línea de acierto frente a una sola activa; antes, con total 82, el N inflado no era ni siquiera verdad
+    assert una.count("\n- ") - 1 <= mostradas <= una.count("\n- ") and mostradas >= 1, (una, dos)
+
+
+def test_session_context_resuelve_el_kit_del_repo_del_plugin_antes_que_una_copia_instalada(tmp_path):
+    """Revisión intento 1 (MINOR 9): sin CLAUDE_PLUGIN_ROOT, dentro del repo del plugin, el `find` sobre
+    ~/.claude caía a una copia INSTALADA (anterior a la rama). `<proyecto>/agent-kits/shared` va primero."""
+    proj, _ = proyecto(tmp_path)
+    home = tmp_path / "home"
+    instalado = home / ".claude" / "plugins" / "cache" / "mk" / "custom-agents" / "agent-kits" / "shared"
+    instalado.mkdir(parents=True)
+    (instalado / "skill-index.py").write_text("print('INDICE-DE-LA-COPIA-INSTALADA')\n", encoding="utf-8")
+    del_repo = proj / "agent-kits" / "shared"
+    del_repo.mkdir(parents=True)
+    (del_repo / "skill-index.py").write_text("print('INDICE-DEL-REPO-DEL-PLUGIN')\n", encoding="utf-8")
+    env = env_de(proj, tmp_path)
+    del env["CLAUDE_PLUGIN_ROOT"]
+    payload = {"hook_event_name": "SessionStart", "source": "startup"}
+    rc, out, err = hook("session-context.sh", payload, env, cwd=str(proj))
+    assert rc == 0, err
+    assert "INDICE-DEL-REPO-DEL-PLUGIN" in _ctx(out) and "INSTALADA" not in _ctx(out), _ctx(out)
+    # sin el kit en el proyecto, el find sobre ~/.claude sigue siendo el respaldo
+    shutil.rmtree(proj / "agent-kits")
+    rc, out, _ = hook("session-context.sh", payload, env, cwd=str(proj))
+    assert rc == 0 and "INDICE-DE-LA-COPIA-INSTALADA" in _ctx(out)
+    # y CLAUDE_PLUGIN_ROOT sigue mandando sobre los dos
+    (del_repo).mkdir(parents=True)
+    (del_repo / "skill-index.py").write_text("print('INDICE-DEL-REPO-DEL-PLUGIN')\n", encoding="utf-8")
+    rc, out, _ = hook("session-context.sh", payload, env_de(proj, tmp_path), cwd=str(proj))
+    assert rc == 0 and "Comandos:" in _ctx(out) and "INDICE-DEL-REPO" not in _ctx(out)
 
 
 # -------------------------------------------------------- implementer-guardrail ----
