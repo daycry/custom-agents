@@ -15,7 +15,7 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 
 | | |
 |---|---|
-| **Estado** | borrador |
+| **Estado** | en-progreso |
 | **Fecha** | 2026-09-04 |
 | **Plan** | [`improvement-plan.md`](./improvement-plan.md) |
 | **Spec** | [`spec.md`](./spec.md) |
@@ -36,14 +36,14 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervisión (real/est) | Tokens (real/est) |
 |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
-| Fase 1 — Recuperación | 0 | 4 | 0% | 0 / 9,0h | 0 / 0,51h | 0 / 0,13h | 0 / 245.000 |
+| Fase 1 — Recuperación | 1 | 4 | 25% | 0 / 9,0h | 0 / 0,51h | 0 / 0,13h | 0 / 245.000 |
 | Fase 2 — Llegada | 0 | 3 | 0% | 0 / 4,0h | 0 / 0,31h | 0 / 0,08h | 0 / 150.000 |
 | Fase 3 — Prueba de que se recorre | 0 | 3 | 0% | 0 / 4,0h | 0 / 0,27h | 0 / 0,07h | 0 / 128.000 |
 | Fase 4 — Captura episódica | 0 | 4 | 0% | 0 / 7,0h | 0 / 0,43h | 0 / 0,11h | 0 / 205.000 |
 | Fase 5 — Que la doctrina viaje | 0 | 2 | 0% | 0 / 3,0h | 0 / 0,24h | 0 / 0,06h | 0 / 115.000 |
 | Fase 6 — Cerrar el bucle | 0 | 2 | 0% | 0 / 3,0h | 0 / 0,30h | 0 / 0,08h | 0 / 145.000 |
 | Revisión de dos lentes (transversal, línea propia) | — | — | — | 0 / 4,0h | 0 / 0,54h | 0 / 0,13h | 0 / 260.000 |
-| **TOTAL** | **0** | **18** | **0%** | **0 / 34,0h** | **0 / 2,60h** | **0 / 0,66h** | **0 / 1.248.000** |
+| **TOTAL** | **1** | **18** | **6%** | **0 / 34,0h** | **0 / 2,60h** | **0 / 0,66h** | **0 / 1.248.000** |
 
 > **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada (8 h). Ver `skills/jira-sync/SKILL.md`.
 >
@@ -53,7 +53,7 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 
 ## Fase 1 — Recuperación
 
-**Estado**: borrador · **Estimado**: 9,0h · **Real**: — · **Coste est.**: 452 € · **Tokens est.**: 245.000
+**Estado**: en-progreso · **Estimado**: 9,0h · **Real**: — · **Coste est.**: 452 € · **Tokens est.**: 245.000
 
 > Cierra los huecos **2** («no hay búsqueda») y **5** («el índice no lo vigila nada») de
 > `analysis.md` §1.4. No depende de nada, y es lo que más rinde: por eso va primera.
@@ -61,29 +61,37 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 ### T-01 — Capa 1 de `knowledge-find.py`: consulta → aciertos compactos
 
 - **Descripción**: script nuevo `agent-kits/shared/knowledge-find.py` que sustituye «lee el índice y decide» por «pregunta y recibe». Devuelve **una línea por acierto** con el formato `ID · estado · área · titular · ruta` (~25 tokens), ordenada por relevancia y con el **`estado` DELANTE** para que el lector sepa si tiene doctrina (`aceptada`), indicio (`propuesta`) u obsoleta con sucesor. Admite `--area`, `--tipo`, `--limit`, `--json` y consulta libre posicional. El área se casa **normalizada** (minúsculas, sin acentos, por token), no por comparación exacta: medido hoy, la columna «Área» tiene **21 valores distintos para 31 entradas**, casi todos singleton.
-- **Estado**: borrador
-- **Tiempo humano**: est. 3,0h · real —
-- **Tiempo IA (ejec.)**: est. 0,17h · real —
-- **Supervisión**: est. 0,04h (≈25 % IA) · real —
+- **Estado**: completado
+- **Tiempo humano**: est. 3,0h · real 0h (sin intervención humana en la ejecución)
+- **Tiempo IA (ejec.)**: est. 0,17h · real 0,20h (estimado: el usage-meter no lee la transcripción en este entorno)
+- **Supervisión**: est. 0,04h (≈25 % IA) · real 0,05h (estimado)
 - **Previsión IA**: 65k in / 20k out tok · 0,76 €
 - **Dependencias**: ninguna
 - **Tipo**: backend
-- **Archivos**: `agent-kits/shared/knowledge-find.py`, `tests/test_knowledge_find.py`
-- **Verificación**: `python3 agent-kits/shared/knowledge-find.py --area estimacion --json` → las **9** entradas de área «Estimación / calibración» (`grep -c "Estimación / calibración" docs/knowledge/README.md` → 9), salida completa ≤ 1.200 caracteres, exit 0 · `python3 agent-kits/shared/knowledge-find.py "consola windows cp1252" --limit 5` → `GOT-005` primero, ≤ 5 líneas, cada línea ≤ 120 caracteres, exit 0 · `python3 -m pytest -q tests/test_knowledge_find.py` → todos passed · `python3 agent-kits/shared/knowledge-find.py --area no-existe-esta-area` → sin líneas y exit 0
+- **Archivos**: `agent-kits/shared/knowledge-find.py`, `tests/test_knowledge_find.py`, `tests/test_console_encoding.py` (añadido al cerrar: la suite exige declarar en `MODOS` el modo de arranque de cada script nuevo con símbolos, GOT-005)
+- **Changelog**: Los agentes pueden consultar la memoria técnica del proyecto con una orden en vez de leer el índice entero: cada acierto es una línea compacta con el estado delante, y el área se casa sin acentos ni mayúsculas.
+- **Verificación** (ejecutada 2026-09-07):
+  - `RED: tests/test_knowledge_find.py falló con FileNotFoundError: [Errno 2] No such file or directory: '/work/ca/agent-kits/shared/knowledge-find.py' (1 error during collection) · 2026-09-07`; GREEN después → `15 passed in 1.21s`.
+  - `python3 agent-kits/shared/knowledge-find.py --area estimacion --json` → `"indice": …`, `total: 9`, ids `LES-001…LES-009` (todas con `area: Estimación / calibración`), exit 0. `grep -c "Estimación / calibración" docs/knowledge/README.md` → 9. La salida humana equivalente (`--area estimacion`) → **9 líneas · 1.034 caracteres** (≤ 1.200), exit 0.
+  - `python3 agent-kits/shared/knowledge-find.py "consola windows cp1252" --limit 5` → 4 líneas, la primera `GOT-005 · aceptada · Scripts / consola y codificación · imprimir `✅ ⚠️ ❌` sin reconfigurar… · gotchas/GOT-005-…`; las 4 ≤ 120 caracteres; exit 0. Bajo `PYTHONIOENCODING=cp1252` la misma orden imprime los símbolos íntegros y sale 0.
+  - `python3 agent-kits/shared/knowledge-find.py --area no-existe-esta-area | wc -c` → `0`, exit 0.
+  - `python3 agent-kits/shared/knowledge-find.py --limit 0` → 32 líneas (una por entrada del corpus de hoy: 12 ADR · 6 gotchas · 14 lecciones), todas ≤ 120 caracteres y con 4 separadores ` · `.
+  - `python3 -m pytest -q tests/test_console_encoding.py` → `281 passed` (el script entra en `SCRIPTS` por sus símbolos y declara su modo en `MODOS`) · `python3 scripts/lint_plugin.py` → `lint_plugin: 9 agentes · 0 errores · 3 avisos`, exit 0 (los 3 avisos son los nombres genéricos preexistentes).
+  - Nota medida: el corpus tiene hoy **32** entradas (la spec y este ledger decían 31: `GOT-006` se añadió el 2026-09-04, después del análisis). La ruta de la línea humana casi siempre se abrevia a `carpeta/ID-…` porque los nombres de fichero del corpus miden 41-100 caracteres y con la ruta completa el titular quedaría en 6-28 caracteres; el JSON trae siempre la ruta completa y el detalle se abre por ID (`--show`, T-03).
 
 **Criterios de aceptación**
-- [ ] `--area estimacion --json` devuelve las **9** entradas de esa área en **≤ 300 tokens (≤ 1.200 caracteres)** con **exit 0** (spec CA-01). Nota medida: las **6** que menciona `analysis.md` §1.5 son las *no citadas*, no las del área — no se confunden.
-- [ ] Cada acierto es **≤ 30 tokens (≤ 120 caracteres)** y trae `ID · estado · área · titular · ruta` **en ese orden**, con el `estado` delante (spec CA-02).
-- [ ] Una consulta libre ordena por relevancia: `"consola windows cp1252"` pone `GOT-005` primero.
-- [ ] Sin `docs/knowledge/` o sin aciertos: **0 líneas y exit 0** — ni una línea de relleno para decir que no hay nada (no gastar contexto).
-- [ ] El área se casa normalizada: `--area estimacion` encuentra «Estimación / calibración».
-- [ ] Reconfiguración UTF-8 de `stdin`/`stdout`/`stderr` al arrancar (`GOT-005`), como los otros 28 scripts del repo.
+- [x] `--area estimacion --json` devuelve las **9** entradas de esa área en **≤ 300 tokens (≤ 1.200 caracteres)** con **exit 0** (spec CA-01). Nota medida: las **6** que menciona `analysis.md` §1.5 son las *no citadas*, no las del área — no se confunden.
+- [x] Cada acierto es **≤ 30 tokens (≤ 120 caracteres)** y trae `ID · estado · área · titular · ruta` **en ese orden**, con el `estado` delante (spec CA-02).
+- [x] Una consulta libre ordena por relevancia: `"consola windows cp1252"` pone `GOT-005` primero.
+- [x] Sin `docs/knowledge/` o sin aciertos: **0 líneas y exit 0** — ni una línea de relleno para decir que no hay nada (no gastar contexto).
+- [x] El área se casa normalizada: `--area estimacion` encuentra «Estimación / calibración».
+- [x] Reconfiguración UTF-8 de `stdin`/`stdout`/`stderr` al arrancar (`GOT-005`), como los otros 28 scripts del repo.
 
 **Subtareas**
-- [ ] Escribir primero el test que afirma el formato y el tope por acierto (RED), como manda la skill `tdd` si `dev.json` la trae activa.
-- [ ] Parsear el índice `docs/knowledge/README.md` (tabla de 31 filas) y el frontmatter de cada entrada.
-- [ ] Normalizar área/tipo y ordenar por relevancia.
-- [ ] Salida humana y `--json`; exit codes documentados en el docstring.
+- [x] Escribir primero el test que afirma el formato y el tope por acierto (RED), como manda la skill `tdd` si `dev.json` la trae activa.
+- [x] Parsear el índice `docs/knowledge/README.md` (tabla de 31 filas) y el frontmatter de cada entrada.
+- [x] Normalizar área/tipo y ordenar por relevancia.
+- [x] Salida humana y `--json`; exit codes documentados en el docstring.
 
 **Notas**: la salida `--json` es la que consumirán `task-brief.py` (T-05) y `session-context.sh` (T-06): su esquema es contrato, y cambiarlo después rompe dos consumidores.
 
