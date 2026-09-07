@@ -319,6 +319,114 @@ def test_session_context_reinyecta_journal_en_resume_no_en_compact(tmp_path):
     assert rc == 0 and "Journal de sesión" not in un_json(out)["hookSpecificOutput"]["additionalContext"]
 
 
+# ------------------------------------------- session-context · memoria del área activa (T-06) ----
+
+def _knowledge(proj, n_extra=0):
+    """`docs/knowledge/` mínimo con DOS áreas: una que casa con la iniciativa activa del fixture
+    («adversarial-review» → área «Revisión adversarial / lentes») y otra que no (estimación)."""
+    kn = proj / "docs" / "knowledge"
+    (kn / "adr").mkdir(parents=True)
+    (kn / "lessons").mkdir()
+    filas = []
+    (kn / "adr" / "ADR-001-lentes-en-paralelo.md").write_text(
+        "---\nid: ADR-001\ntitulo: Las lentes se despachan en paralelo\nestado: aceptada (validada: usuario, 2026-01-02)\n"
+        "fecha: 2026-01-02\n---\n\n# ADR-001\n\nx\n", encoding="utf-8")
+    filas.append("| [`adr/ADR-001-lentes-en-paralelo.md`](adr/ADR-001-lentes-en-paralelo.md) — las lentes se despachan en paralelo "
+                 "| ADR-001 | ADR | Revisión adversarial / lentes | aceptada (validada: usuario, 2026-01-02) | `2026-01-02-otra/tasks.md` |")
+    (kn / "lessons" / "LES-001-evaluator-revision-cara.md").write_text(
+        "---\nid: LES-001\ntipo: leccion\narea: Estimación / calibración\nestado: aceptada (validada: usuario, 2026-01-03)\n"
+        "fuente: 2026-01-01-estimacion/retro.md\n---\n\n## evaluator\n\n- El coste está en la revisión.\n", encoding="utf-8")
+    filas.append("| [`lessons/LES-001-evaluator-revision-cara.md`](lessons/LES-001-evaluator-revision-cara.md) — el coste está en la revisión "
+                 "| LES-001 | Lección | Estimación / calibración | aceptada (validada: usuario, 2026-01-03) | `2026-01-01-estimacion/retro.md` |")
+    for n in range(2, 2 + n_extra):
+        fn = f"ADR-{n:03d}-lente-numero-{n}-con-un-nombre-de-fichero-deliberadamente-largo.md"
+        (kn / "adr" / fn).write_text(f"---\nid: ADR-{n:03d}\ntitulo: Lente número {n} con un titular largo para llenar la línea\n"
+                                     f"estado: aceptada (validada: usuario, 2026-01-02)\nfecha: 2026-01-02\n---\n\n# ADR-{n:03d}\n\nx\n",
+                                     encoding="utf-8")
+        filas.append(f"| [`adr/{fn}`](adr/{fn}) — lente número {n} con un titular largo para llenar la línea "
+                     f"| ADR-{n:03d} | ADR | Revisión adversarial / lentes | aceptada (validada: usuario, 2026-01-02) | `x/tasks.md` |")
+    (kn / "README.md").write_text("# índice\n\n| Entrada | ID | Tipo | Área | Estado | Fuente |\n|---|---|---|---|---|---|\n"
+                                  + "\n".join(filas) + "\n", encoding="utf-8")
+    return kn
+
+
+def _ctx(out):
+    return un_json(out)["hookSpecificOutput"]["additionalContext"]
+
+
+def _bloque_memoria(ctx):
+    if "Memoria técnica" not in ctx:
+        return ""
+    i = ctx.index("Memoria técnica")
+    i = ctx.rfind("\n", 0, i) + 1
+    return ctx[i:]
+
+
+def test_session_context_inyecta_la_memoria_del_area_activa_bajo_su_tope(tmp_path):
+    """memory-retrieval T-06 (spec CA-10): con iniciativa activa y `docs/knowledge/`, el contexto trae los
+    aciertos del ÁREA de la iniciativa (≤ 1.200 caracteres), detrás del índice y del roadmap; total ≤ 9.500."""
+    proj, _ = proyecto(tmp_path)
+    _knowledge(proj)
+    env = env_de(proj, tmp_path)
+    for src in ("startup", "resume", "compact"):
+        rc, out, err = hook("session-context.sh", {"hook_event_name": "SessionStart", "source": src}, env)
+        assert rc == 0, err
+        ctx = _ctx(out)
+        bloque = _bloque_memoria(ctx)
+        assert bloque, f"[{src}] falta el bloque de memoria del área activa"
+        assert "ADR-001" in bloque and "adversarial" in bloque.lower(), bloque
+        assert "LES-001" not in bloque, "la lección de estimación NO es del área de la iniciativa activa"
+        assert "aceptada" in bloque and "knowledge-find.py" in bloque and "--show" in bloque
+        assert len(bloque) <= 1200 and len(ctx) <= 9500
+        assert ctx.index("Agentes:") < ctx.index("Ledger canónico") < ctx.index("Memoria técnica"), src
+
+
+def test_session_context_sin_knowledge_sin_aciertos_o_sin_activa_no_emite_el_bloque(tmp_path):
+    proj, _ = proyecto(tmp_path)
+    env = env_de(proj, tmp_path)
+    payload = {"hook_event_name": "SessionStart", "source": "startup"}
+    rc, out_sin, _ = hook("session-context.sh", payload, env)
+    assert rc == 0 and "Memoria técnica" not in _ctx(out_sin) and "knowledge" not in _ctx(out_sin).lower()
+    # corpus SIN entradas del área activa → mismo contexto que sin carpeta
+    kn = _knowledge(proj)
+    (kn / "adr" / "ADR-001-lentes-en-paralelo.md").unlink()
+    readme = kn / "README.md"
+    readme.write_text("\n".join(l for l in readme.read_text(encoding="utf-8").splitlines() if "ADR-001" not in l) + "\n",
+                      encoding="utf-8")
+    rc, out_vacio, _ = hook("session-context.sh", payload, env)
+    assert rc == 0 and _ctx(out_vacio) == _ctx(out_sin), "sin aciertos el resto sale idéntico"
+    # sin iniciativa activa → nada de memoria aunque haya corpus
+    proj2, _ = proyecto(tmp_path / "b", activa=False)
+    _knowledge(proj2)
+    rc, out, _ = hook("session-context.sh", payload, env_de(proj2, tmp_path / "b"))
+    assert rc == 0 and "Memoria técnica" not in _ctx(out)
+
+
+def test_session_context_sesion_memoria_false_apaga_el_bloque(tmp_path):
+    proj, _ = proyecto(tmp_path)
+    _knowledge(proj)
+    (proj / ".claude" / "dev.json").write_text('{"sesion": {"memoria": false}}', encoding="utf-8")
+    rc, out, _ = hook("session-context.sh", {"hook_event_name": "SessionStart", "source": "startup"}, env_de(proj, tmp_path))
+    assert rc == 0
+    ctx = _ctx(out)
+    assert "Memoria técnica" not in ctx and "Comandos:" in ctx and "demo" in ctx
+
+
+def test_session_context_el_tope_de_memoria_va_antes_del_recorte_global(tmp_path):
+    """41 entradas del área activa: el bloque se recorta a ≤ 1.200 caracteres y lo dice, y el índice de
+    piezas y el roadmap siguen enteros (el tope propio se aplica ANTES del recorte a TOPE_CHARS)."""
+    proj, _ = proyecto(tmp_path)
+    _knowledge(proj, n_extra=40)
+    rc, out, _ = hook("session-context.sh", {"hook_event_name": "SessionStart", "source": "startup"}, env_de(proj, tmp_path))
+    assert rc == 0
+    ctx = _ctx(out)
+    bloque = _bloque_memoria(ctx)
+    assert 0 < len(bloque) <= 1200, len(bloque)
+    assert "más" in bloque, "recortado Y dicho"
+    assert "Comandos:" in ctx and "Agentes:" in ctx and "Ledger canónico" in ctx and len(ctx) <= 9500
+    assert not ctx.endswith("…"), "no hizo falta el recorte global"
+
+
 # -------------------------------------------------------- implementer-guardrail ----
 
 def test_guardrail_deny_spec_md_contrato_oficial(tmp_path):
