@@ -753,6 +753,35 @@ def test_enrutado_respeta_limit_tipo_y_el_esquema_de_la_capa_1(proyecto):
     assert set(d["consulta"]) == {"texto", "area", "tipo", "limit", "contexto", "tipo_tarea", "iniciativa", "claves"}
 
 
+def test_enrutado_con_filtros_presentes_pero_vacios_es_un_filtro_no_su_ausencia(proyecto):
+    """Intento 1, MINOR 5: `--contexto "" --iniciativa ""` caía a la consulta libre vacía y devolvía el
+    corpus ENTERO (32). Es el caso de un ledger sin H1 y sin slug: el brief/hook no debe recibir todo."""
+    for args in (["--contexto", ""], ["--iniciativa", ""], ["--contexto", "", "--iniciativa", ""],
+                 ["--tipo-tarea", ""], ["--contexto", "", "--tipo-tarea", "", "--iniciativa", ""]):
+        code, out, err = run(*args, "--limit", "0", "--root", str(proyecto))
+        assert (code, out) == (0, ""), (args, code, out, err)
+        d = json.loads(run(*args, "--json", "--root", str(proyecto))[1])
+        assert d["aciertos"] == [] and d["total"] == 0 and d["consulta"]["claves"] == [], args
+        assert {"contexto", "tipo_tarea", "iniciativa"} <= set(d["consulta"]), "sigue siendo la consulta enrutada"
+    # y sin ningún filtro de enrutado, la capa 1 sin consulta sigue listando (doctrina primero, por ID)
+    d = json.loads(run("--json", "--limit", "0", "--root", str(proyecto))[1])
+    assert d["total"] == 6 and "claves" not in d["consulta"]
+
+
+def test_limit_negativo_es_error_de_uso_exit_2(proyecto):
+    """Intento 1, MINOR 8: `--limit -1` era «sin tope» en silencio; el sin tope explícito es `--limit 0`."""
+    for v in ("-1", "-10"):
+        code, out, err = run("--limit", v, "--root", str(proyecto))
+        assert code == 2 and out == "", (v, code, out)
+        assert "negativo" in err and "--limit" in err and "usage" in err.lower(), err
+        code, _, _ = run("--tipo-tarea", "devops", "--limit", v, "--root", str(proyecto))
+        assert code == 2, "también en el camino enrutado"
+    code, _, err = run("--limit", "x", "--root", str(proyecto))
+    assert code == 2 and "entero" in err
+    code, out, _ = run("--limit", "0", "--json", "--root", str(proyecto))
+    assert code == 0 and json.loads(out)["total"] == len(json.loads(out)["aciertos"]) == 6, "0 = sin tope"
+
+
 def test_enrutado_tipo_de_tarea_desconocido_avisa_y_no_bloquea(proyecto):
     code, out, err = run("--tipo-tarea", "cobol", "--json", "--root", str(proyecto))
     assert code == 0 and json.loads(out)["aciertos"] == []

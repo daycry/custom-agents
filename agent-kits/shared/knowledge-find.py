@@ -76,6 +76,10 @@ palabras del tipo de tarea (`TIPO_TAREA_AREAS`, las seis etiquetas de `- **Tipo*
 significativos del contexto (≥ CONTEXTO_TOKEN_MIN caracteres, sin stopwords). Sin ninguna clave que
 case → 0 aciertos y NUNCA el corpus entero. Mismo esquema `--json` que la capa 1; `consulta` añade
 `contexto`, `tipo_tarea`, `iniciativa` y `claves` (las que se usaron, para que el consumidor lo explique).
+Un filtro de enrutado PRESENTE pero VACÍO (`--contexto "" --iniciativa ""`) es un filtro, no su ausencia:
+enruta con cero claves → 0 aciertos, exit 0 (medido antes del arreglo: caía a la consulta libre vacía y
+devolvía las 32 entradas; es el caso de un ledger sin título H1 y sin slug, y el consumidor —brief o
+hook— no debe recibir el corpus entero por un campo vacío).
 
 Uso:
   knowledge-find.py [texto libre…] [--area A] [--tipo T] [--limit N] [--json] [--root DIR]
@@ -86,7 +90,9 @@ Exit codes:
   0  consulta atendida (también con 0 aciertos, sin `docs/knowledge/` o con el índice degradado:
      la degradación NUNCA bloquea y NUNCA cambia el exit code);
   1  `--show`/`--related` con un ID que no existe (error de uso: una línea en stderr);
-  2  argumentos inválidos (argparse).
+  2  argumentos inválidos (argparse): también `--limit` negativo (mensaje de uso; antes -1 era «sin
+     tope» en silencio; el «sin tope» explícito es `--limit 0`) y texto libre o `--area` combinados con
+     el enrutado.
 """
 import argparse
 import hashlib
@@ -839,19 +845,31 @@ def json_related(e, rel, indice):
 
 # ------------------------------------------------------------------ CLI
 
+def _limit(valor):
+    """`--limit N`: N ≥ 0 (0 = sin tope). Negativo → error de uso (exit 2), no «sin tope» en silencio."""
+    try:
+        n = int(valor)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"`{valor}` no es un entero")
+    if n < 0:
+        raise argparse.ArgumentTypeError(f"`{valor}` es negativo; usa 0 para «sin tope»")
+    return n
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description="recuperación determinista de docs/knowledge/ (tres capas)")
     ap.add_argument("texto", nargs="*", help="consulta libre (capa 1)")
     ap.add_argument("--area", default="", help="área normalizada (minúsculas, sin acentos, por token)")
     ap.add_argument("--tipo", default="", help="adr | gotcha | lesson (y sinónimos)")
-    ap.add_argument("--limit", type=int, default=LIMIT_DEFAULT, help=f"aciertos máximos (default {LIMIT_DEFAULT}; 0 = sin tope)")
+    ap.add_argument("--limit", type=_limit, default=LIMIT_DEFAULT, help=f"aciertos máximos (default {LIMIT_DEFAULT}; 0 = sin tope; negativo = error)")
     ap.add_argument("--json", action="store_true")
     ap.add_argument("--root", help="raíz del proyecto (default: $CLAUDE_PROJECT_DIR → cwd)")
     ap.add_argument("--no-index", action="store_true", help="recorrido plano de los ficheros, sin leer ni escribir el índice")
     enr = ap.add_argument_group("capa 1 enrutada por área (la consumen task-brief.py y session-context.sh)")
-    enr.add_argument("--contexto", default="", help="texto de la tarea/iniciativa: sus tokens significativos se casan con el ÁREA")
-    enr.add_argument("--tipo-tarea", default="", help="etiqueta `- **Tipo**:` del ledger: " + "|".join(TIPO_TAREA_AREAS))
-    enr.add_argument("--iniciativa", default="", help="slug de la iniciativa: entran las entradas nacidas en ella")
+    # default=None para distinguir «no se pidió enrutado» de «se pidió con un filtro vacío» (que enruta y da 0)
+    enr.add_argument("--contexto", default=None, help="texto de la tarea/iniciativa: sus tokens significativos se casan con el ÁREA")
+    enr.add_argument("--tipo-tarea", default=None, help="etiqueta `- **Tipo**:` del ledger: " + "|".join(TIPO_TAREA_AREAS))
+    enr.add_argument("--iniciativa", default=None, help="slug de la iniciativa: entran las entradas nacidas en ella")
     capa = ap.add_mutually_exclusive_group()
     capa.add_argument("--related", metavar="ID", help="capa 2: grafo curado de una entrada")
     capa.add_argument("--show", metavar="ID", help="capa 3: la entrada completa")
@@ -886,18 +904,19 @@ def main(argv=None):
         return 0
 
     consulta = {"texto": texto, "area": args.area, "tipo": args.tipo, "limit": args.limit}
-    if args.contexto or args.tipo_tarea or args.iniciativa:
+    enrutado = [a for a in (args.contexto, args.tipo_tarea, args.iniciativa) if a is not None]
+    if enrutado:
         if texto or args.area:
             print("knowledge-find: `--contexto/--tipo-tarea/--iniciativa` no se combinan con texto libre ni `--area`",
                   file=sys.stderr)
             return 2
+        contexto, tipo_tarea, iniciativa = (args.contexto or "", args.tipo_tarea or "", args.iniciativa or "")
         aciertos, total, claves, aviso = buscar_enrutado(
-            entradas, contexto=args.contexto, tipo_tarea=args.tipo_tarea, iniciativa=args.iniciativa,
+            entradas, contexto=contexto, tipo_tarea=tipo_tarea, iniciativa=iniciativa,
             tipo=args.tipo, limit=args.limit)
         if aviso:
             print(aviso, file=sys.stderr)
-        consulta.update({"contexto": args.contexto, "tipo_tarea": args.tipo_tarea,
-                         "iniciativa": args.iniciativa, "claves": claves})
+        consulta.update({"contexto": contexto, "tipo_tarea": tipo_tarea, "iniciativa": iniciativa, "claves": claves})
     else:
         toks = tokens_consulta(texto)
         candidatos = candidatos_fts(path, toks)
