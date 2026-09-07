@@ -16,6 +16,7 @@ import importlib.util
 import re
 import json
 import os
+import shutil
 import subprocess
 import sys
 import textwrap
@@ -444,3 +445,161 @@ def test_ca03_related_adr010_grafo_curado_en_menos_de_1600_caracteres(real):
     assert "ADR-006 · " in area and "ADR-007 · " in area, area
     for l in out.split("\n"):
         assert not re.match(r"^\s*\d{4}-\d{2}-\d{2}", l), l
+
+
+# =============================================================== T-03 · capa 3: --show <ID> + índice SQLite FTS5 reconstruible
+
+def _indice(proyecto):
+    return proyecto / ".claude" / kf.INDICE_NOMBRE
+
+
+def _consulta_json(proyecto, *args):
+    code, out, err = run(*args, "--json", "--root", str(proyecto))
+    assert code == 0, err
+    return json.loads(out)
+
+
+def test_show_imprime_la_entrada_completa_tal_cual(proyecto):
+    code, out, err = run("--show", "ADR-003", "--root", str(proyecto))
+    assert code == 0, err
+    assert out == ENTRADAS["adr/ADR-003-reconfigurar-utf8.md"], "byte a byte lo que hay en el fichero"
+    code, out, _ = run("--show", "got-001", "--root", str(proyecto))          # el ID no distingue mayúsculas
+    assert code == 0 and out == ENTRADAS["gotchas/GOT-001-consola-windows-cp1252.md"]
+
+
+def test_show_json_envuelve_el_contenido_con_su_ficha(proyecto):
+    data = _consulta_json(proyecto, "--show", "LES-001")
+    assert set(data) - {"indice_motivo"} == {"version", "indice", "id", "tipo", "estado", "estado_detalle",
+                                             "area", "titular", "ruta", "contenido"}
+    assert data["id"] == "LES-001" and data["ruta"] == "docs/knowledge/lessons/LES-001-evaluator-revision-cara.md"
+    assert data["contenido"] == ENTRADAS["lessons/LES-001-evaluator-revision-cara.md"]
+
+
+def test_show_con_id_inexistente_exit_1_y_una_linea_en_stderr(proyecto):
+    code, out, err = run("--show", "NO-EXISTE", "--root", str(proyecto))
+    assert code == 1 and out == "" and err.count("\n") == 1 and "NO-EXISTE" in err, (code, out, err)
+
+
+def test_show_y_related_son_excluyentes(proyecto):
+    code, _out, err = run("--show", "ADR-001", "--related", "ADR-001", "--root", str(proyecto))
+    assert code == 2 and "not allowed" in err
+
+
+def test_ca04_show_adr012_la_entrada_mas_grande_cabe_en_10800_caracteres(real):
+    code, out, err = run("--show", "ADR-012")
+    assert code == 0, err
+    ruta = next(f for f in os.listdir(os.path.join(KNOWLEDGE_REAL, "adr")) if f.startswith("ADR-012-"))
+    assert out == open(os.path.join(KNOWLEDGE_REAL, "adr", ruta), encoding="utf-8").read()
+    assert len(out) <= 10800, len(out)
+    code, out, err = run("--show", "NO-EXISTE")
+    assert code == 1 and out == "" and err.count("\n") == 1
+
+
+# --- los tres estados del índice
+
+def test_indice_ausente_se_construye_y_lo_dice(proyecto):
+    assert not _indice(proyecto).exists()
+    data = _consulta_json(proyecto, "--area", "estimacion")
+    assert data["indice"] == "construido" and "indice_motivo" not in data
+    assert _indice(proyecto).is_file()
+    assert [a["id"] for a in data["aciertos"]] == ["LES-001", "LES-002"]
+
+
+def test_indice_valido_se_reutiliza_como_cache(proyecto):
+    _consulta_json(proyecto, "--area", "estimacion")
+    antes = _indice(proyecto).read_bytes()
+    data = _consulta_json(proyecto, "--area", "estimacion")
+    assert data["indice"] == "cache"
+    assert _indice(proyecto).read_bytes() == antes, "en modo caché el fichero no se toca"
+    # tocar el mtime de una entrada NO invalida: el hash es del CONTENIDO del corpus
+    p = proyecto / "docs" / "knowledge" / "adr" / "ADR-001-guardia-solo-agente.md"
+    os.utime(p, (0, 0))
+    assert _consulta_json(proyecto, "--area", "estimacion")["indice"] == "cache"
+
+
+def test_indice_corrupto_se_reconstruye_con_los_mismos_aciertos(proyecto):
+    ref = _consulta_json(proyecto, "consola cp1252")
+    _indice(proyecto).write_bytes(b"basura")
+    data = _consulta_json(proyecto, "consola cp1252")
+    assert data["indice"] == "reconstruido"
+    assert [a["id"] for a in data["aciertos"]] == [a["id"] for a in ref["aciertos"]] == ["GOT-001", "ADR-002", "ADR-003"]
+    assert _indice(proyecto).read_bytes()[:16] == b"SQLite format 3\x00"
+
+
+def test_hash_que_no_cuadra_se_reconstruye(proyecto):
+    _consulta_json(proyecto, "--tipo", "adr")
+    # alguien añade una entrada: el hash del corpus cambia y el índice viejo ya no vale
+    (proyecto / "docs" / "knowledge" / "gotchas" / "GOT-002-nuevo.md").write_text(
+        _fm(id="GOT-002", tipo="gotcha", area="Tests / CI", estado="propuesta", fuente="x") + "\n## Un gotcha nuevo\n",
+        encoding="utf-8")
+    data = _consulta_json(proyecto, "--tipo", "gotcha")
+    assert data["indice"] == "reconstruido"
+    assert [a["id"] for a in data["aciertos"]] == ["GOT-001", "GOT-002"]
+    assert _consulta_json(proyecto, "--tipo", "gotcha")["indice"] == "cache"
+
+
+# --- las dos degradaciones: mismo contrato, exit 0
+
+def test_claude_no_escribible_degrada_a_recorrido_plano_con_los_mismos_aciertos(proyecto):
+    ref = _consulta_json(proyecto, "consola cp1252")
+    shutil.rmtree(proyecto / ".claude")
+    (proyecto / ".claude").write_text("soy un fichero, no un directorio", encoding="utf-8")   # falla también como root
+    code, out, err = run("consola cp1252", "--json", "--root", str(proyecto))
+    assert code == 0, "el índice NUNCA cambia el exit code"
+    data = json.loads(out)
+    assert data["indice"] == "degradado" and data["indice_motivo"]
+    assert [a["id"] for a in data["aciertos"]] == [a["id"] for a in ref["aciertos"]]
+    assert [a["linea"] for a in data["aciertos"]] == [a["linea"] for a in ref["aciertos"]]
+    code, out, err = run("consola cp1252", "--root", str(proyecto))
+    assert code == 0 and out.startswith("GOT-001 · ") and err == "", "y sin ruido en la salida humana"
+
+
+def test_sqlite_sin_fts5_degrada_a_recorrido_plano(proyecto, monkeypatch, capsys):
+    monkeypatch.setattr(kf, "fts5_disponible", lambda: False)
+    assert kf.main(["consola", "cp1252", "--json", "--root", str(proyecto)]) == 0
+    data = json.loads(capsys.readouterr().out)
+    assert data["indice"] == "degradado" and "FTS5" in data["indice_motivo"]
+    assert [a["id"] for a in data["aciertos"]] == ["GOT-001", "ADR-002", "ADR-003"]
+    assert not _indice(proyecto).exists(), "sin FTS5 no se deja un índice a medias"
+
+
+def test_no_index_fuerza_el_recorrido_plano(proyecto):
+    data = _consulta_json(proyecto, "--no-index", "--area", "estimacion")
+    assert data["indice"] == "degradado" and data["indice_motivo"] == "--no-index"
+    assert not _indice(proyecto).exists()
+
+
+@pytest.mark.parametrize("consulta", [["consola windows cp1252"], ["--area", "estimacion"], ["hook deny"],
+                                      ["--tipo", "adr"], ["revision"], ["cp1252", "--tipo", "adr"], []])
+def test_el_camino_con_indice_y_el_plano_dan_aciertos_identicos(proyecto, consulta):
+    con = _consulta_json(proyecto, *consulta)
+    sin = _consulta_json(proyecto, *consulta, "--no-index")
+    assert con["indice"] in ("construido", "cache") and sin["indice"] == "degradado"
+    assert [(a["id"], a["puntuacion"]) for a in con["aciertos"]] == [(a["id"], a["puntuacion"]) for a in sin["aciertos"]]
+    assert con["total"] == sin["total"]
+
+
+@pytest.mark.parametrize("consulta", [["consola windows cp1252"], ["--area", "estimacion"], ["hook de guardia"],
+                                      ["jira transición", "--limit", "0"], ["changelog"], ["--tipo", "gotcha"]])
+def test_sobre_el_corpus_real_indice_y_plano_coinciden(real, consulta):
+    code, out, err = run(*consulta, "--json")
+    assert code == 0, err
+    con = json.loads(out)
+    code, out, err = run(*consulta, "--json", "--no-index")
+    sin = json.loads(out)
+    assert [a["id"] for a in con["aciertos"]] == [a["id"] for a in sin["aciertos"]]
+    assert con["indice"] in ("construido", "reconstruido", "cache")
+
+
+def test_el_indice_esta_en_gitignore():
+    r = subprocess.run(["git", "check-ignore", "-v", ".claude/" + kf.INDICE_NOMBRE], cwd=ROOT,
+                       capture_output=True, text=True, encoding="utf-8", errors="replace")
+    assert r.returncode == 0 and r.stdout.count("\n") == 1, r.stdout + r.stderr
+    assert ".gitignore" in r.stdout
+
+
+def test_sin_corpus_tampoco_se_crea_indice(tmp_path):
+    (tmp_path / ".claude").mkdir()
+    code, out, _ = run("--area", "x", "--json", "--root", str(tmp_path))
+    assert code == 0 and json.loads(out)["aciertos"] == []
+    assert not (tmp_path / ".claude" / kf.INDICE_NOMBRE).exists()

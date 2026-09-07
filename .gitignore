@@ -57,6 +57,10 @@ desktop.ini
 # Caché del índice de piezas inyectado al arrancar (skill-index.py; se regenera por hash).
 .claude/.skill-index.cache
 .claude/.skill-index.cache.*
+# Índice SQLite FTS5 de la memoria técnica (knowledge-find.py): CACHÉ reconstruible por hash del
+# corpus, no el almacén — el almacén son los ficheros Markdown de docs/knowledge/ (memory-retrieval T-03).
+.claude/knowledge-index.sqlite
+.claude/knowledge-index.sqlite.*
 
 # Papelera local (device_bash no puede borrar): nunca versionar
 _to_delete/
