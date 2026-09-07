@@ -29,9 +29,10 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 
 > **⚠️ Ledger canónico de progreso.** Este fichero es la **fuente única de verdad** del avance del plan. **Cualquier** implementador —el agente `implementer`, el chat principal, o un orquestador SDD externo— **debe** marcar aquí cada tarea (checkbox + estado) al completarla y actualizar el resumen. Los ledgers propios de otras herramientas son **espejo**, no fuente.
 
-> **Fases 1-3 completadas el 2026-09-07 (T-01…T-10, rama `feature/pendiente`)**; las Fases 4-6 siguen en
-> `borrador`. El campo opcional `- **Changelog**:` lo escribe quien CIERRA cada tarea (`ADR-012`): las
-> diez cerradas lo llevan y las ocho pendientes no (los avisos de adopción parcial de `ledger-lint`
+> **Fases 1-3 completadas el 2026-09-07 (T-01…T-10, rama `feature/pendiente`)**, más **T-19** (cierre de
+> los 12 gaps del intento 1 de la revisión de dos lentes sobre esas fases, mismo día); las Fases 4-6 siguen
+> en `borrador`. El campo opcional `- **Changelog**:` lo escribe quien CIERRA cada tarea (`ADR-012`): las
+> once cerradas lo llevan y las ocho pendientes no (los avisos de adopción parcial de `ledger-lint`
 > son la señal esperada hasta que se cierren). Las horas IA «reales» van marcadas `(estimado)`: el
 > `usage-meter` no puede leer la transcripción en este entorno.
 
@@ -43,14 +44,18 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
 | Fase 1 — Recuperación | 4 | 4 | 100% | 0 / 9,0h | 0,60 (est.) / 0,51h | 0,16 (est.) / 0,13h | n/d / 245.000 |
 | Fase 2 — Llegada | 3 | 3 | 100% | 0 / 4,0h | 0,46 (est.) / 0,31h | 0,12 (est.) / 0,08h | n/d / 150.000 |
-| Fase 3 — Prueba de que se recorre | 3 | 3 | 100% | 0 / 4,0h | 0,31 (est.) / 0,27h | 0,09 (est.) / 0,07h | n/d / 128.000 |
+| Fase 3 — Prueba de que se recorre | 4 | 4 | 100% | 0 / 4,0h | 0,76 (est.) / 0,27h | 0,20 (est.) / 0,07h | n/d / 128.000 |
 | Fase 4 — Captura episódica | 0 | 4 | 0% | 0 / 7,0h | 0 / 0,43h | 0 / 0,11h | 0 / 205.000 |
 | Fase 5 — Que la doctrina viaje | 0 | 2 | 0% | 0 / 3,0h | 0 / 0,24h | 0 / 0,06h | 0 / 115.000 |
 | Fase 6 — Cerrar el bucle | 0 | 2 | 0% | 0 / 3,0h | 0 / 0,30h | 0 / 0,08h | 0 / 145.000 |
 | Revisión de dos lentes (transversal, línea propia) | — | — | — | 0 / 4,0h | 0 / 0,54h | 0 / 0,13h | 0 / 260.000 |
-| **TOTAL** | **10** | **18** | **56%** | **0 / 34,0h** | **1,37 (est.) / 2,60h** | **0,37 (est.) / 0,66h** | **n/d / 1.248.000** |
+| **TOTAL** | **11** | **19** | **58%** | **0 / 34,0h** | **1,82 (est.) / 2,60h** | **0,48 (est.) / 0,66h** | **n/d / 1.248.000** |
 
 > **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada (8 h). Ver `skills/jira-sync/SKILL.md`.
+>
+> **T-19** (cierre de gaps del intento 1) no estaba en el plan: cuenta en la Fase 3 (donde vive) con
+> estimación propia, y su coste es el de la **línea transversal de revisión** (0,54h IA presupuestadas),
+> no de las fases — por eso el «Estimado» de la Fase 3 y el TOTAL de tareas estimadas no cambian.
 >
 > Las horas IA salen de **tokens ÷ 479.326 tok/h** (mediana medida de 5 muestras, `CALIBRATION.md`), no del default no calibrado de 300.000. La supervisión es el **25 %** de las horas IA (`rates.json` `ratioSupervision`); el total exacto sería 0,65 h y la suma por tarea da **0,66 h** por redondeo — se usa 0,66 h para que plan y ledger digan lo mismo.
 
@@ -114,7 +119,7 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 - **Changelog**: Desde cualquier entrada de la memoria técnica se puede pedir su grafo curado (qué la sustituyó o a qué sustituye, qué más salió de la misma iniciativa y qué comparte área), en vez de una lista cronológica.
 - **Verificación** (ejecutada 2026-09-07):
   - `RED: tests/test_knowledge_find.py -k related falló con knowledge-find.py: error: unrecognized arguments: --related (6 failed, 1 passed) · 2026-09-07`; GREEN después → `python3 -m pytest -q tests/test_knowledge_find.py -k related` → `13 passed, 15 deselected`, y el fichero completo `28 passed`.
-  - `python3 agent-kits/shared/knowledge-find.py --related ADR-010` → **483 caracteres**, exit 0, tres grupos etiquetados en este orden: `Sucesión:` → `(ninguna)` · `Misma iniciativa (memory-health):` → `(ninguna)` · `Misma área (Memoria técnica / hooks):` → `ADR-006 · aceptada · Memoria técnica / lectura-escritura · …` y `ADR-007 · aceptada · Hooks / implementer · …` (comparte «memoria técnica» con el uno y «hooks» con el otro). Ninguna línea empieza por fecha ni menciona cronología. `--related LES-001` (el área más poblada, 9 entradas) → 1.281 caracteres.
+  - `python3 agent-kits/shared/knowledge-find.py --related ADR-010` → **≤ 1.600 caracteres** (483 al cerrar T-02; **452** re-medido el 2026-09-07 al cerrar T-19: el titular de una línea depende del corpus del día), exit 0, tres grupos etiquetados en este orden: `Sucesión:` → `(ninguna)` · `Misma iniciativa (memory-health):` → `(ninguna)` · `Misma área (Memoria técnica / hooks):` → `ADR-006 · aceptada · Memoria técnica / lectura-escritura · …` y `ADR-007 · aceptada · Hooks / implementer · …` (comparte «memoria técnica» con el uno y «hooks» con el otro). Ninguna línea empieza por fecha ni menciona cronología. `--related LES-001` (el área más poblada, 9 entradas) → ≤ 1.600 (1.281 al cerrar T-02; **1.184** re-medido al cerrar T-19).
   - `python3 agent-kits/shared/knowledge-find.py --related ID-INEXISTENTE` → stdout vacío, una línea en stderr (`knowledge-find: no hay ninguna entrada con ID `ID-INEXISTENTE` en …/docs/knowledge`), **exit 1**.
   - Sucesión probada con el corpus sintético de `tmp_path` (el real no tiene hoy ninguna entrada `obsoleta`): `ADR-002` obsoleta → `sustituida por → ADR-003 · aceptada · …`; `ADR-003` → `sustituye a → ADR-002 · obsoleta · …`; la relación se deduce también desde el otro extremo (si solo el sucesor declara `sustituye:`), y del ID citado en el `estado` de una obsoleta. Relaciones leídas del frontmatter (`sucesor`/`sustituye` y sinónimos; `iniciativa`) y de la columna «Fuente» del índice (`<fecha>-<slug>/tasks.md` → slug).
   - Tope: `RELATED_TOPE_CHARS = 1600` con test (40 lecciones de la misma área → 1.600 caracteres o menos y una línea `… y N más`).
@@ -190,7 +195,7 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
   - Con la columna «Área» de `GOT-005` vaciada → el test falla con `AssertionError: docs/knowledge/README.md:57 (GOT-005): fila sin «Área» — para los ADR el área SOLO vive aquí; sin ella la entrada no se enruta (knowledge-find.py --area) ni se puede reconstruir` y el linter → `1 errores`, **exit 1**. Índice restaurado después (`git status --short docs/knowledge` → limpio; test → `13 passed`).
   - Las mismas mutaciones viven como tests permanentes sobre una COPIA del corpus real en `tmp_path` (`test_quitar_una_fila_del_indice_real_…`, `test_vaciar_el_area_de_una_fila_real_…`) y sobre un corpus sintético (fila hacia fichero inexistente, fila fuera de la tabla, ID/ruta repetidos, sin README con entradas, sin `docs/knowledge/`).
   - `python3 tests/test_lint_plugin.py` → `test_lint_plugin: 36/36 OK` (casos 33-36 nuevos: índice correcto → exit 0; entrada sin fila → exit 1 nombrando `gotchas/GOT-001-g.md`; fila sin «Área» → exit 1 nombrando `(ADR-001)`; enlace a fichero inexistente → exit 1; plugin sin `docs/knowledge/` → sin comprobación).
-  - `python3 -m pytest -q` → **1.257 passed** (línea base 1.181; ≥ 1.175).
+  - `python3 -m pytest -q` → **≥ 1.175 passed** (1.257 al cerrar T-04, línea base 1.181; **1.315** el 2026-09-07 al cerrar T-19: la cifra crece con cada tarea, el umbral es el criterio).
 
 **Criterios de aceptación**
 - [x] Verde sobre el corpus de hoy: **31 ficheros ↔ 31 filas** (spec CA-07). *Medido al cerrar (2026-09-07): son **32 ↔ 32** — `GOT-006` entró el 2026-09-04, después del análisis; la biyección se cumple y el test exige la igualdad exacta, no la cifra 31.*
@@ -232,16 +237,16 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 - **Verificación** (ejecutada 2026-09-07):
   - `RED: tests/test_knowledge_find.py -k enrutado falló con knowledge-find.py: error: unrecognized arguments: --tipo-tarea (8 failed, 55 deselected) · 2026-09-07`; GREEN después → `63 passed`. `RED: agent-kits/shared/test_task_brief.py -k memoria falló con AssertionError: la tarea es devops y hay una entrada de área Hooks: la sección tiene que estar (assert '') (6 failed, 1 passed) · 2026-09-07`; GREEN después → **`43 passed`**.
   - `python3 agent-kits/shared/task-brief.py docs/roadmap/2026-09-04-memory-retrieval T-06 | grep -c "Memoria técnica"` → **3**, no 1: la sección existe UNA vez (`grep -c "^## Memoria técnica"` → **1**) y las otras dos son aciertos cuya ÁREA se llama literalmente «Memoria técnica / hooks» (`ADR-010`) y «Memoria técnica / lectura-escritura» (`ADR-006`) — el criterio contaba el encabezado, no las áreas del corpus real.
-  - `… T-06 | wc -c` → **7.212** caracteres (≤ 10.000; la línea base de HOY sin memoria era **5.614** para esta misma T-06, no los 7.452 de `changelog-brief` T-01) · `… | sed -n '/## Memoria técnica/,/^## /p' | wc -c` → **1.636** (≤ 2.400): 8 aciertos (`ADR-010`, `GOT-005`, `LES-012`, `ADR-006`, `ADR-007`, `ADR-012`, `GOT-006`, `LES-011`) con las claves `devops, hooks, ci, release, distribucion, consola, scripts, memoria` (tipo `devops` + tokens del título).
+  - `… T-06 | wc -m` → **12.543** caracteres al cerrar T-05 (la cifra apuntada entonces, 7.212, no reproducía: CA-08 incumplido — revisión intento 1) → **9.398** tras T-19 (≤ 10.000; T-05 9.164 · T-10 8.834; test sobre las tareas del ledger real). `… | sed -n '/## Memoria técnica/,/^## /p' | wc -c` → **1.636** (≤ 2.400): 8 aciertos (`ADR-010`, `GOT-005`, `LES-012`, `ADR-006`, `ADR-007`, `ADR-012`, `GOT-006`, `LES-011`) con las claves `devops, hooks, ci, release, distribucion, consola, scripts, memoria`.
   - `python3 -m pytest -q agent-kits/shared/test_task_brief.py` → **43 passed** · `python3 -m pytest -q tests/test_console_encoding.py tests/test_knowledge_find.py agent-kits/shared/test_task_brief.py` → `387 passed` · `PYTHONIOENCODING=cp1252 python3 … task-brief.py … T-06 | grep -c "Memoria técnica"` → 3 (símbolos íntegros) · `python3 scripts/lint_plugin.py` → `9 agentes · 0 errores · 3 avisos`, exit 0.
   - Árbol sin `docs/knowledge/` (copia de la iniciativa en `mktemp -d`): `cmp` entre ese brief y el del repo real menos la sección (`_memoria_tecnica()` + su salto) → **IDÉNTICOS byte a byte**, exit 0, `grep -c "Memoria técnica"` → 0; ni una línea en stdout ni en stderr (test `test_memoria_sin_docs_knowledge_salida_identica_a_la_de_hoy`).
   - Fallo del script (exit 1 + salida no JSON) y script ausente → brief sin sección, exit 0, aviso solo por stderr (test `test_memoria_un_fallo_de_knowledge_find_no_rompe_el_brief`). Mutante del tope: `MEMORIA_TOPE_CHARS == 2400` afirmado por test, y con 41 entradas de la misma área la sección mide ≤ 2.400 y termina en «… y N acierto(s) más …» con la orden que los lista.
 
 **Criterios de aceptación**
-- [x] La sección de memoria es **≤ 600 tokens (≤ 2.400 caracteres)** y el brief completo **≤ 2.500 tokens** (spec CA-08). *Medido: 1.636 y 7.212 caracteres (≈ 1.800 tokens).*
+- [x] La sección de memoria es **≤ 600 tokens (≤ 2.400 caracteres)** y el brief completo **≤ 2.500 tokens** (spec CA-08). *Medido: 1.636 y 12.543 al cerrar T-05 (incumplido; la cifra «7.212» era falsa) → 9.398 ≈ 2.350 tokens desde T-19, con `BRIEF_TOPE_CHARS = 10000` y test sobre el ledger real.*
 - [x] El enrutado usa el campo `- **Tipo**:` que **ya existe**; sin `Tipo`, cae al área de la iniciativa y no al corpus entero. *Sin `Tipo` entran las entradas nacidas en la iniciativa (`iniciativa == slug`) y las cuya área casa con el título de la tarea; nunca puntuación 0 (test `test_memoria_sin_tipo_cae_a_la_iniciativa_y_no_al_corpus_entero`).*
 - [x] Sin `docs/knowledge/` o sin aciertos: salida **idéntica a la de hoy**, sin aviso en stdout ni sección vacía, exit 0 (spec CA-09).
-- [x] El tope es una **constante con test**, no una intención: un mutante que la suba pone el test rojo.
+- [x] El tope es una **constante con test**, no una intención: un mutante que la suba pone el test rojo. *T-19: el recorte también tiene test que muerde.*
 - [x] Las **10 secciones actuales** del brief siguen intactas y en su orden (test `test_memoria_no_altera_las_secciones_existentes_ni_su_orden`: la memoria va tras la Verificación y antes de Diseño/Arquitectura/Constitución/TDD/Contrato).
 - [x] Un fallo de `knowledge-find.py` (cualquiera) **no rompe el brief**: se omite la sección y el brief sale con exit 0.
 
@@ -266,7 +271,7 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 - **Changelog**: Al arrancar o retomar una sesión (también tras compactar), el contexto trae los aciertos de la memoria técnica del área de la iniciativa activa, topados a 300 tokens y sin desplazar el índice de piezas ni el roadmap; se apaga con `sesion.memoria: false`.
 - **Verificación** (ejecutada 2026-09-07):
   - `RED: tests/test_hooks_shell.py -k "memoria or bloque" falló con AssertionError: [startup] falta el bloque de memoria del área activa (assert '') (2 failed, 3 passed) · 2026-09-07`; GREEN después → `python3 -m pytest -q tests/test_hooks_shell.py` → **`34 passed`** (4 tests nuevos: bloque bajo el tope en `startup|resume|compact` y detrás del roadmap · sin `docs/knowledge/`, sin aciertos o sin activa → mismo contexto que hoy · `sesion.memoria: false` lo apaga · 41 entradas del área → bloque ≤ 1.200 con «… y N más» y el índice/roadmap enteros, sin recorte global).
-  - `echo '{"hook_event_name":"SessionStart","source":"startup"}' | bash hooks/session-context.sh | python3 -c "…print(len(t))"` → **4.263** (≤ 9.500; hoy sin memoria: 3.730 ≈ 872 tokens) con `CLAUDE_PLUGIN_ROOT=$PWD`. *Ojo, medido:* sin esa variable el hook resuelve `agent-kits/shared` con `find` sobre `~/.claude` y en esta máquina encuentra una copia INSTALADA del plugin (`~/.claude/plugins/synced/…/custom-agents~g2`) anterior a esta fase — sale el contexto de hoy (3.728) sin bloque; Claude Code exporta `CLAUDE_PLUGIN_ROOT`, así que en uso real no ocurre.
+  - `echo '{"hook_event_name":"SessionStart","source":"startup"}' | bash hooks/session-context.sh | python3 -c "…print(len(t))"` → **≤ 9.500** (4.263 al cerrar T-06; 4.276 al cerrar T-19: el índice de piezas cambia con cada pieza; sin memoria: 3.730 ≈ 872 tokens) con `CLAUDE_PLUGIN_ROOT=$PWD`. *Medido al cerrar T-06:* sin la variable el `find` sobre `~/.claude` daba con una copia INSTALADA anterior (`~/.claude/plugins/synced/…`) y salía sin bloque; **corregido en T-19 (gap 9)**: `<proyecto>/agent-kits/shared` va antes que el `find`.
   - Porción de memoria de ese `additionalContext` → **533 caracteres** (≤ 1.200): `Memoria técnica del área activa (docs/knowledge · 2 acierto(s) …)` + `ADR-006 · aceptada · Memoria técnica / lectura-escritura …` + `ADR-010 · aceptada · Memoria técnica / hooks …` + `Detalle solo por ID: python3 ".../knowledge-find.py" --show <ID>`. Área derivada del TÍTULO del ledger activo («Memoria técnica recuperable (tres capas, dos velocidades y un presupuesto por camino)») + `--iniciativa memory-retrieval`, con la misma orden enrutada de `knowledge-find.py` que usa el brief (T-05). Idéntico en `resume` y `compact`.
   - `echo '{"hook_event_name":"SessionStart","source":"compact"}' | bash hooks/session-context.sh` → JSON válido (`hookSpecificOutput.hookEventName/additionalContext`), **exit 0**.
   - Árbol sin `docs/knowledge/`, corpus sin aciertos del área o sin iniciativa activa → el hook no emite el bloque y el `additionalContext` es **igual** al de hoy (test `test_session_context_sin_knowledge_sin_aciertos_o_sin_activa_no_emite_el_bloque`, igualdad de cadenas).
@@ -274,7 +279,7 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
   - `python3 -m pytest -q tests/test_console_encoding.py` → `281 passed` (el python en línea nuevo lleva `PYTHONIOENCODING=utf-8:replace` delante) · `python3 -m pytest -q agent-kits/shared/test_doctor.py` → `25 passed` (`sesion.memoria` reconocido; valor no booleano → ❌).
 
 **Criterios de aceptación**
-- [x] El bloque de memoria es **≤ 300 tokens (≤ 1.200 caracteres)** y el `additionalContext` total sigue **≤ 9.500 caracteres** (spec CA-10). Línea base: 872 tokens, **0** de memoria. *Medido: 533 y 4.263 caracteres.*
+- [x] El bloque de memoria es **≤ 300 tokens (≤ 1.200 caracteres)** y el `additionalContext` total sigue **≤ 9.500 caracteres** (spec CA-10). Línea base: 872 tokens, **0** de memoria. *Medido: 533 y 4.263 al cerrar T-06; 533 y 4.276 al cerrar T-19.*
 - [x] El tope propio se aplica **antes** del recorte global a `TOPE_CHARS`, para que la memoria no se coma el índice de piezas ni el roadmap (`MEMORIA_TOPE_CHARS = 1200` dentro del bloque (4); test con 41 entradas).
 - [x] Sin iniciativa activa, sin `docs/knowledge/` o sin aciertos: **no se emite el bloque**; el resto de la salida es la de hoy.
 - [x] El hook sigue **siempre exit 0** y nunca emite JSON inválido, pase lo que pase con la memoria (todo el bloque va en un `$(… || true)` con stderr a `/dev/null`; el JSON final lo compone el mismo python de siempre).
@@ -324,7 +329,7 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 
 ## Fase 3 — Prueba de que se recorre
 
-**Estado**: completado · **Estimado**: 4,0h · **Real**: 0h humanas · 0,31h IA (estimado) + 0,09h supervisión (estimado) · **Coste est.**: 201 € · **Tokens est.**: 128.000
+**Estado**: completado · **Estimado**: 4,0h · **Real**: 0h humanas · 0,76h IA (estimado) + 0,20h supervisión (estimado; incluye T-19) · **Coste est.**: 201 € · **Tokens est.**: 128.000
 
 > **Esto no lo tiene nadie —ni nosotros ni `claude-mem`— y es la diferencia entre una intención y una
 > garantía.** El gate es determinista y no gasta tokens; la eval de activación es la comprobación de
@@ -433,6 +438,49 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 - [x] Enganchar en el veredicto y en la lista de secciones.
 
 **Notas**: el `_journal(project)` actual ya informa de «carpeta sin entradas todavía» pero **no cambia el veredicto**; eso es exactamente lo que se corrige. **Deuda declarada para T-18:** `commands/doctor.md` (description y cuerpo), `docs/README.md` y `docs/FLOWS.md` describen cinco bloques sin la memoria — la description está atada al caso literal de `evals/cases/command-doctor.json` (`check.py` regla 4), así que se cambia con su eval, en la fase de doc.
+
+### T-19 — Cierre de los gaps del intento 1 (Fases 1-3)
+
+- **Descripción**: corrige los 12 gaps de la revisión de dos lentes (intento 1, `b5731c4..7ca3645`) sobre T-01…T-10, reproducidos antes de tocar nada: (1) la consulta libre de `knowledge-find.py` no filtraba stopwords y puntuaba las 32 entradas; (2) el recorte de la memoria del brief no tenía test que pudiera fallar; (3) con ≥ 2 activas el hook contaba mal y descartaba la 3.ª; (4) CA-08 incumplido con una medida falsa; (5) filtro de enrutado vacío = corpus entero; (6) `/doctor` no validaba el índice con el criterio del linter; (7) `must_not` de las evals prohibía menciones legítimas; (8) `--limit` negativo = sin tope; (9) el hook resolvía el kit en una copia instalada; (10) `celdas()` duplicada; (11) `test_memory_path.py` no cubría el enrutado por `Tipo`; (12) cifras con deriva.
+- **Estado**: completado
+- **Tiempo humano**: est. 0h (fuera del plan: línea transversal de revisión) · real 0h
+- **Tiempo IA (ejec.)**: est. 0,40h · real 0,45h (estimado: el usage-meter no lee la transcripción en este entorno)
+- **Supervisión**: est. 0,10h (≈25 % IA) · real 0,11h (estimado)
+- **Previsión IA**: 150k in / 45k out tok · 1,73 €
+- **Dependencias**: T-01…T-10 (revisión de dos lentes, intento 1)
+- **Tipo**: backend
+- **Archivos**: `agent-kits/shared/knowledge-find.py`, `tests/test_knowledge_find.py`, `agent-kits/shared/task-brief.py`, `agent-kits/shared/test_task_brief.py`, `hooks/session-context.sh`, `tests/test_hooks_shell.py`, `agent-kits/shared/doctor.py`, `agent-kits/shared/test_doctor.py`, `scripts/lint_plugin.py`, `tests/test_knowledge_index.py`, `evals/cases/agent-implementer.json`, `evals/cases/agent-evaluator.json`, `tests/test_memory_path.py`
+- **Changelog**: La consulta libre de la memoria técnica ignora las palabras sin contenido y ordena por título, área e ID antes que por el cuerpo: una pregunta en lenguaje natural trae lo que toca y una sin sentido no trae nada. El brief del subagente lleva la verificación una vez, sin rojos anteriores ni presupuesto, y cabe en 2.500 tokens; el arranque de sesión con varias iniciativas activas cuenta los aciertos una vez; `/doctor` valida el índice de memoria con el criterio exacto del linter.
+- **Verificación** (ejecutada 2026-09-07):
+  - `python3 -m pytest -q` → **`1315 passed`** (antes 1.292); igual con `GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null` y con `PYTHONIOENCODING=cp1252`.
+  - `lint_plugin.py` → `9 agentes · 0 errores · 3 avisos` · `tests/test_lint_plugin.py` → `36/36 OK` · `evals/check.py` → `38 ficheros · 135 casos · 0 errores` · `ledger-lint.py` (este ledger) → `0 incoherencias · 8 avisos` (Changelog de T-11…T-18) · `scope-check.py … --base 7ca3645` → `14 cambiado(s) · fuera de alcance (0)` · `export-skills.py --out <tmp>` + `--check <tmp>` → `108 ficheros · 0 problema(s)`; todos exit 0.
+  - Gap 1, antes → después: `knowledge-find.py "cual es el ratio de tokens por hora que uso para estimar" --json --limit 0` → `total 32`, las 9 lecciones de estimación en las posiciones 15-32 → **`total 14`**, tokens `["ratio","token","hora","estim"]`, las 9 en las posiciones **1-4 y 6-10** · `"de"` → 10 líneas → **0** · `"quiero saber si el pato vuela hacia marte" --limit 0` → 32 → **0** · `"consola windows cp1252"` → `GOT-005` primero (igual).
+  - Gap 2, mutante «bucle de recorte → render único»: test viejo verde; `test_memoria_el_recorte_al_tope_muerde_de_verdad` → **`assert 3008 <= 2400`**.
+  - Gap 3, hook: 2 activas de la misma área (3 entradas) → `3 acierto(s)`, 3 líneas, sin «más» (antes `6 acierto(s)` y `… y 3 más`) · 3 activas → `… · 3 iniciativas activas, consultadas las 2 primeras; fuera: demo-c` · 41 entradas y 2 activas → `41 acierto(s)`, N = 41 − mostradas (antes 82).
+  - Gap 4, caracteres de los 10 briefs antes → después (final, T-19 incluida: **9.931**): T-01 10.318→**7.809** · T-02 8.919→**6.735** · T-03 11.597→**8.243** · T-04 10.389→**7.798** · T-05 12.189→**9.164** · T-06 12.543→**9.398** · T-07 10.223→**8.116** · T-08 9.521→**7.310** · T-09 10.107→**7.841** · T-10 12.182→**8.834**; memoria de T-06 idéntica (1.636); bajo `cp1252` byte a byte igual.
+  - Gaps 5 y 8: `--contexto "" --iniciativa "" --limit 0` → 32 → **0** · `--limit -1` → 32 líneas → **`error: argument --limit: `-1` es negativo; usa 0 para «sin tope»`, exit 2**.
+  - Gap 6: fila hacia `adr/ADR-099-fantasma.md` con `plugin_root` sin `lint_knowledge_index`: doctor de `e08fc05` → `✅ (comprobación local)`; HEAD → **`❌ … (ADR-099): enlaza a `adr/ADR-099-fantasma.md`, que no existe`**, exit 1.
+  - Gap 10: `def celdas_md` una vez por script (3); tests de identidad de los bloques `--8<--` verdes.
+  - Gap 11, mutante sin `["--tipo-tarea", tipo]`: `test_memory_path.py` de `7ca3645` → `7 passed`; el de HEAD → **`3 failed, 4 passed`**.
+  - Gap 12, re-medido (pegado en T-02/04/05/06): `--related ADR-010` **452** · `--related LES-001` **1.184** · `additionalContext` **4.276** (memoria 533) · `pytest` **1.315**.
+
+**Criterios de aceptación**
+- [x] Una lista de stopwords ES/EN para consulta libre, enrutado y `--related`; consulta sin tokens con contenido que casen → **0, exit 0**; título/área/ID por encima del cuerpo; las tres consultas con test (real y sintético).
+- [x] El recorte de la memoria del brief tiene un test que lo **fuerza**; el mutante «render único» lo pone rojo.
+- [x] El hook deduplica **antes** de contar; «y N más» real; con > 2 activas la cabecera lo dice; tests con 2 y 3 activas, con y sin solape, y con el tope apretando.
+- [x] CA-08 cumplido: `Verificación` una vez y sin `RED:`/`TDD n/a`; presupuesto y `Changelog` fuera del bloque; `BRIEF_TOPE_CHARS = 10000` con test sobre **todas** las tareas del ledger real (T-19 incluida) y sobre `tmp_path`; la Verificación de T-05 corregida.
+- [x] Filtro de enrutado vacío = 0 aciertos; `--limit` negativo = exit 2; ambos en el docstring.
+- [x] `/doctor` valida el índice con el criterio del linter **literal** (bloques `--8<--` + tests de identidad byte a byte, `celdas_md` incluida).
+- [x] Evals: citar **y aplicar** (`GOT-001` + `RFC 4180`; `LES-001` + `escapado`), sin `must_not`.
+- [x] Hook: `<proyecto>/agent-kits/shared` antes que el `find`, tras `CLAUDE_PLUGIN_ROOT`, con test.
+- [x] `test_memory_path.py` cubre el enrutado por `Tipo` (títulos sin tokens de área; mutante → 3 failed).
+- [x] Cifras re-medidas («≤ tope» donde dependen del corpus del día); `scope-check --base 7ca3645` exit 0; `CHANGELOG*.md` y `sin-motor-externo/` intactos.
+
+**Subtareas**
+- [x] Reproducir cada afirmación antes de corregir; mutantes y mediciones antes/después con copias de `HEAD~` en `/tmp`.
+- [x] Gaps 1/5/8 en `knowledge-find.py`; 2/4 en `task-brief.py`; 3/9 en el hook; 6/10 en doctor/linter/knowledge-find; 7 en evals; 11 en `test_memory_path.py`; 12 aquí.
+
+**Notas**: dos decisiones bajo el umbral de ADR. (1) **Poda del brief**: ni «recortar cada ítem» (rompe comandos) ni «encoger la memoria para que quepa el resto» (sería la primera víctima): se quita lo duplicado, la evidencia de otra sesión, el presupuesto y el `Changelog` — determinista y sin pérdida. T-05/T-06/T-19 quedan cerca del tope: el test del ledger real avisa si crecen. (2) **`raiz()`** (un sufijo si deja ≥ 4 caracteres), no un stemmer: sin ella `estimar` no casaba «Estimación»; casa por prefijo como la FTS5, así que índice y plano siguen idénticos.
 
 ---
 
