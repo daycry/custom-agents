@@ -43,12 +43,12 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
 | Fase 1 — Recuperación | 4 | 4 | 100% | 0 / 9,0h | 0,60 (est.) / 0,51h | 0,16 (est.) / 0,13h | n/d / 245.000 |
 | Fase 2 — Llegada | 3 | 3 | 100% | 0 / 4,0h | 0,46 (est.) / 0,31h | 0,12 (est.) / 0,08h | n/d / 150.000 |
-| Fase 3 — Prueba de que se recorre | 0 | 3 | 0% | 0 / 4,0h | 0 / 0,27h | 0 / 0,07h | 0 / 128.000 |
+| Fase 3 — Prueba de que se recorre | 1 | 3 | 33% | 0 / 4,0h | 0,10 (est.) / 0,27h | 0,03 (est.) / 0,07h | n/d / 128.000 |
 | Fase 4 — Captura episódica | 0 | 4 | 0% | 0 / 7,0h | 0 / 0,43h | 0 / 0,11h | 0 / 205.000 |
 | Fase 5 — Que la doctrina viaje | 0 | 2 | 0% | 0 / 3,0h | 0 / 0,24h | 0 / 0,06h | 0 / 115.000 |
 | Fase 6 — Cerrar el bucle | 0 | 2 | 0% | 0 / 3,0h | 0 / 0,30h | 0 / 0,08h | 0 / 145.000 |
 | Revisión de dos lentes (transversal, línea propia) | — | — | — | 0 / 4,0h | 0 / 0,54h | 0 / 0,13h | 0 / 260.000 |
-| **TOTAL** | **7** | **18** | **39%** | **0 / 34,0h** | **1,06 (est.) / 2,60h** | **0,28 (est.) / 0,66h** | **n/d / 1.248.000** |
+| **TOTAL** | **8** | **18** | **44%** | **0 / 34,0h** | **1,16 (est.) / 2,60h** | **0,31 (est.) / 0,66h** | **n/d / 1.248.000** |
 
 > **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada (8 h). Ver `skills/jira-sync/SKILL.md`.
 >
@@ -324,7 +324,7 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 
 ## Fase 3 — Prueba de que se recorre
 
-**Estado**: borrador · **Estimado**: 4,0h · **Real**: — · **Coste est.**: 201 € · **Tokens est.**: 128.000
+**Estado**: en-progreso · **Estimado**: 4,0h · **Real**: 0h humanas · 0,10h IA (estimado) + 0,03h supervisión (estimado) · **Coste est.**: 201 € · **Tokens est.**: 128.000
 
 > **Esto no lo tiene nadie —ni nosotros ni `claude-mem`— y es la diferencia entre una intención y una
 > garantía.** El gate es determinista y no gasta tokens; la eval de activación es la comprobación de
@@ -333,29 +333,36 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 ### T-08 — `tests/test_memory_path.py`: el camino se recorre, con su mutante
 
 - **Descripción**: test determinista que afirma que un agente con una tarea de **área X** recibe la entrada de **área X**: sobre un corpus de `tmp_path`, el brief de una tarea de área X contiene el ID de la entrada de área X y **no** los de otras áreas. Y —la parte que lo hace valer— se prueba **con su mutante**: quitando la inyección de `task-brief.py`, el test se pone **rojo**. Un test que pasa con y sin la inyección no prueba nada.
-- **Estado**: borrador
-- **Tiempo humano**: est. 1,5h · real —
-- **Tiempo IA (ejec.)**: est. 0,10h · real —
-- **Supervisión**: est. 0,03h (≈25 % IA) · real —
+- **Estado**: completado
+- **Tiempo humano**: est. 1,5h · real 0h (sin intervención humana en la ejecución)
+- **Tiempo IA (ejec.)**: est. 0,10h · real 0,10h (estimado: el usage-meter no lee la transcripción en este entorno)
+- **Supervisión**: est. 0,03h (≈25 % IA) · real 0,03h (estimado)
 - **Previsión IA**: 38k in / 10k out tok · 0,40 €
 - **Dependencias**: T-05, T-06
 - **Tipo**: test
 - **Archivos**: `tests/test_memory_path.py`
-- **Verificación**: `python3 -m pytest -q tests/test_memory_path.py` → todos passed · con la llamada a `knowledge-find.py` neutralizada en `task-brief.py` → **falla**, y el mensaje nombra el área y el ID que no llegaron · `python3 -m pytest -q` → ≥ 1.175 passed · `python3 -m pytest -q tests/test_memory_path.py` sin red y sin `claude` en PATH → sigue passed
+- **Changelog**: La suite comprueba, sin gastar tokens, que la memoria técnica del área de una tarea llega de verdad al brief del subagente y al arranque de sesión, y que las de otras áreas no: si alguien quita la inyección, la suite se pone roja.
+- **Verificación** (ejecutada 2026-09-07):
+  - `python3 -m pytest -q tests/test_memory_path.py` → **`7 passed`** (verde sobre el código de T-05/T-06; el RED de esta tarea es el mutante, no un test escrito antes del código: el gate se escribe DESPUÉS de los dos caminos, y lo que prueba que muerde es que se ponga rojo al neutralizarlos).
+  - **Mutante 1** (copia del repo en `/tmp` con `git archive HEAD`; `_memoria_tecnica()` devuelve `None` en su primera línea) → **`3 failed, 4 passed`**: `AssertionError: brief de T-01 (tipo devops, área Hooks / implementer): no llegó ADR-001 — el camino brief no se recorre` · `brief de T-02 (tipo test, área Tests / fixtures): no llegó GOT-001` · el tope (`assert 0 < 0`). El mensaje nombra el **área y el ID** que no llegaron.
+  - **Mutante 2** (`session-context.sh` sin el bloque (4)) → **`2 failed, 5 passed`**: `[startup] additionalContext (área Hooks / implementer): no llegó ADR-001 — el camino del hook no se recorre` y `el tope del hook es una constante con test (spec CA-10)`.
+  - **Mutante 3** (`MEMORIA_TOPE_CHARS = 2401` en `task-brief.py`) → `1 failed`: `assert 2401 == 2400`. Los tres mutantes están documentados en el docstring del test, con el mensaje esperado.
+  - `env -i PATH=/usr/bin:/bin HOME=/tmp python3 -m pytest -q tests/test_memory_path.py` (sin `claude` en PATH —aquí vive en `/opt/node22/bin`—, sin variables, sin red) → `7 passed` · `test_los_dos_caminos_no_usan_red_ni_claude` afirma que ni `task-brief.py`, ni `session-context.sh`, ni `knowledge-find.py` importan `urllib`/`requests`/`socket` ni invocan `claude -p`.
+  - `python3 -m pytest -q tests/test_suites_no_pytest.py` → `10 passed` (el fichero tiene `def test_*`: pytest lo recoge; no entra en el bucle de scripts).
 
 **Criterios de aceptación**
-- [ ] Verde hoy y **rojo con el mutante** (spec CA-12): se documenta en el propio test qué se neutraliza para verlo rojo.
-- [ ] Cubre **los dos** caminos de llegada: el brief (T-05) y el arranque de sesión (T-06).
-- [ ] Afirma también el **tope** de cada camino (600 / 300 tokens), no solo la presencia.
-- [ ] **No usa red, ni `claude`, ni clave de API**, y corre sobre `tmp_path`, no sobre el corpus real.
-- [ ] Un aserto **negativo**: una tarea de área Y **no** recibe la entrada de área X (si recibe todo, no hay enrutado).
+- [x] Verde hoy y **rojo con el mutante** (spec CA-12): se documenta en el propio test qué se neutraliza para verlo rojo.
+- [x] Cubre **los dos** caminos de llegada: el brief (T-05) y el arranque de sesión (T-06), este último en `startup|resume|compact`.
+- [x] Afirma también el **tope** de cada camino (600 / 300 tokens), no solo la presencia: la constante (`MEMORIA_TOPE_CHARS` de cada pieza) y la medida de la sección/bloque.
+- [x] **No usa red, ni `claude`, ni clave de API**, y corre sobre `tmp_path`, no sobre el corpus real (el corpus de mentira tiene tres áreas: la de la tarea devops, la de la tarea test y una ajena que nadie pide).
+- [x] Un aserto **negativo**: una tarea de área Y **no** recibe la entrada de área X (si recibe todo, no hay enrutado) — en los dos sentidos y con la entrada ajena.
 
 **Subtareas**
-- [ ] Fixture con un corpus mínimo de dos áreas y una iniciativa de mentira.
-- [ ] Asertos de presencia, de ausencia y de tope.
-- [ ] Documentar el mutante en el docstring.
+- [x] Fixture con un corpus mínimo de dos áreas y una iniciativa de mentira.
+- [x] Asertos de presencia, de ausencia y de tope.
+- [x] Documentar el mutante en el docstring.
 
-**Notas**: este test es el **gate**; la eval de T-09 es la comprobación de comportamiento. No se confunden los papeles.
+**Notas**: este test es el **gate**; la eval de T-09 es la comprobación de comportamiento. No se confunden los papeles. El ledger de la iniciativa de mentira es VÁLIDO para `ledger-lint` a propósito: el brief se pide sin `--sin-lint`, por el mismo camino que usa `/dev-cycle`.
 
 ### T-09 — Casos en `evals/` para el camino de memoria
 
