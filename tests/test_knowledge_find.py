@@ -603,3 +603,82 @@ def test_sin_corpus_tampoco_se_crea_indice(tmp_path):
     code, out, _ = run("--area", "x", "--json", "--root", str(tmp_path))
     assert code == 0 and json.loads(out)["aciertos"] == []
     assert not (tmp_path / ".claude" / kf.INDICE_NOMBRE).exists()
+
+
+# =============================================================== T-05/T-06 · capa 1 ENRUTADA (llegada)
+#
+# `--contexto TEXTO` · `--tipo-tarea TIPO` · `--iniciativa SLUG`: la variante de la capa 1 que consumen
+# `task-brief.py` (T-05) y `session-context.sh` (T-06). El enrutado es POR ÁREA (nunca por texto libre,
+# que con tokens genéricos puntúa todo el corpus): una entrada entra si su `iniciativa` es la pedida o
+# si alguna CLAVE (palabras del tipo de tarea + tokens significativos del contexto) casa, por prefijo,
+# con un token de su área. Sin ninguna clave que case → 0 aciertos, nunca el corpus entero.
+
+def _enrutado(proyecto, *args):
+    return _consulta_json(proyecto, *args)
+
+
+def test_enrutado_por_tipo_de_tarea_devops_trae_hooks_y_consola_y_no_estimacion(proyecto):
+    d = _enrutado(proyecto, "--tipo-tarea", "devops")
+    ids = [a["id"] for a in d["aciertos"]]
+    assert "ADR-001" in ids, "«Hooks / implementer» casa con la clave `hooks` de devops"
+    assert "GOT-001" in ids and "ADR-003" in ids, "«Scripts / consola y codificación» casa con `consola`"
+    assert not any(i.startswith("LES-") for i in ids), "«Estimación / calibración» no es área de devops"
+    assert d["consulta"]["tipo_tarea"] == "devops" and "hooks" in d["consulta"]["claves"]
+    assert set(kf.TIPO_TAREA_AREAS) == {"frontend", "backend", "db", "devops", "test", "docs"}, \
+        "las seis etiquetas del catálogo de personas (subagent-personas)"
+
+
+def test_enrutado_por_contexto_casa_tokens_significativos_con_el_area(proyecto):
+    d = _enrutado(proyecto, "--contexto", "Presupuestar la estimación de la iniciativa")
+    ids = [a["id"] for a in d["aciertos"]]
+    assert ids == ["LES-001", "LES-002"], ids               # aceptada antes que propuesta
+    assert "estimacion" in d["consulta"]["claves"]
+    assert not {"la", "de"} & set(d["consulta"]["claves"]), "los tokens cortos no son claves"
+
+
+def test_enrutado_por_iniciativa_trae_las_entradas_nacidas_en_ella(proyecto):
+    d = _enrutado(proyecto, "--iniciativa", "demo-uno")
+    assert [a["id"] for a in d["aciertos"]] == ["ADR-001", "LES-001", "LES-002"]
+    d2 = _enrutado(proyecto, "--iniciativa", "2026-01-05-demo-dos")     # con fecha delante también
+    assert {a["id"] for a in d2["aciertos"]} == {"ADR-002", "ADR-003", "GOT-001"}
+
+
+def test_enrutado_sin_clave_que_case_devuelve_cero_y_nunca_el_corpus_entero(proyecto):
+    for args in (["--contexto", "de la con por"], ["--contexto", "sobre nada relevante aquí"],
+                 ["--tipo-tarea", "db"], ["--iniciativa", "no-existe"]):
+        d = _enrutado(proyecto, *args)
+        assert d["aciertos"] == [] and d["total"] == 0, args
+    code, out, _ = run("--contexto", "sobre nada relevante aquí", "--root", str(proyecto))
+    assert code == 0 and out == ""
+
+
+def test_enrutado_combina_claves_y_puntua_iniciativa_por_encima_de_area(proyecto):
+    d = _enrutado(proyecto, "--tipo-tarea", "devops", "--iniciativa", "demo-uno", "--contexto", "calibración")
+    ids = [a["id"] for a in d["aciertos"]]
+    assert ids[0] == "ADR-001", "casa por iniciativa Y por área (hooks): la más puntuada"
+    assert set(ids) == {"ADR-001", "LES-001", "LES-002", "GOT-001", "ADR-003", "ADR-002"}
+    assert all(a["puntuacion"] > 0 for a in d["aciertos"])
+    assert ids.index("LES-001") < ids.index("GOT-001"), "iniciativa (+) antes que solo área"
+
+
+def test_enrutado_respeta_limit_tipo_y_el_esquema_de_la_capa_1(proyecto):
+    d = _enrutado(proyecto, "--tipo-tarea", "devops", "--tipo", "gotcha", "--limit", "1")
+    assert [a["id"] for a in d["aciertos"]] == ["GOT-001"] and d["total"] == 1
+    assert set(d) - {"indice_motivo"} == {"version", "indice", "consulta", "total", "aciertos"}
+    assert list(d["aciertos"][0]) == ["id", "tipo", "estado", "estado_detalle", "area", "titular", "ruta", "linea",
+                                      "puntuacion", "iniciativa", "fecha"], "mismo esquema por acierto que la capa 1"
+    assert set(d["consulta"]) == {"texto", "area", "tipo", "limit", "contexto", "tipo_tarea", "iniciativa", "claves"}
+
+
+def test_enrutado_tipo_de_tarea_desconocido_avisa_y_no_bloquea(proyecto):
+    code, out, err = run("--tipo-tarea", "cobol", "--json", "--root", str(proyecto))
+    assert code == 0 and json.loads(out)["aciertos"] == []
+    assert "cobol" in err
+
+
+def test_enrutado_sobre_el_corpus_real_devops_trae_hooks_y_consola(real):
+    code, out, _ = run("--tipo-tarea", "devops", "--json")
+    assert code == 0
+    ids = {a["id"] for a in json.loads(out)["aciertos"]}
+    assert {"ADR-007", "ADR-010", "GOT-005"} <= ids, ids
+    assert not any(i in ids for i in ("LES-001", "LES-005", "LES-009")), "la estimación no es área de devops"

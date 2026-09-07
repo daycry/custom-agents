@@ -56,8 +56,19 @@ ya parseadas más una tabla FTS5 (`unicode61 remove_diacritics 2`, la misma segm
                  relevancia; FTS5 solo preselecciona candidatos con `MATCH "tok"*`).
 El índice NUNCA cambia el exit code: cualquier error suyo cae al recorrido plano.
 
+Capa 1 ENRUTADA (Fase 2, «llegada»: la consumen `task-brief.py` T-05 y `session-context.sh` T-06) —
+`--contexto TEXTO` · `--tipo-tarea TIPO` · `--iniciativa SLUG`. El enrutado es POR ÁREA, nunca por texto
+libre: con tokens genéricos («tope», «sesión», «tarea») la consulta libre puntúa medio corpus. Una
+entrada entra si (a) su `iniciativa` es la pedida (+ENRUTADO_PESO_INICIATIVA) o (b) alguna CLAVE casa por
+prefijo con un token de su área (+ENRUTADO_PESO_AREA por clave, el mismo criterio que `--area`). Claves =
+palabras del tipo de tarea (`TIPO_TAREA_AREAS`, las seis etiquetas de `- **Tipo**:` del ledger) ∪ tokens
+significativos del contexto (≥ CONTEXTO_TOKEN_MIN caracteres, sin stopwords). Sin ninguna clave que
+case → 0 aciertos y NUNCA el corpus entero. Mismo esquema `--json` que la capa 1; `consulta` añade
+`contexto`, `tipo_tarea`, `iniciativa` y `claves` (las que se usaron, para que el consumidor lo explique).
+
 Uso:
   knowledge-find.py [texto libre…] [--area A] [--tipo T] [--limit N] [--json] [--root DIR]
+  knowledge-find.py [--contexto TEXTO] [--tipo-tarea TIPO] [--iniciativa SLUG] [--tipo T] [--limit N] [--json]
   knowledge-find.py --related <ID> [--json] [--root DIR]
   knowledge-find.py --show <ID> [--json] [--root DIR]
 Exit codes:
@@ -101,6 +112,25 @@ RELATED_TOPE_CHARS = 1600      # capa 2 ≤ 400 tokens (spec CA-03); si no cabe,
 RELATED_MAX_POR_GRUPO = 6      # entradas por grupo antes de «… y N más»
 AREA_TOKEN_MIN = 4             # tokens del área que cuentan como «misma área» (fuera: de, del, y, por…)
 AREA_STOPWORDS = {"para", "como", "sobre", "entre", "desde", "hacia", "cada"}
+# Enrutado por área (Fase 2). Las claves de cada etiqueta `- **Tipo**:` del ledger son tokens de ÁREA del
+# corpus (se casan por prefijo con `filtra_area`, como `--area`): añadir una clave = ampliar qué áreas
+# recibe ese tipo de tarea. `test`/`docs` son las etiquetas del catálogo de personas, no plurales al azar.
+TIPO_TAREA_AREAS = {
+    "frontend": ("frontend", "ui", "accesibilidad", "e2e"),
+    "backend":  ("backend", "scripts", "ledger", "api", "codificacion"),
+    "db":       ("db", "datos", "migraciones", "sql"),
+    "devops":   ("devops", "hooks", "ci", "release", "distribucion", "consola", "scripts"),
+    "test":     ("tests", "fixtures", "qa", "flaky", "e2e", "ci"),
+    "docs":     ("docs", "documentacion", "confluence", "publicacion", "changelog", "skills"),
+}
+CONTEXTO_TOKEN_MIN = 4         # tokens del contexto que valen como clave (fuera: «de», «con», «por», «T-06»…)
+CONTEXTO_STOPWORDS = {"para", "como", "sobre", "entre", "desde", "hacia", "cada", "este", "esta", "esto",
+                      "estos", "estas", "tarea", "tareas", "fase", "fases", "iniciativa", "checklist", "tope",
+                      "propio", "propia", "nuevo", "nueva", "todo", "toda", "todos", "todas", "solo", "cuando",
+                      "donde", "porque", "pero", "también", "tambien", "aunque", "sino", "hace", "hacer",
+                      "tiene", "tienen", "puede", "pueden", "debe", "deben", "sigue", "siguen", "tras", "ante"}
+ENRUTADO_PESO_INICIATIVA = 30  # nacer en la misma iniciativa pesa más que casar un área
+ENRUTADO_PESO_AREA = 4         # por clave que casa en el área (mismo peso que el área en `puntuacion`)
 INDICE_NOMBRE = "knowledge-index.sqlite"   # en <root>/.claude/ (+ .gitignore)
 INDICE_VERSION = "1"                        # entra en el hash: cambiar el esquema invalida el índice
 CAMPOS = ("id", "tipo", "estado", "estado_detalle", "area", "titular", "ruta", "ruta_corta", "iniciativa",
@@ -494,6 +524,55 @@ def tokens_consulta(texto):
     return [t for t in dict.fromkeys(tokens(texto)) if len(t) >= 2]
 
 
+# ------------------------------------------------------------------ capa 1 enrutada (llegada: brief y sesión)
+
+def claves_enrutado(contexto="", tipo_tarea=""):
+    """(claves, aviso). Claves = palabras de `TIPO_TAREA_AREAS[tipo_tarea]` ∪ tokens significativos del
+    contexto (≥ CONTEXTO_TOKEN_MIN, sin stopwords ni números), sin repetidos y en orden. Un tipo de tarea
+    fuera del catálogo no bloquea: aviso y sigue solo con el contexto."""
+    claves, aviso = [], ""
+    tipo_n = normaliza(tipo_tarea)
+    if tipo_n:
+        if tipo_n in TIPO_TAREA_AREAS:
+            claves.extend(TIPO_TAREA_AREAS[tipo_n])
+        else:
+            aviso = (f"knowledge-find: tipo de tarea `{tipo_tarea}` fuera del catálogo "
+                     f"({', '.join(TIPO_TAREA_AREAS)}); se enruta solo por contexto e iniciativa")
+    for t in tokens(contexto):
+        if len(t) >= CONTEXTO_TOKEN_MIN and t not in CONTEXTO_STOPWORDS and not t.isdigit():
+            claves.append(t)
+    return list(dict.fromkeys(claves)), aviso
+
+
+def puntuacion_enrutado(e, claves, iniciativa=""):
+    """0 si la entrada no es de la iniciativa ni casa ninguna clave en su ÁREA (el texto no cuenta)."""
+    p = 0
+    ini = re.sub(r"^\d{4}-\d{2}-\d{2}-", "", normaliza(iniciativa))
+    if ini and normaliza(e["iniciativa"]) == ini:
+        p += ENRUTADO_PESO_INICIATIVA
+    area_toks = tokens(e["area"])
+    p += ENRUTADO_PESO_AREA * sum(1 for c in claves if casa(c, area_toks))
+    return p
+
+
+def buscar_enrutado(entradas, contexto="", tipo_tarea="", iniciativa="", tipo="", limit=LIMIT_DEFAULT):
+    """(aciertos, total, claves, aviso) — la capa 1 enrutada por área: nunca devuelve el corpus entero."""
+    claves, aviso = claves_enrutado(contexto, tipo_tarea)
+    tipo_n = tipo_normalizado(tipo) if tipo else None
+    out = []
+    for e in entradas:
+        if tipo and (tipo_n is None or e["tipo"] != tipo_n):
+            continue
+        p = puntuacion_enrutado(e, claves, iniciativa)
+        if p > 0:
+            out.append(dict(e, puntuacion=p))
+    out.sort(key=lambda e: (-e["puntuacion"],) + clave_orden(e))
+    total = len(out)
+    if limit and limit > 0:
+        out = out[:limit]
+    return out, total, claves, aviso
+
+
 def buscar(entradas, texto="", area="", tipo="", limit=LIMIT_DEFAULT, candidatos=None):
     """(aciertos ordenados y con `puntuacion`, total antes del limit). `candidatos` (IDs de la FTS)
     solo PRESELECCIONA: la relevancia y el filtro `puntuacion > 0` son los mismos con y sin índice."""
@@ -695,6 +774,10 @@ def main(argv=None):
     ap.add_argument("--json", action="store_true")
     ap.add_argument("--root", help="raíz del proyecto (default: $CLAUDE_PROJECT_DIR → cwd)")
     ap.add_argument("--no-index", action="store_true", help="recorrido plano de los ficheros, sin leer ni escribir el índice")
+    enr = ap.add_argument_group("capa 1 enrutada por área (la consumen task-brief.py y session-context.sh)")
+    enr.add_argument("--contexto", default="", help="texto de la tarea/iniciativa: sus tokens significativos se casan con el ÁREA")
+    enr.add_argument("--tipo-tarea", default="", help="etiqueta `- **Tipo**:` del ledger: " + "|".join(TIPO_TAREA_AREAS))
+    enr.add_argument("--iniciativa", default="", help="slug de la iniciativa: entran las entradas nacidas en ella")
     capa = ap.add_mutually_exclusive_group()
     capa.add_argument("--related", metavar="ID", help="capa 2: grafo curado de una entrada")
     capa.add_argument("--show", metavar="ID", help="capa 3: la entrada completa")
@@ -728,12 +811,25 @@ def main(argv=None):
             sys.stdout.write(texto_related(e, rel))
         return 0
 
-    candidatos = candidatos_fts(path, tokens_consulta(texto))
-    aciertos, total = buscar(entradas, texto=texto, area=args.area, tipo=args.tipo, limit=args.limit,
-                             candidatos=candidatos)
+    consulta = {"texto": texto, "area": args.area, "tipo": args.tipo, "limit": args.limit}
+    if args.contexto or args.tipo_tarea or args.iniciativa:
+        if texto or args.area:
+            print("knowledge-find: `--contexto/--tipo-tarea/--iniciativa` no se combinan con texto libre ni `--area`",
+                  file=sys.stderr)
+            return 2
+        aciertos, total, claves, aviso = buscar_enrutado(
+            entradas, contexto=args.contexto, tipo_tarea=args.tipo_tarea, iniciativa=args.iniciativa,
+            tipo=args.tipo, limit=args.limit)
+        if aviso:
+            print(aviso, file=sys.stderr)
+        consulta.update({"contexto": args.contexto, "tipo_tarea": args.tipo_tarea,
+                         "iniciativa": args.iniciativa, "claves": claves})
+    else:
+        candidatos = candidatos_fts(path, tokens_consulta(texto))
+        aciertos, total = buscar(entradas, texto=texto, area=args.area, tipo=args.tipo, limit=args.limit,
+                                 candidatos=candidatos)
     if args.json:
-        data = {"version": VERSION_JSON, "indice": indice["indice"],
-                "consulta": {"texto": texto, "area": args.area, "tipo": args.tipo, "limit": args.limit},
+        data = {"version": VERSION_JSON, "indice": indice["indice"], "consulta": consulta,
                 "total": total, "aciertos": [acierto_json(a) for a in aciertos]}
         if indice.get("indice_motivo"):
             data["indice_motivo"] = indice["indice_motivo"]

@@ -42,13 +42,13 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervisión (real/est) | Tokens (real/est) |
 |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
 | Fase 1 — Recuperación | 4 | 4 | 100% | 0 / 9,0h | 0,60 (est.) / 0,51h | 0,16 (est.) / 0,13h | n/d / 245.000 |
-| Fase 2 — Llegada | 0 | 3 | 0% | 0 / 4,0h | 0 / 0,31h | 0 / 0,08h | 0 / 150.000 |
+| Fase 2 — Llegada | 1 | 3 | 33% | 0 / 4,0h | 0,25 (est.) / 0,31h | 0,06 (est.) / 0,08h | n/d / 150.000 |
 | Fase 3 — Prueba de que se recorre | 0 | 3 | 0% | 0 / 4,0h | 0 / 0,27h | 0 / 0,07h | 0 / 128.000 |
 | Fase 4 — Captura episódica | 0 | 4 | 0% | 0 / 7,0h | 0 / 0,43h | 0 / 0,11h | 0 / 205.000 |
 | Fase 5 — Que la doctrina viaje | 0 | 2 | 0% | 0 / 3,0h | 0 / 0,24h | 0 / 0,06h | 0 / 115.000 |
 | Fase 6 — Cerrar el bucle | 0 | 2 | 0% | 0 / 3,0h | 0 / 0,30h | 0 / 0,08h | 0 / 145.000 |
 | Revisión de dos lentes (transversal, línea propia) | — | — | — | 0 / 4,0h | 0 / 0,54h | 0 / 0,13h | 0 / 260.000 |
-| **TOTAL** | **4** | **18** | **22%** | **0 / 34,0h** | **0,60 (est.) / 2,60h** | **0,16 (est.) / 0,66h** | **n/d / 1.248.000** |
+| **TOTAL** | **5** | **18** | **28%** | **0 / 34,0h** | **0,85 (est.) / 2,60h** | **0,22 (est.) / 0,66h** | **n/d / 1.248.000** |
 
 > **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada (8 h). Ver `skills/jira-sync/SKILL.md`.
 >
@@ -211,7 +211,7 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 
 ## Fase 2 — Llegada
 
-**Estado**: borrador · **Estimado**: 4,0h · **Real**: — · **Coste est.**: 201 € · **Tokens est.**: 150.000
+**Estado**: en-progreso · **Estimado**: 4,0h · **Real**: 0h humanas · 0,25h IA (estimado) + 0,06h supervisión (estimado) · **Coste est.**: 201 € · **Tokens est.**: 150.000
 
 > Cierra el hueco **1** de `analysis.md` §1.4, el **más caro**: con `subagentes: true` el brief es el
 > ÚNICO contexto (`commands/dev-cycle.md:110`) y hoy no lleva memoria, así que quien escribe el
@@ -220,35 +220,37 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 ### T-05 — Memoria técnica en `task-brief.py`, presupuestada y enrutada por `Tipo`
 
 - **Descripción**: sección nueva en el brief del subagente con los aciertos de `knowledge-find.py` para el área y el tipo de la tarea. El enrutado **ya existe**: el campo `- **Tipo**: frontend|backend|db|devops|test|docs` está en el ledger desde `subagent-personas`. Tope explícito de **600 tokens** frente a los **1.818** que mide el brief hoy, y **degradación silenciosa**: sin `docs/knowledge/` o sin aciertos, el brief sale idéntico al de hoy.
-- **Estado**: borrador
-- **Tiempo humano**: est. 2,0h · real —
-- **Tiempo IA (ejec.)**: est. 0,17h · real —
-- **Supervisión**: est. 0,04h (≈25 % IA) · real —
+- **Estado**: completado
+- **Tiempo humano**: est. 2,0h · real 0h (sin intervención humana en la ejecución)
+- **Tiempo IA (ejec.)**: est. 0,17h · real 0,25h (estimado: el usage-meter no lee la transcripción en este entorno)
+- **Supervisión**: est. 0,04h (≈25 % IA) · real 0,06h (estimado)
 - **Previsión IA**: 65k in / 16k out tok · 0,67 €
 - **Dependencias**: T-01
 - **Tipo**: backend
-- **Archivos**: `agent-kits/shared/task-brief.py`, `agent-kits/shared/test_task_brief.py`
-- **Verificación**:
-  - `python3 agent-kits/shared/task-brief.py docs/roadmap/2026-09-04-memory-retrieval T-06 | grep -c "Memoria técnica"` → 1 (T-06 lleva `- **Tipo**: devops`)
-  - `python3 agent-kits/shared/task-brief.py docs/roadmap/2026-09-04-memory-retrieval T-06 | wc -c` → ≤ 10.000 caracteres (línea base de hoy re-medida: 7.452 en `changelog-brief` T-01)
-  - `python3 agent-kits/shared/task-brief.py docs/roadmap/2026-09-04-memory-retrieval T-06 | sed -n '/## Memoria técnica/,/^## /p' | wc -c` → ≤ 2.400 caracteres
-  - `python3 -m pytest -q agent-kits/shared/test_task_brief.py` → todos passed
-  - en un árbol sin `docs/knowledge/`: la salida del brief es **byte a byte** la de hoy salvo la sección ausente, exit 0
+- **Archivos**: `agent-kits/shared/task-brief.py`, `agent-kits/shared/test_task_brief.py`, `agent-kits/shared/knowledge-find.py`, `tests/test_knowledge_find.py` (los dos últimos añadidos al cerrar: el ENRUTADO por área vive UNA vez, en la capa 1 del script —`--contexto/--tipo-tarea/--iniciativa`, tabla `TIPO_TAREA_AREAS`— y lo consumen el brief (T-05) y el hook (T-06) con la misma orden; duplicarlo en cada consumidor habría sido dos criterios de «qué área toca esta tarea»)
+- **Changelog**: El brief que recibe cada subagente trae ahora los aciertos de la memoria técnica que tocan su tarea (por tipo, título e iniciativa), con tope de 600 tokens y el estado de cada entrada delante; sin memoria en el proyecto el brief sale como antes.
+- **Verificación** (ejecutada 2026-09-07):
+  - `RED: tests/test_knowledge_find.py -k enrutado falló con knowledge-find.py: error: unrecognized arguments: --tipo-tarea (8 failed, 55 deselected) · 2026-09-07`; GREEN después → `63 passed`. `RED: agent-kits/shared/test_task_brief.py -k memoria falló con AssertionError: la tarea es devops y hay una entrada de área Hooks: la sección tiene que estar (assert '') (6 failed, 1 passed) · 2026-09-07`; GREEN después → **`43 passed`**.
+  - `python3 agent-kits/shared/task-brief.py docs/roadmap/2026-09-04-memory-retrieval T-06 | grep -c "Memoria técnica"` → **3**, no 1: la sección existe UNA vez (`grep -c "^## Memoria técnica"` → **1**) y las otras dos son aciertos cuya ÁREA se llama literalmente «Memoria técnica / hooks» (`ADR-010`) y «Memoria técnica / lectura-escritura» (`ADR-006`) — el criterio contaba el encabezado, no las áreas del corpus real.
+  - `… T-06 | wc -c` → **7.212** caracteres (≤ 10.000; la línea base de HOY sin memoria era **5.614** para esta misma T-06, no los 7.452 de `changelog-brief` T-01) · `… | sed -n '/## Memoria técnica/,/^## /p' | wc -c` → **1.636** (≤ 2.400): 8 aciertos (`ADR-010`, `GOT-005`, `LES-012`, `ADR-006`, `ADR-007`, `ADR-012`, `GOT-006`, `LES-011`) con las claves `devops, hooks, ci, release, distribucion, consola, scripts, memoria` (tipo `devops` + tokens del título).
+  - `python3 -m pytest -q agent-kits/shared/test_task_brief.py` → **43 passed** · `python3 -m pytest -q tests/test_console_encoding.py tests/test_knowledge_find.py agent-kits/shared/test_task_brief.py` → `387 passed` · `PYTHONIOENCODING=cp1252 python3 … task-brief.py … T-06 | grep -c "Memoria técnica"` → 3 (símbolos íntegros) · `python3 scripts/lint_plugin.py` → `9 agentes · 0 errores · 3 avisos`, exit 0.
+  - Árbol sin `docs/knowledge/` (copia de la iniciativa en `mktemp -d`): `cmp` entre ese brief y el del repo real menos la sección (`_memoria_tecnica()` + su salto) → **IDÉNTICOS byte a byte**, exit 0, `grep -c "Memoria técnica"` → 0; ni una línea en stdout ni en stderr (test `test_memoria_sin_docs_knowledge_salida_identica_a_la_de_hoy`).
+  - Fallo del script (exit 1 + salida no JSON) y script ausente → brief sin sección, exit 0, aviso solo por stderr (test `test_memoria_un_fallo_de_knowledge_find_no_rompe_el_brief`). Mutante del tope: `MEMORIA_TOPE_CHARS == 2400` afirmado por test, y con 41 entradas de la misma área la sección mide ≤ 2.400 y termina en «… y N acierto(s) más …» con la orden que los lista.
 
 **Criterios de aceptación**
-- [ ] La sección de memoria es **≤ 600 tokens (≤ 2.400 caracteres)** y el brief completo **≤ 2.500 tokens** (spec CA-08).
-- [ ] El enrutado usa el campo `- **Tipo**:` que **ya existe**; sin `Tipo`, cae al área de la iniciativa y no al corpus entero.
-- [ ] Sin `docs/knowledge/` o sin aciertos: salida **idéntica a la de hoy**, sin aviso en stdout ni sección vacía, exit 0 (spec CA-09).
-- [ ] El tope es una **constante con test**, no una intención: un mutante que la suba pone el test rojo.
-- [ ] Las **10 secciones actuales** del brief siguen intactas y en su orden.
-- [ ] Un fallo de `knowledge-find.py` (cualquiera) **no rompe el brief**: se omite la sección y el brief sale con exit 0.
+- [x] La sección de memoria es **≤ 600 tokens (≤ 2.400 caracteres)** y el brief completo **≤ 2.500 tokens** (spec CA-08). *Medido: 1.636 y 7.212 caracteres (≈ 1.800 tokens).*
+- [x] El enrutado usa el campo `- **Tipo**:` que **ya existe**; sin `Tipo`, cae al área de la iniciativa y no al corpus entero. *Sin `Tipo` entran las entradas nacidas en la iniciativa (`iniciativa == slug`) y las cuya área casa con el título de la tarea; nunca puntuación 0 (test `test_memoria_sin_tipo_cae_a_la_iniciativa_y_no_al_corpus_entero`).*
+- [x] Sin `docs/knowledge/` o sin aciertos: salida **idéntica a la de hoy**, sin aviso en stdout ni sección vacía, exit 0 (spec CA-09).
+- [x] El tope es una **constante con test**, no una intención: un mutante que la suba pone el test rojo.
+- [x] Las **10 secciones actuales** del brief siguen intactas y en su orden (test `test_memoria_no_altera_las_secciones_existentes_ni_su_orden`: la memoria va tras la Verificación y antes de Diseño/Arquitectura/Constitución/TDD/Contrato).
+- [x] Un fallo de `knowledge-find.py` (cualquiera) **no rompe el brief**: se omite la sección y el brief sale con exit 0.
 
 **Subtareas**
-- [ ] Test RED del tope y de la degradación silenciosa.
-- [ ] Llamar a `knowledge-find.py --json` y renderizar la sección 11.
-- [ ] Recorte al tope con la línea que lo dice, nunca emitir por encima.
+- [x] Test RED del tope y de la degradación silenciosa.
+- [x] Llamar a `knowledge-find.py --json` y renderizar la sección 11.
+- [x] Recorte al tope con la línea que lo dice, nunca emitir por encima.
 
-**Notas**: `analysis.md` §1.4-1, medido: hoy `grep` sobre `task-brief.py` da un solo acierto de `knowledge`, y es un comentario de encoding.
+**Notas**: `analysis.md` §1.4-1, medido: hoy `grep` sobre `task-brief.py` da un solo acierto de `knowledge`, y es un comentario de encoding. **Decisión de ejecución (no cruza el umbral de ADR: una pieza, reversible):** el enrutado es **por ÁREA, nunca por texto libre** — probado sobre el corpus real, una consulta libre con el título de la tarea («tope», «sesión», «activa») puntúa medio corpus por coincidencias en el texto; con área, `T-06` (devops) recibe `ADR-010`/`ADR-007`/`GOT-005` y ninguna lección de estimación. El ruido residual es el prefijo (`activa` casa «activación de piezas», `LES-011`): aceptado y visible en la línea `claves:` de la sección.
 
 ### T-06 — Memoria del área activa al arrancar sesión, con tope propio
 

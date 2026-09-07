@@ -642,3 +642,148 @@ def test_el_ledger_valido_sigue_saliendo_0_con_el_locale_sin_utf8(tmp_path):
                        capture_output=True, encoding="utf-8", errors="replace", env=env)
     assert r.returncode == 0, f"exit {r.returncode}\n{r.stderr[-1200:]}"
     assert "Traceback" not in r.stderr, r.stderr[-1200:]
+
+
+# ------------------------------------------------- memoria técnica presupuestada (memory-retrieval T-05)
+#
+# La puerta cerrada del hueco 1: con `subagentes: true` el brief es el ÚNICO contexto, y hasta aquí no
+# llevaba ni un gotcha. La sección la componen los aciertos de `knowledge-find.py` ENRUTADOS por el
+# `- **Tipo**:` de la tarea, el título de la tarea y la iniciativa (`--contexto/--tipo-tarea/--iniciativa`),
+# con tope MEMORIA_TOPE_CHARS y degradación silenciosa (sin carpeta, sin aciertos o sin script → nada).
+
+def _knowledge(raiz):
+    """Corpus mínimo de DOS áreas en <raiz>/docs/knowledge: una entrada de hooks y otra de estimación."""
+    kn = raiz / "docs" / "knowledge"
+    (kn / "adr").mkdir(parents=True)
+    (kn / "lessons").mkdir()
+    (kn / "adr" / "ADR-001-deny-solo-agente.md").write_text(
+        "---\nid: ADR-001\ntitulo: Deny solo con alcance de agente\nestado: aceptada (validada: usuario, 2026-01-02)\n"
+        "fecha: 2026-01-02\niniciativa: demo-hooks\n---\n\n# ADR-001\n\nEl deny va en el frontmatter del agente.\n",
+        encoding="utf-8")
+    (kn / "lessons" / "LES-001-evaluator-revision-cara.md").write_text(
+        "---\nid: LES-001\ntipo: leccion\narea: Estimación / calibración\nestado: aceptada (validada: usuario, 2026-01-03)\n"
+        "fuente: 2026-01-01-demo-estimacion/retro.md\n---\n\n## evaluator\n\n- El coste está en la revisión.\n",
+        encoding="utf-8")
+    (kn / "README.md").write_text(
+        "# índice\n\n| Entrada | ID | Tipo | Área | Estado | Fuente |\n|---|---|---|---|---|---|\n"
+        "| [`adr/ADR-001-deny-solo-agente.md`](adr/ADR-001-deny-solo-agente.md) — deny solo con alcance de agente "
+        "| ADR-001 | ADR | Hooks / implementer | aceptada (validada: usuario, 2026-01-02) | `2026-01-02-demo-hooks/tasks.md` |\n"
+        "| [`lessons/LES-001-evaluator-revision-cara.md`](lessons/LES-001-evaluator-revision-cara.md) — el coste está en la revisión "
+        "| LES-001 | Lección | Estimación / calibración | aceptada (validada: usuario, 2026-01-03) | `2026-01-01-demo-estimacion/retro.md` |\n",
+        encoding="utf-8")
+    return kn
+
+
+def _proyecto_con_memoria(tmp_path, slug="2026-01-01-juguete", tasks=None, con_knowledge=True):
+    raiz = tmp_path / "proj"
+    d = raiz / "docs" / "roadmap" / slug
+    d.mkdir(parents=True)
+    (d / "tasks.md").write_text(tasks or TASKS, encoding="utf-8")
+    (d / "improvement-plan.md").write_text(PLAN, encoding="utf-8")
+    if con_knowledge:
+        _knowledge(raiz)
+    return d
+
+
+def _seccion_memoria(out):
+    if "## Memoria técnica" not in out:
+        return ""
+    resto = out.split("## Memoria técnica", 1)[1]
+    fin = resto.find("\n## ")
+    return "## Memoria técnica" + (resto if fin == -1 else resto[:fin + 1])   # con SU salto final
+
+
+def test_memoria_tecnica_enrutada_por_tipo_trae_su_area_y_no_las_otras(tmp_path):
+    d = _proyecto_con_memoria(tmp_path, tasks=_tasks_con_tipo("- **Tipo**: devops\n"))
+    rc, out = _run([str(d), "T-01", "--sin-lint", "--constitucion", str(d / "no.md")])
+    assert rc == 0
+    sec = _seccion_memoria(out)
+    assert sec, "la tarea es devops y hay una entrada de área Hooks: la sección tiene que estar"
+    assert "ADR-001" in sec and "Hooks / implementer" in sec
+    assert "LES-001" not in sec, "la lección de estimación NO es del área de una tarea devops"
+    assert "aceptada" in sec, "el estado va delante en cada acierto (doctrina vs indicio)"
+    assert "knowledge-find.py" in sec and "--show" in sec, "el detalle se abre por ID, no se pega entero"
+    assert len(sec) <= tb.MEMORIA_TOPE_CHARS
+    assert out.index("## La tarea") < out.index("## Memoria técnica") < out.index("## Contrato de retorno")
+
+
+def test_memoria_sin_tipo_cae_a_la_iniciativa_y_no_al_corpus_entero(tmp_path):
+    d = _proyecto_con_memoria(tmp_path, slug="2026-01-02-demo-hooks", tasks=_tasks_con_tipo(""))
+    rc, out = _run([str(d), "T-01", "--sin-lint", "--constitucion", str(d / "no.md")])
+    assert rc == 0
+    sec = _seccion_memoria(out)
+    assert "ADR-001" in sec, "nació en esta iniciativa (`iniciativa: demo-hooks`)"
+    assert "LES-001" not in sec, "sin Tipo no se vuelca el corpus entero"
+
+
+def test_memoria_sin_docs_knowledge_salida_identica_a_la_de_hoy(tmp_path, capsys):
+    con = _proyecto_con_memoria(tmp_path / "a", tasks=_tasks_con_tipo("- **Tipo**: devops\n"))
+    sin = _proyecto_con_memoria(tmp_path / "b", tasks=_tasks_con_tipo("- **Tipo**: devops\n"), con_knowledge=False)
+    rc1, out_con = _run([str(con), "T-01", "--sin-lint", "--constitucion", str(con / "no.md")])
+    rc2, out_sin = _run([str(sin), "T-01", "--sin-lint", "--constitucion", str(sin / "no.md")])
+    assert rc1 == rc2 == 0
+    assert "Memoria técnica" not in out_sin and "knowledge" not in out_sin.lower()
+    chunk, _fase = tb._seccion_tarea((con / "tasks.md").read_text(encoding="utf-8"), "T-01")
+    sec = tb._memoria_tecnica(str(con), chunk, "devops")          # EXACTAMENTE lo que el brief añade
+    assert sec and sec in out_con and sec.endswith("\n")
+    assert out_con.replace(sec + "\n", "", 1).replace(str(con), str(sin)) == out_sin, \
+        "sin `docs/knowledge/` el brief es byte a byte el de hoy salvo la sección ausente (un elemento + su salto)"
+    assert "knowledge" not in capsys.readouterr().err.lower(), "degradación SILENCIOSA: ni aviso"
+
+
+def test_memoria_sin_aciertos_no_deja_seccion_vacia(tmp_path):
+    d = _proyecto_con_memoria(tmp_path, tasks=_tasks_con_tipo("- **Tipo**: db\n"))
+    rc, out = _run([str(d), "T-01", "--sin-lint", "--constitucion", str(d / "no.md")])
+    assert rc == 0 and "Memoria técnica" not in out
+
+
+def test_memoria_el_tope_es_una_constante_con_test_y_se_recorta_diciendolo(tmp_path):
+    """Spec CA-08: ≤ 600 tokens ≈ 2.400 caracteres. Un mutante que suba la constante pone esto rojo, y
+    un corpus de 40 entradas de la misma área no puede emitir por encima: recorta y lo dice."""
+    assert tb.MEMORIA_TOPE_CHARS == 2400
+    d = _proyecto_con_memoria(tmp_path, tasks=_tasks_con_tipo("- **Tipo**: devops\n"))
+    kn = d.parent.parent.parent / "docs" / "knowledge"
+    filas = []
+    for n in range(2, 42):
+        fn = f"ADR-{n:03d}-hook-numero-{n}-con-un-nombre-de-fichero-deliberadamente-largo.md"
+        (kn / "adr" / fn).write_text(
+            f"---\nid: ADR-{n:03d}\ntitulo: Hook número {n} con un titular largo para ocupar la línea entera\n"
+            f"estado: aceptada (validada: usuario, 2026-01-02)\nfecha: 2026-01-02\n---\n\n# ADR-{n:03d}\n\nx\n",
+            encoding="utf-8")
+        filas.append(f"| [`adr/{fn}`](adr/{fn}) — hook número {n} con un titular largo para ocupar la línea entera "
+                     f"| ADR-{n:03d} | ADR | Hooks / implementer | aceptada (validada: usuario, 2026-01-02) | `x/tasks.md` |")
+    readme = kn / "README.md"
+    readme.write_text(readme.read_text(encoding="utf-8").rstrip("\n") + "\n" + "\n".join(filas) + "\n", encoding="utf-8")
+    rc, out = _run([str(d), "T-01", "--sin-lint", "--constitucion", str(d / "no.md")])
+    assert rc == 0
+    sec = _seccion_memoria(out)
+    assert 0 < len(sec) <= tb.MEMORIA_TOPE_CHARS, len(sec)
+    assert "más" in sec and "knowledge-find.py" in sec, "recortado Y dicho, nunca emitido por encima"
+    assert sec.count("ADR-0") < 41
+
+
+def test_memoria_un_fallo_de_knowledge_find_no_rompe_el_brief(tmp_path, capsys):
+    d = _proyecto_con_memoria(tmp_path, tasks=_tasks_con_tipo("- **Tipo**: devops\n"))
+    roto = tmp_path / "roto.py"
+    roto.write_text("import sys\nprint('esto no es json')\nsys.exit(1)\n", encoding="utf-8")
+    rc, out = _run([str(d), "T-01", "--sin-lint", "--constitucion", str(d / "no.md"), "--knowledge-find", str(roto)])
+    assert rc == 0 and "Memoria técnica" not in out and "la cosa A funciona" not in out and "hacer algo" in out
+    assert "knowledge-find" in capsys.readouterr().err, "el fallo se dice por stderr, no en el brief"
+    rc, out = _run([str(d), "T-01", "--sin-lint", "--constitucion", str(d / "no.md"),
+                    "--knowledge-find", str(tmp_path / "no-existe.py")])
+    assert rc == 0 and "Memoria técnica" not in out, "sin el script (instalación parcial): brief de hoy"
+
+
+def test_memoria_no_altera_las_secciones_existentes_ni_su_orden(tmp_path):
+    d = _proyecto_con_memoria(tmp_path, tasks=_tasks_con_tipo("- **Tipo**: devops\n"))
+    c = tmp_path / "CONSTITUTION.md"
+    c.write_text("# Constitución\n- Regla.\n", encoding="utf-8")
+    pdir = tmp_path / "personas"
+    pdir.mkdir()
+    (pdir / "devops.md").write_text("Persona devops.", encoding="utf-8")
+    rc, out = _run([str(d), "T-01", "--sin-lint", "--constitucion", str(c), "--personas-dir", str(pdir), "--tdd"])
+    assert rc == 0
+    orden = ["## Contexto de fase", "## Persona de dominio", "## La tarea", "## Verificación", "## Memoria técnica",
+             "## Arquitectura de la solución", "## Constitución del proyecto", "## TDD", "## Contrato de retorno"]
+    posiciones = [out.index(s) for s in orden]
+    assert posiciones == sorted(posiciones), orden
