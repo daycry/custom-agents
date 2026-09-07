@@ -402,7 +402,8 @@ def test_brief_verificacion_sublista_y_ejecutada(inic):
 def test_verificacion_va_una_vez_y_los_items_red_se_omiten(inic):
     """Revisión intento 1 (IMPORTANT 4 / CA-08): la Verificación iba ENTERA dos veces (en el bloque de la
     tarea y en su sección) y arrastraba los `RED: …` de la ejecución anterior; el bloque de la tarea
-    arrastraba además los campos de presupuesto. Un subagente necesita «comando → esperado»."""
+    arrastraba además los campos de presupuesto y el `Changelog` (nota de release de quien cierra, ADR-012).
+    Un subagente necesita «comando → esperado»."""
     t = (inic / "tasks.md").read_text(encoding="utf-8")
     t = t.replace("- **Descripción**: hacer la cosa A.\n",
                   "- **Descripción**: hacer la cosa A.\n"
@@ -410,6 +411,7 @@ def test_verificacion_va_una_vez_y_los_items_red_se_omiten(inic):
                   "- **Tiempo IA (ejec.)**: est. 0,17h · real 0,20h (estimado)\n"
                   "- **Supervisión**: est. 0,04h · real 0,05h\n"
                   "- **Previsión IA**: 65k in / 20k out tok · 0,76 €\n"
+                  "- **Changelog**: Los usuarios ven la cosa A hecha.\n"
                   "- **Verificación** (ejecutada 2026-09-07):\n"
                   "  - `RED: tests/test_a.py falló con ImportError · 2026-09-07`; GREEN después → `2 passed`.\n"
                   "  - `python3 -m pytest -q tests/test_a.py` → `2 passed`\n"
@@ -431,7 +433,7 @@ def test_verificacion_va_una_vez_y_los_items_red_se_omiten(inic):
     assert "> 2 ítem(s) `RED: …` de la ejecución anterior omitido(s)" in sec and "produce tu propio rojo" in sec
     assert "re-ejecútala" in sec
     # presupuesto fuera del bloque de la tarea; la descripción y los criterios intactos
-    for campo in ("Tiempo humano", "Tiempo IA", "Supervisión**", "Previsión IA"):
+    for campo in ("Tiempo humano", "Tiempo IA", "Supervisión**", "Previsión IA", "Changelog", "ven la cosa A hecha"):
         assert campo not in tarea, campo
     assert "hacer la cosa A" in tarea and "la cosa A funciona" in tarea
 

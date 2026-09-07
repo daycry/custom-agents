@@ -26,7 +26,8 @@ subagente fresco necesita para implementar UNA tarea `T-XX` — y nada más (bri
      rojo del TDD que el ledger conserva para la revisión— se omiten y se cuentan en una línea: un
      subagente necesita «comando → esperado», no el historial; si TDD está activo, produce su propio
      rojo. Y los campos de PRESUPUESTO del bloque (`Tiempo humano` · `Tiempo IA` · `Supervisión` ·
-     `Previsión IA`: horas y euros del PM) tampoco van: no son información para implementar. Con eso
+     `Previsión IA`: horas y euros del PM) y el `Changelog` (nota de release de quien CIERRA la tarea,
+     ADR-012) tampoco van: no son información para implementar. Con eso
      el brief completo cabe en el tope de la spec (CA-08: ≤ 2.500 tokens ≈ BRIEF_TOPE_CHARS = 10.000
      caracteres; medido sobre las 10 tareas cerradas de memory-retrieval, 2026-09-07: 8.919-12.543
      antes → todas ≤ 10.000 después). El test lo afirma sobre ese ledger real y sobre uno de `tmp_path`.
@@ -106,9 +107,11 @@ BRIEF_TOPE_CHARS = 10000       # brief completo ≤ 2.500 tokens (spec CA-08); l
 # Ítem de Verificación que es evidencia del rojo de una ejecución anterior (skill `tdd`: `RED: <test> falló
 # con <error> · <fecha>`), no un comando que ejecutar: se omite del brief y se cuenta.
 _ITEM_RED_RE = re.compile(r"^\s*[`*_]*\s*(RED|TDD n/a)\s*:", re.I)
-# Campos de PRESUPUESTO del ledger (horas y euros, estimado vs real): contabilidad del PM que el subagente no
-# necesita para implementar y que el brief no le pide devolver. Se quitan del bloque de la tarea (≈ 350 chars).
-_CAMPO_PRESUPUESTO_RE = re.compile(r"^\s*-\s*\*\*(Tiempo humano|Tiempo IA[^*]*|Supervisi[oó]n|Previsi[oó]n IA)\*\*\s*:", re.I)
+# Campos del ledger que NO son información para implementar y se quitan del bloque de la tarea (≈ 350-800 chars):
+# los de PRESUPUESTO (horas y euros, estimado vs real: contabilidad del PM que el brief no pide devolver) y el
+# `Changelog` (la nota de release, que escribe quien CIERRA la tarea —ADR-012—: una tarea en despacho no lo tiene,
+# y en un redespacho de una cerrada es texto para el usuario del proyecto, no para el subagente).
+_CAMPO_NO_BRIEF_RE = re.compile(r"^\s*-\s*\*\*(Tiempo humano|Tiempo IA[^*]*|Supervisi[oó]n|Previsi[oó]n IA|Changelog)\*\*\s*:", re.I)
 
 
 def _es_evidencia_red(item):
@@ -337,8 +340,9 @@ def _chunk_sin_verificacion(chunk, n_items):
 
 def _chunk_sin_presupuesto(chunk):
     """El bloque de la tarea sin sus campos de presupuesto (`Tiempo humano`, `Tiempo IA`, `Supervisión`,
-    `Previsión IA`): horas y euros del PM, no información para implementar. Solo líneas visibles."""
-    return "\n".join(ln for ln, fenced in _lineas_con_fence(chunk) if fenced or not _CAMPO_PRESUPUESTO_RE.match(ln))
+    `Previsión IA`: horas y euros del PM) ni `Changelog` (nota de release de quien cierra): no son información
+    para implementar. Solo líneas visibles; un campo de varias líneas no existe en el ledger (una línea por campo)."""
+    return "\n".join(ln for ln, fenced in _lineas_con_fence(chunk) if fenced or not _CAMPO_NO_BRIEF_RE.match(ln))
 
 
 def _persona(tipo, personas_dir):
