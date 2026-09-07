@@ -236,7 +236,10 @@ def frontmatter(text):
     return out, cuerpo[cuerpo.find("\n") + 1:] if "\n" in cuerpo else ""
 
 
-def celdas(fila):
+# --8<-- celdas de tabla Markdown COMPARTIDAS — REPLICADO LITERAL en scripts/lint_plugin.py,
+# agent-kits/shared/knowledge-find.py y agent-kits/shared/doctor.py (los scripts son standalone: el paquete
+# portable los copia sueltos, sin import común); tests/test_knowledge_index.py compara las copias byte a byte.
+def celdas_md(fila):
     """Celdas de una fila `| a | b |` respetando `|` dentro de acentos graves."""
     out, actual, en_codigo = [], [], False
     for ch in fila.strip():
@@ -253,6 +256,7 @@ def celdas(fila):
     if out and out[-1] == "":
         out = out[:-1]
     return out
+# --8<-- fin de celdas de tabla Markdown COMPARTIDAS
 
 
 def parse_indice(texto):
@@ -268,7 +272,7 @@ def parse_indice(texto):
         l = lineas[n]
         if not l.startswith("|"):
             break
-        c = celdas(l)
+        c = celdas_md(l)
         if len(c) < 4:
             continue
         entrada = re.sub(r"<!--.*?-->", "", c[0]).strip()

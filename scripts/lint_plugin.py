@@ -533,10 +533,10 @@ def lint(root):
     return errors, warnings
 
 
-KNOWLEDGE_CARPETAS = ("adr", "gotchas", "lessons")
-
-
-def _celdas_md(fila):
+# --8<-- celdas de tabla Markdown COMPARTIDAS — REPLICADO LITERAL en scripts/lint_plugin.py,
+# agent-kits/shared/knowledge-find.py y agent-kits/shared/doctor.py (los scripts son standalone: el paquete
+# portable los copia sueltos, sin import común); tests/test_knowledge_index.py compara las copias byte a byte.
+def celdas_md(fila):
     """Celdas de una fila `| a | b |` respetando `|` dentro de acentos graves."""
     out, actual, en_codigo = [], [], False
     for ch in fila.strip():
@@ -553,6 +553,14 @@ def _celdas_md(fila):
     if out and out[-1] == "":
         out = out[:-1]
     return out
+# --8<-- fin de celdas de tabla Markdown COMPARTIDAS
+
+
+# --8<-- criterio del índice de knowledge COMPARTIDO (memory-retrieval T-04) — REPLICADO LITERAL en
+# agent-kits/shared/doctor.py (la comprobación de /doctor es ESTE criterio, no una aproximación: antes tenía
+# una local «equivalente» que dejaba pasar una fila hacia un fichero inexistente — revisión intento 1, gap 6);
+# tests/test_knowledge_index.py compara las dos copias byte a byte. Necesita `celdas_md` (bloque de arriba).
+KNOWLEDGE_INDICE_CARPETAS = ("adr", "gotchas", "lessons")
 
 
 def filas_knowledge_index(texto):
@@ -571,14 +579,14 @@ def filas_knowledge_index(texto):
         fin += 1
 
     def fila(n):
-        c = _celdas_md(lineas[n])
+        c = celdas_md(lineas[n])
         entrada = re.sub(r"<!--.*?-->", "", c[0] if c else "")
         m = re.search(r"\]\(([^)\s]+)\)", entrada)
         return {"linea": n + 1, "ruta": m.group(1) if m else "", "id": c[1] if len(c) > 1 else "",
                 "area": c[3] if len(c) > 3 else "", "celdas": c}
 
     dentro = [fila(n) for n in range(ini + 2, fin)]
-    fuera = [fila(n) for n in range(fin, len(lineas)) if lineas[n].startswith("|") and len(_celdas_md(lineas[n])) >= 3]
+    fuera = [fila(n) for n in range(fin, len(lineas)) if lineas[n].startswith("|") and len(celdas_md(lineas[n])) >= 3]
     return dentro, fuera
 
 
@@ -588,7 +596,7 @@ def lint_knowledge_index(root):
     if not os.path.isdir(base):
         return []
     ficheros = []
-    for c in KNOWLEDGE_CARPETAS:
+    for c in KNOWLEDGE_INDICE_CARPETAS:
         d = os.path.join(base, c)
         if os.path.isdir(d):
             ficheros += [f"{c}/{f}" for f in sorted(os.listdir(d)) if f.endswith(".md") and f.lower() != "readme.md"]
@@ -634,6 +642,7 @@ def lint_knowledge_index(root):
             errs.append(f"docs/knowledge/{rel}: entrada sin fila en docs/knowledge/README.md — invisible para el único "
                         f"camino de lectura; añade su fila (con «Área») en la tabla del índice")
     return errs
+# --8<-- fin del criterio del índice de knowledge COMPARTIDO
 
 
 def _py_del_plugin(root):

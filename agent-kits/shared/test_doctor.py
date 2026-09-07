@@ -439,6 +439,28 @@ def test_indice_readme_invalido_es_error_y_ya_no_dice_instalacion_sana(tmp_path)
     assert "Instalación sana" not in md and "❌" in md
 
 
+def test_indice_readme_fila_hacia_fichero_inexistente_es_error_aunque_el_plugin_root_sea_una_copia_vieja(tmp_path):
+    """Revisión intento 1 (MINOR 6): la «comprobación local equivalente» solo veía fichero-sin-fila y fila-sin-Área;
+    con `plugin_root` resuelto a una copia instalada anterior (sin `lint_knowledge_index`) una fila fantasma pasaba
+    ✅ (medido sobre e08fc05: «✅ … (comprobación local)»). Ahora el doctor lleva el criterio del linter como copia
+    LITERAL (bloque `--8<--`, identidad con test) y no depende de lo que traiga `plugin_root`."""
+    proj = proyecto(tmp_path)
+    kn = memoria(proj, journal=1)
+    readme = kn / "README.md"
+    readme.write_text(readme.read_text(encoding="utf-8")
+                      + "| [`adr/ADR-099-fantasma.md`](adr/ADR-099-fantasma.md) — fantasma | ADR-099 | ADR | Hooks / z | aceptada | `x` |\n",
+                      encoding="utf-8")
+    for plug in (None, plugin(tmp_path)):                  # sin plugin y con un plugin SIN scripts/lint_plugin.py
+        inf = diag(proj, plug)
+        errs = por_que(inf, "índice de memoria (README)", doctor.ERROR)
+        assert len(errs) == 1, [l for l in lineas(inf) if "memoria" in l["que"]]
+        assert "ADR-099" in errs[0]["detalle"] and "no existe" in errs[0]["detalle"], errs[0]["detalle"]
+        assert inf["exit"] == 1
+    # y el criterio es literalmente el del linter (el test de identidad vive en tests/test_knowledge_index.py)
+    assert "# --8<-- criterio del índice de knowledge COMPARTIDO" in open(SCRIPT, encoding="utf-8").read()
+    assert por_que(diag(proyecto(tmp_path / "b")), "índice de memoria (README)") == []      # sin memoria: nada que juzgar
+
+
 def test_journal_a_cero_con_memoria_curada_es_aviso_y_sin_memoria_sigue_informativo(tmp_path):
     proj = proyecto(tmp_path)
     memoria(proj, journal=0)                          # carpeta journal/ vacía
