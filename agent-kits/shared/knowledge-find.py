@@ -21,11 +21,21 @@ exacta: `--area estimacion` encuentra «Estimación / calibración» (medido: 21
 entradas, casi todas singleton, con `/` y acentos). `--tipo` admite `adr` · `gotcha(s)`/`got` ·
 `lesson(s)`/`leccion(es)`/`les`.
 
+Consulta libre: solo puntúan los tokens CON CONTENIDO. Se quitan las STOPWORDS (una sola lista ES+EN,
+la misma que usa el enrutado por área y el grafo de `--related`) y los tokens de un carácter; el resto
+se reduce a su RAÍZ (`raiz()`: `estimar`/`estimación` → `estim`, `tokens` → `token`, `horas` → `hora`)
+y casa por PREFIJO con los tokens de cada campo (el mismo `"raiz"*` que preselecciona la FTS5). Una
+consulta cuyos tokens con contenido no casan nada → 0 aciertos, exit 0; y una consulta hecha SOLO de
+stopwords («de», «cual es el») también → 0, nunca el corpus entero (medido antes del arreglo: «de» traía
+10 líneas y «quiero saber si el pato vuela hacia marte» las 32). `--json` dice en `consulta.tokens`
+qué raíces se usaron.
+
 Relevancia (misma función en el camino con índice y en el plano, para que los aciertos sean idénticos):
-por cada token de la consulta que casa (prefijo) → +12 en el ID, +6 en el titular, +4 en el área,
-+2 en el texto (+1 por aparición extra, tope +4); +5 si todos los tokens casan. Desempate: estado
-(aceptada < propuesta < obsoleta), tipo (adr < gotcha < leccion), número. Sin consulta libre, solo el
-desempate: doctrina primero, por ID.
+por cada raíz que casa → +12 en el ID, +6 en el titular, +4 en el área, +1 en el cuerpo (+1 más si
+aparece ≥ 3 veces); título/área/ID pesan SIEMPRE por encima del cuerpo: una raíz que casa en el cuerpo
+de todas las entradas («tokens», «hora») no puede ordenar el corpus. +3 si TODAS las raíces casan en
+ID/titular/área de la entrada. Desempate: estado (aceptada < propuesta < obsoleta), tipo (adr < gotcha <
+leccion), número. Sin consulta libre, solo el desempate: doctrina primero, por ID.
 
 Línea compacta: si no cabe en LINEA_MAX se recorta el titular en palabra («…»); si aún no cabe, la
 ruta se abrevia a `carpeta/ID-…` (el detalle se abre por ID con `--show`; el JSON siempre trae la
@@ -36,7 +46,8 @@ Salida `--json` de la capa 1 — CONTRATO (la consumen `task-brief.py` y `sessio
 una clave rompe dos piezas):
   {"version": 1,
    "indice": "construido" | "reconstruido" | "cache" | "degradado",
-   "consulta": {"texto": str, "area": str, "tipo": str, "limit": int},
+   "consulta": {"texto": str, "area": str, "tipo": str, "limit": int[, "tokens": [str]]},   # `tokens` solo con
+                                          # texto libre: las raíces con contenido que puntuaron (explicabilidad)
    "total": int,                          # aciertos ANTES de aplicar --limit
    "aciertos": [ {"id", "tipo", "estado", "estado_detalle", "area", "titular", "ruta", "linea",
                   "puntuacion", "iniciativa", "fecha"} ]}   # en este orden de claves
@@ -111,7 +122,35 @@ SEP = " · "
 RELATED_TOPE_CHARS = 1600      # capa 2 ≤ 400 tokens (spec CA-03); si no cabe, se recorta y se dice
 RELATED_MAX_POR_GRUPO = 6      # entradas por grupo antes de «… y N más»
 AREA_TOKEN_MIN = 4             # tokens del área que cuentan como «misma área» (fuera: de, del, y, por…)
-AREA_STOPWORDS = {"para", "como", "sobre", "entre", "desde", "hacia", "cada"}
+# UNA sola lista de palabras sin contenido (ES + EN), compartida por los tres caminos que la necesitan:
+# la consulta libre (`tokens_consulta`), el enrutado por área (`claves_enrutado`) y «misma área» de
+# `--related` (`_area_significativa`). Antes la tenía solo el enrutado y la consulta libre puntuaba «de».
+STOPWORDS = frozenset("""
+a al algo alguna algunas alguno algunos ante antes aqui aquí aquel aquella aquellas aquellos asi así aun aún
+aunque cada casi como cómo con contra cual cuál cuales cuáles cualquier cuando cuándo cuanto cuánto cuanta
+cuantas cuantos da dan de debe deben del desde despues después dice dicen dime donde dónde dos e el él ella
+ellas ello ellos en entre era eran eres es esa esas ese eso esos esta está estaba estaban estamos estan
+están estar estas este esto estos estoy fue fueron fui ha habia había haber habra habrá hace hacen hacer
+hacia hago han has hasta hay haya he hecho hemos incluso la las le les lo los luego mas más me mi mia mía
+mientras mio mío mis misma mismas mismo mismos mucha muchas mucho muchos muy nada nadie ni ningun ningún
+ninguna ninguno no nos nosotros nuestra nuestras nuestro nuestros nueva nuevas nuevo nuevos nunca o os otra
+otras otro otros para pero poca pocas poco pocos podemos poder podria podría por porque primera primero
+propia propias propio propios pude puede pueden puedo pues que qué quien quién quienes quiero quieres quiere
+quiza quizá quizas quizás saber sabes sabe se sea sean segun según ser si sí sido siempre sigue siguen sin
+sino sobre sois somos son soy su sus suya suyo tal tambien también tan tanta tantas tanto tantos te tener
+tengo tiene tienen toda todas todavia todavía todo todos tras tu tú tus tuya tuyo un una unas uno unos usa
+usar uso usamos usan ustedes vamos varias varios vez veces vosotros voy vuestra vuestro y ya yo
+a about above after again against all also am an and any are as at be because been before being below
+between both but by can cannot could did do does doing done down during each few for from further get gets
+got had has have having he her here hers herself him himself his how i if in into is it its itself just
+know let like me more most my myself need no nor not now of off on once only or other ought our ours
+ourselves out over own same she should show so some such tell than that the their theirs them themselves
+then there these they this those through to too under until up us use used using very want wants was we
+were what when where whether which while who whom why will with without would you your yours yourself
+yourselves
+tarea tareas fase fases iniciativa checklist tope
+""".split())
+# Las últimas seis son vocabulario del propio ledger: en un contexto de tarea no dicen de qué área es.
 # Enrutado por área (Fase 2). Las claves de cada etiqueta `- **Tipo**:` del ledger son tokens de ÁREA del
 # corpus (se casan por prefijo con `filtra_area`, como `--area`): añadir una clave = ampliar qué áreas
 # recibe ese tipo de tarea. `test`/`docs` son las etiquetas del catálogo de personas, no plurales al azar.
@@ -124,13 +163,17 @@ TIPO_TAREA_AREAS = {
     "docs":     ("docs", "documentacion", "confluence", "publicacion", "changelog", "skills"),
 }
 CONTEXTO_TOKEN_MIN = 4         # tokens del contexto que valen como clave (fuera: «de», «con», «por», «T-06»…)
-CONTEXTO_STOPWORDS = {"para", "como", "sobre", "entre", "desde", "hacia", "cada", "este", "esta", "esto",
-                      "estos", "estas", "tarea", "tareas", "fase", "fases", "iniciativa", "checklist", "tope",
-                      "propio", "propia", "nuevo", "nueva", "todo", "toda", "todos", "todas", "solo", "cuando",
-                      "donde", "porque", "pero", "también", "tambien", "aunque", "sino", "hace", "hacer",
-                      "tiene", "tienen", "puede", "pueden", "debe", "deben", "sigue", "siguen", "tras", "ante"}
 ENRUTADO_PESO_INICIATIVA = 30  # nacer en la misma iniciativa pesa más que casar un área
 ENRUTADO_PESO_AREA = 4         # por clave que casa en el área (mismo peso que el área en `puntuacion`)
+# Pesos de la consulta libre (`puntuacion`): los campos por encima del cuerpo, siempre. Con el cuerpo a +2..+6
+# por token, «tokens» y «hora» (que están en el cuerpo de casi todo) ordenaban el corpus entero por delante
+# de las nueve lecciones de estimación (medido 2026-09-07: posiciones 15-32 de 32).
+PESO_ID = 12
+PESO_TITULAR = 6
+PESO_AREA = 4
+PESO_CUERPO = 1
+CUERPO_REPETIDO = 3            # apariciones en el cuerpo a partir de las cuales suma un PESO_CUERPO más
+BONUS_TODAS_EN_CAMPOS = 3      # todas las raíces de la consulta casan en ID/titular/área
 INDICE_NOMBRE = "knowledge-index.sqlite"   # en <root>/.claude/ (+ .gitignore)
 INDICE_VERSION = "1"                        # entra en el hash: cambiar el esquema invalida el índice
 CAMPOS = ("id", "tipo", "estado", "estado_detalle", "area", "titular", "ruta", "ruta_corta", "iniciativa",
@@ -489,30 +532,32 @@ def clave_orden(e):
 
 
 def puntuacion(e, toks):
-    """Relevancia de `e` para los tokens de la consulta (0 = no casa). Determinista y explicable."""
+    """Relevancia de `e` para las raíces de la consulta (0 = no casa). Determinista y explicable:
+    ID (+12) > titular (+6) > área (+4) > cuerpo (+1, +1 más con ≥ 3 apariciones). Una raíz que solo
+    aparece en el cuerpo nunca pesa lo que una que casa en un campo, por muchas veces que aparezca."""
     if not toks:
         return 0
     tok_id = tokens(e["id"]) + [normaliza(e["id"])]
     tok_tit = tokens(e["titular"])
     tok_area = tokens(e["area"])
     cnt_texto = Counter(tokens(e["texto"]))
-    total, casados = 0, 0
+    total, en_campos = 0, 0
     for t in toks:
         s = 0
         if casa(t, tok_id):
-            s += 12
+            s += PESO_ID
         if casa(t, tok_tit):
-            s += 6
+            s += PESO_TITULAR
         if casa(t, tok_area):
-            s += 4
+            s += PESO_AREA
+        if s:
+            en_campos += 1
         n = sum(c for tk, c in cnt_texto.items() if tk.startswith(t))
         if n:
-            s += 2 + min(n - 1, 4)
-        if s:
-            casados += 1
+            s += PESO_CUERPO + (PESO_CUERPO if n >= CUERPO_REPETIDO else 0)
         total += s
-    if toks and casados == len(toks):
-        total += 5
+    if en_campos == len(toks):
+        total += BONUS_TODAS_EN_CAMPOS
     return total
 
 
@@ -520,8 +565,35 @@ def filtra_area(e, area_toks):
     return all(casa(t, tokens(e["area"])) for t in area_toks)
 
 
+SUFIJOS_RAIZ = ("aciones", "acion", "ciones", "cion", "siones", "sion", "mente", "ando", "iendo", "idad",
+                "ados", "adas", "ado", "ada", "ar", "er", "ir", "es", "s")
+RAIZ_MIN = 4                   # la raíz conserva al menos esto: `hora(s)` → `hora`, pero `es` no se toca
+
+
+def raiz(tok):
+    """Raíz ligera de un token de consulta: quita UN sufijo frecuente (ES/EN) si deja ≥ RAIZ_MIN
+    caracteres. `estimar`/`estimacion`/`estimaciones` → `estim`; `tokens` → `token`; `horas` → `hora`;
+    `revision` → `revi`; `cp1252` → `cp1252`. Solo se aplica a la CONSULTA: los campos se casan por prefijo
+    con la raíz, así que `estim` encuentra `estimación`, `estimar` y `estimado` igual que la FTS5 con
+    `"estim"*`. No es un stemmer: es el mínimo para que la misma palabra en otra forma no sea otra palabra."""
+    for suf in SUFIJOS_RAIZ:
+        if tok.endswith(suf) and len(tok) - len(suf) >= RAIZ_MIN:
+            return tok[: -len(suf)]
+    return tok
+
+
 def tokens_consulta(texto):
-    return [t for t in dict.fromkeys(tokens(texto)) if len(t) >= 2]
+    """Raíces CON CONTENIDO de la consulta libre, sin repetidos y en orden: fuera las STOPWORDS y los
+    tokens de un carácter. `"cual es el ratio de tokens por hora"` → `["ratio", "token", "hora"]`;
+    `"de"` → `[]` (y una consulta sin raíces no devuelve el corpus: ver `buscar`)."""
+    out = []
+    for t in tokens(texto):
+        if len(t) < 2 or t in STOPWORDS:
+            continue
+        r = raiz(t)
+        if r not in out:
+            out.append(r)
+    return out
 
 
 # ------------------------------------------------------------------ capa 1 enrutada (llegada: brief y sesión)
@@ -539,7 +611,7 @@ def claves_enrutado(contexto="", tipo_tarea=""):
             aviso = (f"knowledge-find: tipo de tarea `{tipo_tarea}` fuera del catálogo "
                      f"({', '.join(TIPO_TAREA_AREAS)}); se enruta solo por contexto e iniciativa")
     for t in tokens(contexto):
-        if len(t) >= CONTEXTO_TOKEN_MIN and t not in CONTEXTO_STOPWORDS and not t.isdigit():
+        if len(t) >= CONTEXTO_TOKEN_MIN and t not in STOPWORDS and not t.isdigit():
             claves.append(t)
     return list(dict.fromkeys(claves)), aviso
 
@@ -577,6 +649,8 @@ def buscar(entradas, texto="", area="", tipo="", limit=LIMIT_DEFAULT, candidatos
     """(aciertos ordenados y con `puntuacion`, total antes del limit). `candidatos` (IDs de la FTS)
     solo PRESELECCIONA: la relevancia y el filtro `puntuacion > 0` son los mismos con y sin índice."""
     toks = tokens_consulta(texto)
+    if texto.strip() and not toks:
+        return [], 0                    # solo stopwords («de», «cual es el»): no hay nada que buscar
     area_toks = tokens(area)
     tipo_n = tipo_normalizado(tipo) if tipo else None
     out = []
@@ -662,7 +736,7 @@ def buscar_id(entradas, id_):
 
 
 def _area_significativa(area):
-    return {t for t in tokens(area) if len(t) >= AREA_TOKEN_MIN and t not in AREA_STOPWORDS}
+    return {t for t in tokens(area) if len(t) >= AREA_TOKEN_MIN and t not in STOPWORDS}
 
 
 def relaciones(entradas, e):
@@ -825,9 +899,12 @@ def main(argv=None):
         consulta.update({"contexto": args.contexto, "tipo_tarea": args.tipo_tarea,
                          "iniciativa": args.iniciativa, "claves": claves})
     else:
-        candidatos = candidatos_fts(path, tokens_consulta(texto))
+        toks = tokens_consulta(texto)
+        candidatos = candidatos_fts(path, toks)
         aciertos, total = buscar(entradas, texto=texto, area=args.area, tipo=args.tipo, limit=args.limit,
                                  candidatos=candidatos)
+        if texto:
+            consulta["tokens"] = toks
     if args.json:
         data = {"version": VERSION_JSON, "indice": indice["indice"], "consulta": consulta,
                 "total": total, "aciertos": [acierto_json(a) for a in aciertos]}
