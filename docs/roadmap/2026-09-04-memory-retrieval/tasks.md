@@ -42,13 +42,13 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervisión (real/est) | Tokens (real/est) |
 |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
 | Fase 1 — Recuperación | 4 | 4 | 100% | 0 / 9,0h | 0,60 (est.) / 0,51h | 0,16 (est.) / 0,13h | n/d / 245.000 |
-| Fase 2 — Llegada | 2 | 3 | 67% | 0 / 4,0h | 0,40 (est.) / 0,31h | 0,10 (est.) / 0,08h | n/d / 150.000 |
+| Fase 2 — Llegada | 3 | 3 | 100% | 0 / 4,0h | 0,46 (est.) / 0,31h | 0,12 (est.) / 0,08h | n/d / 150.000 |
 | Fase 3 — Prueba de que se recorre | 0 | 3 | 0% | 0 / 4,0h | 0 / 0,27h | 0 / 0,07h | 0 / 128.000 |
 | Fase 4 — Captura episódica | 0 | 4 | 0% | 0 / 7,0h | 0 / 0,43h | 0 / 0,11h | 0 / 205.000 |
 | Fase 5 — Que la doctrina viaje | 0 | 2 | 0% | 0 / 3,0h | 0 / 0,24h | 0 / 0,06h | 0 / 115.000 |
 | Fase 6 — Cerrar el bucle | 0 | 2 | 0% | 0 / 3,0h | 0 / 0,30h | 0 / 0,08h | 0 / 145.000 |
 | Revisión de dos lentes (transversal, línea propia) | — | — | — | 0 / 4,0h | 0 / 0,54h | 0 / 0,13h | 0 / 260.000 |
-| **TOTAL** | **6** | **18** | **33%** | **0 / 34,0h** | **1,00 (est.) / 2,60h** | **0,26 (est.) / 0,66h** | **n/d / 1.248.000** |
+| **TOTAL** | **7** | **18** | **39%** | **0 / 34,0h** | **1,06 (est.) / 2,60h** | **0,28 (est.) / 0,66h** | **n/d / 1.248.000** |
 
 > **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada (8 h). Ver `skills/jira-sync/SKILL.md`.
 >
@@ -211,7 +211,7 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 
 ## Fase 2 — Llegada
 
-**Estado**: en-progreso · **Estimado**: 4,0h · **Real**: 0h humanas · 0,40h IA (estimado) + 0,10h supervisión (estimado) · **Coste est.**: 201 € · **Tokens est.**: 150.000
+**Estado**: completado · **Estimado**: 4,0h · **Real**: 0h humanas · 0,46h IA (estimado) + 0,12h supervisión (estimado) · **Coste est.**: 201 € · **Tokens est.**: 150.000
 
 > Cierra el hueco **1** de `analysis.md` §1.4, el **más caro**: con `subagentes: true` el brief es el
 > ÚNICO contexto (`commands/dev-cycle.md:110`) y hoy no lleva memoria, así que quien escribe el
@@ -290,28 +290,35 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 ### T-07 — El reparto por agente de `knowledge-check.md` deja de ser solo prosa
 
 - **Descripción**: la tabla «qué lee cada agente» del fragmento compartido pasa de decir *qué debería abrir* a **nombrar el comando** de `knowledge-find.py` que le corresponde (`evaluator` → `--area estimacion`, `implementer` → área de la tarea, `qa` → `--tipo gotcha`, etc.). El fragmento sigue siendo la **fuente única**: no se duplica en ningún prompt.
-- **Estado**: borrador
-- **Tiempo humano**: est. 0,5h · real —
-- **Tiempo IA (ejec.)**: est. 0,04h · real —
-- **Supervisión**: est. 0,01h (≈25 % IA) · real —
+- **Estado**: completado
+- **Tiempo humano**: est. 0,5h · real 0h (sin intervención humana en la ejecución)
+- **Tiempo IA (ejec.)**: est. 0,04h · real 0,06h (estimado: el usage-meter no lee la transcripción en este entorno)
+- **Supervisión**: est. 0,01h (≈25 % IA) · real 0,02h (estimado)
 - **Previsión IA**: 15k in / 4k out tok · 0,16 €
 - **Dependencias**: T-01
 - **Tipo**: docs
-- **Archivos**: `agent-kits/shared/knowledge-check.md`
-- **Verificación**: `grep -c "knowledge-find.py" agent-kits/shared/knowledge-check.md` → ≥ 5 (una por agente de la tabla) · `python3 scripts/lint_plugin.py` → exit 0 · lectura: cada fila de la tabla «Reparto de qué lee cada agente» nombra su comando y **ninguna** sigue pidiendo «lee el índice y decide» · lectura: el fragmento no se ha copiado a ningún prompt (`grep -rl "Reparto de qué lee cada agente" agents/` → sin resultados)
+- **Archivos**: `agent-kits/shared/knowledge-check.md`, `agents/evaluator.md`, `agents/planner.md`, `agents/implementer.md`, `agents/qa.md`, `agents/documenter.md`, `agents/architect.md`, `agents/reviewer.md` (los agentes añadidos al cerrar, por encargo del orquestador: la línea de §REGLAS de cada agente que cita el fragmento nombra su orden exacta —UNA línea, sin duplicar la tabla—, y `reviewer`, que no leía memoria nunca, gana la suya)
+- **Changelog**: Cada agente sabe ya qué orden exacta de la memoria técnica le toca ejecutar (por área, tipo de entrada o tarea) en vez de leer el índice entero y decidir; el revisor adversarial también consulta los ADR del área del diff.
+- **Verificación** (ejecutada 2026-09-07):
+  - `TDD n/a: prosa` (fragmento compartido y líneas de prompt; se verifica por lectura y por grep, como declara la tarea).
+  - `grep -c "knowledge-find.py" agent-kits/shared/knowledge-check.md` → **12** (≥ 5: las 7 filas de la tabla —`evaluator`, `planner`, `architect`, `implementer`, `reviewer`, `qa`, `documenter`— más el bloque de ejemplo de las tres capas).
+  - `python3 scripts/lint_plugin.py` → `lint_plugin: 9 agentes · 0 errores · 3 avisos`, **exit 0** · `python3 tests/test_lint_plugin.py` → `36/36 OK`.
+  - Lectura: cada fila de «Reparto de qué lee cada agente» nombra su orden y **ninguna** pide «lee el índice y decide» (`grep -c "lee su .README.md. y abre" knowledge-check.md` → 0); el párrafo de la distinción por `estado` (aceptada / propuesta / obsoleta con sucesor) es **substring literal** del de `HEAD` (comprobado con Python: `True`); la 1.ª capa no obliga a abrir nada («con 0 aciertos, sigue sin abrir nada»).
+  - `grep -rl "Reparto de qué lee cada agente" agents/` → **sin resultados** (el fragmento no está copiado en ningún prompt); `grep -n "knowledge-find.py" agents/*.md` → exactamente UNA línea por agente (7 agentes).
+  - Bytes de los prompts (`wc -c`, antes → después): `evaluator.md` **15.513 → 15.513 (+0; CA-22 intacto)** · `documenter.md` 12.836 → 12.871 (+35) · `planner.md` 17.945 → 17.987 (+42) · `qa.md` 15.742 → 15.800 (+58) · `architect.md` 13.697 → 13.770 (+73) · `implementer.md` 20.605 → 20.695 (+90) · `reviewer.md` 6.398 → 6.777 (+379, la línea nueva de un agente que no tenía ninguna). La orden literal es más larga que la prosa que sustituye; el resto de cada línea se acortó para compensar.
 
 **Criterios de aceptación**
-- [ ] Las **5** filas de la tabla nombran su comando concreto de `knowledge-find.py` (spec CA-11).
-- [ ] La regla de **progressive disclosure** se conserva: la 1.ª capa no obliga a abrir nada.
-- [ ] La distinción por `estado` (doctrina / indicio / obsoleta con sucesor) se conserva **literal**: es el criterio 1 de superioridad y no se toca al reescribir.
-- [ ] El fragmento sigue siendo **fuente única**: no aparece copiado en ningún `agents/*.md`.
-- [ ] `lint_plugin.py` sigue en **exit 0** (hoy: 9 agentes · 0 errores · 3 avisos).
+- [x] Las **5** filas de la tabla nombran su comando concreto de `knowledge-find.py` (spec CA-11). *Son 7 filas: las 5 de antes más `architect` (ya citaba el fragmento) y `reviewer` (nuevo lector, por encargo del orquestador).*
+- [x] La regla de **progressive disclosure** se conserva: la 1.ª capa no obliga a abrir nada.
+- [x] La distinción por `estado` (doctrina / indicio / obsoleta con sucesor) se conserva **literal**: es el criterio 1 de superioridad y no se toca al reescribir.
+- [x] El fragmento sigue siendo **fuente única**: no aparece copiado en ningún `agents/*.md` (cada agente lleva una línea con SU orden y remite al fragmento).
+- [x] `lint_plugin.py` sigue en **exit 0** (hoy: 9 agentes · 0 errores · 3 avisos).
 
 **Subtareas**
-- [ ] Reescribir la tabla del reparto.
-- [ ] Añadir el ejemplo de invocación con localización del kit (regla 5 de `CONVENTIONS`).
+- [x] Reescribir la tabla del reparto.
+- [x] Añadir el ejemplo de invocación con localización del kit (regla 5 de `CONVENTIONS`).
 
-**Notas**: es la única tarea de esta fase que se verifica **por lectura** en su mayor parte, y así se declara — es prosa, y fingir un test sería peor.
+**Notas**: es la única tarea de esta fase que se verifica **por lectura** en su mayor parte, y así se declara — es prosa, y fingir un test sería peor. El fragmento sigue diciendo cómo degradar sin el script (instalación parcial): leer `README.md` y abrir solo las filas del área.
 
 ---
 

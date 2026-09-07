@@ -1,11 +1,12 @@
 <!--
   FRAGMENTO COMPARTIDO: memoria técnica del proyecto (bucle de lectura, fuente única).
   Lo referencian los agentes que LEEN antes de trabajar (evaluator, planner, implementer,
-  qa, documenter). Calcado del patrón de `constitution-check.md` y del protocolo de
-  bookends de `agents/nemesis.md` (§1, "apertura lee / cierre actualiza" sobre
+  qa, documenter, reviewer, architect). Calcado del patrón de `constitution-check.md` y del
+  protocolo de bookends de `agents/nemesis.md` (§1, "apertura lee / cierre actualiza" sobre
   `docs/security-scan/STATE.md`+`MEMORY.md`) — aquí no hay cierre porque la escritura la
   hacen otros fragmentos (`knowledge-write.md`), no el lector.
-  Si cambias la regla aquí, cambia para todos — no la dupliques en prompts.
+  Si cambias la regla aquí, cambia para todos — no la dupliques en prompts: cada agente lleva
+  UNA línea con su orden y remite aquí (memory-retrieval T-07).
 -->
 
 # Memoria técnica del proyecto — paso compartido (bucle de lectura)
@@ -16,13 +17,22 @@
 [ -d docs/knowledge/ ] && echo "memoria técnica presente"
 ```
 
-- **Si existe `docs/knowledge/`:** lee primero su `README.md` (índice de entrada, progressive
-  disclosure) — **no** abras `adr/`, `gotchas/` ni `lessons/` enteros de entrada; cada entrada vive
-  en su propio fichero con ID (`adr/ADR-NNN-<slug>.md`, `gotchas/GOT-NNN-<slug>.md`,
-  `lessons/LES-NNN-<agente>-<slug>.md`). Del índice, abre **solo el fichero de la entrada concreta** cuya
-  columna "Área" toque la tarea que tienes delante (p. ej. si estimas, abres los ficheros de área
-  "Estimación / calibración"; si tocas Confluence, los de área "Confluence") — lectura SELECTIVA:
-  nunca "todo `gotchas/`" ni "todo `lessons/`", solo las entradas señaladas por el índice.
+- **Si existe `docs/knowledge/`:** **pregunta, no leas el índice entero.** `README.md` (índice de
+  entrada, 31 filas ≈ 3.685 tokens) se sigue vigilando como fuente, pero el camino de lectura es
+  `knowledge-find.py` (mismo kit): una consulta devuelve **una línea por acierto**
+  (`ID · estado · área · titular · ruta`, ≤ 120 caracteres) y **solo entonces** abres, por ID, la
+  entrada concreta que necesites — lectura SELECTIVA (progressive disclosure): nunca "todo `gotchas/`"
+  ni "todo `lessons/`", nunca el corpus entero. Localiza el script como cualquier pieza del kit
+  (regla 5 de `CONVENTIONS`):
+
+  ```bash
+  SHAREDKIT="$(find "$PWD/.claude" "$HOME/.claude" -type d -path '*agent-kits/shared' 2>/dev/null | head -1)"
+  python3 "$SHAREDKIT/knowledge-find.py" --area estimacion --tipo lesson          # capa 1: aciertos compactos de un área (normalizada, sin acentos)
+  python3 "$SHAREDKIT/knowledge-find.py" --tipo-tarea devops --contexto "<título de la tarea>" --iniciativa <slug>   # capa 1 ENRUTADA por área (la del brief)
+  python3 "$SHAREDKIT/knowledge-find.py" --related ADR-010                        # capa 2: grafo curado (sucesión · misma iniciativa · misma área)
+  python3 "$SHAREDKIT/knowledge-find.py" --show GOT-005                           # capa 3: la entrada completa — SOLO la que vayas a aplicar
+  ```
+
   - **Distingue por `estado` antes de aplicar nada** (spec `knowledge-capture` §Bucle de lectura
     punto 5 y §Manejo de errores "Entrada dudosa o no verificada"): una entrada `estado: aceptada`
     ya pasó la revisión de dos lentes (o el usuario en la puerta) — aplícala como doctrina normal.
@@ -30,25 +40,30 @@
     pendiente ("hay una propuesta sin validar que dice X, tómala como indicio, no como regla
     cerrada"), no la apliques como si fuera doctrina vinculante, y dilo explícitamente si
     condiciona una decisión tuya. Una entrada `estado: obsoleta` no se aplica; sigue el enlace a
-    la que la sustituye.
+    la que la sustituye. `--related <ID>` la muestra como `sustituida por →`, y el `estado` va
+    **delante** en cada acierto precisamente para que lo veas antes que el titular.
   - Aplica lo que digan (respetando la distinción de estado de arriba) salvo que el histórico más
     reciente (un ADR `obsoleta` con sucesor, o una lección contradicha por evidencia posterior) las
     anule explícitamente — gana lo más reciente, y la constitución del proyecto
     (`constitution-check.md`), si existe, prima sobre la memoria.
 - **Si NO existe `docs/knowledge/`:** continúa sin ella — es **siempre activa pero degrada en
   silencio** (D3 de la iniciativa `knowledge-capture`): la carpeta nace en el primer registro
-  (`knowledge-write.md`), nunca bloquea a un lector que llega antes de que exista.
+  (`knowledge-write.md`), nunca bloquea a un lector que llega antes de que exista. Si el script no
+  está (instalación parcial), lee `README.md` y abre solo las filas cuya columna «Área» toque tu tarea.
 
-**Reparto de qué lee cada agente** (evita que todos abran todo — protege la inversión de
-`2026-08-10-token-diet`):
+**Reparto de qué lee cada agente** — la orden exacta, no una intención (evita que todos abran todo —
+protege la inversión de `2026-08-10-token-diet`). `$SHAREDKIT` es el kit localizado arriba; sustituye
+`<…>` por los datos de tu iniciativa/tarea; con 0 aciertos, sigue sin abrir nada:
 
-| Agente | Qué abre además del índice |
-|---|---|
-| `evaluator` | `lessons/LES-*-evaluator-*.md` que apliquen (lecciones de estimación/calibración) |
-| `planner` | `adr/ADR-*.md` + `lessons/LES-*.md` que apliquen (decisiones y lecciones de proceso que afectan al diseño del plan) |
-| `implementer` | `adr/ADR-*.md` + `gotchas/GOT-*.md` que apliquen (decisiones que restringen la implementación y trampas ya comprobadas) |
-| `qa` | `gotchas/GOT-*.md` que apliquen (trampas ya comprobadas, útil para no repetir un flaky ya diagnosticado) |
-| `documenter` | todo lo que liste el índice (`adr/`, `gotchas/`, `lessons/`) — es quien indexa/deriva la documentación de producto |
+| Agente | Ejecuta (capa 1) | Y abre con `--show <ID>` solo… |
+|---|---|---|
+| `evaluator` | `python3 "$SHAREDKIT/knowledge-find.py" --area estimacion --tipo lesson` | las lecciones de estimación/calibración que condicionen ESTA estimación (incluidas las de la primera calibración real, `LES-007/008/009`) |
+| `planner` | `python3 "$SHAREDKIT/knowledge-find.py" --contexto "<título de la spec>" --iniciativa <slug>` y, además, `python3 "$SHAREDKIT/knowledge-find.py" --tipo adr --limit 0` | los ADR que acoten el diseño del plan y las lecciones de proceso del área |
+| `architect` | `python3 "$SHAREDKIT/knowledge-find.py" --tipo adr --contexto "<título de la spec>"` | los ADR `aceptada` que acotan las opciones (uno vigente no se re-abre sin decirlo) |
+| `implementer` | `python3 "$SHAREDKIT/knowledge-find.py" --tipo-tarea <Tipo de la T-XX> --contexto "<título de la T-XX>" --iniciativa <slug>` (con `subagentes: true` **ya viene en el brief**: sección «Memoria técnica del proyecto» de `task-brief.py`) | los ADR que restringen la implementación y los gotchas del área (trampas ya comprobadas) |
+| `reviewer` | `python3 "$SHAREDKIT/knowledge-find.py" --tipo adr --tipo-tarea <Tipo> --contexto "<título de la T-XX>" --iniciativa <slug>` | el ADR `aceptada` que el diff parezca contradecir: si lo contradice, es un gap con su ID como evidencia |
+| `qa` | `python3 "$SHAREDKIT/knowledge-find.py" --tipo gotcha --contexto "<título de la iniciativa>"` (con 0 aciertos, `--tipo gotcha --limit 0`: son pocos y baratos) | el gotcha que evite reabrir un flaky ya diagnosticado |
+| `documenter` | `python3 "$SHAREDKIT/knowledge-find.py" --limit 0` (una línea por entrada del corpus: es quien indexa/deriva la documentación de producto) | lo que vaya a documentar |
 
 **Journal de sesión (`docs/knowledge/journal/`, memoria EPISÓDICA — iniciativa `memory-health`).**
 Es la bitácora cronológica que deja el hook `SessionEnd` (`agent-kits/shared/journal.py`): qué pasó en
@@ -57,9 +72,10 @@ doctrina (no está curada ni validada) y NO sustituye a `adr/`/`gotchas/`/`lesso
 `planner` y `architect` abren **solo la última entrada** (`journal.py latest --n 1`, o el fichero más
 reciente de la carpeta) y **solo si su `iniciativa:` coincide con la iniciativa en la que trabajan** —
 para retomar el hilo (pendientes, decisiones apuntadas), nunca para leer el histórico entero. Al
-arrancar/retomar la sesión ya viene inyectada por `session-context.sh`; si la ves en el contexto, no la
-releas. Sin carpeta → nada que hacer.
+arrancar/retomar la sesión ya viene inyectada por `session-context.sh` — igual que los aciertos de
+memoria del **área de la iniciativa activa** (bloque «Memoria técnica del área activa»); si los ves en
+el contexto, no los repitas.
 
-No leas por leer: si el índice no tiene ninguna entrada de tu área para esta tarea, sigue sin
+No leas por leer: si la consulta no devuelve ninguna entrada de tu área para esta tarea, sigue sin
 abrir nada más — la progressive disclosure es la protección contra el coste de "leer memoria" en
 cada invocación.
