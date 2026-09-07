@@ -339,6 +339,9 @@ def _modos():
             [("deny", lambda w: ["pre-tool", "--project-dir", "."], (0,), deny)],
         "agent-kits/shared/journal.py":
             [("draft", lambda w: ["draft", "--root", "."], (0,), None)],
+        # Imprime `·` y áreas con acentos («Estimación / calibración») en cada acierto (memory-retrieval T-01).
+        "agent-kits/shared/knowledge-find.py":
+            [("consulta", lambda w: ["--area", "estimacion"], (0,), None)],
         "agent-kits/shared/ledger-lint.py":
             [("ledger", lambda w: [L], (0, 1), None)],
         "agent-kits/shared/model-tier.py":
