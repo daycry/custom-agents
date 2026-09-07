@@ -83,6 +83,10 @@ SINONIMOS_TIPO = {
 }
 ID_RE = re.compile(r"\b(ADR|GOT|LES)-(\d{3})\b")
 SEP = " · "
+RELATED_TOPE_CHARS = 1600      # capa 2 ≤ 400 tokens (spec CA-03); si no cabe, se recorta y se dice
+RELATED_MAX_POR_GRUPO = 6      # entradas por grupo antes de «… y N más»
+AREA_TOKEN_MIN = 4             # tokens del área que cuentan como «misma área» (fuera: de, del, y, por…)
+AREA_STOPWORDS = {"para", "como", "sobre", "entre", "desde", "hacia", "cada"}
 
 # ------------------------------------------------------------------ normalización
 
@@ -409,6 +413,115 @@ def resolver_root(arg_root):
     return os.path.abspath(env) if env else os.getcwd()
 
 
+# ------------------------------------------------------------------ capa 2: grafo curado
+
+def buscar_id(entradas, id_):
+    id_n = (id_ or "").strip().upper()
+    return next((e for e in entradas if e["id"].upper() == id_n), None)
+
+
+def _area_significativa(area):
+    return {t for t in tokens(area) if len(t) >= AREA_TOKEN_MIN and t not in AREA_STOPWORDS}
+
+
+def relaciones(entradas, e):
+    """Las tres relaciones CURADAS de `e` (nunca cronología):
+      sucesion   → [(relacion, entrada|None, id)]: `sustituida por` (sucesores declarados en `e` o en
+                   el `estado` de una obsoleta, o quien declara `sustituye: e`) y `sustituye a` (lo que
+                   `e` declara sustituir, o quien declara a `e` como su `sucesor`). `entrada` es None
+                   si el ID no está en el corpus.
+      iniciativa → entradas con la misma `iniciativa` (frontmatter o deducida de la fuente), sin `e`.
+      area       → entradas cuya área comparte ≥ 1 token significativo con la de `e`, por número de
+                   tokens compartidos y luego doctrina primero / por ID, sin `e`.
+    """
+    por_id = {x["id"]: x for x in entradas}
+    suc, vistos = [], set()
+
+    def add(rel, id_):
+        if (rel, id_) in vistos or id_ == e["id"]:
+            return
+        vistos.add((rel, id_))
+        suc.append((rel, por_id.get(id_), id_))
+
+    for id_ in e["sucesores"]:
+        add("sustituida por", id_)
+    for id_ in e["sustituye"]:
+        add("sustituye a", id_)
+    for x in entradas:
+        if e["id"] in x["sustituye"]:
+            add("sustituida por", x["id"])
+        if e["id"] in x["sucesores"]:
+            add("sustituye a", x["id"])
+    suc.sort(key=lambda t: (0 if t[0] == "sustituida por" else 1, _numero(t[2]), t[2]))
+
+    ini = [x for x in entradas if e["iniciativa"] and x["iniciativa"] == e["iniciativa"] and x["id"] != e["id"]]
+    ini.sort(key=clave_orden)
+
+    mios = _area_significativa(e["area"])
+    area = []
+    for x in entradas:
+        if x["id"] == e["id"] or not mios:
+            continue
+        comunes = len(mios & _area_significativa(x["area"]))
+        if comunes:
+            area.append((comunes, x))
+    area.sort(key=lambda t: (-t[0],) + clave_orden(t[1]))
+    return {"sucesion": suc, "iniciativa": ini, "area": [x for _c, x in area]}
+
+
+def _linea_sucesion(rel, x, id_):
+    prefijo = f"{rel} → "
+    if x is None:
+        return f"{prefijo}{id_} (no está en el corpus)"
+    return prefijo + linea_compacta(x, LINEA_MAX - len(prefijo))
+
+
+def texto_related(e, rel):
+    """Salida humana de la capa 2, topada a RELATED_TOPE_CHARS: tres grupos etiquetados y separados;
+    un grupo vacío dice `(ninguna)`; si el conjunto no cabe, los grupos ceden entradas desde el más
+    largo y lo declaran con «… y N más»."""
+    grupos = [
+        ("Sucesión:", [_linea_sucesion(r, x, i) for r, x, i in rel["sucesion"]], None),
+        (f"Misma iniciativa ({e['iniciativa']}):" if e["iniciativa"] else "Misma iniciativa (sin iniciativa conocida):",
+         [linea_compacta(x) for x in rel["iniciativa"]], None),
+        (f"Misma área ({e['area']}):" if e["area"] else "Misma área (sin área):",
+         [linea_compacta(x) for x in rel["area"]], e["area"]),
+    ]
+    visibles = [min(len(ls), RELATED_MAX_POR_GRUPO) for _t, ls, _a in grupos]
+
+    def render():
+        out = [linea_compacta(e)]
+        for (titulo, lineas, area), n in zip(grupos, visibles):
+            out.append(titulo)
+            if not lineas:
+                out.append("(ninguna)")
+                continue
+            out.extend(lineas[:n])
+            if n < len(lineas):
+                pista = f" (`--area \"{area}\"` las lista todas)" if area else ""
+                out.append(f"… y {len(lineas) - n} más{pista}")
+        return "\n".join(out) + "\n"
+
+    texto = render()
+    while len(texto) > RELATED_TOPE_CHARS and any(n > 1 for n in visibles):
+        k = max(range(len(grupos)), key=lambda i: (visibles[i], i))
+        visibles[k] -= 1
+        texto = render()
+    return texto
+
+
+def json_related(e, rel, indice):
+    data = {"version": VERSION_JSON, "indice": indice["indice"], "entrada": acierto_json(e), "relaciones": {
+        "sucesion": [dict(relacion=r, **(acierto_json(x) if x else {"id": i, "ausente": True}))
+                     for r, x, i in rel["sucesion"]],
+        "iniciativa": {"clave": e["iniciativa"], "aciertos": [acierto_json(x) for x in rel["iniciativa"]]},
+        "area": {"clave": e["area"], "aciertos": [acierto_json(x) for x in rel["area"]]},
+    }}
+    if indice.get("indice_motivo"):
+        data["indice_motivo"] = indice["indice_motivo"]
+    return data
+
+
 # ------------------------------------------------------------------ CLI
 
 def main(argv=None):
@@ -419,11 +532,25 @@ def main(argv=None):
     ap.add_argument("--limit", type=int, default=LIMIT_DEFAULT, help=f"aciertos máximos (default {LIMIT_DEFAULT}; 0 = sin tope)")
     ap.add_argument("--json", action="store_true")
     ap.add_argument("--root", help="raíz del proyecto (default: $CLAUDE_PROJECT_DIR → cwd)")
+    ap.add_argument("--related", metavar="ID", help="capa 2: grafo curado de una entrada")
     args = ap.parse_args(argv)
     root = resolver_root(args.root)
     texto = " ".join(args.texto)
     entradas = cargar_corpus(root)
     indice = {"indice": "degradado", "indice_motivo": "recorrido plano"}
+
+    if args.related:
+        e = buscar_id(entradas, args.related)
+        if e is None:
+            print(f"knowledge-find: no hay ninguna entrada con ID `{args.related}` en {os.path.join(root, 'docs', 'knowledge')}",
+                  file=sys.stderr)
+            return 1
+        rel = relaciones(entradas, e)
+        if args.json:
+            print(json.dumps(json_related(e, rel, indice), ensure_ascii=False))
+        else:
+            sys.stdout.write(texto_related(e, rel))
+        return 0
     aciertos, total = buscar(entradas, texto=texto, area=args.area, tipo=args.tipo, limit=args.limit)
     if args.json:
         data = {"version": VERSION_JSON, "indice": indice["indice"],

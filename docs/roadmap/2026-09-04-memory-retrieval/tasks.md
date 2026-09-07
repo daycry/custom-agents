@@ -36,14 +36,14 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervisión (real/est) | Tokens (real/est) |
 |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
-| Fase 1 — Recuperación | 1 | 4 | 25% | 0 / 9,0h | 0 / 0,51h | 0 / 0,13h | 0 / 245.000 |
+| Fase 1 — Recuperación | 2 | 4 | 50% | 0 / 9,0h | 0 / 0,51h | 0 / 0,13h | 0 / 245.000 |
 | Fase 2 — Llegada | 0 | 3 | 0% | 0 / 4,0h | 0 / 0,31h | 0 / 0,08h | 0 / 150.000 |
 | Fase 3 — Prueba de que se recorre | 0 | 3 | 0% | 0 / 4,0h | 0 / 0,27h | 0 / 0,07h | 0 / 128.000 |
 | Fase 4 — Captura episódica | 0 | 4 | 0% | 0 / 7,0h | 0 / 0,43h | 0 / 0,11h | 0 / 205.000 |
 | Fase 5 — Que la doctrina viaje | 0 | 2 | 0% | 0 / 3,0h | 0 / 0,24h | 0 / 0,06h | 0 / 115.000 |
 | Fase 6 — Cerrar el bucle | 0 | 2 | 0% | 0 / 3,0h | 0 / 0,30h | 0 / 0,08h | 0 / 145.000 |
 | Revisión de dos lentes (transversal, línea propia) | — | — | — | 0 / 4,0h | 0 / 0,54h | 0 / 0,13h | 0 / 260.000 |
-| **TOTAL** | **1** | **18** | **6%** | **0 / 34,0h** | **0 / 2,60h** | **0 / 0,66h** | **0 / 1.248.000** |
+| **TOTAL** | **2** | **18** | **11%** | **0 / 34,0h** | **0 / 2,60h** | **0 / 0,66h** | **0 / 1.248.000** |
 
 > **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada (8 h). Ver `skills/jira-sync/SKILL.md`.
 >
@@ -98,27 +98,33 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 ### T-02 — Capa 2: `--related <ID>` con grafo curado
 
 - **Descripción**: segunda capa de recuperación. `--related <ID>` devuelve el **grafo curado** de una entrada: ADR sucesor/sustituido, entradas de la **misma iniciativa** y entradas de la **misma área**. Sustituye deliberadamente la `timeline` de `claude-mem` («qué pasó cerca en el tiempo»): un grafo de sustitución y área es mejor información al mismo coste de tokens.
-- **Estado**: borrador
-- **Tiempo humano**: est. 2,0h · real —
-- **Tiempo IA (ejec.)**: est. 0,11h · real —
-- **Supervisión**: est. 0,03h (≈25 % IA) · real —
+- **Estado**: completado
+- **Tiempo humano**: est. 2,0h · real 0h (sin intervención humana en la ejecución)
+- **Tiempo IA (ejec.)**: est. 0,11h · real 0,10h (estimado: el usage-meter no lee la transcripción en este entorno)
+- **Supervisión**: est. 0,03h (≈25 % IA) · real 0,03h (estimado)
 - **Previsión IA**: 40k in / 12k out tok · 0,46 €
 - **Dependencias**: T-01
 - **Tipo**: backend
 - **Archivos**: `agent-kits/shared/knowledge-find.py`, `tests/test_knowledge_find.py`
-- **Verificación**: `python3 agent-kits/shared/knowledge-find.py --related ADR-010` → agrupa sucesor/sustituido, misma iniciativa y misma área, ≤ 1.600 caracteres, exit 0, **sin ninguna línea de cronología** · `python3 agent-kits/shared/knowledge-find.py --related ID-INEXISTENTE` → una línea en stderr y exit 1 · `python3 -m pytest -q tests/test_knowledge_find.py -k related` → todos passed
+- **Changelog**: Desde cualquier entrada de la memoria técnica se puede pedir su grafo curado (qué la sustituyó o a qué sustituye, qué más salió de la misma iniciativa y qué comparte área), en vez de una lista cronológica.
+- **Verificación** (ejecutada 2026-09-07):
+  - `RED: tests/test_knowledge_find.py -k related falló con knowledge-find.py: error: unrecognized arguments: --related (6 failed, 1 passed) · 2026-09-07`; GREEN después → `python3 -m pytest -q tests/test_knowledge_find.py -k related` → `13 passed, 15 deselected`, y el fichero completo `28 passed`.
+  - `python3 agent-kits/shared/knowledge-find.py --related ADR-010` → **483 caracteres**, exit 0, tres grupos etiquetados en este orden: `Sucesión:` → `(ninguna)` · `Misma iniciativa (memory-health):` → `(ninguna)` · `Misma área (Memoria técnica / hooks):` → `ADR-006 · aceptada · Memoria técnica / lectura-escritura · …` y `ADR-007 · aceptada · Hooks / implementer · …` (comparte «memoria técnica» con el uno y «hooks» con el otro). Ninguna línea empieza por fecha ni menciona cronología. `--related LES-001` (el área más poblada, 9 entradas) → 1.281 caracteres.
+  - `python3 agent-kits/shared/knowledge-find.py --related ID-INEXISTENTE` → stdout vacío, una línea en stderr (`knowledge-find: no hay ninguna entrada con ID `ID-INEXISTENTE` en …/docs/knowledge`), **exit 1**.
+  - Sucesión probada con el corpus sintético de `tmp_path` (el real no tiene hoy ninguna entrada `obsoleta`): `ADR-002` obsoleta → `sustituida por → ADR-003 · aceptada · …`; `ADR-003` → `sustituye a → ADR-002 · obsoleta · …`; la relación se deduce también desde el otro extremo (si solo el sucesor declara `sustituye:`), y del ID citado en el `estado` de una obsoleta. Relaciones leídas del frontmatter (`sucesor`/`sustituye` y sinónimos; `iniciativa`) y de la columna «Fuente» del índice (`<fecha>-<slug>/tasks.md` → slug).
+  - Tope: `RELATED_TOPE_CHARS = 1600` con test (40 lecciones de la misma área → 1.600 caracteres o menos y una línea `… y N más`).
 
 **Criterios de aceptación**
-- [ ] `--related ADR-010` devuelve el grafo curado en **≤ 400 tokens (≤ 1.600 caracteres)** con **exit 0** (spec CA-03).
-- [ ] Las tres relaciones salen **etiquetadas y separadas** (sucesión · iniciativa · área), no como una lista plana.
-- [ ] Una entrada `obsoleta` muestra su **sucesor**; una `aceptada` que sustituyó a otra muestra a **quién sustituyó**.
-- [ ] **No hay salida cronológica**: ningún «qué pasó cerca en el tiempo». Es una decisión de diseño, no una omisión.
-- [ ] ID inexistente → **exit 1** con una línea en stderr (error de uso, no degradación).
+- [x] `--related ADR-010` devuelve el grafo curado en **≤ 400 tokens (≤ 1.600 caracteres)** con **exit 0** (spec CA-03).
+- [x] Las tres relaciones salen **etiquetadas y separadas** (sucesión · iniciativa · área), no como una lista plana.
+- [x] Una entrada `obsoleta` muestra su **sucesor**; una `aceptada` que sustituyó a otra muestra a **quién sustituyó**.
+- [x] **No hay salida cronológica**: ningún «qué pasó cerca en el tiempo». Es una decisión de diseño, no una omisión.
+- [x] ID inexistente → **exit 1** con una línea en stderr (error de uso, no degradación).
 
 **Subtareas**
-- [ ] Test RED con un corpus de `tmp_path` que tenga un ADR sustituido y un sucesor.
-- [ ] Extraer las relaciones del frontmatter y de la columna «Fuente» del índice.
-- [ ] Agrupar y topar la salida.
+- [x] Test RED con un corpus de `tmp_path` que tenga un ADR sustituido y un sucesor.
+- [x] Extraer las relaciones del frontmatter y de la columna «Fuente» del índice.
+- [x] Agrupar y topar la salida.
 
 **Notas**: `ADR-010` es el caso de prueba natural porque esta misma iniciativa lo **revisa** (T-12), así que el grafo tiene que saber contarlo.
 
