@@ -34,17 +34,27 @@ subagente fresco necesita para implementar UNA tarea `T-XX` — y nada más (bri
      Es la vía por la que el `implementer` se entera de los gaps — NO por Jira (ese comentario, si
      Jira está activo, es solo el espejo para el equipo). Intento sin gaps o sin sección → nada.
   10. El contrato de retorno: DONE / DONE_WITH_CONCERNS / NEEDS_CONTEXT / BLOCKED.
+  11. MEMORIA TÉCNICA (memory-retrieval T-05 — la puerta cerrada del hueco 1: con `subagentes: true`
+      el brief es el ÚNICO contexto y hasta aquí no llevaba ni un gotcha): los aciertos compactos de
+      `knowledge-find.py --json` (mismo kit) ENRUTADOS por el `- **Tipo**:` de la tarea, el título de
+      la tarea y el slug de la iniciativa (`--tipo-tarea/--contexto/--iniciativa`: casan por ÁREA, nunca
+      por texto libre; sin `Tipo` cae a la iniciativa y al título, no al corpus entero). Tope
+      MEMORIA_TOPE_CHARS (≤ 600 tokens, spec CA-08): si no cabe se recorta y se dice. Degradación
+      SILENCIOSA: sin `docs/knowledge/`, sin aciertos, sin el script o con el script fallando → no hay
+      sección y el brief sale byte a byte como sin memoria (CA-09); un fallo se cuenta solo por stderr.
+      El detalle se abre por ID (`--show`), no se pega entero: progressive disclosure.
 
 Antes de extraer, valida el ledger con `ledger-lint.py` (mismo kit): un ledger inválido
 detiene el brief con aviso (exit 2) — no se despacha trabajo sobre un ledger roto.
 
 Uso:
   task-brief.py <carpeta-iniciativa> <T-XX> [--constitucion RUTA] [--sin-lint]
-                [--personas-dir DIR] [--tdd] [--dev-json RUTA]
+                [--personas-dir DIR] [--tdd] [--dev-json RUTA] [--knowledge-find RUTA]
 Salida: el brief en Markdown por stdout. Exit: 0 ok · 1 tarea/ficheros no encontrados ·
 2 ledger inválido.
 """
 import argparse
+import json
 import os
 import re
 import subprocess
@@ -79,11 +89,75 @@ orquestador la copia al ledger); si la tarea no tiene código testeable, devuelv
 """
 
 
+MEMORIA_TOPE_CHARS = 2400      # ≤ 600 tokens de memoria en el brief (spec CA-08); con test que lo afirma
+MEMORIA_LIMIT = 12             # aciertos que se piden; el tope de caracteres es el que manda
+MEMORIA_TIMEOUT = 20           # s: knowledge-find.py es local y determinista; si se cuelga, sin sección
+
+
+def _raiz_de(carpeta):
+    """Raíz del proyecto derivada de la carpeta de la iniciativa (docs/roadmap/<slug> → <raíz>)."""
+    return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(carpeta))))
+
+
+def _titulo_de_tarea(chunk):
+    m = re.match(r"^###\s+T-\d+\s*[—:-]\s*(.+)$", chunk.splitlines()[0] if chunk else "")
+    return m.group(1).strip() if m else ""
+
+
+def _memoria_tecnica(carpeta, chunk, tipo, script=None):
+    """Sección 11 o None. Llama a `knowledge-find.py --json` (subproceso: un fallo suyo, cualquiera, no
+    puede tumbar el brief) enrutando por `Tipo`, título de la tarea e iniciativa; sin `docs/knowledge/`,
+    sin aciertos o sin script → None en SILENCIO (es el caso normal de un proyecto recién instalado)."""
+    raiz = _raiz_de(carpeta)
+    if not os.path.isdir(os.path.join(raiz, "docs", "knowledge")):
+        return None
+    script = script or os.path.join(os.path.dirname(os.path.abspath(__file__)), "knowledge-find.py")
+    if not os.path.isfile(script):
+        return None
+    slug = re.sub(r"^\d{4}-\d{2}-\d{2}-", "", os.path.basename(os.path.normpath(os.path.abspath(carpeta))))
+    titulo = _titulo_de_tarea(chunk)
+    cmd = [sys.executable, script, "--json", "--root", raiz, "--limit", str(MEMORIA_LIMIT),
+           "--contexto", titulo, "--iniciativa", slug] + (["--tipo-tarea", tipo] if tipo else [])
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace",
+                           timeout=MEMORIA_TIMEOUT)
+        if r.returncode != 0:
+            raise RuntimeError(f"exit {r.returncode}: {(r.stderr or r.stdout).strip()[:200]}")
+        data = json.loads(r.stdout)
+        aciertos = [a["linea"] for a in data["aciertos"] if a.get("linea")]
+        total = int(data.get("total", len(aciertos)))
+        claves = data.get("consulta", {}).get("claves", [])
+    except Exception as e:  # noqa: BLE001 — la memoria nunca bloquea el brief: se omite y se dice por stderr
+        print(f"⚠️  knowledge-find.py no respondió ({e.__class__.__name__}: {e}) — brief sin sección de memoria.",
+              file=sys.stderr)
+        return None
+    if not aciertos:
+        return None
+    ruta = f"`{slug}`"
+    cabecera = [f"## Memoria técnica del proyecto (docs/knowledge — {total} acierto(s) de knowledge-find.py)", "",
+                f"Entradas cuya ÁREA casa con esta tarea (tipo `{tipo or '—'}`, iniciativa {ruta}"
+                + (f", claves: {', '.join(claves[:8])}" if claves else "") + "). El `estado` va delante: "
+                "`aceptada` es doctrina (aplícala), `propuesta` indicio (dilo si condiciona una decisión), "
+                "`obsoleta` no se aplica (sigue a su sucesor). Abre SOLO la que necesites, por ID:", "",
+                f"    python3 \"{script}\" --show <ID>    # o `--related <ID>` para su grafo curado", ""]
+    pie_de = lambda n_fuera: [] if not n_fuera else [  # noqa: E731
+        "", f"… y {n_fuera} acierto(s) más que no caben en el tope de {MEMORIA_TOPE_CHARS} caracteres: "
+        f"`python3 \"{script}\" --contexto \"{titulo}\" --iniciativa {slug}"
+        + (f" --tipo-tarea {tipo}" if tipo else "") + "` los lista todos."]
+    n = len(aciertos)
+    while n >= 0:
+        cuerpo = [f"- {l}" for l in aciertos[:n]]
+        sec = "\n".join(cabecera + cuerpo + pie_de(total - n))
+        if len(sec) <= MEMORIA_TOPE_CHARS:
+            return sec + "\n" if n > 0 else None    # UN elemento del brief que acaba en línea en blanco
+        n -= 1
+    return None
+
+
 def _tdd_activo(carpeta, dev_json=None):
     """True si dev.json tiene `tdd: true`. Ruta: --dev-json, o <raíz derivada de la carpeta>/.claude/dev.json,
     o .claude/dev.json del cwd. Ausente → False sin ruido; ilegible → False + aviso (nunca bloquea)."""
-    import json
-    raiz = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(carpeta))))
+    raiz = _raiz_de(carpeta)
     candidatas = [dev_json] if dev_json else [os.path.join(raiz, ".claude", "dev.json"),
                                               os.path.join(".claude", "dev.json")]
     for c in candidatas:
@@ -357,6 +431,8 @@ def main(argv=None):
                     help="carpeta del catálogo de personas (default: personas/ junto al script)")
     ap.add_argument("--tdd", action="store_true", help="fuerza la sección TDD (como si dev.json tuviera tdd: true)")
     ap.add_argument("--dev-json", default=None, help="ruta explícita de .claude/dev.json (default: derivada de la carpeta)")
+    ap.add_argument("--knowledge-find", default=None,
+                    help="ruta de knowledge-find.py (default: el del mismo kit; solo para tests)")
     args = ap.parse_args(argv)
 
     tid = args.tarea.upper()
@@ -436,6 +512,11 @@ def main(argv=None):
         out += ["## Verificación", "",
                 "> (la tarea no declara `Verificación`: propón una en tu informe — un comando y su resultado "
                 "esperado — y ejecútala antes de reportar `DONE`.)", ""]
+
+    # memoria técnica (memory-retrieval T-05): aciertos enrutados por Tipo/título/iniciativa, con tope y en silencio
+    memoria = _memoria_tecnica(args.carpeta, chunk, tipo, args.knowledge_find)
+    if memoria:
+        out += [memoria]      # un solo elemento: quitarlo deja el brief byte a byte como sin memoria (CA-09)
 
     diseno = _design_elegida(args.carpeta)
     if diseno:
