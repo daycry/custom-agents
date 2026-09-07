@@ -2,6 +2,10 @@
 
 Contexto para Claude Code al trabajar en este repositorio.
 
+> Si existe `CONTINUE-HERE.md` en la raíz, léelo ANTES de nada: recoge el
+> estado de trabajo en curso (rama, qué está hecho, qué falta) para retomar
+> sin perder contexto tras una compactación o un corte de sesión.
+
 ## Qué es esto
 
 Repositorio de **agentes custom** para Claude Code (bundle reutilizable + **plugin** instalable vía marketplace: `.claude-plugin/plugin.json` + `marketplace.json`). Se despliega como `.claude/` de un proyecto (ver `docs/INSTALL.md`). No es una aplicación. Por ser plugin, los agentes **no** usan rutas fijas a sus kits: las resuelven en runtime con `find` sobre `$PWD/.claude` y `$HOME/.claude` (regla 5 de `docs/CONVENTIONS.md`).
