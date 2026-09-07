@@ -19,7 +19,17 @@ subagente fresco necesita para implementar UNA tarea `T-XX` — y nada más (bri
      subagente debe ejecutarla al terminar y pegar la salida real en su informe. Sin el campo, el
      brief lo dice y pide que proponga una (no inventa comandos). Acepta la forma en línea (` · `),
      la sub-lista (`  - cmd → res`) y `(ejecutada <fecha> — salida: …)` — parser único
-     `parse_verificacion()` de ledger-lint.py (T-fix1).
+     `parse_verificacion()` de ledger-lint.py (T-fix1). El brief lleva la verificación UNA vez, en su
+     sección (memory-retrieval, revisión intento 1): en el bloque de la tarea el campo se sustituye por
+     un puntero a esa sección (antes iba entero en los dos sitios: 2.300-3.200 caracteres duplicados),
+     y los ítems que son EVIDENCIA de una ejecución anterior —`RED: <test> falló con … · <fecha>`, el
+     rojo del TDD que el ledger conserva para la revisión— se omiten y se cuentan en una línea: un
+     subagente necesita «comando → esperado», no el historial; si TDD está activo, produce su propio
+     rojo. Y los campos de PRESUPUESTO del bloque (`Tiempo humano` · `Tiempo IA` · `Supervisión` ·
+     `Previsión IA`: horas y euros del PM) tampoco van: no son información para implementar. Con eso
+     el brief completo cabe en el tope de la spec (CA-08: ≤ 2.500 tokens ≈ BRIEF_TOPE_CHARS = 10.000
+     caracteres; medido sobre las 10 tareas cerradas de memory-retrieval, 2026-09-07: 8.919-12.543
+     antes → todas ≤ 10.000 después). El test lo afirma sobre ese ledger real y sobre uno de `tmp_path`.
   7. TDD (parity-core T-03): si `.claude/dev.json` del proyecto (raíz derivada de la carpeta, o cwd)
      tiene `tdd: true` — o se pasa `--tdd` —, el brief añade la sección «TDD» que manda seguir la
      skill `tdd` (fuente única del método) y devolver la evidencia del rojo (`RED: …`); dev.json
@@ -92,6 +102,17 @@ orquestador la copia al ledger); si la tarea no tiene código testeable, devuelv
 MEMORIA_TOPE_CHARS = 2400      # ≤ 600 tokens de memoria en el brief (spec CA-08); con test que lo afirma
 MEMORIA_LIMIT = 12             # aciertos que se piden; el tope de caracteres es el que manda
 MEMORIA_TIMEOUT = 20           # s: knowledge-find.py es local y determinista; si se cuelga, sin sección
+BRIEF_TOPE_CHARS = 10000       # brief completo ≤ 2.500 tokens (spec CA-08); lo afirma el test sobre el ledger real
+# Ítem de Verificación que es evidencia del rojo de una ejecución anterior (skill `tdd`: `RED: <test> falló
+# con <error> · <fecha>`), no un comando que ejecutar: se omite del brief y se cuenta.
+_ITEM_RED_RE = re.compile(r"^\s*[`*_]*\s*(RED|TDD n/a)\s*:", re.I)
+# Campos de PRESUPUESTO del ledger (horas y euros, estimado vs real): contabilidad del PM que el subagente no
+# necesita para implementar y que el brief no le pide devolver. Se quitan del bloque de la tarea (≈ 350 chars).
+_CAMPO_PRESUPUESTO_RE = re.compile(r"^\s*-\s*\*\*(Tiempo humano|Tiempo IA[^*]*|Supervisi[oó]n|Previsi[oó]n IA)\*\*\s*:", re.I)
+
+
+def _es_evidencia_red(item):
+    return bool(_ITEM_RED_RE.match(item or ""))
 
 
 def _raiz_de(carpeta):
@@ -294,6 +315,32 @@ def _verificacion_de_tarea(chunk):
     return None
 
 
+def _chunk_sin_verificacion(chunk, n_items):
+    """El bloque de la tarea con el campo `- **Verificación**…:` (y su sub-lista) sustituido por UNA línea
+    que apunta a la sección «Verificación» del brief. Mismo parser que la sección (`parse_verificacion`,
+    fuente única): lo que se quita aquí es exactamente lo que la sección reproduce, así que no se pierde
+    nada. Sin campo visible → el chunk intacto."""
+    lineas = _lineas_con_fence(chunk)
+    raw = [ln for ln, _ in lineas]
+    parse = _parse_verificacion_fn()
+    for i, (ln, fenced) in enumerate(lineas):
+        if fenced:
+            continue
+        info, j = parse(raw, i)
+        if info is None:
+            continue
+        puntero = (f"- **Verificación**: {n_items} ítem(s) → en la sección «Verificación» de este brief "
+                   "(no se repite aquí).")
+        return "\n".join(raw[:i] + [puntero] + raw[max(j, i + 1):])
+    return chunk
+
+
+def _chunk_sin_presupuesto(chunk):
+    """El bloque de la tarea sin sus campos de presupuesto (`Tiempo humano`, `Tiempo IA`, `Supervisión`,
+    `Previsión IA`): horas y euros del PM, no información para implementar. Solo líneas visibles."""
+    return "\n".join(ln for ln, fenced in _lineas_con_fence(chunk) if fenced or not _CAMPO_PRESUPUESTO_RE.match(ln))
+
+
 def _persona(tipo, personas_dir):
     """Contenido de personas/<tipo>.md, o None con aviso (degradación, no bloqueo)."""
     p = os.path.join(personas_dir, f"{tipo}.md")
@@ -478,8 +525,20 @@ def main(argv=None):
         if persona:
             out += ["", f"## Persona de dominio (tipo: {tipo})", "", persona, ""]
 
+    # verificación declarada (plan-and-diet T-02): se lee ANTES de emitir la tarea, porque el bloque de la
+    # tarea la sustituye por un puntero a la sección (una vez en el brief, no dos)
+    verif = _verificacion_de_tarea(chunk)
+    if verif:
+        items_red = [x for x in verif["items"] if _es_evidencia_red(x)]
+        verif["items"] = [x for x in verif["items"] if not _es_evidencia_red(x)]
+        verif["omitidos_red"] = len(items_red)
+        if not verif["items"]:
+            # solo evidencia RED: no hay comando que ejecutar; la sección lo dice como «no declara»
+            verif = None
+    chunk_brief = _chunk_sin_presupuesto(_chunk_sin_verificacion(chunk, len(verif["items"])) if verif else chunk)
+
     out += ["", "## La tarea (de tasks.md — tus criterios de aceptación son EL contrato)",
-            "", chunk]
+            "", chunk_brief]
 
     # gaps pendientes (roles-and-jira-flow T-03): redespacho tras una revisión con gaps para ESTA tarea
     gaps = _gaps_pendientes_de_tarea(tasks_text, tid)
@@ -497,7 +556,6 @@ def main(argv=None):
                 "— no lo apliques a ciegas ni lo descartes sin evidencia.", ""]
 
     # verificación declarada (plan-and-diet T-02): el subagente la ejecuta al terminar y pega la salida
-    verif = _verificacion_de_tarea(chunk)
     if verif:
         out += ["## Verificación (ejecútala al terminar y pega la salida)", ""]
         out += [f"- {item}" for item in verif["items"]]
@@ -507,6 +565,9 @@ def main(argv=None):
         if verif["ejecutada"]:
             out += ["", f"> Verificación ya ejecutada antes ({verif['ejecutada'].split(' — ')[0]}): "
                         "**re-ejecútala** — la salida grabada en el ledger es de otra sesión, no vale como evidencia tuya."]
+        if verif.get("omitidos_red"):
+            out += ["", f"> {verif['omitidos_red']} ítem(s) `RED: …` de la ejecución anterior omitido(s): son evidencia "
+                        "del rojo de otra sesión, no comandos; si TDD está activo, produce tu propio rojo."]
         out += [""]
     else:
         out += ["## Verificación", "",
