@@ -175,3 +175,55 @@ def test_vaciar_el_area_de_una_fila_real_pone_rojo_nombrando_el_id(copia_real):
     idx.write_text(texto.replace("| GOT-005 | Gotcha | Scripts / consola y codificación |", "| GOT-005 | Gotcha |  |"), encoding="utf-8")
     errores = lp.lint_knowledge_index(str(copia_real))
     assert len(errores) == 1 and "GOT-005" in errores[0] and "Área" in errores[0], errores
+
+
+# ------------------------------------------- el criterio vive UNA vez: bloques `--8<--` replicados literal
+#
+# Revisión de dos lentes, intento 1 (gaps 6 y 10): `celdas()` de knowledge-find.py y `_celdas_md()` del linter eran
+# el mismo código duplicado, y la «comprobación local equivalente» de /doctor no era equivalente (solo veía
+# fichero-sin-fila y fila-sin-Área: una fila hacia un fichero inexistente pasaba ✅ cuando `plugin_root` resolvía
+# a una copia instalada sin `lint_knowledge_index`). Los scripts son standalone (el paquete portable los copia
+# sueltos), así que el patrón del repo es el bloque replicado LITERAL con marcadores y este test de identidad,
+# como hace tests/test_console_encoding.py con el criterio de consola.
+
+SCRIPTS_CON_CELDAS = ("scripts/lint_plugin.py", "agent-kits/shared/knowledge-find.py", "agent-kits/shared/doctor.py")
+SCRIPTS_CON_CRITERIO_INDICE = ("scripts/lint_plugin.py", "agent-kits/shared/doctor.py")
+
+
+def _bloque(rel, ini, fin):
+    src = open(os.path.join(ROOT, rel), encoding="utf-8").read()
+    assert ini in src and fin in src, f"{rel}: faltan los marcadores `{ini}` … `{fin}`"
+    return src[src.index(ini):src.index(fin)]
+
+
+def test_los_tres_scripts_replican_el_mismo_bloque_de_celdas():
+    bloques = {rel: _bloque(rel, "# --8<-- celdas de tabla Markdown COMPARTIDAS", "# --8<-- fin de celdas de tabla Markdown COMPARTIDAS")
+               for rel in SCRIPTS_CON_CELDAS}
+    assert len(set(bloques.values())) == 1, "el bloque `celdas_md` ha divergido: cópialo LITERAL de scripts/lint_plugin.py"
+    assert "def celdas_md(fila):" in bloques["scripts/lint_plugin.py"]
+    for rel in SCRIPTS_CON_CELDAS:
+        src = open(os.path.join(ROOT, rel), encoding="utf-8").read()
+        assert "def celdas(" not in src and "_celdas_md" not in src, f"{rel}: queda una copia con otro nombre"
+
+
+def test_linter_y_doctor_replican_el_mismo_criterio_del_indice():
+    bloques = {rel: _bloque(rel, "# --8<-- criterio del índice de knowledge COMPARTIDO", "# --8<-- fin del criterio del índice de knowledge COMPARTIDO")
+               for rel in SCRIPTS_CON_CRITERIO_INDICE}
+    assert len(set(bloques.values())) == 1, "el criterio del índice ha divergido entre lint_plugin.py y doctor.py: cópialo LITERAL"
+    b = bloques["scripts/lint_plugin.py"]
+    assert "def lint_knowledge_index(root):" in b and "def filas_knowledge_index(texto):" in b and "KNOWLEDGE_INDICE_CARPETAS" in b
+
+
+def test_las_copias_de_celdas_md_dan_lo_mismo_sobre_filas_con_barras_en_codigo():
+    """La identidad textual la garantiza el test anterior; este comprueba que las tres copias CARGADAS se comportan
+    igual sobre el caso que motivó la función (una barra `|` dentro de acentos graves no parte la celda)."""
+    mods = []
+    for rel in SCRIPTS_CON_CELDAS:
+        spec = importlib.util.spec_from_file_location("m_" + rel.replace("/", "_").replace("-", "_").replace(".", "_"), os.path.join(ROOT, rel))
+        m = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(m)
+        mods.append(m)
+    fila = "| [`adr/ADR-001-x.md`](adr/ADR-001-x.md) — regex `a|b|c` | ADR-001 | ADR | Hooks / x | aceptada | `x` |"
+    esperado = ["[`adr/ADR-001-x.md`](adr/ADR-001-x.md) — regex `a|b|c`", "ADR-001", "ADR", "Hooks / x", "aceptada", "`x`"]
+    for m in mods:
+        assert m.celdas_md(fila) == esperado, m.__name__
