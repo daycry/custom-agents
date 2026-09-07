@@ -1,6 +1,6 @@
 ---
-description: Orquesta el ciclo completo de una iniciativa (spec → evaluación → plan → implementación → pruebas → documentación) con la CADENA NATIVA del plugin como motor por defecto (autosuficiente: TDD, worktrees, subagentes frescos y debugging sistemático opt-in). Solo delega el backbone en superpowers si el usuario lo pide explícitamente. Invoca los agentes por nombre y con puertas de control.
-argument-hint: <objetivo de la iniciativa> [rapido | completo] [--superpowers]
+description: Orquesta el ciclo completo de una iniciativa (spec → evaluación → plan → implementación → pruebas → documentación) con la cadena nativa del plugin como único motor (autosuficiente: TDD, worktrees, subagentes frescos y debugging sistemático opt-in). Invoca los agentes por nombre y con puertas de control.
+argument-hint: <objetivo de la iniciativa> [rapido | completo]
 ---
 
 # /dev-cycle — orquestador del ciclo de desarrollo
@@ -8,14 +8,11 @@ argument-hint: <objetivo de la iniciativa> [rapido | completo] [--superpowers]
 Ejecuta el ciclo de una iniciativa de forma explícita y fiable. Objetivo: **$ARGUMENTS**.
 
 Mantén `docs/roadmap/<fecha>-<slug>/tasks.md` como **ledger canónico** de progreso en todo el
-ciclo (ver regla 8 de `docs/CONVENTIONS.md`), sea cual sea el motor de implementación.
+ciclo (ver regla 8 de `docs/CONVENTIONS.md`).
 
-## Fase 0 — Preparación y modo
+## Fase 0 — Preparación
 1. Deriva un `<slug>` corto en kebab-case del objetivo y fija/crea la carpeta `docs/roadmap/<fecha>-<slug>/` (reutilízala si ya existe).
-2. **La cadena nativa del plugin es SIEMPRE el motor por defecto** (Modo B), esté o no superpowers instalado — el plugin es autosuficiente (TDD, worktrees, subagentes frescos y debug-root-cause propios, opt-in vía `.claude/dev.json`). **Solo** se delega el backbone en superpowers (Modo A) si el usuario lo pide **explícitamente**: la frase "usa superpowers" (o equivalente inequívoco) o el argumento `--superpowers`. Si lo pide y superpowers NO está instalado, dilo y sigue en nativa. **No preguntes qué motor usar ni delegues por detectarlo instalado.**
-3. Ofrece añadir al `CLAUDE.md` del proyecto (si no está) la **regla de ledger canónico**: "El progreso de un plan se registra en `docs/roadmap/<…>/tasks.md`; cualquier implementador —incluidos orquestadores externos como superpowers SDD— debe marcar ahí cada tarea; los ledgers propios son espejo, no fuente."
-
-> La **capa de dominio** (evaluación/presupuesto, seguridad, documentación, Confluence, PDF) es de este plugin y se ejecuta **en ambos modos**. Lo único que cambia entre A y B es **quién hace el backbone** (spec/plan/implementación/pruebas/review).
+2. Ofrece añadir al `CLAUDE.md` del proyecto (si no está) la **regla de ledger canónico**: "El progreso de un plan se registra en `docs/roadmap/<…>/tasks.md`; cualquier implementador debe marcar ahí cada tarea; los ledgers propios son espejo, no fuente."
 
 ## Fase 0-bis — PUERTA DE ENTRADA: flujo completo vs. vía rápida
 Antes de arrancar, **pregunta al usuario** cómo quiere abordarlo (una sola pregunta, con recomendación según el tamaño aparente del cambio):
@@ -45,7 +42,7 @@ Si es **vía rápida**, salta a la Fase 3 (implementación) usando el `tasks.md`
 > Si `fuente.model` es `dev.json`, pasa ese `model`; si es `frontmatter`, no pases nada (el agente ya lo declara). El `effort` de `dev.json` es **informativo**: el Agent tool no documenta ese parámetro, así que el efectivo es el del frontmatter — anúncialo («effort configurado high; efectivo: el del frontmatter») sin fingir que lo aplicas. Sin el script (instalación parcial) → frontmatter y sigue. Las lentes de la revisión resuelven su propio tier dentro de la skill `adversarial-review` (agente `reviewer`).
 
 ## Fase 1 — Evaluar (siempre en flujo completo, agente `evaluator`)
-Invoca **`evaluator`** con el objetivo: crea/lee `spec.md` y produce `evaluation.md` (coste, esfuerzo, veredicto). Esto es valor propio (presupuesto en €/tokens) y va en los dos modos.
+Invoca **`evaluator`** con el objetivo: crea/lee `spec.md` y produce `evaluation.md` (coste, esfuerzo, veredicto). Esto es valor propio: el presupuesto en €/tokens antes de construir.
 
 **Puerta go/no-go:** muestra el veredicto y pregunta si continuar. Si no-go, para.
 
@@ -65,14 +62,10 @@ subagente devuelve UN mensaje; la validación por trozos es tuya, como la puerta
    ADR `propuesta`, enlaza `design:` en spec/plan y pasa `design.md` a `aprobado`.
 **Puerta:** `design.md` en `aprobado` (o el usuario decide seguir sin diseño).
 
-**Fase 2-b — Plan (agente `planner`).** **En los dos modos**, tu `planner` genera **tus artefactos** en `docs/roadmap/<…>/`:
-`improvement-plan.md` + `tasks.md` (+ `test-plan.md` si hay UI). Estos ficheros son tuyos y con
-tus plantillas — **no se delega la planificación**, para que tu estructura y tu ledger existan
-siempre. Si existe `design.md` aprobado, `planner` lo lee y **respeta la opción elegida** (enlaza
-`design:` ↔ `plan:`). Puerta: OK del plan.
-
-> Si en Modo A superpowers aporta un `brainstorming`/design doc, incorpóralo como contenido de la
-> `spec.md`; el plan ejecutable y el progreso viven en TU `improvement-plan.md` + `tasks.md`.
+**Fase 2-b — Plan (agente `planner`).** `planner` genera los artefactos del plan en `docs/roadmap/<…>/`:
+`improvement-plan.md` + `tasks.md` (+ `test-plan.md` si hay UI), con las plantillas del kit — así
+la estructura y el ledger canónico existen siempre. Si existe `design.md` aprobado, `planner` lo lee
+y **respeta la opción elegida** (enlaza `design:` ↔ `plan:`). Puerta: OK del plan.
 
 > **Jira (opcional, opt-in).** Recién creado el plan, `planner` **ofrece** volcar las tareas a Jira
 > con la skill `jira-sync` (un issue por tarea bajo el proyecto/épica elegidos; selector visual en
@@ -81,18 +74,7 @@ siempre. Si existe `design.md` aprobado, `planner` lo lee y **respeta la opción
 > sujeto al opt-in de `.claude/jira.json`: aunque el conector esté conectado, si Jira no se activó
 > para el proyecto, no se toca nada.
 
-## Fase 3 — Implementar y probar (según el modo)
-
-**Modo A (superpowers — SOLO si el usuario lo pidió explícitamente):** delega solo la **ejecución** en superpowers —
-`subagent-driven-development`/`executing-plans`, `test-driven-development`, `requesting-code-review` —
-pero trabajando **contra tu `tasks.md`**: debe marcar ahí cada tarea (ledger canónico). Aprovechas
-su TDD, worktrees y review maduros; tus ficheros de `docs/roadmap/` siguen siendo la fuente.
-**Las transiciones de estado las aplicas TÚ (el orquestador), no superpowers** (que no toca tus
-artefactos): pon el plan y la fase activa en `en-progreso` antes de delegar, asegúrate de que las
-tareas quedan marcadas en `tasks.md` durante la ejecución, y al cerrar aplica plan → `completado`
-y spec → `implementada`. Si superpowers marca su propio ledger, vuélcalo a `tasks.md`.
-
-**Modo B — cadena NATIVA (el defecto, siempre):**
+## Fase 3 — Implementar y probar
 
 > **Disciplina de desarrollo (`.claude/dev.json`, opt-in, defaults off — la crea `/setup`).** Antes de implementar, lee la config: `tdd: true` → el implementer sigue la skill **`tdd`** (fuente única de RED-GREEN-REFACTOR) por tarea con evidencia del rojo en el ledger; `worktree: true` → la iniciativa se trabaja en un worktree de git aislado (degradación a rama normal con aviso si no hay soporte); `subagentes: true` → el despacho por subagentes de contexto fresco (ver más abajo). Sin fichero o corrupto: defaults `false` + aviso — comportamiento clásico. Las tres opciones son combinables.
 
@@ -117,11 +99,11 @@ y spec → `implementada`. Si superpowers marca su propio ledger, vuélcalo a `t
 
    **Medición por tarea (usage-meter).** Al ARRANCAR cada `T-XX`: `usage-meter.py start --artefacto "<slug>/T-XX"`; al COMPLETARLA: `close` con la misma clave (en el flujo clásico lo ejecuta el `implementer` — su P3 lo trae; con `subagentes: true` lo coordinas tú por despacho). Las **horas-IA medidas** del JSON (`horas_ia`, con `fuente: medido`) se escriben como tiempo IA **real** de la tarea en `tasks.md` — anota `(medido)` junto al valor — y son las que usa la imputación a Jira (`worklog.py plan` ya prefiere real sobre estimado; su aritmética de jornada/banco NO cambia). Reglas: (a) si el meter degrada, deja la estimación a juicio marcada `(estimado)` y sigue; (b) re-medir la MISMA ventana (re-close inmediato) sustituye; pero una **corrección posterior** (gaps de revisión) se mide con clave nueva `"<slug>/T-XX-fix<N>"` y sus horas se **SUMAN** al real de la tarea en el ledger — la implementación original no se pierde; (c) los tokens del bucle de revisión (los revisores) NO van a la tarea — la revisión tiene su propia imputación `[revisión]` por intento (ver más abajo); cierra el marcador de la tarea ANTES de lanzar la revisión. Duraciones presentadas en formato `XhYm` (`usage-meter.py fmt`).
 2. **Revisión adversarial — skill `adversarial-review` (fuente única del método; aquí solo se invoca).** Invócala por nombre pasándole: la carpeta de la iniciativa (`docs/roadmap/<fecha>-<slug>/`), el **nº de intento N** y, si N > 1, la **tabla de veredictos del intento anterior** (incluidos los `descartado (rebatido)` con su evidencia). La skill hace el resto: puerta previa `scope-check.py` (exit 1 → gap Important al `implementer` sin gastar revisores), `review-lens-select.py` para decidir si añade la **Lente C** (seguridad, condicional), lentes A/B(/C) en paralelo con contexto fresco, fusión, graduación `Critical / Important / Minor`, arbitraje de los rebates con evidencia, sección «Revisión de dos lentes — intento N» en `tasks.md`, promoción de las entradas `docs/knowledge/` `propuesta` → `aceptada` al cerrar sin gaps pendientes, y comentario FINAL en Jira (Paso 9 de `jira-sync`) si hay opt-in y plan volcado. Espera de vuelta: veredicto por criterio ✓/✗, gaps graduados con su veredicto, qué lentes corrieron y el ledger actualizado (`ledger-lint` exit 0).
-   - **Tuyo (orquestador) — bucle reviewer→implementer ACOTADO (regla dura).** Si quedan gaps Critical/Important: las tareas afectadas vuelven a `en-progreso`, `implementer` corrige (ese tiempo es **implementación**, clave `"<slug>/T-XX-fix<N>"`) y **relanzas la skill** sobre el nuevo diff con contador explícito ("revisión, intento 2 de 3"). **Máximo 3 intentos**; al 3.º con gaps, PARA y pregunta (seguir / re-planificar con `planner` / aceptar como deuda). Rebatir con evidencia **no consume intento**; lo Minor se anota sin bloquear. Solo Modo B (en Modo A superpowers trae su `requesting-code-review`).
+   - **Tuyo (orquestador) — bucle reviewer→implementer ACOTADO (regla dura).** Si quedan gaps Critical/Important: las tareas afectadas vuelven a `en-progreso`, `implementer` corrige (ese tiempo es **implementación**, clave `"<slug>/T-XX-fix<N>"`) y **relanzas la skill** sobre el nuevo diff con contador explícito ("revisión, intento 2 de 3"). **Máximo 3 intentos**; al 3.º con gaps, PARA y pregunta (seguir / re-planificar con `planner` / aceptar como deuda). Rebatir con evidencia **no consume intento**; lo Minor se anota sin bloquear.
    - **Tuyo (orquestador) — worklog `[revisión]` POR INTENTO (si `jira.json` `enabled` y se volcó el plan):** al cerrar cada pasada, `worklog.py plan --kind revision --attempt N` — cada intento queda como su propia entrada en Jira con duración y fecha, y `reviewAttempts` guarda la traza para `/retro`. Los tokens de los revisores NO van a la tarea: cierra el marcador de la tarea ANTES de invocar la skill.
 3. **`qa`** → pruebas E2E (solo local), informe y evidencias. El veredicto verde/rojo lo da `qa-gate.py` (exit code), no una impresión.
 
-**Bucle de corrección de qa ACOTADO (regla dura).** Si qa sale rojo: la(s) tarea(s) afectadas vuelven a `implementer`, se corrigen y qa **re-ejecuta**. Contador explícito ("intento 2 de 3"). **Máximo 3 intentos**; si el 3.º sigue rojo, ANTES de parar ejecuta **UNA pasada de la skill `debug-root-cause`** (4 fases con evidencia: reproducción mínima → aislamiento → hipótesis probada → fix propuesto; solo cadena nativa — con superpowers explícito manda su systematic-debugging). Luego PARA y pregunta al usuario qué hacer — seguir con el fix propuesto, re-planificar con `planner`, o cancelar — presentando el **diagnóstico** (causa probada, o lo descartado + hipótesis vivas si no concluyó) junto a la salida de qa-gate de cada intento. El tiempo del diagnóstico se imputa como implementación de la tarea afectada. No cierres estados en rojo y no degrades el umbral para "pasar".
+**Bucle de corrección de qa ACOTADO (regla dura).** Si qa sale rojo: la(s) tarea(s) afectadas vuelven a `implementer`, se corrigen y qa **re-ejecuta**. Contador explícito ("intento 2 de 3"). **Máximo 3 intentos**; si el 3.º sigue rojo, ANTES de parar ejecuta **UNA pasada de la skill `debug-root-cause`** (4 fases con evidencia: reproducción mínima → aislamiento → hipótesis probada → fix propuesto). Luego PARA y pregunta al usuario qué hacer — seguir con el fix propuesto, re-planificar con `planner`, o cancelar — presentando el **diagnóstico** (causa probada, o lo descartado + hipótesis vivas si no concluyó) junto a la salida de qa-gate de cada intento. El tiempo del diagnóstico se imputa como implementación de la tarea afectada. No cierres estados en rojo y no degrades el umbral para "pasar".
 
 ### Ciclo Jira de la Fase 3 (opt-in, `.claude/jira.json` `enabled: true`) — la secuencia, UNA sola vez
 
@@ -154,7 +136,7 @@ ruido). Reejecutar una fase tampoco duplica: cada plan con `ops` queda anotado e
 (`flow[...]`) y repetir el mismo evento da `ops: []` + `yaRealizado: true` (`--force` para repetirlo
 a propósito). En `revision`/`gaps`, `--intento N` es obligatorio.
 
-En ambos modos, al salir debes tener: código implementado, revisión pasada, `qa-gate` en verde y `tasks.md` al día (validado con `ledger-lint.py`).
+Al salir debes tener: código implementado, revisión pasada, `qa-gate` en verde y `tasks.md` al día (validado con `ledger-lint.py`).
 
 ## Fase 4 — Documentar (siempre, agente `documenter`)
 Con las pruebas en verde, invoca **`documenter`** para generar/actualizar la documentación del proyecto (una vez al final, no por tarea).
@@ -174,7 +156,7 @@ Si el usuario lo pide o la iniciativa lo amerita, invoca **`nemesis`** para audi
 6. **Notas de cambios**: con el ledger ya en `completado`, invoca la skill **`changelog-sync`** (determinista, idempotente) para generar las entradas `[Unreleased]`/`[Sin publicar]` de esta iniciativa en ambos CHANGELOG, y afina la redacción sin ampliar alcance. El bullet sale del campo `- **Changelog**:` de cada tarea, así que **antes de invocarla comprueba que las tareas cerradas lo traen** (`changelog-sync.py --check` te lista las que no; sin campo el bullet degrada al título). No crea la sección de versión: eso es del release.
 7. **Estados finales**: plan/tasks → `completado`, spec → `implementada` (tabla de abajo), fila del índice al día.
 
-La documentación/artefactos se sincronizan con Confluence vía `confluence-publish` (opt-in; la invocan los agentes al escribir en `docs/`). Cierra con un resumen: modo usado (nativa/superpowers), iniciativa, tareas completadas, estado de pruebas, coste medido (usage-meter), ruta de la doc y enlaces. Ofrece `/retro` como siguiente paso natural.
+La documentación/artefactos se sincronizan con Confluence vía `confluence-publish` (opt-in; la invocan los agentes al escribir en `docs/`). Cierra con un resumen: iniciativa, tareas completadas, estado de pruebas, coste medido (usage-meter), ruta de la doc y enlaces. Ofrece `/retro` como siguiente paso natural.
 
 ## Transiciones de estado (OBLIGATORIAS en cada fase)
 Los artefactos nacen en `borrador`. En **cada fase/puerta** que se supera, actualiza su estado
@@ -204,15 +186,13 @@ en-progreso · en-revision · completado · cancelado`; design = `borrador · ap
 Aplica la transición **en el mismo paso** en que se cruza la puerta, y mantén coherente la tabla
 de resumen de `tasks.md`.
 
-**Estas transiciones son responsabilidad del orquestador y se aplican en LOS DOS MODOS.** En
-**Modo A** superpowers no actualiza tus estados ni tu `tasks.md` por su cuenta: eres tú quien
-aplica las transiciones sobre tus artefactos y quien garantiza que `tasks.md` refleje el progreso
-(volcando el ledger de superpowers si hace falta). En **Modo B** las aplican `implementer`/`qa`,
-que ya lo tienen en sus instrucciones.
+**Estas transiciones son responsabilidad del orquestador.** Las de implementación y pruebas las
+aplican `implementer`/`qa`, que ya lo tienen en sus instrucciones; las de las puertas (go/no-go, OK
+del plan, cierre) las aplicas TÚ, y eres tú quien garantiza que `tasks.md` refleje el progreso.
 
 ## Reglas del orquestador
 - **Invoca a los agentes por nombre**; no dependas de la auto-delegación.
-- **Cero dependencia de superpowers:** la cadena nativa (Modo B) es el defecto SIEMPRE y hace el ciclo completo con los agentes del plugin; superpowers (Modo A) solo entra bajo petición explícita del usuario.
-- **`tasks.md` es la fuente única de progreso** en los dos modos.
+- **Autosuficiente:** el ciclo completo lo hacen los agentes del plugin; no hay motor de implementación externo ni dependencia de otros plugins.
+- **`tasks.md` es la fuente única de progreso.**
 - **Respeta las puertas** (go/no-go, OK de plan, verde de pruebas).
 - Si el usuario pide solo una parte (p. ej. "solo planifica"), ejecuta hasta esa fase y detente.

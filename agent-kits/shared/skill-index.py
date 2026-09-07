@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 skill-index.py — índice COMPACTO y DETERMINISTA de las piezas del plugin (comandos, skills,
-agentes) para inyectarlo como contexto al arrancar la sesión (patrón `using-superpowers`).
+agentes) para inyectarlo como contexto al arrancar la sesión.
 Cierra la brecha de fiabilidad de activación: la `description` de una skill solo se ve cuando
 Claude la busca; este índice pone TODAS las piezas y las reglas de enrutado delante en cada
 arranque (`hooks/session-context.sh`, SessionStart `startup|resume|compact`) a coste fijo y

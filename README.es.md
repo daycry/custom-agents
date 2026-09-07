@@ -73,7 +73,7 @@ Casi todo el utillaje alrededor de los agentes de código responde a *cómo* esc
 
 > **Skills portables:** las skills (no los agentes, comandos ni hooks) funcionan también **fuera de Claude Code** — Codex, Copilot, Cursor y cualquier lector de `AGENTS.md` — con `python3 scripts/export-skills.py` o el `custom-agents-skills-portable-<versión>.zip` que adjunta cada Release ([cómo](docs/INSTALL.md#usar-las-skills-fuera-de-claude-code-paquete-portable)).
 
-> Autosuficiente: sin dependencias de otros plugins. Si ya usas un motor SDD externo, `/dev-cycle` puede delegarle la ejecución manteniendo `tasks.md` como ledger canónico; y [convive](docs/observability.md) con monitores de sesión en vivo.
+> Autosuficiente: sin dependencias de otros plugins. `tasks.md` es el ledger canónico para quien implemente — el registro propio de cualquier otra herramienta es espejo, nunca la fuente; y [convive](docs/observability.md) con monitores de sesión en vivo.
 
 ## Lo que lo hace distinto
 
@@ -242,10 +242,6 @@ Cada push a `master` (y cada PR) pasa por [GitHub Actions](https://github.com/da
 ## Seguridad
 
 `nemesis` hace pentest activo **solo contra hosts locales/privados** (`localhost`, `*.test`, redes privadas), impuesto por guardrail de script — nunca contra terceros. La explotación activa requiere opt-in explícito y los informes con hallazgos quedan gitignored.
-
-## Comparado con superpowers
-
-Una nota honesta, porque lo vas a preguntar. [superpowers](https://github.com/obra/superpowers) es un gran plugin de disciplina de ingeniería y este **toma prestados** varios de sus patrones abiertamente: TDD con evidencia del rojo, subagentes de contexto fresco con brief, revisión obligatoria antes de fusionar, skills cortas con referencias bajo demanda, evals de activación e índice de skills inyectado al arrancar. Lo que este plugin **aporta** es la capa de negocio alrededor del código: **presupuesto** (horas · € · tokens) antes de construir y puerta go/no-go, **ledger canónico** con coste medido por tarea, trazabilidad **Jira/Confluence**, **memoria técnica** (`docs/knowledge/`) y **guardrails deterministas** (scripts con exit codes, no prosa). Conviven: `/dev-cycle --superpowers` delega el esqueleto de ejecución en superpowers mientras `tasks.md` sigue siendo el ledger, y las [skills portables](docs/INSTALL.md#usar-las-skills-fuera-de-claude-code-paquete-portable) siguen su idea multi-entorno.
 
 ## Licencia
 
