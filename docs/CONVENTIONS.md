@@ -157,7 +157,7 @@ El avance de un plan se registra en **un único sitio**: `docs/roadmap/<fecha>-<
 (checkbox + estado por tarea T-XX + tabla de resumen). Es la **fuente única de verdad**.
 
 - **Cualquier implementador** debe actualizar `tasks.md` al completar cada tarea: el agente `implementer`, el chat principal, o un **orquestador externo** (cualquier motor SDD de terceros).
-- Si una herramienta lleva su propio registro (todo-list interna, el fichero de progreso del motor externo, etc.), ese registro es **espejo**, no fuente: `tasks.md` manda. Ante discrepancia, gana `tasks.md`.
+- Si una herramienta lleva su propio registro (todo-list interna, el fichero de progreso de un orquestador externo, etc.), ese registro es **espejo**, no fuente: `tasks.md` manda. Ante discrepancia, gana `tasks.md`.
 - El orquestador `/dev-cycle` y el agente `implementer` aplican esta regla de serie. Para que la respeten orquestadores externos, `/dev-cycle` ofrece añadir esta regla al `CLAUDE.md` del proyecto consumidor.
 - **Las transiciones de estado son del orquestador:** quien EJECUTA una tarea puede no tocar tus artefactos (un subagente de contexto fresco lo tiene prohibido; una herramienta ajena no los conoce). Por tanto, `/dev-cycle` (o tú) aplica las **transiciones de estado** de la regla 7 y mantiene `tasks.md` al día en su nombre.
 - El cierre del ciclo (documentación con `documenter`) se hace **una vez** tras implementar y con `qa` en verde, no tarea a tarea.

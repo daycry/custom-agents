@@ -157,7 +157,7 @@ A plan's progress is recorded in **a single place**: `docs/roadmap/<fecha>-<slug
 (checkbox + per-task T-XX state + summary table). It is the **single source of truth**.
 
 - **Any implementer** must update `tasks.md` upon completing each task: the `implementer` agent, the main chat, or an **external orchestrator** (any third-party SDD engine).
-- If a tool keeps its own record (internal todo-list, the external engine's own progress file, etc.), that record is a **mirror**, not a source: `tasks.md` rules. On discrepancy, `tasks.md` wins.
+- If a tool keeps its own record (internal todo-list, an external orchestrator's own progress file, etc.), that record is a **mirror**, not a source: `tasks.md` rules. On discrepancy, `tasks.md` wins.
 - The `/dev-cycle` orchestrator and the `implementer` agent apply this rule out of the box. So that external orchestrators respect it, `/dev-cycle` offers to add this rule to the consuming project's `CLAUDE.md`.
 - **State transitions belong to the orchestrator:** whoever EXECUTES a task may not touch your artifacts (a fresh-context subagent is forbidden to; an outside tool does not know them). Therefore `/dev-cycle` (or you) applies the **state transitions** of rule 7 and keeps `tasks.md` up to date on its behalf.
 - The cycle closeout (documentation with `documenter`) happens **once**, after implementing and with `qa` green, not task by task.

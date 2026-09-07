@@ -20,7 +20,7 @@ natural que redirige a `/pm-cycle` o al flujo completo cuando el cambio NO es pe
 > DEVCYCLE="$(find "$PWD/.claude" "$PWD/commands" "$HOME/.claude" -type f -path '*commands/dev-cycle.md' 2>/dev/null | head -1)"
 > ```
 >
-> Qué seguir de ese fichero, en este orden: **Fase 0** (modo y carpeta de la iniciativa) → **Fase
+> Qué seguir de ese fichero, en este orden: **Fase 0** (preparación: carpeta de la iniciativa) → **Fase
 > 0-bis, rama «vía rápida»** → **Fase 3 COMPLETA** (implementación + revisión de dos lentes + `qa`
 > con `qa-gate`: ojo, `qa` está DENTRO de la Fase 3) → **Fase 6** (cierre). La **Fase 4
 > (`documenter`) solo si el usuario la pide**; en vía rápida no es automática.
