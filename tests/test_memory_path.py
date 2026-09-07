@@ -14,6 +14,14 @@ los que le llega contexto, y que NO recibe las de otras áreas (si recibe todo, 
 Y afirma el TOPE de cada camino (≤ 2.400 caracteres en el brief, ≤ 1.200 en el hook) como constante y
 como medida, no solo la presencia.
 
+El enrutado del brief que se cubre es el del campo `- **Tipo**:` DE VERDAD: los títulos de las dos tareas
+del ledger de fixture no contienen ningún token de área («El arranque de sesión inyecta contexto»,
+«Comprobar el comportamiento del arranque»: ni «hook» ni «fixture» ni «test»), así que la ÚNICA vía por la
+que ADR-001 y GOT-001 llegan a su brief es `--tipo-tarea devops|test`. Antes (revisión intento 1, gap 11)
+los títulos eran «El hook de arranque…» y «Suite del fixture» y el brief los enrutaba por el título:
+quitar `--tipo-tarea` de `task-brief.py` dejaba la suite en 7 passed. El H1 del ledger sí habla de hooks,
+porque ese es el camino del hook de sesión (título + slug, sin `Tipo`).
+
 Todo sobre un corpus de `tmp_path` (dos áreas + una ajena y una iniciativa de mentira), sin red, sin
 `claude` en PATH y sin clave: los dos caminos son scripts locales lanzados como subproceso, igual que
 los lanza el orquestador.
@@ -26,6 +34,9 @@ MUTANTES (cómo verlo rojo — un test que pasa con y sin la inyección no prueb
     `test_el_arranque_con_una_iniciativa_activa_de_area_x_inyecta_la_entrada_de_area_x` falla con
     «additionalContext (área Hooks / implementer): no llegó ADR-001».
   - tope:   sube `MEMORIA_TOPE_CHARS` en cualquiera de los dos → el test del tope falla por la constante.
+  - Tipo:   en `task-brief.py`, quita `["--tipo-tarea", tipo]` de la orden a `knowledge-find.py` →
+    `test_el_brief_de_una_tarea_de_area_x_trae_la_entrada_de_area_x` y el negativo fallan («no llegó
+    ADR-001» / «no llegó GOT-001»): el brief ya no enruta por `Tipo` y los títulos no lo rescatan.
 
 Ejecutar: python3 -m pytest -q tests/test_memory_path.py
 """
@@ -76,9 +87,9 @@ actualizado: 2026-01-02
 
 **Estado**: en-progreso
 
-### T-01 — El hook de arranque inyecta contexto
+### T-01 — El arranque de sesión inyecta contexto
 
-- **Descripción**: añadir el bloque al hook.
+- **Descripción**: añadir el bloque al arranque.
 - **Estado**: en-progreso
 - **Tipo**: devops
 - **Verificación**: `bash hooks/x.sh < payload` → JSON válido
@@ -86,9 +97,9 @@ actualizado: 2026-01-02
 **Criterios de aceptación**
 - [ ] el hook emite JSON
 
-### T-02 — Suite del fixture
+### T-02 — Comprobar el comportamiento del arranque
 
-- **Descripción**: probar el fixture.
+- **Descripción**: probarlo.
 - **Estado**: borrador
 - **Tipo**: test
 - **Verificación**: `pytest -q` → passed
