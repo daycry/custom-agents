@@ -34,13 +34,11 @@
       "expect": {
         "activates": true,
         "mentions": [
-          "GOT-001"
-        ],
-        "must_not": [
-          "LES-001"
+          "GOT-001",
+          "RFC 4180"
         ]
       },
-      "notes": "Camino de memoria (memory-retrieval T-09): la tarea es backend/CSV y el corpus del fixture tiene UN gotcha de ese área (GOT-001, escapado RFC 4180) y UNA lección de estimación (LES-001) que NO es del área del implementer. Recuperar la memoria es citar el ID que toca, no el vecino."
+      "notes": "Camino de memoria (memory-retrieval T-09): la tarea es backend/CSV y el corpus del fixture tiene UN gotcha de ese área (GOT-001: la comilla se escapa DOBLÁNDOLA, RFC 4180). Recuperar la memoria es citar el ID que toca Y aplicar lo que dice (RFC 4180: la comilla doblada, nombrado en la explicación). No se prohíbe citar LES-001 (revisión intento 1, MINOR 7): la lección de estimación dice que el escapado es tarea propia, y mencionarla al implementar el escapado es correcto, no ruido."
     },
     {
       "id": "implementer-neg-qa",
