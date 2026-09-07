@@ -42,13 +42,13 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervisión (real/est) | Tokens (real/est) |
 |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
 | Fase 1 — Recuperación | 4 | 4 | 100% | 0 / 9,0h | 0,60 (est.) / 0,51h | 0,16 (est.) / 0,13h | n/d / 245.000 |
-| Fase 2 — Llegada | 1 | 3 | 33% | 0 / 4,0h | 0,25 (est.) / 0,31h | 0,06 (est.) / 0,08h | n/d / 150.000 |
+| Fase 2 — Llegada | 2 | 3 | 67% | 0 / 4,0h | 0,40 (est.) / 0,31h | 0,10 (est.) / 0,08h | n/d / 150.000 |
 | Fase 3 — Prueba de que se recorre | 0 | 3 | 0% | 0 / 4,0h | 0 / 0,27h | 0 / 0,07h | 0 / 128.000 |
 | Fase 4 — Captura episódica | 0 | 4 | 0% | 0 / 7,0h | 0 / 0,43h | 0 / 0,11h | 0 / 205.000 |
 | Fase 5 — Que la doctrina viaje | 0 | 2 | 0% | 0 / 3,0h | 0 / 0,24h | 0 / 0,06h | 0 / 115.000 |
 | Fase 6 — Cerrar el bucle | 0 | 2 | 0% | 0 / 3,0h | 0 / 0,30h | 0 / 0,08h | 0 / 145.000 |
 | Revisión de dos lentes (transversal, línea propia) | — | — | — | 0 / 4,0h | 0 / 0,54h | 0 / 0,13h | 0 / 260.000 |
-| **TOTAL** | **5** | **18** | **28%** | **0 / 34,0h** | **0,85 (est.) / 2,60h** | **0,22 (est.) / 0,66h** | **n/d / 1.248.000** |
+| **TOTAL** | **6** | **18** | **33%** | **0 / 34,0h** | **1,00 (est.) / 2,60h** | **0,26 (est.) / 0,66h** | **n/d / 1.248.000** |
 
 > **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada (8 h). Ver `skills/jira-sync/SKILL.md`.
 >
@@ -211,7 +211,7 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 
 ## Fase 2 — Llegada
 
-**Estado**: en-progreso · **Estimado**: 4,0h · **Real**: 0h humanas · 0,25h IA (estimado) + 0,06h supervisión (estimado) · **Coste est.**: 201 € · **Tokens est.**: 150.000
+**Estado**: en-progreso · **Estimado**: 4,0h · **Real**: 0h humanas · 0,40h IA (estimado) + 0,10h supervisión (estimado) · **Coste est.**: 201 € · **Tokens est.**: 150.000
 
 > Cierra el hueco **1** de `analysis.md` §1.4, el **más caro**: con `subagentes: true` el brief es el
 > ÚNICO contexto (`commands/dev-cycle.md:110`) y hoy no lleva memoria, así que quien escribe el
@@ -255,34 +255,37 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 ### T-06 — Memoria del área activa al arrancar sesión, con tope propio
 
 - **Descripción**: `session-context.sh` gana un cuarto bloque: **no el corpus** (27.100 tokens no caben en el `TOPE_CHARS = 9500` del hook) sino los N mejores aciertos del **área de la iniciativa activa**, con tope explícito de **300 tokens**. Hoy el hook inyecta 872 tokens y **ninguno** es memoria curada.
-- **Estado**: borrador
-- **Tiempo humano**: est. 1,5h · real —
-- **Tiempo IA (ejec.)**: est. 0,10h · real —
-- **Supervisión**: est. 0,03h (≈25 % IA) · real —
+- **Estado**: completado
+- **Tiempo humano**: est. 1,5h · real 0h (sin intervención humana en la ejecución)
+- **Tiempo IA (ejec.)**: est. 0,10h · real 0,15h (estimado: el usage-meter no lee la transcripción en este entorno)
+- **Supervisión**: est. 0,03h (≈25 % IA) · real 0,04h (estimado)
 - **Previsión IA**: 40k in / 10k out tok · 0,41 €
 - **Dependencias**: T-01
 - **Tipo**: devops
-- **Archivos**: `hooks/session-context.sh`, `tests/test_hooks_shell.py`
-- **Verificación**:
-  - `echo '{"hook_event_name":"SessionStart","source":"startup"}' | bash hooks/session-context.sh | python3 -c "import json,sys; t=json.load(sys.stdin)['hookSpecificOutput']['additionalContext']; print(len(t))"` → ≤ 9.500
-  - la porción de memoria de ese `additionalContext` → ≤ 1.200 caracteres
-  - `echo '{"hook_event_name":"SessionStart","source":"compact"}' | bash hooks/session-context.sh` → JSON válido, exit 0
-  - en un árbol sin `docs/knowledge/`: el hook **no emite el bloque** y el resto sale igual, exit 0
-  - `python3 -m pytest -q tests/test_hooks_shell.py` → todos passed
+- **Archivos**: `hooks/session-context.sh`, `tests/test_hooks_shell.py`, `agent-kits/shared/doctor.py`, `agent-kits/shared/test_doctor.py` (los dos últimos añadidos al cerrar: `sesion.memoria` entra en el vocabulario de `dev.json` que valida `/doctor` — sin eso el opt-out nuevo saldría como «clave desconocida»)
+- **Changelog**: Al arrancar o retomar una sesión (también tras compactar), el contexto trae los aciertos de la memoria técnica del área de la iniciativa activa, topados a 300 tokens y sin desplazar el índice de piezas ni el roadmap; se apaga con `sesion.memoria: false`.
+- **Verificación** (ejecutada 2026-09-07):
+  - `RED: tests/test_hooks_shell.py -k "memoria or bloque" falló con AssertionError: [startup] falta el bloque de memoria del área activa (assert '') (2 failed, 3 passed) · 2026-09-07`; GREEN después → `python3 -m pytest -q tests/test_hooks_shell.py` → **`34 passed`** (4 tests nuevos: bloque bajo el tope en `startup|resume|compact` y detrás del roadmap · sin `docs/knowledge/`, sin aciertos o sin activa → mismo contexto que hoy · `sesion.memoria: false` lo apaga · 41 entradas del área → bloque ≤ 1.200 con «… y N más» y el índice/roadmap enteros, sin recorte global).
+  - `echo '{"hook_event_name":"SessionStart","source":"startup"}' | bash hooks/session-context.sh | python3 -c "…print(len(t))"` → **4.263** (≤ 9.500; hoy sin memoria: 3.730 ≈ 872 tokens) con `CLAUDE_PLUGIN_ROOT=$PWD`. *Ojo, medido:* sin esa variable el hook resuelve `agent-kits/shared` con `find` sobre `~/.claude` y en esta máquina encuentra una copia INSTALADA del plugin (`~/.claude/plugins/synced/…/custom-agents~g2`) anterior a esta fase — sale el contexto de hoy (3.728) sin bloque; Claude Code exporta `CLAUDE_PLUGIN_ROOT`, así que en uso real no ocurre.
+  - Porción de memoria de ese `additionalContext` → **533 caracteres** (≤ 1.200): `Memoria técnica del área activa (docs/knowledge · 2 acierto(s) …)` + `ADR-006 · aceptada · Memoria técnica / lectura-escritura …` + `ADR-010 · aceptada · Memoria técnica / hooks …` + `Detalle solo por ID: python3 ".../knowledge-find.py" --show <ID>`. Área derivada del TÍTULO del ledger activo («Memoria técnica recuperable (tres capas, dos velocidades y un presupuesto por camino)») + `--iniciativa memory-retrieval`, con la misma orden enrutada de `knowledge-find.py` que usa el brief (T-05). Idéntico en `resume` y `compact`.
+  - `echo '{"hook_event_name":"SessionStart","source":"compact"}' | bash hooks/session-context.sh` → JSON válido (`hookSpecificOutput.hookEventName/additionalContext`), **exit 0**.
+  - Árbol sin `docs/knowledge/`, corpus sin aciertos del área o sin iniciativa activa → el hook no emite el bloque y el `additionalContext` es **igual** al de hoy (test `test_session_context_sin_knowledge_sin_aciertos_o_sin_activa_no_emite_el_bloque`, igualdad de cadenas).
+  - **Tiempo del hook** (`time bash hooks/session-context.sh < payload`, 3 medidas cada uno, `CLAUDE_PLUGIN_ROOT=$PWD`): ANTES (c77a4f8) **0,23-0,24 s** · DESPUÉS **0,39-0,40 s** en `startup` y 0,35 s en `compact` — +0,16 s (un python en línea + `progress-report.py active` + `knowledge-find.py` sobre el índice en caché). Presupuesto oficial de un hook `SessionStart`: 60 s por defecto; el compartido de 1,5 s es el de `SessionEnd`, que este hook no toca.
+  - `python3 -m pytest -q tests/test_console_encoding.py` → `281 passed` (el python en línea nuevo lleva `PYTHONIOENCODING=utf-8:replace` delante) · `python3 -m pytest -q agent-kits/shared/test_doctor.py` → `25 passed` (`sesion.memoria` reconocido; valor no booleano → ❌).
 
 **Criterios de aceptación**
-- [ ] El bloque de memoria es **≤ 300 tokens (≤ 1.200 caracteres)** y el `additionalContext` total sigue **≤ 9.500 caracteres** (spec CA-10). Línea base: 872 tokens, **0** de memoria.
-- [ ] El tope propio se aplica **antes** del recorte global a `TOPE_CHARS`, para que la memoria no se coma el índice de piezas ni el roadmap.
-- [ ] Sin iniciativa activa, sin `docs/knowledge/` o sin aciertos: **no se emite el bloque**; el resto de la salida es la de hoy.
-- [ ] El hook sigue **siempre exit 0** y nunca emite JSON inválido, pase lo que pase con la memoria.
-- [ ] Desactivable por `.claude/dev.json` → `sesion.memoria: false`, como ya se puede con `sesion.indice` y `sesion.journal`.
+- [x] El bloque de memoria es **≤ 300 tokens (≤ 1.200 caracteres)** y el `additionalContext` total sigue **≤ 9.500 caracteres** (spec CA-10). Línea base: 872 tokens, **0** de memoria. *Medido: 533 y 4.263 caracteres.*
+- [x] El tope propio se aplica **antes** del recorte global a `TOPE_CHARS`, para que la memoria no se coma el índice de piezas ni el roadmap (`MEMORIA_TOPE_CHARS = 1200` dentro del bloque (4); test con 41 entradas).
+- [x] Sin iniciativa activa, sin `docs/knowledge/` o sin aciertos: **no se emite el bloque**; el resto de la salida es la de hoy.
+- [x] El hook sigue **siempre exit 0** y nunca emite JSON inválido, pase lo que pase con la memoria (todo el bloque va en un `$(… || true)` con stderr a `/dev/null`; el JSON final lo compone el mismo python de siempre).
+- [x] Desactivable por `.claude/dev.json` → `sesion.memoria: false`, como ya se puede con `sesion.indice` y `sesion.journal`.
 
 **Subtareas**
-- [ ] Test RED en `tests/test_hooks_shell.py` con un fixture de iniciativa activa.
-- [ ] Derivar el área de la iniciativa activa (`progress-report.py active` ya la sabe).
-- [ ] Insertar el bloque (4) y respetar el orden actual de los tres que hay.
+- [x] Test RED en `tests/test_hooks_shell.py` con un fixture de iniciativa activa.
+- [x] Derivar el área de la iniciativa activa (`progress-report.py active` ya la sabe). *Matiz medido: `active --json` da `slug` y `path`, no un área; el área se deriva del título H1 del ledger + el slug, enrutados por `knowledge-find.py --contexto/--iniciativa`.*
+- [x] Insertar el bloque (4) y respetar el orden actual de los tres que hay.
 
-**Notas**: `TOPE_CHARS = 9500` está en `hooks/session-context.sh:88` y viene del tope de 10.000 caracteres del contrato oficial del hook.
+**Notas**: `TOPE_CHARS = 9500` está en `hooks/session-context.sh:88` y viene del tope de 10.000 caracteres del contrato oficial del hook. **Decisión de ejecución:** el bloque va también en `compact`, por la misma razón que el índice de piezas (la compactación resume la conversación y puede perder lo inyectado al arrancar; cuesta ≤ 300 tokens). Deuda declarada para T-18: `docs/CONVENTIONS.md` regla 9 y `/setup` aún no mencionan `sesion.memoria` (doc ES/EN es de la Fase 6).
 
 ### T-07 — El reparto por agente de `knowledge-check.md` deja de ser solo prosa
 

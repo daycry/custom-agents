@@ -65,7 +65,7 @@ BACKTICK_RE = re.compile(r"`([^`]+)`")
 DEV_BOOLES = ("tdd", "worktree", "subagentes", "constitucion", "statusline")
 DEV_LENTES = ("auto", "siempre", "nunca")
 DEV_GUARDRAIL_REGLAS = ("alcance", "ramaPrincipal", "git")
-DEV_SESION_CLAVES = ("indice", "journal")
+DEV_SESION_CLAVES = ("indice", "journal", "memoria")   # memoria: bloque (4) de session-context.sh (T-06)
 DEV_CLAVES = set(DEV_BOOLES) | {"guardrails", "revision", "sesion", "modelos", "tests"}
 
 JIRA_OBLIGATORIOS = ("cloudId", "granularidad", "assignee", "alCubrirJornada")
@@ -405,7 +405,7 @@ def _dev_valida(datos):
     if ses is not None:
         if not isinstance(ses, dict):
             ls.append(linea(ERROR, "dev.json `sesion`", f"{ses!r} no es un objeto",
-                            "usa `{\"indice\": true, \"journal\": true}`"))
+                            "usa `{\"indice\": true, \"journal\": true, \"memoria\": true}`"))
         else:
             for sk in sorted(ses):
                 if sk not in DEV_SESION_CLAVES:
@@ -477,7 +477,7 @@ def _dev(plugin_root, project):
     if datos is None:
         return [linea(INFO, "dev.json", "no configurado",
                       "`/setup` paso 5 lo crea; sin él valen los defaults: sin TDD/worktree/subagentes, "
-                      "guardrails activos, lente de seguridad `auto`, índice y journal de sesión activos")]
+                      "guardrails activos, lente de seguridad `auto`, índice, journal y memoria de sesión activos")]
     if not isinstance(datos, dict):
         return [linea(ERROR, "dev.json", "la raíz no es un objeto JSON",
                       "recréalo con `/setup` (paso 5)")]

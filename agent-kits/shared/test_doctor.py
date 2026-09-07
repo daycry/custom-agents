@@ -167,6 +167,15 @@ def test_dev_json_lente_rendimiento_es_vocabulario_conocido(tmp_path):
     assert [l for l in lineas(inf2, doctor.ERROR) if l["que"] == "dev.json `revision.lenteRendimiento`"]
 
 
+def test_dev_json_sesion_memoria_es_vocabulario_conocido(tmp_path):
+    """`sesion.memoria` (opt-out del bloque de memoria de `session-context.sh`, memory-retrieval T-06) NO
+    debe salir como clave desconocida; un valor no booleano sí es ❌."""
+    inf = diag(proyecto(tmp_path, dev__json={"sesion": {"memoria": False}}))
+    assert not lineas(inf, doctor.ERROR) and not lineas(inf, doctor.AVISO)
+    inf2 = diag(proyecto(tmp_path / "b", dev__json={"sesion": {"memoria": "no"}}))
+    assert [l for l in lineas(inf2, doctor.ERROR) if l["que"] == "dev.json `sesion.memoria`"]
+
+
 def test_hook_con_script_inexistente_es_error(tmp_path):
     plug = plugin(tmp_path, script_existe=False)
     inf = diag(proyecto(tmp_path), plug)

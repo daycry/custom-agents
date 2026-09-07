@@ -9,8 +9,16 @@
 #       (solo si hay algo activo);
 #   (3) SOLO en `startup|resume` (no en `compact`: el journal no cambia dentro de la sesión), la
 #       ÚLTIMA entrada del journal de sesión (`journal.py latest --n 2 --max-lines 25`: memoria
-#       episódica que dejó el hook SessionEnd `session-journal.sh` — qué pasó, qué quedó pendiente).
-# (1) y (2) van también en `compact`: la guía oficial (code.claude.com/docs/en/hooks-guide, «Re-inject
+#       episódica que dejó el hook SessionEnd `session-journal.sh` — qué pasó, qué quedó pendiente);
+#   (4) la MEMORIA TÉCNICA del ÁREA de la iniciativa activa (memory-retrieval T-06): NO el corpus
+#       (27.100 tokens no caben en TOPE_CHARS) sino los mejores aciertos compactos de
+#       `knowledge-find.py --contexto <título del ledger> --iniciativa <slug>` (enrutado por ÁREA, la
+#       misma orden que usa `task-brief.py`), con tope PROPIO `MEMORIA_TOPE_CHARS = 1200` (≤ 300 tokens,
+#       spec CA-10) aplicado ANTES del recorte global — la memoria no se come el índice ni el roadmap.
+#       Sin iniciativa activa, sin `docs/knowledge/`, sin aciertos o con `dev.json` →
+#       {"sesion": {"memoria": false}} el bloque no se emite y el resto sale idéntico. También en
+#       `compact`, por la misma razón que (1): lo que la compactación resume, se reinyecta.
+# (1), (2) y (4) van también en `compact`: la guía oficial (code.claude.com/docs/en/hooks-guide, «Re-inject
 # context after compaction», verificada 2026-09-03) dice que la compactación RESUME la conversación
 # y puede perder detalles, y recomienda un SessionStart con matcher `compact` para reinyectar el
 # contexto crítico — el índice del arranque no sobrevive íntegro. Coste fijo y medido.
@@ -80,6 +88,71 @@ case "${P_SOURCE:-startup}" in
 }$jr"
     fi ;;
 esac
+
+# (4) Memoria técnica del área de la iniciativa activa (memory-retrieval T-06). Un solo python compone el
+#     bloque: lee dev.json (opt-out `sesion.memoria`), pide las activas a progress-report.py y los aciertos
+#     a knowledge-find.py (la MISMA orden enrutada que task-brief.py), y lo topa a MEMORIA_TOPE_CHARS antes
+#     de sumarlo. Cualquier fallo → sin bloque; el hook sigue exit 0.
+if [ -f "$SHARED/knowledge-find.py" ] && [ -f "$SHARED/progress-report.py" ] && [ -d "$ROOT/docs/knowledge" ] && [ -d "$ROOT/docs/roadmap" ]; then
+  mem="$(PYTHONIOENCODING=utf-8:replace python3 - "$SHARED" "$ROOT" <<'PY' 2>/dev/null || true
+import json, os, re, subprocess, sys
+MEMORIA_TOPE_CHARS = 1200      # ≤ 300 tokens (spec CA-10); tope PROPIO, antes del recorte global a TOPE_CHARS
+MEMORIA_LIMIT = 8              # aciertos que se piden por iniciativa; el tope de caracteres es el que manda
+shared, root = sys.argv[1], sys.argv[2]
+try:
+    with open(os.path.join(root, ".claude", "dev.json"), encoding="utf-8-sig") as f:
+        cfg = json.load(f)
+    ses = cfg.get("sesion") if isinstance(cfg, dict) else None
+    if isinstance(ses, dict) and ses.get("memoria") is False:
+        sys.exit(0)
+except Exception:
+    pass                                                  # sin dev.json o corrupto → activado (como indice/journal)
+
+def run(*args):
+    r = subprocess.run([sys.executable, *args], capture_output=True, text=True, encoding="utf-8",
+                       errors="replace", timeout=20)
+    return json.loads(r.stdout) if r.returncode == 0 else {}
+
+activas = run(os.path.join(shared, "progress-report.py"), "active", "--root", os.path.join(root, "docs", "roadmap"), "--json").get("activas", [])
+lineas, vistos, total, ordenes = [], set(), 0, []
+for a in activas[:2]:
+    slug, path = a.get("slug", ""), a.get("path", "")
+    titulo = ""
+    try:
+        with open(os.path.join(root, path) if not os.path.isabs(path) else path, encoding="utf-8", errors="replace") as f:
+            for ln in f:
+                if ln.startswith("# "):
+                    titulo = re.sub(r"^#\s*(?:Checklist de Tareas\s*[—:-]\s*)?", "", ln).strip()
+                    break
+    except OSError:
+        pass
+    d = run(os.path.join(shared, "knowledge-find.py"), "--json", "--root", root, "--limit", str(MEMORIA_LIMIT),
+            "--contexto", titulo, "--iniciativa", slug)
+    total += int(d.get("total", 0) or 0)
+    ordenes.append(f"--contexto \"{titulo}\" --iniciativa {slug}")
+    for ac in d.get("aciertos", []):
+        if ac.get("id") not in vistos and ac.get("linea"):
+            vistos.add(ac["id"]); lineas.append(ac["linea"])
+if not lineas:
+    sys.exit(0)
+kf = os.path.join(shared, "knowledge-find.py")
+cab = (f"Memoria técnica del área activa (docs/knowledge · {total} acierto(s) de knowledge-find.py; el estado va "
+       "delante: aceptada = doctrina, propuesta = indicio, obsoleta = no aplicar):")
+pie = f"Detalle solo por ID: python3 \"{kf}\" --show <ID>  (o --related <ID>: su grafo curado)"
+n = len(lineas)
+while n > 0:
+    fuera = total - n
+    extra = [f"… y {fuera} más: python3 \"{kf}\" {' · '.join(ordenes)}"] if fuera > 0 else []
+    bloque = "\n".join([cab] + [f"- {l}" for l in lineas[:n]] + extra + [pie])
+    if len(bloque) <= MEMORIA_TOPE_CHARS:
+        print(bloque); break
+    n -= 1
+PY
+)"
+  [ -n "$mem" ] && partes="${partes:+$partes
+
+}$mem"
+fi
 
 [ -n "$partes" ] || exit 0
 
