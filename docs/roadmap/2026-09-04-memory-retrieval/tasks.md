@@ -1,4 +1,8 @@
 ---
+tasks: memory-retrieval
+estado: en-progreso       # borrador | en-progreso | completado | cancelado — Fase 1 completada (2026-09-07); Fases 2-6 pendientes
+creado: 2026-09-04
+actualizado: 2026-09-07
 generacion:            # ventana compartida con spec.md · evaluation.md · improvement-plan.md (se cuenta UNA vez)
   inicio: 2026-09-04T09:00:00Z
   fin: 2026-09-04T09:40:00Z
@@ -25,10 +29,11 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 
 > **⚠️ Ledger canónico de progreso.** Este fichero es la **fuente única de verdad** del avance del plan. **Cualquier** implementador —el agente `implementer`, el chat principal, o un orquestador SDD externo— **debe** marcar aquí cada tarea (checkbox + estado) al completarla y actualizar el resumen. Los ledgers propios de otras herramientas son **espejo**, no fuente.
 
-> **Todas las tareas están sin empezar** (`borrador`). Ninguna se ha ejecutado: este ledger es la
-> salida del `planner`, no de una implementación. El campo opcional `- **Changelog**:` se deja
-> **fuera a propósito**: lo escribe quien CIERRA la tarea (`ADR-012`), y ponerlo ahora con el
-> placeholder de la plantilla solo produciría avisos de `ledger-lint` y un bullet degradado.
+> **Fase 1 completada el 2026-09-07 (T-01…T-04, rama `feature/pendiente`)**; las Fases 2-6 siguen en
+> `borrador`. El campo opcional `- **Changelog**:` lo escribe quien CIERRA cada tarea (`ADR-012`): las
+> cuatro cerradas lo llevan y las catorce pendientes no (los avisos de adopción parcial de
+> `ledger-lint` son la señal esperada hasta que se cierren). Las horas IA «reales» de la Fase 1 van
+> marcadas `(estimado)`: el `usage-meter` no puede leer la transcripción en este entorno.
 
 ---
 
@@ -36,14 +41,14 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervisión (real/est) | Tokens (real/est) |
 |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
-| Fase 1 — Recuperación | 3 | 4 | 75% | 0 / 9,0h | 0 / 0,51h | 0 / 0,13h | 0 / 245.000 |
+| Fase 1 — Recuperación | 4 | 4 | 100% | 0 / 9,0h | 0,60 (est.) / 0,51h | 0,16 (est.) / 0,13h | n/d / 245.000 |
 | Fase 2 — Llegada | 0 | 3 | 0% | 0 / 4,0h | 0 / 0,31h | 0 / 0,08h | 0 / 150.000 |
 | Fase 3 — Prueba de que se recorre | 0 | 3 | 0% | 0 / 4,0h | 0 / 0,27h | 0 / 0,07h | 0 / 128.000 |
 | Fase 4 — Captura episódica | 0 | 4 | 0% | 0 / 7,0h | 0 / 0,43h | 0 / 0,11h | 0 / 205.000 |
 | Fase 5 — Que la doctrina viaje | 0 | 2 | 0% | 0 / 3,0h | 0 / 0,24h | 0 / 0,06h | 0 / 115.000 |
 | Fase 6 — Cerrar el bucle | 0 | 2 | 0% | 0 / 3,0h | 0 / 0,30h | 0 / 0,08h | 0 / 145.000 |
 | Revisión de dos lentes (transversal, línea propia) | — | — | — | 0 / 4,0h | 0 / 0,54h | 0 / 0,13h | 0 / 260.000 |
-| **TOTAL** | **3** | **18** | **17%** | **0 / 34,0h** | **0 / 2,60h** | **0 / 0,66h** | **0 / 1.248.000** |
+| **TOTAL** | **4** | **18** | **22%** | **0 / 34,0h** | **0,60 (est.) / 2,60h** | **0,16 (est.) / 0,66h** | **n/d / 1.248.000** |
 
 > **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada (8 h). Ver `skills/jira-sync/SKILL.md`.
 >
@@ -53,7 +58,7 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 
 ## Fase 1 — Recuperación
 
-**Estado**: en-progreso · **Estimado**: 9,0h · **Real**: — · **Coste est.**: 452 € · **Tokens est.**: 245.000
+**Estado**: completado · **Estimado**: 9,0h · **Real**: 0h humanas · 0,60h IA (estimado) + 0,16h supervisión (estimado) · **Coste est.**: 452 € · **Tokens est.**: 245.000
 
 > Cierra los huecos **2** («no hay búsqueda») y **5** («el índice no lo vigila nada») de
 > `analysis.md` §1.4. No depende de nada, y es lo que más rinde: por eso va primera.
@@ -68,7 +73,7 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 - **Previsión IA**: 65k in / 20k out tok · 0,76 €
 - **Dependencias**: ninguna
 - **Tipo**: backend
-- **Archivos**: `agent-kits/shared/knowledge-find.py`, `tests/test_knowledge_find.py`, `tests/test_console_encoding.py` (añadido al cerrar: la suite exige declarar en `MODOS` el modo de arranque de cada script nuevo con símbolos, GOT-005)
+- **Archivos**: `agent-kits/shared/knowledge-find.py`, `tests/test_knowledge_find.py`, `tests/test_console_encoding.py` (añadido al cerrar: la suite exige declarar en su tabla MODOS el modo de arranque de cada script nuevo con símbolos, GOT-005)
 - **Changelog**: Los agentes pueden consultar la memoria técnica del proyecto con una orden en vez de leer el índice entero: cada acierto es una línea compacta con el estado delante, y el área se casa sin acentos ni mayúsculas.
 - **Verificación** (ejecutada 2026-09-07):
   - `RED: tests/test_knowledge_find.py falló con FileNotFoundError: [Errno 2] No such file or directory: '/work/ca/agent-kits/shared/knowledge-find.py' (1 error during collection) · 2026-09-07`; GREEN después → `15 passed in 1.21s`.
@@ -170,28 +175,35 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 ### T-04 — Lint del índice: biyección `ficheros ↔ filas` y `area` obligatoria
 
 - **Descripción**: test barato que vigila el índice de memoria igual que `tests/test_roadmap_index.py` vigila su hermano del roadmap — y por la misma razón: una entrada **sin fila es invisible** para el único camino de lectura y no hay grep de respaldo. Afirma la **biyección** (todo fichero de `adr/`/`gotchas/`/`lessons/` tiene fila, y toda fila apunta a un fichero que existe) y que **cada fila tiene columna «Área»** no vacía. Esto último no es cosmético: **para los 12 ADR el `area` SOLO vive en el índice**, así que perder la fila es perder el enrutado **sin poder reconstruirlo**.
-- **Estado**: borrador
-- **Tiempo humano**: est. 1,5h · real —
-- **Tiempo IA (ejec.)**: est. 0,08h · real —
-- **Supervisión**: est. 0,02h (≈25 % IA) · real —
+- **Estado**: completado
+- **Tiempo humano**: est. 1,5h · real 0h (sin intervención humana en la ejecución)
+- **Tiempo IA (ejec.)**: est. 0,08h · real 0,10h (estimado: el usage-meter no lee la transcripción en este entorno)
+- **Supervisión**: est. 0,02h (≈25 % IA) · real 0,03h (estimado)
 - **Previsión IA**: 30k in / 8k out tok · 0,32 €
 - **Dependencias**: ninguna (puede ir en paralelo a T-01…T-03)
 - **Tipo**: test
-- **Archivos**: `tests/test_knowledge_index.py`
-- **Verificación**: `python3 -m pytest -q tests/test_knowledge_index.py` → todos passed sobre el corpus de hoy (31 entradas, 31 filas) · con una fila borrada a mano → **falla nombrando el fichero sin fila** · con la columna «Área» vaciada en una fila → **falla nombrando el ID** · `python3 -m pytest -q` → ≥ 1.175 passed
+- **Archivos**: `tests/test_knowledge_index.py`, `scripts/lint_plugin.py`, `tests/test_lint_plugin.py` (los dos últimos añadidos al cerrar: el criterio vive UNA vez en el linter como ERROR —regla 10— y el test lo importa por ruta y lo prueba con mutaciones; el orquestador lo pidió así al arrancar la fase)
+- **Changelog**: El índice de la memoria técnica queda vigilado: una entrada sin fila, una fila sin área o un enlace roto hacen fallar el linter del plugin y la suite, nombrando el fichero o el ID.
+- **Verificación** (ejecutada 2026-09-07):
+  - `RED: tests/test_knowledge_index.py falló con AttributeError: module 'lint_plugin_knowledge' has no attribute 'lint_knowledge_index' (12 failed, 1 passed) · 2026-09-07`; GREEN después → `python3 -m pytest -q tests/test_knowledge_index.py` → **`13 passed`** sobre el corpus de hoy: **32 ficheros ↔ 32 filas** (la spec decía 31: `GOT-006` entró el 2026-09-04, después del análisis; el test exige `≥ 31` y la igualdad).
+  - Con la fila de `ADR-007` borrada a mano del índice real → el test falla con `AssertionError: docs/knowledge/adr/ADR-007-deny-solo-con-alcance-de-agente.md: entrada sin fila en docs/knowledge/README.md — invisible para el único camino de lectura; añade su fila (con «Área») en la tabla del índice` y `python3 scripts/lint_plugin.py` → `❌ …ADR-007…: entrada sin fila…` · `lint_plugin: 9 agentes · 1 errores · 3 avisos`, **exit 1**.
+  - Con la columna «Área» de `GOT-005` vaciada → el test falla con `AssertionError: docs/knowledge/README.md:57 (GOT-005): fila sin «Área» — para los ADR el área SOLO vive aquí; sin ella la entrada no se enruta (knowledge-find.py --area) ni se puede reconstruir` y el linter → `1 errores`, **exit 1**. Índice restaurado después (`git status --short docs/knowledge` → limpio; test → `13 passed`).
+  - Las mismas mutaciones viven como tests permanentes sobre una COPIA del corpus real en `tmp_path` (`test_quitar_una_fila_del_indice_real_…`, `test_vaciar_el_area_de_una_fila_real_…`) y sobre un corpus sintético (fila hacia fichero inexistente, fila fuera de la tabla, ID/ruta repetidos, sin README con entradas, sin `docs/knowledge/`).
+  - `python3 tests/test_lint_plugin.py` → `test_lint_plugin: 36/36 OK` (casos 33-36 nuevos: índice correcto → exit 0; entrada sin fila → exit 1 nombrando `gotchas/GOT-001-g.md`; fila sin «Área» → exit 1 nombrando `(ADR-001)`; enlace a fichero inexistente → exit 1; plugin sin `docs/knowledge/` → sin comprobación).
+  - `python3 -m pytest -q` → **1.257 passed** (línea base 1.181; ≥ 1.175).
 
 **Criterios de aceptación**
-- [ ] Verde sobre el corpus de hoy: **31 ficheros ↔ 31 filas** (spec CA-07).
-- [ ] Quitar una fila del índice pone el test **rojo nombrando el fichero**.
-- [ ] Una fila sin «Área» pone el test **rojo nombrando el ID**.
-- [ ] Una fila que apunta a un fichero inexistente pone el test **rojo** (la biyección va en los dos sentidos).
-- [ ] El test **no ejecuta nada** y solo lee dos cosas del disco, como su hermano: `tests/test_roadmap_index.py` es deliberadamente barato y este también.
-- [ ] El propio test trae su **caso sintético** de detección (que la regla se cumple sin depender del estado del repo), copiando el patrón de `test_el_detector_pilla_la_fila_suelta`.
+- [x] Verde sobre el corpus de hoy: **31 ficheros ↔ 31 filas** (spec CA-07). *Medido al cerrar (2026-09-07): son **32 ↔ 32** — `GOT-006` entró el 2026-09-04, después del análisis; la biyección se cumple y el test exige la igualdad exacta, no la cifra 31.*
+- [x] Quitar una fila del índice pone el test **rojo nombrando el fichero**.
+- [x] Una fila sin «Área» pone el test **rojo nombrando el ID**.
+- [x] Una fila que apunta a un fichero inexistente pone el test **rojo** (la biyección va en los dos sentidos).
+- [x] El test **no ejecuta nada** y solo lee dos cosas del disco, como su hermano: `tests/test_roadmap_index.py` es deliberadamente barato y este también.
+- [x] El propio test trae su **caso sintético** de detección (que la regla se cumple sin depender del estado del repo), copiando el patrón de `test_el_detector_pilla_la_fila_suelta`.
 
 **Subtareas**
-- [ ] Parsear la tabla del índice (bloque contiguo de líneas `|`, como hace `tabla_y_cola`).
-- [ ] Comparar con `glob` de las tres carpetas.
-- [ ] Caso sintético de la regla, independiente del repo.
+- [x] Parsear la tabla del índice (bloque contiguo de líneas `|`, como hace `tabla_y_cola`).
+- [x] Comparar con `glob` de las tres carpetas.
+- [x] Caso sintético de la regla, independiente del repo.
 
 **Notas**: `analysis.md` §1.4-5 llama a esto «la asimetría demostrable»: el índice hermano del roadmap tiene test y el de memoria no.
 
