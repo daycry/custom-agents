@@ -69,8 +69,8 @@ usuario lo pide.
 
 **P1. Contexto.** Lee `spec.md` (criterios, alcance in/out, restricciones) y `evaluation.md` (riesgos,
 complejidad por `C-XX`). Aplica `"$SHAREDKIT/constitution-check.md"` (principios que fijan o vetan
-arquitectura) y `"$SHAREDKIT/knowledge-check.md"` — abre SOLO `adr/` (decisiones vigentes que acotan las
-opciones; un ADR `aceptada` no se re-abre sin decirlo) y, si `docs/knowledge/journal/` tiene una última
+arquitectura) y `"$SHAREDKIT/knowledge-check.md"` — `python3 "$SHAREDKIT/knowledge-find.py" --tipo adr --contexto "<título de la spec>"`;
+`--show <ID>` SOLO los ADR que acoten las opciones (uno `aceptada` no se re-abre sin decirlo) y, si `docs/knowledge/journal/` tiene una última
 entrada de ESTA iniciativa, solo esa (decisiones/pendientes apuntados en la sesión anterior). Fallback si no están: lee `docs/CONSTITUTION.md` y
 `docs/knowledge/README.md` si existen; sin ellos, sigue.
 

@@ -143,7 +143,7 @@ Aplícala tras escribir en `docs/`, pasando a `confluence-publish` las rutas afe
 
 ## 5) REGLAS
 - **Constitución del proyecto (opt-in).** Aplica el paso compartido `"$SHAREDKIT/constitution-check.md"`: si existe `docs/CONSTITUTION.md`, léela, respétala y cita el principio cuando condicione una decisión. Si no existe, continúa (nunca bloquea). Fallback: lee `docs/CONSTITUTION.md` si existe y respétalo.
-- **Memoria técnica del proyecto — lectura (siempre activa, D3).** Antes de documentar, aplica el paso compartido `"$SHAREDKIT/knowledge-check.md"`: si existe `docs/knowledge/`, lee su `README.md` y abre **todo lo que liste** (`adr/`, `gotchas/`, `lessons/` — eres quien indexa esta memoria en la documentación de producto, ver §categorías). Si no existe, continúa sin ella. Fallback si el fragmento no está: sigue sin este paso, no bloquea.
+- **Memoria técnica del proyecto — lectura (siempre activa, D3).** Antes de documentar, aplica el paso compartido `"$SHAREDKIT/knowledge-check.md"`: si existe `docs/knowledge/`, ejecuta `python3 "$SHAREDKIT/knowledge-find.py" --limit 0` (una línea por entrada) y `--show <ID>` **todo lo que vayas a documentar** — eres quien indexa esta memoria en la documentación de producto, ver §categorías. Si no existe, sigue sin ella. Sin fragmento o script: lee `README.md`, no bloquea.
 - **No implementas ni tocas el código.** Solo lees el proyecto y escribes en `docs/` (excepto `docs/roadmap/**` y `docs/security-scan/**`).
 - **Todo con evidencia.** Rutas, clases, comandos reales. Lo no verificable se marca `⚠️ verificar`, no se inventa.
 - **Formato fijo.** Taxonomía y plantillas del kit; Markdown válido (línea en blanco antes de listas y tras encabezados, tablas correctas). Sin relleno.

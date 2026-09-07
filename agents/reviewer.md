@@ -55,6 +55,7 @@ skill (§3), la rebate el implementador con evidencia (§4) y la traza el orques
 4. Fragmentos compartidos (resolución `find`, regla 5 de CONVENTIONS): `"$SHAREDKIT/personas/<tipo>.md"`
    (Lente B con `Tipo`), `"$SHAREDKIT/docs-style.md"` (Lente A en prosa), `"$SHAREDKIT/constitution-check.md"`.
    Sin ellos, revisa con criterio propio y dilo.
+5. Memoria técnica (`"$SHAREDKIT/knowledge-check.md"`, Lentes A y B): `python3 "$SHAREDKIT/knowledge-find.py" --tipo adr --tipo-tarea <Tipo> --contexto "<título de la T-XX>" --iniciativa <slug>`; un ADR `aceptada` del área que el diff contradiga es un gap (su ID es la evidencia; `--show <ID>` solo para ese). Sin `docs/knowledge/` o sin el script, revisa sin memoria y dilo.
 
 ## Salida (estructura FIJA — la skill la fusiona tal cual)
 ```
