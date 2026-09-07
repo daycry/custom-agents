@@ -40,9 +40,21 @@ una clave rompe dos piezas):
    "total": int,                          # aciertos ANTES de aplicar --limit
    "aciertos": [ {"id", "tipo", "estado", "estado_detalle", "area", "titular", "ruta", "linea",
                   "puntuacion", "iniciativa", "fecha"} ]}   # en este orden de claves
-`indice`: "degradado" = recorrido plano de los ficheros (sin índice); los otros tres valores los
-introduce la capa 3 (índice SQLite FTS5 en `.claude/`, T-03). `indice_motivo` (solo con "degradado")
-dice por qué. Sin `docs/knowledge/` → `{"aciertos": [], "total": 0, …}` en JSON y NADA en texto.
+`indice_motivo` (solo con "degradado") dice por qué. Sin `docs/knowledge/` → `{"aciertos": [],
+"total": 0, "indice": "degradado", …}` en JSON y NADA en texto.
+
+Índice (capa 3, caché — NO es el almacén): SQLite con FTS5 en `<root>/.claude/knowledge-index.sqlite`
+(en `.gitignore`), reconstruible desde los ficheros. Guarda el hash sha256 del CONTENIDO del corpus
+(README + cada entrada, en bytes: tocar el mtime no invalida; cambiar una letra sí) y las entradas
+ya parseadas más una tabla FTS5 (`unicode61 remove_diacritics 2`, la misma segmentación que
+`tokens()`). Estados que informa `indice`:
+  "construido"   no existía → se crea y se responde;
+  "reconstruido" existía corrupto, o su hash no cuadra → se regenera (tmp + os.replace, atómico);
+  "cache"        hash idéntico → se usan las entradas y la FTS del índice sin parsear los ficheros;
+  "degradado"    no se puede usar ni escribir (`.claude/` no escribible, `sqlite3` sin FTS5, `--no-index`,
+                 sin corpus) → RECORRIDO PLANO de los ficheros con LOS MISMOS aciertos (misma función de
+                 relevancia; FTS5 solo preselecciona candidatos con `MATCH "tok"*`).
+El índice NUNCA cambia el exit code: cualquier error suyo cae al recorrido plano.
 
 Uso:
   knowledge-find.py [texto libre…] [--area A] [--tipo T] [--limit N] [--json] [--root DIR]
@@ -55,9 +67,11 @@ Exit codes:
   2  argumentos inválidos (argparse).
 """
 import argparse
+import hashlib
 import json
 import os
 import re
+import sqlite3
 import sys
 import unicodedata
 from collections import Counter
@@ -87,6 +101,10 @@ RELATED_TOPE_CHARS = 1600      # capa 2 ≤ 400 tokens (spec CA-03); si no cabe,
 RELATED_MAX_POR_GRUPO = 6      # entradas por grupo antes de «… y N más»
 AREA_TOKEN_MIN = 4             # tokens del área que cuentan como «misma área» (fuera: de, del, y, por…)
 AREA_STOPWORDS = {"para", "como", "sobre", "entre", "desde", "hacia", "cada"}
+INDICE_NOMBRE = "knowledge-index.sqlite"   # en <root>/.claude/ (+ .gitignore)
+INDICE_VERSION = "1"                        # entra en el hash: cambiar el esquema invalida el índice
+CAMPOS = ("id", "tipo", "estado", "estado_detalle", "area", "titular", "ruta", "ruta_corta", "iniciativa",
+          "fecha", "sucesores", "sustituye", "texto")
 
 # ------------------------------------------------------------------ normalización
 
@@ -230,14 +248,8 @@ def _ids_en(texto):
     return [f"{a}-{b}" for a, b in ID_RE.findall(texto or "")]
 
 
-def leer_entrada(root, carpeta, tipo, fichero, filas_por_ruta):
+def leer_entrada(carpeta, tipo, fichero, text, filas_por_ruta):
     ruta_rel = f"{carpeta}/{fichero}"
-    path = os.path.join(root, "docs", "knowledge", carpeta, fichero)
-    try:
-        with open(path, encoding="utf-8-sig") as f:
-            text = f.read()
-    except (OSError, UnicodeDecodeError):
-        return None
     fm, cuerpo = frontmatter(text)
     fila = filas_por_ruta.get(ruta_rel, {})
     m = ID_RE.search(fm.get("id", "")) or ID_RE.search(fichero)
@@ -266,30 +278,173 @@ def leer_entrada(root, carpeta, tipo, fichero, filas_por_ruta):
     }
 
 
-def cargar_corpus(root):
-    """Todas las entradas de `<root>/docs/knowledge/{adr,gotchas,lessons}/*.md` (o [] si no hay carpeta),
-    en orden fijo (carpeta, nombre)."""
+def ficheros_corpus(root):
+    """[(ruta relativa a docs/knowledge, bytes)] del corpus en orden fijo: README.md primero y luego
+    `adr/`, `gotchas/`, `lessons/` por nombre. [] si no hay `docs/knowledge/`. Ficheros ilegibles se saltan."""
     base = os.path.join(root, "docs", "knowledge")
     if not os.path.isdir(base):
         return []
-    filas_por_ruta = {}
-    try:
-        with open(os.path.join(base, "README.md"), encoding="utf-8-sig") as f:
-            for fila in parse_indice(f.read()):
-                filas_por_ruta[fila["ruta_rel"]] = fila
-    except (OSError, UnicodeDecodeError):
-        pass
     out = []
-    for carpeta, tipo in CARPETAS:
+    readme = os.path.join(base, "README.md")
+    if os.path.isfile(readme):
+        try:
+            with open(readme, "rb") as f:
+                out.append(("README.md", f.read()))
+        except OSError:
+            pass
+    for carpeta, _tipo in CARPETAS:
         d = os.path.join(base, carpeta)
         if not os.path.isdir(d):
             continue
         for fn in sorted(os.listdir(d)):
             if fn.endswith(".md") and fn.lower() != "readme.md":
-                e = leer_entrada(root, carpeta, tipo, fn, filas_por_ruta)
-                if e:
-                    out.append(e)
+                try:
+                    with open(os.path.join(d, fn), "rb") as f:
+                        out.append((f"{carpeta}/{fn}", f.read()))
+                except OSError:
+                    continue
     return out
+
+
+def hash_corpus(ficheros):
+    h = hashlib.sha256(f"knowledge-index v{INDICE_VERSION}\n".encode("utf-8"))
+    for rel, data in ficheros:
+        h.update(rel.encode("utf-8") + b"\0" + data + b"\0")
+    return h.hexdigest()
+
+
+def _texto(data):
+    return data.decode("utf-8-sig", "replace")
+
+
+def parsear_corpus(ficheros):
+    """Entradas parseadas a partir de `ficheros_corpus()` (el README aporta área/titular a las filas)."""
+    filas_por_ruta = {}
+    tipo_de = dict(CARPETAS)
+    for rel, data in ficheros:
+        if rel == "README.md":
+            for fila in parse_indice(_texto(data)):
+                filas_por_ruta[fila["ruta_rel"]] = fila
+    out = []
+    for rel, data in ficheros:
+        if rel == "README.md" or "/" not in rel:
+            continue
+        carpeta, fn = rel.split("/", 1)
+        out.append(leer_entrada(carpeta, tipo_de[carpeta], fn, _texto(data), filas_por_ruta))
+    return out
+
+
+def cargar_corpus(root):
+    """Todas las entradas de `<root>/docs/knowledge/{adr,gotchas,lessons}/*.md` (o [] si no hay carpeta),
+    leídas del disco (recorrido plano, sin índice)."""
+    return parsear_corpus(ficheros_corpus(root))
+
+
+# ------------------------------------------------------------------ índice SQLite FTS5 (caché reconstruible)
+
+def fts5_disponible():
+    try:
+        con = sqlite3.connect(":memory:")
+        con.execute("CREATE VIRTUAL TABLE t USING fts5(x)")
+        con.close()
+        return True
+    except sqlite3.Error:
+        return False
+
+
+def ruta_indice(root):
+    return os.path.join(root, ".claude", INDICE_NOMBRE)
+
+
+def _fila_a_entrada(row):
+    e = dict(zip(CAMPOS, row))
+    e["sucesores"] = json.loads(e["sucesores"] or "[]")
+    e["sustituye"] = json.loads(e["sustituye"] or "[]")
+    return e
+
+
+def leer_indice(path, h):
+    """Entradas del índice si existe, abre, y su hash coincide con `h`; si no, None (y por qué)."""
+    if not os.path.isfile(path):
+        return None, "construido"
+    try:
+        con = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+        try:
+            row = con.execute("SELECT valor FROM meta WHERE clave = 'hash'").fetchone()
+            if not row or row[0] != h:
+                return None, "reconstruido"
+            filas = con.execute(f"SELECT {', '.join(CAMPOS)} FROM entradas ORDER BY orden").fetchall()
+            return [_fila_a_entrada(r) for r in filas], "cache"
+        finally:
+            con.close()
+    except sqlite3.Error:
+        return None, "reconstruido"          # bytes basura, esquema viejo, fichero a medias…
+
+
+def construir_indice(path, entradas, h):
+    """Escribe el índice ENTERO en un temporal y lo mueve encima (atómico). Lanza OSError/sqlite3.Error."""
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = f"{path}.{os.getpid()}.tmp"
+    try:
+        con = sqlite3.connect(tmp)
+        try:
+            con.executescript(
+                "CREATE TABLE meta(clave TEXT PRIMARY KEY, valor TEXT);"
+                "CREATE TABLE entradas(orden INTEGER PRIMARY KEY, " + ", ".join(f"{c} TEXT" for c in CAMPOS) + ");"
+                "CREATE VIRTUAL TABLE fts USING fts5(id, titular, area, texto, tokenize='unicode61 remove_diacritics 2');")
+            con.executemany("INSERT INTO meta VALUES (?, ?)", [("hash", h), ("version", INDICE_VERSION)])
+            con.executemany(
+                f"INSERT INTO entradas(orden, {', '.join(CAMPOS)}) VALUES ({', '.join('?' * (len(CAMPOS) + 1))})",
+                [(n,) + tuple(json.dumps(e[c], ensure_ascii=False) if c in ("sucesores", "sustituye") else e[c]
+                              for c in CAMPOS) for n, e in enumerate(entradas)])
+            con.executemany("INSERT INTO fts(id, titular, area, texto) VALUES (?, ?, ?, ?)",
+                            [(e["id"], e["titular"], e["area"], e["texto"]) for e in entradas])
+            con.commit()
+        finally:
+            con.close()
+        os.replace(tmp, path)
+    finally:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+
+
+def abrir_corpus(root, usar_indice=True):
+    """(entradas, ruta_del_indice_o_None, {"indice": …[, "indice_motivo": …]}). Nunca lanza."""
+    ficheros = ficheros_corpus(root)
+    if not ficheros:
+        return [], None, {"indice": "degradado", "indice_motivo": "sin docs/knowledge/"}
+    if not usar_indice:
+        return parsear_corpus(ficheros), None, {"indice": "degradado", "indice_motivo": "--no-index"}
+    try:
+        if not fts5_disponible():
+            return parsear_corpus(ficheros), None, {"indice": "degradado", "indice_motivo": "sqlite3 sin FTS5"}
+        path = ruta_indice(root)
+        h = hash_corpus(ficheros)
+        entradas, estado = leer_indice(path, h)
+        if entradas is not None:
+            return entradas, path, {"indice": estado}
+        entradas = parsear_corpus(ficheros)
+        construir_indice(path, entradas, h)
+        return entradas, path, {"indice": estado}
+    except Exception as e:  # noqa: BLE001 — el índice nunca bloquea ni cambia el exit code
+        return parsear_corpus(ficheros), None, {"indice": "degradado", "indice_motivo": f"{type(e).__name__}: {e}"}
+
+
+def candidatos_fts(path, toks):
+    """IDs que casan en la FTS con `"tok"* OR …` (preselección), o None = todos (sin tokens o error)."""
+    if not path or not toks:
+        return None
+    try:
+        con = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+        try:
+            q = " OR ".join(f'"{t}"*' for t in toks)
+            return {r[0] for r in con.execute("SELECT id FROM fts WHERE fts MATCH ?", (q,))}
+        finally:
+            con.close()
+    except sqlite3.Error:
+        return None
 
 
 # ------------------------------------------------------------------ relevancia
@@ -335,13 +490,20 @@ def filtra_area(e, area_toks):
     return all(casa(t, tokens(e["area"])) for t in area_toks)
 
 
-def buscar(entradas, texto="", area="", tipo="", limit=LIMIT_DEFAULT):
-    """(aciertos ordenados y con `puntuacion`, total antes del limit)."""
-    toks = [t for t in dict.fromkeys(tokens(texto)) if len(t) >= 2]
+def tokens_consulta(texto):
+    return [t for t in dict.fromkeys(tokens(texto)) if len(t) >= 2]
+
+
+def buscar(entradas, texto="", area="", tipo="", limit=LIMIT_DEFAULT, candidatos=None):
+    """(aciertos ordenados y con `puntuacion`, total antes del limit). `candidatos` (IDs de la FTS)
+    solo PRESELECCIONA: la relevancia y el filtro `puntuacion > 0` son los mismos con y sin índice."""
+    toks = tokens_consulta(texto)
     area_toks = tokens(area)
     tipo_n = tipo_normalizado(tipo) if tipo else None
     out = []
     for e in entradas:
+        if candidatos is not None and toks and e["id"] not in candidatos:
+            continue
         if tipo and (tipo_n is None or e["tipo"] != tipo_n):
             continue
         if area_toks and not filtra_area(e, area_toks):
@@ -532,26 +694,43 @@ def main(argv=None):
     ap.add_argument("--limit", type=int, default=LIMIT_DEFAULT, help=f"aciertos máximos (default {LIMIT_DEFAULT}; 0 = sin tope)")
     ap.add_argument("--json", action="store_true")
     ap.add_argument("--root", help="raíz del proyecto (default: $CLAUDE_PROJECT_DIR → cwd)")
-    ap.add_argument("--related", metavar="ID", help="capa 2: grafo curado de una entrada")
+    ap.add_argument("--no-index", action="store_true", help="recorrido plano de los ficheros, sin leer ni escribir el índice")
+    capa = ap.add_mutually_exclusive_group()
+    capa.add_argument("--related", metavar="ID", help="capa 2: grafo curado de una entrada")
+    capa.add_argument("--show", metavar="ID", help="capa 3: la entrada completa")
     args = ap.parse_args(argv)
     root = resolver_root(args.root)
     texto = " ".join(args.texto)
-    entradas = cargar_corpus(root)
-    indice = {"indice": "degradado", "indice_motivo": "recorrido plano"}
+    entradas, path, indice = abrir_corpus(root, usar_indice=not args.no_index)
 
-    if args.related:
-        e = buscar_id(entradas, args.related)
+    if args.related or args.show:
+        id_ = args.related or args.show
+        e = buscar_id(entradas, id_)
         if e is None:
-            print(f"knowledge-find: no hay ninguna entrada con ID `{args.related}` en {os.path.join(root, 'docs', 'knowledge')}",
+            print(f"knowledge-find: no hay ninguna entrada con ID `{id_}` en {os.path.join(root, 'docs', 'knowledge')}",
                   file=sys.stderr)
             return 1
+        if args.show:
+            if args.json:
+                data = {"version": VERSION_JSON, "indice": indice["indice"], "id": e["id"], "tipo": e["tipo"],
+                        "estado": e["estado"], "estado_detalle": e["estado_detalle"], "area": e["area"],
+                        "titular": e["titular"], "ruta": e["ruta"], "contenido": e["texto"]}
+                if indice.get("indice_motivo"):
+                    data["indice_motivo"] = indice["indice_motivo"]
+                print(json.dumps(data, ensure_ascii=False))
+            else:
+                sys.stdout.write(e["texto"])
+            return 0
         rel = relaciones(entradas, e)
         if args.json:
             print(json.dumps(json_related(e, rel, indice), ensure_ascii=False))
         else:
             sys.stdout.write(texto_related(e, rel))
         return 0
-    aciertos, total = buscar(entradas, texto=texto, area=args.area, tipo=args.tipo, limit=args.limit)
+
+    candidatos = candidatos_fts(path, tokens_consulta(texto))
+    aciertos, total = buscar(entradas, texto=texto, area=args.area, tipo=args.tipo, limit=args.limit,
+                             candidatos=candidatos)
     if args.json:
         data = {"version": VERSION_JSON, "indice": indice["indice"],
                 "consulta": {"texto": texto, "area": args.area, "tipo": args.tipo, "limit": args.limit},

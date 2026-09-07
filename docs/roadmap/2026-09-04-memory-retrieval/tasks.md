@@ -36,14 +36,14 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervisión (real/est) | Tokens (real/est) |
 |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
-| Fase 1 — Recuperación | 2 | 4 | 50% | 0 / 9,0h | 0 / 0,51h | 0 / 0,13h | 0 / 245.000 |
+| Fase 1 — Recuperación | 3 | 4 | 75% | 0 / 9,0h | 0 / 0,51h | 0 / 0,13h | 0 / 245.000 |
 | Fase 2 — Llegada | 0 | 3 | 0% | 0 / 4,0h | 0 / 0,31h | 0 / 0,08h | 0 / 150.000 |
 | Fase 3 — Prueba de que se recorre | 0 | 3 | 0% | 0 / 4,0h | 0 / 0,27h | 0 / 0,07h | 0 / 128.000 |
 | Fase 4 — Captura episódica | 0 | 4 | 0% | 0 / 7,0h | 0 / 0,43h | 0 / 0,11h | 0 / 205.000 |
 | Fase 5 — Que la doctrina viaje | 0 | 2 | 0% | 0 / 3,0h | 0 / 0,24h | 0 / 0,06h | 0 / 115.000 |
 | Fase 6 — Cerrar el bucle | 0 | 2 | 0% | 0 / 3,0h | 0 / 0,30h | 0 / 0,08h | 0 / 145.000 |
 | Revisión de dos lentes (transversal, línea propia) | — | — | — | 0 / 4,0h | 0 / 0,54h | 0 / 0,13h | 0 / 260.000 |
-| **TOTAL** | **2** | **18** | **11%** | **0 / 34,0h** | **0 / 2,60h** | **0 / 0,66h** | **0 / 1.248.000** |
+| **TOTAL** | **3** | **18** | **17%** | **0 / 34,0h** | **0 / 2,60h** | **0 / 0,66h** | **0 / 1.248.000** |
 
 > **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada (8 h). Ver `skills/jira-sync/SKILL.md`.
 >
@@ -131,36 +131,39 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 ### T-03 — Capa 3 (`--show`) e índice SQLite FTS5 reconstruible
 
 - **Descripción**: tercera capa (`--show <ID>` → la entrada completa) y el índice de búsqueda: **SQLite FTS5 en `.claude/`, no versionado y RECONSTRUIBLE desde los ficheros**. El índice guarda el hash del corpus; si falta, está corrupto o el hash no cuadra → se reconstruye; si no se puede reconstruir (`.claude/` de solo lectura, `sqlite3` sin FTS5) → **recorrido plano** de los ficheros con los mismos aciertos. **Nunca sale con código ≠ 0 por culpa del índice.** Aquí está la diferencia estructural con `claude-mem`: para ellos la base **ES** el almacén (base corrupta = memoria perdida y nada revisable); para nosotros es una **caché**. Cero dependencias: `sqlite3` es stdlib.
-- **Estado**: borrador
-- **Tiempo humano**: est. 2,5h · real —
-- **Tiempo IA (ejec.)**: est. 0,15h · real —
-- **Supervisión**: est. 0,04h (≈25 % IA) · real —
+- **Estado**: completado
+- **Tiempo humano**: est. 2,5h · real 0h (sin intervención humana en la ejecución)
+- **Tiempo IA (ejec.)**: est. 0,15h · real 0,20h (estimado: el usage-meter no lee la transcripción en este entorno)
+- **Supervisión**: est. 0,04h (≈25 % IA) · real 0,05h (estimado)
 - **Previsión IA**: 55k in / 15k out tok · 0,60 €
 - **Dependencias**: T-01
 - **Tipo**: backend
 - **Archivos**: `agent-kits/shared/knowledge-find.py`, `tests/test_knowledge_find.py`, `.gitignore`
-- **Verificación**:
-  - `python3 agent-kits/shared/knowledge-find.py --show ADR-012` → la entrada completa, ≤ 10.800 caracteres (la mayor de hoy son 10.449), exit 0
-  - `python3 agent-kits/shared/knowledge-find.py --show NO-EXISTE` → una línea en stderr, exit 1
-  - `rm -f .claude/knowledge-index.sqlite && python3 agent-kits/shared/knowledge-find.py --area estimacion --json` → `"indice": "construido"`, 9 aciertos, exit 0
-  - `printf 'basura' > .claude/knowledge-index.sqlite && python3 agent-kits/shared/knowledge-find.py --area estimacion --json` → `"indice": "reconstruido"`, 9 aciertos, exit 0
-  - `python3 -c "import sqlite3; sqlite3.connect(':memory:').execute('CREATE VIRTUAL TABLE t USING fts5(x)')"` → sin excepción (FTS5 presente en este Python)
-  - `git check-ignore -v .claude/knowledge-index.sqlite` → una línea con la regla que lo ignora
-  - `python3 -m pytest -q tests/test_knowledge_find.py` → todos passed
+- **Changelog**: La memoria técnica se puede abrir entera por su ID, y las consultas van sobre un índice de texto completo en `.claude/` que se reconstruye solo cuando el corpus cambia; si el índice no se puede usar, la consulta responde igual leyendo los ficheros.
+- **Verificación** (ejecutada 2026-09-07):
+  - `RED: tests/test_knowledge_find.py falló con knowledge-find.py: error: unrecognized arguments: --show y AttributeError: module 'knowledge_find' has no attribute 'INDICE_NOMBRE' (26 failed, 29 passed) · 2026-09-07`; GREEN después → `python3 -m pytest -q tests/test_knowledge_find.py` → **`55 passed in 4.84s`**.
+  - `python3 agent-kits/shared/knowledge-find.py --show ADR-012 | wc -c` → `10704` bytes = **10.512 caracteres** (≤ 10.800; el fichero creció desde los 10.449 de la spec), byte a byte el contenido del fichero, exit 0.
+  - `python3 agent-kits/shared/knowledge-find.py --show NO-EXISTE` → stdout vacío, stderr `knowledge-find: no hay ninguna entrada con ID `NO-EXISTE` en /work/ca/docs/knowledge`, **exit 1**.
+  - `rm -f .claude/knowledge-index.sqlite && python3 agent-kits/shared/knowledge-find.py --area estimacion --json` → `"indice": "construido"`, `total: 9`, exit 0 · la misma orden otra vez → `"indice": "cache"`, 9 · `printf 'basura' > .claude/knowledge-index.sqlite && …` → `"indice": "reconstruido"`, 9, exit 0 · `--no-index` → `"indice": "degradado"`, `"indice_motivo": "--no-index"`, 9.
+  - `python3 -c "import sqlite3; sqlite3.connect(':memory:').execute('CREATE VIRTUAL TABLE t USING fts5(x)')"` → sin excepción (SQLite 3.45.1, Python 3.11).
+  - `git check-ignore -v .claude/knowledge-index.sqlite` → `.gitignore:62:.claude/knowledge-index.sqlite	.claude/knowledge-index.sqlite` (una línea; también `.claude/knowledge-index.sqlite.*` para el temporal del `os.replace`).
+  - Degradaciones probadas en `tmp_path`: `.claude` que es un FICHERO (falla también como root, no depende de `chmod`) → `"indice": "degradado"` con motivo, **mismos aciertos y mismas líneas** que con índice, exit 0 y stderr vacío · `fts5_disponible()` forzada a `False` → `degradado` con motivo `sqlite3 sin FTS5`, mismos aciertos, y no queda ningún índice a medias · sin `docs/knowledge/` → no se crea índice. Identidad índice ↔ plano afirmada con 7 consultas sobre el corpus sintético (ids Y puntuaciones) y 6 sobre el real (ids).
+  - `python3 -m pytest -q tests/test_console_encoding.py tests/test_knowledge_find.py` → `336 passed` · `python3 scripts/lint_plugin.py` → `lint_plugin: 9 agentes · 0 errores · 3 avisos`, exit 0.
+  - Diseño anotado en el docstring: el hash es del CONTENIDO (README + entradas, en bytes; tocar el mtime no invalida, con test), el índice guarda las entradas ya parseadas más la tabla FTS5 (`unicode61 remove_diacritics 2`, la misma segmentación que `tokens()`), FTS5 solo PRESELECCIONA candidatos (`MATCH "tok"*`) y la relevancia es la misma función en los dos caminos — así los aciertos son idénticos por construcción, no por casualidad.
 
 **Criterios de aceptación**
-- [ ] `--show <ID>` devuelve la entrada completa en **≤ 2.700 tokens** (máximo real hoy: 10.449 caracteres ≈ 2.612 tokens, `ADR-012`) con **exit 0**; ID inexistente → **exit 1** (spec CA-04).
-- [ ] Índice ausente → se construye; `--json` trae `indice: "construido"`, mismos aciertos, **exit 0** (spec CA-05).
-- [ ] Índice corrupto **o** hash que no cuadra → se reconstruye; `indice: "reconstruido"`, **exit 0**.
-- [ ] `.claude/` no escribible **o** `sqlite3` sin FTS5 → **recorrido plano**, `indice: "degradado"`, **aciertos idénticos** a los del camino con índice, **exit 0** (spec CA-06).
-- [ ] El índice está en `.gitignore` y `git check-ignore` lo confirma: **el almacén son los ficheros, el índice es caché**.
-- [ ] **Cero dependencias nuevas**: el script se ejecuta con `python3` a secas, sin `pip install`.
+- [x] `--show <ID>` devuelve la entrada completa en **≤ 2.700 tokens** (máximo real hoy: 10.449 caracteres ≈ 2.612 tokens, `ADR-012`) con **exit 0**; ID inexistente → **exit 1** (spec CA-04).
+- [x] Índice ausente → se construye; `--json` trae `indice: "construido"`, mismos aciertos, **exit 0** (spec CA-05).
+- [x] Índice corrupto **o** hash que no cuadra → se reconstruye; `indice: "reconstruido"`, **exit 0**.
+- [x] `.claude/` no escribible **o** `sqlite3` sin FTS5 → **recorrido plano**, `indice: "degradado"`, **aciertos idénticos** a los del camino con índice, **exit 0** (spec CA-06).
+- [x] El índice está en `.gitignore` y `git check-ignore` lo confirma: **el almacén son los ficheros, el índice es caché**.
+- [x] **Cero dependencias nuevas**: el script se ejecuta con `python3` a secas, sin `pip install`.
 
 **Subtareas**
-- [ ] Test RED de los tres estados del índice y de las dos degradaciones, con `tmp_path` y un `.claude/` de solo lectura.
-- [ ] Esquema FTS5 mínimo + hash del corpus guardado dentro del propio índice.
-- [ ] Camino plano como implementación de respaldo del **mismo** contrato de salida.
-- [ ] Añadir la regla al `.gitignore` (el log crudo de T-11 ya está cubierto por `*.log`, verificado).
+- [x] Test RED de los tres estados del índice y de las dos degradaciones, con `tmp_path` y un `.claude/` de solo lectura.
+- [x] Esquema FTS5 mínimo + hash del corpus guardado dentro del propio índice.
+- [x] Camino plano como implementación de respaldo del **mismo** contrato de salida.
+- [x] Añadir la regla al `.gitignore` (el log crudo de T-11 ya está cubierto por `*.log`, verificado).
 
 **Notas**: la degradación es parte de la spec (§Manejo de errores), no un añadido: no se puede garantizar FTS5 en la máquina del consumidor.
 
