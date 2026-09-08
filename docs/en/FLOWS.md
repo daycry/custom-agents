@@ -99,29 +99,28 @@ flowchart TD
     AD -->|no| D["planner<br/>improvement-plan + tasks.md"]
     C -->|no-go| X(["stop"])
     D --> E["opt-in: push plan to Jira<br/>jira-sync: 1 issue per task"]
-    E --> F{"did the user ask for<br/>an external engine<br/>explicitly?"}
-    F -->|"yes (explicit opt-in)"| G["external engine executes<br/>against YOUR tasks.md<br/>(its own review)"]
-    F -->|"no (default):<br/>NATIVE chain"| H["implementer<br/>task by task<br/>(dev.json opt-in: TDD ·<br/>worktree · fresh subagents)<br/>P5: coverage gate, unit-tests skill<br/>(coverage-gate.py --changed-only)"]
+    E --> H["implementer<br/>task by task<br/>(dev.json opt-in: TDD ·<br/>worktree · fresh subagents)<br/>P5: coverage gate, unit-tests skill<br/>(coverage-gate.py --changed-only)"]
     H --> SC{"scope-check.py<br/>changed files ⊆<br/>ledger's Archivos?"}
     SC -.->|"exit 1: Important gap<br/>(no reviewers spent)"| H
     SC -->|exit 0| R["🔍 skill adversarial-review<br/>lenses A+B → reviewer agent<br/>(read-only, tier from model-tier.py)<br/>+ C security + D performance<br/>(conditional: review-lens-select.py)<br/>(merge + dedupe)"]
     R -.->|gaps| H
-    G --> I["qa · local E2E<br/>verdict: qa-gate.py"]
-    R --> I
+    R --> I["qa · local E2E<br/>verdict: qa-gate.py"]
     I -->|"red (max 3 attempts,<br/>then ask)"| H
     I -->|green| J["documenter<br/>once at the end"]
     J --> CS["changelog-sync skill<br/>[Unreleased] EN + [Sin publicar] ES<br/>from the closed ledger"]
     CS --> K["optional: nemesis<br/>audit"]
-    K --> L(["closeout: plan completado<br/>spec implementada"])
+    K --> RG["step 8: /retro + retro-gate.py<br/>retro.md + row in CALIBRATION.md<br/>(gate: exit 0)"]
+    RG -->|"exit 0"| L(["closeout: plan completado · retro<br/>spec implementada"])
+    RG -.->|"exit 1: closeout pending retro<br/>(spec stays aprobada)"| L
     style X fill:#fdecea,stroke:#ef9a9a
     style L fill:#e8f5e9,stroke:#81c784
 ```
 
-`tasks.md` is the **canonical ledger** of progress in both modes.
+`tasks.md` is the **canonical ledger** of progress for the whole cycle.
 
 ## 4 · Jira (opt-in) — pushing the plan when it is created
 
-> **Granularity** (`.claude/jira.json` → `granularidad`): **task** = one issue per `T-XX` (default); **phase** = one issue per Phase with its tasks as a checklist. In phase mode, comments/worklog/Done go to the phase's issue; the issue closes when all its tasks are `completado`. Additionally, the **reviewer's result** (Mode B) is published as a comment (per criterion ✓/✗ + number of attempts) and its time is logged as a separate `[revisión]` worklog — at the chosen granularity.
+> **Granularity** (`.claude/jira.json` → `granularidad`): **task** = one issue per `T-XX` (default); **phase** = one issue per Phase with its tasks as a checklist. In phase mode, comments/worklog/Done go to the phase's issue; the issue closes when all its tasks are `completado`. Additionally, the **reviewer's result** is published as a comment (per criterion ✓/✗ + number of attempts) and its time is logged as a separate `[revisión]` worklog — at the chosen granularity.
 
 ```mermaid
 flowchart TD
@@ -251,7 +250,7 @@ whatever deserves doctrine is promoted to an ADR/gotcha/lesson. Full detail: `CO
 
 ## 6 · Visibility and learning (all read-only)
 
-> **Generation cost (usage-meter):** each artifact of the cycle (and each task in Mode B) is **measured** with real tokens from the transcript (`agent-kits/shared/usage-meter.py`); the `generacion:` block in its frontmatter feeds the **process cost** section of `/roadmap-metrics`, and `/retro` uses it to calibrate the **tokens→hour ratio** used by the evaluator and by the meter itself. Dates = context · tokens = measurement · hours = derived.
+> **Generation cost (usage-meter):** each artifact of the cycle (and each task) is **measured** with real tokens from the transcript (`agent-kits/shared/usage-meter.py`); the `generacion:` block in its frontmatter feeds the **process cost** section of `/roadmap-metrics`, and `/retro` uses it to calibrate the **tokens→hour ratio** used by the evaluator and by the meter itself. Dates = context · tokens = measurement · hours = derived.
 
 ```mermaid
 flowchart TD
@@ -276,10 +275,15 @@ flowchart TD
 > While `implementer`/subagents work, the user sees progress without anyone writing it up:
 > everything comes from `progress-report.py` over the **canonical ledger** (`tasks.md`). Hooks
 > **inform, they never decide** (always exit 0). Details: [`observability.md`](observability.md).
-> **Session journal** (memory-health): when the session ends, `SessionEnd` leaves a deterministic
-> entry under `docs/knowledge/journal/` (active initiative, files touched, tasks whose state changed,
-> meter markers); on startup/resume, `SessionStart` re-injects it compacted. No AI summary: hook output
-> on `SessionEnd` is ignored by contract (ADR-010).
+> **Session journal** (memory-health + memory-retrieval F4): on every turn, `UserPromptSubmit` appends the
+> user's text to a raw, unversioned log (`.claude/session-prompts-<session_id>.log`, `<private>` opt-out,
+> obvious secrets redacted); when the session ends, `SessionEnd` leaves a deterministic entry under
+> `docs/knowledge/journal/` (active initiative, files touched, tasks whose state changed, meter markers,
+> and `decisiones`/`pendientes` extracted WITHOUT a model from that log); on startup/resume, `SessionStart`
+> re-injects it compacted. AI summary is **opt-in** (`sesion.resumen`) and always degrades: hook output on
+> `SessionEnd` is still ignored by contract — the hook does not return, it writes (ADR-010 revised
+> 2026-09-08). Whatever repeats across ≥ 2 sessions is proposed by `journal.py candidatas` as a `propuesta`
+> lesson through the `/retro` gate.
 
 ```mermaid
 flowchart LR
@@ -289,8 +293,11 @@ flowchart LR
     H2 -->|"systemMessage: active initiatives"| U
     SS["session: startup · resume · compact"] --> H3["SessionStart hook<br/>session-context.sh"]
     H3 -->|"additionalContext: piece index (≤ 45 lines, hash-cached)<br/>+ resume ≤ 15 lines (in-progress task)<br/>+ journal ≤ 25 lines (startup · resume only)"| C(["🧠 Claude's context"])
-    SE["session ends: exit · /clear · logout"] --> H4["SessionEnd hook<br/>session-journal.sh (timeout 20)"]
-    H4 -->|"journal.py write (idempotent by session_id)"| J[("docs/knowledge/journal/<br/>YYYY-MM-DD-slug.md")]
+    UP["user turn"] --> H5["UserPromptSubmit hook<br/>user-prompt-capture.sh (timeout 5)"]
+    H5 -->|"journal.py capture (no stdout, exit 0; private opt-out; secrets redacted)"| LOG[(".claude/session-prompts-sid.log<br/>unversioned · 0600 · 30-day purge")]
+    SE["session ends: exit · /clear · logout"] --> H4["SessionEnd hook<br/>session-journal.sh (timeout 45)"]
+    LOG -->|"decisiones/pendientes without a model · opt-in AI summary"| H4
+    H4 -->|"journal.py write (idempotent by session_id, atomic)"| J[("docs/knowledge/journal/<br/>YYYY-MM-DD-slug.md")]
     J -->|"journal.py latest --n 2"| H3
     FM[("frontmatters<br/>commands · skills · agents")] --> SI["skill-index.py<br/>(dev.json sesion.indice)"]
     SI --> H3

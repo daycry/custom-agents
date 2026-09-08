@@ -3,7 +3,10 @@
 # deja la entrada de BITÁCORA de la sesión en `docs/knowledge/journal/AAAA-MM-DD-<slug>.md` con
 # `agent-kits/shared/journal.py write` — borrador DETERMINISTA (fecha, iniciativa activa, ficheros
 # tocados por git, tareas del ledger que cambiaron de estado, marcadores del usage-meter cerrados,
-# primer prompt de la transcripción como resumen best-effort). Idempotente por `session_id`: la
+# y — memory-retrieval T-12 — `decisiones`/`pendientes` extraídas SIN modelo del LOG CRUDO de turnos del
+# usuario que acumuló el hook UserPromptSubmit `user-prompt-capture.sh` en
+# `.claude/session-prompts-<session_id>.log`; `resumen` = primer turno de ese log, o el primer prompt
+# de la transcripción). Idempotente por `session_id`: la
 # segunda ejecución de la misma sesión ACTUALIZA la entrada, no la duplica. La última entrada la
 # reinyecta `session-context.sh` al arrancar/retomar. Desactivable con `.claude/dev.json` →
 # {"sesion": {"journal": false}}. Solo escribe en proyectos con RASTRO del plugin (`docs/roadmap/`,
@@ -16,10 +19,17 @@
 #   stdout → se IGNORA («Output and exit code are ignored, except terminalSequence»): SessionEnd
 #            no puede bloquear ni inyectar contexto; por eso el hook solo escribe a disco.
 #   tiempo → todos los hooks de SessionEnd comparten un presupuesto de 1,5 s que sube hasta el
-#            `timeout` por hook (máx. 60 s) → hooks.json declara `timeout: 20`. El script solo hace
+#            `timeout` por hook (máx. 60 s) → hooks.json declara `timeout: 45` (era 20; ver T-13). El script solo hace
 #            git status/diff/show locales (≤ 5 s cada uno) y lee ficheros pequeños.
 #   Hooks `prompt`/`agent`: devuelven solo la decisión {"ok","reason"} y su salida en SessionEnd se
-#   ignora → NO hay resumen por IA; `journal.py write --enrich` queda para uso MANUAL.
+#   ignora — sigue siendo CIERTO (ADR-010). Lo que se revisó el 2026-09-08 (memory-retrieval T-12/T-13)
+#   es la conclusión: este hook `command` no necesita DEVOLVER nada, ESCRIBE. Por eso el resumen por IA
+#   existe como OPT-IN (`.claude/dev.json` → {"sesion": {"resumen": true}}): `journal.py write` escribe
+#   PRIMERO la entrada determinista y DESPUÉS lanza `claude -p --bare --output-format json` (el CLI
+#   headless de evals/run.py; `--bare` salta hooks/plugins → sin recursión; exige ANTHROPIC_API_KEY) con
+#   timeout IA_TIMEOUT (25 s) y re-escribe la misma entrada; sin CLI, sin clave, timeout o JSON ilegible →
+#   queda la determinista, exit 0. Por eso hooks.json sube el `timeout` de este hook a 45 (≤ 60 oficial).
+#   `journal.py write --enrich` sigue siendo la entrada MANUAL y manda sobre las dos.
 #
 # Prueba manual:
 #   echo '{"hook_event_name":"SessionEnd","session_id":"s1","reason":"other","cwd":"'"$PWD"'"}' | bash hooks/session-journal.sh
@@ -29,7 +39,10 @@ INPUT="$(cat 2>/dev/null || true)"
 
 command -v python3 >/dev/null 2>&1 || exit 0
 
+# journal.py: CLAUDE_PLUGIN_ROOT → el propio repo del plugin (sin la variable, dentro de este repo, el `find`
+# caería a una copia INSTALADA anterior a la rama en curso — revisión intento 1, gap 9) → find (regla 5).
 JOURNAL="${CLAUDE_PLUGIN_ROOT:-}/agent-kits/shared/journal.py"
+[ -f "$JOURNAL" ] || JOURNAL="${CLAUDE_PROJECT_DIR:-$PWD}/agent-kits/shared/journal.py"
 if [ ! -f "$JOURNAL" ]; then
   JOURNAL="$(find "${CLAUDE_PROJECT_DIR:-$PWD}/.claude" "${HOME:-}/.claude" -type f -path '*agent-kits/shared/journal.py' 2>/dev/null | head -1)"
 fi

@@ -19,7 +19,18 @@ subagente fresco necesita para implementar UNA tarea `T-XX` — y nada más (bri
      subagente debe ejecutarla al terminar y pegar la salida real en su informe. Sin el campo, el
      brief lo dice y pide que proponga una (no inventa comandos). Acepta la forma en línea (` · `),
      la sub-lista (`  - cmd → res`) y `(ejecutada <fecha> — salida: …)` — parser único
-     `parse_verificacion()` de ledger-lint.py (T-fix1).
+     `parse_verificacion()` de ledger-lint.py (T-fix1). El brief lleva la verificación UNA vez, en su
+     sección (memory-retrieval, revisión intento 1): en el bloque de la tarea el campo se sustituye por
+     un puntero a esa sección (antes iba entero en los dos sitios: 2.300-3.200 caracteres duplicados),
+     y los ítems que son EVIDENCIA de una ejecución anterior —`RED: <test> falló con … · <fecha>`, el
+     rojo del TDD que el ledger conserva para la revisión— se omiten y se cuentan en una línea: un
+     subagente necesita «comando → esperado», no el historial; si TDD está activo, produce su propio
+     rojo. Y los campos de PRESUPUESTO del bloque (`Tiempo humano` · `Tiempo IA` · `Supervisión` ·
+     `Previsión IA`: horas y euros del PM) y el `Changelog` (nota de release de quien CIERRA la tarea,
+     ADR-012) tampoco van: no son información para implementar. Con eso
+     el brief completo cabe en el tope de la spec (CA-08: ≤ 2.500 tokens ≈ BRIEF_TOPE_CHARS = 10.000
+     caracteres; medido sobre las 10 tareas cerradas de memory-retrieval, 2026-09-07: 8.919-12.543
+     antes → todas ≤ 10.000 después). El test lo afirma sobre ese ledger real y sobre uno de `tmp_path`.
   7. TDD (parity-core T-03): si `.claude/dev.json` del proyecto (raíz derivada de la carpeta, o cwd)
      tiene `tdd: true` — o se pasa `--tdd` —, el brief añade la sección «TDD» que manda seguir la
      skill `tdd` (fuente única del método) y devolver la evidencia del rojo (`RED: …`); dev.json
@@ -34,17 +45,27 @@ subagente fresco necesita para implementar UNA tarea `T-XX` — y nada más (bri
      Es la vía por la que el `implementer` se entera de los gaps — NO por Jira (ese comentario, si
      Jira está activo, es solo el espejo para el equipo). Intento sin gaps o sin sección → nada.
   10. El contrato de retorno: DONE / DONE_WITH_CONCERNS / NEEDS_CONTEXT / BLOCKED.
+  11. MEMORIA TÉCNICA (memory-retrieval T-05 — la puerta cerrada del hueco 1: con `subagentes: true`
+      el brief es el ÚNICO contexto y hasta aquí no llevaba ni un gotcha): los aciertos compactos de
+      `knowledge-find.py --json` (mismo kit) ENRUTADOS por el `- **Tipo**:` de la tarea, el título de
+      la tarea y el slug de la iniciativa (`--tipo-tarea/--contexto/--iniciativa`: casan por ÁREA, nunca
+      por texto libre; sin `Tipo` cae a la iniciativa y al título, no al corpus entero). Tope
+      MEMORIA_TOPE_CHARS (≤ 600 tokens, spec CA-08): si no cabe se recorta y se dice. Degradación
+      SILENCIOSA: sin `docs/knowledge/`, sin aciertos, sin el script o con el script fallando → no hay
+      sección y el brief sale byte a byte como sin memoria (CA-09); un fallo se cuenta solo por stderr.
+      El detalle se abre por ID (`--show`), no se pega entero: progressive disclosure.
 
 Antes de extraer, valida el ledger con `ledger-lint.py` (mismo kit): un ledger inválido
 detiene el brief con aviso (exit 2) — no se despacha trabajo sobre un ledger roto.
 
 Uso:
   task-brief.py <carpeta-iniciativa> <T-XX> [--constitucion RUTA] [--sin-lint]
-                [--personas-dir DIR] [--tdd] [--dev-json RUTA]
+                [--personas-dir DIR] [--tdd] [--dev-json RUTA] [--knowledge-find RUTA]
 Salida: el brief en Markdown por stdout. Exit: 0 ok · 1 tarea/ficheros no encontrados ·
 2 ledger inválido.
 """
 import argparse
+import json
 import os
 import re
 import subprocess
@@ -79,11 +100,88 @@ orquestador la copia al ledger); si la tarea no tiene código testeable, devuelv
 """
 
 
+MEMORIA_TOPE_CHARS = 2400      # ≤ 600 tokens de memoria en el brief (spec CA-08); con test que lo afirma
+MEMORIA_LIMIT = 12             # aciertos que se piden; el tope de caracteres es el que manda
+MEMORIA_TIMEOUT = 20           # s: knowledge-find.py es local y determinista; si se cuelga, sin sección
+BRIEF_TOPE_CHARS = 10000       # brief completo ≤ 2.500 tokens (spec CA-08); lo afirma el test sobre el ledger real
+# Ítem de Verificación que es evidencia del rojo de una ejecución anterior (skill `tdd`: `RED: <test> falló
+# con <error> · <fecha>`), no un comando que ejecutar: se omite del brief y se cuenta.
+_ITEM_RED_RE = re.compile(r"^\s*[`*_]*\s*(RED|TDD n/a)\s*:", re.I)
+# Campos del ledger que NO son información para implementar y se quitan del bloque de la tarea (≈ 350-800 chars):
+# los de PRESUPUESTO (horas y euros, estimado vs real: contabilidad del PM que el brief no pide devolver) y el
+# `Changelog` (la nota de release, que escribe quien CIERRA la tarea —ADR-012—: una tarea en despacho no lo tiene,
+# y en un redespacho de una cerrada es texto para el usuario del proyecto, no para el subagente).
+_CAMPO_NO_BRIEF_RE = re.compile(r"^\s*-\s*\*\*(Tiempo humano|Tiempo IA[^*]*|Supervisi[oó]n|Previsi[oó]n IA|Changelog)\*\*\s*:", re.I)
+
+
+def _es_evidencia_red(item):
+    return bool(_ITEM_RED_RE.match(item or ""))
+
+
+def _raiz_de(carpeta):
+    """Raíz del proyecto derivada de la carpeta de la iniciativa (docs/roadmap/<slug> → <raíz>)."""
+    return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(carpeta))))
+
+
+def _titulo_de_tarea(chunk):
+    m = re.match(r"^###\s+T-\d+\s*[—:-]\s*(.+)$", chunk.splitlines()[0] if chunk else "")
+    return m.group(1).strip() if m else ""
+
+
+def _memoria_tecnica(carpeta, chunk, tipo, script=None):
+    """Sección 11 o None. Llama a `knowledge-find.py --json` (subproceso: un fallo suyo, cualquiera, no
+    puede tumbar el brief) enrutando por `Tipo`, título de la tarea e iniciativa; sin `docs/knowledge/`,
+    sin aciertos o sin script → None en SILENCIO (es el caso normal de un proyecto recién instalado)."""
+    raiz = _raiz_de(carpeta)
+    if not os.path.isdir(os.path.join(raiz, "docs", "knowledge")):
+        return None
+    script = script or os.path.join(os.path.dirname(os.path.abspath(__file__)), "knowledge-find.py")
+    if not os.path.isfile(script):
+        return None
+    slug = re.sub(r"^\d{4}-\d{2}-\d{2}-", "", os.path.basename(os.path.normpath(os.path.abspath(carpeta))))
+    titulo = _titulo_de_tarea(chunk)
+    cmd = [sys.executable, script, "--json", "--root", raiz, "--limit", str(MEMORIA_LIMIT),
+           "--contexto", titulo, "--iniciativa", slug] + (["--tipo-tarea", tipo] if tipo else [])
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace",
+                           timeout=MEMORIA_TIMEOUT)
+        if r.returncode != 0:
+            raise RuntimeError(f"exit {r.returncode}: {(r.stderr or r.stdout).strip()[:200]}")
+        data = json.loads(r.stdout)
+        aciertos = [a["linea"] for a in data["aciertos"] if a.get("linea")]
+        total = int(data.get("total", len(aciertos)))
+        claves = data.get("consulta", {}).get("claves", [])
+    except Exception as e:  # noqa: BLE001 — la memoria nunca bloquea el brief: se omite y se dice por stderr
+        print(f"⚠️  knowledge-find.py no respondió ({e.__class__.__name__}: {e}) — brief sin sección de memoria.",
+              file=sys.stderr)
+        return None
+    if not aciertos:
+        return None
+    ruta = f"`{slug}`"
+    cabecera = [f"## Memoria técnica del proyecto (docs/knowledge — {total} acierto(s) de knowledge-find.py)", "",
+                f"Entradas cuya ÁREA casa con esta tarea (tipo `{tipo or '—'}`, iniciativa {ruta}"
+                + (f", claves: {', '.join(claves[:8])}" if claves else "") + "). El `estado` va delante: "
+                "`aceptada` es doctrina (aplícala), `propuesta` indicio (dilo si condiciona una decisión), "
+                "`obsoleta` no se aplica (sigue a su sucesor). Abre SOLO la que necesites, por ID:", "",
+                f"    python3 \"{script}\" --show <ID>    # o `--related <ID>` para su grafo curado", ""]
+    pie_de = lambda n_fuera: [] if not n_fuera else [  # noqa: E731
+        "", f"… y {n_fuera} acierto(s) más que no caben en el tope de {MEMORIA_TOPE_CHARS} caracteres: "
+        f"`python3 \"{script}\" --contexto \"{titulo}\" --iniciativa {slug}"
+        + (f" --tipo-tarea {tipo}" if tipo else "") + "` los lista todos."]
+    n = len(aciertos)
+    while n >= 0:
+        cuerpo = [f"- {l}" for l in aciertos[:n]]
+        sec = "\n".join(cabecera + cuerpo + pie_de(total - n))
+        if len(sec) <= MEMORIA_TOPE_CHARS:
+            return sec + "\n" if n > 0 else None    # UN elemento del brief que acaba en línea en blanco
+        n -= 1
+    return None
+
+
 def _tdd_activo(carpeta, dev_json=None):
     """True si dev.json tiene `tdd: true`. Ruta: --dev-json, o <raíz derivada de la carpeta>/.claude/dev.json,
     o .claude/dev.json del cwd. Ausente → False sin ruido; ilegible → False + aviso (nunca bloquea)."""
-    import json
-    raiz = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(carpeta))))
+    raiz = _raiz_de(carpeta)
     candidatas = [dev_json] if dev_json else [os.path.join(raiz, ".claude", "dev.json"),
                                               os.path.join(".claude", "dev.json")]
     for c in candidatas:
@@ -218,6 +316,33 @@ def _verificacion_de_tarea(chunk):
             return None
         return {"items": items, "ejecutada": info["ejecutada"]}
     return None
+
+
+def _chunk_sin_verificacion(chunk, n_items):
+    """El bloque de la tarea con el campo `- **Verificación**…:` (y su sub-lista) sustituido por UNA línea
+    que apunta a la sección «Verificación» del brief. Mismo parser que la sección (`parse_verificacion`,
+    fuente única): lo que se quita aquí es exactamente lo que la sección reproduce, así que no se pierde
+    nada. Sin campo visible → el chunk intacto."""
+    lineas = _lineas_con_fence(chunk)
+    raw = [ln for ln, _ in lineas]
+    parse = _parse_verificacion_fn()
+    for i, (ln, fenced) in enumerate(lineas):
+        if fenced:
+            continue
+        info, j = parse(raw, i)
+        if info is None:
+            continue
+        puntero = (f"- **Verificación**: {n_items} ítem(s) → en la sección «Verificación» de este brief "
+                   "(no se repite aquí).")
+        return "\n".join(raw[:i] + [puntero] + raw[max(j, i + 1):])
+    return chunk
+
+
+def _chunk_sin_presupuesto(chunk):
+    """El bloque de la tarea sin sus campos de presupuesto (`Tiempo humano`, `Tiempo IA`, `Supervisión`,
+    `Previsión IA`: horas y euros del PM) ni `Changelog` (nota de release de quien cierra): no son información
+    para implementar. Solo líneas visibles; un campo de varias líneas no existe en el ledger (una línea por campo)."""
+    return "\n".join(ln for ln, fenced in _lineas_con_fence(chunk) if fenced or not _CAMPO_NO_BRIEF_RE.match(ln))
 
 
 def _persona(tipo, personas_dir):
@@ -357,6 +482,8 @@ def main(argv=None):
                     help="carpeta del catálogo de personas (default: personas/ junto al script)")
     ap.add_argument("--tdd", action="store_true", help="fuerza la sección TDD (como si dev.json tuviera tdd: true)")
     ap.add_argument("--dev-json", default=None, help="ruta explícita de .claude/dev.json (default: derivada de la carpeta)")
+    ap.add_argument("--knowledge-find", default=None,
+                    help="ruta de knowledge-find.py (default: el del mismo kit; solo para tests)")
     args = ap.parse_args(argv)
 
     tid = args.tarea.upper()
@@ -402,8 +529,20 @@ def main(argv=None):
         if persona:
             out += ["", f"## Persona de dominio (tipo: {tipo})", "", persona, ""]
 
+    # verificación declarada (plan-and-diet T-02): se lee ANTES de emitir la tarea, porque el bloque de la
+    # tarea la sustituye por un puntero a la sección (una vez en el brief, no dos)
+    verif = _verificacion_de_tarea(chunk)
+    if verif:
+        items_red = [x for x in verif["items"] if _es_evidencia_red(x)]
+        verif["items"] = [x for x in verif["items"] if not _es_evidencia_red(x)]
+        verif["omitidos_red"] = len(items_red)
+        if not verif["items"]:
+            # solo evidencia RED: no hay comando que ejecutar; la sección lo dice como «no declara»
+            verif = None
+    chunk_brief = _chunk_sin_presupuesto(_chunk_sin_verificacion(chunk, len(verif["items"])) if verif else chunk)
+
     out += ["", "## La tarea (de tasks.md — tus criterios de aceptación son EL contrato)",
-            "", chunk]
+            "", chunk_brief]
 
     # gaps pendientes (roles-and-jira-flow T-03): redespacho tras una revisión con gaps para ESTA tarea
     gaps = _gaps_pendientes_de_tarea(tasks_text, tid)
@@ -421,7 +560,6 @@ def main(argv=None):
                 "— no lo apliques a ciegas ni lo descartes sin evidencia.", ""]
 
     # verificación declarada (plan-and-diet T-02): el subagente la ejecuta al terminar y pega la salida
-    verif = _verificacion_de_tarea(chunk)
     if verif:
         out += ["## Verificación (ejecútala al terminar y pega la salida)", ""]
         out += [f"- {item}" for item in verif["items"]]
@@ -431,11 +569,19 @@ def main(argv=None):
         if verif["ejecutada"]:
             out += ["", f"> Verificación ya ejecutada antes ({verif['ejecutada'].split(' — ')[0]}): "
                         "**re-ejecútala** — la salida grabada en el ledger es de otra sesión, no vale como evidencia tuya."]
+        if verif.get("omitidos_red"):
+            out += ["", f"> {verif['omitidos_red']} ítem(s) `RED: …` de la ejecución anterior omitido(s): son evidencia "
+                        "del rojo de otra sesión, no comandos; si TDD está activo, produce tu propio rojo."]
         out += [""]
     else:
         out += ["## Verificación", "",
                 "> (la tarea no declara `Verificación`: propón una en tu informe — un comando y su resultado "
                 "esperado — y ejecútala antes de reportar `DONE`.)", ""]
+
+    # memoria técnica (memory-retrieval T-05): aciertos enrutados por Tipo/título/iniciativa, con tope y en silencio
+    memoria = _memoria_tecnica(args.carpeta, chunk, tipo, args.knowledge_find)
+    if memoria:
+        out += [memoria]      # un solo elemento: quitarlo deja el brief byte a byte como sin memoria (CA-09)
 
     diseno = _design_elegida(args.carpeta)
     if diseno:

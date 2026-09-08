@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 export-skills.py — exporta las SKILLS del plugin como paquete PORTABLE, agnóstico de Claude Code
-(patrón multi-entorno de superpowers): lo que viaja son los `skills/<n>/SKILL.md` con sus
+(paquete multi-entorno de SOLO skills): lo que viaja son los `skills/<n>/SKILL.md` con sus
 `references/`, `scripts/` y `assets/`, más los fragmentos de `agent-kits/shared/` que esas skills
 citan. NO viajan agentes, comandos, hooks ni statusline (dependen del runtime de Claude Code), ni
 las skills que solo son punteros a piezas que no viajan (`quick-implement` → `commands/dev-cycle.md`,
@@ -73,6 +73,8 @@ NO_VIAJA = (
     ("`commands/`", "los comandos `/x` solo existen en Claude Code; en otros entornos se describen en `AGENTS.md`"),
     ("`hooks/` · `statusline/`", "PreToolUse/PostToolUse/SessionStart y la statusline son eventos del runtime de Claude Code"),
     ("`agent-kits/<agente>/`", "toolkits privados de cada agente; solo viaja `agent-kits/shared/` en la parte que las skills citan"),
+    ("`agent-kits/evaluator/assets/doctrina/`", "doctrina del `evaluator` (las 9 lecciones de estimación, `LES-001…009`): viaja con el "
+     "plugin y con el agente, no con este paquete — sin `evaluator` no hay quien la aplique"),
     ("`.claude-plugin/` · `evals/` · `tests/`", "manifiestos del plugin y su CI; no aportan nada al consumidor de las skills"),
 )
 

@@ -16,6 +16,7 @@ Se salta entera si no hay `bash`. Ejecutar: python3 -m pytest -q tests/test_hook
 """
 import json
 import os
+import re
 import shutil
 import stat
 import subprocess
@@ -317,6 +318,329 @@ def test_session_context_reinyecta_journal_en_resume_no_en_compact(tmp_path):
         assert ctx.index("Ledger canónico") < ctx.index("Journal de sesión")        # roadmap antes, journal después
     rc, out, _ = hook("session-context.sh", {"hook_event_name": "SessionStart", "source": "compact"}, env)
     assert rc == 0 and "Journal de sesión" not in un_json(out)["hookSpecificOutput"]["additionalContext"]
+
+
+# ------------------------------------------------------------ user-prompt-capture (T-11/T-12) ----
+
+def prompt_submit(proj, sid="s1", prompt="decidimos usar FTS5"):
+    """Payload oficial de UserPromptSubmit (hooks-guide.md, verificado 2026-09-08): campos comunes
+    (`session_id`, `cwd`, `transcript_path`) + `prompt` («UserPromptSubmit hooks get the `prompt` text»)."""
+    return {"hook_event_name": "UserPromptSubmit", "session_id": sid, "prompt": prompt, "cwd": str(proj),
+            "transcript_path": str(proj / "no-existe.jsonl")}
+
+
+def logs_capture(proj):
+    d = proj / ".claude"
+    return sorted(f.name for f in d.glob("session-prompts-*.log")) if d.is_dir() else []
+
+
+def test_user_prompt_capture_acumula_el_turno_sin_stdout_y_fuera_de_git(tmp_path):
+    """memory-retrieval T-11 (spec CA-15): el turno queda en .claude/session-prompts-<session_id>.log, el
+    hook sale 0 y SIN stdout (en este evento el texto plano de stdout se inyecta como contexto y un exit 2
+    borraría el prompt), y el fichero no entra en git (`*.log` del .gitignore del repo)."""
+    proj, _ = proyecto(tmp_path)
+    env = env_de(proj, tmp_path)
+    assert hook("user-prompt-capture.sh", prompt_submit(proj), env) == (0, "", "")
+    log = proj / ".claude" / "session-prompts-s1.log"
+    assert log.is_file() and "decidimos usar FTS5" in log.read_text(encoding="utf-8")
+    assert hook("user-prompt-capture.sh", prompt_submit(proj, prompt="segundo turno con ñ y 🎯"), env) == (0, "", "")
+    lineas = log.read_text(encoding="utf-8").splitlines()
+    assert len(lineas) == 2 and json.loads(lineas[1])["prompt"] == "segundo turno con ñ y 🎯"
+    assert logs_capture(proj) == ["session-prompts-s1.log"]
+    if shutil.which("git"):
+        r = subprocess.run(["git", "-C", ROOT, "check-ignore", "-v", ".claude/session-prompts-s1.log"],
+                           capture_output=True, text=True, encoding="utf-8", errors="replace")
+        assert r.returncode == 0 and "*.log" in r.stdout, r.stdout
+
+
+def test_user_prompt_capture_private_no_toca_el_log(tmp_path):
+    """spec CA-16: con `<private>` en el turno el log no cambia (mismo tamaño y mismo mtime) y exit 0."""
+    proj, _ = proyecto(tmp_path)
+    env = env_de(proj, tmp_path)
+    hook("user-prompt-capture.sh", prompt_submit(proj, prompt="turno normal"), env)
+    log = proj / ".claude" / "session-prompts-s1.log"
+    os.utime(log, (1_000_000_000, 1_000_000_000))
+    antes = log.stat()
+    assert hook("user-prompt-capture.sh", prompt_submit(proj, prompt="<private> mi clave es 123"), env) == (0, "", "")
+    despues = log.stat()
+    assert (antes.st_size, antes.st_mtime) == (despues.st_size, despues.st_mtime)
+    assert "123" not in log.read_text(encoding="utf-8")
+    assert hook("user-prompt-capture.sh", prompt_submit(proj, sid="s9", prompt="<private> x"), env) == (0, "", "")
+    assert logs_capture(proj) == ["session-prompts-s1.log"]                 # el primer turno privado ni crea el log
+
+
+def test_user_prompt_capture_payload_roto_sin_session_id_o_repo_ajeno_exit_0_sin_escribir(tmp_path):
+    proj, _ = proyecto(tmp_path)
+    env = env_de(proj, tmp_path)
+    assert hook("user-prompt-capture.sh", "", env) == (0, "", "")
+    assert hook("user-prompt-capture.sh", "no es json", env) == (0, "", "")
+    assert hook("user-prompt-capture.sh", {"hook_event_name": "UserPromptSubmit", "prompt": "x"}, env) == (0, "", "")
+    assert hook("user-prompt-capture.sh", {"hook_event_name": "UserPromptSubmit", "session_id": "s1"}, env) == (0, "", "")
+    assert logs_capture(proj) == []
+    ajeno = tmp_path / "ajeno"
+    ajeno.mkdir()
+    (ajeno / "a.txt").write_text("x", encoding="utf-8")
+    assert hook("user-prompt-capture.sh", prompt_submit(ajeno), env_de(ajeno, tmp_path)) == (0, "", "")
+    assert sorted(os.listdir(ajeno)) == ["a.txt"]                            # ni .claude/: no siembra nada
+    (proj / ".claude" / "dev.json").write_text('{"sesion": {"journal": false}}', encoding="utf-8")
+    assert hook("user-prompt-capture.sh", prompt_submit(proj), env) == (0, "", "")
+    assert logs_capture(proj) == []                                          # journal apagado ⇒ captura apagada
+
+
+def test_user_prompt_capture_sin_python3_silencio(tmp_path):
+    proj, _ = proyecto(tmp_path)
+    assert hook("user-prompt-capture.sh", prompt_submit(proj), env_de(proj, tmp_path, sin_python=True)) == (0, "", "")
+    assert logs_capture(proj) == []
+
+
+def test_hooks_json_registra_user_prompt_submit_y_ningun_post_tool_use_de_captura():
+    """El hook está en hooks.json bajo UserPromptSubmit (sin matcher: el evento no lo admite), con timeout
+    ≤ 30 s (el default oficial de este evento), y NO se registra ningún PostToolUse de captura."""
+    data = json.load(open(os.path.join(HOOKS, "hooks.json"), encoding="utf-8"))["hooks"]
+    grupos = data["UserPromptSubmit"]
+    hooks_ups = [h for g in grupos for h in g["hooks"]]
+    assert any("hooks/user-prompt-capture.sh" in h["command"] for h in hooks_ups)
+    assert all(h.get("timeout", 30) <= 30 for h in hooks_ups)
+    assert not any("matcher" in g for g in grupos)
+    otros = [h["command"] for ev, gs in data.items() if ev != "UserPromptSubmit" for g in gs for h in g["hooks"]]
+    assert not any("user-prompt-capture" in c for c in otros)
+
+
+def test_session_journal_con_log_crudo_escribe_decisiones_y_pendientes(tmp_path):
+    """memory-retrieval T-12 (spec CA-17), de punta a punta por los dos hooks: los turnos capturados por
+    UserPromptSubmit acaban en la entrada que escribe SessionEnd como `decisiones`/`pendientes` no vacías;
+    repetir el cierre con la misma session_id no duplica la entrada."""
+    proj, _ = proyecto(tmp_path)
+    env = env_de(proj, tmp_path)
+    for p in ("Decidimos usar FTS5 para el índice.", "Queda pendiente la CI en Windows.", "implementa la T-03"):
+        assert hook("user-prompt-capture.sh", prompt_submit(proj, prompt=p), env) == (0, "", "")
+    assert hook("session-journal.sh", session_end(proj), env) == (0, "", "")
+    assert len(entradas_journal(proj)) == 1
+    texto = (proj / "docs" / "knowledge" / "journal" / entradas_journal(proj)[0]).read_text(encoding="utf-8")
+    assert "- Decidimos usar FTS5 para el índice." in texto and "- Queda pendiente la CI en Windows." in texto
+    assert 'resumen: "Decidimos usar FTS5 para el índice."' in texto and "turnos: 3" in texto
+    assert hook("session-journal.sh", session_end(proj), env)[0] == 0 and len(entradas_journal(proj)) == 1
+    # otra sesión sin log crudo → entrada honesta con listas vacías (no se cruzan sesiones)
+    assert hook("session-journal.sh", session_end(proj, sid="s2"), env)[0] == 0
+    otra = [f for f in entradas_journal(proj) if 'session_id: "s2"' in (proj / "docs" / "knowledge" / "journal" / f).read_text(encoding="utf-8")]
+    assert otra and "decisiones: []" in (proj / "docs" / "knowledge" / "journal" / otra[0]).read_text(encoding="utf-8")
+
+
+# ------------------------------------------- session-context · memoria del área activa (T-06) ----
+
+def _knowledge(proj, n_extra=0):
+    """`docs/knowledge/` mínimo con DOS áreas: una que casa con la iniciativa activa del fixture
+    («adversarial-review» → área «Revisión adversarial / lentes») y otra que no (estimación)."""
+    kn = proj / "docs" / "knowledge"
+    (kn / "adr").mkdir(parents=True)
+    (kn / "lessons").mkdir()
+    filas = []
+    (kn / "adr" / "ADR-001-lentes-en-paralelo.md").write_text(
+        "---\nid: ADR-001\ntitulo: Las lentes se despachan en paralelo\nestado: aceptada (validada: usuario, 2026-01-02)\n"
+        "fecha: 2026-01-02\n---\n\n# ADR-001\n\nx\n", encoding="utf-8")
+    filas.append("| [`adr/ADR-001-lentes-en-paralelo.md`](adr/ADR-001-lentes-en-paralelo.md) — las lentes se despachan en paralelo "
+                 "| ADR-001 | ADR | Revisión adversarial / lentes | aceptada (validada: usuario, 2026-01-02) | `2026-01-02-otra/tasks.md` |")
+    (kn / "lessons" / "LES-001-evaluator-revision-cara.md").write_text(
+        "---\nid: LES-001\ntipo: leccion\narea: Estimación / calibración\nestado: aceptada (validada: usuario, 2026-01-03)\n"
+        "fuente: 2026-01-01-estimacion/retro.md\n---\n\n## evaluator\n\n- El coste está en la revisión.\n", encoding="utf-8")
+    filas.append("| [`lessons/LES-001-evaluator-revision-cara.md`](lessons/LES-001-evaluator-revision-cara.md) — el coste está en la revisión "
+                 "| LES-001 | Lección | Estimación / calibración | aceptada (validada: usuario, 2026-01-03) | `2026-01-01-estimacion/retro.md` |")
+    for n in range(2, 2 + n_extra):
+        fn = f"ADR-{n:03d}-lente-numero-{n}-con-un-nombre-de-fichero-deliberadamente-largo.md"
+        (kn / "adr" / fn).write_text(f"---\nid: ADR-{n:03d}\ntitulo: Lente número {n} con un titular largo para llenar la línea\n"
+                                     f"estado: aceptada (validada: usuario, 2026-01-02)\nfecha: 2026-01-02\n---\n\n# ADR-{n:03d}\n\nx\n",
+                                     encoding="utf-8")
+        filas.append(f"| [`adr/{fn}`](adr/{fn}) — lente número {n} con un titular largo para llenar la línea "
+                     f"| ADR-{n:03d} | ADR | Revisión adversarial / lentes | aceptada (validada: usuario, 2026-01-02) | `x/tasks.md` |")
+    (kn / "README.md").write_text("# índice\n\n| Entrada | ID | Tipo | Área | Estado | Fuente |\n|---|---|---|---|---|---|\n"
+                                  + "\n".join(filas) + "\n", encoding="utf-8")
+    return kn
+
+
+def _ctx(out):
+    return un_json(out)["hookSpecificOutput"]["additionalContext"]
+
+
+def _bloque_memoria(ctx):
+    if "Memoria técnica" not in ctx:
+        return ""
+    i = ctx.index("Memoria técnica")
+    i = ctx.rfind("\n", 0, i) + 1
+    return ctx[i:]
+
+
+def test_session_context_inyecta_la_memoria_del_area_activa_bajo_su_tope(tmp_path):
+    """memory-retrieval T-06 (spec CA-10): con iniciativa activa y `docs/knowledge/`, el contexto trae los
+    aciertos del ÁREA de la iniciativa (≤ 1.200 caracteres), detrás del índice y del roadmap; total ≤ 9.500."""
+    proj, _ = proyecto(tmp_path)
+    _knowledge(proj)
+    env = env_de(proj, tmp_path)
+    for src in ("startup", "resume", "compact"):
+        rc, out, err = hook("session-context.sh", {"hook_event_name": "SessionStart", "source": src}, env)
+        assert rc == 0, err
+        ctx = _ctx(out)
+        bloque = _bloque_memoria(ctx)
+        assert bloque, f"[{src}] falta el bloque de memoria del área activa"
+        assert "ADR-001" in bloque and "adversarial" in bloque.lower(), bloque
+        assert "LES-001" not in bloque, "la lección de estimación NO es del área de la iniciativa activa"
+        assert "aceptada" in bloque and "knowledge-find.py" in bloque and "--show" in bloque
+        assert len(bloque) <= 1200 and len(ctx) <= 9500
+        assert ctx.index("Agentes:") < ctx.index("Ledger canónico") < ctx.index("Memoria técnica"), src
+
+
+def test_session_context_sin_knowledge_sin_aciertos_o_sin_activa_no_emite_el_bloque(tmp_path):
+    proj, _ = proyecto(tmp_path)
+    env = env_de(proj, tmp_path)
+    payload = {"hook_event_name": "SessionStart", "source": "startup"}
+    rc, out_sin, _ = hook("session-context.sh", payload, env)
+    assert rc == 0 and "Memoria técnica" not in _ctx(out_sin) and "knowledge" not in _ctx(out_sin).lower()
+    # corpus SIN entradas del área activa → mismo contexto que sin carpeta
+    kn = _knowledge(proj)
+    (kn / "adr" / "ADR-001-lentes-en-paralelo.md").unlink()
+    readme = kn / "README.md"
+    readme.write_text("\n".join(l for l in readme.read_text(encoding="utf-8").splitlines() if "ADR-001" not in l) + "\n",
+                      encoding="utf-8")
+    rc, out_vacio, _ = hook("session-context.sh", payload, env)
+    assert rc == 0 and _ctx(out_vacio) == _ctx(out_sin), "sin aciertos el resto sale idéntico"
+    # sin iniciativa activa → nada de memoria aunque haya corpus
+    proj2, _ = proyecto(tmp_path / "b", activa=False)
+    _knowledge(proj2)
+    rc, out, _ = hook("session-context.sh", payload, env_de(proj2, tmp_path / "b"))
+    assert rc == 0 and "Memoria técnica" not in _ctx(out)
+
+
+def test_session_context_sesion_memoria_false_apaga_el_bloque(tmp_path):
+    proj, _ = proyecto(tmp_path)
+    _knowledge(proj)
+    (proj / ".claude" / "dev.json").write_text('{"sesion": {"memoria": false}}', encoding="utf-8")
+    rc, out, _ = hook("session-context.sh", {"hook_event_name": "SessionStart", "source": "startup"}, env_de(proj, tmp_path))
+    assert rc == 0
+    ctx = _ctx(out)
+    assert "Memoria técnica" not in ctx and "Comandos:" in ctx and "demo" in ctx
+
+
+def test_session_context_el_tope_de_memoria_va_antes_del_recorte_global(tmp_path):
+    """41 entradas del área activa: el bloque se recorta a ≤ 1.200 caracteres y lo dice, y el índice de
+    piezas y el roadmap siguen enteros (el tope propio se aplica ANTES del recorte a TOPE_CHARS)."""
+    proj, _ = proyecto(tmp_path)
+    _knowledge(proj, n_extra=40)
+    rc, out, _ = hook("session-context.sh", {"hook_event_name": "SessionStart", "source": "startup"}, env_de(proj, tmp_path))
+    assert rc == 0
+    ctx = _ctx(out)
+    bloque = _bloque_memoria(ctx)
+    assert 0 < len(bloque) <= 1200, len(bloque)
+    assert "más" in bloque, "recortado Y dicho"
+    assert "Comandos:" in ctx and "Agentes:" in ctx and "Ledger canónico" in ctx and len(ctx) <= 9500
+    assert not ctx.endswith("…"), "no hizo falta el recorte global"
+
+
+def _segunda_activa(proj, led, slug, titulo=None):
+    """Otra iniciativa ACTIVA (copia del ledger de fixture), opcionalmente con otro título H1 (→ otra área)."""
+    d = proj / "docs" / "roadmap" / slug
+    d.mkdir()
+    text = led.read_text(encoding="utf-8")
+    if titulo:
+        text = re.sub(r"(?m)^# .*$", f"# Checklist de Tareas — {titulo}", text, count=1)
+    (d / "tasks.md").write_text(text, encoding="utf-8")
+    return d
+
+
+def _total_cabecera(bloque):
+    m = re.search(r"· (\d+) acierto\(s\) de knowledge-find\.py", bloque)
+    return int(m.group(1)) if m else None
+
+
+def test_session_context_dos_activas_del_mismo_area_deduplican_antes_de_contar(tmp_path):
+    """Revisión intento 1 (IMPORTANT 3): con dos ledgers `en-progreso` de la misma área, la cabecera decía
+    «4 acierto(s)», mostraba 2 y añadía «… y 2 más» que no existían (total sumaba por iniciativa y las
+    líneas deduplicaban por ID). Ahora: únicos reales, sin «y N más» falso."""
+    proj, led = proyecto(tmp_path)
+    _knowledge(proj, n_extra=2)                                     # 3 entradas del área activa
+    _segunda_activa(proj, led, "2026-01-02-demo-b")                 # mismo título → misma área
+    rc, out, _ = hook("session-context.sh", {"hook_event_name": "SessionStart", "source": "startup"}, env_de(proj, tmp_path))
+    assert rc == 0
+    bloque = _bloque_memoria(_ctx(out))
+    assert _total_cabecera(bloque) == 3, bloque
+    assert bloque.count("- ADR-") == 3 and "más:" not in bloque, "3 únicos, los 3 mostrados: no hay «y N más»"
+    for id_ in ("ADR-001", "ADR-002", "ADR-003"):
+        assert bloque.count(f"- {id_} · ") == 1, f"{id_} repetido"
+    assert "iniciativas activas" not in bloque, "con 2 activas no hay nada que avisar"
+
+
+def test_session_context_dos_activas_de_areas_distintas_suman_sin_solape(tmp_path):
+    proj, led = proyecto(tmp_path)
+    _knowledge(proj)                                                # ADR-001 (adversarial) + LES-001 (estimación)
+    _segunda_activa(proj, led, "2026-01-02-presupuesto", titulo="Estimación y calibración del presupuesto")
+    rc, out, _ = hook("session-context.sh", {"hook_event_name": "SessionStart", "source": "startup"}, env_de(proj, tmp_path))
+    assert rc == 0
+    bloque = _bloque_memoria(_ctx(out))
+    assert _total_cabecera(bloque) == 2 and "ADR-001" in bloque and "LES-001" in bloque, bloque
+    assert "más:" not in bloque
+    assert "--iniciativa demo" in bloque or "--show" in bloque
+
+
+def test_session_context_tres_activas_lo_dice_en_la_cabecera_y_nombra_la_que_queda_fuera(tmp_path):
+    """`activas[:2]` descartaba la tercera en silencio: ahora la cabecera lo declara."""
+    proj, led = proyecto(tmp_path)
+    _knowledge(proj, n_extra=1)
+    _segunda_activa(proj, led, "2026-01-02-demo-b")
+    _segunda_activa(proj, led, "2026-01-03-demo-c")
+    rc, out, _ = hook("session-context.sh", {"hook_event_name": "SessionStart", "source": "startup"}, env_de(proj, tmp_path))
+    assert rc == 0
+    bloque = _bloque_memoria(_ctx(out))
+    assert "3 iniciativas activas, consultadas las 2 primeras; fuera: demo-c" in bloque, bloque
+    assert _total_cabecera(bloque) == 2 and bloque.count("- ADR-") == 2
+    assert len(bloque) <= 1200
+
+
+def test_session_context_con_el_tope_apretando_el_y_n_mas_es_real_y_no_desaloja_aciertos(tmp_path):
+    """41 entradas del área y DOS activas que las comparten: antes `total` era 82 (41 × 2) y el «… y N más»
+    inflado; el N tiene que ser exactamente únicos − mostrados, y mostrar tantas líneas como con UNA activa."""
+    proj, led = proyecto(tmp_path)
+    _knowledge(proj, n_extra=40)
+    payload = {"hook_event_name": "SessionStart", "source": "startup"}
+    rc, out_una, _ = hook("session-context.sh", payload, env_de(proj, tmp_path))
+    una = _bloque_memoria(_ctx(out_una))
+    _segunda_activa(proj, led, "2026-01-02-demo-b")
+    rc, out_dos, _ = hook("session-context.sh", payload, env_de(proj, tmp_path))
+    assert rc == 0
+    dos = _bloque_memoria(_ctx(out_dos))
+    assert 0 < len(dos) <= 1200
+    assert _total_cabecera(dos) == _total_cabecera(una) == 41, (una, dos)
+    mostradas = dos.count("\n- ")
+    m = re.search(r"… y (\d+) más", dos)
+    assert m and int(m.group(1)) == 41 - mostradas, dos
+    # la línea «… y N más» nombra una orden por iniciativa consultada (más larga con dos): cuesta a lo sumo UNA
+    # línea de acierto frente a una sola activa; antes, con total 82, el N inflado no era ni siquiera verdad
+    assert una.count("\n- ") - 1 <= mostradas <= una.count("\n- ") and mostradas >= 1, (una, dos)
+
+
+def test_session_context_resuelve_el_kit_del_repo_del_plugin_antes_que_una_copia_instalada(tmp_path):
+    """Revisión intento 1 (MINOR 9): sin CLAUDE_PLUGIN_ROOT, dentro del repo del plugin, el `find` sobre
+    ~/.claude caía a una copia INSTALADA (anterior a la rama). `<proyecto>/agent-kits/shared` va primero."""
+    proj, _ = proyecto(tmp_path)
+    home = tmp_path / "home"
+    instalado = home / ".claude" / "plugins" / "cache" / "mk" / "custom-agents" / "agent-kits" / "shared"
+    instalado.mkdir(parents=True)
+    (instalado / "skill-index.py").write_text("print('INDICE-DE-LA-COPIA-INSTALADA')\n", encoding="utf-8")
+    del_repo = proj / "agent-kits" / "shared"
+    del_repo.mkdir(parents=True)
+    (del_repo / "skill-index.py").write_text("print('INDICE-DEL-REPO-DEL-PLUGIN')\n", encoding="utf-8")
+    env = env_de(proj, tmp_path)
+    del env["CLAUDE_PLUGIN_ROOT"]
+    payload = {"hook_event_name": "SessionStart", "source": "startup"}
+    rc, out, err = hook("session-context.sh", payload, env, cwd=str(proj))
+    assert rc == 0, err
+    assert "INDICE-DEL-REPO-DEL-PLUGIN" in _ctx(out) and "INSTALADA" not in _ctx(out), _ctx(out)
+    # sin el kit en el proyecto, el find sobre ~/.claude sigue siendo el respaldo
+    shutil.rmtree(proj / "agent-kits")
+    rc, out, _ = hook("session-context.sh", payload, env, cwd=str(proj))
+    assert rc == 0 and "INDICE-DE-LA-COPIA-INSTALADA" in _ctx(out)
+    # y CLAUDE_PLUGIN_ROOT sigue mandando sobre los dos
+    (del_repo).mkdir(parents=True)
+    (del_repo / "skill-index.py").write_text("print('INDICE-DEL-REPO-DEL-PLUGIN')\n", encoding="utf-8")
+    rc, out, _ = hook("session-context.sh", payload, env_de(proj, tmp_path), cwd=str(proj))
+    assert rc == 0 and "Comandos:" in _ctx(out) and "INDICE-DEL-REPO" not in _ctx(out)
 
 
 # -------------------------------------------------------- implementer-guardrail ----

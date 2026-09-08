@@ -339,12 +339,18 @@ def _modos():
             [("deny", lambda w: ["pre-tool", "--project-dir", "."], (0,), deny)],
         "agent-kits/shared/journal.py":
             [("draft", lambda w: ["draft", "--root", "."], (0,), None)],
+        # Imprime `·` y áreas con acentos («Estimación / calibración») en cada acierto (memory-retrieval T-01).
+        "agent-kits/shared/knowledge-find.py":
+            [("consulta", lambda w: ["--area", "estimacion"], (0,), None)],
         "agent-kits/shared/ledger-lint.py":
             [("ledger", lambda w: [L], (0, 1), None)],
         "agent-kits/shared/model-tier.py":
             [("--all", lambda w: ["--all"], (0,), None)],
         "agent-kits/shared/progress-report.py":
             [("line", lambda w: ["line", L], (0,), None)],
+        # Imprime ✅/❌/ℹ️ y acentos graves; sobre la iniciativa de fixture la puerta sale 0 o 1 (memory-retrieval T-17).
+        "agent-kits/shared/retro-gate.py":
+            [("puerta", lambda w: [INI], (0, 1), None)],
         "agent-kits/shared/scope-check.py":
             [("alcance", lambda w: [INI, "--base", "HEAD"], (0, 1), None)],
         "agent-kits/shared/skill-index.py":

@@ -28,6 +28,19 @@
       }
     },
     {
+      "id": "implementer-memoria-gotcha-del-area",
+      "prompt": "Implementa la tarea T-02 (escapado de comas y comillas) del plan de docs/roadmap/2026-01-01-demo en una rama. Antes de tocar código consulta la memoria técnica del proyecto (docs/knowledge) de tu área y cita qué entrada aplicas y por qué.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "GOT-001",
+          "RFC 4180"
+        ]
+      },
+      "notes": "Camino de memoria (memory-retrieval T-09): la tarea es backend/CSV y el corpus del fixture tiene UN gotcha de ese área (GOT-001: la comilla se escapa DOBLÁNDOLA, RFC 4180). Recuperar la memoria es citar el ID que toca Y aplicar lo que dice (RFC 4180: la comilla doblada, nombrado en la explicación). No se prohíbe citar LES-001 (revisión intento 1, MINOR 7): la lección de estimación dice que el escapado es tarea propia, y mencionarla al implementar el escapado es correcto, no ruido."
+    },
+    {
       "id": "implementer-neg-qa",
       "prompt": "Prueba la UI de la iniciativa demo con tests end-to-end contra http://localhost:3000 y dame el informe.",
       "expect": {
