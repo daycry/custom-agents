@@ -322,8 +322,8 @@ bullets son solo el título**, o sea del camino que la iniciativa quiere EVITAR.
 325.<!--m:camino_titulo=42,titulo_mediana=115,titulo_max=168,camino_corte=9,corte_mediana=170,corte_max=280,camino_frase=12,frase_mediana=260,frase_max=325-->
 Y con este ledger cerrado (hoy 17 ledgers, 98 tareas, tras `sin-motor-externo` y `memory-retrieval`) aparece el camino que se promueve, que es **el
 que produce los bullets más largos**: `changelog` 35 · mediana **346** · máx
-**539**.<!--m:ledgers_cerrados=17,tareas=98,camino_changelog=35,changelog_mediana=346,changelog_max=539-->
-El techo real del bullet completo es por tanto **539** (un bullet de `memory-retrieval` con el campo `Changelog:` por encima del tope), no 325.<!--m:bullet_max=539--> La descomposición del de 325 (`windows-console/T-06`) es
+**467**.<!--m:ledgers_cerrados=17,tareas=98,camino_changelog=35,changelog_mediana=346,changelog_max=467-->
+El techo real del bullet completo es por tanto **467** (un bullet de `memory-retrieval` con el campo `Changelog:` por encima del tope), no 325.<!--m:bullet_max=467--> La descomposición del de 325 (`windows-console/T-06`) es
 cabecera 83 + espacio + resumen **152** + lista de 3 ficheros **89** (una versión anterior decía
 «resumen 150 · título 68 · lista 96»: el total 325 y la conclusión eran correctos, las tres
 componentes no).<!--m:base_peor_cabecera=83,base_peor_resumen=152,base_peor_ficheros=89,base_bullet_max=325-->
@@ -383,8 +383,8 @@ genéricos de `retro`/`roadmap-status`/`setup`, preexistentes.
   descartada en `ADR-012` con su motivo; si al leer las notas molesta, es un cambio de una línea en
   `bullets()`.
 - **`RESUMEN_MAX` no acota el bullet completo**, solo el resumen. Techo real medido con los títulos
-  y las rutas de este repo: **539 caracteres** (hoy un bullet de `memory-retrieval`, camino `changelog`), no
-  325.<!--m:bullet_max=539-->
+  y las rutas de este repo: **467 caracteres** (hoy un bullet de `memory-retrieval`, camino `changelog`), no
+  325.<!--m:bullet_max=467-->
   Y el desglose por camino dice algo incómodo que la doc ahora escribe: el camino que la iniciativa
   PROMUEVE es el que produce los bullets más largos (`changelog` mediana 350 · máximo 376;
   `titulo` mediana 115 · máximo 168). Es el precio de que el bullet DIGA algo, no un fallo del

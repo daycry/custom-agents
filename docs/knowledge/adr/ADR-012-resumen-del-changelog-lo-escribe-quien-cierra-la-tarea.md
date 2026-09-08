@@ -101,11 +101,11 @@ ADR describe, y por eso las cifras de esta tabla las imprime ahora el script):
 | `titulo` | 42 | 115 | 168 | la base y el corpus de hoy (igual) |<!--m:camino_titulo=42,titulo_mediana=115,titulo_max=168-->
 | `corte` | 9 | 170 | 280 | la base y el corpus de hoy (igual) |<!--m:camino_corte=9,corte_mediana=170,corte_max=280-->
 | `frase` | 12 | 260 | 325 | la base y el corpus de hoy (igual) |<!--m:camino_frase=12,frase_mediana=260,frase_max=325-->
-| `changelog` (el que se promueve) | 35 | **346** | **539** | solo los ledgers que usan el campo |<!--m:camino_changelog=35,changelog_mediana=346,changelog_max=539-->
-| **TOTAL** | **98** | **183** | **539** | el corpus de hoy |<!--m:tareas=98,bullet_mediana=183,bullet_max=539-->
+| `changelog` (el que se promueve) | 35 | **346** | **467** | solo los ledgers que usan el campo |<!--m:camino_changelog=35,changelog_mediana=346,changelog_max=467-->
+| **TOTAL** | **98** | **183** | **467** | el corpus de hoy |<!--m:tareas=98,bullet_mediana=183,bullet_max=467-->
 
 Es decir: **el camino bueno produce los bullets más largos**, y el techo real del bullet completo,
-medido con los títulos y las rutas de este repo, es **539 caracteres**<!--m:bullet_max=539-->, no
+medido con los títulos y las rutas de este repo, es **467 caracteres**<!--m:bullet_max=467-->, no
 325. Ninguna de estas cifras se escribe a mano: las imprime `changelog-sync.py --medicion` y
 `tests/test_cifras_medidas.py` las compara con esta tabla en cada ejecución de la suite. No cambia la
 decisión ni el tope: `RESUMEN_MAX` acota **el resumen**, y el resto lo ponen el título del ledger

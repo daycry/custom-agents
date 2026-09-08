@@ -151,14 +151,14 @@ promueve, que es **el que produce los bullets más largos**:
 
 | Camino | N | Mediana | Máximo |
 |---|---|---|---|
-| `changelog` | 35 | **346** | **539** |<!--m:camino_changelog=35,changelog_mediana=346,changelog_max=539-->
+| `changelog` | 35 | **346** | **467** |<!--m:camino_changelog=35,changelog_mediana=346,changelog_max=467-->
 | `frase` | 12 | 260 | 325 |<!--m:camino_frase=12,frase_mediana=260,frase_max=325-->
 | `corte` | 9 | 170 | 280 |<!--m:camino_corte=9,corte_mediana=170,corte_max=280-->
 | `titulo` | 42 | 115 | 168 |<!--m:camino_titulo=42,titulo_mediana=115,titulo_max=168-->
-| **TOTAL** | **98** | **183** | **539** |<!--m:tareas=98,bullet_mediana=183,bullet_max=539-->
+| **TOTAL** | **98** | **183** | **467** |<!--m:tareas=98,bullet_mediana=183,bullet_max=467-->
 
-**El techo real del bullet completo, medido con los títulos y las rutas de este repo, es 539
-caracteres**<!--m:bullet_max=539--> (un bullet de `memory-retrieval` cuyo campo `Changelog:` supera el tope de 200 — el script avisa y lo respeta), no 325. No es una contradicción del diseño: `RESUMEN_MAX`
+**El techo real del bullet completo, medido con los títulos y las rutas de este repo, es 467
+caracteres**<!--m:bullet_max=467--> (un bullet de `memory-retrieval` cuyo campo `Changelog:` supera el tope de 200 — el script avisa y lo respeta), no 325. No es una contradicción del diseño: `RESUMEN_MAX`
 acota **el resumen**, no el bullet, y el resto lo ponen el título del ledger (que no se toca) y la
 lista de ficheros. Escribir el campo alarga el bullet a cambio de que DIGA algo: el `titulo` es
 corto porque no dice nada. Por eso `RESUMEN_MAX` **no** se toca por esto: 200 para el resumen sigue
