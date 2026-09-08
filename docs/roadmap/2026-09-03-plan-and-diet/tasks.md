@@ -1,6 +1,13 @@
 ---
 tasks: plan-and-diet
-descripcion: Cerrar tres brechas frente al plugin superpowers con la vía rápida — (1) token-diet de las 3 skills grandes (`jira-sync`, `confluence-publish`, `cybersecurity`) con progressive disclosure a `references/` y CERO pérdida de contenido; (2) campo `Verificación` obligatorio por tarea en la plantilla del planner, validado por `ledger-lint.py` cuando el ledger declara `verificacion: obligatoria` e inyectado por `task-brief.py`; (3) CI headless opcional (`headless.yml`) que corre un subconjunto de evals y comprueba los hooks del plugin en una sesión real de `claude -p` — más doc, ADR-008 y cierre.
+descripcion: >
+  Cerrar tres brechas frente al plugin superpowers con la vía rápida — (1) token-diet de las 3 skills
+  grandes (`jira-sync`, `confluence-publish`, `cybersecurity`) con progressive disclosure a
+  `references/` y CERO pérdida de contenido; (2) campo `Verificación` obligatorio por tarea en la
+  plantilla del planner, validado por `ledger-lint.py` cuando el ledger declara `verificacion:
+  obligatoria` e inyectado por `task-brief.py`; (3) CI headless opcional (`headless.yml`) que corre un
+  subconjunto de evals y comprueba los hooks del plugin en una sesión real de `claude -p` — más doc,
+  ADR-008 y cierre.
 estado: completado        # borrador | en-progreso | completado | cancelado
 creado: 2026-09-03
 actualizado: 2026-09-03

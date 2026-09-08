@@ -2,7 +2,7 @@
 id: LES-011
 tipo: leccion
 area: Proceso / desarrollo del plugin (activación de piezas)
-estado: aceptada (validada: revisión de dos lentes, 2026-09-03, intento 2)
+estado: aceptada (validada por revisión de dos lentes, 2026-09-03, intento 2)
 fuente: docs/roadmap/2026-09-03-activation-reliability/tasks.md (decisión del usuario, comparación con superpowers)
 ---
 

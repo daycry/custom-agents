@@ -1,6 +1,25 @@
 ---
 tasks: sin-motor-externo
-descripcion: El plugin deja de definirse por comparación y de depender de un motor de implementación ajeno. Petición literal del usuario: «elimina las comparaciones con superpowers del readme y de cualquier otro sitio del repositorio». (1) La sección «Compared with superpowers» / «Comparado con superpowers» sale de los dos README y la nota de autosuficiencia deja de ofrecer la delegación; (2) `/dev-cycle` **retira el Modo A por completo** — flag `--superpowers`, frase de la `description`, regla 2 de la puerta de entrada, bloque de la Fase 3, menciones en los bucles de revisión y de qa, resumen de cierre, transiciones de estado y la regla «Cero dependencia de superpowers» —, así que la cadena nativa pasa a ser el ÚNICO motor y el comando baja de 218 a 198 líneas; con él caen las etiquetas «Modo A/Modo B» que quedaban colgando en `CLAUDE.md`, `docs/README.md` (+EN), `docs/FLOWS.md` (+EN, dos nodos del diagrama), `docs/CONVENTIONS.md` regla 8 (+EN), `docs/agents/implementer.md`, `skills/debug-root-cause/SKILL.md`, `agent-kits/shared/README.md`, `review-report.template.md` y la plantilla del `planner`; (3) las notas de atribución (`export-skills.py`, `skill-index.py`, `rationalization-table.md`, `INSTALL` ES/EN, `observability` ES/EN) describen el patrón por lo que es —«paquete multi-entorno de solo skills», «lo que puede ser determinista no lo redacta el modelo»— sin nombrar a nadie y sin perder contenido técnico; (4) el fixture de `test_skill_index.py` deja de citar un flag inexistente y, de paso, el recorte del hint largo pasa a estar PROBADO (antes no lo estaba). Los registros fechados (ledgers cerrados del roadmap, `ADR-008`, `LES-011`, los dos CHANGELOG) se conservan intactos: borrarlos sería falsificar el registro.
+descripcion: >
+  El plugin deja de definirse por comparación y de depender de un motor de implementación ajeno.
+  Petición literal del usuario: «elimina las comparaciones con superpowers del readme y de cualquier
+  otro sitio del repositorio». (1) La sección «Compared with superpowers» / «Comparado con
+  superpowers» sale de los dos README y la nota de autosuficiencia deja de ofrecer la delegación; (2)
+  `/dev-cycle` **retira el Modo A por completo** — flag `--superpowers`, frase de la `description`,
+  regla 2 de la puerta de entrada, bloque de la Fase 3, menciones en los bucles de revisión y de qa,
+  resumen de cierre, transiciones de estado y la regla «Cero dependencia de superpowers» —, así que la
+  cadena nativa pasa a ser el ÚNICO motor y el comando baja de 218 a 198 líneas; con él caen las
+  etiquetas «Modo A/Modo B» que quedaban colgando en `CLAUDE.md`, `docs/README.md` (+EN),
+  `docs/FLOWS.md` (+EN, dos nodos del diagrama), `docs/CONVENTIONS.md` regla 8 (+EN),
+  `docs/agents/implementer.md`, `skills/debug-root-cause/SKILL.md`, `agent-kits/shared/README.md`,
+  `review-report.template.md` y la plantilla del `planner`; (3) las notas de atribución
+  (`export-skills.py`, `skill-index.py`, `rationalization-table.md`, `INSTALL` ES/EN, `observability`
+  ES/EN) describen el patrón por lo que es —«paquete multi-entorno de solo skills», «lo que puede ser
+  determinista no lo redacta el modelo»— sin nombrar a nadie y sin perder contenido técnico; (4) el
+  fixture de `test_skill_index.py` deja de citar un flag inexistente y, de paso, el recorte del hint
+  largo pasa a estar PROBADO (antes no lo estaba). Los registros fechados (ledgers cerrados del
+  roadmap, `ADR-008`, `LES-011`, los dos CHANGELOG) se conservan intactos: borrarlos sería falsificar
+  el registro.
 estado: completado        # borrador | en-progreso | completado | cancelado
 creado: 2026-09-04
 actualizado: 2026-09-07

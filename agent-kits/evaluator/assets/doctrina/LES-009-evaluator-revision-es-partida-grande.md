@@ -2,7 +2,7 @@
 id: LES-009
 tipo: leccion
 area: Estimación / calibración
-estado: aceptada (validada: revisión de dos lentes, 2026-08-20, intento 3)
+estado: aceptada (validada por revisión de dos lentes, 2026-08-20, intento 3)
 fuente: agents/evaluator.md (histórico de git)
 ---
 

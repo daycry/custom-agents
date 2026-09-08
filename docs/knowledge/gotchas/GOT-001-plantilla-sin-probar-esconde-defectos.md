@@ -2,7 +2,7 @@
 id: GOT-001
 tipo: gotcha
 area: Plantillas / revisión
-estado: aceptada (validada: revisión de dos lentes, 2026-08-20, intento 3)
+estado: aceptada (validada por revisión de dos lentes, 2026-08-20, intento 3)
 fuente: docs/roadmap/2026-08-12-plugin-dev/retro.md
 ---
 

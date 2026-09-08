@@ -1,7 +1,7 @@
 ---
 id: ADR-011
 titulo: Un rol, un dueño — agentes retirados y responsabilidades fusionadas
-estado: aceptada (validada: revisión de dos lentes, 2026-09-03, intento 2)
+estado: aceptada (validada por revisión de dos lentes, 2026-09-03, intento 2)
 fecha: 2026-09-03
 iniciativa: 2026-09-03-roles-and-jira-flow
 ---

@@ -2,7 +2,7 @@
 id: GOT-005
 tipo: gotcha
 area: Scripts / consola y codificación
-estado: aceptada (validada: usuario, 2026-09-03)
+estado: aceptada (validada por usuario, 2026-09-03)
 fuente: docs/roadmap/2026-09-03-windows-console/tasks.md (T-01/T-02/T-04/T-05, traceback del usuario en PowerShell)
 ---
 

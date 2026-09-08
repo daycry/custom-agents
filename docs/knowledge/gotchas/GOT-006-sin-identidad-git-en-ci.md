@@ -2,7 +2,7 @@
 id: GOT-006
 tipo: gotcha
 area: Tests / CI y fixtures
-estado: aceptada (validada: usuario, 2026-09-04)
+estado: aceptada (validada por usuario, 2026-09-04)
 fuente: docs/roadmap/2026-09-04-ci-sin-identidad-git/tasks.md (CI roja en `4a5bdd8` y `3569f5d`, reportada por el usuario)
 ---
 

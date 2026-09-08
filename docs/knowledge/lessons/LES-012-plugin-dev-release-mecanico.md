@@ -2,7 +2,7 @@
 id: LES-012
 tipo: leccion
 area: Proceso / desarrollo del plugin (release y distribución)
-estado: aceptada (validada: revisión de dos lentes, 2026-09-03, intento 2)
+estado: aceptada (validada por revisión de dos lentes, 2026-09-03, intento 2)
 fuente: docs/roadmap/2026-09-03-distribution/tasks.md (decisión del usuario tras el release v1.15.0 del 2026-09-02)
 ---
 

@@ -1,6 +1,16 @@
 ---
 tasks: roles-and-jira-flow
-descripcion: Un rol un dueño + ciclo Jira firmado por agente — (1) matriz de roles `docs/agents/ROLES.md` con los solapes resueltos (`pdfy` retirado, skill `discovery` absorbida por `analyst`, fronteras qa/unit-tests y reviewer/adversarial-review escritas) y guardarraíl heurístico de disparadores duplicados en el linter; (2) `jira-flow.py`: los 7 eventos del ciclo (arrancar · implementado · revision · gaps · aprobado · qa-verde · qa-rojo) como `ops` deterministas (etiqueta → transición → comentario → worklog) con el comentario ya renderizado desde `assets/comment-*.md` y FIRMADO por el agente (`ca-implementer`/`ca-reviewer`/`ca-qa`); (3) cableado en `implementer`, `adversarial-review` y `qa` + tabla única del ciclo en `/dev-cycle` Fase 3 + gaps al `implementer` por su brief (`task-brief.py`); (4) coste del ciclo medido y documentado en `docs/observability.md` (+EN); (5) integración, evals, ADR-011 y LES-014.
+descripcion: >
+  Un rol un dueño + ciclo Jira firmado por agente — (1) matriz de roles `docs/agents/ROLES.md` con los
+  solapes resueltos (`pdfy` retirado, skill `discovery` absorbida por `analyst`, fronteras
+  qa/unit-tests y reviewer/adversarial-review escritas) y guardarraíl heurístico de disparadores
+  duplicados en el linter; (2) `jira-flow.py`: los 7 eventos del ciclo (arrancar · implementado ·
+  revision · gaps · aprobado · qa-verde · qa-rojo) como `ops` deterministas (etiqueta → transición →
+  comentario → worklog) con el comentario ya renderizado desde `assets/comment-*.md` y FIRMADO por el
+  agente (`ca-implementer`/`ca-reviewer`/`ca-qa`); (3) cableado en `implementer`, `adversarial-review`
+  y `qa` + tabla única del ciclo en `/dev-cycle` Fase 3 + gaps al `implementer` por su brief
+  (`task-brief.py`); (4) coste del ciclo medido y documentado en `docs/observability.md` (+EN); (5)
+  integración, evals, ADR-011 y LES-014.
 estado: completado        # borrador | en-progreso | completado | cancelado
 creado: 2026-09-03
 actualizado: 2026-09-03

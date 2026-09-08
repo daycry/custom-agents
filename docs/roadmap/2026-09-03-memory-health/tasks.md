@@ -1,7 +1,16 @@
 ---
 tasks: memory-health
 changelog: Added        # override de la heurística de changelog-sync (la descripción menciona «retira», pero la iniciativa AÑADE piezas)
-descripcion: Memoria de sesión y salud del código — (1) `session-journal`: memoria EPISÓDICA sin MCP — hook `SessionEnd` que deja una entrada determinista en `docs/knowledge/journal/AAAA-MM-DD-<slug>.md` (fecha, iniciativa activa, ficheros tocados, tareas que cambiaron de estado, marcadores del meter) con idempotencia por `session_id`, y reinyección de la última entrada al arrancar/retomar (`session-context.sh`, ≤ 25 líneas); (2) skill `code-health` con `code-health.py` (duplicados por shingles, tamaño/anidamiento/funciones largas, hotspots por git log, TODO/FIXME con antigüedad; MD + JSON + `--baseline`); (3) skill `dependency-upgrade` con `deps-inventory.py` (manifiestos + lockfiles + `outdated` oficial si la herramienta está en PATH; clasificación patch/minor/major; spec de iniciativa «upgrade-…» para evaluator/planner); (4) integración, doc bilingüe, evals, ADR-010.
+descripcion: >
+  Memoria de sesión y salud del código — (1) `session-journal`: memoria EPISÓDICA sin MCP — hook
+  `SessionEnd` que deja una entrada determinista en `docs/knowledge/journal/AAAA-MM-DD-<slug>.md`
+  (fecha, iniciativa activa, ficheros tocados, tareas que cambiaron de estado, marcadores del meter)
+  con idempotencia por `session_id`, y reinyección de la última entrada al arrancar/retomar
+  (`session-context.sh`, ≤ 25 líneas); (2) skill `code-health` con `code-health.py` (duplicados por
+  shingles, tamaño/anidamiento/funciones largas, hotspots por git log, TODO/FIXME con antigüedad; MD +
+  JSON + `--baseline`); (3) skill `dependency-upgrade` con `deps-inventory.py` (manifiestos +
+  lockfiles + `outdated` oficial si la herramienta está en PATH; clasificación patch/minor/major; spec
+  de iniciativa «upgrade-…» para evaluator/planner); (4) integración, doc bilingüe, evals, ADR-010.
 estado: completado        # borrador | en-progreso | completado | cancelado
 creado: 2026-09-03
 actualizado: 2026-09-03

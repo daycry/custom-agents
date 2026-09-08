@@ -580,7 +580,49 @@ dependencies:
         code, out = run(tmp)
         assert code == 0 and "knowledge" not in out, out
 
-    print("test_lint_plugin: 36/36 OK")
+    # 37) Frontmatter que un parser YAML de verdad rechaza — lo que GitHub pinta como «Error in
+    #     user YAML: (<unknown>): mapping values not allowed in this context»: un escalar PLANO con
+    #     `: ` dentro, o un placeholder `{{X}}` (que YAML lee como mapa en flujo con clave no
+    #     escalar). Y lo que NO puede denunciar: bloque `>`, entrecomillado, valor que es SOLO un
+    #     comentario y colección en flujo (`tokens_reales: { … }` de los ledgers es válido).
+    #     El veredicto se cruzó con PyYAML (que no es dependencia del repo) sobre los 187 .md el
+    #     2026-09-08: coincide en todos.
+    rompen = [
+        'description: Hace X: y luego Y. Úsalo cuando el usuario diga "haz X".',
+        "estado: aceptada (validada: usuario, 2026-01-01)",
+        "design: {{SLUG}}",
+    ]
+    validos = [
+        'description: "Con dos puntos: pero entrecomillado."',
+        "otra_clave:                  # handoff: la spec se presupuesta con evaluator",
+        "tokens_reales: { entrada: 40, salida: 16, cache_lectura: 2091654 }",
+        "eur: 1.52                    # verificado con rates-verify (Opus 4.8; caché) el 2026-08-18",
+    ]
+    for linea in rompen:
+        with tempfile.TemporaryDirectory() as tmp:
+            body = AGENT_OK.format(name="alpha").replace("---\n# alpha", linea + "\n---\n# alpha")
+            make_plugin(tmp, {"alpha": body})
+            code, out = run(tmp)
+            assert code == 1, f"esperaba error con `{linea[:40]}`\n{out}"
+            assert "YAML inválido" in out or "mapa en flujo" in out, f"mensaje inesperado\n{out}"
+    for linea in validos:
+        with tempfile.TemporaryDirectory() as tmp:
+            body = AGENT_OK.format(name="alpha").replace("---\n# alpha", linea + "\n---\n# alpha")
+            make_plugin(tmp, {"alpha": body})
+            code, out = run(tmp)
+            assert "YAML inválido" not in out and "mapa en flujo" not in out, \
+                f"falso positivo con `{linea[:40]}`\n{out}"
+    # Y el bloque plegado `>`, que es el arreglo recomendado para textos largos.
+    with tempfile.TemporaryDirectory() as tmp:
+        body = AGENT_OK.format(name="alpha").replace(
+            'description: Hace algo útil. Úsalo cuando el usuario diga "haz X".',
+            'description: >\n  Hace X: y luego Y. Úsalo cuando el usuario diga "haz X".')
+        make_plugin(tmp, {"alpha": body})
+        code, out = run(tmp)
+        assert code == 0, f"el bloque `>` es el arreglo bueno; no puede fallar\n{out}"
+        assert "YAML inválido" not in out, out
+
+    print("test_lint_plugin: 37/37 OK")
 
 
 if __name__ == "__main__":

@@ -2,7 +2,7 @@
 id: GOT-003
 tipo: gotcha
 area: Confluence / staging
-estado: aceptada (validada: usuario, 2026-08-20)
+estado: aceptada (validada por usuario, 2026-08-20)
 fuente: docs/roadmap/2026-08-20-confluence-policy/tasks.md (gaps C1/C2) vía retro.md
 ---
 

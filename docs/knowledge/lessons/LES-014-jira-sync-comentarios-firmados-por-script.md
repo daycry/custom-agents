@@ -2,7 +2,7 @@
 id: LES-014
 tipo: leccion
 area: jira-sync / integración de gestión
-estado: aceptada (validada: revisión de dos lentes, 2026-09-03, intento 2)
+estado: aceptada (validada por revisión de dos lentes, 2026-09-03, intento 2)
 fuente: 2026-09-03-roles-and-jira-flow (T-02, T-03, T-04)
 ---
 

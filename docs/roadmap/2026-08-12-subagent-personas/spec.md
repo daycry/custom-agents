@@ -1,20 +1,16 @@
 ---
 spec: subagent-personas
-descripcion: Perfiles de dominio para el subagente de contexto fresco de /dev-cycle (C-08 de sdd-hardening) — el despacho elige una persona especializada (frontend, backend, base de datos, devops, tester…) según el tipo de la tarea, al estilo de los catálogos de wshobson/agents y LiorCohen/sdd, sin mantener 80 agentes: un catálogo corto de prompts de persona en el kit shared
+descripcion: >
+  Perfiles de dominio para el subagente de contexto fresco de /dev-cycle (C-08 de sdd-hardening) — el
+  despacho elige una persona especializada (frontend, backend, base de datos, devops, tester…) según
+  el tipo de la tarea, al estilo de los catálogos de wshobson/agents y LiorCohen/sdd, sin mantener 80
+  agentes: un catálogo corto de prompts de persona en el kit shared
 estado: implementada      # borrador | aprobada | implementada | obsoleta
 creado: 2026-08-12
 actualizado: 2026-08-12
-evaluacion: n/a — vía rápida (ledger ligero: tasks.md)
-plan: n/a — vía rápida (ledger ligero: tasks.md)
+evaluacion: n/a — vía rápida (ledger ligero, tasks.md)
+plan: n/a — vía rápida (ledger ligero, tasks.md)
 generacion:
-  inicio: 2026-08-12T08:20:00Z
-  fin: 2026-08-12T08:22:00Z
-  fuente: estimado          # spec borrador de backlog, redactada en la conversación de sdd-hardening
-  tokens_reales: null
-  eur: null
-  horas_ia: 0.05
-  duracion: 3m
-  ratio_usado: 300000
 ---
 
 # Perfiles de dominio para los subagentes de contexto fresco

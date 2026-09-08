@@ -1,7 +1,7 @@
 ---
 id: ADR-009
 titulo: Tiering de modelos configurable en dos capas (frontmatter + dev.json), resuelto por script
-estado: aceptada (validada: revisión de dos lentes, 2026-09-03, intento 2)
+estado: aceptada (validada por revisión de dos lentes, 2026-09-03, intento 2)
 fecha: 2026-09-03
 iniciativa: parity-core
 ---

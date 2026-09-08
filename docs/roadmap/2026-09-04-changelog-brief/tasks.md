@@ -1,6 +1,20 @@
 ---
 tasks: changelog-brief
-descripcion: Un bullet de CHANGELOG que se pueda leer. La skill `changelog-sync` generaba un bullet por tarea con la primera frase completa de la `Descripción` del ledger, escrita para el implementador y no para el CHANGELOG: medido sobre los 13 ledgers cerrados del repo (63 tareas), esa primera frase tenía mediana 447 y máximo 1.944 caracteres (37 de 63 por encima de 400), y el bullet completo mediana 660 y máximo 2.163 — por eso las notas de la v1.16.0 se escribieron A MANO. Se sustituye por una ESCALERA determinista: campo opcional `- **Changelog**: <una o dos frases>` en el bloque `### T-XX` (se usa tal cual; lo escribe quien CIERRA la tarea) → primera frase de la `Descripción` si cabe en `RESUMEN_MAX = 200` → oración principal (corte en el primer `:`, `;`, `—` o `(` de nivel superior, si se lee como idea completa) → SOLO el título más un puntero al ledger. Ningún camino trunca con `…`. Los ficheros clave bajan de 5 a 3 y el paréntesis desaparece cuando la tarea toca más de 6 (mostrar 3 de 20 hace creer que son todos). El empuje para que el campo se escriba: `changelog-sync.py --check` lista las tareas cerradas sin campo (aviso, sin tocar su exit code) y `ledger-lint.py` lo trata SIEMPRE como aviso y solo en adopción parcial. Este ledger es el primero que usa el campo.
+descripcion: >
+  Un bullet de CHANGELOG que se pueda leer. La skill `changelog-sync` generaba un bullet por tarea con
+  la primera frase completa de la `Descripción` del ledger, escrita para el implementador y no para el
+  CHANGELOG: medido sobre los 13 ledgers cerrados del repo (63 tareas), esa primera frase tenía
+  mediana 447 y máximo 1.944 caracteres (37 de 63 por encima de 400), y el bullet completo mediana 660
+  y máximo 2.163 — por eso las notas de la v1.16.0 se escribieron A MANO. Se sustituye por una
+  ESCALERA determinista: campo opcional `- **Changelog**: <una o dos frases>` en el bloque `### T-XX`
+  (se usa tal cual; lo escribe quien CIERRA la tarea) → primera frase de la `Descripción` si cabe en
+  `RESUMEN_MAX = 200` → oración principal (corte en el primer `:`, `;`, `—` o `(` de nivel superior,
+  si se lee como idea completa) → SOLO el título más un puntero al ledger. Ningún camino trunca con
+  `…`. Los ficheros clave bajan de 5 a 3 y el paréntesis desaparece cuando la tarea toca más de 6
+  (mostrar 3 de 20 hace creer que son todos). El empuje para que el campo se escriba:
+  `changelog-sync.py --check` lista las tareas cerradas sin campo (aviso, sin tocar su exit code) y
+  `ledger-lint.py` lo trata SIEMPRE como aviso y solo en adopción parcial. Este ledger es el primero
+  que usa el campo.
 estado: completado        # borrador | en-progreso | completado | cancelado
 creado: 2026-09-04
 actualizado: 2026-09-04

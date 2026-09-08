@@ -1,6 +1,15 @@
 ---
 tasks: distribution
-descripcion: Cerrar la distribución del plugin con la vía rápida — (1) exportación PORTABLE «solo skills» (`scripts/export-skills.py`: paquete agnóstico de Claude Code en formatos `claude`/`agents-md`/`cursor`, determinista, con `--check`, zip adjunto a la Release); (2) `release.py` completo (mueve `[Unreleased]`/`[Sin publicar]` a la sección de la versión en los dos CHANGELOG, corre lint+evals, comprueba copias manuales y modo 100644 de los `.sh`, `--dry-run`, tests sobre repo git temporal); (3) pulido de distribución (`displayName`/`keywords`/`tags` sincronizados con test, quickstart de 5 pasos + «¿Qué verás?» + «Comparado con superpowers» en README ES/EN, `CONTRIBUTING.md`, issue forms + PR template con copia manual vigilada); (4) doc, lección LES-012 y cierre.
+descripcion: >
+  Cerrar la distribución del plugin con la vía rápida — (1) exportación PORTABLE «solo skills»
+  (`scripts/export-skills.py`: paquete agnóstico de Claude Code en formatos
+  `claude`/`agents-md`/`cursor`, determinista, con `--check`, zip adjunto a la Release); (2)
+  `release.py` completo (mueve `[Unreleased]`/`[Sin publicar]` a la sección de la versión en los dos
+  CHANGELOG, corre lint+evals, comprueba copias manuales y modo 100644 de los `.sh`, `--dry-run`,
+  tests sobre repo git temporal); (3) pulido de distribución (`displayName`/`keywords`/`tags`
+  sincronizados con test, quickstart de 5 pasos + «¿Qué verás?» + «Comparado con superpowers» en
+  README ES/EN, `CONTRIBUTING.md`, issue forms + PR template con copia manual vigilada); (4) doc,
+  lección LES-012 y cierre.
 estado: completado        # borrador | en-progreso | completado | cancelado
 creado: 2026-09-03
 actualizado: 2026-09-03

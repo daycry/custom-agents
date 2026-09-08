@@ -2,7 +2,7 @@
 id: GOT-004
 tipo: gotcha
 area: Jira / conector
-estado: aceptada (validada: usuario, 2026-09-02)
+estado: aceptada (validada por usuario, 2026-09-02)
 fuente: docs/roadmap/2026-08-10-jira-granularity/tasks.md (T-08, dry-run PROJ-60) vía Notas de implementación
 ---
 

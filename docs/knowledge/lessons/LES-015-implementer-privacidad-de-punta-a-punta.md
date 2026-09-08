@@ -2,7 +2,7 @@
 id: LES-015
 tipo: leccion
 area: Proceso / revisión adversarial
-estado: aceptada (validada: usuario, 2026-09-08)
+estado: aceptada (validada por usuario, 2026-09-08)
 fuente: 2026-09-04-memory-retrieval/tasks.md#revisión-de-dos-lentes--intento-1-fase-4
 ---
 
