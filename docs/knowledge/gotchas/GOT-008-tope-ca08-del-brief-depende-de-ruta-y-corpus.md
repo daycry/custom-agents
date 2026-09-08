@@ -2,7 +2,7 @@
 id: GOT-008
 tipo: gotcha
 area: Memoria técnica / recuperación
-estado: propuesta
+estado: aceptada (validada: usuario, 2026-09-08)
 fuente: docs/roadmap/2026-09-04-memory-retrieval/retro.md (T-20/T-21: cuatro recortes del ledger; revisión F4 gap A3)
 ---
 

@@ -2,7 +2,7 @@
 id: GOT-007
 tipo: gotcha
 area: Tests / CI y fixtures
-estado: propuesta
+estado: aceptada (validada: usuario, 2026-09-08)
 fuente: docs/roadmap/2026-09-04-memory-retrieval/retro.md (T-21, gaps A1/B2 de la revisión de F5-F6)
 ---
 

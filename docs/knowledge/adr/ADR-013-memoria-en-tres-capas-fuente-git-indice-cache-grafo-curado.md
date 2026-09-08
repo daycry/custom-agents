@@ -1,7 +1,7 @@
 ---
 id: ADR-013
 titulo: Memoria técnica en tres capas — la fuente de verdad es el Markdown en git, el índice es una caché reconstruible y el grafo es curado, no cronológico
-estado: propuesta
+estado: aceptada (validada: usuario, 2026-09-08)
 fecha: 2026-09-08
 iniciativa: memory-retrieval
 ---
@@ -67,5 +67,7 @@ degradación, el índice pasaría de caché a requisito — se abriría entonces
 
 ## Estado
 
-`propuesta` — a validar por la revisión de dos lentes de `memory-retrieval` (Fases 5-6) o el usuario en la
-puerta. Pasa a `aceptada` cuando se valide; a `obsoleta` si una decisión posterior la reemplaza (enlazar aquí).
+`aceptada` — validada por el **usuario** el 2026-09-08, en la puerta de `/retro` de `memory-retrieval` (las
+Fases 5-6 se cerraron con su revisión de dos lentes sin gaps pendientes, y la retro corre después de esa puerta:
+por eso firma el usuario, `knowledge-write.md` §Autoría, promotor 2). Pasa a `obsoleta` si una decisión
+posterior la reemplaza (enlazar aquí a la que la sustituya).
