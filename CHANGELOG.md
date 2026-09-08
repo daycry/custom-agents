@@ -9,6 +9,8 @@ and versioning follows [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.19.0] - 2026-09-08
+
 ### Fixed
 
 - **Every `.md` frontmatter is valid YAML again (187/187), so GitHub stops showing "Error in user
@@ -512,6 +514,7 @@ Adoption of best practices from the top agent collections (reference agent colle
 
 Versions predating the introduction of this changelog: a bundle with the `nemesis`, `evaluator`, `planner`, `pdfy` and `qa` agents, and the shared `cybersecurity` and `to-pdf` skills. Packaged as a plugin + marketplace.
 
+[1.19.0]: https://github.com/daycry/custom-agents/releases/tag/v1.19.0
 [1.18.1]: https://github.com/daycry/custom-agents/releases/tag/v1.18.1
 [1.18.0]: https://github.com/daycry/custom-agents/releases/tag/v1.18.0
 [1.17.1]: https://github.com/daycry/custom-agents/releases/tag/v1.17.1
