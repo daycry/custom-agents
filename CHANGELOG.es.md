@@ -9,6 +9,8 @@ y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+## [1.18.0] - 2026-09-08
+
 ### Changed — iniciativa `sin-motor-externo` (2026-09-04)
 
 - **T-01 — El README dice lo que el plugin hace, no contra quién** El README ya no compara el plugin con otros: describe lo que hace y deja de ofrecer delegar la implementación en un motor externo. (`README.md`, `README.es.md`)
@@ -432,6 +434,7 @@ Adopción de las mejores prácticas de las colecciones top de agentes (coleccion
 
 Versiones anteriores a la introducción de este changelog: bundle con los agentes `nemesis`, `evaluator`, `planner`, `pdfy` y `qa`, y las skills compartidas `cybersecurity` y `to-pdf`. Empaquetado como plugin + marketplace.
 
+[1.18.0]: https://github.com/daycry/custom-agents/releases/tag/v1.18.0
 [1.17.1]: https://github.com/daycry/custom-agents/releases/tag/v1.17.1
 [1.17.0]: https://github.com/daycry/custom-agents/releases/tag/v1.17.0
 [1.16.0]: https://github.com/daycry/custom-agents/releases/tag/v1.16.0
