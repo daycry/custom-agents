@@ -1,6 +1,30 @@
 ---
 tasks: windows-console
-descripcion: Salida UTF-8 segura en toda consola — bug REAL reportado por el usuario en Windows/PowerShell (`python scripts/release.py 1.16.0` → `lint_plugin.py` revienta con `UnicodeEncodeError: 'charmap' codec can't encode characters` al imprimir `⚠️`, y `release.py` disfraza el crash como `changelog-sync --check: PENDIENTE`). (1) Los **27 scripts Python versionados con caracteres no ASCII** reconfiguran `sys.stdout`/`sys.stderr` a UTF-8 con `errors="replace"` al arrancar, con el snippet replicado LITERAL (siguen siendo standalone: el paquete portable y los agentes los invocan sueltos), test de regresión `tests/test_console_encoding.py` que descubre la lista dinámicamente y aviso del linter para el script futuro que traiga símbolos sin el snippet; (2) `release.py` distingue «el check FALLA» (exit 1 legítimo) de «el check NO SE PUDO EJECUTAR» (traceback / exit ≠ 0,1 / `Traceback` en stderr) y esto último BLOQUEA con las 3 últimas líneas de stderr; (3) doc ES/EN (`CONVENTIONS` regla 8, `plugin-dev`, `INSTALL`), gotcha `GOT-005` y fila en el índice de knowledge. (4) **T-04** cierra las dos mitades que faltaban del MISMO bug, encontradas por la revisión de dos lentes: el snippet cubre también `sys.stdin` (sin él, el guardrail del implementer dejaba de denegar en silencio ante cualquier contenido con emoji) y todo `.py` que capture a un hijo lo decodifica con `encoding="utf-8", errors="replace"` (sin eso el PADRE revienta donde antes daba su veredicto); más linter estructural con `ast`, criterio único compartido con la suite, descubridor a prueba de rutas citadas y fila del roadmap dentro de su tabla. (5) **T-05** cierra los gaps del intento 2 de la revisión: el criterio pasa a mirar también al que LEE (`no-ASCII en el fuente O lee de sys.stdin`, con `ast`), entra la 28.ª pieza (`pick_asset.py`, ASCII pura y lectora de stdin, cuyo fallo se presentaba como «no hay binario para tu plataforma»), la doc dice EXACTAMENTE la regla que el guardarraíl vigila, tres tests dejan de mentir (la comparación de veredictos solo mira lo versionado; el test del `except` mide sobre un script real y tiene su mutante; la salida degradada a ASCII falla en vez de saltarse) y los `python3 -c` de `hooks/` y `statusline/` reconfiguran con `PYTHONIOENCODING=utf-8:replace`.
+descripcion: >
+  Salida UTF-8 segura en toda consola — bug REAL reportado por el usuario en Windows/PowerShell
+  (`python scripts/release.py 1.16.0` → `lint_plugin.py` revienta con `UnicodeEncodeError: 'charmap'
+  codec can't encode characters` al imprimir `⚠️`, y `release.py` disfraza el crash como
+  `changelog-sync --check: PENDIENTE`). (1) Los **27 scripts Python versionados con caracteres no
+  ASCII** reconfiguran `sys.stdout`/`sys.stderr` a UTF-8 con `errors="replace"` al arrancar, con el
+  snippet replicado LITERAL (siguen siendo standalone: el paquete portable y los agentes los invocan
+  sueltos), test de regresión `tests/test_console_encoding.py` que descubre la lista dinámicamente y
+  aviso del linter para el script futuro que traiga símbolos sin el snippet; (2) `release.py`
+  distingue «el check FALLA» (exit 1 legítimo) de «el check NO SE PUDO EJECUTAR» (traceback / exit ≠
+  0,1 / `Traceback` en stderr) y esto último BLOQUEA con las 3 últimas líneas de stderr; (3) doc ES/EN
+  (`CONVENTIONS` regla 8, `plugin-dev`, `INSTALL`), gotcha `GOT-005` y fila en el índice de knowledge.
+  (4) **T-04** cierra las dos mitades que faltaban del MISMO bug, encontradas por la revisión de dos
+  lentes: el snippet cubre también `sys.stdin` (sin él, el guardrail del implementer dejaba de denegar
+  en silencio ante cualquier contenido con emoji) y todo `.py` que capture a un hijo lo decodifica con
+  `encoding="utf-8", errors="replace"` (sin eso el PADRE revienta donde antes daba su veredicto); más
+  linter estructural con `ast`, criterio único compartido con la suite, descubridor a prueba de rutas
+  citadas y fila del roadmap dentro de su tabla. (5) **T-05** cierra los gaps del intento 2 de la
+  revisión: el criterio pasa a mirar también al que LEE (`no-ASCII en el fuente O lee de sys.stdin`,
+  con `ast`), entra la 28.ª pieza (`pick_asset.py`, ASCII pura y lectora de stdin, cuyo fallo se
+  presentaba como «no hay binario para tu plataforma»), la doc dice EXACTAMENTE la regla que el
+  guardarraíl vigila, tres tests dejan de mentir (la comparación de veredictos solo mira lo
+  versionado; el test del `except` mide sobre un script real y tiene su mutante; la salida degradada a
+  ASCII falla en vez de saltarse) y los `python3 -c` de `hooks/` y `statusline/` reconfiguran con
+  `PYTHONIOENCODING=utf-8:replace`.
 estado: completado        # borrador | en-progreso | completado | cancelado
 creado: 2026-09-03
 actualizado: 2026-09-03

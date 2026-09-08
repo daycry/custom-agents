@@ -51,7 +51,7 @@ if [ ! -f "$SHARED/progress-report.py" ] && [ ! -f "$SHARED/skill-index.py" ]; t
   SHARED="${CLAUDE_PROJECT_DIR:-$PWD}/agent-kits/shared"
 fi
 if [ ! -f "$SHARED/progress-report.py" ] && [ ! -f "$SHARED/skill-index.py" ]; then
-  SHARED="$(find "${CLAUDE_PROJECT_DIR:-$PWD}/.claude" "${HOME:-}/.claude" -type d -path '*agent-kits/shared' 2>/dev/null | head -1)"
+  SHARED="$(find "${CLAUDE_PROJECT_DIR:-$PWD}/.claude" "${CLAUDE_PROJECT_DIR:-$PWD}/.codex" "${CLAUDE_PROJECT_DIR:-$PWD}/.opencode" "${HOME:-}/.claude" "${HOME:-}/.codex" "${HOME:-}/.config/opencode" -type d -path '*agent-kits/shared' 2>/dev/null | head -1)"
 fi
 [ -n "$SHARED" ] && [ -d "$SHARED" ] || exit 0
 

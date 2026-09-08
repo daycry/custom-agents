@@ -1,7 +1,7 @@
 ---
 id: ADR-013
 titulo: Memoria técnica en tres capas — la fuente de verdad es el Markdown en git, el índice es una caché reconstruible y el grafo es curado, no cronológico
-estado: aceptada (validada: usuario, 2026-09-08)
+estado: aceptada (validada por usuario, 2026-09-08)
 fecha: 2026-09-08
 iniciativa: memory-retrieval
 ---

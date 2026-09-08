@@ -1,5 +1,8 @@
 ---
-description: Trae a tu carpeta local (docs/) el estado actual de Confluence, sin git. Sentido inverso de la publicación: baja Confluence → docs/, preservando tu frontmatter y avisando de conflictos antes de escribir. Pensado para PMs que no usan git. Usa la skill confluence-pull.
+description: >
+  Trae a tu carpeta local (docs/) el estado actual de Confluence, sin git. Sentido inverso de la
+  publicación: baja Confluence → docs/, preservando tu frontmatter y avisando de conflictos antes de
+  escribir. Pensado para PMs que no usan git. Usa la skill confluence-pull.
 argument-hint: "(opcional) subcarpeta a traer, p. ej. 'roadmap'"
 ---
 

@@ -2,8 +2,8 @@
 id: GOT-008
 tipo: gotcha
 area: Memoria técnica / recuperación
-estado: aceptada (validada: usuario, 2026-09-08)
-fuente: docs/roadmap/2026-09-04-memory-retrieval/retro.md (T-20/T-21: cuatro recortes del ledger; revisión F4 gap A3)
+estado: aceptada (validada por usuario, 2026-09-08)
+fuente: docs/roadmap/2026-09-04-memory-retrieval/retro.md (T-20/T-21 — cuatro recortes del ledger; revisión F4 gap A3)
 ---
 
 ## El tope CA-08 del brief (`task-brief.py` ≤ 10.000) no es una constante: cambia con la ruta absoluta del repo y crece con `docs/knowledge/`

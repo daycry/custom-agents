@@ -28,6 +28,30 @@ Kit paths are resolved at runtime with a `find` over `$PWD/.claude` and `$HOME/.
 
 ---
 
+## Option 0 — The `npx` installer (Claude Code, Codex and OpenCode)
+
+If you are going to use the plugin in **Codex** or **OpenCode** — or in several at once — the short
+way is the installer. It detects the runtimes you have and lets you choose:
+
+```bash
+npx @daycry/custom-agents                                  # interactive menu
+npx @daycry/custom-agents install -p claude-code,codex,opencode
+npx @daycry/custom-agents install --all --scope user       # each runtime's global install
+npx @daycry/custom-agents install -p codex --dry-run       # the plan, writing nothing
+npx @daycry/custom-agents status                           # what is installed and where
+npx @daycry/custom-agents uninstall -p opencode            # remove what it installed, and only that
+```
+
+It is idempotent, it **merges** your JSON config instead of overwriting it, and it leaves a manifest
+(`.custom-agents-install.json`) with the exact list of files written so `uninstall` touches nothing
+else. Requires Node 18+ and installs no dependencies.
+
+**What works the same in each runtime and what degrades** (commands, hooks, guardrails, status line)
+is in [`INTEROP.md`](INTEROP.md) — the degradation table is required reading before assuming a hook
+or a guardrail is active outside Claude Code.
+
+---
+
 ## Option 1 — Try it in a project (quick)
 
 Link (or copy) the bundle as the target project's `.claude/`:

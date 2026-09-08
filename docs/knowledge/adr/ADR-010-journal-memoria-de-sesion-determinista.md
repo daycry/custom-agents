@@ -1,7 +1,7 @@
 ---
 id: ADR-010
 titulo: Journal de sesión como memoria episódica DETERMINISTA (hook SessionEnd); el hook ESCRIBE lo que no puede devolver — decisiones/pendientes del log crudo y resumen por IA opt-in (revisado 2026-09-08)
-estado: aceptada (validada: revisión de dos lentes, 2026-09-03, intento 2; revisada 2026-09-08 — memory-retrieval T-12/T-13, ver §Revisión)
+estado: aceptada (validada por revisión de dos lentes, 2026-09-03, intento 2; revisada 2026-09-08 — memory-retrieval T-12/T-13, ver §Revisión)
 fecha: 2026-09-03
 revisada: 2026-09-08
 iniciativa: memory-health

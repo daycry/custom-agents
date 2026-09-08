@@ -1,20 +1,16 @@
 ---
 spec: quick-implement
-descripcion: Skill auto-invocable por lenguaje natural que abre la VÍA RÁPIDA de /dev-cycle sin escribir el comando ("implementa X rápido", "hazme este cambio pequeño"). No duplica el método: delega en la vía rápida de commands/dev-cycle.md, su fuente única. Nace de una limitación real de Claude Code: los commands solo se disparan con la barra, las skills se activan por descripción
+descripcion: >
+  Skill auto-invocable por lenguaje natural que abre la VÍA RÁPIDA de /dev-cycle sin escribir el
+  comando ("implementa X rápido", "hazme este cambio pequeño"). No duplica el método: delega en la vía
+  rápida de commands/dev-cycle.md, su fuente única. Nace de una limitación real de Claude Code: los
+  commands solo se disparan con la barra, las skills se activan por descripción
 estado: implementada      # borrador | aprobada | implementada | obsoleta
 creado: 2026-08-13
 actualizado: 2026-08-13
-evaluacion: n/a — vía rápida (ledger ligero: tasks.md)
-plan: n/a — vía rápida (ledger ligero: tasks.md)
+evaluacion: n/a — vía rápida (ledger ligero, tasks.md)
+plan: n/a — vía rápida (ledger ligero, tasks.md)
 generacion:
-  inicio: 2026-08-13T11:20:31Z
-  fin: 2026-08-13T11:21:29Z
-  fuente: medido
-  tokens_reales: { entrada: 8, salida: 3031, cache_creacion: 6559, cache_lectura: 1715071 }
-  eur: 0.90                  # verificado con rates-verify (Opus 4.8; incluye caché) el 2026-08-18
-  horas_ia: 0.02
-  duracion: 1m                 
-  ratio_usado: 479326       # calibrado (mediana de CALIBRATION.md; re-derivado en la retro del 2026-08-18)
 ---
 
 # Vía rápida sin barra: skill `quick-implement`

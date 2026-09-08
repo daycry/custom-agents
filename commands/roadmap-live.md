@@ -15,7 +15,7 @@ real**: estado de cada issue y horas imputadas, por label. Requiere haber volcad
 2. **Detecta el entorno:**
    - **Cowork / escritorio (con artefactos):** localiza la plantilla y publícala como artefacto en vivo.
      ```bash
-     TPL="$(find "$PWD/.claude" "$HOME/.claude" -type f -path '*skills/roadmap-dashboard/assets/jira-live.template.html' 2>/dev/null | head -1)"
+     TPL="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type f -path '*skills/roadmap-dashboard/assets/jira-live.template.html' 2>/dev/null | head -1)"
      ```
      Copia la plantilla, sustituye `{{SERVER_SEARCH}}` (nombre completo `mcp__<uuid>__searchJiraIssuesUsingJql`), `{{CLOUD_ID}}`, `{{LABEL}}` y `{{TITULO}}`, y publícala con `create_artifact` (`mcp_tools=[searchJiraIssuesUsingJql]`). El artefacto lee en vivo al abrirse; el host ya trae botón de recarga.
    - **CLI / VS Code (sin artefactos):** haz la misma consulta por texto — `searchJiraIssuesUsingJql` con `jql = 'labels = "<LABEL>" ORDER BY status'`, `searchResultMode:"issues"`, `fields:["summary","status","timetracking","aggregatetimespent"]` — y muestra un resumen: nº de issues, % done, horas imputadas totales y una lista `clave · estado · horas`.

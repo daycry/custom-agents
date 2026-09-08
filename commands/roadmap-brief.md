@@ -12,7 +12,7 @@ y lo deja en un PDF presentable. Solo lectura del roadmap. Foco opcional: **$ARG
 ## Pasos
 1. **Reúne los datos** (solo lectura) con la skill `roadmap-dashboard`:
    ```bash
-   DASH="$(find "$PWD/.claude" "$HOME/.claude" -type f -path '*skills/roadmap-dashboard/scripts/build_dashboard.py' 2>/dev/null | head -1)"
+   DASH="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type f -path '*skills/roadmap-dashboard/scripts/build_dashboard.py' 2>/dev/null | head -1)"
    python3 "$DASH" --root docs/roadmap --json > /tmp/roadmap.json      # estado/presupuesto por iniciativa
    python3 "$DASH" --root docs/roadmap --metrics-md /tmp/metrics.md    # real vs estimado
    ```
@@ -26,7 +26,7 @@ y lo deja en un PDF presentable. Solo lectura del roadmap. Foco opcional: **$ARG
    - **Nota de método** al pie: cifras estimadas vs reales, y qué se imputa.
 3. **Exporta a PDF** con la skill **`to-pdf`**: `docs/roadmap/brief.pdf`.
 4. Presenta el PDF y resume en 2-3 líneas lo esencial (inversión, eficiencia, próximas apuestas).
-5. **Sincronizar con Confluence (opcional).** Aplica el paso compartido `"$SHAREDKIT/confluence-optin.md"` (skill `confluence-publish` con opt-in) sobre `docs/roadmap/brief.md` (el `.pdf` no entra en el espejo, no es `.md`). Localízalo con `SHAREDKIT="$(find "$PWD/.claude" "$HOME/.claude" -type d -path '*agent-kits/shared' 2>/dev/null | head -1)"`. Fallback si no está: invoca `confluence-publish` respetando su opt-in, sin bloquear el cierre; nunca sincronices `docs/security-scan/`.
+5. **Sincronizar con Confluence (opcional).** Aplica el paso compartido `"$SHAREDKIT/confluence-optin.md"` (skill `confluence-publish` con opt-in) sobre `docs/roadmap/brief.md` (el `.pdf` no entra en el espejo, no es `.md`). Localízalo con `SHAREDKIT="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type d -path '*agent-kits/shared' 2>/dev/null | head -1)"`. Fallback si no está: invoca `confluence-publish` respetando su opt-in, sin bloquear el cierre; nunca sincronices `docs/security-scan/`.
 
 ## Reglas
 - **Solo lectura del roadmap**; los únicos ficheros que creas son `brief.md`/`brief.pdf` (y los temporales).

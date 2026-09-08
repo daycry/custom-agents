@@ -1,7 +1,7 @@
 ---
 id: ADR-007
 titulo: Un hook de guardia (deny) solo vive en el frontmatter `hooks:` de un agente, nunca en `hooks/hooks.json`
-estado: aceptada (validada: revisión de dos lentes, 2026-09-02, intento 2)
+estado: aceptada (validada por revisión de dos lentes, 2026-09-02, intento 2)
 fecha: 2026-09-02
 iniciativa: 2026-09-02-deterministic-guardrails
 ---

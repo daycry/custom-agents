@@ -6,7 +6,7 @@
 
 # Parámetros de estimación — defaults compartidos
 
-> **Fuente única de config: `.claude/rates.json`.** Si existe (plantilla en `agent-kits/evaluator/templates/rates.example.json`), lee de ahí tarifa, precio de tokens, tipo de cambio, ratio de supervisión, margen y jornada — así `evaluator`, `planner` y `jira-sync` usan los mismos números. Localízala con `find "$PWD/.claude" "$HOME/.claude" -type f -path '*rates.json'`. La tabla siguiente es solo el **fallback** si no existe; si la creas o cambias, esos valores mandan.
+> **Fuente única de config: `.claude/rates.json`.** Si existe (plantilla en `agent-kits/evaluator/templates/rates.example.json`), lee de ahí tarifa, precio de tokens, tipo de cambio, ratio de supervisión, margen y jornada — así `evaluator`, `planner` y `jira-sync` usan los mismos números. Localízala con `find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type f -path '*rates.json'`. La tabla siguiente es solo el **fallback** si no existe; si la creas o cambias, esos valores mandan.
 
 | Parámetro | Default | Uso |
 |-----------|---------|-----|

@@ -1,6 +1,18 @@
 ---
 name: architect
-description: Diseña la ARQUITECTURA de una iniciativa antes de planificarla — a partir de una spec aprobada (y su evaluación si existe) explora el repo y produce docs/roadmap/<fecha>-<slug>/design.md con 2-3 OPCIONES de diseño comparadas con trade-offs (complejidad, riesgo, coste relativo, reversibilidad), criterios de decisión, recomendación, impacto en módulos/ficheros, riesgos y preguntas abiertas. La opción elegida la fija SOLO con la validación del usuario: orquestado (/pm-cycle, /dev-cycle) devuelve un resumen estructurado de opciones + recomendación y el orquestador presenta, recoge la elección y lo re-invoca con «elegida: O<n>»; manual (@architect) dialoga por trozos. Entonces escribe el ADR de la decisión (estado propuesta) y enlaza spec ↔ design ↔ plan. No estima (evaluator), no planifica (planner), no implementa (implementer). Úsalo cuando el usuario diga "diseña la arquitectura", "explora las opciones de diseño", "qué alternativas técnicas hay", "compara enfoques antes de planificar", o cuando /pm-cycle o /dev-cycle ofrezcan el paso de diseño tras el go.
+description: >
+  Diseña la ARQUITECTURA de una iniciativa antes de planificarla — a partir de una spec aprobada (y su
+  evaluación si existe) explora el repo y produce docs/roadmap/<fecha>-<slug>/design.md con 2-3
+  OPCIONES de diseño comparadas con trade-offs (complejidad, riesgo, coste relativo, reversibilidad),
+  criterios de decisión, recomendación, impacto en módulos/ficheros, riesgos y preguntas abiertas. La
+  opción elegida la fija SOLO con la validación del usuario: orquestado (/pm-cycle, /dev-cycle)
+  devuelve un resumen estructurado de opciones + recomendación y el orquestador presenta, recoge la
+  elección y lo re-invoca con «elegida: O<n>»; manual (@architect) dialoga por trozos. Entonces
+  escribe el ADR de la decisión (estado propuesta) y enlaza spec ↔ design ↔ plan. No estima
+  (evaluator), no planifica (planner), no implementa (implementer). Úsalo cuando el usuario diga
+  "diseña la arquitectura", "explora las opciones de diseño", "qué alternativas técnicas hay",
+  "compara enfoques antes de planificar", o cuando /pm-cycle o /dev-cycle ofrezcan el paso de diseño
+  tras el go.
 model: opus
 effort: high
 # tools: Write/Edit SOLO sobre design.md (+ enlace `design:` de spec/plan con Edit) y docs/knowledge/adr/ + su índice.
@@ -13,7 +25,7 @@ hooks:
     - matcher: "Write|Edit|MultiEdit|NotebookEdit|Bash"
       hooks:
         - type: command
-          command: 'f="${CLAUDE_PLUGIN_ROOT}/hooks/architect-guardrail.sh"; [ -f "$f" ] || f="$(find "${CLAUDE_PROJECT_DIR:-$PWD}/.claude" "${HOME:-}/.claude" -type f -path "*hooks/architect-guardrail.sh" 2>/dev/null | head -1)"; [ -f "$f" ] && exec bash "$f"; exit 0'
+          command: 'f="${CLAUDE_PLUGIN_ROOT}/hooks/architect-guardrail.sh"; [ -f "$f" ] || f="$(find "${CLAUDE_PROJECT_DIR:-$PWD}/.claude" "${CLAUDE_PROJECT_DIR:-$PWD}/.codex" "${CLAUDE_PROJECT_DIR:-$PWD}/.opencode" "${HOME:-}/.claude" "${HOME:-}/.codex" "${HOME:-}/.config/opencode" -type f -path "*hooks/architect-guardrail.sh" 2>/dev/null | head -1)"; [ -f "$f" ] && exec bash "$f"; exit 0'
 # Dependencias declaradas (convención del repo; ver docs/CONVENTIONS.md).
 dependencies:
   skills: []                 # ninguna skill compartida: el método (opciones + validación) vive aquí
@@ -54,8 +66,8 @@ usuario lo pide.
   Git destructivo también bloqueado; desactivable en `.claude/dev.json` `guardrails`.
 - **Plantilla y fragmentos (resolución sin rutas fijas, regla 5 de CONVENTIONS):**
   ```bash
-  ARCHKIT="$(find "$PWD/.claude" "$HOME/.claude" -type d -path '*agent-kits/architect' 2>/dev/null | head -1)"
-  SHAREDKIT="$(find "$PWD/.claude" "$HOME/.claude" -type d -path '*agent-kits/shared' 2>/dev/null | head -1)"
+  ARCHKIT="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type d -path '*agent-kits/architect' 2>/dev/null | head -1)"
+  SHAREDKIT="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type d -path '*agent-kits/shared' 2>/dev/null | head -1)"
   # plantilla en "$ARCHKIT/templates/design.md"; sin kit (instalación parcial): reproduce sus 7 secciones y avisa
   ```
 - **Estados de `design.md`:** `borrador` (opciones abiertas) · `aprobado` (opción validada por el usuario)

@@ -1,5 +1,6 @@
 ---
-description: <Una frase: qué orquesta este comando — la ve el usuario en el picker de />
+description: >
+  <Una frase: qué orquesta este comando — la ve el usuario en el picker de />
 argument-hint: "<obligatorio> [opcional] [--flag]"
 ---
 

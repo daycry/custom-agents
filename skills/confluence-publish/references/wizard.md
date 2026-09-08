@@ -14,7 +14,7 @@ Es lo primero, y se hace acompañando al usuario, no fallando en silencio:
 4. Cuando conecte, confírmalo con naturalidad: "Conectado ✅ a **<nombre del site>**." y sigue.
 5. Ahora localiza la config del proyecto:
    ```bash
-   CFG="$(find "$PWD/.claude" "$HOME/.claude" -type f -path '*confluence.json' 2>/dev/null | head -1)"
+   CFG="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type f -path '*confluence.json' 2>/dev/null | head -1)"
    ```
    - **Si existe** → **Modo rápido** (Paso 3-bis).
    - **Si no** → sigue al Paso 2.
@@ -50,7 +50,7 @@ artefacto (así todos usan el mismo).
 
 1. Localiza la plantilla sin depender del scope:
    ```bash
-   TPL="$(find "$PWD/.claude" "$HOME/.claude" -type f -path '*skills/confluence-publish/assets/tree-browser.template.html' 2>/dev/null | head -1)"
+   TPL="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type f -path '*skills/confluence-publish/assets/tree-browser.template.html' 2>/dev/null | head -1)"
    ```
 2. Resuelve los datos: `cloudId` (de `getAccessibleAtlassianResources`), `homepageId` del espacio elegido (viene en `getConfluenceSpaces`), la clave y el nombre del espacio, y el `DEFAULT_NAME` (nombre de la carpeta del proyecto).
 3. **Copia la plantilla y sustituye los marcadores** `{{SERVER}}` (el nombre completo `mcp__<uuid>__getConfluencePageDescendants` del conector conectado), `{{CLOUD_ID}}`, `{{HOME_ID}}`, `{{SPACE_KEY}}`, `{{SPACE_NAME}}`, `{{SPACE_INITIALS}}`, `{{DEFAULT_NAME}}`.

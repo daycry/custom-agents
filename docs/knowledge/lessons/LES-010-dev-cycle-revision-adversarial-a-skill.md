@@ -2,7 +2,7 @@
 id: LES-010
 tipo: leccion
 area: Proceso / revisión adversarial
-estado: aceptada (validada: revisión de dos lentes, 2026-09-02, intento 2)
+estado: aceptada (validada por revisión de dos lentes, 2026-09-02, intento 2)
 fuente: docs/roadmap/2026-09-02-adversarial-review/tasks.md (decisión del usuario) + tablas de revisión de 5 ledgers
 ---
 

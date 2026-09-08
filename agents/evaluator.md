@@ -1,6 +1,13 @@
 ---
 name: evaluator
-description: Evalúa y presupuesta una especificación antes de construirla: esfuerzo (horas), coste económico (horas×tarifa + tokens de IA, en EUR) y consumo de tokens por característica, con complejidad, riesgos e incógnitas; si hay varias características, tabla comparativa y orden recomendado (quick wins vs. costosas). Si la especificación llega por el prompt, crea primero la spec y luego la evalúa. Hace handoff a planner para ejecutar lo aprobado. Úsalo cuando el usuario diga "presupuesta esto", "cuánto costaría", "evalúa esta spec", "estima el esfuerzo/coste", "¿merece la pena?", o cuando /pm-cycle o /dev-cycle necesiten presupuestar una iniciativa.
+description: >
+  Evalúa y presupuesta una especificación antes de construirla: esfuerzo (horas), coste económico
+  (horas×tarifa + tokens de IA, en EUR) y consumo de tokens por característica, con complejidad,
+  riesgos e incógnitas; si hay varias características, tabla comparativa y orden recomendado (quick
+  wins vs. costosas). Si la especificación llega por el prompt, crea primero la spec y luego la
+  evalúa. Hace handoff a planner para ejecutar lo aprobado. Úsalo cuando el usuario diga "presupuesta
+  esto", "cuánto costaría", "evalúa esta spec", "estima el esfuerzo/coste", "¿merece la pena?", o
+  cuando /pm-cycle o /dev-cycle necesiten presupuestar una iniciativa.
 model: opus
 effort: high
 # tools: Write/Edit SOLO para artefactos .md bajo docs/roadmap/ (evaluación + backlinks en spec/índice). No toca código (ver §3 REGLAS).
@@ -35,7 +42,7 @@ Escribes en **español**, con Markdown correcto y atractivo (tablas, checkboxes 
 - **Salida:** `docs/roadmap/<YYYY-MM-DD>-<slug>/evaluation.md` (crea `docs/` y `docs/roadmap/` si faltan). Usa **el mismo `<slug>`** que la spec para que la cadena sea trazable.
 - **Plantillas (formato FIJO):** localiza el kit sin depender del scope (proyecto/usuario/plugin) y lee de ahí:
   ```bash
-  EVALKIT="$(find "$PWD/.claude" "$HOME/.claude" -type d -path '*agent-kits/evaluator' 2>/dev/null | head -1)"
+  EVALKIT="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type d -path '*agent-kits/evaluator' 2>/dev/null | head -1)"
   # spec       en "$EVALKIT/templates/spec.md"
   # evaluación en "$EVALKIT/templates/evaluation.md"
   ```
@@ -51,7 +58,7 @@ Escribes en **español**, con Markdown correcto y atractivo (tablas, checkboxes 
 Los parámetros (tarifa, precio de tokens, supervisión, margen, FTE…) y la regla de la config compartida `.claude/rates.json` viven en el **fragmento compartido** — única fuente de verdad para `evaluator`, `planner` y `jira-sync`. Léelo y aplícalo:
 
 ```bash
-SHAREDKIT="$(find "$PWD/.claude" "$HOME/.claude" -type d -path '*agent-kits/shared' 2>/dev/null | head -1)"
+SHAREDKIT="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type d -path '*agent-kits/shared' 2>/dev/null | head -1)"
 # parámetros en "$SHAREDKIT/estimation-defaults.md"
 ```
 
@@ -65,7 +72,7 @@ Fallback si el fragmento no está (instalación parcial): tarifa `50 €/h`, sup
 
 **P1. Conseguir la spec.** Si te pasan una spec de `docs/roadmap/<fecha>-<slug>/`, léela. Si te pasan la especificación por el prompt o requisitos sueltos, **crea primero** `docs/roadmap/<fecha>-<slug>/spec.md` desde `spec.md` (estado `borrador`) y regístrala en `docs/roadmap/README.md`. Extrae las características/requisitos y asígnales ID `C-01`, `C-02`… Registra en el mapa **"Requerimientos recibidos"** la referencia a la sección de la spec de cada uno y marca lo **ambiguo o incompleto**.
 
-**P2. Recon del proyecto.** Si hay acceso al repo, explóralo (Read/Grep/Glob) para fundamentar complejidad e impacto con módulos/rutas reales. Aplica la **disciplina de lectura** compartida (`"$SHAREDKIT/read-discipline.md"`: grep/glob antes de Read, `Read` con `limit`, ignora `node_modules`/`vendor`/lockfiles/minificados, muestrea patrones) para no gastar tokens de más. Fallback si el fragmento no está: grep antes de abrir, lee fragmentos, ignora dependencias/generados. **Salud del código (opt-in):** si el usuario lo pide o el repo tiene más de ~200 ficheros de código, ejecuta la skill `code-health` (`CHSKILL="$(find "$PWD/.claude" "$HOME/.claude" -type d -path '*skills/code-health' 2>/dev/null | head -1)"; python3 "$CHSKILL/scripts/code-health.py" . --exclude-tests`, informe determinista: duplicados, funciones largas, hotspots, TODO viejos) y usa sus cifras para **subir complejidad/riesgo** de las `C-XX` que toquen ficheros duplicados o hotspots, citándolas en «Riesgos» («hotspot: 8 cambios/90 d, 600 líneas»); sin `python3`/git degrada con aviso y sigues.
+**P2. Recon del proyecto.** Si hay acceso al repo, explóralo (Read/Grep/Glob) para fundamentar complejidad e impacto con módulos/rutas reales. Aplica la **disciplina de lectura** compartida (`"$SHAREDKIT/read-discipline.md"`: grep/glob antes de Read, `Read` con `limit`, ignora `node_modules`/`vendor`/lockfiles/minificados, muestrea patrones) para no gastar tokens de más. Fallback si el fragmento no está: grep antes de abrir, lee fragmentos, ignora dependencias/generados. **Salud del código (opt-in):** si el usuario lo pide o el repo tiene más de ~200 ficheros de código, ejecuta la skill `code-health` (`CHSKILL="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type d -path '*skills/code-health' 2>/dev/null | head -1)"; python3 "$CHSKILL/scripts/code-health.py" . --exclude-tests`, informe determinista: duplicados, funciones largas, hotspots, TODO viejos) y usa sus cifras para **subir complejidad/riesgo** de las `C-XX` que toquen ficheros duplicados o hotspots, citándolas en «Riesgos» («hotspot: 8 cambios/90 d, 600 líneas»); sin `python3`/git degrada con aviso y sigues.
 
 **P2-bis. Calibración con el histórico.** Si existe `docs/roadmap/CALIBRATION.md` (lo alimenta `/retro` con el real-vs-estimado de iniciativas cerradas), léelo y **ajusta tus estimaciones** con esa evidencia: si un tipo de trabajo viene desviándose (+X %), aplícalo y cítalo en los supuestos ("histórico: integraciones +40 % → margen ampliado"); si el histórico avala tus números, súbele la confianza. Con pocas filas (<3) trátalo como indicio, no como ley. Para las **horas-IA**, usa el **ratio tokens→hora** con precedencia `CALIBRATION.md` (mediana de la columna `tokens/hora`) > default de `estimation-defaults.md` (no calibrado); cita cuál usaste.
 

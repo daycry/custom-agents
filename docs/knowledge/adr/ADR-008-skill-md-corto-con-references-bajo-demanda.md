@@ -1,7 +1,7 @@
 ---
 id: ADR-008
 titulo: SKILL.md corto (≤ 200 líneas) + references/ con lectura bajo demanda
-estado: aceptada (validada: revisión de dos lentes, 2026-09-03, intento 2)
+estado: aceptada (validada por revisión de dos lentes, 2026-09-03, intento 2)
 fecha: 2026-09-03
 iniciativa: plan-and-diet
 ---

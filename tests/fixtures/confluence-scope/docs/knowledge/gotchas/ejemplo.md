@@ -1,7 +1,7 @@
 ---
 tipo: gotcha
 area: Fixture de test
-estado: aceptada (validada: usuario, 2026-08-20)
+estado: aceptada (validada por usuario, 2026-08-20)
 fuente: tests/test_confluence_scope.py
 ---
 

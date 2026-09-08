@@ -23,7 +23,7 @@ agente se salga de su rol).>
 ## Resolución del kit (si tiene agent-kits/<nombre>/)
 
 ```bash
-MIKIT="$(find "$PWD/.claude" "$HOME/.claude" -type d -path '*agent-kits/<nombre-kebab>' 2>/dev/null | head -1)"
+MIKIT="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type d -path '*agent-kits/<nombre-kebab>' 2>/dev/null | head -1)"
 # sin kit (instalación parcial): <fallback de una línea> y avisa — NUNCA bloquees
 ```
 

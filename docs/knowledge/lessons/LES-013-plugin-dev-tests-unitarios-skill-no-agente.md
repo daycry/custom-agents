@@ -2,7 +2,7 @@
 id: LES-013
 tipo: leccion
 area: Proceso / desarrollo del plugin (roles y elección de pieza)
-estado: aceptada (validada: revisión de dos lentes, 2026-09-03, intento 2)
+estado: aceptada (validada por revisión de dos lentes, 2026-09-03, intento 2)
 fuente: 2026-09-03-superiority (T-03, T-06); doctrina de roles validada en 2026-09-03-roles-and-jira-flow (ADR-011, caso 3)
 ---
 

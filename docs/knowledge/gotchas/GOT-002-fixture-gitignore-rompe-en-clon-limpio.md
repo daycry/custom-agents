@@ -2,7 +2,7 @@
 id: GOT-002
 tipo: gotcha
 area: Tests / fixtures
-estado: aceptada (validada: usuario, 2026-08-20)
+estado: aceptada (validada por usuario, 2026-08-20)
 fuente: docs/roadmap/2026-08-20-confluence-policy/tasks.md (gap I1) vía retro.md
 ---
 

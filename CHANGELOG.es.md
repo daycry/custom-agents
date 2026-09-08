@@ -9,6 +9,67 @@ y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Corregido
+
+- **Todo el frontmatter `.md` vuelve a ser YAML válido (187/187), así que GitHub deja de mostrar
+  «Error in user YAML: mapping values not allowed in this context».** Había 64 ficheros afectados —
+  6 agentes, 5 comandos/skills, 41 entradas de memoria, 10 artefactos del roadmap y la plantilla del
+  architect. La causa era siempre la misma: un escalar YAML *plano* con `: ` dentro. Cada arreglo se
+  eligió para que los parsers regex del propio repo sigan leyendo lo mismo: los textos largos pasan a
+  bloque plegado `>` (el estilo que ya usaban 12 skills, que conserva los disparadores entrecomillados
+  literales — las evals siguen en 135/135); `estado: aceptada (validada: X)` pasa a `(validada por X)`
+  en vez de entrecomillarse, porque `knowledge-find.py` lee el estado con
+  `re.match(r"\s*([a-záéíóú-]+)")` y una comilla inicial lo dejaría sin estado; y los placeholders de
+  plantilla se entrecomillan (`{{X}}` es un mapa en flujo para YAML). La celda del índice de
+  `docs/knowledge/README.md` —de donde `knowledge-find.py` lee el estado de verdad— se actualizó en la
+  misma pasada.
+- **`lint_plugin.py` gana la puerta que lo vigila, y el arreglo del parser que lo escondía.** El nuevo
+  `lint_frontmatter_yaml` denuncia el patrón exacto como ERROR con los tres arreglos válidos; se cruzó
+  con PyYAML sobre los 187 ficheros y coincide en todos (las colecciones en flujo tipo
+  `tokens_reales: { entrada: 40 }`, los valores que son solo comentario y los escalares entrecomillados
+  se aceptan correctamente). Aparte, `parse_frontmatter` NO plegaba los bloques `>`/`|` —devolvía
+  `">"`—, así que los chequeos de description del propio linter eran ciegos a cualquier description
+  plegada mientras `evals/check.py`, `skill-index.py` y `_frontmatter_plegado` sí plegaban: la misma
+  clave se leía distinta según quién la leyera.
+
+### Añadido
+
+- **El plugin se instala en Codex y OpenCode, no solo en Claude Code.** `scripts/export-interop.py`
+  traduce las piezas reales del repo al formato que lee cada runtime: Codex recibe un plugin nativo
+  (`.codex-plugin/plugin.json`, `.agents/plugins/marketplace.json`, agentes como `.toml` con
+  `model_reasoning_effort`, comandos como `/prompts:<nombre>` y un fichero de hooks con SOLO los
+  eventos que Codex dispara de verdad) y OpenCode recibe agentes y comandos con
+  `permission`/`temperature` más un adaptador de hooks en JS (`hooks/opencode-plugin.js`). Las skills
+  viajan sin traducir: su frontmatter `name` + `description` es ya lo que exigen los tres runtimes.
+  48 ficheros generados, deterministas, con `--check` en la CI y en `release.py` para que no se
+  publique una interop desincronizada.
+- **`npx @daycry/custom-agents` — instalador multi-proveedor con cero dependencias.** Menú
+  interactivo que marca los runtimes detectados, o `-p claude-code,codex,opencode` / `--all`, con
+  `--scope project|user`, `--dry-run`, `status`, `list` y `uninstall`. Es idempotente, **fusiona** tu
+  configuración JSON en vez de pisarla y apunta la lista exacta de ficheros que escribió, así que
+  `uninstall` borra esos y ni uno más: un fichero tuyo dentro de una de sus carpetas sobrevive, y tu
+  configuración también.
+- **`docs/INTEROP.md` (+ espejo en inglés) con la tabla de degradación.** Qué funciona igual, qué se
+  sustituye y qué se pierde en cada runtime — incluidos los dos huecos que importan: el hook de
+  guardia por agente de `implementer`/`architect` es un `deny` de Claude Code y fuera de ahí el
+  agente lo auto-comprueba con `guardrail-check.py`, y los avisos de progreso del ledger no llegan a
+  Codex porque solo dispara Pre/PostToolUse para `Bash`.
+
+### Cambiado
+
+- **El `find` de runtime que resuelve los kits conoce ahora seis raíces, dos por runtime** (regla 5 de
+  CONVENTIONS): `.claude`, `.codex` y `.opencode` en el proyecto, y después `~/.claude`, `~/.codex` y
+  `~/.config/opencode` — el directorio global de OpenCode no es `~/.opencode`. Ni Codex ni OpenCode
+  buscan kits bajo `.claude/`, así que sin esas raíces un plugin instalado en ellos encontraría sus
+  skills pero no su toolkit. Aplicado a las 88 ocurrencias de 56 piezas.
+- **Tres descriptions de skill caben ya en el tope de 1.024 caracteres de OpenCode**
+  (`api-contract`, `code-health`, `dependency-upgrade`): pasado ese límite OpenCode no avisa,
+  simplemente no carga la skill. Se recortó solo mecánica que ya vive en el cuerpo de la skill, ni un
+  disparador entrecomillado. Lo avisa el linter y lo falla `tests/test_export_interop.py`.
+- **`release.py` bumpea cinco manifiestos, no tres**, y añade `export-interop.py --check` a sus
+  puertas: los manifiestos de Codex y el `package.json` no pueden anunciar una versión que el plugin
+  no tiene.
+
 ## [1.18.1] - 2026-09-08
 
 ### Corregido
