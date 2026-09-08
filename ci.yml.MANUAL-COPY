@@ -17,7 +17,10 @@ jobs:
           python-version: "3.11"
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          # 22 = LTS activa. NO 21: nunca fue LTS y está EOL desde junio de 2024; y la 20
+          # llegó a EOL en abril de 2026. `engines` del paquete sigue en >= 18 (el
+          # instalador solo usa API de 16.7+/17+), pero lo que se PRUEBA aquí es la 22.
+          node-version: "22"
 
       - name: Instalar pytest
         run: pip install pytest
@@ -54,8 +57,11 @@ jobs:
         run: python scripts/export-interop.py --check
 
       - name: Suites de Node (instalador npx + adaptador de hooks de OpenCode)
-        # glob, no lista fija: cualquier tests/*.test.mjs nuevo entra solo en la CI
-        run: node --test "tests/*.test.mjs"
+        # glob, no lista fija: cualquier tests/*.test.mjs nuevo entra solo en la CI.
+        # SIN comillas a propósito: lo expande la shell. Entrecomillado lo tendría que expandir
+        # node, y eso solo lo sabe hacer a partir de Node 21 — la CI instala 20 (y `engines`
+        # declara >= 18), así que en local (Node 23) pasaba y aquí fallaba.
+        run: node --test tests/*.test.mjs
 
       - name: Sintaxis de todos los scripts Python
         run: |
