@@ -19,7 +19,7 @@ generacion:            # ventana compartida con spec.md · evaluation.md · task
 | | |
 |---|---|
 | **Fecha** | 2026-09-04 |
-| **Estado** | borrador |
+| **Estado** | completado |
 | **Tipo** | Nueva Funcionalidad |
 | **Prioridad** | Alta |
 | **Solicitante** | usuario (petición del 2026-09-04, tras publicar v1.16.0) |

@@ -18,7 +18,7 @@ generacion:            # ventana compartida con spec.md · improvement-plan.md �
 | | |
 |---|---|
 | **Fecha** | 2026-09-04 |
-| **Estado** | borrador |
+| **Estado** | completado |
 | **Prioridad global** | Alta |
 | **Solicitante** | usuario (petición del 2026-09-04, tras publicar v1.16.0) |
 | **Spec** | [`spec.md`](spec.md) |
