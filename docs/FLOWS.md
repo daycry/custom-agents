@@ -271,10 +271,15 @@ flowchart TD
 > Mientras `implementer`/subagentes trabajan, el usuario ve el avance sin que nadie lo redacte:
 > todo sale de `progress-report.py` sobre el **ledger canónico** (`tasks.md`). Los hooks
 > **informan, no deciden** (siempre exit 0). Detalle: [`observability.md`](observability.md).
-> **Journal de sesión** (memory-health): al terminar la sesión, `SessionEnd` deja una entrada
+> **Journal de sesión** (memory-health + memory-retrieval F4): en cada turno, `UserPromptSubmit` acumula el
+> texto del usuario en un log crudo no versionado (`.claude/session-prompts-<session_id>.log`, opt-out
+> `<private>`, secretos evidentes redactados); al terminar la sesión, `SessionEnd` deja una entrada
 > determinista en `docs/knowledge/journal/` (iniciativa activa, ficheros tocados, tareas que cambiaron
-> de estado, marcadores del meter); al arrancar/retomar, `SessionStart` la reinyecta compactada. Sin
-> resumen por IA: la salida de los hooks en `SessionEnd` se ignora por contrato (ADR-010).
+> de estado, marcadores del meter, y `decisiones`/`pendientes` extraídas SIN modelo de ese log); al
+> arrancar/retomar, `SessionStart` la reinyecta compactada. Resumen por IA **opt-in** (`sesion.resumen`),
+> degradando siempre: la salida de los hooks en `SessionEnd` sigue ignorándose por contrato — el hook no
+> devuelve, escribe (ADR-010 revisado 2026-09-08). Lo que se repite en ≥ 2 sesiones lo propone
+> `journal.py candidatas` como lección `propuesta` por la puerta de `/retro`.
 
 ```mermaid
 flowchart LR
@@ -284,8 +289,11 @@ flowchart LR
     H2 -->|"systemMessage: iniciativas activas"| U
     SS["sesión: startup · resume · compact"] --> H3["hook SessionStart<br/>session-context.sh"]
     H3 -->|"additionalContext: índice de piezas (≤ 45 líneas, caché por hash)<br/>+ retoma ≤ 15 líneas (tarea en-progreso)<br/>+ journal ≤ 25 líneas (solo startup · resume)"| C(["🧠 contexto de Claude"])
-    SE["sesión termina: exit · /clear · logout"] --> H4["hook SessionEnd<br/>session-journal.sh (timeout 20)"]
-    H4 -->|"journal.py write (idempotente por session_id)"| J[("docs/knowledge/journal/<br/>AAAA-MM-DD-slug.md")]
+    UP["turno del usuario"] --> H5["hook UserPromptSubmit<br/>user-prompt-capture.sh (timeout 5)"]
+    H5 -->|"journal.py capture (sin stdout, exit 0; opt-out private; secretos redactados)"| LOG[(".claude/session-prompts-sid.log<br/>no versionado · 0600 · purga 30 d")]
+    SE["sesión termina: exit · /clear · logout"] --> H4["hook SessionEnd<br/>session-journal.sh (timeout 45)"]
+    LOG -->|"decisiones/pendientes sin modelo · resumen IA opt-in"| H4
+    H4 -->|"journal.py write (idempotente por session_id, atómico)"| J[("docs/knowledge/journal/<br/>AAAA-MM-DD-slug.md")]
     J -->|"journal.py latest --n 2"| H3
     FM[("frontmatters<br/>commands · skills · agents")] --> SI["skill-index.py<br/>(dev.json sesion.indice)"]
     SI --> H3

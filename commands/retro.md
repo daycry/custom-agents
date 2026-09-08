@@ -8,6 +8,11 @@ argument-hint: "<slug o carpeta de la iniciativa cerrada>"
 Cuando una iniciativa termina (plan `completado`, spec `implementada`), esto convierte su
 experiencia en **datos de calibración** para estimar mejor las próximas. Iniciativa: **$ARGUMENTS**.
 
+> **Puerta de cierre (memory-retrieval T-17, spec CA-23).** `/dev-cycle` Fase 6 no declara una iniciativa cerrada sin esta
+> retro: su paso 8 ejecuta `python3 "$SHAREDKIT/retro-gate.py" docs/roadmap/<fecha>-<slug>`, que exige `retro.md` con
+> frontmatter y la fila de la iniciativa en `CALIBRATION.md` (exit 1 si falta algo, con el comando para arreglarlo).
+> Aquí no se automatiza *escribir* la retro —las causas las escribe quien las conoce—, solo *exigirla*.
+
 ## Pasos
 1. **Localiza y valida** la carpeta `docs/roadmap/<fecha>-<slug>/`. Si el plan no está `completado`, dilo y para (la retro es de iniciativas cerradas).
 2. **Extrae los números** con la skill `roadmap-dashboard` (`--json`, campos `progreso` y `generacion` de esa iniciativa): horas humanas/IA/supervisión y tokens **real vs est**, el coste de `evaluation.md`, y los **tokens medidos** (bloques `generacion:` de los artefactos + mediciones por tarea si las hubo). Calcula desviaciones.

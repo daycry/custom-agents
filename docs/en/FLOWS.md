@@ -273,10 +273,15 @@ flowchart TD
 > While `implementer`/subagents work, the user sees progress without anyone writing it up:
 > everything comes from `progress-report.py` over the **canonical ledger** (`tasks.md`). Hooks
 > **inform, they never decide** (always exit 0). Details: [`observability.md`](observability.md).
-> **Session journal** (memory-health): when the session ends, `SessionEnd` leaves a deterministic
-> entry under `docs/knowledge/journal/` (active initiative, files touched, tasks whose state changed,
-> meter markers); on startup/resume, `SessionStart` re-injects it compacted. No AI summary: hook output
-> on `SessionEnd` is ignored by contract (ADR-010).
+> **Session journal** (memory-health + memory-retrieval F4): on every turn, `UserPromptSubmit` appends the
+> user's text to a raw, unversioned log (`.claude/session-prompts-<session_id>.log`, `<private>` opt-out,
+> obvious secrets redacted); when the session ends, `SessionEnd` leaves a deterministic entry under
+> `docs/knowledge/journal/` (active initiative, files touched, tasks whose state changed, meter markers,
+> and `decisiones`/`pendientes` extracted WITHOUT a model from that log); on startup/resume, `SessionStart`
+> re-injects it compacted. AI summary is **opt-in** (`sesion.resumen`) and always degrades: hook output on
+> `SessionEnd` is still ignored by contract — the hook does not return, it writes (ADR-010 revised
+> 2026-09-08). Whatever repeats across ≥ 2 sessions is proposed by `journal.py candidatas` as a `propuesta`
+> lesson through the `/retro` gate.
 
 ```mermaid
 flowchart LR
@@ -286,8 +291,11 @@ flowchart LR
     H2 -->|"systemMessage: active initiatives"| U
     SS["session: startup · resume · compact"] --> H3["SessionStart hook<br/>session-context.sh"]
     H3 -->|"additionalContext: piece index (≤ 45 lines, hash-cached)<br/>+ resume ≤ 15 lines (in-progress task)<br/>+ journal ≤ 25 lines (startup · resume only)"| C(["🧠 Claude's context"])
-    SE["session ends: exit · /clear · logout"] --> H4["SessionEnd hook<br/>session-journal.sh (timeout 20)"]
-    H4 -->|"journal.py write (idempotent by session_id)"| J[("docs/knowledge/journal/<br/>YYYY-MM-DD-slug.md")]
+    UP["user turn"] --> H5["UserPromptSubmit hook<br/>user-prompt-capture.sh (timeout 5)"]
+    H5 -->|"journal.py capture (no stdout, exit 0; private opt-out; secrets redacted)"| LOG[(".claude/session-prompts-sid.log<br/>unversioned · 0600 · 30-day purge")]
+    SE["session ends: exit · /clear · logout"] --> H4["SessionEnd hook<br/>session-journal.sh (timeout 45)"]
+    LOG -->|"decisiones/pendientes without a model · opt-in AI summary"| H4
+    H4 -->|"journal.py write (idempotent by session_id, atomic)"| J[("docs/knowledge/journal/<br/>YYYY-MM-DD-slug.md")]
     J -->|"journal.py latest --n 2"| H3
     FM[("frontmatters<br/>commands · skills · agents")] --> SI["skill-index.py<br/>(dev.json sesion.indice)"]
     SI --> H3

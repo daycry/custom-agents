@@ -908,7 +908,8 @@ def _calibracion(project, hoy=None):
     que = "calibración (CALIBRATION.md)"
     arreglo = ("`/retro docs/roadmap/<fecha>-<slug>` de cada una: escribe su fila en CALIBRATION.md y recalibra el "
                "ratio tokens→hora que usan `evaluator` y `usage-meter.py` (la memoria episódica solo se vuelve "
-               "lección pasando por ahí)")
+               "lección pasando por ahí); el cierre de `/dev-cycle` (Fase 6, paso 8: `retro-gate.py`) no se declara "
+               "completo sin ella")
     if ultima is None:
         if pendientes:
             return [linea(AVISO, que, f"sin fila (o sin fichero) y {len(pendientes)} iniciativa(s) cerrada(s) sin retro: "
