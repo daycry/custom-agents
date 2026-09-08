@@ -320,6 +320,112 @@ def test_session_context_reinyecta_journal_en_resume_no_en_compact(tmp_path):
     assert rc == 0 and "Journal de sesión" not in un_json(out)["hookSpecificOutput"]["additionalContext"]
 
 
+# ------------------------------------------------------------ user-prompt-capture (T-11/T-12) ----
+
+def prompt_submit(proj, sid="s1", prompt="decidimos usar FTS5"):
+    """Payload oficial de UserPromptSubmit (hooks-guide.md, verificado 2026-09-08): campos comunes
+    (`session_id`, `cwd`, `transcript_path`) + `prompt` («UserPromptSubmit hooks get the `prompt` text»)."""
+    return {"hook_event_name": "UserPromptSubmit", "session_id": sid, "prompt": prompt, "cwd": str(proj),
+            "transcript_path": str(proj / "no-existe.jsonl")}
+
+
+def logs_capture(proj):
+    d = proj / ".claude"
+    return sorted(f.name for f in d.glob("session-prompts-*.log")) if d.is_dir() else []
+
+
+def test_user_prompt_capture_acumula_el_turno_sin_stdout_y_fuera_de_git(tmp_path):
+    """memory-retrieval T-11 (spec CA-15): el turno queda en .claude/session-prompts-<session_id>.log, el
+    hook sale 0 y SIN stdout (en este evento el texto plano de stdout se inyecta como contexto y un exit 2
+    borraría el prompt), y el fichero no entra en git (`*.log` del .gitignore del repo)."""
+    proj, _ = proyecto(tmp_path)
+    env = env_de(proj, tmp_path)
+    assert hook("user-prompt-capture.sh", prompt_submit(proj), env) == (0, "", "")
+    log = proj / ".claude" / "session-prompts-s1.log"
+    assert log.is_file() and "decidimos usar FTS5" in log.read_text(encoding="utf-8")
+    assert hook("user-prompt-capture.sh", prompt_submit(proj, prompt="segundo turno con ñ y 🎯"), env) == (0, "", "")
+    lineas = log.read_text(encoding="utf-8").splitlines()
+    assert len(lineas) == 2 and json.loads(lineas[1])["prompt"] == "segundo turno con ñ y 🎯"
+    assert logs_capture(proj) == ["session-prompts-s1.log"]
+    if shutil.which("git"):
+        r = subprocess.run(["git", "-C", ROOT, "check-ignore", "-v", ".claude/session-prompts-s1.log"],
+                           capture_output=True, text=True, encoding="utf-8", errors="replace")
+        assert r.returncode == 0 and "*.log" in r.stdout, r.stdout
+
+
+def test_user_prompt_capture_private_no_toca_el_log(tmp_path):
+    """spec CA-16: con `<private>` en el turno el log no cambia (mismo tamaño y mismo mtime) y exit 0."""
+    proj, _ = proyecto(tmp_path)
+    env = env_de(proj, tmp_path)
+    hook("user-prompt-capture.sh", prompt_submit(proj, prompt="turno normal"), env)
+    log = proj / ".claude" / "session-prompts-s1.log"
+    os.utime(log, (1_000_000_000, 1_000_000_000))
+    antes = log.stat()
+    assert hook("user-prompt-capture.sh", prompt_submit(proj, prompt="<private> mi clave es 123"), env) == (0, "", "")
+    despues = log.stat()
+    assert (antes.st_size, antes.st_mtime) == (despues.st_size, despues.st_mtime)
+    assert "123" not in log.read_text(encoding="utf-8")
+    assert hook("user-prompt-capture.sh", prompt_submit(proj, sid="s9", prompt="<private> x"), env) == (0, "", "")
+    assert logs_capture(proj) == ["session-prompts-s1.log"]                 # el primer turno privado ni crea el log
+
+
+def test_user_prompt_capture_payload_roto_sin_session_id_o_repo_ajeno_exit_0_sin_escribir(tmp_path):
+    proj, _ = proyecto(tmp_path)
+    env = env_de(proj, tmp_path)
+    assert hook("user-prompt-capture.sh", "", env) == (0, "", "")
+    assert hook("user-prompt-capture.sh", "no es json", env) == (0, "", "")
+    assert hook("user-prompt-capture.sh", {"hook_event_name": "UserPromptSubmit", "prompt": "x"}, env) == (0, "", "")
+    assert hook("user-prompt-capture.sh", {"hook_event_name": "UserPromptSubmit", "session_id": "s1"}, env) == (0, "", "")
+    assert logs_capture(proj) == []
+    ajeno = tmp_path / "ajeno"
+    ajeno.mkdir()
+    (ajeno / "a.txt").write_text("x", encoding="utf-8")
+    assert hook("user-prompt-capture.sh", prompt_submit(ajeno), env_de(ajeno, tmp_path)) == (0, "", "")
+    assert sorted(os.listdir(ajeno)) == ["a.txt"]                            # ni .claude/: no siembra nada
+    (proj / ".claude" / "dev.json").write_text('{"sesion": {"journal": false}}', encoding="utf-8")
+    assert hook("user-prompt-capture.sh", prompt_submit(proj), env) == (0, "", "")
+    assert logs_capture(proj) == []                                          # journal apagado ⇒ captura apagada
+
+
+def test_user_prompt_capture_sin_python3_silencio(tmp_path):
+    proj, _ = proyecto(tmp_path)
+    assert hook("user-prompt-capture.sh", prompt_submit(proj), env_de(proj, tmp_path, sin_python=True)) == (0, "", "")
+    assert logs_capture(proj) == []
+
+
+def test_hooks_json_registra_user_prompt_submit_y_ningun_post_tool_use_de_captura():
+    """El hook está en hooks.json bajo UserPromptSubmit (sin matcher: el evento no lo admite), con timeout
+    ≤ 30 s (el default oficial de este evento), y NO se registra ningún PostToolUse de captura."""
+    data = json.load(open(os.path.join(HOOKS, "hooks.json"), encoding="utf-8"))["hooks"]
+    grupos = data["UserPromptSubmit"]
+    hooks_ups = [h for g in grupos for h in g["hooks"]]
+    assert any("hooks/user-prompt-capture.sh" in h["command"] for h in hooks_ups)
+    assert all(h.get("timeout", 30) <= 30 for h in hooks_ups)
+    assert not any("matcher" in g for g in grupos)
+    otros = [h["command"] for ev, gs in data.items() if ev != "UserPromptSubmit" for g in gs for h in g["hooks"]]
+    assert not any("user-prompt-capture" in c for c in otros)
+
+
+def test_session_journal_con_log_crudo_escribe_decisiones_y_pendientes(tmp_path):
+    """memory-retrieval T-12 (spec CA-17), de punta a punta por los dos hooks: los turnos capturados por
+    UserPromptSubmit acaban en la entrada que escribe SessionEnd como `decisiones`/`pendientes` no vacías;
+    repetir el cierre con la misma session_id no duplica la entrada."""
+    proj, _ = proyecto(tmp_path)
+    env = env_de(proj, tmp_path)
+    for p in ("Decidimos usar FTS5 para el índice.", "Queda pendiente la CI en Windows.", "implementa la T-03"):
+        assert hook("user-prompt-capture.sh", prompt_submit(proj, prompt=p), env) == (0, "", "")
+    assert hook("session-journal.sh", session_end(proj), env) == (0, "", "")
+    assert len(entradas_journal(proj)) == 1
+    texto = (proj / "docs" / "knowledge" / "journal" / entradas_journal(proj)[0]).read_text(encoding="utf-8")
+    assert "- Decidimos usar FTS5 para el índice." in texto and "- Queda pendiente la CI en Windows." in texto
+    assert 'resumen: "Decidimos usar FTS5 para el índice."' in texto and "turnos: 3" in texto
+    assert hook("session-journal.sh", session_end(proj), env)[0] == 0 and len(entradas_journal(proj)) == 1
+    # otra sesión sin log crudo → entrada honesta con listas vacías (no se cruzan sesiones)
+    assert hook("session-journal.sh", session_end(proj, sid="s2"), env)[0] == 0
+    otra = [f for f in entradas_journal(proj) if 'session_id: "s2"' in (proj / "docs" / "knowledge" / "journal" / f).read_text(encoding="utf-8")]
+    assert otra and "decisiones: []" in (proj / "docs" / "knowledge" / "journal" / otra[0]).read_text(encoding="utf-8")
+
+
 # ------------------------------------------- session-context · memoria del área activa (T-06) ----
 
 def _knowledge(proj, n_extra=0):

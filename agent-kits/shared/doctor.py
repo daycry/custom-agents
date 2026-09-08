@@ -82,7 +82,8 @@ BACKTICK_RE = re.compile(r"`([^`]+)`")
 DEV_BOOLES = ("tdd", "worktree", "subagentes", "constitucion", "statusline")
 DEV_LENTES = ("auto", "siempre", "nunca")
 DEV_GUARDRAIL_REGLAS = ("alcance", "ramaPrincipal", "git")
-DEV_SESION_CLAVES = ("indice", "journal", "memoria")   # memoria: bloque (4) de session-context.sh (T-06)
+DEV_SESION_CLAVES = ("indice", "journal", "memoria", "captura", "resumen")   # memoria: bloque (4) de session-context.sh (T-06);
+                                                                              # captura/resumen: log crudo del turno y resumen por IA opt-in (memory-retrieval T-11/T-13)
 DEV_CLAVES = set(DEV_BOOLES) | {"guardrails", "revision", "sesion", "modelos", "tests"}
 
 JIRA_OBLIGATORIOS = ("cloudId", "granularidad", "assignee", "alCubrirJornada")
