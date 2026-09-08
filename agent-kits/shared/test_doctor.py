@@ -176,6 +176,20 @@ def test_dev_json_sesion_memoria_es_vocabulario_conocido(tmp_path):
     assert [l for l in lineas(inf2, doctor.ERROR) if l["que"] == "dev.json `sesion.memoria`"]
 
 
+def test_dev_json_sesion_captura_y_resumen_son_vocabulario_conocido(tmp_path):
+    """`sesion.captura` (opt-out del log crudo de UserPromptSubmit) y `sesion.resumen` (resumen por IA opt-in),
+    memory-retrieval T-11/T-13, NO deben salir como clave desconocida; un valor no booleano sí es ❌ y el
+    arreglo de `sesion` mal formado nombra las claves nuevas (revisión F4, Lente A gap 6)."""
+    inf = diag(proyecto(tmp_path, dev__json={"sesion": {"captura": False, "resumen": True}}))
+    assert not lineas(inf, doctor.ERROR) and not lineas(inf, doctor.AVISO)
+    inf2 = diag(proyecto(tmp_path / "b", dev__json={"sesion": {"captura": "no", "resumen": 1}}))
+    assert [l for l in lineas(inf2, doctor.ERROR) if l["que"] == "dev.json `sesion.captura`"]
+    assert [l for l in lineas(inf2, doctor.ERROR) if l["que"] == "dev.json `sesion.resumen`"]
+    inf3 = diag(proyecto(tmp_path / "c", dev__json={"sesion": "si"}))
+    err = [l for l in lineas(inf3, doctor.ERROR) if l["que"] == "dev.json `sesion`"]
+    assert err and "captura" in err[0]["arreglo"] and "resumen" in err[0]["arreglo"]
+
+
 def test_hook_con_script_inexistente_es_error(tmp_path):
     plug = plugin(tmp_path, script_existe=False)
     inf = diag(proyecto(tmp_path), plug)

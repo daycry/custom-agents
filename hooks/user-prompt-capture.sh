@@ -7,9 +7,12 @@
 # escribe y quien lo lee son el mismo módulo): tope por turno CAPTURA_MAX_CHARS, tope por fichero
 # LOG_MAX_BYTES (se conservan los últimos turnos) y purga de logs con más de LOG_RETENCION_DIAS días.
 # Opt-out por turno: la etiqueta `<private>` en cualquier parte del turno → el log NO se toca (ni se crea,
-# ni mtime, ni tamaño). Opt-out por proyecto: `.claude/dev.json` → {"sesion": {"journal": false}} (sin
-# journal no hay para qué capturar) o {"sesion": {"captura": false}}. Solo escribe en proyectos con RASTRO
-# del plugin (mismo criterio que el journal, T-fix1): en un repo ajeno no siembra ni `.claude/`.
+# ni mtime, ni tamaño) y ese turno tampoco sale de la transcripción al cerrar. Opt-out por proyecto:
+# `.claude/dev.json` → {"sesion": {"journal": false}} (sin journal no hay para qué capturar) o
+# {"sesion": {"captura": false}}. Privacidad (revisión F4, Lente C): los secretos evidentes se REDACTAN antes
+# de escribir (`journal.py redactar`), el log nace 0600 (POSIX) y `capture` siembra `.claude/.gitignore` con
+# `session-prompts-*.log` para que el log no entre en git en un proyecto consumidor. Solo escribe en proyectos
+# con RASTRO del plugin (mismo criterio que el journal, T-fix1): en un repo ajeno no siembra ni `.claude/`.
 # NO se registra ningún PostToolUse: solo el turno del usuario (decisión del usuario: lo demás es ruido y coste).
 # INFORMA (escribe a disco), no decide: siempre exit 0 y SIN stdout — en UserPromptSubmit el stdout en texto
 # plano se INYECTA como contexto de Claude y un exit 2 BLOQUEA Y BORRA el prompt del usuario.
