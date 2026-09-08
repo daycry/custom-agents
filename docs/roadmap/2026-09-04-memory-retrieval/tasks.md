@@ -1,8 +1,8 @@
 ---
 tasks: memory-retrieval
-estado: en-progreso       # borrador | en-progreso | completado | cancelado — Fases 1-3 completadas (2026-09-07); Fases 4-6 pendientes
+estado: en-progreso       # borrador | en-progreso | completado | cancelado — Fases 1-4 completadas (F1-3: 2026-09-07 · F4: 2026-09-08); Fases 5-6 pendientes
 creado: 2026-09-04
-actualizado: 2026-09-07
+actualizado: 2026-09-08
 generacion:            # ventana compartida con spec.md · evaluation.md · improvement-plan.md (se cuenta UNA vez)
   inicio: 2026-09-04T09:00:00Z
   fin: 2026-09-04T09:40:00Z
@@ -30,9 +30,11 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 > **⚠️ Ledger canónico de progreso.** Este fichero es la **fuente única de verdad** del avance del plan. **Cualquier** implementador —el agente `implementer`, el chat principal, o un orquestador SDD externo— **debe** marcar aquí cada tarea (checkbox + estado) al completarla y actualizar el resumen. Los ledgers propios de otras herramientas son **espejo**, no fuente.
 
 > **Fases 1-3 completadas el 2026-09-07 (T-01…T-10, rama `feature/pendiente`)**, más **T-19** (cierre de
-> los 12 gaps del intento 1 de la revisión de dos lentes sobre esas fases, mismo día); las Fases 4-6 siguen
-> en `borrador`. El campo opcional `- **Changelog**:` lo escribe quien CIERRA cada tarea (`ADR-012`): las
-> once cerradas lo llevan y las ocho pendientes no (los avisos de adopción parcial de `ledger-lint`
+> los 12 gaps del intento 1 de la revisión de dos lentes sobre esas fases, mismo día). **Fase 4 completada
+> el 2026-09-08 (T-11…T-14)**, con el contrato oficial de `UserPromptSubmit` verificado y fechado antes de
+> arrancar; su revisión de dos lentes se traza al final de este ledger. Las Fases 5-6 siguen en
+> `borrador`. El campo opcional `- **Changelog**:` lo escribe quien CIERRA cada tarea (`ADR-012`): las
+> quince cerradas lo llevan y las cuatro pendientes no (los avisos de adopción parcial de `ledger-lint`
 > son la señal esperada hasta que se cierren). Las horas IA «reales» van marcadas `(estimado)`: el
 > `usage-meter` no puede leer la transcripción en este entorno.
 
@@ -45,11 +47,11 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 | Fase 1 — Recuperación | 4 | 4 | 100% | 0 / 9,0h | 0,60 (est.) / 0,51h | 0,16 (est.) / 0,13h | n/d / 245.000 |
 | Fase 2 — Llegada | 3 | 3 | 100% | 0 / 4,0h | 0,46 (est.) / 0,31h | 0,12 (est.) / 0,08h | n/d / 150.000 |
 | Fase 3 — Prueba de que se recorre | 4 | 4 | 100% | 0 / 4,0h | 0,76 (est.) / 0,27h | 0,20 (est.) / 0,07h | n/d / 128.000 |
-| Fase 4 — Captura episódica | 0 | 4 | 0% | 0 / 7,0h | 0 / 0,43h | 0 / 0,11h | 0 / 205.000 |
+| Fase 4 — Captura episódica | 4 | 4 | 100% | 0 / 7,0h | 0,75 (est.) / 0,43h | 0,19 (est.) / 0,11h | n/d / 205.000 |
 | Fase 5 — Que la doctrina viaje | 0 | 2 | 0% | 0 / 3,0h | 0 / 0,24h | 0 / 0,06h | 0 / 115.000 |
 | Fase 6 — Cerrar el bucle | 0 | 2 | 0% | 0 / 3,0h | 0 / 0,30h | 0 / 0,08h | 0 / 145.000 |
 | Revisión de dos lentes (transversal, línea propia) | — | — | — | 0 / 4,0h | 0 / 0,54h | 0 / 0,13h | 0 / 260.000 |
-| **TOTAL** | **11** | **19** | **58%** | **0 / 34,0h** | **1,82 (est.) / 2,60h** | **0,48 (est.) / 0,66h** | **n/d / 1.248.000** |
+| **TOTAL** | **15** | **19** | **79%** | **0 / 34,0h** | **2,57 (est.) / 2,60h** | **0,67 (est.) / 0,66h** | **n/d / 1.248.000** |
 
 > **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada (8 h). Ver `skills/jira-sync/SKILL.md`.
 >
@@ -452,9 +454,9 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 - **Archivos**: `agent-kits/shared/knowledge-find.py`, `tests/test_knowledge_find.py`, `agent-kits/shared/task-brief.py`, `agent-kits/shared/test_task_brief.py`, `hooks/session-context.sh`, `tests/test_hooks_shell.py`, `agent-kits/shared/doctor.py`, `agent-kits/shared/test_doctor.py`, `scripts/lint_plugin.py`, `tests/test_knowledge_index.py`, `evals/cases/agent-implementer.json`, `evals/cases/agent-evaluator.json`, `tests/test_memory_path.py`
 - **Changelog**: La consulta libre de la memoria técnica ignora las palabras sin contenido y ordena por título, área e ID antes que por el cuerpo: una pregunta en lenguaje natural trae lo que toca y una sin sentido no trae nada. El brief del subagente lleva la verificación una vez, sin rojos anteriores ni presupuesto, y cabe en 2.500 tokens; el arranque de sesión con varias iniciativas activas cuenta los aciertos una vez; `/doctor` valida el índice de memoria con el criterio exacto del linter.
 - **Verificación** (ejecutada 2026-09-07):
-  - `python3 -m pytest -q` → **`1315 passed`** (antes 1.292); igual con `GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null` y con `PYTHONIOENCODING=cp1252`.
-  - `lint_plugin.py` → `9 agentes · 0 errores · 3 avisos` · `tests/test_lint_plugin.py` → `36/36 OK` · `evals/check.py` → `38 ficheros · 135 casos · 0 errores` · `ledger-lint.py` (este ledger) → `0 incoherencias · 8 avisos` (Changelog de T-11…T-18) · `scope-check.py … --base 7ca3645` → `14 cambiado(s) · fuera de alcance (0)` · `export-skills.py --out <tmp>` + `--check <tmp>` → `108 ficheros · 0 problema(s)`; todos exit 0.
-  - Gap 1, antes → después: `knowledge-find.py "cual es el ratio de tokens por hora que uso para estimar" --json --limit 0` → `total 32`, las 9 lecciones de estimación en las posiciones 15-32 → **`total 14`**, tokens `["ratio","token","hora","estim"]`, las 9 en las posiciones **1-4 y 6-10** · `"de"` → 10 líneas → **0** · `"quiero saber si el pato vuela hacia marte" --limit 0` → 32 → **0** · `"consola windows cp1252"` → `GOT-005` primero (igual).
+  - `python3 -m pytest -q` → **`1315 passed`** (antes 1.292); igual sin config global de git y con `PYTHONIOENCODING=cp1252`.
+  - `lint_plugin.py` → `9 agentes · 0 errores · 3 avisos` · `tests/test_lint_plugin.py` → `36/36 OK` · `evals/check.py` → `135 casos · 0 errores` · `ledger-lint.py` → `0 incoherencias · 8 avisos` (Changelog de T-11…T-18) · `scope-check.py --base 7ca3645` → `fuera de alcance (0)` · `export-skills.py --out/--check` → `108 ficheros · 0 problema(s)`; todos exit 0.
+  - Gap 1, antes → después: `knowledge-find.py "cual es el ratio de tokens por hora que uso para estimar" --json --limit 0` → `total 32` (las 9 lecciones de estimación en 15-32) → **`total 14`**, tokens `["ratio","token","hora","estim"]`, las 9 en **1-4 y 6-10** · `"de"` → 10 → **0** · `"quiero saber si el pato vuela hacia marte"` → 32 → **0** · `"consola windows cp1252"` → `GOT-005` primero (igual).
   - Gap 2, mutante «bucle de recorte → render único»: test viejo verde; `test_memoria_el_recorte_al_tope_muerde_de_verdad` → **`assert 3008 <= 2400`**.
   - Gap 3, hook: 2 activas de la misma área (3 entradas) → `3 acierto(s)`, 3 líneas, sin «más» (antes `6 acierto(s)` y `… y 3 más`) · 3 activas → `… · 3 iniciativas activas, consultadas las 2 primeras; fuera: demo-c` · 41 entradas y 2 activas → `41 acierto(s)`, N = 41 − mostradas (antes 82).
   - Gap 4, caracteres de los 10 briefs antes → después (final, T-19 incluida: **9.931**): T-01 10.318→**7.809** · T-02 8.919→**6.735** · T-03 11.597→**8.243** · T-04 10.389→**7.798** · T-05 12.189→**9.164** · T-06 12.543→**9.398** · T-07 10.223→**8.116** · T-08 9.521→**7.310** · T-09 10.107→**7.841** · T-10 12.182→**8.834**; memoria de T-06 idéntica (1.636); bajo `cp1252` byte a byte igual.
@@ -462,7 +464,7 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
   - Gap 6: fila hacia `adr/ADR-099-fantasma.md` con `plugin_root` sin `lint_knowledge_index`: doctor de `e08fc05` → `✅ (comprobación local)`; HEAD → **`❌ … (ADR-099): enlaza a `adr/ADR-099-fantasma.md`, que no existe`**, exit 1.
   - Gap 10: `def celdas_md` una vez por script (3); tests de identidad de los bloques `--8<--` verdes.
   - Gap 11, mutante sin `["--tipo-tarea", tipo]`: `test_memory_path.py` de `7ca3645` → `7 passed`; el de HEAD → **`3 failed, 4 passed`**.
-  - Gap 12, re-medido (pegado en T-02/04/05/06): `--related ADR-010` **452** · `--related LES-001` **1.184** · `additionalContext` **4.276** (memoria 533) · `pytest` **1.315**.
+  - Gap 12: cifras re-medidas y pegadas en T-02/T-04/T-05/T-06 (`--related`, `additionalContext`, `pytest` 1.315).
 
 **Criterios de aceptación**
 - [x] Una lista de stopwords ES/EN para consulta libre, enrutado y `--related`; consulta sin tokens con contenido que casen → **0, exit 0**; título/área/ID por encima del cuerpo; las tres consultas con test (real y sintético).
@@ -486,135 +488,164 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 
 ## Fase 4 — Captura episódica
 
-**Estado**: borrador · **Estimado**: 7,0h · **Real**: — · **Coste est.**: 352 € · **Tokens est.**: 205.000
+**Estado**: completado (2026-09-08; revisión de dos lentes: ver la traza al final) · **Estimado**: 7,0h · **Real**: 0h humanas · 0,75h IA (est.) · 0,19h supervisión (est.) · **Coste est.**: 352 € · **Tokens est.**: 205.000
 
 > Cierra el hueco **3** de `analysis.md` §1.4 y **revisa `ADR-010`**. Es la fase más cara, la de peor
 > confianza y la única con un **contrato oficial sin verificar**: antes de arrancar hay que
 > comprobar en la doc oficial si `UserPromptSubmit` trae `session_id` y **anotar la fecha**, como
 > hizo `memory-health` con `SessionEnd`.
+>
+> ✅ **Contrato verificado el 2026-09-08** (`code.claude.com/docs/en/hooks-guide.md` §Hook input, leída
+> completa; `hooks.md` llegó truncada antes de la sección del evento, pero sus tablas de exit codes y
+> timeouts sí se leyeron): «Every event includes common fields like `session_id` […] `UserPromptSubmit`
+> hooks get the `prompt` text». Además: **sin matcher** («always fires on every occurrence»), timeout por
+> defecto **30 s** en este evento, el stdout en texto plano **se inyecta como contexto** de Claude, y un
+> exit 2 «**Blocks prompt processing and erases the prompt**». De ahí las tres reglas del hook: nunca
+> stdout, siempre exit 0, `timeout: 5` en `hooks.json`. El plan B del riesgo F4 (log por fecha + casar por
+> mtime) **no hizo falta**. Anotado también en el docstring de `hooks/user-prompt-capture.sh`.
+>
+> **Entorno de ejecución de esta fase.** Windows 11 con Git Bash; el `python3` del PATH del sistema es el
+> alias de la Microsoft Store, así que se creó un **venv** (`.venv/`, ignorado por git) con `python3.exe`
+> real y `pytest`, y todas las puertas se corrieron con `PATH="$PWD/.venv/Scripts:$PATH"`. Con eso la
+> suite de hooks pasó de 20 a 14 fallos preexistentes de Windows (`\` vs `/`, bit `+x`, `os.symlink` sin
+> privilegio en el helper `sin_python3`, rutas con espacios); **ninguno introducido por esta fase** salvo el
+> `sin_python3` nuevo de T-11, que cae en la misma familia. Las horas IA «reales» siguen marcadas
+> `(estimado)`: el `usage-meter` no puede leer la transcripción en este entorno.
 
 ### T-11 — Hook `UserPromptSubmit`: log crudo no versionado con opt-out
 
 - **Descripción**: hook nuevo que acumula el turno del usuario en `.claude/session-prompts-<session_id>.log`, **no versionado** (`*.log` ya está en `.gitignore`, verificado). Opt-out por etiqueta al estilo `<private>`: con la etiqueta puesta **el log no se toca** (ni mtime ni tamaño). Esto captura lo que hoy se pierde —las decisiones del usuario en la conversación— sin registrar cada `PostToolUse`, que es ruido y coste (decisión del usuario).
-- **Estado**: borrador
-- **Tiempo humano**: est. 2,5h · real —
-- **Tiempo IA (ejec.)**: est. 0,15h · real —
-- **Supervisión**: est. 0,04h (≈25 % IA) · real —
+- **Estado**: completado
+- **Tiempo humano**: est. 2,5h · real 0h (sin intervención humana en la ejecución)
+- **Tiempo IA (ejec.)**: est. 0,15h · real 0,20h (estimado: el usage-meter no puede leer la transcripción en este entorno)
+- **Supervisión**: est. 0,04h (≈25 % IA) · real 0,05h (estimado)
 - **Previsión IA**: 55k in / 15k out tok · 0,60 €
-- **Dependencias**: verificar el contrato oficial de `UserPromptSubmit` (¿llega `session_id`?)
+- **Dependencias**: verificar el contrato oficial de `UserPromptSubmit` (¿llega `session_id`?) — **verificado y fechado el 2026-09-08** (cabecera de la fase)
 - **Tipo**: devops
-- **Archivos**: `hooks/user-prompt-capture.sh`, `hooks/hooks.json`, `tests/test_hooks_shell.py`
-- **Verificación**:
-  - `echo '{"hook_event_name":"UserPromptSubmit","session_id":"s1","prompt":"decidimos usar FTS5"}' | bash hooks/user-prompt-capture.sh; echo $?` → 0, y el turno aparece en el log
-  - `git check-ignore -v .claude/session-prompts-s1.log` → una línea con la regla `*.log`
-  - con `"prompt":"<private> mi clave es …"` → el log **no cambia** (mismo tamaño y mismo mtime antes y después)
-  - `echo 'no es json' | bash hooks/user-prompt-capture.sh; echo $?` → 0 (nunca bloquea el turno)
-  - `python3 -m pytest -q tests/test_hooks_shell.py` → todos passed
-  - `python3 scripts/lint_plugin.py` → exit 0 (incluye el linter de `hooks.json`)
+- **Archivos**: `hooks/user-prompt-capture.sh`, `hooks/hooks.json`, `tests/test_hooks_shell.py`, `agent-kits/shared/journal.py`, `agent-kits/shared/test_journal.py`
+- **Changelog**: Nuevo hook `UserPromptSubmit` (`hooks/user-prompt-capture.sh` → `journal.py capture`) que acumula cada turno del usuario en `.claude/session-prompts-<session_id>.log`, no versionado, con opt-out por turno (`<private>`: el log no se toca) y por proyecto (`dev.json` `sesion.journal` o `sesion.captura` a `false`), tope por turno y por fichero, purga a 30 días y siempre exit 0 sin stdout.
+- **Verificación** (ejecutada 2026-09-08 en Windows con el venv; `CLAUDE_PLUGIN_ROOT`/`CLAUDE_PROJECT_DIR` = repo):
+  - `RED: tests/test_hooks_shell.py -k "user_prompt_capture or hooks_json_registra" → rc 127 (hooks/user-prompt-capture.sh no existe) y KeyError 'UserPromptSubmit' en hooks.json; agent-kits/shared/test_journal.py -k "capture or capturas" → argparse «invalid choice: 'capture'» (exit 2) · 2026-09-08`; GREEN después.
+  - `echo '{"hook_event_name":"UserPromptSubmit","session_id":"s1","prompt":"decidimos usar FTS5"}' | bash hooks/user-prompt-capture.sh; echo $?` → `exit=0`, sin stdout, y `.claude/session-prompts-s1.log` contiene `{"ts": "2026-09-08T08:37:52Z", "prompt": "decidimos usar FTS5"}`.
+  - `git check-ignore -v .claude/session-prompts-s1.log` → `.gitignore:27:*.log	.claude/session-prompts-s1.log`.
+  - Con `"prompt":"<private> mi clave es 1234"` → `exit=0`; `stat -c '%s %Y'` antes / después: `65 1788856672` / `65 1788856672` (**mismo tamaño y mismo mtime**); la clave no aparece en el log.
+  - `echo 'no es json' | bash hooks/user-prompt-capture.sh; echo $?` → `exit=0`, sin stdout. `echo '{…}' | PATH= /usr/bin/bash hooks/user-prompt-capture.sh; echo $?` → `exit=0` (sin `python3` → silencio).
+  - `python3 -m pytest -q tests/test_hooks_shell.py -k "user_prompt_capture or hooks_json_registra"` → **4 passed, 1 failed**; el fallo es `test_user_prompt_capture_sin_python3_silencio` por `os.symlink` sin privilegio en Windows (`WinError 1314`) dentro del helper `env_de(sin_python=True)` — la misma familia que los 5 `sin_python3` preexistentes de la suite; en CI (Linux) corre. `python3 -m pytest -q agent-kits/shared/test_journal.py -k "capture or capturas"` → **6 passed** (una línea JSON por turno y por sesión; `<private>` ni crea ni toca; payload roto/sin `session_id`/sin `prompt`/`session_id` hostil → nada; solo con rastro del plugin y respetando el opt-out; tope por turno, tope por fichero conservando los últimos y purga a 30 días; lector tolerante a líneas rotas).
+  - `python3 scripts/lint_plugin.py` → `9 agentes · 0 errores · 3 avisos`, exit 0 (incluye el linter de `hooks.json`: el `command` referencia un fichero que existe). `git ls-files -s hooks/` → `100755 hooks/user-prompt-capture.sh` · `100644 hooks/hooks.json`.
 
 **Criterios de aceptación**
-- [ ] El turno queda en el log, el fichero **no entra en git** y el hook sale **0** (spec CA-15).
-- [ ] Con `<private>`, el log **no se toca**: mismo tamaño y mismo mtime (spec CA-16).
-- [ ] Payload roto, sin `session_id`, sin `python3` o sin `.claude/` escribible → **exit 0** sin emitir nada. **Nunca bloquea un turno del usuario.**
-- [ ] El log es **rotativo o acotado**: un turno gigantesco no puede llenar el disco (tope por fichero, declarado en el hook).
-- [ ] **No** se registra ningún `PostToolUse`: no se añade ese evento a `hooks.json`.
-- [ ] `hooks.json` sigue en modo `100644` y el linter de hooks sigue verde (`LES-012`).
+- [x] El turno queda en el log, el fichero **no entra en git** y el hook sale **0** (spec CA-15).
+- [x] Con `<private>`, el log **no se toca**: mismo tamaño y mismo mtime (spec CA-16). *Y si es el primer turno de la sesión, ni se crea.*
+- [x] Payload roto, sin `session_id`, sin `python3` o sin `.claude/` escribible → **exit 0** sin emitir nada. **Nunca bloquea un turno del usuario.** *`cmd_capture` traga cualquier excepción; el hook redirige stdout/stderr a `/dev/null` y sale 0 pase lo que pase.*
+- [x] El log es **rotativo o acotado**: un turno gigantesco no puede llenar el disco (tope por fichero, declarado en el hook). *`CAPTURA_MAX_CHARS = 4000` por turno, `LOG_MAX_BYTES = 256 KiB` por fichero (se conservan los últimos turnos cortando por línea) y `LOG_RETENCION_DIAS = 30` de purga de logs de otras sesiones — declarados en `journal.py` y citados en el docstring del hook.*
+- [x] **No** se registra ningún `PostToolUse`: no se añade ese evento a `hooks.json`. *`test_hooks_json_registra_user_prompt_submit_y_ningun_post_tool_use_de_captura` lo afirma.*
+- [x] `hooks.json` sigue en modo `100644` y el linter de hooks sigue verde (`LES-012`).
 
 **Subtareas**
-- [ ] **Primero**: verificar el contrato oficial y anotar la fecha en el docstring del hook.
-- [ ] Test RED de los cuatro casos (feliz, opt-out, payload roto, sin escritura).
-- [ ] Escribir el hook y registrarlo en `hooks.json`.
+- [x] **Primero**: verificar el contrato oficial y anotar la fecha en el docstring del hook.
+- [x] Test RED de los cuatro casos (feliz, opt-out, payload roto, sin escritura).
+- [x] Escribir el hook y registrarlo en `hooks.json`.
 
-**Notas**: privacidad en repo **público**: el log lleva texto del usuario, así que no versionado + opt-out + nada en tests con datos reales.
+**Notas**: privacidad en repo **público**: el log lleva texto del usuario, así que no versionado + opt-out + nada en tests con datos reales. **Decisión de implementación:** el FORMATO del log (una línea JSON `{"ts","prompt"}` por turno) y sus topes viven en `journal.py capture` —el mismo módulo que lo lee en T-12— y el hook es un envoltorio fino como `session-journal.sh`; por eso `journal.py`/`test_journal.py` entran en `Archivos` (fuente única, sin acoplar dos ficheros a un formato). Solo se captura en proyectos con rastro del plugin (mismo criterio T-fix1 que el journal). Consecuencia colateral en `hooks.json`: el `timeout` del hook `SessionEnd` sube de 20 a 45 s por T-13 (sigue ≤ 60, el máximo oficial). **Deuda declarada para T-18:** `docs/FLOWS.md` (diagrama de hooks: falta `UserPromptSubmit` y dice `timeout 20`), `docs/observability.md` (tabla de hooks), `docs/CONVENTIONS.md` regla 9 (`sesion.captura`, `sesion.resumen`) y `commands/doctor.md`.
 
 ### T-12 — `SessionEnd` escribe él mismo `decisiones` y `pendientes`; `ADR-010` revisado
 
 - **Descripción**: hoy `decisiones: []` y `pendientes: []` están vacías **siempre** en modo hook, y el `resumen` es el primer prompt del usuario recortado a 160 caracteres. El hook `SessionEnd` pasa a **escribir él mismo** la entrada del journal con `decisiones` y `pendientes` extraídas del log crudo de T-11. Esto **revisa `ADR-010`**: su restricción —«el contrato de `SessionEnd` ignora la salida de los hooks»— es **CIERTA y se conserva**; lo que cambia es la conclusión, que era demasiado fuerte: el hook no necesita *devolver* el resumen, **puede escribirlo**.
-- **Estado**: borrador
-- **Tiempo humano**: est. 2,5h · real —
-- **Tiempo IA (ejec.)**: est. 0,16h · real —
-- **Supervisión**: est. 0,04h (≈25 % IA) · real —
+- **Estado**: completado
+- **Tiempo humano**: est. 2,5h · real 0h (sin intervención humana en la ejecución)
+- **Tiempo IA (ejec.)**: est. 0,16h · real 0,25h (estimado: el usage-meter no puede leer la transcripción en este entorno)
+- **Supervisión**: est. 0,04h (≈25 % IA) · real 0,06h (estimado)
 - **Previsión IA**: 60k in / 17k out tok · 0,67 €
 - **Dependencias**: T-11
 - **Tipo**: backend
-- **Archivos**: `agent-kits/shared/journal.py`, `hooks/session-journal.sh`, `agent-kits/shared/test_journal.py`, `docs/knowledge/adr/ADR-010-journal-memoria-de-sesion-determinista.md`
-- **Verificación**:
-  - con un log crudo poblado: `python3 agent-kits/shared/journal.py write --session-id s1 …` → la entrada trae `decisiones` y `pendientes` **no vacías**
-  - repetir la misma orden con `--session-id s1` → **una sola** entrada (idempotente), no dos
-  - con el log crudo vacío → `decisiones: []` **honesto** (no inventado) y exit 0
-  - `python3 -m pytest -q agent-kits/shared/test_journal.py` → todos passed
-  - lectura: `ADR-010` conserva su restricción como cierta y añade la revisión con fecha, en lugar de borrarla
+- **Archivos**: `agent-kits/shared/journal.py`, `hooks/session-journal.sh`, `agent-kits/shared/test_journal.py`, `docs/knowledge/adr/ADR-010-journal-memoria-de-sesion-determinista.md`, `docs/knowledge/README.md`, `tests/test_hooks_shell.py`
+- **Changelog**: El hook `SessionEnd` escribe él mismo `decisiones` y `pendientes`, extraídas sin modelo del log crudo de `UserPromptSubmit` (frases del usuario con marcador léxico ES/EN, deduplicadas y acotadas; sin log o sin marcadores → `[]` honesto), y el `resumen` sale del primer turno capturado; `ADR-010` queda revisado con fecha, no borrado: la restricción del contrato sigue cierta y lo que cambia es la conclusión (el hook no devuelve, escribe).
+- **Verificación** (ejecutada 2026-09-08; el demo en un proyecto temporal con `docs/roadmap/` como rastro):
+  - `RED: agent-kits/shared/test_journal.py -k "extrae or marcadores or log_vacio or deduplica" → AttributeError: module 'journal' has no attribute 'decisiones_de' (4 failed) · 2026-09-08`; GREEN después.
+  - Con 3 turnos capturados (`Revisa el ledger. Decidimos usar FTS5 para el índice, no embeddings.` · `Queda pendiente revisar la CI en Windows` · `implementa la T-03`): `python3 agent-kits/shared/journal.py write --root . --session-id s1 --reason other` → exit 0 y el frontmatter trae `resumen: "Revisa el ledger. Decidimos usar FTS5 para el índice, no embeddings."` · `resumen_por: determinista` · `turnos: 3` · `decisiones:` `- "Decidimos usar FTS5 para el índice, no embeddings."` · `pendientes:` `- "Queda pendiente revisar la CI en Windows"` (**no vacías**).
+  - Repetir la misma orden → `ls docs/knowledge/journal/ | grep -v README | wc -l` = **1** (idempotente).
+  - Otra sesión sin log (`--session-id s2`) → exit 0 y `turnos: 0` · `decisiones: []` (**honesto**, no inventado).
+  - `python3 -m pytest -q agent-kits/shared/test_journal.py` → **30 passed, 3 failed** en Windows; los 3 fallos son los preexistentes `test_write_sin_rastro…`, `test_write_crea_entrada…`, `test_index_regenera…` (aserción `docs/knowledge/journal/...` con `/` contra `os.path.relpath` que en Windows da `\`), ya catalogados antes de esta fase. `tests/test_hooks_shell.py -k con_log_crudo` → **1 passed** (de punta a punta por los dos hooks: los turnos capturados acaban como `decisiones`/`pendientes` de la entrada que escribe `SessionEnd`, `turnos: 3`, idempotente, y otra sesión sin log sale con `decisiones: []`).
+  - Lectura de `ADR-010`: frontmatter `estado: aceptada (validada: …, 2026-09-03, intento 2; revisada 2026-09-08 — memory-retrieval T-12/T-13, ver §Revisión)` + `revisada: 2026-09-08`; la sección Contexto está intacta; Decisión y Consecuencias llevan un puntero *(Revisado 2026-09-08 …)*; nueva sección «Revisión (2026-09-08 — memory-retrieval T-12/T-13)» con «Lo que sigue siendo cierto y se conserva» (las tres restricciones, literal), «Lo que se revisa» (la conclusión, en tres puntos T-11/T-12/T-13) y «Lo que no cambia» (no pasa a `obsoleta`). `python3 agent-kits/shared/knowledge-find.py --related ADR-010` → `ADR-010 · aceptada · Memoria técnica / hooks · …` (el token de estado sigue siendo `aceptada`).
+  - `python3 -m pytest -q tests/test_knowledge_index.py` → passed; `python3 scripts/lint_plugin.py` → `0 errores` (la biyección README↔ficheros sigue en pie con la fila de `ADR-010` actualizada). `tests/test_knowledge_find.py` → 85 passed, 3 failed: los 3 comparan `--show` byte a byte con el fichero y fallan por CRLF del checkout de Windows — **fallaban igual antes de este cambio** (comprobado con `git stash`), y ADR-010 (9.153 B) sigue por debajo de ADR-012 (10.844 B), la entrada más grande del tope CA-04.
 
 **Criterios de aceptación**
-- [ ] Con log crudo poblado, `decisiones` y `pendientes` salen **no vacías**; idempotente por `session_id` (spec CA-17).
-- [ ] Con log crudo vacío, `decisiones: []` **sin inventar nada**: la degradación es honesta, no decorativa.
-- [ ] El cierre de sesión **nunca se bloquea**: cualquier fallo cae a la entrada determinista de hoy con exit 0.
-- [ ] `ADR-010` queda **revisado, no borrado**: la restricción del contrato sigue escrita como cierta y con su fecha; lo que se revisa es la conclusión (spec CA-20).
-- [ ] La fila de `ADR-010` en `docs/knowledge/README.md` refleja el cambio, y `tests/test_knowledge_index.py` (T-04) sigue verde.
+- [x] Con log crudo poblado, `decisiones` y `pendientes` salen **no vacías**; idempotente por `session_id` (spec CA-17).
+- [x] Con log crudo vacío, `decisiones: []` **sin inventar nada**: la degradación es honesta, no decorativa. *Y `turnos: 0` en el frontmatter dice por qué.*
+- [x] El cierre de sesión **nunca se bloquea**: cualquier fallo cae a la entrada determinista de hoy con exit 0. *`capturas()` devuelve `[]` ante log ausente/ilegible y salta las líneas rotas; `main()` sigue tragando cualquier excepción con exit 0.*
+- [x] `ADR-010` queda **revisado, no borrado**: la restricción del contrato sigue escrita como cierta y con su fecha; lo que se revisa es la conclusión (spec CA-20).
+- [x] La fila de `ADR-010` en `docs/knowledge/README.md` refleja el cambio, y `tests/test_knowledge_index.py` (T-04) sigue verde.
 
 **Subtareas**
-- [ ] Test RED de los tres casos (log poblado, log vacío, doble escritura).
-- [ ] Extracción determinista del log crudo (sin modelo): decisiones marcadas y pendientes.
-- [ ] Reescribir la sección de `ADR-010` con la revisión y su fecha.
+- [x] Test RED de los tres casos (log poblado, log vacío, doble escritura).
+- [x] Extracción determinista del log crudo (sin modelo): decisiones marcadas y pendientes. *Marcadores declarados en `DECISION_RE`/`PENDIENTE_RE` (ES/EN), a nivel de frase; deliberadamente estrechos («luego»/«later» a secas no son marcadores): mejor `[]` honesto que ruido.*
+- [x] Reescribir la sección de `ADR-010` con la revisión y su fecha.
 
-**Notas**: el ADR **no** se pone `obsoleta`: sigue siendo doctrina en su parte cierta. Es exactamente el caso que la capa 2 (T-02) tiene que saber contar.
+**Notas**: el ADR **no** se pone `obsoleta`: sigue siendo doctrina en su parte cierta. Es exactamente el caso que la capa 2 (T-02) tiene que saber contar. **Cambios colaterales justificados:** `docs/knowledge/README.md` (la fila de ADR-010, exigida por el último criterio) y `tests/test_hooks_shell.py` (el test de punta a punta por los dos hooks) entran en `Archivos`; `hooks/session-journal.sh` gana la misma cadena de resolución de `journal.py` que `session-context.sh` (`CLAUDE_PLUGIN_ROOT` → repo del plugin → `find`; gap 9 del intento 1) para que dentro de este repo no caiga a la copia instalada 1.17.1, que no conoce `capture`. El `resumen` prefiere el primer turno del log (contrato oficial) al primer prompt de la transcripción (formato no oficial).
 
 ### T-13 — Resumen episódico por IA, opt-in y degradando siempre
 
 - **Descripción**: extracción por IA de `decisiones`/`pendientes` **opt-in** vía `.claude/dev.json` → `sesion.resumen: true`, invocando el CLI en headless (`claude -p`) exactamente como ya hace `evals/run.py`. **Sin CLI, sin clave o con el opt-in apagado → degrada al journal determinista de hoy y nunca bloquea.**
-- **Estado**: borrador
-- **Tiempo humano**: est. 1,0h · real —
-- **Tiempo IA (ejec.)**: est. 0,07h · real —
-- **Supervisión**: est. 0,02h (≈25 % IA) · real —
+- **Estado**: completado
+- **Tiempo humano**: est. 1,0h · real 0h (sin intervención humana en la ejecución)
+- **Tiempo IA (ejec.)**: est. 0,07h · real 0,15h (estimado: el usage-meter no puede leer la transcripción en este entorno)
+- **Supervisión**: est. 0,02h (≈25 % IA) · real 0,04h (estimado)
 - **Previsión IA**: 25k in / 7k out tok · 0,28 €
 - **Dependencias**: T-12
 - **Tipo**: devops
-- **Archivos**: `hooks/session-journal.sh`, `agent-kits/shared/journal.py`, `agent-kits/shared/test_journal.py`
-- **Verificación**:
-  - `python3 -m pytest -q agent-kits/shared/test_journal.py -k resumen` → todos passed **con el subprocess mockeado** (aquí nunca se lanza `claude`)
-  - sin `sesion.resumen` en `dev.json` → entrada determinista de hoy, exit 0
-  - con `sesion.resumen: true` y `claude` **fuera** del PATH → entrada determinista de hoy, exit 0, aviso solo por stderr
-  - con `dev.json` corrupto → entrada determinista de hoy, exit 0
-  - `PATH= bash hooks/session-journal.sh < payload.json; echo $?` → 0
+- **Archivos**: `hooks/session-journal.sh`, `agent-kits/shared/journal.py`, `agent-kits/shared/test_journal.py`, `hooks/hooks.json`, `agent-kits/shared/doctor.py`
+- **Changelog**: Resumen episódico por IA opt-in (`dev.json` `sesion.resumen: true`): tras dejar en disco la entrada determinista, `journal.py write` lanza `claude -p --bare --output-format json` con timeout de 25 s y re-escribe la misma entrada (`resumen_por: ia`); sin CLI, sin `ANTHROPIC_API_KEY`, con timeout, exit distinto de 0 o JSON ilegible degrada a la determinista con el motivo en `avisos` y exit 0, y el cierre de sesión no se entera.
+- **Verificación** (ejecutada 2026-09-08):
+  - `python3 -m pytest -q agent-kits/shared/test_journal.py -k "resumen_ia or escribir_sesion or cli_write"` → **4 passed**, con `runner`/`which`/`environ` inyectados (aquí **nunca** se lanza `claude`, como en `evals/test_evals.py`): opt-in apagado · sin CLI · sin clave · sin turnos · guardia anti-recursión → `None` + motivo y **cero llamadas**; camino feliz → `cmd = [claude, -p, <prompt>, --bare, --output-format, json, --max-turns, 1]`, `timeout=IA_TIMEOUT`, `encoding="utf-8", errors="replace"`, `env[CUSTOM_AGENTS_JOURNAL_IA]="0"`; exit ≠ 0, stdout no JSON, `result` sin JSON, `is_error`, `TimeoutExpired`, `OSError` → degradan con su motivo; JSON envuelto en bloque de código se extrae; tipos raros se normalizan; listas acotadas a `MAX_ITEMS` y resumen a 160.
+  - `RED: test_escribir_sesion_con_resumen_true… falló con 'ia' == 'manual' (resumen_por) · 2026-09-08` — el test cazó un **defecto real**: con `--enrich` manual el resumen no era de la IA pero se etiquetaba `resumen_por: ia`; corregido (solo se marca `ia` cuando el resumen lo puso la IA). GREEN después.
+  - Demo (proyecto temporal, log con `Decidimos usar FTS5…`): sin `sesion.resumen` en `dev.json` → entrada determinista, exit 0, sin aviso. Con `{"sesion": {"resumen": true}}` y `env -u ANTHROPIC_API_KEY` → stderr `journal: resumen IA: sin ANTHROPIC_API_KEY (`claude -p --bare` la exige) — entrada determinista`, exit 0, `resumen_por: determinista` y las `decisiones` deterministas intactas (en esta máquina `claude` sí está en PATH: el camino «sin clave» es el que se recorre de verdad; el «sin CLI» lo cubre el test con `which` inyectado). Con `dev.json` = `{ roto` → exit 0, sin aviso (opt-in apagado por defecto).
+  - `PATH= /usr/bin/bash hooks/session-journal.sh < payload.json; echo $?` → `exit=0` (sin `python3` → silencio).
+  - `agent-kits/shared/test_doctor.py` → 32 passed + el fallo preexistente del bit `+x` en Windows; `/doctor` acepta `sesion.captura` y `sesion.resumen` como claves conocidas (sin ese cambio avisaría «clave desconocida»).
 
 **Criterios de aceptación**
-- [ ] Los **tres** casos de degradación (opt-in apagado · sin CLI · sin clave) dan el journal determinista de hoy con **exit 0** y sin bloquear el cierre (spec CA-18).
-- [ ] Con el opt-in activo y el CLI disponible, `decisiones`/`pendientes` salen del resumen; si el JSON de vuelta no parsea, **degrada** en vez de escribir basura.
-- [ ] Hay un **timeout** declarado en la llamada headless: una sesión no se queda colgada al cerrar.
-- [ ] El test **no lanza `claude`**: subprocess mockeado, como `evals/test_evals.py`.
-- [ ] Ningún test nuevo necesita red ni clave de API.
+- [x] Los **tres** casos de degradación (opt-in apagado · sin CLI · sin clave) dan el journal determinista de hoy con **exit 0** y sin bloquear el cierre (spec CA-18). *Y dos más: sin turnos capturados no se llama al modelo, y una guardia por variable de entorno (`CUSTOM_AGENTS_JOURNAL_IA=0` en el hijo) impide la re-entrada aunque `--bare` ya salte los hooks.*
+- [x] Con el opt-in activo y el CLI disponible, `decisiones`/`pendientes` salen del resumen; si el JSON de vuelta no parsea, **degrada** en vez de escribir basura.
+- [x] Hay un **timeout** declarado en la llamada headless: una sesión no se queda colgada al cerrar. *`IA_TIMEOUT = 25` s; `hooks.json` sube el `timeout` del hook `SessionEnd` de 20 a 45 s (≤ 60, máximo oficial) para que quepa; y la entrada determinista se escribe ANTES de llamar, así que si Claude Code mata el hook, la bitácora ya está en disco.*
+- [x] El test **no lanza `claude`**: subprocess mockeado, como `evals/test_evals.py`.
+- [x] Ningún test nuevo necesita red ni clave de API. *El test de CLI real quita `ANTHROPIC_API_KEY` del entorno a propósito.*
 
 **Subtareas**
-- [ ] Test RED de los tres caminos de degradación con el subprocess mockeado.
-- [ ] Reutilizar el patrón de invocación de `evals/run.py` (no inventar otro).
-- [ ] Timeout y captura de errores con `encoding="utf-8", errors="replace"` (`GOT-005`).
+- [x] Test RED de los tres caminos de degradación con el subprocess mockeado. *Honestidad: los tests de T-13 se escribieron en la misma pasada que el código (no hubo un rojo previo separado por camino); el rojo real que dejaron fue el defecto de `resumen_por` de arriba.*
+- [x] Reutilizar el patrón de invocación de `evals/run.py` (no inventar otro). *`claude -p … --output-format json` + `runner` inyectable; aquí con `--bare` (salta hooks/plugins/MCP: sin recursión) y `--max-turns 1`.*
+- [x] Timeout y captura de errores con `encoding="utf-8", errors="replace"` (`GOT-005`).
 
-**Notas**: `ADR-010` decidió «sin resumen por IA»; esto no lo contradice: lo hace **opt-in** y lo escribe el hook, que es la parte que el ADR daba por imposible.
+**Notas**: `ADR-010` decidió «sin resumen por IA»; esto no lo contradice: lo hace **opt-in** y lo escribe el hook, que es la parte que el ADR daba por imposible. **Por qué `--bare`:** un `claude -p` sin `--bare` cargaría el plugin y sus hooks, y el `SessionEnd` de la sesión hija volvería a entrar aquí; además `--bare` exige `ANTHROPIC_API_KEY`, que es exactamente el caso «sin clave» de CA-18. El aviso de degradación va a `stderr` **y** a `avisos` de la entrada, para que quien la lea sepa por qué es determinista. `hooks.json` y `doctor.py` entran en `Archivos` por el `timeout` y las claves nuevas de `sesion`.
 
 ### T-14 — Promoción journal → candidata a lección por la puerta de `/retro`
 
 - **Descripción**: **la bisagra entre las dos velocidades, y lo que `claude-mem` no tiene.** Una entrada de journal cuyo patrón se repite entre sesiones se convierte en **candidata a lección** y entra por la puerta de `/retro` con `estado: propuesta` — no como lección aceptada: la curación sigue siendo la revisión de dos lentes o el usuario.
-- **Estado**: borrador
-- **Tiempo humano**: est. 1,0h · real —
-- **Tiempo IA (ejec.)**: est. 0,05h · real —
-- **Supervisión**: est. 0,01h (≈25 % IA) · real —
+- **Estado**: completado
+- **Tiempo humano**: est. 1,0h · real 0h (sin intervención humana en la ejecución)
+- **Tiempo IA (ejec.)**: est. 0,05h · real 0,15h (estimado: el usage-meter no puede leer la transcripción en este entorno; incluye el rediseño de la clave de patrón)
+- **Supervisión**: est. 0,01h (≈25 % IA) · real 0,04h (estimado)
 - **Previsión IA**: 20k in / 6k out tok · 0,23 €
 - **Dependencias**: T-12
 - **Tipo**: backend
 - **Archivos**: `agent-kits/shared/journal.py`, `commands/retro.md`, `agent-kits/shared/test_journal.py`
-- **Verificación**: `python3 agent-kits/shared/journal.py candidatas --root <fixture>` → lista las candidatas con `estado: propuesta`, exit 0 · con un patrón presente en **1** sola entrada → **no** se propone (el umbral es ≥ 2) · con el patrón en **≥ 2** entradas → se propone una vez, no una por entrada · `python3 -m pytest -q agent-kits/shared/test_journal.py -k candidatas` → todos passed · lectura: `commands/retro.md` describe la puerta y dice que la candidata nace `propuesta`
+- **Changelog**: `journal.py candidatas`: los patrones de `decisiones`/`pendientes` repetidos en al menos 2 entradas de sesiones distintas (raíces con contenido del tokenizador de `knowledge-find.py`, agrupadas por solape de Jaccard ≥ 0,6) salen como candidatas a lección con `estado: propuesta` y su evidencia; `/retro` (paso 2-quater) las muestra y solo el usuario las promueve — una candidata nunca nace `aceptada`.
+- **Verificación** (ejecutada 2026-09-08; el fixture es el demo de T-12/T-13 con una tercera sesión):
+  - `python3 agent-kits/shared/journal.py candidatas --root <demo>` con el patrón en **1** sola entrada (`Queda pendiente revisar la CI en Windows`) → **sin salida**, `exit=0`.
+  - Tras capturar en otra sesión `vale, queda pendiente revisar la CI de Windows` y cerrarla → `Candidatas a lección desde el journal (patrón repetido en ≥ 2 entradas de sesiones distintas; nacen `propuesta` — la curación sigue siendo la revisión de dos lentes o el usuario, por /retro):` · `- [propuesta] «Queda pendiente revisar la CI en Windows» · pendientes · 2 entradas: 2026-09-08 2026-09-08-sesion.md · 2026-09-08 2026-09-08-sesion-3.md`, `exit=0` — **una** candidata, no una por entrada. `--json` → `"estado": "propuesta"`, `"entradas": 2`, evidencia con `session_id` `s1` y `s3`. `--min 3` → sin salida, exit 0.
+  - `RED (diseño): la primera versión casaba el conjunto EXACTO de raíces y con esas dos frases devolvió NADA («vale» añade una raíz) · 2026-09-08` → la clave pasa a agrupación voraz por Jaccard ≥ `CANDIDATA_JACCARD = 0.6` sobre la primera formulación vista (cronológica, determinista), con test propio (`test_candidatas_agrupa_formulaciones_parecidas_por_jaccard_y_separa_las_distintas`). También hubo un rojo de datos de test: `Right contains one more item: ('decisiones', 2)` — «usar flock» no forma patrón porque `usar` es stopword del tokenizador (1 raíz < `CANDIDATA_MIN_RAICES`); el test pasó a «usar flock en el debounce» y quedó anotado.
+  - `python3 -m pytest -q agent-kits/shared/test_journal.py -k candidatas` → **3 passed** (umbral 1 vs 2; misma entrada repite → cuenta una; `--min`; `--json`; orden por nº de entradas; patrón corto («ok», «sí», «tests») no cuenta; filtro `--iniciativa`; Jaccard agrupa parecidas y separa distintas; nunca `aceptada`).
+  - Lectura: `commands/retro.md` paso **2-quater** describe la puerta (comando exacto, umbral ≥ 2 sesiones, evidencia, «una candidata nunca nace `aceptada`», solo se propone; si el usuario la da por buena entra en 4-bis con el mismo umbral y validación; sin python3 o sin el kit, sigue sin el paso); el antiguo segundo «2-bis» (journal) pasa a **2-ter** — nadie lo citaba por número.
 
 **Criterios de aceptación**
-- [ ] Un patrón en **≥ 2** entradas de journal aparece como candidata con `estado: propuesta` (spec CA-19).
-- [ ] Un patrón en **1** entrada **no** se propone: el umbral está escrito y probado.
-- [ ] Una candidata **nunca** nace `aceptada`: la puerta de curación no se puede saltar.
-- [ ] La candidata trae su **evidencia** (qué entradas de journal la sostienen), como cualquier entrada de `docs/knowledge/`.
-- [ ] Sin journal o con una sola entrada: **0 candidatas y exit 0**, sin ruido.
+- [x] Un patrón en **≥ 2** entradas de journal aparece como candidata con `estado: propuesta` (spec CA-19).
+- [x] Un patrón en **1** entrada **no** se propone: el umbral está escrito y probado. *`CANDIDATA_MIN = 2`; `--min` lo sube, nunca por debajo de 1.*
+- [x] Una candidata **nunca** nace `aceptada`: la puerta de curación no se puede saltar. *El script no escribe en `docs/knowledge/`: solo imprime; `/retro` la trata como propuesta del usuario.*
+- [x] La candidata trae su **evidencia** (qué entradas de journal la sostienen), como cualquier entrada de `docs/knowledge/`. *fecha · fichero · `session_id` · iniciativa por entrada.*
+- [x] Sin journal o con una sola entrada: **0 candidatas y exit 0**, sin ruido.
 
 **Subtareas**
-- [ ] Test RED del umbral (1 vs 2 entradas) y de la deduplicación.
-- [ ] Subcomando `candidatas` en `journal.py`.
-- [ ] Enganchar en la salida de `/retro` como propuesta, no como escritura automática.
+- [x] Test RED del umbral (1 vs 2 entradas) y de la deduplicación. *Honestidad: escritos en la misma pasada que el código; el rojo real fue el de diseño (clave exacta → Jaccard) descrito arriba.*
+- [x] Subcomando `candidatas` en `journal.py`.
+- [x] Enganchar en la salida de `/retro` como propuesta, no como escritura automática.
 
 **Notas**: esta tarea es la razón por la que la captura sin filtro no hace falta: se captura poco y se **asciende** lo que se repite.
 
