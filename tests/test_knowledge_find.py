@@ -221,14 +221,15 @@ def test_el_esquema_json_es_contrato(proyecto):
     """Lo consumen `task-brief.py` (T-05) y `session-context.sh` (T-06): cambiarlo rompe dos piezas."""
     code, out, _ = run("--area", "estimacion", "--json", "--root", str(proyecto))
     data = json.loads(out)
-    assert set(data) - {"indice_motivo"} == {"version", "indice", "consulta", "total", "aciertos"}, \
+    assert set(data) - {"indice_motivo"} == {"version", "indice", "corpus", "consulta", "total", "aciertos"}, \
         "`indice_motivo` es la única clave opcional (solo con `indice: degradado`)"
-    assert data["version"] == 1
+    assert data["version"] == 1 and data["corpus"] == "proyecto"          # `corpus`/`origen`: T-16 (la doctrina se distingue)
     assert data["indice"] in {"construido", "reconstruido", "cache", "degradado"}
     assert data["consulta"] == {"texto": "", "area": "estimacion", "tipo": "", "limit": 10}
     a = data["aciertos"][0]
     assert list(a) == ["id", "tipo", "estado", "estado_detalle", "area", "titular", "ruta", "linea",
-                       "puntuacion", "iniciativa", "fecha"]
+                       "puntuacion", "iniciativa", "fecha", "origen"]
+    assert a["origen"] == "proyecto"
     assert a["ruta"] == "docs/knowledge/lessons/LES-001-evaluator-revision-cara.md", "ruta relativa al proyecto"
     assert a["linea"].split(" · ")[0] == "LES-001" and len(a["linea"]) <= 120
     assert a["estado"] == "aceptada" and a["estado_detalle"].startswith("aceptada (validada:")
@@ -472,7 +473,7 @@ def test_related_json_es_estructurado(proyecto):
     code, out, _ = _related(proyecto, "ADR-002", "--json")
     data = json.loads(out)
     assert code == 0
-    assert set(data) - {"indice_motivo"} == {"version", "indice", "entrada", "relaciones"}
+    assert set(data) - {"indice_motivo"} == {"version", "indice", "corpus", "entrada", "relaciones"}
     assert data["entrada"]["id"] == "ADR-002"
     assert list(data["relaciones"]) == ["sucesion", "iniciativa", "area"]
     suc = data["relaciones"]["sucesion"]
@@ -552,7 +553,7 @@ def test_show_imprime_la_entrada_completa_tal_cual(proyecto):
 
 def test_show_json_envuelve_el_contenido_con_su_ficha(proyecto):
     data = _consulta_json(proyecto, "--show", "LES-001")
-    assert set(data) - {"indice_motivo"} == {"version", "indice", "id", "tipo", "estado", "estado_detalle",
+    assert set(data) - {"indice_motivo"} == {"version", "indice", "corpus", "origen", "id", "tipo", "estado", "estado_detalle",
                                              "area", "titular", "ruta", "contenido"}
     assert data["id"] == "LES-001" and data["ruta"] == "docs/knowledge/lessons/LES-001-evaluator-revision-cara.md"
     assert data["contenido"] == ENTRADAS["lessons/LES-001-evaluator-revision-cara.md"]
@@ -747,9 +748,9 @@ def test_enrutado_combina_claves_y_puntua_iniciativa_por_encima_de_area(proyecto
 def test_enrutado_respeta_limit_tipo_y_el_esquema_de_la_capa_1(proyecto):
     d = _enrutado(proyecto, "--tipo-tarea", "devops", "--tipo", "gotcha", "--limit", "1")
     assert [a["id"] for a in d["aciertos"]] == ["GOT-001"] and d["total"] == 1
-    assert set(d) - {"indice_motivo"} == {"version", "indice", "consulta", "total", "aciertos"}
+    assert set(d) - {"indice_motivo"} == {"version", "indice", "corpus", "consulta", "total", "aciertos"}
     assert list(d["aciertos"][0]) == ["id", "tipo", "estado", "estado_detalle", "area", "titular", "ruta", "linea",
-                                      "puntuacion", "iniciativa", "fecha"], "mismo esquema por acierto que la capa 1"
+                                      "puntuacion", "iniciativa", "fecha", "origen"], "mismo esquema por acierto que la capa 1"
     assert set(d["consulta"]) == {"texto", "area", "tipo", "limit", "contexto", "tipo_tarea", "iniciativa", "claves"}
 
 

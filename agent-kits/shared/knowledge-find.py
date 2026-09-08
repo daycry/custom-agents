@@ -45,14 +45,16 @@ ruta completa); si aún no cabe, se recorta el área. En la salida humana la rut
 Salida `--json` de la capa 1 — CONTRATO (la consumen `task-brief.py` y `session-context.sh`; cambiar
 una clave rompe dos piezas):
   {"version": 1,
-   "indice": "construido" | "reconstruido" | "cache" | "degradado",
+   "indice": "construido" | "reconstruido" | "cache" | "degradado" | "n/a",   # "n/a" solo con --doctrina (sin índice)
+   "corpus": "proyecto" | "doctrina",     # de dónde se leyó (T-16): docs/knowledge/ del proyecto o los assets del plugin
    "consulta": {"texto": str, "area": str, "tipo": str, "limit": int[, "tokens": [str]]},   # `tokens` solo con
                                           # texto libre: las raíces con contenido que puntuaron (explicabilidad)
    "total": int,                          # aciertos ANTES de aplicar --limit
    "aciertos": [ {"id", "tipo", "estado", "estado_detalle", "area", "titular", "ruta", "linea",
-                  "puntuacion", "iniciativa", "fecha"} ]}   # en este orden de claves
-`indice_motivo` (solo con "degradado") dice por qué. Sin `docs/knowledge/` → `{"aciertos": [],
-"total": 0, "indice": "degradado", …}` en JSON y NADA en texto.
+                  "puntuacion", "iniciativa", "fecha", "origen"} ]}   # en este orden de claves; `origen` = "proyecto"|"doctrina"
+`indice_motivo` (solo con "degradado"/"n/a") dice por qué. Sin `docs/knowledge/` → `{"aciertos": [],
+"total": 0, "indice": "degradado", …}` en JSON y NADA en texto. `corpus`/`origen` se añadieron en T-16
+(memory-retrieval) sin cambiar `version`: claves nuevas, ninguna renombrada — los consumidores las ignoran.
 
 Índice (capa 3, caché — NO es el almacén): SQLite con FTS5 en `<root>/.claude/knowledge-index.sqlite`
 (en `.gitignore`), reconstruible desde los ficheros. Guarda el hash sha256 del CONTENIDO del corpus
@@ -83,6 +85,7 @@ hook— no debe recibir el corpus entero por un campo vacío).
 
 Uso:
   knowledge-find.py [texto libre…] [--area A] [--tipo T] [--limit N] [--json] [--root DIR]
+  knowledge-find.py --doctrina [misma sintaxis]   # DOCTRINA del plugin (assets, T-16), no la memoria del proyecto
   knowledge-find.py [--contexto TEXTO] [--tipo-tarea TIPO] [--iniciativa SLUG] [--tipo T] [--limit N] [--json]
   knowledge-find.py --related <ID> [--json] [--root DIR]
   knowledge-find.py --show <ID> [--json] [--root DIR]
@@ -125,6 +128,8 @@ SINONIMOS_TIPO = {
 }
 ID_RE = re.compile(r"\b(ADR|GOT|LES)-(\d{3})\b")
 SEP = " · "
+HERE = os.path.dirname(os.path.abspath(__file__))
+DOCTRINA_REL = "agent-kits/evaluator/assets/doctrina"   # doctrina del plugin (memory-retrieval T-15/T-16): las 9 lecciones de estimación
 RELATED_TOPE_CHARS = 1600      # capa 2 ≤ 400 tokens (spec CA-03); si no cabe, se recorta y se dice
 RELATED_MAX_POR_GRUPO = 6      # entradas por grupo antes de «… y N más»
 AREA_TOKEN_MIN = 4             # tokens del área que cuentan como «misma área» (fuera: de, del, y, por…)
@@ -358,6 +363,7 @@ def leer_entrada(carpeta, tipo, fichero, text, filas_por_ruta):
         "sucesores": sucesores,
         "sustituye": sustituye,
         "texto": text,
+        "origen": "proyecto",           # `doctrina` cuando la entrada viene de los assets del plugin (--doctrina)
     }
 
 
@@ -421,6 +427,48 @@ def cargar_corpus(root):
     """Todas las entradas de `<root>/docs/knowledge/{adr,gotchas,lessons}/*.md` (o [] si no hay carpeta),
     leídas del disco (recorrido plano, sin índice)."""
     return parsear_corpus(ficheros_corpus(root))
+
+
+# ------------------------------------------------------------------ doctrina del plugin (--doctrina; T-15/T-16)
+
+def dir_doctrina():
+    """Carpeta de assets de doctrina: junto a este kit (`agent-kits/shared/../evaluator/assets/doctrina`, rutas
+    relativas entre sí — regla 5) o bajo CLAUDE_PLUGIN_ROOT. None si no está (instalación parcial)."""
+    candidatos = [os.path.normpath(os.path.join(HERE, "..", "evaluator", "assets", "doctrina"))]
+    pr = os.environ.get("CLAUDE_PLUGIN_ROOT", "")
+    if pr:
+        candidatos.append(os.path.join(pr, *DOCTRINA_REL.split("/")))
+    return next((c for c in candidatos if os.path.isdir(c)), None)
+
+
+def abrir_doctrina():
+    """(entradas, None, indice) de la DOCTRINA del plugin: las lecciones que son ciertas para cualquier proyecto que
+    use estos agentes (hoy las 9 de estimación, `LES-001…009`), copias byte a byte de `docs/knowledge/lessons/` de
+    este repo que viajan en `agent-kits/` (criterio y lista: `agent-kits/evaluator/README.md`). Recorrido plano,
+    sin índice (9 ficheros). Cada entrada lleva `origen: doctrina` y `ruta_corta: doctrina/<fichero>` para que un
+    acierto diga de dónde viene y no se confunda con la memoria del proyecto, que NO se lee aquí (y nace vacía en
+    un consumidor). Sin assets → [] y motivo; el CLI lo avisa por stderr y sale 0."""
+    d = dir_doctrina()
+    if d is None:
+        return [], None, {"indice": "n/a", "indice_motivo": f"sin assets de doctrina ({DOCTRINA_REL}): instalación parcial"}
+    ficheros = []
+    for fn in sorted(os.listdir(d)):
+        if fn.endswith(".md") and fn.lower() != "readme.md":
+            try:
+                with open(os.path.join(d, fn), "rb") as f:
+                    ficheros.append((f"lessons/{fn}", f.read()))
+            except OSError:
+                continue
+    entradas = parsear_corpus(ficheros)
+    for e in entradas:
+        fn = e["ruta_corta"].split("/", 1)[1]
+        e["ruta"], e["ruta_corta"], e["origen"] = f"{DOCTRINA_REL}/{fn}", f"doctrina/{fn}", "doctrina"
+        # Sin README que aporte el titular, el del cuerpo es el encabezado «## evaluator»: la lección de verdad es su
+        # primera frase en negrita (formato de las lecciones del repo).
+        m = re.search(r"\*\*(.+?)\*\*", e["texto"], re.S)
+        if m:
+            e["titular"] = _limpia_titular(m.group(1))
+    return entradas, None, {"indice": "n/a", "indice_motivo": "--doctrina: assets del plugin, recorrido plano"}
 
 
 # ------------------------------------------------------------------ índice SQLite FTS5 (caché reconstruible)
@@ -728,6 +776,7 @@ def acierto_json(e):
         "id": e["id"], "tipo": e["tipo"], "estado": e["estado"], "estado_detalle": e["estado_detalle"],
         "area": e["area"], "titular": e["titular"], "ruta": e["ruta"], "linea": linea_compacta(e),
         "puntuacion": e.get("puntuacion", 0), "iniciativa": e["iniciativa"], "fecha": e["fecha"],
+        "origen": e.get("origen", "proyecto"),
     }
 
 
@@ -869,6 +918,9 @@ def main(argv=None):
     ap.add_argument("--json", action="store_true")
     ap.add_argument("--root", help="raíz del proyecto (default: $CLAUDE_PROJECT_DIR → cwd)")
     ap.add_argument("--no-index", action="store_true", help="recorrido plano de los ficheros, sin leer ni escribir el índice")
+    ap.add_argument("--doctrina", action="store_true",
+                    help=f"busca en la DOCTRINA del plugin ({DOCTRINA_REL}: las lecciones ciertas para cualquier proyecto) "
+                         "en vez de en la memoria del proyecto; misma sintaxis (texto, --area, --show, --related)")
     enr = ap.add_argument_group("capa 1 enrutada por área (la consumen task-brief.py y session-context.sh)")
     # default=None para distinguir «no se pidió enrutado» de «se pidió con un filtro vacío» (que enruta y da 0)
     enr.add_argument("--contexto", default=None, help="texto de la tarea/iniciativa: sus tokens significativos se casan con el ÁREA")
@@ -880,20 +932,26 @@ def main(argv=None):
     args = ap.parse_args(argv)
     root = resolver_root(args.root)
     texto = " ".join(args.texto)
-    entradas, path, indice = abrir_corpus(root, usar_indice=not args.no_index)
+    corpus = "doctrina" if args.doctrina else "proyecto"
+    if args.doctrina:
+        entradas, path, indice = abrir_doctrina()
+        if not entradas:
+            print(f"knowledge-find: {indice.get('indice_motivo', 'sin doctrina')} — 0 aciertos", file=sys.stderr)
+    else:
+        entradas, path, indice = abrir_corpus(root, usar_indice=not args.no_index)
 
     if args.related or args.show:
         id_ = args.related or args.show
         e = buscar_id(entradas, id_)
         if e is None:
-            print(f"knowledge-find: no hay ninguna entrada con ID `{id_}` en {os.path.join(root, 'docs', 'knowledge')}",
-                  file=sys.stderr)
+            donde = DOCTRINA_REL if args.doctrina else os.path.join(root, "docs", "knowledge")
+            print(f"knowledge-find: no hay ninguna entrada con ID `{id_}` en {donde}", file=sys.stderr)
             return 1
         if args.show:
             if args.json:
-                data = {"version": VERSION_JSON, "indice": indice["indice"], "id": e["id"], "tipo": e["tipo"],
+                data = {"version": VERSION_JSON, "indice": indice["indice"], "corpus": corpus, "id": e["id"], "tipo": e["tipo"],
                         "estado": e["estado"], "estado_detalle": e["estado_detalle"], "area": e["area"],
-                        "titular": e["titular"], "ruta": e["ruta"], "contenido": e["texto"]}
+                        "titular": e["titular"], "ruta": e["ruta"], "origen": e.get("origen", "proyecto"), "contenido": e["texto"]}
                 if indice.get("indice_motivo"):
                     data["indice_motivo"] = indice["indice_motivo"]
                 print(json.dumps(data, ensure_ascii=False))
@@ -902,7 +960,9 @@ def main(argv=None):
             return 0
         rel = relaciones(entradas, e)
         if args.json:
-            print(json.dumps(json_related(e, rel, indice), ensure_ascii=False))
+            data = json_related(e, rel, indice)
+            data["corpus"] = corpus
+            print(json.dumps(data, ensure_ascii=False))
         else:
             sys.stdout.write(texto_related(e, rel))
         return 0
@@ -929,7 +989,7 @@ def main(argv=None):
         if texto:
             consulta["tokens"] = toks
     if args.json:
-        data = {"version": VERSION_JSON, "indice": indice["indice"], "consulta": consulta,
+        data = {"version": VERSION_JSON, "indice": indice["indice"], "corpus": corpus, "consulta": consulta,
                 "total": total, "aciertos": [acierto_json(a) for a in aciertos]}
         if indice.get("indice_motivo"):
             data["indice_motivo"] = indice["indice_motivo"]

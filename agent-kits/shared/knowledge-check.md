@@ -57,7 +57,7 @@ protege la inversión de `2026-08-10-token-diet`). `$SHAREDKIT` es el kit locali
 
 | Agente | Ejecuta (capa 1) | Y abre con `--show <ID>` solo… |
 |---|---|---|
-| `evaluator` | `python3 "$SHAREDKIT/knowledge-find.py" --area estimacion --tipo lesson` | las lecciones de estimación/calibración que condicionen ESTA estimación (incluidas las de la primera calibración real, `LES-007/008/009`) |
+| `evaluator` | `python3 "$SHAREDKIT/knowledge-find.py" --area estimacion --tipo lesson` (memoria del proyecto) **y** `python3 "$SHAREDKIT/knowledge-find.py" --doctrina --area estimacion --limit 0` (doctrina del plugin: las 9 lecciones `LES-001…009`, disponibles también sin `docs/knowledge/`; T-16) | las lecciones de estimación/calibración que condicionen ESTA estimación (`--doctrina --show <ID>` para las del plugin) |
 | `planner` | `python3 "$SHAREDKIT/knowledge-find.py" --contexto "<título de la spec>" --iniciativa <slug>` y, además, `python3 "$SHAREDKIT/knowledge-find.py" --tipo adr --limit 0` | los ADR que acoten el diseño del plan y las lecciones de proceso del área |
 | `architect` | `python3 "$SHAREDKIT/knowledge-find.py" --tipo adr --contexto "<título de la spec>"` | los ADR `aceptada` que acotan las opciones (uno vigente no se re-abre sin decirlo) |
 | `implementer` | `python3 "$SHAREDKIT/knowledge-find.py" --tipo-tarea <Tipo de la T-XX> --contexto "<título de la T-XX>" --iniciativa <slug>` (con `subagentes: true` **ya viene en el brief**: sección «Memoria técnica del proyecto» de `task-brief.py`) | los ADR que restringen la implementación y los gotchas del área (trampas ya comprobadas) |

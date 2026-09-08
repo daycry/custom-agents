@@ -226,6 +226,21 @@ por fichero, igual que `adr/`) nacen **directas** en el primer registro — sin 
 `docs/knowledge/adr/ADR-006-*`, porque la escritura remota no puede borrarlos del disco de quien
 ya los tenía).
 
+**Lo que el plugin captura de cada sesión — y cómo apagarlo (`memory-retrieval`).** Con el plugin cargado
+y rastro suyo en el proyecto (`docs/roadmap/`, `docs/knowledge/` o `.claude/dev.json`), el hook
+`UserPromptSubmit` guarda **el texto de cada turno tuyo** en `.claude/session-prompts-<session_id>.log`:
+no versionado (el propio hook siembra `.claude/.gitignore`), con los secretos evidentes redactados antes de
+tocar el disco (claves con prefijo conocido, JWT, PEM, `token=…`), `0600` y purga a 30 días. Al cerrar la
+sesión, `SessionEnd` extrae de ahí `decisiones`/`pendientes` para la entrada del journal
+(`docs/knowledge/journal/`, que **sí se versiona**). Controles: `<private>` en cualquier parte de un turno
+lo deja fuera de todo; `.claude/dev.json` `{"sesion": {"captura": false}}` apaga la captura (o
+`"journal": false` todo el journal); `{"sesion": {"resumen": true}}` activa el resumen por IA
+(`claude -p --bare`, requiere `ANTHROPIC_API_KEY`; apagado por defecto). **Doctrina del plugin:** el
+`evaluator` estima desde el primer día con las 9 lecciones de calibración que viajan en
+`agent-kits/evaluator/assets/doctrina/` (`knowledge-find.py --doctrina`); nada se copia a tu
+`docs/knowledge/`. **Cierre de iniciativa:** `/dev-cycle` no declara una iniciativa cerrada sin su `/retro`
+(`retro-gate.py`: `retro.md` + fila en `CALIBRATION.md`). Regla 10 de [`CONVENTIONS.md`](CONVENTIONS.md).
+
 ---
 
 ## Observabilidad y monitores de sesión
