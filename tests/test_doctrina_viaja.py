@@ -44,8 +44,17 @@ def ficheros_doctrina():
     return sorted(f for f in os.listdir(DOCTRINA) if f.endswith(".md")) if os.path.isdir(DOCTRINA) else []
 
 
+def _contenido(path):
+    """Contenido con los finales de línea normalizados. En Windows con `core.autocrlf=true` el árbol de
+    trabajo queda MEZCLADO según qué fichero haya re-materializado git (un `checkout` de otra rama deja la
+    copia en CRLF y el original que reescribió una herramienta en LF), así que comparar los bytes crudos del
+    disco daba «difiere» con los blobs del índice IDÉNTICOS: un falso positivo que costó una CI roja. Lo que
+    la doctrina promete es que el contenido es el mismo; el final de línea lo fija git al materializar."""
+    return open(path, "rb").read().replace(b"\r\n", b"\n")
+
+
 def diferencias(doctrina_dir, lessons_dir):
-    """Ficheros de la doctrina sin original en lessons/ o que no son byte a byte iguales a él."""
+    """Ficheros de la doctrina sin original en lessons/ o cuyo contenido no es idéntico al suyo."""
     out = []
     for fn in sorted(os.listdir(doctrina_dir)):
         if not fn.endswith(".md"):
@@ -53,7 +62,7 @@ def diferencias(doctrina_dir, lessons_dir):
         orig = os.path.join(lessons_dir, fn)
         if not os.path.isfile(orig):
             out.append((fn, "sin original"))
-        elif open(os.path.join(doctrina_dir, fn), "rb").read() != open(orig, "rb").read():
+        elif _contenido(os.path.join(doctrina_dir, fn)) != _contenido(orig):
             out.append((fn, "difiere"))
     return out
 
@@ -71,6 +80,13 @@ def test_son_exactamente_las_nueve_lecciones_de_estimacion():
 
 def test_una_sola_fuente_las_copias_son_byte_a_byte_y_el_comprobador_caza_divergencias(tmp_path):
     assert diferencias(DOCTRINA, LESSONS) == []
+    if shutil.which("git"):     # la igualdad que de verdad VIAJA: el blob del índice, no los bytes del disco
+        for fn in ficheros_doctrina():
+            r = subprocess.run(["git", "rev-parse", f":agent-kits/evaluator/assets/doctrina/{fn}",
+                                f":docs/knowledge/lessons/{fn}"], cwd=ROOT, capture_output=True, text=True)
+            if r.returncode == 0:
+                blob_doctrina, blob_original = r.stdout.split()
+                assert blob_doctrina == blob_original, f"{fn}: los blobs difieren en el índice de git"
     d, l = tmp_path / "doctrina", tmp_path / "lessons"
     d.mkdir()
     l.mkdir()
