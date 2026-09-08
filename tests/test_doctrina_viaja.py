@@ -83,7 +83,8 @@ def test_una_sola_fuente_las_copias_son_byte_a_byte_y_el_comprobador_caza_diverg
     if shutil.which("git"):     # la igualdad que de verdad VIAJA: el blob del índice, no los bytes del disco
         for fn in ficheros_doctrina():
             r = subprocess.run(["git", "rev-parse", f":agent-kits/evaluator/assets/doctrina/{fn}",
-                                f":docs/knowledge/lessons/{fn}"], cwd=ROOT, capture_output=True, text=True)
+                                f":docs/knowledge/lessons/{fn}"], cwd=ROOT, capture_output=True, text=True,
+                               encoding="utf-8", errors="replace")
             if r.returncode == 0:
                 blob_doctrina, blob_original = r.stdout.split()
                 assert blob_doctrina == blob_original, f"{fn}: los blobs difieren en el índice de git"
