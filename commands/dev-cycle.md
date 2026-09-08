@@ -1,5 +1,9 @@
 ---
-description: Orquesta el ciclo completo de una iniciativa (spec → evaluación → plan → implementación → pruebas → documentación) con la cadena nativa del plugin como único motor (autosuficiente: TDD, worktrees, subagentes frescos y debugging sistemático opt-in). Invoca los agentes por nombre y con puertas de control.
+description: >
+  Orquesta el ciclo completo de una iniciativa (spec → evaluación → plan → implementación → pruebas →
+  documentación) con la cadena nativa del plugin como único motor (autosuficiente: TDD, worktrees,
+  subagentes frescos y debugging sistemático opt-in). Invoca los agentes por nombre y con puertas de
+  control.
 argument-hint: <objetivo de la iniciativa> [rapido | completo]
 ---
 
@@ -35,7 +39,7 @@ Si es **vía rápida**, salta a la Fase 3 (implementación) usando el `tasks.md`
 > **Modelo del agente (tiering configurable, capa 2).** Antes de despachar CUALQUIER agente por nombre (`evaluator`, `architect`, `planner`, `implementer`, `qa`, `documenter`, `nemesis`), resuelve su tier efectivo y pasa `model` en el parámetro `model` del Agent tool (contrato oficial sub-agents.md, verificado 2026-09-03: el parámetro por invocación tiene prioridad sobre el frontmatter):
 >
 > ```bash
-> SHAREDKIT="$(find "$PWD/.claude" "$HOME/.claude" -type d -path '*agent-kits/shared' 2>/dev/null | head -1)"
+> SHAREDKIT="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type d -path '*agent-kits/shared' 2>/dev/null | head -1)"
 > python3 "$SHAREDKIT/model-tier.py" <agente> --json     # {"model": "...", "effort": "...", "fuente": {"model": "frontmatter|dev.json", ...}}
 > ```
 >
@@ -84,7 +88,7 @@ y **respeta la opción elegida** (enlaza `design:` ↔ `plan:`). Puerta: OK del 
    1. **Brief determinista** — genera el brief con el script del kit shared (nunca lo redactes a mano):
 
       ```bash
-      SHAREDKIT="$(find "$PWD/.claude" "$HOME/.claude" -type d -path '*agent-kits/shared' 2>/dev/null | head -1)"
+      SHAREDKIT="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type d -path '*agent-kits/shared' 2>/dev/null | head -1)"
       python3 "$SHAREDKIT/task-brief.py" "docs/roadmap/<fecha>-<slug>" T-XX
       ```
 

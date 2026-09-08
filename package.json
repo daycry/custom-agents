@@ -1,1 +1,59 @@
-{}
+{
+  "name": "@daycry/custom-agents",
+  "version": "1.18.1",
+  "description": "Ciclo SDD presupuestado (requisitos → presupuesto → plan → implementación → pruebas → documentación) para Claude Code, Codex y OpenCode: 9 agentes, 12 comandos y 17 skills con coste real medido, memoria técnica y trazabilidad en Jira/Confluence.",
+  "keywords": [
+    "claude-code",
+    "codex",
+    "opencode",
+    "agents",
+    "skills",
+    "sdd",
+    "planning",
+    "estimation",
+    "tdd",
+    "code-review",
+    "jira",
+    "confluence"
+  ],
+  "homepage": "https://github.com/daycry/custom-agents",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/daycry/custom-agents.git"
+  },
+  "bugs": "https://github.com/daycry/custom-agents/issues",
+  "license": "Apache-2.0",
+  "author": "daycry <7590335+daycry@users.noreply.github.com>",
+  "type": "module",
+  "bin": {
+    "custom-agents": "install/install.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "test": "node --test \"tests/*.test.mjs\""
+  },
+  "files": [
+    "install/",
+    "agents/",
+    "commands/",
+    "skills/",
+    "agent-kits/",
+    "hooks/",
+    "statusline/",
+    "interop/",
+    ".claude-plugin/",
+    ".codex-plugin/",
+    "docs/INTEROP.md",
+    "docs/en/INTEROP.md",
+    "README.md",
+    "README.es.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "!**/__pycache__/**",
+    "!**/*.pyc",
+    "!**/test_*.py",
+    "!**/.pytest_cache/**"
+  ]
+}

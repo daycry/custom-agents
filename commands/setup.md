@@ -1,5 +1,13 @@
 ---
-description: Onboarding del plugin en un proyecto — en UNA pasada guiada crea la config compartida de presupuesto (.claude/rates.json), decide los opt-ins de Confluence y Jira, ofrece la constitución del proyecto (docs/CONSTITUTION.md), las opciones de disciplina de desarrollo (.claude/dev.json: TDD, worktrees, subagentes), la statusline opt-in (progreso del roadmap + coste de sesión), las lentes condicionales de la revisión adversarial (dev.json revision.lenteSeguridad/lenteRendimiento: auto/siempre/nunca cada una), la cobertura mínima de tests opt-in (dev.json tests.coberturaMinima, skill unit-tests) y el modelo por agente (dev.json modelos, tabla efectiva con model-tier.py), en vez de que cada skill pregunte por su cuenta la primera vez. Idempotente; se puede relanzar para cambiar decisiones.
+description: >
+  Onboarding del plugin en un proyecto — en UNA pasada guiada crea la config compartida de presupuesto
+  (.claude/rates.json), decide los opt-ins de Confluence y Jira, ofrece la constitución del proyecto
+  (docs/CONSTITUTION.md), las opciones de disciplina de desarrollo (.claude/dev.json: TDD, worktrees,
+  subagentes), la statusline opt-in (progreso del roadmap + coste de sesión), las lentes condicionales
+  de la revisión adversarial (dev.json revision.lenteSeguridad/lenteRendimiento: auto/siempre/nunca
+  cada una), la cobertura mínima de tests opt-in (dev.json tests.coberturaMinima, skill unit-tests) y
+  el modelo por agente (dev.json modelos, tabla efectiva con model-tier.py), en vez de que cada skill
+  pregunte por su cuenta la primera vez. Idempotente; se puede relanzar para cambiar decisiones.
 argument-hint: "(sin argumentos)"
 ---
 
@@ -32,7 +40,7 @@ los valores actuales y ofrece cambiarlos.
    - **No** → persiste `"statusline": false` en `.claude/dev.json` y no toca `settings.json`.
    - **Sí** → resuelve la ruta del script **en tiempo de setup** y escríbela **ABSOLUTA** (la doc oficial de `statusLine` solo documenta `~` en `command`, no `${CLAUDE_PLUGIN_ROOT}`, y el `settings.json` de un plugin no admite la clave `statusLine`; verificado 2026-09-02):
      ```bash
-     SL="$(find "$PWD/.claude" "$HOME/.claude" -type f -path '*statusline/roadmap-statusline.sh' 2>/dev/null | head -1)"
+     SL="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type f -path '*statusline/roadmap-statusline.sh' 2>/dev/null | head -1)"
      ```
      Luego **mergea** (sin pisar otras claves) en `.claude/settings.json` del proyecto el bloque oficial:
      ```json
@@ -49,7 +57,7 @@ los valores actuales y ofrece cambiarlos.
    - Idempotente: si `revision.lenteSeguridad` o `revision.lenteRendimiento` ya existen, resume el valor actual de cada una y ofrece cambiarlo por separado.
 5-quater. **Modelos por agente (opcional, default = frontmatter).** Muestra la tabla efectiva con el script determinista y pregunta: "¿Quieres cambiar el modelo de algún agente para este proyecto? [No]".
    ```bash
-   SHAREDKIT="$(find "$PWD/.claude" "$HOME/.claude" -type d -path '*agent-kits/shared' 2>/dev/null | head -1)"
+   SHAREDKIT="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type d -path '*agent-kits/shared' 2>/dev/null | head -1)"
    python3 "$SHAREDKIT/model-tier.py" --all      # tabla: agente · model · effort · fuente (frontmatter / dev.json)
    ```
    - **No** → no escribas la clave (ausente = tiering del frontmatter, tabla de `docs/CONVENTIONS.md`).

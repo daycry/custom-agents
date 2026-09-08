@@ -14,7 +14,7 @@ tokens), este comando muestra lo que **de verdad ha costado**, leyendo las horas
 2. Localiza el generador de la skill **`roadmap-dashboard`** y ejecútalo en modo métricas:
 
    ```bash
-   DASH="$(find "$PWD/.claude" "$HOME/.claude" -type f -path '*skills/roadmap-dashboard/scripts/build_dashboard.py' 2>/dev/null | head -1)"
+   DASH="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type f -path '*skills/roadmap-dashboard/scripts/build_dashboard.py' 2>/dev/null | head -1)"
    python3 "$DASH" --root docs/roadmap --metrics-md docs/roadmap/metrics.md
    ```
 

@@ -20,7 +20,7 @@ un gate que el `implementer` puede aplicar por fase si el proyecto lo pide.
 
 Resolución de rutas (regla 5 de CONVENTIONS — nunca rutas fijas):
 ```bash
-UTSKILL="$(find "$PWD/.claude" "$PWD/skills" "$HOME/.claude" -type d -path '*skills/unit-tests' 2>/dev/null | head -1)"
+UTSKILL="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$PWD/skills" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type d -path '*skills/unit-tests' 2>/dev/null | head -1)"
 python3 "$UTSKILL/scripts/coverage-gate.py" <ruta> [--min 80] [--changed-only [--base <ref>]] [--json]
 ```
 

@@ -27,7 +27,7 @@ un **tema CSS moderno** y se renderiza con **Chromium headless** vía `puppeteer
 
 ## Paso 0 — localizar la skill (scope proyecto/usuario/plugin)
 ```bash
-PDFSKILL="$(find "$PWD/.claude" "$HOME/.claude" -type d -path '*skills/to-pdf' 2>/dev/null | head -1)"
+PDFSKILL="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type d -path '*skills/to-pdf' 2>/dev/null | head -1)"
 ```
 
 ## Paso 1 — preparar el entorno (idempotente; PIDE PERMISO antes de instalar)

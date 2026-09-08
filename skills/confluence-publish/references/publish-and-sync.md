@@ -11,7 +11,7 @@ Resuelto el destino, ejecuta sin más preguntas:
    comparar con el manifiesto: es la política materializada en disco, y siempre tiene que reflejar
    el `docs/` de HOY.
    ```bash
-   SCOPE="$(find "$PWD/.claude" "$HOME/.claude" -type f -path '*skills/confluence-publish/scripts/confluence-scope.py' 2>/dev/null | head -1)"
+   SCOPE="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type f -path '*skills/confluence-publish/scripts/confluence-scope.py' 2>/dev/null | head -1)"
    [ -n "$SCOPE" ] && python3 "$SCOPE" --stage --root "$PWD"
    ```
    Si el script falla o no se encuentra, **degrada sin bloquear**: usa `publish.source = "docs"` y
@@ -64,7 +64,7 @@ cambiado respecto al manifiesto), **regenera el markdown del dashboard** con la 
 `roadmap-dashboard`, de modo que la página refleje el último estado:
 
 ```bash
-DASH="$(find "$PWD/.claude" "$HOME/.claude" -type f -path '*skills/roadmap-dashboard/scripts/build_dashboard.py' 2>/dev/null | head -1)"
+DASH="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type f -path '*skills/roadmap-dashboard/scripts/build_dashboard.py' 2>/dev/null | head -1)"
 [ -d docs/roadmap ] && python3 "$DASH" --root docs/roadmap --md docs/roadmap/dashboard.md
 ```
 
@@ -84,7 +84,7 @@ Con `publish.staging: true`, tras regenerar `dashboard.md` (si tocaba) pero **an
 qué se crea/actualiza, regenera `docs/confluence/`:
 
 ```bash
-SCOPE="$(find "$PWD/.claude" "$HOME/.claude" -type f -path '*skills/confluence-publish/scripts/confluence-scope.py' 2>/dev/null | head -1)"
+SCOPE="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type f -path '*skills/confluence-publish/scripts/confluence-scope.py' 2>/dev/null | head -1)"
 [ -n "$SCOPE" ] && python3 "$SCOPE" --stage --root "$PWD"
 ```
 

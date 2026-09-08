@@ -39,7 +39,7 @@ command -v python3 >/dev/null 2>&1 || exit 0
 JOURNAL="${CLAUDE_PLUGIN_ROOT:-}/agent-kits/shared/journal.py"
 [ -f "$JOURNAL" ] || JOURNAL="${CLAUDE_PROJECT_DIR:-$PWD}/agent-kits/shared/journal.py"
 if [ ! -f "$JOURNAL" ]; then
-  JOURNAL="$(find "${CLAUDE_PROJECT_DIR:-$PWD}/.claude" "${HOME:-}/.claude" -type f -path '*agent-kits/shared/journal.py' 2>/dev/null | head -1)"
+  JOURNAL="$(find "${CLAUDE_PROJECT_DIR:-$PWD}/.claude" "${CLAUDE_PROJECT_DIR:-$PWD}/.codex" "${CLAUDE_PROJECT_DIR:-$PWD}/.opencode" "${HOME:-}/.claude" "${HOME:-}/.codex" "${HOME:-}/.config/opencode" -type f -path '*agent-kits/shared/journal.py' 2>/dev/null | head -1)"
 fi
 [ -n "$JOURNAL" ] && [ -f "$JOURNAL" ] || exit 0
 

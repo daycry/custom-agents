@@ -4,9 +4,8 @@ description: >
   Prepara la ACTUALIZACIÓN de dependencias de un proyecto sin tocarlas: inventario DETERMINISTA con
   `deps-inventory.py` (manifiestos package.json · composer.json · requirements*.txt · pyproject.toml
   · go.mod · Gemfile · *.csproj y sus lockfiles; versión declarada y bloqueada; «latest» SOLO del
-  `outdated` oficial de npm/composer/pip/go si la herramienta está en PATH — nunca inventado),
-  clasifica cada salto en patch/minor/major («major = breaking probable → leer el changelog
-  upstream»), lee el changelog/UPGRADING de los major y redacta la `spec.md` de una iniciativa
+  `outdated` oficial (npm/composer/pip/go) si está en PATH — nunca inventado), clasifica cada
+  salto en patch/minor/major («major = breaking probable»), lee el changelog/UPGRADING de los major y redacta la `spec.md` de una iniciativa
   «upgrade-<paquete|lote>» con la plantilla del evaluator, para que `evaluator` la presupueste y
   `planner` la planifique. NO actualiza nada por su cuenta y NO busca vulnerabilidades/CVE (eso es
   `nemesis` con la skill `cybersecurity`). Úsala cuando el usuario diga "actualiza las dependencias",
@@ -28,8 +27,8 @@ El upgrade en sí lo hace `implementer` dentro de la iniciativa, con suites y sm
 Resolución de rutas (regla 5 de CONVENTIONS — nunca rutas fijas):
 
 ```bash
-DUSKILL="$(find "$PWD/.claude" "$PWD/skills" "$HOME/.claude" -type d -path '*skills/dependency-upgrade' 2>/dev/null | head -1)"
-EVALKIT="$(find "$PWD/.claude" "$HOME/.claude" -type d -path '*agent-kits/evaluator' 2>/dev/null | head -1)"
+DUSKILL="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$PWD/skills" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type d -path '*skills/dependency-upgrade' 2>/dev/null | head -1)"
+EVALKIT="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type d -path '*agent-kits/evaluator' 2>/dev/null | head -1)"
 python3 "$DUSKILL/scripts/deps-inventory.py" <ruta> [--json] [--no-outdated] [--timeout 60]
 ```
 

@@ -31,7 +31,7 @@ como nota de release (por eso las notas de la v1.16.0 se escribieron a mano). El
 Resolución de rutas (regla 5 de CONVENTIONS — nunca rutas fijas):
 
 ```bash
-CLS="$(find "$PWD/.claude" "$HOME/.claude" -type f -path '*skills/changelog-sync/scripts/changelog-sync.py' 2>/dev/null | head -1)"
+CLS="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type f -path '*skills/changelog-sync/scripts/changelog-sync.py' 2>/dev/null | head -1)"
 ```
 
 ## Cuándo usarla

@@ -1,6 +1,15 @@
 ---
 name: quick-implement
-description: Atajo en lenguaje natural para la VÍA RÁPIDA de /dev-cycle — implementa UN cambio pequeño y bien definido conservando el ledger canónico y las puertas de calidad (revisión de dos lentes + qa-gate), sin papeleo de PM (sin spec, evaluación ni plan). No duplica el método: delega en la vía rápida de `commands/dev-cycle.md`, su fuente única. NO la uses si el trabajo tiene incógnitas o varias fases, toca muchos ficheros, el usuario quiere presupuesto o traza PM (eso es /pm-cycle o el flujo completo de /dev-cycle), el usuario ya escribió /dev-cycle (respeta el comando), o el cambio es trivial de una línea (hazlo directamente, sin ciclo); ante la duda, PREGUNTA antes de arrancar. Úsala cuando el usuario pida implementar algo concreto SIN escribir el comando y diga "implementa X rápido", "hazme este cambio pequeño", "añade X directo", "arréglalo sin papeleo", "solo impleméntalo".
+description: >
+  Atajo en lenguaje natural para la VÍA RÁPIDA de /dev-cycle — implementa UN cambio pequeño y bien
+  definido conservando el ledger canónico y las puertas de calidad (revisión de dos lentes + qa-gate),
+  sin papeleo de PM (sin spec, evaluación ni plan). No duplica el método: delega en la vía rápida de
+  `commands/dev-cycle.md`, su fuente única. NO la uses si el trabajo tiene incógnitas o varias fases,
+  toca muchos ficheros, el usuario quiere presupuesto o traza PM (eso es /pm-cycle o el flujo completo
+  de /dev-cycle), el usuario ya escribió /dev-cycle (respeta el comando), o el cambio es trivial de
+  una línea (hazlo directamente, sin ciclo); ante la duda, PREGUNTA antes de arrancar. Úsala cuando el
+  usuario pida implementar algo concreto SIN escribir el comando y diga "implementa X rápido", "hazme
+  este cambio pequeño", "añade X directo", "arréglalo sin papeleo", "solo impleméntalo".
 ---
 
 # quick-implement — la vía rápida, sin tener que escribir el comando
@@ -17,7 +26,7 @@ natural que redirige a `/pm-cycle` o al flujo completo cuando el cambio NO es pe
 >
 > ```bash
 > # $PWD/commands cubre el caso de trabajar SOBRE el propio repo del plugin (si no, ganaría la copia instalada)
-> DEVCYCLE="$(find "$PWD/.claude" "$PWD/commands" "$HOME/.claude" -type f -path '*commands/dev-cycle.md' 2>/dev/null | head -1)"
+> DEVCYCLE="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$PWD/commands" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type f -path '*commands/dev-cycle.md' 2>/dev/null | head -1)"
 > ```
 >
 > Qué seguir de ese fichero, en este orden: **Fase 0** (preparación: carpeta de la iniciativa) → **Fase
@@ -58,7 +67,7 @@ solo van los nombres, para no mantener una copia que se desincronice:
    tareas: contaría los mismos tokens dos veces.
 3. **Implementación** por `implementer`, con la disciplina de `.claude/dev.json` si está activa
    (si `tdd: true`, el implementer sigue la skill **`tdd`**). Antes de despacharlo, resuelve su tier
-   con `python3 "$SHAREDKIT/model-tier.py" implementer --json` (`SHAREDKIT="$(find "$PWD/.claude" "$HOME/.claude" -type d -path '*agent-kits/shared' 2>/dev/null | head -1)"`) y pasa `model` al Agent tool solo si
+   con `python3 "$SHAREDKIT/model-tier.py" implementer --json` (`SHAREDKIT="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type d -path '*agent-kits/shared' 2>/dev/null | head -1)"`) y pasa `model` al Agent tool solo si
    `fuente.model` es `dev.json` (el `effort` de `dev.json` es informativo; sin script → frontmatter).
 4. **Las puertas NO se saltan**: la revisión adversarial es la skill **`adversarial-review`** (fuente
    única del método: puerta `scope-check.py` antes de gastar revisores, lentes A/B + lente C de

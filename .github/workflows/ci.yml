@@ -15,6 +15,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
 
       - name: Instalar pytest
         run: pip install pytest
@@ -44,6 +47,15 @@ jobs:
         # en CI. Y al revés, las 8 suites de tests/ que son scripts (sin `def test_*`) pytest no las
         # recoge: las ejecuta `tests/test_suites_no_pytest.py`, para que la puerta local sea la de CI.
         run: python -m pytest tests agent-kits/shared skills/adversarial-review/scripts skills/code-health/scripts skills/dependency-upgrade/scripts skills/changelog-sync/scripts skills/unit-tests/scripts skills/api-contract/scripts skills/jira-sync/scripts evals -q
+
+      - name: Interop Codex/OpenCode — ¿los ficheros generados reflejan las piezas?
+        # Misma puerta que corre release.py: si alguien toca un agente/comando/hook y no regenera,
+        # el plugin dejaría de importarse bien en Codex u OpenCode (docs/INTEROP.md §5)
+        run: python scripts/export-interop.py --check
+
+      - name: Suites de Node (instalador npx + adaptador de hooks de OpenCode)
+        # glob, no lista fija: cualquier tests/*.test.mjs nuevo entra solo en la CI
+        run: node --test "tests/*.test.mjs"
 
       - name: Sintaxis de todos los scripts Python
         run: |

@@ -28,6 +28,30 @@ Las rutas de los kits se resuelven en tiempo de ejecución con un `find` sobre `
 
 ---
 
+## Vía 0 — Instalador `npx` (Claude Code, Codex y OpenCode)
+
+Si vas a usar el plugin en **Codex** u **OpenCode** —o en varios a la vez— la vía corta es el
+instalador. Detecta los runtimes que tienes y te deja elegir:
+
+```bash
+npx @daycry/custom-agents                                  # menú interactivo
+npx @daycry/custom-agents install -p claude-code,codex,opencode
+npx @daycry/custom-agents install --all --scope user       # instalación global de cada runtime
+npx @daycry/custom-agents install -p codex --dry-run       # el plan, sin escribir nada
+npx @daycry/custom-agents status                           # qué hay instalado y dónde
+npx @daycry/custom-agents uninstall -p opencode            # borra lo que instaló, y solo eso
+```
+
+Es idempotente, **fusiona** tu configuración JSON en vez de pisarla y deja un manifiesto
+(`.custom-agents-install.json`) con la lista exacta de ficheros escritos, para que `uninstall` no
+toque nada más. Requiere Node 18+ y no instala dependencias.
+
+**Qué funciona igual en cada runtime y qué degrada** (comandos, hooks, guardrails, statusline) está
+en [`INTEROP.md`](INTEROP.md) — la tabla de degradación es de lectura obligatoria antes de dar por
+supuesto que un hook o un guardrail está activo fuera de Claude Code.
+
+---
+
 ## Vía 1 — Probar en un proyecto (rápido)
 
 Enlaza (o copia) el bundle como `.claude/` del proyecto a probar:

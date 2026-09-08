@@ -26,7 +26,7 @@ fi
 # proyecto/usuario), como el resto de kits.
 LINT="${CLAUDE_PLUGIN_ROOT:-}/agent-kits/shared/ledger-lint.py"
 if [ ! -f "$LINT" ]; then
-  LINT="$(find "${CLAUDE_PROJECT_DIR:-$PWD}/.claude" "${HOME:-}/.claude" -type f -path '*agent-kits/shared/ledger-lint.py' 2>/dev/null | head -1)"
+  LINT="$(find "${CLAUDE_PROJECT_DIR:-$PWD}/.claude" "${CLAUDE_PROJECT_DIR:-$PWD}/.codex" "${CLAUDE_PROJECT_DIR:-$PWD}/.opencode" "${HOME:-}/.claude" "${HOME:-}/.codex" "${HOME:-}/.config/opencode" -type f -path '*agent-kits/shared/ledger-lint.py' 2>/dev/null | head -1)"
 fi
 [ -n "$LINT" ] && [ -f "$LINT" ] || exit 0
 
