@@ -82,12 +82,12 @@ Notes:
 - **When the agent (`.md`) invokes its toolkit or templates, do NOT use fixed paths** like `.claude/agent-kits/...`: they only work at project scope and break at user scope or as a plugin (besides, `${CLAUDE_PLUGIN_ROOT}` is not expanded in agent/skill markdown). Resolve the kit at runtime with `find` over both scopes:
 
   ```bash
-  MIKIT="$(find "$PWD/.claude" "$HOME/.claude" -type d -path '*agent-kits/<nombre>' 2>/dev/null | head -1)"
+  MIKIT="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type d -path '*agent-kits/<nombre>' 2>/dev/null | head -1)"
   # then use "$MIKIT/tools/..." , "$MIKIT/templates/..." , etc.
   ```
 
-  `$PWD/.claude` covers project scope; `$HOME/.claude` covers both user scope (`~/.claude/`) and the plugin cache (`~/.claude/plugins/…`). The project comes first → it wins if there are multiple copies (same precedence as Claude Code).
-- Shared skills: invoke them with the Skill tool (by name). If you need to read one of their files, resolve it the same way: `find "$PWD/.claude" "$HOME/.claude" -type f -path '*skills/<skill>/...'`.
+  **Six roots, two per runtime** (`docs/en/INTEROP.md`): `.claude` (Claude Code: project and, under `$HOME`, both user scope `~/.claude/` and the plugin cache `~/.claude/plugins/…`), `.codex` (Codex: `.codex/plugins/<plugin>/`, `~/.codex/plugins/cache/…`) and OpenCode (`.opencode/` per project, `~/.config/opencode/` globally — its global directory is NOT `~/.opencode`). Neither Codex nor OpenCode looks for kits under `.claude/`, so without their roots a plugin installed there cannot find its toolkit. **Order** is what matters: the three project roots first, then the user ones → the project wins if there are multiple copies (same precedence as Claude Code). This `find` is kept in sync by the files `scripts/export-interop.py` generates; if you add a runtime, its root is added to **every** piece (today 88 occurrences across 56 files).
+- Shared skills: invoke them with the Skill tool (by name). If you need to read one of their files, resolve it the same way: `find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type f -path '*skills/<skill>/...'`.
 
 ## 6. Checklist for adding a new agent
 

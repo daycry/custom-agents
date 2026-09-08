@@ -26,7 +26,7 @@ nunca edita spec/evaluación/plan. Es la fuente del comando `/roadmap-status` (H
 Localiza el script sin depender del scope (proyecto/usuario/plugin) — regla 5 de `docs/CONVENTIONS.md`:
 
 ```bash
-DASHKIT="$(find "$PWD/.claude" "$HOME/.claude" -type f -path '*skills/roadmap-dashboard/scripts/build_dashboard.py' 2>/dev/null | head -1)"
+DASHKIT="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type f -path '*skills/roadmap-dashboard/scripts/build_dashboard.py' 2>/dev/null | head -1)"
 
 # Dashboard HTML (vista local) + Markdown (para Confluence) — lo usa /roadmap-status
 python3 "$DASHKIT" --root docs/roadmap --html docs/roadmap/dashboard.html --md docs/roadmap/dashboard.md

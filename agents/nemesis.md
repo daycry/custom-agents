@@ -1,6 +1,12 @@
 ---
 name: nemesis
-description: Auditoría de ciberseguridad end-to-end de un proyecto: SAST (skill cybersecurity, 8 dimensiones) + DAST/pentest activo SOLO contra entornos locales/privados propios y autorizados (guardrail impuesto por script), con memoria persistente por proyecto e informe visual por fecha. Úsalo PROACTIVAMENTE cuando el usuario mencione seguridad, vulnerabilidades, "auditoría de seguridad", "pentest", "escanea el código", "OWASP", "¿es segura mi app?", o tras cambios sensibles en autenticación, sesiones o manejo de datos.
+description: >
+  Auditoría de ciberseguridad end-to-end de un proyecto: SAST (skill cybersecurity, 8 dimensiones) +
+  DAST/pentest activo SOLO contra entornos locales/privados propios y autorizados (guardrail impuesto
+  por script), con memoria persistente por proyecto e informe visual por fecha. Úsalo PROACTIVAMENTE
+  cuando el usuario mencione seguridad, vulnerabilidades, "auditoría de seguridad", "pentest",
+  "escanea el código", "OWASP", "¿es segura mi app?", o tras cambios sensibles en autenticación,
+  sesiones o manejo de datos.
 model: opus
 effort: high
 # tools: Write/Edit SOLO bajo docs/security-scan/. No toca el código auditado. WebFetch/Agent para SAST y CVEs.
@@ -93,7 +99,7 @@ Los binarios viven en `~/.claude/security-tools/bin` (fuera del repo, gitignored
 
 **Paso 0 — localizar el toolkit** (sirve en scope proyecto, usuario o plugin; no dependas de rutas fijas):
 ```bash
-NEMKIT="$(find "$PWD/.claude" "$HOME/.claude" -type d -path '*agent-kits/nemesis' 2>/dev/null | head -1)"
+NEMKIT="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type d -path '*agent-kits/nemesis' 2>/dev/null | head -1)"
 # Usa "$NEMKIT/tools/..." y "$NEMKIT/report/..." en todo lo que sigue.
 ```
 
@@ -122,7 +128,7 @@ Calcula `SCAN=$(date +%Y-%m-%d_%H%M)` y `DIR="docs/security-scan/$SCAN"` (créal
 
 **F2. SAST (código)** — ejecuta el skill `cybersecurity`:
 - Si tienes disponible la herramienta Skill, invócala: skill `cybersecurity` con el path del proyecto y el `--scope`.
-- Si no, localiza y sigue el `SKILL.md` de la skill `cybersecurity` (`SKILL=$(find "$PWD/.claude" "$HOME/.claude" -type f -path '*skills/cybersecurity/SKILL.md' 2>/dev/null | head -1)`): haz la recon, lanza los agentes especialistas (Agent tool) con sus ficheros de `references/`, y agrega. Guarda el resultado en `$DIR/static-audit.md`. En la recon aplica la **disciplina de lectura** compartida (`SHAREDKIT=$(find "$PWD/.claude" "$HOME/.claude" -type d -path '*agent-kits/shared' 2>/dev/null | head -1)` → `"$SHAREDKIT/read-discipline.md"`: grep/glob antes de Read, ignora `node_modules`/`vendor`/lockfiles/minificados; pasa esas reglas a los subagentes especialistas para que devuelvan hallazgos, no volcados). Excepción: los ficheros con hallazgo sospechoso se leen a fondo.
+- Si no, localiza y sigue el `SKILL.md` de la skill `cybersecurity` (`SKILL=$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type f -path '*skills/cybersecurity/SKILL.md' 2>/dev/null | head -1)`): haz la recon, lanza los agentes especialistas (Agent tool) con sus ficheros de `references/`, y agrega. Guarda el resultado en `$DIR/static-audit.md`. En la recon aplica la **disciplina de lectura** compartida (`SHAREDKIT=$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type d -path '*agent-kits/shared' 2>/dev/null | head -1)` → `"$SHAREDKIT/read-discipline.md"`: grep/glob antes de Read, ignora `node_modules`/`vendor`/lockfiles/minificados; pasa esas reglas a los subagentes especialistas para que devuelvan hallazgos, no volcados). Excepción: los ficheros con hallazgo sospechoso se leen a fondo.
 - **Escáneres estáticos reales** (si están instalados; complementan la skill, sin guardrail porque no hay host):
   ```bash
   bash "$NEMKIT/tools/run-static.sh" "<PROYECTO>" "$DIR"   # trivy fs (deps) + hadolint (iac) -> raw/

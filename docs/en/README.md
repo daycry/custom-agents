@@ -2,7 +2,7 @@
 
 **English** · [Español](../README.md)
 
-Repository of **custom agents** for Claude Code, with their skills and toolkits. It is deployed into a project's `.claude/` folder (see [`INSTALL.md`](INSTALL.md)).
+Repository of **custom agents** with their skills and toolkits. It runs in **Claude Code** (native plugin, its home), **Codex** and **OpenCode**: how to install each is in [`INSTALL.md`](INSTALL.md) (including the `npx @daycry/custom-agents` installer), and what changes or is lost per runtime is in [`INTEROP.md`](INTEROP.md).
 
 ```mermaid
 flowchart LR
@@ -21,6 +21,7 @@ flowchart LR
 |---|---|---|
 | `evals/` | **Activation** evals: one JSON per skill/command/agent with prompts that must fire it (positives, one literal from the description) and neighbours that must not (negatives with `redirect`); `check.py` static in CI, `run.py` local with `claude -p`. Complements the piece index injected by the `SessionStart` hook. The **optional** job `headless.yml.MANUAL-COPY` → `.github/workflows/headless.yml` (secret `ANTHROPIC_API_KEY`) does run `claude`: a cheap `run.py` subset + a **real-session hook check** via witness file. | [`../../evals/README.md`](../../evals/README.md) (ES + EN) · lesson [`LES-011`](../knowledge/lessons/LES-011-plugin-dev-activacion-se-prueba-con-evals.md) (Spanish) |
 | `scripts/` · `CONTRIBUTING.md` · `github-templates.MANUAL-COPY/` | `lint_plugin.py` (linter), `release.py` (complete mechanical release: moves `[Unreleased]`/`[Sin publicar]` in both CHANGELOGs, runs lint+evals, checks manual copies and `100644` mode of `.sh` files, bumps 3 places, commit+tag; `--dry-run`, `--check`) and `export-skills.py` (**portable "skills-only" package** for Codex/Copilot/Cursor: `AGENTS.md`, `.cursor/rules/*.mdc` rule, copyable `skills/`; deterministic, `--check`; output `dist/` gitignored; the Release attaches it as a zip). How to contribute (propose a piece with `plugin-dev`, pre-PR checklist, `T-XX:`/`feat:`/`chore:` commits, `.MANUAL-COPY` copies) in [`../../CONTRIBUTING.md`](../../CONTRIBUTING.md); issue forms and PR template in `github-templates.MANUAL-COPY/` → `.github/`. | [`INSTALL.md`](INSTALL.md) ("When publishing", "Using the skills outside Claude Code") · [`../../CONTRIBUTING.md`](../../CONTRIBUTING.md) |
+| `install/` · `interop/` · `.codex-plugin/` | **Interoperability with Codex and OpenCode**: `install/install.mjs` is the multi-provider `npx` installer (pick runtimes, `--dry-run`, `status`, `uninstall` from a manifest, zero dependencies) and `interop/` holds the GENERATED translations of agents/commands/hooks into each tool's formats (`scripts/export-interop.py`, deterministic, `--check` as a release gate). | [`INTEROP.md`](INTEROP.md) |
 
 Before adding or touching an agent, read [`CONVENTIONS.md`](CONVENTIONS.md): it defines where everything goes and how dependencies between agents are declared so they do not step on each other. For a **visual overview of the flows** (agent chain, PM/dev cycles, Jira, Confluence, metrics), see [`FLOWS.md`](FLOWS.md). For what the plugin measures (cost per artifact/task), the **live visibility** (ledger progress line per hook, resume context on startup/compaction, opt-in status line) and how it coexists with live session monitors, see [`observability.md`](observability.md).
 

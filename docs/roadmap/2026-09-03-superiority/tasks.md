@@ -1,6 +1,17 @@
 ---
 tasks: superiority
-descripcion: Nivel superior del plugin — cinco piezas que faltaban frente a la práctica de los mejores plugins, sin crear roles duplicados: (1) comando `/doctor` + `agent-kits/shared/doctor.py` (diagnóstico determinista de la instalación con veredicto ✅/⚠️/❌ por línea y arreglo sugerido); (2) skill `changelog-sync` + `scripts/changelog-sync.py` (entradas `[Unreleased]`/`[Sin publicar]` EN+ES generadas desde los ledgers cerrados, idempotente, `--check` para `release.py`); (3) skill `unit-tests` + `scripts/coverage-gate.py` (pirámide de pruebas y gate de cobertura por stack, `--changed-only`; la usan `implementer` y `qa`, NO es un agente nuevo); (4) Lente D de rendimiento en `adversarial-review` (`review-lens-select.py` decide `lente_d` por heurística de rutas + patrones N+1/bucles/await-en-for; `revision.lenteRendimiento`); (5) skill `api-contract` + `scripts/openapi-lint.py` (validación mínima de OpenAPI 3.x sin dependencias + `--diff` de cambios rompedores); (6) integración, doc bilingüe, evals, LES-013.
+descripcion: >
+  Nivel superior del plugin — cinco piezas que faltaban frente a la práctica de los mejores plugins,
+  sin crear roles duplicados: (1) comando `/doctor` + `agent-kits/shared/doctor.py` (diagnóstico
+  determinista de la instalación con veredicto ✅/⚠️/❌ por línea y arreglo sugerido); (2) skill
+  `changelog-sync` + `scripts/changelog-sync.py` (entradas `[Unreleased]`/`[Sin publicar]` EN+ES
+  generadas desde los ledgers cerrados, idempotente, `--check` para `release.py`); (3) skill
+  `unit-tests` + `scripts/coverage-gate.py` (pirámide de pruebas y gate de cobertura por stack,
+  `--changed-only`; la usan `implementer` y `qa`, NO es un agente nuevo); (4) Lente D de rendimiento
+  en `adversarial-review` (`review-lens-select.py` decide `lente_d` por heurística de rutas + patrones
+  N+1/bucles/await-en-for; `revision.lenteRendimiento`); (5) skill `api-contract` +
+  `scripts/openapi-lint.py` (validación mínima de OpenAPI 3.x sin dependencias + `--diff` de cambios
+  rompedores); (6) integración, doc bilingüe, evals, LES-013.
 estado: completado        # borrador | en-progreso | completado | cancelado
 creado: 2026-09-03
 actualizado: 2026-09-03

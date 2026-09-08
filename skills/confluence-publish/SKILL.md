@@ -53,7 +53,7 @@ La sincronización con Confluence es **opcional** y se decide **una vez por proy
 nada, localiza la config y mira el flag `enabled` de `.claude/confluence.json`:
 
 ```bash
-CFG="$(find "$PWD/.claude" "$HOME/.claude" -type f -path '*confluence.json' 2>/dev/null | head -1)"
+CFG="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type f -path '*confluence.json' 2>/dev/null | head -1)"
 ```
 
 - **`enabled: true`** → sincronización activada; sigue el flujo normal (conexión → espacio → árbol → subir).

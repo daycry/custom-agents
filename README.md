@@ -2,7 +2,7 @@
 
 **English** · [Español](README.es.md)
 
-**The complete lifecycle of a software initiative — with budgeting, real cost measurement and Jira/Confluence traceability — inside Claude Code.**
+**The complete lifecycle of a software initiative — with budgeting, real cost measurement and Jira/Confluence traceability — in Claude Code, Codex and OpenCode.**
 
 [![CI](https://github.com/daycry/custom-agents/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/daycry/custom-agents/actions/workflows/ci.yml)
 [![Version](https://img.shields.io/github/v/tag/daycry/custom-agents?label=version&color=informational)](CHANGELOG.md)
@@ -16,13 +16,16 @@
 [![Commit activity](https://img.shields.io/github/commit-activity/m/daycry/custom-agents?label=commits%2Fmonth)](https://github.com/daycry/custom-agents/pulse)
 
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2.svg)](docs/en/INSTALL.md)
+[![Codex](https://img.shields.io/badge/Codex-plugin-412991.svg)](docs/en/INTEROP.md)
+[![OpenCode](https://img.shields.io/badge/OpenCode-agents%20%C2%B7%20commands%20%C2%B7%20skills-f59e0b.svg)](docs/en/INTEROP.md)
+[![npx](https://img.shields.io/badge/install-npx-cb3837.svg?logo=npm&logoColor=white)](docs/en/INTEROP.md)
 [![SDD](https://img.shields.io/badge/methodology-Spec--Driven-2ea44f.svg)](docs/en/FLOWS.md)
 [![Agents](https://img.shields.io/badge/agents-9-0ea5e9.svg)](docs/en/README.md)
 [![Skills](https://img.shields.io/badge/skills-17-0ea5e9.svg)](docs/en/README.md)
 [![Commands](https://img.shields.io/badge/commands-12-0ea5e9.svg)](docs/en/README.md)
 [![Portable skills](https://img.shields.io/badge/portable%20skills-AGENTS.md%20%C2%B7%20Cursor-0ea5e9.svg)](docs/en/INSTALL.md#using-the-skills-outside-claude-code-portable-package)
 
-From idea to tested, documented code: `requirements → budget → plan → implementation → adversarial review → E2E → docs`, with **control gates** at every step, **real cost measured in tokens**, and learning that calibrates the next estimates. Nine agents, twelve commands, self-contained (no dependencies on other plugins).
+From idea to tested, documented code: `requirements → budget → plan → implementation → adversarial review → E2E → docs`, with **control gates** at every step, **real cost measured in tokens**, and learning that calibrates the next estimates. Nine agents, twelve commands, self-contained (no dependencies on other plugins) — and it runs in **three runtimes**: Claude Code, Codex and OpenCode.
 
 ```mermaid
 flowchart LR
@@ -87,6 +90,27 @@ Most tooling around coding agents answers *how* to write the code. This plugin a
 
 **🎫 Frictionless Jira and Confluence (opt-in).** The plan is pushed to Jira (one issue per task or per phase, issue type discovered from the hierarchy), hours are logged on completion (with a daily cap and a bank), the review outcome is posted as a comment, and `docs/` is mirrored to Confluence in both directions — designed so a PM without git sees everything up to date.
 
+## Where it runs
+
+One install command per runtime — pick the ones you use:
+
+```bash
+npx @daycry/custom-agents            # interactive menu; marks the runtimes it detects
+```
+
+| Runtime | Install | What you get |
+|---|---|---|
+| **Claude Code** | `/plugin marketplace add daycry/custom-agents` (or the installer) | Everything: 9 agents, 12 commands, 17 skills, hooks, status line |
+| **Codex** | `codex plugin marketplace add daycry/custom-agents` (or the installer) | Skills, agents as `.toml`, commands as `/prompts:<name>`, session hooks |
+| **OpenCode** | `npx @daycry/custom-agents install -p opencode` | Skills, agents, commands, hook adapter |
+
+The pieces stay in one place — `agents/`, `commands/`, `skills/`, `hooks/` — and
+[`scripts/export-interop.py`](scripts/export-interop.py) translates them to each runtime's format
+(`--check` is a CI and release gate, so a stale translation never ships).
+**What degrades per runtime** — the per-agent guard hook, ledger progress notices, the status line —
+is stated plainly in the degradation table of [INTEROP](docs/en/INTEROP.md). Read it before assuming
+a guardrail is active outside Claude Code.
+
 ## Get started in 2 minutes
 
 Five copy-paste steps, from zero to your first budgeted initiative:
@@ -104,6 +128,14 @@ Five copy-paste steps, from zero to your first budgeted initiative:
 ```
 
 > The `/plugin` commands work in the **Claude Code CLI**; in VS Code or the desktop app, install from the *Customize → Plugins* menu or at user level (see [INSTALL](docs/en/INSTALL.md)).
+
+> **Using Codex or OpenCode?** One command installs it there too — pick the runtimes from a menu, or name them:
+>
+> ```bash
+> npx @daycry/custom-agents install -p codex,opencode
+> ```
+>
+> Idempotent, it merges your config instead of overwriting it, and `uninstall` removes exactly what it wrote. What works the same and what degrades per runtime is in [INTEROP](docs/en/INTEROP.md).
 
 **3. Set it up once per project** (rates, Jira/Confluence opt-ins, constitution, discipline — every question has a default):
 

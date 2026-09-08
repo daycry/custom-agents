@@ -98,6 +98,9 @@ VALID_EFFORTS = {"low", "medium", "high", "xhigh", "max"}   # sub-agents.md (202
 PRELOAD_WARN_BYTES = 16 * 1024   # `skills:` precarga >16 KB (≈4k tokens) → aviso token-diet
 DESC_WARN_CHARS = 1200           # description > 1.200 caracteres → aviso token-diet (índice de piezas)
 SKILL_WARN_LINES = 200           # SKILL.md > 200 líneas → aviso token-diet (detalle a references/)
+MARCAS_BLOQUE = (">", ">-", ">+", "|", "|-", "|+")   # escalares de bloque de YAML
+BLOQUE_PLEGABLE = ("description",)                   # claves cuyo bloque `>`/`|` se pliega
+OPENCODE_DESC_MAX = 1024         # `description` de skill > 1.024 → OpenCode NO carga la skill (docs/INTEROP.md)
 SKILL_HARD_LINES = 250           # umbral DURO: lo impone tests/test_skill_size.py (aquí solo se cita en el aviso)
 VALID_TOOLS = {
     "Read", "Write", "Edit", "Grep", "Glob", "Bash",
@@ -343,6 +346,9 @@ def parse_frontmatter(text):
                     cmd = cmd[1:-1]
                 out["hook_commands"].append(cmd)
             continue
+        if indent > 0 and cur_top in BLOQUE_PLEGABLE and cur_top in out:
+            out[cur_top] = (out[cur_top] + " " + stripped).strip()
+            continue
         if indent > 0 and cur_top == "skills" and stripped.startswith("- "):
             item = stripped[2:].split("#", 1)[0].strip()
             if item:
@@ -365,7 +371,7 @@ def parse_frontmatter(text):
             elif key == "effort":
                 out["effort"] = val.split("#", 1)[0].strip()
             elif key == "description":
-                out["description"] = val
+                out["description"] = "" if val in MARCAS_BLOQUE else val
             elif key == "tools":
                 out["tools"] = [t.strip() for t in val.split(",") if t.strip()]
         elif in_deps and indent == 2 and stripped.endswith(":"):
@@ -523,6 +529,10 @@ def lint(root):
 
     # --- Skills cortas: SKILL.md > SKILL_WARN_LINES líneas (aviso token-diet) ---
     warnings.extend(lint_skill_sizes(root))
+    warnings.extend(lint_skill_desc_interop(root))
+
+    # --- Frontmatter que un parser YAML rechaza (GitHub lo pinta como error) ---
+    errors.extend(lint_frontmatter_yaml(root))
 
     # --- Un rol, un dueño (ADR-011): disparador literal entrecomillado duplicado entre piezas ---
     warnings.extend(lint_duplicate_triggers(root))
@@ -760,6 +770,94 @@ def lint_skill_sizes(root):
                          f"skills/{d}/references/<tema>.md y déjalo enlazado «léelo solo al llegar al paso X» "
                          f"(umbral duro {SKILL_HARD_LINES} en tests/test_skill_size.py)")
     return warns
+
+
+def lint_skill_desc_interop(root):
+    """Avisos: `description` de skill por encima de OPENCODE_DESC_MAX.
+
+    No es token-diet, es COMPATIBILIDAD: OpenCode valida la `description` de un `SKILL.md` en
+    1-1024 caracteres, así que pasarse no da un aviso en su consola — deja la skill sin cargar
+    (`docs/INTEROP.md`, tabla de degradación). El umbral duro lo afirma
+    `tests/test_export_interop.py`; aquí solo se avisa, para verlo antes de llegar a la puerta.
+    """
+    warns = []
+    sk = os.path.join(root, "skills")
+    if not os.path.isdir(sk):
+        return warns
+    for d in sorted(os.listdir(sk)):
+        p = os.path.join(sk, d, "SKILL.md")
+        if not os.path.isfile(p):
+            continue
+        try:
+            with open(p, encoding="utf-8", errors="replace") as f:
+                # Sin frontmatter, `parse_frontmatter` devuelve None: ese caso ya lo denuncia el
+                # chequeo de frontmatter obligatorio, aquí no se vuelve a decir (ni se revienta).
+                fm = parse_frontmatter(f.read()) or {}
+        except OSError:
+            continue
+        n = len(re.sub(r"\s+", " ", str(fm.get("description") or "")).strip())
+        if n > OPENCODE_DESC_MAX:
+            warns.append(f"skill `{d}`: description de {n} caracteres (> {OPENCODE_DESC_MAX}) — OpenCode "
+                         f"NO cargaría la skill; recorta mecánica (que sigue en el cuerpo) sin tocar los "
+                         f"disparadores entrecomillados (ver docs/INTEROP.md)")
+    return warns
+
+
+def lint_frontmatter_yaml(root):
+    """ERRORES: frontmatter que un parser YAML de verdad rechaza (y GitHub pinta como
+    «Error in user YAML: (<unknown>): mapping values not allowed in this context»).
+
+    No se valida YAML completo (el repo es solo-stdlib): se detecta el ÚNICO patrón que lo rompe
+    aquí, un escalar PLANO de valor con `: ` dentro (o que abre `{{`, que para YAML es un mapa en
+    flujo). Los tres arreglos válidos están en el mismo mensaje. Es ERROR y no aviso porque el
+    frontmatter roto se ve en GitHub en cada visita al fichero, y porque `estado:`/`description:`
+    son tokens que leen los scripts: si un día se parsean con YAML, dejan de cargar.
+    """
+    errs = []
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = sorted(d for d in dirnames
+                             if d not in {".git", ".venv", "__pycache__", ".pytest_cache",
+                                          "_to_delete", "dist", "node_modules"})
+        for fn in sorted(filenames):
+            if not fn.endswith(".md"):
+                continue
+            path = os.path.join(dirpath, fn)
+            try:
+                with open(path, encoding="utf-8-sig") as f:
+                    text = f.read()
+            except (OSError, UnicodeDecodeError):
+                continue
+            if not text.startswith("---"):
+                continue
+            end = text.find(chr(10) + "---", 3)
+            if end == -1:
+                continue
+            rel = os.path.relpath(path, root).replace(os.sep, "/")
+            for num, raw in enumerate(text[3:end].splitlines(), start=1):
+                m = re.match(r"^(\s*)([A-Za-z_][A-Za-z0-9_-]*): (.+)$", raw)
+                if not m:
+                    continue
+                val = m.group(3).strip()
+                if val[:1] in ('"', "'", ">", "|", "#", "&", "*"):
+                    continue          # entrecomillado, bloque, o solo comentario: YAML lo acepta
+                sin_comentario = re.sub(r"\s+#.*$", "", val).strip()
+                if not sin_comentario:
+                    continue
+                # Colecciones EN FLUJO (`{ a: 1, b: 2 }`, `[x, y]`) son YAML válido y llevan `: `
+                # dentro: `tokens_reales: { entrada: 40, … }` de los ledgers es correcto. Ojo con
+                # `{{`, que NO lo es (clave no escalar) y por eso sí se denuncia arriba.
+                if sin_comentario.startswith("[") or (
+                        sin_comentario.startswith("{") and not sin_comentario.startswith("{{")):
+                    continue
+                if sin_comentario.startswith("{{"):
+                    errs.append(f"{rel}:{num}: `{m.group(2)}` abre `{{{{` — YAML lo lee como mapa en "
+                                f"flujo; entrecomilla el placeholder (`{m.group(2)}: \"{{{{X}}}}\"`)")
+                elif re.search(r":\s", sin_comentario):
+                    errs.append(f"{rel}:{num}: `{m.group(2)}` es un escalar plano con `: ` dentro — YAML "
+                                f"inválido (GitHub: «mapping values not allowed in this context»). "
+                                f"Arréglalo con un bloque `{m.group(2)}: >` + líneas indentadas (textos "
+                                f"largos), entrecomillando el valor, o quitando los dos puntos de la nota")
+    return errs
 
 
 def _cargar_evals_check(root):

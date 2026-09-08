@@ -67,7 +67,7 @@ fi
 if command -v python3 >/dev/null 2>&1; then
   REPORT="$HERE/../agent-kits/shared/progress-report.py"
   if [ ! -f "$REPORT" ]; then
-    REPORT="$(find "$PWD/.claude" "${HOME:-}/.claude" -type f -path '*agent-kits/shared/progress-report.py' 2>/dev/null | head -1)"
+    REPORT="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "${HOME:-}/.claude" "${HOME:-}/.codex" "${HOME:-}/.config/opencode" -type f -path '*agent-kits/shared/progress-report.py' 2>/dev/null | head -1)"
   fi
   ROOT="${CLAUDE_PROJECT_DIR:-$PWD}/docs/roadmap"
   if [ -n "$REPORT" ] && [ -f "$REPORT" ] && [ -d "$ROOT" ]; then

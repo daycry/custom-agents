@@ -1,6 +1,14 @@
 ---
 name: documenter
-description: Genera y mantiene la documentación técnica y de producto de un proyecto, de forma estructurada y detallada, dentro de `docs/`. Explora el repositorio (código, config, dependencias) y produce una taxonomía completa — índice, RAG-INDEX, arquitectura, stack técnico, módulos/componentes, guías de desarrollo y documentación de producto/usuario — con Markdown correcto, tablas y ejemplos reales del código. Idempotente: crea lo que falta, actualiza lo existente y mantiene el índice y la fecha. Al escribir en `docs/` sincroniza con Confluence (opt-in) vía la skill `confluence-publish`. Úsalo cuando el usuario diga "documenta el proyecto", "genera la documentación", "crea los docs", "documenta la arquitectura/módulos", "actualiza la documentación".
+description: >
+  Genera y mantiene la documentación técnica y de producto de un proyecto, de forma estructurada y
+  detallada, dentro de `docs/`. Explora el repositorio (código, config, dependencias) y produce una
+  taxonomía completa — índice, RAG-INDEX, arquitectura, stack técnico, módulos/componentes, guías de
+  desarrollo y documentación de producto/usuario — con Markdown correcto, tablas y ejemplos reales del
+  código. Idempotente: crea lo que falta, actualiza lo existente y mantiene el índice y la fecha. Al
+  escribir en `docs/` sincroniza con Confluence (opt-in) vía la skill `confluence-publish`. Úsalo
+  cuando el usuario diga "documenta el proyecto", "genera la documentación", "crea los docs",
+  "documenta la arquitectura/módulos", "actualiza la documentación".
 model: sonnet
 effort: medium
 # tools: Write/Edit SOLO bajo docs/ (excepto docs/roadmap y docs/security-scan). No toca código.
@@ -50,7 +58,7 @@ final que capture el estado real ya implementado y probado.
 - **Salida:** el árbol de documentación bajo `docs/` (crea `docs/` si no existe), con una
   estructura **derivada del propio proyecto** (ver §1). Localiza el kit sin depender del scope:
   ```bash
-  DOCKIT="$(find "$PWD/.claude" "$HOME/.claude" -type d -path '*agent-kits/documenter' 2>/dev/null | head -1)"
+  DOCKIT="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type d -path '*agent-kits/documenter' 2>/dev/null | head -1)"
   # guía de estructura en "$DOCKIT/taxonomy.md"; plantillas en "$DOCKIT/templates/"
   ```
   Lee `taxonomy.md` (guía de estructura) y usa las plantillas de `templates/` como base de formato.
@@ -90,7 +98,7 @@ se omiten y por qué.
 (por defecto español) y si además de la doc técnica quiere la de producto/usuario (por defecto
 **ambas**). No interrogues; propón defaults.
 
-**P2. Recon del repositorio.** Aplica la **disciplina de lectura** compartida antes de explorar: `SHAREDKIT="$(find "$PWD/.claude" "$HOME/.claude" -type d -path '*agent-kits/shared' 2>/dev/null | head -1)"` → sigue `"$SHAREDKIT/read-discipline.md"` (grep/glob antes de Read, `Read` con `limit`, ignora `node_modules`/`vendor`/`.git`/lockfiles/minificados/binarios, muestrea 1-3 ejemplos por patrón). Excepción: los ficheros que vas a documentar sí se leen enteros. Fallback si no está el fragmento: grep antes de abrir, lee fragmentos, salta dependencias/generados. Explora con Read/Grep/Glob/Bash para fundamentar TODO con datos
+**P2. Recon del repositorio.** Aplica la **disciplina de lectura** compartida antes de explorar: `SHAREDKIT="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type d -path '*agent-kits/shared' 2>/dev/null | head -1)"` → sigue `"$SHAREDKIT/read-discipline.md"` (grep/glob antes de Read, `Read` con `limit`, ignora `node_modules`/`vendor`/`.git`/lockfiles/minificados/binarios, muestrea 1-3 ejemplos por patrón). Excepción: los ficheros que vas a documentar sí se leen enteros. Fallback si no está el fragmento: grep antes de abrir, lee fragmentos, salta dependencias/generados. Explora con Read/Grep/Glob/Bash para fundamentar TODO con datos
 reales:
 - Tipo de proyecto y lenguaje(s); ficheros de dependencias (`composer.json`, `package.json`,
   `pyproject.toml`, `go.mod`…) → stack y versiones.
@@ -133,7 +141,7 @@ Si `docs/` ya tiene documentación:
 La política de opt-in vive en el **fragmento compartido** (misma que evaluator/planner/qa):
 
 ```bash
-SHAREDKIT="$(find "$PWD/.claude" "$HOME/.claude" -type d -path '*agent-kits/shared' 2>/dev/null | head -1)"
+SHAREDKIT="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type d -path '*agent-kits/shared' 2>/dev/null | head -1)"
 # política en "$SHAREDKIT/confluence-optin.md"
 ```
 

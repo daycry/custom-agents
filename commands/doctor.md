@@ -13,7 +13,7 @@ nada** y sin red: cada línea lleva su veredicto y, si algo falla, **qué comand
 1. Localiza el script del kit compartido y ejecútalo:
 
    ```bash
-   DOC="$(find "$PWD/.claude" "$HOME/.claude" -type f -path '*agent-kits/shared/doctor.py' 2>/dev/null | head -1)"
+   DOC="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type f -path '*agent-kits/shared/doctor.py' 2>/dev/null | head -1)"
    python3 "$DOC"            # informe Markdown · exit 0 sin ❌, 1 con ❌
    python3 "$DOC" --json     # lo mismo para consumo por script
    ```

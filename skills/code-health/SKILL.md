@@ -5,8 +5,7 @@ description: >
   `code-health.py` (sin modelo, con tests): (1) duplicados por shingles de tokens normalizados entre
   ficheros con pares `fichero:línea`, (2) tamaño y complejidad aproximada (líneas, anidamiento,
   funciones largas), (3) hotspots — ficheros grandes Y que cambian mucho según `git log` — y
-  (4) TODO/FIXME/HACK con su antigüedad por `git blame`. Salida Markdown legible o `--json`, y
-  `--baseline` para ver si mejora o empeora. Lo usa `evaluator` para ajustar riesgo/complejidad de
+  (4) TODO/FIXME/HACK con su antigüedad por `git blame`. Lo usa `evaluator` para ajustar riesgo/complejidad de
   una spec y `planner` para abrir tareas de deuda; `/roadmap-brief` puede incluir el resumen. NO
   refactoriza (eso es `quick-implement`/`implementer`) ni busca vulnerabilidades (eso es
   `nemesis`/`cybersecurity`). Úsala cuando el usuario diga "salud del código", "informe de
@@ -28,7 +27,7 @@ en vez de «el código está sucio». Todas son **heurísticas honestas**: sirve
 Resolución de rutas (regla 5 de CONVENTIONS — nunca rutas fijas):
 
 ```bash
-CHSKILL="$(find "$PWD/.claude" "$PWD/skills" "$HOME/.claude" -type d -path '*skills/code-health' 2>/dev/null | head -1)"
+CHSKILL="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$PWD/skills" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type d -path '*skills/code-health' 2>/dev/null | head -1)"
 python3 "$CHSKILL/scripts/code-health.py" <ruta> [--json] [--exclude-tests] [--baseline informe.json]
 ```
 

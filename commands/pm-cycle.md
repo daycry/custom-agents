@@ -22,7 +22,7 @@ para que, cuando se decida ejecutar, `/dev-cycle` recoja el testigo sin repetir 
 > **Modelo del agente (tiering configurable, capa 2).** Antes de despachar un agente por nombre, resuelve su tier efectivo y pasa `model` en el parámetro `model` del Agent tool (contrato oficial: el parámetro por invocación gana al frontmatter; el `effort` de `dev.json` es informativo porque el Agent tool no lo admite por invocación — el efectivo es el del frontmatter):
 >
 > ```bash
-> SHAREDKIT="$(find "$PWD/.claude" "$HOME/.claude" -type d -path '*agent-kits/shared' 2>/dev/null | head -1)"
+> SHAREDKIT="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type d -path '*agent-kits/shared' 2>/dev/null | head -1)"
 > python3 "$SHAREDKIT/model-tier.py" evaluator --json     # {"model": "...", "effort": "...", "fuente": {...}}
 > ```
 >

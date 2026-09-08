@@ -14,7 +14,7 @@ una) y de `/pm-backlog` (que prioriza).
 2. Localiza el generador de la skill **`roadmap-dashboard`** sin depender del scope (regla 5 de `docs/CONVENTIONS.md`) y ejecútalo:
 
    ```bash
-   DASH="$(find "$PWD/.claude" "$HOME/.claude" -type f -path '*skills/roadmap-dashboard/scripts/build_dashboard.py' 2>/dev/null | head -1)"
+   DASH="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type f -path '*skills/roadmap-dashboard/scripts/build_dashboard.py' 2>/dev/null | head -1)"
    python3 "$DASH" --root docs/roadmap --html docs/roadmap/dashboard.html --md docs/roadmap/dashboard.md
    ```
 
