@@ -27,6 +27,7 @@ Cada fila sale de un `/retro` de una iniciativa **cerrada**. Lo leen dos piezas:
 | 2026-08-13 | quick-implement | −77 % (0,07 h reales vs 0,3 h est.) | −66 % (34.062 vs 100k est.) | 1048061 | Alcance minúsculo y bien definido de antemano (la spec de backlog ya estaba escrita) | Una spec previa reduce el coste de implementación de forma medible: el trabajo de definir no se repite |
 | 2026-08-20 | confluence-policy | — (sin horas reales) | — (medición parcial) | | «Las specs llegaron muy maduras» (D1-D5 cerradas en la puerta PM) | Presupuestar la revisión como línea propia |
 | 2026-08-20 | knowledge-capture | — (sin horas reales) | — (medición parcial) | | «Las specs llegaron muy maduras» (D1-D3 cerradas en la puerta PM) | Presupuestar la revisión como línea propia |
+| 2026-09-08 | memory-retrieval | −88 % (4,32 h IA est. + 0 h humanas vs 36,6 h est.; IA sola **+66 %** sobre 2,60 h) | — (sin medición: `usage-meter` sin transcripción legible en Windows) | | Tres revisiones de dos lentes → 38 gaps (3 Critical) y tres tareas de cierre (T-19/T-20/T-21, 1,30 h) que el plan no tenía: la línea de revisión (0,54 h) cubría revisar, no corregir; F4 (hooks + privacidad) ×2,8; ~0,3 h de entorno Windows | Presupuestar la corrección post-revisión como línea propia igual a la de revisión; fases con hooks/degradaciones/privacidad ×2; sin muestra real de horas humanas, no presupuestarlas (8.ª fila sin ellas) |
 
 > Ratio vigente: 479326 tokens/hora (mediana de 5 muestras)
 

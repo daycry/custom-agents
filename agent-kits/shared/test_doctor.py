@@ -167,6 +167,29 @@ def test_dev_json_lente_rendimiento_es_vocabulario_conocido(tmp_path):
     assert [l for l in lineas(inf2, doctor.ERROR) if l["que"] == "dev.json `revision.lenteRendimiento`"]
 
 
+def test_dev_json_sesion_memoria_es_vocabulario_conocido(tmp_path):
+    """`sesion.memoria` (opt-out del bloque de memoria de `session-context.sh`, memory-retrieval T-06) NO
+    debe salir como clave desconocida; un valor no booleano sí es ❌."""
+    inf = diag(proyecto(tmp_path, dev__json={"sesion": {"memoria": False}}))
+    assert not lineas(inf, doctor.ERROR) and not lineas(inf, doctor.AVISO)
+    inf2 = diag(proyecto(tmp_path / "b", dev__json={"sesion": {"memoria": "no"}}))
+    assert [l for l in lineas(inf2, doctor.ERROR) if l["que"] == "dev.json `sesion.memoria`"]
+
+
+def test_dev_json_sesion_captura_y_resumen_son_vocabulario_conocido(tmp_path):
+    """`sesion.captura` (opt-out del log crudo de UserPromptSubmit) y `sesion.resumen` (resumen por IA opt-in),
+    memory-retrieval T-11/T-13, NO deben salir como clave desconocida; un valor no booleano sí es ❌ y el
+    arreglo de `sesion` mal formado nombra las claves nuevas (revisión F4, Lente A gap 6)."""
+    inf = diag(proyecto(tmp_path, dev__json={"sesion": {"captura": False, "resumen": True}}))
+    assert not lineas(inf, doctor.ERROR) and not lineas(inf, doctor.AVISO)
+    inf2 = diag(proyecto(tmp_path / "b", dev__json={"sesion": {"captura": "no", "resumen": 1}}))
+    assert [l for l in lineas(inf2, doctor.ERROR) if l["que"] == "dev.json `sesion.captura`"]
+    assert [l for l in lineas(inf2, doctor.ERROR) if l["que"] == "dev.json `sesion.resumen`"]
+    inf3 = diag(proyecto(tmp_path / "c", dev__json={"sesion": "si"}))
+    err = [l for l in lineas(inf3, doctor.ERROR) if l["que"] == "dev.json `sesion`"]
+    assert err and "captura" in err[0]["arreglo"] and "resumen" in err[0]["arreglo"]
+
+
 def test_hook_con_script_inexistente_es_error(tmp_path):
     plug = plugin(tmp_path, script_existe=False)
     inf = diag(proyecto(tmp_path), plug)
@@ -314,9 +337,214 @@ def test_toda_linea_de_aviso_o_error_trae_arreglo(tmp_path):
         assert l["arreglo"].strip(), l
 
 
-@pytest.mark.parametrize("bloque", ["herramientas", "plugin", "configs", "estado", "version"])
-def test_los_cinco_bloques_estan_siempre(tmp_path, bloque):
+@pytest.mark.parametrize("bloque", ["herramientas", "plugin", "configs", "estado", "memoria", "version"])
+def test_los_seis_bloques_estan_siempre(tmp_path, bloque):
     inf = diag(proyecto(tmp_path))
     claves = [b["clave"] for b in inf["bloques"]]
-    assert bloque in claves and len(claves) == 5
-    assert doctor.render_md(inf).count("| | Comprobación |") == 5
+    assert bloque in claves and len(claves) == 6
+    assert doctor.render_md(inf).count("| | Comprobación |") == 6
+
+
+# ------------------------------------------------------------------ salud de la memoria (memory-retrieval T-10)
+#
+# Hasta aquí `/doctor` decía «Instalación sana» con 0 entradas de journal, sin contar las curadas, sin
+# validar el índice y sin avisar de que CALIBRATION.md llevaba semanas sin fila. Bloque nuevo «Memoria
+# técnica»: entradas curadas por familia y estado (✅/ℹ️), índice `README.md` (❌ si la biyección o el
+# «Área» fallan — delega en `lint_knowledge_index` de lint_plugin.py), índice FTS5 (ℹ️ ausente/desfasado,
+# ⚠️ corrupto o sin FTS5), journal a 0 CON memoria curada (⚠️) y CALIBRATION.md (> CALIBRACION_DIAS_MAX
+# días sin fila con iniciativas cerradas después → ⚠️ con cuántas y cuáles). Solo lectura: no crea el índice.
+
+import datetime as _dt
+
+
+def _fm(**kv):
+    return "---\n" + "".join(f"{k}: {v}\n" for k, v in kv.items()) + "---\n"
+
+
+def memoria(proj, propuesta=False, sin_fila=None, journal=None):
+    """`docs/knowledge/` de mentira: 2 ADR + 1 gotcha + 1 lección (una `propuesta` si se pide)."""
+    kn = proj / "docs" / "knowledge"
+    for d in ("adr", "gotchas", "lessons"):
+        (kn / d).mkdir(parents=True, exist_ok=True)
+    entradas = {
+        "adr/ADR-001-a.md": (_fm(id="ADR-001", titulo="A", estado="aceptada (validada: usuario, 2026-01-01)") + "\n# A\n", "ADR", "Hooks / x"),
+        "adr/ADR-002-b.md": (_fm(id="ADR-002", titulo="B", estado="aceptada (validada: usuario, 2026-01-01)") + "\n# B\n", "ADR", "Hooks / y"),
+        "gotchas/GOT-001-c.md": (_fm(id="GOT-001", tipo="gotcha", area="Tests / fixtures",
+                                     estado="aceptada (validada: usuario, 2026-01-01)") + "\n## C\n", "Gotcha", "Tests / fixtures"),
+        "lessons/LES-001-evaluator-d.md": (_fm(id="LES-001", tipo="leccion", area="Estimación / calibración",
+                                               estado="propuesta" if propuesta else "aceptada (validada: usuario, 2026-01-01)")
+                                           + "\n## evaluator\n\n- D.\n", "Lección", "Estimación / calibración"),
+    }
+    filas = ["# índice\n", "| Entrada | ID | Tipo | Área | Estado | Fuente |", "|---|---|---|---|---|---|"]
+    for rel, (texto, tipo, area) in entradas.items():
+        (kn / rel).write_text(texto, encoding="utf-8")
+        id_ = rel.split("/")[1][:7]
+        if id_ != sin_fila:
+            estado = "propuesta" if (propuesta and id_ == "LES-001") else "aceptada (validada: usuario, 2026-01-01)"
+            filas.append(f"| [`{rel}`]({rel}) — {id_} | {id_} | {tipo} | {area} | {estado} | `x/tasks.md` |")
+    (kn / "README.md").write_text("\n".join(filas) + "\n", encoding="utf-8")
+    if journal is not None:
+        (kn / "journal").mkdir(exist_ok=True)
+        (kn / "journal" / "README.md").write_text("# journal\n", encoding="utf-8")
+        for i in range(journal):
+            (kn / "journal" / f"2026-01-0{i + 1}-demo.md").write_text("---\nsesion: x\n---\n", encoding="utf-8")
+    return kn
+
+
+def ledger_cerrado(proj, slug, actualizado):
+    d = proj / "docs" / "roadmap" / slug
+    d.mkdir(parents=True, exist_ok=True)
+    (d / "tasks.md").write_text(
+        f"---\ntasks: {slug[11:]}\nestado: completado\ncreado: {actualizado}\nactualizado: {actualizado}\n---\n\n"
+        f"# Checklist — {slug}\n\n## Fase 1 — X\n\n**Estado**: completado\n\n### T-01 — x\n\n- **Estado**: completado\n\n"
+        "**Criterios de aceptación**\n- [x] a\n", encoding="utf-8")
+
+
+def calibracion(proj, ultima_fecha, slugs=("una",)):
+    filas = "\n".join(f"| {ultima_fecha} | {s} | −90 % | −90 % | 400000 | causa | ajuste |" for s in slugs)
+    (proj / "docs" / "roadmap").mkdir(parents=True, exist_ok=True)
+    (proj / "docs" / "roadmap" / "CALIBRATION.md").write_text(
+        "# CALIBRATION\n\n| Fecha | Iniciativa | Desv. producción | Desv. tokens | tokens/hora (medido) | Causa principal | Ajuste sugerido |\n"
+        "|---|---|---|---|---|---|---|\n" + filas + "\n", encoding="utf-8")
+
+
+def bloque(inf, clave):
+    return next(b for b in inf["bloques"] if b["clave"] == clave)
+
+
+def por_que(inf, que, estado=None):
+    return [l for l in lineas(inf, estado) if l["que"] == que]
+
+
+def test_memoria_sin_docs_knowledge_es_informativa_y_exit_0(tmp_path):
+    """Un proyecto recién instalado nace sin memoria: no está roto."""
+    inf = diag(proyecto(tmp_path))
+    mem = bloque(inf, "memoria")
+    assert mem["titulo"].lower().startswith("memoria")
+    assert all(l["estado"] == doctor.INFO for l in mem["lineas"]), mem["lineas"]
+    assert any("docs/knowledge/" in l["detalle"] for l in mem["lineas"])
+    assert inf["exit"] == 0 and "Instalación sana" in doctor.render_md(inf)
+
+
+def test_memoria_curada_se_cuenta_por_familia_y_por_estado(tmp_path):
+    proj = proyecto(tmp_path)
+    memoria(proj, propuesta=True, journal=1)
+    inf = diag(proj)
+    cur = por_que(inf, "memoria curada")
+    assert len(cur) == 1 and cur[0]["estado"] == doctor.OK
+    det = cur[0]["detalle"]
+    assert "4 entrada" in det and "2 ADR" in det and "1 gotcha" in det and "1 lecci" in det, det
+    assert "3 aceptada" in det and "1 propuesta" in det, det
+    idx = por_que(inf, "índice de memoria (README)")
+    assert idx and idx[0]["estado"] == doctor.OK and "4" in idx[0]["detalle"]
+
+
+def test_indice_readme_invalido_es_error_y_ya_no_dice_instalacion_sana(tmp_path):
+    """Spec CA-14: una entrada sin fila (biyección rota) es ❌, nombra el fichero, exit 1."""
+    proj = proyecto(tmp_path)
+    memoria(proj, sin_fila="GOT-001", journal=1)
+    inf = diag(proj)
+    errs = por_que(inf, "índice de memoria (README)", doctor.ERROR)
+    assert len(errs) == 1, [l for l in lineas(inf) if "memoria" in l["que"]]
+    assert "GOT-001" in errs[0]["detalle"] and "sin fila" in errs[0]["detalle"]
+    assert "README.md" in errs[0]["arreglo"]
+    assert inf["exit"] == 1
+    md = doctor.render_md(inf)
+    assert "Instalación sana" not in md and "❌" in md
+
+
+def test_indice_readme_fila_hacia_fichero_inexistente_es_error_aunque_el_plugin_root_sea_una_copia_vieja(tmp_path):
+    """Revisión intento 1 (MINOR 6): la «comprobación local equivalente» solo veía fichero-sin-fila y fila-sin-Área;
+    con `plugin_root` resuelto a una copia instalada anterior (sin `lint_knowledge_index`) una fila fantasma pasaba
+    ✅ (medido sobre e08fc05: «✅ … (comprobación local)»). Ahora el doctor lleva el criterio del linter como copia
+    LITERAL (bloque `--8<--`, identidad con test) y no depende de lo que traiga `plugin_root`."""
+    proj = proyecto(tmp_path)
+    kn = memoria(proj, journal=1)
+    readme = kn / "README.md"
+    readme.write_text(readme.read_text(encoding="utf-8")
+                      + "| [`adr/ADR-099-fantasma.md`](adr/ADR-099-fantasma.md) — fantasma | ADR-099 | ADR | Hooks / z | aceptada | `x` |\n",
+                      encoding="utf-8")
+    for plug in (None, plugin(tmp_path)):                  # sin plugin y con un plugin SIN scripts/lint_plugin.py
+        inf = diag(proj, plug)
+        errs = por_que(inf, "índice de memoria (README)", doctor.ERROR)
+        assert len(errs) == 1, [l for l in lineas(inf) if "memoria" in l["que"]]
+        assert "ADR-099" in errs[0]["detalle"] and "no existe" in errs[0]["detalle"], errs[0]["detalle"]
+        assert inf["exit"] == 1
+    # y el criterio es literalmente el del linter (el test de identidad vive en tests/test_knowledge_index.py)
+    assert "# --8<-- criterio del índice de knowledge COMPARTIDO" in open(SCRIPT, encoding="utf-8").read()
+    assert por_que(diag(proyecto(tmp_path / "b")), "índice de memoria (README)") == []      # sin memoria: nada que juzgar
+
+
+def test_journal_a_cero_con_memoria_curada_es_aviso_y_sin_memoria_sigue_informativo(tmp_path):
+    proj = proyecto(tmp_path)
+    memoria(proj, journal=0)                          # carpeta journal/ vacía
+    inf = diag(proj)
+    av = por_que(inf, "journal de sesión", doctor.AVISO)
+    assert len(av) == 1 and "0" in av[0]["detalle"] and "curada" in av[0]["detalle"], av
+    assert "SessionEnd" in av[0]["arreglo"] and "sesion.journal" in av[0]["arreglo"]
+    assert inf["exit"] == 0 and "Instalación sana" not in doctor.render_md(inf)
+    # sin carpeta journal/ pero con memoria curada → mismo aviso
+    import shutil as _sh
+    _sh.rmtree(proj / "docs" / "knowledge" / "journal")
+    assert por_que(diag(proj), "journal de sesión", doctor.AVISO)
+    # con una entrada → informativo, como antes
+    memoria(proj, journal=1)
+    assert por_que(diag(proj), "journal de sesión", doctor.INFO)
+    # sin docs/knowledge/ → informativo (comportamiento de siempre: un proyecto nuevo no está roto)
+    assert por_que(diag(proyecto(tmp_path / "b")), "journal de sesión", doctor.INFO)
+
+
+def test_calibracion_desfasada_avisa_con_dias_e_iniciativas_cerradas(tmp_path):
+    proj = proyecto(tmp_path)
+    memoria(proj, journal=1)
+    calibracion(proj, "2026-01-01", slugs=("una",))
+    ledger_cerrado(proj, "2026-01-01-una", "2026-01-01")          # ya tiene fila
+    ledger_cerrado(proj, "2026-01-10-dos", "2026-01-10")          # cerrada después, sin fila
+    ledger_cerrado(proj, "2026-01-12-tres", "2026-01-12")         # ídem
+    hoy = _dt.date(2026, 1, 20)
+    inf = doctor.diagnostico(str(proj), None, hoy=hoy)
+    av = por_que(inf, "calibración (CALIBRATION.md)", doctor.AVISO)
+    assert len(av) == 1, [l for l in lineas(inf) if "calibraci" in l["que"]]
+    assert "19 día" in av[0]["detalle"] and "2 iniciativa" in av[0]["detalle"], av[0]["detalle"]
+    assert "dos" in av[0]["detalle"] and "tres" in av[0]["detalle"] and "una" not in av[0]["detalle"].split("cerrada")[1]
+    assert "/retro" in av[0]["arreglo"]
+    assert doctor.CALIBRACION_DIAS_MAX == 14
+    # 9 días → todavía no avisa (ℹ️ con las cerradas pendientes), y con fila reciente → ✅
+    inf9 = doctor.diagnostico(str(proj), None, hoy=_dt.date(2026, 1, 10))
+    assert not por_que(inf9, "calibración (CALIBRATION.md)", doctor.AVISO)
+    calibracion(proj, "2026-01-19", slugs=("una", "dos", "tres"))
+    ok = por_que(doctor.diagnostico(str(proj), None, hoy=hoy), "calibración (CALIBRATION.md)", doctor.OK)
+    assert ok, "con fila reciente y sin cerradas pendientes, ✅"
+    # sin CALIBRATION.md pero con iniciativas cerradas → ⚠️ (nunca se ha hecho una retro)
+    (proj / "docs" / "roadmap" / "CALIBRATION.md").unlink()
+    sin = por_que(doctor.diagnostico(str(proj), None, hoy=hoy), "calibración (CALIBRATION.md)", doctor.AVISO)
+    assert sin and "3 iniciativa" in sin[0]["detalle"]
+
+
+def test_indice_fts5_ausente_informa_valido_ok_y_corrupto_avisa_sin_escribir(tmp_path):
+    proj = proyecto(tmp_path)
+    memoria(proj, journal=1)
+    antes = snapshot(proj)
+    inf = diag(proj)
+    fts = por_que(inf, "índice de búsqueda (FTS5)")
+    assert fts and fts[0]["estado"] == doctor.INFO and "primera consulta" in fts[0]["arreglo"] + fts[0]["detalle"]
+    assert snapshot(proj) == antes, "el doctor NO construye el índice: es de solo lectura"
+    # lo construye una consulta real → válido
+    subprocess.run([sys.executable, os.path.join(HERE, "knowledge-find.py"), "--root", str(proj), "--limit", "0"],
+                   capture_output=True, text=True, encoding="utf-8", errors="replace", check=True)
+    assert por_que(diag(proj), "índice de búsqueda (FTS5)", doctor.OK)
+    # corrupto → ⚠️ con el arreglo (se reconstruye solo; si no, bórralo)
+    (proj / ".claude" / "knowledge-index.sqlite").write_bytes(b"basura")
+    av = por_que(diag(proj), "índice de búsqueda (FTS5)", doctor.AVISO)
+    assert av and "knowledge-index.sqlite" in av[0]["arreglo"]
+
+
+def test_repo_real_la_memoria_ya_no_pasa_en_silencio():
+    """Sobre este repo (≥ 31 curadas, journal a 0, CALIBRATION.md > 14 días): no «Instalación sana»."""
+    inf = diag(ROOT, ROOT)
+    cur = por_que(inf, "memoria curada", doctor.OK)
+    assert cur and int(re.search(r"(\d+) entrada", cur[0]["detalle"]).group(1)) >= 31
+    assert por_que(inf, "índice de memoria (README)", doctor.OK), "el índice real pasa el lint de T-04"
+    ques = {l["que"] for l in lineas(inf, doctor.AVISO)}
+    assert "journal de sesión" in ques or "calibración (CALIBRATION.md)" in ques
+    assert "Instalación sana" not in doctor.render_md(inf)

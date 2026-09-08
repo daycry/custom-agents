@@ -2,8 +2,8 @@
 
 **Qué es.** Una lista corta de las excusas que el modelo se da a sí mismo justo antes de saltarse
 una puerta (marcar completado sin correr tests, aprobar sin leer el diff, dar verde con un flaky…),
-con la razón por la que no valen y la acción concreta que toca en su lugar. Patrón «iron law» de
-superpowers: nombrar la excusa en el momento en que aparece es más eficaz que repetir la regla.
+con la razón por la que no valen y la acción concreta que toca en su lugar. La idea: nombrar la
+excusa en el momento en que aparece es más eficaz que repetir la regla.
 La tabla **complementa** al DoD/veredicto de la pieza: el DoD dice qué evidencia hace falta; la
 tabla desarma la justificación para no aportarla.
 

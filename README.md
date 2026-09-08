@@ -73,7 +73,7 @@ Most tooling around coding agents answers *how* to write the code. This plugin a
 
 > **Portable skills:** the skills (not the agents, commands or hooks) also work **outside Claude Code** — Codex, Copilot, Cursor and any `AGENTS.md` reader — via `python3 scripts/export-skills.py` or the `custom-agents-skills-portable-<version>.zip` attached to every Release ([how](docs/en/INSTALL.md#using-the-skills-outside-claude-code-portable-package)).
 
-> Self-contained: no dependency on other plugins. If you already use an external SDD engine, `/dev-cycle` can delegate execution to it while `tasks.md` remains the canonical ledger; and it [coexists](docs/en/observability.md) with live session monitors.
+> Self-contained: no dependency on other plugins. `tasks.md` is the canonical ledger for whoever implements — any other tool's own log is a mirror, never the source; and it [coexists](docs/en/observability.md) with live session monitors.
 
 ## What makes it different
 
@@ -242,10 +242,6 @@ Every push to `master` (and every PR) goes through [GitHub Actions](https://gith
 ## Security
 
 `nemesis` runs active pentests **only against local/private hosts** (`localhost`, `*.test`, private networks), enforced by a script guardrail — never against third parties. Active exploitation requires explicit opt-in and reports with findings stay gitignored.
-
-## Compared with superpowers
-
-An honest note, because you will ask. [superpowers](https://github.com/obra/superpowers) is a great engineering-discipline plugin, and this one **borrows** several of its patterns openly: TDD with red-phase evidence, fresh-context subagents with a brief, mandatory review before merging, short skills with on-demand references, activation evals and a skill index injected at session start. What this plugin **adds** is the business layer around the code: a **budget** (hours · € · tokens) before building and a go/no-go gate, a **canonical ledger** with measured cost per task, **Jira/Confluence** traceability, a **technical memory** (`docs/knowledge/`) and **deterministic guardrails** (scripts with exit codes, not prose). They coexist: `/dev-cycle --superpowers` delegates the execution backbone to superpowers while `tasks.md` stays the ledger, and the [portable skills](docs/en/INSTALL.md#using-the-skills-outside-claude-code-portable-package) follow its multi-environment idea.
 
 ## License
 

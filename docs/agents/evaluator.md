@@ -56,7 +56,7 @@ La primera vez confirma los parámetros de estimación (tarifa/hora, modelo, pre
 
 ## 5-bis. Memoria técnica del proyecto
 
-Antes de presupuestar (siempre activa, sin opt-in), si el proyecto tiene `docs/knowledge/` el agente lee su `README.md` y abre las entradas de `lessons/LES-*-evaluator-*` que apliquen (lecciones de estimación/calibración, incluidas las de la primera calibración real) — paso compartido `agent-kits/shared/knowledge-check.md`. `evaluator` solo **lee** esta memoria: no escribe ADR ni gotchas.
+Antes de presupuestar (siempre activa, sin opt-in) el agente consulta dos fondos con `agent-kits/shared/knowledge-find.py`: la **doctrina del plugin** (`--doctrina --area estimacion`: las 9 lecciones de estimación/calibración `LES-001…009`, que viajan en `agent-kits/evaluator/assets/doctrina/` y están disponibles desde el primer día, también en un proyecto sin `docs/knowledge/` — `memory-retrieval` T-15/T-16) y, si el proyecto tiene `docs/knowledge/`, la **memoria del proyecto** (`--area estimacion --tipo lesson`), abriendo con `--show <ID>` solo la que aplique — paso compartido `agent-kits/shared/knowledge-check.md`. `evaluator` solo **lee** esta memoria: no escribe ADR ni gotchas.
 
 ---
 

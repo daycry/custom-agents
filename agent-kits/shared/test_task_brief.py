@@ -399,6 +399,103 @@ def test_brief_verificacion_sublista_y_ejecutada(inic):
     assert rc == 0 and "no declara `Verificación`" in out
 
 
+def test_verificacion_va_una_vez_y_los_items_red_se_omiten(inic):
+    """Revisión intento 1 (IMPORTANT 4 / CA-08): la Verificación iba ENTERA dos veces (en el bloque de la
+    tarea y en su sección) y arrastraba los `RED: …` de la ejecución anterior; el bloque de la tarea
+    arrastraba además los campos de presupuesto y el `Changelog` (nota de release de quien cierra, ADR-012).
+    Un subagente necesita «comando → esperado»."""
+    t = (inic / "tasks.md").read_text(encoding="utf-8")
+    t = t.replace("- **Descripción**: hacer la cosa A.\n",
+                  "- **Descripción**: hacer la cosa A.\n"
+                  "- **Tiempo humano**: est. 3,0h · real 0h\n"
+                  "- **Tiempo IA (ejec.)**: est. 0,17h · real 0,20h (estimado)\n"
+                  "- **Supervisión**: est. 0,04h · real 0,05h\n"
+                  "- **Previsión IA**: 65k in / 20k out tok · 0,76 €\n"
+                  "- **Changelog**: Los usuarios ven la cosa A hecha.\n"
+                  "- **Verificación** (ejecutada 2026-09-07):\n"
+                  "  - `RED: tests/test_a.py falló con ImportError · 2026-09-07`; GREEN después → `2 passed`.\n"
+                  "  - `python3 -m pytest -q tests/test_a.py` → `2 passed`\n"
+                  "  - Tiempo del hook: `time bash h.sh` → ≤ 1 s\n"
+                  "  - `TDD n/a: prosa`\n", 1)
+    (inic / "tasks.md").write_text(t, encoding="utf-8")
+    rc, out = _run([str(inic), "T-01", "--sin-lint", "--constitucion", str(inic / "no.md")])
+    assert rc == 0
+    tarea = out.split("## La tarea")[1].split("\n## ")[0]
+    sec = out.split("## Verificación (ejecútala")[1].split("\n## ")[0]
+    # una vez: en el bloque de la tarea, un puntero; los ítems solo en la sección
+    assert "- **Verificación**: 2 ítem(s) → en la sección «Verificación» de este brief" in tarea, tarea
+    assert "pytest -q tests/test_a.py" not in tarea and "RED:" not in tarea
+    assert out.count("`python3 -m pytest -q tests/test_a.py` → `2 passed`") == 1
+    # los RED/TDD n/a fuera, contados; los comandos dentro (incluido el que empieza por «Tiempo del hook»)
+    assert "- `python3 -m pytest -q tests/test_a.py` → `2 passed`" in sec
+    assert "- Tiempo del hook: `time bash h.sh` → ≤ 1 s" in sec, "un ítem que empieza por «Tiempo» NO es un campo de presupuesto"
+    assert "RED:" not in sec.split("> 2 ítem(s)")[0] and "TDD n/a" not in sec.split("> 2 ítem(s)")[0]
+    assert "> 2 ítem(s) `RED: …` de la ejecución anterior omitido(s)" in sec and "produce tu propio rojo" in sec
+    assert "re-ejecútala" in sec
+    # presupuesto fuera del bloque de la tarea; la descripción y los criterios intactos
+    for campo in ("Tiempo humano", "Tiempo IA", "Supervisión**", "Previsión IA", "Changelog", "ven la cosa A hecha"):
+        assert campo not in tarea, campo
+    assert "hacer la cosa A" in tarea and "la cosa A funciona" in tarea
+
+
+def test_verificacion_solo_con_evidencia_red_cuenta_como_no_declarada(inic):
+    t = (inic / "tasks.md").read_text(encoding="utf-8")
+    t = t.replace("- **Descripción**: hacer la cosa A.\n",
+                  "- **Descripción**: hacer la cosa A.\n- **Verificación**:\n  - `RED: x falló · 2026-09-07`\n", 1)
+    (inic / "tasks.md").write_text(t, encoding="utf-8")
+    rc, out = _run([str(inic), "T-01", "--sin-lint", "--constitucion", str(inic / "no.md")])
+    assert rc == 0 and "no declara `Verificación`" in out and "## Verificación (ejecútala" not in out
+    assert "RED: x falló" in out.split("## La tarea")[1].split("\n## ")[0], "sin sección, el bloque se deja intacto"
+
+
+def test_ca08_el_brief_completo_cabe_en_el_tope_sobre_un_ledger_de_tmp_path(tmp_path):
+    """Un ledger con la Verificación acumulada de una tarea cerrada (RED + salidas + notas, ~3.500 chars) y
+    memoria del área: el brief cabe en BRIEF_TOPE_CHARS porque la verificación va una vez y sin evidencia."""
+    assert tb.BRIEF_TOPE_CHARS == 10000
+    items = ["  - `RED: tests/test_x.py falló con AttributeError: module has no attribute f (26 failed, 29 passed) · 2026-09-07`; "
+             "GREEN después → `python3 -m pytest -q tests/test_x.py` → **`55 passed in 4.84s`**."]
+    for n in range(8):
+        items.append(f"  - `python3 script-{n}.py --json` → `total: {n}`, exit 0 · nota medida: la cifra de hoy es {n} "
+                     "porque el corpus creció desde el análisis (antes 31, hoy 32; ver T-01) y la línea humana se abrevia.")
+    tasks = _tasks_con_tipo("- **Tipo**: devops\n").replace(
+        "- **Estado**: borrador\n",
+        "- **Tiempo humano**: est. 3,0h · real 0h\n- **Tiempo IA (ejec.)**: est. 0,17h · real 0,20h\n"
+        "- **Supervisión**: est. 0,04h · real 0,05h\n- **Previsión IA**: 65k in / 20k out tok · 0,76 €\n"
+        "- **Estado**: completado\n- **Verificación** (ejecutada 2026-09-07):\n" + "\n".join(items) + "\n")
+    d = _proyecto_con_memoria(tmp_path, tasks=tasks)
+    rc, out = _run([str(d), "T-01", "--sin-lint", "--constitucion", str(d / "no.md")])
+    assert rc == 0 and "## Memoria técnica" in out and "## Verificación (ejecútala" in out
+    assert len(out) <= tb.BRIEF_TOPE_CHARS, len(out)
+    assert out.count("`python3 script-3.py --json`") == 1 and "26 failed" not in out
+    chunk, _ = tb._seccion_tarea(tasks, "T-01")
+    assert len(out) < len(out) + len(chunk) - 400, "sin la poda el brief llevaría el bloque entero dos veces"
+
+
+def _tareas_del_ledger(texto):
+    import re as _re
+    return _re.findall(r"^###\s+(T-\d+)\b", texto, _re.M)
+
+
+def test_ca08_el_brief_completo_cabe_en_el_tope_sobre_el_ledger_real_de_memory_retrieval():
+    """Spec CA-08: brief ≤ 2.500 tokens ≈ 10.000 caracteres, medido sobre TODAS las tareas del ledger real
+    de la iniciativa (antes del arreglo, 2026-09-07: T-05 12.189 · T-06 12.543 · T-10 12.182). Corre el
+    brief como lo corre /dev-cycle: con ledger-lint y con la memoria del corpus real."""
+    raiz = Path(__file__).resolve().parents[2]
+    carpeta = raiz / "docs" / "roadmap" / "2026-09-04-memory-retrieval"
+    if not (carpeta / "tasks.md").is_file() or not (raiz / "docs" / "knowledge").is_dir():
+        pytest.skip("sin el ledger real de memory-retrieval o sin docs/knowledge/")
+    tareas = _tareas_del_ledger((carpeta / "tasks.md").read_text(encoding="utf-8"))
+    assert len(tareas) >= 10
+    medidas = {}
+    for tid in tareas:
+        r = subprocess.run([sys.executable, str(Path(__file__).parent / "task-brief.py"), str(carpeta), tid],
+                           capture_output=True, text=True, encoding="utf-8", errors="replace", cwd=str(raiz), timeout=120)
+        assert r.returncode == 0, (tid, r.stderr)
+        medidas[tid] = len(r.stdout)
+    largos = {t: n for t, n in medidas.items() if n > tb.BRIEF_TOPE_CHARS}
+    assert not largos, f"briefs por encima de {tb.BRIEF_TOPE_CHARS} caracteres (CA-08): {largos} · todas: {medidas}"
+
+
 # --- TDD (parity-core T-03): con dev.json `tdd: true` el brief manda seguir la skill `tdd` ---
 
 def _dev_json(tmp_path, data):
@@ -642,3 +739,194 @@ def test_el_ledger_valido_sigue_saliendo_0_con_el_locale_sin_utf8(tmp_path):
                        capture_output=True, encoding="utf-8", errors="replace", env=env)
     assert r.returncode == 0, f"exit {r.returncode}\n{r.stderr[-1200:]}"
     assert "Traceback" not in r.stderr, r.stderr[-1200:]
+
+
+# ------------------------------------------------- memoria técnica presupuestada (memory-retrieval T-05)
+#
+# La puerta cerrada del hueco 1: con `subagentes: true` el brief es el ÚNICO contexto, y hasta aquí no
+# llevaba ni un gotcha. La sección la componen los aciertos de `knowledge-find.py` ENRUTADOS por el
+# `- **Tipo**:` de la tarea, el título de la tarea y la iniciativa (`--contexto/--tipo-tarea/--iniciativa`),
+# con tope MEMORIA_TOPE_CHARS y degradación silenciosa (sin carpeta, sin aciertos o sin script → nada).
+
+def _knowledge(raiz):
+    """Corpus mínimo de DOS áreas en <raiz>/docs/knowledge: una entrada de hooks y otra de estimación."""
+    kn = raiz / "docs" / "knowledge"
+    (kn / "adr").mkdir(parents=True)
+    (kn / "lessons").mkdir()
+    (kn / "adr" / "ADR-001-deny-solo-agente.md").write_text(
+        "---\nid: ADR-001\ntitulo: Deny solo con alcance de agente\nestado: aceptada (validada: usuario, 2026-01-02)\n"
+        "fecha: 2026-01-02\niniciativa: demo-hooks\n---\n\n# ADR-001\n\nEl deny va en el frontmatter del agente.\n",
+        encoding="utf-8")
+    (kn / "lessons" / "LES-001-evaluator-revision-cara.md").write_text(
+        "---\nid: LES-001\ntipo: leccion\narea: Estimación / calibración\nestado: aceptada (validada: usuario, 2026-01-03)\n"
+        "fuente: 2026-01-01-demo-estimacion/retro.md\n---\n\n## evaluator\n\n- El coste está en la revisión.\n",
+        encoding="utf-8")
+    (kn / "README.md").write_text(
+        "# índice\n\n| Entrada | ID | Tipo | Área | Estado | Fuente |\n|---|---|---|---|---|---|\n"
+        "| [`adr/ADR-001-deny-solo-agente.md`](adr/ADR-001-deny-solo-agente.md) — deny solo con alcance de agente "
+        "| ADR-001 | ADR | Hooks / implementer | aceptada (validada: usuario, 2026-01-02) | `2026-01-02-demo-hooks/tasks.md` |\n"
+        "| [`lessons/LES-001-evaluator-revision-cara.md`](lessons/LES-001-evaluator-revision-cara.md) — el coste está en la revisión "
+        "| LES-001 | Lección | Estimación / calibración | aceptada (validada: usuario, 2026-01-03) | `2026-01-01-demo-estimacion/retro.md` |\n",
+        encoding="utf-8")
+    return kn
+
+
+def _proyecto_con_memoria(tmp_path, slug="2026-01-01-juguete", tasks=None, con_knowledge=True):
+    raiz = tmp_path / "proj"
+    d = raiz / "docs" / "roadmap" / slug
+    d.mkdir(parents=True)
+    (d / "tasks.md").write_text(tasks or TASKS, encoding="utf-8")
+    (d / "improvement-plan.md").write_text(PLAN, encoding="utf-8")
+    if con_knowledge:
+        _knowledge(raiz)
+    return d
+
+
+def _seccion_memoria(out):
+    if "## Memoria técnica" not in out:
+        return ""
+    resto = out.split("## Memoria técnica", 1)[1]
+    fin = resto.find("\n## ")
+    return "## Memoria técnica" + (resto if fin == -1 else resto[:fin + 1])   # con SU salto final
+
+
+def test_memoria_tecnica_enrutada_por_tipo_trae_su_area_y_no_las_otras(tmp_path):
+    d = _proyecto_con_memoria(tmp_path, tasks=_tasks_con_tipo("- **Tipo**: devops\n"))
+    rc, out = _run([str(d), "T-01", "--sin-lint", "--constitucion", str(d / "no.md")])
+    assert rc == 0
+    sec = _seccion_memoria(out)
+    assert sec, "la tarea es devops y hay una entrada de área Hooks: la sección tiene que estar"
+    assert "ADR-001" in sec and "Hooks / implementer" in sec
+    assert "LES-001" not in sec, "la lección de estimación NO es del área de una tarea devops"
+    assert "aceptada" in sec, "el estado va delante en cada acierto (doctrina vs indicio)"
+    assert "knowledge-find.py" in sec and "--show" in sec, "el detalle se abre por ID, no se pega entero"
+    assert len(sec) <= tb.MEMORIA_TOPE_CHARS
+    assert out.index("## La tarea") < out.index("## Memoria técnica") < out.index("## Contrato de retorno")
+
+
+def test_memoria_sin_tipo_cae_a_la_iniciativa_y_no_al_corpus_entero(tmp_path):
+    d = _proyecto_con_memoria(tmp_path, slug="2026-01-02-demo-hooks", tasks=_tasks_con_tipo(""))
+    rc, out = _run([str(d), "T-01", "--sin-lint", "--constitucion", str(d / "no.md")])
+    assert rc == 0
+    sec = _seccion_memoria(out)
+    assert "ADR-001" in sec, "nació en esta iniciativa (`iniciativa: demo-hooks`)"
+    assert "LES-001" not in sec, "sin Tipo no se vuelca el corpus entero"
+
+
+def test_memoria_sin_docs_knowledge_salida_identica_a_la_de_hoy(tmp_path, capsys):
+    con = _proyecto_con_memoria(tmp_path / "a", tasks=_tasks_con_tipo("- **Tipo**: devops\n"))
+    sin = _proyecto_con_memoria(tmp_path / "b", tasks=_tasks_con_tipo("- **Tipo**: devops\n"), con_knowledge=False)
+    rc1, out_con = _run([str(con), "T-01", "--sin-lint", "--constitucion", str(con / "no.md")])
+    rc2, out_sin = _run([str(sin), "T-01", "--sin-lint", "--constitucion", str(sin / "no.md")])
+    assert rc1 == rc2 == 0
+    assert "Memoria técnica" not in out_sin and "knowledge" not in out_sin.lower()
+    chunk, _fase = tb._seccion_tarea((con / "tasks.md").read_text(encoding="utf-8"), "T-01")
+    sec = tb._memoria_tecnica(str(con), chunk, "devops")          # EXACTAMENTE lo que el brief añade
+    assert sec and sec in out_con and sec.endswith("\n")
+    assert out_con.replace(sec + "\n", "", 1).replace(str(con), str(sin)) == out_sin, \
+        "sin `docs/knowledge/` el brief es byte a byte el de hoy salvo la sección ausente (un elemento + su salto)"
+    assert "knowledge" not in capsys.readouterr().err.lower(), "degradación SILENCIOSA: ni aviso"
+
+
+def test_memoria_sin_aciertos_no_deja_seccion_vacia(tmp_path):
+    d = _proyecto_con_memoria(tmp_path, tasks=_tasks_con_tipo("- **Tipo**: db\n"))
+    rc, out = _run([str(d), "T-01", "--sin-lint", "--constitucion", str(d / "no.md")])
+    assert rc == 0 and "Memoria técnica" not in out
+
+
+def test_memoria_el_tope_es_una_constante_con_test_y_se_recorta_diciendolo(tmp_path):
+    """Spec CA-08: ≤ 600 tokens ≈ 2.400 caracteres. Un mutante que suba la constante pone esto rojo, y
+    un corpus de 40 entradas de la misma área no puede emitir por encima: recorta y lo dice."""
+    assert tb.MEMORIA_TOPE_CHARS == 2400
+    d = _proyecto_con_memoria(tmp_path, tasks=_tasks_con_tipo("- **Tipo**: devops\n"))
+    kn = d.parent.parent.parent / "docs" / "knowledge"
+    filas = []
+    for n in range(2, 42):
+        fn = f"ADR-{n:03d}-hook-numero-{n}-con-un-nombre-de-fichero-deliberadamente-largo.md"
+        (kn / "adr" / fn).write_text(
+            f"---\nid: ADR-{n:03d}\ntitulo: Hook número {n} con un titular largo para ocupar la línea entera\n"
+            f"estado: aceptada (validada: usuario, 2026-01-02)\nfecha: 2026-01-02\n---\n\n# ADR-{n:03d}\n\nx\n",
+            encoding="utf-8")
+        filas.append(f"| [`adr/{fn}`](adr/{fn}) — hook número {n} con un titular largo para ocupar la línea entera "
+                     f"| ADR-{n:03d} | ADR | Hooks / implementer | aceptada (validada: usuario, 2026-01-02) | `x/tasks.md` |")
+    readme = kn / "README.md"
+    readme.write_text(readme.read_text(encoding="utf-8").rstrip("\n") + "\n" + "\n".join(filas) + "\n", encoding="utf-8")
+    rc, out = _run([str(d), "T-01", "--sin-lint", "--constitucion", str(d / "no.md")])
+    assert rc == 0
+    sec = _seccion_memoria(out)
+    assert 0 < len(sec) <= tb.MEMORIA_TOPE_CHARS, len(sec)
+    assert "más" in sec and "knowledge-find.py" in sec, "recortado Y dicho, nunca emitido por encima"
+    assert sec.count("ADR-0") < 41
+
+
+def test_memoria_el_recorte_al_tope_muerde_de_verdad(tmp_path):
+    """Revisión intento 1 (IMPORTANT 2): el test anterior nunca se acercaba al tope (12 aciertos de ~120
+    caracteres + cabecera con rutas cortas ≈ 2.100 < 2.400), así que un mutante que sustituya el bucle de
+    recorte por un render único seguía verde. Aquí se FUERZA el recorte: ruta larga del script (como la de
+    `~/.claude/plugins/…` en una instalación real), título de tarea de 130 caracteres y 41 entradas del
+    área; se afirma ≤ tope Y que recortó (muestra menos de min(total, MEMORIA_LIMIT))."""
+    titulo = "Tarea con un título deliberadamente largo para que la línea del pie del recorte ocupe lo que ocupa en un ledger real de verdad"
+    assert len(titulo) >= 125
+    tasks = _tasks_con_tipo("- **Tipo**: devops\n").replace("### T-01 — tarea", f"### T-01 — {titulo}")
+    d = _proyecto_con_memoria(tmp_path, tasks=tasks)
+    kn = d.parent.parent.parent / "docs" / "knowledge"
+    filas = []
+    for n in range(2, 42):
+        fn = f"ADR-{n:03d}-hook-numero-{n}-con-un-nombre-de-fichero-deliberadamente-largo.md"
+        (kn / "adr" / fn).write_text(
+            f"---\nid: ADR-{n:03d}\ntitulo: Hook número {n} con un titular largo para ocupar la línea entera\n"
+            f"estado: aceptada (validada: usuario, 2026-01-02)\nfecha: 2026-01-02\n---\n\n# ADR-{n:03d}\n\nx\n",
+            encoding="utf-8")
+        filas.append(f"| [`adr/{fn}`](adr/{fn}) — hook número {n} con un titular largo para ocupar la línea entera "
+                     f"| ADR-{n:03d} | ADR | Hooks / implementer | aceptada (validada: usuario, 2026-01-02) | `x/tasks.md` |")
+    readme = kn / "README.md"
+    readme.write_text(readme.read_text(encoding="utf-8").rstrip("\n") + "\n" + "\n".join(filas) + "\n", encoding="utf-8")
+    # el script, en una ruta larga como la de una instalación real (~/.claude/plugins/cache/<marketplace>/<plugin>/…)
+    lejos = tmp_path / ("plugins-" + "x" * 140) / ("custom-agents-" + "y" * 140) / "agent-kits" / "shared"
+    lejos.mkdir(parents=True)
+    import shutil
+    script = lejos / "knowledge-find.py"
+    shutil.copy(Path(__file__).parent / "knowledge-find.py", script)
+    assert len(str(script)) > 300
+    rc, out = _run([str(d), "T-01", "--sin-lint", "--constitucion", str(d / "no.md"), "--knowledge-find", str(script)])
+    assert rc == 0
+    sec = _seccion_memoria(out)
+    assert 0 < len(sec) <= tb.MEMORIA_TOPE_CHARS, len(sec)
+    mostrados = [l for l in sec.splitlines() if l.startswith("- ADR-")]
+    candidatos = min(41, tb.MEMORIA_LIMIT)
+    assert 1 <= len(mostrados) < candidatos, \
+        f"tenía que RECORTAR ({len(mostrados)} de {candidatos} candidatos): sin recorte la sección medía más de {tb.MEMORIA_TOPE_CHARS}"
+    import re as _re
+    m = _re.search(r"… y (\d+) acierto\(s\) más", sec)
+    assert m and int(m.group(1)) == 41 - len(mostrados), "el «y N más» cuenta los candidatos que no caben, no solo los que superan el límite"
+    # y la versión SIN recortar (render único con los 12) no cabría: es lo que emite el mutante «bucle → render
+    # único» (medido sobre la copia mutada: 3.008 caracteres, y este aserto en rojo; el test viejo seguía verde)
+    lineas_completas = len(sec) + (candidatos - len(mostrados)) * (len(mostrados[0]) + 1)
+    assert lineas_completas > tb.MEMORIA_TOPE_CHARS, "el corpus del test no fuerza el recorte: ajusta rutas/título"
+
+
+def test_memoria_un_fallo_de_knowledge_find_no_rompe_el_brief(tmp_path, capsys):
+    d = _proyecto_con_memoria(tmp_path, tasks=_tasks_con_tipo("- **Tipo**: devops\n"))
+    roto = tmp_path / "roto.py"
+    roto.write_text("import sys\nprint('esto no es json')\nsys.exit(1)\n", encoding="utf-8")
+    rc, out = _run([str(d), "T-01", "--sin-lint", "--constitucion", str(d / "no.md"), "--knowledge-find", str(roto)])
+    assert rc == 0 and "Memoria técnica" not in out and "la cosa A funciona" not in out and "hacer algo" in out
+    assert "knowledge-find" in capsys.readouterr().err, "el fallo se dice por stderr, no en el brief"
+    rc, out = _run([str(d), "T-01", "--sin-lint", "--constitucion", str(d / "no.md"),
+                    "--knowledge-find", str(tmp_path / "no-existe.py")])
+    assert rc == 0 and "Memoria técnica" not in out, "sin el script (instalación parcial): brief de hoy"
+
+
+def test_memoria_no_altera_las_secciones_existentes_ni_su_orden(tmp_path):
+    d = _proyecto_con_memoria(tmp_path, tasks=_tasks_con_tipo("- **Tipo**: devops\n"))
+    c = tmp_path / "CONSTITUTION.md"
+    c.write_text("# Constitución\n- Regla.\n", encoding="utf-8")
+    pdir = tmp_path / "personas"
+    pdir.mkdir()
+    (pdir / "devops.md").write_text("Persona devops.", encoding="utf-8")
+    rc, out = _run([str(d), "T-01", "--sin-lint", "--constitucion", str(c), "--personas-dir", str(pdir), "--tdd"])
+    assert rc == 0
+    orden = ["## Contexto de fase", "## Persona de dominio", "## La tarea", "## Verificación", "## Memoria técnica",
+             "## Arquitectura de la solución", "## Constitución del proyecto", "## TDD", "## Contrato de retorno"]
+    posiciones = [out.index(s) for s in orden]
+    assert posiciones == sorted(posiciones), orden

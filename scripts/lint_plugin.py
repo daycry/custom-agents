@@ -21,6 +21,14 @@ Valida, sin dependencias externas (solo stdlib):
      del agente) que referencie `${CLAUDE_PLUGIN_ROOT}/<ruta>` apunta a un fichero que existe.
      AVISO si la precarga declarada en `skills:` supera PRELOAD_WARN_BYTES (token-diet: el
      contenido completo se inyecta en CADA arranque; las skills opt-in van bajo demanda).
+ 10. `docs/knowledge/README.md` (si hay `docs/knowledge/`): el índice de la memoria técnica es una
+     BIYECCIÓN con los ficheros de `adr/`, `gotchas/` y `lessons/` — toda entrada tiene fila, toda fila
+     enlaza a un fichero que existe, dentro de la tabla (una fila tras el cierre es texto con barras),
+     sin IDs ni rutas repetidos — y cada fila lleva «Área» (`lint_knowledge_index`). ERROR, no aviso: el
+     índice es el ÚNICO camino de lectura de la memoria y no hay grep de respaldo, así que una entrada
+     sin fila es invisible; y para los ADR el `area` SOLO vive en la fila (perderla es perder el
+     enrutado sin poder reconstruirlo). `tests/test_knowledge_index.py` importa esta función y la
+     prueba con mutaciones [memory-retrieval T-04, spec CA-07].
 
 Avisos (no rompen el build):
   - `description` sin frase-gatillo ("Úsalo/Úsala cuando…", "PROACTIVAMENTE", "Use when").
@@ -491,6 +499,9 @@ def lint(root):
     errors.extend(h_err)
     warnings.extend(h_warn)
 
+    # --- docs/knowledge/README.md: biyección ficheros ↔ filas + «Área» por fila (ERROR; memory-retrieval T-04) ---
+    errors.extend(lint_knowledge_index(root))
+
     # --- Namespacing: nombres genéricos en commands/skills (warning) ---
     for d, kind, get_names in (
         (commands_dir, "command", lambda dd: [f[:-3] for f in os.listdir(dd) if f.endswith(".md")]),
@@ -520,6 +531,118 @@ def lint(root):
     warnings.extend(lint_console_encoding(root))      # lado propio: imprime/lee sin reconfigurar
     warnings.extend(lint_subprocess_encoding(root))   # lado padre: decodifica al hijo sin encoding=
     return errors, warnings
+
+
+# --8<-- celdas de tabla Markdown COMPARTIDAS — REPLICADO LITERAL en scripts/lint_plugin.py,
+# agent-kits/shared/knowledge-find.py y agent-kits/shared/doctor.py (los scripts son standalone: el paquete
+# portable los copia sueltos, sin import común); tests/test_knowledge_index.py compara las copias byte a byte.
+def celdas_md(fila):
+    """Celdas de una fila `| a | b |` respetando `|` dentro de acentos graves."""
+    out, actual, en_codigo = [], [], False
+    for ch in fila.strip():
+        if ch == "`":
+            en_codigo = not en_codigo
+        if ch == "|" and not en_codigo:
+            out.append("".join(actual).strip())
+            actual = []
+        else:
+            actual.append(ch)
+    out.append("".join(actual).strip())
+    if out and out[0] == "":
+        out = out[1:]
+    if out and out[-1] == "":
+        out = out[:-1]
+    return out
+# --8<-- fin de celdas de tabla Markdown COMPARTIDAS
+
+
+# --8<-- criterio del índice de knowledge COMPARTIDO (memory-retrieval T-04) — REPLICADO LITERAL en
+# agent-kits/shared/doctor.py (la comprobación de /doctor es ESTE criterio, no una aproximación: antes tenía
+# una local «equivalente» que dejaba pasar una fila hacia un fichero inexistente — revisión intento 1, gap 6);
+# tests/test_knowledge_index.py compara las dos copias byte a byte. Necesita `celdas_md` (bloque de arriba).
+KNOWLEDGE_INDICE_CARPETAS = ("adr", "gotchas", "lessons")
+
+
+def filas_knowledge_index(texto):
+    """(filas DENTRO de la tabla del índice, líneas con forma de fila que quedaron FUERA).
+
+    La tabla es el bloque CONTIGUO de líneas `|` desde la cabecera `| Entrada |`; una línea en blanco la
+    cierra (mismo criterio que `tabla_y_cola` en tests/test_roadmap_index.py). Cada fila →
+    {linea (1-based), ruta (relativa a docs/knowledge, del enlace), id, area, celdas}.
+    """
+    lineas = texto.split("\n")
+    ini = next((i for i, l in enumerate(lineas) if l.startswith("| Entrada |")), None)
+    if ini is None:
+        return [], []
+    fin = ini
+    while fin < len(lineas) and lineas[fin].startswith("|"):
+        fin += 1
+
+    def fila(n):
+        c = celdas_md(lineas[n])
+        entrada = re.sub(r"<!--.*?-->", "", c[0] if c else "")
+        m = re.search(r"\]\(([^)\s]+)\)", entrada)
+        return {"linea": n + 1, "ruta": m.group(1) if m else "", "id": c[1] if len(c) > 1 else "",
+                "area": c[3] if len(c) > 3 else "", "celdas": c}
+
+    dentro = [fila(n) for n in range(ini + 2, fin)]
+    fuera = [fila(n) for n in range(fin, len(lineas)) if lineas[n].startswith("|") and len(celdas_md(lineas[n])) >= 3]
+    return dentro, fuera
+
+
+def lint_knowledge_index(root):
+    """ERRORES del índice `docs/knowledge/README.md` (regla 10). [] si el proyecto no tiene `docs/knowledge/`."""
+    base = os.path.join(root, "docs", "knowledge")
+    if not os.path.isdir(base):
+        return []
+    ficheros = []
+    for c in KNOWLEDGE_INDICE_CARPETAS:
+        d = os.path.join(base, c)
+        if os.path.isdir(d):
+            ficheros += [f"{c}/{f}" for f in sorted(os.listdir(d)) if f.endswith(".md") and f.lower() != "readme.md"]
+    indice = os.path.join(base, "README.md")
+    if not os.path.isfile(indice):
+        return [f"docs/knowledge/README.md: no existe y hay {len(ficheros)} entrada(s) en adr/, gotchas/, lessons/ — "
+                f"sin índice ninguna es alcanzable (es el único camino de lectura)"] if ficheros else []
+    try:
+        texto = open(indice, encoding="utf-8-sig").read()
+    except (OSError, UnicodeDecodeError) as e:
+        return [f"docs/knowledge/README.md: no se puede leer ({e})"]
+    dentro, fuera = filas_knowledge_index(texto)
+    errs = []
+    if not dentro and not fuera:
+        return [f"docs/knowledge/README.md: no encuentro la tabla del índice (cabecera `| Entrada | ID | Tipo | Área | …`) "
+                f"y hay {len(ficheros)} entrada(s)"] if ficheros else []
+    for f in fuera:
+        errs.append(f"docs/knowledge/README.md:{f['linea']}: fila «{f['id'] or f['ruta']}» fuera de la tabla (una línea en "
+                    f"blanco la cierra en Markdown: se renderiza como texto con las barras) — muévela dentro")
+    vistos_id, vistas_ruta = {}, {}
+    for f in dentro:
+        etiqueta = f"docs/knowledge/README.md:{f['linea']} ({f['id'] or 'sin ID'})"
+        if not f["id"]:
+            errs.append(f"{etiqueta}: fila sin ID")
+        elif f["id"] in vistos_id:
+            errs.append(f"{etiqueta}: ID repetido `{f['id']}` (ya en la línea {vistos_id[f['id']]})")
+        else:
+            vistos_id[f["id"]] = f["linea"]
+        if not f["ruta"]:
+            errs.append(f"{etiqueta}: la columna Entrada no enlaza a ningún fichero (`[`ruta`](ruta)`)")
+        elif not os.path.isfile(os.path.join(base, f["ruta"])):
+            errs.append(f"{etiqueta}: enlaza a `{f['ruta']}`, que no existe — biyección rota (fila sin fichero)")
+        elif f["ruta"] in vistas_ruta:
+            errs.append(f"{etiqueta}: ruta repetida `{f['ruta']}` (ya en la línea {vistas_ruta[f['ruta']]})")
+        else:
+            vistas_ruta[f["ruta"]] = f["linea"]
+        if not f["area"]:
+            errs.append(f"{etiqueta}: fila sin «Área» — para los ADR el área SOLO vive aquí; sin ella la entrada no se "
+                        f"enruta (knowledge-find.py --area) ni se puede reconstruir")
+    con_fila = {f["ruta"] for f in dentro}
+    for rel in ficheros:
+        if rel not in con_fila:
+            errs.append(f"docs/knowledge/{rel}: entrada sin fila en docs/knowledge/README.md — invisible para el único "
+                        f"camino de lectura; añade su fila (con «Área») en la tabla del índice")
+    return errs
+# --8<-- fin del criterio del índice de knowledge COMPARTIDO
 
 
 def _py_del_plugin(root):

@@ -1,0 +1,1024 @@
+#!/usr/bin/env python3
+"""
+knowledge-find.py — recuperación DETERMINISTA de la memoria técnica del proyecto (`docs/knowledge/`).
+
+Sustituye «lee el índice de 3.685 tokens y decide» por «pregunta y recibe» (iniciativa
+`memory-retrieval`, `analysis.md` §3 R1). Tres capas, al estilo de las tres herramientas MCP de
+`claude-mem` pero sin modelo, sin servicio y sin dependencias (solo stdlib; `sqlite3` incluido):
+
+  1. consulta  → aciertos COMPACTOS, una línea por entrada (~25 tokens), ordenados por relevancia:
+                 `ID · estado · área · titular · ruta`   (≤ LINEA_MAX = 120 caracteres, el ESTADO
+                 delante: `aceptada` es doctrina, `propuesta` indicio, `obsoleta` basura con sucesor).
+  2. --related → grafo CURADO de una entrada (sucesión · misma iniciativa · misma área). NO cronología.
+  3. --show    → la entrada completa.
+
+Corpus (fuente de verdad, en git): `<root>/docs/knowledge/{adr,gotchas,lessons}/*.md` más el índice
+`docs/knowledge/README.md` — que aporta el `Área` y el titular de los ADR (su frontmatter no los lleva).
+`<root>` = `--root` → `$CLAUDE_PROJECT_DIR` → directorio actual.
+
+Área y tipo se casan NORMALIZADOS (minúsculas, sin acentos, por token con prefijo), no por cadena
+exacta: `--area estimacion` encuentra «Estimación / calibración» (medido: 21 áreas distintas para 31
+entradas, casi todas singleton, con `/` y acentos). `--tipo` admite `adr` · `gotcha(s)`/`got` ·
+`lesson(s)`/`leccion(es)`/`les`.
+
+Consulta libre: solo puntúan los tokens CON CONTENIDO. Se quitan las STOPWORDS (una sola lista ES+EN,
+la misma que usa el enrutado por área y el grafo de `--related`) y los tokens de un carácter; el resto
+se reduce a su RAÍZ (`raiz()`: `estimar`/`estimación` → `estim`, `tokens` → `token`, `horas` → `hora`)
+y casa por PREFIJO con los tokens de cada campo (el mismo `"raiz"*` que preselecciona la FTS5). Una
+consulta cuyos tokens con contenido no casan nada → 0 aciertos, exit 0; y una consulta hecha SOLO de
+stopwords («de», «cual es el») también → 0, nunca el corpus entero (medido antes del arreglo: «de» traía
+10 líneas y «quiero saber si el pato vuela hacia marte» las 32). `--json` dice en `consulta.tokens`
+qué raíces se usaron.
+
+Relevancia (misma función en el camino con índice y en el plano, para que los aciertos sean idénticos):
+por cada raíz que casa → +12 en el ID, +6 en el titular, +4 en el área, +1 en el cuerpo (+1 más si
+aparece ≥ 3 veces); título/área/ID pesan SIEMPRE por encima del cuerpo: una raíz que casa en el cuerpo
+de todas las entradas («tokens», «hora») no puede ordenar el corpus. +3 si TODAS las raíces casan en
+ID/titular/área de la entrada. Desempate: estado (aceptada < propuesta < obsoleta), tipo (adr < gotcha <
+leccion), número. Sin consulta libre, solo el desempate: doctrina primero, por ID.
+
+Línea compacta: si no cabe en LINEA_MAX se recorta el titular en palabra («…»); si aún no cabe, la
+ruta se abrevia a `carpeta/ID-…` (el detalle se abre por ID con `--show`; el JSON siempre trae la
+ruta completa); si aún no cabe, se recorta el área. En la salida humana la ruta es relativa a
+`docs/knowledge/`; en `--json`, relativa al proyecto (`docs/knowledge/…`).
+
+Salida `--json` de la capa 1 — CONTRATO (la consumen `task-brief.py` y `session-context.sh`; cambiar
+una clave rompe dos piezas):
+  {"version": 1,
+   "indice": "construido" | "reconstruido" | "cache" | "degradado" | "n/a",   # "n/a" solo con --doctrina (sin índice)
+   "corpus": "proyecto" | "doctrina",     # de dónde se leyó (T-16): docs/knowledge/ del proyecto o los assets del plugin
+   "consulta": {"texto": str, "area": str, "tipo": str, "limit": int[, "tokens": [str]]},   # `tokens` solo con
+                                          # texto libre: las raíces con contenido que puntuaron (explicabilidad)
+   "total": int,                          # aciertos ANTES de aplicar --limit
+   "aciertos": [ {"id", "tipo", "estado", "estado_detalle", "area", "titular", "ruta", "linea",
+                  "puntuacion", "iniciativa", "fecha", "origen"} ]}   # en este orden de claves; `origen` = "proyecto"|"doctrina"
+`indice_motivo` (solo con "degradado"/"n/a") dice por qué. Sin `docs/knowledge/` → `{"aciertos": [],
+"total": 0, "indice": "degradado", …}` en JSON y NADA en texto. `corpus`/`origen` se añadieron en T-16
+(memory-retrieval) sin cambiar `version`: claves nuevas, ninguna renombrada — los consumidores las ignoran.
+
+Índice (capa 3, caché — NO es el almacén): SQLite con FTS5 en `<root>/.claude/knowledge-index.sqlite`
+(en `.gitignore`), reconstruible desde los ficheros. Guarda el hash sha256 del CONTENIDO del corpus
+(README + cada entrada, en bytes: tocar el mtime no invalida; cambiar una letra sí) y las entradas
+ya parseadas más una tabla FTS5 (`unicode61 remove_diacritics 2`, la misma segmentación que
+`tokens()`). Estados que informa `indice`:
+  "construido"   no existía → se crea y se responde;
+  "reconstruido" existía corrupto, o su hash no cuadra → se regenera (tmp + os.replace, atómico);
+  "cache"        hash idéntico → se usan las entradas y la FTS del índice sin parsear los ficheros;
+  "degradado"    no se puede usar ni escribir (`.claude/` no escribible, `sqlite3` sin FTS5, `--no-index`,
+                 sin corpus) → RECORRIDO PLANO de los ficheros con LOS MISMOS aciertos (misma función de
+                 relevancia; FTS5 solo preselecciona candidatos con `MATCH "tok"*`).
+El índice NUNCA cambia el exit code: cualquier error suyo cae al recorrido plano.
+
+Capa 1 ENRUTADA (Fase 2, «llegada»: la consumen `task-brief.py` T-05 y `session-context.sh` T-06) —
+`--contexto TEXTO` · `--tipo-tarea TIPO` · `--iniciativa SLUG`. El enrutado es POR ÁREA, nunca por texto
+libre: con tokens genéricos («tope», «sesión», «tarea») la consulta libre puntúa medio corpus. Una
+entrada entra si (a) su `iniciativa` es la pedida (+ENRUTADO_PESO_INICIATIVA) o (b) alguna CLAVE casa por
+prefijo con un token de su área (+ENRUTADO_PESO_AREA por clave, el mismo criterio que `--area`). Claves =
+palabras del tipo de tarea (`TIPO_TAREA_AREAS`, las seis etiquetas de `- **Tipo**:` del ledger) ∪ tokens
+significativos del contexto (≥ CONTEXTO_TOKEN_MIN caracteres, sin stopwords). Sin ninguna clave que
+case → 0 aciertos y NUNCA el corpus entero. Mismo esquema `--json` que la capa 1; `consulta` añade
+`contexto`, `tipo_tarea`, `iniciativa` y `claves` (las que se usaron, para que el consumidor lo explique).
+Un filtro de enrutado PRESENTE pero VACÍO (`--contexto "" --iniciativa ""`) es un filtro, no su ausencia:
+enruta con cero claves → 0 aciertos, exit 0 (medido antes del arreglo: caía a la consulta libre vacía y
+devolvía las 32 entradas; es el caso de un ledger sin título H1 y sin slug, y el consumidor —brief o
+hook— no debe recibir el corpus entero por un campo vacío).
+
+Uso:
+  knowledge-find.py [texto libre…] [--area A] [--tipo T] [--limit N] [--json] [--root DIR]
+  knowledge-find.py --doctrina [misma sintaxis]   # DOCTRINA del plugin (assets, T-16), no la memoria del proyecto
+  knowledge-find.py [--contexto TEXTO] [--tipo-tarea TIPO] [--iniciativa SLUG] [--tipo T] [--limit N] [--json]
+  knowledge-find.py --related <ID> [--json] [--root DIR]
+  knowledge-find.py --show <ID> [--json] [--root DIR]
+Exit codes:
+  0  consulta atendida (también con 0 aciertos, sin `docs/knowledge/` o con el índice degradado:
+     la degradación NUNCA bloquea y NUNCA cambia el exit code);
+  1  `--show`/`--related` con un ID que no existe (error de uso: una línea en stderr);
+  2  argumentos inválidos (argparse): también `--limit` negativo (mensaje de uso; antes -1 era «sin
+     tope» en silencio; el «sin tope» explícito es `--limit 0`) y texto libre o `--area` combinados con
+     el enrutado.
+"""
+import argparse
+import hashlib
+import json
+import os
+import re
+import sqlite3
+import sys
+import unicodedata
+from collections import Counter
+
+# Consola Windows (cp1252) o tuberías: reconfigurar ANTES de leer o imprimir nada (GOT-005).
+for _s in (sys.stdin, sys.stdout, sys.stderr):
+    try: _s.reconfigure(encoding="utf-8", errors="replace")
+    except Exception: pass  # noqa: BLE001 — sin reconfigure, ya leído o None (capsys, pythonw)
+
+VERSION_JSON = 1
+LINEA_MAX = 120            # ≤ 30 tokens por acierto (spec CA-02)
+LIMIT_DEFAULT = 10         # `--limit 0` = sin tope
+TITULAR_MIN = 40           # antes de abreviar la ruta, el titular conserva al menos esto (es lo que informa)
+TITULAR_MIN_DURO = 12      # con la ruta abreviada, el área cede antes de bajar el titular de aquí
+CARPETAS = (("adr", "adr"), ("gotchas", "gotcha"), ("lessons", "leccion"))   # carpeta → tipo
+TIPO_DE_PREFIJO = {"ADR": "adr", "GOT": "gotcha", "LES": "leccion"}
+TIPO_ORDEN = {"adr": 0, "gotcha": 1, "leccion": 2}
+ESTADO_ORDEN = {"aceptada": 0, "propuesta": 1, "obsoleta": 2}
+SINONIMOS_TIPO = {
+    "adr": "adr", "adrs": "adr",
+    "gotcha": "gotcha", "gotchas": "gotcha", "got": "gotcha",
+    "lesson": "leccion", "lessons": "leccion", "leccion": "leccion", "lecciones": "leccion", "les": "leccion",
+}
+ID_RE = re.compile(r"\b(ADR|GOT|LES)-(\d{3})\b")
+SEP = " · "
+HERE = os.path.dirname(os.path.abspath(__file__))
+DOCTRINA_REL = "agent-kits/evaluator/assets/doctrina"   # doctrina del plugin (memory-retrieval T-15/T-16): las 9 lecciones de estimación
+RELATED_TOPE_CHARS = 1600      # capa 2 ≤ 400 tokens (spec CA-03); si no cabe, se recorta y se dice
+RELATED_MAX_POR_GRUPO = 6      # entradas por grupo antes de «… y N más»
+AREA_TOKEN_MIN = 4             # tokens del área que cuentan como «misma área» (fuera: de, del, y, por…)
+# UNA sola lista de palabras sin contenido (ES + EN), compartida por los tres caminos que la necesitan:
+# la consulta libre (`tokens_consulta`), el enrutado por área (`claves_enrutado`) y «misma área» de
+# `--related` (`_area_significativa`). Antes la tenía solo el enrutado y la consulta libre puntuaba «de».
+STOPWORDS = frozenset("""
+a al algo alguna algunas alguno algunos ante antes aqui aquí aquel aquella aquellas aquellos asi así aun aún
+aunque cada casi como cómo con contra cual cuál cuales cuáles cualquier cuando cuándo cuanto cuánto cuanta
+cuantas cuantos da dan de debe deben del desde despues después dice dicen dime donde dónde dos e el él ella
+ellas ello ellos en entre era eran eres es esa esas ese eso esos esta está estaba estaban estamos estan
+están estar estas este esto estos estoy fue fueron fui ha habia había haber habra habrá hace hacen hacer
+hacia hago han has hasta hay haya he hecho hemos incluso la las le les lo los luego mas más me mi mia mía
+mientras mio mío mis misma mismas mismo mismos mucha muchas mucho muchos muy nada nadie ni ningun ningún
+ninguna ninguno no nos nosotros nuestra nuestras nuestro nuestros nueva nuevas nuevo nuevos nunca o os otra
+otras otro otros para pero poca pocas poco pocos podemos poder podria podría por porque primera primero
+propia propias propio propios pude puede pueden puedo pues que qué quien quién quienes quiero quieres quiere
+quiza quizá quizas quizás saber sabes sabe se sea sean segun según ser si sí sido siempre sigue siguen sin
+sino sobre sois somos son soy su sus suya suyo tal tambien también tan tanta tantas tanto tantos te tener
+tengo tiene tienen toda todas todavia todavía todo todos tras tu tú tus tuya tuyo un una unas uno unos usa
+usar uso usamos usan ustedes vamos varias varios vez veces vosotros voy vuestra vuestro y ya yo
+a about above after again against all also am an and any are as at be because been before being below
+between both but by can cannot could did do does doing done down during each few for from further get gets
+got had has have having he her here hers herself him himself his how i if in into is it its itself just
+know let like me more most my myself need no nor not now of off on once only or other ought our ours
+ourselves out over own same she should show so some such tell than that the their theirs them themselves
+then there these they this those through to too under until up us use used using very want wants was we
+were what when where whether which while who whom why will with without would you your yours yourself
+yourselves
+tarea tareas fase fases iniciativa checklist tope
+""".split())
+# Las últimas seis son vocabulario del propio ledger: en un contexto de tarea no dicen de qué área es.
+# Enrutado por área (Fase 2). Las claves de cada etiqueta `- **Tipo**:` del ledger son tokens de ÁREA del
+# corpus (se casan por prefijo con `filtra_area`, como `--area`): añadir una clave = ampliar qué áreas
+# recibe ese tipo de tarea. `test`/`docs` son las etiquetas del catálogo de personas, no plurales al azar.
+TIPO_TAREA_AREAS = {
+    "frontend": ("frontend", "ui", "accesibilidad", "e2e"),
+    "backend":  ("backend", "scripts", "ledger", "api", "codificacion"),
+    "db":       ("db", "datos", "migraciones", "sql"),
+    "devops":   ("devops", "hooks", "ci", "release", "distribucion", "consola", "scripts"),
+    "test":     ("tests", "fixtures", "qa", "flaky", "e2e", "ci"),
+    "docs":     ("docs", "documentacion", "confluence", "publicacion", "changelog", "skills"),
+}
+CONTEXTO_TOKEN_MIN = 4         # tokens del contexto que valen como clave (fuera: «de», «con», «por», «T-06»…)
+ENRUTADO_PESO_INICIATIVA = 30  # nacer en la misma iniciativa pesa más que casar un área
+ENRUTADO_PESO_AREA = 4         # por clave que casa en el área (mismo peso que el área en `puntuacion`)
+# Pesos de la consulta libre (`puntuacion`): los campos por encima del cuerpo, siempre. Con el cuerpo a +2..+6
+# por token, «tokens» y «hora» (que están en el cuerpo de casi todo) ordenaban el corpus entero por delante
+# de las nueve lecciones de estimación (medido 2026-09-07: posiciones 15-32 de 32).
+PESO_ID = 12
+PESO_TITULAR = 6
+PESO_AREA = 4
+PESO_CUERPO = 1
+CUERPO_REPETIDO = 3            # apariciones en el cuerpo a partir de las cuales suma un PESO_CUERPO más
+BONUS_TODAS_EN_CAMPOS = 3      # todas las raíces de la consulta casan en ID/titular/área
+INDICE_NOMBRE = "knowledge-index.sqlite"   # en <root>/.claude/ (+ .gitignore)
+INDICE_VERSION = "1"                        # entra en el hash: cambiar el esquema invalida el índice
+CAMPOS = ("id", "tipo", "estado", "estado_detalle", "area", "titular", "ruta", "ruta_corta", "iniciativa",
+          "fecha", "sucesores", "sustituye", "texto")
+
+# ------------------------------------------------------------------ normalización
+
+def normaliza(s):
+    """Minúsculas, sin acentos (NFKD), espacios plegados."""
+    s = unicodedata.normalize("NFKD", s or "")
+    s = "".join(c for c in s if not unicodedata.combining(c))
+    return re.sub(r"\s+", " ", s.lower()).strip()
+
+
+def tokens(s):
+    """Tokens alfanuméricos normalizados (misma segmentación que el tokenizador `unicode61` de FTS5)."""
+    return re.findall(r"[0-9a-z]+", normaliza(s))
+
+
+def casa(tok, campo_tokens):
+    """¿`tok` es prefijo de algún token del campo? (mismo criterio que `"tok"*` en FTS5)."""
+    return any(t.startswith(tok) for t in campo_tokens)
+
+
+def tipo_normalizado(t):
+    return SINONIMOS_TIPO.get(normaliza(t)) if t else None
+
+
+def estado_corto(estado):
+    m = re.match(r"\s*([a-záéíóú-]+)", estado or "", re.I)
+    return normaliza(m.group(1)) if m else "?"
+
+
+# ------------------------------------------------------------------ lectura del corpus
+
+def frontmatter(text):
+    """{clave: valor} del frontmatter YAML plano + cuerpo. Nunca lanza; sin frontmatter → ({}, text)."""
+    if not text.startswith("---"):
+        return {}, text
+    end = text.find("\n---", 3)
+    if end == -1:
+        return {}, text
+    out, key = {}, None
+    for raw in text[3:end].splitlines():
+        if not raw.strip() or raw.lstrip().startswith("#"):
+            continue
+        if raw[0] not in " \t" and ":" in raw:
+            key, val = raw.split(":", 1)
+            key, val = key.strip(), val.split(" #", 1)[0].strip() if not val.strip().startswith("#") else ""
+            out[key] = val.strip("\"'")
+        elif key and raw[0] in " \t":
+            out[key] = (out.get(key, "") + " " + raw.strip()).strip()
+    cuerpo = text[end + 4:]
+    return out, cuerpo[cuerpo.find("\n") + 1:] if "\n" in cuerpo else ""
+
+
+# --8<-- celdas de tabla Markdown COMPARTIDAS — REPLICADO LITERAL en scripts/lint_plugin.py,
+# agent-kits/shared/knowledge-find.py y agent-kits/shared/doctor.py (los scripts son standalone: el paquete
+# portable los copia sueltos, sin import común); tests/test_knowledge_index.py compara las copias byte a byte.
+def celdas_md(fila):
+    """Celdas de una fila `| a | b |` respetando `|` dentro de acentos graves."""
+    out, actual, en_codigo = [], [], False
+    for ch in fila.strip():
+        if ch == "`":
+            en_codigo = not en_codigo
+        if ch == "|" and not en_codigo:
+            out.append("".join(actual).strip())
+            actual = []
+        else:
+            actual.append(ch)
+    out.append("".join(actual).strip())
+    if out and out[0] == "":
+        out = out[1:]
+    if out and out[-1] == "":
+        out = out[:-1]
+    return out
+# --8<-- fin de celdas de tabla Markdown COMPARTIDAS
+
+
+def parse_indice(texto):
+    """Filas de la tabla del índice `docs/knowledge/README.md` → lista de dicts
+    {id, ruta_rel (relativa a docs/knowledge), titular_indice, area, estado, fuente, linea}.
+    La tabla es el bloque CONTIGUO de líneas `|` desde la cabecera `| Entrada |` (como `tabla_y_cola`)."""
+    lineas = texto.split("\n")
+    ini = next((i for i, l in enumerate(lineas) if l.startswith("| Entrada |")), None)
+    if ini is None:
+        return []
+    filas = []
+    for n in range(ini + 2, len(lineas)):
+        l = lineas[n]
+        if not l.startswith("|"):
+            break
+        c = celdas_md(l)
+        if len(c) < 4:
+            continue
+        entrada = re.sub(r"<!--.*?-->", "", c[0]).strip()
+        m = re.search(r"\]\(([^)\s]+)\)", entrada)
+        ruta_rel = m.group(1) if m else ""
+        titular = ""
+        if " — " in entrada:
+            titular = entrada.split(" — ", 1)[1].strip()
+        filas.append({
+            "id": c[1] if len(c) > 1 else "",
+            "ruta_rel": ruta_rel,
+            "titular_indice": _limpia_titular(titular),
+            "area": c[3] if len(c) > 3 else "",
+            "estado": c[4] if len(c) > 4 else "",
+            "fuente": c[5] if len(c) > 5 else "",
+            "linea": n + 1,
+        })
+    return filas
+
+
+def _limpia_titular(t):
+    t = re.sub(r"<!--.*?-->", "", t or "").strip()
+    t = re.sub(r"\s+", " ", t)
+    # «"Frase." (1/3)» → «Frase. (1/3)»: las comillas del índice no informan y cuestan caracteres
+    m = re.match(r"^[\"“«](.+?)[\"”»](\s*\(.*\))?$", t)
+    if m:
+        t = (m.group(1).strip() + (m.group(2) or "")).strip()
+    return t
+
+
+def _titular_del_cuerpo(cuerpo):
+    for l in cuerpo.split("\n"):
+        if l.startswith("#"):
+            t = l.lstrip("#").strip()
+            return re.sub(r"^(?:ADR|GOT|LES)-\d{3}\s*[:—-]\s*", "", t)
+    return ""
+
+
+_INICIATIVA_RE = re.compile(r"(?:^|[/\s`(])(?:\d{4}-\d{2}-\d{2}-)?([a-z][a-z0-9]*(?:-[a-z0-9]+)+)/(?:spec|tasks|retro|evaluation|improvement-plan|test-plan)\.md")
+
+
+def iniciativa_de(fm, fila):
+    """Slug de la iniciativa (sin fecha): frontmatter `iniciativa`, si no el primer
+    `<fecha>-<slug>/{spec,tasks,retro,…}.md` de `fuente` (frontmatter) o de la columna Fuente."""
+    ini = (fm.get("iniciativa") or "").strip()
+    if ini:
+        return re.sub(r"^\d{4}-\d{2}-\d{2}-", "", ini)
+    for texto in (fm.get("fuente", ""), (fila or {}).get("fuente", "")):
+        m = _INICIATIVA_RE.search(texto or "")
+        if m:
+            return m.group(1)
+    return ""
+
+
+def _ids_en(texto):
+    return [f"{a}-{b}" for a, b in ID_RE.findall(texto or "")]
+
+
+def leer_entrada(carpeta, tipo, fichero, text, filas_por_ruta):
+    ruta_rel = f"{carpeta}/{fichero}"
+    fm, cuerpo = frontmatter(text)
+    fila = filas_por_ruta.get(ruta_rel, {})
+    m = ID_RE.search(fm.get("id", "")) or ID_RE.search(fichero)
+    id_ = f"{m.group(1)}-{m.group(2)}" if m else fichero[:-3]
+    estado_detalle = (fm.get("estado") or fila.get("estado") or "").strip()
+    titular = fila.get("titular_indice") or fm.get("titulo") or _titular_del_cuerpo(cuerpo) or fichero[:-3]
+    sucesores = _ids_en(" ".join(fm.get(k, "") for k in ("sucesor", "sustituida_por", "sustituida-por",
+                                                             "reemplazada_por", "sucesora")))
+    if estado_corto(estado_detalle) == "obsoleta":
+        sucesores += [i for i in _ids_en(estado_detalle) if i != id_ and i not in sucesores]
+    sustituye = _ids_en(" ".join(fm.get(k, "") for k in ("sustituye", "sustituye_a", "reemplaza", "predecesora")))
+    return {
+        "id": id_,
+        "tipo": tipo,
+        "estado": estado_corto(estado_detalle),
+        "estado_detalle": estado_detalle,
+        "area": (fm.get("area") or fila.get("area") or "").strip(),
+        "titular": titular,
+        "ruta": f"docs/knowledge/{ruta_rel}",
+        "ruta_corta": ruta_rel,
+        "iniciativa": iniciativa_de(fm, fila),
+        "fecha": (fm.get("fecha") or "").strip(),
+        "sucesores": sucesores,
+        "sustituye": sustituye,
+        "texto": text,
+        "origen": "proyecto",           # `doctrina` cuando la entrada viene de los assets del plugin (--doctrina)
+    }
+
+
+def ficheros_corpus(root):
+    """[(ruta relativa a docs/knowledge, bytes)] del corpus en orden fijo: README.md primero y luego
+    `adr/`, `gotchas/`, `lessons/` por nombre. [] si no hay `docs/knowledge/`. Ficheros ilegibles se saltan."""
+    base = os.path.join(root, "docs", "knowledge")
+    if not os.path.isdir(base):
+        return []
+    out = []
+    readme = os.path.join(base, "README.md")
+    if os.path.isfile(readme):
+        try:
+            with open(readme, "rb") as f:
+                out.append(("README.md", f.read()))
+        except OSError:
+            pass
+    for carpeta, _tipo in CARPETAS:
+        d = os.path.join(base, carpeta)
+        if not os.path.isdir(d):
+            continue
+        for fn in sorted(os.listdir(d)):
+            if fn.endswith(".md") and fn.lower() != "readme.md":
+                try:
+                    with open(os.path.join(d, fn), "rb") as f:
+                        out.append((f"{carpeta}/{fn}", f.read()))
+                except OSError:
+                    continue
+    return out
+
+
+def hash_corpus(ficheros):
+    h = hashlib.sha256(f"knowledge-index v{INDICE_VERSION}\n".encode("utf-8"))
+    for rel, data in ficheros:
+        h.update(rel.encode("utf-8") + b"\0" + data + b"\0")
+    return h.hexdigest()
+
+
+def _texto(data):
+    return data.decode("utf-8-sig", "replace")
+
+
+def parsear_corpus(ficheros):
+    """Entradas parseadas a partir de `ficheros_corpus()` (el README aporta área/titular a las filas)."""
+    filas_por_ruta = {}
+    tipo_de = dict(CARPETAS)
+    for rel, data in ficheros:
+        if rel == "README.md":
+            for fila in parse_indice(_texto(data)):
+                filas_por_ruta[fila["ruta_rel"]] = fila
+    out = []
+    for rel, data in ficheros:
+        if rel == "README.md" or "/" not in rel:
+            continue
+        carpeta, fn = rel.split("/", 1)
+        out.append(leer_entrada(carpeta, tipo_de[carpeta], fn, _texto(data), filas_por_ruta))
+    return out
+
+
+def cargar_corpus(root):
+    """Todas las entradas de `<root>/docs/knowledge/{adr,gotchas,lessons}/*.md` (o [] si no hay carpeta),
+    leídas del disco (recorrido plano, sin índice)."""
+    return parsear_corpus(ficheros_corpus(root))
+
+
+# ------------------------------------------------------------------ doctrina del plugin (--doctrina; T-15/T-16)
+
+def dir_doctrina():
+    """Carpeta de assets de doctrina: junto a este kit (`agent-kits/shared/../evaluator/assets/doctrina`, rutas
+    relativas entre sí — regla 5) o bajo CLAUDE_PLUGIN_ROOT. None si no está (instalación parcial)."""
+    candidatos = [os.path.normpath(os.path.join(HERE, "..", "evaluator", "assets", "doctrina"))]
+    pr = os.environ.get("CLAUDE_PLUGIN_ROOT", "")
+    if pr:
+        candidatos.append(os.path.join(pr, *DOCTRINA_REL.split("/")))
+    return next((c for c in candidatos if os.path.isdir(c)), None)
+
+
+def abrir_doctrina():
+    """(entradas, None, indice) de la DOCTRINA del plugin: las lecciones que son ciertas para cualquier proyecto que
+    use estos agentes (hoy las 9 de estimación, `LES-001…009`), copias byte a byte de `docs/knowledge/lessons/` de
+    este repo que viajan en `agent-kits/` (criterio y lista: `agent-kits/evaluator/README.md`). Recorrido plano,
+    sin índice (9 ficheros). Cada entrada lleva `origen: doctrina` y `ruta_corta: doctrina/<fichero>` para que un
+    acierto diga de dónde viene y no se confunda con la memoria del proyecto, que NO se lee aquí (y nace vacía en
+    un consumidor). Sin assets → [] y motivo; el CLI lo avisa por stderr y sale 0."""
+    d = dir_doctrina()
+    if d is None:
+        return [], None, {"indice": "n/a", "indice_motivo": f"sin assets de doctrina ({DOCTRINA_REL}): instalación parcial"}
+    ficheros = []
+    for fn in sorted(os.listdir(d)):
+        if fn.endswith(".md") and fn.lower() != "readme.md":
+            try:
+                with open(os.path.join(d, fn), "rb") as f:
+                    ficheros.append((f"lessons/{fn}", f.read()))
+            except OSError:
+                continue
+    if not ficheros:
+        return [], None, {"indice": "n/a", "indice_motivo": f"carpeta de doctrina vacía ({d}): instalación incompleta"}
+    entradas = parsear_corpus(ficheros)
+    for e in entradas:
+        fn = e["ruta_corta"].split("/", 1)[1]
+        e["ruta"], e["ruta_corta"], e["origen"] = f"{DOCTRINA_REL}/{fn}", f"doctrina/{fn}", "doctrina"
+        e["titular"] = _titular_leccion(e["texto"]) or e["titular"]
+    return entradas, None, {"indice": "n/a", "indice_motivo": "--doctrina: assets del plugin, recorrido plano"}
+
+
+_TITULAR_LECCION_RE = re.compile(r"^\s*[-*]\s+\*\*([^*\n]+?)\*\*", re.M)
+
+
+def _titular_leccion(text):
+    """Titular de una lección sin fila de índice: la frase en negrita con la que empieza su primer bullet del
+    CUERPO (formato de `lessons/`: `- **Frase.** explicación…`). Solo el cuerpo (nunca el frontmatter) y solo
+    negritas que ABREN un bullet (nunca un `300**k**` inline) — gap B3 de la revisión F5-F6. Si no hay
+    bullet en negrita, la primera frase de la primera línea de texto del cuerpo; None si no hay texto."""
+    _fm, cuerpo = frontmatter(text)
+    m = _TITULAR_LECCION_RE.search(cuerpo)
+    if m:
+        return _limpia_titular(m.group(1))
+    for l in cuerpo.split("\n"):
+        l = l.strip()
+        if not l or l.startswith("#") or l.startswith("<!--"):
+            continue
+        l = re.sub(r"^[-*]\s+", "", l)
+        frase = re.split(r"(?<=[.!?])\s", l, maxsplit=1)[0]
+        return _limpia_titular(frase) or None
+    return None
+
+
+# ------------------------------------------------------------------ índice SQLite FTS5 (caché reconstruible)
+
+def fts5_disponible():
+    try:
+        con = sqlite3.connect(":memory:")
+        con.execute("CREATE VIRTUAL TABLE t USING fts5(x)")
+        con.close()
+        return True
+    except sqlite3.Error:
+        return False
+
+
+def ruta_indice(root):
+    return os.path.join(root, ".claude", INDICE_NOMBRE)
+
+
+def _fila_a_entrada(row):
+    e = dict(zip(CAMPOS, row))
+    e["sucesores"] = json.loads(e["sucesores"] or "[]")
+    e["sustituye"] = json.loads(e["sustituye"] or "[]")
+    return e
+
+
+def leer_indice(path, h):
+    """Entradas del índice si existe, abre, y su hash coincide con `h`; si no, None (y por qué)."""
+    if not os.path.isfile(path):
+        return None, "construido"
+    try:
+        con = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+        try:
+            row = con.execute("SELECT valor FROM meta WHERE clave = 'hash'").fetchone()
+            if not row or row[0] != h:
+                return None, "reconstruido"
+            filas = con.execute(f"SELECT {', '.join(CAMPOS)} FROM entradas ORDER BY orden").fetchall()
+            return [_fila_a_entrada(r) for r in filas], "cache"
+        finally:
+            con.close()
+    except sqlite3.Error:
+        return None, "reconstruido"          # bytes basura, esquema viejo, fichero a medias…
+
+
+def construir_indice(path, entradas, h):
+    """Escribe el índice ENTERO en un temporal y lo mueve encima (atómico). Lanza OSError/sqlite3.Error."""
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = f"{path}.{os.getpid()}.tmp"
+    try:
+        con = sqlite3.connect(tmp)
+        try:
+            con.executescript(
+                "CREATE TABLE meta(clave TEXT PRIMARY KEY, valor TEXT);"
+                "CREATE TABLE entradas(orden INTEGER PRIMARY KEY, " + ", ".join(f"{c} TEXT" for c in CAMPOS) + ");"
+                "CREATE VIRTUAL TABLE fts USING fts5(id, titular, area, texto, tokenize='unicode61 remove_diacritics 2');")
+            con.executemany("INSERT INTO meta VALUES (?, ?)", [("hash", h), ("version", INDICE_VERSION)])
+            con.executemany(
+                f"INSERT INTO entradas(orden, {', '.join(CAMPOS)}) VALUES ({', '.join('?' * (len(CAMPOS) + 1))})",
+                [(n,) + tuple(json.dumps(e[c], ensure_ascii=False) if c in ("sucesores", "sustituye") else e[c]
+                              for c in CAMPOS) for n, e in enumerate(entradas)])
+            con.executemany("INSERT INTO fts(id, titular, area, texto) VALUES (?, ?, ?, ?)",
+                            [(e["id"], e["titular"], e["area"], e["texto"]) for e in entradas])
+            con.commit()
+        finally:
+            con.close()
+        os.replace(tmp, path)
+    finally:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+
+
+def abrir_corpus(root, usar_indice=True):
+    """(entradas, ruta_del_indice_o_None, {"indice": …[, "indice_motivo": …]}). Nunca lanza."""
+    ficheros = ficheros_corpus(root)
+    if not ficheros:
+        return [], None, {"indice": "degradado", "indice_motivo": "sin docs/knowledge/"}
+    if not usar_indice:
+        return parsear_corpus(ficheros), None, {"indice": "degradado", "indice_motivo": "--no-index"}
+    try:
+        if not fts5_disponible():
+            return parsear_corpus(ficheros), None, {"indice": "degradado", "indice_motivo": "sqlite3 sin FTS5"}
+        path = ruta_indice(root)
+        h = hash_corpus(ficheros)
+        entradas, estado = leer_indice(path, h)
+        if entradas is not None:
+            return entradas, path, {"indice": estado}
+        entradas = parsear_corpus(ficheros)
+        construir_indice(path, entradas, h)
+        return entradas, path, {"indice": estado}
+    except Exception as e:  # noqa: BLE001 — el índice nunca bloquea ni cambia el exit code
+        return parsear_corpus(ficheros), None, {"indice": "degradado", "indice_motivo": f"{type(e).__name__}: {e}"}
+
+
+def candidatos_fts(path, toks):
+    """IDs que casan en la FTS con `"tok"* OR …` (preselección), o None = todos (sin tokens o error)."""
+    if not path or not toks:
+        return None
+    try:
+        con = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+        try:
+            q = " OR ".join(f'"{t}"*' for t in toks)
+            return {r[0] for r in con.execute("SELECT id FROM fts WHERE fts MATCH ?", (q,))}
+        finally:
+            con.close()
+    except sqlite3.Error:
+        return None
+
+
+# ------------------------------------------------------------------ relevancia
+
+def _numero(id_):
+    m = re.search(r"(\d+)$", id_)
+    return int(m.group(1)) if m else 0
+
+
+def clave_orden(e):
+    return (ESTADO_ORDEN.get(e["estado"], 3), TIPO_ORDEN.get(e["tipo"], 9), _numero(e["id"]), e["id"])
+
+
+def puntuacion(e, toks):
+    """Relevancia de `e` para las raíces de la consulta (0 = no casa). Determinista y explicable:
+    ID (+12) > titular (+6) > área (+4) > cuerpo (+1, +1 más con ≥ 3 apariciones). Una raíz que solo
+    aparece en el cuerpo nunca pesa lo que una que casa en un campo, por muchas veces que aparezca."""
+    if not toks:
+        return 0
+    tok_id = tokens(e["id"]) + [normaliza(e["id"])]
+    tok_tit = tokens(e["titular"])
+    tok_area = tokens(e["area"])
+    cnt_texto = Counter(tokens(e["texto"]))
+    total, en_campos = 0, 0
+    for t in toks:
+        s = 0
+        if casa(t, tok_id):
+            s += PESO_ID
+        if casa(t, tok_tit):
+            s += PESO_TITULAR
+        if casa(t, tok_area):
+            s += PESO_AREA
+        if s:
+            en_campos += 1
+        n = sum(c for tk, c in cnt_texto.items() if tk.startswith(t))
+        if n:
+            s += PESO_CUERPO + (PESO_CUERPO if n >= CUERPO_REPETIDO else 0)
+        total += s
+    if en_campos == len(toks):
+        total += BONUS_TODAS_EN_CAMPOS
+    return total
+
+
+def filtra_area(e, area_toks):
+    return all(casa(t, tokens(e["area"])) for t in area_toks)
+
+
+SUFIJOS_RAIZ = ("aciones", "acion", "ciones", "cion", "siones", "sion", "mente", "ando", "iendo", "idad",
+                "ados", "adas", "ado", "ada", "ar", "er", "ir", "es", "s")
+RAIZ_MIN = 4                   # la raíz conserva al menos esto: `hora(s)` → `hora`, pero `es` no se toca
+
+
+def raiz(tok):
+    """Raíz ligera de un token de consulta: quita UN sufijo frecuente (ES/EN) si deja ≥ RAIZ_MIN
+    caracteres. `estimar`/`estimacion`/`estimaciones` → `estim`; `tokens` → `token`; `horas` → `hora`;
+    `revision` → `revi`; `cp1252` → `cp1252`. Solo se aplica a la CONSULTA: los campos se casan por prefijo
+    con la raíz, así que `estim` encuentra `estimación`, `estimar` y `estimado` igual que la FTS5 con
+    `"estim"*`. No es un stemmer: es el mínimo para que la misma palabra en otra forma no sea otra palabra."""
+    for suf in SUFIJOS_RAIZ:
+        if tok.endswith(suf) and len(tok) - len(suf) >= RAIZ_MIN:
+            return tok[: -len(suf)]
+    return tok
+
+
+def tokens_consulta(texto):
+    """Raíces CON CONTENIDO de la consulta libre, sin repetidos y en orden: fuera las STOPWORDS y los
+    tokens de un carácter. `"cual es el ratio de tokens por hora"` → `["ratio", "token", "hora"]`;
+    `"de"` → `[]` (y una consulta sin raíces no devuelve el corpus: ver `buscar`)."""
+    out = []
+    for t in tokens(texto):
+        if len(t) < 2 or t in STOPWORDS:
+            continue
+        r = raiz(t)
+        if r not in out:
+            out.append(r)
+    return out
+
+
+# ------------------------------------------------------------------ capa 1 enrutada (llegada: brief y sesión)
+
+def claves_enrutado(contexto="", tipo_tarea=""):
+    """(claves, aviso). Claves = palabras de `TIPO_TAREA_AREAS[tipo_tarea]` ∪ tokens significativos del
+    contexto (≥ CONTEXTO_TOKEN_MIN, sin stopwords ni números), sin repetidos y en orden. Un tipo de tarea
+    fuera del catálogo no bloquea: aviso y sigue solo con el contexto."""
+    claves, aviso = [], ""
+    tipo_n = normaliza(tipo_tarea)
+    if tipo_n:
+        if tipo_n in TIPO_TAREA_AREAS:
+            claves.extend(TIPO_TAREA_AREAS[tipo_n])
+        else:
+            aviso = (f"knowledge-find: tipo de tarea `{tipo_tarea}` fuera del catálogo "
+                     f"({', '.join(TIPO_TAREA_AREAS)}); se enruta solo por contexto e iniciativa")
+    for t in tokens(contexto):
+        if len(t) >= CONTEXTO_TOKEN_MIN and t not in STOPWORDS and not t.isdigit():
+            claves.append(t)
+    return list(dict.fromkeys(claves)), aviso
+
+
+def puntuacion_enrutado(e, claves, iniciativa=""):
+    """0 si la entrada no es de la iniciativa ni casa ninguna clave en su ÁREA (el texto no cuenta)."""
+    p = 0
+    ini = re.sub(r"^\d{4}-\d{2}-\d{2}-", "", normaliza(iniciativa))
+    if ini and normaliza(e["iniciativa"]) == ini:
+        p += ENRUTADO_PESO_INICIATIVA
+    area_toks = tokens(e["area"])
+    p += ENRUTADO_PESO_AREA * sum(1 for c in claves if casa(c, area_toks))
+    return p
+
+
+def buscar_enrutado(entradas, contexto="", tipo_tarea="", iniciativa="", tipo="", limit=LIMIT_DEFAULT):
+    """(aciertos, total, claves, aviso) — la capa 1 enrutada por área: nunca devuelve el corpus entero."""
+    claves, aviso = claves_enrutado(contexto, tipo_tarea)
+    tipo_n = tipo_normalizado(tipo) if tipo else None
+    out = []
+    for e in entradas:
+        if tipo and (tipo_n is None or e["tipo"] != tipo_n):
+            continue
+        p = puntuacion_enrutado(e, claves, iniciativa)
+        if p > 0:
+            out.append(dict(e, puntuacion=p))
+    out.sort(key=lambda e: (-e["puntuacion"],) + clave_orden(e))
+    total = len(out)
+    if limit and limit > 0:
+        out = out[:limit]
+    return out, total, claves, aviso
+
+
+def buscar(entradas, texto="", area="", tipo="", limit=LIMIT_DEFAULT, candidatos=None):
+    """(aciertos ordenados y con `puntuacion`, total antes del limit). `candidatos` (IDs de la FTS)
+    solo PRESELECCIONA: la relevancia y el filtro `puntuacion > 0` son los mismos con y sin índice."""
+    toks = tokens_consulta(texto)
+    if texto.strip() and not toks:
+        return [], 0                    # solo stopwords («de», «cual es el»): no hay nada que buscar
+    area_toks = tokens(area)
+    tipo_n = tipo_normalizado(tipo) if tipo else None
+    out = []
+    for e in entradas:
+        if candidatos is not None and toks and e["id"] not in candidatos:
+            continue
+        if tipo and (tipo_n is None or e["tipo"] != tipo_n):
+            continue
+        if area_toks and not filtra_area(e, area_toks):
+            continue
+        p = puntuacion(e, toks)
+        if toks and p <= 0:
+            continue
+        out.append(dict(e, puntuacion=p))
+    out.sort(key=lambda e: (-e["puntuacion"],) + clave_orden(e))
+    total = len(out)
+    if limit and limit > 0:
+        out = out[:limit]
+    return out, total
+
+
+# ------------------------------------------------------------------ salida
+
+def recorta(s, n):
+    """`s` a ≤ n caracteres, en límite de palabra, con «…»."""
+    s = re.sub(r"\s+", " ", s or "").strip()
+    if len(s) <= n:
+        return s
+    if n <= 1:
+        return "…"[:n]
+    corte = s.rfind(" ", 0, n - 1)
+    if corte < n // 2:
+        corte = n - 1
+    return s[:corte].rstrip(",;:—-( ") + "…"
+
+
+def linea_compacta(e, ancho=LINEA_MAX):
+    """`ID · estado · área · titular · ruta` en ≤ `ancho` caracteres (ver docstring del módulo)."""
+    id_, estado = e["id"], e["estado"] or "?"
+    area = re.sub(r"\s+", " ", e.get("area") or "—").strip()
+    titular = re.sub(r"\s+", " ", e.get("titular") or "—").strip()
+    ruta = e.get("ruta_corta") or e.get("ruta") or ""
+    carpeta = ruta.split("/", 1)[0] if "/" in ruta else ""
+
+    def compone(a, t, r):
+        return SEP.join((id_, estado, a, t, r))
+
+    if len(compone(area, titular, ruta)) <= ancho:
+        return compone(area, titular, ruta)
+    fijo = len(SEP.join((id_, estado, area, "", ruta)))
+    if ancho - fijo >= TITULAR_MIN:
+        return compone(area, recorta(titular, ancho - fijo), ruta)
+    ruta = f"{carpeta}/{id_}-…" if carpeta else f"{id_}-…"
+    fijo = len(SEP.join((id_, estado, area, "", ruta)))
+    if ancho - fijo >= TITULAR_MIN_DURO:
+        return compone(area, recorta(titular, ancho - fijo), ruta)
+    base = len(SEP.join((id_, estado, "", "", ruta)))
+    area = recorta(area, max(6, ancho - base - TITULAR_MIN_DURO))
+    fijo = len(SEP.join((id_, estado, area, "", ruta)))
+    return compone(area, recorta(titular, max(1, ancho - fijo)), ruta)[:ancho]
+
+
+def acierto_json(e):
+    return {
+        "id": e["id"], "tipo": e["tipo"], "estado": e["estado"], "estado_detalle": e["estado_detalle"],
+        "area": e["area"], "titular": e["titular"], "ruta": e["ruta"], "linea": linea_compacta(e),
+        "puntuacion": e.get("puntuacion", 0), "iniciativa": e["iniciativa"], "fecha": e["fecha"],
+        "origen": e.get("origen", "proyecto"),
+    }
+
+
+def resolver_root(arg_root):
+    if arg_root:
+        return os.path.abspath(arg_root)
+    env = os.environ.get("CLAUDE_PROJECT_DIR", "")
+    return os.path.abspath(env) if env else os.getcwd()
+
+
+# ------------------------------------------------------------------ capa 2: grafo curado
+
+def buscar_id(entradas, id_):
+    id_n = (id_ or "").strip().upper()
+    return next((e for e in entradas if e["id"].upper() == id_n), None)
+
+
+def _area_significativa(area):
+    return {t for t in tokens(area) if len(t) >= AREA_TOKEN_MIN and t not in STOPWORDS}
+
+
+def relaciones(entradas, e):
+    """Las tres relaciones CURADAS de `e` (nunca cronología):
+      sucesion   → [(relacion, entrada|None, id)]: `sustituida por` (sucesores declarados en `e` o en
+                   el `estado` de una obsoleta, o quien declara `sustituye: e`) y `sustituye a` (lo que
+                   `e` declara sustituir, o quien declara a `e` como su `sucesor`). `entrada` es None
+                   si el ID no está en el corpus.
+      iniciativa → entradas con la misma `iniciativa` (frontmatter o deducida de la fuente), sin `e`.
+      area       → entradas cuya área comparte ≥ 1 token significativo con la de `e`, por número de
+                   tokens compartidos y luego doctrina primero / por ID, sin `e`.
+    """
+    por_id = {x["id"]: x for x in entradas}
+    suc, vistos = [], set()
+
+    def add(rel, id_):
+        if (rel, id_) in vistos or id_ == e["id"]:
+            return
+        vistos.add((rel, id_))
+        suc.append((rel, por_id.get(id_), id_))
+
+    for id_ in e["sucesores"]:
+        add("sustituida por", id_)
+    for id_ in e["sustituye"]:
+        add("sustituye a", id_)
+    for x in entradas:
+        if e["id"] in x["sustituye"]:
+            add("sustituida por", x["id"])
+        if e["id"] in x["sucesores"]:
+            add("sustituye a", x["id"])
+    suc.sort(key=lambda t: (0 if t[0] == "sustituida por" else 1, _numero(t[2]), t[2]))
+
+    ini = [x for x in entradas if e["iniciativa"] and x["iniciativa"] == e["iniciativa"] and x["id"] != e["id"]]
+    ini.sort(key=clave_orden)
+
+    mios = _area_significativa(e["area"])
+    area = []
+    for x in entradas:
+        if x["id"] == e["id"] or not mios:
+            continue
+        comunes = len(mios & _area_significativa(x["area"]))
+        if comunes:
+            area.append((comunes, x))
+    area.sort(key=lambda t: (-t[0],) + clave_orden(t[1]))
+    return {"sucesion": suc, "iniciativa": ini, "area": [x for _c, x in area]}
+
+
+def _linea_sucesion(rel, x, id_):
+    prefijo = f"{rel} → "
+    if x is None:
+        return f"{prefijo}{id_} (no está en el corpus)"
+    return prefijo + linea_compacta(x, LINEA_MAX - len(prefijo))
+
+
+def texto_related(e, rel):
+    """Salida humana de la capa 2, topada a RELATED_TOPE_CHARS: tres grupos etiquetados y separados;
+    un grupo vacío dice `(ninguna)`; si el conjunto no cabe, los grupos ceden entradas desde el más
+    largo y lo declaran con «… y N más»."""
+    grupos = [
+        ("Sucesión:", [_linea_sucesion(r, x, i) for r, x, i in rel["sucesion"]], None),
+        (f"Misma iniciativa ({e['iniciativa']}):" if e["iniciativa"] else "Misma iniciativa (sin iniciativa conocida):",
+         [linea_compacta(x) for x in rel["iniciativa"]], None),
+        (f"Misma área ({e['area']}):" if e["area"] else "Misma área (sin área):",
+         [linea_compacta(x) for x in rel["area"]], e["area"]),
+    ]
+    visibles = [min(len(ls), RELATED_MAX_POR_GRUPO) for _t, ls, _a in grupos]
+
+    def render():
+        out = [linea_compacta(e)]
+        for (titulo, lineas, area), n in zip(grupos, visibles):
+            out.append(titulo)
+            if not lineas:
+                out.append("(ninguna)")
+                continue
+            out.extend(lineas[:n])
+            if n < len(lineas):
+                pista = f" (`--area \"{area}\"` las lista todas)" if area else ""
+                out.append(f"… y {len(lineas) - n} más{pista}")
+        return "\n".join(out) + "\n"
+
+    texto = render()
+    while len(texto) > RELATED_TOPE_CHARS and any(n > 1 for n in visibles):
+        k = max(range(len(grupos)), key=lambda i: (visibles[i], i))
+        visibles[k] -= 1
+        texto = render()
+    return texto
+
+
+def json_related(e, rel, indice):
+    data = {"version": VERSION_JSON, "indice": indice["indice"], "entrada": acierto_json(e), "relaciones": {
+        "sucesion": [dict(relacion=r, **(acierto_json(x) if x else {"id": i, "ausente": True}))
+                     for r, x, i in rel["sucesion"]],
+        "iniciativa": {"clave": e["iniciativa"], "aciertos": [acierto_json(x) for x in rel["iniciativa"]]},
+        "area": {"clave": e["area"], "aciertos": [acierto_json(x) for x in rel["area"]]},
+    }}
+    if indice.get("indice_motivo"):
+        data["indice_motivo"] = indice["indice_motivo"]
+    return data
+
+
+# ------------------------------------------------------------------ CLI
+
+def _limit(valor):
+    """`--limit N`: N ≥ 0 (0 = sin tope). Negativo → error de uso (exit 2), no «sin tope» en silencio."""
+    try:
+        n = int(valor)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"`{valor}` no es un entero")
+    if n < 0:
+        raise argparse.ArgumentTypeError(f"`{valor}` es negativo; usa 0 para «sin tope»")
+    return n
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(description="recuperación determinista de docs/knowledge/ (tres capas)")
+    ap.add_argument("texto", nargs="*", help="consulta libre (capa 1)")
+    ap.add_argument("--area", default="", help="área normalizada (minúsculas, sin acentos, por token)")
+    ap.add_argument("--tipo", default="", help="adr | gotcha | lesson (y sinónimos)")
+    ap.add_argument("--limit", type=_limit, default=LIMIT_DEFAULT, help=f"aciertos máximos (default {LIMIT_DEFAULT}; 0 = sin tope; negativo = error)")
+    ap.add_argument("--json", action="store_true")
+    ap.add_argument("--root", help="raíz del proyecto (default: $CLAUDE_PROJECT_DIR → cwd)")
+    ap.add_argument("--no-index", action="store_true", help="recorrido plano de los ficheros, sin leer ni escribir el índice")
+    ap.add_argument("--doctrina", action="store_true",
+                    help=f"busca en la DOCTRINA del plugin ({DOCTRINA_REL}: las lecciones ciertas para cualquier proyecto) "
+                         "en vez de en la memoria del proyecto; misma sintaxis (texto, --area, --show, --related)")
+    enr = ap.add_argument_group("capa 1 enrutada por área (la consumen task-brief.py y session-context.sh)")
+    # default=None para distinguir «no se pidió enrutado» de «se pidió con un filtro vacío» (que enruta y da 0)
+    enr.add_argument("--contexto", default=None, help="texto de la tarea/iniciativa: sus tokens significativos se casan con el ÁREA")
+    enr.add_argument("--tipo-tarea", default=None, help="etiqueta `- **Tipo**:` del ledger: " + "|".join(TIPO_TAREA_AREAS))
+    enr.add_argument("--iniciativa", default=None, help="slug de la iniciativa: entran las entradas nacidas en ella")
+    capa = ap.add_mutually_exclusive_group()
+    capa.add_argument("--related", metavar="ID", help="capa 2: grafo curado de una entrada")
+    capa.add_argument("--show", metavar="ID", help="capa 3: la entrada completa")
+    args = ap.parse_args(argv)
+    root = resolver_root(args.root)
+    texto = " ".join(args.texto)
+    corpus = "doctrina" if args.doctrina else "proyecto"
+    if args.doctrina:
+        entradas, path, indice = abrir_doctrina()
+        if not entradas:
+            print(f"knowledge-find: {indice.get('indice_motivo', 'sin doctrina')} — 0 aciertos", file=sys.stderr)
+    else:
+        entradas, path, indice = abrir_corpus(root, usar_indice=not args.no_index)
+
+    if args.related or args.show:
+        id_ = args.related or args.show
+        e = buscar_id(entradas, id_)
+        if e is None:
+            donde = DOCTRINA_REL if args.doctrina else os.path.join(root, "docs", "knowledge")
+            print(f"knowledge-find: no hay ninguna entrada con ID `{id_}` en {donde}", file=sys.stderr)
+            return 1
+        if args.show:
+            if args.json:
+                data = {"version": VERSION_JSON, "indice": indice["indice"], "corpus": corpus, "id": e["id"], "tipo": e["tipo"],
+                        "estado": e["estado"], "estado_detalle": e["estado_detalle"], "area": e["area"],
+                        "titular": e["titular"], "ruta": e["ruta"], "origen": e.get("origen", "proyecto"), "contenido": e["texto"]}
+                if indice.get("indice_motivo"):
+                    data["indice_motivo"] = indice["indice_motivo"]
+                print(json.dumps(data, ensure_ascii=False))
+            else:
+                sys.stdout.write(e["texto"])
+            return 0
+        rel = relaciones(entradas, e)
+        if args.json:
+            data = json_related(e, rel, indice)
+            data["corpus"] = corpus
+            print(json.dumps(data, ensure_ascii=False))
+        else:
+            sys.stdout.write(texto_related(e, rel))
+        return 0
+
+    consulta = {"texto": texto, "area": args.area, "tipo": args.tipo, "limit": args.limit}
+    enrutado = [a for a in (args.contexto, args.tipo_tarea, args.iniciativa) if a is not None]
+    if enrutado:
+        if texto or args.area:
+            print("knowledge-find: `--contexto/--tipo-tarea/--iniciativa` no se combinan con texto libre ni `--area`",
+                  file=sys.stderr)
+            return 2
+        contexto, tipo_tarea, iniciativa = (args.contexto or "", args.tipo_tarea or "", args.iniciativa or "")
+        aciertos, total, claves, aviso = buscar_enrutado(
+            entradas, contexto=contexto, tipo_tarea=tipo_tarea, iniciativa=iniciativa,
+            tipo=args.tipo, limit=args.limit)
+        if aviso:
+            print(aviso, file=sys.stderr)
+        consulta.update({"contexto": contexto, "tipo_tarea": tipo_tarea, "iniciativa": iniciativa, "claves": claves})
+    else:
+        toks = tokens_consulta(texto)
+        candidatos = candidatos_fts(path, toks)
+        aciertos, total = buscar(entradas, texto=texto, area=args.area, tipo=args.tipo, limit=args.limit,
+                                 candidatos=candidatos)
+        if texto:
+            consulta["tokens"] = toks
+    if args.json:
+        data = {"version": VERSION_JSON, "indice": indice["indice"], "corpus": corpus, "consulta": consulta,
+                "total": total, "aciertos": [acierto_json(a) for a in aciertos]}
+        if indice.get("indice_motivo"):
+            data["indice_motivo"] = indice["indice_motivo"]
+        print(json.dumps(data, ensure_ascii=False))
+    else:
+        for a in aciertos:
+            print(linea_compacta(a))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

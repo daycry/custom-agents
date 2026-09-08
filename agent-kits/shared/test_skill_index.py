@@ -101,11 +101,37 @@ def test_recorte_de_description_primera_frase_o_gatillo():
 
 
 def test_hint_corto():
-    assert si.hint_corto('"<objetivo de la iniciativa> [rapido | completo] [--superpowers]"') == "<objetivo de la iniciativa> [rapido | completo] [--superpowers]"
+    # hint real de /dev-cycle: varios tokens `<…>`/`[…]` → se conservan TODOS, sin las comillas
+    assert si.hint_corto('"<objetivo de la iniciativa> [rapido | completo]"') == "<objetivo de la iniciativa> [rapido | completo]"
     assert si.hint_corto('"(opcional) ruta al roadmap; por defecto docs/roadmap"') == "[opcional]"
     assert si.hint_corto('"(sin argumentos)"') == ""
     assert si.hint_corto("prosa cualquiera") == "<args>"
     assert si.hint_corto("") == ""
+
+
+def test_hint_largo_se_recorta_en_la_linea():
+    """El recorte del hint LARGO ocurre al pintar la línea (no en `hint_corto`): no roba más de
+    media línea, corta en palabra y acaba en «…».
+
+    «Corta en palabra» se afirma de verdad: lo que queda antes de «…» es un prefijo del hint que
+    termina justo donde el hint tiene un espacio (la palabra siguiente cae ENTERA). Un assert del
+    tipo `" " in etiqueta` no vale, porque lo satisface el propio prefijo `/dev-cycle ` aunque el
+    corte partiera una palabra por la mitad (mutante `h = h[:tope - 1] + "…"`: sobrevivía)."""
+    hint = "<objetivo de la iniciativa> [rapido | completo]"
+    ps = [("command", "dev-cycle", "Orquesta el ciclo completo de una iniciativa con puertas.",
+           f'"{hint}"', "raw")]
+    linea = [l for l in si._lineas(ps, 60) if l.startswith("/dev-cycle")][0]
+    etiqueta = linea.split(" — ")[0]
+    assert etiqueta.startswith("/dev-cycle <objetivo")
+    assert etiqueta.endswith("…")
+    recorte = etiqueta[len("/dev-cycle "):-1]                       # lo que quedó del hint
+    assert recorte and hint.startswith(recorte)                     # es un prefijo del hint…
+    assert hint[len(recorte)] == " "                                # …que acaba en frontera de palabra
+    assert recorte[-1] not in ",;:( "                               # y sin puntuación colgando
+    assert len(etiqueta) <= 60 // 2                                 # media línea como tope
+    # con ancho de sobra el hint entra completo
+    ancha = [l for l in si._lineas(ps, 200) if l.startswith("/dev-cycle")][0]
+    assert ancha.split(" — ")[0] == "/dev-cycle <objetivo de la iniciativa> [rapido | completo]"
 
 
 def test_cache_invalidada_por_cambio_de_frontmatter(tmp_path):

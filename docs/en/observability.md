@@ -20,8 +20,9 @@ product); if you want that view, install one alongside.
   `PostToolUse` (marking `docs/` as pending for Confluence, the `ledger-lint` warning and the
   **progress line** on `tasks.md`), `SubagentStop` (state of the active initiatives when a subagent
   finishes), `SessionStart` (plugin piece index + resume context on startup/resume/compaction +
-  latest journal entry on startup/resume) and `SessionEnd` (session log entry under
-  `docs/knowledge/journal/`).
+  latest journal entry on startup/resume), `UserPromptSubmit` (the user's turn into a raw,
+  unversioned log with a `<private>` opt-out) and `SessionEnd` (session log entry under
+  `docs/knowledge/journal/`, with `decisiones`/`pendientes` extracted from that log).
   They do not intercept
   or modify anything; they **inform** (`systemMessage` / `additionalContext`), they never decide;
   always exit 0.
@@ -50,7 +51,8 @@ using only the canonical ledger: **how is the initiative going right now?** All 
 | Every edit of a `docs/roadmap/*/tasks.md` | `PostToolUse` hook → `progress-line.sh` | One line: `📋 <slug> · T-04/12 completadas (33%) · fase 2/4 «…» · en curso: T-05 … · IA real 1h 12m`. Debounced: if the state did not change, silence. |
 | When a subagent finishes | `SubagentStop` hook → `subagent-progress.sh` | The same lines, one per `en-progreso` initiative (only if there is any). |
 | On startup, resume or after context compaction | `SessionStart` hook → `session-context.sh` | (1) **Piece index** of the plugin (`agent-kits/shared/skill-index.py`): 3 routing-rule lines + one line ≤ 110 chars per command/skill/agent, generated DETERMINISTICALLY from the frontmatters, ≤ 45 lines / ≤ 3,500 chars, hash-cached in `.claude/.skill-index.cache`; it answers "the right skill did not fire": descriptions are only seen when Claude looks them up, the index puts them in front on every start. Informative (forces nothing); disable with `.claude/dev.json` `{"sesion": {"indice": false}}`. (2) Roadmap block ≤ 15 lines: active initiatives, in-progress tasks, open usage-meter markers and "resume from the in-progress task" (only if something is active). Also on `compact`, because compaction summarises the conversation and may drop the startup index (official hooks guide, "Re-inject context after compaction", verified 2026-09-03). Total < 10,000 chars (hook cap). Nothing to say → nothing injected. |
-| When the session ends (exit, `/clear`, logout) | `SessionEnd` hook → `session-journal.sh` | Nothing on screen (by contract `SessionEnd` output is ignored): writes `docs/knowledge/journal/YYYY-MM-DD-<slug>.md` with `agent-kits/shared/journal.py write` — a **deterministic draft** (date, active initiative, files touched per git, ledger tasks whose state changed, closed meter markers, first prompt as summary), idempotent by `session_id`. On startup/resume (`startup\|resume`, not `compact`) `session-context.sh` appends (3) the latest entry compacted (≤ 25 lines, `journal.py latest`). Disable with `dev.json` `{"sesion": {"journal": false}}`. **No AI summary**: the official docs (hooks.md, 2026-09-03) only let `prompt`/`agent` hooks return an `ok/reason` decision, and on `SessionEnd` every output is ignored; `journal.py write --enrich` stays manual. Budget: `SessionEnd` hooks share 1.5 s → `hooks.json` declares `timeout: 20`. |
+| On every user turn | `UserPromptSubmit` hook → `user-prompt-capture.sh` | Nothing on screen (on this event stdout would be injected as context and exit 2 would erase the prompt: the hook never emits and always exits 0): `journal.py capture` appends the turn as one JSON line to `.claude/session-prompts-<session_id>.log` — **not versioned** (`capture` seeds `.claude/.gitignore` with `session-prompts-*`), **obvious secrets redacted** before touching disk, `0600`, a lock between overlapping turns, per-turn/per-file caps and a 30-day purge. Per-turn opt-out: `<private>` anywhere in the turn (the log is untouched and that turn never comes back from the transcript either). Per-project opt-out: `dev.json` `{"sesion": {"captura": false}}` (or `journal: false`). Only in projects with a trace of the plugin. `hooks.json` declares `timeout: 5` (official default 30). |
+| When the session ends (exit, `/clear`, logout) | `SessionEnd` hook → `session-journal.sh` | Nothing on screen (by contract `SessionEnd` output is ignored): writes `docs/knowledge/journal/YYYY-MM-DD-<slug>.md` with `agent-kits/shared/journal.py write` — a **deterministic draft** (date, active initiative, files touched per git, ledger tasks whose state changed, closed meter markers) plus `decisiones`/`pendientes` **extracted without a model from the raw `UserPromptSubmit` log** (user sentences carrying an ES/EN lexical marker; no log or no markers → an honest `[]`) and `resumen` = first captured turn; idempotent by `session_id`, atomic write. The entry states that `decisiones`/`pendientes` are **quotes** of the turns, not instructions. On startup/resume (`startup\|resume`, not `compact`) `session-context.sh` appends (3) the latest entry compacted (≤ 25 lines, `journal.py latest`). Disable with `dev.json` `{"sesion": {"journal": false}}`. **Opt-in AI summary** (`{"sesion": {"resumen": true}}`): after the deterministic entry is on disk, `claude -p --bare --output-format json` with the turns on stdin and a 25 s timeout rewrites the same entry (`resumen_por: ia`); without the CLI, without `ANTHROPIC_API_KEY`, on timeout or unparseable JSON → the deterministic entry stays, with the reason in `avisos`, exit 0 (ADR-010 revised 2026-09-08: hook output on `SessionEnd` is still ignored — the hook does not return, it **writes**). Budget: `SessionEnd` hooks share 1.5 s → `hooks.json` declares `timeout: 45`. Promotion: `journal.py candidatas` proposes as `propuesta` the patterns repeated across ≥ 2 sessions (step 2-quater of `/retro`). |
 | Always, in the status bar (**opt-in** in `/setup`, step 5-bis) | `statusline/roadmap-statusline.sh` | `[Opus] $0.01 ctx 8% · 📋 <slug> T-04/12 33%` — model, session cost, context used and roadmap progress. Without `jq` it uses `python3`; with neither, model only. |
 
 Reverting the status line: remove the `statusLine` key from `.claude/settings.json`.
@@ -119,11 +121,13 @@ What we could **NOT** measure here is the token cost of a real session with a li
 project: `usage-meter.py start --artefacto "<slug>/T-XX"` before the first event and `close` after
 `aprobado`.
 
-**Design rule (the same one superpowers applies to its skills, taken to the integration layer):**
-whatever can be deterministic is not written by the model. Superpowers has no project-tracker
-integration, so there is nothing to copy here — but there is something not to repeat: its *one
-subagent per task* pattern multiplies context; the Jira cycle spawns no subagent, they are calls
-from the agent already at work.
+**Design rule (a rule of this repo — the «Determinismo» row of `CLAUDE.md` § «Reglas al trabajar
+aquí» and body rule 1 of the `plugin-dev` skill: «computations and verdicts go in scripts with tests
+and exit codes […], not in agent prose»; rule 8 of `CONVENTIONS.md` does not state it, it is where it
+is APPLIED to the ledger with `ledger-lint`/`qa-gate` —, taken to the integration layer):** whatever
+can be deterministic is not written by the model. And its corollary in context cost: the *one
+subagent per task* pattern multiplies it, so the Jira cycle spawns no subagent — they are calls from
+the agent already at work.
 
 ## Where to look for what (cheat sheet)
 

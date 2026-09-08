@@ -1,5 +1,5 @@
 ---
-description: Diagnóstico de la instalación del plugin en este proyecto — herramientas (python3, git, jq, node, Playwright), plugin y hooks registrados, statusline, configs de .claude (rates, dev, jira, confluence) y estado del trabajo (marcadores de medición huérfanos, iniciativas en progreso, journal, evals), con veredicto ✅/⚠️/❌ y el arreglo concreto de cada línea. Solo lee; no toca nada y no usa red. Úsalo cuando el usuario diga "¿está bien instalado?", "diagnostica el plugin", "por qué no funciona el hook", "comprueba mi configuración", "doctor".
+description: Diagnóstico de la instalación del plugin en este proyecto — herramientas (python3, git, jq, node, Playwright), plugin y hooks registrados, statusline, configs de .claude (rates, dev, jira, confluence) y estado del trabajo (marcadores de medición huérfanos, iniciativas en progreso, memoria técnica —curadas, índice, FTS5, journal, calibración—, evals), con veredicto ✅/⚠️/❌ y el arreglo concreto de cada línea. Solo lee; no toca nada y no usa red. Úsalo cuando el usuario diga "¿está bien instalado?", "diagnostica el plugin", "por qué no funciona el hook", "comprueba mi configuración", "doctor".
 argument-hint: "(opcional) --json para la salida en JSON"
 ---
 
@@ -28,6 +28,7 @@ nada** y sin red: cada línea lleva su veredicto y, si algo falla, **qué comand
   precio de tokens sin verificar, hook no ejecutable) · ❌ roto (config corrupta, valor fuera de
   vocabulario, script que falta) · ℹ️ informativo (opcional no instalado, opt-in apagado a
   propósito, estado del trabajo) — las ℹ️ **no** hay que arreglarlas.
+- **Seis bloques**: herramientas · plugin y hooks · statusline · configs de `.claude/` · estado del trabajo · **memoria técnica** (`docs/knowledge/`: entradas curadas por familia y estado, índice README —❌ si rompe la biyección—, índice FTS5, journal a 0 con memoria curada, `CALIBRATION.md` desfasada con iniciativas cerradas sin retro — la retro es puerta de cierre desde `memory-retrieval` T-17).
 - **Sin red por diseño**: `/doctor` no consulta el marketplace, así que no puede decir si hay una
   versión más nueva del plugin; solo informa de la versión instalada.
 - **No confundir con `/setup`**: `/doctor` diagnostica lo que ya hay (solo lectura); `/setup`

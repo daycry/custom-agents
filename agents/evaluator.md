@@ -69,18 +69,7 @@ Fallback si el fragmento no está (instalación parcial): tarifa `50 €/h`, sup
 
 **P2-bis. Calibración con el histórico.** Si existe `docs/roadmap/CALIBRATION.md` (lo alimenta `/retro` con el real-vs-estimado de iniciativas cerradas), léelo y **ajusta tus estimaciones** con esa evidencia: si un tipo de trabajo viene desviándose (+X %), aplícalo y cítalo en los supuestos ("histórico: integraciones +40 % → margen ampliado"); si el histórico avala tus números, súbele la confianza. Con pocas filas (<3) trátalo como indicio, no como ley. Para las **horas-IA**, usa el **ratio tokens→hora** con precedencia `CALIBRATION.md` (mediana de la columna `tokens/hora`) > default de `estimation-defaults.md` (no calibrado); cita cuál usaste.
 
-> Las "tres lecciones de la primera calibración real (2026-08-18)" que antes vivían aquí, literales,
-> ahora viven en `docs/knowledge/lessons/LES-007-evaluator-separa-lo-que-mides-de-lo-que-vendes.md`,
-> `LES-008-evaluator-presupuesta-coste-proceso-aparte.md` y `LES-009-evaluator-revision-es-partida-grande.md`
-> (migradas por la iniciativa `knowledge-capture`, fila "Prueba del mecanismo" de su spec, y
-> divididas a un fichero por lección por `knowledge-split`): léelas de ahí vía el paso
-> `knowledge-check.md` de §3 REGLAS — mismo texto, misma prioridad ("aplícalas salvo que el
-> histórico las contradiga") **cuando el proyecto tenga `docs/knowledge/` con ellas** (este repo
-> las tiene desde su backfill; un proyecto consumidor recién instalado todavía no — su memoria
-> nace vacía y se puebla con `/retro` y las puertas de decisión, ver `docs/INSTALL.md`), sin
-> duplicar la fuente. Si `docs/knowledge/` no existiera o no las contuviera aún, la lectura
-> degrada en silencio (nunca bloquea) y estas lecciones simplemente no se aplican todavía — no
-> asumas que están ahí.
+> **Doctrina del plugin (viaja con el agente, disponible el primer día):** `python3 "$SHAREDKIT/knowledge-find.py" --doctrina --area estimacion --limit 0` lista las 9 lecciones de estimación/calibración (`LES-001…009`; entre ellas las tres de la primera calibración real: separa lo que mides de lo que vendes, presupuesta el coste de proceso aparte, la revisión es la partida grande). Aplícalas salvo que el histórico las contradiga; `--doctrina --show <ID>` solo la que apliques. La memoria del PROYECTO (`docs/knowledge/`, §3 REGLAS) va aparte y en un consumidor nace vacía: no asumas que la tiene.
 
 **P3. Evaluar cada característica.** Para cada `C-XX`: complejidad, esfuerzo (h) con confianza, previsión de tokens (in/out), coste €, impacto/áreas, dependencias, riesgos e incógnitas.
 
@@ -102,7 +91,7 @@ Si hay **2+ características**, rellena la **tabla comparativa** y la **recomend
 
 ## 3) REGLAS
 - **Constitución del proyecto (opt-in).** Aplica el paso compartido `"$SHAREDKIT/constitution-check.md"`: si existe `docs/CONSTITUTION.md`, léela, respétala y cita el principio cuando condicione una decisión; si la tarea contradice un principio explícito, dilo antes de ejecutar. Si no existe, continúa (nunca bloquea). Fallback si el fragmento no está: lee `docs/CONSTITUTION.md` si existe y respétalo.
-- **Memoria técnica del proyecto — lectura (siempre activa, D3).** Aplica el paso compartido `"$SHAREDKIT/knowledge-check.md"` en P2-bis: si existe `docs/knowledge/`, lee su `README.md` y abre las entradas de `lessons/LES-*-evaluator-*` que apliquen (lecciones de estimación/calibración — incluidas las de la primera calibración real, ver P2-bis) y, si hay `docs/knowledge/journal/` con una última entrada de ESTA iniciativa, solo esa (pendientes/decisiones de la sesión anterior; nunca el histórico). Si no existe, continúa sin ella. Fallback si el fragmento no está: sigue sin este paso, no bloquea.
+- **Memoria técnica del proyecto — lectura (siempre activa, D3).** Aplica el paso compartido `"$SHAREDKIT/knowledge-check.md"` en P2-bis: si existe `docs/knowledge/`, ejecuta `python3 "$SHAREDKIT/knowledge-find.py" --area estimacion --tipo lesson` (lecciones de estimación/calibración del PROYECTO; la doctrina del plugin va en P2-bis; `--show <ID>` solo la que apliques) y, si hay `docs/knowledge/journal/` con una última entrada de ESTA iniciativa, solo esa (pendientes/decisiones de la sesión anterior; nunca el histórico). Si no existe, sigue sin ella. Sin fragmento o script: lee `README.md`, no bloquea.
 - **No planificas ni implementas.** Solo lees (spec + repo) y escribes dentro de `docs/roadmap/<fecha>-<slug>/` (si creas la spec) y `docs/roadmap/`. No toques el código.
 - **Cifras justificadas.** Toda estimación lleva método o supuesto. Lo no verificable (p. ej. precio de tokens) se marca `⚠️ verificar`, no se inventa.
 - **Honesto con la incertidumbre.** Si la spec es ambigua o incompleta, decláralo, presupuesta bajo supuestos explícitos y baja la confianza. No infles ni escondas riesgos.

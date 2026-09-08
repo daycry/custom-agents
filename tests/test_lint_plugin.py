@@ -539,7 +539,48 @@ dependencies:
         assert code == 0, f"es aviso, no error\n{out}"
         assert "imprime caracteres no ASCII y lee de `sys.stdin`" in out, out
 
-    print("test_lint_plugin: 32/32 OK")
+    # 33-36) docs/knowledge/README.md: biyección ficheros ↔ filas + «Área» (memory-retrieval T-04) → ERROR
+    def make_knowledge(tmp, filas, ficheros=("adr/ADR-001-a.md", "gotchas/GOT-001-g.md")):
+        kn = os.path.join(tmp, "docs", "knowledge")
+        for rel in ficheros:
+            os.makedirs(os.path.dirname(os.path.join(kn, rel)), exist_ok=True)
+            open(os.path.join(kn, rel), "w", encoding="utf-8").write("---\nid: X\n---\n# x\n")
+        cab = "| Entrada | ID | Tipo | Área | Estado | Fuente |\n|---|---|---|---|---|---|\n"
+        open(os.path.join(kn, "README.md"), "w", encoding="utf-8").write(cab + "\n".join(filas) + "\n")
+
+    fila_adr = "| [`adr/ADR-001-a.md`](adr/ADR-001-a.md) — a | ADR-001 | ADR | Hooks / implementer | aceptada | `x` |"
+    fila_got = "| [`gotchas/GOT-001-g.md`](gotchas/GOT-001-g.md) — g | GOT-001 | Gotcha | Tests / CI | aceptada | `x` |"
+    # 33) índice correcto → exit 0
+    with tempfile.TemporaryDirectory() as tmp:
+        make_plugin(tmp, {"alpha": AGENT_OK.format(name="alpha")})
+        make_knowledge(tmp, [fila_adr, fila_got])
+        code, out = run(tmp)
+        assert code == 0 and "0 errores" in out, out
+    # 34) entrada sin fila → ERROR que nombra el fichero
+    with tempfile.TemporaryDirectory() as tmp:
+        make_plugin(tmp, {"alpha": AGENT_OK.format(name="alpha")})
+        make_knowledge(tmp, [fila_adr])
+        code, out = run(tmp)
+        assert code == 1 and "gotchas/GOT-001-g.md: entrada sin fila" in out, out
+    # 35) fila sin «Área» → ERROR que nombra el ID (para los ADR el área solo vive en la fila)
+    with tempfile.TemporaryDirectory() as tmp:
+        make_plugin(tmp, {"alpha": AGENT_OK.format(name="alpha")})
+        make_knowledge(tmp, [fila_adr.replace("| Hooks / implementer |", "|  |"), fila_got])
+        code, out = run(tmp)
+        assert code == 1 and "(ADR-001): fila sin «Área»" in out, out
+    # 36) fila que enlaza a un fichero inexistente → ERROR (la biyección va en los dos sentidos);
+    #     y sin docs/knowledge/ (plugin consumidor recién instalado) no se comprueba nada.
+    with tempfile.TemporaryDirectory() as tmp:
+        make_plugin(tmp, {"alpha": AGENT_OK.format(name="alpha")})
+        make_knowledge(tmp, [fila_adr, fila_got, fila_got.replace("GOT-001-g", "GOT-002-h").replace("GOT-001", "GOT-002")])
+        code, out = run(tmp)
+        assert code == 1 and "(GOT-002): enlaza a `gotchas/GOT-002-h.md`, que no existe" in out, out
+    with tempfile.TemporaryDirectory() as tmp:
+        make_plugin(tmp, {"alpha": AGENT_OK.format(name="alpha")})
+        code, out = run(tmp)
+        assert code == 0 and "knowledge" not in out, out
+
+    print("test_lint_plugin: 36/36 OK")
 
 
 if __name__ == "__main__":
