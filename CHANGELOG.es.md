@@ -9,6 +9,24 @@ y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Corregido
+
+- **Las cifras medidas de la escalera del CHANGELOG vuelven a cuadrar con el corpus (467, no 539).** Recortar
+  el campo `Changelog:` de una tarea —justamente el bullet que fijaba el techo— bajó el máximo real después de
+  haber escrito las cifras, y dejó 11 marcas `<!--m:…-->` desfasadas en 5 ficheros y la CI roja en `master`.
+- **Las copias de la doctrina se comparan por contenido, no por bytes crudos.** Con `core.autocrlf=true` un
+  `checkout` de otra rama deja la copia en CRLF y el original en LF, así que `tests/test_doctrina_viaja.py`
+  decía «difiere» con los blobs del *índice* de git idénticos. Ahora normaliza los finales de línea y además
+  afirma la igualdad de blobs en el índice, que es la que viaja.
+- **Ese test decodifica a su proceso hijo como UTF-8** (`encoding=`), la regla que `GOT-005` y
+  `tests/test_console_encoding.py` exigen a todas las suites del repo.
+
+### Cambiado
+
+- **`GOT-007` recoge ahora el patrón general, no solo su primera instancia:** una puerta verde certifica el
+  estado en que se ejecutó, así que hay que volver a correr la puerta que vigila *justo* lo que se tocó
+  después del **último** cambio — y recordar que `release.py` no corre pytest: la puerta real es CI.
+
 ## [1.18.0] - 2026-09-08
 
 ### Changed — iniciativa `sin-motor-externo` (2026-09-04)

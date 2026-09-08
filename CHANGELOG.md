@@ -9,6 +9,24 @@ and versioning follows [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **The measured figures of the CHANGELOG ladder match the corpus again (467, not 539).** Trimming a task's
+  `Changelog:` field — the very bullet that set the ceiling — lowered the real maximum after the figures had
+  been written, leaving 11 `<!--m:…-->` marks stale across 5 files and CI red on `master`.
+- **The doctrine copies are compared by content, not by raw bytes.** With `core.autocrlf=true` a branch
+  checkout leaves the copy in CRLF and the original in LF, so `tests/test_doctrina_viaja.py` reported
+  "differs" while the git *index* blobs were identical. It now normalises line endings and additionally
+  asserts blob equality in the index, which is what actually travels.
+- **That test decodes its child process as UTF-8** (`encoding=`), the rule `GOT-005` and
+  `tests/test_console_encoding.py` enforce for every suite in the repo.
+
+### Changed
+
+- **`GOT-007` now records the general pattern, not just its first instance:** a green gate certifies the state
+  it ran against, so re-run the gate that watches *exactly* what you touched after the **last** change — and
+  remember `release.py` does not run pytest, so CI is the real gate.
+
 ## [1.18.0] - 2026-09-08
 
 ### Changed — `sin-motor-externo` initiative (2026-09-04)
