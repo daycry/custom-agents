@@ -64,7 +64,10 @@ jobs:
         id: node
         if: env.ANTHROPIC_API_KEY != ''
         with:
-          node-version: "20"
+          # 22 = LTS activa. NO 21: nunca fue LTS y está EOL desde junio de 2024; y la 20
+          # llegó a EOL en abril de 2026. `engines` del paquete sigue en >= 18 (el
+          # instalador solo usa API de 16.7+/17+), pero lo que se PRUEBA aquí es la 22.
+          node-version: "22"
 
       - name: Instalar Claude Code
         id: install

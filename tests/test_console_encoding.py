@@ -363,6 +363,11 @@ def _modos():
             [("cobertura", lambda w: [], (0, 1), None)],
         "evals/run.py":
             [("--dry-run", lambda w: ["--dry-run"], (0,), None)],
+        # `--check` y no la generación: imprime «… ficheros al día» (con `í`) leyendo el árbol, sin
+        # escribir nada; 1 es veredicto legítimo (interop desincronizada). `--list` no serviría para
+        # el test de salida: sus rutas son ASCII pura.
+        "scripts/export-interop.py":
+            [("--check", lambda w: ["--check"], (0, 1), None)],
         "scripts/export-skills.py":
             [("paquete", lambda w: ["--out", os.path.join(w, "pkg")], (0, 1), None),
              ("--check", lambda w: ["--check", os.path.join(w, "pkg")], (0, 1), None)],
