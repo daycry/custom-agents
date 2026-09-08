@@ -459,16 +459,36 @@ def abrir_doctrina():
                     ficheros.append((f"lessons/{fn}", f.read()))
             except OSError:
                 continue
+    if not ficheros:
+        return [], None, {"indice": "n/a", "indice_motivo": f"carpeta de doctrina vacía ({d}): instalación incompleta"}
     entradas = parsear_corpus(ficheros)
     for e in entradas:
         fn = e["ruta_corta"].split("/", 1)[1]
         e["ruta"], e["ruta_corta"], e["origen"] = f"{DOCTRINA_REL}/{fn}", f"doctrina/{fn}", "doctrina"
-        # Sin README que aporte el titular, el del cuerpo es el encabezado «## evaluator»: la lección de verdad es su
-        # primera frase en negrita (formato de las lecciones del repo).
-        m = re.search(r"\*\*(.+?)\*\*", e["texto"], re.S)
-        if m:
-            e["titular"] = _limpia_titular(m.group(1))
+        e["titular"] = _titular_leccion(e["texto"]) or e["titular"]
     return entradas, None, {"indice": "n/a", "indice_motivo": "--doctrina: assets del plugin, recorrido plano"}
+
+
+_TITULAR_LECCION_RE = re.compile(r"^\s*[-*]\s+\*\*([^*\n]+?)\*\*", re.M)
+
+
+def _titular_leccion(text):
+    """Titular de una lección sin fila de índice: la frase en negrita con la que empieza su primer bullet del
+    CUERPO (formato de `lessons/`: `- **Frase.** explicación…`). Solo el cuerpo (nunca el frontmatter) y solo
+    negritas que ABREN un bullet (nunca un `300**k**` inline) — gap B3 de la revisión F5-F6. Si no hay
+    bullet en negrita, la primera frase de la primera línea de texto del cuerpo; None si no hay texto."""
+    _fm, cuerpo = frontmatter(text)
+    m = _TITULAR_LECCION_RE.search(cuerpo)
+    if m:
+        return _limpia_titular(m.group(1))
+    for l in cuerpo.split("\n"):
+        l = l.strip()
+        if not l or l.startswith("#") or l.startswith("<!--"):
+            continue
+        l = re.sub(r"^[-*]\s+", "", l)
+        frase = re.split(r"(?<=[.!?])\s", l, maxsplit=1)[0]
+        return _limpia_titular(frase) or None
+    return None
 
 
 # ------------------------------------------------------------------ índice SQLite FTS5 (caché reconstruible)
