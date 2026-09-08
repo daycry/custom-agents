@@ -2,7 +2,7 @@
 id: GOT-001
 tipo: gotcha
 area: Backend / exportación CSV
-estado: aceptada (validada: usuario, 2026-01-01)
+estado: aceptada (validada por usuario, 2026-01-01)
 fecha: 2026-01-01
 fuente: docs/roadmap/2025-12-01-informes-v1/tasks.md (bug reportado por el usuario)
 ---

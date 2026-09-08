@@ -2,7 +2,7 @@
 id: LES-001
 tipo: leccion
 area: Estimación / calibración
-estado: aceptada (validada: usuario, 2026-01-01)
+estado: aceptada (validada por usuario, 2026-01-01)
 fecha: 2026-01-01
 fuente: docs/roadmap/2025-12-01-informes-v1/retro.md#estimado-vs-real
 ---

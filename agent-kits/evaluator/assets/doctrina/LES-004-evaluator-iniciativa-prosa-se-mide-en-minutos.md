@@ -2,7 +2,7 @@
 id: LES-004
 tipo: leccion
 area: Estimación / calibración
-estado: aceptada (validada: revisión de dos lentes, 2026-08-20, intento 3)
+estado: aceptada (validada por revisión de dos lentes, 2026-08-20, intento 3)
 fuente: 2026-08-12-workflow-polish/retro.md#estimado-vs-real
 ---
 
