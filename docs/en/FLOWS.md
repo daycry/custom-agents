@@ -109,7 +109,9 @@ flowchart TD
     I -->|green| J["documenter<br/>once at the end"]
     J --> CS["changelog-sync skill<br/>[Unreleased] EN + [Sin publicar] ES<br/>from the closed ledger"]
     CS --> K["optional: nemesis<br/>audit"]
-    K --> L(["closeout: plan completado<br/>spec implementada"])
+    K --> RG["step 8: /retro + retro-gate.py<br/>retro.md + row in CALIBRATION.md<br/>(gate: exit 0)"]
+    RG -->|"exit 0"| L(["closeout: plan completado · retro<br/>spec implementada"])
+    RG -.->|"exit 1: closeout pending retro<br/>(spec stays aprobada)"| L
     style X fill:#fdecea,stroke:#ef9a9a
     style L fill:#e8f5e9,stroke:#81c784
 ```

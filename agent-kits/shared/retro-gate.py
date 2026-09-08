@@ -6,7 +6,10 @@ retro-gate.py — PUERTA determinista del cierre de una iniciativa: sin retro no
 iniciativas cerradas detrás (medido en `analysis.md`: 15 días y 13 cerradas). Esta puerta la usa `/dev-cycle`
 Fase 6 (paso 8 del ritual de cierre) con el mismo patrón que `qa-gate.py` y `ledger-lint.py`: una puerta con exit
 code, no un aviso ignorable («un aviso que se puede ignorar se ignorará», `LES-012`). Comprueba dos hechos
-mecánicos: (1) existe `docs/roadmap/<fecha>-<slug>/retro.md` con frontmatter (`---` … `---`) y cuerpo; (2)
+mecánicos: (1) existe `docs/roadmap/<fecha>-<slug>/retro.md` con contenido — el formato REAL que escribe `/retro`
+(título `# Retro — …` y secciones, sin frontmatter) o, si lo lleva, un frontmatter cerrado con `---` exacto y
+cuerpo detrás (revisión F5-F6, gap B1: la primera versión exigía frontmatter y ninguna de las 7 retros del
+repo lo tenía — la puerta nunca habría abierto); (2)
 `docs/roadmap/CALIBRATION.md` tiene una fila cuya columna «Iniciativa» es el slug (con o sin fecha, con o sin
 acentos graves). NO escribe la retro ni la fila —eso es `/retro`, con las causas que solo conoce quien las
 vivió—: automatiza EXIGIRLA. Informa (ℹ️) si el ledger no está `completado`, sin cambiar el veredicto.
@@ -30,6 +33,7 @@ for _s in (sys.stdin, sys.stdout, sys.stderr):
 OK, KO, INFO = "✅", "❌", "ℹ️"
 _FILA_RE = re.compile(r"^\|\s*(\d{4}-\d{2}-\d{2})\s*\|\s*([^|]+?)\s*\|")
 _FECHA_RE = re.compile(r"^\d{4}-\d{2}-\d{2}-")
+_CIERRE_FM_RE = re.compile(r"^---\s*$", re.M)     # cierre EXACTO del frontmatter: `----` (regla horizontal) no vale
 
 
 def slug_de(nombre_carpeta):
@@ -38,12 +42,12 @@ def slug_de(nombre_carpeta):
 
 def resolver_carpeta(root, arg):
     """`docs/roadmap/<fecha>-<slug>` (relativa a root o absoluta), `<fecha>-<slug>` o `slug` → carpeta absoluta.
-    None si no existe; "ambigua" si un slug sin fecha casa con varias carpetas."""
+    None si no existe O si no cuelga de un `docs/roadmap/` (una carpeta suelta con `tasks.md` juzgaría el
+    CALIBRATION.md de otro proyecto — gap B4); "ambigua" si un slug sin fecha casa con varias carpetas."""
     roadmap = os.path.join(root, "docs", "roadmap")
     candidatos = [arg, os.path.join(root, arg), os.path.join(roadmap, arg)]
     for c in candidatos:
-        if os.path.isdir(c) and (os.path.isfile(os.path.join(c, "tasks.md"))
-                                 or os.path.basename(os.path.dirname(os.path.abspath(c))) == "roadmap"):
+        if os.path.isdir(c) and raiz_de(c) is not None:
             return os.path.abspath(c)
     if os.path.isdir(roadmap):
         iguales = [d for d in sorted(os.listdir(roadmap))
@@ -66,7 +70,9 @@ def raiz_de(carpeta):
 
 
 def retro_ok(carpeta):
-    """(bool, motivo) — retro.md existe, empieza por frontmatter cerrado y tiene cuerpo."""
+    """(bool, motivo) — retro.md existe y tiene contenido: el formato real de `/retro` (título `# …` + cuerpo) o
+    un frontmatter cerrado con `---` exacto seguido de cuerpo. Un fichero vacío, solo título o con frontmatter
+    sin cerrar NO cuenta."""
     p = os.path.join(carpeta, "retro.md")
     if not os.path.isfile(p):
         return False, "retro.md no existe"
@@ -76,12 +82,22 @@ def retro_ok(carpeta):
         return False, f"retro.md ilegible ({e.__class__.__name__})"
     if not text.strip():
         return False, "retro.md está vacío"
-    if not text.startswith("---") or text.find("\n---", 3) == -1:
-        return False, "retro.md sin frontmatter (`---` … `---`)"
-    cuerpo = text[text.find("\n---", 3) + 4:].strip()
+    if text.startswith("---"):
+        m = _CIERRE_FM_RE.search(text, 3)
+        if not m:
+            return False, "retro.md con frontmatter sin cerrar (`---` … `---`)"
+        cuerpo = text[m.end():].strip()
+        if not cuerpo:
+            return False, "retro.md sin cuerpo tras el frontmatter"
+        return True, "retro.md con frontmatter y cuerpo"
+    lineas = text.split("\n")
+    primera = next((l for l in lineas if l.strip()), "")
+    if not primera.lstrip().startswith("#"):
+        return False, "retro.md sin título (`# …`) ni frontmatter: no parece una retro de /retro"
+    cuerpo = "\n".join(l for l in lineas if l.strip() and not l.lstrip().startswith("#")).strip()
     if not cuerpo:
-        return False, "retro.md sin cuerpo tras el frontmatter"
-    return True, "retro.md con frontmatter y cuerpo"
+        return False, "retro.md solo tiene títulos, sin cuerpo (est vs real, causas, aprendizajes)"
+    return True, "retro.md con título y cuerpo"
 
 
 def fila_calibracion(root, carpeta):
@@ -152,7 +168,9 @@ def main(argv=None):
     if carpeta not in (None, "ambigua"):
         root = raiz_de(carpeta) or root                 # la raíz manda desde la carpeta resuelta
     if carpeta is None:
-        print(f"retro-gate: no encuentro la iniciativa `{a.carpeta}` bajo {os.path.join(root, 'docs', 'roadmap')}", file=sys.stderr)
+        print(f"retro-gate: no encuentro la iniciativa `{a.carpeta}` bajo {os.path.join(root, 'docs', 'roadmap')} "
+              "(una carpeta con tasks.md fuera de docs/roadmap/ no vale: la puerta juzga el CALIBRATION.md de SU proyecto)",
+              file=sys.stderr)
         return 2
     if carpeta == "ambigua":
         print(f"retro-gate: `{a.carpeta}` casa con varias carpetas de docs/roadmap/: pasa la carpeta con su fecha", file=sys.stderr)

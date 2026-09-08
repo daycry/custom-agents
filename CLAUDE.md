@@ -100,7 +100,7 @@ Invocan a los agentes **por nombre** y con puertas de control sobre la carpeta d
 | `api-contract` | Flujo **contract-first** para OpenAPI 3.x sin dependencias (`openapi-lint.py`): estructura mínima (`operationId` único, 2xx + 4xx/5xx, `$ref` internos, parámetros con `schema`/`content`) y `--diff <old> <new>` con los cambios **rompedores** separados de los compatibles. (planner, Lente A si el diff toca la spec; a demanda) |
 | `cybersecurity` · `to-pdf` | SAST 8 dimensiones (nemesis) · conversión a PDF (qa, /roadmap-brief). |
 
-**Configs en `.claude/` del proyecto consumidor** (mapa completo: regla 9 de CONVENTIONS): `rates.json` (presupuesto), `jira.json`/`jira-state.json`, `confluence.json`/`confluence-state.json`, `dev.json` (tdd/worktree/subagentes/constitución/`revision.lenteSeguridad`/`revision.lenteRendimiento`/`tests.coberturaMinima`/`sesion.indice`/`sesion.journal`/`modelos`), `usage-state.json` (marcadores del meter).
+**Configs en `.claude/` del proyecto consumidor** (mapa completo: regla 9 de CONVENTIONS): `rates.json` (presupuesto), `jira.json`/`jira-state.json`, `confluence.json`/`confluence-state.json`, `dev.json` (tdd/worktree/subagentes/constitución/`revision.lenteSeguridad`/`revision.lenteRendimiento`/`tests.coberturaMinima`/`sesion.indice`/`sesion.journal`/`sesion.captura`/`sesion.resumen`/`sesion.memoria`/`modelos`), `usage-state.json` (marcadores del meter).
 
 ## Invariante de seguridad (no negociable)
 

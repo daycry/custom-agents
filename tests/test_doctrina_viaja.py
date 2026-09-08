@@ -156,6 +156,49 @@ def test_sin_assets_de_doctrina_degrada_con_aviso_y_exit_0(tmp_path):
     assert r.returncode == 0 and len([l for l in r.stdout.splitlines() if l.strip()]) == 9
 
 
+def _plugin_con_doctrina(tmp_path, lecciones):
+    """Copia de knowledge-find.py en un kit sin evaluator/ + una doctrina sintética alcanzable por CLAUDE_PLUGIN_ROOT."""
+    plug = tmp_path / "plugin"
+    kit = plug / "agent-kits" / "shared"
+    kit.mkdir(parents=True)
+    shutil.copy(KF, kit / "knowledge-find.py")
+    doc = plug / "agent-kits" / "evaluator" / "assets" / "doctrina"
+    doc.mkdir(parents=True)
+    for fn, texto in lecciones.items():
+        (doc / fn).write_text(texto, encoding="utf-8")
+    env = dict(os.environ)
+    env.pop("CLAUDE_PROJECT_DIR", None)
+    env["CLAUDE_PLUGIN_ROOT"] = str(plug)
+    return kit / "knowledge-find.py", env
+
+
+def test_el_titular_de_la_doctrina_sale_del_bullet_en_negrita_del_cuerpo(tmp_path):
+    """Gap B3 (Important): el titular se sacaba de la primera `**…**` de TODO el fichero — frontmatter incluido y
+    cualquier negrita inline (`300**k**`) —, sin aviso. Ahora: solo el cuerpo y solo la negrita que abre un bullet;
+    sin ella, la primera frase del cuerpo (nunca el encabezado «evaluator»)."""
+    fm = "---\nid: LES-9{n}\ntipo: leccion\narea: Estimación / calibración\nestado: aceptada\nfuente: `x` (**medido**)\n---\n"
+    lecciones = {
+        "LES-901-a.md": fm.format(n="01") + "\n## evaluator\n\n- **La frase buena.** Con 300**k** tokens el resto no importa.\n",
+        "LES-902-b.md": fm.format(n="02") + "\n## evaluator\n\nCon 300**k** tokens de entrada.\n\n- **Frase real.** explicación.\n",
+        "LES-903-c.md": fm.format(n="03") + "\n## evaluator\n\n- Primera frase sin negrita. Segunda frase.\n",
+    }
+    kf, env = _plugin_con_doctrina(tmp_path, lecciones)
+    r = subprocess.run([sys.executable, str(kf), "--doctrina", "--json", "--limit", "0", "--root", str(tmp_path)],
+                       capture_output=True, text=True, encoding="utf-8", errors="replace", env=env, timeout=60)
+    assert r.returncode == 0, r.stderr
+    tit = {a["id"]: a["titular"] for a in json.loads(r.stdout)["aciertos"]}
+    assert tit == {"LES-901": "La frase buena.", "LES-902": "Frase real.", "LES-903": "Primera frase sin negrita."}
+    assert "medido" not in json.dumps(tit) and "k" not in tit.values() and "evaluator" not in tit.values()
+
+
+def test_carpeta_de_doctrina_vacia_avisa_con_motivo_util(tmp_path):
+    """Gap B6 (Minor): con la carpeta presente pero sin .md el aviso daba el motivo del éxito."""
+    kf, env = _plugin_con_doctrina(tmp_path, {})
+    r = subprocess.run([sys.executable, str(kf), "--doctrina", "--area", "estimacion", "--root", str(tmp_path)],
+                       capture_output=True, text=True, encoding="utf-8", errors="replace", env=env, timeout=60)
+    assert r.returncode == 0 and r.stdout.strip() == "" and "vacía" in r.stderr and "0 aciertos" in r.stderr
+
+
 def test_ca22_el_prompt_del_evaluator_no_engorda_y_cita_la_doctrina_en_vez_de_los_ficheros():
     raw = open(EVALUATOR, "rb").read().replace(b"\r\n", b"\n")   # el checkout de Windows añade CR: la medida es la de git (LF)
     assert len(raw) <= TOPE_EVALUATOR, f"{len(raw)} > {TOPE_EVALUATOR} bytes (spec CA-22)"
