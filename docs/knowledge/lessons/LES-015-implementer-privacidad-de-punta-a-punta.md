@@ -15,4 +15,7 @@ fuente: 2026-09-04-memory-retrieval/tasks.md#revisión-de-dos-lentes--intento-1-
   revisión (gap Critical), no la suite de 17 tests nuevos en verde, porque cada test miraba una capa. Desde
   entonces el criterio se redacta sobre el **resultado observable** («el turno privado no aparece en ningún
   fichero versionado ni en su índice») y el test recorre todos los caminos que alimentan ese fichero (log,
-  transcripción, `--enrich`, respuesta de la IA). — *Fuente:* [`2026-09-04-memory-retrieval/tasks.md`](../../roadmap/2026-09-04-memory-retrieval/tasks.md) (T-20, gap 1).
+  transcripción, `--enrich`, respuesta de la IA). **Segunda evidencia, misma iniciativa (T-21, gap B1 Critical):** la
+  puerta `retro-gate.py` exigía un frontmatter que ninguna de las 7 retros reales del repo tenía — el fixture
+  inventaba el formato y la puerta nunca habría abierto; el test pasó a parametrizar sobre `docs/roadmap/*/retro.md`.
+  El contrato lo fijan los datos, no el fixture. — *Fuente:* [`2026-09-04-memory-retrieval/tasks.md`](../../roadmap/2026-09-04-memory-retrieval/tasks.md) (T-20 gap 1 · T-21 gap B1) y su [`retro.md`](../../roadmap/2026-09-04-memory-retrieval/retro.md).

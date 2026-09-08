@@ -6,9 +6,9 @@ descripcion: >
   caminos por los que llega el contexto a un agente (brief del subagente y arranque de
   sesión), captura episódica automática a dos velocidades y una eval que prueba que el
   camino SE RECORRE. Fuente: `analysis.md` de esta carpeta.
-estado: aprobada
+estado: implementada
 creado: 2026-09-04
-actualizado: 2026-09-04
+actualizado: 2026-09-08
 evaluacion: evaluation.md
 design: n/a
 plan: improvement-plan.md

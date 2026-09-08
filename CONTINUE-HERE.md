@@ -39,27 +39,31 @@ cuando la rama descrita aquí se publique y no quede nada abierto.
 Elimina toda referencia a "superpowers"/"Modo A" de piezas vivas. 5 tareas,
 revisión de dos lentes intento 1: 10 gaps → todos corregidos.
 
-### 2. `docs/roadmap/2026-09-04-memory-retrieval/` — **ledger `completado`; cierre declarado PENDIENTE DE LA RETRO**
+### 2. `docs/roadmap/2026-09-04-memory-retrieval/` — **CERRADA del todo (2026-09-08)**
 
 21 tareas cerradas (18 del plan + T-19/T-20/T-21, cierres de tres revisiones
-de dos lentes: 38 gaps, todos corregidos, 0 rebatidos). Evaluación y plan
-`completado`. **La spec sigue `aprobada` a propósito**: el ritual de cierre que
-esta misma iniciativa introdujo (`/dev-cycle` Fase 6, pasos 6→9) solo pasa la
-spec a `implementada` cuando la puerta de retro abre, y hoy
-`python3 agent-kits/shared/retro-gate.py docs/roadmap/2026-09-04-memory-retrieval`
-→ `❌ retro.md no existe · ❌ sin fila en CALIBRATION.md`, exit 1.
+de dos lentes: 38 gaps, todos corregidos, 0 rebatidos). Evaluación, plan y
+ledger `completado`; **retro escrita** (`retro.md` + fila en `CALIBRATION.md`,
+horas humanas en 0 por decisión de Jordi, `tokens/hora` vacío porque nada se
+midió); **puerta de retro abierta** (`retro-gate.py` → exit 0) y **spec
+`implementada`**. Fue la primera iniciativa a la que se le exigió el paso 8
+del ritual que ella misma introdujo.
 
-**Lo que tiene que hacer Jordi para cerrarla del todo (paso 8 → 9):**
-1. `/retro docs/roadmap/2026-09-04-memory-retrieval` — pide 2-3 causas de
-   desviación (real IA 4,32 h est. vs 2,60 h estimadas: la revisión encontró
-   más de lo previsto en F4 y F5-6), escribe `retro.md` y la fila de
-   `CALIBRATION.md`, y muestra las candidatas a lección del journal (hoy no
-   hay journal de esta iniciativa: la sesión corrió sin el plugin de la rama
-   cargado). Las horas humanas reales son 0 (todo IA).
-2. `python3 agent-kits/shared/retro-gate.py docs/roadmap/2026-09-04-memory-retrieval`
-   → exit 0.
-3. `spec.md` → `estado: implementada` y quitar el paréntesis «spec `aprobada`
-   hasta que la puerta de retro abra» de la fila de `docs/roadmap/README.md`.
+**Ojo con el plugin instalado vs. la rama:** la sesión corrió con el plugin de
+la caché (`~/.claude/plugins/cache/daycry/custom-agents/1.17.1/`), así que
+`/retro`, `changelog-sync` y los hooks que se dispararon eran los de 1.17.1
+(por eso no hay journal de esta iniciativa). Los pasos deterministas se
+ejecutaron desde el repo (`agent-kits/shared/*.py`, `skills/*/scripts/*.py`)
+y la prosa se siguió de la versión del repo. Para probar en vivo las piezas de
+la rama antes de publicar: `claude --plugin-dir "<ruta del repo>"` (la vía que
+usa `evals/run.py`; contrato `headless.md` verificado 2026-09-03).
+
+**Entradas de `docs/knowledge/` que nacen `propuesta` de esta iniciativa** (si
+Jordi las da por buenas → `aceptada (validada: usuario, 2026-09-08)`):
+`ADR-013` (tres capas de la memoria), `LES-015` (privacidad de punta a punta,
+con dos evidencias), `GOT-007` (la suite de codificación solo ve scripts
+versionados), `GOT-008` (el tope CA-08 del brief depende de la ruta y del
+corpus).
 
 **Qué se construyó (F4-F6, todo con su revisión de dos lentes cerrada):**
 - F4 (T-11…T-14 + T-20): hook `UserPromptSubmit` → `journal.py capture` (log
@@ -99,8 +103,8 @@ la sección de memoria del brief crece con `docs/knowledge/` hasta su tope
 
 ## Cómo seguir desde aquí
 
-1. Cerrar `memory-retrieval` del todo: los 3 pasos de arriba (retro → puerta →
-   spec `implementada`). Es la única acción humana pendiente de la rama.
+1. Nada pendiente en `memory-retrieval`. Opcional: promover a `aceptada` las
+   cuatro entradas `propuesta` de arriba.
 2. Entregar: `feature/pendiente` tiene sin-motor-externo + memory-retrieval
    completos. Puertas locales con el venv en PATH; `release.py --dry-run` antes
    de publicar (exige lint + evals + tests + copias `.MANUAL-COPY` al día).
