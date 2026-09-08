@@ -428,7 +428,7 @@ def _dev_valida(datos):
     if ses is not None:
         if not isinstance(ses, dict):
             ls.append(linea(ERROR, "dev.json `sesion`", f"{ses!r} no es un objeto",
-                            "usa `{\"indice\": true, \"journal\": true, \"memoria\": true}`"))
+                            "usa `{\"indice\": true, \"journal\": true, \"memoria\": true, \"captura\": true, \"resumen\": false}`"))
         else:
             for sk in sorted(ses):
                 if sk not in DEV_SESION_CLAVES:

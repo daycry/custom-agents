@@ -19,7 +19,7 @@
 #   stdout → se IGNORA («Output and exit code are ignored, except terminalSequence»): SessionEnd
 #            no puede bloquear ni inyectar contexto; por eso el hook solo escribe a disco.
 #   tiempo → todos los hooks de SessionEnd comparten un presupuesto de 1,5 s que sube hasta el
-#            `timeout` por hook (máx. 60 s) → hooks.json declara `timeout: 20`. El script solo hace
+#            `timeout` por hook (máx. 60 s) → hooks.json declara `timeout: 45` (era 20; ver T-13). El script solo hace
 #            git status/diff/show locales (≤ 5 s cada uno) y lee ficheros pequeños.
 #   Hooks `prompt`/`agent`: devuelven solo la decisión {"ok","reason"} y su salida en SessionEnd se
 #   ignora — sigue siendo CIERTO (ADR-010). Lo que se revisó el 2026-09-08 (memory-retrieval T-12/T-13)
