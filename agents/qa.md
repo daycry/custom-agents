@@ -27,7 +27,7 @@ Auditas la **UI** de un proyecto ejecutando los tests E2E definidos en el plan, 
 - **Salida:** `docs/roadmap/<fecha>-<slug>/testing/` con `report.md` + `report.pdf`, `screenshots/` y `raw/` (results.json + trazas).
 - **Guardrail (no negociable):** los E2E solo contra hosts **locales/privados**. Valida la URL antes de nada:
   ```bash
-  QAKIT="$(find "$PWD/.claude" "$HOME/.claude" -type d -path '*agent-kits/qa' 2>/dev/null | head -1)"
+  QAKIT="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type d -path '*agent-kits/qa' 2>/dev/null | head -1)"
   bash -c '. "'"$QAKIT"'/lib-guardrail.sh"; guardrail_assert "<URL>"'
   ```
   Si no es local → **rechaza** y no ejecutes nada.
@@ -45,7 +45,7 @@ Requiere **Node** (si no está, avísalo; no lo instalas tú).
 ## 2) FLUJO (6 pasos)
 **P1. Contexto + puertas de entrada (deterministas).** Localiza la iniciativa y lee `improvement-plan.md`, `tasks.md` y `test-plan.md`. Extrae los escenarios `E2E-xx`, `M-xx` (y `API-xx`/`A11Y-xx` si el test-plan los trae). **Criterios `[GWT]` de la spec:** si la spec trae criterios `- [ ] [GWT] CA-XX — Dado…, Cuando…, Entonces…`, cada uno se traduce **1:1** a un bloque E2E — Dado → setup/estado inicial, Cuando → acciones, Entonces → aserciones — y su ID `CA-XX` debe aparecer en el test-plan (es lo que valida `coverage-check.py`); un `[GWT]` sin bloque E2E es cobertura que falta, no detalle opcional. Confirma la URL local y que la app responde. Antes de ejecutar nada, corre las dos puertas:
 ```bash
-SHAREDKIT="$(find "$PWD/.claude" "$HOME/.claude" -type d -path '*agent-kits/shared' 2>/dev/null | head -1)"
+SHAREDKIT="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type d -path '*agent-kits/shared' 2>/dev/null | head -1)"
 python3 "$SHAREDKIT/ledger-lint.py" "docs/roadmap/<fecha>-<slug>/tasks.md"          # ledger coherente
 python3 "$QAKIT/coverage-check.py" "docs/roadmap/<fecha>-<slug>/tasks.md" "docs/roadmap/<fecha>-<slug>/test-plan.md" "docs/roadmap/<fecha>-<slug>/spec.md"  # cobertura criterios↔tests (+ criterios [GWT] de la spec)
 ```
@@ -73,7 +73,7 @@ Exit 0 = verde (0 failed, 0 flaky sin justificar); exit 1 = no verde. Si hay fla
 
 **P4-ter. Bloques API/A11Y (solo si el test-plan los trae).** `API-xx`: ejecuta el smoke con `curl` contra la URL local (método, ruta relativa, status esperado, aserción del body) y registra cada resultado. `A11Y-xx`: usa `@axe-core/playwright` (instalación bajo el mismo opt-in que Chromium; si el usuario declina, pásalos a manual y decláralo). Sus resultados van al informe pero **no entran en el umbral del gate** en esta iteración: se reportan aparte.
 
-**P5. Informe.** Rellena `templates/report.md` → `$DIR/report.md`: estado global, resumen (X/Y pasan), resultado por `E2E-xx` (con capturas embebidas y error si falla), **checklist manual** con los `M-xx`, y trazabilidad tarea→resultado. **Pirámide de pruebas (skill `unit-tests`, informativo):** añade una línea con las dos capas medidas — el % E2E de este mismo informe (de `qa-gate.py`) junto al % unitario, si el proyecto configuró `.claude/dev.json` `tests.coberturaMinima`; ejecútalo con `python3 "$UTSKILL/scripts/coverage-gate.py" . --changed-only` (localiza `UTSKILL="$(find "$PWD/.claude" "$HOME/.claude" -type d -path '*skills/unit-tests' 2>/dev/null | head -1)"`) sin argumento `--min` para solo informar, nunca para dar veredicto propio (el veredicto de esta fase lo sigue dando `qa-gate.py`); sin esa clave o sin `coverage-gate.py`, omite la línea sin bloquear el informe. Genera `$DIR/report.pdf` con la skill **`to-pdf`** sobre `report.md`.
+**P5. Informe.** Rellena `templates/report.md` → `$DIR/report.md`: estado global, resumen (X/Y pasan), resultado por `E2E-xx` (con capturas embebidas y error si falla), **checklist manual** con los `M-xx`, y trazabilidad tarea→resultado. **Pirámide de pruebas (skill `unit-tests`, informativo):** añade una línea con las dos capas medidas — el % E2E de este mismo informe (de `qa-gate.py`) junto al % unitario, si el proyecto configuró `.claude/dev.json` `tests.coberturaMinima`; ejecútalo con `python3 "$UTSKILL/scripts/coverage-gate.py" . --changed-only` (localiza `UTSKILL="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type d -path '*skills/unit-tests' 2>/dev/null | head -1)"`) sin argumento `--min` para solo informar, nunca para dar veredicto propio (el veredicto de esta fase lo sigue dando `qa-gate.py`); sin esa clave o sin `coverage-gate.py`, omite la línea sin bloquear el informe. Genera `$DIR/report.pdf` con la skill **`to-pdf`** sobre `report.md`.
 
 **P6. Cierre.** Resume al usuario: verde/rojo, nº de fallos, ruta del informe, y **recuerda los tests manuales pendientes**.
 

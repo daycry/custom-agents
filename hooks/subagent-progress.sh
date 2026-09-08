@@ -23,7 +23,7 @@ command -v python3 >/dev/null 2>&1 || exit 0
 
 REPORT="${CLAUDE_PLUGIN_ROOT:-}/agent-kits/shared/progress-report.py"
 if [ ! -f "$REPORT" ]; then
-  REPORT="$(find "${CLAUDE_PROJECT_DIR:-$PWD}/.claude" "${HOME:-}/.claude" -type f -path '*agent-kits/shared/progress-report.py' 2>/dev/null | head -1)"
+  REPORT="$(find "${CLAUDE_PROJECT_DIR:-$PWD}/.claude" "${CLAUDE_PROJECT_DIR:-$PWD}/.codex" "${CLAUDE_PROJECT_DIR:-$PWD}/.opencode" "${HOME:-}/.claude" "${HOME:-}/.codex" "${HOME:-}/.config/opencode" -type f -path '*agent-kits/shared/progress-report.py' 2>/dev/null | head -1)"
 fi
 [ -n "$REPORT" ] && [ -f "$REPORT" ] || exit 0
 

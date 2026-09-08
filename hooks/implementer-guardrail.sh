@@ -32,7 +32,7 @@ if [ ! -f "$CHECK" ]; then
   CHECK="$(dirname "${BASH_SOURCE[0]}")/../agent-kits/shared/guardrail-check.py"
 fi
 if [ ! -f "$CHECK" ]; then
-  CHECK="$(find "$PROJ/.claude" "${HOME:-}/.claude" -type f -path '*agent-kits/shared/guardrail-check.py' 2>/dev/null | head -1)"
+  CHECK="$(find "$PROJ/.claude" "$PROJ/.codex" "$PROJ/.opencode" "${HOME:-}/.claude" "${HOME:-}/.codex" "${HOME:-}/.config/opencode" -type f -path '*agent-kits/shared/guardrail-check.py' 2>/dev/null | head -1)"
 fi
 [ -n "$CHECK" ] && [ -f "$CHECK" ] || exit 0
 

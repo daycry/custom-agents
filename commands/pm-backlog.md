@@ -14,7 +14,7 @@ mejor relación valor/coste, favoreciendo quick wins).
 1. Reúne los datos con la skill **`roadmap-dashboard`** (resumen JSON de todas las iniciativas):
 
    ```bash
-   DASH="$(find "$PWD/.claude" "$HOME/.claude" -type f -path '*skills/roadmap-dashboard/scripts/build_dashboard.py' 2>/dev/null | head -1)"
+   DASH="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type f -path '*skills/roadmap-dashboard/scripts/build_dashboard.py' 2>/dev/null | head -1)"
    python3 "$DASH" --root docs/roadmap --json
    ```
 

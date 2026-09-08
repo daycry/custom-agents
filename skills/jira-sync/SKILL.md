@@ -40,7 +40,7 @@ antes de crear**. Nada se escribe en Jira sin un "sí" explícito.
 
 1. Localiza la config y respeta el flag `enabled`:
    ```bash
-   JCFG="$(find "$PWD/.claude" "$HOME/.claude" -type f -path '*jira.json' 2>/dev/null | head -1)"
+   JCFG="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type f -path '*jira.json' 2>/dev/null | head -1)"
    ```
    - `enabled: false` → no hagas nada. Sin config (primera vez) → pregunta **una vez**: "¿Quieres volcar los planes a Jira?"; guarda la decisión en `.claude/jira.json`.
 2. Comprueba conexión con `getAccessibleAtlassianResources`; si no está, guía a conectarla y detente. Resuelve el `cloudId` (uno solo → úsalo; varios → pregunta por nombre) y persístelo.

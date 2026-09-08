@@ -18,6 +18,9 @@ agent-kits/**/tools/vendor/
 
 # === Dependencias / entornos ===
 node_modules/
+
+# Manifiesto que deja `install/install.mjs` al instalar en un proyecto (dogfooding en este repo)
+.custom-agents-install.json
 .venv/
 venv/
 __pycache__/

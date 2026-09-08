@@ -102,22 +102,42 @@ def write_raw(p, s, crlf):
 # ------------------------------------------------------------------ versiones
 
 def paths(root):
+    """Los CUATRO manifiestos cuya versión se mueve junta: los dos de Claude Code y los dos de
+    Codex (generados por `export-interop.py`, que copia la versión de `plugin.json`)."""
     return (os.path.join(root, ".claude-plugin", "plugin.json"),
-            os.path.join(root, ".claude-plugin", "marketplace.json"))
+            os.path.join(root, ".claude-plugin", "marketplace.json"),
+            os.path.join(root, ".codex-plugin", "plugin.json"),
+            os.path.join(root, ".agents", "plugins", "marketplace.json"))
 
 
 def current_versions(root):
-    """Devuelve (plugin_version, marketplace_metadata_version, [plugin_entries])."""
-    plugin, market = paths(root)
+    """Devuelve (plugin_version, marketplace_metadata_version, [plugin_entries]).
+
+    `plugin_entries` incluye ahora las de los manifiestos de Codex y la del `package.json` que
+    publica el instalador `npx`: si divergen, el marketplace de Codex o npm anuncian una versión
+    que no es la del plugin (lo afirman `tests/test_export_interop.py` y `tests/installer.test.mjs`).
+    """
+    plugin, market = paths(root)[0], paths(root)[1]
     pv = json.loads(read(plugin)).get("version")
     m = json.loads(read(market))
     mv = m.get("metadata", {}).get("version")
     entries = [p.get("version") for p in m.get("plugins", [])]
+    for extra in paths(root)[2:] + (os.path.join(root, "package.json"),):
+        if os.path.isfile(extra):
+            d = json.loads(read(extra))
+            # `version` de primer nivel solo si el formato la tiene: el marketplace de Codex NO
+            # la lleva (usa `interface` + la versión de cada entrada de `plugins`).
+            if d.get("version"):
+                entries.append(d["version"])
+            entries += [q.get("version") for q in d.get("plugins", [])]
     return pv, mv, entries
 
 
 def bump(root, new, dry_run=False):
-    for path in paths(root):
+    # Los manifiestos de Codex y el `package.json` se bumpean SI EXISTEN: un repo consumidor (o
+    # una fixture de tests) puede traer solo los de Claude Code. Que en ESTE repo existan lo
+    # garantiza `export-interop.py --check`, que es puerta en `run_checks`.
+    for path in [q for q in paths(root) + (os.path.join(root, "package.json"),) if os.path.isfile(q)]:
         text = read(path)
         new_text, n = VERSION_RE.subn(r"\g<1>" + new + r"\g<2>", text)
         if n == 0:
@@ -284,12 +304,16 @@ def _reporta_error(rel, r):
 def run_checks(root):
     """lint_plugin.py + evals/check.py. Devuelve lista de fallos (vacía = ok); scripts ausentes → aviso."""
     fallos = []
-    for rel in (os.path.join("scripts", "lint_plugin.py"), os.path.join("evals", "check.py")):
+    # `export-interop.py` va con `--check`: no se publica una interop de Codex/OpenCode que no
+    # refleje los agentes/comandos/hooks del repo (docs/INTEROP.md §5).
+    for rel, args in ((os.path.join("scripts", "lint_plugin.py"), []),
+                      (os.path.join("evals", "check.py"), []),
+                      (os.path.join("scripts", "export-interop.py"), ["--check"])):
         p = os.path.join(root, rel)
         if not os.path.exists(p):
             print(f"⚠️  {rel} no existe; check omitido")
             continue
-        r = _run([sys.executable, p], root)
+        r = _run([sys.executable, p, *args], root)
         estado = clasificar(r)
         if estado == "ok":
             print(f"  {rel}: OK")
@@ -480,9 +504,10 @@ def do_release(root, new, args):
         print("\nHecho (sin git). Recuerda commit + tag + push manuales.")
         return 0
 
-    # 5. git
-    plugin, market = paths(root)
-    a_añadir = [plugin, market] + [p for p, _n, _r in planes]
+    # 5. git — al commit entran TODOS los manifiestos que existan (los de Claude Code, los de
+    # Codex y el package.json del instalador npx), más los CHANGELOG del plan.
+    a_añadir = ([q for q in paths(root) + (os.path.join(root, "package.json"),) if os.path.isfile(q)]
+                + [p for p, _n, _r in planes])
     try:
         for sh in sh_644:
             subprocess.run(["git", "update-index", "--chmod=+x", sh], cwd=root, check=True)

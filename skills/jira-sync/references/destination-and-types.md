@@ -35,7 +35,7 @@ Resultado buscado, sea cual sea el modo: **`{ projectKey, parentKey|null }`**.
 Si la herramienta de crear artefactos está disponible:
 1. Localiza la plantilla sin depender del scope:
    ```bash
-   TPL="$(find "$PWD/.claude" "$HOME/.claude" -type f -path '*skills/jira-sync/assets/jira-picker.template.html' 2>/dev/null | head -1)"
+   TPL="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type f -path '*skills/jira-sync/assets/jira-picker.template.html' 2>/dev/null | head -1)"
    ```
 2. Copia la plantilla y sustituye `{{SERVER_PROJECTS}}` (nombre completo `mcp__<uuid>__getVisibleJiraProjects`), `{{SERVER_SEARCH}}` (`mcp__<uuid>__searchJiraIssuesUsingJql`) y `{{CLOUD_ID}}`.
 3. Publícala con `create_artifact` (con `mcp_tools=[getVisibleJiraProjects, searchJiraIssuesUsingJql]`). El artefacto busca proyectos, resuelve claves/URLs de issue directas y busca padre por clave/texto/JQL en vivo.

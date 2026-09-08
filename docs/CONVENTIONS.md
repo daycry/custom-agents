@@ -82,12 +82,12 @@ Notas:
 - **Cuando el agente (`.md`) invoca su toolkit o plantillas, NO uses rutas fijas** tipo `.claude/agent-kits/...`: solo funcionan a nivel proyecto y se rompen a nivel usuario o como plugin (además, `${CLAUDE_PLUGIN_ROOT}` no se expande en markdown de agentes/skills). Resuelve el kit en tiempo de ejecución con `find` sobre ambos scopes:
 
   ```bash
-  MIKIT="$(find "$PWD/.claude" "$HOME/.claude" -type d -path '*agent-kits/<nombre>' 2>/dev/null | head -1)"
+  MIKIT="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type d -path '*agent-kits/<nombre>' 2>/dev/null | head -1)"
   # luego usa "$MIKIT/tools/..." , "$MIKIT/templates/..." , etc.
   ```
 
-  `$PWD/.claude` cubre el scope proyecto; `$HOME/.claude` cubre tanto usuario (`~/.claude/`) como el caché de plugins (`~/.claude/plugins/…`). El proyecto va primero → gana si hay varias copias (misma precedencia que Claude Code).
-- Skills compartidas: invócalas con la herramienta Skill (por nombre). Si necesitas leer un fichero suyo, resuélvelo igual: `find "$PWD/.claude" "$HOME/.claude" -type f -path '*skills/<skill>/...'`.
+  **Seis raíces, dos por runtime** (`docs/INTEROP.md`): `.claude` (Claude Code: proyecto y, en `$HOME`, tanto usuario `~/.claude/` como el caché de plugins `~/.claude/plugins/…`), `.codex` (Codex: `.codex/plugins/<plugin>/`, `~/.codex/plugins/cache/…`) y OpenCode (`.opencode/` en proyecto, `~/.config/opencode/` en global — su directorio global NO es `~/.opencode`). Ni Codex ni OpenCode buscan kits en `.claude/`, así que sin sus raíces un plugin instalado ahí no encuentra su toolkit. El **orden** es el que manda: las tres raíces de proyecto primero, después las de usuario → el proyecto gana si hay varias copias (misma precedencia que Claude Code). Este `find` lo mantienen sincronizado los ficheros generados por `scripts/export-interop.py`; si añades un runtime, la raíz se añade **en todas** las piezas (hoy 88 ocurrencias en 56 ficheros).
+- Skills compartidas: invócalas con la herramienta Skill (por nombre). Si necesitas leer un fichero suyo, resuélvelo igual: `find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type f -path '*skills/<skill>/...'`.
 
 ## 6. Checklist para añadir un agente nuevo
 

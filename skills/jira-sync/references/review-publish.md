@@ -14,7 +14,7 @@ intento N` en `tasks.md` (tabla `# · Grado · Gap · Tarea · Corrección · Ev
 Este paso publica ESE intento en Jira — no espera al cierre del bucle:
 
 ```bash
-JF="$(find "$PWD/.claude" "$HOME/.claude" -type f -path '*skills/jira-sync/scripts/jira-flow.py' 2>/dev/null | head -1)"
+JF="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type f -path '*skills/jira-sync/scripts/jira-flow.py' 2>/dev/null | head -1)"
 # el propio script decide si el intento N tuvo gaps para esa tarea y exige el --event que casa
 # (exit 2 si pides `gaps` sin gaps reales, o `revision` habiendo gaps — así no puedes publicar el
 # evento equivocado). `--intento N` es OBLIGATORIO en estos dos eventos: elige la sección del ledger
