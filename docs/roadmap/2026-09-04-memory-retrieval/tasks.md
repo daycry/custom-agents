@@ -1,6 +1,6 @@
 ---
 tasks: memory-retrieval
-estado: en-progreso       # borrador | en-progreso | completado | cancelado — Fases 1-4 completadas (F1-3: 2026-09-07 · F4: 2026-09-08); Fases 5-6 pendientes
+estado: en-progreso       # borrador | en-progreso | completado | cancelado — Fases 1-5 completadas y F6 implementada (2026-09-08); pendientes: revisión de dos lentes de F5-F6, transiciones de estado (T-18) y la retro de cierre (puerta T-17)
 creado: 2026-09-04
 actualizado: 2026-09-08
 generacion:            # ventana compartida con spec.md · evaluation.md · improvement-plan.md (se cuenta UNA vez)
@@ -33,10 +33,10 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 > los 12 gaps del intento 1 de la revisión de dos lentes sobre esas fases, mismo día). **Fase 4 completada
 > el 2026-09-08 (T-11…T-14)**, con el contrato oficial de `UserPromptSubmit` verificado y fechado antes de
 > arrancar; su revisión de dos lentes (intento 1: A+B+C, 16 gaps → 15 corregidos en **T-20** y 1 delegado
-> a T-18 con alcance ampliado) se traza al final de este ledger. Las Fases 5-6 siguen en `borrador`. El
-> campo opcional `- **Changelog**:` lo escribe quien CIERRA cada tarea (`ADR-012`): las dieciséis cerradas
-> lo llevan y las cuatro pendientes no (los avisos de adopción parcial de `ledger-lint` son la señal
-> esperada hasta que se cierren). Las horas IA «reales» van marcadas `(estimado)`: el
+> a T-18 con alcance ampliado) se traza al final de este ledger. **Fases 5 y 6 implementadas el 2026-09-08**
+> (T-15…T-18; T-18 queda `en-progreso` solo por las transiciones de estado, que van al cerrar); su revisión
+> de dos lentes es la siguiente puerta. El campo opcional `- **Changelog**:` lo escribe quien CIERRA cada
+> tarea (`ADR-012`): las veinte lo llevan. Las horas IA «reales» van marcadas `(estimado)`: el
 > `usage-meter` no puede leer la transcripción en este entorno.
 
 ---
@@ -49,10 +49,10 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 | Fase 2 — Llegada | 3 | 3 | 100% | 0 / 4,0h | 0,46 (est.) / 0,31h | 0,12 (est.) / 0,08h | n/d / 150.000 |
 | Fase 3 — Prueba de que se recorre | 4 | 4 | 100% | 0 / 4,0h | 0,76 (est.) / 0,27h | 0,20 (est.) / 0,07h | n/d / 128.000 |
 | Fase 4 — Captura episódica | 5 | 5 | 100% | 0 / 7,0h | 1,20 (est.) / 0,43h | 0,30 (est.) / 0,11h | n/d / 205.000 |
-| Fase 5 — Que la doctrina viaje | 0 | 2 | 0% | 0 / 3,0h | 0 / 0,24h | 0 / 0,06h | 0 / 115.000 |
-| Fase 6 — Cerrar el bucle | 0 | 2 | 0% | 0 / 3,0h | 0 / 0,30h | 0 / 0,08h | 0 / 145.000 |
+| Fase 5 — Que la doctrina viaje | 2 | 2 | 100% | 0 / 3,0h | 0,35 (est.) / 0,24h | 0,09 (est.) / 0,06h | n/d / 115.000 |
+| Fase 6 — Cerrar el bucle | 1 | 2 | 50% | 0 / 3,0h | 0,55 (est.) / 0,30h | 0,14 (est.) / 0,08h | n/d / 145.000 |
 | Revisión de dos lentes (transversal, línea propia) | — | — | — | 0 / 4,0h | 0 / 0,54h | 0 / 0,13h | 0 / 260.000 |
-| **TOTAL** | **16** | **20** | **80%** | **0 / 34,0h** | **3,02 (est.) / 2,60h** | **0,78 (est.) / 0,66h** | **n/d / 1.248.000** |
+| **TOTAL** | **19** | **20** | **95%** | **0 / 34,0h** | **3,92 (est.) / 2,60h** | **1,01 (est.) / 0,66h** | **n/d / 1.248.000** |
 
 > **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada (8 h). Ver `skills/jira-sync/SKILL.md`.
 >
@@ -447,7 +447,7 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 
 ### T-19 — Cierre de los gaps del intento 1 (Fases 1-3)
 
-- **Descripción**: corrige los 12 gaps de la revisión de dos lentes (intento 1, `b5731c4..7ca3645`) sobre T-01…T-10, reproducidos antes de tocar nada: (1) la consulta libre de `knowledge-find.py` no filtraba stopwords y puntuaba las 32 entradas; (2) el recorte de la memoria del brief no tenía test que pudiera fallar; (3) con ≥ 2 activas el hook contaba mal y descartaba la 3.ª; (4) CA-08 incumplido con una medida falsa; (5) filtro de enrutado vacío = corpus entero; (6) `/doctor` no validaba el índice con el criterio del linter; (7) `must_not` de las evals prohibía menciones legítimas; (8) `--limit` negativo = sin tope; (9) el hook resolvía el kit en una copia instalada; (10) `celdas()` duplicada; (11) `test_memory_path.py` no cubría el enrutado por `Tipo`; (12) cifras con deriva.
+- **Descripción**: corrige los 12 gaps de la revisión de dos lentes (intento 1, `b5731c4..7ca3645`) sobre T-01…T-10, reproducidos antes de tocar nada — stopwords y orden en la consulta libre (1), recorte de la memoria del brief sin test que pudiera fallar (2), conteo del hook con ≥ 2 activas (3), CA-08 incumplido en los briefs (4), enrutado vacío y `--limit` negativo (5/8), índice del doctor sin el criterio literal del linter (6/10), evals que no exigían «aplicar» (7), resolución del kit en el hook (9), `test_memory_path` sin cubrir el `Tipo` (11) y cifras sin re-medir (12). El detalle de cada gap está en su bullet de Verificación.
 - **Estado**: completado
 - **Tiempo humano**: est. 0h (fuera del plan: línea transversal de revisión) · real 0h
 - **Tiempo IA (ejec.)**: est. 0,40h · real 0,45h (estimado: el usage-meter no lee la transcripción en este entorno)
@@ -463,7 +463,7 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
   - Gap 1, antes → después: `knowledge-find.py "cual es el ratio de tokens por hora que uso para estimar" --json --limit 0` → `total 32` (las 9 lecciones de estimación en 15-32) → **`total 14`**, tokens `["ratio","token","hora","estim"]`, las 9 en **1-4 y 6-10** · `"de"` → 10 → **0** · `"quiero saber si el pato vuela hacia marte"` → 32 → **0** · `"consola windows cp1252"` → `GOT-005` primero (igual).
   - Gap 2, mutante «bucle de recorte → render único»: test viejo verde; `test_memoria_el_recorte_al_tope_muerde_de_verdad` → **`assert 3008 <= 2400`**.
   - Gap 3, hook: 2 activas de la misma área (3 entradas) → `3 acierto(s)`, 3 líneas, sin «más» · 3 activas → `… · 3 iniciativas activas, consultadas las 2 primeras; fuera: demo-c` · 41 entradas y 2 activas → `41 acierto(s)`, N = 41 − mostradas.
-  - Gap 4, caracteres de los 10 briefs antes → después (final, T-19 incluida: **9.931**): T-01 10.318→**7.809** · T-02 8.919→**6.735** · T-03 11.597→**8.243** · T-04 10.389→**7.798** · T-05 12.189→**9.164** · T-06 12.543→**9.398** · T-07 10.223→**8.116** · T-08 9.521→**7.310** · T-09 10.107→**7.841** · T-10 12.182→**8.834**; memoria de T-06 idéntica (1.636). *Re-medido 2026-09-08 en Windows (la medida incluye la ruta absoluta de `knowledge-find.py`, más larga aquí): T-01 7.888 · T-05 9.243 · T-06 9.477 · T-19 9.802.*
+  - Gap 4, caracteres de los 10 briefs antes → después (2026-09-07, Linux): de 8.919-12.543 (7 de 10 por encima del tope) a 6.735-9.398, T-19 incluida (9.931); memoria de T-06 idéntica. *Re-medido 2026-09-08 en Windows (la medida incluye la ruta absoluta de `knowledge-find.py`, más larga aquí): T-01 7.888 · T-05 9.243 · T-06 9.477 · T-19 9.802.* Los valores por tarea del 09-07 están en el commit `7553131`.
   - Gaps 5 y 8: `--contexto "" --iniciativa "" --limit 0` → 32 → **0** · `--limit -1` → 32 líneas → **error de uso («es negativo; usa 0 para sin tope»), exit 2**.
   - Gap 6: fila hacia `adr/ADR-099-fantasma.md`: doctor de `e08fc05` → `✅ (comprobación local)`; HEAD → **`❌ … enlaza a `adr/ADR-099-fantasma.md`, que no existe`**, exit 1.
   - Gap 10: `def celdas_md` una vez por script (3); tests de identidad de los bloques `--8<--` verdes.
@@ -486,7 +486,7 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 - [x] Reproducir cada afirmación antes de corregir; mutantes y mediciones antes/después con copias de `HEAD~` en `/tmp`.
 - [x] Gaps 1/5/8 en `knowledge-find.py`; 2/4 en `task-brief.py`; 3/9 en el hook; 6/10 en doctor/linter/knowledge-find; 7 en evals; 11 en `test_memory_path.py`; 12 aquí.
 
-**Notas**: dos decisiones bajo el umbral de ADR. (1) **Poda del brief**: ni «recortar cada ítem» (rompe comandos) ni «encoger la memoria para que quepa el resto» (sería la primera víctima): se quita lo duplicado, la evidencia de otra sesión, el presupuesto y el `Changelog` — determinista y sin pérdida. T-05/T-06/T-19 quedan cerca del tope: el test del ledger real avisa si crecen. (2) **`raiz()`** (un sufijo si deja ≥ 4 caracteres), no un stemmer: sin ella `estimar` no casaba «Estimación»; casa por prefijo como la FTS5, así que índice y plano siguen idénticos.
+**Notas**: dos decisiones bajo el umbral de ADR. (1) **Poda del brief**: se quita lo duplicado, la evidencia de otra sesión, el presupuesto y el `Changelog` — determinista y sin pérdida; ni «recortar cada ítem» (rompe comandos) ni «encoger la memoria» (sería la primera víctima). (2) **`raiz()`** (un sufijo si deja ≥ 4 caracteres), no un stemmer: casa por prefijo como la FTS5, así que índice y plano siguen idénticos. T-05/T-06/T-19/T-20 quedan cerca del tope: el test del ledger real avisa si crecen.
 
 ---
 
@@ -655,7 +655,7 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 
 ### T-20 — Cierre de los gaps del intento 1 (Fase 4)
 
-- **Descripción**: corrige los 15 gaps corregibles de la revisión de dos lentes (intento 1, `36ff7f6..cf6330d`, lentes A+B+C) sobre T-11…T-14, reproducidos antes de tocar nada — 1 Critical (`<private>` protegía el log pero el turno privado volvía como `resumen` por la transcripción), 5 Important (entrada truncada antes de renderizar, `--enrich` pisado por la IA, log no ignorado en consumidores y prosa sin depurar en fichero versionado, inyección indirecta de prompt) y 9 Minor. El gap 6 —seis sitios de doc que contradicen el código— se **delega a T-18 con alcance ampliado**. Tabla completa: «Revisión de dos lentes — intento 1 (Fase 4)», al final del ledger.
+- **Descripción**: corrige los 15 gaps corregibles de la revisión de dos lentes (intento 1, `36ff7f6..cf6330d`, lentes A+B+C) sobre T-11…T-14 — 1 Critical (`<private>` volvía como `resumen` por la transcripción), 5 Important (entrada truncada antes de renderizar, `--enrich` pisado por la IA, log no ignorado en consumidores y prosa sin depurar, inyección indirecta de prompt) y 9 Minor; el gap 6 (doc que contradice el código) se delega a T-18. Tabla completa en la traza «Revisión de dos lentes — intento 1 (Fase 4)».
 - **Estado**: completado
 - **Tiempo humano**: est. 0h (fuera del plan: línea transversal de revisión) · real 0h
 - **Tiempo IA (ejec.)**: est. 0,45h · real 0,45h (estimado: el usage-meter no lee la transcripción en este entorno)
@@ -667,9 +667,9 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 - **Changelog**: El log crudo de turnos y la entrada del journal ya no filtran lo que el usuario marcó `<private>` ni secretos evidentes (claves con prefijo conocido, JWT, PEM, `Bearer`, `clave|token|password = valor` se redactan antes de tocar el disco), el log nace 0600 con un cerrojo entre turnos solapados y `capture` siembra `.claude/.gitignore` para que no entre en git en un proyecto consumidor; la entrada del journal se escribe de forma atómica (render antes de abrir, temporal + `os.replace`), lo manual de `--enrich` manda sobre la IA también en las listas, los turnos viajan a `claude -p` por stdin como datos delimitados, y la entrada y el contexto reinyectado declaran que `decisiones`/`pendientes` son citas de los turnos, no instrucciones.
 - **Verificación** (ejecutada 2026-09-08, Windows + venv):
   - `RED` (reproducciones de los revisores, repetidas aquí antes de corregir): turno único `<private>` con secreto → aparecía en `resumen:`, cuerpo y `journal/README.md` · `write --draft` con `"turnos": "tres"` → entrada a **0 bytes**, exit 0 y `-2.md` en la siguiente · `--enrich` con listas manuales + IA → listas de la IA · repo consumidor: `git check-ignore` del log → exit 1 · 8 `capture` concurrentes ×3 → 8/8/**7** · `--min 0` → «≥ 0» · `--draft --ia on` → sin IA ni aviso · modo del log `0o666`.
-  - Parches validados PRIMERO en una copia aislada del kit (sin tocar el árbol que las lentes leían) y después en el repo: `pytest test_journal.py` → **40 passed, 1 skipped** (+ 3 preexistentes de `\` vs `/`). 10 tests nuevos en `test_journal.py`, uno por gap con código (`test_private_no_resucita…`, `test_redacta_secretos…`, `test_capture_siembra_gitignore…`, `test_capture_crea_el_log_solo_legible…` —POSIX, `skipped` en Windows—, `test_la_entrada_y_el_contexto…citas`, `test_write_no_trunca…atomico`, `test_enrich_manual_manda…listas`, `test_write_draft_tambien_honra_ia`, `test_candidatas_min…`, `test_capture_concurrente_no_pierde_turnos` → 24/24 en 3 rondas × 8 procesos) y `test_dev_json_sesion_captura_y_resumen…` en `test_doctor.py` (`-k sesion` **2 passed**).
-  - `tests/test_hooks_shell.py -k "user_prompt_capture or hooks_json_registra or session_journal"` → **7 passed, 2 failed** (la pareja `sin_python3`, `WinError 1314`) · `test_task_brief.py -k ca08` → **2 passed** (T-11 7.563 · T-12 9.393 · T-13 8.930 · T-14 9.445 · T-19 9.802 antes de esta tarea; re-medir tras ella en la traza) · `lint_plugin.py` → `9 agentes · 0 errores · 3 avisos` · `evals/check.py` → `135 casos · 0 errores` · `tests/test_console_encoding.py` → **281 passed** · `bash -n` de los dos hooks OK · `grep -n "timeout: 45" hooks/session-journal.sh` → línea 22.
-  - Contrato re-verificado para el gap 11: `code.claude.com/docs/en/headless.md` (2026-09-08) — «Non-interactive mode reads stdin, so you can pipe data in» (`cat build-error.txt | claude -p '…'`), tope 10 MB, y «If Claude Code can't read stdin … continues with the prompt from the command line» (degradación segura).
+  - Parches validados PRIMERO en una copia aislada del kit (sin tocar el árbol que las lentes leían) y después en el repo: `pytest test_journal.py` → **40 passed, 1 skipped** (+ 3 preexistentes de `\` vs `/`); **10 tests nuevos**, uno por gap con código (privado sin fuga por transcripción · redacción de secretos sin falsos positivos · `.gitignore` sembrado idempotente · log 0600 —POSIX, `skipped` en Windows— · procedencia «citas» · escritura atómica · `--enrich` manda sobre la IA · `--draft --ia` · `--min` · 24/24 turnos con 3 rondas × 8 procesos concurrentes) y `test_dev_json_sesion_captura_y_resumen…` en `test_doctor.py` (**2 passed**).
+  - hooks E2E (`-k "user_prompt_capture or hooks_json_registra or session_journal"`) → **7 passed, 2 failed** (la pareja `sin_python3`) · CA-08 → **2 passed** · `lint_plugin.py` → 0 errores · `evals/check.py` → 0 errores · `test_console_encoding.py` → **281 passed** · `bash -n` OK · `session-journal.sh:22` dice `timeout: 45`.
+  - Contrato re-verificado para el gap 11 (`headless.md`, 2026-09-08): «Non-interactive mode reads stdin, so you can pipe data in»; si stdin no es legible, sigue con el prompt de la línea de órdenes (degradación segura).
   - `pytest -q` completo (tests + kits + skills + evals, tras los parches) → **1310 passed, 38 failed, 1 skipped** en 9 m 16 s (puerta ≥ 1.175 ✓); 37 son las familias preexistentes de Windows (detalle en la traza) y el otro es `test_ca08` medido a mitad de la edición del ledger, verde tras el recorte (**2 passed**).
 
 **Criterios de aceptación**
@@ -688,79 +688,84 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 - [x] Reproducir cada gap antes de corregir (los de B y C traían reproducción; se repitieron aquí).
 - [x] Gaps 1/4/5/10/11 en `journal.py` (`redactar`, `_asegurar_gitignore`, `_abrir_log`, procedencia, stdin) — parche C; gaps 2/3/7/8/9 (`_escribir_atomico`, `manual`, `_cerrojo`, `--min`, `entrada=`) — parche B; 12/13/14/15/16 en hooks, ledger y `doctor.py`/`test_doctor.py`.
 
-**Notas**: dos decisiones bajo el umbral de ADR. (1) **Redacción de secretos por patrón, no por entropía**: alta precisión antes que cobertura — un falso positivo borra una decisión legítima; un falso negativo lo cubren la retención corta, `<private>` y el `.gitignore` sembrado. (2) **El canal de decisiones sigue siendo el usuario** (spec CA-17): la inyección indirecta (gap 5) se mitiga con procedencia explícita y turnos como datos delimitados, y se acepta el residual — quien pega texto ajeno en su turno es la frontera de confianza que Claude Code ya tiene; `sesion.captura: false` la cierra del todo. Lo rebatido y el arbitraje de `scope-check` están en la traza.
+**Notas**: dos decisiones bajo el umbral de ADR. (1) **Redacción de secretos por patrón, no por entropía**: alta precisión antes que cobertura (un falso positivo borra una decisión legítima; el falso negativo lo cubren la retención corta, `<private>` y el `.gitignore` sembrado). (2) **El canal de decisiones sigue siendo el usuario** (spec CA-17): la inyección indirecta se mitiga con procedencia explícita y turnos como datos; `sesion.captura: false` la cierra del todo. Lo rebatido y el arbitraje de `scope-check` están en la traza.
 
 ---
 
 ## Fase 5 — Que la doctrina viaje
 
-**Estado**: borrador · **Estimado**: 3,0h · **Real**: — · **Coste est.**: 151 € · **Tokens est.**: 115.000
+**Estado**: completado (2026-09-08; revisión de dos lentes pendiente, junto con F6) · **Estimado**: 3,0h · **Real**: 0h humanas · 0,35h IA (est.) · 0,09h supervisión (est.) · **Coste est.**: 151 € · **Tokens est.**: 115.000
 
 > Cierra el hueco **4** de `analysis.md` §1.4: «viaja el método y se queda el conocimiento».
 
 ### T-15 — Doctrina del plugin como assets, separada de la memoria del proyecto
 
 - **Descripción**: separar dos cosas hoy mezcladas. **Memoria del proyecto** (`docs/knowledge/` del consumidor): sus decisiones, sus trampas, sus lecciones — **nace vacía, y eso es correcto**. **Doctrina del plugin**: las lecciones ciertas para cualquier proyecto que use estos agentes — las **9** de área «Estimación / calibración» (`LES-001…009`) son el caso obvio — que viajan como **assets del plugin** y son el fondo con el que el `evaluator` estima el primer día. Hay que **deshacer una pérdida real**: `LES-007/008/009` estaban garantizadas dentro del prompt del `evaluator` y se convirtieron en punteros a ficheros que el consumidor no tiene.
-- **Estado**: borrador
-- **Tiempo humano**: est. 2,0h · real —
-- **Tiempo IA (ejec.)**: est. 0,16h · real —
-- **Supervisión**: est. 0,04h (≈25 % IA) · real —
+- **Estado**: completado
+- **Tiempo humano**: est. 2,0h · real 0h (sin intervención humana en la ejecución)
+- **Tiempo IA (ejec.)**: est. 0,16h · real 0,15h (estimado: el usage-meter no lee la transcripción en este entorno)
+- **Supervisión**: est. 0,04h (≈25 % IA) · real 0,04h (estimado)
 - **Previsión IA**: 60k in / 17k out tok · 0,67 €
 - **Dependencias**: T-01
 - **Tipo**: docs
-- **Archivos**: `agent-kits/evaluator/assets/doctrina/`, `scripts/export-skills.py`, `tests/test_doctrina_viaja.py`
-- **Verificación**: `ls agent-kits/evaluator/assets/doctrina/ | wc -l` → 9 · `python3 -m pytest -q tests/test_doctrina_viaja.py` → todos passed (una copia, o dos copias comparadas byte a byte) · `python3 scripts/export-skills.py --check` → exit 0 y la doctrina figura en lo que viaja · `python3 scripts/lint_plugin.py` → exit 0
+- **Archivos**: `agent-kits/evaluator/assets/doctrina/`, `scripts/export-skills.py`, `tests/test_doctrina_viaja.py`, `agent-kits/evaluator/README.md`
+- **Changelog**: Las 9 lecciones de estimación/calibración (`LES-001…009`) viajan con el plugin como doctrina del `evaluator` (`agent-kits/evaluator/assets/doctrina/`, copias byte a byte de `docs/knowledge/lessons/` que un test mantiene idénticas), con el criterio de qué es doctrina escrito entrada por entrada en el README del kit; la memoria del proyecto consumidor sigue naciendo vacía y el paquete portable «solo skills» declara que la doctrina no viaja en él.
+- **Verificación** (ejecutada 2026-09-08):
+  - `RED: tests/test_doctrina_viaja.py → 8 failed (FileNotFoundError: agent-kits/evaluator/assets/doctrina/; sin criterio en el README; NO_VIAJA sin doctrina; --doctrina: unrecognized arguments) · 2026-09-08`; GREEN después → **8 passed**.
+  - `ls agent-kits/evaluator/assets/doctrina/ | wc -l` → **9** (`LES-001…009`, todas `tipo: leccion`, `area: Estimación / calibración`, `estado: aceptada`); `diferencias(DOCTRINA, LESSONS)` → `[]` y el comprobador caza un mutante («difiere», «sin original»).
+  - `python3 scripts/export-skills.py --out <tmp> && --check <tmp>` → `108 ficheros · 0 problema(s)`, exit 0; `NO_VIAJA` declara `agent-kits/evaluator/assets/doctrina/` como lo que **no** viaja en el paquete portable (ver Notas). `python3 scripts/lint_plugin.py` → `9 agentes · 0 errores · 3 avisos`.
 
 **Criterios de aceptación**
-- [ ] Las **9** lecciones de estimación están disponibles como doctrina del plugin.
-- [ ] La memoria del proyecto **sigue naciendo vacía**: nada se copia al `docs/knowledge/` del consumidor al instalar.
-- [ ] El criterio de qué es doctrina está **escrito** («¿es cierta para cualquier proyecto que use estos agentes?») y aplicado entrada por entrada.
-- [ ] **Una sola copia**; si la copia es inevitable, un test la compara **byte a byte** (el patrón que el repo ya usa con las copias manuales).
-- [ ] El paquete portable (`export-skills.py`) declara qué viaja y qué no, y su `--check` sigue verde.
+- [x] Las **9** lecciones de estimación están disponibles como doctrina del plugin.
+- [x] La memoria del proyecto **sigue naciendo vacía**: nada se copia al `docs/knowledge/` del consumidor al instalar. *`test_ca21_…` lo afirma: tras `--doctrina` el consumidor sigue con solo `src/`.*
+- [x] El criterio de qué es doctrina está **escrito** («¿es cierta para cualquier proyecto que use estos agentes?») y aplicado entrada por entrada. *`agent-kits/evaluator/README.md` §Doctrina: tabla con las 9 que sí y las 5 (`LES-010…014`) + ADR/GOT que no, con su porqué; el test exige que las 14 estén nombradas.*
+- [x] **Una sola copia**; si la copia es inevitable, un test la compara **byte a byte** (el patrón que el repo ya usa con las copias manuales). *La copia es inevitable: `docs/` no llega a una instalación «copiar como `.claude/`» y `agent-kits/` sí (las dos formas de instalar).*
+- [x] El paquete portable (`export-skills.py`) declara qué viaja y qué no, y su `--check` sigue verde.
 
 **Subtareas**
-- [ ] Decidir entrada por entrada cuáles de las 9 son doctrina universal.
-- [ ] Colocar los assets y atarlos con test.
-- [ ] Actualizar qué viaja en el paquete portable y su README ES/EN.
+- [x] Decidir entrada por entrada cuáles de las 9 son doctrina universal.
+- [x] Colocar los assets y atarlos con test.
+- [x] Actualizar qué viaja en el paquete portable y su README ES/EN. *Fila nueva en `NO_VIAJA` (la tabla bilingüe del README del paquete se genera de ahí).*
 
-**Notas**: `analysis.md` §1.4-4 lo llama «se cambió una garantía por una intención». Aquí se deshace **sin volver a meter prosa en los prompts** — eso lo ata T-16.
+**Notas**: `analysis.md` §1.4-4 lo llama «se cambió una garantía por una intención». Aquí se deshace **sin volver a meter prosa en los prompts** — eso lo ata T-16. **Desvío declarado respecto a la Verificación planificada** («la doctrina figura en lo que viaja»): el paquete portable es «solo skills» y no lleva al `evaluator`, así que la doctrina se declara en `NO_VIAJA` (viaja con el plugin y con el agente, no con ese paquete) — «declara qué viaja y qué no» se cumple diciendo que no. `agent-kits/evaluator/README.md` entra en `Archivos` porque el criterio escrito necesita un sitio y la carpeta de assets debe contener exactamente las 9.
 
 ### T-16 — El `evaluator` estima con ese fondo sin engordar su prompt
 
 - **Descripción**: `knowledge-find.py --doctrina` lee los assets del plugin (y no la memoria del proyecto), y el `evaluator` la consulta el primer día. La restricción dura: **sin volver a meter prosa en los prompts**, atada a `wc -c agents/evaluator.md` ≤ **15.513 bytes** (el valor de hoy).
-- **Estado**: borrador
-- **Tiempo humano**: est. 1,0h · real —
-- **Tiempo IA (ejec.)**: est. 0,08h · real —
-- **Supervisión**: est. 0,02h (≈25 % IA) · real —
+- **Estado**: completado
+- **Tiempo humano**: est. 1,0h · real 0h (sin intervención humana en la ejecución)
+- **Tiempo IA (ejec.)**: est. 0,08h · real 0,20h (estimado: el usage-meter no lee la transcripción en este entorno)
+- **Supervisión**: est. 0,02h (≈25 % IA) · real 0,05h (estimado)
 - **Previsión IA**: 30k in / 8k out tok · 0,32 €
 - **Dependencias**: T-15
 - **Tipo**: backend
-- **Archivos**: `agent-kits/shared/knowledge-find.py`, `agents/evaluator.md`, `tests/test_doctrina_viaja.py`
-- **Verificación**:
-  - en un árbol **sin** `docs/knowledge/`: `python3 agent-kits/shared/knowledge-find.py --doctrina --area estimacion` → las **9** lecciones, exit 0
-  - en el mismo árbol: `python3 agent-kits/shared/knowledge-find.py --area estimacion` → **0 aciertos**, exit 0
-  - `wc -c agents/evaluator.md` → ≤ 15.513
-  - `python3 evals/check.py` → exit 0 (el caso literal de `agent:evaluator` sigue atado a su `description` real)
-  - `python3 -m pytest -q` → ≥ 1.175 passed
+- **Archivos**: `agent-kits/shared/knowledge-find.py`, `agents/evaluator.md`, `tests/test_doctrina_viaja.py`, `agent-kits/shared/knowledge-check.md`, `tests/test_knowledge_find.py`
+- **Changelog**: `knowledge-find.py --doctrina` lee la doctrina del plugin (los assets del `evaluator`) en vez de la memoria del proyecto, con la misma sintaxis en las tres capas y cada acierto marcado `doctrina/…` (el JSON gana `corpus` y `origen`); el prompt del `evaluator` cambia el puntero a ficheros que el consumidor no tiene por esa invocación y adelgaza de 15.513 a 15.024 bytes.
+- **Verificación** (ejecutada 2026-09-08):
+  - En un árbol **sin** `docs/knowledge/` (solo `src/`): `knowledge-find.py --doctrina --area estimacion --limit 0 --root <árbol>` → **9 líneas** `LES-00N · aceptada · Estimación / calibración · <frase de la lección> · doctrina/LES-00N-…`, exit 0. Sin `--doctrina`: **0 líneas**, exit 0, y el árbol sigue con solo `src/` (nada sembrado).
+  - `python3 -c "print(len(open('agents/evaluator.md','rb').read().replace(b'\r\n', b'\n')))"` → **15.024** ≤ 15.513 (spec CA-22). *Medida en LF: el checkout de Windows tiene CRLF y `wc -c` daba 15.642 ANTES de tocar nada — el fichero no había crecido, eran los CR; el test normaliza a LF.*
+  - `python3 evals/check.py` → `135 casos · 0 errores` (la `description` del `evaluator` no se toca). `python3 scripts/lint_plugin.py` → 0 errores.
+  - `python3 -m pytest -q tests/test_knowledge_find.py` → **95 passed, 3 failed** (los 3 son los preexistentes de CRLF en `--show`); los dos tests de **contrato JSON** (`test_el_esquema_json_es_contrato`, `test_enrutado_respeta_limit_tipo_y_el_esquema…`) y los de `--show`/`--related` JSON se actualizaron **a propósito** con las claves nuevas `corpus` (todas las capas) y `origen` (por entrada), sin cambiar `version` (claves añadidas, ninguna renombrada; `task-brief.py`/`session-context.sh` las ignoran — `tests/test_memory_path.py` sigue verde). `tests/test_doctrina_viaja.py` → 8 passed (incluye la instalación parcial: kit sin `agent-kits/evaluator/` → 0 aciertos, aviso por stderr, exit 0; con `CLAUDE_PLUGIN_ROOT` la encuentra).
+  - `pytest -q` completo (tests + kits + skills + evals, tras F5-F6) → **1329 passed, 38 failed, 1 skipped** en 6 m 38 s (puerta >= 1.175 OK): 37 son las familias preexistentes de Windows (ver la traza de F4) y el otro es `test_ca08` medido a mitad de la edicion del ledger (T-18 aun sin recortar), verde tras el recorte.
 
 **Criterios de aceptación**
-- [ ] `--doctrina --area estimacion` devuelve las **9** lecciones en un proyecto sin memoria propia, exit 0; y sin `--doctrina`, **0 aciertos** con exit 0 (spec CA-21).
-- [ ] `wc -c agents/evaluator.md` **no supera los 15.513 bytes de hoy** (spec CA-22): la garantía vuelve **sin** prosa nueva en el prompt.
-- [ ] La doctrina y la memoria del proyecto **no se mezclan** en la misma salida sin distinguirse: cada acierto dice de dónde viene.
-- [ ] El caso literal de `agent:evaluator` en `evals/` sigue atado a la `description` real (`check.py` regla 4).
+- [x] `--doctrina --area estimacion` devuelve las **9** lecciones en un proyecto sin memoria propia, exit 0; y sin `--doctrina`, **0 aciertos** con exit 0 (spec CA-21).
+- [x] `wc -c agents/evaluator.md` **no supera los 15.513 bytes de hoy** (spec CA-22): la garantía vuelve **sin** prosa nueva en el prompt. *15.024 en LF; el bloque de ~1.060 bytes que apuntaba a `LES-007/008/009` «migradas… léelas de ahí… cuando el proyecto tenga docs/knowledge» se sustituye por una invocación de ~600.*
+- [x] La doctrina y la memoria del proyecto **no se mezclan** en la misma salida sin distinguirse: cada acierto dice de dónde viene. *`ruta_corta` `doctrina/…` vs `lessons/…`; JSON `corpus`/`origen`; `--doctrina` no lee la memoria del proyecto.*
+- [x] El caso literal de `agent:evaluator` en `evals/` sigue atado a la `description` real (`check.py` regla 4).
 
 **Subtareas**
-- [ ] Bandera `--doctrina` con localización del asset por `CLAUDE_PLUGIN_ROOT` + `find` (regla 5).
-- [ ] Sustituir el puntero del prompt por la invocación, sin añadir prosa.
-- [ ] Test del tope de bytes del prompt.
+- [x] Bandera `--doctrina` con localización del asset por `CLAUDE_PLUGIN_ROOT` + `find` (regla 5). *Relativa al kit (`agent-kits/shared/../evaluator/assets/doctrina`, rutas relativas entre sí) y `CLAUDE_PLUGIN_ROOT` como segundo candidato; sin `find`: `agent-kits/` viaja entero en las dos instalaciones.*
+- [x] Sustituir el puntero del prompt por la invocación, sin añadir prosa.
+- [x] Test del tope de bytes del prompt.
 
-**Notas**: si el prompt tuviera que crecer, la tarea **falla** su criterio: es la restricción que hace que esto no sea volver atrás.
+**Notas**: si el prompt tuviera que crecer, la tarea **falla** su criterio: es la restricción que hace que esto no sea volver atrás. Sin README que aporte titular, la doctrina toma como titular la **primera frase en negrita** de la lección (antes salía «evaluator», el encabezado). `agent-kits/shared/knowledge-check.md` (fila del `evaluator`: memoria del proyecto **y** doctrina) y `tests/test_knowledge_find.py` (contrato JSON) entran en `Archivos` por lo dicho en la Verificación.
 
 ---
 
 ## Fase 6 — Cerrar el bucle
 
-**Estado**: borrador · **Estimado**: 3,0h · **Real**: — · **Coste est.**: 151 € · **Tokens est.**: 145.000
+**Estado**: en-progreso (T-17 completado y T-18 implementado el 2026-09-08; T-18 se cierra con las transiciones de estado tras la revisión de dos lentes de F5-F6) · **Estimado**: 3,0h · **Real**: 0h humanas · 0,55h IA (est.) · 0,14h supervisión (est.) · **Coste est.**: 151 € · **Tokens est.**: 145.000
 
 > **Va al final por dependencias, pero el criterio de éxito de la spec NO se cumple sin ella**
 > (CA-25). `analysis.md` la declara **condición previa**: «mientras la tubería que convierte
@@ -771,65 +776,70 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 ### T-17 — `/retro` se dispara al cerrar una iniciativa
 
 - **Descripción**: que `/retro` deje de ser «un comando que alguien recuerda». Al cerrar una iniciativa (plan `completado`), la puerta de cierre **exige** la retro y su fila en `CALIBRATION.md` — el mismo patrón que el repo ya usa con `qa-gate` y `ledger-lint`: una puerta, no un aviso ignorable (`LES-012`: «un aviso que se puede ignorar se ignorará»).
-- **Estado**: borrador
-- **Tiempo humano**: est. 1,5h · real —
-- **Tiempo IA (ejec.)**: est. 0,15h · real —
-- **Supervisión**: est. 0,04h (≈25 % IA) · real —
+- **Estado**: completado
+- **Tiempo humano**: est. 1,5h · real 0h (sin intervención humana en la ejecución)
+- **Tiempo IA (ejec.)**: est. 0,15h · real 0,20h (estimado: el usage-meter no lee la transcripción en este entorno)
+- **Supervisión**: est. 0,04h (≈25 % IA) · real 0,05h (estimado)
 - **Previsión IA**: 55k in / 17k out tok · 0,64 €
 - **Dependencias**: T-10, T-14
 - **Tipo**: docs
-- **Archivos**: `commands/retro.md`, `commands/dev-cycle.md`, `agent-kits/shared/doctor.py`
-- **Verificación**: `python3 agent-kits/shared/doctor.py | grep -i "calibrac"` → avisa de las iniciativas cerradas sin fila (hoy: 13, 15 días) · lectura: `commands/dev-cycle.md` describe la retro como **puerta** del cierre de iniciativa, con el comando exacto · `python3 evals/check.py` → exit 0 (el caso literal de `command:retro` sigue atado a su `description`) · `python3 scripts/lint_plugin.py` → exit 0
+- **Archivos**: `commands/retro.md`, `commands/dev-cycle.md`, `agent-kits/shared/doctor.py`, `agent-kits/shared/retro-gate.py`, `agent-kits/shared/test_retro_gate.py`
+- **Changelog**: La retro deja de ser un comando que alguien recuerda: `/dev-cycle` Fase 6 gana el paso 8 —`/retro` y la puerta determinista `retro-gate.py`, que exige `retro.md` con frontmatter y la fila de la iniciativa en `CALIBRATION.md` (exit 1 con el comando exacto si falta algo)— y sin ella la iniciativa no se declara cerrada; `/doctor` sigue contando las cerradas sin fila y nombra la puerta en su arreglo.
+- **Verificación** (ejecutada 2026-09-08):
+  - `RED: agent-kits/shared/test_retro_gate.py → error de recolección (retro-gate.py no existe) · tras escribir el script, 4 failed: la raíz se tomaba del cwd y no de la carpeta de la iniciativa (CALIBRATION.md del repo en vez del del proyecto temporal) · 2026-09-08`; corregido (`raiz_de(carpeta)`) → **11 passed** (un rojo más fue de datos de test: dos casos normalizaban al mismo directorio temporal).
+  - `python3 agent-kits/shared/retro-gate.py docs/roadmap/2026-09-04-memory-retrieval` → `❌ retro.md no existe` · `❌ sin fila para \`memory-retrieval\` en docs/roadmap/CALIBRATION.md` · `ℹ️ el ledger está \`en-progreso\`…` · `❌ Puerta CERRADA — falta: retro.md, fila en CALIBRATION.md. Ejecuta \`/retro docs/roadmap/2026-09-04-memory-retrieval\`…`, **exit 1** (la propia iniciativa es el primer caso: no se declarará cerrada hasta pasar por aquí).
+  - `python3 agent-kits/shared/doctor.py | grep -i calibrac` → `⚠️ calibración (CALIBRATION.md) · última fila 2026-08-20: 19 días sin fila y 15 iniciativa(s) cerrada(s) después sin retro: adversarial-review, debt-cleanup, deterministic-guardrails, live-visibility, activation-reliability, distribution …` (el análisis decía 15 días / 13; hoy 19 / 15) y el arreglo nombra la puerta.
+  - Lectura: `commands/dev-cycle.md` Fase 6 paso 8 («Retro — PUERTA, no aviso»: comando exacto, exit 0 obligatorio, qué pasa con exit 1, degradación sin python3) y el cierre ya no «ofrece» la retro; `commands/retro.md` se declara puerta en su cabecera y muestra las candidatas (paso 2-quater, T-14). `python3 evals/check.py` → `135 casos · 0 errores` (la `description` de `/retro` no cambia); `lint_plugin.py` → 0 errores.
 
 **Criterios de aceptación**
-- [ ] El cierre de iniciativa **exige** la retro y su fila en `CALIBRATION.md` (spec CA-23).
-- [ ] Es una **puerta**, no un aviso: el ritual de cierre no se puede declarar completo sin ella.
-- [ ] `/doctor` cuenta cuántas iniciativas cerradas están sin fila y desde cuándo.
-- [ ] La `description` de `/retro` y su caso literal en `evals/` siguen coherentes (`check.py` regla 4).
-- [ ] No se automatiza **escribir** la retro: se automatiza **exigirla**. Las causas de desviación las escribe quien las conoce.
+- [x] El cierre de iniciativa **exige** la retro y su fila en `CALIBRATION.md` (spec CA-23).
+- [x] Es una **puerta**, no un aviso: el ritual de cierre no se puede declarar completo sin ella. *Script con exit code, como `qa-gate`/`ledger-lint`; la prosa decide cuándo llamarlo, el script el veredicto.*
+- [x] `/doctor` cuenta cuántas iniciativas cerradas están sin fila y desde cuándo. *Lo hacía desde T-10; aquí su arreglo cita la puerta.*
+- [x] La `description` de `/retro` y su caso literal en `evals/` siguen coherentes (`check.py` regla 4).
+- [x] No se automatiza **escribir** la retro: se automatiza **exigirla**. Las causas de desviación las escribe quien las conoce. *`retro-gate.py` no escribe nada.*
 
 **Subtareas**
-- [ ] Añadir la retro al ritual de cierre de `/dev-cycle`.
-- [ ] Contar en `/doctor` las cerradas sin fila.
-- [ ] Ajustar `commands/retro.md` para consumir las candidatas de T-14.
+- [x] Añadir la retro al ritual de cierre de `/dev-cycle`.
+- [x] Contar en `/doctor` las cerradas sin fila.
+- [x] Ajustar `commands/retro.md` para consumir las candidatas de T-14. *Hecho en T-14 (paso 2-quater); aquí se enlaza desde la cabecera.*
 
-**Notas**: esta tarea es la que hace que las horas **humanas** de este presupuesto dejen de ser una estimación sin validar: sin retro, `CALIBRATION.md` no gana su primera fila con horas humanas reales.
+**Notas**: esta tarea es la que hace que las horas **humanas** de este presupuesto dejen de ser una estimación sin validar: sin retro, `CALIBRATION.md` no gana su primera fila con horas humanas reales. **Desvío declarado:** el plan no preveía script; una puerta sin exit code es un aviso ignorable (`LES-012`, regla de determinismo de CONVENTIONS), así que `retro-gate.py` + tests entran en `Archivos`. La puerta acepta carpeta con fecha, `<fecha>-<slug>` o slug (error de uso si es ambiguo) y deriva la raíz de la carpeta de la iniciativa, no del cwd.
 
 ### T-18 — Doc ES/EN y las entradas de `docs/knowledge/` que salen de aquí
 
 - **Descripción**: cerrar la iniciativa con su documentación y su memoria: la regla nueva en `docs/CONVENTIONS.md` **y su espejo EN**, un ADR de las tres capas (fuente de verdad en git, índice como caché, grafo curado en vez de cronología), la lección que salga del ciclo, sus filas en el índice de `docs/knowledge/README.md`, y las transiciones de estado de los artefactos de esta carpeta.
-- **Estado**: borrador
-- **Tiempo humano**: est. 1,5h · real —
-- **Tiempo IA (ejec.)**: est. 0,15h · real —
-- **Supervisión**: est. 0,04h (≈25 % IA) · real —
+- **Estado**: en-progreso
+- **Tiempo humano**: est. 1,5h · real 0h (sin intervención humana en la ejecución)
+- **Tiempo IA (ejec.)**: est. 0,15h · real 0,35h (estimado: el usage-meter no lee la transcripción en este entorno; incluye la deuda de doc de F3-F4)
+- **Supervisión**: est. 0,04h (≈25 % IA) · real 0,09h (estimado)
 - **Previsión IA**: 55k in / 18k out tok · 0,67 €
 - **Dependencias**: T-17
 - **Tipo**: docs
-- **Archivos**: `docs/CONVENTIONS.md`, `docs/en/CONVENTIONS.md`, `docs/knowledge/README.md`, `docs/knowledge/adr/`, `docs/knowledge/lessons/`, `docs/roadmap/2026-09-04-memory-retrieval/spec.md`, `docs/roadmap/2026-09-04-memory-retrieval/evaluation.md`, `docs/roadmap/2026-09-04-memory-retrieval/improvement-plan.md`, `docs/roadmap/README.md`, `docs/observability.md`, `docs/en/observability.md`, `docs/FLOWS.md`, `docs/en/FLOWS.md`, `docs/INSTALL.md`, `docs/en/INSTALL.md`, `docs/README.md`, `docs/en/README.md`, `CLAUDE.md`, `commands/doctor.md`, `commands/setup.md`, `evals/cases/command-doctor.json`, `agent-kits/shared/README.md`
-- **Verificación**:
-  - `python3 -m pytest -q tests/test_knowledge_index.py` → todos passed (las entradas nuevas tienen fila y «Área»)
-  - `python3 -m pytest -q tests/test_roadmap_index.py` → todos passed (la fila de la iniciativa sigue **dentro** de la tabla)
-  - `diff <(grep -c "^#" docs/CONVENTIONS.md) <(grep -c "^#" docs/en/CONVENTIONS.md)` → misma estructura de secciones en los dos espejos
-  - `python3 -m pytest -q` → ≥ 1.175 passed
-  - `python3 agent-kits/shared/ledger-lint.py docs/roadmap/2026-09-04-memory-retrieval/tasks.md` → exit 0
-  - lectura: `spec.md` pasa a `estado: implementada` y `evaluation.md`/`improvement-plan.md` a `completado` solo cuando todas las tareas están cerradas
+- **Archivos**: `docs/CONVENTIONS.md`, `docs/en/CONVENTIONS.md`, `docs/knowledge/README.md`, `docs/knowledge/adr/`, `docs/knowledge/lessons/`, `docs/roadmap/2026-09-04-memory-retrieval/spec.md`, `docs/roadmap/2026-09-04-memory-retrieval/evaluation.md`, `docs/roadmap/2026-09-04-memory-retrieval/improvement-plan.md`, `docs/roadmap/README.md`, `docs/observability.md`, `docs/en/observability.md`, `docs/FLOWS.md`, `docs/en/FLOWS.md`, `docs/INSTALL.md`, `docs/en/INSTALL.md`, `docs/README.md`, `docs/en/README.md`, `CLAUDE.md`, `commands/doctor.md`, `commands/setup.md`, `evals/cases/command-doctor.json`, `agent-kits/shared/README.md`, `docs/agents/evaluator.md`, `docs/knowledge/lessons/LES-015-implementer-privacidad-de-punta-a-punta.md`, `docs/knowledge/adr/ADR-013-memoria-en-tres-capas-fuente-git-indice-cache-grafo-curado.md`
+- **Changelog**: La doc cuenta lo que el código hace: `observability`, `FLOWS`, `CONVENTIONS` (ES/EN), `CLAUDE.md`, `INSTALL` (ES/EN), `/setup`, `/doctor` y el README del kit compartido describen la captura del turno (`UserPromptSubmit`, `<private>`, redacción, `.claude/.gitignore`, cómo apagarla), el resumen por IA opt-in, la doctrina del plugin (`--doctrina`) y la retro como puerta de cierre; ADR-013 fija las tres capas de la memoria (fuente en git, índice como caché, grafo curado) con lo descartado, y LES-015 recoge la lección de la revisión de F4 (la privacidad se prueba de punta a punta).
+- **Verificación** (doc ejecutada 2026-09-08; las transiciones de estado, al cerrar):
+  - `pytest -q` de índice de knowledge, índice del roadmap, mermaid, badges, manifiestos y doctrina → **62 passed** (34 filas ↔ 34 ficheros con «Área»; `ADR-013`/`LES-015` nacen `propuesta`; 32 diagramas OK con los nodos nuevos en ES y EN). `knowledge-find.py --show ADR-013` y `--related LES-015` → exit 0.
+  - `grep -c "^#" docs/CONVENTIONS.md` y `docs/en/CONVENTIONS.md` → **11 y 11** (misma estructura: lo nuevo son viñetas dentro de las reglas 9 y 10).
+  - `grep -rn "Sin resumen por IA\|timeout: 20\|No AI summary" docs/ CLAUDE.md commands/ agent-kits/shared/README.md` (sin `docs/roadmap/`) → **solo `ADR-010:37`**, registro histórico de la decisión original (su §Revisión ya dice 45).
+  - `lint_plugin.py` → 0 errores · `evals/check.py` → 0 errores (la `description` de `/doctor` gana «memoria técnica» sin tocar sus frases literales) · `ledger-lint.py` → 0 incoherencias · 0 avisos.
+  - **Pendiente para cerrar**: estados de spec/evaluación/plan/ledger y fila del roadmap — tras la revisión de dos lentes de F5-F6, con `retro-gate.py` como última puerta (la retro la escribe el usuario).
 
 **Criterios de aceptación**
-- [ ] La regla nueva está en `docs/CONVENTIONS.md` **y** en `docs/en/CONVENTIONS.md` (spec CA-24). *Alcance verificado:* `docs/en/` espeja solo los 5 documentos de producto — **no** el roadmap —, así que estos cuatro artefactos no llevan espejo EN, y eso no es una omisión.
-- [ ] Las entradas nuevas de `docs/knowledge/` tienen **su fila con «Área»** en el índice, en el mismo cambio (regla del índice) y con T-04 verde.
-- [ ] La fila de la iniciativa está **dentro** de la tabla de `docs/roadmap/README.md` y `tests/test_roadmap_index.py` lo confirma.
-- [ ] Los estados de `spec.md`, `evaluation.md`, `improvement-plan.md` y de este ledger se actualizan al cerrar, no antes.
-- [ ] **`CHANGELOG*.md` no se toca a mano**: lo genera la skill `changelog-sync` desde este ledger cerrado.
-- [ ] El ADR nuevo dice **qué se descartó y por qué** (embeddings, capturar todo, retirar el journal), no solo lo elegido.
-- [ ] **Deuda de doc de las Fases 3 y 4 saldada** (revisión F4 intento 1, Lente A gap 6 — hoy estos sitios CONTRADICEN el código): `docs/observability.md:52` y `docs/en/observability.md:53` («Sin resumen por IA», «timeout: 20») → resumen IA opt-in + `timeout: 45` + fila del hook `UserPromptSubmit`; `docs/FLOWS.md:277,287` y `docs/en/FLOWS.md:289` (diagrama de hooks: nodo `UserPromptSubmit` → `journal.py capture`, `timeout 45`); `docs/CONVENTIONS.md:167,181` y espejo EN (`timeout: 45`; `dev.json` `sesion.captura`, `sesion.resumen`); `CLAUDE.md:19,48` (tabla de hooks y fila «Memoria técnica»); `commands/doctor.md` + `docs/README.md`/`docs/en/README.md` (seis bloques del doctor, con su eval `evals/cases/command-doctor.json`, deuda de T-10); `docs/INSTALL.md`/`docs/en/INSTALL.md` + `commands/setup.md` (qué se captura de cada turno, `<private>`, `.claude/.gitignore` sembrado, cómo apagarlo); `agent-kits/shared/README.md` (fila de `journal.py`: `capture`/`candidatas`/`redactar`). Verificación: `grep -rn "Sin resumen por IA\|timeout: 20\|timeout 20" docs/ CLAUDE.md` → 0 aciertos.
+- [x] La regla nueva está en `docs/CONVENTIONS.md` **y** en `docs/en/CONVENTIONS.md` (spec CA-24). *Alcance verificado:* `docs/en/` espeja solo los 5 documentos de producto — **no** el roadmap —, así que estos cuatro artefactos no llevan espejo EN, y eso no es una omisión. *Regla 10: viñeta «Doctrina del plugin» + reglas (8)-(11) del journal; regla 9: `sesion.captura`/`sesion.resumen`.*
+- [x] Las entradas nuevas de `docs/knowledge/` tienen **su fila con «Área»** en el índice, en el mismo cambio (regla del índice) y con T-04 verde.
+- [x] La fila de la iniciativa está **dentro** de la tabla de `docs/roadmap/README.md` y `tests/test_roadmap_index.py` lo confirma. *(El texto de la fila se actualiza con el resultado real al cerrar.)*
+- [ ] Los estados de `spec.md`, `evaluation.md`, `improvement-plan.md` y de este ledger se actualizan al cerrar, no antes. *Único criterio abierto: va tras la revisión de dos lentes de F5-F6.*
+- [x] **`CHANGELOG*.md` no se toca a mano**: lo genera la skill `changelog-sync` desde este ledger cerrado.
+- [x] El ADR nuevo dice **qué se descartó y por qué** (embeddings, capturar todo, retirar el journal), no solo lo elegido. *ADR-013: las tres + «un almacén propio como fuente».*
+- [x] **Deuda de doc de las Fases 3 y 4 saldada** (revisión F4, Lente A gap 6): `observability`, `FLOWS` y `CONVENTIONS` (ES/EN: hook `UserPromptSubmit`, `timeout: 45`, `sesion.captura`/`sesion.resumen`, resumen IA opt-in, doctrina, retro como puerta), `CLAUDE.md`, `commands/doctor.md` + filas de `docs/README.md`/`docs/en/README.md` (seis bloques), `INSTALL` (ES/EN) + `commands/setup.md` (qué se captura, `<private>`, `.claude/.gitignore`, cómo apagarlo), `agent-kits/shared/README.md` (`journal.py` al día + filas que faltaban de `knowledge-find.py` y `retro-gate.py`). Verificación: el `grep` de arriba → solo `ADR-010:37` (histórico).
 
 **Subtareas**
-- [ ] ADR de las tres capas con las alternativas descartadas.
-- [ ] Lección del ciclo (con evidencia, no impresión).
-- [ ] Espejo ES/EN de la regla y filas del índice.
-- [ ] Transiciones de estado y fila del roadmap con el resultado real.
+- [x] ADR de las tres capas con las alternativas descartadas (`ADR-013`).
+- [x] Lección del ciclo (con evidencia, no impresión): `LES-015`, del gap 1 de la revisión de F4.
+- [x] Espejo ES/EN de la regla y filas del índice.
+- [ ] Transiciones de estado y fila del roadmap con el resultado real. *Al cerrar, tras la revisión de F5-F6.*
 
-**Notas**: el campo `- **Changelog**:` de cada tarea lo escribe **quien la cierra** (`ADR-012`); este ledger nace sin él a propósito.
+**Notas**: el `- **Changelog**:` lo escribe quien cierra (`ADR-012`). `docs/agents/evaluator.md` y las dos entradas nuevas entran en `Archivos`; el README del kit compartido gana las filas que faltaban de `knowledge-find.py` (deuda de T-01) y `retro-gate.py`.
 
 ---
 
