@@ -32,10 +32,11 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 > **Fases 1-3 completadas el 2026-09-07 (T-01…T-10, rama `feature/pendiente`)**, más **T-19** (cierre de
 > los 12 gaps del intento 1 de la revisión de dos lentes sobre esas fases, mismo día). **Fase 4 completada
 > el 2026-09-08 (T-11…T-14)**, con el contrato oficial de `UserPromptSubmit` verificado y fechado antes de
-> arrancar; su revisión de dos lentes se traza al final de este ledger. Las Fases 5-6 siguen en
-> `borrador`. El campo opcional `- **Changelog**:` lo escribe quien CIERRA cada tarea (`ADR-012`): las
-> quince cerradas lo llevan y las cuatro pendientes no (los avisos de adopción parcial de `ledger-lint`
-> son la señal esperada hasta que se cierren). Las horas IA «reales» van marcadas `(estimado)`: el
+> arrancar; su revisión de dos lentes (intento 1: A+B+C, 16 gaps → 15 corregidos en **T-20** y 1 delegado
+> a T-18 con alcance ampliado) se traza al final de este ledger. Las Fases 5-6 siguen en `borrador`. El
+> campo opcional `- **Changelog**:` lo escribe quien CIERRA cada tarea (`ADR-012`): las dieciséis cerradas
+> lo llevan y las cuatro pendientes no (los avisos de adopción parcial de `ledger-lint` son la señal
+> esperada hasta que se cierren). Las horas IA «reales» van marcadas `(estimado)`: el
 > `usage-meter` no puede leer la transcripción en este entorno.
 
 ---
@@ -47,17 +48,20 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 | Fase 1 — Recuperación | 4 | 4 | 100% | 0 / 9,0h | 0,60 (est.) / 0,51h | 0,16 (est.) / 0,13h | n/d / 245.000 |
 | Fase 2 — Llegada | 3 | 3 | 100% | 0 / 4,0h | 0,46 (est.) / 0,31h | 0,12 (est.) / 0,08h | n/d / 150.000 |
 | Fase 3 — Prueba de que se recorre | 4 | 4 | 100% | 0 / 4,0h | 0,76 (est.) / 0,27h | 0,20 (est.) / 0,07h | n/d / 128.000 |
-| Fase 4 — Captura episódica | 4 | 4 | 100% | 0 / 7,0h | 0,75 (est.) / 0,43h | 0,19 (est.) / 0,11h | n/d / 205.000 |
+| Fase 4 — Captura episódica | 5 | 5 | 100% | 0 / 7,0h | 1,20 (est.) / 0,43h | 0,30 (est.) / 0,11h | n/d / 205.000 |
 | Fase 5 — Que la doctrina viaje | 0 | 2 | 0% | 0 / 3,0h | 0 / 0,24h | 0 / 0,06h | 0 / 115.000 |
 | Fase 6 — Cerrar el bucle | 0 | 2 | 0% | 0 / 3,0h | 0 / 0,30h | 0 / 0,08h | 0 / 145.000 |
 | Revisión de dos lentes (transversal, línea propia) | — | — | — | 0 / 4,0h | 0 / 0,54h | 0 / 0,13h | 0 / 260.000 |
-| **TOTAL** | **15** | **19** | **79%** | **0 / 34,0h** | **2,57 (est.) / 2,60h** | **0,67 (est.) / 0,66h** | **n/d / 1.248.000** |
+| **TOTAL** | **16** | **20** | **80%** | **0 / 34,0h** | **3,02 (est.) / 2,60h** | **0,78 (est.) / 0,66h** | **n/d / 1.248.000** |
 
 > **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada (8 h). Ver `skills/jira-sync/SKILL.md`.
 >
-> **T-19** (cierre de gaps del intento 1) no estaba en el plan: cuenta en la Fase 3 (donde vive) con
-> estimación propia, y su coste es el de la **línea transversal de revisión** (0,54h IA presupuestadas),
-> no de las fases — por eso el «Estimado» de la Fase 3 y el TOTAL de tareas estimadas no cambian.
+> **T-19** (cierre de gaps del intento 1 sobre F1-3) y **T-20** (ídem sobre F4) no estaban en el plan:
+> cuentan en la fase donde viven con estimación propia, y su coste es el de la **línea transversal de
+> revisión** (0,54h IA presupuestadas), no de las fases — por eso el «Estimado» de las fases y el TOTAL de
+> tareas estimadas no cambian. Con T-20 el real IA de la iniciativa (3,02h est.) supera el estimado (2,60h):
+> la revisión de F4 encontró 16 gaps, 6 de ellos Important/Critical — la línea transversal estaba bien
+> presupuestada en horas (0,90h para F4 frente a 0,45h gastadas), lo que se subestimó fue la implementación.
 >
 > Las horas IA salen de **tokens ÷ 479.326 tok/h** (mediana medida de 5 muestras, `CALIBRATION.md`), no del default no calibrado de 300.000. La supervisión es el **25 %** de las horas IA (`rates.json` `ratioSupervision`); el total exacto sería 0,65 h y la suma por tarea da **0,66 h** por redondeo — se usa 0,66 h para que plan y ledger digan lo mismo.
 
@@ -458,10 +462,10 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
   - `lint_plugin.py` → `9 agentes · 0 errores · 3 avisos` · `tests/test_lint_plugin.py` → `36/36 OK` · `evals/check.py` → `135 casos · 0 errores` · `ledger-lint.py` → `0 incoherencias · 8 avisos` (Changelog de T-11…T-18) · `scope-check.py --base 7ca3645` → `fuera de alcance (0)` · `export-skills.py --out/--check` → `108 ficheros · 0 problema(s)`; todos exit 0.
   - Gap 1, antes → después: `knowledge-find.py "cual es el ratio de tokens por hora que uso para estimar" --json --limit 0` → `total 32` (las 9 lecciones de estimación en 15-32) → **`total 14`**, tokens `["ratio","token","hora","estim"]`, las 9 en **1-4 y 6-10** · `"de"` → 10 → **0** · `"quiero saber si el pato vuela hacia marte"` → 32 → **0** · `"consola windows cp1252"` → `GOT-005` primero (igual).
   - Gap 2, mutante «bucle de recorte → render único»: test viejo verde; `test_memoria_el_recorte_al_tope_muerde_de_verdad` → **`assert 3008 <= 2400`**.
-  - Gap 3, hook: 2 activas de la misma área (3 entradas) → `3 acierto(s)`, 3 líneas, sin «más» (antes `6 acierto(s)` y `… y 3 más`) · 3 activas → `… · 3 iniciativas activas, consultadas las 2 primeras; fuera: demo-c` · 41 entradas y 2 activas → `41 acierto(s)`, N = 41 − mostradas (antes 82).
-  - Gap 4, caracteres de los 10 briefs antes → después (final, T-19 incluida: **9.931**): T-01 10.318→**7.809** · T-02 8.919→**6.735** · T-03 11.597→**8.243** · T-04 10.389→**7.798** · T-05 12.189→**9.164** · T-06 12.543→**9.398** · T-07 10.223→**8.116** · T-08 9.521→**7.310** · T-09 10.107→**7.841** · T-10 12.182→**8.834**; memoria de T-06 idéntica (1.636); bajo `cp1252` byte a byte igual.
-  - Gaps 5 y 8: `--contexto "" --iniciativa "" --limit 0` → 32 → **0** · `--limit -1` → 32 líneas → **`error: argument --limit: `-1` es negativo; usa 0 para «sin tope»`, exit 2**.
-  - Gap 6: fila hacia `adr/ADR-099-fantasma.md` con `plugin_root` sin `lint_knowledge_index`: doctor de `e08fc05` → `✅ (comprobación local)`; HEAD → **`❌ … (ADR-099): enlaza a `adr/ADR-099-fantasma.md`, que no existe`**, exit 1.
+  - Gap 3, hook: 2 activas de la misma área (3 entradas) → `3 acierto(s)`, 3 líneas, sin «más» · 3 activas → `… · 3 iniciativas activas, consultadas las 2 primeras; fuera: demo-c` · 41 entradas y 2 activas → `41 acierto(s)`, N = 41 − mostradas.
+  - Gap 4, caracteres de los 10 briefs antes → después (final, T-19 incluida: **9.931**): T-01 10.318→**7.809** · T-02 8.919→**6.735** · T-03 11.597→**8.243** · T-04 10.389→**7.798** · T-05 12.189→**9.164** · T-06 12.543→**9.398** · T-07 10.223→**8.116** · T-08 9.521→**7.310** · T-09 10.107→**7.841** · T-10 12.182→**8.834**; memoria de T-06 idéntica (1.636). *Re-medido 2026-09-08 en Windows (la medida incluye la ruta absoluta de `knowledge-find.py`, más larga aquí): T-01 7.888 · T-05 9.243 · T-06 9.477 · T-19 9.802.*
+  - Gaps 5 y 8: `--contexto "" --iniciativa "" --limit 0` → 32 → **0** · `--limit -1` → 32 líneas → **error de uso («es negativo; usa 0 para sin tope»), exit 2**.
+  - Gap 6: fila hacia `adr/ADR-099-fantasma.md`: doctor de `e08fc05` → `✅ (comprobación local)`; HEAD → **`❌ … enlaza a `adr/ADR-099-fantasma.md`, que no existe`**, exit 1.
   - Gap 10: `def celdas_md` una vez por script (3); tests de identidad de los bloques `--8<--` verdes.
   - Gap 11, mutante sin `["--tipo-tarea", tipo]`: `test_memory_path.py` de `7ca3645` → `7 passed`; el de HEAD → **`3 failed, 4 passed`**.
   - Gap 12: cifras re-medidas y pegadas en T-02/T-04/T-05/T-06 (`--related`, `additionalContext`, `pytest` 1.315).
@@ -488,7 +492,7 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 
 ## Fase 4 — Captura episódica
 
-**Estado**: completado (2026-09-08; revisión de dos lentes: ver la traza al final) · **Estimado**: 7,0h · **Real**: 0h humanas · 0,75h IA (est.) · 0,19h supervisión (est.) · **Coste est.**: 352 € · **Tokens est.**: 205.000
+**Estado**: completado (2026-09-08; revisión de dos lentes intento 1 cerrada con T-20 — ver «Revisión de dos lentes — intento 1 (Fase 4)» al final) · **Estimado**: 7,0h · **Real**: 0h humanas · 1,20h IA (est.) · 0,30h supervisión (est.) · **Coste est.**: 352 € · **Tokens est.**: 205.000
 
 > Cierra el hueco **3** de `analysis.md` §1.4 y **revisa `ADR-010`**. Es la fase más cara, la de peor
 > confianza y la única con un **contrato oficial sin verificar**: antes de arrancar hay que
@@ -593,7 +597,7 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 - **Previsión IA**: 25k in / 7k out tok · 0,28 €
 - **Dependencias**: T-12
 - **Tipo**: devops
-- **Archivos**: `hooks/session-journal.sh`, `agent-kits/shared/journal.py`, `agent-kits/shared/test_journal.py`, `hooks/hooks.json`, `agent-kits/shared/doctor.py`
+- **Archivos**: `hooks/session-journal.sh`, `agent-kits/shared/journal.py`, `agent-kits/shared/test_journal.py`, `hooks/hooks.json`, `agent-kits/shared/doctor.py`, `agent-kits/shared/test_doctor.py`
 - **Changelog**: Resumen episódico por IA opt-in (`dev.json` `sesion.resumen: true`): tras dejar en disco la entrada determinista, `journal.py write` lanza `claude -p --bare --output-format json` con timeout de 25 s y re-escribe la misma entrada (`resumen_por: ia`); sin CLI, sin `ANTHROPIC_API_KEY`, con timeout, exit distinto de 0 o JSON ilegible degrada a la determinista con el motivo en `avisos` y exit 0, y el cierre de sesión no se entera.
 - **Verificación** (ejecutada 2026-09-08):
   - `python3 -m pytest -q agent-kits/shared/test_journal.py -k "resumen_ia or escribir_sesion or cli_write"` → **4 passed**, con `runner`/`which`/`environ` inyectados (aquí **nunca** se lanza `claude`, como en `evals/test_evals.py`): opt-in apagado · sin CLI · sin clave · sin turnos · guardia anti-recursión → `None` + motivo y **cero llamadas**; camino feliz → `cmd = [claude, -p, <prompt>, --bare, --output-format, json, --max-turns, 1]`, `timeout=IA_TIMEOUT`, `encoding="utf-8", errors="replace"`, `env[CUSTOM_AGENTS_JOURNAL_IA]="0"`; exit ≠ 0, stdout no JSON, `result` sin JSON, `is_error`, `TimeoutExpired`, `OSError` → degradan con su motivo; JSON envuelto en bloque de código se extrae; tipos raros se normalizan; listas acotadas a `MAX_ITEMS` y resumen a 160.
@@ -648,6 +652,43 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 - [x] Enganchar en la salida de `/retro` como propuesta, no como escritura automática.
 
 **Notas**: esta tarea es la razón por la que la captura sin filtro no hace falta: se captura poco y se **asciende** lo que se repite.
+
+### T-20 — Cierre de los gaps del intento 1 (Fase 4)
+
+- **Descripción**: corrige los 15 gaps corregibles de la revisión de dos lentes (intento 1, `36ff7f6..cf6330d`, lentes A+B+C) sobre T-11…T-14, reproducidos antes de tocar nada — 1 Critical (`<private>` protegía el log pero el turno privado volvía como `resumen` por la transcripción), 5 Important (entrada truncada antes de renderizar, `--enrich` pisado por la IA, log no ignorado en consumidores y prosa sin depurar en fichero versionado, inyección indirecta de prompt) y 9 Minor. El gap 6 —seis sitios de doc que contradicen el código— se **delega a T-18 con alcance ampliado**. Tabla completa: «Revisión de dos lentes — intento 1 (Fase 4)», al final del ledger.
+- **Estado**: completado
+- **Tiempo humano**: est. 0h (fuera del plan: línea transversal de revisión) · real 0h
+- **Tiempo IA (ejec.)**: est. 0,45h · real 0,45h (estimado: el usage-meter no lee la transcripción en este entorno)
+- **Supervisión**: est. 0,11h (≈25 % IA) · real 0,11h (estimado)
+- **Previsión IA**: 120k in / 35k out tok · 1,36 €
+- **Dependencias**: T-11…T-14 (revisión de dos lentes, intento 1)
+- **Tipo**: backend
+- **Archivos**: `agent-kits/shared/journal.py`, `agent-kits/shared/test_journal.py`, `hooks/user-prompt-capture.sh`, `hooks/session-journal.sh`, `agent-kits/shared/doctor.py`, `agent-kits/shared/test_doctor.py`
+- **Changelog**: El log crudo de turnos y la entrada del journal ya no filtran lo que el usuario marcó `<private>` ni secretos evidentes (claves con prefijo conocido, JWT, PEM, `Bearer`, `clave|token|password = valor` se redactan antes de tocar el disco), el log nace 0600 con un cerrojo entre turnos solapados y `capture` siembra `.claude/.gitignore` para que no entre en git en un proyecto consumidor; la entrada del journal se escribe de forma atómica (render antes de abrir, temporal + `os.replace`), lo manual de `--enrich` manda sobre la IA también en las listas, los turnos viajan a `claude -p` por stdin como datos delimitados, y la entrada y el contexto reinyectado declaran que `decisiones`/`pendientes` son citas de los turnos, no instrucciones.
+- **Verificación** (ejecutada 2026-09-08, Windows + venv):
+  - `RED` (reproducciones de los revisores, repetidas aquí antes de corregir): turno único `<private>` con secreto → aparecía en `resumen:`, cuerpo y `journal/README.md` · `write --draft` con `"turnos": "tres"` → entrada a **0 bytes**, exit 0 y `-2.md` en la siguiente · `--enrich` con listas manuales + IA → listas de la IA · repo consumidor: `git check-ignore` del log → exit 1 · 8 `capture` concurrentes ×3 → 8/8/**7** · `--min 0` → «≥ 0» · `--draft --ia on` → sin IA ni aviso · modo del log `0o666`.
+  - Parches validados PRIMERO en una copia aislada del kit (sin tocar el árbol que las lentes leían) y después en el repo: `pytest test_journal.py` → **40 passed, 1 skipped** (+ 3 preexistentes de `\` vs `/`). 10 tests nuevos en `test_journal.py`, uno por gap con código (`test_private_no_resucita…`, `test_redacta_secretos…`, `test_capture_siembra_gitignore…`, `test_capture_crea_el_log_solo_legible…` —POSIX, `skipped` en Windows—, `test_la_entrada_y_el_contexto…citas`, `test_write_no_trunca…atomico`, `test_enrich_manual_manda…listas`, `test_write_draft_tambien_honra_ia`, `test_candidatas_min…`, `test_capture_concurrente_no_pierde_turnos` → 24/24 en 3 rondas × 8 procesos) y `test_dev_json_sesion_captura_y_resumen…` en `test_doctor.py` (`-k sesion` **2 passed**).
+  - `tests/test_hooks_shell.py -k "user_prompt_capture or hooks_json_registra or session_journal"` → **7 passed, 2 failed** (la pareja `sin_python3`, `WinError 1314`) · `test_task_brief.py -k ca08` → **2 passed** (T-11 7.563 · T-12 9.393 · T-13 8.930 · T-14 9.445 · T-19 9.802 antes de esta tarea; re-medir tras ella en la traza) · `lint_plugin.py` → `9 agentes · 0 errores · 3 avisos` · `evals/check.py` → `135 casos · 0 errores` · `tests/test_console_encoding.py` → **281 passed** · `bash -n` de los dos hooks OK · `grep -n "timeout: 45" hooks/session-journal.sh` → línea 22.
+  - Contrato re-verificado para el gap 11: `code.claude.com/docs/en/headless.md` (2026-09-08) — «Non-interactive mode reads stdin, so you can pipe data in» (`cat build-error.txt | claude -p '…'`), tope 10 MB, y «If Claude Code can't read stdin … continues with the prompt from the command line» (degradación segura).
+  - `pytest -q` completo (tests + kits + skills + evals, tras los parches) → **1310 passed, 38 failed, 1 skipped** en 9 m 16 s (puerta ≥ 1.175 ✓); 37 son las familias preexistentes de Windows (detalle en la traza) y el otro es `test_ca08` medido a mitad de la edición del ledger, verde tras el recorte (**2 passed**).
+
+**Criterios de aceptación**
+- [x] Un turno con `<private>` no aparece en la entrada del journal ni en su índice por ningún camino (log, transcripción, `--enrich`), con test de punta a punta.
+- [x] La entrada previa nunca queda a 0 bytes ni a medias; la idempotencia por `session_id` sobrevive a un `render` roto o a un proceso matado a mitad (escritura atómica en `write` e `index`).
+- [x] `--enrich` manda sobre la IA en `resumen`, `decisiones` y `pendientes`; la IA solo rellena lo que falta.
+- [x] Los secretos evidentes se redactan antes de tocar el disco y en la entrada, con lista de falsos positivos que NO se tocan (`tokens por hora (479326)`, `password reset flow`, `clave: FTS5`).
+- [x] El log no entra en git en un proyecto consumidor (`.claude/.gitignore` sembrado, idempotente, respetando lo que hubiera; `git check-ignore` en un repo temporal lo confirma) y nace `0600` en POSIX.
+- [x] Dos hooks solapados de la misma sesión no pierden ningún turno (cerrojo `<log>.lock`, 24/24 en 3 rondas concurrentes).
+- [x] La entrada, el bloque de `latest` que se reinyecta y el prompt de la IA declaran que los turnos son citas/datos, no instrucciones; los turnos van a `claude -p` por stdin.
+- [x] `--min ≤ 0` se normaliza a 1 y la cabecera lo dice; `write --draft --ia on` recorre el camino de la IA (y degrada a la vista).
+- [x] `/doctor` tiene test para `sesion.captura`/`sesion.resumen` y su pista de `sesion` mal formado nombra las claves nuevas.
+- [x] T-18 tiene en `Archivos` y en un criterio propio los seis sitios de doc que hoy contradicen el código (gap 6, delegado con destino explícito).
+
+**Subtareas**
+- [x] Reproducir cada gap antes de corregir (los de B y C traían reproducción; se repitieron aquí).
+- [x] Gaps 1/4/5/10/11 en `journal.py` (`redactar`, `_asegurar_gitignore`, `_abrir_log`, procedencia, stdin) — parche C; gaps 2/3/7/8/9 (`_escribir_atomico`, `manual`, `_cerrojo`, `--min`, `entrada=`) — parche B; 12/13/14/15/16 en hooks, ledger y `doctor.py`/`test_doctor.py`.
+
+**Notas**: dos decisiones bajo el umbral de ADR. (1) **Redacción de secretos por patrón, no por entropía**: alta precisión antes que cobertura — un falso positivo borra una decisión legítima; un falso negativo lo cubren la retención corta, `<private>` y el `.gitignore` sembrado. (2) **El canal de decisiones sigue siendo el usuario** (spec CA-17): la inyección indirecta (gap 5) se mitiga con procedencia explícita y turnos como datos delimitados, y se acepta el residual — quien pega texto ajeno en su turno es la frontera de confianza que Claude Code ya tiene; `sesion.captura: false` la cierra del todo. Lo rebatido y el arbitraje de `scope-check` están en la traza.
 
 ---
 
@@ -764,7 +805,7 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 - **Previsión IA**: 55k in / 18k out tok · 0,67 €
 - **Dependencias**: T-17
 - **Tipo**: docs
-- **Archivos**: `docs/CONVENTIONS.md`, `docs/en/CONVENTIONS.md`, `docs/knowledge/README.md`, `docs/knowledge/adr/`, `docs/knowledge/lessons/`, `docs/roadmap/2026-09-04-memory-retrieval/spec.md`, `docs/roadmap/2026-09-04-memory-retrieval/evaluation.md`, `docs/roadmap/2026-09-04-memory-retrieval/improvement-plan.md`, `docs/roadmap/README.md`
+- **Archivos**: `docs/CONVENTIONS.md`, `docs/en/CONVENTIONS.md`, `docs/knowledge/README.md`, `docs/knowledge/adr/`, `docs/knowledge/lessons/`, `docs/roadmap/2026-09-04-memory-retrieval/spec.md`, `docs/roadmap/2026-09-04-memory-retrieval/evaluation.md`, `docs/roadmap/2026-09-04-memory-retrieval/improvement-plan.md`, `docs/roadmap/README.md`, `docs/observability.md`, `docs/en/observability.md`, `docs/FLOWS.md`, `docs/en/FLOWS.md`, `docs/INSTALL.md`, `docs/en/INSTALL.md`, `docs/README.md`, `docs/en/README.md`, `CLAUDE.md`, `commands/doctor.md`, `commands/setup.md`, `evals/cases/command-doctor.json`, `agent-kits/shared/README.md`
 - **Verificación**:
   - `python3 -m pytest -q tests/test_knowledge_index.py` → todos passed (las entradas nuevas tienen fila y «Área»)
   - `python3 -m pytest -q tests/test_roadmap_index.py` → todos passed (la fila de la iniciativa sigue **dentro** de la tabla)
@@ -780,6 +821,7 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 - [ ] Los estados de `spec.md`, `evaluation.md`, `improvement-plan.md` y de este ledger se actualizan al cerrar, no antes.
 - [ ] **`CHANGELOG*.md` no se toca a mano**: lo genera la skill `changelog-sync` desde este ledger cerrado.
 - [ ] El ADR nuevo dice **qué se descartó y por qué** (embeddings, capturar todo, retirar el journal), no solo lo elegido.
+- [ ] **Deuda de doc de las Fases 3 y 4 saldada** (revisión F4 intento 1, Lente A gap 6 — hoy estos sitios CONTRADICEN el código): `docs/observability.md:52` y `docs/en/observability.md:53` («Sin resumen por IA», «timeout: 20») → resumen IA opt-in + `timeout: 45` + fila del hook `UserPromptSubmit`; `docs/FLOWS.md:277,287` y `docs/en/FLOWS.md:289` (diagrama de hooks: nodo `UserPromptSubmit` → `journal.py capture`, `timeout 45`); `docs/CONVENTIONS.md:167,181` y espejo EN (`timeout: 45`; `dev.json` `sesion.captura`, `sesion.resumen`); `CLAUDE.md:19,48` (tabla de hooks y fila «Memoria técnica»); `commands/doctor.md` + `docs/README.md`/`docs/en/README.md` (seis bloques del doctor, con su eval `evals/cases/command-doctor.json`, deuda de T-10); `docs/INSTALL.md`/`docs/en/INSTALL.md` + `commands/setup.md` (qué se captura de cada turno, `<private>`, `.claude/.gitignore` sembrado, cómo apagarlo); `agent-kits/shared/README.md` (fila de `journal.py`: `capture`/`candidatas`/`redactar`). Verificación: `grep -rn "Sin resumen por IA\|timeout: 20\|timeout 20" docs/ CLAUDE.md` → 0 aciertos.
 
 **Subtareas**
 - [ ] ADR de las tres capas con las alternativas descartadas.
@@ -815,3 +857,36 @@ Al final de **cada** fase, en este orden:
 **Presupuesto por fase** (orientativo, suma 4,0 h): F1 1,2 h · F2 0,6 h · F3 0,5 h · F4 0,9 h ·
 F5 0,4 h · F6 0,4 h. La Fase 1 y la Fase 4 se llevan la mitad porque son las que traen código nuevo
 con degradaciones, que es donde las lentes han encontrado los críticos en este repo.
+
+---
+
+## Revisión de dos lentes — intento 1 (Fase 4): 16 gaps (1 Critical, 6 Important, 9 Minor) → 15 corregidos en T-20, 1 delegado a T-18; 0 rebatidos
+
+Lentes: **A + B + C** (`review-lens-select.py --base 36ff7f6` → `lente_c: true` por ruta `hooks/session-journal.sh`, `lente_d: false`), tres agentes `reviewer` en paralelo (`opus`/`high`, frontmatter) sobre `git diff 36ff7f6...cf6330d`. `scope-check` → 12 en alcance (los 11 del plan + `test_doctor.py`, añadido a T-13 por el gap 16); «fuera»: los 3 sin seguimiento preexistentes ajenos a la iniciativa y `CONTINUE-HERE.md` (traspaso de sesión, fuera del roadmap por diseño) — arbitrado: ninguno forma parte del diff de la fase. Cada gap se reprodujo antes de corregir; las cifras Critical/Important se fusionaron cuando B y C señalaban lo mismo.
+
+| # | Grado | Lente | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|---|
+| 1 | **Critical** | B+C | `<private>` protegía el log pero `draft` caía a `primer_prompt(transcript)`: el turno privado volvía como `resumen` de una entrada versionada y al índice | T-11/T-12 | `primer_prompt` salta los mensajes con la etiqueta (en cualquier parte) y redacta el resto | `test_private_no_resucita_desde_la_transcripcion` |
+| 2 | Important | B | `write` abría en `"w"` antes de renderizar: `render` roto → entrada a 0 bytes, exit 0, idempotencia rota (`-2.md`); disparador nuevo `int(turnos)` | T-13 | render antes de abrir + `_escribir_atomico` (temporal + `os.replace`) en `write` e `index`; `_entero` tolerante | `test_write_no_trunca_la_entrada_previa_si_el_render_falla_y_escribe_atomico` |
+| 3 | Important | B | La IA pisaba `decisiones`/`pendientes` de `--enrich` (solo `resumen` estaba protegido) | T-13 | `draft` anota `manual: [...]`; `escribir_sesion` no toca lo manual | `test_enrich_manual_manda_sobre_la_ia_tambien_en_las_listas` |
+| 4 | Important | B+C | Log crudo ignorado solo por el `.gitignore` de ESTE repo; prosa cruda del usuario (8×200 chars por lista) a un fichero versionado por diseño, sin depuración | T-11/T-12 | `redactar` (secretos evidentes) en `capture`, `primer_prompt`, `--enrich` y respuesta IA; `_asegurar_gitignore` siembra `.claude/.gitignore` con `session-prompts-*` | `test_redacta_secretos_evidentes…`, `test_capture_siembra_gitignore…` |
+| 5 | Important | C | Inyección indirecta de prompt con persistencia: texto pegado con marcador → «decisión» → `additionalContext` de la sesión siguiente y prompt de la IA | T-12/T-13 | Procedencia explícita en la entrada y en `latest`; turnos como DATOS entre `<turnos>…</turnos>` por stdin. **Residual = diseño** (spec CA-17; opt-out `sesion.captura`) — anotado en T-20 | `test_la_entrada_y_el_contexto_reinyectado_declaran_que_son_citas` |
+| 6 | Important | A | Seis sitios de doc contradicen el código («Sin resumen por IA», `timeout 20`, `dev.json` sin `sesion.captura/resumen`, tabla de hooks) y T-18 no los tenía en `Archivos` | T-18 | **Delegado con destino**: T-18 gana los ficheros en `Archivos` y un criterio con la lista y su `grep` de verificación | ledger T-18 |
+| 7 | Minor | B | Append sin cerrojo + rotación leer-reescribir: 8 `capture` solapados → 7 líneas | T-11 | `_cerrojo` (`<log>.lock`, `fcntl`/`msvcrt` no bloqueante ≤ 3 s) alrededor de append+rotación; purga de `.lock` | `test_capture_concurrente_no_pierde_turnos` (24/24) |
+| 8 | Minor | B | `candidatas --min 0/-5` anunciaba «≥ 0/−5» pero aplicaba `max(1,·)` | T-14 | Normalización única en `cmd_candidatas` | `test_candidatas_min_menor_que_uno…` |
+| 9 | Minor | B | `write --draft --ia on` no-op silencioso | T-13 | La rama `--draft` pasa por `escribir_sesion(entrada=…)` | `test_write_draft_tambien_honra_ia` |
+| 10 | Minor | C | Log `0644` (medido `0o666` antes de umask) | T-11 | `_abrir_log` con `os.open(…, 0o600)` | `test_capture_crea_el_log_solo_legible_por_el_usuario` (POSIX) |
+| 11 | Minor | C | Turnos del usuario por argv a `claude -p` (visibles en `ps`) | T-13 | Instrucción en `-p`, turnos por stdin (`input=`); contrato `headless.md` verificado 2026-09-08 | `test_resumen_ia_tres_degradaciones…` (`kw["input"]`) |
+| 12 | Minor | A | `session-journal.sh:22` decía `timeout: 20` y `:31` 45 | T-13 | Línea 22 → 45 | `grep -n "timeout: 45"` |
+| 13 | Minor | A | Cifras de briefs de T-19 no reproducibles tras el recorte | T-19 | Línea re-medida (Windows) con la nota de que la medida incluye la ruta absoluta de `knowledge-find.py` | `task-brief.py` |
+| 14 | Minor | A | La Fase 4 apuntaba a una traza inexistente | Fase 4 | Esta sección | — |
+| 15 | Minor | A | Sin cifra de `pytest -q` completo en la fase | Fase 4 | Pegada en T-20 y aquí | `pytest -q` |
+| 16 | Minor | A | Claves `sesion.captura/resumen` en `doctor.py` sin test; `test_doctor.py` fuera de `Archivos` de T-13 | T-13 | Test nuevo + pista de `sesion` con las claves + `Archivos` | `test_dev_json_sesion_captura_y_resumen_son_vocabulario_conocido` |
+
+**Verificado OK por las lentes (sin cambios):** `session_id` hostil neutralizado dentro de `.claude/`; el hook nunca emite stdout ni sale ≠ 0; `subprocess.run` con lista y sin `shell=True`; `ANTHROPIC_API_KEY` no viaja a logs ni avisos; guardia anti-recursión y timeouts; `_yaml_str` entrecomilla todo lo del usuario; topes/rotación/purga; extracción determinista y `[]` honesto; degradaciones de CA-18; agrupación determinista de candidatas y «nunca `aceptada`»; ADR-010 revisado sin borrar; alcance limpio (11 ficheros del plan). La cadena de resolución `CLAUDE_PROJECT_DIR → find` es el patrón preexistente de `session-context.sh` (no introducido).
+
+**Rebatido con evidencia (no cuenta como gap):** «una IA que devuelve `[]` no puede vaciar las listas deterministas» (A, fuera de lente) — intencional: las deterministas son citas del usuario con marcador; el silencio del modelo no prueba ausencia. «`_purgar_logs` hace un `listdir` por turno» (A) — un `listdir` de `.claude/` por prompt, sin efecto medible.
+
+**Aceptado como diseño, no como deuda:** el journal versiona citas del usuario por defecto (ADR-010 + spec CA-17), con tres controles nuevos (redacción, `.gitignore` sembrado, procedencia) y dos opt-out (`<private>` por turno, `sesion.captura`/`sesion.journal` por proyecto). T-18 debe documentar qué se captura y cómo apagarlo (criterio nuevo).
+
+Tras T-20: `test_journal.py` → **40 passed, 1 skipped** (+ 3 fallos preexistentes de `\` vs `/`) · hooks E2E **7 passed** (+ 2 `sin_python3`) · `test_doctor -k sesion` **2 passed** · CA-08 **2 passed** · `lint_plugin` 0 errores · `evals/check` 0 errores · `ledger-lint` 0 incoherencias · `pytest -q tests agent-kits/shared skills/*/scripts evals` (suite completa, Windows + venv, tras aplicar los parches) → **1310 passed, 38 failed, 1 skipped** en 9 m 16 s (puerta ≥ 1.175 ✓). De los 38: uno es `test_ca08_…` medido a mitad de la edición del ledger (la suite arrancó antes de los recortes de T-19/T-20; tras ellos → **2 passed**); los 37 restantes son las familias preexistentes de Windows ya catalogadas — `\` vs `/` (`test_confluence_scope` ×4, `test_journal` ×3, `test_progress_report` ×1), bit `+x` (`test_doctor`, `test_todos_los_hooks…`, `test_suites_no_pytest[test_lint_plugin]`), `sin_python3` ×5 y `progress_line` ×6 en `test_hooks_shell` más `mark_docs_pending`/`ledger_lint_warn` (reproducidos por la Lente B en un worktree de la base), CRLF en `test_knowledge_find` ×3, git en Windows en `test_release` ×3, rutas con espacios en `test_coverage_gate` ×5 y `WinError 5` en `evals/test_evals` ×2. En CI (Linux) estas familias no aplican. T-19 y T-20 quedan cerca del tope CA-08 (9,8-9,9k medidos aquí): el test del ledger real avisa si crecen.

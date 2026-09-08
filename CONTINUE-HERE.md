@@ -5,103 +5,120 @@ un corte de sesión). Si estás leyendo esto al empezar una sesión: lee este
 fichero ANTES de tocar nada. Bórralo (o vacíalo a "sin trabajo pendiente")
 cuando la rama descrita aquí se publique y no quede nada abierto.
 
-Última actualización: 2026-09-07.
+Última actualización: 2026-09-08.
 
 ## Dónde está el trabajo
 
 - Rama: `feature/pendiente`, creada sobre `master` en `2d48980` (v1.17.1, ya
-  publicada). 24 commits por delante de `origin/master`, **nada empujado
-  todavía** — Jordi no ha visto ni aplicado nada de este contenido.
-- Árbol de trabajo limpio (`git status --porcelain` vacío) en el último punto
-  verificado.
-- El sandbox de Claude **no puede hacer `git push`** (403) ni debe ejecutar
-  operaciones git destructivas sobre la carpeta del repo montada por OneDrive
-  en la máquina de Jordi (el punto de montaje no permite `unlink`; un git
-  interrumpido desde el sandbox deja `.git/index.lock` huérfano). Mecanismo de
-  entrega usado en toda la sesión: construir en un worktree limpio → tar de los
-  ficheros cambiados + `HASHES.txt` → `SendUserFile` → `device_commit_files` a
-  `_to_delete/` en su máquina → `device_bash` descomprime y verifica hashes →
-  correr las puertas (`lint_plugin.py`, `evals/check.py`, `pytest`,
-  `scope-check.py`) en su máquina real → darle a Jordi los comandos exactos de
-  git/release para que los ejecute él.
+  publicada). Nada empujado todavía — Jordi no ha visto ni aplicado nada de
+  este contenido.
+- Sesión del 2026-09-08 (Windows 11, Git Bash, Claude Code en la máquina de
+  Jordi): se trabajó DIRECTAMENTE sobre el repo, con commits locales por tarea.
+  Para que las puertas corran en esta máquina hace falta el venv:
+  `python -m venv .venv` (ya creado, ignorado por git) con
+  `cp .venv/Scripts/python.exe .venv/Scripts/python3.exe` y `pip install pytest`;
+  luego `export PATH="$PWD/.venv/Scripts:$PATH"` antes de cualquier `python3`
+  (el `python3` del sistema es el alias de la Microsoft Store y los hooks
+  callan). Fallos de suite que quedan en Windows son artefactos conocidos
+  (separador `\` en asserts de `relpath`, bit `+x`, `os.symlink` en el helper
+  `sin_python3`, rutas con espacios en `coverage-gate`, `WinError 5` en evals,
+  CRLF en `test_knowledge_find --show`, los 6 `test_progress_line_*`); CI es
+  Linux. Detalle en `CONTINUE-HERE.local.md` (fichero local de Jordi, sin
+  seguimiento).
+- Árbol: limpio salvo 3 ficheros sin seguimiento preexistentes y ajenos a la
+  iniciativa (`.claude/.headroom_wrap_marker.json`, `CONTINUE-HERE.local.md`,
+  `feature-pendiente.bundle`) — `scope-check` los marca «fuera de alcance» por
+  eso; decisión de Jordi si van al `.gitignore`.
 
-## Qué hay dentro de `feature/pendiente` (dos iniciativas, ambas con revisión de dos lentes cerrada)
+## Qué hay dentro de `feature/pendiente` (dos iniciativas)
 
 ### 1. `docs/roadmap/2026-09-04-sin-motor-externo/` — **completado**
 
 Elimina toda referencia a "superpowers"/"Modo A" (delegación a un plugin
-externo) de piezas vivas: `/dev-cycle` (flag `--superpowers`, bloque Modo A
-completo, reglas de entrada/cierre), `README.md`/`README.es.md` (sección
-"Compared with superpowers" retirada sin sustituto), fixture de
-`skill-index`, cifras vivas del CHANGELOG. 5 tareas, revisión de dos lentes
-intento 1: 10 gaps (3 Important, 7 Minor) → todos corregidos. `estado:
-completado` en el frontmatter del ledger.
+externo) de piezas vivas. 5 tareas, revisión de dos lentes intento 1: 10 gaps
+→ todos corregidos. `estado: completado`.
 
-### 2. `docs/roadmap/2026-09-04-memory-retrieval/` — **Fases 1-3 completadas, Fases 4-6 pendientes**
+### 2. `docs/roadmap/2026-09-04-memory-retrieval/` — **Fases 1-4 completadas y revisadas; Fases 5-6 pendientes**
 
-Plan de 18 tareas / 6 fases para reforzar cómo `custom-agents` gestiona la
-memoria técnica y recupera aprendizajes (motivado por el análisis de
-`claude-mem`, ver `docs/roadmap/2026-09-04-ideas-externas/analysis.md` para
-las ideas también extraídas de `WorldFlowAI/everything-claude-code`).
+Plan de 18 tareas / 6 fases (+ T-19 y T-20, cierres de gaps de revisión).
 
-**Hecho (Fases 1-3, T-01..T-10 + T-19):**
-- `agent-kits/shared/knowledge-find.py` (nuevo): búsqueda en 3 capas
-  (consulta → `--related <ID>` por grafo curado → `--show <ID>`), índice
-  SQLite FTS5 reconstruible en `.claude/knowledge-index.sqlite` (gitignored,
-  degrada a escaneo plano si falla, nunca bloquea).
-- `lint_plugin.py`: `lint_knowledge_index` (ERROR) verifica biyección
-  README↔ficheros de `docs/knowledge/`.
-- `task-brief.py`: sección "Memoria técnica del proyecto" enrutada por el
-  campo `- **Tipo**:` de la tarea, con tope propio de caracteres.
-- `hooks/session-context.sh`: inyecta memoria del área de la iniciativa
-  activa al arrancar sesión, con tope propio y dedup por ID.
-- `agent-kits/shared/knowledge-check.md` + `agents/*.md`: tabla explícita de
-  invocación de `knowledge-find.py` por agente (7 agentes, `reviewer`
-  incluido por primera vez).
-- `tests/test_memory_path.py` (nuevo, gate + mutantes) y 2 casos nuevos en
-  `evals/`.
-- `agent-kits/shared/doctor.py`: bloque "Memoria técnica" (`/doctor`).
-- Revisión de dos lentes intento 1: **12 gaps confirmados, los 12 corregidos**
-  en una segunda ronda (9 commits, ledger T-19). Suite final: **1315 tests
-  pasando**, `lint_plugin.py` exit 0, `evals/check.py` 135 casos/0 errores,
-  `ledger-lint` 0 incoherencias, `scope-check --base 7ca3645` exit 0.
+**Hecho (Fases 1-3, T-01..T-10 + T-19, 2026-09-07):** `knowledge-find.py` (3
+capas, índice FTS5 reconstruible), lint de biyección del índice de
+`docs/knowledge/`, memoria técnica en `task-brief.py` y en `session-context.sh`,
+tabla de invocación por agente, `tests/test_memory_path.py`, evals, bloque
+«Memoria técnica» de `/doctor`. Revisión intento 1: 12 gaps → 12 corregidos.
 
-**Pendiente (Fases 4-6, T-11..T-18 — NO empezado, solo especificado):**
-- Fase 4 — Captura episódica: hook `UserPromptSubmit` (T-11), `SessionEnd`
-  escribe él mismo `decisiones`/`pendientes` revisando `ADR-010` (T-12),
-  resumen episódico por IA opt-in (T-13), promoción journal→lección vía
-  `/retro` (T-14).
-- Fase 5 — Que la doctrina viaje: separar la doctrina que envía el plugin
-  (especialmente LES-001..009 de estimación) de la memoria vacía-por-defecto
-  del proyecto (T-15); que `evaluator` la use sin engordar su prompt (T-16).
-- Fase 6 — Cerrar el bucle: `/retro` se dispara solo al cerrar una iniciativa
-  (T-17); doc ES/EN + entradas propias de `docs/knowledge/` de esta iniciativa
-  (T-18) — incluye deuda de doc ya identificada: `CONVENTIONS.md` regla 9,
-  `/setup`, `commands/doctor.md`, `docs/README.md`, `docs/FLOWS.md`,
-  `agent-kits/shared/README.md`.
+**Hecho (Fase 4, T-11..T-14 + T-20, 2026-09-08):**
+- T-11 `hooks/user-prompt-capture.sh` → `journal.py capture`: hook
+  `UserPromptSubmit` (contrato oficial verificado y fechado 2026-09-08 en el
+  docstring) que acumula el turno del usuario en
+  `.claude/session-prompts-<session_id>.log` (no versionado; `capture` siembra
+  `.claude/.gitignore` para proyectos consumidores), opt-out `<private>` por
+  turno y `dev.json` `sesion.journal|captura: false` por proyecto; secretos
+  evidentes redactados antes de escribir; log `0600` + cerrojo `<log>.lock`;
+  topes por turno/fichero y purga a 30 días; nunca stdout, siempre exit 0.
+- T-12 `journal.py draft/write`: `decisiones`/`pendientes` extraídas SIN modelo
+  del log (marcadores léxicos ES/EN; sin marcadores → `[]` honesto),
+  `resumen` = primer turno capturado, campos `resumen_por`/`turnos`;
+  `ADR-010` revisado con fecha (restricción conservada, conclusión revisada:
+  «el hook no devuelve, escribe»); escritura atómica de la entrada.
+- T-13 resumen por IA opt-in (`dev.json` `sesion.resumen: true`):
+  `claude -p --bare --output-format json`, turnos por stdin como datos,
+  timeout 25 s (`hooks.json` SessionEnd `timeout: 45`), entrada determinista
+  primero y re-escritura de la misma; sin CLI/clave/timeout/JSON → determinista
+  con el motivo en `avisos`. `--enrich` manda sobre la IA.
+- T-14 `journal.py candidatas`: patrones de `decisiones`/`pendientes` repetidos
+  en ≥ 2 sesiones (Jaccard ≥ 0,6 sobre raíces de `knowledge-find.py`) →
+  candidatas `propuesta` con evidencia; `/retro` paso 2-quater las muestra;
+  nunca nacen `aceptada`.
+- T-20 cierra los 16 gaps de la revisión de dos lentes intento 1 (A+B+C; 1
+  Critical: `<private>` resucitaba vía transcripción; 6 Important) — 15
+  corregidos, 1 (deuda de doc) delegado a **T-18 con `Archivos` y criterio
+  ampliados**. Traza: sección «Revisión de dos lentes — intento 1 (Fase 4)» al
+  final del ledger.
+- Puertas al cierre: `lint_plugin` 0 errores · `evals/check` 0 errores ·
+  `ledger-lint` 0 incoherencias · `test_journal.py` 40 passed + 1 skipped
+  (POSIX) · CA-08 (`task-brief` ≤ 10.000) verde tras recortar T-19.
+
+**Pendiente (Fases 5-6, T-15..T-18 — NO empezado, solo especificado):**
+- Fase 5 — Que la doctrina viaje: doctrina del plugin como assets separada de
+  la memoria del proyecto (T-15); `evaluator` la usa sin engordar su prompt
+  (T-16).
+- Fase 6 — Cerrar el bucle: `/retro` se dispara al cerrar una iniciativa
+  (T-17); doc ES/EN + entradas de `docs/knowledge/` de esta iniciativa (T-18).
+  **T-18 arrastra la deuda de doc de F3 y F4** (ya listada en su criterio
+  nuevo): `docs/observability.md` (ES/EN) dice «Sin resumen por IA» y
+  `timeout: 20`; `docs/FLOWS.md` (ES/EN) sin nodo `UserPromptSubmit`;
+  `docs/CONVENTIONS.md` regla 9 sin `sesion.captura`/`sesion.resumen`;
+  `CLAUDE.md` tabla de hooks; `commands/doctor.md` + `docs/README.md` (seis
+  bloques del doctor, con su eval); `docs/INSTALL.md`/`commands/setup.md` (qué
+  se captura y cómo apagarlo); `agent-kits/shared/README.md` (fila de
+  `journal.py`). Verificación: `grep -rn "Sin resumen por IA\|timeout: 20" docs/ CLAUDE.md` → 0.
 - Cada fase que se implemente necesita su propia revisión de dos lentes
-  (Lente A/B, bucle acotado a 3 intentos) antes de darse por cerrada, igual
-  que se hizo con Fases 1-3 y con `sin-motor-externo`.
+  (bucle acotado a 3) antes de darse por cerrada, como F1-3 y F4.
+- Hallazgo de la revisión de F4 para tener en cuenta: la medida CA-08 del
+  brief incluye la ruta ABSOLUTA de `knowledge-find.py`, así que varía con la
+  máquina (~250 caracteres más en Windows con OneDrive). T-05/T-06/T-19 están
+  cerca del tope; si un ledger crece, `test_ca08_*` avisa.
 
-## Otros hilos de la sesión (ya resueltos, sin nada pendiente)
+## Otros hilos (ya resueltos, sin nada pendiente)
 
 - v1.16.0, v1.17.0, v1.17.1 publicadas. `v1.17.1` fue un hotfix de CI
-  (`tests/test_release.py` no fijaba la identidad git DENTRO del repo del
-  fixture) construido sobre la `master` publicada, no sobre esta rama, a
-  propósito, para no arrastrar contenido sin publicar.
+  construido sobre la `master` publicada, no sobre esta rama.
 - Los PRs de `daycry/custom-agents` con error en Actions eran solo 2 fallos
-  antiguos de agosto — nada roto en ese momento. **Re-confirmar cuando se
-  empuje `feature/pendiente`**, porque generará runs de CI nuevos.
+  antiguos de agosto. **Re-confirmar cuando se empuje `feature/pendiente`**
+  (generará runs de CI nuevos).
 
 ## Cómo seguir desde aquí
 
-1. Si quieres continuar la implementación: siguiente paso es lanzar Fase 4 y
-   Fase 5 de `memory-retrieval` (pueden ir en paralelo; Fase 6 va después
-   porque documenta todo lo anterior), luego su revisión de dos lentes.
-2. Si quieres entregar ya lo que hay: empaquetar `feature/pendiente`
-   (sin-motor-externo + memory-retrieval Fases 1-3) con el mecanismo de
-   tarball+hashes+`device_commit_files` de siempre, verificar en la máquina de
-   Jordi, y darle los comandos de push/release. Nada de esto se ha entregado
-   todavía.
+1. Si quieres continuar la implementación: Fase 5 y Fase 6 de
+   `memory-retrieval` (pueden ir en paralelo; F6 va después porque documenta
+   todo lo anterior), cada una con su revisión de dos lentes.
+2. Si quieres entregar ya lo que hay: `feature/pendiente` tiene
+   sin-motor-externo + memory-retrieval F1-4 con sus revisiones cerradas.
+   Puertas locales con el venv en PATH; `release.py --dry-run` antes de
+   publicar. Nada empujado todavía.
 3. Recordatorio permanente: el repo es público, nunca debe llevar datos
-   corporativos de Atlassian ni nada específico de un cliente.
+   corporativos de Atlassian ni nada específico de un cliente. Los tests de
+   la Fase 4 usan secretos INVENTADOS (`ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123`,
+   `AKIAIOSFODNN7EXAMPLE1`) para probar la redacción; no son reales.
