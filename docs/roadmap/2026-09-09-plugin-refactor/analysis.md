@@ -49,6 +49,15 @@ refactor se acepta comparando contra él con `--baseline`, no por impresión.
 | **Deliberada y guardada por test** | `celdas_md` y compañía en `doctor.py:647` ↔ `lint_plugin.py:549` ↔ `knowledge-find.py:247` (**93 + 17 + 17**); `sin_vallas` en `ledger-lint.py:103/142` ↔ `changelog-sync.py:123/310` (**21 + 19**, «réplica del criterio de `ledger-lint.py`»); el `import` de `confluence-scope.glob_to_regex` con copia local de respaldo en `scope-check.py:51` ↔ `review-lens-select.py:104` (**25 + 13**) | El comentario en el propio código lo dice: «los scripts son standalone: el paquete portable los copia sueltos, sin import común; `tests/test_knowledge_index.py` compara las copias byte a byte». Cada skill viaja entera a Codex/OpenCode sin traducir; un `import` cruzado entre `agent-kits/shared/` y `skills/*/scripts/` rompe en cuanto una pieza se instala sola | **Solo con una decisión de arquitectura** (§5). Hoy la duplicación ES el mecanismo de portabilidad, y los tests que la comparan son su guardarraíl |
 | **Accidental** | `evals/check.py:110` ↔ `lint_plugin.py:906` (15, la lectura de piezas); `task-brief.py:581` ↔ `jira-flow.py:249` (13); `export-skills.py:36` ↔ `jira-flow.py:83` (13); `code-health.py:27` ↔ `deps-inventory.py:29` (13); y el bloque de **reconfiguración de `stdout`/`stderr` a UTF-8** (`GOT-005`) repetido en `doctor.py:56` ↔ `guardrail-check.py:49` ↔ `build_dashboard.py:14` ↔ `evals/run.py:55` (12 cada uno) | Código que nació igual en sitios distintos sin que nadie decidiera duplicarlo | **Sí**, pero con la MISMA restricción de portabilidad: la solución no es un módulo común importado (rompe el standalone), sino decidir explícitamente si estas copias se **declaran** (y se guardan con el mismo test byte a byte que las deliberadas) o se **eliminan** porque una de las dos piezas no lo necesita |
 
+**Matiz verificado el 2026-09-10 (corrige la fila «guardada por test»):** de las tres copias deliberadas,
+**solo `celdas_md` y compañía tienen guardarraíl** (`tests/test_knowledge_index.py` compara las tres copias
+byte a byte). `sin_vallas` (`ledger-lint.py` ↔ `changelog-sync.py`) está **declarada en un comentario pero
+sin ningún test que compare las copias** (`grep -rn sin_vallas tests/ agent-kits/shared/test_*.py
+skills/changelog-sync/scripts/test_*.py` → nada que las relacione), y el `import` de
+`confluence-scope.glob_to_regex` con respaldo local tampoco. Son copias *deliberadas y declaradas*, no
+*guardadas*: si `ledger-lint.py` corrige su criterio de vallas, `changelog-sync.py` diverge en silencio.
+Es exactamente el caso que la opción O1 del §5 («copias declaradas» con UN test para todas) resuelve.
+
 **Conclusión del §2:** el 7,6 % no baja significativamente sin resolver la decisión del §5. Perseguir el
 porcentaje antes de decidir es trabajo perdido o, peor, una regresión de portabilidad disfrazada de mejora.
 
