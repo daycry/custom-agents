@@ -13,7 +13,7 @@ creado: 2026-09-09
 actualizado: 2026-09-09
 evaluacion: evaluation.md
 design: design.md
-plan: pendiente
+plan: improvement-plan.md
 relacionado: docs/roadmap/2026-09-04-ideas-externas/analysis.md (absorbe sus ideas 2, 3 y 4)
 generacion:            # PASADA 2 de descubrimiento — ventana propia de esta reescritura
   inicio: 2026-09-09T08:38:50Z
@@ -34,7 +34,7 @@ generacion:            # PASADA 2 de descubrimiento — ventana propia de esta r
 > diferidas). Lleva tabla de deltas frente a la pasada 1 (45,0 h · 2.264 €): el recorte de F3
 > **encarece** la iniciativa un 25 %. Veredicto: **go por tramos**, F2 con cuatro condiciones.
 > **Diseño (opt-in, alcance `C-10`):** [`design.md`](design.md) — `aprobado` (2026-09-09): de las tres opciones para la forma de `.claude/pieces.json` el usuario eligió **O1** (la pieza es la raíz, sus destinos anidados, `runtime` como dato); decisión y descartadas en [`ADR-014`](../../knowledge/adr/ADR-014-registro-de-piezas-agregado-con-la-pieza-como-raiz.md) (`propuesta`)
-> **Plan de implementación:** pendiente (handoff a `planner` tras el go/no-go)
+> **Plan de implementación:** [`improvement-plan.md`](improvement-plan.md) + [`tasks.md`](tasks.md) (ledger canónico) — `borrador` (2026-09-09): **22 tareas en 3 fases** sobre F1+F2, con el presupuesto de la evaluación heredado por característica (47,0 h base · 56,4 h con margen · 2.837 €) y las cuatro condiciones del go convertidas en aristas del grafo de dependencias
 > **Análisis de origen (única fuente del alcance de esta spec):** [`analysis.md`](analysis.md)
 > **Iniciativa absorbida:** [`2026-09-04-ideas-externas/analysis.md`](../2026-09-04-ideas-externas/analysis.md) — ideas 2, 3 y 4
 

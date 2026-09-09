@@ -6,7 +6,7 @@ creado: 2026-09-09
 actualizado: 2026-09-09
 spec: spec.md
 evaluacion: evaluation.md
-plan: pendiente
+plan: improvement-plan.md
 adr: docs/knowledge/adr/ADR-014-registro-de-piezas-agregado-con-la-pieza-como-raiz.md   # `propuesta`; pasa a `aceptada` con la revisión de dos lentes de C-10
 opcion_elegida: O1      # elegida por el usuario en la puerta de diseño (2026-09-09)
 validada_por_usuario: 2026-09-09

@@ -24,7 +24,7 @@ generacion:            # PASADA 2 — RE-PRESUPUESTO. Ventana propia, sin solape
 | **Prioridad global** | Alta |
 | **Solicitante** | usuario (petición del 2026-09-09; dos pasadas de descubrimiento conversacional) |
 | **Spec** | [`spec.md`](spec.md) |
-| **Plan** | pendiente (handoff a `planner`) |
+| **Plan** | [`improvement-plan.md`](improvement-plan.md) + [`tasks.md`](tasks.md) — `borrador`, 22 tareas en 3 fases; horas y costes por característica **heredados** de esta evaluación |
 | **Características evaluadas** | 9 (+ 2 diferidas, presupuestadas y retiradas del total) |
 | **Pasada** | **2 — re-presupuesto**; sustituye a la pasada 1 (mismo artefacto, no una evaluación nueva) |
 
