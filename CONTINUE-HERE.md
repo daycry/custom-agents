@@ -7,21 +7,21 @@ cuando la rama descrita aquí se publique y no quede nada abierto.
 
 Última actualización: 2026-09-09 (tarde).
 
-## Trabajo EN CURSO — tres iniciativas abiertas el 2026-09-09 (rama `feature/project-specialization`)
+## Trabajo EN CURSO — tres iniciativas abiertas el 2026-09-09 (F1 INTEGRADA en `master`; rama actual `feature/plugin-refactor`)
 
-Todo en la rama `feature/project-specialization`, **sin push ni merge**. Quince commits: ciclo PM ·
+**F1 de project-specialization está en `master`** (merge `--no-ff` `919cca4`, decisión del usuario; **sin push**). La rama `feature/project-specialization` se borró tras integrarla; el trabajo sigue en `feature/plugin-refactor`, nacida de `master`. Los quince commits de la rama integrada: ciclo PM ·
 diseño + `ADR-014` · plan + `ADR-015` · cifras re-medidas · `GOT-009` + análisis de `brief-budget` ·
 análisis de `plugin-refactor` con línea base. **F1 está COMITEADA por tarea**: `a7f6bbe` T-02 · `204f333` T-03 · `74901c6` T-01 (+ ledger + los 4
 ficheros reales de `interop/`). Árbol limpio salvo el journal del hook y el ruido previo.
 
-### 1 · `docs/roadmap/2026-09-09-project-specialization/` — el tercer bucle (EN EJECUCIÓN, F1)
+### 1 · `docs/roadmap/2026-09-09-project-specialization/` — el tercer bucle (F1 INTEGRADA; F2/F3 pendientes)
 
 | Artefacto | Estado |
 |---|---|
 | `spec.md` **aprobada** · `evaluation.md` **completado** (56,4 h · 2.837 €) · `design.md` **aprobado** (`O1`, `ADR-014`) · `improvement-plan.md` + `tasks.md` **en-progreso** | 3 fases, 22 tareas; solo **F1 (T-01…T-03)** tiene puerta abierta («go por tramos») |
 | Revisión de dos lentes | intento 1: 6 Important + 6 Minor · intento 2: 1 Critical + 4 Important + 3 Minor · intento 3: todo cerrado salvo **B-3** (tope de la persona), que no convergía porque su causa no está en F1 |
 | Decisión del usuario tras el 3.er intento | **opción A** (suelo `PERSONA_SUELO_CHARS = 1300` + aviso en runtime con causa por sección) — implementada y verificada: 0 personas en muñón, 12/22 briefs sobre el tope **con aviso** |
-| Cierre de F1 | pasada acotada de la Lente B sobre A: 3 Important + 1 Minor (suelo sobre contenido sin ruta absoluta, aviso con atribución honesta, secciones medidas, tests con dientes: mutante `SUELO=400` → 2 failed) — corregidos y verificados por el orquestador. Suite completa 39 vs 52 en HEAD sin T-01: cero regresiones. **Pendiente: decisión de merge del usuario** (preguntar, no mergear por defecto) |
+| Cierre de F1 | pasada acotada de la Lente B sobre A: 3 Important + 1 Minor (suelo sobre contenido sin ruta absoluta, aviso con atribución honesta, secciones medidas, tests con dientes: mutante `SUELO=400` → 2 failed) — corregidos y verificados por el orquestador. Suite completa 39 vs 52 en HEAD sin T-01: cero regresiones. **Mergeada en `master` `919cca4`** con nota manual en los dos CHANGELOG (`[Unreleased]`/`[Sin publicar]`), porque el ledger sigue `en-progreso` y `changelog-sync` no la derivará hasta el cierre. Plan/tasks `en-progreso`, spec `aprobada`: F2 (16 tareas) y F3 esperan su puerta |
 
 Verificado y contrario a supuestos previos: `export-interop.py --root` = raíz del PLUGIN (falla contra un
 `.claude/` de consumidor) → `C-11` es un modo `--project` (`ADR-015`). El único test rojo
@@ -37,7 +37,7 @@ con 5 opciones; `spec.md` **aprobada** y `evaluation.md` **completado** (26,4 h 
 
 ### 3 · `docs/roadmap/2026-09-09-plugin-refactor/` — refactor de TODO el plugin (ANÁLISIS HECHO)
 
-Petición del usuario. Línea base `code-health` en la carpeta (`code-health-baseline.json`): 36 ficheros ·
+Petición del usuario; **`evaluator` en vuelo** (spec + evaluación, con `architect` recomendado para la decisión del §5). Línea base `code-health` en la carpeta (`code-health-baseline.json`): 36 ficheros ·
 14.259 líneas · 7,6 % duplicado · **105 funciones > 30 líneas** · 8 TODO (6 falsos positivos del detector).
 Hallazgo que ordena todo: la duplicación grande es **deliberada** (scripts standalone que viajan sueltos,
 copias byte a byte guardadas por `test_knowledge_index`) o **generada** (`interop/`); la deuda real son
