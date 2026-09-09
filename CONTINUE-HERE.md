@@ -5,56 +5,64 @@ un corte de sesión). Si estás leyendo esto al empezar una sesión: lee este
 fichero ANTES de tocar nada. Bórralo (o vacíalo a "sin trabajo pendiente")
 cuando la rama descrita aquí se publique y no quede nada abierto.
 
-Última actualización: 2026-09-09.
+Última actualización: 2026-09-09 (tarde).
 
-## Trabajo EN CURSO — iniciativa `project-specialization` (ciclo PM cerrado, sin comitear)
+## Trabajo EN CURSO — tres iniciativas abiertas el 2026-09-09 (rama `feature/project-specialization`)
 
-`docs/roadmap/2026-09-09-project-specialization/` — «el tercer bucle»: la capa de
-especialización por proyecto (personas, skills y tools **de proyecto** derivadas de la
-memoria del propio proyecto, comando `/specialize`, registro `.claude/pieces.json`
-auditado por `/doctor`). El ciclo PM está **cerrado**.
+Todo en la rama `feature/project-specialization`, **sin push ni merge**. Ocho commits: ciclo PM ·
+diseño + `ADR-014` · plan + `ADR-015` · cifras re-medidas · `GOT-009` + análisis de `brief-budget` ·
+análisis de `plugin-refactor` con línea base. **El diff de F1 (código + docs) está SIN comitear** en el
+árbol de trabajo: se comitea por tarea (`T-01`/`T-02`/`T-03`) al cerrar la revisión.
+
+### 1 · `docs/roadmap/2026-09-09-project-specialization/` — el tercer bucle (EN EJECUCIÓN, F1)
 
 | Artefacto | Estado |
 |---|---|
-| `analysis.md` | tres bucles · siete estadios · invariante de dirección · escalera de decisión · anti-alcance razonado |
-| `spec.md` | **aprobada** — 9 características (C-01…C-07, C-10, C-11), 35 criterios de aceptación |
-| `evaluation.md` | **completado** — 56,4 h · 2.837 € · 1,90 M tokens · veredicto «go por tramos» |
+| `spec.md` **aprobada** · `evaluation.md` **completado** (56,4 h · 2.837 €) · `design.md` **aprobado** (`O1`, `ADR-014`) · `improvement-plan.md` + `tasks.md` **en-progreso** | 3 fases, 22 tareas; solo **F1 (T-01…T-03)** tiene puerta abierta («go por tramos») |
+| Revisión de dos lentes | intento 1: 6 Important + 6 Minor · intento 2: 1 Critical + 4 Important + 3 Minor · intento 3: todo cerrado salvo **B-3** (tope de la persona), que no convergía porque su causa no está en F1 |
+| Decisión del usuario tras el 3.er intento | **opción A** (suelo `PERSONA_SUELO_CHARS = 1300` + aviso en runtime con causa por sección) — implementada y verificada: 0 personas en muñón, 12/22 briefs sobre el tope **con aviso** |
+| En vuelo al escribir esto | Lente B acotada al diff de A · después: `qa` → commits por tarea → decisión de merge (preguntar, no mergear por defecto) |
 
-Puertas en verde (medido 2026-09-09, con `export PATH="$PWD/.venv/Scripts:$PATH"`):
-`lint_plugin.py` ✅ 0 errores (los 3 avisos de siempre) · `pytest
-tests/test_roadmap_index.py tests/test_dashboard.py tests/test_cifras_medidas.py`
-✅ `286 passed`.
+Verificado y contrario a supuestos previos: `export-interop.py --root` = raíz del PLUGIN (falla contra un
+`.claude/` de consumidor) → `C-11` es un modo `--project` (`ADR-015`). El único test rojo
+(`test_ca08…memory_retrieval`) **falla igual en `HEAD` limpio** en esta máquina (`GOT-008`, ruta OneDrive).
 
-**Qué falta:**
+### 2 · `docs/roadmap/2026-09-09-brief-budget/` — el presupuesto del brief está roto (PM EN CURSO)
 
-1. **Diseño con `architect`** — el esquema de `pieces.json` (tres estados por hash,
-   rutas por runtime, modo de adopción) es difícil de revertir en cuanto haya
-   proyectos con registro escrito, y `C-05` está en complejidad **Muy alta**.
-2. **`/dev-cycle`** sobre la carpeta → `planner`. Orden que fija la evaluación:
-   `C-01 → C-02 ‖ C-10 → C-03 → C-04 → C-05 → C-07 → C-06 → C-11`.
-3. **Las cuatro condiciones de F2**: `C-10` antes de `C-05` y `C-06` · `C-04` y `C-07`
-   entran con `C-05` · las líneas de proceso (doc, evals, interop, changelog, retro)
-   no se recortan · decidir el **modo proyecto** de `export-interop.py` antes de
-   abrir `C-11`.
+Solo una de las siete secciones del brief tiene tope; `## Diseño` entra entero en las 22 tareas (3.510, el
+35 % de `BRIEF_TOPE_CHARS = 10000`), los gaps (4.396 en T-01) y la verificación (2.285) no tienen tope.
+`project-specialization` es la ÚNICA iniciativa con `design.md`, y el test del CA-08 recorre solo
+`memory-retrieval`, sin diseño: nunca lo vio. Documentado en **`GOT-009`** (`propuesta`). `analysis.md`
+con 5 opciones; **`evaluator` en vuelo** (spec + evaluación). Después: puerta go/no-go.
 
-**Dos cosas verificadas que contradicen supuestos previos** (mandan estas):
+### 3 · `docs/roadmap/2026-09-09-plugin-refactor/` — refactor de TODO el plugin (ANÁLISIS HECHO)
 
-- `export-interop.py --root` significa «la raíz del **plugin**», no «cualquier árbol».
-  Contra un `.claude/` de consumidor falla pidiendo `.claude-plugin/plugin.json`, y
-  escribe en `interop/` + `.codex-plugin/`, no en `.codex/`/`.opencode/`. Por eso
-  `C-11` es un **modo proyecto** del traductor, no una fila de documentación.
-- El requisito es **multi-runtime desde el diseño** (Codex, OpenCode y próximas
-  integraciones), no solo Claude Code. Regla: **la pieza no sabe de runtimes** —
-  escribe canónico y delega la traducción. Añadir un runtime = una fila en la tabla
-  `PROVIDERS` de `install/providers.mjs` más su traductor, nunca un cambio en la pieza.
-  Portabilidad por forma: persona y tool son neutrales (las inyecta Python nuestro por
-  Bash), la skill viaja sin traducir pero con `description` ≤ 1.024 caracteres, y el
-  agente exige traducción real.
+Petición del usuario. Línea base `code-health` en la carpeta (`code-health-baseline.json`): 36 ficheros ·
+14.259 líneas · 7,6 % duplicado · **105 funciones > 30 líneas** · 8 TODO (6 falsos positivos del detector).
+Hallazgo que ordena todo: la duplicación grande es **deliberada** (scripts standalone que viajan sueltos,
+copias byte a byte guardadas por `test_knowledge_index`) o **generada** (`interop/`); la deuda real son
+las funciones largas en hotspots (`task-brief.py` `main()` 155 líneas, `knowledge-find`, `doctor`,
+`lint_plugin`). **Decisión previa para `architect`**: copias declaradas vs módulo vendorizado (el import
+común se descarta: rompe el standalone y el requisito multi-runtime). Pendiente: `/pm-cycle`.
 
-**Diferido a propósito, no es deuda oculta:** `C-08` (deriva semántica) y `C-09` (campo
-«Cuándo aplica» en la plantilla de `knowledge-write.md`), porque sin `C-08` ningún
-código leería ese campo — y un campo que nadie consume es la pieza muerta que esta
-iniciativa nació para evitar.
+### Orden recomendado (decisión del usuario pendiente)
+
+cerrar F1 → **refactor** (partir `main()` de `task-brief.py`) → **brief-budget** (presupuesto por secciones
+sobre código limpio; al revés se refactoriza dos veces) → F2 de `project-specialization`.
+
+### Lo aprendido hoy que aún no es doctrina (candidatas a lección, anotadas en el ledger de 1)
+
+- `review-lens-select.py` no ve materia de seguridad en abrir un canal de texto controlado por el
+  consumidor hacia el prompt de un subagente (`lente_c: false` en los tres intentos; la Lente B encontró la
+  suplantación las tres veces).
+- Cambiar una pieza no propaga a quien la documenta y el ciclo no lo comprueba (pasó dos veces DENTRO de
+  la misma iniciativa: gaps 4, 13 y 14).
+- `GOT-007` apareció **tres veces** en un día (dos del orquestador, una del implementer): toda cifra o
+  evidencia se re-verifica tras el ÚLTIMO cambio, después del `git add`.
+- Ruido del árbol: `.claude/.confluence-pending`, `.claude/.gitignore`, `.claude/.headroom_wrap_marker.json`,
+  `CONTINUE-HERE.local.md`, `feature-pendiente.bundle` ensucian `scope-check` en CADA ciclo — borrar o ignorar,
+  decisión del usuario.
+
 
 ## Sin trabajo en curso — lo ya cerrado
 
