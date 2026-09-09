@@ -33,7 +33,7 @@ Solo una de las siete secciones del brief tiene tope; `## Diseño` entra entero 
 35 % de `BRIEF_TOPE_CHARS = 10000`), los gaps (4.396 en T-01) y la verificación (2.285) no tienen tope.
 `project-specialization` es la ÚNICA iniciativa con `design.md`, y el test del CA-08 recorre solo
 `memory-retrieval`, sin diseño: nunca lo vio. Documentado en **`GOT-009`** (`propuesta`). `analysis.md`
-con 5 opciones; **`evaluator` en vuelo** (spec + evaluación). Después: puerta go/no-go.
+con 5 opciones; `spec.md` **aprobada** y `evaluation.md` **completado** (26,4 h · ~1.340 €, go condicionado). **Go del usuario** el 2026-09-09; arranca DESPUÉS del refactor.
 
 ### 3 · `docs/roadmap/2026-09-09-plugin-refactor/` — refactor de TODO el plugin (ANÁLISIS HECHO)
 
@@ -45,7 +45,7 @@ las funciones largas en hotspots (`task-brief.py` `main()` 155 líneas, `knowled
 `lint_plugin`). **Decisión previa para `architect`**: copias declaradas vs módulo vendorizado (el import
 común se descarta: rompe el standalone y el requisito multi-runtime). Pendiente: `/pm-cycle`.
 
-### Orden recomendado (decisión del usuario pendiente)
+### Orden DECIDIDO por el usuario (2026-09-09): cerrar F1 → refactor → brief-budget
 
 cerrar F1 → **refactor** (partir `main()` de `task-brief.py`) → **brief-budget** (presupuesto por secciones
 sobre código limpio; al revés se refactoriza dos veces) → F2 de `project-specialization`.
