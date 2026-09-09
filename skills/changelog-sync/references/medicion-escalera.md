@@ -263,9 +263,9 @@ que hay que saber antes de fiarse del número:
 - **La cola del ledger contaba como parte de la última tarea.** El split solo partía en `### T-XX`
   y `### Fase`, así que `## Notas de cierre`, `## Resumen de progreso` o un apéndice quedaban
   dentro del bloque de la ÚLTIMA tarea; un `- **Changelog**:` citado ahí como ejemplo se publicaba
-  como su resumen. Medido: **23 de 31** ledgers del repo tienen cola tras su última `### T-XX` (de
+  como su resumen. Medido: **24 de 32** ledgers del repo tienen cola tras su última `### T-XX` (de
   4 a 148 líneas) y **15 de los 17 cerrados** tenían la última tarea
-  expuesta.<!--m:ledgers_con_cola=23,ledgers_totales=31,cerrados_con_cola=15,ledgers_cerrados=17-->
+  expuesta.<!--m:ledgers_con_cola=24,ledgers_totales=32,cerrados_con_cola=15,ledgers_cerrados=17-->
   Ahora el bloque cierra en cualquier `^## ` **fuera de una valla de código**, el mismo criterio que
   `ledger-lint.py`. (La primera versión de este documento escribió esa exposición a mano y no
   reproducía; hoy la cifra la imprime `--medicion` y el marcador de la línea anterior la vigila.)

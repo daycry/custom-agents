@@ -15,7 +15,7 @@ Por cada plan crea una carpeta `docs/roadmap/<YYYY-MM-DD>-<slug>/` con dos fiche
 | Fichero | Contenido |
 |---------|-----------|
 | `improvement-plan.md` | Cuadro de mando, estimación por fase, presupuesto económico, previsión de tokens, resumen ejecutivo, objetivos, datos necesarios, análisis de impacto, cambios arquitectónicos, archivos, dependencias, criterios de aceptación, riesgos y mitigaciones, métricas de éxito, changelog. |
-| `tasks.md` | Resumen de progreso + fases, con cada tarea estructurada: descripción, estado, tiempo, previsión de tokens/coste, dependencias, tipo (opcional: dominio `frontend/backend/db/devops/test/docs` — activa la persona del despacho por subagentes), archivos, criterios de aceptación (checkboxes) y subtareas. |
+| `tasks.md` | Resumen de progreso + fases, con cada tarea estructurada: descripción, estado, tiempo, previsión de tokens/coste, dependencias, tipo (opcional y **libre**, sin lista cerrada — p. ej. `frontend/backend/db/devops/test/docs` — activa la persona del despacho por subagentes), archivos, criterios de aceptación (checkboxes) y subtareas. |
 
 Las plantillas base viven en `agent-kits/planner/templates/` y son el formato canónico: el agente las copia y rellena, no improvisa otro formato.
 

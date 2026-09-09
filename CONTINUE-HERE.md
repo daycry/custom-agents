@@ -5,74 +5,87 @@ un corte de sesión). Si estás leyendo esto al empezar una sesión: lee este
 fichero ANTES de tocar nada. Bórralo (o vacíalo a "sin trabajo pendiente")
 cuando la rama descrita aquí se publique y no quede nada abierto.
 
-Última actualización: 2026-09-08.
+Última actualización: 2026-09-09 (tarde).
 
-## Trabajo EN CURSO — interoperabilidad con Codex y OpenCode (sin comitear)
+## Trabajo EN CURSO — tres iniciativas abiertas el 2026-09-09 (rama `feature/project-specialization`)
 
-Todo en el árbol de trabajo de `master`, **sin commit ni rama**: 16 ficheros nuevos
-y 72 modificados. Puertas en verde (medido, 2026-09-08):
+Todo en la rama `feature/project-specialization`, **sin push ni merge**. Quince commits: ciclo PM ·
+diseño + `ADR-014` · plan + `ADR-015` · cifras re-medidas · `GOT-009` + análisis de `brief-budget` ·
+análisis de `plugin-refactor` con línea base. **F1 está COMITEADA por tarea**: `a7f6bbe` T-02 · `204f333` T-03 · `74901c6` T-01 (+ ledger + los 4
+ficheros reales de `interop/`). Árbol limpio salvo el journal del hook y el ruido previo.
 
-| Puerta | Resultado |
+### 1 · `docs/roadmap/2026-09-09-project-specialization/` — el tercer bucle (EN EJECUCIÓN, F1)
+
+| Artefacto | Estado |
 |---|---|
-| `python scripts/lint_plugin.py` | ✅ `9 agentes · 0 errores · 3 avisos` (los 3 de siempre) |
-| `python evals/check.py` | ✅ `38 ficheros · 135 casos · 0 errores` |
-| `python scripts/export-interop.py --check` | ✅ `48 ficheros al día` |
-| `python tests/test_export_interop.py` | ✅ `17 casos · 0 fallos` |
-| `node --test "tests/*.test.mjs"` | ✅ `27/27` (instalador + adaptador de hooks) |
-| `python scripts/release.py --check` | ✅ 5 manifiestos coherentes en 1.18.1 |
-| Suite completa (pytest) | 37 fallos, **todos preexistentes de Windows** — el baseline de `HEAD` limpio da 49; el único «nuevo» (`test_doctor::…memoria_ya_no_pasa_en_silencio`) lo provoca el journal SIN SEGUIMIENTO `docs/knowledge/journal/2026-09-08-sesion.md`, que ya estaba antes (verificado apartándolo: pasa) |
+| `spec.md` **aprobada** · `evaluation.md` **completado** (56,4 h · 2.837 €) · `design.md` **aprobado** (`O1`, `ADR-014`) · `improvement-plan.md` + `tasks.md` **en-progreso** | 3 fases, 22 tareas; solo **F1 (T-01…T-03)** tiene puerta abierta («go por tramos») |
+| Revisión de dos lentes | intento 1: 6 Important + 6 Minor · intento 2: 1 Critical + 4 Important + 3 Minor · intento 3: todo cerrado salvo **B-3** (tope de la persona), que no convergía porque su causa no está en F1 |
+| Decisión del usuario tras el 3.er intento | **opción A** (suelo `PERSONA_SUELO_CHARS = 1300` + aviso en runtime con causa por sección) — implementada y verificada: 0 personas en muñón, 12/22 briefs sobre el tope **con aviso** |
+| Cierre de F1 | pasada acotada de la Lente B sobre A: 3 Important + 1 Minor (suelo sobre contenido sin ruta absoluta, aviso con atribución honesta, secciones medidas, tests con dientes: mutante `SUELO=400` → 2 failed) — corregidos y verificados por el orquestador. Suite completa 39 vs 52 en HEAD sin T-01: cero regresiones. **Pendiente: decisión de merge del usuario** (preguntar, no mergear por defecto) |
 
-**Además (2026-09-08, mismo árbol):** todo el frontmatter `.md` del repo es ya YAML válido
-(187/187; había 64 ficheros que GitHub pintaba como «Error in user YAML»), con `lint_frontmatter_yaml`
-en el linter como puerta (cruzado con PyYAML: mismo veredicto en los 187) y el arreglo de
-`parse_frontmatter`, que no plegaba los bloques `>` y dejaba ciegos sus propios chequeos de
-`description`. Detalle en los dos CHANGELOG.
+Verificado y contrario a supuestos previos: `export-interop.py --root` = raíz del PLUGIN (falla contra un
+`.claude/` de consumidor) → `C-11` es un modo `--project` (`ADR-015`). El único test rojo
+(`test_ca08…memory_retrieval`) **falla igual en `HEAD` limpio** en esta máquina (`GOT-008`, ruta OneDrive).
 
-**Qué se hizo:** `scripts/export-interop.py` traduce las piezas reales a los formatos de
-Codex (plugin nativo + agentes `.toml` + prompts) y OpenCode (agentes/comandos +
-adaptador de hooks en JS), `install/` es el instalador `npx` multi-proveedor, y
-`docs/INTEROP.md` (+ espejo EN) documenta la **tabla de degradación**. El `find` de la
-regla 5 pasó a **seis raíces** (88 ocurrencias en 56 ficheros).
+### 2 · `docs/roadmap/2026-09-09-brief-budget/` — el presupuesto del brief está roto (PM EN CURSO)
 
-**Qué falta (decisión de Jordi, no técnica):**
+Solo una de las siete secciones del brief tiene tope; `## Diseño` entra entero en las 22 tareas (3.510, el
+35 % de `BRIEF_TOPE_CHARS = 10000`), los gaps (4.396 en T-01) y la verificación (2.285) no tienen tope.
+`project-specialization` es la ÚNICA iniciativa con `design.md`, y el test del CA-08 recorre solo
+`memory-retrieval`, sin diseño: nunca lo vio. Documentado en **`GOT-009`** (`propuesta`). `analysis.md`
+con 5 opciones; `spec.md` **aprobada** y `evaluation.md` **completado** (26,4 h · ~1.340 €, go condicionado). **Go del usuario** el 2026-09-09; arranca DESPUÉS del refactor.
 
-1. **Revisar y comitear.** Nada está comiteado. Sugerencia: revisión de dos lentes
-   sobre el diff antes de integrar (es un cambio ancho: toca 56 piezas por el `find`).
-2. **¿Publicar en npm?** El paquete es `@daycry/custom-agents` (719 kB, 260 ficheros,
-   verificado con `npm pack` e instalado desde el tarball). Publicar exige `npm publish
-   --access public` con la cuenta de daycry; **no se ha hecho**.
-3. **Dos huecos documentados a propósito** (no son deuda oculta, están en la tabla):
-   el guardrail por agente del `implementer` no se puede imponer fuera de Claude Code
-   (el agente lo auto-comprueba) y los avisos de progreso no llegan a Codex (solo
-   dispara Pre/PostToolUse para `Bash`).
+### 3 · `docs/roadmap/2026-09-09-plugin-refactor/` — refactor de TODO el plugin (ANÁLISIS HECHO)
 
-## Sin trabajo en curso
+Petición del usuario. Línea base `code-health` en la carpeta (`code-health-baseline.json`): 36 ficheros ·
+14.259 líneas · 7,6 % duplicado · **105 funciones > 30 líneas** · 8 TODO (6 falsos positivos del detector).
+Hallazgo que ordena todo: la duplicación grande es **deliberada** (scripts standalone que viajan sueltos,
+copias byte a byte guardadas por `test_knowledge_index`) o **generada** (`interop/`); la deuda real son
+las funciones largas en hotspots (`task-brief.py` `main()` 155 líneas, `knowledge-find`, `doctor`,
+`lint_plugin`). **Decisión previa para `architect`**: copias declaradas vs módulo vendorizado (el import
+común se descarta: rompe el standalone y el requisito multi-runtime). Pendiente: `/pm-cycle`.
 
-**v1.18.0 publicada** (2026-09-08) y `master` con CI verde en `50932b4`. La rama
-`feature/pendiente` se integró con merge (`--no-ff`) y se borró; no queda ningún
-worktree ni rama abierta. Contenido de la release, ya cerrado del todo:
+### Orden DECIDIDO por el usuario (2026-09-09): cerrar F1 → refactor → brief-budget
 
-- `docs/roadmap/2026-09-04-sin-motor-externo/` — retira "superpowers"/"Modo A".
-- `docs/roadmap/2026-09-04-memory-retrieval/` — memoria técnica recuperable en
-  tres capas (`ADR-013`), captura episódica del turno con `<private>`, doctrina
-  del plugin que viaja (`--doctrina`) y la **retro como puerta de cierre**
-  (`retro-gate.py`, `/dev-cycle` pasos 6→9). 21 tareas, tres revisiones de dos
-  lentes (38 gaps, todos corregidos), retro escrita y fila en `CALIBRATION.md`.
+cerrar F1 → **refactor** (partir `main()` de `task-brief.py`) → **brief-budget** (presupuesto por secciones
+sobre código limpio; al revés se refactoriza dos veces) → F2 de `project-specialization`.
 
-## Dos decisiones abiertas (de Jordi, no bloquean nada)
+### Lo aprendido hoy que aún no es doctrina (candidatas a lección, anotadas en el ledger de 1)
 
-1. **¿`v1.18.1`?** El tag `v1.18.0` apunta a un commit cuya CI estaba **roja**:
-   se arregló en los dos commits siguientes (`d2f93ef`, `50932b4`) y hoy master
-   está verde, pero el árbol del tag no lo está. Si se quiere un tag sobre árbol
-   verde: `python3 scripts/release.py 1.18.1` (no mover un tag publicado).
-2. **¿Ampliar `GOT-007`?** Su lección era «corre la suite después de `git add`»,
-   pero el patrón real que dejó la CI roja es más amplio: **toda cifra medida y
-   todo test nuevo hay que re-verificarlos después del ÚLTIMO cambio**. Ese día
-   se encadenaron tres fallos por lo mismo: recortar el campo `Changelog:` que
-   ERA el bullet más largo sin re-medir (539 → 467, 11 marcas desfasadas), un
-   comparador byte a byte del árbol de trabajo con `core.autocrlf=true` (decía
-   «difiere» con los blobs del índice idénticos) y un `subprocess` sin
-   `encoding=` en el propio arreglo (lo cazó `GOT-005`).
+- `review-lens-select.py` no ve materia de seguridad en abrir un canal de texto controlado por el
+  consumidor hacia el prompt de un subagente (`lente_c: false` en los tres intentos; la Lente B encontró la
+  suplantación las tres veces).
+- Cambiar una pieza no propaga a quien la documenta y el ciclo no lo comprueba (pasó dos veces DENTRO de
+  la misma iniciativa: gaps 4, 13 y 14).
+- `GOT-007` apareció **tres veces** en un día (dos del orquestador, una del implementer): toda cifra o
+  evidencia se re-verifica tras el ÚLTIMO cambio, después del `git add`.
+- Ruido del árbol: `.claude/.confluence-pending`, `.claude/.gitignore`, `.claude/.headroom_wrap_marker.json`,
+  `CONTINUE-HERE.local.md`, `feature-pendiente.bundle` ensucian `scope-check` en CADA ciclo — borrar o ignorar,
+  decisión del usuario.
+
+
+## Sin trabajo en curso — lo ya cerrado
+
+**v1.19.0 publicada** (2026-09-08, `8e9dec7`): interoperabilidad con Codex y OpenCode
++ instalador `npx` multi-proveedor, integrada con merge (`2095111`) y con la CI
+arreglada en `ac1d1ef`. Las dos decisiones que este fichero dejaba abiertas el
+2026-09-08 **están resueltas**: el tag `v1.18.1` existe, y el trabajo de interop ya
+está comiteado y released (este fichero decía «sin commit ni rama»: era lo desfasado).
+
+Antes de eso: `docs/roadmap/2026-09-04-sin-motor-externo/` (retira
+"superpowers"/"Modo A") y `docs/roadmap/2026-09-04-memory-retrieval/` (memoria técnica
+en tres capas — `ADR-013` —, captura episódica del turno con `<private>`, doctrina del
+plugin que viaja con `--doctrina`, y la retro como puerta de cierre con
+`retro-gate.py`).
+
+## Dos decisiones abiertas (no bloquean nada)
+
+1. **¿Publicar en npm?** El paquete es `@daycry/custom-agents`. **No verificado en la
+   sesión del 2026-09-09** (hace falta red): si sigue sin publicar, exige
+   `npm publish --access public` con la cuenta de daycry.
+2. **¿Ampliar `GOT-007`?** Su lección era «corre la suite después de `git add`», pero
+   el patrón real que dejó la CI roja es más amplio: **toda cifra medida y todo test
+   nuevo hay que re-verificarlos después del ÚLTIMO cambio**.
 
 ## Entorno de esta máquina (Windows) — sigue aplicando
 
