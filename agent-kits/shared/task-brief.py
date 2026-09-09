@@ -9,10 +9,12 @@ subagente fresco necesita para implementar UNA tarea `T-XX` — y nada más (bri
 
   1. La TAREA completa de `tasks.md` (descripción, criterios de aceptación, subtareas, notas).
   2. La cabecera de su FASE (contexto inmediato).
-  3. La PERSONA DE DOMINIO (iniciativa subagent-personas): si la tarea lleva
-     `- **Tipo**: frontend|backend|db|devops|test|docs`, se antepone el perfil corto de
-     `personas/<tipo>.md` (mismo kit). Sin etiqueta → subagente genérico; etiqueta sin
-     persona en el catálogo → aviso + genérico (degradación, no bloqueo).
+  3. La PERSONA DE DOMINIO (iniciativa subagent-personas; cascada de tres escalones desde
+     project-specialization T-01): si la tarea lleva `- **Tipo**: <tipo>`, se antepone el perfil
+     corto de `.claude/personas/<tipo>.md` DEL PROYECTO si existe, si no el de
+     `personas/<tipo>.md` (catálogo del plugin, o `--personas-dir`). Los tipos son libres: no hay
+     lista blanca. Sin etiqueta → subagente genérico; etiqueta sin persona en ningún escalón →
+     aviso + genérico (degradación, no bloqueo).
   4. La sección de ARQUITECTURA de `improvement-plan.md` (cómo encaja la pieza).
   5. La CONSTITUCIÓN del proyecto (`docs/CONSTITUTION.md`) si existe.
   6. La VERIFICACIÓN de la tarea (campo `- **Verificación**:` del ledger, plan-and-diet T-02): el
@@ -104,6 +106,40 @@ MEMORIA_TOPE_CHARS = 2400      # ≤ 600 tokens de memoria en el brief (spec CA-
 MEMORIA_LIMIT = 12             # aciertos que se piden; el tope de caracteres es el que manda
 MEMORIA_TIMEOUT = 20           # s: knowledge-find.py es local y determinista; si se cuelga, sin sección
 BRIEF_TOPE_CHARS = 10000       # brief completo ≤ 2.500 tokens (spec CA-08); lo afirma el test sobre el ledger real
+# Persona de dominio (project-specialization T-01, revisión intento 1 gap 2): el fichero de
+# `.claude/personas/<tipo>.md` del proyecto se pega ÍNTEGRO, sin la casilla propia que el diseño
+# nunca fijó (spec.md: «MEMORIA_TOPE_CHARS no se toca: la persona usa su propia casilla» — pero esa
+# casilla no llevaba número). Mismo patrón que la sección de memoria (§11): recorta y lo dice, en
+# vez de desbordar en silencio el tope global del brief (BRIEF_TOPE_CHARS, CA-08).
+# Revisión intento 2, gap B-3: esta constante NO fija el tope por sí sola — es un CAP de sanidad
+# (nunca dejar que una persona sola se coma el brief entero aunque sobre margen). El tope EFECTIVO es
+# `min(PERSONA_TOPE_CHARS, margen que quede de verdad tras montar el resto del brief)`, calculado en
+# main() una vez conocido ese resto: medido sobre el ledger real, 11/22 tareas ya pasan de
+# BRIEF_TOPE_CHARS sin persona (preexistente, `## Diseño` + memoria + tabla de gaps — no se arregla
+# aquí), así que un margen fijo de 4.000 es una promesa falsa para esas tareas (T-06: margen real 430).
+PERSONA_TOPE_CHARS = 4000      # ≤ 1.000 tokens; CAP de sanidad, no el tope real (ver comentario arriba)
+# Revisión intento 3, gap B-3 (opción A, decisión del usuario tras el 3.er intento del bucle acotado):
+# el margen real puede quedar por debajo de lo que ocupa una persona ENTERA del catálogo (T-06: margen
+# real recortó `docs.md` de 1.107 a 55 caracteres — un muñón ilegible). El problema de fondo (11/22
+# tareas ya pasan de BRIEF_TOPE_CHARS SIN persona: `## Diseño` + memoria + tabla de gaps) es de otra
+# iniciativa y no se arregla aquí; lo que sí es alcance de esta corrección es que la persona nunca sea
+# la víctima de ese exceso preexistente. `PERSONA_SUELO_CHARS` es un SUELO garantizado: por debajo de
+# él nunca se recorta el CONTENIDO de una persona, aunque el margen real sea menor o negativo (el
+# brief se pasará de BRIEF_TOPE_CHARS, y el aviso de abajo lo dice con la causa medida, sin culpar a
+# la persona). Medido: las 6 personas del catálogo (`agent-kits/shared/personas/*.md`, tras `.strip()`)
+# — backend.md 1058, frontend.md 1076, docs.md 1107, devops.md 1164, db.md 1162, test.md 1182 (la
+# mayor: `test_persona_suelo_por_encima_del_catalogo` lo comprueba contra el catálogo real, no a
+# ciegas). Suelo fijado justo por encima de la mayor, con margen para crecer sin tocar la constante.
+#
+# Tres reglas para esta sección, no cuatro (revisión intento 3, código muerto detectado: la cuarta,
+# `PERSONA_TOPE_MINIMO_UTIL`, era inalcanzable — los dos puntos de llamada pasan `BRIEF_TOPE_CHARS` o
+# un `tope_cuerpo` que por `max(PERSONA_SUELO_CHARS, …)` nunca baja de 1.300 — y se retira):
+#   1. `PERSONA_TOPE_CHARS` — techo cuando sobra margen de verdad (CAP de sanidad).
+#   2. `PERSONA_SUELO_CHARS` — mínimo de CONTENIDO que se entrega siempre, sin descontar la nota de
+#      recorte (gap B-4: antes el suelo se repartía entre contenido y nota, y una nota con ruta
+#      absoluta larga podía dejar menos contenido útil que una persona más pequeña sin recortar).
+#   3. El margen real entre ambos manda cuando cae dentro de ese rango.
+PERSONA_SUELO_CHARS = 1300     # ≥ la persona más grande del catálogo (1.182); nunca se baja de aquí
 # Ítem de Verificación que es evidencia del rojo de una ejecución anterior (skill `tdd`: `RED: <test> falló
 # con <error> · <fecha>`), no un comando que ejecutar: se omite del brief y se cuenta.
 _ITEM_RED_RE = re.compile(r"^\s*[`*_]*\s*(RED|TDD n/a)\s*:", re.I)
@@ -209,6 +245,83 @@ def _lineas_con_fence(text):
         else:
             out.append((ln, en_fence))
     return out
+
+
+def _estado_estructura_por_linea(text):
+    """[(fence_abierto_tras_esta_línea, comentario_abierto_tras_esta_línea), ...] — tras cada línea,
+    si un bloque de código (```/~~~) o un comentario HTML (<!-- -->) sigue ABIERTO. Lo usa
+    `_recorte_seguro` (gap B-2, revisión intento 2) para no partir ninguna de las dos estructuras al
+    truncar contenido INYECTADO (persona de dominio): antes se cortaba a ciegas por índice de
+    carácter y lo que seguía se lo comía el bloque abierto."""
+    en_fence, en_comentario = False, False
+    estados = []
+    for ln in text.splitlines():
+        if re.match(r"^\s*(```|~~~)", ln):
+            en_fence = not en_fence
+        else:
+            resto = ln
+            while resto:
+                if en_comentario:
+                    idx = resto.find("-->")
+                    if idx == -1:
+                        break
+                    en_comentario = False
+                    resto = resto[idx + 3:]
+                else:
+                    idx = resto.find("<!--")
+                    if idx == -1:
+                        break
+                    en_comentario = True
+                    resto = resto[idx + 4:]
+        estados.append((en_fence, en_comentario))
+    return estados
+
+
+def _recorte_seguro(contenido, tope):
+    """Recorta `contenido` a como mucho `tope` caracteres sin partir un fence de código ni un
+    comentario HTML abiertos (gap B-2): corta por LÍNEAS completas y, si el punto de corte cae
+    dentro de una de las dos estructuras, retrocede hasta la última línea donde ambas están
+    cerradas — «corta antes», nunca «cierra a ciegas» un bloque que sigue abierto. Si tras ese
+    retroceso sobra margen (p.ej. una única línea/párrafo sin saltos, más larga que `tope`), se
+    aprovecha con un corte por CARÁCTER de la línea siguiente, pero solo si esa línea no es ella
+    misma un marcador de fence/comentario y no venimos de una estructura abierta (si lo fuera,
+    un corte a medias podría dejar un `` ` `` o un `<!--` truncado). Devuelve
+    (texto_recortado, se_recortó); `tope <= 0` o sin ningún punto seguro → ("", True)."""
+    if tope <= 0:
+        return "", True
+    if len(contenido) <= tope:
+        return contenido, False
+    lineas = contenido.splitlines(keepends=True)
+    estados = _estado_estructura_por_linea(contenido)
+    acumulado, n = 0, 0
+    for i, ln in enumerate(lineas):
+        if acumulado + len(ln) > tope:
+            break
+        acumulado += len(ln)
+        n = i + 1
+    while n > 0 and (estados[n - 1][0] or estados[n - 1][1]):
+        n -= 1
+    texto = "".join(lineas[:n])
+    if n < len(lineas):
+        siguiente = lineas[n]
+        estado_previo = estados[n - 1] if n > 0 else (False, False)
+        es_marcador = bool(re.match(r"^\s*(```|~~~)", siguiente)) or "<!--" in siguiente or "-->" in siguiente
+        if not es_marcador and not estado_previo[0] and not estado_previo[1]:
+            restante = tope - len(texto)
+            if restante > 0:
+                texto += siguiente[:restante]
+    return texto.rstrip(), True
+
+
+def _neutraliza_encabezados(texto):
+    """Antepone `\\` a cualquier línea que Markdown renderizaría como encabezado (`# ...`) dentro de
+    contenido INYECTADO (persona de dominio): así no puede fingir una sección al mismo nivel que
+    `## Contrato de retorno` u otra del brief (gap B-1, revisión intento 2) — el texto sigue siendo
+    legible, solo deja de ser un heading real."""
+    return "\n".join(
+        ("\\" + ln if re.match(r"^ {0,3}#{1,6}(\s|$)", ln) else ln)
+        for ln in texto.splitlines()
+    )
 
 
 def _seccion_tarea(tasks_text, tid):
@@ -345,19 +458,91 @@ def _chunk_sin_presupuesto(chunk):
     return "\n".join(ln for ln, fenced in _lineas_con_fence(chunk) if fenced or not _CAMPO_NO_BRIEF_RE.match(ln))
 
 
-def _persona(tipo, personas_dir):
-    """Contenido de personas/<tipo>.md, o None con aviso (degradación, no bloqueo)."""
-    p = os.path.join(personas_dir, f"{tipo}.md")
-    if not os.path.isfile(p):
-        print(f"⚠️  tarea con Tipo `{tipo}` pero sin persona en el catálogo "
-              f"({p} no existe) — despacho con subagente genérico.", file=sys.stderr)
-        return None
-    contenido = open(p, encoding="utf-8", errors="replace").read().strip()
-    if not contenido:
-        print(f"⚠️  persona `{tipo}` vacía — despacho con subagente genérico.",
-              file=sys.stderr)
-        return None
-    return contenido
+def _persona_cascada(tipo, personas_dir, carpeta=None):
+    """(contenido, ruta) de la persona `tipo`, resuelto en CASCADA de tres escalones
+    (project-specialization T-01: proyecto → catálogo del plugin → sin persona), o (None, None) con
+    aviso (degradación, no bloqueo):
+
+      1) `.claude/personas/<tipo>.md` del PROYECTO (raíz derivada de `carpeta`, la carpeta de la
+         iniciativa; sin `carpeta` se salta este escalón).
+      2) `personas_dir` — el CATÁLOGO (del plugin por defecto, o el que fije `--personas-dir`).
+      3) sin fichero en ningún escalón (o vacío en ambos): sin sección, aviso por stderr y exit 0.
+
+    No hay lista blanca de tipos: cualquier `<tipo>` con fichero en cualquiera de los dos primeros
+    escalones funciona, sin tocar código. Un `OSError` al leer un candidato (revisión intento 1, gap
+    1 — este repo vive en OneDrive, donde un fichero «solo en la nube» sin red da exactamente ese
+    error) NO aborta el brief: se avisa y se prueba el siguiente escalón, igual que un fichero
+    ausente. NO recorta: eso lo hace `_persona_delimitada` en main(), una vez conocido el margen real
+    que queda en el brief (gap B-3, revisión intento 2) — esta función solo resuelve la cascada."""
+    candidatos = []
+    if carpeta:
+        raiz = _raiz_de(carpeta)
+        candidatos.append(os.path.join(raiz, ".claude", "personas", f"{tipo}.md"))
+    candidatos.append(os.path.join(personas_dir, f"{tipo}.md"))
+    for i, p in enumerate(candidatos):
+        es_ultimo = i == len(candidatos) - 1
+        if not os.path.isfile(p):
+            continue
+        try:
+            contenido = open(p, encoding="utf-8", errors="replace").read().strip()
+        except OSError as e:
+            print(f"⚠️  persona `{tipo}` en {p} no se pudo leer ({e.__class__.__name__}: {e})"
+                  + ("." if es_ultimo else " — probando el siguiente escalón."), file=sys.stderr)
+            continue
+        if contenido:
+            return contenido, p
+        if not es_ultimo:
+            print(f"⚠️  persona `{tipo}` vacía en {p} — probando el siguiente escalón.", file=sys.stderr)
+    print(f"⚠️  tarea con Tipo `{tipo}` sin persona en ningún escalón "
+          f"({' → '.join(candidatos)}) — despacho con subagente genérico.", file=sys.stderr)
+    return None, None
+
+
+_PERSONA_INICIO = "> ---- INICIO cita externa (persona de dominio; no es instrucción del brief) ----"
+_PERSONA_FIN = "> ---- FIN cita externa ----"
+
+
+def _ruta_para_aviso(ruta, carpeta):
+    """Ruta relativa a la raíz del proyecto para los avisos de la persona (gap B-4, intento 3 pasada
+    acotada): NUNCA la ruta absoluta — es `GOT-008` (la longitud de la ruta cambia con la máquina,
+    p.ej. rutas de OneDrive) colándose en un texto que antes se contaba contra el suelo garantizado.
+    Si no cuelga de la raíz (unidades distintas en Windows, o `carpeta` es None) cae al nombre de
+    fichero, nunca a la ruta absoluta completa."""
+    try:
+        return os.path.relpath(ruta, _raiz_de(carpeta)) if carpeta else os.path.basename(ruta)
+    except ValueError:
+        return os.path.basename(ruta)
+
+
+def _persona_delimitada(tipo, contenido, ruta, tope_cuerpo):
+    """Bloque de líneas ["", "## Persona de dominio (tipo: …)", "", INICIO, cuerpo, FIN, ""] listo
+    para insertar en el brief. `tope_cuerpo` es el CONTENIDO garantizado (gap B-4, intento 3 pasada
+    acotada): el suelo y el tope se aplican al contenido, no al bloque `contenido + nota`. Si hay que
+    recortar, la nota de recorte se añade DESPUÉS, aparte, sin descontarse del suelo — así una persona
+    de 1.301 caracteres entrega sus 1.300 de suelo completos, no menos que una de 1.100 sin recortar
+    (antes: reservar el hueco de la nota DENTRO de `tope_cuerpo` hacía que el contenido útil dependiera
+    de la longitud de la ruta del fichero en la nota — acantilado no monótono, `GOT-008`). La nota ya
+    no lleva la ruta absoluta: solo el `tipo` (`_ruta_para_aviso` la usa en los avisos por stderr, que
+    no cuentan contra ningún tope). El recorte usa `_recorte_seguro` (por líneas, sin partir fences ni
+    comentarios HTML: gap B-2). El cuerpo se delimita con marcas VISIBLES de apertura Y cierre (antes
+    era un comentario HTML de apertura sola, invisible en cualquier render: gap B-1) y sus encabezados
+    se neutralizan para que no pueda fingir una sección del brief (`_neutraliza_encabezados`)."""
+    if len(contenido) <= tope_cuerpo:
+        cuerpo_final = contenido
+    else:
+        recortado, _ = _recorte_seguro(contenido, tope_cuerpo)
+        if not recortado:
+            print(f"⚠️  la persona `{tipo}` de {ruta} no cabe en el margen real ({tope_cuerpo} caracteres) "
+                  "sin partir un bloque de código o un comentario HTML — se omite.", file=sys.stderr)
+            return []
+        nota = (f"\n\n… recortado a {len(recortado)} de {len(contenido)} caracteres (margen real del "
+                f"brief, CA-08): resume la persona de tipo `{tipo}` si necesitas que quepa entera.")
+        print(f"⚠️  persona `{tipo}` en {ruta} recortada de {len(contenido)} a {len(recortado)} "
+              "caracteres (margen real del brief, CA-08; corte alineado a línea para no partir un "
+              "bloque de código ni un comentario HTML).", file=sys.stderr)
+        cuerpo_final = recortado + nota
+    cuerpo = _neutraliza_encabezados(cuerpo_final)
+    return ["", f"## Persona de dominio (tipo: {tipo})", "", _PERSONA_INICIO, cuerpo, _PERSONA_FIN, ""]
 
 
 def _design_elegida(carpeta):
@@ -450,6 +635,29 @@ def _gaps_pendientes_de_tarea(tasks_text, tid):
     return {"intento": int(ultimo.group(1)), "filas": filas} if filas else None
 
 
+def _secciones_por_encabezado(texto):
+    """Particiona `texto` en secciones de nivel `## ` (gap B-6, intento 3 pasada acotada): cada
+    sección es su línea de cabecera hasta la siguiente `## ` (excluida) o el final del texto. Es la
+    misma partición que mediría el orquestador desde FUERA de este script (por eso el aviso de
+    `main()` la usa en vez de re-estimar cada sección con el fragmento de origen: `len(diseno[1])`
+    omite la cabecera y el pie que `main()` añade al montar el brief, y una tabla de gaps
+    reconstruida a mano no es el formato real que se imprime)."""
+    lineas = texto.split("\n")
+    idxs = [i for i, ln in enumerate(lineas) if ln.startswith("## ")]
+    secciones = []
+    for j, i in enumerate(idxs):
+        fin = idxs[j + 1] if j + 1 < len(idxs) else len(lineas)
+        secciones.append((lineas[i], "\n".join(lineas[i:fin])))
+    return secciones
+
+
+def _longitud_seccion(secciones, prefijo):
+    """Suma la longitud de las secciones (de `_secciones_por_encabezado`) cuya cabecera empieza por
+    `prefijo` — permite sumar dos cabeceras distintas (p.ej. «## La tarea» + «## Gaps pendientes»
+    para «tarea+gaps», gap B-6) o medir una sola («## Diseño»)."""
+    return sum(len(txt) for cab, txt in secciones if cab.startswith(prefijo))
+
+
 def _seccion_plan(plan_text, titulo_re):
     lineas = _lineas_con_fence(plan_text)
     ini = None
@@ -479,7 +687,10 @@ def main(argv=None):
     ap.add_argument("--sin-lint", action="store_true",
                     help="saltar la validación del ledger (solo para tests)")
     ap.add_argument("--personas-dir", default=None,
-                    help="carpeta del catálogo de personas (default: personas/ junto al script)")
+                    help="carpeta del CATÁLOGO de personas, segundo escalón de la cascada "
+                         "(default: personas/ junto al script). El primer escalón, "
+                         "`.claude/personas/<tipo>.md` del proyecto, no se configura: se deriva "
+                         "siempre de la carpeta de la iniciativa")
     ap.add_argument("--tdd", action="store_true", help="fuerza la sección TDD (como si dev.json tuviera tdd: true)")
     ap.add_argument("--dev-json", default=None, help="ruta explícita de .claude/dev.json (default: derivada de la carpeta)")
     ap.add_argument("--knowledge-find", default=None,
@@ -520,14 +731,19 @@ def main(argv=None):
     if fase:
         out += ["", f"## Contexto de fase", "", f"> {fase.lstrip('# ').strip()}"]
 
-    # persona de dominio (iniciativa subagent-personas): opcional por etiqueta Tipo
+    # persona de dominio (iniciativa subagent-personas): opcional por etiqueta Tipo. NO se inserta
+    # todavía (gap B-3, revisión intento 2): el tope efectivo depende del margen que de verdad quede
+    # tras montar el RESTO del brief, así que se resuelve la cascada ahora y se inserta al final,
+    # en `persona_insert_idx`, una vez conocido ese resto.
     tipo = _tipo_de_tarea(chunk)
+    persona_contenido = persona_ruta = None
+    persona_insert_idx = None
     if tipo:
         personas_dir = args.personas_dir or os.path.join(
             os.path.dirname(os.path.abspath(__file__)), "personas")
-        persona = _persona(tipo, personas_dir)
-        if persona:
-            out += ["", f"## Persona de dominio (tipo: {tipo})", "", persona, ""]
+        persona_contenido, persona_ruta = _persona_cascada(tipo, personas_dir, carpeta=args.carpeta)
+        if persona_contenido:
+            persona_insert_idx = len(out)
 
     # verificación declarada (plan-and-diet T-02): se lee ANTES de emitir la tarea, porque el bloque de la
     # tarea la sustituye por un puntero a la sección (una vez en el brief, no dos)
@@ -612,7 +828,64 @@ def main(argv=None):
         out += ["", TDD_BRIEF]
 
     out += ["", CONTRATO]
-    print("\n".join(out))
+
+    # persona de dominio: se inserta AHORA, con el tope calculado contra el margen que de verdad
+    # queda (gap B-3) — `out` ya tiene TODO el resto del brief, así que su tamaño actual es el
+    # "resto" real, sin adivinar. El overhead del envoltorio (cabecera + delimitadores + los saltos
+    # de línea que añade la propia inserción en la lista) se MIDE con una sonda de un carácter, no se
+    # estima a mano: una fórmula manual desajustada fue justo lo que hizo que el gap B-1 (marcas
+    # visibles más largas que el comentario HTML anterior) tumbase este mismo tope en dos tareas de
+    # `2026-09-04-memory-retrieval` durante esta corrección.
+    if persona_insert_idx is not None:
+        resto_texto = "\n".join(out)
+        resto = len(resto_texto)
+        ruta_aviso = _ruta_para_aviso(persona_ruta, args.carpeta)
+        sonda = _persona_delimitada(tipo, "P", ruta_aviso, BRIEF_TOPE_CHARS)
+        out_con_sonda = out[:persona_insert_idx] + sonda + out[persona_insert_idx:]
+        overhead = len("\n".join(out_con_sonda)) - resto - 1  # -1: el carácter "P" de la sonda
+        margen_real = BRIEF_TOPE_CHARS - resto - overhead
+        # opción A (gap B-3, intento 3): el suelo manda sobre el margen cuando el margen se queda
+        # corto — nunca al revés. Si sobra margen de verdad (por encima del suelo), se usa ese margen
+        # (capado por PERSONA_TOPE_CHARS, el CAP de sanidad de siempre); si no, la persona conserva
+        # como mínimo PERSONA_SUELO_CHARS de CONTENIDO aunque eso empuje el brief por encima de
+        # BRIEF_TOPE_CHARS (gap B-4: el suelo es del contenido, la nota de recorte va aparte).
+        tope_cuerpo = max(PERSONA_SUELO_CHARS, min(PERSONA_TOPE_CHARS, margen_real))
+        bloque = _persona_delimitada(tipo, persona_contenido, ruta_aviso, tope_cuerpo)
+        if bloque:
+            out[persona_insert_idx:persona_insert_idx] = bloque
+
+    texto = "\n".join(out)
+    if len(texto) > BRIEF_TOPE_CHARS:
+        # aviso con causa MEDIDA sobre el brief YA MONTADO (gap B-6, intento 3 pasada acotada):
+        # particiona `texto` por sus líneas `## ` — es lo que mediría el orquestador desde fuera — en
+        # vez de re-estimar cada sección con su fragmento de origen (`len(diseno[1])` omite cabecera y
+        # cierre; una reconstrucción a mano del formato de la tabla de gaps no es el formato real).
+        secciones = _secciones_por_encabezado(texto)
+        len_diseno = _longitud_seccion(secciones, "## Diseño")
+        len_memoria = _longitud_seccion(secciones, "## Memoria")
+        len_tarea_gaps = (_longitud_seccion(secciones, "## La tarea")
+                           + _longitud_seccion(secciones, "## Gaps pendientes"))
+        len_persona = _longitud_seccion(secciones, "## Persona de dominio")
+        # gap B-5: la causa se bifurca sobre el RESTO sin persona (`resto_texto` de arriba si hay
+        # persona; el propio `texto` si no la hay), no se afirma a ciegas ni el suelo ni un exceso
+        # preexistente. Si el resto YA cabía en el tope, el suelo de la persona es la ÚNICA causa del
+        # exceso — decirlo, no exonerar a la persona con una frase falsa. Si el resto YA se pasaba del
+        # tope sin persona, el exceso es preexistente (diseño/memoria/tarea+gaps) y la persona, en su
+        # suelo o no, no es la causa.
+        resto_sin_persona = resto if persona_insert_idx is not None else len(texto)
+        if resto_sin_persona <= BRIEF_TOPE_CHARS:
+            print(f"⚠️  brief de {tid}: {len(texto)} caracteres, por encima de BRIEF_TOPE_CHARS="
+                  f"{BRIEF_TOPE_CHARS} (CA-08). Causa: la persona en su suelo ({len_persona}) empuja "
+                  f"el brief a {len(texto)} > {BRIEF_TOPE_CHARS}; decisión opción A (2026-09-09): la "
+                  "persona no se recorta por debajo del suelo.", file=sys.stderr)
+        else:
+            exceso = resto_sin_persona - BRIEF_TOPE_CHARS
+            print(f"⚠️  brief de {tid}: {len(texto)} caracteres, por encima de BRIEF_TOPE_CHARS="
+                  f"{BRIEF_TOPE_CHARS} (CA-08). Causa: exceso preexistente de {exceso} caracteres SIN "
+                  f"persona (diseño={len_diseno} memoria={len_memoria} tarea+gaps={len_tarea_gaps}); "
+                  f"la persona ({len_persona}) no es la causa. No lo arregla este script; el "
+                  "subagente recibe el brief igual.", file=sys.stderr)
+    print(texto)
     return 0
 
 

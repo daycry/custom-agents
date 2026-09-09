@@ -78,7 +78,7 @@ fichero. Sin el campo —o con el `{{…}}` sin sustituir— el bullet degrada a
 - **Supervisión**: est. {{X}}h (≈25 % IA) · real —
 - **Previsión IA**: {{15k}} in / {{5k}} out tok · {{X}} €
 - **Dependencias**: {{ninguna / T-00 / acceso a X}}
-- **Tipo**: {{frontend / backend / db / devops / test / docs — OPCIONAL; si la tarea tiene dominio claro, el despacho por subagentes usa la persona correspondiente; sin tipo → subagente genérico. Omite la línea si no aplica.}}
+- **Tipo**: {{libre, sin lista cerrada — p. ej. frontend / backend / db / devops / test / docs / hooks; OPCIONAL: si la tarea tiene dominio claro, el despacho por subagentes usa la persona correspondiente (`.claude/personas/<tipo>.md` del proyecto, o el catálogo del plugin si no hay una propia); sin tipo → subagente genérico. Omite la línea si no aplica.}}
 - **Archivos**: `{{ruta}}`, `{{ruta}}`
 - **Cubre (tests)**: {{si es tarea de UI: E2E-0X / M-0X del `test-plan.md`; si no aplica: —}}
 - **Verificación**: `{{comando exacto, p. ej. python3 -m pytest -q tests/test_x.py}}` → {{resultado esperado, p. ej. `3 passed`}} {{· otro comando → resultado; en prosa/docs: «lectura: <qué comprobar>»}}

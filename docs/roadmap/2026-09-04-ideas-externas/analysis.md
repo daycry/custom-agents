@@ -8,6 +8,7 @@ estado: borrador
 creado: 2026-09-04
 fuente: petición del usuario (2026-09-04), con los dos enlaces
 relacionado: docs/roadmap/2026-09-04-memory-retrieval/analysis.md
+absorbido_en: docs/roadmap/2026-09-09-project-specialization/analysis.md (las ideas 2, 3 y 4)
 ---
 
 # Dos toolkits externos, y las ocho ideas que valen
@@ -72,6 +73,9 @@ morir. Ataca de raíz el «journal con 0 entradas» sin pedir disciplina a nadie
 
 ### 2. `skills/learned/` — la memoria destilada como skill activable
 
+> **Absorbida** por [`2026-09-09-project-specialization`](../2026-09-09-project-specialization/analysis.md):
+> es el escalón «skill» de su escalera de decisión, no un mecanismo aparte.
+
 Su `commands/learn.md` guarda las lecciones en `~/.claude/skills/learned/`. La idea es más profunda
 de lo que parece: **una lección en `docs/knowledge/` hay que ir a buscarla; una lección con
 `name` + `description` en `skills/` la recupera el indexador de Claude Code sin que nadie la cite.**
@@ -83,6 +87,9 @@ Ellos tienen la idea y no la implementan; nosotros tenemos el contenido y no lo 
 
 ### 3. El campo `When to Use` en la plantilla de lección
 
+> **Absorbida** por [`2026-09-09-project-specialization`](../2026-09-09-project-specialization/analysis.md)
+> (fase F3): es el dato sobre el que enruta su detección de deriva.
+
 Su plantilla de skill aprendida es `Problem` / `Solution` / `Example` / **`When to Use`**. Ese cuarto
 campo es el que falta en la mayoría de memorias curadas, la nuestra incluida: **sin condición de
 activación explícita, una lección no se recupera nunca**. Nuestras entradas tienen `area`, que es una
@@ -90,6 +97,10 @@ etiqueta; `When to Use` es una condición. Es una línea en la plantilla de `kno
 mejora directamente el enrutado de las 31 entradas.
 
 ### 4. `/learn` con confirmación humana — el hermano barato de `/retro`
+
+> **Absorbida** por [`2026-09-09-project-specialization`](../2026-09-09-project-specialization/analysis.md):
+> el comando se descarta (duplicaría la promoción de `/retro`); lo que se queda es su gate de
+> confirmación humana, como puerta de `/specialize`.
 
 Su `/learn` revisa la sesión, redacta con plantilla fija y **pide confirmación antes de guardar**. No
 espera a cerrar una iniciativa. Nuestro `/retro` es ceremonioso —iniciativa cerrada, desviaciones,

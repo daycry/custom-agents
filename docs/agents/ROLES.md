@@ -3,9 +3,11 @@
 Matriz **pieza × responsabilidad**: quién **DECIDE** (juicio propio sobre el resultado), quién
 **ESCRIBE** (el artefacto que le pertenece) y quién solo **LEE** (lo consulta como insumo, sin
 tocarlo). Nace de `ADR-011` (agentes retirados y responsabilidades fusionadas) — léelo para el
-porqué de cada fusión. Cubre los **9 agentes** de `agents/` más los **3 orquestadores** del plugin:
-`/pm-cycle` y `/dev-cycle` (comandos) y la skill `adversarial-review` (orquesta al agente `reviewer`
-por lente — el mismo patrón método/ejecutor que un comando aplica a los agentes, a menor escala).
+porqué de cada fusión. Cubre los **9 agentes** de `agents/` más los **4 orquestadores** del plugin:
+`/pm-cycle`, `/dev-cycle` y `/specialize` (comandos; el último es el tercer bucle,
+`docs/SPECIALIZATION.md` — su fila documenta el contrato aunque `commands/specialize.md` lo entrega
+F2) y la skill `adversarial-review` (orquesta al agente `reviewer` por lente — el mismo patrón
+método/ejecutor que un comando aplica a los agentes, a menor escala).
 
 > **Por qué `adversarial-review` cuenta como orquestador y no como "otra skill más".** Un
 > orquestador de este plugin es la pieza que **decide una secuencia** y **coordina piezas
@@ -31,6 +33,7 @@ por lente — el mismo patrón método/ejecutor que un comando aplica a los agen
 | **/pm-cycle** | Orquestador (comando) | Puerta go/no-go; si ofrece `architect` (diseño), el brief PDF o una épica en Jira al cierre. | Transiciones de estado de spec/evaluación (el CONTENIDO lo escriben `evaluator`/`architect`). | Toda la carpeta de la iniciativa. | No planifica, no implementa, no prueba, no documenta — cierra en la evaluación (regla explícita en su propio `description`). |
 | **/dev-cycle** | Orquestador (comando) | Modo (vía rápida / completo), secuencia de agentes, cuándo relanzar revisión/qa, transiciones de estado del plan/`tasks.md`; en qué punto dispara cada evento de `jira-flow.py` (tabla única en `commands/dev-cycle.md`, T-03 de esta iniciativa). | Transiciones de estado (plan/tasks/spec); invoca los eventos Jira en los puntos que fija esta iniciativa. | Toda la carpeta de la iniciativa. | No escribe código ni documentación (delega en los agentes), no decide el veredicto de revisión/qa (lo dan sus scripts, `qa-gate.py`/la fusión de `adversarial-review`). |
 | **adversarial-review** | Orquestador (skill) | Qué lentes aplican (A/B siempre; C seguridad y D rendimiento, condicionales vía `review-lens-select.py`); cómo se funden y gradúan (Critical/Important/Minor) las salidas de 2-4 `reviewer`. | La sección `## Revisión de dos lentes — intento N` en `tasks.md`; promueve entradas `docs/knowledge/` de `propuesta` → `aceptada` al cerrar sin gaps. | El diff, los artefactos de la iniciativa, la tabla del intento anterior. | No implementa ni corrige (eso es `implementer`), no da el verde de pruebas (`qa`), no imputa horas (es del orquestador `/dev-cycle`, vía `jira-flow.py`/`worklog.py`), no decide qué pasa al 3.er intento con gaps (lo devuelve). |
+| **/specialize** | Orquestador (comando, tercer bucle — `docs/SPECIALIZATION.md`) | La escalera de decisión (nada → persona → tool → skill → agente) para cada candidato; secuencia el escaneo (`project-scan.py`), la puerta de colisión (`role-collision.py`) y las dos puertas humanas (`--dry-run`/`--plan` del lote, N confirmaciones). No calcula veredictos: los da cada script con su exit code. | El registro `.claude/pieces.json` (vía `pieces-registry.py`, única puerta de escritura); las piezas de proyecto que nacen (`.claude/personas/`, `skills/`, `agents/` del consumidor). | `docs/knowledge/` (ADR, gotchas, lecciones, candidatas del journal) y las piezas instaladas del inventario de colisión. **Invariante de dirección**: lee `docs/knowledge/`, **nunca escribe en él**. | No promueve doctrina (eso es `/retro`), no genera piezas del propio plugin (eso es `plugin-dev`), no sabe de runtimes — si hay Codex/OpenCode instalados, **ofrece** `export-interop.py --root <raíz del proyecto> --project` (el modo proyecto se PIDE con `--project`, nunca se infiere de la ausencia de `.claude-plugin/`: `ADR-015`, aún `propuesta` — sin el flag, `--root` sobre un árbol de consumidor sigue dando exit 1), nunca traduce por su cuenta. |
 
 ## Solapes resueltos (detalle en ADR-011)
 

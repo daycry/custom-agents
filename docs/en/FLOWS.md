@@ -326,6 +326,42 @@ flowchart LR
     D & D2 & D3 -.->|"read the reason, switch file/branch"| T
 ```
 
+## 6d · The third loop — project specialization (`/specialize`, opt-in)
+
+> The plugin knows **how** to work but not **where** it is working. `/specialize` closes that gap
+> with the same grammar the cycle (`tasks.md`) and memory (`docs/knowledge/README.md`) already have:
+> canonical registry + entry gate + closing gate. Full detail:
+> [`SPECIALIZATION.md`](SPECIALIZATION.md). **Direction invariant**: `/specialize` **reads**
+> `docs/knowledge/` and **never writes** to it — promotion to doctrine stays exclusive to `/retro`
+> (that's why this loop does not overlap with the memory loop, `ADR-011`). This iteration covers F1
+> (substrate, **shipped**: the persona cascade in `task-brief.py`) and F2 (birth, **design
+> contract, not in the tree yet**); F3 (semantic drift) is deferred, not dropped.
+
+```mermaid
+flowchart LR
+  subgraph MEM["🧠 Memory — what the project knows"]
+    K["docs/knowledge/<br/>ADR · gotchas · lessons"]
+    J["journal/<br/>episodic"]
+  end
+  subgraph ESP["🧬 Specialization — how it behaves here"]
+    SP["/specialize<br/>evidence → ladder → collision → human gate"]
+    REG[".claude/pieces.json<br/>canonical registry"]
+    PZ[".claude/personas · skills · tools · agents"]
+  end
+  subgraph CIC["⚙️ Cycle — what gets built"]
+    T["tasks.md<br/>canonical ledger"]
+    CAL["CALIBRATION.md"]
+  end
+  K -->|"knowledge-find.py"| SP
+  J -.->|"journal.py candidatas"| SP
+  CAL -.->|"area that always drifts"| SP
+  SP --> REG --> PZ
+  PZ -->|"task-brief.py injects persona"| T
+  T --> CAL
+  CAL -.->|"/retro promotes"| K
+  REG -.->|"/doctor: health per row"| SP
+```
+
 ## 7 · Configuration (one pass with `/setup`)
 
 ```mermaid

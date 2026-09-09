@@ -94,7 +94,14 @@ y **respeta la opción elegida** (enlaza `design:` ↔ `plan:`). Puerta: OK del 
       python3 "$SHAREDKIT/task-brief.py" "docs/roadmap/<fecha>-<slug>" T-XX
       ```
 
-      El script valida el ledger (`ledger-lint`), y extrae SOLO la tarea + criterios + fase + **persona de dominio** (si la tarea lleva `- **Tipo**: frontend|backend|db|devops|test|docs`, el brief antepone el perfil corto de `agent-kits/shared/personas/<tipo>.md`: prioridades, trampas típicas y evidencia exigible del dominio; sin etiqueta → subagente genérico; etiqueta sin persona en el catálogo → aviso y genérico, nunca bloquea) + la **opción elegida de `design.md`** (si existe y está `aprobado`; solo esa sección) + arquitectura + constitución (si existe) + el contrato de retorno. Exit ≠ 0 → arregla la causa antes de despachar.
+      El script valida el ledger (`ledger-lint`) y extrae SOLO lo que hace falta para esa tarea:
+
+      - **Tarea + criterios + fase**, tal cual el ledger.
+      - **Persona de dominio** (si la tarea lleva `- **Tipo**: <tipo>`), cascada de tres escalones desde `project-specialization` T-01: `.claude/personas/<tipo>.md` DEL PROYECTO primero, doctrina propia del equipo; **gana si existe y se puede leer** — un fichero vacío o un `OSError` al leerlo (p. ej. OneDrive «solo en la nube» sin red) cae al siguiente escalón sin bloquear. Si no hay perfil de proyecto (o cayó), el perfil corto de `agent-kits/shared/personas/<tipo>.md` del catálogo del plugin. Los tipos son **libres**, no hay lista cerrada. Sin etiqueta → subagente genérico; etiqueta sin persona en ningún escalón → aviso y genérico, nunca bloquea.
+      - **Opción elegida de `design.md`** (si existe y está `aprobado`; solo esa sección).
+      - **Arquitectura + constitución** (si existe) **+ el contrato de retorno**.
+
+      Exit ≠ 0 → arregla la causa antes de despachar.
    2. **Despacho brief-only** — lanza el subagente con el brief como único contexto (con `tdd: true`, `task-brief.py` ya incluye la sección «TDD» que manda seguir la skill `tdd` y devolver la evidencia del rojo). El subagente NO explora el repo entero: el brief y los ficheros que referencia.
    3. **Estados de retorno** — el subagente termina en uno de: `DONE` (valida tú contra los criterios ANTES de marcar `completado` en el ledger) · `DONE_WITH_CONCERNS: <duda>` (valida y pasa la duda a la revisión de dos lentes) · `NEEDS_CONTEXT: <qué>` (re-despacha UNA vez añadiendo al brief exactamente lo pedido — el subagente tiene PROHIBIDO inventar) · `BLOCKED: <qué>` (resuélvelo tú o pregunta al usuario; no re-despaches a ciegas).
    4. **Re-despacho acotado** — máximo **1** re-despacho por tarea (por gap de validación o por `NEEDS_CONTEXT`); si el segundo intento tampoco cierra, la tarea pasa al **flujo normal** (`implementer` en contexto principal) con aviso en el ledger.
