@@ -9,6 +9,10 @@ y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Añadido
+
+- **Personas de proyecto en el brief del subagente (project-specialization, F1).** `agent-kits/shared/task-brief.py` resuelve la persona de dominio en una cascada de tres escalones — `.claude/personas/<tipo>.md` del PROYECTO, luego el catálogo del plugin, luego genérico con aviso — así que `- **Tipo**:` deja de estar limitado a los seis tipos de fábrica y un equipo puede inyectar su propia doctrina en cada tarea despachada. Endurecido por la revisión de dos lentes (24 gaps cerrados): guarda `OSError` por escalón, recorte alineado a línea que nunca parte un fence ni un comentario HTML, delimitadores visibles de apertura y cierre más neutralización de `#` para que una persona no pueda suplantar `## Contrato de retorno`, y un suelo de contenido (`PERSONA_SUELO_CHARS = 1300`, por encima de la mayor del catálogo) con aviso en runtime que nombra la causa *medida* cuando el brief supera `BRIEF_TOPE_CHARS`. Docs: `docs/SPECIALIZATION.md` (+ espejo EN), `FLOWS.md` §6d, fila de `/specialize` en `ROLES.md`. F2/F3 (el comando `/specialize` y el registro `.claude/pieces.json`, `ADR-014`) son contrato de diseño aprobado, aún no entregado. Entrada manual: el ledger sigue `en-progreso`, así que `changelog-sync` no la recogerá hasta cerrar la iniciativa. (`docs/roadmap/2026-09-09-project-specialization/`)
+
 ## [1.19.0] - 2026-09-08
 
 ### Corregido

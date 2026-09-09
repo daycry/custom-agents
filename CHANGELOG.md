@@ -9,6 +9,10 @@ and versioning follows [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Project personas for the subagent brief (project-specialization, F1).** `agent-kits/shared/task-brief.py` now resolves the domain persona in a three-step cascade — `.claude/personas/<type>.md` of the PROJECT, then the plugin catalogue, then generic with a warning — so `- **Tipo**:` is no longer limited to the six shipped types and a team can inject its own doctrine into every dispatched task. Hardened by the two-lens review (24 gaps closed): per-step `OSError` guard, line-aligned truncation that never splits a fence or an HTML comment, visible open/close delimiters plus `#` neutralisation so a persona cannot impersonate `## Contrato de retorno`, and a content floor (`PERSONA_SUELO_CHARS = 1300`, above the largest catalogue persona) with a runtime warning that names the *measured* cause when the brief exceeds `BRIEF_TOPE_CHARS`. Docs: `docs/SPECIALIZATION.md` (+EN mirror), `FLOWS.md` §6d, `/specialize` row in `ROLES.md`. F2/F3 (the `/specialize` command and the `.claude/pieces.json` registry, `ADR-014`) are an approved design contract, not shipped yet. Manual entry: the ledger is still `en-progreso`, so `changelog-sync` will not pick it up until the initiative closes. (`docs/roadmap/2026-09-09-project-specialization/`)
+
 ## [1.19.0] - 2026-09-08
 
 ### Fixed
