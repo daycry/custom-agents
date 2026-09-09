@@ -9,6 +9,7 @@ descripcion: >
   presupuesto, solo la medición y las opciones.
 estado: borrador
 creado: 2026-09-09
+spec: spec.md (derivada de este análisis el 2026-09-09; su presupuesto, en evaluation.md)
 fuente: revisión de dos lentes de project-specialization F1 (intento 2, gap B-3 y nota «Preexistente»); decisión del usuario de atacar la causa en iniciativa aparte (opción B)
 relacionado: docs/roadmap/2026-09-09-project-specialization/tasks.md · docs/knowledge/gotchas/GOT-008-tope-ca08-del-brief-depende-de-ruta-y-corpus.md · docs/knowledge/gotchas/GOT-009-presupuesto-del-brief-se-rompe-con-design-md.md
 ---
