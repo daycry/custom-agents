@@ -324,6 +324,43 @@ flowchart LR
     D & D2 & D3 -.->|"lee la razón, cambia de fichero/rama"| T
 ```
 
+## 6d · El tercer bucle — especialización por proyecto (`/specialize`, opt-in)
+
+> El plugin sabe **cómo** trabajar y no sabe **dónde** está trabajando. `/specialize` cierra ese hueco
+> con la misma gramática que ya tienen el ciclo (`tasks.md`) y la memoria
+> (`docs/knowledge/README.md`): registro canónico + puerta de entrada + puerta de cierre. Detalle
+> completo: [`SPECIALIZATION.md`](SPECIALIZATION.md). **Invariante de dirección**: `/specialize`
+> **lee** `docs/knowledge/` y **nunca escribe** en él — la promoción a doctrina sigue siendo
+> exclusiva de `/retro` (por eso este bucle no se solapa con el de memoria, `ADR-011`). Esta
+> iteración cubre F1 (sustrato, **entregado**: cascada de personas de `task-brief.py`) y F2
+> (nacimiento, **contrato de diseño, aún no en el árbol**); F3 (deriva semántica) queda diferida,
+> no descartada.
+
+```mermaid
+flowchart LR
+  subgraph MEM["🧠 Memoria — qué sabe el proyecto"]
+    K["docs/knowledge/<br/>ADR · gotchas · lecciones"]
+    J["journal/<br/>episódico"]
+  end
+  subgraph ESP["🧬 Especialización — cómo se comporta aquí"]
+    SP["/specialize<br/>evidencia → escalera → colisión → puerta humana"]
+    REG[".claude/pieces.json<br/>registro canónico"]
+    PZ[".claude/personas · skills · tools · agents"]
+  end
+  subgraph CIC["⚙️ Ciclo — qué se construye"]
+    T["tasks.md<br/>ledger canónico"]
+    CAL["CALIBRATION.md"]
+  end
+  K -->|"knowledge-find.py"| SP
+  J -.->|"journal.py candidatas"| SP
+  CAL -.->|"área que desvía siempre"| SP
+  SP --> REG --> PZ
+  PZ -->|"task-brief.py inyecta persona"| T
+  T --> CAL
+  CAL -.->|"/retro promueve"| K
+  REG -.->|"/doctor: salud por fila"| SP
+```
+
 ## 7 · Configuración (una pasada con `/setup`)
 
 ```mermaid
