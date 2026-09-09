@@ -9,10 +9,10 @@ cuando la rama descrita aquí se publique y no quede nada abierto.
 
 ## Trabajo EN CURSO — tres iniciativas abiertas el 2026-09-09 (rama `feature/project-specialization`)
 
-Todo en la rama `feature/project-specialization`, **sin push ni merge**. Ocho commits: ciclo PM ·
+Todo en la rama `feature/project-specialization`, **sin push ni merge**. Quince commits: ciclo PM ·
 diseño + `ADR-014` · plan + `ADR-015` · cifras re-medidas · `GOT-009` + análisis de `brief-budget` ·
-análisis de `plugin-refactor` con línea base. **El diff de F1 (código + docs) está SIN comitear** en el
-árbol de trabajo: se comitea por tarea (`T-01`/`T-02`/`T-03`) al cerrar la revisión.
+análisis de `plugin-refactor` con línea base. **F1 está COMITEADA por tarea**: `a7f6bbe` T-02 · `204f333` T-03 · `74901c6` T-01 (+ ledger + los 4
+ficheros reales de `interop/`). Árbol limpio salvo el journal del hook y el ruido previo.
 
 ### 1 · `docs/roadmap/2026-09-09-project-specialization/` — el tercer bucle (EN EJECUCIÓN, F1)
 
@@ -21,7 +21,7 @@ análisis de `plugin-refactor` con línea base. **El diff de F1 (código + docs)
 | `spec.md` **aprobada** · `evaluation.md` **completado** (56,4 h · 2.837 €) · `design.md` **aprobado** (`O1`, `ADR-014`) · `improvement-plan.md` + `tasks.md` **en-progreso** | 3 fases, 22 tareas; solo **F1 (T-01…T-03)** tiene puerta abierta («go por tramos») |
 | Revisión de dos lentes | intento 1: 6 Important + 6 Minor · intento 2: 1 Critical + 4 Important + 3 Minor · intento 3: todo cerrado salvo **B-3** (tope de la persona), que no convergía porque su causa no está en F1 |
 | Decisión del usuario tras el 3.er intento | **opción A** (suelo `PERSONA_SUELO_CHARS = 1300` + aviso en runtime con causa por sección) — implementada y verificada: 0 personas en muñón, 12/22 briefs sobre el tope **con aviso** |
-| En vuelo al escribir esto | Lente B acotada al diff de A · después: `qa` → commits por tarea → decisión de merge (preguntar, no mergear por defecto) |
+| Cierre de F1 | pasada acotada de la Lente B sobre A: 3 Important + 1 Minor (suelo sobre contenido sin ruta absoluta, aviso con atribución honesta, secciones medidas, tests con dientes: mutante `SUELO=400` → 2 failed) — corregidos y verificados por el orquestador. Suite completa 39 vs 52 en HEAD sin T-01: cero regresiones. **Pendiente: decisión de merge del usuario** (preguntar, no mergear por defecto) |
 
 Verificado y contrario a supuestos previos: `export-interop.py --root` = raíz del PLUGIN (falla contra un
 `.claude/` de consumidor) → `C-11` es un modo `--project` (`ADR-015`). El único test rojo
