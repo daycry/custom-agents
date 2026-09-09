@@ -12,7 +12,7 @@ estado: aprobada
 creado: 2026-09-09
 actualizado: 2026-09-09
 evaluacion: evaluation.md
-design: n/a
+design: design.md
 plan: pendiente
 relacionado: docs/roadmap/2026-09-04-ideas-externas/analysis.md (absorbe sus ideas 2, 3 y 4)
 generacion:            # PASADA 2 de descubrimiento — ventana propia de esta reescritura
@@ -33,6 +33,7 @@ generacion:            # PASADA 2 de descubrimiento — ventana propia de esta r
 > características** (7 heredadas + C-10 `pieces-registry.py` + C-11 multi-runtime; C-08 y C-09
 > diferidas). Lleva tabla de deltas frente a la pasada 1 (45,0 h · 2.264 €): el recorte de F3
 > **encarece** la iniciativa un 25 %. Veredicto: **go por tramos**, F2 con cuatro condiciones.
+> **Diseño (opt-in, alcance `C-10`):** [`design.md`](design.md) — `aprobado` (2026-09-09): de las tres opciones para la forma de `.claude/pieces.json` el usuario eligió **O1** (la pieza es la raíz, sus destinos anidados, `runtime` como dato); decisión y descartadas en [`ADR-014`](../../knowledge/adr/ADR-014-registro-de-piezas-agregado-con-la-pieza-como-raiz.md) (`propuesta`)
 > **Plan de implementación:** pendiente (handoff a `planner` tras el go/no-go)
 > **Análisis de origen (única fuente del alcance de esta spec):** [`analysis.md`](analysis.md)
 > **Iniciativa absorbida:** [`2026-09-04-ideas-externas/analysis.md`](../2026-09-04-ideas-externas/analysis.md) — ideas 2, 3 y 4
