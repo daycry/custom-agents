@@ -152,7 +152,7 @@ qué parte del 7,6 % es alcanzable.
 
 | Señal | Medida |
 |---|---|
-| Funciones > 30 líneas en los 5 hotspots principales | de las que hay hoy (baseline) a **la mitad**, sin ninguna nueva > 60 |
+| Funciones > 30 líneas en los 5 hotspots principales | de **32** (medido 2026-09-10 con `--top 1000`: `lint_plugin` 9 · `build_dashboard` 8 · `doctor` 8 · `task-brief` 4 · `knowledge-find` 3 — el 30 % de las 104 del repo) a **≤ 16**, sin ninguna nueva > 60. Fuera de los hotspots, los siguientes son `journal.py` (6) y los dos adaptadores JS (5 cada uno, el segundo generado) |
 | Duplicación accidental (clase 3 del §2) | **0 bloques** sin declarar: o registrados y comparados, o eliminados |
 | Falsos positivos de TODO | 8 → 1 (el real de `usage-meter.py`) |
 | Suites, linter, evals, `export-interop --check`, `release.py --dry-run` | idénticos en verde antes y después |
