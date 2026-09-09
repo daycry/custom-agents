@@ -149,6 +149,45 @@ qué parte del 7,6 % es alcanzable.
 | Suites, linter, evals, `export-interop --check`, `release.py --dry-run` | idénticos en verde antes y después |
 | `code-health --baseline` | «mejora» en cada tarea cerrada; nunca «empeora» |
 
+## 8-bis. Revisión de encadenamiento: ¿las piezas se llaman bien entre sí?
+
+Petición explícita del usuario al pedir el refactor: comprobar que **todas las piezas están bien
+encadenadas**, no solo que cada una funcione sola. La medición de `code-health` no ve esto —mide
+ficheros, no contratos entre ficheros—, así que aquí la evidencia es lo que UN ciclo real
+(`project-specialization` F1, 2026-09-09) destapó en un solo día. Diez huecos, todos verificados:
+
+| # | Cadena | Hueco | Cómo se vio |
+|---|---|---|---|
+| E1 | `planner` → `dev-cycle` → `qa` | **Contradicción en el caso sin UI.** `planner` genera `test-plan.md` «si hay UI»; `qa` sin `test-plan.md` «avisa: regenéralo con `planner`»; `dev-cycle` Fase 3 invoca `qa` **siempre**. Seguido al pie de la letra es un bucle sin salida, y lo resuelve el criterio del orquestador (prosa), que es lo que el plugin prohíbe | F1 no tiene UI; el orquestador se saltó `qa` por juicio propio y lo dejó escrito en el ledger |
+| E2 | `CLAUDE.md` → `planner` → `implementer` → `adversarial-review` | **Regenerar `interop/` al tocar un comando o agente** es regla de `CLAUDE.md`, pero `planner` no mete `interop/**` en los `Archivos` de la tarea que toca `commands/`/`agents/`, `implementer` no regenera, y ninguna lente ejecuta `export-interop.py --check` | 3 ficheros desincronizados tras tres intentos de revisión; lo cazó el orquestador a mano |
+| E3 | cualquier pieza → las piezas que la **describen** | **Cambiar una pieza no propaga a quien la documenta y nada lo comprueba.** La cascada de personas dejó 6 ficheros mintiendo (`dev-cycle.md`, `planner.md`, `shared/README.md`, la plantilla del planner, `lens-prompts.md`, `docs/agents/planner.md`) | gaps 4, 13 y 14 de la revisión: dos veces DENTRO de la misma iniciativa |
+| E4 | `review-lens-select.py` → Lente C | La heurística mira patrones de código peligroso y stems de ruta; **no ve flujo de datos hacia un prompt**. Abrir un canal de texto controlado por el consumidor hacia el brief de un subagente dio `lente_c: false` tres veces | la Lente B encontró la suplantación del contrato de retorno las tres veces |
+| E5 | docs → picker de comandos | Toda la doc cita `/dev-cycle`, pero instalado como plugin el nombre es **`/custom-agents:dev-cycle`**; `/dev-cycle` da «Unknown command» y `/doctor` no lo comprueba | el usuario chocó con ello hoy |
+| E6 | `scope-check.py` → orquestador | Los artefactos del **orquestador** (`CONTINUE-HERE.md`) y el ruido de `.claude/*` salen «fuera de alcance» en **cada** ciclo; no hay lista de exclusión para lo que no es de ninguna tarea | 5-6 ficheros fuera en las tres puertas del día |
+| E7 | `usage-meter.py` → `generacion:` → `/retro` → `CALIBRATION.md` → `evaluator` | En Windows el meter degrada **siempre** («carpeta de transcripciones no disponible»): los seis artefactos del día llevan `fuente: estimado`, y lo que llegue a `CALIBRATION.md` será juicio, no medida. La cadena de calibración entera se alimenta de estimaciones sin que nadie lo vea agregado | seis bloques `generacion:` estimados en un día |
+| E8 | `test_task_brief` → CA-08 | El guardarraíl del tope del brief recorre **un** ledger sin `design.md`; nunca vio un brief con `## Diseño` | `GOT-009` |
+| E9 | `ledger-lint` ↔ `task-brief` ↔ `jira-flow` | La regex de cabecera de revisión es canónica en `ledger-lint.py` y **copiada como fallback** en `task-brief.py`; un test compara las dos cadenas. Funciona, pero es el patrón de copia declarada del §2 sin registro central | comentario en `task-brief.py:_REVISION_HDR_FALLBACK` |
+| E10 | `code-health` → informe | El detector de TODO se detecta a sí mismo y a la palabra castellana «TODO (»; el informe no puede excluir `interop/` (generado) | §4 y §2 |
+
+**Método propuesto para la revisión (determinista, con tests):**
+
+1. **Matriz de contratos** pieza → pieza: quién invoca a quién, con qué flags, exit codes, ficheros y
+   marcadores (`test-plan: n/a`, `interop/**`, `fuente: estimado`). Un fichero en `docs/agents/` junto
+   a `ROLES.md`, porque `ROLES.md` dice quién decide y esto dice **cómo se hablan**.
+2. **Comprobaciones nuevas en `lint_plugin.py`**: (a) toda ruta de script citada entre acentos graves en
+   `agents/`, `commands/` y `skills/` **existe**; (b) todo `/comando` citado en la doc existe como
+   `commands/<x>.md`; (c) cada regla «al tocar X regenera/actualiza Y» de `CLAUDE.md` tiene su puerta
+   ejecutable (`--check`), no solo prosa.
+3. **Resolver E1 en las tres piezas a la vez** (marcador `test-plan: n/a (sin UI)` del `planner`,
+   lectura en `dev-cycle`, salida limpia en `qa`) — es la muestra de que el método funciona.
+4. **E2 y E3 son la misma lección**: un cambio en una pieza tiene «piezas dependientes» que hoy nadie
+   enumera. La matriz del punto 1 es lo que permite que `planner` las meta en `Archivos` y que la Lente A
+   las revise.
+
+Estos diez huecos **no son refactor de código**: son defectos de contrato. Van en esta iniciativa porque el
+usuario los pidió juntos y porque la matriz de contratos es la misma que el refactor necesita para no romper
+nada; pero se presupuestan y se planifican como características propias, no como «limpieza».
+
 ## 9. Lo que este análisis NO trae
 
 Ni plan, ni tareas, ni presupuesto: `/pm-cycle` sobre esta carpeta (`evaluator`), con el paso de
