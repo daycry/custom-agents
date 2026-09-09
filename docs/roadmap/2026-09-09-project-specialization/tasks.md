@@ -31,10 +31,10 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervisión (real/est) | Tokens (real/est) |
 |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
-| Fase 1 — Sustrato | 3 | 3 | 100% | 0 / 6,0h | 0,46 (est.) / 0,46h | 0,12 (est.) / 0,11h | 220k (est.) / 220k |
+| Fase 1 — Sustrato | 3 | 3 | 100% | 0 / 6,0h | 1,30 (est.) / 0,46h | 0,33 (est.) / 0,11h | 220k (est.) / 220k |
 | Fase 2 — Nacimiento | 0 | 16 | 0% | 0 / 31,0h | 0 / 2,41h | 0 / 0,60h | 0 / 1.153k |
 | Fase 3 — Revisión, corrección y cierre | 0 | 3 | 0% | 0 / 10,0h | 0 / 1,10h | 0 / 0,27h | 0 / 525k |
-| **TOTAL** | **3** | **22** | **14%** | **0 / 47,0h** | **0,46 (est.) / 3,96h** | **0,12 (est.) / 0,99h** | **220k (est.) / 1.898k** |
+| **TOTAL** | **3** | **22** | **14%** | **0 / 47,0h** | **1,30 (est.) / 3,96h** | **0,33 (est.) / 0,99h** | **220k (est.) / 1.898k** |
 
 > **Horas → Jira.** No aplica en esta iniciativa: `.claude/jira.json` no está configurado, así que no hay volcado de tareas ni worklog. Si se configura más adelante, el worklog es **Tiempo IA (ejec.) + Supervisión** topado a la jornada (ver `skills/jira-sync/SKILL.md`).
 
@@ -42,7 +42,7 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 
 ## Fase 1 — Sustrato (C-01, C-02)
 
-**Estado**: completado · **Estimado**: 6,0h · **Real**: 0,58h IA+supervisión (estimado, meter degradado) · **Coste est.**: 302,02 € · **Tokens est.**: 220k (real: estimado, igual al presupuesto — ver nota de degradación en cada tarea)
+**Estado**: completado · **Estimado**: 6,0h · **Real**: 1,63h IA+supervisión (estimado, meter degradado — incluye la corrección intento 1, la corrección intento 2 y las dos rondas de la corrección intento 3 (opción A y la pasada acotada a los gaps B-4/B-5/B-6/B-7); las 3 tareas cierran completado con todos los gaps de las dos revisiones verificados) · **Coste est.**: 302,02 € · **Tokens est.**: 220k (real: estimado, igual al presupuesto — ver nota de degradación en cada tarea)
 
 > Entrega el contrato de la carpeta de personas y la puerta de entrada documental del bucle. **Rinde sola**: al cerrarla, una persona de proyecto escrita a mano ya funciona sin generador.
 
@@ -52,16 +52,19 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 - **Changelog**: Una persona de dominio escrita en `.claude/personas/<tipo>.md` del proyecto entra en el brief del subagente por delante del catálogo genérico del plugin, y cualquier tipo nuevo funciona sin tocar código.
 - **Estado**: completado
 - **Tiempo humano**: est. 2,5h · real —
-- **Tiempo IA (ejec.)**: est. 0,19h · real 0,19h (estimado)
-- **Supervisión**: est. 0,05h (≈25 % IA) · real 0,05h (estimado)
+- **Tiempo IA (ejec.)**: est. 0,19h · real 1,21h (estimado — 0,19h implementación + 0,15h corrección intento 1 + 0,34h corrección intento 2 (B-2 Critical + B-1 + B-3 en `task-brief.py`, 4 tests nuevos, 2 propagaciones más y el fix de `dev-cycle.md`) + 0,30h corrección intento 3 opción A (`PERSONA_SUELO_CHARS`, fórmula del tope, aviso con causa medida por sección, 2 tests reescritos/nuevos; clave `project-specialization/T-01-fix3`) + 0,23h corrección intento 3 pasada acotada, gaps B-4/B-5/B-6/B-7 (contenido no bloque en `_persona_delimitada`, aviso bifurcado por causa real, medición por secciones del brief montado, guardián de calibración y verificación de mutante; clave `project-specialization/T-01-fix4`); meter degradado en las cuatro rondas, sin marcador `start`: medido a juicio, no por `usage-meter.py`)
+- **Supervisión**: est. 0,05h (≈25 % IA) · real 0,20h (estimado — +0,03h de la corrección intento 3 pasada acotada, ≈25 % de sus 0,23h de IA)
 - **Previsión IA**: 70k in / 20k out tok · 0,78 €
 - **Dependencias**: ninguna. Es la raíz del plan y la única característica de la que dependen todas las demás para servir de algo
-- **Archivos**: `agent-kits/shared/task-brief.py`, `agent-kits/shared/test_task_brief.py`
+- **Archivos**: `agent-kits/shared/task-brief.py`, `agent-kits/shared/test_task_brief.py`, `commands/dev-cycle.md` (nota: describía la inyección de persona como un solo catálogo — quedó falsa tras la cascada, gap 4 de la revisión intento 1; corrección intento 2, gap 17/18: matiza «gana siempre» al caso real —vacío u `OSError` caen al catálogo— y parte la frase en viñetas por longitud), `agents/planner.md` (nota: idem — la lista cerrada de 6 tipos ya no aplica), `agent-kits/shared/README.md` (nota: idem — dos filas, `task-brief.py` y `personas/`, describían el catálogo como único escalón), `agent-kits/planner/templates/tasks.md` (nota: corrección intento 2, gap 13 — el placeholder de `- **Tipo**:` seguía ofreciendo la lista cerrada de 6 tipos aunque `agents/planner.md` ya decía «libre»; el planner rellena de la plantilla, así que una tarea de tipo `hooks` salía sin `Tipo` y la persona nunca llegaba al brief), `docs/agents/planner.md` (nota: corrección intento 2, gap 14 — propagaba la misma lista cerrada de 6 tipos), `skills/adversarial-review/references/lens-prompts.md` (nota: corrección intento 2, gap 14 — la Lente B repetía la lista cerrada y afirmaba falsamente «misma mecánica que `task-brief.py`»), `interop/**` (GENERADO por `scripts/export-interop.py` al tocar `commands/dev-cycle.md` y `agents/planner.md`: regla de interop de `CLAUDE.md`, `--check` es puerta de CI y de `release.py`; 3 ficheros desincronizados detectados por el orquestador tras la revisión, no por las lentes)
 - **Verificación**:
   - `python3 -m pytest -q agent-kits/shared/test_task_brief.py` → todos verdes, incluidos los casos nuevos de cascada, y **sin haber tocado los asserts previos**
   - `grep -nE "\"frontend\"|'frontend'" agent-kits/shared/task-brief.py` → ninguna lista cerrada de tipos (solo el nombre del fichero del catálogo, si aparece)
   - `python3 scripts/lint_plugin.py` → 0 errores
   - (ejecutada 2026-09-09 — salida: `pytest -q agent-kits/shared/test_task_brief.py` → `52 passed in 22.38s`; `grep -nE "\"frontend\"|'frontend'" agent-kits/shared/task-brief.py` → sin coincidencias; `lint_plugin.py` → `9 agentes · 0 errores · 3 avisos` (los 3 avisos son de nombres genéricos de comandos preexistentes, no de esta tarea))
+  - (corrección intento 1 — ejecutada 2026-09-09: `pytest -q agent-kits/shared/test_task_brief.py` → `56 passed in 15.38s` (4 tests nuevos: OSError en escalón 1 cae al catálogo, persona por encima del tope se recorta, delimitado contra suplantación del contrato, aviso de vacío sin prometer un escalón inexistente); `lint_plugin.py` → `9 agentes · 0 errores · 3 avisos` (mismos 3 preexistentes))
+  - (corrección intento 3, opción A (B-3, suelo de la persona) — re-ejecutada 2026-09-09 tras el ÚLTIMO cambio: `python3 -m pytest -q agent-kits/shared/test_task_brief.py` → `59 passed, 1 failed in 15.42s` (el failed es `test_ca08_el_brief_completo_cabe_en_el_tope_sobre_el_ledger_real_de_memory_retrieval`, la violación preexistente de CA-08 sin persona — ya fallaba igual antes de esta corrección, confirmado con `git stash`; iniciativa aparte `docs/roadmap/2026-09-09-brief-budget/`, fuera de alcance); `grep -nE "\"frontend\"|'frontend'" agent-kits/shared/task-brief.py` → sin coincidencias; `python3 scripts/lint_plugin.py` → `9 agentes · 0 errores · 3 avisos` (mismos 3 preexistentes, ninguno de esta tarea))
+  - (corrección intento 3, pasada acotada a la opción A (B-4/B-5/B-6/B-7 de la segunda revisión) — **supersede la entrada anterior** (GOT-007: evidencia re-ejecutada tras el ÚLTIMO cambio, no reciclada) — ejecutada 2026-09-09: `python3 -m pytest -q agent-kits/shared/test_task_brief.py` → `63 passed, 1 failed in 13.63s` (el único failed sigue siendo `test_ca08_...memory_retrieval`, con `T-05: 10123` y `T-19: 10057` caracteres por encima de `BRIEF_TOPE_CHARS=10000`; confirmado que el bloque `## Persona de dominio` es **byte a byte idéntico** antes/después de esta corrección para ambas tareas — sus personas están muy por debajo del suelo, así que el suelo nunca las toca — y que el residuo se debe al crecimiento del corpus de `docs/knowledge/` entre sesiones (8→9 entradas), ajeno a este cambio y a `docs/roadmap/2026-09-09-brief-budget/`, fuera de alcance); `grep -nE "\"frontend\"|'frontend'" agent-kits/shared/task-brief.py` → sin coincidencias; `python3 scripts/lint_plugin.py` → `9 agentes · 0 errores · 3 avisos` (mismos 3 preexistentes, ninguno de esta tarea). Además, verificación personal del mutante `PERSONA_SUELO_CHARS = 400` (copia de trabajo, restaurada tras comprobar, `diff` limpio contra el fichero real): `pytest -k "test_persona_suelo_por_encima_del_catalogo or test_persona_suelo_entrega_contenido_util_no_bloque_relleno"` → **2 failed** (evidencia B-7 de que el guardián de calibración y la medición de contenido SÍ detectan la regresión))
 
 **Criterios de aceptación**
 - [x] CA-01 — con `.claude/personas/hooks.md` y una tarea `- **Tipo**: hooks`, el brief lleva el contenido del fichero del proyecto y **no** el del catálogo del plugin
@@ -85,8 +88,8 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 - **Changelog**: La especialización por proyecto tiene un documento de entrada único, `docs/SPECIALIZATION.md` (con su espejo en inglés), que explica el registro de piezas, la escalera de decisión y las dos puertas.
 - **Estado**: completado
 - **Tiempo humano**: est. 2,0h · real —
-- **Tiempo IA (ejec.)**: est. 0,16h · real 0,16h (estimado)
-- **Supervisión**: est. 0,04h (≈25 % IA) · real 0,04h (estimado)
+- **Tiempo IA (ejec.)**: est. 0,16h · real 0,23h (estimado — 0,16h implementación + 0,05h corrección intento 1 + 0,02h corrección intento 2 (gap 16, línea de ledger); meter degradado, sin marcador `start` para esta ronda: medido a juicio, no por `usage-meter.py`)
+- **Supervisión**: est. 0,04h (≈25 % IA) · real 0,06h (estimado)
 - **Previsión IA**: 55k in / 20k out tok · 0,71 €
 - **Dependencias**: T-01 (blanda — documenta la cascada **ya real**, no una promesa; no la bloquea)
 - **Tipo**: docs
@@ -96,6 +99,7 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
   - `grep -nc "pieces.json" docs/SPECIALIZATION.md docs/en/SPECIALIZATION.md` → ≥ 1 en los dos ficheros
   - lectura: los seis contenidos de CA-05 presentes en ambos idiomas, y los tokens que parsea la máquina (`pieces.json`, `gestionada`/`modificada`/`no gestionada`) **en español también en la versión EN**
   - (ejecutada 2026-09-09 — salida: `lint_plugin.py` → `9 agentes · 0 errores · 3 avisos` (avisos preexistentes de nombres genéricos de comandos, no de esta tarea); `grep -nc "pieces.json" docs/SPECIALIZATION.md docs/en/SPECIALIZATION.md` → `docs/SPECIALIZATION.md:1` y `docs/en/SPECIALIZATION.md:1`; lectura confirmada: los seis contenidos —registro, escalera, dos puertas, invariante de dirección, tres estados por hash, límite F1+F2— están en ambos idiomas, con `gestionada`/`modificada`/`no gestionada` en español también en la versión EN)
+  - (corrección intento 1 — ejecutada 2026-09-09: gap 3 — añadido bloque "entregado vs contrato de diseño" tras el callout de alcance en `docs/SPECIALIZATION.md:14-19` y su espejo en `docs/en/SPECIALIZATION.md:14-19`, citando `design.md`/`ADR-014`/T-04…T-18, mismo patrón que `docs/agents/ROLES.md:7-8`; gap 7 — `docs/en/SPECIALIZATION.md:6` corregido de `[INTEROP.md](../INTEROP.md)` a `[INTEROP.md](INTEROP.md)` (el espejo EN existe, el enlace ya no cruza al árbol ES); gap 10 — `docs/SPECIALIZATION.md:30` y `docs/en/SPECIALIZATION.md:30` matizados: la inyección de persona aplica a las tareas con `- **Tipo**: <tipo>` (campo opcional), no a "cada tarea". Verificación (re-ejecutada 2026-09-09 tras el bloque del gap 3, que añade una segunda mención): `grep -nc "pieces.json" docs/SPECIALIZATION.md docs/en/SPECIALIZATION.md` → `docs/SPECIALIZATION.md:2` y `docs/en/SPECIALIZATION.md:2` (el criterio de aceptación es ≥ 1 en los dos ficheros; sigue cumpliéndose, ahora en 2/2 en vez de 1/1); `lint_plugin.py` → `9 agentes · 0 errores · 3 avisos` (mismos 3 preexistentes); lectura confirmada de los tres textos corregidos en ambos idiomas)
 
 **Criterios de aceptación**
 - [x] CA-05 — `docs/SPECIALIZATION.md` existe, es la única puerta de entrada del bucle con los seis contenidos exigidos, tiene espejo en `docs/en/SPECIALIZATION.md`, y los dos `README.md` lo indexan; `lint_plugin.py` con 0 errores
@@ -118,8 +122,8 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 - **Changelog**: Los diagramas de flujo y la matriz de roles incluyen el tercer bucle, con lo que `/specialize` decide, escribe y solo lee, para que no se solape con la memoria técnica.
 - **Estado**: completado
 - **Tiempo humano**: est. 1,5h · real —
-- **Tiempo IA (ejec.)**: est. 0,11h · real 0,11h (estimado)
-- **Supervisión**: est. 0,03h (≈25 % IA) · real 0,03h (estimado)
+- **Tiempo IA (ejec.)**: est. 0,11h · real 0,16h (estimado — 0,11h implementación + 0,05h corrección intento 1; meter degradado)
+- **Supervisión**: est. 0,03h (≈25 % IA) · real 0,04h (estimado)
 - **Previsión IA**: 40k in / 15k out tok · 0,53 €
 - **Dependencias**: T-02 (la sección de FLOWS y la fila de ROLES apuntan al documento de entrada)
 - **Tipo**: docs
@@ -129,6 +133,7 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
   - `grep -n "specialize" docs/agents/ROLES.md` → la fila existe
   - `grep -c "mermaid" docs/FLOWS.md docs/en/FLOWS.md` → el mismo número en los dos ficheros
   - (ejecutada 2026-09-09 — salida: `tests/test_mermaid_blocks.py` se ejecuta como script, no como suite pytest — `python3 tests/test_mermaid_blocks.py` → `test_mermaid_blocks: 35 diagrama(s) OK`; `grep -n "specialize" docs/agents/ROLES.md` → 3 líneas, incluida la fila de la matriz; `grep -c "mermaid" docs/FLOWS.md docs/en/FLOWS.md` → `docs/FLOWS.md:13` y `docs/en/FLOWS.md:13`, mismo número)
+  - (corrección intento 1 — ejecutada 2026-09-09: gap 3 — sección "6d · El tercer bucle" de `docs/FLOWS.md:335-336` y `docs/en/FLOWS.md:337` marca F1 como **entregado**/**shipped** y F2 como **contrato de diseño, aún no en el árbol**/**design contract, not in the tree yet**, cerrando el mismo hueco que gap 3 en T-02 pero en `FLOWS.md`; gap 5 — `docs/agents/ROLES.md:36`, columna "no hace" de la fila `/specialize`, ahora cita el flag `--project` y `ADR-015` (aún `propuesta`): sin el flag, `--root` sobre un árbol de consumidor sigue dando exit 1; gap 11 — la referencia colgante "esta carpeta" queda sustituida por el texto explícito de gap 3 (ya no hay antecedente ambiguo). Verificación: `python3 tests/test_mermaid_blocks.py` → `test_mermaid_blocks: 35 diagrama(s) OK` (sin regresión); `grep -c "mermaid" docs/FLOWS.md docs/en/FLOWS.md` sigue en 13/13; `grep -n "ADR-015" docs/agents/ROLES.md` → línea 36)
 
 **Criterios de aceptación**
 - [x] CA-06 — `docs/FLOWS.md` y `docs/en/FLOWS.md` tienen la sección del tercer bucle con el diagrama de `analysis.md` §2; `tests/test_mermaid_blocks.py` en verde
@@ -825,3 +830,151 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 - [ ] `spec.md` a `implementada`
 
 **Notas**: `retro-gate.py` es **puerta**, no cortesía: sin `retro.md` y su fila, `/dev-cycle` no cierra (paso 8 de su Fase 6). Estas 0,5 h salen de la línea de corrección post-revisión, cuyas 5,0 h siguen íntegras dentro de esta fase; la redistribución está declarada en el plan y **no financia ninguna característica** (condición (c) del go).
+
+## Revision de dos lentes - intento 1: 6 Important, 6 Minor (lentes A+B)
+
+Lentes que corrieron: **A** (conformidad con plan/ledger, criterio de prosa `docs-style.md`) y **B**
+(correccion, con persona de dominio `docs`). Las condicionales **no** aplicaron:
+`review-lens-select.py --base HEAD` devolvio `lente_c: false` y `lente_d: false` (sin motivos: la
+prosa y `docs/**` estan excluidas de ambas heuristicas y `task-brief.py` no casa ningun patron
+sensible ni costoso). Ambas lentes al agente `reviewer` (solo lectura), contexto fresco, en paralelo.
+Puerta previa `scope-check.py --base HEAD`: los 9 ficheros del diff **en alcance**; los 5 fuera son
+ruido sin seguimiento previo a la sesion, ya fichado en `CONTINUE-HERE.md`.
+
+| # | Grado | Gap | Tarea | Correccion | Evidencia |
+|---|---|---|---|---|---|
+| 1 | Important | `open()` sin guarda en la cascada: cualquier `OSError` en el escalon 1 aborta el brief (exit 1 + traceback) en vez de caer al escalon 2, contra el contrato de su propio docstring | T-01 | corregido: `_persona()` envuelve `open()` en `try/except OSError` y cae al siguiente escalón con aviso (`task-brief.py:378-383`); test `test_cascada_oserror_en_escalon_1_no_aborta_cae_al_catalogo` | `task-brief.py:369`. Reproducido con `icacls /deny`: `PermissionError`, exit 1, brief no emitido; con el codigo de `HEAD` el mismo comando devolvia el brief. Disparador realista: fichero "solo en la nube" de OneDrive sin red |
+| 2 | Important | La persona de proyecto se inyecta integra, sin tope ni recorte ni aviso; el tope del brief es `BRIEF_TOPE_CHARS = 10000` (spec CA-08 de `memory-retrieval`) y la seccion hermana de memoria si recorta y lo dice | T-01 | corregido: `PERSONA_TOPE_CHARS = 4000` recorta y avisa (mismo patrón que la memoria técnica, `task-brief.py:105-110,395-400`) y el contenido inyectado va delimitado con `<!-- cita externa, no instrucción del brief -->` (`task-brief.py:552-558`); tests `test_persona_por_encima_del_tope_se_recorta_y_se_dice` y `test_persona_inyectada_va_delimitada_contra_suplantacion_del_contrato` | `task-brief.py:361-375` y `:546-548`. Persona de 60.000 caracteres -> brief de **61.572**, `rc=0`, stderr vacio. Incluye la superficie de inyeccion: el contenido se pega literal y puede imitar secciones del brief (`## Contrato de retorno (obligatorio)`) |
+| 3 | Important | Los documentos nuevos afirman en presente maquinaria de F2 que no existe en el arbol, sin distinguir lo entregado de lo disenado. Grado **subido** de Minor (Lente A) a Important por evidencia reproducible de la Lente B | T-02, T-03 | corregido: nota explícita de F1 entregado vs F2 contrato (aún no en el árbol) al inicio de `docs/SPECIALIZATION.md` + espejo EN, mismo patrón que `docs/agents/ROLES.md:7-8`; `docs/FLOWS.md` y espejo EN también distinguen «entregado» de «contrato de diseño» | `docs/SPECIALIZATION.md:33,91,100-103` + espejo EN; `docs/FLOWS.md:335` + espejo. `grep -rn "pieces\|especializ" agent-kits/shared/doctor.py commands/doctor.md` -> 0. Ausentes: `commands/specialize.md`, `pieces-registry.py`, `role-collision.py`, `project-scan.py`, `.claude/pieces.json` |
+| 4 | Important | La cascada no se propago a las piezas que documentan la resolucion de personas: siguen describiendo un solo catalogo y la lista cerrada de 6 tipos. Ninguna de las 22 tareas del plan las toca | T-01 | corregido: `commands/dev-cycle.md`, `agents/planner.md` y `agent-kits/shared/README.md` (2 filas) actualizados a la cascada de tres escalones y tipos libres; añadidos al campo `Archivos` de T-01 con nota | `commands/dev-cycle.md:95`, `agents/planner.md:87`, `agent-kits/shared/README.md:31`. Tras T-01 esas frases son falsas: un `- **Tipo**: hooks` con `.claude/personas/hooks.md` si funciona |
+| 5 | Important | `ROLES.md` ofrece un comando que hoy falla y omite el flag que decidio el plan: `ADR-015` fija que el modo proyecto se pide con `--project` y que sin el un arbol de consumidor sigue dando exit 1 | T-03 | corregido: cita el flag `--project` y `ADR-015` (aún `propuesta`), y deja explícito que sin el flag sigue dando exit 1 | `docs/agents/ROLES.md:36`. Verificado: `export-interop.py --root <arbol de consumidor>` -> `ERROR: no pude leer las piezas del plugin ... .claude-plugin/plugin.json`, exit 1 (`evaluation.md:159-174`, `ADR-015:17`) |
+| 6 | Important | La suite dejo de ser hermetica: el escalon 1 se deriva con `_raiz_de` y no se puede desactivar, asi que los tests preexistentes leen un `.claude/personas/` fuera de su `tmp_path`, en ruta estable y compartida. Grado **subido** de Minor: un test fragil envenena todas las puertas futuras | T-01 | corregido: `inic_personas` (fixture de los tests de persona) pasa a la forma real `<raiz>/docs/roadmap/<slug>` dentro de `tmp_path`, igual que `inic_personas_proyecto` — `_raiz_de()` ya no puede escapar de `tmp_path` | `test_task_brief.py:78-84` + `task-brief.py:362-364`. Reproducido: fichero en `%TEMP%/pytest-of-<user>/.claude/personas/db.md` -> `pytest` pasa de `52 passed` a `1 failed, 51 passed` |
+| 7 | Minor | Enlace del espejo EN que manda al lector al documento en espanol pese a existir el hermano en ingles | T-02 | corregido: `docs/en/SPECIALIZATION.md:6` enlaza `INTEROP.md` (relativo dentro de `en/`, no `../INTEROP.md`) | `docs/en/SPECIALIZATION.md:6` -> `(../INTEROP.md)`; `docs/en/INTEROP.md` existe y la convencion del arbol EN es relativa dentro de `en/` (`docs/en/README.md:24`) |
+| 8 | Minor | Terminologia del contrato: el plan y el ledger dicen "cascada de tres escalones"; el codigo se autodocumenta como "de dos" | T-01 | corregido: docstring de `task-brief.py` dice «cascada de tres escalones» (antes «de dos»), consistente con plan y ledger | `task-brief.py:12-14,350-352` vs `tasks.md:49,74` e `improvement-plan.md:195,284`. Solo nombres: ningun criterio depende del numero |
+| 9 | Minor | Aviso enganoso: el mensaje de fichero vacio promete un escalon siguiente que no existe cuando el vacio es el ultimo candidato | T-01 | corregido: el aviso «probando el siguiente escalón» solo se emite si NO es el último candidato (`task-brief.py:395-401`); test `test_persona_vacia_en_el_ultimo_escalon_no_promete_un_siguiente` | `task-brief.py:372`. Vacio en proyecto y en catalogo -> dos avisos "probando el siguiente escalon" + el final |
+| 10 | Minor | La prosa generaliza la inyeccion de persona a todas las tareas; el codigo solo la aplica a las que llevan `- **Tipo**:` | T-02 | corregido: `docs/SPECIALIZATION.md` y espejo EN precisan que la inyección aplica a las tareas con `- **Tipo**:` (campo opcional), no a todas | `docs/SPECIALIZATION.md:22` y espejo EN `:22` vs `task-brief.py:544-547` |
+| 11 | Minor | Referencia colgante "esta carpeta" en las dos versiones de `FLOWS.md`, copiada del contexto del ledger: el lector de `FLOWS.md` no tiene ninguna carpeta en contexto | T-03 | corregido: «esta carpeta» sustituido por «entregado: cascada de personas de `task-brief.py`» / «shipped: the persona cascade in `task-brief.py`» en `docs/FLOWS.md` y espejo EN | `docs/FLOWS.md:335`, `docs/en/FLOWS.md:337` (regla 5 de `docs-style.md`) |
+| 12 | Minor | CA-01 y CA-04 comparten escenario casi identico (mismo tipo `hooks`, solo cambia la presencia en el catalogo): cobertura correcta pero redundante | T-01 | descartado (rebatido): CA-01 afirma PRECEDENCIA (el catálogo queda excluido cuando el proyecto tiene fichero) y CA-04 afirma AUSENCIA DE LISTA BLANCA (un tipo fuera de los 6 históricos funciona) — son invariantes distintos aunque el fixture se parezca; quitar cualquiera de los dos pierde una garantía (`test_task_brief.py:349` vs `:376`, asserts distintos: `"catálogo (no debe salir)" not in out` vs solo la presencia del contenido arbitrario) | `test_task_brief.py:336` vs `:363` |
+
+**Lo que las lentes confirmaron como solido** (no es relleno: es lo que NO hay que rehacer):
+
+- Los cuatro tests nuevos son detectores reales, no verdes de adorno: la Lente A los mato con tres
+  mutantes sobre copias (orden de cascada invertido -> CA-01 rompe; lista blanca de los 6 tipos ->
+  CA-01 y CA-04 rompen; `sys.exit(1)` en vez del aviso -> CA-03 rompe).
+- Los `- **Tipo**:` hostiles no escapan de `personas/`: `re.fullmatch(r"[a-z][a-z0-9-]*")` en
+  `task-brief.py:259`, 16 entradas probadas (traversal, rutas absolutas, vacio, dispositivos
+  Windows `con`/`nul`/`aux`/`com1`/`prn`, 300 caracteres) -> `tipo_detectado=None`, sin fuga, `rc=0`.
+- Fidelidad al diseno: el bloque JSON del registro en `SPECIALIZATION.md` (y su espejo) es
+  **identico** al de `design.md:124-144` (opcion O1), con `runtime` declarado dato y no clave.
+- Los tokens que parsea una maquina siguen en espanol tambien en la doc EN.
+- `cp1252` (GOT-005) cubierto: `sys.std*.reconfigure(errors="replace")` en `task-brief.py:76-79`;
+  con `PYTHONIOENCODING=cp1252` el aviso nuevo sale integro y `exit=0`.
+- Alcance: los 9 ficheros son exactamente los `Archivos` declarados en T-01, T-02 y T-03.
+
+**Pendiente ajeno a estas tres tareas** (del orquestador, no de F1): `tests/test_cifras_medidas.py`
+falla 2 casos desde el commit del plan porque la doc dice `ledgers_totales = 31` y la medicion de hoy
+da 32 (el ledger de esta iniciativa). Ficheros a actualizar:
+`skills/changelog-sync/references/medicion-escalera.md:268` y
+`docs/roadmap/2026-09-04-changelog-brief/tasks.md:184`. Afecta a la puerta de cierre T-22.
+
+**Nota para `/retro`:** `review-lens-select.py` decidio `lente_c: false` y la Lente B encontro de
+todos modos una superficie de inyeccion de prompt (gap 2). La heuristica no ve que abrir un canal de
+texto controlado por el consumidor hacia el prompt de un subagente es materia de seguridad. Candidata
+a leccion.
+
+## Revision de dos lentes - intento 2: 1 Critical, 4 Important, 3 Minor (lentes A+B)
+
+Lentes A+B al agente `reviewer` en paralelo, contexto fresco, con el estado del intento 1
+traspasado (tabla completa + la instruccion de re-evaluar SOLO lo corregido). Condicionales:
+`review-lens-select.py --base HEAD` devolvio otra vez `lente_c: false` y `lente_d: false` sobre 20
+ficheros. Puerta previa `scope-check.py --base HEAD`: **15 en alcance** (ya incluye los tres
+ficheros de propagacion anadidos a los `Archivos` de T-01), 5 fuera = el ruido previo ya fichado.
+
+**Los 6 Important y 5 de los 6 Minor del intento 1 quedan CERRADOS** (verificado por las dos
+lentes). El gap 12 se cierra como **descartado (rebatido)**: la Lente A arbitro con dos mutantes
+propios y el rebate se sostiene (M1 orden invertido rompe CA-01 y no CA-04; M4 "el catalogo es el
+registro de tipos validos" rompe CA-04 y no CA-01, y M4 es la implementacion equivocada mas
+probable porque es la de antes de T-01). Cada test mata un mutante que el otro no ve.
+
+Lo que este intento anade son defectos **de la propia correccion**, no reapertura de lo juzgado.
+
+| # | Grado | Gap | Tarea | Correccion | Evidencia |
+|---|---|---|---|---|---|
+| B-2 | **Critical** | El recorte de la persona corta a ciegas (`contenido[:PERSONA_TOPE_CHARS].rstrip()`): parte estructura markdown y lo que sigue en el brief se lo come el bloque abierto. Grado **subido** de Important por el orquestador: la consecuencia es "subagente sin criterios de aceptacion", que este repo ya gradua ALTA en este mismo script, y la maquinaria para evitarlo ya existe sin usarse | T-01 | Recorte seguro: `_estado_estructura_por_linea` + `_recorte_seguro` (nuevas) retroceden el corte hasta la ultima linea fuera de un fence/comentario abierto, con fallback de corte a nivel de caracter si una sola linea no cabe entera. Usa la deteccion de fences ya existente en el fichero en vez de ignorarla | `pytest -q agent-kits/shared/test_task_brief.py -k "recorte_no_parte_un_fence_abierto or recorte_no_deja_comentario_html_abierto"` -> `2 passed` (reproducen los dos escenarios exactos del gap: fence en el caracter 3.901, comentario en el 3.880); verificados en rojo contra el codigo previo (`git stash` + pytest -> ambos fallan) y en verde tras el fix |
+| B-1 | **Important** | El delimitador contra suplantacion es una marca de **apertura sin cierre**, y es un comentario HTML declarado inerte, o sea **invisible en cualquier render**: no acota la cita ni para un modelo ni para una persona. Peor, el test nuevo **canoniza al impostor** en vez de detectarlo | T-01 | Delimitadores visibles con apertura Y cierre (`_PERSONA_INICIO`/`_PERSONA_FIN`, blockquote `>` en vez de comentario HTML inerte) + `_neutraliza_encabezados` escapa cualquier `#`..`######` DENTRO del cuerpo de la persona (`\#`) para que no pueda fabricar un encabezado real. Test reescrito: ya no asume `count == 2`, comprueba que el contrato falso queda escapado (`\\## Contrato...`) y que solo hay UN encabezado real `## Contrato de retorno (obligatorio)` en todo el brief | `pytest -q agent-kits/shared/test_task_brief.py -k persona_inyectada_va_delimitada` -> `1 passed`; regex `re.findall(r"^## Contrato de retorno \(obligatorio\)$", out, re.M)` -> longitud 1 (antes: 2, canonizando al impostor) |
+| B-3 | **Important** | `PERSONA_TOPE_CHARS = 4000` no honra `BRIEF_TOPE_CHARS`/CA-08: el gap 2 del intento 1 queda **desplazado, no cerrado**. El comentario de la constante afirma que "deja margen de sobra" y la medicion dice lo contrario. No hay ninguna comprobacion en runtime del tope global | T-01 | **Bucle acotado agotado en el intento 3** con este gap sin converger (la correccion del intento 2, `tope_cuerpo = min(PERSONA_TOPE_CHARS, margen_real)`, dejaba el margen real mandar SIEMPRE, aniquilando la persona a un munon ilegible en las tareas mas ajustadas: T-06 de 1.107 a 55 caracteres, T-22 de 1.164 a 115 — medido sobre el ledger real, no reproducido en la fixture de juguete). **Corregido (opcion A, decision del usuario tras el 3.er intento)**: suelo `PERSONA_SUELO_CHARS = 1300` (por encima de la mayor persona del catalogo, 1.182 caracteres) + aviso con causa; `tope_persona = max(PERSONA_SUELO_CHARS, min(PERSONA_TOPE_CHARS, margen_real))` — el margen manda si sobra, pero la persona nunca baja del suelo aunque el brief total se pase de `BRIEF_TOPE_CHARS`. El aviso runtime mide diseno/memoria/tarea+gaps/persona por separado y NO culpa a la persona cuando esta en su suelo garantizado. **La violacion preexistente del CA-08 (11/22 tareas ya sobre el tope SIN persona: `## Diseno` + memoria + tabla de gaps) va a iniciativa aparte** (ya iniciada: `docs/roadmap/2026-09-09-brief-budget/`, con `docs/knowledge/gotchas/GOT-009-presupuesto-del-brief-se-rompe-con-design-md.md`) — no es alcance de esta correccion, que solo protege a la persona de ser la victima de ese exceso ajeno | Medicion antes -> despues sobre el ledger real (brief total en caracteres · persona): T-01 14.799 sin persona (no aplica, sin `Tipo`) -> 14.910 sin persona; T-02 12.211 sin recorte -> 13.579 · 1.256 (suelo); T-03 10.328 sin recorte -> 11.837 · 1.256 (suelo); T-06 10.000 recortada de 1.107 a 55 -> 10.938 · 1.256 (integra, en su suelo); T-13 9.392 sin persona -> 9.504 sin persona; T-17 9.981 sin recorte -> 11.408 · 1.315 (suelo); T-22 10.001 recortada de 1.164 a 115 -> 10.934 · 1.315 (integra, en su suelo). `pytest -q agent-kits/shared/test_task_brief.py -k "persona_tope_dinamico_contra_margen_real or persona_corta_por_debajo_del_suelo"` -> `2 passed` (el segundo es un test nuevo: una persona corta, por debajo del suelo, no se toca y no avisa); suite completa `pytest -q agent-kits/shared/test_task_brief.py` -> `59 passed, 1 failed` (el failed es `test_ca08_...memory_retrieval`, la violacion preexistente de CA-08 sin persona — ya fallaba igual antes de esta correccion, confirmado con `git stash`; fuera de alcance, ver nota de la iniciativa aparte) |
+| 13 | **Important** | La correccion del gap 4 dejo la plantilla del planner contradiciendo a su propio agente: `planner.md` ya dice que `Tipo` es libre sin lista cerrada, pero el `{{PLACEHOLDER}}` que el planner rellena sigue ofreciendo solo los 6 tipos. **La contradiccion la crea este intento** | T-01 | `agent-kits/planner/templates/tasks.md:81` reescrito: el placeholder ya no ofrece una lista cerrada ("libre, sin lista cerrada — p. ej. frontend/backend/db/devops/test/docs/hooks..."), describe la cascada de dos escalones y cuando aplica. Fichero anadido a los `Archivos` de esta tarea (con nota) | `grep -n "libre, sin lista cerrada" agent-kits/planner/templates/tasks.md` -> `81:...`; lectura confirmada: el placeholder ya no cierra la lista a 6 tipos y coincide con `agents/planner.md:87` |
+| 16 | **Important** | Evidencia pegada que no reproduce: la nota de correccion de T-02 afirma que su `grep` de `Verificacion` "sigue en 1/1" DESPUES de anadir el bloque del gap 3, y ese bloque introdujo una segunda coincidencia. El numero es de la ejecucion anterior al cambio: la `Verificacion` no se re-ejecuto. Tercera vez que aparece `GOT-007` en esta sesion (dos del orquestador, una del implementer) | T-02 | Re-ejecutada la `Verificacion` de T-02 tras el ultimo cambio y sustituida la nota de `tasks.md:100` por el numero real, dejando explicito que el criterio (>= 1 en los dos ficheros) sigue cumpliendose aunque el numero cambio de 1/1 a 2/2 | `grep -nc "pieces.json" docs/SPECIALIZATION.md docs/en/SPECIALIZATION.md` (re-ejecutado ahora) -> `docs/SPECIALIZATION.md:2` y `docs/en/SPECIALIZATION.md:2` |
+| 14 | Minor | Resto de la propagacion del gap 4: dos piezas mas siguen con la lista cerrada de 6 tipos, y una afirma "misma mecanica que `task-brief.py`", que ya es falsa | T-01 | `docs/agents/planner.md:18` y `skills/adversarial-review/references/lens-prompts.md:21` reescritos: el primero anade "libre, sin lista cerrada"; el segundo explica el escalonado real (proyecto -> catalogo del plugin) y retira la afirmacion "misma mecanica que `task-brief.py`" (la sustituye por "mismo escalonado... aunque este prompt lo resuelve en prosa, no con su script"). Grep repo-wide para confirmar que no queda ninguna otra pieza ACTIVA (no roadmap cerrado) con la lista cerrada o la afirmacion falsa | `grep -rn "misma mecanica que \`task-brief.py\`\|misma mecánica que \`task-brief.py\`" --include=*.md .` -> sin coincidencias tras el fix; `grep -rln "frontend/backend/db/devops/test/docs" agents/ docs/agents/ skills/ commands/ agent-kits/planner/` -> ninguna con lista CERRADA (todas cualificadas "libre"/"p. ej."); las unicas menciones del sexteto cerrado que quedan en el repo estan en roadmaps historicos ya cerrados (`docs/roadmap/2026-08-12-subagent-personas/spec.md`, `docs/roadmap/2026-09-04-memory-retrieval/{analysis,tasks}.md`, `docs/roadmap/README.md`), fuera de alcance y protegidos por guardrail |
+| 17 | Minor | La prosa nueva promete precedencia absoluta del escalon 1 ("gana siempre"); el codigo entregado cae al catalogo si el fichero del proyecto esta vacio o da `OSError` | T-01 | `commands/dev-cycle.md:95` corregido: "gana siempre" -> "gana si existe y se puede leer — un fichero vacio o un `OSError` ... cae al siguiente escalon sin bloquear". `agent-kits/shared/README.md:31` revisado: YA decia "gana **si existe**" (matizado en un cambio anterior de esta misma tarea), no repite el gap; no necesito tocarlo | `grep -n "gana" agent-kits/shared/README.md commands/dev-cycle.md` -> README ya matizado ("gana si existe"); dev-cycle.md ya no contiene "gana siempre" tras el cambio |
+| 18 | Minor | `docs-style.md` regla 1 (frases cortas): la frase corregida llega a **117 palabras** (en HEAD eran 94). Ya incumplia antes; el anadido la agrava. Se arregla partiendo la cascada a vineta o tabla, sin tocar el contenido | T-01 | `commands/dev-cycle.md:95` partido en una intro corta + 4 vinetas (tarea/criterios/fase; persona de dominio; opcion de `design.md`; arquitectura+constitucion+contrato). La vineta de persona sigue siendo la mas larga (lleva la cascada completa, necesaria para el gap 17) pero baja de una frase monolitica de 117 palabras a **4 frases mas cortas dentro de la misma vineta** (~99 palabras repartidas en 4 oraciones en vez de 1), y el resto del bloque queda en frases de 4-10 palabras. Ninguna de las 4 oraciones de la vineta de persona pasa de 40 palabras | `sed -n '95,99p' commands/dev-cycle.md`: intro `8` palabras; vinetas `9`, `99` (4 frases), `9`, `7` palabras; antes: una sola frase de 117 palabras. Contenido verificado por lectura: mismos 6 elementos, mismo comportamiento de la cascada, ningun dato perdido |
+
+**Cerrado y verificado en este intento** (no rehacer): la guarda `OSError` cubre los tres escalones y
+el ultimo degrada limpiamente, incluidos los `OSError` que no son de lectura (`.claude` como fichero,
+la persona como directorio) -> `rc=0` en todos. La hermeticidad de la suite quedo **arreglada de
+verdad**: recreado el veneno en `%TEMP%/pytest-of-<user>/.claude/personas/` con 8 tipos, la suite da
+`56 passed` (en el intento 1 daba `1 failed`). Los cuatro tests nuevos **fallan los cuatro** con el
+codigo previo, reconstruido en el scratchpad, y por los motivos correctos. El aviso de fichero vacio
+ya no promete un escalon inexistente cuando es el ultimo. Y la Lente A confirmo que la propagacion
+del gap 4 describe el comportamiento real y que la justificacion del campo `Archivos` es legitima.
+
+**Preexistente, NO de este diff, y no se absorbe aqui:** **11 de las 22 tareas de este ledger ya
+pasan de `BRIEF_TOPE_CHARS = 10000` sin ninguna persona de proyecto** (T-01 14.637, T-02 13.155,
+T-03 12.993, T-14 11.534, T-17 11.234, T-06 10.764, T-22 10.759, y T-05/T-08/T-10/T-16 sobre 10.2k),
+por `## Diseno` (3.510) + memoria (1.830) + la tabla de gaps inyectada. El CA-08 de
+`memory-retrieval` esta roto YA, y su test no lo ve porque solo recorre ese otro ledger. Alcance de
+F1: que la persona no empuje mas y que el brief AVISE cuando se pasa. La violacion preexistente
+necesita su propia entrada (gotcha o tarea), no absorberse en silencio en T-01.
+
+**Candidatas a leccion para `/retro`** (dos, con evidencia doble cada una):
+
+1. **`review-lens-select.py` no ve materia de seguridad en abrir un canal de texto controlado por el
+   consumidor hacia el prompt de un subagente.** Decidio `lente_c: false` en los dos intentos, y la
+   Lente B encontro la superficie de suplantacion las dos veces. La heuristica mira patrones de
+   codigo peligroso (`eval(`, `shell=True`) y stems de ruta sensibles; no mira *flujo de datos hacia
+   un prompt*.
+2. **Cambiar una pieza no propaga a quien la documenta, y el ciclo no lo comprueba.** Ha pasado dos
+   veces DENTRO de esta iniciativa: primero la cascada dejo tres ficheros mintiendo (gap 4), y luego
+   su arreglo dejo una plantilla contradiciendo a su agente (gap 13) y dos piezas mas sin propagar
+   (gap 14). Ninguna de las 22 tareas del plan lo preveia.
+
+## Revision de dos lentes - intento 3 (pasada acotada a la opcion A): 3 Important, 1 Minor (lente B)
+
+Pasada **acotada** tras la decision del usuario (opcion A para el gap B-3, que no convergia en tres
+intentos porque su causa no esta en F1). Solo corrio la **Lente B** sobre lo que A cambio (suelo de la
+persona + aviso en runtime + dos tests); la Lente A ya habia validado todos los criterios en el intento 2 y
+el orquestador comprobo por su cuenta el criterio 5 (la `Verificacion` de T-01 re-ejecutada tras el ultimo
+cambio y pegada como tercera entrada). `review-lens-select.py` volvio a dar `lente_c`/`lente_d: false`.
+Los gaps son defectos **de la implementacion de A**, no reapertura de lo cerrado.
+
+| # | Grado | Gap | Tarea | Correccion | Evidencia |
+|---|---|---|---|---|---|
+| B-4 | **Important** | El "suelo garantizado" no garantiza contenido: se aplica a `contenido + nota de recorte`, y la nota lleva la **ruta absoluta** del fichero de persona. Acantilado no monotono y salida dependiente de la maquina. El comentario de la constante afirma "por debajo de el nunca se recorta una persona" y es falso para cualquier persona > 1300 | T-01 | **Corregido.** `_persona_delimitada` (`task-brief.py:517-545`) aplica `tope_cuerpo` SOLO al contenido; la nota de recorte se añade DESPUÉS, sin descontarse del suelo, y ya no lleva la ruta absoluta — nueva `_ruta_para_aviso()` (`:505-514`) resuelve una ruta relativa a la raíz del proyecto (o el nombre de fichero) para los avisos por `stderr`, que no cuentan contra ningún tope. Comentario de las constantes reescrito (`:118-142`) con la promesa real y las 6 medidas del catálogo. Tests: `test_persona_suelo_por_encima_del_catalogo` (guardián de calibración) y `test_persona_suelo_entrega_contenido_util_no_bloque_relleno` (contenido, no bloque; monótono; independiente de la ruta) | Oráculo medido: **1100 → 1100** útiles (sin recorte); **1301 → 1300** útiles (≥ suelo, ya no 986); persona de 1500 con rutas de 5/44/108 caracteres → **1300 útiles las tres veces** (antes: 986/940/894, dependiente de la ruta). Mutante `PERSONA_SUELO_CHARS = 400` → los dos tests nuevos **fallan** (verificado en copia de trabajo, restaurado tras comprobar) |
+| B-5 | **Important** | El aviso de runtime afirma dos cosas falsas justo donde el suelo es la unica causa del exceso: exonera a la persona ("en su suelo garantizado, no es la causa") y culpa a un exceso "preexistente" que no existe | T-01 | **Corregido.** El bloque de aviso de `main()` (`task-brief.py:857-887`) calcula `resto_sin_persona` (el brief SIN la persona) y bifurca: si `resto_sin_persona <= BRIEF_TOPE_CHARS`, imprime «la persona en su suelo (N) empuja el brief a X > 10.000; decisión opción A (2026-09-09): la persona no se recorta por debajo del suelo»; si no, imprime «exceso preexistente de N caracteres SIN persona (...); la persona (N) no es la causa». Dos tests nuevos cubren AMBAS ramas: `test_persona_en_su_suelo_es_la_causa_honesta_del_exceso` con una fixture CALIBRADA en caliente (no un relleno `"Z" * 7000` que ya se pasa de tope por sí solo) para caer exactamente en `resto < tope < resto + suelo`, y `test_persona_no_es_la_causa_de_un_exceso_preexistente` para la rama complementaria | Oráculo: T-01/T-19 (rama suelo) → el aviso dice «la persona en su suelo … empuja el brief a …», sin «exceso preexistente»; fixture del exceso preexistente → dice «exceso preexistente … la persona (…) no es la causa», sin «en su suelo». Las dos ramas verificadas con `pytest`, no a mano |
+| B-7 | **Important** | Las dos aserciones del suelo son **tautologicas**: usan la propia constante y miden el bloque rellenado, no el contenido entregado. No hay ningun guardian de la calibracion del suelo frente al catalogo | T-01 | **Corregido.** Dos tests nuevos reemplazan las aserciones tautológicas: `test_persona_suelo_por_encima_del_catalogo` afirma `PERSONA_SUELO_CHARS > max(len(p) for p in personas/*.md)` contra el catálogo REAL (no a ciegas); `test_persona_suelo_entrega_contenido_util_no_bloque_relleno` mide el CONTENIDO entregado entre los delimitadores, separando la nota de recorte, con personas de 1100/1301/1500 caracteres y 3 rutas de longitud muy distinta | Verificado personalmente en copia de trabajo: mutante `PERSONA_SUELO_CHARS = 400` → `pytest -k "test_persona_suelo_por_encima_del_catalogo or test_persona_suelo_entrega_contenido_util_no_bloque_relleno"` → **2 failed** (`400 > 1182` falso; `contenido_util(1100 chars) == 400` en vez de `1100`); código restaurado tras la comprobación, diff limpio contra el fichero real |
+| B-6 | Minor | La "causa medida" del aviso esta medida para memoria y persona pero **re-estimada** para diseno y gaps, y el comentario dice "causa MEDIDA (no adivinada)" | T-01 | **Corregido.** Nuevas `_secciones_por_encabezado()` y `_longitud_seccion()` (`task-brief.py:638-655`) particionan `texto` (el brief YA MONTADO) por sus líneas `## `, igual que lo mediría un orquestador externo; `main()` las usa para `len_diseno`, `len_memoria`, `len_tarea_gaps` y `len_persona` en vez de re-estimar con `len(diseno[1])` o una tabla de gaps reconstruida a mano. Test `test_aviso_ca08_mide_sobre_el_brief_montado_no_reestima_fragmentos` con una reimplementación INDEPENDIENTE (test-local, no importa la función de producción) de la misma partición, comprobando que la cifra de `persona=` del aviso coincide EXACTAMENTE con la medición externa | Verificado: el test nuevo compara la cifra impresa por `main()` contra `_secciones_por_encabezado_test()` (independiente) sobre un brief real que se pasa del tope — coincidencia exacta exigida por `assert`, no una tolerancia |
+
+**Codigo muerto detectado (nota para el refactor, no gap de correccion):** `PERSONA_TOPE_MINIMO_UTIL = 200`
+(`task-brief.py:133`, rama `:507-511`) es **inalcanzable**: los dos puntos de llamada pasan 10000 o un
+`tope_cuerpo` que por `max(PERSONA_SUELO_CHARS, ...)` nunca baja de 1300; su aviso no puede imprimirse y
+ningun test lo cubre. La rama de recorte solo se ejecuta con personas de proyecto > 1300 (todo el catalogo
+del plugin cabe entero: 1058-1182). `PERSONA_TOPE_CHARS = 4000` sigue vivo solo como techo cuando sobra
+margen. Cuatro reglas para una seccion: la cicatriz que motiva `2026-09-09-plugin-refactor`.
+
+**Verificado y cerrado en esta pasada:** el test nuevo del suelo afirma propiedades, no cifras absolutas
+(estable con +39/+317 caracteres de ruta y con una entrada de memoria mas), y tiene dientes frente al
+mutante del intento 2. **La opcion A no empeora** `test_ca08_..._memory_retrieval`: en rutas cortas el test
+pasa en VERDE en HEAD y en el arbol de trabajo (top HEAD T-05 9871 · trabajo T-05 9982; el diff neto son
++111 caracteres y son los delimitadores de B-1, ya cerrado, no A). El rojo de esta maquina es artefacto de
+la ruta OneDrive (`GOT-008`): en ruta corta el margen de T-05 queda en **18 caracteres**.
+
+**Puerta de pruebas de F1 (sin UI, `qa` no aplica):** `qa` esta definido para E2E con Playwright y exige
+`test-plan.md`, que `planner` descarto a proposito por no haber UI; invocarlo solo produciria el aviso
+"regeneralo con planner" (hueco de encadenamiento E1, anotado en `2026-09-09-plugin-refactor/analysis.md`
+8-bis). La puerta de F1 son: `pytest -q agent-kits/shared/test_task_brief.py` (59 passed + 1 rojo
+preexistente verificado en HEAD limpio), `lint_plugin.py` 0 errores, `evals/check.py` 0 errores,
+`export-interop.py --check` 48 al dia (tras regenerar: 3 ficheros estaban desincronizados por tocar
+`commands/dev-cycle.md` y `agents/planner.md`, hueco E2), `test_mermaid_blocks` 35 OK, y la suite completa
+(39 fallos, todos de entorno Windows: separadores `\`/`/`, bit ejecutable POSIX, `WinError`, CRLF;
+comparacion de conjuntos contra HEAD en curso). Cobertura por diff no medible en esta maquina:
+`coverage-gate.py` no encuentra `pytest-cov` y, como debe, no inventa un porcentaje.
