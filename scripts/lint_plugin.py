@@ -319,6 +319,73 @@ QUOTED_RE = re.compile(r'["“«]([^"”»]{3,})["”»]')   # frase entrecomill
 MIN_PALABRAS_DISPARADOR = 3
 
 
+def _fm_linea_indentada(out, cur_top, indent, stripped):
+    """Líneas con indent > 0: comandos de `hooks:`, bloques plegables o items de `skills:`.
+    Devuelve True si la línea quedó gestionada (el bucle debe pasar a la siguiente)."""
+    if indent == 0:
+        return False
+    if cur_top == "hooks":
+        m = re.match(r"-?\s*command\s*:\s*(.+)$", stripped)
+        if m:
+            cmd = m.group(1).strip()
+            if len(cmd) >= 2 and cmd[0] == cmd[-1] and cmd[0] in "'\"":
+                cmd = cmd[1:-1]
+            out["hook_commands"].append(cmd)
+        return True
+    if cur_top in BLOQUE_PLEGABLE and cur_top in out:
+        out[cur_top] = (out[cur_top] + " " + stripped).strip()
+        return True
+    if cur_top == "skills" and stripped.startswith("- "):
+        item = stripped[2:].split("#", 1)[0].strip()
+        if item:
+            out["skills"].append(item)
+        return True
+    return False
+
+
+def _fm_linea_nivel0(out, stripped):
+    """Línea de indent 0 `clave: valor`. Devuelve (in_deps, cur_dep, cur_top)."""
+    key = stripped.split(":", 1)[0].strip()
+    val = stripped.split(":", 1)[1].strip()
+    if key == "skills":
+        v = val.split("#", 1)[0].strip()
+        if v and v != "[]":
+            out["skills"].extend(x.strip() for x in v.strip("[] ").split(",") if x.strip())
+    if key == "name":
+        out["name"] = val
+    elif key == "model":
+        out["model"] = val
+    elif key == "effort":
+        out["effort"] = val.split("#", 1)[0].strip()
+    elif key == "description":
+        out["description"] = "" if val in MARCAS_BLOQUE else val
+    elif key == "tools":
+        out["tools"] = [t.strip() for t in val.split(",") if t.strip()]
+    return (key == "dependencies"), None, key
+
+
+def _fm_linea_deps(out, cur_dep, indent, stripped):
+    """Línea dentro del bloque `dependencies:` (indent 2 o item `- x`). Devuelve el `cur_dep` actual."""
+    if indent == 2 and stripped.endswith(":"):
+        cur_dep = stripped[:-1].strip()
+        if cur_dep not in out["dependencies"]:
+            out["dependencies"][cur_dep] = []
+    elif indent == 2 and ":" in stripped:
+        # forma inline: "skills: []" o "skills:   # comentario"
+        k = stripped.split(":", 1)[0].strip()
+        v = stripped.split(":", 1)[1]
+        v = v.split("#", 1)[0].strip()  # descarta comentario en línea
+        cur_dep = k
+        out["dependencies"].setdefault(k, [])
+        if v and v != "[]":
+            out["dependencies"][k].append(v.strip("[] "))
+    elif cur_dep and stripped.startswith("- "):
+        item = stripped[2:].split("#", 1)[0].strip()
+        if item:
+            out["dependencies"][cur_dep].append(item)
+    return cur_dep
+
+
 def parse_frontmatter(text):
     """Parser mínimo de frontmatter YAML (solo lo que este linter necesita).
     Devuelve dict con: name, model, tools(list), description, dependencies{skills,kits,agents}."""
@@ -338,76 +405,48 @@ def parse_frontmatter(text):
             continue
         indent = len(line) - len(line.lstrip())
         stripped = line.strip()
-        if indent > 0 and cur_top == "hooks":
-            m = re.match(r"-?\s*command\s*:\s*(.+)$", stripped)
-            if m:
-                cmd = m.group(1).strip()
-                if len(cmd) >= 2 and cmd[0] == cmd[-1] and cmd[0] in "'\"":
-                    cmd = cmd[1:-1]
-                out["hook_commands"].append(cmd)
-            continue
-        if indent > 0 and cur_top in BLOQUE_PLEGABLE and cur_top in out:
-            out[cur_top] = (out[cur_top] + " " + stripped).strip()
-            continue
-        if indent > 0 and cur_top == "skills" and stripped.startswith("- "):
-            item = stripped[2:].split("#", 1)[0].strip()
-            if item:
-                out["skills"].append(item)
+        if _fm_linea_indentada(out, cur_top, indent, stripped):
             continue
         if indent == 0 and ":" in stripped:
-            key = stripped.split(":", 1)[0].strip()
-            val = stripped.split(":", 1)[1].strip()
-            in_deps = (key == "dependencies")
-            cur_dep = None
-            cur_top = key
-            if key == "skills":
-                v = val.split("#", 1)[0].strip()
-                if v and v != "[]":
-                    out["skills"].extend(x.strip() for x in v.strip("[] ").split(",") if x.strip())
-            if key == "name":
-                out["name"] = val
-            elif key == "model":
-                out["model"] = val
-            elif key == "effort":
-                out["effort"] = val.split("#", 1)[0].strip()
-            elif key == "description":
-                out["description"] = "" if val in MARCAS_BLOQUE else val
-            elif key == "tools":
-                out["tools"] = [t.strip() for t in val.split(",") if t.strip()]
-        elif in_deps and indent == 2 and stripped.endswith(":"):
-            cur_dep = stripped[:-1].strip()
-            if cur_dep not in out["dependencies"]:
-                out["dependencies"][cur_dep] = []
-        elif in_deps and indent == 2 and ":" in stripped:
-            # forma inline: "skills: []" o "skills:   # comentario"
-            k = stripped.split(":", 1)[0].strip()
-            v = stripped.split(":", 1)[1]
-            v = v.split("#", 1)[0].strip()  # descarta comentario en línea
-            cur_dep = k
-            out["dependencies"].setdefault(k, [])
-            if v and v != "[]":
-                out["dependencies"][k].append(v.strip("[] "))
-        elif in_deps and cur_dep and stripped.startswith("- "):
-            item = stripped[2:].split("#", 1)[0].strip()
-            if item:
-                out["dependencies"][cur_dep].append(item)
+            in_deps, cur_dep, cur_top = _fm_linea_nivel0(out, stripped)
+        elif in_deps and (indent == 2 or cur_dep):
+            cur_dep = _fm_linea_deps(out, cur_dep, indent, stripped)
     return out
 
 
-def lint(root):
+def _lint_agente_campos(fn, fm, stem, agent_names):
+    """Campos requeridos + `model`/`effort`/`tools` válidos + `name` == fichero de un agents/*.md."""
     errors, warnings = [], []
-    agents_dir = os.path.join(root, "agents")
-    skills_dir = os.path.join(root, "skills")
-    kits_dir = os.path.join(root, "agent-kits")
-    commands_dir = os.path.join(root, "commands")
+    for field in ("name", "model", "effort", "tools", "description"):
+        if field not in fm or not fm.get(field):
+            errors.append(f"{fn}: falta el campo requerido `{field}`")
+    name = fm.get("name", "")
+    if name:
+        if name != stem:
+            errors.append(f"{fn}: `name: {name}` no coincide con el nombre de fichero `{stem}`")
+        if name in agent_names:
+            errors.append(f"{fn}: nombre de agente duplicado `{name}`")
+    model = fm.get("model")
+    if model and model not in VALID_MODELS:
+        errors.append(f"{fn}: `model: {model}` no es válido (usa {sorted(VALID_MODELS)})")
+    effort = fm.get("effort")
+    if effort and effort not in VALID_EFFORTS:
+        errors.append(f"{fn}: `effort: {effort}` no es válido (usa {sorted(VALID_EFFORTS)})")
+    for t in fm.get("tools", []):
+        if t not in VALID_TOOLS:
+            errors.append(f"{fn}: herramienta desconocida en `tools`: `{t}`")
+    desc = fm.get("description", "")
+    if desc and not TRIGGER_RE.search(desc):
+        warnings.append(f"{fn}: la `description` no tiene frase-gatillo (\"Úsalo cuando…\"/\"PROACTIVAMENTE\") → peor auto-delegación")
+    return errors, warnings, name
 
-    # --- Agentes ---
+
+def _lint_agentes_frontmatter(agents_dir):
+    """Frontmatter de cada agents/*.md: campos requeridos, `model`/`effort`/`tools` válidos,
+    `name` == fichero, nombres únicos. Devuelve (errores, avisos, agent_names, dep_graph)."""
+    errors, warnings = [], []
     agent_names = set()
     dep_graph = {}
-    if not os.path.isdir(agents_dir):
-        errors.append(f"No existe el directorio de agentes: {agents_dir}")
-        return errors, warnings
-
     for fn in sorted(os.listdir(agents_dir)):
         if not fn.endswith(".md"):
             continue
@@ -417,35 +456,54 @@ def lint(root):
         if fm is None:
             errors.append(f"{fn}: frontmatter ausente o mal formado")
             continue
-        # requeridos
-        for field in ("name", "model", "effort", "tools", "description"):
-            if field not in fm or not fm.get(field):
-                errors.append(f"{fn}: falta el campo requerido `{field}`")
-        name = fm.get("name", "")
+        c_err, c_warn, name = _lint_agente_campos(fn, fm, stem, agent_names)
+        errors.extend(c_err)
+        warnings.extend(c_warn)
         if name:
-            if name != stem:
-                errors.append(f"{fn}: `name: {name}` no coincide con el nombre de fichero `{stem}`")
-            if name in agent_names:
-                errors.append(f"{fn}: nombre de agente duplicado `{name}`")
             agent_names.add(name)
-        # model
-        model = fm.get("model")
-        if model and model not in VALID_MODELS:
-            errors.append(f"{fn}: `model: {model}` no es válido (usa {sorted(VALID_MODELS)})")
-        effort = fm.get("effort")
-        if effort and effort not in VALID_EFFORTS:
-            errors.append(f"{fn}: `effort: {effort}` no es válido (usa {sorted(VALID_EFFORTS)})")
-        # tools
-        for t in fm.get("tools", []):
-            if t not in VALID_TOOLS:
-                errors.append(f"{fn}: herramienta desconocida en `tools`: `{t}`")
-        # description triggers (warning)
-        desc = fm.get("description", "")
-        if desc and not TRIGGER_RE.search(desc):
-            warnings.append(f"{fn}: la `description` no tiene frase-gatillo (\"Úsalo cuando…\"/\"PROACTIVAMENTE\") → peor auto-delegación")
         dep_graph[name] = fm.get("dependencies", {}).get("agents", [])
+    return errors, warnings, agent_names, dep_graph
 
-    # --- Referencias del grafo ---
+
+def _lint_agente_referencias_deps(fn, deps, skills_dir, kits_dir, agent_names):
+    """`dependencies.skills/kits/agents` de un agente apuntan a artefactos que EXISTEN."""
+    errors = []
+    for sk in deps.get("skills", []):
+        if not os.path.isfile(os.path.join(skills_dir, sk, "SKILL.md")):
+            errors.append(f"{fn}: skill declarada inexistente: `{sk}` (falta skills/{sk}/SKILL.md)")
+    for kit in deps.get("kits", []):
+        kp = kit[len("agent-kits/"):] if kit.startswith("agent-kits/") else kit
+        if not os.path.isdir(os.path.join(kits_dir, kp)):
+            errors.append(f"{fn}: kit declarado inexistente: `{kit}` (falta agent-kits/{kp}/)")
+    for ag in deps.get("agents", []):
+        if ag not in agent_names:
+            errors.append(f"{fn}: agente en handoff inexistente: `{ag}`")
+    return errors
+
+
+def _lint_agente_skills_nativas(fn, fm, deps, skills_dir):
+    """Campo nativo `skills:` (precarga): existe Y está en `dependencies.skills`; avisa si pesa demasiado."""
+    errors, warnings = [], []
+    preload_bytes = 0
+    for sk in fm.get("skills", []):
+        sk_md = os.path.join(skills_dir, sk, "SKILL.md")
+        if not os.path.isfile(sk_md):
+            errors.append(f"{fn}: skill precargada en `skills:` inexistente: `{sk}` (falta skills/{sk}/SKILL.md)")
+        else:
+            preload_bytes += os.path.getsize(sk_md)
+        if sk not in deps.get("skills", []):
+            errors.append(f"{fn}: `skills: {sk}` no está en `dependencies.skills` — el grafo del repo debe ser "
+                          f"superconjunto de la precarga nativa (regla 4 de CONVENTIONS)")
+    if preload_bytes > PRELOAD_WARN_BYTES:
+        warnings.append(f"{fn}: `skills:` precarga {preload_bytes // 1024} KB en CADA arranque del agente "
+                        f"(token-diet: solo skills necesarias en TODAS sus ejecuciones; las opt-in van bajo demanda)")
+    return errors, warnings
+
+
+def _lint_agentes_referencias(root, agents_dir, skills_dir, kits_dir, agent_names):
+    """Referencias del grafo `dependencies` (skills/kits/agents) y campos nativos `skills:`/`hooks:`
+    de cada agents/*.md. Devuelve (errores, avisos)."""
+    errors, warnings = [], []
     for fn in sorted(os.listdir(agents_dir)):
         if not fn.endswith(".md"):
             continue
@@ -453,35 +511,19 @@ def lint(root):
         if not fm:
             continue
         deps = fm.get("dependencies", {})
-        for sk in deps.get("skills", []):
-            if not os.path.isfile(os.path.join(skills_dir, sk, "SKILL.md")):
-                errors.append(f"{fn}: skill declarada inexistente: `{sk}` (falta skills/{sk}/SKILL.md)")
-        for kit in deps.get("kits", []):
-            kp = kit[len("agent-kits/"):] if kit.startswith("agent-kits/") else kit
-            if not os.path.isdir(os.path.join(kits_dir, kp)):
-                errors.append(f"{fn}: kit declarado inexistente: `{kit}` (falta agent-kits/{kp}/)")
-        for ag in deps.get("agents", []):
-            if ag not in agent_names:
-                errors.append(f"{fn}: agente en handoff inexistente: `{ag}`")
-        # --- campos nativos `skills:` (precarga) y `hooks:` (guardia con alcance del agente) ---
-        preload_bytes = 0
-        for sk in fm.get("skills", []):
-            sk_md = os.path.join(skills_dir, sk, "SKILL.md")
-            if not os.path.isfile(sk_md):
-                errors.append(f"{fn}: skill precargada en `skills:` inexistente: `{sk}` (falta skills/{sk}/SKILL.md)")
-            else:
-                preload_bytes += os.path.getsize(sk_md)
-            if sk not in deps.get("skills", []):
-                errors.append(f"{fn}: `skills: {sk}` no está en `dependencies.skills` — el grafo del repo debe ser "
-                              f"superconjunto de la precarga nativa (regla 4 de CONVENTIONS)")
-        if preload_bytes > PRELOAD_WARN_BYTES:
-            warnings.append(f"{fn}: `skills:` precarga {preload_bytes // 1024} KB en CADA arranque del agente "
-                            f"(token-diet: solo skills necesarias en TODAS sus ejecuciones; las opt-in van bajo demanda)")
+        errors.extend(_lint_agente_referencias_deps(fn, deps, skills_dir, kits_dir, agent_names))
+        sk_err, sk_warn = _lint_agente_skills_nativas(fn, fm, deps, skills_dir)
+        errors.extend(sk_err)
+        warnings.extend(sk_warn)
         h_err, h_warn = lint_hook_commands(root, fm.get("hook_commands", []), f"{fn} [hooks]")
         errors.extend(h_err)
         warnings.extend(h_warn)
+    return errors, warnings
 
-    # --- Ciclos en el grafo de agentes ---
+
+def _lint_ciclos_agentes(dep_graph):
+    """Ciclos en el grafo de dependencias entre agentes (DFS blanco/gris/negro)."""
+    errors = []
     WHITE, GRAY, BLACK = 0, 1, 2
     color = {n: WHITE for n in dep_graph}
 
@@ -499,16 +541,12 @@ def lint(root):
     for n in list(dep_graph):
         if color[n] == WHITE:
             dfs(n, [n])
+    return errors
 
-    # --- hooks/hooks.json: JSON válido + commands que existen (ejecutable = aviso) ---
-    h_err, h_warn = lint_hooks(root)
-    errors.extend(h_err)
-    warnings.extend(h_warn)
 
-    # --- docs/knowledge/README.md: biyección ficheros ↔ filas + «Área» por fila (ERROR; memory-retrieval T-04) ---
-    errors.extend(lint_knowledge_index(root))
-
-    # --- Namespacing: nombres genéricos en commands/skills (warning) ---
+def _lint_namespacing(commands_dir, skills_dir):
+    """Nombres genéricos en commands/skills (warning, riesgo de colisión sin namespace de plugin)."""
+    warnings = []
     for d, kind, get_names in (
         (commands_dir, "command", lambda dd: [f[:-3] for f in os.listdir(dd) if f.endswith(".md")]),
         (skills_dir, "skill", lambda dd: [x for x in os.listdir(dd) if os.path.isdir(os.path.join(dd, x))]),
@@ -520,6 +558,39 @@ def lint(root):
                 warnings.append(
                     f"{kind} `{nm}`: nombre genérico — sin instalar como plugin (namespace `custom-agents:`) "
                     f"puede chocar con otro `.claude/`. Ok si se usa como plugin.")
+    return warnings
+
+
+def lint(root):
+    errors, warnings = [], []
+    agents_dir = os.path.join(root, "agents")
+    skills_dir = os.path.join(root, "skills")
+    kits_dir = os.path.join(root, "agent-kits")
+    commands_dir = os.path.join(root, "commands")
+
+    if not os.path.isdir(agents_dir):
+        errors.append(f"No existe el directorio de agentes: {agents_dir}")
+        return errors, warnings
+
+    fm_err, fm_warn, agent_names, dep_graph = _lint_agentes_frontmatter(agents_dir)
+    errors.extend(fm_err)
+    warnings.extend(fm_warn)
+
+    ref_err, ref_warn = _lint_agentes_referencias(root, agents_dir, skills_dir, kits_dir, agent_names)
+    errors.extend(ref_err)
+    warnings.extend(ref_warn)
+
+    errors.extend(_lint_ciclos_agentes(dep_graph))
+
+    # --- hooks/hooks.json: JSON válido + commands que existen (ejecutable = aviso) ---
+    h_err, h_warn = lint_hooks(root)
+    errors.extend(h_err)
+    warnings.extend(h_warn)
+
+    # --- docs/knowledge/README.md: biyección ficheros ↔ filas + «Área» por fila (ERROR; memory-retrieval T-04) ---
+    errors.extend(lint_knowledge_index(root))
+
+    warnings.extend(_lint_namespacing(commands_dir, skills_dir))
 
     # --- Copias manuales de workflows: <x>.yml.MANUAL-COPY vs .github/workflows/<x>.yml ---
     warnings.extend(lint_manual_copies(root))
@@ -803,6 +874,55 @@ def lint_skill_desc_interop(root):
     return warns
 
 
+def _fm_yaml_linea(rel, num, raw):
+    """Una línea del frontmatter: None si es válida para YAML, o el mensaje de error si rompe."""
+    m = re.match(r"^(\s*)([A-Za-z_][A-Za-z0-9_-]*): (.+)$", raw)
+    if not m:
+        return None
+    val = m.group(3).strip()
+    if val[:1] in ('"', "'", ">", "|", "#", "&", "*"):
+        return None          # entrecomillado, bloque, o solo comentario: YAML lo acepta
+    sin_comentario = re.sub(r"\s+#.*$", "", val).strip()
+    if not sin_comentario:
+        return None
+    # Colecciones EN FLUJO (`{ a: 1, b: 2 }`, `[x, y]`) son YAML válido y llevan `: `
+    # dentro: `tokens_reales: { entrada: 40, … }` de los ledgers es correcto. Ojo con
+    # `{{`, que NO lo es (clave no escalar) y por eso sí se denuncia arriba.
+    if sin_comentario.startswith("[") or (
+            sin_comentario.startswith("{") and not sin_comentario.startswith("{{")):
+        return None
+    if sin_comentario.startswith("{{"):
+        return (f"{rel}:{num}: `{m.group(2)}` abre `{{{{` — YAML lo lee como mapa en "
+                f"flujo; entrecomilla el placeholder (`{m.group(2)}: \"{{{{X}}}}\"`)")
+    if re.search(r":\s", sin_comentario):
+        return (f"{rel}:{num}: `{m.group(2)}` es un escalar plano con `: ` dentro — YAML "
+                f"inválido (GitHub: «mapping values not allowed in this context»). "
+                f"Arréglalo con un bloque `{m.group(2)}: >` + líneas indentadas (textos "
+                f"largos), entrecomillando el valor, o quitando los dos puntos de la nota")
+    return None
+
+
+def _fm_yaml_fichero(path, root):
+    """Errores YAML del frontmatter de un `.md` concreto. [] si no se puede leer o no tiene frontmatter."""
+    try:
+        with open(path, encoding="utf-8-sig") as f:
+            text = f.read()
+    except (OSError, UnicodeDecodeError):
+        return []
+    if not text.startswith("---"):
+        return []
+    end = text.find(chr(10) + "---", 3)
+    if end == -1:
+        return []
+    rel = os.path.relpath(path, root).replace(os.sep, "/")
+    errs = []
+    for num, raw in enumerate(text[3:end].splitlines(), start=1):
+        err = _fm_yaml_linea(rel, num, raw)
+        if err:
+            errs.append(err)
+    return errs
+
+
 def lint_frontmatter_yaml(root):
     """ERRORES: frontmatter que un parser YAML de verdad rechaza (y GitHub pinta como
     «Error in user YAML: (<unknown>): mapping values not allowed in this context»).
@@ -819,44 +939,8 @@ def lint_frontmatter_yaml(root):
                              if d not in {".git", ".venv", "__pycache__", ".pytest_cache",
                                           "_to_delete", "dist", "node_modules"})
         for fn in sorted(filenames):
-            if not fn.endswith(".md"):
-                continue
-            path = os.path.join(dirpath, fn)
-            try:
-                with open(path, encoding="utf-8-sig") as f:
-                    text = f.read()
-            except (OSError, UnicodeDecodeError):
-                continue
-            if not text.startswith("---"):
-                continue
-            end = text.find(chr(10) + "---", 3)
-            if end == -1:
-                continue
-            rel = os.path.relpath(path, root).replace(os.sep, "/")
-            for num, raw in enumerate(text[3:end].splitlines(), start=1):
-                m = re.match(r"^(\s*)([A-Za-z_][A-Za-z0-9_-]*): (.+)$", raw)
-                if not m:
-                    continue
-                val = m.group(3).strip()
-                if val[:1] in ('"', "'", ">", "|", "#", "&", "*"):
-                    continue          # entrecomillado, bloque, o solo comentario: YAML lo acepta
-                sin_comentario = re.sub(r"\s+#.*$", "", val).strip()
-                if not sin_comentario:
-                    continue
-                # Colecciones EN FLUJO (`{ a: 1, b: 2 }`, `[x, y]`) son YAML válido y llevan `: `
-                # dentro: `tokens_reales: { entrada: 40, … }` de los ledgers es correcto. Ojo con
-                # `{{`, que NO lo es (clave no escalar) y por eso sí se denuncia arriba.
-                if sin_comentario.startswith("[") or (
-                        sin_comentario.startswith("{") and not sin_comentario.startswith("{{")):
-                    continue
-                if sin_comentario.startswith("{{"):
-                    errs.append(f"{rel}:{num}: `{m.group(2)}` abre `{{{{` — YAML lo lee como mapa en "
-                                f"flujo; entrecomilla el placeholder (`{m.group(2)}: \"{{{{X}}}}\"`)")
-                elif re.search(r":\s", sin_comentario):
-                    errs.append(f"{rel}:{num}: `{m.group(2)}` es un escalar plano con `: ` dentro — YAML "
-                                f"inválido (GitHub: «mapping values not allowed in this context»). "
-                                f"Arréglalo con un bloque `{m.group(2)}: >` + líneas indentadas (textos "
-                                f"largos), entrecomillando el valor, o quitando los dos puntos de la nota")
+            if fn.endswith(".md"):
+                errs.extend(_fm_yaml_fichero(os.path.join(dirpath, fn), root))
     return errs
 
 
@@ -1016,15 +1100,10 @@ def nombre_generico(nm, kind):
     return bool(set(toks) & GENERIC_NAME_TOKENS)
 
 
-def lint_manual_copies(root):
+def _lint_manual_copies_workflows(root, nombres):
     """Avisos: cada `<x>.yml.MANUAL-COPY` de la raíz cuya copia `.github/workflows/<x>.yml` exista y
-    NO sea byte-idéntica (la ruta es protegida para las herramientas remotas: la copia es manual y
-    puede quedarse atrás; `tests/test_ci_manual_copy.py` lo comprueba con el mismo criterio)."""
+    NO sea byte-idéntica."""
     warns = []
-    try:
-        nombres = sorted(os.listdir(root))
-    except OSError:
-        return warns
     for fn in nombres:
         if not fn.endswith(".yml.MANUAL-COPY"):
             continue
@@ -1039,23 +1118,41 @@ def lint_manual_copies(root):
         if a != b:
             warns.append(f"{fn} y .github/workflows/{fn[:-len('.MANUAL-COPY')]} difieren — copia manual "
                          f"pendiente: `cp {fn} .github/workflows/{fn[:-len('.MANUAL-COPY')]}`")
-    # árbol github-templates.MANUAL-COPY/ → .github/ (issue forms + PR template; distribution T-03)
-    arbol = os.path.join(root, "github-templates.MANUAL-COPY")
-    if os.path.isdir(arbol):
-        for dirpath, _dirs, files in os.walk(arbol):
-            for f in sorted(files):
-                src = os.path.join(dirpath, f)
-                rel = os.path.relpath(src, arbol).replace(os.sep, "/")
-                dst = os.path.join(root, ".github", rel)
-                if not os.path.isfile(dst):
-                    continue
-                try:
-                    if open(src, "rb").read() != open(dst, "rb").read():
-                        warns.append(f"github-templates.MANUAL-COPY/{rel} y .github/{rel} difieren — copia manual "
-                                     f"pendiente: `cp github-templates.MANUAL-COPY/{rel} .github/{rel}`")
-                except OSError:
-                    continue
     return warns
+
+
+def _lint_manual_copies_templates(root):
+    """Avisos: árbol `github-templates.MANUAL-COPY/` → `.github/` (issue forms + PR template)."""
+    warns = []
+    arbol = os.path.join(root, "github-templates.MANUAL-COPY")
+    if not os.path.isdir(arbol):
+        return warns
+    for dirpath, _dirs, files in os.walk(arbol):
+        for f in sorted(files):
+            src = os.path.join(dirpath, f)
+            rel = os.path.relpath(src, arbol).replace(os.sep, "/")
+            dst = os.path.join(root, ".github", rel)
+            if not os.path.isfile(dst):
+                continue
+            try:
+                if open(src, "rb").read() != open(dst, "rb").read():
+                    warns.append(f"github-templates.MANUAL-COPY/{rel} y .github/{rel} difieren — copia manual "
+                                 f"pendiente: `cp github-templates.MANUAL-COPY/{rel} .github/{rel}`")
+            except OSError:
+                continue
+    return warns
+
+
+def lint_manual_copies(root):
+    """Avisos: copias `.MANUAL-COPY` (workflows en la raíz + árbol `github-templates.MANUAL-COPY/`)
+    que se han quedado atrás respecto a su destino real (la ruta es protegida para las herramientas
+    remotas: la copia es manual y puede desincronizarse; `tests/test_ci_manual_copy.py` usa el mismo
+    criterio)."""
+    try:
+        nombres = sorted(os.listdir(root))
+    except OSError:
+        return []
+    return _lint_manual_copies_workflows(root, nombres) + _lint_manual_copies_templates(root)
 
 
 HOOK_PATH_RE = re.compile(r"\$\{CLAUDE_PLUGIN_ROOT\}/([^\s\"']+)")
