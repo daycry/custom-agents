@@ -8,16 +8,27 @@ y los convierte a € (rates.json) y horas-IA (ratio tokens→hora, CALIBRATION 
 Modelo confirmado con el usuario (2026-08-11):
   fechas = contexto · tokens = medida · horas = tokens × ratio calibrado (NUNCA reloj de pared).
 
-Formato de la transcripción (verificado empíricamente, T-01 · 2026-08-11):
-  - Carpeta: ~/.claude/projects/<cwd con '/'→'-'>/*.jsonl  (una por sesión; sidechains aparte)
+Formato de la transcripción (verificado empíricamente, T-01 · 2026-08-11; codificación de la
+carpeta corregida en 2026-09-10, ver T-01 de usage-meter-transcripts):
+  - Carpeta: ~/.claude/projects/<cwd con todo carácter no alfanumérico → '-'>/*.jsonl
+    (una por sesión; sidechains aparte)
   - Registros type=="assistant" llevan message.usage con:
       input_tokens, output_tokens, cache_creation_input_tokens, cache_read_input_tokens
     (más campos extra que se ignoran de forma tolerante).
   - ⚠️ Una misma respuesta del modelo puede aparecer en VARIOS registros (hasta 6 observados)
     con message.id idéntico y usage idéntico → hay que DEDUPLICAR por message.id
     (sin dedupe se sobrecontaría ~2,5×).
-  - isSidechain marca registros de subagentes; pueden vivir en el mismo fichero o en otros
-    .jsonl de la carpeta → se suman TODOS los .jsonl de la carpeta dentro de la ventana.
+  - Los subagentes escriben su propio transcript en <sesión>/subagents/**/*.jsonl (a veces
+    varios niveles de profundidad, p. ej. subagents/workflows/<id>/agent-*.jsonl); NO
+    aparecen intercalados en el .jsonl principal de la sesión. Se buscan de forma
+    RECURSIVA bajo la carpeta del proyecto (T-03 de usage-meter-transcripts, 2026-09-10;
+    antes el glob era plano y perdía el 43,6 % de los tokens facturables sin avisar,
+    publicándolo como `fuente: medido`). `isSidechain` puede acompañar esos registros
+    pero NO es el mecanismo de localización ni hace falta leerlo: basta con recorrer
+    todos los .jsonl de la carpeta (incluidas subcarpetas) dentro de la ventana. El
+    dedupe por message.id es GLOBAL entre fichero principal y subagentes (un id
+    repetido entre ambos cuenta una sola vez; medido en esta máquina: 0 intersecciones,
+    pero el código no lo asume).
 
 El formato JSONL es interno de Claude Code (no API pública): ante cualquier problema de
 lectura este script DEGRADA a fuente="estimado" y NUNCA bloquea (exit 0 salvo error de uso).
@@ -81,10 +92,29 @@ def fmt_horas(horas):
     return f"{m}m"
 
 
+def _encode_cwd(cwd):
+    """Codifica un `cwd` como lo hace Claude Code al nombrar su carpeta de transcripciones.
+
+    Claude Code convierte TODO carácter no alfanumérico en `-` (verificado contra las
+    carpetas reales de `~/.claude/projects/` en esta máquina, T-01 de
+    usage-meter-transcripts, 2026-09-10). Esto incluye espacios, `.`, `:`, `/`, `\\` y también
+    `_` (ninguna de las carpetas reales de esta máquina lo tenía, pero la regla
+    `[^A-Za-z0-9]` lo cubre igual: no es un caso especial).
+
+    Supuesto NO verificado: los caracteres no-ASCII (`ñ`, `é`, CJK, …) también encajan en
+    `[^A-Za-z0-9]` y se mapearían a `-` (p. ej. `C:\\Users\\Muñoz\\repo` →
+    `C--Users-Mu-oz-repo`); ninguna de las 14 carpetas reales de esta máquina tiene un
+    carácter así, así que no está confirmado que Claude Code haga lo mismo. Si Claude Code
+    tratara el no-ASCII de otra forma, la clave no coincidiría y `close` degradaría en
+    silencio a `fuente: estimado` — el mismo síntoma que motivó T-01, con otra clase de
+    carácter.
+    """
+    return re.sub(r"[^A-Za-z0-9]", "-", cwd)
+
+
 def _project_transcript_dir():
-    """Carpeta de transcripciones del proyecto actual (~/.claude/projects/<cwd '/'→'-'>)."""
-    cwd = os.getcwd()
-    encoded = re.sub(r"[/\\.:]", "-", cwd)
+    """Carpeta de transcripciones del proyecto actual (~/.claude/projects/<cwd codificado>)."""
+    encoded = _encode_cwd(os.getcwd())
     for base in (Path.home() / ".claude" / "projects",
                  Path("/root/.claude/projects")):
         cand = base / encoded
@@ -135,13 +165,23 @@ def _save_state(path, state, avisos=None):
             avisos.append(f"no se pudo guardar el state: {e}")
 
 
+def _rel_key(f, tdir):
+    """Clave estable de un transcript dentro de la carpeta del proyecto: ruta relativa
+    en POSIX (no solo el nombre — los subagentes viven en subcarpetas y podrían, en
+    teoría, repetir nombre de fichero entre sesiones distintas)."""
+    return f.relative_to(tdir).as_posix()
+
+
 def _snapshot_offsets(tdir):
-    """Tamaño en bytes de cada .jsonl de la carpeta (posición del marcador)."""
+    """Tamaño en bytes de cada .jsonl de la carpeta del proyecto, RECURSIVO (posición del
+    marcador). Incluye <sesión>/subagents/**/*.jsonl (T-03 de usage-meter-transcripts,
+    2026-09-10): antes solo miraba el nivel superior."""
     offsets = {}
     if tdir and Path(tdir).is_dir():
-        for f in Path(tdir).glob("*.jsonl"):
+        tdir = Path(tdir)
+        for f in tdir.rglob("*.jsonl"):
             try:
-                offsets[f.name] = f.stat().st_size
+                offsets[_rel_key(f, tdir)] = f.stat().st_size
             except OSError:
                 pass
     return offsets
@@ -151,8 +191,11 @@ def _snapshot_offsets(tdir):
 
 def _sum_usage_window(tdir, offsets):
     """Suma el usage de los registros NUEVOS (más allá del offset por fichero), con
-    dedupe por message.id (registros repetidos de una misma respuesta) y sidechains
-    incluidas (todos los .jsonl de la carpeta, también los creados tras el marcador).
+    dedupe GLOBAL por message.id (registros repetidos de una misma respuesta, incluso
+    entre el fichero principal y un subagente) y búsqueda RECURSIVA bajo la carpeta del
+    proyecto: incluye <sesión>/subagents/**/*.jsonl (T-03 de usage-meter-transcripts,
+    2026-09-10), también los creados tras el marcador (offset 0 para ficheros no vistos
+    en el `start`, sean de la sesión principal o de un subagente lanzado en la ventana).
 
     Devuelve (tokens_dict, avisos:list). Lanza excepción solo ante fallo total de lectura.
     """
@@ -160,16 +203,17 @@ def _sum_usage_window(tdir, offsets):
     avisos = []
     tdir = Path(tdir)
     campos_malos = 0
-    for f in sorted(tdir.glob("*.jsonl")):
-        start = offsets.get(f.name, 0)
+    for f in sorted(tdir.rglob("*.jsonl"), key=lambda p: _rel_key(p, tdir)):
+        clave = _rel_key(f, tdir)
+        start = offsets.get(clave, 0)
         if not isinstance(start, (int, float)) or start < 0:
-            avisos.append(f"offset corrupto para {f.name}; se relee completo")
+            avisos.append(f"offset corrupto para {clave}; se relee completo")
             start = 0
         try:
             size = f.stat().st_size
             if size < start:
                 # fichero truncado/rotado desde el marcador: releer completo con aviso
-                avisos.append(f"{f.name} truncado/rotado tras el marcador; se relee completo")
+                avisos.append(f"{clave} truncado/rotado tras el marcador; se relee completo")
                 start = 0
             if size <= start:
                 continue
@@ -195,10 +239,10 @@ def _sum_usage_window(tdir, offsets):
                     # dedupe por id de respuesta (una respuesta = hasta 6 registros idénticos);
                     # sin ningún id, clave única por posición para no colapsar respuestas distintas
                     mid = (msg.get("id") or rec.get("requestId") or rec.get("uuid")
-                           or f"{f.name}#{i}")
+                           or f"{clave}#{i}")
                     seen[mid] = usage  # la última repetición gana (son idénticas)
         except OSError as e:
-            avisos.append(f"no se pudo leer {f.name}: {e}")
+            avisos.append(f"no se pudo leer {clave}: {e}")
 
     def _int(u, campo):
         nonlocal campos_malos

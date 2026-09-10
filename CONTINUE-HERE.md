@@ -7,21 +7,21 @@ cuando la rama descrita aquí se publique y no quede nada abierto.
 
 Última actualización: 2026-09-09 (tarde).
 
-## Trabajo EN CURSO — tres iniciativas abiertas el 2026-09-09 (rama `feature/project-specialization`)
+## Trabajo EN CURSO — tres iniciativas abiertas el 2026-09-09 (F1 INTEGRADA en `master`; rama actual `feature/plugin-refactor`)
 
-Todo en la rama `feature/project-specialization`, **sin push ni merge**. Quince commits: ciclo PM ·
+**F1 de project-specialization está en `master`** (merge `--no-ff` `919cca4`, decisión del usuario; **sin push**). La rama `feature/project-specialization` se borró tras integrarla; el trabajo sigue en `feature/plugin-refactor`, nacida de `master`. Los quince commits de la rama integrada: ciclo PM ·
 diseño + `ADR-014` · plan + `ADR-015` · cifras re-medidas · `GOT-009` + análisis de `brief-budget` ·
 análisis de `plugin-refactor` con línea base. **F1 está COMITEADA por tarea**: `a7f6bbe` T-02 · `204f333` T-03 · `74901c6` T-01 (+ ledger + los 4
 ficheros reales de `interop/`). Árbol limpio salvo el journal del hook y el ruido previo.
 
-### 1 · `docs/roadmap/2026-09-09-project-specialization/` — el tercer bucle (EN EJECUCIÓN, F1)
+### 1 · `docs/roadmap/2026-09-09-project-specialization/` — el tercer bucle (F1 INTEGRADA; F2/F3 pendientes)
 
 | Artefacto | Estado |
 |---|---|
 | `spec.md` **aprobada** · `evaluation.md` **completado** (56,4 h · 2.837 €) · `design.md` **aprobado** (`O1`, `ADR-014`) · `improvement-plan.md` + `tasks.md` **en-progreso** | 3 fases, 22 tareas; solo **F1 (T-01…T-03)** tiene puerta abierta («go por tramos») |
 | Revisión de dos lentes | intento 1: 6 Important + 6 Minor · intento 2: 1 Critical + 4 Important + 3 Minor · intento 3: todo cerrado salvo **B-3** (tope de la persona), que no convergía porque su causa no está en F1 |
 | Decisión del usuario tras el 3.er intento | **opción A** (suelo `PERSONA_SUELO_CHARS = 1300` + aviso en runtime con causa por sección) — implementada y verificada: 0 personas en muñón, 12/22 briefs sobre el tope **con aviso** |
-| Cierre de F1 | pasada acotada de la Lente B sobre A: 3 Important + 1 Minor (suelo sobre contenido sin ruta absoluta, aviso con atribución honesta, secciones medidas, tests con dientes: mutante `SUELO=400` → 2 failed) — corregidos y verificados por el orquestador. Suite completa 39 vs 52 en HEAD sin T-01: cero regresiones. **Pendiente: decisión de merge del usuario** (preguntar, no mergear por defecto) |
+| Cierre de F1 | pasada acotada de la Lente B sobre A: 3 Important + 1 Minor (suelo sobre contenido sin ruta absoluta, aviso con atribución honesta, secciones medidas, tests con dientes: mutante `SUELO=400` → 2 failed) — corregidos y verificados por el orquestador. Suite completa 39 vs 52 en HEAD sin T-01: cero regresiones. **Mergeada en `master` `919cca4`** con nota manual en los dos CHANGELOG (`[Unreleased]`/`[Sin publicar]`), porque el ledger sigue `en-progreso` y `changelog-sync` no la derivará hasta el cierre. Plan/tasks `en-progreso`, spec `aprobada`: F2 (16 tareas) y F3 esperan su puerta |
 
 Verificado y contrario a supuestos previos: `export-interop.py --root` = raíz del PLUGIN (falla contra un
 `.claude/` de consumidor) → `C-11` es un modo `--project` (`ADR-015`). El único test rojo
@@ -35,9 +35,12 @@ Solo una de las siete secciones del brief tiene tope; `## Diseño` entra entero 
 `memory-retrieval`, sin diseño: nunca lo vio. Documentado en **`GOT-009`** (`propuesta`). `analysis.md`
 con 5 opciones; `spec.md` **aprobada** y `evaluation.md` **completado** (26,4 h · ~1.340 €, go condicionado). **Go del usuario** el 2026-09-09; arranca DESPUÉS del refactor.
 
-### 3 · `docs/roadmap/2026-09-09-plugin-refactor/` — refactor de TODO el plugin (ANÁLISIS HECHO)
+### 3 · `docs/roadmap/2026-09-09-plugin-refactor/` — refactor de TODO el plugin (GO del usuario; ciclo PM cerrado, `architect` PENDIENTE)
 
-Petición del usuario. Línea base `code-health` en la carpeta (`code-health-baseline.json`): 36 ficheros ·
+`spec.md` **aprobada** (5 características de refactor cero-comportamiento + 8 de encadenamiento E1–E10) y
+`evaluation.md` **completado**: 90,0 h con margen · ~4.540 € · go condicionado. **Siguiente paso: `architect`** (Fase 2-bis,
+dos pasadas) para O1 copias declaradas vs O2 módulo vendorizado — O3 descartada —, y después `planner`. El hallazgo E7
+(usage-meter) salió del refactor y va por vía rápida (punto 4). Línea base `code-health` en la carpeta (`code-health-baseline.json`): 36 ficheros ·
 14.259 líneas · 7,6 % duplicado · **105 funciones > 30 líneas** · 8 TODO (6 falsos positivos del detector).
 Hallazgo que ordena todo: la duplicación grande es **deliberada** (scripts standalone que viajan sueltos,
 copias byte a byte guardadas por `test_knowledge_index`) o **generada** (`interop/`); la deuda real son
@@ -45,7 +48,29 @@ las funciones largas en hotspots (`task-brief.py` `main()` 155 líneas, `knowled
 `lint_plugin`). **Decisión previa para `architect`**: copias declaradas vs módulo vendorizado (el import
 común se descarta: rompe el standalone y el requisito multi-runtime). Pendiente: `/pm-cycle`.
 
-### Orden DECIDIDO por el usuario (2026-09-09): cerrar F1 → refactor → brief-budget
+### 4 · `docs/roadmap/2026-09-10-usage-meter-transcripts/` — vía rápida (CERRADA: 3/3, retro y CALIBRATION, `retro-gate` abierta)
+
+`usage-meter.py:87` codifica el `cwd` con `[/\.:]` y Claude Code nombra la carpeta de transcripciones con
+«todo carácter no alfanumérico → `-`»: en esta máquina la clave NUNCA existe y `close` degrada siempre a
+`fuente: estimado` (once artefactos en dos sesiones; `CALIBRATION.md` alimentándose de juicio). Los 28 tests
+inyectan `--transcript-dir`: cobertura cero de la función. Ledger ligero `a868a0a` (T-01 la línea + tests sin
+inyección con oráculo de carpetas reales · T-02 `GOT-010` · **T-03 añadida por la revisión**). La revisión de dos
+lentes (intento 1: 1 Critical, 6 Important, 7 Minor) destapó que la clave de carpeta era solo media causa: el
+parser usa `glob("*.jsonl")` NO recursivo y Claude Code guarda los transcripts de subagentes en
+`<session-id>/subagents/agent-*.jsonl` → **5 de 41 ficheros, 43,6 % de tokens sin contar, publicado como
+`medido`**. La hipótesis del implementer («el JSONL del subagente no se vuelca hasta acabar el turno») es FALSA
+(crece en vivo). 6 de 7 tests nuevos pasaban con el código viejo (oráculo copiado del código bajo prueba).
+**`implementer` corrigiendo** (T-03 recursivo + tests que muerden + GOT-010 con la causa de dos patas). El
+orquestador tiene abierto el marcador `usage-meter-transcripts/correccion` (07:03:28Z) para la evidencia
+cruzando turno del criterio 4 de T-01, que solo la sesión principal puede dar. Después: revisión intento 2,
+commit, `architect`. Es la pieza que hace MEDIBLE todo lo demás: por eso va antes que el `architect`.
+
+**Cerrada el 2026-09-10** en `feature/plugin-refactor`: `cf88f35` (T-01/T-03 código: clave `[^A-Za-z0-9]` + `rglob` con dedupe) ·
+`791f43f` (`GOT-010`) · `0ebcc1c` (ledger 3/3 + CHANGELOG + cifras vivas) · retro + fila en `CALIBRATION.md`. Primer coste IA
+MEDIDO del proyecto en Windows (evidencia cruzando turno: 40 respuestas, 3,16 €). Regla nueva: los marcadores de
+`usage-meter` abiertos con el código anterior se DESCARTAN (contarían enteros los transcripts previos: 143 € falsos).
+
+### Orden DECIDIDO por el usuario (2026-09-09/10): cerrar F1 ✅ → usage-meter (vía rápida) ✅ → refactor (`architect` EN VUELO) → brief-budget
 
 cerrar F1 → **refactor** (partir `main()` de `task-brief.py`) → **brief-budget** (presupuesto por secciones
 sobre código limpio; al revés se refactoriza dos veces) → F2 de `project-specialization`.

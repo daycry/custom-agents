@@ -124,6 +124,82 @@ def test_sidechain_fichero_nuevo_en_ventana(entorno):
     assert res["tokens_reales"]["salida"] == 80
 
 
+def test_subagente_anidado_se_suma_con_el_principal(entorno):
+    # T-03: los subagentes escriben en <sesion>/subagents/agent-*.jsonl (formato real,
+    # incl. isSidechain=True), NO en el .jsonl principal. Antes (glob no recursivo) ese
+    # fichero se ignoraba por completo: 43,6 % de los tokens facturables sin contar.
+    _, tdir, state = entorno
+    _write(tdir / "main.jsonl", [_rec("m1", inp=10, out=5)])  # fuera de ventana (antes del start)
+    sesion_dir = tdir / "76684689-5475-48bb-b737-8ca949139c64" / "subagents"
+    sesion_dir.mkdir(parents=True)
+    subagente = sesion_dir / "agent-a014b85dec1ed31e2.jsonl"
+    rc, _ = _run(None, ["start", "--artefacto", "a.md", "--state", str(state),
+                        "--transcript-dir", str(tdir)])
+    assert rc == 0
+    with open(tdir / "main.jsonl", "a", encoding="utf-8") as f:
+        f.write(_rec("m2", inp=1, out=1) + "\n")
+    _write(subagente, [_rec("s1", inp=300, out=80, sidechain=True)])
+    rc, res = _run(None, ["close", "--artefacto", "a.md", "--state", str(state),
+                          "--transcript-dir", str(tdir)])
+    assert rc == 0
+    t = res["tokens_reales"]
+    # m1 queda fuera de ventana (antes del start); m2 (principal) y s1 (subagente,
+    # creado DENTRO de la ventana) sí se suman: la ventana cruza ambos ficheros
+    assert (t["entrada"], t["salida"]) == (301, 81)
+    assert t["respuestas"] == 2
+
+
+def test_subagente_creado_despues_del_start_se_cuenta_entero(entorno):
+    # Un subagente lanzado DENTRO de la ventana: su fichero no existe en el snapshot del
+    # `start` (offset ausente -> 0), así que se cuenta entero, no solo lo posterior a un
+    # offset heredado de otro fichero por error.
+    _, tdir, state = entorno
+    _write(tdir / "main.jsonl", [_rec("m0", inp=1, out=1)])
+    rc, _ = _run(None, ["start", "--artefacto", "a.md", "--state", str(state),
+                        "--transcript-dir", str(tdir)])
+    assert rc == 0
+    subagentes_dir = tdir / "sess-x" / "subagents"
+    subagentes_dir.mkdir(parents=True)
+    _write(subagentes_dir / "agent-nuevo.jsonl",
+           [_rec("sub1", inp=500, out=200), _rec("sub2", inp=100, out=50)])
+    rc, res = _run(None, ["close", "--artefacto", "a.md", "--state", str(state),
+                          "--transcript-dir", str(tdir)])
+    assert rc == 0
+    t = res["tokens_reales"]
+    assert (t["entrada"], t["salida"]) == (600, 250)
+    assert t["respuestas"] == 2
+
+
+def test_message_id_repetido_entre_principal_y_subagente_cuenta_una_vez(entorno):
+    # Intersección real medida en esta máquina: 0 ids compartidos entre sesión principal
+    # y subagentes; el código no debe ASUMIRLO — un id repetido entre ambos se cuenta UNA
+    # vez (mismo dedupe global que ya aplicaba dentro de un solo fichero).
+    _, tdir, state = entorno
+    subagentes_dir = tdir / "sess-y" / "subagents"
+    subagentes_dir.mkdir(parents=True)
+    rc, _ = _run(None, ["start", "--artefacto", "a.md", "--state", str(state),
+                        "--transcript-dir", str(tdir)])
+    assert rc == 0
+    _write(tdir / "main.jsonl", [_rec("compartido", inp=100, out=40)])
+    _write(subagentes_dir / "agent-z.jsonl", [_rec("compartido", inp=100, out=40)])
+    rc, res = _run(None, ["close", "--artefacto", "a.md", "--state", str(state),
+                          "--transcript-dir", str(tdir)])
+    assert rc == 0
+    t = res["tokens_reales"]
+    assert (t["entrada"], t["salida"]) == (100, 40)  # no 200/80: mismo id, una sola vez
+    assert t["respuestas"] == 1
+
+
+def test_docstring_no_afirma_isSidechain_como_mecanismo_de_localizacion():
+    # Gap B-6: el docstring viejo decía "isSidechain marca subagentes ... se suman TODOS
+    # los .jsonl de la carpeta" (describía un mecanismo que ya no existe: 0 registros
+    # isSidechain en el .jsonl PRINCIPAL de una sesión real, y los subagentes viven en
+    # ficheros aparte, no intercalados).
+    doc = um.__doc__
+    assert "isSidechain marca registros de subagentes" not in doc
+    assert "se suman TODOS los .jsonl de la carpeta" not in doc
+
+
 def test_ignora_tipos_no_assistant_y_usage_incompleto(entorno):
     _, tdir, state = entorno
     res = _start_close(tdir, state, antes=[], despues=[
@@ -410,6 +486,130 @@ def test_usd_sin_tipo_de_cambio_no_asume_paridad(entorno, tmp_path):
                        close_args=["--rates", str(f)])
     assert res["eur"] is None  # sin fx no se inventa 1:1
     assert any("tipoCambio" in a for a in res["avisos"])
+
+
+# --------------------------------------------- localizacion de transcripciones (sin --transcript-dir)
+#
+# GOT-010: los 28 tests de arriba inyectan --transcript-dir, así que
+# _project_transcript_dir() tenía cobertura cero. Estos ejercitan la codificación del
+# cwd (HOME/cwd redirigidos a tmp_path) SIN ese flag. Oráculo: nombres de carpeta REALES
+# de ~/.claude/projects/ en esta máquina (T-01 de usage-meter-transcripts, 2026-09-10).
+
+def test_encoding_ruta_windows_con_espacios_y_puntos():
+    # Carpeta real observada en esta máquina para este mismo repo (con espacios y puntos).
+    cwd = r"C:\Users\46066917X\OneDrive - Imagina Media Audiovisual S.L\claude-cowork\custom-agents"
+    esperado = "C--Users-46066917X-OneDrive---Imagina-Media-Audiovisual-S-L-claude-cowork-custom-agents"
+    assert um._encode_cwd(cwd) == esperado
+
+
+def test_encoding_ruta_windows_con_segmento_oculto():
+    # Variante de la segunda carpeta real de esta máquina (`.claude-mem-observer`), con un
+    # segmento extra CON ESPACIO para que discrimine de la regex vieja `[/\\.:]` (que no
+    # toca espacios ni barras): con ambas regexes el segmento oculto sale igual, así que
+    # sin el espacio este test no distinguía el fix del bug (gap B-7 de la revisión).
+    # Ninguna carpeta real de esta máquina contiene '_'; ese supuesto queda en el
+    # docstring de `_encode_cwd`, no en un test (criterio de aceptación de T-01).
+    cwd = r"C:\Users\46066917X\.claude-mem-observer\my sessions"
+    esperado = "C--Users-46066917X--claude-mem-observer-my-sessions"
+    assert um._encode_cwd(cwd) == esperado
+
+
+def test_encoding_ruta_posix_sin_caracteres_especiales():
+    # Sin regresión en Linux/CI: una ruta POSIX simple sigue codificando solo las '/'.
+    assert um._encode_cwd("/home/u/proj") == "-home-u-proj"
+
+
+def test_project_transcript_dir_localiza_sin_transcript_dir(monkeypatch, tmp_path):
+    # HOME (y USERPROFILE en Windows, que Path.home() consulta) redirigidos a tmp_path;
+    # cwd redirigido a un `cwd` LITERAL (no bajo tmp_path: no hace falta que exista en
+    # disco, solo que os.getcwd() lo devuelva). El nombre de carpeta esperado es el
+    # LITERAL real de esta máquina (oráculo), no una llamada a `_encode_cwd` (gap B-3 de
+    # la revisión: usar la función bajo prueba para fabricar su propio oráculo es una
+    # tautología que no detectaría una regresión en la propia función).
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))
+    cwd_literal = r"C:\Users\46066917X\OneDrive - Imagina Media Audiovisual S.L\claude-cowork\custom-agents"
+    encoded_literal = "C--Users-46066917X-OneDrive---Imagina-Media-Audiovisual-S-L-claude-cowork-custom-agents"
+    (home / ".claude" / "projects" / encoded_literal).mkdir(parents=True)
+    monkeypatch.setattr(um.os, "getcwd", lambda: cwd_literal)
+    monkeypatch.setattr(um.Path, "home", classmethod(lambda cls: home))
+    resultado = um._project_transcript_dir()
+    assert resultado is not None
+    assert resultado.name == encoded_literal
+
+
+def test_project_transcript_dir_ausente_devuelve_none(monkeypatch, tmp_path):
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))
+    monkeypatch.setattr(um.os, "getcwd", lambda: str(tmp_path / "no-tiene-carpeta"))
+    monkeypatch.setattr(um.Path, "home", classmethod(lambda cls: home))
+    assert um._project_transcript_dir() is None
+
+
+def test_project_transcript_dir_respaldo_root(monkeypatch, tmp_path):
+    # Gap B-8: el respaldo `Path("/root/.claude/projects")` estaba sin cobertura. `Path.home()`
+    # (Windows y POSIX) apunta a un tmp_path SIN carpeta de proyecto; se ejercita el respaldo
+    # sustituyendo directamente `um.Path` por un patch que redirige "/root" a otro tmp_path
+    # con la carpeta ya creada.
+    home_vacio = tmp_path / "home-sin-proyecto"
+    home_vacio.mkdir()
+    root_falso = tmp_path / "root-falso"
+    cwd_literal = r"C:\Users\46066917X\OneDrive - Imagina Media Audiovisual S.L\claude-cowork\custom-agents"
+    encoded_literal = "C--Users-46066917X-OneDrive---Imagina-Media-Audiovisual-S-L-claude-cowork-custom-agents"
+    (root_falso / ".claude" / "projects" / encoded_literal).mkdir(parents=True)
+    monkeypatch.setenv("HOME", str(home_vacio))
+    monkeypatch.setenv("USERPROFILE", str(home_vacio))
+    monkeypatch.setattr(um.os, "getcwd", lambda: cwd_literal)
+
+    real_path_cls = um.Path
+
+    class _PathConRootRedirigido(real_path_cls):
+        # pathlib (3.12+) resuelve los args reales en __init__, no en __new__
+        # (__new__ solo decide la subclase concreta): hay que redirigir aquí.
+        def __init__(self, *args, **kwargs):
+            if len(args) == 1 and str(args[0]) == "/root/.claude/projects":
+                args = (root_falso, ".claude", "projects")
+            super().__init__(*args, **kwargs)
+
+    monkeypatch.setattr(_PathConRootRedirigido, "home", classmethod(lambda cls: home_vacio))
+    monkeypatch.setattr(um, "Path", _PathConRootRedirigido)
+
+    resultado = um._project_transcript_dir()
+    assert resultado is not None
+    assert resultado.name == encoded_literal
+
+
+def test_close_sin_transcript_dir_usa_localizacion_real(monkeypatch, tmp_path):
+    # Extremo a extremo: close SIN --transcript-dir encuentra la carpeta creada con el
+    # nombre codificado y devuelve fuente="medido" (el criterio de aceptación de T-01).
+    # El `cwd` y su nombre de carpeta esperado son LITERALES (segunda carpeta real de
+    # esta máquina), no el resultado de llamar a `_encode_cwd` (gap B-3): así, si la
+    # codificación se rompiera, el fixture seguiría teniendo el nombre CORRECTO y el
+    # test detectaría el fallo en vez de "seguir la corrupción" del código bajo prueba.
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))
+    cwd_literal = r"C:\Users\46066917X\.claude-mem-observer\sessions"
+    encoded_literal = "C--Users-46066917X--claude-mem-observer-sessions"
+    tdir = home / ".claude" / "projects" / encoded_literal
+    tdir.mkdir(parents=True)
+    _write(tdir / "sesion.jsonl", [_rec("m1", inp=1000, out=500)])
+    monkeypatch.setattr(um.os, "getcwd", lambda: cwd_literal)
+    monkeypatch.setattr(um.Path, "home", classmethod(lambda cls: home))
+    state = tmp_path / "usage-state.json"
+    rc, _ = _run(None, ["start", "--artefacto", "b.md", "--state", str(state)])
+    assert rc == 0
+    with open(tdir / "sesion.jsonl", "a", encoding="utf-8") as f:
+        f.write(_rec("m2", inp=200, out=100) + "\n")
+    rc, res = _run(None, ["close", "--artefacto", "b.md", "--state", str(state),
+                          "--calibration", str(tmp_path / "no-existe-CALIBRATION.md")])
+    assert rc == 0
+    assert res["fuente"] == "medido"
 
 
 if __name__ == "__main__":
