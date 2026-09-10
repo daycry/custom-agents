@@ -52,7 +52,7 @@ refactor se acepta comparando contra él con `--baseline`, no por impresión.
 
 **Matiz verificado el 2026-09-10 (corrige la fila «guardada por test»):** de las tres copias deliberadas,
 **solo `celdas_md` y compañía tienen guardarraíl** (`tests/test_knowledge_index.py` compara las tres copias
-byte a byte). `sin_vallas` (`ledger-lint.py` ↔ `changelog-sync.py`) está **declarada en un comentario pero
+byte a byte). **Corrección del `architect` (2026-09-10, verificada): `sin_vallas` SÍ tiene test, pero conductual, no de identidad** — `skills/changelog-sync/scripts/test_changelog_sync.py:940` afirma `cs.sin_vallas(texto) == ll.sin_vallas(texto)` sobre un texto de prueba, así que una divergencia que no cambie el resultado en ESE texto pasa. Lo que sigue queda como estaba escrito, con ese matiz: `sin_vallas` (`ledger-lint.py` ↔ `changelog-sync.py`) está **declarada en un comentario pero
 sin ningún test que compare las copias** (`grep -rn sin_vallas tests/ agent-kits/shared/test_*.py
 skills/changelog-sync/scripts/test_*.py` → nada que las relacione), y el `import` de
 `confluence-scope.glob_to_regex` con respaldo local tampoco. Son copias *deliberadas y declaradas*, no
