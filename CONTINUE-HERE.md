@@ -35,9 +35,12 @@ Solo una de las siete secciones del brief tiene tope; `## Diseño` entra entero 
 `memory-retrieval`, sin diseño: nunca lo vio. Documentado en **`GOT-009`** (`propuesta`). `analysis.md`
 con 5 opciones; `spec.md` **aprobada** y `evaluation.md` **completado** (26,4 h · ~1.340 €, go condicionado). **Go del usuario** el 2026-09-09; arranca DESPUÉS del refactor.
 
-### 3 · `docs/roadmap/2026-09-09-plugin-refactor/` — refactor de TODO el plugin (ANÁLISIS HECHO)
+### 3 · `docs/roadmap/2026-09-09-plugin-refactor/` — refactor de TODO el plugin (GO del usuario; ciclo PM cerrado, `architect` PENDIENTE)
 
-Petición del usuario; **`evaluator` en vuelo** (spec + evaluación, con `architect` recomendado para la decisión del §5). Línea base `code-health` en la carpeta (`code-health-baseline.json`): 36 ficheros ·
+`spec.md` **aprobada** (5 características de refactor cero-comportamiento + 8 de encadenamiento E1–E10) y
+`evaluation.md` **completado**: 90,0 h con margen · ~4.540 € · go condicionado. **Siguiente paso: `architect`** (Fase 2-bis,
+dos pasadas) para O1 copias declaradas vs O2 módulo vendorizado — O3 descartada —, y después `planner`. El hallazgo E7
+(usage-meter) salió del refactor y va por vía rápida (punto 4). Línea base `code-health` en la carpeta (`code-health-baseline.json`): 36 ficheros ·
 14.259 líneas · 7,6 % duplicado · **105 funciones > 30 líneas** · 8 TODO (6 falsos positivos del detector).
 Hallazgo que ordena todo: la duplicación grande es **deliberada** (scripts standalone que viajan sueltos,
 copias byte a byte guardadas por `test_knowledge_index`) o **generada** (`interop/`); la deuda real son
@@ -45,7 +48,16 @@ las funciones largas en hotspots (`task-brief.py` `main()` 155 líneas, `knowled
 `lint_plugin`). **Decisión previa para `architect`**: copias declaradas vs módulo vendorizado (el import
 común se descarta: rompe el standalone y el requisito multi-runtime). Pendiente: `/pm-cycle`.
 
-### Orden DECIDIDO por el usuario (2026-09-09): cerrar F1 → refactor → brief-budget
+### 4 · `docs/roadmap/2026-09-10-usage-meter-transcripts/` — vía rápida (EN EJECUCIÓN)
+
+`usage-meter.py:87` codifica el `cwd` con `[/\.:]` y Claude Code nombra la carpeta de transcripciones con
+«todo carácter no alfanumérico → `-`»: en esta máquina la clave NUNCA existe y `close` degrada siempre a
+`fuente: estimado` (once artefactos en dos sesiones; `CALIBRATION.md` alimentándose de juicio). Los 28 tests
+inyectan `--transcript-dir`: cobertura cero de la función. Ledger ligero `a868a0a` (T-01 la línea + tests sin
+inyección con oráculo de carpetas reales · T-02 `GOT-010`). **`implementer` en vuelo**; después revisión de dos
+lentes y commit. Es la pieza que hace MEDIBLE todo lo demás: por eso va antes que el `architect`.
+
+### Orden DECIDIDO por el usuario (2026-09-09/10): cerrar F1 ✅ → usage-meter (vía rápida) → refactor → brief-budget
 
 cerrar F1 → **refactor** (partir `main()` de `task-brief.py`) → **brief-budget** (presupuesto por secciones
 sobre código limpio; al revés se refactoriza dos veces) → F2 de `project-specialization`.
