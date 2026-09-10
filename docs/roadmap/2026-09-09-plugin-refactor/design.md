@@ -6,7 +6,7 @@ creado: 2026-09-10
 actualizado: 2026-09-10
 spec: spec.md
 evaluacion: evaluation.md
-plan: pendiente
+plan: improvement-plan.md   # `borrador` 2026-09-10 — C-03 abierta sobre O1 en la Fase 3 (T-09 registro + test · T-10 linter)
 adr: docs/knowledge/adr/ADR-016-copias-declaradas-con-test-de-identidad.md   # `propuesta`; pasa a `aceptada` con la revisión de dos lentes de C-03
 opcion_elegida: O1      # elegida por el usuario en la puerta de diseño (2026-09-10)
 validada_por_usuario: 2026-09-10
@@ -24,7 +24,7 @@ generacion:            # ACUMULADO de las dos pasadas (P1 opciones 08:45:49-08:5
 
 # Diseño — Cómo comparten código los scripts de un plugin cuyas piezas viajan sueltas
 
-> **Spec:** [`spec.md`](spec.md) (`aprobada`) · **Evaluación:** [`evaluation.md`](evaluation.md) (`completado`, go condicionado) · **Plan:** pendiente (lo crea el `planner`) · **ADR:** [`ADR-016`](../../knowledge/adr/ADR-016-copias-declaradas-con-test-de-identidad.md) (`propuesta`)
+> **Spec:** [`spec.md`](spec.md) (`aprobada`) · **Evaluación:** [`evaluation.md`](evaluation.md) (`completado`, go condicionado) · **Plan:** [`improvement-plan.md`](improvement-plan.md) (`borrador`, 2026-09-10; C-03 = T-09 + T-10 sobre O1) · **ADR:** [`ADR-016`](../../knowledge/adr/ADR-016-copias-declaradas-con-test-de-identidad.md) (`propuesta`)
 
 | | |
 |---|---|

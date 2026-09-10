@@ -14,7 +14,7 @@ creado: 2026-09-10
 actualizado: 2026-09-10
 evaluacion: evaluation.md
 design: design.md          # `aprobado` 2026-09-10 — decisión del §5: O1 (registro de copias declaradas + un test de identidad); ADR-016 `propuesta`
-plan: pendiente
+plan: improvement-plan.md   # `borrador` 2026-09-10 — 22 tareas en 5 fases y 4 tramos de revisión; 74,0 h base / 88,8 h con margen / ~4.479 € (hereda la evaluación: P-1 y C-13 (i) ya hechas, E11 como propuesta C-14)
 analisis: analysis.md
 relacionado: docs/roadmap/2026-09-09-brief-budget/spec.md (toca el mismo `main()` de `task-brief.py`; ordenada DESPUÉS de este refactor) · docs/roadmap/2026-09-09-project-specialization/tasks.md (F1 integrada en master 919cca4; F2/F3 pendientes) · docs/knowledge/gotchas/GOT-005-consola-windows-cp1252.md · docs/knowledge/gotchas/GOT-009-presupuesto-del-brief-se-rompe-con-design-md.md
 generacion:
@@ -30,9 +30,9 @@ generacion:
 
 # Refactor del plugin — deuda medida en hotspots, copias declaradas y contratos entre piezas
 
-> **Evaluación:** [`evaluation.md`](evaluation.md) — `en-revision`
+> **Evaluación:** [`evaluation.md`](evaluation.md) — `completado` (go del usuario, 2026-09-10)
 > **Diseño:** [`design.md`](design.md) — `aprobado` (2026-09-10): el §5 se cierra con **O1**, registro de copias declaradas (`agent-kits/shared/copias.json`) + **un** test de identidad byte a byte, con el error del linter sobre bloques idénticos no registrados como parte inseparable de la opción ([`ADR-016`](../../knowledge/adr/ADR-016-copias-declaradas-con-test-de-identidad.md), `propuesta`). **C-03 se encoge**: no hay copias accidentales, el trabajo es unificar los cuatro mecanismos de guardarraíl en uno
-> **Plan de implementación:** pendiente
+> **Plan de implementación:** [`improvement-plan.md`](improvement-plan.md) + [`tasks.md`](tasks.md) — `borrador` (2026-09-10): 22 tareas en 5 fases y 4 tramos de revisión (R1 línea base + `task-brief` · R2 otros hotspots · R3 copias O1 · R4 encadenamiento E1–E11); 74,0 h base / 88,8 h con margen / ~4.479 €. Sin `test-plan.md`: `test-plan: n/a (sin UI)` en el frontmatter del plan (C-08, `ADR-017`)
 > **Análisis de origen:** [`analysis.md`](analysis.md) — **única fuente del alcance** (§1 medición · §2 duplicación · §3 funciones largas · §4 TODO · §5 decisión · §6 método · §7 lo que NO es · §8 señales · §8-bis encadenamiento · §9). Esta spec no lo amplía ni lo reinterpreta.
 
 > **Terminología:**
