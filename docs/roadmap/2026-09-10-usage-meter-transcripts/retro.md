@@ -11,7 +11,7 @@ fecha: 2026-09-10
 > proyecto en Windows con coste IA medido de verdad**: la propia iniciativa arregló el meter a mitad de
 > ciclo, así que la parte anterior al arreglo va `(estimado)` y la posterior `(medido)`, y se dice cuál es cuál.
 > Las causas del §Causas las propone el orquestador desde el ledger (él orquestó las desviaciones); el usuario
-> las valida o corrige al leer esta retro.
+> las valida o corrige al leer esta retro. **Validadas por el usuario el 2026-09-10 sin correcciones** («adelante con las 2 cosas»).
 
 ## Estimado vs real
 
