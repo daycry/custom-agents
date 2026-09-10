@@ -1,4 +1,8 @@
 ---
+tasks: plugin-refactor
+estado: en-progreso       # borrador | en-progreso | completado | cancelado — R1 (F1) implementada, en revisión
+creado: 2026-09-10
+actualizado: 2026-09-10
 generacion:              # ventana compartida con improvement-plan.md
   inicio: 2026-09-10T11:55:46Z
   fin: 2026-09-10T12:00:57Z
@@ -34,12 +38,12 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervisión (real/est) | Tokens (real/est) |
 |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
-| Fase 1 — Línea base limpia y la cicatriz | 0 | 4 | 0% | 0 / 11,5h | 0 / 1,29h | 0 / 0,32h | 0 / 619k |
+| Fase 1 — Línea base limpia y la cicatriz | 4 | 4 | 100% | — / 11,5h | 0,52 / 1,29h | 0,13 / 0,32h | — / 619k |
 | Fase 2 — Los otros cuatro hotspots | 0 | 4 | 0% | 0 / 14,0h | 0 / 1,60h | 0 / 0,40h | 0 / 767k |
 | Fase 3 — Un solo mecanismo de copias declaradas (O1) | 0 | 2 | 0% | 0 / 4,0h | 0 / 0,50h | 0 / 0,13h | 0 / 239k |
 | Fase 4 — Encadenamiento E1–E11 | 0 | 9 | 0% | 0 / 30,5h | 0 / 3,64h | 0 / 0,91h | 0 / 1.745k |
 | Fase 5 — Proceso: revisión por tramo, corrección y cierre | 0 | 3 | 0% | 0 / 14,0h | 0 / 1,80h | 0 / 0,45h | 0 / 864k |
-| **TOTAL** | **0** | **22** | **0%** | **0 / 74,0h** | **0 / 8,83h** | **0 / 2,21h** | **0 / 4.234k** |
+| **TOTAL** | **4** | **22** | **18%** | **— / 74,0h** | **0,52 / 8,83h** | **0,13 / 2,21h** | **— / 4.234k** |
 
 > Horas **base** (sin colchón; con el margen del 20 %: 88,8 h humanas · 10,6 h IA · 2,65 h supervisión). Tokens = facturables (in + out + creación de caché). Coste base **3.734 €** (4.479 € con margen). Heredado de `evaluation.md` por característica; diferencias declaradas en el plan (P-1 y C-13 (i) hechas, C-14 propuesta).
 
@@ -49,52 +53,82 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 
 ## Fase 1 — Línea base limpia y la cicatriz
 
-**Estado**: en-progreso · **Estimado**: 11,5h · **Real**: — · **Coste est.**: 580 € · **Tokens est.**: 619k · **Tramo**: R1
+**Estado**: completado · **Estimado**: 11,5h · **Real**: 0,52h IA + 0,13h supervisión (T-01…T-04) · **Coste est.**: 580 € · **Tokens est.**: 619k · **Tramo**: R1
 
-### T-01 — C-04: detector de TODO de `code-health.py`, 8 → 1
+### T-01 — C-04: detector de TODO de `code-health.py`, 8 → 0
 
-- **Descripción**: `TODO_RE` (`skills/code-health/scripts/code-health.py:49`) acepta «palabra seguida de `(`» y con ello la prosa castellana «TODO (ADRs, …» de `confluence-scope.py:113`; además el detector se cuenta a sí mismo (5 marcadores en su docstring y código) y a `journal.py:41`. Excluir comentarios que enumeran marcadores y el propio fichero del detector; queda el real (`usage-meter.py:380`, 29 días). **Excepción declarada** al «cero cambio de comportamiento»: el informe cuenta menos TODO.
-- **Changelog**: El informe de salud del código deja de contar como TODO su propia descripción del detector y la palabra castellana «TODO (»: 8 falsos positivos pasan a 1 marcador real.
-- **Estado**: borrador
+- **Descripción**: `TODO_RE` (`skills/code-health/scripts/code-health.py:49`) acepta «palabra seguida de `(`» y con ello la prosa castellana «TODO (ADRs, …» de `confluence-scope.py:113`; además el detector se cuenta a sí mismo (5 marcadores en su docstring y código) y a `journal.py:41`. Excluir comentarios que enumeran marcadores y el propio fichero del detector; queda el real (`usage-meter.py:424`, 30 días). **Excepción declarada** al «cero cambio de comportamiento»: el informe cuenta menos TODO. **Corregido tras revisión R1 intento 1 (A-1/B-9)**: el «real» de `usage-meter.py:454-455` («TODO el histórico como ventana») es también prosa castellana partida en dos comentarios (empieza por «el», artículo de `PROSA_ES_TRAS_MARCADOR`) — 8 → **0**, no 8 → 1; `analysis.md` §4 y `spec.md` C-04 ya lo declaraban así, el detector y el ledger se alinean ahora.
+- **Changelog**: El informe de salud del código deja de contar como TODO su propia descripción del detector, la palabra castellana «TODO (» y la prosa «TODO el histórico…»: los 8 falsos positivos pasan a 0 marcadores reales.
+- **Estado**: completado
 - **Tiempo humano**: est. 2,0h · real —
-- **Tiempo IA (ejec.)**: est. 0,25h · real —
-- **Supervisión**: est. 0,06h (≈25 % IA) · real —
+- **Tiempo IA (ejec.)**: est. 0,25h · real 0,05h (estimado; el marcador del meter se abrió tras implementar, no es representativo — ver nota) + 0,XXh fix1 (medido, ver JSON en el cierre de R1) + 0,0h fix2 (medido, marcador `plugin-refactor/T-01-fix2`: `{"eur":0.05,"horas_ia":0.0,"duracion_reloj":"0m"}` — abierto tras implementar la corrección, no representativo del esfuerzo real; ver nota)
+- **Supervisión**: est. 0,06h (≈25 % IA) · real 0,01h (estimado)
 - **Previsión IA**: 88k in / 13k out tok · 0,9 € tokens · coste tarea 101 €
 - **Dependencias**: ninguna (primera tarea: limpia la línea base antes de medir el refactor)
 - **Tipo**: test
-- **Archivos**: `skills/code-health/scripts/code-health.py`, `skills/code-health/scripts/test_code_health.py`
+- **Archivos**: `skills/code-health/scripts/code-health.py`, `skills/code-health/scripts/test_code_health.py`, `skills/code-health/SKILL.md` (fix2: documenta la exclusión por firma y el límite de la regla castellana), `docs/roadmap/2026-09-09-plugin-refactor/code-health-baseline-2.json`, `docs/roadmap/2026-09-09-plugin-refactor/code-health-baseline-2.md` (fix2: regenerada — `lineas` cambia por auto-medición, `todos` sigue en 0)
 - **Verificación**:
-  - `python skills/code-health/scripts/code-health.py . --exclude-tests --json | python -c "import json,sys; print(json.load(sys.stdin)['resumen']['todos'])"` → `1`
+  - `python skills/code-health/scripts/code-health.py . --exclude-tests --json | python -c "import json,sys; print(json.load(sys.stdin)['resumen']['todos'])"` → `0`
   - `python skills/code-health/scripts/code-health.py . --exclude-tests --json --baseline docs/roadmap/2026-09-09-plugin-refactor/code-health-baseline.json` → `TODO/FIXME/HACK` «↓ mejora»; ninguna otra métrica «↑ empeora» salvo `edad máx. TODO (días)` (reloj)
-  - `python -m pytest -q skills/code-health/scripts/test_code_health.py -p no:cacheprovider` → los 14 tests previos + 3 nuevos en verde (marcadores enumerados en comentario · prosa «TODO (» · el propio fichero del detector)
+  - `python -m pytest -q skills/code-health/scripts/test_code_health.py -p no:cacheprovider` → verde, incluye el mutante acotado de `DETECTOR_PROPIO` (B-8), la precisión de `_es_enumeracion_de_marcadores` (B-2) y (fix2) los mutantes de firma (R2-1) y de enumeración encadenada (R2-2)
   - `python scripts/lint_plugin.py` → `0 errores` · `python scripts/export-interop.py --check` → `48 ficheros al día`
+  - (fix2) `python <copia del detector en otra ruta>/code-health.py . --exclude-tests --exclude-path interop --json` → `marcadores.total: 0` (oráculo final de R2-1, reproducido desde una copia fuera del árbol)
 
 **Criterios de aceptación**
-- [ ] CA-06: `todos` = 1 y el único marcador es `agent-kits/shared/usage-meter.py` (línea del «histórico como ventana»)
-- [ ] Test nuevo con mutante: quitar la exclusión del propio fichero → el test se pone rojo (evidencia pegada)
-- [ ] Flags, exit codes y forma del `--json`/`--baseline` de `code-health.py` sin cambio (`grep -n add_argument` idéntico antes/después)
-- [ ] Ningún test existente modificado; la suite `test_code_health.py` previa pasa idéntica
+- [x] CA-06: `todos` = 0 (corregido desde «= 1»; el único candidato que quedaba — `usage-meter.py:454-455` — es prosa castellana, no un marcador real; `marcadores.top` = `[]`)
+- [x] Test nuevo con mutante: quitar la exclusión del propio fichero → el test se pone rojo (evidencia pegada); mutante acotado (`DETECTOR_PROPIO = "nunca-coincide.py"`, B-8) en vez de parchear `os.path.basename` global
+- [x] Flags, exit codes y forma del `--json`/`--baseline` de `code-health.py` sin cambio (`grep -n add_argument` idéntico antes/después)
+- [x] Ningún test existente modificado; la suite `test_code_health.py` previa pasa idéntica (los reemplazos de B-6/B-8 son 1-por-1 sobre los tests que la propia revisión señaló, no sobre tests que no discutió)
+- [x] (fix2, R2-1) La exclusión del detector funciona por RUTA REAL **y** por FIRMA de contenido: una copia real del script en otra ruta se excluye aunque `DETECTOR_PROPIO` no coincida; un `code-health.py` de fixture sin la firma sigue contando; el mutante `DETECTOR_PROPIO = 'nunca-coincide'` y el mutante de firma no coincidente hacen caer al menos un test cada uno
+- [x] (fix2, R2-2) Una línea que encadena ≥ 2 palabras-marcador distintas separadas solo por `/`, `,`, `|` o espacios no cuenta; un marcador real seguido de otro en prosa («TODO: quitar el FIXME de abajo») sí cuenta
+- [x] (fix2, R2-3) El límite de la regla castellana (marcador real sin `:`/`-`/`(` justo tras la palabra → excluido como prosa) queda documentado en el docstring de `PROSA_ES_TRAS_MARCADOR` y en `skills/code-health/SKILL.md`
 
 **Subtareas**
-- [ ] Capturar `code-health.py . --exclude-tests --json` ANTES (`$CAPTURAS/ch-antes.json`) para comparar todo salvo `marcadores`
-- [ ] Ajustar `TODO_RE`: exigir mayúsculas y quitar `(` del lookahead que acepta la prosa castellana; excluir líneas que enumeran ≥ 2 marcadores distintos (descripción de patrón) y el fichero del propio detector
-- [ ] 3 tests nuevos en `test_code_health.py` (fixtures con `tmp_path`), uno de ellos con mutante documentado
-- [ ] Anotar aquí la excepción declarada (cuenta menos TODO) al cerrar
+- [x] Capturar `code-health.py . --exclude-tests --json` ANTES (`$CAPTURAS/ch-antes.json`) para comparar todo salvo `marcadores`
+- [x] Ajustar `TODO_RE`: exigir mayúsculas y quitar `(` del lookahead que acepta la prosa castellana; excluir líneas que enumeran ≥ 2 marcadores distintos (descripción de patrón) y el fichero del propio detector
+- [x] 3 tests nuevos en `test_code_health.py` (fixtures con `tmp_path`), uno de ellos con mutante documentado
+- [x] Anotar aquí la excepción declarada (cuenta menos TODO) al cerrar
+- [x] **fix1 (R1 intento 1)**: precisar `_tipo_marcador`/`PROSA_ES_TRAS_MARCADOR` para que «TODO el histórico…» cuente como prosa (A-1/B-9); precisar `_es_enumeracion_de_marcadores` para exigir el marcador REAL dentro de backticks, no solo ≥2 spans cualquiera (B-2); comparar `DETECTOR_PROPIO` por ruta real (`os.path.realpath(__file__)`), no por basename (B-6); acotar el mutante de B-8 a `DETECTOR_PROPIO`, no a `os.path.basename` global
+- [x] **fix2 (R2, intento 2)**: `FIRMA_DETECTOR` + `_es_detector_propio()` (firma de contenido, además de `realpath`, R2-1); `_es_enumeracion_de_palabras_marcador()` para la cadena de ≥2 marcadores distintos separados solo por separadores (R2-2); documentado el límite de la regla castellana en el docstring y en `SKILL.md` (R2-3); 5 tests nuevos (2 de firma + 1 mutante, 2 de enumeración + 1 mutante); línea base 2 regenerada (`lineas` +30/+140 por auto-medición, `todos` sigue en 0, comparación «= igual»)
 
-**Notas**: Primera excepción declarada (condición 4 del go). No toca `interop/` ni prosa de piezas. `code-health --baseline` es la puerta de esta tarea; el resto del bloque (a) compara contra la línea base 2 desde T-03.
+**Verificación ejecutada (salida real, tras el ÚLTIMO cambio):**
+```
+$ python skills/code-health/scripts/code-health.py . --exclude-tests --json | python -c "import json,sys; print(json.load(sys.stdin)['resumen']['todos'])"
+0
+
+$ python skills/code-health/scripts/code-health.py . --exclude-tests --json | python -c "import json,sys; d=json.load(sys.stdin); print(d['marcadores'])"
+{'total': 0, 'por_tipo': {}, 'edad_max_dias': None, 'antiguedad': 'git', 'top': []}
+
+$ python -m pytest -q skills/code-health/scripts/test_code_health.py -p no:cacheprovider
+28 passed in 7.32s
+
+$ python scripts/lint_plugin.py
+lint_plugin: 9 agentes · 0 errores · 3 avisos   → 0 errores
+
+$ python scripts/export-interop.py --check
+export-interop --check: 48 ficheros al día
+
+$ python <copia del detector en $TEMP/chcopy2>/code-health.py . --exclude-tests --exclude-path interop --json | python -c "import json,sys; print(json.load(sys.stdin)['marcadores']['total'])"
+0
+
+$ python skills/code-health/scripts/code-health.py . --exclude-tests --exclude-path interop --json --baseline docs/roadmap/2026-09-09-plugin-refactor/code-health-baseline-2.json
+… todas las métricas "= igual" (incluida `líneas de código`, tras regenerar la línea base 2)
+```
+
+**Notas**: Primera excepción declarada (condición 4 del go). No toca `interop/` ni prosa de piezas. `code-health --baseline` es la puerta de esta tarea; el resto del bloque (a) compara contra la línea base 2 desde T-03. **Corrección R1 intento 1 (A-1/B-9)**: el «único marcador real» que la primera pasada dejaba en `agent-kits/shared/usage-meter.py:454-455` es en realidad la misma prosa castellana que los otros 7 falsos positivos («TODO el histórico como ventana» — empieza por el artículo «el»); tras precisar `PROSA_ES_TRAS_MARCADOR`/`_tipo_marcador` el detector da 0, coherente con `analysis.md` §4 y `spec.md` C-04 («8 → 0»). El marcador de `usage-meter.py` (medición) se abrió DESPUÉS de implementar esta tarea (fallo de disciplina propio, corregido desde T-02): el tiempo IA real de la implementación original queda marcado `(estimado)`, no `(medido)`; el trabajo de esta corrección (fix1) sí se midió con `usage-meter.py` del árbol de trabajo, ver JSON pegado en el cierre de R1. **Corrección R2 intento 2 (fix2)**: el residual de B-6 (R2-1) era real — `realpath(__file__)` solo protege a la copia EN EJECUCIÓN, así que la copia de este repo, vista desde otra ruta (p. ej. la caché del plugin), volvía a contarse; se añadió una firma de contenido (`FIRMA_DETECTOR`, literal que ya vivía en la primera línea del docstring) como defensa adicional, verificada con una copia REAL del script (no una fixture a mano, para no divergir) y con un mutante que rompe la firma (`total > 0`, rojo confirmado). El residual de B-2 (R2-2) tampoco estaba implementado: se añadió `_es_enumeracion_de_palabras_marcador()` con la regla «cadena de ≥2 marcadores distintos separados SOLO por `/`, `,`, `\|` o espacios», que no atrapa «TODO: quitar el FIXME de abajo» (hay prosa entre medias). El límite de la regla castellana (R2-3) ya existía en el código pero no estaba escrito: ahora lo está en el docstring de `PROSA_ES_TRAS_MARCADOR` y en `SKILL.md`. El marcador `plugin-refactor/T-01-fix2` se abrió tras terminar la implementación (mismo fallo de disciplina que T-01/T-02 originales): tiempo IA real marcado `(estimado)`, el JSON medido queda pegado arriba para transparencia, no como cifra representativa.
 
 ### T-02 — C-05: `code-health.py --exclude-path` (rutas generadas) + segunda línea base
 
 - **Descripción**: flag aditivo `--exclude-path <prefijo>` (repetible, relativo a la raíz) en `ficheros()` (`code-health.py:80`) para sacar del informe `interop/` (salida de `export-interop.py`); default sin cambio. Con el flag, el par `hooks/opencode-plugin.js` ↔ `interop/opencode/plugins/custom-agents-hooks.js` (118 líneas) deja de contar. **Excepción declarada**: añade un flag (aditivo). Al cerrar, el **orquestador** (`/dev-cycle`, no el `implementer`: su hook de guardia solo le permite `tasks.md` en `docs/roadmap/`) escribe la **segunda línea base** `code-health-baseline-2.{json,md}` con `--exclude-tests --exclude-path interop` (S-4).
 - **Changelog**: `code-health.py` admite `--exclude-path` para sacar del informe carpetas generadas como `interop/`; sin el flag la salida es la de siempre.
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo humano**: est. 2,0h · real —
-- **Tiempo IA (ejec.)**: est. 0,25h · real —
-- **Supervisión**: est. 0,06h (≈25 % IA) · real —
+- **Tiempo IA (ejec.)**: est. 0,25h · real 0,07h (estimado — A-6: el marcador original ya no existe en `usage-state.json`, no es reproducible; se rebaja de `(medido)` a `(estimado)`) + fix1 ver JSON en cierre de R1
+- **Supervisión**: est. 0,06h (≈25 % IA) · real 0,02h (estimado, 25 % de IA estimada)
 - **Previsión IA**: 88k in / 13k out tok · 0,9 € tokens · coste tarea 101 €
 - **Dependencias**: T-01 (la línea base 2 debe llevar ya el detector corregido)
 - **Tipo**: test
-- **Archivos**: `skills/code-health/scripts/code-health.py`, `skills/code-health/scripts/test_code_health.py`, `skills/code-health/SKILL.md` (una línea de uso: excepción declarada a CA-09), `docs/roadmap/2026-09-09-plugin-refactor/code-health-baseline-2.json` y `.md` (los escribe el orquestador)
+- **Archivos**: `skills/code-health/scripts/code-health.py`, `skills/code-health/scripts/test_code_health.py`, `skills/code-health/SKILL.md` (una línea de uso: excepción declarada a CA-09), `docs/roadmap/2026-09-09-plugin-refactor/code-health-baseline-2.json` y `.md` (los escribe el orquestador; regenerados en fix1 con `exclude_path` en `parametros`, ver A-5), `docs/roadmap/2026-09-09-plugin-refactor/code-health-baseline-2.md` (informe legible de la linea base 2; declarado para `scope-check`)
 - **Verificación**:
   - `python skills/code-health/scripts/code-health.py . --exclude-tests --json > "$CAPTURAS/ch-sinflag.json" && python -c "import json; a=json.load(open('$CAPTURAS/ch-antes.json')); b=json.load(open('$CAPTURAS/ch-sinflag.json')); a.pop('marcadores'); b.pop('marcadores'); a['resumen'].pop('todos'); b['resumen'].pop('todos'); a['resumen'].pop('todo_edad_max_dias'); b['resumen'].pop('todo_edad_max_dias'); print(a==b)"` → `True` (sin flag, byte-idéntico salvo el TODO ya declarado en T-01)
   - `python skills/code-health/scripts/code-health.py . --exclude-tests --exclude-path interop --json | grep -c "custom-agents-hooks.js"` → `0`
@@ -103,29 +137,67 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
   - `python scripts/lint_plugin.py` → `0 errores` (la línea de `SKILL.md` no lo engorda por encima de 200)
 
 **Criterios de aceptación**
-- [ ] CA-07: con `--exclude-path interop` el par de 118 líneas no aparece en `duplicados`; sin flag, salida byte-idéntica a la de T-01
-- [ ] `--exclude-path` es repetible y acepta prefijos relativos a la raíz (`interop`, `interop/opencode`); test con dos prefijos
-- [ ] Segunda línea base escrita por el orquestador en la carpeta de la iniciativa y referenciada en la `Verificación` de T-03…T-08
-- [ ] `skills/code-health/SKILL.md` documenta el flag en una línea y sigue ≤ 200 líneas
+- [x] CA-07: con `--exclude-path interop` el par de 118 líneas no aparece en `duplicados`; sin flag, salida byte-idéntica a la de T-01
+- [x] `--exclude-path` es repetible y acepta prefijos relativos a la raíz (`interop`, `interop/opencode`); test con dos prefijos
+- [x] Segunda línea base escrita en la carpeta de la iniciativa y referenciada en la `Verificación` de T-03…T-08
+- [x] `skills/code-health/SKILL.md` documenta el flag en una línea y sigue ≤ 200 líneas (100/200)
+
+**Desviación declarada (A-4)**: CA-07 dice «sin flag, salida byte-idéntica a la de T-01» y así se marcó `[x]`, pero la propia evidencia pegada abajo da `False` en la primera comparación (auto-medición: `code-health.py` creció 13 líneas al añadir su propio flag). El CA se cumple SOLO tras excluir del `diff` las claves que miden literalmente el propio fichero del detector (`resumen.lineas`, `duplicados.lineas_codigo`, `tamano.lineas`, la fila de `code-health.py` en `top_ficheros`) — drift de auto-medición esperado, no un cambio de comportamiento para ningún OTRO fichero del árbol. `improvement-plan.md` ya admitía «byte-idéntico salvo `marcadores`»; esta nota deja el mismo razonamiento explícito en el propio CA, con el mismo formato que usan T-03/T-04.
 
 **Subtareas**
-- [ ] `argparse`: `--exclude-path` con `action="append"`, default `[]`; filtro en `ficheros()` por prefijo normalizado (`/` y `\`)
-- [ ] 2 tests nuevos en `test_code_health.py`
-- [ ] Una línea en `skills/code-health/SKILL.md` (uso) — excepción declarada a CA-09 (documenta el flag, no cambia el método)
-- [ ] Handoff al orquestador: tomar la línea base 2 y anotar aquí su hash/fecha
+- [x] `argparse`: `--exclude-path` con `action="append"`, default `[]`; filtro en `ficheros()` por prefijo normalizado (`/` y `\`)
+- [x] 2 tests nuevos en `test_code_health.py`
+- [x] Una línea en `skills/code-health/SKILL.md` (uso) — excepción declarada a CA-09 (documenta el flag, no cambia el método)
+- [x] Segunda línea base tomada: ver «Verificación ejecutada» abajo (sin hash de commit — ficheros en el árbol de trabajo, aún sin comitear)
+- [x] **fix1 (R1 intento 1)**: `parametros` del JSON/MD de `code-health.py` ahora incluye `exclude_path` (A-5); regenerada la línea base 2 con la lista de prefijos visible
 
-**Notas**: Segunda excepción declarada (condición 4 del go). El default NO excluye `interop/` (cambiaría el informe de todos los consumidores); solo con flag. S-4: comparar una salida con el flag contra la línea base 1 daría «mejora» ficticia de 118 líneas — por eso existe la línea base 2.
+**Verificación ejecutada (salida real, tras el último cambio):**
+```
+$ python skills/code-health/scripts/code-health.py . --exclude-tests --json > "$CAPTURAS/ch-sinflag.json"
+$ python -c "... a==b (excluyendo marcadores/todos/todo_edad_max_dias) ..."
+False al comparar 'lineas' sin más ajuste: code-health.py CRECIÓ 13 líneas (docstring + `_bajo_prefijo` +
+`--exclude-path`) al añadir el propio flag — drift de auto-medición esperado (el propio detector se
+analiza a sí mismo), no un cambio de comportamiento para otros ficheros. Excluyendo también
+`resumen.lineas` / `duplicados.lineas_codigo` / `tamano.lineas` y la fila de `code-health.py` en
+`top_ficheros`:
+True
+
+$ python skills/code-health/scripts/code-health.py . --exclude-tests --exclude-path interop --json | grep -c "custom-agents-hooks.js"
+0
+
+$ python -m pytest -q skills/code-health/scripts/test_code_health.py -p no:cacheprovider
+19 passed in 6.10s   (17 previos de T-01 + 2 nuevos: exclusión aplicada · repetible con dos prefijos)
+
+$ python skills/code-health/scripts/code-health.py . --exclude-tests --exclude-path interop --json > docs/roadmap/2026-09-09-plugin-refactor/code-health-baseline-2.json
+$ python skills/code-health/scripts/code-health.py . --exclude-tests --exclude-path interop > docs/roadmap/2026-09-09-plugin-refactor/code-health-baseline-2.md
+resumen (tras fix1, regenerada con el detector ya corregido — A-1/B-2/B-6/B-8 de T-01 y la nesting fix
+de T-04): {'ficheros': 35, 'lineas': 14381, 'duplicado_pct': 5.8, 'bloques_duplicados': 272,
+'funciones_largas': 97, 'anidamiento_max': 6, 'hotspots': 35, 'todos': 0, 'todo_edad_max_dias': None}
+parametros: {'langs': [...], 'window': 8, 'min_lines': 6, 'exclude_tests': True, 'since_dias': 90,
+'exclude_path': ['interop']}   <- A-5: ahora SÍ queda registrado el flag que define esta línea base
+Nota: `funciones_largas` con el flag es 97 (no 104): el flag SÍ toca funciones cuando el par duplicado
+excluido incluye funciones largas contadas dos veces (original + copia generada de `interop/`). SIN el
+flag (`--exclude-tests --json`, sin `--exclude-path`) `funciones_largas` sigue en 104 en el DEFAULT: lo
+que garantiza CA-07. `todos` pasa de 1 a 0 respecto a la primera toma porque esta regeneración YA lleva
+la corrección de A-1/B-9 (T-01); no es un cambio introducido por T-02.
+
+$ python scripts/lint_plugin.py
+lint_plugin: 9 agentes · 0 errores · 3 avisos
+```
+
+**Notas**: Segunda excepción declarada (condición 4 del go). El default NO excluye `interop/` (cambiaría el informe de todos los consumidores); solo con flag. S-4: comparar una salida con el flag contra la línea base 1 daría «mejora» ficticia de 118 líneas — por eso existe la línea base 2. **Desviación del diseño original**: la ledger preveía que la segunda línea base la escribiera «el orquestador» (el hook de guardia del `implementer` solo permite `tasks.md` en `docs/roadmap/`). En esta sesión no hay un orquestador `/dev-cycle` separado invocando al `implementer` como subagente con ese hook activo — se me pidió ejecutar la Fase 1 completa directamente — así que escribí `code-health-baseline-2.{json,md}` yo mismo. Decisión anotada aquí, no oculta; si el guardián estuviera activo habría bloqueado el `Write` y habría que delegarlo. Desde T-03, la comparación usa esta segunda línea base. **fix2 (R2, intento 2)**: la línea base 2 se regeneró tras las correcciones de T-01 en `code-health.py` (firma de contenido y enumeración encadenada, R2-1/R2-2) — único cambio, `lineas` (+30, auto-medición del propio detector); `todos` sigue en 0 y la comparación `--baseline` da «= igual» en el resto de métricas.
 
 ### T-03 — C-01: `task-brief.py` — `main()` en siete secciones y las reglas de la persona en una función
 
 - **Descripción**: `main()` (`agent-kits/shared/task-brief.py:680`, 160 líneas) pasa a montar las siete secciones del brief con una función por sección; las cuatro reglas de la persona (`PERSONA_TOPE_CHARS`, `PERSONA_SUELO_CHARS`, `PERSONA_TOPE_MINIMO_UTIL` y el margen dinámico) se funden en una función con nombre. 4 funciones largas → ≤ 2; ninguna nueva > 60. Contratos congelados: nombres de secciones, `BRIEF_TOPE_CHARS = 10000`, `_REVISION_HDR_FALLBACK`, `--json`, exit codes; `test_task_brief.py` **no se toca**. Prerequisito de `brief-budget`.
 - **Changelog**: El generador del brief del subagente queda partido en funciones por sección, con las reglas del tamaño de la persona en un solo sitio; el brief que produce es el mismo byte a byte.
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo humano**: est. 6,0h · real —
-- **Tiempo IA (ejec.)**: est. 0,60h · real —
-- **Supervisión**: est. 0,15h (≈25 % IA) · real —
+- **Tiempo IA (ejec.)**: est. 0,60h · real 0,25h (estimado — A-6: el marcador original ya no existe en `usage-state.json`, no es reproducible; se rebaja de `(medido)` a `(estimado)`) + fix1 ver JSON en cierre de R1
+- **Supervisión**: est. 0,15h (≈25 % IA) · real 0,06h (estimado, 25 % de IA estimada)
 - **Previsión IA**: 210k in / 32k out tok · 2,2 € tokens · coste tarea 302 €
 - **Dependencias**: T-02 (línea base 2 tomada). **Arista hacia fuera**: bloquea a `brief-budget` (mismo `main()`; condición 3 del go)
+- **Tipo**: refactor (A-7: campo ausente en la toma original, única tarea de R1 sin él; se añade para que el brief enrute persona/memoria por tipo)
 - **Archivos**: `agent-kits/shared/task-brief.py`
 - **Verificación**:
   - Captura previa (antes de tocar): `python agent-kits/shared/task-brief.py docs/roadmap/2026-09-09-project-specialization/tasks.md T-05 > "$CAPTURAS/brief-antes.md"` (iniciativa CON `design.md`, GOT-009) y `python -m pytest -q tests agent-kits/shared skills -p no:cacheprovider -rA 2>/dev/null | grep -E "^(PASSED|FAILED|ERROR|SKIPPED|XFAIL|XPASS) " | sort > "$CAPTURAS/suite-antes.txt"`
@@ -137,51 +209,146 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
   - `python scripts/lint_plugin.py` → `0 errores` · `python scripts/export-interop.py --check` → `48 ficheros al día`
 
 **Criterios de aceptación**
-- [ ] `task-brief.py`: funciones > 30 líneas ≤ 2 (hoy 4) y ninguna nueva > 60; `main()` delega en siete funciones de sección con nombre
-- [ ] Una sola función con nombre calcula el presupuesto de la persona (las tres constantes + margen dinámico); las constantes conservan nombre y valor
-- [ ] Brief real con `## Diseño` byte-idéntico antes/después (CA-08); suite idéntica por test (CA-03); `test_task_brief.py` sin cambios (CA-04)
-- [ ] `git diff --stat -- agents commands 'skills/*/SKILL.md'` vacío para este commit (CA-09)
+- [x] `task-brief.py`: funciones > 30 líneas ≤ 2 (hoy 4) y ninguna nueva > 60; `main()` delega en siete funciones de sección con nombre
+- [x] Una sola función con nombre calcula el presupuesto de la persona (las tres constantes + margen dinámico); las constantes conservan nombre y valor
+- [x] Brief real con `## Diseño` byte-idéntico antes/después (CA-08); suite idéntica por test (CA-03); `test_task_brief.py` sin cambios (CA-04)
+- [x] CA-09 (**corregido tras A-2**): el criterio protege que T-03 NO toque `agents/`, `commands/` ni `skills/*/SKILL.md` — y no los toca: `git diff --stat -- agents commands 'skills/*/SKILL.md'` contra el árbol devuelve únicamente `skills/code-health/SKILL.md | 8 +++---`, que es un cambio legítimo de **T-02** (declarado en su propio `Archivos`), no de T-03. La evaluación correcta es **por commit** (no había ninguno de R1 en el momento de la primera pasada; el orquestador comitea por tarea tras el cierre de la revisión, separando el de T-02 del de T-03) — cuando existan, el commit de T-03 no debe tocar esas rutas; el de T-02 sí, legítimamente. La subtarea que decía «commit `T-03: …`» estaba mal atribuida al implementer: se corrige abajo
 
 **Subtareas**
-- [ ] Capturas previas (`brief-antes.md`, `suite-antes.txt`, `kf-antes.json`, `scope-antes.json`, `dash-antes.*`, `lint-antes.txt`, `doctor-antes.json`): se toman UNA vez aquí y las reutilizan T-05…T-08
-- [ ] Extraer `seccion_<nombre>()` por cada una de las siete secciones; `main()` solo parsea, encadena y aplica el tope
-- [ ] Extraer `presupuesto_persona(...)` con las cuatro reglas; docstring que las nombra
-- [ ] Ejecutar la `Verificación` completa y pegar salidas; commit `T-03: …`
+- [x] Capturas previas (`brief-antes.md`, `suite-antes.txt`, `kf-antes.json`, `scope-antes.json`, `dash-antes.*`, `lint-antes.txt`, `doctor-antes.json`): se toman UNA vez aquí y las reutilizan T-05…T-08
+- [x] Extraer `seccion_<nombre>()` por cada una de las siete secciones; `main()` solo parsea, encadena y aplica el tope
+- [x] Extraer `presupuesto_persona(...)` con las cuatro reglas; docstring que las nombra
+- [x] Ejecutar la `Verificación` completa y pegar salidas; **corregido tras A-2**: el commit lo hace el orquestador tras el cierre de R1 (no el implementer; su hook de guardia solo permite tocar `tasks.md` en `docs/roadmap/`), no «commit `T-03: …»` como decía literalmente esta subtarea
+
+**Verificación ejecutada (salida real, tras el último cambio):**
+```
+$ diff "$CAPTURAS/brief-antes.md" "$CAPTURAS/brief-despues.md"
+(vacío)
+
+$ diff "$CAPTURAS/suite-antes.txt" "$CAPTURAS/suite-despues.txt"
+(vacío) — 1426/1426 líneas idénticas (identidad por nombre de test, no por conteo)
+
+$ python skills/code-health/scripts/code-health.py . --exclude-tests --exclude-path interop --json --baseline docs/roadmap/2026-09-09-plugin-refactor/code-health-baseline-2.json
+funciones largas: 99 → 97  ↓ mejora
+(resto de métricas = igual; líneas de código solo informativo, ninguna "↑ empeora" salvo la excepción declarada de edad TODO)
+
+$ python skills/code-health/scripts/code-health.py . --exclude-tests --json --top 1000 | python -c "..."
+task-brief.py: 2 funciones > 30 líneas (_memoria_tecnica 47L, _persona_cascada 37L — ambas PRE-EXISTENTES,
+fuera del alcance de T-03; main() y _recorte_seguro ya no aparecen) → ≤ 2 cumplido
+
+$ sed 's/^[0-9]*://; s/^[[:space:]]*//' contract-antes.txt | sort > a.txt
+$ sed 's/^[0-9]*://; s/^[[:space:]]*//' contract-despues.txt | sort > b.txt
+$ diff a.txt b.txt
+(vacío) — mismo conjunto de add_argument/sys.exit/return-N; el diff línea-a-línea con numeración
+cambia (reorganización interna) pero el contenido es idéntico, ver Notas
+
+$ python -m pytest -q agent-kits/shared/test_task_brief.py -p no:cacheprovider
+63 passed, 1 failed — el fallo es test_ca08_...memory_retrieval, PRE-EXISTENTE (ya aparece FAILED
+en suite-antes.txt): depende del tamaño actual de docs/knowledge/ (crece con T-05/T-19, > BRIEF_TOPE_CHARS),
+no relacionado con el refactor
+
+$ python scripts/lint_plugin.py
+lint_plugin: 9 agentes · 0 errores · 3 avisos
+
+$ python scripts/export-interop.py --check
+48 ficheros al día
+```
 
 **Notas**: Hotspot que acaba de sufrir tres rondas (§3). La suite recorre un solo ledger sin `design.md` (E8 → `brief-budget` C-05): por eso la captura del brief se hace sobre `project-specialization`, que sí lo tiene. Si `brief-budget` C-05 (guardarraíl sobre todos los ledgers) se adelantara, sería red de seguridad extra, no requisito.
+
+**Desviación declarada respecto a las Subtareas literales**: el CA "≤ 2 (hoy 4)" no se podía cumplir extrayendo solo las secciones de `main()` y `presupuesto_persona(...)` — `_recorte_seguro` (33 líneas) seguía contando como función larga. Se extrajo también `_aprovecha_margen_de_linea(...)` desde `_recorte_seguro` (33→28 líneas), un cambio mínimo y sin efecto de comportamiento (mismo cálculo, solo movido a función con nombre), necesario para satisfacer el criterio numérico explícito. Documentado aquí en vez de aplicado en silencio.
+
+**Corrección sobre la descripción de la tarea**: el texto de "Descripción" habla de "las cuatro reglas de la persona (`PERSONA_TOPE_CHARS`, `PERSONA_SUELO_CHARS`, `PERSONA_TOPE_MINIMO_UTIL` y el margen dinámico)". `PERSONA_TOPE_MINIMO_UTIL` ya no existe: se confirmó por `grep` que fue retirada como código muerto en una ronda anterior (T-01/T-02). Solo quedan 3 reglas reales (`PERSONA_TOPE_CHARS`, `PERSONA_SUELO_CHARS`, margen dinámico), consolidadas en `presupuesto_persona(...)` tal como pedía el CA-02, con las constantes existentes intactas.
+
+**Contrato grep — nota de brittleness resuelta**: la comparación literal `grep -n` línea a línea NO es vacía (los números de línea y el orden cambian con la reorganización), lo cual es esperable en un refactor real. La comparación válida es por CONTENIDO (multiset, sin numeración ni espacios): confirmada idéntica. Se detectaron y corrigieron 2 casos donde un `return N` en tupla (`return None, None, None, 1`) desaparecía del grep por no ser textualmente `return 1`; se resolvió extrayendo `_resolver_rutas(args)` y `_tarea_no_encontrada(tid, tasks_p)` como funciones dedicadas que preservan el `return 1`/`return 2` literal.
 
 ### T-04 — C-13 (ii-a): `usage-meter.py` robusto a marcadores anteriores al arreglo y ventana por `timestamp`
 
 - **Descripción**: la vía rápida `usage-meter-transcripts` hizo que el meter encuentre las transcripciones (C-13 (i), hecha). Hoy se observó lo que faltaba: (1) un marcador **abierto con el código anterior** (sin `transcriptDir`, `offsets` vacíos) y cerrado con el nuevo **contó enteros los transcripts previos** (1.552 respuestas / 143 € falsos, medido); (2) `duracion` se deriva de tokens ÷ ratio (`cmd_close`: `fmt_horas(horas)`), no del reloj (`26m` con `inicio`/`fin` separados 10m37s). Arreglo: filtro `timestamp >= inicio` (tolerancia 60 s) en `_sum_usage_window()` (`:192`); `start` escribe `version: 2` en el marcador y `close` degrada con aviso («marcador anterior al arreglo») los que no lo traen; `duracion_reloj` (`fin − inicio`, formato `fmt_horas`) como clave **aditiva** del JSON de `close` — `duracion` no cambia de semántica (lo consumen dashboards y plantillas).
-- **Changelog**: `usage-meter.py` ya no cuenta transcripciones anteriores al inicio de la ventana ni acepta marcadores de la versión antigua, y añade `duracion_reloj` junto a la `duracion` derivada de tokens.
-- **Estado**: borrador
+- **Changelog**: `usage-meter.py` ya no cuenta transcripciones anteriores al inicio de la ventana ni acepta marcadores de la versión antigua, ya no se cae ni pierde la ventana entera con timestamps sin zona horaria, añade `duracion_reloj` con oráculo de valor junto a la `duracion` derivada de tokens, y documenta el límite conocido de marcadores encadenados en 60 s.
+- **Estado**: completado
 - **Tiempo humano**: est. 1,5h · real —
-- **Tiempo IA (ejec.)**: est. 0,19h · real —
-- **Supervisión**: est. 0,05h (≈25 % IA) · real —
+- **Tiempo IA (ejec.)**: est. 0,19h · real 0,15h (estimado; el marcador se abrió con el código ANTERIOR al arreglo — igual que en T-01 — así que `close` degradó a `fuente: estimado` con el aviso «marcador anterior al arreglo»; `duracion_reloj` midió 9m de reloj, pero no es representativo del trabajo real por las pausas de verificación entre ediciones — ver Notas) + fix1 ver JSON en cierre de R1
+- **Supervisión**: est. 0,05h (≈25 % IA) · real 0,04h (estimado, 25 % de IA estimada)
 - **Previsión IA**: 66k in / 10k out tok · 0,7 € tokens · coste tarea 76 €
 - **Dependencias**: T-03 (orden del tramo R1; sin dependencia de código). Requiere `master` `8fee28a` (C-13 (i)) — ya es ancestro de la rama
 - **Tipo**: test
 - **Archivos**: `agent-kits/shared/usage-meter.py`, `agent-kits/shared/test_usage_meter.py`, `docs/observability.md`, `docs/en/observability.md`
 - **Verificación**:
-  - `python -m pytest -q agent-kits/shared/test_usage_meter.py -p no:cacheprovider` → suite previa + 4 nuevos en verde (registro con `timestamp < inicio` descartado · tolerancia 60 s · marcador sin `version` → `fuente: estimado` con aviso · `duracion_reloj` presente y `duracion` sin cambio)
-  - Mutante: quitar el filtro de `timestamp` → el test del fixture con transcript previo se pone rojo (salida pegada)
+  - `python -m pytest -q agent-kits/shared/test_usage_meter.py -p no:cacheprovider` → suite previa + nuevos en verde (registro con `timestamp < inicio` descartado · tolerancia 60 s · marcador sin `version` → `fuente: estimado` con aviso · `duracion_reloj` presente, con oráculo de VALOR (B-3), y `duracion` sin cambio · `inicio`/`timestamp` naive no revientan ni pierden la ventana (B-1) · marcador `version: 2` sin `inicio` degrada (B-5) · tests hermetizados, sin depender de `CALIBRATION.md`/`rates.json` reales (B-7))
+  - Mutante: quitar el filtro de `timestamp` → el test del fixture con transcript previo se pone rojo (salida pegada); mutante de `_parse_iso` (revertir a *naive*) → los 2 tests nuevos de B-1 rojos; mutante de `duracion_reloj` (`None`/`fmt_horas(0.0)`) → el nuevo test de B-3 rojo
   - `python agent-kits/shared/usage-meter.py start --artefacto /tmp/x.md && python agent-kits/shared/usage-meter.py close --artefacto /tmp/x.md | python -c "import json,sys; d=json.load(sys.stdin); print('duracion_reloj' in d, d['fuente'])"` → `True estimado` (start y close seguidos: ventana sin respuestas, como hoy) · `python agent-kits/shared/usage-meter.py fmt 0.5` → `30m` (contrato `fmt` intacto)
   - `grep -n "add_argument" agent-kits/shared/usage-meter.py` antes/después → `diff` vacío (sin flags nuevos; `version` es un dato del marcador, no un flag)
+  - `python skills/code-health/scripts/code-health.py . --exclude-tests --exclude-path interop --baseline docs/roadmap/2026-09-09-plugin-refactor/code-health-baseline-2.json` → `anidamiento máx.` = igual (6→6; la extracción de `_ventana_descarta` mantiene el aplanado de B-1 sin volver a subir a 7)
   - `python scripts/lint_plugin.py` → `0 errores`
 
 **Criterios de aceptación**
-- [ ] CA-19 (ii, parte a): `close` ignora registros con `timestamp` anterior a `inicio − 60 s` y avisa cuando descarta > 0 registros con offset > 0
-- [ ] Un marcador sin `version` (abierto con la versión anterior) degrada a `fuente: estimado` con aviso explícito; el `usage-state.json` de esta máquina se limpia de marcadores viejos al cerrar la tarea (`status` los lista) y se anota aquí cuántos eran
-- [ ] `duracion_reloj` aditiva en el JSON de `close`; `duracion`, `horas_ia`, `ratio_usado`, exit codes y flags idénticos
-- [ ] `docs/observability.md` (+EN) explica en dos líneas la diferencia `duracion` (tokens ÷ ratio) vs `duracion_reloj` (reloj)
+- [x] CA-19 (ii, parte a): `close` ignora registros con `timestamp` anterior a `inicio − 60 s` y avisa cuando descarta > 0 registros con offset > 0
+- [x] Un marcador sin `version` (abierto con la versión anterior) degrada a `fuente: estimado` con aviso explícito; el `usage-state.json` de esta máquina se limpia de marcadores viejos al cerrar la tarea (`status` los lista) y se anota aquí cuántos eran
+- [x] `duracion_reloj` aditiva en el JSON de `close`; `duracion`, `horas_ia`, `ratio_usado`, exit codes y flags idénticos; **con oráculo de valor (B-3)**, no solo presencia de la clave
+- [x] `docs/observability.md` (+EN) explica en dos líneas la diferencia `duracion` (tokens ÷ ratio) vs `duracion_reloj` (reloj), y ahora también el límite de encadenados en 60 s (B-4)
+- [x] **B-1**: `_parse_iso` asume UTC en ISO *naive* en vez de compararlo *naive* contra *aware*; `dur_reloj` amplía su `except` a `(ValueError, OverflowError, TypeError)`; ni un `inicio` naive ni un `timestamp` naive entre 100 correctos rompen `close` ni descartan la ventana entera
+- [x] **B-5**: un marcador `version: 2` sin `inicio` degrada a estimado con aviso, igual que uno sin `version`
+- [x] **B-7**: los tests nuevos (y los 4 preexistentes que leían ficheros reales) usan `--calibration`/`--rates` a rutas inexistentes bajo `tmp_path` (hermético)
+- [x] **B-4**: documentado el límite de marcadores encadenados en 60 s en `docs/observability.md` (+EN); no se cambia el comportamiento (fuera de alcance declarado, ver tabla de gaps)
 
 **Subtareas**
-- [ ] Fixture: transcript con 3 registros (uno anterior a `inicio`, uno dentro de la tolerancia, uno posterior) → solo los dos últimos suman
-- [ ] `start`: `version: 2`; `close`: rama de degradación para marcadores sin `version` (mensaje con el motivo)
-- [ ] `duracion_reloj` en `cmd_close`; dos líneas en `docs/observability.md` + espejo EN
-- [ ] Limpiar marcadores viejos del `usage-state.json` local (`status` → lista) y anotar
+- [x] Fixture: transcript con 3 registros (uno anterior a `inicio`, uno dentro de la tolerancia, uno posterior) → solo los dos últimos suman
+- [x] `start`: `version: 2`; `close`: rama de degradación para marcadores sin `version` (mensaje con el motivo)
+- [x] `duracion_reloj` en `cmd_close`; dos líneas en `docs/observability.md` + espejo EN
+- [x] Limpiar marcadores viejos del `usage-state.json` local (`status` → lista) y anotar
+- [x] **fix1 (R1 intento 1)**: `_parse_iso` a UTC-aware + `except` ampliado (B-1); rama de degradación para `version: 2` sin `inicio` (B-5); oráculo de valor para `duracion_reloj` (B-3); tests hermetizados (B-7); nota del límite de encadenados en `docs/observability.md` (+EN) (B-4); extracción de `_ventana_descarta` para no regresionar el anidamiento al aplicar B-1
+
+**Verificación ejecutada (salida real, tras el último cambio):**
+```
+$ python -m pytest -q agent-kits/shared/test_usage_meter.py -p no:cacheprovider
+50 passed in ~3s (46 previos + 4 nuevos: test_registro_anterior_al_inicio_en_fichero_nuevo_se_descarta,
+test_tolerancia_60s_del_filtro_de_ventana, test_marcador_sin_version_degrada_a_estimado,
+test_duracion_reloj_aditiva_no_cambia_duracion)
+
+$ [mutante] quitar el bloque del filtro de timestamp en _sum_usage_window()
+FAILED test_registro_anterior_al_inicio_en_fichero_nuevo_se_descarta (509 == 9 esperado -> falla)
+FAILED test_tolerancia_60s_del_filtro_de_ventana (509 == 9 esperado -> falla)
+Restaurado el fichero real -> 50 passed de nuevo (confirmado)
+
+$ python agent-kits/shared/usage-meter.py start --artefacto x.md && python agent-kits/shared/usage-meter.py close --artefacto x.md | python -c "..."
+True estimado   (start+close seguidos: ventana sin respuestas, como antes; duracion_reloj SIEMPRE presente,
+también en fuente=estimado — decisión: es aditiva e independiente de si hay tokens medibles)
+
+$ python agent-kits/shared/usage-meter.py fmt 0.5
+30m   (contrato fmt intacto)
+
+$ grep -n "add_argument" agent-kits/shared/usage-meter.py antes/después -> diff línea-numerada NO vacío
+(solo desplazamiento de línea por el código nuevo arriba), multiset de contenido (sin número de línea
+ni espacios, ordenado) -> diff vacío: mismos 8 add_argument, sin flags nuevos ni retirados
+
+$ python skills/code-health/scripts/code-health.py . --exclude-tests --exclude-path interop --baseline docs/roadmap/2026-09-09-plugin-refactor/code-health-baseline-2.json
+anidamiento máx.: 6 -> 6 = igual (primera versión del filtro subió a 7; se corrigió aplanando el if
+anidado en una sola condición -- ver Notas); funciones largas 99->97 = igual (sin cambio en esta tarea);
+resto = igual salvo líneas de código (crece, informativo)
+
+$ python -m pytest -q tests agent-kits/shared skills -p no:cacheprovider -rA | grep -E "^(PASSED|FAILED|ERROR|SKIPPED|XFAIL|XPASS) " | sort > suite-despues-t04.txt
+diff suite-antes.txt suite-despues-t04.txt -> solo 4 líneas añadidas (los 4 tests nuevos, todos PASSED);
+ningún test preexistente cambia de estado (identidad confirmada)
+
+$ python scripts/lint_plugin.py
+lint_plugin: 9 agentes · 0 errores · 3 avisos
+
+$ python scripts/export-interop.py --check
+48 ficheros al día
+
+$ usage-state.json local: 28 marcadores -> 1 (se eliminaron 27 marcadores YA CERRADOS de iniciativas/
+tareas anteriores, cuyo dato real ya está capturado en sus respectivos tasks.md; se conservó el único
+marcador abierto, plugin-refactor/T-04)
+```
 
 **Notas**: Es bloque (b) (cambia comportamiento del meter) colocado en R1 para que **el resto de la iniciativa se mida bien**: cada tarea de este ledger abre y cierra su marcador con el código corregido. La parte (ii-b) (agregado `fuente: estimado` visible + `CALIBRATION.md`) es T-17.
+
+**Ajuste sobre el diseño original del CA `duracion_reloj`**: la descripción sugería añadirla solo en la rama `medido`; se decidió calcularla e incluirla SIEMPRE que exista marcador (también en `fuente: estimado`), porque el reloj de pared no depende de si hubo tokens medibles — es información útil precisamente cuando no se pudo medir. Ambas ramas (`medido`/`estimado`) ahora llevan `duracion_reloj`; `duracion` (tokens ÷ ratio) sigue existiendo solo en `medido`, sin cambio de semántica.
+
+**Regresión detectada y corregida durante la propia Verificación (auto-descubierta, no por revisión externa)**: la primera versión del filtro anidaba `if inicio_dt is not None: if ts_dt is not None and ...:` dentro del bucle ya profundo de `_sum_usage_window`, subiendo el anidamiento máximo del fichero de 6 a 7 (`code-health --baseline` lo marcó «↑ empeora», violación del criterio de cero regresión). Se aplanó a una sola condición (`ts_dt = ... if inicio_dt is not None else None` seguido de un único `if`), mismo comportamiento, un nivel menos de anidamiento — vuelve a «= igual».
+
+**Marcador propio de T-04, degradado a estimado**: el marcador `plugin-refactor/T-04` se abrió con el `usage-meter.py` ANTERIOR a este mismo arreglo (no tenía `version: 2` en el momento del `start`), así que al cerrarlo la nueva regla de degradación (que esta misma tarea introduce) lo trató como «marcador anterior al arreglo» y no midió tokens reales — mismo patrón que T-01. `duracion_reloj` dio 9m, pero no es representativo del esfuerzo real (incluye pausas largas de verificación entre ediciones, tests y lecturas); horas reales quedan a juicio, marcadas `(estimado)`.
 
 ---
 
@@ -778,3 +945,144 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 - [ ] Confluence opt-in (si procede); handoff: `brief-budget` (sobre `task-brief.py` partido) y F2 de `project-specialization`
 
 **Notas**: La retro de esta iniciativa compara por primera vez horas IA **medidas en Windows** contra estas estimaciones (T-04 garantiza que las 22 ventanas se midan con el código corregido). Desviación objetivo ≤ +30 % en horas IA (la única muestra comparable dio +66 %).
+
+## Revision de dos lentes - intento 1 (tramo R1: T-01..T-04): 5 Important, 10 Minor (lentes A+B)
+
+Lentes A (conformidad con ledger/plan/spec, criterio de prosa) y B (persona `test`) al agente `reviewer`,
+en paralelo, contexto fresco. `review-lens-select.py --base HEAD`: `lente_c`/`lente_d: false`. Puerta previa
+`scope-check.py --base HEAD`: 14 ficheros en alcance (tras declarar `code-health-baseline-2.md` en T-02);
+los 5 fuera son el ruido previo fichado. **Coste de la revision, MEDIDO desde la sesion principal**
+(marcador `plugin-refactor/revision-R1-intento1`, 13:22:28Z -> 13:59:50Z): 62 respuestas, **9,30 EUR**,
+1,28 h IA, `duracion_reloj` 37m (coincide con la ventana real: la clave nueva de T-04 funciona en vivo).
+
+**Lo que las lentes confirmaron como solido (no rehacer):** el brief de `task-brief.py` es **byte a byte
+identico** antes y despues de partir `main()` — 520 invocaciones (todo `T-XX` de todo ledger, con y sin
+`--tdd`, stdout + stderr + exit code) con 0 diferencias; `_recorte_seguro` y `presupuesto_persona` sin
+divergencias en 40.000 casos de fuzz y 156 combinaciones end-to-end que ejercitan las tres ramas del
+`max(SUELO, min(CAP, margen))`; suite identica por test (1426/1426, +4 PASSED aditivos); contratos
+congelados intactos (multiset de `add_argument`/`sys.exit` identico salvo `--exclude-path`, la excepcion
+declarada); linea base 2 reproducida exactamente (funciones largas 99 -> 97, resto igual); mutantes del
+filtro `timestamp`, del detector de TODO y de `--exclude-path` mueren; `docs/observability.md` (+EN) fiel.
+
+| # | Grado | Gap | Tarea | Correccion | Evidencia |
+|---|---|---|---|---|---|
+| A-1 / B-9 | **Important** | El «unico TODO real» que sobrevive a C-04 es **prosa castellana** partida en dos comentarios («medir seria contar / `# TODO el historico como ventana`»), igual que los otros siete. CA-06 se cumple al pie de la letra porque nombra esa linea, pero el objetivo de C-04 no: quedan 1 de 8 falsos positivos y **0 marcadores reales**. El error nace en `analysis.md` §4 y se propago a `spec.md`, al ledger y al `Changelog` de T-01, que publicaria «1 marcador real» siendo falso; `code-health-baseline-2.md` publica «TODO 1» como deuda | T-01 | **Corregido**: `PROSA_ES_TRAS_MARCADOR`/`_tipo_marcador` ahora reconocen la prosa castellana también cuando el marcador abre línea sin separador (`TODO el histórico…`, empieza por artículo/preposición de la lista). `todos` = 0 confirmado en repo (`marcadores.top: []`); CA-06, Verificación, Changelog y `analysis.md`/`spec.md` alineados a «8 → 0» | `code-health.py:55-96` (`PROSA_ES_TRAS_MARCADOR`, `_tipo_marcador`); verificado con `python skills/code-health/scripts/code-health.py . --exclude-tests --json` → `resumen.todos == 0` |
+| B-1 | **Important** | `_parse_iso` devuelve *naive* si el ISO no lleva `Z` ni offset y solo captura `ValueError`: (i) en `close` el `TypeError` no esta capturado -> **el proceso muere** (rc=1, stdout vacio, marcador sin actualizar); (ii) en `_sum_usage_window` lo captura el `except Exception` de `cmd_close` y se pierde la medicion de **toda** la ventana por un solo registro. Contradice el docstring («registros sin timestamp parseable NUNCA se descartan») y «degradacion total: nunca bloquear». Antes de T-04 ambos casos median | T-04 | **Corregido**: `_parse_iso` asume UTC cuando el ISO llega *naive* (`dt.replace(tzinfo=timezone.utc)` en vez de dejarlo *naive*), eliminando la comparación mixta que producía el `TypeError`; además se amplió el `except` de `dur_reloj` a `(ValueError, OverflowError, TypeError)` como cinturón adicional. Ambos casos (marcador `inicio` naive, registro `timestamp` naive entre 100 correctos) miden ahora en vez de morir o descartar la ventana entera | `usage-meter.py:_parse_iso` (normaliza a aware) y broadened `except`. Tests nuevos: `test_marcador_con_inicio_naive_close_no_revienta_y_mide`, `test_registro_con_timestamp_naive_entre_correctos_se_cuenta` (asserta `tokens_reales.respuestas == 101`, no 0/crash). Mutante (revertir `_parse_iso`) → ambos tests rojos |
+| B-2 | **Important** | `ENUMERACION_RE` se evalua antes que `TODO_RE` y excluye cualquier linea con **dos spans entre backticks separados por coma**, sea cual sea su contenido: suprime anotaciones reales inequivocas (`TODO:`). La regla del ledger dice «lineas que enumeran >= 2 **marcadores** distintos»; la implementada es «>= 2 backticks de cualquier cosa». En un repo con backticks como estilo de casa, falso negativo sistematico y silencioso | T-01 | **Corregido con una regla más precisa que la propuesta literal** (ver nota de rebate abajo): `_es_enumeracion_de_marcadores` exige que el marcador (`TODO`/`FIXME`/…) esté él mismo DENTRO de un span entre backticks (`` `TODO: …` ``, cita literal) **y** que haya ≥ 2 spans en la línea — no basta con «≥ 2 backticks de cualquier cosa». El fixture del gap (`# TODO: unificar \`a.py\`, \`b.py\`` y `# FIXME: el parser rompe con \`foo\`, \`bar\``) ahora cuenta **2** (no 0): los dos marcadores reales sobreviven | `code-health.py:101-110` (`_MARCADOR_ENTRE_BACKTICKS_RE`, `_es_enumeracion_de_marcadores`). Test `test_todo_seguido_de_referencias_entre_backticks_si_cuenta` reproduce el fixture del gap y asserta `todos == 2` |
+| B-3 | **Important** | `duracion_reloj`, la unica salida nueva de T-04, **no tiene oraculo de valor**: el test solo comprueba que la clave existe. Mutante `dur_reloj = None` -> 50 passed; `= fmt_horas(0.0)` -> 50 passed. Un calculo de reloj roto pasaria la puerta (los otros cinco mutantes de T-04 si mueren) | T-04 | **Corregido**: nuevo test `test_duracion_reloj_valor_exacto_37_minutos` con oráculo de VALOR (`inicio`/`fin` separados exactamente 37 min reales vía `_now_marker(delta=...)` → `assert res["duracion_reloj"] == "37m"`), no solo presencia de la clave | `test_usage_meter.py::test_duracion_reloj_valor_exacto_37_minutos`. Mutante `dur_reloj = None` / `= fmt_horas(0.0)` → este test se pone rojo (verificado manualmente, restaurado después) |
+| A-2 | **Important** | CA-09 de T-03 («`git diff --stat -- agents commands 'skills/*/SKILL.md'` vacio para este commit») marcado `[x]` y la subtarea «commit `T-03: …`» marcada hecha: **no existe ningun commit** de R1 (el orquestador comitea por tarea tras la revision, y asi se le dijo al implementer). Contra el arbol el comando devuelve `skills/code-health/SKILL.md \| 8 +++---` (cambio legitimo de T-02, que ira en SU commit) | T-03 | **Corregido en el ledger**: la subtarea ya no dice «commit `T-03: …`», dice que el commit lo hace el orquestador tras el cierre de R1 (fuera del alcance del implementer, cuyo hook de guardia solo permite `tasks.md`). CA-09 queda reformulado: se evalúa por commit cuando existan (separando el de T-02, que sí toca `SKILL.md`, del de T-03); mientras tanto se confirma que **T-03 en sí** no toca ninguna ruta protegida | `tasks.md` T-03 CA-09 y subtarea de commit, ambas reescritas; `git log master..HEAD` sigue sin commits de R1 (correcto, sin commits en esta sesión por instrucción explícita) |
+| A-4 | Minor | CA-07 («sin flag, salida **byte-identica** a la de T-01») marcado `[x]` cuando la propia evidencia pegada da `False` (auto-medicion: `code-health.py` crecio 13 lineas); la desviacion esta explicada dentro de la salida, sin bloque «Desviacion declarada» como en T-03/T-04 | T-02 | **Corregido**: añadido bloque explícito «Desviación declarada (A-4)» en T-02, con el mismo formato que T-03/T-04, explicando que el `False` inicial es auto-medición esperada (el detector se analiza a sí mismo) y que el CA se cumple tras excluir esas claves | `tasks.md` T-02, bloque «Desviación declarada (A-4)» entre Subtareas y Verificación ejecutada |
+| A-5 | Minor | La segunda linea base **no registra el flag que la define**: ni `parametros` del JSON ni la linea «Parametros» del MD mencionan `--exclude-path interop`. Quien compare las dos lineas base (7,5 % / 104 vs 5,9 % / 99) sin leer el ledger atribuye la diferencia al refactor: la «mejora ficticia» que S-4 existe para evitar | T-02 | **Corregido**: `analizar()` añade `exclude_path` (prefijos normalizados) a `parametros`; `md()` lo imprime en la línea «Parámetros» cuando la lista no está vacía. Línea base 2 regenerada: `parametros.exclude_path == ['interop']` visible en JSON y MD | `code-health.py` (`analizar()`/`md()`, clave `exclude_path`); `docs/roadmap/2026-09-09-plugin-refactor/code-health-baseline-2.json` regenerado — `parametros: {..., 'exclude_path': ['interop']}` |
+| A-6 | Minor | `(medido)` en T-02 y T-03 sin el JSON del `close` pegado: no reproducible (sus marcadores ya no existen en `usage-state.json`). T-01 y T-04 si explican su `(estimado)` | T-02, T-03 | **Corregido**: ambos rebajados de `(medido)` a `(estimado)` con la misma nota que T-01/T-04 (marcador original no reproducible en `usage-state.json`); el trabajo de esta corrección (fix1) sí se midió con el `usage-meter.py` del árbol de trabajo, JSON pegado en el cierre de R1 | `tasks.md` T-02/T-03, campo «Tiempo IA (ejec.)» |
+| A-3 | Minor | `improvement-plan.md` modificado en R1 (frontmatter `plan/estado/creado/actualizado`) sin figurar en el `Archivos` de ninguna tarea de F1; `scope-check` lo da en alcance por T-22. **Lo edito el orquestador** (transiciones de la puerta y la plantilla del planner sin `estado:`), no el implementer | — | orquestador: declarado aqui | `improvement-plan.md:2-5`. Hueco de encadenamiento para la matriz de contratos (T-14): la plantilla del `planner` no trae `estado:`/`tasks:`/`plan:` y `changelog-sync` los exige |
+| A-7 | Minor | T-03 es la unica tarea de R1 sin `- **Tipo**:`; sin el, el brief no enruta persona ni memoria por tipo | T-03 | **Corregido**: añadido `- **Tipo**: refactor` a T-03, con nota de por qué faltaba | `tasks.md` T-03, campo `Tipo` |
+| A-8 | Minor | El `Archivos` de T-02 arrastra un patron basura `.md` (texto «… `.json` y `.md`»); `scope-check --json` lo lista en `declarados_sin_tocar` | T-02 | **Corregido**: retirado el fragmento duplicado/basura del campo `Archivos` de T-02 (quedaba una entrada residual «`.md` (informe legible…)» repetida tras describir ya el JSON+MD) | `tasks.md` T-02, campo `Archivos` |
+| B-4 | Minor | Dentro de la tolerancia de 60 s, un registro ya medido por el marcador anterior se vuelve a contar si reaparece en un fichero no visto en el `start` del siguiente (marcadores encadenados en el mismo minuto): A mide 100, B mide **105** en vez de 5, sin aviso. No es regresion (antes se contaba el fichero entero), pero es la grieta del parametro y no hay test de encadenados | T-04 | **Documentado, NO corregido (fuera de alcance declarado)**: es un límite conocido del parámetro de tolerancia (60 s), no una regresión — antes de T-04 se contaba el fichero entero, ahora en el peor caso se duplican unos pocos registros de la ventana de solape. Corregir el dedupe real (por `id` de registro entre marcadores encadenados) es un cambio de mayor alcance que excede esta corrección de gaps; se documenta el límite en `docs/observability.md` (+EN). **Corrección de test añadida en esta sesión:** `test_b4_marcadores_encadenados_dentro_de_60s_duplican_solape` reutilizaba un fichero YA EXISTENTE al `start` de B, así que su offset lo baselineaba correctamente y el test no reproducía el hueco real (pasaba por una razón distinta a la documentada). Corregido para que el fichero con los registros «reaparecidos» se cree DESPUÉS del `start` de B (como un subagente que escribe su propio transcript) — ahora sí ejercita la ruta de offset-0 + ventana de 60 s descrita en la fila; sigue en verde con el mismo valor esperado (105) | `docs/observability.md` y `docs/en/observability.md`, sección nueva sobre el límite de encadenados en 60 s; `agent-kits/shared/test_usage_meter.py::test_b4_marcadores_encadenados_dentro_de_60s_duplican_solape` (corregido) y `::test_b4_con_90s_de_separacion_no_hay_solape` (contraste) — `python -m pytest -q agent-kits/shared/test_usage_meter.py` → **56 passed** |
+| B-5 | Minor | Un marcador `version: 2` **sin `inicio`** desactiva el filtro en silencio y vuelve al bug exacto que T-04 arregla, reportando `fuente: medido`. `offsets` si tiene defensa (`:453`); `inicio` no | T-04 | **Corregido**: nueva rama en `cmd_close` — un marcador con `version: 2` pero sin `inicio` (¿corrupto o editado a mano?) degrada a estimado con aviso explícito, igual que un marcador sin `version` | `usage-meter.py:cmd_close`, rama `elif not marcador.get("inicio")`. Test `test_marcador_version2_sin_inicio_degrada_con_aviso` |
+| B-6 | Minor | `DETECTOR_PROPIO` compara por **basename**: cualquier `code-health.py` de un consumidor pierde todos sus marcadores | T-01 | **Corregido**: `DETECTOR_PROPIO = os.path.realpath(__file__)`; la comparación en el bucle de `marcadores()` usa la ruta real normalizada del fichero analizado (`os.path.realpath(os.path.join(root, ...))`), no el `basename` | `code-health.py:119` (`DETECTOR_PROPIO`), `:396` (comparación por ruta real). Test `test_el_propio_fichero_del_detector_se_excluye_por_ruta_real` (reemplaza el test por basename) |
+| B-7 | Minor | 3 de los 4 tests nuevos de T-04 leen `docs/roadmap/CALIBRATION.md` real y los 4 `.claude/rates.json` real (la fixture no hace `chdir`). Patron **preexistente** del fichero heredado por los nuevos; hoy no cambia veredictos | T-04 | **Corregido**: helper `_hermetico(tmp_path)` (`--calibration`/`--rates` apuntando a ficheros inexistentes bajo `tmp_path`) aplicado a los 4 tests señalados y reutilizado en los 2 tests nuevos de B-1; ninguno depende ya de `CALIBRATION.md`/`rates.json` reales del repo | `test_usage_meter.py:_hermetico` y sus 6 usos (`test_registro_anterior_al_inicio…`, `test_tolerancia_60s…`, `test_marcador_sin_version…`, `test_duracion_reloj_aditiva…`, más los 2 nuevos de B-1) |
+| B-8 | Minor | El mutante del test de T-01 parchea `os.path.basename` **global** del interprete (afecta a todo el proceso, incluido el `subprocess` de `git log`); `ch.DETECTOR_PROPIO = "nunca-coincide.py"` seria el mutante equivalente y acotado | T-01 | **Corregido**: `test_mutante_detector_propio_nunca_coincide_sube_el_recuento` sustituye el parche global de `os.path.basename` por `monkeypatch.setattr(ch, "DETECTOR_PROPIO", "nunca-coincide.py")`, acotado al módulo bajo test | `test_code_health.py::test_mutante_detector_propio_nunca_coincide_sube_el_recuento` |
+
+**Fuera de las lentes, para el refactor (no gap de R1):** `TODO_RE` ya no reconoce `TODO(nombre):` (Go/Java/C++)
+salvo al abrir el comentario — efecto colateral no declarado en `spec.md:116`; y `duracion_reloj` es un
+campo nuevo del JSON de `close` que `roadmap-dashboard`/plantillas no consumen aun (informativo).
+
+## Corrección de los 15 gaps (R1, intento 1) — cierre
+
+**Verificado cada gap contra el código antes de corregir (disciplina «no aplicar feedback a ciegas»).**
+14 de los 15 confirmados correctos y corregidos; ninguno rebatido como incorrecto. Dos merecen nota porque
+la corrección aplicada **no es literalmente** la redacción propuesta en la columna «Gap», sino una regla
+más precisa que consigue el mismo objetivo (mismo oráculo/fixture) sin romper comportamiento ya verificado
+por tests existentes que la redacción literal SÍ habría roto:
+
+- **B-2** — la redacción del gap («excluir líneas que enumeran ≥ 2 marcadores distintos») tomada al pie de
+  la letra (¿2 palabras TODO/FIXME distintas en la misma línea?) habría reintroducido el falso positivo que
+  A-1 acababa de eliminar en el estilo real de `journal.py:41` (una sola palabra marcador, varias referencias
+  entre backticks) y habría dejado pasar líneas de puro estilo-con-backticks sin marcador real. Se implementó
+  la regla que realmente separa ambos casos con evidencia (`code-health.py:101-110`): el marcador debe estar
+  él mismo dentro de un span entre backticks para contar como «enumeración»; en caso contrario (marcador
+  fuera de backticks + ≥ 2 spans de referencias) es un marcador real. Verificado con el fixture exacto del
+  gap (2, no 0) Y con el test preexistente de `journal.py`-style (sigue en 0) — ambos pasan a la vez, algo
+  que la redacción literal no permitía.
+- **A-1/B-9** — el gap señala el «único marcador real» como bug de spec/ledger, no pide un cambio de regex
+  explícito; la corrección técnica (ampliar `PROSA_ES_TRAS_MARCADOR`/`_tipo_marcador` para que ese comentario
+  cuente como prosa igual que los otros 7) es la que hace que CA-06 y C-04 («8 → 0») sean ciertos a la vez;
+  documentada en el código como referencia a «revisión R1, A-1».
+
+**Medición de la corrección (usage-meter.py del árbol de trabajo, no el del caché del plugin), un marcador
+por tarea, cerrado antes de abrir el siguiente:**
+
+```
+plugin-refactor/T-01-fix1: {"eur": 0.05, "horas_ia": 0.0, "duracion": "0m", "duracion_reloj": "0m",
+  "fuente": "medido", "tokens_reales": {"entrada": 2, "salida": 202, "cache_creacion": 798,
+  "cache_lectura": 86107, "respuestas": 1}}
+plugin-refactor/T-02-fix1: {"fuente": "estimado", "duracion_reloj": "0m",
+  "avisos": ["ventana sin respuestas del modelo (¿start y close seguidos?)"]}
+plugin-refactor/T-03-fix1: {"fuente": "estimado", "duracion_reloj": "0m",
+  "avisos": ["ventana sin respuestas del modelo (¿start y close seguidos?)"]}
+plugin-refactor/T-04-fix1: (ver JSON más abajo, cerrado tras el resto del trabajo de T-04)
+```
+
+**Nota de honestidad sobre la medición**: el grueso del trabajo de corrección de los 15 gaps se hizo en una
+sesión previa que se interrumpió por compactación de contexto; los marcadores `*-fix1` se abrieron y
+cerraron en ESTA sesión de cierre (verificación final, regeneración de línea base, redacción del ledger),
+así que miden esa cola final, no el esfuerzo completo de corrección — de ahí que T-02/T-03 degraden a
+`estimado` (ventana sin respuestas) y T-01 mida solo 1 respuesta. Las horas reales de implementación de los
+15 gaps quedan a juicio, marcadas `(estimado)` en cada tarea, siguiendo la misma disciplina que T-01/T-04 ya
+aplicaban para sus propios marcadores no representativos.
+
+## Revision de dos lentes - intento 2 (tramo R1): 1 Important, 2 Minor — verificacion determinista del orquestador (lente caida)
+
+La Lente B del intento 2 murio por el limite de sesion antes de reproducir nada (tercera caida de agente del
+dia). En vez de relanzarla, el orquestador ejecuto **los oraculos deterministas** que le habia pedido, sobre
+copias en ruta corta (`C:/Users/460669~1/AppData/Local/Temp/mutr1`) y sin tocar el repo. Coste de la ventana de
+revision (marcador `plugin-refactor/revision-R1-intento2`): medido: 12 respuestas, 8,63 EUR, duracion_reloj 1h 55m (incluye la ventana de la lente caida y la verificacion del orquestador).
+
+| Comprobacion | Resultado |
+|---|---|
+| Mutante B-1: `_parse_iso` devuelve naive (sin `tzinfo=timezone.utc`) | **1 failed**, 55 passed — el test muerde |
+| Mutante B-3: `dur_reloj = None` | **2 failed**, 54 passed — oraculo `"37m"` muerde |
+| Mutante B-5: sin la defensa de marcador sin `inicio` | **1 failed**, 55 passed |
+| Mutante A-1: sin la lista castellana tras el marcador | **1 failed**, 22 passed |
+| **Mutante B-6: `DETECTOR_PROPIO = 'nunca-coincide'`** | **23 passed — SOBREVIVE** (ver gap 1) |
+| B-7 hermeticidad (`--ratio`/`--rates`/`chdir` en los tests nuevos) | 11 usos; ninguno lee `CALIBRATION.md`/`rates.json` reales |
+| B-8 mutante acotado (`monkeypatch` sobre `DETECTOR_PROPIO`, sin `os.path.basename` global) | 6 usos / 0 |
+| B-4 limite de 60 s documentado en `docs/observability.md` y espejo EN; tests de encadenados | si / si; 2 tests (`105` y `5` con 90 s) |
+| `_parse_iso`: naive -> UTC, `Z` -> UTC, `+02:00` -> conservado, basura -> `None` | correcto |
+| TODO en el repo (ejecutando el detector DESDE el repo) | **0**; `exclude_path: ['interop']` registrado en la linea base 2 regenerada |
+| Limites de la regla castellana (fixture de 11 lineas) | `TODO:`/`TODO(juan):`/ingles -> contados; «TODO el historico» -> excluido (bien); **«TODO en produccion esto falla», «TODO de verdad: arreglar», «FIXME la cache» -> excluidos** (marcadores reales en castellano sin `:` justo tras la palabra: limite a documentar, ver gap 3) |
+
+| # | Grado | Gap | Tarea | Correccion | Evidencia |
+|---|---|---|---|---|---|
+| R2-1 (B-6 residual) | **Important** | `DETECTOR_PROPIO = os.path.realpath(__file__)` solo excluye a la copia que se esta ejecutando. Los agentes ejecutan el kit desde la **cache del plugin** (`~/.claude/plugins/cache/...`), asi que sobre ESTE repo el `code-health.py` del arbol vuelve a contar: **9 falsos positivos** (docstring y codigo del propio detector), frente a 0 ejecutado desde el repo. La linea base 2 dice 0 y un agente mediria 9: dos verdades segun quien mida. Y el test de B-6 **no mata al mutante** (`'nunca-coincide'` -> 23 passed): prueba un fichero de fixture, no la exclusion real | T-01 | corregido: `FIRMA_DETECTOR` + `_es_detector_propio()` (firma de contenido, ademas de `realpath`); 2 tests nuevos (copia real -> excluida; mutante de firma -> `total > 0`) | `python <copia>/code-health.py <repo> --exclude-tests --exclude-path interop --json` -> `total: 9`, todos en `skills/code-health/scripts/code-health.py` (`:18`, `:461`, `:486`, `:526`, `:113`, `:53`...). Correccion: excluir por **firma de contenido** (el fichero se declara detector: su docstring contiene un literal fijo, p. ej. el titulo «code-health.py — informe DETERMINISTA»), ademas de `realpath(__file__)`; test con (a) una copia real del detector bajo otra ruta -> excluida y (b) un `code-health.py` de fixture que NO es el detector -> contado; el mutante debe caer |
+| R2-2 (B-2 residual) | Minor | La exclusion «>= 2 palabras-marcador en la misma linea» pedida en la correccion de B-2 **no esta implementada**: se quito la regla ancha (backticks) y no se puso la buena. En este repo el total es 0 porque el unico fichero que enumera marcadores es el propio detector; en un consumidor, un comentario que enumere marcadores cuenta como marcador | T-01 | corregido: `_es_enumeracion_de_palabras_marcador()` (cadena de >=2 marcadores distintos separados solo por `/`, `,`, `\|` o espacios); 2 tests nuevos + 1 mutante | Fixture: `# Busca marcadores TODO/FIXME/HACK en el codigo` -> CONTADO (tipo FIXME) antes de la correccion, EXCLUIDO despues. Deben contarse `# TODO: quitar el FIXME de abajo` (uno real) y `# TODO: unificar \`a.py\`, \`b.py\`` (si se cuentan hoy) |
+| R2-3 | Minor | Limite de la regla castellana **sin documentar**: un marcador real en castellano que NO lleve `:`/`(`/`-` justo tras la palabra («`# TODO en produccion esto falla`») queda excluido como prosa. Es un compromiso razonable (el estilo `TODO:` es la convencion), pero tiene que estar escrito en el docstring del detector y en `skills/code-health/SKILL.md` («escribe `TODO:` con dos puntos si quieres que cuente») | T-01 | corregido: documentado en el docstring de `PROSA_ES_TRAS_MARCADOR` (`code-health.py`) y en `skills/code-health/SKILL.md` («escribe `TODO:` con dos puntos») | fixture de 11 lineas del orquestador; `code-health.py` `PROSA_ES_TRAS_MARCADOR` |
+| R2-4 (A-8 residual) | Minor | Al limpiar el patron basura de `Archivos` (A-8) desaparecio la declaracion de `code-health-baseline-2.md`; `scope-check` lo vuelve a dar «fuera de alcance». Lo redeclara el orquestador en este mismo cambio | T-02 | orquestador: corregido aqui | `scope-check.py --base HEAD` -> `fuera` incluia `code-health-baseline-2.md` |
+
+**Sin segunda opinion de contexto fresco** (dicho, no escondido): la calidad de la prosa de los tests nuevos y la
+redaccion de `docs/observability.md`. El orquestador las leyo por encima; no es una lente.
+
+## Revision de dos lentes - intento 3 (tramo R1): 0 gaps — verificacion determinista del orquestador; TRAMO R1 CERRADO
+
+Tercer y ultimo intento del bucle acotado. Sin lentes (las dos ultimas cayeron por la API); el orquestador ejecuto
+los oraculos que la tabla del intento 2 fijaba, sobre copias en ruta corta y sin tocar el repo:
+
+| Oraculo | Resultado |
+|---|---|
+| R2-1: detector ejecutado **desde una copia** (como la cache del plugin) sobre el repo, `--exclude-tests --exclude-path interop` | **`total: 0`** (antes de la correccion: 9) — exclusion por `FIRMA_DETECTOR` en las 10 primeras lineas de cualquier `code-health.py`, ademas de `realpath(__file__)` |
+| R2-1: mutante A (firma anulada Y `realpath` anulado) | **1 failed, 27 passed** — el test muerde (en el intento 2 sobrevivia) |
+| R2-2: mutante B (`_es_enumeracion_de_palabras_marcador` siempre `False`) | **1 failed, 27 passed** |
+| R2-2/R2-3: fixture de 11 lineas | **6 contadas / 5 excluidas**: contadas `TODO: el parser`, `TODO(juan):`, `FIXME the cache`, `TODO fix the parser`, `TODO: unificar a.py, b.py`, `TODO: quitar el FIXME de abajo`; excluidas `TODO en produccion…`, `TODO de verdad: arreglar`, `FIXME la cache`, `TODO el historico…`, `Busca marcadores TODO/FIXME/HACK`. **Correccion del oraculo del orquestador**: la tabla del intento 2 decia «7 / 4»; el septimo («TODO de verdad: arreglar») empieza por «de» y cae dentro del limite castellano documentado en R2-3 — el resultado es el correcto segun la regla escrita, el oraculo estaba mal contado |
+| Suites tocadas | `test_code_health` 28 · `test_usage_meter` 56 · `test_task_brief` 63 + 1 rojo preexistente (`test_ca08…memory_retrieval`, `GOT-008`) — 147 passed |
+| Puertas | `lint_plugin` 0 errores · `evals/check` 0 · `export-interop --check` 48 al dia · `ledger-lint` 0 · `scope-check --base HEAD` 14 en alcance, fuera solo el ruido fichado · `SKILL.md` 100 lineas |
+| Linea base 2 (regenerada tras la correccion) vs arbol | todo «= igual» (5,8 % duplicado · 272 bloques · 97 funciones largas · anidamiento 6 · TODO 0). La mejora del tramo (funciones largas 99 -> 97, TODO 8 -> 0, duplicado 7,6 % -> 5,8 % al excluir `interop/`) queda registrada en las trazas de los intentos 1 y 2 y en la diferencia entre `code-health-baseline.json` y `code-health-baseline-2.json` |
+
+**Balance del tramo R1**: 3 intentos · 15 + 4 gaps (6 Important reales, todos corregidos, ninguno rebatido) · revision
+medida desde la sesion principal: intento 1 **9,30 EUR** (62 respuestas, 37m de reloj), intento 2 **8,63 EUR** (12
+respuestas, 1h 55m de reloj incluyendo la lente caida), intento 3 sin coste de lentes. Lo que las lentes aportaron y
+la verificacion determinista no habria visto: el octavo TODO como prosa castellana, `ENUMERACION_RE` suprimiendo
+marcadores reales, `_parse_iso` naive matando el `close`, `duracion_reloj` sin oraculo, `DETECTOR_PROPIO` roto desde
+la cache. **Sin segunda opinion de contexto fresco** en los intentos 2 y 3 (dicho, no escondido).
+
+**Commits del tramo** (los hace el orquestador, uno por tarea; CA-09 de T-03 se cumple por commit — el de T-03 no toca
+`agents/`, `commands/` ni ningun `SKILL.md`): ver `git log` de `feature/plugin-refactor` tras esta seccion.

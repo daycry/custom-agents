@@ -1,4 +1,8 @@
 ---
+plan: plugin-refactor
+estado: en-progreso       # R1 en revisión; R2–R4 esperan puerta
+creado: 2026-09-10
+actualizado: 2026-09-10
 design: design.md         # `aprobado` 2026-09-10 · opción O1 (ADR-016 `propuesta`) — el plan la respeta, no la rediseña
 test-plan: n/a (sin UI)   # marcador de C-08 (E1): esta iniciativa NO tiene UI. Hoy lo lee una persona; tras T-13 lo leen `dev-cycle` (Fase 3) y `qa` (sale limpio sin pedir regenerar). Primera iniciativa que lo usa (ADR-017 `propuesta`)
 generacion:
