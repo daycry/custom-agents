@@ -19,7 +19,7 @@ generacion:
 | | |
 |---|---|
 | **Fecha** | 2026-09-10 |
-| **Estado** | borrador |
+| **Estado** | en-progreso |
 | **Tipo** | Refactor (bloque a) + Bugfix de contratos entre piezas (bloque b) |
 | **Prioridad** | Alta |
 | **Solicitante** | usuario (petición del 2026-09-09 tras tres rondas de corrección sobre `task-brief.py`) |
