@@ -200,7 +200,8 @@ def _rel_de(msg):
 
 # ------------------------------------------------------------------ a) herramientas
 
-def bloque_herramientas():
+def _herramientas_basicas():
+    """python3/git/bash: obligatorias (o casi) para que el plugin funcione."""
     ls = []
     v = sys.version_info
     ver = f"{v.major}.{v.minor}.{v.micro}"
@@ -222,7 +223,12 @@ def bloque_herramientas():
     else:
         ls.append(linea(AVISO, "bash", "no está en PATH",
                         "instala bash: los hooks de `hooks/` se lanzan con `bash` y sin él no informan"))
+    return ls
 
+
+def _herramientas_opcionales():
+    """jq/node-npm/Playwright: opcionales, solo informan si faltan."""
+    ls = []
     if shutil.which("jq"):
         ls.append(linea(OK, "jq", "en PATH (opcional)"))
     else:
@@ -244,22 +250,18 @@ def bloque_herramientas():
     else:
         ls.append(linea(INFO, "Playwright", "no instalado (opcional)",
                         "solo lo necesita el agente `qa` para E2E en local; lo instala él la primera vez"))
+    return ls
+
+
+def bloque_herramientas():
+    ls = _herramientas_basicas() + _herramientas_opcionales()
     return {"clave": "herramientas", "titulo": "Herramientas", "lineas": ls}
 
 
 # ------------------------------------------------------------------ b) plugin
 
-def bloque_plugin(plugin_root, project, explicito=None):
-    ls = []
-    if not plugin_root:
-        que = "raíz del plugin"
-        det = (f"`--plugin-root {explicito}` no contiene el plugin (falta `agents/` y `skills/`)"
-               if explicito else "no localizada")
-        ls.append(linea(ERROR, que, det,
-                        "instálalo como plugin (`/plugin marketplace add …` + `/plugin install custom-agents`) "
-                        "o pásame la ruta con `--plugin-root <dir>`"))
-        return {"clave": "plugin", "titulo": "Plugin", "lineas": ls}
-
+def _bloque_plugin_raiz(plugin_root):
+    """Línea OK con el recuento de agentes/skills/comandos de la raíz del plugin."""
     n = {}
     for k, sub, pred in (("agentes", "agents", lambda p: p.endswith(".md")),
                          ("comandos", "commands", lambda p: p.endswith(".md")),
@@ -272,75 +274,105 @@ def bloque_plugin(plugin_root, project, explicito=None):
             continue
         n[k] = len([e for e in entradas if pred(e)]) if pred else \
             len([e for e in entradas if os.path.isdir(os.path.join(d, e))])
-    ls.append(linea(OK, "raíz del plugin", f"{plugin_root} · {n['agentes']} agentes · "
-                                           f"{n['skills']} skills · {n['comandos']} comandos"))
+    return [linea(OK, "raíz del plugin", f"{plugin_root} · {n['agentes']} agentes · "
+                                         f"{n['skills']} skills · {n['comandos']} comandos")]
 
-    # --- hooks globales ---
+
+def _bloque_plugin_hooks_recorrer(plugin_root, datos):
+    """Recorre `hooks.hooks` y devuelve (eventos, errs, warns, fuente)."""
+    linter = _cargar_linter(plugin_root)
+    eventos, errs, warns = [], [], []
+    for evento, grupos in datos["hooks"].items():
+        if not isinstance(grupos, list):
+            errs.append(f"hooks/hooks.json [{evento}]: `{evento}` debe ser una lista de grupos")
+            continue
+        cmds = [str(h.get("command", "")) for g in grupos if isinstance(g, dict)
+                for h in g.get("hooks", []) if isinstance(h, dict) and h.get("type") == "command"]
+        eventos.append(f"{evento} ({len(cmds)})")
+        fn = linter.lint_hook_commands if linter else _hooks_local
+        e, w = fn(plugin_root, cmds, f"hooks/hooks.json [{evento}]")
+        errs.extend(e)
+        warns.extend(w)
+    fuente = "criterio de `lint_plugin.py`" if linter else "comprobación local (linter no disponible)"
+    return eventos, errs, warns, fuente
+
+
+def _bloque_plugin_hooks_lineas(eventos, errs, warns, fuente):
+    """Traduce el recuento de eventos/errores/avisos a líneas del informe."""
+    ls = []
+    if not errs and not warns:
+        ls.append(linea(OK, "hooks registrados", f"{' · '.join(eventos) or 'ninguno'} — todos "
+                                                 f"existen y son ejecutables ({fuente})"))
+    else:
+        ls.append(linea(INFO, "hooks registrados", f"{' · '.join(eventos) or 'ninguno'} ({fuente})"))
+    for msg in errs:
+        rel = _rel_de(msg)
+        ls.append(linea(ERROR, "hook sin script", msg,
+                        f"falta `{rel}`: reinstala o actualiza el plugin (`claude plugin update "
+                        f"custom-agents`); un hook roto es una pieza muerta"))
+    for msg in warns:
+        rel = _rel_de(msg)
+        ls.append(linea(AVISO, "hook no ejecutable", msg,
+                        f"`chmod +x {rel}` (y `git update-index --chmod=+x {rel}` si lo versionas)"))
+    return ls
+
+
+def _bloque_plugin_hooks(plugin_root):
+    """Líneas de `hooks/hooks.json`: registro global y sus scripts/permisos."""
     hpath = os.path.join(plugin_root, "hooks", "hooks.json")
     datos, err = _leer_json(hpath)
     if err:
-        ls.append(linea(ERROR, "hooks/hooks.json", err,
-                        "restaura el fichero del plugin (`claude plugin update`) o corrige el JSON: "
-                        "con él roto ningún hook informativo se registra"))
-    elif datos is None:
-        ls.append(linea(AVISO, "hooks/hooks.json", "no existe",
-                        "instalación parcial: reinstala el plugin si esperabas los hooks de progreso "
-                        "y de bitácora (el ciclo funciona sin ellos, sin avisos en vivo)"))
-    elif not isinstance(datos.get("hooks"), dict):
-        ls.append(linea(ERROR, "hooks/hooks.json", "falta la raíz `hooks` (objeto evento → grupos)",
-                        "restaura el fichero del plugin: el registro de hooks es inválido tal cual está"))
-    else:
-        linter = _cargar_linter(plugin_root)
-        eventos, errs, warns = [], [], []
-        for evento, grupos in datos["hooks"].items():
-            if not isinstance(grupos, list):
-                errs.append(f"hooks/hooks.json [{evento}]: `{evento}` debe ser una lista de grupos")
-                continue
-            cmds = [str(h.get("command", "")) for g in grupos if isinstance(g, dict)
-                    for h in g.get("hooks", []) if isinstance(h, dict) and h.get("type") == "command"]
-            eventos.append(f"{evento} ({len(cmds)})")
-            fn = linter.lint_hook_commands if linter else _hooks_local
-            e, w = fn(plugin_root, cmds, f"hooks/hooks.json [{evento}]")
-            errs.extend(e)
-            warns.extend(w)
-        fuente = "criterio de `lint_plugin.py`" if linter else "comprobación local (linter no disponible)"
-        if not errs and not warns:
-            ls.append(linea(OK, "hooks registrados", f"{' · '.join(eventos) or 'ninguno'} — todos "
-                                                     f"existen y son ejecutables ({fuente})"))
-        else:
-            ls.append(linea(INFO, "hooks registrados", f"{' · '.join(eventos) or 'ninguno'} ({fuente})"))
-        for msg in errs:
-            rel = _rel_de(msg)
-            ls.append(linea(ERROR, "hook sin script", msg,
-                            f"falta `{rel}`: reinstala o actualiza el plugin (`claude plugin update "
-                            f"custom-agents`); un hook roto es una pieza muerta"))
-        for msg in warns:
-            rel = _rel_de(msg)
-            ls.append(linea(AVISO, "hook no ejecutable", msg,
-                            f"`chmod +x {rel}` (y `git update-index --chmod=+x {rel}` si lo versionas)"))
+        return [linea(ERROR, "hooks/hooks.json", err,
+                      "restaura el fichero del plugin (`claude plugin update`) o corrige el JSON: "
+                      "con él roto ningún hook informativo se registra")]
+    if datos is None:
+        return [linea(AVISO, "hooks/hooks.json", "no existe",
+                      "instalación parcial: reinstala el plugin si esperabas los hooks de progreso "
+                      "y de bitácora (el ciclo funciona sin ellos, sin avisos en vivo)")]
+    if not isinstance(datos.get("hooks"), dict):
+        return [linea(ERROR, "hooks/hooks.json", "falta la raíz `hooks` (objeto evento → grupos)",
+                      "restaura el fichero del plugin: el registro de hooks es inválido tal cual está")]
+    eventos, errs, warns, fuente = _bloque_plugin_hooks_recorrer(plugin_root, datos)
+    return _bloque_plugin_hooks_lineas(eventos, errs, warns, fuente)
 
-    # --- statusline (informativo) ---
+
+def _bloque_plugin_statusline(project):
+    """Líneas informativas de la statusline configurada en `.claude/settings.json`."""
     spath = os.path.join(project, ".claude", "settings.json")
     datos, err = _leer_json(spath)
     if err:
-        ls.append(linea(AVISO, "statusline", f".claude/settings.json {err}",
-                        "corrige el JSON de `.claude/settings.json` (es tu fichero, no del plugin) o "
-                        "relanza `/setup` paso 5-bis"))
-    elif datos is None:
-        ls.append(linea(INFO, "statusline", "sin `.claude/settings.json` — no configurada",
-                        "opcional: `/setup` paso 5-bis la activa (progreso del roadmap + coste de sesión)"))
-    else:
-        sl = datos.get("statusLine") if isinstance(datos, dict) else None
-        cmd = sl.get("command", "") if isinstance(sl, dict) else ""
-        if not cmd:
-            ls.append(linea(INFO, "statusline", "no configurada en `.claude/settings.json`",
-                            "opcional: `/setup` paso 5-bis la activa"))
-        elif "roadmap-statusline.sh" in cmd and not os.path.isfile(cmd.strip('"\' ')):
-            ls.append(linea(AVISO, "statusline", f"apunta a `{cmd}`, que no existe",
-                            "relanza `/setup` paso 5-bis: la ruta se escribe ABSOLUTA en el momento "
-                            "del setup y se rompe al mover o reinstalar el plugin"))
-        else:
-            ls.append(linea(OK, "statusline", f"configurada (`{cmd}`)"))
+        return [linea(AVISO, "statusline", f".claude/settings.json {err}",
+                      "corrige el JSON de `.claude/settings.json` (es tu fichero, no del plugin) o "
+                      "relanza `/setup` paso 5-bis")]
+    if datos is None:
+        return [linea(INFO, "statusline", "sin `.claude/settings.json` — no configurada",
+                      "opcional: `/setup` paso 5-bis la activa (progreso del roadmap + coste de sesión)")]
+    sl = datos.get("statusLine") if isinstance(datos, dict) else None
+    cmd = sl.get("command", "") if isinstance(sl, dict) else ""
+    if not cmd:
+        return [linea(INFO, "statusline", "no configurada en `.claude/settings.json`",
+                      "opcional: `/setup` paso 5-bis la activa")]
+    if "roadmap-statusline.sh" in cmd and not os.path.isfile(cmd.strip('"\' ')):
+        return [linea(AVISO, "statusline", f"apunta a `{cmd}`, que no existe",
+                      "relanza `/setup` paso 5-bis: la ruta se escribe ABSOLUTA en el momento "
+                      "del setup y se rompe al mover o reinstalar el plugin")]
+    return [linea(OK, "statusline", f"configurada (`{cmd}`)")]
+
+
+def bloque_plugin(plugin_root, project, explicito=None):
+    ls = []
+    if not plugin_root:
+        que = "raíz del plugin"
+        det = (f"`--plugin-root {explicito}` no contiene el plugin (falta `agents/` y `skills/`)"
+               if explicito else "no localizada")
+        ls.append(linea(ERROR, que, det,
+                        "instálalo como plugin (`/plugin marketplace add …` + `/plugin install custom-agents`) "
+                        "o pásame la ruta con `--plugin-root <dir>`"))
+        return {"clave": "plugin", "titulo": "Plugin", "lineas": ls}
+
+    ls.extend(_bloque_plugin_raiz(plugin_root))
+    ls.extend(_bloque_plugin_hooks(plugin_root))
+    ls.extend(_bloque_plugin_statusline(project))
     return {"clave": "plugin", "titulo": "Plugin", "lineas": ls}
 
 
@@ -374,6 +406,94 @@ def _rates(project):
     return [linea(OK, "rates.json", f"válido · precio de tokens verificado el {fecha}")]
 
 
+def _dev_valida_guardrails(g):
+    """Líneas de `guardrails` (booleano global u objeto de reglas)."""
+    ls = []
+    if g is None or isinstance(g, bool):
+        return ls
+    if not isinstance(g, dict):
+        ls.append(linea(ERROR, "dev.json `guardrails`", f"{g!r} no es booleano ni objeto de reglas",
+                        "pon `true`/`false` o `{\"alcance\": true, \"ramaPrincipal\": true, "
+                        "\"git\": true}` (relanza `/setup` paso 5)"))
+        return ls
+    for sk, sv in sorted(g.items()):
+        if sk not in DEV_GUARDRAIL_REGLAS:
+            ls.append(linea(AVISO, f"dev.json `guardrails.{sk}`", "regla desconocida (se ignora)",
+                            f"reglas válidas: {', '.join(DEV_GUARDRAIL_REGLAS)}"))
+        elif not isinstance(sv, bool):
+            ls.append(linea(ERROR, f"dev.json `guardrails.{sk}`", f"{sv!r} no es booleano",
+                            f"pon `\"{sk}\": true` o `false`"))
+    return ls
+
+
+def _dev_valida_revision(rev):
+    """Líneas de `revision` (lentes de la revisión adversarial y exclusiones)."""
+    ls = []
+    if rev is None:
+        return ls
+    if not isinstance(rev, dict):
+        ls.append(linea(ERROR, "dev.json `revision`", f"{rev!r} no es un objeto",
+                        "usa `{\"lenteSeguridad\": \"auto\", \"lenteRendimiento\": \"auto\"}` "
+                        "(relanza `/setup` paso 5-ter)"))
+        return ls
+    for sk in sorted(rev):
+        sv = rev[sk]
+        if sk in ("lenteSeguridad", "lenteRendimiento"):
+            if sv not in DEV_LENTES:
+                ls.append(linea(ERROR, f"dev.json `revision.{sk}`", f"{sv!r} fuera de vocabulario",
+                                f"valores esperados: {' · '.join(DEV_LENTES)} "
+                                f"(relanza `/setup` paso 5-ter)"))
+        elif sk == "excluir":
+            if not isinstance(sv, list) or not all(isinstance(x, str) and x for x in sv):
+                ls.append(linea(ERROR, "dev.json `revision.excluir`", f"{sv!r} no es una lista de globs",
+                                "usa `[\"hooks/**\"]`: globs que se sacan de la heurística de RUTA "
+                                "de la lente (no del escaneo de contenido)"))
+        else:
+            ls.append(linea(AVISO, f"dev.json `revision.{sk}`", "clave desconocida (se ignora)",
+                            "claves válidas: lenteSeguridad, lenteRendimiento, excluir"))
+    return ls
+
+
+def _dev_valida_sesion(ses):
+    """Líneas de `sesion` (índice, journal, memoria, captura, resumen)."""
+    ls = []
+    if ses is None:
+        return ls
+    if not isinstance(ses, dict):
+        ls.append(linea(ERROR, "dev.json `sesion`", f"{ses!r} no es un objeto",
+                        "usa `{\"indice\": true, \"journal\": true, \"memoria\": true, \"captura\": true, \"resumen\": false}`"))
+        return ls
+    for sk in sorted(ses):
+        if sk not in DEV_SESION_CLAVES:
+            ls.append(linea(AVISO, f"dev.json `sesion.{sk}`", "clave desconocida (se ignora)",
+                            f"claves válidas: {', '.join(DEV_SESION_CLAVES)}"))
+        elif not isinstance(ses[sk], bool):
+            ls.append(linea(ERROR, f"dev.json `sesion.{sk}`", f"{ses[sk]!r} no es booleano",
+                            f"pon `\"{sk}\": true` o `false`"))
+    return ls
+
+
+def _dev_valida_tests(tests):
+    """Líneas de `tests` (gate de cobertura)."""
+    ls = []
+    if tests is None:
+        return ls
+    if not isinstance(tests, dict):
+        ls.append(linea(ERROR, "dev.json `tests`", f"{tests!r} no es un objeto",
+                        "usa `{\"coberturaMinima\": 80}` (o quita la clave: sin ella no hay gate)"))
+        return ls
+    for sk in sorted(tests):
+        sv = tests[sk]
+        if sk != "coberturaMinima":
+            ls.append(linea(AVISO, f"dev.json `tests.{sk}`", "clave desconocida (se ignora)",
+                            "clave válida: coberturaMinima"))
+        elif not isinstance(sv, int) or isinstance(sv, bool) or not 0 <= sv <= 100:
+            ls.append(linea(ERROR, "dev.json `tests.coberturaMinima`", f"{sv!r} no es un entero 0-100",
+                            "pon un entero entre 0 y 100 (p. ej. `80`) o quita la clave para no "
+                            "aplicar gate de cobertura"))
+    return ls
+
+
 def _dev_valida(datos):
     """Líneas de vocabulario de dev.json: clave desconocida → ⚠️, valor inválido → ❌."""
     ls = []
@@ -388,70 +508,32 @@ def _dev_valida(datos):
         if k in datos and not isinstance(datos[k], bool):
             ls.append(linea(ERROR, f"dev.json `{k}`", f"{datos[k]!r} no es booleano",
                             f"pon `\"{k}\": true` o `\"{k}\": false` (o relanza `/setup` paso 5)"))
-    g = datos.get("guardrails")
-    if g is not None and not isinstance(g, bool):
-        if not isinstance(g, dict):
-            ls.append(linea(ERROR, "dev.json `guardrails`", f"{g!r} no es booleano ni objeto de reglas",
-                            "pon `true`/`false` o `{\"alcance\": true, \"ramaPrincipal\": true, "
-                            "\"git\": true}` (relanza `/setup` paso 5)"))
-        else:
-            for sk, sv in sorted(g.items()):
-                if sk not in DEV_GUARDRAIL_REGLAS:
-                    ls.append(linea(AVISO, f"dev.json `guardrails.{sk}`", "regla desconocida (se ignora)",
-                                    f"reglas válidas: {', '.join(DEV_GUARDRAIL_REGLAS)}"))
-                elif not isinstance(sv, bool):
-                    ls.append(linea(ERROR, f"dev.json `guardrails.{sk}`", f"{sv!r} no es booleano",
-                                    f"pon `\"{sk}\": true` o `false`"))
-    rev = datos.get("revision")
-    if rev is not None:
-        if not isinstance(rev, dict):
-            ls.append(linea(ERROR, "dev.json `revision`", f"{rev!r} no es un objeto",
-                            "usa `{\"lenteSeguridad\": \"auto\", \"lenteRendimiento\": \"auto\"}` "
-                            "(relanza `/setup` paso 5-ter)"))
-        else:
-            for sk in sorted(rev):
-                sv = rev[sk]
-                if sk in ("lenteSeguridad", "lenteRendimiento"):
-                    if sv not in DEV_LENTES:
-                        ls.append(linea(ERROR, f"dev.json `revision.{sk}`", f"{sv!r} fuera de vocabulario",
-                                        f"valores esperados: {' · '.join(DEV_LENTES)} "
-                                        f"(relanza `/setup` paso 5-ter)"))
-                elif sk == "excluir":
-                    if not isinstance(sv, list) or not all(isinstance(x, str) and x for x in sv):
-                        ls.append(linea(ERROR, "dev.json `revision.excluir`", f"{sv!r} no es una lista de globs",
-                                        "usa `[\"hooks/**\"]`: globs que se sacan de la heurística de RUTA "
-                                        "de la lente (no del escaneo de contenido)"))
-                else:
-                    ls.append(linea(AVISO, f"dev.json `revision.{sk}`", "clave desconocida (se ignora)",
-                                    "claves válidas: lenteSeguridad, lenteRendimiento, excluir"))
-    ses = datos.get("sesion")
-    if ses is not None:
-        if not isinstance(ses, dict):
-            ls.append(linea(ERROR, "dev.json `sesion`", f"{ses!r} no es un objeto",
-                            "usa `{\"indice\": true, \"journal\": true, \"memoria\": true, \"captura\": true, \"resumen\": false}`"))
-        else:
-            for sk in sorted(ses):
-                if sk not in DEV_SESION_CLAVES:
-                    ls.append(linea(AVISO, f"dev.json `sesion.{sk}`", "clave desconocida (se ignora)",
-                                    f"claves válidas: {', '.join(DEV_SESION_CLAVES)}"))
-                elif not isinstance(ses[sk], bool):
-                    ls.append(linea(ERROR, f"dev.json `sesion.{sk}`", f"{ses[sk]!r} no es booleano",
-                                    f"pon `\"{sk}\": true` o `false`"))
-    tests = datos.get("tests")
-    if tests is not None:
-        if not isinstance(tests, dict):
-            ls.append(linea(ERROR, "dev.json `tests`", f"{tests!r} no es un objeto",
-                            "usa `{\"coberturaMinima\": 80}` (o quita la clave: sin ella no hay gate)"))
-        else:
-            for sk in sorted(tests):
-                sv = tests[sk]
-                if sk != "coberturaMinima":
-                    ls.append(linea(AVISO, f"dev.json `tests.{sk}`", "clave desconocida (se ignora)",
-                                    "clave válida: coberturaMinima"))
-                elif not isinstance(sv, int) or isinstance(sv, bool) or not 0 <= sv <= 100:
-                    ls.append(linea(ERROR, "dev.json `tests.coberturaMinima`", f"{sv!r} no es un entero 0-100",
-                                    "pon un entero entre 0 y 100 (p. ej. `80`) o quita la clave para no "
-                                    "aplicar gate de cobertura"))
+    ls.extend(_dev_valida_guardrails(datos.get("guardrails")))
+    ls.extend(_dev_valida_revision(datos.get("revision")))
+    ls.extend(_dev_valida_sesion(datos.get("sesion")))
+    ls.extend(_dev_valida_tests(datos.get("tests")))
+    return ls
+
+
+def _modelos_localizar_script(plugin_root):
+    """Ruta a `model-tier.py` (junto al plugin o junto a este propio doctor.py), o None."""
+    script = os.path.join(plugin_root or HERE, "agent-kits", "shared", "model-tier.py")
+    if not os.path.isfile(script):
+        script = os.path.join(HERE, "model-tier.py")
+    return script if os.path.isfile(script) else None
+
+
+def _modelos_lineas_de_json(d, mods):
+    """Líneas a partir del JSON de `model-tier.py --all --json` ya parseado."""
+    ls = []
+    for a in d.get("avisos", []):
+        ls.append(linea(AVISO, "dev.json `modelos`", a,
+                        "corrige el valor en `.claude/dev.json` (model ∈ haiku|sonnet|opus|inherit|"
+                        "claude-… · effort ∈ low|medium|high|xhigh|max) o relanza `/setup` paso 5-quater"))
+    aplicados = [f["agente"] for f in d.get("agentes", []) if f.get("fuente", {}).get("model") == "dev.json"]
+    if not ls:
+        ls.append(linea(OK, "dev.json `modelos`",
+                        f"{len(mods)} override(s) · aplicados: {', '.join(aplicados) or 'ninguno'}"))
     return ls
 
 
@@ -464,10 +546,8 @@ def _modelos(datos, plugin_root, project):
         return [linea(ERROR, "dev.json `modelos`", f"{mods!r} no es un objeto {{agente: {{model, effort}}}}",
                       "usa `{\"implementer\": {\"model\": \"opus\"}}` o quita la clave (ausente = "
                       "tiering del frontmatter)")]
-    script = os.path.join(plugin_root or HERE, "agent-kits", "shared", "model-tier.py")
-    if not os.path.isfile(script):
-        script = os.path.join(HERE, "model-tier.py")
-    if not os.path.isfile(script):
+    script = _modelos_localizar_script(plugin_root)
+    if script is None:
         return [linea(INFO, "dev.json `modelos`", f"{len(mods)} override(s) declarado(s); "
                                                   f"`model-tier.py` no está para resolverlos",
                       "instalación parcial: reinstala el plugin si quieres la tabla efectiva")]
@@ -478,16 +558,7 @@ def _modelos(datos, plugin_root, project):
         return [linea(AVISO, "dev.json `modelos`", "`model-tier.py --all --json` no devolvió JSON",
                       "ejecútalo a mano para ver el error: "
                       "`python3 agent-kits/shared/model-tier.py --all`")]
-    ls = []
-    for a in d.get("avisos", []):
-        ls.append(linea(AVISO, "dev.json `modelos`", a,
-                        "corrige el valor en `.claude/dev.json` (model ∈ haiku|sonnet|opus|inherit|"
-                        "claude-… · effort ∈ low|medium|high|xhigh|max) o relanza `/setup` paso 5-quater"))
-    aplicados = [f["agente"] for f in d.get("agentes", []) if f.get("fuente", {}).get("model") == "dev.json"]
-    if not ls:
-        ls.append(linea(OK, "dev.json `modelos`",
-                        f"{len(mods)} override(s) · aplicados: {', '.join(aplicados) or 'ninguno'}"))
-    return ls
+    return _modelos_lineas_de_json(d, mods)
 
 
 def _dev(plugin_root, project):
@@ -824,6 +895,35 @@ def _indice_readme(project, n_curadas):
                   "`python3 scripts/lint_plugin.py` y `tests/test_knowledge_index.py` lo comprueban")]
 
 
+def _indice_fts5_desfasado_o_corrupto(path):
+    """El hash no cuadra: ¿desfasado (fichero abre bien) o corrupto (no abre / sin esquema)?"""
+    try:
+        import sqlite3
+        con = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+        try:
+            con.execute("SELECT valor FROM meta WHERE clave = 'hash'").fetchone()
+        finally:
+            con.close()
+        return linea(INFO, "índice de búsqueda (FTS5)", "desfasado respecto al corpus",
+                     "normal tras editar `docs/knowledge/`: se reconstruye solo en la próxima consulta")
+    except Exception:            # noqa: BLE001 — bytes basura, esquema viejo…
+        return linea(AVISO, "índice de búsqueda (FTS5)", "corrupto (no abre o no tiene el esquema)",
+                     "se reconstruye solo en la próxima consulta; si no, bórralo: `rm .claude/knowledge-index.sqlite` "
+                     "(es caché, no el almacén)")
+
+
+def _indice_fts5_leer(path, project, kf):
+    """Lectura efectiva de la caché ya confirmada FTS5-capaz."""
+    if not os.path.isfile(path):
+        return [linea(INFO, "índice de búsqueda (FTS5)", "sin `.claude/knowledge-index.sqlite`",
+                      "se construye en la primera consulta de `knowledge-find.py` (caché reconstruible, en .gitignore)")]
+    h = kf.hash_corpus(kf.ficheros_corpus(project))
+    entradas, estado = kf.leer_indice(path, h)
+    if entradas is not None:
+        return [linea(OK, "índice de búsqueda (FTS5)", f"válido · al día con el corpus ({len(entradas)} entrada(s))")]
+    return [_indice_fts5_desfasado_o_corrupto(path)]
+
+
 def _indice_fts5(project, kf):
     """Caché de búsqueda: se LEE en `mode=ro`, nunca se construye aquí (solo lectura)."""
     path = os.path.join(project, ".claude", "knowledge-index.sqlite")
@@ -835,26 +935,7 @@ def _indice_fts5(project, kf):
             return [linea(AVISO, "índice de búsqueda (FTS5)", "`sqlite3` de este Python no trae FTS5",
                           "las consultas de `knowledge-find.py` van en recorrido plano (mismos aciertos, más lentas); "
                           "un Python con SQLite ≥ 3.9 compilado con FTS5 lo arregla")]
-        if not os.path.isfile(path):
-            return [linea(INFO, "índice de búsqueda (FTS5)", "sin `.claude/knowledge-index.sqlite`",
-                          "se construye en la primera consulta de `knowledge-find.py` (caché reconstruible, en .gitignore)")]
-        h = kf.hash_corpus(kf.ficheros_corpus(project))
-        entradas, estado = kf.leer_indice(path, h)
-        if entradas is not None:
-            return [linea(OK, "índice de búsqueda (FTS5)", f"válido · al día con el corpus ({len(entradas)} entrada(s))")]
-        try:
-            import sqlite3
-            con = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
-            try:
-                con.execute("SELECT valor FROM meta WHERE clave = 'hash'").fetchone()
-            finally:
-                con.close()
-            return [linea(INFO, "índice de búsqueda (FTS5)", "desfasado respecto al corpus",
-                          "normal tras editar `docs/knowledge/`: se reconstruye solo en la próxima consulta")]
-        except Exception:            # noqa: BLE001 — bytes basura, esquema viejo…
-            return [linea(AVISO, "índice de búsqueda (FTS5)", "corrupto (no abre o no tiene el esquema)",
-                          "se reconstruye solo en la próxima consulta; si no, bórralo: `rm .claude/knowledge-index.sqlite` "
-                          "(es caché, no el almacén)")]
+        return _indice_fts5_leer(path, project, kf)
     except Exception as e:           # noqa: BLE001
         return [linea(INFO, "índice de búsqueda (FTS5)", f"no comprobable ({e.__class__.__name__})",
                       "ejecuta `python3 agent-kits/shared/knowledge-find.py --limit 1 --json` y mira `indice`")]
@@ -883,26 +964,35 @@ def _ledgers_cerrados(roadmap):
     return out
 
 
+def _calibracion_leer(cal):
+    """Última fecha y conjunto de slugs con fila en CALIBRATION.md. `None, None` si no se puede leer."""
+    ultima, con_fila = None, set()
+    if not os.path.isfile(cal):
+        return ultima, con_fila
+    try:
+        for ln in open(cal, encoding="utf-8-sig", errors="replace"):
+            m = re.match(r"^\|\s*(\d{4}-\d{2}-\d{2})\s*\|\s*([^|]+?)\s*\|", ln)
+            if m:
+                try:
+                    f = datetime.date.fromisoformat(m.group(1))
+                except ValueError:
+                    continue
+                ultima = max(ultima, f) if ultima else f
+                con_fila.add(m.group(2).strip().strip("`"))
+    except OSError:
+        return "error", con_fila
+    return ultima, con_fila
+
+
 def _calibracion(project, hoy=None):
     roadmap = os.path.join(project, "docs", "roadmap")
     if not os.path.isdir(roadmap):
         return []
     hoy = hoy or datetime.date.today()
     cal = os.path.join(roadmap, "CALIBRATION.md")
-    ultima, con_fila = None, set()
-    if os.path.isfile(cal):
-        try:
-            for ln in open(cal, encoding="utf-8-sig", errors="replace"):
-                m = re.match(r"^\|\s*(\d{4}-\d{2}-\d{2})\s*\|\s*([^|]+?)\s*\|", ln)
-                if m:
-                    try:
-                        f = datetime.date.fromisoformat(m.group(1))
-                    except ValueError:
-                        continue
-                    ultima = max(ultima, f) if ultima else f
-                    con_fila.add(m.group(2).strip().strip("`"))
-        except OSError:
-            return [linea(AVISO, "calibración (CALIBRATION.md)", "no se puede leer", "revisa permisos del fichero")]
+    ultima, con_fila = _calibracion_leer(cal)
+    if ultima == "error":
+        return [linea(AVISO, "calibración (CALIBRATION.md)", "no se puede leer", "revisa permisos del fichero")]
     cerrados = _ledgers_cerrados(roadmap)
     pendientes = [s for s, f in cerrados if s not in con_fila and (ultima is None or (f is not None and f > ultima))]
     que = "calibración (CALIBRATION.md)"
@@ -959,7 +1049,8 @@ AVISO_SIN_RED = ("sin red por diseño: `/doctor` NO consulta el marketplace, as�
                  "decirte si hay una versión más nueva")
 
 
-def bloque_version(plugin_root, project):
+def _bloque_version_plugin(plugin_root):
+    """Líneas + versión detectada de `.claude-plugin/plugin.json` (o None si no se pudo leer)."""
     ls = []
     version = None
     datos, err = (_leer_json(os.path.join(plugin_root, ".claude-plugin", "plugin.json"))
@@ -979,7 +1070,11 @@ def bloque_version(plugin_root, project):
                             "restaura el fichero del plugin o añade `\"version\": \"X.Y.Z\"`"))
         else:
             ls.append(linea(INFO, "versión del plugin", f"{version} — {AVISO_SIN_RED}"))
+    return ls, version
 
+
+def _bloque_version_vista(project, version):
+    """Línea informativa comparando la versión vista la última vez con la actual."""
     seen_path = os.path.join(project, ".claude", ".plugin-version-seen")
     seen = ""
     if os.path.isfile(seen_path):
@@ -988,16 +1083,20 @@ def bloque_version(plugin_root, project):
         except OSError:
             seen = ""
     if not seen:
-        ls.append(linea(INFO, "versión vista en este proyecto", "sin registro previo",
-                        "opcional: `echo <version> > .claude/.plugin-version-seen` deja constancia de "
-                        "con qué versión trabajaste (nadie lo escribe automáticamente hoy)"))
-    elif version and seen != version:
-        ls.append(linea(INFO, "versión vista en este proyecto",
-                        f"la última vez que se vio este proyecto era {seen}; ahora hay {version}",
-                        "solo es un registro local: revisa el CHANGELOG del plugin si te interesa qué "
-                        "cambió entre esas dos versiones"))
-    else:
-        ls.append(linea(INFO, "versión vista en este proyecto", f"{seen} — igual que la actual"))
+        return linea(INFO, "versión vista en este proyecto", "sin registro previo",
+                     "opcional: `echo <version> > .claude/.plugin-version-seen` deja constancia de "
+                     "con qué versión trabajaste (nadie lo escribe automáticamente hoy)")
+    if version and seen != version:
+        return linea(INFO, "versión vista en este proyecto",
+                     f"la última vez que se vio este proyecto era {seen}; ahora hay {version}",
+                     "solo es un registro local: revisa el CHANGELOG del plugin si te interesa qué "
+                     "cambió entre esas dos versiones")
+    return linea(INFO, "versión vista en este proyecto", f"{seen} — igual que la actual")
+
+
+def bloque_version(plugin_root, project):
+    ls, version = _bloque_version_plugin(plugin_root)
+    ls.append(_bloque_version_vista(project, version))
     return {"clave": "version", "titulo": "Versión", "lineas": ls}
 
 
