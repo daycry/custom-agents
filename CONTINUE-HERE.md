@@ -37,11 +37,13 @@ Solo una de las siete secciones del brief tiene tope; `## Diseño` entra entero 
 `memory-retrieval`, sin diseño: nunca lo vio. Documentado en **`GOT-009`** (`propuesta`). `analysis.md`
 con 5 opciones; `spec.md` **aprobada** y `evaluation.md` **completado** (26,4 h · ~1.340 €, go condicionado). **Go del usuario** el 2026-09-09; arranca DESPUÉS del refactor.
 
-### 3 · `docs/roadmap/2026-09-09-plugin-refactor/` — refactor de TODO el plugin (GO del usuario; ciclo PM cerrado, `architect` PENDIENTE)
+### 3 · `docs/roadmap/2026-09-09-plugin-refactor/` — refactor de TODO el plugin (GO; diseño: **O1 elegida por el usuario** el 2026-09-10, pasada 2 en vuelo → `ADR-016`)
 
 `spec.md` **aprobada** (5 características de refactor cero-comportamiento + 8 de encadenamiento E1–E10) y
 `evaluation.md` **completado**: 90,0 h con margen · ~4.540 € · go condicionado. **Siguiente paso: `architect`** (Fase 2-bis,
-dos pasadas) para O1 copias declaradas vs O2 módulo vendorizado — O3 descartada —, y después `planner`. El hallazgo E7
+dos pasadas) para O1 copias declaradas vs O2 módulo vendorizado — O3 descartada —, y después `planner`. **Decisión de diseño O1** (registro de copias declaradas + un test de identidad + aviso del linter para bloques no registrados): barata,
+reversible, unifica cuatro mecanismos de guardarraíl; O2 (vendorizar) descartada porque `PAYLOAD_COMUN` ya lleva `agent-kits/` entero;
+O3 (copias generadas) queda como evolución de O1. C-03 se ENCOGE: no hay copias accidentales. El hallazgo E7
 (usage-meter) salió del refactor y va por vía rápida (punto 4). Línea base `code-health` en la carpeta (`code-health-baseline.json`): 36 ficheros ·
 14.259 líneas · 7,6 % duplicado · **105 funciones > 30 líneas** · 8 TODO (6 falsos positivos del detector).
 Hallazgo que ordena todo: la duplicación grande es **deliberada** (scripts standalone que viajan sueltos,
