@@ -42,6 +42,40 @@ COLORS = {
 }
 PRIO_COLORS = {"Baja": "#22c55e", "Media": "#eab308", "Alta": "#f97316", "Crítica": "#ef4444"}
 
+_DASHBOARD_CSS = """
+:root{color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.5 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+  background:#0b1120;color:#e2e8f0;padding:28px}
+header{display:flex;flex-wrap:wrap;gap:16px;align-items:baseline;justify-content:space-between;margin-bottom:8px}
+h1{font-size:22px;margin:0}
+.meta{color:#94a3b8;font-size:13px}
+.counters{display:flex;flex-wrap:wrap;gap:14px;margin:18px 0 26px}
+.counter{display:flex;align-items:center;gap:8px;background:#111c33;border:1px solid #1e293b;
+  border-radius:10px;padding:8px 12px}
+.cn{font-size:20px;font-weight:700}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+.card{background:#111c33;border:1px solid #1e293b;border-radius:14px;padding:16px 18px}
+.card h3{margin:10px 0 2px;font-size:16px}
+.slug{margin:0;color:#64748b;font-size:12px;font-family:ui-monospace,monospace}
+.desc{color:#cbd5e1;font-size:13px;margin:10px 0}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.pill{font-size:11px;font-weight:600;padding:2px 9px;border-radius:999px;
+  color:#0b1120;background:var(--c);white-space:nowrap}
+.metrics{display:flex;flex-wrap:wrap;gap:8px 16px;margin:14px 0 12px}
+.m{display:flex;flex-direction:column}
+.mk{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#64748b}
+.mv{font-size:14px;font-weight:600}
+.nodata{color:#64748b;font-size:13px;font-style:italic}
+.arts{display:flex;flex-wrap:wrap;gap:6px;border-top:1px solid #1e293b;padding-top:12px}
+.art{font-size:11px;padding:2px 8px;border-radius:6px}
+.art.on{background:#14342b;color:#4ade80}
+.art.off{background:#1e293b;color:#475569;text-decoration:line-through}
+.empty{color:#94a3b8}
+code{background:#1e293b;padding:1px 6px;border-radius:5px;font-size:.9em}
+footer{margin-top:28px;color:#475569;font-size:12px}
+"""
+
 
 def parse_frontmatter(text):
     """Lee un frontmatter YAML sencillo (key: value) al inicio del fichero."""
@@ -55,6 +89,42 @@ def parse_frontmatter(text):
             k, v = line.split(":", 1)
             fm[k.strip()] = v.strip()
     return fm
+
+
+def _gen_toks_inline(v):
+    """Dict inline con o sin comillas: { entrada: 1, \"salida\": 2 }."""
+    toks = {}
+    for tk, tv in re.findall(r"[\"']?([\w_]+)[\"']?\s*:\s*([\d]+)", v):
+        toks[tk] = int(tv)
+    return toks or None
+
+
+def _gen_tokens_reales(v, lines, i, indent):
+    """Valor de `tokens_reales`: dict inline, bloque anidado YAML, o None. Devuelve (valor, i)."""
+    if v.startswith("{"):
+        return _gen_toks_inline(v), i
+    if v and v.lower() not in ("null", "~", "none"):
+        return None, i  # escalar no-dict → sin medida
+    # posible bloque anidado estilo YAML estándar: consumir hijos más indentados
+    toks = {}
+    j = i + 1
+    while j < len(lines):
+        hijo = re.match(r"(\s+)[\"']?([\w_]+)[\"']?\s*:\s*([\d]+)\s*(?:#.*)?$", lines[j])
+        if not hijo or len(hijo.group(1)) <= len(indent):
+            break
+        toks[hijo.group(2)] = int(hijo.group(3))
+        j += 1
+    return (toks or None), (j - 1 if toks else i)
+
+
+def _gen_valor(k, v):
+    """Valor de una clave `generacion:` que NO es `tokens_reales`."""
+    if k in ("eur", "horas_ia", "ratio_usado"):
+        # numérico solo si el valor EMPIEZA por número (evita "verificar 2026" → 2026)
+        mnum = re.match(r"~?\s*(-?[\d]+(?:[.,]\d+)?)", v)
+        return float(mnum.group(1).replace(",", ".")) if mnum else None
+    v = v.strip("'\"")
+    return None if v.lower() in ("", "null", "~", "none") else v
 
 
 def parse_generacion(text):
@@ -72,13 +142,6 @@ def parse_generacion(text):
     except StopIteration:
         return None
 
-    def _toks_inline(v):
-        """Dict inline con o sin comillas: { entrada: 1, \"salida\": 2 }."""
-        toks = {}
-        for tk, tv in re.findall(r"[\"']?([\w_]+)[\"']?\s*:\s*([\d]+)", v):
-            toks[tk] = int(tv)
-        return toks or None
-
     gen = {}
     i = start + 1
     while i < len(lines):
@@ -94,30 +157,9 @@ def parse_generacion(text):
             continue
         indent, k, v = mm.group(1), mm.group(2), mm.group(3).split("#", 1)[0].strip()
         if k == "tokens_reales":
-            if v.startswith("{"):
-                gen[k] = _toks_inline(v)
-            elif not v or v.lower() in ("null", "~", "none"):
-                # posible bloque anidado estilo YAML estándar: consumir hijos más indentados
-                toks = {}
-                j = i + 1
-                while j < len(lines):
-                    hijo = re.match(r"(\s+)[\"']?([\w_]+)[\"']?\s*:\s*([\d]+)\s*(?:#.*)?$",
-                                    lines[j])
-                    if not hijo or len(hijo.group(1)) <= len(indent):
-                        break
-                    toks[hijo.group(2)] = int(hijo.group(3))
-                    j += 1
-                gen[k] = toks or None
-                i = j - 1 if toks else i
-            else:
-                gen[k] = None  # escalar no-dict → sin medida
-        elif k in ("eur", "horas_ia", "ratio_usado"):
-            # numérico solo si el valor EMPIEZA por número (evita "verificar 2026" → 2026)
-            mnum = re.match(r"~?\s*(-?[\d]+(?:[.,]\d+)?)", v)
-            gen[k] = float(mnum.group(1).replace(",", ".")) if mnum else None
+            gen[k], i = _gen_tokens_reales(v, lines, i, indent)
         else:
-            v = v.strip("'\"")
-            gen[k] = None if v.lower() in ("", "null", "~", "none") else v
+            gen[k] = _gen_valor(k, v)
         i += 1
     return gen or None
 
@@ -225,105 +267,135 @@ def parse_progress_totals(text):
     return res or None
 
 
+def _scan_rutas(path):
+    """Rutas de los artefactos de una carpeta de iniciativa (existan o no)."""
+    return {
+        "spec": os.path.join(path, "spec.md"),
+        "eval": os.path.join(path, "evaluation.md"),
+        "plan": os.path.join(path, "improvement-plan.md"),
+        "design": os.path.join(path, "design.md"),   # opcional (agente architect, parity-core)
+        "tasks": os.path.join(path, "tasks.md"),
+        "testing": os.path.join(path, "testing"),
+    }
+
+
+def _scan_rec_base(name, path, r):
+    return {
+        "slug": name, "path": path,
+        "titulo": name, "descripcion": None,
+        "spec_estado": None, "eval_estado": None,
+        "prioridad": None, "coste": None, "esfuerzo": None,
+        "tokens": None, "multiplicador": None, "caracteristicas": None,
+        "creado": None, "actualizado": None, "progreso": None,
+        "has_spec": os.path.exists(r["spec"]),
+        "has_eval": os.path.exists(r["eval"]),
+        "has_plan": os.path.exists(r["plan"]),
+        "has_design": os.path.exists(r["design"]),
+        "design_estado": None,
+        "has_tasks": os.path.exists(r["tasks"]),
+        "has_testing": os.path.isdir(r["testing"]),
+        "via_rapida": False,
+    }
+
+
+def _scan_leer_spec(rec, spec_p):
+    t = open(spec_p, encoding="utf-8", errors="replace").read()
+    fm = parse_frontmatter(t)
+    rec["spec_estado"] = fm.get("estado")
+    rec["descripcion"] = fm.get("descripcion")
+    rec["creado"] = fm.get("creado")
+    rec["actualizado"] = fm.get("actualizado")
+    hm = re.search(r"^#\s+(.+)$", t, re.M)
+    if hm:
+        rec["titulo"] = hm.group(1).strip()
+
+
+def _scan_leer_eval(rec, eval_p):
+    t = open(eval_p, encoding="utf-8", errors="replace").read()
+    rec["eval_estado"] = table_value(t, "Estado")
+    rec["prioridad"] = table_value(t, "Prioridad global")
+    rec["caracteristicas"] = table_value(t, "Características") or \
+        table_value(t, "Características evaluadas")
+    rec["coste"] = table_value(t, "Coste")
+    rec["esfuerzo"] = table_value(t, "Esfuerzo humano")
+    rec["tokens"] = table_value(t, "Tokens IA")
+    rec["multiplicador"] = table_value(t, "Multiplicador productividad")
+
+
+def _scan_leer_tasks(rec, tasks_p):
+    tasks_text = open(tasks_p, encoding="utf-8", errors="replace").read()
+    rec["progreso"] = parse_progress_totals(tasks_text)
+    # Vía rápida: o no hay spec, o el propio ledger la DECLARA en su fila Plan
+    # («| **Plan** | n/a — **vía rápida** …»). Lo segundo cubre las vías rápidas
+    # que nacen de una spec de backlog, que sí tienen spec.md.
+    declarada = bool(re.search(
+        r"^\|\s*\*\*Plan\*\*\s*\|.*v[íi]a\s+r[áa]pida", tasks_text,
+        re.M | re.I))
+    if not rec["has_spec"] or declarada:
+        rec["via_rapida"] = True
+        if not rec["has_spec"]:
+            # sin spec, el título sale del propio ledger
+            hm = re.search(
+                r"^#\s+(?:Checklist de Tareas\s*[—-]\s*)?(.+)$", tasks_text, re.M)
+            if hm:
+                rec["titulo"] = hm.group(1).strip()
+
+
+def _scan_generacion(r):
+    """Coste de proceso (bloque `generacion:` de cada artefacto, si existe)."""
+    gen = {}
+    for label, p in (("spec", r["spec"]), ("eval", r["eval"]), ("design", r["design"]),
+                     ("plan", r["plan"]), ("tasks", r["tasks"])):
+        if os.path.exists(p):
+            g = parse_generacion(open(p, encoding="utf-8", errors="replace").read())
+            if g:
+                gen[label] = g
+    return gen or None
+
+
+def _scan_fase(rec):
+    """Fase derivada para ordenar/priorizar."""
+    if rec["has_testing"]:
+        return "en pruebas"
+    if rec["has_plan"]:
+        return "planificada"
+    if rec["has_eval"]:
+        return "evaluada"
+    if rec.get("via_rapida"):
+        return "vía rápida"
+    return "solo spec"
+
+
+def _scan_una(path):
+    """Registro de una carpeta de iniciativa, o None si no lo es."""
+    name = os.path.basename(path)
+    r = _scan_rutas(path)
+    if not (os.path.exists(r["spec"]) or os.path.exists(r["eval"]) or os.path.exists(r["tasks"])):
+        return None  # no es carpeta de iniciativa (la vía rápida solo trae tasks.md)
+
+    rec = _scan_rec_base(name, path, r)
+    if rec["has_spec"]:
+        _scan_leer_spec(rec, r["spec"])
+    if rec["has_eval"]:
+        _scan_leer_eval(rec, r["eval"])
+    if rec["has_design"]:
+        fm = parse_frontmatter(open(r["design"], encoding="utf-8", errors="replace").read())
+        rec["design_estado"] = fm.get("estado")   # borrador | aprobado | obsoleto
+    if rec["has_tasks"]:
+        _scan_leer_tasks(rec, r["tasks"])
+    rec["generacion"] = _scan_generacion(r)
+    rec["fase"] = _scan_fase(rec)
+    return rec
+
+
 def scan(root):
     inits = []
     for path in sorted(glob.glob(os.path.join(root, "*"))):
         if not os.path.isdir(path):
             continue
-        name = os.path.basename(path)
-        spec_p = os.path.join(path, "spec.md")
-        eval_p = os.path.join(path, "evaluation.md")
-        plan_p = os.path.join(path, "improvement-plan.md")
-        design_p = os.path.join(path, "design.md")   # opcional (agente architect, parity-core)
-        tasks_p = os.path.join(path, "tasks.md")
-        testing_p = os.path.join(path, "testing")
-        if not (os.path.exists(spec_p) or os.path.exists(eval_p) or os.path.exists(tasks_p)):
-            continue  # no es carpeta de iniciativa (la vía rápida solo trae tasks.md)
-
-        rec = {
-            "slug": name, "path": path,
-            "titulo": name, "descripcion": None,
-            "spec_estado": None, "eval_estado": None,
-            "prioridad": None, "coste": None, "esfuerzo": None,
-            "tokens": None, "multiplicador": None, "caracteristicas": None,
-            "creado": None, "actualizado": None, "progreso": None,
-            "has_spec": os.path.exists(spec_p),
-            "has_eval": os.path.exists(eval_p),
-            "has_plan": os.path.exists(plan_p),
-            "has_design": os.path.exists(design_p),
-            "design_estado": None,
-            "has_tasks": os.path.exists(tasks_p),
-            "has_testing": os.path.isdir(testing_p),
-            "via_rapida": False,
-        }
-
-        if rec["has_spec"]:
-            t = open(spec_p, encoding="utf-8", errors="replace").read()
-            fm = parse_frontmatter(t)
-            rec["spec_estado"] = fm.get("estado")
-            rec["descripcion"] = fm.get("descripcion")
-            rec["creado"] = fm.get("creado")
-            rec["actualizado"] = fm.get("actualizado")
-            hm = re.search(r"^#\s+(.+)$", t, re.M)
-            if hm:
-                rec["titulo"] = hm.group(1).strip()
-
-        if rec["has_eval"]:
-            t = open(eval_p, encoding="utf-8", errors="replace").read()
-            rec["eval_estado"] = table_value(t, "Estado")
-            rec["prioridad"] = table_value(t, "Prioridad global")
-            rec["caracteristicas"] = table_value(t, "Características") or \
-                table_value(t, "Características evaluadas")
-            rec["coste"] = table_value(t, "Coste")
-            rec["esfuerzo"] = table_value(t, "Esfuerzo humano")
-            rec["tokens"] = table_value(t, "Tokens IA")
-            rec["multiplicador"] = table_value(t, "Multiplicador productividad")
-
-        if rec["has_design"]:
-            fm = parse_frontmatter(open(design_p, encoding="utf-8", errors="replace").read())
-            rec["design_estado"] = fm.get("estado")   # borrador | aprobado | obsoleto
-
-        if rec["has_tasks"]:
-            tasks_text = open(tasks_p, encoding="utf-8", errors="replace").read()
-            rec["progreso"] = parse_progress_totals(tasks_text)
-            # Vía rápida: o no hay spec, o el propio ledger la DECLARA en su fila Plan
-            # («| **Plan** | n/a — **vía rápida** …»). Lo segundo cubre las vías rápidas
-            # que nacen de una spec de backlog, que sí tienen spec.md.
-            declarada = bool(re.search(
-                r"^\|\s*\*\*Plan\*\*\s*\|.*v[íi]a\s+r[áa]pida", tasks_text,
-                re.M | re.I))
-            if not rec["has_spec"] or declarada:
-                rec["via_rapida"] = True
-                if not rec["has_spec"]:
-                    # sin spec, el título sale del propio ledger
-                    hm = re.search(
-                        r"^#\s+(?:Checklist de Tareas\s*[—-]\s*)?(.+)$", tasks_text, re.M)
-                    if hm:
-                        rec["titulo"] = hm.group(1).strip()
-
-        # coste de proceso (bloque generacion: de cada artefacto, si existe)
-        gen = {}
-        for label, p in (("spec", spec_p), ("eval", eval_p), ("design", design_p),
-                         ("plan", plan_p), ("tasks", tasks_p)):
-            if os.path.exists(p):
-                g = parse_generacion(
-                    open(p, encoding="utf-8", errors="replace").read())
-                if g:
-                    gen[label] = g
-        rec["generacion"] = gen or None
-
-        # fase derivada para ordenar/priorizar
-        if rec["has_testing"]:
-            rec["fase"] = "en pruebas"
-        elif rec["has_plan"]:
-            rec["fase"] = "planificada"
-        elif rec["has_eval"]:
-            rec["fase"] = "evaluada"
-        elif rec.get("via_rapida"):
-            rec["fase"] = "vía rápida"
-        else:
-            rec["fase"] = "solo spec"
-        inits.append(rec)
+        rec = _scan_una(path)
+        if rec is not None:
+            inits.append(rec)
     return inits
 
 
@@ -369,43 +441,50 @@ def pill(text, color):
     return f'<span class="pill" style="--c:{color}">{text}</span>'
 
 
-def render_html(inits, root):
-    now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
-    by_spec = {}
-    for r in inits:
-        by_spec[r["spec_estado"] or "sin-dato"] = by_spec.get(r["spec_estado"] or "sin-dato", 0) + 1
 
-    cards = []
-    for r in inits:
-        se = r["spec_estado"] or "sin-dato"
-        ee = r["eval_estado"] or "sin-dato"
-        prio = r["prioridad"]
-        chips = [pill("spec: " + se, COLORS.get(se, COLORS["sin-dato"]))]
-        if r["has_eval"]:
-            chips.append(pill("eval: " + ee, COLORS.get(ee, COLORS["sin-dato"])))
-        if prio:
-            chips.append(pill(prio, PRIO_COLORS.get(prio, "#64748b")))
-        chips.append(pill(r["fase"], "#475569"))
 
-        metrics = []
-        for label, key in [("Coste", "coste"), ("Esfuerzo", "esfuerzo"),
-                            ("Tokens", "tokens"), ("Prod.", "multiplicador"),
-                            ("Carac.", "caracteristicas")]:
-            if r.get(key):
-                metrics.append(
-                    f'<div class="m"><span class="mk">{label}</span>'
-                    f'<span class="mv">{html.escape(str(r[key]))}</span></div>')
+def _render_html_card_chips(r):
+    se = r["spec_estado"] or "sin-dato"
+    ee = r["eval_estado"] or "sin-dato"
+    prio = r["prioridad"]
+    chips = [pill("spec: " + se, COLORS.get(se, COLORS["sin-dato"]))]
+    if r["has_eval"]:
+        chips.append(pill("eval: " + ee, COLORS.get(ee, COLORS["sin-dato"])))
+    if prio:
+        chips.append(pill(prio, PRIO_COLORS.get(prio, "#64748b")))
+    chips.append(pill(r["fase"], "#475569"))
+    return chips
 
-        arts = []
-        for label, flag in [("spec", "has_spec"), ("evaluación", "has_eval"),
-                            ("diseño", "has_design"), ("plan", "has_plan"),
-                            ("tasks", "has_tasks"), ("testing", "has_testing")]:
-            cls = "on" if r[flag] else "off"
-            extra = f" · {html.escape(str(r['design_estado']))}" if flag == "has_design" and r.get("design_estado") else ""
-            arts.append(f'<span class="art {cls}">{label}{extra}</span>')
 
-        desc = html.escape(r["descripcion"]) if r["descripcion"] else ""
-        cards.append(f"""
+def _render_html_card_metrics(r):
+    metrics = []
+    for label, key in [("Coste", "coste"), ("Esfuerzo", "esfuerzo"),
+                        ("Tokens", "tokens"), ("Prod.", "multiplicador"),
+                        ("Carac.", "caracteristicas")]:
+        if r.get(key):
+            metrics.append(
+                f'<div class="m"><span class="mk">{label}</span>'
+                f'<span class="mv">{html.escape(str(r[key]))}</span></div>')
+    return metrics
+
+
+def _render_html_card_arts(r):
+    arts = []
+    for label, flag in [("spec", "has_spec"), ("evaluación", "has_eval"),
+                        ("diseño", "has_design"), ("plan", "has_plan"),
+                        ("tasks", "has_tasks"), ("testing", "has_testing")]:
+        cls = "on" if r[flag] else "off"
+        extra = f" · {html.escape(str(r['design_estado']))}" if flag == "has_design" and r.get("design_estado") else ""
+        arts.append(f'<span class="art {cls}">{label}{extra}</span>')
+    return arts
+
+
+def _render_html_card(r):
+    chips = _render_html_card_chips(r)
+    metrics = _render_html_card_metrics(r)
+    arts = _render_html_card_arts(r)
+    desc = html.escape(r["descripcion"]) if r["descripcion"] else ""
+    return f"""
       <article class="card">
         <div class="chips">{''.join(chips)}</div>
         <h3>{html.escape(r['titulo'])}</h3>
@@ -413,12 +492,23 @@ def render_html(inits, root):
         {f'<p class="desc">{desc}</p>' if desc else ''}
         <div class="metrics">{''.join(metrics) if metrics else '<span class="nodata">Sin evaluación aún</span>'}</div>
         <div class="arts">{''.join(arts)}</div>
-      </article>""")
+      </article>"""
 
-    counters = "".join(
+
+def _render_html_counters(inits):
+    by_spec = {}
+    for r in inits:
+        by_spec[r["spec_estado"] or "sin-dato"] = by_spec.get(r["spec_estado"] or "sin-dato", 0) + 1
+    return "".join(
         f'<div class="counter"><span class="cn">{n}</span>'
         f'<span class="cl">{pill(st, COLORS.get(st, COLORS["sin-dato"]))}</span></div>'
         for st, n in sorted(by_spec.items(), key=lambda x: -x[1]))
+
+
+def render_html(inits, root):
+    now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+    counters = _render_html_counters(inits)
+    cards = [_render_html_card(r) for r in inits]
 
     body = "".join(cards) if cards else \
         '<p class="empty">No hay iniciativas en <code>docs/roadmap/</code> todavía. ' \
@@ -428,39 +518,7 @@ def render_html(inits, root):
 <html lang="es"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Roadmap · dashboard</title>
-<style>
-:root{{color-scheme:dark}}
-*{{box-sizing:border-box}}
-body{{margin:0;font:15px/1.5 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
-  background:#0b1120;color:#e2e8f0;padding:28px}}
-header{{display:flex;flex-wrap:wrap;gap:16px;align-items:baseline;justify-content:space-between;margin-bottom:8px}}
-h1{{font-size:22px;margin:0}}
-.meta{{color:#94a3b8;font-size:13px}}
-.counters{{display:flex;flex-wrap:wrap;gap:14px;margin:18px 0 26px}}
-.counter{{display:flex;align-items:center;gap:8px;background:#111c33;border:1px solid #1e293b;
-  border-radius:10px;padding:8px 12px}}
-.cn{{font-size:20px;font-weight:700}}
-.grid{{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}}
-.card{{background:#111c33;border:1px solid #1e293b;border-radius:14px;padding:16px 18px}}
-.card h3{{margin:10px 0 2px;font-size:16px}}
-.slug{{margin:0;color:#64748b;font-size:12px;font-family:ui-monospace,monospace}}
-.desc{{color:#cbd5e1;font-size:13px;margin:10px 0}}
-.chips{{display:flex;flex-wrap:wrap;gap:6px}}
-.pill{{font-size:11px;font-weight:600;padding:2px 9px;border-radius:999px;
-  color:#0b1120;background:var(--c);white-space:nowrap}}
-.metrics{{display:flex;flex-wrap:wrap;gap:8px 16px;margin:14px 0 12px}}
-.m{{display:flex;flex-direction:column}}
-.mk{{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#64748b}}
-.mv{{font-size:14px;font-weight:600}}
-.nodata{{color:#64748b;font-size:13px;font-style:italic}}
-.arts{{display:flex;flex-wrap:wrap;gap:6px;border-top:1px solid #1e293b;padding-top:12px}}
-.art{{font-size:11px;padding:2px 8px;border-radius:6px}}
-.art.on{{background:#14342b;color:#4ade80}}
-.art.off{{background:#1e293b;color:#475569;text-decoration:line-through}}
-.empty{{color:#94a3b8}}
-code{{background:#1e293b;padding:1px 6px;border-radius:5px;font-size:.9em}}
-footer{{margin-top:28px;color:#475569;font-size:12px}}
-</style></head><body>
+<style>{_DASHBOARD_CSS}</style></head><body>
 <header>
   <h1>🗺️ Roadmap — estado de iniciativas</h1>
   <span class="meta">{len(inits)} iniciativa(s) · {html.escape(root)} · generado {now}</span>
@@ -478,6 +536,36 @@ def md_cell(val):
     if val is None:
         return "—"
     return str(val).replace("|", "/").replace("\n", " ").strip() or "—"
+
+
+def _render_md_tabla_iniciativas(inits):
+    out = ["## Iniciativas", "",
+           "| Iniciativa | Spec | Evaluación | Prioridad | Fase | Coste | Esfuerzo | Tokens | Prod. |",
+           "|---|---|---|---|---|---|---|---|---|"]
+    for r in inits:
+        out.append("| " + " | ".join(md_cell(x) for x in [
+            f"{r['titulo']} (`{r['slug']}`)",
+            r["spec_estado"], r["eval_estado"] if r["has_eval"] else "—",
+            r["prioridad"], r["fase"], r["coste"], r["esfuerzo"],
+            r["tokens"], r["multiplicador"],
+        ]) + " |")
+    out.append("")
+    return out
+
+
+def _render_md_tabla_artefactos(inits):
+    out = ["## Artefactos por iniciativa", "",
+           "| Iniciativa | spec | evaluación | diseño | plan | tasks | testing |",
+           "|---|---|---|---|---|---|---|"]
+    mark = lambda b: "✅" if b else "—"
+    for r in inits:
+        diseno = (f"✅ {md_cell(r['design_estado'])}" if r.get("design_estado") else "✅") if r.get("has_design") else "—"
+        out.append("| " + " | ".join([
+            md_cell(r["slug"]), mark(r["has_spec"]), mark(r["has_eval"]), diseno,
+            mark(r["has_plan"]), mark(r["has_tasks"]), mark(r["has_testing"]),
+        ]) + " |")
+    out.append("")
+    return out
 
 
 def render_markdown(inits, root):
@@ -502,30 +590,8 @@ def render_markdown(inits, root):
     reparto = " · ".join(f"{n} {st}" for st, n in sorted(by_spec.items(), key=lambda x: -x[1]))
     out.append(f"**Reparto por estado (spec):** {reparto}")
     out.append("")
-    out.append("## Iniciativas")
-    out.append("")
-    out.append("| Iniciativa | Spec | Evaluación | Prioridad | Fase | Coste | Esfuerzo | Tokens | Prod. |")
-    out.append("|---|---|---|---|---|---|---|---|---|")
-    for r in inits:
-        out.append("| " + " | ".join(md_cell(x) for x in [
-            f"{r['titulo']} (`{r['slug']}`)",
-            r["spec_estado"], r["eval_estado"] if r["has_eval"] else "—",
-            r["prioridad"], r["fase"], r["coste"], r["esfuerzo"],
-            r["tokens"], r["multiplicador"],
-        ]) + " |")
-    out.append("")
-    out.append("## Artefactos por iniciativa")
-    out.append("")
-    out.append("| Iniciativa | spec | evaluación | diseño | plan | tasks | testing |")
-    out.append("|---|---|---|---|---|---|---|")
-    mark = lambda b: "✅" if b else "—"
-    for r in inits:
-        diseno = (f"✅ {md_cell(r['design_estado'])}" if r.get("design_estado") else "✅") if r.get("has_design") else "—"
-        out.append("| " + " | ".join([
-            md_cell(r["slug"]), mark(r["has_spec"]), mark(r["has_eval"]), diseno,
-            mark(r["has_plan"]), mark(r["has_tasks"]), mark(r["has_testing"]),
-        ]) + " |")
-    out.append("")
+    out.extend(_render_md_tabla_iniciativas(inits))
+    out.extend(_render_md_tabla_artefactos(inits))
     return "\n".join(out)
 
 
@@ -535,12 +601,8 @@ def _fmt(x):
     return str(int(x)) if float(x).is_integer() else f"{x:.1f}"
 
 
-def render_metrics_md(inits, root):
-    """Informe real vs estimado. Producción = Tiempo IA (ejec.) + Supervisión (lo imputable)."""
-    now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
-    out = ["# 📊 Roadmap — real vs estimado", "",
-           f"> Generado el **{now}**. «Producción» = Tiempo IA (ejec.) + Supervisión "
-           "(lo que se imputa en Jira). Real/est de la fila TOTAL de cada `tasks.md`.", ""]
+def _metrics_filas(inits):
+    """Filas de la tabla real-vs-estimado + acumulados de la fila TOTAL."""
     tot = {"pr": 0.0, "pe": 0.0, "hr": 0.0, "he": 0.0, "tr": 0.0, "te": 0.0}
     rows = []
     for r in inits:
@@ -561,6 +623,16 @@ def render_metrics_md(inits, root):
             t=md_cell(r["titulo"]), pr=_fmt(pr), pe=_fmt(pe),
             d=(f"{desv:+.0f}%" if desv is not None else "—"),
             hr=_fmt(hu[0]), he=_fmt(hu[1]), tr=_fmt(tk[0]), te=_fmt(tk[1])))
+    return rows, tot
+
+
+def render_metrics_md(inits, root):
+    """Informe real vs estimado. Producción = Tiempo IA (ejec.) + Supervisión (lo imputable)."""
+    now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+    out = ["# 📊 Roadmap — real vs estimado", "",
+           f"> Generado el **{now}**. «Producción» = Tiempo IA (ejec.) + Supervisión "
+           "(lo que se imputa en Jira). Real/est de la fila TOTAL de cada `tasks.md`.", ""]
+    rows, tot = _metrics_filas(inits)
     if not rows:
         out += ["_Aún no hay horas reales registradas en ningún `tasks.md`._",
                 "", render_proceso_md(inits)]
@@ -579,6 +651,63 @@ def render_metrics_md(inits, root):
     return "\n".join(out)
 
 
+def _proceso_gen_stats(gen):
+    """Acumula tokens/horas/€ de un `generacion` dict, deduplicando ventanas compartidas.
+    Una MISMA ventana de medición puede estar declarada en dos artefactos (el planner mide
+    improvement-plan.md + tasks.md juntos y escribe el mismo bloque en los dos). Se cuenta
+    UNA vez: dedupe por (inicio, fin, tokens). Solo se deduplica una medición REAL idéntica
+    (mismos tokens, misma ventana y mismas horas): los bloques `estimado` comparten fechas
+    de referencia pero son estimaciones distintas por artefacto y deben sumarse."""
+    toks = horas = docs_con_tokens = 0
+    eur = 0.0
+    eur_ok = True
+    fuentes = set()
+    vistas = set()
+    for g in gen.values():
+        t = g.get("tokens_reales")
+        clave = None
+        if isinstance(t, dict) and g.get("inicio") and g.get("fin"):
+            clave = (g.get("inicio"), g.get("fin"), g.get("horas_ia"),
+                     tuple(sorted(t.items())))
+        duplicada = clave is not None and clave in vistas
+        if clave is not None:
+            vistas.add(clave)
+        fuentes.add(g.get("fuente") or "?")
+        if duplicada:
+            continue  # ventana compartida ya contada
+        if isinstance(t, dict):
+            # facturables: entrada + creación de caché + salida (convención usage-meter)
+            toks += (t.get("entrada") or 0) + (t.get("cache_creacion") or 0) + (t.get("salida") or 0)
+            docs_con_tokens += 1
+        horas += g.get("horas_ia") or 0
+        if g.get("eur") is not None:
+            eur += g["eur"]
+        else:
+            eur_ok = False
+    ventanas = len(vistas) or len(gen)
+    return {"toks": toks, "horas": horas, "eur": eur, "eur_ok": eur_ok,
+            "fuentes": fuentes, "ventanas": ventanas, "docs_con_tokens": docs_con_tokens}
+
+
+def _proceso_fila(r):
+    """Fila de la tabla de coste de proceso para una iniciativa. None si no tiene datos."""
+    gen = r.get("generacion")
+    if not gen:
+        return f"| {md_cell(r['titulo'])} | _sin datos_ | — | — | — |", None
+    s = _proceso_gen_stats(gen)
+    fuente = "medido" if s["fuentes"] == {"medido"} else "/".join(sorted(s["fuentes"]))
+    eur_cell = f"{s['eur']:.2f} €" if s["eur_ok"] else "⚠️ verificar"
+    # sin NINGÚN dato de tokens → '—', no un 0 inventado (regla C-04)
+    compartida = " · ventana compartida" if s["ventanas"] < len(gen) else ""
+    tok_cell = (f"{_miles(s['toks'])} tok ({s['docs_con_tokens']}/{len(gen)} docs con medida, "
+                f"{fuente}{compartida})"
+                if s["docs_con_tokens"] else f"— (sin tokens; {len(gen)} docs, {fuente})")
+    fila = (f"| {md_cell(r['titulo'])} | {tok_cell} "
+            f"| {_xhym(s['horas']) if s['horas'] else '—'} | {eur_cell} | "
+            f"{', '.join(sorted(gen))} |")
+    return fila, s
+
+
 def render_proceso_md(inits):
     """Sección 'Coste de proceso': lo que costó PRODUCIR los artefactos del ciclo
     (spec/eval/plan/tasks), medido por usage-meter (bloque generacion:). Separado
@@ -590,60 +719,17 @@ def render_proceso_md(inits):
     rows, tot_tok, tot_h, tot_eur, con_datos = [], 0, 0.0, 0.0, 0
     eur_incompleto = False
     for r in inits:
-        gen = r.get("generacion")
-        if not gen:
-            rows.append(f"| {md_cell(r['titulo'])} | _sin datos_ | — | — | — |")
+        fila, s = _proceso_fila(r)
+        rows.append(fila)
+        if s is None:
             continue
         con_datos += 1
-        toks = horas = docs_con_tokens = 0
-        eur = 0.0
-        eur_ok = True
-        fuentes = set()
-        # Una MISMA ventana de medición puede estar declarada en dos artefactos
-        # (el planner mide improvement-plan.md + tasks.md juntos y escribe el mismo
-        # bloque en los dos). Se cuenta UNA vez: dedupe por (inicio, fin, tokens).
-        # Solo se deduplica una medición REAL idéntica (mismos tokens, misma ventana y
-        # mismas horas): los bloques `estimado` comparten fechas de referencia pero son
-        # estimaciones distintas por artefacto y deben sumarse.
-        vistas = set()
-        for g in gen.values():
-            t = g.get("tokens_reales")
-            clave = None
-            if isinstance(t, dict) and g.get("inicio") and g.get("fin"):
-                clave = (g.get("inicio"), g.get("fin"), g.get("horas_ia"),
-                         tuple(sorted(t.items())))
-            duplicada = clave is not None and clave in vistas
-            if clave is not None:
-                vistas.add(clave)
-            fuentes.add(g.get("fuente") or "?")
-            if duplicada:
-                continue  # ventana compartida ya contada
-            if isinstance(t, dict):
-                # facturables: entrada + creación de caché + salida (convención usage-meter)
-                toks += (t.get("entrada") or 0) + (t.get("cache_creacion") or 0) + (t.get("salida") or 0)
-                docs_con_tokens += 1
-            horas += g.get("horas_ia") or 0
-            if g.get("eur") is not None:
-                eur += g["eur"]
-            else:
-                eur_ok = False
-        ventanas = len(vistas) or len(gen)
-        tot_tok += toks
-        tot_h += horas
-        if eur_ok:
-            tot_eur += eur
+        tot_tok += s["toks"]
+        tot_h += s["horas"]
+        if s["eur_ok"]:
+            tot_eur += s["eur"]
         else:
             eur_incompleto = True
-        fuente = "medido" if fuentes == {"medido"} else "/".join(sorted(fuentes))
-        eur_cell = f"{eur:.2f} €" if eur_ok else "⚠️ verificar"
-        # sin NINGÚN dato de tokens → '—', no un 0 inventado (regla C-04)
-        compartida = " · ventana compartida" if ventanas < len(gen) else ""
-        tok_cell = (f"{_miles(toks)} tok ({docs_con_tokens}/{len(gen)} docs con medida, "
-                    f"{fuente}{compartida})"
-                    if docs_con_tokens else f"— (sin tokens; {len(gen)} docs, {fuente})")
-        rows.append(f"| {md_cell(r['titulo'])} | {tok_cell} "
-                    f"| {_xhym(horas) if horas else '—'} | {eur_cell} | "
-                    f"{', '.join(sorted(gen))} |")
     out += ["| Iniciativa | Tokens facturables | Horas-IA | Coste | Artefactos medidos |",
             "|---|---|---|---|---|"]
     out += rows
