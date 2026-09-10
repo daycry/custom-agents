@@ -48,7 +48,7 @@ las funciones largas en hotspots (`task-brief.py` `main()` 155 líneas, `knowled
 `lint_plugin`). **Decisión previa para `architect`**: copias declaradas vs módulo vendorizado (el import
 común se descarta: rompe el standalone y el requisito multi-runtime). Pendiente: `/pm-cycle`.
 
-### 4 · `docs/roadmap/2026-09-10-usage-meter-transcripts/` — vía rápida (EN EJECUCIÓN)
+### 4 · `docs/roadmap/2026-09-10-usage-meter-transcripts/` — vía rápida (CERRADA: 3/3, retro y CALIBRATION, `retro-gate` abierta)
 
 `usage-meter.py:87` codifica el `cwd` con `[/\.:]` y Claude Code nombra la carpeta de transcripciones con
 «todo carácter no alfanumérico → `-`»: en esta máquina la clave NUNCA existe y `close` degrada siempre a
@@ -65,7 +65,12 @@ orquestador tiene abierto el marcador `usage-meter-transcripts/correccion` (07:0
 cruzando turno del criterio 4 de T-01, que solo la sesión principal puede dar. Después: revisión intento 2,
 commit, `architect`. Es la pieza que hace MEDIBLE todo lo demás: por eso va antes que el `architect`.
 
-### Orden DECIDIDO por el usuario (2026-09-09/10): cerrar F1 ✅ → usage-meter (vía rápida) → refactor → brief-budget
+**Cerrada el 2026-09-10** en `feature/plugin-refactor`: `cf88f35` (T-01/T-03 código: clave `[^A-Za-z0-9]` + `rglob` con dedupe) ·
+`791f43f` (`GOT-010`) · `0ebcc1c` (ledger 3/3 + CHANGELOG + cifras vivas) · retro + fila en `CALIBRATION.md`. Primer coste IA
+MEDIDO del proyecto en Windows (evidencia cruzando turno: 40 respuestas, 3,16 €). Regla nueva: los marcadores de
+`usage-meter` abiertos con el código anterior se DESCARTAN (contarían enteros los transcripts previos: 143 € falsos).
+
+### Orden DECIDIDO por el usuario (2026-09-09/10): cerrar F1 ✅ → usage-meter (vía rápida) ✅ → refactor (`architect` EN VUELO) → brief-budget
 
 cerrar F1 → **refactor** (partir `main()` de `task-brief.py`) → **brief-budget** (presupuesto por secciones
 sobre código limpio; al revés se refactoriza dos veces) → F2 de `project-specialization`.
