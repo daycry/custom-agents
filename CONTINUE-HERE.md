@@ -37,7 +37,7 @@ Solo una de las siete secciones del brief tiene tope; `## Diseño` entra entero 
 `memory-retrieval`, sin diseño: nunca lo vio. Documentado en **`GOT-009`** (`propuesta`). `analysis.md`
 con 5 opciones; `spec.md` **aprobada** y `evaluation.md` **completado** (26,4 h · ~1.340 €, go condicionado). **Go del usuario** el 2026-09-09; arranca DESPUÉS del refactor.
 
-### 3 · `docs/roadmap/2026-09-09-plugin-refactor/` — refactor de TODO el plugin (GO; `design.md` **aprobado** O1 + `ADR-016` `propuesta` (`38320c4`); **`planner` EN VUELO** → puerta OK del plan)
+### 3 · `docs/roadmap/2026-09-09-plugin-refactor/` — refactor de TODO el plugin (GO; diseño O1 + `ADR-016`; **PLAN comiteado** `77cc78d`: 5 fases / 4 tramos / 22 tareas, 74 h base, `ADR-017` `test-plan: n/a`; **puerta OK del plan PENDIENTE del usuario**, incluida la decisión sobre T-19/C-14 (E11, propuesta +2 h))
 
 `spec.md` **aprobada** (5 características de refactor cero-comportamiento + 8 de encadenamiento E1–E10) y
 `evaluation.md` **completado**: 90,0 h con margen · ~4.540 € · go condicionado. **Siguiente paso: `architect`** (Fase 2-bis,
