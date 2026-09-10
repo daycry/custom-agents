@@ -14,6 +14,22 @@ logs to Jira; the usage-meter does not show you a live dashboard of what the age
 This plugin does **not reimplement** a session monitor (server + UI + WebSockets is an entire
 product); if you want that view, install one alongside.
 
+**`duracion` vs. `duracion_reloj` in the `close` JSON:** `duracion` is billable tokens ÷ the
+calibrated ratio (the one dashboards, templates and Jira worklogs use — its semantics never
+change); `duracion_reloj` is additive and measures wall-clock time (`fin − inicio`), useful for
+spotting long sessions with little real token usage (pauses, reading), but it **never** replaces
+`duracion` in any calculation.
+
+**Known limit: markers chained within the 60 s tolerance.** `close`'s window filter accepts records
+up to 60 s before `inicio` (file clocks vs. `start`'s clock). If a second marker opens its `start`
+less than 60 s after the first marker's `close`, and the second `close` reads a transcript file the
+first marker did not have in its offset snapshot, the overlapping records get counted in BOTH
+windows: this is not a regression (before this initiative's fix the whole transcript was recounted
+again, which was worse), but it is a source of double-counting in the specific case of markers very
+close in time over new files. Mitigate it by spacing `start`/`close` more than 60 s apart when
+chaining short tasks, or by reading a short `duracion_reloj` with a high `tokens_reales` as a signal
+of possible overlap.
+
 ## Hook coexistence (verified)
 
 - **This plugin** registers **non-blocking** hooks (`hooks/hooks.json`) on three events:

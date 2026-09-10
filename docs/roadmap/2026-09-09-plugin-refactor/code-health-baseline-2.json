@@ -1,0 +1,281 @@
+{
+  "ruta": "C:\\Users\\46066917X\\OneDrive - Imagina Media Audiovisual S.L\\claude-cowork\\custom-agents",
+  "fecha": "2026-09-10",
+  "parametros": {
+    "langs": [
+      "cs",
+      "go",
+      "java",
+      "js",
+      "jsx",
+      "kt",
+      "php",
+      "py",
+      "rb",
+      "rs",
+      "ts",
+      "tsx"
+    ],
+    "window": 8,
+    "min_lines": 6,
+    "exclude_tests": true,
+    "since_dias": 90,
+    "exclude_path": [
+      "interop"
+    ]
+  },
+  "resumen": {
+    "ficheros": 35,
+    "lineas": 14411,
+    "duplicado_pct": 5.8,
+    "bloques_duplicados": 272,
+    "funciones_largas": 97,
+    "anidamiento_max": 6,
+    "hotspots": 35,
+    "todos": 0,
+    "todo_edad_max_dias": null
+  },
+  "duplicados": {
+    "bloques": 272,
+    "lineas_codigo": 14323,
+    "lineas_duplicadas": 834,
+    "pct": 5.8,
+    "top": [
+      {
+        "a": "agent-kits/shared/doctor.py:647",
+        "b": "scripts/lint_plugin.py:549",
+        "lineas": 93
+      },
+      {
+        "a": "agent-kits/shared/scope-check.py:51",
+        "b": "skills/adversarial-review/scripts/review-lens-select.py:104",
+        "lineas": 25
+      },
+      {
+        "a": "agent-kits/shared/ledger-lint.py:103",
+        "b": "skills/changelog-sync/scripts/changelog-sync.py:123",
+        "lineas": 21
+      },
+      {
+        "a": "agent-kits/shared/ledger-lint.py:142",
+        "b": "skills/changelog-sync/scripts/changelog-sync.py:310",
+        "lineas": 19
+      },
+      {
+        "a": "agent-kits/shared/doctor.py:647",
+        "b": "agent-kits/shared/knowledge-find.py:247",
+        "lineas": 17
+      },
+      {
+        "a": "agent-kits/shared/knowledge-find.py:247",
+        "b": "scripts/lint_plugin.py:549",
+        "lineas": 17
+      },
+      {
+        "a": "evals/check.py:110",
+        "b": "scripts/lint_plugin.py:906",
+        "lineas": 15
+      },
+      {
+        "a": "agent-kits/shared/scope-check.py:27",
+        "b": "skills/adversarial-review/scripts/review-lens-select.py:62",
+        "lineas": 13
+      },
+      {
+        "a": "agent-kits/shared/task-brief.py:603",
+        "b": "skills/jira-sync/scripts/jira-flow.py:249",
+        "lineas": 13
+      },
+      {
+        "a": "scripts/export-skills.py:36",
+        "b": "skills/jira-sync/scripts/jira-flow.py:83",
+        "lineas": 13
+      }
+    ]
+  },
+  "tamano": {
+    "ficheros": 35,
+    "lineas": 14411,
+    "anidamiento_max": 6,
+    "funciones_largas": 97,
+    "umbral_funcion": 30,
+    "top_ficheros": [
+      {
+        "fichero": "agent-kits/shared/journal.py",
+        "lineas": 978,
+        "anidamiento": 5
+      },
+      {
+        "fichero": "scripts/lint_plugin.py",
+        "lineas": 971,
+        "anidamiento": 6
+      },
+      {
+        "fichero": "agent-kits/shared/doctor.py",
+        "lineas": 944,
+        "anidamiento": 6
+      },
+      {
+        "fichero": "agent-kits/shared/knowledge-find.py",
+        "lineas": 857,
+        "anidamiento": 6
+      },
+      {
+        "fichero": "agent-kits/shared/task-brief.py",
+        "lineas": 784,
+        "anidamiento": 6
+      },
+      {
+        "fichero": "skills/changelog-sync/scripts/changelog-sync.py",
+        "lineas": 710,
+        "anidamiento": 5
+      },
+      {
+        "fichero": "skills/jira-sync/scripts/jira-flow.py",
+        "lineas": 634,
+        "anidamiento": 4
+      },
+      {
+        "fichero": "skills/roadmap-dashboard/scripts/build_dashboard.py",
+        "lineas": 616,
+        "anidamiento": 6
+      },
+      {
+        "fichero": "skills/api-contract/scripts/openapi-lint.py",
+        "lineas": 570,
+        "anidamiento": 5
+      },
+      {
+        "fichero": "agent-kits/shared/usage-meter.py",
+        "lineas": 511,
+        "anidamiento": 6
+      }
+    ],
+    "top_funciones": [
+      {
+        "fichero": "skills/jira-sync/scripts/jira-flow.py:523",
+        "funcion": "def construir_plan(args):",
+        "lineas": 122
+      },
+      {
+        "fichero": "agent-kits/shared/ledger-lint.py:209",
+        "funcion": "def parse_ledger(text):",
+        "lineas": 120
+      },
+      {
+        "fichero": "scripts/lint_plugin.py:397",
+        "funcion": "def lint(root):",
+        "lineas": 114
+      },
+      {
+        "fichero": "hooks/opencode-plugin.js:48",
+        "funcion": "const RAICES = (worktree, directory) => [",
+        "lineas": 113
+      },
+      {
+        "fichero": "skills/dependency-upgrade/scripts/deps-inventory.py:115",
+        "funcion": "def declaradas(m, avisos):",
+        "lineas": 108
+      },
+      {
+        "fichero": "scripts/release.py:419",
+        "funcion": "def do_release(root, new, args):",
+        "lineas": 102
+      },
+      {
+        "fichero": "evals/check.py:148",
+        "funcion": "def check(root):",
+        "lineas": 98
+      },
+      {
+        "fichero": "skills/roadmap-dashboard/scripts/build_dashboard.py:372",
+        "funcion": "def render_html(inits, root):",
+        "lineas": 93
+      },
+      {
+        "fichero": "skills/changelog-sync/scripts/changelog-sync.py:832",
+        "funcion": "def main(argv=None):",
+        "lineas": 91
+      },
+      {
+        "fichero": "agent-kits/qa/coverage-check.py:70",
+        "funcion": "def main():",
+        "lineas": 87
+      }
+    ]
+  },
+  "hotspots": {
+    "dias": 90,
+    "ficheros_cambiados": 35,
+    "top": [
+      {
+        "fichero": "agent-kits/shared/knowledge-find.py",
+        "cambios": 9,
+        "lineas": 852,
+        "puntuacion": 87.6
+      },
+      {
+        "fichero": "skills/roadmap-dashboard/scripts/build_dashboard.py",
+        "cambios": 9,
+        "lineas": 613,
+        "puntuacion": 83.4
+      },
+      {
+        "fichero": "agent-kits/shared/doctor.py",
+        "cambios": 8,
+        "lineas": 942,
+        "puntuacion": 79.0
+      },
+      {
+        "fichero": "agent-kits/shared/task-brief.py",
+        "cambios": 8,
+        "lineas": 783,
+        "puntuacion": 76.9
+      },
+      {
+        "fichero": "scripts/lint_plugin.py",
+        "cambios": 7,
+        "lineas": 969,
+        "puntuacion": 69.5
+      },
+      {
+        "fichero": "scripts/release.py",
+        "cambios": 6,
+        "lineas": 454,
+        "puntuacion": 53.0
+      },
+      {
+        "fichero": "agent-kits/shared/ledger-lint.py",
+        "cambios": 6,
+        "lineas": 381,
+        "puntuacion": 51.5
+      },
+      {
+        "fichero": "agent-kits/shared/journal.py",
+        "cambios": 4,
+        "lineas": 976,
+        "puntuacion": 39.7
+      },
+      {
+        "fichero": "scripts/export-skills.py",
+        "cambios": 4,
+        "lineas": 408,
+        "puntuacion": 34.7
+      },
+      {
+        "fichero": "skills/jira-sync/scripts/worklog.py",
+        "cambios": 4,
+        "lineas": 196,
+        "puntuacion": 30.5
+      }
+    ]
+  },
+  "marcadores": {
+    "total": 0,
+    "por_tipo": {},
+    "edad_max_dias": null,
+    "antiguedad": "git",
+    "top": []
+  },
+  "avisos": []
+}

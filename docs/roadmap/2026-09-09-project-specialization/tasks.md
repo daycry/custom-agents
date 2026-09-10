@@ -1,4 +1,8 @@
 ---
+tasks: project-specialization
+estado: en-progreso       # borrador | en-progreso | completado | cancelado — F1 (T-01…T-03) completada e integrada en master; F2/F3 pendientes de puerta
+creado: 2026-09-09
+actualizado: 2026-09-10
 generacion:            # ventana compartida con improvement-plan.md
   inicio: 2026-09-09T10:53:07Z
   fin: 2026-09-09T11:13:04Z

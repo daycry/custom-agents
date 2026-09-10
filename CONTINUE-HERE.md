@@ -9,7 +9,9 @@ cuando la rama descrita aquí se publique y no quede nada abierto.
 
 ## Trabajo EN CURSO — tres iniciativas abiertas el 2026-09-09 (F1 INTEGRADA en `master`; rama actual `feature/plugin-refactor`)
 
-**F1 de project-specialization está en `master`** (merge `--no-ff` `919cca4`, decisión del usuario; **sin push**). La rama `feature/project-specialization` se borró tras integrarla; el trabajo sigue en `feature/plugin-refactor`, nacida de `master`. Los quince commits de la rama integrada: ciclo PM ·
+**En `master`**: F1 de project-specialization (merge `919cca4`) y, desde el 2026-09-10, **el arreglo de `usage-meter` + los ciclos PM de
+`brief-budget` y `plugin-refactor`** (merge `--no-ff` `8fee28a`, decisión del usuario; **sin push**). La rama de trabajo `feature/plugin-refactor`
+apunta al merge (`reset --soft`, árbol intacto) y ahí seguirá el refactor. Los commits de la primera rama integrada: ciclo PM ·
 diseño + `ADR-014` · plan + `ADR-015` · cifras re-medidas · `GOT-009` + análisis de `brief-budget` ·
 análisis de `plugin-refactor` con línea base. **F1 está COMITEADA por tarea**: `a7f6bbe` T-02 · `204f333` T-03 · `74901c6` T-01 (+ ledger + los 4
 ficheros reales de `interop/`). Árbol limpio salvo el journal del hook y el ruido previo.
@@ -35,11 +37,13 @@ Solo una de las siete secciones del brief tiene tope; `## Diseño` entra entero 
 `memory-retrieval`, sin diseño: nunca lo vio. Documentado en **`GOT-009`** (`propuesta`). `analysis.md`
 con 5 opciones; `spec.md` **aprobada** y `evaluation.md` **completado** (26,4 h · ~1.340 €, go condicionado). **Go del usuario** el 2026-09-09; arranca DESPUÉS del refactor.
 
-### 3 · `docs/roadmap/2026-09-09-plugin-refactor/` — refactor de TODO el plugin (GO del usuario; ciclo PM cerrado, `architect` PENDIENTE)
+### 3 · `docs/roadmap/2026-09-09-plugin-refactor/` — refactor de TODO el plugin (GO; diseño O1 + `ADR-016`; **PLAN comiteado** `77cc78d`: 5 fases / 4 tramos / 22 tareas, 74 h base, `ADR-017` `test-plan: n/a`; **OK del plan** (usuario, 2026-09-10) con T-19/C-14 (E11) ACEPTADA; **R1 (F1: T-01…T-04) IMPLEMENTADA** (4/4; segunda línea base `code-health-baseline-2.json` con `--exclude-path interop`: 5,9 % duplicado, funciones largas 99 → 97; suite idéntica por test; `duracion_reloj` en `usage-meter`); **revisión R1 intento 1 CERRADA**: 5 Important + 10 Minor (brief byte a byte idéntico en 520 invocaciones y 40k casos de fuzz: el refactor de `task-brief` es limpio; los Important son el octavo TODO que también es prosa castellana → 8 → 0, `_parse_iso` naive que mata el `close`, `ENUMERACION_RE` que suprime TODO reales, `duracion_reloj` sin oráculo, y una subtarea «commit» marcada sin commit). Coste de la revisión MEDIDO: 9,30 €, 62 respuestas, `duracion_reloj` 37m. Corrección del intento 1 hecha (15 gaps, TODO en el repo 0, `_parse_iso` UTC, oráculo `37m`, línea base 2 con `exclude_path`). **Intento 2 verificado de forma determinista por el orquestador** (la Lente B cayó por la API): mutantes B-1/B-3/B-5/A-1 mueren; **residual Important R2-1**: `DETECTOR_PROPIO` por `realpath(__file__)` no excluye el `code-health.py` del árbol cuando el detector corre desde la caché del plugin (9 falsos positivos) y su test no mata al mutante → exclusión por FIRMA de contenido; R2-2 regla «≥ 2 marcadores» sin implementar; R2-3 límite castellano sin documentar. Intento 3 (determinista): 0 gaps, copia sobre el repo → `total: 0`, mutantes mueren. **TRAMO R1 CERRADO Y COMITEADO**: `ae32744` T-01/T-02 (code-health) · `7938187` T-03 (task-brief; CA-09 por commit) · `e194f22` T-04 (usage-meter) · ledger 4/22 con las tres trazas. Revisión medida: 9,30 € + 8,63 €. **Puerta de R2 PENDIENTE del usuario** (F2: los otros cuatro hotspots, 14 h). Frontmatter `tasks:`/`estado:` añadido al ledger y al plan (la plantilla del planner no lo trae; hueco para la matriz de contratos T-14))
 
 `spec.md` **aprobada** (5 características de refactor cero-comportamiento + 8 de encadenamiento E1–E10) y
 `evaluation.md` **completado**: 90,0 h con margen · ~4.540 € · go condicionado. **Siguiente paso: `architect`** (Fase 2-bis,
-dos pasadas) para O1 copias declaradas vs O2 módulo vendorizado — O3 descartada —, y después `planner`. El hallazgo E7
+dos pasadas) para O1 copias declaradas vs O2 módulo vendorizado — O3 descartada —, y después `planner`. **Decisión de diseño O1** (registro de copias declaradas + un test de identidad + aviso del linter para bloques no registrados): barata,
+reversible, unifica cuatro mecanismos de guardarraíl; O2 (vendorizar) descartada porque `PAYLOAD_COMUN` ya lleva `agent-kits/` entero;
+O3 (copias generadas) queda como evolución de O1. C-03 se ENCOGE: no hay copias accidentales. El hallazgo E7
 (usage-meter) salió del refactor y va por vía rápida (punto 4). Línea base `code-health` en la carpeta (`code-health-baseline.json`): 36 ficheros ·
 14.259 líneas · 7,6 % duplicado · **105 funciones > 30 líneas** · 8 TODO (6 falsos positivos del detector).
 Hallazgo que ordena todo: la duplicación grande es **deliberada** (scripts standalone que viajan sueltos,

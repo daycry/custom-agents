@@ -28,8 +28,10 @@ Resolución de rutas (regla 5 de CONVENTIONS — nunca rutas fijas):
 
 ```bash
 CHSKILL="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$PWD/skills" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type d -path '*skills/code-health' 2>/dev/null | head -1)"
-python3 "$CHSKILL/scripts/code-health.py" <ruta> [--json] [--exclude-tests] [--baseline informe.json]
+python3 "$CHSKILL/scripts/code-health.py" <ruta> [--json] [--exclude-tests] [--exclude-path PREFIJO ...] [--baseline informe.json]
 ```
+
+`--exclude-path` (repetible, aditivo, default sin exclusiones) saca del informe un prefijo relativo a la raíz — usarlo para carpetas GENERADAS como `interop/` (`export-interop.py`), que duplican por construcción el fichero del que se generaron.
 
 ## Cuándo NO usarla
 
@@ -48,7 +50,7 @@ python3 "$CHSKILL/scripts/code-health.py" <ruta> [--json] [--exclude-tests] [--b
 | 1 | **Duplicados** | Ventanas de `--window` (8) líneas de código normalizadas (identificadores → `id`, números/cadenas → `num`/`str`, sin comentarios) iguales entre ficheros DISTINTOS; ventanas solapadas se colapsan en un bloque | `% duplicado` global y pares `A:línea ↔ B:línea` ordenados por tamaño. > 5 % o bloques > 20 líneas = candidato a extraer función/módulo |
 | 2 | **Tamaño y complejidad** | Líneas de código por fichero, anidamiento máx. (llaves en JS/PHP/Go/Java/C#/Kt/Rs; sentencias compuestas en Py/Rb) y funciones con más de `--min-lines`×5 líneas (cabecera por regex por lenguaje) | Ficheros > 400 líneas o anidamiento > 5 y funciones > 30 líneas concentran el riesgo de cambio; **aproximación**, no un parser |
 | 3 | **Hotspots** | `git log --since N days --name-only` × tamaño: `cambios × log2(líneas+1)` | Los grandes Y que cambian mucho: ahí van los tests y la revisión primero. Sin git: omitido con aviso |
-| 4 | **TODO/FIXME/HACK/XXX** | Regex por línea (la palabra seguida de `:`/`(`/`-` o abriendo el comentario — así «TODO» como palabra castellana en medio de una frase no cuenta) + `git blame -L` para la antigüedad en días | Un TODO de 400 días es deuda olvidada o decisión no tomada: pregúntalo, no lo ignores. Sin git: solo recuento |
+| 4 | **TODO/FIXME/HACK/XXX** | Regex por línea (la palabra seguida de `:`/`-` o abriendo el comentario — `(` NO es separador, así «TODO (ADRs, …» en prosa castellana no cuenta; tampoco cuentan las líneas que enumeran varios marcadores entre backticks, ni las que encadenan 2+ marcadores distintos separados solo por `/`, `,`, `\|` o espacios («TODO/FIXME/HACK en el código»), ni el propio fichero del detector — por ruta en ejecución o por firma de contenido si es otra copia del mismo script) + `git blame -L` para la antigüedad en días | Un TODO de 400 días es deuda olvidada o decisión no tomada: pregúntalo, no lo ignores. Sin git: solo recuento. **Escribe `TODO:` con dos puntos** (o `TODO(autor):`) si quieres que un marcador en castellano cuente: sin `:`/`-`/`(` justo tras la palabra («TODO en producción esto falla») se trata como prosa y NO se cuenta — límite conocido, no un bug |
 
 Extensiones por defecto: `py js ts tsx jsx php go java rb cs kt rs` (`--langs`). Siempre fuera:
 `vendor/ node_modules/ dist/ build/ .git/ __pycache__/ target/`; con `--exclude-tests` también
@@ -94,5 +96,5 @@ cobertura de tests (`qa`), no detecta vulnerabilidades ni dependencias inseguras
 
 | Fichero | Qué es |
 |---|---|
-| `scripts/code-health.py` | El informe (MD/JSON, `--baseline`, `--exclude-tests`, `--langs`, `--window`, `--min-lines`, `--since`, `--top`); exit 0 · 2 uso |
+| `scripts/code-health.py` | El informe (MD/JSON, `--baseline`, `--exclude-tests`, `--exclude-path`, `--langs`, `--window`, `--min-lines`, `--since`, `--top`); exit 0 · 2 uso |
 | Tests (junto al script; no viajan en el paquete portable) | 14 casos con fixture multi-lenguaje (py/js/php) generada en tmp y git real si está: `python3 -m pytest -q skills/code-health/scripts` |
