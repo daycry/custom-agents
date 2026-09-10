@@ -264,6 +264,28 @@ def celdas_md(fila):
 # --8<-- fin de celdas de tabla Markdown COMPARTIDAS
 
 
+def _fila_indice_desde_linea(l, n):
+    """Una fila de la tabla del índice → dict, o None si no tiene las 4 celdas mínimas."""
+    c = celdas_md(l)
+    if len(c) < 4:
+        return None
+    entrada = re.sub(r"<!--.*?-->", "", c[0]).strip()
+    m = re.search(r"\]\(([^)\s]+)\)", entrada)
+    ruta_rel = m.group(1) if m else ""
+    titular = ""
+    if " — " in entrada:
+        titular = entrada.split(" — ", 1)[1].strip()
+    return {
+        "id": c[1] if len(c) > 1 else "",
+        "ruta_rel": ruta_rel,
+        "titular_indice": _limpia_titular(titular),
+        "area": c[3] if len(c) > 3 else "",
+        "estado": c[4] if len(c) > 4 else "",
+        "fuente": c[5] if len(c) > 5 else "",
+        "linea": n + 1,
+    }
+
+
 def parse_indice(texto):
     """Filas de la tabla del índice `docs/knowledge/README.md` → lista de dicts
     {id, ruta_rel (relativa a docs/knowledge), titular_indice, area, estado, fuente, linea}.
@@ -277,24 +299,9 @@ def parse_indice(texto):
         l = lineas[n]
         if not l.startswith("|"):
             break
-        c = celdas_md(l)
-        if len(c) < 4:
-            continue
-        entrada = re.sub(r"<!--.*?-->", "", c[0]).strip()
-        m = re.search(r"\]\(([^)\s]+)\)", entrada)
-        ruta_rel = m.group(1) if m else ""
-        titular = ""
-        if " — " in entrada:
-            titular = entrada.split(" — ", 1)[1].strip()
-        filas.append({
-            "id": c[1] if len(c) > 1 else "",
-            "ruta_rel": ruta_rel,
-            "titular_indice": _limpia_titular(titular),
-            "area": c[3] if len(c) > 3 else "",
-            "estado": c[4] if len(c) > 4 else "",
-            "fuente": c[5] if len(c) > 5 else "",
-            "linea": n + 1,
-        })
+        fila = _fila_indice_desde_linea(l, n)
+        if fila:
+            filas.append(fila)
     return filas
 
 
@@ -818,16 +825,10 @@ def _area_significativa(area):
     return {t for t in tokens(area) if len(t) >= AREA_TOKEN_MIN and t not in STOPWORDS}
 
 
-def relaciones(entradas, e):
-    """Las tres relaciones CURADAS de `e` (nunca cronología):
-      sucesion   → [(relacion, entrada|None, id)]: `sustituida por` (sucesores declarados en `e` o en
-                   el `estado` de una obsoleta, o quien declara `sustituye: e`) y `sustituye a` (lo que
-                   `e` declara sustituir, o quien declara a `e` como su `sucesor`). `entrada` es None
-                   si el ID no está en el corpus.
-      iniciativa → entradas con la misma `iniciativa` (frontmatter o deducida de la fuente), sin `e`.
-      area       → entradas cuya área comparte ≥ 1 token significativo con la de `e`, por número de
-                   tokens compartidos y luego doctrina primero / por ID, sin `e`.
-    """
+def _relaciones_sucesion(entradas, e):
+    """`sustituida por` (sucesores declarados en `e` o quien declara `sustituye: e`) y `sustituye a`
+    (lo que `e` declara sustituir, o quien declara a `e` como su `sucesor`). `entrada` es None si el
+    ID no está en el corpus."""
     por_id = {x["id"]: x for x in entradas}
     suc, vistos = [], set()
 
@@ -847,10 +848,19 @@ def relaciones(entradas, e):
         if e["id"] in x["sucesores"]:
             add("sustituye a", x["id"])
     suc.sort(key=lambda t: (0 if t[0] == "sustituida por" else 1, _numero(t[2]), t[2]))
+    return suc
 
+
+def _relaciones_iniciativa(entradas, e):
+    """Entradas con la misma `iniciativa` (frontmatter o deducida de la fuente), sin `e`."""
     ini = [x for x in entradas if e["iniciativa"] and x["iniciativa"] == e["iniciativa"] and x["id"] != e["id"]]
     ini.sort(key=clave_orden)
+    return ini
 
+
+def _relaciones_area(entradas, e):
+    """Entradas cuya área comparte >= 1 token significativo con la de `e`, por número de tokens
+    compartidos y luego doctrina primero / por ID, sin `e`."""
     mios = _area_significativa(e["area"])
     area = []
     for x in entradas:
@@ -860,7 +870,16 @@ def relaciones(entradas, e):
         if comunes:
             area.append((comunes, x))
     area.sort(key=lambda t: (-t[0],) + clave_orden(t[1]))
-    return {"sucesion": suc, "iniciativa": ini, "area": [x for _c, x in area]}
+    return [x for _c, x in area]
+
+
+def relaciones(entradas, e):
+    """Las tres relaciones CURADAS de `e` (nunca cronología): sucesión, iniciativa, área."""
+    return {
+        "sucesion": _relaciones_sucesion(entradas, e),
+        "iniciativa": _relaciones_iniciativa(entradas, e),
+        "area": _relaciones_area(entradas, e),
+    }
 
 
 def _linea_sucesion(rel, x, id_):
@@ -929,7 +948,7 @@ def _limit(valor):
     return n
 
 
-def main(argv=None):
+def _construir_parser():
     ap = argparse.ArgumentParser(description="recuperación determinista de docs/knowledge/ (tres capas)")
     ap.add_argument("texto", nargs="*", help="consulta libre (capa 1)")
     ap.add_argument("--area", default="", help="área normalizada (minúsculas, sin acentos, por token)")
@@ -949,51 +968,64 @@ def main(argv=None):
     capa = ap.add_mutually_exclusive_group()
     capa.add_argument("--related", metavar="ID", help="capa 2: grafo curado de una entrada")
     capa.add_argument("--show", metavar="ID", help="capa 3: la entrada completa")
-    args = ap.parse_args(argv)
-    root = resolver_root(args.root)
-    texto = " ".join(args.texto)
-    corpus = "doctrina" if args.doctrina else "proyecto"
+    return ap
+
+
+def _abrir_corpus_o_doctrina(args, root):
     if args.doctrina:
         entradas, path, indice = abrir_doctrina()
         if not entradas:
             print(f"knowledge-find: {indice.get('indice_motivo', 'sin doctrina')} — 0 aciertos", file=sys.stderr)
+        return entradas, path, indice
+    return abrir_corpus(root, usar_indice=not args.no_index)
+
+
+def _modo_show(args, indice, corpus, e):
+    if args.json:
+        data = {"version": VERSION_JSON, "indice": indice["indice"], "corpus": corpus, "id": e["id"], "tipo": e["tipo"],
+                "estado": e["estado"], "estado_detalle": e["estado_detalle"], "area": e["area"],
+                "titular": e["titular"], "ruta": e["ruta"], "origen": e.get("origen", "proyecto"), "contenido": e["texto"]}
+        if indice.get("indice_motivo"):
+            data["indice_motivo"] = indice["indice_motivo"]
+        print(json.dumps(data, ensure_ascii=False))
     else:
-        entradas, path, indice = abrir_corpus(root, usar_indice=not args.no_index)
+        sys.stdout.write(e["texto"])
 
-    if args.related or args.show:
-        id_ = args.related or args.show
-        e = buscar_id(entradas, id_)
-        if e is None:
-            donde = DOCTRINA_REL if args.doctrina else os.path.join(root, "docs", "knowledge")
-            print(f"knowledge-find: no hay ninguna entrada con ID `{id_}` en {donde}", file=sys.stderr)
-            return 1
-        if args.show:
-            if args.json:
-                data = {"version": VERSION_JSON, "indice": indice["indice"], "corpus": corpus, "id": e["id"], "tipo": e["tipo"],
-                        "estado": e["estado"], "estado_detalle": e["estado_detalle"], "area": e["area"],
-                        "titular": e["titular"], "ruta": e["ruta"], "origen": e.get("origen", "proyecto"), "contenido": e["texto"]}
-                if indice.get("indice_motivo"):
-                    data["indice_motivo"] = indice["indice_motivo"]
-                print(json.dumps(data, ensure_ascii=False))
-            else:
-                sys.stdout.write(e["texto"])
-            return 0
-        rel = relaciones(entradas, e)
-        if args.json:
-            data = json_related(e, rel, indice)
-            data["corpus"] = corpus
-            print(json.dumps(data, ensure_ascii=False))
-        else:
-            sys.stdout.write(texto_related(e, rel))
-        return 0
 
+def _modo_related(args, entradas, indice, corpus, e):
+    rel = relaciones(entradas, e)
+    if args.json:
+        data = json_related(e, rel, indice)
+        data["corpus"] = corpus
+        print(json.dumps(data, ensure_ascii=False))
+    else:
+        sys.stdout.write(texto_related(e, rel))
+
+
+def _despachar_id(args, entradas, indice, root, corpus):
+    """Capas 2 y 3 (`--related`/`--show`): resuelve el ID y despacha. Devuelve el exit code."""
+    id_ = args.related or args.show
+    e = buscar_id(entradas, id_)
+    if e is None:
+        donde = DOCTRINA_REL if args.doctrina else os.path.join(root, "docs", "knowledge")
+        print(f"knowledge-find: no hay ninguna entrada con ID `{id_}` en {donde}", file=sys.stderr)
+        return 1
+    if args.show:
+        _modo_show(args, indice, corpus, e)
+    else:
+        _modo_related(args, entradas, indice, corpus, e)
+    return 0
+
+
+def _entradas_enrutado(args):
+    """`--contexto`/`--tipo-tarea`/`--iniciativa`: los que se pidieron (no None), en ese orden."""
+    return [a for a in (args.contexto, args.tipo_tarea, args.iniciativa) if a is not None]
+
+
+def _ejecutar_consulta(args, entradas, path, texto, enrutado):
+    """Capa 1: texto libre o enrutada (ya validada por el llamador). Devuelve (aciertos, total, consulta)."""
     consulta = {"texto": texto, "area": args.area, "tipo": args.tipo, "limit": args.limit}
-    enrutado = [a for a in (args.contexto, args.tipo_tarea, args.iniciativa) if a is not None]
     if enrutado:
-        if texto or args.area:
-            print("knowledge-find: `--contexto/--tipo-tarea/--iniciativa` no se combinan con texto libre ni `--area`",
-                  file=sys.stderr)
-            return 2
         contexto, tipo_tarea, iniciativa = (args.contexto or "", args.tipo_tarea or "", args.iniciativa or "")
         aciertos, total, claves, aviso = buscar_enrutado(
             entradas, contexto=contexto, tipo_tarea=tipo_tarea, iniciativa=iniciativa,
@@ -1008,6 +1040,10 @@ def main(argv=None):
                                  candidatos=candidatos)
         if texto:
             consulta["tokens"] = toks
+    return aciertos, total, consulta
+
+
+def _imprimir_resultado(args, indice, corpus, consulta, total, aciertos):
     if args.json:
         data = {"version": VERSION_JSON, "indice": indice["indice"], "corpus": corpus, "consulta": consulta,
                 "total": total, "aciertos": [acierto_json(a) for a in aciertos]}
@@ -1017,6 +1053,25 @@ def main(argv=None):
     else:
         for a in aciertos:
             print(linea_compacta(a))
+
+
+def main(argv=None):
+    args = _construir_parser().parse_args(argv)
+    root = resolver_root(args.root)
+    texto = " ".join(args.texto)
+    corpus = "doctrina" if args.doctrina else "proyecto"
+    entradas, path, indice = _abrir_corpus_o_doctrina(args, root)
+
+    if args.related or args.show:
+        return _despachar_id(args, entradas, indice, root, corpus)
+
+    enrutado = _entradas_enrutado(args)
+    if enrutado and (texto or args.area):
+        print("knowledge-find: `--contexto/--tipo-tarea/--iniciativa` no se combinan con texto libre ni `--area`",
+              file=sys.stderr)
+        return 2
+    aciertos, total, consulta = _ejecutar_consulta(args, entradas, path, texto, enrutado)
+    _imprimir_resultado(args, indice, corpus, consulta, total, aciertos)
     return 0
 
 
