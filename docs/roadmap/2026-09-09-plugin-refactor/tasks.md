@@ -1,6 +1,6 @@
 ---
 tasks: plugin-refactor
-estado: en-progreso       # borrador | en-progreso | completado | cancelado — R1 (F1) implementada, en revisión
+estado: en-progreso       # borrador | en-progreso | completado | cancelado — R1 (F1) integrada en master; R2 (F2) implementada, en revisión
 creado: 2026-09-10
 actualizado: 2026-09-10
 generacion:              # ventana compartida con improvement-plan.md
@@ -39,11 +39,11 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervisión (real/est) | Tokens (real/est) |
 |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
 | Fase 1 — Línea base limpia y la cicatriz | 4 | 4 | 100% | — / 11,5h | 0,52 / 1,29h | 0,13 / 0,32h | — / 619k |
-| Fase 2 — Los otros cuatro hotspots | 0 | 4 | 0% | 0 / 14,0h | 0 / 1,60h | 0 / 0,40h | 0 / 767k |
+| Fase 2 — Los otros cuatro hotspots | 4 | 4 | 100% | — / 14,0h | 1,52 / 1,60h | 0,39 / 0,40h | — / 767k |
 | Fase 3 — Un solo mecanismo de copias declaradas (O1) | 0 | 2 | 0% | 0 / 4,0h | 0 / 0,50h | 0 / 0,13h | 0 / 239k |
 | Fase 4 — Encadenamiento E1–E11 | 0 | 9 | 0% | 0 / 30,5h | 0 / 3,64h | 0 / 0,91h | 0 / 1.745k |
 | Fase 5 — Proceso: revisión por tramo, corrección y cierre | 0 | 3 | 0% | 0 / 14,0h | 0 / 1,80h | 0 / 0,45h | 0 / 864k |
-| **TOTAL** | **4** | **22** | **18%** | **— / 74,0h** | **0,52 / 8,83h** | **0,13 / 2,21h** | **— / 4.234k** |
+| **TOTAL** | **8** | **22** | **36%** | **— / 74,0h** | **2,04 / 8,83h** | **0,52 / 2,21h** | **— / 4.234k** |
 
 > Horas **base** (sin colchón; con el margen del 20 %: 88,8 h humanas · 10,6 h IA · 2,65 h supervisión). Tokens = facturables (in + out + creación de caché). Coste base **3.734 €** (4.479 € con margen). Heredado de `evaluation.md` por característica; diferencias declaradas en el plan (P-1 y C-13 (i) hechas, C-14 propuesta).
 
@@ -61,7 +61,7 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 - **Changelog**: El informe de salud del código deja de contar como TODO su propia descripción del detector, la palabra castellana «TODO (» y la prosa «TODO el histórico…»: los 8 falsos positivos pasan a 0 marcadores reales.
 - **Estado**: completado
 - **Tiempo humano**: est. 2,0h · real —
-- **Tiempo IA (ejec.)**: est. 0,25h · real 0,05h (estimado; el marcador del meter se abrió tras implementar, no es representativo — ver nota) + 0,XXh fix1 (medido, ver JSON en el cierre de R1) + 0,0h fix2 (medido, marcador `plugin-refactor/T-01-fix2`: `{"eur":0.05,"horas_ia":0.0,"duracion_reloj":"0m"}` — abierto tras implementar la corrección, no representativo del esfuerzo real; ver nota)
+- **Tiempo IA (ejec.)**: est. 0,25h · real 0,05h (estimado) (el marcador del meter se abrió tras implementar, no es representativo — ver nota) + 0,0h fix1 (medido, JSON `T-01-fix1` en el cierre de R1: `horas_ia: 0.0`, `eur: 0.05`) + 0,0h fix2 (medido, marcador `plugin-refactor/T-01-fix2`: `{"eur":0.05,"horas_ia":0.0,"duracion_reloj":"0m"}` — abierto tras implementar la corrección, no representativo del esfuerzo real; ver nota)
 - **Supervisión**: est. 0,06h (≈25 % IA) · real 0,01h (estimado)
 - **Previsión IA**: 88k in / 13k out tok · 0,9 € tokens · coste tarea 101 €
 - **Dependencias**: ninguna (primera tarea: limpia la línea base antes de medir el refactor)
@@ -268,7 +268,7 @@ $ python scripts/export-interop.py --check
 - **Changelog**: `usage-meter.py` ya no cuenta transcripciones anteriores al inicio de la ventana ni acepta marcadores de la versión antigua, ya no se cae ni pierde la ventana entera con timestamps sin zona horaria, añade `duracion_reloj` con oráculo de valor junto a la `duracion` derivada de tokens, y documenta el límite conocido de marcadores encadenados en 60 s.
 - **Estado**: completado
 - **Tiempo humano**: est. 1,5h · real —
-- **Tiempo IA (ejec.)**: est. 0,19h · real 0,15h (estimado; el marcador se abrió con el código ANTERIOR al arreglo — igual que en T-01 — así que `close` degradó a `fuente: estimado` con el aviso «marcador anterior al arreglo»; `duracion_reloj` midió 9m de reloj, pero no es representativo del trabajo real por las pausas de verificación entre ediciones — ver Notas) + fix1 ver JSON en cierre de R1
+- **Tiempo IA (ejec.)**: est. 0,19h · real 0,15h (estimado) (el marcador se abrió con el código ANTERIOR al arreglo — igual que en T-01 — así que `close` degradó a `fuente: estimado` con el aviso «marcador anterior al arreglo»; `duracion_reloj` midió 9m de reloj, pero no es representativo del trabajo real por las pausas de verificación entre ediciones — ver Notas) + fix1 ver JSON en cierre de R1
 - **Supervisión**: est. 0,05h (≈25 % IA) · real 0,04h (estimado, 25 % de IA estimada)
 - **Previsión IA**: 66k in / 10k out tok · 0,7 € tokens · coste tarea 76 €
 - **Dependencias**: T-03 (orden del tramo R1; sin dependencia de código). Requiere `master` `8fee28a` (C-13 (i)) — ya es ancestro de la rama
@@ -354,18 +354,19 @@ marcador abierto, plugin-refactor/T-04)
 
 ## Fase 2 — Los otros cuatro hotspots
 
-**Estado**: en-progreso · **Estimado**: 14,0h · **Real**: — · **Coste est.**: 706 € · **Tokens est.**: 767k · **Tramo**: R2
+**Estado**: completado · **Estimado**: 14,0h · **Real**: 1,52h IA + 0,39h supervisión (T-05, T-06, T-07, T-08) · **Coste est.**: 706 € · **Tokens est.**: 767k · **Tramo**: R2
 
 > **Arista hacia fuera (condición 3 del go):** esta fase completa precede a **F2 de `project-specialization`** (toca `doctor.py` y `lint_plugin.py --root`). Orden dentro de la fase: `knowledge-find` (el que más cambia) → `doctor` → `build_dashboard` → `lint_plugin` (**el último**, para que T-10 y T-16 no lo toquen dos veces). Reparto del objetivo §8 (32 → ≤ 16): `task-brief` ≤ 2 (T-03) · `knowledge-find` ≤ 1 · `doctor` ≤ 4 · `build_dashboard` ≤ 4 · `lint_plugin` ≤ 5.
 
 ### T-05 — C-02 (1/4): `knowledge-find.py` — `main()` y las otras dos funciones largas
 
 - **Descripción**: `agent-kits/shared/knowledge-find.py` (852 líneas, 9 cambios/90 d): `main()` (`:932`, 87 líneas) y las otras dos funciones > 30 líneas → ≤ 1 función larga, ninguna nueva > 60. Contrato congelado: forma del `--json` (`acierto_json` `:794`, 12 claves — lo consumen `task-brief.py` y `hooks/session-context.sh`), `--doctrina`, `--show`, `--related`, `--limit 0`, `--tipo-tarea`, exit codes. `celdas_md` (`:244-264`, copia guardada) **no se toca**.
+- **Tipo**: refactor (A-1 de R2: campo ausente en la toma original de la Fase 2, como A-7 en R1)
 - **Changelog**: `knowledge-find.py` queda partido en funciones cortas; la salida `--json` que consumen el brief y el hook de sesión es la misma byte a byte.
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo humano**: est. 3,5h · real —
-- **Tiempo IA (ejec.)**: est. 0,40h · real —
-- **Supervisión**: est. 0,10h (≈25 % IA) · real —
+- **Tiempo IA (ejec.)**: est. 0,40h · real 0,45h (medido; JSON: `{"eur":3.75,"horas_ia":0.45,"duracion":"27m","duracion_reloj":"14m","tokens_reales":{"entrada":74,"salida":22634,"cache_creacion":193084,"cache_lectura":4609108,"respuestas":37}}`)
+- **Supervisión**: est. 0,10h (≈25 % IA) · real 0,11h (estimado, 25 % de IA medida)
 - **Previsión IA**: 140k in / 21k out tok · 1,5 € tokens · coste tarea 176 €
 - **Dependencias**: T-04 (cierre del tramo R1 y su revisión)
 - **Archivos**: `agent-kits/shared/knowledge-find.py`
@@ -377,26 +378,68 @@ marcador abierto, plugin-refactor/T-04)
   - `grep -n "add_argument\|sys.exit\|return [0-9]" agent-kits/shared/knowledge-find.py` antes/después → `diff` vacío · `python scripts/lint_plugin.py` → `0 errores` · `python scripts/export-interop.py --check` → `48 ficheros al día`
 
 **Criterios de aceptación**
-- [ ] `knowledge-find.py`: funciones > 30 líneas ≤ 1 (hoy 3), ninguna nueva > 60
-- [ ] Tres capturas `--json` byte-idénticas (contexto+iniciativa · adr · doctrina) — CA-08
-- [ ] Suite idéntica por test; `tests/test_knowledge_index.py` verde sin tocar; bloque `celdas_md` sin cambio de texto
-- [ ] CA-09: sin diff en `agents/`, `commands/`, `skills/*/SKILL.md`
+- [x] `knowledge-find.py`: funciones > 30 líneas ≤ 1 (hoy 3), ninguna nueva > 60 (resultado: **0** funciones > 30 líneas, mejor que el objetivo)
+- [x] Tres capturas `--json` byte-idénticas (contexto+iniciativa · adr · doctrina) — CA-08 (más `--show`/`--related` en JSON y texto, verificadas también)
+- [x] Suite idéntica por test; `tests/test_knowledge_index.py` verde sin tocar; bloque `celdas_md` sin cambio de texto
+- [x] CA-09: sin diff en `agents/`, `commands/`, `skills/*/SKILL.md`
 
 **Subtareas**
-- [ ] Partir `main()`: parseo · resolución de root/corpus · despacho por modo (`--show` / `--related` / búsqueda) · render
-- [ ] Partir las otras dos funciones largas por responsabilidad (una por función)
-- [ ] `Verificación` completa con salidas pegadas; commit `T-05: …`
+- [x] Partir `main()`: parseo · resolución de root/corpus · despacho por modo (`--show` / `--related` / búsqueda) · render
+- [x] Partir las otras dos funciones largas por responsabilidad (una por función): `relaciones()` → `_relaciones_sucesion`/`_relaciones_iniciativa`/`_relaciones_area`; `parse_indice()` → `_fila_indice_desde_linea` por fila
+- [x] `Verificación` completa con salidas pegadas; el commit lo hace el orquestador tras el cierre de R2 (no el implementer, ver nota de T-03/A-2)
 
-**Notas**: El `--json` es API interna del brief (`task-brief.py`) y del hook `session-context.sh`: un cambio de clave rompe dos consumidores sin que la suite de este fichero lo vea — por eso la captura es la puerta.
+**Desviación declarada (multiset de `return N`, mismo patrón que T-03)**: el primer borrador de `_ejecutar_consulta` devolvía el código de error 2 dentro de una tupla (`return None, None, consulta, 2`), lo que hacía desaparecer un `return 2` literal del `grep` de contrato (igual que el caso ya documentado en T-03). Corregido: la validación de flags incompatibles (`--contexto`/`--tipo-tarea`/`--iniciativa` con texto libre o `--area`) se sacó a una comprobación en línea en `main()` con su propio `return 2` literal; `_ejecutar_consulta` ya no puede fallar (recibe `enrutado` ya calculado). El multiset final tiene **una** aparición menos de `return 0` (3 en vez de 4): antes había un `return 0` literal en la rama `--show` y otro en la rama `--related` dentro de `main()`; ahora ambas ramas comparten `_despachar_id(...)`, que termina en un único `return 0`. Verificado que el comportamiento (los tres exit codes 0/1/2 en las cinco rutas: show, related, show-inexistente, combinación inválida, texto libre) es idéntico probando cada rama directamente (ver Verificación ejecutada).
+
+**Verificación ejecutada (salida real, tras el último cambio):**
+```
+$ diff "$CAPTURAS/kf-antes.json" "$CAPTURAS/kf-despues.json"          (contexto+iniciativa)   (vacío)
+$ diff "$CAPTURAS/kf-antes-adr.json" "$CAPTURAS/kf-despues-adr.json"  (--tipo adr --limit 0)  (vacío)
+$ diff "$CAPTURAS/kf-antes-doctrina.json" "$CAPTURAS/kf-despues-doctrina.json"                (vacío)
+$ diff "$CAPTURAS/kf-antes-show.json" "$CAPTURAS/kf-despues-show.json"    (--show --json)      (vacío)
+$ diff "$CAPTURAS/kf-antes-related.json" "$CAPTURAS/kf-despues-related.json"  (--related --json) (vacío)
+$ diff "$CAPTURAS/kf-antes-show.md" "$CAPTURAS/kf-despues-show.md"        (--show, texto)       (vacío)
+
+$ python skills/code-health/scripts/code-health.py . --exclude-tests --exclude-path interop --json --baseline docs/roadmap/2026-09-09-plugin-refactor/code-health-baseline-2.json
+funciones largas: 97 -> 94  ↓ mejora
+(resto = igual; líneas de código informativo ↑ crece; TODO/edad TODO sin cambio, ambos 0/n.d.)
+
+$ python skills/code-health/scripts/code-health.py . --exclude-tests --json --top 1000 | python -c "..." (filtra knowledge-find.py)
+(sin salida) -> 0 funciones > 30 líneas en knowledge-find.py (objetivo ≤ 1, superado)
+
+$ python -m pytest -q tests/test_knowledge_index.py tests/test_knowledge_find.py -p no:cacheprovider
+85 passed, 3 failed — los 3 fallos son PRE-EXISTENTES (test_real_tokens_por_hora_..., test_show_imprime_la_entrada_completa_tal_cual,
+test_show_json_envuelve_el_contenido_con_su_ficha; CRLF/autocrlf de Windows, ya en suite-antes-r2.txt), ninguno nuevo
+
+$ grep -n "add_argument|sys.exit|return [0-9]" agent-kits/shared/knowledge-find.py antes/después -> multiset por contenido:
+mismos 8 add_argument; return 1 (x1) y return 2 (x1) idénticos; return 0 pasa de 4 a 3 apariciones (ver "Desviación
+declarada" arriba: consolidación legítima de dos ramas show/related en una función, comportamiento verificado idéntico)
+python agent-kits/shared/knowledge-find.py --show ADR-016 >/dev/null; echo $? -> 0
+python agent-kits/shared/knowledge-find.py --related ADR-016 >/dev/null; echo $? -> 0
+python agent-kits/shared/knowledge-find.py --show NOEXISTE >/dev/null 2>&1; echo $? -> 1
+python agent-kits/shared/knowledge-find.py --contexto x foo >/dev/null 2>&1; echo $? -> 2
+python agent-kits/shared/knowledge-find.py foo >/dev/null; echo $? -> 0
+
+$ python scripts/lint_plugin.py
+lint_plugin: 9 agentes · 0 errores · 3 avisos   → 0 errores
+
+$ python scripts/export-interop.py --check
+export-interop --check: 48 ficheros al día
+
+$ diff "$CAPTURAS/suite-antes-r2.txt" "$CAPTURAS/suite-despues-t05.txt"
+(vacío) — identidad por test confirmada sobre la suite completa (tests agent-kits/shared skills/*/scripts evals)
+```
+
+**Notas**: El `--json` es API interna del brief (`task-brief.py`) y del hook `session-context.sh`: un cambio de clave rompe dos consumidores sin que la suite de este fichero lo vea — por eso la captura es la puerta. `git diff --stat -- agents commands 'skills/*/SKILL.md'` vacío para este cambio (CA-09).
 
 ### T-06 — C-02 (2/4): `doctor.py` — 8 funciones largas → ≤ 4
 
 - **Descripción**: `agent-kits/shared/doctor.py` (942 líneas; `bloque_plugin()` `:252`, 87 líneas): 8 funciones > 30 líneas → ≤ 4, ninguna nueva > 60. Contrato congelado: veredictos ✅/⚠️/❌ por línea, `--json`, exit 1 si hay ❌, texto de los arreglos sugeridos. `celdas_md` / `filas_knowledge_index` / `lint_knowledge_index` (`:644-753`, copia guardada byte a byte con `lint_plugin.py`) **no se tocan**.
+- **Tipo**: refactor (A-1 de R2: campo ausente en la toma original de la Fase 2, como A-7 en R1)
 - **Changelog**: `/doctor` queda partido en funciones cortas por bloque de diagnóstico; veredictos, `--json` y exit code son los mismos.
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo humano**: est. 3,5h · real —
-- **Tiempo IA (ejec.)**: est. 0,40h · real —
-- **Supervisión**: est. 0,10h (≈25 % IA) · real —
+- **Tiempo IA (ejec.)**: est. 0,40h · real 0,26h (medido: `{"artefacto": "plugin-refactor/T-06", "inicio": "2026-09-10T17:48:08Z", "fin": "2026-09-10T18:06:49Z", "fuente": "medido", "eur": 3.11, "horas_ia": 0.26, "duracion": "16m", "duracion_reloj": "19m", "ratio_usado": 479326.0}`)
+- **Supervisión**: est. 0,10h (≈25 % IA) · real 0,07h (estimado)
 - **Previsión IA**: 140k in / 21k out tok · 1,5 € tokens · coste tarea 176 €
 - **Dependencias**: T-05
 - **Archivos**: `agent-kits/shared/doctor.py`
@@ -408,26 +451,67 @@ marcador abierto, plugin-refactor/T-04)
   - `grep -n "add_argument\|sys.exit\|return [0-9]" agent-kits/shared/doctor.py` antes/después → `diff` vacío · `python scripts/lint_plugin.py` → `0 errores`
 
 **Criterios de aceptación**
-- [ ] `doctor.py`: funciones > 30 líneas ≤ 4 (hoy 8), ninguna nueva > 60
-- [ ] Salida texto y `--json` de `/doctor` byte-idénticas sobre este repo; exit code igual
-- [ ] Bloques `--8<--` (`celdas_md` y criterio del índice de knowledge) sin cambio de texto: `tests/test_knowledge_index.py` verde
-- [ ] Suite idéntica por test; CA-09 sin diff en prosa de piezas
+- [x] `doctor.py`: funciones > 30 líneas ≤ 4 (hoy 8) → queda en **1** (`lint_knowledge_index`, ver desviación declarada), ninguna nueva > 60
+- [x] Salida texto y `--json` de `/doctor` byte-idénticas sobre este repo; exit code igual
+- [x] Bloques `--8<--` (`celdas_md` y criterio del índice de knowledge) sin cambio de texto: `tests/test_knowledge_index.py` verde
+- [x] Suite idéntica por test; CA-09 sin diff en prosa de piezas
 
 **Subtareas**
-- [ ] `bloque_plugin()` → una función por comprobación (registro del plugin · hooks · statusline · versión) + un ensamblador
-- [ ] Las otras 7 largas: partir por veredicto, reutilizando el patrón «comprueba → (icono, texto, arreglo)»
-- [ ] `Verificación` completa con salidas pegadas; commit `T-06: …`
+- [x] `bloque_plugin()` → una función por comprobación (registro del plugin · hooks · statusline · versión) + un ensamblador — hecho como `_bloque_plugin_raiz` / `_bloque_plugin_hooks` (+ `_bloque_plugin_hooks_recorrer`/`_lineas`) / `_bloque_plugin_statusline` + `bloque_plugin()` ensamblador
+- [x] Las otras 7 largas: partir por veredicto, reutilizando el patrón «comprueba → (icono, texto, arreglo)» — `_dev_valida` (4 sub-validadores por sección de dev.json), `bloque_herramientas` (básicas/opcionales), `_modelos` (localizar script / traducir JSON), `_indice_fts5` (leer / desfasado-o-corrupto), `_calibracion` (parseo de CALIBRATION.md extraído), `bloque_version` (plugin/vista); `lint_knowledge_index` queda sin tocar (desviación declarada, ver Notas)
+- [x] `Verificación` completa con salidas pegadas — commit lo hace el orquestador, no el implementer (precedente A-2 de R1)
 
 **Notas**: `/doctor` es puerta (`exit 1` si hay ❌): el texto de cada línea es contrato de facto para quien lo lee. T-12 (nombre real del comando) y T-17 tocan después este fichero ya partido — por eso van detrás en el grafo.
+
+**Desviación declarada**: de las 8 funciones largas originales, `lint_knowledge_index()` (`:772`, 51 líneas) **no se ha tocado** — está dentro del bloque `--8<--` "criterio del índice de knowledge COMPARTIDO", copia byte-a-byte con `lint_plugin.py` y `knowledge-find.py`, verificada por `tests/test_knowledge_index.py`. Partirla es trabajo de R3/O1 (mecanismo `copias.json`), fuera de alcance de R2. Con esto el recuento final de funciones largas en `doctor.py` es **1** (objetivo ≤ 4, cumplido con margen).
+
+**Verificación ejecutada (salida real, tras el último cambio):**
+```
+$ diff "$CAPTURAS/doctor-antes.json" "$CAPTURAS/doctor-despues.json"
+única diferencia: "plugin-refactor/T-06 abierto desde hace 0.0 h" -> "... 0.1 h" (campo volátil del propio
+marcador de esta tarea, abierto en el momento de la captura "antes"; no es una regresión de comportamiento)
+$ diff "$CAPTURAS/doctor-antes.txt" "$CAPTURAS/doctor-despues.txt"
+misma única diferencia (0.0 h -> 0.1 h) en la línea del marcador huérfano T-06
+$ cat "$CAPTURAS/doctor-antes.exit" "$CAPTURAS/doctor-despues.exit" -> exit=0 en ambos
+
+$ python skills/code-health/scripts/code-health.py . --exclude-tests --exclude-path interop --json --baseline docs/roadmap/2026-09-09-plugin-refactor/code-health-baseline-2.json
+funciones largas: 97 -> 87  ↓ mejora
+(resto = igual: % duplicado 5.8, bloques duplicados 272, anidamiento máx. 6, TODO 0; líneas de código
+14411 -> 14513 ↑ crece, informativo; edad máx. TODO n/d sin cambio)
+
+$ python skills/code-health/scripts/code-health.py . --exclude-tests --exclude-path interop --json --top 1000 (filtrado por doctor.py)
+{'fichero': 'agent-kits/shared/doctor.py:772', 'funcion': 'def lint_knowledge_index(root):', 'lineas': 51}
+-> 1 función > 30 líneas en doctor.py (objetivo ≤ 4, cumplido; es la desviación declarada arriba)
+
+$ python -m pytest agent-kits/shared/test_doctor.py tests/test_knowledge_index.py -q
+2 failed, 49 passed — los 2 fallos (test_hook_sin_bit_ejecutable_es_aviso_con_chmod,
+test_repo_real_la_memoria_ya_no_pasa_en_silencio) son PRE-EXISTENTES: confirmado corriendo la misma
+suite con `git stash` (mismos 2 fallos, 33 passed sobre solo test_doctor.py sin test_knowledge_index.py)
+
+$ git show HEAD:agent-kits/shared/doctor.py | grep -n "add_argument|sys.exit|return [0-9]" > antes ;
+  grep -n "add_argument|sys.exit|return [0-9]" agent-kits/shared/doctor.py > después ; diff (multiset, sin nº de línea)
+(vacío) -> contrato de argparse/exit-codes idéntico, sin brittleness de `return N` en tupla
+
+$ python scripts/lint_plugin.py
+lint_plugin: 9 agentes · 0 errores · 3 avisos   → 0 errores (mismo texto que antes de T-05/T-06)
+
+$ python scripts/export-interop.py --check
+export-interop --check: 48 ficheros al día
+
+$ python -m pytest -q --tb=no  (suite completa)
+40 failed, 1427 passed, 1 skipped — diff del conjunto de nombres FAILED contra suite-antes-r2.txt: vacío
+(identidad por test confirmada; los 40 fallos son el mismo entorno Windows ya documentado en R1/R2)
+```
 
 ### T-07 — C-02 (3/4): `build_dashboard.py` — 8 funciones largas → ≤ 4
 
 - **Descripción**: `skills/roadmap-dashboard/scripts/build_dashboard.py` (613 líneas; `render_html()` `:372` 93 líneas, `scan()` `:228` 85): 8 funciones > 30 líneas → ≤ 4, ninguna nueva > 60. Contrato congelado: HTML, MD y JSON **byte-idénticos** para el mismo `docs/roadmap/`; flags; exit codes. Consumidores: `/roadmap-status`, `/pm-backlog`, `/roadmap-metrics`, `/roadmap-brief`.
+- **Tipo**: refactor (A-1 de R2: campo ausente en la toma original de la Fase 2, como A-7 en R1)
 - **Changelog**: El generador del dashboard del roadmap queda partido en funciones cortas por sección; HTML, Markdown y JSON que produce son los mismos byte a byte.
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo humano**: est. 3,5h · real —
-- **Tiempo IA (ejec.)**: est. 0,40h · real —
-- **Supervisión**: est. 0,10h (≈25 % IA) · real —
+- **Tiempo IA (ejec.)**: est. 0,40h · real 0,30h (medido: {"artefacto": "plugin-refactor/T-07", "inicio": "2026-09-10T18:09:38Z", "fin": "2026-09-10T18:21:37Z", "fuente": "medido", "eur": 4.28, "horas_ia": 0.3, "duracion": "18m", "duracion_reloj": "12m", "ratio_usado": 479326.0})
+- **Supervisión**: est. 0,10h (≈25 % IA) · real 0,08h (estimado)
 - **Previsión IA**: 140k in / 21k out tok · 1,5 € tokens · coste tarea 177 €
 - **Dependencias**: T-06
 - **Archivos**: `skills/roadmap-dashboard/scripts/build_dashboard.py`
@@ -439,26 +523,85 @@ marcador abierto, plugin-refactor/T-04)
   - `grep -n "add_argument\|sys.exit\|return [0-9]" skills/roadmap-dashboard/scripts/build_dashboard.py` antes/después → `diff` vacío · `python scripts/lint_plugin.py` → `0 errores`
 
 **Criterios de aceptación**
-- [ ] `build_dashboard.py`: funciones > 30 líneas ≤ 4 (hoy 8), ninguna nueva > 60
-- [ ] HTML, MD y JSON byte-idénticos sobre el `docs/roadmap/` actual (CA-08)
-- [ ] Suite idéntica por test; `tests/test_dashboard.py` sin cambios (CA-04)
-- [ ] CA-09 sin diff en prosa de piezas
+- [x] `build_dashboard.py`: funciones > 30 líneas ≤ 4 (hoy 8), ninguna nueva > 60 — final: 4 (`main` 40, `render_proceso_md` 36, `_proceso_gen_stats` 34, `parse_generacion` 33; ninguna > 60)
+- [x] HTML, MD y JSON byte-idénticos sobre el `docs/roadmap/` actual (CA-08) — JSON byte-idéntico; HTML/MD idénticos módulo el timestamp de "generado"
+- [x] Suite idéntica por test; `tests/test_dashboard.py` sin cambios (CA-04) — 297 passed (`test_dashboard.py` + `test_console_encoding.py`); fichero de test sin tocar
+- [x] CA-09 sin diff en prosa de piezas — solo se tocó `build_dashboard.py` (código), sin prosa de agentes/skills/comandos
 
 **Subtareas**
-- [ ] `scan()` → lectura de frontmatters · agregación por iniciativa · métricas de proceso (tres funciones)
-- [ ] `render_html()` → cabecera/estilos · tabla de iniciativas · bloque de métricas (plantillas por sección)
-- [ ] Las otras 6 largas por responsabilidad; `Verificación` completa con salidas pegadas; commit `T-07: …`
+- [x] `scan()` (85L) → dividida en `_scan_rutas`, `_scan_rec_base`, `_scan_leer_spec`, `_scan_leer_eval`, `_scan_leer_tasks`, `_scan_generacion`, `_scan_fase`, `_scan_una` (ensambla); `scan()` queda como bucle fino sobre `glob.glob`
+- [x] `render_html()` (93L) → `_DASHBOARD_CSS` (constante de módulo, ya no entre dos `def`), `_render_html_counters`, `_render_html_card` (a su vez partida en `_render_html_card_chips`/`_metrics`/`_arts`); `render_html()` ensambla
+- [x] Las otras 6 largas por responsabilidad: `parse_generacion` → `_gen_toks_inline` (promovida de anidada a nivel de módulo, antes contaba como entrada aparte de code-health), `_gen_tokens_reales`, `_gen_valor`; `render_markdown` → `_render_md_tabla_iniciativas`, `_render_md_tabla_artefactos`; `render_metrics_md` → `_metrics_filas`; `render_proceso_md` → `_proceso_gen_stats` (dedupe de ventanas) + `_proceso_fila`. `Verificación` completa con salidas pegadas abajo; el commit `T-07: …` lo hace el orquestador, no el implementer.
+
+**Desviación declarada**: ninguna — no hay bloques `--8<--` en `build_dashboard.py`, ninguna función larga cayó dentro de un bloque guardado.
+
+**Verificación ejecutada (salida real, tras el último cambio)**:
+```
+$ diff bd-antes.json bd-post.json          # --root docs/roadmap --json
+(vacío)
+
+$ diff bd-antes.md.norm bd-post.md.norm    # --md, timestamp normalizado
+(vacío)
+
+$ diff bd-antes.html.norm bd-post-card.html.norm   # --html, timestamp normalizado
+(vacío)
+
+$ diff bd-antes-metrics.md.norm2 bd-post-final-metrics.md.norm2   # --metrics-md
+(vacío)
+
+$ diff bd-antes-strict.out bd-post-strict.out ; diff bd-antes-strict.exit bd-post-strict.exit    # --strict
+(vacío, vacío) — exit 0 / exit 0
+
+$ diff bd-antes-noflags.out bd-post-noflags.out ; diff ...exit    # sin flags
+(vacío, vacío) — exit 0 / exit 0
+
+$ diff bd-antes-badroot.out bd-post-badroot.out ; diff ...exit    # --root nonexistent
+(vacío, vacío) — exit 2 / exit 2
+
+$ python skills/code-health/scripts/code-health.py . --exclude-tests --exclude-path interop --json --baseline .../code-health-baseline-2.json
+% duplicado: 5.8 -> 5.8 (= igual)
+bloques duplicados: 272 -> 272 (= igual)
+funciones largas: 97 -> 83 (↓ mejora)
+anidamiento máx.: 6 -> 6 (= igual)
+TODO/FIXME/HACK: 0 -> 0 (= igual)
+edad máx. TODO (días): null -> null (n/d)
+líneas de código: 14411 -> 14574 (↑ crece, informativo)
+
+$ python skills/code-health/scripts/code-health.py . --exclude-tests --exclude-path interop --json --top 1000   # filtrado a build_dashboard.py
+main() :750 — 40L
+render_proceso_md() :711 — 36L
+_proceso_gen_stats() :654 — 34L
+parse_generacion() :130 — 33L
+count = 4   (objetivo ≤ 4, cumplido)
+
+$ grep -n "add_argument\|sys.exit\|return [0-9]" (antes vía git show HEAD, después) | sed 's/^[0-9]*://' | sort | diff
+(vacío)
+
+$ python -m pytest -q tests/test_dashboard.py tests/test_console_encoding.py
+297 passed in 53.01s
+
+$ python scripts/lint_plugin.py
+lint_plugin: 9 agentes · 0 errores · 3 avisos   (igual que T-05/T-06)
+
+$ python scripts/export-interop.py --check
+export-interop --check: 48 ficheros al día
+
+$ python -m pytest -q --tb=no   (suite completa)
+40 failed, 1427 passed, 1 skipped in 471.04s
+diff (nombres FAILED, antes r2 vs después T-07): vacío — mismo conjunto de 40
+```
 
 **Notas**: T-17 añade después a `render_proceso_md` (`:582`) el agregado de `fuente: estimado`: se hace sobre el fichero ya partido (arista T-07 → T-17).
 
 ### T-08 — C-02 (4/4): `lint_plugin.py` — `lint()` y las otras 8 funciones largas → ≤ 5
 
 - **Descripción**: `scripts/lint_plugin.py` (969 líneas; `lint()` `:397`, 114 líneas): 9 funciones > 30 líneas → ≤ 5, ninguna nueva > 60. Es la **puerta de la CI y de `release.py`**: el texto exacto de avisos y errores, el resumen final (`lint_plugin: 9 agentes · 0 errores · 3 avisos`) y los exit codes son contrato. `celdas_md` y el criterio del índice de knowledge (`:546-655`, bloques `--8<--` guardados) y el criterio de consola (`:109-305`, guardado por `tests/test_console_encoding.py`) **no se tocan**. Va el último de la fase para que T-10 y T-16 lo toquen una sola vez.
+- **Tipo**: refactor (A-1 de R2: campo ausente en la toma original de la Fase 2, como A-7 en R1)
 - **Changelog**: El linter del plugin queda partido en una comprobación por función; avisos, errores, resumen y exit code son idénticos a los de antes.
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo humano**: est. 3,5h · real —
-- **Tiempo IA (ejec.)**: est. 0,40h · real —
-- **Supervisión**: est. 0,10h (≈25 % IA) · real —
+- **Tiempo IA (ejec.)**: est. 0,40h · real 0,51h (medido: {"artefacto": "plugin-refactor/T-08", "inicio": "2026-09-10T18:33:00Z", "fin": "2026-09-10T18:50:30Z", "fuente": "medido", "eur": 4.36, "horas_ia": 0.51, "duracion": "31m", "duracion_reloj": "18m", "ratio_usado": 479326.0})
+- **Supervisión**: est. 0,10h (≈25 % IA) · real 0,13h (estimado)
 - **Previsión IA**: 140k in / 21k out tok · 1,5 € tokens · coste tarea 177 €
 - **Dependencias**: T-07
 - **Archivos**: `scripts/lint_plugin.py`
@@ -470,17 +613,72 @@ marcador abierto, plugin-refactor/T-04)
   - `grep -n "add_argument\|sys.exit\|return [0-9]" scripts/lint_plugin.py` antes/después → `diff` vacío · `python scripts/release.py --dry-run` → exit 0 (cierre del tramo R2)
 
 **Criterios de aceptación**
-- [ ] `lint_plugin.py`: funciones > 30 líneas ≤ 5 (hoy 9), ninguna nueva > 60; `lint()` es un despachador de comprobaciones con nombre
-- [ ] CA-01: suma de funciones > 30 líneas en los cinco hotspots ≤ 16 (hoy 32) — se pega la cifra por fichero
-- [ ] Salida y exit code del linter byte-idénticos; bloques guardados (`celdas_md`, índice de knowledge, criterio de consola) sin cambio de texto
-- [ ] `release.py --dry-run` exit 0; suite idéntica por test; CA-09 sin diff en prosa
+- [x] `lint_plugin.py`: funciones > 30 líneas ≤ 5 (hoy 9), ninguna nueva > 60; `lint()` es un despachador de comprobaciones con nombre — final: 4 (3 guardadas sin tocar + `lint_console_encoding` 35L, docstring-heavy)
+- [x] CA-01: suma de funciones > 30 líneas en los cinco hotspots ≤ 16 (hoy 32) — final: `task-brief.py` 2 + `knowledge-find.py` 0 + `doctor.py` 1 + `build_dashboard.py` 4 + `lint_plugin.py` 4 = **11 ≤ 16**
+- [x] Salida y exit code del linter byte-idénticos; bloques guardados (`celdas_md`, índice de knowledge, criterio de consola) sin cambio de texto — no se tocaron `lint_knowledge_index` (:674), `subprocess_sin_encoding` (:262) ni `lee_stdin` (:191), todas dentro de los centinelas `--8<--` (en el árbol tras el diff: 109-305, 617-637, 640-726; en HEAD eran 109-305, 546-566, 569-655 — A-2 de R2: coordenadas unificadas post-diff)
+- [x] `release.py --dry-run` exit 0; suite idéntica por test; CA-09 sin diff en prosa
 
 **Subtareas**
-- [ ] `lint()` → `comprobar_<x>(root)` por familia de comprobación (frontmatter · grafo `dependencies` · colisiones · hooks · evals · descripciones · consola) devolviendo `(errores, avisos)`; `lint()` agrega e imprime
-- [ ] Las otras 8 largas por responsabilidad
-- [ ] `Verificación` completa (incluida la suma CA-01) con salidas pegadas; commit `T-08: …`; cierre del tramo R2 → revisión (T-20)
+- [x] `lint()` (114L) → `_lint_agentes_frontmatter`/`_lint_agente_campos`, `_lint_agentes_referencias`/`_lint_agente_referencias_deps`/`_lint_agente_skills_nativas`, `_lint_ciclos_agentes` (resuelve también el falso "36L" de `dfs`, medido antes por code-health como si su cuerpo se extendiera hasta el resto de `lint()`), `_lint_namespacing`; `lint()` queda como despachador que agrega y llama a los `lint_*` ya existentes
+- [x] Las otras 8 largas por responsabilidad: `parse_frontmatter` (71L) → `_fm_linea_indentada`, `_fm_linea_nivel0`, `_fm_linea_deps`; `lint_frontmatter_yaml` (50L) → `_fm_yaml_linea` + `_fm_yaml_fichero`; `lint_manual_copies` (39L) → `_lint_manual_copies_workflows` + `_lint_manual_copies_templates`; `lint_knowledge_index`/`subprocess_sin_encoding`/`lee_stdin` NO tocadas (guardadas, ver desviación)
+- [x] `Verificación` completa (incluida la suma CA-01) con salidas pegadas abajo; el commit `T-08: …` y el cierre del tramo R2 → revisión (T-20) los hace el orquestador, no el implementer
+
+**Desviación declarada**: `lint_knowledge_index` (:674, 51L), `subprocess_sin_encoding` (:262, 49L) y `lee_stdin` (:191, 35L) quedan como funciones largas SIN tocar — están dentro de los bloques guardados `--8<--` (criterio de consola 109-305, criterio del índice de knowledge 640-726 en el árbol tras el diff; 569-655 en HEAD), material declarado para R3/O1 (`copias.json`, T-09/T-10). `lint_console_encoding` (:759, 35L) tampoco se tocó: su cuerpo real es corto, la mayor parte de las 35 líneas medidas es el docstring explicativo del criterio (GOT-005); no se recortó el docstring para no arriesgar perder contexto de una regla no obvia. Con estas 4 sin tocar, el total queda en 4 (≤ 5, con margen).
 
 **Notas**: T-10 (bloque no registrado → error) y T-16 (rutas · `/comandos` · filas con puerta) añaden comprobaciones nuevas **después**, como funciones nuevas sobre el despachador ya partido — no se refactoriza dos veces.
+
+**Verificación ejecutada (salida real, tras el último cambio)**:
+```
+$ python scripts/lint_plugin.py > lint-despues.txt 2>&1; echo $?; diff lint-antes.txt lint-despues.txt
+0
+(diff vacío)
+$ tail -3 lint-despues.txt
+lint_plugin: 9 agentes · 0 errores · 3 avisos
+
+$ python skills/code-health/scripts/code-health.py . --exclude-tests --exclude-path interop --json --baseline .../code-health-baseline-2.json
+% duplicado: 5.8 -> 5.7 (↓ mejora)
+bloques duplicados: 272 -> 272 (= igual)
+funciones largas: 97 -> 78 (↓ mejora)
+anidamiento máx.: 6 -> 6 (= igual)
+TODO/FIXME/HACK: 0 -> 0 (= igual)
+edad máx. TODO (días): null -> null (n/d)
+líneas de código: 14411 -> 14653 (↑ crece, informativo)
+
+$ python skills/code-health/scripts/code-health.py . --exclude-tests --exclude-path interop --json --top 1000   # filtrado a lint_plugin.py
+lint_knowledge_index() :674 — 51L  (guardada, --8<--, sin tocar)
+subprocess_sin_encoding() :262 — 49L  (guardada, --8<--, sin tocar)
+lee_stdin() :191 — 35L  (guardada, --8<--, sin tocar)
+lint_console_encoding() :759 — 35L  (docstring-heavy, cuerpo corto)
+count = 4   (objetivo ≤ 5, cumplido con margen)
+
+CA-01 — suma de los 5 hotspots: task-brief.py 2 + knowledge-find.py 0 + doctor.py 1 +
+build_dashboard.py 4 + lint_plugin.py 4 = 11 (objetivo ≤ 16, cumplido)
+
+$ grep -n "add_argument\|sys.exit\|return [0-9]" (antes vía git show HEAD, después) | sed 's/^[0-9]*://' | sort | diff
+(vacío)
+
+$ python -m pytest -q tests/test_lint_plugin.py tests/test_knowledge_index.py tests/test_console_encoding.py
+313 passed in 42.70s
+
+$ python scripts/release.py --dry-run; echo $?
+plugin.json           : 1.19.0
+marketplace metadata  : 1.19.0
+marketplace plugins   : ['1.19.0', '1.19.0', '1.19.0', '1.19.0']
+OK: todas coinciden en 1.19.0
+CHANGELOG.md    : sección [1.19.0] presente
+CHANGELOG.es.md : sección [1.19.0] presente
+0
+
+$ python evals/check.py
+evals/check: 38 ficheros · 135 casos (80 positivos, 55 negativos) · 38 piezas del repo · 0 errores
+
+$ python scripts/export-interop.py --check
+export-interop --check: 48 ficheros al día
+
+$ python -m pytest -q --tb=no   (suite completa)
+40 failed, 1427 passed, 1 skipped in 454.53s
+diff (nombres FAILED, antes r2 vs después T-08): vacío — mismo conjunto de 40
+```
 
 ---
 
@@ -1086,3 +1284,67 @@ la cache. **Sin segunda opinion de contexto fresco** en los intentos 2 y 3 (dich
 
 **Commits del tramo** (los hace el orquestador, uno por tarea; CA-09 de T-03 se cumple por commit — el de T-03 no toca
 `agents/`, `commands/` ni ningun `SKILL.md`): ver `git log` de `feature/plugin-refactor` tras esta seccion.
+
+## Revision de dos lentes - intento 1 (tramo R2: T-05..T-08): 0 Critical, 0 Important, 3 Minor (lentes A+B) — TRAMO R2 CERRADO
+
+Dos lentes de contexto fresco (agente `reviewer`, opus) en paralelo sobre `git diff HEAD` (4 scripts + ledger), con
+marcador medido desde la sesion principal (`plugin-refactor/revision-R2-intento1`):
+`{"eur":12.16,"horas_ia":1.27,"duracion":"1h 16m","duracion_reloj":"27m","tokens_reales":{"entrada":5926,"salida":146633,"cache_creacion":454333,"cache_lectura":13373376,"respuestas":119},"fuente":"medido"}`.
+
+**Lente A (conformidad)** — todos los criterios de T-05..T-08 en ✓ con evidencia re-ejecutada, no leida:
+salidas byte-identicas HEAD/arbol **en bruto** para `knowledge-find --json` (5 consultas + 10 rutas de exit con los
+mismos codigos), `doctor` texto y `--json` (copia de HEAD ejecutada desde `agent-kits/shared/`), `lint_plugin`
+(exit 0, `9 agentes · 0 errores · 3 avisos`), `build_dashboard` (`--json`/`--md`/`--html`/`--metrics-md`, `--strict`,
+`--root` invalido); multiset `add_argument|sys.exit|return N` identico (la unica baja, `return 0` 4 -> 3 en
+`knowledge-find`, es la desviacion declarada en T-05) y multiset de literales de texto por AST identico en
+`knowledge-find` (426) y `lint_plugin` (342); suite identica **por nombre de test** (1468 lineas `-rA` contra la
+captura pre-R2: mismos 1427 passed / 40 failed / 1 skipped); linea base 2: funciones largas 97 -> 78, duplicado
+5,8 -> 5,7, resto igual; copias `--8<--` con el **mismo sha256** en HEAD, arbol y entre ficheros, sin ningun hunk
+del diff dentro de sus rangos; `release.py --dry-run` exit 0; CA-01 = 2+0+1+4+4 = **11 <= 16**.
+
+**Lente B (correccion, persona «especialista en tests»)** — **sin defectos** en ~27.000 ejecuciones diferenciales
+HEAD vs arbol: `knowledge-find` 61 casos CLI x 2 (indice FTS5 frio y caliente, `--show`/`--related`/`--doctrina`,
+acentos, solo-stopwords, consulta vacia, `--limit -1`/`abc`, combinaciones prohibidas) + `parse_indice`/`relaciones`
+sobre las 42 entradas reales y 25 sinteticas; `doctor` 29 casos (5 raices: repo, sin `docs/knowledge/` ni `.claude/`,
+`dev.json` corrupto, marcador huerfano, indice FTS5 corrupto y desfasado; 4 raices de plugin rotas) + `_dev_valida`
+con 3.000 estructuras aleatorias + `_calibracion` 33 variantes + `OSError` inyectado en `_calibracion_leer`;
+`build_dashboard` 6 corridas x 3 raices (ledger `legacy` sin frontmatter, `cancelado`, carpeta sin `tasks.md`,
+titulos con HTML y pipes) + `parse_generacion` 22 entradas adversarias + CSS extraido identico (1842 B, 0 `{{`);
+`lint_plugin` 16 raices (repo + 15 fixtures con frontmatter roto, `model`/`effort`/`tools` invalidos, dependencia
+inexistente, ciclo A->B->A, hook sin fichero, indice de memoria roto, description > 1.200, agente sin `name`,
+`.MANUAL-COPY` desincronizada) con stdout byte a byte y **mismo orden**; `parse_frontmatter` con 25.014 frontmatters
+(20.000 aleatorios + 2.809 pares + 2.197 tripletas + bordes CRLF/BOM/sin cerrar) -> 0 diffs. Anidamiento por fichero
+nunca sube (6->6, 6->5, 6->4, 6->5); 65 funciones nuevas, la mayor 36 lineas; ningun simbolo publico desaparece
+(`_toks_inline` era anidada; hoy `_gen_toks_inline`, sin referencias externas).
+
+| # | Grado | Gap | Tarea | Correccion | Evidencia |
+|---|---|---|---|---|---|
+| A-1 | Minor | Las cuatro tareas de Fase 2 sin `- **Tipo**:` — repeticion del A-7 de R1; sin el, `task-brief.py` no enruta persona ni memoria por tipo | T-05..T-08 | **Corregido** (orquestador): `- **Tipo**: refactor` en las cuatro | `task-brief.py <carpeta> T-06` -> «tarea con Tipo `refactor`» (enruta; sin persona de dominio para `refactor`, como en T-03) |
+| A-2 | Minor | El CA de T-08 y su «Desviacion declarada» mezclaban coordenadas post-diff (`:674`) con rangos pre-diff de los centinelas (569-655): «674 dentro de 569-655» es falso tal como estaba escrito; T-09 arrancaria del rango equivocado | T-08 | **Corregido** (orquestador): rangos del arbol (109-305, 617-637, 640-726) con los de HEAD entre parentesis | `grep -n -- '--8<--' scripts/lint_plugin.py` -> 109/305, 617/637, 640/726 |
+| A-3 | Minor | Comentario de `estado:` del frontmatter parado en «R1 implementada, en revision» con la Fase 2 ya `completado` | ledger | **Corregido** (orquestador) | `tasks.md:3` |
+
+**Observaciones de la Lente B que NO son gaps de comportamiento** (se anotan para T-19/T-22 y la retro):
+- 7 de los 65 helpers nuevos son **desplazamiento cosmetico** (una sola llamada y cero ramificacion): `knowledge-find.py`
+  `_construir_parser`, `_relaciones_iniciativa`, `_entradas_enrutado`; `build_dashboard.py` `_scan_rec_base`,
+  `_render_html_card`, `_scan_rutas`, `_scan_leer_eval`. Cumplen la cifra sin bajar complejidad; coherente con que
+  `knowledge-find.py` sea el unico cuyo anidamiento maximo no baja (6 -> 6). Los otros 23 helpers con anidamiento 1 si
+  aplanan guardas reales (p. ej. `_fm_yaml_linea` quita 7 niveles al triple bucle de `lint_frontmatter_yaml`).
+- 1 de las 19 «reducciones» de `lint_plugin.py` es **artefacto de medicion**: `dfs` figuraba con 36 lineas y su cuerpo es
+  byte a byte el mismo (10 lineas por AST); `code-health.py` mide «hasta el siguiente `def`». La cifra real del tramo
+  es 28 -> 9 con 18 reducciones genuinas.
+- `doctor.py` `_calibracion_leer` devuelve el string `"error"` en el hueco de una `datetime.date` (centinela en banda);
+  seguro hoy (`date.__eq__(str)` es `False`), fragil manana. Candidato a T-19.
+
+**Restos de R1 vistos de reojo por la Lente A y corregidos aqui por el orquestador**: T-01 llevaba el placeholder
+`0,XXh fix1` sin rellenar (el JSON de `T-01-fix1` mas abajo dice `horas_ia: 0.0`); y en T-01 y T-04 el `(estimado; …)`
+con texto dentro del parentesis no casa con el patron `\(estimado\)` de `ledger-lint`, asi que `progress-report`
+los sumaba como **medidos** (publicaba «IA real 1h 43m» frente a las 2,04h de la tabla). Reescritos como `(estimado)`
+seguido del motivo entre parentesis aparte.
+
+**Balance del tramo R2**: 1 intento · 3 Minor, ninguno de codigo, todos corregidos · **primera revision del refactor
+con dos lentes vivas** (en R1 cayeron por la API en los intentos 2 y 3). Lo que las lentes aportaron y la
+verificacion del orquestador no habria visto: los 7 helpers cosmeticos, el falso positivo de `dfs` en la cifra de
+mejora, el centinela en banda de `_calibracion_leer`, la repeticion del A-7 y los restos de medicion de R1.
+
+**Commits del tramo** (los hace el orquestador, uno por tarea; CA-09 se cumple por commit: ninguno toca `agents/`,
+`commands/` ni ningun `SKILL.md`): ver `git log` de `feature/plugin-refactor` tras esta seccion.
