@@ -303,14 +303,19 @@ def _recorte_seguro(contenido, tope):
         n -= 1
     texto = "".join(lineas[:n])
     if n < len(lineas):
-        siguiente = lineas[n]
-        estado_previo = estados[n - 1] if n > 0 else (False, False)
-        es_marcador = bool(re.match(r"^\s*(```|~~~)", siguiente)) or "<!--" in siguiente or "-->" in siguiente
-        if not es_marcador and not estado_previo[0] and not estado_previo[1]:
-            restante = tope - len(texto)
-            if restante > 0:
-                texto += siguiente[:restante]
+        texto = _aprovecha_margen_de_linea(texto, lineas[n], estados[n - 1] if n > 0 else (False, False), tope)
     return texto.rstrip(), True
+
+
+def _aprovecha_margen_de_linea(texto, siguiente, estado_previo, tope):
+    """Si tras el corte por líneas sobra margen (una línea/párrafo más largo que `tope`), lo aprovecha
+    con un corte por CARÁCTER de `siguiente` — pero solo si esa línea no es ella misma un marcador de
+    fence/comentario y no venimos de una estructura abierta (evita dejar un `` ` `` o `<!--` truncado)."""
+    es_marcador = bool(re.match(r"^\s*(```|~~~)", siguiente)) or "<!--" in siguiente or "-->" in siguiente
+    if es_marcador or estado_previo[0] or estado_previo[1]:
+        return texto
+    restante = tope - len(texto)
+    return texto + siguiente[:restante] if restante > 0 else texto
 
 
 def _neutraliza_encabezados(texto):
@@ -677,7 +682,7 @@ def _seccion_plan(plan_text, titulo_re):
     return "\n".join(ln for ln, _ in lineas[ini:fin]).rstrip() + "\n"
 
 
-def main(argv=None):
+def _parse_args(argv):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("carpeta", help="carpeta de la iniciativa (docs/roadmap/<fecha>-<slug>)")
     ap.add_argument("tarea", help="ID de la tarea (T-XX)")
@@ -695,58 +700,56 @@ def main(argv=None):
     ap.add_argument("--dev-json", default=None, help="ruta explícita de .claude/dev.json (default: derivada de la carpeta)")
     ap.add_argument("--knowledge-find", default=None,
                     help="ruta de knowledge-find.py (default: el del mismo kit; solo para tests)")
-    args = ap.parse_args(argv)
+    return ap.parse_args(argv)
 
-    tid = args.tarea.upper()
-    if not re.fullmatch(r"T-\d+", tid):
-        print(f"❌ id de tarea inválido: {args.tarea} (esperado T-XX)", file=sys.stderr)
-        return 1
-    tasks_p = os.path.join(args.carpeta, "tasks.md")
-    plan_p = os.path.join(args.carpeta, "improvement-plan.md")
+
+def _validar_ledger(tasks_p, sin_lint):
+    """`None` si es válido para seguir; en caso contrario, el exit code a devolver."""
     if not os.path.isfile(tasks_p):
         print(f"❌ no existe {tasks_p}", file=sys.stderr)
         return 1
+    if sin_lint:
+        return None
+    lint = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ledger-lint.py")
+    if not os.path.isfile(lint):
+        return None
+    r = subprocess.run([sys.executable, lint, tasks_p],
+                       capture_output=True, text=True, encoding="utf-8", errors="replace")
+    if r.returncode != 0:
+        print("❌ ledger inválido — arregla tasks.md antes de despachar "
+              f"(ledger-lint exit {r.returncode}):\n{r.stdout}{r.stderr}",
+              file=sys.stderr)
+        return 2
+    return None
 
-    if not args.sin_lint:
-        lint = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ledger-lint.py")
-        if os.path.isfile(lint):
-            r = subprocess.run([sys.executable, lint, tasks_p],
-                               capture_output=True, text=True, encoding="utf-8", errors="replace")
-            if r.returncode != 0:
-                print("❌ ledger inválido — arregla tasks.md antes de despachar "
-                      f"(ledger-lint exit {r.returncode}):\n{r.stdout}{r.stderr}",
-                      file=sys.stderr)
-                return 2
 
-    tasks_text = open(tasks_p, encoding="utf-8", errors="replace").read()
-    chunk, fase = _seccion_tarea(tasks_text, tid)
-    if not chunk:
-        print(f"❌ tarea {tid} no encontrada en {tasks_p}", file=sys.stderr)
-        return 1
-
+def _seccion_cabecera(tid, carpeta, tasks_p, fase):
     out = [f"# Brief de implementación — {tid}", ""]
-    out.append(f"Iniciativa: `{args.carpeta}` · Ledger canónico: `{tasks_p}`. "
+    out.append(f"Iniciativa: `{carpeta}` · Ledger canónico: `{tasks_p}`. "
                "**NO toques el ledger**: lo actualiza el orquestador; tú limítate a "
                "reportar tu estado final (contrato de abajo).")
     if fase:
-        out += ["", f"## Contexto de fase", "", f"> {fase.lstrip('# ').strip()}"]
+        out += ["", "## Contexto de fase", "", f"> {fase.lstrip('# ').strip()}"]
+    return out
 
-    # persona de dominio (iniciativa subagent-personas): opcional por etiqueta Tipo. NO se inserta
-    # todavía (gap B-3, revisión intento 2): el tope efectivo depende del margen que de verdad quede
-    # tras montar el RESTO del brief, así que se resuelve la cascada ahora y se inserta al final,
-    # en `persona_insert_idx`, una vez conocido ese resto.
+
+def _preparar_persona(chunk, args, out_len_tras_cabecera):
+    """Resuelve la cascada de persona (opcional, por `- **Tipo**:`) SIN insertarla todavía (gap B-3,
+    revisión intento 2): el tope efectivo depende del margen que de verdad quede tras montar el RESTO
+    del brief, así que `presupuesto_persona()` la inserta al final en el índice que aquí se calcula."""
     tipo = _tipo_de_tarea(chunk)
-    persona_contenido = persona_ruta = None
-    persona_insert_idx = None
-    if tipo:
-        personas_dir = args.personas_dir or os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "personas")
-        persona_contenido, persona_ruta = _persona_cascada(tipo, personas_dir, carpeta=args.carpeta)
-        if persona_contenido:
-            persona_insert_idx = len(out)
+    if not tipo:
+        return tipo, None, None, None
+    personas_dir = args.personas_dir or os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "personas")
+    persona_contenido, persona_ruta = _persona_cascada(tipo, personas_dir, carpeta=args.carpeta)
+    insert_idx = out_len_tras_cabecera if persona_contenido else None
+    return tipo, persona_contenido, persona_ruta, insert_idx
 
-    # verificación declarada (plan-and-diet T-02): se lee ANTES de emitir la tarea, porque el bloque de la
-    # tarea la sustituye por un puntero a la sección (una vez en el brief, no dos)
+
+def _resolver_verificacion(chunk):
+    """Lee la `Verificación` declarada ANTES de emitir la tarea, porque el bloque de la tarea la
+    sustituye por un puntero a la sección (una vez en el brief, no dos). Devuelve `(verif, chunk_brief)`."""
     verif = _verificacion_de_tarea(chunk)
     if verif:
         items_red = [x for x in verif["items"] if _es_evidencia_red(x)]
@@ -756,10 +759,12 @@ def main(argv=None):
             # solo evidencia RED: no hay comando que ejecutar; la sección lo dice como «no declara»
             verif = None
     chunk_brief = _chunk_sin_presupuesto(_chunk_sin_verificacion(chunk, len(verif["items"])) if verif else chunk)
+    return verif, chunk_brief
 
-    out += ["", "## La tarea (de tasks.md — tus criterios de aceptación son EL contrato)",
-            "", chunk_brief]
 
+def _seccion_tarea_y_gaps(chunk_brief, tasks_text, tid):
+    out = ["", "## La tarea (de tasks.md — tus criterios de aceptación son EL contrato)",
+           "", chunk_brief]
     # gaps pendientes (roles-and-jira-flow T-03): redespacho tras una revisión con gaps para ESTA tarea
     gaps = _gaps_pendientes_de_tarea(tasks_text, tid)
     if gaps:
@@ -774,36 +779,41 @@ def main(argv=None):
                 "señalamiento contra el código y la spec. Si es correcto, corrígelo. Si es INCORRECTO, "
                 "**rebátelo con evidencia** (`fichero:línea` + por qué está bien como está) en tu informe "
                 "— no lo apliques a ciegas ni lo descartes sin evidencia.", ""]
+    return out
 
-    # verificación declarada (plan-and-diet T-02): el subagente la ejecuta al terminar y pega la salida
-    if verif:
-        out += ["## Verificación (ejecútala al terminar y pega la salida)", ""]
-        out += [f"- {item}" for item in verif["items"]]
-        out += ["",
-                "Ejecuta EXACTAMENTE esa verificación (todos los ítems) cuando creas haber terminado y pega su "
-                "salida real en tu informe (no «debería pasar»: el resultado). Si no pasa, la tarea NO está `DONE`."]
-        if verif["ejecutada"]:
-            out += ["", f"> Verificación ya ejecutada antes ({verif['ejecutada'].split(' — ')[0]}): "
-                        "**re-ejecútala** — la salida grabada en el ledger es de otra sesión, no vale como evidencia tuya."]
-        if verif.get("omitidos_red"):
-            out += ["", f"> {verif['omitidos_red']} ítem(s) `RED: …` de la ejecución anterior omitido(s): son evidencia "
-                        "del rojo de otra sesión, no comandos; si TDD está activo, produce tu propio rojo."]
-        out += [""]
-    else:
-        out += ["## Verificación", "",
+
+def _seccion_verificacion(verif):
+    if not verif:
+        return ["## Verificación", "",
                 "> (la tarea no declara `Verificación`: propón una en tu informe — un comando y su resultado "
                 "esperado — y ejecútala antes de reportar `DONE`.)", ""]
+    out = ["## Verificación (ejecútala al terminar y pega la salida)", ""]
+    out += [f"- {item}" for item in verif["items"]]
+    out += ["",
+            "Ejecuta EXACTAMENTE esa verificación (todos los ítems) cuando creas haber terminado y pega su "
+            "salida real en tu informe (no «debería pasar»: el resultado). Si no pasa, la tarea NO está `DONE`."]
+    if verif["ejecutada"]:
+        out += ["", f"> Verificación ya ejecutada antes ({verif['ejecutada'].split(' — ')[0]}): "
+                    "**re-ejecútala** — la salida grabada en el ledger es de otra sesión, no vale como evidencia tuya."]
+    if verif.get("omitidos_red"):
+        out += ["", f"> {verif['omitidos_red']} ítem(s) `RED: …` de la ejecución anterior omitido(s): son evidencia "
+                    "del rojo de otra sesión, no comandos; si TDD está activo, produce tu propio rojo."]
+    out += [""]
+    return out
 
+
+def _seccion_memoria(carpeta, chunk, tipo, knowledge_find):
     # memoria técnica (memory-retrieval T-05): aciertos enrutados por Tipo/título/iniciativa, con tope y en silencio
-    memoria = _memoria_tecnica(args.carpeta, chunk, tipo, args.knowledge_find)
-    if memoria:
-        out += [memoria]      # un solo elemento: quitarlo deja el brief byte a byte como sin memoria (CA-09)
+    memoria = _memoria_tecnica(carpeta, chunk, tipo, knowledge_find)
+    return [memoria] if memoria else []      # un solo elemento: quitarlo deja el brief byte a byte como sin memoria (CA-09)
 
-    diseno = _design_elegida(args.carpeta)
+
+def _seccion_diseno_y_arquitectura(carpeta, plan_p):
+    out = []
+    diseno = _design_elegida(carpeta)
     if diseno:
         out += [f"## Diseño (design.md · opción elegida {diseno[0]})", "", diseno[1],
                 "", "Respeta esta opción: no rediseñes; una duda de arquitectura es `DONE_WITH_CONCERNS`, no un cambio.", ""]
-
     if os.path.isfile(plan_p):
         plan_text = open(plan_p, encoding="utf-8", errors="replace").read()
         arq = _seccion_plan(plan_text, r"Arquitectura")
@@ -811,80 +821,144 @@ def main(argv=None):
             out += ["## Arquitectura de la solución (de improvement-plan.md)", "", arq]
     else:
         out += ["> (Sin improvement-plan.md — iniciativa de vía rápida: el ledger es todo el plan.)", ""]
+    return out
 
-    # constitución: ruta explícita, o derivada de la carpeta de la iniciativa
-    # (docs/roadmap/<slug> → <raíz>/docs/CONSTITUTION.md), o el cwd como último recurso
+
+def _seccion_constitucion(args):
+    # ruta explícita, o derivada de la carpeta de la iniciativa (docs/roadmap/<slug> →
+    # <raíz>/docs/CONSTITUTION.md), o el cwd como último recurso
     candidatas = ([args.constitucion] if args.constitucion else [
         os.path.join(os.path.dirname(os.path.dirname(
             os.path.dirname(os.path.abspath(args.carpeta)))), "docs", "CONSTITUTION.md"),
         os.path.join("docs", "CONSTITUTION.md"),
     ])
     const_p = next((c for c in candidatas if c and os.path.isfile(c)), None)
-    if const_p:
-        const = open(const_p, encoding="utf-8", errors="replace").read()
-        out += ["## Constitución del proyecto (principios OBLIGATORIOS)", "", const.rstrip(), ""]
+    if not const_p:
+        return []
+    const = open(const_p, encoding="utf-8", errors="replace").read()
+    return ["## Constitución del proyecto (principios OBLIGATORIOS)", "", const.rstrip(), ""]
 
+
+def _seccion_tdd(args):
     if args.tdd or _tdd_activo(args.carpeta, args.dev_json):
-        out += ["", TDD_BRIEF]
+        return ["", TDD_BRIEF]
+    return []
 
+
+def presupuesto_persona(out, persona_insert_idx, tipo, persona_ruta, persona_contenido, carpeta):
+    """Función única para las TRES reglas del presupuesto de la persona de dominio (revisión intento 3:
+    una cuarta constante, `PERSONA_TOPE_MINIMO_UTIL`, resultó código muerto y se retiró):
+    `PERSONA_TOPE_CHARS` (techo de sanidad), `PERSONA_SUELO_CHARS` (mínimo de contenido garantizado) y
+    el margen dinámico que de verdad queda tras montar el RESTO del brief (`out` ya completo salvo la
+    persona). El overhead del envoltorio se MIDE con una sonda de un carácter, no se estima a mano: una
+    fórmula manual desajustada fue justo lo que hizo que el gap B-1 tumbase este mismo tope en dos
+    tareas de `2026-09-04-memory-retrieval`. Devuelve `(out, resto_sin_persona)`: si no hay persona que
+    insertar, `resto_sin_persona` es `None` (el llamador usa `len(texto)` como causa del exceso)."""
+    if persona_insert_idx is None:
+        return out, None
+    resto = len("\n".join(out))
+    ruta_aviso = _ruta_para_aviso(persona_ruta, carpeta)
+    sonda = _persona_delimitada(tipo, "P", ruta_aviso, BRIEF_TOPE_CHARS)
+    out_con_sonda = out[:persona_insert_idx] + sonda + out[persona_insert_idx:]
+    overhead = len("\n".join(out_con_sonda)) - resto - 1  # -1: el carácter "P" de la sonda
+    margen_real = BRIEF_TOPE_CHARS - resto - overhead
+    # opción A (gap B-3, intento 3): el suelo manda sobre el margen cuando el margen se queda corto —
+    # nunca al revés. Si sobra margen de verdad (por encima del suelo), se usa ese margen (capado por
+    # PERSONA_TOPE_CHARS); si no, la persona conserva como mínimo PERSONA_SUELO_CHARS de CONTENIDO
+    # aunque eso empuje el brief por encima de BRIEF_TOPE_CHARS (gap B-4: el suelo es del contenido, la
+    # nota de recorte va aparte).
+    tope_cuerpo = max(PERSONA_SUELO_CHARS, min(PERSONA_TOPE_CHARS, margen_real))
+    bloque = _persona_delimitada(tipo, persona_contenido, ruta_aviso, tope_cuerpo)
+    if bloque:
+        out[persona_insert_idx:persona_insert_idx] = bloque
+    return out, resto
+
+
+def _avisa_si_excede_tope(tid, texto, resto_sin_persona):
+    # aviso con causa MEDIDA sobre el brief YA MONTADO (gap B-6): particiona `texto` por sus líneas
+    # `## ` — es lo que mediría el orquestador desde fuera — en vez de re-estimar cada sección con su
+    # fragmento de origen (`len(diseno[1])` omite cabecera y cierre; una reconstrucción a mano del
+    # formato de la tabla de gaps no es el formato real).
+    if len(texto) <= BRIEF_TOPE_CHARS:
+        return
+    secciones = _secciones_por_encabezado(texto)
+    len_diseno = _longitud_seccion(secciones, "## Diseño")
+    len_memoria = _longitud_seccion(secciones, "## Memoria")
+    len_tarea_gaps = (_longitud_seccion(secciones, "## La tarea")
+                       + _longitud_seccion(secciones, "## Gaps pendientes"))
+    len_persona = _longitud_seccion(secciones, "## Persona de dominio")
+    # gap B-5: la causa se bifurca sobre el RESTO sin persona, no se afirma a ciegas ni el suelo ni un
+    # exceso preexistente. Si el resto YA cabía en el tope, el suelo de la persona es la ÚNICA causa del
+    # exceso — decirlo, no exonerar a la persona con una frase falsa. Si el resto YA se pasaba del tope
+    # sin persona, el exceso es preexistente (diseño/memoria/tarea+gaps) y la persona no es la causa.
+    resto = resto_sin_persona if resto_sin_persona is not None else len(texto)
+    if resto <= BRIEF_TOPE_CHARS:
+        print(f"⚠️  brief de {tid}: {len(texto)} caracteres, por encima de BRIEF_TOPE_CHARS="
+              f"{BRIEF_TOPE_CHARS} (CA-08). Causa: la persona en su suelo ({len_persona}) empuja "
+              f"el brief a {len(texto)} > {BRIEF_TOPE_CHARS}; decisión opción A (2026-09-09): la "
+              "persona no se recorta por debajo del suelo.", file=sys.stderr)
+    else:
+        exceso = resto - BRIEF_TOPE_CHARS
+        print(f"⚠️  brief de {tid}: {len(texto)} caracteres, por encima de BRIEF_TOPE_CHARS="
+              f"{BRIEF_TOPE_CHARS} (CA-08). Causa: exceso preexistente de {exceso} caracteres SIN "
+              f"persona (diseño={len_diseno} memoria={len_memoria} tarea+gaps={len_tarea_gaps}); "
+              f"la persona ({len_persona}) no es la causa. No lo arregla este script; el "
+              "subagente recibe el brief igual.", file=sys.stderr)
+
+
+def _resolver_rutas(args):
+    """Deriva las rutas del ledger/plan de la iniciativa y valida el ledger. Devuelve `(tasks_p,
+    plan_p, exit_code)`; `exit_code` no `None` cuando hay que abortar (el llamador solo comprueba eso)."""
+    tasks_p = os.path.join(args.carpeta, "tasks.md")
+    plan_p = os.path.join(args.carpeta, "improvement-plan.md")
+    return tasks_p, plan_p, _validar_ledger(tasks_p, args.sin_lint)
+
+
+def _tarea_no_encontrada(tid, tasks_p):
+    print(f"❌ tarea {tid} no encontrada en {tasks_p}", file=sys.stderr)
+    return 1
+
+
+def _cargar_chunk(tasks_p, tid):
+    """Lee `tasks.md` (ya validado por `_resolver_rutas`) y extrae el chunk de la tarea. Devuelve
+    `(tasks_text, chunk, fase, exit_code)`; `exit_code` no `None` cuando hay que abortar."""
+    tasks_text = open(tasks_p, encoding="utf-8", errors="replace").read()
+    chunk, fase = _seccion_tarea(tasks_text, tid)
+    if not chunk:
+        return tasks_text, None, None, _tarea_no_encontrada(tid, tasks_p)
+    return tasks_text, chunk, fase, None
+
+
+def main(argv=None):
+    args = _parse_args(argv)
+    tid = args.tarea.upper()
+    if not re.fullmatch(r"T-\d+", tid):
+        print(f"❌ id de tarea inválido: {args.tarea} (esperado T-XX)", file=sys.stderr)
+        return 1
+    tasks_p, plan_p, exit_code = _resolver_rutas(args)
+    if exit_code is not None:
+        return exit_code
+    tasks_text, chunk, fase, exit_code = _cargar_chunk(tasks_p, tid)
+    if exit_code is not None:
+        return exit_code
+
+    out = _seccion_cabecera(tid, args.carpeta, tasks_p, fase)
+    tipo, persona_contenido, persona_ruta, persona_insert_idx = _preparar_persona(chunk, args, len(out))
+    verif, chunk_brief = _resolver_verificacion(chunk)
+
+    out += _seccion_tarea_y_gaps(chunk_brief, tasks_text, tid)
+    out += _seccion_verificacion(verif)
+    out += _seccion_memoria(args.carpeta, chunk, tipo, args.knowledge_find)
+    out += _seccion_diseno_y_arquitectura(args.carpeta, plan_p)
+    out += _seccion_constitucion(args)
+    out += _seccion_tdd(args)
     out += ["", CONTRATO]
 
-    # persona de dominio: se inserta AHORA, con el tope calculado contra el margen que de verdad
-    # queda (gap B-3) — `out` ya tiene TODO el resto del brief, así que su tamaño actual es el
-    # "resto" real, sin adivinar. El overhead del envoltorio (cabecera + delimitadores + los saltos
-    # de línea que añade la propia inserción en la lista) se MIDE con una sonda de un carácter, no se
-    # estima a mano: una fórmula manual desajustada fue justo lo que hizo que el gap B-1 (marcas
-    # visibles más largas que el comentario HTML anterior) tumbase este mismo tope en dos tareas de
-    # `2026-09-04-memory-retrieval` durante esta corrección.
-    if persona_insert_idx is not None:
-        resto_texto = "\n".join(out)
-        resto = len(resto_texto)
-        ruta_aviso = _ruta_para_aviso(persona_ruta, args.carpeta)
-        sonda = _persona_delimitada(tipo, "P", ruta_aviso, BRIEF_TOPE_CHARS)
-        out_con_sonda = out[:persona_insert_idx] + sonda + out[persona_insert_idx:]
-        overhead = len("\n".join(out_con_sonda)) - resto - 1  # -1: el carácter "P" de la sonda
-        margen_real = BRIEF_TOPE_CHARS - resto - overhead
-        # opción A (gap B-3, intento 3): el suelo manda sobre el margen cuando el margen se queda
-        # corto — nunca al revés. Si sobra margen de verdad (por encima del suelo), se usa ese margen
-        # (capado por PERSONA_TOPE_CHARS, el CAP de sanidad de siempre); si no, la persona conserva
-        # como mínimo PERSONA_SUELO_CHARS de CONTENIDO aunque eso empuje el brief por encima de
-        # BRIEF_TOPE_CHARS (gap B-4: el suelo es del contenido, la nota de recorte va aparte).
-        tope_cuerpo = max(PERSONA_SUELO_CHARS, min(PERSONA_TOPE_CHARS, margen_real))
-        bloque = _persona_delimitada(tipo, persona_contenido, ruta_aviso, tope_cuerpo)
-        if bloque:
-            out[persona_insert_idx:persona_insert_idx] = bloque
+    out, resto_sin_persona = presupuesto_persona(
+        out, persona_insert_idx, tipo, persona_ruta, persona_contenido, args.carpeta)
 
     texto = "\n".join(out)
-    if len(texto) > BRIEF_TOPE_CHARS:
-        # aviso con causa MEDIDA sobre el brief YA MONTADO (gap B-6, intento 3 pasada acotada):
-        # particiona `texto` por sus líneas `## ` — es lo que mediría el orquestador desde fuera — en
-        # vez de re-estimar cada sección con su fragmento de origen (`len(diseno[1])` omite cabecera y
-        # cierre; una reconstrucción a mano del formato de la tabla de gaps no es el formato real).
-        secciones = _secciones_por_encabezado(texto)
-        len_diseno = _longitud_seccion(secciones, "## Diseño")
-        len_memoria = _longitud_seccion(secciones, "## Memoria")
-        len_tarea_gaps = (_longitud_seccion(secciones, "## La tarea")
-                           + _longitud_seccion(secciones, "## Gaps pendientes"))
-        len_persona = _longitud_seccion(secciones, "## Persona de dominio")
-        # gap B-5: la causa se bifurca sobre el RESTO sin persona (`resto_texto` de arriba si hay
-        # persona; el propio `texto` si no la hay), no se afirma a ciegas ni el suelo ni un exceso
-        # preexistente. Si el resto YA cabía en el tope, el suelo de la persona es la ÚNICA causa del
-        # exceso — decirlo, no exonerar a la persona con una frase falsa. Si el resto YA se pasaba del
-        # tope sin persona, el exceso es preexistente (diseño/memoria/tarea+gaps) y la persona, en su
-        # suelo o no, no es la causa.
-        resto_sin_persona = resto if persona_insert_idx is not None else len(texto)
-        if resto_sin_persona <= BRIEF_TOPE_CHARS:
-            print(f"⚠️  brief de {tid}: {len(texto)} caracteres, por encima de BRIEF_TOPE_CHARS="
-                  f"{BRIEF_TOPE_CHARS} (CA-08). Causa: la persona en su suelo ({len_persona}) empuja "
-                  f"el brief a {len(texto)} > {BRIEF_TOPE_CHARS}; decisión opción A (2026-09-09): la "
-                  "persona no se recorta por debajo del suelo.", file=sys.stderr)
-        else:
-            exceso = resto_sin_persona - BRIEF_TOPE_CHARS
-            print(f"⚠️  brief de {tid}: {len(texto)} caracteres, por encima de BRIEF_TOPE_CHARS="
-                  f"{BRIEF_TOPE_CHARS} (CA-08). Causa: exceso preexistente de {exceso} caracteres SIN "
-                  f"persona (diseño={len_diseno} memoria={len_memoria} tarea+gaps={len_tarea_gaps}); "
-                  f"la persona ({len_persona}) no es la causa. No lo arregla este script; el "
-                  "subagente recibe el brief igual.", file=sys.stderr)
+    _avisa_si_excede_tope(tid, texto, resto_sin_persona)
     print(texto)
     return 0
 

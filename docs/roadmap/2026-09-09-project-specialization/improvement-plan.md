@@ -1,4 +1,8 @@
 ---
+plan: project-specialization
+estado: en-progreso       # F1 completada; F2/F3 pendientes
+creado: 2026-09-09
+actualizado: 2026-09-10
 design: design.md        # `aprobado`, opción elegida O1 (usuario, 2026-09-09) — ADR-014
 generacion:
   inicio: 2026-09-09T10:53:07Z

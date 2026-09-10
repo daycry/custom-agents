@@ -13,8 +13,8 @@ estado: aprobada
 creado: 2026-09-10
 actualizado: 2026-09-10
 evaluacion: evaluation.md
-design: pendiente          # recomendado (Fase 2-bis de /pm-cycle): decisión O1 vs O2 del §5 del análisis
-plan: pendiente
+design: design.md          # `aprobado` 2026-09-10 — decisión del §5: O1 (registro de copias declaradas + un test de identidad); ADR-016 `propuesta`
+plan: improvement-plan.md   # `en-progreso` 2026-09-10 — 22 tareas en 5 fases y 4 tramos de revisión; 74,0 h base / 88,8 h con margen / ~4.479 € (hereda la evaluación: P-1 y C-13 (i) ya hechas, E11 como propuesta C-14)
 analisis: analysis.md
 relacionado: docs/roadmap/2026-09-09-brief-budget/spec.md (toca el mismo `main()` de `task-brief.py`; ordenada DESPUÉS de este refactor) · docs/roadmap/2026-09-09-project-specialization/tasks.md (F1 integrada en master 919cca4; F2/F3 pendientes) · docs/knowledge/gotchas/GOT-005-consola-windows-cp1252.md · docs/knowledge/gotchas/GOT-009-presupuesto-del-brief-se-rompe-con-design-md.md
 generacion:
@@ -30,9 +30,9 @@ generacion:
 
 # Refactor del plugin — deuda medida en hotspots, copias declaradas y contratos entre piezas
 
-> **Evaluación:** [`evaluation.md`](evaluation.md) — `en-revision`
-> **Diseño:** pendiente — paso de `architect` **recomendado** para la decisión del §5 del análisis (O1 copias declaradas vs O2 módulo vendorizado)
-> **Plan de implementación:** pendiente
+> **Evaluación:** [`evaluation.md`](evaluation.md) — `completado` (go del usuario, 2026-09-10)
+> **Diseño:** [`design.md`](design.md) — `aprobado` (2026-09-10): el §5 se cierra con **O1**, registro de copias declaradas (`agent-kits/shared/copias.json`) + **un** test de identidad byte a byte, con el error del linter sobre bloques idénticos no registrados como parte inseparable de la opción ([`ADR-016`](../../knowledge/adr/ADR-016-copias-declaradas-con-test-de-identidad.md), `propuesta`). **C-03 se encoge**: no hay copias accidentales, el trabajo es unificar los cuatro mecanismos de guardarraíl en uno
+> **Plan de implementación:** [`improvement-plan.md`](improvement-plan.md) + [`tasks.md`](tasks.md) — `borrador` (2026-09-10): 22 tareas en 5 fases y 4 tramos de revisión (R1 línea base + `task-brief` · R2 otros hotspots · R3 copias O1 · R4 encadenamiento E1–E11); 74,0 h base / 88,8 h con margen / ~4.479 €. Sin `test-plan.md`: `test-plan: n/a (sin UI)` en el frontmatter del plan (C-08, `ADR-017`)
 > **Análisis de origen:** [`analysis.md`](analysis.md) — **única fuente del alcance** (§1 medición · §2 duplicación · §3 funciones largas · §4 TODO · §5 decisión · §6 método · §7 lo que NO es · §8 señales · §8-bis encadenamiento · §9). Esta spec no lo amplía ni lo reinterpreta.
 
 > **Terminología:**
@@ -113,7 +113,7 @@ Objetivo medible (§8): funciones largas en los 5 hotspots **32 → ≤ 16** sin
   - **C-01** `task-brief.py`: `main()` de 160 líneas en las siete secciones; las cuatro reglas de la persona en una función con nombre; 4 funciones largas → ≤ 2.
   - **C-02** Los otros cuatro hotspots (`knowledge-find.py` 3 · `doctor.py` 8 · `lint_plugin.py` 9 · `build_dashboard.py` 8): 28 funciones largas → ≤ 14; ninguna nueva > 60.
   - **C-03** Copias accidentales (clase 3 del §2) → **declaradas** (registro + un test byte a byte, si O1) o **eliminadas** (si una de las piezas no la necesita), incluyendo el patrón E9 (`REVISION_HDR_PATTERN` y sus dos `_REVISION_HDR_FALLBACK` en `task-brief.py:576` y `jira-flow.py:231`) en el mismo registro. **Bloqueada por la decisión del §5.**
-  - **C-04** Detector de TODO de `code-health.py`: 8 → 1 (excluir comentarios que enumeran marcadores y el propio detector; la regla «palabra seguida de `(`» deja de aceptar la prosa castellana «TODO (»).
+  - **C-04** Detector de TODO de `code-health.py`: 8 → **0** (revisión R1: el octavo, `usage-meter.py:455`, también es la palabra castellana «todo» al inicio de un comentario; antes se creyó real) (excluir comentarios que enumeran marcadores y el propio detector; la regla «palabra seguida de `(`» deja de aceptar la prosa castellana «TODO (»).
   - **C-05** `code-health.py` puede excluir `interop/` (generado por `export-interop.py`) del informe. Hoy no tiene `--exclude` por ruta.
 - **Dentro — bloque (b), revisión de encadenamiento (§8-bis; cambia comportamiento):**
   - **C-06** Matriz de contratos pieza → pieza en `docs/agents/` junto a `ROLES.md` (`ROLES.md` dice quién decide; esta dice **cómo se hablan**): flags, exit codes, ficheros, marcadores (`test-plan: n/a`, `interop/**`, `fuente: estimado`). Alimenta C-07, C-09 y la Lente A.

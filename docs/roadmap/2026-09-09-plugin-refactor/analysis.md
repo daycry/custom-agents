@@ -52,7 +52,7 @@ refactor se acepta comparando contra él con `--baseline`, no por impresión.
 
 **Matiz verificado el 2026-09-10 (corrige la fila «guardada por test»):** de las tres copias deliberadas,
 **solo `celdas_md` y compañía tienen guardarraíl** (`tests/test_knowledge_index.py` compara las tres copias
-byte a byte). `sin_vallas` (`ledger-lint.py` ↔ `changelog-sync.py`) está **declarada en un comentario pero
+byte a byte). **Corrección del `architect` (2026-09-10, verificada): `sin_vallas` SÍ tiene test, pero conductual, no de identidad** — `skills/changelog-sync/scripts/test_changelog_sync.py:940` afirma `cs.sin_vallas(texto) == ll.sin_vallas(texto)` sobre un texto de prueba, así que una divergencia que no cambie el resultado en ESE texto pasa. Lo que sigue queda como estaba escrito, con ese matiz: `sin_vallas` (`ledger-lint.py` ↔ `changelog-sync.py`) está **declarada en un comentario pero
 sin ningún test que compare las copias** (`grep -rn sin_vallas tests/ agent-kits/shared/test_*.py
 skills/changelog-sync/scripts/test_*.py` → nada que las relacione), y el `import` de
 `confluence-scope.glob_to_regex` con respaldo local tampoco. Son copias *deliberadas y declaradas*, no
@@ -99,8 +99,7 @@ De los 8 marcadores, **6 son falsos positivos**: cinco están en el propio `code
 y su código hablan de «TODO/FIXME/HACK» para describir lo que busca), y uno en
 `confluence-scope.py:113` es la palabra castellana «todo» en mayúsculas dentro de prosa («siguen
 escribiendo TODO (ADRs, …»), que la regla «palabra seguida de `(`» acepta. `journal.py:41` es otra
-descripción de patrón. **Queda un TODO real**: `usage-meter.py:380` («el histórico como ventana →
-degradar con aviso, no mentir»), 29 días. Esto es un defecto pequeño del detector con arreglo barato
+descripción de patrón. ~~Queda un TODO real~~ **Corrección de la revisión R1 (2026-09-10): el octavo también es prosa castellana** — «medir sería contar / `# TODO el histórico como ventana`» (`usage-meter.py:454-455`), la palabra «todo» partida en dos comentarios. Quedan **0** marcadores reales, no 1. Esto es un defecto pequeño del detector con arreglo barato
 (excluir comentarios que enumeran marcadores; exigir mayúsculas Y que el fichero no sea el propio
 detector) y una tarea del refactor.
 

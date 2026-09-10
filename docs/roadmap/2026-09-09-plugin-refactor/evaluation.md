@@ -22,9 +22,9 @@ generacion:            # ventana de evaluation.md (la spec tiene su propio bloqu
 | **Estado** | completado |
 | **Prioridad global** | Alta |
 | **Solicitante** | usuario (petición del 2026-09-09 tras tres rondas de corrección sobre `task-brief.py`: «una revisión de código y refactorizar… de todo el plugin») |
-| **Spec** | [`spec.md`](spec.md) — `borrador`, derivada por el evaluator del análisis |
+| **Spec** | [`spec.md`](spec.md) — `aprobada`, derivada por el evaluator del análisis |
 | **Diseño** | pendiente — paso de `architect` **recomendado** (Fase 2-bis) para O1 vs O2 del §5 |
-| **Plan** | pendiente (handoff a `planner`) |
+| **Plan** | [`improvement-plan.md`](improvement-plan.md) + [`tasks.md`](tasks.md) — `borrador` (2026-09-10): 22 tareas en 5 fases y 4 tramos; hereda estas horas por característica (74,0 h base tras descontar P-1 y C-13 (i) ya hechas y sumar E11 como propuesta C-14) |
 | **Características evaluadas** | 13 (5 del bloque (a) + 8 del bloque (b)) + 4 líneas de proceso presupuestadas aparte |
 
 > **Análisis de origen:** [`analysis.md`](analysis.md) — única fuente del alcance (§1–§9 y §8-bis). Esta evaluación no lo
