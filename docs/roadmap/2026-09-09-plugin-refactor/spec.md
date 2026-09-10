@@ -13,7 +13,7 @@ estado: aprobada
 creado: 2026-09-10
 actualizado: 2026-09-10
 evaluacion: evaluation.md
-design: pendiente          # recomendado (Fase 2-bis de /pm-cycle): decisión O1 vs O2 del §5 del análisis
+design: design.md          # `aprobado` 2026-09-10 — decisión del §5: O1 (registro de copias declaradas + un test de identidad); ADR-016 `propuesta`
 plan: pendiente
 analisis: analysis.md
 relacionado: docs/roadmap/2026-09-09-brief-budget/spec.md (toca el mismo `main()` de `task-brief.py`; ordenada DESPUÉS de este refactor) · docs/roadmap/2026-09-09-project-specialization/tasks.md (F1 integrada en master 919cca4; F2/F3 pendientes) · docs/knowledge/gotchas/GOT-005-consola-windows-cp1252.md · docs/knowledge/gotchas/GOT-009-presupuesto-del-brief-se-rompe-con-design-md.md
@@ -31,7 +31,7 @@ generacion:
 # Refactor del plugin — deuda medida en hotspots, copias declaradas y contratos entre piezas
 
 > **Evaluación:** [`evaluation.md`](evaluation.md) — `en-revision`
-> **Diseño:** pendiente — paso de `architect` **recomendado** para la decisión del §5 del análisis (O1 copias declaradas vs O2 módulo vendorizado)
+> **Diseño:** [`design.md`](design.md) — `aprobado` (2026-09-10): el §5 se cierra con **O1**, registro de copias declaradas (`agent-kits/shared/copias.json`) + **un** test de identidad byte a byte, con el error del linter sobre bloques idénticos no registrados como parte inseparable de la opción ([`ADR-016`](../../knowledge/adr/ADR-016-copias-declaradas-con-test-de-identidad.md), `propuesta`). **C-03 se encoge**: no hay copias accidentales, el trabajo es unificar los cuatro mecanismos de guardarraíl en uno
 > **Plan de implementación:** pendiente
 > **Análisis de origen:** [`analysis.md`](analysis.md) — **única fuente del alcance** (§1 medición · §2 duplicación · §3 funciones largas · §4 TODO · §5 decisión · §6 método · §7 lo que NO es · §8 señales · §8-bis encadenamiento · §9). Esta spec no lo amplía ni lo reinterpreta.
 
