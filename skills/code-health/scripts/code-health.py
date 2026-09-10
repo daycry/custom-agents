@@ -22,8 +22,13 @@ Sin git (o fuera de un repo) se omiten 3 y la antigüedad de 4, con AVISO dentro
 
 Uso:
   code-health.py <ruta> [--json] [--min-lines 6] [--langs py,js,ts,…] [--window 8]
-                        [--exclude-tests] [--since 90] [--baseline informe.json] [--top 10]
+                        [--exclude-tests] [--exclude-path PREFIJO ...] [--since 90]
+                        [--baseline informe.json] [--top 10]
 Exit: 0 siempre (informe emitido) · 2 error de uso (ruta inexistente, baseline ilegible).
+
+`--exclude-path` (repetible, aditivo, default sin exclusiones): prefijo relativo a la raíz (p.ej.
+`interop`, `interop/opencode`) para sacar del informe carpetas GENERADAS (como `interop/`, salida de
+`export-interop.py`) que duplican por construcción el fichero del que se generaron.
 """
 import argparse
 import datetime as _dt
@@ -44,10 +49,132 @@ LANGS_DEFAULT = "py,js,ts,tsx,jsx,php,go,java,rb,cs,kt,rs"
 EXCLUDE_DIRS = {"vendor", "node_modules", "dist", "build", ".git", "__pycache__", ".venv", "venv",
                 "target", ".next", "coverage", ".idea", ".vscode"}
 TEST_RE = re.compile(r"(^|/)(tests?|__tests__|spec|specs)(/|$)|(^|/)test_[^/]+\.py$|[._-](test|spec)\.[a-z]+$")
-# Marcador = la palabra seguida de `:`/`(`/`-` o al COMIENZO del comentario («# TODO revisar»). Así la
-# palabra castellana «TODO» en mayúsculas dentro de una frase («el histórico TODO como ventana») no cuenta.
-TODO_RE = re.compile(r"\b(TODO|FIXME|HACK|XXX)\b(?=\s*[:(\-—]|\s*$)|(?:^|(?<=[#/*!]))\s*(TODO|FIXME|HACK|XXX)\b")
+# Marcador = la palabra seguida (con o sin espacio) de `:`/`-`/`—`, o PEGADA (sin espacio) a `(`
+# (estilo `TODO(alice):`); o al COMIENZO de un comentario («# TODO revisar»), en cuyo caso solo
+# cuenta si la palabra siguiente NO es un artículo/preposición/pronombre castellano (ver
+# PROSA_ES_TRAS_MARCADOR más abajo) — evita el falso positivo «# TODO el histórico como ventana»
+# (prosa) sin dejar de detectar «# TODO revisar esto» (anotación real). Un `(` con ESPACIO antes
+# («TODO (ADRs, arquitectura,») sigue sin ser un separador válido (T-01 original): es prosa
+# castellana, no una anotación de código. Revisión R1 (A-1/B-9): antes «TODO» al comienzo de
+# comentario contaba siempre, sin mirar la palabra siguiente.
+#
+# LÍMITE CONOCIDO (revisión R2, R2-3): un marcador REAL en castellano que NO lleve `:`/`-`/`—`
+# ni vaya PEGADO a `(` justo tras la palabra («# TODO en producción esto falla», «# FIXME la
+# caché») se excluye igual que la prosa, porque la palabra siguiente («en», «la») no está en
+# `PROSA_ES_TRAS_MARCADOR` por casualidad de vocabulario, sino porque no hay forma barata de
+# distinguir «marcador + frase en castellano» de «prosa que empieza por esa palabra» sin un
+# parser. Es un compromiso deliberado, no un bug: la convención esperada es `TODO:` con dos
+# puntos (o `TODO(autor):`), y así se documenta también en `skills/code-health/SKILL.md`.
+PROSA_ES_TRAS_MARCADOR = {
+    "el", "la", "los", "las", "lo", "un", "una", "unos", "unas",
+    "de", "del", "al", "que", "para", "con", "en", "y", "o", "u", "e",
+    "su", "sus", "este", "esta", "estos", "estas", "ese", "esa", "esos", "esas",
+}
+_MARCADOR_SEP_RE = re.compile(r"\b(TODO|FIXME|HACK|XXX)\b(?=\s*[:\-—]|\s*$)")
+_MARCADOR_PEGADO_PAREN_RE = re.compile(r"\b(TODO|FIXME|HACK|XXX)\(")
+_MARCADOR_INICIO_RE = re.compile(r"(?:^|(?<=[#/*!]))\s*(TODO|FIXME|HACK|XXX)\b(.*)$")
+_PALABRA_RE = re.compile(r"[A-Za-zÁÉÍÓÚÑÜáéíóúñü]+")
+
+
+def _tipo_marcador(raw):
+    """Devuelve TODO/FIXME/HACK/XXX si `raw` es una anotación real, o None si no lo es
+    (prosa castellana al comienzo de un comentario)."""
+    m = _MARCADOR_SEP_RE.search(raw)
+    if m:
+        return m.group(1)
+    m = _MARCADOR_PEGADO_PAREN_RE.search(raw)
+    if m:
+        return m.group(1)
+    m = _MARCADOR_INICIO_RE.search(raw)
+    if not m:
+        return None
+    resto = m.group(2).strip()
+    if not resto:
+        return m.group(1)
+    if resto.startswith("("):
+        return None   # `(` con espacio antes = prosa, no separador (ver comentario arriba)
+    palabra = _PALABRA_RE.match(resto)
+    if palabra and palabra.group(0).lower() in PROSA_ES_TRAS_MARCADOR:
+        return None
+    return m.group(1)
+
+
+# Líneas de DOCUMENTACIÓN que enumeran marcadores CITADOS entre backticks como ejemplos (p. ej.
+# `journal.py:41`: «`más tarde`, `TODO:`, `remind me`…») no son anotaciones reales: el propio
+# marcador aparece entrecomillado, como un ítem más de una lista de ≥ 2 spans entre backticks.
+# Una anotación real nunca lleva el `TODO:`/`FIXME:` entre backticks: si hay backticks, citan
+# OTRA cosa (ficheros, identificadores) — «TODO: unificar `a.py`, `b.py`» SÍ cuenta (revisión R1,
+# B-2: la regla vieja excluía cualquier línea con 2 backtick-spans separados por coma sin mirar
+# si el marcador estaba dentro de uno, y así suprimía anotaciones reales como esa).
+_MARCADOR_ENTRE_BACKTICKS_RE = re.compile(r"`\s*(TODO|FIXME|HACK|XXX)\b[^`\n]*`")
+_BACKTICK_SPAN_RE = re.compile(r"`[^`\n]*`")
+
+
+def _es_enumeracion_de_marcadores(raw):
+    """True si la línea enumera marcadores ENTRE BACKTICKS (documentación de patrones léxicos),
+    no una anotación real."""
+    if not _MARCADOR_ENTRE_BACKTICKS_RE.search(raw):
+        return False
+    return len(_BACKTICK_SPAN_RE.findall(raw)) >= 2
+
+
+# Revisión R2 (R2-2, residual de B-2): una línea que ENCADENA >= 2 palabras-marcador DISTINTAS
+# separadas SOLO por `/`, `,`, `|` o espacios («# Busca marcadores TODO/FIXME/HACK en el código»)
+# enumera la convención léxica, no anota una tarea — no hay `fichero:línea` al que atribuírsela.
+# Si entre dos palabras-marcador hay CUALQUIER OTRA COSA (letras, `:`, texto), la cadena se corta
+# ahí y NO es enumeración: «# TODO: quitar el FIXME de abajo» tiene "quitar el" entre TODO y
+# FIXME → sigue siendo un TODO real (uno solo, como ya decidía `_tipo_marcador`), no una
+# enumeración de dos. Igual con «TODO: unificar `a.py`, `b.py`» (una sola palabra-marcador, no
+# encadena con otra).
+_MARCADOR_WORD_RE = re.compile(r"\b(TODO|FIXME|HACK|XXX)\b")
+_SOLO_SEPARADORES_RE = re.compile(r"^[\s/,|]+$")
+
+
+def _es_enumeracion_de_palabras_marcador(raw):
+    """True si `raw` encadena 2+ palabras-marcador DISTINTAS separadas únicamente por `/`, `,`,
+    `|` o espacios (enumeración de la convención, no una anotación real)."""
+    matches = list(_MARCADOR_WORD_RE.finditer(raw))
+    if len(matches) < 2:
+        return False
+    vistas = {matches[0].group(1)}
+    for previo, actual in zip(matches, matches[1:]):
+        entre = raw[previo.end():actual.start()]
+        if _SOLO_SEPARADORES_RE.match(entre):
+            vistas.add(actual.group(1))
+            if len(vistas) >= 2:
+                return True
+        else:
+            vistas = {actual.group(1)}
+    return False
+
+
+# El propio detector se menciona a sí mismo en su docstring y su código («TODO/FIXME/HACK»):
+# excluido del recuento de marcadores (no de las otras tres medidas) por RUTA REAL del propio
+# script (`os.path.realpath(__file__)`) EN EJECUCIÓN, más una FIRMA DE CONTENIDO (revisión R2,
+# R2-1) para cualquier OTRA copia del mismo fichero — necesaria porque un agente ejecuta el kit
+# desde la caché del plugin mientras el árbol de este mismo repo tiene su propia copia de
+# `code-health.py`: son rutas reales distintas, así que `realpath(__file__)` sólo excluye la
+# copia EN EJECUCIÓN y la del repo vuelve a contarse (falso positivo). La firma es un literal
+# fijo (`FIRMA_DETECTOR`) que aparece en la primera línea del docstring del detector real; se
+# busca solo en ficheros cuyo basename sea `code-health.py` (barato) y solo en sus primeras
+# líneas, así que un `code-health.py` de un proyecto CONSUMIDOR que no lleve esa firma exacta
+# SÍ se sigue contando (revisión R1, B-6: antes comparaba por `os.path.basename` a secas, que
+# excluía cualquier fichero con ese nombre en cualquier ruta, firma o no).
+FIRMA_DETECTOR = "code-health.py — informe DETERMINISTA"
+_FIRMA_MAX_LINEAS = 10
+DETECTOR_PROPIO = os.path.realpath(__file__)
 GIT_TIMEOUT = 30
+
+
+def _es_detector_propio(path_real, basename, lines):
+    """True si `path_real` es la copia del detector EN EJECUCIÓN, o si `basename` es
+    `code-health.py` y sus primeras `_FIRMA_MAX_LINEAS` líneas llevan `FIRMA_DETECTOR` (otra
+    copia del mismo script, p. ej. la del árbol del repo vista desde la caché del plugin)."""
+    if path_real == DETECTOR_PROPIO:
+        return True
+    if basename != "code-health.py":
+        return False
+    return any(FIRMA_DETECTOR in ln for ln in lines[:_FIRMA_MAX_LINEAS])
 
 # Lenguajes: comentario de línea, ¿anidamiento por llaves?, regex de cabecera de función.
 LANG = {
@@ -77,7 +204,13 @@ _STR = re.compile(r"(\"(?:\\.|[^\"\\])*\"|'(?:\\.|[^'\\])*')")
 
 # ------------------------------------------------------------------ recorrido
 
-def ficheros(root, langs, exclude_tests):
+def _bajo_prefijo(rel, prefijos):
+    """`rel` (con `/`) cae bajo alguno de `prefijos` (normalizados, sin `/` inicial ni final)."""
+    return any(rel == pre or rel.startswith(pre + "/") for pre in prefijos)
+
+
+def ficheros(root, langs, exclude_tests, exclude_paths=()):
+    prefijos = [p.strip().strip("/\\").replace(os.sep, "/") for p in exclude_paths if p.strip()]
     out = []
     for dp, dns, fns in os.walk(root):
         dns[:] = sorted(d for d in dns if d not in EXCLUDE_DIRS and not d.startswith(".git"))
@@ -88,6 +221,8 @@ def ficheros(root, langs, exclude_tests):
             p = os.path.join(dp, fn)
             rel = os.path.relpath(p, root).replace(os.sep, "/")
             if exclude_tests and TEST_RE.search(rel):
+                continue
+            if prefijos and _bajo_prefijo(rel, prefijos):
                 continue
             out.append((rel, p, ext))
     return out
@@ -314,11 +449,17 @@ def marcadores(root, src, con_git, top):
     hoy = _dt.date.today()
     items = []
     for rel, lines, _ in src:
+        p_real = os.path.realpath(os.path.join(root, *rel.split("/")))
+        basename = rel.rsplit("/", 1)[-1]
+        if _es_detector_propio(p_real, basename, lines):
+            continue    # el detector (en ejecución o una copia con su firma) no se cuenta a sí mismo
         for i, raw in enumerate(lines, 1):
-            m = TODO_RE.search(raw)
-            if not m:
+            if _es_enumeracion_de_marcadores(raw) or _es_enumeracion_de_palabras_marcador(raw):
+                continue   # enumeración de marcadores (entre backticks o encadenados), no una anotación real
+            tipo = _tipo_marcador(raw)
+            if not tipo:
                 continue
-            item = {"fichero": f"{rel}:{i}", "tipo": m.group(1) or m.group(2),
+            item = {"fichero": f"{rel}:{i}", "tipo": tipo,
                     "texto": raw.strip()[:90], "edad_dias": None}
             if con_git:
                 item["edad_dias"] = edad_dias(root, rel, i, hoy)
@@ -335,9 +476,9 @@ def marcadores(root, src, con_git, top):
 
 # ------------------------------------------------------------------ informe
 
-def analizar(root, langs, window, min_lines, exclude_tests, since, top):
+def analizar(root, langs, window, min_lines, exclude_tests, since, top, exclude_paths=()):
     avisos = []
-    lista = ficheros(root, langs, exclude_tests)
+    lista = ficheros(root, langs, exclude_tests, exclude_paths)
     src = []
     for rel, p, ext in lista:
         lines = leer(p)
@@ -357,9 +498,12 @@ def analizar(root, langs, window, min_lines, exclude_tests, since, top):
     if not con_git:
         avisos.append("git no disponible o la ruta no es un repositorio: hotspots omitidos y TODO sin antigüedad")
     tod = marcadores(root, src, con_git, top)
+    prefijos_norm = sorted({p.strip().strip("/\\").replace(os.sep, "/")
+                            for p in exclude_paths if p.strip()})
     return {"ruta": os.path.abspath(root), "fecha": _dt.date.today().isoformat(),
             "parametros": {"langs": sorted(langs), "window": window, "min_lines": min_lines,
-                           "exclude_tests": exclude_tests, "since_dias": since},
+                           "exclude_tests": exclude_tests, "since_dias": since,
+                           "exclude_path": prefijos_norm},
             "resumen": {"ficheros": tam["ficheros"], "lineas": tam["lineas"],
                         "duplicado_pct": dup["pct"], "bloques_duplicados": dup["bloques"],
                         "funciones_largas": tam["funciones_largas"],
@@ -400,8 +544,10 @@ def md(r):
          f"TODO/FIXME/HACK **{s['todos']}**"
          + (f" (el más viejo: {s['todo_edad_max_dias']} días)" if s["todo_edad_max_dias"] is not None else "")
          + (f" · hotspots {s['hotspots']} ficheros cambiados en {r['hotspots']['dias']} días" if r["hotspots"] else ""), ""]
+    excl = r["parametros"].get("exclude_path") or []
     L.append(f"Parámetros: lenguajes `{','.join(r['parametros']['langs'])}` · ventana {r['parametros']['window']} "
-             f"líneas · tests {'excluidos' if r['parametros']['exclude_tests'] else 'incluidos'}. "
+             f"líneas · tests {'excluidos' if r['parametros']['exclude_tests'] else 'incluidos'}"
+             + (f" · rutas excluidas `{','.join(excl)}`" if excl else "") + ". "
              "Todas las medidas son **heurísticas** (regex y tokens, no un parser): sirven para ordenar y "
              "comparar, no para juzgar una línea concreta.")
     for a in r["avisos"]:
@@ -455,6 +601,8 @@ def main(argv=None):
     p.add_argument("--langs", default=LANGS_DEFAULT)
     p.add_argument("--window", type=int, default=8)
     p.add_argument("--exclude-tests", action="store_true")
+    p.add_argument("--exclude-path", action="append", default=[], metavar="PREFIJO",
+                    help="prefijo relativo a la raíz a excluir (repetible; p.ej. interop); default sin exclusiones")
     p.add_argument("--since", type=int, default=90, help="días de git log para hotspots")
     p.add_argument("--baseline", help="informe --json anterior con el que comparar")
     p.add_argument("--top", type=int, default=10)
@@ -472,7 +620,8 @@ def main(argv=None):
             print(f"code-health: baseline ilegible: {e}", file=sys.stderr)
             return 2
     langs = {x.strip().lower().lstrip(".") for x in a.langs.split(",") if x.strip()} & set(LANG)
-    r = analizar(a.ruta, langs, max(2, a.window), max(1, a.min_lines), a.exclude_tests, a.since, a.top)
+    r = analizar(a.ruta, langs, max(2, a.window), max(1, a.min_lines), a.exclude_tests, a.since, a.top,
+                 exclude_paths=a.exclude_path)
     if base is not None:
         r["baseline"] = comparar(r, base)
         r["baseline_fecha"] = base.get("fecha")
