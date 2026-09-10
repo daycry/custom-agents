@@ -354,7 +354,7 @@ marcador abierto, plugin-refactor/T-04)
 
 ## Fase 2 — Los otros cuatro hotspots
 
-**Estado**: borrador · **Estimado**: 14,0h · **Real**: — · **Coste est.**: 706 € · **Tokens est.**: 767k · **Tramo**: R2
+**Estado**: en-progreso · **Estimado**: 14,0h · **Real**: — · **Coste est.**: 706 € · **Tokens est.**: 767k · **Tramo**: R2
 
 > **Arista hacia fuera (condición 3 del go):** esta fase completa precede a **F2 de `project-specialization`** (toca `doctor.py` y `lint_plugin.py --root`). Orden dentro de la fase: `knowledge-find` (el que más cambia) → `doctor` → `build_dashboard` → `lint_plugin` (**el último**, para que T-10 y T-16 no lo toquen dos veces). Reparto del objetivo §8 (32 → ≤ 16): `task-brief` ≤ 2 (T-03) · `knowledge-find` ≤ 1 · `doctor` ≤ 4 · `build_dashboard` ≤ 4 · `lint_plugin` ≤ 5.
 
