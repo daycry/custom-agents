@@ -13,7 +13,7 @@ Ejecutar:  python3 -m pytest test_usage_meter.py -q
 import importlib.util
 import json
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -246,6 +246,253 @@ def test_ventana_vacia_degrada_a_estimado(entorno):
     res = _start_close(tdir, state, antes=[_rec("m1", inp=10, out=5)], despues=[])
     assert res["fuente"] == "estimado"
     assert any("sin respuestas" in a for a in res["avisos"])
+
+
+# --------------------------------------------------- T-04: filtro por timestamp
+
+def _rec_ts(msg_id, timestamp, inp=0, out=0):
+    """Como `_rec`, pero con timestamp EXPLÍCITO (para probar el filtro de ventana)."""
+    return json.dumps({
+        "type": "assistant", "isSidechain": False, "uuid": f"u-{msg_id}",
+        "requestId": f"req-{msg_id}", "timestamp": timestamp,
+        "message": {"id": msg_id, "usage": {
+            "input_tokens": inp, "output_tokens": out,
+            "cache_creation_input_tokens": 0, "cache_read_input_tokens": 0}},
+    })
+
+
+def _hermetico(tmp_path):
+    """B-7 (revisión R1): `--calibration`/`--rates` a ficheros INEXISTENTES bajo `tmp_path`,
+    para que el test no dependa de `docs/roadmap/CALIBRATION.md` ni `.claude/rates.json`
+    reales del repo/máquina (ratio y € deterministas, sin fiarse del entorno)."""
+    return ["--calibration", str(tmp_path / "no-existe-CALIBRATION.md"),
+            "--rates", str(tmp_path / "no-existe-rates.json")]
+
+
+def test_registro_anterior_al_inicio_en_fichero_nuevo_se_descarta(entorno):
+    """Hallazgo T-04: un fichero NO visto en `start` (offset 0, p. ej. un subagente
+    reaparecido) ya no cuenta enteros los registros anteriores a la ventana."""
+    tmp_path, tdir, state = entorno
+    rc, res_start = _run(None, ["start", "--artefacto", "a.md", "--state", str(state),
+                                "--transcript-dir", str(tdir)])
+    assert rc == 0
+    inicio = res_start["inicio"]
+    inicio_dt = datetime.strptime(inicio, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+    antes = (inicio_dt - timedelta(minutes=5)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    dentro = (inicio_dt + timedelta(minutes=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    # fichero nuevo, jamás visto en el snapshot de `start` → offset 0
+    _write(tdir / "nuevo.jsonl", [
+        _rec_ts("viejo", antes, inp=1000, out=1000),
+        _rec_ts("nuevo", dentro, inp=7, out=3),
+    ])
+    rc, res = _run(None, ["close", "--artefacto", "a.md", "--state", str(state),
+                          "--transcript-dir", str(tdir), *_hermetico(tmp_path)])
+    assert rc == 0
+    t = res["tokens_reales"]
+    assert (t["entrada"], t["salida"]) == (7, 3)
+    assert any("descartad" in a for a in res["avisos"])
+
+
+def test_tolerancia_60s_del_filtro_de_ventana(entorno):
+    """El filtro admite hasta 60s antes de `inicio` (relojes de fichero vs. `start`)."""
+    tmp_path, tdir, state = entorno
+    rc, res_start = _run(None, ["start", "--artefacto", "a.md", "--state", str(state),
+                                "--transcript-dir", str(tdir)])
+    assert rc == 0
+    inicio_dt = datetime.strptime(res_start["inicio"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+    dentro_tolerancia = (inicio_dt - timedelta(seconds=30)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    fuera_tolerancia = (inicio_dt - timedelta(seconds=90)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    _write(tdir / "nuevo.jsonl", [
+        _rec_ts("fuera", fuera_tolerancia, inp=500, out=0),
+        _rec_ts("dentro", dentro_tolerancia, inp=9, out=1),
+    ])
+    rc, res = _run(None, ["close", "--artefacto", "a.md", "--state", str(state),
+                          "--transcript-dir", str(tdir), *_hermetico(tmp_path)])
+    assert rc == 0
+    assert res["tokens_reales"]["entrada"] == 9
+
+
+def test_marcador_sin_version_degrada_a_estimado(entorno):
+    """Un marcador escrito por el código ANTERIOR a T-04 (sin `version`) degrada, no mide."""
+    tmp_path, tdir, state = entorno
+    _write(tdir / "sesion.jsonl", [])
+    state.write_text(json.dumps({
+        "a.md": {"inicio": _now_marker(), "transcriptDir": str(tdir), "offsets": {}}
+    }), encoding="utf-8")
+    with open(tdir / "sesion.jsonl", "a", encoding="utf-8") as f:
+        f.write(_rec("m1", inp=100, out=10) + "\n")
+    rc, res = _run(None, ["close", "--artefacto", "a.md", "--state", str(state),
+                          "--transcript-dir", str(tdir), *_hermetico(tmp_path)])
+    assert rc == 0
+    assert res["fuente"] == "estimado"
+    assert any("anterior al arreglo" in a for a in res["avisos"])
+
+
+def _now_marker(delta=None):
+    dt = datetime.now(timezone.utc)
+    if delta is not None:
+        dt -= delta
+    return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def test_duracion_reloj_aditiva_no_cambia_duracion(entorno):
+    """`duracion_reloj` es NUEVA y aditiva; `duracion` (tokens ÷ ratio) no cambia de semántica."""
+    tmp_path, tdir, state = entorno
+    res = _start_close(tdir, state, antes=[], despues=[_rec("m1", inp=300_000, out=0)],
+                       close_args=["--ratio", "300000", *_hermetico(tmp_path)])
+    assert res["fuente"] == "medido"
+    assert "duracion_reloj" in res
+    assert res["duracion"] == "1h"  # 300k / 300k (ratio explícito) = 1h, como antes de T-04
+
+
+def test_duracion_reloj_valor_exacto_37_minutos(entorno):
+    """B-3 (revisión R1): `duracion_reloj` no tenía oráculo de VALOR, solo de clave (el test
+    original solo comprobaba `"duracion_reloj" in res`) — un mutante que devolviera `None` o
+    `fmt_horas(0.0)` pasaba la suite entera. `inicio` fijado a 37 minutos antes del cierre →
+    "37m" exacto."""
+    tmp_path, tdir, state = entorno
+    state.write_text(json.dumps({
+        "a.md": {"version": 2, "inicio": _now_marker(delta=timedelta(minutes=37)),
+                 "transcriptDir": str(tdir), "offsets": {}}
+    }), encoding="utf-8")
+    rc, res = _run(None, ["close", "--artefacto", "a.md", "--state", str(state),
+                          "--transcript-dir", str(tdir), *_hermetico(tmp_path)])
+    assert rc == 0
+    assert res["duracion_reloj"] == "37m"
+
+
+def test_marcador_version2_sin_inicio_degrada_con_aviso(entorno):
+    """B-5 (revisión R1): un marcador `version: 2` sin `inicio` desactivaba en silencio el
+    filtro por timestamp (`inicio=None` → `_sum_usage_window` no filtra nada) y volvía al bug
+    exacto que T-04 arregla, reportando `fuente: medido`. `offsets` ya tenía esta defensa
+    (rama "marcador sin offsets"); `inicio` no."""
+    tmp_path, tdir, state = entorno
+    hace_30_dias = (datetime.now(timezone.utc) - timedelta(days=30)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    _write(tdir / "viejo.jsonl", [_rec_ts("viejo", hace_30_dias, inp=777777, out=1)])
+    state.write_text(json.dumps({
+        "a.md": {"version": 2, "transcriptDir": str(tdir), "offsets": {}}   # sin "inicio"
+    }), encoding="utf-8")
+    rc, res = _run(None, ["close", "--artefacto", "a.md", "--state", str(state),
+                          "--transcript-dir", str(tdir), *_hermetico(tmp_path)])
+    assert rc == 0
+    assert res["fuente"] == "estimado"
+    assert res["tokens_reales"] is None
+    assert any("inicio" in a for a in res["avisos"])
+
+
+def test_marcador_con_inicio_naive_close_no_revienta_y_mide(entorno):
+    """B-1 (revisión R1): un `inicio` ISO SIN zona (ni `Z` ni offset — p. ej. un marcador
+    editado a mano) hacía morir `close` (`TypeError` sin capturar al restar un datetime
+    *naive* de uno *aware* para `duracion_reloj`, en `:491`). `_parse_iso` ahora asume UTC
+    cuando falta la zona: `close` sigue midiendo con normalidad, sin reventar."""
+    tmp_path, tdir, state = entorno
+    inicio_naive = (datetime.now(timezone.utc) - timedelta(minutes=5)).strftime("%Y-%m-%dT%H:%M:%S")
+    assert "Z" not in inicio_naive and "+" not in inicio_naive
+    state.write_text(json.dumps({
+        "a.md": {"version": 2, "inicio": inicio_naive, "transcriptDir": str(tdir), "offsets": {}}
+    }), encoding="utf-8")
+    _write(tdir / "nuevo.jsonl", [_rec("m1", inp=100, out=10)])
+    rc, res = _run(None, ["close", "--artefacto", "a.md", "--state", str(state),
+                          "--transcript-dir", str(tdir), *_hermetico(tmp_path)])
+    assert rc == 0
+    assert res["fuente"] == "medido"
+    assert res["duracion_reloj"] is not None
+
+
+def test_registro_con_timestamp_naive_entre_correctos_se_cuenta(entorno):
+    """B-1 (revisión R1): un registro con `timestamp` sin zona, mezclado entre 100 correctos,
+    ya NO pierde la ventana entera — antes `_sum_usage_window` lanzaba `TypeError` al comparar
+    ese timestamp *naive* con `inicio` *aware*, lo capturaba el `except Exception` de
+    `cmd_close` (`:260`/`:491`) y degradaba TODOS los tokens a estimado por un solo registro."""
+    tmp_path, tdir, state = entorno
+    rc, res_start = _run(None, ["start", "--artefacto", "a.md", "--state", str(state),
+                                "--transcript-dir", str(tdir)])
+    assert rc == 0
+    naive_ahora = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")  # sin 'Z': naive
+    lineas = [_rec(f"m{i}", inp=1, out=1) for i in range(100)]
+    lineas.append(_rec_ts("naive", naive_ahora, inp=1, out=1))
+    _write(tdir / "nuevo.jsonl", lineas)
+    rc, res = _run(None, ["close", "--artefacto", "a.md", "--state", str(state),
+                          "--transcript-dir", str(tdir), *_hermetico(tmp_path)])
+    assert rc == 0
+    assert res["fuente"] == "medido"
+    assert res["tokens_reales"]["respuestas"] == 101
+
+
+def test_b4_marcadores_encadenados_dentro_de_60s_duplican_solape(entorno):
+    """B-4 (revisión R1, documentado — NO corregido, fuera de alcance declarado): un fichero de
+    transcript ya EXISTENTE al hacer `start` queda correctamente baselineado (su contenido previo
+    no cuenta) — el hueco está en un fichero NUEVO que aparece DESPUÉS del `start` del siguiente
+    marcador (p. ej. un subagente que reescribe/duplica registros en un fichero propio, ver el
+    docstring de `_sum_usage_window` sobre 0 intersecciones «medidas, pero no asumidas»): al ser
+    la primera vez que ese marcador lo ve, arranca en offset 0, y si sus timestamps caen dentro de
+    la tolerancia de 60 s del `inicio` de este marcador, se cuentan otra vez aunque YA los hubiera
+    medido el marcador anterior. A mide 100, B mide 105 (100 «reaparecidos» + 5 nuevos) en vez de
+    5. No es una regresión (antes de esta iniciativa se recontaba el transcript ENTERO en este
+    caso), pero es la grieta que documenta `docs/observability.md` (+EN). Este test fija el
+    comportamiento ACTUAL a propósito (no lo arregla) para que no cambie en silencio."""
+    tmp_path, tdir, state = entorno
+    rc, res_a = _run(None, ["start", "--artefacto", "a.md", "--state", str(state),
+                            "--transcript-dir", str(tdir)])
+    assert rc == 0
+    inicio_a_dt = datetime.strptime(res_a["inicio"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+    ts_viejos = (inicio_a_dt + timedelta(seconds=5)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    _write(tdir / "principal.jsonl", [_rec_ts(f"m{i}", ts_viejos, inp=10, out=0) for i in range(10)])
+    rc, res_close_a = _run(None, ["close", "--artefacto", "a.md", "--state", str(state),
+                          "--transcript-dir", str(tdir), *_hermetico(tmp_path)])
+    assert rc == 0
+    assert res_close_a["tokens_reales"]["entrada"] == 100
+
+    # B arranca casi inmediatamente (< 60 s) tras el close de A; "principal.jsonl" YA existía al
+    # arrancar B, así que su `start` lo baselinea correctamente (offset = tamaño actual)
+    rc, res_b = _run(None, ["start", "--artefacto", "b.md", "--state", str(state),
+                            "--transcript-dir", str(tdir)])
+    assert rc == 0
+    inicio_b_dt = datetime.strptime(res_b["inicio"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+    ts_nuevo = (inicio_b_dt + timedelta(seconds=2)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    # Un fichero NUEVO aparece DESPUÉS del `start` de B (nunca visto bajo el artefacto "b.md" →
+    # offset 0) y "reaparecen" en él los mismos registros que A ya midió, junto a uno genuinamente
+    # nuevo — simula un subagente que reescribe contexto ya contado en su propio transcript
+    (tdir / "subagents").mkdir(exist_ok=True)
+    registros_rotados = [_rec_ts(f"m{i}", ts_viejos, inp=10, out=0) for i in range(10)]
+    registros_rotados.append(_rec_ts("mNuevo", ts_nuevo, inp=5, out=0))
+    _write(tdir / "subagents" / "rotado.jsonl", registros_rotados)
+    rc, res_close_b = _run(None, ["close", "--artefacto", "b.md", "--state", str(state),
+                          "--transcript-dir", str(tdir), *_hermetico(tmp_path)])
+    assert rc == 0
+    # Límite conocido: 105 (100 «reaparecidos» + 5 nuevos), no 5 — ver nota en observability.md
+    assert res_close_b["tokens_reales"]["entrada"] == 105
+
+
+def test_b4_con_90s_de_separacion_no_hay_solape(entorno):
+    """Contraste del mismo B-4: si B arranca fuera de la tolerancia de 60 s respecto a los
+    timestamps ya medidos por A, no hay doble conteo (5, el valor correcto)."""
+    tmp_path, tdir, state = entorno
+    rc, res_a = _run(None, ["start", "--artefacto", "a.md", "--state", str(state),
+                            "--transcript-dir", str(tdir)])
+    assert rc == 0
+    inicio_a_dt = datetime.strptime(res_a["inicio"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+    ts_viejos = (inicio_a_dt + timedelta(seconds=5)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    _write(tdir / "nuevo.jsonl", [_rec_ts(f"m{i}", ts_viejos, inp=10, out=0) for i in range(10)])
+    rc, res_close_a = _run(None, ["close", "--artefacto", "a.md", "--state", str(state),
+                          "--transcript-dir", str(tdir), *_hermetico(tmp_path)])
+    assert rc == 0
+    assert res_close_a["tokens_reales"]["entrada"] == 100
+
+    # Marcador B se escribe a mano con `inicio` 90 s después de los timestamps viejos
+    inicio_b_forzado = (inicio_a_dt + timedelta(seconds=95)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    estado = json.loads(state.read_text(encoding="utf-8"))
+    estado["b.md"] = {"version": 2, "inicio": inicio_b_forzado, "transcriptDir": str(tdir),
+                       "offsets": {}}
+    state.write_text(json.dumps(estado), encoding="utf-8")
+    ts_nuevo = (datetime.strptime(inicio_b_forzado, "%Y-%m-%dT%H:%M:%SZ")
+                .replace(tzinfo=timezone.utc) + timedelta(seconds=2)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    with open(tdir / "nuevo.jsonl", "a", encoding="utf-8") as f:
+        f.write(_rec_ts("mNuevo", ts_nuevo, inp=5, out=0) + "\n")
+    rc, res_close_b = _run(None, ["close", "--artefacto", "b.md", "--state", str(state),
+                          "--transcript-dir", str(tdir), *_hermetico(tmp_path)])
+    assert rc == 0
+    assert res_close_b["tokens_reales"]["entrada"] == 5
 
 
 # ------------------------------------------------------------------ € y horas

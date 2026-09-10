@@ -14,6 +14,21 @@ Jira; el usage-meter no te enseña un dashboard en vivo de lo que el agente est�
 Este plugin **no reimplementa** un monitor de sesión (servidor + UI + WebSockets es un producto
 entero); si quieres esa vista, instala uno al lado.
 
+**`duracion` vs. `duracion_reloj` en el JSON de `close`:** `duracion` es tokens facturables ÷ ratio
+calibrado (la que usan dashboards, plantillas e imputación a Jira — nunca cambia de semántica);
+`duracion_reloj` es aditiva y mide el reloj de pared (`fin − inicio`), útil para detectar sesiones
+largas con poco token real (pausas, lectura) pero que **no** sustituye a `duracion` en ningún cálculo.
+
+**Límite conocido: marcadores encadenados dentro de la tolerancia de 60 s.** El filtro de ventana de
+`close` admite registros hasta 60 s antes de `inicio` (relojes de fichero vs. reloj de `start`). Si un
+segundo marcador abre su `start` a menos de 60 s del `close` del primero, y el segundo `close` lee un
+fichero de transcript que el primero **no** tenía en su snapshot de offsets, los registros de ese solape
+se cuentan en AMBAS ventanas: no es una regresión (antes de la corrección de esta iniciativa se contaba
+el transcript entero de nuevo, que era peor), pero sí una fuente de doble conteo en el caso concreto de
+marcadores muy próximos en el tiempo sobre ficheros nuevos. Mitígalo espaciando `start`/`close` más de
+60 s cuando encadenes tareas cortas, o interpretando `duracion_reloj` corto + `tokens_reales` alto como
+señal de posible solape.
+
 ## Coexistencia de hooks (verificada)
 
 - **Este plugin** registra hooks **no bloqueantes** (`hooks/hooks.json`) en tres eventos:
