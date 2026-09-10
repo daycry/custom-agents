@@ -13,6 +13,7 @@ creado: 2026-09-09
 fuente: "petición del usuario (2026-09-09): «una revisión de código y refactorizar… de todo el plugin, no solo de task-brief.py»"
 relacionado: docs/roadmap/2026-09-09-project-specialization/tasks.md (las tres rondas de corrección que motivan el refactor) · docs/roadmap/2026-09-09-brief-budget/analysis.md (toca el mismo script; hay que ordenarlas) · docs/roadmap/2026-08-10-token-diet/ (precedente de dieta medida)
 linea_base: code-health-baseline.json (mismo directorio; se compara con `code-health.py . --exclude-tests --json --baseline <este fichero>`)
+spec: spec.md
 ---
 
 # Refactor del plugin — primero medir, luego decidir qué duplicación es deuda y cuál es diseño
