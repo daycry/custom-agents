@@ -50,7 +50,7 @@ import json
 import os
 import re
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 # Consola Windows (cp1252) o tuberías: reconfigurar ANTES de leer o imprimir nada (GOT-005).
@@ -71,6 +71,32 @@ RATES_MAX_AGE_DAYS = 90
 
 def _now_iso():
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+# tolerancia del filtro por timestamp (T-04): relojes de fichero vs. reloj del `start`
+# pueden desfasar unos segundos; 60s evita descartar por error el primer registro real.
+TIMESTAMP_TOLERANCIA_SEG = 60
+
+
+def _parse_iso(texto):
+    """Parsea un timestamp ISO-8601 (con o sin 'Z') a datetime AWARE en UTC; None si no es
+    parseable — el filtro de ventana NUNCA descarta un registro por un timestamp raro.
+
+    Un ISO sin zona (ni `Z` ni offset) se ASUME UTC (revisión R1, B-1): los transcripts de
+    Claude Code siempre llevan `Z`; un marcador de `usage-state.json` editado a mano puede no
+    llevarlo. Antes se devolvía *naive*, y comparar/restar ese valor contra un datetime aware
+    (p. ej. `fin = _now_iso()`) lanzaba `TypeError` sin capturar en `cmd_close` (moría el
+    proceso) o se perdía toda la ventana en `_sum_usage_window` (capturado por el `except
+    Exception` de `cmd_close`, pero silenciosamente)."""
+    if not texto or not isinstance(texto, str):
+        return None
+    try:
+        dt = datetime.fromisoformat(texto.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt
 
 
 def fmt_horas(horas):
@@ -189,7 +215,20 @@ def _snapshot_offsets(tdir):
 
 # ------------------------------------------------------------------ medición
 
-def _sum_usage_window(tdir, offsets):
+def _ventana_descarta(ts_dt, inicio_dt):
+    """True si `ts_dt` cae antes de la ventana (`inicio_dt - TIMESTAMP_TOLERANCIA_SEG`);
+    NUNCA descarta por una comparación imposible (defensivo: `_parse_iso` ya normaliza a
+    aware UTC, así que esto no debería ocurrir en la práctica — B-1, revisión R1). Devuelve
+    `(descarta, no_comparable)`. Extraída aparte para no anidar el `try` dentro del bucle
+    de `_sum_usage_window` (regresión de anidamiento detectada por `code-health --baseline`,
+    mismo patrón que la de T-04)."""
+    try:
+        return ts_dt < inicio_dt - timedelta(seconds=TIMESTAMP_TOLERANCIA_SEG), False
+    except TypeError:
+        return False, True
+
+
+def _sum_usage_window(tdir, offsets, inicio=None):
     """Suma el usage de los registros NUEVOS (más allá del offset por fichero), con
     dedupe GLOBAL por message.id (registros repetidos de una misma respuesta, incluso
     entre el fichero principal y un subagente) y búsqueda RECURSIVA bajo la carpeta del
@@ -197,12 +236,21 @@ def _sum_usage_window(tdir, offsets):
     2026-09-10), también los creados tras el marcador (offset 0 para ficheros no vistos
     en el `start`, sean de la sesión principal o de un subagente lanzado en la ventana).
 
+    `inicio` (str ISO-8601, opcional, T-04): si se da, descarta registros con
+    `timestamp < inicio - TIMESTAMP_TOLERANCIA_SEG` — un marcador con offset 0 (fichero
+    no visto en el `start`) ya NO cuenta enteros los transcripts previos a la ventana.
+    Registros sin timestamp parseable NUNCA se descartan por este filtro (degradación
+    honesta: se cuentan, como antes de T-04).
+
     Devuelve (tokens_dict, avisos:list). Lanza excepción solo ante fallo total de lectura.
     """
     seen = {}
     avisos = []
     tdir = Path(tdir)
     campos_malos = 0
+    inicio_dt = _parse_iso(inicio) if inicio else None
+    descartados_por_ventana = 0
+    timestamps_no_comparables = 0
     for f in sorted(tdir.rglob("*.jsonl"), key=lambda p: _rel_key(p, tdir)):
         clave = _rel_key(f, tdir)
         start = offsets.get(clave, 0)
@@ -232,6 +280,14 @@ def _sum_usage_window(tdir, offsets):
                         continue  # línea corrupta/incompleta: tolerante
                     if not isinstance(rec, dict) or rec.get("type") != "assistant":
                         continue
+                    ts_dt = _parse_iso(rec.get("timestamp")) if inicio_dt is not None else None
+                    descarta, no_comparable = _ventana_descarta(ts_dt, inicio_dt) \
+                        if ts_dt is not None else (False, False)
+                    if no_comparable:
+                        timestamps_no_comparables += 1
+                    if descarta:
+                        descartados_por_ventana += 1
+                        continue
                     msg = rec.get("message") or {}
                     usage = msg.get("usage") if isinstance(msg, dict) else None
                     if not isinstance(usage, dict):
@@ -260,6 +316,12 @@ def _sum_usage_window(tdir, offsets):
         tokens["cache_lectura"] += _int(u, "cache_read_input_tokens")
     if campos_malos:
         avisos.append(f"{campos_malos} campo(s) de usage no numéricos ignorados (contados como 0)")
+    if descartados_por_ventana:
+        avisos.append(f"{descartados_por_ventana} registro(s) anteriores al inicio de la ventana "
+                       f"descartados (timestamp < inicio - {TIMESTAMP_TOLERANCIA_SEG}s)")
+    if timestamps_no_comparables:
+        avisos.append(f"{timestamps_no_comparables} registro(s) con timestamp no comparable "
+                       f"contados igualmente (nunca se descarta por un timestamp raro)")
     tokens["respuestas"] = len(seen)
     return tokens, avisos
 
@@ -395,7 +457,7 @@ def cmd_start(args):
     avisos = []
     tdir = args.transcript_dir or _project_transcript_dir()
     state = _load_state(args.state, avisos)
-    marcador = {"inicio": _now_iso(), "transcriptDir": str(tdir) if tdir else None,
+    marcador = {"version": 2, "inicio": _now_iso(), "transcriptDir": str(tdir) if tdir else None,
                 "offsets": _snapshot_offsets(tdir)}
     if not tdir:
         marcador["aviso"] = "transcripciones no localizadas; close degradará a fuente=estimado"
@@ -423,11 +485,22 @@ def cmd_close(args):
         # marcador sin offsets (escrito a mano o de otra versión): medir sería contar
         # TODO el histórico como ventana → degradar con aviso, no mentir
         avisos.append("marcador sin offsets (¿corrupto o de otra versión?); degradado a estimado")
+    elif marcador.get("version") != 2:
+        # marcador abierto ANTES del arreglo T-04 (sin filtro por timestamp): medir su
+        # ventana podría contar enteros transcripts previos al `start` → degradar, no mentir
+        avisos.append("marcador anterior al arreglo (sin version); degradado a estimado")
+    elif not marcador.get("inicio"):
+        # marcador version=2 pero sin `inicio` (editado a mano o corrupto): sin `inicio` el
+        # filtro por timestamp de `_sum_usage_window` queda desactivado en silencio y se vuelve
+        # al bug exacto que T-04 arregla → degradar igual que "sin offsets"/"anterior al arreglo"
+        # (B-5, revisión R1: `offsets` sí tenía esta defensa, `inicio` no)
+        avisos.append("marcador sin `inicio` (¿corrupto o editado a mano?); degradado a estimado")
     else:
         tdir = args.transcript_dir or marcador.get("transcriptDir")
         if tdir and Path(tdir).is_dir():
             try:
-                tokens, avs = _sum_usage_window(tdir, marcador.get("offsets") or {})
+                tokens, avs = _sum_usage_window(tdir, marcador.get("offsets") or {},
+                                                 inicio=marcador.get("inicio"))
                 avisos += avs
             except Exception as e:  # degradación total: nunca bloquear
                 avisos.append(f"lectura de transcripciones falló: {e}")
@@ -443,6 +516,21 @@ def cmd_close(args):
                       else f"default no calibrado ({DEFAULT_RATIO})")
         ratio = ratio or DEFAULT_RATIO
 
+    # duracion_reloj (T-04, aditiva): fin - inicio real, formato fmt_horas; siempre que haya
+    # marcador (independiente de si se pudo medir tokens) — NO sustituye a `duracion` (tokens
+    # ÷ ratio, solo en fuente=medido); ambas conviven, `duracion` sigue siendo la que
+    # consumen dashboards y plantillas existentes.
+    dur_reloj = None
+    inicio_dt = _parse_iso(resultado.get("inicio"))
+    fin_dt = _parse_iso(fin)
+    if inicio_dt is not None and fin_dt is not None:
+        try:
+            dur_reloj = fmt_horas(max((fin_dt - inicio_dt).total_seconds(), 0) / 3600)
+        except (ValueError, OverflowError, TypeError):
+            # TypeError defensivo (B-1, revisión R1): `_parse_iso` ya normaliza a aware UTC, pero
+            # `close` NUNCA debe morir por una resta de fechas — degradación total, nunca bloquear
+            dur_reloj = None
+
     if tokens and tokens["respuestas"] > 0:
         horas = _horas(tokens, ratio)
         try:
@@ -451,13 +539,13 @@ def cmd_close(args):
             dur = None
         resultado.update({"fuente": "medido", "tokens_reales": tokens,
                           "eur": _eur(tokens, rates, avisos),
-                          "horas_ia": horas, "duracion": dur,
+                          "horas_ia": horas, "duracion": dur, "duracion_reloj": dur_reloj,
                           "ratio_usado": ratio, "ratio_origen": ratio_info})
     else:
         if tokens is not None and tokens["respuestas"] == 0:
             avisos.append("ventana sin respuestas del modelo (¿start y close seguidos?)")
         resultado.update({"fuente": "estimado", "tokens_reales": None, "eur": None,
-                          "horas_ia": None, "duracion": None,
+                          "horas_ia": None, "duracion": None, "duracion_reloj": dur_reloj,
                           "ratio_usado": ratio, "ratio_origen": ratio_info,
                           "nota": "estima tokens/horas a juicio y márcalo como estimado"})
     if marcador:
