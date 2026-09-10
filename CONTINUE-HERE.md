@@ -9,7 +9,9 @@ cuando la rama descrita aquí se publique y no quede nada abierto.
 
 ## Trabajo EN CURSO — tres iniciativas abiertas el 2026-09-09 (F1 INTEGRADA en `master`; rama actual `feature/plugin-refactor`)
 
-**F1 de project-specialization está en `master`** (merge `--no-ff` `919cca4`, decisión del usuario; **sin push**). La rama `feature/project-specialization` se borró tras integrarla; el trabajo sigue en `feature/plugin-refactor`, nacida de `master`. Los quince commits de la rama integrada: ciclo PM ·
+**En `master`**: F1 de project-specialization (merge `919cca4`) y, desde el 2026-09-10, **el arreglo de `usage-meter` + los ciclos PM de
+`brief-budget` y `plugin-refactor`** (merge `--no-ff` `8fee28a`, decisión del usuario; **sin push**). La rama de trabajo `feature/plugin-refactor`
+apunta al merge (`reset --soft`, árbol intacto) y ahí seguirá el refactor. Los commits de la primera rama integrada: ciclo PM ·
 diseño + `ADR-014` · plan + `ADR-015` · cifras re-medidas · `GOT-009` + análisis de `brief-budget` ·
 análisis de `plugin-refactor` con línea base. **F1 está COMITEADA por tarea**: `a7f6bbe` T-02 · `204f333` T-03 · `74901c6` T-01 (+ ledger + los 4
 ficheros reales de `interop/`). Árbol limpio salvo el journal del hook y el ruido previo.
