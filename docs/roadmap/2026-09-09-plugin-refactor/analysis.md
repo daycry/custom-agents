@@ -99,8 +99,7 @@ De los 8 marcadores, **6 son falsos positivos**: cinco están en el propio `code
 y su código hablan de «TODO/FIXME/HACK» para describir lo que busca), y uno en
 `confluence-scope.py:113` es la palabra castellana «todo» en mayúsculas dentro de prosa («siguen
 escribiendo TODO (ADRs, …»), que la regla «palabra seguida de `(`» acepta. `journal.py:41` es otra
-descripción de patrón. **Queda un TODO real**: `usage-meter.py:380` («el histórico como ventana →
-degradar con aviso, no mentir»), 29 días. Esto es un defecto pequeño del detector con arreglo barato
+descripción de patrón. ~~Queda un TODO real~~ **Corrección de la revisión R1 (2026-09-10): el octavo también es prosa castellana** — «medir sería contar / `# TODO el histórico como ventana`» (`usage-meter.py:454-455`), la palabra «todo» partida en dos comentarios. Quedan **0** marcadores reales, no 1. Esto es un defecto pequeño del detector con arreglo barato
 (excluir comentarios que enumeran marcadores; exigir mayúsculas Y que el fichero no sea el propio
 detector) y una tarea del refactor.
 
