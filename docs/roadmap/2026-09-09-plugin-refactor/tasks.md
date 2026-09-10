@@ -15,7 +15,7 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 
 | | |
 |---|---|
-| **Estado** | borrador |
+| **Estado** | en-progreso |
 | **Fecha** | 2026-09-10 |
 | **Plan** | [`improvement-plan.md`](./improvement-plan.md) |
 | **Diseño** | [`design.md`](./design.md) — opción O1 (`ADR-016` `propuesta`) |
@@ -49,7 +49,7 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 
 ## Fase 1 — Línea base limpia y la cicatriz
 
-**Estado**: borrador · **Estimado**: 11,5h · **Real**: — · **Coste est.**: 580 € · **Tokens est.**: 619k · **Tramo**: R1
+**Estado**: en-progreso · **Estimado**: 11,5h · **Real**: — · **Coste est.**: 580 € · **Tokens est.**: 619k · **Tramo**: R1
 
 ### T-01 — C-04: detector de TODO de `code-health.py`, 8 → 1
 
@@ -649,7 +649,7 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 
 **Notas**: Una heurística que «acierta» solo el caso F1 es un test de regresión disfrazado (riesgo de la evaluación): por eso los tres negativos y la tasa medida son criterios, no notas. Confianza **Baja** heredada.
 
-### T-19 — C-14 (E11, PROPUESTA): `test_cifras_medidas.py` vigila solo los documentos vivos; los históricos congelan cifra y fecha
+### T-19 — C-14 (E11, propuesta ACEPTADA por el usuario el 2026-09-10 en la puerta del plan): `test_cifras_medidas.py` vigila solo los documentos vivos; los históricos congelan cifra y fecha
 
 - **Descripción**: `tests/test_cifras_medidas.py` compara cada `<!--m:clave=valor-->` de la doc contra `changelog-sync.py --medicion` (corpus **vivo**), y algunas marcas viven en **documentos históricos** — `ADR-012`, el ledger cerrado de `changelog-brief`, `docs/knowledge/README.md` — que citan la medición del día en que se decidió. Resultado verificado hoy cuatro veces: **abrir o cerrar cualquier iniciativa rompe el test** (29 fallos al cerrar la vía rápida; un parche mecánico corrompió tres líneas) y obliga a reescribir prosa de documentos que no deberían moverse (este mismo plan movió `ledgers_totales` 33 → 34 al nacer). Propuesta del plan (la más barata de las dos vías del orquestador; **el usuario decide en la puerta**): los documentos **vivos** (`skills/changelog-sync/references/medicion-escalera.md`, `SKILL.md`, `CONVENTIONS.md`) siguen con `<!--m:…-->`; los **históricos** pasan a `<!--m?:histórico medido el AAAA-MM-DD-->` con la cifra congelada y su fecha (forma que el test ya acepta), y el test gana un caso: una marca `m:` en un fichero de `docs/roadmap/**` cerrado o `docs/knowledge/adr/**` es **aviso** («esto es histórico: congela con fecha»). `changelog-sync.py` no cambia. Alternativa (no elegida, +1,0 h): generar las cifras con fecha de medición en la prosa.
 - **Changelog**: Las cifras medidas que viven en documentos históricos (ADR, ledgers cerrados) quedan congeladas con su fecha y ya no rompen la suite al abrir o cerrar una iniciativa; las vivas siguen vigiladas.

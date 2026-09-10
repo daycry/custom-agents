@@ -14,7 +14,7 @@ creado: 2026-09-10
 actualizado: 2026-09-10
 evaluacion: evaluation.md
 design: design.md          # `aprobado` 2026-09-10 — decisión del §5: O1 (registro de copias declaradas + un test de identidad); ADR-016 `propuesta`
-plan: improvement-plan.md   # `borrador` 2026-09-10 — 22 tareas en 5 fases y 4 tramos de revisión; 74,0 h base / 88,8 h con margen / ~4.479 € (hereda la evaluación: P-1 y C-13 (i) ya hechas, E11 como propuesta C-14)
+plan: improvement-plan.md   # `en-progreso` 2026-09-10 — 22 tareas en 5 fases y 4 tramos de revisión; 74,0 h base / 88,8 h con margen / ~4.479 € (hereda la evaluación: P-1 y C-13 (i) ya hechas, E11 como propuesta C-14)
 analisis: analysis.md
 relacionado: docs/roadmap/2026-09-09-brief-budget/spec.md (toca el mismo `main()` de `task-brief.py`; ordenada DESPUÉS de este refactor) · docs/roadmap/2026-09-09-project-specialization/tasks.md (F1 integrada en master 919cca4; F2/F3 pendientes) · docs/knowledge/gotchas/GOT-005-consola-windows-cp1252.md · docs/knowledge/gotchas/GOT-009-presupuesto-del-brief-se-rompe-con-design-md.md
 generacion:
