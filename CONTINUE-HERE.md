@@ -54,8 +54,16 @@ común se descarta: rompe el standalone y el requisito multi-runtime). Pendiente
 «todo carácter no alfanumérico → `-`»: en esta máquina la clave NUNCA existe y `close` degrada siempre a
 `fuente: estimado` (once artefactos en dos sesiones; `CALIBRATION.md` alimentándose de juicio). Los 28 tests
 inyectan `--transcript-dir`: cobertura cero de la función. Ledger ligero `a868a0a` (T-01 la línea + tests sin
-inyección con oráculo de carpetas reales · T-02 `GOT-010`). **`implementer` en vuelo**; después revisión de dos
-lentes y commit. Es la pieza que hace MEDIBLE todo lo demás: por eso va antes que el `architect`.
+inyección con oráculo de carpetas reales · T-02 `GOT-010` · **T-03 añadida por la revisión**). La revisión de dos
+lentes (intento 1: 1 Critical, 6 Important, 7 Minor) destapó que la clave de carpeta era solo media causa: el
+parser usa `glob("*.jsonl")` NO recursivo y Claude Code guarda los transcripts de subagentes en
+`<session-id>/subagents/agent-*.jsonl` → **5 de 41 ficheros, 43,6 % de tokens sin contar, publicado como
+`medido`**. La hipótesis del implementer («el JSONL del subagente no se vuelca hasta acabar el turno») es FALSA
+(crece en vivo). 6 de 7 tests nuevos pasaban con el código viejo (oráculo copiado del código bajo prueba).
+**`implementer` corrigiendo** (T-03 recursivo + tests que muerden + GOT-010 con la causa de dos patas). El
+orquestador tiene abierto el marcador `usage-meter-transcripts/correccion` (07:03:28Z) para la evidencia
+cruzando turno del criterio 4 de T-01, que solo la sesión principal puede dar. Después: revisión intento 2,
+commit, `architect`. Es la pieza que hace MEDIBLE todo lo demás: por eso va antes que el `architect`.
 
 ### Orden DECIDIDO por el usuario (2026-09-09/10): cerrar F1 ✅ → usage-meter (vía rápida) → refactor → brief-budget
 
