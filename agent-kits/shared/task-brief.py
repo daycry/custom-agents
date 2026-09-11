@@ -578,6 +578,9 @@ def _design_elegida(carpeta):
 
 # Copia LITERAL de `REVISION_HDR_PATTERN` de ledger-lint.py, solo para cuando el kit no viaja
 # completo. `tests/` compara las dos cadenas: si divergen, el test falla (T-fix1).
+# DECLARADA en `agent-kits/shared/copias.json` (bloque `revision_hdr_pattern`, ADR-016): el registro
+# es la lista única de copias del repo y `scripts/lint_plugin.py` da error si aparece una `_*_FALLBACK`
+# sin fila.
 _REVISION_HDR_FALLBACK = \
     r"^##\s+Revisi[oó]n de dos lentes\s*[\u2014\u2013-]\s*intento\s+(\d+)\s*(?::\s*(.*))?$"
 

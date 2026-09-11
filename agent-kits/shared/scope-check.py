@@ -57,6 +57,11 @@ def _load_glob_to_regex():
         except Exception:  # noqa: BLE001 — degradación al traductor local
             pass
 
+    # --8<-- glob_to_regex (respaldo local) — REPLICADO LITERAL en agent-kits/shared/scope-check.py y
+    # skills/adversarial-review/scripts/review-lens-select.py; el canónico de la semántica es
+    # skills/confluence-publish/scripts/confluence-scope.py (otra forma: no comparable byte a byte).
+    # DECLARADO en agent-kits/shared/copias.json (ADR-016); tests/test_copias_declaradas.py compara
+    # estas dos copias byte a byte: no lo edites en una sola.
     def local(pattern):
         pattern = pattern.replace("\\", "/")
         out, i, n = [], 0, len(pattern)
@@ -72,6 +77,7 @@ def _load_glob_to_regex():
             else:
                 out.append(re.escape(pattern[i])); i += 1
         return re.compile("^" + "".join(out) + "$")
+    # --8<-- fin glob_to_regex (respaldo local)
     return local
 
 
