@@ -215,7 +215,7 @@ Decisión registrada en [`ADR-016`](../../knowledge/adr/ADR-016-copias-declarada
 | Decisión | Cerrada así | Alternativa descartada |
 |---|---|---|
 | Formato y sitio del registro | JSON en `agent-kits/shared/copias.json` (viaja con el kit por las tres vías de instalación); **una entrada por bloque** con sus N rutas y los **centinelas o el rango** que lo delimitan en cada sitio | YAML (dependencia fuera de stdlib) y seguir declarándolo en prosa dentro de cada docstring — que es justo lo que hay hoy y lo que ha fallado |
-| Cómo se compara | **Byte a byte tras normalizar `\r\n` -> `\n`** | Comparar bytes crudos: en Windows `core.autocrlf` da un falso positivo por finales de línea (`GOT-007`; el hash de `ADR-014` normaliza por lo mismo). También descartado comparar AST o «texto equivalente» |
+| Cómo se compara | **Byte a byte tras normalizar `\r\n` -> `\n`** *Enmienda 2026-09-10 (revisión R3):* tres tolerancias declaradas en el propio registro y guardadas por test — `sustituciones` (renombrado de identificador), `canonico_comparable: false` + `equivalencia` conductual, `respaldos` — según `ADR-016` §«Tolerancias explícitas del comparador» | Comparar bytes crudos: en Windows `core.autocrlf` da un falso positivo por finales de línea (`GOT-007`; el hash de `ADR-014` normaliza por lo mismo). También descartado comparar AST o «texto equivalente» |
 | Qué pasa al divergir | El test **falla** con exit code — guardarraíl determinista, patrón `ledger-lint`/`qa-gate` | Avisar: un aviso que nadie lee reproduce la garantía que hoy tiene `glob_to_regex` (ninguna) |
 
 **Consecuencia sobre la spec (la aplica el `planner`; aquí no se toca `spec.md` más allá del enlace):** `C-03`
