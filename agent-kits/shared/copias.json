@@ -1,0 +1,145 @@
+{
+  "version": 1,
+  "que_es": "Registro versionado del codigo que este repo REPLICA a proposito entre piezas (ADR-016). Las piezas del plugin son standalone -una skill se puede instalar sola, sin `agent-kits/`-, asi que lo compartido se copia en vez de importarse; lo que faltaba era declararlo en UN sitio y guardarlo con UN guardarrail. Una entrada por bloque: su sitio canonico, sus N sitios copia y los centinelas (o el rango) que lo delimitan en cada sitio.",
+  "comparacion": "`tests/test_copias_declaradas.py` recorre este registro y compara los bloques BYTE A BYTE tras normalizar `\\r\\n` -> `\\n` (Windows core.autocrlf, GOT-007). Si divergen, el test FALLA con exit code (no avisa). Cada copia puede declarar `sustituciones` [[de, a]]: renombrados locales de IDENTIFICADOR que se normalizan ANTES de comparar (son la unica diferencia tolerada y quedan a la vista aqui). El esquema lo IMPONE -ambos lados tienen que casar `^[A-Za-z_][A-Za-z0-9_]*$`- y el reemplazo se aplica con FRONTERA DE PALABRA (`re.sub(r\"\\b\" + re.escape(de) + r\"\\b\", a, texto)`): con pares de subcadena arbitrarios, una `sustitucion` podia revertir una divergencia real de comportamiento (`\"strip()) > len(cerco)\"` -> `\"strip()) >= len(cerco)\"`) justo antes de comparar y dejar el test verde (gap B-2 del intento 2). Un bloque con `canonico_comparable: false` no compara contra su canonico -su texto tiene otra forma y congelarlo exigiria reescribirlo-: compara sus copias entre si Y declara `equivalencia` (funcion, cargador y corpus), que el mismo test ejecuta contra el canonico para que el respaldo no quede sin guardarrail. Los bloques `no_codigo: true` no se comparan (imports y docstrings de convencion: no son logica); declaran `contiene`, las subcadenas que TIENEN que seguir dentro del rango, para que el rango no derive en silencio cuando el fichero crece.",
+  "delimitacion": "`inicio` y `fin` son la LINEA ENTERA del centinela (tras `strip`), y tanto el test como el linter casan POR IGUALDAD de linea, nunca por prefijo: con prefijo, un centinela nuevo que extendiera a uno declarado (`... COMPARTIDO v2`) se colaba como si estuviera declarado. En cada copia, el bloque va desde el texto `inicio` (incluido) hasta el texto `fin` (excluido), buscando `fin` a partir de `inicio`. Cada centinela declarado aparece EXACTAMENTE UNA VEZ en su ruta, y tanto el test como el linter lo exigen: si no, una segunda copia del mismo bloque pegada mas abajo en un fichero YA declarado quedaba invisible -el test se quedaba con la primera aparicion y el linter solo miraba pertenencia, no cuantas (gap B-4 del intento 2)-. Los centinelas siguen el formato `# --8<-- <bloque>` / `# --8<-- fin <bloque>` y su primera linea es IDENTICA en todas las copias (por eso entra en la comparacion). Una copia sin `fin` es de UNA linea: se compara la linea que contiene `inicio`, sin el salto final.",
+  "detecta": "`scripts/lint_plugin.py` (`comprobar_copias_declaradas`) recorre los `.py` del arbol -saltando `interop/**` (generado por export-interop.py), las cuatro raices de runtime donde el plugin se instala POR COPIA (`.claude/**`, `.codex/**`, `.opencode/**`, `.agents/**`, docs/INSTALL.md), `.venv/**`, `node_modules/**`, `dist/**`, `build/**`, `.git/**` y demas CONSOLE_SKIP_DIRS- y da ERROR si encuentra (a) una linea que case `^[ \\t]*#[ \\t]*--8<--` cuyo texto no sea IGUAL a un `inicio`/`fin` declarado PARA ESE FICHERO, (b) un centinela SI declarado para ese fichero que aparezca MAS VECES de las que el registro declara para esa ruta (`fichero:linea` de la aparicion sobrante: una segunda copia del bloque en un fichero ya declarado) o (c) una definicion de constante `_*_FALLBACK` fuera del rango declarado de una copia de ese fichero que liste el nombre en SU PROPIO `respaldos`. Definir cuenta en las TRES formas de Python (`_nombres_de_respaldo` en el linter): la SIMPLE (`_X_FALLBACK = ...`), la ANOTADA (`_X_FALLBACK: str = ...`) y la ENCADENADA (`_A_FALLBACK = _B_FALLBACK = ...`, que define las DOS y da un error POR NOMBRE). Lo que se mira es el LADO IZQUIERDO de la asignacion, asi que una mencion en el valor (`x = _PATRON_FALLBACK`) no es una definicion. Con el patron viejo -el nombre pegado al `=`- bastaba con anotar el tipo o con colgar la constante de una cadena de asignacion para meter una copia nueva sin fila en el registro (gap R3-3 del intento 3). `respaldos` es POR COPIA (`copias[i].respaldos`), no por bloque: la tolerancia vale solo en la ruta que DEFINE la constante -`agent-kits/shared/task-brief.py` y `skills/jira-sync/scripts/jira-flow.py`-, nunca en las demas rutas del bloque -`agent-kits/shared/ledger-lint.py`, que es el canonico y no tiene respaldo-. Es heuristica POR MARCADOR Y POR NOMBRE, no exhaustiva: una copia sin centinela y sin nombre `_*_FALLBACK` no se detecta (para esas, la puerta es la revision de dos lentes y `code-health`).",
+  "bloques": [
+    {
+      "id": "criterio_de_consola",
+      "mecanismo": "A",
+      "que_es": "Criterio de que .py del plugin tiene que reconfigurar los streams (GOT-005) y de que llamada a subprocess decodifica sin encoding: el linter lo aplica y la suite lo comprueba con el MISMO texto.",
+      "canonico": "scripts/lint_plugin.py",
+      "copias": [
+        {"ruta": "scripts/lint_plugin.py", "inicio": "# --8<-- criterio de consola COMPARTIDO (windows-console T-04/T-05) — REPLICADO LITERAL en", "fin": "# --8<-- fin del criterio de consola COMPARTIDO"},
+        {"ruta": "tests/test_console_encoding.py", "inicio": "# --8<-- criterio de consola COMPARTIDO (windows-console T-04/T-05) — REPLICADO LITERAL en", "fin": "# --8<-- fin del criterio de consola COMPARTIDO"}
+      ],
+      "guardarrail_previo": "tests/test_console_encoding.py::test_linter_y_suite_replican_el_mismo_bloque (sigue vivo: absorbido, no borrado)"
+    },
+    {
+      "id": "celdas_md",
+      "mecanismo": "A",
+      "que_es": "Troceo de una fila de tabla Markdown respetando los `|` dentro de acentos graves.",
+      "canonico": "scripts/lint_plugin.py",
+      "copias": [
+        {"ruta": "scripts/lint_plugin.py", "inicio": "# --8<-- celdas de tabla Markdown COMPARTIDAS — REPLICADO LITERAL en scripts/lint_plugin.py,", "fin": "# --8<-- fin de celdas de tabla Markdown COMPARTIDAS"},
+        {"ruta": "agent-kits/shared/knowledge-find.py", "inicio": "# --8<-- celdas de tabla Markdown COMPARTIDAS — REPLICADO LITERAL en scripts/lint_plugin.py,", "fin": "# --8<-- fin de celdas de tabla Markdown COMPARTIDAS"},
+        {"ruta": "agent-kits/shared/doctor.py", "inicio": "# --8<-- celdas de tabla Markdown COMPARTIDAS — REPLICADO LITERAL en scripts/lint_plugin.py,", "fin": "# --8<-- fin de celdas de tabla Markdown COMPARTIDAS"}
+      ],
+      "guardarrail_previo": "tests/test_knowledge_index.py::test_los_tres_scripts_replican_el_mismo_bloque_de_celdas (sigue vivo)"
+    },
+    {
+      "id": "criterio_indice_knowledge",
+      "mecanismo": "A",
+      "que_es": "Criterio del indice de docs/knowledge/README.md (biyeccion ficheros <-> filas + Area por fila): el linter da error con el y /doctor pinta la misma comprobacion, no una aproximacion.",
+      "canonico": "scripts/lint_plugin.py",
+      "copias": [
+        {"ruta": "scripts/lint_plugin.py", "inicio": "# --8<-- criterio del índice de knowledge COMPARTIDO (memory-retrieval T-04) — REPLICADO LITERAL en", "fin": "# --8<-- fin del criterio del índice de knowledge COMPARTIDO"},
+        {"ruta": "agent-kits/shared/doctor.py", "inicio": "# --8<-- criterio del índice de knowledge COMPARTIDO (memory-retrieval T-04) — REPLICADO LITERAL en", "fin": "# --8<-- fin del criterio del índice de knowledge COMPARTIDO"}
+      ],
+      "guardarrail_previo": "tests/test_knowledge_index.py::test_linter_y_doctor_replican_el_mismo_criterio_del_indice + agent-kits/shared/test_doctor.py (sigue vivo)"
+    },
+    {
+      "id": "revision_hdr_pattern",
+      "mecanismo": "B",
+      "que_es": "Regex de la cabecera `## Revision de dos lentes - intento N`: UN solo criterio para el brief del implementer y para Jira (cuando divergian, la misma cabecera daba brief CON gaps y jira-flow exit 2).",
+      "canonico": "agent-kits/shared/ledger-lint.py",
+      "copias": [
+        {"ruta": "agent-kits/shared/ledger-lint.py", "inicio": "r\"^##\\s+Revisi[oó]n de dos lentes\\s*[\\u2014\\u2013-]\\s*intento\\s+(\\d+)\\s*(?::\\s*(.*))?$\""},
+        {"ruta": "agent-kits/shared/task-brief.py", "inicio": "r\"^##\\s+Revisi[oó]n de dos lentes\\s*[\\u2014\\u2013-]\\s*intento\\s+(\\d+)\\s*(?::\\s*(.*))?$\"",
+         "respaldos": ["_REVISION_HDR_FALLBACK"]},
+        {"ruta": "skills/jira-sync/scripts/jira-flow.py", "inicio": "r\"^##\\s+Revisi[oó]n de dos lentes\\s*[\\u2014\\u2013-]\\s*intento\\s+(\\d+)\\s*(?::\\s*(.*))?$\"",
+         "respaldos": ["_REVISION_HDR_FALLBACK"]}
+      ],
+      "guardarrail_previo": "agent-kits/shared/test_task_brief.py y skills/jira-sync/scripts/test_jira_flow.py comparan la cadena con la canonica (siguen vivos)"
+    },
+    {
+      "id": "glob_to_regex",
+      "mecanismo": "C",
+      "que_es": "Traductor glob -> regex con semantica de `**/` (cero o mas directorios), respaldo local de los dos scripts que cargan el canonico por ruta cuando la skill confluence-publish no esta instalada.",
+      "canonico": "skills/confluence-publish/scripts/confluence-scope.py",
+      "canonico_comparable": false,
+      "motivo_canonico": "Dos guardarrailes, no uno. (1) IDENTIDAD byte a byte ENTRE LOS DOS RESPALDOS, que es lo que antes no tenia NADA. (2) EQUIVALENCIA CONDUCTUAL con el canonico, porque la identidad con el es imposible sin reescribir codigo congelado en este tramo: el canonico es una funcion de modulo con docstring y una linea por rama, y los respaldos una funcion anidada con las ramas en una linea. Esa equivalencia NO la cubren los tests de comportamiento de cada script -su cargador importa el canonico siempre que la skill confluence-publish este instalada, asi que los respaldos son codigo que ningun test ejecutaba (gap 1 de la revision R3)-: la cubre el campo `equivalencia` de abajo, que `tests/test_copias_declaradas.py::test_el_respaldo_es_equivalente_al_canonico` ejecuta forzando la rama local y exigiendo el MISMO patron compilado que el canonico para todo el `corpus`. Un cambio semantico en un respaldo, en los dos a la vez o en el canonico pone el test rojo.",
+      "equivalencia": {
+        "funcion": "glob_to_regex",
+        "cargador": "_load_glob_to_regex",
+        "como": "El test carga canonico y respaldos como modulos sueltos (`importlib.util.spec_from_file_location`) y llama al `cargador` de cada respaldo con `os.path.isfile` devolviendo False, para que caiga a la funcion definida DENTRO de los centinelas (el cargador, tal cual, devuelve el canonico). Compara `.pattern` de la regex compilada para cada entrada del corpus.",
+        "que_fija_el_corpus": "El corpus NO se fija por numero minimo (eso solo pedia `>= 25` y permitia PODARLO: borrando las tres entradas con `?` el mutante `[^/]` -> `[^/]?` en los dos respaldos seguia verde -gap B-1 del intento 2-). Se fija por CATEGORIAS OBLIGATORIAS: `categorias` es la lista de rasgos del glob que el corpus tiene que ejercitar, y `tests/test_copias_declaradas.py::test_el_corpus_de_equivalencia_cubre_todas_las_categorias` exige AL MENOS UNA entrada por categoria (`re.search(regex, entrada)`). Quitar la ultima entrada de una categoria pone el test rojo NOMBRANDO la categoria descubierta; anadir entradas siempre es seguro.",
+        "categorias": [
+          {"nombre": "interrogante `?` (un caracter, sin cruzar `/`)", "regex": "\\?"},
+          {"nombre": "`**` al INICIO del patron", "regex": "^\\*\\*"},
+          {"nombre": "`**` EN MEDIO del patron", "regex": "[^*]\\*\\*[^*]"},
+          {"nombre": "`**` al FINAL del patron", "regex": "\\*\\*$"},
+          {"nombre": "clase de caracteres `[...]`", "regex": "\\[[^]]*\\]"},
+          {"nombre": "clase negada con `!` (`[!...]`)", "regex": "\\[!"},
+          {"nombre": "clase negada con `^` (`[^...]`)", "regex": "\\[\\^"},
+          {"nombre": "extension `*.ext`", "regex": "\\*\\.[A-Za-z0-9]+"},
+          {"nombre": "cadena VACIA", "regex": "^$"},
+          {"nombre": "`./` inicial (ruta relativa sin normalizar)", "regex": "^\\./"},
+          {"nombre": "`/` inicial (ancla de raiz)", "regex": "^/"},
+          {"nombre": "`/` final (directorio)", "regex": "/$"},
+          {"nombre": "espacios dentro de la ruta", "regex": "\\s"},
+          {"nombre": "contrabarra `\\` (separador de Windows)", "regex": "\\\\"},
+          {"nombre": "metacaracter `.` a escapar", "regex": "\\."},
+          {"nombre": "metacaracter `+` a escapar", "regex": "\\+"},
+          {"nombre": "metacaracteres `(` y `)` a escapar", "regex": "[()]"},
+          {"nombre": "metacaracter `$` a escapar", "regex": "\\$"}
+        ],
+        "corpus": ["", "  ", "*", "**", "**/", "**/x", "a/**", "a**b", "**/**", "?", "a?c", "?*?", "[a-z]", "[!a-z]", "[^a-z]", "file[0-9].txt", "*.md", "README.md", "docs/", "/docs", "./docs/x.md", "docs/**", "**/*.md", "docs/**/*.py", "/docs/**/*.md", "src/**/test_*.py", "**/node_modules/**", "a b/c d.md", "a\\b", "docs\\en\\README.md", "v1.2.3", "a+b", "(x)", "a.b*c", "$^|"]
+      },
+      "copias": [
+        {"ruta": "agent-kits/shared/scope-check.py", "inicio": "# --8<-- glob_to_regex (respaldo local) — REPLICADO LITERAL en agent-kits/shared/scope-check.py y", "fin": "# --8<-- fin glob_to_regex (respaldo local)"},
+        {"ruta": "skills/adversarial-review/scripts/review-lens-select.py", "inicio": "# --8<-- glob_to_regex (respaldo local) — REPLICADO LITERAL en agent-kits/shared/scope-check.py y", "fin": "# --8<-- fin glob_to_regex (respaldo local)"}
+      ],
+      "guardarrail_previo": "ninguno (este es el hueco que cierra ADR-016)"
+    },
+    {
+      "id": "piezas_del_repo",
+      "mecanismo": "C",
+      "que_es": "Lectura de las piezas del repo (skill:/command:/agent: -> description) desde los frontmatters reales; el linter la carga de evals/check.py y guarda este respaldo para cuando esa carpeta no viaja.",
+      "canonico": "evals/check.py",
+      "copias": [
+        {"ruta": "evals/check.py", "inicio": "# --8<-- piezas del repo (frontmatters) — REPLICADO LITERAL en evals/check.py (canónico) y en", "fin": "# --8<-- fin piezas del repo (frontmatters)"},
+        {"ruta": "scripts/lint_plugin.py", "inicio": "# --8<-- piezas del repo (frontmatters) — REPLICADO LITERAL en evals/check.py (canónico) y en", "fin": "# --8<-- fin piezas del repo (frontmatters)",
+         "sustituciones": [["_frontmatter_plegado", "_frontmatter"]]}
+      ],
+      "guardarrail_previo": "ninguno (este es el hueco que cierra ADR-016)"
+    },
+    {
+      "id": "sin_vallas",
+      "mecanismo": "D",
+      "que_es": "Vaciado de las lineas dentro de una valla de codigo conservando el numero de lineas: dos copias independientes (la skill changelog-sync viaja sin este kit), registradas como bloque.",
+      "canonico": "agent-kits/shared/ledger-lint.py",
+      "copias": [
+        {"ruta": "agent-kits/shared/ledger-lint.py", "inicio": "# --8<-- sin_vallas (cuerpo) — REPLICADO LITERAL en agent-kits/shared/ledger-lint.py y en", "fin": "# --8<-- fin sin_vallas (cuerpo)"},
+        {"ruta": "skills/changelog-sync/scripts/changelog-sync.py", "inicio": "# --8<-- sin_vallas (cuerpo) — REPLICADO LITERAL en agent-kits/shared/ledger-lint.py y en", "fin": "# --8<-- fin sin_vallas (cuerpo)",
+         "sustituciones": [["RE_VALLA", "_VALLA_RE"]]}
+      ],
+      "guardarrail_previo": "solo CONDUCTUAL (skills/changelog-sync/scripts/test_changelog_sync.py comparaba resultados, no texto: una divergencia sin efecto pasaba)"
+    },
+    {
+      "id": "imports_de_cabecera",
+      "mecanismo": "no-codigo",
+      "no_codigo": true,
+      "que_es": "Cierre del docstring de cabecera (`\"\"\"`) y el bloque de imports de la stdlib en el mismo orden alfabetico, hasta el ultimo import. Coincide porque los dos scripts usan la misma libreria estandar, no porque uno copie al otro: NO se compara ni se unifica.",
+      "canonico": null,
+      "contiene": ["\"\"\"", "import os", "import sys"],
+      "copias": [
+        {"ruta": "scripts/export-skills.py", "rango": "36-43"},
+        {"ruta": "skills/jira-sync/scripts/jira-flow.py", "rango": "83-90"}
+      ]
+    },
+    {
+      "id": "docstring_uso_exit",
+      "mecanismo": "no-codigo",
+      "no_codigo": true,
+      "que_es": "Cola del docstring de cabecera con las secciones `Uso:` (linea de invocacion) y `Exit:` (codigos de salida) que exige la convencion de scripts del repo. El texto NO coincide y los rangos tienen tamanos distintos -en `code-health.py` el `Uso:` ocupa cuatro lineas y en `deps-inventory.py` una-: lo replicado es la PLANTILLA de documentacion, no logica. NO se compara ni se unifica.",
+      "canonico": null,
+      "contiene": ["Uso:", "Exit:"],
+      "copias": [
+        {"ruta": "skills/code-health/scripts/code-health.py", "rango": "23-27"},
+        {"ruta": "skills/dependency-upgrade/scripts/deps-inventory.py", "rango": "27-28"}
+      ]
+    }
+  ]
+}

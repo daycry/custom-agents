@@ -228,6 +228,9 @@ def detalle_tarea(texto, tid, ledger_lint):
 # el kit no viaja con el paquete portable. `test_jira_flow.py` compara las dos cadenas: si divergen,
 # el test falla. Antes esta regex EXIGÍA `:` tras el número y la de `task-brief.py` no, así que una
 # cabecera sin `:` daba brief CON gaps y este script exit 2 sobre el MISMO ledger (T-fix1).
+# DECLARADA en `agent-kits/shared/copias.json` (bloque `revision_hdr_pattern`, ADR-016): el registro
+# es la lista única de copias del repo y `scripts/lint_plugin.py` da error si aparece una `_*_FALLBACK`
+# sin fila.
 _REVISION_HDR_FALLBACK = \
     r"^##\s+Revisi[oó]n de dos lentes\s*[\u2014\u2013-]\s*intento\s+(\d+)\s*(?::\s*(.*))?$"
 
