@@ -1,4 +1,26 @@
-# CONTINUE-HERE.md
+# CONTINUE-HERE
+
+> **2026-09-11 — `installer-registro-real` PUBLICADA en v1.20.0.** PR #2 mezclado en master (`0a10e7a`), release
+> `e5774f8` + tag `v1.20.0` publicados, **CI de master en verde** en los dos commits (llevaba roja desde los merges
+> de R2 y R3 del refactor, que integré sin comprobar el workflow: corregido en esta tanda).
+
+> **PENDIENTE Y ES DEL USUARIO: la checklist M-01** de `docs/roadmap/2026-09-11-installer-registro-real/tasks.md`.
+> Verificar en una máquina con Codex y OpenCode reales que las skills y los prompts aparecen y que el adaptador
+> carga. Aquí no hay ninguno de los dos instalados.
+
+> **Lo siguiente en la cola** (ninguno empezado): **R4 del refactor** (`docs/roadmap/2026-09-09-plugin-refactor/`,
+> Fase 4, T-11…T-19 de encadenamiento E1–E11, más T-20…T-22 de cierre; el ledger sigue `en-progreso`) ·
+> **brief-budget** (evaluada con go, ordenada después del refactor) · **F2/F3 de project-specialization**
+> (`/specialize` y `.claude/pieces.json`, diseño aprobado en ADR-014).
+
+> **Lección de esta sesión, para aplicarla antes del próximo push:** verificar en local comparando el CONJUNTO de
+> rojos NO detecta lo que solo se rompe en CI. Cuatro fallos de hoy eran invisibles aquí (versión de Python 3.11
+> frente a 3.13, permisos de `/root`, finales de línea, y `tests/test_lint_plugin.py` en modo script, que en Windows
+> aborta en el caso del bit ejecutable antes de llegar a los casos nuevos). Lo que sí funcionó: un contenedor
+> `python:3.11-slim` con git, `dos2unix` sobre los `.sh` y `chmod +x`, corriendo los mismos comandos de `ci.yml`.
+
+---
+
 
 Estado de trabajo en curso para retomar sin perder contexto (tras compactación o
 un corte de sesión). Si estás leyendo esto al empezar una sesión: lee este
