@@ -9,6 +9,15 @@ y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Fixed — iniciativa `installer-registro-real` (2026-09-11)
+
+- **T-01 — Banner y multiselect con checkboxes, cero dependencias** El instalador `npx` muestra un título al arrancar y permite elegir los runtimes con checkboxes (espacio marca, Enter confirma), con los detectados preseleccionados. (`install/install.mjs`, `tests/installer.test.mjs`)
+- **T-02 — Claude Code: modo plugin por defecto (CLI oficial → registro directo), `--mode copy` explícito** En Claude Code el instalador registra el plugin de verdad (hooks, namespace y actualizaciones), con la CLI oficial o escribiendo su registro; copiar el bundle es ahora `--mode copy`. (`install/providers.mjs`, `install/install.mjs`, `tests/installer.test.mjs`)
+- **T-03 — Codex: `marketplace add` + `enabled = true` (y `hooks`) en `config.toml`** En Codex el instalador registra el marketplace con la CLI y habilita el plugin en `config.toml`, que es lo que faltaba para que skills y hooks aparezcan. (`install/providers.mjs`, `install/install.mjs`, `tests/installer.test.mjs`)
+- **T-04 — OpenCode: registrar el adaptador de hooks en `opencode.json`** En OpenCode el instalador registra el adaptador de hooks en `opencode.json`, además de copiarlo. (`install/providers.mjs`, `install/install.mjs`, `tests/installer.test.mjs`)
+- **T-05 — `/doctor` y `status` comprueban el registro real, no la existencia de ficheros** `/doctor` y `status` dicen si el plugin está registrado de verdad en cada runtime; una copia del bundle en `.claude/` ya no pasa por «hooks registrados».
+- **T-06 — Documentación, checklist M-01 y CHANGELOG** Documentación del instalador al día (modos, fuente, respaldo sin CLI) y checklist de verificación manual en Codex y OpenCode.
+
 ### Fixed — iniciativa `usage-meter-transcripts` (2026-09-10)
 
 - **T-01 — `_project_transcript_dir()` codifica el `cwd` como Claude Code y se prueba SIN `--transcript-dir`** `usage-meter` vuelve a encontrar las transcripciones en Windows y en rutas con espacios o puntos: la clave de la carpeta se codifica como lo hace Claude Code (todo carácter no alfanumérico → `-`), así que el coste de generación de specs, planes y tareas puede volver a medirse en vez de estimarse. (`agent-kits/shared/usage-meter.py`, `agent-kits/shared/test_usage_meter.py`)
