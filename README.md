@@ -104,6 +104,13 @@ npx @daycry/custom-agents            # interactive menu; marks the runtimes it d
 | **Codex** | `codex plugin marketplace add daycry/custom-agents` (or the installer) | Skills, agents as `.toml`, commands as `/prompts:<name>`, session hooks |
 | **OpenCode** | `npx @daycry/custom-agents install -p opencode` | Skills, agents, commands, hook adapter |
 
+The installer **registers the plugin with each runtime**, it does not just copy files: Claude Code's
+registry (through its CLI or by writing it), `enabled = true` in Codex's `config.toml` and the
+adapter in OpenCode's `opencode.json`. Check the result with `npx @daycry/custom-agents status`
+("registered: yes/no" per runtime) or, inside Claude Code, with `/doctor`. If you prefer the classic
+install — the bundle copied into `.claude/` — that is `--mode copy`, and then there are no hooks, no
+status line and no `/custom-agents:` namespace.
+
 The pieces stay in one place — `agents/`, `commands/`, `skills/`, `hooks/` — and
 [`scripts/export-interop.py`](scripts/export-interop.py) translates them to each runtime's format
 (`--check` is a CI and release gate, so a stale translation never ships).
