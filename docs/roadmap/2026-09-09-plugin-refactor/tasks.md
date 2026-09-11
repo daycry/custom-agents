@@ -1,6 +1,6 @@
 ---
 tasks: plugin-refactor
-estado: en-progreso       # borrador | en-progreso | completado | cancelado — R1 (F1) integrada en master; R2 (F2) implementada, en revisión
+estado: en-progreso       # borrador | en-progreso | completado | cancelado — R1 y R2 integradas en master; R3 (F3) implementada y revisada (3 intentos + 4.ª pasada), pendiente de commit e integración
 creado: 2026-09-10
 actualizado: 2026-09-10
 generacion:              # ventana compartida con improvement-plan.md
@@ -40,10 +40,10 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
 | Fase 1 — Línea base limpia y la cicatriz | 4 | 4 | 100% | — / 11,5h | 0,52 / 1,29h | 0,13 / 0,32h | — / 619k |
 | Fase 2 — Los otros cuatro hotspots | 4 | 4 | 100% | — / 14,0h | 1,52 / 1,60h | 0,39 / 0,40h | — / 767k |
-| Fase 3 — Un solo mecanismo de copias declaradas (O1) | 0 | 2 | 0% | 0 / 4,0h | 0 / 0,50h | 0 / 0,13h | 0 / 239k |
+| Fase 3 — Un solo mecanismo de copias declaradas (O1) | 2 | 2 | 100% | — / 4,0h | 4,58 / 0,50h | 1,15 / 0,13h | 2.191k / 239k |
 | Fase 4 — Encadenamiento E1–E11 | 0 | 9 | 0% | 0 / 30,5h | 0 / 3,64h | 0 / 0,91h | 0 / 1.745k |
 | Fase 5 — Proceso: revisión por tramo, corrección y cierre | 0 | 3 | 0% | 0 / 14,0h | 0 / 1,80h | 0 / 0,45h | 0 / 864k |
-| **TOTAL** | **8** | **22** | **36%** | **— / 74,0h** | **2,04 / 8,83h** | **0,52 / 2,21h** | **— / 4.234k** |
+| **TOTAL** | **10** | **22** | **45%** | **— / 74,0h** | **6,62 / 8,83h** | **1,67 / 2,21h** | **— / 4.234k** |
 
 > Horas **base** (sin colchón; con el margen del 20 %: 88,8 h humanas · 10,6 h IA · 2,65 h supervisión). Tokens = facturables (in + out + creación de caché). Coste base **3.734 €** (4.479 € con margen). Heredado de `evaluation.md` por característica; diferencias declaradas en el plan (P-1 y C-13 (i) hechas, C-14 propuesta).
 
@@ -58,7 +58,7 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 ### T-01 — C-04: detector de TODO de `code-health.py`, 8 → 0
 
 - **Descripción**: `TODO_RE` (`skills/code-health/scripts/code-health.py:49`) acepta «palabra seguida de `(`» y con ello la prosa castellana «TODO (ADRs, …» de `confluence-scope.py:113`; además el detector se cuenta a sí mismo (5 marcadores en su docstring y código) y a `journal.py:41`. Excluir comentarios que enumeran marcadores y el propio fichero del detector; queda el real (`usage-meter.py:424`, 30 días). **Excepción declarada** al «cero cambio de comportamiento»: el informe cuenta menos TODO. **Corregido tras revisión R1 intento 1 (A-1/B-9)**: el «real» de `usage-meter.py:454-455` («TODO el histórico como ventana») es también prosa castellana partida en dos comentarios (empieza por «el», artículo de `PROSA_ES_TRAS_MARCADOR`) — 8 → **0**, no 8 → 1; `analysis.md` §4 y `spec.md` C-04 ya lo declaraban así, el detector y el ledger se alinean ahora.
-- **Changelog**: El informe de salud del código deja de contar como TODO su propia descripción del detector, la palabra castellana «TODO (» y la prosa «TODO el histórico…»: los 8 falsos positivos pasan a 0 marcadores reales.
+- **Changelog**: El informe de salud del código deja de contar como TODO su propia descripción del detector y la prosa castellana («TODO el histórico…»): los 8 falsos positivos pasan a 0.
 - **Estado**: completado
 - **Tiempo humano**: est. 2,0h · real —
 - **Tiempo IA (ejec.)**: est. 0,25h · real 0,05h (estimado) (el marcador del meter se abrió tras implementar, no es representativo — ver nota) + 0,0h fix1 (medido, JSON `T-01-fix1` en el cierre de R1: `horas_ia: 0.0`, `eur: 0.05`) + 0,0h fix2 (medido, marcador `plugin-refactor/T-01-fix2`: `{"eur":0.05,"horas_ia":0.0,"duracion_reloj":"0m"}` — abierto tras implementar la corrección, no representativo del esfuerzo real; ver nota)
@@ -265,7 +265,7 @@ $ python scripts/export-interop.py --check
 ### T-04 — C-13 (ii-a): `usage-meter.py` robusto a marcadores anteriores al arreglo y ventana por `timestamp`
 
 - **Descripción**: la vía rápida `usage-meter-transcripts` hizo que el meter encuentre las transcripciones (C-13 (i), hecha). Hoy se observó lo que faltaba: (1) un marcador **abierto con el código anterior** (sin `transcriptDir`, `offsets` vacíos) y cerrado con el nuevo **contó enteros los transcripts previos** (1.552 respuestas / 143 € falsos, medido); (2) `duracion` se deriva de tokens ÷ ratio (`cmd_close`: `fmt_horas(horas)`), no del reloj (`26m` con `inicio`/`fin` separados 10m37s). Arreglo: filtro `timestamp >= inicio` (tolerancia 60 s) en `_sum_usage_window()` (`:192`); `start` escribe `version: 2` en el marcador y `close` degrada con aviso («marcador anterior al arreglo») los que no lo traen; `duracion_reloj` (`fin − inicio`, formato `fmt_horas`) como clave **aditiva** del JSON de `close` — `duracion` no cambia de semántica (lo consumen dashboards y plantillas).
-- **Changelog**: `usage-meter.py` ya no cuenta transcripciones anteriores al inicio de la ventana ni acepta marcadores de la versión antigua, ya no se cae ni pierde la ventana entera con timestamps sin zona horaria, añade `duracion_reloj` con oráculo de valor junto a la `duracion` derivada de tokens, y documenta el límite conocido de marcadores encadenados en 60 s.
+- **Changelog**: `usage-meter.py` ya no cuenta transcripciones anteriores al inicio de la ventana, no se cae con timestamps sin zona horaria y añade `duracion_reloj` junto a la `duracion` derivada de tokens.
 - **Estado**: completado
 - **Tiempo humano**: est. 1,5h · real —
 - **Tiempo IA (ejec.)**: est. 0,19h · real 0,15h (estimado) (el marcador se abrió con el código ANTERIOR al arreglo — igual que en T-01 — así que `close` degradó a `fuente: estimado` con el aviso «marcador anterior al arreglo»; `duracion_reloj` midió 9m de reloj, pero no es representativo del trabajo real por las pausas de verificación entre ediciones — ver Notas) + fix1 ver JSON en cierre de R1
@@ -684,7 +684,7 @@ diff (nombres FAILED, antes r2 vs después T-08): vacío — mismo conjunto de 4
 
 ## Fase 3 — Un solo mecanismo de copias declaradas (O1)
 
-**Estado**: borrador · **Estimado**: 4,0h · **Real**: — · **Coste est.**: 202 € · **Tokens est.**: 239k · **Tramo**: R3
+**Estado**: completado · **Estimado**: 4,0h · **Real**: 4,58h IA (T-09 + T-10 + las correcciones de los intentos 1 y 2 de la revisión R3 y la **4.ª pasada** que cierra R3-1..R3-3, medido) · **Coste est.**: 202 € · **Tokens est.**: 239k · **Tramo**: R3
 
 > **C-03 encogida** (corrección verificada del `architect`, `design.md` §1): no hay copias accidentales. Dos de los cuatro pares del §2 son el patrón «canónico por ruta + respaldo local» ya declarado (mecanismo C, **sin guardarraíl**) y dos no son código (`import` + docstring `Uso:`/`Exit:`). El trabajo es **unificar cuatro mecanismos de guardarraíl en uno** (O1, `ADR-016`): registro + un test de identidad + comprobación del linter. La `Verificación` va sobre registro, test y linter — **no** sobre `code-health --baseline` (el 7,6 % no baja y está fuera de objetivo, spec §7). **Arista cumplida:** `design.md` `aprobado` (2026-09-10, condición 1 del go).
 
@@ -692,10 +692,10 @@ diff (nombres FAILED, antes r2 vs después T-08): vacío — mismo conjunto de 4
 
 - **Descripción**: crear el registro (una entrada por bloque: canónico, N rutas, mecanismo, centinelas `--8<--` o rango, `no_codigo` cuando aplique) con las **5 unidades reales** — A: `criterio de consola` (`lint_plugin.py` ↔ `tests/test_console_encoding.py`), `celdas_md` (`lint_plugin` ↔ `doctor` ↔ `knowledge-find`), `criterio del índice de knowledge` (`lint_plugin` ↔ `doctor`); B: `REVISION_HDR_PATTERN` (`ledger-lint.py:179` → `task-brief.py:576`, `jira-flow.py:231`); C: `glob_to_regex` (`confluence-scope.py:121` → `scope-check.py:46-77`, `review-lens-select.py:99-131`) y `piezas()` (`evals/check.py:108` → `lint_plugin.py:905`); D: `sin_vallas` (`ledger-lint.py:101` ↔ `changelog-sync.py:120`) — y los **2 pares no-código** (`export-skills.py:36-43` ↔ `jira-flow.py:83-90` · `code-health.py:27-40` ↔ `deps-inventory.py:29-40`) declarados `"no_codigo": true`. **Un** test recorre el registro y afirma identidad byte a byte tras normalizar `\r\n` → `\n`; **falla** si divergen. Para C y D, el respaldo local se delimita con centinelas `--8<--` (sin cambiar su texto funcional); A y B se registran tal cual. **Decisión del plan** (pregunta abierta 1 del diseño): `sin_vallas` = dos copias registradas como bloque (mecanismo A), no canónico + respaldo.
 - **Changelog**: Las copias de código compartidas entre scripts del plugin quedan declaradas en un registro (`copias.json`) y un único test comprueba que siguen idénticas byte a byte.
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo humano**: est. 2,5h · real —
-- **Tiempo IA (ejec.)**: est. 0,31h · real —
-- **Supervisión**: est. 0,08h (≈25 % IA) · real —
+- **Tiempo IA (ejec.)**: est. 0,31h · real 1,06h (medido: {"artefacto": "plugin-refactor/T-09", "inicio": "2026-09-10T19:55:22Z", "fin": "2026-09-10T20:24:52Z", "fuente": "medido", "tokens_reales": {"entrada": 94, "salida": 45786, "cache_creacion": 461199, "cache_lectura": 4749456, "respuestas": 47}, "eur": 5.89, "horas_ia": 1.06, "duracion": "1h 4m", "duracion_reloj": "30m", "ratio_usado": 479326.0, "ratio_origen": "CALIBRATION.md (mediana de 6)"}) + 0,41h fix1 (medido: {"artefacto": "plugin-refactor/T-09-fix1", "inicio": "2026-09-10T21:33:03Z", "fin": "2026-09-10T22:03:03Z", "fuente": "medido", "tokens_reales": {"entrada": 172, "salida": 83554, "cache_creacion": 308884, "cache_lectura": 13150427, "respuestas": 86}, "eur": 9.75, "horas_ia": 0.82, "duracion": "49m", "duracion_reloj": "30m", "ratio_usado": 479326.0, "ratio_origen": "CALIBRATION.md (mediana de 6)"}) — **ventana COMPARTIDA**: la corrección de los 12 gaps tocó las dos tareas a la vez, así que los dos marcadores midieron la MISMA ventana (0,82h IA · 9,75 € en total, no por tarea) y se reparte al 50 %: 0,41h a cada una. No se suman las dos lecturas: sería contar el trabajo dos veces · ** **Nota de honestidad (R3-4)**: el marcador `R3-fix2` no salio de un `start` limpio — se abrio a posteriori con `inicio` fijado a mano (`22:50:00Z`, arranque real del despacho) y `offsets` a 0, asi que la ventana la acota solo el filtro por timestamp; la aritmetica del JSON es coherente con esa ventana (lente B, intento 3). + 0,70h fix2** (marcador **ÚNICO** `plugin-refactor/R3-fix2`, medido: {"artefacto": "plugin-refactor/R3-fix2", "inicio": "2026-09-10T22:50:00Z", "fin": "2026-09-10T23:22:36Z", "fuente": "medido", "tokens_reales": {"entrada": 319, "salida": 72293, "cache_creacion": 411140, "cache_lectura": 8456722, "respuestas": 82}, "eur": 7.92, "horas_ia": 1.01, "duracion": "1h 1m", "duracion_reloj": "33m", "ratio_usado": 479326.0, "ratio_origen": "CALIBRATION.md (mediana de 6)"}) — esta vez **un solo marcador para las dos tareas**, no dos midiendo la misma ventana (lección del fix1). Reparto **explícito por gaps**: de los 5 gaps de código, T-09 se lleva B-1, B-2, B-5 y la mitad de test de B-4 (4,5 de 6,5 unidades) y T-10 B-3 y la mitad de linter de B-4 (2 de 6,5) → **0,70h a T-09 y 0,31h a T-10** (suma exacta 1,01h; no se cuenta dos veces) · **+ 0,73h fix3** (**4.ª pasada autorizada por el usuario**, fuera del bucle acotado, para cerrar R3-1..R3-3; marcador **ÚNICO** y esta vez con `start` LIMPIO antes de tocar nada —la lección de R3-4—: `plugin-refactor/R3-fix3`, medido: {"artefacto": "plugin-refactor/R3-fix3", "inicio": "2026-09-11T02:22:44Z", "fin": "2026-09-11T02:50:36Z", "fuente": "medido", "tokens_reales": {"entrada": 641, "salida": 64808, "cache_creacion": 474056, "cache_lectura": 9649245, "respuestas": 75}, "eur": 8.66, "horas_ia": 1.13, "duracion": "1h 8m", "duracion_reloj": "28m", "ratio_usado": 479326.0, "ratio_origen": "CALIBRATION.md (mediana de 6)"}) — 1,13h IA · 8,66 € para las DOS tareas, repartidas **por gaps**: de las 7 unidades de trabajo de la pasada, T-09 se lleva R3-1 (lista fija de 18 categorías + su test + los dos escenarios de la lente, 3 unidades) y R3-2 (esquema inyectivo de `sustituciones`, 1,5) = 4,5/7 → **0,73h**, y T-10 R3-3 (`_RESPALDO_DEF_RE` + `_nombres_de_respaldo` + caso 46 + `detecta`, 2,5/7) → **0,40h**; suma exacta 1,13h, no se cuenta dos veces. **Nota de medición**: `close` se ejecutó dos veces (la segunda solo para releer el JSON íntegro, que la primera salida truncó); vale la SEGUNDA lectura, 1 minuto más larga de reloj — pegada tal cual, sin retocar · **total real 2,90h**
+- **Supervisión**: est. 0,08h (≈25 % IA) · real 0,27h + 0,10h fix1 + 0,18h fix2 + 0,18h fix3 = 0,73h (estimado)
 - **Previsión IA**: 109k in / 16k out tok · 1,1 € tokens · coste tarea 126 €
 - **Dependencias**: T-08 (las copias cambian de línea al partir funciones: registrar después) · `design.md` `aprobado` (cumplida)
 - **Tipo**: test
@@ -709,27 +709,287 @@ diff (nombres FAILED, antes r2 vs después T-08): vacío — mismo conjunto de 4
   - `python scripts/lint_plugin.py` → `0 errores` · `python scripts/export-interop.py --check` → `48 ficheros al día`
 
 **Criterios de aceptación**
-- [ ] CA-05: registro con 5 unidades + 2 no-código; un test de identidad que **falla** con mutante; `grep` de `sin_vallas`/`_REVISION_HDR_FALLBACK` solo devuelve rutas registradas
-- [ ] Ningún bloque registrado cambia de texto funcional (A y B: cero cambio; C y D: solo centinelas/comentario alrededor del respaldo)
-- [ ] `tests/test_knowledge_index.py` y `tests/test_console_encoding.py` siguen existiendo y en verde (absorbidos, no borrados)
-- [ ] Comparación con `\r\n` → `\n` normalizado (Windows `core.autocrlf`, GOT-007); el test corre igual en CI Linux
+- [x] CA-05: registro con **7** unidades reales + 2 no-código = **9 bloques** (ver «Desviación declarada 1»: las «5 unidades» del plan no cuadran con las 3+1+2+1 que enumera el propio enunciado); test de identidad que **falla** con el mutante (`FAILED … [glob_to_regex]`, salida pegada abajo); las 4 **definiciones** de `sin_vallas`/`_REVISION_HDR_FALLBACK` del árbol están todas registradas (ver «Desviación declarada 4»)
+- [x] Ningún bloque registrado cambia de texto funcional: A y B cero cambio (solo comentario de declaración junto a `_REVISION_HDR_FALLBACK` ×2 y al canónico `REVISION_HDR_PATTERN`); C y D solo centinelas alrededor del respaldo — el `git diff` no toca ninguna línea ejecutable de los 9 bloques (todo lo añadido empieza por `#`)
+- [x] `tests/test_knowledge_index.py` y `tests/test_console_encoding.py` siguen existiendo y en verde (absorbidos, no borrados; `test_los_tests_de_identidad_previos_no_se_han_borrado` lo fija además como test)
+- [x] Comparación con `\r\n` → `\n` normalizado (`_texto()`, GOT-007); el test no usa `git` ni rutas absolutas: corre igual en CI Linux
 
 **Subtareas**
-- [ ] Esquema de `copias.json` (`bloques[{id, mecanismo, canonico, copias[{ruta, inicio, fin}], no_codigo?}]`) con los rangos delimitados por centinelas `--8<-- <id>` / `--8<-- fin <id>`
-- [ ] Añadir centinelas al respaldo local de `glob_to_regex` (2 sitios), `piezas()`/`_piezas_local()` (2), `sin_vallas` (2); comentario de declaración en `_REVISION_HDR_FALLBACK` (2)
-- [ ] `tests/test_copias_declaradas.py` parametrizado por `id`; mutante documentado; una línea en `agent-kits/shared/README.md`
-- [ ] `Verificación` con salidas; commit `T-09: …`
+- [x] Esquema de `copias.json` (`bloques[{id, mecanismo, que_es, canonico, canonico_comparable?, copias[{ruta, inicio, fin?, sustituciones?} | {ruta, rango}], no_codigo?}]`) + claves de cabecera `que_es`/`comparacion`/`delimitacion`/`detecta` (esta última es el alcance escrito que pide `design.md` §6)
+- [x] Centinelas en el respaldo local de `glob_to_regex` (2 sitios), `piezas()`/`_piezas_local()` (2), `sin_vallas` (2); comentario de declaración en `_REVISION_HDR_FALLBACK` (2) y en el canónico `REVISION_HDR_PATTERN`
+- [x] `tests/test_copias_declaradas.py` parametrizado por `id` (**17** tests tras el intento 2 de la revisión R3: 7 de identidad + 1 de equivalencia conductual + **1 de cobertura del corpus por categorías** (B-1/B-5) + 2 no-código + 6 de esquema/respaldos/**unicidad de centinela** (B-4)/absorción — eran 13 en el intento 1 y 15 en el intento 2); mutante documentado abajo; fila de `copias.json` en `agent-kits/shared/README.md` (una sola línea física, ver gap 3)
+- [x] `Verificación` con salidas pegadas abajo; **el commit `T-09: …` lo hace el orquestador** tras la revisión de dos lentes (aquí no se comitea)
+- [x] **4.ª pasada (autorizada por el usuario, fuera del bucle acotado)**: R3-1 — `CATEGORIAS_OBLIGATORIAS` (los 18 nombres, copiados literal del registro) + `test_las_categorias_obligatorias_siguen_declaradas_en_el_registro`; R3-2 — el test de esquema exige `sustituciones` con destinos distintos y sin encadenar. **18 tests** (eran 17)
+  - commit `T-09: …` — **SIN HACER (subtarea de commit sin marcar)**: lo hace el orquestador en el ritual de cierre; esta pasada no comitea ni cambia de rama (`feature/plugin-refactor`)
 
 **Notas**: El registro es **build-time** (código fuente en git) y no se funde con `.claude/pieces.json` de `ADR-014` (runtime, piezas generadas): dominios y dueños distintos, como dice `ADR-016`. El hueco de `scripts/export-skills.py:399` (`fragmentos_shared` solo escanea `.md`) queda fuera: deuda registrada para `quick-implement`.
 
+
+**Desviación declarada 1 — el registro tiene 9 bloques, no 7.** El enunciado dice «5 unidades reales + 2 no-código» y la `Verificación` esperaba `7 2`, pero el propio enunciado enumera **A: 3 + B: 1 + C: 2 + D: 1 = 7** unidades reales; con los 2 pares no-código son **9 bloques**. No se ha recortado el registro para cuadrar con la cifra: `python -c "… print(len(d['bloques']), …)"` da `9 2` (salida pegada) y las 7 unidades son exactamente las que enumeran el brief y `design.md` §5.
+
+**Desviación declarada 2 — `glob_to_regex`: el canónico no entra en la comparación byte a byte, y por eso lleva un guardarraíl CONDUCTUAL.** `skills/confluence-publish/scripts/confluence-scope.py` define la función a nivel de módulo, con docstring y una línea por rama; los dos respaldos son una función anidada con las ramas en una sola línea. Igualarlos exige **reescribir código congelado en este tramo** (contrato: A y B cero cambio, C y D solo centinelas), así que el bloque se declara `"canonico_comparable": false` con `motivo_canonico` en el registro. Lo que queda guardado son **dos cosas, no una**: (a) **identidad byte a byte entre los dos respaldos** —lo que antes no tenía guardarraíl alguno—; y (b) **equivalencia conductual con el canónico** sobre un corpus declarado: el bloque trae un campo `equivalencia` (`funcion: glob_to_regex`, `cargador: _load_glob_to_regex`, `corpus` de **35** globs y las **18 `categorias` obligatorias** que ese corpus tiene que cubrir, B-1/B-5 del intento 2) y `test_el_respaldo_es_equivalente_al_canonico` carga canónico y cada respaldo como módulos sueltos y exige el **mismo `.pattern` compilado** para todo el corpus; `test_el_corpus_de_equivalencia_cubre_todas_las_categorias` impide que el corpus se pode hasta desactivarlo. Esto **corrige lo que la primera redacción de esta desviación decía y era falso**: «la equivalencia con el canónico la cubren los tests de comportamiento de cada script» no era cierto —el cargador de los dos respaldos importa el canónico siempre que la skill `confluence-publish` esté instalada (siempre, en este repo), así que los respaldos eran código que **ningún test ejecutaba** (gap 1 de la revisión R3: mutante semántico en los dos respaldos, 0 rojos)—. Por eso el test fuerza la rama local (`os.path.isfile` → `False`) y deja escrito, con una aserción sobre el `__qualname__`, **qué símbolo ejecuta**: la `def local` definida DENTRO de los centinelas, no la que devuelve el cargador. El fichero canónico no se ha tocado (no está en `Archivos`); solo se mutó y se revirtió para comprobar que el guardarraíl muerde por los dos lados.
+
+**Desviación declarada 3 — dos bloques declaran `sustituciones` de nombre.** `piezas_del_repo` (`_frontmatter_plegado` → `_frontmatter`) y `sin_vallas` (`RE_VALLA` → `_VALLA_RE`) son idénticos **salvo un identificador local** que no se puede renombrar sin tocar texto funcional. En vez de renunciar a la identidad, el registro declara la sustitución (visible en `copias.json`, una por bloque) y el test la aplica **antes** de comparar; `test_las_sustituciones_declaradas_se_usan_de_verdad` impide que queden tolerancias muertas. Es la única diferencia admitida sobre el «byte a byte» de `ADR-016`; queda a la vista de la revisión.
+
+**Desviación declarada 4 — el `grep` de la `Verificación` también caza usos, no solo copias.** Tal cual está escrito devuelve 9 rutas, porque `sin_vallas` y `_REVISION_HDR_FALLBACK` se **usan** en tests (`test_changelog_sync.py`, `test_task_brief.py`, `test_jira_flow.py`, `mutantes.py`) y ahora también se nombran en `tests/test_copias_declaradas.py`. Con el grep restringido a **definiciones** (`^\s*def sin_vallas\(|^\s*_[A-Z0-9_]+_FALLBACK\s*=`) salen 4 rutas, las 4 registradas. Se pegan las dos salidas.
+
+**Verificación ejecutada (salida real, tras el último cambio)**:
+```
+$ python -m pytest -q tests/test_copias_declaradas.py -p no:cacheprovider
+.............                                                            [100%]
+13 passed in 0.07s
+    (7 bloques de identidad parametrizados por id: criterio_de_consola, celdas_md,
+     criterio_indice_knowledge, revision_hdr_pattern, glob_to_regex, piezas_del_repo,
+     sin_vallas · 2 no_codigo: imports_de_cabecera, docstring_uso_exit)
+
+$ # tamaño real de cada bloque comparado (que no se compara el vacío)
+criterio_de_consola        lint_plugin.py 9550 == test_console_encoding.py 9550
+celdas_md                  lint_plugin.py 861 == knowledge-find.py 861 == doctor.py 861
+criterio_indice_knowledge  lint_plugin.py 4708 == doctor.py 4708
+revision_hdr_pattern       ledger-lint.py 87 == task-brief.py 87 == jira-flow.py 87
+glob_to_regex              scope-check.py 1049 == review-lens-select.py 1049
+piezas_del_repo            check.py 981 == lint_plugin.py 981
+sin_vallas                 ledger-lint.py 961 == changelog-sync.py 961
+
+$ # MUTANTE: en review-lens-select.py, dentro del bloque glob_to_regex, `[^/]*` -> `[^/]+`
+$ python -m pytest -q tests/test_copias_declaradas.py -p no:cacheprovider
+E  Failed: el bloque `glob_to_regex` ha divergido entre agent-kits/shared/scope-check.py y
+   skills/adversarial-review/scripts/review-lens-select.py: copialo LITERAL del canonico
+   (skills/confluence-publish/scripts/confluence-scope.py) o actualiza agent-kits/shared/copias.json
+FAILED tests/test_copias_declaradas.py::test_las_copias_declaradas_son_identicas[glob_to_regex]
+1 failed, 12 passed in 0.17s
+$ # revertido: `git diff --stat` del fichero vuelve a "6 ++++++" (solo los centinelas)
+
+$ python -c "import json; d=json.load(open('agent-kits/shared/copias.json',encoding='utf-8')); print(len(d['bloques']), sum(1 for b in d['bloques'] if b.get('no_codigo')))"
+9 2      # esperado en el plan: `7 2` — ver «Desviación declarada 1»
+
+$ grep -rn "sin_vallas\|_REVISION_HDR_FALLBACK" --include=*.py . | grep -v "/.venv/\|/interop/" | awk -F: '{print $1}' | sort -u
+./agent-kits/shared/ledger-lint.py          # copia registrada
+./agent-kits/shared/task-brief.py           # copia registrada
+./agent-kits/shared/test_task_brief.py      # USO (assert de la copia)
+./skills/changelog-sync/scripts/changelog-sync.py   # copia registrada
+./skills/changelog-sync/scripts/mutantes.py         # USO (cadena de un mutante)
+./skills/changelog-sync/scripts/test_changelog_sync.py  # USO
+./skills/jira-sync/scripts/jira-flow.py     # copia registrada
+./skills/jira-sync/scripts/test_jira_flow.py        # USO
+./tests/test_copias_declaradas.py           # USO (nombre en la lista de guardarraíles previos)
+
+$ grep -rnE "^[ \t]*def sin_vallas\(|^[ \t]*_[A-Z0-9_]+_FALLBACK[ \t]*=" --include=*.py . | grep -v "/.venv/\|/interop/"
+./agent-kits/shared/ledger-lint.py:101:def sin_vallas(text):
+./agent-kits/shared/task-brief.py:584:_REVISION_HDR_FALLBACK = \
+./skills/changelog-sync/scripts/changelog-sync.py:120:def sin_vallas(text):
+./skills/jira-sync/scripts/jira-flow.py:234:_REVISION_HDR_FALLBACK = \
+    (4 definiciones, las 4 con fila en copias.json)
+
+$ python -m pytest -q tests/test_knowledge_index.py tests/test_console_encoding.py skills/changelog-sync/scripts/test_changelog_sync.py agent-kits/shared/test_task_brief.py skills/jira-sync/scripts/test_jira_flow.py agent-kits/shared/test_scope_check.py skills/adversarial-review/scripts/test_review_lens_select.py -p no:cacheprovider
+1 failed, 547 passed in 151.66s (0:02:31)
+    el único rojo es test_task_brief.py::test_ca08_el_brief_completo_cabe_en_el_tope_sobre_el_ledger_real_de_memory_retrieval,
+    PREEXISTENTE (línea 7 de suite-antes-r3.txt, capturada antes de tocar nada)
+
+$ python -m pytest -q tests agent-kits/shared skills evals -rA -p no:cacheprovider | grep -E "^(PASSED|FAILED|ERROR|SKIPPED)" | sort > suite-t09.txt
+$ diff suite-antes-r3.txt suite-t09.txt
+1204a1205,1217
+> PASSED tests/test_copias_declaradas.py::…   (13 líneas, todas del test nuevo)
+    mismos 40 FAILED preexistentes, ninguno nuevo
+
+$ python scripts/lint_plugin.py ; echo $?
+lint_plugin: 9 agentes · 0 errores · 3 avisos
+0
+$ python scripts/export-interop.py --check
+export-interop --check: 48 ficheros al día
+$ python evals/check.py
+evals/check: 38 ficheros · 135 casos (80 positivos, 55 negativos) · 38 piezas del repo · 0 errores
+```
+
+**Verificación RE-EJECUTADA tras la corrección de los gaps 1, 2, 3, 5 y 11 de la revisión R3 — intento 1** (GOT-007: la que vale es esta, no la de arriba):
+```
+$ python -m pytest -q tests/test_copias_declaradas.py -p no:cacheprovider
+...............                                                          [100%]
+15 passed in 0.11s
+    (7 identidad + 1 equivalencia conductual [glob_to_regex] + 2 no_codigo + 5 de esquema:
+     forma del registro, canonico/equivalencia, sustituciones vivas EN EL BLOQUE, respaldos
+     definidos EN SU BLOQUE, guardarrailes previos no borrados)
+
+$ python -c "import json; d=json.load(open('agent-kits/shared/copias.json',encoding='utf-8')); print(len(d['bloques']), sum(1 for b in d['bloques'] if b.get('no_codigo')))"
+9 2      # sin cambio — ver «Desviación declarada 1»
+
+$ # GAP 1 — MUTANTE `(?:.*/)?` -> `.*/` en los DOS respaldos (en el intento 1: 0 rojos)
+$ python -m pytest -q tests/test_copias_declaradas.py -p no:cacheprovider
+E  AssertionError: el respaldo `glob_to_regex` de agent-kits/shared/scope-check.py NO es equivalente
+   al canonico (skills/confluence-publish/scripts/confluence-scope.py) para el glob '**/':
+   canonico -> '^(?:.*/)?$', respaldo -> '^.*/$'. Copia la semantica del canonico o actualiza
+   agent-kits/shared/copias.json
+FAILED tests/test_copias_declaradas.py::test_el_respaldo_es_equivalente_al_canonico[glob_to_regex]
+1 failed, 14 passed in 0.12s
+
+$ # GAP 1 — el MISMO mutante SOLO en el canonico (los respaldos, intactos)
+E  AssertionError: ... para el glob '**/': canonico -> '^.*/$', respaldo -> '^(?:.*/)?$'
+1 failed, 14 passed in 0.37s
+$ # revertidos los tres ficheros -> `git diff --stat` = 6 ++++++ en cada respaldo (solo centinelas),
+$ #   0 en confluence-scope.py; 15 passed
+
+$ # GAP 2 — MUTANTE: devolver al registro el rango equivocado del intento 1 (`27-40`)
+E  AssertionError: docstring_uso_exit / skills/code-health/scripts/code-health.py: el rango `27-40`
+   ya no contiene `Uso:` (el bloque se ha desplazado: corrige el rango en copias.json)
+
+$ # GAP 11 — MUTANTE: sustitucion viva en el FICHERO pero muerta en el BLOQUE
+$ #   ["import os", "import os"] anadida a las `sustituciones` de sin_vallas
+E  AssertionError: sin_vallas / skills/changelog-sync/scripts/changelog-sync.py: sustitucion
+   `import os` -> `import os` sin uso DENTRO del bloque
+$ # (en el intento 1 esto pasaba: se buscaba en todo el fichero)
+
+$ # GAP 5 — escenario de la Lente B sobre el arbol: `_INVENTADO_FALLBACK` en `respaldos` de
+$ #   revision_hdr_pattern + `_INVENTADO_FALLBACK = 1` real y nuevo al final de task-brief.py
+$ python -m pytest -q tests/test_copias_declaradas.py -p no:cacheprovider
+E  AssertionError: revision_hdr_pattern: el respaldo `_INVENTADO_FALLBACK` NO esta definido dentro
+   del rango de ninguna copia del bloque (agent-kits/shared/ledger-lint.py,
+   agent-kits/shared/task-brief.py, skills/jira-sync/scripts/jira-flow.py): entrada muerta en
+   copias.json que silencia a lint_plugin.py sin guardar nada
+1 failed, 14 passed in 0.35s
+$ python scripts/lint_plugin.py --root .
+[X] agent-kits/shared/task-brief.py:972: constante de respaldo `_INVENTADO_FALLBACK` SIN fila en
+    agent-kits/shared/copias.json - declarala en el bloque de su canonico (id sugerido
+    `inventado_fallback`) (ADR-016)
+lint_plugin: 9 agentes · 1 errores · 3 avisos
+$ # (en el intento 1: `13 passed` y exit 0 — «una copia nueva nacia sin guardarrail»)
+$ # revertidos copias.json y task-brief.py -> 15 passed · 9 agentes · 0 errores · 3 avisos
+
+$ # GAP 3 — la fila de copias.json en agent-kits/shared/README.md
+$ python -c "d=open('agent-kits/shared/README.md','rb').read(); print('CRLF',d.count(b'\r\n'),'LF',d.count(b'\n'),'CR',d.count(b'\r'))"
+CRLF 44 LF 44 CR 44        # antes: LF 46 / CR 44 -> dos saltos sueltos partian la fila en 3
+$ git diff --stat agent-kits/shared/README.md
+ agent-kits/shared/README.md | 1 +
+ 1 file changed, 1 insertion(+)
+
+$ python scripts/lint_plugin.py --root . ; echo $?
+lint_plugin: 9 agentes · 0 errores · 3 avisos
+0
+$ python scripts/export-interop.py --check
+export-interop --check: 48 ficheros al día
+$ python evals/check.py
+evals/check: 38 ficheros · 135 casos (80 positivos, 55 negativos) · 38 piezas del repo · 0 errores
+```
+
+**Desviación declarada 10 — un test cambia de NOMBRE (no de conjunto).** Al pasar `respaldos` a por copia (B-3), `test_cada_respaldo_declarado_esta_definido_en_su_bloque` pasa a llamarse `test_cada_respaldo_declarado_esta_definido_en_su_copia`, porque el enunciado que afirma ya no es el mismo (ahora exige la definición en SU copia, y de paso prohíbe `respaldos` a nivel de bloque). En el `diff` del conjunto eso aparece como una línea perdida y una nueva: **es el mismo test, en verde antes y después**, igual que la «Desviación declarada 6». Se declara para que no se lea como un test borrado.
+
+**Verificación RE-EJECUTADA tras la corrección de los gaps B-1, B-2, B-4 y B-5 de la revisión R3 — intento 2** (GOT-007: la que vale es esta, no las dos de arriba):
+```
+$ python -m pytest -q tests/test_copias_declaradas.py -p no:cacheprovider ; echo $?
+.................                                                        [100%]
+17 passed in 0.14s
+0
+    (7 identidad + 1 equivalencia conductual [glob_to_regex] + 1 COBERTURA DEL CORPUS POR
+     CATEGORIAS [glob_to_regex] (B-1/B-5) + 2 no_codigo + 6 de esquema: forma del registro
+     (+ sustituciones = identificadores, B-2), canonico/equivalencia (+ categorias),
+     sustituciones vivas EN EL BLOQUE, respaldos definidos EN SU COPIA (B-3),
+     UNICIDAD DE CENTINELA por ruta (B-4), guardarrailes previos no borrados)
+
+$ python -c "…json.load('agent-kits/shared/copias.json')…"
+categorias sin entrada: []
+corpus 35 categorias 18        # 32 -> 35: "./docs/x.md" (B-5), "[!a-z]", "[^a-z]"
+
+$ # B-1 — ESCENARIO DE LA LENTE B: podar del corpus las 3 entradas que discriminan el mutante
+$ #   (arbol desechable en $TEMP/pr-mut-r3i3; el repo no se toca)
+$ python -m pytest -q tests/test_copias_declaradas.py -p no:cacheprovider
+E  AssertionError: glob_to_regex: el corpus de `equivalencia` (32 entradas) ya no cubre 1
+   categoria(s) obligatoria(s) de copias.json: interrogante `?` (un caracter, sin cruzar `/`)
+   (ninguna entrada casa `\?`). Repon una entrada de esa categoria: sin ella, un cambio semantico
+   del canonico o de los dos respaldos en ese rasgo pasa sin nada rojo
+FAILED tests/test_copias_declaradas.py::test_el_corpus_de_equivalencia_cubre_todas_las_categorias[glob_to_regex]
+1 failed, 16 passed in 1.16s
+    (en el intento 2 esto era `15 passed`: el corpus se podia podar y el mutante quedaba vivo)
+
+$ # B-1 (contraprueba) — corpus INTEGRO + mutante `[^/]` -> `[^/]?` en los DOS respaldos
+E  AssertionError: el respaldo `glob_to_regex` de agent-kits/shared/scope-check.py NO es equivalente
+   al canonico (skills/confluence-publish/scripts/confluence-scope.py) para el glob '?':
+   canonico -> '^[^/]$', respaldo -> '^[^/]?$'
+1 failed, 16 passed in 0.27s
+
+$ # B-2 — ESCENARIO: par de subcadena arbitrario en las `sustituciones` de sin_vallas
+$ #   ["strip()) > len(cerco)", "strip()) >= len(cerco)"]
+E  AssertionError: sin_vallas / skills/changelog-sync/scripts/changelog-sync.py: la sustitucion
+   ['strip()) > len(cerco)', 'strip()) >= len(cerco)'] no es un renombrado de identificador:
+   `strip()) > len(cerco)` no casa `^[A-Za-z_][A-Za-z0-9_]*$`. Las sustituciones toleran
+   renombrados locales, NO parches de texto que borren una divergencia de comportamiento antes
+   de comparar
+2 failed, 15 passed in 0.21s
+    (en el intento 2: `15 passed`. Los DOS pares reales -_frontmatter_plegado -> _frontmatter y
+     RE_VALLA -> _VALLA_RE- siguen verdes con el reemplazo por frontera de palabra: 17 passed)
+
+$ # B-4 — ESCENARIO: segunda copia DIVERGIDA del bloque glob_to_regex al final de scope-check.py
+E  AssertionError: glob_to_regex / agent-kits/shared/scope-check.py: el centinela `inicio`
+   `# --8<-- glob_to_regex (respaldo local) — REPLICADO LITERAL en agent-k` aparece 2 veces
+   (se espera 1). Con mas de una, el bloque comparado es solo el primero y el resto son copias
+   que no guarda nadie: quitalas o declaralas aparte
+1 failed, 16 passed in 0.26s
+    (en el intento 2: `15 passed` y `0 errores` — la copia de mas era invisible)
+
+$ python scripts/lint_plugin.py --root . ; echo $?     # arbol limpio
+lint_plugin: 9 agentes · 0 errores · 3 avisos
+0
+$ python evals/check.py
+evals/check: 38 ficheros · 135 casos (80 positivos, 55 negativos) · 38 piezas del repo · 0 errores
+$ python scripts/export-interop.py --check
+export-interop --check: 48 ficheros al día
+```
+
 ### T-10 — C-03 (2/2): `lint_plugin.py` falla ante un bloque `--8<--` o `_*_FALLBACK` no registrado
+
+**Verificación RE-EJECUTADA tras la 4.ª pasada (autorizada por el usuario, fuera del bucle acotado) — gaps R3-1 y R3-2**
+(GOT-007: la que vale es esta, no las tres de arriba):
+```
+$ python -m pytest -q tests/test_copias_declaradas.py -p no:cacheprovider ; echo $?
+18 passed in 0.21s
+0
+    (7 identidad + 1 equivalencia conductual [glob_to_regex] + 1 cobertura del corpus por
+     categorias + **1 de CATEGORIAS OBLIGATORIAS FIJAS EN EL TEST [glob_to_regex] (R3-1)** + 2
+     no_codigo + 6 de esquema/respaldos/unicidad/absorcion — el de esquema es el que ademas exige
+     ahora `sustituciones` inyectivas y sin encadenar (R3-2); eran 17 tras el intento 2)
+$ python -c "... reg == CATEGORIAS_OBLIGATORIAS['glob_to_regex']"
+registro: 18 · fijas: 18 · identicas y en el mismo orden: True
+
+$ # ESCENARIO R3-1 de la lente: quitar del registro la categoria del interrogante `?` Y sus tres
+$ # entradas del corpus ("?", "a?c", "?*?") — antes de esta pasada quedaba TODO verde.
+1 failed, 17 passed in 0.23s   (exit 1)
+FAILED tests/test_copias_declaradas.py::test_las_categorias_obligatorias_siguen_declaradas_en_el_registro[glob_to_regex]
+E  AssertionError: glob_to_regex: copias.json ya no declara 1 categoria(s) OBLIGATORIA(S) de
+   `equivalencia.categorias`: `interrogante `?` (un caracter, sin cruzar `/`)`. Quitar una categoria
+   desactiva el unico guardarrail del canonico para ese rasgo del glob y deja podar el corpus sin
+   nada rojo
+$ # registro restaurado -> True · 18 passed
+
+$ # ESCENARIO del mutante, con el registro INTEGRO: `out.append("[^/]")` -> `out.append("[^/]?")`
+$ # en los DOS respaldos a la vez (scope-check.py y review-lens-select.py).
+1 failed, 17 passed in 0.29s   (exit 1)
+FAILED tests/test_copias_declaradas.py::test_el_respaldo_es_equivalente_al_canonico[glob_to_regex]
+E  AssertionError: el respaldo `glob_to_regex` de agent-kits/shared/scope-check.py NO es equivalente
+   al canonico (skills/confluence-publish/scripts/confluence-scope.py) para el glob '?':
+   canonico -> '^[^/]$', respaldo -> '^[^/]?$'
+$ # respaldos restaurados -> True
+
+$ # ESCENARIOS R3-2 (esquema), sobre las `sustituciones` REALES del registro:
+$ #   COLAPSO  [["_frontmatter_plegado","_frontmatter"],["_frontmatter_rapido","_frontmatter"]]
+1 failed (exit 1) — E AssertionError: piezas_del_repo / scripts/lint_plugin.py: dos `sustituciones`
+   apuntan al MISMO destino (['_frontmatter', '_frontmatter']): fundir dos identificadores distintos
+   del bloque en uno borra la diferencia entre ellos antes de comparar
+$ #   ENCADENADO  [["a","b"],["b","c"]]
+1 failed (exit 1) — E AssertionError: piezas_del_repo / scripts/lint_plugin.py: ['b'] es a la vez
+   ORIGEN y DESTINO de las `sustituciones`: se aplican en cascada, el resultado depende del orden de
+   la lista y acaba colapsando identificadores distintos
+$ #   pares REALES del registro -> 1 passed (exit 0); registro restaurado -> True
+
+$ python scripts/lint_plugin.py --root . ; echo $?  ->  `9 agentes · 0 errores · 3 avisos`  ·  0
+    (las demas puertas de la pasada —evals, interop, release --dry-run, ledger-lint, scope-check y
+     el diff de la suite por conjuntos— van pegadas una sola vez, en T-10)
+```
+
 
 - **Descripción**: comprobación nueva en el linter (parte **inseparable** de O1 según el usuario en la puerta de diseño): todo marcador `--8<--` y toda constante `_*_FALLBACK` del árbol debe tener fila en `agent-kits/shared/copias.json`; si no, **error** (exit 1). Universo cerrado (marcadores y nombres del propio repo) → nace como error, no aviso. Tolerancias: `interop/**` (generado) y `.venv/**`. Se implementa como `comprobar_copias_declaradas(root)` sobre el despachador partido en T-08.
 - **Changelog**: El linter del plugin falla si aparece un bloque de código copiado (`--8<--` o `_*_FALLBACK`) que no esté declarado en `copias.json`.
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo humano**: est. 1,5h · real —
-- **Tiempo IA (ejec.)**: est. 0,19h · real —
-- **Supervisión**: est. 0,05h (≈25 % IA) · real —
+- **Tiempo IA (ejec.)**: est. 0,19h · real 0,56h (medido: {"artefacto": "plugin-refactor/T-10", "inicio": "2026-09-10T20:28:15Z", "fin": "2026-09-10T20:41:31Z", "fuente": "medido", "tokens_reales": {"entrada": 70, "salida": 20683, "cache_creacion": 247083, "cache_lectura": 6261029, "respuestas": 35}, "eur": 4.78, "horas_ia": 0.56, "duracion": "34m", "duracion_reloj": "13m", "ratio_usado": 479326.0, "ratio_origen": "CALIBRATION.md (mediana de 6)"}) + 0,41h fix1 (medido: {"artefacto": "plugin-refactor/T-10-fix1", "inicio": "2026-09-10T21:33:03Z", "fin": "2026-09-10T22:03:03Z", "fuente": "medido", "tokens_reales": {"entrada": 172, "salida": 83554, "cache_creacion": 308884, "cache_lectura": 13150427, "respuestas": 86}, "eur": 9.75, "horas_ia": 0.82, "duracion": "49m", "duracion_reloj": "30m", "ratio_usado": 479326.0, "ratio_origen": "CALIBRATION.md (mediana de 6)"}) — **ventana COMPARTIDA**: la corrección de los 12 gaps tocó las dos tareas a la vez, así que los dos marcadores midieron la MISMA ventana (0,82h IA · 9,75 € en total, no por tarea) y se reparte al 50 %: 0,41h a cada una. No se suman las dos lecturas: sería contar el trabajo dos veces · ** **Nota de honestidad (R3-4)**: el marcador `R3-fix2` no salio de un `start` limpio — se abrio a posteriori con `inicio` fijado a mano (`22:50:00Z`, arranque real del despacho) y `offsets` a 0, asi que la ventana la acota solo el filtro por timestamp; la aritmetica del JSON es coherente con esa ventana (lente B, intento 3). + 0,31h fix2** — parte de T-10 del marcador **ÚNICO** `plugin-refactor/R3-fix2` (1,01h IA · 7,92 € en total; el JSON completo se pega una sola vez, en T-09), repartido **por gaps**: T-10 se lleva B-3 y la mitad de linter de B-4 (2 de 6,5 unidades) = 0,31h · **+ 0,40h fix3** — parte de T-10 del marcador **ÚNICO** `plugin-refactor/R3-fix3` de la **4.ª pasada autorizada por el usuario** (1,13h IA · 8,66 € en total; el JSON completo se pega una sola vez, en T-09; esta vez el `start` fue LIMPIO, antes de tocar nada), repartido **por gaps**: T-10 se lleva R3-3 (`_RESPALDO_DEF_RE` + `_nombres_de_respaldo` + caso 46 + la clave `detecta`) = 2,5 de 7 unidades = 0,40h · **total real 1,68h**
+- **Supervisión**: est. 0,05h (≈25 % IA) · real 0,14h + 0,10h fix1 + 0,08h fix2 + 0,10h fix3 = 0,42h (estimado)
 - **Previsión IA**: 66k in / 10k out tok · 0,7 € tokens · coste tarea 76 €
 - **Dependencias**: T-09 (el registro), T-08 (`lint()` partido)
 - **Tipo**: test
@@ -741,21 +1001,324 @@ diff (nombres FAILED, antes r2 vs después T-08): vacío — mismo conjunto de 4
   - `python scripts/release.py --dry-run` → exit 0 (cierre del tramo R3) · `python scripts/export-interop.py --check` → `48 ficheros al día`
 
 **Criterios de aceptación**
-- [ ] Bloque `--8<--` o `_*_FALLBACK` fuera del registro → error con `fichero:línea` y el `id` esperado; con el árbol actual, 0 errores nuevos
-- [ ] La comprobación lee `copias.json` por la misma regla `find` de raíces que el resto del linter (no ruta absoluta)
-- [ ] `docs/CONVENTIONS.md` (+EN) nombran la puerta en una línea junto a `export-interop.py --check`
-- [ ] `release.py --dry-run` exit 0
+- [x] Bloque `--8<--` o `_*_FALLBACK` fuera del registro → error con `fichero:línea` y el `id` esperado; con el árbol actual, 0 errores nuevos (ver «Desviación declarada 8»: se emite el id **sugerido**; `9 agentes · 0 errores · 3 avisos`, exit 0)
+- [x] La comprobación lee `copias.json` por la misma regla `find` de raíces que el resto del linter (no ruta absoluta) (ver «Desviación declarada 9»: el linter no usa `find`; usa el `root` que ya recibe)
+- [x] `docs/CONVENTIONS.md` (+EN) nombran la puerta en una línea junto a `export-interop.py --check` — ver «Desviación declarada 5» (la línea va en la §3 «Compartido vs. privado» porque `export-interop.py --check` no aparece en ese doc; N-2 del intento 2)
+- [x] `release.py --dry-run` exit 0
 
 **Subtareas**
-- [ ] `comprobar_copias_declaradas(root)` → `(errores, avisos)`; tolerancias explícitas
-- [ ] 2 tests con mutante en `tests/test_lint_plugin.py`
-- [ ] Línea en `CONVENTIONS.md` ES + EN; `Verificación`; commit `T-10: …`; cierre del tramo R3 → revisión (T-20)
+- [x] `comprobar_copias_declaradas(root)` → `(errores, avisos)` sobre el despachador `lint()` de T-08, con `_py_del_arbol` (incluye las suites: una de las copias registradas es `tests/test_console_encoding.py`), `_copias_registradas` y `_id_sugerido`; tolerancias explícitas `COPIAS_SKIP_DIRS = CONSOLE_SKIP_DIRS | {"interop", ".claude", ".codex", ".opencode", ".agents"}` (`.venv`, `node_modules`, `dist`, `build`, `.git`… + `interop/**` + las cuatro raíces de instalación por copia — las cuatro se añaden al corregir el gap 10 de la revisión R3)
+- [x] **8** casos nuevos en `tests/test_lint_plugin.py` (`casos_copias_declaradas()`: 38 centinela, 39 `_*_FALLBACK`; `casos_copias_registro_fino()`, de la corrección de la revisión R3 intento 1: 40 `respaldos` fuera de rango, 41 centinela `v2` por igualdad, 42 ruta de error bajo `-W error::DeprecationWarning`, 43 `_id_sugerido` translitera; `casos_copias_por_copia()`, del intento 2: **44** `respaldos` POR COPIA — el canónico renombrado a `_*_FALLBACK` muerde y la copia que sí lo declara sigue tolerada (B-3) — y **45** segunda copia del mismo bloque en un fichero ya declarado → error en la aparición SOBRANTE (B-4)), cada uno con su mutante, su positivo declarado y su tolerancia (`interop/**` · mención que no es definición); contador `37/37` → `45/45`
+- [x] Línea en `CONVENTIONS.md` ES + EN (mismo cambio); `Verificación` abajo; **el commit `T-10: …` y el cierre del tramo R3 → revisión (T-20) los hace el orquestador**
+- [x] **4.ª pasada (autorizada por el usuario, fuera del bucle acotado)**: R3-3 — `_RESPALDO_DEF_RE` captura el lado izquierdo entero y `_nombres_de_respaldo()` saca de ahí **todos** los `_*_FALLBACK` (simple · anotada `: str =` · encadenada `A = B =`, un error por nombre); caso **46** `casos_copias_forma_de_definicion()` en `tests/test_lint_plugin.py` (contador `45/45` → `46/46`) y las dos formas escritas en la clave `detecta` de `copias.json`
+  - commit `T-10: …` — **SIN HACER (subtarea de commit sin marcar)**: lo hace el orquestador en el ritual de cierre; esta pasada no comitea ni cambia de rama (`feature/plugin-refactor`)
 
 **Notas**: La detección es heurística (marcador o nombre), no exhaustiva: su alcance queda escrito en el propio `copias.json` (`"detecta": …`) como pide `design.md` §6. `ADR-016` pasa a `aceptada` con la revisión de dos lentes de este tramo si cierra sin gaps.
+
+**Desviación declarada 5 — dónde va la línea de `CONVENTIONS.md`.** El criterio pedía ponerla «junto a `export-interop.py --check`», pero ese comando **no aparece** en `docs/CONVENTIONS.md` (vive en `CLAUDE.md`, regla «Interop», y en `scripts/release.py`). La línea va en la **§3 «Compartido vs. privado»** —donde el documento decide qué se comparte y cómo— y **cita** `python scripts/export-interop.py --check` como la puerta mecánica hermana, que era la intención del criterio. Espejo EN en el mismo cambio.
+
+**Desviación declarada 6 — 4 ids de test cambian de nombre (no de conjunto).** `tests/test_cifras_medidas.py` parametriza sus casos con el **número de línea** de la cifra medida (`docs/CONVENTIONS.md:164:base_ledgers=13`). Insertar el párrafo en la §3 desplaza esa cifra de la línea 164 a la 166, así que los 4 ids pasan a `:166:`. Son **los mismos 4 tests, los 4 en verde**: ni uno nuevo ni uno perdido, solo el id renombrado. Se declara porque el `diff` del conjunto lo enseña y no debe leerse como una suite distinta.
+
+**Desviación declarada 7 — CA-04 de la spec («ningún test existente se modifica») no se cumple al pie de la letra.** `spec.md:158` pide que no se toque ningún test existente; T-10 **modifica `tests/test_lint_plugin.py`**. El cambio es **aditivo** (dos funciones de casos nuevas, `casos_copias_declaradas()` y `casos_copias_registro_fino()`, más sus dos llamadas y el contador `37/37` → `43/43`) y está **sancionado por `improvement-plan.md:257`**, que declara esta suite como el sitio donde vive la comprobación nueva del linter. La única excepción a «aditivo puro» son **tres líneas de casos que la propia T-10 había escrito en esta rama** —el `inicio` del caso 39 pasa a la línea entera y el bloque de llamadas al final—: no son «tests existentes» del repo (nacieron en este tramo), pero se declara igual para no esconderlo. Ningún test previo del repo cambia de comportamiento: el diff del conjunto lo confirma (solo 2 líneas nuevas, ambas de `test_copias_declaradas`).
+
+**Desviación declarada 8 — el error emite el id `sugerido`, no el `esperado`.** El criterio pedía «el `id` esperado». Cuando un bloque **no está declarado**, no hay id esperado: no existe todavía. Lo que el linter puede dar —y da— es un id **sugerido** derivado del texto del centinela o del nombre de la constante (`_id_sugerido()`), listo para pegar en `copias.json`. La sustancia del criterio (el error dice `fichero:línea` y con qué id declararlo) se cumple; el nombre del campo, no. Se declara aquí en vez de reescribir el criterio en su sitio (que es justo lo que R1 marcó como error, A-1).
+
+**Desviación declarada 9 — la comprobación no usa la regla `find` de raíces, usa el `root` del linter.** El criterio pedía leer `copias.json` «por la misma regla `find` de raíces que el resto del linter». **El resto del linter no usa `find`**: `lint_plugin.py` recibe `--root` (default `.`) y resuelve todo bajo esa raíz; la regla del `find` (regla 5 de `CONVENTIONS.md`) es de los **agentes**, para localizar sus kits en runtime, no de este script. La comprobación hace `os.path.join(root, *COPIAS_REGISTRO)`, que es exactamente «como el resto del linter» y, además, lo que permite que un test lea el registro de su raíz sintética (caso 38, tercer tramo). Se cumple la intención del criterio —sin rutas absolutas, misma raíz que todo lo demás—; la mecánica nombrada en el texto no existía.
+
+**Verificación ejecutada (salida real, tras el último cambio)**:
+```
+$ python scripts/lint_plugin.py ; echo $?
+[los 3 avisos de nombre genérico de siempre: retro, roadmap-status, setup]
+
+lint_plugin: 9 agentes · 0 errores · 3 avisos
+0
+    (mismo resumen que antes de T-10: con el árbol actual no hay ninguna copia sin registrar)
+
+$ # MUTANTE: `# --8<-- prueba de copia sin registrar` al final de agent-kits/shared/usage-meter.py
+$ python scripts/lint_plugin.py ; echo $?
+[X] agent-kits/shared/usage-meter.py:629: bloque replicado con centinela `--8<-- prueba de copia sin
+    registrar` SIN fila en agent-kits/shared/copias.json — declara el bloque (id sugerido
+    `prueba_de_copia_sin_registrar`) o quita el centinela (ADR-016)
+lint_plugin: 9 agentes · 1 errores · 3 avisos
+1
+$ # revertido: `git diff --stat agent-kits/shared/usage-meter.py` vacío
+
+$ python -c "import sys; sys.path.insert(0,'tests'); import test_lint_plugin as t; t.casos_copias_declaradas()"
+casos 38-39 (copias declaradas): OK
+    38) centinela sin registrar -> exit 1 con `pieza.py:2` y el id sugerido `criterio_compartido`;
+        el mismo centinela dentro de `interop/codex/` NO añade error; declarado en copias.json -> exit 0
+    39) `_PATRON_FALLBACK = ...` sin registrar -> exit 1 con `copia.py:2`; una MENCIÓN
+        (`assert copia._PATRON_FALLBACK == 1`) no cuenta; declarada -> exit 0
+
+$ # MUTANTE del test (¿mata la ausencia de la comprobación?): `cop_err, cop_warn = [], []` en lint()
+$ python -c "... t.casos_copias_declaradas()"
+AssertionError: un bloque sin registrar es error, no aviso
+$ # revertido -> casos 38-39 OK
+
+$ python -m pytest -q tests agent-kits/shared skills evals -rA | grep -E "^(PASSED|FAILED|ERROR|SKIPPED)" | sort > suite-r3.txt
+$ diff suite-antes-r3.txt suite-r3.txt
+635,638c635,638   4 ids de tests/test_cifras_medidas.py: `.../CONVENTIONS.md:164:...` -> `:166:` (los
+                  MISMOS 4 tests, los 4 PASSED - ver «Desviación declarada 6»)
+1204a1205,1217    13 líneas nuevas, todas de tests/test_copias_declaradas.py (T-09)
+    mismos 40 FAILED preexistentes, ninguno nuevo; ningún test perdido
+    (pytest no colecta `tests/test_lint_plugin.py` -es una suite-script, ya roja en la línea base
+     por el bit ejecutable de Windows: `test_suites_no_pytest.py::...[test_lint_plugin.py]`-, así
+     que sus 2 casos nuevos no aparecen como líneas del conjunto)
+
+$ python scripts/release.py --dry-run ; echo $?
+plugin.json           : 1.19.0
+marketplace metadata  : 1.19.0
+marketplace plugins   : ['1.19.0', '1.19.0', '1.19.0', '1.19.0']
+OK: todas coinciden en 1.19.0
+CHANGELOG.md    : sección [1.19.0] presente
+CHANGELOG.es.md : sección [1.19.0] presente
+0
+$ python scripts/export-interop.py --check
+export-interop --check: 48 ficheros al día
+$ python evals/check.py
+evals/check: 38 ficheros · 135 casos (80 positivos, 55 negativos) · 38 piezas del repo · 0 errores
+```
+
+**Verificación RE-EJECUTADA tras la corrección de los gaps 6, 7, 8, 9, 10, 12 y 13 de la revisión R3 — intento 1** (GOT-007: la que vale es esta):
+```
+$ python scripts/lint_plugin.py --root . ; echo $?
+lint_plugin: 9 agentes · 0 errores · 3 avisos
+0
+$ # y el CONTRATO del tramo: stdout byte a byte igual al de HEAD sobre el mismo árbol
+$ git show HEAD:scripts/lint_plugin.py > $TMP/_lint_head.py
+$ python $TMP/_lint_head.py --root . > $TMP/lint-r3i2-head.txt 2> $TMP/lint-r3i2-head.err   # exit 0
+$ python scripts/lint_plugin.py --root . > $TMP/lint-r3i2-tree.txt 2> $TMP/lint-r3i2-tree.err  # exit 0
+$ diff $TMP/lint-r3i2-head.txt $TMP/lint-r3i2-tree.txt && echo "STDOUT IDENTICO A HEAD"
+STDOUT IDENTICO A HEAD
+$ wc -c $TMP/lint-r3i2-*.err
+0 lint-r3i2-head.err
+0 lint-r3i2-tree.err
+
+$ python -c "import sys; sys.path.insert(0,'tests'); import test_lint_plugin as t; t.casos_copias_declaradas(); t.casos_copias_registro_fino()"
+casos 38-39 (copias declaradas): OK
+casos 40-43 (registro fino R3-fix1): OK
+    40) `respaldos` solo tolera la constante DENTRO del rango de una copia de ESE fichero:
+        `_PATRON_FALLBACK = \` (continuación de la sentencia declarada) NO es copia nueva;
+        `_INVENTADO_FALLBACK = 1` -> `copia.py:4` aunque se cuele en la lista `respaldos`
+    41) centinela `... v2` que EXTIENDE a uno declarado -> `pieza.py:4` + id `criterio_compartido_v2`
+    42) ruta de error con `-W error::DeprecationWarning`: stderr vacío, exit 1, mensaje completo
+        (`pieza.py:2` + ``id sugerido `prueba``) y la línea de resumen (`1 errores`)
+    43) `_id_sugerido("--8<-- criterio del índice de knowledge COMPARTIDO")`
+        -> `criterio_del_indice_de_knowledge_compartido`
+    (`python tests/test_lint_plugin.py` entero sigue rojo EN WINDOWS por el caso preexistente del
+     bit ejecutable de `hooks/hooks.json`, línea base; por eso se invocan las funciones de casos)
+
+$ # GAP 6 — la ruta de error ANTES (re.split con maxsplit posicional) y DESPUÉS, con
+$ #   `# --8<-- prueba` añadido a agent-kits/shared/usage-meter.py
+$ python -W error::DeprecationWarning $TMP/lint_pre_g6.py --root .
+  exit=1   stdout=0 bytes   stderr=1349 bytes
+  ...
+  DeprecationWarning: 'maxsplit' is passed as positional argument
+$ python -W error::DeprecationWarning scripts/lint_plugin.py --root .
+  exit=1   stderr=0 bytes
+[X] agent-kits/shared/usage-meter.py:629: bloque replicado con centinela `--8<-- prueba` SIN fila en
+    agent-kits/shared/copias.json - declara el bloque (id sugerido `prueba`) o quita el centinela
+    (ADR-016)
+lint_plugin: 9 agentes · 1 errores · 3 avisos
+$ # revertido: `git diff --stat agent-kits/shared/usage-meter.py` vacío
+
+$ # GAP 7 — prefijo vs. línea entera, sobre la MISMA fixture (caso 41)
+ANTES (startswith) -> exit 0 | lint_plugin: 1 agentes · 0 errores · 0 avisos
+DESPUES (igualdad) -> exit 1 | pieza.py:4: bloque replicado con centinela
+    `--8<-- criterio compartido v2 (bloque NUEVO sin registrar)` SIN fila en ... (id sugerido
+    `criterio_compartido_v2`) | lint_plugin: 1 agentes · 1 errores · 0 avisos
+$ # y sobre el ÁRBOL, el mismo `v2` al final de tests/test_console_encoding.py:
+[X] tests/test_console_encoding.py:1130: bloque replicado con centinela `--8<-- criterio de consola
+    COMPARTIDO v2 (bloque NUEVO sin registrar)` SIN fila en agent-kits/shared/copias.json ...
+lint_plugin: 9 agentes · 1 errores · 3 avisos
+$ # revertido -> 0 errores
+
+$ # GAP 10 — instalación por copia: lint_plugin.py + task-brief.py + ledger-lint.py bajo .claude/
+ANTES  (COPIAS_SKIP_DIRS sin las 4 raíces): lint_plugin: 9 agentes · 11 errores · 3 avisos
+DESPUÉS (con .claude/.codex/.opencode/.agents): lint_plugin: 9 agentes · 0 errores · 3 avisos
+$ # borradas las copias de .claude/
+
+$ python scripts/release.py --dry-run ; echo $?
+OK: todas coinciden en 1.19.0
+CHANGELOG.md    : sección [1.19.0] presente
+CHANGELOG.es.md : sección [1.19.0] presente
+0
+$ python scripts/export-interop.py --check
+export-interop --check: 48 ficheros al día
+$ python evals/check.py
+evals/check: 38 ficheros · 135 casos (80 positivos, 55 negativos) · 38 piezas del repo · 0 errores
+$ python agent-kits/shared/ledger-lint.py docs/roadmap/2026-09-09-plugin-refactor/tasks.md
+ledger-lint: 0 incoherencias · 0 avisos (tasks.md)
+
+$ # SUITE POR CONJUNTO (antes de tocar nada en esta pasada vs. al final, árbol limpio)
+$ diff $CAP/suite-antes-r3i2.txt $CAP/suite-despues-r3i2.txt
+1204a1205
+> PASSED tests/test_copias_declaradas.py::test_cada_respaldo_declarado_esta_definido_en_su_bloque
+1206a1208
+> PASSED tests/test_copias_declaradas.py::test_el_respaldo_es_equivalente_al_canonico[glob_to_regex]
+    1.481 -> 1.483 líneas · SOLO las 2 nuevas de test_copias_declaradas · ninguna perdida
+$ diff <(grep ^FAILED antes) <(grep ^FAILED despues)   # vacío: los MISMOS 40 rojos preexistentes
+```
+
+**Verificación RE-EJECUTADA tras la corrección de los gaps B-3 y B-4 de la revisión R3 — intento 2** (GOT-007: la que vale es esta):
+```
+$ python scripts/lint_plugin.py --root . ; echo $?
+lint_plugin: 9 agentes · 0 errores · 3 avisos
+0
+$ # CONTRATO del tramo: stdout byte a byte igual al de HEAD sobre el mismo arbol.
+$ # La copia de HEAD vive FUERA del repo ($TEMP/pr-head-r3i3, `git archive HEAD | tar -x`) y se
+$ # ejecuta desde ahi con `--root .`. Hay que `git init` + `git add -A` en la copia: sin indice,
+$ # `_es_ejecutable` cae al modo del sistema de ficheros y en Windows/OneDrive TODO sale
+$ # ejecutable -> un aviso fantasma de `hooks/hooks.json` (4 avisos en vez de 3). Con indice, 3.
+$ diff $CAP/lint-head-r3i3.out $CAP/lint-despues-r3i3.out && echo "STDOUT IDENTICO A HEAD"
+STDOUT IDENTICO A HEAD
+$ wc -c $CAP/lint-head-r3i3.err $CAP/lint-despues-r3i3.err
+0 lint-head-r3i3.err
+0 lint-despues-r3i3.err
+
+$ # B-3 — ESCENARIO DE LA LENTE B sobre el arbol desechable: el canonico `REVISION_HDR_PATTERN`
+$ #   renombrado a `_REVISION_HDR_FALLBACK` en ledger-lint.py:186, DENTRO del rango de su copia
+$ python scripts/lint_plugin.py --root .
+❌ agent-kits/shared/ledger-lint.py:186: constante de respaldo `_REVISION_HDR_FALLBACK` SIN fila en
+   agent-kits/shared/copias.json — declárala en el bloque de su canónico (id sugerido
+   `revision_hdr_fallback`) (ADR-016)
+lint_plugin: 9 agentes · 1 errores · 4 avisos
+    (el 4.º aviso es el fantasma de hooks.json del arbol sin indice, no una regresion)
+    (en el intento 2 esto PASABA: `respaldos` era de bloque y la tolerancia se repartia a las 3
+     rutas; ahora vive en copias[i].respaldos, solo en task-brief.py y jira-flow.py)
+
+$ # B-4 — ESCENARIO: segunda copia del bloque glob_to_regex al final de scope-check.py
+$ python scripts/lint_plugin.py --root .
+❌ agent-kits/shared/scope-check.py:264: el centinela `--8<-- glob_to_regex (respaldo local) —
+   REPLICADO LITERAL en agent-kit` aparece 2 veces en este fichero y agent-kits/shared/copias.json
+   declara 1 — una copia de más del mismo bloque en un fichero YA declarado no la compara nadie:
+   quítala o declárala como copia aparte (ADR-016)
+❌ agent-kits/shared/scope-check.py:284: el centinela `--8<-- fin glob_to_regex (respaldo local)`
+   aparece 2 veces en este fichero y agent-kits/shared/copias.json declara 1 — …
+lint_plugin: 9 agentes · 2 errores · 4 avisos
+    (en el intento 2: `0 errores` — el linter solo comprobaba pertenencia, no cuantas)
+
+$ # `python tests/test_lint_plugin.py` entero sigue ABORTANDO EN WINDOWS en el caso preexistente
+$ # del bit ejecutable de `hooks/hooks.json` (identico en HEAD, linea base): los casos de copias
+$ # se verifican invocando las funciones `casos_*` directamente, como en el intento 1.
+$ python -c "…importlib…; casos_copias_declaradas(); casos_copias_registro_fino(); casos_copias_por_copia()"
+OK casos_copias_declaradas
+OK casos_copias_registro_fino
+OK casos_copias_por_copia          # casos 44 (B-3) y 45 (B-4), nuevos
+    44) `respaldos` POR COPIA: con la constante declarada en SU copia -> `0 errores`; renombrado el
+        CANONICO a `_PATRON_FALLBACK` (dentro del rango de su copia) -> exit 1 con `canon.py:2`, y
+        `copia.py` (la que si lo declara) NO aparece en el error
+    45) una sola aparicion del centinela -> `0 errores`; pegada una SEGUNDA copia del bloque ->
+        exit 1 con `pieza.py:4` (inicio sobrante) y `pieza.py:6` (fin sobrante), «aparece 2 veces»
+    (los casos 39, 40 se actualizan a la forma por copia: `copias[i].respaldos`. Contador 45/45)
+
+$ python scripts/release.py --dry-run 1.20.0 ; echo $?
+OK: todas coinciden en 1.19.0
+CHANGELOG.md    : sección [1.19.0] presente
+CHANGELOG.es.md : sección [1.19.0] presente
+--dry-run: no se ha tocado nada.
+0
+    (con `--dry-run 0.0.0` la puerta responde «la versión 0.0.0 no es mayor que la actual 1.19.0»,
+     que es su comportamiento correcto: el dry-run necesita una versión hacia delante)
+$ python scripts/export-interop.py --check
+export-interop --check: 48 ficheros al día
+$ python evals/check.py
+evals/check: 38 ficheros · 135 casos (80 positivos, 55 negativos) · 38 piezas del repo · 0 errores
+$ python agent-kits/shared/ledger-lint.py docs/roadmap/2026-09-09-plugin-refactor/tasks.md
+ledger-lint: 0 incoherencias · 0 avisos (tasks.md)
+
+$ # SUITE POR CONJUNTO (antes de tocar nada en esta pasada vs. al final, arbol limpio)
+$ diff $CAP/suite-antes-r3i3.txt $CAP/suite-despues-r3i3.txt
+1182c1182,1183
+< PASSED tests/test_copias_declaradas.py::test_cada_respaldo_declarado_esta_definido_en_su_bloque
+---
+> PASSED tests/test_copias_declaradas.py::test_cada_centinela_declarado_aparece_exactamente_una_vez_en_su_ruta
+> PASSED tests/test_copias_declaradas.py::test_cada_respaldo_declarado_esta_definido_en_su_copia
+1183a1185
+> PASSED tests/test_copias_declaradas.py::test_el_corpus_de_equivalencia_cubre_todas_las_categorias[glob_to_regex]
+    PASSED 1.421 -> 1.423 · FAILED 38 -> 38 (el MISMO conjunto, diff vacio) · ERROR 0 · SKIPPED 1
+    Las 2 lineas nuevas son de test_copias_declaradas; la «perdida» es el RENOMBRADO
+    `..._en_su_bloque` -> `..._en_su_copia` (Desviacion declarada 10), no un test borrado.
+    El conjunto de esta pasada es `tests agent-kits/shared skills` (sin `evals`): por eso el
+    contador de rojos preexistentes es 38 y no los 40 de las pasadas que si incluian `evals`.
+    Lo que se compara es el CONJUNTO antes/despues de esta misma pasada, no el numero.
+```
 
 ---
 
 ## Fase 4 — Encadenamiento E1–E11
+
+**Desviación declarada 11 — `scope-check.py` sigue en exit 1, y no por esta pasada.** El DoD pide `scope-check` en verde. Sale **exit 1** con 7 ficheros fuera de alcance: `.claude/.confluence-pending`, `.claude/.gitignore`, `.claude/.headroom_wrap_marker.json` (estado local de herramientas), `CONTINUE-HERE.md` y `CONTINUE-HERE.local.md` (bitácora de sesión, raíz del repo), `feature-pendiente.bundle` y `docs/roadmap/2026-09-09-plugin-refactor/design.md`. **Ninguno lo toca esta 4.ª pasada** —cuyos 5 ficheros salen los 5 en ✅ «en alcance»— y el encargo excluía explícitamente `design.md`. Es ruido de árbol y artefactos de pasadas anteriores que arrastra el tramo: se declara aquí en vez de tocarlos para cuadrar un exit code, que es justo lo que la tabla de racionalización del implementer prohíbe. Lo resuelve el ritual de cierre de rama (commits ordenados), no una corrección de código.
+
+
+**Verificación RE-EJECUTADA tras la 4.ª pasada (autorizada por el usuario, fuera del bucle acotado) — gap R3-3**
+(GOT-007: la que vale es esta, no las anteriores):
+```
+$ # R3-3: el caso 46 nuevo. `python tests/test_lint_plugin.py` ABORTA antes en Windows (caso `chmod`,
+$ # rojo preexistente), asi que el caso se verifica llamando a la funcion directamente.
+$ python -c "import sys; sys.path.insert(0,'tests'); import test_lint_plugin as t; t.casos_copias_forma_de_definicion()"
+    (sin salida = OK). Lo que afirma el caso, con `copia.py` =
+        import re
+        _NUEVO_FALLBACK: str = r"^x$"                  <- ANOTADA
+        _OTRO_FALLBACK = _TERCERO_FALLBACK = r"^y$"    <- ENCADENADA (dos nombres)
+        usa = _NUEVO_FALLBACK                          <- USO en el valor, no definicion
+    -> exit 1 y **3 errores** (`out.count("constante de respaldo") == 3`):
+       `copia.py:2` con `_NUEVO_FALLBACK`; `copia.py:3` con `_OTRO_FALLBACK` **y** `_TERCERO_FALLBACK`;
+       `copia.py:4` NO aparece. Declaradas las dos lineas en copias.json -> exit 0 y `0 errores`.
+$ # y los tres grupos previos de casos de copias siguen verdes:
+$ python -c "... t.casos_copias_declaradas(); t.casos_copias_registro_fino(); t.casos_copias_por_copia()"
+casos_copias_* previos: OK
+
+$ # CONTRATO del tramo: stdout byte a byte igual al de HEAD sobre el mismo arbol.
+$ # Copia de HEAD FUERA del repo ($TEMP/pr-head-r3i4, `git archive HEAD | tar -x` + `git init` +
+$ # `git add -A`, para que `_es_ejecutable` lea el indice y no el modo de OneDrive), con `--root .`.
+$ python scripts/lint_plugin.py --root . ; echo $?
+lint_plugin: 9 agentes · 0 errores · 3 avisos
+0
+$ diff $CAP/lint-head-r3i4.txt $CAP/lint-ahora-r3i4.txt && echo IDENTICO
+IDENTICO
+$ wc -c $CAP/lint-head-r3i4.err $CAP/lint-ahora-r3i4.err
+0 lint-head-r3i4.err
+0 lint-ahora-r3i4.err
+
+$ python evals/check.py ; echo $?                     -> 0
+$ python scripts/export-interop.py --check            -> export-interop --check: 48 ficheros al día
+$ python scripts/release.py --dry-run ; echo $?
+OK: todas coinciden en 1.19.0 · CHANGELOG.md y CHANGELOG.es.md: sección [1.19.0] presente
+0
+$ python agent-kits/shared/ledger-lint.py docs/roadmap/2026-09-09-plugin-refactor/tasks.md ; echo $?
+ledger-lint: 0 incoherencias · 0 avisos (tasks.md)
+0
+$ python agent-kits/shared/scope-check.py docs/roadmap/2026-09-09-plugin-refactor ; echo $?
+scope-check: 2026-09-09-plugin-refactor · base merge-base master…HEAD (400b3fd0) · 25 fichero(s)
+  cambiado(s) · 153 patrón(es) declarados en Archivos
+✅ en alcance (18)  — TODO lo que toca esta 4.ª pasada: scripts/lint_plugin.py,
+   tests/test_lint_plugin.py, tests/test_copias_declaradas.py, agent-kits/shared/copias.json y
+   docs/roadmap/2026-09-09-plugin-refactor/tasks.md
+❌ fuera de alcance (7): .claude/.confluence-pending · .claude/.gitignore ·
+   .claude/.headroom_wrap_marker.json · CONTINUE-HERE.local.md · CONTINUE-HERE.md ·
+   docs/roadmap/2026-09-09-plugin-refactor/design.md · feature-pendiente.bundle
+1     <- exit 1 PREEXISTENTE (ver «Desviación declarada 11»): los 7 son ruido de arbol y
+          artefactos de pasadas anteriores; esta pasada NO toca ninguno.
+
+$ # Suite por CONJUNTO, con la recoleccion COMPLETA (leccion de R3-5: `evals/test_evals.py`, 21
+$ # tests, SI se recoge; la linea base vuelve a ser 40 rojos, no 38).
+$ python -m pytest -q tests agent-kits/shared skills evals -rA -p no:cacheprovider | grep -E "^(PASSED|FAILED|ERROR|SKIPPED)" | sort > $CAP/suite-despues-r3i4.txt
+$ diff $CAP/suite-antes-r3i4.txt $CAP/suite-despues-r3i4.txt
+1210a1211
+> PASSED tests/test_copias_declaradas.py::test_las_categorias_obligatorias_siguen_declaradas_en_el_registro[glob_to_regex]
+    1.485 -> 1.486 lineas · PASSED 1.444 -> 1.445 · SKIPPED 1 · la UNICA linea nueva es la del test
+    de R3-1; ninguna perdida. El caso 46 de `test_lint_plugin.py` no aparece porque pytest no
+    colecta esa suite-script (rojo preexistente por el bit ejecutable de Windows).
+$ diff (solo FAILED/ERROR, antes vs despues)   # vacio
+    FAILED 40 -> 40, el MISMO conjunto; `evals/test_evals.py` recogido: 21 tests.
+
+$ # Cero cambio en bloques registrados: el delta de la pasada toca el DETECTOR y los tests, no los
+$ # bloques `--8<--` ni sus copias (los 7 tests de identidad siguen verdes).
+$ python -m pytest -q tests/test_copias_declaradas.py -p no:cacheprovider
+18 passed in 0.21s
+```
+
 
 **Estado**: borrador · **Estimado**: 30,5h · **Real**: — · **Coste est.**: 1.539 € · **Tokens est.**: 1.745k · **Tramo**: R4
 
@@ -1348,3 +1911,144 @@ mejora, el centinela en banda de `_calibracion_leer`, la repeticion del A-7 y lo
 
 **Commits del tramo** (los hace el orquestador, uno por tarea; CA-09 se cumple por commit: ninguno toca `agents/`,
 `commands/` ni ningun `SKILL.md`): ver `git log` de `feature/plugin-refactor` tras esta seccion.
+
+## Revision de dos lentes - intento 1 (tramo R3: T-09..T-10): 6 Important, 7 Minor (lentes A+B)
+
+> Coordenadas `fichero:linea` de esta tabla: las del arbol **en el momento del intento 1** (antes de la correccion). Tras el intento 2 varias se desplazaron (`_respaldo_declarado` a `lint_plugin.py:850-865`, `maxsplit=1` a `:873`, igualdad de centinela a `:908`, NFKD a `:875`; `copias.json` tiene 124 lineas y el bloque `docstring_uso_exit` esta en `:110-121`). Se conservan como registro historico (N-1 del intento 2).
+
+Dos lentes de contexto fresco (agente `reviewer`, opus) en paralelo sobre `git diff HEAD` (14 modificados + 2 nuevos),
+marcador medido desde la sesion principal (`plugin-refactor/revision-R3-intento1`):
+`{"eur":7.55,"horas_ia":1.01,"duracion":"1h 1m","duracion_reloj":"18m","tokens_reales":{"entrada":275,"salida":108834,"cache_creacion":374375,"cache_lectura":6296784,"respuestas":74},"fuente":"medido"}`.
+
+**Lo que esta bien y queda verificado** (no se repite en el intento 2): 0 lineas ejecutables tocadas en los 7 scripts con
+bloques (todo lo anadido empieza por `#`); `lint_plugin.py --root .` stdout identico a HEAD, stderr 0 bytes, exit 0;
+el test de identidad muerde en los 7 bloques comparables (14 mutantes de un byte, siempre el `[id]` correcto) y el
+canonico de `REVISION_HDR_PATTERN` y de `piezas()` esta entre las copias; el registro no puede mentir en 11 mutaciones
+(inicio inexistente, fin antes de inicio, ruta inexistente, copia unica, sustitucion muerta, id repetido: todas rojas);
+normalizacion CRLF total / LF total / mixto / BOM: verde, espacio final: rojo (correcto); menciones de `--8<--` dentro
+de cadenas no disparan (la regex ancla `^[ \t]*#`); tolerancias `interop/ .venv/ node_modules/ dist/ .git/ __pycache__/`;
+orden de errores determinista por ruta; registro ausente = falla en alto (28 errores), correcto; suite por conjunto: +13
+de `test_copias_declaradas`, 4 ids de `test_cifras_medidas` renombrados por linea (T-19), 40 rojos preexistentes iguales;
+`release.py --dry-run` exit 0; finales de linea mixtos sin consecuencia (unico par mixto comparado, `evals/check.py` LF
+frente a `lint_plugin.py` CRLF, normalizado). Desviaciones declaradas 1, 4, 5 y 6: **legitimas** (verificadas por la
+Lente A); la 2, legitima en el mecanismo y **falsa en su justificacion** (gap 1); la 3, legitima pero fuera de la
+doctrina escrita (gap 4).
+
+| # | Grado | Gap | Tarea | Correccion | Evidencia |
+|---|---|---|---|---|---|
+| 1 (A-1 = B-2) | **Important** | `glob_to_regex` queda **sin guardarrail sobre el canonico** y el registro afirma lo contrario: `motivo_canonico` dice que «la equivalencia con el canonico la cubren los tests de comportamiento de cada script», pero `scope-check.py` y `review-lens-select.py` cargan **siempre** el canonico por `importlib` cuando `confluence-publish` existe (siempre en el repo), asi que los respaldos son codigo que ningun test ejecuta. Mutante semantico identico en los DOS respaldos (`(?:.*/)?` a `.*/`): **0 rojos nuevos**; el mismo en el canonico: 3 rojos. `ADR-016` promete «C pasa a tener guardarrail» | T-09 | **Corregido** - el bloque sigue `canonico_comparable: false`, pero anade `equivalencia` (funcion `glob_to_regex`, cargador `_load_glob_to_regex`, corpus de 32 globs con `**/`, `**/x`, `a/**`, `?`, `[a-z]`, `*.md`, `docs/**/*.py`, vacio, con espacios, con barra invertida, con `.`/`+`/`(`, `**` a secas y `/` inicial y final) y `test_el_respaldo_es_equivalente_al_canonico` la ejecuta: carga canonico y CADA respaldo como modulos sueltos (`spec_from_file_location`), fuerza la rama local (`os.path.isfile` -> False) y afirma el `__qualname__` para dejar por escrito que ejecuta la `def local` DEL BLOQUE, no la que devuelve el cargador; compara el `.pattern` compilado. `motivo_canonico` reescrito (identidad entre respaldos + equivalencia conductual con el canonico sobre el corpus declarado) y «Desviacion declarada 2» reescrita | `agent-kits/shared/copias.json:60-61` · `scope-check.py:50-58` · sondas de la Lente B · mutante `(?:.*/)?` -> `.*/` en los DOS respaldos: `FAILED ...[glob_to_regex]`, «para el glob `'**/'`: canonico -> `'^(?:.*/)?$'`, respaldo -> `'^.*/$'`» (antes: 0 rojos); el mismo mutante SOLO en el canonico: rojo tambien, al reves; revertidos -> `15 passed` |
+| 2 (A-2) | **Important** | Entrada `docstring_uso_exit` con **lineas equivocadas** y `que_es` que no describe lo que hay: `code-health.py:27-40` es hoy la cola del docstring (`Exit:` + parrafo `--exclude-path` que anadio T-02 en esta rama) + 8 imports; el bloque se desplazo a 32-45. Ningun test lo detecta: el de `no_codigo` solo comprueba `0 < desde <= hasta <= n` | T-09 | **Corregido** - rangos reales del arbol (`code-health.py` **23-27** = de `Uso:` a `Exit:`; `deps-inventory.py` **27-28**) y `que_es` fiel (dice que el texto NO coincide y que los tamanos son distintos: en `code-health.py` el `Uso:` ocupa cuatro lineas y en `deps-inventory.py` una). Los DOS bloques `no_codigo` declaran `contiene` (`Uso:`+`Exit:` · comillas triples+`import os`+`import sys`) y `test_los_bloques_no_codigo_estan_declarados_pero_no_se_comparan` lo afirma dentro del rango de cada copia | `copias.json:126-131` · `code-health.py:27-40` vs `deps-inventory.py:29-40` · con el rango viejo (`27-40`): `AssertionError: docstring_uso_exit / code-health.py: el rango 27-40 ya no contiene 'Uso:' (el bloque se ha desplazado: corrige el rango en copias.json)`; con el corregido, verde |
+| 3 (A-3) | **Important** | Fila de `copias.json` en `agent-kits/shared/README.md` escrita con los bytes CR y LF **literales** en vez del texto `\r\n`: la fila queda partida en 3 lineas fisicas y **corta la tabla** Markdown (las 3 filas siguientes se renderizan como texto). Subtarea marcada `[x]` | T-09 | **Corregido** - la fila es UNA linea fisica; los saltos van escapados como TEXTO (barra+r, barra+n) y el terminador es CRLF como el resto del fichero | `agent-kits/shared/README.md:29-31` · `README.md`: 44 CRLF · 44 LF · 44 CR (cero saltos sueltos; antes 46 LF frente a 44 CR) · `git diff --stat` = **1 insercion** (una fila = una linea): la tabla vuelve a cerrar |
+| 4 (A-4) | **Important** | `ADR-016` no recoge las dos tolerancias que introduce la implementacion: `sustituciones` (renombrado de identificador antes de comparar, 2 de 7 bloques) y `canonico_comparable: false` (1 de 7); el ADR dice «byte a byte… no texto equivalente» y «C pasa a tener guardarrail». Promoverlo a `aceptada` tal cual deja doctrina contradictoria con el registro | T-09/T-10 | **Corregido** (orquestador): `ADR-016` enmendado con la seccion «Tolerancias explicitas del comparador» (`sustituciones` + test de uso, `canonico_comparable: false` + `equivalencia` conductual, `respaldos` con test de entrada muerta, centinelas como linea entera, limite del `str.replace`); sigue `propuesta` hasta cerrar el tramo | `docs/knowledge/adr/ADR-016-…md:39,43-45` vs `copias.json:4,60` |
+| 5 (B-1) | **Important** | `respaldos` es una lista blanca **sin test de entrada muerta** y silencia al linter para TODAS las rutas del bloque, no solo la que define la constante. Escenario: `"_INVENTADO_FALLBACK"` anadido a `respaldos` de `revision_hdr_pattern` y luego un `_INVENTADO_FALLBACK = 1` real y nuevo en `task-brief.py`: `13 passed`, linter exit 0 — «una copia nueva nace sin guardarrail», lo que T-10 dice cerrar | T-09/T-10 | **Corregido** - dos mitades. Test: `test_cada_respaldo_declarado_esta_definido_en_su_bloque` exige `^NOMBRE =` dentro del rango de alguna copia del bloque, con el rango extendido hacia atras sobre las continuaciones de sentencia (barra invertida al final de la linea anterior), que es donde vive `_REVISION_HDR_FALLBACK =`. Linter: `_respaldo_declarado` tolera la constante solo si una copia **de ese fichero** la lista en `respaldos` **y** la definicion cae dentro del rango de ESA copia - no en todas las rutas del bloque | `copias.json:47` · `lint_plugin.py:817,860` · `tests/test_copias_declaradas.py:94-99` · escenario de la lente B sobre el arbol (`_INVENTADO_FALLBACK` en `respaldos` + `_INVENTADO_FALLBACK = 1` en `task-brief.py`): `1 failed, 14 passed` («NO esta definido dentro del rango de ninguna copia») **y** `task-brief.py:972: constante de respaldo _INVENTADO_FALLBACK SIN fila` · `9 agentes · 1 errores`; revertido -> `15 passed` y `0 errores`. Caso sintetico 40 en `test_lint_plugin.py` |
+| 6 (A-5 = B-3) | **Important** | `re.split(..., 1)` con `maxsplit` posicional en la **ruta de error** del guardarrail nuevo (`_id_sugerido`): `DeprecationWarning` en 3.13 y, con `-W error::DeprecationWarning` (lo que hara el interprete al retirarlo), traceback sin la linea que dice QUE copia falta ni resumen. Ningun test ejercita la ruta con warnings activos; arbol limpio: stderr 0 bytes | T-10 | **Corregido** - `maxsplit=1` + caso 42 en `tests/test_lint_plugin.py`, que corre la ruta de error con `python -W error::DeprecationWarning` y afirma stderr vacio, exit 1, el mensaje con `fichero:linea` e `id sugerido` y la linea de resumen | `scripts/lint_plugin.py:823` · antes (posicional), bajo `-W error::DeprecationWarning`: **stdout 0 bytes, stderr 1.349 bytes** (traceback `DeprecationWarning: 'maxsplit' is passed as positional argument`), sin mensaje ni resumen. Despues: **stderr 0 bytes**, exit 1, `usage-meter.py:629: ... (id sugerido prueba)` + `9 agentes · 1 errores · 3 avisos` |
+| 7 (B-4) | Minor | Casado del centinela por **prefijo** sin frontera (`marca.startswith(d)`): un bloque nuevo cuyo centinela extienda a uno declarado del mismo fichero es invisible (`criterio de consola COMPARTIDO v2 (bloque NUEVO)` en `test_console_encoding.py`: exit 0). Los 16 `inicio` del registro son prefijos, ninguno linea entera | T-10 | **Corregido** - los 16 `inicio` y los 13 `fin` del registro pasan a ser la LINEA ENTERA del centinela (tras `strip`); el linter casa por igualdad (`marca not in declarados`) y `_limites`/`_bloque` del test localizan la copia por igualdad de linea `strip`eada. El texto comparado no cambia (el bloque sigue empezando en el `#`), asi que los 7 bloques de identidad siguen verdes | `scripts/lint_plugin.py:853` · fixture del caso 41 con el linter anterior (`startswith`): **exit 0 · 0 errores**; con el actual: **exit 1**, `pieza.py:4 ... (id sugerido criterio_compartido_v2)`. Sobre el arbol, el mismo `v2` en `test_console_encoding.py`: `9 agentes · 1 errores`; revertido -> `0 errores` |
+| 8 (B-5) | Minor | `_id_sugerido` borra las letras no ASCII en vez de transliterarlas: `criterio del índice` sugiere `criterio_del_ndice_de_knowledge` | T-10 | **Corregido** - `unicodedata.normalize("NFKD", ...)` y fuera los combinantes antes del `re.sub`; el caso 43 lo fija | `scripts/lint_plugin.py:825` · `_id_sugerido('--8<-- criterio del índice de knowledge COMPARTIDO')` -> `criterio_del_indice_de_knowledge_compartido` (antes `criterio_del_ndice_...`) |
+| 9 (B-6) | Minor | El docstring de `comprobar_copias_declaradas` dice que una mencion «dentro de una cadena o de un docstring no cuenta»; para un docstring con `# --8<--` en columna 0 **si dispara**. `detecta` de `copias.json` es exacto (solo habla del regex) | T-10 | **Corregido** - el docstring dice ahora lo que hace el codigo: solo las menciones dentro de una CADENA quedan fuera (`ini = src.index(...)` no dispara); una linea que empieza por `#` cuenta este donde este, docstrings incluidos, porque el ancla es la forma de la linea y no su contexto sintactico | `scripts/lint_plugin.py:831-832` vs `:775` · `scripts/lint_plugin.py:882-885` |
+| 10 (B-7) | Minor | `COPIAS_SKIP_DIRS` no excluye `.claude/`, `.codex/`, `.opencode/`, `.agents/` (instalacion por copia directa, `docs/INSTALL.md`): con el plugin copiado en `.claude/`, `9 agentes · 4 errores` | T-10 | **Corregido** - `COPIAS_SKIP_DIRS` suma `.claude`, `.codex`, `.opencode`, `.agents` (instalacion por copia directa, `docs/INSTALL.md`), con el motivo escrito al lado; `detecta` de `copias.json` las nombra | `scripts/lint_plugin.py:774` · con `scripts/lint_plugin.py`, `task-brief.py` y `ledger-lint.py` copiados bajo `.claude/`: antes **`9 agentes · 11 errores`**, despues **`9 agentes · 0 errores · 3 avisos`** |
+| 11 (B-8) | Minor | `test_las_sustituciones_declaradas_se_usan_de_verdad` busca el `de` en TODO el fichero, no en el bloque: `["import os","import os"]` en `sin_vallas` pasa | T-09 | **Corregido** - busca en `_bloque(..., sustituir=False)` (el rango declarado), no en todo el fichero | `tests/test_copias_declaradas.py:99` · con `["import os", "import os"]` anadida a las `sustituciones` de `sin_vallas`: `AssertionError: sin_vallas / changelog-sync.py: sustitucion import os -> import os sin uso DENTRO del bloque` (antes pasaba) |
+| 12 (A-6) | Minor | Spec CA-04 («ningun test existente se modifica») se incumple: T-10 modifica `tests/test_lint_plugin.py` (+57, puramente aditivo, sancionado por `improvement-plan.md:257`) y el ledger no lo declara entre las 6 desviaciones | T-10 | **Corregido** - bloque «Desviacion declarada 7» en T-10 | `tests/test_lint_plugin.py:46-99,679-681` · `spec.md:158` · ver T-10, «Desviacion declarada 7» |
+| 13 (A-7) | Minor | Dos criterios de T-10 **reescritos en su sitio** sin bloque de desviacion: «id esperado» a «id sugerido» y «regla `find` de raices» a `os.path.join(root, …)`. La sustancia se cumple; la forma es la que R1 marco como error (A-1) | T-10 | **Corregido** - restaurado el texto literal de los dos criterios de T-10 desde `git show HEAD:.../tasks.md` («el `id` esperado» y «por la misma regla `find` de raices que el resto del linter (no ruta absoluta)») y anadidas debajo las desviaciones numeradas 8 y 9 | `tasks.md` criterios de T-10 vs `git show HEAD:…/tasks.md` · ver T-10, criterios 1 y 2 + «Desviacion declarada 8» y «9» |
+
+**Sin segunda opinion de contexto fresco** (dicho, no escondido): ninguna — las dos lentes vivieron. **Fuera de lente,
+para el orquestador**: `Changelog` de T-01 (207) y T-04 (350) pasan de 200 (tramo R1), se acortan al cerrar R3;
+`agent-kits/shared/__pycache__/_doctor_head.cpython-313.pyc` huerfano, no versionado. **Restriccion del comparador**
+(Lente A): `sustituciones` es un `str.replace` global sobre el bloque; si un identificador declarado fuera subcadena de
+otro enmascararia divergencia — hoy no ocurre; se escribe en `ADR-016` como limite conocido.
+
+## Revision de dos lentes - intento 2 (tramo R3): 1 Important, 9 Minor — los 13 gaps del intento 1 cerrados
+
+Lentes A+B vivas, marcador `plugin-refactor/revision-R3-intento2`:
+`{"eur":12.05,"horas_ia":1.63,"duracion_reloj":"44m","tokens_reales":{"entrada":303,"salida":129150,"cache_creacion":653081,"cache_lectura":11573108,"respuestas":119},"fuente":"medido"}`.
+
+**Cerrado y re-verificado con mutantes** (Lente A los 13, Lente B ~35 mutantes en arboles desechables): la equivalencia
+ejecuta la `def` del bloque del respaldo (aserta `__qualname__`), no la del cargador; mutante en los dos respaldos,
+solo en el canonico y en un solo respaldo: rojos con el `[id]`; rangos `no_codigo` con `contiene` (6 mutaciones rojas);
+`respaldos` con test de entrada muerta y linter que muerde la constante nueva; `maxsplit=1` y ruta de error limpia bajo
+`-W error::DeprecationWarning` + cp1252 (dos ejecuciones byte-identicas); centinelas como linea entera (16 `inicio` +
+13 `fin` casan por igualdad; `v2` extendido da error); NFKD en `_id_sugerido`; `.claude/.codex/.opencode/.agents`
+tolerados; sustituciones acotadas al bloque; 16/16 mutantes de un byte rojos; `lint_plugin --root .` stdout identico a
+HEAD, stderr 0 B; suite: 0 regresiones, 0 desaparecidos, +15. `ADR-016` enmendado (gap 4) sin contradiccion interna.
+Limites declarados y verificados (no gaps): comparacion por `.pattern` yerra por el lado seguro; `contiene` es ancla
+minima (rango ensanchado sigue verde); el linter solo recorre `.py`.
+
+| # | Grado | Gap | Tarea | Correccion | Evidencia |
+|---|---|---|---|---|---|
+| B-1 | **Important** | El `corpus` de `equivalencia` **no esta fijado**: el esquema solo exige `>= 25` y hay 32; borrar las 3 entradas que discriminan un mutante (`"?"`, `"a?c"`, `"?*?"` para `[^/]` a `[^/]?`) deja 29 y el mutante vivo con `15 passed`. Es el unico guardarrail del canonico: podarlo lo desactiva sin nada rojo (misma clase que el gap 5 del intento 1) | T-09 | **Corregido** (intento 3): el `>= 25` desaparece del esquema; `equivalencia.categorias` declara **18 categorias obligatorias** `{nombre, regex}` y `test_el_corpus_de_equivalencia_cubre_todas_las_categorias` exige >= 1 entrada por categoria (`re.search`). Corpus 32 -> 35 (`"./docs/x.md"` de B-5, `"[!a-z]"`, `"[^a-z]"`) | Escenario de la Lente B (arbol desechable): borrar `"?"`, `"a?c"`, `"?*?"` -> `1 failed`: «el corpus (32 entradas) ya no cubre 1 categoria(s)… interrogante `?` (ninguna entrada casa `\?`)». Con el corpus integro, el mutante `[^/]` -> `[^/]?` en los DOS respaldos sigue rojo (`para el glob '?': canonico -> '^[^/]$', respaldo -> '^[^/]?$'`). Salidas abajo, T-09 |
+| B-2 | Minor | `sustituciones` acepta **pares de subcadena arbitrarios**: `["strip()) > len(cerco)", "strip()) >= len(cerco)"]` revierte una divergencia real de comportamiento antes de comparar (`15 passed`). El registro y `ADR-016` hablan de «renombrados de identificador» | T-09 | **Corregido** (intento 3): el esquema exige que cada `sustitucion` sea un par y que **ambos lados** casen `^[A-Za-z_][A-Za-z0-9_]*$`; `_bloque` aplica `re.sub(r"\b" + re.escape(de) + r"\b", a, txt)` en vez de `str.replace`. `copias.json` `comparacion` lo dice igual | Inyectado el par `["strip()) > len(cerco)", "strip()) >= len(cerco)"]` en `sin_vallas` -> `2 failed`: «la sustitucion […] no es un renombrado de identificador: `strip()) > len(cerco)` no casa `^[A-Za-z_][A-Za-z0-9_]*$`». Los dos pares reales (`_frontmatter_plegado`, `RE_VALLA`) siguen verdes: `17 passed` en el arbol limpio |
+| B-3 | Minor | La tolerancia de `respaldos` **no esta acotada a la ruta que define la constante** como afirman docstring, `copias.json:6` y `ADR-016`: es de bloque y se replica a las 3 rutas, acotada solo por rango. Renombrar el canonico `REVISION_HDR_PATTERN` a `_REVISION_HDR_FALLBACK` en `ledger-lint.py` (dentro del rango de esa copia) pasa | T-10 | **Corregido** (intento 3): `respaldos` es **por copia** (`copias[i].respaldos`); `_copias_registradas` lo lee de la copia, no del bloque; en `copias.json` el nombre `_REVISION_HDR_FALLBACK` vive ahora en las copias de `task-brief.py` y `jira-flow.py`, NO en la de `ledger-lint.py` (canonico). Docstrings de `_copias_registradas`/`_respaldo_declarado` y `copias.json` `detecta` reescritos; el test pasa a `test_cada_respaldo_declarado_esta_definido_en_su_copia` y ademas prohibe `respaldos` a nivel de bloque (seria entrada muerta) | Escenario: `REVISION_HDR_PATTERN` -> `_REVISION_HDR_FALLBACK` en `ledger-lint.py:186` (dentro del rango de SU copia) -> `❌ agent-kits/shared/ledger-lint.py:186: constante de respaldo `_REVISION_HDR_FALLBACK` SIN fila…` · `1 errores`. Caso 44 de `tests/test_lint_plugin.py` lo fija con fixture sintetica |
+| B-4 | Minor | Una **segunda copia del mismo bloque en un fichero ya declarado** es invisible: el test toma la primera linea igual al `inicio` y el linter solo comprueba pertenencia, no cuenta ocurrencias. Copia divergida pegada al final de `scope-check.py`: `15 passed`, `0 errores` | T-09/T-10 | **Corregido** (intento 3): `test_cada_centinela_declarado_aparece_exactamente_una_vez_en_su_ruta` cuenta las lineas iguales (tras `strip`) a cada `inicio`/`fin` y exige **1**; el linter acumula los centinelas CON repeticion y da error cuando las apariciones superan las declaradas para esa ruta, con el `fichero:linea` de la SOBRANTE | Escenario: segunda copia divergida del bloque `glob_to_regex` pegada al final de `scope-check.py` -> test `1 failed` («el centinela `inicio` … aparece 2 veces (se espera 1)») y linter `❌ …scope-check.py:264` + `❌ …:284` · `2 errores`. Caso 45 de `tests/test_lint_plugin.py` |
+| B-5 | Minor | Hueco de corpus: `./` inicial no lo discrimina ninguna entrada (normalizar `./` en una implementacion y no en la otra pasa) | T-09 | **Corregido** (intento 3): `"./docs/x.md"` en el corpus y categoria obligatoria «`./` inicial (ruta relativa sin normalizar)» (`^\./`) en `equivalencia.categorias`, para que la entrada no se pueda podar | `python -c "…"` sobre `copias.json`: `categorias sin entrada: []` · `corpus 35 categorias 18`; la categoria `^\./` la cubre solo esa entrada |
+| N-1 | Minor | La columna «Evidencia» de la tabla del intento 1 cita coordenadas del arbol **de antes de la correccion** (8 de 13 filas ya no resuelven; `copias.json:126-131` apunta fuera de un fichero de 124 lineas) sin decirlo | traza | **Corregido** (orquestador): nota bajo el titulo de la seccion del intento 1 | `tasks.md`, seccion intento 1 |
+| N-2 | Minor | El tercer criterio de T-10 seguia reescrito en su sitio (el gap 13 restauro solo dos) | T-10 | **Corregido** (orquestador): literal de HEAD + puntero a la desviacion 5 | `tasks.md` CA3 de T-10 |
+| N-3 | Minor | Fila Fase 3 de la tabla de progreso: supervision 0,62 frente a 0,37 + 0,24 = 0,61; TOTAL 1,14 frente a 1,13 | ledger | **Corregido** (orquestador) | `tasks.md` tabla de progreso |
+| N-4 | Minor | `progress-report.py active` publica «IA real 3h 8m» frente a 4,48h del ledger: `_parse_horas` de `ledger-lint.py:371` se queda con el **primer** `real <n>h` y no ve los tramos `+ 0,41h fix1`. Limitacion **preexistente** (T-01..T-04 ya la tenian), fuera de R3 | T-17/T-19 | anotado, no se corrige aqui: el parser de horas debe sumar los tramos `+ N,NNh` del mismo campo; candidata a T-17 (metricas) o T-19 | `agent-kits/shared/ledger-lint.py:371` |
+| N-5 | Minor | La enmienda de tolerancias llego a `ADR-016` pero `design.md:218` sigue descartando «texto equivalente» sin remitir a ella | T-09 | **Corregido** (orquestador): nota de enmienda en la fila «Como se compara» de `design.md` §4 apuntando a `ADR-016` «Tolerancias explicitas del comparador» (fichero del `architect`; se toca solo la remision, no la decision) | `design.md:218` |
+
+**Fuera de lente, anotado para T-19**: `lint_plugin.py:911` trunca el centinela a 70 caracteres en el mensaje (dos
+centinelas largos que difieran despues del 70 son indistinguibles); `_id_sugerido` puede sugerir un `id` que ya existe.
+**Entorno**: `python tests/test_lint_plugin.py` aborta en Windows en el caso preexistente de `chmod` (identico en HEAD);
+los casos nuevos se verificaron llamando a `casos_copias_declaradas()` y `casos_copias_registro_fino()` directamente.
+**Sin segunda opinion de contexto fresco**: ninguna, las dos lentes vivieron. Bucle: intento 3 = ultimo.
+
+## Revision de dos lentes - intento 3 (tramo R3, ULTIMO del bucle): B-1..B-5 cerrados; residual 1 Important + 4 Minor
+
+Verificacion determinista del orquestador (arbol desechable, 5 escenarios de la Lente B del intento 2: poda del corpus
+-> rojo nombrando la categoria; par arbitrario en `sustituciones` -> 2 rojos del esquema; renombrado del canonico en
+`ledger-lint.py` -> error del linter; segunda copia de `glob_to_regex` en `scope-check.py` -> test rojo + 2 errores
+senalando la sobrante; `./docs/x.md` y categoria `^\./` presentes; `respaldos` solo por copia; `lint_plugin --root .`
+stdout identico a HEAD con indice git en la copia, stderr 0 B) + **una lente fresca (B) sobre el delta del intento 3**,
+marcador `plugin-refactor/revision-R3-intento3`:
+`{"eur":5.83,"horas_ia":0.66,"duracion_reloj":"34m","tokens_reales":{"entrada":259,"salida":68245,"cache_creacion":249692,"cache_lectura":6143678,"respuestas":53},"fuente":"medido"}`.
+Lente A no despachada en este intento (la conformidad ledger/docs se reviso en los intentos 1 y 2 y el delta es solo
+codigo de guardarrail): **sin segunda opinion de conformidad sobre el delta**, dicho.
+
+**Cerrado y verificado por la lente**: 18/18 mutantes de poda por categoria rojos y nombrando la categoria; el corpus
+minimo que las categorias admiten (13 entradas) sigue matando 7 mutantes semanticos; `\b` en sustituciones respeta
+`RE_VALLA_X`; `respaldos` por copia rechaza nivel de bloque, copia que no define y definicion fuera de rango (linter +
+test); centinela duplicado senala la sobrante; mensajes nuevos bajo cp1252 + `-W error`: exit 1, stderr 0 B, md5
+estable en 3 pasadas; suite en el repo real `PASSED=1444 FAILED=40 SKIPPED=1`, conjunto FAILED identico al del
+intento 2, ningun test perdido; aritmetica del JSON de `R3-fix2` coherente con su ventana.
+
+| # | Grado | Gap | Tarea | Correccion | Evidencia |
+|---|---|---|---|---|---|
+| R3-1 | **Important** | El candado de B-1 se movio del `corpus` a `equivalencia.categorias`, pero **la lista de categorias no la fija nadie**: el test itera la propia lista del registro. Quitar una categoria del registro y sus entradas del corpus (17 categorias / 32 entradas) deja verde el test de cobertura y el mutante `[^/]` -> `[^/]?` en los dos respaldos **sobrevive** (`62 passed`, linter `0 errores`). Mismo agujero de B-1 un nivel mas arriba | T-09 | **Corregido (4.ª pasada autorizada por el usuario)**: `CATEGORIAS_OBLIGATORIAS` en `tests/test_copias_declaradas.py` fija los **18 nombres** copiados literal del registro y `test_las_categorias_obligatorias_siguen_declaradas_en_el_registro` exige que cada uno siga declarado; anadir categorias al registro es libre, quitar una es rojo NOMBRANDOLA | Escenario de la lente (quitar del registro la categoria del `?` **y** las 3 entradas `"?"`, `"a?c"`, `"?*?"` del corpus): **exit 1**, `AssertionError: glob_to_regex: copias.json ya no declara 1 categoria(s) OBLIGATORIA(S) ...: `interrogante `?` (un caracter, sin cruzar `/`)``, `1 failed, 17 passed`; restaurado -> `18 passed`. Con el registro INTEGRO, el mutante `out.append("[^/]")` -> `out.append("[^/]?")` en los DOS respaldos sigue rojo: `FAILED ...::test_el_respaldo_es_equivalente_al_canonico[glob_to_regex]`, «para el glob `'?'`: canonico -> `'^[^/]$'`, respaldo -> `'^[^/]?$'`» · `tests/test_copias_declaradas.py:116-146,262-284` |
+| R3-2 | Minor | Residual de B-2: las `sustituciones` no se validan como **inyectivas** ni sin encadenar: dos pares con el mismo destino (`_frontmatter_plegado`/`_frontmatter_rapido` -> `_frontmatter`) o `a->b`,`b->c` colapsan identificadores distintos y borran una divergencia real (`17 passed`, linter 0) | T-09 | **Corregido (4.ª pasada autorizada por el usuario)**: `test_el_registro_tiene_la_forma_que_dice_su_esquema` exige, **por copia**, destinos distintos entre si (sin COLAPSO) y ningun destino que sea tambien origen (sin ENCADENADO, que ademas haria depender el resultado del ORDEN de la lista) | `[["_frontmatter_plegado","_frontmatter"],["_frontmatter_rapido","_frontmatter"]]` -> **exit 1**, «dos `sustituciones` apuntan al MISMO destino (['_frontmatter', '_frontmatter'])»; `[["a","b"],["b","c"]]` -> **exit 1**, «['b'] es a la vez ORIGEN y DESTINO»; con los pares REALES del registro, `1 passed` · `tests/test_copias_declaradas.py:198-221` |
+| R3-3 | Minor | La heuristica por nombre `_*_FALLBACK` no ve la definicion **anotada** (`_X_FALLBACK: str = …`) ni la **encadenada** (`_A_FALLBACK = _B_FALLBACK = …`, solo el primer nombre) | T-10 | **Corregido (4.ª pasada autorizada por el usuario)**: `_RESPALDO_DEF_RE` captura el LADO IZQUIERDO entero de la asignacion y `_nombres_de_respaldo()` extrae de ahi **todos** los `_*_FALLBACK` — simple, anotada y encadenada, un error por nombre —; una mencion en el VALOR (`x = _PATRON_FALLBACK`) sigue sin contar. Las dos formas quedan escritas en `detecta` de `copias.json` | Caso **46** nuevo (`casos_copias_forma_de_definicion()` en `tests/test_lint_plugin.py`): con `_NUEVO_FALLBACK: str = r"^x$"` y `_OTRO_FALLBACK = _TERCERO_FALLBACK = r"^y$"` en un `.py` de fixture -> **exit 1** y **3 errores**, `copia.py:2` con `_NUEVO_FALLBACK` y `copia.py:3` con `_OTRO_FALLBACK` y `_TERCERO_FALLBACK`; `copia.py:4` (el uso) NO aparece; declaradas en el registro -> exit 0. Verde llamando a `casos_copias_forma_de_definicion()` directamente (el runner completo aborta antes, en el caso `chmod`, en Windows) · `scripts/lint_plugin.py:780-800,952-958` · `copias.json` clave `detecta` |
+| R3-4 | Minor | El marcador `R3-fix2` se abrio **a posteriori** (`inicio` puesto a mano a `22:50:00Z`, `offsets` a 0; la ventana la acota solo el filtro por timestamp de T-04) y el ledger no lo decia, aunque este mismo ledger declara esa clase de cosa (T-01-fix2) | T-09/T-10 | **Corregido** (orquestador): nota en `Tiempo IA` de T-09 y T-10 | `tasks.md` T-09/T-10 · `.claude/usage-state.json` |
+| R3-5 | Minor | La evidencia «suite por conjunto» del intento 3 se midio sobre una recoleccion **23 tests mas corta** (`evals/test_evals.py` no recogido: 21 tests, 2 rojos preexistentes; FAILED 40 -> 38 sin anotarlo); es la unica suite que ejercita `evals/check.py`, que el delta toca | traza | **Corregido** (orquestador): anotado aqui; la lente rehizo la medicion completa en el repo real (`FAILED=40`, conjunto identico al intento 2, `evals/check.py` verde: 12 `test_check_*` + exit 0) | capturas `suite-*-r3i3.txt` |
+
+**Balance del tramo R3**: 3 intentos · 6+1+1 Important y 7+9+4 Minor · revision medida 7,55 + 12,05 + 5,83 = **25,43 EUR**
+(+ 3 pasadas de implementer). Lo que las lentes aportaron y la verificacion determinista no habria visto: el guardarrail
+del canonico que no existia (gap 1 del intento 1), la lista blanca `respaldos`, el corpus podable y, un nivel arriba, la
+lista de categorias podable; el `DeprecationWarning` en la ruta de error; la fila del README rota. **Estado tras la 4.ª pasada (autorizada por el usuario, fuera del bucle acotado)**: R3-1, R3-2 y R3-3 quedan **corregidos y verificados** con los escenarios que la propia lente describió (ver la columna «Evidencia» y los dos bloques «Verificación RE-EJECUTADA tras la 4.ª pasada» de T-09 y T-10); el tramo R3 ya no arrastra gaps de código abiertos, así que `ADR-016` puede pasar a `aceptada` cuando el orquestador cierre el tramo. R3-4 y R3-5 eran de traza y ya estaban corregidos. **Estado al tope del
+bucle**: T-09/T-10 quedan `completado` con 1 Important + 2 Minor de codigo **declarados** y sin corregir (R3-1..R3-3); la
+decision de una cuarta pasada o de aceptarlos como limite conocido en `ADR-016` es del usuario. `ADR-016` sigue
+`propuesta` hasta esa decision. `copias.json` y `tests/test_copias_declaradas.py` siguen **sin trackear**: los anade el
+commit de T-09.
+
+## Revision de dos lentes - 4.a pasada (tramo R3, fuera del bucle acotado, autorizada por el usuario el 2026-09-11): R3-1..R3-3 cerrados — TRAMO R3 CERRADO
+
+El bucle acotado (3 intentos) termino con 1 Important + 2 Minor de codigo declarados. El orquestador presento las dos
+opciones (cuarta pasada corta o aceptar el residual como limite en `ADR-016`); el usuario eligio la cuarta pasada.
+Implementer con marcador **unico y con `start` limpio** `plugin-refactor/R3-fix3` (1,13h IA · 8,66 EUR · 28m de reloj;
+`close` ejecutado dos veces para releer el JSON truncado, vale la segunda lectura, anotado en T-09).
+
+**Verificacion determinista del orquestador** (arbol desechable, `git archive HEAD` + diff + los 2 ficheros nuevos):
+- R3-1: quitar del registro la categoria `?` y sus 3 entradas -> `FAILED test_las_categorias_obligatorias_siguen_declaradas_en_el_registro[glob_to_regex]` (1 failed, 17 passed); la lista fija de 18 nombres vive en `tests/test_copias_declaradas.py` (`CATEGORIAS_OBLIGATORIAS`).
+- R3-2: `[["_frontmatter_plegado","_frontmatter"],["_frontmatter_rapido","_frontmatter"]]` -> 2 failed (esquema + uso); `[["a","b"],["b","c"]]` -> 2 failed (esquema + identidad).
+- R3-3: `_NUEVO_FALLBACK: str = …` y `_OTRO_FALLBACK = _TERCERO_FALLBACK = …` -> linter exit 1 con **3 errores**, uno por nombre, y el uso en el valor no cuenta.
+- Contrato: `lint_plugin --root .` stdout identico a HEAD (copia con indice git), stderr 0 B, exit 0, `9 agentes · 0 errores · 3 avisos`; base `18 passed`.
+- Suite por conjunto con recoleccion **completa** (`evals/test_evals.py` recogido): PASSED 1.444 -> 1.445, FAILED 40 -> 40 mismo conjunto, +1 linea (`test_las_categorias_obligatorias…`); el caso 46 del linter no colecta como linea (suite-script, rojo preexistente de `chmod` en Windows).
+
+**Sin lente de contexto fresco en esta pasada** (dicho, no escondido): el delta son ~140 lineas de tests + una regex; la
+verificacion es la reproduccion de los 3 escenarios que la Lente B del intento 3 dejo escritos.
+
+**Balance final del tramo R3**: 3 intentos + 1 pasada autorizada · 8 Important y 20 Minor en total, **todos cerrados**
+· revision medida 7,55 + 12,05 + 5,83 = **25,43 EUR** · implementacion + correcciones medidas en T-09/T-10 (4,58h IA, Fase 3).
+`ADR-016` pasa a **`aceptada`** con esta traza (T-10, Notas). **Desviacion declarada 11** (scope-check exit 1 por
+ficheros ajenos al tramo: `.claude/*`, `CONTINUE-HERE*.md`, `feature-pendiente.bundle`, `design.md` del orquestador):
+`design.md` se commitea con el ADR en el cierre; el resto es ruido no versionado ya fichado en R1.
+
+**Commits del tramo** (orquestador, uno por tarea): ver `git log` de `feature/plugin-refactor` tras esta seccion. El de
+T-09 incluye `git add` de `agent-kits/shared/copias.json` y `tests/test_copias_declaradas.py`.
