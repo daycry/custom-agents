@@ -13,6 +13,11 @@
 //   { type: "toml-set", to, tabla, clave, valor }   pone una clave en una tabla de un TOML,
 //                                    sin reescribir ninguna otra línea del fichero
 //
+// Además, cada proveedor declara con `registro(scope, dir)` DÓNDE mira uno si quiere saber si el
+// runtime tiene el plugin dado de alta de verdad. Son descriptores (fichero + qué buscar), no
+// lecturas: quien lee es `install.mjs` (`status`). Copiar ficheros nunca bastó para estar
+// «instalado» — mirar solo que existan es lo que daba el falso positivo de `/doctor`.
+//
 // El porqué de cada ruta está en `docs/INTEROP.md`; aquí solo vive la ruta.
 
 import { execFileSync } from "node:child_process"
@@ -44,10 +49,35 @@ const home = () => homedir()
 /** Config de Claude Code: `~/.claude` salvo que `CLAUDE_CONFIG_DIR` diga otra cosa (la respeta en todo). */
 export const claudeConfigDir = () => process.env.CLAUDE_CONFIG_DIR || join(home(), ".claude")
 
+/**
+ * Niveles de ajustes de Claude Code, del que MÁS manda al que menos
+ * (`settings#settings-precedence`: «Managed > command line > Project local > Shared project >
+ * User»). `enabledPlugins` se puede escribir en cualquiera de ellos
+ * (`settings-reference#enabledplugins`: «Scope: Any file»), así que `status` los lee todos y
+ * resuelve por precedencia, igual que `estado_plugin()` en `agent-kits/shared/doctor.py`. La línea
+ * de comandos no deja rastro en disco: no se puede diagnosticar y no está en la lista.
+ */
+export const PRECEDENCIA_SETTINGS = ["managed", "local", "project", "user"]
+
+/**
+ * `managed-settings.json` de la plataforma (ajustes impuestos por la organización), o `null` si el
+ * sistema no es ninguno de los tres documentados. Rutas de `settings#settings-files`.
+ */
+export function managedSettings() {
+  if (process.platform === "darwin") return "/Library/Application Support/ClaudeCode/managed-settings.json"
+  if (process.platform === "win32") {
+    return join(process.env.PROGRAMDATA || "C:\\ProgramData", "ClaudeCode", "managed-settings.json")
+  }
+  return "/etc/claude-code/managed-settings.json"
+}
+
+/** Config de Codex: `~/.codex` salvo que `CODEX_HOME` diga otra cosa (lo mismo que lee `/doctor`). */
+export const codexHome = () => process.env.CODEX_HOME || join(home(), ".codex")
+
 /** Directorio de configuración global de cada runtime (el de OpenCode NO es `~/.opencode`). */
 export const GLOBAL_DIR = {
   get "claude-code"() { return claudeConfigDir() },
-  get codex() { return join(home(), ".codex") },
+  get codex() { return codexHome() },
   get opencode() { return join(home(), ".config", "opencode") },
 }
 
@@ -183,6 +213,11 @@ function planClaude(o) {
         type: "exec",
         cmd: "claude",
         args: ["plugin", "marketplace", "add", fuente, "--scope", scope],
+        // `cwd`: la CLI de Claude Code toma el proyecto del DIRECTORIO DE TRABAJO, no de ningun
+        // argumento. Sin esto, `--scope project` daba de alta el cwd del instalador (el repo desde
+        // el que se lanza `npx`) en vez de `--dir`: el instalador decia «2 pasos aplicados» y acto
+        // seguido `status` decia «registrado: no», porque el `projectPath` grabado era otra carpeta.
+        cwd: dir,
         // Si ya estaba declarado, `add` falla y da igual: se sigue con el marketplace existente.
         siFalla: "aviso",
       },
@@ -190,6 +225,7 @@ function planClaude(o) {
         type: "exec",
         cmd: "claude",
         args: ["plugin", "install", PLUGIN_ID, "--scope", scope, "--yes"],
+        cwd: dir,
         siFalla: "error",
         deshacer: ["claude", "plugin", "uninstall", PLUGIN_ID, "--scope", scope],
       },
@@ -232,8 +268,12 @@ function planClaude(o) {
       to: join(cfg, "plugins", "installed_plugins.json"),
       set: {
         version: 2,
+        // `projectPath` en scope `project`: sin él una entrada no se puede atribuir a NINGUNA
+        // carpeta, y `status` / `/doctor` tendrían que darla por buena en todas (el falso positivo).
         [`plugins.${PLUGIN_ID}`]: [
-          { scope, installPath: cache, version, installedAt: ahora, lastUpdated: ahora },
+          scope === "project"
+            ? { scope, projectPath: resolve(dir), installPath: cache, version, installedAt: ahora, lastUpdated: ahora }
+            : { scope, installPath: cache, version, installedAt: ahora, lastUpdated: ahora },
         ],
       },
       volatiles: ["installedAt", "lastUpdated"],
@@ -261,6 +301,34 @@ const claudeCode = {
   // como plugin encima de un `--mode copy` anterior (la ruta de actualización de todo el mundo)
   // pisaba el inventario del copy y dejaba sus 222 ficheros huérfanos.
   manifiesto: (modo = "plugin") => (modo === "copy" ? MANIFEST : MANIFEST_PLUGIN),
+  // Los sitios que Claude Code lee para saber que el plugin existe. Con `--mode copy` no se
+  // escribe ninguno: por eso `status` dirá «registrado: no» aunque haya 222 ficheros en su sitio.
+  //
+  // `installed_plugins.json` es común a los dos scopes —la CLI oficial también lo escribe cuando
+  // instalas con `--scope project`—, así que se mira en los dos, filtrando por el `scope` y el
+  // `projectPath` que trae cada entrada: un alta de OTRO proyecto no registra esta carpeta. Es el
+  // mismo criterio que `estado_plugin()` en `agent-kits/shared/doctor.py`.
+  //
+  // `enabledPlugins` se mira en los CUATRO ficheros de la pila (`PRECEDENCIA_SETTINGS`), no solo
+  // en el del scope: `.claude/settings.local.json` es donde escribe `claude plugin disable --scope
+  // local` y manda sobre el compartido del proyecto, así que leer solo `settings.json` daba
+  // «registrado: sí» con el plugin apagado. El `managed-settings.json` de la plataforma manda
+  // sobre todo; si el sistema no lo tiene, el descriptor simplemente no encuentra fichero.
+  registro: (scope, dir) => [
+    scope === "user"
+      ? { fichero: join(claudeConfigDir(), "plugins", "installed_plugins.json"),
+          tipo: "json-instalados", ruta: "plugins", clave: PLUGIN_ID, scope: "user" }
+      : { fichero: join(claudeConfigDir(), "plugins", "installed_plugins.json"),
+          tipo: "json-instalados", ruta: "plugins", clave: PLUGIN_ID, scope: "project", proyecto: resolve(dir) },
+    { fichero: join(claudeConfigDir(), "settings.json"),
+      tipo: "json-prefijo", ruta: "enabledPlugins", clave: PLUGIN_ID, nivel: "user" },
+    { fichero: join(dir, ".claude", "settings.json"),
+      tipo: "json-prefijo", ruta: "enabledPlugins", clave: PLUGIN_ID, nivel: "project" },
+    { fichero: join(dir, ".claude", "settings.local.json"),
+      tipo: "json-prefijo", ruta: "enabledPlugins", clave: PLUGIN_ID, nivel: "local" },
+    { fichero: managedSettings(),
+      tipo: "json-prefijo", ruta: "enabledPlugins", clave: PLUGIN_ID, nivel: "managed" },
+  ],
   restart: ({ modo }) => (modo === "copy"
     ? "Reinicia Claude Code (lee `.claude/` al arrancar)."
     : "Reinicia Claude Code (o `/reload-plugins`) para cargar el plugin."),
@@ -308,6 +376,9 @@ const codex = {
         type: "exec",
         cmd: "codex",
         args: ["plugin", "marketplace", "add", mktRoot],
+        // `mktRoot` ya es absoluto, pero se lanza igualmente desde `--dir`: ninguna CLI del
+        // instalador puede acabar operando sobre el directorio desde el que se invoco `npx`.
+        cwd: dir,
         opcional: true,
         siFalla: "aviso",
         minVersion: CODEX_MIN,
@@ -331,6 +402,12 @@ const codex = {
   destino: (scope, dir) =>
     join(scope === "user" ? GLOBAL_DIR.codex : join(dir, ".codex"), "plugins", "custom-agents"),
   restart: "Reinicia Codex (los skills y prompts se leen al arrancar la sesión).",
+  // Codex carga el plugin solo si está HABILITADO en el `config.toml` del scope: es esa línea, y
+  // no la copia de ficheros, la que dice si está instalado de verdad.
+  registro: (scope, dir) => [
+    { fichero: join(scope === "user" ? GLOBAL_DIR.codex : join(dir, ".codex"), "config.toml"),
+      tipo: "toml-verdadero", ruta: `plugins."${PLUGIN_ID}".enabled` },
+  ],
 }
 
 /** Entrada de marketplace de Codex apuntando a la copia instalada (ruta relativa a su raíz). */
@@ -353,6 +430,30 @@ function marketplaceCodex(mktRoot, plugin, version) {
 
 // --------------------------------------------------------------------------- OpenCode
 
+/** Nombre del fichero del adaptador de hooks de OpenCode (el que carga sus eventos). */
+export const ADAPTADOR_OPENCODE = "custom-agents-hooks.js"
+
+/**
+ * Cómo se declara el adaptador en `plugin` de `opencode.json`. **Un spec con forma de ruta se
+ * resuelve contra la carpeta del fichero de config que lo declara** (`config/plugin.ts`,
+ * `resolvePluginSpec`), no contra el directorio de trabajo:
+ *
+ *   · scope `project` → el config vive en la RAÍZ del proyecto y el adaptador en
+ *     `.opencode/plugins/`, así que la ruta es `./.opencode/plugins/…` (un `./plugins/…` apuntaría
+ *     a `<proyecto>/plugins/…`, que no existe, y OpenCode publicaría un «Failed to load plugin»).
+ *   · scope `user` → config y adaptador comparten carpeta (`~/.config/opencode/`); se escribe la
+ *     ruta ABSOLUTA, siempre con `/` (un `\` en un JSON hay que escaparlo y confunde al leerlo).
+ *
+ * Registrarlo NO lo carga dos veces aunque OpenCode también autodescubra `{plugin,plugins}/*.js`
+ * de esa misma carpeta: dedupe por URL de fichero (`deduplicatePluginOrigins`). Se declara igual
+ * para que el registro sea COMPROBABLE (`/doctor` y `status` lo leen) y no dependa de un barrido.
+ */
+export function rutaPluginOpencode(base, scope) {
+  return scope === "user"
+    ? join(base, "plugins", ADAPTADOR_OPENCODE).split(/[\\/]/).join("/")
+    : `./.opencode/plugins/${ADAPTADOR_OPENCODE}`
+}
+
 const opencode = {
   id: "opencode",
   label: "OpenCode",
@@ -367,14 +468,15 @@ const opencode = {
     const idxRel = scope === "user"
       ? join(base, "custom-agents-index.md").split(/[\\/]/).join("/")
       : ".opencode/custom-agents-index.md"
+    const adaptador = rutaPluginOpencode(base, scope)
     return [
       ...PAYLOAD_COMUN.map((p) => ({ type: "copy", from: p, to: join(base, p) })),
       { type: "copy", from: "interop/opencode/agents", to: join(base, "agents") },
       { type: "copy", from: "interop/opencode/commands", to: join(base, "commands") },
       {
         type: "copy",
-        from: "interop/opencode/plugins/custom-agents-hooks.js",
-        to: join(base, "plugins", "custom-agents-hooks.js"),
+        from: `interop/opencode/plugins/${ADAPTADOR_OPENCODE}`,
+        to: join(base, "plugins", ADAPTADOR_OPENCODE),
       },
       {
         type: "copy",
@@ -394,6 +496,7 @@ const opencode = {
         merge: {
           $schema: "https://opencode.ai/config.json",
           instructions: [idxRel],
+          plugin: [adaptador],
           permission: { skill: { "*": "allow" } },
         },
         onlyIfMissing: ["permission"],
@@ -404,6 +507,19 @@ const opencode = {
   },
   destino: (scope, dir) => (scope === "user" ? GLOBAL_DIR.opencode : join(dir, ".opencode")),
   restart: "Reinicia OpenCode (los plugins se cargan al arrancar).",
+  registro: (scope, dir) => [
+    { fichero: scope === "user" ? join(GLOBAL_DIR.opencode, "opencode.json") : join(dir, "opencode.json"),
+      tipo: "json-array",
+      ruta: "plugin",
+      valor: rutaPluginOpencode(scope === "user" ? GLOBAL_DIR.opencode : join(dir, ".opencode"), scope) },
+  ],
+  // `plugin` se queda en `opencode.json` al desinstalar (es config del usuario, como
+  // `instructions`), pero el fichero al que apunta SÍ se borra: hay que decírselo, porque un spec
+  // de ruta que no existe hace que OpenCode publique un «Failed to load plugin» al arrancar.
+  notaDesinstalar: (scope, dir) => "tu `opencode.json` conserva `instructions` y `plugin` "
+    + `(\`${rutaPluginOpencode(scope === "user" ? GLOBAL_DIR.opencode : join(dir, ".opencode"), scope)}\`): `
+    + "es tuyo y no lo toco, pero el adaptador ya no está — quita esa entrada de `plugin` o "
+    + "OpenCode se quejará al arrancar de un plugin que no puede cargar",
 }
 
 export const PROVIDERS = [claudeCode, codex, opencode]

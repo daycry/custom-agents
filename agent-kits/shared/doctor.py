@@ -10,10 +10,17 @@ línea ⚠️/❌, el **arreglo sugerido** en llano:
                    fallback a `python3`), `node`/`npm` (opcional: skill `to-pdf`), Playwright
                    (opcional: agente `qa`; `~/.claude/tool-cache/qa/node_modules/@playwright`).
   b) plugin        raíz resuelta (`--plugin-root` → `CLAUDE_PLUGIN_ROOT` → padre de
-                   `agent-kits/shared` → `find` sobre `$PWD/.claude` y `$HOME/.claude`); hooks de
+                   `agent-kits/shared` → `find` sobre `$PWD/.claude` y `$HOME/.claude`); **cómo está
+                   instalado** (`modo_instalacion`: `plugin` si la raíz cuelga de
+                   `<CLAUDE_CONFIG_DIR>/plugins/cache/` o está en el registro, `copia` si la raíz es
+                   un `.claude/` sin registro, `desconocido` en un checkout de desarrollo) y
+                   **registro del plugin** (`installed_plugins.json` / `enabledPlugins` del scope:
+                   dónde está dado de alta, ❌ si `enabledPlugins` lo tiene en `false`); hooks de
                    `hooks/hooks.json` (JSON válido; cada script existe → ❌ si no, y es ejecutable
                    → ⚠️ si no; reutiliza `lint_hook_commands` de `scripts/lint_plugin.py` si está,
-                   comprobación local equivalente si no); statusline configurada o no (informativo).
+                   comprobación local equivalente si no) — **en modo copia esa fila es ⚠️ pase lo que
+                   pase**: Claude Code no lee `hooks/hooks.json` fuera de un plugin instalado, así que
+                   el ✅ de antes era un falso positivo; statusline configurada o no (informativo).
   c) configs       `.claude/rates.json` (JSON válido; `precioTokens` a 0 o sin `verificado…` →
                    ⚠️ «a verificar» con la skill `rates-verify`), `.claude/dev.json` (JSON válido;
                    clave desconocida → ⚠️; valor fuera de vocabulario → ❌ con el valor esperado;
@@ -90,6 +97,27 @@ JIRA_OBLIGATORIOS = ("cloudId", "granularidad", "assignee", "alCubrirJornada")
 CONFLUENCE_OBLIGATORIOS = ("cloudId", "spaceKey", "anchor", "home")
 
 PLAYWRIGHT_REL = os.path.join(".claude", "tool-cache", "qa", "node_modules", "@playwright")
+
+# --- registro real del plugin en Claude Code (installer-registro-real T-05) ---------------
+# Claude Code solo carga hooks, statusline y el namespace `/custom-agents:` de un plugin
+# INSTALADO (registrado en `plugins/installed_plugins.json` + `enabledPlugins`). Un bundle
+# copiado a `.claude/` tiene los mismos ficheros y ninguna de esas tres cosas: mirar solo que
+# `hooks/hooks.json` exista daba un ✅ que no se correspondía con nada.
+PLUGIN_NOMBRE = "custom-agents"
+PLUGIN_PREFIJO = PLUGIN_NOMBRE + "@"
+MARKETPLACE = "daycry"           # el marketplace que publica ESTE plugin
+ADAPTADOR_OPENCODE = "custom-agents-hooks.js"   # el que registra `plugin` de `opencode.json`
+ARREGLO_INSTALAR = ("npx @daycry/custom-agents install -p claude-code  (o, dentro de Claude Code, "
+                    "`/plugin marketplace add daycry/custom-agents` + `/plugin install custom-agents`)")
+
+# Scopes de plugin que Claude Code documenta (`claude plugin install|enable|disable --scope`) y
+# el orden en que MANDAN. `enabledPlugins` se puede escribir en cualquier fichero de ajustes
+# (`settings-reference#enabledplugins`: «Scope: Any file») y la pila de precedencia es la de
+# `settings#settings-precedence`: «Managed > command line > Project local > Shared project > User».
+# La línea de comandos no deja rastro en disco, así que no se puede diagnosticar; los otros cuatro
+# niveles sí, y son los que se leen aquí.
+SCOPES = ("user", "project", "local")
+ORDEN_SCOPES = ("managed", "local", "project", "user")   # de más a menos mandón
 
 # --- memoria técnica (memory-retrieval T-10) ---------------------------------------------
 KNOWLEDGE_CARPETAS = (("adr", "ADR"), ("gotchas", "gotcha"), ("lessons", "lección"))
@@ -260,7 +288,7 @@ def bloque_herramientas():
 
 # ------------------------------------------------------------------ b) plugin
 
-def _bloque_plugin_raiz(plugin_root):
+def _bloque_plugin_raiz(plugin_root, modo=None):
     """Línea OK con el recuento de agentes/skills/comandos de la raíz del plugin."""
     n = {}
     for k, sub, pred in (("agentes", "agents", lambda p: p.endswith(".md")),
@@ -275,7 +303,8 @@ def _bloque_plugin_raiz(plugin_root):
         n[k] = len([e for e in entradas if pred(e)]) if pred else \
             len([e for e in entradas if os.path.isdir(os.path.join(d, e))])
     return [linea(OK, "raíz del plugin", f"{plugin_root} · {n['agentes']} agentes · "
-                                         f"{n['skills']} skills · {n['comandos']} comandos")]
+                                         f"{n['skills']} skills · {n['comandos']} comandos"
+                                         + (f" · instalación: {modo}" if modo else ""))]
 
 
 def _bloque_plugin_hooks_recorrer(plugin_root, datos):
@@ -297,10 +326,28 @@ def _bloque_plugin_hooks_recorrer(plugin_root, datos):
     return eventos, errs, warns, fuente
 
 
-def _bloque_plugin_hooks_lineas(eventos, errs, warns, fuente):
-    """Traduce el recuento de eventos/errores/avisos a líneas del informe."""
+def _bloque_plugin_hooks_lineas(eventos, errs, warns, fuente, modo="plugin"):
+    """Traduce el recuento de eventos/errores/avisos a líneas del informe.
+
+    `modo` es el de `modo_instalacion()`: **en modo copia el ✅ no se puede dar**, por muy bien que
+    esté `hooks/hooks.json`, porque Claude Code no lo lee fuera de un plugin instalado. Lo mismo
+    en modo `inactivo`: registrado pero apagado (o caché sin alta) tampoco carga hooks.
+    """
     ls = []
-    if not errs and not warns:
+    if modo == "copia":
+        ls.append(linea(AVISO, "hooks registrados",
+                        f"{' · '.join(eventos) or 'ninguno'} declarados en `hooks/hooks.json`, pero el "
+                        f"bundle está copiado a `.claude/`: Claude Code NO lee `hooks/hooks.json` fuera "
+                        f"de un plugin — hooks, statusline y namespace no disponibles ({fuente})",
+                        ARREGLO_INSTALAR))
+    elif modo == "inactivo":
+        ls.append(linea(AVISO, "hooks registrados",
+                        f"{' · '.join(eventos) or 'ninguno'} declarados en `hooks/hooks.json`, pero el "
+                        f"plugin NO está activo en el registro (ver «registro del plugin»): Claude Code "
+                        f"no carga sus hooks ({fuente})",
+                        "activa el plugin (`/plugin enable custom-agents@daycry` o `true` en "
+                        "`enabledPlugins`); si no llegó a instalarse, " + ARREGLO_INSTALAR))
+    elif not errs and not warns:
         ls.append(linea(OK, "hooks registrados", f"{' · '.join(eventos) or 'ninguno'} — todos "
                                                  f"existen y son ejecutables ({fuente})"))
     else:
@@ -317,7 +364,7 @@ def _bloque_plugin_hooks_lineas(eventos, errs, warns, fuente):
     return ls
 
 
-def _bloque_plugin_hooks(plugin_root):
+def _bloque_plugin_hooks(plugin_root, modo="plugin"):
     """Líneas de `hooks/hooks.json`: registro global y sus scripts/permisos."""
     hpath = os.path.join(plugin_root, "hooks", "hooks.json")
     datos, err = _leer_json(hpath)
@@ -333,7 +380,502 @@ def _bloque_plugin_hooks(plugin_root):
         return [linea(ERROR, "hooks/hooks.json", "falta la raíz `hooks` (objeto evento → grupos)",
                       "restaura el fichero del plugin: el registro de hooks es inválido tal cual está")]
     eventos, errs, warns, fuente = _bloque_plugin_hooks_recorrer(plugin_root, datos)
-    return _bloque_plugin_hooks_lineas(eventos, errs, warns, fuente)
+    return _bloque_plugin_hooks_lineas(eventos, errs, warns, fuente, modo)
+
+
+def claude_config_dir():
+    """Config de Claude Code: `CLAUDE_CONFIG_DIR` si está, `~/.claude` si no (igual que el
+    instalador, `install/providers.mjs`)."""
+    return os.environ.get("CLAUDE_CONFIG_DIR") or os.path.join(os.path.expanduser("~"), ".claude")
+
+
+def _entradas_plugin(datos, *claves):
+    """Claves `custom-agents@<marketplace>` dentro de `datos[clave1][clave2]…`, con su valor."""
+    cur = datos
+    for k in claves:
+        if not isinstance(cur, dict):
+            return {}
+        cur = cur.get(k)
+    if not isinstance(cur, dict):
+        return {}
+    return {k: v for k, v in cur.items() if str(k).startswith(PLUGIN_PREFIJO)}
+
+
+def clave_plugin(plugin_root=None, cfg=None):
+    """Clave EXACTA del plugin diagnosticado (`custom-agents@<marketplace>`).
+
+    Se deduce del caché cuando la raíz cuelga de `<cfg>/plugins/cache/<marketplace>/custom-agents/…`
+    y, si no, es la del marketplace que publica este plugin. Importa porque un
+    `custom-agents@<otro>` en el registro **no dice nada** de este: mirarlo era el falso positivo
+    (y el falso negativo) de la primera versión.
+    """
+    cfg = cfg or claude_config_dir()
+    if plugin_root:
+        cache = os.path.abspath(os.path.join(cfg, "plugins", "cache"))
+        raiz = os.path.abspath(plugin_root)
+        if os.path.normcase(raiz).startswith(os.path.normcase(cache) + os.sep):
+            partes = raiz[len(cache) + 1:].split(os.sep)
+            if len(partes) >= 2 and partes[1] == PLUGIN_NOMBRE:
+                return PLUGIN_NOMBRE + "@" + partes[0]
+    return PLUGIN_PREFIJO + MARKETPLACE
+
+
+def _ruta_real(p):
+    """Ruta absoluta con los enlaces RESUELTOS (junction, `subst`, symlink), o la absoluta si no
+    se puede resolver: la misma carpeta vista por dos nombres tiene que casar."""
+    try:
+        return os.path.realpath(os.path.abspath(p))
+    except (OSError, ValueError):
+        try:
+            return os.path.abspath(p)
+        except (OSError, ValueError):
+            return ""
+
+
+def _clave_ruta(p):
+    """Identidad comparable de una ruta (para casar y para deduplicar)."""
+    return os.path.normcase(_ruta_real(p)) if isinstance(p, str) and p else ""
+
+
+def _misma_ruta(a, b):
+    """¿Son la misma carpeta? Un valor que NO sea cadena (un `projectPath` con un número, una
+    lista, `null`) no casa con nada y **no lanza**: un fichero del usuario mal formado no puede
+    tumbar `/doctor` entero, que es justo cuando se usa. Igual que `mismaRuta` en `install.mjs`."""
+    if not isinstance(a, str) or not isinstance(b, str) or not a or not b:
+        return False
+    return _clave_ruta(a) == _clave_ruta(b)
+
+
+def _fuentes_instalados(path, clave, project):
+    """Entradas de `installed_plugins.json` para `clave`, con el scope que ellas mismas declaran.
+
+    Una entrada de scope `project` **o `local`** vale para SU proyecto (`projectPath`), no para
+    cualquiera: un alta hecha desde otro repo no dice nada de esta raíz. Un `scope` que no sea
+    ninguno de los tres documentados NO cuenta (antes caía a `user`, el lado permisivo: una
+    entrada ajena valía para todos) y se avisa.
+    """
+    datos, _err = _leer_json(path)
+    if not isinstance(datos, dict):
+        return []
+    nodo = datos.get("plugins")
+    if not isinstance(nodo, dict) or clave not in nodo:
+        return []
+    entradas = nodo[clave]
+    if isinstance(entradas, dict):
+        entradas = [entradas]
+    if not isinstance(entradas, list):
+        return []
+    fuentes = []
+    for e in entradas:
+        e = e if isinstance(e, dict) else {}
+        bruto = e.get("scope")
+        scope = bruto if bruto in SCOPES else None
+        ruta_proj = e.get("projectPath")
+        if scope is None:
+            aplica, motivo = False, f"scope desconocido (`{bruto!r}`): no cuenta como alta"
+        elif scope == "user":
+            aplica, motivo = True, ""
+        elif not isinstance(ruta_proj, str):
+            # `projectPath` con un número, una lista o ausente: la entrada no se puede atribuir a
+            # NINGUNA carpeta. Se descarta con aviso; antes `os.path.abspath()` lanzaba y el
+            # informe entero se quedaba sin salir (exit 1 con stdout vacío).
+            aplica = False
+            motivo = (f"`projectPath` no es una cadena ({json.dumps(ruta_proj, default=str)}): "
+                      f"la entrada no se puede atribuir a esta raíz")
+        else:
+            aplica = _misma_ruta(ruta_proj, project)
+            motivo = "" if aplica else f"alta de otro proyecto ({ruta_proj})"
+        fuentes.append({"fichero": path, "scope": scope or "desconocido", "scope_bruto": bruto,
+                        "scope_desconocido": scope is None, "clave": clave,
+                        "fuente": "installed_plugins.json", "habilitado": None, "valor": None,
+                        "invalido": False, "aplica": aplica, "motivo": motivo})
+    return fuentes
+
+
+def _fuentes_enabled(path, scope, clave):
+    """`enabledPlugins[clave]` de un `settings.json`.
+
+    Solo `true` es alta; `false` es apagado explícito; **cualquier otro valor** (`0`, `null`,
+    `"false"`) es un valor inválido: se avisa y no cuenta como alta.
+    """
+    datos, _err = _leer_json(path)
+    if not isinstance(datos, dict):
+        return []
+    nodo = datos.get("enabledPlugins")
+    if not isinstance(nodo, dict) or clave not in nodo:
+        return []
+    v = nodo[clave]
+    valor = v if isinstance(v, bool) else None
+    return [{"fichero": path, "scope": scope, "clave": clave, "fuente": "enabledPlugins",
+             "habilitado": valor, "valor": valor, "invalido": not isinstance(v, bool),
+             "bruto": v, "aplica": True, "motivo": ""}]
+
+
+def managed_settings_path():
+    """`managed-settings.json` de la plataforma (ajustes impuestos por la organización), o `""`.
+
+    Rutas de `settings#settings-files`: `/Library/Application Support/ClaudeCode/` en macOS,
+    `/etc/claude-code/` en Linux y WSL, `C:\\ProgramData\\ClaudeCode\\` en Windows. Está POR ENCIMA
+    de todo lo demás en la pila de precedencia, así que si existe se lee; si el sistema no es
+    ninguno de los tres (o la ruta no se puede resolver) se devuelve `""` y el diagnóstico sigue
+    con los tres niveles de usuario, que es lo que hay.
+    """
+    if sys.platform == "darwin":
+        cand = "/Library/Application Support/ClaudeCode/managed-settings.json"
+    elif os.name == "nt":
+        base = os.environ.get("PROGRAMDATA") or "C:\\ProgramData"
+        cand = os.path.join(base, "ClaudeCode", "managed-settings.json")
+    else:
+        cand = "/etc/claude-code/managed-settings.json"
+    try:
+        return cand if os.path.isfile(cand) else ""
+    except OSError:
+        return ""
+
+
+def _niveles_settings(project, cfg):
+    """Los ficheros de ajustes que se leen, **de menos a más mandón**, ya deduplicados.
+
+    `user` (`<cfg>/settings.json`) · `project` (`<proyecto>/.claude/settings.json`) · `local`
+    (`<proyecto>/.claude/settings.local.json`, donde escribe `claude plugin disable --scope local`)
+    · `managed` (el de la plataforma, si existe).
+
+    Con `CLAUDE_CONFIG_DIR` apuntando al `.claude/` del proyecto, `user` y `project` son el MISMO
+    fichero: se cuenta una vez, con el scope más específico (el informe listaba el mismo fichero
+    dos veces, con dos scopes, como si fueran dos altas).
+    """
+    candidatos = [("user", os.path.join(cfg, "settings.json")),
+                  ("project", os.path.join(project, ".claude", "settings.json")),
+                  ("local", os.path.join(project, ".claude", "settings.local.json"))]
+    gestionado = managed_settings_path()
+    if gestionado:
+        candidatos.append(("managed", gestionado))
+    vistos = {}
+    for scope, path in candidatos:
+        clave = _clave_ruta(path) or path
+        # El último gana el nombre: los candidatos van de menos a más específico, así que un
+        # fichero compartido entre dos niveles se queda con el que más manda.
+        vistos[clave] = (scope, path)
+    return list(vistos.values())
+
+
+def estado_plugin(plugin_root, project, cfg=None):
+    """**Estado EFECTIVO** del plugin para ESTA raíz: la única definición de «está activo».
+
+    Recorre TODAS las fuentes que Claude Code lee (no se para en la primera que acierta), se queda
+    con las que aplican a esta raíz y resuelve con estas reglas:
+
+    · solo cuenta la clave exacta del plugin diagnosticado (`clave_plugin`);
+    · una entrada de `installed_plugins.json` cuenta si su scope es `user`, o si es `project` /
+      `local` y su `projectPath` es esta raíz (un scope desconocido no cuenta);
+    · `enabledPlugins` se lee en los CUATRO ficheros de la pila documentada
+      (`settings-reference#enabledplugins`: «Scope: Any file») y manda el nivel más alto que se
+      pronuncia, según `settings#settings-precedence` («Managed > command line > Project local >
+      Shared project > User»): `managed` > `local` > `project` > `user`. Dentro de ese nivel, un
+      `false` explícito gana a cualquier alta;
+    · sin pronunciamiento explícito, un alta (entrada instalada) basta para estar activo.
+
+    `settings.local.json` importa especialmente: es donde escribe `claude plugin disable --scope
+    local` y no leerlo daba `modo: plugin` + hooks ✅ con el plugin apagado.
+
+    Devuelve `{clave, habilitado, fuentes, aplican, mandan, apagadas, invalidas, ignoradas}`.
+    `install.mjs status` resuelve lo mismo con las mismas reglas (`leerRegistro`): las dos
+    herramientas tienen que dar el MISMO veredicto sobre el mismo estado.
+    """
+    cfg = cfg or claude_config_dir()
+    clave = clave_plugin(plugin_root, cfg)
+    fuentes = []
+    fuentes += _fuentes_instalados(os.path.join(cfg, "plugins", "installed_plugins.json"), clave, project)
+    for scope, path in _niveles_settings(project, cfg):
+        fuentes += _fuentes_enabled(path, scope, clave)
+
+    aplican = [f for f in fuentes if f["aplica"]]
+    explicitas = [f for f in aplican if isinstance(f["valor"], bool)]
+    mandan = []
+    for nivel in ORDEN_SCOPES:
+        mandan = [f for f in explicitas if f["scope"] == nivel]
+        if mandan:
+            break
+    altas = [f for f in aplican if not f["invalido"] and f["valor"] is not False]
+    habilitado = all(f["valor"] is True for f in mandan) if mandan else bool(altas)
+    return {"clave": clave, "habilitado": habilitado, "fuentes": fuentes, "aplican": aplican,
+            "mandan": mandan, "apagadas": [f for f in mandan if f["valor"] is False],
+            "invalidas": [f for f in aplican if f["invalido"]],
+            "ignoradas": [f for f in fuentes if not f["aplica"]],
+            "desconocidas": [f for f in fuentes if f.get("scope_desconocido")]}
+
+
+def registro_plugin(project, cfg=None, plugin_root=None):
+    """Dónde está REGISTRADO el plugin, leyendo los ficheros que Claude Code lee de verdad.
+
+    Devuelve la lista de fuentes que APLICAN a esta raíz — `{fichero, scope, clave, fuente,
+    habilitado}` (`habilitado` es `None` cuando el fichero no expresa habilitación, como
+    `installed_plugins.json`) — con el scope que declara cada entrada, no uno supuesto. Lista
+    vacía = no está registrado para esta raíz, que es justo el caso que el ✅ de antes tapaba.
+    """
+    est = estado_plugin(plugin_root, project, cfg)
+    return [{k: f[k] for k in ("fichero", "scope", "clave", "fuente", "habilitado")}
+            for f in est["aplican"]]
+
+
+def modo_instalacion(plugin_root, project, cfg=None):
+    """`plugin` · `copia` · `inactivo` · `desconocido`, con la razón en llano.
+
+    · `plugin`      — el **estado efectivo** está activo (`estado_plugin`): el runtime lo carga.
+    · `copia`       — la raíz ES un `.claude/` (del proyecto o del usuario) y NO está activo:
+                      el bundle está copiado y Claude Code no se entera (hooks, statusline y
+                      namespace `/custom-agents:` no existen).
+    · `inactivo`    — está instalado como plugin (la raíz cuelga de `plugins/cache/…`) o hay un
+                      apagado explícito, pero el estado efectivo NO está activo: los hooks **no**
+                      se cargan, así que la fila de hooks no puede salir en ✅.
+    · `desconocido` — ni una cosa ni la otra (checkout de desarrollo, `--plugin-root` a mano).
+    """
+    cfg = cfg or claude_config_dir()
+    est = estado_plugin(plugin_root, project, cfg)
+    hits = [{k: f[k] for k in ("fichero", "scope", "clave", "fuente", "habilitado")}
+            for f in est["aplican"]]
+    raiz = os.path.normcase(os.path.abspath(plugin_root)) if plugin_root else ""
+    cache = os.path.normcase(os.path.abspath(os.path.join(cfg, "plugins", "cache")))
+    en_cache = bool(raiz) and (raiz == cache or raiz.startswith(cache + os.sep))
+    base = {"registro": hits, "estado": est}
+    if est["habilitado"]:
+        razon = ("la raíz cuelga de `plugins/cache/` y el registro lo da por activo" if en_cache
+                 else "el plugin está activo en el registro de Claude Code")
+        return dict(base, modo="plugin", razon=razon)
+    copias = {os.path.normcase(os.path.abspath(os.path.join(project, ".claude"))),
+              os.path.normcase(os.path.abspath(cfg))}
+    if raiz in copias or os.path.basename(raiz) == ".claude":
+        return dict(base, modo="copia", razon="la raíz es un `.claude/` sin registro activo")
+    if en_cache or est["apagadas"]:
+        return dict(base, modo="inactivo",
+                    razon=("el plugin está en el registro pero APAGADO" if est["apagadas"]
+                           else "la raíz cuelga de `plugins/cache/` sin entrada que lo active"))
+    return dict(base, modo="desconocido",
+                razon="la raíz no es ni una copia en `.claude/` ni el caché de plugins")
+
+
+def _bloque_plugin_registro(info, cfg):
+    """Fila «registro del plugin»: dónde está dado de alta PARA ESTA RAÍZ, o por qué no carga."""
+    est = info["estado"]
+    ls = []
+    if est["apagadas"]:
+        h = est["apagadas"][0]
+        ls.append(linea(ERROR, "registro del plugin",
+                        f"manda `{h['fichero']}` (scope {h['scope']}, el de mayor precedencia que se "
+                        f"pronuncia): ahí `{h['clave']}` está en `enabledPlugins` como `false`, así que "
+                        f"Claude Code lo ignora entero",
+                        f"ponlo a `true` en {h['fichero']} o `claude plugin enable {h['clave']} "
+                        f"--scope {h['scope']}`"))
+    elif est["habilitado"]:
+        donde = " · ".join(f"{h['clave']} en {h['fichero']} ({h['fuente']}, scope {h['scope']})"
+                           for h in est["aplican"] if h["valor"] is not False)
+        # Cuál de todos MANDA, no solo el veredicto: con cuatro niveles de ajustes
+        # (`managed` > `local` > `project` > `user`), saber dónde tocar es media respuesta.
+        if est["mandan"]:
+            m = est["mandan"][0]
+            donde += f" — manda `{m['fichero']}` (scope {m['scope']})"
+        ls.append(linea(OK, "registro del plugin", donde))
+    elif info["modo"] == "inactivo":
+        ls.append(linea(AVISO, "registro del plugin",
+                        f"sin entrada de `{est['clave']}` que lo active en `installed_plugins.json` ni en "
+                        f"`enabledPlugins` de {cfg}, con la raíz colgando de "
+                        f"`{os.path.join(cfg, 'plugins', 'cache')}`: caché de una instalación a medias",
+                        ARREGLO_INSTALAR))
+    elif info["modo"] == "copia":
+        ls.append(linea(AVISO, "registro del plugin",
+                        f"sin entrada de `{est['clave']}` en {cfg} — el bundle está copiado, no instalado",
+                        ARREGLO_INSTALAR))
+    else:
+        ls.append(linea(INFO, "registro del plugin",
+                        f"sin entrada de `{est['clave']}` en {cfg}; {info['razon']} (checkout de desarrollo "
+                        f"o `--plugin-root`): aquí el registro no dice nada"))
+    for h in est["invalidas"]:
+        ls.append(linea(AVISO, "registro con valor inválido",
+                        f"`{h['clave']}` vale `{json.dumps(h.get('bruto'))}` en `enabledPlugins` de "
+                        f"{h['fichero']} (scope {h['scope']}): solo `true` habilita, así que no cuenta "
+                        f"como alta",
+                        f"pon `true` (o quita la clave) en `enabledPlugins` de {h['fichero']}"))
+    # Entradas de `installed_plugins.json` que NO se pueden atribuir: se dicen en vez de caer al
+    # lado permisivo (un `scope` raro contando como `user` valía para todos los proyectos).
+    raras = [h for h in est.get("desconocidas", [])]
+    if raras:
+        ls.append(linea(AVISO, "registro con scope desconocido",
+                        " · ".join(f"`{est['clave']}` en {h['fichero']} declara "
+                                   f"`scope: {json.dumps(h.get('scope_bruto'), default=str)}`, que no es "
+                                   f"`user`, `project` ni `local`: no cuenta como alta"
+                                   for h in raras),
+                        f"reinstala con `npx @daycry/custom-agents install -p claude-code` o corrige el "
+                        f"`scope` de esa entrada en `installed_plugins.json`"))
+    sin_ruta = [h for h in est["ignoradas"] if "no es una cadena" in h["motivo"]]
+    if sin_ruta:
+        ls.append(linea(AVISO, "registro sin proyecto atribuible",
+                        " · ".join(f"{h['fichero']}: {h['motivo']}" for h in sin_ruta),
+                        "reinstala con `npx @daycry/custom-agents install -p claude-code` (reescribe la "
+                        "entrada con el `projectPath` de esta carpeta)"))
+    return ls
+
+def _codex_home():
+    """`CODEX_HOME` si está, `~/.codex` si no (lo mismo que lee el instalador)."""
+    return os.environ.get("CODEX_HOME") or os.path.join(os.path.expanduser("~"), ".codex")
+
+
+def _opencode_home():
+    """Config global de OpenCode: `~/.config/opencode` (no `~/.opencode`), igual que el instalador."""
+    return os.path.join(os.path.expanduser("~"), ".config", "opencode")
+
+
+def _toml_habilitado(path, clave):
+    """¿`plugins."<clave>".enabled` es `true` en ese `config.toml`?
+
+    Devuelve `(valor, error)`: `valor` es `True`/`False`/`None` (sin entrada) y `error` explica por
+    qué no se pudo mirar. Se parsea con `tomllib` (3.11+), que acepta las cinco formas de escribir
+    la tabla; sin él se dice y no se adivina.
+    """
+    if not os.path.isfile(path):
+        return None, ""
+    try:
+        import tomllib
+    except ImportError:
+        return None, "sin `tomllib` (Python < 3.11): no puedo leer `config.toml`"
+    try:
+        with open(path, "rb") as fh:
+            datos = tomllib.load(fh)
+    except (OSError, ValueError) as e:
+        return None, f"`config.toml` ilegible ({type(e).__name__})"
+    nodo = datos.get("plugins")
+    if not isinstance(nodo, dict) or not isinstance(nodo.get(clave), dict):
+        return None, ""
+    v = nodo[clave].get("enabled")
+    return (v if isinstance(v, bool) else None), ("" if isinstance(v, bool) or v is None
+                                                  else f"`enabled` vale `{v!r}`, que no es un booleano")
+
+
+def _bloque_registro_codex(project, clave_cc):
+    """Fila «registro en Codex»: `enabled = true` en el `config.toml` del scope, que es lo único
+    que hace que Codex cargue el plugin (copiar sus ficheros no basta). Mismo criterio que
+    `install.mjs status`.
+
+    Se miran DOS claves: la que escribe siempre el instalador (`PLUGIN_ID` de
+    `install/providers.mjs`, `custom-agents@daycry`) y la que se dedujo de la raíz de Claude Code,
+    que con un fork es otra. Mirar solo la segunda hacía buscar en el `config.toml` una clave que
+    el instalador nunca escribe; la fila dice cuál encontró.
+    """
+    claves = list(dict.fromkeys([PLUGIN_PREFIJO + MARKETPLACE, clave_cc]))
+    fuentes = [(os.path.join(_codex_home(), "config.toml"), "user", _codex_home()),
+               (os.path.join(project, ".codex", "config.toml"), "project", os.path.join(project, ".codex"))]
+    detectados = [base for _p, _s, base in fuentes if os.path.isdir(base)]
+    activos, apagados, errores = [], [], []
+    copiado = [base for _p, _s, base in fuentes
+               if os.path.isdir(os.path.join(base, "plugins", PLUGIN_NOMBRE))]
+    for path, scope, _base in fuentes:
+        for clave in claves:
+            valor, err = _toml_habilitado(path, clave)
+            if err:
+                errores.append(f"{path}: {err}")
+            if valor is True:
+                activos.append((path, scope, clave))
+            elif valor is False:
+                apagados.append((path, scope, clave))
+    if activos:
+        return [linea(OK, "registro en Codex",
+                      " · ".join(f"`{c}` con `enabled = true` en {p} (scope {s})"
+                                 for p, s, c in activos))]
+    if apagados:
+        p, s, c = apagados[0]
+        return [linea(AVISO, "registro en Codex",
+                      f"`{c}` está en {p} (scope {s}) con `enabled = false`: Codex no lo carga",
+                      f"pon `enabled = true` en `[plugins.\"{c}\"]` de {p} o reinstala con "
+                      f"`npx @daycry/custom-agents install -p codex`")]
+    if errores:
+        return [linea(AVISO, "registro en Codex", " · ".join(dict.fromkeys(errores)),
+                      "usa Python 3.11+ para este diagnóstico, o mira a mano `[plugins."
+                      f"\"{claves[0]}\"] enabled` en tu `config.toml`")]
+    if copiado:
+        return [linea(AVISO, "registro en Codex",
+                      f"los ficheros del plugin están en {os.path.join(copiado[0], 'plugins', PLUGIN_NOMBRE)} "
+                      f"pero `{claves[0]}` no está habilitado en ningún `config.toml`: Codex no lo carga",
+                      "npx @daycry/custom-agents install -p codex  (escribe `enabled = true` en tu `config.toml`)")]
+    if detectados:
+        # Lo DETECTADO, no `CODEX_HOME` a secas: lo que hay puede ser solo el `.codex` del proyecto
+        # (y el `~/.codex` que se nombraba antes, no existir).
+        return [linea(INFO, "registro en Codex",
+                      f"Codex está en esta máquina ({' · '.join(detectados)}) y el plugin no está "
+                      f"instalado ahí — opcional: `npx @daycry/custom-agents install -p codex`")]
+    return [linea(INFO, "registro en Codex", "Codex no está en esta máquina: nada que comprobar")]
+
+
+def _resolver_spec_opencode(spec, cfg_path):
+    """Ruta a la que apunta un spec de `plugin`. **Un spec con forma de ruta se resuelve contra la
+    carpeta del fichero de config que lo declara** (`config/plugin.ts`, `resolvePluginSpec`), que
+    es justo lo que escribe el instalador (`rutaPluginOpencode`)."""
+    if not isinstance(spec, str) or not spec:
+        return ""
+    ruta = spec.replace("\\", "/")
+    if os.path.isabs(ruta):
+        return ruta
+    return os.path.join(os.path.dirname(cfg_path), ruta)
+
+
+def _bloque_registro_opencode(project):
+    """Fila «registro en OpenCode»: el adaptador de hooks dado de alta en `plugin` de
+    `opencode.json` (OpenCode también autodescubre `plugins/*.js`; el alta es lo comprobable).
+
+    Se compara la RUTA RESUELTA contra la que escribe el instalador, no el nombre del fichero:
+    casar por basename daba ✅ a cualquier `custom-agents-hooks.js` de cualquier sitio, y `status`
+    —que compara la ruta exacta— decía lo contrario sobre el MISMO `opencode.json`.
+    """
+    fuentes = [(os.path.join(_opencode_home(), "opencode.json"), "user", _opencode_home()),
+               (os.path.join(project, "opencode.json"), "project", os.path.join(project, ".opencode"))]
+    detectados = [base for _p, _s, base in fuentes if os.path.isdir(base)]
+    altas, ajenas, copiado, errores = [], [], [], []
+    for path, scope, base in fuentes:
+        esperado = os.path.join(base, "plugins", ADAPTADOR_OPENCODE)
+        if os.path.isfile(esperado):
+            copiado.append(base)
+        datos, err = _leer_json(path)
+        if err:
+            # Ilegible no es ausente: «reinstala» no arregla un JSON roto del usuario (el gemelo
+            # de Codex ya lo distinguía).
+            errores.append(f"{path} {err}")
+            continue
+        if not isinstance(datos, dict):
+            continue
+        nodo = datos.get("plugin")
+        if nodo is not None and not isinstance(nodo, list):
+            # `status` solo cuenta una lista (descriptor `json-array`): un escalar no es el alta.
+            errores.append(f"{path}: `plugin` no es una lista, así que el alta no se puede comprobar")
+            continue
+        for e in (nodo or []):
+            if _misma_ruta(_resolver_spec_opencode(e, path), esperado):
+                altas.append((path, scope, e))
+            elif isinstance(e, str) and os.path.basename(e.replace("\\", "/")) == ADAPTADOR_OPENCODE:
+                ajenas.append((path, scope, e, esperado))
+    if altas:
+        return [linea(OK, "registro en OpenCode",
+                      " · ".join(f"`{e}` en `plugin` de {p} (scope {s})" for p, s, e in altas))]
+    if errores:
+        return [linea(AVISO, "registro en OpenCode", " · ".join(errores),
+                      "corrige tu `opencode.json` (es tuyo, no del plugin): tiene que ser JSON válido "
+                      "y `plugin`, una lista de specs")]
+    if ajenas:
+        p, s, e, esperado = ajenas[0]
+        return [linea(AVISO, "registro en OpenCode",
+                      f"`plugin` de {p} (scope {s}) declara `{e}`, que resuelve a "
+                      f"{_resolver_spec_opencode(e, p)} y NO es el adaptador instalado ({esperado}): "
+                      f"OpenCode carga otro fichero, o ninguno",
+                      "npx @daycry/custom-agents install -p opencode  (deja en `plugin` la ruta del "
+                      "adaptador que instala)")]
+    if copiado:
+        return [linea(AVISO, "registro en OpenCode",
+                      f"el adaptador está en {os.path.join(copiado[0], 'plugins', ADAPTADOR_OPENCODE)} pero "
+                      f"no aparece en `plugin` de ningún `opencode.json`: el alta comprobable no está",
+                      "npx @daycry/custom-agents install -p opencode  (añade el adaptador a `plugin` "
+                      "de tu `opencode.json`)")]
+    if detectados:
+        return [linea(INFO, "registro en OpenCode",
+                      f"OpenCode está en esta máquina ({' · '.join(detectados)}) y el plugin no está "
+                      f"instalado ahí — opcional: `npx @daycry/custom-agents install -p opencode`")]
+    return [linea(INFO, "registro en OpenCode", "OpenCode no está en esta máquina: nada que comprobar")]
 
 
 def _bloque_plugin_statusline(project):
@@ -368,12 +910,21 @@ def bloque_plugin(plugin_root, project, explicito=None):
         ls.append(linea(ERROR, que, det,
                         "instálalo como plugin (`/plugin marketplace add …` + `/plugin install custom-agents`) "
                         "o pásame la ruta con `--plugin-root <dir>`"))
-        return {"clave": "plugin", "titulo": "Plugin", "lineas": ls}
+        # La forma del bloque es la MISMA con y sin raíz: quien lea `--json` no tiene que adivinar
+        # si las claves están (gap B-6). Sin raíz no hay nada que resolver: `desconocido` y sin fuentes.
+        return {"clave": "plugin", "titulo": "Plugin", "lineas": ls,
+                "modo": "desconocido", "registro": []}
 
-    ls.extend(_bloque_plugin_raiz(plugin_root))
-    ls.extend(_bloque_plugin_hooks(plugin_root))
+    cfg = claude_config_dir()
+    info = modo_instalacion(plugin_root, project, cfg)
+    ls.extend(_bloque_plugin_raiz(plugin_root, info["modo"]))
+    ls.extend(_bloque_plugin_registro(info, cfg))
+    ls.extend(_bloque_registro_codex(project, info["estado"]["clave"]))
+    ls.extend(_bloque_registro_opencode(project))
+    ls.extend(_bloque_plugin_hooks(plugin_root, info["modo"]))
     ls.extend(_bloque_plugin_statusline(project))
-    return {"clave": "plugin", "titulo": "Plugin", "lineas": ls}
+    return {"clave": "plugin", "titulo": "Plugin", "lineas": ls, "modo": info["modo"],
+            "registro": info["registro"]}
 
 
 # ------------------------------------------------------------------ c) configs del proyecto
