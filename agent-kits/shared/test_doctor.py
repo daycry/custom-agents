@@ -667,15 +667,20 @@ def test_indice_fts5_ausente_informa_valido_ok_y_corrupto_avisa_sin_escribir(tmp
     assert av and "knowledge-index.sqlite" in av[0]["arreglo"]
 
 
-def test_repo_real_la_memoria_ya_no_pasa_en_silencio():
-    """Sobre este repo (≥ 31 curadas, journal a 0, CALIBRATION.md > 14 días): no «Instalación sana»."""
+def test_repo_real_la_memoria_curada_se_ve_y_su_indice_pasa_el_lint():
+    """Humo sobre ESTE repo: la memoria curada se cuenta y su índice pasa el lint de T-04.
+
+    Antes este test afirmaba además que el informe traía aviso de `journal de sesión` o de
+    `calibración (CALIBRATION.md)`, y que por eso el repo nunca salía «Instalación sana».
+    Las dos premisas eran ESTADO DEL REPO, no comportamiento: en cuanto se escribe una entrada
+    de journal y se añade una fila de CALIBRATION al cerrar una iniciativa —que es justo lo que
+    el plugin manda hacer— los avisos desaparecen y el test se pone rojo por haber hecho las
+    cosas bien. Los dos avisos ya tienen cobertura propia con fixture más arriba, donde el estado
+    se controla; aquí se queda solo lo que no caduca."""
     inf = diag(ROOT, ROOT)
     cur = por_que(inf, "memoria curada", doctor.OK)
     assert cur and int(re.search(r"(\d+) entrada", cur[0]["detalle"]).group(1)) >= 31
     assert por_que(inf, "índice de memoria (README)", doctor.OK), "el índice real pasa el lint de T-04"
-    ques = {l["que"] for l in lineas(inf, doctor.AVISO)}
-    assert "journal de sesión" in ques or "calibración (CALIBRATION.md)" in ques
-    assert "Instalación sana" not in doctor.render_md(inf)
 
 
 # --- estado efectivo del registro: los gaps de la revision I2 -----------------------------

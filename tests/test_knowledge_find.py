@@ -379,8 +379,18 @@ def test_real_tokens_por_hora_trae_las_lecciones_de_estimacion_arriba(real):
     assert d["consulta"]["tokens"] == ["ratio", "token", "hora", "estim"]
     ids = [a["id"] for a in d["aciertos"]]
     estimacion = [i for i in ids if a_area(d, i) == "Estimación / calibración"]
-    assert len(estimacion) == 9, (len(estimacion), ids)
-    assert ids[0] in estimacion, "la primera es de estimación, no GOT-005"
+    # El corpus CRECE: una entrada que no es del área de estimación pero habla de medir tokens
+    # (GOT-010, el meter que no encontraba las transcripciones) puede colarse arriba con razón.
+    # Lo que este test defiende es que la consulta sigue trayendo la doctrina de estimación, no
+    # una posición exacta ni un número que caduca cada vez que se escribe una lección nueva.
+    assert len(estimacion) >= 8, (len(estimacion), ids)
+    assert ids.index(estimacion[0]) <= 1, ("la doctrina de estimación no lidera", ids)
+    # y con un hueco más entran TODAS las de estimación del corpus
+    code12, out12, err12 = run("cual es el ratio de tokens por hora que uso para estimar", "--json", "--limit", "12")
+    assert code12 == 0, err12
+    d12 = json.loads(out12)
+    est12 = [a["id"] for a in d12["aciertos"] if a_area(d12, a["id"]) == "Estimación / calibración"]
+    assert len(est12) == 9, (len(est12), [a["id"] for a in d12["aciertos"]])
     assert d["total"] < 32, "ya no puntúa el corpus entero"
 
 
