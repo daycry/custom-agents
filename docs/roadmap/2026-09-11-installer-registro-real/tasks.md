@@ -70,15 +70,15 @@ generacion:
 
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervisión (real/est) | Tokens (real/est) |
 |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
-| Fase 1 — el instalador registra de verdad (Claude Code, Codex, OpenCode) | 1 | 4 | 25% | 6,0h / 7,0h | 2,55h / 0,90h | 0,20h / 0,25h | 21,7M medidos (sin el T-01 original ni el intento 2: JSON perdido / medidor degradado) / 420k |
+| Fase 1 — el instalador registra de verdad (Claude Code, Codex, OpenCode) | 3 | 4 | 75% | 6,0h / 7,0h | 2,85h / 0,90h | 0,20h / 0,25h | 25,3M medidos (sin el T-01 original ni el intento 2: JSON perdido / medidor degradado) / 420k |
 | Fase 2 — diagnóstico veraz y documentación | 0 | 2 | 0% | — / 3,0h | — / 0,40h | — / 0,10h | — / 180k |
-| **TOTAL** | **1** | **6** | **17%** | **6,0h / 10,0h** | **2,55h / 1,30h** | **0,20h / 0,35h** | **21,7M medidos (sin el T-01 original ni el intento 2) / 600k** |
+| **TOTAL** | **3** | **6** | **50%** | **6,0h / 10,0h** | **2,85h / 1,30h** | **0,20h / 0,35h** | **25,3M medidos (sin el T-01 original ni el intento 2) / 600k** |
 
 ---
 
 ## Fase 1 — el instalador registra de verdad (Claude Code, Codex, OpenCode)
 
-**Estado**: en-progreso · **Estimado**: 7,0h · **Real**: 6,0h humanas (estimado) + 2,55h IA + 0,20h supervisión · **Coste est.**: ≈350 € · **Tokens est.**: 420k · **Tramo**: I1 (T-01…T-03) **completado**, revisión de dos lentes intento 1 cerrada (20/20) e intento 2 cerrada (15/15: 1 Critical, 7 Important, 7 Minor) · I2 (T-04)
+**Estado**: en-progreso · **Estimado**: 7,0h · **Real**: 6,0h humanas (estimado) + 2,85h IA + 0,20h supervisión · **Coste est.**: ≈350 € · **Tokens est.**: 420k · **Tramo**: I1 (T-01…T-03) **completado** (3/4 tareas de la fase), revisión de dos lentes intento 1 cerrada (20/20), intento 2 cerrada (15/15) e intento 3 cerrado en una **4.ª pasada** (3/3: 1 Critical, 2 Minor) · I2 (T-04)
 
 ### T-01 — Banner y multiselect con checkboxes, cero dependencias
 
@@ -150,10 +150,10 @@ generacion:
 
 - **Descripción**: `install/providers.mjs` + `install/install.mjs`: nuevo tipo de paso `{ type: "exec" }` (comando con args, `cwd`, `opcional`) y `{ type: "json-set" }` (poner claves en un JSON del usuario; distinto de `merge`: sobrescribe SOLO las claves que pone, anota en el manifiesto qué claves puso para poder quitarlas). Proveedor `claude-code`, `modo: "plugin"` por defecto: (1) si `claude` está en PATH → `exec claude plugin marketplace add <source> --scope <scope>` (si ya existe, seguir) + `exec claude plugin install custom-agents@daycry --scope <scope>`; (2) si no → respaldo directo: `copy` del paquete (`PAYLOAD_CLAUDE` + `.claude-plugin/`) a `<CLAUDE_CONFIG_DIR>/plugins/marketplaces/daycry/` y a `<CLAUDE_CONFIG_DIR>/plugins/cache/daycry/custom-agents/<version>/`, `json-set` en `plugins/known_marketplaces.json` (`daycry: {source:{source:"github",repo:"daycry/custom-agents"}, installLocation, lastUpdated, autoUpdate:true}`), en `plugins/installed_plugins.json` (`version: 2`, `plugins["custom-agents@daycry"] = [{scope, installPath, version, installedAt, lastUpdated}]`) y en `settings.json` del scope (`enabledPlugins["custom-agents@daycry"] = true`; scope project además `extraKnownMarketplaces.daycry`). `CLAUDE_CONFIG_DIR` respetado (default `~/.claude`). `--mode copy` = plan actual con aviso «bundle copiado: hooks y statusline NO se registran; namespace no disponible». `--source <ruta|owner/repo>` cambia la fuente del marketplace (desarrollo). `restart`/`hint` actualizados (ya no «vía recomendada: /plugin…», porque ESTO es la vía). `uninstall`: `claude plugin uninstall custom-agents@daycry --scope` si hay CLI; si no, quitar las claves que el manifiesto anotó y borrar las copias; nunca borrar `settings.json`.
 - **Changelog**: En Claude Code el instalador registra el plugin de verdad (hooks, namespace y actualizaciones), con la CLI oficial o escribiendo su registro; copiar el bundle es ahora `--mode copy`.
-- **Estado**: en-progreso
+- **Estado**: completado
 - **Tipo**: feature
 - **Tiempo humano**: est. 3,0h · real 3,0h (estimado)
-- **Tiempo IA (ejec.)**: est. 0,40h · real 1,25h (0,03h + **0,62h medidas** del intento 1 de revisión, reparto abajo; marcador del tramo `installer-registro-real/T-02`, ventana 03:37:17Z–03:40:43Z: `{"fuente": "medido", "tokens_reales": {"entrada": 18, "salida": 4486, "cache_creacion": 8447, "cache_lectura": 1665275, "respuestas": 9}, "eur": 0.92, "horas_ia": 0.03, "duracion": "2m"}`. La medida sale baja porque el grueso del diseño y del código de T-02 se escribió dentro de la ventana de T-01 — desviación 7) + **0,60h estimadas** del intento 2 (marcador `I1-fix2`, reparto al final)
+- **Tiempo IA (ejec.)**: est. 0,40h · real 1,25h (0,03h + **0,62h medidas** del intento 1 de revisión, reparto abajo; marcador del tramo `installer-registro-real/T-02`, ventana 03:37:17Z–03:40:43Z: `{"fuente": "medido", "tokens_reales": {"entrada": 18, "salida": 4486, "cache_creacion": 8447, "cache_lectura": 1665275, "respuestas": 9}, "eur": 0.92, "horas_ia": 0.03, "duracion": "2m"}`. La medida sale baja porque el grueso del diseño y del código de T-02 se escribió dentro de la ventana de T-01 — desviación 7) + **0,60h estimadas** del intento 2 (marcador `I1-fix2`, reparto al final) + **0,08h medidas** de la 4.ª pasada (marcador `installer-registro-real/I1-fix3`, reparto al final) → **1,33h**
 - **Supervisión**: est. 0,10h · real 0,10h (estimado)
 - **Previsión IA**: 120k in / 18k out tok
 - **Dependencias**: T-01 (los pasos nuevos se imprimen en `--dry-run` con el mismo formato)
@@ -229,7 +229,47 @@ generacion:
 
     `claude plugin list` → `custom-agents@daycry · Version: 1.19.0 · Scope: user · Status: ✔ enabled`;
     `uninstall -p claude-code --scope user` → exit 0 y `claude plugin list` → `No plugins installed.`
+  - **Re-ejecutada tras la 4.ª pasada** (2026-09-11, después del último cambio: post-condición de `ponerToml`,
+    reintento + caída con aviso y `chmodSync` en `escribirAtomico`):
+    `node --test tests/*.test.mjs` → `ℹ tests 103 · ℹ pass 103 · ℹ fail 0`, **exit 0** (`echo $?`, sin `| tail`);
+    conjunto de nombres antes/después comparado con `--test-reporter=tap`: **0 perdidos, 10 nuevos**.
+    `python scripts/lint_plugin.py` → `9 agentes · 0 errores · 3 avisos`; `python scripts/export-interop.py --check`
+    → `48 ficheros al día`. `--mode copy` **sigue siendo el plan de HEAD** (comparación programática de `buildPlan`
+    contra `git archive HEAD`, desviación 19): `claude-code/copy/project` y `claude-code/copy/user` iguales sin el
+    `aviso` que añadió T-02: **true**; `opencode/plugin/project` y `opencode/plugin/user` **IGUALES: true**.
+  - **I3-2** (`escribirAtomico` con el destino abierto): con un handle abierto sobre el fichero, `renameSync` da
+    `EPERM` en Windows (medido en un temporal: `rename falla: EPERM`). Con el arreglo, `escribirAtomico` reintenta
+    3 veces (60/120 ms) y cae a escritura directa: el fichero queda con el contenido nuevo, no queda ningún `.tmp-`
+    por el camino y el aviso dice «… otro proceso lo tiene abierto (EPERM); lo he escrito DIRECTAMENTE, sin
+    atomicidad …». Test `gap I3-2: con el destino abierto por otro proceso se escribe igual, y se dice` (en POSIX
+    exige lo contrario: rename correcto y **cero** avisos).
+  - **I3-3** (permisos): `chmod 600` + `escribirAtomico` → el modo de antes y el de después coinciden
+    (test `gap I3-3: el rename no puede cambiarle los permisos al fichero del usuario`). En Windows solo existe el
+    bit de solo-lectura y `0600` se lee como `0666` (medido), así que ahí la aserción fuerte es la igualdad
+    antes/después; el `0o600` exacto solo se exige en POSIX — **desviación 20**.
+  - **Prueba real repetida** con `claude` en un `CLAUDE_CONFIG_DIR` temporal (`C:\…\Temp\ca-real4\cfg`, sin tocar
+    el `~/.claude` real), `install -p claude-code --scope user --source "<repo>" -y`:
+
+    ```
+      ✓ 2 paso(s) aplicados en C:\Users\460669~1\AppData\Local\Temp\ca-real4\cfg\plugins
+    ```
+
+    `CLAUDE_CONFIG_DIR=<tmp> claude plugin list` → `custom-agents@daycry · Version: 1.19.0 · Scope: user ·
+    Status: ✔ enabled`; `uninstall -p claude-code --scope user -y` → `Claude Code (v1.19.0, user, plugin)` y
+    `claude plugin list` → `No plugins installed.`
 - **Desviaciones**:
+  17. `escribirAtomico` **puede dejar de ser atómico**: si el `rename` falla con `EPERM`/`EACCES`/`EBUSY` (Windows,
+      destino abierto por otro proceso) reintenta 3 veces y, si persiste, escribe directamente encima y lo **avisa**
+      nombrando el fichero y diciendo que esa escritura no fue atómica. Es una relajación consciente del arreglo de
+      B-7: tumbar la instalación entera porque el editor del usuario tiene abierto el `settings.json` es peor.
+      Los avisos salen por un buzón propio (`drenarAvisosEscritura()`, export nuevo) que `ejecutar`/`deshacer` vacían
+      en su lista de avisos, para no cambiarle la firma a todas las llamadas de escritura.
+  19. La comparación «`--mode copy` = plan de HEAD» **no se puede hacer por CLI**: `HEAD` no conoce la opción
+      `--mode` (es de esta misma tarea) y responde `opción desconocida: --mode`. Se hace, como en el intento 2,
+      programáticamente sobre `buildPlan`, importando el `providers.mjs` de hoy y el de `git archive HEAD`.
+  20. El test de permisos (I3-3) solo puede exigir `0o600` exacto en POSIX: Windows no tiene bits de permiso de
+      usuario/grupo/otros y `chmod 600` se lee de vuelta como `0666` (medido en esta máquina). En Windows la
+      aserción que queda es la igualdad modo-antes = modo-después, que es justo lo que el `rename` rompía.
   3. El apunte del manifiesto de un `exec` lleva, además del `{exec: "<cmd args>"}` informativo del contrato, un campo `deshacer` con el comando inverso cuando el paso lo declara. Sin él no se puede cumplir lo que pide la propia descripción de T-02 («`claude plugin uninstall …` si hay CLI») sin adivinar el comando a partir de una cadena.
   4. Para un `--source` que es una **ruta local**, la fuente se escribe como `{source: "directory", path}` y no como `{source: "github", repo}`: es lo que escribe la CLI oficial de Claude Code (comprobado en el `settings.json` que dejó `claude plugin marketplace add <ruta>` en la prueba real). Para `owner/repo` se mantiene `{source: "github", repo}` del contrato.
   5. El paso `json-set` admite dos campos no previstos en el contrato: `volatiles` (campos de marca de tiempo que no cuentan como cambio, para que reinstalar NO reescriba el registro) y `noQuitar` (claves que se ponen pero que `uninstall` no quita, como el `version: 2` de `installed_plugins.json`, que es del fichero y no nuestra).
@@ -274,10 +314,10 @@ generacion:
 
 - **Descripción**: proveedor `codex`: tras las copias actuales, (1) `exec codex plugin marketplace add <mktRoot>` si `codex` en PATH (versión mínima `0.128.0` leída de `codex --version`; si «already added from a different source» → `remove` + `add`; sin `codex` → aviso con el comando pendiente); (2) paso nuevo `{ type: "toml-set", to, tabla, clave, valor }`: editor mínimo propio que pone un booleano en `[plugins."custom-agents@daycry"]` (`enabled = true`) y en `[features]` (`hooks = true`) del `config.toml` del scope (`~/.codex/config.toml` o `<dir>/.codex/config.toml`), creando la tabla al final si no existe y **sin reescribir nada más** (conserva comentarios y orden); el manifiesto anota tabla+clave para `uninstall` (pone `enabled = false`, no borra la tabla). Nombre del marketplace = `name` de `.agents/plugins/marketplace.json` (`daycry`) → id `custom-agents@daycry`.
 - **Changelog**: En Codex el instalador registra el marketplace con la CLI y habilita el plugin en `config.toml`, que es lo que faltaba para que skills y hooks aparezcan.
-- **Estado**: en-progreso
+- **Estado**: completado
 - **Tipo**: feature
 - **Tiempo humano**: est. 1,5h · real 1,5h (estimado)
-- **Tiempo IA (ejec.)**: est. 0,20h · real 0,72h (0,03h + **0,39h medidas** del intento 1 de revisión, reparto abajo; marcador del tramo `installer-registro-real/T-03`, ventana 03:40:44Z–03:43:16Z: `{"fuente": "medido", "tokens_reales": {"entrada": 12, "salida": 5229, "cache_creacion": 9184, "cache_lectura": 1149696, "respuestas": 6}, "eur": 0.7, "horas_ia": 0.03, "duracion": "2m"}`) + **0,30h estimadas** del intento 2 (marcador `I1-fix2`, reparto al final)
+- **Tiempo IA (ejec.)**: est. 0,20h · real 0,72h (0,03h + **0,39h medidas** del intento 1 de revisión, reparto abajo; marcador del tramo `installer-registro-real/T-03`, ventana 03:40:44Z–03:43:16Z: `{"fuente": "medido", "tokens_reales": {"entrada": 12, "salida": 5229, "cache_creacion": 9184, "cache_lectura": 1149696, "respuestas": 6}, "eur": 0.7, "horas_ia": 0.03, "duracion": "2m"}`) + **0,30h estimadas** del intento 2 (marcador `I1-fix2`, reparto al final) + **0,22h medidas** de la 4.ª pasada (marcador `installer-registro-real/I1-fix3`, reparto al final) → **0,94h**
 - **Supervisión**: est. 0,05h · real 0,05h (estimado)
 - **Previsión IA**: 70k in / 10k out tok
 - **Dependencias**: T-02 (paso `exec`)
@@ -336,8 +376,60 @@ generacion:
     previa: se crea la cabecera como siempre y también parsea. Cuarto: `plugins = { "custom-agents@daycry" = { … } }`
     → **error del paso**, `config.toml` byte a byte intacto y mensaje con el fichero y el cambio a mano.
     `uninstall` sigue poniendo `enabled = false` donde esté declarado (y no re-crea lo que el usuario borró).
+  - **Re-ejecutada tras la 4.ª pasada** (2026-09-11, después del último cambio). **Las cinco formas** en que un
+    `config.toml` puede tener (o no) declarada la tabla, cada una con **dos pasadas seguidas** y `uninstall`, todas
+    validadas con **`tomllib`** (oráculo independiente; la tabla de resultados esperados de los tests está escrita a
+    mano, no sale del analizador que se prueba). Partiendo siempre de `model = "gpt-5"` + `[mcp_servers.atlassian]`:
+
+    ```
+    forma                   pase       parsea  enabled  model    mcp_servers  idempotente
+    sin declarar            1.ª        OK      True     'gpt-5'  True         True
+    sin declarar            2.ª        OK      True     'gpt-5'  True         True
+    sin declarar            uninstall  OK      False    'gpt-5'  True         —
+    cabecera                1.ª        OK      True     'gpt-5'  True         True
+    cabecera                2.ª        OK      True     'gpt-5'  True         True
+    cabecera                uninstall  OK      False    'gpt-5'  True         —
+    clave con punto         1.ª        OK      True     'gpt-5'  True         True
+    clave con punto         2.ª        OK      True     'gpt-5'  True         True
+    clave con punto         uninstall  OK      False    'gpt-5'  True         —
+    tabla en línea          1.ª        OK      True     'gpt-5'  True         True
+    tabla en línea          2.ª        OK      True     'gpt-5'  True         True
+    tabla en línea          uninstall  OK      False    'gpt-5'  True         —
+    sub-tabla implícita     1.ª        OK      True     'gpt-5'  True         True
+    sub-tabla implícita     2.ª        OK      True     'gpt-5'  True         True
+    sub-tabla implícita     uninstall  OK      False    'gpt-5'  True         —
+    [features.web] + hooks  1.ª/2.ª    OK      True (features.hooks; features.web.search intacto)   True
+    ```
+
+    (`enabled` es `plugins["custom-agents@daycry"]["enabled"]` leído por `tomllib`, que es donde lo busca Codex.)
+    En la **sub-tabla implícita** el `MI_VAR = "1"` del usuario sigue en su sitio: `enabled` ya no cae dentro de
+    `env`, la super-tabla se declara después (TOML lo permite) y la 2.ª pasada es byte a byte idéntica — antes daba
+    `Cannot overwrite a value (line 9)` y se perdían `model` y `mcp_servers`.
+  - **Instalación real** sobre la forma reproducida por el orquestador (test `gap I3-1: instalar de verdad sobre la
+    sub-tabla implicita — dos pasadas y uninstall`, verde): `install -p codex --scope user -y` en un HOME temporal →
+    `tomllib` ve `enabled = True`, `env.MI_VAR = "1"` y `model = "gpt-5"`; **segunda** pasada → igual (ya no se
+    pierden `model` ni `mcp_servers`); `uninstall` → `enabled = False` y `model` intacto.
+  - **Post-condición** (lo que cierra la familia de raíz, desviación 16): `ponerToml` re-analiza el texto que va a
+    escribir y exige que `plugins."custom-agents@daycry".enabled` / `features.hooks` quede declarado **una sola vez**
+    y con el valor pedido; si no, **no devuelve texto**: lanza, el fichero se queda como estaba y el mensaje nombra
+    el fichero, la forma encontrada y el cambio a mano. Test `gap I3-1: la post-condicion NO escribe si la clave no
+    habria quedado unica` (fichero con `enabled` declarado dos veces → error «… la clave habría quedado declarada
+    2 veces (fichero ilegible) …», fichero intacto).
+  - `node --test tests/*.test.mjs` → `ℹ tests 103 · ℹ pass 103 · ℹ fail 0`, **exit 0**; **0 nombres perdidos**, 10
+    nuevos. `python scripts/lint_plugin.py` → `0 errores`; `python scripts/export-interop.py --check` → `48 ficheros
+    al día`.
   - **No verificable aquí** (igual que en el intento 1): que Codex cargue el plugin → checklist **M-01** (usuario).
 - **Desviaciones**:
+  16. El Critical I3-1 **no** se cierra con una quinta rama en el editor TOML, sino con una **post-condición**:
+      `ponerToml` valida lo que va a escribir y, si el camino exacto no queda declarado una sola vez con el valor
+      pedido, **falla el paso sin tocar el fichero**. Efecto secundario declarado: ficheros que antes se escribían
+      (mal) ahora pueden dar error del paso — por ejemplo un `config.toml` que ya traía la clave duplicada. Es
+      deliberado: un error honesto con el cambio a mano vale más que un `config.toml` corrupto con exit 0. La rama
+      `implicita` además solo aplica si la asignación vive en el **ámbito exacto** del objetivo.
+  18. La matriz **5 formas × 2 pasadas × uninstall** se prueba sobre `ponerToml` (con `tomllib` validando cada texto
+      producido) más **una** instalación real por CLI con la forma que reprodujo el orquestador, en vez de 15
+      instalaciones reales: cada `install` por CLI cuesta ~4,5 s de suite y lo que se quiere fijar es el TEXTO del
+      `config.toml`, que es justo lo que compara la tabla de arriba.
   6. `correr()` resuelve la ruta real del comando (`where.exe`/`which`) y, en Windows, ejecuta los lanzadores `.cmd`/`.bat` a través de `cmd.exe /d /s /c` con los argumentos entrecomillados a mano. Sin esto Node no puede ejecutar un `codex.cmd`/`claude.cmd` (el caso normal de una instalación por npm) y el paso `exec` degradaba a aviso siempre. `enPath()` pasa a ser `Boolean(rutaDe(cmd))`.
   11. `--force-marketplace` es una **opción nueva** que el contrato de T-03 no preveía: la pide el gap 7 como única vía
       para ejecutar el `remove` + `add` del marketplace del usuario. Por defecto NO se ejecuta: se avisa con el comando
@@ -562,7 +654,7 @@ analizador TOML del Critical y sus 7 tests → **T-03: 0,30h**; el grueso del in
 B-11, B-12, B-13, A-1/B-10 y la parte de `providers.mjs` de B-5/B-6) → **T-02: 0,60h**; solo la convivencia de las
 señales con el menú/terminal → **T-01: 0,10h**.
 
-## Revision de dos lentes - intento 3 (tramo I1, ULTIMO del bucle): 15/15 cerrados; nuevo 1 Critical, 2 Minor
+## Revision de dos lentes - intento 3 (tramo I1, ULTIMO del bucle): 15/15 cerrados; nuevo 1 Critical, 2 Minor -- **3/3 corregidos en la 4.a pasada**
 
 Una lente fresca (B, instaladores CLI multiplataforma) sobre el **delta del intento 3** — la conformidad con los
 criterios la cerro la Lente A en el intento 2 y el delta es codigo de robustez. Marcador
@@ -581,9 +673,9 @@ temporales sobrantes. Los 11 casos validos de `ponerToml` que quedan parsean con
 
 | # | Grado | Gap | Tarea | Correccion | Evidencia |
 |---|---|---|---|---|---|
-| I3-1 | **Critical** | La rama `implicita` de `ponerToml` elige el sitio por la RUTA de la asignacion, sin comprobar si esa asignacion vive en una cabecera **mas profunda** que el objetivo. Si la tabla destino existe solo de forma implicita porque hay una **sub-tabla** suya declarada (`[plugins."custom-agents@daycry".env]`), el `enabled` se escribe DENTRO de la sub-tabla. **Reproducido por el orquestador**: pasada 1 -> exit 0, «223 pasos aplicados» y `plugins = {'custom-agents@daycry': {'env': {'MI_VAR': '1', 'enabled': True}}}` — **Codex no habilita el plugin y el instalador afirma que si**; pasada 2 -> `tomllib: Cannot overwrite a value (line 9)`, se pierden `model` y `mcp_servers`. Es la 4.a forma de la familia de B-1 | T-03 | pendiente (4.a pasada): cerrar la familia **de raiz** con una **post-condicion**: tras escribir, volver a analizar el TOML resultante y comprobar que el camino exacto (`plugins."custom-agents@daycry".enabled` / `features.hooks`) tiene el valor pedido **y que no hay clave duplicada**; si no se cumple, **restaurar el original** y error del paso con el cambio a hacer a mano. Ademas, la rama implicita solo aplica si la asignacion esta en el ambito exacto del objetivo | `install.mjs:594-601` |
-| I3-2 | Minor | `escribirAtomico` (tmp + `renameSync`) falla con `EPERM` en Windows si otro proceso tiene el destino **abierto**, donde el `writeFileSync` anterior funcionaba. Forma de fallo nueva introducida por el arreglo de B-7, en la ruta mas caliente | T-02 | pendiente: reintento corto y, si persiste, caida a escritura directa con aviso (la atomicidad se pierde, se dice) | `install.mjs:209` |
-| I3-3 | Minor | El `rename` sustituye el inodo: el fichero queda con los permisos del temporal. Un `settings.json` en `600` acaba en `644` (medido en WSL). El mismo codigo si conserva el BOM «para no cambiarle la codificacion al usuario» | T-02 | pendiente: `chmodSync` al modo del original (si existia) tras el `renameSync` | `install.mjs:204-214` |
+| I3-1 | **Critical** | La rama `implicita` de `ponerToml` elige el sitio por la RUTA de la asignacion, sin comprobar si esa asignacion vive en una cabecera **mas profunda** que el objetivo. Si la tabla destino existe solo de forma implicita porque hay una **sub-tabla** suya declarada (`[plugins."custom-agents@daycry".env]`), el `enabled` se escribe DENTRO de la sub-tabla. **Reproducido por el orquestador**: pasada 1 -> exit 0, «223 pasos aplicados» y `plugins = {'custom-agents@daycry': {'env': {'MI_VAR': '1', 'enabled': True}}}` — **Codex no habilita el plugin y el instalador afirma que si**; pasada 2 -> `tomllib: Cannot overwrite a value (line 9)`, se pierden `model` y `mcp_servers`. Es la 4.a forma de la familia de B-1 | T-03 | **Corregido** (4.a pasada, **post-condicion**, sin quinta rama): `ponerToml` re-analiza con `rutasToml()` el texto que va a escribir y exige que el camino exacto quede declarado **una sola vez** y con el valor pedido (y que no choque con una cabecera del mismo nombre); si no, **lanza y no devuelve texto** -> el fichero se queda como estaba y el mensaje nombra fichero, forma encontrada y cambio a mano. Ademas la rama `implicita` solo aplica si la asignacion vive en el **ambito exacto** (`tabla actual + prefijo de la clave == objetivo`), no en una cabecera mas profunda. **Evidencia** (`tomllib`, oraculo independiente; tabla esperada escrita a mano): las **5 formas x 2 pasadas + uninstall** parsean siempre y el valor cae donde Codex lo busca -- sin declarar / cabecera / clave con punto / tabla en linea / **sub-tabla implicita** -> `enabled=True` en las dos pasadas (2.a byte a byte identica) y `False` tras `uninstall`, con `model`, `mcp_servers` y `env.MI_VAR` intactos; `[features.web] search = true` + `hooks` -> `features.hooks=True` sin tocar `features.web`. Instalacion real por CLI sobre la forma reproducida por el orquestador: 2 pasadas + `uninstall` verdes. Tabla completa en la `Verificacion` de T-03; desviaciones 16 y 18 | `install.mjs` `ponerToml`/`rutasToml`/`formaToml` + rama `implicita` · `tests/installer.test.mjs` (8 tests `gap I3-1`) |
+| I3-2 | Minor | `escribirAtomico` (tmp + `renameSync`) falla con `EPERM` en Windows si otro proceso tiene el destino **abierto**, donde el `writeFileSync` anterior funcionaba. Forma de fallo nueva introducida por el arreglo de B-7, en la ruta mas caliente | T-02 | **Corregido**: 3 intentos con espera breve (60/120 ms) ante `EPERM`/`EACCES`/`EBUSY` y, si persiste, **escritura directa** con aviso que dice que se pierde la atomicidad y nombra el fichero (buzon `drenarAvisosEscritura()`, que `ejecutar`/`deshacer` vuelcan en sus avisos). Cualquier otro error sigue tumbando el paso, y el temporal se limpia siempre. Test `gap I3-2: con el destino abierto por otro proceso se escribe igual, y se dice` con un handle abierto sobre el destino: en win32 escribe + 1 aviso con `EPERM`, en POSIX rename normal y **cero** avisos; en ningun caso queda un `.tmp-` suelto. Desviacion 17 | `install.mjs` `escribirAtomico` · `tests/installer.test.mjs` |
+| I3-3 | Minor | El `rename` sustituye el inodo: el fichero queda con los permisos del temporal. Un `settings.json` en `600` acaba en `644` (medido en WSL). El mismo codigo si conserva el BOM «para no cambiarle la codificacion al usuario» | T-02 | **Corregido**: se lee `statSync(p).mode & 0o7777` ANTES (solo si el fichero existia) y se aplica `chmodSync` tras el `renameSync` -- tambien en la caida a escritura directa de I3-2; si el FS no soporta permisos, se ignora en silencio. Test `gap I3-3: el rename no puede cambiarle los permisos al fichero del usuario`: `chmod 600` -> modo antes == modo despues; el `0o600` exacto solo se exige en POSIX porque Windows lee `600` como `666` (medido) -- desviacion 20 | `install.mjs` `escribirAtomico` · `tests/installer.test.mjs` |
 
 **Fuera de lente, anotado para el cierre**: `matarArbol` cae al nombre pelado `taskkill`/`wmic` si no los encuentra bajo
 System32 (plantado de binario en una ruta que solo se recorre con el entorno roto); el `hint` de Codex afirma que
@@ -592,3 +684,14 @@ System32 (plantado de binario en una ruta que solo se recorre con el entorno rot
 **Decision**: el bucle acotado estaba en 3/3, pero I3-1 es el fallo exacto que esta iniciativa existe para corregir
 (corromper la configuracion del usuario y declarar exito sin verificarlo), asi que el orquestador ordena una **4.a
 pasada** con la post-condicion como arreglo estructural, en vez de declararlo y publicarlo.
+
+**Resultado de la 4.a pasada: 3/3 cerrados** (1 Critical + 2 Minor). Marcador `installer-registro-real/I1-fix3`
+(`start` antes de tocar nada, `close` antes de esta revision):
+`{"fuente":"medido","tokens_reales":{"entrada":90,"salida":38295,"cache_creacion":104801,"cache_lectura":3428622,"respuestas":45},"eur":3.06,"horas_ia":0.3,"duracion":"18m","duracion_reloj":"26m","ratio_usado":479326.0,"ratio_origen":"CALIBRATION.md (mediana de 6)"}`.
+**Reparto por bloques de trabajo observados** (no a prorrata de los 3 senalamientos): el analizador TOML (post-condicion
+`rutasToml`/`formaToml`, la rama `implicita` acotada al ambito exacto) y sus 8 tests con el oraculo `tomllib` ->
+**T-03: 0,22h**; la capa de escritura (I3-2 + I3-3 en `escribirAtomico`, el buzon de avisos y sus 2 tests) ->
+**T-02: 0,08h**. T-01 no se toco en esta pasada: 0h. Verificacion global re-ejecutada tras el ultimo cambio:
+`node --test tests/*.test.mjs` -> `ℹ tests 103 · ℹ pass 103 · ℹ fail 0`, **exit 0**; conjunto de nombres sin perdidas
+(93 -> 103); `lint_plugin` 0 errores; `export-interop --check` 48 ficheros al dia; `--mode copy` y OpenCode identicos
+al plan de HEAD (desviacion 19); prueba real con `claude` en `CLAUDE_CONFIG_DIR` temporal, verde.
