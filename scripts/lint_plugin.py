@@ -29,6 +29,15 @@ Valida, sin dependencias externas (solo stdlib):
      sin fila es invisible; y para los ADR el `area` SOLO vive en la fila (perderla es perder el
      enrutado sin poder reconstruirlo). `tests/test_knowledge_index.py` importa esta función y la
      prueba con mutaciones [memory-retrieval T-04, spec CA-07].
+ 11. Copias declaradas (`comprobar_copias_declaradas`, ADR-016): todo bloque replicado que el árbol
+     marca con un centinela de recorte (`# --8<-- …`) y toda constante de respaldo `_*_FALLBACK`
+     tiene que estar DECLARADA en `agent-kits/shared/copias.json` (canónico, copias y centinelas).
+     ERROR, no aviso: el universo es cerrado (marcadores y nombres de este mismo repo) y sin esta
+     puerta el registro es un JSON decorativo — una copia nueva volvería a nacer sin guardarraíl,
+     que es justo lo que `ADR-016` cierra. La identidad de lo registrado la comprueba
+     `tests/test_copias_declaradas.py`; esto solo mira que no haya copias FUERA del registro.
+     Tolerancias explícitas: `interop/**` (lo genera `export-interop.py`) y las carpetas de
+     CONSOLE_SKIP_DIRS (`.venv/**`, `node_modules/**`, `dist/**`, `build/**`, `.git/**`…).
 
 Avisos (no rompen el build):
   - `description` sin frase-gatillo ("Úsalo/Úsala cuando…", "PROACTIVAMENTE", "Use when").
@@ -608,6 +617,11 @@ def lint(root):
     # --- Un rol, un dueño (ADR-011): disparador literal entrecomillado duplicado entre piezas ---
     warnings.extend(lint_duplicate_triggers(root))
 
+    # --- Copias declaradas (ADR-016): centinela `--8<--` o `_*_FALLBACK` sin fila en copias.json ---
+    cop_err, cop_warn = comprobar_copias_declaradas(root)
+    errors.extend(cop_err)
+    warnings.extend(cop_warn)
+
     # --- Consola no-UTF8 (windows-console T-01/T-04, GOT-005): las dos mitades del mismo bug ---
     warnings.extend(lint_console_encoding(root))      # lado propio: imprime/lee sin reconfigurar
     warnings.extend(lint_subprocess_encoding(root))   # lado padre: decodifica al hijo sin encoding=
@@ -754,6 +768,206 @@ def _leer(p):
     except OSError:
         return None, None
     return data, data.decode("utf-8", "replace")
+
+
+COPIAS_REGISTRO = ("agent-kits", "shared", "copias.json")
+# interop/** lo GENERA export-interop.py; .claude/.codex/.opencode/.agents son las cuatro raíces
+# donde el plugin se instala POR COPIA (docs/INSTALL.md): ahí el árbol entero está duplicado a
+# propósito y sus centinelas son los del propio plugin, no copias nuevas del proyecto.
+COPIAS_SKIP_DIRS = CONSOLE_SKIP_DIRS | {"interop", ".claude", ".codex", ".opencode", ".agents"}
+_MARCADOR_COPIA_RE = re.compile(r"^[ \t]*#[ \t]*(--8<--[ \t]*\S.*?)[ \t]*$")
+# Una DEFINICIÓN de constante de respaldo tiene tres formas en Python y las tres cuentan: la simple
+# (`_X_FALLBACK = …`), la ANOTADA (`_X_FALLBACK: str = …`) y la ENCADENADA
+# (`_A_FALLBACK = _B_FALLBACK = …`, que define las DOS). Con el patrón anterior —el nombre pegado
+# al `=`— bastaba con anotar el tipo, o con colgar la constante de una cadena de asignación, para
+# que una copia nueva entrara sin fila en el registro (gap R3-3 del intento 3). Aquí se captura el
+# LADO IZQUIERDO entero y los nombres se extraen de ahí: así una MENCIÓN en el valor
+# (`x = _PATRON_FALLBACK`) sigue sin contar, porque no está entre los objetivos.
+_RESPALDO_DEF_RE = re.compile(
+    r"^[ \t]*(?P<objetivos>[A-Za-z_][A-Za-z0-9_]*"
+    r"(?:[ \t]*:[ \t]*[^=\n]+|(?:[ \t]*=[ \t]*[A-Za-z_][A-Za-z0-9_]*)*)"
+    r")[ \t]*=(?!=)")
+_RESPALDO_NOMBRE_RE = re.compile(r"_[A-Z0-9_]+_FALLBACK")
+
+
+def _nombres_de_respaldo(linea):
+    """Los `_*_FALLBACK` que ESTA línea DEFINE (lista vacía si no define ninguno).
+
+    Se miran solo los OBJETIVOS de la asignación, nunca el valor: `x = _PATRON_FALLBACK` es un uso.
+    """
+    m = _RESPALDO_DEF_RE.match(linea)
+    return _RESPALDO_NOMBRE_RE.findall(m.group("objetivos")) if m else []
+
+
+def _py_del_arbol(root):
+    """[(ruta absoluta, ruta relativa)] de TODOS los `.py` del árbol, incluidas las suites.
+
+    No es `_py_del_plugin`: aquel excluye los `test_*.py` (las reglas de consola no les aplican) y
+    aquí sí cuentan — `tests/test_console_encoding.py` es una de las copias registradas.
+    """
+    out = []
+    for dp, dn, fn in os.walk(root):
+        dn[:] = [d for d in dn if d not in COPIAS_SKIP_DIRS]
+        for f in sorted(fn):
+            if f.endswith(".py"):
+                p = os.path.join(dp, f)
+                out.append((p, os.path.relpath(p, root).replace(os.sep, "/")))
+    return sorted(out, key=lambda t: t[1])
+
+
+def _copias_registradas(root):
+    """(marcadores, respaldos) de `agent-kits/shared/copias.json`: {ruta: [centinela…]} y
+    {ruta: [(nombres, inicio, fin)…]} — una entrada por COPIA, no por bloque, para poder exigir que
+    la constante de respaldo esté DENTRO del bloque que la declara. Registro ausente o ilegible =
+    registro VACÍO (un plugin desempaquetado puede no traerlo; entonces cualquier copia del árbol
+    sale como no declarada).
+
+    `respaldos` se lee de la COPIA (`copias[i].respaldos`), nunca del bloque: leerlo del bloque
+    repartía la tolerancia a las N rutas del bloque y dejaba pasar el renombrado de la constante
+    CANÓNICA a `_*_FALLBACK` (`REVISION_HDR_PATTERN` en `ledger-lint.py`), que es justo lo que la
+    lista blanca no debe cubrir (gap B-3 del intento 2).
+
+    Los centinelas se acumulan CON REPETICIÓN: la lista guarda tantas apariciones como el registro
+    declare para esa ruta, y `comprobar_copias_declaradas` compara ese conteo con el del fichero.
+    """
+    marcadores, respaldos = {}, {}
+    try:
+        with open(os.path.join(root, *COPIAS_REGISTRO), encoding="utf-8") as fh:
+            datos = json.load(fh)
+    except (OSError, ValueError, UnicodeDecodeError):
+        return marcadores, respaldos
+    for b in datos.get("bloques") or []:
+        if not isinstance(b, dict):
+            continue
+        for c in b.get("copias") or []:
+            if not isinstance(c, dict) or not isinstance(c.get("ruta"), str):
+                continue
+            ruta = c["ruta"].replace("\\", "/")
+            for clave in ("inicio", "fin"):
+                txt = c.get(clave)
+                if isinstance(txt, str) and txt.lstrip().startswith("#"):
+                    marcadores.setdefault(ruta, []).append(txt.strip().lstrip("#").strip())
+            nombres = {n for n in (c.get("respaldos") or []) if isinstance(n, str)}
+            if nombres:
+                respaldos.setdefault(ruta, []).append((nombres, c.get("inicio"), c.get("fin")))
+    return marcadores, respaldos
+
+
+def _region_declarada(lineas, inicio, fin):
+    """[i, j) de líneas de una copia declarada, o `None` si sus centinelas no están en el fichero.
+
+    `inicio`/`fin` son LÍNEAS ENTERAS y se casan por igualdad (tras `strip`). La región se extiende
+    hacia atrás sobre las continuaciones de sentencia (`\\` al final de la línea anterior): la
+    cabecera `_REVISION_HDR_FALLBACK = \\` vive justo encima del literal delimitado y es la misma
+    sentencia, así que pertenece a la copia aunque no entre en la comparación byte a byte.
+    """
+    if not isinstance(inicio, str):
+        return None
+    i = next((k for k, l in enumerate(lineas) if l.strip() == inicio), -1)
+    if i < 0:
+        return None
+    j = i + 1
+    if isinstance(fin, str):
+        j = next((k for k in range(i + 1, len(lineas)) if lineas[k].strip() == fin), -1)
+        if j < 0:
+            return None
+    while i > 0 and lineas[i - 1].rstrip().endswith("\\"):
+        i -= 1
+    return i, j
+
+
+def _respaldo_declarado(nombre, n, lineas, copias):
+    """¿La constante `nombre`, definida en la línea `n` (1-based), está declarada AQUÍ?
+
+    La tolerancia vale solo en la ruta —y en el bloque— que DEFINE la constante, no en todas las
+    rutas del bloque: hace falta que la copia de ESTE fichero liste el nombre en su propio
+    `copias[i].respaldos` (no en el del bloque) y que la definición caiga dentro del rango de ESA
+    copia. Así, `_REVISION_HDR_FALLBACK` está tolerado en `task-brief.py` y `jira-flow.py`, que lo
+    definen, y NO en `ledger-lint.py`, que es el canónico: renombrar allí `REVISION_HDR_PATTERN` a
+    `_REVISION_HDR_FALLBACK` da error, aunque caiga dentro del rango de su copia (gap B-3).
+    """
+    for nombres, inicio, fin in copias:
+        if nombre not in nombres:
+            continue
+        region = _region_declarada(lineas, inicio, fin)
+        if region and region[0] <= n - 1 < region[1]:
+            return True
+    return False
+
+
+def _id_sugerido(texto):
+    """Id de bloque razonable a partir del texto de un centinela o de una constante.
+
+    Las letras no ASCII se TRANSLITERAN (NFKD + fuera los combinantes) antes de barrer lo que no
+    es alfanumérico: si no, `criterio del índice` sugeriría `criterio_del_ndice`.
+    """
+    base = re.split(r"\s+[—–-]\s+|\(", texto.replace("--8<--", "").strip(), maxsplit=1)[0]
+    base = re.sub(r"^fin(?:\s+(?:de|del|de la)?)?\s+", "", base.strip(), flags=re.I)
+    base = "".join(c for c in unicodedata.normalize("NFKD", base) if not unicodedata.combining(c))
+    return re.sub(r"_+", "_", re.sub(r"[^0-9a-zA-Z]+", "_", base)).strip("_").lower() or "sin_nombre"
+
+
+def comprobar_copias_declaradas(root):
+    """(errores, avisos) — ADR-016: ningún bloque replicado del árbol vive FUERA del registro.
+
+    Dos detectores, los dos por LÍNEA y anclados al principio, igual que en la regla de consola:
+    una mención DENTRO DE UNA CADENA no cuenta (`ini = src.index("# --8<-- …")` no dispara), pero
+    una línea que empiece por `#` sí cuenta esté donde esté, docstrings incluidos — el ancla es la
+    forma de la línea, no su contexto sintáctico:
+      - centinela de recorte: `# --8<-- …` al principio de la línea → su texto tiene que ser IGUAL
+        (no un prefijo) a un `inicio`/`fin` que `copias.json` declara PARA ESE FICHERO; el registro
+        guarda la línea entera del centinela, así que un bloque nuevo que EXTIENDA a uno declarado
+        (`… COMPARTIDO v2`) sigue siendo un bloque sin declarar. Y no basta con que esté declarado:
+        tiene que aparecer TANTAS VECES como lo declara el registro para esa ruta (normalmente una).
+        Con solo pertenencia, una SEGUNDA copia del bloque pegada más abajo en un fichero ya
+        declarado era invisible —el registro la daba por buena y el test se quedaba con la primera
+        aparición—, que es el gap B-4 del intento 2; ahora la aparición sobrante es error, con su
+        `fichero:línea`;
+      - constante de respaldo: `_ALGO_FALLBACK = …` al principio de la línea → su nombre tiene que
+        estar en el `respaldos` de la copia DE ESE FICHERO (por copia, no por bloque) y la
+        definición, dentro del rango de esa copia (`_respaldo_declarado`). Cuentan las TRES formas
+        de definir (`_nombres_de_respaldo`): simple, ANOTADA (`_X_FALLBACK: str = …`) y ENCADENADA
+        (`_A_FALLBACK = _B_FALLBACK = …`, con un error por nombre) — con solo la simple, anotar el
+        tipo o colgar la constante de una cadena bastaba para esquivar el registro (gap R3-3).
+    Es heurística POR MARCADOR Y POR NOMBRE, no exhaustiva (así está escrito en el propio registro,
+    clave `detecta`): una copia sin centinela y sin nombre `_*_FALLBACK` no se ve desde aquí.
+    """
+    marcadores, respaldos = _copias_registradas(root)
+    errores = []
+    for p, rel in _py_del_arbol(root):
+        _, texto = _leer(p)
+        if texto is None:
+            continue
+        declarados = marcadores.get(rel, [])
+        lineas = texto.splitlines()
+        vistos = {}
+        for n, linea in enumerate(lineas, 1):
+            m = _MARCADOR_COPIA_RE.match(linea)
+            if m:
+                marca = m.group(1)
+                if marca not in declarados:
+                    errores.append(
+                        f"{rel}:{n}: bloque replicado con centinela `{marca[:70]}` SIN fila en "
+                        f"{'/'.join(COPIAS_REGISTRO)} — declara el bloque (id sugerido "
+                        f"`{_id_sugerido(marca)}`) o quita el centinela (ADR-016)")
+                else:
+                    vistos[marca] = vistos.get(marca, 0) + 1
+                    if vistos[marca] > declarados.count(marca):
+                        errores.append(
+                            f"{rel}:{n}: el centinela `{marca[:70]}` aparece {vistos[marca]} veces "
+                            f"en este fichero y {'/'.join(COPIAS_REGISTRO)} declara "
+                            f"{declarados.count(marca)} — una copia de más del mismo bloque en un "
+                            f"fichero YA declarado no la compara nadie: quítala o declárala como "
+                            f"copia aparte (ADR-016)")
+                continue
+            for nombre in _nombres_de_respaldo(linea):
+                if _respaldo_declarado(nombre, n, lineas, respaldos.get(rel, ())):
+                    continue
+                errores.append(
+                    f"{rel}:{n}: constante de respaldo `{nombre}` SIN fila en "
+                    f"{'/'.join(COPIAS_REGISTRO)} — declárala en el bloque de su canónico "
+                    f"(id sugerido `{_id_sugerido(nombre)}`) (ADR-016)")
+    return errores, []
 
 
 def lint_console_encoding(root):
@@ -987,6 +1201,10 @@ def _frontmatter_plegado(path):
 
 
 def _piezas_local(root):
+    # --8<-- piezas del repo (frontmatters) — REPLICADO LITERAL en evals/check.py (canónico) y en
+    # scripts/lint_plugin.py (respaldo para cuando evals/check.py no está). DECLARADO en
+    # agent-kits/shared/copias.json (ADR-016), que lista la ÚNICA diferencia tolerada (el nombre del
+    # lector de frontmatter); tests/test_copias_declaradas.py compara el resto byte a byte.
     out = {}
     sk = os.path.join(root, "skills")
     if os.path.isdir(sk):
@@ -1000,6 +1218,7 @@ def _piezas_local(root):
             for fn in sorted(os.listdir(dd)):
                 if fn.endswith(".md"):
                     out[f"{kind}:{fn[:-3]}"] = _frontmatter_plegado(os.path.join(dd, fn)).get("description", "")
+    # --8<-- fin piezas del repo (frontmatters)
     return out
 
 
