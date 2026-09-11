@@ -9,6 +9,15 @@ and versioning follows [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed — `installer-registro-real` initiative (2026-09-11)
+
+- **T-01 — Title screen and checkbox multiselect, still zero dependencies.** `npx @daycry/custom-agents` now prints a banner and lets you pick the runtimes with checkboxes (space marks, Enter confirms); the ones it detects come pre-selected. (`install/install.mjs`, `tests/installer.test.mjs`)
+- **T-02 — Claude Code: the installer registers the plugin for real instead of copying the bundle.** It uses the official CLI when `claude` is on the PATH and writes the plugin registry itself when it is not, so hooks, the `/custom-agents:` namespace and updates all work. Copying the bundle into `.claude/` is now the explicit `--mode copy`, with a warning about what it loses. (`install/providers.mjs`, `install/install.mjs`, `tests/installer.test.mjs`)
+- **T-03 — Codex: the plugin is enabled, not just copied.** The installer registers the marketplace through the CLI and sets `enabled = true` in `config.toml` (plus `[features] hooks`), writing wherever the key is already declared and checking the result before saving. That was the missing step that kept skills and prompts from showing up. (`install/providers.mjs`, `install/install.mjs`, `tests/installer.test.mjs`)
+- **T-04 — OpenCode: the hook adapter is registered in `opencode.json`, not only copied.** The path is the one OpenCode actually resolves, relative to the config file. (`install/providers.mjs`, `install/install.mjs`, `tests/installer.test.mjs`)
+- **T-05 — `/doctor` and `status` check the real registration instead of the presence of files.** Both read the same effective state across Claude Code, Codex and OpenCode, honouring the documented settings precedence (managed, local, project, user), so a bundle copied into `.claude/` no longer passes as «hooks registered» and a plugin that is installed but disabled is reported as inactive, naming the file that decides it. (`agent-kits/shared/doctor.py`, `install/install.mjs`)
+- **T-06 — Installer documentation brought up to date in both languages.** INTEROP and INSTALL cover the install modes, the marketplace source, the fallback without the CLI and the two manifests, and the initiative ships a manual checklist for verifying Codex and OpenCode on a real machine. (`docs/INTEROP.md`, `docs/INSTALL.md`, `README.md`)
+
 ### Fixed — `usage-meter-transcripts` initiative (2026-09-10)
 
 - **T-01 — `_project_transcript_dir()` codifica el `cwd` como Claude Code y se prueba SIN `--transcript-dir`** `usage-meter` vuelve a encontrar las transcripciones en Windows y en rutas con espacios o puntos: la clave de la carpeta se codifica como lo hace Claude Code (todo carácter no alfanumérico → `-`), así que el coste de generación de specs, planes y tareas puede volver a medirse en vez de estimarse. (`agent-kits/shared/usage-meter.py`, `agent-kits/shared/test_usage_meter.py`)

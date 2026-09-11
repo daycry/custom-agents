@@ -10,4 +10,4 @@ Este índice lo regenera `journal.py index`; no lo edites.
 
 | Fecha | Iniciativa | Resumen | Fuente |
 |---|---|---|---|
-| — | — | _sin entradas todavía_ | — |
+| [2026-09-08](2026-09-08-sesion.md) | n/a | continua con la implementación | hook |

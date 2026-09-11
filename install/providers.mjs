@@ -1,17 +1,29 @@
 // providers.mjs — QUÉ instala cada proveedor y DÓNDE. Datos y planes puros: ni una escritura,
-// ni una lectura de disco fuera de `detect()`. Así el plan se puede imprimir (`--dry-run`),
-// comparar y testear sin tocar nada.
+// ni una lectura de disco fuera de `detect()` y de la detección de CLIs en el `PATH`. Así el plan
+// se puede imprimir (`--dry-run`), comparar y testear sin tocar nada.
 //
-// Un plan es una lista de pasos. Tres tipos, y ninguno más:
-//   { type: "copy",  from, to }   copia un fichero o un árbol (recursivo)
-//   { type: "write", to, content } escribe un fichero generado por el instalador
-//   { type: "merge", to, merge }  fusiona claves en un JSON del usuario SIN pisar lo suyo
+// Un plan es una lista de pasos. Seis tipos, y ninguno más:
+//   { type: "copy",  from, to }      copia un fichero o un árbol (recursivo)
+//   { type: "write", to, content }   escribe un fichero generado por el instalador
+//   { type: "merge", to, merge }     fusiona claves en un JSON del usuario SIN pisar lo suyo
+//   { type: "exec",  cmd, args }     ejecuta la CLI oficial del runtime (la vía que él bendice)
+//   { type: "json-set", to, set }    pone EXACTAMENTE unas claves en un JSON del usuario
+//                                    (a diferencia de `merge`, SÍ las sobrescribe; el manifiesto
+//                                    apunta cuáles para poder quitarlas al desinstalar)
+//   { type: "toml-set", to, tabla, clave, valor }   pone una clave en una tabla de un TOML,
+//                                    sin reescribir ninguna otra línea del fichero
+//
+// Además, cada proveedor declara con `registro(scope, dir)` DÓNDE mira uno si quiere saber si el
+// runtime tiene el plugin dado de alta de verdad. Son descriptores (fichero + qué buscar), no
+// lecturas: quien lee es `install.mjs` (`status`). Copiar ficheros nunca bastó para estar
+// «instalado» — mirar solo que existan es lo que daba el falso positivo de `/doctor`.
 //
 // El porqué de cada ruta está en `docs/INTEROP.md`; aquí solo vive la ruta.
 
-import { existsSync } from "node:fs"
+import { execFileSync } from "node:child_process"
+import { existsSync, statSync } from "node:fs"
 import { homedir } from "node:os"
-import { join } from "node:path"
+import { join, resolve } from "node:path"
 
 // El bundle de Claude Code es el repo entero salvo lo que solo sirve para desarrollarlo.
 export const PAYLOAD_CLAUDE = [
@@ -21,32 +33,305 @@ export const PAYLOAD_CLAUDE = [
 // las skills (formato común), los kits (los resuelve el `find`) y los hooks (scripts de shell).
 export const PAYLOAD_COMUN = ["skills", "agent-kits", "hooks"]
 
-const HOME = homedir()
+/** Nombres fijados por `.claude-plugin/marketplace.json` y `.claude-plugin/plugin.json`. */
+export const MKT = "daycry"
+export const PLUGIN = "custom-agents"
+export const PLUGIN_ID = `${PLUGIN}@${MKT}`
+/** Fuente por defecto del marketplace: el repo público (la misma que la vía nativa). */
+export const FUENTE_DEFECTO = "daycry/custom-agents"
+/** Primera versión de Codex con `codex plugin marketplace add` (la que exige también claude-mem). */
+export const CODEX_MIN = "0.128.0"
+
+// El HOME se lee EN CADA LLAMADA, nunca al importar: los tests inyectan uno temporal por `env` y
+// el instalador tiene que verlo (antes se congelaba en una constante de módulo).
+const home = () => homedir()
+
+/** Config de Claude Code: `~/.claude` salvo que `CLAUDE_CONFIG_DIR` diga otra cosa (la respeta en todo). */
+export const claudeConfigDir = () => process.env.CLAUDE_CONFIG_DIR || join(home(), ".claude")
+
+/**
+ * Niveles de ajustes de Claude Code, del que MÁS manda al que menos
+ * (`settings#settings-precedence`: «Managed > command line > Project local > Shared project >
+ * User»). `enabledPlugins` se puede escribir en cualquiera de ellos
+ * (`settings-reference#enabledplugins`: «Scope: Any file»), así que `status` los lee todos y
+ * resuelve por precedencia, igual que `estado_plugin()` en `agent-kits/shared/doctor.py`. La línea
+ * de comandos no deja rastro en disco: no se puede diagnosticar y no está en la lista.
+ */
+export const PRECEDENCIA_SETTINGS = ["managed", "local", "project", "user"]
+
+/**
+ * `managed-settings.json` de la plataforma (ajustes impuestos por la organización), o `null` si el
+ * sistema no es ninguno de los tres documentados. Rutas de `settings#settings-files`.
+ */
+export function managedSettings() {
+  if (process.platform === "darwin") return "/Library/Application Support/ClaudeCode/managed-settings.json"
+  if (process.platform === "win32") {
+    return join(process.env.PROGRAMDATA || "C:\\ProgramData", "ClaudeCode", "managed-settings.json")
+  }
+  return "/etc/claude-code/managed-settings.json"
+}
+
+/** Config de Codex: `~/.codex` salvo que `CODEX_HOME` diga otra cosa (lo mismo que lee `/doctor`). */
+export const codexHome = () => process.env.CODEX_HOME || join(home(), ".codex")
 
 /** Directorio de configuración global de cada runtime (el de OpenCode NO es `~/.opencode`). */
 export const GLOBAL_DIR = {
-  "claude-code": join(HOME, ".claude"),
-  codex: join(HOME, ".codex"),
-  opencode: join(HOME, ".config", "opencode"),
+  get "claude-code"() { return claudeConfigDir() },
+  get codex() { return codexHome() },
+  get opencode() { return join(home(), ".config", "opencode") },
 }
 
 /** Nombre del fichero-manifiesto que deja el instalador para poder desinstalar con precisión. */
 export const MANIFEST = ".custom-agents-install.json"
+/**
+ * Claude Code puede estar instalado de DOS maneras a la vez en el mismo scope (el bundle copiado
+ * en `.claude/` de un instalador anterior y el plugin registrado), y en scope `project` las dos
+ * escriben en la MISMA carpeta. Con un solo nombre de manifiesto la segunda instalación pisaba el
+ * inventario de la primera y dejaba sus ficheros huérfanos: cada modo tiene el suyo.
+ */
+export const MANIFEST_PLUGIN = ".custom-agents-install.plugin.json"
+/** Los dos nombres de manifiesto posibles (lo que `status`/`uninstall` tienen que mirar). */
+export const MANIFIESTOS = [MANIFEST, MANIFEST_PLUGIN]
+
+/**
+ * Extensiones que este instalador sabe ARRANCAR de verdad: `.exe`/`.com` directas y `.cmd`/`.bat`
+ * a través de `cmd.exe` (ver `correr()`). El PATHEXT de Windows 11 trae además `.VBS`, `.JS`,
+ * `.WSF`, `.MSC`… que `correr()` NO lanza: darlas por buenas daba `spawnSync … EFTYPE` y abortaba
+ * el proveedor en vez de caer al respaldo. Cualquier otra extensión es `no-ejecutable`.
+ *
+ * `npm i -g` deja en la misma carpeta dos ficheros con el mismo nombre: un shim POSIX SIN
+ * extensión (para Git Bash) y un `.cmd` (para Windows). `where.exe` devuelve los dos y el shim
+ * suele salir primero: coger ese daba `ENOENT` (o «versión desconocida») teniendo la CLI delante.
+ */
+const PATHEXT_DEFECTO = ".COM;.EXE;.BAT;.CMD"
+const ARRANCABLES = [".EXE", ".COM", ".CMD", ".BAT"]
+
+/**
+ * Orden en el que se prueban las extensiones: el de PATHEXT, que es el que sigue el intérprete de
+ * comandos (por defecto `.COM;.EXE;.BAT;.CMD`, así que un `claude.exe` gana a un `claude.cmd`).
+ * Un orden fijo propio hacía que el instalador ejecutara un lanzador DISTINTO del que usa el
+ * usuario cuando conviven el instalador nativo (`.exe`) y los shims de npm (`.cmd`).
+ */
+function preferencia() {
+  const ext = (process.env.PATHEXT || PATHEXT_DEFECTO).split(";")
+    .map((e) => e.trim().toUpperCase()).filter(Boolean)
+  const orden = ext.filter((e) => ARRANCABLES.includes(e))
+  return orden.length ? orden : PATHEXT_DEFECTO.split(";").filter((e) => ARRANCABLES.includes(e))
+}
+
+/**
+ * De TODOS los resultados de `where.exe`, el que Node puede ejecutar de verdad. Pura, para poder
+ * probar el layout de npm (shim sin extensión primero, `.cmd` después) sin un PATH de verdad.
+ * `ejecutable: false` significa «lo hay, pero no lo puedo lanzar»: hay que degradar, no reventar.
+ */
+export function elegirEjecutable(candidatos, plataforma = process.platform) {
+  const lista = (candidatos || []).map((s) => String(s).trim()).filter(Boolean)
+  if (!lista.length) return { ruta: null, ejecutable: false }
+  if (plataforma !== "win32") return { ruta: lista[0], ejecutable: true }
+  for (const ext of preferencia()) {
+    const hit = lista.find((c) => c.toUpperCase().endsWith(ext))
+    if (hit) return { ruta: hit, ejecutable: true }
+  }
+  return { ruta: lista[0], ejecutable: false }
+}
+
+function dondeEsta(cmd) {
+  try {
+    const salida = execFileSync(process.platform === "win32" ? "where.exe" : "which", [cmd],
+      { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] })
+    return salida.split(/\r?\n/)
+  } catch { return [] }
+}
+
+/**
+ * Estado de una CLI del PATH: `"si"` (se puede ejecutar), `"no"` (no está) o `"no-ejecutable"`
+ * (está, pero solo como shim que Node no arranca → se degrada al respaldo diciéndolo).
+ */
+export function estadoCli(cmd) {
+  const { ruta, ejecutable } = elegirEjecutable(dondeEsta(cmd))
+  return !ruta ? "no" : ejecutable ? "si" : "no-ejecutable"
+}
+
+/** Ruta REAL y ejecutable de un comando del PATH, o `null` (incluido el shim no lanzable). */
+export function rutaDe(cmd) {
+  const { ruta, ejecutable } = elegirEjecutable(dondeEsta(cmd))
+  return ejecutable ? ruta : null
+}
+
+/** ¿Está este comando en el PATH Y se puede ejecutar desde Node? */
+export const enPath = (cmd) => Boolean(rutaDe(cmd))
+
+/**
+ * Cómo se declara la fuente de un marketplace en el registro de Claude Code. Las dos formas están
+ * tomadas de un `~/.claude` real: `github` + `repo` para `owner/repo`, `directory` + `path` para
+ * una ruta local (que es lo que escribe `claude plugin marketplace add <ruta>`).
+ *
+ * `owner/repo` SOLO si además de casar el patrón no puede ser una ruta: `./mi-clon` y `../x` casan
+ * con `[\w.-]+/[\w.-]+` y se escribían como `repo: "./mi-clon"` — irresoluble, y es justo el
+ * ejemplo del `--help`. Una ruta se resuelve a ABSOLUTA: el registro lo lee Claude Code desde
+ * cualquier directorio, no desde aquel en el que se ejecutó el instalador.
+ */
+export function clasificarFuente(fuente) {
+  const s = String(fuente || "")
+  const pareceRuta = /^[.~]/.test(s) || /^[/\\]/.test(s) || /^[A-Za-z]:([/\\]|$)/.test(s)
+  let existe = false
+  try { existe = existsSync(s) && statSync(s).isDirectory() } catch { existe = false }
+  const esRepo = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(s) && !pareceRuta && !existe
+  return esRepo ? { source: "github", repo: s } : { source: "directory", path: resolve(s) }
+}
+const fuenteRegistro = clasificarFuente
 
 // --------------------------------------------------------------------------- Claude Code
+
+// Dos modos, y el bueno es el de por defecto:
+//   · `plugin` (defecto) — Claude Code se entera de verdad: hooks, statusline, namespace
+//     `/custom-agents:` y actualizaciones. Vía oficial (`claude plugin …`) si la CLI está en el
+//     PATH; si no, se escribe el mismo registro que escribe ella.
+//   · `copy` — el bundle copiado a `.claude/` (vías 1 y 2 de `docs/INSTALL.md`). Sirve para leer
+//     las piezas, pero Claude Code NO lee `hooks/hooks.json` fuera de un plugin instalado.
+function planClaude(o) {
+  const { dir, dest, scope, version } = o
+  const modo = o.modo || "plugin"
+
+  if (modo === "copy") {
+    const pasos = PAYLOAD_CLAUDE.map((p) => ({ type: "copy", from: p, to: join(dest, p) }))
+    pasos[0].aviso = "bundle copiado: hooks y statusline NO se registran y no hay namespace "
+      + "`/custom-agents:` (Claude Code solo lee `hooks/hooks.json` dentro de un plugin instalado) "
+      + "— quita `--mode copy` para instalarlo como plugin"
+    return pasos
+  }
+
+  const fuente = o.source || FUENTE_DEFECTO
+  // Tres estados, no dos: `claude` puede estar en el PATH y aun así no ser lanzable desde Node
+  // (shim de npm sin extensión en Windows). Ese caso NO es «hay CLI»: es respaldo, y se dice.
+  const cli = o.cli?.claude === undefined
+    ? estadoCli("claude")
+    : (o.cli.claude === true ? "si" : o.cli.claude === false ? "no" : String(o.cli.claude))
+  if (cli === "si") {
+    return [
+      {
+        type: "exec",
+        cmd: "claude",
+        args: ["plugin", "marketplace", "add", fuente, "--scope", scope],
+        // `cwd`: la CLI de Claude Code toma el proyecto del DIRECTORIO DE TRABAJO, no de ningun
+        // argumento. Sin esto, `--scope project` daba de alta el cwd del instalador (el repo desde
+        // el que se lanza `npx`) en vez de `--dir`: el instalador decia «2 pasos aplicados» y acto
+        // seguido `status` decia «registrado: no», porque el `projectPath` grabado era otra carpeta.
+        cwd: dir,
+        // Si ya estaba declarado, `add` falla y da igual: se sigue con el marketplace existente.
+        siFalla: "aviso",
+      },
+      {
+        type: "exec",
+        cmd: "claude",
+        args: ["plugin", "install", PLUGIN_ID, "--scope", scope, "--yes"],
+        cwd: dir,
+        siFalla: "error",
+        deshacer: ["claude", "plugin", "uninstall", PLUGIN_ID, "--scope", scope],
+      },
+    ]
+  }
+
+  // Respaldo sin CLI: escribir el registro que Claude Code lee al arrancar. El formato está
+  // verificado contra un `~/.claude` real (y es el mismo que escribe claude-mem); al ser formato
+  // interno, la vía preferida sigue siendo la CLI — ver `docs/INTEROP.md`.
+  const cfg = claudeConfigDir()
+  const mkt = join(cfg, "plugins", "marketplaces", MKT)
+  const cache = join(cfg, "plugins", "cache", MKT, PLUGIN, version)
+  const paquete = [...PAYLOAD_CLAUDE, "package.json"]
+  const ahora = new Date().toISOString()
+  const origen = fuenteRegistro(fuente)
+  const ajustes = scope === "user" ? join(cfg, "settings.json") : join(dir, ".claude", "settings.json")
+  const enSettings = { [`enabledPlugins.${PLUGIN_ID}`]: true }
+  if (scope === "project") enSettings[`extraKnownMarketplaces.${MKT}`] = { source: origen }
+
+  const copias = [
+    ...paquete.map((p) => ({ type: "copy", from: p, to: join(mkt, p) })),
+    ...paquete.map((p) => ({ type: "copy", from: p, to: join(cache, p) })),
+  ]
+  copias[0].aviso = (cli === "no-ejecutable"
+    ? "`claude` encontrado pero no ejecutable desde Node (shim de npm sin extensión, `.ps1`, `.vbs`…): "
+      + "uso el registro directo, "
+    : "sin `claude` en el PATH: registro ")
+    + "escrito en " + join(cfg, "plugins") + " (formato interno de Claude Code)"
+
+  return [
+    ...copias,
+    {
+      type: "json-set",
+      to: join(cfg, "plugins", "known_marketplaces.json"),
+      set: { [MKT]: { source: origen, installLocation: mkt, lastUpdated: ahora, autoUpdate: true } },
+      volatiles: ["lastUpdated"],
+    },
+    {
+      type: "json-set",
+      to: join(cfg, "plugins", "installed_plugins.json"),
+      set: {
+        version: 2,
+        // `projectPath` en scope `project`: sin él una entrada no se puede atribuir a NINGUNA
+        // carpeta, y `status` / `/doctor` tendrían que darla por buena en todas (el falso positivo).
+        [`plugins.${PLUGIN_ID}`]: [
+          scope === "project"
+            ? { scope, projectPath: resolve(dir), installPath: cache, version, installedAt: ahora, lastUpdated: ahora }
+            : { scope, installPath: cache, version, installedAt: ahora, lastUpdated: ahora },
+        ],
+      },
+      volatiles: ["installedAt", "lastUpdated"],
+      // `version` es del fichero, no nuestra: se pone si falta, pero desinstalar no la quita.
+      noQuitar: ["version"],
+    },
+    { type: "json-set", to: ajustes, set: enSettings },
+  ]
+}
 
 const claudeCode = {
   id: "claude-code",
   label: "Claude Code",
   blurb: "plugin nativo — agentes, comandos, skills, hooks y statusline",
   detect: () => existsSync(GLOBAL_DIR["claude-code"]),
-  // La vía recomendada no necesita al instalador; se dice al terminar, no se hace por sorpresa.
-  hint: "Vía recomendada: `/plugin marketplace add daycry/custom-agents` + `/plugin install custom-agents`.",
-  plan({ root, dest }) {
-    return PAYLOAD_CLAUDE.map((p) => ({ type: "copy", from: p, to: join(dest, p) }))
-  },
-  destino: (scope, dir) => (scope === "user" ? GLOBAL_DIR["claude-code"] : join(dir, ".claude")),
-  restart: "Reinicia Claude Code (o `/reload-plugins`).",
+  hint: ({ modo }) => (modo === "copy"
+    ? "Bundle copiado: sin hooks, sin statusline y sin namespace `/custom-agents:`. "
+      + "Quita `--mode copy` para instalarlo como plugin."
+    : "Compruébalo con `claude plugin list`: tiene que aparecer `" + PLUGIN_ID + "`."),
+  plan: planClaude,
+  destino: (scope, dir, modo = "plugin") => (modo === "copy"
+    ? (scope === "user" ? GLOBAL_DIR["claude-code"] : join(dir, ".claude"))
+    : (scope === "user" ? join(claudeConfigDir(), "plugins") : join(dir, ".claude"))),
+  // En scope `project` los dos modos escriben en `<dir>/.claude`: sin un nombre por modo, instalar
+  // como plugin encima de un `--mode copy` anterior (la ruta de actualización de todo el mundo)
+  // pisaba el inventario del copy y dejaba sus 222 ficheros huérfanos.
+  manifiesto: (modo = "plugin") => (modo === "copy" ? MANIFEST : MANIFEST_PLUGIN),
+  // Los sitios que Claude Code lee para saber que el plugin existe. Con `--mode copy` no se
+  // escribe ninguno: por eso `status` dirá «registrado: no» aunque haya 222 ficheros en su sitio.
+  //
+  // `installed_plugins.json` es común a los dos scopes —la CLI oficial también lo escribe cuando
+  // instalas con `--scope project`—, así que se mira en los dos, filtrando por el `scope` y el
+  // `projectPath` que trae cada entrada: un alta de OTRO proyecto no registra esta carpeta. Es el
+  // mismo criterio que `estado_plugin()` en `agent-kits/shared/doctor.py`.
+  //
+  // `enabledPlugins` se mira en los CUATRO ficheros de la pila (`PRECEDENCIA_SETTINGS`), no solo
+  // en el del scope: `.claude/settings.local.json` es donde escribe `claude plugin disable --scope
+  // local` y manda sobre el compartido del proyecto, así que leer solo `settings.json` daba
+  // «registrado: sí» con el plugin apagado. El `managed-settings.json` de la plataforma manda
+  // sobre todo; si el sistema no lo tiene, el descriptor simplemente no encuentra fichero.
+  registro: (scope, dir) => [
+    scope === "user"
+      ? { fichero: join(claudeConfigDir(), "plugins", "installed_plugins.json"),
+          tipo: "json-instalados", ruta: "plugins", clave: PLUGIN_ID, scope: "user" }
+      : { fichero: join(claudeConfigDir(), "plugins", "installed_plugins.json"),
+          tipo: "json-instalados", ruta: "plugins", clave: PLUGIN_ID, scope: "project", proyecto: resolve(dir) },
+    { fichero: join(claudeConfigDir(), "settings.json"),
+      tipo: "json-prefijo", ruta: "enabledPlugins", clave: PLUGIN_ID, nivel: "user" },
+    { fichero: join(dir, ".claude", "settings.json"),
+      tipo: "json-prefijo", ruta: "enabledPlugins", clave: PLUGIN_ID, nivel: "project" },
+    { fichero: join(dir, ".claude", "settings.local.json"),
+      tipo: "json-prefijo", ruta: "enabledPlugins", clave: PLUGIN_ID, nivel: "local" },
+    { fichero: managedSettings(),
+      tipo: "json-prefijo", ruta: "enabledPlugins", clave: PLUGIN_ID, nivel: "managed" },
+  ],
+  restart: ({ modo }) => (modo === "copy"
+    ? "Reinicia Claude Code (lee `.claude/` al arrancar)."
+    : "Reinicia Claude Code (o `/reload-plugins`) para cargar el plugin."),
 }
 
 // --------------------------------------------------------------------------- Codex
@@ -56,13 +341,14 @@ const codex = {
   label: "Codex",
   blurb: "plugin + agentes `.toml` + comandos como prompts",
   detect: () => existsSync(GLOBAL_DIR.codex),
-  hint: "Alternativa con red: `codex plugin marketplace add daycry/custom-agents`.",
+  hint: "El plugin solo carga si está HABILITADO: el instalador pone `enabled = true` en tu `config.toml`.",
   // En Codex el plugin vive en su propia carpeta y el marketplace lo declara. Los agentes son
   // TOML en `agents/`, y los prompts SOLO existen en CODEX_HOME (no hay prompts por proyecto).
   plan({ root, dir, scope, version }) {
     const base = scope === "user" ? GLOBAL_DIR.codex : join(dir, ".codex")
     const plugin = join(base, "plugins", "custom-agents")
-    const mktRoot = scope === "user" ? join(HOME, ".agents") : join(dir, ".agents")
+    const mktRoot = scope === "user" ? join(home(), ".agents") : join(dir, ".agents")
+    const config = join(base, "config.toml")
     const pasos = [
       ...PAYLOAD_COMUN.map((p) => ({ type: "copy", from: p, to: join(plugin, p) })),
       { type: "copy", from: ".codex-plugin", to: join(plugin, ".codex-plugin") },
@@ -83,12 +369,45 @@ const codex = {
         to: join(mktRoot, "plugins", "marketplace.json"),
         merge: marketplaceCodex(mktRoot, plugin, version),
       },
+      // Copiar el plugin no basta: Codex solo lo carga si el marketplace está dado de alta y el
+      // plugin HABILITADO. Lo primero es cosa de su CLI (opcional: sin `codex` se dice el comando
+      // pendiente); lo segundo es una línea en el `config.toml` del scope, que sí ponemos nosotros.
+      {
+        type: "exec",
+        cmd: "codex",
+        args: ["plugin", "marketplace", "add", mktRoot],
+        // `mktRoot` ya es absoluto, pero se lanza igualmente desde `--dir`: ninguna CLI del
+        // instalador puede acabar operando sobre el directorio desde el que se invoco `npx`.
+        cwd: dir,
+        opcional: true,
+        siFalla: "aviso",
+        minVersion: CODEX_MIN,
+        // Si el marketplace `daycry` ya existe apuntando a OTRA fuente, es del usuario: el
+        // instalador NO lo borra por su cuenta (borrarlo y re-crearlo con la nuestra es pisarle la
+        // configuración sin preguntar). Por defecto se avisa con el comando exacto; solo con
+        // `--force-marketplace` se ejecuta el `remove` + `add`, y entonces queda en el manifiesto.
+        siYaExiste: {
+          patron: "already added from a different source",
+          args: ["plugin", "marketplace", "remove", MKT],
+          soloConForce: true,
+        },
+      },
+      { type: "toml-set", to: config, tabla: `plugins."${PLUGIN_ID}"`, clave: "enabled", valor: true },
+      // `[features] hooks` es una preferencia global del usuario: se enciende (los hooks del plugin
+      // no corren sin ella) pero desinstalar NO la apaga, porque puede haberla puesto él.
+      { type: "toml-set", to: config, tabla: "features", clave: "hooks", valor: true, deshacer: false },
     ]
     return pasos
   },
   destino: (scope, dir) =>
     join(scope === "user" ? GLOBAL_DIR.codex : join(dir, ".codex"), "plugins", "custom-agents"),
   restart: "Reinicia Codex (los skills y prompts se leen al arrancar la sesión).",
+  // Codex carga el plugin solo si está HABILITADO en el `config.toml` del scope: es esa línea, y
+  // no la copia de ficheros, la que dice si está instalado de verdad.
+  registro: (scope, dir) => [
+    { fichero: join(scope === "user" ? GLOBAL_DIR.codex : join(dir, ".codex"), "config.toml"),
+      tipo: "toml-verdadero", ruta: `plugins."${PLUGIN_ID}".enabled` },
+  ],
 }
 
 /** Entrada de marketplace de Codex apuntando a la copia instalada (ruta relativa a su raíz). */
@@ -97,10 +416,10 @@ function marketplaceCodex(mktRoot, plugin, version) {
   // contra la carpeta del fichero.
   const rel = "./" + relPosix(join(mktRoot, ".."), plugin)
   return {
-    name: "daycry",
+    name: MKT,
     interface: { displayName: "Agentes custom de daycry" },
     plugins: [{
-      name: "custom-agents",
+      name: PLUGIN,
       version,
       source: { source: "local", path: rel },
       policy: { installation: "AVAILABLE", authentication: "NONE" },
@@ -111,11 +430,35 @@ function marketplaceCodex(mktRoot, plugin, version) {
 
 // --------------------------------------------------------------------------- OpenCode
 
+/** Nombre del fichero del adaptador de hooks de OpenCode (el que carga sus eventos). */
+export const ADAPTADOR_OPENCODE = "custom-agents-hooks.js"
+
+/**
+ * Cómo se declara el adaptador en `plugin` de `opencode.json`. **Un spec con forma de ruta se
+ * resuelve contra la carpeta del fichero de config que lo declara** (`config/plugin.ts`,
+ * `resolvePluginSpec`), no contra el directorio de trabajo:
+ *
+ *   · scope `project` → el config vive en la RAÍZ del proyecto y el adaptador en
+ *     `.opencode/plugins/`, así que la ruta es `./.opencode/plugins/…` (un `./plugins/…` apuntaría
+ *     a `<proyecto>/plugins/…`, que no existe, y OpenCode publicaría un «Failed to load plugin»).
+ *   · scope `user` → config y adaptador comparten carpeta (`~/.config/opencode/`); se escribe la
+ *     ruta ABSOLUTA, siempre con `/` (un `\` en un JSON hay que escaparlo y confunde al leerlo).
+ *
+ * Registrarlo NO lo carga dos veces aunque OpenCode también autodescubra `{plugin,plugins}/*.js`
+ * de esa misma carpeta: dedupe por URL de fichero (`deduplicatePluginOrigins`). Se declara igual
+ * para que el registro sea COMPROBABLE (`/doctor` y `status` lo leen) y no dependa de un barrido.
+ */
+export function rutaPluginOpencode(base, scope) {
+  return scope === "user"
+    ? join(base, "plugins", ADAPTADOR_OPENCODE).split(/[\\/]/).join("/")
+    : `./.opencode/plugins/${ADAPTADOR_OPENCODE}`
+}
+
 const opencode = {
   id: "opencode",
   label: "OpenCode",
   blurb: "agentes + comandos + skills + adaptador de hooks en JS",
-  detect: () => existsSync(GLOBAL_DIR.opencode) || existsSync(join(HOME, ".opencode")),
+  detect: () => existsSync(GLOBAL_DIR.opencode) || existsSync(join(home(), ".opencode")),
   hint: "OpenCode también lee `.claude/skills/`: si ya tienes el bundle de Claude Code, las skills se comparten.",
   plan({ dir, scope, root }) {
     const base = scope === "user" ? GLOBAL_DIR.opencode : join(dir, ".opencode")
@@ -125,14 +468,15 @@ const opencode = {
     const idxRel = scope === "user"
       ? join(base, "custom-agents-index.md").split(/[\\/]/).join("/")
       : ".opencode/custom-agents-index.md"
+    const adaptador = rutaPluginOpencode(base, scope)
     return [
       ...PAYLOAD_COMUN.map((p) => ({ type: "copy", from: p, to: join(base, p) })),
       { type: "copy", from: "interop/opencode/agents", to: join(base, "agents") },
       { type: "copy", from: "interop/opencode/commands", to: join(base, "commands") },
       {
         type: "copy",
-        from: "interop/opencode/plugins/custom-agents-hooks.js",
-        to: join(base, "plugins", "custom-agents-hooks.js"),
+        from: `interop/opencode/plugins/${ADAPTADOR_OPENCODE}`,
+        to: join(base, "plugins", ADAPTADOR_OPENCODE),
       },
       {
         type: "copy",
@@ -152,6 +496,7 @@ const opencode = {
         merge: {
           $schema: "https://opencode.ai/config.json",
           instructions: [idxRel],
+          plugin: [adaptador],
           permission: { skill: { "*": "allow" } },
         },
         onlyIfMissing: ["permission"],
@@ -162,6 +507,19 @@ const opencode = {
   },
   destino: (scope, dir) => (scope === "user" ? GLOBAL_DIR.opencode : join(dir, ".opencode")),
   restart: "Reinicia OpenCode (los plugins se cargan al arrancar).",
+  registro: (scope, dir) => [
+    { fichero: scope === "user" ? join(GLOBAL_DIR.opencode, "opencode.json") : join(dir, "opencode.json"),
+      tipo: "json-array",
+      ruta: "plugin",
+      valor: rutaPluginOpencode(scope === "user" ? GLOBAL_DIR.opencode : join(dir, ".opencode"), scope) },
+  ],
+  // `plugin` se queda en `opencode.json` al desinstalar (es config del usuario, como
+  // `instructions`), pero el fichero al que apunta SÍ se borra: hay que decírselo, porque un spec
+  // de ruta que no existe hace que OpenCode publique un «Failed to load plugin» al arrancar.
+  notaDesinstalar: (scope, dir) => "tu `opencode.json` conserva `instructions` y `plugin` "
+    + `(\`${rutaPluginOpencode(scope === "user" ? GLOBAL_DIR.opencode : join(dir, ".opencode"), scope)}\`): `
+    + "es tuyo y no lo toco, pero el adaptador ya no está — quita esa entrada de `plugin` o "
+    + "OpenCode se quejará al arrancar de un plugin que no puede cargar",
 }
 
 export const PROVIDERS = [claudeCode, codex, opencode]
@@ -171,10 +529,32 @@ export function getProvider(id) {
   return PROVIDERS.find((p) => p.id === id)
 }
 
+/** Nombre del manifiesto de un proveedor en un modo. Solo Claude Code tiene más de uno. */
+export const manifiestoDe = (provider, modo) =>
+  (typeof provider?.manifiesto === "function" ? provider.manifiesto(modo) : MANIFEST)
+
+/**
+ * Todos los sitios donde puede haber un manifiesto de este proveedor: `{ dest, file, modo }`.
+ * `status` y `uninstall` los recorren TODOS (un mismo scope puede tener el copy y el plugin).
+ */
+export function sitiosManifiesto(provider, scope, dir) {
+  const vistos = new Set()
+  const out = []
+  for (const modo of ["plugin", "copy"]) {
+    const dest = provider.destino(scope, dir, modo)
+    const file = manifiestoDe(provider, modo)
+    const clave = dest + "|" + file
+    if (vistos.has(clave)) continue
+    vistos.add(clave)
+    out.push({ dest, file, modo })
+  }
+  return out
+}
+
 /** Construye el plan de un proveedor. `dest` se deriva de su `destino()`. */
-export function buildPlan(provider, { root, dir, scope, version }) {
-  const dest = provider.destino(scope, dir)
-  return provider.plan({ root, dir, dest, scope, version })
+export function buildPlan(provider, { root, dir, scope, version, modo, source, cli }) {
+  const dest = provider.destino(scope, dir, modo)
+  return provider.plan({ root, dir, dest, scope, version, modo, source, cli })
 }
 
 function relPosix(from, to) {

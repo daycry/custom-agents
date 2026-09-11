@@ -30,24 +30,72 @@ npx @daycry/custom-agents uninstall -p codex   # borra lo que instaló, y solo e
 | `-p, --provider <ids>` | `claude-code`, `codex`, `opencode` (coma) o `all` |
 | `--scope project\|user` | proyecto (por defecto) o instalación global del runtime |
 | `--dir <ruta>` | proyecto destino (por defecto, el directorio actual) |
+| `--mode plugin\|copy` | **solo Claude Code**: instalarlo como plugin (por defecto) o copiar el bundle a `.claude/` |
+| `--source <ruta\|owner/repo>` | de dónde sale el marketplace de Claude Code (por defecto `daycry/custom-agents`); una ruta local sirve para desarrollar |
+| `--force-marketplace` | **solo Codex**: si el marketplace `daycry` ya existe apuntando a otra fuente, rehacerlo (por defecto se avisa y no se toca) |
 | `--dry-run` | plan completo sin escribir nada |
 | `-y, --yes` | sin preguntas (CI) |
 
-Cuatro garantías del instalador, con test cada una en `tests/installer.test.mjs`:
+> `CLAUDE_CONFIG_DIR` se respeta en todo: si lo tienes apuntando a otro sitio, el instalador
+> escribe ahí y no en `~/.claude`.
+
+### Instalar no es copiar: qué hace el instalador en cada runtime
+
+Cada runtime tiene un fichero que decide si el plugin **carga**. Copiar los ficheros no lo toca, y
+sin él no hay hooks, ni statusline, ni namespace de comandos. El instalador escribe esos ficheros:
+
+| Runtime | Qué se copia | Qué se **registra** (y dónde) |
+|---|---|---|
+| **Claude Code** | con `--mode plugin` no copia nada en tu proyecto: el paquete va al caché de plugins | `claude plugin marketplace add` + `claude plugin install` si tienes la CLI en el PATH; si no, el mismo registro a mano: `plugins/known_marketplaces.json`, `plugins/installed_plugins.json` y `enabledPlugins` de `settings.json` (scope user) o `.claude/settings.json` con `extraKnownMarketplaces` (scope project) |
+| **Codex** | plugin en `~/.codex/plugins/custom-agents/`, agentes `.toml` y prompts | `codex plugin marketplace add` si la CLI está en el PATH (y es ≥ 0.128.0), más `[plugins."custom-agents@daycry"] enabled = true` y `[features] hooks = true` en el `config.toml` del scope, que es lo que Codex mira al arrancar |
+| **OpenCode** | agentes, comandos, skills, kits y el adaptador de hooks en `plugins/` | `plugin: ["./.opencode/plugins/custom-agents-hooks.js"]` en `opencode.json` (ruta absoluta en scope user), añadido a lo que ya tuvieras |
+
+**La vía preferida siempre es la CLI oficial del runtime.** El respaldo —escribir el registro
+nosotros— existe porque `claude` no está en el PATH de todo el mundo (instalación de escritorio en
+Windows, shims de npm que Node no sabe lanzar) y sin él el instalador no podía hacer nada útil. Es
+formato interno de cada herramienta, así que el instalador **dice** cuándo lo usa y por qué.
+
+**`--mode copy`** es la instalación de siempre: el bundle copiado a `.claude/`. Sirve para leer las
+piezas (agentes, skills, kits) y para trastear, pero Claude Code **no lee `hooks/hooks.json` fuera
+de un plugin instalado**: sin hooks, sin statusline y sin `/custom-agents:`. El instalador lo avisa
+al terminar y `/doctor` lo marca ⚠️ (§4).
+
+### ¿Está registrado de verdad?
+
+```bash
+npx @daycry/custom-agents status   # por runtime y scope: manifiesto + «registrado: sí/no»
+```
+
+`status` no se fía del manifiesto: lee los mismos ficheros que lee el runtime (`installed_plugins.json`
+/ `enabledPlugins`, `config.toml` de Codex, `plugin` de `opencode.json`). Por eso puede decir
+«registrado: sí» sin manifiesto (lo instalaste con la CLI del runtime) y «no» con él (`--mode copy`).
+De Claude Code lee `enabledPlugins` en los **cuatro** ficheros de ajustes de la pila documentada
+(`settings-reference#enabledplugins`: «Scope: Any file») y resuelve en el orden de
+`settings#settings-precedence` («Managed > command line > Project local > Shared project > User»):
+`managed-settings.json` > `.claude/settings.local.json` > `.claude/settings.json` > el `settings.json`
+de tu `CLAUDE_CONFIG_DIR`. Mirar solo los dos últimos daba «registrado: sí» con el plugin apagado con
+`claude plugin disable --scope local`.
+Dentro de Claude Code, lo mismo con más detalle: `/doctor`.
+
+Cinco garantías del instalador, con test cada una en `tests/installer.test.mjs`:
 
 1. **Idempotente** — reinstalar deja el mismo árbol y no duplica entradas de configuración.
 2. **No pisa tu configuración** — los JSON se **fusionan**: lo que ya existe manda. `permission`
    de OpenCode ni se toca (ver §4), solo se avisa.
-3. **Desinstalable con precisión** — cada instalación deja un `.custom-agents-install.json` con la
-   lista exacta de ficheros escritos; `uninstall` borra esa lista y nada más. Un fichero tuyo en
-   una carpeta nuestra sobrevive; tu configuración fusionada, también (no se borra nunca).
-4. **Degrada** — si un proveedor falla, los demás se instalan igual.
+3. **Desinstalable con precisión** — cada instalación deja un `.custom-agents-install.json` (o
+   `.custom-agents-install.plugin.json` en modo plugin) con la lista exacta de ficheros escritos y
+   los apuntes de registro; `uninstall` borra esa lista, deshace esos apuntes y nada más. Un fichero
+   tuyo en una carpeta nuestra sobrevive; tu configuración fusionada, también (no se borra nunca).
+4. **Degrada** — si un proveedor falla, los demás se instalan igual; si falta la CLI de un runtime,
+   se hace lo que se puede y se imprime el comando que queda pendiente.
+5. **No miente** — si un paso no se pudo dar, sale en los avisos: nunca un «listo» por haber
+   copiado ficheros.
 
 ### Las vías nativas (sin instalador)
 
 | Runtime | Cómo |
 |---|---|
-| **Claude Code** | `/plugin marketplace add daycry/custom-agents` + `/plugin install custom-agents`. O copiar el bundle como `.claude/` del proyecto (`docs/INSTALL.md`). |
+| **Claude Code** | `/plugin marketplace add daycry/custom-agents` + `/plugin install custom-agents` (es lo que hace `--mode plugin`). Copiar el bundle como `.claude/` del proyecto (`docs/INSTALL.md`) equivale a `--mode copy`: sin hooks, sin statusline y sin namespace. |
 | **Codex** | `codex plugin marketplace add daycry/custom-agents` (lee `.codex-plugin/plugin.json` y `.agents/plugins/marketplace.json` del repo). Los agentes `.toml` y los prompts se copian a mano desde `interop/codex/` (o los pone el instalador). |
 | **OpenCode** | Copiar `interop/opencode/` a `.opencode/` + `skills/`, `agent-kits/` y `hooks/` dentro. Si ya tienes el bundle de Claude Code en `.claude/`, OpenCode **reutiliza esas skills** sin copiar nada (compatibilidad nativa). |
 
@@ -116,6 +164,7 @@ sustituye, y aquí está dicho.
 
 | Capacidad | Claude Code | Codex | OpenCode |
 |---|---|---|---|
+| **Registro del plugin** (qué lo hace cargar) | ✅ `installed_plugins.json` + `enabledPlugins`, por CLI o escrito por el instalador — ⚠️ con `--mode copy` no hay registro: el bundle está en `.claude/` y el runtime no se entera (`/doctor` lo marca) | ⚠️ `enabled = true` en `config.toml` lo pone el instalador, pero el **marketplace** necesita `codex plugin marketplace add`: sin la CLI en el PATH se imprime el comando y queda a medias hasta que lo ejecutes | ✅ `plugin` en `opencode.json`; OpenCode además autodescubre `plugins/*.js` y, según su código (`deduplicatePluginOrigins` desempata por URL de fichero), registrarlo no debería cargarlo dos veces — **pendiente de confirmar en un OpenCode real** (checklist M-01 de la iniciativa) |
 | Skills bajo demanda | ✅ herramienta Skill | ✅ `$nombre` o activación por `description` | ✅ herramienta `skill` |
 | Comandos | ✅ `/nombre` | ⚠️ `/prompts:nombre`, **solo en `~/.codex/`** (Codex no tiene prompts por proyecto) y marcados como *deprecated* por OpenAI en favor de skills | ✅ `/nombre` |
 | Delegar en un agente por nombre | ✅ herramienta Agent, con `model` por invocación | ⚠️ en lenguaje natural; Codex **no auto-invoca** agentes custom, hay que pedirlo | ✅ herramienta `task` |
@@ -129,7 +178,13 @@ sustituye, y aquí está dicho.
 | Statusline del roadmap | ✅ opt-in | ❌ | ❌ |
 | `permission` de OpenCode | — | — | ⚠️ el instalador **no lo toca** si ya existe: OpenCode aplica «la última regla que casa», así que añadir `skill: {"*": "allow"}` detrás de un `deny` tuyo te lo abriría. Si tienes política propia, comprueba que las skills `custom-agents` no caigan en un `deny`. |
 
-Los dos huecos que más importan:
+Los tres huecos que más importan:
+
+- **Copiar el bundle no instala el plugin.** Es el hueco que más se nota y el más fácil de no ver:
+  con `--mode copy` (o copiando `.claude/` a mano) está el bundle entero y no está ninguna de las
+  tres cosas que da un plugin instalado —hooks, statusline y namespace `/custom-agents:`—, porque
+  Claude Code solo lee `hooks/hooks.json` dentro de un plugin. `/doctor` lo dice en la fila «hooks
+  registrados» (⚠️, no ✅) y `status` en «registrado: no».
 
 - **El guardrail del `implementer` no está impuesto fuera de Claude Code.** Es un `deny` de
   `PreToolUse` con alcance de un solo agente, y eso solo existe aquí. En Codex y OpenCode el agente
