@@ -100,6 +100,11 @@ _CONTINUACION_RE = re.compile(CONTINUACION_PATTERN)
 
 def sin_vallas(text):
     """`text` con las líneas DENTRO de una valla de código vaciadas (mismo número de líneas)."""
+    # --8<-- sin_vallas (cuerpo) — REPLICADO LITERAL en agent-kits/shared/ledger-lint.py y en
+    # skills/changelog-sync/scripts/changelog-sync.py (dos copias independientes: la skill viaja sin
+    # este kit). DECLARADO en agent-kits/shared/copias.json (ADR-016), que lista la ÚNICA diferencia
+    # tolerada (el nombre de la regex de valla); tests/test_copias_declaradas.py compara el resto
+    # byte a byte — antes solo había un test CONDUCTUAL y una divergencia sin efecto pasaba.
     out, cerco = [], None
     for ln in text.split("\n"):
         m = _VALLA_RE.match(ln)
@@ -114,6 +119,7 @@ def sin_vallas(text):
                 cerco = None
             continue
         out.append(ln)
+    # --8<-- fin sin_vallas (cuerpo)
     return "\n".join(out)
 
 
@@ -175,7 +181,8 @@ def es_placeholder(t):
 # una cabecera sin `:` daba brief CON gaps y Jira exit 2 sobre el MISMO ledger. Criterio único (el
 # laxo): los dos puntos y el resumen son OPCIONALES; grupo 1 = número de intento, grupo 2 = resumen
 # (None si no hay). Quien necesite una copia local (paquete portable sin este kit) debe replicar
-# este patrón LITERALMENTE — hay test que compara las dos cadenas.
+# este patrón LITERALMENTE — hay test que compara las dos cadenas. Las copias vivas están DECLARADAS
+# en `agent-kits/shared/copias.json` (bloque `revision_hdr_pattern`, ADR-016).
 REVISION_HDR_PATTERN = \
     r"^##\s+Revisi[oó]n de dos lentes\s*[\u2014\u2013-]\s*intento\s+(\d+)\s*(?::\s*(.*))?$"
 REVISION_HDR_RE = re.compile(REVISION_HDR_PATTERN, re.M)

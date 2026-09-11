@@ -1,7 +1,7 @@
 ---
 id: ADR-016
 titulo: El código que se repite entre piezas se DECLARA en un registro versionado y lo guarda UN test de identidad; no se vendoriza ni se importa un módulo común
-estado: propuesta
+estado: aceptada
 fecha: 2026-09-10
 iniciativa: plugin-refactor
 ---
@@ -33,6 +33,35 @@ Decisiones de detalle cerradas aquí:
 - **Comparación byte a byte tras normalizar `\r\n` → `\n`**, no comparación de AST ni de texto «equivalente». *Descartado*: comparar bytes crudos — en Windows `core.autocrlf` da un falso positivo por finales de línea (`GOT-007`, mismo motivo por el que el hash de `ADR-014` normaliza).
 - **El test falla, no avisa**: guardarraíl determinista con exit code, patrón `ledger-lint`/`qa-gate`. *Descartado*: aviso en el linter — un aviso que nadie lee reproduce la garantía de hoy (`glob_to_regex`: cero).
 
+### Tolerancias explícitas del comparador (enmienda tras la revisión de dos lentes de R3, 2026-09-10)
+
+La implementación de `C-03` (T-09/T-10) necesitó tres tolerancias que la regla «byte a byte, sin texto equivalente» no
+preveía. Las tres viven **declaradas en el propio registro**, cada una con un test que impide que sean letra muerta, y
+son la única forma admitida de apartarse de la identidad byte a byte:
+
+- **`sustituciones`** (renombrado de identificador aplicado antes de comparar; hoy 2 de 7 bloques: `_frontmatter_plegado`
+  → `_frontmatter`, `RE_VALLA` → `_VALLA_RE`). Un bloque copiado puede vivir con otro nombre local sin que eso sea
+  divergencia. Guardarraíl: un test afirma que cada sustitución **se usa dentro del rango del bloque**; una entrada
+  muerta es rojo. *Límite conocido:* es un `str.replace` global sobre el bloque; si un identificador declarado fuera
+  subcadena de otro del mismo bloque enmascararía una divergencia. Hoy no ocurre; quien añada una sustitución lo
+  comprueba.
+- **`canonico_comparable: false` + `equivalencia`** (hoy 1 de 7: `glob_to_regex`, cuyo canónico en
+  `skills/confluence-publish/scripts/confluence-scope.py` tiene otra forma que sus respaldos). Cuando el canónico no es
+  comparable byte a byte, la identidad se afirma **entre los respaldos** y la relación con el canónico se guarda con una
+  **equivalencia conductual declarada en el registro** (función y corpus de entradas): el test importa canónico y
+  respaldos como módulos aislados y exige el mismo resultado sobre todo el corpus. Sin `equivalencia`, un bloque no puede
+  declararse `canonico_comparable: false`. La revisión de R3 encontró que el primer intento afirmaba una cobertura que no
+  existía («la cubren los tests de comportamiento de cada script»: esos tests ejecutan el canónico, nunca el respaldo);
+  la equivalencia declarada es la corrección.
+- **`respaldos`** (nombres `_*_FALLBACK` tolerados por el linter en un bloque de mecanismo B). Guardarraíl: cada entrada
+  tiene que estar **definida dentro del rango de una copia del bloque**, y el linter solo la tolera en la ruta que la
+  define — una entrada inventada o huérfana es rojo, no una lista blanca que crece.
+
+Además, los **centinelas se registran como línea entera** (no prefijo): un bloque nuevo cuyo centinela extienda a uno
+declarado del mismo fichero tiene que aparecer como no registrado. Y «**C** pasa a tener guardarraíl» significa, con
+precisión: identidad byte a byte entre los respaldos + equivalencia conductual con el canónico; no identidad con el
+canónico.
+
 ## Alternativas descartadas
 
 - **O2 — módulo común `_comun.py` vendorizado por el empaquetador dentro de cada pieza.** *A favor:* es la única que hace que un arreglo se haga **en un solo sitio** y que el paquete portable de solo-skills lleve el código sin depender de `agent-kits/`. *En contra:* el recon la vació — `install/providers.mjs:22` (`PAYLOAD_COMUN = ["skills", "agent-kits", "hooks"]`) ya copia `agent-kits/` **entero** a los tres runtimes y `scripts/export-interop.py:26-33` **no traduce ni copia** skills, así que el vendorizado solo aportaría en el `dist/` de «solo skills»; y ahí antes hay que tapar un defecto propio del exportador (`scripts/export-skills.py:399` cierra solo sobre los `.md`: un `_comun.py` citado únicamente desde un `.py` **no viajaría**). Además escribe un fichero generado dentro de carpetas editadas a mano, que es la forma exacta de `GOT-003`, y retirar los respaldos locales convierte un «degrada con aviso» en un fallo duro. Coste **L**: +4,0 h humanas y +0,5 h IA sobre el registro, ~+245 € con margen (`evaluation.md:157`, `:347`).
@@ -54,4 +83,4 @@ Se renuncia a «un arreglo, un sitio»: corregir un bloque compartido sigue obli
 
 ## Estado
 
-`propuesta` — opción O1 elegida por el usuario en la puerta de diseño (2026-09-10). Pasa a `aceptada` cuando la revisión de dos lentes valide la implementación de `C-03`; a `obsoleta` si una decisión posterior la reemplaza (candidata conocida: O3, las copias generadas en el árbol).
+`aceptada` (2026-09-11) — opción O1 elegida por el usuario en la puerta de diseño (2026-09-10); la revisión de dos lentes del tramo R3 de `plugin-refactor` (3 intentos + una 4.ª pasada autorizada, 8 Important y 20 Minor cerrados, ver `tasks.md` de la iniciativa) validó la implementación de `C-03` (T-09/T-10) con las tolerancias de la sección «Tolerancias explícitas del comparador». Pasa a `obsoleta` si una decisión posterior la reemplaza (candidata conocida: O3, las copias generadas en el árbol).

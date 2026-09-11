@@ -120,6 +120,11 @@ RE_CONTINUACION = re.compile(CONTINUACION_PATTERN)
 def sin_vallas(text):
     """`text` con las líneas DENTRO de una valla de código vaciadas (mismo número de líneas, para
     que los números no se muevan). Réplica del criterio de `ledger-lint.py` (`sin_vallas`)."""
+    # --8<-- sin_vallas (cuerpo) — REPLICADO LITERAL en agent-kits/shared/ledger-lint.py y en
+    # skills/changelog-sync/scripts/changelog-sync.py (dos copias independientes: la skill viaja sin
+    # este kit). DECLARADO en agent-kits/shared/copias.json (ADR-016), que lista la ÚNICA diferencia
+    # tolerada (el nombre de la regex de valla); tests/test_copias_declaradas.py compara el resto
+    # byte a byte — antes solo había un test CONDUCTUAL y una divergencia sin efecto pasaba.
     out, cerco = [], None
     for ln in text.split("\n"):
         m = RE_VALLA.match(ln)
@@ -134,6 +139,7 @@ def sin_vallas(text):
                 cerco = None
             continue
         out.append(ln)
+    # --8<-- fin sin_vallas (cuerpo)
     return "\n".join(out)
 
 
