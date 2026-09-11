@@ -797,6 +797,38 @@ def test_project_transcript_dir_ausente_devuelve_none(monkeypatch, tmp_path):
     assert um._project_transcript_dir() is None
 
 
+def test_project_transcript_dir_respaldo_root_sin_permiso_no_revienta(monkeypatch, tmp_path):
+    """CI (y cualquier contenedor) corre como usuario normal: `/root` responde PermissionError.
+    Localizar la carpeta es best-effort — devuelve None, no tumba la medicion. Sin este caso el
+    fallo solo se veia en CI, porque en Windows `/root` ni existe."""
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))
+    monkeypatch.setattr(um.os, "getcwd", lambda: str(tmp_path / "sin-carpeta"))
+    real_path_cls = um.Path
+
+    class _NiegaRoot(real_path_cls):
+        pass
+
+    def _path_que_niega_root(*args, **kwargs):
+        p = real_path_cls(*args, **kwargs)
+        if str(args[0] if args else "").startswith("/root"):
+            class _Denegado:
+                def __truediv__(self, _otro):
+                    return self
+
+                def is_dir(self):
+                    raise PermissionError(13, "Permission denied", "/root/.claude/projects")
+
+            return _Denegado()
+        return p
+
+    _path_que_niega_root.home = lambda: home
+    monkeypatch.setattr(um, "Path", _path_que_niega_root)
+    assert um._project_transcript_dir() is None
+
+
 def test_project_transcript_dir_respaldo_root(monkeypatch, tmp_path):
     # Gap B-8: el respaldo `Path("/root/.claude/projects")` estaba sin cobertura. `Path.home()`
     # (Windows y POSIX) apunta a un tmp_path SIN carpeta de proyecto; se ejercita el respaldo
@@ -812,18 +844,18 @@ def test_project_transcript_dir_respaldo_root(monkeypatch, tmp_path):
     monkeypatch.setenv("USERPROFILE", str(home_vacio))
     monkeypatch.setattr(um.os, "getcwd", lambda: cwd_literal)
 
+    # Se sustituye `um.Path` por una FUNCION que delega en la clase real y redirige la ruta
+    # del respaldo. Subclasear `pathlib.Path` no es portable entre versiones (en 3.11 exige
+    # `_flavour`, en 3.12+ resuelve los args en `__init__`): la CI corre 3.11 y el desarrollo 3.13.
     real_path_cls = um.Path
 
-    class _PathConRootRedirigido(real_path_cls):
-        # pathlib (3.12+) resuelve los args reales en __init__, no en __new__
-        # (__new__ solo decide la subclase concreta): hay que redirigir aquí.
-        def __init__(self, *args, **kwargs):
-            if len(args) == 1 and str(args[0]) == "/root/.claude/projects":
-                args = (root_falso, ".claude", "projects")
-            super().__init__(*args, **kwargs)
+    def _path_redirigido(*args, **kwargs):
+        if len(args) == 1 and str(args[0]) == "/root/.claude/projects":
+            return real_path_cls(root_falso, ".claude", "projects")
+        return real_path_cls(*args, **kwargs)
 
-    monkeypatch.setattr(_PathConRootRedirigido, "home", classmethod(lambda cls: home_vacio))
-    monkeypatch.setattr(um, "Path", _PathConRootRedirigido)
+    _path_redirigido.home = lambda: home_vacio
+    monkeypatch.setattr(um, "Path", _path_redirigido)
 
     resultado = um._project_transcript_dir()
     assert resultado is not None

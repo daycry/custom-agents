@@ -144,8 +144,13 @@ def _project_transcript_dir():
     for base in (Path.home() / ".claude" / "projects",
                  Path("/root/.claude/projects")):
         cand = base / encoded
-        if cand.is_dir():
-            return cand
+        try:
+            if cand.is_dir():
+                return cand
+        except OSError:
+            # El respaldo `/root` no es legible para un usuario normal (CI, contenedores):
+            # localizar la carpeta es best-effort y NUNCA debe tumbar la medicion.
+            continue
     return None
 
 
