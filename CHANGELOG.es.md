@@ -9,6 +9,8 @@ y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+## [1.20.0] - 2026-09-11
+
 ### Fixed — iniciativa `installer-registro-real` (2026-09-11)
 
 - **T-01 — Banner y multiselect con checkboxes, cero dependencias** El instalador `npx` muestra un título al arrancar y permite elegir los runtimes con checkboxes (espacio marca, Enter confirma), con los detectados preseleccionados. (`install/install.mjs`, `tests/installer.test.mjs`)
@@ -536,6 +538,7 @@ Adopción de las mejores prácticas de las colecciones top de agentes (coleccion
 
 Versiones anteriores a la introducción de este changelog: bundle con los agentes `nemesis`, `evaluator`, `planner`, `pdfy` y `qa`, y las skills compartidas `cybersecurity` y `to-pdf`. Empaquetado como plugin + marketplace.
 
+[1.20.0]: https://github.com/daycry/custom-agents/releases/tag/v1.20.0
 [1.19.0]: https://github.com/daycry/custom-agents/releases/tag/v1.19.0
 [1.18.1]: https://github.com/daycry/custom-agents/releases/tag/v1.18.1
 [1.18.0]: https://github.com/daycry/custom-agents/releases/tag/v1.18.0
