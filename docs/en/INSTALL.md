@@ -43,8 +43,25 @@ npx @daycry/custom-agents uninstall -p opencode            # remove what it inst
 ```
 
 It is idempotent, it **merges** your JSON config instead of overwriting it, and it leaves a manifest
-(`.custom-agents-install.json`) with the exact list of files written so `uninstall` touches nothing
-else. Requires Node 18+ and installs no dependencies.
+with the exact list of files written so `uninstall` touches nothing else. There is one per mode,
+because in `project` scope both write to `<project>/.claude`: `.custom-agents-install.plugin.json`
+(plugin mode, the default) and `.custom-agents-install.json` (`--mode copy`). Requires Node 18+ and installs no dependencies.
+
+**In Claude Code it installs the actual plugin**, it does not copy the bundle: it uses `claude plugin
+marketplace add` + `claude plugin install` if the CLI is on your PATH and, if not, writes the same
+registry it would (`plugins/installed_plugins.json` and `enabledPlugins`). That is what gives you
+hooks, status line and the `/custom-agents:` namespace. In Codex it enables the plugin in your
+`config.toml`, and in OpenCode it registers the hook adapter in `opencode.json`.
+
+```bash
+npx @daycry/custom-agents install -p claude-code --mode copy     # the "classic" install: bundle in .claude/
+npx @daycry/custom-agents install -p claude-code --source ./my-clone   # marketplace from a local path (development)
+npx @daycry/custom-agents status                                 # actually registered? yes/no per runtime
+```
+
+`--mode copy` is the equivalent of **Options 1 and 2** below: it leaves the pieces there to be read,
+but Claude Code does not read `hooks/hooks.json` outside an installed plugin, so there are no hooks,
+no status line and no namespace. `CLAUDE_CONFIG_DIR` is honoured if you have it set.
 
 **What works the same in each runtime and what degrades** (commands, hooks, guardrails, status line)
 is in [`INTEROP.md`](INTEROP.md) — the degradation table is required reading before assuming a hook
@@ -53,6 +70,12 @@ or a guardrail is active outside Claude Code.
 ---
 
 ## Option 1 — Try it in a project (quick)
+
+> **This is the equivalent of `--mode copy`: it does not install the plugin.** Copying the bundle
+> into a `.claude/` puts the pieces where they are read (agents, skills, kits), but Claude Code only
+> reads `hooks/hooks.json` inside an installed plugin: **no hooks, no status line and no
+> `/custom-agents:` namespace**. Fine for developing the bundle itself; for real use, Option 0 or
+> Option 3. `/doctor` flags it ⚠️ in the "hooks registrados" row and gives you the command.
 
 Link (or copy) the bundle as the target project's `.claude/`:
 
@@ -69,6 +92,10 @@ In Claude Code, inside the project: `/agents` to see them, and invoke them with 
 ---
 
 ## Option 2 — Personal reuse across all your projects (`~/.claude/`)
+
+> Same caveat as Option 1: this is a `--mode copy` in your user folder, **no hooks, no status line
+> and no namespace**. If what you want is every project with everything working, run
+> `npx @daycry/custom-agents install -p claude-code --scope user` (Option 0) or use Option 3.
 
 Copy the contents to your user folder; it becomes available in **all your projects** (precedence: if a project defines an agent with the same name, the project's wins):
 
