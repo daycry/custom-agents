@@ -9,6 +9,8 @@ and versioning follows [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.20.0] - 2026-09-11
+
 ### Fixed — `installer-registro-real` initiative (2026-09-11)
 
 - **T-01 — Title screen and checkbox multiselect, still zero dependencies.** `npx @daycry/custom-agents` now prints a banner and lets you pick the runtimes with checkboxes (space marks, Enter confirms); the ones it detects come pre-selected. (`install/install.mjs`, `tests/installer.test.mjs`)
@@ -533,6 +535,7 @@ Adoption of best practices from the top agent collections (reference agent colle
 
 Versions predating the introduction of this changelog: a bundle with the `nemesis`, `evaluator`, `planner`, `pdfy` and `qa` agents, and the shared `cybersecurity` and `to-pdf` skills. Packaged as a plugin + marketplace.
 
+[1.20.0]: https://github.com/daycry/custom-agents/releases/tag/v1.20.0
 [1.19.0]: https://github.com/daycry/custom-agents/releases/tag/v1.19.0
 [1.18.1]: https://github.com/daycry/custom-agents/releases/tag/v1.18.1
 [1.18.0]: https://github.com/daycry/custom-agents/releases/tag/v1.18.0

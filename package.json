@@ -1,6 +1,6 @@
 {
   "name": "@daycry/custom-agents",
-  "version": "1.19.0",
+  "version": "1.20.0",
   "description": "Ciclo SDD presupuestado (requisitos → presupuesto → plan → implementación → pruebas → documentación) para Claude Code, Codex y OpenCode: 9 agentes, 12 comandos y 17 skills con coste real medido, memoria técnica y trazabilidad en Jira/Confluence.",
   "keywords": [
     "claude-code",
