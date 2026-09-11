@@ -12,7 +12,7 @@ descripcion: >
   Reproducido por el orquestador el 2026-09-11 en un HOME temporal y contrastado con la doc oficial de
   Claude Code (hooks de proyecto solo en `settings.json`; `claude plugin marketplace add` / `claude plugin
   install` no interactivos) y de Codex (plugins cargados desde `~/.codex/plugins/cache/` tras habilitarlos).
-estado: en-progreso       # borrador | en-progreso | completado | cancelado
+estado: completado        # borrador | en-progreso | completado | cancelado
 creado: 2026-09-11
 actualizado: 2026-09-11
 via: rapida               # vía rápida de /dev-cycle: sin spec/evaluación/plan; conserva verificación + revisión de dos lentes
@@ -34,7 +34,7 @@ generacion:
 
 | | |
 |---|---|
-| **Estado** | en-progreso |
+| **Estado** | completado |
 | **Fecha** | 2026-09-11 |
 | **Plan** | n/a — **vía rápida** (sin spec/evaluación/plan; ledger ligero + verificación + revisión de dos lentes) |
 
