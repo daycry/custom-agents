@@ -502,6 +502,12 @@ dependencies:
         assert code == 0 and "sin caso positivo" not in out, f"sin evals/cases no se avisa\n{out}"
         os.makedirs(os.path.join(tmp, "evals", "cases"))
         shutil.copy(os.path.join(ROOT, "evals", "check.py"), os.path.join(tmp, "evals", "check.py"))
+        # `check.py` lleva bloques `--8<--` declarados en `copias.json` (ADR-016): si se copia el fichero
+        # y no el registro, el linter avisa con razon de que hay copias sin declarar y este caso no mide
+        # lo que dice medir. Se copia tambien el registro, como en un arbol de verdad.
+        os.makedirs(os.path.join(tmp, "agent-kits", "shared"), exist_ok=True)
+        shutil.copy(os.path.join(ROOT, "agent-kits", "shared", "copias.json"),
+                    os.path.join(tmp, "agent-kits", "shared", "copias.json"))
         # solo el agente tiene caso positivo; la skill `my-skill` no tiene fichero
         open(os.path.join(tmp, "evals", "cases", "agent-alpha.json"), "w", encoding="utf-8").write(json.dumps({
             "target": "agent:alpha", "cases": [{"id": "alpha-literal", "prompt": "haz X por favor", "trigger": "literal",
