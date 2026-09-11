@@ -107,6 +107,10 @@ def _frontmatter(path):
 
 def piezas(root):
     """{'skill:x': description, 'command:y': …, 'agent:z': …} leyendo los frontmatters reales."""
+    # --8<-- piezas del repo (frontmatters) — REPLICADO LITERAL en evals/check.py (canónico) y en
+    # scripts/lint_plugin.py (respaldo para cuando evals/check.py no está). DECLARADO en
+    # agent-kits/shared/copias.json (ADR-016), que lista la ÚNICA diferencia tolerada (el nombre del
+    # lector de frontmatter); tests/test_copias_declaradas.py compara el resto byte a byte.
     out = {}
     sk = os.path.join(root, "skills")
     if os.path.isdir(sk):
@@ -120,6 +124,7 @@ def piezas(root):
             for fn in sorted(os.listdir(dd)):
                 if fn.endswith(".md"):
                     out[f"{kind}:{fn[:-3]}"] = _frontmatter(os.path.join(dd, fn)).get("description", "")
+    # --8<-- fin piezas del repo (frontmatters)
     return out
 
 

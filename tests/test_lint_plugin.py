@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Tests de lint_plugin.py con fixtures sintéticas. Ejecuta: python tests/test_lint_plugin.py"""
+import importlib.util
 import json
 import os
 import subprocess
@@ -41,6 +42,210 @@ def run(tmp):
     r = subprocess.run([sys.executable, SCRIPT, "--root", tmp],
                        capture_output=True, text=True, encoding="utf-8", errors="replace")
     return r.returncode, r.stdout + r.stderr
+
+
+def _escribe(tmp, rel, texto):
+    p = os.path.join(tmp, *rel.split("/"))
+    os.makedirs(os.path.dirname(p), exist_ok=True)
+    open(p, "w", encoding="utf-8").write(texto)
+    return p
+
+
+def _registro_copias(tmp, bloques):
+    _escribe(tmp, "agent-kits/shared/copias.json",
+             json.dumps({"version": 1, "que_es": "x", "comparacion": "x", "delimitacion": "x",
+                         "detecta": "x", "bloques": bloques}, ensure_ascii=False))
+
+
+def casos_copias_declaradas():
+    """38-39) ADR-016: un bloque replicado (centinela de recorte) o una constante `_*_FALLBACK` SIN
+    fila en `agent-kits/shared/copias.json` es ERROR; declarado, exit 0; `interop/**` tolerado."""
+    # 38) centinela de recorte sin registro → error con fichero:línea e id sugerido
+    with tempfile.TemporaryDirectory() as tmp:
+        make_plugin(tmp, {"alpha": AGENT_OK.format(name="alpha")})
+        _escribe(tmp, "pieza.py", "x = 1\n# --8<-- criterio compartido\ny = 2\n# --8<-- fin criterio compartido\n")
+        code, out = run(tmp)
+        assert code == 1, f"un bloque sin registrar es error, no aviso\n{out}"
+        assert "pieza.py:2" in out and "copias.json" in out, out
+        assert "`criterio_compartido`" in out, f"el error tiene que sugerir el id\n{out}"
+        # el mismo marcador DENTRO de interop/ (generado) está tolerado
+        _escribe(tmp, "interop/codex/pieza.py", "# --8<-- criterio compartido\n")
+        code2, out2 = run(tmp)
+        assert out2.count("copias.json") == out.count("copias.json"), f"interop/** no debe contar\n{out2}"
+        # declarado en el registro → exit 0 (la comprobación LEE copias.json de la raíz analizada)
+        _registro_copias(tmp, [{"id": "criterio_compartido", "mecanismo": "A", "que_es": "x",
+                                "canonico": "pieza.py",
+                                "copias": [{"ruta": "pieza.py", "inicio": "# --8<-- criterio compartido",
+                                            "fin": "# --8<-- fin criterio compartido"}]}])
+        code3, out3 = run(tmp)
+        assert code3 == 0 and "0 errores" in out3, f"declarado en copias.json no puede dar error\n{out3}"
+
+    # 39) constante de respaldo `_*_FALLBACK` sin registro → error (se detecta por NOMBRE)
+    with tempfile.TemporaryDirectory() as tmp:
+        make_plugin(tmp, {"alpha": AGENT_OK.format(name="alpha")})
+        _escribe(tmp, "copia.py", 'import re\n_PATRON_FALLBACK = r"^x$"\n')
+        code, out = run(tmp)
+        assert code == 1, f"una `_*_FALLBACK` sin registrar es error\n{out}"
+        assert "copia.py:2" in out and "_PATRON_FALLBACK" in out and "copias.json" in out, out
+        # una MENCIÓN (uso, aserción, atributo) no es una definición: no cuenta
+        _escribe(tmp, "usa.py", "import copia\nassert copia._PATRON_FALLBACK == 1\n")
+        code2, out2 = run(tmp)
+        assert "usa.py" not in out2, f"una mención no es una copia\n{out2}"
+        # `inicio` es la LÍNEA ENTERA del centinela (se casa por igualdad, no por prefijo)
+        _registro_copias(tmp, [{"id": "patron", "mecanismo": "B", "que_es": "x", "canonico": "canon.py",
+                                "copias": [{"ruta": "copia.py", "inicio": '_PATRON_FALLBACK = r"^x$"',
+                                            "respaldos": ["_PATRON_FALLBACK"]}]}])
+        code3, out3 = run(tmp)
+        assert code3 == 0 and "0 errores" in out3, f"declarada en copias.json no puede dar error\n{out3}"
+
+
+def casos_copias_registro_fino():
+    """40-43) Lo que la revisión de dos lentes del tramo R3 encontró abierto en la puerta de ADR-016:
+    la lista blanca `respaldos` no puede ser un permiso en blanco (gap 5), el centinela se casa por
+    LÍNEA ENTERA y no por prefijo (gap 7), la ruta de error no puede reventar con los warnings como
+    error (gap 6) y el id sugerido translitera los acentos (gap 8)."""
+    # 40) `respaldos` solo tolera la constante DENTRO del rango de una copia de ESE fichero:
+    #     una entrada de la lista blanca no da vía libre a cualquier `_*_FALLBACK` nuevo del fichero
+    with tempfile.TemporaryDirectory() as tmp:
+        make_plugin(tmp, {"alpha": AGENT_OK.format(name="alpha")})
+        _escribe(tmp, "copia.py", 'import re\n_PATRON_FALLBACK = \\\n    r"^x$"\n_INVENTADO_FALLBACK = 1\n')
+        bloque = {"id": "patron", "mecanismo": "B", "que_es": "x", "canonico": "canon.py",
+                  "copias": [{"ruta": "copia.py", "inicio": 'r"^x$"',
+                              "respaldos": ["_PATRON_FALLBACK"]}]}
+        _registro_copias(tmp, [bloque])
+        code, out = run(tmp)
+        assert code == 1, f"`_INVENTADO_FALLBACK` no está declarado: es error\n{out}"
+        assert "copia.py:4" in out and "_INVENTADO_FALLBACK" in out, out
+        assert "copia.py:2" not in out, \
+            f"`_PATRON_FALLBACK = \\` es la cabecera de la sentencia declarada: no es una copia nueva\n{out}"
+        # y el escenario de la lente B: colarlo en `respaldos` NO lo declara (sigue fuera del rango)
+        bloque["copias"][0]["respaldos"] = ["_PATRON_FALLBACK", "_INVENTADO_FALLBACK"]
+        _registro_copias(tmp, [bloque])
+        code2, out2 = run(tmp)
+        assert code2 == 1 and "copia.py:4" in out2, \
+            f"una entrada en `respaldos` sin bloque que la contenga no puede silenciar al linter\n{out2}"
+
+    # 41) el centinela se casa por LÍNEA ENTERA: un bloque nuevo que EXTIENDA a uno declarado
+    #     (`… v2`) sigue siendo un bloque sin declarar
+    with tempfile.TemporaryDirectory() as tmp:
+        make_plugin(tmp, {"alpha": AGENT_OK.format(name="alpha")})
+        _escribe(tmp, "pieza.py",
+                 "# --8<-- criterio compartido\nx = 1\n# --8<-- fin criterio compartido\n"
+                 "# --8<-- criterio compartido v2 (bloque NUEVO sin registrar)\ny = 2\n")
+        _registro_copias(tmp, [{"id": "criterio_compartido", "mecanismo": "A", "que_es": "x",
+                                "canonico": "pieza.py",
+                                "copias": [{"ruta": "pieza.py", "inicio": "# --8<-- criterio compartido",
+                                            "fin": "# --8<-- fin criterio compartido"}]}])
+        code, out = run(tmp)
+        assert code == 1 and "pieza.py:4" in out, f"un centinela que extiende a otro no está declarado\n{out}"
+        assert "`criterio_compartido_v2`" in out, f"el id sugerido distingue el bloque nuevo\n{out}"
+
+    # 42) la RUTA DE ERROR con los DeprecationWarning como error: el mensaje completo por stdout,
+    #     stderr vacío y exit 1 (con `re.split(..., 1)` posicional esto era un traceback en 3.13+)
+    with tempfile.TemporaryDirectory() as tmp:
+        make_plugin(tmp, {"alpha": AGENT_OK.format(name="alpha")})
+        _escribe(tmp, "pieza.py", "x = 1\n# --8<-- prueba\n")
+        r = subprocess.run([sys.executable, "-W", "error::DeprecationWarning", SCRIPT, "--root", tmp],
+                           capture_output=True, text=True, encoding="utf-8", errors="replace")
+        assert r.stderr == "", f"la ruta de error no puede escribir en stderr (warnings como error):\n{r.stderr}"
+        assert r.returncode == 1, f"esperaba exit 1, fue {r.returncode}\n{r.stdout}"
+        assert "pieza.py:2" in r.stdout and "copias.json" in r.stdout, r.stdout
+        assert "id sugerido `prueba`" in r.stdout, f"el mensaje tiene que llegar entero\n{r.stdout}"
+        assert "1 errores" in r.stdout, f"y el resumen detrás\n{r.stdout}"
+
+    # 43) el id sugerido TRANSLITERA los acentos (antes: `criterio_del_ndice_de_knowledge`)
+    spec = importlib.util.spec_from_file_location("lint_plugin_bajo_prueba", SCRIPT)
+    lp = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(lp)
+    assert lp._id_sugerido("--8<-- criterio del índice de knowledge COMPARTIDO") == \
+        "criterio_del_indice_de_knowledge_compartido", lp._id_sugerido("--8<-- criterio del índice de knowledge COMPARTIDO")
+    assert lp._id_sugerido("--8<-- fin del criterio de consola COMPARTIDO") == "criterio_de_consola_compartido"
+
+
+def casos_copias_por_copia():
+    """44-45) Lo que la revisión de dos lentes del tramo R3 dejó abierto en el intento 2:
+    `respaldos` es POR COPIA y solo tolera la constante en la ruta que la DEFINE (B-3), y un
+    centinela declarado que aparezca MÁS VECES de las declaradas para esa ruta es error (B-4)."""
+    # 44) B-3: `respaldos` declarado en UNA copia no tolera la constante en las OTRAS rutas del
+    #     mismo bloque — renombrar el canónico a `_*_FALLBACK` (dentro de su rango) tiene que morder
+    with tempfile.TemporaryDirectory() as tmp:
+        make_plugin(tmp, {"alpha": AGENT_OK.format(name="alpha")})
+        # `canon.py` DEFINE el patrón con su nombre canónico; `copia.py` guarda el respaldo local
+        _escribe(tmp, "canon.py", 'import re\nPATRON = \\\n    r"^x$"\n')
+        _escribe(tmp, "copia.py", 'import re\n_PATRON_FALLBACK = \\\n    r"^x$"\n')
+        bloque = {"id": "patron", "mecanismo": "B", "que_es": "x", "canonico": "canon.py",
+                  "copias": [{"ruta": "canon.py", "inicio": 'r"^x$"'},
+                             {"ruta": "copia.py", "inicio": 'r"^x$"',
+                              "respaldos": ["_PATRON_FALLBACK"]}]}
+        _registro_copias(tmp, [bloque])
+        code, out = run(tmp)
+        assert code == 0 and "0 errores" in out, \
+            f"la constante declarada en SU copia no puede dar error\n{out}"
+        # el escenario de la lente B: el canónico renombrado a `_*_FALLBACK`, dentro del rango de SU
+        # copia — con `respaldos` a nivel de BLOQUE esto pasaba, porque la tolerancia se repartía
+        _escribe(tmp, "canon.py", 'import re\n_PATRON_FALLBACK = \\\n    r"^x$"\n')
+        code2, out2 = run(tmp)
+        assert code2 == 1, f"renombrar el canónico a `_*_FALLBACK` no está declarado en canon.py\n{out2}"
+        assert "canon.py:2" in out2 and "_PATRON_FALLBACK" in out2, out2
+        assert "copia.py" not in out2, f"la copia que SÍ lo declara sigue tolerada\n{out2}"
+
+    # 45) B-4: una SEGUNDA copia del mismo bloque en un fichero YA declarado es error (antes el
+    #     linter solo miraba pertenencia y el comparador se quedaba con la primera aparición)
+    with tempfile.TemporaryDirectory() as tmp:
+        make_plugin(tmp, {"alpha": AGENT_OK.format(name="alpha")})
+        _escribe(tmp, "pieza.py", "# --8<-- criterio compartido\nx = 1\n# --8<-- fin criterio compartido\n")
+        _registro_copias(tmp, [{"id": "criterio_compartido", "mecanismo": "A", "que_es": "x",
+                                "canonico": "pieza.py",
+                                "copias": [{"ruta": "pieza.py", "inicio": "# --8<-- criterio compartido",
+                                            "fin": "# --8<-- fin criterio compartido"}]}])
+        code, out = run(tmp)
+        assert code == 0 and "0 errores" in out, f"una sola aparición es la declarada\n{out}"
+        _escribe(tmp, "pieza.py",
+                 "# --8<-- criterio compartido\nx = 1\n# --8<-- fin criterio compartido\n"
+                 "# --8<-- criterio compartido\nx = 2  # divergida, y nadie la compara\n"
+                 "# --8<-- fin criterio compartido\n")
+        code2, out2 = run(tmp)
+        assert code2 == 1, f"la segunda copia del bloque tiene que ser error\n{out2}"
+        assert "pieza.py:4" in out2, f"el error señala la aparición SOBRANTE, no la primera\n{out2}"
+        assert "pieza.py:6" in out2, f"y también el `fin` repetido\n{out2}"
+        assert "aparece 2 veces" in out2, out2
+
+
+def casos_copias_forma_de_definicion():
+    """46) R3-3: una constante de respaldo se DEFINE de tres formas y el detector las ve las tres.
+
+    El patrón anterior exigía el nombre pegado al `=` (`^_X_FALLBACK[ \t]*=`), así que bastaba con
+    ANOTAR el tipo (`_X_FALLBACK: str = …`) o con colgar la constante de una cadena de asignación
+    (`_A_FALLBACK = _B_FALLBACK = …`) para meter una copia nueva sin fila en el registro. Aquí las
+    dos formas tienen que dar error, cada una con SU nombre; y la ENCADENADA, un error por nombre.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        make_plugin(tmp, {"alpha": AGENT_OK.format(name="alpha")})
+        _escribe(tmp, "copia.py",
+                 'import re\n'
+                 '_NUEVO_FALLBACK: str = r"^x$"\n'
+                 '_OTRO_FALLBACK = _TERCERO_FALLBACK = r"^y$"\n'
+                 'usa = _NUEVO_FALLBACK\n')
+        code, out = run(tmp)
+        assert code == 1, f"anotada y encadenada son definiciones: tienen que morder\n{out}"
+        assert "copia.py:2" in out and "_NUEVO_FALLBACK" in out, \
+            f"la definición ANOTADA (`: str =`) no puede esquivar el registro\n{out}"
+        assert "copia.py:3" in out and "_OTRO_FALLBACK" in out and "_TERCERO_FALLBACK" in out, \
+            f"la ENCADENADA define los DOS nombres y los dos van al error\n{out}"
+        assert out.count("constante de respaldo") == 3, \
+            f"tres nombres definidos = tres errores, uno por nombre\n{out}"
+        assert "copia.py:4" not in out, \
+            f"`usa = _NUEVO_FALLBACK` es un USO en el valor, no una definición\n{out}"
+        # declaradas en el registro (una copia por línea) → exit 0: el detector no es un veto
+        _registro_copias(tmp, [{"id": "patron", "mecanismo": "B", "que_es": "x", "canonico": "canon.py",
+                                "copias": [{"ruta": "copia.py", "inicio": '_NUEVO_FALLBACK: str = r"^x$"',
+                                            "respaldos": ["_NUEVO_FALLBACK"]},
+                                           {"ruta": "copia.py",
+                                            "inicio": '_OTRO_FALLBACK = _TERCERO_FALLBACK = r"^y$"',
+                                            "respaldos": ["_OTRO_FALLBACK", "_TERCERO_FALLBACK"]}]}])
+        code2, out2 = run(tmp)
+        assert code2 == 0 and "0 errores" in out2, \
+            f"declaradas en copias.json, las tres formas quedan toleradas\n{out2}"
 
 
 def main():
@@ -622,7 +827,12 @@ dependencies:
         assert code == 0, f"el bloque `>` es el arreglo bueno; no puede fallar\n{out}"
         assert "YAML inválido" not in out, out
 
-    print("test_lint_plugin: 37/37 OK")
+    casos_copias_declaradas()
+    casos_copias_registro_fino()
+    casos_copias_por_copia()
+    casos_copias_forma_de_definicion()
+
+    print("test_lint_plugin: 46/46 OK")
 
 
 if __name__ == "__main__":
