@@ -74,3 +74,13 @@ evals/reports/
 
 # Paquete portable «solo skills» generado por scripts/export-skills.py (la Release lo adjunta como zip).
 dist/
+
+# === Estado LOCAL de sesión (lo escriben hooks o herramientas, nunca es del repo) ===
+# Marca que deja hooks/mark-docs-pending.sh al editar docs/ (aviso para confluence-publish).
+.claude/.confluence-pending
+# Artefactos de herramientas externas dentro de .claude/ (MCP, envoltorios de contexto).
+.claude/.headroom_wrap_marker.json
+# Variante local del handoff: CONTINUE-HERE.md SÍ se versiona; la .local es tuya.
+CONTINUE-HERE.local.md
+# Bundles de git creados a mano para mover ramas entre máquinas.
+*.bundle
