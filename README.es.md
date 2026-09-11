@@ -104,6 +104,13 @@ npx @daycry/custom-agents            # menú interactivo; marca los runtimes que
 | **Codex** | `codex plugin marketplace add daycry/custom-agents` (o el instalador) | Skills, agentes como `.toml`, comandos como `/prompts:<nombre>`, hooks de sesión |
 | **OpenCode** | `npx @daycry/custom-agents install -p opencode` | Skills, agentes, comandos y adaptador de hooks |
 
+El instalador **da de alta el plugin en cada runtime**, no se limita a copiar ficheros: registro de
+Claude Code (por su CLI o escribiéndolo), `enabled = true` en el `config.toml` de Codex y el
+adaptador en el `opencode.json` de OpenCode. Comprueba el resultado con `npx @daycry/custom-agents
+status` («registrado: sí/no» por runtime) o, dentro de Claude Code, con `/doctor`. Si prefieres la
+instalación de siempre —el bundle copiado a `.claude/`— es `--mode copy`, y entonces no hay hooks,
+ni statusline, ni namespace `/custom-agents:`.
+
 Las piezas viven en un solo sitio — `agents/`, `commands/`, `skills/`, `hooks/` — y
 [`scripts/export-interop.py`](scripts/export-interop.py) las traduce al formato de cada runtime
 (`--check` es puerta de CI y de release, así que no se publica una traducción desincronizada).

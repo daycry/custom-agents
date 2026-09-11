@@ -42,9 +42,26 @@ npx @daycry/custom-agents status                           # qué hay instalado 
 npx @daycry/custom-agents uninstall -p opencode            # borra lo que instaló, y solo eso
 ```
 
-Es idempotente, **fusiona** tu configuración JSON en vez de pisarla y deja un manifiesto
-(`.custom-agents-install.json`) con la lista exacta de ficheros escritos, para que `uninstall` no
-toque nada más. Requiere Node 18+ y no instala dependencias.
+Es idempotente, **fusiona** tu configuración JSON en vez de pisarla y deja un manifiesto con la
+lista exacta de ficheros escritos, para que `uninstall` no toque nada más. Hay uno por modo, porque
+en `project` los dos escriben en `<proyecto>/.claude`: `.custom-agents-install.plugin.json` (modo
+plugin, el de por defecto) y `.custom-agents-install.json` (`--mode copy`). Requiere Node 18+ y no instala dependencias.
+
+**En Claude Code instala el plugin de verdad**, no copia el bundle: usa `claude plugin marketplace
+add` + `claude plugin install` si tienes la CLI en el PATH y, si no, escribe el mismo registro que
+ella (`plugins/installed_plugins.json` y `enabledPlugins`). Eso es lo que hace que haya hooks,
+statusline y namespace `/custom-agents:`. En Codex habilita el plugin en tu `config.toml`, y en
+OpenCode registra el adaptador de hooks en `opencode.json`.
+
+```bash
+npx @daycry/custom-agents install -p claude-code --mode copy     # la instalación "de siempre": bundle en .claude/
+npx @daycry/custom-agents install -p claude-code --source ./mi-clon   # marketplace desde una ruta local (desarrollo)
+npx @daycry/custom-agents status                                 # ¿registrado de verdad? sí/no por runtime
+```
+
+`--mode copy` equivale a las **Vías 1 y 2** de abajo: te deja las piezas para leerlas, pero Claude
+Code no lee `hooks/hooks.json` fuera de un plugin instalado, así que no hay hooks, ni statusline, ni
+namespace. `CLAUDE_CONFIG_DIR` se respeta si lo tienes puesto.
 
 **Qué funciona igual en cada runtime y qué degrada** (comandos, hooks, guardrails, statusline) está
 en [`INTEROP.md`](INTEROP.md) — la tabla de degradación es de lectura obligatoria antes de dar por
@@ -53,6 +70,12 @@ supuesto que un hook o un guardrail está activo fuera de Claude Code.
 ---
 
 ## Vía 1 — Probar en un proyecto (rápido)
+
+> **Esto equivale a `--mode copy`: no instala el plugin.** Copiar el bundle a un `.claude/` deja las
+> piezas donde se leen (agentes, skills, kits), pero Claude Code solo lee `hooks/hooks.json` dentro
+> de un plugin instalado: **sin hooks, sin statusline y sin namespace `/custom-agents:`**. Vale para
+> desarrollar el propio bundle; para uso real, Vía 0 o Vía 3. `/doctor` lo marca ⚠️ en la fila «hooks
+> registrados» y te da el comando.
 
 Enlaza (o copia) el bundle como `.claude/` del proyecto a probar:
 
@@ -69,6 +92,10 @@ En Claude Code, dentro del proyecto: `/agents` para verlos e invócalos con `@an
 ---
 
 ## Vía 2 — Reuso personal en todos tus proyectos (`~/.claude/`)
+
+> Misma advertencia que la Vía 1: es un `--mode copy` en tu carpeta de usuario, **sin hooks, sin
+> statusline y sin namespace**. Si lo que quieres es tenerlo en todos tus proyectos con todo
+> funcionando, `npx @daycry/custom-agents install -p claude-code --scope user` (Vía 0) o la Vía 3.
 
 Copia el contenido a tu carpeta de usuario; queda disponible en **todos tus proyectos** (precedencia: si un proyecto define un agente con el mismo nombre, gana el del proyecto):
 
