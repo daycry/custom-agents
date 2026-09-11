@@ -70,15 +70,15 @@ generacion:
 
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervisión (real/est) | Tokens (real/est) |
 |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
-| Fase 1 — el instalador registra de verdad (Claude Code, Codex, OpenCode) | 3 | 4 | 75% | 7,0h / 7,0h | 3,01h / 0,90h | 0,25h / 0,25h | 28,5M medidos (sin el T-01 original ni el intento 2: JSON perdido / medidor degradado) / 420k |
-| Fase 2 — diagnóstico veraz y documentación | 0 | 2 | 0% | 3,5h / 3,0h | 0,85h / 0,40h | 0,10h / 0,10h | 16,1M medidos / 180k |
-| **TOTAL** | **3** | **6** | **50%** | **10,5h / 10,0h** | **3,86h / 1,30h** | **0,35h / 0,35h** | **44,6M medidos (sin el T-01 original ni el intento 2) / 600k** |
+| Fase 1 — el instalador registra de verdad (Claude Code, Codex, OpenCode) | 3 | 4 | 75% | 7,2h / 7,0h | 3,17h / 0,90h | 0,30h / 0,25h | 30,9M medidos (sin el T-01 original ni el intento 2: JSON perdido / medidor degradado) / 420k |
+| Fase 2 — diagnóstico veraz y documentación | 0 | 2 | 0% | 4,2h / 3,0h | 1,65h / 0,40h | 0,20h / 0,10h | 28,2M medidos / 180k |
+| **TOTAL** | **3** | **6** | **50%** | **11,4h / 10,0h** | **4,82h / 1,30h** | **0,50h / 0,35h** | **59,1M medidos (sin el T-01 original ni el intento 2) / 600k** |
 
 ---
 
 ## Fase 1 — el instalador registra de verdad (Claude Code, Codex, OpenCode)
 
-**Estado**: completado · **Estimado**: 7,0h · **Real**: 7,0h humanas (estimado) + 3,01h IA + 0,25h supervisión · **Coste est.**: ≈350 € · **Tokens est.**: 420k · **Tramo**: I1 (T-01…T-03) **completado** (3/4 tareas de la fase), revisión de dos lentes intento 1 cerrada (20/20), intento 2 cerrada (15/15) e intento 3 cerrado en una **4.ª pasada** (3/3: 1 Critical, 2 Minor) · I2 (T-04 **completado**, pendiente de revisión con T-05 y T-06)
+**Estado**: completado · **Estimado**: 7,0h · **Real**: 7,2h humanas (estimado) + 3,17h IA + 0,30h supervisión · **Coste est.**: ≈350 € · **Tokens est.**: 420k · **Tramo**: I1 (T-01…T-03) **completado** (3/4 tareas de la fase), revisión de dos lentes intento 1 cerrada (20/20), intento 2 cerrada (15/15) e intento 3 cerrado en una **4.ª pasada** (3/3: 1 Critical, 2 Minor) · I2 (T-04 **completado**; revisión de dos lentes del tramo I2 intento 1 cerrada, 15/15 corregidos)
 
 ### T-01 — Banner y multiselect con checkboxes, cero dependencias
 
@@ -454,10 +454,10 @@ generacion:
 - **Changelog**: En OpenCode el instalador registra el adaptador de hooks en `opencode.json`, además de copiarlo.
 - **Estado**: en-progreso
 - **Tipo**: feature
-- **Tiempo humano**: est. 1,0h · real 1,0h
-- **Tiempo IA (ejec.)**: est. 0,10h · real 0,16h (medido)
-- **Supervisión**: est. 0,05h · real 0,05h
-- **Previsión IA**: 40k in / 5k out tok · **real medido**: `{"eur":2.14,"horas_ia":0.16,"duracion_reloj":"7m","tokens_reales":{"entrada":64,"salida":14829,"cache_creacion":60016,"cache_lectura":3149739,"respuestas":32},"fuente":"medido"}`
+- **Tiempo humano**: est. 1,0h · real 1,2h
+- **Tiempo IA (ejec.)**: est. 0,10h · real 0,32h (medido: 0,16h de la implementación + 0,16h de la corrección de la revisión I2)
+- **Supervisión**: est. 0,05h · real 0,10h
+- **Previsión IA**: 40k in / 5k out tok · **real medido**: `{"eur":2.14,"horas_ia":0.16,"duracion_reloj":"7m","tokens_reales":{"entrada":64,"salida":14829,"cache_creacion":60016,"cache_lectura":3149739,"respuestas":32},"fuente":"medido"}` · **+ corrección de la revisión I2**: 0,16h IA y ≈2,4M tokens medidos (marcador `installer-registro-real/I2-fix1`; el JSON completo y el reparto, al pie de la sección de revisión)
 - **Dependencias**: —
 - **Archivos**: `install/providers.mjs`, `install/install.mjs`, `tests/installer.test.mjs`
 - **Verificación**:
@@ -465,7 +465,7 @@ generacion:
   - `node --test tests/*.test.mjs` → verde
   - **No verificable aquí**: que OpenCode cargue el adaptador → **M-01**
 - **Desviaciones**:
-  21. **La ruta literal de D4 (`./plugins/custom-agents-hooks.js`) es incorrecta en scope `project` y se cambia por `./.opencode/plugins/custom-agents-hooks.js`.** Evidencia en el código de OpenCode (`packages/opencode/src/config/plugin.ts`, `resolvePluginSpec`: «Path-like specs are resolved relative to the config file that declared them»): en scope `project` el config vive en la RAÍZ del proyecto y el adaptador en `.opencode/plugins/`, así que `./plugins/…` resolvería a `<proyecto>/plugins/…`, que no existe → `resolvePathPluginTarget` falla y OpenCode publica un `Failed to load plugin` en la sesión del usuario (peor que no registrar nada). En scope `user` config y adaptador comparten carpeta, así que la ruta absoluta de D4 vale tal cual. El test no fija la cadena a mano: comprueba que `resolve(dirname(config), spec)` es **el fichero que el plan copia**.
+  21. **La ruta literal de D4 (`./plugins/custom-agents-hooks.js`) es incorrecta en scope `project` y se cambia por `./.opencode/plugins/custom-agents-hooks.js`.** Evidencia en el código de OpenCode (`packages/opencode/src/config/plugin.ts`, `resolvePluginSpec`: «Path-like specs are resolved relative to the config file that declared them»): en scope `project` el config vive en la RAÍZ del proyecto y el adaptador en `.opencode/plugins/`, así que `./plugins/…` resolvería a `<proyecto>/plugins/…`, que no existe. `resolvePathPluginTarget` no comprueba que el fichero esté ahí —devuelve la ruta resuelta—, así que el fallo llega **al importarlo**: OpenCode publica un `Failed to load plugin` en la sesión del usuario (peor que no registrar nada). En scope `user` config y adaptador comparten carpeta, así que la ruta absoluta de D4 vale tal cual. El test no fija la cadena a mano: comprueba que `resolve(dirname(config), spec)` es **el fichero que el plan copia**.
   21-bis. **La premisa de D4 («la carga automática desde `plugins/` no está confirmada en la doc») era falsa**: la doc oficial (`opencode.ai/docs/plugins`, «Files in these directories are automatically loaded at startup») y el código (`ConfigPlugin.load`, glob `{plugin,plugins}/*.{ts,js}`) confirman el autodescubrimiento. **Se mantiene el registro explícito igualmente** por dos razones: no duplica la carga (`deduplicatePluginOrigins` desempata por URL de fichero, y ambas vías normalizan a la misma) y hace el registro **comprobable** por `/doctor` y `status` (T-05), que es el objetivo de la iniciativa. Queda dicho para que M-01 lo contraste en un OpenCode real.
   21-ter. **`uninstall` gana un aviso nuevo.** Dejar `plugin` sin decir nada no es neutral como con `instructions`: el fichero al que apunta sí se borra y un spec de ruta colgante hace que OpenCode se queje al arrancar. Se añade `notaDesinstalar` al proveedor (una línea `!` al desinstalar) en vez de tocar la config del usuario.
 
@@ -494,6 +494,22 @@ $ node --test tests/*.test.mjs
 ℹ tests 105   ℹ pass 105   ℹ fail 0
 ```
 
+**Verificación re-ejecutada tras la corrección de la revisión I2** (gaps B-5 y A-9):
+
+```console
+$ node install/install.mjs install -p opencode -y --dir <tmp1> -q     # exit 0
+$ cat <tmp1>/opencode.json
+  "plugin": [ "./.opencode/plugins/custom-agents-hooks.js" ]          # igual que antes
+
+$ echo '{"plugin":"mi-plugin.js"}' > <tmp2>/opencode.json             # el escalar del usuario (gap B-5)
+$ node install/install.mjs install -p opencode -y --dir <tmp2>
+  ! <tmp2>\opencode.json: plugin: tu valor "mi-plugin.js" no era una lista; lo conservo como primer elemento
+['mi-plugin.js', './.opencode/plugins/custom-agents-hooks.js']        # ya no desaparece, y va delante
+
+$ node --test tests/*.test.mjs
+ℹ tests 114   ℹ pass 114   ℹ fail 0                                   # 108 → 114, ningún nombre perdido
+```
+
 **Criterios de aceptación**
 - [x] `plugin` registrado en ambos scopes con la ruta correcta; unión sin duplicar; el `plugin` previo del usuario se conserva
 
@@ -505,7 +521,7 @@ $ node --test tests/*.test.mjs
 
 ## Fase 2 — diagnóstico veraz y documentación
 
-**Estado**: completado · **Estimado**: 3,0h · **Real**: 3,5h humanas (estimado) + 0,85h IA + 0,10h supervisión · **Coste est.**: ≈150 € · **Tokens est.**: 180k · **Tokens reales**: 16,1M medidos (T-05 + T-06) · **Tramo**: I2 (T-04…T-06), pendiente de la revisión de dos lentes
+**Estado**: completado · **Estimado**: 3,0h · **Real**: 4,2h humanas (estimado) + 1,65h IA + 0,20h supervisión · **Coste est.**: ≈150 € · **Tokens est.**: 180k · **Tokens reales**: 28,2M medidos (T-05 + T-06, incluidos los ≈12,1M de la corrección de la revisión I2) · **Tramo**: I2 (T-04…T-06) **completado**, revisión de dos lentes intento 1 cerrada (8 Important + 7 Minor, 15/15 corregidos)
 
 ### T-05 — `/doctor` y `status` comprueban el registro real, no la existencia de ficheros
 
@@ -513,10 +529,10 @@ $ node --test tests/*.test.mjs
 - **Changelog**: `/doctor` y `status` dicen si el plugin está registrado de verdad en cada runtime; una copia del bundle en `.claude/` ya no pasa por «hooks registrados».
 - **Estado**: en-progreso
 - **Tipo**: fix
-- **Tiempo humano**: est. 2,0h · real 2,0h
-- **Tiempo IA (ejec.)**: est. 0,25h · real 0,24h (medido)
-- **Supervisión**: est. 0,05h · real 0,05h
-- **Previsión IA**: 90k in / 12k out tok · **real medido**: `{"eur":4.97,"horas_ia":0.24,"duracion_reloj":"11m","tokens_reales":{"entrada":100,"salida":36337,"cache_creacion":79716,"cache_lectura":7999811,"respuestas":50},"fuente":"medido"}`
+- **Tiempo humano**: est. 2,0h · real 2,5h
+- **Tiempo IA (ejec.)**: est. 0,25h · real 0,86h (medido: 0,24h de la implementación + 0,62h de la corrección de la revisión I2)
+- **Supervisión**: est. 0,05h · real 0,10h
+- **Previsión IA**: 90k in / 12k out tok · **real medido**: `{"eur":4.97,"horas_ia":0.24,"duracion_reloj":"11m","tokens_reales":{"entrada":100,"salida":36337,"cache_creacion":79716,"cache_lectura":7999811,"respuestas":50},"fuente":"medido"}` · **+ corrección de la revisión I2**: 0,62h IA y ≈9,4M tokens medidos (marcador `installer-registro-real/I2-fix1`; el JSON completo y el reparto, al pie de la sección de revisión)
 - **Dependencias**: T-02 (formato del registro escrito)
 - **Archivos**: `agent-kits/shared/doctor.py`, `agent-kits/shared/test_doctor.py`, `install/install.mjs`, `install/providers.mjs`, `tests/installer.test.mjs`, `commands/doctor.md`, `interop/codex/prompts/doctor.md`, `interop/opencode/commands/doctor.md`
 - **Verificación**:
@@ -596,6 +612,30 @@ $ python -m pytest -q tests/test_copias_declaradas.py -p no:cacheprovider
 18 passed in 0.49s                                          ← copias `--8<--` intactas
 ```
 
+**Verificación re-ejecutada tras la corrección de la revisión I2** (gaps B-1, B-2, A-3, A-4, B-3, B-6, B-7, A-2):
+
+```console
+$ python -m pytest -q agent-kits/shared/test_doctor.py -p no:cacheprovider
+2 failed, 52 passed in 30.67s        # 41 → 54 tests; el CONJUNTO de rojos, los 2 preexistentes de Windows
+
+# gap B-3, la máquina contaminada (`custom-agents@otro: false` en el CLAUDE_CONFIG_DIR):
+$ CLAUDE_CONFIG_DIR=<tmp-otro> python -m pytest -q agent-kits/shared/test_doctor.py -p no:cacheprovider
+2 failed, 52 passed in 28.21s        # ANTES de la corrección, con ese mismo cfg: 14 failed, 27 passed
+
+# gaps A-3 y A-4: el MISMO estado (alta en installed_plugins + `enabledPlugins: false`)
+$ CLAUDE_CONFIG_DIR=<tmp>/cfg node install/install.mjs status --dir <tmp>/proj
+  ! user: registrado: no — está dado de alta pero APAGADO en <tmp>\cfg\settings.json: el runtime lo ignora
+$ CLAUDE_CONFIG_DIR=<tmp>/cfg python agent-kits/shared/doctor.py --root <tmp>/proj --plugin-root .
+| ❌ | registro del plugin | `custom-agents@daycry` … (scope user) como `false`: Claude Code lo ignora entero | …
+| ⚠️ | hooks registrados  | … pero el plugin NO está activo en el registro (ver «registro del plugin») | …
+exit=1                                # las dos herramientas, el mismo veredicto
+
+$ python agent-kits/shared/doctor.py --plugin-root . --json     # este repo, plugin instalado de verdad
+modo=plugin · registro=2 fuentes · ok 13 · aviso 1 · error 0 · exit 0
+  ℹ️ | registro en Codex    | Codex está en esta máquina (…\.codex) y el plugin no está instalado ahí — opcional: …
+  ℹ️ | registro en OpenCode | OpenCode no está en esta máquina: nada que comprobar
+```
+
 **Criterios de aceptación**
 - [x] Modo copia → hooks ⚠️ con arreglo; modo plugin → ✅ y fila «registro» con fichero/scope; `enabledPlugins: false` → ❌
 - [x] `status` informa «registrado» por runtime desde los ficheros reales
@@ -613,19 +653,22 @@ $ python -m pytest -q tests/test_copias_declaradas.py -p no:cacheprovider
 - **Changelog**: Documentación del instalador al día (modos, fuente, respaldo sin CLI) y checklist de verificación manual en Codex y OpenCode.
 - **Estado**: en-progreso
 - **Tipo**: docs
-- **Tiempo humano**: est. 1,0h · real 1,5h
-- **Tiempo IA (ejec.)**: est. 0,15h · real 0,61h (medido)
-- **Supervisión**: est. 0,05h · real 0,05h
-- **Previsión IA**: 60k in / 8k out tok · **real medido**: `{"eur":5.54,"horas_ia":0.61,"duracion_reloj":"17m","tokens_reales":{"entrada":74,"salida":18896,"cache_creacion":275557,"cache_lectura":7652328,"respuestas":37},"fuente":"medido"}`
+- **Tiempo humano**: est. 1,0h · real 1,7h
+- **Tiempo IA (ejec.)**: est. 0,15h · real 0,79h (medido: 0,61h de la implementación + 0,18h de la corrección de la revisión I2)
+- **Supervisión**: est. 0,05h · real 0,10h
+- **Previsión IA**: 60k in / 8k out tok · **real medido**: `{"eur":5.54,"horas_ia":0.61,"duracion_reloj":"17m","tokens_reales":{"entrada":74,"salida":18896,"cache_creacion":275557,"cache_lectura":7652328,"respuestas":37},"fuente":"medido"}` · **+ corrección de la revisión I2**: 0,18h IA y ≈2,7M tokens medidos (marcador `installer-registro-real/I2-fix1`; el JSON completo y el reparto, al pie de la sección de revisión)
 - **Dependencias**: T-01…T-05
 - **Archivos**: `docs/INTEROP.md`, `docs/en/INTEROP.md`, `docs/INSTALL.md`, `docs/en/INSTALL.md`, `README.md`, `README.es.md`, `install/install.mjs` (texto de `--help`), `docs/roadmap/2026-09-11-installer-registro-real/tasks.md` (M-01)
 - **Verificación**:
   - `python scripts/lint_plugin.py` → `0 errores`; `python evals/check.py` → 0; `python scripts/export-interop.py --check` → `48 ficheros al día`; `python -m pytest -q tests/test_ci_manual_copy.py tests/test_export_interop.py -p no:cacheprovider` → verde
   - `grep -n "mode copy\|--source\|CLAUDE_CONFIG_DIR" docs/INTEROP.md docs/en/INTEROP.md docs/INSTALL.md docs/en/INSTALL.md` → presente en los cuatro
   - Criterio de prosa (`docs-style.md`) revisado por la Lente A
-  - `python skills/changelog-sync/scripts/changelog-sync.py --check docs/roadmap/2026-09-11-installer-registro-real` (al cerrar) → entradas EN/ES generadas
+  - `python skills/changelog-sync/scripts/changelog-sync.py --check --only 2026-09-11-installer-registro-real` (al cerrar; el script NO acepta ruta posicional — gap A-5) → entradas EN/ES generadas
 - **Desviaciones**:
   25. **Los CHANGELOG no se tocan aquí.** El campo `- **Changelog**:` de cada T-01…T-06 ya está escrito (es lo que copia `changelog-sync`), pero las entradas se generan al cerrar la iniciativa (`estado: completado`), que no es de esta tarea. `CHANGELOG.md`/`CHANGELOG.es.md` salen de `Archivos`; el comando queda en la `Verificación`.
+  27. **El criterio 3 de T-06 vuelve a su literal de HEAD, pero como viñeta.** A-1 pide tres cosas a la vez —literal de HEAD, sin marcar y T-06 `completado`— y `ledger-lint.py` tiene una incoherencia dura justo ahí (`completado` con `- [ ]` en el bloque de criterios, línea 407). Como el texto del criterio **no se puede tocar** (es lo que señala el gap) y el trabajo que describe no es de esta tarea (desviación 25), se restaura **literal y entrecomillado** como viñeta sin checkbox: queda visible que está abierto, no se marca lo que no está hecho y la puerta mecánica sigue en verde. Alternativas descartadas: marcarlo `[x]` (la mentira que el gap rechaza) y dejar T-06 `en-progreso` (bloquea el cierre del tramo sin ganar información).
+  28. **`/doctor` respeta `CODEX_HOME` y, para no divergir, el instalador también.** Las filas nuevas de Codex leen `CODEX_HOME` antes de `~/.codex` (es lo que hace Codex), así que `install/providers.mjs` gana `codexHome()` con el mismo criterio: si las dos piezas leyeran sitios distintos volverían a poder contradecirse, que es justo el defecto A-3. Es un cambio de una línea en el proveedor, fuera de los 15 gaps y por eso declarado.
+  29. **La regla de precedencia entre scopes se fija aquí**: manda el scope más específico que se pronuncia (`project` sobre `user`) y, dentro de él, un `false` explícito gana a cualquier alta; sin pronunciamiento, un alta de `installed_plugins.json` basta. **Rectificado el 2026-09-11 (revisión I2, intento 2)**: Claude Code **sí** documenta la precedencia — `settings-reference#enabledplugins` da `Scope: Any file` y `settings#settings-precedence` fija «Managed > command line > Project local > Shared project > User». El orden implementado coincide con el documentado, pero faltan dos niveles (`local` = `.claude/settings.local.json`, donde escribe `claude plugin disable --scope local`, y `managed`): es el gap **I2-1**. La regla queda escrita en el docstring de `estado_plugin()` y en `commands/doctor.md`, ahora con la cita de la doc.
   26. **`scope-check.py` sale con 1 por seis ficheros que no son del tramo I2.** Los 17 ficheros tocados en I2 están todos en alcance; los 6 que sobran (`.gitignore`, `.claude/.gitignore`, `CONTINUE-HERE.md`, `docs/roadmap/README.md`, `docs/roadmap/2026-09-04-changelog-brief/tasks.md`, `skills/changelog-sync/references/medicion-escalera.md`) vienen de **commits anteriores del orquestador** en esta rama (fila del índice, cifras re-medidas, estado de la sesión), no de ninguna tarea. No se añaden a `Archivos` de T-04…T-06 —no son suyos— ni se revierten. Lo resuelve el orquestador al cerrar la rama; queda dicho aquí para que la revisión no lo lea como alcance colado.
 
 ```console
@@ -646,10 +689,21 @@ $ grep -c "mode copy\|--source\|CLAUDE_CONFIG_DIR" docs/INTEROP.md docs/en/INTER
 docs/INTEROP.md:7   docs/en/INTEROP.md:7   docs/INSTALL.md:6   docs/en/INSTALL.md:6
 ```
 
+**Verificación re-ejecutada tras la corrección de la revisión I2** (gaps A-1, A-5, A-6, A-7, A-8):
+
+```console
+$ python scripts/lint_plugin.py              → lint_plugin: 9 agentes · 0 errores · 3 avisos
+$ python evals/check.py                      → evals/check: 38 ficheros · 135 casos · 38 piezas · 0 errores
+$ python scripts/export-interop.py --check   → export-interop --check: 48 ficheros al día
+$ python -m pytest -q tests/test_copias_declaradas.py tests/test_ci_manual_copy.py \
+      tests/test_export_interop.py -p no:cacheprovider
+45 passed in 0.74s                           # las copias `--8<--` de doctor.py, intactas
+```
+
 **Criterios de aceptación**
 - [x] Docs ES/EN espejadas en el mismo cambio; `--help` coherente con la doc
 - [x] M-01 escrita con pasos y resultado esperado por runtime; sin marcar hasta la confirmación del usuario
-- [x] Campo `- **Changelog**:` escrito en las **seis** tareas — que es lo que `changelog-sync` copia tal cual al generar los bullets EN/ES **al cerrar la iniciativa** (desviación 25: esa generación no es de esta tarea; su comando está en la `Verificación`)
+- **Sin marcar — literal de HEAD (`09f62bd`), restaurado**: «CHANGELOG EN/ES con un bullet por tarea (escalera de `changelog-sync`)». No lo cierra esta tarea: los bullets se generan al cerrar la iniciativa (`estado: completado`), **desviación 25**. El campo `- **Changelog**:` —que es lo que `changelog-sync` copia tal cual— sí está escrito en las seis tareas, y el comando está en la `Verificación`. Va como viñeta y no como `- [ ]` por la **desviación 27**
 
 **Subtareas**
 - [x] INTEROP + INSTALL + README (ES/EN): §1 con la tabla «qué se copia / qué se registra» por runtime, `--mode`/`--source`/`--force-marketplace`/`CLAUDE_CONFIG_DIR`, «¿está registrado de verdad?» y quinta garantía; §4 con la fila «registro del plugin» y el hueco «copiar el bundle no instala el plugin»; Vía 0 ampliada y aviso en Vías 1/2; README ES/EN
@@ -888,23 +942,88 @@ dedupe por URL evita la carga doble) y 21-ter tambien confirmadas. **D4 queda co
 
 | # | Grado | Gap | Tarea | Correccion | Evidencia |
 |---|---|---|---|---|---|
-| B-1 | **Important** | `registro_plugin()` etiqueta `scope: "user"` toda entrada de `installed_plugins.json` e **ignora el `scope` y el `projectPath` que la propia entrada trae**: un alta hecha desde OTRO proyecto valida la raiz que se esta diagnosticando. Es el falso positivo que la iniciativa venia a matar, con otra cara | T-05 | pendiente: leer `scope`/`projectPath` de cada entrada y contar solo las que aplican a la raiz diagnosticada (las de `user` siempre; las de `project` solo si su `projectPath` es esta raiz); la fila dice el scope real | `doctor.py:395,404,424` |
-| B-2 | **Important** | Los descriptores `registro` de `claude-code` no cubren la via CLI: en scope project solo miran `<dir>/.claude/settings.json` (que escribe **solo** el respaldo sin CLI) y en user aceptan cualquier entrada sea cual sea su `scope`. Tras una instalacion correcta por CLI en scope project, `status` da **falso negativo y falso positivo a la vez** | T-05 | pendiente: los descriptores leen `installed_plugins.json` filtrando por `scope`/`projectPath`, con el mismo criterio que `doctor` | `providers.mjs:271-281` |
-| A-3 | **Important** | `leerRegistro` devuelve en el **primer** descriptor que acierta, e `installed_plugins.json` va antes que `settings.json`: con `enabledPlugins = false`, `status` dice «registrado: si» mientras `/doctor` sobre el MISMO estado dice error. Dos herramientas de la misma iniciativa se contradicen, y M-01 usa `status` como prueba de que la instalacion fue bien | T-05 | pendiente: recorrer TODOS los descriptores y que un `false` explicito mande sobre cualquier alta | `install.mjs:1524-1547` |
-| A-4 = B-4 | **Important** | `modo_instalacion()` declara `plugin` con que exista **un** hit no-`False` (las entradas de `installed_plugins.json` traen `habilitado: None`), asi que con el plugin **apagado** el informe dice `instalacion: plugin` y `hooks registrados` OK en la misma tabla en la que marca el registro en error | T-05 | pendiente: el modo lo decide el estado efectivo (un `false` en el scope que manda no es «plugin activo») y la fila de hooks no puede salir OK si el registro esta en error | `doctor.py:424` vs `:436` |
-| B-3 | **Important** | `_bloque_plugin_registro()` mira `apagados` antes que `vivos` y **sin filtrar por clave**: cualquier `custom-agents@<otro>: false` pone la fila en error y `/doctor` en exit 1 aunque el plugin en uso este habilitado. De rebote, los tests nuevos **no aislan `CLAUDE_CONFIG_DIR`**: en una maquina con esa clave los rojos de `test_doctor.py` pasan de 2 a 14 | T-05 | pendiente: filtrar por la clave exacta del plugin diagnosticado y por scope; **todos** los tests de `test_doctor.py` que toquen el registro fijan `CLAUDE_CONFIG_DIR` a un temporal | `doctor.py:436-442` · `test_doctor.py` |
-| B-5 | **Important** | `plugin` entra en el `merge` de `opencode.json` y `fusionar()` **sustituye un valor escalar del usuario** por nuestro array, sin aviso y sin apunte en el manifiesto: `"plugin": "mi-plugin.js"` desaparece y `uninstall` no lo devuelve. El agujero de `fusionar` es previo, pero este diff mete `plugin` en su radio | T-04 | pendiente: al fusionar un array sobre un escalar, conservarlo como primer elemento y avisar; si no es seguro, no tocar la clave y avisar | `providers.mjs:446` · `install.mjs:265` |
-| A-1 | **Important** | El 3.er criterio de T-06 fue **reescrito** durante la implementacion y marcado `[x]`: HEAD pedia «CHANGELOG EN/ES con un bullet por tarea (escalera de `changelog-sync`)» y hoy dice «campo `- **Changelog**:` escrito en las seis tareas». La desviacion 25 explica bien por que no se tocan los CHANGELOG aqui; el camino conforme es dejar el criterio **sin marcar** apoyado en ella, no cambiar su texto | T-06 | pendiente: restaurar el literal de HEAD, dejarlo sin marcar y apuntar a la desviacion 25 | `tasks.md` CA3 de T-06 |
-| A-2 | **Important** | D5 pedia que **`/doctor`** comprobara el registro tambien en Codex (`config.toml`) y OpenCode (`opencode.json`); solo lo hace `status`. `doctor.py` no menciona ninguno de los dos, y `/doctor` se exporta a esos runtimes | T-05 | pendiente: implementarlo en `doctor.py` (dos filas mas, leyendo lo mismo que `leerRegistro`) o **declararlo como desviacion numerada** con el motivo y anotarlo en D5. Preferible implementarlo: son dos lecturas de fichero | `doctor.py` (0 apariciones de `codex`/`opencode`) |
-| B-6 | Minor | La forma del bloque `plugin` en `--json` no es estable: `modo`/`registro` solo existen en la rama larga; un consumidor que lea `bloque["modo"]` revienta con `KeyError` cuando la raiz no se localiza | T-05 | pendiente: emitir siempre las claves, con valor nulo o `desconocido` | `doctor.py:493` vs `:501` |
-| B-7 | Minor | En `enabledPlugins`, cualquier valor falsy que no sea `False` (`0`, `null`, `""`, `"false"`) cuenta como alta | T-05 | pendiente: solo `True` cuenta como habilitado; cualquier otro valor, aviso de valor invalido | `doctor.py:405` |
-| A-5 | Minor | El comando de la `Verificacion` de T-06 no es ejecutable: `changelog-sync.py` no acepta ruta posicional | T-06 | pendiente: `--check --only <slug>` | `tasks.md` Verificacion de T-06 |
-| A-6 | Minor | «los 220 ficheros» en INTEROP (ES y EN): el bundle de Claude Code son 222 pasos; 220 es el de OpenCode | T-06 | pendiente: cifra real o sin cifra | `INTEROP.md:178` + espejo |
-| A-7 | Minor | INSTALL (ES y EN) sigue describiendo **un** manifiesto (`.custom-agents-install.json`) cuando en modo plugin es `.custom-agents-install.plugin.json` | T-06 | pendiente: nombrar los dos | `INSTALL.md:46` + espejo |
-| A-8 | Minor | INTEROP afirma como hecho que registrar el adaptador «no lo carga dos veces»; lo respalda el codigo upstream, no una ejecucion, y M-01 lo tiene como pendiente | T-06 | pendiente: matizar («segun el codigo de OpenCode…; pendiente de confirmar en M-01») | `INTEROP.md:161` + espejo |
-| A-9 | Minor | Imprecision en la evidencia de la desviacion 21: un fichero inexistente no hace fallar a `resolvePathPluginTarget`; el error llega al importar | T-04 | pendiente: corregir la frase | `tasks.md` desviacion 21 |
+| B-1 | **Important** | `registro_plugin()` etiqueta `scope: "user"` toda entrada de `installed_plugins.json` e **ignora el `scope` y el `projectPath` que la propia entrada trae**: un alta hecha desde OTRO proyecto valida la raiz que se esta diagnosticando. Es el falso positivo que la iniciativa venia a matar, con otra cara | T-05 | **Corregido**: leer `scope`/`projectPath` de cada entrada y contar solo las que aplican a la raiz diagnosticada (las de `user` siempre; las de `project` solo si su `projectPath` es esta raiz); la fila dice el scope real — `_fuentes_instalados()` lee el `scope` y el `projectPath` de cada entrada y solo cuenta las que aplican a la raíz; la fila dice el scope real. Tests `test_gap_b1_un_alta_de_otro_proyecto_no_registra_esta_raiz` y `test_gap_b1_el_alta_de_ESTE_proyecto_si_cuenta_y_dice_su_scope_real` | `doctor.py:395,404,424` |
+| B-2 | **Important** | Los descriptores `registro` de `claude-code` no cubren la via CLI: en scope project solo miran `<dir>/.claude/settings.json` (que escribe **solo** el respaldo sin CLI) y en user aceptan cualquier entrada sea cual sea su `scope`. Tras una instalacion correcta por CLI en scope project, `status` da **falso negativo y falso positivo a la vez** | T-05 | **Corregido**: los descriptores leen `installed_plugins.json` filtrando por `scope`/`projectPath`, con el mismo criterio que `doctor` — los descriptores de `claude-code` miran `installed_plugins.json` en los DOS scopes con `tipo: "json-instalados"` (filtra por `scope`/`projectPath`) y el respaldo sin CLI escribe `projectPath` en scope project. Test `gap B-2: instalado por la vía sin CLI en scope project…` | `providers.mjs:271-281` |
+| A-3 | **Important** | `leerRegistro` devuelve en el **primer** descriptor que acierta, e `installed_plugins.json` va antes que `settings.json`: con `enabledPlugins = false`, `status` dice «registrado: si» mientras `/doctor` sobre el MISMO estado dice error. Dos herramientas de la misma iniciativa se contradicen, y M-01 usa `status` como prueba de que la instalacion fue bien | T-05 | **Corregido**: recorrer TODOS los descriptores y que un `false` explicito mande sobre cualquier alta — `leerRegistro` recorre TODOS los descriptores y un `false` manda (`valorRegistro`), igual que `estado_plugin()`. Tests `gap A-3: leerRegistro mira TODOS los descriptores…` (node) y `test_doctor_y_status_dan_el_MISMO_veredicto_sobre_el_MISMO_estado` (4 estados, python) | `install.mjs:1524-1547` |
+| A-4 = B-4 | **Important** | `modo_instalacion()` declara `plugin` con que exista **un** hit no-`False` (las entradas de `installed_plugins.json` traen `habilitado: None`), asi que con el plugin **apagado** el informe dice `instalacion: plugin` y `hooks registrados` OK en la misma tabla en la que marca el registro en error | T-05 | **Corregido**: el modo lo decide el estado efectivo (un `false` en el scope que manda no es «plugin activo») y la fila de hooks no puede salir OK si el registro esta en error — `modo_instalacion()` decide por `estado_plugin()['habilitado']`; con el registro en error el modo es `inactivo` y la fila de hooks sale ⚠️ con arreglo. Test `test_gap_a4_con_el_registro_en_error_los_hooks_no_pueden_salir_en_verde` | `doctor.py:424` vs `:436` |
+| B-3 | **Important** | `_bloque_plugin_registro()` mira `apagados` antes que `vivos` y **sin filtrar por clave**: cualquier `custom-agents@<otro>: false` pone la fila en error y `/doctor` en exit 1 aunque el plugin en uso este habilitado. De rebote, los tests nuevos **no aislan `CLAUDE_CONFIG_DIR`**: en una maquina con esa clave los rojos de `test_doctor.py` pasan de 2 a 14 | T-05 | **Corregido**: filtrar por la clave exacta del plugin diagnosticado y por scope; **todos** los tests de `test_doctor.py` que toquen el registro fijan `CLAUDE_CONFIG_DIR` a un temporal — solo la clave exacta (`clave_plugin()`) y fixture autouse `_registro_de_la_maquina_fuera` para TODA la suite. Comprobado simulando la máquina contaminada (`custom-agents@otro: false` en el `CLAUDE_CONFIG_DIR`): **14 rojos → 2** | `doctor.py:436-442` · `test_doctor.py` |
+| B-5 | **Important** | `plugin` entra en el `merge` de `opencode.json` y `fusionar()` **sustituye un valor escalar del usuario** por nuestro array, sin aviso y sin apunte en el manifiesto: `"plugin": "mi-plugin.js"` desaparece y `uninstall` no lo devuelve. El agujero de `fusionar` es previo, pero este diff mete `plugin` en su radio | T-04 | **Corregido**: al fusionar un array sobre un escalar, conservarlo como primer elemento y avisar; si no es seguro, no tocar la clave y avisar — `fusionar()` conserva el escalar como primer elemento y avisa; un objeto no se toca y también avisa; el aviso se drena junto al fichero que lo provoca. Tests `gap B-5` (unitario + e2e: `"plugin": "mi-plugin.js"` sobrevive al install) | `providers.mjs:446` · `install.mjs:265` |
+| A-1 | **Important** | El 3.er criterio de T-06 fue **reescrito** durante la implementacion y marcado `[x]`: HEAD pedia «CHANGELOG EN/ES con un bullet por tarea (escalera de `changelog-sync`)» y hoy dice «campo `- **Changelog**:` escrito en las seis tareas». La desviacion 25 explica bien por que no se tocan los CHANGELOG aqui; el camino conforme es dejar el criterio **sin marcar** apoyado en ella, no cambiar su texto | T-06 | **Corregido**: restaurar el literal de HEAD, dejarlo sin marcar y apuntar a la desviacion 25 — literal de HEAD (`09f62bd`) restaurado y sin marcar, apoyado en la desviación 25 (ver desviación 27 por la forma: viñeta, no `- [ ]`) | `tasks.md` CA3 de T-06 |
+| A-2 | **Important** | D5 pedia que **`/doctor`** comprobara el registro tambien en Codex (`config.toml`) y OpenCode (`opencode.json`); solo lo hace `status`. `doctor.py` no menciona ninguno de los dos, y `/doctor` se exporta a esos runtimes | T-05 | **Corregido**: implementarlo en `doctor.py` (dos filas mas, leyendo lo mismo que `leerRegistro`) o **declararlo como desviacion numerada** con el motivo y anotarlo en D5. Preferible implementarlo: son dos lecturas de fichero — implementado: filas «registro en Codex» (`config.toml` con `tomllib`, las cinco formas) y «registro en OpenCode» (`plugin` de `opencode.json`), con el mismo criterio que `status`. Test `test_gap_a2_codex_y_opencode_tienen_su_fila_de_registro` | `doctor.py` (0 apariciones de `codex`/`opencode`) |
+| B-6 | Minor | La forma del bloque `plugin` en `--json` no es estable: `modo`/`registro` solo existen en la rama larga; un consumidor que lea `bloque["modo"]` revienta con `KeyError` cuando la raiz no se localiza | T-05 | **Corregido**: emitir siempre las claves, con valor nulo o `desconocido` — `bloque_plugin` emite `modo` y `registro` también en la rama corta. Test `test_gap_b6_el_json_trae_modo_y_registro_tambien_sin_raiz` | `doctor.py:493` vs `:501` |
+| B-7 | Minor | En `enabledPlugins`, cualquier valor falsy que no sea `False` (`0`, `null`, `""`, `"false"`) cuenta como alta | T-05 | **Corregido**: solo `True` cuenta como habilitado; cualquier otro valor, aviso de valor invalido — solo `True` habilita; cualquier otro valor es fila ⚠️ «registro con valor inválido» (y `invalidoEn` en `status`). Tests `test_gap_b7_en_enabled_plugins_solo_true_habilita` y `gap A-3` (node) | `doctor.py:405` |
+| A-5 | Minor | El comando de la `Verificacion` de T-06 no es ejecutable: `changelog-sync.py` no acepta ruta posicional | T-06 | **Corregido**: `--check --only <slug>` — `--check --only 2026-09-11-installer-registro-real` | `tasks.md` Verificacion de T-06 |
+| A-6 | Minor | «los 220 ficheros» en INTEROP (ES y EN): el bundle de Claude Code son 222 pasos; 220 es el de OpenCode | T-06 | **Corregido**: cifra real o sin cifra — sin cifra en los dos espejos («está el bundle entero» / «the whole bundle is there») | `INTEROP.md:178` + espejo |
+| A-7 | Minor | INSTALL (ES y EN) sigue describiendo **un** manifiesto (`.custom-agents-install.json`) cuando en modo plugin es `.custom-agents-install.plugin.json` | T-06 | **Corregido**: nombrar los dos — INSTALL ES/EN nombran los dos: `.custom-agents-install.plugin.json` (modo plugin) y `.custom-agents-install.json` (`--mode copy`) | `INSTALL.md:46` + espejo |
+| A-8 | Minor | INTEROP afirma como hecho que registrar el adaptador «no lo carga dos veces»; lo respalda el codigo upstream, no una ejecucion, y M-01 lo tiene como pendiente | T-06 | **Corregido**: matizar («segun el codigo de OpenCode…; pendiente de confirmar en M-01») — INTEROP ES/EN: «según su código (`deduplicatePluginOrigins` desempata por URL de fichero)… pendiente de confirmar en un OpenCode real (M-01)» | `INTEROP.md:161` + espejo |
+| A-9 | Minor | Imprecision en la evidencia de la desviacion 21: un fichero inexistente no hace fallar a `resolvePathPluginTarget`; el error llega al importar | T-04 | **Corregido**: corregir la frase — la frase dice ahora que `resolvePathPluginTarget` devuelve la ruta sin comprobarla y que el fallo llega al importarla | `tasks.md` desviacion 21 |
 
 **Higiene de revision** (no es gap del diff, pero tumba la puerta de CI): mientras una lente tuvo su copia
 `agent-kits/shared/_doctor_head.py` en el arbol, `lint_plugin.py` salio con **4 errores** por centinelas `--8<--` sin
 fila en `copias.json`. Comprobado por el orquestador al cerrar la revision: la copia ya no esta y el linter vuelve a
 `0 errores`. Leccion: las copias de HEAD van al scratchpad; si tienen que vivir en el arbol, se borran antes de cerrar.
+
+**Corrección — 15/15 cerrados** (8 Important + 7 Minor), marcador `installer-registro-real/I2-fix1`:
+`{"fuente":"medido","tokens_reales":{"entrada":3454,"salida":111202,"cache_creacion":345174,"cache_lectura":14089856,"respuestas":101},"eur":11.04,"horas_ia":0.96,"duracion":"58m","duracion_reloj":"54m","ratio_usado":479326.0,"ratio_origen":"CALIBRATION.md (mediana de 6)"}`.
+**Reparto por bloques de trabajo observados** (no a prorrata de los 15 señalamientos): el estado efectivo del
+registro —`estado_plugin()` con sus reglas de scope/clave/precedencia, los descriptores `json-instalados`,
+`leerRegistro` recorriendo todo, las filas de Codex y OpenCode, el aislamiento de la suite y 13 tests nuevos de
+`test_doctor.py` + 4 de node— → **T-05: 0,62h**; la fusión que ya no borra la clave del usuario (`fusionar` + aviso
++ 2 tests) y la frase de la desviación 21 → **T-04: 0,16h**; docs ES/EN, `commands/doctor.md`, interop regenerada y
+el criterio restaurado → **T-06: 0,18h**.
+
+**Los cinco Important de `/doctor` y `status` se cerraron como UN concepto, no como cinco parches.** La pieza es
+`estado_plugin(plugin_root, project, cfg)` en `agent-kits/shared/doctor.py`: recorre todas las fuentes, se queda
+con las que aplican a la raíz (clave exacta; `user` siempre, `project` solo con su `projectPath`), y resuelve con
+precedencia de scope y un `false` explícito mandando sobre cualquier alta. `modo_instalacion()` y las filas del
+informe salen de ahí, y `leerRegistro()` de `install/install.mjs` repite las mismas reglas — con un test que monta
+un estado y comprueba que `/doctor` y `status` **coinciden** en los cuatro casos que antes se contradecían
+(`test_doctor_y_status_dan_el_MISMO_veredicto_sobre_el_MISMO_estado`). El modo nuevo `inactivo` es lo que impide
+que la fila de hooks salga en ✅ con el registro en error.
+
+**Puertas al cerrar**: `node --test tests/*.test.mjs` → 114/114, exit 0 (108 → 114, **ningún nombre perdido**);
+suite de CI completa → **40 rojos, el mismo CONJUNTO que antes de tocar nada** (1452 → 1465 verdes);
+`lint_plugin` 0 errores · `evals/check` 0 · `export-interop --check` 48 · `ledger-lint` 0. `scope-check` sigue
+saliendo con 1 por los seis ficheros de la **desviación 26**, ajenos a estas tareas. Desviaciones nuevas: **27**
+(la forma del criterio restaurado), **28** (`CODEX_HOME` en las dos piezas) y **29** (regla de precedencia entre
+scopes). Ningún fichero de HEAD quedó copiado en el árbol (la lección de la «higiene de revisión»): las copias
+vivieron en el scratchpad.
+
+## Revision de dos lentes - intento 2 (tramo I2): 15/15 cerrados; nuevos 4 Important, 7 Minor
+
+Una lente fresca (B, «diagnostico y deteccion de estado») sobre el **delta del intento 2**; la conformidad la cerro la
+Lente A en el intento 1 y el delta es logica de deteccion. Marcador `installer-registro-real/revision-I2-intento2`:
+`{"eur":9.06,"horas_ia":0.9,"duracion_reloj":"26m","tokens_reales":{"entrada":1510,"salida":75052,"cache_creacion":275805,"cache_lectura":12487147,"respuestas":84},"fuente":"medido"}`.
+**Sin segunda lente en este intento**, dicho.
+
+**Los 15 gaps del intento 1: cerrados los 15.** Verificado ademas, con mutantes y estados hostiles: la precedencia
+elegida es la correcta en los 3 casos pedidos; `clave_plugin()` acierta el marketplace de un fork; `_misma_ruta` y su
+gemelo `mismaRuta` coinciden en 11 comparaciones (mayusculas, barra final, separadores, ausente); las filas de Codex
+aciertan las 5 formas y **ninguna lanza**; el import de `tomllib` esta guardado y degrada con aviso en Python < 3.11
+(sin traceback, exit 0); el **test de coherencia mata los 4 mutantes** (ignorar el `false`, dejar que el alta gane,
+`leerRegistro` siempre falso, quitar el filtro de `projectPath`); la fixture `autouse` cubre **toda** la suite (maquina
+contaminada: siguen 2 rojos, no 14); planes de los 3 proveedores identicos a `d4294ae` salvo `projectPath` y el
+`plugin` de OpenCode, `--mode copy` byte a byte; 114 tests de Node; copias `--8<--` con el mismo sha256 que HEAD.
+
+| # | Grado | Gap | Tarea | Correccion | Evidencia |
+|---|---|---|---|---|---|
+| I2-1 | **Important** | `estado_plugin()` lee solo `<cfg>/settings.json` y `<proyecto>/.claude/settings.json`. **`.claude/settings.local.json` es un scope de plugin documentado (`local`), esta POR ENCIMA de `project` en la pila de precedencia y es donde escribe `claude plugin disable --scope local`**; `managed-settings.json` esta por encima de todo. Ninguno se lee, ni en `/doctor` ni en `status`: con el plugin apagado en `local`, el informe dice `modo: plugin`, `ok registro` y **`ok hooks registrados`**. Es el falso positivo de la iniciativa, reabierto en el fichero de mayor precedencia no gestionada | T-05 | pendiente: `estado_plugin` y `leerRegistro` leen tambien `<proyecto>/.claude/settings.local.json` (scope `local`, por encima de `project`) y, si existe, el `managed-settings.json` de la plataforma (por encima de todo, informativo); la fila nombra el fichero que manda | `doctor.py:490-492` · `providers.mjs:283-294` |
+| I2-2 | **Important** | `_misma_ruta()` llama a `os.path.abspath()` sin comprobar el tipo: un `projectPath` que no sea cadena tumba `/doctor` **entero** con traceback y stdout vacio (exit 1). El gemelo de node no lanza, asi que los dos diagnosticos divergen justo en un fichero mal formado, que es cuando se usa `/doctor` | T-05 | pendiente: validar el tipo y descartar la entrada con aviso, como hace node | `doctor.py:417,442` |
+| I2-3 | **Important** | La fila «registro en OpenCode» casa por **basename**: da OK a cualquier `custom-agents-hooks.js` de cualquier sitio, incluido uno que no resuelve al adaptador instalado, y acepta `plugin` como escalar. `status` (igualdad exacta) dice lo contrario sobre el MISMO estado. La invariante «las dos herramientas no se contradicen» solo esta impuesta para Claude Code y el test de coherencia no cubre OpenCode | T-05 | pendiente: comparar la **ruta resuelta** contra la que escribe el instalador (misma regla que `status`), y extender el test de coherencia a OpenCode y Codex | `doctor.py:684` vs `providers.mjs:471-475` |
+| I2-4 | **Important** | El paso `exec` se lanza **sin `cwd`**, asi que `claude plugin install --scope project` graba `projectPath` = el cwd del proceso, no `--dir`. Con el filtro nuevo queda a la vista: el instalador dice «2 pasos aplicados» y acto seguido `status` dice «registrado: no» y `/doctor` «instalacion: inactivo». La causa es de T-02 (tramo I1, ya committeado); el filtro de I2 la **destapa**, no la crea | T-02/T-05 | pendiente: pasar `cwd: dir` en los pasos `exec` del proveedor `claude-code` (y comprobar el resto); test que instale por CLI en `--dir <X>` y afirme que `projectPath` es `<X>` y que `status` dice si | `providers.mjs:193-200,292` · `install.mjs:1152` |
+| I2-5 | Minor | `bloque_plugin` pasa a la fila de Codex la clave deducida de la raiz de **Claude Code**, mientras el instalador escribe siempre `custom-agents@daycry`: con un fork, `/doctor` busca la clave equivocada en `config.toml` | T-05 | pendiente: para Codex, usar la clave que escribe el instalador (o mirar las dos y decirlo) | `doctor.py:742` vs `providers.mjs:37-39` |
+| I2-6 | Minor | Un `scope` que no sea `user`/`project` cae a **`user`**, el lado permisivo: una entrada `scope: local` de otro proyecto vale para todos. Reabre el falso positivo por el valor por defecto | T-05 | pendiente: `local` se trata como scope de proyecto (exige `projectPath`); un scope desconocido no cuenta y se avisa | `doctor.py:440` · `install.mjs:1566` |
+| I2-7 | Minor | Ni `_misma_ruta` ni `mismaRuta` resuelven enlaces: la misma carpeta por junction o `subst` no casa con el `projectPath` grabado (falso negativo, coherente en las dos) | T-05 | pendiente: `os.path.realpath` / `fs.realpathSync` en los dos lados, con caida al valor original si falla | `doctor.py:414-417` · `install.mjs:1538-1545` |
+| I2-8 | Minor | Un `opencode.json` ilegible se traga en silencio y la fila propone «reinstala», que no arregla nada; el gemelo de Codex si distingue el fichero ilegible | T-05 | pendiente: distinguir ilegible de ausente, como en Codex | `doctor.py:680` vs `:615-617` |
+| I2-9 | Minor | El test de coherencia hace `skip` del test **completo** sin `node`, con lo que se pierde tambien la mitad de python, que no necesita node | T-05 | pendiente: partir en dos, o afirmar la parte de python siempre | `test_doctor.py:857-861` |
+| I2-10 | Minor | Con `CLAUDE_CONFIG_DIR` apuntando a `<proyecto>/.claude`, el mismo `settings.json` se lee dos veces y la fila lo lista con dos scopes | T-05 | pendiente: deduplicar por ruta real | `doctor.py:491-492` |
+| I2-11 | Minor | La rama informativa de Codex afirma «Codex esta en esta maquina (`<CODEX_HOME>`)» mirando un directorio que puede no existir; lo detectado es `<proyecto>/.codex` | T-05 | pendiente: nombrar lo que se detecto | `doctor.py:663-666` |
+
+**Correccion de la desviacion 29** (la hace el orquestador): decia que Claude Code «no documenta la precedencia entre
+scopes». **Si la documenta**: `settings-reference#enabledplugins` da `Scope: Any file` y `settings#settings-precedence`
+fija «Managed > command line > Project local > Shared project > User». El orden implementado coincide con el
+documentado; lo que falta son **dos niveles** (`local` y `managed`), que es el gap I2-1.
+
+**Higiene**: durante la prueba con la CLI real, `claude plugin install --scope project` (el `exec` sin `cwd` del gap
+I2-4) creo un `.claude/settings.json` **en este repo**; la lente lo borro y el orquestador lo confirmo al cerrar
+(`git status` en los 15 ficheros del tramo, `lint_plugin` 0 errores). Es una razon mas para pasar `cwd`.
