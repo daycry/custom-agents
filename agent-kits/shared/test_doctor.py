@@ -51,10 +51,11 @@ def proyecto(tmp_path, **configs):
     return proj
 
 
-def plugin(tmp_path, *, script_existe=True, ejecutable=True, version="9.9.9"):
+def plugin(tmp_path, *, script_existe=True, ejecutable=True, version="9.9.9", dest=None):
     """Plugin temporal mínimo con un hook registrado (sin `scripts/lint_plugin.py`: fuerza la
-    comprobación LOCAL equivalente del doctor)."""
-    plug = tmp_path / "plug"
+    comprobación LOCAL equivalente del doctor). `dest` coloca la raíz donde haga falta (un
+    `.claude/` copiado, el caché de plugins…) en vez de en `tmp_path/plug`."""
+    plug = dest if dest is not None else tmp_path / "plug"
     (plug / "agents").mkdir(parents=True)
     (plug / "agents" / "demo.md").write_text("---\nname: demo\n---\n", encoding="utf-8")
     (plug / ".claude-plugin").mkdir()
@@ -99,6 +100,25 @@ def snapshot(d):
             out[os.path.relpath(p, d)] = (os.path.getsize(p), open(p, "rb").read())
     return out
 
+
+
+@pytest.fixture(autouse=True)
+def _registro_de_la_maquina_fuera(tmp_path_factory, monkeypatch):
+    """Gap B-3: NINGÚN test de esta suite puede leer el registro real de la máquina.
+
+    `CLAUDE_CONFIG_DIR`, el HOME (de donde salen `~/.codex` y `~/.config/opencode`) y `CODEX_HOME`
+    apuntan a temporales vacíos. Antes solo lo hacían los tests nuevos del registro y, en una
+    máquina con `custom-agents@otro: false` en su `settings.json`, los rojos de esta suite pasaban
+    de 2 a 14: el veredicto dependía de quién la corriera. Los tests que necesitan un `cfg`
+    concreto lo vuelven a fijar con `_cfg_vacio`.
+    """
+    base = tmp_path_factory.mktemp("entorno-limpio")
+    for sub in ("claude", "home"):
+        (base / sub).mkdir(exist_ok=True)
+    monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(base / "claude"))
+    monkeypatch.setenv("CODEX_HOME", str(base / "codex"))
+    for var in ("HOME", "USERPROFILE"):
+        monkeypatch.setenv(var, str(base / "home"))
 
 # ------------------------------------------------------------------ tests
 
@@ -209,6 +229,114 @@ def test_hook_sin_bit_ejecutable_es_aviso_con_chmod(tmp_path):
     assert len(avisos) == 1
     assert "chmod +x hooks/demo.sh" in avisos[0]["arreglo"]
     assert inf["resumen"][doctor.ERROR] == 0 and inf["exit"] == 0
+
+
+# --- registro real del plugin (installer-registro-real T-05) -----------------------------
+#
+# El falso positivo que motiva estos tests: con el bundle COPIADO a `.claude/` (la vía 1/2 de
+# INSTALL.md, hoy `--mode copy`) el doctor decía «hooks registrados ✅» porque los ficheros
+# estaban ahí, cuando Claude Code no lee `hooks/hooks.json` fuera de un plugin instalado.
+
+def _cfg_vacio(tmp_path, monkeypatch, nombre="cfg"):
+    """`CLAUDE_CONFIG_DIR` temporal: ningún test puede depender del `~/.claude` de la máquina."""
+    cfg = tmp_path / nombre
+    cfg.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(cfg))
+    return cfg
+
+
+def fila(inf, que):
+    hits = [l for l in lineas(inf) if l["que"] == que]
+    assert len(hits) == 1, [l["que"] for l in lineas(inf)]
+    return hits[0]
+
+
+def test_bundle_copiado_los_hooks_no_estan_registrados_y_el_arreglo_lo_dice(tmp_path, monkeypatch):
+    """Modo copia: la fila de hooks pasa de ✅ a ⚠️ y nombra lo que NO se tiene."""
+    _cfg_vacio(tmp_path, monkeypatch)
+    proj = proyecto(tmp_path)
+    plug = plugin(tmp_path, dest=proj / ".claude")
+    inf = diag(proj, plug)
+
+    hooks = fila(inf, "hooks registrados")
+    assert hooks["estado"] == doctor.AVISO, hooks
+    assert "NO lee `hooks/hooks.json` fuera de un plugin" in hooks["detalle"]
+    for pieza in ("hooks", "statusline", "namespace"):
+        assert pieza in hooks["detalle"]
+    assert "npx @daycry/custom-agents install -p claude-code" in hooks["arreglo"]
+
+    registro = fila(inf, "registro del plugin")
+    assert registro["estado"] == doctor.AVISO and "copiado, no instalado" in registro["detalle"]
+    assert "install -p claude-code" in registro["arreglo"]
+    # un bundle copiado no está ROTO: degrada, no bloquea
+    assert inf["resumen"][doctor.ERROR] == 0 and inf["exit"] == 0
+    assert fila(inf, "raíz del plugin")["detalle"].endswith("instalación: copia")
+
+
+def test_plugin_registrado_hooks_ok_y_la_fila_de_registro_dice_fichero_y_scope(tmp_path, monkeypatch):
+    cfg = _cfg_vacio(tmp_path, monkeypatch)
+    cache = cfg / "plugins" / "cache" / "daycry" / "custom-agents" / "9.9.9"
+    plug = plugin(tmp_path, dest=cache)
+    (cfg / "plugins" / "installed_plugins.json").write_text(json.dumps(
+        {"version": 2, "plugins": {"custom-agents@daycry": [
+            {"scope": "user", "installPath": str(cache), "version": "9.9.9"}]}}), encoding="utf-8")
+    inf = diag(proyecto(tmp_path), plug)
+
+    assert fila(inf, "hooks registrados")["estado"] == doctor.OK
+    registro = fila(inf, "registro del plugin")
+    assert registro["estado"] == doctor.OK
+    assert "custom-agents@daycry" in registro["detalle"]
+    assert "installed_plugins.json" in registro["detalle"] and "scope user" in registro["detalle"]
+    assert fila(inf, "raíz del plugin")["detalle"].endswith("instalación: plugin")
+    assert inf["exit"] == 0
+
+
+def test_enabled_plugins_en_false_es_error_con_el_arreglo(tmp_path, monkeypatch):
+    """Registrado pero APAGADO es el caso peor: todo en su sitio y Claude Code lo ignora."""
+    cfg = _cfg_vacio(tmp_path, monkeypatch)
+    (cfg / "settings.json").write_text(json.dumps(
+        {"enabledPlugins": {"custom-agents@daycry": False}}), encoding="utf-8")
+    proj = proyecto(tmp_path)
+    inf = diag(proj, plugin(tmp_path, dest=proj / ".claude"))
+    registro = fila(inf, "registro del plugin")
+    assert registro["estado"] == doctor.ERROR and "`false`" in registro["detalle"]
+    assert "custom-agents@daycry" in registro["arreglo"]
+    assert inf["exit"] == 1
+
+
+def test_registro_del_scope_project_tambien_cuenta(tmp_path, monkeypatch):
+    _cfg_vacio(tmp_path, monkeypatch)
+    proj = proyecto(tmp_path, settings__json={"enabledPlugins": {"custom-agents@daycry": True}})
+    inf = diag(proj, plugin(tmp_path))
+    registro = fila(inf, "registro del plugin")
+    assert registro["estado"] == doctor.OK and "scope project" in registro["detalle"]
+    assert fila(inf, "hooks registrados")["estado"] == doctor.OK
+
+
+def test_checkout_de_desarrollo_no_es_copia_ni_se_le_grita(tmp_path, monkeypatch):
+    """Sin registro y con la raíz fuera de `.claude/`: informativo, y los hooks siguen ✅."""
+    _cfg_vacio(tmp_path, monkeypatch)
+    inf = diag(proyecto(tmp_path), plugin(tmp_path))
+    registro = fila(inf, "registro del plugin")
+    assert registro["estado"] == doctor.INFO and registro["arreglo"] == ""
+    assert fila(inf, "hooks registrados")["estado"] == doctor.OK
+    assert inf["exit"] == 0
+
+
+def test_json_gana_modo_y_registro_sin_perder_ninguna_clave(tmp_path, monkeypatch):
+    """Compatibilidad hacia atrás del `--json`: las claves nuevas se SUMAN."""
+    cfg = _cfg_vacio(tmp_path, monkeypatch)
+    (cfg / "settings.json").write_text(json.dumps(
+        {"enabledPlugins": {"custom-agents@daycry": True}}), encoding="utf-8")
+    r = run("--root", str(proyecto(tmp_path)), "--plugin-root", str(plugin(tmp_path)), "--json")
+    d = json.loads(r.stdout)
+    assert set(d) >= {"proyecto", "plugin_root", "bloques", "resumen", "exit"}
+    plug_b = [b for b in d["bloques"] if b["clave"] == "plugin"][0]
+    assert set(plug_b) == {"clave", "titulo", "lineas", "modo", "registro"}
+    assert plug_b["modo"] == "plugin"
+    assert all(set(l) == {"estado", "que", "detalle", "arreglo"} for l in plug_b["lineas"])
+    assert plug_b["registro"][0]["clave"] == "custom-agents@daycry"
+    assert plug_b["registro"][0]["habilitado"] is True
 
 
 def test_repo_real_usa_el_criterio_del_linter_para_los_hooks():
@@ -548,3 +676,517 @@ def test_repo_real_la_memoria_ya_no_pasa_en_silencio():
     ques = {l["que"] for l in lineas(inf, doctor.AVISO)}
     assert "journal de sesión" in ques or "calibración (CALIBRATION.md)" in ques
     assert "Instalación sana" not in doctor.render_md(inf)
+
+
+# --- estado efectivo del registro: los gaps de la revision I2 -----------------------------
+#
+# Todos miran lo MISMO: «hay un apunte en algun fichero» no es «este plugin esta activo para esta
+# raiz». La regla la resuelve `estado_plugin()` y `install.mjs status` la repite (test de
+# coherencia al final de la seccion).
+
+def _instalados(cfg, entradas, clave="custom-agents@daycry"):
+    (cfg / "plugins").mkdir(parents=True, exist_ok=True)
+    (cfg / "plugins" / "installed_plugins.json").write_text(
+        json.dumps({"version": 2, "plugins": {clave: entradas}}), encoding="utf-8")
+
+
+def test_gap_b1_un_alta_de_otro_proyecto_no_registra_esta_raiz(tmp_path, monkeypatch):
+    """Una entrada de scope `project` vale para SU `projectPath`, no para cualquiera."""
+    cfg = _cfg_vacio(tmp_path, monkeypatch)
+    proj = proyecto(tmp_path)
+    otro = tmp_path / "otro-proyecto"
+    otro.mkdir()
+    _instalados(cfg, [{"scope": "project", "projectPath": str(otro), "version": "9.9.9"}])
+    inf = diag(proj, plugin(tmp_path, dest=proj / ".claude"))
+    registro = fila(inf, "registro del plugin")
+    assert registro["estado"] == doctor.AVISO and "copiado, no instalado" in registro["detalle"]
+    assert fila(inf, "hooks registrados")["estado"] == doctor.AVISO
+    assert doctor.registro_plugin(str(proj), str(cfg)) == [], "no aplica a esta raiz: no se cuenta"
+
+
+def test_gap_b1_el_alta_de_ESTE_proyecto_si_cuenta_y_dice_su_scope_real(tmp_path, monkeypatch):
+    cfg = _cfg_vacio(tmp_path, monkeypatch)
+    proj = proyecto(tmp_path)
+    _instalados(cfg, [{"scope": "project", "projectPath": str(proj), "version": "9.9.9"}])
+    inf = diag(proj, plugin(tmp_path))
+    registro = fila(inf, "registro del plugin")
+    assert registro["estado"] == doctor.OK
+    assert "scope project" in registro["detalle"], "el scope es el que declara la entrada"
+    assert fila(inf, "raíz del plugin")["detalle"].endswith("instalación: plugin")
+
+
+def test_gap_b3_otro_marketplace_no_influye_ni_para_bien_ni_para_mal(tmp_path, monkeypatch):
+    """`custom-agents@otro: false` no dice NADA de `custom-agents@daycry`."""
+    cfg = _cfg_vacio(tmp_path, monkeypatch)
+    (cfg / "settings.json").write_text(json.dumps({"enabledPlugins": {
+        "custom-agents@otro": False, "custom-agents@daycry": True}}), encoding="utf-8")
+    plug = plugin(tmp_path)
+    inf = diag(proyecto(tmp_path), plug)
+    registro = fila(inf, "registro del plugin")
+    assert registro["estado"] == doctor.OK and "custom-agents@daycry" in registro["detalle"]
+    assert "custom-agents@otro" not in registro["detalle"]
+    assert inf["exit"] == 0
+
+    # y a la inversa: un `false` ajeno con el nuestro ausente no inventa un error
+    (cfg / "settings.json").write_text(json.dumps({"enabledPlugins": {
+        "custom-agents@otro": False}}), encoding="utf-8")
+    inf2 = diag(proyecto(tmp_path), plug)
+    assert fila(inf2, "registro del plugin")["estado"] == doctor.INFO and inf2["exit"] == 0
+
+
+def test_gap_a3_un_false_del_scope_que_manda_gana_a_cualquier_alta(tmp_path, monkeypatch):
+    cfg = _cfg_vacio(tmp_path, monkeypatch)
+    _instalados(cfg, [{"scope": "user", "version": "9.9.9"}])
+    (cfg / "settings.json").write_text(json.dumps(
+        {"enabledPlugins": {"custom-agents@daycry": False}}), encoding="utf-8")
+    proj = proyecto(tmp_path)
+    inf = diag(proj, plugin(tmp_path))
+    assert fila(inf, "registro del plugin")["estado"] == doctor.ERROR
+    assert inf["exit"] == 1
+    est = doctor.estado_plugin(None, str(proj), str(cfg))
+    assert est["habilitado"] is False, "el alta de installed_plugins no resucita un apagado"
+
+
+def test_gap_a3_el_scope_project_manda_sobre_el_de_usuario(tmp_path, monkeypatch):
+    cfg = _cfg_vacio(tmp_path, monkeypatch)
+    (cfg / "settings.json").write_text(json.dumps(
+        {"enabledPlugins": {"custom-agents@daycry": False}}), encoding="utf-8")
+    proj = proyecto(tmp_path, settings__json={"enabledPlugins": {"custom-agents@daycry": True}})
+    est = doctor.estado_plugin(None, str(proj), str(cfg))
+    assert est["habilitado"] is True and est["mandan"][0]["scope"] == "project"
+    assert fila(diag(proj, plugin(tmp_path)), "registro del plugin")["estado"] == doctor.OK
+
+
+def test_gap_a4_con_el_registro_en_error_los_hooks_no_pueden_salir_en_verde(tmp_path, monkeypatch):
+    """El caso peor: plugin instalado en el cache, APAGADO, y el informe diciendo «plugin» y ✅."""
+    cfg = _cfg_vacio(tmp_path, monkeypatch)
+    cache = cfg / "plugins" / "cache" / "daycry" / "custom-agents" / "9.9.9"
+    plug = plugin(tmp_path, dest=cache)
+    _instalados(cfg, [{"scope": "user", "installPath": str(cache), "version": "9.9.9"}])
+    (cfg / "settings.json").write_text(json.dumps(
+        {"enabledPlugins": {"custom-agents@daycry": False}}), encoding="utf-8")
+    inf = diag(proyecto(tmp_path), plug)
+    assert fila(inf, "registro del plugin")["estado"] == doctor.ERROR
+    hooks = fila(inf, "hooks registrados")
+    assert hooks["estado"] == doctor.AVISO and "NO está activo en el registro" in hooks["detalle"]
+    assert hooks["arreglo"], "un aviso sin arreglo no vale"
+    assert not fila(inf, "raíz del plugin")["detalle"].endswith("instalación: plugin")
+    assert inf["exit"] == 1
+
+
+def test_gap_b7_en_enabled_plugins_solo_true_habilita(tmp_path, monkeypatch):
+    cfg = _cfg_vacio(tmp_path, monkeypatch)
+    proj, plug = proyecto(tmp_path), plugin(tmp_path)
+    for valor in (0, None, "", "false", "true"):
+        (cfg / "settings.json").write_text(json.dumps(
+            {"enabledPlugins": {"custom-agents@daycry": valor}}), encoding="utf-8")
+        inf = diag(proj, plug)
+        assert doctor.estado_plugin(None, str(proj), str(cfg))["habilitado"] is False, valor
+        aviso = fila(inf, "registro con valor inválido")
+        assert aviso["estado"] == doctor.AVISO and "solo `true` habilita" in aviso["detalle"]
+        assert aviso["arreglo"]
+
+
+def test_gap_b6_el_json_trae_modo_y_registro_tambien_sin_raiz(tmp_path, monkeypatch):
+    """La rama corta (raíz no localizable) tenía OTRA forma: `bloque["modo"]` reventaba."""
+    _cfg_vacio(tmp_path, monkeypatch)
+    vacia = tmp_path / "sin-plugin"
+    vacia.mkdir()
+    r = run("--root", str(proyecto(tmp_path)), "--plugin-root", str(vacia), "--json")
+    d = json.loads(r.stdout)
+    plug_b = [b for b in d["bloques"] if b["clave"] == "plugin"][0]
+    assert set(plug_b) == {"clave", "titulo", "lineas", "modo", "registro"}
+    assert plug_b["modo"] == "desconocido" and plug_b["registro"] == []
+
+
+def test_gap_a2_codex_y_opencode_tienen_su_fila_de_registro(tmp_path, monkeypatch):
+    """D5 pedía comprobar el registro en los tres runtimes, no solo en Claude Code."""
+    _cfg_vacio(tmp_path, monkeypatch)
+    proj, plug = proyecto(tmp_path), plugin(tmp_path)
+    # sin nada de Codex/OpenCode: informativo, sin arreglo que exigir
+    inf = diag(proj, plug)
+    assert fila(inf, "registro en Codex")["estado"] == doctor.INFO
+    assert fila(inf, "registro en OpenCode")["estado"] == doctor.INFO
+
+    # Codex: las cinco formas de escribir la tabla valen (es el `config.toml` lo que lo habilita)
+    (proj / ".codex").mkdir()
+    formas = (
+        '[plugins."custom-agents@daycry"]\nenabled = true\n',
+        '[plugins]\n"custom-agents@daycry" = { enabled = true }\n',
+        'plugins."custom-agents@daycry".enabled = true\n',
+        '[plugins."custom-agents@daycry"]  # comentario\nenabled   =   true\n',
+        'plugins = { "custom-agents@daycry" = { enabled = true } }\n',
+    )
+    for forma in formas:
+        (proj / ".codex" / "config.toml").write_text(forma, encoding="utf-8")
+        codex = fila(diag(proj, plug), "registro en Codex")
+        assert codex["estado"] == doctor.OK, forma
+        assert "scope project" in codex["detalle"]
+
+    (proj / ".codex" / "config.toml").write_text(
+        '[plugins."custom-agents@daycry"]\nenabled = false\n', encoding="utf-8")
+    codex = fila(diag(proj, plug), "registro en Codex")
+    assert codex["estado"] == doctor.AVISO and "enabled = false" in codex["detalle"] and codex["arreglo"]
+
+    # OpenCode: el adaptador dado de alta en `plugin` de `opencode.json`
+    (proj / "opencode.json").write_text(json.dumps(
+        {"plugin": ["./.opencode/plugins/custom-agents-hooks.js"]}), encoding="utf-8")
+    oc = fila(diag(proj, plug), "registro en OpenCode")
+    assert oc["estado"] == doctor.OK and "custom-agents-hooks.js" in oc["detalle"]
+
+    # copiado pero sin alta: ⚠️ con el comando que lo arregla
+    (proj / "opencode.json").write_text(json.dumps({"plugin": ["otro.js"]}), encoding="utf-8")
+    (proj / ".opencode" / "plugins").mkdir(parents=True)
+    (proj / ".opencode" / "plugins" / "custom-agents-hooks.js").write_text("//", encoding="utf-8")
+    oc = fila(diag(proj, plug), "registro en OpenCode")
+    assert oc["estado"] == doctor.AVISO and oc["arreglo"]
+
+# --- gaps del intento 2 de la revision I2 --------------------------------------------------
+#
+# La pila de precedencia ENTERA, no dos de sus cuatro niveles: `enabledPlugins` se puede escribir
+# en cualquier fichero de ajustes (`settings-reference#enabledplugins`, «Scope: Any file») y manda
+# el de mas arriba (`settings#settings-precedence`: «Managed > command line > Project local >
+# Shared project > User»). `.claude/settings.local.json` es donde escribe `claude plugin disable
+# --scope local`: no leerlo daba `modo: plugin`, registro OK y hooks OK con el plugin APAGADO.
+
+def _enabled(path, valor, clave="custom-agents@daycry"):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({"enabledPlugins": {clave: valor}}), encoding="utf-8")
+
+
+def test_gap_i2_1_el_apagado_en_settings_local_manda_sobre_el_alta_de_user_y_de_project(tmp_path, monkeypatch):
+    """El falso positivo de la iniciativa, en el fichero que mas manda de los tres del usuario."""
+    cfg = _cfg_vacio(tmp_path, monkeypatch)
+    cache = cfg / "plugins" / "cache" / "daycry" / "custom-agents" / "9.9.9"
+    plug = plugin(tmp_path, dest=cache)
+    _instalados(cfg, [{"scope": "user", "installPath": str(cache), "version": "9.9.9"}])
+    _enabled(cfg / "settings.json", True)
+    proj = proyecto(tmp_path, settings__json={"enabledPlugins": {"custom-agents@daycry": True}})
+    _enabled(proj / ".claude" / "settings.local.json", False)
+
+    est = doctor.estado_plugin(str(plug), str(proj), str(cfg))
+    assert est["habilitado"] is False, "un `false` en `local` gana a las altas de `project` y `user`"
+    assert est["mandan"][0]["scope"] == "local"
+
+    inf = diag(proj, plug)
+    registro = fila(inf, "registro del plugin")
+    assert registro["estado"] == doctor.ERROR
+    # la fila NOMBRA el fichero que manda: con cuatro niveles, el veredicto solo no sirve de nada
+    assert "settings.local.json" in registro["detalle"] and "scope local" in registro["detalle"]
+    assert "settings.local.json" in registro["arreglo"]
+    assert fila(inf, "hooks registrados")["estado"] == doctor.AVISO, "apagado => los hooks no cargan"
+    assert not fila(inf, "raíz del plugin")["detalle"].endswith("instalación: plugin")
+    assert inf["exit"] == 1
+
+
+def test_gap_i2_1_el_alta_en_settings_local_gana_al_false_del_settings_compartido(tmp_path, monkeypatch):
+    """Y al reves: `local` manda tambien para ACTIVAR (`claude plugin enable --scope local`)."""
+    cfg = _cfg_vacio(tmp_path, monkeypatch)
+    proj = proyecto(tmp_path, settings__json={"enabledPlugins": {"custom-agents@daycry": False}})
+    _enabled(proj / ".claude" / "settings.local.json", True)
+
+    est = doctor.estado_plugin(None, str(proj), str(cfg))
+    assert est["habilitado"] is True and est["mandan"][0]["scope"] == "local"
+    registro = fila(diag(proj, plugin(tmp_path)), "registro del plugin")
+    assert registro["estado"] == doctor.OK
+    assert "manda" in registro["detalle"] and "settings.local.json" in registro["detalle"]
+
+
+def test_gap_i2_1_managed_settings_manda_sobre_todos_los_demas(tmp_path, monkeypatch):
+    """El nivel de la plataforma esta por encima de todo; su ruta depende del sistema, asi que se
+    declara (`managed_settings_path`) y se puede inyectar."""
+    cfg = _cfg_vacio(tmp_path, monkeypatch)
+    proj = proyecto(tmp_path)
+    _enabled(proj / ".claude" / "settings.local.json", True)
+    gestionado = tmp_path / "managed-settings.json"
+    _enabled(gestionado, False)
+    monkeypatch.setattr(doctor, "managed_settings_path", lambda: str(gestionado))
+
+    est = doctor.estado_plugin(None, str(proj), str(cfg))
+    assert est["habilitado"] is False and est["mandan"][0]["scope"] == "managed"
+    registro = fila(diag(proj, plugin(tmp_path)), "registro del plugin")
+    assert registro["estado"] == doctor.ERROR and str(gestionado) in registro["detalle"]
+
+
+def test_gap_i2_1_sin_managed_settings_la_ruta_es_una_cadena_y_no_estorba(tmp_path, monkeypatch):
+    """En una maquina sin ajustes gestionados (lo normal) la funcion no lanza ni inventa fuentes."""
+    assert isinstance(doctor.managed_settings_path(), str)
+    cfg = _cfg_vacio(tmp_path, monkeypatch)
+    proj = proyecto(tmp_path)
+    niveles = [s for s, _p in doctor._niveles_settings(str(proj), str(cfg))]
+    assert niveles[:3] == ["user", "project", "local"]
+
+
+@pytest.mark.parametrize("ruta", [123, None, ["x"], {"a": 1}, True])
+def test_gap_i2_2_un_project_path_que_no_es_cadena_no_tumba_el_doctor(tmp_path, monkeypatch, ruta):
+    """`os.path.abspath(123)` lanzaba y el informe ENTERO se quedaba sin salir (stdout vacio,
+    exit 1) por un fichero del usuario mal formado, que es justo cuando se usa `/doctor`."""
+    cfg = _cfg_vacio(tmp_path, monkeypatch)
+    proj = proyecto(tmp_path)
+    _instalados(cfg, [{"scope": "project", "projectPath": ruta, "version": "9.9.9"}])
+
+    assert doctor.estado_plugin(None, str(proj), str(cfg))["habilitado"] is False
+    assert doctor._misma_ruta(ruta, str(proj)) is False, "no casa y no lanza"
+    inf = diag(proj, plugin(tmp_path))
+    aviso = fila(inf, "registro sin proyecto atribuible")
+    assert aviso["estado"] == doctor.AVISO and aviso["arreglo"]
+    assert "no es una cadena" in aviso["detalle"]
+
+    # y el proceso entero: sale el informe, sin traceback y con exit 0 (es un aviso, no un error)
+    r = run("--root", str(proj), "--plugin-root", str(plugin(tmp_path, dest=tmp_path / "p2")))
+    assert r.returncode == 0, r.stderr
+    assert "Traceback" not in r.stderr and len(r.stdout.splitlines()) > 5
+
+
+def test_gap_i2_6_local_es_scope_de_proyecto_y_un_scope_desconocido_no_cuenta(tmp_path, monkeypatch):
+    """Caer a `user` era el lado permisivo: una entrada con un scope raro valia para TODOS."""
+    cfg = _cfg_vacio(tmp_path, monkeypatch)
+    proj = proyecto(tmp_path)
+    plug = plugin(tmp_path)
+
+    _instalados(cfg, [{"scope": "raro", "version": "9.9.9"}])
+    assert doctor.estado_plugin(None, str(proj), str(cfg))["habilitado"] is False
+    aviso = fila(diag(proj, plug), "registro con scope desconocido")
+    assert aviso["estado"] == doctor.AVISO and aviso["arreglo"] and "raro" in aviso["detalle"]
+
+    # `local` SI es un scope documentado, y como `project` exige su `projectPath`
+    _instalados(cfg, [{"scope": "local", "version": "9.9.9"}])
+    assert doctor.estado_plugin(None, str(proj), str(cfg))["habilitado"] is False
+    _instalados(cfg, [{"scope": "local", "projectPath": str(proj), "version": "9.9.9"}])
+    est = doctor.estado_plugin(None, str(proj), str(cfg))
+    assert est["habilitado"] is True and est["aplican"][0]["scope"] == "local"
+
+
+def test_gap_i2_7_la_misma_carpeta_por_un_enlace_casa(tmp_path, monkeypatch):
+    """Junction, `subst` o symlink: el `projectPath` grabado y el `--root` son la MISMA carpeta."""
+    cfg = _cfg_vacio(tmp_path, monkeypatch)
+    proj = proyecto(tmp_path)
+    # lo que se afirma SIEMPRE (no necesita privilegios): resolver no puede romper nada
+    assert doctor._ruta_real("") == os.path.abspath("")
+    inexistente = str(tmp_path / "no-existe")
+    assert doctor._ruta_real(inexistente) == os.path.abspath(inexistente), "caida al valor original"
+    assert doctor._misma_ruta(str(proj) + os.sep, str(proj))
+
+    enlace = tmp_path / "enlace"
+    try:
+        os.symlink(str(proj), str(enlace), target_is_directory=True)
+    except (OSError, NotImplementedError, AttributeError):
+        # Windows sin «modo desarrollador»: los junctions NO piden permisos de administrador.
+        hecho = os.name == "nt" and subprocess.run(
+            ["cmd", "/c", "mklink", "/J", str(enlace), str(proj)],
+            capture_output=True, text=True, encoding="utf-8", errors="replace").returncode == 0
+        if not hecho:
+            pytest.skip("esta maquina no deja crear enlaces (ni symlink ni junction)")
+    _instalados(cfg, [{"scope": "project", "projectPath": str(enlace), "version": "9.9.9"}])
+    assert doctor.estado_plugin(None, str(proj), str(cfg))["habilitado"] is True
+    assert doctor._misma_ruta(str(enlace), str(proj))
+
+
+def test_gap_i2_10_el_mismo_settings_por_dos_caminos_se_cuenta_una_vez(tmp_path, monkeypatch):
+    """Con `CLAUDE_CONFIG_DIR` en el `.claude/` del proyecto, `user` y `project` son el MISMO
+    fichero: se lista una vez y con el scope mas especifico, no como si fueran dos altas."""
+    proj = proyecto(tmp_path, settings__json={"enabledPlugins": {"custom-agents@daycry": True}})
+    cfg = proj / ".claude"
+    monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(cfg))
+    est = doctor.estado_plugin(None, str(proj), str(cfg))
+    assert len(est["aplican"]) == 1, est["aplican"]
+    assert est["mandan"][0]["scope"] == "project"
+    registro = fila(diag(proj, plugin(tmp_path)), "registro del plugin")
+    assert registro["estado"] == doctor.OK and "scope user" not in registro["detalle"]
+
+
+def test_gap_i2_5_la_fila_de_codex_mira_la_clave_que_escribe_el_instalador(tmp_path, monkeypatch):
+    """Con un fork, la clave deducida de la raiz de Claude Code no es la que el instalador escribe
+    en `config.toml` (siempre `custom-agents@daycry`): se miran las dos y se dice cual se vio."""
+    cfg = _cfg_vacio(tmp_path, monkeypatch)
+    cache = cfg / "plugins" / "cache" / "fork" / "custom-agents" / "9.9.9"
+    plug = plugin(tmp_path, dest=cache)
+    assert doctor.clave_plugin(str(plug), str(cfg)) == "custom-agents@fork"
+    proj = proyecto(tmp_path)
+    (proj / ".codex").mkdir()
+    (proj / ".codex" / "config.toml").write_text(
+        '[plugins."custom-agents@daycry"]\nenabled = true\n', encoding="utf-8")
+    codex = fila(diag(proj, plug), "registro en Codex")
+    assert codex["estado"] == doctor.OK and "custom-agents@daycry" in codex["detalle"]
+
+
+def test_gap_i2_11_la_fila_informativa_de_codex_nombra_lo_detectado(tmp_path, monkeypatch):
+    """Se afirmaba «Codex esta en esta maquina (<CODEX_HOME>)» mirando un directorio que puede no
+    existir: lo detectado es el `.codex` del proyecto."""
+    _cfg_vacio(tmp_path, monkeypatch)
+    proj = proyecto(tmp_path)
+    (proj / ".codex").mkdir()
+    codex = fila(diag(proj, plugin(tmp_path)), "registro en Codex")
+    assert codex["estado"] == doctor.INFO
+    assert str(proj / ".codex") in codex["detalle"]
+    assert os.environ["CODEX_HOME"] not in codex["detalle"], "no se nombra lo que no se ha visto"
+
+
+def test_gap_i2_3_el_alta_de_opencode_se_compara_por_ruta_resuelta_no_por_nombre(tmp_path, monkeypatch):
+    """Casar por basename daba OK a cualquier `custom-agents-hooks.js` de cualquier sitio, y
+    `status` (ruta exacta) decia lo contrario sobre el MISMO `opencode.json`."""
+    _cfg_vacio(tmp_path, monkeypatch)
+    proj = proyecto(tmp_path)
+    plug = plugin(tmp_path)
+    (proj / ".opencode" / "plugins").mkdir(parents=True)
+    (proj / ".opencode" / "plugins" / "custom-agents-hooks.js").write_text("//", encoding="utf-8")
+
+    # mismo nombre, otra carpeta: NO es el adaptador instalado
+    (proj / "opencode.json").write_text(json.dumps(
+        {"plugin": ["./vendor/custom-agents-hooks.js"]}), encoding="utf-8")
+    oc = fila(diag(proj, plug), "registro en OpenCode")
+    assert oc["estado"] == doctor.AVISO and "NO es el adaptador instalado" in oc["detalle"]
+    assert oc["arreglo"]
+
+    # escalar: `status` no lo cuenta como alta (`json-array`), asi que `/doctor` tampoco
+    (proj / "opencode.json").write_text(json.dumps(
+        {"plugin": "./.opencode/plugins/custom-agents-hooks.js"}), encoding="utf-8")
+    oc = fila(diag(proj, plug), "registro en OpenCode")
+    assert oc["estado"] == doctor.AVISO and "no es una lista" in oc["detalle"] and oc["arreglo"]
+
+    # la ruta que escribe el instalador (relativa al fichero de config): OK
+    (proj / "opencode.json").write_text(json.dumps(
+        {"plugin": ["./.opencode/plugins/custom-agents-hooks.js"]}), encoding="utf-8")
+    assert fila(diag(proj, plug), "registro en OpenCode")["estado"] == doctor.OK
+
+
+def test_gap_i2_8_un_opencode_json_ilegible_se_distingue_de_uno_ausente(tmp_path, monkeypatch):
+    """«Reinstala» no arregla un JSON roto del usuario; el gemelo de Codex ya lo distinguia."""
+    _cfg_vacio(tmp_path, monkeypatch)
+    proj = proyecto(tmp_path)
+    (proj / "opencode.json").write_text("{roto", encoding="utf-8")
+    oc = fila(diag(proj, plugin(tmp_path)), "registro en OpenCode")
+    assert oc["estado"] == doctor.AVISO and "no es JSON válido" in oc["detalle"]
+    assert "corrige tu `opencode.json`" in oc["arreglo"] and "install -p opencode" not in oc["arreglo"]
+
+
+# --- coherencia /doctor <-> status ---------------------------------------------------------
+#
+# La invariante de la iniciativa: las dos herramientas NO pueden contradecirse sobre el mismo
+# estado. La mitad de python se afirma SIEMPRE (no necesita node); si no hay node, se salta solo
+# la comparacion con `status`. Y se comprueba en los TRES runtimes, no solo en Claude Code.
+
+def _status(proj, cfg, env_extra=None):
+    """`install.mjs status` agrupado por proveedor: `{label: [filas]}` (o `None` sin node)."""
+    import shutil
+    node = shutil.which("node")
+    if not node:
+        return None
+    env = dict(os.environ, CLAUDE_CONFIG_DIR=str(cfg), NO_COLOR="1", **(env_extra or {}))
+    r = subprocess.run([node, os.path.join(ROOT, "install", "install.mjs"), "status", "--dir", str(proj)],
+                       capture_output=True, text=True, encoding="utf-8", errors="replace", env=env)
+    assert r.returncode == 0, r.stderr
+    out, actual = {}, None
+    for l in r.stdout.splitlines():
+        if re.match(r"^ {6}\S", l):
+            if actual:
+                out.setdefault(actual, []).append(l.strip())
+        elif re.match(r"^ {2}\S", l):
+            actual = re.split(r"\s{2,}", l.strip())[0]
+    return out
+
+
+def _registrado(filas):
+    return any("registrado: sí" in f for f in filas or [])
+
+
+def _montar_estado(estado, nivel, cfg, proj, otro):
+    ajustes = {"user": cfg / "settings.json",
+               "project": proj / ".claude" / "settings.json",
+               "local": proj / ".claude" / "settings.local.json"}[nivel]
+    entrada = {"scope": "user" if nivel == "user" else nivel, "version": "9.9.9"}
+    if nivel != "user":
+        entrada["projectPath"] = str(proj)
+    if estado == "alta":
+        _instalados(cfg, [entrada])
+    elif estado == "apagado":
+        _instalados(cfg, [entrada])
+        _enabled(ajustes, False)
+    elif estado == "alta-de-otro-proyecto":
+        _instalados(cfg, [{"scope": "project" if nivel == "user" else nivel,
+                           "projectPath": str(otro), "version": "9.9.9"}])
+    else:
+        _enabled(ajustes, "true")
+
+
+@pytest.mark.parametrize("nivel", ["user", "local"])
+@pytest.mark.parametrize("estado,activo", [
+    ("alta", True),
+    ("apagado", False),
+    ("alta-de-otro-proyecto", False),
+    ("valor-invalido", False),
+])
+def test_doctor_y_status_dan_el_MISMO_veredicto_sobre_el_MISMO_estado(tmp_path, monkeypatch,
+                                                                     estado, activo, nivel):
+    """Gap A-3: `status` decia «registrado: sí» donde `/doctor` decia error. Se monta un estado y
+    se comprueba que las dos herramientas coinciden — la del usuario (`status`, que M-01 usa como
+    prueba de la instalacion) y la de dentro de la sesion (`/doctor`). Los cuatro estados, en el
+    nivel `user` y en `local` (gap I2-1)."""
+    cfg = _cfg_vacio(tmp_path, monkeypatch)
+    proj = proyecto(tmp_path)
+    otro = tmp_path / "otro-proyecto"
+    otro.mkdir()
+    _montar_estado(estado, nivel, cfg, proj, otro)
+
+    # la mitad de python se afirma SIEMPRE: no depende de node (gap I2-9)
+    doctor_activo = doctor.estado_plugin(None, str(proj), str(cfg))["habilitado"]
+    assert doctor_activo == activo, f"{estado}/{nivel}: /doctor dice {doctor_activo}"
+
+    filas = _status(proj, cfg)
+    if filas is None:
+        pytest.skip("sin `node`: la mitad `status` de la comparacion no se puede correr")
+    status_activo = _registrado(filas.get("Claude Code"))
+    assert status_activo == activo, f"{estado}/{nivel}: status dice {status_activo} en {filas}"
+    assert doctor_activo == status_activo, "las dos herramientas NO pueden contradecirse"
+
+
+@pytest.mark.parametrize("caso,activo", [
+    ("alta-exacta", True),
+    ("mismo-nombre-otra-ruta", False),
+    ("escalar", False),
+    ("sin-plugin", False),
+])
+def test_doctor_y_status_coinciden_tambien_en_opencode(tmp_path, monkeypatch, caso, activo):
+    """Gap I2-3: la invariante estaba impuesta SOLO para Claude Code, y la fila de OpenCode casaba
+    por basename mientras `status` comparaba la ruta exacta."""
+    cfg = _cfg_vacio(tmp_path, monkeypatch)
+    proj = proyecto(tmp_path)
+    plug = plugin(tmp_path)
+    (proj / ".opencode" / "plugins").mkdir(parents=True)
+    (proj / ".opencode" / "plugins" / "custom-agents-hooks.js").write_text("//", encoding="utf-8")
+    spec = {"alta-exacta": ["./.opencode/plugins/custom-agents-hooks.js"],
+            "mismo-nombre-otra-ruta": ["./vendor/custom-agents-hooks.js"],
+            "escalar": "./.opencode/plugins/custom-agents-hooks.js",
+            "sin-plugin": []}[caso]
+    (proj / "opencode.json").write_text(json.dumps({"plugin": spec}), encoding="utf-8")
+
+    doctor_activo = fila(diag(proj, plug), "registro en OpenCode")["estado"] == doctor.OK
+    assert doctor_activo == activo, f"{caso}: /doctor dice {doctor_activo}"
+    filas = _status(proj, cfg)
+    if filas is None:
+        pytest.skip("sin `node`: la mitad `status` de la comparacion no se puede correr")
+    assert _registrado(filas.get("OpenCode")) == activo, filas
+    assert _registrado(filas.get("OpenCode")) == doctor_activo, "no pueden contradecirse"
+
+
+@pytest.mark.parametrize("toml,activo", [
+    ('[plugins."custom-agents@daycry"]\nenabled = true\n', True),
+    ('[plugins."custom-agents@daycry"]\nenabled = false\n', False),
+    ('[plugins."custom-agents@otro"]\nenabled = true\n', False),
+    ("", False),
+])
+def test_doctor_y_status_coinciden_tambien_en_codex(tmp_path, monkeypatch, toml, activo):
+    """Misma invariante en el tercer runtime: es `enabled` del `config.toml`, y solo eso."""
+    cfg = _cfg_vacio(tmp_path, monkeypatch)
+    proj = proyecto(tmp_path)
+    plug = plugin(tmp_path)
+    (proj / ".codex").mkdir()
+    (proj / ".codex" / "config.toml").write_text(toml, encoding="utf-8")
+
+    doctor_activo = fila(diag(proj, plug), "registro en Codex")["estado"] == doctor.OK
+    assert doctor_activo == activo, f"/doctor dice {doctor_activo} para {toml!r}"
+    filas = _status(proj, cfg)
+    if filas is None:
+        pytest.skip("sin `node`: la mitad `status` de la comparacion no se puede correr")
+    assert _registrado(filas.get("Codex")) == activo, filas
+    assert _registrado(filas.get("Codex")) == doctor_activo, "no pueden contradecirse"

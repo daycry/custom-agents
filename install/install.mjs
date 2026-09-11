@@ -21,7 +21,7 @@
 
 import {
   readFileSync, writeFileSync, existsSync, mkdirSync, cpSync, statSync, rmSync, readdirSync, rmdirSync,
-  renameSync, chmodSync,
+  renameSync, chmodSync, realpathSync,
 } from "node:fs"
 import { createHash } from "node:crypto"
 import { dirname, join, resolve, relative, sep } from "node:path"
@@ -30,7 +30,7 @@ import { createInterface, emitKeypressEvents } from "node:readline"
 import { execFileSync } from "node:child_process"
 import {
   PROVIDERS, IDS, getProvider, buildPlan, MANIFEST, MANIFEST_PLUGIN, MANIFIESTOS,
-  enPath, rutaDe, estadoCli, manifiestoDe, sitiosManifiesto,
+  enPath, rutaDe, estadoCli, manifiestoDe, sitiosManifiesto, PRECEDENCIA_SETTINGS,
 } from "./providers.mjs"
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..")
@@ -85,7 +85,7 @@ ${bold("USO")}
 ${bold("COMANDOS")}
   install       Instala en uno o varios proveedores (por defecto)
   uninstall     Desinstala usando el manifiesto de la instalación
-  status        Qué hay instalado y dónde
+  status        Qué hay instalado, dónde y si el runtime lo tiene REGISTRADO (sí/no)
   list          Proveedores soportados
 
 ${bold("OPCIONES")}
@@ -114,7 +114,10 @@ ${bold("EJEMPLOS")}
   npx @daycry/custom-agents install -p claude-code --source ./mi-clon
 
 ${dim("Claude Code se instala como PLUGIN: se usa `claude plugin …` si la CLI está en el PATH y, si no,")}
-${dim("se escribe su registro (CLAUDE_CONFIG_DIR se respeta). `--mode copy` es el bundle de siempre.")}
+${dim("se escribe su registro (CLAUDE_CONFIG_DIR se respeta). `--mode copy` es el bundle de siempre:")}
+${dim("deja las piezas en .claude/, pero sin hooks, sin statusline y sin namespace /custom-agents:.")}
+${dim("En Codex se habilita el plugin en config.toml; en OpenCode se registra el adaptador de hooks.")}
+${dim("¿Ha funcionado? `status` lo dice leyendo los ficheros que lee cada runtime, no el manifiesto.")}
 
 Documentación: ${cyan("docs/INTEROP.md")} · ${cyan(PKG.homepage || "https://github.com/daycry/custom-agents")}
 `)
@@ -259,7 +262,23 @@ export function fusionar(actual, nuevo) {
     for (const [k, v] of Object.entries(src)) {
       const q = ruta ? `${ruta}.${k}` : k
       if (Array.isArray(v)) {
-        const prev = Array.isArray(dst[k]) ? dst[k] : []
+        // Fusionar una lista sobre un valor del usuario que NO es lista: lo suyo manda igual. Un
+        // escalar se conserva como PRIMER elemento (sigue siendo lo que él puso, y delante); un
+        // objeto no se puede convertir en lista sin cambiar lo que significa, así que la clave no
+        // se toca. En los dos casos se AVISA: hacerlo en silencio es lo que borraba un
+        // `"plugin": "mi-plugin.js"` al registrar el adaptador de OpenCode.
+        let prev = []
+        if (Array.isArray(dst[k])) prev = dst[k]
+        else if (k in dst && dst[k] !== null && dst[k] !== undefined) {
+          if (typeof dst[k] === "object") {
+            AVISOS_ESCRITURA.push(`${q}: tu valor no es una lista y no puedo añadirle `
+              + `${JSON.stringify(v)} sin cambiar lo que significa — lo dejo como está`)
+            continue
+          }
+          prev = [dst[k]]
+          AVISOS_ESCRITURA.push(`${q}: tu valor ${JSON.stringify(dst[k])} no era una lista; `
+            + `lo conservo como primer elemento`)
+        }
         const falta = v.filter((x) => !prev.includes(x))
         if (falta.length) { dst[k] = [...prev, ...falta]; anadidas.push(q) }
         else if (!Array.isArray(dst[k])) dst[k] = prev
@@ -1078,6 +1097,9 @@ function ejecutar(provider, opts) {
         }
       }
       const [fusionado, anadidas] = fusionar(actual, aFusionar)
+      // Lo que la fusión haya tenido que decidir sobre la config del usuario se dice AQUÍ, junto
+      // al fichero que lo provoca (gap B-5), no al final y sin contexto.
+      avisos.push(...drenarAvisosEscritura().map((a) => `${rel(paso.to)}: ${a}`))
       const cambia = !actual || anadidas.length > 0
       if (opts.dryRun) {
         say(`  ${ARROW} ${rel(paso.to)} ${dim(cambia ? `(fusiona: ${anadidas.join(", ") || "crea el fichero"})` : "(ya está al día)")}`)
@@ -1384,6 +1406,10 @@ function deshacerInstalacion(p, dest, file, man, opts) {
   try { rmSync(join(dest, file), { force: true }) } catch { /* sigue */ }
   podarVacios(dest, files)
   say(`  ${OK} ${n} fichero(s) borrado(s). ${dim("La configuración fusionada (opencode.json, marketplace.json) NO se toca: es tuya.")}`)
+  const nota = typeof p.notaDesinstalar === "function"
+    ? p.notaDesinstalar(opts.scope, opts.dir)
+    : p.notaDesinstalar
+  if (nota) say(`  ${WARN} ${dim(nota)}`)
   return n
 }
 
@@ -1508,16 +1534,136 @@ function podarBajo(tope, ficheros) {
   }
 }
 
+/**
+ * ¿Son la misma carpeta? (Windows no distingue mayúsculas; una ruta vacía, o un valor que no sea
+ * cadena, no casa con nada.) Los enlaces se RESUELVEN (`realpathSync`: junction, `subst`,
+ * symlink), con caída al valor sin resolver cuando la ruta todavía no existe — si no, la misma
+ * carpeta vista por dos nombres no casaba con el `projectPath` grabado. Gemelo de `_misma_ruta`
+ * en `agent-kits/shared/doctor.py`.
+ */
+export function mismaRuta(a, b) {
+  if (typeof a !== "string" || typeof b !== "string" || !a || !b) return false
+  try {
+    const real = (p) => { try { return realpathSync(resolve(p)) } catch { return resolve(p) } }
+    const n = (p) => (process.platform === "win32" ? real(p).toLowerCase() : real(p))
+    return n(a) === n(b)
+  } catch { return false }
+}
+
+/**
+ * Valor de UN descriptor: `true` (alta), `false` (apagado explícito), `"invalido"` (la clave está
+ * con un valor que no es booleano) o `null` (no dice nada). Nunca lanza: un fichero del usuario
+ * ilegible es «no dice nada», no un `status` roto.
+ */
+function valorRegistro(d) {
+  if (!existsSync(d.fichero)) return null
+  if (d.tipo === "toml-verdadero") {
+    const hit = rutasToml(readFileSync(d.fichero, "utf8")).find((r) => r.ruta === normalizarTabla(d.ruta))
+    if (!hit) return null
+    if (hit.valor === "true") return true
+    if (hit.valor === "false") return false
+    return "invalido"
+  }
+  const datos = leerJson(d.fichero)
+  if (!datos || typeof datos !== "object") return null
+  const nodo = leerRuta(datos, d.ruta)
+  if (d.tipo === "json-array") return Array.isArray(nodo) && nodo.includes(d.valor) ? true : null
+  if (d.tipo === "json-instalados") {
+    // `installed_plugins.json`: cada entrada trae SU scope, y una de scope `project` solo vale
+    // para su `projectPath`. Un alta hecha desde otro proyecto no dice nada de esta carpeta.
+    if (!nodo || typeof nodo !== "object") return null
+    let entradas = nodo[d.clave]
+    if (entradas && !Array.isArray(entradas)) entradas = [entradas]
+    if (!Array.isArray(entradas)) return null
+    // `local` es un scope de PROYECTO (`claude plugin install --scope local`): como `project`,
+    // solo vale para su `projectPath`. Un scope que no sea ninguno de los tres documentados no
+    // cuenta —caer a `user` era el lado permisivo: valía para todas las carpetas.
+    const vale = entradas.some((e) => {
+      const scope = e && typeof e.scope === "string" ? e.scope : ""
+      if (!["user", "project", "local"].includes(scope)) return false
+      return d.scope === "project"
+        ? scope !== "user" && mismaRuta(e && e.projectPath, d.proyecto)
+        : scope === "user"
+    })
+    return vale ? true : null
+  }
+  // `enabledPlugins`: SOLO `true` habilita. `false` es lo contrario de estar registrado y
+  // cualquier otro valor (`0`, `null`, `"false"`) es un valor inválido, no un alta.
+  if (!nodo || typeof nodo !== "object" || Array.isArray(nodo)) return null
+  const entradas = Object.entries(nodo).filter(([k]) => (d.clave ? k === d.clave : k.startsWith(d.prefijo)))
+  if (!entradas.length) return null
+  if (entradas.some(([, v]) => v === false)) return false
+  if (entradas.some(([, v]) => v === true)) return true
+  return "invalido"
+}
+
+/**
+ * ¿Tiene el runtime el plugin dado de alta DE VERDAD? Lee los descriptores que declara el
+ * proveedor (`registro(scope, dir)`) sobre los ficheros que ese runtime lee al arrancar.
+ *
+ * Recorre **todos** los descriptores, no se para en el primero que acierta, y resuelve con la
+ * misma regla que `estado_plugin()` en `agent-kits/shared/doctor.py`, para que `status` y
+ * `/doctor` no puedan contradecirse sobre el mismo estado:
+ *
+ *   · manda el NIVEL más alto de los que se pronuncian (`nivel` del descriptor, por
+ *     `PRECEDENCIA_SETTINGS`: managed > local > project > user — `settings#settings-precedence`);
+ *   · dentro de ese nivel, un `false` explícito gana a cualquier alta;
+ *   · sin pronunciamiento explícito, un alta (una entrada instalada) basta.
+ *
+ * Un descriptor sin `nivel` (Codex, OpenCode: un solo fichero por scope) se comporta como antes.
+ * Informa, no decide: jamás lanza.
+ *
+ * Devuelve `{ registrado, donde, apagadoEn, invalidoEn }` (`donde` = fichero que lo prueba).
+ */
+export function leerRegistro(descriptores) {
+  let alta = null
+  let invalido = null
+  const explicitos = []
+  for (const d of descriptores || []) {
+    let valor = null
+    try { valor = valorRegistro(d) } catch { valor = null }
+    if (valor === "invalido") { invalido = invalido || d.fichero; continue }
+    if (valor !== true && valor !== false) continue
+    // `installed_plugins.json` no habilita ni apaga: es un alta, no un pronunciamiento.
+    if (d.tipo === "json-instalados") { if (valor === true) alta = alta || d.fichero; continue }
+    explicitos.push({ nivel: d.nivel || "user", valor, fichero: d.fichero })
+    if (valor === true) alta = alta || d.fichero
+  }
+  if (explicitos.length) {
+    const nivel = PRECEDENCIA_SETTINGS.find((n) => explicitos.some((e) => e.nivel === n))
+    const mandan = explicitos.filter((e) => e.nivel === nivel)
+    const apagado = mandan.find((e) => e.valor === false)
+    if (apagado) {
+      return { registrado: false, donde: apagado.fichero, apagadoEn: apagado.fichero, invalidoEn: invalido }
+    }
+    return { registrado: true, donde: mandan[0].fichero, apagadoEn: null, invalidoEn: invalido }
+  }
+  return { registrado: !!alta, donde: alta, apagadoEn: null, invalidoEn: invalido }
+}
+
 function cmdStatus(opts) {
   say(`\n${bold("custom-agents")} ${dim("v" + VERSION)} — estado\n`)
   for (const p of PROVIDERS) {
     const filas = []
     for (const scope of ["project", "user"]) {
-      for (const { dest, man } of manifiestosVivos(p, scope, opts.dir)) {
-        filas.push(`${man.estado === "incompleto" ? WARN : OK} ${scope}${man.modo ? `/${man.modo}` : ""}: ` +
-                   `v${man.version}, ${(man.files || []).length} fichero(s) ${dim(rel(dest))}` +
-                   (man.estado === "incompleto" ? ` ${yellow("(instalación incompleta)")}` : ""))
+      const delScope = manifiestosVivos(p, scope, opts.dir).map(({ dest, man }) =>
+        `${man.estado === "incompleto" ? WARN : OK} ${scope}${man.modo ? `/${man.modo}` : ""}: ` +
+        `v${man.version}, ${(man.files || []).length} fichero(s) ${dim(rel(dest))}` +
+        (man.estado === "incompleto" ? ` ${yellow("(instalación incompleta)")}` : ""))
+      // Copiar ficheros no es instalar: el registro se mira aparte del manifiesto, y puede
+      // decir «sí» sin manifiesto (instalado por la CLI del runtime) o «no» con él (`--mode copy`).
+      const { registrado, donde, apagadoEn, invalidoEn } = leerRegistro(
+        typeof p.registro === "function" ? p.registro(scope, opts.dir) : [])
+      if (registrado || apagadoEn || invalidoEn || delScope.length) {
+        const porQue = apagadoEn
+          ? `— está dado de alta pero APAGADO en ${rel(apagadoEn)}: el runtime lo ignora`
+          : invalidoEn
+            ? `— la clave está en ${rel(invalidoEn)} con un valor que no habilita: no cuenta como alta`
+            : "— el runtime no lo carga; falta darlo de alta"
+        delScope.push(`${registrado ? OK : WARN} ${scope}: registrado: ${registrado ? "sí" : "no"}` +
+          (registrado ? ` ${dim(rel(donde))}` : ` ${dim(porQue)}`))
       }
+      filas.push(...delScope)
     }
     const det = p.detect()
     say(`  ${bold(p.label.padEnd(13))} ${det ? dim("runtime detectado") : dim("runtime no detectado")}`)

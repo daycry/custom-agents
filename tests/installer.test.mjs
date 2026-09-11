@@ -16,11 +16,12 @@ import { fileURLToPath } from "node:url"
 import { execFileSync } from "node:child_process"
 
 import {
-  parseArgs, fusionar, ficherosDe,
+  parseArgs, fusionar, ficherosDe, leerRegistro, mismaRuta,
   estadoInicial, reducirTecla, nombreTecla, ponerToml, versionSuficiente,
 } from "../install/install.mjs"
 import {
   PROVIDERS, IDS, getProvider, buildPlan, MANIFEST, GLOBAL_DIR, PAYLOAD_CLAUDE,
+  ADAPTADOR_OPENCODE, rutaPluginOpencode,
 } from "../install/providers.mjs"
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..")
@@ -71,6 +72,39 @@ function codexFalso(bin) {
       "echo 'marketplace added'",
       "",
     ].join("\n"))
+    chmodSync(p, 0o755)
+  }
+}
+
+/**
+ * Un `claude` de mentira que hace lo que hace la CLI real con `plugin install --scope project`:
+ * grabar en `installed_plugins.json` el proyecto que ve, que es **su directorio de trabajo** (la
+ * CLI no recibe ninguna ruta). Sirve para afirmar que el instalador la lanza EN `--dir`.
+ */
+function claudeFalso(bin) {
+  const NL = "\n"
+  const js = join(bin, "claude-falso.mjs")
+  writeFileSync(js, [
+    'import { writeFileSync, mkdirSync } from "node:fs"',
+    'import { join, resolve } from "node:path"',
+    'const args = process.argv.slice(2)',
+    'if (args[0] === "--version") { console.log("1.2.3 (Claude Code)"); process.exit(0) }',
+    'if (args[1] === "install") {',
+    '  const cfg = process.env.CLAUDE_CONFIG_DIR',
+    '  mkdirSync(join(cfg, "plugins"), { recursive: true })',
+    '  writeFileSync(join(cfg, "plugins", "installed_plugins.json"), JSON.stringify(',
+    '    { version: 2, plugins: { "custom-agents@daycry": [',
+    '      { scope: "project", projectPath: resolve(process.cwd()), version: "9.9.9" }] } }))',
+    '}',
+    'console.log("ok")',
+    "",
+  ].join(NL))
+  if (process.platform === "win32") {
+    writeFileSync(join(bin, "claude.cmd"),
+      ["@echo off", `"${process.execPath}" "${js}" %*`, ""].join("\r\n"))
+  } else {
+    const p = join(bin, "claude")
+    writeFileSync(p, ["#!/bin/sh", `exec "${process.execPath}" "${js}" "$@"`, ""].join(NL))
     chmodSync(p, 0o755)
   }
 }
@@ -156,6 +190,51 @@ test("OpenCode: config en la raíz del proyecto y permission en onlyIfMissing", 
   assert.deepEqual(merge.onlyIfMissing, ["permission"],
     "permission no se puede fusionar: en OpenCode gana la última regla que casa")
   assert.ok(merge.merge.instructions.some((i) => i.includes("custom-agents-index")))
+})
+
+test("OpenCode: el adaptador se REGISTRA en `plugin` con la ruta que resuelve al fichero copiado", () => {
+  for (const scope of ["project", "user"]) {
+    const plan = buildPlan(getProvider("opencode"), { root: ROOT, dir: "/proy", scope, version: "9.9.9" })
+    const copia = plan.find((s) => s.type === "copy" && String(s.to).endsWith(ADAPTADOR_OPENCODE))
+    const merge = plan.find((s) => s.type === "merge")
+    const spec = merge.merge.plugin
+    assert.equal(spec.length, 1, `${scope}: una sola entrada`)
+    assert.ok(!spec[0].includes("\\"), `${scope}: la ruta del JSON va con "/"`)
+    // OpenCode resuelve un spec con forma de ruta contra la CARPETA DEL CONFIG que lo declara:
+    // el destino de esa resolución tiene que ser justo el fichero que acabamos de copiar.
+    const baseCfg = dirname(merge.to)
+    assert.equal(resolve(baseCfg, spec[0]), resolve(copia.to),
+      `${scope}: \`plugin\` apunta a un fichero que el instalador no deja ahí`)
+  }
+  // Y la forma exacta de cada scope, que es lo que se documenta
+  assert.equal(rutaPluginOpencode("/proy/.opencode", "project"), "./.opencode/" + "plugins/" + ADAPTADOR_OPENCODE)
+  assert.ok(rutaPluginOpencode(GLOBAL_DIR.opencode, "user").startsWith(GLOBAL_DIR.opencode.split(/[\\/]/).join("/")))
+})
+
+test("OpenCode: `plugin` se une sin duplicar y conserva el del usuario; uninstall lo deja y avisa", () => {
+  const proj = tmpProj()
+  try {
+    writeFileSync(join(proj, "opencode.json"), JSON.stringify({ plugin: ["otro"] }))
+    cli(["install", "-p", "opencode", "--dir", proj, "-q"])
+    const esperada = rutaPluginOpencode(join(proj, ".opencode"), "project")
+    const uno = JSON.parse(readFileSync(join(proj, "opencode.json"), "utf8"))
+    assert.deepEqual(uno.plugin, ["otro", esperada], "el `plugin` previo del usuario manda y el nuestro se añade")
+
+    // reinstalar no duplica
+    cli(["install", "-p", "opencode", "--dir", proj, "-q"])
+    const dos = JSON.parse(readFileSync(join(proj, "opencode.json"), "utf8"))
+    assert.deepEqual(dos.plugin, uno.plugin, "reinstalar duplicó la entrada de `plugin`")
+
+    // el fichero registrado existe de verdad (si no, OpenCode falla al arrancar)
+    assert.ok(existsSync(resolve(proj, esperada)), "`plugin` apunta a un fichero que no está")
+
+    const out = cli(["uninstall", "-p", "opencode", "--dir", proj])
+    const tras = JSON.parse(readFileSync(join(proj, "opencode.json"), "utf8"))
+    assert.deepEqual(tras.plugin, uno.plugin, "uninstall tocó una config que es del usuario")
+    assert.match(out, /plugin/, "hay que avisar de que la entrada de `plugin` queda colgando")
+  } finally {
+    rmSync(proj, { recursive: true, force: true })
+  }
 })
 
 test("scope user apunta al directorio global de cada runtime", () => {
@@ -250,6 +329,80 @@ test("status y list funcionan sin nada instalado", () => {
     assert.match(cli(["status", "--dir", proj]), /sin instalar/)
     const l = cli(["list"])
     for (const id of IDS) assert.match(l, new RegExp(id))
+  } finally {
+    rmSync(proj, { recursive: true, force: true })
+  }
+})
+
+// ================================================================== T-05 · `status` registrado
+//
+// Copiar ficheros no es instalar: `status` tiene que leer los MISMOS ficheros que el runtime lee
+// al arrancar. Es el falso positivo de `/doctor` visto desde el instalador.
+
+test("leerRegistro: lee los ficheros del runtime y un fichero ajeno roto no lo tumba", () => {
+  const proj = tmpProj()
+  try {
+    const json = join(proj, "settings.json")
+    assert.equal(leerRegistro([{ fichero: json, tipo: "json-prefijo", ruta: "enabledPlugins", prefijo: "custom-agents@" }]).registrado, false,
+      "sin fichero no hay registro")
+    writeFileSync(json, "{ esto no es json")
+    assert.equal(leerRegistro([{ fichero: json, tipo: "json-prefijo", ruta: "enabledPlugins", prefijo: "custom-agents@" }]).registrado, false)
+    writeFileSync(json, JSON.stringify({ enabledPlugins: { "custom-agents@daycry": false } }))
+    assert.equal(leerRegistro([{ fichero: json, tipo: "json-prefijo", ruta: "enabledPlugins", prefijo: "custom-agents@" }]).registrado, false,
+      "`false` es justo lo contrario de estar registrado")
+    writeFileSync(json, JSON.stringify({ enabledPlugins: { "custom-agents@daycry": true } }))
+    const hit = leerRegistro([{ fichero: json, tipo: "json-prefijo", ruta: "enabledPlugins", prefijo: "custom-agents@" }])
+    assert.ok(hit.registrado && hit.donde === json)
+
+    const toml = join(proj, "config.toml")
+    const desc = [{ fichero: toml, tipo: "toml-verdadero", ruta: 'plugins."custom-agents@daycry".enabled' }]
+    writeFileSync(toml, '[plugins."custom-agents@daycry"]\nenabled = false\n')
+    assert.equal(leerRegistro(desc).registrado, false)
+    writeFileSync(toml, '[plugins."custom-agents@daycry"]\nenabled = true\n')
+    assert.equal(leerRegistro(desc).registrado, true)
+  } finally {
+    rmSync(proj, { recursive: true, force: true })
+  }
+})
+
+test("status: `--mode copy` dice «registrado: no» y el plugin registrado dice «sí»", () => {
+  const proj = tmpProj()
+  const cfg = tmpProj()
+  const env = { ...process.env, NO_COLOR: "1", CLAUDE_CONFIG_DIR: cfg }
+  try {
+    cli(["install", "-p", "claude-code", "--mode", "copy", "-y", "--dir", proj, "-q"], { env })
+    const copia = cli(["status", "--dir", proj], { env })
+    assert.match(copia, /project\/copy: v/, "el manifiesto del copy sigue saliendo")
+    assert.match(copia, /project: registrado: no/, "un bundle copiado NO está registrado")
+
+    // el registro que escribe el modo plugin (scope project): `.claude/settings.json`
+    writeFileSync(join(proj, ".claude", "settings.json"),
+      JSON.stringify({ enabledPlugins: { "custom-agents@daycry": true } }))
+    assert.match(cli(["status", "--dir", proj], { env }), /project: registrado: sí/)
+  } finally {
+    for (const d of [proj, cfg]) rmSync(d, { recursive: true, force: true })
+  }
+})
+
+test("status: Codex y OpenCode también dicen si el runtime los tiene dados de alta", () => {
+  const proj = tmpProj()
+  try {
+    cli(["install", "-p", "opencode", "--dir", proj, "-q"])
+    assert.match(cli(["status", "--dir", proj]), /project: registrado: sí/,
+      "OpenCode: el adaptador queda en `plugin` de opencode.json")
+
+    const proj2 = tmpProj()
+    try {
+      cli(["install", "-p", "codex", "--dir", proj2, "-q"])
+      const s = cli(["status", "--dir", proj2])
+      assert.match(s, /project: registrado: sí/, "Codex: `enabled = true` en config.toml")
+      // y si el usuario lo apaga, `status` lo dice: es la única fuente de verdad del runtime
+      const toml = join(proj2, ".codex", "config.toml")
+      writeFileSync(toml, readFileSync(toml, "utf8").replace("enabled = true", "enabled = false"))
+      assert.match(cli(["status", "--dir", proj2]), /project: registrado: no/)
+    } finally {
+      rmSync(proj2, { recursive: true, force: true })
+    }
   } finally {
     rmSync(proj, { recursive: true, force: true })
   }
@@ -1810,5 +1963,305 @@ test("gap I3-3: el rename no puede cambiarle los permisos al fichero del usuario
     if (process.platform !== "win32") assert.equal(despues, 0o600)
   } finally {
     rmSync(tmp, { recursive: true, force: true })
+  }
+})
+
+// ============================================== revisión I2 · estado EFECTIVO del registro
+//
+// El hilo de los gaps B-1/B-2/A-3/B-7: «hay un apunte en algún fichero» no es «este plugin está
+// activo para esta carpeta». `leerRegistro` recorre TODOS los descriptores y resuelve con las
+// mismas reglas que `estado_plugin()` de `agent-kits/shared/doctor.py`.
+
+test("gap B-5: fusionar una lista sobre un valor del usuario no lo hace desaparecer", () => {
+  drenarAvisosEscritura()
+  // escalar: se conserva DELANTE (sigue siendo suyo) y se avisa
+  const [out, add] = fusionar({ plugin: "mi-plugin.js" }, { plugin: ["./nuestro.js"] })
+  assert.deepEqual(out.plugin, ["mi-plugin.js", "./nuestro.js"])
+  assert.deepEqual(add, ["plugin"])
+  let avisos = drenarAvisosEscritura()
+  assert.equal(avisos.length, 1)
+  assert.match(avisos[0], /plugin: tu valor "mi-plugin\.js" no era una lista/)
+
+  // objeto: no se puede convertir sin cambiar lo que significa → no se toca, y se dice
+  const [out2, add2] = fusionar({ plugin: { a: 1 } }, { plugin: ["./nuestro.js"] })
+  assert.deepEqual(out2.plugin, { a: 1 }, "la clave del usuario se queda como estaba")
+  assert.deepEqual(add2, [])
+  avisos = drenarAvisosEscritura()
+  assert.equal(avisos.length, 1)
+  assert.match(avisos[0], /no es una lista y no puedo añadirle/)
+
+  // y lo de siempre sigue igual: lista sobre lista, unión sin duplicar y sin avisos
+  const [out3] = fusionar({ plugin: ["./nuestro.js"] }, { plugin: ["./nuestro.js"] })
+  assert.deepEqual(out3.plugin, ["./nuestro.js"])
+  assert.deepEqual(drenarAvisosEscritura(), [])
+})
+
+test("gap B-5: instalar en OpenCode conserva el `plugin` escalar del usuario y lo avisa", () => {
+  const proj = tmpProj()
+  try {
+    writeFileSync(join(proj, "opencode.json"), JSON.stringify({ plugin: "mi-plugin.js" }))
+    const salida = cli(["install", "-p", "opencode", "-y", "--dir", proj])
+    const cfg = JSON.parse(readFileSync(join(proj, "opencode.json"), "utf8"))
+    assert.deepEqual(cfg.plugin, ["mi-plugin.js", rutaPluginOpencode(join(proj, ".opencode"), "project")],
+      "el plugin del usuario no desaparece, y va el primero")
+    assert.match(salida, /no era una lista/, "y se le dice lo que ha pasado con su clave")
+  } finally {
+    rmSync(proj, { recursive: true, force: true })
+  }
+})
+
+test("gap A-3: leerRegistro mira TODOS los descriptores y un `false` explícito manda", () => {
+  const proj = tmpProj()
+  try {
+    const instalados = join(proj, "installed_plugins.json")
+    const ajustes = join(proj, "settings.json")
+    writeFileSync(instalados, JSON.stringify(
+      { version: 2, plugins: { "custom-agents@daycry": [{ scope: "user", version: "1.0.0" }] } }))
+    const desc = [
+      { fichero: instalados, tipo: "json-instalados", ruta: "plugins", clave: "custom-agents@daycry", scope: "user" },
+      { fichero: ajustes, tipo: "json-prefijo", ruta: "enabledPlugins", clave: "custom-agents@daycry" },
+    ]
+    assert.equal(leerRegistro(desc).registrado, true, "alta sin `enabledPlugins`: cuenta")
+
+    writeFileSync(ajustes, JSON.stringify({ enabledPlugins: { "custom-agents@daycry": false } }))
+    const apagado = leerRegistro(desc)
+    assert.equal(apagado.registrado, false, "el `false` del segundo descriptor manda sobre el alta del primero")
+    assert.equal(apagado.apagadoEn, ajustes)
+
+    // gap B-7: solo `true` habilita; cualquier otro valor es un valor inválido, no un alta
+    for (const v of [0, null, "", "false", "true"]) {
+      writeFileSync(ajustes, JSON.stringify({ enabledPlugins: { "custom-agents@daycry": v } }))
+      const r = leerRegistro([desc[1]])
+      assert.equal(r.registrado, false, `valor ${JSON.stringify(v)} no habilita`)
+      assert.equal(r.invalidoEn, ajustes)
+    }
+
+    // gap B-3: otro marketplace no influye
+    writeFileSync(ajustes, JSON.stringify({ enabledPlugins: { "custom-agents@otro": false } }))
+    assert.equal(leerRegistro([desc[1]]).registrado, false)
+    assert.equal(leerRegistro([desc[1]]).apagadoEn, null, "`custom-agents@otro` no apaga el nuestro")
+  } finally {
+    rmSync(proj, { recursive: true, force: true })
+  }
+})
+
+test("gap B-1: una entrada de `installed_plugins.json` solo vale para SU scope y SU proyecto", () => {
+  const proj = tmpProj()
+  const otro = tmpProj()
+  try {
+    const instalados = join(proj, "installed_plugins.json")
+    const desc = (scope, dir) => [{
+      fichero: instalados, tipo: "json-instalados", ruta: "plugins",
+      clave: "custom-agents@daycry", scope, proyecto: resolve(dir),
+    }]
+    const escribir = (e) => writeFileSync(instalados, JSON.stringify(
+      { version: 2, plugins: { "custom-agents@daycry": [e] } }))
+
+    escribir({ scope: "project", projectPath: otro, version: "1.0.0" })
+    assert.equal(leerRegistro(desc("project", proj)).registrado, false,
+      "un alta hecha desde OTRO proyecto no registra esta carpeta")
+    assert.equal(leerRegistro(desc("user", proj)).registrado, false,
+      "ni cuenta como alta de usuario")
+
+    escribir({ scope: "project", projectPath: proj, version: "1.0.0" })
+    assert.equal(leerRegistro(desc("project", proj)).registrado, true)
+
+    escribir({ scope: "user", version: "1.0.0" })
+    assert.equal(leerRegistro(desc("user", proj)).registrado, true)
+    assert.equal(leerRegistro(desc("project", proj)).registrado, false,
+      "una entrada de usuario no es el registro del scope `project`")
+  } finally {
+    for (const d of [proj, otro]) rmSync(d, { recursive: true, force: true })
+  }
+})
+
+test("gap B-2: instalado por la vía sin CLI en scope project, `status` lo ve (y el de otro proyecto, no)", () => {
+  const proj = tmpProj()
+  const otro = tmpProj()
+  const cfg = tmpProj()
+  const hogar = join(cfg, "home")
+  mkdirSync(hogar, { recursive: true })
+  const env = conPath(SIN_CLI, { CLAUDE_CONFIG_DIR: cfg, HOME: hogar, USERPROFILE: hogar })
+  try {
+    cli(["install", "-p", "claude-code", "--scope", "project", "-y", "--dir", proj, "-q"], { env })
+    const ip = JSON.parse(readFileSync(join(cfg, "plugins", "installed_plugins.json"), "utf8"))
+    assert.equal(ip.plugins["custom-agents@daycry"][0].projectPath, resolve(proj),
+      "la entrada dice a qué proyecto pertenece: sin eso no se puede atribuir")
+    assert.match(cli(["status", "--dir", proj], { env }), /project: registrado: sí/)
+    // el MISMO registro, desde otro proyecto: no es suyo
+    const desdeOtro = cli(["status", "--dir", otro], { env })
+    assert.doesNotMatch(desdeOtro, /project: registrado: sí/,
+      "un alta de scope project de otra carpeta no puede dar por instalada esta")
+  } finally {
+    for (const d of [proj, otro, cfg]) rmSync(d, { recursive: true, force: true })
+  }
+})
+
+test("gap A-3: `status` dice que está APAGADO en vez de un «no» a secas", () => {
+  const proj = tmpProj()
+  const cfg = tmpProj()
+  const env = { ...process.env, NO_COLOR: "1", CLAUDE_CONFIG_DIR: cfg }
+  try {
+    mkdirSync(join(cfg, "plugins"), { recursive: true })
+    writeFileSync(join(cfg, "plugins", "installed_plugins.json"), JSON.stringify(
+      { version: 2, plugins: { "custom-agents@daycry": [{ scope: "user", version: VERSION }] } }))
+    writeFileSync(join(cfg, "settings.json"), JSON.stringify(
+      { enabledPlugins: { "custom-agents@daycry": false } }))
+    const s = cli(["status", "--dir", proj], { env })
+    assert.match(s, /user: registrado: no/)
+    assert.match(s, /APAGADO/, "y dice por qué, que es lo que el usuario tiene que arreglar")
+  } finally {
+    for (const d of [proj, cfg]) rmSync(d, { recursive: true, force: true })
+  }
+})
+
+// ====================================== revisión I2 · intento 3: la pila de precedencia entera
+//
+// `enabledPlugins` se puede escribir en CUALQUIER fichero de ajustes
+// (`settings-reference#enabledplugins`: «Scope: Any file») y manda el de más arriba
+// (`settings#settings-precedence`: «Managed > command line > Project local > Shared project >
+// User»). `.claude/settings.local.json` es donde escribe `claude plugin disable --scope local`:
+// leer solo `settings.json` daba «registrado: sí» con el plugin apagado.
+
+test("gap I2-1: un `false` en `local` manda sobre el `true` de `project` y de `user`", () => {
+  const proj = tmpProj()
+  try {
+    const f = (n) => join(proj, n)
+    const desc = [
+      { fichero: f("user.json"), tipo: "json-prefijo", ruta: "enabledPlugins", clave: "custom-agents@daycry", nivel: "user" },
+      { fichero: f("project.json"), tipo: "json-prefijo", ruta: "enabledPlugins", clave: "custom-agents@daycry", nivel: "project" },
+      { fichero: f("local.json"), tipo: "json-prefijo", ruta: "enabledPlugins", clave: "custom-agents@daycry", nivel: "local" },
+      { fichero: f("managed.json"), tipo: "json-prefijo", ruta: "enabledPlugins", clave: "custom-agents@daycry", nivel: "managed" },
+    ]
+    const poner = (n, v) => writeFileSync(f(n), JSON.stringify({ enabledPlugins: { "custom-agents@daycry": v } }))
+
+    poner("user.json", true)
+    poner("project.json", true)
+    assert.equal(leerRegistro(desc).registrado, true, "sin `local` manda `project`")
+
+    poner("local.json", false)
+    const apagado = leerRegistro(desc)
+    assert.equal(apagado.registrado, false, "`local` está por encima de `project` y de `user`")
+    assert.equal(apagado.apagadoEn, f("local.json"), "y se dice EN QUÉ fichero está apagado")
+
+    // y al revés: `local` también manda para activar
+    poner("local.json", true)
+    poner("project.json", false)
+    const activo = leerRegistro(desc)
+    assert.equal(activo.registrado, true)
+    assert.equal(activo.donde, f("local.json"))
+
+    // `managed` (la organización) manda sobre todos
+    poner("managed.json", false)
+    assert.equal(leerRegistro(desc).apagadoEn, f("managed.json"))
+  } finally {
+    rmSync(proj, { recursive: true, force: true })
+  }
+})
+
+test("gap I2-1: `status` ve el apagado de `.claude/settings.local.json`", () => {
+  const proj = tmpProj()
+  const cfg = tmpProj()
+  const env = { ...process.env, NO_COLOR: "1", CLAUDE_CONFIG_DIR: cfg }
+  try {
+    mkdirSync(join(cfg, "plugins"), { recursive: true })
+    writeFileSync(join(cfg, "plugins", "installed_plugins.json"), JSON.stringify(
+      { version: 2, plugins: { "custom-agents@daycry": [{ scope: "user", version: VERSION }] } }))
+    writeFileSync(join(cfg, "settings.json"), JSON.stringify(
+      { enabledPlugins: { "custom-agents@daycry": true } }))
+    mkdirSync(join(proj, ".claude"), { recursive: true })
+    writeFileSync(join(proj, ".claude", "settings.local.json"), JSON.stringify(
+      { enabledPlugins: { "custom-agents@daycry": false } }))
+    const s = cli(["status", "--dir", proj], { env })
+    assert.doesNotMatch(s, /registrado: sí/, "apagado en `local`: no está activo para esta carpeta")
+    assert.match(s, /APAGADO/)
+    assert.match(s, /settings\.local\.json/, "y se nombra el fichero que manda")
+  } finally {
+    for (const d of [proj, cfg]) rmSync(d, { recursive: true, force: true })
+  }
+})
+
+test("gap I2-6: `local` es scope de proyecto (exige `projectPath`) y un scope raro no cuenta", () => {
+  const proj = tmpProj()
+  try {
+    const instalados = join(proj, "installed_plugins.json")
+    const desc = (scope) => [{
+      fichero: instalados, tipo: "json-instalados", ruta: "plugins",
+      clave: "custom-agents@daycry", scope, proyecto: resolve(proj),
+    }]
+    const escribir = (e) => writeFileSync(instalados, JSON.stringify(
+      { version: 2, plugins: { "custom-agents@daycry": [e] } }))
+
+    escribir({ scope: "local", version: "1.0.0" })
+    assert.equal(leerRegistro(desc("project")).registrado, false, "`local` sin `projectPath` no se atribuye")
+    escribir({ scope: "local", projectPath: proj, version: "1.0.0" })
+    assert.equal(leerRegistro(desc("project")).registrado, true, "`local` con SU proyecto sí cuenta")
+    assert.equal(leerRegistro(desc("user")).registrado, false, "y no es un alta de usuario")
+
+    // un scope que no es ninguno de los tres documentados NO cae al lado permisivo
+    for (const scope of ["raro", "", 7, undefined]) {
+      escribir({ scope, projectPath: proj, version: "1.0.0" })
+      assert.equal(leerRegistro(desc("project")).registrado, false, `scope ${JSON.stringify(scope)}`)
+      assert.equal(leerRegistro(desc("user")).registrado, false, `scope ${JSON.stringify(scope)} como user`)
+    }
+  } finally {
+    rmSync(proj, { recursive: true, force: true })
+  }
+})
+
+test("gap I2-2/I2-7: `mismaRuta` no lanza con un valor que no es cadena y resuelve enlaces", () => {
+  const proj = tmpProj()
+  try {
+    for (const v of [123, null, undefined, ["x"], { a: 1 }, true]) {
+      assert.equal(mismaRuta(v, proj), false, `${JSON.stringify(v)} no casa con nada`)
+      assert.equal(mismaRuta(proj, v), false)
+    }
+    assert.equal(mismaRuta(proj, proj), true)
+    assert.equal(mismaRuta(proj + sep, proj), true, "una barra de más es la misma carpeta")
+    // una ruta que todavía no existe no se puede resolver: se cae al valor original, no a `false`
+    const futura = join(proj, "aun-no")
+    assert.equal(mismaRuta(futura, futura), true)
+  } finally {
+    rmSync(proj, { recursive: true, force: true })
+  }
+})
+
+test("gap I2-4: los pasos `exec` se lanzan EN `--dir`, así que la CLI registra ese proyecto", () => {
+  const proj = tmpProj()
+  const cfg = tmpProj()
+  const bin = mkdtempSync(join(tmpdir(), "ca-bin-"))
+  const hogar = join(cfg, "home")
+  mkdirSync(hogar, { recursive: true })
+  claudeFalso(bin)
+  const env = conPath([bin, SIN_CLI].join(delimiter),
+    { CLAUDE_CONFIG_DIR: cfg, HOME: hogar, USERPROFILE: hogar })
+  try {
+    // el instalador se lanza desde OTRA carpeta (como un `npx` desde el repo de turno)
+    const salida = cli(["install", "-p", "claude-code", "--scope", "project", "-y", "--dir", proj],
+      { env, cwd: bin })
+    assert.match(salida, /plugin install/, "se pasó por la CLI, no por el respaldo")
+    const ip = JSON.parse(readFileSync(join(cfg, "plugins", "installed_plugins.json"), "utf8"))
+    assert.equal(ip.plugins["custom-agents@daycry"][0].projectPath, resolve(proj),
+      "la CLI toma el proyecto del cwd: sin `cwd: dir` grababa la carpeta desde la que se lanzó `npx`")
+    assert.match(cli(["status", "--dir", proj], { env }), /project: registrado: sí/,
+      "y por eso `status` lo ve: antes decía «2 pasos aplicados» y «registrado: no»")
+  } finally {
+    for (const d of [proj, cfg, bin]) rmSync(d, { recursive: true, force: true })
+  }
+})
+
+test("gap I2-4: ningún paso `exec` de ningún proveedor se queda sin `cwd`", () => {
+  const dir = tmpProj()
+  try {
+    for (const p of PROVIDERS) {
+      for (const scope of ["project", "user"]) {
+        const plan = buildPlan(p, { dir, scope, root: ROOT, version: VERSION, cli: { claude: true, codex: true } })
+        for (const paso of plan.filter((s) => s.type === "exec")) {
+          assert.equal(paso.cwd, dir, `${p.id}/${scope}: ${[paso.cmd, ...paso.args].join(" ")} sin cwd`)
+        }
+      }
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
   }
 })
