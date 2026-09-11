@@ -70,24 +70,24 @@ generacion:
 
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervisión (real/est) | Tokens (real/est) |
 |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
-| Fase 1 — el instalador registra de verdad (Claude Code, Codex, OpenCode) | 0 | 4 | 0% | 6,0h / 7,0h | 1,55h / 0,90h | 0,20h / 0,25h | 21,7M (sin el T-01 original: JSON perdido) / 420k |
+| Fase 1 — el instalador registra de verdad (Claude Code, Codex, OpenCode) | 1 | 4 | 25% | 6,0h / 7,0h | 2,55h / 0,90h | 0,20h / 0,25h | 21,7M medidos (sin el T-01 original ni el intento 2: JSON perdido / medidor degradado) / 420k |
 | Fase 2 — diagnóstico veraz y documentación | 0 | 2 | 0% | — / 3,0h | — / 0,40h | — / 0,10h | — / 180k |
-| **TOTAL** | **0** | **6** | **0%** | **6,0h / 10,0h** | **1,55h / 1,30h** | **0,20h / 0,35h** | **21,7M (sin el T-01 original: JSON perdido) / 600k** |
+| **TOTAL** | **1** | **6** | **17%** | **6,0h / 10,0h** | **2,55h / 1,30h** | **0,20h / 0,35h** | **21,7M medidos (sin el T-01 original ni el intento 2) / 600k** |
 
 ---
 
 ## Fase 1 — el instalador registra de verdad (Claude Code, Codex, OpenCode)
 
-**Estado**: en-progreso · **Estimado**: 7,0h · **Real**: 6,0h humanas (estimado) + 1,55h IA + 0,20h supervisión · **Coste est.**: ≈350 € · **Tokens est.**: 420k · **Tramo**: I1 (T-01…T-03) **completado**, revisión de dos lentes intento 1 cerrada (20/20 gaps corregidos) · I2 (T-04)
+**Estado**: en-progreso · **Estimado**: 7,0h · **Real**: 6,0h humanas (estimado) + 2,55h IA + 0,20h supervisión · **Coste est.**: ≈350 € · **Tokens est.**: 420k · **Tramo**: I1 (T-01…T-03) **completado**, revisión de dos lentes intento 1 cerrada (20/20) e intento 2 cerrada (15/15: 1 Critical, 7 Important, 7 Minor) · I2 (T-04)
 
 ### T-01 — Banner y multiselect con checkboxes, cero dependencias
 
 - **Descripción**: `install/install.mjs`: (a) `banner()` estático — wordmark ASCII `custom-agents`, versión y lema en una caja, colores ANSI a mano; no se imprime con `--quiet`, `NO_COLOR`, `CI` o sin TTY, y `--help`/`--version`/`status`/`list` no lo muestran; (b) `preguntar()` pasa a un **multiselect raw** (`readline.emitKeypressEvents` + `setRawMode`): lista de proveedores con `[x]`/`[ ]`, etiqueta `detectado`/`no detectado` y el `blurb`; teclas ↑/↓/j/k, espacio, `a` (todos), `i` (invertir), Enter, Esc/`q`/Ctrl-C (cancela con exit 0 y mensaje); preselección = detectados ∪ {`claude-code`}; sin `setRawMode` (stdin no TTY o terminal sin soporte) cae al menú numérico actual. El reductor de teclas es una **función pura** exportada (`reducirTecla(estado, tecla) → estado`) para poder probarlo sin terminal. `-y`/`--yes` y `-p` siguen sin preguntar nada.
 - **Changelog**: El instalador `npx` muestra un título al arrancar y permite elegir los runtimes con checkboxes (espacio marca, Enter confirma), con los detectados preseleccionados.
-- **Estado**: en-progreso
+- **Estado**: completado
 - **Tipo**: feature
 - **Tiempo humano**: est. 1,5h · real 1,5h (estimado)
-- **Tiempo IA (ejec.)**: est. 0,20h · real 0,48h (0,30h estimadas del tramo + **0,18h medidas** del intento 1 de revisión, reparto abajo — desviación 7: el marcador `installer-registro-real/T-01` se abrió a las 03:18:44Z y se cerró a las ~03:37Z, pero la salida del `close` se truncó y el JSON medido se perdió; el `close` sí dio `ratio_usado: 479326.0`, `ratio_origen: CALIBRATION.md (mediana de 6)`)
+- **Tiempo IA (ejec.)**: est. 0,20h · real 0,58h (0,30h estimadas del tramo + **0,18h medidas** del intento 1 de revisión, reparto abajo — desviación 7: el marcador `installer-registro-real/T-01` se abrió a las 03:18:44Z y se cerró a las ~03:37Z, pero la salida del `close` se truncó y el JSON medido se perdió; el `close` sí dio `ratio_usado: 479326.0`, `ratio_origen: CALIBRATION.md (mediana de 6)`) + **0,10h estimadas** del intento 2 (marcador `I1-fix2`: el medidor degradó, ver el reparto al final)
 - **Supervisión**: est. 0,05h · real 0,05h (estimado)
 - **Previsión IA**: 70k in / 10k out tok
 - **Dependencias**: —
@@ -122,6 +122,14 @@ generacion:
     el listener del multiselect con `try/finally` + `process.once("exit")` — probado en un proceso hijo que hace reventar
     `stdout.write` a media tecla: `{"raw":false,"cursor":"ESC[?25h","oyentes":0}`; Enter sin marcar → `{vacio:true}` y
     mensaje propio con exit 0 (`resultadoSeleccion`).
+  - **Re-ejecutada tras las correcciones del intento 2** (2026-09-11, después del último cambio, GOT-007):
+    `node --test tests/*.test.mjs` → `ℹ tests 93 · ℹ pass 93 · ℹ fail 0`, **exit 0** (`echo $?`, sin `| tail`);
+    69 previos + **24 nuevos**, y **0 nombres de test perdidos** (conjunto ordenado antes/después: `comm -23` vacío);
+    `python scripts/lint_plugin.py` → `9 agentes · 0 errores · 3 avisos`; `python scripts/export-interop.py --check` →
+    `48 ficheros al día`; `python -m pytest -q tests/` → `26 failed, 862 passed` (el conjunto conocido de rojos de
+    Windows; esta tarea no toca Python). De T-01, lo que rozó el intento 2: los manejadores de señal conviven con el
+    multiselect sin dejar la terminal en raw (el `process.once("exit", limpiar)` sigue siendo la red) y el test nuevo
+    comprueba que durante la instalación hay manejador de `SIGINT` y que al terminar no queda ninguno.
 - **Desviaciones**:
   1. El banner y el multiselect **no se han visto en una terminal real** desde este agente (no hay pty en el entorno): se han pintado con un arnés que pone `process.stdout.isTTY`/`process.stdin.isTTY` a `true` y emite `keypress`. Para poder hacerlo, `multiselect` se **exporta** desde `install.mjs` (antes no existía). La comprobación en terminal real sigue siendo del orquestador/usuario.
   2. El test preexistente «cada proveedor declara lo mínimo y produce un plan no vacío» se **adapta**: acepta los seis tipos de paso y solo exige `to` a los que escriben (un `exec` lleva `cmd`/`args`).
@@ -145,7 +153,7 @@ generacion:
 - **Estado**: en-progreso
 - **Tipo**: feature
 - **Tiempo humano**: est. 3,0h · real 3,0h (estimado)
-- **Tiempo IA (ejec.)**: est. 0,40h · real 0,65h (0,03h + **0,62h medidas** del intento 1 de revisión, reparto abajo; marcador del tramo `installer-registro-real/T-02`, ventana 03:37:17Z–03:40:43Z: `{"fuente": "medido", "tokens_reales": {"entrada": 18, "salida": 4486, "cache_creacion": 8447, "cache_lectura": 1665275, "respuestas": 9}, "eur": 0.92, "horas_ia": 0.03, "duracion": "2m"}`. La medida sale baja porque el grueso del diseño y del código de T-02 se escribió dentro de la ventana de T-01 — desviación 7)
+- **Tiempo IA (ejec.)**: est. 0,40h · real 1,25h (0,03h + **0,62h medidas** del intento 1 de revisión, reparto abajo; marcador del tramo `installer-registro-real/T-02`, ventana 03:37:17Z–03:40:43Z: `{"fuente": "medido", "tokens_reales": {"entrada": 18, "salida": 4486, "cache_creacion": 8447, "cache_lectura": 1665275, "respuestas": 9}, "eur": 0.92, "horas_ia": 0.03, "duracion": "2m"}`. La medida sale baja porque el grueso del diseño y del código de T-02 se escribió dentro de la ventana de T-01 — desviación 7) + **0,60h estimadas** del intento 2 (marcador `I1-fix2`, reparto al final)
 - **Supervisión**: est. 0,10h · real 0,10h (estimado)
 - **Previsión IA**: 120k in / 18k out tok
 - **Dependencias**: T-01 (los pasos nuevos se imprimen en `--dry-run` con el mismo formato)
@@ -199,6 +207,28 @@ generacion:
     `claude plugin list` → `custom-agents@daycry · Version: 1.19.0 · Scope: user · Status: ✔ enabled`;
     `uninstall -p claude-code --scope user` → `Claude Code (v1.19.0, user, plugin)` y `claude plugin list` → `No plugins installed.`
     (la línea «ejecutando …» es del gap 8: se ve qué se está lanzando ANTES de lanzarlo).
+  - **Re-ejecutada tras las correcciones del intento 2** (2026-09-11, después del último cambio, GOT-007):
+    `node --test tests/*.test.mjs` → `ℹ tests 93 · ℹ pass 93 · ℹ fail 0`, **exit 0** (`echo $?`);
+    `python scripts/lint_plugin.py` → `9 agentes · 0 errores · 3 avisos`; `python scripts/export-interop.py --check` →
+    `48 ficheros al día`; `python -m pytest -q tests/` → `26 failed, 862 passed` (mismo conjunto conocido de Windows).
+    `--mode copy` **sigue siendo el plan de HEAD**: comparación programática de `buildPlan` de hoy contra el de
+    `git archive HEAD` en los cuatro casos → `claude-code/copy/project` y `claude-code/copy/user`
+    **IGUALES (sin aviso): true** (única diferencia, el `aviso` que añadió T-02, que es lo pedido) y
+    `opencode/plugin/project` y `opencode/plugin/user` **IGUALES: true, avisos iguales: true**.
+    **Prueba real repetida** con `claude` en un `CLAUDE_CONFIG_DIR` temporal (`C:\…\Temp\ca-real3\cfg`, sin tocar el
+    `~/.claude` real), `install -p claude-code --scope user --source "<repo>" -y`:
+
+    ```
+    Claude Code — plugin nativo — agentes, comandos, skills, hooks y statusline
+      → ejecutando $ claude plugin marketplace add C:/…/custom-agents --scope user…
+      ✓ $ claude plugin marketplace add C:/…/custom-agents --scope user
+      → ejecutando $ claude plugin install custom-agents@daycry --scope user --yes…
+      ✓ $ claude plugin install custom-agents@daycry --scope user --yes
+      ✓ 2 paso(s) aplicados en C:\…\Temp\ca-real3\cfg\plugins
+    ```
+
+    `claude plugin list` → `custom-agents@daycry · Version: 1.19.0 · Scope: user · Status: ✔ enabled`;
+    `uninstall -p claude-code --scope user` → exit 0 y `claude plugin list` → `No plugins installed.`
 - **Desviaciones**:
   3. El apunte del manifiesto de un `exec` lleva, además del `{exec: "<cmd args>"}` informativo del contrato, un campo `deshacer` con el comando inverso cuando el paso lo declara. Sin él no se puede cumplir lo que pide la propia descripción de T-02 («`claude plugin uninstall …` si hay CLI») sin adivinar el comando a partir de una cadena.
   4. Para un `--source` que es una **ruta local**, la fuente se escribe como `{source: "directory", path}` y no como `{source: "github", repo}`: es lo que escribe la CLI oficial de Claude Code (comprobado en el `settings.json` que dejó `claude plugin marketplace add <ruta>` en la prueba real). Para `owner/repo` se mantiene `{source: "github", repo}` del contrato.
@@ -211,8 +241,20 @@ generacion:
       pasa a un test nuevo (`gap 19: un fichero del registro que YA existía se conserva`). No se relaja ningún criterio:
       se parte en dos el escenario que la lente pedía distinguir. Para que sobreviva a un reinstall, el manifiesto arrastra
       `creado`/`padresCreados` del manifiesto anterior (si no, la segunda pasada daría el fichero por «del usuario»).
-  11. `--force-marketplace` es una **opción nueva** que el contrato de T-03 no preveía: la pide el gap 7 como única vía para
-      ejecutar el `remove` + `add` del marketplace del usuario. Por defecto NO se ejecuta: se avisa con el comando exacto.
+  12. El manifiesto se apunta (con `estado: "incompleto"`) **ANTES** de cada paso `copy`, no solo al final ni solo en el
+      `catch`. Los manejadores de señal del gap B-4 no cubren un `taskkill /F` (Windows no ejecuta nada al terminar un
+      proceso a lo bruto) y esa es justo la interrupción que deja 159 ficheros sin inventario. Cuesta un JSON pequeño
+      por paso; el manifiesto final (`completo`) es idéntico al de antes.
+  13. Para el gap B-12 no basta con `taskkill /T /F /PID`: al expirar, Node ya ha matado al hijo directo (el `cmd.exe`),
+      así que el árbol ya no existe y el nieto —la CLI de verdad— sobrevive. Se añade un barrido de huérfanos por
+      `ParentProcessId` con `wmic`, y los dos se invocan por **ruta absoluta** bajo `System32` (el PATH del usuario
+      puede no traerlos). Sin `wmic` (Windows recientes lo retiran) degrada en silencio: nunca peor que antes.
+  14. Al conservar los ficheros con cambios locales (gap B-8), el manifiesto del `--mode copy` se retira igual, así que
+      esos ficheros quedan **fuera de todo inventario**. Es deliberado —el alternativo es borrarle al usuario lo que
+      editó— y se dice en el aviso, que nombra la ruta donde se quedan.
+  15. Los tests que validan el `config.toml` con **`tomllib`** llaman a `python3`/`python` solo **si está en la máquina**;
+      si no, se quedan en las aserciones de texto. El contrato del instalador es cero dependencias y `node --test`: no
+      se puede exigir Python para que la suite pase.
 - **Notas**: el formato de `known_marketplaces.json`/`installed_plugins.json` es interno de Claude Code (claude-mem lo escribe igual); se documenta en `INTEROP.md` como respaldo y el modo CLI es el preferido. Nada de este cambio toca las piezas (`agents/`, `commands/`, `skills/`, `hooks/`): `export-interop.py --check` no varía.
 
 **Criterios de aceptación**
@@ -235,7 +277,7 @@ generacion:
 - **Estado**: en-progreso
 - **Tipo**: feature
 - **Tiempo humano**: est. 1,5h · real 1,5h (estimado)
-- **Tiempo IA (ejec.)**: est. 0,20h · real 0,42h (0,03h + **0,39h medidas** del intento 1 de revisión, reparto abajo; marcador del tramo `installer-registro-real/T-03`, ventana 03:40:44Z–03:43:16Z: `{"fuente": "medido", "tokens_reales": {"entrada": 12, "salida": 5229, "cache_creacion": 9184, "cache_lectura": 1149696, "respuestas": 6}, "eur": 0.7, "horas_ia": 0.03, "duracion": "2m"}`)
+- **Tiempo IA (ejec.)**: est. 0,20h · real 0,72h (0,03h + **0,39h medidas** del intento 1 de revisión, reparto abajo; marcador del tramo `installer-registro-real/T-03`, ventana 03:40:44Z–03:43:16Z: `{"fuente": "medido", "tokens_reales": {"entrada": 12, "salida": 5229, "cache_creacion": 9184, "cache_lectura": 1149696, "respuestas": 6}, "eur": 0.7, "horas_ia": 0.03, "duracion": "2m"}`) + **0,30h estimadas** del intento 2 (marcador `I1-fix2`, reparto al final)
 - **Supervisión**: est. 0,05h · real 0,05h (estimado)
 - **Previsión IA**: 70k in / 10k out tok
 - **Dependencias**: T-02 (paso `exec`)
@@ -269,14 +311,43 @@ generacion:
     Gaps de T-03 en el editor TOML: cabeceras normalizadas (`[plugins.'x']`, `[ plugins . "x" ]` y `[plugins."x"]` son la MISMA
     tabla, sin duplicar), `[[…]]` con ese nombre → error del paso, arrays y cadenas `"""` multilínea no se invaden, el
     `# comentario` de la línea se conserva al cambiar el valor y `uninstall` ya no RE-CREA la tabla que el usuario borró.
+  - **Re-ejecutada tras las correcciones del intento 2** (2026-09-11, después del último cambio, GOT-007):
+    `node --test tests/*.test.mjs` → `ℹ tests 93 · ℹ pass 93 · ℹ fail 0`, **exit 0** (`echo $?`);
+    `python scripts/lint_plugin.py` → `9 agentes · 0 errores · 3 avisos`; `python scripts/export-interop.py --check` →
+    `48 ficheros al día`; `python -m pytest -q tests/` → `26 failed, 862 passed` (mismo conjunto conocido de Windows).
+    **Gap B-1 (Critical) reproducido y cerrado con `tomllib`** — instalación real en un HOME temporal partiendo de cada
+    una de las dos formas que dejaba el usuario:
+
+    ```
+    FORMA A (clave con punto)                     FORMA B (tabla en línea)
+    # mi config                                   [plugins]
+    plugins."custom-agents@daycry".enabled = false   "custom-agents@daycry" = { enabled = false }
+    [tui] / theme = "dark"
+    ------ después (exit 0) ------                ------ después (exit 0) ------
+    plugins."custom-agents@daycry".enabled = true    "custom-agents@daycry" = { enabled = true }
+    [tui] / theme = "dark"                        [features] / hooks = true
+    [features] / hooks = true
+    ------ tomllib ------                         ------ tomllib ------
+    PARSEA OK · enabled = True                    PARSEA OK · enabled = True
+    ```
+
+    (antes, con la forma B, el instalador apendizaba `[plugins."custom-agents@daycry"]`, salía con exit 0 y mensaje de
+    éxito, y `tomllib` daba `Cannot declare ('plugins','custom-agents@daycry') twice`). Tercer caso, sin declaración
+    previa: se crea la cabecera como siempre y también parsea. Cuarto: `plugins = { "custom-agents@daycry" = { … } }`
+    → **error del paso**, `config.toml` byte a byte intacto y mensaje con el fichero y el cambio a mano.
+    `uninstall` sigue poniendo `enabled = false` donde esté declarado (y no re-crea lo que el usuario borró).
+  - **No verificable aquí** (igual que en el intento 1): que Codex cargue el plugin → checklist **M-01** (usuario).
 - **Desviaciones**:
   6. `correr()` resuelve la ruta real del comando (`where.exe`/`which`) y, en Windows, ejecuta los lanzadores `.cmd`/`.bat` a través de `cmd.exe /d /s /c` con los argumentos entrecomillados a mano. Sin esto Node no puede ejecutar un `codex.cmd`/`claude.cmd` (el caso normal de una instalación por npm) y el paso `exec` degradaba a aviso siempre. `enPath()` pasa a ser `Boolean(rutaDe(cmd))`.
+  11. `--force-marketplace` es una **opción nueva** que el contrato de T-03 no preveía: la pide el gap 7 como única vía
+      para ejecutar el `remove` + `add` del marketplace del usuario. Por defecto NO se ejecuta: se avisa con el comando
+      exacto. (Estaba archivada bajo T-02 por error; movida aquí por el gap A-3 del intento 2.)
   8. El `toml-set` de `[features] hooks` declara `deshacer: false` (no se apunta en el manifiesto): apagar una preferencia global del usuario al desinstalar sería pisarle la configuración. El de `[plugins."custom-agents@daycry"] enabled` sí se apunta y se pone a `false`.
 - **Notas**: `codex plugin marketplace add` y `[plugins."<id>"] enabled` están en la doc oficial de Codex («Package plugin»); el flujo lo usa `claude-mem` (`CodexCliInstaller.ts`) con la misma versión mínima.
 
 **Criterios de aceptación**
 - [x] `config.toml` del scope con `[plugins."custom-agents@daycry"] enabled = true` y `[features] hooks = true`, sin alterar el resto del fichero
-- [x] Con `codex` en PATH se ejecuta `marketplace add` (con recuperación si ya existía); sin él, aviso con el comando exacto
+- [x] Con `codex` en PATH se ejecuta `marketplace add` (con recuperación si ya existía — **opt-in**: el `remove` + `add` solo con `--force-marketplace`, ver desviación 11); sin él, aviso con el comando exacto
 - [x] `uninstall` pone `enabled = false` y no borra nada del `config.toml`
 
 **Subtareas**
@@ -454,21 +525,70 @@ entorno): la comprobacion visual final es tuya, con la checklist M-01.
 
 | # | Grado | Gap | Tarea | Correccion | Evidencia |
 |---|---|---|---|---|---|
-| B-1 | **Critical** | `ponerToml` solo reconoce la tabla si esta declarada como **cabecera**. Si el usuario la tiene como **clave con punto** (`plugins."custom-agents@daycry".enabled = false`) o como **tabla en linea** (`[plugins]` + `"custom-agents@daycry" = { enabled = false }`) —las dos formas validas que deja quien desactivo el plugin a mano— se apendiza una segunda declaracion y el `config.toml` **deja de parsear**, con exit 0 y mensaje de exito. **Reproducido por el orquestador**: `tomllib` -> `Cannot declare ('plugins','custom-agents@daycry') twice (line 10)`. Codex pierde toda su configuracion | T-03 | pendiente: el analizador detecta tambien claves con punto y tablas en linea que declaren el mismo camino; si existe, **modificar ahi** (`enabled = false` -> `true` dentro de la tabla en linea / de la clave con punto) o, si no es seguro, **error del paso** sin tocar el fichero y con el comando para hacerlo a mano. Tests con las dos formas validados con `tomllib` | `install.mjs:401-409` |
-| B-2 | **Important** | `migrarDeCopy` se llama **fuera** del `try/catch` por proveedor: un manifiesto de copy sin `files` (instalador viejo o parcial) lanza `TypeError: man.files is not iterable`, aborta el run entero con stack crudo y **OpenCode no se instala**. Contradice «DEGRADA, NO BLOQUEA» (`install.mjs:19-20`) | T-02 | pendiente: llamada dentro del `try` del proveedor; manifiesto de copy sin `files`/ilegible -> aviso y seguir (ver B-13) | `install.mjs:795-796,864` |
-| B-3 | **Important** | Un **segundo** fallo sobrescribe el manifiesto parcial del primero y pierde su `registro`: `uninstall` borra los ficheros pero deja `plugins."custom-agents@daycry"` en `installed_plugins.json` apuntando a un `installPath` ya borrado -> **plugin fantasma** que Claude Code intenta cargar | T-02 | pendiente: `guardar()` **fusiona** con el manifiesto previo (union de `files` y de `registro`, sin duplicar) en vez de reescribir | `install.mjs:526-527,546-560` |
-| B-4 | **Important** | El manifiesto `incompleto` solo cubre excepciones JS, no **señales**: Ctrl-C a mitad deja 159 ficheros y **cero** manifiesto; `uninstall` responde «no encuentro ningun manifiesto» y quedan huerfanos. Es la interrupcion mas probable de un `npx` de 444 ficheros | T-02 | pendiente: `process.on("SIGINT"/"SIGTERM"/"SIGBREAK")` -> `guardar("incompleto")` y salir con codigo; test que mata el proceso a mitad y comprueba que `uninstall` lo deshace | `install.mjs:562-569` |
-| B-5 | **Important** | `estadoCli` devuelve `"si"` para extensiones que `correr()` no sabe lanzar (`.ps1`, `.vbs`, `.js`, `.wsf`… todas en el `PATHEXT` por defecto de W11): `claude.ps1` en el PATH -> `spawnSync … EFTYPE`, el paso aborta el proveedor y **el respaldo no se usa** | T-02/T-03 | pendiente: `ARRANCABLES` = solo lo que `correr()` lanza (`.EXE`, `.COM`, `.CMD`, `.BAT`); cualquier otra extension -> `no-ejecutable` -> respaldo con aviso | `providers.mjs:74,81,93-96` · `install.mjs:485` |
-| B-6 | **Important** | `elegirEjecutable` prefiere `.CMD` sobre `.EXE`, al reves que el interprete de comandos (que sigue el orden de `PATHEXT`: `.COM;.EXE;.BAT;.CMD`). Con `claude.exe` (instalador nativo) y los shims `.cmd` de npm conviviendo —**el caso de esta maquina**— el instalador ejecuta un lanzador distinto del que usa el usuario | T-02 | pendiente: recorrer en el orden de `PATHEXT` (con el defecto de Windows si la variable falta), no en un orden fijo; corregir el comentario que afirma lo contrario | `providers.mjs:71,74,81` |
-| B-7 | **Important** | Los JSON del registro se escriben con `writeFileSync` directo (sin tmp+rename): una interrupcion a mitad deja el `settings.json` del usuario en **0 bytes** (reproducido), y `leerJsonEstricto` trata el fichero vacio como `{}`, asi que la perdida queda **invisible** y la pasada siguiente lo reescribe con solo nuestras claves | T-02 | pendiente: escritura atomica (fichero temporal en el mismo directorio + `renameSync`); fichero de 0 bytes o solo espacios **en un fichero que ya existia** -> error del paso, no `{}` | `install.mjs:175,190` |
-| B-8 | **Important** | `migrarDeCopy -y` borra **todos** los ficheros del manifiesto de copy sin comprobar que sigan siendo los instalados: un `agents/implementer.md` editado por el usuario desaparece sin aviso y el modo plugin no lo repone. Y `-y` se anuncia en el `--help` «para CI» | T-02 | pendiente: comparar cada fichero con el del paquete (hash o tamaño+mtime); los que difieran, **no borrarlos** y listarlos en un aviso («tienes cambios locales en N ficheros: los dejo en `.claude/`») | `install.mjs:841,864-866` |
-| A-1 = B-10 | Minor | En scope **project** + modo plugin, `uninstall` deja ~150 directorios vacios bajo `<cfg>/plugins`: `podarVacios` se ancla en `dest` (`<dir>/.claude`) mientras los ficheros se escribieron en `<cfg>/plugins`. Residuo, no perdida | T-02 | pendiente: podar con tope **por raiz** de cada fichero del manifiesto (agrupar por prefijo comun), no con un unico `dest` | `install.mjs:870,952-961` |
-| B-9 | Minor | `argCmd` dobla las comillas pero no los backslashes que las preceden: `--source "C:\mi clon\"` se come el `--scope` siguiente | T-02 | pendiente: duplicar los `\` que preceden a una `"` (regla MSVCRT) | `install.mjs:473-474` |
-| B-11 | Minor | `CUSTOM_AGENTS_EXEC_TIMEOUT_MS` negativo pasa el `Number(x) \|\| 120_000` y hace fallar todos los `exec` (`timeout out of range`), sin caer al respaldo; `0` se convierte en 120000 sin decirlo | T-02 | pendiente: validar entero > 0, si no aviso y defecto | `install.mjs:464` |
-| B-12 | Minor | Al expirar el timeout muere `cmd.exe` pero **no su nieto** (queda vivo, comprobado con `tasklist`), y el mensaje dice `ETIMEDOUT` sin nombrar el timeout ni como subirlo | T-02/T-03 | pendiente: matar el arbol (`taskkill /T /F /PID` en win32) y mensaje que diga «expiro a los N s; sube `CUSTOM_AGENTS_EXEC_TIMEOUT_MS`» | `install.mjs:487,674` |
-| B-13 | Minor | Un manifiesto de copy **ilegible** se ignora en silencio: ni migra ni avisa, y los ~222 ficheros del bundle quedan huerfanos | T-02 | pendiente: aviso explicito con la ruta y que hay que limpiarlo a mano | `install.mjs:835` |
+| B-1 | **Critical** | `ponerToml` solo reconoce la tabla si esta declarada como **cabecera**. Si el usuario la tiene como **clave con punto** (`plugins."custom-agents@daycry".enabled = false`) o como **tabla en linea** (`[plugins]` + `"custom-agents@daycry" = { enabled = false }`) —las dos formas validas que deja quien desactivo el plugin a mano— se apendiza una segunda declaracion y el `config.toml` **deja de parsear**, con exit 0 y mensaje de exito. **Reproducido por el orquestador**: `tomllib` -> `Cannot declare ('plugins','custom-agents@daycry') twice (line 10)`. Codex pierde toda su configuracion | T-03 | **Corregido**: `analizarToml` indexa ahora tambien las ASIGNACIONES con la ruta completa que declaran, y `ponerToml` atiende las tres formas: clave con punto (cambia ESA linea, con su `# comentario`), tabla en linea (`ponerEnTablaEnLinea`, dentro de las llaves; `{}` -> `{ enabled = true }`), declaracion implicita por otra clave del mismo prefijo (clave hermana) y, cuando no se puede hacer con seguridad (`plugins = { "x" = {...} }` anidado), **error del paso** nombrando fichero y forma sin tocar el fichero. 7 tests `gap B-1`; dos instalan de verdad y validan el resultado con **`tomllib`** (`PARSEA OK - enabled = True`) en las dos formas | `install.mjs` `analizarToml` / `ponerToml` / `ponerEnTablaEnLinea` / `partirAsignacion` |
+| B-2 | **Important** | `migrarDeCopy` se llama **fuera** del `try/catch` por proveedor: un manifiesto de copy sin `files` (instalador viejo o parcial) lanza `TypeError: man.files is not iterable`, aborta el run entero con stack crudo y **OpenCode no se instala**. Contradice «DEGRADA, NO BLOQUEA» (`install.mjs:19-20`) | T-02 | **Corregido**: la llamada a `migrarDeCopy` va DENTRO del `try` del proveedor, y la propia funcion degrada (manifiesto ilegible o sin `files` -> aviso y seguir); `deshacerInstalacion` y `status` ya no suponen `man.files`. Test: manifiesto `{"plugin":"custom-agents","modo":"copy"}` sin `files` + `install -p claude-code,opencode -y` -> aviso, claude-code se instala, **OpenCode se instala**, exit 0 y ni un stack crudo | `install.mjs` `cmdInstall` / `migrarDeCopy` / `deshacerInstalacion` |
+| B-3 | **Important** | Un **segundo** fallo sobrescribe el manifiesto parcial del primero y pierde su `registro`: `uninstall` borra los ficheros pero deja `plugins."custom-agents@daycry"` en `installed_plugins.json` apuntando a un `installPath` ya borrado -> **plugin fantasma** que Claude Code intenta cargar | T-02 | **Corregido**: `guardar()` FUSIONA con el manifiesto previo — union de `files` y `fusionarRegistro()` del registro (misma clave = un apunte; union de `claves`/`padresCreados`/`noQuitar`; `creado` se conserva). Tests: dos fallos seguidos (1.o en `settings.json`, 2.o antes, en `known_marketplaces.json`) -> el manifiesto final sigue apuntando el `installed_plugins.json` del primero y `uninstall` lo deshace (el fichero desaparece: cero plugin fantasma); mas test unitario de `fusionarRegistro` | `install.mjs` `guardar` / `fusionarRegistro` |
+| B-4 | **Important** | El manifiesto `incompleto` solo cubre excepciones JS, no **señales**: Ctrl-C a mitad deja 159 ficheros y **cero** manifiesto; `uninstall` responde «no encuentro ningun manifiesto» y quedan huerfanos. Es la interrupcion mas probable de un `npx` de 444 ficheros | T-02 | **Corregido**: `process.on("SIGINT"/"SIGTERM"/"SIGBREAK")` -> `guardar("incompleto")` + salida con 128+senal, y los manejadores se sueltan en el `finally` (el multiselect ya restauraba cursor y raw mode con su `process.once("exit")`). Ademas —desviacion 12— el manifiesto se apunta ANTES de cada paso `copy`, porque un `taskkill /F` no ejecuta ningun manejador. Tests: matar el proceso a mitad de la copia -> hay manifiesto (`incompleto`) y `uninstall` deja 0 huerfanos en agents/skills/commands/hooks; y los manejadores se ponen al empezar (>= 1 durante) y se sueltan al acabar (0) | `install.mjs` `ejecutar` (senales + `guardar` previo al `copy`) |
+| B-5 | **Important** | `estadoCli` devuelve `"si"` para extensiones que `correr()` no sabe lanzar (`.ps1`, `.vbs`, `.js`, `.wsf`… todas en el `PATHEXT` por defecto de W11): `claude.ps1` en el PATH -> `spawnSync … EFTYPE`, el paso aborta el proveedor y **el respaldo no se usa** | T-02/T-03 | **Corregido**: `ARRANCABLES` = solo lo que `correr()` lanza (`.EXE`, `.COM`, `.CMD`, `.BAT`); cualquier otra extension del PATHEXT (`.PS1`, `.VBS`, `.JS`, `.WSF`, `.MSC`, `.CPL`) -> `no-ejecutable` -> respaldo con aviso. Tests: unitario de las 6 extensiones (y `.ps1` + `.cmd` conviviendo -> se coge el `.cmd`), e integracion en win32 con `claude.ps1` en el PATH y `PATHEXT` que lo incluye -> «no ejecutable desde Node» y el registro directo escrito | `providers.mjs` `ARRANCABLES` / `preferencia` / `elegirEjecutable` |
+| B-6 | **Important** | `elegirEjecutable` prefiere `.CMD` sobre `.EXE`, al reves que el interprete de comandos (que sigue el orden de `PATHEXT`: `.COM;.EXE;.BAT;.CMD`). Con `claude.exe` (instalador nativo) y los shims `.cmd` de npm conviviendo —**el caso de esta maquina**— el instalador ejecuta un lanzador distinto del que usa el usuario | T-02 | **Corregido**: `preferencia()` devuelve el orden de **PATHEXT** filtrado a lo arrancable (defecto de Windows `.COM;.EXE;.BAT;.CMD` si la variable falta o no trae ninguna); comentario del codigo corregido. Test: `claude.cmd` y `claude.exe` juntos -> gana el `.exe`; sin PATHEXT, igual; con `PATHEXT=.CMD;.EXE`, gana el `.cmd` (se le hace caso al usuario) | `providers.mjs` `preferencia` |
+| B-7 | **Important** | Los JSON del registro se escriben con `writeFileSync` directo (sin tmp+rename): una interrupcion a mitad deja el `settings.json` del usuario en **0 bytes** (reproducido), y `leerJsonEstricto` trata el fichero vacio como `{}`, asi que la perdida queda **invisible** y la pasada siguiente lo reescribe con solo nuestras claves | T-02 | **Corregido**: `escribirAtomico()` (temporal en el MISMO directorio + `renameSync`) para todos los JSON del registro y tambien para el `toml-set`; y un fichero que YA existia y esta vacio (0 bytes o solo espacios) es **error del paso**, no `{}` (uno que no existe sigue siendo `{}`). Tests de las dos ramas: `settings.json` con solo espacios -> exit 1, mensaje «esta vacio», fichero intacto; sin `settings.json` -> se crea con `enabledPlugins` y no queda ni un `.tmp-` por el camino | `install.mjs` `escribirAtomico` / `escribirJson` / `leerJsonEstricto` |
+| B-8 | **Important** | `migrarDeCopy -y` borra **todos** los ficheros del manifiesto de copy sin comprobar que sigan siendo los instalados: un `agents/implementer.md` editado por el usuario desaparece sin aviso y el modo plugin no lo repone. Y `-y` se anuncia en el `--help` «para CI» | T-02 | **Corregido**: `modificado()` compara cada fichero del manifiesto de copy con el del paquete (tamano y, si empata, sha1); los que difieren NO se borran y se listan en un aviso «tienes cambios locales en N fichero(s): los dejo en ...». Test: `agents/implementer.md` editado -> el aviso lo nombra, el fichero sobrevive con su edicion y `agents/reviewer.md` (intacto) si se limpia | `install.mjs` `migrarDeCopy` / `modificado` |
+| A-1 = B-10 | Minor | En scope **project** + modo plugin, `uninstall` deja ~150 directorios vacios bajo `<cfg>/plugins`: `podarVacios` se ancla en `dest` (`<dir>/.claude`) mientras los ficheros se escribieron en `<cfg>/plugins`. Residuo, no perdida | T-02 | **Corregido**: `podarVacios` poda en DOS topes — `dest` y el **prefijo comun** de los ficheros que se escribieron fuera de el (`prefijoComun`, que nunca devuelve menos de 3 segmentos). Test scope project + plugin: tras `uninstall` no queda `<cfg>/plugins/cache` ni `marketplaces/daycry`, y el `marketplaces/otro-mkt` ajeno sigue ahi | `install.mjs` `podarVacios` / `podarBajo` / `prefijoComun` |
+| B-9 | Minor | `argCmd` dobla las comillas pero no los backslashes que las preceden: `--source "C:\mi clon\"` se come el `--scope` siguiente | T-02 | **Corregido**: `citarCmd()` duplica las `\` que preceden a una `"` (regla MSVCRT), incluida la comilla de cierre. Test: `argCmd("C:\mi clon\")` -> `"C:\mi clon\\"`, y vuelta completa por `cmd.exe` con `--source "C:\mi clon\" --scope user` -> los cuatro argumentos llegan enteros | `install.mjs` `argCmd` / `citarCmd` |
+| B-11 | Minor | `CUSTOM_AGENTS_EXEC_TIMEOUT_MS` negativo pasa el `Number(x) \|\| 120_000` y hace fallar todos los `exec` (`timeout out of range`), sin caer al respaldo; `0` se convierte en 120000 sin decirlo | T-02 | **Corregido**: `validarTimeout()` exige entero > 0; si no, aviso (impreso una vez, al primer `exec`) y defecto de 120 s. Test unitario de `-1`, `0`, `abc` y `1.5` (+ los casos validos) y proceso hijo: `TIMEOUT_EXEC` = 120000 con `-1` y con `0` | `install.mjs` `validarTimeout` / `correr` |
+| B-12 | Minor | Al expirar el timeout muere `cmd.exe` pero **no su nieto** (queda vivo, comprobado con `tasklist`), y el mensaje dice `ETIMEDOUT` sin nombrar el timeout ni como subirlo | T-02/T-03 | **Corregido**: al expirar se llama a `taskkill /T /F /PID` y, como Node ya ha matado al hijo directo (desviacion 13), se barren ademas los HUERFANOS por `ParentProcessId` con `wmic` — los dos por ruta absoluta bajo `System32`, y si no hay `wmic` degrada en silencio; el mensaje dice «expiro a los N s; si tu maquina necesita mas, sube CUSTOM_AGENTS_EXEC_TIMEOUT_MS». Test en win32 con un nieto que escribe una marca a los 3 s: con timeout de 1 s, la marca NO aparece | `install.mjs` `matarArbol` / `correr` / `expiro` |
+| B-13 | Minor | Un manifiesto de copy **ilegible** se ignora en silencio: ni migra ni avisa, y los ~222 ficheros del bundle quedan huerfanos | T-02 | **Corregido** (con B-2): un manifiesto de copy que existe pero no se puede usar se dice con su RUTA y el motivo («no es JSON valido» / «no tiene `files`») y con que el bundle que haya se queda y hay que limpiarlo a mano. Test propio con `{ esto no es json` | `install.mjs` `migrarDeCopy` |
 | A-2 | Minor | Las 20 coordenadas `fichero:linea` de la columna «Evidencia» del intento 1 apuntan a codigo no relacionado tras las correcciones | traza | **Corregido** (orquestador): nota bajo el titulo del intento 1 con las coordenadas nuevas de las 5 funciones clave y la regla «los nombres de funcion son la referencia estable» | seccion del intento 1 |
-| A-3 | Minor | La desviacion 11 (`--force-marketplace`) esta archivada bajo **T-02** cuando su sujeto es T-03, y el criterio 2 de T-03 sigue diciendo «con recuperacion si ya existia» sin la salvedad de que ahora es **opt-in** | T-03 | pendiente (implementer): mover la desviacion 11 a T-03 y anadir el puntero desde su criterio 2 | `tasks.md` T-02/T-03 |
+| A-3 | Minor | La desviacion 11 (`--force-marketplace`) esta archivada bajo **T-02** cuando su sujeto es T-03, y el criterio 2 de T-03 sigue diciendo «con recuperacion si ya existia» sin la salvedad de que ahora es **opt-in** | T-03 | **Corregido**: la desviacion 11 (`--force-marketplace`) pasa de T-02 a **T-03**, y el criterio 2 de T-03 lleva el puntero: la recuperacion `remove` + `add` es **opt-in** | `tasks.md` T-02/T-03 |
 | A-4 | Minor | El reparto «a prorrata de los 20 senalamientos» no reproduce las horas declaradas y las cuotas suman 19/20 (el total si cuadra con lo medido) | ledger | **Corregido** (orquestador): el reparto se declara **aproximado por bloques de trabajo**, no a prorrata exacta | `tasks.md` reparto de `I1-fix1` |
 
 **Bucle**: intento 3 = **ultimo del bucle acotado**. Lo que no cierre se declara y lo decide el usuario.
+
+**Resultado del intento 3 (correcciones): 15/15 cerrados** — 1 Critical (B-1), 7 Important (B-2…B-8) y 7 Minor
+(A-1/B-10, B-9, B-11, B-12, B-13, A-2 y A-4 los cerró el orquestador, A-3 aquí). Ninguno queda «no corregido».
+Verificación única de los tres: `node --test tests/*.test.mjs` → `tests 93 · pass 93 · fail 0`, **exit 0** (69 antes,
+**24 nuevos**, **0 nombres perdidos**); `lint_plugin` → `0 errores`; `export-interop --check` → `48 ficheros al día`;
+`pytest` → el conjunto conocido de rojos de Windows; `--mode copy` y OpenCode = plan de HEAD; prueba real con `claude`
+en `CLAUDE_CONFIG_DIR` temporal (instala → `✔ enabled` → `uninstall` → `No plugins installed.`). Las dos formas del
+Critical, validadas con `tomllib` (`PARSEA OK · enabled = True`) — el detalle, en la Verificación de T-03.
+
+**Marcador del intento 2 de revisión** `installer-registro-real/I1-fix2` (único para los 15 gaps, abierto ANTES de
+tocar nada — `2026-09-11T08:38:42Z` — y cerrado al final — `2026-09-11T09:22:04Z`): el medidor **degradó**
+(`"fuente": "estimado"`, aviso `carpeta de transcripciones no disponible`, GOT-010), así que **no hay medida**: las
+horas van **estimadas y marcadas como tales**, no medidas. Estimación total **1,00h IA**, obtenida aplicando al reloj
+de esta ventana (≈ 48 min de trabajo efectivo) el rendimiento MEDIDO del intento 1 (1,19h IA en 57 min de reloj).
+**Reparto por bloques de trabajo observados** (método explícito, **no a prorrata** de los 15 señalamientos): el
+analizador TOML del Critical y sus 7 tests → **T-03: 0,30h**; el grueso del instalador (B-2, B-3, B-4, B-7, B-8, B-9,
+B-11, B-12, B-13, A-1/B-10 y la parte de `providers.mjs` de B-5/B-6) → **T-02: 0,60h**; solo la convivencia de las
+señales con el menú/terminal → **T-01: 0,10h**.
+
+## Revision de dos lentes - intento 3 (tramo I1, ULTIMO del bucle): 15/15 cerrados; nuevo 1 Critical, 2 Minor
+
+Una lente fresca (B, instaladores CLI multiplataforma) sobre el **delta del intento 3** — la conformidad con los
+criterios la cerro la Lente A en el intento 2 y el delta es codigo de robustez. Marcador
+`installer-registro-real/revision-I1-intento3`:
+`{"eur":10.51,"horas_ia":1.6,"duracion_reloj":"24m","tokens_reales":{"entrada":146,"salida":81780,"cache_creacion":685944,"cache_lectura":10177487,"respuestas":73},"fuente":"medido"}`.
+**Sin segunda lente en este intento**, dicho.
+
+**Los 15 gaps del intento 2: cerrados los 15.** Verificado ademas: manifiesto fusionado + senales (matar el proceso a
+1200 ms deja manifiesto `incompleto` con 429 ficheros, reinstalar sube a 448, `uninstall` deja 0 y 0 huerfanos); dos
+fallos encadenados conservan el `registro` del primero y `uninstall` borra el `installed_plugins.json` sin dejar plugin
+fantasma; `modificado()` respeta los 3 ficheros con cambios locales (mismo tamano y contenido distinto, 0 bytes,
+ilegible) y borra el intacto; `preferencia()` coincide con `cmd /c where` en 7 de 8 PATHEXT (la 8.a es la decision
+declarada de B-5); `prefijoComun` devuelve `null` con unidades o raices distintas y nunca poda de mas; `--mode copy` y
+OpenCode identicos al plan de HEAD; tres instalaciones seguidas con md5 identico en los 3 JSON y en `config.toml`, sin
+temporales sobrantes. Los 11 casos validos de `ponerToml` que quedan parsean con `tomllib`.
+
+| # | Grado | Gap | Tarea | Correccion | Evidencia |
+|---|---|---|---|---|---|
+| I3-1 | **Critical** | La rama `implicita` de `ponerToml` elige el sitio por la RUTA de la asignacion, sin comprobar si esa asignacion vive en una cabecera **mas profunda** que el objetivo. Si la tabla destino existe solo de forma implicita porque hay una **sub-tabla** suya declarada (`[plugins."custom-agents@daycry".env]`), el `enabled` se escribe DENTRO de la sub-tabla. **Reproducido por el orquestador**: pasada 1 -> exit 0, «223 pasos aplicados» y `plugins = {'custom-agents@daycry': {'env': {'MI_VAR': '1', 'enabled': True}}}` — **Codex no habilita el plugin y el instalador afirma que si**; pasada 2 -> `tomllib: Cannot overwrite a value (line 9)`, se pierden `model` y `mcp_servers`. Es la 4.a forma de la familia de B-1 | T-03 | pendiente (4.a pasada): cerrar la familia **de raiz** con una **post-condicion**: tras escribir, volver a analizar el TOML resultante y comprobar que el camino exacto (`plugins."custom-agents@daycry".enabled` / `features.hooks`) tiene el valor pedido **y que no hay clave duplicada**; si no se cumple, **restaurar el original** y error del paso con el cambio a hacer a mano. Ademas, la rama implicita solo aplica si la asignacion esta en el ambito exacto del objetivo | `install.mjs:594-601` |
+| I3-2 | Minor | `escribirAtomico` (tmp + `renameSync`) falla con `EPERM` en Windows si otro proceso tiene el destino **abierto**, donde el `writeFileSync` anterior funcionaba. Forma de fallo nueva introducida por el arreglo de B-7, en la ruta mas caliente | T-02 | pendiente: reintento corto y, si persiste, caida a escritura directa con aviso (la atomicidad se pierde, se dice) | `install.mjs:209` |
+| I3-3 | Minor | El `rename` sustituye el inodo: el fichero queda con los permisos del temporal. Un `settings.json` en `600` acaba en `644` (medido en WSL). El mismo codigo si conserva el BOM «para no cambiarle la codificacion al usuario» | T-02 | pendiente: `chmodSync` al modo del original (si existia) tras el `renameSync` | `install.mjs:204-214` |
+
+**Fuera de lente, anotado para el cierre**: `matarArbol` cae al nombre pelado `taskkill`/`wmic` si no los encuentra bajo
+System32 (plantado de binario en una ruta que solo se recorre con el entorno roto); el `hint` de Codex afirma que
+`enabled = true` queda puesto sin comprobarlo — lo cierra la post-condicion de I3-1.
+
+**Decision**: el bucle acotado estaba en 3/3, pero I3-1 es el fallo exacto que esta iniciativa existe para corregir
+(corromper la configuracion del usuario y declarar exito sin verificarlo), asi que el orquestador ordena una **4.a
+pasada** con la post-condicion como arreglo estructural, en vez de declararlo y publicarlo.
