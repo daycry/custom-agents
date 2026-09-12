@@ -31,6 +31,18 @@
         "activates": false,
         "redirect": "agent:implementer"
       }
+    },
+    {
+      "id": "planner-sin-ui",
+      "prompt": "Planifica esta refactorización de scripts internos: no toca ninguna interfaz, así que no hace falta test-plan. Déjalo declarado en el plan para que las pruebas no lo pidan luego.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "improvement-plan.md"
+        ]
+      },
+      "notes": "C-08 / hueco E1: sin UI, el planner escribe `test-plan: n/a (sin UI)` en el frontmatter de improvement-plan.md en vez de omitir el fichero en silencio."
     }
   ]
 }

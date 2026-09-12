@@ -47,6 +47,8 @@ flowchart LR
     review -.->|gaps de corrección| implementer
     qa -->|verde| documenter["📚 documenter<br/>docs del proyecto"]
     qa -.->|rojo| implementer
+    review -.->|"plan con test-plan: n/a (sin UI)"| qasinui["✅ qa · modo sin UI<br/>ledger-lint + coverage-check<br/>sin Playwright ni URL"]
+    qasinui --> documenter
     documenter --> retro["🔁 /retro<br/>calibración"]
     nemesis["🛡️ nemesis<br/>auditoría"] -.->|hallazgos críticos| analyst
     retro -.->|CALIBRATION.md| evaluator
