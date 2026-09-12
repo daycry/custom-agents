@@ -110,6 +110,16 @@ ADAPTADOR_OPENCODE = "custom-agents-hooks.js"   # el que registra `plugin` de `o
 ARREGLO_INSTALAR = ("npx @daycry/custom-agents install -p claude-code  (o, dentro de Claude Code, "
                     "`/plugin marketplace add daycry/custom-agents` + `/plugin install custom-agents`)")
 
+# --- nombre REAL de los comandos (plugin-refactor T-12, hueco E5) -------------------------
+# Instalado como plugin, Claude Code antepone el espacio de nombres del plugin al nombre del
+# comando: `/custom-agents:dev-cycle`. La forma corta `/dev-cycle` solo funciona con el bundle
+# copiado en `.claude/commands/`, y en una instalación de marketplace da «Unknown command».
+# La doc VIVA (la que se lee para usar el plugin hoy) tiene que citar la forma que funciona; los
+# registros fechados (roadmap, knowledge, CHANGELOG) NO se reescriben (S-5).
+COMANDO_NAMESPACE = PLUGIN_NOMBRE + ":"
+DOC_VIVA = ("README.md", "README.es.md", "docs/INSTALL.md", "docs/en/INSTALL.md",
+            "docs/README.md", "docs/en/README.md", "CLAUDE.md")
+
 # Scopes de plugin que Claude Code documenta (`claude plugin install|enable|disable --scope`) y
 # el orden en que MANDAN. `enabledPlugins` se puede escribir en cualquier fichero de ajustes
 # (`settings-reference#enabledplugins`: «Scope: Any file») y la pila de precedencia es la de
@@ -901,6 +911,127 @@ def _bloque_plugin_statusline(project):
     return [linea(OK, "statusline", f"configurada (`{cmd}`)")]
 
 
+def _comandos_del_plugin(plugin_root):
+    """Nombres de `commands/<x>.md` (sin extensión), ordenados. Sin carpeta → lista vacía."""
+    d = os.path.join(plugin_root, "commands")
+    if not os.path.isdir(d):
+        return []
+    return sorted(f[:-3] for f in os.listdir(d) if f.endswith(".md"))
+
+
+def _doc_viva_sin_namespace(plugin_root, cmds):
+    """Ficheros de `DOC_VIVA` cuya PRIMERA mención de un comando va en forma corta.
+
+    No basta con que el espacio de nombres aparezca en alguna parte del fichero (gap R4a-3): una
+    nota al pie 67 líneas por debajo del primer comando tecleable no evita que el lector teclee
+    `/dev-cycle` y se coma un «Unknown command». La regla es: la primera vez que el fichero nombra
+    un comando, o lleva ya el espacio de nombres, o lo menciona antes (misma línea incluida).
+    Solo mira la doc VIVA: los registros fechados quedan como se escribieron (S-5)."""
+    if not cmds:
+        return []
+    alt = "|".join(re.escape(c) for c in cmds)
+    # `*`, `.` y `~` fuera del contexto previo: una ruta —con glob (`commands/*/dev-cycle.md`),
+    # relativa (`./dev-cycle`) o desde el home (`~/dev-cycle`)— NO es un comando tecleable, y
+    # contarla daba un ⚠️ falso (gaps R4a-25 y R4a-37: misma familia, un solo lookbehind).
+    corto = re.compile(r"(?<![\w:/*.~])/(" + alt + r")\b")
+    largo = re.compile(r"/" + re.escape(COMANDO_NAMESPACE))
+    malos = []
+    for rel in DOC_VIVA:
+        path = os.path.join(plugin_root, rel)
+        if not os.path.isfile(path):
+            continue
+        try:
+            with open(path, encoding="utf-8-sig", errors="replace") as fh:
+                texto = fh.read()
+        except OSError:
+            continue
+        texto = _sin_negritas(texto)
+        mc = corto.search(texto)
+        if not mc:
+            continue                      # no cita comandos: nada que comprobar
+        ml = largo.search(texto)
+        # la forma corta gana la carrera → la primera instrucción tecleable del fichero es la
+        # que NO funciona instalado como plugin
+        if ml is None or mc.start() < _inicio_de_linea(texto, ml.start()):
+            malos.append(rel)
+    return malos
+
+
+# `**` de negrita markdown: dos asteriscos que NO van pegados a una barra (`docs/**/*.md` es un
+# glob de ruta, no una negrita) ni forman parte de una tirada más larga de asteriscos. Se sustituyen
+# por DOS espacios, no por nada: el reemplazo conserva los offsets, y de ellos depende la carrera
+# entre la forma corta y el espacio de nombres unas líneas más abajo.
+_NEGRITA_MD = re.compile(r"(?<!/)\*\*(?!\*)")
+
+
+def _sin_negritas(texto):
+    """El texto con los `**` de negrita markdown convertidos en espacio.
+
+    El lookbehind de `corto` saca del recuento cualquier `/comando` precedido de `*`, porque un
+    `commands/*/dev-cycle.md` es una ruta con glob y no un comando tecleable (R4a-25/R4a-37). Pero
+    eso se llevaba por delante la MENCIÓN EN NEGRITA —`**/dev-cycle**`, la forma que usan
+    `docs/INSTALL.md` y su espejo en inglés—, que sí es tecleable: el `**` ahí es marcado de
+    markdown, no parte de la ruta. Tratarlo como delimitador recupera esas menciones sin devolver
+    los falsos positivos de la ruta con glob (gap B4-5)."""
+    return _NEGRITA_MD.sub("  ", texto)
+
+
+def _inicio_de_linea(texto, pos):
+    """Offset del principio de la línea que contiene `pos` (para tolerar que el espacio de nombres
+    aparezca en la MISMA línea que la forma corta: «`/custom-agents:x` (o `/x` en bundle local»)."""
+    return texto.rfind("\n", 0, pos) + 1
+
+
+def comprobar_nombre_comandos(plugin_root, modo):
+    """Fila «nombre de los comandos» (E5) + ⚠️ si la doc viva solo cita la forma corta.
+
+    La primera línea es INFORMATIVA en los tres modos (no hay nada roto que arreglar: hay que
+    saber qué se teclea), así que no añade ruido al bundle local; la ⚠️ solo salta cuando la
+    PRIMERA mención de un comando en un fichero de doc viva va en forma corta.
+
+    El espacio de nombres es de **Claude Code**: es su picker el que antepone `<plugin>:` a los
+    comandos instalados desde el marketplace. En Codex el mismo comando es un prompt que se invoca
+    `/<cmd>` sin prefijo, y en OpenCode un comando sin prefijo (gap R4a-18); este script solo
+    diagnostica la instalación de Claude Code, y la fila lo dice."""
+    ls = []
+    cmds = _comandos_del_plugin(plugin_root)
+    if not cmds:
+        # instalación truncada (o raíz que no es la del plugin): no se puede afirmar ningún
+        # nombre, y decir `/custom-agents:dev-cycle` aquí sería inventarlo (gap R4a-10)
+        ls.append(linea(INFO, "nombre de los comandos",
+                        f"no hay carpeta `commands/` en `{plugin_root}`: no puedo confirmar el "
+                        f"nombre de ningún comando. En Claude Code, instalado como plugin el "
+                        f"nombre lleva el espacio de nombres (`/{COMANDO_NAMESPACE}<comando>`) y "
+                        f"copiado en `.claude/` va en forma corta (`/<comando>`)"))
+        return ls
+    ej = "dev-cycle" if "dev-cycle" in cmds else cmds[0]
+    if modo == "plugin":
+        ls.append(linea(INFO, "nombre de los comandos",
+                        f"instalado como plugin: en Claude Code el nombre real lleva el espacio de "
+                        f"nombres, `/{COMANDO_NAMESPACE}{ej}` — `/{ej}` a secas da «Unknown "
+                        f"command» (en Codex/OpenCode no hay prefijo: `/{ej}`)"))
+    elif modo == "copia":
+        ls.append(linea(INFO, "nombre de los comandos",
+                        f"bundle copiado en `.claude/`: los comandos se invocan en forma corta "
+                        f"(`/{ej}`); `/{COMANDO_NAMESPACE}{ej}` solo existe instalado como plugin "
+                        f"en Claude Code"))
+    else:
+        ls.append(linea(INFO, "nombre de los comandos",
+                        f"según cómo cargue en Claude Code: instalado como plugin "
+                        f"`/{COMANDO_NAMESPACE}{ej}`, bundle copiado en `.claude/` `/{ej}` "
+                        f"(en Codex/OpenCode, siempre `/{ej}`)"))
+    malos = _doc_viva_sin_namespace(plugin_root, cmds)
+    if malos:
+        ls.append(linea(AVISO, "doc viva sin el espacio de nombres",
+                        " · ".join(malos) + f": su PRIMERA mención de un comando va en forma corta "
+                        f"`/<comando>`, así que quien instale el plugin desde el marketplace teclea "
+                        f"un comando que no existe antes de llegar a cualquier nota posterior",
+                        f"pon la forma con espacio de nombres (`/{COMANDO_NAMESPACE}<comando>`) EN "
+                        f"o ANTES de la primera instrucción tecleable de cada uno de esos ficheros, "
+                        f"no en una nota al pie"))
+    return ls
+
+
 def bloque_plugin(plugin_root, project, explicito=None):
     ls = []
     if not plugin_root:
@@ -923,6 +1054,7 @@ def bloque_plugin(plugin_root, project, explicito=None):
     ls.extend(_bloque_registro_opencode(project))
     ls.extend(_bloque_plugin_hooks(plugin_root, info["modo"]))
     ls.extend(_bloque_plugin_statusline(project))
+    ls.extend(comprobar_nombre_comandos(plugin_root, info["modo"]))
     return {"clave": "plugin", "titulo": "Plugin", "lineas": ls, "modo": info["modo"],
             "registro": info["registro"]}
 

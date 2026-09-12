@@ -4,6 +4,11 @@
 
 Repository of **custom agents** with their skills and toolkits. It runs in **Claude Code** (native plugin, its home), **Codex** and **OpenCode**: how to install each is in [`INSTALL.md`](INSTALL.md) (including the `npx @daycry/custom-agents` installer), and what changes or is lost per runtime is in [`INTEROP.md`](INTEROP.md).
 
+> **How you type the commands.** Installed as a plugin, the real name carries the namespace:
+> **`/custom-agents:dev-cycle`**, `/custom-agents:roadmap-metrics`, `/custom-agents:retro`…
+> The short form (`/dev-cycle`), used in this index for brevity, only works with the bundle
+> copied by hand into `.claude/commands/` (details under "Commands").
+
 ```mermaid
 flowchart LR
     subgraph ciclo["🔄 The lifecycle of an initiative"]
@@ -15,13 +20,14 @@ flowchart LR
     J[("🎫 Jira · 🌐 Confluence<br/>opt-in")] -.-> ciclo
 ```
 
-**Reading guide:** this index locates each piece · [`FLOWS.md`](FLOWS.md) draws all the flows · [`CONVENTIONS.md`](CONVENTIONS.md) sets the rules · each agent has its own doc in [`agents/`](../agents/) (Spanish) · [`agents/ROLES.md`](../agents/ROLES.md) (Spanish) is the **one role, one owner** matrix (who decides/writes/reads each responsibility, and the overlaps already resolved — [`ADR-011`](../knowledge/adr/ADR-011-un-rol-un-dueno-agentes-retirados-y-responsabilidades-fusionadas.md), Spanish).
+**Reading guide:** this index locates each piece · [`FLOWS.md`](FLOWS.md) draws all the flows · [`CONVENTIONS.md`](CONVENTIONS.md) sets the rules · each agent has its own doc in [`agents/`](../agents/) (Spanish) · [`agents/ROLES.md`](../agents/ROLES.md) (Spanish) is the **one role, one owner** matrix (who decides/writes/reads each responsibility, and the overlaps already resolved — [`ADR-011`](../knowledge/adr/ADR-011-un-rol-un-dueno-agentes-retirados-y-responsabilidades-fusionadas.md), Spanish) · [`agents/CONTRACTS.md`](../agents/CONTRACTS.md) (Spanish) is the **piece → piece contract** matrix (who invokes whom, with which flags, exit codes, files, markers and **executable gate**; the twelve E1–E12 edges —ten verified gaps, the accepted C-14 proposal and the cross-kit coupling born in T-13— and the "when you touch X, regenerate Y" rules of `CLAUDE.md` with their gate).
 
 | Repo folder | What it is | Where it is explained |
 |---|---|---|
 | `evals/` | **Activation** evals: one JSON per skill/command/agent with prompts that must fire it (positives, one literal from the description) and neighbours that must not (negatives with `redirect`); `check.py` static in CI, `run.py` local with `claude -p`. Complements the piece index injected by the `SessionStart` hook. The **optional** job `headless.yml.MANUAL-COPY` → `.github/workflows/headless.yml` (secret `ANTHROPIC_API_KEY`) does run `claude`: a cheap `run.py` subset + a **real-session hook check** via witness file. | [`../../evals/README.md`](../../evals/README.md) (ES + EN) · lesson [`LES-011`](../knowledge/lessons/LES-011-plugin-dev-activacion-se-prueba-con-evals.md) (Spanish) |
 | `scripts/` · `CONTRIBUTING.md` · `github-templates.MANUAL-COPY/` | `lint_plugin.py` (linter), `release.py` (complete mechanical release: moves `[Unreleased]`/`[Sin publicar]` in both CHANGELOGs, runs lint+evals, checks manual copies and `100644` mode of `.sh` files, bumps 3 places, commit+tag; `--dry-run`, `--check`) and `export-skills.py` (**portable "skills-only" package** for Codex/Copilot/Cursor: `AGENTS.md`, `.cursor/rules/*.mdc` rule, copyable `skills/`; deterministic, `--check`; output `dist/` gitignored; the Release attaches it as a zip). How to contribute (propose a piece with `plugin-dev`, pre-PR checklist, `T-XX:`/`feat:`/`chore:` commits, `.MANUAL-COPY` copies) in [`../../CONTRIBUTING.md`](../../CONTRIBUTING.md); issue forms and PR template in `github-templates.MANUAL-COPY/` → `.github/`. | [`INSTALL.md`](INSTALL.md) ("When publishing", "Using the skills outside Claude Code") · [`../../CONTRIBUTING.md`](../../CONTRIBUTING.md) |
 | `install/` · `interop/` · `.codex-plugin/` | **Interoperability with Codex and OpenCode**: `install/install.mjs` is the multi-provider `npx` installer (pick runtimes, `--dry-run`, `status`, `uninstall` from a manifest, zero dependencies) and `interop/` holds the GENERATED translations of agents/commands/hooks into each tool's formats (`scripts/export-interop.py`, deterministic, `--check` as a release gate). | [`INTEROP.md`](INTEROP.md) |
+| `docs/agents/ROLES.md` · `docs/agents/CONTRACTS.md` | The two governance matrices for the pieces (Spanish): **ROLES** states who decides and writes each responsibility (one role, one owner, `ADR-011`) and **CONTRACTS** states how they talk to each other — per caller → callee edge: flags, exit codes, files, markers and **the executable gate that checks it** (twelve `E1`–`E12` edges: ten gaps verified in a single day of real use + the accepted C-14 proposal + the cross-kit coupling born in T-13), plus the "when you touch X, regenerate Y" rules of `CLAUDE.md` with their gate. The "Piezas que describen" column is what the `planner` copies into a task's `Archivos` field. | [`agents/CONTRACTS.md`](../agents/CONTRACTS.md) · [`agents/ROLES.md`](../agents/ROLES.md) |
 
 Before adding or touching an agent, read [`CONVENTIONS.md`](CONVENTIONS.md): it defines where everything goes and how dependencies between agents are declared so they do not step on each other. For a **visual overview of the flows** (agent chain, PM/dev cycles, Jira, Confluence, metrics), see [`FLOWS.md`](FLOWS.md). For what the plugin measures (cost per artifact/task), the **live visibility** (ledger progress line per hook, resume context on startup/compaction, opt-in status line) and how it coexists with live session monitors, see [`observability.md`](observability.md). For the **third loop** (project specialization: cascading `.claude/personas/`, the canonical piece registry, the decision ladder and `/specialize`'s two gates), see [`SPECIALIZATION.md`](SPECIALIZATION.md).
 
@@ -52,6 +58,8 @@ Before adding or touching an agent, read [`CONVENTIONS.md`](CONVENTIONS.md): it 
 ## Commands (orchestrators)
 
 They drive the chain by invoking agents **by name** and with control gates, over the **same per-initiative folder** `docs/roadmap/<date>-<slug>/`.
+
+> **How to type them.** Installed as a plugin (marketplace or `npx @daycry/custom-agents install`), the real name carries the plugin namespace: **`/custom-agents:dev-cycle`**, `/custom-agents:pm-cycle`, `/custom-agents:doctor`… The short form `/dev-cycle` works **only** with the bundle copied by hand into `.claude/commands/`; in a plugin install it returns "Unknown command". This table and the rest of the documentation use the short form for brevity; `/custom-agents:doctor` tells you which one applies to your installation.
 
 | Command | Role | Scope | Closure |
 |---------|-----|---------|--------|

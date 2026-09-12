@@ -10,6 +10,8 @@ Contexto para Claude Code al trabajar en este repositorio.
 
 Repositorio de **agentes custom** para Claude Code (bundle reutilizable + **plugin** instalable vía marketplace: `.claude-plugin/plugin.json` + `marketplace.json`). Se despliega como `.claude/` de un proyecto (ver `docs/INSTALL.md`). No es una aplicación. Por ser plugin, los agentes **no** usan rutas fijas a sus kits: las resuelven en runtime con `find` sobre `$PWD/.claude` y `$HOME/.claude` (regla 5 de `docs/CONVENTIONS.md`).
 
+> **Cómo se teclean los comandos.** Instalado como plugin, Claude Code antepone el espacio de nombres: `/custom-agents:dev-cycle`, `/custom-agents:pm-cycle`, `/custom-agents:doctor`… La forma corta (`/dev-cycle`), que este documento usa por brevedad aquí y en la tabla de comandos, solo funciona con el bundle copiado en `.claude/commands/`.
+
 ```
 custom-agents/               (se despliega como .claude/)
 ├── agents/<nombre>.md       # definición de cada agente (uno por fichero)
@@ -69,6 +71,8 @@ custom-agents/               (se despliega como .claude/)
 ## Comandos (orquestación)
 
 Invocan a los agentes **por nombre** y con puertas de control sobre la carpeta de la iniciativa.
+
+> **Nombre real del comando.** Instalado como plugin, Claude Code antepone el espacio de nombres: `/custom-agents:dev-cycle` (la forma corta `/dev-cycle` solo funciona con el bundle copiado en `.claude/commands/`). La tabla usa la forma corta por brevedad; `/custom-agents:doctor` informa de cuál aplica. Los registros fechados (`docs/roadmap/`, `docs/knowledge/`, CHANGELOG) **no** se reescriben: quedan como se escribieron.
 
 | Comando | Qué hace |
 |---|---|
