@@ -19,6 +19,8 @@ Por cada plan crea una carpeta `docs/roadmap/<YYYY-MM-DD>-<slug>/` con dos fiche
 
 Las plantillas base viven en `agent-kits/planner/templates/` y son el formato canónico: el agente las copia y rellena, no improvisa otro formato.
 
+**Iniciativa sin UI.** El `test-plan.md` solo se genera si hay interfaz. Cuando no la hay, el planner **no omite el fichero en silencio**: escribe `test-plan: n/a (sin UI)` en el frontmatter de `improvement-plan.md` (literal exacto, junto a `design:`). Ese marcador es lo que leen `/dev-cycle` (Fase 3, para invocar `qa` en modo sin UI) y el propio `qa` (`coverage-check.py` lo reconoce) para terminar limpios en vez de pedir un test-plan que nunca va a existir. Decisión: `ADR-017`; hueco E1 de [`CONTRACTS.md`](CONTRACTS.md).
+
 ---
 
 ## 2. Estimaciones que calcula
