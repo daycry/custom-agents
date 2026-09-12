@@ -52,6 +52,22 @@ nada** y sin red: cada línea lleva su veredicto y, si algo falla, **qué comand
 - **Los tres runtimes**: además de Claude Code, hay fila para «registro en Codex» (`enabled = true`
   en el `config.toml` del scope) y «registro en OpenCode» (el adaptador de hooks en `plugin` de
   `opencode.json`). Si ese runtime no está en la máquina, la fila es ℹ️ y no pide nada.
+- **Cómo se teclea el comando** (hueco E5): la fila «nombre de los comandos» dice la forma que
+  funciona en ESTA instalación, con **tres** textos según el modo detectado y siempre en ℹ️ (no hay
+  nada que arreglar: hay que saber qué se teclea). `plugin` → el nombre real lleva el espacio de
+  nombres, `/custom-agents:<cmd>`, y la forma corta da «Unknown command». `copia` (bundle en
+  `.claude/`) → forma corta `/<cmd>`, y se avisa de que `/custom-agents:<cmd>` solo existe
+  instalado como plugin. `inactivo`/`desconocido` (dado de alta pero deshabilitado, o sin poder
+  determinarlo) → las **dos** formas con su condición, para no afirmar la que no toca. Si el
+  `plugin_root` no tiene carpeta `commands/` (instalación truncada), la fila lo dice y no nombra
+  ningún comando en vez de inventar uno. El espacio de nombres es de **Claude Code**: en Codex el
+  mismo comando es un prompt `/<cmd>` sin prefijo y en OpenCode un comando sin prefijo, y la fila
+  lo menciona para no dar por hecho el runtime. La ⚠️ «doc viva sin el espacio de nombres» solo
+  salta si la **primera** mención de un comando en un fichero de documentación **viva**
+  (`README.md`, `README.es.md`, `docs/INSTALL.md`, `docs/README.md`, sus espejos en `docs/en/` y
+  `CLAUDE.md`) va en forma corta: una nota al pie decenas de líneas más abajo no la satisface,
+  porque quien teclea lo hace antes de llegar a ella. Los registros fechados (`docs/roadmap/`,
+  `docs/knowledge/`, CHANGELOG) no se miran: quedan como se escribieron.
 - **Seis bloques**: herramientas · plugin y hooks · statusline · configs de `.claude/` · estado del trabajo · **memoria técnica** (`docs/knowledge/`: entradas curadas por familia y estado, índice README —❌ si rompe la biyección—, índice FTS5, journal a 0 con memoria curada, `CALIBRATION.md` desfasada con iniciativas cerradas sin retro — la retro es puerta de cierre desde `memory-retrieval` T-17).
 - **Sin red por diseño**: `/doctor` no consulta el marketplace, así que no puede decir si hay una
   versión más nueva del plugin; solo informa de la versión instalada.

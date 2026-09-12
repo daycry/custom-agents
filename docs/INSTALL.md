@@ -2,6 +2,11 @@
 
 [English](en/INSTALL.md) · **Español**
 
+> **Cómo se teclean los comandos.** Instalado como plugin, el nombre real lleva el espacio de
+> nombres: **`/custom-agents:setup`**, `/custom-agents:dev-cycle`, `/custom-agents:doctor`… La
+> forma corta (`/setup`), que este documento usa por brevedad, solo funciona con el bundle
+> copiado a mano en `.claude/commands/` (`--mode copy`).
+
 Bundle de agentes custom para Claude Code que cubren el ciclo de una iniciativa (requisitos → presupuesto → plan → implementación → pruebas → documentación) con contabilidad de tiempo/coste y trazabilidad opcional en Jira/Confluence. Agentes: **analyst** (toma de requerimientos), **evaluator** (evalúa/presupuesta), **planner** (planes), **implementer** (implementa), **qa** (E2E Playwright), **documenter** (documentación) y **nemesis** (auditoría SAST+DAST). Skills compartidas: **cybersecurity**, **to-pdf**, **confluence-publish**, **confluence-pull**, **roadmap-dashboard** y **jira-sync**. Comandos: **/setup**, **/pm-cycle**, **/dev-cycle**, **/pm-backlog**, **/roadmap-status**, **/roadmap-metrics**, **/roadmap-brief**, **/roadmap-live**, **/retro** y **/confluence-pull**.
 
 Contenido (todo cuelga de la raíz del bundle, que se despliega como `.claude/`):

@@ -27,6 +27,12 @@
 
 From idea to tested, documented code: `requirements → budget → plan → implementation → adversarial review → E2E → docs`, with **control gates** at every step, **real cost measured in tokens**, and learning that calibrates the next estimates. Nine agents, twelve commands, self-contained (no dependencies on other plugins) — and it runs in **three runtimes**: Claude Code, Codex and OpenCode.
 
+> **How you type the commands.** Installed as a plugin, the real name carries the plugin
+> namespace: **`/custom-agents:dev-cycle`**, `/custom-agents:retro`, `/custom-agents:doctor`…
+> The short form (`/dev-cycle`), used from here on for brevity, only works with the bundle
+> copied by hand into `.claude/commands/`. `/custom-agents:doctor` tells you which one applies
+> to your install.
+
 ```mermaid
 flowchart LR
     idea(["💡 idea"]) --> A["🗣️ analyst<br/>requirements"]
@@ -213,6 +219,8 @@ flowchart LR
 | **qa** | E2E with Playwright (local hosts only), verdict via `qa-gate.py`, md+pdf report with evidence. |
 | **documenter** | Technical and product documentation derived from the project itself, once at cycle close. |
 | **nemesis** | Cybersecurity audit: 8-dimension SAST + active pentest **local only** (non-negotiable guardrail). |
+
+> Installed as a plugin, commands carry the plugin namespace: **`/custom-agents:dev-cycle`**, `/custom-agents:doctor`… The short form below works with the `--mode copy` bundle; `/custom-agents:doctor` tells you which applies.
 
 | Command | What it does |
 |---------|----------|
