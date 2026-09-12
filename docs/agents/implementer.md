@@ -57,7 +57,19 @@ la regla 4 de `CONVENTIONS.md`).
 
 Aparte, el alcance del **diff completo** lo comprueba `agent-kits/shared/scope-check.py`
 (ficheros cambiados vs. campos `Archivos` del ledger; exit 0 obligatorio en su DoD y como puerta
-previa a la revisión de dos lentes en `/dev-cycle`).
+previa a la revisión de dos lentes en `/dev-cycle`). Y **exit 0 no basta**: si el script imprime
+⚠️ —por **stderr**, y en la clave `avisos` si se repite el comando con `--json`— es que un glob de
+`alcance.excluir` está apagando la puerta, y el DoD lo trata como gap Important —acotar el glob,
+declarar los ficheros o justificar la exclusión en el ledger—; la skill `adversarial-review` lee los
+mismos avisos en su puerta previa. El ⚠️ es **un solo disparo con dos formas**, y las dos
+exigen que la exclusión de usuario esté haciendo el trabajo pesado (≥ 3 ficheros y ≥ la mitad del
+diff, contando solo lo que el default NO excluye), ya deje la lista «fuera de alcance» vacía o se
+coma esa fracción con un único glob: una exclusión legítima que se limita a quitar ruido no avisa
+nunca, porque un ⚠️ en cada pasada verde sería un gap Important perpetuo e imposible de cerrar.
+Por debajo de ese umbral no hay ⚠️, pero tampoco silencio: el script publica **siempre** una línea
+ℹ️ —stderr, y claves `info`/`excluidos_usuario` del `--json`— con los ficheros que esconde cada
+glob de usuario y su patrón. Es visibilidad, no veredicto: el DoD manda leerla y comprobar que lo
+excluido es lo que se quería excluir; el gap aparece si ahí sale código sin declarar.
 
 ## Memoria técnica del proyecto
 
