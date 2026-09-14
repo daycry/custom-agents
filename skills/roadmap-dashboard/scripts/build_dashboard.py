@@ -651,6 +651,42 @@ def render_metrics_md(inits, root):
     return "\n".join(out)
 
 
+def contar_fuentes(inits):
+    """Cuenta los bloques `generacion:` de TODO el roadmap por su campo `fuente:` (E7 de la matriz
+    de contratos). Devuelve `{"estimados": N, "medidos": K, "otros": O, "total": M}`, con
+    `N + K + O == M`.
+
+    Por qué existe: la cadena de calibración se alimentaba de estimaciones sin que nadie lo viera
+    AGREGADO. Un bloque suelto con `fuente: estimado` es visible si lo buscas; que la mitad del
+    roadmap lo sea, no. Aquí NO se deduplican las ventanas compartidas a propósito: la pregunta es
+    «cuántos bloques declaran una medida que no es una medida», y cada bloque es una declaración.
+
+    `otros` NO es relleno (gap B-12): la versión anterior devolvía solo `estimados` y `medidos` y
+    los presentaba como si fueran todo el total, así que un bloque con `fuente:` ausente o escrita
+    de otra forma desaparecía de las dos cuentas sin que nadie lo echara de menos — y ese bloque es
+    justo el que hay que mirar, porque ni siquiera declara qué es.
+
+    Un `generacion:` que no sea un mapa de artefactos (YAML a medio escribir, una lista, una
+    cadena) se cuenta como UN bloque de fuente desconocida en vez de reventar el informe: este
+    script lo corre `/roadmap-metrics` sobre el roadmap del proyecto CONSUMIDOR, y ahí un
+    frontmatter mal escrito es cuestión de tiempo.
+    """
+    estimados = medidos = otros = total = 0
+    for r in inits:
+        gen = r.get("generacion")
+        bloques = list(gen.values()) if isinstance(gen, dict) else ([gen] if gen else [])
+        for g in bloques:
+            total += 1
+            fuente = (g.get("fuente") or "") if isinstance(g, dict) else ""
+            if fuente == "estimado":
+                estimados += 1
+            elif fuente == "medido":
+                medidos += 1
+            else:
+                otros += 1
+    return {"estimados": estimados, "medidos": medidos, "otros": otros, "total": total}
+
+
 def _proceso_gen_stats(gen):
     """Acumula tokens/horas/€ de un `generacion` dict, deduplicando ventanas compartidas.
     Una MISMA ventana de medición puede estar declarada en dos artefactos (el planner mide
@@ -744,6 +780,17 @@ def render_proceso_md(inits):
     else:
         out += ["", "_Ninguna iniciativa tiene aún bloque `generacion:` "
                 "(se rellena con usage-meter a partir de la iniciativa coste-generacion)._"]
+
+    # E7: cuántos de estos números son una MEDIDA y cuántos una estimación con formato de medida.
+    # Va después de la tabla, no dentro: es un juicio sobre la tabla entera, no sobre una fila.
+    f = contar_fuentes(inits)
+    if f["total"]:
+        resto = (f", {f['otros']} sin `fuente:` reconocible" if f["otros"] else "")
+        out += ["", f"> **{f['estimados']} de {f['total']} bloques `generacion:` con "
+                    f"`fuente: estimado`** ({f['medidos']} con `fuente: medido`{resto}). Un bloque "
+                    f"`estimado` es una estimación a juicio con formato de medida: no calibra "
+                    f"nada. Las filas de `CALIBRATION.md` marcadas `(estimado)` quedan fuera de "
+                    f"la mediana que usa `usage-meter.py`."]
     return "\n".join(out)
 
 
@@ -769,6 +816,16 @@ def main():
         print(f"[roadmap-dashboard][aviso] {w}", file=sys.stderr)
 
     if args.json:
+        # Clave ADITIVA por iniciativa (E7). El `--json` sigue siendo la LISTA de iniciativas que
+        # ya consumían `/roadmap-metrics` y `/pm-backlog`: añadir un envoltorio `{"proceso": …}`
+        # habría roto a todo consumidor existente, así que el agregado se deriva sumando
+        # `estimados` (y está escrito tal cual en la línea del informe de proceso,
+        # `--metrics-md`; `--md` es el DASHBOARD y esa línea no sale ahí).
+        for r in inits:
+            f = contar_fuentes([r])
+            r["estimados"], r["medidos"], r["generacion_total"] = (
+                f["estimados"], f["medidos"], f["total"])
+            r["generacion_otros"] = f["otros"]
         print(json.dumps(inits, ensure_ascii=False, indent=2))
     if args.html:
         os.makedirs(os.path.dirname(os.path.abspath(args.html)), exist_ok=True)

@@ -41,6 +41,7 @@ Los supuestos (tarifa, modelo, precio de tokens, tipo de cambio USD→EUR) queda
 1. **Recepción** — entiende la petición; pregunta solo lo bloqueante y rellena el checklist "Datos necesarios para un informe completo".
 2. **Recon** — explora el repo (Read/Grep/Glob) para fundamentar el impacto con rutas y módulos reales.
 3. **Descomposición** — fases → tareas con ID `T-01`, `T-02`…
+3-bis. **Alcance completo en `Archivos`** — el campo no lista solo lo que se edita a mano: si la tarea toca `commands/`, `agents/` o `hooks/` lleva el patrón `interop/**` (lo **generado**, que `implementer` regenera con `scripts/export-interop.py` y la Lente A comprueba con `--check`), y lleva las piezas que **describen** a lo tocado, copiadas de la columna «Piezas que describen» de [`CONTRACTS.md`](CONTRACTS.md) en vez de improvisarse por tarea. Son las aristas E2 y E3 de esa matriz, y quien las salta se las encuentra como gap de alcance en `scope-check.py`.
 4. **Estimación** — tiempo, tokens y coste por tarea/fase, con método declarado.
 5. **Redacción** — rellena las dos plantillas (sustituye placeholders, elimina comentarios guía).
 6. **Cierre** — escribe los ficheros, actualiza `docs/roadmap/README.md` y resume ruta, tiempo, coste, tokens y nº de tareas.
@@ -67,7 +68,7 @@ Antes de descomponer, lee el índice de `docs/knowledge/` (si existe) y abre las
 
 ## 5. Reglas clave
 
-El agente no implementa ni toca el código: solo lee el proyecto y escribe dentro de `docs/roadmap/`. Toda cifra lleva un método o supuesto detrás; lo no verificable se marca en lugar de inventarse. El formato es siempre el de las dos plantillas, con Markdown válido (línea en blanco antes de listas y tras encabezados, checkboxes reales). Los IDs de tarea son estables y, al actualizar un plan, se editan sus ficheros y se añade una línea al changelog en vez de duplicar carpetas.
+El agente no implementa ni toca el código: solo lee el proyecto y escribe dentro de `docs/roadmap/`. Toda cifra lleva un método o supuesto detrás; lo no verificable se marca en lugar de inventarse. El formato es siempre el de las dos plantillas, con Markdown válido (línea en blanco antes de listas y tras encabezados, checkboxes reales). Los IDs de tarea son estables y, al actualizar un plan, se editan sus ficheros y se añade una línea al changelog en vez de duplicar carpetas. Una regla nueva desde la matriz de contratos: **quien describe una pieza se actualiza en la MISMA tarea que la toca** (arista E3), así que esas rutas van en `Archivos` desde el plan — no son trabajo de después, y por eso el DoD del planner las comprueba.
 
 ---
 

@@ -107,7 +107,7 @@ Cinco garantías del instalador, con test cada una en `tests/installer.test.mjs`
 |---|---|---|---|
 | **Skills** (17) | `.claude/skills/` | `skills/` del plugin (el manifiesto apunta ahí) | `.opencode/skills/` — *o* `.claude/skills/`, que lee de forma nativa |
 | **Agentes** (9) | `agents/*.md` | `.codex/agents/*.toml` (generado) | `.opencode/agents/*.md` (generado) |
-| **Comandos** (12) | `commands/*.md` (`/nombre`) | `~/.codex/prompts/*.md` (`/prompts:nombre`) | `.opencode/commands/*.md` (`/nombre`) |
+| **Comandos** (12) | `commands/*.md` (`/nombre`) | `~/.codex/prompts/*.md` (`/prompt:nombre`, a veces `/prompts:nombre`) | `.opencode/commands/*.md` (`/nombre`) |
 | **Hooks** | `hooks/hooks.json` | `interop/codex/hooks.json` (subconjunto) | `.opencode/plugins/custom-agents-hooks.js` (adaptador JS) |
 | **Kits** (`agent-kits/`) | `.claude/agent-kits/` | dentro del plugin | `.opencode/agent-kits/` |
 | **Statusline** | opt-in en `/setup` | — | — |
@@ -166,7 +166,7 @@ sustituye, y aquí está dicho.
 |---|---|---|---|
 | **Registro del plugin** (qué lo hace cargar) | ✅ `installed_plugins.json` + `enabledPlugins`, por CLI o escrito por el instalador — ⚠️ con `--mode copy` no hay registro: el bundle está en `.claude/` y el runtime no se entera (`/doctor` lo marca) | ⚠️ `enabled = true` en `config.toml` lo pone el instalador, pero el **marketplace** necesita `codex plugin marketplace add`: sin la CLI en el PATH se imprime el comando y queda a medias hasta que lo ejecutes | ✅ `plugin` en `opencode.json`; OpenCode además autodescubre `plugins/*.js` y, según su código (`deduplicatePluginOrigins` desempata por URL de fichero), registrarlo no debería cargarlo dos veces — **pendiente de confirmar en un OpenCode real** (checklist M-01 de la iniciativa) |
 | Skills bajo demanda | ✅ herramienta Skill | ✅ `$nombre` o activación por `description` | ✅ herramienta `skill` |
-| Comandos | ✅ `/nombre` | ⚠️ `/prompts:nombre`, **solo en `~/.codex/`** (Codex no tiene prompts por proyecto) y marcados como *deprecated* por OpenAI en favor de skills | ✅ `/nombre` |
+| Comandos | ✅ `/nombre` | ⚠️ `/prompt:nombre` (**o** `/prompts:nombre`), **solo en `~/.codex/`** (Codex no tiene prompts por proyecto) y marcados como *deprecated* por OpenAI en favor de skills | ✅ `/nombre` |
 | Delegar en un agente por nombre | ✅ herramienta Agent, con `model` por invocación | ⚠️ en lenguaje natural; Codex **no auto-invoca** agentes custom, hay que pedirlo | ✅ herramienta `task` |
 | Aviso de progreso al editar el ledger | ✅ `PostToolUse` | ❌ Codex solo dispara Pre/PostToolUse para `Bash`; los tres hooks miran `Write\|Edit` → **no viajan** | ✅ `tool.execute.after` |
 | Contexto al arrancar la sesión | ✅ `SessionStart` (índice + roadmap + journal + memoria) | ✅ `SessionStart` (`startup\|resume\|clear`) | ⚠️ sin hook que inyecte contexto → se sustituye por `custom-agents-index.md` en `instructions`: **el índice de piezas sí, lo dinámico no** |

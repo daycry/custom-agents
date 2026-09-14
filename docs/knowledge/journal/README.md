@@ -8,13 +8,8 @@ si otra sesión del día ya lo usó). **Las entradas se versionan** (memoria del
 quien no quiera versionarlas añade `docs/knowledge/journal/*.md` (no este README) a su `.gitignore`.
 Este índice lo regenera `journal.py index`; no lo edites.
 
-**Fuera del alcance del diff.** `agent-kits/shared/scope-check.py` excluye `docs/knowledge/journal/**`
-por defecto —este `README.md` incluido—: las entradas las escribe el hook de sesión, no una tarea, así
-que aparecen en la lista `excluidos` (con el glob que las excluyó) y no cuentan para el exit code. Es
-la excepción al «`docs/knowledge/**` siempre en alcance»: si una tarea toca a propósito algo de esta
-carpeta, que lo declare en su campo `- **Archivos**:` — lo declarado gana a la exclusión y vuelve a
-«en alcance».
-
 | Fecha | Iniciativa | Resumen | Fuente |
 |---|---|---|---|
+| [2026-09-14](2026-09-14-plugin-refactor.md) | plugin-refactor | Sesión sobre plugin-refactor | hook |
+| [2026-09-12](2026-09-12-plugin-refactor.md) | plugin-refactor | <task-notification> <task-id>aa201799db814ce28</task-id> <tool-use-id>toolu_01JKEBQeC2u77f6UwbYeDnn… | hook |
 | [2026-09-08](2026-09-08-sesion.md) | n/a | continua con la implementación | hook |

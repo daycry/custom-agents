@@ -4,10 +4,11 @@
 
 Repository of **custom agents** with their skills and toolkits. It runs in **Claude Code** (native plugin, its home), **Codex** and **OpenCode**: how to install each is in [`INSTALL.md`](INSTALL.md) (including the `npx @daycry/custom-agents` installer), and what changes or is lost per runtime is in [`INTEROP.md`](INTEROP.md).
 
-> **How you type the commands.** Installed as a plugin, the real name carries the namespace:
+> **How you type the commands.** In Claude Code plugin mode, commands use namespace:
 > **`/custom-agents:dev-cycle`**, `/custom-agents:roadmap-metrics`, `/custom-agents:retro`…
-> The short form (`/dev-cycle`), used in this index for brevity, only works with the bundle
-> copied by hand into `.claude/commands/` (details under "Commands").
+> In Codex they are prompt commands without namespace (`/prompt:dev-cycle`, or `/prompts:dev-cycle`
+> depending on provider), and in OpenCode they are short (`/dev-cycle`).
+> This index uses the short form for brevity.
 
 ```mermaid
 flowchart LR
@@ -59,7 +60,11 @@ Before adding or touching an agent, read [`CONVENTIONS.md`](CONVENTIONS.md): it 
 
 They drive the chain by invoking agents **by name** and with control gates, over the **same per-initiative folder** `docs/roadmap/<date>-<slug>/`.
 
-> **How to type them.** Installed as a plugin (marketplace or `npx @daycry/custom-agents install`), the real name carries the plugin namespace: **`/custom-agents:dev-cycle`**, `/custom-agents:pm-cycle`, `/custom-agents:doctor`… The short form `/dev-cycle` works **only** with the bundle copied by hand into `.claude/commands/`; in a plugin install it returns "Unknown command". This table and the rest of the documentation use the short form for brevity; `/custom-agents:doctor` tells you which one applies to your installation.
+> **How to type them.** In Claude Code plugin mode, the real name carries the plugin namespace:
+> **`/custom-agents:dev-cycle`**, `/custom-agents:pm-cycle`, `/custom-agents:doctor`… In Codex they
+> are prompt commands without namespace (`/prompt:dev-cycle` or `/prompts:dev-cycle`), and in OpenCode
+> they are short (`/dev-cycle`). This table and the rest of this document use the short form for brevity;
+> `/custom-agents:doctor` indicates the Claude Code plugin form.
 
 | Command | Role | Scope | Closure |
 |---------|-----|---------|--------|

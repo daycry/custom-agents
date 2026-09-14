@@ -409,11 +409,23 @@ def _parse_ratio_cell(cell):
     return v * 1000 if suf == "k" else v * 1_000_000 if suf == "m" else v
 
 
+# Marca de fila estimada en `CALIBRATION.md`. Se acepta con o sin acento, en cualquier caja, y con
+# el motivo pegado detrás («(estimado: sin transcripciones)»).
+MARCA_ESTIMADO_RE = re.compile(r"\(\s*estimad[oa]\b", re.IGNORECASE)
+
+
 def _ratio_calibrado(calibration_path, avisos=None):
     """Mediana de la columna 'tokens/hora' de CALIBRATION.md (si existe). Devuelve
     (ratio, n_muestras) o (None, 0). Parser tolerante de tabla markdown: SOLO lee la
     tabla cuyo encabezado contiene 'tokens/hora' (se detiene al acabar esa tabla) y
-    descarta con aviso los valores fuera del rango de cordura [10k, 10M]."""
+    descarta con aviso los valores fuera del rango de cordura [10k, 10M].
+
+    Además descarta las celdas marcadas `(estimado)` (T-17, arista E7): una fila cuyo
+    `tokens/hora` no se midió sino que se heredó del propio ratio vigente haría el cálculo
+    CIRCULAR —la mediana se alimentaría de su propia salida—, que es justo lo que advierte la
+    cabecera de `CALIBRATION.md` («usar `horas_ia` como denominador sería circular»). La marca es
+    texto en la celda, no una columna nueva: el encabezado literal `tokens/hora` y el parseo de
+    enteros no cambian."""
     try:
         text = Path(calibration_path).read_text(encoding="utf-8")
     except OSError:
@@ -434,6 +446,15 @@ def _ratio_calibrado(calibration_path, avisos=None):
         if set("".join(celdas)) <= set("-: "):
             continue  # separador |---|---|
         if col < len(celdas):
+            # La marca se busca en la FILA entera y sin distinguir mayúsculas (gap B-11): quien la
+            # escribe la pone donde le cabe —muchas veces en la celda de notas, no en la de
+            # `tokens/hora`— y escribe «(Estimado)» tan a menudo como «(estimado)». Mirar solo una
+            # columna y solo en minúsculas dejaba entrar en la mediana justo las filas que la marca
+            # quería sacar, que es la circularidad que T-17 vino a cerrar.
+            if MARCA_ESTIMADO_RE.search(" | ".join(celdas)):
+                if avisos is not None:
+                    avisos.append("CALIBRATION: fila marcada (estimado); fuera de la mediana")
+                continue
             v = _parse_ratio_cell(celdas[col])
             if v is None:
                 continue

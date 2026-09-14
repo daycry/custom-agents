@@ -195,3 +195,5 @@ Sin `scope-check.py` o sin git → puerta saltada con aviso. Sin `review-lens-se
 Sin `personas/` → Lente B genérica. Sin agente `reviewer` → subagente genérico con el mismo prompt
 (dilo). Sin `model-tier.py` → frontmatter. Sin Jira activo → nada se publica. Nada de esto bloquea
 la revisión; lo obligatorio es el bucle acotado y la traza en el ledger cuando hay ledger.
+
+> **Lente C — tercer disparador (T-18, hueco E4).** Además de los patrones de código peligroso y los stems de ruta, `review-lens-select.py` dispara la Lente C cuando el diff abre un canal de **texto controlado por el consumidor** (`.claude/**`, `dev.json`, `personas/`, `CONTINUE-HERE*`, `docs/knowledge/**`) hacia un fichero que **compone un prompt o un brief**: motivo `tipo: flujo` con fichero y línea. Detalle y límites en `references/lens-c-heuristics.md`.

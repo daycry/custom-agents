@@ -29,9 +29,9 @@ From idea to tested, documented code: `requirements → budget → plan → impl
 
 > **How you type the commands.** Installed as a plugin, the real name carries the plugin
 > namespace: **`/custom-agents:dev-cycle`**, `/custom-agents:retro`, `/custom-agents:doctor`…
-> The short form (`/dev-cycle`), used from here on for brevity, only works with the bundle
-> copied by hand into `.claude/commands/`. `/custom-agents:doctor` tells you which one applies
-> to your install.
+> In Codex, it appears as prompts: `/prompt:dev-cycle` (or `/prompts:dev-cycle` depending on
+> provider). In OpenCode it stays short: `/dev-cycle`.
+> This document uses the short form (`/dev-cycle`) for brevity.
 
 ```mermaid
 flowchart LR
@@ -107,7 +107,7 @@ npx @daycry/custom-agents            # interactive menu; marks the runtimes it d
 | Runtime | Install | What you get |
 |---|---|---|
 | **Claude Code** | `/plugin marketplace add daycry/custom-agents` (or the installer) | Everything: 9 agents, 12 commands, 17 skills, hooks, status line |
-| **Codex** | `codex plugin marketplace add daycry/custom-agents` (or the installer) | Skills, agents as `.toml`, commands as `/prompts:<name>`, session hooks |
+| **Codex** | `codex plugin marketplace add daycry/custom-agents` (or the installer) | Skills, agents as `.toml`, commands as `/prompt:<name>` (sometimes `/prompts:<name>`), session hooks |
 | **OpenCode** | `npx @daycry/custom-agents install -p opencode` | Skills, agents, commands, hook adapter |
 
 The installer **registers the plugin with each runtime**, it does not just copy files: Claude Code's
