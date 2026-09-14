@@ -33,3 +33,5 @@ tokens), este comando muestra lo que **de verdad ha costado**, leyendo las horas
 - El **coste €** sale de multiplicar horas por la tarifa de `.claude/rates.json` (config compartida de presupuesto).
 - Si aún no hay horas `real` registradas, lo indica en vez de inventar cifras.
 - Se apoya en los avisos del generador: si una `evaluation.md`/`tasks.md` cambió sus etiquetas y algo no se lee, sale por `stderr`.
+
+> El informe cierra el coste de proceso con la línea «N de M bloques `generacion:` con `fuente: estimado`»: dice cuántas de esas cifras son una medida y cuántas una estimación con formato de medida. Las filas de `docs/roadmap/CALIBRATION.md` marcadas `(estimado)` quedan fuera de la mediana que usa `agent-kits/shared/usage-meter.py`.

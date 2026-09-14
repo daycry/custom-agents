@@ -40,6 +40,18 @@
         "redirect": "skill:unit-tests"
       },
       "notes": "Frontera ADR-011 caso 3: E2E es del agente qa; unitarios/cobertura son la skill compartida unit-tests."
+    },
+    {
+      "id": "qa-sin-ui",
+      "prompt": "El plan de la iniciativa demo declara `test-plan: n/a (sin UI)` en su frontmatter y no hay test-plan.md. Pasa la fase de pruebas: corre las puertas deterministas y dime si queda en verde, sin levantar ninguna app.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "coverage-check"
+        ]
+      },
+      "notes": "C-08 / hueco E1: con el marcador, qa sale limpio (ledger-lint + coverage-check, exit 0) y NO pide regenerar el test-plan con planner."
     }
   ]
 }

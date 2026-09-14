@@ -79,7 +79,19 @@ fichero. Sin el campo —o con el `{{…}}` sin sustituir— el bullet degrada a
 - **Previsión IA**: {{15k}} in / {{5k}} out tok · {{X}} €
 - **Dependencias**: {{ninguna / T-00 / acceso a X}}
 - **Tipo**: {{libre, sin lista cerrada — p. ej. frontend / backend / db / devops / test / docs / hooks; OPCIONAL: si la tarea tiene dominio claro, el despacho por subagentes usa la persona correspondiente (`.claude/personas/<tipo>.md` del proyecto, o el catálogo del plugin si no hay una propia); sin tipo → subagente genérico. Omite la línea si no aplica.}}
-- **Archivos**: `{{ruta}}`, `{{ruta}}`
+<!-- Archivos: TODO lo que la tarea toca, incluido lo GENERADO y lo que la DESCRIBE.
+· E2 — si tocas `commands/`, `agents/` o `hooks/`, añade el patrón `interop/**` (no fichero
+  a fichero: engorda el brief, GOT-009). Lo regenera `implementer` con
+  `python3 scripts/export-interop.py` y lo comprueba la Lente A con `--check`.
+· E3 — añade las piezas que DESCRIBEN a la pieza tocada, copiadas de la columna
+  «Piezas que describen» de `docs/agents/CONTRACTS.md` (no se improvisan por tarea);
+  si la pieza no sale en ninguna arista: `docs/agents/<x>.md`, la fila de
+  `docs/README.md`, `docs/FLOWS.md` (+`docs/en/FLOWS.md`) si cambia un flujo y
+  `evals/cases/<kind>-<nombre>.json` si cambia la `description`.
+Ejemplo real: `agents/planner.md`, `docs/agents/planner.md`, `evals/cases/agent-planner.json`,
+`interop/**` (regenerado: `agents/` tocados). Lo que falte aquí sale como gap de alcance
+en `python3 agent-kits/shared/scope-check.py <iniciativa>`. -->
+- **Archivos**: `{{ruta}}`, `{{ruta}}`{{, `interop/**` (regenerado: `agents/`|`commands/`|`hooks/` tocados) si aplica}}
 - **Cubre (tests)**: {{si es tarea de UI: E2E-0X / M-0X del `test-plan.md`; si no aplica: —}}
 - **Verificación**: `{{comando exacto, p. ej. python3 -m pytest -q tests/test_x.py}}` → {{resultado esperado, p. ej. `3 passed`}} {{· otro comando → resultado; en prosa/docs: «lectura: <qué comprobar>»}}
 

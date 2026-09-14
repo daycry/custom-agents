@@ -51,14 +51,11 @@ ficheros que el usuario indique y dilo (la puerta de alcance no aplica).
 
 ### 0. Puerta previa — alcance del diff (solo con ledger; determinista, sin gastar revisores)
 
-`python3 "$SHAREDKIT/scope-check.py" "docs/roadmap/<fecha>-<slug>"` — **exit 0 obligatorio** para
-lanzar las lentes. Compara los ficheros cambiados (comiteados + sin comitear) con los campos `Archivos` de TODAS las
-tareas del ledger (`tasks.md` propio y `docs/knowledge/**` siempre en alcance). **Exit 1** → los
-ficheros fuera de alcance vuelven al `implementer` como **gap Important** ANTES de lanzar las
-lentes: o revierte el cambio, o justifica que es necesario — entonces se añade al campo `Archivos`
-de su tarea con una nota y se relanza el check. **Exit 2** (sin base clara: ni `main` ni `master`)
-→ pásale `--base <ref>`. Sin git → salta la puerta con aviso (la Lente A conserva su comprobación
-(2) como red).
+`python3 "$SHAREDKIT/scope-check.py" "docs/roadmap/<fecha>-<slug>"` — **exit 0 obligatorio** para lanzar las lentes. Compara los ficheros cambiados (comiteados + sin comitear) con los campos `Archivos` de TODAS las tareas del ledger (`tasks.md` propio y `docs/knowledge/**` siempre en alcance). **Exit 1** → los ficheros fuera de alcance vuelven al `implementer` como **gap Important** ANTES de lanzar las lentes: o revierte el cambio, o justifica que es necesario — entonces se añade al campo `Archivos` de su tarea con una nota y se relanza el check. **Exit 2** (sin base clara: ni `main` ni `master`) → pásale `--base <ref>`. Sin git → salta la puerta con aviso (la Lente A conserva su comprobación (2) como red).
+
+**Exit 0 con ⚠️ no es exit 0 a secas**: los avisos salen por **stderr**, y en la clave `avisos` si repites el comando con `--json` (`… "docs/roadmap/<fecha>-<slug>" --json`). El ⚠️ tiene **un solo disparo, con dos formas**: un glob de `alcance.excluir` (`.claude/dev.json`) que esconde **el grueso del diff relevante** —la mitad o más de los ficheros que el default NO excluye, y al menos tres—, ya sea dejándote la lista «fuera de alcance» vacía o comiéndoselo con un único glob. Por debajo de ese volumen NO hay ⚠️: la exclusión que solo quita ruido previsto no es un gap (si avisara en cada pasada verde sería un Important imposible de cerrar). **Léelo y trátalo como gap Important** en la fusión: o el glob se acota, o esos ficheros se declaran en el `Archivos` de su tarea, o el ledger dice por qué la exclusión es deliberada. Y mira **lo excluido** con ojos de lente: está en el diff y no en `Archivos`, que es justo donde se esconde lo que las demás puertas no ven.
+
+**Y la línea ℹ️, siempre**: por debajo del umbral el ⚠️ calla, pero `scope-check` publica igual —stderr y clave `info`/`excluidos_usuario` del `--json`— **qué ficheros esconden los globs de usuario y con qué patrón**. No es un gap automático: es la comprobación de que lo excluido es lo que se quería excluir. Si ahí aparece código de producción sin declarar, ESO sí es gap.
 
 ### 1. ¿Aplican las Lentes C (seguridad) y D (rendimiento)? (determinista, un solo script)
 
@@ -198,3 +195,5 @@ Sin `scope-check.py` o sin git → puerta saltada con aviso. Sin `review-lens-se
 Sin `personas/` → Lente B genérica. Sin agente `reviewer` → subagente genérico con el mismo prompt
 (dilo). Sin `model-tier.py` → frontmatter. Sin Jira activo → nada se publica. Nada de esto bloquea
 la revisión; lo obligatorio es el bucle acotado y la traza en el ledger cuando hay ledger.
+
+> **Lente C — tercer disparador (T-18, hueco E4).** Además de los patrones de código peligroso y los stems de ruta, `review-lens-select.py` dispara la Lente C cuando el diff abre un canal de **texto controlado por el consumidor** (`.claude/**`, `dev.json`, `personas/`, `CONTINUE-HERE*`, `docs/knowledge/**`) hacia un fichero que **compone un prompt o un brief**: motivo `tipo: flujo` con fichero y línea. Detalle y límites en `references/lens-c-heuristics.md`.

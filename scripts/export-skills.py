@@ -85,6 +85,25 @@ PY_NAME_RE = re.compile(r'"([A-Za-z0-9_\-]+\.py)"')
 # referencias a ficheros del paquete citadas en los .md (placeholders <…>/{…} se ignoran)
 REF_RE = re.compile(r"(?<![A-Za-z0-9_/.\-])((?:skills/[a-z0-9\-]+/|agent-kits/shared/)?(?:references|scripts|assets)/[A-Za-z0-9_./\-]+|agent-kits/shared/[A-Za-z0-9_./\-]+)")
 
+# Citas a `docs/**` (gap B-4 de la revisión de R4b). El paquete portable NO lleva `docs/`, así que
+# `REF_RE` ni las miraba: una skill podía citar `docs/agents/NO-EXISTE.md` y el `--check` callaba.
+# No se comprueban contra el paquete —ahí nunca van a estar— sino contra el REPO FUENTE, que es
+# donde la cita es verdad o mentira. Dos clases de cita, y solo una se comprueba:
+#   · artefacto del proyecto CONSUMIDOR (`docs/roadmap/**`, `docs/knowledge/**`…): la skill le dice
+#     al consumidor dónde escribe, y ese fichero no tiene por qué existir aquí;
+#   · fichero de la doc de ESTE repo: o existe, o es una cita podrida.
+DOCS_REF_RE = re.compile(r"(?<![A-Za-z0-9_/.\-])(docs/[A-Za-z0-9_./\-]+\.(?:md|json|ya?ml|pdf))")
+DOCS_DEL_CONSUMIDOR = ("docs/roadmap/", "docs/knowledge/", "docs/security-scan/",
+                       "docs/architecture/", "docs/CONSTITUTION.md")
+# `docs/x.md` y compañía: nombre de una sola letra = ejemplo, igual que en `lint_plugin.py`.
+STEMS_PLACEHOLDER = ("x", "y", "z", "nombre", "algo", "ruta")
+
+# Rutas que una skill cita para EJECUTARLAS en la raíz del repo revisado y que, por tanto, no
+# viajan en el paquete. Se enumeran una a una a propósito: tolerar «cualquier `scripts/*.py`»
+# devolvería el agujero que este check existe para tapar. Cada una se comprueba contra el repo
+# fuente, y la skill que la cita tiene que escribir su degradación («si no existe, no aplica»).
+RUTAS_DE_LA_RAIZ = ("scripts/export-interop.py",)
+
 
 def _skill_index():
     p = os.path.join(ROOT_DEFAULT, "agent-kits", "shared", "skill-index.py")
@@ -434,6 +453,10 @@ def _limpiar_ref(ref):
 
 def check(pkg_root):
     problemas = []
+    # Repo fuente: el que contiene ESTE script. Es donde se comprueban las citas que, por diseño,
+    # no viajan en el paquete (`docs/**`, scripts de la raíz). Si el paquete se comprueba desde
+    # otro sitio, esas comprobaciones se omiten en vez de inventar un veredicto.
+    fuente = ROOT_DEFAULT if os.path.isdir(os.path.join(ROOT_DEFAULT, "docs")) else None
     readme = os.path.join(pkg_root, "README.md")
     if not os.path.isfile(readme):
         return [f"falta README.md en {pkg_root}"]
@@ -469,6 +492,13 @@ def check(pkg_root):
             ref = _limpiar_ref(ref)
             if any(c in ref for c in "<>{}") or not ref:
                 continue
+            if ref in RUTAS_DE_LA_RAIZ:
+                # script de la RAÍZ del repo revisado: no va en el paquete. Se comprueba donde sí
+                # tiene que estar — el repo fuente — para que la cita no envejezca en silencio.
+                if fuente and not os.path.exists(os.path.join(fuente, ref)):
+                    problemas.append(f"{rel}: cita `{ref}` como script de la raíz y no existe "
+                                     f"en el repo fuente")
+                continue
             if ref.startswith(("skills/", "agent-kits/")):
                 p = os.path.join(pkg_root, ref)
             elif skill_dir:
@@ -481,6 +511,15 @@ def check(pkg_root):
                     continue
             if not os.path.exists(p):
                 problemas.append(f"{rel}: cita `{ref}` y no existe en el paquete")
+        for ref in DOCS_REF_RE.findall(texto):
+            ref = _limpiar_ref(ref)
+            if any(c in ref for c in "<>{}") or ref.startswith(DOCS_DEL_CONSUMIDOR):
+                continue
+            if os.path.splitext(os.path.basename(ref))[0].lower() in STEMS_PLACEHOLDER:
+                continue
+            if fuente and not os.path.exists(os.path.join(fuente, ref)):
+                problemas.append(f"{rel}: cita `{ref}`, que no viaja en el paquete y tampoco "
+                                 f"existe en el repo fuente")
     for extra in ("AGENTS.md", CURSOR_RULE):
         p = os.path.join(pkg_root, extra)
         if os.path.isfile(p):

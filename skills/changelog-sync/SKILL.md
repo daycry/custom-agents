@@ -24,7 +24,8 @@ tarea; el script solo los traslada.
 **El resumen lo escribe quien cierra la tarea, no lo adivina el script** ([`ADR-012`](../../docs/knowledge/adr/ADR-012-resumen-del-changelog-lo-escribe-quien-cierra-la-tarea.md)).
 La `Descripción` del ledger está escrita para el implementador: medida sobre los **13 ledgers
 cerrados** de este repo (**63 tareas**),<!--m:base_ledgers=13,base_tareas=63--> su primera frase
-tenía **mediana 447 y máximo 1.944 caracteres**<!--m?:cifra historica: la midio el script de a7a11b0--> — inusable
+tenía **mediana 447 y máximo 1.944 caracteres** (la foto del 2026-09-04, con el script de
+`a7a11b0`)<!--m@2026-09-04:a7a11b0_frase_mediana=447,a7a11b0_frase_max=1944--> — inusable
 como nota de release (por eso las notas de la v1.16.0 se escribieron a mano). El campo opcional
 `- **Changelog**: <una o dos frases>` de cada `### T-XX` pone el resumen donde lo sabe una persona.
 
@@ -88,9 +89,9 @@ es. Si un bullet sale pobre, la respuesta es escribir el campo `Changelog:` de e
 el tope.
 
 `RESUMEN_MAX` acota **el resumen, no el bullet**: el resto lo ponen el título del ledger y la lista
-de ficheros. Techo real medido con los títulos y rutas de este repo: **467
-caracteres**.<!--m:bullet_max=467--> Y el camino que se promueve es, medido, el que produce los
-bullets más LARGOS (`changelog` mediana 342 · `titulo` mediana 115)<!--m:changelog_mediana=342,titulo_mediana=115--> — es el precio de que el bullet diga algo. `RESUMEN_FRASES_MAX` es un tope
+de ficheros. Techo real medido el 2026-09-12 con los títulos y rutas de este repo: **467
+caracteres**.<!--m@2026-09-12:bullet_max=467--> Y el camino que se promueve es, medido, el que
+produce los bullets más LARGOS (`changelog` mediana 342 · `titulo` mediana 115)<!--m@2026-09-12:changelog_mediana=342,titulo_mediana=115--> — es el precio de que el bullet diga algo. `RESUMEN_FRASES_MAX` es un tope
 **tipográfico**: `FIN_FRASE` reconoce «punto + espacio + apertura de frase», con una guarda de
 abreviaturas (`p. ej.`, `vs.`, `etc.`, `Sr.`, `pág.`, `EE. UU.`…), así que un texto cuyas frases
 empiecen en minúscula no se recorta. El aviso solo sale cuando de verdad se ha recortado.

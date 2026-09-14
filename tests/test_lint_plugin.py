@@ -248,6 +248,178 @@ def casos_copias_forma_de_definicion():
             f"declaradas en copias.json, las tres formas quedan toleradas\n{out2}"
 
 
+# --------------------------------------------------------------------------------------------
+# T-16 (C-07): las tres comprobaciones de CITAS. Una pareja por comprobación: el positivo (la cita
+# rota se ve, con fichero y línea) y la tolerancia (lo que NO debe avisar, que es lo que decide si
+# la puerta se puede dejar encendida en la CI sin bloquear releases).
+# --------------------------------------------------------------------------------------------
+
+CABECERA_MATRIZ = (
+    "| Arista | Invocador | Invocado | Flags/entrada | Exit codes/salida | Ficheros | Marcadores "
+    "| Puerta | Piezas que describen |\n"
+    "|---|---|---|---|---|---|---|---|---|\n")
+
+
+def casos_citas_rutas():
+    """47-48) Una ruta del repo citada entre acentos graves que no existe es AVISO con
+    `fichero:línea`; las tres tolerancias (artefacto del consumidor, placeholder `x`, ruta relativa
+    a la raíz de la skill que la cita) no avisan nunca."""
+    # 47) positivo: la ruta no existe -> aviso con fichero, línea y la ruta citada
+    with tempfile.TemporaryDirectory() as tmp:
+        make_plugin(tmp, {"alpha": AGENT_OK.format(name="alpha")})
+        _escribe(tmp, "agents/alpha.md",
+                 AGENT_OK.format(name="alpha") + "\nLee `agent-kits/shared/no-existe.py`.\n")
+        code, out = run(tmp)
+        assert code == 0, f"la comprobacion nace como AVISO, no como error\n{out}"
+        assert "agent-kits/shared/no-existe.py" in out, f"la ruta rota no se ve\n{out}"
+        assert "agents/alpha.md:" in out, f"falta fichero:linea\n{out}"
+
+    # 48) tolerancias: ninguna de las tres puede producir aviso
+    with tempfile.TemporaryDirectory() as tmp:
+        make_plugin(tmp, {"alpha": AGENT_OK.format(name="alpha")})
+        # (i) artefacto del proyecto CONSUMIDOR y (ii) placeholder `x`
+        _escribe(tmp, "agents/alpha.md", AGENT_OK.format(name="alpha")
+                 + "\nLee `docs/CONSTITUTION.md`, `docs/roadmap/BACKLOG.md` y `tests/test_x.py`.\n")
+        # (iii) ruta relativa a la raiz de la skill que la cita: `scripts/util.py` desde
+        # `skills/my-skill/` significa `skills/my-skill/scripts/util.py`, y ese si existe
+        _escribe(tmp, "skills/my-skill/scripts/util.py", "x = 1\n")
+        _escribe(tmp, "skills/my-skill/SKILL.md", "Ejecuta `scripts/util.py`.\n")
+        code, out = run(tmp)
+        assert code == 0, out
+        assert "que no existe" not in out, f"falso positivo en una tolerancia declarada\n{out}"
+
+
+def casos_citas_comandos():
+    """49-50) Un `/comando` citado que no existe como `commands/<x>.md` es AVISO; los nativos de
+    Claude Code, los comodines de la doc y la forma con espacio de nombres `/custom-agents:<cmd>`
+    (T-12) no avisan."""
+    # 49) positivo
+    with tempfile.TemporaryDirectory() as tmp:
+        make_plugin(tmp, {"alpha": AGENT_OK.format(name="alpha")})
+        _escribe(tmp, "agents/alpha.md",
+                 AGENT_OK.format(name="alpha") + "\nLanza `/no-existe` al terminar.\n")
+        code, out = run(tmp)
+        assert code == 0, f"la comprobacion nace como AVISO\n{out}"
+        assert "/no-existe" in out and "commands/no-existe.md" in out, out
+        assert "agents/alpha.md:" in out, f"falta fichero:linea\n{out}"
+
+    # 50) tolerancias: nativo + comodin + namespace del plugin sobre un comando que SI existe
+    with tempfile.TemporaryDirectory() as tmp:
+        make_plugin(tmp, {"alpha": AGENT_OK.format(name="alpha")})
+        _escribe(tmp, "commands/dev-cycle.md",
+                 "---\ndescription: Cicla. Usalo cuando el usuario diga \"cicla\".\n---\nx\n")
+        _escribe(tmp, "agents/alpha.md", AGENT_OK.format(name="alpha")
+                 + "\nUsa `/clear`, `/algo`, `/dev-cycle` y `/custom-agents:dev-cycle`.\n")
+        code, out = run(tmp)
+        assert code == 0, out
+        assert "no existe como" not in out, f"falso positivo en una tolerancia declarada\n{out}"
+
+
+def casos_matriz_contratos():
+    """51-52) `docs/agents/CONTRACTS.md`: una fila de arista con la columna Puerta VACIA avisa con
+    la arista, y una Puerta que nombra un script inexistente tambien; una matriz sana no avisa."""
+    # 51) positivo doble: puerta vacia (E2) y puerta con script que no existe (E3)
+    with tempfile.TemporaryDirectory() as tmp:
+        make_plugin(tmp, {"alpha": AGENT_OK.format(name="alpha")})
+        _escribe(tmp, "scripts/real.py", "x = 1\n")
+        _escribe(tmp, "docs/agents/CONTRACTS.md", CABECERA_MATRIZ
+                 + "| E1 · sana | a | b | `--x` | `0` | f | m | `python3 scripts/real.py` | d |\n"
+                 + "| E2 · sin puerta | a | b | `--x` | `0` | f | m |  | d |\n"
+                 + "| E3 · puerta rota | a | b | `--x` | `0` | f | m | `python3 scripts/fantasma.py` | d |\n")
+        code, out = run(tmp)
+        assert code == 0, f"la comprobacion nace como AVISO\n{out}"
+        assert "no tiene Puerta" in out and "E2" in out, f"la puerta vacia no se ve\n{out}"
+        assert "scripts/fantasma.py" in out and "E3" in out, f"el script inexistente no se ve\n{out}"
+        assert "E1" not in out.replace("E12", ""), f"la fila sana no puede avisar\n{out}"
+
+    # 52) tolerancia: sin fichero de matriz no hay nada que avisar (es opcional para el consumidor),
+    # y una fila cuya Puerta es prosa declarada («puerta pendiente», «sin puerta») tampoco avisa
+    with tempfile.TemporaryDirectory() as tmp:
+        make_plugin(tmp, {"alpha": AGENT_OK.format(name="alpha")})
+        code, out = run(tmp)
+        assert code == 0 and "CONTRACTS.md" not in out, f"sin matriz no se avisa\n{out}"
+    with tempfile.TemporaryDirectory() as tmp:
+        make_plugin(tmp, {"alpha": AGENT_OK.format(name="alpha")})
+        _escribe(tmp, "docs/agents/CONTRACTS.md", CABECERA_MATRIZ
+                 + "| E1 · pendiente | a | b | `--x` | `0` | f | m | puerta pendiente: la trae T-19 | d |\n"
+                 + "| E2 · sin ella | a | b | `--x` | `0` | f | m | sin puerta (decision del usuario, 2026-09-11) | d |\n")
+        code, out = run(tmp)
+        assert code == 0, out
+        assert "no tiene Puerta" not in out, f"una Puerta declarada en prosa NO es una celda vacia\n{out}"
+def casos_citas_en_docs():
+    """53-55) El alcance de las tres comprobaciones incluye `docs/` (gap B-5): con solo `agents/`,
+    `commands/` y `skills/` daban CERO avisos sobre este repo y dejaban fuera tres de las cuatro
+    familias de piezas que describen a otra. Con `docs/` dentro hay que resolver antes la ruta
+    RELATIVA AL CITANTE, o el aviso es un falso positivo."""
+    # 53) positivo: una ruta rota citada en `docs/` avisa igual que en `agents/`
+    with tempfile.TemporaryDirectory() as tmp:
+        make_plugin(tmp, {"alpha": AGENT_OK.format(name="alpha")})
+        _escribe(tmp, "docs/agents/alpha.md", "El agente usa `agent-kits/shared/no-existe.py`.\n")
+        code, out = run(tmp)
+        assert code == 0, f"la comprobacion nace como AVISO\n{out}"
+        assert "agent-kits/shared/no-existe.py" in out and "docs/agents/alpha.md:" in out, out
+
+    # 54) relativa AL CITANTE: `docs/en/x.md` que cita `agents/alpha.md` se lee desde la raiz, y
+    #     `docs/observability.md` que cita `agents/alpha.md` tambien. Ninguna avisa.
+    with tempfile.TemporaryDirectory() as tmp:
+        make_plugin(tmp, {"alpha": AGENT_OK.format(name="alpha")})
+        _escribe(tmp, "docs/guia/sub/nota.md", "Ver `scripts/util.py`.\n")
+        _escribe(tmp, "docs/guia/sub/scripts/util.py", "x = 1\n")
+        code, out = run(tmp)
+        assert code == 0, out
+        assert "que no existe" not in out, f"falso positivo en ruta relativa al citante\n{out}"
+
+    # 55) el REGISTRO no se escanea: un ledger o una entrada de journal cita a proposito rutas del
+    #     dia en que se escribio, y `docs/examples/` es un proyecto consumidor de ejemplo
+    with tempfile.TemporaryDirectory() as tmp:
+        make_plugin(tmp, {"alpha": AGENT_OK.format(name="alpha")})
+        _escribe(tmp, "docs/roadmap/2026-01-01-x/tasks.md", "Toco `agents/borrado.md` y `/no-existe`.\n")
+        _escribe(tmp, "docs/knowledge/journal/2026-01-01-sesion.md", "Vi `agents/borrado.md`.\n")
+        _escribe(tmp, "docs/examples/demo/spec.md", "El usuario escribe `/contacto`.\n")
+        code, out = run(tmp)
+        assert code == 0, out
+        assert "borrado.md" not in out and "/contacto" not in out, f"el registro no se escanea\n{out}"
+
+
+def casos_cita_de_comando_con_argumento():
+    """56) La forma CANONICA de citar un comando en este repo es `/comando <argumento>` (gap B-8).
+    El filtro de plantillas la descartaba entera, asi que las citas BIEN escritas eran justo las
+    invisibles."""
+    with tempfile.TemporaryDirectory() as tmp:
+        make_plugin(tmp, {"alpha": AGENT_OK.format(name="alpha")})
+        _escribe(tmp, "agents/alpha.md",
+                 AGENT_OK.format(name="alpha") + "\nLanza `/no-existe <objetivo>` al terminar.\n")
+        code, out = run(tmp)
+        assert code == 0, out
+        assert "/no-existe" in out and "commands/no-existe.md" in out, \
+            f"la forma `/cmd <arg>` tiene que verse\n{out}"
+
+
+def casos_matriz_fila_en_negrita():
+    """57) La fila de arista se reconoce con la celda en negrita (gap B-7): anclar en `| E` literal
+    dejaba escapar `| **E4** · …`, que son las filas que alguien ha resaltado."""
+    with tempfile.TemporaryDirectory() as tmp:
+        make_plugin(tmp, {"alpha": AGENT_OK.format(name="alpha")})
+        _escribe(tmp, "docs/agents/CONTRACTS.md",
+                 "| Arista | A | B | C | D | E | F | Puerta | Estado |\n"
+                 "|---|---|---|---|---|---|---|---|---|\n"
+                 "| **E4** · flujo | a | b | c | d | e | f |  | abierto |\n")
+        code, out = run(tmp)
+        assert code == 0, f"la comprobacion nace como AVISO\n{out}"
+        assert "E4" in out and "Puerta" in out, f"la fila en negrita tiene que verse\n{out}"
+
+
+def casos_tolerancias_caducadas():
+    """58) Una lista de excepciones sin caducidad es la alfombra bajo la que se barre todo: si la
+    pieza PLANIFICADA aparece en el arbol, el linter pide que se quite la tolerancia."""
+    with tempfile.TemporaryDirectory() as tmp:
+        make_plugin(tmp, {"alpha": AGENT_OK.format(name="alpha")})
+        _escribe(tmp, "commands/specialize.md",
+                 "---\nname: specialize\ndescription: prueba de caducidad de la tolerancia\n---\n\nx\n")
+        code, out = run(tmp)
+        assert "PIEZAS_PLANIFICADAS" in out, f"la tolerancia caducada tiene que avisar\n{out}"
+
+
 def main():
     # 1) Plugin válido → exit 0
     with tempfile.TemporaryDirectory() as tmp:
@@ -837,8 +1009,15 @@ dependencies:
     casos_copias_registro_fino()
     casos_copias_por_copia()
     casos_copias_forma_de_definicion()
+    casos_citas_rutas()
+    casos_citas_comandos()
+    casos_matriz_contratos()
+    casos_citas_en_docs()
+    casos_cita_de_comando_con_argumento()
+    casos_matriz_fila_en_negrita()
+    casos_tolerancias_caducadas()
 
-    print("test_lint_plugin: 46/46 OK")
+    print("test_lint_plugin: 58/58 OK")
 
 
 if __name__ == "__main__":

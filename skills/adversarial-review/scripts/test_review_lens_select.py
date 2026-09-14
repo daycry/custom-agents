@@ -468,3 +468,197 @@ def test_el_propio_script_no_dispara_la_lente_d():
     de rendimiento cuando se escanea a sí mismo."""
     code, data, _ = run(HERE, "--files", "review-lens-select.py")
     assert code == 0 and data["lente_d"] is False and data["motivos_d"] == []
+
+
+# ---------------------------------------------------------------------------------------------
+# T-18 (hueco E4): la Lente C se dispara ante texto controlado por el CONSUMIDOR que acaba en un
+# prompt o un brief. El caso real es `project-specialization` F1 (commit 74901c6): `task-brief.py`
+# abrio la cascada `.claude/personas/<tipo>.md` del proyecto hacia el brief del subagente y
+# `review-lens-select` dio `lente_c: false` las tres veces; la Lente B lo cazo las tres.
+#
+# Los fixtures se montan por lineas y con DQ3 en vez de un literal triple-comillas: llevan
+# docstrings dentro y un literal anidado cerraria el de fuera.
+# ---------------------------------------------------------------------------------------------
+
+DQ3 = chr(34) * 3
+
+# Recorte de lo RELEVANTE del diff real de F1 sobre `agent-kits/shared/task-brief.py` (cascada de
+# tres escalones + lectura del candidato elegido). Se conservan las dos lineas que forman el canal:
+# la que nombra `.claude/personas/` y la que LEE el fichero.
+F1_TASK_BRIEF = "\n".join([
+    "#!/usr/bin/env python3",
+    DQ3 + "Brief DETERMINISTA de una tarea para el subagente de contexto fresco." + DQ3,
+    "import os",
+    "",
+    "",
+    "def _persona_cascada(tipo, personas_dir, carpeta=None):",
+    "    " + DQ3 + "Contenido de la persona de dominio, en cascada de tres escalones." + DQ3,
+    "    candidatos = []",
+    "    if carpeta:",
+    "        raiz = _raiz_de(carpeta)",
+    '        candidatos.append(os.path.join(raiz, ".claude", "personas", f"{tipo}.md"))',
+    '    candidatos.append(os.path.join(personas_dir, f"{tipo}.md"))',
+    "    for p in candidatos:",
+    "        try:",
+    '            contenido = open(p, encoding="utf-8", errors="replace").read().strip()',
+    "        except OSError:",
+    "            continue",
+    "        if contenido:",
+    "            return contenido, p",
+    "    return None, None",
+    "",
+])
+
+# Negativo 1: MISMA lectura de `.claude/**`, pero en un fichero que NO compone texto para un
+# modelo (un validador de ledger). Leer configuracion del proyecto lo hace medio repo: sin la
+# segunda condicion, esta heuristica avisaria siempre y nadie la miraria.
+#
+# Gap B-1 de la revision de R4b: este negativo usaba un fixture FABRICADO cuyo docstring omitia la
+# palabra que el fichero real si tiene, asi que probaba una ficcion — el mismo diff, con el fichero
+# de verdad, si disparaba. Ahora usa el CONTENIDO REAL del `ledger-lint.py` del repo: si algun dia
+# ese fichero pasa a componer un prompt, este negativo se pondra rojo, que es lo correcto.
+RAIZ_REPO = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
+
+
+def real(rel):
+    """Contenido REAL de un fichero del repo. Un fixture fabricado prueba lo que el autor cree que
+    dice el fichero; el fichero dice otra cosa (gap B-1)."""
+    with open(os.path.join(RAIZ_REPO, rel), encoding="utf-8", errors="replace") as f:
+        return f.read()
+
+
+# `jira-flow.py` es el negativo REAL: lee `.claude/jira.json` (texto del consumidor) y su cabecera
+# nombra el «brief», asi que la version ANTERIOR de la condicion 2 lo daba por compositor de
+# prompts — el falso positivo exacto que el gap B-1 senala. No compone ningun prompt: publica
+# comentarios en Jira.
+NO_PROMPT_LEE_CLAUDE = real("skills/jira-sync/scripts/jira-flow.py")
+
+# Un `.md` de PIEZA que abre el canal en PROSA: es asi como se abre en este plugin (gap B-2).
+PIEZA_MD_CON_CANAL = "\n".join([
+    "---",
+    "name: lente-x",
+    "description: monta el prompt de la lente para el subagente revisor",
+    "---",
+    "",
+    "# Prompt de la lente",
+    "",
+    "Antes de lanzarla, lee `.claude/personas/<tipo>.md` del proyecto y antepon su perfil al",
+    "prompt que recibe el subagente.",
+    "",
+])
+
+# Negativo 2: fichero que SI compone un prompt, pero sin texto del consumidor de por medio (todo
+# el material sale de constantes propias del plugin). No hay canal que abrir.
+PROMPT_SIN_CONSUMIDOR = "\n".join([
+    "#!/usr/bin/env python3",
+    DQ3 + "Monta el prompt de la lente a partir de plantillas propias del plugin." + DQ3,
+    "",
+    'PLANTILLA = "Eres la Lente A. Revisa el diff."',
+    "",
+    "",
+    "def construir(objetivo):",
+    '    return PLANTILLA + " Objetivo: " + objetivo',
+    "",
+])
+
+
+def _motivos_flujo(data):
+    return [m for m in (data["motivos"] or []) if m.get("tipo") == "flujo"]
+
+
+def test_fixture_f1_dispara_lente_c_con_tipo_flujo():
+    """El caso real de F1 pasa de `false` a `true`, con motivo `tipo: flujo`, fichero y linea."""
+    d = repo_git()
+    write(d, "agent-kits/shared/task-brief.py", F1_TASK_BRIEF)
+    code, data, _err = run(d)
+    assert code == 0
+    flujo = _motivos_flujo(data)
+    assert data["lente_c"] is True, f"F1 tiene que disparar la Lente C; motivos={data['motivos']}"
+    assert flujo, f"y por FLUJO, no por otra heuristica; motivos={data['motivos']}"
+    assert flujo[0]["fichero"] == "agent-kits/shared/task-brief.py", flujo
+    assert isinstance(flujo[0]["linea"], int) and flujo[0]["linea"] > 0, flujo
+    # el canal se abre con `os.path.join(raiz, ".claude", "personas", ...)`, asi que el patron
+    # citado es la forma con comillas, no la de barra; las dos son la misma fuente
+    assert ".claude" in flujo[0]["patron"] and "consumidor" in flujo[0]["patron"], flujo
+
+
+def test_lectura_de_claude_en_fichero_que_no_compone_prompt_no_dispara():
+    """Negativo 1: leer la config del proyecto desde un script que no compone texto para un modelo
+    no es un canal. Sin esta acotacion la heuristica avisaria de medio repo.
+
+    El fixture es el fichero REAL (gap B-1): un negativo sobre un fichero inventado solo demuestra
+    que el inventor sabe que queria demostrar."""
+    d = repo_git()
+    # el negativo no es vacuo: el fichero real SI nombra y lee texto del consumidor
+    assert ".claude" in NO_PROMPT_LEE_CLAUDE, "fixture sin fuente del consumidor: no prueba nada"
+    write(d, "skills/jira-sync/scripts/jira-flow.py", NO_PROMPT_LEE_CLAUDE)
+    code, data, _err = run(d)
+    assert code == 0
+    assert _motivos_flujo(data) == [], f"falso positivo: {data['motivos']}"
+
+
+def test_un_fichero_de_datos_no_compone_un_prompt():
+    """Negativo 4 (gap B-1): los 18 `evals/cases/*.json` quedaban clasificados como «compone un
+    prompt» y bastaba un `.claude` en sus lineas para disparar. Un fichero de DATOS no compone
+    nada: lo compone quien lo lee."""
+    d = repo_git()
+    write(d, "evals/cases/agent-implementer.json", real("evals/cases/agent-implementer.json"))
+    code, data, _err = run(d)
+    assert code == 0
+    assert _motivos_flujo(data) == [], f"falso positivo: {data['motivos']}"
+
+
+def test_un_md_de_pieza_que_abre_el_canal_en_prosa_dispara():
+    """Gap B-2: en este plugin los prompts son `.md`. Un canal «texto del consumidor -> modelo»
+    abierto en `agents/`, `commands/` o `skills/**` era invisible porque `escanear_contenido`
+    excluye la prosa — la misma clase de canal que el caso F1 que justifica la tarea."""
+    d = repo_git()
+    write(d, "skills/jira-sync/references/review-publish.md", PIEZA_MD_CON_CANAL)
+    code, data, _err = run(d)
+    assert code == 0
+    flujo = _motivos_flujo(data)
+    assert data["lente_c"] is True and flujo, f"el canal en prosa tiene que verse: {data}"
+    assert flujo[0]["fichero"].endswith("review-publish.md"), flujo
+
+
+def test_la_documentacion_de_la_propia_skill_no_se_dispara_a_si_misma():
+    """Auto-inmunidad en prosa: `lens-c-heuristics.md` EXPLICA el canal que la heuristica busca
+    (nombra `.claude/personas/**` y dice que se lee hacia un prompt). Sin esta guarda, tocar la
+    documentacion de la skill disparaba su propia lente — el aviso perpetuo del negativo 1, en
+    prosa. Misma decision que ya estaba tomada para el codigo del selector."""
+    d = repo_git()
+    write(d, "skills/adversarial-review/references/lens-c-heuristics.md", PIEZA_MD_CON_CANAL)
+    code, data, _err = run(d)
+    assert code == 0
+    assert _motivos_flujo(data) == [], f"la skill no puede juzgarse a si misma: {data['motivos']}"
+
+
+def test_un_md_de_roadmap_no_es_una_pieza():
+    """Y el limite: `docs/roadmap/**` es registro del proyecto consumidor, no un prompt. Un ledger
+    que cite `.claude/personas/...` no puede disparar la Lente C."""
+    d = repo_git()
+    write(d, "docs/roadmap/2026-01-01-x/tasks.md", PIEZA_MD_CON_CANAL)
+    code, data, _err = run(d)
+    assert code == 0
+    assert _motivos_flujo(data) == [], f"un ledger no es una pieza: {data['motivos']}"
+
+
+def test_fichero_de_prompt_sin_texto_del_consumidor_no_dispara():
+    """Negativo 2: componer un prompt con material propio no abre ningun canal."""
+    d = repo_git()
+    write(d, "skills/adversarial-review/scripts/build_prompt.py", PROMPT_SIN_CONSUMIDOR)
+    code, data, _err = run(d)
+    assert code == 0
+    assert _motivos_flujo(data) == [], f"falso positivo: {data['motivos']}"
+
+
+def test_revision_excluir_apaga_el_disparo_de_flujo():
+    """Negativo 3 (la valvula): `revision.excluir` saca el fichero de la heuristica de flujo igual
+    que de la de ruta -- una sola valvula para las dos, no dos."""
+    d = repo_git()
+    write(d, "agent-kits/shared/task-brief.py", F1_TASK_BRIEF)
+    write(d, ".claude/dev.json",
+          json.dumps({"revision": {"excluir": ["agent-kits/**"]}}, ensure_ascii=False))
+    code, data, _err = run(d)
+    assert code == 0
+    assert _motivos_flujo(data) == [], f"revision.excluir tiene que apagarlo: {data['motivos']}"

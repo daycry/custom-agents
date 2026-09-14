@@ -2,12 +2,18 @@
 
 **Léelo solo si vas a mover un tope de `changelog-sync.py`.** Todo lo de aquí se midió el
 2026-09-04 sobre los **13 ledgers cerrados** de este repo (los que tenían `estado: completado`
-antes de esta iniciativa) y sus **63 tareas**;<!--m:base_ledgers=13,base_tareas=63--> los 6 legacy
-sin frontmatter se ignoran con aviso, como siempre.<!--m:ledgers_legacy=6--> **13 ledgers, 63
-tareas**: donde se lea «los 63 ledgers» es un error de redacción que la revisión de dos lentes cazó
-en 10 ficheros y está corregido. Con el ledger de esta iniciativa cerrado el corpus de HOY es de
-**19 ledgers y 107 tareas**,<!--m:ledgers_cerrados=19,tareas=107--> y donde importa la diferencia se
-dice cuál de los dos se está midiendo.
+antes de esta iniciativa) y sus **63 tareas**;<!--m:base_ledgers=13,base_tareas=63--> **13 ledgers,
+63 tareas**: donde se lea «los 63 ledgers» es un error de redacción que la revisión de dos lentes
+cazó en 10 ficheros y está corregido.
+
+**Las cifras que cuentan el corpus COMPLETO llevan su fecha de medición**, porque se mueven al abrir
+o cerrar cualquier iniciativa: las de este documento se re-midieron el **2026-09-12** y se leen como
+la foto de ese día, no como una afirmación sobre hoy. Las estables —los topes del código y el corpus
+base, congelado— siguen comparándose contra la medición viva en cada suite. Con esa fecha: los 6
+ledgers legacy sin frontmatter se ignoran con aviso, como
+siempre,<!--m@2026-09-12:ledgers_legacy=6--> y con el ledger de esta iniciativa cerrado el corpus es
+de **19 ledgers y 107 tareas**.<!--m@2026-09-12:ledgers_cerrados=19,tareas=107--> Donde importa la
+diferencia con el corpus base se dice cuál de los dos se está midiendo.
 
 **Cada cifra de este documento la imprime el script**, no la memoria de nadie:
 `python3 changelog-sync.py --medicion` (o `--medicion --json`) las mide sobre el árbol de trabajo, y
@@ -26,7 +32,8 @@ cabecera de `tests/test_cifras_medidas.py`; para ver las de este fichero, `grep 
 El bullet salía con la **primera frase completa** de la `Descripción` del ledger. Esas
 descripciones están escritas para el implementador, no para el CHANGELOG (cifras HISTÓRICAS: las
 midió el script de `a7a11b0`, cuyo `primera_frase` no tenía la guarda de abreviaturas, así que hoy
-no se pueden re-medir desde el árbol de trabajo)<!--m?:medido con el script de a7a11b0; el ref no existe en un clon superficial de CI-->:
+no se pueden re-medir desde el árbol de trabajo; son la foto del **2026-09-04**, el día de
+`a7a11b0`):
 
 ```
 tareas: 63 · primera frase: mediana 447 chars · max 1944 · >400 chars: 37
@@ -34,9 +41,10 @@ tareas: 63 · primera frase: mediana 447 chars · max 1944 · >400 chars: 37
   1502  memory-health/T-04   Integración, doc, memoria y cierre
   1397  superiority/T-06     Integración, doc, memoria y cierre
 ```
+<!--m@2026-09-04:a7a11b0_frase_mediana=447,a7a11b0_frase_max=1944-->
 
 Y el bullet completo (título + frase + hasta 5 ficheros) era todavía peor: **mediana 660,
-máximo 2.163**<!--m?:mismo motivo: el bullet ANTES lo producia el script de a7a11b0-->.
+máximo 2.163** (misma foto del 2026-09-04)<!--m@2026-09-04:a7a11b0_bullet_mediana=660,a7a11b0_bullet_max=2163-->.
 Consecuencia real: las notas de la v1.16.0 se escribieron a mano.
 
 ## `RESUMEN_MAX = 200`
@@ -130,7 +138,7 @@ el campo `- **Changelog**:` (paso 1). Con los ledgers del corpus base, **42 de 6
 
 | | Mediana | Máximo | Media | Bullets > 400 chars |
 |---|---|---|---|---|
-| Antes (`a7a11b0`) | 660 | 2.163 | 758 | 100/126 |<!--m?:la fila ANTES la midio el script de a7a11b0, que no esta en el arbol de trabajo-->
+| Antes (`a7a11b0`, 2026-09-04) | 660 | 2.163 | 758 | 100/126 |<!--m@2026-09-04:a7a11b0_bullet_mediana=660,a7a11b0_bullet_max=2163,a7a11b0_bullet_media=758-->
 | Después | 128 | 325 | 153 | **0/126** |<!--m:base_bullet_mediana=128,base_bullet_max=325,base_bullet_media=153,base_bullet_mayores_400=0-->
 
 ### El agregado engaña: desglose POR CAMINO
@@ -147,18 +155,19 @@ un bullet por tarea):
 | **TOTAL** | **63** | **128** | **325** | **153** | — |<!--m:base_tareas=63,base_bullet_mediana=128,base_bullet_max=325,base_bullet_media=153-->
 
 Y con los ledgers que ya usan el campo (15 ledgers, 72 tareas) aparece el camino que se
-promueve, que es **el que produce los bullets más largos**:
+promueve, que es **el que produce los bullets más largos** (corpus completo, medido el
+2026-09-12):
 
 | Camino | N | Mediana | Máximo |
 |---|---|---|---|
-| `changelog` | 44 | **342** | **467** |<!--m:camino_changelog=44,changelog_mediana=342,changelog_max=467-->
-| `frase` | 12 | 260 | 325 |<!--m:camino_frase=12,frase_mediana=260,frase_max=325-->
-| `corte` | 9 | 170 | 280 |<!--m:camino_corte=9,corte_mediana=170,corte_max=280-->
-| `titulo` | 42 | 115 | 168 |<!--m:camino_titulo=42,titulo_mediana=115,titulo_max=168-->
-| **TOTAL** | **107** | **216** | **467** |<!--m:tareas=107,bullet_mediana=216,bullet_max=467-->
+| `changelog` | 44 | **342** | **467** |<!--m@2026-09-12:camino_changelog=44,changelog_mediana=342,changelog_max=467-->
+| `frase` | 12 | 260 | 325 |<!--m@2026-09-12:camino_frase=12,frase_mediana=260,frase_max=325-->
+| `corte` | 9 | 170 | 280 |<!--m@2026-09-12:camino_corte=9,corte_mediana=170,corte_max=280-->
+| `titulo` | 42 | 115 | 168 |<!--m@2026-09-12:camino_titulo=42,titulo_mediana=115,titulo_max=168-->
+| **TOTAL** | **107** | **216** | **467** |<!--m@2026-09-12:tareas=107,bullet_mediana=216,bullet_max=467-->
 
-**El techo real del bullet completo, medido con los títulos y las rutas de este repo, es 467
-caracteres**<!--m:bullet_max=467--> (un bullet de `memory-retrieval` cuyo campo `Changelog:` supera el tope de 200 — el script avisa y lo respeta), no 325. No es una contradicción del diseño: `RESUMEN_MAX`
+**El techo real del bullet completo, medido el 2026-09-12 con los títulos y las rutas de este
+repo, es 467 caracteres**<!--m@2026-09-12:bullet_max=467--> (un bullet de `memory-retrieval` cuyo campo `Changelog:` supera el tope de 200 — el script avisa y lo respeta), no 325. No es una contradicción del diseño: `RESUMEN_MAX`
 acota **el resumen**, no el bullet, y el resto lo ponen el título del ledger (que no se toca) y la
 lista de ficheros. Escribir el campo alarga el bullet a cambio de que DIGA algo: el `titulo` es
 corto porque no dice nada. Por eso `RESUMEN_MAX` **no** se toca por esto: 200 para el resumen sigue
@@ -202,8 +211,8 @@ solo cubre las iniciativas que faltan en el CHANGELOG):
 
 Con el ledger de esta iniciativa cerrado se le suma `changelog-brief`, con todas sus tareas por el
 camino `changelog` — y después `sin-motor-externo` y `memory-retrieval` (26 tareas más, todas con el campo) —, así que
-el TOTAL de hoy es `titulo` 42 · `frase` 12 · `corte` 9 · `changelog` 44
-sobre 107 tareas.<!--m:camino_titulo=42,camino_frase=12,camino_corte=9,camino_changelog=44,tareas=107-->
+el TOTAL medido el 2026-09-12 es `titulo` 42 · `frase` 12 · `corte` 9 · `changelog` 44
+sobre 107 tareas.<!--m@2026-09-12:camino_titulo=42,camino_frase=12,camino_corte=9,camino_changelog=44,tareas=107-->
 (Ese `changelog` pasó de 6 a 7 y su mediana de 350 a 347 al cerrar T-07, y **el test de las cifras
 lo cazó en los cinco ficheros que lo copiaban**: es exactamente la clase de error que T-07 cierra,
 demostrada sobre sí misma.)
@@ -263,9 +272,9 @@ que hay que saber antes de fiarse del número:
 - **La cola del ledger contaba como parte de la última tarea.** El split solo partía en `### T-XX`
   y `### Fase`, así que `## Notas de cierre`, `## Resumen de progreso` o un apéndice quedaban
   dentro del bloque de la ÚLTIMA tarea; un `- **Changelog**:` citado ahí como ejemplo se publicaba
-  como su resumen. Medido: **27 de 35** ledgers del repo tienen cola tras su última `### T-XX` (de
-  4 a 148 líneas) y **17 de los 19 cerrados** tenían la última tarea
-  expuesta.<!--m:ledgers_con_cola=27,ledgers_totales=35,cerrados_con_cola=17,ledgers_cerrados=19-->
+  como su resumen. Medido el 2026-09-12: **27 de 35** ledgers del repo tienen cola tras su última
+  `### T-XX` (de 4 a 148 líneas) y **17 de los 19 cerrados** tenían la última tarea
+  expuesta.<!--m@2026-09-12:ledgers_con_cola=27,ledgers_totales=35,cerrados_con_cola=17,ledgers_cerrados=19-->
   Ahora el bloque cierra en cualquier `^## ` **fuera de una valla de código**, el mismo criterio que
   `ledger-lint.py`. (La primera versión de este documento escribió esa exposición a mano y no
   reproducía; hoy la cifra la imprime `--medicion` y el marcador de la línea anterior la vigila.)
@@ -373,3 +382,42 @@ skill guarda copia literal, y la suite compara las cadenas byte a byte **y las d
 una tabla única de casos. Y cuenta como deuda: un campo vacío o que es el placeholder aparece en
 `--check --json` → `degradacion.sin_campo_por_motivo` (`ausente` · `vacio` · `placeholder`), porque
 el bullet degrada igual.
+
+
+## Qué es VIVO y qué es HISTÓRICO (T-19)
+
+Hay **dos formas de marcador, y ninguna más**:
+
+| Forma | Qué afirma | Qué comprueba el test |
+|---|---|---|
+| `<!--m:clave=valor-->` | «esto es lo que mide el script **hoy**» | que la medición de hoy da ese valor y que la prosa lo escribe |
+| `<!--m@AAAA-MM-DD:clave=valor-->` | «esto es lo que se midió **ese día**» | que la prosa escribe el valor — y, en documento vivo, también la fecha |
+
+Una marca **viva** solo vale en un documento vivo —`skills/changelog-sync/**` y `docs/CONVENTIONS.md`
+con su espejo EN— y solo para una cifra **estable**: un tope del código o una cifra del corpus base,
+congelado por `CORPUS_BASE_HASTA`. En un documento **histórico** —un ADR, un ledger **cerrado**, una
+entrada de `docs/knowledge/`— la cifra no habla de hoy: es la medición del día en que se decidió, y
+reescribirla cada vez que alguien abre o cierra una iniciativa no la hace más cierta, la falsifica.
+Allí **toda** marca es fechada y la fecha vive en el marcador: la prosa histórica no se reescribe.
+
+Y en un documento vivo, una cifra que cuenta el **corpus completo** (`ledgers_cerrados`, `tareas`,
+`changelog_mediana`…) tampoco es una afirmación sobre hoy: se mueve sola en cuanto alguien abre una
+iniciativa. También va fechada — con la fecha escrita **en la prosa**, porque quien lee la doc no ve
+los comentarios HTML y tiene derecho a saber de qué día es la foto.
+`test_una_cifra_del_corpus_no_puede_marcarse_como_viva` lo impone por la clave, no por la buena
+memoria de quien edita.
+
+La válvula antigua `<!--m?:motivo-->` está **retirada** (gaps B-6 y B-10 de la revisión de R4b), por
+dos defectos medidos: no tenía guarda de ubicación —congelar con ella 45 marcas vivas de este
+fichero bajaba la suite de 191 a 75 comprobaciones, en verde y sin un aviso— y **perdía la clave**,
+así que el marcador no decía qué congelaba. La forma fechada conserva `clave=valor`, y aun así
+`ADR-012` se queda en 10.717 caracteres, por debajo del tope de 10.800 de
+`tests/test_knowledge_find.py`.
+
+Lo que costaba no distinguirlo, medido: abrir una iniciativa de prueba ponía
+`tests/test_cifras_medidas.py` en **25 fallos**, 14 en documentos históricos y 11 en prosa viva
+caducada. Con las dos reglas —históricos fechados, cifras de corpus fechadas con su fecha visible—
+el mismo experimento da **0**, y lo que sigue vigilado son las 145 comprobaciones vivas que sí
+pueden afirmarse en presente. `test_no_hay_marcas_vivas_en_documentos_historicos` guarda la regla
+por **ubicación** y `test_cada_fichero_vivo_conserva_sus_comprobaciones` el mínimo **por fichero**,
+para que la distinción no dependa de acordarse.
