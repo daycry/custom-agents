@@ -4,10 +4,11 @@
 
 Repositorio de **agentes custom** con sus skills y toolkits. Funciona en **Claude Code** (plugin nativo, la casa de origen), **Codex** y **OpenCode**: la instalación de cada uno está en [`INSTALL.md`](INSTALL.md) (incluido el instalador `npx @daycry/custom-agents`) y qué cambia o se pierde en cada runtime, en [`INTEROP.md`](INTEROP.md).
 
-> **Cómo se teclean los comandos.** Instalado como plugin, el nombre real lleva el espacio de
-> nombres: **`/custom-agents:dev-cycle`**, `/custom-agents:roadmap-metrics`,
-> `/custom-agents:retro`… La forma corta (`/dev-cycle`), que este índice usa por brevedad, solo
-> funciona con el bundle copiado a mano en `.claude/commands/` (detalle en «Comandos»).
+> **Cómo se teclean los comandos.** En Claude Code instalado como plugin, el nombre real lleva el
+> espacio de nombres: **`/custom-agents:dev-cycle`**, `/custom-agents:roadmap-metrics`,
+> `/custom-agents:retro`… En Codex aparece como prompt sin namespace (`/prompt:dev-cycle` o
+> `/prompts:dev-cycle`), y en OpenCode como comando corto (`/dev-cycle`).
+> Este índice usa la forma corta por brevedad (detalle en «Comandos»).
 
 ```mermaid
 flowchart LR
@@ -57,7 +58,10 @@ Antes de añadir o tocar un agente, lee [`CONVENTIONS.md`](CONVENTIONS.md): defi
 
 Dirigen la cadena invocando a los agentes **por nombre** y con puertas de control, sobre la **misma carpeta por iniciativa** `docs/roadmap/<fecha>-<slug>/`.
 
-> **Cómo se teclean.** Instalado como plugin (marketplace o `npx @daycry/custom-agents install`), el nombre real lleva el espacio de nombres del plugin: **`/custom-agents:dev-cycle`**, `/custom-agents:pm-cycle`, `/custom-agents:doctor`… La forma corta `/dev-cycle` **solo** funciona con el bundle copiado a mano en `.claude/commands/`; en una instalación de plugin da «Unknown command». En esta tabla y en el resto de la documentación se escribe la forma corta por brevedad; `/custom-agents:doctor` te dice cuál aplica en tu instalación.
+> **Cómo se teclean.** Instalado como plugin (marketplace o `npx @daycry/custom-agents install`), en
+> Claude Code el nombre real lleva el espacio de nombres: **`/custom-agents:dev-cycle`**, `/custom-agents:pm-cycle`,
+> `/custom-agents:doctor`… En Codex aparece sin namespace como `/prompt:dev-cycle` (o `/prompts:dev-cycle`)
+> y en OpenCode como `/dev-cycle`. `/custom-agents:doctor` te dice cuál aplica en un entorno de plugin de Claude Code.
 
 | Comando | Rol | Alcance | Cierre |
 |---------|-----|---------|--------|

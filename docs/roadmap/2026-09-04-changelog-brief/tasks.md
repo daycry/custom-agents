@@ -181,7 +181,7 @@ generacion:
 - **Archivos**: `skills/changelog-sync/scripts/changelog-sync.py`, `skills/changelog-sync/scripts/test_changelog_sync.py`, `skills/changelog-sync/SKILL.md`, `skills/changelog-sync/references/medicion-escalera.md`, `agent-kits/shared/ledger-lint.py`, `agent-kits/planner/templates/tasks.md`, `tests/test_ledger_lint.py`, `docs/CONVENTIONS.md`, `docs/en/CONVENTIONS.md`, `docs/knowledge/adr/ADR-012-resumen-del-changelog-lo-escribe-quien-cierra-la-tarea.md`, `docs/knowledge/README.md`, `docs/roadmap/README.md`, `docs/roadmap/2026-09-04-changelog-brief/tasks.md`
 - **Verificación** (ejecutada 2026-09-04):
   - **Reproducción del CRITICAL 1** (ledger real con `- **Changelog**:` vacío). ANTES: `ledger-lint` → `⚠️  T-01: campo **Changelog** VACÍO …` **exit 0** (solo aviso, como el diseño quiere) · `changelog-sync --check` → **no menciona T-01** (para él el campo tiene contenido) · publicado → `- **T-01 — Arranque sin config** - **Estado**: completado`. DESPUÉS: `--check` → `⚠️  demo: 1/1 tarea(s) sin \`- **Changelog**:\` [T-01] — su bullet degrada al título; …` · publicado → `- **T-01 — Arranque sin config** ([ledger](docs/roadmap/2026-05-05-demo/tasks.md))`. Unitario del patrón: `re.search(r"^- \*\*Changelog\*\*\s*:\s*(.*)$", b, re.M).group(1)` → `'- **Estado**: completado'`; con `[^\S\n]*` → `''`. El mismo unitario sobre `Descripción` (fallo ya presente en `a7a11b0`) → `'- **Estado**: completado'` → `''`
-  - **Reproducción del IMPORTANT 2** (un `- **Changelog**: EJEMPLO DE DOCUMENTACION…` dentro de `## Notas de cierre`). ANTES: `- **T-02 — Segunda tarea** EJEMPLO DE DOCUMENTACION — esto NO es el resumen de ninguna tarea.` DESPUÉS: `- **T-02 — Segunda tarea** \`agent-kits/shared/loquesea.py\` gana tres subcomandos nuevos que hacen cosas distintas.` (cae al camino `corte`, como debe). Exposición medida: **27 de 35** ledgers del repo tienen cola tras su última `### T-XX` (de 4 a 148 líneas) y **17 de los 19 cerrados** tenían la última tarea expuesta<!--m:ledgers_con_cola=27,ledgers_totales=35,cerrados_con_cola=17,ledgers_cerrados=19--> (esta línea decía «12 de los 14»; son 13, y hoy lo mide `--medicion`)
+  - **Reproducción del IMPORTANT 2** (un `- **Changelog**: EJEMPLO DE DOCUMENTACION…` dentro de `## Notas de cierre`). ANTES: `- **T-02 — Segunda tarea** EJEMPLO DE DOCUMENTACION — esto NO es el resumen de ninguna tarea.` DESPUÉS: `- **T-02 — Segunda tarea** \`agent-kits/shared/loquesea.py\` gana tres subcomandos nuevos que hacen cosas distintas.` (cae al camino `corte`, como debe). Exposición medida: **27 de 35** ledgers del repo tienen cola tras su última `### T-XX` (de 4 a 148 líneas) y **17 de los 19 cerrados** tenían la última tarea expuesta<!--m@2026-09-11:ledgers_con_cola=27,ledgers_totales=35,cerrados_con_cola=17,ledgers_cerrados=19--> (esta línea decía «12 de los 14»; son 13, y hoy lo mide `--medicion`)
   - **IMPORTANT 3**: `-  **Changelog**: Frase.` (dos espacios) y `  - **Changelog**: Frase.` (indentado) → ANTES `sync=NO · lint=SI`; DESPUÉS los dos `SI`, y `test_los_dos_parsers_del_campo_reconocen_LOS_MISMOS_casos` los enfrenta sobre 11 casos + `test_el_patron_del_campo_es_el_canonico_del_kit` compara las cadenas byte a byte
   - **IMPORTANT 4**: `resumen(None, "Corrige el orden Sr. Pérez en la firma del comentario. Ahora el CHANGELOG sale en dos idiomas.")` → ANTES `('Corrige el orden Sr. Pérez en la firma del comentario.', 'changelog', ['campo \`Changelog:\` de más de 2 frases — se usan las dos primeras'])`; DESPUÉS el texto ENTERO y `avisos=[]`. Igual con `vs.` y `p. ej.` seguidos de mayúscula
   - **IMPORTANT 5 — campaña de mutantes** (misma campaña, mismo fichero de tests, ejecutada en un árbol temporal): **intento 1 → 14 de 25 sobreviven** (`ABRE` sin `(`/`[`/`{`, `CIERRA` sin `]`, `CORTES` sin `;`/`—`/`–`/ambas rayas, corte por `(` desactivado, `RESUMEN_MAX` 200→120 y →400, `ARCHIVOS_MAX_TOCADOS` 2×→4×, `CORTE_MIN_PALABRAS` 5→1 y →9). **Ahora: 0 de 40 sobreviven** (las 25 anteriores + 15 del criterio nuevo: campo que se come el `\n`, `Descripción` idem, campo que exige `- ` exacto, bloque que no acaba en `^## `, `ABREVIATURAS` vacío / sin `vs.` / sin `sr.` / con `uu.`, placeholder ignorado, continuación no absorbida, negrita borrada en vez de cerrada, enlace Markdown sin guarda, acentos graves de uno en uno, `degradacion` sin `titulo`, prosa sin diéresis)
@@ -303,7 +303,7 @@ nadie escribió**.
 
 ### Lo que sigue saliendo pobre (medido, no tapado)
 
-Con los ledgers del corpus base, **42 de 63 tareas (67 %) degradan al título**.<!--m:base_camino_titulo=42,base_tareas=63,base_degradan_titulo_pct=67--> Tres ejemplos
+Con los ledgers del corpus base, **42 de 63 tareas (67 %) degradan al título**.<!--m@2026-09-11:base_camino_titulo=42,base_tareas=63,base_degradan_titulo_pct=67--> Tres ejemplos
 reales, con el bullet completo tal y como queda:
 
 ```
@@ -327,20 +327,20 @@ coma y queda colgando).
 
 | | Mediana | Máximo | Media | Bullets > 400 chars |
 |---|---|---|---|---|
-| Antes (`a7a11b0`) | 660 | 2.163 | 758 | 100/126 |<!--m?:cifra historica: la fila ANTES la midio el script de a7a11b0-->
-| Después | 128 | 325 | 153 | **0/126** |<!--m:base_bullet_mediana=128,base_bullet_max=325,base_bullet_media=153,base_bullet_mayores_400=0-->
+| Antes (`a7a11b0`) | 660 | 2.163 | 758 | 100/126 |<!--m@2026-09-04:a7a11b0_bullet_mediana=660,a7a11b0_bullet_max=2163,a7a11b0_bullet_media=758-->
+| Después | 128 | 325 | 153 | **0/126** |<!--m@2026-09-11:base_bullet_mediana=128,base_bullet_max=325,base_bullet_media=153,base_bullet_mayores_400=0-->
 
 Ese agregado engaña, y T-06 lo re-midió: la mediana de 128 sale de un corpus donde **42 de 63
 bullets son solo el título**, o sea del camino que la iniciativa quiere EVITAR. Por camino:
 `titulo` 42 · mediana 115 · máx 168 | `corte` 9 · 170 · 280 | `frase` 12 · 260 ·
-325.<!--m:camino_titulo=42,titulo_mediana=115,titulo_max=168,camino_corte=9,corte_mediana=170,corte_max=280,camino_frase=12,frase_mediana=260,frase_max=325-->
+325.<!--m@2026-09-11:camino_titulo=42,titulo_mediana=115,titulo_max=168,camino_corte=9,corte_mediana=170,corte_max=280,camino_frase=12,frase_mediana=260,frase_max=325-->
 Y con este ledger cerrado (hoy 19 ledgers, 107 tareas, tras `sin-motor-externo` y `memory-retrieval`) aparece el camino que se promueve, que es **el
 que produce los bullets más largos**: `changelog` 44 · mediana **342** · máx
-**467**.<!--m:ledgers_cerrados=19,tareas=107,camino_changelog=44,changelog_mediana=342,changelog_max=467-->
-El techo real del bullet completo es por tanto **467** (un bullet de `memory-retrieval` con el campo `Changelog:` por encima del tope), no 325.<!--m:bullet_max=467--> La descomposición del de 325 (`windows-console/T-06`) es
+**467**.<!--m@2026-09-11:ledgers_cerrados=19,tareas=107,camino_changelog=44,changelog_mediana=342,changelog_max=467-->
+El techo real del bullet completo es por tanto **467** (un bullet de `memory-retrieval` con el campo `Changelog:` por encima del tope), no 325.<!--m@2026-09-11:bullet_max=467--> La descomposición del de 325 (`windows-console/T-06`) es
 cabecera 83 + espacio + resumen **152** + lista de 3 ficheros **89** (una versión anterior decía
 «resumen 150 · título 68 · lista 96»: el total 325 y la conclusión eran correctos, las tres
-componentes no).<!--m:base_peor_cabecera=83,base_peor_resumen=152,base_peor_ficheros=89,base_bullet_max=325-->
+componentes no).<!--m@2026-09-11:base_peor_cabecera=83,base_peor_resumen=152,base_peor_ficheros=89,base_bullet_max=325-->
 El título es del ledger y no se toca, y `RESUMEN_MAX` tampoco: acota el resumen.
 
 ### Consecuencia deliberada: `changelog-sync --check` queda en rojo
@@ -398,7 +398,7 @@ genéricos de `retro`/`roadmap-status`/`setup`, preexistentes.
   `bullets()`.
 - **`RESUMEN_MAX` no acota el bullet completo**, solo el resumen. Techo real medido con los títulos
   y las rutas de este repo: **467 caracteres** (hoy un bullet de `memory-retrieval`, camino `changelog`), no
-  325.<!--m:bullet_max=467-->
+  325.<!--m@2026-09-11:bullet_max=467-->
   Y el desglose por camino dice algo incómodo que la doc ahora escribe: el camino que la iniciativa
   PROMUEVE es el que produce los bullets más largos (`changelog` mediana 350 · máximo 376;
   `titulo` mediana 115 · máximo 168). Es el precio de que el bullet DIGA algo, no un fallo del
@@ -417,7 +417,7 @@ genéricos de `retro`/`roadmap-status`/`setup`, preexistentes.
   pediría segmentación de frases de verdad, que es justo el determinismo frágil que la iniciativa
   evita. Lo que sí es un tope real es la LONGITUD, y de eso avisa `RESUMEN_MAX` siempre.
 - **La lista `ABREVIATURAS` es cerrada.** Cubre 26 formas frecuentes del español técnico (con
-  `ee.` dentro, y `uu.` y `etc.` fuera: decidido, con motivo y con test),<!--m:abreviaturas=26-->
+  `ee.` dentro, y `uu.` y `etc.` fuera: decidido, con motivo y con test),<!--m@2026-09-11:abreviaturas=26-->
   pero una abreviatura no listada seguida de mayúscula seguirá pareciendo fin de frase. Ampliarla
   es una línea; detectarlas en general, no. (Esta línea decía «las 28 formas» y nunca fueron 28; la
   cifra la imprime ahora `--medicion` y la compara la suite.)
@@ -426,7 +426,7 @@ genéricos de `retro`/`roadmap-status`/`setup`, preexistentes.
   cerrarlos corrompería el texto. Exposición medida: **0 desbalanceados en los 69 bullets reales**,
   y ahora hay test (`test_los_bullets_reales_del_repo_estan_equilibrados_en_markdown`) que lo
   vigila en cada ejecución de la suite en vez de fiarse de un barrido de una vez (hoy son 107
-  bullets).<!--m:tareas=107-->
+  bullets).<!--m@2026-09-11:tareas=107-->
 - **Los 6 avisos de ledger legacy sin frontmatter siguen ahí** (`--check` los repite en cada
   ejecución). Es correcto —son ledgers que no se pueden sincronizar— y es anterior a esta
   iniciativa; si molestan, el arreglo natural es la misma receta que T-06 aplicó al aviso del
@@ -473,6 +473,6 @@ Lentes **A** y **B** sobre `5a51d7c..d2b05f9`, con la tabla del intento 1 traspa
 | 21 | Minor | La prueba de cifras contaba como cifra a medir **su propia forma citada** en la doc: la traza de esta revisión, al documentar el marcador entre acentos graves, se puso roja a sí misma (`FAILED …[tasks.md:453:clave=valor]`) | T-07 | Una marca dentro de un tramo de código es una CITA, no una instancia — el mismo criterio que `es_placeholder()` con `{{…}}` | Mutar la guarda pone rojos los dos tests; sin ella, la doc del mecanismo es imposible de escribir |
 | 20 | Minor | Seis latentes de exposición 0 con el mismo patrón: `### Fase` cerrando distinto en cada parser, el cierre en `^##` sin conciencia de vallas de código, `RE_CONTINUACION` absorbiendo tabla/lista/cita/código indentados, el guard de placeholder sin cubrir `Descripción`, la clase de letras sin catalán, y promesas sin cualificar | T-07 | Corregidos | — |
 
-**El arreglo de la clase** (lo que pedí en vez de corregir nueve números): las cifras verificables van marcadas en la prosa con `<!--m:clave=valor-->` y `tests/test_cifras_medidas.py` **las compara contra la medición viva**, fallando cuando divergen; las que no son deterministas (un RED histórico) se marcan como no verificables en vez de fingir que lo son. Se demostró mutando una: `FAILED …[docs/knowledge/README.md:58:changelog_mediana=999]`. Y se cazó a sí mismo dos veces — al corregir «los 63 ledgers» dentro de un campo `Changelog:` lo empujó a 205 caracteres y saltó el aviso de tope; y al cerrar T-07, su propia tarea movió el corpus (camino `changelog` 6 → 7, total 69 → 70, mediana 350 → 347) y el test señaló las cinco apariciones una a una.
+**El arreglo de la clase** (lo que pedí en vez de corregir nueve números): las cifras verificables van marcadas en la prosa con `<!--m@2026-09-11:clave=valor-->` y `tests/test_cifras_medidas.py` **las compara contra la medición viva**, fallando cuando divergen; las que no son deterministas (un RED histórico) se marcan como no verificables en vez de fingir que lo son. Se demostró mutando una: `FAILED …[docs/knowledge/README.md:58:changelog_mediana=999]`. Y se cazó a sí mismo dos veces — al corregir «los 63 ledgers» dentro de un campo `Changelog:` lo empujó a 205 caracteres y saltó el aviso de tope; y al cerrar T-07, su propia tarea movió el corpus (camino `changelog` 6 → 7, total 69 → 70, mediana 350 → 347) y el test señaló las cinco apariciones una a una.
 
 **Cierre del bucle.** Dos intentos de lente con contexto fresco, y el tercero verificado en la orquestación: reproduje los tres arreglos de comportamiento (13, 14 y 15), la mutación que demuestra la puerta nueva (19), la mutación que pone roja una cifra de la prosa, y el arnés de mutantes completo. Queda dicho: **la última ronda no ha pasado por una lente de contexto fresco**. Lo que la respalda son 1.174 tests verdes en las dos codificaciones, 56 de 56 mutantes muertos con arnés versionado, y el test de cifras que ya no deja que la prosa se separe de la medición.

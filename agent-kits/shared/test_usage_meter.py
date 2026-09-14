@@ -551,6 +551,66 @@ def test_ratio_de_calibration_mediana(entorno, tmp_path):
     assert res["horas_ia"] == 1.0
 
 
+def test_ratio_ignora_filas_marcadas_estimado(entorno, tmp_path):
+    """T-17 (arista E7): una fila cuyo `tokens/hora` NO se midió se marca `(estimado)` en la celda
+    y queda FUERA de la mediana. Sin el filtro, la mediana se alimenta de su propia salida (la fila
+    estimada suele traer el ratio vigente heredado) y la calibración se vuelve circular.
+
+    El caso está construido para que el filtro sea VISIBLE: con la fila estimada dentro, la mediana
+    de {200k, 250k, 400k, 1M} sería 325k; sin ella, la mediana de {200k, 250k, 400k} es 250k."""
+    tmp, tdir, state = entorno
+    cal = tmp_path / "CALIBRATION.md"
+    cal.write_text(
+        "| Iniciativa | tokens/hora (medido) |\n|---|---|\n"
+        "| a | 200000 |\n| b | 400.000 |\n| c | ~250000 |\n"
+        "| d | **(estimado)** -- heredó el ratio vigente 1000000, no lo midió |\n",
+        encoding="utf-8")
+    res = _start_close(tdir, state, antes=[],
+                       despues=[_rec("m1", inp=250_000)],
+                       close_args=["--calibration", str(cal)])
+    assert res["ratio_usado"] == 250_000, (
+        "la fila (estimado) no puede entrar en la mediana; con ella saldría 325000")
+    assert res["ratio_origen"] == "CALIBRATION.md (mediana de 3)", res["ratio_origen"]
+
+
+def test_ratio_cuenta_la_fila_sin_marca(entorno, tmp_path):
+    """La otra mitad del filtro: una fila SIN la marca sigue contando. El mismo fichero del test
+    anterior con `(estimado)` quitado vuelve a dar 4 muestras y mediana 325k — si este test pasara
+    con 3, el filtro estaría descartando filas buenas."""
+    tmp, tdir, state = entorno
+    cal = tmp_path / "CALIBRATION.md"
+    cal.write_text(
+        "| Iniciativa | tokens/hora (medido) |\n|---|---|\n"
+        "| a | 200000 |\n| b | 400.000 |\n| c | ~250000 |\n"
+        "| d | 1000000 |\n", encoding="utf-8")
+    res = _start_close(tdir, state, antes=[],
+                       despues=[_rec("m1", inp=325_000)],
+                       close_args=["--calibration", str(cal)])
+    assert res["ratio_usado"] == 325_000, "sin marca, la 4.a fila cuenta (mediana de 250k y 400k)"
+    assert res["ratio_origen"] == "CALIBRATION.md (mediana de 4)", res["ratio_origen"]
+
+
+def test_ratio_ignora_la_marca_en_otra_columna_y_en_mayusculas(entorno, tmp_path):
+    """Gap B-11: el filtro miraba SOLO la celda de `tokens/hora` y SOLO en minúsculas. Quien marca
+    una fila la marca donde le cabe —casi siempre en la celda de notas— y escribe «(Estimado)» tan
+    a menudo como «(estimado)», así que las dos filas de abajo entraban en la mediana pese a estar
+    marcadas: 325k en vez de 250k, y la calibración volvía a comerse su propia salida."""
+    tmp, tdir, state = entorno
+    cal = tmp_path / "CALIBRATION.md"
+    cal.write_text(
+        "| Iniciativa | tokens/hora (medido) | Notas |\n|---|---|---|\n"
+        "| a | 200000 | medido |\n| b | 400.000 | medido |\n| c | ~250000 | medido |\n"
+        "| d | 1000000 | **(Estimado)**: heredó el ratio vigente, no lo midió |\n",
+        encoding="utf-8")
+    res = _start_close(tdir, state, antes=[],
+                       despues=[_rec("m1", inp=250_000)],
+                       close_args=["--calibration", str(cal)])
+    assert res["ratio_usado"] == 250_000, (
+        "la marca vale en cualquier celda de la fila y en cualquier caja; con la fila dentro "
+        "saldría 325000")
+    assert res["ratio_origen"] == "CALIBRATION.md (mediana de 3)", res["ratio_origen"]
+
+
 def test_ratio_default_marcado_no_calibrado(entorno, tmp_path):
     """Sin CALIBRATION.md se usa el default y se marca como no calibrado.
     El test apunta --calibration a una ruta INEXISTENTE a propósito: si no, leería

@@ -20,18 +20,45 @@ MECANISMO (por qué este y no otro)
        espejos marcan las MISMAS claves.
     3. El marcador es un comentario HTML: invisible al renderizar, y localizable con `grep`.
 
-  Forma: `<!--m:clave=valor-->` (una o varias claves separadas por comas) justo después de la
-  cifra. El test comprueba DOS cosas por marcador: que `valor` es lo que mide el script HOY, y que
-  ese `valor` aparece literalmente en el texto que precede al marcador (para que no se pueda
-  actualizar el marcador dejando la prosa vieja). Una cifra que NO es medible de forma determinista
-  —un RED histórico, el «antes» medido con el script de `a7a11b0`, que en un clon superficial de CI
-  no existe— se marca `<!--m?:motivo-->` y el test exige el motivo, en vez de fingir que reproduce.
+LAS DOS FORMAS DEL MARCADOR (y ninguna más)
+  `<!--m:clave=valor-->`             VIVA: «esto es lo que mide el script HOY». El test compara
+                                     contra `changelog-sync.py --medicion` y exige que el número
+                                     esté escrito en la prosa que precede al marcador.
+  `<!--m@AAAA-MM-DD:clave=valor-->`  FECHADA: «esto es lo que se midió ESE día». No se compara
+                                     contra la medición de hoy. El test exige que el valor esté en
+                                     la prosa y —en un documento VIVO— que la FECHA también esté
+                                     escrita en la prosa, donde la ve quien lee.
+
+  La válvula antigua `<!--m?:motivo-->` está **retirada** (T-19, gaps B-6/B-10 de la revisión de
+  R4b). Dos motivos medidos, no de gusto:
+    · No tenía guarda de ubicación: congelar con ella 45 marcas vivas de `medicion-escalera.md`
+      bajaba la suite de 191 a 75 comprobaciones **en verde y sin un aviso**. Un motivo en prosa no
+      es una guarda; una fecha comprobable sí.
+    · Perdía la clave. `<!--m?:historico medido el 2026-09-11-->` no dice QUÉ congela, así que nadie
+      puede volver a medirlo ni saber si la prosa de al lado sigue siendo esa cifra.
+  `test_la_valvula_m_interrogacion_esta_retirada` mantiene la retirada.
+
+VIVO vs HISTÓRICO vs FECHADO (T-19, arista E11 de `docs/agents/CONTRACTS.md`)
+  Un documento HISTÓRICO —un ADR, un ledger CERRADO, una entrada de `docs/knowledge/`— ya es una
+  foto con fecha: lo que escribe es la medición **del día en que se decidió**, y volver a escribirla
+  cada vez que el corpus se mueve no la hace más cierta, la falsifica. Ahí TODA marca es fechada, y
+  la fecha vive en el marcador: la prosa histórica no se reescribe.
+  Un documento VIVO (`skills/changelog-sync/**`, `docs/CONVENTIONS.md` y su espejo EN) se mantiene
+  al día a propósito, así que ahí una cifra puede ser viva… **si es medible de forma estable**. Las
+  que dependen del CORPUS COMPLETO (`ledgers_cerrados`, `tareas`, `changelog_mediana`…) se mueven al
+  abrir o cerrar cualquier iniciativa: afirmarlas «hoy» pone la suite roja por prosa que nadie
+  quería tocar (25 fallos medidos en el experimento de T-19). Esas van FECHADAS, y la fecha se
+  escribe también en la prosa — que es la diferencia entre una foto y una afirmación caducada.
+  `test_una_cifra_del_corpus_no_puede_marcarse_como_viva` impide volver atrás, y
+  `test_no_hay_marcas_vivas_en_documentos_historicos` guarda la regla por UBICACIÓN.
 
 Ejecuta: `python3 -m pytest -q tests/test_cifras_medidas.py` o `python3 tests/test_cifras_medidas.py`
 """
+import glob
 import importlib.util
 import os
 import re
+import warnings
 
 import pytest
 
@@ -58,8 +85,39 @@ COBERTURA_MINIMA = ("base_ledgers", "base_tareas", "ledgers_cerrados", "tareas",
                     "changelog_mediana", "bullet_max", "abreviaturas",
                     "placeholder_plantilla", "cerrados_con_cola", "resumen_max")
 
+# Mínimo de comprobaciones VIVAS por fichero (gap B-6 de la revisión de R4b). Un umbral GLOBAL no
+# sirve: `medicion-escalera.md` aporta el 90 % de las marcas, así que se pueden congelar 45 de sus
+# comprobaciones sin que un mínimo global se entere. Estas cifras son las medidas hoy menos un
+# margen corto: bajar de aquí es haber sacado comprobaciones de la puerta, y hay que justificarlo
+# tocando esta tabla (que se ve en el diff) en vez de en silencio.
+MINIMO_VIVAS_POR_FICHERO = {
+    "skills/changelog-sync/references/medicion-escalera.md": 120,   # hoy 132
+    "skills/changelog-sync/SKILL.md": 8,                            # hoy 9
+    "docs/CONVENTIONS.md": 2,                                       # hoy 2
+    "docs/en/CONVENTIONS.md": 2,                                    # hoy 2
+}
+
+# Claves que NO dependen del corpus completo y por eso pueden afirmarse en presente:
+#   · las `base_*` miden el corpus BASE, congelado por `CORPUS_BASE_HASTA` en `changelog-sync.py`;
+#   · estas siete son constantes del código (topes y tablas), no cuentas de ledgers.
+CONSTANTES_DE_CODIGO = ("resumen_max", "resumen_frases_max", "archivos_max",
+                        "archivos_max_tocados", "corte_min_palabras", "abreviaturas",
+                        "placeholder_plantilla")
+
+# Ubicaciones donde una marca VIVA (`m:`) es un error de clase: lo que se escribe ahí es
+# histórico por naturaleza. Un ADR registra la medición del día en que se decidió; un ledger
+# cerrado, la del día en que se cerró; un gotcha o una lección, la del día que costó el error.
+# `docs/knowledge/**` entero, no solo `adr/`: el índice de la memoria se quedaba fuera (gap B-9).
+GLOBS_HISTORICOS = ("docs/knowledge/**/*.md", "docs/roadmap/**/*.md")
+# Excepción: el ledger de la iniciativa EN CURSO todavía se escribe, así que sus marcas pueden ser
+# vivas mientras no se cierre. Se reconoce por su `estado:` de frontmatter, no por una lista de
+# slugs que habría que mantener a mano — y la ausencia de `estado:` NO exime (gap B-9: 14 de los
+# ledgers del repo no lo declaran y la guarda fallaba ABIERTA justo donde más marcas hay).
+RE_ESTADO_ABIERTO = re.compile(r"^estado:\s*(borrador|en-progreso|aprobada|propuesta)\b", re.M)
+
 RE_MARCA = re.compile(r"<!--m:([^>]*?)-->")
-RE_NO_VERIFICABLE = re.compile(r"<!--m\?:([^>]*?)-->")
+RE_FECHADA = re.compile(r"<!--m@(\d{4}-\d{2}-\d{2}):([^>]*?)-->")
+RE_VALVULA_RETIRADA = re.compile(r"<!--m\?:([^>]*?)-->")
 RE_PAR = re.compile(r"^([a-z0-9_]+)=(-?\d+)$")
 
 
@@ -77,6 +135,21 @@ MEDIDO = _medicion()
 # línea: la prosa va justificada a 100 columnas y el número casi nunca cae en la misma línea que
 # el marcador.
 VENTANA = 260
+# La FECHA de una cifra fechada se busca en una ventana más larga, y no por comodidad: una tabla de
+# cinco filas lleva la fecha UNA vez en la frase que la encabeza, y repetirla en cada fila la hace
+# ilegible. 1.200 caracteres son, medidos en `medicion-escalera.md`, la distancia de la cabecera de
+# la tabla más larga a su última fila, con margen.
+VENTANA_FECHA = 1200
+
+
+def es_clave_de_corpus(clave):
+    """¿La cifra se mueve al abrir o cerrar CUALQUIER iniciativa?
+
+    Es la pregunta que decide si una marca puede ser viva. `base_*` mide el corpus congelado y las
+    de `CONSTANTES_DE_CODIGO` son topes del script: esas no se mueven. Todo lo demás cuenta ledgers
+    o tareas del corpus de hoy, y afirmarlo en presente es prometer algo que caduca solo.
+    """
+    return not clave.startswith("base_") and clave not in CONSTANTES_DE_CODIGO
 
 
 def en_tramo_de_codigo(texto, pos):
@@ -92,25 +165,57 @@ def en_tramo_de_codigo(texto, pos):
     return texto.count("`", ini, pos) % 2 == 1
 
 
-def _marcas():
-    """[(fichero, linea, `clave=valor`, contexto)] de todos los `<!--m:…-->` del corpus."""
+def _formas(valor):
+    """El mismo número tal y como puede estar escrito en la prosa ES o EN (1944 · 1.944 · 1,944)."""
+    return {str(valor), f"{valor:,}".replace(",", "."), f"{valor:,}"}
+
+
+def _escrito_en(ctx, aguja):
+    return re.search(rf"(?<!\d){re.escape(aguja)}(?!\d)", ctx) is not None
+
+
+def _recorrer(patron, grupo_pares, ventana=VENTANA):
     out = []
     for rel in FICHEROS:
         p = os.path.join(ROOT, rel)
         if not os.path.isfile(p):
             continue
         texto = open(p, encoding="utf-8").read()
-        for m in RE_MARCA.finditer(texto):
+        for m in patron.finditer(texto):
             if en_tramo_de_codigo(texto, m.start()):
                 continue     # marca CITADA para documentar la forma, no una cifra que medir
             linea = texto.count("\n", 0, m.start()) + 1
-            ctx = texto[max(0, m.start() - VENTANA):m.start()]
-            for par in m.group(1).split(","):
-                out.append((rel, linea, par.strip(), ctx))
+            ctx = texto[max(0, m.start() - ventana):m.start()]
+            for par in m.group(grupo_pares).split(","):
+                out.append((rel, linea, par.strip(), ctx, m))
     return out
 
 
+def _marcas():
+    """[(fichero, linea, `clave=valor`, contexto)] de todos los `<!--m:…-->` del corpus."""
+    return [(r, n, p, c) for r, n, p, c, _m in _recorrer(RE_MARCA, 1)]
+
+
+def _fechadas():
+    """[(fichero, linea, fecha, `clave=valor`, contexto)] de los `<!--m@AAAA-MM-DD:…-->`."""
+    return [(r, n, m.group(1), p, c) for r, n, p, c, m in _recorrer(RE_FECHADA, 2, VENTANA_FECHA)]
+
+
 MARCAS = _marcas()
+FECHADAS = _fechadas()
+
+
+def _historicos_de_ficheros():
+    """Los ficheros que caen en una ubicación histórica (ahí la fecha vive en el marcador y la
+    prosa no se reescribe)."""
+    hist = set()
+    for patron in GLOBS_HISTORICOS:
+        for p in glob.glob(os.path.join(ROOT, patron), recursive=True):
+            hist.add(os.path.relpath(p, ROOT).replace(os.sep, "/"))
+    return hist
+
+
+HISTORICOS = _historicos_de_ficheros()
 
 
 def test_hay_cifras_marcadas():
@@ -129,53 +234,143 @@ def test_cada_cifra_marcada_es_la_que_mide_el_script(rel, linea, par, ctx):
     assert MEDIDO[clave] == valor, (f"{rel}:{linea}: la doc dice {clave} = {valor} y la medición "
                                     f"de hoy dice {MEDIDO[clave]} — corrige la prosa (o el código)")
     # …y la prosa dice de verdad ese número (con o sin separador de millares)
-    formas = {str(valor), f"{valor:,}".replace(",", ".")}
-    assert any(re.search(rf"(?<!\d){re.escape(f)}(?!\d)", ctx) for f in formas), (
+    assert any(_escrito_en(ctx, f) for f in _formas(valor)), (
         f"{rel}:{linea}: la marca dice {clave} = {valor} pero el texto que la precede no lo "
         f"escribe: «{ctx[-90:]}»")
 
 
-def test_las_cifras_no_verificables_declaran_su_motivo():
-    """Una cifra histórica (medida con el script de `a7a11b0`, o un RED de un commit anterior) no
-    se puede re-medir en un clon superficial: se marca como NO verificable CON motivo, en vez de
-    fingir que reproduce."""
-    vistas = 0
-    for rel in FICHEROS:
-        p = os.path.join(ROOT, rel)
-        if not os.path.isfile(p):
-            continue
-        texto = open(p, encoding="utf-8").read()
-        for m in RE_NO_VERIFICABLE.finditer(texto):
-            n = texto.count("\n", 0, m.start()) + 1
-            motivo = m.group(1).strip()
-            assert len(motivo) >= 12, f"{rel}:{n}: `m?` sin motivo utilizable («{motivo}»)"
-            assert not RE_PAR.match(motivo), \
-                f"{rel}:{n}: `m?` con forma de clave=valor: si es medible, márcala con `m:`"
-            vistas += 1
-    assert vistas, "ninguna cifra marcada como no verificable: ¿se han borrado las marcas `m?`?"
+@pytest.mark.parametrize("rel,linea,par,ctx", MARCAS,
+                         ids=[f"{r}:{n}:{p}" for r, n, p, _c in MARCAS])
+def test_una_cifra_del_corpus_no_puede_marcarse_como_viva(rel, linea, par, ctx):
+    """T-19 / gap A-1 de R4b: la cifra que se mueve al abrir una iniciativa NO es una afirmación
+    sobre hoy, es una foto — y tratarla como viva es lo que ponía la suite roja por prosa que nadie
+    tocó. Se marca fechada, con su fecha escrita en la prosa."""
+    clave = par.split("=")[0]
+    assert not es_clave_de_corpus(clave), (
+        f"{rel}:{linea}: «{clave}» depende del corpus completo y se mueve al abrir o cerrar "
+        f"cualquier iniciativa: márcala fechada, `<!--m@AAAA-MM-DD:{par}-->`, y escribe la fecha "
+        f"de medición en la prosa")
+
+
+@pytest.mark.parametrize("rel,linea,fecha,par,ctx", FECHADAS,
+                         ids=[f"{r}:{n}:{p}@{f}" for r, n, f, p, _c in FECHADAS])
+def test_cada_cifra_fechada_dice_su_cifra_y_su_fecha(rel, linea, fecha, par, ctx):
+    """Una cifra fechada no se compara contra hoy, así que su guarda es otra: que diga QUÉ congela
+    (clave y valor, lo que la válvula `m?:` perdía) y que la prosa escriba ese número. En un
+    documento VIVO, además, la FECHA tiene que estar en la prosa: es lo único que distingue una
+    foto honesta de una cifra caducada, y quien lee la doc no ve los comentarios HTML."""
+    m = RE_PAR.match(par)
+    assert m, (f"{rel}:{linea}: marca fechada mal formada «{par}» "
+               f"(forma: `<!--m@{fecha}:clave=valor-->`)")
+    valor = int(m.group(2))
+    assert any(_escrito_en(ctx, f) for f in _formas(valor)), (
+        f"{rel}:{linea}: la marca fechada dice {par} pero el texto que la precede no escribe ese "
+        f"número: «{ctx[-90:]}»")
+    if rel not in HISTORICOS:
+        assert fecha in ctx, (
+            f"{rel}:{linea}: documento VIVO con cifra fechada {par}: escribe «{fecha}» en la prosa "
+            f"(p. ej. «… (medido el {fecha})»), no solo en el marcador")
 
 
 @pytest.mark.parametrize("clave", COBERTURA_MINIMA)
 def test_las_cifras_que_la_revision_cazo_siguen_marcadas(clave):
-    """Guarda contra el escape fácil: borrar el marcador saca la cifra de la puerta."""
-    assert any(p.startswith(f"{clave}=") for _r, _n, p, _c in MARCAS), \
+    """Guarda contra el escape fácil: borrar el marcador saca la cifra de la puerta. Vale marcada
+    viva o fechada — lo que no vale es que desaparezca."""
+    todas = [p for _r, _n, p, _c in MARCAS] + [p for _r, _n, _f, p, _c in FECHADAS]
+    assert any(p.startswith(f"{clave}=") for p in todas), \
         f"la cifra «{clave}» ya no está marcada en ningún fichero de FICHEROS"
+
+
+@pytest.mark.parametrize("rel,minimo", sorted(MINIMO_VIVAS_POR_FICHERO.items()))
+def test_cada_fichero_vivo_conserva_sus_comprobaciones(rel, minimo):
+    """Gap B-6: el umbral GLOBAL es laxo por construcción. `medicion-escalera.md` aporta el 90 % de
+    las marcas, así que se pueden congelar 45 de sus comprobaciones y seguir por encima de
+    cualquier mínimo global. El mínimo va POR FICHERO."""
+    vivas = sum(1 for r, _n, _p, _c in MARCAS if r == rel)
+    assert vivas >= minimo, (
+        f"{rel}: {vivas} comprobaciones vivas, por debajo del mínimo declarado ({minimo}). "
+        f"Congelar marcas vivas apaga la puerta: si la bajada es legítima, baja el mínimo en "
+        f"`MINIMO_VIVAS_POR_FICHERO` y justifícalo ahí")
 
 
 @pytest.mark.parametrize("es,en", ESPEJOS, ids=[f"{a}|{b}" for a, b in ESPEJOS])
 def test_los_espejos_marcan_las_mismas_cifras(es, en):
     """Regla de espejos: si el ES afirma una cifra, el EN afirma la misma. Comparar las CLAVES
-    marcadas lo comprueba sin comparar traducciones."""
+    marcadas lo comprueba sin comparar traducciones — vivas y fechadas por separado, porque una
+    cifra viva en un espejo y fechada en el otro también es un desacuerdo."""
     def claves(rel):
-        p = os.path.join(ROOT, rel)
-        return sorted(par.strip().split("=")[0]
-                      for _r, _n, par, _c in MARCAS if _r == rel) if os.path.isfile(p) else []
+        if not os.path.isfile(os.path.join(ROOT, rel)):
+            return []
+        return sorted([f"m:{p.split('=')[0]}" for r, _n, p, _c in MARCAS if r == rel]
+                      + [f"m@:{p.split('=')[0]}" for r, _n, _f, p, _c in FECHADAS if r == rel])
     assert claves(es) == claves(en), (f"{es} marca {claves(es)} y {en} marca {claves(en)}: "
                                       f"los espejos deben afirmar las mismas cifras")
 
 
+def test_la_valvula_m_interrogacion_esta_retirada():
+    """Gap B-6/B-10: `<!--m?:motivo-->` dejaba congelar una marca VIVA sin guarda ni aviso, y
+    perdía la clave al hacerlo. La sustituye `<!--m@AAAA-MM-DD:clave=valor-->`, que dice qué
+    congela y cuándo se midió. Este test impide que la válvula vuelva por la puerta de atrás."""
+    quedan = []
+    for rel in FICHEROS:
+        p = os.path.join(ROOT, rel)
+        if not os.path.isfile(p):
+            continue
+        texto = open(p, encoding="utf-8").read()
+        for m in RE_VALVULA_RETIRADA.finditer(texto):
+            if en_tramo_de_codigo(texto, m.start()):
+                continue      # cita de la forma retirada al explicar por qué se retiró
+            quedan.append(f"{rel}:{texto.count(chr(10), 0, m.start()) + 1}")
+    assert not quedan, (
+        "la válvula `<!--m?:…-->` está retirada (pierde la clave y no tiene guarda de ubicación): "
+        "usa `<!--m@AAAA-MM-DD:clave=valor-->` en " + ", ".join(quedan))
+
+
+def _historicos_con_marca_viva():
+    """[(fichero, línea, marca)] de las marcas `m:` que viven donde solo caben fechadas."""
+    out = []
+    for rel in sorted(HISTORICOS):
+        p = os.path.join(ROOT, rel)
+        try:
+            texto = open(p, encoding="utf-8").read()
+        except (OSError, UnicodeDecodeError):
+            continue
+        if rel.startswith("docs/roadmap/") and RE_ESTADO_ABIERTO.search(texto):
+            continue          # ledger todavía en curso: sus cifras aún pueden ser vivas
+        for m in RE_MARCA.finditer(texto):
+            if en_tramo_de_codigo(texto, m.start()):
+                continue      # cita de la FORMA, no una cifra
+            out.append((rel, texto.count("\n", 0, m.start()) + 1, m.group(1)))
+    return out
+
+
+def test_no_hay_marcas_vivas_en_documentos_historicos():
+    """T-19 (arista E11): una marca `m:` en un ADR, en una entrada de `docs/knowledge/` o en un
+    ledger CERRADO es histórica disfrazada de viva, y el precio de la confusión es que abrir o
+    cerrar cualquier iniciativa pone la suite roja por prosa que nadie debería reescribir.
+
+    Es **aviso**, no fallo, y a propósito: los ficheros de `docs/roadmap/**` son del proyecto que
+    usa el plugin, no del plugin, y no queremos que un ledger ajeno tumbe la suite. Sobre el corpus
+    de `FICHEROS` —que sí es nuestro— la exigencia es dura: ahí no puede quedar ninguna.
+
+    La exención es solo para el ledger que declara un estado ABIERTO. Un ledger sin línea
+    `estado:` NO se exime (gap B-9): eran 14 en este repo, justo los más viejos, y la guarda
+    fallaba abierta exactamente donde más cifras congeladas hay.
+    """
+    hallazgos = _historicos_con_marca_viva()
+    for rel, linea, marca in hallazgos:
+        warnings.warn(
+            f"{rel}:{linea}: marca VIVA `<!--m:{marca}-->` en un documento histórico. "
+            f"Congélala: `<!--m@AAAA-MM-DD:{marca}-->` "
+            f"(la cifra y su clave se conservan; deja de compararse contra la medición de hoy).",
+            UserWarning, stacklevel=2)
+    del_corpus = [h for h in hallazgos if h[0] in FICHEROS]
+    assert not del_corpus, (
+        "marcas vivas en documentos históricos DE ESTE REPO (congélalas con `m@`): "
+        + ", ".join(f"{r}:{n}" for r, n, _m in del_corpus))
+
+
 def main():
-    import sys
     return pytest.main([os.path.abspath(__file__), "-q"])
 
 

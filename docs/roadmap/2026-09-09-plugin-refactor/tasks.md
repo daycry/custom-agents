@@ -2,7 +2,7 @@
 tasks: plugin-refactor
 estado: en-progreso       # borrador | en-progreso | completado | cancelado — R1 y R2 integradas en master; R3 (F3) implementada y revisada (3 intentos + 4.ª pasada) y R4a (T-11…T-14) implementada y corregida tras el intento 1, ambas pendientes de commit e integración
 creado: 2026-09-10
-actualizado: 2026-09-11
+actualizado: 2026-09-12
 generacion:              # ventana compartida con improvement-plan.md
   inicio: 2026-09-10T11:55:46Z
   fin: 2026-09-10T12:00:57Z
@@ -41,9 +41,9 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 | Fase 1 — Línea base limpia y la cicatriz | 4 | 4 | 100% | — / 11,5h | 0,52 / 1,29h | 0,13 / 0,32h | — / 619k |
 | Fase 2 — Los otros cuatro hotspots | 4 | 4 | 100% | — / 14,0h | 1,52 / 1,60h | 0,39 / 0,40h | — / 767k |
 | Fase 3 — Un solo mecanismo de copias declaradas (O1) | 2 | 2 | 100% | — / 4,0h | 4,58 / 0,50h | 1,15 / 0,13h | 2.191k / 239k |
-| Fase 4 — Encadenamiento E1–E11 | 4 | 9 | 44% | — / 30,5h | 6,49 / 3,64h | 1,63 / 0,91h | 1.298k+ / 1.745k |
+| Fase 4 — Encadenamiento E1–E11 | 8 | 9 | 89% | — / 30,5h | 8,35 / 3,64h | 2,10 / 0,91h | 1.298k+ / 1.745k |
 | Fase 5 — Proceso: revisión por tramo, corrección y cierre | 0 | 3 | 0% | 0 / 14,0h | 0 / 1,80h | 0 / 0,45h | 0 / 864k |
-| **TOTAL** | **14** | **22** | **64%** | **— / 74,0h** | **13,11 / 8,83h** | **3,30 / 2,21h** | **— / 4.234k** |
+| **TOTAL** | **18** | **22** | **82%** | **— / 74,0h** | **14,97 / 8,83h** | **3,77 / 2,21h** | **— / 4.234k** |
 
 > Horas **base** (sin colchón; con el margen del 20 %: 88,8 h humanas · 10,6 h IA · 2,65 h supervisión). Tokens = facturables (in + out + creación de caché). Coste base **3.734 €** (4.479 € con margen). Heredado de `evaluation.md` por característica; diferencias declaradas en el plan (P-1 y C-13 (i) hechas, C-14 propuesta).
 
@@ -1248,7 +1248,7 @@ $ diff $CAP/suite-antes-r3i3.txt $CAP/suite-despues-r3i3.txt
 
 ## Fase 4 — Encadenamiento E1–E11
 
-**Estado**: en-progreso · **4/9 tareas** (T-11, T-12, T-13 y T-14 completadas con la revisión del tramo R4a cerrada en el intento 4; T-15…T-19 pendientes) · **Estimado**: 30,5h · **Real**: 5,37h+ IA (T-11…T-14 más los cuatro intentos de corrección del tramo R4a, medido/prorrateado) · **TOTAL del plan**: 14/22 (64%)
+**Estado**: en-progreso · **8/9 tareas** (T-11…T-14 con la revisión del tramo R4a cerrada en el intento 4; T-16…T-19 cerradas con los **26 gaps del intento 1 de R4b corregidos** —1 Critical, 9 Important, 16 Minor—; **T-15 sigue `en-progreso`** y es la consecuencia directa de corregir el gap A-2: su criterio 4 no se cumple, se ha dejado sin marcar, y una tarea con un criterio sin cumplir no es una tarea completada. Lo que le falta **no es de esta iniciativa**: es la arista E8, el tope del brief, que la matriz declara cubierta por la característica C-05 de `brief-budget` (desviación 36). Cerrarla exige esa iniciativa o una decisión del usuario, no más código aquí) · **Estimado**: 30,5h · **Real**: 8,35h IA + 2,10h supervisión (T-11…T-19, los cuatro intentos de corrección de R4a y la corrección del intento 1 de R4b: 1,07h IA medidas, marcador `plugin-refactor/R4b-fix1`; medido salvo lo prorrateado, declarado tarea a tarea) · **TOTAL del plan**: 19/22 (86%)
 
 **Desviación declarada 11 — `scope-check.py` sigue en exit 1, y no por esta pasada.** El DoD pide `scope-check` en verde. Sale **exit 1** con 7 ficheros fuera de alcance: `.claude/.confluence-pending`, `.claude/.gitignore`, `.claude/.headroom_wrap_marker.json` (estado local de herramientas), `CONTINUE-HERE.md` y `CONTINUE-HERE.local.md` (bitácora de sesión, raíz del repo), `feature-pendiente.bundle` y `docs/roadmap/2026-09-09-plugin-refactor/design.md`. **Ninguno lo toca esta 4.ª pasada** —cuyos 5 ficheros salen los 5 en ✅ «en alcance»— y el encargo excluía explícitamente `design.md`. Es ruido de árbol y artefactos de pasadas anteriores que arrastra el tramo: se declara aquí en vez de tocarlos para cuadrar un exit code, que es justo lo que la tabla de racionalización del implementer prohíbe. Lo resuelve el ritual de cierre de rama (commits ordenados), no una corrección de código.
 
@@ -1322,7 +1322,6 @@ $ python -m pytest -q tests/test_copias_declaradas.py -p no:cacheprovider
 ```
 
 
-**Estado**: en-progreso (4 de 9: **R4a cerrado en implementación**, T-11…T-14 `completado` tras corregir los 18 gaps del intento 1, los 10 del intento 2 y los **12 + 4 fuera de lente** del intento 3 —el usuario ordenó resolverlos TODOS, así que el tope de 3 intentos no aplicó y no queda ninguno como límite conocido—; R4b = T-15…T-19, sin empezar) · **Estimado**: 30,5h · **Real**: 5,37h IA + 1,35h supervisión (T-11…T-14: 1,16h medidas de la implementación + 1,05h estimadas del `fix1` —desviación 24— + **1,56h medidas** del `fix2` —desviación 25— + ~1,60h estimadas del `fix3` —desviación 30: el marcador se abrió a mitad de pasada y solo midió 0,12h del tramo final—) · **Coste est.**: 1.539 € · **Tokens est.**: 1.745k · **Tramo**: R4a (T-11…T-14) · R4b (T-15…T-19)
 
 > Bloque (b): **sí cambia comportamiento** y cada característica es propia. Orden: quick wins (C-12, C-11) → C-08 → **C-06 antes de C-09 y C-07** (S-6: la matriz es la entrada parseable de C-07 (c) y la lista de dependientes de C-09 — motivo escrito para adelantarla sobre el orden sugerido) → C-13 (ii-b) → C-10 → C-14 (propuesta). **Toda tarea que toque `agents/`, `commands/` o `hooks/` lleva `interop/**` (regenerado con `python scripts/export-interop.py`) y las piezas que describen a la pieza tocada en `Archivos`** — esto ES E2/E3 y esta iniciativa no puede caer en lo mismo. Si R4 supera 10 gaps Important en el intento 1, se parte en R4a (T-11…T-15) / R4b (T-16…T-19) dentro del presupuesto de T-20.
 
@@ -2301,13 +2300,13 @@ ledger-lint: 0 incoherencias . 0 avisos (tasks.md)                              
 
 - **Descripción**: `planner` (prompt + plantilla de `tasks.md`) exige `interop/**` y **las piezas que describen a la pieza tocada** (según la columna «Piezas que describen» de la matriz de T-14) en `Archivos` de toda tarea que toque `commands/`, `agents/` o `hooks/`; `implementer` regenera `interop/` con `python scripts/export-interop.py` antes de cerrar la tarea; la **Lente A** (`lens-prompts.md`) ejecuta `python scripts/export-interop.py --check` y lo cita ✓/✗ por criterio. `scope-check.py` ya acepta los ficheros generados si están en `Archivos` (patrón `interop/**`, no fichero a fichero, para no engordar el brief — GOT-009).
 - **Changelog**: Las tareas que tocan un agente, comando o hook enumeran `interop/**` y las piezas que lo describen; `implementer` regenera `interop/` y la Lente A comprueba `export-interop.py --check`.
-- **Estado**: borrador
-- **Tiempo humano**: est. 3,0h · real —
-- **Tiempo IA (ejec.)**: est. 0,35h · real —
-- **Supervisión**: est. 0,09h (≈25 % IA) · real —
+- **Estado**: en-progreso
+- **Tiempo humano**: est. 3,0h · real — (todo IA)
+- **Tiempo IA (ejec.)**: est. 0,35h · real **0,17h (medido)** — `{"artefacto":"plugin-refactor/T-15","inicio":"2026-09-12T01:09:20Z","fin":"2026-09-12T01:14:30Z","fuente":"medido","tokens_reales":{"entrada":64,"salida":17251,"cache_creacion":63811,"cache_lectura":2689511,"respuestas":32},"eur":2.0,"horas_ia":0.17,"duracion":"10m","duracion_reloj":"5m","ratio_usado":479326.0,"ratio_origen":"CALIBRATION.md (mediana de 7)"}`
+- **Supervisión**: est. 0,09h (≈25 % IA) · real **0,04h** (25 % de 0,17h)
 - **Previsión IA**: 123k in / 18k out tok · 1,3 € tokens · coste tarea 151 €
 - **Dependencias**: T-14 (la lista de dependientes sale de la matriz)
-- **Archivos**: `agents/planner.md`, `agent-kits/planner/templates/tasks.md`, `agents/implementer.md`, `skills/adversarial-review/references/lens-prompts.md`, `docs/agents/planner.md`, `docs/agents/implementer.md`, `agent-kits/planner/README.md`, `agent-kits/shared/README.md` (si describe el brief/`Archivos`), `evals/cases/agent-planner.json`, `evals/cases/agent-implementer.json` (si cambia la description), `interop/**` (regenerado: `agents/` tocados)
+- **Archivos**: `agents/planner.md`, `agent-kits/planner/templates/tasks.md`, `agents/implementer.md`, `skills/adversarial-review/references/lens-prompts.md`, `docs/agents/planner.md`, `docs/agents/implementer.md`, `agent-kits/planner/README.md`, `agent-kits/shared/README.md` (si describe el brief/`Archivos`), `evals/cases/agent-planner.json`, `evals/cases/agent-implementer.json` (si cambia la description), `interop/**` (regenerado: `agents/` tocados), `scripts/export-skills.py` (gap B-4 del intento 1: el guardarraíl del paquete portable pasa a mirar también las citas `docs/**` y las rutas de la raíz del repo) · **al cerrar**: los dos condicionales NO se dispararon y quedan sin tocar — `agent-kits/shared/README.md` describe `Archivos` solo desde la ficha de `scope-check.py`, que esta tarea no cambia, y ninguna `description` de agente se movió, así que los dos `evals/cases/*.json` siguen igual (`evals/check.py` → 0 errores lo confirma)
 - **Verificación**:
   - `grep -n "interop/\*\*" agents/planner.md agent-kits/planner/templates/tasks.md agents/implementer.md skills/adversarial-review/references/lens-prompts.md` → 4 ficheros
   - `grep -n "export-interop.py --check" skills/adversarial-review/references/lens-prompts.md agents/implementer.md` → 2 ficheros (la Lente A lo ejecuta; el implementer lo corre en su DoD)
@@ -2316,31 +2315,123 @@ ledger-lint: 0 incoherencias . 0 avisos (tasks.md)                              
   - `python agent-kits/shared/task-brief.py docs/roadmap/2026-09-09-plugin-refactor/tasks.md T-13 | wc -c` → `≤ 10000` (el patrón `interop/**` no dispara el tope del brief)
 
 **Criterios de aceptación**
-- [ ] CA-15: plantilla y `planner.md` exigen `interop/**` + piezas que describen cuando la tarea toca `commands/`/`agents/`/`hooks/`; `implementer.md` regenera; `lens-prompts.md` (Lente A) ejecuta `--check` y lo cita ✓/✗
-- [ ] La lista de «piezas que describen» se toma de la matriz (T-14), no se improvisa por tarea
-- [ ] `interop/` regenerado y `--check` verde; evals en verde; docs que describen actualizadas
-- [ ] El brief de una tarea con `interop/**` en `Archivos` sigue bajo el tope de 10.000 caracteres
+- [x] CA-15: plantilla y `planner.md` exigen `interop/**` + piezas que describen cuando la tarea toca `commands/`/`agents/`/`hooks/`; `implementer.md` regenera; `lens-prompts.md` (Lente A) ejecuta `--check` y lo cita ✓/✗ — `agents/planner.md` P3-bis (dos viñetas, E2 y E3) + ítem de DoD; `agent-kits/planner/templates/tasks.md` comentario guía del campo `Archivos`; `agents/implementer.md` P3 (viñeta «regenera lo generado ANTES de cerrarla») + dos ítems de DoD; `lens-prompts.md` criterio **(6)** de la Lente A, que **ejecuta** `python3 scripts/export-interop.py --check` y cita exit code y salida como ✓/✗ (literal verificado en el fichero tras el gap B-3: la desviación 49 lo había dejado en `python3 export-interop.py --check`, que era una ruta que no existe desde la raíz)
+- [x] La lista de «piezas que describen» se toma de la matriz (T-14), no se improvisa por tarea — las cuatro piezas la nombran por su ruta (`docs/agents/CONTRACTS.md`) y por su **columna** («Piezas que describen»); la regla base (`docs/agents/<x>.md` + fila de `docs/README.md` + `FLOWS.md`/espejo + `evals/cases/`) queda declarada SOLO como fallback para una pieza que no salga en ninguna arista, no como alternativa a la matriz
+- [x] `interop/` regenerado y `--check` verde; evals en verde; docs que describen actualizadas — `export-interop.py` → 48 ficheros escritos, `--check` → 48 al día exit 0; `evals/check.py` → 0 errores; `lint_plugin.py` → 0 errores · 3 avisos (los 3 preexistentes de nombre genérico, sin aviso de tamaño en los dos agentes tocados); `docs/agents/planner.md` (paso 3-bis + regla clave), `docs/agents/implementer.md` (viñeta de «Qué hace») y `agent-kits/planner/README.md` actualizados **en esta misma tarea** (que es justo lo que pide E3)
+- [ ] El brief de una tarea con `interop/**` en `Archivos` sigue bajo el tope de 10.000 caracteres — **NO cumplido; queda abierto con la desviación 36** (gap A-2 del intento 1: estaba marcado y no correspondía). Lo que sí se mide y sí se cumple es el delta: el patrón cuesta **1.773 caracteres menos** que enumerar los 46 ficheros generados (línea `Archivos` de 1.420 → 3.193 con la enumeración). El valor ABSOLUTO del brief de T-13 (35.827) está por encima del tope desde antes de esta tarea y por causas que no son `Archivos` — lo atribuye el propio script, no yo
 
 **Subtareas**
-- [ ] `planner.md` (§0 o §2 P5) + plantilla `tasks.md`: regla y ejemplo
-- [ ] `implementer.md` DoD: regenerar `interop/` y correr `--check` antes de cerrar la tarea
-- [ ] `lens-prompts.md` Lente A: criterio «interop al día» con el comando y ✓/✗
-- [ ] Docs que describen; evals; regenerar; `Verificación`; commit `T-15: …`
+- [x] `planner.md` P3-bis («El campo `Archivos` incluye lo GENERADO y lo que DESCRIBE») + ítem de DoD con su `grep`; plantilla `tasks.md` con el comentario guía de 11 líneas y el ejemplo real en el campo
+- [x] `implementer.md`: viñeta en P3 (regenerar antes de cerrar, no «para el commit final») + dos ítems de DoD, uno por arista (E2 lo generado, E3 lo que describe)
+- [x] `lens-prompts.md` Lente A: criterio **(6)** con el comando, el ✓/✗ y el gap Important si sale rojo; el criterio de prosa se **renumeró (6) → (7)** para no chocar, y el «Modo sin plan» declara qué parte de (6) se cae sin ledger y cuál no
+- [x] Docs que describen (`docs/agents/planner.md`, `docs/agents/implementer.md`, `agent-kits/planner/README.md`); evals y linter en verde; `interop/` regenerado; `Verificación` re-ejecutada tras el último cambio (GOT-007) y pegada abajo
+- Commit `T-15: …`: lo hace el orquestador tras la revisión de dos lentes
 
 **Notas**: Decisión de detalle (incógnita de la evaluación): la Lente A **ejecuta** el `--check` ella misma (tiene Bash) y además exige la evidencia del implementer — doble puerta barata.
+
+**Verificación EJECUTADA (tras el último cambio, GOT-007):**
+```
+$ grep -c 'interop/\*\*' agents/planner.md agent-kits/planner/templates/tasks.md         agents/implementer.md skills/adversarial-review/references/lens-prompts.md
+agents/planner.md:2
+agent-kits/planner/templates/tasks.md:3
+agents/implementer.md:2
+skills/adversarial-review/references/lens-prompts.md:1     -> los 4 ficheros, ninguno a 0
+
+$ grep -c "export-interop.py --check" skills/adversarial-review/references/lens-prompts.md agents/implementer.md
+skills/adversarial-review/references/lens-prompts.md:2
+agents/implementer.md:2                                    -> los 2 ficheros
+
+$ python scripts/export-interop.py
+export-interop: 48 ficheros escritos (codex + opencode)
+$ python scripts/export-interop.py --check
+export-interop --check: 48 ficheros al dia                 exit 0
+$ python evals/check.py
+evals/check: 38 ficheros . 137 casos (82 positivos, 55 negativos) . 38 piezas del repo . 0 errores
+$ python scripts/lint_plugin.py
+lint_plugin: 9 agentes . 0 errores . 3 avisos              exit 0
+   (los 3 avisos son los preexistentes de nombre generico -- `retro`, `roadmap-status`,
+    `setup` --; NINGUNO de tamano en `agents/planner.md` ni `agents/implementer.md`)
+
+$ # lectura: `docs/agents/planner.md` gana el paso 3-bis del flujo y una frase en «Reglas clave»
+$ #          (quien describe se actualiza en la MISMA tarea, arista E3);
+$ #          `docs/agents/implementer.md` gana la vineta de regenerar `interop/` en «Que hace»;
+$ #          la plantilla `agent-kits/planner/templates/tasks.md` lleva el comentario guia del
+$ #          campo `Archivos` con las dos aristas y el ejemplo `interop/**` -- comprobado leyendo.
+
+$ # Item 5 con la forma de ruta CORREGIDA (ver desviacion 37: el comando del plan pasa `tasks.md`
+$ # y el script quiere la CARPETA de la iniciativa; tal cual, sale `no existe .../tasks.md	asks.md`)
+$ python agent-kits/shared/task-brief.py docs/roadmap/2026-09-09-plugin-refactor T-13 | wc -c
+35827                                                      -> por ENCIMA de 10.000 (desviacion 36)
+$ # medicion de lo que el criterio persigue de verdad (GOT-009): coste del patron vs enumerar.
+$ # Copia del ledger en temporal con los 46 ficheros de `interop/` enumerados en el campo de T-13:
+   linea `Archivos` con `interop/**`      -> 1.420 caracteres
+   linea `Archivos` enumerada             -> 3.193 caracteres   (+1.773, +17,7 % del tope)
+$ # y el propio script atribuye el exceso a otra cosa, no al campo `Archivos`:
+$ python agent-kits/shared/task-brief.py docs/roadmap/2026-09-09-plugin-refactor T-15 >/dev/null
+WARN  brief de T-15: 13106 caracteres, por encima de BRIEF_TOPE_CHARS=10000 (CA-08). Causa: exceso
+      preexistente de 3106 caracteres SIN persona (diseno=6917 memoria=1374 tarea+gaps=2552); la
+      persona (0) no es la causa. No lo arregla este script; el subagente recibe el brief igual.
+```
+
+**Desviacion declarada 36 — el 4.o criterio de T-15 no se puede cumplir en su forma ABSOLUTA, y no por
+esta tarea.** El criterio pide que «el brief de una tarea con `interop/**` en `Archivos` **siga** bajo el
+tope de 10.000 caracteres». El verbo «siga» presupone que hoy lo esta, y no lo esta: el brief de T-13 mide
+**35.827** caracteres y el de T-15, **13.106**. Ninguno de los dos se mueve un solo caracter por esta tarea
+—`git diff` sobre el ledger estaba **vacio** cuando se midieron—, y la causa no es el campo `Archivos`: la
+atribuye el propio `task-brief.py` en su aviso (`diseno=6917 memoria=1374 tarea+gaps=2552`). Es exactamente
+la arista **E8** de `docs/agents/CONTRACTS.md`, la unica que la matriz declara cubierta **fuera** de esta
+iniciativa (caracteristica C-05 de `brief-budget`). Lo que si es de esta tarea, y se mide arriba, es el
+**delta**: el patron `interop/**` cuesta **1.773 caracteres menos** que enumerar los 46 ficheros generados,
+que es el `GOT-009` que la Descripcion cita como motivo de elegir el patron. El criterio se marca cumplido
+**en esa lectura medible** y la absoluta se declara aqui en vez de reescribirlo. Si la revision prefiere lo
+contrario, la salida correcta es dejar T-15 en `en-progreso` y abrir C-05, no relajar el criterio.
+
+**Desviacion declarada 49 (T-15, hallada al verificar el tramo) — citar `scripts/export-interop.py`
+DENTRO de una skill rompio el paquete portable, y lo cazó la comparacion de conjuntos en Linux.**
+El criterio (6) que T-15 añadio a la Lente A escribia el comando como
+`python3 scripts/export-interop.py --check`. Dentro de `skills/**`, la ruta `scripts/<x>` es
+**relativa a la skill** —asi la lee `scripts/export-skills.py` al empaquetar el `dist/` de solo
+skills—, de modo que se interpretaba como `skills/adversarial-review/scripts/export-interop.py`, que
+no existe ni existira: el exportador de interop es un script de la RAIZ del repo, no de una skill.
+Resultado: `tests/test_export_skills.py::test_repo_real_exporta_y_pasa_el_check` en rojo con
+`lens-prompts.md: cita 'scripts/export-interop.py' y no existe en el paquete`.
+
+**Como se cazo, que es la parte que importa:** no la vio ninguna puerta de las que corren rapido
+—`lint_plugin`, `evals/check`, `export-interop --check` y `ledger-lint` seguian los cuatro en
+verde—, sino la **comparacion del CONJUNTO de rojos de la suite** contra `HEAD` limpio en el
+contenedor Linux: `55 -> 56` con un unico nombre nuevo. Comparar el NUMERO no habria bastado (en
+Windows los 39 de la linea base absorbian el cambio); comparar el conjunto, si. Es la practica que
+la desviacion 27 dejo escrita y la segunda vez en este tramo que paga (la otra, la 48).
+
+**Arreglo:** seguir la convencion que el propio `lens-prompts.md` ya usaba para los demas scripts de
+raiz (`scope-check.py`, `coverage-gate.py`, `openapi-lint.py` se citan por su **nombre a secas**):
+`python3 export-interop.py --check`, con la aclaracion en linea de que vive en `scripts/` de la raiz
+del repo revisado, mas la degradacion explicita —si el script no existe, el proyecto no genera
+piezas para otros runtimes y el criterio no aplica—, que faltaba y hacia el criterio inaplicable en
+un proyecto consumidor. `tests/test_export_skills.py`: **13 passed**. El `grep` del item 2 de la
+`Verificacion` de T-15 sigue dando los mismos 2 ficheros, porque busca `export-interop.py --check`,
+que no cambia.
+
+**Desviacion declarada 37 — el item 5 de la `Verificacion` de T-15 trae la ruta en la forma que el script
+NO acepta.** El plan escribio `task-brief.py docs/roadmap/2026-09-09-plugin-refactor/tasks.md T-13`, pero
+`task-brief.py` toma la **carpeta** de la iniciativa y le pega `tasks.md` el solo; con la forma del plan
+falla en seco: `no existe docs/roadmap/2026-09-09-plugin-refactor/tasks.md	asks.md`, exit 1, y `wc -c`
+devuelve `0` —un cero que, leido rapido, parece un brief vacio y no un comando roto—. Se ejecuta con la
+carpeta, se pega el resultado real y se anota aqui; **no se toca el campo `Verificacion`**, que es texto del
+plan. Mismo tipo de error de ruta escrita a ojo que el plan ya cometio en T-13 con `tests/test_coverage_check.py`.
 
 ### T-16 — C-07: linter — rutas citadas existen · `/comandos` citados existen · filas de la matriz con puerta
 
 - **Descripción**: tres comprobaciones nuevas en `scripts/lint_plugin.py` (sobre el despachador partido en T-08): (a) toda ruta de script citada entre acentos graves en `agents/`, `commands/`, `skills/` existe (65 rutas únicas hoy; placeholders `<x>.py`, `<ruta>` tolerados); (b) todo `/comando` citado en la doc existe como `commands/<x>.md` (18 distintos hoy; tolerar `/algo`, `/nombre`, nativos `/clear`, `/agents`, `/reload-plugins`, `/help`, `/config`, y la forma `/custom-agents:<cmd>` de T-12); (c) cada fila de `docs/agents/CONTRACTS.md` tiene la columna **Puerta** no vacía y, si nombra un script, existe. **Nacen como aviso** (corren en la CI y en `release.py`: un falso positivo bloquea releases) y suben a error tras una release limpia — se anota aquí la release en la que suben.
 - **Changelog**: El linter avisa si un agente, comando o skill cita una ruta de script o un `/comando` que no existe, y si una fila de la matriz de contratos no tiene puerta ejecutable.
-- **Estado**: borrador
-- **Tiempo humano**: est. 6,0h · real —
-- **Tiempo IA (ejec.)**: est. 0,70h · real —
-- **Supervisión**: est. 0,18h (≈25 % IA) · real —
+- **Estado**: completado
+- **Tiempo humano**: est. 6,0h · real — (todo IA)
+- **Tiempo IA (ejec.)**: est. 0,70h · real **0,18h (medido)** — `{"artefacto":"plugin-refactor/T-16","inicio":"2026-09-12T01:16:42Z","fin":"2026-09-12T01:23:43Z","fuente":"medido","tokens_reales":{"entrada":46,"salida":29478,"cache_creacion":58279,"cache_lectura":3422700,"respuestas":23},"eur":2.59,"horas_ia":0.18,"duracion":"11m","duracion_reloj":"7m","ratio_usado":479326.0,"ratio_origen":"CALIBRATION.md (mediana de 7)"}`
+- **Supervisión**: est. 0,18h (≈25 % IA) · real **0,05h** (25 % de 0,18h)
 - **Previsión IA**: 245k in / 37k out tok · 2,6 € tokens · coste tarea 303 €
 - **Dependencias**: T-08 (`lint()` partido), T-10 (mismo fichero), T-14 (la matriz es la entrada de (c)), T-15 (orden del tramo)
 - **Tipo**: test
-- **Archivos**: `scripts/lint_plugin.py`, `tests/test_lint_plugin.py`, `docs/CONVENTIONS.md` (regla Linter+tests: las tres comprobaciones), `docs/en/CONVENTIONS.md`, `CLAUDE.md` (fila «Linter + tests»: una frase), `docs/agents/CONTRACTS.md` (sección «cómo se mantiene» cita la puerta)
+- **Archivos**: `scripts/lint_plugin.py`, `tests/test_lint_plugin.py`, `docs/CONVENTIONS.md` (regla Linter+tests: las tres comprobaciones), `docs/en/CONVENTIONS.md`, `CLAUDE.md` (fila «Linter + tests»: una frase), `docs/agents/CONTRACTS.md` (sección «cómo se mantiene» cita la puerta), `docs/knowledge/lessons/LES-013-plugin-dev-tests-unitarios-skill-no-agente.md` (**podredumbre real** que destapó el alcance ampliado del gap B-5: citaba `scripts/coverage-gate.py`, que vive en `skills/unit-tests/scripts/`) · **al cerrar**: los 6 declarados, el LES-013 de la línea anterior y ninguno más; **no** hizo falta tocar ninguna pieza de `agents/`/`commands/`/`hooks/`, así que esta tarea NO arrastra `interop/**` (la regla que T-15 acaba de escribir, aplicada a sí misma)
 - **Verificación**:
   - `python scripts/lint_plugin.py; echo $?` → `0 errores`, exit 0, y **0 avisos nuevos** con el árbol actual (el resumen pasa de `3 avisos` solo si se corrige una cita rota real encontrada, que se anota aquí con fichero y ruta)
   - Mutante (a): añadir `` `agent-kits/shared/no-existe.py` `` a un `agents/x.md` → aviso con fichero y ruta; mutante (b): añadir `` `/no-existe` `` a un doc → aviso; mutante (c): vaciar la celda Puerta de una fila E-xx de `CONTRACTS.md` → aviso con la arista (tres salidas pegadas; revertir)
@@ -2348,29 +2439,114 @@ ledger-lint: 0 incoherencias . 0 avisos (tasks.md)                              
   - `python scripts/release.py --dry-run` → exit 0 · `python scripts/export-interop.py --check` → al día
 
 **Criterios de aceptación**
-- [ ] CA-11: ruta citada inexistente → aviso con fichero y ruta; con el árbol actual, 0 avisos nuevos (65 rutas existen o son placeholder tolerado)
-- [ ] CA-12: `/comando` citado inexistente → aviso; `/algo`, `/nombre`, nativos y `/custom-agents:<cmd>` tolerados
-- [ ] CA-13: fila de la matriz sin Puerta → aviso con la arista; script nombrado en Puerta inexistente → aviso
-- [ ] Nacen como aviso; `CONVENTIONS.md` (+EN) y `CLAUDE.md` nombran las tres comprobaciones y la regla de subida a error
+- [x] CA-11: ruta citada inexistente → aviso con fichero y ruta; con el árbol actual, 0 avisos nuevos (65 rutas existen o son placeholder tolerado) — `comprobar_rutas_citadas`; mutante pegado abajo (`agents/qa.md:125: cita la ruta …, que no existe`). **El paréntesis del criterio se restaura al literal de HEAD** (gap A-5 del intento 1: se había borrado en vez de anotarse) y la cifra real va aquí, en la evidencia: con el alcance que se entrega —`agents/`, `commands/`, `skills/` **y `docs/`** menos el registro, gap B-5— son **162 ficheros de doc**, **178 rutas únicas** citadas entre acentos, de las que **148 existen desde la raíz** y **30 resuelven** por tolerancia declarada o por ser relativas al citante → **0 avisos**. Con el alcance viejo (solo las tres carpetas de piezas) eran **73**, no las 71 que decía este ledger ni las 65 del plan (gap A-6): el censo depende del criterio de extracción, y el criterio cambió con B-5
+- [x] CA-12: `/comando` citado inexistente → aviso; `/algo`, `/nombre`, nativos y `/custom-agents:<cmd>` tolerados — `comprobar_comandos_citados`; censo real: **14 comandos únicos** citados (el plan decía 18), 10 existen como `commands/<x>.md` y 4 son tolerados (`/algo` y `/x` comodines, `/skill` y `/statusline` nativos de Claude Code) → **0 avisos**. La forma `/custom-agents:<cmd>` de T-12 se resuelve contra el mismo `commands/<cmd>.md` (test 50)
+- [x] CA-13: fila de la matriz sin Puerta → aviso con la arista; script nombrado en Puerta inexistente → aviso — `comprobar_matriz_contratos`, que lee la columna por POSICIÓN (8.ª de 9, el encabezado fijo de la §3 regla 2) con el `celdas_md` que ya existía. Las **12 filas** de la matriz pasan las tres: 9 columnas, Puerta no vacía y todo script nombrado existe. Se añadió una tercera forma de aviso no pedida pero barata: fila cuyo número de columnas no es 9 (es la que protege la lectura de las otras dos)
+- [x] Nacen como aviso; `CONVENTIONS.md` (+EN) y `CLAUDE.md` nombran las tres comprobaciones y la regla de subida a error — el bucle de registro en `lint()` extiende `errors` con lo que devuelven (hoy siempre `[]`) para que **subirlas a error sea mover una línea dentro de cada función**, no reescribir el registro; `docs/CONVENTIONS.md` y su espejo `docs/en/CONVENTIONS.md` traen el párrafo «Citas que envejecen» con las tres comprobaciones, las tres listas de tolerancia por su nombre y la regla de subida; `CLAUDE.md` la frase en la fila «Linter + tests»
 
 **Subtareas**
-- [ ] `comprobar_rutas_citadas`, `comprobar_comandos_citados`, `comprobar_matriz_contratos` → `(errores=[], avisos)`; listas de tolerancia explícitas y comentadas
-- [ ] 6 tests con mutante; línea en `CONVENTIONS.md` ES/EN y `CLAUDE.md`
-- [ ] `Verificación`; commit `T-16: …`
+- [x] `comprobar_rutas_citadas`, `comprobar_comandos_citados`, `comprobar_matriz_contratos` → `(errores=[], avisos)`, las tres con la misma firma que el resto del despachador; tolerancias en tres constantes **explícitas y comentadas una a una** (`RUTAS_DEL_CONSUMIDOR` con el nombre de la pieza que escribe cada artefacto, `STEMS_PLACEHOLDER`, `COMANDOS_TOLERADOS` separando nativos de comodines) + dos reglas de lectura comentadas en el propio regex (orden de extensiones de más larga a más corta; lookbehind para la ruta que cuelga de una variable ya resuelta)
+- [x] 6 casos nuevos (47-52): positivo + tolerancia por comprobación, cada uno sobre una fixture sintética en un `TemporaryDirectory` (el patrón que ya usan los 46 previos); tres mutantes ejecutados sobre el árbol REAL y pegados abajo; párrafo en `docs/CONVENTIONS.md`, su espejo EN y `CLAUDE.md`; §3 de `CONTRACTS.md` actualizada (la regla 2 ya tiene puerta, y se dice cuál)
+- [x] `Verificación` re-ejecutada tras el último cambio (GOT-007) y pegada abajo
+- Commit `T-16: …`: lo hace el orquestador tras la revisión de dos lentes
 
-**Notas**: (c) es deliberadamente «cada fila tiene Puerta no vacía y el script existe»: más débil de lo que suena, pero lintable hoy (S-6). Si aparece una cita rota real con el árbol actual, se corrige en esta misma tarea y se anota (es exactamente el hueco E3).
+**Notas**: (c) es deliberadamente «cada fila tiene Puerta no vacía y el script existe»: más débil de lo que suena, pero lintable hoy (S-6). Si aparece una cita rota real con el árbol actual, se corrige en esta misma tarea y se anota (es exactamente el hueco E3). **No apareció ninguna**: las 71 rutas
+y los 14 comandos del árbol resuelven o caen en una tolerancia declarada, y las 12 filas de la matriz
+tienen Puerta con su script existente. La matriz de T-14 **no necesitó ningún arreglo** — que era el
+riesgo que el encargo señalaba («si el linter encuentra fallos en la propia matriz, arréglalos en la
+matriz, no relajes el linter»): las columnas ya estaban pensadas para trocearse y `celdas_md` las
+trocea sin tocar nada.
+
+**Verificación EJECUTADA (tras el último cambio, GOT-007):**
+```
+$ python scripts/lint_plugin.py; echo $?
+WARN  command `retro`: nombre generico -- ... Ok si se usa como plugin.
+WARN  command `roadmap-status`: nombre generico -- ... Ok si se usa como plugin.
+WARN  command `setup`: nombre generico -- ... Ok si se usa como plugin.
+
+lint_plugin: 9 agentes . 0 errores . 3 avisos
+0
+   -> 0 errores, exit 0 y **3 avisos, los MISMOS 3 de antes** (nombre generico). Las tres
+      comprobaciones nuevas no anaden ni uno: el resumen NO pasa de `3 avisos`.
+
+$ # MUTANTE (a) y (b) a la vez: una linea de prueba al final de `agents/qa.md`
+$ printf '\nRuta de prueba: `agent-kits/shared/no-existe.py` y comando `/no-existe-tampoco`.\n' >> agents/qa.md
+$ python scripts/lint_plugin.py | grep no-existe
+WARN  agents/qa.md:125: cita la ruta `agent-kits/shared/no-existe.py`, que no existe (renombrada, borrada o mal escrita?)
+WARN  agents/qa.md:125: cita el comando `/no-existe-tampoco`, que no existe como `commands/no-existe-tampoco.md`
+$ cp <copia> agents/qa.md && git diff --stat agents/qa.md      -> vacio (revertido)
+
+$ # MUTANTE (c): vaciar la celda Puerta de la fila E4 de `CONTRACTS.md`
+$ python scripts/lint_plugin.py | grep CONTRACTS
+WARN  docs/agents/CONTRACTS.md:36: la arista E4 no tiene Puerta (su §3 regla 1: o un comando
+      ejecutable, o «puerta pendiente: la trae T-XX», o «sin puerta (decision del usuario, <fecha>)»)
+$ cp <copia> docs/agents/CONTRACTS.md && git diff --stat docs/agents/CONTRACTS.md -> vacio (revertido)
+$ python scripts/lint_plugin.py | tail -1
+lint_plugin: 9 agentes . 0 errores . 3 avisos                  -> el arbol vuelve a su sitio
+
+$ python -m pytest -q tests/test_lint_plugin.py -p no:cacheprovider
+no tests ran in 0.19s
+   -> `tests/test_lint_plugin.py` es un test EN MODO SCRIPT (`main()` + asserts), no una suite
+      pytest: no tiene `test_*` de nivel superior y pytest no recolecta nada. El comando del plan
+      esta escrito a ojo (desviacion 38). Se ejecuta como script, y en Windows ABORTA antes de
+      llegar a los casos nuevos por el rojo preexistente del caso `chmod` -- mismo tratamiento que
+      dio T-14 al gap R3-3: se invocan las funciones directamente.
+$ python tests/test_lint_plugin.py | tail -3
+AssertionError: ejecutable es aviso, no error
+   hooks/hooks.json: un .json no deberia ser ejecutable (chmod -x; ...)       <- ROJO PREEXISTENTE
+$ python -c "importlib ... ; casos_citas_rutas(); casos_citas_comandos(); casos_matriz_contratos()"
+OK casos_citas_rutas
+OK casos_citas_comandos
+OK casos_matriz_contratos
+los 6 casos nuevos (47-52) en verde
+   (en el contenedor Linux, donde el caso `chmod` no es rojo, corre el fichero ENTERO: 52/52 OK)
+
+$ python scripts/release.py --dry-run; echo $?
+OK: todas coinciden en 1.20.0
+CHANGELOG.md    : seccion [1.20.0] presente
+CHANGELOG.es.md : seccion [1.20.0] presente
+0
+$ python scripts/export-interop.py --check
+export-interop --check: 48 ficheros al dia                                    exit 0
+$ python evals/check.py
+evals/check: 38 ficheros . 137 casos (82 positivos, 55 negativos) . 0 errores  exit 0
+```
+
+**Desviacion declarada 38 — el comando `pytest` de la `Verificacion` de T-16 no recolecta nada, y no
+es culpa de esta tarea.** El plan escribio `python -m pytest -q tests/test_lint_plugin.py` esperando
+«previos + 6 nuevos». Ese fichero **no es una suite pytest**: es un test en modo script (un `main()`
+con asserts y un `print("test_lint_plugin: N/N OK")` al final), sin una sola funcion `test_*` de nivel
+superior. `pytest` responde `no tests ran in 0.19s` y **exit 5** (`NO_TESTS_COLLECTED`) -- medido:
+`python -m pytest -q tests/test_lint_plugin.py; echo $?` -> `5`. Este ledger escribio «exit 0» y era
+falso (gap A-11 del intento 1). La correccion NO mejora la puerta, la empeora: un 5 es un codigo que
+casi ningun script trata, asi que `cmd || exit 1` lo deja pasar igual que un 0 en la mayoria de
+envoltorios, y la salida en pantalla sigue siendo un verde que no ha ejecutado nada. Los 6 casos nuevos se escriben en el mismo estilo que
+los 46 que ya habia (no se convierte el fichero a pytest: eso seria reescribir una pieza entera fuera
+del alcance de esta tarea) y se verifican por las dos vias que si ejecutan codigo: llamando a las tres
+funciones directamente en Windows, y corriendo el fichero entero en el contenedor Linux. **No se toca
+el campo `Verificacion`**, que es texto del plan; se anota aqui. Convertir `tests/test_lint_plugin.py`
+a pytest es candidato a tarea propia, no a arreglo de contrabando.
+
+**Desviacion declarada 39 — los censos del plan estaban desfasados: 71 rutas (no 65) y 14 comandos
+(no 18).** La `Descripcion` de T-16 fijaba «65 rutas unicas hoy» y «18 distintos hoy». Contados con
+el criterio que la propia tarea define (cita **entre acentos graves** en `agents/`/`commands/`/
+`skills/`, descartando plantillas), salen **71 rutas** y **14 comandos**. La diferencia no cambia
+ningun criterio -- lo que CA-11 y CA-12 exigen es **0 avisos nuevos con el arbol actual**, y eso se
+cumple -- pero se anota porque las dos cifras estan escritas en el ledger como si fueran medidas y no
+lo eran: el censo depende del criterio de extraccion, y el criterio no existia cuando se escribio el
+plan. Las cifras de arriba son las medidas con el codigo que se entrega.
 
 ### T-17 — C-13 (ii-b): agregado `fuente: estimado` visible en `/roadmap-metrics` y `/retro`; filas estimadas marcadas en `CALIBRATION.md` y fuera de la mediana
 
 - **Descripción**: la cadena de calibración se alimentaba de estimaciones sin que nadie lo viera agregado (E7). `build_dashboard.py` (`render_proceso_md`, `:582`, ya partido en T-07) añade la línea «N de M bloques `generacion:` con `fuente: estimado`» al informe de proceso que consume `/roadmap-metrics` (y una clave aditiva `estimados` en el JSON); `/retro` (`commands/retro.md`, paso 5) marca la fila de `CALIBRATION.md` como `(estimado)` en la celda `tokens/hora` cuando la iniciativa no tiene datos medidos (hoy dice «deja la celda vacía»: se hace explícito y parseable); `usage-meter._ratio_calibrado` **ignora** las filas marcadas `(estimado)` al calcular la mediana (test), y las 9 filas actuales se auditan una a una contra sus `generacion:` para marcar las que fueron estimadas (anotando aquí cuáles).
 - **Changelog**: `/roadmap-metrics` muestra cuántos bloques de medición son estimados y no medidos; `/retro` marca las filas estimadas de `CALIBRATION.md` y el ratio calibrado deja de contarlas.
-- **Estado**: borrador
-- **Tiempo humano**: est. 1,5h · real —
-- **Tiempo IA (ejec.)**: est. 0,19h · real —
-- **Supervisión**: est. 0,05h (≈25 % IA) · real —
+- **Estado**: completado
+- **Tiempo humano**: est. 1,5h · real — (todo IA)
+- **Tiempo IA (ejec.)**: est. 0,19h · real **0,15h (medido)** — `{"artefacto":"plugin-refactor/T-17","inicio":"2026-09-12T01:25:08Z","fin":"2026-09-12T01:30:49Z","fuente":"medido","tokens_reales":{"entrada":58,"salida":19686,"cache_creacion":51648,"cache_lectura":5847017,"respuestas":29},"eur":3.44,"horas_ia":0.15,"duracion":"9m","duracion_reloj":"6m","ratio_usado":479326.0,"ratio_origen":"CALIBRATION.md (mediana de 5)"}`
+- **Supervisión**: est. 0,05h (≈25 % IA) · real **0,04h** (25 % de 0,15h)
 - **Previsión IA**: 66k in / 10k out tok · 0,7 € tokens · coste tarea 76 €
 - **Dependencias**: T-07 (`build_dashboard.py` partido), T-04 (`usage-meter.py` ya tocado en R1), T-16 (orden del tramo)
-- **Archivos**: `skills/roadmap-dashboard/scripts/build_dashboard.py`, `tests/test_dashboard.py`, `agent-kits/shared/usage-meter.py`, `agent-kits/shared/test_usage_meter.py`, `commands/retro.md`, `docs/roadmap/CALIBRATION.md` (marcas `(estimado)` en las filas que lo fueron), `docs/observability.md`, `docs/en/observability.md`, `commands/roadmap-metrics.md` (una línea, si describe la salida), `skills/roadmap-dashboard/SKILL.md` (una línea), `evals/cases/command-retro.json` (si cambia la description), `interop/**` (regenerado: `commands/` tocados)
+- **Archivos**: `skills/roadmap-dashboard/scripts/build_dashboard.py`, `tests/test_dashboard.py`, `agent-kits/shared/usage-meter.py`, `agent-kits/shared/test_usage_meter.py`, `commands/retro.md`, `docs/roadmap/CALIBRATION.md` (marcas `(estimado)` en las filas que lo fueron), `docs/observability.md`, `docs/en/observability.md`, `commands/roadmap-metrics.md` (una línea, si describe la salida), `skills/roadmap-dashboard/SKILL.md` (una línea), `evals/cases/command-retro.json` (si cambia la description), `interop/**` (regenerado: `commands/` tocados) · **al cerrar (gap A-13, condicionales resueltos)**: `commands/roadmap-metrics.md` y `skills/roadmap-dashboard/SKILL.md` SÍ se tocaron (una línea cada uno); `evals/cases/command-retro.json` NO, porque la `description` de `/retro` no se movió (`evals/check.py` → 0 errores lo confirma); `interop/**` SÍ (regenerado, `--check` → 48 al día)
 - **Verificación**:
   - `python skills/roadmap-dashboard/scripts/build_dashboard.py docs/roadmap --json | python -c "import json,sys; d=json.load(sys.stdin); print(d['proceso']['estimados'] if 'proceso' in d else d.get('estimados'))"` → `{"estimados": N, "total": M}` con `N ≤ M` y ambos > 0 (ajustar la ruta de la clave a la forma real; la cifra se pega)
   - `python skills/roadmap-dashboard/scripts/build_dashboard.py docs/roadmap --md 2>/dev/null | grep -c "fuente: estimado"` → `≥ 1` (línea «N de M bloques…»)
@@ -2379,31 +2555,113 @@ ledger-lint: 0 incoherencias . 0 avisos (tasks.md)                              
   - `grep -c "(estimado)" docs/roadmap/CALIBRATION.md` → nº de filas auditadas como estimadas (anotado aquí con su motivo por fila) · `python scripts/export-interop.py && python scripts/export-interop.py --check` → al día · `python evals/check.py` → `0 errores`
 
 **Criterios de aceptación**
-- [ ] CA-19 (ii, parte b): `/roadmap-metrics` muestra «N de M bloques `generacion:` con `fuente: estimado`»; `/retro` marca `(estimado)` en `CALIBRATION.md` cuando no hay medida
-- [ ] `_ratio_calibrado` ignora las filas `(estimado)` (test con mutante); el literal `tokens/hora` del encabezado y el parseo de enteros no cambian
-- [ ] Las 9 filas actuales de `CALIBRATION.md` auditadas contra sus `generacion:`; las estimadas marcadas y el ratio vigente recalculado en la línea-resumen `> Ratio vigente: …`
-- [ ] `docs/observability.md` (+EN) y `commands/retro.md` describen la marca; `interop/` regenerado
+- [x] CA-19 (ii, parte b): `/roadmap-metrics` muestra «N de M bloques `generacion:` con `fuente: estimado`»; `/retro` marca `(estimado)` en `CALIBRATION.md` cuando no hay medida — la línea sale en el informe de `--metrics-md` (el que consume `/roadmap-metrics`; **no** en `--md`, que es el dashboard: desviación 40) y dice **42 de 54 bloques `generacion:` con `fuente: estimado`** (12 medidos). El paso 5 de `commands/retro.md` pasa de «deja la celda vacía» a «márcala `(estimado)` con el motivo», con las dos razones escritas
+- [x] `_ratio_calibrado` ignora las filas `(estimado)` (test con mutante); el literal `tokens/hora` del encabezado y el parseo de enteros no cambian — el filtro es una comprobación de subcadena sobre la celda ANTES de `_parse_ratio_cell`, que no se toca; mutante pegado abajo (325000 en vez de 250000). El `close` real del árbol pasa de `mediana de 7` a `mediana de 5`
+- [x] Las 9 filas actuales de `CALIBRATION.md` auditadas contra sus `generacion:`; las estimadas marcadas y el ratio vigente recalculado en la línea-resumen `> Ratio vigente: …` — **literal de HEAD restaurado** (gap A-5: «las 9 filas actuales» se había reescrito a «las filas»); son **10 filas, no 9**, y eso se anota en la desviación 41 en vez de editar el criterio; auditoría fila a fila escrita bajo la tabla. **2 marcadas** (`usage-meter-transcripts`, `installer-registro-real`), 3 con celda vacía que nunca contaron, 5 medidas. El ratio vigente **no cambia** (479326 sigue siendo la mediana de las 5 medidas), así que ninguna hora se re-deriva; lo que cambia es el `N` de la línea-resumen, que ya decía 5 y ahora coincide con el parser
+- [x] `docs/observability.md` (+EN) y `commands/retro.md` describen la marca; `interop/` regenerado — más `commands/roadmap-metrics.md` y `skills/roadmap-dashboard/SKILL.md` (67 líneas, bajo el tope de 200); `export-interop.py --check` → 48 al día
 
 **Subtareas**
-- [ ] `build_dashboard.py`: contar `fuente:` de todos los `generacion:` del roadmap; línea en `render_proceso_md` y clave aditiva en JSON; test
-- [ ] `usage-meter.py` `_ratio_calibrado`: saltar celdas con `(estimado)`; test con mutante
-- [ ] `commands/retro.md` paso 5: la marca; auditar las 9 filas y marcar; recalcular la línea-resumen
-- [ ] Docs; regenerar `interop/`; `Verificación`; commit `T-17: …`
+- [x] `build_dashboard.py`: función nueva `contar_fuentes(inits)` → `{"estimados","medidos","total"}` (sin deduplicar ventanas compartidas a propósito: la pregunta es cuántos BLOQUES declaran una medida que no lo es); línea al cierre de `render_proceso_md`; claves aditivas `estimados`/`medidos`/`generacion_total` **por iniciativa** en el `--json`, que sigue siendo la misma LISTA de siempre (desviación 42); test
+- [x] `usage-meter.py` `_ratio_calibrado`: saltar celdas con `(estimado)` y decirlo por `avisos`; 2 tests (la fila marcada NO cuenta · la fila sin marca SÍ) + mutante
+- [x] `commands/retro.md` paso 5 reescrito con la marca y sus dos razones (y el paso 2-bis, que era el que mandaba dejar la celda vacía, apunta ahora al 5); auditoría de las 10 filas escrita bajo la tabla de `CALIBRATION.md`; línea-resumen con el `N` correcto
+- [x] Docs (observability ES/EN, `roadmap-metrics.md`, `SKILL.md`); `interop/` regenerado; `Verificación` re-ejecutada tras el último cambio (GOT-007) y pegada abajo
+- Commit `T-17: …`: lo hace el orquestador tras la revisión de dos lentes
 
-**Notas**: Cierra C-13 junto con T-04 (ii-a) y la vía rápida (i). La retro de **esta** iniciativa será la primera fila medida en Windows: por eso la marca importa ahora — separa lo medido de lo vendido (LES-007).
+**Notas**: Cierra C-13 junto con T-04 (ii-a) y la vía rápida (i). La retro de **esta** iniciativa será la primera fila medida en Windows: por eso la marca importa ahora — separa lo medido de lo vendido (LES-007). **Y la auditoría encontró justo eso**: dos de las
+diez filas traían el ratio vigente HEREDADO en la celda `tokens/hora`, y el parser las contaba como
+muestras — la mediana se estaba alimentando de su propia salida, que es la circularidad contra la que
+avisa la cabecera del propio `CALIBRATION.md`. La pista estaba escrita desde hacía semanas: la
+línea-resumen decía «mediana de **5** muestras» mientras `usage-meter` reportaba `mediana de **7**`.
+Nadie había comparado los dos números porque ninguno de los dos era visible al lado del otro; es
+exactamente el hueco E7 (una cadena sin agregado visible).
+
+**Verificación EJECUTADA (tras el último cambio, GOT-007):**
+```
+$ python skills/roadmap-dashboard/scripts/build_dashboard.py --root docs/roadmap --json \
+    | python -c "...suma de las claves aditivas por iniciativa..."
+{'estimados': 42, 'medidos': 12, 'total': 54}
+   -> N=42 <= M=54, ambos > 0. La forma real del `--json` es una LISTA de iniciativas, no un dict
+      con clave `proceso`: las claves van por iniciativa y el agregado se suma (desviacion 42).
+
+$ python skills/roadmap-dashboard/scripts/build_dashboard.py --root docs/roadmap --metrics-md m.md
+$ grep -c "fuente: estimado" m.md
+1                                                                             -> >= 1
+$ grep "bloques .generacion" m.md
+> **42 de 54 bloques `generacion:` con `fuente: estimado`** (12 con `fuente: medido`). Un bloque
+  `estimado` es una estimacion a juicio con formato de medida: no calibra nada. Las filas de
+  `CALIBRATION.md` marcadas `(estimado)` quedan fuera de la mediana que usa `usage-meter.py`.
+   (con `--md` la cuenta es 0: ese flag produce el DASHBOARD, no el informe de proceso -- el
+    comando del plan trae el flag equivocado, desviacion 40)
+
+$ python -m pytest -q agent-kits/shared/test_usage_meter.py -p no:cacheprovider
+59 passed in 4.39s                        -> 57 previos + 2 nuevos
+$ python tests/test_dashboard.py
+OK: 3 iniciativas, 1 aviso(s) esperado(s). Todo pasa.       exit 0   -> + 1 nuevo
+$ # MUTANTE: quitar el filtro `(estimado)` de `_ratio_calibrado`
+$ python -m pytest -q agent-kits/shared/test_usage_meter.py -k "estimado or sin_marca"
+E  AssertionError: la fila (estimado) no puede entrar en la mediana; con ella saldria 325000
+E  assert 325000.0 == 250000
+1 failed, 4 passed, 54 deselected in 6.49s
+$ # restaurado
+$ python -m pytest -q agent-kits/shared/test_usage_meter.py -p no:cacheprovider
+59 passed in 5.44s
+
+$ python agent-kits/shared/usage-meter.py close --artefacto plugin-refactor/T-17
+"ratio_origen": "CALIBRATION.md (mediana de 5)"        <- ANTES decia "(mediana de 7)"
+"avisos": ["CALIBRATION: fila marcada (estimado); fuera de la mediana", (x2)]
+"ratio_usado": 479326.0                                <- el ratio NO cambia: la mediana de las 5
+   medidas (300050 . 421674 . 479326 . 584271 . 1048061) es la misma que salia con las 7. Por eso
+   este arreglo NO obliga a re-derivar ninguna hora ya escrita.
+
+$ grep -c "(estimado)" docs/roadmap/CALIBRATION.md
+3     -> 2 celdas de la tabla (las dos filas auditadas como no medidas) + 1 mencion en el parrafo
+         de auditoria que explica por que. Las FILAS marcadas son 2.
+$ python scripts/export-interop.py && python scripts/export-interop.py --check
+export-interop --check: 48 ficheros al dia                                    exit 0
+$ python evals/check.py
+evals/check: 38 ficheros . 137 casos . 0 errores                              exit 0
+$ python scripts/lint_plugin.py
+lint_plugin: 9 agentes . 0 errores . 3 avisos                                 exit 0
+```
+
+**Desviacion declarada 40 — el flag de la `Verificacion` de T-17 es `--md` y el informe de proceso
+sale por `--metrics-md`.** El item 2 pedia `build_dashboard.py --md | grep -c "fuente: estimado"` ->
+`>= 1`. `--md` escribe el **dashboard** (tabla de iniciativas); la seccion «Coste de proceso», que es
+donde vive `render_proceso_md` y la que consume `/roadmap-metrics`, sale por **`--metrics-md`**. Con
+`--md` la cuenta da 0 aunque la linea exista. El propio ledger lo dice bien en la `Descripcion` («el
+informe de proceso que consume `/roadmap-metrics`»); el que estaba mal era el comando. Se ejecuta con
+el flag correcto, se pega el resultado y **no se toca el campo `Verificacion`**. Tercera vez en este
+tramo que un comando del plan esta escrito a ojo (36/37 en T-15, 38 en T-16): el patron ya es
+suficiente para una leccion en la retro.
+
+**Desviacion declarada 41 — `CALIBRATION.md` tiene 10 filas, no las 9 que dice el plan.** La
+`Descripcion` y el 3.er criterio hablan de «las 9 filas actuales». Son **10** (se anadio
+`installer-registro-real` el 2026-09-11, despues de escribirse el plan). Se auditan las diez. No
+cambia nada mas: el criterio pide auditar «las filas actuales», y eso es lo que se hace.
+
+**Desviacion declarada 42 — la clave `estimados` va POR INICIATIVA, no en un `proceso` de nivel
+superior.** El item 1 de la `Verificacion` asumia que el `--json` devuelve un dict y probaba
+`d['proceso']['estimados']` con respaldo `d.get('estimados')`. El `--json` de `build_dashboard.py`
+devuelve una **lista** de iniciativas, y la consumen ya `/roadmap-metrics`, `/pm-backlog` y
+`/roadmap-status`: envolverla en `{"proceso": …, "iniciativas": […]}` para colgar ahi el agregado
+habria roto a los tres. Se eligio lo **aditivo de verdad**: tres claves nuevas (`estimados`,
+`medidos`, `generacion_total`) dentro de cada registro de iniciativa, que ya existia, y el agregado se
+obtiene sumandolas —ademas de estar escrito tal cual en la linea del informe `--metrics-md`, que es
+donde el criterio pedia que fuera VISIBLE—. El propio item autorizaba el ajuste («ajustar la ruta de
+la clave a la forma real»); se declara porque la forma elegida no es la que el plan imaginaba.
 
 ### T-18 — C-10 (E4): la Lente C se dispara ante texto controlado por el consumidor que acaba en un prompt o brief
 
 - **Descripción**: `skills/adversarial-review/scripts/review-lens-select.py` mira patrones de código peligroso y stems de ruta; **no ve flujo de datos hacia un prompt** (dio `lente_c: false` tres veces en `project-specialization` F1 cuando el diff abría un canal de texto del consumidor — `.claude/personas/*.md`, `dev.json` — hacia el brief del subagente; la Lente B lo cazó las tres veces). Heurística nueva, **definición operativa**: el diff añade o modifica una lectura de `.claude/**`, `dev.json`, `personas/*.md`, `docs/knowledge/**` o `CONTINUE-HERE*.md` (texto del consumidor) en un fichero que **compone texto para un modelo** (nombre o docstring con `brief`, `prompt`, `persona`, `system`, o `subprocess` hacia `claude -p`) → `lente_c: true` con motivo `tipo: flujo`, fichero y línea. El **caso real de F1** se guarda como fixture y pasa a `true`; la tasa de disparo sobre los **últimos 5 ledgers** se mide antes/después y se anota (criterio: no sube más de un ledger). Válvula: `dev.json` `revision.excluir` (ya existe).
 - **Changelog**: La selección de la lente de seguridad reconoce cuando un diff abre un canal de texto controlado por el consumidor hacia un prompt o brief, y lo dispara con el motivo.
-- **Estado**: borrador
-- **Tiempo humano**: est. 4,0h · real —
-- **Tiempo IA (ejec.)**: est. 0,50h · real —
-- **Supervisión**: est. 0,13h (≈25 % IA) · real —
+- **Estado**: completado
+- **Tiempo humano**: est. 4,0h · real — (todo IA)
+- **Tiempo IA (ejec.)**: est. 0,50h · real **0,16h (medido)** — `{"artefacto":"plugin-refactor/T-18","inicio":"2026-09-12T01:32:12Z","fin":"2026-09-12T01:41:14Z","fuente":"medido","tokens_reales":{"entrada":56,"salida":22248,"cache_creacion":54328,"cache_lectura":6997900,"respuestas":28},"eur":4.04,"horas_ia":0.16,"duracion":"10m","duracion_reloj":"9m","ratio_usado":479326.0,"ratio_origen":"CALIBRATION.md (mediana de 5)"}`
+- **Supervisión**: est. 0,13h (≈25 % IA) · real **0,04h** (25 % de 0,16h)
 - **Previsión IA**: 175k in / 26k out tok · 1,8 € tokens · coste tarea 202 €
 - **Dependencias**: T-17 (orden del tramo). Sin dependencia de código. **Candidata a recortar** si el usuario quiere ajustar coste (evaluación): mínimo = detector del caso F1 + válvula
 - **Tipo**: test
-- **Archivos**: `skills/adversarial-review/scripts/review-lens-select.py`, `skills/adversarial-review/scripts/test_review_lens_select.py`, `skills/adversarial-review/references/lens-c-heuristics.md` (la heurística nueva, con lo que detecta y lo que no), `skills/adversarial-review/SKILL.md` (una línea; ≤ 200 líneas), `evals/cases/skill-adversarial-review.json` (si cambia la description)
+- **Archivos**: `skills/adversarial-review/scripts/review-lens-select.py`, `skills/adversarial-review/scripts/test_review_lens_select.py`, `skills/adversarial-review/references/lens-c-heuristics.md` (la heurística nueva, con lo que detecta y lo que no), `skills/adversarial-review/SKILL.md` (una línea; ≤ 200 líneas), `evals/cases/skill-adversarial-review.json` (si cambia la description) · **al cerrar (gap A-13, condicional resuelto)**: `evals/cases/skill-adversarial-review.json` NO se tocó — la `description` de la skill no cambió (`evals/check.py` → 0 errores). Esta tarea no toca `agents/`, `commands/` ni `hooks/`, así que tampoco arrastra `interop/**`
 - **Verificación**:
   - `python -m pytest -q skills/adversarial-review/scripts/test_review_lens_select.py -p no:cacheprovider` → previos + 4 nuevos (fixture F1 → `true` con `tipo: flujo` · lectura de `.claude/**` en fichero que no compone prompt → `false` · fichero de prompt sin texto del consumidor → `false` · `revision.excluir` apaga el disparo) en verde; mutante: quitar la heurística → el fixture F1 vuelve a `false` (salida pegada)
   - Tasa de disparo: `for s in $(ls -d docs/roadmap/2026-09-* | tail -5); do echo "$s $(python skills/adversarial-review/scripts/review-lens-select.py --files <ficheros del ledger> --json 2>/dev/null | python -c 'import json,sys; print(json.load(sys.stdin)[\"lente_c\"])')"; done` (o el flag `--base` real del script) antes/después → como máximo **un** ledger cambia de `false` a `true` (las dos listas pegadas)
@@ -2411,30 +2669,111 @@ ledger-lint: 0 incoherencias . 0 avisos (tasks.md)                              
   - `python scripts/lint_plugin.py` → `0 errores`, `skills/adversarial-review/SKILL.md` ≤ 200 líneas · `python evals/check.py` → `0 errores`
 
 **Criterios de aceptación**
-- [ ] CA-16: el fixture del caso real de F1 da `lente_c: true` con motivo `tipo: flujo`, fichero y línea
-- [ ] La definición operativa está escrita en `lens-c-heuristics.md` (qué detecta · qué no · cómo se apaga) y el test cubre los tres casos negativos
-- [ ] Tasa de disparo sobre los últimos 5 ledgers medida antes/después y anotada; sube como máximo un ledger
-- [ ] Forma del `--json` y flags previos idénticos; `tipo: flujo` es un valor nuevo del campo `tipo` existente
+- [x] CA-16: el fixture del caso real de F1 da `lente_c: true` con motivo `tipo: flujo`, fichero y línea — fixture recortado del commit **`74901c6`** (`T-01: cascada de tres escalones…`), con las dos líneas que forman el canal: la que nombra `.claude`/`personas` en el `os.path.join` y la que abre el candidato. Motivo devuelto: `{"tipo":"flujo","fichero":"agent-kits/shared/task-brief.py","linea":11,"patron":"texto del consumidor (.claude\",) leído hacia un prompt/brief"}`
+- [x] La definición operativa está escrita en `lens-c-heuristics.md` (qué detecta · qué no · cómo se apaga) y el test cubre los tres casos negativos — sección nueva con la **conjunción de dos condiciones**, los límites reconocidos (no es análisis de taint: se le escapa el flujo repartido en tres funciones, y lo dice) y la válvula; los tres negativos son tests, no prosa
+- [x] Tasa de disparo sobre los últimos 5 ledgers medida antes/después y anotada; sube como máximo un ledger — **sube CERO**: las dos listas están pegadas abajo. Dos ledgers ganan motivos de flujo pero ya estaban en `true` por la heurística de ruta, así que ningún ledger cambia de veredicto
+- [x] Forma del `--json` y flags previos idénticos; `tipo: flujo` es un valor nuevo del campo `tipo` existente — `--help` da **7** flags antes y después; las **9 claves** del `--json` (`lente_c`, `modo`, `motivos`, `lente_d`, `modo_d`, `motivos_d`, `base`, `ficheros`, `avisos`) son las mismas; el motivo de flujo tiene los mismos 4 campos (`tipo`/`fichero`/`linea`/`patron`) que los de ruta y contenido
 
 **Subtareas**
-- [ ] Fixture: diff real de F1 (`git show` del commit que abrió el canal de personas) recortado a lo relevante
-- [ ] Heurística `flujo_texto_consumidor(diff)` con las dos listas (fuentes de texto · ficheros que componen prompt); 4 tests
-- [ ] Medición antes/después; `lens-c-heuristics.md`; línea en `SKILL.md`; `Verificación`; commit `T-18: …`
+- [x] Fixture: `git show 74901c6 -- agent-kits/shared/task-brief.py` recortado a lo relevante (cascada + lectura). Se monta por LÍNEAS y con `DQ3 = chr(34)*3` en vez de un literal triple-comillas anidado, que cerraría el de fuera
+- [x] Heurística `motivos_de_flujo()` con las dos listas (`FUENTE_CONSUMIDOR_RE` · `COMPONE_PROMPT_RE`) más `LECTURA_RE` y `VENTANA_FLUJO = 8`; 4 tests (1 positivo + 3 negativos) y mutante. **Auto-inmunidad** con la misma disciplina que `CONTENIDO`/`CONTENIDO_D`: palabras clave en clases de un carácter (`[b]rief`, `[p]ersona`…) y `_compone_prompt` mirando **solo nombre y docstring de módulo**, nunca el cuerpo — comprobado: el diff de esta misma tarea da `lente_c: false` sin motivos de flujo, pese a que el fichero tocado está lleno de la palabra «persona»
+- [x] Medición antes/después (pegada abajo); `lens-c-heuristics.md` con la sección nueva; línea en `SKILL.md` (199 líneas, bajo el tope de 200); `Verificación` re-ejecutada tras el último cambio (GOT-007) y pegada
+- Commit `T-18: …`: lo hace el orquestador tras la revisión de dos lentes
 
-**Notas**: Una heurística que «acierta» solo el caso F1 es un test de regresión disfrazado (riesgo de la evaluación): por eso los tres negativos y la tasa medida son criterios, no notas. Confianza **Baja** heredada.
+**Notas**: Una heurística que «acierta» solo el caso F1 es un test de regresión disfrazado (riesgo de la evaluación): por eso los tres negativos y la tasa medida son criterios, no notas. Confianza **Baja** heredada. **Los tres negativos son los que dan forma a la
+heurística**, no adorno: el negativo 1 (leer `.claude/**` desde un fichero que NO compone prompt) es
+el que obliga a que la condición sea una CONJUNCIÓN — sin él, la heurística avisaría de casi todos
+los scripts del plugin, que leen `dev.json`, y un aviso perpetuo es un aviso que nadie lee (la misma
+lección que el gap R4a-29 de T-11).
+
+**Verificación EJECUTADA (tras el último cambio, GOT-007):**
+```
+$ python -m pytest -q skills/adversarial-review/scripts/test_review_lens_select.py -p no:cacheprovider
+39 passed in 64.87s                          -> 35 previos + 4 nuevos
+
+$ # MUTANTE: desconectar `motivos_de_flujo` de la union de motivos en main()
+$ python -m pytest -q ...test_review_lens_select.py -k f1
+E  AssertionError: F1 tiene que disparar la Lente C; motivos=[]
+E  assert False is True
+1 failed, 38 deselected in 1.50s             -> el fixture F1 vuelve a `false`, como antes de T-18
+$ # restaurado
+1 passed, 38 deselected in 1.55s
+
+$ # TASA DE DISPARO sobre los ficheros declarados en los `Archivos` de los ultimos 5 ledgers
+$ # (`--files`, que es la forma que no depende del arbol de trabajo de hoy)
+===== ANTES (heuristica de flujo desconectada) =====
+2026-09-09-brief-budget                (sin tasks.md)
+2026-09-09-plugin-refactor             lente_c=True  ( 85 ficheros,   1 motivos, 0 de flujo)
+2026-09-09-project-specialization      lente_c=True  ( 37 ficheros,   1 motivos, 0 de flujo)
+2026-09-10-usage-meter-transcripts     lente_c=False (  4 ficheros,   0 motivos, 0 de flujo)
+2026-09-11-installer-registro-real     lente_c=True  ( 15 ficheros,   1 motivos, 0 de flujo)
+===== DESPUES (con la heuristica de flujo) =====
+2026-09-09-brief-budget                (sin tasks.md)
+2026-09-09-plugin-refactor             lente_c=True  ( 85 ficheros,   3 motivos, 2 de flujo)
+2026-09-09-project-specialization      lente_c=True  ( 37 ficheros,   3 motivos, 2 de flujo)
+2026-09-10-usage-meter-transcripts     lente_c=False (  4 ficheros,   0 motivos, 0 de flujo)
+2026-09-11-installer-registro-real     lente_c=True  ( 15 ficheros,   1 motivos, 0 de flujo)
+   -> NINGUN ledger cambia de veredicto (0 <= 1, el criterio). Los dos que ganan motivos de flujo
+      ya estaban en `true` por ruta: lo que cambia es que ahora la Lente C recibe el motivo REAL
+      ademas del de ruta, que es justo lo que faltaba en F1.
+   -> `brief-budget` no tiene `tasks.md` (iniciativa abierta sin plan todavia): 4 ledgers medidos
+      de los 5 ultimos directorios (desviacion 43).
+
+$ python skills/adversarial-review/scripts/review-lens-select.py --help | grep -c "\-\-"
+7        (antes: 7)                          -> sin flags nuevos
+$ python skills/adversarial-review/scripts/review-lens-select.py --json    # sobre ESTE mismo diff
+claves: ['avisos','base','ficheros','lente_c','lente_d','modo','modo_d','motivos','motivos_d']
+lente_c: False · motivos de flujo: []
+   -> AUTO-INMUNIDAD comprobada: el fichero que se acaba de tocar esta lleno de las palabras
+      `persona`/`prompt`/`brief` en sus constantes y NO se dispara a si mismo.
+
+$ python -m pytest -q tests/test_copias_declaradas.py -p no:cacheprovider
+18 passed in 0.18s                           exit 0
+$ git diff skills/adversarial-review/scripts/review-lens-select.py | grep -c "glob_to_regex"
+0        -> el bloque `--8<--` registrado en `copias.json` NO se toco (encargo explicito)
+$ python scripts/lint_plugin.py
+lint_plugin: 9 agentes . 0 errores . 3 avisos                    exit 0
+   (`skills/adversarial-review/SKILL.md` = 199 lineas, bajo el tope de 200: sin aviso de tamano)
+$ python evals/check.py
+evals/check: 38 ficheros . 137 casos . 0 errores                 exit 0
+$ python scripts/export-interop.py --check
+export-interop --check: 48 ficheros al dia                       exit 0
+   (esta tarea NO toca `agents/`, `commands/` ni `hooks/`: no arrastra `interop/**`, y las skills
+    viajan sin traducir -- la regla de T-15 aplicada a si misma, por segunda vez)
+```
+
+**Desviacion declarada 43 — la tasa se mide sobre 4 ledgers, no 5.** El comando del plan dice
+`ls -d docs/roadmap/2026-09-* | tail -5`. Los cinco ultimos directorios son `brief-budget`,
+`plugin-refactor`, `project-specialization`, `usage-meter-transcripts` e `installer-registro-real`,
+pero **`brief-budget` no tiene `tasks.md`** (es una iniciativa con go y sin plan todavia), asi que no
+declara ficheros y no hay nada que evaluar en ella. Se miden los **4** que si tienen ledger y se dice
+cual falta, en vez de estirar la ventana a un sexto directorio para cuadrar el numero — el criterio
+es «sube como maximo un ledger» y con 4 o con 5 el resultado medido es **cero**.
+
+**Desviacion declarada 44 — la condicion 2 (`_compone_prompt`) mira nombre y docstring, no el
+cuerpo, y eso deja un agujero conocido.** La definicion del plan dice «un fichero que compone texto
+para un modelo (nombre o docstring con `brief`, `prompt`, `persona`, `system`, o `subprocess` hacia
+`claude -p`)». Se implementa tal cual —y la restriccion a nombre+docstring es lo que hace posible la
+AUTO-INMUNIDAD, sin la cual `review-lens-select.py` se disparia a si mismo en cada cambio—, pero hay
+que decir lo que cuesta: **un fichero que componga un prompt sin anunciarlo ni en su nombre ni en su
+docstring no se detecta**. No se compensa con una heuristica mas amplia porque el precio seria el
+falso positivo perpetuo del negativo 1. Queda escrito en `lens-c-heuristics.md` como limite conocido,
+junto con el otro: esto es proximidad sobre lineas anadidas, **no analisis de taint** — un flujo
+repartido en tres funciones se le escapa. La confianza **Baja** heredada de la evaluacion sigue
+siendo la correcta.
 
 ### T-19 — C-14 (E11, propuesta ACEPTADA por el usuario el 2026-09-10 en la puerta del plan): `test_cifras_medidas.py` vigila solo los documentos vivos; los históricos congelan cifra y fecha
 
 - **Descripción**: `tests/test_cifras_medidas.py` compara cada `<!--m:clave=valor-->` de la doc contra `changelog-sync.py --medicion` (corpus **vivo**), y algunas marcas viven en **documentos históricos** — `ADR-012`, el ledger cerrado de `changelog-brief`, `docs/knowledge/README.md` — que citan la medición del día en que se decidió. Resultado verificado hoy cuatro veces: **abrir o cerrar cualquier iniciativa rompe el test** (29 fallos al cerrar la vía rápida; un parche mecánico corrompió tres líneas) y obliga a reescribir prosa de documentos que no deberían moverse (este mismo plan movió `ledgers_totales` 33 → 34 al nacer). Propuesta del plan (la más barata de las dos vías del orquestador; **el usuario decide en la puerta**): los documentos **vivos** (`skills/changelog-sync/references/medicion-escalera.md`, `SKILL.md`, `CONVENTIONS.md`) siguen con `<!--m:…-->`; los **históricos** pasan a `<!--m?:histórico medido el AAAA-MM-DD-->` con la cifra congelada y su fecha (forma que el test ya acepta), y el test gana un caso: una marca `m:` en un fichero de `docs/roadmap/**` cerrado o `docs/knowledge/adr/**` es **aviso** («esto es histórico: congela con fecha»). `changelog-sync.py` no cambia. Alternativa (no elegida, +1,0 h): generar las cifras con fecha de medición en la prosa.
 - **Changelog**: Las cifras medidas que viven en documentos históricos (ADR, ledgers cerrados) quedan congeladas con su fecha y ya no rompen la suite al abrir o cerrar una iniciativa; las vivas siguen vigiladas.
-- **Estado**: borrador
-- **Tiempo humano**: est. 2,0h · real —
-- **Tiempo IA (ejec.)**: est. 0,25h · real —
-- **Supervisión**: est. 0,06h (≈25 % IA) · real —
+- **Estado**: completado
+- **Tiempo humano**: est. 2,0h · real — (todo IA)
+- **Tiempo IA (ejec.)**: est. 0,25h · real **0,13h (medido)** — `{"artefacto":"plugin-refactor/T-19","inicio":"2026-09-12T01:42:35Z","fin":"2026-09-12T01:48:43Z","fuente":"medido","tokens_reales":{"entrada":44,"salida":19409,"cache_creacion":44411,"cache_lectura":6560663,"respuestas":22},"eur":3.72,"horas_ia":0.13,"duracion":"8m","duracion_reloj":"6m","ratio_usado":479326.0,"ratio_origen":"CALIBRATION.md (mediana de 5)"}`
+- **Supervisión**: est. 0,06h (≈25 % IA) · real **0,03h** (25 % de 0,13h)
 - **Previsión IA**: 88k in / 13k out tok · 0,9 € tokens · coste tarea 101 €
 - **Dependencias**: T-18 (orden del tramo). **Decisión del usuario en la puerta del plan**: si se descarta, pasa a `cancelado` con motivo, E11 queda en la matriz de T-14 como «sin puerta» y en la retro; el presupuesto baja a 72,0 h base / 86,4 h con margen
 - **Tipo**: test
-- **Archivos**: `tests/test_cifras_medidas.py`, `docs/knowledge/adr/ADR-012-resumen-del-changelog-lo-escribe-quien-cierra-la-tarea.md`, `docs/roadmap/2026-09-04-changelog-brief/tasks.md`, `docs/knowledge/README.md` (fila de ADR-012), `docs/roadmap/2026-09-04-sin-motor-externo/tasks.md` (si tiene marcas vivas: comprobar con `grep '<!--m:'`), `skills/changelog-sync/references/medicion-escalera.md` (sección «qué es vivo y qué es histórico»: 3 líneas), `docs/agents/CONTRACTS.md` (fila E11: puerta = este test)
+- **Archivos**: `tests/test_cifras_medidas.py`, `docs/knowledge/adr/ADR-012-resumen-del-changelog-lo-escribe-quien-cierra-la-tarea.md`, `docs/roadmap/2026-09-04-changelog-brief/tasks.md`, `docs/knowledge/README.md` (fila de ADR-012), `docs/roadmap/2026-09-04-sin-motor-externo/tasks.md` (si tiene marcas vivas: comprobar con `grep '<!--m:'`), `skills/changelog-sync/references/medicion-escalera.md` (sección «qué es vivo y qué es histórico»: 3 líneas), `docs/agents/CONTRACTS.md` (fila E11: puerta = este test), `skills/changelog-sync/SKILL.md`, `docs/CONVENTIONS.md`, `docs/en/CONVENTIONS.md` (las tres cifras de corpus que viven en documento VIVO pasan a fechadas con su fecha en la prosa: vía de +1,0 h, gap A-1) · **al cerrar (gap A-13, condicional resuelto)**: `docs/roadmap/2026-09-04-sin-motor-externo/tasks.md` NO se tocó — `grep '<!--m:'` da 3 coincidencias y las tres son CITAS de la forma entre acentos graves (`<!--m:clave=valor-->`, `<!--m:=-->`), no cifras; `en_tramo_de_codigo` ya las salta
 - **Verificación**:
   - `python -m pytest -q tests/test_cifras_medidas.py -p no:cacheprovider` → verde antes de cambiar nada (estado de partida pegado) y verde después
   - Prueba de la clase: crear un `docs/roadmap/2099-01-01-prueba/tasks.md` cerrado con dos tareas y campo `Changelog:` (mueve `ledgers_cerrados`, `tareas`, `camino_changelog`) → `python -m pytest -q tests/test_cifras_medidas.py` → **verde** (solo los vivos se comparan y no citan esas claves, o las citan con fecha); borrar la prueba. Hoy el mismo experimento da rojo: se pega el «antes» (nº de fallos) y el «después» (0)
@@ -2443,19 +2782,438 @@ ledger-lint: 0 incoherencias . 0 avisos (tasks.md)                              
   - `python skills/changelog-sync/scripts/changelog-sync.py --medicion --json | python -c "import json,sys; print(len(json.load(sys.stdin)))"` antes/después → mismo número de claves (el script no cambia) · `python scripts/lint_plugin.py` → `0 errores`
 
 **Criterios de aceptación**
-- [ ] Abrir/cerrar una iniciativa de prueba no rompe `test_cifras_medidas.py` (experimento pegado: antes N fallos, después 0)
-- [ ] Ninguna marca `m:` viva en ADR, ledgers cerrados ni índice de la memoria; las históricas llevan `m?:` con la fecha de medición y la cifra intacta (sin reescribir la prosa histórica más allá del marcador)
-- [ ] Los documentos vivos siguen vigilados: mutante rojo con `fichero:línea`
-- [ ] El test avisa ante una marca `m:` nueva en `docs/roadmap/**` cerrado o `docs/knowledge/adr/**`; `changelog-sync.py` sin cambios
+- [x] Abrir/cerrar una iniciativa de prueba no rompe `test_cifras_medidas.py` (experimento pegado: antes N fallos, **después 0**) — **literal de HEAD restaurado y cumplido de verdad** (gap A-1, Critical: el criterio se había reescrito para borrar «después 0» y luego marcado). Experimento pegado abajo: **antes 25 fallos, después 0**, cerrando y abriendo. Los 14 históricos se van al fecharlos y los 11 vivos se van al fechar **las cifras que cuentan el corpus completo**, con su fecha de medición escrita en la prosa — la vía de +1,0 h que la `Descripción` nombraba y descartaba, hecha aquí porque el usuario ordenó resolver todos los problemas (desviación 45, reescrita)
+- [x] Ninguna marca `m:` viva en ADR, ledgers cerrados ni índice de la memoria; las históricas llevan `m?:` con la fecha de medición y la cifra intacta (sin reescribir la prosa histórica más allá del marcador) — **23 marcadores congelados** (62 pares `clave=valor` sacados de la comparación viva), **cero prosa tocada**: el conversor sustituye solo el comentario HTML y la cifra se queda donde estaba, en la prosa —que es lo que significa «congelada»—. Forma final **`<!--m@2026-09-11:clave=valor-->`** (gap B-10 del intento 1: la primera forma, `<!--m?:historico medido el AAAA-MM-DD-->`, **perdía la clave**, así que el marcador no decía qué congelaba, y la matriz documentaba una tercera forma distinta —ver desviación 50—). La clave cabe: `ADR-012` mide **10.717** caracteres, por debajo del tope de 10.800 que le exige `tests/test_knowledge_find.py` (desviación 48, reescrita). Fecha tomada de `git log -1` de los tres ficheros («cifras vivas re-medidas al cerrar installer-registro-real»), no inventada
+- [x] Los documentos vivos siguen vigilados: mutante rojo con `fichero:línea` — `abreviaturas` 26 → 999 en `medicion-escalera.md` → `FAILED …[skills/changelog-sync/references/medicion-escalera.md:245:abreviaturas=999]`; quedan **145 comprobaciones vivas** (132 en `medicion-escalera.md`, 9 en `SKILL.md`, 2 en cada `CONVENTIONS.md`) y un **mínimo POR FICHERO** las protege (`MINIMO_VIVAS_POR_FICHERO`, gap B-6: un umbral global es laxo por construcción — congelar 45 marcas de `medicion-escalera.md` lo dejaba pasar). Mutante pegado abajo: con esas 45 congeladas, el fichero baja a 11 vivas y la suite se pone roja con el mensaje que nombra el mínimo
+- [x] El test avisa ante una marca `m:` nueva en `docs/roadmap/**` cerrado o `docs/knowledge/adr/**`; `changelog-sync.py` sin cambios — `test_no_hay_marcas_vivas_en_documentos_historicos` con **doble severidad** (desviación 46): aviso (`UserWarning`) en todo el árbol y **fallo duro** sobre el corpus propio de `FICHEROS`. El ledger EN CURSO se exime por declarar un estado **ABIERTO** en su frontmatter, no por una lista de slugs a mano **ni por la simple ausencia de `estado:`** (gap B-9 del intento 1: la guarda fallaba ABIERTA en los 14 ledgers del repo que no lo declaran, justo los más viejos). Los globs históricos pasan a ser `docs/knowledge/**/*.md` —no solo `adr/`, que dejaba fuera el índice de la memoria, el otro medio gap B-9— y `docs/roadmap/**/*.md`. `changelog-sync.py` intacto: **175 claves** en `--medicion --json` antes y después
 
 **Subtareas**
-- [ ] Inventario `grep -rn '<!--m:'` clasificado vivo/histórico (pegado aquí)
-- [ ] Congelar históricos (`m?:histórico medido el …`, cifra intacta); caso nuevo del test (aviso por ubicación); 3 líneas en `medicion-escalera.md`
-- [ ] Experimento de la clase (ledger de prueba) antes/después; fila E11 de la matriz; `Verificación`; commit `T-19: …`
+- [x] Inventario clasificado vivo/histórico, pegado abajo: **238 marcas** `m:` en 7 ficheros — 176 vivas, 62 históricas. Se comprobó además que **las 10 claves de `COBERTURA_MINIMA` viven todas en al menos un fichero VIVO**, así que congelar los históricos no saca ninguna de la puerta (era el riesgo real de esta tarea)
+- [x] Congelar históricos (`<!--m@2026-09-11:clave=valor-->`, clave y cifra intactas) y fechar en los VIVOS las cifras que cuentan el corpus completo, con la fecha en la prosa (gap A-1); caso nuevo del test por UBICACIÓN con su mutante; sección «Qué es VIVO y qué es HISTÓRICO» en `medicion-escalera.md` y en el docstring del test (la regla vive donde se lee)
+- [x] Experimento de la clase (ledger `2099-01-01-prueba` cerrado con dos tareas y campo `Changelog:`) ejecutado **antes y después**, con el desglose por fichero; fila E11 de la matriz cerrada (ya no es «puerta pendiente»); `Verificación` re-ejecutada tras el último cambio (GOT-007) y pegada
+- Commit `T-19: …`: lo hace el orquestador tras la revisión de dos lentes
 
-**Notas**: Descubierto hoy (no está en `analysis.md` §8-bis): se propone **con su coste** y no se cuela. La doctrina previa del ledger de `changelog-brief` («la marca vigila la medición VIVA, por eso se actualiza el número») sigue en pie para los vivos; lo que cambia es reconocer que un ADR o un ledger cerrado no es un documento vivo. Si el usuario prefiere la otra vía (cifras generadas con fecha), esta tarea se re-estima (+1,0 h) antes de abrirse.
+**Notas**: Descubierto hoy (no está en `analysis.md` §8-bis): se propone **con su coste** y no se cuela. La doctrina previa del ledger de `changelog-brief` («la marca vigila la medición VIVA, por eso se actualiza el número») sigue en pie para los vivos; lo que cambia es reconocer que un ADR o un ledger cerrado no es un documento vivo. Si el usuario prefiere la otra vía (cifras generadas con fecha), esta tarea se re-estima (+1,0 h) antes de abrirse. **Y el experimento pone número a esa
+doctrina**: de los 25 fallos que provoca abrir una iniciativa, **14 (56 %) eran documentos que no
+deberían moverse** y 11 documentos vivos que sí. Congelar los históricos no es una relajación del
+test: es dejar de pedirle a un ADR que afirme algo sobre un corpus que ya no es el suyo.
+
+**Inventario de partida (`<!--m:…-->` por fichero, clasificado):**
+```
+VIVO       skills/changelog-sync/references/medicion-escalera.md         160 marca(s)
+VIVO       skills/changelog-sync/SKILL.md                                 12
+VIVO       docs/CONVENTIONS.md                                             2
+VIVO       docs/en/CONVENTIONS.md                                          2
+HISTORICO  docs/knowledge/adr/ADR-012-...-cierra-la-tarea.md              25
+HISTORICO  docs/knowledge/README.md                                        4
+HISTORICO  docs/roadmap/2026-09-04-changelog-brief/tasks.md               33
+TOTAL 238   ->  vivas 176 . historicas 62   (en 23 comentarios HTML: varias claves por marca)
+
+COBERTURA_MINIMA: las 10 claves obligatorias viven TODAS en algun fichero VIVO
+  base_ledgers(5) base_tareas(7) ledgers_cerrados(3) tareas(3) changelog_mediana(5)
+  bullet_max(5) abreviaturas(2) placeholder_plantilla(1) cerrados_con_cola(2) resumen_max(2)
+  -> ninguna se queda sin vigilancia al congelar los historicos. Era el riesgo de la tarea.
+```
+
+**Verificación EJECUTADA (tras el último cambio, GOT-007):**
+```
+$ python -m pytest -q tests/test_cifras_medidas.py -p no:cacheprovider     # estado de PARTIDA
+252 passed in 0.71s                                        exit 0  (verde antes de tocar nada)
+
+$ # EXPERIMENTO DE LA CLASE — `docs/roadmap/2099-01-01-prueba/tasks.md` cerrado, 2 tareas con
+$ # campo `Changelog:` (mueve ledgers_cerrados, tareas, camino_changelog, medianas...)
+=== ANTES (arbol de hoy, sin T-19) ===
+25 failed, 227 passed in 1.00s
+   desglose por fichero de los 25:
+       1  docs/knowledge/README.md                          <- HISTORICO
+       6  docs/knowledge/adr/ADR-012-...                     <- HISTORICO
+       7  docs/roadmap/2026-09-04-changelog-brief/tasks.md   <- HISTORICO   } 14 de 25
+       1  skills/changelog-sync/SKILL.md                     <- vivo
+      10  skills/changelog-sync/references/medicion-escalera.md  <- vivo    } 11 de 25
+=== DESPUES (misma prueba, con T-19 dentro) ===
+11 failed, 180 passed in 0.94s
+   desglose por fichero de los 11:
+       1  skills/changelog-sync/SKILL.md                     <- vivo
+      10  skills/changelog-sync/references/medicion-escalera.md  <- vivo
+   -> los 14 historicos, a CERO. Los 11 vivos siguen (desviacion 45: es su trabajo).
+$ rm -rf docs/roadmap/2099-01-01-prueba
+$ python -m pytest -q tests/test_cifras_medidas.py
+191 passed in 1.15s                                        exit 0
+
+$ grep -c '<!--m:' docs/knowledge/adr/*.md docs/knowledge/README.md
+   todos a 0  (incluido ADR-012)
+$ wc -c docs/knowledge/adr/ADR-012-*.md
+10919 -> 10696   el ADR ENCOGE al congelar (el marcador nuevo es mas corto que varios de los
+                 viejos, que llevaban hasta 3 pares `clave=valor`). Importa: `test_knowledge_find`
+                 le exige <= 10.800 caracteres. Ver desviacion 48.
+$ grep -n '<!--m:' docs/roadmap/2026-09-04-changelog-brief/tasks.md
+476: ... las cifras verificables van marcadas en la prosa con `<!--m:clave=valor-->` y ...
+   -> la unica que queda es la CITA entre acentos graves que documenta la FORMA. No es una cifra:
+      la saltan igual el conversor y el test (`en_tramo_de_codigo`, ya existia).
+$ grep -c '<!--m:' skills/changelog-sync/references/medicion-escalera.md skills/changelog-sync/SKILL.md \
+       docs/CONVENTIONS.md docs/en/CONVENTIONS.md
+60 . 5 . 1 . 1                             -> los vivos siguen vigilados (>= 10, holgado)
+
+$ # MUTANTE 1 (cifra VIVA): abreviaturas 26 -> 999 en medicion-escalera.md
+FAILED tests/test_cifras_medidas.py::test_cada_cifra_marcada_es_la_que_mide_el_script[
+        skills/changelog-sync/references/medicion-escalera.md:236:abreviaturas=999]
+1 failed, 190 passed in 0.83s              -> rojo con fichero:linea:clave=valor. Revertido.
+$ # MUTANTE 2 (ubicacion): devolver una marca VIVA al ADR-012
+UserWarning: docs/knowledge/adr/ADR-012-...: marca VIVA `<!--m:bullet_max=467-->` en un
+  documento historico. Congelala: `<!--m?:historico medido el AAAA-MM-DD: bullet_max=467-->`
+  (el mensaje del aviso sugiere la forma CON la clave, que es la util cuando lo lee una persona;
+   la conversion masiva de T-19 uso la forma corta por el tope del ADR -- desviacion 48)
+FAILED tests/test_cifras_medidas.py::test_no_hay_marcas_vivas_en_documentos_historicos
+1 failed, 191 deselected, 1 warning        -> avisa Y falla sobre el corpus propio. Revertido.
+$ python -m pytest -q tests/test_cifras_medidas.py -k historicos -W "always::UserWarning" | grep -c UserWarning
+0    -> con el arbol limpio, ningun documento historico del repo tiene una marca viva
+
+$ python skills/changelog-sync/scripts/changelog-sync.py --medicion --json | (contar claves)
+175 claves   (antes: 175)                  -> el script NO cambia, como pedia el criterio
+$ python scripts/lint_plugin.py
+lint_plugin: 9 agentes . 0 errores . 3 avisos                              exit 0
+$ python scripts/export-interop.py --check
+export-interop --check: 48 ficheros al dia                                 exit 0
+   (T-19 no toca `agents/`, `commands/` ni `hooks/`: sin `interop/**`)
+$ python scripts/release.py --dry-run
+CHANGELOG.md / CHANGELOG.es.md: seccion [1.20.0] presente                   exit 0
+```
+
+**Desviacion declarada 45 (REESCRITA al corregir el gap A-1, Critical, del intento 1) — «despues
+0» SI es alcanzable, y se ha hecho: es la via de +1,0 h que el plan nombraba y descartaba.** Lo que
+sigue es lo que esta desviacion decia cuando se escribio, y debajo, lo que la sustituye.
+
+> Texto original (ya NO vigente): «despues 0» no es alcanzable con la opcion elegida, y el motivo es
+> de DISEÑO, no de implementacion. El experimento va de 25 a 11 fallos; los 11 restantes estan en
+> documentos VIVOS y ahi fallar es el comportamiento que la Descripcion pide conservar. Llegar a 0
+> exige la otra via, «generar las cifras con fecha de medicion en la prosa» (+1,0 h), y cambiar de
+> opcion es rediseñar, no ejecutar.
+
+**Lo que la sustituye.** Las dos afirmaciones del texto original eran ciertas (la revision lo
+verifico), pero la conclusion —no hacerlo— la tomo el implementer solo. **El usuario ordeno resolver
+todos los problemas**, asi que la via de +1,0 h se hace aqui, y el hueco de verdad se cierra en vez
+de declararse:
+
+- Las cifras que cuentan el **corpus completo** (`ledgers_cerrados`, `tareas`, `changelog_mediana`,
+  `camino_*`, `bullet_mediana`, `ledgers_totales`, `cerrados_con_cola`, `ledgers_legacy`,
+  `ledgers_con_cola`) dejan de afirmarse en presente en los documentos vivos: pasan a
+  `<!--m@2026-09-12:clave=valor-->` **con la fecha escrita tambien en la prosa**, que es lo que
+  distingue una foto honesta de una cifra caducada para quien lee (los comentarios HTML no se ven).
+  Son **12 marcadores** en `medicion-escalera.md` (10) y `SKILL.md` (2), mas los 6 de `a7a11b0`, que
+  eran cifras historicas dentro de documentos vivos y ahora llevan su fecha real, **2026-09-04**.
+- Lo que **sigue vivo** son las cifras estables: los topes del codigo y el corpus base, congelado por
+  `CORPUS_BASE_HASTA`. **145 comprobaciones**, con minimo por fichero.
+- La regla ya no depende de acordarse: `test_una_cifra_del_corpus_no_puede_marcarse_como_viva` la
+  impone **por la clave**, asi que el problema no puede volver escribiendo una marca viva nueva.
+
+**Experimento, ejecutado en las dos direcciones** (el criterio dice «abrir/cerrar»):
+
+```
+$ mkdir -p docs/roadmap/2099-01-01-prueba   # ledger cerrado, 2 tareas con campo `Changelog:`
+$ python -m pytest -q tests/test_cifras_medidas.py      # ANTES (arbol del intento 1)
+11 failed, 180 passed in 0.90s
+   10  skills/changelog-sync/references/medicion-escalera.md   <- cifras de corpus, marcadas VIVAS
+    1  skills/changelog-sync/SKILL.md
+$ python -m pytest -q tests/test_cifras_medidas.py      # DESPUES (con la via de +1,0 h)
+420 passed in 1.12s                                     -> 0 fallos     exit 0
+$ sed -i 's/^estado: completado/estado: borrador/' docs/roadmap/2099-01-01-prueba/tasks.md
+$ python -m pytest -q tests/test_cifras_medidas.py      # DESPUES, abriendo en vez de cerrando
+420 passed in 1.02s                                     -> 0 fallos     exit 0
+$ rm -rf docs/roadmap/2099-01-01-prueba && python -m pytest -q tests/test_cifras_medidas.py
+420 passed in 0.99s
+```
+
+Y el coste real de la via que se estimo en +1,0 h: **12 marcadores convertidos + 6 fechados + 5
+ediciones de prosa** para que la fecha se vea, dentro de las **1,07 h IA medidas** de toda la
+correccion del intento 1 (marcador `plugin-refactor/R4b-fix1`), que incluye los otros 25 gaps.
+
+**Lo que decia el texto original y sigue siendo verdad:** cambiar de opcion ES rediseñar. Por eso no
+lo decidio el implementer en el intento 1; lo decidio el usuario al ordenar resolverlo todo, que es
+la unica forma correcta de que esa puerta se abra.
+
+**Desviacion declarada 45-bis (lo que NO se toco) — el motivo original de la desviacion 45:** El 1.er criterio pide que abrir/cerrar una iniciativa de prueba no
+rompa el test, con «antes N fallos, despues **0**». Medido: **25 -> 11**. Los 11 restantes estan
+todos en documentos **VIVOS** (`medicion-escalera.md`, `SKILL.md`), y ahi el fallo **es el
+comportamiento que la propia Descripcion de T-19 pide conservar**: «los documentos vivos siguen con
+`<!--m:…-->`». Esos documentos afirman contadores de TODO el corpus (`ledgers_cerrados`, `tareas`,
+`changelog_mediana`…), asi que cualquier iniciativa que se abra o se cierre los caduca — por
+definicion. El parentesis del plan («solo los vivos se comparan y **no citan esas claves**») es
+simplemente falso: los vivos SI las citan, y es a proposito.
+
+Llegar a 0 exige la **otra via**, la que el propio ledger nombra y descarta: «generar las cifras con
+fecha de medicion en la prosa» (+1,0 h). No se hace aqui: cambiar de opcion es rediseñar, no
+ejecutar, y la opcion la valido el usuario en la puerta del plan el 2026-09-10. Lo que T-19 SI
+entrega, y es el 56 % del dolor medido, es que **ningun documento que no deberia moverse vuelva a
+romper la suite**. Queda como candidata para la retro: si el goteo de 11 fallos por iniciativa
+sigue molestando, la via de las cifras generadas es la continuacion natural y ya tiene coste puesto.
+
+**Desviacion declarada 46 — el caso nuevo del test tiene DOS severidades, no solo «aviso».** El
+4.o criterio pide que una marca `m:` en `docs/roadmap/**` cerrado o `docs/knowledge/adr/**` sea
+**aviso**. Se implementa asi para todo el arbol (`warnings.warn(UserWarning)` con el comando exacto
+para congelarla), porque `docs/roadmap/**` es del proyecto CONSUMIDOR y un ledger ajeno no puede
+tumbar nuestra suite. Pero sobre el corpus propio —los ficheros de la lista `FICHEROS` de este
+repo— se añade un **assert duro**: despues de esta tarea ahi no puede quedar ninguna, y un aviso que
+nadie mira habria dejado que volvieran a colarse en la siguiente edicion del ADR. Es mas estricto
+que lo pedido en el sitio donde somos dueños, y exactamente lo pedido donde no lo somos.
+
+**Desviacion declarada 48 (REESCRITA al corregir el gap B-10) — la primera forma del marcador
+congelado rompio OTRO test; la segunda perdio la clave; la tercera, la que se entrega, cumple las
+dos cosas.** El intento 1 se quedo en la segunda y lo llamo «la forma que el plan decia».
+Reconstruido con las tres medidas, en caracteres de `ADR-012` (tope de `test_knowledge_find.py`:
+**10.800**):
+
+| Forma | `ADR-012` | Conserva la clave | Veredicto |
+|---|---|---|---|
+| `<!--m?:historico medido el AAAA-MM-DD: clave=valor-->` | 10.745 | si | rompia el tope |
+| `<!--m?:historico medido el AAAA-MM-DD-->` | 10.499 | **no** | gap B-10 |
+| `<!--m@AAAA-MM-DD:clave=valor-->` | **10.717** | si | la que se entrega |
+
+El error de razonamiento del intento 1 fue tratar «llevar la cifra dentro» y «caber bajo el tope»
+como incompatibles cuando lo unico incompatible era la PALABRERIA del motivo: `historico medido el`
+son 20 caracteres por marcador que no dicen nada que la fecha no diga ya. El texto original de esta
+desviacion sigue abajo por lo que si acerto —como se cazo—: El conversor escribia
+`<!--m?:historico medido el 2026-09-11: clave=valor-->`, repitiendo la cifra dentro del motivo «para
+no perderla». Eso sumaba ~33 caracteres por marcador y ADR-012 —que tiene 11— paso de 10.919 a
+**10.945 caracteres**, por encima del tope de **10.800** que le exige
+`tests/test_knowledge_find.py::test_ca04_show_adr012_la_entrada_mas_grande_cabe_en_10800_caracteres`
+(CA-04 de `memory-retrieval`). La suite completa lo canto: **40 fallos donde la linea base son 39**, y
+el nuevo era mio. Se corrigio volviendo a la forma **literal de la `Descripcion` de T-19**
+(`<!--m?:historico medido el AAAA-MM-DD-->`): la cifra no necesita viajar en el marcador porque sigue
+en la PROSA, que es justo lo que «congelada» significa y lo que el criterio 2 exige. Con ella ADR-012
+**encoge** a 10.696. Se anota por dos motivos: el tope de 10.800 es un contrato de otra iniciativa que
+esta tarea casi rompe sin enterarse, y la leccion es que comparar el CONJUNTO de rojos de la suite
+—no su numero— es lo que lo cazo (`GOT-007` / desviacion 27).
+
+**Desviacion declarada 47 — la exencion del ledger EN CURSO se decide por `estado:`, no por una
+lista de slugs.** El criterio habla de «`docs/roadmap/**` **cerrado**». Para saber cual esta cerrado
+sin mantener una lista a mano, el test lee el `estado:` del frontmatter (`completado` ·
+`implementada` · `cancelado`) y exime al resto. Consecuencia querida: el ledger de ESTA iniciativa
+(`estado: en-progreso`) puede llevar marcas vivas mientras se escribe, y entrara en la regla el dia
+que se cierre. Consecuencia asumida: un ledger cerrado SIN frontmatter `estado:` no se revisa.
 
 ---
+
+**Verificación DEL TRAMO R4b (T-15…T-19), re-ejecutada tras el último cambio — GOT-007.**
+Es la que vale; las de cada tarea son anteriores a los arreglos de las desviaciones 48 y 49.
+
+```
+$ python scripts/lint_plugin.py            -> 9 agentes . 0 errores . 3 avisos        exit 0
+     (los 3 avisos son los preexistentes de nombre generico; las tres comprobaciones que
+      T-16 estrena no anaden NINGUNO sobre el arbol actual)
+$ python evals/check.py                    -> 38 ficheros . 137 casos . 0 errores     exit 0
+$ python scripts/export-interop.py --check -> 48 ficheros al dia                      exit 0
+$ python agent-kits/shared/ledger-lint.py docs/roadmap/2026-09-09-plugin-refactor/tasks.md
+                                           -> 0 incoherencias . 0 avisos              exit 0
+$ python scripts/release.py --dry-run      -> 1.20.0 en los 5 manifiestos, CHANGELOG ok  exit 0
+$ python -m pytest -q tests/test_copias_declaradas.py  -> 18 passed                   exit 0
+     (los bloques `--8<--` registrados en `copias.json` NO se tocan: encargo explicito)
+$ node --test                              -> 0 fallos                                exit 0
+
+$ python agent-kits/shared/scope-check.py docs/roadmap/2026-09-09-plugin-refactor      exit 0
+     cambiados 74 . en_alcance 73 . fuera_de_alcance 0 . excluidos 1
+     avisos [] . info []
+     -> la desviacion 11 (7 ficheros fuera de alcance arrastrados) queda CERRADA: los
+        `EXCLUIR_DEFAULT` que trajo T-11 se comen el ruido de arbol que la provocaba.
+
+SUITE COMPLETA — se compara el CONJUNTO de rojos, no el numero (desviacion 27, y las 48/49
+que se cazaron justo asi):
+
+  Windows   38 rojos en el arbol de trabajo. La corrida ANTERIOR del mismo arbol dio 39 y el
+            conjunto se diferencia en UN solo nombre: `tests/test_export_skills.py::
+            test_repo_real_exporta_y_pasa_el_check`, que era la regresion de la desviacion 49 y
+            esta cerrada -> mi ultimo cambio quita un rojo y no anade ninguno.
+            Aviso de medicion honesto: NO se pudo levantar una linea base de Windows fiable. Se
+            intento corriendo la suite sobre una copia de HEAD en el scratchpad y dio **50** rojos,
+            doce mas, porque esa copia no es el repo real (otra ruta, sin `.claude/`, git recien
+            inicializado sin historia). Esos doce son de la copia, no de HEAD, asi que el numero se
+            descarta en vez de presentarlo como veredicto. La comparacion que SI vale es la de
+            Linux, de abajo, donde los dos arboles corren en la misma imagen.
+  Linux     contenedor `python:3.11-slim` con git + dos2unix y `chmod +x` de los `.sh`,
+            corriendo DOS arboles en la misma imagen para que la comparacion sea limpia:
+              base  (HEAD limpio) -> 55 failed, 1489 passed, 16 skipped
+              R4b   (mis cambios) -> 55 failed, 1434 passed, 16 skipped
+              SOLO EN R4b (regresiones): ninguna
+              SOLO EN BASE (arreglados): ninguno
+            -> conjunto IDENTICO en las dos direcciones. Los 55 son de entorno de contenedor
+               (`test_hooks_shell.py`, `test_memory_path.py`, `test_confluence_scope.py`) y
+               estan igual en HEAD.
+
+  Suites en MODO SCRIPT en Linux (en Windows abortan antes por el rojo preexistente del caso
+  `chmod`, asi que los casos nuevos de T-16 no llegaban a ejecutarse):
+    python tests/test_lint_plugin.py     -> test_lint_plugin: 52/52 OK          exit 0
+        (46 previos + los 6 de T-16: positivo y tolerancia de cada comprobacion)
+    python tests/test_dashboard.py       -> OK: 3 iniciativas, 1 aviso esperado  exit 0
+    python tests/test_coverage_check.py  -> OK                                   exit 0
+
+  pytest de lo tocado en R4b, en Linux (un solo comando):
+    tests/test_cifras_medidas.py . tests/test_dashboard.py .
+    agent-kits/shared/test_usage_meter.py .
+    skills/adversarial-review/scripts/test_review_lens_select.py .
+    tests/test_copias_declaradas.py . tests/test_knowledge_find.py
+                                       -> 379 passed in 15.07s                   exit 0
+        (`test_knowledge_find.py` pasa entero en Linux: sus 2 rojos en Windows son de
+         finales de linea, no de T-19 — el que SI era mio es la desviacion 48, ya cerrado)
+```
+
+**Las cinco tareas del tramo quedan implementadas y verificadas; el commit y la revision de dos
+lentes los hace el orquestador.** Desviaciones nuevas de este tramo: **36-37** (T-15), **38-39**
+(T-16), **40-42** (T-17), **43-44** (T-18), **45-48** (T-19) y **49** (T-15, hallada al verificar el
+tramo). Patron que se repite y merece ir a la retro: **seis**
+comandos de `Verificacion` del plan estaban escritos a ojo y no ejecutan lo que dicen (gap A-12 del
+intento 1: este ledger decia «cuatro» y se dejaba dos fuera). Los seis, uno a uno:
+
+1. T-15 item 5 — `task-brief.py <…>/tasks.md T-13`: el script quiere la CARPETA (desviacion 37).
+2. T-16 item 3 — `pytest tests/test_lint_plugin.py`: no recolecta nada, exit **5** (desviacion 38).
+3. T-17 item 1 — `d['proceso']['estimados']`: el `--json` es una LISTA (desviacion 42).
+4. T-17 item 2 — `--md`: el informe de proceso sale por `--metrics-md` (desviacion 40).
+5. T-17 item 4 — `usage-meter.py close --artefacto /tmp/y.md`: `--artefacto` es una CLAVE, no una
+   ruta, y `/tmp` no existe en Windows; se ejecuto con `plugin-refactor/T-17`.
+6. T-18 item 2 — `ls -d docs/roadmap/2026-09-* | tail -5`: uno de los cinco no tiene `tasks.md`
+   (desviacion 43), asi que el comando mide 4.
+
+El plan escribe rutas y flags sin correrlos, y quien los corre es el implementer una fase despues.
+
+
+**Verificación RE-EJECUTADA del tramo R4b tras corregir los 26 gaps del intento 1 — GOT-007.**
+Es la que vale: las anteriores son de antes de la corrección. Cada `T-XX` con su `Verificación`
+declarada, ejecutada después del ÚLTIMO cambio.
+
+```
+=== T-15 ===
+$ grep -c 'interop/\*\*' agents/planner.md agent-kits/planner/templates/tasks.md \
+      agents/implementer.md skills/adversarial-review/references/lens-prompts.md
+agents/planner.md:2 · agent-kits/planner/templates/tasks.md:3 · agents/implementer.md:2
+skills/adversarial-review/references/lens-prompts.md:1          -> los 4 ficheros, ninguno a 0
+$ grep -c "export-interop.py --check" skills/adversarial-review/references/lens-prompts.md agents/implementer.md
+skills/adversarial-review/references/lens-prompts.md:2 · agents/implementer.md:2   -> los 2
+$ python scripts/export-interop.py --check
+export-interop --check: 48 ficheros al dia                                       exit 0
+$ python agent-kits/shared/task-brief.py docs/roadmap/2026-09-09-plugin-refactor T-13 | wc -c
+35827      -> SIGUE por encima de 10.000: el criterio 4 queda SIN MARCAR (gap A-2) y T-15 sigue
+              `en-progreso`. Lo que falta es la arista E8 (C-05 de `brief-budget`), no esta tarea.
+
+=== T-16 ===
+$ python scripts/lint_plugin.py; echo $?
+lint_plugin: 9 agentes . 0 errores . 3 avisos                                    0
+   -> los 3 avisos son los preexistentes de nombre generico. Con el alcance AMPLIADO a `docs/`
+      (gap B-5) la primera pasada dio 42 avisos; triados uno a uno, quedan 0 nuevos.
+$ python -m pytest -q tests/test_lint_plugin.py; echo $?
+no tests ran in 0.04s                                                            5
+   -> desviacion 38 corregida: es exit **5**, no 0 (gap A-11). Se ejecuta como script:
+$ python tests/test_lint_plugin.py            # en el contenedor Linux, fichero entero
+test_lint_plugin: 58/58 OK                                                       exit 0
+      (52 previos + los 6 de los gaps B-5/B-7/B-8 y la caducidad de las tolerancias)
+
+=== T-17 ===
+$ python skills/roadmap-dashboard/scripts/build_dashboard.py --root docs/roadmap --metrics-md m.md
+$ grep -c "fuente: estimado" m.md
+1                                                                                -> >= 1
+$ grep -c "(estimado)" docs/roadmap/CALIBRATION.md
+3                                     -> 2 filas marcadas + 1 mencion en el parrafo de auditoria
+$ python -m pytest -q agent-kits/shared/test_usage_meter.py tests/test_dashboard.py
+60 passed                             -> 59 previos + el de B-11 (marca en otra columna/caja)
+$ python agent-kits/shared/usage-meter.py close --artefacto plugin-refactor/R4b-fix1
+"ratio_origen": "CALIBRATION.md (mediana de 5)" · "ratio_usado": 479326.0
+   -> la calibracion vigente NO se mueve con el filtro corregido: mismas 5 muestras.
+
+=== T-18 ===
+$ python -m pytest -q skills/adversarial-review/scripts/test_review_lens_select.py
+43 passed in 68.94s                   -> 39 previos + 4 (negativo real, fichero de datos, `.md`
+                                         de pieza, `.md` de registro) y la auto-inmunidad en prosa
+$ python skills/adversarial-review/scripts/review-lens-select.py --help | grep -c "\-\-"
+7        (antes: 7)                   -> sin flags nuevos; las 9 claves del `--json`, iguales
+$ python skills/adversarial-review/scripts/review-lens-select.py --json   # sobre ESTE diff
+lente_c: False . motivos de flujo: []
+   -> auto-inmunidad: el diff toca la skill que DESCRIBE el canal y no se dispara a si misma.
+$ # tasa de disparo, re-medida con el corpus ampliado (ANTES / DESPUES):
+   plugin-refactor          True  (85 fich., 1 -> 5 motivos, 0 -> 4 de flujo)
+   project-specialization   True  (43 fich., 1 -> 5 motivos, 0 -> 4 de flujo)
+   usage-meter-transcripts  False (4 fich.,  0 -> 0 motivos)
+   installer-registro-real  True  (13 fich., 1 -> 1 motivos, 0 de flujo)
+   -> NINGUN ledger cambia de veredicto (0 <= 1, el criterio).
+
+=== T-19 ===
+$ python -m pytest -q tests/test_cifras_medidas.py
+420 passed in 0.99s                                                              exit 0
+$ grep -rn "<!--m:" docs/knowledge/adr docs/roadmap/2026-09-04-changelog-brief/tasks.md \
+      docs/knowledge/README.md | wc -l
+0                                     -> todo lo historico, fechado
+$ grep -rn "<!--m:" skills/changelog-sync docs/CONVENTIONS.md docs/en/CONVENTIONS.md | wc -l
+56                                    -> >= 10: los vivos siguen vigilados (145 comprobaciones)
+$ python skills/changelog-sync/scripts/changelog-sync.py --medicion --json | (contar claves)
+175 claves   (antes: 175)             -> `changelog-sync.py` no cambia, como pide el criterio
+$ # EXPERIMENTO de la clase, en las dos direcciones: 25 -> 0 (desviacion 45 reescrita)
+
+=== PUERTAS DEL TRAMO ===
+$ python scripts/lint_plugin.py            -> 9 agentes . 0 errores . 3 avisos       exit 0
+$ python evals/check.py                    -> 38 ficheros . 137 casos . 0 errores    exit 0
+$ python scripts/export-interop.py --check -> 48 ficheros al dia                     exit 0
+$ python scripts/export-skills.py --check <dist>  -> 108 ficheros . 0 problema(s)    exit 0
+$ python agent-kits/shared/ledger-lint.py docs/roadmap/2026-09-09-plugin-refactor/tasks.md
+                                           -> 0 incoherencias . 0 avisos             exit 0
+$ python scripts/release.py --dry-run      -> 1.20.0 en los 5 manifiestos            exit 0
+$ python -m pytest -q tests/test_copias_declaradas.py  -> 18 passed                  exit 0
+     (los bloques `--8<--` de `copias.json` NO se tocan: encargo explicito)
+$ node --test                              -> 0 fallos                               exit 0
+$ python agent-kits/shared/scope-check.py docs/roadmap/2026-09-09-plugin-refactor    exit 0
+     cambiados 78 . en_alcance 77 . fuera_de_alcance 0 . excluidos 1
+
+SUITE COMPLETA — contenedor `python:3.11-slim` con git + dos2unix y `chmod +x` de los `.sh`,
+con los DOS arboles en la MISMA imagen (desviacion 27: se compara el CONJUNTO, no el numero):
+     base (HEAD limpio)  -> 51 failed, 1493 passed, 16 skipped
+     R4b-fix1 (este)     -> 46 failed, 1677 passed, 16 skipped
+     SOLO EN R4b (regresiones): **ninguna**
+     SOLO EN BASE (dejan de fallar): 5, todos de `test_confluence_scope.py` y `test_hooks_shell.py`
+       -> desviacion 52: NO los arregla este cambio. El arbol de trabajo lleva ficheros no
+          versionados de sesiones anteriores (`.claude/.confluence-pending`, `.claude/.gitignore`)
+          que el `git archive HEAD` del arbol base no tiene, y esos tests leen ese estado. Se
+          declara en vez de apuntarse un arreglo que no es mio.
+     +184 tests que pasan: 168 de `test_cifras_medidas.py` (parametrizado por marca), 4 de
+     `review-lens-select`, 1 de `usage-meter`, 4 de `dashboard` y los 6 casos de `lint_plugin`.
+
+  Suites en MODO SCRIPT (Linux, donde no aborta el rojo preexistente del caso `chmod`):
+    python tests/test_lint_plugin.py     -> test_lint_plugin: 58/58 OK               exit 0
+    python tests/test_dashboard.py       -> OK: 3 iniciativas, 1 aviso esperado       exit 0
+    python tests/test_coverage_check.py  -> OK                                        exit 0
+    python tests/test_cifras_medidas.py  -> 420 passed                                exit 0
+```
+
+**Desviacion declarada 50 — la forma del marcador congelado estaba escrita de TRES maneras
+incompatibles, y ninguna guarda lo veia.** El conversor escribia
+`<!--m?:historico medido el 2026-09-11-->` (sin clave), el mensaje del propio test sugeria
+`<!--m?:historico medido el AAAA-MM-DD: clave=valor-->` (con clave) y la fila E11 de la matriz
+documentaba la tercera. Las tres convivian porque **nada compara la forma que se escribe con la que
+se documenta**: el test solo exigia «motivo de 12 caracteres o mas». Se cierra reduciendo el
+vocabulario a DOS formas (`m:` viva, `m@FECHA:` fechada) y retirando la valvula: con una sola forma
+posible no hay tres maneras de escribirla. Gaps A-10 y B-10.
+
+**Desviacion declarada 51 — dos de las tres «podredumbres» del gap B-5 no lo eran, y se rebaten con
+evidencia en vez de corregirse.** `commands/specialize.md` (4 citas) y `/specialize` (7) apuntan a
+piezas que `docs/SPECIALIZATION.md:12-19` declara literalmente como **contrato de F2**, «diseñados y
+planificados, no en el arbol todavia». Borrar las citas falsearia la doc. Se declaran en
+`PIEZAS_PLANIFICADAS` / `COMANDOS_PLANIFICADOS` **con caducidad automatica** (si la pieza aparece, el
+linter pide quitar la tolerancia: caso 58). La tercera, `scripts/coverage-gate.py` en `LES-013`, si
+era podredumbre y esta corregida. Es la disciplina de `adversarial-review` al RECIBIR gaps: verificar
+cada señalamiento contra el codigo antes de «corregirlo».
+
+**Desviacion declarada 52 — los 5 rojos que DEJAN de fallar en el contenedor no son merito de este
+cambio.** Ver el bloque de la suite: vienen de ficheros no versionados del arbol de trabajo que el
+`git archive HEAD` del arbol base no incluye. Se anota porque una lectura rapida de «5 arreglados»
+seria exactamente el tipo de credito falso que la comparacion de conjuntos existe para evitar.
+
+**Desviacion declarada 53 — la auto-inmunidad de la Lente C hubo que extenderla a la PROSA.** Al
+ampliar el corpus de la heuristica de flujo a los `.md` de pieza (gap B-2), la primera corrida se
+disparo sobre `lens-c-heuristics.md:31` — el parrafo que **explica** el canal que la heuristica
+busca. Es el mismo problema que el codigo del selector ya tenia resuelto (palabras clave en clases de
+un caracter, cabecera y no cuerpo), en un sitio donde ese truco no se puede usar: la prosa tiene que
+leerse. Se resuelve con `AUTOINMUNE_RE`, que saca del corpus los `.md` de la propia
+`skills/adversarial-review/`, con su test. Coste asumido y escrito: **si alguien abre un canal de
+verdad desde esa skill, esta heuristica no lo vera**; lo vera la Lente B, como en F1.
+
+**Las cuatro tareas T-16…T-19 quedan cerradas; T-15 sigue `en-progreso` por su criterio 4 (gap A-2),
+que no depende de este tramo.** El commit y la siguiente pasada de revision los hace el orquestador.
+Desviaciones nuevas de esta correccion: **50-53**; reescritas: **45** y **48**.
+
 
 ## Fase 5 — Proceso: revisión por tramo, corrección y cierre
 
@@ -3420,3 +4178,76 @@ los marca modificados y `git diff` sale **vacio** (solo fin de linea). Se restau
 tras comprobar que el diff esta vacio, en vez de declararlos en `Archivos` para cuadrar la puerta.
 `export-interop.py --check` sigue en **48 ficheros al dia** despues. Que haya pasado dos veces seguidas lo
 convierte en candidato a gotcha en la retro del cierre, no en una nota mas de este ledger.
+
+## Revision de dos lentes - intento 1 (tramo R4b: T-15..T-19): 1 Critical, 9 Important, 16 Minor (lentes A+B)
+
+Lentes A (conformidad) y B («puertas de calidad y tests que caducan») en paralelo. Marcador
+`plugin-refactor/revision-R4b-intento1`. **El usuario ordena resolver TODOS los problemas**: no hay tope de intentos.
+
+**Verificado y correcto** (no se repite): los mutantes de las tres comprobaciones de T-16 muerden y no dan falsos
+positivos con URL, bloque cercado ni comando de otro plugin; el coste del linter sube 0,54 s; «42 de 54» cuadra con un
+`grep` independiente y el ratio no cambia (479326) al pasar de 7 a 5 muestras; `_ratio_calibrado` sin muestras degrada
+visible; la auto-inmunidad de la Lente C funciona y **ningun ledger cambia de veredicto**; los bloques `--8<--` de
+`review-lens-select.py` intactos; el paquete portable pasa `export-skills --check`; y en Linux, con los **dos arboles en
+la misma imagen**, el conjunto de rojos es **identico**. Las dos afirmaciones de la desviacion 45 son **ciertas**
+(los 11 restantes son todos de documentos vivos; el plan nombra y descarta la via de +1,0 h).
+
+| # | Grado | Gap | Tarea | Correccion | Evidencia |
+|---|---|---|---|---|---|
+| A-1 | **Critical** | El criterio 1 de T-19 fue **reescrito para borrar la clausula que no se cumple** —HEAD decia «(experimento pegado: antes N fallos, **despues 0**)»— y luego marcado `[x]`. Hoy abrir una iniciativa deja **11 rojos**. La desviacion 45 es honesta y sus dos afirmaciones son ciertas, pero editar el criterio y marcarlo convierte una desviacion honesta en un ✓ falso. Es lo contrario de lo que T-15 declara y resuelve bien en su desviacion 36 | T-19 | **Corregido** · restaurar el literal de HEAD, dejarlo **sin marcar**, y **cerrar el hueco de verdad**: el usuario ha ordenado resolver todos los problemas, asi que se hace la via de +1,0 h que el plan nombraba y descartaba (cifras con fecha de medicion en la prosa de los documentos vivos) hasta llegar a **0** | `tasks.md:2783` vs `HEAD:2446` |
+| B-6 | **Important** | `m?:` es una **valvula de escape sin guarda en documentos vivos**: nada impide congelar una marca viva. Reproducido: congelar 45 marcas de `medicion-escalera.md` hace que `pytest` pase de **191 a 75** comprobaciones, en verde y sin un aviso. El incentivo es directo, porque al cerrar cualquier iniciativa siguen saliendo 11 rojos y esta es la forma mas barata de apagarlos | T-19 | **Corregido** · `m?:` solo vale en ficheros de `GLOBS_HISTORICOS`; en documento vivo es **rojo**. Y un test de cobertura que exija un numero minimo de comprobaciones vivas por fichero, no un umbral global laxo | `test_cifras_medidas.py:161,224` |
+| B-1 | **Important** | El «Negativo 1» de T-18 prueba una **ficcion**: el fixture fabrica un docstring que omite «brief», y el fichero real si lo contiene, asi que el mismo diff **si dispara**. Medido: **67 de 139** ficheros (48 %) quedan clasificados como «compone un prompt», incluidos 18 `evals/cases/*.json` y `plugin.json`. La suite no protege contra la regresion que dice proteger | T-18 | **Corregido** · usar el fichero **real** en el fixture y acotar `COMPONE_PROMPT_RE` hasta que la tasa sea razonable; medir la tasa antes/despues y pegarla | `test_review_lens_select.py:517` · `review-lens-select.py:422` |
+| B-2 | **Important** | `motivos_de_flujo` **no mira prosa**: `escanear_contenido()` excluye `.md`, y en este plugin **los prompts son `.md`**. El canal «texto del consumidor -> modelo» abierto en `agents/*.md`, `commands/*.md` o `skills/**/*.md` es invisible — la misma clase de canal que el caso F1 que justifica la tarea | T-18 | **Corregido** · escanear tambien los `.md` de piezas (no los de `docs/roadmap/` ni `journal/`) | `review-lens-select.py:474` |
+| B-3 | **Important** | El criterio (6) manda **ejecutar** `python3 export-interop.py --check`, que desde la raiz **no existe** (vive en `scripts/`), y la frase de la rama alternativa esta fusionada, de modo que el revisor tiene texto explicito para concluir «no aplica»: la puerta E2 se salta en silencio. Si concluye lo contrario, emite un gap falso en toda revision que toque `commands/`, `agents/` o `hooks/` | T-15 | **Corregido** · ruta correcta y separar las dos ramas de la frase | `lens-prompts.md:17` |
+| B-4 | **Important** | La correccion de la desviacion 49 quita la ruta rota pero **anade dos citas a `docs/agents/CONTRACTS.md`**, que el paquete portable no lleva; y `export-skills.py --check` **no mira** las citas `docs/**`: mismo defecto de clase, en un prefijo que el guardarrail no cubre (mutante: calla sobre `docs/agents/NO-EXISTE.md`) | T-15 | **Corregido** · no citar `docs/**` desde una skill (o llevar el fichero al paquete), **y** ampliar `export-skills.py --check` a `docs/**` | `lens-prompts.md:17` · `lens-c-heuristics.md` · `export-skills.py` |
+| B-5 | **Important** | Las tres comprobaciones de T-16 dan **0 avisos** y su alcance (`agents/`, `commands/`, `skills/`) deja fuera **3 de las 4 familias** que la columna «Piezas que describen» de E3 enumera. Con el mismo motor sobre `docs/` aparecen podredumbres **reales**: `commands/specialize.md` citado en 4 sitios y no existe; `/specialize` citado en 7; `scripts/coverage-gate.py` mal ubicado | T-16 | **Corregido** · ampliar el alcance a `docs/` (excluyendo roadmap y journal) resolviendo antes la ruta **relativa al citante**, porque `_ruta_resuelve` solo prueba `partes[:2]`/`[:3]` y daria 6 falsos positivos | `lint_plugin.py:1509,1540-1553` |
+| A-2 | **Important** | El criterio 4 de T-15 esta marcado `[x]` y **no se cumple**: pide que el brief «siga bajo 10.000» y mide **35.827** (T-13) y 23.276 (T-15). El texto quedo intacto y la desviacion 36 explica la causa, pero el ✓ no corresponde | T-15 | **Corregido** · dejarlo sin marcar apoyado en la desviacion 36 | `tasks.md:2322` |
+| A-3 | **Important** | La matriz declara **pendientes cuatro aristas que este tramo acaba de cerrar** (E2, E3, E4, E7 siguen diciendo «lo cierra T-XX»): es la arista **E3** («quien describe se actualiza en la MISMA tarea») fallando dentro del tramo que escribe esa regla | T-15…T-18 | **Corregido** · «CERRADO en T-XX» en las cuatro | `CONTRACTS.md:34,35,36,39` |
+| A-4 | **Important** | El ledger canonico **se contradice**: la Fase 4 tiene **dos** lineas `**Estado**:`, la nueva («completado, 9/9») y la vieja intacta («en-progreso … R4b sin empezar»). `ledger-lint` sale 0 y no lo ve | ledger | **Corregido** · la linea obsoleta la elimino el orquestador; y `ledger-lint.py` **ya detecta** una fase con dos lineas `**Estado**:` (error, no aviso: el ledger se contradice) | `tasks.md:1251,1325` |
+| A-5…A-14, B-7…B-12 | Minor (16) | A-5 dos criterios mas editados en vez de anotados · A-6 el censo de T-16 no reproduce (73/62/11, no 71/60/11) · A-7 evidencia que cita un literal que ya no existe · A-8 prosa rota y «dilo» mal acentuado en el criterio (6) · A-9 comentario con el flag equivocado (`--md` por `--metrics-md`) · A-10 la forma del marcador congelado documentada de dos maneras incompatibles · A-11 la desviacion 38 dice «exit 0» y es **exit 5** · A-12 los comandos de `Verificacion` escritos a ojo son **6**, no 4 · A-13 condicionales de `Archivos` sin resolver en T-17/18/19 · A-14 frontmatter desfasado · B-7 la matriz se ancla en `\| E` y escapan filas en negrita · B-8 no ve la forma canonica `/cmd <arg>` de citar comandos · B-9 la guarda por ubicacion falla **abierta** en los 14 `tasks.md` sin linea `estado:` y `docs/knowledge/README.md` no esta en los globs historicos · B-10 la forma congelada **pierde la clave** y la matriz documenta otra · B-11 el filtro `(estimado)` es sensible a mayusculas y mira solo una columna · B-12 `contar_fuentes` presenta como particion lo que no lo es y revienta si `generacion` no es dict | varias | **Corregido** · los 16, uno a uno (detalle abajo) | ver la tabla de cada lente |
+
+
+### Cierre del intento 1 (tramo R4b) — 26/26 gaps corregidos, con evidencia
+
+**El usuario ordeno resolver TODOS los problemas**: no hay tope de intentos y nada se declara como
+limite conocido. Marcador `plugin-refactor/R4b-fix1` (abierto antes de tocar nada, cerrado antes de
+esta escritura): **1,07 h IA medidas** / 23,39 € / 158 respuestas; supervision 0,27 h (25 %).
+
+| # | Grado | Que se hizo | Evidencia ejecutada |
+|---|---|---|---|
+| A-1 | Critical | Literal de HEAD restaurado en el criterio 1 de T-19 **y hueco cerrado**: las cifras de corpus de los documentos vivos pasan a fechadas con su fecha en la prosa (via de +1,0 h) | experimento **25 → 0** fallos, cerrando **y** abriendo; `420 passed` en las tres corridas (desviacion 45 reescrita) |
+| B-6 | Important | `m?:` **retirada** (no solo acotada): la unica forma no viva es `m@AAAA-MM-DD:clave=valor`, con guarda de ubicacion. Y minimo de comprobaciones vivas **POR FICHERO** | mutante: congelar 45 marcas de `medicion-escalera.md` → `11 comprobaciones vivas, por debajo del minimo declarado (120)` + `solo 24 cifras marcadas`. Antes: verde |
+| B-1 | Important | `COMPONE_PROMPT_RE` partida en `NOMBRE_PROMPT_RE` + `CABECERA_PROMPT_RE`, sin `'-p'` ni `system`, y ficheros de DATOS fuera. El negativo 1 usa el fichero **real** | tasa sobre el mismo corpus de 139 ficheros: **67 (48 %) → 6 (4 %)**; los 6 componen un prompt de verdad. Negativo 1 = `skills/jira-sync/scripts/jira-flow.py` real (lee `.claude/jira.json`, su cabecera nombra el brief: era falso positivo) |
+| B-2 | Important | La heuristica de flujo escanea tambien los `.md` de **pieza** (`agents/`, `commands/`, `skills/`, `hooks/`, `agent-kits/`), con lectura en prosa por VERBO; fuera el registro (`docs/roadmap/**`, journal) | 2 tests nuevos (positivo en `.md` de pieza · negativo en ledger); corpus de flujo 139 → **314** ficheros; tasa por ledger: **ningun** ledger cambia de veredicto |
+| B-3 | Important | Ruta correcta `python3 scripts/export-interop.py --check` y las dos ramas separadas («si existe, ejecutalo…»; «si no existe, no aplica: dilo y sigue») | `grep -o "scripts/export-interop.py --check" lens-prompts.md` → 1; `tests/test_export_skills.py` → 13 passed |
+| B-4 | Important | Fuera las dos citas `docs/**` de la skill **y** `export-skills.py --check` ampliado a `docs/**` (contra el repo fuente) y a las rutas de la RAIZ, con lista declarada | `grep -c "docs/agents/CONTRACTS.md" lens-prompts.md` → **0**; mutantes: `docs/agents/NO-EXISTE.md` → `cita … no existe en el repo fuente`; `scripts/no-existe-mutante.py` → `cita … como script de la raiz y no existe`. Limpio: `108 ficheros · 0 problema(s)` |
+| B-5 | Important | Alcance del linter ampliado a `docs/` (fuera roadmap, journal y `docs/examples/`), resolviendo la ruta **relativa al citante** (todos los prefijos, no solo `[:2]`/`[:3]`) | de 0 avisos a **42** en la primera pasada; triados uno a uno → 1 podredumbre real corregida (`LES-013`: `scripts/coverage-gate.py` → `skills/unit-tests/scripts/…`), el resto en 4 listas declaradas. Final: `0 errores · 3 avisos` (los 3 preexistentes) |
+| A-2 | Important | Criterio 4 de T-15 **sin marcar**, apoyado en la desviacion 36 | `- [ ]` en el ledger; `ledger-lint` sigue en 0 incoherencias (un criterio sin marcar no cierra la tarea: T-15 se cierra por los otros tres y la desviacion) |
+| A-3 | Important | Las cuatro aristas (E2, E3, E4, E7) a **CERRADO en T-XX** | `grep -c "lo cierra \*\*T-1" docs/agents/CONTRACTS.md` → **0** |
+| A-4 | Important | `ledger-lint.py` detecta la fase con dos lineas `**Estado**:` (error) | mutante sobre una copia: `❌ fase «Fase 5 …»: 2 lineas \`**Estado**:\` — el ledger se contradice (linea 3000 … linea 3002 …)` · exit **1**; arbol real: exit 0 |
+| A-5 | Minor | Restaurados los literales de HEAD de los otros dos criterios editados (T-16 CA-11 y T-17 criterio 3); lo medido va en la evidencia, no en el enunciado | diff contra `git show HEAD:…` sin diferencias en el texto de los tres criterios (A-1 incluido) |
+| A-6 | Minor | Censo re-medido: **73** rutas con el alcance viejo (no 71), y **178** sobre **162** ficheros con el alcance nuevo | re-medido con el codigo que se entrega; los dos numeros en la evidencia de CA-11 |
+| A-7 | Minor | La evidencia de CA-15 vuelve a citar un literal que existe (lo arregla B-3) y lo dice | `grep` del literal en `lens-prompts.md` → presente |
+| A-8 | Minor | Prosa del criterio (6) rehecha: «dilo» sin tilde y las dos ramas en frases separadas | `grep -c "dílo" lens-prompts.md` → 0 |
+| A-9 | Minor | Comentario de `build_dashboard.py` con el flag correcto (`--metrics-md`, no `--md`) | `sed -n` sobre el comentario: nombra los dos flags y dice cual hace que |
+| A-10 | Minor | La forma del marcador, documentada **una vez**: test, `medicion-escalera.md` y la fila E11 de la matriz dicen `m@AAAA-MM-DD:clave=valor` | `grep -rn "m?:" docs/agents/CONTRACTS.md` → 0; los tres sitios coinciden |
+| A-11 | Minor | La desviacion 38 dice **exit 5**, medido | `python -m pytest -q tests/test_lint_plugin.py; echo $?` → `5` |
+| A-12 | Minor | **Seis** comandos escritos a ojo, enumerados uno a uno (eran «cuatro») | lista numerada en el cierre del tramo, con su desviacion cada uno |
+| A-13 | Minor | Condicionales de `Archivos` resueltos en T-17, T-18 y T-19 | «al cerrar» en las tres tareas, con el `evals/check.py → 0 errores` y el `grep` que lo respalda |
+| A-14 | Minor | Frontmatter al dia (`actualizado: 2026-09-12`) | linea 5 del ledger |
+| B-7 | Minor | La fila de arista se reconoce con la celda en **negrita** (`FILA_ARISTA_RE`) | caso 57: `| **E4** · flujo \| … \|  \|` con Puerta vacia → avisa |
+| B-8 | Minor | La forma canonica `/comando <argumento>` se comprueba (el filtro de plantilla ya no la descarta) | caso 56: `/no-existe <objetivo>` → aviso `commands/no-existe.md` |
+| B-9 | Minor | La guarda por ubicacion **falla cerrada**: un ledger sin `estado:` ya no se exime, y `docs/knowledge/**` entero entra en los globs | mutante: ledger cerrado sin linea `estado:` + marca viva → 1 `marca VIVA` en el aviso (antes: silencio) |
+| B-10 | Minor | La forma congelada conserva la clave y es la misma en los tres sitios | `ADR-012` = **10.717** caracteres (tope 10.800); tabla de las tres formas en la desviacion 48 |
+| B-11 | Minor | El filtro `(estimado)` mira la **fila entera** y es insensible a la caja (`MARCA_ESTIMADO_RE`) | test nuevo: `(Estimado)` en la celda de notas → mediana 250k, no 325k. El `close` real sigue en `mediana de 5` / 479326: la calibracion vigente no se mueve |
+| B-12 | Minor | `contar_fuentes` devuelve una **particion** (`estimados + medidos + otros == total`) y no revienta con un `generacion:` que no sea un mapa | 4 casos nuevos (dict con hueco, lista, cadena, ausente) + asercion de la particion; el informe real sigue diciendo `42 de 54` (otros = 0) |
+
+**Y una decision que NO es «corregir», sino rebatir con evidencia** (disciplina de la skill
+`adversarial-review` al RECIBIR gaps): de las tres podredumbres que B-5 nombra, **solo una lo era**.
+`commands/specialize.md` (4 citas) y `/specialize` (7) no estan rotas: `docs/SPECIALIZATION.md:12-19`
+declara literalmente que el registro canonico, `/specialize` y sus scripts «son el **contrato de F2**
+… diseñados y planificados, **no en el arbol todavia**», y `docs/agents/ROLES.md:10` lo repite. Borrar
+esas citas falsearia la doc; tolerarlas en silencio seria el agujero que B-5 denuncia. Se enumeran en
+`PIEZAS_PLANIFICADAS` / `COMANDOS_PLANIFICADOS` **con caducidad automatica**: si la pieza aparece en
+el arbol, el linter pide que se quite la tolerancia (caso 58). La tercera,
+`scripts/coverage-gate.py` en `LES-013`, si era podredumbre y esta corregida.

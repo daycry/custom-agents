@@ -12,7 +12,7 @@ creado: 2026-09-09
 actualizado: 2026-09-09
 evaluacion: evaluation.md
 design: n/a
-plan: pendiente
+plan: improvement-plan.md
 analisis: analysis.md
 relacionado: docs/knowledge/gotchas/GOT-009-presupuesto-del-brief-se-rompe-con-design-md.md · docs/knowledge/gotchas/GOT-008-tope-ca08-del-brief-depende-de-ruta-y-corpus.md · docs/roadmap/2026-09-09-plugin-refactor/analysis.md (toca el mismo script; hay que ordenarlas)
 generacion:            # la spec se escribió en la MISMA ventana que evaluation.md (una sola medición, no se duplica)
@@ -30,7 +30,7 @@ generacion:            # la spec se escribió en la MISMA ventana que evaluation
 
 > **Análisis de origen:** [`analysis.md`](analysis.md) — única fuente del alcance; esta spec no lo amplía.
 > **Evaluación:** [`evaluation.md`](evaluation.md)
-> **Plan de implementación:** pendiente
+> **Plan de implementación:** [`improvement-plan.md`](improvement-plan.md)
 
 > **Terminología:** **brief** = salida de `agent-kits/shared/task-brief.py <carpeta> T-XX` (el texto que recibe el subagente
 > de una tarea). **Tope** = `BRIEF_TOPE_CHARS = 10000` caracteres (≈ 2.500 tokens; CA-08 de la spec de `memory-retrieval`).

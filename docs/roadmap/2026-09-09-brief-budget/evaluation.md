@@ -23,7 +23,7 @@ generacion:            # ventana única: spec.md + evaluation.md (la spec la cre
 | **Prioridad global** | Alta |
 | **Solicitante** | usuario (decisión del 2026-09-09 de atacar la causa en iniciativa aparte, opción B; hallazgo de la Lente B, intento 2, F1 de `project-specialization`) |
 | **Spec** | [`spec.md`](spec.md) — `borrador`, derivada por el evaluator del análisis |
-| **Plan** | pendiente (handoff a `planner`) |
+| **Plan** | [`improvement-plan.md`](improvement-plan.md) |
 | **Características evaluadas** | 5 (O1-O5 del análisis) + 3 líneas de proceso presupuestadas aparte |
 
 > **Análisis de origen:** [`analysis.md`](analysis.md) — única fuente del alcance (9 secciones). Esta evaluación no lo amplía:

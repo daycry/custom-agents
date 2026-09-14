@@ -393,6 +393,159 @@ def evaluar_ruta(rel):
 
 # ---------------------------------------------------------------- decisión ----
 
+
+# ---- Lente C, heurística de FLUJO (T-18, hueco E4 de docs/agents/CONTRACTS.md) -----------------
+# Las dos heurísticas de arriba miran patrones de código peligroso (CONTENIDO) y stems de ruta
+# (RUTA_RE). Ninguna ve **flujo de datos**, y por eso `lente_c` salió `false` tres veces seguidas en
+# `project-specialization` F1 mientras el diff abría un canal de texto del CONSUMIDOR
+# (`.claude/personas/*.md`, `dev.json`) hacia el brief que lee un modelo. La Lente B lo cazó las
+# tres veces; la selección, ninguna.
+#
+# Definición operativa (conjunción de DOS condiciones, no una):
+#   1) el diff AÑADE una línea que nombra una fuente de texto del consumidor (FUENTE_CONSUMIDOR_RE)
+#      y esa línea, o alguna de las VENTANA_FLUJO añadidas siguientes del mismo fichero, LEE
+#      (LECTURA_RE) — nombrar una ruta en un mensaje de error no abre ningún canal;
+#   2) el fichero COMPONE TEXTO PARA UN MODELO (`_compone_prompt`): lo dice su nombre o su docstring
+#      de módulo, o lanza `claude -p`.
+# Sin la condición 2 esto avisaría de cualquier script que lea `dev.json` (que son casi todos).
+#
+# AUTO-INMUNIDAD (misma disciplina que CONTENIDO y CONTENIDO_D): las palabras clave van en clases de
+# un carácter (`[b]rief`, `[p]ersona`…) para que ESTE bloque de constantes no case consigo mismo, y
+# `_compone_prompt` solo mira el nombre del fichero y su docstring de módulo — nunca el cuerpo —,
+# así que un script que se limite a MENCIONAR estas palabras en una constante no se dispara.
+FUENTE_CONSUMIDOR_RE = re.compile(
+    r"[.]claude/|[.]claude[\"'],|dev[.]json|personas/|CONTINUE-HERE|docs/knowledge/")
+LECTURA_RE = re.compile(
+    r"\bopen\s*\(|\bread_text\s*\(|[.]read\s*\(|\bjson[.]load\b|\breadFileSync\s*\(|"
+    r"\bPath\s*\([^)]*\)\s*[.]|\bglob[.]|\bos[.]listdir\s*\(|\bloads?\s*\(")
+# El fichero compone texto para un modelo. `[x]` = auto-inmunidad (ver arriba).
+#
+# ACOTADA tras el gap B-1 de la revisión de R4b: la primera versión clasificaba como «compone un
+# prompt» a **67 de los 139** ficheros escaneables del repo (48 %), incluidos los 18
+# `evals/cases/*.json` y `plugin.json`. Una condición que se cumple en la mitad del árbol no es una
+# condición: convierte la conjunción en la heurística de fuente a secas, que es justo lo que el
+# negativo 1 prohíbe. Tres recortes, cada uno con su motivo medido:
+#   · `[\"']-p[\"']` fuera: casaba con CUALQUIER `add_argument("-p")` de argparse.
+#   · `[s]ystem` fuera: casaba con «sistema de ficheros», `systemd`, `system()`…
+#   · mencionar la palabra ya no basta en la CABECERA: tiene que decir que COMPONE o ENTREGA ese
+#     texto a un modelo (o lanzar `claude -p`). En el NOMBRE sí basta: un fichero que se llama
+#     `task-brief.py` compone un brief.
+# Un fichero de DATOS (`.json`, `.yml`, `.toml`…) no compone nada —lo compone quien lo lee—, así
+# que queda fuera por extensión; era el 78 % de los falsos positivos.
+NOMBRE_PROMPT_RE = re.compile(r"[b]rief|[p]rompt|[p]ersona", re.IGNORECASE)
+CABECERA_PROMPT_RE = re.compile(
+    r"(?:compone|construye|genera|monta|arma|redacta|entrega|inyecta|antepone)"
+    r"[^\n]{0,60}(?:[p]rompt|[b]rief|[p]ersona)"
+    r"|(?:[p]rompt|[b]rief)[^\n]{0,60}(?:subagente|modelo|lente|revisor)"
+    r"|claude\s+-p\b", re.IGNORECASE)
+EXT_DE_DATOS = (".json", ".yml", ".yaml", ".toml", ".ini", ".cfg", ".lock", ".csv", ".tsv")
+# Los prompts de ESTE plugin viven en prosa (`agents/*.md`, `commands/*.md`, `skills/**/*.md`), no
+# en código: el canal «texto del consumidor → modelo» del caso F1 se abre escribiendo una frase, no
+# un `open()` (gap B-2). `docs/roadmap/**` y el journal quedan fuera: son registro, no pieza.
+PIEZA_MD_RE = re.compile(r"(^|/)(agents|commands|skills|hooks|agent-kits)/")
+NO_ES_PIEZA_RE = re.compile(r"(^|/)docs/roadmap/|(^|/)journal/")
+# AUTO-INMUNIDAD en prosa: la documentación de ESTA skill explica el canal que la heurística busca
+# —nombra `.claude/personas/**` y dice que se lee hacia un prompt— así que se dispararía consigo
+# misma en cuanto alguien edite `lens-c-heuristics.md`. Es la misma decisión que arriba para el
+# código (palabras clave en clases de un carácter, cabecera y no cuerpo): el selector no puede
+# juzgarse a sí mismo, y un aviso perpetuo sobre la propia skill es un aviso que nadie lee.
+AUTOINMUNE_RE = re.compile(r"(^|/)skills/adversarial-review/")
+# En prosa, «leer» se escribe con un verbo, no con `open(`.
+LECTURA_PROSA_RE = re.compile(
+    r"\b(lee|léelo|leyendo|leer|carga|cargar|inyecta|antep[oó]n|antepone|pega|vuelca|incluye)\b",
+    re.IGNORECASE)
+# Las dos juntas, compiladas UNA vez: en un `.md` la lectura puede escribirse de las dos formas
+# (una skill cita `open(` en un ejemplo de código tan bien como lo cuenta en prosa).
+LECTURA_MD_RE = re.compile("(?:%s)|(?:%s)" % (LECTURA_RE.pattern, LECTURA_PROSA_RE.pattern),
+                           re.IGNORECASE)
+VENTANA_FLUJO = 8   # líneas añadidas siguientes (mismo fichero) donde aún cuenta la lectura
+_DELIMS_DOCSTRING = (chr(34) * 3, chr(39) * 3)   # delimitadores de docstring, sin escribirlos literales
+
+
+def _cabecera_modulo(texto):
+    """Las primeras líneas de un fuente hasta el fin de su docstring de módulo (o 40 líneas si no
+    tiene). Es lo único que mira `_compone_prompt`: el cuerpo no, para que un script que solo
+    MENCIONE «prompt» o «persona» en una constante no quede marcado como compositor."""
+    lineas = texto.split("\n")
+    if not lineas:
+        return ""
+    i = 0
+    while i < len(lineas) and not lineas[i].strip():
+        i += 1
+    if i < len(lineas) and lineas[i].lstrip().startswith(_DELIMS_DOCSTRING):
+        delim = lineas[i].lstrip()[:3]
+        resto = lineas[i].lstrip()[3:]
+        if delim in resto:                       # docstring de una sola línea
+            return "\n".join(lineas[:i + 1])
+        for j in range(i + 1, min(len(lineas), i + 200)):
+            if delim in lineas[j]:
+                return "\n".join(lineas[:j + 1])
+    return "\n".join(lineas[:40])
+
+
+def _compone_prompt(rel, root=None):
+    """¿Este fichero compone texto que acabará en un modelo? Por su NOMBRE o por su CABECERA
+    (docstring de módulo, o frontmatter + intro si es un `.md` de pieza), nunca por el cuerpo: ver
+    auto-inmunidad arriba. Si el fichero no se puede leer, decide solo con el nombre — degradar a
+    `false` silencioso sería perder el caso."""
+    if os.path.splitext(rel)[1].lower() in EXT_DE_DATOS:
+        return False          # un fichero de datos no compone: lo compone quien lo lee
+    if NOMBRE_PROMPT_RE.search(os.path.basename(rel)):
+        return True
+    path = os.path.join(root, rel) if root else rel
+    if not os.path.isfile(path) or es_binario(path):
+        return False
+    try:
+        with open(path, encoding="utf-8", errors="replace") as f:
+            cabecera = _cabecera_modulo(f.read(8192))
+    except OSError:
+        return False
+    return bool(CABECERA_PROMPT_RE.search(cabecera))
+
+
+def es_pieza_de_prompt(rel):
+    """¿Es un `.md` de PIEZA (agente, comando, skill, hook, kit)? Entonces es un prompt, y su
+    contenido se escanea para la heurística de flujo aunque `escanear_contenido` lo trate como
+    prosa para las otras dos (gap B-2). El registro —`docs/roadmap/**`, journal— no es pieza."""
+    if not rel.lower().endswith(".md") or NO_ES_PIEZA_RE.search(rel):
+        return False
+    if AUTOINMUNE_RE.search(rel):
+        return False
+    return bool(PIEZA_MD_RE.search(rel)) and not TEST_RE.search(rel)
+
+
+def escanear_flujo(rel):
+    """Corpus de la heurística de FLUJO: el código que ya se escaneaba, más los `.md` de pieza."""
+    return escanear_contenido(rel) or es_pieza_de_prompt(rel)
+
+
+def motivos_de_flujo(ficheros, lineas_por_fichero, excluir=(), root=None):
+    """Motivos `tipo: flujo`: el diff abre un canal de texto del CONSUMIDOR hacia un prompt o brief.
+
+    Devuelve la MISMA forma de motivo que `motivos_de` (dict con `tipo`, `fichero`, `patron`,
+    `linea`), con `tipo: "flujo"` como valor NUEVO del campo `tipo` que ya existía — no una clave
+    nueva ni un flag nuevo: la forma del `--json` no cambia."""
+    motivos = []
+    for f in ficheros:
+        if excluido_de_ruta(f, excluir) or not escanear_flujo(f):
+            continue
+        if not _compone_prompt(f, root):
+            continue
+        # en un `.md` de pieza la lectura se escribe con un verbo; en código, con una llamada
+        lee = LECTURA_MD_RE if es_pieza_de_prompt(f) else LECTURA_RE
+        lineas = lineas_por_fichero.get(f, [])
+        for idx, (nline, texto) in enumerate(lineas):
+            m = FUENTE_CONSUMIDOR_RE.search(texto)
+            if not m:
+                continue
+            ventana = [texto] + [t for _n, t in lineas[idx + 1: idx + 1 + VENTANA_FLUJO]]
+            if any(lee.search(t) for t in ventana):
+                motivos.append({"tipo": "flujo", "fichero": f, "linea": nline,
+                                "patron": f"texto del consumidor ({m.group(0)}) leído hacia un prompt/brief"})
+                break     # un canal por fichero basta para disparar; no se inunda de motivos
+    return motivos
+
+
 def motivos_de(ficheros, lineas_por_fichero, excluir=()):
     motivos = []
     for f in ficheros:
@@ -482,6 +635,7 @@ def main():
     avisos.extend(avisos_cfg)
 
     base_desc, ficheros, lineas = "—", [], {}
+    root_evaluacion = root      # raiz desde la que `motivos_de_flujo` abre los ficheros del diff
     try:
         if args.files is not None:
             base_desc = "--files"
@@ -493,6 +647,7 @@ def main():
                 avisos.append("fuera de un repositorio git y sin --files: no hay diff que evaluar (lente_c/lente_d: false)")
             else:
                 root_git = groot
+                root_evaluacion = root_git
                 base, base_desc, av = resolver_base(root_git, args.base)
                 if av:
                     avisos.append(av)
@@ -504,7 +659,11 @@ def main():
         avisos.append(f"error evaluando el diff ({e.__class__.__name__}: {e}); lente_c/lente_d: false")
         ficheros, lineas = [], {}
 
-    motivos_c = motivos_de(ficheros, lineas, excluir) if ficheros else []
+    # Los motivos de la Lente C son la union de las dos heuristicas: patron (ruta/contenido) y
+    # FLUJO (T-18). Se concatenan ANTES de `decidir`, asi que `revision.lenteSeguridad: nunca` y
+    # `revision.excluir` apagan las dos por igual -- la valvula no se duplica.
+    motivos_c = (motivos_de(ficheros, lineas, excluir)
+                 + motivos_de_flujo(ficheros, lineas, excluir, root=root_evaluacion)) if ficheros else []
     lente_c, motivos_c = decidir(modo_c, motivos_c)
     motivos_d = motivos_de_d(ficheros, lineas, excluir) if ficheros else []
     lente_d, motivos_d = decidir_d(modo_d, motivos_d)

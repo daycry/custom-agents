@@ -2,10 +2,12 @@
 
 **English** · [Español](../INSTALL.md)
 
-> **How you type the commands.** Installed as a plugin, the real name carries the namespace:
-> **`/custom-agents:setup`**, `/custom-agents:dev-cycle`, `/custom-agents:doctor`… The short
-> form (`/setup`), used in this document for brevity, only works with the bundle copied by hand
-> into `.claude/commands/` (`--mode copy`).
+> **How you type the commands.** In Claude Code, installed as a plugin, the real name carries the
+> namespace: **`/custom-agents:setup`**, `/custom-agents:dev-cycle`, `/custom-agents:doctor`…
+> In Codex there is no namespace and commands are exposed as prompts: **`/prompt:setup`** (or
+> **`/prompts:setup`** on provider versions that still use that alias). In OpenCode, the short form
+> is used: **`/setup`**.
+> This document uses the short form (`/setup`) for brevity.
 
 Bundle of custom agents for Claude Code covering the lifecycle of an initiative (requirements → budget → plan → implementation → tests → documentation) with time/cost accounting and optional traceability in Jira/Confluence. Agents: **analyst** (requirements gathering), **evaluator** (evaluates/budgets), **planner** (plans), **implementer** (implements), **qa** (Playwright E2E), **documenter** (documentation) and **nemesis** (SAST+DAST audit). Shared skills: **cybersecurity**, **to-pdf**, **confluence-publish**, **confluence-pull**, **roadmap-dashboard** and **jira-sync**. Commands: **/setup**, **/pm-cycle**, **/dev-cycle**, **/pm-backlog**, **/roadmap-status**, **/roadmap-metrics**, **/roadmap-brief**, **/roadmap-live**, **/retro** and **/confluence-pull**.
 

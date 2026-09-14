@@ -202,6 +202,37 @@ def run():
     assert "48m" in md4, f"las horas estimadas por artefacto deben sumarse (0,2+0,3+0,3=0,8h=48m); md={md4}"
     shutil.rmtree(tmp4)
 
+    # --- T-17 (E7): conteo de `fuente:` agregado y su línea en el informe de proceso ---
+    tmp5 = tempfile.mkdtemp()
+    def _ini(slug, fuente):
+        d = os.path.join(tmp5, slug)
+        os.makedirs(d)
+        open(os.path.join(d, "tasks.md"), "w", encoding="utf-8").write(
+            "---\ngeneracion:\n  fuente: " + fuente + "\n  horas_ia: 0.2\n"
+            "  inicio: 2026-01-01T00:00:00Z\n  fin: 2026-01-01T00:10:00Z\n---\n"
+            "# Checklist de Tareas — " + slug + "\n\n| | |\n|---|---|\n| **Estado** | completado |\n")
+    _ini("2026-01-01-medida", "medido")
+    _ini("2026-01-02-juicio-a", "estimado")
+    _ini("2026-01-03-juicio-b", "estimado")
+    inits5 = bd.scan(tmp5)
+    f = bd.contar_fuentes(inits5)
+    eq(f, {"estimados": 2, "medidos": 1, "otros": 0, "total": 3},
+       "contar_fuentes tiene que contar TODOS los bloques generacion: por su campo fuente")
+    # gap B-12: lo que devuelve es una PARTICION de verdad (las tres cuentas suman el total), y un
+    # `generacion:` que no sea un mapa de artefactos no revienta el informe del consumidor
+    for gen, esperado in (({"a": {"fuente": "medido"}, "b": {}}, {"estimados": 0, "medidos": 1, "otros": 1, "total": 2}),
+                          (["roto"], {"estimados": 0, "medidos": 0, "otros": 1, "total": 1}),
+                          ("medido", {"estimados": 0, "medidos": 0, "otros": 1, "total": 1}),
+                          (None, {"estimados": 0, "medidos": 0, "otros": 0, "total": 0})):
+        got = bd.contar_fuentes([{"generacion": gen}])
+        eq(got, esperado, f"contar_fuentes con generacion={gen!r}")
+        assert got["estimados"] + got["medidos"] + got["otros"] == got["total"], got
+    md5 = bd.render_proceso_md(inits5)
+    contains(md5, "2 de 3 bloques `generacion:` con `fuente: estimado`",
+             "el informe de proceso tiene que decir el agregado, no solo la fila")
+    contains(md5, "1 con `fuente: medido`", "y cuántos SÍ son una medida")
+    shutil.rmtree(tmp5)
+
     # --- avisos: beta es incoherente (spec aprobada, eval en-revision) ---
     warns = bd.warnings_for(inits)
     assert any("2026-01-12-beta" in w and "aprobada" in w for w in warns), \
