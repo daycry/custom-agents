@@ -254,6 +254,11 @@ def parse_ledger(text):
     fase_re = re.compile(r"^##\s+(Fase\b[^\n]*)")
     task_re = re.compile(r"^###\s+(T-\d+)\b\s*(?:[—–:-]\s*)?(.*)$")
     estado_re = re.compile(r"^\s*-\s*\*\*Estado\*\*\s*:\s*(.+)$")
+    # Estado de la FASE: va como párrafo en negrita (`**Estado**: completado · **Estimado**: …`),
+    # no como viñeta de tarea. Se recoge para detectar la fase que declara DOS estados a la vez
+    # (gap A-4 de la revisión de R4b): el ledger se contradecía —«completado, 9/9» y
+    # «en-progreso … sin empezar» en la misma fase— y `ledger-lint` salía 0 sin verlo.
+    fase_estado_re = re.compile(r"^\s*\*\*Estado\*\*\s*:\s*(.+)$")
     ia_re = re.compile(r"^\s*-\s*\*\*Tiempo IA[^*]*\*\*\s*:\s*(.+)$")
     check_re = re.compile(r"^\s*[-*]\s*\[( |x|X)\]")
 
@@ -276,7 +281,7 @@ def parse_ledger(text):
         m = fase_re.match(ln)
         if m:
             close_task()
-            cur_fase = {"nombre": m.group(1).strip(), "tareas": []}
+            cur_fase = {"nombre": m.group(1).strip(), "tareas": [], "estados": []}
             fases.append(cur_fase)
             continue
         if re.match(r"^##\s", ln) and not fase_re.match(ln):
@@ -290,6 +295,10 @@ def parse_ledger(text):
             # cada parser. Mismo criterio en los dos.
             close_task()
             continue
+        if cur_task is None and cur_fase is not None:
+            m = fase_estado_re.match(ln)
+            if m:
+                cur_fase["estados"].append((idx, m.group(1).strip()))
         m = task_re.match(ln)
         if m:
             close_task()
@@ -386,6 +395,16 @@ def lint(path):
     parsed = parse_ledger(text)
     fases = [(f["nombre"], f["tareas"]) for f in parsed["fases"]]
     all_tasks = parsed["tareas"]
+
+    # Una fase con DOS líneas `**Estado**:` es una contradicción, no un descuido de formato: la
+    # nueva dice «completado» y la vieja se queda diciendo «sin empezar», y quien lee el ledger (o
+    # el orquestador que decide si el tramo sigue) cree la que encuentra primero.
+    for f in parsed["fases"]:
+        ests = f.get("estados") or []
+        if len(ests) > 1:
+            detalle = " · ".join(f"línea {n}: «{v[:60]}»" for n, v in ests)
+            errors.append(f"fase «{f['nombre'][:40]}»: {len(ests)} líneas `**Estado**:` — "
+                          f"el ledger se contradice ({detalle})")
 
     seen_ids = set()
     for t in all_tasks:

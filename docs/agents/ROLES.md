@@ -1,5 +1,7 @@
 # Mapa de roles — un rol, un dueño
 
+> Este fichero dice **quién decide y quién escribe**. Cómo se hablan las piezas entre sí —flags, exit codes, ficheros, marcadores y la **puerta ejecutable** de cada arista— está en [`CONTRACTS.md`](CONTRACTS.md).
+
 Matriz **pieza × responsabilidad**: quién **DECIDE** (juicio propio sobre el resultado), quién
 **ESCRIBE** (el artefacto que le pertenece) y quién solo **LEE** (lo consulta como insumo, sin
 tocarlo). Nace de `ADR-011` (agentes retirados y responsabilidades fusionadas) — léelo para el

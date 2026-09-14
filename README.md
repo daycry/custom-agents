@@ -27,6 +27,12 @@
 
 From idea to tested, documented code: `requirements → budget → plan → implementation → adversarial review → E2E → docs`, with **control gates** at every step, **real cost measured in tokens**, and learning that calibrates the next estimates. Nine agents, twelve commands, self-contained (no dependencies on other plugins) — and it runs in **three runtimes**: Claude Code, Codex and OpenCode.
 
+> **How you type the commands.** Installed as a plugin, the real name carries the plugin
+> namespace: **`/custom-agents:dev-cycle`**, `/custom-agents:retro`, `/custom-agents:doctor`…
+> In Codex, it appears as prompts: `/prompt:dev-cycle` (or `/prompts:dev-cycle` depending on
+> provider). In OpenCode it stays short: `/dev-cycle`.
+> This document uses the short form (`/dev-cycle`) for brevity.
+
 ```mermaid
 flowchart LR
     idea(["💡 idea"]) --> A["🗣️ analyst<br/>requirements"]
@@ -101,7 +107,7 @@ npx @daycry/custom-agents            # interactive menu; marks the runtimes it d
 | Runtime | Install | What you get |
 |---|---|---|
 | **Claude Code** | `/plugin marketplace add daycry/custom-agents` (or the installer) | Everything: 9 agents, 12 commands, 17 skills, hooks, status line |
-| **Codex** | `codex plugin marketplace add daycry/custom-agents` (or the installer) | Skills, agents as `.toml`, commands as `/prompts:<name>`, session hooks |
+| **Codex** | `codex plugin marketplace add daycry/custom-agents` (or the installer) | Skills, agents as `.toml`, commands as `/prompt:<name>` (sometimes `/prompts:<name>`), session hooks |
 | **OpenCode** | `npx @daycry/custom-agents install -p opencode` | Skills, agents, commands, hook adapter |
 
 The installer **registers the plugin with each runtime**, it does not just copy files: Claude Code's
@@ -213,6 +219,8 @@ flowchart LR
 | **qa** | E2E with Playwright (local hosts only), verdict via `qa-gate.py`, md+pdf report with evidence. |
 | **documenter** | Technical and product documentation derived from the project itself, once at cycle close. |
 | **nemesis** | Cybersecurity audit: 8-dimension SAST + active pentest **local only** (non-negotiable guardrail). |
+
+> Installed as a plugin, commands carry the plugin namespace: **`/custom-agents:dev-cycle`**, `/custom-agents:doctor`… The short form below works with the `--mode copy` bundle; `/custom-agents:doctor` tells you which applies.
 
 | Command | What it does |
 |---------|----------|

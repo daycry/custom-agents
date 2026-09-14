@@ -9,6 +9,9 @@
 -->
 ---
 design: n/a               # design.md si el agente architect hizo el paso de diseño (regla 7); n/a si no
+test-plan: test-plan.md   # con UI: `test-plan.md`. SIN UI: la línea entera es
+                          # test-plan: n/a (sin UI)
+                          # (literal exacto: lo leen /dev-cycle Fase 3 y qa — ADR-017, hueco E1)
 generacion:
   inicio: {{ISO-8601}}
   fin: {{ISO-8601}}
@@ -234,4 +237,4 @@ Compara el esfuerzo **humano** estimado con el tiempo que tardaría un **agente 
 
 ## Siguiente paso
 
-Con el **OK del plan** del usuario (puerta de control), el agente **`implementer`** lo ejecuta fase a fase sobre una rama, marcando `tasks.md` como **ledger canónico** (checkbox + estado por tarea). Al terminar, handoff a `qa` (si hay `test-plan.md`) y cierre con `documenter`.
+Con el **OK del plan** del usuario (puerta de control), el agente **`implementer`** lo ejecuta fase a fase sobre una rama, marcando `tasks.md` como **ledger canónico** (checkbox + estado por tarea). Al terminar, handoff a `qa` y cierre con `documenter`; con `test-plan: n/a (sin UI)` en el frontmatter, `qa` corre sus puertas deterministas y sale limpio sin pedir test-plan (ADR-017).

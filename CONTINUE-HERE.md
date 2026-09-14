@@ -8,7 +8,13 @@
 > Verificar en una máquina con Codex y OpenCode reales que las skills y los prompts aparecen y que el adaptador
 > carga. Aquí no hay ninguno de los dos instalados.
 
-> **Lo siguiente en la cola** (ninguno empezado): **R4 del refactor** (`docs/roadmap/2026-09-09-plugin-refactor/`,
+> **EN CURSO (2026-09-11): R4 del refactor.** Rama `feature/plugin-refactor` realineada sobre master (v1.20.0).
+> Tramo **R4a = T-11…T-14** en ejecución por el implementer; después revisión de dos lentes → commits → tramo
+> R4b (T-15…T-19) → Fase 5 de cierre (T-20…T-22) → PR, merge y release, con verificación en contenedor Linux
+> ANTES del push (lección de la tanda anterior). Matiz para T-11: el ruido de `scope-check` en ESTE repo ya lo
+> quitó el `.gitignore`; lo que falta es la exclusión por defecto en el script, para proyectos consumidores.
+
+> **En la cola detrás** (ninguno empezado): **R4 del refactor** (`docs/roadmap/2026-09-09-plugin-refactor/`,
 > Fase 4, T-11…T-19 de encadenamiento E1–E11, más T-20…T-22 de cierre; el ledger sigue `en-progreso`) ·
 > **brief-budget** (evaluada con go, ordenada después del refactor) · **F2/F3 de project-specialization**
 > (`/specialize` y `.claude/pieces.json`, diseño aprobado en ADR-014).

@@ -1195,3 +1195,203 @@ def test_doctor_y_status_coinciden_tambien_en_codex(tmp_path, monkeypatch, toml,
         pytest.skip("sin `node`: la mitad `status` de la comparacion no se puede correr")
     assert _registrado(filas.get("Codex")) == activo, filas
     assert _registrado(filas.get("Codex")) == doctor_activo, "no pueden contradecirse"
+
+
+# ----------------------------------- T-12 (E5): nombre real de los comandos ----
+
+def _con_comandos(plug, *nombres, doc=None):
+    """Añade `commands/<n>.md` al plugin de fixture y, opcionalmente, ficheros de doc viva
+    (`{ruta_relativa: texto}`) para la comprobación de espacio de nombres."""
+    (plug / "commands").mkdir(exist_ok=True)
+    for n in nombres:
+        (plug / "commands" / f"{n}.md").write_text(f"---\nname: {n}\n---\n", encoding="utf-8")
+    for rel, texto in (doc or {}).items():
+        p = plug / rel
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(texto, encoding="utf-8")
+    return plug
+
+
+def test_t12_plugin_instalado_la_fila_dice_el_nombre_con_espacio_de_nombres(tmp_path, monkeypatch):
+    cfg = _cfg_vacio(tmp_path, monkeypatch)
+    cache = cfg / "plugins" / "cache" / "daycry" / "custom-agents" / "9.9.9"
+    plug = _con_comandos(plugin(tmp_path, dest=cache), "dev-cycle", "doctor")
+    (cfg / "plugins" / "installed_plugins.json").write_text(json.dumps(
+        {"version": 2, "plugins": {"custom-agents@daycry": [
+            {"scope": "user", "installPath": str(cache), "version": "9.9.9"}]}}), encoding="utf-8")
+    inf = diag(proyecto(tmp_path), plug)
+
+    f = fila(inf, "nombre de los comandos")
+    assert f["estado"] == doctor.INFO, f          # informativa: no hay nada que arreglar
+    assert "/custom-agents:dev-cycle" in f["detalle"]
+    assert "Unknown command" in f["detalle"]
+    # aditiva: ni un ❌ ni un ⚠️ nuevos, mismo exit code
+    assert [l["que"] for l in lineas(inf, doctor.AVISO)] == []
+    assert inf["resumen"][doctor.ERROR] == 0 and inf["exit"] == 0
+
+
+def test_t12_bundle_local_no_genera_ruido_y_dice_la_forma_corta(tmp_path, monkeypatch):
+    _cfg_vacio(tmp_path, monkeypatch)
+    proj = proyecto(tmp_path)
+    plug = _con_comandos(plugin(tmp_path, dest=proj / ".claude"), "dev-cycle")
+    inf = diag(proj, plug)
+
+    f = fila(inf, "nombre de los comandos")
+    assert f["estado"] == doctor.INFO and f["arreglo"] == ""
+    assert "/dev-cycle" in f["detalle"] and "/custom-agents:dev-cycle" in f["detalle"]
+    # sin ⚠️ de doc viva: en modo copia no hay doc viva del plugin que revisar aquí
+    assert [l for l in lineas(inf, doctor.AVISO) if l["que"] == "doc viva sin el espacio de nombres"] == []
+    assert inf["exit"] == 0
+
+
+def test_t12_doc_viva_que_solo_cita_la_forma_corta_es_aviso_con_el_fichero(tmp_path, monkeypatch):
+    _cfg_vacio(tmp_path, monkeypatch)
+    proj = proyecto(tmp_path)
+    plug = _con_comandos(
+        plugin(tmp_path), "dev-cycle", "doctor",
+        doc={"README.md": "Arranca con `/dev-cycle` y listo.\n",              # solo forma corta -> ⚠️
+             "CLAUDE.md": "Instalado como plugin: `/custom-agents:dev-cycle`.\n",   # menciona -> ok
+             "docs/README.md": "Sin comandos aquí.\n"})                       # no cita -> ok
+    inf = diag(proj, plug)
+
+    f = fila(inf, "doc viva sin el espacio de nombres")
+    assert f["estado"] == doctor.AVISO
+    assert f["detalle"].startswith("README.md:"), f["detalle"]
+    assert "CLAUDE.md" not in f["detalle"] and "docs/README.md" not in f["detalle"]
+    assert "/custom-agents:<comando>" in f["arreglo"]
+    # un aviso no rompe la instalación
+    assert inf["resumen"][doctor.ERROR] == 0 and inf["exit"] == 0
+
+
+def test_t12_la_doc_viva_de_ESTE_repo_no_deja_aviso(tmp_path):
+    """La puerta de no-regresión: los 7 ficheros de doc viva del repo citan la forma que funciona
+    EN SU PRIMERA mención de un comando, no en una nota al pie (gap R4a-3)."""
+    cmds = doctor._comandos_del_plugin(ROOT)
+    assert "dev-cycle" in cmds and "doctor" in cmds
+    assert doctor._doc_viva_sin_namespace(ROOT, cmds) == []
+
+
+def test_r4a3_la_nota_al_pie_ya_no_satisface_la_comprobacion(tmp_path, monkeypatch):
+    """Gap R4a-3: antes bastaba con que `/custom-agents:` apareciera UNA vez en cualquier sitio, así
+    que una nota decenas de líneas por debajo del primer comando tecleable colaba. Ahora se exige
+    que la PRIMERA mención lo lleve (misma línea o antes)."""
+    _cfg_vacio(tmp_path, monkeypatch)
+    proj = proyecto(tmp_path)
+    nota_al_pie = "Arranca con `/dev-cycle`.\n" + "relleno\n" * 40 + "Nota: `/custom-agents:dev-cycle`.\n"
+    antes = "Instalado como plugin: `/custom-agents:dev-cycle`.\n\nArranca con `/dev-cycle`.\n"
+    misma_linea = "Teclea `/custom-agents:dev-cycle` (o `/dev-cycle` con el bundle copiado).\n"
+    plug = _con_comandos(plugin(tmp_path), "dev-cycle", "doctor",
+                         doc={"README.md": nota_al_pie,       # namespace DESPUÉS → ⚠️
+                              "CLAUDE.md": antes,             # namespace ANTES → ok
+                              "docs/README.md": misma_linea})  # misma línea → ok
+    inf = diag(proj, plug)
+
+    f = fila(inf, "doc viva sin el espacio de nombres")
+    assert f["estado"] == doctor.AVISO
+    assert f["detalle"].startswith("README.md:"), f["detalle"]
+    assert "CLAUDE.md" not in f["detalle"] and "docs/README.md" not in f["detalle"]
+    assert "PRIMERA" in f["detalle"], f["detalle"]
+    assert "nota al pie" in f["arreglo"], f["arreglo"]
+    assert inf["resumen"][doctor.ERROR] == 0 and inf["exit"] == 0
+
+
+def test_r4a10_sin_carpeta_commands_la_fila_lo_dice_y_no_inventa_un_nombre(tmp_path, monkeypatch):
+    """Gap R4a-10: con un `plugin_root` sin `commands/` (instalación truncada, justo el caso para el
+    que existe `/doctor`) la fila afirmaba `/custom-agents:dev-cycle` igual. Ahora dice que no
+    puede confirmarlo."""
+    _cfg_vacio(tmp_path, monkeypatch)
+    proj = proyecto(tmp_path)
+    plug = plugin(tmp_path)                       # sin _con_comandos: no hay commands/
+    assert doctor._comandos_del_plugin(str(plug)) == []
+    inf = diag(proj, plug)
+
+    f = fila(inf, "nombre de los comandos")
+    assert f["estado"] == doctor.INFO and f["arreglo"] == ""
+    assert "no hay carpeta `commands/`" in f["detalle"], f["detalle"]
+    assert "/custom-agents:<comando>" in f["detalle"], f["detalle"]
+    assert "/custom-agents:dev-cycle" not in f["detalle"], "no se inventa un comando que no existe"
+    # y sin comandos tampoco se acusa a la doc viva de nada
+    assert [l for l in lineas(inf, doctor.AVISO)
+            if l["que"] == "doc viva sin el espacio de nombres"] == []
+    assert inf["exit"] == 0
+
+
+def test_r4a18_la_fila_dice_de_que_runtime_es_el_espacio_de_nombres(tmp_path, monkeypatch):
+    """Gap R4a-18 (multi-runtime): el prefijo `custom-agents:` es de Claude Code; en Codex y
+    OpenCode el mismo comando se invoca sin prefijo. La fila lo dice en los tres modos."""
+    _cfg_vacio(tmp_path, monkeypatch)
+    proj = proyecto(tmp_path)
+    plug = _con_comandos(plugin(tmp_path), "dev-cycle")
+    for modo in ("plugin", "copia", "inactivo", "desconocido"):
+        ls = doctor.comprobar_nombre_comandos(str(plug), modo)
+        det = ls[0]["detalle"]
+        assert "Claude Code" in det, (modo, det)
+        assert ls[0]["estado"] == doctor.INFO and ls[0]["arreglo"] == ""
+
+
+def test_r4a25_una_ruta_con_glob_no_cuenta_como_mencion_de_comando(tmp_path, monkeypatch):
+    """Gap R4a-25: el lookbehind dejaba pasar el `*`, así que una RUTA con glob
+    (`commands/*/dev-cycle.md`) contaba como «mención corta de un comando» y sacaba un ⚠️ falso.
+    Una ruta no es un comando tecleable: nadie escribe `commands/*/dev-cycle.md` en el picker."""
+    _cfg_vacio(tmp_path, monkeypatch)
+    proj = proyecto(tmp_path)
+    plug = _con_comandos(
+        plugin(tmp_path), "dev-cycle", "doctor",
+        doc={"README.md": "Los comandos viven en `commands/*/dev-cycle.md` y se generan solos.\n",
+             "CLAUDE.md": "Nada que ver aquí.\n",
+             "docs/README.md": "Tampoco aquí.\n"})
+    inf = diag(proj, plug)
+
+    assert [l for l in lineas(inf, doctor.AVISO)
+            if l["que"] == "doc viva sin el espacio de nombres"] == []
+    assert doctor._doc_viva_sin_namespace(str(plug), ["dev-cycle", "doctor"]) == []
+    assert inf["exit"] == 0
+
+
+def test_r4a37_una_ruta_relativa_o_del_home_tampoco_es_un_comando(tmp_path, monkeypatch):
+    """Gap R4a-37: el lookbehind cerraba `*` pero no `.` ni `~`, así que `./dev-cycle` y
+    `~/dev-cycle` —rutas, no comandos tecleables— seguían contando como mención corta."""
+    _cfg_vacio(tmp_path, monkeypatch)
+    proj = proyecto(tmp_path)
+    plug = _con_comandos(
+        plugin(tmp_path), "dev-cycle", "doctor",
+        doc={"README.md": "El script vive en `./dev-cycle` y su copia en `~/dev-cycle`.\n",
+             "CLAUDE.md": "Nada que ver aquí.\n",
+             "docs/README.md": "Tampoco aquí.\n"})
+    inf = diag(proj, plug)
+
+    assert [l for l in lineas(inf, doctor.AVISO)
+            if l["que"] == "doc viva sin el espacio de nombres"] == []
+    assert doctor._doc_viva_sin_namespace(str(plug), ["dev-cycle", "doctor"]) == []
+    assert inf["exit"] == 0
+    # …y un comando de verdad SIGUE saliendo (el lookbehind no se ha comido la detección)
+    plug2 = _con_comandos(
+        plugin(tmp_path / "otro"), "dev-cycle", "doctor",
+        doc={"README.md": "Ejecuta `/dev-cycle` y listo.\n"})
+    assert doctor._doc_viva_sin_namespace(str(plug2), ["dev-cycle", "doctor"]) == ["README.md"]
+def test_b45_la_mención_en_negrita_markdown_si_es_un_comando_tecleable(tmp_path, monkeypatch):
+    """Gap B4-5: el lookbehind que cierra `*` (R4a-25/R4a-37) se llevaba por delante la mención en
+    NEGRITA —`**/dev-cycle**`, la forma que usan `docs/INSTALL.md` y su espejo en inglés—, que sí
+    es tecleable. El `**` ahí es marcado markdown, no parte de una ruta."""
+    _cfg_vacio(tmp_path, monkeypatch)
+    proj = proyecto(tmp_path)
+    plug = _con_comandos(
+        plugin(tmp_path), "dev-cycle", "doctor",
+        doc={"README.md": "Comandos: **/dev-cycle**, **/doctor**.\n",
+             "CLAUDE.md": "Nada que ver aquí.\n",
+             "docs/README.md": "Tampoco aquí.\n"})
+    inf = diag(proj, plug)
+
+    assert doctor._doc_viva_sin_namespace(str(plug), ["dev-cycle", "doctor"]) == ["README.md"]
+    assert [l for l in lineas(inf, doctor.AVISO)
+            if l["que"] == "doc viva sin el espacio de nombres"] != []
+    # …y con el espacio de nombres ANTES, la negrita deja de ser un aviso
+    plug2 = _con_comandos(
+        plugin(tmp_path / "ok"), "dev-cycle", "doctor",
+        doc={"README.md": "Se teclea `/custom-agents:dev-cycle`.\nComandos: **/dev-cycle**.\n"})
+    assert doctor._doc_viva_sin_namespace(str(plug2), ["dev-cycle", "doctor"]) == []
+    # …y el glob de ruta `docs/**/*.md` NO se convierte en mención por el camino
+    plug3 = _con_comandos(
+        plugin(tmp_path / "glob"), "dev-cycle", "doctor",
+        doc={"README.md": "Los ficheros `docs/**/dev-cycle.md` se generan solos.\n"})
+    assert doctor._doc_viva_sin_namespace(str(plug3), ["dev-cycle", "doctor"]) == []

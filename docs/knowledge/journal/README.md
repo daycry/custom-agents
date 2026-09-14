@@ -10,4 +10,6 @@ Este índice lo regenera `journal.py index`; no lo edites.
 
 | Fecha | Iniciativa | Resumen | Fuente |
 |---|---|---|---|
+| [2026-09-14](2026-09-14-plugin-refactor.md) | plugin-refactor | Sesión sobre plugin-refactor | hook |
+| [2026-09-12](2026-09-12-plugin-refactor.md) | plugin-refactor | <task-notification> <task-id>aa201799db814ce28</task-id> <tool-use-id>toolu_01JKEBQeC2u77f6UwbYeDnn… | hook |
 | [2026-09-08](2026-09-08-sesion.md) | n/a | continua con la implementación | hook |

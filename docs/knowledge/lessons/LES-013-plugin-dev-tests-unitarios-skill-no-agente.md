@@ -16,7 +16,7 @@ fuente: 2026-09-03-superiority (T-03, T-06); doctrina de roles validada en 2026-
   (frontera del implementer) y emitir veredicto de calidad (frontera de qa) — dos solapes, dos
   fuentes de verdad y una puerta más que negociar en cada fase.
 
-  Se resolvió con la skill `unit-tests` (`scripts/coverage-gate.py`, 22 tests): **la capacidad se
+  Se resolvió con la skill `unit-tests` (`skills/unit-tests/scripts/coverage-gate.py`, 22 tests): **la capacidad se
   comparte, la decisión no se mueve.** El `implementer` la usa en P5 como gate opt-in
   (`.claude/dev.json` `tests.coberturaMinima`; exit 1 bajo el umbral es un gap de verificación
   como cualquier otro, exit 2 sin herramienta/stack degrada a aviso) y `qa` la usa **solo para

@@ -364,6 +364,13 @@ const codex = {
           ? `los comandos van a ${join(GLOBAL_DIR.codex, "prompts")} (fuera del proyecto): Codex solo lee prompts de CODEX_HOME`
           : null,
       },
+      // Algunas instalaciones de Codex usan `prompt:` en lugar de `prompts:`; copiamos ambos para
+      // que el comando siga disponible sin depender del nombre exacto del provider.
+      {
+        type: "copy",
+        from: "interop/codex/prompts",
+        to: join(GLOBAL_DIR.codex, "prompt"),
+      },
       {
         type: "merge",
         to: join(mktRoot, "plugins", "marketplace.json"),
