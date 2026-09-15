@@ -9,6 +9,8 @@ y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+## [1.20.2] - 2026-09-15
+
 ### Corregido
 
 - **Coherencia de metadatos de release e indice del roadmap.** Los metadatos y la entrada del marketplace de Claude Code quedan alineados con los manifiestos de runtime, y las iniciativas permanecen dentro de la tabla renderizada del indice.
@@ -546,6 +548,7 @@ Adopción de las mejores prácticas de las colecciones top de agentes (coleccion
 
 Versiones anteriores a la introducción de este changelog: bundle con los agentes `nemesis`, `evaluator`, `planner`, `pdfy` y `qa`, y las skills compartidas `cybersecurity` y `to-pdf`. Empaquetado como plugin + marketplace.
 
+[1.20.2]: https://github.com/daycry/custom-agents/releases/tag/v1.20.2
 [1.20.0]: https://github.com/daycry/custom-agents/releases/tag/v1.20.0
 [1.19.0]: https://github.com/daycry/custom-agents/releases/tag/v1.19.0
 [1.18.1]: https://github.com/daycry/custom-agents/releases/tag/v1.18.1
