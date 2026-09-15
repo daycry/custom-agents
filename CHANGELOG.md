@@ -9,6 +9,16 @@ and versioning follows [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.20.2] - 2026-09-15
+
+### Fixed
+
+- **Release metadata and roadmap index consistency.** The Claude Code marketplace metadata and plugin entry now stay aligned with the runtime manifests, and roadmap initiatives remain inside the rendered index table.
+
+### Added
+
+- **Knowledge services implementation plan.** A formal, scoped roadmap defines governed Markdown knowledge and an optional, derived Kwipu export while deferring Graphiti integration.
+
 ## [1.20.0] - 2026-09-11
 
 ### Fixed — `installer-registro-real` initiative (2026-09-11)
@@ -535,6 +545,7 @@ Adoption of best practices from the top agent collections (reference agent colle
 
 Versions predating the introduction of this changelog: a bundle with the `nemesis`, `evaluator`, `planner`, `pdfy` and `qa` agents, and the shared `cybersecurity` and `to-pdf` skills. Packaged as a plugin + marketplace.
 
+[1.20.2]: https://github.com/daycry/custom-agents/releases/tag/v1.20.2
 [1.20.0]: https://github.com/daycry/custom-agents/releases/tag/v1.20.0
 [1.19.0]: https://github.com/daycry/custom-agents/releases/tag/v1.19.0
 [1.18.1]: https://github.com/daycry/custom-agents/releases/tag/v1.18.1
