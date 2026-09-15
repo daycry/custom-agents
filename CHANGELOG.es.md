@@ -9,6 +9,14 @@ y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Corregido
+
+- **Coherencia de metadatos de release e indice del roadmap.** Los metadatos y la entrada del marketplace de Claude Code quedan alineados con los manifiestos de runtime, y las iniciativas permanecen dentro de la tabla renderizada del indice.
+
+### Aniadido
+
+- **Plan de implementacion de servicios de conocimiento.** Un roadmap acotado define conocimiento Markdown gobernado y una exportacion derivada opcional a Kwipu, dejando Graphiti para una iniciativa posterior.
+
 ## [1.20.0] - 2026-09-11
 
 ### Fixed — iniciativa `installer-registro-real` (2026-09-11)
