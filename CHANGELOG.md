@@ -9,6 +9,14 @@ and versioning follows [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Release metadata and roadmap index consistency.** The Claude Code marketplace metadata and plugin entry now stay aligned with the runtime manifests, and roadmap initiatives remain inside the rendered index table.
+
+### Added
+
+- **Knowledge services implementation plan.** A formal, scoped roadmap defines governed Markdown knowledge and an optional, derived Kwipu export while deferring Graphiti integration.
+
 ## [1.20.0] - 2026-09-11
 
 ### Fixed — `installer-registro-real` initiative (2026-09-11)
