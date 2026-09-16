@@ -20,7 +20,7 @@ No comienza implementacion hasta que `knowledge-services` entregue esquema valid
 ## Alcance
 
 - Configuracion opt-in de endpoint, grupo logico y telemetria desactivable.
-- Adaptador determinista `approved/` -> episodios Graphiti, con idempotencia y procedencia.
+- Adaptador determinista `approved/` -> episodios Graphiti, con idempotencia y procedencia, **filtrado por `routing.graphiti` de `.claude/knowledge-services/taxonomy.json`** (mismo fichero que define categorias y enrutado Kwipu en `knowledge-services`): solo sincroniza las categorias que el proyecto declare `true`.
 - Modelo inicial: `Knowledge`, `Evidence`, `Case`, `Constraint`, `Failure`, `Correction` y relaciones `SUPPORTED_BY`, `SUPERSEDES`, `CONTRADICTS`, `MITIGATES`, `APPLIES_TO`.
 - Router de lectura que selecciona Graphiti solo para consultas relacionales o temporales y conserva fallback Markdown/Kwipu.
 - Salud, desfase, reindexacion explicita y pruebas con backend local.
@@ -37,6 +37,7 @@ No comienza implementacion hasta que `knowledge-services` entregue esquema valid
 - [ ] CA-04 - Endpoint apagado, modelo local invalido o backend sin datos degradan sin bloquear el ciclo.
 - [ ] CA-05 - Los agentes no pueden escribir directamente; solo Curator y sincronizador aprobado.
 - [ ] CA-06 - Kwipu conserva preguntas documentales y Graphiti no se consulta por defecto.
+- [ ] CA-07 - Una categoria sin `routing.graphiti: true` en `taxonomy.json` nunca genera episodios (fail-closed), y el sincronizador no asume un routing universal para todo `approved/`.
 
 ## Decisiones confirmadas (usuario, 2026-09-15)
 
