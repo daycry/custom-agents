@@ -24,29 +24,31 @@ verificacion: obligatoria
 
 ## Fase 1 - Contrato y validacion
 
-### T-01 - Esquema, taxonomia y plantillas
+### T-01 - Esquema de configuracion `taxonomy.json` y plantillas
 - **Estado**: borrador
 - **Tiempo humano**: est. 4h · real -
 - **Prevision IA**: 45k in / 18k out tok
 - **Dependencias**: ninguna
 - **Tipo**: docs
 - **Archivos**: `agent-kits/shared/`, `docs/CONVENTIONS.md`, `docs/en/CONVENTIONS.md`, `docs/knowledge/adr/`
-- **Verificacion**: `python -m pytest -q agent-kits/shared/test_knowledge_schema.py` -> valida entradas y rechaza categoria/estado/tag invalidos
+- **Verificacion**: `python -m pytest -q agent-kits/shared/test_knowledge_schema.py` -> valida `taxonomy.json` de proyecto (categorias/evidencia/routing) y rechaza estado/tag/enrutado invalidos
 **Criterios de aceptación**
-- [ ] Esquema con ID, version, fuentes, evidencia y sucesion.
-- [ ] Taxonomia cerrada y ADR propuesta.
+- [ ] `taxonomy.json` de proyecto define categorias, carpeta, evidencia minima y enrutado (Kwipu/Graphiti) por categoria.
+- [ ] Sin `taxonomy.json`, el plugin usa su default minimo propio (DECISION/PATTERN/GOTCHA/LESSON) sin romper nada.
+- [ ] Una categoria sin `routing` declarado no exporta a ningun backend (fail-closed); ADR propuesta con la decision.
 
-### T-02 - Indice canonico y validador determinista
+### T-02 - Indice canonico y validador determinista sobre la taxonomia configurada
 - **Estado**: borrador
 - **Tiempo humano**: est. 5h · real -
 - **Prevision IA**: 55k in / 22k out tok
 - **Dependencias**: T-01
 - **Tipo**: backend
 - **Archivos**: `agent-kits/shared/knowledge-schema.py`, `agent-kits/shared/knowledge-index.py`, `agent-kits/shared/test_knowledge_schema.py`, `agent-kits/shared/test_knowledge_index.py`, `docs/knowledge/README.md`
-- **Verificacion**: `python -m pytest -q agent-kits/shared/test_knowledge_schema.py agent-kits/shared/test_knowledge_index.py` -> indice estable y errores con ruta/campo
+- **Verificacion**: `python -m pytest -q agent-kits/shared/test_knowledge_schema.py agent-kits/shared/test_knowledge_index.py` -> indice estable y errores con ruta/campo, dos fixtures de `taxonomy.json` distintas dan carpetas/routing distintos
 **Criterios de aceptación**
 - [ ] ID duplicado, version y enlaces rotos fallan; candidatos no aparecen.
 - [ ] `knowledge-find.py` no se rompe.
+- [ ] Dos proyectos con `taxonomy.json` distintos (p. ej. el default del plugin vs. uno con categorias de dominio propio) producen carpetas y enrutado distintos sin tocar codigo.
 
 ### T-03 - Estructura e ignorados de derivados
 - **Estado**: borrador
@@ -106,10 +108,11 @@ verificacion: obligatoria
 - **Dependencias**: T-02, T-03
 - **Tipo**: backend
 - **Archivos**: `skills/knowledge-services/scripts/kwipu-export.py`, `skills/knowledge-services/scripts/test_kwipu_export.py`, `.gitignore`
-- **Verificacion**: `python -m pytest -q skills/knowledge-services/scripts/test_kwipu_export.py` -> hash estable, staging atomico, filtrado negativo
+- **Verificacion**: `python -m pytest -q skills/knowledge-services/scripts/test_kwipu_export.py` -> hash estable, staging atomico, filtrado negativo, respeta `routing.kwipu` por categoria
 **Criterios de aceptación**
 - [ ] Solo approved valido; reejecucion idempotente.
 - [ ] Un error no borra export anterior.
+- [ ] Una categoria con `routing.kwipu: false` nunca aparece en el export; `"summary"` exporta solo el resumen declarado, no el cuerpo completo.
 
 ### T-08 - Skill y salud de Kwipu
 - **Estado**: borrador

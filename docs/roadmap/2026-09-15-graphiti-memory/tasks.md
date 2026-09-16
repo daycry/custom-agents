@@ -63,6 +63,7 @@ verificacion: obligatoria
 - **Verificacion**: `python -m pytest -q skills/knowledge-services/scripts/test_graphiti_sync.py` -> sin duplicados ni borrado
 **Criterios de aceptación**
 - [ ] Solo sincroniza approved y conserva procedencia.
+- [ ] Filtra por `routing.graphiti` de `taxonomy.json`: una categoria sin `true` explicito no genera episodios.
 
 ### T-06 - Reindexacion, manifiesto y recuperacion
 - **Estado**: borrador

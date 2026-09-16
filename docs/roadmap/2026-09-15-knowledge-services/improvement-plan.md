@@ -27,5 +27,8 @@ generacion: {fuente: estimado, tokens_reales: {entrada: 0, salida: 0, cache_crea
 
 - Markdown/Git es la fuente; el indice y export son derivados.
 - Solo `approved/` se exporta; nunca journal, candidatos, rechazos, logs o datos de entrenamiento.
+- **Taxonomia y enrutado de destino son configuracion del proyecto** (`.claude/knowledge-services/taxonomy.json`), nunca una lista fija del plugin; sin ese fichero, el plugin usa su propio default minimo.
+- Una categoria sin `routing` declarado no exporta a ningun backend (fail-closed).
+- El utility scoring es opt-in, apagado por defecto, y nunca decide un estado por si mismo.
 - Sin configuracion o salud Kwipu, todo el ciclo actual funciona sin bloquear.
 - Graphiti no aparece en codigo, configuracion o writers de esta iniciativa.
