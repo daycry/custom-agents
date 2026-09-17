@@ -18,9 +18,9 @@ verificacion: obligatoria
 |---|---:|---:|---:|---:|---:|---:|---:|
 | Fase 1 - Módulos compartidos | 2 | 2 | 100% | 0.9 / 2.5h | 1.92 / 0.8h | 0 / 0.2h | 0 / 45k |
 | Fase 2 - Captura y materialización | 2 | 2 | 100% | 2.7 / 5.5h | 4.5 / 1.6h | 0 / 0.4h | 0 / 85k |
-| Fase 3 - Reconciliación y diagnóstico | 2 | 2 | 100% | 0.65 / 4h | 0.9 / 1.2h | 0 / 0.3h | 0 / 60k |
-| Fase 4 - Pruebas, medición y cierre | 2 | 2 | 100% | 0.5 / 2h | 0.8 / 0.6h | 0 / 0.2h | 0 / 40k |
-| **TOTAL** | **8** | **8** | **100%** | **4.75 / 14h** | **8.12 / 4.2h** | **0 / 1.1h** | **0 / 230k** |
+| Fase 3 - Reconciliación y diagnóstico | 0 | 2 | 0% | 0.65 / 4h | 0.9 / 1.2h | 0 / 0.3h | 0 / 60k |
+| Fase 4 - Pruebas, medición y cierre | 0 | 2 | 0% | 0.5 / 2h | 0.8 / 0.6h | 0 / 0.2h | 0 / 40k |
+| **TOTAL** | **4** | **8** | **50%** | **4.75 / 14h** | **8.12 / 4.2h** | **0 / 1.1h** | **0 / 230k** |
 
 ## Fase 1 - Módulos compartidos
 
@@ -110,7 +110,7 @@ verificacion: obligatoria
 ## Fase 3 - Reconciliación y diagnóstico
 
 ### T-05 - Reconciliación presupuestada en `SessionStart` y huérfanas
-- **Estado**: completado
+- **Estado**: en-progreso
 - **Tiempo humano**: est. 2h · real 0.3h (estimado)
 - **Prevision IA**: 25k in / 10k out tok · real (estimado): usage-meter degradó a `fuente: estimado` (sin transcripciones en este entorno); horas_ia real (estimado): 0.4h
 - **Dependencias**: T-04
@@ -125,7 +125,7 @@ verificacion: obligatoria
 - **Changelog**: `SessionStart` (`session-context.sh`) reconcilia el journal ANTES de componer el contexto (gap 13 de la revisión intento 1): drena la outbox con `journal.py replay --ia no --budget-ms 300 --max 3` (presupuesto/tope de `dev.json`) y materializa como `recuperado_sin_cierre` las sesiones huérfanas (`journal.py recover`, CA-07: log de prompts sin envelope y sin sesión viva pasada `sesion.journal.ventanaHuerfanaMin`, default 360 min); nunca bloquea el arranque (CA-08).
 
 ### T-06 - `journal.py status` y sección «Journal» de `/doctor`
-- **Estado**: completado
+- **Estado**: en-progreso
 - **Tiempo humano**: est. 2h · real 0.35h (estimado)
 - **Prevision IA**: 22k in / 9k out tok · real (estimado): usage-meter degradó a `fuente: estimado` (sin transcripciones en este entorno); horas_ia real (estimado): 0.5h
 - **Dependencias**: T-04
@@ -142,7 +142,7 @@ verificacion: obligatoria
 ## Fase 4 - Pruebas, medición y cierre
 
 ### T-07 - Bench de captura y matriz de garantías
-- **Estado**: completado
+- **Estado**: en-progreso
 - **Tiempo humano**: est. 1h · real 0.3h (estimado)
 - **Prevision IA**: 12k in / 5k out tok · real (estimado): usage-meter degradó a `fuente: estimado` (sin transcripciones en este entorno); horas_ia real (estimado): 0.5h
 - **Dependencias**: T-03, T-05
@@ -157,7 +157,7 @@ verificacion: obligatoria
 - **Changelog**: `scripts/bench-session-end.py --iterations N --assert-p95-ms --assert-p99-ms` mide `journal.py capture-end` end-to-end (CA-02, integrado en `ci.yml.MANUAL-COPY`); matriz de garantías por forma de salida + campos nuevos del frontmatter (`cierre`, `derivados_en`, `materializado_en`) en `docs/observability.md` (+EN); `docs/FLOWS.md` (+EN) refleja captura → outbox → replay/recover en vez del `timeout: 45` obsoleto.
 
 ### T-08 - GOT-011, changelog, interop y puertas
-- **Estado**: completado
+- **Estado**: en-progreso
 - **Tiempo humano**: est. 1h · real 0.2h (estimado)
 - **Prevision IA**: 10k in / 4k out tok · real (estimado): usage-meter degradó a `fuente: estimado` (sin transcripciones en este entorno); horas_ia real (estimado): 0.3h
 - **Dependencias**: T-06, T-07
@@ -339,3 +339,30 @@ transcripciones en este entorno, igual que las pasadas anteriores) — horas a j
 
 **Cierre del bucle de revisión del tramo 1 (orquestador, 2026-09-17):** verificación determinista propia tras `T-fix3b` — SIGKILL real dentro de `os.utime` durante `reclamar` → `.claiming` huérfano recuperado en el siguiente `reclamar` (`recuperados_claiming: 1`), materializado y con manifiesto en `done/`; manifiesto huérfano en `done/` no se reclama y se purga; 6 procesos × 40 items → 40 únicos, 40 en `done/`, 0 dobles entregas; mutante «quitar `_recuperar_claiming_huerfanos`» → 2 failed. **Sin gaps Critical/Important pendientes.** Deuda nombrada que hereda el tramo 2: gap 13 (T-05 invoca `replay`), gap 20 y `derivados_en`/`materializado_en` en observability (T-07), `M-01` Codex (T-08), guardarraíl del cerrojo probabilístico ≈ 93 % (fila 56), `estado()` con dos barridos de `outbox/` (rendimiento, sin gap). Las entradas de `docs/knowledge/` de esta iniciativa (`GOT-011`) las escribe T-08; `ADR-018` se acepta al cerrar knowledge-services (fila de su índice).
 
+## Revisión de dos lentes — tramo 2, intento 1: 0 Critical · 10 Important · 9 Minor (lentes A+B+C) → corrección `T-fix1` (tramo 2)
+
+Lentes **A + B/C** (C activada por `.github/workflows/ci.yml`, `hooks/session-context.sh`, `scripts/bench-session-end.py`; D no aplica). `scope-check --base bcf564c` exit 0 (27/27). Todos los gaps reproducidos por los revisores; ninguno rebatido. T-05…T-08 vuelven a `en-progreso`; corrección con clave `T-0X-fix1`.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 63 | Important | `journal.py purge --confirm` no existe como subcomando (CA-12 a medias; la doc nueva lo publica) (A1) | T-06 | pendiente | `journal.py:2020-2072`, `observability.md:72` |
+| 64 | Important | El aviso de `replay` (`bloqueado`/`errores`) se calcula y se pisa (`partes="$idx"` sobre `partes="$aviso"`): cola dañada invisible en la sesión; sin test (A2) | T-05 | pendiente | `hooks/session-context.sh:122,129` |
+| 65 | Important | `recover` corre en `SessionStart` sin presupuesto ni `--max` y con `git_timeout` 5 s: 100 huérfanas → 1,5-2,1 s y 101 entradas en un arranque (CA-08 solo acotado para `replay`) (A3) | T-05 | pendiente | `session-context.sh:112-113`, `journal.py:807-871` |
+| 66 | Important | `recover` escribe sin cerrojo: dos `SessionStart` concurrentes → entradas duplicadas del mismo `session_id` (3/11 ejecuciones) (B1) | T-05 | pendiente | `journal.py:848-858` |
+| 67 | Important | La entrada recuperada se fecha con `hoy()` y sus derivados con el git de ahora (no pasa `captured_at`): una huérfana de hace 40 días gana el `latest` que reinyecta el hook (B2) | T-05 | pendiente | `journal.py:854`, `:1588` |
+| 68 | Important | Una sesión con envelope en `dead-letter/` no tiene vía de recuperación: `_sid_ya_capturado` cuenta `dead-letter`, `--session-id` también la salta, `status` dice `huerfanas: 0` y el triage de `/doctor` «sin pérdida» (B3) | T-05/T-06 | pendiente | `journal.py:791,843-848`, `doctor.py:1843-1845` |
+| 69 | Important | La guarda de «sesión viva» solo cubre el `session_id` que arranca: otra sesión viva ociosa > ventana se materializa como `recuperado_sin_cierre` (se autocorrige al cerrar, pero entre medias es lo que `latest` reinyecta) (B4) | T-05 | pendiente | `journal.py:838-839` |
+| 70 | Important | La regex `^[-*]\s` de `ledger-lint` cambia el conteo de criterios de **177 tareas en 24 ledgers** (`**Subtareas**` ya no continúa el bloque) y relaja el gate `completado con criterios sin marcar` en exactamente UNA tarea: la T-08 de esta iniciativa (su M-01 `- [ ]`); el test solo cubre `**Checklist manual**` (B5, A-desviación) | T-08 | pendiente | `ledger-lint.py:354-355` |
+| 71 | Important | El bench assertea sobre una ventana dominada por coste fijo (arranque + import ≈ 48 de 55 ms): ~87 % del número no es `capture_end`; sin warm-up ni descarte; en un runner 2× más lento la CI del repo entero cae por ruido; tampoco comprueba que la captura escriba algo (B6, A9) | T-07 | pendiente | `bench-session-end.py:77-81`, `ci.yml:54-58` |
+| 72 | Important | Evidencias de `Verificación` que no reproducen: T-05 declara `30 passed` con un comando cuyo 2.º `-k` anula al 1.º (da 19); T-07 pega `328 passed` sobre una ejecución que en su commit estaba en rojo (4 failed) (A4, A5) | T-05/T-07 | pendiente | `tasks.md` T-05/T-07 |
+| 73 | Minor | Criterio de cierre de T-08 marcado `[x]` antes de existir su evidencia (`retro-gate` → cerrada; la revisión es esta) (A6) | T-08 | pendiente | `tasks.md` T-08 |
+| 74 | Minor | T-06 toca `commands/doctor.md` sin `export-interop --check` en su Verificación; el commit `9f99bd0` rompía CI hasta T-07 (A7) | T-06 | pendiente | `tasks.md` T-06 |
+| 75 | Minor | `--budget-ms`/`--max` desde `dev.json` sin test (mutante cableado → verde) y sin clamp: un `dev.json` clonado con `budgetMs: 600000` hace trabajar al hook hasta el timeout del runtime (A8, B8 · CWE-1284) | T-05 | pendiente | `session-context.sh:88-107` |
+| 76 | Minor | Puntero «fila de abajo» incorrecto en observability ES/EN (A10) | T-07 | pendiente | `observability.md:72`, `en/observability.md:74` |
+| 77 | Minor | Triage «SIN pérdida … de esta sesión» sobre contador global; dos avisos redundantes con `huerfanas > 0` (A11) | T-06 | pendiente | `doctor.py:1834-1849` |
+| 78 | Minor | `subprocess.run(timeout=30)` en el bench sin `except TimeoutExpired` → traceback en vez del `FALLO` estructurado (B7) | T-07 | pendiente | `bench-session-end.py:78-80` |
+| 79 | Minor | `--current-session-id` vacío (payload sin `session_id`) desactiva la guarda de sesión viva; `recover` corre también en `source=compact` (A, B) | T-05 | pendiente | `session-context.sh:113` |
+| 80 | Minor | `_sid_ya_capturado` relee todas las entradas y las 4 carpetas por candidata: O(n·m) en el arranque (B) | T-05 | pendiente | `journal.py:786-806` |
+| 81 | Minor | `lint_plugin.py` tolera `/exit`/`/resume` sin test propio (A-desviación, aceptable) | T-08 | pendiente | `lint_plugin.py:1534` |
+
+**Verificado OK por la revisión (sin cambios):** `/doctor` lee `status --json` por subprocess con timeout 20 s, degrada sin `journal.py` y escapa `|`/`\n` (sin inyección en el informe); `status` es solo lectura y no lanza con sidecars corruptos; uninstall no toca `.claude/journal/` (test Node con dientes); mutantes de `recover` (`current_session_id`, `_sid_ya_capturado`) → rojo; `session-context.sh` exit 0 y JSON válido con `dev.json` malformado y con `replay` que devuelve no-JSON; `_sid_seguro` + `_yaml_str` + `commonpath` contra `session_id` raros; FLOWS/observability ES/EN espejados; GOT-011 e índice (`test_knowledge_index` verde); CI y copia manual idénticos; bench p95 60-77 ms / p99 65-90 ms; `ledger-lint` regex: tabulador, `* [ ]`, `-[ ]`, anidados siguen contando.
