@@ -138,16 +138,21 @@ def test_codex_hooks_solo_eventos_que_dispara():
 def test_codex_session_end_va_en_shell_form_no_exec_form():
     """Gap 16 de la revisión intento 1 (C5 · CWE-78): Codex no tiene el contrato de `args` (exec
     form) verificado como Claude Code; `SessionEnd` (declarado en exec form en `hooks/hooks.json`)
-    se traduce a shell form (`bash <ruta-quoted>`) para la interop, sin `args` sueltos. Gap 36 de
-    la revisión intento 2: la cadena se construye con `shlex.quote` (no por interpolación directa
-    `'bash "%s"' % arg`, que dejaba inyectar `"`/`` ` ``/`$(` si `arg` los llevara)."""
-    import shlex
+    se traduce a shell form (`bash "<ruta>"`) para la interop, sin `args` sueltos. Gap 36 de la
+    revisión intento 2: la cadena se construye por interpolación directa entre comillas DOBLES
+    (nunca `shlex.quote`), segura porque el argumento ya pasó el patrón `_ARG_SEGURO_RE`. Gap 49 de
+    la revisión intento 3 (A-49): el formato es IDÉNTICO —comillas DOBLES— al de los otros cuatro
+    hooks del mismo fichero (antes `shlex.quote` producía comillas simples aquí, un formato
+    distinto sin ninguna fuente que confirme cuál expande Codex de verdad)."""
     src = json.loads(leer("hooks/hooks.json"))["hooks"]["SessionEnd"][0]["hooks"][0]
     assert src.get("args"), "hooks/hooks.json ya no declara SessionEnd en exec form: revisa este test"
     h = json.loads(leer("interop/codex/hooks.json"))["hooks"]["SessionEnd"][0]["hooks"][0]
     assert "args" not in h
-    assert h["command"] == "bash %s" % shlex.quote(src["args"][0])
+    assert h["command"] == 'bash "%s"' % src["args"][0]
     assert h.get("timeout") == src.get("timeout")
+    # mismo formato (comillas dobles) que los otros hooks de shell form del propio fichero
+    otro = json.loads(leer("interop/codex/hooks.json"))["hooks"]["SessionStart"][0]["hooks"][0]["command"]
+    assert otro.startswith('bash "') and h["command"].startswith('bash "')
 
 
 def test_hook_a_shell_form_pasa_intacto_lo_que_no_es_exec_form():
@@ -181,6 +186,40 @@ def test_hook_a_shell_form_arg_seguro_con_placeholder_no_lanza():
     h = {"type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/session-journal.sh"]}
     nh = MOD._hook_a_shell_form(h, "SessionEnd")
     assert "args" not in nh and nh["command"].startswith("bash ")
+
+
+def test_hook_a_shell_form_command_bash_produce_comillas_dobles_no_shlex_quote():
+    """Gap 49 (A-49): el `command` traducido usa comillas DOBLES por interpolación directa, NUNCA
+    `shlex.quote` (que sobre un valor con `$`/`{`/`}` produce comillas simples — un formato distinto
+    al de los otros hooks de `interop/codex/hooks.json`, sin fuente que confirme que Codex las
+    expande igual)."""
+    h = {"type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/x.sh"]}
+    nh = MOD._hook_a_shell_form(h, "SessionEnd")
+    assert nh["command"] == 'bash "${CLAUDE_PLUGIN_ROOT}/hooks/x.sh"'
+    assert "'" not in nh["command"]
+
+
+def test_hook_a_shell_form_intercepta_sh_no_solo_bash():
+    """Gap 53 (B-52): el intérprete traducible no es solo `bash` — `sh` también es shell form
+    seguro con el mismo patrón."""
+    h = {"type": "command", "command": "sh", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/x.sh"]}
+    nh = MOD._hook_a_shell_form(h, "SessionEnd")
+    assert "args" not in nh and nh["command"] == 'sh "${CLAUDE_PLUGIN_ROOT}/hooks/x.sh"'
+
+
+def test_hook_a_shell_form_falla_con_command_no_literal_bash_o_sh_con_args():
+    """Gap 53 (B-52 · CWE-78 latente): antes solo se interceptaba `command == "bash"` EXACTO —
+    `/bin/bash`, `python3` (u otro intérprete cualquiera) con `args` se exportaban a Codex TAL CUAL,
+    exit 0, sin ningún aviso, pese a que el docstring prometía traducir TODO exec form. Ahora
+    cualquier `command` con `args` que no sea `bash`/`sh` literal hace fallar el export."""
+    casos = [
+        {"type": "command", "command": "/bin/bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/x.sh"]},
+        {"type": "command", "command": "python3", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/x.py"]},
+        {"type": "command", "command": "bash", "args": ["a.sh", "b.sh"]},   # dos argumentos
+    ]
+    for h in casos:
+        with pytest.raises(ValueError, match="SessionEnd"):
+            MOD._hook_a_shell_form(h, "SessionEnd")
 
 
 def test_opencode_agentes_frontmatter():

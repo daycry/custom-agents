@@ -5,6 +5,7 @@ Proyecto temporal con git real (si `git` está en PATH), un ledger de fixture en
 tarea cuyo estado cambia sin comitear → `draft` detecta la iniciativa activa, los ficheros tocados
 y la tarea cambiada; `write` es idempotente por session_id; `latest` respeta n/max-lines; `index`
 regenera el README; sin git degrada con aviso; el CLI nunca sale con exit ≠ 0 salvo uso."""
+import contextlib
 import importlib.util
 import json
 import os
@@ -12,6 +13,7 @@ import shutil
 import subprocess
 import stat
 import sys
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 
@@ -1006,7 +1008,8 @@ def test_replay_materializa_reutilizando_escribir_sesion(tmp_path):
     journal.capture_end(str(proj), session_end_payload(proj))
     assert len(outbox_pendientes(proj)) == 1
     r = journal.replay(str(proj))
-    assert r == {"materializados": 1, "dead_letter": 0, "reintentados": 0, "errores": [], "restantes": 0, "avisos": [], "bloqueado": False}
+    assert r == {"materializados": 1, "dead_letter": 0, "reintentados": 0, "errores": [], "restantes": 0,
+                "restantes_processing": 0, "en_backoff": 0, "avisos": [], "bloqueado": False}
     entradas = journal.entradas(str(proj))
     assert len(entradas) == 1
     assert entradas[0]["session_id"] == "s1" and entradas[0].get("cierre") == "materializado"
@@ -1020,7 +1023,8 @@ def test_replay_es_idempotente_sobre_el_mismo_evento(tmp_path):
     # el mismo evento vuelve a capturarse (retry del hook): ya está en done/, no crea un envelope nuevo
     journal.capture_end(str(proj), session_end_payload(proj))
     assert outbox_pendientes(proj) == []
-    assert journal.replay(str(proj)) == {"materializados": 0, "dead_letter": 0, "reintentados": 0, "errores": [], "restantes": 0, "avisos": [], "bloqueado": False}
+    assert journal.replay(str(proj)) == {"materializados": 0, "dead_letter": 0, "reintentados": 0, "errores": [], "restantes": 0,
+                "restantes_processing": 0, "en_backoff": 0, "avisos": [], "bloqueado": False}
     assert len(journal.entradas(str(proj))) == 1
 
 
@@ -1129,15 +1133,36 @@ def test_capture_end_dos_cierres_de_resume_generan_dos_envelopes(tmp_path):
     assert len(journal.entradas(str(proj))) == 1                     # sigue siendo UNA entrada (misma sesión)
 
 
-def test_replay_dos_procesos_concurrentes_no_pierden_entradas(tmp_path):
+def test_replay_dos_procesos_concurrentes_no_pierden_entradas(tmp_path, monkeypatch):
     """Gap 7: dos `replay` concurrentes sin cerrojo podían elegir el mismo nombre de fichero para
-    dos sesiones distintas y una pisaba a la otra."""
+    dos sesiones distintas y una pisaba a la otra. Gap 56 de la revisión intento 3 (A-52): la
+    versión original de este test dependía de que el scheduler del SO hiciera coincidir dos hilos
+    justo en el punto crítico de `write()` — con el cerrojo puesto, casi nunca coincidían de
+    verdad, así que el mutante «quita el cerrojo» solo se detectaba 8/10 ejecuciones (intermitente,
+    no una guarda con dientes). Aquí se fuerza la carrera con una `threading.Barrier`: se
+    sincroniza justo donde `write()` llama a `entradas(root)` para decidir el nombre de destino
+    (el mismo punto donde puede colisionar, porque las 12 sesiones comparten INICIATIVA y por tanto
+    el mismo nombre base). SIN cerrojo, dos hilos corriendo `replay()` en paralelo de verdad
+    coinciden ahí dentro del `timeout` de la barrera CASI SIEMPRE (colisión determinista, no
+    dependiente de suerte de scheduling); CON el cerrojo (código real), `replay()` los serializa
+    por completo — cada hilo llega solo a la barrera, hace timeout sin pareja y sigue sin forzar
+    nada, así que las 12 entradas sobreviven siempre."""
     proj, _ = proyecto(tmp_path, con_git=False)
     for i in range(12):
         journal.capture_end(str(proj), session_end_payload(proj, sid=f"s{i}"))
+    barrera = threading.Barrier(2, timeout=1.0)
+    real_entradas = journal.entradas
+
+    def entradas_con_barrera(root):
+        with contextlib.suppress(threading.BrokenBarrierError):
+            barrera.wait()
+        return real_entradas(root)
+
+    monkeypatch.setattr(journal, "entradas", entradas_con_barrera)
     with ThreadPoolExecutor(max_workers=4) as ex:
         futs = [ex.submit(journal.replay, str(proj)) for _ in range(4)]
         resultados = [f.result() for f in futs]
+    monkeypatch.undo()
     total_materializados = sum(r["materializados"] for r in resultados)
     assert total_materializados == 12
     assert len(journal.entradas(str(proj))) == 12
@@ -1164,17 +1189,21 @@ def test_replay_usa_captured_at_como_fecha_y_marca_derivados_en_replay(tmp_path)
 
 def test_asegurar_gitignore_local_evita_que_la_cola_se_cuele_en_git(tmp_path):
     """Gap 9 (B5/C1 · CWE-538/732): la cola no debe colarse en `git status` del proyecto
-    consumidor ni en `ficheros_tocados` de su propia entrada."""
+    consumidor ni en `ficheros_tocados` de su propia entrada. Gap 61 (B-55, revisión intento 3): con
+    `-uall` (lista TODOS los untracked, sin colapsar directorios) el propio `.gitignore` de la cola
+    tampoco debe asomar — `!.gitignore` lo deshacía antes."""
     proj, led = proyecto(tmp_path, con_git=True)
     cambia_tarea(led)
     journal.capture_end(str(proj), session_end_payload(proj))
     dir_ = journal._journal_queue_dir(str(proj))
     gi = os.path.join(dir_, ".gitignore")
     assert os.path.isfile(gi)
+    assert "!.gitignore" not in open(gi, encoding="utf-8").read()
     if GIT:
-        r = subprocess.run([GIT, "-C", str(proj), "status", "--porcelain"], capture_output=True, text=True,
+        r = subprocess.run([GIT, "-C", str(proj), "status", "--porcelain", "-uall"], capture_output=True, text=True,
                            encoding="utf-8", errors="replace")
         assert "journal/outbox" not in r.stdout and ".claude/journal" not in r.stdout
+        assert ".gitignore" not in r.stdout        # el propio .gitignore de la cola tampoco se cuela
 
 
 def test_journal_activo_objeto_con_activo_false_es_opt_out(tmp_path):
@@ -1342,6 +1371,21 @@ def test_journal_queue_dir_acepta_directorio_vacio_o_marcado_por_la_cola(tmp_pat
     assert journal._journal_queue_dir(str(proj)) == os.path.join(str(proj), "vacio")
 
 
+def test_journal_queue_dir_rechaza_marcador_colado_en_directorio_ajeno(tmp_path):
+    """Gap 62 (B-56 · CWE-20/732): el marcador SOLO no bastaba — un repo con `journal.dir: "docs"` y
+    `docs/.custom-agents-journal` versionado (por descuido, copia manual, lo que sea) hacía que el
+    hook tratara `docs/` entero como la cola (con TODA la documentación real del proyecto dentro) y
+    la sometiera a `chmod 0700` + `.gitignore *`. Ahora, con marcador PERO contenido ajeno (aquí,
+    `README.md`), se rechaza igual que si no llevara marcador."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    docs = proj / "docs"                    # `proyecto()` ya crea docs/roadmap/...: la carpeta existe
+    (docs / "README.md").write_text("# documentación real del proyecto\n", encoding="utf-8")
+    (docs / journal._QUEUE_MARKER).write_text("", encoding="utf-8")     # marcador colado, versionado por error
+    (proj / ".claude" / "dev.json").write_text(json.dumps({"sesion": {"journal": {"dir": "docs"}}}), encoding="utf-8")
+    assert journal._journal_queue_dir(str(proj)) == os.path.join(str(proj), ".claude", "journal")
+    assert os.path.isfile(docs / "README.md")               # nunca tocada
+
+
 def test_transcript_seguro_symlink_o_fuera_del_directorio_permitido_se_ignora(tmp_path, monkeypatch):
     """Gap 38 (K-1 · CWE-59/73/200): el basename-match por sí solo compara dos campos del MISMO
     envelope no confiable; `os.path.isfile` sigue symlinks. Un transcript FUERA del directorio
@@ -1499,3 +1543,265 @@ def test_cerrojo_de_replay_es_un_unico_fichero_replay_lock_no_doble_sufijo(tmp_p
     nombres = os.listdir(dir_)
     assert ".replay.lock" in nombres
     assert ".replay.lock.lock" not in nombres
+
+
+# ------------------------------------------------------------------ revisión intento 3 (gaps 49-62)
+
+def test_replay_expone_errores_del_barrido_y_restantes_processing(tmp_path):
+    """Gap 52 (B-51): `_reclamar_huerfanos` calculaba `errores` y `reclamar` los descartaba — un
+    envelope atascado en `processing/` (dead-letter/ inutilizable) era invisible en el JSON de
+    `replay` que leerán `/doctor` y T-05. Ahora aparece en `errores` y `restantes_processing`
+    cuenta lo que sigue atascado."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    dir_ = journal._journal_queue_dir(str(proj))
+    ob = journal._outbox_mod()
+    ob.escribir(dir_, "atascado", {"x": 1})
+    item = ob.reclamar(dir_)
+    assert item is not None
+
+    def envejecer(it):
+        viejo = time.time() - ob.PROCESSING_TTL_S - 10
+        os.utime(it["path"], (viejo, viejo))
+        claimed = it["path"] + ob.CLAIMED_AT_SUFFIX
+        if os.path.isfile(claimed):
+            with open(claimed, "w", encoding="utf-8") as fh:
+                fh.write(str(viejo))
+
+    for _ in range(ob.MAX_INTENTOS - 1):
+        envejecer(item)
+        item = ob.reclamar(dir_)
+        assert item is not None
+    envejecer(item)
+    dl_dir = os.path.join(dir_, "dead-letter")
+    os.makedirs(dl_dir, exist_ok=True)
+    shutil.rmtree(dl_dir)
+    open(dl_dir, "w", encoding="utf-8").write("no soy una carpeta")   # dead-letter/ inutilizable
+    r = journal.replay(str(proj))
+    assert r["restantes_processing"] == 1
+    assert any(e.get("event_id") == "atascado" for e in r["errores"])
+
+
+def test_replay_avisa_de_backoff_pendiente_en_json(tmp_path):
+    """Gap 51 (B-50): con un item en backoff transitorio, `replay` decía `restantes: 1, avisos: []`
+    sin explicar por qué no avanzaba. Ahora `en_backoff` y un aviso explícito con la fecha."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    journal.capture_end(str(proj), session_end_payload(proj, sid="s1"))
+    dir_ = journal._journal_queue_dir(str(proj))
+    ob = journal._outbox_mod()
+    item = ob.reclamar(dir_)
+    ob.reencolar_o_dead_letter(item, "fallo transitorio", intentos_max=5, backoff=True)
+    r = journal.replay(str(proj))
+    assert r["materializados"] == 0 and r["en_backoff"] == 1
+    assert any("en backoff hasta" in a for a in r["avisos"])
+
+
+def test_replay_reintentar_ahora_libera_backoff_de_outbox(tmp_path):
+    """Gap 51: `replay(..., reintentar_ahora=True)` (CLI `--reintentar-ahora`) libera TODO el
+    backoff de `outbox/`, complementario a `--reintentar-dead-letter`."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    journal.capture_end(str(proj), session_end_payload(proj, sid="s1"))
+    dir_ = journal._journal_queue_dir(str(proj))
+    ob = journal._outbox_mod()
+    item = ob.reclamar(dir_)
+    ob.reencolar_o_dead_letter(item, "fallo transitorio", intentos_max=5, backoff=True)
+    r = journal.replay(str(proj), reintentar_ahora=True)
+    assert r.get("liberados_backoff") == 1
+    assert r["materializados"] == 1
+    assert len(journal.entradas(str(proj))) == 1
+
+
+def test_cli_replay_acepta_reintentar_ahora(tmp_path):
+    """`journal.py replay --reintentar-ahora` de punta a punta (CLI, no solo la función Python)."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    journal.capture_end(str(proj), session_end_payload(proj, sid="s1"))
+    dir_ = journal._journal_queue_dir(str(proj))
+    ob = journal._outbox_mod()
+    item = ob.reclamar(dir_)
+    ob.reencolar_o_dead_letter(item, "fallo transitorio", intentos_max=5, backoff=True)
+    rc, out, _ = run("replay", "--reintentar-ahora", root=proj)
+    assert rc == 0
+    d = json.loads(out)
+    assert d.get("liberados_backoff") == 1 and d["materializados"] == 1
+
+
+def test_replay_cerrojo_dañado_no_se_confunde_con_ocupado(tmp_path):
+    """Gap 60 (B-54): si el fichero de cerrojo ni siquiera se puede crear/abrir (aquí, una carpeta
+    plantada en su lugar), `replay` NO debe decir `bloqueado: true` «otro replay en curso» —
+    diagnóstico falso que haría reintentar a `/doctor`/T-05 sin arreglar nada."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    journal.capture_end(str(proj), session_end_payload(proj))
+    dir_ = journal._journal_queue_dir(str(proj))
+    os.makedirs(os.path.join(dir_, ".replay.lock"))    # obstruye: no se puede abrir como fichero
+    r = journal.replay(str(proj))
+    assert r["bloqueado"] is False
+    assert any("cola dañada" in a for a in r["avisos"])
+    assert any("cerrojo de replay dañado" in e.get("causa", "") for e in r["errores"])
+    assert r["materializados"] == 0
+
+
+def test_replay_sigue_bloqueado_si_el_cerrojo_esta_realmente_ocupado(tmp_path):
+    """Contraparte de gap 60: un cerrojo REALMENTE tomado por otro proceso sigue siendo
+    `bloqueado: true`, sin confundirse con "cola dañada"."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    journal.capture_end(str(proj), session_end_payload(proj))
+    dir_ = journal._journal_queue_dir(str(proj))
+    journal._asegurar_gitignore_local(dir_)
+    fd = os.open(os.path.join(dir_, ".replay.lock"), os.O_RDWR | os.O_CREAT, 0o600)
+    journal._bloquear(fd)
+    try:
+        r = journal.replay(str(proj), budget_ms=200)
+    finally:
+        journal._desbloquear(fd)
+        os.close(fd)
+    assert r["bloqueado"] is True
+    assert not any("cola dañada" in a for a in r["avisos"])
+
+
+def test_completar_falla_tras_escribir_avisa_y_reencola_sin_perder_los_demas(tmp_path):
+    """Gap 59 (B-53): si `completar` falla DESPUÉS de que `escribir_sesion` ya escribió la entrada
+    (ENOSPC simulado en el manifiesto), `replay` no debe contarlo como `materializados` silencioso
+    ni tragárselo: aviso explícito, y el resto de la cola sigue procesándose."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    journal.capture_end(str(proj), session_end_payload(proj, sid="malo"))
+    journal.capture_end(str(proj), session_end_payload(proj, sid="bueno"))
+    ob = journal._outbox_mod()
+    real_completar = ob.completar
+    llamadas = {"n": 0}
+
+    def completar_que_falla_la_primera_vez(item, manifiesto=None):
+        llamadas["n"] += 1
+        if llamadas["n"] == 1:
+            raise OSError(28, "No space left on device")
+        return real_completar(item, manifiesto)
+
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(ob, "completar", completar_que_falla_la_primera_vez)
+    try:
+        r = journal.replay(str(proj))
+    finally:
+        monkeypatch.undo()
+    assert r["materializados"] == 1                    # "bueno" sí se cuenta
+    assert any("manifiesto pendiente" in a for a in r["avisos"])
+    # la entrada de "malo" YA quedó escrita en disco (escribir_sesion no falló, solo `completar`):
+    # esto es justo lo que dice el aviso — no una pérdida de datos, sino de visibilidad temporal.
+    assert len(journal.entradas(str(proj))) == 2
+    assert r["reintentados"] == 1                       # "malo" se reencoló (completar es transitorio, con backoff)
+    assert r["en_backoff"] == 1                          # todavía no reclamable de inmediato
+
+
+def test_replay_escribir_sesion_lanza_oserror_reencola_y_sigue_con_los_demas(tmp_path):
+    """Gap 54 (A-50): convertir los dos `except` de la materialización a `raise` (en vez de
+    `suppress`) se cerró SIN un test que forzara justo una excepción DESDE `escribir_sesion` — la
+    suite quedaba verde por redundancia con otras capas, no por este `try/except`. Aquí
+    `escribir_sesion` lanza `OSError` para un item y el resto de la cola sigue."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    journal.capture_end(str(proj), session_end_payload(proj, sid="malo"))
+    journal.capture_end(str(proj), session_end_payload(proj, sid="bueno"))
+    real_escribir_sesion = journal.escribir_sesion
+
+    def escribir_sesion_que_falla_para_malo(root, sid, **kw):
+        if sid == "malo":
+            raise OSError(28, "No space left on device")
+        return real_escribir_sesion(root, sid, **kw)
+
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(journal, "escribir_sesion", escribir_sesion_que_falla_para_malo)
+        r = journal.replay(str(proj))
+    assert r["materializados"] == 1                     # "bueno" se procesó igual
+    assert r["reintentados"] == 1                        # "malo" se reencoló (fallo transitorio)
+    assert len(journal.entradas(str(proj))) == 1
+
+
+def test_replay_escribir_sesion_lanza_runtimeerror_va_a_dead_letter_y_sigue(tmp_path):
+    """Gap 54: la otra rama — un error NO `OSError` (aquí `RuntimeError`, p.ej. un bug de esquema)
+    va a dead-letter directo, sin abortar el resto del drenaje."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    journal.capture_end(str(proj), session_end_payload(proj, sid="malo"))
+    journal.capture_end(str(proj), session_end_payload(proj, sid="bueno"))
+    real_escribir_sesion = journal.escribir_sesion
+
+    def escribir_sesion_que_revienta_para_malo(root, sid, **kw):
+        if sid == "malo":
+            raise RuntimeError("bug de esquema simulado")
+        return real_escribir_sesion(root, sid, **kw)
+
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(journal, "escribir_sesion", escribir_sesion_que_revienta_para_malo)
+        r = journal.replay(str(proj))
+    assert r["materializados"] == 1
+    assert r["dead_letter"] == 1
+    assert len(journal.entradas(str(proj))) == 1
+
+
+def test_draft_usa_fecha_local_de_captured_at_no_solo_el_helper(tmp_path):
+    """Gap 57 (A-53): el gap 44 se cerró con dientes solo en el HELPER
+    `_fecha_local_de_captured_at`; `draft` podía dejar de usarlo (revertir la línea que lo invoca) y
+    la suite seguía verde. Aquí se ejercita `draft` de punta a punta con `TZ` fijado."""
+    if os.name == "nt" or not hasattr(time, "tzset"):
+        pytest.skip("time.tzset no existe en Windows")
+    proj, _ = proyecto(tmp_path, con_git=False)
+    old_tz = os.environ.get("TZ")
+    os.environ["TZ"] = "America/Santiago"
+    time.tzset()
+    try:
+        # 2026-01-02T01:30:00Z UTC == 2026-01-01T22:30:00 hora de Santiago (UTC-3)
+        d = journal.draft(str(proj), "s1", captured_at="2026-01-02T01:30:00Z")
+        assert d["fecha"] == "2026-01-01"
+    finally:
+        if old_tz is None:
+            os.environ.pop("TZ", None)
+        else:
+            os.environ["TZ"] = old_tz
+        time.tzset()
+
+
+def test_write_rechaza_destino_symlink_fuera_del_arbol(tmp_path):
+    """Gap 58 (A-54, parte journal): la defensa en profundidad de `write()` (`commonpath`) se
+    declaraba "con dientes" sin un test que la ejercitara de verdad (161 passed sin ella, por
+    redundancia con capas previas). Aquí se fuerza el escape REAL: una entrada previa cuyo fichero
+    es un symlink que apunta fuera de `docs/knowledge/journal/`."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    d = journal.journal_dir(str(proj))
+    os.makedirs(d, exist_ok=True)
+    fuera = tmp_path / "fuera.md"
+    fuera.write_text('---\nfecha: "2026-09-17"\nsession_id: "esc-1"\n---\n\nbody\n', encoding="utf-8")
+    link = os.path.join(d, "2026-09-17-enlace.md")
+    try:
+        os.symlink(str(fuera), link)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlinks no soportados en este entorno")
+    e = journal.draft(str(proj), "esc-1")
+    with pytest.raises(ValueError, match="fuera de"):
+        journal.write(str(proj), e)
+
+
+def test_reclamar_huerfanos_con_listdir_roto_no_aborta_replay(tmp_path, monkeypatch):
+    """Gap 58 (A-54, parte outbox vista desde journal): un `os.listdir(processing/)` roto durante
+    el barrido de huérfanos no debe abortar `replay()` (que ya lo protege con su propio
+    `try/except` sobre `ob.reclamar`, pero aquí se comprueba que el barrido en sí degrada limpio)."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    journal.capture_end(str(proj), session_end_payload(proj, sid="s1"))
+    dir_ = journal._journal_queue_dir(str(proj))
+    proc_dir = os.path.join(dir_, "processing")
+    os.makedirs(proc_dir, exist_ok=True)
+    real_listdir = os.listdir
+
+    def listdir_que_rompe_processing(path):
+        if os.path.abspath(path) == os.path.abspath(proc_dir):
+            raise OSError("processing/ ilegible (simulado)")
+        return real_listdir(path)
+
+    monkeypatch.setattr(os, "listdir", listdir_que_rompe_processing)
+    r = journal.replay(str(proj))                      # nunca debe lanzar
+    assert r["materializados"] == 1
+
+
+def test_gitignore_de_la_cola_no_desprotege_a_si_mismo(tmp_path):
+    """Gap 61 (B-55): el contenido debe ser SOLO `*` (sin `!.gitignore`) — el propio `.gitignore`
+    de la cola debe quedar ignorado por sí mismo."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    journal.capture_end(str(proj), session_end_payload(proj))
+    dir_ = journal._journal_queue_dir(str(proj))
+    gi = open(os.path.join(dir_, ".gitignore"), encoding="utf-8").read()
+    assert gi.strip().splitlines()[-1] == "*"
+    assert "!.gitignore" not in gi
