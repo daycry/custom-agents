@@ -289,12 +289,28 @@ def codex_marketplace_json(root):
     })
 
 
+def _hook_a_shell_form(h):
+    """Codex no tiene el contrato de `args` (exec form) VERIFICADO como Claude Code (gap 16 de la
+    revisión intento 1 de `session-end-durable-capture`, C5 · CWE-78): un hook en exec form
+    (`command: bash`, `args: ["<ruta>"]`) se traduce a SHELL FORM (`command: 'bash "<ruta>"'`), más
+    portable, y sin depender de que el runtime destino soporte `args` sueltos. El resto de campos
+    (p.ej. `timeout`) se conserva tal cual."""
+    if not (isinstance(h, dict) and h.get("type") == "command" and h.get("command") == "bash"
+            and isinstance(h.get("args"), list) and len(h["args"]) == 1):
+        return dict(h)
+    nh = dict(h)
+    nh["command"] = 'bash "%s"' % h["args"][0]
+    nh.pop("args", None)
+    return nh
+
+
 def codex_hooks_json(root):
     """`interop/codex/hooks.json` — los hooks del plugin filtrados y corregidos para Codex:
 
     - `SessionStart`: matcher `startup|resume|clear` (Codex NO tiene `compact`; la compactación
       son sus eventos `PreCompact`/`PostCompact`, que este plugin no usa).
-    - `SessionEnd` y `UserPromptSubmit`: iguales (el journal y la captura del turno funcionan).
+    - `SessionEnd` y `UserPromptSubmit`: iguales (el journal y la captura del turno funcionan);
+      `SessionEnd` en exec form se traduce a shell form (`_hook_a_shell_form`, gap 16).
     - `SubagentStop`: existe en Codex; se mantiene.
     - `PostToolUse`: **se omite**. Codex solo dispara Pre/PostToolUse para la herramienta `Bash`,
       y los tres hooks del plugin reaccionan a `Write|Edit|MultiEdit`: registrarlos sería declarar
@@ -310,7 +326,7 @@ def codex_hooks_json(root):
                 ng["matcher"] = "startup|resume|clear"
             elif "matcher" in g:
                 ng["matcher"] = g["matcher"]
-            ng["hooks"] = [dict(h) for h in g.get("hooks", [])]
+            ng["hooks"] = [_hook_a_shell_form(h) for h in g.get("hooks", [])]
             grupos.append(ng)
         if grupos:
             out[evento] = grupos

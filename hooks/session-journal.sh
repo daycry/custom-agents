@@ -23,6 +23,18 @@
 #
 # Prueba manual:
 #   echo '{"hook_event_name":"SessionEnd","session_id":"s1","reason":"other","cwd":"'"$PWD"'"}' | bash hooks/session-journal.sh
+#
+# Nota de seguridad (gap 16 de la revisión intento 1, C5 · CWE-78): `hooks/hooks.json` declara este
+# hook en EXEC FORM (`command: bash`, `args: [...]`) — un contrato VERIFICADO en Claude Code
+# (`hooks.md`, 2026-09-17): el runtime pasa `args` como argv, nunca por una shell que interprete
+# el payload. Si un runtime NO soportara `args` y en su lugar ejecutara literalmente `bash` a
+# secas (sin fichero de script) leyendo el payload de la sesión por stdin como si fuera un script
+# de shell, este propio fichero JAMÁS llegaría a correr — no hay ninguna guarda que este script
+# pueda poner para defenderse de un escenario en el que él mismo no se invoca; es técnicamente
+# imposible resolverlo desde dentro. La mitigación real está en NO declarar exec form para
+# runtimes sin verificar: `export-interop.py` traduce este hook a SHELL FORM (`bash "<ruta>"`)
+# para `interop/codex/hooks.json`, así que Codex nunca ve `args` sueltos. Ver `M-01` en el ledger
+# de la iniciativa (checklist manual: verificar en Codex real que el hook SessionEnd honra `args`).
 set -u
 
 INPUT="$(cat 2>/dev/null || true)"
@@ -38,11 +50,17 @@ if [ ! -f "$JOURNAL" ]; then
 fi
 [ -n "$JOURNAL" ] && [ -f "$JOURNAL" ] || exit 0
 
-ROOT="${CLAUDE_PROJECT_DIR:-$PWD}"
-[ -d "$ROOT" ] || exit 0
+# --root SOLO si CLAUDE_PROJECT_DIR está definido: si no, `cmd_capture_end` resuelve con la
+# cascada --root > CLAUDE_PROJECT_DIR > `cwd` del payload > `.` — simétrico a
+# `user-prompt-capture.sh` (gap 10 de la revisión: pasar SIEMPRE `--root "$PWD"` aquí dejaba muerta
+# esa cascada y perdía turnos capturados que ningún envelope llegaba a materializar).
+ROOT_ARGS=()
+if [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then
+  ROOT_ARGS=(--root "$CLAUDE_PROJECT_DIR")
+fi
 
 # El payload entero viaja tal cual a `capture-end` (lee stdin: session_id/reason/cwd/transcript_path);
 # nada de lo que decida (session_id ausente, opt-out, sin rastro del plugin) se resuelve aquí.
-printf '%s' "$INPUT" | python3 "$JOURNAL" capture-end --root "$ROOT" >/dev/null 2>&1 || true
+printf '%s' "$INPUT" | python3 "$JOURNAL" capture-end "${ROOT_ARGS[@]}" >/dev/null 2>&1 || true
 
 exit 0

@@ -325,8 +325,14 @@ def _bloque_plugin_hooks_recorrer(plugin_root, datos):
         if not isinstance(grupos, list):
             errs.append(f"hooks/hooks.json [{evento}]: `{evento}` debe ser una lista de grupos")
             continue
-        cmds = [str(h.get("command", "")) for g in grupos if isinstance(g, dict)
-                for h in g.get("hooks", []) if isinstance(h, dict) and h.get("type") == "command"]
+        cmds = []
+        for g in grupos:
+            for h in (g.get("hooks", []) if isinstance(g, dict) else []):
+                if isinstance(h, dict) and h.get("type") == "command":
+                    # --8<-- hook_cmd_con_args (cmds desde command+args) — REPLICADO LITERAL en scripts/lint_plugin.py y en agent-kits/shared/doctor.py
+                    args = h.get("args") if isinstance(h.get("args"), list) else []
+                    cmds.append(" ".join([str(h.get("command", ""))] + [str(a) for a in args]))
+                    # --8<-- fin hook_cmd_con_args
         eventos.append(f"{evento} ({len(cmds)})")
         fn = linter.lint_hook_commands if linter else _hooks_local
         e, w = fn(plugin_root, cmds, f"hooks/hooks.json [{evento}]")

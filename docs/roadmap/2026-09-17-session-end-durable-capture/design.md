@@ -47,6 +47,13 @@ A demanda ─► journal.py status | replay | recover <sid> | purge --confirm
 `dead_letter` (solo en la cola, con causa). No hay `FINAL_CAPTURED` visible al usuario: el envelope es un
 detalle de la cola, no un estado del journal.
 
+**Limitación aceptada por diseño (revisión intento 1, gap 8):** la entrada usa la FECHA DEL CIERRE
+(`captured_at` del envelope, nombre de fichero y frontmatter), pero los campos derivados de `git`
+(`ficheros_tocados`, `tareas_cambiadas`) se calculan EN EL MOMENTO DEL REPLAY, no en el del cierre —
+CA-01 prohíbe ejecutar git en el teardown, así que no hay otra fuente. El frontmatter lo marca con
+`derivados_en: replay` para que quede explícito que ese fragmento describe el estado del repo al
+materializar, no al cerrar la sesión.
+
 ## `agent-kits/shared/outbox.py` (contrato)
 
 `escribir(dir, clave, payload)` (tmp + fsync si viable + rename, idempotente por clave) · `reclamar(dir) -> item`

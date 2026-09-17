@@ -222,6 +222,28 @@ def test_hook_con_script_inexistente_es_error(tmp_path):
     assert any("comprobación local" in l["detalle"] for l in lineas(inf))
 
 
+def test_hook_exec_form_con_script_inexistente_en_args_es_error(tmp_path):
+    """Gap 11 de la revisión intento 1: `doctor.py` solo escaneaba `command`; con exec form
+    (`command: bash`, `args: [...]`, session-end-durable-capture T-03) el script inexistente vive
+    en `args` y antes no se detectaba."""
+    plug = tmp_path / "plug"
+    (plug / "agents").mkdir(parents=True)
+    (plug / "agents" / "demo.md").write_text("---\nname: demo\n---\n", encoding="utf-8")
+    (plug / ".claude-plugin").mkdir()
+    (plug / ".claude-plugin" / "plugin.json").write_text(
+        json.dumps({"name": "custom-agents", "version": "9.9.9"}), encoding="utf-8")
+    (plug / "hooks").mkdir()
+    (plug / "hooks" / "hooks.json").write_text(json.dumps({"hooks": {"SessionEnd": [
+        {"hooks": [{"type": "command", "command": "bash",
+                    "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/no-existe.sh"], "timeout": 5}]}]}}),
+        encoding="utf-8")
+    inf = diag(proyecto(tmp_path), plug)
+    errores = [l for l in lineas(inf, doctor.ERROR) if l["que"] == "hook sin script"]
+    assert len(errores) == 1, [l["que"] for l in lineas(inf)]
+    assert "hooks/no-existe.sh" in errores[0]["detalle"]
+    assert inf["exit"] == 1
+
+
 def test_hook_sin_bit_ejecutable_es_aviso_con_chmod(tmp_path):
     plug = plugin(tmp_path, ejecutable=False)
     inf = diag(proyecto(tmp_path), plug)
