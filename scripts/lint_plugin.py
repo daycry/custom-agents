@@ -1428,7 +1428,10 @@ def lint_hooks(root):
         for g in grupos:
             for h in (g.get("hooks", []) if isinstance(g, dict) else []):
                 if isinstance(h, dict) and h.get("type") == "command":
-                    cmds.append(str(h.get("command", "")))
+                    # Exec form (`command: bash`, `args: [...]`, session-end-durable-capture T-03):
+                    # la ruta del script vive en `args`, no en `command`; se escanean los dos.
+                    args = h.get("args") if isinstance(h.get("args"), list) else []
+                    cmds.append(" ".join([str(h.get("command", ""))] + [str(a) for a in args]))
         e, w = lint_hook_commands(root, cmds, f"hooks/hooks.json [{evento}]")
         errs.extend(e)
         warns.extend(w)

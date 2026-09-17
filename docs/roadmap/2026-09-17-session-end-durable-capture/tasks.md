@@ -17,10 +17,10 @@ verificacion: obligatoria
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervision (real/est) | Tokens (real/est) |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | Fase 1 - Módulos compartidos | 2 | 2 | 100% | 0.4 / 2.5h | 0.3 / 0.8h | 0 / 0.2h | 0 / 45k |
-| Fase 2 - Captura y materialización | 0 | 2 | 0% | 0 / 5.5h | 0 / 1.6h | 0 / 0.4h | 0 / 85k |
+| Fase 2 - Captura y materialización | 2 | 2 | 100% | 1.3 / 5.5h | 1.1 / 1.6h | 0 / 0.4h | 0 / 85k |
 | Fase 3 - Reconciliación y diagnóstico | 0 | 2 | 0% | 0 / 4h | 0 / 1.2h | 0 / 0.3h | 0 / 60k |
 | Fase 4 - Pruebas, medición y cierre | 0 | 2 | 0% | 0 / 2h | 0 / 0.6h | 0 / 0.2h | 0 / 40k |
-| **TOTAL** | **2** | **8** | **25%** | **0.4 / 14h** | **0.3 / 4.2h** | **0 / 1.1h** | **0 / 230k** |
+| **TOTAL** | **4** | **8** | **50%** | **1.7 / 14h** | **1.4 / 4.2h** | **0 / 1.1h** | **0 / 230k** |
 
 ## Fase 1 - Módulos compartidos
 
@@ -56,30 +56,38 @@ verificacion: obligatoria
 ## Fase 2 - Captura y materialización
 
 ### T-03 - `journal.py capture-end` + exec form en `hooks.json`
-- **Estado**: borrador
-- **Tiempo humano**: est. 2.5h · real -
-- **Prevision IA**: 30k in / 12k out tok
+- **Estado**: completado
+- **Tiempo humano**: est. 2.5h · real 0.6h (estimado)
+- **Prevision IA**: 30k in / 12k out tok · real (estimado): usage-meter degradó a `fuente: estimado` (sin transcripciones en este entorno); horas_ia real (estimado): 0.5h
 - **Dependencias**: T-01
 - **Tipo**: backend
-- **Archivos**: `agent-kits/shared/journal.py`, `hooks/session-journal.sh`, `hooks/hooks.json`, `agent-kits/shared/test_journal.py`, `tests/test_hooks_shell.py`, `tests/test_hooks_config.py`, `.gitignore`
-- **Verificacion**: `python -m pytest -q agent-kits/shared/test_journal.py tests/test_hooks_shell.py tests/test_hooks_config.py` -> envelope válido en `outbox/`, ni `git` ni `claude` invocados (dobles en PATH), `hooks.json` con `command: bash` + `args` y `timeout: 5`, ruta con espacios y Unicode
+- **Archivos**: `agent-kits/shared/journal.py`, `agent-kits/shared/test_journal.py`, `hooks/session-journal.sh`, `hooks/hooks.json`, `tests/test_hooks_shell.py`, `tests/test_hooks_config.py`, `.gitignore`, `scripts/lint_plugin.py`, `interop/codex/hooks.json`, `interop/opencode/**`
+- **Verificacion**: `python -m pytest -q agent-kits/shared/test_journal.py tests/test_hooks_shell.py tests/test_hooks_config.py` -> envelope válido en `outbox/`, ni `git` ni `claude` invocados (dobles en PATH), `hooks.json` con `command: bash` + `args` y `timeout: 5`, ruta con espacios y Unicode · **ejecutado**: `agent-kits/shared/test_journal.py` 58 passed, `tests/test_hooks_shell.py` 47 passed, `tests/test_hooks_config.py` 3 passed
+- **RED**: `test_capture_end_escribe_envelope_valido_y_no_stdout` (y el resto de `capture_end`/CLI en `test_journal.py`, más `test_session_journal_no_invoca_git_ni_claude`/`test_session_journal_ruta_del_plugin_con_espacios_y_unicode`/`test_session_journal_repo_ajeno_sin_rastro_del_plugin_no_siembra_nada`/`test_session_journal_deja_envelope_en_outbox_y_replay_materializa_la_entrada` en `test_hooks_shell.py`, y `test_session_end_usa_exec_form_con_timeout_5`/`test_lint_plugin_da_error_si_el_script_de_args_no_existe` en `test_hooks_config.py`) fallaron contra el `journal.py`/`session-journal.sh`/`hooks.json`/`lint_plugin.py` previos a esta tarea (`AttributeError: module 'journal' has no attribute 'capture_end'`; outbox vacía; `'bash "${CLAUDE_PLUGIN_ROOT}/hooks/session-journal.sh"' != 'bash'`) · 2026-09-17
 **Criterios de aceptación**
-- [ ] Envelope ≤ 64 KiB con `schema_version`, `event_id` determinista y sin texto de conversación.
-- [ ] Opt-out `sesion.journal: false` sigue funcionando; el objeto `sesion.journal.{dir,...}` se acepta.
-- [ ] `git` y `claude` falsos en `PATH` no se ejecutan durante la captura (CA-01).
+- [x] Envelope ≤ 64 KiB con `schema_version`, `event_id` determinista y sin texto de conversación.
+- [x] Opt-out `sesion.journal: false` sigue funcionando; el objeto `sesion.journal.{dir,...}` se acepta.
+- [x] `git` y `claude` falsos en `PATH` no se ejecutan durante la captura (CA-01).
+- **Nota (desviación)**: `scripts/lint_plugin.py` (`lint_hooks`) solo escaneaba `command` en busca de rutas `${CLAUDE_PLUGIN_ROOT}/…`; con `command: bash` + `args` (exec form) el path vive en `args`, así que el linter no habría detectado un script inexistente ahí. Se amplió `lint_hooks` para escanear también `args` (dos tests nuevos en `test_hooks_config.py` prueban el antes/después). `interop/codex/hooks.json` se regeneró con `export-interop.py` para reflejar el exec form.
+- **Changelog**: `SessionEnd` pasa a captura ULTRALIGERA (`journal.py capture-end`, exec form en `hooks.json`, `timeout: 5`): un envelope atómico en la outbox local, sin git, sin IA y sin red (CA-01).
 
 ### T-04 - `journal.py replay`: claim, materialización, verificación, dead-letter
-- **Estado**: borrador
-- **Tiempo humano**: est. 3h · real -
-- **Prevision IA**: 35k in / 14k out tok
+- **Estado**: completado
+- **Tiempo humano**: est. 3h · real 0.7h (estimado)
+- **Prevision IA**: 35k in / 14k out tok · real (estimado): usage-meter degradó a `fuente: estimado` (sin transcripciones en este entorno); horas_ia real (estimado): 0.6h
 - **Dependencias**: T-01, T-02, T-03
 - **Tipo**: backend
-- **Archivos**: `agent-kits/shared/journal.py`, `agent-kits/shared/test_journal.py`, `docs/knowledge/journal/README.md`
-- **Verificacion**: `python -m pytest -q agent-kits/shared/test_journal.py -k replay` -> mismo evento ×5 = una entrada; envelope venenoso a `dead-letter/` y el resto continúa; transcript ausente usa el log de prompts o declara carencia; `cierre:` en el frontmatter
+- **Archivos**: `agent-kits/shared/journal.py`, `agent-kits/shared/test_journal.py`
+- **Verificacion**: `python -m pytest -q agent-kits/shared/test_journal.py -k replay` -> mismo evento ×5 = una entrada; envelope venenoso a `dead-letter/` y el resto continúa; transcript ausente usa el log de prompts o declara carencia; `cierre:` en el frontmatter · **ejecutado**: `python -m pytest -q agent-kits/shared/test_journal.py -k replay` → `12 passed`
+- **RED**: `test_replay_materializa_reutilizando_escribir_sesion` (y el resto de `replay`/`cmd_replay`) falló con `AttributeError: module 'journal' has no attribute 'capture_end'`/`replay` sobre el `journal.py` previo a T-03/T-04 · 2026-09-17
 **Criterios de aceptación**
-- [ ] Reutiliza `escribir_sesion` (git, prompts, IA opt-in) sin duplicar lógica.
-- [ ] Acepta `schema_version` N y N-1.
-- [ ] Nunca inventa contenido (CA-05).
+- [x] Reutiliza `escribir_sesion` (git, prompts, IA opt-in) sin duplicar lógica.
+- [x] Acepta `schema_version` N y N-1.
+- [x] Nunca inventa contenido (CA-05).
+- **Nota (desviación menor)**: `docs/knowledge/journal/README.md` no se toca a mano — lo sigue regenerando `journal.py index` (invocado por `write`) como siempre; no hacía falta cambiarlo aparte, así que se retira del campo `Archivos` original.
+- **Nota (desviación de proceso)**: T-03 y T-04 se implementaron y commitean JUNTOS (un solo commit `T-03/T-04: …`) en vez de uno por tarea: `capture_end`/`replay` se escribieron en la misma sesión de edición sobre `journal.py` y separar el diff a mano por hunks arriesgaba dejar un commit intermedio no coherente (T-04 depende de T-03 y ambos tocan el mismo fichero en las mismas franjas). El commit de T-04 también incluye el arreglo de `tests/test_console_encoding.py` para `outbox.py`/`redact.py` (MODOS + `SIN_SIMBOLOS_EN_LA_SALIDA`): un hueco de T-01/T-02 que no se detectó entonces porque solo se corrió la suite dirigida, no `python3 -m pytest -q` completo — se corrige aquí, al primer punto en que se ejecutó la suite entera.
+- **Nota (simplificación documentada)**: `sequence` del envelope queda fijo a 0 (MVP suficiente para CA-03: el mismo `(session_id, reason)` deduplica, incluso si el primero ya fue materializado y movido a `done/` — `outbox.escribir` lo detecta por clave en cualquier carpeta de la cola). Permitir que una reapertura legítima del mismo `(session_id, reason)` tras la materialización genere un envelope nuevo (incrementando `sequence`) queda para cuando haya evidencia de que hace falta; hoy ningún CA de la spec lo exige.
+- **Changelog**: `journal.py replay` materializa la outbox reutilizando `escribir_sesion` (git, prompts, IA opt-in): claim exclusivo, verificación, `done/`/`dead-letter/` con causa, `cierre: materializado` en el frontmatter.
 
 ## Fase 3 - Reconciliación y diagnóstico
 

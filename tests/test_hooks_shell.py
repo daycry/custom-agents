@@ -248,6 +248,13 @@ def test_session_context_sin_python3_silencio(tmp_path):
 
 
 # ------------------------------------------------------------- session-journal ----
+# session-end-durable-capture T-03/T-04: el hook SOLO deja un envelope en la outbox local
+# (`.claude/journal/outbox/`); la entrada de docs/knowledge/journal/ la escribe `journal.py replay`
+# (materialización recuperable, invocada aquí directamente — `session-context.sh` la invocará en
+# SessionStart cuando se implemente T-05, fuera de este tramo).
+
+JOURNAL_PY = os.path.join(ROOT, "agent-kits", "shared", "journal.py")
+
 
 def session_end(proj, sid="s1", reason="other"):
     return {"hook_event_name": "SessionEnd", "session_id": sid, "reason": reason, "cwd": str(proj),
@@ -259,20 +266,59 @@ def entradas_journal(proj):
     return sorted(f for f in os.listdir(d) if f != "README.md") if d.is_dir() else []
 
 
-def test_session_journal_escribe_entrada_y_es_idempotente_por_session_id(tmp_path):
-    """memory-health T-01: SessionEnd (contrato oficial 2026-09-03: session_id/reason/cwd; salida
-    ignorada) → UNA entrada en docs/knowledge/journal/; el mismo session_id ACTUALIZA, otro añade."""
+def outbox_pendientes(proj, sub="outbox"):
+    d = proj / ".claude" / "journal" / sub
+    return sorted(f for f in os.listdir(d) if f.endswith(".json") and not f.endswith((".manifest.json", ".causa.json"))) \
+        if d.is_dir() else []
+
+
+def replay(proj, env):
+    r = subprocess.run([sys.executable, JOURNAL_PY, "replay", "--root", str(proj)],
+                       capture_output=True, text=True, encoding="utf-8", errors="replace", env=env, timeout=60)
+    return r.returncode, r.stdout, r.stderr
+
+
+def test_session_journal_deja_envelope_en_outbox_y_replay_materializa_la_entrada(tmp_path):
+    """session-end-durable-capture CA-01/CA-03: SessionEnd (contrato oficial 2026-09-03: session_id/
+    reason/cwd; salida ignorada) deja UN envelope en la outbox, sin tocar docs/knowledge/journal/
+    todavía; `journal.py replay` lo materializa en UNA entrada. Repetir el mismo cierre no duplica
+    ni el envelope ni la entrada; otra session_id sí produce otra entrada."""
     proj, _ = proyecto(tmp_path)
     env = env_de(proj, tmp_path)
     assert hook("session-journal.sh", session_end(proj), env) == (0, "", "")      # stdout se ignora: vacío
+    assert entradas_journal(proj) == []                                          # aún no se materializa
+    assert len(outbox_pendientes(proj)) == 1
+    assert replay(proj, env)[0] == 0
     assert len(entradas_journal(proj)) == 1
     texto = (proj / "docs" / "knowledge" / "journal" / entradas_journal(proj)[0]).read_text(encoding="utf-8")
     assert 'session_id: "s1"' in texto and "iniciativa: demo" in texto and "reason: other" in texto
-    assert hook("session-journal.sh", session_end(proj), env)[0] == 0
-    assert len(entradas_journal(proj)) == 1                                         # actualizada, no duplicada
+    assert "cierre: materializado" in texto
+    assert hook("session-journal.sh", session_end(proj), env)[0] == 0             # mismo evento otra vez
+    assert outbox_pendientes(proj) == []                                          # ya materializado: no vuelve a encolar
+    assert replay(proj, env)[0] == 0
+    assert len(entradas_journal(proj)) == 1                                       # sigue siendo una sola entrada
     assert hook("session-journal.sh", session_end(proj, sid="s2", reason="clear"), env)[0] == 0
+    assert replay(proj, env)[0] == 0
     assert len(entradas_journal(proj)) == 2
     assert (proj / "docs" / "knowledge" / "journal" / "README.md").read_text(encoding="utf-8").count("| demo |") == 2
+
+
+def test_session_journal_no_invoca_git_ni_claude(tmp_path):
+    """CA-01: el hook (capturador) no ejecuta git ni IA; dobles en PATH que dejarían una marca
+    detectan cualquier invocación."""
+    proj, _ = proyecto(tmp_path)
+    marca = tmp_path / "invocado.txt"
+    bindir = tmp_path / "bin-dobles"
+    bindir.mkdir()
+    for nombre in ("git", "claude"):
+        doble = bindir / nombre
+        doble.write_text(f'#!/bin/sh\necho "{nombre}" >> "{marca}"\nexit 0\n', encoding="utf-8")
+        doble.chmod(doble.stat().st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+    env = env_de(proj, tmp_path)
+    env["PATH"] = f"{bindir}{os.pathsep}{env['PATH']}"
+    assert hook("session-journal.sh", session_end(proj), env) == (0, "", "")
+    assert len(outbox_pendientes(proj)) == 1
+    assert not marca.exists()
 
 
 def test_session_journal_stdin_vacio_sin_session_id_opt_out_y_sin_python3(tmp_path):
@@ -282,32 +328,48 @@ def test_session_journal_stdin_vacio_sin_session_id_opt_out_y_sin_python3(tmp_pa
     assert hook("session-journal.sh", {"hook_event_name": "SessionEnd", "reason": "other"}, env) == (0, "", "")
     (proj / ".claude" / "dev.json").write_text('{"sesion": {"journal": false}}', encoding="utf-8")
     assert hook("session-journal.sh", session_end(proj), env) == (0, "", "")
-    assert entradas_journal(proj) == []                                             # nada escrito en los 3 casos
+    assert outbox_pendientes(proj) == [] and entradas_journal(proj) == []           # nada escrito en los 3 casos
     (proj / ".claude" / "dev.json").unlink()
     assert hook("session-journal.sh", session_end(proj), env_de(proj, tmp_path, sin_python=True)) == (0, "", "")
-    assert entradas_journal(proj) == []
+    assert outbox_pendientes(proj) == [] and entradas_journal(proj) == []
 
 
 def test_session_journal_repo_ajeno_sin_rastro_del_plugin_no_siembra_nada(tmp_path):
     """T-fix1 (I1): repo temporal con solo a.txt (sin docs/roadmap, docs/knowledge ni .claude/dev.json)
-    → el hook sale en silencio y NO aparece docs/knowledge/journal/."""
+    → el hook sale en silencio y NO aparece ni la outbox ni docs/knowledge/journal/."""
     ajeno = tmp_path / "ajeno"
     ajeno.mkdir()
     (ajeno / "a.txt").write_text("x", encoding="utf-8")
     env = env_de(ajeno, tmp_path)
     assert hook("session-journal.sh", session_end(ajeno), env) == (0, "", "")
     assert sorted(os.listdir(ajeno)) == ["a.txt"]
-    # con .claude/dev.json (rastro del plugin) sí escribe, con slug `sesion` al no haber iniciativa
+    # con .claude/dev.json (rastro del plugin) sí escribe el envelope, y replay materializa con
+    # slug `sesion` al no haber iniciativa
     (ajeno / ".claude").mkdir()
     (ajeno / ".claude" / "dev.json").write_text("{}", encoding="utf-8")
     assert hook("session-journal.sh", session_end(ajeno), env) == (0, "", "")
+    assert len(outbox_pendientes(ajeno)) == 1
+    assert replay(ajeno, env)[0] == 0
     assert entradas_journal(ajeno) and entradas_journal(ajeno)[0].endswith("-sesion.md")
+
+
+def test_session_journal_ruta_del_plugin_con_espacios_y_unicode(tmp_path):
+    """CA-09: `CLAUDE_PLUGIN_ROOT` con espacios y Unicode sigue resolviendo journal.py y
+    escribiendo el envelope."""
+    import shutil as _shutil
+    destino = tmp_path / "plugin raíz ☂"
+    _shutil.copytree(ROOT, destino, ignore=_shutil.ignore_patterns(".git"))
+    proj, _ = proyecto(tmp_path)
+    env = env_de(proj, tmp_path, plugin_root=destino)
+    assert hook("session-journal.sh", session_end(proj), env) == (0, "", "")
+    assert len(outbox_pendientes(proj)) == 1
 
 
 def test_session_context_reinyecta_journal_en_resume_no_en_compact(tmp_path):
     proj, _ = proyecto(tmp_path)
     env = env_de(proj, tmp_path)
     hook("session-journal.sh", session_end(proj), env)
+    replay(proj, env)
     for src in ("startup", "resume"):
         rc, out, _ = hook("session-context.sh", {"hook_event_name": "SessionStart", "source": src}, env)
         assert rc == 0
@@ -415,13 +477,16 @@ def test_session_journal_con_log_crudo_escribe_decisiones_y_pendientes(tmp_path)
     for p in ("Decidimos usar FTS5 para el índice.", "Queda pendiente la CI en Windows.", "implementa la T-03"):
         assert hook("user-prompt-capture.sh", prompt_submit(proj, prompt=p), env) == (0, "", "")
     assert hook("session-journal.sh", session_end(proj), env) == (0, "", "")
+    assert replay(proj, env)[0] == 0
     assert len(entradas_journal(proj)) == 1
     texto = (proj / "docs" / "knowledge" / "journal" / entradas_journal(proj)[0]).read_text(encoding="utf-8")
     assert "- Decidimos usar FTS5 para el índice." in texto and "- Queda pendiente la CI en Windows." in texto
     assert 'resumen: "Decidimos usar FTS5 para el índice."' in texto and "turnos: 3" in texto
-    assert hook("session-journal.sh", session_end(proj), env)[0] == 0 and len(entradas_journal(proj)) == 1
+    assert hook("session-journal.sh", session_end(proj), env)[0] == 0
+    assert replay(proj, env)[0] == 0 and len(entradas_journal(proj)) == 1
     # otra sesión sin log crudo → entrada honesta con listas vacías (no se cruzan sesiones)
     assert hook("session-journal.sh", session_end(proj, sid="s2"), env)[0] == 0
+    assert replay(proj, env)[0] == 0
     otra = [f for f in entradas_journal(proj) if 'session_id: "s2"' in (proj / "docs" / "knowledge" / "journal" / f).read_text(encoding="utf-8")]
     assert otra and "decisiones: []" in (proj / "docs" / "knowledge" / "journal" / otra[0]).read_text(encoding="utf-8")
 
