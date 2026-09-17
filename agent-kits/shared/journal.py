@@ -21,7 +21,8 @@ Subcomandos (exit 0 SIEMPRE salvo error de uso → 2; la bitácora nunca bloquea
       `session_id`, sin `prompt`, `--root` inexistente o disco no escribible → exit 0 SIN stdout ni
       stderr: en UserPromptSubmit el stdout se inyecta como contexto y un exit 2 borraría el prompt.
       Raíz: `--root` > CLAUDE_PROJECT_DIR > `cwd` del payload > `.`. Privacidad (revisión F4, Lente C): los
-      secretos evidentes se REDACTAN antes de escribir (`redactar`: claves con prefijo conocido, JWT, PEM,
+      secretos evidentes se REDACTAN antes de escribir (`redactar` de `agent-kits/shared/redact.py`, T-02 de
+      `session-end-durable-capture`: claves con prefijo conocido, JWT, PEM,
       `Bearer`, `clave|token|password = valor`), el log se crea 0600 (POSIX), los `capture` de una misma
       sesión se serializan con `<log>.lock` (dos turnos encolados solapan sus hooks) y se siembra
       `.claude/.gitignore` con `session-prompts-*` (en un proyecto consumidor `*.log` no está ignorado).
@@ -114,19 +115,6 @@ LOG_MAX_BYTES = 256 * 1024         # tope por fichero: al superarlo se conservan
 LOG_RETENCION_DIAS = 30            # purga de `session-prompts-*.log` más viejos (mtime) al capturar
 LOG_GITIGNORE = "session-prompts-*"       # log y su `.lock`; se siembra en `.claude/.gitignore` del consumidor (revisión F4, Lente C gap 2)
 _SID_RE = re.compile(r"[^A-Za-z0-9._-]")
-# Redacción DETERMINISTA de secretos evidentes ANTES de que el texto del usuario toque el disco (log crudo) y
-# en la entrada del journal (que SE VERSIONA): claves de API con prefijo conocido, JWT, bloques PEM, `Bearer`, y
-# `clave|token|password… = valor` con valor de ≥ 8 caracteres que mezcla letras y dígitos/símbolos. Alta
-# precisión antes que cobertura: «tokens por hora (479326)» o «password reset flow» no se tocan (Lente C gap 2).
-REDACTADO = "[secreto redactado]"
-_SECRETOS_RE = (
-    re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----.*?-----END [A-Z ]*PRIVATE KEY-----", re.S),
-    re.compile(r"\b(?:sk-ant-|sk-|ghp_|gho_|ghu_|ghs_|ghr_|github_pat_|xox[baprs]-|glpat-|AKIA|ASIA)[A-Za-z0-9_\-]{16,}"),
-    re.compile(r"\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}"),
-    re.compile(r"(?i)(?P<pre>\bbearer\s+)(?P<sec>[A-Za-z0-9._~+/=\-]{20,})"),
-    re.compile(r"(?i)(?P<pre>\b(?:api[_-]?key|secret[_-]?key|access[_-]?key|secret|token|passw(?:or)?d|pwd|clave|contrase[ñn]a)\b\s*[:=]\s*[\"']?)"
-               r"(?P<sec>(?=[^\s\"']*[A-Za-z])(?=[^\s\"']*[0-9!@#$%^&*])[^\s\"']{8,})"),
-)
 
 # --- extracción DETERMINISTA de decisiones/pendientes del log crudo (T-12; sin modelo) ---
 # Una FRASE del usuario cuenta si contiene un marcador léxico (ES/EN). Deliberadamente estrecho: mejor
@@ -167,6 +155,37 @@ def _load_module(name, filename):
         return None
 
 
+# --8<-- redact (redactar + constantes) — REPLICADO LITERAL en agent-kits/shared/redact.py (canónico) y en agent-kits/shared/journal.py (respaldo local, ADR-016)
+REDACTADO = "[secreto redactado]"
+_SECRETOS_RE = (
+    re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----.*?-----END [A-Z ]*PRIVATE KEY-----", re.S),
+    re.compile(r"\b(?:sk-ant-|sk-|ghp_|gho_|ghu_|ghs_|ghr_|github_pat_|xox[baprs]-|glpat-|AKIA|ASIA)[A-Za-z0-9_\-]{16,}"),
+    re.compile(r"\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}"),
+    re.compile(r"(?i)(?P<pre>\bbearer\s+)(?P<sec>[A-Za-z0-9._~+/=\-]{20,})"),
+    re.compile(r"(?i)(?P<pre>\b(?:api[_-]?key|secret[_-]?key|access[_-]?key|secret|token|passw(?:or)?d|pwd|clave|contrase[ñn]a)\b\s*[:=]\s*[\"']?)"
+               r"(?P<sec>(?=[^\s\"']*[A-Za-z])(?=[^\s\"']*[0-9!@#$%^&*])[^\s\"']{8,})"),
+)
+
+
+def redactar(texto):
+    """Sustituye los secretos evidentes (_SECRETOS_RE) por REDACTADO conservando el prefijo (`token=`, `Bearer `)."""
+    texto = str(texto)
+    for pat in _SECRETOS_RE:
+        texto = pat.sub(lambda m: (m.group("pre") if "pre" in m.groupdict() else "") + REDACTADO, texto)
+    return texto
+# --8<-- fin redact (redactar + constantes)
+
+# `redact.py` es la fuente ÚNICA (T-02, CA-11): si viaja junto a journal.py (caso normal, misma
+# carpeta agent-kits/shared/), sus símbolos SUSTITUYEN al respaldo de arriba. El respaldo solo se
+# usa si journal.py viaja SIN redact.py (paquete portable); ambos bloques están declarados y
+# comparados byte a byte en agent-kits/shared/copias.json (bloque `redact_redactar`).
+_redact_mod = _load_module("redact", "redact.py")
+if _redact_mod is not None:
+    redactar = _redact_mod.redactar
+    REDACTADO = _redact_mod.REDACTADO
+    _SECRETOS_RE = _redact_mod._SECRETOS_RE
+
+
 def hoy():
     return _dt.date.today().isoformat()
 
@@ -196,14 +215,6 @@ def _dev_sesion(root):
 
 
 # ------------------------------------------------------------------ log crudo (capture / capturas)
-
-def redactar(texto):
-    """Sustituye los secretos evidentes (_SECRETOS_RE) por REDACTADO conservando el prefijo (`token=`, `Bearer `)."""
-    texto = str(texto)
-    for pat in _SECRETOS_RE:
-        texto = pat.sub(lambda m: (m.group("pre") if "pre" in m.groupdict() else "") + REDACTADO, texto)
-    return texto
-
 
 def _asegurar_gitignore(dirpath):
     """`.claude/.gitignore` con LOG_GITIGNORE: el log lleva prosa del usuario y `*.log` solo está en el .gitignore

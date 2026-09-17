@@ -16,11 +16,11 @@ verificacion: obligatoria
 
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervision (real/est) | Tokens (real/est) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| Fase 1 - Módulos compartidos | 1 | 2 | 50% | 0.2 / 2.5h | 0.15 / 0.8h | 0 / 0.2h | 0 / 45k |
+| Fase 1 - Módulos compartidos | 2 | 2 | 100% | 0.4 / 2.5h | 0.3 / 0.8h | 0 / 0.2h | 0 / 45k |
 | Fase 2 - Captura y materialización | 0 | 2 | 0% | 0 / 5.5h | 0 / 1.6h | 0 / 0.4h | 0 / 85k |
 | Fase 3 - Reconciliación y diagnóstico | 0 | 2 | 0% | 0 / 4h | 0 / 1.2h | 0 / 0.3h | 0 / 60k |
 | Fase 4 - Pruebas, medición y cierre | 0 | 2 | 0% | 0 / 2h | 0 / 0.6h | 0 / 0.2h | 0 / 40k |
-| **TOTAL** | **1** | **8** | **13%** | **0.2 / 14h** | **0.15 / 4.2h** | **0 / 1.1h** | **0 / 230k** |
+| **TOTAL** | **2** | **8** | **25%** | **0.4 / 14h** | **0.3 / 4.2h** | **0 / 1.1h** | **0 / 230k** |
 
 ## Fase 1 - Módulos compartidos
 
@@ -39,16 +39,19 @@ verificacion: obligatoria
 - **Changelog**: Nueva cola atómica compartida `agent-kits/shared/outbox.py` (escribir/reclamar/completar/dead_letter/estado/purgar) para la captura durable de `SessionEnd` y futuros exportadores de memoria.
 
 ### T-02 - `redact.py` extraído de `journal.py` (una sola fuente)
-- **Estado**: borrador
-- **Tiempo humano**: est. 1h · real -
-- **Prevision IA**: 12k in / 5k out tok
+- **Estado**: completado
+- **Tiempo humano**: est. 1h · real 0.2h (estimado)
+- **Prevision IA**: 12k in / 5k out tok · real (estimado): usage-meter degradó a `fuente: estimado` (sin transcripciones en este entorno); horas_ia real (estimado): 0.15h
 - **Dependencias**: ninguna
 - **Tipo**: backend
-- **Archivos**: `agent-kits/shared/redact.py`, `agent-kits/shared/test_redact.py`, `agent-kits/shared/journal.py`, `agent-kits/shared/test_journal.py`, `agent-kits/shared/copias.json`
-- **Verificacion**: `python -m pytest -q agent-kits/shared/test_redact.py agent-kits/shared/test_journal.py` -> mismos casos de redacción que hoy; `journal.py` importa `redactar` con fallback a copia declarada si viaja suelto
+- **Archivos**: `agent-kits/shared/redact.py`, `agent-kits/shared/test_redact.py`, `agent-kits/shared/journal.py`, `agent-kits/shared/test_journal.py`, `agent-kits/shared/copias.json`, `agent-kits/shared/README.md`, `scripts/lint_plugin.py`
+- **Verificacion**: `python -m pytest -q agent-kits/shared/test_redact.py agent-kits/shared/test_journal.py` -> mismos casos de redacción que hoy; `journal.py` importa `redactar` con fallback a copia declarada si viaja suelto · **ejecutado**: `50 passed in 4.29s`
+- **RED**: `test_redacta_api_key_con_prefijo_conocido` (y el resto del módulo) falló con `FileNotFoundError: [Errno 2] No such file or directory: '.../agent-kits/shared/redact.py'` · 2026-09-17
 **Criterios de aceptación**
-- [ ] Ningún caso de `test_journal.py` cambia de resultado.
-- [ ] Si `journal.py` necesita copia local para el paquete portable, está en `copias.json` y el test de identidad la cubre (ADR-016).
+- [x] Ningún caso de `test_journal.py` cambia de resultado.
+- [x] Si `journal.py` necesita copia local para el paquete portable, está en `copias.json` y el test de identidad la cubre (ADR-016).
+- **Nota (desviación menor)**: se actualizó también `scripts/lint_plugin.py` (quitar `outbox.py`/`redact.py` de `PIEZAS_PLANIFICADAS`, ahora que existen en el árbol); no estaba en el plan pero era necesario para que el linter no avise de una tolerancia caducada — fuera del alcance de T-01/T-02 en sentido estricto, añadido a `Archivos` de ambas.
+- **Changelog**: `redact.py` extrae `redactar`/`REDACTADO`/`_SECRETOS_RE` de `journal.py` a un módulo compartido único (fuente única, CA-11), con respaldo local declarado en `copias.json` para el paquete portable.
 
 ## Fase 2 - Captura y materialización
 
