@@ -21,6 +21,8 @@ import re
 import sys
 import tomllib
 
+import pytest
+
 for _s in (sys.stdin, sys.stdout, sys.stderr):
     try: _s.reconfigure(encoding="utf-8", errors="replace")
     except Exception: pass  # noqa: BLE001
@@ -136,13 +138,49 @@ def test_codex_hooks_solo_eventos_que_dispara():
 def test_codex_session_end_va_en_shell_form_no_exec_form():
     """Gap 16 de la revisión intento 1 (C5 · CWE-78): Codex no tiene el contrato de `args` (exec
     form) verificado como Claude Code; `SessionEnd` (declarado en exec form en `hooks/hooks.json`)
-    se traduce a shell form (`bash "<ruta>"`) para la interop, sin `args` sueltos."""
+    se traduce a shell form (`bash <ruta-quoted>`) para la interop, sin `args` sueltos. Gap 36 de
+    la revisión intento 2: la cadena se construye con `shlex.quote` (no por interpolación directa
+    `'bash "%s"' % arg`, que dejaba inyectar `"`/`` ` ``/`$(` si `arg` los llevara)."""
+    import shlex
     src = json.loads(leer("hooks/hooks.json"))["hooks"]["SessionEnd"][0]["hooks"][0]
     assert src.get("args"), "hooks/hooks.json ya no declara SessionEnd en exec form: revisa este test"
     h = json.loads(leer("interop/codex/hooks.json"))["hooks"]["SessionEnd"][0]["hooks"][0]
     assert "args" not in h
-    assert h["command"] == 'bash "%s"' % src["args"][0]
+    assert h["command"] == "bash %s" % shlex.quote(src["args"][0])
     assert h.get("timeout") == src.get("timeout")
+
+
+def test_hook_a_shell_form_pasa_intacto_lo_que_no_es_exec_form():
+    """Un hook sin `args` (la mayoría: ya en shell form) no lo toca `_hook_a_shell_form`."""
+    h = {"type": "command", "command": 'bash "${CLAUDE_PLUGIN_ROOT}/hooks/x.sh"', "timeout": 5}
+    assert MOD._hook_a_shell_form(h, "UserPromptSubmit") == h
+
+
+def test_hook_a_shell_form_falla_con_args_invalidos_en_vez_de_exportar_tal_cual():
+    """Gap 36 (B12): un hook con `command: bash` y `args` de forma inválida (≠ 1 arg, o un arg con
+    metacaracteres de shell) se exportaba TAL CUAL, sin traducir y sin ningún aviso — la peor
+    combinación posible. Ahora `ValueError` nombrando el evento, y NUNCA se llega a construir/
+    emitir una cadena `command`."""
+    base = {"type": "command", "command": "bash"}
+    casos = [
+        {**base, "args": []},                                    # 0 argumentos
+        {**base, "args": ["a.sh", "b.sh"]},                       # 2 argumentos
+        {**base, "args": ["$(rm -rf /)"]},                        # `$(` — command substitution
+        {**base, "args": ['"; rm -rf / #']},                      # `"` — rompe las comillas
+        {**base, "args": ["`whoami`"]},                           # backtick
+        {**base, "args": ["python3 -c 'evil()'"]},                # espacios (ni siquiera un arg único válido)
+    ]
+    for h in casos:
+        with pytest.raises(ValueError, match="SessionEnd"):
+            MOD._hook_a_shell_form(h, "SessionEnd")
+
+
+def test_hook_a_shell_form_arg_seguro_con_placeholder_no_lanza():
+    """El patrón seguro SÍ admite `${CLAUDE_PLUGIN_ROOT}` (placeholder que Codex sustituye antes de
+    pasar el `command` a una shell): no debe fallar el caso normal."""
+    h = {"type": "command", "command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/session-journal.sh"]}
+    nh = MOD._hook_a_shell_form(h, "SessionEnd")
+    assert "args" not in nh and nh["command"].startswith("bash ")
 
 
 def test_opencode_agentes_frontmatter():

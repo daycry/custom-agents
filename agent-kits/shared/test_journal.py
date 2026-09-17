@@ -146,7 +146,7 @@ def test_slug_sin_iniciativa_es_sesion_no_n_a(tmp_path):
     (proj / ".claude" / "dev.json").write_text("{}", encoding="utf-8")
     rel = run("write", "--session-id", "s", root=proj)[1].strip()
     assert rel.endswith("-sesion.md") and "n-a" not in rel
-    assert "iniciativa: n/a" in (proj / rel).read_text(encoding="utf-8")   # el frontmatter sí dice n/a
+    assert 'iniciativa: "n/a"' in (proj / rel).read_text(encoding="utf-8")   # el frontmatter sí dice n/a
 
 
 def test_draft_resumen_desde_transcripcion_y_enrich(tmp_path):
@@ -193,8 +193,8 @@ def test_write_crea_entrada_con_frontmatter_e_indice(tmp_path):
     rel = out.strip()
     assert rel == f"docs/knowledge/journal/{journal.hoy()}-demo.md"
     text = (proj / rel).read_text(encoding="utf-8")
-    assert text.startswith("---\n") and 'session_id: "abc"' in text and "reason: clear" in text
-    assert "iniciativa: demo" in text and "fuente: hook" in text and "## Decisiones" in text
+    assert text.startswith("---\n") and 'session_id: "abc"' in text and 'reason: "clear"' in text
+    assert 'iniciativa: "demo"' in text and 'fuente: "hook"' in text and "## Decisiones" in text
     idx = (proj / "docs" / "knowledge" / "journal" / "README.md").read_text(encoding="utf-8")
     assert f"[{journal.hoy()}]({journal.hoy()}-demo.md) | demo |" in idx
 
@@ -227,7 +227,7 @@ def test_write_desde_draft_json_y_fuente_manual(tmp_path):
     rc, out, _ = run("write", "--session-id", "s9", "--fuente", "manual", "--draft", str(dj), root=proj)
     assert rc == 0
     text = (proj / out.strip()).read_text(encoding="utf-8")
-    assert 'resumen: "Resumen manual"' in text and "fuente: manual" in text
+    assert 'resumen: "Resumen manual"' in text and 'fuente: "manual"' in text
     # draft ilegible → error de uso (2), sin escribir nada
     rc2, _, err = run("write", "--session-id", "s9", "--draft", str(tmp_path / "no.json"), root=proj)
     assert rc2 == 2 and "ilegible" in err
@@ -588,13 +588,13 @@ def test_escribir_sesion_con_resumen_true_reescribe_la_misma_entrada_y_sin_ia_es
     d = proj / "docs" / "knowledge" / "journal"
     p, e = journal.escribir_sesion(str(proj), "s1", reason="other", runner=_runner(_OK), which=_con_claude, environ=_CON_CLAVE)
     texto = open(p, encoding="utf-8").read()
-    assert 'resumen: "Sesión de prueba"' in texto and "resumen_por: ia" in texto
+    assert 'resumen: "Sesión de prueba"' in texto and 'resumen_por: "ia"' in texto
     assert "- CI Windows" in texto and "- usar FTS5" in texto
     assert len([f for f in os.listdir(d) if f != "README.md"]) == 1            # determinista + IA: UNA entrada
     # la IA degrada (sin clave) → la MISMA entrada, determinista, con el motivo en `avisos`
     p2, e2 = journal.escribir_sesion(str(proj), "s1", reason="other", runner=_runner(_OK), which=_con_claude, environ={})
     texto = open(p2, encoding="utf-8").read()
-    assert p2 == p and "resumen_por: determinista" in texto and "- Decidimos usar X para el módulo" in texto
+    assert p2 == p and 'resumen_por: "determinista"' in texto and "- Decidimos usar X para el módulo" in texto
     assert any("ANTHROPIC_API_KEY" in a for a in e2["avisos"]) and "ANTHROPIC_API_KEY" in texto
     # --ia off ignora el opt-in; --ia on lo fuerza sin dev.json
     ok = _runner(_OK)
@@ -626,7 +626,7 @@ def test_cli_write_degrada_a_determinista_sin_clave_con_dev_json_corrupto_y_con_
     rc, out, err = run("write", "--session-id", "s1", root=proj, env=env)
     assert rc == 0 and out.strip() and "determinista" in err
     texto = (proj / out.strip()).read_text(encoding="utf-8")
-    assert "resumen_por: determinista" in texto and "- Decidimos usar X" in texto
+    assert 'resumen_por: "determinista"' in texto and "- Decidimos usar X" in texto
     (proj / ".claude" / "dev.json").write_text("{ roto", encoding="utf-8")
     rc, out, err = run("write", "--session-id", "s1", root=proj, env=env)
     assert rc == 0 and out.strip() and err == ""
@@ -943,7 +943,7 @@ def test_capture_end_es_deterministico_y_sin_texto_de_conversacion(tmp_path):
     proj, _ = proyecto(tmp_path, con_git=False)
     e1 = journal.capture_end(str(proj), session_end_payload(proj))
     id1 = json.loads(open(e1, encoding="utf-8").read())["event_id"]
-    assert id1 == journal._event_id("s1", "other", 0, journal.SCHEMA_VERSION)
+    assert id1 == journal._event_id("s1", "other", journal.SCHEMA_VERSION, journal._hash_log_prompts(str(proj), "s1"))
     texto = open(e1, encoding="utf-8").read()
     assert "prompt" not in texto and "decisiones" not in texto            # sin texto de conversación
 
@@ -1006,7 +1006,7 @@ def test_replay_materializa_reutilizando_escribir_sesion(tmp_path):
     journal.capture_end(str(proj), session_end_payload(proj))
     assert len(outbox_pendientes(proj)) == 1
     r = journal.replay(str(proj))
-    assert r == {"materializados": 1, "dead_letter": 0, "reintentados": 0, "errores": [], "restantes": 0, "avisos": []}
+    assert r == {"materializados": 1, "dead_letter": 0, "reintentados": 0, "errores": [], "restantes": 0, "avisos": [], "bloqueado": False}
     entradas = journal.entradas(str(proj))
     assert len(entradas) == 1
     assert entradas[0]["session_id"] == "s1" and entradas[0].get("cierre") == "materializado"
@@ -1020,7 +1020,7 @@ def test_replay_es_idempotente_sobre_el_mismo_evento(tmp_path):
     # el mismo evento vuelve a capturarse (retry del hook): ya está en done/, no crea un envelope nuevo
     journal.capture_end(str(proj), session_end_payload(proj))
     assert outbox_pendientes(proj) == []
-    assert journal.replay(str(proj)) == {"materializados": 0, "dead_letter": 0, "reintentados": 0, "errores": [], "restantes": 0, "avisos": []}
+    assert journal.replay(str(proj)) == {"materializados": 0, "dead_letter": 0, "reintentados": 0, "errores": [], "restantes": 0, "avisos": [], "bloqueado": False}
     assert len(journal.entradas(str(proj))) == 1
 
 
@@ -1158,7 +1158,7 @@ def test_replay_usa_captured_at_como_fecha_y_marca_derivados_en_replay(tmp_path)
     e = journal.entradas(str(proj))[0]
     assert e["fecha"] == "2020-01-01"
     texto = open(e["_path"], encoding="utf-8").read()
-    assert "derivados_en: replay" in texto
+    assert 'derivados_en: "replay"' in texto
     assert "materializado_en:" in texto
 
 
@@ -1251,3 +1251,251 @@ def test_draft_sin_turnos_ni_transcript_declara_la_carencia(tmp_path):
     proj, _ = proyecto(tmp_path, con_git=False)
     d = journal.draft(str(proj), session_id="s1", transcript=None, reason="other")
     assert any("sin turnos capturados" in a for a in d["avisos"])
+
+
+# ------------------------------------------------------------------ revisión intento 2 (gaps 27/28/32/34/37/38/44)
+
+def test_event_id_usa_hash_del_log_no_lineas_rotacion_no_colisiona(tmp_path):
+    """Gap 28 (A-N1): `sequence` (nº de líneas) NO es monótono si el log rota (`_rotar`): puede
+    volver a un valor YA USADO. El `event_id` depende del HASH del contenido del log, no del nº de
+    líneas: dos cierres con la MISMA `sequence` pero contenido DISTINTO producen `event_id`
+    diferentes (con el criterio viejo, basado en `sequence`, habrían colisionado)."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    log = journal.log_path(str(proj), "s1")
+    os.makedirs(os.path.dirname(log), exist_ok=True)
+    open(log, "w", encoding="utf-8").write('{"ts": "t1", "prompt": "primer contenido"}\n')
+    e1 = journal.capture_end(str(proj), session_end_payload(proj))
+    env1 = json.loads(open(e1, encoding="utf-8").read())
+    assert env1["sequence"] == 1
+    # "rotación": el log vuelve a tener 1 línea, pero con OTRO contenido — nunca debería colisionar
+    open(log, "w", encoding="utf-8").write('{"ts": "t2", "prompt": "contenido completamente distinto tras rotar"}\n')
+    assert journal._contar_lineas_log(str(proj), "s1") == 1        # MISMA sequence que antes
+    e2 = journal.capture_end(str(proj), session_end_payload(proj))
+    assert e2 is not None
+    env2 = json.loads(open(e2, encoding="utf-8").read())
+    assert env2["sequence"] == 1
+    assert env2["event_id"] != env1["event_id"]                    # el hash del log evita la colisión
+
+
+def test_validar_envelope_rechaza_captured_at_traversal_sid_con_salto_y_reason_multilinea(tmp_path):
+    """Gap 27/37 (B3/C-4 · CWE-22/93): `captured_at` sin validar entraba en el NOMBRE DE FICHERO y
+    el FRONTMATTER de la entrada (`"../../../../tmp/PWN"` -> fuera de docs/knowledge/journal/; un
+    `\\n` inyectaba claves YAML); `reason` llegaba sin escapar al frontmatter. Los tres envelopes
+    plantados de la revisión deben acabar en dead-letter sin materializar nada."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    ob = journal._outbox_mod()
+    dir_ = journal._journal_queue_dir(str(proj))
+    base = {"schema_version": 1, "session_id": "s1", "reason": "other", "cwd": str(proj),
+            "transcript_path": "", "captured_at": "2026-01-01T00:00:00Z",
+            "hook_event_name": "SessionEnd", "sequence": 0}
+    envs = {
+        "traversal": {**base, "captured_at": "../../../../tmp/PWN"},
+        "sid-newline": {**base, "session_id": "9\nevil: si"},
+        "reason-multilinea": {**base, "reason": "other\nevil: si"},
+    }
+    for clave, env in envs.items():
+        ob.escribir(dir_, clave, env)
+    r = journal.replay(str(proj))
+    assert r["dead_letter"] == 3 and r["materializados"] == 0
+    assert not os.path.isdir(os.path.join(str(proj), "tmp"))       # nunca escribió fuera de la raíz
+    jdir = journal.journal_dir(str(proj))
+    assert not os.path.isdir(jdir) or os.listdir(jdir) == []       # nada materializado
+    causas = {clave: json.loads(
+        (proj / ".claude" / "journal" / "dead-letter" / (clave + ".json.causa.json")).read_text(encoding="utf-8"))["causa"]
+        for clave in envs}
+    assert "captured_at" in causas["traversal"]
+    assert "session_id" in causas["sid-newline"]
+    assert "reason" in causas["reason-multilinea"]
+
+
+def test_journal_queue_dir_rechaza_punto_docs_symlink_y_unidad_windows(tmp_path):
+    """Gap 34 (B7/K-3/C-2/C-3 · CWE-59/22/732): la contención léxica anterior dejaba pasar `"."`
+    y `"docs"` (contenidos, pero NO son de la cola) y un symlink versionado que escapa de la raíz;
+    `"C:evil"` (relativo a una unidad de Windows) se rechaza en cualquier SO vía `ntpath`."""
+    proj, _ = proyecto(tmp_path, con_git=True)      # con contenido real bajo la raíz y docs/roadmap
+    for valor in (".", "docs"):
+        (proj / ".claude" / "dev.json").write_text(json.dumps({"sesion": {"journal": {"dir": valor}}}), encoding="utf-8")
+        assert journal._journal_queue_dir(str(proj)) == os.path.join(str(proj), ".claude", "journal"), valor
+    fuera = tmp_path / "fuera-del-proyecto"
+    fuera.mkdir()
+    esc = proj / "esc"
+    try:
+        os.symlink(str(fuera), str(esc))
+    except (OSError, NotImplementedError):
+        pytest.skip("symlinks no soportados en este entorno")
+    (proj / ".claude" / "dev.json").write_text(json.dumps({"sesion": {"journal": {"dir": "esc"}}}), encoding="utf-8")
+    assert journal._journal_queue_dir(str(proj)) == os.path.join(str(proj), ".claude", "journal")
+    (proj / ".claude" / "dev.json").write_text(json.dumps({"sesion": {"journal": {"dir": "C:evil"}}}), encoding="utf-8")
+    assert journal._journal_queue_dir(str(proj)) == os.path.join(str(proj), ".claude", "journal")
+
+
+def test_journal_queue_dir_acepta_directorio_vacio_o_marcado_por_la_cola(tmp_path):
+    """Gap 34: un directorio custom VACÍO (o ya marcado por la propia cola) sí se acepta — la
+    contención no debe rechazar el caso legítimo de mover la cola a otro sitio."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    (proj / ".claude" / "dev.json").write_text(json.dumps({"sesion": {"journal": {"dir": "vacio"}}}), encoding="utf-8")
+    (proj / "vacio").mkdir()
+    assert journal._journal_queue_dir(str(proj)) == os.path.join(str(proj), "vacio")
+    journal.capture_end(str(proj), session_end_payload(proj))
+    assert os.path.isfile(os.path.join(str(proj), "vacio", journal._QUEUE_MARKER))
+    # ahora "vacio" YA TIENE contenido (outbox/, .gitignore, marcador) pero está MARCADO: se sigue aceptando
+    assert journal._journal_queue_dir(str(proj)) == os.path.join(str(proj), "vacio")
+
+
+def test_transcript_seguro_symlink_o_fuera_del_directorio_permitido_se_ignora(tmp_path, monkeypatch):
+    """Gap 38 (K-1 · CWE-59/73/200): el basename-match por sí solo compara dos campos del MISMO
+    envelope no confiable; `os.path.isfile` sigue symlinks. Un transcript FUERA del directorio
+    permitido (con basename correcto) o un symlink DENTRO de él (apuntando fuera) deben ignorarse;
+    uno real y legítimo dentro del directorio permitido sí se acepta."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    cfg = tmp_path / "cfgdir"
+    permitido = cfg / "projects"
+    permitido.mkdir(parents=True)
+    monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(cfg))
+    fuera = tmp_path / "otro-sitio" / "s1.jsonl"
+    fuera.parent.mkdir(parents=True)
+    fuera.write_text('{"type":"user","message":{"content":"secreto ajeno"}}\n', encoding="utf-8")
+    assert journal._transcript_seguro(str(fuera), "s1") is None
+    enlace = permitido / "s1.jsonl"
+    try:
+        os.symlink(str(fuera), str(enlace))
+    except (OSError, NotImplementedError):
+        pytest.skip("symlinks no soportados en este entorno")
+    assert journal._transcript_seguro(str(enlace), "s1") is None
+    real = permitido / "s2.jsonl"
+    real.write_text('{"type":"user","message":{"content":"hola"}}\n', encoding="utf-8")
+    assert journal._transcript_seguro(str(real), "s2") == str(real)
+
+
+@pytest.mark.skipif(os.name == "nt", reason="flock es POSIX; en Windows el equivalente es msvcrt")
+def test_replay_cerrojo_ocupado_bajo_presupuesto_devuelve_bloqueado_rapido(tmp_path):
+    """Gap 32 (B5): `replay` tomaba antes un `flock` BLOQUEANTE arrancando el reloj DESPUÉS — con
+    el cerrojo tomado por OTRO proceso 3s, `budget_ms=500` tardaba esos 3s en vez de 500ms
+    (`SessionStart`, T-05, se colgaría). Aquí el cerrojo lo tiene un hilo durante 3s y `replay`
+    debe volver bloqueado en bastante menos de 1s."""
+    import fcntl
+    import threading
+    proj, _ = proyecto(tmp_path, con_git=False)
+    journal.capture_end(str(proj), session_end_payload(proj))
+    dir_ = journal._journal_queue_dir(str(proj))
+    os.makedirs(dir_, exist_ok=True)
+    lock_path = os.path.join(dir_, ".replay.lock")
+
+    def sostener_cerrojo():
+        fd = os.open(lock_path, os.O_RDWR | os.O_CREAT, 0o600)
+        fcntl.flock(fd, fcntl.LOCK_EX)
+        time.sleep(3)
+        fcntl.flock(fd, fcntl.LOCK_UN)
+        os.close(fd)
+
+    th = threading.Thread(target=sostener_cerrojo)
+    th.start()
+    time.sleep(0.1)                     # deja que el hilo tome el cerrojo primero
+    t0 = time.monotonic()
+    r = journal.replay(str(proj), budget_ms=500)
+    elapsed = time.monotonic() - t0
+    th.join(timeout=5)
+    assert r["bloqueado"] is True and r["materializados"] == 0
+    assert elapsed < 1.5, f"tardó {elapsed:.2f}s: el cerrojo debía ser NO bloqueante bajo presupuesto"
+
+
+def test_fecha_local_de_captured_at_usa_tz_local_no_utc():
+    """Gap 44 (B10): la fecha de la entrada se calculaba con `captured_at[:10]` (UTC) mientras el
+    resto del módulo usa fecha LOCAL (`hoy()`); con `TZ=America/Santiago` (UTC-3) un cierre a las
+    22:30 LOCAL (ya 01:30 del día siguiente en UTC) quedaba fechado un día antes de lo que el
+    usuario vio en su reloj."""
+    if os.name == "nt" or not hasattr(time, "tzset"):
+        pytest.skip("time.tzset no existe en Windows")
+    old_tz = os.environ.get("TZ")
+    os.environ["TZ"] = "America/Santiago"
+    time.tzset()
+    try:
+        # 2026-01-02T01:30:00Z UTC == 2026-01-01T22:30:00 hora de Santiago (UTC-3)
+        assert journal._fecha_local_de_captured_at("2026-01-02T01:30:00Z") == "2026-01-01"
+    finally:
+        if old_tz is None:
+            os.environ.pop("TZ", None)
+        else:
+            os.environ["TZ"] = old_tz
+        time.tzset()
+
+
+def test_replay_ob_reclamar_dentro_del_try_no_aborta_sin_json(tmp_path, monkeypatch):
+    """Gap 29 (A-N2): el Critical 1 del intento 1 se cerró sin test — sustituir el `try/except` de
+    `replay()` por `raise` (o dejar `ob.reclamar` fuera del `try`) dejaba la suite verde porque
+    ningún test forzaba una excepción DESDE `ob.reclamar` mismo (solo desde la materialización).
+    Aquí se fuerza justo eso: `ob.reclamar` lanza en el segundo item."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    journal.capture_end(str(proj), session_end_payload(proj, sid="s1"))
+    journal.capture_end(str(proj), session_end_payload(proj, sid="s2"))
+    ob = journal._outbox_mod()
+    real_reclamar = ob.reclamar
+    llamadas = {"n": 0}
+
+    def reclamar_que_falla_la_segunda_vez(dir_, *a, **k):
+        llamadas["n"] += 1
+        if llamadas["n"] == 2:
+            raise OSError("disco lleno simulado en el segundo reclamar")
+        return real_reclamar(dir_, *a, **k)
+
+    monkeypatch.setattr(ob, "reclamar", reclamar_que_falla_la_segunda_vez)
+    r = journal.replay(str(proj))                    # NUNCA debe lanzar
+    assert r["materializados"] == 1                   # el primer item sí se procesó
+    assert any(e.get("causa", "").startswith("reclamar:") for e in r["errores"])
+    assert len(journal.entradas(str(proj))) == 1
+
+
+def test_replay_dead_letter_inutilizable_no_aborta_el_drenaje_de_los_demas(tmp_path):
+    """Gap 31 (B4): `ob.dead_letter` (llamado por `replay` al validar un envelope venenoso) podía
+    lanzar si `dead-letter/` es inutilizable; el resto de la cola debe seguir procesándose."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    journal.capture_end(str(proj), session_end_payload(proj, sid="bueno"))
+    dir_ = journal._journal_queue_dir(str(proj))
+    outbox_dir = os.path.join(dir_, "outbox")
+    with open(os.path.join(outbox_dir, "malo.json"), "w", encoding="utf-8") as fh:
+        fh.write("{esto no es json")                 # envelope venenoso: intentará dead-letter
+    dl_dir = os.path.join(dir_, "dead-letter")
+    os.makedirs(dl_dir, exist_ok=True)
+    shutil.rmtree(dl_dir)
+    open(dl_dir, "w", encoding="utf-8").write("no soy una carpeta")   # dead-letter/ inutilizable
+    r = journal.replay(str(proj))                     # no debe lanzar
+    assert r["materializados"] == 1                    # el item "bueno" se procesa igualmente
+    assert len(journal.entradas(str(proj))) == 1
+
+
+def test_limpiar_tmp_huerfanos_no_borra_clave_legitima_que_contiene_tmp_guion(tmp_path):
+    """Gap 35 (B8): decidir por subcadena `.tmp-` (en vez de por PREFIJO) borraba en silencio una
+    clave legítima como `export.tmp-2026` que la contuviera."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    ob = journal._outbox_mod()
+    dir_ = journal._journal_queue_dir(str(proj))
+    ob.escribir(dir_, "export.tmp-2026", {"a": 1})
+    viejo = time.time() - 700
+    os.utime(os.path.join(dir_, "outbox", "export.tmp-2026.json"), (viejo, viejo))
+    borrados = ob.limpiar_tmp_huerfanos(dir_, ttl_s=600)
+    assert borrados == 0
+    assert os.path.isfile(os.path.join(dir_, "outbox", "export.tmp-2026.json"))
+
+
+def test_replay_siembra_gitignore_de_la_cola_aunque_no_haya_capturado_antes(tmp_path):
+    """Gap 41: `replay()` creaba la carpeta de la cola (y el cerrojo) con un `os.makedirs` desnudo,
+    sin sembrar `.gitignore` — si `replay` corre ANTES de cualquier `capture-end` (p.ej. `/doctor`
+    invocándolo a demanda en un proyecto nuevo), la cola podía asomar en `git status`."""
+    proj, _ = proyecto(tmp_path, con_git=True)
+    journal.replay(str(proj))                          # nunca se llamó a capture_end antes
+    dir_ = journal._journal_queue_dir(str(proj))
+    assert os.path.isfile(os.path.join(dir_, ".gitignore"))
+    assert os.path.isfile(os.path.join(dir_, journal._QUEUE_MARKER))
+
+
+def test_cerrojo_de_replay_es_un_unico_fichero_replay_lock_no_doble_sufijo(tmp_path):
+    """Gap 48: `_cerrojo(".replay.lock")` (el nombre viejo) producía `.replay.lock.lock` en disco
+    porque el propio `_cerrojo`/`_cerrojo_presupuestado` ya añade `.lock`. El nombre correcto en
+    disco es `.replay.lock`, sin duplicar el sufijo."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    journal.capture_end(str(proj), session_end_payload(proj))
+    journal.replay(str(proj))
+    dir_ = journal._journal_queue_dir(str(proj))
+    nombres = os.listdir(dir_)
+    assert ".replay.lock" in nombres
+    assert ".replay.lock.lock" not in nombres

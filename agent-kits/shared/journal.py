@@ -109,11 +109,13 @@ Subcomandos (exit 0 SIEMPRE salvo error de uso → 2; la bitácora nunca bloquea
 hook `command` no devuelve nada: ESCRIBE (ADR-010, revisada 2026-09-08 por memory-retrieval T-12/T-13).
 """
 import argparse
+import calendar
 import contextlib
 import datetime as _dt
 import hashlib
 import importlib.util
 import json
+import ntpath
 import os
 import re
 import shutil
@@ -271,26 +273,64 @@ def _outbox_mod():
 
 
 _DIR_DEFAULT = os.path.join(".claude", "journal")
+_QUEUE_MARKER = ".custom-agents-journal"    # marcador: este directorio lo creó/gestiona la cola (gap 34)
+
+
+def _dir_es_de_la_cola_o_vacio(dirpath):
+    """True si `dirpath` ya lleva el marcador de la cola, no existe todavía, o existe pero está
+    vacío. Gap 34 de la revisión intento 2: `sesion.journal.dir` con contención solo LÉXICA dejaba
+    pasar `"."` o `"docs"` (rutas realmente contenidas en la raíz del proyecto, así que ninguna
+    comprobación de escape las rechaza) y `_asegurar_gitignore_local` plantaba `.gitignore`/`chmod
+    0700` en la raíz o en `docs/` del proyecto consumidor — un directorio que NO es de la cola."""
+    if os.path.isfile(os.path.join(dirpath, _QUEUE_MARKER)):
+        return True
+    if not os.path.isdir(dirpath):
+        return True
+    try:
+        return len(os.listdir(dirpath)) == 0
+    except OSError:
+        return False
 
 
 def _journal_queue_dir(root):
     """Carpeta de la cola de outbox: `.claude/journal` por defecto; `dev.json` →
     `{"sesion": {"journal": {"dir": "..."}}}` la puede mover (el booleano `sesion.journal` sigue
-    valiendo para el opt-out, ver `_journal_activo`). `dir` absoluto o con `..` se rechaza con
-    aviso y se usa el default (gap 23 de la revisión: sin contención, `purgar` haría `rmtree` fuera
-    del proyecto)."""
+    valiendo para el opt-out, ver `_journal_activo`). Se rechaza (con aviso, usando el default) si
+    `dir`:
+      - es absoluto, o relativo a una UNIDAD de Windows (`"C:evil"` — `ntpath.splitdrive` detecta
+        esto en cualquier SO, gap 34: la contención léxica anterior solo miraba `..`/absolutos
+        POSIX);
+      - sale de la raíz del proyecto tras resolver symlinks (`os.path.realpath` +
+        `os.path.commonpath`: un symlink versionado `esc -> /fuera` pasaba la comprobación léxica
+        de antes);
+      - ya existe con CONTENIDO ajeno a la cola (gap 34: `"."`/`"docs"` están léxicamente
+        contenidos y no son symlinks, pero mutar la raíz del proyecto o `docs/` con `chmod 0700` y
+        un `.gitignore` con `*` es peligroso — se usa el default en vez de tocar un directorio que
+        no es nuestro)."""
     jr = _dev_sesion(root).get("journal")
     d = jr.get("dir") if isinstance(jr, dict) else None
-    if isinstance(d, str) and d.strip():
-        d = d.strip()
-        normal = os.path.normpath(d)
-        if os.path.isabs(d) or normal.split(os.sep)[0] == ".." or normal == "..":
-            print(f"journal: sesion.journal.dir {d!r} sale de la raíz del proyecto (absoluto o con "
-                  f"'..'); se usa el default {_DIR_DEFAULT}", file=sys.stderr)
-            d = _DIR_DEFAULT
-    else:
-        d = _DIR_DEFAULT
-    return os.path.join(root, d)
+    if not (isinstance(d, str) and d.strip()):
+        return os.path.join(root, _DIR_DEFAULT)
+    d = d.strip()
+    if os.path.isabs(d) or ntpath.splitdrive(d)[0]:
+        print(f"journal: sesion.journal.dir {d!r} es absoluto o relativo a una unidad; se usa el "
+              f"default {_DIR_DEFAULT}", file=sys.stderr)
+        return os.path.join(root, _DIR_DEFAULT)
+    candidato = os.path.join(root, d)
+    real_root, real_cand = os.path.realpath(root), os.path.realpath(candidato)
+    try:
+        contenido = os.path.commonpath([real_root, real_cand]) == real_root
+    except ValueError:              # unidades distintas en Windows: nunca contenido
+        contenido = False
+    if not contenido:
+        print(f"journal: sesion.journal.dir {d!r} sale de la raíz del proyecto (symlink u otra "
+              f"ruta); se usa el default {_DIR_DEFAULT}", file=sys.stderr)
+        return os.path.join(root, _DIR_DEFAULT)
+    if not _dir_es_de_la_cola_o_vacio(candidato):
+        print(f"journal: sesion.journal.dir {d!r} ya existe con contenido ajeno a la cola; se usa "
+              f"el default {_DIR_DEFAULT} (gap 34)", file=sys.stderr)
+        return os.path.join(root, _DIR_DEFAULT)
+    return candidato
 
 
 def _journal_activo(root):
@@ -316,20 +356,38 @@ def _plugin_version():
         return "0.0.0"
 
 
-def _event_id(session_id, reason, sequence, schema_version):
-    """`sha256(session_id·reason·sequence·schema_version)[:16]`: determinista, sin texto de
+def _hash_log_prompts(root, session_id):
+    """sha256 del CONTENIDO ÍNTEGRO del log crudo de la sesión (`sha256("")` si no existe): la base
+    de `event_id` (gap 28 de la revisión intento 2, reemplaza a `sequence`). `sequence` (nº de
+    líneas) NO es monótono cuando el log rota (`_rotar`, `LOG_MAX_BYTES`): puede volver a un valor
+    YA USADO tras rotar, y entonces `event_id` colisionaba con uno ya en `done/` — el cierre
+    legítimo nunca se encolaba. El HASH del contenido cambia con cualquier turno nuevo o rotación,
+    y es estable si nada cambió (CA-03 se mantiene: repetir la captura sin turnos nuevos entre
+    medias no cambia el hash)."""
+    try:
+        with open(log_path(root, session_id), "rb") as fh:
+            data = fh.read()
+    except OSError:
+        data = b""
+    return hashlib.sha256(data).hexdigest()
+
+
+def _event_id(session_id, reason, schema_version, log_hash):
+    """`sha256(session_id·reason·schema_version·hash_del_log)[:16]`: determinista, sin texto de
     conversación — la clave de idempotencia de `outbox.escribir` (CA-03: el mismo evento capturado
-    varias veces produce un único envelope lógico)."""
-    clave = "|".join(str(x) for x in (session_id, reason, sequence, schema_version))
+    varias veces produce un único envelope lógico). `log_hash` (gap 28 de la revisión intento 2)
+    sustituye a `sequence` (nº de líneas, NO monótono si el log rota) como lo que distingue dos
+    cierres legítimos de la misma sesión: un turno nuevo, o una rotación, cambian el contenido del
+    log y por tanto el hash, aunque el nº de líneas coincida con uno ya usado."""
+    clave = "|".join(str(x) for x in (session_id, reason, schema_version, log_hash))
     return hashlib.sha256(clave.encode("utf-8")).hexdigest()[:16]
 
 
 def _contar_lineas_log(root, session_id):
     """Nº de turnos ya capturados de la sesión (líneas del log crudo `.claude/session-prompts-<sid>.log`)
-    en el momento del cierre; 0 si el log no existe. Es la base de `sequence` (gap 6 de la
-    revisión): un `/resume` con un turno nuevo antes de volver a cerrar sube el contador, así que
-    el segundo cierre produce un `event_id` DISTINTO — CA-03 (dedupe del mismo cierre) se mantiene
-    porque repetir la captura SIN turnos nuevos entre medias no cambia `sequence`."""
+    en el momento del cierre; 0 si el log no existe. Puramente INFORMATIVO en el envelope
+    (`sequence`) desde el gap 28 de la revisión intento 2: la idempotencia (`event_id`) ya no
+    depende de este número (ver `_hash_log_prompts`), porque no es monótono cuando el log rota."""
     try:
         with open(log_path(root, session_id), encoding="utf-8", errors="replace") as fh:
             return sum(1 for _ in fh)
@@ -354,11 +412,13 @@ def capture_end(root, payload):
     ob = _outbox_mod()
     if ob is None:
         return None
-    reason = str(payload.get("reason") or "manual")[:200]
-    sequence = _contar_lineas_log(root, sid)   # gap 6: distingue dos cierres legítimos de la misma sesión
+    reason_crudo = str(payload.get("reason") or "manual")
+    reason = _REASON_RE_SANEA.sub("_", reason_crudo.lower())[:40] or "other"
+    log_hash = _hash_log_prompts(root, sid)             # gap 28: base del event_id, no `sequence`
+    sequence = _contar_lineas_log(root, sid)            # informativo (líneas del log en el cierre)
     envelope = {
         "schema_version": SCHEMA_VERSION,
-        "event_id": _event_id(sid, reason, sequence, SCHEMA_VERSION),
+        "event_id": _event_id(sid, reason, SCHEMA_VERSION, log_hash),
         "session_id": sid,
         "hook_event_name": str(payload.get("hook_event_name") or "SessionEnd")[:64],
         "reason": reason,
@@ -374,13 +434,20 @@ def capture_end(root, payload):
 
 
 def _asegurar_gitignore_local(dirpath):
-    """`.gitignore` DENTRO de la propia carpeta de la cola (ignora todo salvo sí mismo): funciona
-    aunque `sesion.journal.dir` mueva la cola fuera de `.claude/` (gap 9 de la revisión: sin esto,
-    los envelopes se cuelan en `git status` y en `ficheros_tocados`, y se pueden commitear)."""
+    """`.gitignore` + marcador de la cola (`_QUEUE_MARKER`, gap 34) DENTRO de la propia carpeta:
+    funciona aunque `sesion.journal.dir` mueva la cola fuera de `.claude/` (gap 9 de la revisión:
+    sin esto, los envelopes se cuelan en `git status` y en `ficheros_tocados`, y se pueden
+    commitear). `_journal_queue_dir` ya garantiza que `dirpath` es seguro (contenido en la raíz,
+    sin symlinks de escape, y de la cola o vacío) antes de llegar aquí, así que esta función no
+    vuelve a comprobarlo: solo crea/marca. La llama también `replay()` (gap 41: creaba la carpeta y
+    el cerrojo sin sembrar `.gitignore`)."""
     try:
         os.makedirs(dirpath, exist_ok=True)
         with contextlib.suppress(OSError):
             os.chmod(dirpath, 0o700)
+        marker = os.path.join(dirpath, _QUEUE_MARKER)
+        if not os.path.isfile(marker):
+            open(marker, "w", encoding="utf-8").close()
         gi = os.path.join(dirpath, ".gitignore")
         if not os.path.isfile(gi):
             with open(gi, "w", encoding="utf-8") as fh:
@@ -389,28 +456,78 @@ def _asegurar_gitignore_local(dirpath):
         pass
 
 
+def _transcripts_permitidos_root():
+    """Directorio bajo el que Claude Code guarda las transcripciones reales: `$CLAUDE_CONFIG_DIR/projects`
+    si la variable está definida, si no `~/.claude/projects` (gap 38 de la revisión intento 2: el
+    basename-match por sí solo no bastaba)."""
+    base = os.environ.get("CLAUDE_CONFIG_DIR")
+    if base:
+        return os.path.join(base, "projects")
+    return os.path.join(os.path.expanduser("~"), ".claude", "projects")
+
+
 def _transcript_seguro(path, session_id):
-    """`transcript_path` solo se usa si es ruta absoluta, existe, termina en `.jsonl` y su
-    `basename` es `<session_id>.jsonl` (así nombra Claude Code las transcripciones) — gap 15 de la
-    revisión (C2 · CWE-73/22/200): un envelope plantado no puede hacer que `replay` lea (y vuelque
-    en un fichero versionado) el transcript de OTRO proyecto."""
+    """`transcript_path` solo se usa si es ruta absoluta, NO es un symlink, existe, termina en
+    `.jsonl`, su `basename` es `<session_id>.jsonl` (así nombra Claude Code las transcripciones) Y
+    cae (tras resolver symlinks) bajo el directorio de transcripciones permitido — gap 15/38 de la
+    revisión (C2/K-1 · CWE-59/73/22/200): el basename-match por sí solo compara dos campos del
+    MISMO envelope no confiable (un atacante controla ambos) y `os.path.isfile` sigue symlinks, así
+    que un envelope plantado podía hacer que `replay` leyera (y volcara en un fichero versionado)
+    el transcript de OTRO proyecto con solo nombrar el symlink como `<session_id>.jsonl`."""
     if not path or not session_id or not os.path.isabs(path) or not path.endswith(".jsonl"):
         return None
     if os.path.basename(path) != f"{session_id}.jsonl":
         return None
+    try:
+        if os.path.islink(path):        # gap 38: un symlink con el nombre correcto no debe colarse
+            return None
+    except OSError:
+        return None
+    permitido = _transcripts_permitidos_root()
+    try:
+        real, real_permitido = os.path.realpath(path), os.path.realpath(permitido)
+        if os.path.commonpath([real, real_permitido]) != real_permitido:
+            return None
+    except (OSError, ValueError):
+        return None
     return path if os.path.isfile(path) else None
 
 
+_REASON_RE_SANEA = re.compile(r"[^a-z_]+")            # capture_end: sanea `reason` a lo que acepta el validador
+_REASON_RE = re.compile(r"^[a-z_]{1,40}$")
+_CAPTURED_AT_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
+
+
 def _validar_envelope(payload):
-    """`None` si el envelope es válido para materializar; si no, la causa (str) del dead-letter."""
+    """`None` si el envelope es válido para materializar; si no, la causa (str) del dead-letter.
+    Valida el envelope COMPLETO (gap 27/37/44 de la revisión intento 2: antes solo miraba
+    `session_id`/`schema_version`; `captured_at` sin validar entraba tal cual en el NOMBRE DE
+    FICHERO y el FRONTMATTER de la entrada — `"../../../../tmp/PWN"` escribía fuera de
+    `docs/knowledge/journal/`, un `\\n` inyectaba claves YAML — y `reason` llegaba sin escapar al
+    frontmatter)."""
     if not isinstance(payload, dict):
         return "envelope venenoso: JSON inválido o vacío"
     sid = payload.get("session_id")
-    if not isinstance(sid, str) or not sid.strip():
-        return "envelope sin session_id"
+    if not isinstance(sid, str) or not sid.strip() or len(sid) > SESSION_ID_MAX or "\n" in sid:
+        return "envelope sin session_id válido"
     sv = payload.get("schema_version")
     if sv not in SCHEMA_ACEPTADOS:
         return f"schema_version {sv!r} no soportado (acepta {sorted(SCHEMA_ACEPTADOS)})"
+    reason = payload.get("reason")
+    if not isinstance(reason, str) or not _REASON_RE.match(reason):
+        return f"reason {reason!r} no casa ^[a-z_]{{1,40}}$"
+    captured_at = payload.get("captured_at")
+    if not isinstance(captured_at, str) or not _CAPTURED_AT_RE.match(captured_at):
+        return f"captured_at {captured_at!r} no es AAAA-MM-DDTHH:MM:SSZ"
+    for campo in ("cwd", "transcript_path"):
+        v = payload.get(campo, "")
+        if not isinstance(v, str) or "\n" in v or len(v) > ENVELOPE_STR_MAX:
+            return f"{campo} inválido"
+    seq = payload.get("sequence")
+    if not isinstance(seq, int) or isinstance(seq, bool) or seq < 0:
+        return "sequence inválido"
+    if payload.get("hook_event_name") != "SessionEnd":
+        return f"hook_event_name {payload.get('hook_event_name')!r} != SessionEnd"
     return None
 
 
@@ -418,44 +535,78 @@ BUDGET_MS_AJUSTADO = 5000            # bajo esto, `replay` fuerza `ia=off` y un 
 BUDGET_GIT_TIMEOUT = 2                # s: timeout de git bajo presupuesto ajustado
 
 
-def replay(root, budget_ms=None, max_n=None, ia="auto"):
+def _contar_resultado_reencolar(ob, resumen, resultado, clave, causa_txt):
+    """Traduce el `REENCOLADO`/`DEAD_LETTER`/`ERROR` de `outbox.reencolar_o_dead_letter` (gap 45 de
+    la revisión intento 2: antes se contaba `dead_letter += 1` también cuando en realidad ni
+    siquiera se pudo MOVER el item — el JSON de `replay` mentía)."""
+    if resultado == ob.REENCOLADO:
+        resumen["reintentados"] += 1
+    elif resultado == ob.DEAD_LETTER:
+        resumen["dead_letter"] += 1
+    else:
+        resumen["avisos"].append(f"{clave}: no se pudo reencolar ni mandar a dead-letter ({causa_txt})")
+    resumen["errores"].append({"event_id": clave, "causa": causa_txt})
+
+
+def replay(root, budget_ms=None, max_n=None, ia="auto", reintentar_dead_letter=False):
     """Reclama y materializa envelopes pendientes de la outbox (`outbox/` → `processing/` →
     `done/`|`dead-letter/`), reutilizando `escribir_sesion` (git, log de prompts, resumen IA
     opt-in) SIN duplicar esa lógica (CA-05: nunca inventa contenido). `budget_ms`/`max_n` acotan el
     trabajo (los usa `SessionStart`, T-05); sin ellos, drena toda la cola pendiente («a demanda»).
     `ia`: `"auto"` (por defecto: se apaga sola si `budget_ms` < BUDGET_MS_AJUSTADO) o `"no"` (nunca
-    resumen IA, cualquiera que sea el presupuesto — gap 14 de la revisión).
+    resumen IA, cualquiera que sea el presupuesto — gap 14 de la revisión). `reintentar_dead_letter`
+    (gap 26 de la revisión intento 2): antes de drenar, devuelve TODO `dead-letter/` a `outbox/`
+    con el contador a 0 — remedio nombrado para una sesión que se creía perdida para siempre.
 
-    Cada item corre en su propio `try/except` (gap 2 Critical): un error TRANSITORIO (`OSError`:
-    disco lleno, permisos) reencola el item con el contador de intentos, o lo manda a dead-letter
-    al agotarlos; cualquier otro error (esquema, JSON, lo que sea) va a dead-letter directo y NO
-    aborta el resto del drenaje. Un cerrojo de proceso (`<dir>/.replay.lock`, gap 7) evita que dos
-    `replay` concurrentes hagan `write()` en paralelo sobre el mismo proyecto (dos sesiones podían
-    perder su entrada por elegir el mismo nombre de fichero a la vez). Al terminar, purga `done/`
-    con más de `LOG_RETENCION_DIAS` y los temporales huérfanos de la cola.
+    Cada item corre en su propio `try/except` (gap 2 Critical), y también la propia llamada a
+    `ob.reclamar` (gap 29/31 de la revisión intento 2: antes vivía FUERA del `try`, así que un
+    `OSError` barriendo huérfanos de `processing/` abortaba el drenaje entero sin que `cmd_replay`
+    se enterara): un error TRANSITORIO (`OSError`: disco lleno, permisos) reencola el item con el
+    contador de intentos (con backoff creciente, gap 26), o lo manda a dead-letter al agotarlos;
+    cualquier otro error (esquema, JSON, lo que sea) va a dead-letter directo y NO aborta el resto
+    del drenaje — y si NI SIQUIERA el propio `dead_letter`/`ob.dead_letter` puede escribir (p.ej.
+    `dead-letter/` inutilizable), se reencola vía `reencolar_o_dead_letter` en vez de dejar
+    escapar la excepción (gap 31). Un cerrojo de proceso NO BLOQUEANTE con presupuesto
+    (`<dir>/.replay.lock`, gap 7/32) evita que dos `replay` concurrentes hagan `write()` en
+    paralelo sobre el mismo proyecto, sin colgar `SessionStart` si otro proceso ya lo tiene. Al
+    terminar, purga `done/` con más de `LOG_RETENCION_DIAS` y los temporales huérfanos de la cola.
 
     Devuelve {"materializados", "dead_letter", "reintentados", "errores": [{"event_id", "causa"}],
-    "restantes", "avisos"}; nunca lanza (`cmd_replay` la envuelve igualmente, por si acaso)."""
-    resumen = {"materializados": 0, "dead_letter": 0, "reintentados": 0, "errores": [], "restantes": 0, "avisos": []}
+    "restantes", "avisos", "bloqueado"} (+ "recuperados_dead_letter" si se pidió
+    `reintentar_dead_letter`); nunca lanza (`cmd_replay` la envuelve igualmente, por si acaso)."""
+    resumen = {"materializados": 0, "dead_letter": 0, "reintentados": 0, "errores": [], "restantes": 0,
+              "avisos": [], "bloqueado": False}
     ob = _outbox_mod()
     if ob is None:
         resumen["avisos"].append("outbox.py no disponible junto a journal.py: replay degradado")
         return resumen
     dir_ = _journal_queue_dir(root)
-    os.makedirs(dir_, exist_ok=True)
+    _asegurar_gitignore_local(dir_)      # gap 41/46: crea + marca + chmod 0700 + siembra .gitignore (no un `makedirs` desnudo)
     ia_efectiva, git_timeout = "auto", GIT_TIMEOUT
     if ia == "no" or (budget_ms is not None and budget_ms < BUDGET_MS_AJUSTADO):
         ia_efectiva, git_timeout = "off", BUDGET_GIT_TIMEOUT
 
-    with _cerrojo(os.path.join(dir_, ".replay.lock")):
-        inicio = time.monotonic()
+    inicio = time.monotonic()           # gap 32: el reloj arranca ANTES de intentar el cerrojo
+    with _cerrojo_presupuestado(os.path.join(dir_, ".replay"), deadline_ms=budget_ms) as conseguido:
+        if not conseguido:
+            resumen["bloqueado"] = True
+            resumen["avisos"].append("replay: no se pudo tomar el cerrojo dentro del presupuesto "
+                                     "(otro replay está en curso)")
+            return resumen
+        if reintentar_dead_letter:
+            with contextlib.suppress(Exception):
+                resumen["recuperados_dead_letter"] = ob.reintentar_dead_letter(dir_)
         procesados = 0
         while True:
             if max_n is not None and procesados >= max_n:
                 break
             if budget_ms is not None and (time.monotonic() - inicio) * 1000 >= budget_ms:
                 break
-            item = ob.reclamar(dir_)
+            try:
+                item = ob.reclamar(dir_)
+            except OSError as e:
+                resumen["errores"].append({"event_id": None, "causa": f"reclamar: {e}"})
+                break
             if item is None:
                 break
             procesados += 1
@@ -463,8 +614,12 @@ def replay(root, budget_ms=None, max_n=None, ia="auto"):
             try:
                 causa = _validar_envelope(item.get("payload"))
                 if causa:
-                    ob.dead_letter(item, causa)
-                    resumen["dead_letter"] += 1
+                    try:
+                        ob.dead_letter(item, causa)
+                        resumen["dead_letter"] += 1
+                    except OSError as e:
+                        _contar_resultado_reencolar(ob, resumen, ob.reencolar_o_dead_letter(item, causa),
+                                                    clave, str(e))
                     continue
                 env = item["payload"]
                 sid = env["session_id"]
@@ -473,29 +628,34 @@ def replay(root, budget_ms=None, max_n=None, ia="auto"):
                                         fuente="hook", captured_at=env.get("captured_at"),
                                         ia=ia_efectiva, git_timeout=git_timeout)
                 if p is None:
-                    ob.dead_letter(item, "sin rastro del plugin al materializar (docs/roadmap, docs/knowledge o .claude/dev.json)")
-                    resumen["dead_letter"] += 1
+                    causa2 = "sin rastro del plugin al materializar (docs/roadmap, docs/knowledge o .claude/dev.json)"
+                    try:
+                        ob.dead_letter(item, causa2)
+                        resumen["dead_letter"] += 1
+                    except OSError as e:
+                        _contar_resultado_reencolar(ob, resumen, ob.reencolar_o_dead_letter(item, causa2),
+                                                    clave, str(e))
                     continue
                 ob.completar(item, {"cierre": "materializado", "session_id": sid,
                                     "journal_path": os.path.relpath(p, root)})
                 resumen["materializados"] += 1
             except OSError as e:
                 # error TRANSITORIO (disco lleno, permisos, handle abierto en Windows): reencola con
-                # intento+1, o dead-letter al agotar MAX_INTENTOS (gap 2 Critical).
-                if ob.reencolar_o_dead_letter(item, f"error transitorio materializando: {e}"):
-                    resumen["reintentados"] += 1
-                else:
-                    resumen["dead_letter"] += 1
-                resumen["errores"].append({"event_id": clave, "causa": str(e)})
+                # intento+1 y backoff, o dead-letter al agotar MAX_INTENTOS (gap 2 Critical/26).
+                _contar_resultado_reencolar(ob, resumen, ob.reencolar_o_dead_letter(item, f"error transitorio materializando: {e}"),
+                                            clave, str(e))
             except Exception as e:  # noqa: BLE001 — error de esquema/materialización: dead-letter, sigue con el resto
-                with contextlib.suppress(Exception):
+                try:
                     ob.dead_letter(item, f"error materializando: {e}")
-                resumen["dead_letter"] += 1
-                resumen["errores"].append({"event_id": clave, "causa": str(e)})
+                    resumen["dead_letter"] += 1
+                    resumen["errores"].append({"event_id": clave, "causa": str(e)})
+                except Exception as e2:  # noqa: BLE001 — ni el dead-letter se pudo escribir (gap 31): no abortar
+                    _contar_resultado_reencolar(ob, resumen, ob.reencolar_o_dead_letter(item, f"error materializando: {e}"),
+                                                clave, f"{e}; dead_letter también falló: {e2}")
         with contextlib.suppress(Exception):
-            ob.purgar_antiguos(dir_, "done", LOG_RETENCION_DIAS)       # gap 22: done/ no crece para siempre
+            ob.purgar_antiguos(dir_, "done", LOG_RETENCION_DIAS)       # gap 22/33: done/ no crece para siempre
         with contextlib.suppress(Exception):
-            ob.limpiar_tmp_huerfanos(dir_)                            # gap 3/13: temporales huérfanos
+            ob.limpiar_tmp_huerfanos(dir_)                            # gap 3/13/35: temporales huérfanos
         resumen["restantes"] = ob.estado(dir_).get("outbox", 0)
     return resumen
 
@@ -548,6 +708,54 @@ def _desbloquear(fd):
             fcntl.flock(fd, fcntl.LOCK_UN)
     except (OSError, ImportError):
         pass
+
+
+def _bloquear_sin_esperar(fd):
+    """Un ÚNICO intento de cerrojo exclusivo NO BLOQUEANTE (`LOCK_NB`/`LK_NBLCK`). True si se
+    consiguió; False si está tomado por otro proceso (el llamador decide si reintenta)."""
+    try:
+        if os.name == "nt":
+            import msvcrt
+            msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
+            return True
+        import fcntl
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        return True
+    except (OSError, ImportError):
+        return False
+
+
+@contextlib.contextmanager
+def _cerrojo_presupuestado(path, deadline_ms=None):
+    """Cerrojo exclusivo NO BLOQUEANTE con reintentos cortos (20 ms) hasta `deadline_ms` (gap 32 de
+    la revisión intento 2): `replay` tomaba antes un `flock` BLOQUEANTE arrancando el reloj DESPUÉS
+    — con el cerrojo tomado por otro proceso, `--budget-ms 500` tardaba lo que tardara el OTRO
+    `replay` en soltarlo, no 500 ms; `SessionStart` (T-05) se colgaría. Aquí el reloj arranca ANTES
+    de intentar tomar el cerrojo. Sin `deadline_ms` (`replay` a demanda, sin `--budget-ms`),
+    reintenta sin límite de tiempo (equivalente al `flock` bloqueante de antes, pero educado con el
+    presupuesto cuando lo hay). Cede `True`/`False` (si se consiguió): con `False` el llamador NO
+    debe tocar la cola — otro proceso la tiene."""
+    inicio = time.monotonic()
+    fd = None
+    conseguido = False
+    with contextlib.suppress(OSError):
+        fd = os.open(path + ".lock", os.O_RDWR | os.O_CREAT, 0o600)
+    if fd is not None:
+        while True:
+            if _bloquear_sin_esperar(fd):
+                conseguido = True
+                break
+            if deadline_ms is not None and (time.monotonic() - inicio) * 1000 >= deadline_ms:
+                break
+            time.sleep(0.02)
+    try:
+        yield conseguido
+    finally:
+        if fd is not None:
+            if conseguido:
+                _desbloquear(fd)
+            with contextlib.suppress(OSError):
+                os.close(fd)
 
 
 @contextlib.contextmanager
@@ -884,13 +1092,26 @@ def _recorta(texto, max_chars=160):
     return texto if len(texto) <= max_chars else texto[:max_chars - 1].rstrip() + "…"
 
 
+def _fecha_local_de_captured_at(captured_at):
+    """`captured_at` (UTC, `AAAA-MM-DDTHH:MM:SSZ`) -> fecha en hora LOCAL (gap 44 de la revisión
+    intento 2): `draft` usaba `captured_at[:10]` (UTC) mientras el resto del módulo usa `hoy()`
+    (local) — con `TZ=America/Santiago` un cierre a las 22:30 local (ya del día siguiente en UTC)
+    quedaba fechado un día antes de lo que el usuario vio en su reloj. `None`/ilegible -> `hoy()`."""
+    try:
+        epoch = calendar.timegm(time.strptime(str(captured_at), "%Y-%m-%dT%H:%M:%SZ"))
+        return _dt.datetime.fromtimestamp(epoch).date().isoformat()
+    except (ValueError, TypeError, OverflowError, OSError):
+        return hoy()
+
+
 def draft(root, session_id=None, transcript=None, reason=None, enrich=None, captured_at=None, git_timeout=GIT_TIMEOUT):
     """`captured_at` (ISO `AAAA-MM-DDTHH:MM:SSZ`, del envelope de `capture-end`): si se da, la
-    entrada usa la FECHA DEL CIERRE (nombre de fichero y frontmatter), no la de hoy — `replay`
-    puede correr días después (gap 8 de la revisión). `git_timeout` acota `_git` bajo presupuesto
-    (gap 14: `replay --budget-ms` bajo 5000 ms fuerza un timeout de git más corto)."""
+    entrada usa la FECHA DEL CIERRE EN HORA LOCAL (nombre de fichero y frontmatter, gap 44), no la
+    de hoy — `replay` puede correr días después (gap 8 de la revisión). `git_timeout` acota `_git`
+    bajo presupuesto (gap 14: `replay --budget-ms` bajo 5000 ms fuerza un timeout de git más
+    corto)."""
     avisos = []
-    fecha = str(captured_at)[:10] if captured_at else hoy()
+    fecha = _fecha_local_de_captured_at(captured_at) if captured_at else hoy()
     iniciativa = iniciativa_activa(root) or "n/a"
     enr = cargar_enrich(enrich, avisos)
     turnos = capturas(root, session_id)
@@ -948,18 +1169,21 @@ def _escribir_atomico(destino, contenido):
 
 
 def render(e, fuente):
-    fm = [f"fecha: {e['fecha']}", f"session_id: {_yaml_str(e['session_id'])}",
-          f"reason: {e.get('reason') or 'manual'}", f"iniciativa: {e['iniciativa']}",
-          f"resumen: {_yaml_str(e['resumen'])}", f"fuente: {fuente}",
-          f"cierre: {e.get('cierre') or 'materializado'}",   # materializado · recuperado_sin_cierre (T-05)
-          f"resumen_por: {e.get('resumen_por') or 'determinista'}", f"turnos: {_entero(e.get('turnos'))}"]
+    # TODOS los escalares del frontmatter pasan por `_yaml_str` (gap 27/37/44 de la revisión
+    # intento 2): `reason` llegaba SIN escapar (`"other\nevil: si"` inyectaba claves YAML en un
+    # `.md` versionado) porque solo `session_id`/`resumen` lo hacían.
+    fm = [f"fecha: {_yaml_str(e['fecha'])}", f"session_id: {_yaml_str(e['session_id'])}",
+          f"reason: {_yaml_str(e.get('reason') or 'manual')}", f"iniciativa: {_yaml_str(e['iniciativa'])}",
+          f"resumen: {_yaml_str(e['resumen'])}", f"fuente: {_yaml_str(fuente)}",
+          f"cierre: {_yaml_str(e.get('cierre') or 'materializado')}",   # materializado · recuperado_sin_cierre (T-05)
+          f"resumen_por: {_yaml_str(e.get('resumen_por') or 'determinista')}", f"turnos: {_entero(e.get('turnos'))}"]
     if e.get("materializado_en"):
-        fm.append(f"materializado_en: {e['materializado_en']}")
+        fm.append(f"materializado_en: {_yaml_str(e['materializado_en'])}")
     if e.get("derivados_en"):
         # `ficheros_tocados`/`tareas_cambiadas` se calculan con git EN ESE MOMENTO, nunca en el
         # teardown (CA-01 prohíbe git ahí): «replay» = calculados al materializar, no al cerrar
         # (gap 8 de la revisión; limitación aceptada por diseño, ver design.md).
-        fm.append(f"derivados_en: {e['derivados_en']}")
+        fm.append(f"derivados_en: {_yaml_str(e['derivados_en'])}")
     for k in ("decisiones", "pendientes"):
         fm.append(f"{k}:" + ("" if e[k] else " []"))
         fm += [f"  - {_yaml_str(x)}" for x in e[k]]
@@ -1082,6 +1306,17 @@ def write(root, e, fuente="hook"):
         while os.path.exists(destino):
             destino = os.path.join(d, f"{base}-{n}.md")
             n += 1
+    # Defensa en profundidad (gap 27/37 de la revisión intento 2): `fecha`/`iniciativa` ya deberían
+    # venir saneadas (`_CAPTURED_AT_RE`, `slugify`) mucho antes de llegar aquí, pero `write()` es el
+    # último punto de control antes de tocar disco — si por lo que sea `destino` acabara fuera de
+    # `docs/knowledge/journal/`, se rechaza en vez de escribir.
+    real_d, real_destino = os.path.realpath(d), os.path.realpath(destino)
+    try:
+        contenido_bajo_journal = os.path.commonpath([real_d, real_destino]) == real_d
+    except ValueError:
+        contenido_bajo_journal = False
+    if not contenido_bajo_journal:
+        raise ValueError(f"journal: destino {destino!r} fuera de {d!r} (defensa en profundidad, gap 27)")
     contenido = render(e, fuente)      # ANTES de tocar el destino: si algo falla aquí, la entrada previa sigue intacta
     _escribir_atomico(destino, contenido)
     index(root)
@@ -1383,11 +1618,12 @@ def cmd_replay(a):
     """SIEMPRE imprime su JSON (gap 2 Critical): aunque `replay()` lanzara algo no previsto, aquí se
     atrapa y se informa como `errores`, en vez de que `main()` lo trague por stderr sin JSON."""
     try:
-        r = replay(a.root, budget_ms=a.budget_ms, max_n=a.max, ia=a.ia)
+        r = replay(a.root, budget_ms=a.budget_ms, max_n=a.max, ia=a.ia,
+                  reintentar_dead_letter=a.reintentar_dead_letter)
     except Exception as e:  # noqa: BLE001 — replay() ya no debería lanzar, pero cmd_replay no traga sin JSON
         r = {"materializados": 0, "dead_letter": 0, "reintentados": 0,
              "errores": [{"event_id": None, "causa": str(e)}], "restantes": 0,
-             "avisos": [f"replay: excepción no controlada: {e}"]}
+             "avisos": [f"replay: excepción no controlada: {e}"], "bloqueado": False}
     print(json.dumps(r, ensure_ascii=False))
     return 0
 
@@ -1467,6 +1703,8 @@ def main(argv=None):
     sp.add_argument("--max", type=int, default=None, help="máximo de envelopes a procesar en esta llamada")
     sp.add_argument("--ia", choices=("auto", "no"), default="auto",
                     help="auto = se apaga sola bajo presupuesto ajustado; no = nunca resumen IA")
+    sp.add_argument("--reintentar-dead-letter", action="store_true",
+                    help="antes de drenar, devuelve TODO dead-letter/ a outbox/ con el contador a 0 (gap 26)")
     sp.set_defaults(fn=cmd_replay)
 
     sp = sub.add_parser("draft", help="borrador determinista (JSON)")
