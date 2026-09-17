@@ -24,6 +24,19 @@ outbox = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(outbox)
 
 
+def _envejecer_reclamado(path, hace_s):
+    """Envejece un item YA reclamado (en `processing/`) por `hace_s` segundos: mtime Y el sidecar
+    `.claimed_at` (gap 50 de la revisión intento 3 — desde que `reclamar()` escribe ese sidecar como
+    respaldo, `_reclamar_huerfanos` lo lee ANTES que el mtime, así que envejecer solo el mtime ya no
+    basta para simular un huérfano en los tests)."""
+    viejo = time.time() - hace_s
+    os.utime(path, (viejo, viejo))
+    claimed = path + outbox.CLAIMED_AT_SUFFIX
+    if os.path.isfile(claimed):
+        with open(claimed, "w", encoding="utf-8") as fh:
+            fh.write(str(viejo))
+
+
 # ------------------------------------------------------------------ escribir
 
 def test_escribir_es_idempotente_por_clave(tmp_path):
@@ -130,7 +143,8 @@ def test_estado_cuenta_por_carpeta(tmp_path):
 def test_estado_sin_cola_todo_cero(tmp_path):
     d = tmp_path / "no-existe"
     st = outbox.estado(str(d))
-    assert st == {"outbox": 0, "processing": 0, "done": 0, "dead-letter": 0, "durabilidad": "ok", "permisos": "ok"}
+    assert st == {"outbox": 0, "processing": 0, "done": 0, "dead-letter": 0, "durabilidad": "ok",
+                  "permisos": "ok", "reclamacion": "ok", "en_backoff": 0}
 
 
 def test_purgar_sin_confirmar_no_borra(tmp_path):
@@ -167,8 +181,7 @@ def test_reclamar_reencola_processing_huerfano_por_ttl(tmp_path):
     item = outbox.reclamar(str(d))
     assert item is not None
     # simula que el item lleva más de la TTL en processing/ (proceso interrumpido)
-    viejo = time.time() - 700
-    os.utime(item["path"], (viejo, viejo))
+    _envejecer_reclamado(item["path"], 700)
     item2 = outbox.reclamar(str(d), processing_ttl_s=600)
     assert item2 is not None and item2["clave"] == "ev1"
     assert os.path.isfile(os.path.join(str(d), "processing", "ev1.json.intentos"))
@@ -392,10 +405,10 @@ def test_reclamar_con_dead_letter_inutilizable_no_aborta_el_barrido(tmp_path):
     outbox.escribir(str(d), "ev2", {"a": 2})
     item1 = outbox.reclamar(str(d))
     for _ in range(outbox.MAX_INTENTOS - 1):
-        os.utime(item1["path"], (time.time() - 700, time.time() - 700))
+        _envejecer_reclamado(item1["path"], 700)
         outbox.reclamar(str(d), processing_ttl_s=600)
         item1["path"] = os.path.join(str(d), "processing", "ev1.json")
-    os.utime(item1["path"], (time.time() - 700, time.time() - 700))
+    _envejecer_reclamado(item1["path"], 700)
     (d / "dead-letter").mkdir(parents=True, exist_ok=True)
     shutil.rmtree(str(d / "dead-letter"))
     (d / "dead-letter").write_text("no soy una carpeta", encoding="utf-8")
@@ -443,3 +456,161 @@ def test_dead_letter_propaga_el_intentos_real_no_uno_fijo(tmp_path):
     dst = outbox.dead_letter(item, "agotado", intentos=5)
     causa = json.load(open(dst + ".causa.json", encoding="utf-8"))
     assert causa["intentos"] == 5
+
+
+# ------------------------------------------------------------------ revisión intento 3 (gaps 50/51/52/58/59)
+
+def test_reclamar_con_utime_roto_no_reclama_nunca_dos_veces(tmp_path, monkeypatch):
+    """Gap 50 (B-49): si `os.utime` falla al reclamar (SMB/FUSE/FS sin `utime`), el item NO debe
+    quedar visible en `processing/` con un mtime heredado de `outbox/` (eso arriesgaba doble
+    entrega, gap 25). Con dos workers concurrentes y `utime` siempre roto, a lo sumo UNO obtiene el
+    item — nunca dos — y `estado()["reclamacion"]` queda «degradada»."""
+    d = tmp_path / "cola"
+    outbox.escribir(str(d), "ev1", {"a": 1})
+
+    def utime_que_falla(*a, **k):
+        raise OSError("utime no soportado en este FS simulado")
+
+    monkeypatch.setattr(os, "utime", utime_que_falla)
+    with ThreadPoolExecutor(max_workers=2) as ex:
+        futuros = [ex.submit(outbox.reclamar, str(d)) for _ in range(2)]
+        resultados = [f.result() for f in futuros]
+    ganadores = [r for r in resultados if r is not None]
+    assert len(ganadores) <= 1, "utime roto no debe permitir doble entrega"
+    monkeypatch.undo()
+    # el item nunca llegó a reclamarse "de verdad": sigue en outbox/, no perdido, no duplicado
+    st = outbox.estado(str(d))
+    assert st["outbox"] == 1 and st["processing"] == 0
+    assert st["reclamacion"] == "degradada"
+    assert not any(f.endswith(".claiming") for f in os.listdir(os.path.join(str(d), "processing")))
+
+
+def test_reclamar_deja_sidecar_claimed_at_como_respaldo_del_ttl(tmp_path):
+    """Gap 50: además del mtime, `reclamar` escribe `<clave>.json.claimed_at`; `_reclamar_huerfanos`
+    lo usa como fuente de la edad (mutante: si `reclamar` deja de escribirlo, este test no puede
+    comprobar que el barrido lo LEE — así que se verifica también que envejecer SOLO el sidecar,
+    dejando el mtime real reciente, sigue disparando el barrido)."""
+    d = tmp_path / "cola"
+    outbox.escribir(str(d), "ev1", {"a": 1})
+    item = outbox.reclamar(str(d))
+    claimed_path = item["path"] + outbox.CLAIMED_AT_SUFFIX
+    assert os.path.isfile(claimed_path)
+    # mtime real queda "reciente" (no se toca), pero el sidecar dice que se reclamó hace 700 s
+    with open(claimed_path, "w", encoding="utf-8") as fh:
+        fh.write(str(time.time() - 700))
+    item2 = outbox.reclamar(str(d), processing_ttl_s=600)
+    assert item2 is not None and item2["clave"] == "ev1"
+
+
+def test_no_antes_de_con_salto_de_reloj_de_365_dias_es_reclamable(tmp_path):
+    """Gap 51 (B-50): un `no_antes_de` corrupto o resultado de un salto de reloj hacia delante (aquí,
+    +365 días) no debe dejar el item inalcanzable para siempre — se trata como reclamable."""
+    d = tmp_path / "cola"
+    outbox.escribir(str(d), "ev1", {"a": 1})
+    sidecar_path = os.path.join(str(d), "outbox", "ev1.json" + outbox.INTENTOS_SUFFIX)
+    outbox._escribir_sidecar(sidecar_path, 1, time.time() + 365 * 86400, dir_raiz=str(d))
+    assert outbox.reclamar(str(d)) is not None
+
+
+def test_reencolar_o_dead_letter_topa_no_antes_de_a_backoff_max(tmp_path, monkeypatch):
+    """Gap 51: el `no_antes_de` que ESCRIBE `reencolar_o_dead_letter` nunca debe superar
+    `BACKOFF_MAX_S` desde ahora, aunque `BACKOFF_S × intentos` fuera mucho mayor."""
+    d = tmp_path / "cola"
+    outbox.escribir(str(d), "ev1", {"a": 1})
+    item = outbox.reclamar(str(d))
+    monkeypatch.setattr(outbox, "BACKOFF_S", 10_000_000)   # backoff base absurdamente grande
+    outbox.reencolar_o_dead_letter(item, "fallo transitorio", intentos_max=99, backoff=True)
+    sidecar = outbox._leer_sidecar(os.path.join(str(d), "outbox", "ev1.json" + outbox.INTENTOS_SUFFIX))
+    assert sidecar["no_antes_de"] <= time.time() + outbox.BACKOFF_MAX_S + 1
+
+
+def test_estado_en_backoff_cuenta_items_pendientes(tmp_path):
+    """Gap 51: `estado()["en_backoff"]` refleja los items de `outbox/` con backoff pendiente ahora
+    mismo (antes esta señal no existía y `replay` no podía distinguir "vacío" de "en backoff")."""
+    d = tmp_path / "cola"
+    outbox.escribir(str(d), "ev1", {"a": 1})
+    item = outbox.reclamar(str(d))
+    outbox.reencolar_o_dead_letter(item, "fallo transitorio", intentos_max=5, backoff=True)
+    assert outbox.estado(str(d))["en_backoff"] == 1
+
+
+def test_reintentar_ahora_libera_todo_el_backoff_de_outbox(tmp_path):
+    """Gap 51: `--reintentar-ahora` (journal.py) usa `outbox.reintentar_ahora`, complementario a
+    `reintentar_dead_letter` — pone `no_antes_de` a 0 en TODO `outbox/`."""
+    d = tmp_path / "cola"
+    outbox.escribir(str(d), "ev1", {"a": 1})
+    item = outbox.reclamar(str(d))
+    outbox.reencolar_o_dead_letter(item, "fallo transitorio", intentos_max=5, backoff=True)
+    assert outbox.reclamar(str(d)) is None                 # backoff pendiente: no reclamable
+    liberados = outbox.reintentar_ahora(str(d))
+    assert liberados == 1
+    assert outbox.reclamar(str(d)) is not None             # ahora sí
+
+
+def test_reclamar_recoge_errores_del_barrido_de_huerfanos(tmp_path):
+    """Gap 52 (B-51): `_reclamar_huerfanos` calculaba `errores` y `reclamar` los tiraba — un
+    envelope atascado en `processing/` (dead-letter/ inutilizable) era invisible para el llamador.
+    Con el parámetro `errores=lista`, `reclamar` debe rellenarla."""
+    d = tmp_path / "cola"
+    outbox.escribir(str(d), "ev1", {"a": 1})
+    outbox.escribir(str(d), "ev2", {"a": 2})
+    item1 = outbox.reclamar(str(d))
+    for _ in range(outbox.MAX_INTENTOS - 1):
+        _envejecer_reclamado(item1["path"], 700)
+        outbox.reclamar(str(d), processing_ttl_s=600)
+        item1["path"] = os.path.join(str(d), "processing", "ev1.json")
+    _envejecer_reclamado(item1["path"], 700)
+    (d / "dead-letter").mkdir(parents=True, exist_ok=True)
+    shutil.rmtree(str(d / "dead-letter"))
+    (d / "dead-letter").write_text("no soy una carpeta", encoding="utf-8")
+    errores = []
+    item2 = outbox.reclamar(str(d), errores=errores)
+    assert errores and errores[0]["clave"] == "ev1"
+    assert item2 is not None and item2["clave"] == "ev2"
+
+
+def test_reclamar_barrido_con_listdir_roto_devuelve_none_sin_lanzar(tmp_path, monkeypatch):
+    """Gap 58 (A-54, parte outbox): el `try/except OSError` alrededor del `os.listdir(processing/)`
+    del barrido de huérfanos se declaraba "con dientes" sin un test que lo ejercitara de verdad
+    (mutante: quitarlo hace que `reclamar()` LANCE en vez de degradar). Aquí se rompe `os.listdir`
+    SOLO para `processing/`."""
+    d = tmp_path / "cola"
+    outbox.escribir(str(d), "ev1", {"a": 1})
+    proc_dir = os.path.join(str(d), "processing")
+    os.makedirs(proc_dir, exist_ok=True)
+    real_listdir = os.listdir
+
+    def listdir_que_rompe_processing(path):
+        if os.path.abspath(path) == os.path.abspath(proc_dir):
+            raise OSError("processing/ ilegible (simulado)")
+        return real_listdir(path)
+
+    monkeypatch.setattr(os, "listdir", listdir_que_rompe_processing)
+    item = outbox.reclamar(str(d))                          # nunca lanza: degrada el barrido, sigue reclamando
+    assert item is not None and item["clave"] == "ev1"
+
+
+def test_completar_escribe_manifiesto_antes_de_mover_a_done(tmp_path, monkeypatch):
+    """Gap 59 (B-53): si escribir el manifiesto falla (ENOSPC simulado), el envelope debe seguir en
+    `processing/` (se reencolará) en vez de quedar materializado en `done/` sin manifiesto ni
+    `completado_en` — nunca lo purgaría `purgar_antiguos` ni lo contaría `replay`."""
+    d = tmp_path / "cola"
+    outbox.escribir(str(d), "ev1", {"a": 1})
+    item = outbox.reclamar(str(d))
+    real_escribir_atomico = outbox._escribir_atomico
+
+    def escribir_atomico_que_rompe_el_manifiesto(destino, contenido, dir_raiz=None):
+        if destino.endswith(".manifest.json"):
+            raise OSError(28, "No space left on device")
+        return real_escribir_atomico(destino, contenido, dir_raiz=dir_raiz)
+
+    monkeypatch.setattr(outbox, "_escribir_atomico", escribir_atomico_que_rompe_el_manifiesto)
+    with pytest.raises(OSError):
+        outbox.completar(item, {"cierre": "materializado"})
+    monkeypatch.undo()
+    st = outbox.estado(str(d))
+    assert st["processing"] == 1 and st["done"] == 0
+    assert os.path.isfile(item["path"])                    # el envelope NUNCA se movió a done/
+    # tras el "arreglo" del disco, un segundo intento de completar SÍ funciona
+    dst = outbox.completar(item, {"cierre": "materializado"})
+    assert os.path.isfile(dst) and os.path.isfile(dst + ".manifest.json")

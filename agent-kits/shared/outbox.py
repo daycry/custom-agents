@@ -98,6 +98,7 @@ import calendar
 import contextlib
 import hashlib
 import json
+import math
 import os
 import re
 import shutil
@@ -113,11 +114,16 @@ for _s in (sys.stdin, sys.stdout, sys.stderr):
 SUBDIRS = ("outbox", "processing", "done", "dead-letter")
 _CLAVE_RE = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
 INTENTOS_SUFFIX = ".intentos"
+CLAIMED_AT_SUFFIX = ".claimed_at"   # sidecar de respaldo con el instante REAL de reclamación (gap 50)
+CLAIMING_SUFFIX = ".claiming"       # nombre temporal en processing/ mientras se refresca el mtime (gap 50)
 PROCESSING_TTL_S = 600              # un item reclamado más de esto sin completar/dead-letter se re-encola (gap 1)
 MAX_INTENTOS = 3                    # tras esto, dead-letter con causa «reintentos agotados» (gap 1/22)
 BACKOFF_S = 60                      # backoff base tras un fallo TRANSITORIO; crece × nº de intento (gap 26)
+BACKOFF_MAX_S = 3600                # tope de `no_antes_de` (gap 51): un salto de reloj o un sidecar
+                                     # corrupto no debe dejar un item inalcanzable para siempre
 _DEGRADADO_MARKER = ".durabilidad-degradada"    # sentinela en <dir>/: algún fsync de esta cola falló alguna vez
 _PERMISOS_MARKER = ".permisos-degradados"       # sentinela en <dir>/: algún chmod de esta cola falló alguna vez
+_RECLAMACION_MARKER = ".reclamacion-degradada"  # sentinela en <dir>/: `os.utime` al reclamar falló alguna vez (gap 50)
 
 REENCOLADO = "reencolado"
 DEAD_LETTER = "dead_letter"
@@ -152,6 +158,17 @@ def _marcar_permisos_degradados(dir_):
     try:
         os.makedirs(dir_, exist_ok=True)
         open(os.path.join(dir_, _PERMISOS_MARKER), "a", encoding="utf-8").close()
+    except OSError:
+        pass
+
+
+def _marcar_reclamacion_degradada(dir_):
+    """Sentinela best-effort: `estado()` lo lee para avisar «reclamacion: degradada» (gap 50: si
+    `os.utime` falla al reclamar, el item vuelve a `outbox/` en vez de arriesgar doble entrega, pero
+    eso no debe quedar en silencio)."""
+    try:
+        os.makedirs(dir_, exist_ok=True)
+        open(os.path.join(dir_, _RECLAMACION_MARKER), "a", encoding="utf-8").close()
     except OSError:
         pass
 
@@ -264,6 +281,76 @@ def _escribir_sidecar(path, intentos, no_antes_de, dir_raiz=None):
         _escribir_atomico(path, json.dumps({"intentos": intentos, "no_antes_de": no_antes_de}), dir_raiz=dir_raiz)
 
 
+def _no_antes_de_valido(no_antes_de, ahora):
+    """Normaliza `no_antes_de` (gap 51 de la revisión intento 3): un salto de reloj hacia delante o
+    un sidecar corrupto podían dejar un valor no finito o absurdamente lejano — sin tope, el item
+    quedaba inalcanzable PARA SIEMPRE (`reintentar_dead_letter` no mira `outbox/`). Un valor que no
+    parsea a `float`, no es finito, o supera `ahora + BACKOFF_MAX_S` se trata como 0.0 (reclamable
+    de inmediato) en vez de respetarlo tal cual."""
+    try:
+        nad = float(no_antes_de)
+    except (TypeError, ValueError):
+        return 0.0
+    if not math.isfinite(nad) or nad - ahora > BACKOFF_MAX_S:
+        return 0.0
+    return nad
+
+
+def _leer_claimed_at(path):
+    """Instante (epoch, `float`) del sidecar `<clave>.json.claimed_at`, o `None` si no existe o no
+    parsea (gap 50: respaldo del mtime para medir el TTL de huérfanos si `os.utime` degradara)."""
+    try:
+        with open(path, encoding="utf-8") as fh:
+            return float(fh.read().strip())
+    except (OSError, ValueError):
+        return None
+
+
+def en_backoff(dir_):
+    """`(n, proxima_iso)`: cuántos items de `outbox/` tienen `no_antes_de` válido en el futuro, y la
+    fecha ISO del más próximo a liberarse (`None` si ninguno). Gap 51: antes `replay` no distinguía
+    «outbox vacío» de «outbox con backoff pendiente» — devolvía `restantes: 1, avisos: []` sin
+    explicar por qué no avanzaba."""
+    outbox_dir = os.path.join(dir_, "outbox")
+    try:
+        nombres = [f for f in os.listdir(outbox_dir) if f.endswith(".json") and not f.startswith(".tmp-")]
+    except OSError:
+        return 0, None
+    ahora = time.time()
+    pendientes = []
+    for nombre in nombres:
+        sidecar = _leer_sidecar(os.path.join(outbox_dir, nombre) + INTENTOS_SUFFIX)
+        nad = _no_antes_de_valido(sidecar["no_antes_de"], ahora)
+        if nad > ahora:
+            pendientes.append(nad)
+    if not pendientes:
+        return 0, None
+    return len(pendientes), time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(min(pendientes)))
+
+
+def reintentar_ahora(dir_):
+    """Pone `no_antes_de` a 0 en TODOS los sidecars de `outbox/` (gap 51): complementario a
+    `reintentar_dead_letter` (que opera sobre `dead-letter/`) — `journal.py replay
+    --reintentar-ahora` para un salto de reloj o un skew que dejó items en backoff que ya deberían
+    ser reclamables. Devuelve cuántos tenían backoff pendiente y se liberaron."""
+    outbox_dir = os.path.join(dir_, "outbox")
+    try:
+        nombres = [f for f in os.listdir(outbox_dir) if f.endswith(".json") and not f.startswith(".tmp-")]
+    except OSError:
+        return 0
+    ahora = time.time()
+    liberados = 0
+    for nombre in nombres:
+        sidecar_path = os.path.join(outbox_dir, nombre) + INTENTOS_SUFFIX
+        if not os.path.isfile(sidecar_path):
+            continue
+        sc = _leer_sidecar(sidecar_path)
+        if _no_antes_de_valido(sc["no_antes_de"], ahora) > ahora:
+            liberados += 1
+        _escribir_sidecar(sidecar_path, sc["intentos"], 0.0, dir_raiz=dir_)
+    return liberados
+
+
 def _mover_a_outbox_con_intentos(src, intentos, no_antes_de=0.0):
     """`processing/<clave>.json` -> `outbox/<clave>.json`, dejando `.intentos` al día (con
     `no_antes_de` para el backoff, gap 26). Devuelve `True` si se movió."""
@@ -278,6 +365,8 @@ def _mover_a_outbox_con_intentos(src, intentos, no_antes_de=0.0):
     _escribir_sidecar(dst + INTENTOS_SUFFIX, intentos, no_antes_de, dir_raiz=dir_)
     with contextlib.suppress(OSError):
         os.remove(src + INTENTOS_SUFFIX)
+    with contextlib.suppress(OSError):
+        os.remove(src + CLAIMED_AT_SUFFIX)     # gap 50: reencolado a outbox/ ya no está "reclamado"
     return True
 
 
@@ -318,7 +407,9 @@ def reencolar_o_dead_letter(item, causa, intentos_max=MAX_INTENTOS, backoff=True
             # escaladas y volvería a reencolar en vez de seguir camino a dead-letter (gap 31/43).
             return ERROR
         return DEAD_LETTER
-    no_antes_de = (time.time() + BACKOFF_S * intentos) if backoff else 0.0
+    # gap 51: tope también al ESCRIBIR (además de al leer en `reclamar`/`en_backoff`) — nunca se
+    # persiste un `no_antes_de` más allá de `BACKOFF_MAX_S`, aunque `BACKOFF_S × intentos` fuera a más.
+    no_antes_de = min(time.time() + BACKOFF_S * intentos, time.time() + BACKOFF_MAX_S) if backoff else 0.0
     try:
         ok = _mover_a_outbox_con_intentos(src, intentos, no_antes_de)
     except OSError:
@@ -371,10 +462,14 @@ def _reclamar_huerfanos(dir_, ttl_s):
     ahora = time.time()
     for nombre in nombres:
         src = os.path.join(proc_dir, nombre)
-        try:
-            edad = ahora - os.stat(src).st_mtime
-        except OSError:
-            continue
+        claimed = _leer_claimed_at(src + CLAIMED_AT_SUFFIX)   # gap 50: respaldo si `os.utime` degradó
+        if claimed is not None:
+            edad = ahora - claimed
+        else:
+            try:
+                edad = ahora - os.stat(src).st_mtime
+            except OSError:
+                continue
         if edad <= ttl_s:
             continue
         item = {"clave": nombre[:-len(".json")], "path": src, "payload": None}
@@ -389,21 +484,37 @@ def _reclamar_huerfanos(dir_, ttl_s):
     return errores
 
 
-def reclamar(dir_, processing_ttl_s=PROCESSING_TTL_S):
+def reclamar(dir_, processing_ttl_s=PROCESSING_TTL_S, errores=None):
     """Reclama UN envelope pendiente: primero re-encola/dead-letter los huérfanos de `processing/`
-    (gap 1), luego mueve `outbox/<clave>.json` -> `processing/<clave>.json`, refrescando su mtime a
-    "ahora" (gap 25 Critical: el TTL de huérfanos se mide desde la RECLAMACIÓN, no desde la
-    creación del envelope — sin esto, un envelope que esperó > `processing_ttl_s` en `outbox/` se
-    entregaba a dos trabajadores a la vez). Los candidatos con backoff pendiente (`no_antes_de` en
-    el futuro, gap 26) se saltan.
+    (gap 1; si se pasa una lista en `errores`, se le añaden los errores del barrido — gap 52 de la
+    revisión intento 3: antes `_reclamar_huerfanos` los calculaba y `reclamar` los descartaba, así
+    que un envelope atascado en `processing/` era invisible en el JSON de `replay`), luego mueve
+    `outbox/<clave>.json` a `processing/` EN DOS PASOS (gap 50 de la revisión intento 3):
+
+      1. `os.replace` a un nombre TEMPORAL `<clave>.json.claiming` dentro de `processing/`.
+      2. `os.utime` sobre ese temporal para refrescar el mtime a "ahora" (gap 25 Critical: el TTL de
+         huérfanos se mide desde la RECLAMACIÓN, no desde la creación del envelope).
+      3. `os.replace` del temporal al nombre FINAL `<clave>.json` — visible como reclamado solo
+         ENTONCES, nunca antes de que el mtime esté al día.
+
+    Si el `os.utime` del paso 2 falla (SMB/FUSE/FS sin `utime`, o un `owner` distinto), el item
+    vuelve a `outbox/` SIN reclamarse (nunca queda a medias en `processing/` con un mtime heredado
+    de `outbox/` que arriesgaría doble entrega): se marca `estado()["reclamacion"] = "degradada"`
+    con un sentinela y se sigue con el siguiente candidato. Como respaldo adicional para el TTL de
+    huérfanos (por si `os.utime` degradara de forma silenciosa en algún FS), la reclamación exitosa
+    también escribe un sidecar `<clave>.json.claimed_at` con el instante real (`_reclamar_huerfanos`
+    lo lee ANTES que el mtime). Los candidatos con backoff pendiente (`no_antes_de` en el futuro,
+    validado y con tope por `_no_antes_de_valido`, gap 26/51) se saltan.
 
     La exclusividad frente a un segundo proceso concurrente la da el propio `os.replace`: el
     origen desaparece con la primera reclamación que se ejecuta, así que la segunda falla con
     `FileNotFoundError` (o `PermissionError` en Windows si el fichero ya no está) y se salta ese
-    candidato. Devuelve `None` si no hay nada pendiente o si todos los candidatos listados ya
-    fueron reclamados por otro proceso entre el `listdir` y el `replace`, o tienen backoff
-    pendiente."""
-    _reclamar_huerfanos(dir_, processing_ttl_s)
+    candidato. Devuelve `None` si no hay nada pendiente, si todos los candidatos listados ya fueron
+    reclamados por otro proceso entre el `listdir` y el `replace`, si tienen backoff pendiente, o si
+    ninguno pudo refrescar su mtime al reclamarlo."""
+    barrido_errores = _reclamar_huerfanos(dir_, processing_ttl_s)
+    if errores is not None:
+        errores.extend(barrido_errores)
     outbox_dir = os.path.join(dir_, "outbox")
     proc_dir = os.path.join(dir_, "processing")
     try:
@@ -417,15 +528,29 @@ def reclamar(dir_, processing_ttl_s=PROCESSING_TTL_S):
     for nombre in nombres:
         src = os.path.join(outbox_dir, nombre)
         sidecar = _leer_sidecar(src + INTENTOS_SUFFIX)
-        if sidecar["no_antes_de"] > ahora:
-            continue                # backoff pendiente (gap 26): no se reclama todavía
+        if _no_antes_de_valido(sidecar["no_antes_de"], ahora) > ahora:
+            continue                # backoff pendiente (gap 26/51): no se reclama todavía
+        claiming = os.path.join(proc_dir, nombre + CLAIMING_SUFFIX)
         dst = os.path.join(proc_dir, nombre)
         try:
-            os.replace(src, dst)
+            os.replace(src, claiming)
         except OSError:
             continue                # ya reclamado por otro proceso: siguiente candidato
+        try:
+            os.utime(claiming, None)   # gap 25: TTL de huérfanos medido desde AHORA, no desde la creación
+        except OSError:
+            # gap 50: sin mtime fiable, el item NO se reclama — vuelve a outbox/ tal cual estaba,
+            # en vez de quedar visible en processing/ con un mtime que arriesgaría doble entrega.
+            with contextlib.suppress(OSError):
+                os.replace(claiming, src)
+            _marcar_reclamacion_degradada(dir_)
+            continue
+        try:
+            os.replace(claiming, dst)
+        except OSError:
+            continue                # otro proceso ganó la carrera del rename final: siguiente candidato
         with contextlib.suppress(OSError):
-            os.utime(dst, None)     # gap 25: TTL de huérfanos medido desde AHORA, no desde la creación
+            _escribir_atomico(dst + CLAIMED_AT_SUFFIX, str(time.time()), dir_raiz=dir_)
         intentos_src = src + INTENTOS_SUFFIX
         if os.path.isfile(intentos_src):
             with contextlib.suppress(OSError):
@@ -448,30 +573,45 @@ def _mover_desde_processing(item, subdir_destino):
     os.replace(src, dst)
     with contextlib.suppress(OSError):
         os.remove(src + INTENTOS_SUFFIX)
+    with contextlib.suppress(OSError):
+        os.remove(src + CLAIMED_AT_SUFFIX)
     return dst
 
 
 def completar(item, manifiesto=None):
     """`processing/` -> `done/`; escribe `<ruta>.manifest.json` con `hash` (sha256 del contenido)
     y `completado_en` además de lo que traiga `manifiesto` — `completado_en` es la fecha REAL de
-    materialización que usa `purgar_antiguos` (gap 33)."""
+    materialización que usa `purgar_antiguos` (gap 33).
+
+    El manifiesto se escribe ANTES de mover el envelope a `done/` (gap 59 de la revisión intento 3):
+    si el `os.replace` de `dst + ".manifest.json"` falla (ENOSPC, permisos), la excepción se propaga
+    con el item TODAVÍA en `processing/` — el llamador (`journal.py replay`) lo reencola o lo manda
+    a dead-letter con normalidad. Antes, el manifiesto se escribía DESPUÉS de mover a `done/`: un
+    fallo ahí dejaba la sesión YA materializada pero con `replay` reportando `materializados: 0` y el
+    envelope varado en `done/` sin `completado_en` (nunca lo purga `purgar_antiguos`, que exige ese
+    campo) — una pérdida de visibilidad silenciosa, no de datos."""
+    src = item["path"] if isinstance(item, dict) else str(item)
     try:
-        with open(item["path"] if isinstance(item, dict) else str(item), "rb") as fh:
+        with open(src, "rb") as fh:
             contenido = fh.read()
     except OSError:
         contenido = b""
-    dst = _mover_desde_processing(item, "done")
     man = dict(manifiesto or {})
     man.setdefault("hash", hashlib.sha256(contenido).hexdigest())
     man.setdefault("completado_en", _iso_now())
-    _escribir_atomico(dst + ".manifest.json", json.dumps(man, ensure_ascii=False, indent=2))
+    manifest_tmp = src + ".manifest.json"
+    _escribir_atomico(manifest_tmp, json.dumps(man, ensure_ascii=False, indent=2))   # puede lanzar: item sigue en processing/
+    dst = _mover_desde_processing(item, "done")
+    os.replace(manifest_tmp, dst + ".manifest.json")
     return dst
 
 
 def estado(dir_):
     """Contadores de envelopes (excluye `.manifest.json`/`.causa.json`/`.intentos`) por carpeta,
-    más `durabilidad` («ok» / «degradada» si algún `fsync` de esta cola falló alguna vez) y
-    `permisos` («ok» / «degradados» si algún `chmod` de esta cola falló alguna vez, gap 46)."""
+    más `durabilidad` («ok» / «degradada» si algún `fsync` de esta cola falló alguna vez),
+    `permisos` («ok» / «degradados» si algún `chmod` de esta cola falló alguna vez, gap 46),
+    `reclamacion` («ok» / «degradada» si algún `os.utime` al reclamar falló alguna vez, gap 50) y
+    `en_backoff` (cuántos items de `outbox/` tienen `no_antes_de` pendiente ahora mismo, gap 51)."""
     out = {}
     for sub in SUBDIRS:
         p = os.path.join(dir_, sub)
@@ -483,6 +623,8 @@ def estado(dir_):
             out[sub] = 0
     out["durabilidad"] = "degradada" if os.path.isfile(os.path.join(dir_, _DEGRADADO_MARKER)) else "ok"
     out["permisos"] = "degradados" if os.path.isfile(os.path.join(dir_, _PERMISOS_MARKER)) else "ok"
+    out["reclamacion"] = "degradada" if os.path.isfile(os.path.join(dir_, _RECLAMACION_MARKER)) else "ok"
+    out["en_backoff"], _ = en_backoff(dir_)
     return out
 
 
