@@ -352,8 +352,14 @@ def parse_ledger(text):
                     else:
                         cur_task["unchecked"] += 1
                 elif ln.strip() and not ln.startswith((" ", "\t")) \
-                        and not ln.strip().startswith(("-", "*")):
-                    # párrafo/encabezado de nivel superior → fin del bloque de criterios
+                        and not re.match(r"^[-*]\s", ln.strip()):
+                    # párrafo/encabezado de nivel superior → fin del bloque de criterios. Una línea
+                    # en **negrita** (`**Checklist manual…**`, sin espacio tras el `*`) NO es un
+                    # ítem de lista aunque empiece por `*`: solo `-<espacio>`/`*<espacio>` cuenta
+                    # (gap de T-08 de session-end-durable-capture: un encabezado en negrita entre
+                    # los criterios y la siguiente `### T-XX`/`## Revisión` se colaba como si
+                    # siguiera dentro del bloque de criterios, y un checklist manual con `- [ ]`
+                    # deliberadamente sin marcar —pendiente del usuario— bloqueaba `completado`).
                     in_criterios = False
     close_task()
 

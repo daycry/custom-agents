@@ -9,6 +9,10 @@ y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Aniadido
+
+- **Captura durable de `SessionEnd` y materializacion recuperable del journal.** `SessionEnd` ahora solo escribe un envelope atomico en menos de 100 ms (sin git, IA ni red, CA-01); `SessionStart` drena y reconcilia con presupuesto (`journal.py replay`/`recover`), y `/doctor` informa del estado de la cola (pendientes, huerfanas, dead-letter) con un remedio nombrado, distinguiendo un aviso cosmetico de `Hook cancelled` de una perdida real.
+
 ## [1.20.2] - 2026-09-15
 
 ### Corregido

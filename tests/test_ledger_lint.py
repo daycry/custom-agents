@@ -287,7 +287,23 @@ def main():
     _b = "### T-01 — x\n\n- **Changelog**:\n- **Estado**: completado\n"
     assert _cs.RE_CAMPO_CHANGELOG.search(_b).group("txt") == "", "el campo vacío es VACÍO"
 
-    print("test_ledger_lint: 21/21 OK")
+    # 21) un encabezado en NEGRITA (`**Checklist manual…**`, sin espacio tras el `*`) entre los
+    #     criterios y la siguiente tarea NO es un ítem de lista: cierra el bloque de criterios. Sin
+    #     el arreglo, un `- [ ]` deliberadamente sin marcar dentro de ese checklist manual (pendiente
+    #     del usuario, no de la tarea) contaba como criterio de la tarea de arriba y bloqueaba
+    #     `completado` con una incoherencia falsa (session-end-durable-capture T-08).
+    con_checklist = doc(t1c2="x").replace(
+        "- [x] criterio dos\n\n### T-02",
+        "- [x] criterio dos\n\n**Checklist manual (pendiente del usuario):**\n"
+        "- [ ] **M-01** — verificar a mano\n\n### T-02", 1)
+    assert con_checklist != doc(t1c2="x"), "el replace no encontró el punto de inserción"
+    code, out = run(con_checklist)
+    assert code == 0, out
+    tareas = {x["id"]: x for x in ll.parse_ledger(con_checklist)["tareas"]}
+    assert tareas["T-01"]["checked"] == 2 and tareas["T-01"]["unchecked"] == 0, \
+        "el checklist manual se coló como criterio de T-01"
+
+    print("test_ledger_lint: 22/22 OK")
 
 
 if __name__ == "__main__":

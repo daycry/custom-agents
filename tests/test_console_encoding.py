@@ -306,6 +306,11 @@ SIN_SIMBOLOS_EN_LA_SALIDA = {
     # símbolos; entran en SCRIPTS porque su docstring/comentarios tienen no-ASCII (í, ó, «»).
     "agent-kits/shared/outbox.py": "sin `__main__`: al arrancar no ejecuta nada ni imprime nada",
     "agent-kits/shared/redact.py": "sin `__main__`: al arrancar no ejecuta nada ni imprime nada",
+    # session-end-durable-capture T-07: mide `journal.py capture-end` e imprime percentiles
+    # (`p50`/`p95`/`p99`/`iterations`/`mean_ms`/`max_ms`, todo ASCII); entra en SCRIPTS porque su
+    # docstring/comentarios en español tienen no-ASCII (í, ó).
+    "scripts/bench-session-end.py":
+        "su salida (texto y --json) es un informe de percentiles con claves/etiquetas en ingles, ASCII puro",
 }
 SCRIPTS_CON_SIMBOLOS = [rel for rel in SCRIPTS if rel not in SIN_SIMBOLOS_EN_LA_SALIDA]
 
@@ -368,6 +373,8 @@ def _modos():
             [("brief", lambda w: [INI, "T-01"], (0,), None)],
         "agent-kits/shared/usage-meter.py":
             [("close", lambda w: ["close", "--artefacto", "x", "--state", os.path.join(w, "u.json")], (0,), None)],
+        "scripts/bench-session-end.py":
+            [("bench rapido", lambda w: ["--iterations", "1"], (0,), None)],
         "evals/check.py":
             [("cobertura", lambda w: [], (0, 1), None)],
         "evals/run.py":
