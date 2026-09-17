@@ -82,25 +82,48 @@ materializar, no al cerrar la sesión.
 dependencias; stdlib. Lo usan `journal.py` (esta iniciativa), `kwipu-export.py` (knowledge-services T-07) y
 `graphiti-sync.py` (graphiti-memory T-05).
 
-**TTL sobre la reclamación, no sobre la creación (gap 25 Critical, revisión intento 2).** `reclamar()`
-refresca el mtime del item con `os.utime` justo al moverlo a `processing/`: el TTL de huérfanos se mide desde
-ESE instante. Sin esto, un envelope que esperó horas en `outbox/` (el caso normal: `replay` corre después)
-ya superaba la TTL nada más reclamarlo, y un segundo `reclamar()` lo entregaba también a otro trabajador.
+**TTL sobre la reclamación, no sobre la creación (gap 25 Critical, revisión intento 2; reclamación EN DOS
+PASOS, gap 50 de la revisión intento 3).** `reclamar()` mueve `outbox/<clave>.json` a un nombre TEMPORAL
+`processing/<clave>.json.claiming`, refresca su mtime con `os.utime`, y SOLO ENTONCES lo renombra al nombre
+final `<clave>.json` — visible como reclamado nunca antes de que el mtime esté al día. El TTL de huérfanos se
+mide desde ESE instante (sin esto, un envelope que esperó horas en `outbox/` ya superaba la TTL nada más
+reclamarlo, y un segundo `reclamar()` lo entregaba también a otro trabajador). Si `os.utime` falla (SMB/FUSE,
+FS sin soporte), el item vuelve a `outbox/` tal cual (nunca se reclama) y `estado()["reclamacion"]` pasa a
+`"degradada"`; como respaldo adicional, la reclamación con éxito también escribe un sidecar
+`<clave>.json.claimed_at` que `_reclamar_huerfanos` lee ANTES que el mtime.
 
-**Backoff tras un fallo TRANSITORIO (gap 26 Critical).** `reencolar_o_dead_letter(..., backoff=True)`
-escribe en el sidecar `.intentos` un JSON `{"intentos", "no_antes_de"}` con `no_antes_de = ahora + BACKOFF_S
-(60) × intentos` (creciente); `reclamar()` salta los candidatos de `outbox/` con `no_antes_de` en el futuro.
-La recuperación de huérfanos de `processing/` (`backoff=False`: un worker murió, no es un fallo del código)
+**Backoff tras un fallo TRANSITORIO (gap 26 Critical; tope y `--reintentar-ahora`, gap 51 de la revisión
+intento 3).** `reencolar_o_dead_letter(..., backoff=True)` escribe en el sidecar `.intentos` un JSON
+`{"intentos", "no_antes_de"}` con `no_antes_de = min(ahora + BACKOFF_S(60) × intentos, ahora +
+BACKOFF_MAX_S(3600))` (creciente pero topado); `reclamar()` salta los candidatos de `outbox/` con
+`no_antes_de` válido en el futuro — un valor no finito o que supere el tope al LEER se trata como 0
+(reclamable), para que un salto de reloj o un sidecar corrupto no deje un item inalcanzable para siempre. La
+recuperación de huérfanos de `processing/` (`backoff=False`: un worker murió, no es un fallo del código)
 sigue siendo inmediata. Un fallo permanente necesita entonces 3 PASADAS de `replay` separadas por el backoff
 para llegar a `dead-letter/`, nunca una sola pasada instantánea. `journal.py replay
 --reintentar-dead-letter` (remedio nombrado que `/doctor`, T-06, expondrá) devuelve todo `dead-letter/` a
-`outbox/` con el contador a 0.
+`outbox/` con el contador a 0; `--reintentar-ahora` hace lo equivalente pero sobre `outbox/` (pone a 0 el
+`no_antes_de` de todo lo que esté en backoff). `estado()`/`replay` exponen `en_backoff` (cuántos items
+esperan) y un aviso con la fecha ISO del más próximo, en vez de un `restantes` mudo.
 
-**Marcador de la cola (gap 34).** `_QUEUE_MARKER` (`.custom-agents-journal`) se escribe al crear el
-directorio de la cola; `sesion.journal.dir` solo se acepta si el candidato está CONTENIDO en la raíz tras
-`realpath` (rechaza symlinks de escape y rutas de unidad de Windows vía `ntpath.splitdrive`) Y además está
-vacío o ya lleva el marcador — así `"."` o `"docs"` (léxicamente contenidos, pero con contenido AJENO a la
-cola) no reciben el `chmod 0700`/`.gitignore` que sí le corresponden a la cola.
+**Manifiesto ANTES de mover a `done/` (gap 59 de la revisión intento 3).** `completar()` escribe
+`<clave>.json.manifest.json` en `processing/` (junto al envelope) y solo TRAS eso hace `os.replace` a
+`done/`. Si escribir el manifiesto falla (ENOSPC, permisos), la excepción se propaga con el item TODAVÍA en
+`processing/`: el llamador lo reencola/dead-letter con normalidad, y `replay` deja un aviso explícito
+(«entrada escrita pero manifiesto pendiente…») cuando `escribir_sesion` ya materializó la entrada pero
+`completar` falló después — nunca queda un envelope varado en `done/` sin `completado_en` que
+`purgar_antiguos` no pueda purgar nunca.
+
+**Marcador de la cola (gap 34; contenido cerrado, gap 62 de la revisión intento 3).** `_QUEUE_MARKER`
+(`.custom-agents-journal`) se escribe al crear el directorio de la cola; `sesion.journal.dir` solo se acepta
+si el candidato está CONTENIDO en la raíz tras `realpath` (rechaza symlinks de escape y rutas de unidad de
+Windows vía `ntpath.splitdrive`) Y además está vacío, o lleva el marcador Y no tiene NINGÚN fichero fuera del
+conjunto conocido de la cola (`outbox/`, `processing/`, `done/`, `dead-letter/`, `.gitignore`,
+`.replay.lock`, los sentinelas de degradación y el propio marcador) — el marcador SOLO ya no basta: un
+`docs/.custom-agents-journal` colado (versionado por error) ya no basta para que `docs/` entero —con su
+`README.md` y el resto de documentación real— se trate como la cola. El `.gitignore` que se siembra dentro
+lleva SOLO `*` (sin `!.gitignore`, gap 61 de la revisión intento 3): con la excepción, el propio `.gitignore`
+de la cola quedaba sin ignorarse a sí mismo (visible en `git status -uall`).
 
 ## Configuración (`.claude/dev.json` → `sesion.journal`)
 
