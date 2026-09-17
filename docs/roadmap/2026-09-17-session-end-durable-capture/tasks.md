@@ -16,11 +16,11 @@ verificacion: obligatoria
 
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervision (real/est) | Tokens (real/est) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| Fase 1 - Módulos compartidos | 2 | 2 | 100% | 0.4 / 2.5h | 0.3 / 0.8h | 0 / 0.2h | 0 / 45k |
-| Fase 2 - Captura y materialización | 2 | 2 | 100% | 1.3 / 5.5h | 1.1 / 1.6h | 0 / 0.4h | 0 / 85k |
+| Fase 1 - Módulos compartidos | 1 | 2 | 50% | 0.4 / 2.5h | 0.3 / 0.8h | 0 / 0.2h | 0 / 45k |
+| Fase 2 - Captura y materialización | 0 | 2 | 0% | 1.3 / 5.5h | 1.1 / 1.6h | 0 / 0.4h | 0 / 85k |
 | Fase 3 - Reconciliación y diagnóstico | 0 | 2 | 0% | 0 / 4h | 0 / 1.2h | 0 / 0.3h | 0 / 60k |
 | Fase 4 - Pruebas, medición y cierre | 0 | 2 | 0% | 0 / 2h | 0 / 0.6h | 0 / 0.2h | 0 / 40k |
-| **TOTAL** | **4** | **8** | **50%** | **1.7 / 14h** | **1.4 / 4.2h** | **0 / 1.1h** | **0 / 230k** |
+| **TOTAL** | **1** | **8** | **13%** | **1.7 / 14h** | **1.4 / 4.2h** | **0 / 1.1h** | **0 / 230k** |
 
 ## Fase 1 - Módulos compartidos
 
