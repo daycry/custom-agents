@@ -1657,6 +1657,27 @@ def test_replay_sigue_bloqueado_si_el_cerrojo_esta_realmente_ocupado(tmp_path):
     assert not any("cola dañada" in a for a in r["avisos"])
 
 
+# ------------------------------------------------------------------ micro-pasada T-fix3b (N-4)
+
+def test_replay_cerrojo_dañado_rellena_restantes_y_backoff_no_deja_json_contradictorio(tmp_path):
+    """N-4 (Minor): con `dañada=True`, `replay` hacía `return resumen` ANTES de rellenar
+    `restantes`/`restantes_processing`/`en_backoff` — un envelope pendiente de verdad en `outbox/`
+    quedaba reportado como `restantes: 0`, un JSON contradictorio con `errores`/`avisos` diciendo
+    que la cola está dañada pero "vacía". Los contadores deben reflejar el estado REAL de la cola
+    también en esta rama (mutante: quitar el relleno en la rama `dañada` → `restantes` vuelve a 0)."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    journal.capture_end(str(proj), session_end_payload(proj, sid="s1"))
+    dir_ = journal._journal_queue_dir(str(proj))
+    os.makedirs(os.path.join(dir_, ".replay.lock"))    # obstruye: cerrojo DAÑADO (gap 60)
+    r = journal.replay(str(proj))
+    assert r["bloqueado"] is False
+    assert any("cola dañada" in a for a in r["avisos"])
+    assert r["materializados"] == 0
+    # el envelope de "s1" sigue de verdad en outbox/: el JSON no debe mentir con "restantes: 0"
+    assert r["restantes"] == 1
+    assert r["restantes_processing"] == 0
+
+
 def test_completar_falla_tras_escribir_avisa_y_reencola_sin_perder_los_demas(tmp_path):
     """Gap 59 (B-53): si `completar` falla DESPUÉS de que `escribir_sesion` ya escribió la entrada
     (ENOSPC simulado en el manifiesto), `replay` no debe contarlo como `materializados` silencioso

@@ -554,6 +554,23 @@ BUDGET_MS_AJUSTADO = 5000            # bajo esto, `replay` fuerza `ia=off` y un 
 BUDGET_GIT_TIMEOUT = 2                # s: timeout de git bajo presupuesto ajustado
 
 
+def _rellenar_contadores_finales(ob, dir_, resumen):
+    """Rellena `restantes`/`restantes_processing`/`en_backoff` (+ el aviso de backoff pendiente) a
+    partir del estado REAL de la cola. Se llama tanto al cierre normal de `replay` como en la rama
+    de cerrojo dañado (N-4 Minor de la micro-pasada T-fix3b): antes, con `dañada=True`, `replay`
+    hacía `return resumen` ANTES de este relleno, dejando un JSON contradictorio (`errores`/`avisos`
+    hablando de una cola dañada mientras `restantes: 0` sugería que estaba vacía). Nunca lanza."""
+    with contextlib.suppress(Exception):
+        st = ob.estado(dir_)
+        resumen["restantes"] = st.get("outbox", 0)
+        resumen["restantes_processing"] = st.get("processing", 0)     # gap 52: un atascado en processing/ es visible
+    with contextlib.suppress(Exception):
+        n_backoff, proxima = ob.en_backoff(dir_)
+        resumen["en_backoff"] = n_backoff
+        if n_backoff:
+            resumen["avisos"].append(f"{n_backoff} item(s) en backoff hasta {proxima}")   # gap 51
+
+
 def _contar_resultado_reencolar(ob, resumen, resultado, clave, causa_txt):
     """Traduce el `REENCOLADO`/`DEAD_LETTER`/`ERROR` de `outbox.reencolar_o_dead_letter` (gap 45 de
     la revisión intento 2: antes se contaba `dead_letter += 1` también cuando en realidad ni
@@ -626,6 +643,7 @@ def replay(root, budget_ms=None, max_n=None, ia="auto", reintentar_dead_letter=F
                 # bucle a `/doctor`/T-05 sin arreglar nada.
                 resumen["errores"].append({"event_id": None, "causa": f"cerrojo de replay dañado: {ruta_lock}"})
                 resumen["avisos"].append(f"cola dañada: {ruta_lock}")
+                _rellenar_contadores_finales(ob, dir_, resumen)     # N-4: nunca contradictorio, cola dañada o no
             else:
                 resumen["bloqueado"] = True
                 resumen["avisos"].append("replay: no se pudo tomar el cerrojo dentro del presupuesto "
@@ -713,13 +731,7 @@ def replay(root, budget_ms=None, max_n=None, ia="auto", reintentar_dead_letter=F
             ob.purgar_antiguos(dir_, "done", LOG_RETENCION_DIAS)       # gap 22/33: done/ no crece para siempre
         with contextlib.suppress(Exception):
             ob.limpiar_tmp_huerfanos(dir_)                            # gap 3/13/35: temporales huérfanos
-        st = ob.estado(dir_)
-        resumen["restantes"] = st.get("outbox", 0)
-        resumen["restantes_processing"] = st.get("processing", 0)     # gap 52: un atascado en processing/ es visible
-        n_backoff, proxima = ob.en_backoff(dir_)
-        resumen["en_backoff"] = n_backoff
-        if n_backoff:
-            resumen["avisos"].append(f"{n_backoff} item(s) en backoff hasta {proxima}")   # gap 51
+        _rellenar_contadores_finales(ob, dir_, resumen)
     return resumen
 
 
