@@ -276,20 +276,34 @@ _DIR_DEFAULT = os.path.join(".claude", "journal")
 _QUEUE_MARKER = ".custom-agents-journal"    # marcador: este directorio lo creó/gestiona la cola (gap 34)
 
 
+_CONTENIDO_DE_LA_COLA = frozenset(
+    {"outbox", "processing", "done", "dead-letter", ".gitignore", ".replay.lock", _QUEUE_MARKER,
+     ".durabilidad-degradada", ".permisos-degradados", ".reclamacion-degradada"})
+
+
 def _dir_es_de_la_cola_o_vacio(dirpath):
-    """True si `dirpath` ya lleva el marcador de la cola, no existe todavía, o existe pero está
-    vacío. Gap 34 de la revisión intento 2: `sesion.journal.dir` con contención solo LÉXICA dejaba
-    pasar `"."` o `"docs"` (rutas realmente contenidas en la raíz del proyecto, así que ninguna
-    comprobación de escape las rechaza) y `_asegurar_gitignore_local` plantaba `.gitignore`/`chmod
-    0700` en la raíz o en `docs/` del proyecto consumidor — un directorio que NO es de la cola."""
-    if os.path.isfile(os.path.join(dirpath, _QUEUE_MARKER)):
-        return True
+    """True si `dirpath` no existe todavía, existe pero está vacío, o YA lleva el marcador de la
+    cola Y todo su contenido son piezas conocidas de la cola (`outbox/`, `processing/`, `done/`,
+    `dead-letter/`, `.gitignore`, `.replay.lock`, los sentinelas de degradación y el propio
+    marcador). Gap 34 de la revisión intento 2: `sesion.journal.dir` con contención solo LÉXICA
+    dejaba pasar `"."` o `"docs"` (rutas realmente contenidas en la raíz del proyecto, así que
+    ninguna comprobación de escape las rechaza) y `_asegurar_gitignore_local` plantaba
+    `.gitignore`/`chmod 0700` en la raíz o en `docs/` del proyecto consumidor. Gap 62 de la revisión
+    intento 3: el marcador SOLO no bastaba — un repo con `journal.dir: "docs"` y
+    `docs/.custom-agents-journal` VERSIONADO (por el motivo que fuera) hacía que el hook tratara
+    `docs/` entero como cola aunque llevara `README.md` y el resto de la documentación del proyecto;
+    ahora, con marcador, se exige ADEMÁS que no haya NINGÚN fichero ajeno."""
     if not os.path.isdir(dirpath):
         return True
     try:
-        return len(os.listdir(dirpath)) == 0
+        contenido = os.listdir(dirpath)
     except OSError:
         return False
+    if not contenido:
+        return True
+    if _QUEUE_MARKER not in contenido:
+        return False        # tiene contenido y ni siquiera lleva el marcador: no es (ni puede ser) nuestro
+    return all(nombre in _CONTENIDO_DE_LA_COLA for nombre in contenido)
 
 
 def _journal_queue_dir(root):
@@ -450,8 +464,13 @@ def _asegurar_gitignore_local(dirpath):
             open(marker, "w", encoding="utf-8").close()
         gi = os.path.join(dirpath, ".gitignore")
         if not os.path.isfile(gi):
+            # Gap 61 de la revisión intento 3 (B-55): `!.gitignore` deshacía la ignorancia del PROPIO
+            # `.gitignore`, así que `git status -uall` seguía viéndolo como `??` — el único fichero de
+            # la cola que se colaba. Con solo `*` (sin excepción), la cola entera —incluido su propio
+            # `.gitignore`— queda ignorada; no hace falta versionarlo para que git lo respete, porque
+            # `_asegurar_gitignore_local` se encarga de recrearlo si faltara.
             with open(gi, "w", encoding="utf-8") as fh:
-                fh.write("# custom-agents: outbox del journal, nunca versionar (session-end-durable-capture)\n*\n!.gitignore\n")
+                fh.write("# custom-agents: outbox del journal, nunca versionar (session-end-durable-capture)\n*\n")
     except OSError:
         pass
 
@@ -548,7 +567,7 @@ def _contar_resultado_reencolar(ob, resumen, resultado, clave, causa_txt):
     resumen["errores"].append({"event_id": clave, "causa": causa_txt})
 
 
-def replay(root, budget_ms=None, max_n=None, ia="auto", reintentar_dead_letter=False):
+def replay(root, budget_ms=None, max_n=None, ia="auto", reintentar_dead_letter=False, reintentar_ahora=False):
     """Reclama y materializa envelopes pendientes de la outbox (`outbox/` → `processing/` →
     `done/`|`dead-letter/`), reutilizando `escribir_sesion` (git, log de prompts, resumen IA
     opt-in) SIN duplicar esa lógica (CA-05: nunca inventa contenido). `budget_ms`/`max_n` acotan el
@@ -557,6 +576,9 @@ def replay(root, budget_ms=None, max_n=None, ia="auto", reintentar_dead_letter=F
     resumen IA, cualquiera que sea el presupuesto — gap 14 de la revisión). `reintentar_dead_letter`
     (gap 26 de la revisión intento 2): antes de drenar, devuelve TODO `dead-letter/` a `outbox/`
     con el contador a 0 — remedio nombrado para una sesión que se creía perdida para siempre.
+    `reintentar_ahora` (gap 51 de la revisión intento 3): complementario, pero sobre `outbox/` — pone
+    a 0 el `no_antes_de` de TODO lo que esté en backoff, para un salto de reloj o un skew que dejó
+    items en espera más tiempo del que deberían.
 
     Cada item corre en su propio `try/except` (gap 2 Critical), y también la propia llamada a
     `ob.reclamar` (gap 29/31 de la revisión intento 2: antes vivía FUERA del `try`, así que un
@@ -566,16 +588,23 @@ def replay(root, budget_ms=None, max_n=None, ia="auto", reintentar_dead_letter=F
     cualquier otro error (esquema, JSON, lo que sea) va a dead-letter directo y NO aborta el resto
     del drenaje — y si NI SIQUIERA el propio `dead_letter`/`ob.dead_letter` puede escribir (p.ej.
     `dead-letter/` inutilizable), se reencola vía `reencolar_o_dead_letter` en vez de dejar
-    escapar la excepción (gap 31). Un cerrojo de proceso NO BLOQUEANTE con presupuesto
-    (`<dir>/.replay.lock`, gap 7/32) evita que dos `replay` concurrentes hagan `write()` en
-    paralelo sobre el mismo proyecto, sin colgar `SessionStart` si otro proceso ya lo tiene. Al
-    terminar, purga `done/` con más de `LOG_RETENCION_DIAS` y los temporales huérfanos de la cola.
+    escapar la excepción (gap 31). Los errores del barrido de huérfanos de `_reclamar_huerfanos`
+    (gap 52 de la revisión intento 3: antes `reclamar()` los descartaba) se vuelcan también en
+    `errores`, para que un envelope atascado en `processing/` sea visible en el JSON que leerán
+    `/doctor` y T-05. Un cerrojo de proceso NO BLOQUEANTE con presupuesto (`<dir>/.replay.lock`, gap
+    7/32) evita que dos `replay` concurrentes hagan `write()` en paralelo sobre el mismo proyecto,
+    sin colgar `SessionStart` si otro proceso ya lo tiene; si el propio fichero de cerrojo no se
+    puede ni crear/abrir (carpeta dañada, permisos), se distingue de «ocupado por otro replay» (gap
+    60 de la revisión intento 3): `bloqueado` queda en `False`, se avisa «cola dañada: <ruta>» y se
+    registra en `errores` en vez de decir «otro replay en curso» sin serlo. Al terminar, purga
+    `done/` con más de `LOG_RETENCION_DIAS` y los temporales huérfanos de la cola.
 
     Devuelve {"materializados", "dead_letter", "reintentados", "errores": [{"event_id", "causa"}],
-    "restantes", "avisos", "bloqueado"} (+ "recuperados_dead_letter" si se pidió
-    `reintentar_dead_letter`); nunca lanza (`cmd_replay` la envuelve igualmente, por si acaso)."""
+    "restantes", "restantes_processing", "en_backoff", "avisos", "bloqueado"} (+
+    "recuperados_dead_letter"/"liberados_backoff" si se pidieron); nunca lanza (`cmd_replay` la
+    envuelve igualmente, por si acaso)."""
     resumen = {"materializados": 0, "dead_letter": 0, "reintentados": 0, "errores": [], "restantes": 0,
-              "avisos": [], "bloqueado": False}
+              "restantes_processing": 0, "en_backoff": 0, "avisos": [], "bloqueado": False}
     ob = _outbox_mod()
     if ob is None:
         resumen["avisos"].append("outbox.py no disponible junto a journal.py: replay degradado")
@@ -587,26 +616,42 @@ def replay(root, budget_ms=None, max_n=None, ia="auto", reintentar_dead_letter=F
         ia_efectiva, git_timeout = "off", BUDGET_GIT_TIMEOUT
 
     inicio = time.monotonic()           # gap 32: el reloj arranca ANTES de intentar el cerrojo
-    with _cerrojo_presupuestado(os.path.join(dir_, ".replay"), deadline_ms=budget_ms) as conseguido:
+    with _cerrojo_presupuestado(os.path.join(dir_, ".replay"), deadline_ms=budget_ms) as (conseguido, dañada):
         if not conseguido:
-            resumen["bloqueado"] = True
-            resumen["avisos"].append("replay: no se pudo tomar el cerrojo dentro del presupuesto "
-                                     "(otro replay está en curso)")
+            ruta_lock = os.path.join(dir_, ".replay.lock")
+            if dañada:
+                # gap 60: distinto de «ocupado» — ni siquiera se pudo crear/abrir el fichero de
+                # cerrojo (p.ej. una carpeta plantada en su lugar): no es "otro replay en curso", es
+                # la cola la que está dañada, y decirlo como si fuera lo primero hace reintentar en
+                # bucle a `/doctor`/T-05 sin arreglar nada.
+                resumen["errores"].append({"event_id": None, "causa": f"cerrojo de replay dañado: {ruta_lock}"})
+                resumen["avisos"].append(f"cola dañada: {ruta_lock}")
+            else:
+                resumen["bloqueado"] = True
+                resumen["avisos"].append("replay: no se pudo tomar el cerrojo dentro del presupuesto "
+                                         "(otro replay está en curso)")
             return resumen
         if reintentar_dead_letter:
             with contextlib.suppress(Exception):
                 resumen["recuperados_dead_letter"] = ob.reintentar_dead_letter(dir_)
+        if reintentar_ahora:
+            with contextlib.suppress(Exception):
+                resumen["liberados_backoff"] = ob.reintentar_ahora(dir_)
         procesados = 0
         while True:
             if max_n is not None and procesados >= max_n:
                 break
             if budget_ms is not None and (time.monotonic() - inicio) * 1000 >= budget_ms:
                 break
+            barrido_errores = []
             try:
-                item = ob.reclamar(dir_)
+                item = ob.reclamar(dir_, errores=barrido_errores)
             except OSError as e:
                 resumen["errores"].append({"event_id": None, "causa": f"reclamar: {e}"})
                 break
+            finally:
+                for be in barrido_errores:               # gap 52: visibles aunque `reclamar` acabe lanzando
+                    resumen["errores"].append({"event_id": be.get("clave"), "causa": be.get("causa")})
             if item is None:
                 break
             procesados += 1
@@ -636,9 +681,21 @@ def replay(root, budget_ms=None, max_n=None, ia="auto", reintentar_dead_letter=F
                         _contar_resultado_reencolar(ob, resumen, ob.reencolar_o_dead_letter(item, causa2),
                                                     clave, str(e))
                     continue
-                ob.completar(item, {"cierre": "materializado", "session_id": sid,
-                                    "journal_path": os.path.relpath(p, root)})
-                resumen["materializados"] += 1
+                try:
+                    ob.completar(item, {"cierre": "materializado", "session_id": sid,
+                                        "journal_path": os.path.relpath(p, root)})
+                    resumen["materializados"] += 1
+                except OSError as e:
+                    # gap 59 de la revisión intento 3: `escribir_sesion` YA escribió la entrada (git,
+                    # bitácora) cuando `completar` falla (p.ej. ENOSPC en el manifiesto) — no es una
+                    # pérdida de datos, pero SÍ hay que decirlo en vez de dejar que parezca una más
+                    # (el envelope se reencola/dead-letter como cualquier fallo transitorio, y el
+                    # próximo intento cuenta bien `materializados` porque `escribir_sesion` es
+                    # idempotente por `session_id`).
+                    resumen["avisos"].append(f"entrada escrita pero manifiesto pendiente para {clave} "
+                                             f"({p}); se reintentará")
+                    _contar_resultado_reencolar(ob, resumen, ob.reencolar_o_dead_letter(item, f"completar falló tras escribir: {e}"),
+                                                clave, str(e))
             except OSError as e:
                 # error TRANSITORIO (disco lleno, permisos, handle abierto en Windows): reencola con
                 # intento+1 y backoff, o dead-letter al agotar MAX_INTENTOS (gap 2 Critical/26).
@@ -656,7 +713,13 @@ def replay(root, budget_ms=None, max_n=None, ia="auto", reintentar_dead_letter=F
             ob.purgar_antiguos(dir_, "done", LOG_RETENCION_DIAS)       # gap 22/33: done/ no crece para siempre
         with contextlib.suppress(Exception):
             ob.limpiar_tmp_huerfanos(dir_)                            # gap 3/13/35: temporales huérfanos
-        resumen["restantes"] = ob.estado(dir_).get("outbox", 0)
+        st = ob.estado(dir_)
+        resumen["restantes"] = st.get("outbox", 0)
+        resumen["restantes_processing"] = st.get("processing", 0)     # gap 52: un atascado en processing/ es visible
+        n_backoff, proxima = ob.en_backoff(dir_)
+        resumen["en_backoff"] = n_backoff
+        if n_backoff:
+            resumen["avisos"].append(f"{n_backoff} item(s) en backoff hasta {proxima}")   # gap 51
     return resumen
 
 
@@ -733,13 +796,19 @@ def _cerrojo_presupuestado(path, deadline_ms=None):
     `replay` en soltarlo, no 500 ms; `SessionStart` (T-05) se colgaría. Aquí el reloj arranca ANTES
     de intentar tomar el cerrojo. Sin `deadline_ms` (`replay` a demanda, sin `--budget-ms`),
     reintenta sin límite de tiempo (equivalente al `flock` bloqueante de antes, pero educado con el
-    presupuesto cuando lo hay). Cede `True`/`False` (si se consiguió): con `False` el llamador NO
-    debe tocar la cola — otro proceso la tiene."""
+    presupuesto cuando lo hay). Cede `(conseguido, dañada)`: con `conseguido=False` el llamador NO
+    debe tocar la cola — otro proceso la tiene (`dañada=False`) O el propio fichero de cerrojo no se
+    pudo ni crear/abrir (`dañada=True`, gap 60 de la revisión intento 3: antes esto se confundía con
+    «ocupado por otro replay», un diagnóstico falso que haría reintentar sin arreglar nada — una
+    carpeta plantada en vez de fichero, o permisos, no un `flock` contendido)."""
     inicio = time.monotonic()
     fd = None
     conseguido = False
-    with contextlib.suppress(OSError):
+    dañada = False
+    try:
         fd = os.open(path + ".lock", os.O_RDWR | os.O_CREAT, 0o600)
+    except OSError:
+        dañada = True
     if fd is not None:
         while True:
             if _bloquear_sin_esperar(fd):
@@ -749,7 +818,7 @@ def _cerrojo_presupuestado(path, deadline_ms=None):
                 break
             time.sleep(0.02)
     try:
-        yield conseguido
+        yield conseguido, dañada
     finally:
         if fd is not None:
             if conseguido:
@@ -1619,7 +1688,7 @@ def cmd_replay(a):
     atrapa y se informa como `errores`, en vez de que `main()` lo trague por stderr sin JSON."""
     try:
         r = replay(a.root, budget_ms=a.budget_ms, max_n=a.max, ia=a.ia,
-                  reintentar_dead_letter=a.reintentar_dead_letter)
+                  reintentar_dead_letter=a.reintentar_dead_letter, reintentar_ahora=a.reintentar_ahora)
     except Exception as e:  # noqa: BLE001 — replay() ya no debería lanzar, pero cmd_replay no traga sin JSON
         r = {"materializados": 0, "dead_letter": 0, "reintentados": 0,
              "errores": [{"event_id": None, "causa": str(e)}], "restantes": 0,
@@ -1705,6 +1774,8 @@ def main(argv=None):
                     help="auto = se apaga sola bajo presupuesto ajustado; no = nunca resumen IA")
     sp.add_argument("--reintentar-dead-letter", action="store_true",
                     help="antes de drenar, devuelve TODO dead-letter/ a outbox/ con el contador a 0 (gap 26)")
+    sp.add_argument("--reintentar-ahora", action="store_true",
+                    help="antes de drenar, pone a 0 el no_antes_de de TODO outbox/ (gap 51, complementa --reintentar-dead-letter)")
     sp.set_defaults(fn=cmd_replay)
 
     sp = sub.add_parser("draft", help="borrador determinista (JSON)")
