@@ -325,3 +325,6 @@ segundo orden sobre el delta de `T-fix3`, ningún criterio de aceptación origin
 Horas de `T-01-fix3b` medidas con `usage-meter start/close`: degradó a `fuente: estimado` (sin
 transcripciones en este entorno, igual que las pasadas anteriores) — horas a juicio marcadas
 `(estimado)` en T-01 y T-04.
+
+**Cierre del bucle de revisión del tramo 1 (orquestador, 2026-09-17):** verificación determinista propia tras `T-fix3b` — SIGKILL real dentro de `os.utime` durante `reclamar` → `.claiming` huérfano recuperado en el siguiente `reclamar` (`recuperados_claiming: 1`), materializado y con manifiesto en `done/`; manifiesto huérfano en `done/` no se reclama y se purga; 6 procesos × 40 items → 40 únicos, 40 en `done/`, 0 dobles entregas; mutante «quitar `_recuperar_claiming_huerfanos`» → 2 failed. **Sin gaps Critical/Important pendientes.** Deuda nombrada que hereda el tramo 2: gap 13 (T-05 invoca `replay`), gap 20 y `derivados_en`/`materializado_en` en observability (T-07), `M-01` Codex (T-08), guardarraíl del cerrojo probabilístico ≈ 93 % (fila 56), `estado()` con dos barridos de `outbox/` (rendimiento, sin gap). Las entradas de `docs/knowledge/` de esta iniciativa (`GOT-011`) las escribe T-08; `ADR-018` se acepta al cerrar knowledge-services (fila de su índice).
+
