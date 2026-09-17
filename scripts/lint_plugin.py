@@ -1430,8 +1430,10 @@ def lint_hooks(root):
                 if isinstance(h, dict) and h.get("type") == "command":
                     # Exec form (`command: bash`, `args: [...]`, session-end-durable-capture T-03):
                     # la ruta del script vive en `args`, no en `command`; se escanean los dos.
+                    # --8<-- hook_cmd_con_args (cmds desde command+args) — REPLICADO LITERAL en scripts/lint_plugin.py y en agent-kits/shared/doctor.py
                     args = h.get("args") if isinstance(h.get("args"), list) else []
                     cmds.append(" ".join([str(h.get("command", ""))] + [str(a) for a in args]))
+                    # --8<-- fin hook_cmd_con_args
         e, w = lint_hook_commands(root, cmds, f"hooks/hooks.json [{evento}]")
         errs.extend(e)
         warns.extend(w)

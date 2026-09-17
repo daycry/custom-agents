@@ -159,7 +159,8 @@ PENDIENTE_RE = re.compile(
     r"pending|next session|don'?t forget|remind me|to-?do:)(?!\w)", re.I)
 
 # --- resumen por IA, opt-in (T-13) ---
-IA_TIMEOUT = 25                    # s; el hook SessionEnd declara `timeout: 45` en hooks.json (máx. oficial 60)
+IA_TIMEOUT = 25                    # s; el hook SessionEnd declara `timeout: 5` en hooks.json (máx. oficial 60) —
+                                    # la IA nunca corre en el teardown (CA-01), solo en `replay`
 IA_MAX_CHARS = 6000                # de turnos que viajan en el prompt (los ÚLTIMOS: las decisiones llegan al final)
 IA_ENV_GUARD = "CUSTOM_AGENTS_JOURNAL_IA"   # =0 en el hijo: si algo re-entrara aquí, no vuelve a llamar al modelo
 
@@ -244,9 +245,19 @@ def _dev_sesion(root):
 # ------------------------------------------------------------------ captura durable de SessionEnd
 # (session-end-durable-capture T-03/T-04: envelope atómico en la outbox + materialización recuperable)
 
+def _schema_aceptados(version):
+    """{version, version - 1} ∩ ≥ 1: al subir `SCHEMA_VERSION` a 2, la 1 sigue aceptándose durante
+    esa versión (gap 17 de la revisión: con `SCHEMA_VERSION == 1` la rama N-1 era código muerto sin
+    test que la ejercitara)."""
+    return frozenset(v for v in (version, version - 1) if v >= 1)
+
+
 SCHEMA_VERSION = 1                 # versión del envelope; `replay` acepta esta Y la anterior (N y N-1)
-SCHEMA_ACEPTADOS = frozenset({SCHEMA_VERSION, SCHEMA_VERSION - 1}) if SCHEMA_VERSION > 1 else frozenset({SCHEMA_VERSION})
+SCHEMA_ACEPTADOS = _schema_aceptados(SCHEMA_VERSION)
 ENVELOPE_STR_MAX = 2000            # tope defensivo de cwd/transcript_path: el envelope entero ≤ 64 KiB (spec C-01)
+SESSION_ID_MAX = 200               # tope defensivo de session_id (gap 4 de la revisión: sin él, 200.000
+                                    # chars de `session_id` producían un envelope de ~196 KiB)
+ENVELOPE_MAX_BYTES = 64 * 1024     # CA de la spec: el envelope ≤ 64 KiB
 
 _OB = {"cargado": False, "mod": None}
 
@@ -259,20 +270,38 @@ def _outbox_mod():
     return _OB["mod"]
 
 
+_DIR_DEFAULT = os.path.join(".claude", "journal")
+
+
 def _journal_queue_dir(root):
     """Carpeta de la cola de outbox: `.claude/journal` por defecto; `dev.json` →
     `{"sesion": {"journal": {"dir": "..."}}}` la puede mover (el booleano `sesion.journal` sigue
-    valiendo para el opt-out, ver `_journal_activo`)."""
+    valiendo para el opt-out, ver `_journal_activo`). `dir` absoluto o con `..` se rechaza con
+    aviso y se usa el default (gap 23 de la revisión: sin contención, `purgar` haría `rmtree` fuera
+    del proyecto)."""
     jr = _dev_sesion(root).get("journal")
     d = jr.get("dir") if isinstance(jr, dict) else None
-    d = d if isinstance(d, str) and d.strip() else os.path.join(".claude", "journal")
+    if isinstance(d, str) and d.strip():
+        d = d.strip()
+        normal = os.path.normpath(d)
+        if os.path.isabs(d) or normal.split(os.sep)[0] == ".." or normal == "..":
+            print(f"journal: sesion.journal.dir {d!r} sale de la raíz del proyecto (absoluto o con "
+                  f"'..'); se usa el default {_DIR_DEFAULT}", file=sys.stderr)
+            d = _DIR_DEFAULT
+    else:
+        d = _DIR_DEFAULT
     return os.path.join(root, d)
 
 
 def _journal_activo(root):
-    """`dev.json` → `{"sesion": {"journal": false}}` apaga captura y replay; cualquier otra cosa
-    (ausente, `true`, objeto `{...}`) los deja activos — el booleano sigue valiendo (compatibilidad)."""
-    return _dev_sesion(root).get("journal") is not False
+    """`dev.json` → `{"sesion": {"journal": false}}` (o el objeto `{"activo": false}`) apaga
+    captura y replay; cualquier otra cosa (ausente, `true`, objeto sin `activo: false`) los deja
+    activos — el booleano sigue valiendo (compatibilidad; gap 12 de la revisión: el objeto también
+    tiene que poder apagar la captura)."""
+    v = _dev_sesion(root).get("journal")
+    if isinstance(v, dict):
+        return v.get("activo") is not False
+    return v is not False
 
 
 def _plugin_version():
@@ -295,29 +324,43 @@ def _event_id(session_id, reason, sequence, schema_version):
     return hashlib.sha256(clave.encode("utf-8")).hexdigest()[:16]
 
 
+def _contar_lineas_log(root, session_id):
+    """Nº de turnos ya capturados de la sesión (líneas del log crudo `.claude/session-prompts-<sid>.log`)
+    en el momento del cierre; 0 si el log no existe. Es la base de `sequence` (gap 6 de la
+    revisión): un `/resume` con un turno nuevo antes de volver a cerrar sube el contador, así que
+    el segundo cierre produce un `event_id` DISTINTO — CA-03 (dedupe del mismo cierre) se mantiene
+    porque repetir la captura SIN turnos nuevos entre medias no cambia `sequence`."""
+    try:
+        with open(log_path(root, session_id), encoding="utf-8", errors="replace") as fh:
+            return sum(1 for _ in fh)
+    except OSError:
+        return 0
+
+
 def capture_end(root, payload):
     """Lo que corre en el teardown de SessionEnd (CA-01 de la spec): escribe un envelope atómico en
     la outbox y NADA MÁS — no abre `transcript_path` (referencia no confiable), no ejecuta git, no
     llama a IA, no usa red. Devuelve la ruta escrita, o `None` si no se escribe (payload sin
-    `session_id`, `sesion.journal: false`, sin rastro del plugin, o `outbox.py` no disponible):
-    nunca lanza, nunca bloquea el cierre de la sesión."""
+    `session_id`, `sesion.journal: false`/`{"activo": false}`, sin rastro del plugin, o
+    `outbox.py` no disponible): nunca lanza, nunca bloquea el cierre de la sesión."""
     if not isinstance(payload, dict):
         return None
     sid = payload.get("session_id")
     if not isinstance(sid, str) or not sid.strip():
         return None
+    sid = sid[:SESSION_ID_MAX]
     if not proyecto_con_plugin(root) or not _journal_activo(root):
         return None
     ob = _outbox_mod()
     if ob is None:
         return None
     reason = str(payload.get("reason") or "manual")[:200]
-    sequence = 0                    # MVP: retries del mismo (session_id, reason) deduplican (CA-03);
-                                     # reaperturas legítimas del mismo par quedan para cuando haya evidencia
+    sequence = _contar_lineas_log(root, sid)   # gap 6: distingue dos cierres legítimos de la misma sesión
     envelope = {
         "schema_version": SCHEMA_VERSION,
         "event_id": _event_id(sid, reason, sequence, SCHEMA_VERSION),
         "session_id": sid,
+        "hook_event_name": str(payload.get("hook_event_name") or "SessionEnd")[:64],
         "reason": reason,
         "cwd": str(payload.get("cwd") or "")[:ENVELOPE_STR_MAX],
         "transcript_path": str(payload.get("transcript_path") or "")[:ENVELOPE_STR_MAX],
@@ -325,7 +368,37 @@ def capture_end(root, payload):
         "plugin_version": _plugin_version(),
         "sequence": sequence,
     }
-    return ob.escribir(_journal_queue_dir(root), envelope["event_id"], envelope)
+    dir_ = _journal_queue_dir(root)
+    _asegurar_gitignore_local(dir_)         # gap 9: nunca se cuela en `git status` del consumidor
+    return ob.escribir(dir_, envelope["event_id"], envelope)
+
+
+def _asegurar_gitignore_local(dirpath):
+    """`.gitignore` DENTRO de la propia carpeta de la cola (ignora todo salvo sí mismo): funciona
+    aunque `sesion.journal.dir` mueva la cola fuera de `.claude/` (gap 9 de la revisión: sin esto,
+    los envelopes se cuelan en `git status` y en `ficheros_tocados`, y se pueden commitear)."""
+    try:
+        os.makedirs(dirpath, exist_ok=True)
+        with contextlib.suppress(OSError):
+            os.chmod(dirpath, 0o700)
+        gi = os.path.join(dirpath, ".gitignore")
+        if not os.path.isfile(gi):
+            with open(gi, "w", encoding="utf-8") as fh:
+                fh.write("# custom-agents: outbox del journal, nunca versionar (session-end-durable-capture)\n*\n!.gitignore\n")
+    except OSError:
+        pass
+
+
+def _transcript_seguro(path, session_id):
+    """`transcript_path` solo se usa si es ruta absoluta, existe, termina en `.jsonl` y su
+    `basename` es `<session_id>.jsonl` (así nombra Claude Code las transcripciones) — gap 15 de la
+    revisión (C2 · CWE-73/22/200): un envelope plantado no puede hacer que `replay` lea (y vuelque
+    en un fichero versionado) el transcript de OTRO proyecto."""
+    if not path or not session_id or not os.path.isabs(path) or not path.endswith(".jsonl"):
+        return None
+    if os.path.basename(path) != f"{session_id}.jsonl":
+        return None
+    return path if os.path.isfile(path) else None
 
 
 def _validar_envelope(payload):
@@ -341,45 +414,89 @@ def _validar_envelope(payload):
     return None
 
 
-def replay(root, budget_ms=None, max_n=None):
+BUDGET_MS_AJUSTADO = 5000            # bajo esto, `replay` fuerza `ia=off` y un timeout de git más corto (gap 14)
+BUDGET_GIT_TIMEOUT = 2                # s: timeout de git bajo presupuesto ajustado
+
+
+def replay(root, budget_ms=None, max_n=None, ia="auto"):
     """Reclama y materializa envelopes pendientes de la outbox (`outbox/` → `processing/` →
     `done/`|`dead-letter/`), reutilizando `escribir_sesion` (git, log de prompts, resumen IA
     opt-in) SIN duplicar esa lógica (CA-05: nunca inventa contenido). `budget_ms`/`max_n` acotan el
     trabajo (los usa `SessionStart`, T-05); sin ellos, drena toda la cola pendiente («a demanda»).
-    Devuelve {"materializados", "dead_letter", "restantes", "avisos"}; nunca lanza."""
-    resumen = {"materializados": 0, "dead_letter": 0, "restantes": 0, "avisos": []}
+    `ia`: `"auto"` (por defecto: se apaga sola si `budget_ms` < BUDGET_MS_AJUSTADO) o `"no"` (nunca
+    resumen IA, cualquiera que sea el presupuesto — gap 14 de la revisión).
+
+    Cada item corre en su propio `try/except` (gap 2 Critical): un error TRANSITORIO (`OSError`:
+    disco lleno, permisos) reencola el item con el contador de intentos, o lo manda a dead-letter
+    al agotarlos; cualquier otro error (esquema, JSON, lo que sea) va a dead-letter directo y NO
+    aborta el resto del drenaje. Un cerrojo de proceso (`<dir>/.replay.lock`, gap 7) evita que dos
+    `replay` concurrentes hagan `write()` en paralelo sobre el mismo proyecto (dos sesiones podían
+    perder su entrada por elegir el mismo nombre de fichero a la vez). Al terminar, purga `done/`
+    con más de `LOG_RETENCION_DIAS` y los temporales huérfanos de la cola.
+
+    Devuelve {"materializados", "dead_letter", "reintentados", "errores": [{"event_id", "causa"}],
+    "restantes", "avisos"}; nunca lanza (`cmd_replay` la envuelve igualmente, por si acaso)."""
+    resumen = {"materializados": 0, "dead_letter": 0, "reintentados": 0, "errores": [], "restantes": 0, "avisos": []}
     ob = _outbox_mod()
     if ob is None:
         resumen["avisos"].append("outbox.py no disponible junto a journal.py: replay degradado")
         return resumen
     dir_ = _journal_queue_dir(root)
-    inicio = time.monotonic()
-    procesados = 0
-    while True:
-        if max_n is not None and procesados >= max_n:
-            break
-        if budget_ms is not None and (time.monotonic() - inicio) * 1000 >= budget_ms:
-            break
-        item = ob.reclamar(dir_)
-        if item is None:
-            break
-        procesados += 1
-        causa = _validar_envelope(item.get("payload"))
-        if causa:
-            ob.dead_letter(item, causa)
-            resumen["dead_letter"] += 1
-            continue
-        env = item["payload"]
-        p, _e = escribir_sesion(root, env["session_id"], reason=env.get("reason"),
-                                transcript=(env.get("transcript_path") or None), fuente="hook")
-        if p is None:
-            ob.dead_letter(item, "sin rastro del plugin al materializar (docs/roadmap, docs/knowledge o .claude/dev.json)")
-            resumen["dead_letter"] += 1
-            continue
-        ob.completar(item, {"cierre": "materializado", "session_id": env["session_id"],
-                            "journal_path": os.path.relpath(p, root)})
-        resumen["materializados"] += 1
-    resumen["restantes"] = ob.estado(dir_).get("outbox", 0)
+    os.makedirs(dir_, exist_ok=True)
+    ia_efectiva, git_timeout = "auto", GIT_TIMEOUT
+    if ia == "no" or (budget_ms is not None and budget_ms < BUDGET_MS_AJUSTADO):
+        ia_efectiva, git_timeout = "off", BUDGET_GIT_TIMEOUT
+
+    with _cerrojo(os.path.join(dir_, ".replay.lock")):
+        inicio = time.monotonic()
+        procesados = 0
+        while True:
+            if max_n is not None and procesados >= max_n:
+                break
+            if budget_ms is not None and (time.monotonic() - inicio) * 1000 >= budget_ms:
+                break
+            item = ob.reclamar(dir_)
+            if item is None:
+                break
+            procesados += 1
+            clave = item.get("clave")
+            try:
+                causa = _validar_envelope(item.get("payload"))
+                if causa:
+                    ob.dead_letter(item, causa)
+                    resumen["dead_letter"] += 1
+                    continue
+                env = item["payload"]
+                sid = env["session_id"]
+                transcript = _transcript_seguro(env.get("transcript_path") or None, sid)
+                p, _e = escribir_sesion(root, sid, reason=env.get("reason"), transcript=transcript,
+                                        fuente="hook", captured_at=env.get("captured_at"),
+                                        ia=ia_efectiva, git_timeout=git_timeout)
+                if p is None:
+                    ob.dead_letter(item, "sin rastro del plugin al materializar (docs/roadmap, docs/knowledge o .claude/dev.json)")
+                    resumen["dead_letter"] += 1
+                    continue
+                ob.completar(item, {"cierre": "materializado", "session_id": sid,
+                                    "journal_path": os.path.relpath(p, root)})
+                resumen["materializados"] += 1
+            except OSError as e:
+                # error TRANSITORIO (disco lleno, permisos, handle abierto en Windows): reencola con
+                # intento+1, o dead-letter al agotar MAX_INTENTOS (gap 2 Critical).
+                if ob.reencolar_o_dead_letter(item, f"error transitorio materializando: {e}"):
+                    resumen["reintentados"] += 1
+                else:
+                    resumen["dead_letter"] += 1
+                resumen["errores"].append({"event_id": clave, "causa": str(e)})
+            except Exception as e:  # noqa: BLE001 — error de esquema/materialización: dead-letter, sigue con el resto
+                with contextlib.suppress(Exception):
+                    ob.dead_letter(item, f"error materializando: {e}")
+                resumen["dead_letter"] += 1
+                resumen["errores"].append({"event_id": clave, "causa": str(e)})
+        with contextlib.suppress(Exception):
+            ob.purgar_antiguos(dir_, "done", LOG_RETENCION_DIAS)       # gap 22: done/ no crece para siempre
+        with contextlib.suppress(Exception):
+            ob.limpiar_tmp_huerfanos(dir_)                            # gap 3/13: temporales huérfanos
+        resumen["restantes"] = ob.estado(dir_).get("outbox", 0)
     return resumen
 
 
@@ -605,11 +722,13 @@ def pendientes_de(turnos):
 
 # ------------------------------------------------------------------ git
 
-def _git(root, *args):
-    """stdout de git o None si git no está / no es repo / falla (nunca lanza)."""
+def _git(root, *args, timeout=GIT_TIMEOUT):
+    """stdout de git o None si git no está / no es repo / falla (nunca lanza). `timeout` lo acota
+    `replay` bajo presupuesto (gap 14 de la revisión: `--budget-ms` solo se miraba antes de
+    reclamar, y un item podía costar 3×git + IA sin que `SessionStart` lo notara)."""
     try:
         r = subprocess.run(["git", "-C", root, *args], capture_output=True, text=True, encoding="utf-8", errors="replace",
-                           timeout=GIT_TIMEOUT, check=False)
+                           timeout=timeout, check=False)
     except (OSError, subprocess.SubprocessError):
         return None
     if r.returncode != 0:
@@ -621,9 +740,9 @@ def _es_journal(path):
     return path.replace("\\", "/").lstrip("./").startswith(JOURNAL_REL.replace(os.sep, "/") + "/")
 
 
-def ficheros_tocados(root, avisos):
+def ficheros_tocados(root, avisos, timeout=GIT_TIMEOUT):
     """Top N de ficheros con cambios (sin comitear: status; + diff vs HEAD), con su marca."""
-    status = _git(root, "status", "--porcelain", "--untracked-files=all")
+    status = _git(root, "status", "--porcelain", "--untracked-files=all", timeout=timeout)
     if status is None:
         avisos.append("git no disponible o no es un repositorio: sin ficheros tocados")
         return []
@@ -639,7 +758,7 @@ def ficheros_tocados(root, avisos):
         if path and path not in vistos:
             vistos.add(path)
             out.append({"path": path, "cambio": marca})
-    diff = _git(root, "diff", "--name-only", "HEAD") or ""
+    diff = _git(root, "diff", "--name-only", "HEAD", timeout=timeout) or ""
     for path in diff.splitlines():
         path = path.strip()
         if path and path not in vistos and not _es_journal(path):
@@ -648,14 +767,14 @@ def ficheros_tocados(root, avisos):
     return out[:TOP_FICHEROS]
 
 
-def tareas_cambiadas(root, avisos):
+def tareas_cambiadas(root, avisos, timeout=GIT_TIMEOUT):
     """Tareas cuyo estado difiere entre el tasks.md de trabajo y HEAD, para cada ledger
     modificado del roadmap (`T-01: borrador → en-progreso`). Reutiliza parse_ledger."""
     ll = _load_module("ledger_lint", "ledger-lint.py")
     if ll is None:
         avisos.append("ledger-lint.py no está junto a journal.py: sin tareas cambiadas")
         return []
-    status = _git(root, "status", "--porcelain")
+    status = _git(root, "status", "--porcelain", timeout=timeout)
     if status is None:
         return []
     out = []
@@ -664,7 +783,7 @@ def tareas_cambiadas(root, avisos):
         if not re.search(r"docs/roadmap/[^/]+/tasks\.md$", path.replace("\\", "/")):
             continue
         marca = line[:2].strip()
-        antes = _git(root, "show", f"HEAD:{path}") if "?" not in marca else ""
+        antes = _git(root, "show", f"HEAD:{path}", timeout=timeout) if "?" not in marca else ""
         try:
             ahora = open(os.path.join(root, path), encoding="utf-8-sig", errors="replace").read()
         except OSError:
@@ -765,17 +884,29 @@ def _recorta(texto, max_chars=160):
     return texto if len(texto) <= max_chars else texto[:max_chars - 1].rstrip() + "…"
 
 
-def draft(root, session_id=None, transcript=None, reason=None, enrich=None):
+def draft(root, session_id=None, transcript=None, reason=None, enrich=None, captured_at=None, git_timeout=GIT_TIMEOUT):
+    """`captured_at` (ISO `AAAA-MM-DDTHH:MM:SSZ`, del envelope de `capture-end`): si se da, la
+    entrada usa la FECHA DEL CIERRE (nombre de fichero y frontmatter), no la de hoy — `replay`
+    puede correr días después (gap 8 de la revisión). `git_timeout` acota `_git` bajo presupuesto
+    (gap 14: `replay --budget-ms` bajo 5000 ms fuerza un timeout de git más corto)."""
     avisos = []
-    fecha = hoy()
+    fecha = str(captured_at)[:10] if captured_at else hoy()
     iniciativa = iniciativa_activa(root) or "n/a"
     enr = cargar_enrich(enrich, avisos)
     turnos = capturas(root, session_id)
     if enr.get("resumen"):
         resumen, resumen_por = redactar(enr["resumen"]), "manual"
     else:
-        resumen = (_recorta(turnos[0]) if turnos else None) or primer_prompt(transcript) or f"Sesión sobre {iniciativa}"
+        del_log = _recorta(turnos[0]) if turnos else None
+        del_transcript = None if del_log else primer_prompt(transcript)
+        resumen = del_log or del_transcript or f"Sesión sobre {iniciativa}"
         resumen_por = "determinista"
+        if not del_log and not del_transcript:
+            # CA-05: nunca inventa contenido — sin log de prompts NI transcript legible, se declara
+            # la carencia en vez de dejar que el genérico «Sesión sobre X» pase desapercibido
+            # (gap 17 de la revisión: la rama de «declara la carencia» no tenía test).
+            avisos.append("resumen: sin turnos capturados ni transcript legible — usando "
+                          f"«Sesión sobre {iniciativa}» (CA-05: no se inventa contenido)")
     return {
         "fecha": fecha,
         "session_id": session_id or "manual",
@@ -787,8 +918,8 @@ def draft(root, session_id=None, transcript=None, reason=None, enrich=None):
         "decisiones": [redactar(x) for x in _lista(enr.get("decisiones"))] or decisiones_de(turnos),   # el --enrich manda solo si trae algo
         "pendientes": [redactar(x) for x in _lista(enr.get("pendientes"))] or pendientes_de(turnos),
         "manual": [k for k in ("resumen", "decisiones", "pendientes") if _lista(enr.get(k))],   # qué trajo --enrich (no se renderiza)
-        "ficheros_tocados": ficheros_tocados(root, avisos),
-        "tareas_cambiadas": tareas_cambiadas(root, avisos),
+        "ficheros_tocados": ficheros_tocados(root, avisos, timeout=git_timeout),
+        "tareas_cambiadas": tareas_cambiadas(root, avisos, timeout=git_timeout),
         "marcadores_cerrados": marcadores_cerrados(root, fecha),
         "avisos": avisos,
     }
@@ -822,6 +953,13 @@ def render(e, fuente):
           f"resumen: {_yaml_str(e['resumen'])}", f"fuente: {fuente}",
           f"cierre: {e.get('cierre') or 'materializado'}",   # materializado · recuperado_sin_cierre (T-05)
           f"resumen_por: {e.get('resumen_por') or 'determinista'}", f"turnos: {_entero(e.get('turnos'))}"]
+    if e.get("materializado_en"):
+        fm.append(f"materializado_en: {e['materializado_en']}")
+    if e.get("derivados_en"):
+        # `ficheros_tocados`/`tareas_cambiadas` se calculan con git EN ESE MOMENTO, nunca en el
+        # teardown (CA-01 prohíbe git ahí): «replay» = calculados al materializar, no al cerrar
+        # (gap 8 de la revisión; limitación aceptada por diseño, ver design.md).
+        fm.append(f"derivados_en: {e['derivados_en']}")
     for k in ("decisiones", "pendientes"):
         fm.append(f"{k}:" + ("" if e[k] else " []"))
         fm += [f"  - {_yaml_str(x)}" for x in e[k]]
@@ -1103,13 +1241,18 @@ def resumen_ia(turnos, borrador, runner=None, which=None, environ=None):
 
 
 def escribir_sesion(root, session_id, reason=None, transcript=None, fuente="hook", enrich=None, ia="auto",
-                    runner=None, which=None, environ=None, entrada=None):
-    """Lo que hace el hook SessionEnd: entrada DETERMINISTA primero (ya está en disco aunque lo que sigue
-    muera por timeout) y, si toca IA (`on`, o `auto` + dev.json `sesion.resumen: true`), la MISMA entrada
-    re-escrita con el resumen (`resumen_por: ia`) o con el motivo de la degradación en `avisos`.
+                    runner=None, which=None, environ=None, entrada=None, captured_at=None, git_timeout=GIT_TIMEOUT):
+    """Lo que hace el hook SessionEnd (vía `replay`, session-end-durable-capture T-04): entrada
+    DETERMINISTA primero (ya está en disco aunque lo que sigue muera por timeout) y, si toca IA
+    (`on`, o `auto` + dev.json `sesion.resumen: true`; `off` la desactiva siempre — `replay` bajo
+    presupuesto ajustado, gap 14 de la revisión), la MISMA entrada re-escrita con el resumen
+    (`resumen_por: ia`) o con el motivo de la degradación en `avisos`.
     `entrada` (opcional): una entrada ya construida (`write --draft`) en vez de recalcular el borrador.
-    Devuelve (ruta | None, entrada)."""
-    e = entrada if entrada is not None else draft(root, session_id, transcript, reason, enrich)
+    `captured_at`/`git_timeout`: ver `draft`. Devuelve (ruta | None, entrada)."""
+    e = entrada if entrada is not None else draft(root, session_id, transcript, reason, enrich,
+                                                   captured_at=captured_at, git_timeout=git_timeout)
+    e.setdefault("materializado_en", _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"))
+    e.setdefault("derivados_en", "replay" if fuente == "hook" else fuente)
     manual = set(e.get("manual") or [])
     p = write(root, e, fuente)
     if p is None:
@@ -1237,7 +1380,14 @@ def cmd_capture_end(a):
 
 
 def cmd_replay(a):
-    r = replay(a.root, budget_ms=a.budget_ms, max_n=a.max)
+    """SIEMPRE imprime su JSON (gap 2 Critical): aunque `replay()` lanzara algo no previsto, aquí se
+    atrapa y se informa como `errores`, en vez de que `main()` lo trague por stderr sin JSON."""
+    try:
+        r = replay(a.root, budget_ms=a.budget_ms, max_n=a.max, ia=a.ia)
+    except Exception as e:  # noqa: BLE001 — replay() ya no debería lanzar, pero cmd_replay no traga sin JSON
+        r = {"materializados": 0, "dead_letter": 0, "reintentados": 0,
+             "errores": [{"event_id": None, "causa": str(e)}], "restantes": 0,
+             "avisos": [f"replay: excepción no controlada: {e}"]}
     print(json.dumps(r, ensure_ascii=False))
     return 0
 
@@ -1315,6 +1465,8 @@ def main(argv=None):
     comunes(sp)
     sp.add_argument("--budget-ms", type=int, default=None, help="corta el drenaje al superar este presupuesto (SessionStart, T-05)")
     sp.add_argument("--max", type=int, default=None, help="máximo de envelopes a procesar en esta llamada")
+    sp.add_argument("--ia", choices=("auto", "no"), default="auto",
+                    help="auto = se apaga sola bajo presupuesto ajustado; no = nunca resumen IA")
     sp.set_defaults(fn=cmd_replay)
 
     sp = sub.add_parser("draft", help="borrador determinista (JSON)")

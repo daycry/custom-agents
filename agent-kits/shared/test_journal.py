@@ -1006,7 +1006,7 @@ def test_replay_materializa_reutilizando_escribir_sesion(tmp_path):
     journal.capture_end(str(proj), session_end_payload(proj))
     assert len(outbox_pendientes(proj)) == 1
     r = journal.replay(str(proj))
-    assert r == {"materializados": 1, "dead_letter": 0, "restantes": 0, "avisos": []}
+    assert r == {"materializados": 1, "dead_letter": 0, "reintentados": 0, "errores": [], "restantes": 0, "avisos": []}
     entradas = journal.entradas(str(proj))
     assert len(entradas) == 1
     assert entradas[0]["session_id"] == "s1" and entradas[0].get("cierre") == "materializado"
@@ -1020,7 +1020,7 @@ def test_replay_es_idempotente_sobre_el_mismo_evento(tmp_path):
     # el mismo evento vuelve a capturarse (retry del hook): ya está en done/, no crea un envelope nuevo
     journal.capture_end(str(proj), session_end_payload(proj))
     assert outbox_pendientes(proj) == []
-    assert journal.replay(str(proj)) == {"materializados": 0, "dead_letter": 0, "restantes": 0, "avisos": []}
+    assert journal.replay(str(proj)) == {"materializados": 0, "dead_letter": 0, "reintentados": 0, "errores": [], "restantes": 0, "avisos": []}
     assert len(journal.entradas(str(proj))) == 1
 
 
@@ -1078,3 +1078,176 @@ def test_cmd_replay_imprime_json_por_stdout(tmp_path):
     assert rc == 0 and err == ""
     r = json.loads(out)
     assert r["materializados"] == 1
+
+
+# ------------------------------------------------------------------ revisión intento 1 (gaps 4/6/7/8/9/12/14/15/23)
+
+def test_capture_end_session_id_gigante_no_rompe_el_tope_de_64kib(tmp_path):
+    """Gap 4: sin tope, un `session_id` de 200.000 chars produce un envelope de ~196 KiB. Se prueba
+    que el tope de verdad actúa (con el `session_id` crudo el envelope excedería 64 KiB) Y que el
+    resultado se queda dentro."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    sid_gigante = "s" * 200_000
+    payload = session_end_payload(proj, sid=sid_gigante)
+    crudo = json.dumps({**payload, "session_id": sid_gigante}, ensure_ascii=False).encode("utf-8")
+    assert len(crudo) > 64 * 1024                       # sin tope, ya se pasaría del límite
+    p = journal.capture_end(str(proj), payload)
+    assert p is not None
+    contenido = open(p, encoding="utf-8").read().encode("utf-8")
+    assert len(contenido) <= 64 * 1024
+    env = json.loads(contenido)
+    assert len(env["session_id"]) == journal.SESSION_ID_MAX
+
+
+def test_capture_end_incluye_hook_event_name(tmp_path):
+    """Gap 24: el envelope no guardaba `hook_event_name` pese a que `design.md` lo lista."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    p = journal.capture_end(str(proj), session_end_payload(proj))
+    env = json.loads(open(p, encoding="utf-8").read())
+    assert env["hook_event_name"] == "SessionEnd"
+
+
+def test_capture_end_dos_cierres_de_resume_generan_dos_envelopes(tmp_path):
+    """Gap 6 (A4, C-b): `sequence` fijo a 0 colapsaba un `/resume` con un turno nuevo antes de
+    volver a cerrar. Ahora `sequence` cuenta las líneas del log de prompts en el momento del
+    cierre: dos cierres con un turno capturado entre medias producen dos envelopes con `sequence`
+    distinto, y `replay` actualiza la MISMA entrada (write es idempotente por session_id)."""
+    proj, led = proyecto(tmp_path)
+    e1 = journal.capture_end(str(proj), session_end_payload(proj))
+    env1 = json.loads(open(e1, encoding="utf-8").read())
+    assert env1["sequence"] == 0
+    journal.replay(str(proj))
+    assert len(journal.entradas(str(proj))) == 1
+    # /resume + un turno nuevo + cierre otra vez
+    journal.capture(str(proj), {"session_id": "s1", "prompt": "decidimos seguir con SQLite"})
+    e2 = journal.capture_end(str(proj), session_end_payload(proj))
+    assert e2 is not None
+    env2 = json.loads(open(e2, encoding="utf-8").read())
+    assert env2["sequence"] == 1 and env2["event_id"] != env1["event_id"]
+    r = journal.replay(str(proj))
+    assert r["materializados"] == 1
+    assert len(journal.entradas(str(proj))) == 1                     # sigue siendo UNA entrada (misma sesión)
+
+
+def test_replay_dos_procesos_concurrentes_no_pierden_entradas(tmp_path):
+    """Gap 7: dos `replay` concurrentes sin cerrojo podían elegir el mismo nombre de fichero para
+    dos sesiones distintas y una pisaba a la otra."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    for i in range(12):
+        journal.capture_end(str(proj), session_end_payload(proj, sid=f"s{i}"))
+    with ThreadPoolExecutor(max_workers=4) as ex:
+        futs = [ex.submit(journal.replay, str(proj)) for _ in range(4)]
+        resultados = [f.result() for f in futs]
+    total_materializados = sum(r["materializados"] for r in resultados)
+    assert total_materializados == 12
+    assert len(journal.entradas(str(proj))) == 12
+
+
+def test_replay_usa_captured_at_como_fecha_y_marca_derivados_en_replay(tmp_path):
+    """Gap 8: la entrada debe usar la fecha del CIERRE (`captured_at`), no la de hoy; los campos
+    derivados de git se marcan `derivados_en: replay` (limitación aceptada por diseño)."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    payload = session_end_payload(proj)
+    journal.capture_end(str(proj), payload)
+    outbox_dir = proj / ".claude" / "journal" / "outbox"
+    fn = os.listdir(outbox_dir)[0]
+    env = json.loads((outbox_dir / fn).read_text(encoding="utf-8"))
+    env["captured_at"] = "2020-01-01T00:00:00Z"
+    (outbox_dir / fn).write_text(json.dumps(env), encoding="utf-8")
+    journal.replay(str(proj))
+    e = journal.entradas(str(proj))[0]
+    assert e["fecha"] == "2020-01-01"
+    texto = open(e["_path"], encoding="utf-8").read()
+    assert "derivados_en: replay" in texto
+    assert "materializado_en:" in texto
+
+
+def test_asegurar_gitignore_local_evita_que_la_cola_se_cuele_en_git(tmp_path):
+    """Gap 9 (B5/C1 · CWE-538/732): la cola no debe colarse en `git status` del proyecto
+    consumidor ni en `ficheros_tocados` de su propia entrada."""
+    proj, led = proyecto(tmp_path, con_git=True)
+    cambia_tarea(led)
+    journal.capture_end(str(proj), session_end_payload(proj))
+    dir_ = journal._journal_queue_dir(str(proj))
+    gi = os.path.join(dir_, ".gitignore")
+    assert os.path.isfile(gi)
+    if GIT:
+        r = subprocess.run([GIT, "-C", str(proj), "status", "--porcelain"], capture_output=True, text=True,
+                           encoding="utf-8", errors="replace")
+        assert "journal/outbox" not in r.stdout and ".claude/journal" not in r.stdout
+
+
+def test_journal_activo_objeto_con_activo_false_es_opt_out(tmp_path):
+    """Gap 12 (B8): `sesion.journal.{activo: false}` (forma objeto de `design.md`) no apagaba la
+    captura porque `_journal_activo` solo miraba `is not False` sobre el booleano."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    (proj / ".claude" / "dev.json").write_text(json.dumps({"sesion": {"journal": {"activo": False}}}), encoding="utf-8")
+    assert journal.capture_end(str(proj), session_end_payload(proj)) is None
+
+
+def test_replay_bajo_presupuesto_ajustado_no_llama_a_la_ia(tmp_path, monkeypatch):
+    """Gap 14: `--budget-ms` solo se miraba antes de reclamar; con IA activada por `dev.json`, un
+    `replay` con presupuesto pequeño no debe invocarla (test con dientes: un `claude` doble que
+    tardaría 5s si se invocara)."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    (proj / ".claude" / "dev.json").write_text(json.dumps({"sesion": {"resumen": True}}), encoding="utf-8")
+    run("capture", root=proj, stdin=json.dumps({"session_id": "s1", "prompt": "decidimos algo"}))
+    journal.capture_end(str(proj), session_end_payload(proj))
+    llamadas = []
+
+    def which_falso(nombre):
+        return "/usr/bin/claude" if nombre == "claude" else shutil.which(nombre)
+
+    def runner_falso(*a, **k):
+        llamadas.append(a)
+        raise AssertionError("no debería invocarse claude bajo presupuesto ajustado")
+
+    # inyecta los stubs monkeypacheando escribir_sesion vía el módulo (replay los pasa por dentro)
+    monkeypatch.setattr(journal, "resumen_ia",
+                        lambda *a, **k: (_ for _ in ()).throw(AssertionError("resumen_ia no debe llamarse")))
+    r = journal.replay(str(proj), budget_ms=100)
+    assert r["materializados"] == 1
+    assert llamadas == []
+
+
+def test_replay_transcript_ajeno_o_relativo_se_ignora(tmp_path):
+    """Gap 15 (C2 · CWE-73/22/200): un `transcript_path` que no es absoluto, no termina en
+    `.jsonl`, o cuyo `basename` no coincide con `<session_id>.jsonl` se ignora — nunca se abre."""
+    ajeno = tmp_path / "otro-proyecto" / "otra-sesion.jsonl"
+    ajeno.parent.mkdir(parents=True)
+    ajeno.write_text('{"type": "user", "message": {"content": "secreto de otro proyecto"}}\n', encoding="utf-8")
+    proj, _ = proyecto(tmp_path, con_git=False)
+    payload = {"hook_event_name": "SessionEnd", "session_id": "s1", "reason": "other",
+              "cwd": str(proj), "transcript_path": str(ajeno)}
+    journal.capture_end(str(proj), payload)
+    journal.replay(str(proj))
+    e = journal.entradas(str(proj))[0]
+    assert "secreto de otro proyecto" not in e.get("resumen", "")
+    assert e["resumen"].startswith("Sesión sobre")
+
+
+def test_journal_queue_dir_rechaza_absoluto_y_dotdot(tmp_path, capsys):
+    """Gap 23 (C3 · CWE-22): `journal.dir` absoluto o con `..` saldría de la raíz del proyecto y
+    `purgar` haría `rmtree` fuera de ella; se rechaza con aviso y se usa el default."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    (proj / ".claude" / "dev.json").write_text(json.dumps({"sesion": {"journal": {"dir": "/tmp/fuera"}}}), encoding="utf-8")
+    d = journal._journal_queue_dir(str(proj))
+    assert d == os.path.join(str(proj), ".claude", "journal")
+    (proj / ".claude" / "dev.json").write_text(json.dumps({"sesion": {"journal": {"dir": "../../fuera"}}}), encoding="utf-8")
+    d2 = journal._journal_queue_dir(str(proj))
+    assert d2 == os.path.join(str(proj), ".claude", "journal")
+
+
+def test_schema_aceptados_admite_n_y_n_menos_1(tmp_path):
+    """Gap 17: `SCHEMA_ACEPTADOS == {N, N-1} ∩ ≥ 1` — con `SCHEMA_VERSION == 1` la rama N-1 era
+    código muerto sin test; aquí se ejercita también el caso N == 2."""
+    assert journal._schema_aceptados(1) == {1}
+    assert journal._schema_aceptados(2) == {1, 2}
+
+
+def test_draft_sin_turnos_ni_transcript_declara_la_carencia(tmp_path):
+    """Gap 17 (CA-05): sin log de prompts NI transcript legible, la entrada declara la carencia en
+    `avisos` en vez de un «Sesión sobre X» silencioso."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    d = journal.draft(str(proj), session_id="s1", transcript=None, reason="other")
+    assert any("sin turnos capturados" in a for a in d["avisos"])

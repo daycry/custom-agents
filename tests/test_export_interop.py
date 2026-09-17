@@ -133,6 +133,18 @@ def test_codex_hooks_solo_eventos_que_dispara():
         assert "compact" not in grupo.get("matcher", ""), "`compact` no es un source de Codex"
 
 
+def test_codex_session_end_va_en_shell_form_no_exec_form():
+    """Gap 16 de la revisión intento 1 (C5 · CWE-78): Codex no tiene el contrato de `args` (exec
+    form) verificado como Claude Code; `SessionEnd` (declarado en exec form en `hooks/hooks.json`)
+    se traduce a shell form (`bash "<ruta>"`) para la interop, sin `args` sueltos."""
+    src = json.loads(leer("hooks/hooks.json"))["hooks"]["SessionEnd"][0]["hooks"][0]
+    assert src.get("args"), "hooks/hooks.json ya no declara SessionEnd en exec form: revisa este test"
+    h = json.loads(leer("interop/codex/hooks.json"))["hooks"]["SessionEnd"][0]["hooks"][0]
+    assert "args" not in h
+    assert h["command"] == 'bash "%s"' % src["args"][0]
+    assert h.get("timeout") == src.get("timeout")
+
+
 def test_opencode_agentes_frontmatter():
     """Frontmatter con `description`, `mode` y `permission`; el cuerpo conserva el prompt."""
     base = os.path.join(ROOT, "interop", "opencode", "agents")
