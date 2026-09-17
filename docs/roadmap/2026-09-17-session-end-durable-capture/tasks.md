@@ -16,16 +16,16 @@ verificacion: obligatoria
 
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervision (real/est) | Tokens (real/est) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| Fase 1 - Módulos compartidos | 2 | 2 | 100% | 0.55 / 2.5h | 0.42 / 0.8h | 0 / 0.2h | 0 / 45k |
-| Fase 2 - Captura y materialización | 2 | 2 | 100% | 2.1 / 5.5h | 1.8 / 1.6h | 0 / 0.4h | 0 / 85k |
+| Fase 1 - Módulos compartidos | 1 | 2 | 50% | 0.55 / 2.5h | 0.42 / 0.8h | 0 / 0.2h | 0 / 45k |
+| Fase 2 - Captura y materialización | 0 | 2 | 0% | 2.1 / 5.5h | 1.8 / 1.6h | 0 / 0.4h | 0 / 85k |
 | Fase 3 - Reconciliación y diagnóstico | 0 | 2 | 0% | 0 / 4h | 0 / 1.2h | 0 / 0.3h | 0 / 60k |
 | Fase 4 - Pruebas, medición y cierre | 0 | 2 | 0% | 0 / 2h | 0 / 0.6h | 0 / 0.2h | 0 / 40k |
-| **TOTAL** | **4** | **8** | **50%** | **2.65 / 14h** | **2.22 / 4.2h** | **0 / 1.1h** | **0 / 230k** |
+| **TOTAL** | **1** | **8** | **13%** | **2.65 / 14h** | **2.22 / 4.2h** | **0 / 1.1h** | **0 / 230k** |
 
 ## Fase 1 - Módulos compartidos
 
 ### T-01 - `outbox.py`: cola atómica con claim, done y dead-letter
-- **Estado**: completado
+- **Estado**: en-progreso
 - **Tiempo humano**: est. 1.5h · real 0.2h (estimado) + fix1 0.15h (estimado)
 - **Prevision IA**: 20k in / 8k out tok · real (estimado): usage-meter degradó a `fuente: estimado` (sin transcripciones en este entorno); horas_ia real (estimado): 0.15h + fix1 (estimado, `usage-meter` degradó otra vez): 0.12h
 - **Dependencias**: ninguna
@@ -58,7 +58,7 @@ verificacion: obligatoria
 ## Fase 2 - Captura y materialización
 
 ### T-03 - `journal.py capture-end` + exec form en `hooks.json`
-- **Estado**: completado
+- **Estado**: en-progreso
 - **Tiempo humano**: est. 2.5h · real 0.6h (estimado) + fix1 0.35h (estimado)
 - **Prevision IA**: 30k in / 12k out tok · real (estimado): usage-meter degradó a `fuente: estimado` (sin transcripciones en este entorno); horas_ia real (estimado): 0.5h + fix1 (estimado, `usage-meter` degradó otra vez): 0.3h
 - **Dependencias**: T-01
@@ -76,7 +76,7 @@ verificacion: obligatoria
 - **Changelog**: `SessionEnd` pasa a captura ULTRALIGERA (`journal.py capture-end`, exec form en `hooks.json`, `timeout: 5`): un envelope atómico en la outbox local, sin git, sin IA y sin red (CA-01). **Corrección de revisión (T-fix1):** tope de `session_id`, `hook_event_name` en el envelope, `sequence` por líneas del log de prompts (distingue dos cierres de una misma sesión), `.gitignore` propio de la cola, opt-out por objeto, contención de `journal.dir`, `/doctor` y Codex ya no ciegos al exec form (Codex pasa a shell form, gap 16).
 
 ### T-04 - `journal.py replay`: claim, materialización, verificación, dead-letter
-- **Estado**: completado
+- **Estado**: en-progreso
 - **Tiempo humano**: est. 3h · real 0.7h (estimado) + fix1 0.45h (estimado)
 - **Prevision IA**: 35k in / 14k out tok · real (estimado): usage-meter degradó a `fuente: estimado` (sin transcripciones en este entorno); horas_ia real (estimado): 0.6h + fix1 (estimado, `usage-meter` degradó otra vez): 0.4h
 - **Dependencias**: T-01, T-02, T-03
@@ -180,3 +180,36 @@ Lentes: **A+B+C** (`review-lens-select.py`: C por `private-key` en `journal.py:1
 | 24 | Minor | Comentario obsoleto «`timeout: 45`» en `journal.py:162`; el envelope no guarda `hook_event_name` aunque `design.md` lo lista; `claude-code-contracts.md:26` cita `timeout: 20` (preexistente) (B, A) | T-03 | Comentario corregido a `timeout: 5`; `hook_event_name` añadido al envelope; `claude-code-contracts.md:26` actualizado a `timeout: 5`, verificado 2026-09-17 | `journal.py:163` (comentario), `journal.py::capture_end` (`hook_event_name`); `skills/plugin-dev/references/claude-code-contracts.md:26`; `test_capture_end_incluye_hook_event_name` |
 
 **Verificado OK por la revisión (sin cambios):** claim exclusivo entre procesos (`os.replace`, ThreadPool); ventana `escribir`↔`reclamar` sin duplicados; `redact.py` idéntico byte a byte al `redactar` anterior (7 casos, mismos flags) y declarado en `copias.json`; CA-01 con dobles de `git`/`claude` en PATH (unitario + hook); payload roto (vacío, `[]`, `"hola"`, `{`) → rc 0 y outbox vacía; `session_id` con `../` o Unicode → clave hex, frontmatter escapado; envelope venenoso (JSON inválido) → dead-letter y el resto sigue; `hooks.json` exec form aceptado por `lint_plugin` con test negativo con dientes; `export-interop --check` 48 al día; sin `eval`/`shell=True`; `eval "$(…)"` del hook eliminado (mejora neta); `_load_module` resuelve desde el plugin, no desde el proyecto.
+
+## Revisión de dos lentes — intento 2: 3 Critical + 11 Important + 11 Minor NUEVOS (lentes A+B+C; D por ruta, sin hallazgos) → corrección `T-fix2`
+
+Lentes: **A+B+C** con traspaso de la tabla del intento 1. `review-lens-select` activó también **D** por la ruta `scripts/export-interop.py` (stem `export`); el único cambio ahí es `_hook_a_shell_form` (≤ 10 hooks, sin I/O en bucle): revisado por el orquestador, sin hallazgos de rendimiento. Re-evaluación de los 24 gaps del intento 1: **20 cerrados con guarda efectiva** (mutantes mínimos → rojo), 2 reasignados (13 → T-05, 20 → T-07), 2 no cerrados (2: sin test; 19: corrección declarada falsa) y 4 con guarda floja (7, 16, 21, 23). Los gaps de abajo son NUEVOS, introducidos por la corrección; todos reproducidos; ninguno rebatido. T-01/T-03/T-04 vuelven a `en-progreso`; corrección con clave `T-0X-fix2`. **Este es el 3.º y último intento del bucle.**
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 25 | Critical | El TTL de huérfanos de `processing/` se mide sobre el mtime del envelope (creación), no sobre la reclamación: un envelope que esperó > 600 s en `outbox/` (el caso normal: replay horas después) se entrega a dos trabajadores a la vez; el segundo `completar` revienta (B1) | T-01 | pendiente | `outbox.py:241` |
+| 26 | Critical | Un fallo transitorio agota los 3 intentos dentro de la MISMA pasada de `replay` (reencola → el bucle lo reclama al instante, sin backoff) → dead-letter en milisegundos; `_localizar` incluye `dead-letter/` y no hay comando de reproceso → la sesión se pierde para siempre (B2) | T-04 | pendiente | `journal.py:483-489`, `outbox.py:214-226` |
+| 27 | Critical | `captured_at` sin validar entra en el nombre de fichero y el frontmatter de la entrada: `"../../../../tmp/PWN"` → `<root>/.-sesion.md` fuera de `docs/knowledge/journal/`; `"../adr/xx"` → `docs/knowledge/adr/xx-sesion.md` (doctrina versionada); `\n` inyecta claves YAML (B3, K-2 · CWE-22/93) | T-04 | pendiente | `journal.py:893`, `404-414` |
+| 28 | Important | `sequence` = líneas del log de prompts NO es monótono: el log rota (`_rotar`, `LOG_MAX_BYTES`) y el contador vuelve a un valor ya usado → `event_id` colisiona con `done/` → el cierre legítimo no se encola (A-N1) | T-03 | pendiente | `journal.py:327,358`, `:141,:589` |
+| 29 | Important | El Critical 1 del intento 1 se cerró sin test: sustituir los `except` de `replay()` por `raise` y quitar el de `cmd_replay` deja la suite verde (A-N2) | T-04 | pendiente | `journal.py:482-489`, `1382-1390` |
+| 30 | Important | `"${ROOT_ARGS[@]}"` sobre array vacío bajo `set -u` aborta en bash < 4.4 (macOS `/bin/bash` 3.2) → sin `CLAUDE_PROJECT_DIR` el hook muere antes del `printf` y no encola; la rama nueva no tiene test (A-N3) | T-03 | pendiente | `hooks/session-journal.sh:57,64` |
+| 31 | Important | El barrido de `reclamar` llama a `dead_letter()` sin guarda y `ob.reclamar()` está FUERA del `try` por item en `replay`: cualquier excepción del barrido aborta el drenaje entero (B4) | T-01/T-04 | pendiente | `outbox.py:228-247`, `journal.py:458` |
+| 32 | Important | El cerrojo de `replay` es `flock` BLOQUEANTE tomado antes de arrancar el reloj → `budget_ms=500` tarda 8 s si otro replay tiene el cerrojo; `SessionStart` (T-05) se colgaría (B5) | T-04 | pendiente | `journal.py:450-451,535` |
+| 33 | Important | `purgar_antiguos` filtra por mtime del envelope (creación), no por fecha de completado: un envelope que esperó 40 días se materializa y se borra de `done/` en la misma pasada → sin manifiesto y sin barrera de idempotencia (B6) | T-01/T-04 | pendiente | `outbox.py:350-374`, `journal.py:496` |
+| 34 | Important | `sesion.journal.dir` con contención LÉXICA: `"."` o `"docs"` pasan y `_asegurar_gitignore_local` planta `.gitignore` con `*` + `chmod 0700` en la raíz o en `docs/`; un symlink versionado (`esc -> /VICTIMA`) lo salta; `C:evil` (relativa a unidad, Windows) sale de la raíz (B7, K-3, C-2, C-3 · CWE-59/22/732) | T-03 | pendiente | `journal.py:286-287,376-389` |
+| 35 | Important | `limpiar_tmp_huerfanos` decide por subcadena `".tmp-"`: una clave válida por contrato que la contenga se borra en silencio a los 600 s (B8) | T-01 | pendiente | `outbox.py:377-396` |
+| 36 | Important | `_hook_a_shell_form` construye `'bash "%s"'` por interpolación sin escapar: `"`, `` ` ``, `$(` en `args[0]` inyectan; el test congela el formato inseguro; hooks con ≠ 1 arg o `command` ≠ bash se exportan tal cual sin aviso (C-1, B12 · CWE-78) | T-03 | pendiente | `scripts/export-interop.py:298-302`, `tests/test_export_interop.py:136-145` |
+| 37 | Important | `_validar_envelope` solo valida `session_id`/`schema_version`: `reason` llega sin escapar al frontmatter YAML (`"other\nevil: si"` → claves inyectadas en un `.md` versionado) (C-4 · CWE-93) | T-04 | pendiente | `journal.py:404-414,952` |
+| 38 | Important | `_transcript_seguro` NO cierra el gap 15: `isfile` sigue symlinks y `basename == <session_id>.jsonl` compara dos campos del MISMO envelope no confiable → transcript ajeno leído y volcado en un `.md` versionado (K-1 · CWE-59/73/200) | T-04 | pendiente | `journal.py:392-401` |
+| 39 | Minor | La corrección declarada del gap 19 es falsa: `tests/test_console_encoding.py` entró en `3b08e4c`, la declaración en `Archivos` en `e2fbb68` (A-N4) | T-01 | pendiente | `tasks.md` fila 19 |
+| 40 | Minor | `durabilidad: degradada` sin test de la rama degradada (mutante `"ok"` fijo → verde) (A-N5) | T-01 | pendiente | `outbox.py:112,346` |
+| 41 | Minor | `dead_letter` con `with open` sin dientes (modo de fallo solo Windows); `replay` crea la carpeta y el cerrojo sin sembrar `.gitignore` de la cola → `.replay.lock.lock` asoma en `git status` (A-N6) | T-01/T-04 | pendiente | `outbox.py:325`, `journal.py:444-450` |
+| 42 | Minor | El test del cerrojo de `replay` es intermitente: mutante sin cerrojo → rojo 11/20 (A-N7) | T-04 | pendiente | `test_journal.py:1140` |
+| 43 | Minor | `causa.json` de dead-letter declara `intentos: 1` tras 3 intentos (el sidecar `.intentos` no se propaga) (B9) | T-01 | pendiente | `outbox.py:220-224,318-330` |
+| 44 | Minor | Fecha de la entrada en UTC (`captured_at[:10]`) mientras el resto del módulo usa fecha local: `TZ=America/Santiago` 22:30 → entrada del día siguiente (B10) | T-04 | pendiente | `journal.py:893` vs `217-218` |
+| 45 | Minor | `replay` cuenta `dead_letter += 1` cuando `reencolar_o_dead_letter` devuelve `False` también por «no se pudo mover» → JSON miente (B11) | T-04 | pendiente | `journal.py:485-488` |
+| 46 | Minor | Permisos aplicados tras crear (`makedirs` con umask → `chmod`), fallo de `chmod` tragado sin señal; la raíz de la cola creada por `replay` nunca recibe 0700; `.gitignore`/sidecars a umask (C-5 · CWE-732/367) | T-01/T-04 | pendiente | `outbox.py:96-109`, `journal.py:445` |
+| 47 | Minor | Sin `CLAUDE_PROJECT_DIR`, el `cwd` del payload elige la raíz donde el hook crea directorios y planta `.gitignore` (C-6 · CWE-73). Simétrico con `user-prompt-capture.sh` y acotado por `isdir` + `proyecto_con_plugin()` | T-03 | pendiente (decisión: deuda aceptada por diseño, documentar) | `hooks/session-journal.sh:53-62`, `journal.py:1374` |
+| 48 | Minor | `_cerrojo(".replay.lock")` crea `.replay.lock.lock` (`_cerrojo` ya añade `.lock`); `docs/observability.md` y el README del journal no describen `derivados_en`/`materializado_en` (B, A) | T-04 → T-07 | pendiente | `journal.py:450,559` |
+
+**Verificado OK por la revisión (sin cambios):** gaps 1(código), 3, 4, 5, 6(código), 8, 11 (doble guarda con `copias.json`), 12, 14, 15(código), 17, 18, 22, 24 del intento 1; permisos 0700/0600 en el caso normal; validación de `clave` (`../../ESCAPE`, `..\..\ESC`, `a/b`, 65 chars → `ValueError`); contador `.intentos` sobrevive al reencolado; `cmd_replay` imprime JSON cuando `replay()` lanza; `--ia no` corta la IA bajo presupuesto; `_schema_aceptados` con N=2; `export-interop --check` 48 al día; suite 1821 passed (1 rojo preexistente por `.claude/dev.json` del entorno).
