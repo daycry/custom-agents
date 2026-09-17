@@ -119,6 +119,17 @@
       "guardarrail_previo": "solo CONDUCTUAL (skills/changelog-sync/scripts/test_changelog_sync.py comparaba resultados, no texto: una divergencia sin efecto pasaba)"
     },
     {
+      "id": "redact_redactar",
+      "mecanismo": "A",
+      "que_es": "Redaccion DETERMINISTA de secretos evidentes (redactar + REDACTADO + _SECRETOS_RE): fuente unica extraida de journal.py (session-end-durable-capture T-02, CA-11). journal.py sustituye este respaldo por los simbolos de redact.py en tiempo de carga si el fichero viaja junto a el (caso normal); el respaldo solo se ejecuta si journal.py viaja SIN redact.py (paquete portable).",
+      "canonico": "agent-kits/shared/redact.py",
+      "copias": [
+        {"ruta": "agent-kits/shared/redact.py", "inicio": "# --8<-- redact (redactar + constantes) — REPLICADO LITERAL en agent-kits/shared/redact.py (canónico) y en agent-kits/shared/journal.py (respaldo local, ADR-016)", "fin": "# --8<-- fin redact (redactar + constantes)"},
+        {"ruta": "agent-kits/shared/journal.py", "inicio": "# --8<-- redact (redactar + constantes) — REPLICADO LITERAL en agent-kits/shared/redact.py (canónico) y en agent-kits/shared/journal.py (respaldo local, ADR-016)", "fin": "# --8<-- fin redact (redactar + constantes)"}
+      ],
+      "guardarrail_previo": "ninguno (este es el hueco que cierra ADR-016 para esta iniciativa)"
+    },
+    {
       "id": "imports_de_cabecera",
       "mecanismo": "no-codigo",
       "no_codigo": true,

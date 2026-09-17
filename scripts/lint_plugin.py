@@ -1515,8 +1515,6 @@ PIEZAS_PLANIFICADAS = {
     "agent-kits/shared/pieces-registry.py": "F2 del tercer bucle (ADR-014)",
     "agent-kits/shared/role-collision.py": "F2 del tercer bucle (ADR-014)",
     "agent-kits/shared/project-scan.py": "F2 del tercer bucle (ADR-014)",
-    "agent-kits/shared/outbox.py": "session-end-durable-capture T-01 (ADR-018)",
-    "agent-kits/shared/redact.py": "session-end-durable-capture T-02 (ADR-018)",
     "agent-kits/shared/capabilities.py": "knowledge-services T-13 (ADR-018)",
 }
 COMANDOS_PLANIFICADOS = {"specialize": "F2 del tercer bucle (docs/SPECIALIZATION.md)"}
