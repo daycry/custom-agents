@@ -1089,13 +1089,16 @@ def test_todo_python_en_linea_del_repo_lleva_la_variable_incluido_el_que_no_la_n
     session-end-durable-capture T-03: `session-journal.sh` YA NO tiene los dos python en línea que
     extraían `session_id`/`reason`/`cwd` y leían `dev.json` para el opt-out — el payload entero
     viaja tal cual a `journal.py capture-end` (que decide session_id/opt-out en Python de verdad,
-    no en una línea de shell), así que el recuento baja de 8 a 6."""
+    no en una línea de shell), así que el recuento baja de 8 a 6. T-05 añade DOS python en línea
+    nuevos a `session-context.sh` (leer `sesion.journal.replay.{budgetMs,max}` de `dev.json` y
+    resumir en una línea el `bloqueado`/`errores` de `replay`, antes de componer el contexto), así
+    que sube de 6 a 8."""
     sitios = []
     for rel in _shell_versionados() or []:
         texto = open(os.path.join(ROOT, rel), encoding="utf-8").read()
         sitios += [(rel, ENV_ESPERADA in (m.group("env") or ""))
                    for m in PY_EN_LINEA.finditer(texto)]
-    assert len(sitios) == 6, f"esperaba 6 python en línea versionados, hay {len(sitios)}"
+    assert len(sitios) == 8, f"esperaba 8 python en línea versionados, hay {len(sitios)}"
     assert all(ok for _, ok in sitios), f"sin la variable: {[r for r, ok in sitios if not ok]}"
 
 

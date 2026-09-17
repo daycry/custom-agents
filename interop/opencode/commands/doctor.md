@@ -73,7 +73,7 @@ nada** y sin red: cada línea lleva su veredicto y, si algo falla, **qué comand
   `CLAUDE.md`) va en forma corta: una nota al pie decenas de líneas más abajo no la satisface,
   porque quien teclea lo hace antes de llegar a ella. Los registros fechados (`docs/roadmap/`,
   `docs/knowledge/`, CHANGELOG) no se miran: quedan como se escribieron.
-- **Seis bloques**: herramientas · plugin y hooks · statusline · configs de `.claude/` · estado del trabajo · **memoria técnica** (`docs/knowledge/`: entradas curadas por familia y estado, índice README —❌ si rompe la biyección—, índice FTS5, journal a 0 con memoria curada, `CALIBRATION.md` desfasada con iniciativas cerradas sin retro — la retro es puerta de cierre desde `memory-retrieval` T-17).
+- **Siete bloques**: herramientas · plugin y hooks · statusline · configs de `.claude/` · estado del trabajo · **memoria técnica** (`docs/knowledge/`: entradas curadas por familia y estado, índice README —❌ si rompe la biyección—, índice FTS5, journal a 0 con memoria curada, `CALIBRATION.md` desfasada con iniciativas cerradas sin retro — la retro es puerta de cierre desde `memory-retrieval` T-17) · **Journal** (session-end-durable-capture T-06: lee `journal.py status --json` — contadores outbox/processing/done/dead-letter, huérfanas, backoff pendiente con el remedio nombrado, y triage del «Hook cancelled»: aviso del runtime sin pérdida vs. pérdida posible).
 - **Sin red por diseño**: `/doctor` no consulta el marketplace, así que no puede decir si hay una
   versión más nueva del plugin; solo informa de la versión instalada.
 - **No confundir con `/setup`**: `/doctor` diagnostica lo que ya hay (solo lectura); `/setup`

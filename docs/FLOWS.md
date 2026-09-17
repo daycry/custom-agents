@@ -275,15 +275,22 @@ flowchart TD
 > Mientras `implementer`/subagentes trabajan, el usuario ve el avance sin que nadie lo redacte:
 > todo sale de `progress-report.py` sobre el **ledger canónico** (`tasks.md`). Los hooks
 > **informan, no deciden** (siempre exit 0). Detalle: [`observability.md`](observability.md).
-> **Journal de sesión** (memory-health + memory-retrieval F4): en cada turno, `UserPromptSubmit` acumula el
-> texto del usuario en un log crudo no versionado (`.claude/session-prompts-<session_id>.log`, opt-out
-> `<private>`, secretos evidentes redactados); al terminar la sesión, `SessionEnd` deja una entrada
-> determinista en `docs/knowledge/journal/` (iniciativa activa, ficheros tocados, tareas que cambiaron
-> de estado, marcadores del meter, y `decisiones`/`pendientes` extraídas SIN modelo de ese log); al
-> arrancar/retomar, `SessionStart` la reinyecta compactada. Resumen por IA **opt-in** (`sesion.resumen`),
-> degradando siempre: la salida de los hooks en `SessionEnd` sigue ignorándose por contrato — el hook no
-> devuelve, escribe (ADR-010 revisado 2026-09-08). Lo que se repite en ≥ 2 sesiones lo propone
-> `journal.py candidatas` como lección `propuesta` por la puerta de `/retro`.
+> **Journal de sesión** (memory-health + memory-retrieval F4 + **session-end-durable-capture**): en cada
+> turno, `UserPromptSubmit` acumula el texto del usuario en un log crudo no versionado
+> (`.claude/session-prompts-<session_id>.log`, opt-out `<private>`, secretos evidentes redactados —
+> ese log es también el **checkpoint** de la sesión). `SessionEnd` (`timeout: 5`, exec form) ya NO
+> hace el trabajo pesado en el teardown: `journal.py capture-end` escribe solo un **envelope atómico**
+> (≤ 64 KiB, sin git/IA/red, CA-01) en la **outbox** local (`agent-kits/shared/outbox.py`). La
+> **materialización** corre después, de forma recuperable: `SessionStart` invoca `journal.py replay
+> --budget-ms 300 --max 3` (drena la outbox reutilizando git/log de prompts/IA opt-in, nunca bloquea
+> el arranque) y `journal.py recover` (una sesión con log sin envelope y sin sesión viva pasada la
+> ventana configurada se materializa como `recuperado_sin_cierre`, CA-07) — o `journal.py replay/recover`
+> a demanda. Solo entonces se escribe la entrada determinista en `docs/knowledge/journal/` (idempotente
+> por `session_id`, atómica); al arrancar/retomar, `SessionStart` la reinyecta compactada. Resumen por
+> IA **opt-in** (`sesion.resumen`), degradando siempre. `/doctor` diagnostica la cola (`journal.py
+> status`: pendientes, huérfanas, dead-letter con remedio nombrado, triage del «Hook cancelled»). Lo
+> que se repite en ≥ 2 sesiones lo propone `journal.py candidatas` como lección `propuesta` por la
+> puerta de `/retro`.
 
 ```mermaid
 flowchart LR
@@ -294,11 +301,14 @@ flowchart LR
     SS["sesión: startup · resume · compact"] --> H3["hook SessionStart<br/>session-context.sh"]
     H3 -->|"additionalContext: índice de piezas (≤ 45 líneas, caché por hash)<br/>+ retoma ≤ 15 líneas (tarea en-progreso)<br/>+ journal ≤ 25 líneas (solo startup · resume)"| C(["🧠 contexto de Claude"])
     UP["turno del usuario"] --> H5["hook UserPromptSubmit<br/>user-prompt-capture.sh (timeout 5)"]
-    H5 -->|"journal.py capture (sin stdout, exit 0; opt-out private; secretos redactados)"| LOG[(".claude/session-prompts-sid.log<br/>no versionado · 0600 · purga 30 d")]
-    SE["sesión termina: exit · /clear · logout"] --> H4["hook SessionEnd<br/>session-journal.sh (timeout 45)"]
-    LOG -->|"decisiones/pendientes sin modelo · resumen IA opt-in"| H4
-    H4 -->|"journal.py write (idempotente por session_id, atómico)"| J[("docs/knowledge/journal/<br/>AAAA-MM-DD-slug.md")]
+    H5 -->|"journal.py capture (sin stdout, exit 0; opt-out private; secretos redactados)"| LOG[(".claude/session-prompts-sid.log<br/>no versionado · 0600 · purga 30 d<br/>= checkpoint de la sesión")]
+    SE["sesión termina: exit · /clear · logout"] --> H4["hook SessionEnd<br/>session-journal.sh (timeout 5, exec form)"]
+    H4 -->|"journal.py capture-end<br/>(envelope atómico ≤ 64 KiB, sin git/IA/red, CA-01, &lt; 100 ms)"| OB[(".claude/journal/outbox/<br/>event_id.json")]
+    OB -->|"journal.py replay --budget-ms 300 --max 3<br/>(claim → materializa con git/log/IA opt-in → done/dead-letter)"| H3
+    LOG -->|"journal.py recover<br/>(sin envelope, sin sesión viva, ventana → recuperado_sin_cierre)"| H3
+    H3 -->|"journal.py write (idempotente por session_id, atómico)"| J[("docs/knowledge/journal/<br/>AAAA-MM-DD-slug.md")]
     J -->|"journal.py latest --n 2"| H3
+    OB -.->|"journal.py status<br/>(pendientes · huérfanas · dead-letter)"| DOC["/doctor<br/>sección Journal"]
     FM[("frontmatters<br/>commands · skills · agents")] --> SI["skill-index.py<br/>(dev.json sesion.indice)"]
     SI --> H3
     L --> P["progress-report.py<br/>line · active · session · --json"]
