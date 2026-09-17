@@ -1114,9 +1114,10 @@ def _log_prompts(proj, sid, prompt="decidimos recuperar la sesión", mtime_hace_
 
 
 def test_recover_huerfana_pasada_la_ventana_se_marca_recuperado_sin_cierre(tmp_path):
-    """CA-07: log de prompts sin envelope, pasada la ventana (default 360 min) → `recuperado_sin_cierre`."""
+    """CA-07: log de prompts sin envelope, pasada la ventana (default 1440 min / 24h, gap 65/69 del
+    tramo 2) → `recuperado_sin_cierre`."""
     proj, _ = proyecto(tmp_path, con_git=False)
-    _log_prompts(proj, "sh1", mtime_hace_min=400)
+    _log_prompts(proj, "sh1", mtime_hace_min=1500)
     r = journal.recover(str(proj))
     assert r["recuperadas"] == 1
     es = journal.entradas(str(proj))
@@ -1136,7 +1137,7 @@ def test_recover_sesion_concurrente_viva_no_se_toca_aunque_supere_la_ventana(tmp
     """CA-07: una sesión concurrente viva (su `session_id` es el actual) nunca se trata como huérfana,
     aunque su log lleve más tiempo del de la ventana sin actividad nueva."""
     proj, _ = proyecto(tmp_path, con_git=False)
-    _log_prompts(proj, "sh3", mtime_hace_min=400)
+    _log_prompts(proj, "sh3", mtime_hace_min=1500)
     r = journal.recover(str(proj), current_session_id="sh3")
     assert r["recuperadas"] == 0
     assert journal.entradas(str(proj)) == []
@@ -1146,7 +1147,7 @@ def test_recover_con_envelope_pendiente_no_duplica(tmp_path):
     """Una sesión con envelope en la outbox la materializa `replay`, no `recover` (evita una segunda
     entrada `recuperado_sin_cierre` para lo que ya va a quedar `materializado`)."""
     proj, _ = proyecto(tmp_path, con_git=False)
-    _log_prompts(proj, "sh4", mtime_hace_min=400)
+    _log_prompts(proj, "sh4", mtime_hace_min=1500)
     journal.capture_end(str(proj), session_end_payload(proj, sid="sh4"))
     r = journal.recover(str(proj))
     assert r["recuperadas"] == 0
@@ -1156,7 +1157,7 @@ def test_recover_con_envelope_pendiente_no_duplica(tmp_path):
 
 def test_recover_con_entrada_ya_materializada_no_duplica(tmp_path):
     proj, _ = proyecto(tmp_path, con_git=False)
-    _log_prompts(proj, "sh5", mtime_hace_min=400)
+    _log_prompts(proj, "sh5", mtime_hace_min=1500)
     journal.capture_end(str(proj), session_end_payload(proj, sid="sh5"))
     journal.replay(str(proj))
     assert len(journal.entradas(str(proj))) == 1
@@ -1176,7 +1177,7 @@ def test_recover_ventana_configurable_por_dev_json(tmp_path):
 
 def test_cmd_recover_imprime_json(tmp_path):
     proj, _ = proyecto(tmp_path, con_git=False)
-    _log_prompts(proj, "sh7", mtime_hace_min=400)
+    _log_prompts(proj, "sh7", mtime_hace_min=1500)
     rc, out, err = run("recover", root=proj)
     assert rc == 0 and err == ""
     assert json.loads(out)["recuperadas"] == 1
@@ -1195,7 +1196,7 @@ def test_status_cola_vacia_es_sana(tmp_path):
 def test_status_cuenta_pendientes_y_huerfanas(tmp_path):
     proj, _ = proyecto(tmp_path, con_git=False)
     journal.capture_end(str(proj), session_end_payload(proj, sid="p1"))
-    _log_prompts(proj, "huerfana-status", mtime_hace_min=400)
+    _log_prompts(proj, "huerfana-status", mtime_hace_min=1500)
     st = journal.status(str(proj))
     assert st["outbox"] == 1 and st["huerfanas"] == 1
     assert any("recover" in a for a in st["avisos"])
@@ -1971,3 +1972,161 @@ def test_gitignore_de_la_cola_no_desprotege_a_si_mismo(tmp_path):
     gi = open(os.path.join(dir_, ".gitignore"), encoding="utf-8").read()
     assert gi.strip().splitlines()[-1] == "*"
     assert "!.gitignore" not in gi
+
+
+# ------------------------------------------------------------------ revisión tramo 2: purge/recover bajo replay (gaps 63/65-69/79/80)
+
+def test_cmd_purge_sin_confirm_no_borra_y_exit_2(tmp_path):
+    """Gap 63: `journal.py purge` sin `--confirm` no toca nada y sale con 2 (no 0 silencioso)."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    journal.capture_end(str(proj), session_end_payload(proj, sid="pu1"))
+    dir_ = journal._journal_queue_dir(str(proj))
+    rc, out, err = run("purge", root=proj)
+    assert rc == 2
+    assert "confirm" in err
+    assert os.path.isdir(os.path.join(dir_, "outbox"))
+
+
+def test_cmd_purge_con_confirm_borra_la_cola_no_el_journal_ni_los_logs(tmp_path):
+    """Gap 63: `purge --confirm` -> `outbox.purgar(dir, confirmar=True)`; nunca toca
+    `docs/knowledge/journal/` ni `.claude/session-prompts-*.log`."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    journal.capture_end(str(proj), session_end_payload(proj, sid="pu2"))
+    journal.replay(str(proj))
+    assert journal.entradas(str(proj))
+    _log_prompts(proj, "pu2")
+    log_path_ = journal.log_path(str(proj), "pu2")
+    dir_ = journal._journal_queue_dir(str(proj))
+    rc, out, err = run("purge", "--confirm", root=proj)
+    assert rc == 0 and err == ""
+    assert not os.path.isdir(dir_)
+    assert journal.entradas(str(proj)), "docs/knowledge/journal/ no lo toca purge"
+    assert os.path.isfile(log_path_), "los logs de prompts no los toca purge"
+
+
+def test_replay_con_recover_materializa_huerfana_bajo_el_mismo_cerrojo(tmp_path):
+    """Gaps 65/66: `replay --con-recover` recupera huérfanas EN LA MISMA pasada que drena la
+    outbox, sin invocar `recover` por separado."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    _log_prompts(proj, "cr1", mtime_hace_min=1500)
+    r = journal.replay(str(proj), con_recover=True, current_session_id="otra-sesion")
+    assert r["recuperadas"] == 1
+    es = journal.entradas(str(proj))
+    assert len(es) == 1 and es[0]["session_id"] == "cr1" and es[0]["cierre"] == "recuperado_sin_cierre"
+
+
+def test_replay_con_recover_max_limita_aunque_haya_cientos_de_huerfanas(tmp_path):
+    """Gap 65: 100 huérfanas, `--max 3` -> como mucho 3 recuperadas en esta pasada, dentro de
+    presupuesto (antes `recover` no tenía tope propio ni presupuesto)."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    for i in range(100):
+        _log_prompts(proj, f"h{i}", mtime_hace_min=1500)
+    inicio = time.monotonic()
+    r = journal.replay(str(proj), budget_ms=2000, max_n=3, con_recover=True, current_session_id="viva")
+    dur_ms = (time.monotonic() - inicio) * 1000
+    assert r["recuperadas"] == 3
+    assert dur_ms < 5000, f"replay --con-recover tardó {dur_ms:.0f} ms con 100 huérfanas"
+
+
+def test_replay_con_recover_dos_procesos_concurrentes_no_duplican(tmp_path):
+    """Gap 66: dos `replay(con_recover=True)` concurrentes sobre la MISMA huérfana no producen dos
+    entradas — el mismo cerrojo `.replay` que usa el drenaje de la outbox serializa también a
+    `recover` (barrera real, como el test del cerrojo de `replay`)."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    _log_prompts(proj, "conc1", mtime_hace_min=1500)
+    barrera = threading.Barrier(2)
+    resultados = []
+
+    def correr():
+        barrera.wait(timeout=5)
+        resultados.append(journal.replay(str(proj), con_recover=True, current_session_id="viva"))
+
+    hilos = [threading.Thread(target=correr) for _ in range(2)]
+    for h in hilos:
+        h.start()
+    for h in hilos:
+        h.join(timeout=10)
+    es = [e for e in journal.entradas(str(proj)) if e.get("session_id") == "conc1"]
+    assert len(es) == 1
+
+
+def test_replay_con_recover_usa_captured_at_del_mtime_del_log_no_hoy(tmp_path):
+    """Gap 67: la entrada recuperada se fecha con el mtime del log (fecha LOCAL), no con `hoy()`."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    import datetime as _dtm
+    hace = time.time() - 1500 * 60
+    _log_prompts(proj, "fecha1", mtime_hace_min=1500)
+    esperado = _dtm.datetime.fromtimestamp(hace).date().isoformat()
+    r = journal.replay(str(proj), con_recover=True, current_session_id="viva")
+    assert r["recuperadas"] == 1
+    e = journal.entradas(str(proj))[0]
+    assert e["fecha"] == esperado
+    assert e.get("derivados_en") == "replay"
+
+
+def test_recover_sesion_dead_letter_es_recuperable_por_el_log(tmp_path):
+    """Gap 68: un envelope que acabó SOLO en dead-letter no es «ya capturada» — el log sigue
+    siendo la fuente para `recover`; `status` la cuenta como huérfana."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    _log_prompts(proj, "dl1", mtime_hace_min=1500)
+    ob = journal._outbox_mod()
+    dir_ = journal._journal_queue_dir(str(proj))
+    ob.escribir(dir_, "dl1envelope", {"schema_version": 99, "session_id": "dl1", "reason": "other"})
+    journal.replay(str(proj))                          # el envelope malo -> dead-letter
+    st = journal.status(str(proj))
+    assert st["dead-letter"] == 1
+    assert st["huerfanas"] == 1
+    r = journal.recover(str(proj), current_session_id="viva")
+    assert r["recuperadas"] == 1
+    assert journal.entradas(str(proj))[0]["cierre"] == "recuperado_sin_cierre"
+
+
+def test_recover_session_id_forzado_recupera_aunque_este_en_dead_letter(tmp_path):
+    """Gap 68: `--session-id` fuerza la recuperación aunque conste (dead-letter incluido)."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    _log_prompts(proj, "dl2", mtime_hace_min=1)         # dentro de la ventana: solo se cuela por forzado
+    ob = journal._outbox_mod()
+    dir_ = journal._journal_queue_dir(str(proj))
+    ob.escribir(dir_, "dl2envelope", {"schema_version": 99, "session_id": "dl2", "reason": "other"})
+    journal.replay(str(proj))
+    r = journal.recover(str(proj), session_id="dl2")
+    assert r["recuperadas"] == 1
+
+
+def test_replay_con_recover_current_session_id_vacio_no_corre(tmp_path):
+    """Gap 79: `current_session_id == ""` (payload sin `session_id`) desactiva `recover` con
+    aviso, en vez de correr sin guarda de sesión viva."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    _log_prompts(proj, "vac1", mtime_hace_min=1500)
+    r = journal.replay(str(proj), con_recover=True, current_session_id="")
+    assert r["recuperadas"] == 0
+    assert any("current-session-id" in a for a in r["avisos"])
+    assert journal.entradas(str(proj)) == []
+
+
+def test_replay_con_recover_source_compact_no_corre(tmp_path):
+    """Gap 79: `source="compact"` nunca invoca `recover` (la compactación no cambia el journal)."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    _log_prompts(proj, "cpt1", mtime_hace_min=1500)
+    r = journal.replay(str(proj), con_recover=True, current_session_id="viva", source="compact")
+    assert r["recuperadas"] == 0
+    assert journal.entradas(str(proj)) == []
+
+
+def test_indice_sids_capturados_se_construye_una_vez(tmp_path, monkeypatch):
+    """Gap 80: `_indice_sids_capturados` se llama UNA sola vez por pasada de `recover`, no una vez
+    por candidata (antes era O(n·m): un `listdir`×4 carpetas por cada huérfana)."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    for i in range(5):
+        _log_prompts(proj, f"idx{i}", mtime_hace_min=1500)
+    llamadas = []
+    real = journal._indice_sids_capturados
+
+    def contador(*a, **kw):
+        llamadas.append(1)
+        return real(*a, **kw)
+
+    monkeypatch.setattr(journal, "_indice_sids_capturados", contador)
+    r = journal.replay(str(proj), con_recover=True, current_session_id="viva")
+    assert r["recuperadas"] == 5
+    assert len(llamadas) == 1

@@ -457,6 +457,51 @@ def test_session_context_sesion_concurrente_viva_no_se_recupera(tmp_path):
     assert entradas_journal(proj) == []
 
 
+def test_session_context_cola_danada_no_pierde_el_aviso_de_journal(tmp_path):
+    """Gap 64: el aviso de `replay` (cola dañada) se calculaba y se PISABA por el bloque (1) del
+    índice de piezas justo después (`partes="$idx"` sobre `partes="$aviso"`) — invisible en la
+    sesión. Ahora se ANEXA (`partes+=`): sigue presente en `additionalContext` aunque el índice
+    también emita algo."""
+    proj, _ = proyecto(tmp_path)
+    dir_ = proj / ".claude" / "journal"
+    dir_.mkdir(parents=True, exist_ok=True)
+    # `.replay.lock` como DIRECTORIO: `os.open(..., O_CREAT)` falla -> cerrojo "dañado", no "ocupado".
+    (dir_ / ".replay.lock").mkdir()
+    env = env_de(proj, tmp_path)
+    rc, out, _ = hook("session-context.sh", {"hook_event_name": "SessionStart", "source": "startup"}, env)
+    assert rc == 0
+    ctx = un_json(out)["hookSpecificOutput"]["additionalContext"]
+    assert "Journal: replay" in ctx and "error(es)" in ctx
+
+
+def test_session_context_dev_json_budget_fuera_de_rango_usa_default_y_avisa(tmp_path):
+    """Gap 75: `budgetMs`/`max` fuera de rango ([0,5000]/[0,50]) no se pasan tal cual a
+    `journal.py replay` (un `dev.json` clonado con `budgetMs: 600000` haría trabajar al hook hasta
+    el timeout del runtime) — se usa el default y se avisa en la línea de Journal."""
+    proj, _ = proyecto(tmp_path)
+    (proj / ".claude" / "dev.json").write_text(
+        json.dumps({"sesion": {"journal": {"replay": {"budgetMs": 600000, "max": 100000}}}}), encoding="utf-8")
+    hook("session-journal.sh", session_end(proj), env_de(proj, tmp_path))
+    env = env_de(proj, tmp_path)
+    rc, out, _ = hook("session-context.sh", {"hook_event_name": "SessionStart", "source": "startup"}, env)
+    assert rc == 0
+    assert outbox_pendientes(proj) == []          # se materializó igual, con el default (300/3)
+    ctx = un_json(out)["hookSpecificOutput"]["additionalContext"]
+    assert "fuera de" in ctx
+
+
+def test_session_context_dev_json_budget_negativo_usa_default_y_avisa(tmp_path):
+    """Gap 75: valores negativos también clampan al default (no solo los desmesuradamente altos)."""
+    proj, _ = proyecto(tmp_path)
+    (proj / ".claude" / "dev.json").write_text(
+        json.dumps({"sesion": {"journal": {"replay": {"budgetMs": -1, "max": -1}}}}), encoding="utf-8")
+    env = env_de(proj, tmp_path)
+    rc, out, _ = hook("session-context.sh", {"hook_event_name": "SessionStart", "source": "startup"}, env)
+    assert rc == 0
+    ctx = un_json(out)["hookSpecificOutput"]["additionalContext"]
+    assert "fuera de" in ctx
+
+
 # ------------------------------------------------------------ user-prompt-capture (T-11/T-12) ----
 
 def prompt_submit(proj, sid="s1", prompt="decidimos usar FTS5"):
