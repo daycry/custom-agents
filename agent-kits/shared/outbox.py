@@ -27,43 +27,74 @@ Contrato (todas las funciones son deterministas, no lanzan por errores de disco 
       veces produce una única entrada lógica, CA-03 de la spec). `clave` debe casar
       `^[A-Za-z0-9._-]{1,64}$` (ValueError si no: evita escapar de la cola con `../`, CWE-22).
   reclamar(dir, processing_ttl_s=PROCESSING_TTL_S) -> item | None
-      Antes de nada, barre `processing/`: un item reclamado hace más de `processing_ttl_s` (un
-      proceso murió entre el claim y `completar`/`dead_letter`) se re-encola a `outbox/` con un
-      contador de intentos (sidecar `<clave>.json.intentos`), o va a `dead-letter/` con causa
-      «reintentos agotados» al superar MAX_INTENTOS (revisión intento 1, gaps 1/22). Después mueve
-      UN envelope pendiente de `outbox/` a `processing/` con `os.replace` (mismo nombre de fichero
-      en origen y destino): la exclusividad la da el sistema de ficheros, no un cerrojo propio — si
-      dos procesos reclaman a la vez, solo uno consigue mover el fichero (el `rename` del perdedor
-      falla porque el origen ya no existe) y el otro recibe `None`. `item` es
-      {"clave", "path", "payload"}; `payload` es `None` si el JSON no es legible (envelope
-      venenoso: lo decide el llamador, normalmente `dead_letter` inmediato). Sin pendientes -> `None`.
+      Antes de nada, barre `processing/` (protegido con `try/except OSError`: un dead-letter/
+      inutilizable no debe abortar el barrido ni el resto de la reclamación, gap 31 de la revisión
+      intento 2): un item reclamado hace más de `processing_ttl_s` (un proceso murió entre el
+      claim y `completar`/`dead_letter`) se re-encola a `outbox/` SIN backoff (es recuperación de un
+      worker muerto, no un fallo repetido) con un contador de intentos (sidecar
+      `<clave>.json.intentos`), o va a `dead-letter/` con causa «reintentos agotados» al superar
+      MAX_INTENTOS (revisión intento 1, gaps 1/22). Después mueve UN envelope pendiente de
+      `outbox/` a `processing/` con `os.replace` (mismo nombre de fichero en origen y destino): la
+      exclusividad la da el sistema de ficheros, no un cerrojo propio — si dos procesos reclaman a
+      la vez, solo uno consigue mover el fichero (el `rename` del perdedor falla porque el origen
+      ya no existe) y el otro recibe `None`. Al mover, el mtime del destino se refresca a "ahora"
+      (gap 25 Critical de la revisión intento 2): el TTL de huérfanos se mide desde la RECLAMACIÓN,
+      no desde la creación del envelope — sin esto, un envelope que esperó > `processing_ttl_s` en
+      `outbox/` (el caso normal: `replay` corre horas después) se entregaba a DOS trabajadores a la
+      vez, porque su mtime heredado de `outbox/` ya superaba la TTL nada más reclamarlo. Los
+      candidatos con `no_antes_de` en el futuro (backoff tras un fallo TRANSITORIO, gap 26) se
+      saltan. `item` es {"clave", "path", "payload"}; `payload` es `None` si el JSON no es legible
+      (envelope venenoso: lo decide el llamador, normalmente `dead_letter` inmediato). Sin
+      pendientes -> `None`.
   completar(item, manifiesto=None) -> ruta
       Mueve el item de `processing/` a `done/` y escribe `<ruta>.manifest.json` con el
-      `manifiesto` dado más `hash` (sha256 del contenido) y `completado_en` (si no vienen ya).
+      `manifiesto` dado más `hash` (sha256 del contenido) y `completado_en` (si no vienen ya) —
+      `completado_en` es la fecha real de materialización, la que usa `purgar_antiguos` (gap 33 de
+      la revisión: purgar por mtime del envelope de creación borraba una sesión que esperó semanas
+      en la outbox en la MISMA pasada en que se materializaba, sin barrera de idempotencia).
       Limpia el sidecar `.intentos` si lo hubiera.
-  dead_letter(item, causa) -> ruta
+  dead_letter(item, causa, intentos=None) -> ruta
       Mueve el item de `processing/` a `dead-letter/` y escribe `<ruta>.causa.json` con `causa`,
-      `intentos` (se incrementa si ya había una causa previa para esa clave) y `en`. Un dead-letter
-      nunca bloquea el resto de la cola: es un fichero más, movido y ya.
-  reencolar_o_dead_letter(item, causa, intentos_max=MAX_INTENTOS) -> bool
-      Tras un fallo TRANSITORIO materializando (disco lleno, permisos): reencola el item a
-      `outbox/` incrementando su contador de intentos, o lo manda a `dead-letter/` si ya alcanzó
-      `intentos_max`. Devuelve `True` si se reencoló, `False` si fue a dead-letter.
-  estado(dir) -> {"outbox", "processing", "done", "dead-letter", "durabilidad"}
+      `intentos` (el valor real del sidecar `.intentos` si se pasa —gap 43 de la revisión: antes
+      `causa.json` declaraba `intentos: 1` tras 3 reintentos porque no leía el sidecar— o
+      incrementado desde una causa previa si no) y `en`. Un dead-letter nunca bloquea el resto de
+      la cola: es un fichero más, movido y ya.
+  reencolar_o_dead_letter(item, causa, intentos_max=MAX_INTENTOS, backoff=True) -> str
+      Tras un fallo materializando (item ya en `processing/`): reencola a `outbox/` con el contador
+      de intentos incrementado, o dead-letter si ya alcanzó `intentos_max`. Devuelve uno de
+      `REENCOLADO`/`DEAD_LETTER`/`ERROR` (gap 45 de la revisión: antes devolvía `bool`, y el
+      llamador contaba «dead-letter» también cuando en realidad ni se pudo MOVER el item — el JSON
+      de `replay` mentía). Con `backoff=True` (fallo TRANSITORIO real: disco lleno, permisos), el
+      reencolado lleva `no_antes_de = ahora + BACKOFF_S × intentos` (creciente): sin esto, un fallo
+      permanente agotaba los 3 intentos en milisegundos dentro de la MISMA pasada de `replay` (el
+      bucle lo reclamaba al instante) y la sesión acababa en dead-letter sin haber esperado nada
+      entre reintentos (gap 26 Critical). Con `backoff=False` (recuperación de huérfanos de
+      `processing/`: no es un fallo del código, es un worker muerto) el reencolado es inmediato.
+  reintentar_dead_letter(dir) -> int
+      Mueve TODO `dead-letter/` de vuelta a `outbox/` con el contador de intentos a 0 (remedio
+      nombrado, gap 26: sin esto una sesión en dead-letter se perdía para siempre — `journal.py
+      replay --reintentar-dead-letter`, que `/doctor` nombrará en T-06). Devuelve cuántos se
+      movieron.
+  estado(dir) -> {"outbox", "processing", "done", "dead-letter", "durabilidad", "permisos"}
       Contadores de envelopes (`.json` que no sean `.manifest.json`/`.causa.json`/`.intentos`) por
-      carpeta, más `durabilidad`: "ok" o "degradada" si algún `fsync` de esta cola falló alguna vez
-      (best-effort, gap 21 de la revisión). Sin `dir` -> todo a 0.
+      carpeta, más `durabilidad` ("ok"/"degradada" si algún `fsync` de esta cola falló alguna vez,
+      best-effort, gap 21) y `permisos` ("ok"/"degradados" si algún `chmod 0700/0600` de esta cola
+      falló alguna vez, gap 46). Sin `dir` -> todo a 0.
   purgar_antiguos(dir, sub, dias) -> int
-      Borra ficheros de `<dir>/<sub>/` (con sus sidecars) cuyo mtime supera `dias` días. Usado por
-      `journal.py replay` para no dejar crecer `done/` para siempre (gap 22); `dead-letter/` se
-      conserva a propósito (nunca lo llama el replay).
+      Borra ficheros de `<dir>/<sub>/` (con sus sidecars) cuyo `completado_en` (del
+      `.manifest.json`, NO el mtime del envelope) supera `dias` días; sin ese campo, NO se purga
+      (gap 33). Usado por `journal.py replay` para no dejar crecer `done/` para siempre (gap 22);
+      `dead-letter/` se conserva a propósito (nunca lo llama el replay).
   limpiar_tmp_huerfanos(dir, ttl_s=PROCESSING_TTL_S) -> int
-      Borra temporales `*.tmp-*` huérfanos (un corte a mitad de escritura, o un fichero plantado)
-      con más de `ttl_s` en `outbox/`/`processing/` (gap 3/13 de la revisión).
+      Borra temporales huérfanos (un corte a mitad de escritura, o un fichero plantado) cuyo
+      nombre EMPIEZA por `.tmp-` (gap 35 de la revisión: decidir por subcadena `".tmp-"` borraba en
+      silencio una clave legítima como `export.tmp-2026` que la contuviera) con más de `ttl_s` en
+      `outbox/`/`processing/`.
   purgar(dir, confirmar=True) -> bool
       Borra el árbol completo de `dir`. Sin `confirmar=True` no hace nada (devuelve `False`): es el
       único borrado TOTAL de la cola (CA-12 de la spec: uninstall/upgrade del plugin nunca la toca).
 """
+import calendar
 import contextlib
 import hashlib
 import json
@@ -84,11 +115,26 @@ _CLAVE_RE = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
 INTENTOS_SUFFIX = ".intentos"
 PROCESSING_TTL_S = 600              # un item reclamado más de esto sin completar/dead-letter se re-encola (gap 1)
 MAX_INTENTOS = 3                    # tras esto, dead-letter con causa «reintentos agotados» (gap 1/22)
+BACKOFF_S = 60                      # backoff base tras un fallo TRANSITORIO; crece × nº de intento (gap 26)
 _DEGRADADO_MARKER = ".durabilidad-degradada"    # sentinela en <dir>/: algún fsync de esta cola falló alguna vez
+_PERMISOS_MARKER = ".permisos-degradados"       # sentinela en <dir>/: algún chmod de esta cola falló alguna vez
+
+REENCOLADO = "reencolado"
+DEAD_LETTER = "dead_letter"
+ERROR = "error"
 
 
 def _iso_now():
     return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+
+
+def _iso_a_epoch(s):
+    """`AAAA-MM-DDTHH:MM:SSZ` (UTC) -> epoch, o `None` si no parsea (gap 33: sin `completado_en`
+    legible, `purgar_antiguos` no debe purgar por defecto a mtime)."""
+    try:
+        return calendar.timegm(time.strptime(str(s), "%Y-%m-%dT%H:%M:%SZ"))
+    except (ValueError, TypeError):
+        return None
 
 
 def _marcar_degradado(dir_):
@@ -100,13 +146,25 @@ def _marcar_degradado(dir_):
         pass
 
 
-def _mkdir_privado(path):
-    """`makedirs` + `chmod 0700`: la cola puede llevar rutas de disco y `session_id` (gap 9)."""
+def _marcar_permisos_degradados(dir_):
+    """Sentinela best-effort: `estado()` lo lee para avisar «permisos: degradados» (gap 46: un
+    `chmod` que falla hoy se traga en silencio sin ninguna señal)."""
+    try:
+        os.makedirs(dir_, exist_ok=True)
+        open(os.path.join(dir_, _PERMISOS_MARKER), "a", encoding="utf-8").close()
+    except OSError:
+        pass
+
+
+def _mkdir_privado(path, dir_raiz=None):
+    """`makedirs` + `chmod 0700`: la cola puede llevar rutas de disco y `session_id` (gap 9). Si el
+    `chmod` falla, se marca `permisos: degradados` en `dir_raiz` (o `path` si no se da) en vez de
+    tragarse el fallo en silencio (gap 46)."""
     os.makedirs(path, exist_ok=True)
     try:
         os.chmod(path, 0o700)
     except OSError:
-        pass
+        _marcar_permisos_degradados(dir_raiz or path)
 
 
 def _fsync_dir(dirpath):
@@ -132,12 +190,14 @@ def _fsync_dir(dirpath):
 
 
 def _escribir_atomico(destino, contenido, dir_raiz=None):
-    """Temporal en la misma carpeta (nombre único vía `tempfile.mkstemp`, 0600 por defecto) +
-    `os.replace`: nunca deja el destino a medias aunque el proceso muera a mitad de la escritura
-    (CA-04 de la spec). `fsync` del fichero y del directorio; si cualquiera de los dos degrada, se
-    marca en `dir_raiz` (o en el padre de `destino` si no se da) para que `estado()` lo reporte."""
+    """Temporal en la misma carpeta con prefijo `.tmp-` AL INICIO del nombre (gap 35: un prefijo a
+    mitad de camino, `<clave>.tmp-<n>`, es indistinguible por subcadena de una clave legítima que
+    contenga `.tmp-`) + `os.replace`: nunca deja el destino a medias aunque el proceso muera a
+    mitad de la escritura (CA-04 de la spec). `fsync` del fichero y del directorio; si cualquiera
+    de los dos degrada, se marca en `dir_raiz` (o en el padre de `destino` si no se da) para que
+    `estado()` lo reporte."""
     carpeta = os.path.dirname(destino) or "."
-    fd, tmp = tempfile.mkstemp(dir=carpeta, prefix=os.path.basename(destino) + ".tmp-")
+    fd, tmp = tempfile.mkstemp(dir=carpeta, prefix=".tmp-", suffix=".json")
     ok = True
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as fh:
@@ -179,61 +239,135 @@ def escribir(dir_, clave, payload):
     if existente is not None:
         return existente
     outbox_dir = os.path.join(dir_, "outbox")
-    _mkdir_privado(outbox_dir)
+    _mkdir_privado(outbox_dir, dir_raiz=dir_)
     destino = os.path.join(outbox_dir, f"{clave}.json")
     _escribir_atomico(destino, json.dumps(payload, ensure_ascii=False, indent=2), dir_raiz=dir_)
     return destino
 
 
-def _leer_intentos(path):
+def _leer_sidecar(path):
+    """`{"intentos": int, "no_antes_de": float}` del sidecar `.intentos` (gap 26: pasa de un
+    entero plano a JSON para llevar también el backoff); defaults a ceros si no existe o no
+    parsea."""
     try:
         with open(path, encoding="utf-8") as fh:
-            return int((fh.read() or "0").strip() or "0")
-    except (OSError, ValueError):
-        return 0
+            data = json.loads(fh.read() or "{}")
+        if isinstance(data, dict):
+            return {"intentos": int(data.get("intentos", 0)), "no_antes_de": float(data.get("no_antes_de", 0) or 0)}
+    except (OSError, ValueError, TypeError):
+        pass
+    return {"intentos": 0, "no_antes_de": 0.0}
 
 
-def _mover_a_outbox_con_intentos(src, intentos):
-    """`processing/<clave>.json` -> `outbox/<clave>.json`, dejando `.intentos` al día. Devuelve
-    `True` si se movió."""
+def _escribir_sidecar(path, intentos, no_antes_de, dir_raiz=None):
+    with contextlib.suppress(OSError):
+        _escribir_atomico(path, json.dumps({"intentos": intentos, "no_antes_de": no_antes_de}), dir_raiz=dir_raiz)
+
+
+def _mover_a_outbox_con_intentos(src, intentos, no_antes_de=0.0):
+    """`processing/<clave>.json` -> `outbox/<clave>.json`, dejando `.intentos` al día (con
+    `no_antes_de` para el backoff, gap 26). Devuelve `True` si se movió."""
     dir_ = os.path.dirname(os.path.dirname(src))
     outbox_dir = os.path.join(dir_, "outbox")
-    _mkdir_privado(outbox_dir)
+    _mkdir_privado(outbox_dir, dir_raiz=dir_)
     dst = os.path.join(outbox_dir, os.path.basename(src))
     try:
         os.replace(src, dst)
     except OSError:
         return False
-    with contextlib.suppress(OSError):
-        _escribir_atomico(dst + INTENTOS_SUFFIX, str(intentos), dir_raiz=dir_)
+    _escribir_sidecar(dst + INTENTOS_SUFFIX, intentos, no_antes_de, dir_raiz=dir_)
     with contextlib.suppress(OSError):
         os.remove(src + INTENTOS_SUFFIX)
     return True
 
 
-def reencolar_o_dead_letter(item, causa, intentos_max=MAX_INTENTOS):
-    """Tras un fallo TRANSITORIO materializando (item ya en `processing/`): reencola a `outbox/`
-    con el contador de intentos incrementado, o dead-letter si ya alcanzó `intentos_max`. Devuelve
-    `True` si se reencoló (`False` si fue a dead-letter o si ni siquiera se pudo mover)."""
+def dead_letter(item, causa, intentos=None):
+    """`processing/` -> `dead-letter/`; escribe `<ruta>.causa.json` con `causa`, `intentos` (el
+    valor REAL pasado por el llamador —del sidecar `.intentos`, gap 43— o incrementado desde una
+    causa previa si no se da) y `en`. Nunca bloquea el resto de la cola: es un fichero más, movido
+    y ya (CA-06 de la spec)."""
+    dst = _mover_desde_processing(item, "dead-letter")
+    causa_path = dst + ".causa.json"
+    if intentos is None:
+        intentos = 1
+        try:
+            with open(causa_path, encoding="utf-8") as fh:      # cerrado explícitamente (gap 23: fugaba el fd)
+                prev = json.load(fh)
+            intentos = int(prev.get("intentos", 0)) + 1
+        except (OSError, ValueError, TypeError):
+            pass
+    _escribir_atomico(causa_path, json.dumps({"causa": str(causa), "intentos": int(intentos), "en": _iso_now()},
+                                              ensure_ascii=False, indent=2))
+    return dst
+
+
+def reencolar_o_dead_letter(item, causa, intentos_max=MAX_INTENTOS, backoff=True):
+    """Tras un fallo materializando (item ya en `processing/`): reencola a `outbox/` con el
+    contador de intentos incrementado (con backoff creciente si `backoff=True`: fallo TRANSITORIO
+    real), o dead-letter si ya alcanzó `intentos_max` (con el contador REAL, gap 43). Devuelve
+    `REENCOLADO`/`DEAD_LETTER`/`ERROR` (gap 45: nunca un `bool` que el llamador podía malinterpretar
+    como «se movió a dead-letter» cuando en realidad ni se pudo mover)."""
     src = item["path"] if isinstance(item, dict) else str(item)
-    intentos = _leer_intentos(src + INTENTOS_SUFFIX) + 1
+    intentos = _leer_sidecar(src + INTENTOS_SUFFIX)["intentos"] + 1
     if intentos >= intentos_max:
-        dead_letter(item, f"{causa} (reintentos agotados)")
+        try:
+            dead_letter(item, f"{causa} (reintentos agotados)", intentos=intentos)
+        except OSError:
+            # el sidecar `.intentos` se conserva TAL CUAL en el fallo (no se toca aquí): si se
+            # borrara también en el camino de error, el próximo intento perdería la cuenta de
+            # escaladas y volvería a reencolar en vez de seguir camino a dead-letter (gap 31/43).
+            return ERROR
+        return DEAD_LETTER
+    no_antes_de = (time.time() + BACKOFF_S * intentos) if backoff else 0.0
+    try:
+        ok = _mover_a_outbox_con_intentos(src, intentos, no_antes_de)
+    except OSError:
+        return ERROR
+    return REENCOLADO if ok else ERROR
+
+
+def reintentar_dead_letter(dir_):
+    """Mueve TODO `dead-letter/` de vuelta a `outbox/` con el contador de intentos a 0: remedio
+    nombrado para una sesión que se creía perdida para siempre (gap 26; `/doctor`, T-06, lo
+    nombrará). Borra los sidecars `.causa.json`/`.intentos`. Devuelve cuántos se movieron."""
+    dl_dir = os.path.join(dir_, "dead-letter")
+    try:
+        nombres = [f for f in os.listdir(dl_dir)
+                   if f.endswith(".json") and not f.endswith((".causa.json", ".manifest.json"))]
+    except OSError:
+        return 0
+    outbox_dir = os.path.join(dir_, "outbox")
+    _mkdir_privado(outbox_dir, dir_raiz=dir_)
+    movidos = 0
+    for nombre in nombres:
+        src = os.path.join(dl_dir, nombre)
+        dst = os.path.join(outbox_dir, nombre)
+        try:
+            os.replace(src, dst)
+        except OSError:
+            continue
+        with contextlib.suppress(OSError):
+            os.remove(src + ".causa.json")
         with contextlib.suppress(OSError):
             os.remove(src + INTENTOS_SUFFIX)
-        return False
-    return _mover_a_outbox_con_intentos(src, intentos)
+        movidos += 1
+    return movidos
 
 
 def _reclamar_huerfanos(dir_, ttl_s):
     """Barre `processing/`: los items reclamados hace más de `ttl_s` (un proceso murió entre el
-    claim y `completar`/`dead_letter`, gap 1 Critical de la revisión) se re-encolan con contador de
-    intentos, o van a `dead-letter/` al superar MAX_INTENTOS."""
+    claim y `completar`/`dead_letter`, gap 1 Critical de la revisión) se re-encolan SIN backoff
+    (`backoff=False`: no es un fallo repetido del código, es un worker muerto) con contador de
+    intentos, o van a `dead-letter/` al superar MAX_INTENTOS. Protegido con `try/except OSError`
+    (gap 31 de la revisión intento 2): un `dead-letter/` inutilizable (p.ej. un fichero en vez de
+    carpeta) no debe abortar el barrido — se cuenta en `errores` y el resto de la reclamación
+    sigue."""
     proc_dir = os.path.join(dir_, "processing")
+    errores = []
     try:
-        nombres = [f for f in os.listdir(proc_dir) if f.endswith(".json")]
+        nombres = [f for f in os.listdir(proc_dir) if f.endswith(".json") and not f.startswith(".tmp-")]
     except OSError:
-        return
+        return errores
     ahora = time.time()
     for nombre in nombres:
         src = os.path.join(proc_dir, nombre)
@@ -244,35 +378,54 @@ def _reclamar_huerfanos(dir_, ttl_s):
         if edad <= ttl_s:
             continue
         item = {"clave": nombre[:-len(".json")], "path": src, "payload": None}
-        reencolar_o_dead_letter(item, "envelope huérfano en processing/ (proceso interrumpido)")
+        try:
+            resultado = reencolar_o_dead_letter(item, "envelope huérfano en processing/ (proceso interrumpido)",
+                                                backoff=False)
+        except Exception as e:  # noqa: BLE001 — defensa extra: nada de esto debe abortar el barrido
+            errores.append({"clave": item["clave"], "causa": str(e)})
+            continue
+        if resultado == ERROR:
+            errores.append({"clave": item["clave"], "causa": "no se pudo reencolar ni mandar a dead-letter"})
+    return errores
 
 
 def reclamar(dir_, processing_ttl_s=PROCESSING_TTL_S):
     """Reclama UN envelope pendiente: primero re-encola/dead-letter los huérfanos de `processing/`
-    (gap 1), luego mueve `outbox/<clave>.json` -> `processing/<clave>.json`.
+    (gap 1), luego mueve `outbox/<clave>.json` -> `processing/<clave>.json`, refrescando su mtime a
+    "ahora" (gap 25 Critical: el TTL de huérfanos se mide desde la RECLAMACIÓN, no desde la
+    creación del envelope — sin esto, un envelope que esperó > `processing_ttl_s` en `outbox/` se
+    entregaba a dos trabajadores a la vez). Los candidatos con backoff pendiente (`no_antes_de` en
+    el futuro, gap 26) se saltan.
 
     La exclusividad frente a un segundo proceso concurrente la da el propio `os.replace`: el
     origen desaparece con la primera reclamación que se ejecuta, así que la segunda falla con
     `FileNotFoundError` (o `PermissionError` en Windows si el fichero ya no está) y se salta ese
     candidato. Devuelve `None` si no hay nada pendiente o si todos los candidatos listados ya
-    fueron reclamados por otro proceso entre el `listdir` y el `replace`."""
+    fueron reclamados por otro proceso entre el `listdir` y el `replace`, o tienen backoff
+    pendiente."""
     _reclamar_huerfanos(dir_, processing_ttl_s)
     outbox_dir = os.path.join(dir_, "outbox")
     proc_dir = os.path.join(dir_, "processing")
     try:
-        nombres = sorted(f for f in os.listdir(outbox_dir) if f.endswith(".json"))
+        nombres = sorted(f for f in os.listdir(outbox_dir) if f.endswith(".json") and not f.startswith(".tmp-"))
     except OSError:
         return None
     if not nombres:
         return None
-    _mkdir_privado(proc_dir)
+    ahora = time.time()
+    _mkdir_privado(proc_dir, dir_raiz=dir_)
     for nombre in nombres:
         src = os.path.join(outbox_dir, nombre)
+        sidecar = _leer_sidecar(src + INTENTOS_SUFFIX)
+        if sidecar["no_antes_de"] > ahora:
+            continue                # backoff pendiente (gap 26): no se reclama todavía
         dst = os.path.join(proc_dir, nombre)
         try:
             os.replace(src, dst)
         except OSError:
             continue                # ya reclamado por otro proceso: siguiente candidato
+        with contextlib.suppress(OSError):
+            os.utime(dst, None)     # gap 25: TTL de huérfanos medido desde AHORA, no desde la creación
         intentos_src = src + INTENTOS_SUFFIX
         if os.path.isfile(intentos_src):
             with contextlib.suppress(OSError):
@@ -290,7 +443,7 @@ def _mover_desde_processing(item, subdir_destino):
     src = item["path"] if isinstance(item, dict) else str(item)
     dir_ = os.path.dirname(os.path.dirname(src))     # .../processing/<clave>.json -> dir_
     dst_dir = os.path.join(dir_, subdir_destino)
-    _mkdir_privado(dst_dir)
+    _mkdir_privado(dst_dir, dir_raiz=dir_)
     dst = os.path.join(dst_dir, os.path.basename(src))
     os.replace(src, dst)
     with contextlib.suppress(OSError):
@@ -300,7 +453,8 @@ def _mover_desde_processing(item, subdir_destino):
 
 def completar(item, manifiesto=None):
     """`processing/` -> `done/`; escribe `<ruta>.manifest.json` con `hash` (sha256 del contenido)
-    y `completado_en` además de lo que traiga `manifiesto`."""
+    y `completado_en` además de lo que traiga `manifiesto` — `completado_en` es la fecha REAL de
+    materialización que usa `purgar_antiguos` (gap 33)."""
     try:
         with open(item["path"] if isinstance(item, dict) else str(item), "rb") as fh:
             contenido = fh.read()
@@ -314,46 +468,34 @@ def completar(item, manifiesto=None):
     return dst
 
 
-def dead_letter(item, causa):
-    """`processing/` -> `dead-letter/`; escribe `<ruta>.causa.json` con `causa`, `intentos`
-    (incrementado si ya había una causa previa para esa clave) y `en`. Nunca bloquea el resto de
-    la cola: es un fichero más, movido y ya (CA-06 de la spec)."""
-    dst = _mover_desde_processing(item, "dead-letter")
-    causa_path = dst + ".causa.json"
-    intentos = 1
-    try:
-        with open(causa_path, encoding="utf-8") as fh:      # cerrado explícitamente (gap 23: fugaba el fd)
-            prev = json.load(fh)
-        intentos = int(prev.get("intentos", 0)) + 1
-    except (OSError, ValueError, TypeError):
-        pass
-    _escribir_atomico(causa_path, json.dumps({"causa": str(causa), "intentos": intentos, "en": _iso_now()},
-                                              ensure_ascii=False, indent=2))
-    return dst
-
-
 def estado(dir_):
     """Contadores de envelopes (excluye `.manifest.json`/`.causa.json`/`.intentos`) por carpeta,
-    más `durabilidad` («ok» / «degradada» si algún `fsync` de esta cola falló alguna vez)."""
+    más `durabilidad` («ok» / «degradada» si algún `fsync` de esta cola falló alguna vez) y
+    `permisos` («ok» / «degradados» si algún `chmod` de esta cola falló alguna vez, gap 46)."""
     out = {}
     for sub in SUBDIRS:
         p = os.path.join(dir_, sub)
         try:
             out[sub] = len([f for f in os.listdir(p)
-                            if f.endswith(".json") and not f.endswith((".manifest.json", ".causa.json"))])
+                            if f.endswith(".json") and not f.startswith(".tmp-")
+                            and not f.endswith((".manifest.json", ".causa.json"))])
         except OSError:
             out[sub] = 0
     out["durabilidad"] = "degradada" if os.path.isfile(os.path.join(dir_, _DEGRADADO_MARKER)) else "ok"
+    out["permisos"] = "degradados" if os.path.isfile(os.path.join(dir_, _PERMISOS_MARKER)) else "ok"
     return out
 
 
 def purgar_antiguos(dir_, sub, dias):
-    """Borra ficheros de `<dir_>/<sub>/` (con sus sidecars `.manifest.json`/`.causa.json`) con más
-    de `dias` días (mtime). Devuelve cuántos se borraron. Pensado para `done/` (gap 22); nunca se
-    llama sobre `dead-letter/` (se conserva a propósito) ni sobre `outbox/`/`processing/`."""
+    """Borra ficheros de `<dir_>/<sub>/` (con sus sidecars `.manifest.json`/`.causa.json`) cuyo
+    `completado_en` (del manifiesto, gap 33 de la revisión intento 2 — NO el mtime del envelope de
+    creación) supera `dias` días; sin ese campo, NO se purga (mejor conservar de más que borrar una
+    entrada recién materializada porque su envelope esperó semanas en la outbox). Devuelve cuántos
+    se borraron. Pensado para `done/` (gap 22); nunca se llama sobre `dead-letter/` (se conserva a
+    propósito) ni sobre `outbox/`/`processing/`."""
     p = os.path.join(dir_, sub)
     try:
-        nombres = [f for f in os.listdir(p) if f.endswith(".json")
+        nombres = [f for f in os.listdir(p) if f.endswith(".json") and not f.startswith(".tmp-")
                    and not f.endswith((".manifest.json", ".causa.json"))]
     except OSError:
         return 0
@@ -361,13 +503,17 @@ def purgar_antiguos(dir_, sub, dias):
     borrados = 0
     for fn in nombres:
         fp = os.path.join(p, fn)
+        manifest_path = fp + ".manifest.json"
+        completado_en = None
         try:
-            vieja = os.stat(fp).st_mtime < limite
-        except OSError:
-            continue
-        if not vieja:
-            continue
-        for cand in (fp, fp + ".manifest.json", fp + ".causa.json"):
+            with open(manifest_path, encoding="utf-8") as fh:
+                completado_en = json.load(fh).get("completado_en")
+        except (OSError, ValueError):
+            pass
+        epoch = _iso_a_epoch(completado_en) if completado_en else None
+        if epoch is None or epoch >= limite:
+            continue                # sin `completado_en` legible, o aún dentro de la retención
+        for cand in (fp, manifest_path, fp + ".causa.json"):
             with contextlib.suppress(OSError):
                 os.remove(cand)
         borrados += 1
@@ -375,8 +521,10 @@ def purgar_antiguos(dir_, sub, dias):
 
 
 def limpiar_tmp_huerfanos(dir_, ttl_s=PROCESSING_TTL_S):
-    """Borra temporales `*.tmp-*` huérfanos (un corte a mitad de escritura, o un fichero plantado
-    por fuera) con más de `ttl_s` en `outbox/`/`processing/`. Devuelve cuántos se borraron."""
+    """Borra temporales huérfanos (un corte a mitad de escritura, o un fichero plantado por fuera)
+    cuyo nombre EMPIEZA por `.tmp-` (gap 35: decidir por subcadena `".tmp-"` borraba en silencio
+    una clave legítima como `export.tmp-2026` que la contuviera) con más de `ttl_s` en
+    `outbox/`/`processing/`. Devuelve cuántos se borraron."""
     borrados = 0
     limite = time.time() - ttl_s
     for sub in ("outbox", "processing"):
@@ -386,7 +534,7 @@ def limpiar_tmp_huerfanos(dir_, ttl_s=PROCESSING_TTL_S):
         except OSError:
             continue
         for fn in nombres:
-            if ".tmp-" not in fn:
+            if not fn.startswith(".tmp-"):
                 continue
             fp = os.path.join(p, fn)
             try:

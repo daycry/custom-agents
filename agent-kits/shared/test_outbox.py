@@ -9,6 +9,7 @@ contador de intentos), `estado` (contadores por carpeta) y `purgar` (borrado exp
 import importlib.util
 import json
 import os
+import shutil
 import stat
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -129,7 +130,7 @@ def test_estado_cuenta_por_carpeta(tmp_path):
 def test_estado_sin_cola_todo_cero(tmp_path):
     d = tmp_path / "no-existe"
     st = outbox.estado(str(d))
-    assert st == {"outbox": 0, "processing": 0, "done": 0, "dead-letter": 0, "durabilidad": "ok"}
+    assert st == {"outbox": 0, "processing": 0, "done": 0, "dead-letter": 0, "durabilidad": "ok", "permisos": "ok"}
 
 
 def test_purgar_sin_confirmar_no_borra(tmp_path):
@@ -216,7 +217,7 @@ def test_limpiar_tmp_huerfanos_borra_planted_y_respeta_ttl(tmp_path):
     d = tmp_path / "cola"
     outbox_dir = d / "outbox"
     outbox_dir.mkdir(parents=True)
-    plantado = outbox_dir / "ev1.json.tmp-999"
+    plantado = outbox_dir / ".tmp-ev1-999.json"      # prefijo `.tmp-` AL INICIO (gap 35: no basta con "contener" .tmp-)
     plantado.write_text("{incompleto", encoding="utf-8")
     viejo = time.time() - 700
     os.utime(str(plantado), (viejo, viejo))
@@ -228,18 +229,51 @@ def test_limpiar_tmp_huerfanos_borra_planted_y_respeta_ttl(tmp_path):
 
 def test_purgar_antiguos_borra_done_pero_no_dead_letter(tmp_path):
     """Gap 22: `done/`/`dead-letter/` crecían para siempre; `purgar_antiguos` los acota (lo invoca
-    `journal.py replay` sobre `done/`, nunca sobre `dead-letter/`)."""
+    `journal.py replay` sobre `done/`, nunca sobre `dead-letter/`). Gap 33: el filtro es
+    `completado_en` del manifiesto, no el mtime del envelope (por eso aquí se reescribe el
+    `completado_en` a viejo en vez de tocar solo el mtime del fichero)."""
     d = tmp_path / "cola"
     outbox.escribir(str(d), "viejo", {"a": 1})
     item = outbox.reclamar(str(d))
     dst = outbox.completar(item, {})
-    viejo = time.time() - 40 * 86400
-    os.utime(dst, (viejo, viejo))
-    os.utime(dst + ".manifest.json", (viejo, viejo))
+    viejo_iso = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(time.time() - 40 * 86400))
+    man = json.load(open(dst + ".manifest.json", encoding="utf-8"))
+    man["completado_en"] = viejo_iso
+    json.dump(man, open(dst + ".manifest.json", "w", encoding="utf-8"))
     borrados = outbox.purgar_antiguos(str(d), "done", dias=30)
     assert borrados == 1
     assert outbox.estado(str(d))["done"] == 0
     assert not os.path.exists(dst) and not os.path.exists(dst + ".manifest.json")
+
+
+def test_purgar_antiguos_no_purga_sin_completado_en_ni_por_mtime_viejo(tmp_path):
+    """Gap 33 (B6): un envelope que esperó 40 días en la outbox y se materializa HOY no debe
+    borrarse en la misma pasada solo porque el fichero (heredado de `outbox/`) tenga mtime viejo;
+    lo que manda es `completado_en` (hoy, recién escrito por `completar`)."""
+    d = tmp_path / "cola"
+    outbox.escribir(str(d), "viejo-en-outbox", {"a": 1})
+    p = os.path.join(str(d), "outbox", "viejo-en-outbox.json")
+    viejo = time.time() - 40 * 86400
+    os.utime(p, (viejo, viejo))                    # el envelope ES viejo (esperó en outbox/)
+    item = outbox.reclamar(str(d))
+    dst = outbox.completar(item, {})               # pero se materializa AHORA
+    borrados = outbox.purgar_antiguos(str(d), "done", dias=30)
+    assert borrados == 0
+    assert outbox.estado(str(d))["done"] == 1
+    assert os.path.isfile(dst) and os.path.isfile(dst + ".manifest.json")
+
+
+def test_purgar_antiguos_sin_manifiesto_o_sin_completado_en_no_purga(tmp_path):
+    """Gap 33: sin `completado_en` legible, NO se purga (mejor conservar de más)."""
+    d = tmp_path / "cola"
+    outbox.escribir(str(d), "sin-manifiesto", {"a": 1})
+    item = outbox.reclamar(str(d))
+    dst = outbox.completar(item, {})
+    viejo = time.time() - 40 * 86400
+    os.remove(dst + ".manifest.json")               # manifiesto perdido/inexistente
+    os.utime(dst, (viejo, viejo))
+    assert outbox.purgar_antiguos(str(d), "done", dias=30) == 0
+    assert os.path.isfile(dst)
 
 
 def test_directorios_y_ficheros_de_la_cola_son_privados(tmp_path):
@@ -266,3 +300,146 @@ def test_dead_letter_no_fuga_el_handle_de_causa_json(tmp_path):
     dst2 = outbox.dead_letter(item2, "segundo intento")
     with open(dst2 + ".causa.json", encoding="utf-8") as fh:
         assert json.load(fh)["intentos"] == 2
+
+
+# ------------------------------------------------------------------ revisión intento 2 (gaps 25/26/31/33/40/43/46)
+
+def test_reclamar_refresca_mtime_al_reclamar_no_al_crear(tmp_path):
+    """Gap 25 (Critical): el TTL de huérfanos se medía sobre el mtime del envelope (creación), no
+    sobre la reclamación. Un envelope que esperó 20 min en `outbox/` (el caso normal: `replay`
+    horas después) se entregaba a DOS trabajadores: el segundo `reclamar()` volvía a verlo «viejo»
+    en `processing/` nada más reclamarlo y lo re-encolaba mientras el primero seguía trabajando."""
+    d = tmp_path / "cola"
+    outbox.escribir(str(d), "ev1", {"a": 1})
+    p = os.path.join(str(d), "outbox", "ev1.json")
+    viejo = time.time() - 20 * 60          # 20 minutos esperando en outbox/ (> processing_ttl_s=600)
+    os.utime(p, (viejo, viejo))
+    item = outbox.reclamar(str(d), processing_ttl_s=600)
+    assert item is not None
+    # un segundo `reclamar()` INMEDIATO no debe ver el item recién reclamado como huérfano
+    assert outbox.reclamar(str(d), processing_ttl_s=600) is None
+    assert outbox.estado(str(d))["processing"] == 1 and outbox.estado(str(d))["outbox"] == 0
+    # ni siquiera 10s después (muy por debajo de la TTL desde la reclamación)
+    reciente = time.time() - 10
+    os.utime(item["path"], (reciente, reciente))
+    assert outbox.reclamar(str(d), processing_ttl_s=600) is None
+    assert outbox.estado(str(d))["processing"] == 1
+
+
+def test_reencolar_con_backoff_no_se_reclama_hasta_pasado_el_no_antes_de(tmp_path):
+    """Gap 26 (Critical): un fallo TRANSITORIO agotaba los 3 intentos en milisegundos (el bucle de
+    `replay` reclamaba de inmediato el reencolado). Con backoff, el item reencolado no es
+    reclamable hasta `no_antes_de`."""
+    d = tmp_path / "cola"
+    outbox.escribir(str(d), "ev1", {"a": 1})
+    item = outbox.reclamar(str(d))
+    resultado = outbox.reencolar_o_dead_letter(item, "fallo transitorio", intentos_max=3, backoff=True)
+    assert resultado == outbox.REENCOLADO
+    # el item sigue en outbox/ (no en dead-letter) pero no es reclamable todavía: backoff pendiente
+    assert outbox.estado(str(d))["outbox"] == 1 and outbox.estado(str(d))["dead-letter"] == 0
+    assert outbox.reclamar(str(d)) is None
+    sidecar = outbox._leer_sidecar(os.path.join(str(d), "outbox", "ev1.json" + outbox.INTENTOS_SUFFIX))
+    assert sidecar["intentos"] == 1 and sidecar["no_antes_de"] > time.time()
+
+
+def test_reencolar_huerfano_sin_backoff_es_reclamable_de_inmediato(tmp_path):
+    """Gap 26: la recuperación de huérfanos de `processing/` (worker muerto, no un fallo del
+    código) NO debe llevar backoff — si lo llevara, `test_reclamar_huerfano_agota_intentos_...`
+    tardaría minutos en converger y un worker muerto tardaría en recuperarse sin motivo."""
+    d = tmp_path / "cola"
+    outbox.escribir(str(d), "ev1", {"a": 1})
+    item = outbox.reclamar(str(d))
+    outbox.reencolar_o_dead_letter(item, "huérfano", backoff=False)
+    assert outbox.reclamar(str(d)) is not None          # reclamable YA, sin esperar backoff
+
+
+def test_replay_permanente_tres_pasadas_agota_intentos_y_dead_letter_recuperable(tmp_path, monkeypatch):
+    """Gap 26: un fallo PERMANENTE necesita 3 PASADAS separadas (con tiempo simulado entre ellas,
+    respetando el backoff) para llegar a dead-letter — no una sola pasada instantánea. Y
+    `reintentar_dead_letter` lo recupera a `outbox/` con el contador a 0."""
+    d = tmp_path / "cola"
+    outbox.escribir(str(d), "ev1", {"a": 1})
+    reloj = [time.time()]
+    monkeypatch.setattr(outbox.time, "time", lambda: reloj[0])
+    for intento_esperado in (1, 2):
+        item = outbox.reclamar(str(d))
+        assert item is not None, f"debería poder reclamarse en la pasada {intento_esperado}"
+        resultado = outbox.reencolar_o_dead_letter(item, "fallo permanente", intentos_max=3, backoff=True)
+        assert resultado == outbox.REENCOLADO
+        assert outbox.estado(str(d))["dead-letter"] == 0
+        reloj[0] += outbox.BACKOFF_S * intento_esperado + 1      # avanza el reloj más allá del backoff
+    item = outbox.reclamar(str(d))
+    assert item is not None
+    resultado = outbox.reencolar_o_dead_letter(item, "fallo permanente", intentos_max=3, backoff=True)
+    assert resultado == outbox.DEAD_LETTER
+    st = outbox.estado(str(d))
+    assert st["dead-letter"] == 1 and st["outbox"] == 0
+    causa = json.load(open(os.path.join(str(d), "dead-letter", "ev1.json.causa.json"), encoding="utf-8"))
+    assert causa["intentos"] == 3                       # gap 43: el contador REAL, no 1
+    recuperados = outbox.reintentar_dead_letter(str(d))
+    assert recuperados == 1
+    st2 = outbox.estado(str(d))
+    assert st2["dead-letter"] == 0 and st2["outbox"] == 1
+    sidecar = outbox._leer_sidecar(os.path.join(str(d), "outbox", "ev1.json" + outbox.INTENTOS_SUFFIX))
+    assert sidecar["intentos"] == 0                      # contador a 0 tras el reintento manual
+
+
+def test_reclamar_con_dead_letter_inutilizable_no_aborta_el_barrido(tmp_path):
+    """Gap 31 (B4): el barrido de huérfanos de `processing/` no debe abortar `reclamar()` si
+    `dead-letter/` es inutilizable (aquí, un fichero en vez de una carpeta)."""
+    d = tmp_path / "cola"
+    outbox.escribir(str(d), "ev1", {"a": 1})
+    outbox.escribir(str(d), "ev2", {"a": 2})
+    item1 = outbox.reclamar(str(d))
+    for _ in range(outbox.MAX_INTENTOS - 1):
+        os.utime(item1["path"], (time.time() - 700, time.time() - 700))
+        outbox.reclamar(str(d), processing_ttl_s=600)
+        item1["path"] = os.path.join(str(d), "processing", "ev1.json")
+    os.utime(item1["path"], (time.time() - 700, time.time() - 700))
+    (d / "dead-letter").mkdir(parents=True, exist_ok=True)
+    shutil.rmtree(str(d / "dead-letter"))
+    (d / "dead-letter").write_text("no soy una carpeta", encoding="utf-8")
+    # el siguiente reclamar() intentará mandar ev1 a dead-letter (agotó intentos) y fallará al
+    # crear la carpeta; no debe lanzar, y ev2 (independiente) debe seguir siendo reclamable.
+    errores = outbox._reclamar_huerfanos(str(d), 600)
+    assert errores and errores[0]["clave"] == "ev1"
+    item2 = outbox.reclamar(str(d))
+    assert item2 is not None and item2["clave"] == "ev2"
+
+
+def test_estado_durabilidad_degradada_cuando_fsync_falla(tmp_path, monkeypatch):
+    """Gap 40: `durabilidad: degradada` no tenía un test que ejercitara la rama (mutante: fijar
+    `"ok"` a fuego seguía en verde). Aquí se fuerza que `os.fsync` falle en la escritura."""
+    d = tmp_path / "cola"
+
+    def fsync_que_falla(_fd):
+        raise OSError("fsync no soportado en este FS simulado")
+
+    monkeypatch.setattr(os, "fsync", fsync_que_falla)
+    outbox.escribir(str(d), "ev1", {"a": 1})
+    assert outbox.estado(str(d))["durabilidad"] == "degradada"
+
+
+def test_estado_permisos_degradados_cuando_chmod_falla(tmp_path, monkeypatch):
+    """Gap 46: un `chmod 0700/0600` que falla se tragaba sin ninguna señal (mutante: sin marcar
+    nada, el test de arriba no lo detectaría)."""
+    d = tmp_path / "cola"
+
+    def chmod_que_falla(*a, **k):
+        raise OSError("chmod no soportado en este FS simulado")
+
+    monkeypatch.setattr(os, "chmod", chmod_que_falla)
+    outbox.escribir(str(d), "ev1", {"a": 1})
+    assert outbox.estado(str(d))["permisos"] == "degradados"
+
+
+def test_dead_letter_propaga_el_intentos_real_no_uno_fijo(tmp_path):
+    """Gap 43 (B9): `causa.json` declaraba `intentos: 1` tras 3 reintentos porque no leía el
+    sidecar `.intentos`; aquí se fuerza `intentos=5` explícito (como haría `reencolar_o_dead_letter`
+    tras agotar los reintentos) y se comprueba que NO se recalcula a 1."""
+    d = tmp_path / "cola"
+    outbox.escribir(str(d), "ev1", {"a": 1})
+    item = outbox.reclamar(str(d))
+    dst = outbox.dead_letter(item, "agotado", intentos=5)
+    causa = json.load(open(dst + ".causa.json", encoding="utf-8"))
+    assert causa["intentos"] == 5
