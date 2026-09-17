@@ -16,25 +16,27 @@ verificacion: obligatoria
 
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervision (real/est) | Tokens (real/est) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| Fase 1 - Módulos compartidos | 0 | 2 | 0% | 0 / 2.5h | 0 / 0.8h | 0 / 0.2h | 0 / 45k |
+| Fase 1 - Módulos compartidos | 1 | 2 | 50% | 0.2 / 2.5h | 0.15 / 0.8h | 0 / 0.2h | 0 / 45k |
 | Fase 2 - Captura y materialización | 0 | 2 | 0% | 0 / 5.5h | 0 / 1.6h | 0 / 0.4h | 0 / 85k |
 | Fase 3 - Reconciliación y diagnóstico | 0 | 2 | 0% | 0 / 4h | 0 / 1.2h | 0 / 0.3h | 0 / 60k |
 | Fase 4 - Pruebas, medición y cierre | 0 | 2 | 0% | 0 / 2h | 0 / 0.6h | 0 / 0.2h | 0 / 40k |
-| **TOTAL** | **0** | **8** | **0%** | **0 / 14h** | **0 / 4.2h** | **0 / 1.1h** | **0 / 230k** |
+| **TOTAL** | **1** | **8** | **13%** | **0.2 / 14h** | **0.15 / 4.2h** | **0 / 1.1h** | **0 / 230k** |
 
 ## Fase 1 - Módulos compartidos
 
 ### T-01 - `outbox.py`: cola atómica con claim, done y dead-letter
-- **Estado**: borrador
-- **Tiempo humano**: est. 1.5h · real -
-- **Prevision IA**: 20k in / 8k out tok
+- **Estado**: completado
+- **Tiempo humano**: est. 1.5h · real 0.2h (estimado)
+- **Prevision IA**: 20k in / 8k out tok · real (estimado): usage-meter degradó a `fuente: estimado` (sin transcripciones en este entorno); horas_ia real (estimado): 0.15h
 - **Dependencias**: ninguna
 - **Tipo**: backend
 - **Archivos**: `agent-kits/shared/outbox.py`, `agent-kits/shared/test_outbox.py`, `agent-kits/shared/README.md`
-- **Verificacion**: `python -m pytest -q agent-kits/shared/test_outbox.py` -> escribir idempotente por clave, claim exclusivo con dos procesos, dead-letter con causa, corte antes/después del rename sin parcial
+- **Verificacion**: `python -m pytest -q agent-kits/shared/test_outbox.py` -> escribir idempotente por clave, claim exclusivo con dos procesos, dead-letter con causa, corte antes/después del rename sin parcial · **ejecutado**: `13 passed in 0.05s`
+- **RED**: `test_escribir_es_idempotente_por_clave` (y el resto del módulo) falló con `FileNotFoundError: [Errno 2] No such file or directory: '.../agent-kits/shared/outbox.py'` · 2026-09-17
 **Criterios de aceptación**
-- [ ] Solo stdlib; sin red; contrato `escribir/reclamar/completar/dead_letter/estado/purgar` documentado en el docstring.
-- [ ] Dos `reclamar` concurrentes sobre el mismo item: uno gana, el otro recibe `None`.
+- [x] Solo stdlib; sin red; contrato `escribir/reclamar/completar/dead_letter/estado/purgar` documentado en el docstring.
+- [x] Dos `reclamar` concurrentes sobre el mismo item: uno gana, el otro recibe `None`.
+- **Changelog**: Nueva cola atómica compartida `agent-kits/shared/outbox.py` (escribir/reclamar/completar/dead_letter/estado/purgar) para la captura durable de `SessionEnd` y futuros exportadores de memoria.
 
 ### T-02 - `redact.py` extraído de `journal.py` (una sola fuente)
 - **Estado**: borrador
