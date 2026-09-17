@@ -10,14 +10,14 @@ test-plan: n/a (sin UI)
 | Metrica | Estimado |
 |---|---:|
 | Estado | borrador |
-| Tiempo humano | 41h |
-| Tokens | 600k |
-| Coste humano | 2,050 EUR + tokens por verificar |
+| Tiempo humano | 39.5h (enmienda 2026-09-17; antes 41h) |
+| Tokens | 575k |
+| Coste humano | 1,975 EUR + tokens por verificar |
 | Tareas | 11 |
 
 ## Fases
 
-1. **Config, esquema y redaccion compartida**: `training.json`, esquema de caso, extraccion de `redact.py` compartido.
+1. **Config, esquema, redaccion compartida y capacidad**: `training.json`, esquema de caso, consumo de `redact.py` (lo extrae `session-end-durable-capture`) y registro en `capabilities.py` (`ADR-018`).
 2. **Recorder y puerta humana**: recorder determinista, transiciones de estado, flag `--approved-by-human` obligatorio para Gold.
 3. **Dedup, particion y ensamblador**: shingles anti-duplicado, particion por familia, ensamblador `train.jsonl`/`benchmark.jsonl`, puente a `knowledge-curator`.
 4. **Setup, doctor, regresion y cierre**: opt-in, diagnostico, aislamiento/seguridad, interop, QA sin UI, retro.

@@ -34,9 +34,22 @@ El plugin **no** declara una taxonomia propia de categorias de conocimiento. Dec
      "routing": {"kwipu": false, "graphiti": true}},
     {"key": "CORRECTION", "folder": "corrections", "min_evidence": "validated_case",
      "routing": {"kwipu": "summary", "graphiti": true}}
-  ]
+  ],
+  "backends": {
+    "kwipu":    {"type": "markdown-export", "enabled": true,
+                 "path": ".claude/knowledge-services/kwipu-export", "health": {"url": "http://127.0.0.1:8765/health", "timeout_ms": 800}},
+    "graphiti": {"type": "graphiti", "enabled": false, "mode": "shadow",
+                 "endpoint": "http://127.0.0.1:8000", "group_id": "mr-local",
+                 "provider": {"llm": "ollama", "model": "qwen2.5:7b", "embedder": "ollama", "embedder_model": "nomic-embed-text"}}
+  }
 }
 ```
+
+- **`backends`** (enmienda 2026-09-17, `ADR-018`): cada destino se declara con `id` (la clave), `type` (el adaptador
+  que lo implementa) y su configuracion. `routing` solo puede citar ids declarados aqui; un id desconocido es
+  error de validacion y la categoria no exporta (fail-closed, CA-11). Sin `backends`, el default del plugin
+  declara solo `kwipu` desactivado. La configuracion de `graphiti` la define `graphiti-memory`; aqui solo se
+  muestra la forma.
 
 - **`categories`** sustituye la lista fija: clave, carpeta bajo `approved/`, evidencia minima exigida y enrutado de destino (`kwipu`/`graphiti`: `true` | `false` | `"summary"`).
 - **Sin `taxonomy.json`**, el plugin usa un default MINIMO propio, alineado con lo que `docs/knowledge/` ya usa hoy (`DECISION` -> `adr/`, `PATTERN`/`GOTCHA` -> `gotchas/`, `LESSON` -> `lessons/`), para que custom-agents siga funcionando sin configurar nada.
@@ -49,8 +62,33 @@ El plugin **no** declara una taxonomia propia de categorias de conocimiento. Dec
 
 ```text
 docs/knowledge/{candidates/{pending,needs_changes,rejected},approved/<categorias de taxonomy.json>}
-  -> schema/index validator (lee taxonomy.json) -> kwipu exporter (respeta routing.kwipu) -> .claude/knowledge-services/kwipu-export
+  -> schema/index validator (taxonomy.schema.json, lee taxonomy.json)
+  -> knowledge-sync.py --backend <id>  ->  backends/<type>.py (plan -> outbox.py staging -> apply -> verify)
+       kwipu (markdown-export)  -> .claude/knowledge-services/kwipu-export + manifest.json
+       graphiti (graphiti)      -> episodios (graphiti-memory, iniciativa aparte)
+       <type nuevo>             -> un fichero de adaptador + una entrada en `backends`; el nucleo no cambia
 ```
+
+### Contrato de adaptador (`skills/knowledge-services/backends/<type>.py`)
+
+| Funcion | Que hace | Obligatoria |
+|---|---|---|
+| `health(cfg) -> {estado, detalle}` | salud/desfase sin efectos; `estado` en `off · sano · degradado · error` | si |
+| `plan(entries, cfg) -> ops` | calcula operaciones idempotentes a partir de las entradas `approved` YA filtradas por `routing` | si |
+| `apply(ops, cfg) -> result` | ejecuta sobre un staging de `outbox.py`; publica de forma atomica | si |
+| `verify(cfg) -> {ok, desfase}` | compara manifiesto vs fuente | si |
+| `rebuild(cfg)` | reconstruye la proyeccion entera desde `approved/` | si |
+| `revoke(knowledge_id, cfg)` | invalida/tombstone una entrada retirada de `approved/` | si (puede ser no-op declarado) |
+
+`knowledge-sync.py` carga el adaptador por `type`, aplica `routing` **antes** de llamar a `plan` (el adaptador
+nunca ve una entrada no enrutada), registra cada corrida en `outbox.py` y expone `--dry-run`, `--check` y
+`--rebuild`. Un adaptador `type: "test"` en fixtures demuestra que anadir un backend no toca el nucleo (CA-12).
+
+### Registro de capacidades (`agent-kits/shared/capabilities.py`)
+
+Cada capacidad opcional declara `{id, config_path, enabled(root), health(root), doctor(root), setup_step}`.
+`/doctor` y `/setup` iteran el registro: esta iniciativa registra `knowledge-gate` y `kwipu`; `graphiti-memory`
+y `training-data-services` anaden las suyas sin tocar `doctor.py` (CA-14).
 
 `approved/` es versionado y canonico; sus subcarpetas nacen de `taxonomy.json`, no de una constante del plugin. El export contiene Markdown autocontenido, enlaces, frontmatter y `manifest.json`; se publica desde staging de forma atomica y se puede borrar. Kwipu indexa solo ese directorio, y solo las categorias con `routing.kwipu` distinto de `false`.
 
