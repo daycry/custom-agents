@@ -352,14 +352,19 @@ def parse_ledger(text):
                     else:
                         cur_task["unchecked"] += 1
                 elif ln.strip() and not ln.startswith((" ", "\t")) \
-                        and not re.match(r"^[-*]\s", ln.strip()):
-                    # párrafo/encabezado de nivel superior → fin del bloque de criterios. Una línea
-                    # en **negrita** (`**Checklist manual…**`, sin espacio tras el `*`) NO es un
-                    # ítem de lista aunque empiece por `*`: solo `-<espacio>`/`*<espacio>` cuenta
-                    # (gap de T-08 de session-end-durable-capture: un encabezado en negrita entre
-                    # los criterios y la siguiente `### T-XX`/`## Revisión` se colaba como si
-                    # siguiera dentro del bloque de criterios, y un checklist manual con `- [ ]`
-                    # deliberadamente sin marcar —pendiente del usuario— bloqueaba `completado`).
+                        and not ln.strip().startswith(("-", "*")):
+                    # párrafo/encabezado de nivel superior → fin del bloque de criterios. Vuelto al
+                    # comportamiento de `bcf564c` (gap 70 de la revisión tramo 2): la variante
+                    # anterior (`^[-*]\s`, exigiendo espacio tras el marcador) excluía del bloque
+                    # cualquier línea en **negrita** a columna 0 (`**Subtareas**`, `**Checklist
+                    # manual…**`) porque no hay espacio tras el segundo `*` — eso cambiaba el
+                    # conteo de criterios en 177 tareas de 24 ledgers del repo (verificado:
+                    # `parse_ledger` de los 41 `tasks.md` contra `bcf564c` da 0 con ESTE check).
+                    # Una línea en negrita a columna 0 (`**Algo**` o `**Algo**:`) sigue sin contar
+                    # como criterio (no matchea `check_re`, que exige `[ ]`/`[x]`) — CONTINÚA el
+                    # bloque, no lo cierra; lo que sí sigue bloqueando `completado` es un `- [ ]`
+                    # REAL bajo esa negrita (ver `tests/test_ledger_lint.py`, casos `con_checklist`
+                    # y `con_checklist_pendiente_real`).
                     in_criterios = False
     close_task()
 
