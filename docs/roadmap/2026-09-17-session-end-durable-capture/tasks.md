@@ -19,8 +19,8 @@ verificacion: obligatoria
 | Fase 1 - Módulos compartidos | 2 | 2 | 100% | 0.9 / 2.5h | 1.92 / 0.8h | 0 / 0.2h | 0 / 45k |
 | Fase 2 - Captura y materialización | 2 | 2 | 100% | 2.7 / 5.5h | 4.5 / 1.6h | 0 / 0.4h | 0 / 85k |
 | Fase 3 - Reconciliación y diagnóstico | 2 | 2 | 100% | 0.65 / 4h | 0.9 / 1.2h | 0 / 0.3h | 0 / 60k |
-| Fase 4 - Pruebas, medición y cierre | 1 | 2 | 50% | 0.3 / 2h | 0.5 / 0.6h | 0 / 0.2h | 0 / 40k |
-| **TOTAL** | **7** | **8** | **88%** | **4.55 / 14h** | **7.82 / 4.2h** | **0 / 1.1h** | **0 / 230k** |
+| Fase 4 - Pruebas, medición y cierre | 2 | 2 | 100% | 0.5 / 2h | 0.8 / 0.6h | 0 / 0.2h | 0 / 40k |
+| **TOTAL** | **8** | **8** | **100%** | **4.75 / 14h** | **8.12 / 4.2h** | **0 / 1.1h** | **0 / 230k** |
 
 ## Fase 1 - Módulos compartidos
 
@@ -157,16 +157,19 @@ verificacion: obligatoria
 - **Changelog**: `scripts/bench-session-end.py --iterations N --assert-p95-ms --assert-p99-ms` mide `journal.py capture-end` end-to-end (CA-02, integrado en `ci.yml.MANUAL-COPY`); matriz de garantías por forma de salida + campos nuevos del frontmatter (`cierre`, `derivados_en`, `materializado_en`) en `docs/observability.md` (+EN); `docs/FLOWS.md` (+EN) refleja captura → outbox → replay/recover en vez del `timeout: 45` obsoleto.
 
 ### T-08 - GOT-011, changelog, interop y puertas
-- **Estado**: borrador
-- **Tiempo humano**: est. 1h · real -
-- **Prevision IA**: 10k in / 4k out tok
+- **Estado**: completado
+- **Tiempo humano**: est. 1h · real 0.2h (estimado)
+- **Prevision IA**: 10k in / 4k out tok · real (estimado): usage-meter degradó a `fuente: estimado` (sin transcripciones en este entorno); horas_ia real (estimado): 0.3h
 - **Dependencias**: T-06, T-07
 - **Tipo**: docs
-- **Archivos**: `docs/knowledge/gotchas/GOT-011-hook-cancelled-en-session-end.md`, `docs/knowledge/README.md`, `CHANGELOG.md`, `CHANGELOG.es.md`, `interop/**`, `docs/roadmap/2026-09-17-session-end-durable-capture/tasks.md`
-- **Verificacion**: `python scripts/lint_plugin.py` -> 0 · `python scripts/export-interop.py --check` -> 0 · `python -m pytest -q tests/test_knowledge_index.py` -> índice biyectivo
+- **Archivos**: `docs/knowledge/gotchas/GOT-011-hook-cancelled-en-session-end.md`, `docs/knowledge/README.md`, `CHANGELOG.md`, `CHANGELOG.es.md`, `interop/**`, `docs/roadmap/2026-09-17-session-end-durable-capture/tasks.md`, `agent-kits/shared/ledger-lint.py` (un encabezado en **negrita** entre los criterios y la siguiente tarea/sección se colaba como si siguiera dentro del bloque de criterios: el checklist manual M-01, deliberadamente sin marcar, bloqueaba `completado` con una incoherencia falsa), `tests/test_ledger_lint.py`, `tests/test_console_encoding.py` (la pasada final de la suite completa descubrió que `scripts/bench-session-end.py` (T-07) entraba en `SCRIPTS_CON_SIMBOLOS` — su docstring en español tiene no-ASCII — pero su salida real, texto y `--json`, es un informe de percentiles 100% ASCII, `KeyError` en `MODOS` incluido; se añadió a `SIN_SIMBOLOS_EN_LA_SALIDA` con un modo `--iterations 1` en `MODOS` para que la exención se verifique por medición, como el resto)
+- **Verificacion**: `python scripts/lint_plugin.py` -> **ejecutado**: `9 agentes · 0 errores · 3 avisos` (avisos preexistentes ajenos, nombre genérico de comandos) · `python scripts/export-interop.py --check` -> **ejecutado**: `48 ficheros al día` · `python -m pytest -q tests/test_knowledge_index.py` -> **ejecutado**: `16 passed` · `python3 tests/test_ledger_lint.py` -> **ejecutado**: `test_ledger_lint: 22/22 OK` (test 21 nuevo, RED confirmado revirtiendo el fix: `1 incoherencias`) · `python3 agent-kits/shared/ledger-lint.py docs/roadmap/2026-09-17-session-end-durable-capture/tasks.md` -> `0 incoherencias · 0 avisos` · `python -m pytest -q tests/test_console_encoding.py` -> **ejecutado**: `321 passed` (era `317 failed×4` antes del fix, ver RED)
+- **RED**: `test 21 (nueva)` de `tests/test_ledger_lint.py` (`con_checklist`) falló contra `ledger-lint.py` previo con `❌ T-01: marcado \`completado\` con 1 criterio(s) sin marcar — incoherencia dura` (un encabezado en negrita entre los criterios y la siguiente tarea no cerraba el bloque; se confirmó al aplicar T-08 al ledger real: el checklist manual M-01 bloqueaba `completado`) · 2026-09-17. Además, la pasada final de `python -m pytest -q` (suite completa) dio `4 failed` (más el 1 ajeno esperado) en `tests/test_console_encoding.py::test_arranca_sin_reventar_en_consola_no_utf8[scripts/bench-session-end.py-{cp1252,ascii}]` y `test_la_salida_sigue_siendo_utf8_no_interrogantes[scripts/bench-session-end.py-{cp1252,ascii}]` con `KeyError: 'scripts/bench-session-end.py'` (sin entrada en `MODOS`); corregido añadiendo la exención medida (ver Archivos) · 2026-09-17
 **Criterios de aceptación**
-- [ ] GOT-011 recoge causa (trabajo en el teardown), diagnóstico y remedio.
-- [ ] Ledger con evidencia; revisión de dos lentes sin gaps Critical/Important; retro abre `retro-gate.py`.
+- [x] GOT-011 recoge causa (trabajo en el teardown, no un `timeout` corto), diagnóstico (triage `Hook cancelled` de `journal.py status`/`/doctor`) y remedio (`journal.py recover`/`replay --reintentar-dead-letter`).
+- [x] Ledger con evidencia; revisión de dos lentes sin gaps Critical/Important; retro abre `retro-gate.py`.
+- **Nota**: M-01 (checklist manual, gap 49 de la revisión intento 3 — confirmar la expansión de `${CLAUDE_PLUGIN_ROOT}` en un Codex real) queda **pendiente del usuario**: no automatizable desde este entorno.
+- **Changelog**: `GOT-011` documenta el diagnóstico completo del `Hook cancelled` en `SessionEnd`; `[Unreleased]`/`[Sin publicar]` resumen la iniciativa completa (captura durable + reconciliación presupuestada + diagnóstico en `/doctor`).
 
 **Checklist manual (no automatizable; verificar antes de dar la interop con Codex por cerrada):**
 - [ ] **M-01** — gap 49 de la revisión intento 3 (A-49): no hay fuente que confirme cómo expande

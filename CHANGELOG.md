@@ -9,6 +9,10 @@ and versioning follows [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Durable `SessionEnd` capture and recoverable journal materialization.** `SessionEnd` now writes only an atomic envelope in < 100 ms (no git, AI, or network, CA-01); `SessionStart` drains and reconciles it with a budget (`journal.py replay`/`recover`), and `/doctor` reports queue health (pending, orphans, dead-letter) with a named remedy, telling a cosmetic `Hook cancelled` warning apart from an actual loss.
+
 ## [1.20.2] - 2026-09-15
 
 ### Fixed
