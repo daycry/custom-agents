@@ -121,9 +121,13 @@ MAX_INTENTOS = 3                    # tras esto, dead-letter con causa «reinten
 BACKOFF_S = 60                      # backoff base tras un fallo TRANSITORIO; crece × nº de intento (gap 26)
 BACKOFF_MAX_S = 3600                # tope de `no_antes_de` (gap 51): un salto de reloj o un sidecar
                                      # corrupto no debe dejar un item inalcanzable para siempre
+CLAIMING_TTL_S = 30                 # un `.claiming` en processing/ (reclamación a medias, N-1) con más de
+                                     # esto sin llegar al rename final es un proceso muerto entre pasos —
+                                     # se devuelve a outbox/, NUNCA queda huérfano para siempre
 _DEGRADADO_MARKER = ".durabilidad-degradada"    # sentinela en <dir>/: algún fsync de esta cola falló alguna vez
 _PERMISOS_MARKER = ".permisos-degradados"       # sentinela en <dir>/: algún chmod de esta cola falló alguna vez
 _RECLAMACION_MARKER = ".reclamacion-degradada"  # sentinela en <dir>/: `os.utime` al reclamar falló alguna vez (gap 50)
+_RECUPERADOS_CLAIMING_MARKER = ".claiming-recuperados"  # contador best-effort de `.claiming` huérfanos recuperados (N-1)
 
 REENCOLADO = "reencolado"
 DEAD_LETTER = "dead_letter"
@@ -171,6 +175,30 @@ def _marcar_reclamacion_degradada(dir_):
         open(os.path.join(dir_, _RECLAMACION_MARKER), "a", encoding="utf-8").close()
     except OSError:
         pass
+
+
+def _incrementar_recuperados_claiming(dir_):
+    """Contador best-effort (fichero de texto plano en `<dir_>/`) de cuántos `.claiming` huérfanos ha
+    recuperado `_reclamar_huerfanos` a lo largo de la vida de esta cola: `estado()` lo expone en
+    `recuperados_claiming` (N-1). Nunca lanza; si no se puede leer/escribir, se degrada en silencio
+    (igual que el resto de sentinelas de esta cola)."""
+    path = os.path.join(dir_, _RECUPERADOS_CLAIMING_MARKER)
+    n = 0
+    with contextlib.suppress(OSError, ValueError):
+        with open(path, encoding="utf-8") as fh:
+            n = int((fh.read() or "0").strip())
+    with contextlib.suppress(OSError):
+        os.makedirs(dir_, exist_ok=True)
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(str(n + 1))
+
+
+def _leer_recuperados_claiming(dir_):
+    try:
+        with open(os.path.join(dir_, _RECUPERADOS_CLAIMING_MARKER), encoding="utf-8") as fh:
+            return int((fh.read() or "0").strip())
+    except (OSError, ValueError):
+        return 0
 
 
 def _mkdir_privado(path, dir_raiz=None):
@@ -237,11 +265,17 @@ def _escribir_atomico(destino, contenido, dir_raiz=None):
 
 def _localizar(dir_, clave):
     """Ruta del envelope `clave` en cualquiera de las cuatro carpetas, o `None` si no existe en
-    ninguna (usado por `escribir` para la idempotencia más allá de `outbox/`)."""
+    ninguna (usado por `escribir` para la idempotencia más allá de `outbox/`). Un `.claiming` en
+    `processing/` (reclamación a medias o huérfana, N-1) TAMBIÉN cuenta como "existe": sin esto,
+    `escribir()` con la misma clave de un envelope que se está reclamando (o que quedó huérfano tras
+    un corte) crea un segundo envelope en `outbox/`, rompiendo CA-03."""
     for sub in SUBDIRS:
         p = os.path.join(dir_, sub, f"{clave}.json")
         if os.path.isfile(p):
             return p
+    p_claiming = os.path.join(dir_, "processing", f"{clave}.json{CLAIMING_SUFFIX}")
+    if os.path.isfile(p_claiming):
+        return p_claiming
     return None
 
 
@@ -445,20 +479,57 @@ def reintentar_dead_letter(dir_):
     return movidos
 
 
-def _reclamar_huerfanos(dir_, ttl_s):
+def _recuperar_claiming_huerfanos(dir_, proc_dir, nombres_todos, claiming_ttl_s, errores):
+    """Devuelve a `outbox/` los `.claiming` de `processing/` con más de `claiming_ttl_s` sin llegar
+    al rename final de `reclamar()` (N-1 Critical): un proceso muerto ENTRE el `os.replace` a
+    `.claiming` y el rename final (o entre `.claiming` y `os.utime`) dejaba antes un huérfano que
+    NINGÚN barrido veía (`endswith('.json')` no casa con `.claiming`). Si ya hay un envelope con esa
+    clave en `outbox/` (otro proceso lo repuso primero), el `.claiming` sobrante se borra en vez de
+    pisar el existente. Cuenta cada recuperación en el sentinela `recuperados_claiming` de `estado()`."""
+    claimings = [f for f in nombres_todos if f.endswith(CLAIMING_SUFFIX)]
+    if not claimings:
+        return
+    outbox_dir = os.path.join(dir_, "outbox")
+    ahora = time.time()
+    for nombre in claimings:
+        src = os.path.join(proc_dir, nombre)
+        try:
+            edad = ahora - os.stat(src).st_mtime
+        except OSError:
+            continue
+        if edad <= claiming_ttl_s:
+            continue                # reclamación en curso legítima (otro `reclamar()` a mitad de camino)
+        clave_json = nombre[:-len(CLAIMING_SUFFIX)]           # "<clave>.json"
+        dst = os.path.join(outbox_dir, clave_json)
+        try:
+            _mkdir_privado(outbox_dir, dir_raiz=dir_)
+            if os.path.exists(dst):
+                os.remove(src)                                 # ya hay uno en outbox/: el claiming sobra
+            else:
+                os.replace(src, dst)
+            _incrementar_recuperados_claiming(dir_)
+        except OSError as e:
+            errores.append({"clave": clave_json[:-len(".json")], "causa": f"claiming huérfano: {e}"})
+
+
+def _reclamar_huerfanos(dir_, ttl_s, claiming_ttl_s=CLAIMING_TTL_S):
     """Barre `processing/`: los items reclamados hace más de `ttl_s` (un proceso murió entre el
     claim y `completar`/`dead_letter`, gap 1 Critical de la revisión) se re-encolan SIN backoff
     (`backoff=False`: no es un fallo repetido del código, es un worker muerto) con contador de
     intentos, o van a `dead-letter/` al superar MAX_INTENTOS. Protegido con `try/except OSError`
     (gap 31 de la revisión intento 2): un `dead-letter/` inutilizable (p.ej. un fichero en vez de
     carpeta) no debe abortar el barrido — se cuenta en `errores` y el resto de la reclamación
-    sigue."""
+    sigue. Además (N-1 Critical), recupera los `.claiming` huérfanos con más de `claiming_ttl_s`
+    (reclamación de `reclamar()` interrumpida a medias, ver `_recuperar_claiming_huerfanos`)."""
     proc_dir = os.path.join(dir_, "processing")
     errores = []
     try:
-        nombres = [f for f in os.listdir(proc_dir) if f.endswith(".json") and not f.startswith(".tmp-")]
+        nombres_todos = os.listdir(proc_dir)
     except OSError:
         return errores
+    _recuperar_claiming_huerfanos(dir_, proc_dir, nombres_todos, claiming_ttl_s, errores)
+    nombres = [f for f in nombres_todos if f.endswith(".json") and not f.startswith(".tmp-")
+               and not f.endswith((".manifest.json", ".causa.json"))]
     ahora = time.time()
     for nombre in nombres:
         src = os.path.join(proc_dir, nombre)
@@ -484,7 +555,7 @@ def _reclamar_huerfanos(dir_, ttl_s):
     return errores
 
 
-def reclamar(dir_, processing_ttl_s=PROCESSING_TTL_S, errores=None):
+def reclamar(dir_, processing_ttl_s=PROCESSING_TTL_S, errores=None, claiming_ttl_s=CLAIMING_TTL_S):
     """Reclama UN envelope pendiente: primero re-encola/dead-letter los huérfanos de `processing/`
     (gap 1; si se pasa una lista en `errores`, se le añaden los errores del barrido — gap 52 de la
     revisión intento 3: antes `_reclamar_huerfanos` los calculaba y `reclamar` los descartaba, así
@@ -511,14 +582,17 @@ def reclamar(dir_, processing_ttl_s=PROCESSING_TTL_S, errores=None):
     `FileNotFoundError` (o `PermissionError` en Windows si el fichero ya no está) y se salta ese
     candidato. Devuelve `None` si no hay nada pendiente, si todos los candidatos listados ya fueron
     reclamados por otro proceso entre el `listdir` y el `replace`, si tienen backoff pendiente, o si
-    ninguno pudo refrescar su mtime al reclamarlo."""
-    barrido_errores = _reclamar_huerfanos(dir_, processing_ttl_s)
+    ninguno pudo refrescar su mtime al reclamarlo. `claiming_ttl_s` (N-1 Critical) es el tope para
+    recuperar un `.claiming` huérfano de una reclamación interrumpida a medias (ver
+    `_recuperar_claiming_huerfanos`)."""
+    barrido_errores = _reclamar_huerfanos(dir_, processing_ttl_s, claiming_ttl_s=claiming_ttl_s)
     if errores is not None:
         errores.extend(barrido_errores)
     outbox_dir = os.path.join(dir_, "outbox")
     proc_dir = os.path.join(dir_, "processing")
     try:
-        nombres = sorted(f for f in os.listdir(outbox_dir) if f.endswith(".json") and not f.startswith(".tmp-"))
+        nombres = sorted(f for f in os.listdir(outbox_dir) if f.endswith(".json") and not f.startswith(".tmp-")
+                          and not f.endswith((".manifest.json", ".causa.json")))
     except OSError:
         return None
     if not nombres:
@@ -548,7 +622,16 @@ def reclamar(dir_, processing_ttl_s=PROCESSING_TTL_S, errores=None):
         try:
             os.replace(claiming, dst)
         except OSError:
-            continue                # otro proceso ganó la carrera del rename final: siguiente candidato
+            # N-1 (d): deshacer el paso en vez de un `continue` a secas — sin esto, el `.claiming`
+            # queda varado en `processing/` donde NINGÚN barrido lo veía antes de esta corrección.
+            # Si mientras tanto ya hay un envelope con ese nombre en outbox/ (carrera con otro
+            # proceso que lo repuso), el `.claiming` sobrante se descarta en vez de pisarlo.
+            with contextlib.suppress(OSError):
+                if os.path.exists(src):
+                    os.remove(claiming)
+                else:
+                    os.replace(claiming, src)
+            continue
         with contextlib.suppress(OSError):
             _escribir_atomico(dst + CLAIMED_AT_SUFFIX, str(time.time()), dir_raiz=dir_)
         intentos_src = src + INTENTOS_SUFFIX
@@ -584,13 +667,24 @@ def completar(item, manifiesto=None):
     materialización que usa `purgar_antiguos` (gap 33).
 
     El manifiesto se escribe ANTES de mover el envelope a `done/` (gap 59 de la revisión intento 3):
-    si el `os.replace` de `dst + ".manifest.json"` falla (ENOSPC, permisos), la excepción se propaga
-    con el item TODAVÍA en `processing/` — el llamador (`journal.py replay`) lo reencola o lo manda
-    a dead-letter con normalidad. Antes, el manifiesto se escribía DESPUÉS de mover a `done/`: un
-    fallo ahí dejaba la sesión YA materializada pero con `replay` reportando `materializados: 0` y el
-    envelope varado en `done/` sin `completado_en` (nunca lo purga `purgar_antiguos`, que exige ese
-    campo) — una pérdida de visibilidad silenciosa, no de datos."""
+    si escribirlo falla (ENOSPC, permisos), la excepción se propaga con el item TODAVÍA en
+    `processing/` — el llamador (`journal.py replay`) lo reencola o lo manda a dead-letter con
+    normalidad. Antes, el manifiesto se escribía DESPUÉS de mover a `done/`: un fallo ahí dejaba la
+    sesión YA materializada pero con `replay` reportando `materializados: 0` y el envelope varado en
+    `done/` sin `completado_en` (nunca lo purga `purgar_antiguos`, que exige ese campo) — una pérdida
+    de visibilidad silenciosa, no de datos.
+
+    El manifiesto se escribe DIRECTAMENTE en su destino final `done/<clave>.json.manifest.json`
+    (N-2: el fix del gap 59 lo escribía en `processing/<clave>.json.manifest.json`, un nombre que
+    también casa `endswith('.json')` — un manifiesto huérfano ahí se reencolaba como un envelope más
+    y `reclamar` lo devolvía con clave `<clave>.json.manifest`, una dead-letter falsa). Escribirlo
+    directo en `done/` ANTES de mover el envelope elimina esa ventana: si el corte ocurre justo
+    DESPUÉS del manifiesto y ANTES del `os.replace` a `done/`, el envelope simplemente sigue en
+    `processing/` (nunca a medias en ninguna carpeta) y el manifiesto huérfano en `done/` es
+    inofensivo — `purgar_antiguos` lo purga por su propio `completado_en` (ver más abajo), y ni
+    `reclamar` ni `estado()` lo confunden con un envelope porque no viven en `outbox/`/`processing/`."""
     src = item["path"] if isinstance(item, dict) else str(item)
+    dir_ = os.path.dirname(os.path.dirname(src))          # .../processing/<clave>.json -> dir_
     try:
         with open(src, "rb") as fh:
             contenido = fh.read()
@@ -599,19 +693,22 @@ def completar(item, manifiesto=None):
     man = dict(manifiesto or {})
     man.setdefault("hash", hashlib.sha256(contenido).hexdigest())
     man.setdefault("completado_en", _iso_now())
-    manifest_tmp = src + ".manifest.json"
-    _escribir_atomico(manifest_tmp, json.dumps(man, ensure_ascii=False, indent=2))   # puede lanzar: item sigue en processing/
-    dst = _mover_desde_processing(item, "done")
-    os.replace(manifest_tmp, dst + ".manifest.json")
-    return dst
+    done_dir = os.path.join(dir_, "done")
+    _mkdir_privado(done_dir, dir_raiz=dir_)
+    manifest_dst = os.path.join(done_dir, os.path.basename(src) + ".manifest.json")
+    _escribir_atomico(manifest_dst, json.dumps(man, ensure_ascii=False, indent=2),
+                       dir_raiz=dir_)                     # puede lanzar: item sigue en processing/
+    return _mover_desde_processing(item, "done")
 
 
 def estado(dir_):
     """Contadores de envelopes (excluye `.manifest.json`/`.causa.json`/`.intentos`) por carpeta,
     más `durabilidad` («ok» / «degradada» si algún `fsync` de esta cola falló alguna vez),
     `permisos` («ok» / «degradados» si algún `chmod` de esta cola falló alguna vez, gap 46),
-    `reclamacion` («ok» / «degradada» si algún `os.utime` al reclamar falló alguna vez, gap 50) y
-    `en_backoff` (cuántos items de `outbox/` tienen `no_antes_de` pendiente ahora mismo, gap 51)."""
+    `reclamacion` («ok» / «degradada» si algún `os.utime` al reclamar falló alguna vez, gap 50),
+    `en_backoff` (cuántos items de `outbox/` tienen `no_antes_de` pendiente ahora mismo, gap 51) y
+    `recuperados_claiming` (cuántos `.claiming` huérfanos de `processing/` ha recuperado
+    `_reclamar_huerfanos` a lo largo de la vida de esta cola, N-1 Critical)."""
     out = {}
     for sub in SUBDIRS:
         p = os.path.join(dir_, sub)
@@ -625,7 +722,16 @@ def estado(dir_):
     out["permisos"] = "degradados" if os.path.isfile(os.path.join(dir_, _PERMISOS_MARKER)) else "ok"
     out["reclamacion"] = "degradada" if os.path.isfile(os.path.join(dir_, _RECLAMACION_MARKER)) else "ok"
     out["en_backoff"], _ = en_backoff(dir_)
+    out["recuperados_claiming"] = _leer_recuperados_claiming(dir_)
     return out
+
+
+def _leer_completado_en(manifest_path):
+    try:
+        with open(manifest_path, encoding="utf-8") as fh:
+            return json.load(fh).get("completado_en")
+    except (OSError, ValueError):
+        return None
 
 
 def purgar_antiguos(dir_, sub, dias):
@@ -634,30 +740,41 @@ def purgar_antiguos(dir_, sub, dias):
     creación) supera `dias` días; sin ese campo, NO se purga (mejor conservar de más que borrar una
     entrada recién materializada porque su envelope esperó semanas en la outbox). Devuelve cuántos
     se borraron. Pensado para `done/` (gap 22); nunca se llama sobre `dead-letter/` (se conserva a
-    propósito) ni sobre `outbox/`/`processing/`."""
+    propósito) ni sobre `outbox/`/`processing/`.
+
+    N-2: un manifiesto HUÉRFANO (sin su envelope — p.ej. un corte entre `completar()` escribiendo el
+    manifiesto en `done/` y moviendo el envelope ahí) también se purga por su propio `completado_en`,
+    en vez de crecer para siempre porque el bucle principal solo enumera envelopes existentes."""
     p = os.path.join(dir_, sub)
     try:
-        nombres = [f for f in os.listdir(p) if f.endswith(".json") and not f.startswith(".tmp-")
-                   and not f.endswith((".manifest.json", ".causa.json"))]
+        todos = os.listdir(p)
     except OSError:
         return 0
     limite = time.time() - dias * 86400
     borrados = 0
+    procesados = set()
+    nombres = [f for f in todos if f.endswith(".json") and not f.startswith(".tmp-")
+               and not f.endswith((".manifest.json", ".causa.json"))]
     for fn in nombres:
+        procesados.add(fn)
         fp = os.path.join(p, fn)
         manifest_path = fp + ".manifest.json"
-        completado_en = None
-        try:
-            with open(manifest_path, encoding="utf-8") as fh:
-                completado_en = json.load(fh).get("completado_en")
-        except (OSError, ValueError):
-            pass
-        epoch = _iso_a_epoch(completado_en) if completado_en else None
+        epoch = _iso_a_epoch(_leer_completado_en(manifest_path))
         if epoch is None or epoch >= limite:
             continue                # sin `completado_en` legible, o aún dentro de la retención
         for cand in (fp, manifest_path, fp + ".causa.json"):
             with contextlib.suppress(OSError):
                 os.remove(cand)
+        borrados += 1
+    huerfanos = [f for f in todos if f.endswith(".manifest.json")
+                 and f[:-len(".manifest.json")] not in procesados]
+    for fn in huerfanos:
+        manifest_path = os.path.join(p, fn)
+        epoch = _iso_a_epoch(_leer_completado_en(manifest_path))
+        if epoch is None or epoch >= limite:
+            continue
+        with contextlib.suppress(OSError):
+            os.remove(manifest_path)
         borrados += 1
     return borrados
 

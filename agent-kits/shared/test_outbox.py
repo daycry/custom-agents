@@ -144,7 +144,7 @@ def test_estado_sin_cola_todo_cero(tmp_path):
     d = tmp_path / "no-existe"
     st = outbox.estado(str(d))
     assert st == {"outbox": 0, "processing": 0, "done": 0, "dead-letter": 0, "durabilidad": "ok",
-                  "permisos": "ok", "reclamacion": "ok", "en_backoff": 0}
+                  "permisos": "ok", "reclamacion": "ok", "en_backoff": 0, "recuperados_claiming": 0}
 
 
 def test_purgar_sin_confirmar_no_borra(tmp_path):
@@ -613,4 +613,185 @@ def test_completar_escribe_manifiesto_antes_de_mover_a_done(tmp_path, monkeypatc
     assert os.path.isfile(item["path"])                    # el envelope NUNCA se movió a done/
     # tras el "arreglo" del disco, un segundo intento de completar SÍ funciona
     dst = outbox.completar(item, {"cierre": "materializado"})
+    assert os.path.isfile(dst) and os.path.isfile(dst + ".manifest.json")
+
+
+# ------------------------------------------------------------------ micro-pasada T-fix3b (lente fresca sobre el delta de T-fix3): N-1/N-2/N-4
+
+def test_reclamar_recupera_claiming_huerfano_plantado_y_lo_reclama(tmp_path):
+    """N-1 (Critical): un `.claiming` huérfano en `processing/` (proceso muerto entre el `os.replace`
+    a `.claiming` y el rename final) NO lo ve ningún barrido hoy (`_reclamar_huerfanos`, `estado()`,
+    `_localizar` filtran por `endswith('.json')`, y `.claiming` no casa). Plantado y envejecido más de
+    `CLAIMING_TTL_S`, `reclamar()` debe devolverlo a `outbox/` y reclamarlo en la misma pasada."""
+    d = tmp_path / "cola"
+    outbox.escribir(str(d), "ev1", {"a": 1})
+    proc_dir = os.path.join(str(d), "processing")
+    outbox._mkdir_privado(proc_dir, dir_raiz=str(d))
+    claiming = os.path.join(proc_dir, "ev1.json.claiming")
+    os.replace(os.path.join(str(d), "outbox", "ev1.json"), claiming)     # simula el corte a medias
+    viejo = time.time() - outbox.CLAIMING_TTL_S - 5
+    os.utime(claiming, (viejo, viejo))
+    item = outbox.reclamar(str(d))
+    assert item is not None and item["clave"] == "ev1"
+    assert not os.path.isfile(claiming)
+    st = outbox.estado(str(d))
+    assert st["recuperados_claiming"] == 1
+
+
+def test_reclamar_no_recupera_claiming_reciente_bajo_ttl(tmp_path):
+    """Mutante de guarda: un `.claiming` con menos de `CLAIMING_TTL_S` de edad es una reclamación EN
+    CURSO legítima (otro `reclamar()` a mitad de sus tres pasos) — no debe tocarse todavía."""
+    d = tmp_path / "cola"
+    outbox.escribir(str(d), "ev1", {"a": 1})
+    proc_dir = os.path.join(str(d), "processing")
+    outbox._mkdir_privado(proc_dir, dir_raiz=str(d))
+    claiming = os.path.join(proc_dir, "ev1.json.claiming")
+    os.replace(os.path.join(str(d), "outbox", "ev1.json"), claiming)
+    assert outbox.reclamar(str(d)) is None                 # nada más pendiente; el claiming es reciente
+    assert os.path.isfile(claiming)
+    assert outbox.estado(str(d))["recuperados_claiming"] == 0
+
+
+def test_reclamar_sigkill_real_deja_claiming_huerfano_y_se_recupera(tmp_path):
+    """N-1: reproducción con SIGKILL REAL dentro de `os.utime` (no monkeypatch): un subproceso mueve
+    el envelope a `.claiming` y se suicida antes del rename final. El `.claiming` queda huérfano;
+    envejecido, el siguiente `reclamar()` en el proceso de test lo recupera."""
+    import signal
+    import subprocess
+    import sys
+    d = tmp_path / "cola"
+    outbox.escribir(str(d), "ev1", {"a": 1})
+    script = (
+        "import os, sys, signal, importlib.util\n"
+        f"spec = importlib.util.spec_from_file_location('outbox', {SCRIPT!r})\n"
+        "outbox = importlib.util.module_from_spec(spec)\n"
+        "spec.loader.exec_module(outbox)\n"
+        f"d = {str(d)!r}\n"
+        "proc_dir = os.path.join(d, 'processing')\n"
+        "outbox._mkdir_privado(proc_dir, dir_raiz=d)\n"
+        "src = os.path.join(d, 'outbox', 'ev1.json')\n"
+        "claiming = os.path.join(proc_dir, 'ev1.json.claiming')\n"
+        "os.replace(src, claiming)\n"
+        "os.kill(os.getpid(), signal.SIGKILL)\n"          # muere ANTES del os.utime/rename final
+    )
+    proc = subprocess.run([sys.executable, "-c", script], timeout=10)
+    if os.name != "nt":
+        assert proc.returncode == -signal.SIGKILL
+    claiming = os.path.join(str(d), "processing", "ev1.json.claiming")
+    assert os.path.isfile(claiming)                        # el SIGKILL real dejó el huérfano
+    assert not os.path.isfile(os.path.join(str(d), "outbox", "ev1.json"))
+    viejo = time.time() - outbox.CLAIMING_TTL_S - 5
+    os.utime(claiming, (viejo, viejo))
+    item = outbox.reclamar(str(d))
+    assert item is not None and item["clave"] == "ev1"
+
+
+def test_reclamar_revierte_claiming_a_outbox_si_falla_el_rename_final(tmp_path, monkeypatch):
+    """N-1 (d): si el `os.replace(claiming, dst)` final falla, el item debe deshacerse — volver a
+    `outbox/` — en vez de un `continue` a secas que deja el `.claiming` varado en `processing/`."""
+    d = tmp_path / "cola"
+    outbox.escribir(str(d), "ev1", {"a": 1})
+    real_replace = os.replace
+    llamadas = {"n": 0}
+
+    def replace_que_rompe_solo_el_rename_final(src, dst, *a, **k):
+        if str(src).endswith(".claiming") and not str(dst).endswith(".claiming"):
+            llamadas["n"] += 1
+            if llamadas["n"] == 1:            # el rename final (claiming -> dst): se rompe UNA vez
+                raise OSError("rename final simulado roto")
+        return real_replace(src, dst, *a, **k)   # el revert (claiming -> src) sí debe funcionar
+
+    monkeypatch.setattr(os, "replace", replace_que_rompe_solo_el_rename_final)
+    item = outbox.reclamar(str(d))
+    monkeypatch.undo()
+    assert item is None
+    st = outbox.estado(str(d))
+    assert st["outbox"] == 1 and st["processing"] == 0
+    assert not any(f.endswith(".claiming") for f in os.listdir(os.path.join(str(d), "processing")))
+    assert outbox.reclamar(str(d)) is not None              # tras deshacerse, vuelve a ser reclamable
+
+
+def test_escribir_no_reescribe_si_ya_hay_un_claiming_huerfano_con_esa_clave(tmp_path):
+    """N-1 (c): `_localizar` debe considerar un `.claiming` en `processing/` como "existe" — sin
+    esto, `escribir()` con la MISMA clave de un envelope reclamándose (o huérfano) crea un segundo
+    envelope en `outbox/`, rompiendo la idempotencia por clave (CA-03)."""
+    d = tmp_path / "cola"
+    outbox.escribir(str(d), "ev1", {"a": 1})
+    proc_dir = os.path.join(str(d), "processing")
+    outbox._mkdir_privado(proc_dir, dir_raiz=str(d))
+    claiming = os.path.join(proc_dir, "ev1.json.claiming")
+    os.replace(os.path.join(str(d), "outbox", "ev1.json"), claiming)
+    p = outbox.escribir(str(d), "ev1", {"a": 999})
+    assert p == claiming
+    assert not os.path.isfile(os.path.join(str(d), "outbox", "ev1.json"))
+
+
+def test_manifiesto_huerfano_en_done_no_es_envelope_ni_se_reclama(tmp_path):
+    """N-2: el manifiesto se escribe DIRECTAMENTE en `done/<clave>.json.manifest.json` (destino
+    final) ANTES de mover el envelope — nunca pasa por `processing/` con un nombre que casa
+    `endswith('.json')`. Un manifiesto huérfano en `done/` (sin su envelope) no debe contarse como
+    envelope ni ser devuelto por `reclamar()`."""
+    d = tmp_path / "cola"
+    done_dir = os.path.join(str(d), "done")
+    outbox._mkdir_privado(done_dir, dir_raiz=str(d))
+    manifest_path = os.path.join(done_dir, "ev1.json.manifest.json")
+    with open(manifest_path, "w", encoding="utf-8") as fh:
+        json.dump({"hash": "x", "completado_en": outbox._iso_now()}, fh)
+    assert outbox.reclamar(str(d)) is None
+    st = outbox.estado(str(d))
+    assert st["done"] == 0
+
+
+def test_purgar_antiguos_purga_manifiesto_huerfano_por_su_completado_en(tmp_path):
+    """N-2: un manifiesto huérfano en `done/` (corte entre escribirlo y mover el envelope) es
+    inofensivo — `purgar_antiguos` lo purga por su propio `completado_en`, igual que un par
+    completo, en vez de dejarlo crecer para siempre."""
+    d = tmp_path / "cola"
+    done_dir = os.path.join(str(d), "done")
+    outbox._mkdir_privado(done_dir, dir_raiz=str(d))
+    manifest_path = os.path.join(done_dir, "ev1.json.manifest.json")
+    hace_40_dias = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(time.time() - 40 * 86400))
+    with open(manifest_path, "w", encoding="utf-8") as fh:
+        json.dump({"hash": "x", "completado_en": hace_40_dias}, fh)
+    borrados = outbox.purgar_antiguos(str(d), "done", 30)
+    assert borrados == 1
+    assert not os.path.isfile(manifest_path)
+
+
+def test_completar_no_escribe_manifiesto_temporal_en_processing(tmp_path):
+    """N-2: elimina cualquier `*.json.manifest.json` en `processing/` — el manifiesto va directo a
+    `done/`."""
+    d = tmp_path / "cola"
+    outbox.escribir(str(d), "ev1", {"a": 1})
+    item = outbox.reclamar(str(d))
+    outbox.completar(item, {"cierre": "materializado"})
+    proc_dir = os.path.join(str(d), "processing")
+    assert not any(f.endswith(".manifest.json") for f in os.listdir(proc_dir))
+
+
+def test_completar_corte_entre_manifiesto_y_envelope_es_recuperable(tmp_path, monkeypatch):
+    """N-2: corte simulado ENTRE escribir el manifiesto en `done/` y mover el envelope — el envelope
+    sigue en `processing/`, y un segundo `completar()` sobrescribe el manifiesto sin error (write
+    idempotente) y termina en `done/`."""
+    d = tmp_path / "cola"
+    outbox.escribir(str(d), "ev1", {"a": 1})
+    item = outbox.reclamar(str(d))
+    real_mover = outbox._mover_desde_processing
+    llamadas = {"n": 0}
+
+    def mover_que_rompe_la_primera_vez(item_, subdir):
+        llamadas["n"] += 1
+        if llamadas["n"] == 1:
+            raise OSError("corte simulado tras escribir el manifiesto en done/")
+        return real_mover(item_, subdir)
+
+    monkeypatch.setattr(outbox, "_mover_desde_processing", mover_que_rompe_la_primera_vez)
+    with pytest.raises(OSError):
+        outbox.completar(item, {"cierre": "materializado"})
+    monkeypatch.undo()
+    st = outbox.estado(str(d))
+    assert st["processing"] == 1 and st["done"] == 0
+    manifest_path = os.path.join(str(d), "done", "ev1.json.manifest.json")
+    assert os.path.isfile(manifest_path)                    # el manifiesto YA está en done/
+    dst = outbox.completar(item, {"cierre": "materializado"})   # segundo intento: idempotente, sin error
     assert os.path.isfile(dst) and os.path.isfile(dst + ".manifest.json")
