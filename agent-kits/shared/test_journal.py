@@ -907,3 +907,174 @@ def test_capture_concurrente_no_pierde_turnos(tmp_path):
         _git(proj, "init", "-q")
         r = subprocess.run([GIT, "-C", str(proj), "check-ignore", "-q", ".claude/session-prompts-s1.log.lock"], capture_output=True)
         assert r.returncode == 0
+
+
+# ------------------------------------------------------------------ capture-end / replay (session-end-durable-capture T-03/T-04)
+
+def session_end_payload(proj, sid="s1", reason="other"):
+    return {"hook_event_name": "SessionEnd", "session_id": sid, "reason": reason, "cwd": str(proj),
+            "transcript_path": str(proj / "no-existe.jsonl")}
+
+
+def outbox_pendientes(proj, sub="outbox"):
+    d = proj / ".claude" / "journal" / sub
+    return sorted(f for f in os.listdir(d) if f.endswith(".json") and not f.endswith((".manifest.json", ".causa.json"))) \
+        if d.is_dir() else []
+
+
+def test_capture_end_escribe_envelope_valido_y_no_stdout(tmp_path):
+    proj, _ = proyecto(tmp_path, con_git=False)
+    rc, out, err = run("capture-end", root=proj, stdin=json.dumps(session_end_payload(proj)))
+    assert (rc, out, err) == (0, "", "")
+    pend = outbox_pendientes(proj)
+    assert len(pend) == 1
+    env = json.loads((proj / ".claude" / "journal" / "outbox" / pend[0]).read_text(encoding="utf-8"))
+    assert env["schema_version"] == journal.SCHEMA_VERSION
+    assert env["session_id"] == "s1" and env["reason"] == "other"
+    assert env["cwd"] == str(proj) and env["transcript_path"].endswith("no-existe.jsonl")
+    assert len(env["event_id"]) == 16
+    assert env["plugin_version"]
+    assert "captured_at" in env and env["sequence"] == 0
+    contenido = json.dumps(env, ensure_ascii=False).encode("utf-8")
+    assert len(contenido) <= 64 * 1024
+
+
+def test_capture_end_es_deterministico_y_sin_texto_de_conversacion(tmp_path):
+    proj, _ = proyecto(tmp_path, con_git=False)
+    e1 = journal.capture_end(str(proj), session_end_payload(proj))
+    id1 = json.loads(open(e1, encoding="utf-8").read())["event_id"]
+    assert id1 == journal._event_id("s1", "other", 0, journal.SCHEMA_VERSION)
+    texto = open(e1, encoding="utf-8").read()
+    assert "prompt" not in texto and "decisiones" not in texto            # sin texto de conversación
+
+
+def test_capture_end_idempotente_por_evento_x5(tmp_path):
+    """CA-03: el mismo evento capturado cinco veces produce un único envelope lógico."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    for _ in range(5):
+        rc, out, err = run("capture-end", root=proj, stdin=json.dumps(session_end_payload(proj)))
+        assert (rc, out, err) == (0, "", "")
+    assert len(outbox_pendientes(proj)) == 1
+
+
+def test_capture_end_no_invoca_git_ni_claude(tmp_path, monkeypatch):
+    """CA-01: dobles de `git` y `claude` en PATH que dejan una marca si se ejecutan; capture-end
+    nunca los invoca (sin git, sin IA, sin red en el teardown)."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    bindir = tmp_path / "bin"
+    bindir.mkdir()
+    marca = tmp_path / "invocado.txt"
+    for nombre in ("git", "claude"):
+        doble = bindir / nombre
+        doble.write_text(f'#!/bin/sh\necho "{nombre}" >> "{marca}"\nexit 0\n', encoding="utf-8")
+        doble.chmod(doble.stat().st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+    env = dict(os.environ)
+    env["PATH"] = f"{bindir}{os.pathsep}{env.get('PATH', '')}"
+    rc, out, err = run("capture-end", root=proj, stdin=json.dumps(session_end_payload(proj)), env=env)
+    assert (rc, out, err) == (0, "", "")
+    assert len(outbox_pendientes(proj)) == 1
+    assert not marca.exists()
+
+
+def test_capture_end_sin_session_id_o_opt_out_no_escribe(tmp_path):
+    proj, _ = proyecto(tmp_path, con_git=False)
+    rc, out, err = run("capture-end", root=proj, stdin=json.dumps({"hook_event_name": "SessionEnd", "reason": "other"}))
+    assert (rc, out, err) == (0, "", "") and outbox_pendientes(proj) == []
+    (proj / ".claude" / "dev.json").write_text('{"sesion": {"journal": false}}', encoding="utf-8")
+    rc, out, err = run("capture-end", root=proj, stdin=json.dumps(session_end_payload(proj)))
+    assert (rc, out, err) == (0, "", "") and outbox_pendientes(proj) == []
+
+
+def test_capture_end_dev_json_journal_objeto_no_es_opt_out_y_mueve_la_cola(tmp_path):
+    """T-03 CA: el objeto `sesion.journal.{dir,...}` se acepta (no es opt-out) y puede mover la cola."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    (proj / ".claude" / "dev.json").write_text(json.dumps({"sesion": {"journal": {"dir": ".claude/otra-cola"}}}), encoding="utf-8")
+    p = journal.capture_end(str(proj), session_end_payload(proj))
+    assert p is not None and "otra-cola" in p.replace("\\", "/")
+
+
+def test_capture_end_repo_ajeno_sin_rastro_del_plugin_no_escribe(tmp_path):
+    ajeno = tmp_path / "ajeno"
+    ajeno.mkdir()
+    assert journal.capture_end(str(ajeno), session_end_payload(ajeno)) is None
+    assert not (ajeno / ".claude").exists()
+
+
+def test_replay_materializa_reutilizando_escribir_sesion(tmp_path):
+    proj, led = proyecto(tmp_path)
+    cambia_tarea(led)
+    journal.capture_end(str(proj), session_end_payload(proj))
+    assert len(outbox_pendientes(proj)) == 1
+    r = journal.replay(str(proj))
+    assert r == {"materializados": 1, "dead_letter": 0, "restantes": 0, "avisos": []}
+    entradas = journal.entradas(str(proj))
+    assert len(entradas) == 1
+    assert entradas[0]["session_id"] == "s1" and entradas[0].get("cierre") == "materializado"
+    assert outbox_pendientes(proj) == [] and len(outbox_pendientes(proj, "done")) == 1
+
+
+def test_replay_es_idempotente_sobre_el_mismo_evento(tmp_path):
+    proj, _ = proyecto(tmp_path, con_git=False)
+    journal.capture_end(str(proj), session_end_payload(proj))
+    assert journal.replay(str(proj))["materializados"] == 1
+    # el mismo evento vuelve a capturarse (retry del hook): ya está en done/, no crea un envelope nuevo
+    journal.capture_end(str(proj), session_end_payload(proj))
+    assert outbox_pendientes(proj) == []
+    assert journal.replay(str(proj)) == {"materializados": 0, "dead_letter": 0, "restantes": 0, "avisos": []}
+    assert len(journal.entradas(str(proj))) == 1
+
+
+def test_replay_envelope_venenoso_a_dead_letter_y_sigue_con_los_demas(tmp_path):
+    proj, _ = proyecto(tmp_path, con_git=False)
+    journal.capture_end(str(proj), session_end_payload(proj, sid="bueno"))
+    outbox_dir = proj / ".claude" / "journal" / "outbox"
+    (outbox_dir / "malo.json").write_text("{esto no es json", encoding="utf-8")
+    r = journal.replay(str(proj))
+    assert r["materializados"] == 1 and r["dead_letter"] == 1 and r["restantes"] == 0
+    dl = outbox_pendientes(proj, "dead-letter")
+    assert dl == ["malo.json"]
+    causa = json.loads((proj / ".claude" / "journal" / "dead-letter" / "malo.json.causa.json").read_text(encoding="utf-8"))
+    assert "venenoso" in causa["causa"]
+    assert len(journal.entradas(str(proj))) == 1
+
+
+def test_replay_sin_session_id_o_schema_no_soportado_a_dead_letter(tmp_path):
+    proj, _ = proyecto(tmp_path, con_git=False)
+    ob = journal._outbox_mod()
+    dir_ = journal._journal_queue_dir(str(proj))
+    ob.escribir(dir_, "sin-sid", {"schema_version": 1, "reason": "other"})
+    ob.escribir(dir_, "version-rara", {"schema_version": 99, "session_id": "s9", "reason": "other"})
+    r = journal.replay(str(proj))
+    assert r["materializados"] == 0 and r["dead_letter"] == 2
+    causas = {f: json.loads((proj / ".claude" / "journal" / "dead-letter" / (f + ".causa.json")).read_text(encoding="utf-8"))["causa"]
+              for f in outbox_pendientes(proj, "dead-letter")}
+    assert "session_id" in causas["sin-sid.json"]
+    assert "schema_version" in causas["version-rara.json"]
+
+
+def test_replay_transcript_ausente_usa_el_log_de_prompts(tmp_path):
+    proj, _ = proyecto(tmp_path, con_git=False)
+    run("capture", root=proj, stdin=json.dumps({"session_id": "s1", "prompt": "decidimos usar SQLite"}))
+    journal.capture_end(str(proj), session_end_payload(proj))
+    journal.replay(str(proj))
+    e = journal.entradas(str(proj))[0]
+    assert e["resumen"] == "decidimos usar SQLite"                        # nunca inventa: usa el log, no el transcript ausente
+
+
+def test_replay_max_y_budget_ms_acotan_el_trabajo(tmp_path):
+    proj, _ = proyecto(tmp_path, con_git=False)
+    for sid in ("s1", "s2", "s3"):
+        journal.capture_end(str(proj), session_end_payload(proj, sid=sid))
+    r = journal.replay(str(proj), max_n=2)
+    assert r["materializados"] == 2 and r["restantes"] == 1
+    r2 = journal.replay(str(proj), budget_ms=0)
+    assert r2["materializados"] == 0 and r2["restantes"] == 1             # presupuesto agotado antes de reclamar nada
+
+
+def test_cmd_replay_imprime_json_por_stdout(tmp_path):
+    proj, _ = proyecto(tmp_path, con_git=False)
+    run("capture-end", root=proj, stdin=json.dumps(session_end_payload(proj)))
+    rc, out, err = run("replay", root=proj)
+    assert rc == 0 and err == ""
+    r = json.loads(out)
+    assert r["materializados"] == 1

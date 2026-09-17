@@ -4,12 +4,38 @@ journal.py — memoria EPISÓDICA de sesión, determinista y sin MCP (agent-kits
 
 Una entrada por sesión en `docs/knowledge/journal/AAAA-MM-DD-<slug>.md` (bitácora cronológica,
 NO curada — a diferencia de `adr/`, `gotchas/` y `lessons/`, que son memoria curada con umbral;
-ver `knowledge-write.md`). La escribe el hook `hooks/session-journal.sh` (SessionEnd) y la
-reinyecta `hooks/session-context.sh` (SessionStart `startup|resume`, no `compact`). Los turnos del
-usuario los acumula el hook `hooks/user-prompt-capture.sh` (UserPromptSubmit) con `capture` en un LOG
-CRUDO no versionado, del que `draft`/`write` extraen `decisiones` y `pendientes` (memory-retrieval F4).
+ver `knowledge-write.md`). Los turnos del usuario los acumula el hook `hooks/user-prompt-capture.sh`
+(UserPromptSubmit) con `capture` en un LOG CRUDO no versionado, del que `draft`/`write` extraen
+`decisiones` y `pendientes` (memory-retrieval F4).
+
+CAPTURA vs MATERIALIZACIÓN (session-end-durable-capture, T-03/T-04): el hook `hooks/session-journal.sh`
+(SessionEnd) YA NO escribe la entrada directamente — llama a `capture-end`, que deja un *envelope*
+atómico en la outbox local (`agent-kits/shared/outbox.py`) en < 100 ms, sin git, sin IA y sin red
+(CA-01 de la spec). La entrada real la escribe `replay`, reclamando la outbox y reutilizando el
+camino de siempre (`draft`/`render`/`write`, git, log de prompts, resumen IA opt-in); lo invoca
+`hooks/session-context.sh` en SessionStart con presupuesto (T-05, iniciativa aparte) o `journal.py
+replay` a demanda. La última entrada materializada la reinyecta `hooks/session-context.sh`
+(SessionStart `startup|resume`, no `compact`).
 
 Subcomandos (exit 0 SIEMPRE salvo error de uso → 2; la bitácora nunca bloquea):
+  capture-end [--root DIR]                               ← stdin: payload del hook SessionEnd
+      Lo que corre en el teardown (CA-01): un envelope `{schema_version, event_id, session_id,
+      reason, cwd, transcript_path, captured_at, plugin_version, sequence}` con `outbox.escribir`
+      (tmp + rename atómico, IDEMPOTENTE por `event_id` — el mismo evento capturado varias veces
+      produce un único envelope, CA-03) en `<root>/<sesion.journal.dir o .claude/journal>/outbox/`.
+      NUNCA abre el transcript, NUNCA ejecuta git, NUNCA llama a IA. `event_id` es determinista
+      (`sha256(session_id·reason·sequence·schema_version)[:16]`, sin texto de conversación). Sin
+      `session_id`, con `sesion.journal: false`, sin rastro del plugin o sin `outbox.py` disponible
+      → no escribe nada, exit 0 igualmente.
+  replay [--root DIR] [--budget-ms N] [--max N]
+      Reclama envelopes pendientes de la outbox (`outbox/` → `processing/`, exclusivo entre dos
+      procesos) y los materializa con `escribir_sesion` — mismo camino que antes: git, log de
+      prompts, resumen IA opt-in (CA-05: nunca inventa contenido; sin transcript usa el log de
+      prompts o lo declara). Verificados, van a `done/` (manifiesto con `journal_path`); un envelope
+      inválido (JSON venenoso, sin `session_id`, `schema_version` no soportado — se aceptan la
+      versión actual y la anterior) va a `dead-letter/` con causa y NO bloquea a los demás.
+      `--budget-ms`/`--max` acotan el trabajo (los usa `SessionStart`, T-05); sin ellos, drena toda
+      la cola pendiente. Cada entrada escrita lleva `cierre: materializado` en el frontmatter.
   capture [--root DIR]                                   ← stdin: payload del hook UserPromptSubmit
       Añade el turno del usuario (`prompt`) como UNA línea JSON `{"ts", "prompt"}` a
       `.claude/session-prompts-<session_id>.log` (no versionado: `*.log` está en .gitignore). Reglas:
@@ -85,6 +111,7 @@ hook `command` no devuelve nada: ESCRIBE (ADR-010, revisada 2026-09-08 por memor
 import argparse
 import contextlib
 import datetime as _dt
+import hashlib
 import importlib.util
 import json
 import os
@@ -212,6 +239,148 @@ def _dev_sesion(root):
         return {}
     s = d.get("sesion") if isinstance(d, dict) else None
     return s if isinstance(s, dict) else {}
+
+
+# ------------------------------------------------------------------ captura durable de SessionEnd
+# (session-end-durable-capture T-03/T-04: envelope atómico en la outbox + materialización recuperable)
+
+SCHEMA_VERSION = 1                 # versión del envelope; `replay` acepta esta Y la anterior (N y N-1)
+SCHEMA_ACEPTADOS = frozenset({SCHEMA_VERSION, SCHEMA_VERSION - 1}) if SCHEMA_VERSION > 1 else frozenset({SCHEMA_VERSION})
+ENVELOPE_STR_MAX = 2000            # tope defensivo de cwd/transcript_path: el envelope entero ≤ 64 KiB (spec C-01)
+
+_OB = {"cargado": False, "mod": None}
+
+
+def _outbox_mod():
+    """`agent-kits/shared/outbox.py` cargado una vez (o `None` si no viaja junto a journal.py:
+    entonces capture-end/replay degradan en silencio, nunca bloquean SessionEnd/SessionStart)."""
+    if not _OB["cargado"]:
+        _OB["cargado"], _OB["mod"] = True, _load_module("outbox", "outbox.py")
+    return _OB["mod"]
+
+
+def _journal_queue_dir(root):
+    """Carpeta de la cola de outbox: `.claude/journal` por defecto; `dev.json` →
+    `{"sesion": {"journal": {"dir": "..."}}}` la puede mover (el booleano `sesion.journal` sigue
+    valiendo para el opt-out, ver `_journal_activo`)."""
+    jr = _dev_sesion(root).get("journal")
+    d = jr.get("dir") if isinstance(jr, dict) else None
+    d = d if isinstance(d, str) and d.strip() else os.path.join(".claude", "journal")
+    return os.path.join(root, d)
+
+
+def _journal_activo(root):
+    """`dev.json` → `{"sesion": {"journal": false}}` apaga captura y replay; cualquier otra cosa
+    (ausente, `true`, objeto `{...}`) los deja activos — el booleano sigue valiendo (compatibilidad)."""
+    return _dev_sesion(root).get("journal") is not False
+
+
+def _plugin_version():
+    """`version` de `.claude-plugin/plugin.json` del propio plugin (dos carpetas por encima de
+    `agent-kits/shared/`, INDEPENDIENTE del proyecto consumidor); `0.0.0` si no se puede leer."""
+    try:
+        p = os.path.join(os.path.dirname(os.path.dirname(HERE)), ".claude-plugin", "plugin.json")
+        with open(p, encoding="utf-8") as fh:
+            v = json.load(fh).get("version")
+        return str(v) if v else "0.0.0"
+    except (OSError, ValueError):
+        return "0.0.0"
+
+
+def _event_id(session_id, reason, sequence, schema_version):
+    """`sha256(session_id·reason·sequence·schema_version)[:16]`: determinista, sin texto de
+    conversación — la clave de idempotencia de `outbox.escribir` (CA-03: el mismo evento capturado
+    varias veces produce un único envelope lógico)."""
+    clave = "|".join(str(x) for x in (session_id, reason, sequence, schema_version))
+    return hashlib.sha256(clave.encode("utf-8")).hexdigest()[:16]
+
+
+def capture_end(root, payload):
+    """Lo que corre en el teardown de SessionEnd (CA-01 de la spec): escribe un envelope atómico en
+    la outbox y NADA MÁS — no abre `transcript_path` (referencia no confiable), no ejecuta git, no
+    llama a IA, no usa red. Devuelve la ruta escrita, o `None` si no se escribe (payload sin
+    `session_id`, `sesion.journal: false`, sin rastro del plugin, o `outbox.py` no disponible):
+    nunca lanza, nunca bloquea el cierre de la sesión."""
+    if not isinstance(payload, dict):
+        return None
+    sid = payload.get("session_id")
+    if not isinstance(sid, str) or not sid.strip():
+        return None
+    if not proyecto_con_plugin(root) or not _journal_activo(root):
+        return None
+    ob = _outbox_mod()
+    if ob is None:
+        return None
+    reason = str(payload.get("reason") or "manual")[:200]
+    sequence = 0                    # MVP: retries del mismo (session_id, reason) deduplican (CA-03);
+                                     # reaperturas legítimas del mismo par quedan para cuando haya evidencia
+    envelope = {
+        "schema_version": SCHEMA_VERSION,
+        "event_id": _event_id(sid, reason, sequence, SCHEMA_VERSION),
+        "session_id": sid,
+        "reason": reason,
+        "cwd": str(payload.get("cwd") or "")[:ENVELOPE_STR_MAX],
+        "transcript_path": str(payload.get("transcript_path") or "")[:ENVELOPE_STR_MAX],
+        "captured_at": _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "plugin_version": _plugin_version(),
+        "sequence": sequence,
+    }
+    return ob.escribir(_journal_queue_dir(root), envelope["event_id"], envelope)
+
+
+def _validar_envelope(payload):
+    """`None` si el envelope es válido para materializar; si no, la causa (str) del dead-letter."""
+    if not isinstance(payload, dict):
+        return "envelope venenoso: JSON inválido o vacío"
+    sid = payload.get("session_id")
+    if not isinstance(sid, str) or not sid.strip():
+        return "envelope sin session_id"
+    sv = payload.get("schema_version")
+    if sv not in SCHEMA_ACEPTADOS:
+        return f"schema_version {sv!r} no soportado (acepta {sorted(SCHEMA_ACEPTADOS)})"
+    return None
+
+
+def replay(root, budget_ms=None, max_n=None):
+    """Reclama y materializa envelopes pendientes de la outbox (`outbox/` → `processing/` →
+    `done/`|`dead-letter/`), reutilizando `escribir_sesion` (git, log de prompts, resumen IA
+    opt-in) SIN duplicar esa lógica (CA-05: nunca inventa contenido). `budget_ms`/`max_n` acotan el
+    trabajo (los usa `SessionStart`, T-05); sin ellos, drena toda la cola pendiente («a demanda»).
+    Devuelve {"materializados", "dead_letter", "restantes", "avisos"}; nunca lanza."""
+    resumen = {"materializados": 0, "dead_letter": 0, "restantes": 0, "avisos": []}
+    ob = _outbox_mod()
+    if ob is None:
+        resumen["avisos"].append("outbox.py no disponible junto a journal.py: replay degradado")
+        return resumen
+    dir_ = _journal_queue_dir(root)
+    inicio = time.monotonic()
+    procesados = 0
+    while True:
+        if max_n is not None and procesados >= max_n:
+            break
+        if budget_ms is not None and (time.monotonic() - inicio) * 1000 >= budget_ms:
+            break
+        item = ob.reclamar(dir_)
+        if item is None:
+            break
+        procesados += 1
+        causa = _validar_envelope(item.get("payload"))
+        if causa:
+            ob.dead_letter(item, causa)
+            resumen["dead_letter"] += 1
+            continue
+        env = item["payload"]
+        p, _e = escribir_sesion(root, env["session_id"], reason=env.get("reason"),
+                                transcript=(env.get("transcript_path") or None), fuente="hook")
+        if p is None:
+            ob.dead_letter(item, "sin rastro del plugin al materializar (docs/roadmap, docs/knowledge o .claude/dev.json)")
+            resumen["dead_letter"] += 1
+            continue
+        ob.completar(item, {"cierre": "materializado", "session_id": env["session_id"],
+                            "journal_path": os.path.relpath(p, root)})
+        resumen["materializados"] += 1
+    resumen["restantes"] = ob.estado(dir_).get("outbox", 0)
+    return resumen
 
 
 # ------------------------------------------------------------------ log crudo (capture / capturas)
@@ -651,6 +820,7 @@ def render(e, fuente):
     fm = [f"fecha: {e['fecha']}", f"session_id: {_yaml_str(e['session_id'])}",
           f"reason: {e.get('reason') or 'manual'}", f"iniciativa: {e['iniciativa']}",
           f"resumen: {_yaml_str(e['resumen'])}", f"fuente: {fuente}",
+          f"cierre: {e.get('cierre') or 'materializado'}",   # materializado · recuperado_sin_cierre (T-05)
           f"resumen_por: {e.get('resumen_por') or 'determinista'}", f"turnos: {_entero(e.get('turnos'))}"]
     for k in ("decisiones", "pendientes"):
         fm.append(f"{k}:" + ("" if e[k] else " []"))
@@ -1053,6 +1223,25 @@ def cmd_capture(a):
     return 0
 
 
+def cmd_capture_end(a):
+    """Nunca stdout ni stderr salvo error de uso, nunca exit ≠ 0: SessionEnd ignora la salida del
+    hook y no puede bloquear el cierre de la sesión (CA-01)."""
+    try:
+        payload = json.load(sys.stdin)
+        root = a.root or os.environ.get("CLAUDE_PROJECT_DIR") or (payload.get("cwd") if isinstance(payload, dict) else None) or "."
+        if os.path.isdir(str(root)):
+            capture_end(str(root), payload)
+    except Exception:  # noqa: BLE001 — el cierre de la sesión no se entera de nada de lo que pase aquí
+        pass
+    return 0
+
+
+def cmd_replay(a):
+    r = replay(a.root, budget_ms=a.budget_ms, max_n=a.max)
+    print(json.dumps(r, ensure_ascii=False))
+    return 0
+
+
 def cmd_candidatas(a):
     minimo = max(1, int(a.min))                      # el umbral anunciado en la cabecera es el aplicado (Lente B gap 6)
     lista = candidatas(a.root, minimo, a.iniciativa)
@@ -1117,6 +1306,16 @@ def main(argv=None):
     sp = sub.add_parser("capture", help="añade el turno del usuario (payload UserPromptSubmit por stdin) al log crudo")
     sp.add_argument("--root", default=None, help="raíz del proyecto (default: CLAUDE_PROJECT_DIR, `cwd` del payload, .)")
     sp.set_defaults(fn=cmd_capture)
+
+    sp = sub.add_parser("capture-end", help="envelope atómico en la outbox (payload SessionEnd por stdin); sin git, sin IA, sin red (CA-01)")
+    sp.add_argument("--root", default=None, help="raíz del proyecto (default: CLAUDE_PROJECT_DIR, `cwd` del payload, .)")
+    sp.set_defaults(fn=cmd_capture_end)
+
+    sp = sub.add_parser("replay", help="reclama y materializa envelopes pendientes de la outbox")
+    comunes(sp)
+    sp.add_argument("--budget-ms", type=int, default=None, help="corta el drenaje al superar este presupuesto (SessionStart, T-05)")
+    sp.add_argument("--max", type=int, default=None, help="máximo de envelopes a procesar en esta llamada")
+    sp.set_defaults(fn=cmd_replay)
 
     sp = sub.add_parser("draft", help="borrador determinista (JSON)")
     comunes(sp)
