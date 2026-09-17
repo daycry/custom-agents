@@ -1531,6 +1531,7 @@ STEMS_PLACEHOLDER = {"x", "test_x"}
 # la documentación. `/doctor`, `/retro`… sí son nuestros y NO van aquí.
 COMANDOS_TOLERADOS = {
     "clear", "agents", "reload-plugins", "help", "config", "skill", "statusline",  # nativos
+    "exit", "resume",                                                              # nativos (sesión)
     "plugin",                                                                      # nativo
     "algo", "nombre", "comando", "x",                                              # comodines
     "comandos", "commands", "command", "name",   # la palabra «comando» citada en prosa ES/EN

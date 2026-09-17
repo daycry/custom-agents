@@ -277,15 +277,21 @@ flowchart TD
 > While `implementer`/subagents work, the user sees progress without anyone writing it up:
 > everything comes from `progress-report.py` over the **canonical ledger** (`tasks.md`). Hooks
 > **inform, they never decide** (always exit 0). Details: [`observability.md`](observability.md).
-> **Session journal** (memory-health + memory-retrieval F4): on every turn, `UserPromptSubmit` appends the
-> user's text to a raw, unversioned log (`.claude/session-prompts-<session_id>.log`, `<private>` opt-out,
-> obvious secrets redacted); when the session ends, `SessionEnd` leaves a deterministic entry under
-> `docs/knowledge/journal/` (active initiative, files touched, tasks whose state changed, meter markers,
-> and `decisiones`/`pendientes` extracted WITHOUT a model from that log); on startup/resume, `SessionStart`
-> re-injects it compacted. AI summary is **opt-in** (`sesion.resumen`) and always degrades: hook output on
-> `SessionEnd` is still ignored by contract — the hook does not return, it writes (ADR-010 revised
-> 2026-09-08). Whatever repeats across ≥ 2 sessions is proposed by `journal.py candidatas` as a `propuesta`
-> lesson through the `/retro` gate.
+> **Session journal** (memory-health + memory-retrieval F4 + **session-end-durable-capture**): on every
+> turn, `UserPromptSubmit` appends the user's text to a raw, unversioned log
+> (`.claude/session-prompts-<session_id>.log`, `<private>` opt-out, obvious secrets redacted — that log
+> is also the session's **checkpoint**). `SessionEnd` (`timeout: 5`, exec form) no longer does the heavy
+> work in the teardown: `journal.py capture-end` writes only an **atomic envelope** (≤ 64 KiB, no
+> git/AI/network, CA-01) into a local **outbox** (`agent-kits/shared/outbox.py`). **Materialization**
+> runs afterwards, recoverably: `SessionStart` calls `journal.py replay --budget-ms 300 --max 3` (drains
+> the outbox reusing git/prompt log/opt-in AI, never blocks startup) and `journal.py recover` (a session
+> with a log but no envelope and no live session past the configured window is materialized as
+> `recuperado_sin_cierre`, CA-07) — or `journal.py replay/recover` on demand. Only then is the
+> deterministic entry written under `docs/knowledge/journal/` (idempotent by `session_id`, atomic); on
+> startup/resume, `SessionStart` re-injects it compacted. AI summary is **opt-in** (`sesion.resumen`) and
+> always degrades. `/doctor` diagnoses the queue (`journal.py status`: pending, orphans, dead-letter with
+> a named remedy, «Hook cancelled» triage). Whatever repeats across ≥ 2 sessions is proposed by
+> `journal.py candidatas` as a `propuesta` lesson through the `/retro` gate.
 
 ```mermaid
 flowchart LR
@@ -296,11 +302,14 @@ flowchart LR
     SS["session: startup · resume · compact"] --> H3["SessionStart hook<br/>session-context.sh"]
     H3 -->|"additionalContext: piece index (≤ 45 lines, hash-cached)<br/>+ resume ≤ 15 lines (in-progress task)<br/>+ journal ≤ 25 lines (startup · resume only)"| C(["🧠 Claude's context"])
     UP["user turn"] --> H5["UserPromptSubmit hook<br/>user-prompt-capture.sh (timeout 5)"]
-    H5 -->|"journal.py capture (no stdout, exit 0; private opt-out; secrets redacted)"| LOG[(".claude/session-prompts-sid.log<br/>unversioned · 0600 · 30-day purge")]
-    SE["session ends: exit · /clear · logout"] --> H4["SessionEnd hook<br/>session-journal.sh (timeout 45)"]
-    LOG -->|"decisiones/pendientes without a model · opt-in AI summary"| H4
-    H4 -->|"journal.py write (idempotent by session_id, atomic)"| J[("docs/knowledge/journal/<br/>YYYY-MM-DD-slug.md")]
+    H5 -->|"journal.py capture (no stdout, exit 0; private opt-out; secrets redacted)"| LOG[(".claude/session-prompts-sid.log<br/>unversioned · 0600 · 30-day purge<br/>= session checkpoint")]
+    SE["session ends: exit · /clear · logout"] --> H4["SessionEnd hook<br/>session-journal.sh (timeout 5, exec form)"]
+    H4 -->|"journal.py capture-end<br/>(atomic envelope ≤ 64 KiB, no git/AI/network, CA-01, &lt; 100 ms)"| OB[(".claude/journal/outbox/<br/>event_id.json")]
+    OB -->|"journal.py replay --budget-ms 300 --max 3<br/>(claim → materialize with git/log/opt-in AI → done/dead-letter)"| H3
+    LOG -->|"journal.py recover<br/>(no envelope, no live session, window → recuperado_sin_cierre)"| H3
+    H3 -->|"journal.py write (idempotent by session_id, atomic)"| J[("docs/knowledge/journal/<br/>YYYY-MM-DD-slug.md")]
     J -->|"journal.py latest --n 2"| H3
+    OB -.->|"journal.py status<br/>(pending · orphans · dead-letter)"| DOC["/doctor<br/>Journal section"]
     FM[("frontmatters<br/>commands · skills · agents")] --> SI["skill-index.py<br/>(dev.json sesion.indice)"]
     SI --> H3
     L --> P["progress-report.py<br/>line · active · session · --json"]

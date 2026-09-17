@@ -19,8 +19,8 @@ verificacion: obligatoria
 | Fase 1 - Módulos compartidos | 2 | 2 | 100% | 0.9 / 2.5h | 1.92 / 0.8h | 0 / 0.2h | 0 / 45k |
 | Fase 2 - Captura y materialización | 2 | 2 | 100% | 2.7 / 5.5h | 4.5 / 1.6h | 0 / 0.4h | 0 / 85k |
 | Fase 3 - Reconciliación y diagnóstico | 2 | 2 | 100% | 0.65 / 4h | 0.9 / 1.2h | 0 / 0.3h | 0 / 60k |
-| Fase 4 - Pruebas, medición y cierre | 0 | 2 | 0% | 0 / 2h | 0 / 0.6h | 0 / 0.2h | 0 / 40k |
-| **TOTAL** | **6** | **8** | **75%** | **4.25 / 14h** | **7.32 / 4.2h** | **0 / 1.1h** | **0 / 230k** |
+| Fase 4 - Pruebas, medición y cierre | 1 | 2 | 50% | 0.3 / 2h | 0.5 / 0.6h | 0 / 0.2h | 0 / 40k |
+| **TOTAL** | **7** | **8** | **88%** | **4.55 / 14h** | **7.82 / 4.2h** | **0 / 1.1h** | **0 / 230k** |
 
 ## Fase 1 - Módulos compartidos
 
@@ -142,16 +142,19 @@ verificacion: obligatoria
 ## Fase 4 - Pruebas, medición y cierre
 
 ### T-07 - Bench de captura y matriz de garantías
-- **Estado**: borrador
-- **Tiempo humano**: est. 1h · real -
-- **Prevision IA**: 12k in / 5k out tok
+- **Estado**: completado
+- **Tiempo humano**: est. 1h · real 0.3h (estimado)
+- **Prevision IA**: 12k in / 5k out tok · real (estimado): usage-meter degradó a `fuente: estimado` (sin transcripciones en este entorno); horas_ia real (estimado): 0.5h
 - **Dependencias**: T-03, T-05
 - **Tipo**: test
-- **Archivos**: `scripts/bench-session-end.py`, `tests/test_bench_session_end.py`, `docs/observability.md`, `docs/en/observability.md`, `docs/FLOWS.md`, `docs/en/FLOWS.md`, `ci.yml.MANUAL-COPY`
-- **Verificacion**: `python scripts/bench-session-end.py --iterations 30 --assert-p95-ms 100 --assert-p99-ms 300` -> exit 0; tabla de garantías por forma de salida en observability ES/EN
+- **Archivos**: `scripts/bench-session-end.py`, `tests/test_bench_session_end.py`, `docs/observability.md`, `docs/en/observability.md`, `docs/FLOWS.md`, `docs/en/FLOWS.md`, `ci.yml.MANUAL-COPY`, `.github/workflows/ci.yml` (copia manual byte-idéntica), `tests/test_console_encoding.py` (T-05 subió de 6 a 8 los python en línea versionados; el conteo fijo del test no se había actualizado), `interop/**` (regenerado: `commands/doctor.md` de T-06 había dejado desincronizados `interop/codex/prompts/doctor.md`/`interop/opencode/commands/doctor.md`), `scripts/lint_plugin.py` (`COMANDOS_TOLERADOS` no incluía los nativos `/exit`/`/resume`, citados por la nueva matriz de garantías; dos avisos nuevos del linter, corregidos añadiéndolos)
+- **Verificacion**: `python scripts/bench-session-end.py --iterations 30 --assert-p95-ms 100 --assert-p99-ms 300` -> **ejecutado**: `{"iterations": 30, "p50_ms": 54.61, "p95_ms": 65.03, "p99_ms": 66.2, "max_ms": 66.29, "mean_ms": 55.38}` exit 0 (con `--json`); `python -m pytest -q tests/test_bench_session_end.py tests/test_console_encoding.py tests/test_ci_manual_copy.py` -> `328 passed in 9.83s`; `python3 scripts/export-interop.py --check` -> `48 ficheros al día` (regenerado tras el desvío de T-06)
+- **RED**: `test_bench_5_iteraciones_umbrales_laxos_exit_0` (y el resto de `test_bench_session_end.py`) fallaron con `python3: can't open file '.../scripts/bench-session-end.py'` (rc 2, script inexistente); `test_todo_python_en_linea_del_repo_lleva_la_variable_incluido_el_que_no_la_necesitaba` falló tras el cambio de T-05 (`assert 8 == 6`, conteo fijo desactualizado) · 2026-09-17
 **Criterios de aceptación**
-- [ ] p95 ≤ 100 ms / p99 ≤ 300 ms en CI de referencia (CA-02).
-- [ ] La matriz documenta explícitamente lo que NO se garantiza (SIGKILL antes del hook).
+- [x] p95 ≤ 100 ms / p99 ≤ 300 ms en CI de referencia (CA-02): `ci.yml.MANUAL-COPY` (+ `.github/workflows/ci.yml`) ejecuta el bench con esos umbrales en cada build; medido en este entorno, `65.03`/`66.2` ms, dentro de margen.
+- [x] La matriz documenta explícitamente lo que NO se garantiza (SIGKILL antes del hook, dos `replay`/`recover` concurrentes en paralelo, sustituir a git como fuente de verdad) en `docs/observability.md`/`docs/en/observability.md`, junto a la tabla por forma de salida y los campos nuevos del frontmatter (`cierre`, `derivados_en`, `materializado_en`).
+- **Nota**: `docs/FLOWS.md`/`docs/en/FLOWS.md` (gap 20 de la revisión intento 1): el diagrama de `SessionEnd` ya no dice `timeout 45` ni escribe el journal directamente — refleja captura (`capture-end` → outbox) y materialización en `SessionStart` (`replay`/`recover` → `journal.py write`), más la lectura de `/doctor` (`journal.py status`).
+- **Changelog**: `scripts/bench-session-end.py --iterations N --assert-p95-ms --assert-p99-ms` mide `journal.py capture-end` end-to-end (CA-02, integrado en `ci.yml.MANUAL-COPY`); matriz de garantías por forma de salida + campos nuevos del frontmatter (`cierre`, `derivados_en`, `materializado_en`) en `docs/observability.md` (+EN); `docs/FLOWS.md` (+EN) refleja captura → outbox → replay/recover en vez del `timeout: 45` obsoleto.
 
 ### T-08 - GOT-011, changelog, interop y puertas
 - **Estado**: borrador

@@ -35,10 +35,11 @@ señal de posible solape.
   `PostToolUse` (marcar `docs/` pendiente de Confluence, aviso de `ledger-lint` y **línea de
   progreso** sobre `tasks.md`), `SubagentStop` (estado de las iniciativas activas al terminar un
   subagente), `SessionStart` (índice de piezas del plugin + contexto de retoma al
-  arrancar/retomar/compactar + última entrada del journal al arrancar/retomar), `UserPromptSubmit`
-  (el turno del usuario a un log crudo no versionado, con opt-out `<private>`) y `SessionEnd`
-  (entrada de bitácora de la sesión en `docs/knowledge/journal/`, con `decisiones`/`pendientes`
-  extraídas de ese log). No interceptan
+  arrancar/retomar/compactar + última entrada del journal al arrancar/retomar, además de drenar la
+  outbox de la captura durable), `UserPromptSubmit` (el turno del usuario a un log crudo no
+  versionado, con opt-out `<private>` — también el checkpoint de la sesión) y `SessionEnd` (un
+  envelope atómico en la outbox local; `SessionStart` lo materializa en una entrada de bitácora en
+  `docs/knowledge/journal/`, con `decisiones`/`pendientes` extraídas de ese log). No interceptan
   ni modifican nada; **informan** (`systemMessage` / `additionalContext`), no deciden; siempre
   exit 0.
 - **Agent-Monitor** registra sus propios hooks (envían eventos por HTTP a su servidor local).
@@ -67,10 +68,48 @@ con el ledger canónico: **¿cómo va la iniciativa ahora mismo?** Todo determin
 | Al terminar un subagente | hook `SubagentStop` → `subagent-progress.sh` | Las mismas líneas, una por iniciativa `en-progreso` (solo si hay alguna). |
 | Al arrancar, retomar o tras compactar el contexto | hook `SessionStart` → `session-context.sh` | (1) **Índice de piezas** del plugin (`agent-kits/shared/skill-index.py`): 3 líneas de reglas de enrutado + una línea ≤ 110 caracteres por comando/skill/agente, generado DETERMINISTA desde los frontmatters, ≤ 45 líneas / ≤ 3.500 caracteres, con caché por hash en `.claude/.skill-index.cache`; es la respuesta a «la skill correcta no se disparó»: las descriptions solo se ven cuando Claude las busca, el índice las pone delante en cada arranque. Informativo (no fuerza nada); desactivable con `.claude/dev.json` `{"sesion": {"indice": false}}`. (2) Bloque ≤ 15 líneas del roadmap: iniciativas activas, tareas en curso, marcadores abiertos del usage-meter y «retoma desde la tarea en-progreso» (solo si hay algo activo). Va también en `compact` porque la compactación resume la conversación y puede perder el índice del arranque (guía oficial de hooks, «Re-inject context after compaction», verificada 2026-09-03). Total < 10.000 caracteres (tope del hook). Sin nada que decir, no inyecta nada. |
 | En cada turno del usuario | hook `UserPromptSubmit` → `user-prompt-capture.sh` | Nada en pantalla (en este evento el stdout se inyectaría como contexto y un exit 2 borraría el prompt: el hook nunca emite y siempre sale 0): `journal.py capture` añade el turno como una línea JSON a `.claude/session-prompts-<session_id>.log` — **no versionado** (`capture` siembra `.claude/.gitignore` con `session-prompts-*`), **secretos evidentes redactados** antes de tocar el disco, `0600`, cerrojo entre turnos solapados, topes por turno/fichero y purga a 30 días. Opt-out por turno: `<private>` en cualquier parte (el log no se toca y ese turno tampoco sale de la transcripción). Opt-out por proyecto: `dev.json` `{"sesion": {"captura": false}}` (o `journal: false`). Solo en proyectos con rastro del plugin. `hooks.json` declara `timeout: 5` (default oficial 30). |
-| Al terminar la sesión (salir, `/clear`, logout) | hook `SessionEnd` → `session-journal.sh` | Nada en pantalla (por contrato la salida de `SessionEnd` se ignora): escribe `docs/knowledge/journal/AAAA-MM-DD-<slug>.md` con `agent-kits/shared/journal.py write` — **borrador determinista** (fecha, iniciativa activa, ficheros tocados por git, tareas del ledger que cambiaron de estado, marcadores del meter cerrados) más `decisiones`/`pendientes` **extraídas sin modelo del log crudo** de `UserPromptSubmit` (frases del usuario con marcador léxico ES/EN; sin log o sin marcadores → `[]` honesto) y `resumen` = primer turno capturado; idempotente por `session_id`, escritura atómica. La entrada declara que `decisiones`/`pendientes` son **citas** de los turnos, no instrucciones. Al arrancar/retomar (`startup\|resume`, no `compact`) `session-context.sh` añade (3) la última entrada compactada (≤ 25 líneas, `journal.py latest`). Desactivable con `dev.json` `{"sesion": {"journal": false}}`. **Resumen por IA opt-in** (`{"sesion": {"resumen": true}}`): tras escribir la entrada determinista, `claude -p --bare --output-format json` con los turnos por stdin y timeout 25 s re-escribe la misma entrada (`resumen_por: ia`); sin CLI, sin `ANTHROPIC_API_KEY`, timeout o JSON ilegible → queda la determinista con el motivo en `avisos`, exit 0 (ADR-010 revisado 2026-09-08: la salida de los hooks en `SessionEnd` sigue ignorándose — el hook no devuelve, **escribe**). Presupuesto: los hooks de `SessionEnd` comparten 1,5 s → `hooks.json` declara `timeout: 45`. Promoción: `journal.py candidatas` propone como `propuesta` los patrones repetidos en ≥ 2 sesiones (paso 2-quater de `/retro`). |
+| Al terminar la sesión (salir, `/clear`, logout) | hook `SessionEnd` → `session-journal.sh` (exec form, `timeout: 5`) | Nada en pantalla (por contrato la salida de `SessionEnd` se ignora): desde **session-end-durable-capture**, `SessionEnd` ya NO hace el trabajo pesado en el teardown — `journal.py capture-end` escribe SOLO un **envelope atómico** (≤ 64 KiB, `event_id` determinista, sin git/IA/red, CA-01) en la **outbox** local (`.claude/journal/outbox/`, `agent-kits/shared/outbox.py`), en < 100 ms (p95 ≤ 100 ms / p99 ≤ 300 ms, CA-02, medido con `scripts/bench-session-end.py`). |
+| Al arrancar/retomar/compactar | hook `SessionStart` → `session-context.sh` (además de lo de la fila de abajo) | **Reconciliación presupuestada** (T-05): `journal.py replay --ia no --budget-ms 300 --max 3` drena la outbox reutilizando el camino de siempre (git, log de prompts, IA opt-in) y materializa la entrada — `cierre: materializado` en el frontmatter; nunca bloquea el arranque (si `bloqueado`/`errores` viene no vacío, una línea de aviso, nada más). `journal.py recover` materializa como `cierre: recuperado_sin_cierre` una sesión con log de prompts sin envelope y sin sesión viva pasada `sesion.journal.ventanaHuerfanaMin` (default 360 min, CA-07); una sesión concurrente viva nunca se toca. Solo entradas YA escritas en disco llegan a (3) — nunca se inyecta una entrada sin materializar (CA-08). La entrada usa la fecha del **cierre** (`captured_at`), no la del replay; los campos derivados de `git` se calculan al materializar y el frontmatter lo marca con `derivados_en: replay` (o `recover`). Escritura idempotente por `session_id`, atómica; `decisiones`/`pendientes` **extraídas sin modelo del log crudo** de `UserPromptSubmit` (frases del usuario con marcador léxico ES/EN; sin log o sin marcadores → `[]` honesto) y `resumen` = primer turno capturado. La entrada declara que `decisiones`/`pendientes` son **citas** de los turnos, no instrucciones. Al arrancar/retomar (`startup\|resume`, no `compact`) `session-context.sh` añade (3) la última entrada compactada (≤ 25 líneas, `journal.py latest`). Desactivable con `dev.json` `{"sesion": {"journal": false}}`. **Resumen por IA opt-in** (`{"sesion": {"resumen": true}}`): tras escribir la entrada determinista, `claude -p --bare --output-format json` con los turnos por stdin y timeout 25 s re-escribe la misma entrada (`resumen_por: ia`); sin CLI, sin `ANTHROPIC_API_KEY`, timeout o JSON ilegible → queda la determinista con el motivo en `avisos`, exit 0 (ADR-010 revisado 2026-09-08: la salida de los hooks en `SessionEnd` sigue ignorándose — el hook no devuelve, **escribe**). A demanda: `journal.py replay`/`recover`/`status [--json]`/`purge --confirm`. `/doctor` (sección «Journal») lee `journal.py status --json`: pendientes, huérfanas, dead-letter con remedio nombrado, triage del «Hook cancelled» (CA-10). Promoción: `journal.py candidatas` propone como `propuesta` los patrones repetidos en ≥ 2 sesiones (paso 2-quater de `/retro`). |
 | Siempre, en la barra de estado (**opt-in** en `/setup`, paso 5-bis) | `statusline/roadmap-statusline.sh` | `[Opus] $0.01 ctx 8% · 📋 <slug> T-04/12 33%` — modelo, coste de la sesión, contexto usado y progreso del roadmap. Sin `jq` usa `python3`; sin ninguno, solo el modelo. |
 
 Reversión de la statusline: quitar la clave `statusLine` de `.claude/settings.json`.
+
+### Contrato de garantías de la captura durable de `SessionEnd`
+
+`SessionEnd` deja un envelope atómico; `SessionStart` (o `journal.py replay`/`recover` a demanda)
+hace la materialización real. La tabla dice qué garantiza CADA forma de terminar la sesión — y qué
+**no** garantiza nadie:
+
+| Forma de salida | Garantía |
+|---|---|
+| `/exit`, `/clear`, `/resume`, Ctrl+D | Envelope durable en la outbox antes de terminar (< 100 ms, CA-02); journal materializado en el siguiente `SessionStart` o a demanda (`journal.py replay`). |
+| Ctrl+C / terminal cerrada / proceso muerto antes de que corra el hook | Recuperación hasta el **último prompt capturado** por `UserPromptSubmit` (el log de prompts es el checkpoint): `journal.py recover` la materializa como `cierre: recuperado_sin_cierre` pasada la ventana (`sesion.journal.ventanaHuerfanaMin`, default 360 min). |
+| Ctrl+C con el envelope ya escrito | Igual que una salida normal: el aviso `Hook cancelled` del runtime es cosmético (la entrada ya existe o está en la outbox) — `/doctor` lo distingue de una pérdida real (CA-10). |
+| Disco lleno / permisos al capturar o al materializar | Error verificable (`journal.py status`: `durabilidad`/`permisos` `degradada(os)`, o el item queda en `dead-letter/` con causa), nunca un éxito falso; el resto de la cola sigue procesándose. |
+| Envelope corrupto (JSON venenoso, esquema no soportado, campos fuera de forma) | `dead-letter/` con causa estructurada; no bloquea a los demás (`journal.py replay --reintentar-dead-letter` para recuperarlo tras corregir la causa). |
+| Sesión concurrente todavía viva (otra terminal con el mismo `session_id`) | Nunca se trata como huérfana, aunque su log de prompts lleve más tiempo del de la ventana sin actividad nueva. |
+
+**Lo que esto NO garantiza** (fuera de alcance, spec `session-end-durable-capture`): los últimos
+milisegundos ante un `SIGKILL` que mate el proceso ANTES de que corra cualquier hook (nada puede
+capturarse si el hook nunca llega a ejecutarse); que dos `replay`/`recover` concurrentes sobre el
+MISMO proyecto avancen en paralelo (un cerrojo no bloqueante los serializa: el segundo espera su
+turno bajo presupuesto o dice `bloqueado: true` y sigue con el arranque); ni sustituir a `git` como
+fuente de verdad — un envelope nunca ejecuta git (CA-01): los campos derivados de `git`
+(`ficheros_tocados`, `tareas_cambiadas`) se calculan al MATERIALIZAR (`replay`), nunca en el cierre.
+
+**Campos nuevos del frontmatter de una entrada** (`docs/knowledge/journal/AAAA-MM-DD-<slug>.md`):
+
+| Campo | Significado |
+|---|---|
+| `cierre` | `materializado` (envelope + verificación vía `replay`) · `recuperado_sin_cierre` (sin envelope; reconstruida desde el log de prompts vía `recover`) · `dead_letter` (solo visible en la cola, `journal.py status`: nunca llega a ser una entrada). |
+| `materializado_en` | Instante ISO-8601 UTC en que `escribir_sesion` escribió la entrada — normalmente DESPUÉS del cierre real de la sesión (`replay` puede correr sesiones más tarde). |
+| `derivados_en` | `replay` (o `recover`): los campos que dependen de `git` (`ficheros_tocados`, `tareas_cambiadas`) describen el estado del repo AL MATERIALIZAR, no al cerrar la sesión — CA-01 prohíbe ejecutar git en el teardown, así que no hay otra fuente posible. |
+
+Medición end-to-end (CA-02): `python3 scripts/bench-session-end.py --iterations 30 --assert-p95-ms
+100 --assert-p99-ms 300` mide el tiempo de pared de `journal.py capture-end` sobre un proyecto
+fixture, el mismo camino que corre `hooks/session-journal.sh` en el teardown (sin el arranque de
+`bash`, que es un coste fijo ajeno al capturador). Exit 1 si un percentil supera el umbral pedido;
+`ci.yml.MANUAL-COPY` lo ejecuta con los umbrales de CA-02 en cada build.
 
 ### Cómo comprobar los hooks en una sesión real
 
