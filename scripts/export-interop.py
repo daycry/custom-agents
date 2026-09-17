@@ -49,6 +49,7 @@ import argparse
 import json
 import os
 import re
+import shlex
 import sys
 
 # Consola Windows (cp1252) o tuberías: reconfigurar ANTES de leer o imprimir nada (GOT-005).
@@ -289,17 +290,37 @@ def codex_marketplace_json(root):
     })
 
 
-def _hook_a_shell_form(h):
+_ARG_SEGURO_RE = re.compile(r"^[A-Za-z0-9_${}/.\-]+$")
+
+
+def _hook_a_shell_form(h, evento="?"):
     """Codex no tiene el contrato de `args` (exec form) VERIFICADO como Claude Code (gap 16 de la
     revisión intento 1 de `session-end-durable-capture`, C5 · CWE-78): un hook en exec form
-    (`command: bash`, `args: ["<ruta>"]`) se traduce a SHELL FORM (`command: 'bash "<ruta>"'`), más
-    portable, y sin depender de que el runtime destino soporte `args` sueltos. El resto de campos
-    (p.ej. `timeout`) se conserva tal cual."""
-    if not (isinstance(h, dict) and h.get("type") == "command" and h.get("command") == "bash"
-            and isinstance(h.get("args"), list) and len(h["args"]) == 1):
-        return dict(h)
+    (`command: bash`, `args: ["<ruta>"]`) se traduce a SHELL FORM (`command: 'bash <ruta-quoted>'`),
+    más portable, y sin depender de que el runtime destino soporte `args` sueltos. El resto de
+    campos (p.ej. `timeout`) se conserva tal cual.
+
+    Un hook SIN `args` (ya en shell form: la mayoría) pasa TAL CUAL, sin tocar — no es de la
+    incumbencia de esta función. Pero un hook CON `command: bash` y `args` (exec form) que NO tenga
+    exactamente UN argumento, o cuyo argumento no case el patrón seguro
+    `^[A-Za-z0-9_${}/.\\-]+$`, hace FALLAR el export (`ValueError`, nombrando el evento y el hook) en
+    vez de exportar la exec form tal cual sin aviso (gap 36 de la revisión intento 2: la versión
+    anterior de esta función, con `'bash "%s"' % h["args"][0]` por interpolación directa, dejaba
+    inyectar `"`, `` ` ``, `$(` en el `command` resultante si `args[0]` los llevara; y un hook con
+    ≠ 1 arg o `command` ≠ `bash` se «exportaba tal cual» —sin traducir y sin ningún aviso— en vez de
+    fallar de forma audible). El patrón seguro EXCLUYE `(` `)` `` ` `` `"` `'` `;` `|` `&` `$(` y
+    espacios, así que no hay nada que inyectar: `shlex.quote` sobre un valor así solo puede, como
+    mucho, envolverlo en comillas simples (inocuo, y `${VAR}` lo sustituye Codex textualmente antes
+    de pasarlo a una shell, no la propia shell)."""
+    if not (isinstance(h, dict) and h.get("command") == "bash" and "args" in h):
+        return dict(h)               # no es exec form: nada que traducir (la mayoría de los hooks)
+    args = h.get("args")
+    if not (isinstance(args, list) and len(args) == 1 and isinstance(args[0], str)
+            and _ARG_SEGURO_RE.match(args[0])):
+        raise ValueError(f"_hook_a_shell_form: el hook de {evento!r} con command=bash tiene args "
+                          f"inválidos para traducir a shell form ({args!r}); export abortado")
     nh = dict(h)
-    nh["command"] = 'bash "%s"' % h["args"][0]
+    nh["command"] = "bash %s" % shlex.quote(args[0])
     nh.pop("args", None)
     return nh
 
@@ -326,7 +347,7 @@ def codex_hooks_json(root):
                 ng["matcher"] = "startup|resume|clear"
             elif "matcher" in g:
                 ng["matcher"] = g["matcher"]
-            ng["hooks"] = [_hook_a_shell_form(h) for h in g.get("hooks", [])]
+            ng["hooks"] = [_hook_a_shell_form(h, evento) for h in g.get("hooks", [])]
             grupos.append(ng)
         if grupos:
             out[evento] = grupos

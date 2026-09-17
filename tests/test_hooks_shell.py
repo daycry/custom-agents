@@ -291,8 +291,8 @@ def test_session_journal_deja_envelope_en_outbox_y_replay_materializa_la_entrada
     assert replay(proj, env)[0] == 0
     assert len(entradas_journal(proj)) == 1
     texto = (proj / "docs" / "knowledge" / "journal" / entradas_journal(proj)[0]).read_text(encoding="utf-8")
-    assert 'session_id: "s1"' in texto and "iniciativa: demo" in texto and "reason: other" in texto
-    assert "cierre: materializado" in texto
+    assert 'session_id: "s1"' in texto and 'iniciativa: "demo"' in texto and 'reason: "other"' in texto
+    assert 'cierre: "materializado"' in texto
     assert hook("session-journal.sh", session_end(proj), env)[0] == 0             # mismo evento otra vez
     assert outbox_pendientes(proj) == []                                          # ya materializado: no vuelve a encolar
     assert replay(proj, env)[0] == 0
@@ -362,6 +362,22 @@ def test_session_journal_ruta_del_plugin_con_espacios_y_unicode(tmp_path):
     proj, _ = proyecto(tmp_path)
     env = env_de(proj, tmp_path, plugin_root=destino)
     assert hook("session-journal.sh", session_end(proj), env) == (0, "", "")
+    assert len(outbox_pendientes(proj)) == 1
+
+
+def test_session_journal_sin_claude_project_dir_no_aborta_bajo_set_u(tmp_path):
+    """Gap 30 de la revisión intento 2: `"${ROOT_ARGS[@]}"` sobre un array VACÍO abortaba bajo
+    `set -u` en bash < 4.4 (macOS `/bin/bash` 3.2) — sin `CLAUDE_PROJECT_DIR` el hook moría ANTES
+    de invocar `capture-end` y la sesión se perdía en silencio. Aquí se comprueba (a) que el script
+    ya NO usa el patrón de array arriesgado, y (b) que sin `CLAUDE_PROJECT_DIR` (cascada `cwd` del
+    payload) el envelope se escribe igualmente."""
+    src = open(os.path.join(HOOKS, "session-journal.sh"), encoding="utf-8").read()
+    codigo = "\n".join(l for l in src.splitlines() if not l.strip().startswith("#"))
+    assert 'ROOT_ARGS[@]' not in codigo, "session-journal.sh vuelve a expandir un array bajo set -u"
+    proj, _ = proyecto(tmp_path)
+    env = env_de(proj, tmp_path)
+    del env["CLAUDE_PROJECT_DIR"]                    # simula el runtime que no la define
+    assert hook("session-journal.sh", session_end(proj), env, cwd=str(proj)) == (0, "", "")
     assert len(outbox_pendientes(proj)) == 1
 
 

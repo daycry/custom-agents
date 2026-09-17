@@ -54,13 +54,18 @@ fi
 # cascada --root > CLAUDE_PROJECT_DIR > `cwd` del payload > `.` — simétrico a
 # `user-prompt-capture.sh` (gap 10 de la revisión: pasar SIEMPRE `--root "$PWD"` aquí dejaba muerta
 # esa cascada y perdía turnos capturados que ningún envelope llegaba a materializar).
-ROOT_ARGS=()
-if [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then
-  ROOT_ARGS=(--root "$CLAUDE_PROJECT_DIR")
-fi
-
+#
 # El payload entero viaja tal cual a `capture-end` (lee stdin: session_id/reason/cwd/transcript_path);
 # nada de lo que decida (session_id ausente, opt-out, sin rastro del plugin) se resuelve aquí.
-printf '%s' "$INPUT" | python3 "$JOURNAL" capture-end "${ROOT_ARGS[@]}" >/dev/null 2>&1 || true
+#
+# Gap 30 de la revisión intento 2: `"${ROOT_ARGS[@]}"` sobre un array VACÍO aborta bajo `set -u`
+# en bash < 4.4 (p.ej. `/bin/bash` 3.2 de macOS): sin `CLAUDE_PROJECT_DIR` el hook moría ANTES de
+# invocar `capture-end` y perdía la captura entera — asimétrico con `user-prompt-capture.sh`. Se
+# evita la expansión de un array vacío bajo `set -u` con dos ramas explícitas en vez de un array.
+if [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then
+  printf '%s' "$INPUT" | python3 "$JOURNAL" capture-end --root "$CLAUDE_PROJECT_DIR" >/dev/null 2>&1 || true
+else
+  printf '%s' "$INPUT" | python3 "$JOURNAL" capture-end >/dev/null 2>&1 || true
+fi
 
 exit 0
