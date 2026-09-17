@@ -1820,28 +1820,30 @@ def _bloque_journal_lineas(plugin_root, project):
                  f"done {st.get('done', 0)} · dead-letter {st.get('dead-letter', 0)}")]
     if st.get("dead-letter"):
         u = st.get("ultimo_dead_letter") or {}
-        detalle = f"{st['dead-letter']} envelope(s) descartado(s)"
+        detalle = f"{st['dead-letter']} envelope(s) descartado(s) — pérdida posible"
         if u.get("causa"):
             detalle += f"; último: {u['causa']}"
         out.append(linea(AVISO, "sesiones en dead-letter", detalle,
-                         "reintenta: `journal.py replay --reintentar-dead-letter`"))
+                         "recupera del log: `journal.py recover`, o reintenta el envelope: "
+                         "`journal.py replay --reintentar-dead-letter`"))
     if st.get("en_backoff"):
         proxima = st.get("proxima_backoff")
         out.append(linea(AVISO, "items en backoff",
                          f"{st['en_backoff']} item(s) esperando su próximo intento" +
                          (f" (próximo: {proxima})" if proxima else ""),
                          "fuerza el reintento ya: `journal.py replay --reintentar-ahora`"))
+    # Triage del «Hook cancelled» (CA-10, gap 77 de la revisión tramo 2): UN solo bloque, sin
+    # repetir el mismo mensaje dos veces, y sin hablar «de esta sesión» — los contadores de
+    # `status` son GLOBALES a la cola del proyecto, no de la sesión que está corriendo `/doctor`.
     if st.get("huerfanas"):
-        out.append(linea(AVISO, "sesiones huérfanas",
-                         f"{st['huerfanas']} sesión(es) con log de prompts sin envelope ni entrada, "
-                         "pasada la ventana configurada — «Hook cancelled»: PÉRDIDA POSIBLE",
-                         "recupera lo que se pueda: `journal.py recover`"))
         out.append(linea(AVISO, "Hook cancelled (triage)",
-                         "sin envelope ni entrada de esta sesión: pérdida posible",
-                         "ejecuta `journal.py recover` para materializarla como `recuperado_sin_cierre`"))
+                         f"{st['huerfanas']} sesión(es) huérfana(s), con log de prompts sin envelope "
+                         "ni entrada, pasada la ventana configurada — PÉRDIDA POSIBLE",
+                         "recupera lo que se pueda: `journal.py recover` "
+                         "(materializa `recuperado_sin_cierre`)"))
     elif st.get("processing") or st.get("outbox"):
         out.append(linea(INFO, "Hook cancelled (triage)",
-                         "hay envelope/entrada pendiente de esta sesión: aviso del runtime, SIN pérdida "
+                         "hay envelope/entrada pendiente en la cola: aviso del runtime, SIN pérdida "
                          "(la materializa el próximo `SessionStart` o `journal.py replay`)"))
     else:
         out.append(linea(INFO, "Hook cancelled (triage)",

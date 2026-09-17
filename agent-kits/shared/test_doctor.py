@@ -524,8 +524,43 @@ def test_journal_con_huerfana_dice_perdida_posible_y_nombra_recover(tmp_path):
     t = _dt.datetime.now().timestamp() - 5 * 60
     os.utime(p, (t, t))
     inf = diag(proj)
-    avisos = [l for l in lineas(inf, doctor.AVISO) if "huérfana" in l["que"]]
-    assert avisos and "pérdida posible" in avisos[0]["detalle"].lower() and "recover" in avisos[0]["arreglo"]
+    # Gap 77 de la revisión tramo 2: UN solo bloque de triage (antes salían dos avisos redundantes,
+    # "sesiones huérfanas" + "Hook cancelled (triage)", diciendo lo mismo dos veces).
+    avisos = [l for l in lineas(inf, doctor.AVISO) if "huérfana" in l["detalle"]]
+    assert len(avisos) == 1
+    assert "pérdida posible" in avisos[0]["detalle"].lower() and "recover" in avisos[0]["arreglo"]
+
+
+def test_journal_dead_letter_menciona_perdida_posible_y_los_dos_remedios(tmp_path):
+    """Gap 68 (parte doctor): el triage de dead-letter dice «pérdida posible» y nombra AMBOS
+    remedios (`recover` y `replay --reintentar-dead-letter`), no solo el segundo."""
+    proj = proyecto(tmp_path)
+    d = proj / ".claude" / "journal" / "dead-letter"
+    d.mkdir(parents=True)
+    (d / "ev1.json").write_text(json.dumps({"session_id": "s1"}), encoding="utf-8")
+    (d / "ev1.json.causa.json").write_text(
+        json.dumps({"causa": "esquema inválido", "intentos": 3, "en": "2026-09-17T00:00:00Z"}), encoding="utf-8")
+    inf = diag(proj)
+    avisos = [l for l in lineas(inf, doctor.AVISO) if "dead-letter" in l["que"]]
+    assert avisos
+    assert "pérdida posible" in avisos[0]["detalle"].lower()
+    assert "recover" in avisos[0]["arreglo"] and "reintentar-dead-letter" in avisos[0]["arreglo"]
+
+
+def test_journal_triage_no_habla_de_esta_sesion(tmp_path):
+    """Gap 77: los contadores de `status` son GLOBALES a la cola, no de «esta sesión» — el triage
+    no debe insinuar que son por sesión."""
+    proj = proyecto(tmp_path)
+    d = proj / ".claude" / "journal" / "outbox"
+    d.mkdir(parents=True)
+    (d / "ev1.json").write_text(json.dumps({
+        "session_id": "s1", "schema_version": 1, "reason": "other", "cwd": str(proj),
+        "transcript_path": "", "captured_at": "2026-09-17T00:00:00Z",
+        "hook_event_name": "SessionEnd", "sequence": 0}), encoding="utf-8")
+    inf = diag(proj)
+    journ = [b for b in inf["bloques"] if b["clave"] == "journal"][0]
+    textos = " ".join(l["detalle"] for l in journ["lineas"])
+    assert "de esta sesión" not in textos
 
 
 def test_journal_con_pendiente_en_outbox_dice_aviso_del_runtime_sin_perdida(tmp_path):
