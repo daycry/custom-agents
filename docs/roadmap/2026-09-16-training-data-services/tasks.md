@@ -15,13 +15,13 @@ verificacion: obligatoria
 
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervision (real/est) | Tokens (real/est) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| Fase 1 - Config y redaccion compartida | 0 | 3 | 0% | 0 / 8h | 0 / 2.4h | 0 / 0.6h | 0 / 110k |
+| Fase 1 - Config, redaccion compartida y capacidad | 0 | 3 | 0% | 0 / 6.5h | 0 / 2.0h | 0 / 0.5h | 0 / 85k |
 | Fase 2 - Recorder y puerta humana | 0 | 3 | 0% | 0 / 8h | 0 / 2.4h | 0 / 0.6h | 0 / 120k |
 | Fase 3 - Dedup, particion y ensamblador | 0 | 3 | 0% | 0 / 14h | 0 / 4.2h | 0 / 1.1h | 0 / 210k |
 | Fase 4 - Setup, doctor y cierre | 0 | 2 | 0% | 0 / 11h | 0 / 3.3h | 0 / 0.8h | 0 / 160k |
-| **TOTAL** | **0** | **11** | **0%** | **0 / 41h** | **0 / 12.3h** | **0 / 3.1h** | **0 / 600k** |
+| **TOTAL** | **0** | **11** | **0%** | **0 / 39.5h** | **0 / 11.9h** | **0 / 3.0h** | **0 / 575k** |
 
-## Fase 1 - Config y redaccion compartida
+## Fase 1 - Config, redaccion compartida y capacidad
 
 ### T-01 - Esquema de `training.json` y del caso
 - **Estado**: borrador
@@ -35,17 +35,17 @@ verificacion: obligatoria
 - [ ] `training.json` declara root, `id_prefix`, y si el puente a `knowledge-curator` esta activo.
 - [ ] El esquema del caso exige `case_id`, `version`, `outcome`, y valida `validation.status` contra el vocabulario cerrado.
 
-### T-02 - Extraer `redact.py` compartido desde `journal.py`
+### T-02 - Consumir `redact.py` compartido y registrar la capacidad `training`
 - **Estado**: borrador
-- **Tiempo humano**: est. 3h · real -
-- **Prevision IA**: 35k in / 14k out tok
-- **Dependencias**: ninguna
+- **Tiempo humano**: est. 1.5h · real -
+- **Prevision IA**: 18k in / 7k out tok
+- **Dependencias**: `session-end-durable-capture` T-02 (`redact.py`), `knowledge-services` T-13 (`capabilities.py`)
 - **Tipo**: backend
-- **Archivos**: `agent-kits/shared/redact.py`, `agent-kits/shared/test_redact.py`, `agent-kits/shared/journal.py`, `agent-kits/shared/test_journal.py`
-- **Verificacion**: `python -m pytest -q agent-kits/shared/test_redact.py agent-kits/shared/test_journal.py` -> misma redaccion, journal sigue en verde tras el refactor
+- **Archivos**: `agent-kits/shared/capabilities.py`, `agent-kits/shared/test_capabilities.py`, `skills/training-data-services/scripts/test_case_recorder.py`
+- **Verificacion**: `python -m pytest -q agent-kits/shared/test_capabilities.py -k training agent-kits/shared/test_redact.py` -> la capacidad `training` expone enabled/health/doctor/setup_step; el recorder importa `redactar` de `redact.py` (una sola fuente)
 **Criterios de aceptación**
-- [ ] `journal.py` importa `redact.py` en vez de duplicar la logica; comportamiento identico (mismos casos de prueba pasan).
-- [ ] `redact.py` es la unica fuente de los patrones de secretos del plugin.
+- [ ] **Enmienda 2026-09-17**: la extraccion de `redact.py` desde `journal.py` la hace `session-end-durable-capture` (unica iniciativa que refactoriza `journal.py`); aqui solo se consume. Sin esa dependencia cerrada, esta tarea queda `bloqueada`.
+- [ ] `redact.py` sigue siendo la unica fuente de los patrones de secretos del plugin; el recorder no define ninguno propio.
 
 ### T-03 - Plantillas y estructura de directorios del case store
 - **Estado**: borrador

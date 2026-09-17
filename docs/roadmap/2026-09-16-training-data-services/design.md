@@ -56,6 +56,8 @@ Reglas: **nunca** se guarda chain-of-thought privado (mismo principio que `journ
 
 ## Redaccion de secretos compartida (una sola fuente de verdad)
 
+> **Enmienda 2026-09-17**: la extraccion a `agent-kits/shared/redact.py` la entrega `session-end-durable-capture` (T-02); esta iniciativa la consume. El texto siguiente describe el resultado, no una tarea de esta iniciativa.
+
 `journal.py` ya tiene una funcion `redactar()` probada (claves con prefijo conocido, JWT, PEM, `Bearer`, `clave|token|password = valor`). Se extrae a `agent-kits/shared/redact.py` como modulo compartido; `journal.py` pasa a importarla y el recorder de casos la aplica a `request.json`/`context.json`/`trajectory.jsonl` ANTES de escribir a disco. Ninguna logica de redaccion se duplica.
 
 ## Deduplicacion determinista (sin embeddings, mismo criterio que ADR-013)

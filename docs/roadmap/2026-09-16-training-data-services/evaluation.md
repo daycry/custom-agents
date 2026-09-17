@@ -10,11 +10,11 @@ creado: 2026-09-16
 
 | Metrica | Estimado con margen | Confianza |
 |---|---:|---|
-| Tiempo humano | 41h (34h base +20%) | Media |
+| Tiempo humano | 39.5h (33h base +20%) — antes 41h | Media |
 | Tiempo IA (ejecucion) | 12.3h | Media |
 | Supervision | 3.1h | Media |
-| Coste humano a 50 EUR/h | 2,050 EUR | Media |
-| Tokens IA | 430k in / 170k out | Baja |
+| Coste humano a 50 EUR/h | 1,975 EUR — antes 2,050 EUR | Media |
+| Tokens IA | 415k in / 160k out — antes 430k / 170k | Baja |
 | Complejidad | Alta | Media |
 
 > **Spec:** [spec.md](spec.md)
@@ -54,3 +54,10 @@ Reutiliza tres precedentes ya probados en este repo (redaccion de secretos de `j
 ## Veredicto
 
 **Go.** Encaja como tercera pieza del area de conocimiento sin depender de Graphiti, reutiliza mecanismos ya validados en el repo y mantiene una frontera de responsabilidad clara (mecanismo vs. dominio). Ejecutar despues de `knowledge-services` (necesita el puente al Curator) y en paralelo o despues de `graphiti-memory` indistintamente, porque no depende de ella.
+
+## Enmienda 2026-09-17
+
+La extraccion de `redact.py` (3 h) pasa a `session-end-durable-capture`, que ya refactoriza `journal.py`; aqui
+entra en su lugar el registro de la capacidad `training` en `capabilities.py` (1.5 h, `ADR-018`). Neto **-1.5 h**
+(41 h -> 39.5 h). Dependencias nuevas: `session-end-durable-capture` T-02 y `knowledge-services` T-13. El
+veredicto se mantiene.
