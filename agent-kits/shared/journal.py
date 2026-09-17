@@ -36,6 +36,13 @@ Subcomandos (exit 0 SIEMPRE salvo error de uso → 2; la bitácora nunca bloquea
       versión actual y la anterior) va a `dead-letter/` con causa y NO bloquea a los demás.
       `--budget-ms`/`--max` acotan el trabajo (los usa `SessionStart`, T-05); sin ellos, drena toda
       la cola pendiente. Cada entrada escrita lleva `cierre: materializado` en el frontmatter.
+  status [--root DIR] [--json]
+      Diagnóstico DETERMINISTA de solo lectura (T-06, CA-10), la fuente que lee la sección «Journal»
+      de `/doctor` (no reimplementa nada): contadores por carpeta y degradaciones de `outbox.estado`,
+      huérfanas pendientes de `recover` (cuenta sin escribir), backoff pendiente (con su próxima
+      fecha) y la causa del último dead-letter. `avisos` trae siempre el remedio NOMBRADO (`replay
+      --reintentar-dead-letter`, `replay --reintentar-ahora`, `recover`). Texto por defecto, `--json`
+      para máquina.
   recover [--root DIR] [--ventana-min N] [--current-session-id SID] [--session-id SID]
       Reconciliación de HUÉRFANAS (T-05, CA-07): un log de prompts (`.claude/session-prompts-<sid>.log`)
       sin envelope en la cola NI entrada de journal, cuyo mtime lleva más de `--ventana-min` (default
@@ -800,15 +807,16 @@ def _sid_ya_capturado(root, sid):
     return False
 
 
-def recover(root, ventana_min=None, current_session_id=None, session_id=None):
+def recover(root, ventana_min=None, current_session_id=None, session_id=None, dry_run=False):
     """Materializa como `cierre: recuperado_sin_cierre` las sesiones HUÉRFANAS (CA-07): un log de
     prompts (`.claude/session-prompts-<sid>.log`) sin envelope ni entrada de journal, cuyo mtime
     lleva más de `ventana_min` minutos (default `sesion.journal.ventanaHuerfanaMin`, 360) sin
     actividad, y que no sea la sesión ACTUAL (`current_session_id`, la del payload de `SessionStart`:
     una sesión concurrente viva nunca se toca). `session_id`: fuerza la recuperación de UNA sesión
     concreta ignorando ventana/sesión actual (uso a demanda). Reutiliza `draft`/`write` (CA-05: nunca
-    inventa contenido — el resumen sale del propio log de prompts). Nunca lanza; una sesión
-    problemática no bloquea a las demás (queda en `avisos`). Devuelve {"recuperadas", "avisos",
+    inventa contenido — el resumen sale del propio log de prompts). `dry_run` (usa `status`, T-06):
+    cuenta cuántas se RECUPERARÍAN sin escribir nada (diagnóstico de solo lectura). Nunca lanza; una
+    sesión problemática no bloquea a las demás (queda en `avisos`). Devuelve {"recuperadas", "avisos",
     "candidatas"} (huérfanas vistas, se hayan recuperado o no por estar ya capturadas)."""
     resumen = {"recuperadas": 0, "avisos": [], "candidatas": 0}
     if not proyecto_con_plugin(root) or not _journal_activo(root):
@@ -839,6 +847,9 @@ def recover(root, ventana_min=None, current_session_id=None, session_id=None):
         resumen["candidatas"] += 1
         if _sid_ya_capturado(root, sid):
             continue
+        if dry_run:
+            resumen["recuperadas"] += 1
+            continue
         try:
             e = draft(root, sid, None, "orphan_recovery")
             e["cierre"] = "recuperado_sin_cierre"
@@ -849,6 +860,99 @@ def recover(root, ventana_min=None, current_session_id=None, session_id=None):
         except Exception as ex:  # noqa: BLE001 — una sesión huérfana problemática no bloquea a las demás
             resumen["avisos"].append(f"{sid}: {ex}")
     return resumen
+
+
+# ------------------------------------------------------------------ diagnóstico determinista (T-06)
+
+def _ultimo_dead_letter(dir_):
+    """El dead-letter MÁS RECIENTE (por mtime de su `.causa.json`): {"clave", "causa", "intentos",
+    "en"}, o `None` sin ninguno. Nunca lanza."""
+    p = os.path.join(dir_, "dead-letter")
+    try:
+        causas = [f for f in os.listdir(p) if f.endswith(".causa.json")]
+    except OSError:
+        return None
+    if not causas:
+        return None
+    try:
+        causas.sort(key=lambda f: os.stat(os.path.join(p, f)).st_mtime)
+    except OSError:
+        pass
+    ultimo = causas[-1]
+    try:
+        with open(os.path.join(p, ultimo), encoding="utf-8") as fh:
+            d = json.load(fh)
+    except (OSError, ValueError):
+        return None
+    if not isinstance(d, dict):
+        return None
+    return {"clave": ultimo[: -len(".causa.json")], "causa": d.get("causa"),
+           "intentos": d.get("intentos"), "en": d.get("en")}
+
+
+def status(root):
+    """Diagnóstico DETERMINISTA de solo lectura de la cola (T-06, CA-10): contadores por carpeta y
+    degradaciones de `outbox.estado`, huérfanas pendientes de `recover` (dry-run: cuenta sin
+    escribir), backoff pendiente (con la fecha del próximo) y la causa del ÚLTIMO dead-letter.
+    `avisos` trae SIEMPRE el remedio nombrado (`replay --reintentar-dead-letter`, `replay
+    --reintentar-ahora`, `recover`) para que `/doctor` no reimplemente el criterio: solo lee esto.
+    Nunca lanza; degrada a contadores en 0 si `outbox.py` no está disponible."""
+    dir_ = _journal_queue_dir(root)
+    ob = _outbox_mod()
+    if ob is None:
+        return {"outbox": 0, "processing": 0, "done": 0, "dead-letter": 0, "durabilidad": "ok",
+                "permisos": "ok", "reclamacion": "ok", "en_backoff": 0, "proxima_backoff": None,
+                "recuperados_claiming": 0, "huerfanas": 0, "ultimo_dead_letter": None,
+                "avisos": ["outbox.py no disponible junto a journal.py: status degradado"]}
+    st = ob.estado(dir_)
+    try:
+        _n, proxima = ob.en_backoff(dir_)
+    except Exception:  # noqa: BLE001
+        proxima = None
+    st["proxima_backoff"] = proxima
+    st["ultimo_dead_letter"] = _ultimo_dead_letter(dir_)
+    try:
+        st["huerfanas"] = recover(root, dry_run=True).get("recuperadas", 0)
+    except Exception:  # noqa: BLE001
+        st["huerfanas"] = 0
+    avisos = []
+    if st.get("durabilidad") == "degradada":
+        avisos.append("fsync degradado (durabilidad): revisa permisos/disco de la cola")
+    if st.get("permisos") == "degradados":
+        avisos.append("chmod degradado (permisos): revisa permisos de la cola")
+    if st.get("reclamacion") == "degradada":
+        avisos.append("os.utime degradado al reclamar (reclamacion): revisa el sistema de ficheros (SMB/FUSE)")
+    if st.get("en_backoff"):
+        avisos.append(f"{st['en_backoff']} item(s) en backoff" +
+                      (f" hasta {proxima}" if proxima else "") +
+                      " — remedio: `journal.py replay --reintentar-ahora`")
+    if st.get("dead-letter"):
+        u = st.get("ultimo_dead_letter") or {}
+        avisos.append(f"{st['dead-letter']} en dead-letter" +
+                      (f" (último: {u.get('causa')})" if u.get("causa") else "") +
+                      " — remedio: `journal.py replay --reintentar-dead-letter`")
+    if st.get("huerfanas"):
+        avisos.append(f"{st['huerfanas']} sesión(es) huérfana(s) — remedio: `journal.py recover`")
+    if st.get("processing"):
+        avisos.append(f"{st['processing']} en processing/ (reclamado, sin completar todavía) — "
+                      "si persiste, remedio: `journal.py replay`")
+    st["avisos"] = avisos
+    return st
+
+
+def render_status(st):
+    lines = [f"outbox: {st.get('outbox', 0)} · processing: {st.get('processing', 0)} · "
+            f"done: {st.get('done', 0)} · dead-letter: {st.get('dead-letter', 0)}",
+            f"durabilidad: {st.get('durabilidad', 'ok')} · permisos: {st.get('permisos', 'ok')} · "
+            f"reclamacion: {st.get('reclamacion', 'ok')}",
+            f"en_backoff: {st.get('en_backoff', 0)} · huerfanas: {st.get('huerfanas', 0)} · "
+            f"recuperados_claiming: {st.get('recuperados_claiming', 0)}"]
+    u = st.get("ultimo_dead_letter")
+    if u:
+        lines.append(f"último dead-letter: {u.get('clave')} — {u.get('causa')} (intentos: {u.get('intentos')})")
+    for a_ in st.get("avisos", []):
+        lines.append(f"- {a_}")
+    return "\n".join(lines)
 
 
 # ------------------------------------------------------------------ log crudo (capture / capturas)
@@ -1832,6 +1936,12 @@ def cmd_recover(a):
     return 0
 
 
+def cmd_status(a):
+    st = status(a.root)
+    print(json.dumps(st, ensure_ascii=False, indent=2) if a.json else render_status(st))
+    return 0
+
+
 def cmd_candidatas(a):
     minimo = max(1, int(a.min))                      # el umbral anunciado en la cabecera es el aplicado (Lente B gap 6)
     lista = candidatas(a.root, minimo, a.iniciativa)
@@ -1912,6 +2022,11 @@ def main(argv=None):
     sp.add_argument("--reintentar-ahora", action="store_true",
                     help="antes de drenar, pone a 0 el no_antes_de de TODO outbox/ (gap 51, complementa --reintentar-dead-letter)")
     sp.set_defaults(fn=cmd_replay)
+
+    sp = sub.add_parser("status", help="diagnóstico determinista de la cola: contadores, degradaciones, huérfanas, último dead-letter")
+    comunes(sp)
+    sp.add_argument("--json", action="store_true")
+    sp.set_defaults(fn=cmd_status)
 
     sp = sub.add_parser("recover", help="materializa como recuperado_sin_cierre las sesiones huérfanas (log sin envelope, sin sesión viva)")
     comunes(sp)

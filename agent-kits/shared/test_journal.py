@@ -1182,6 +1182,53 @@ def test_cmd_recover_imprime_json(tmp_path):
     assert json.loads(out)["recuperadas"] == 1
 
 
+# ------------------------------------------------------------------ status y /doctor (T-06)
+
+def test_status_cola_vacia_es_sana(tmp_path):
+    proj, _ = proyecto(tmp_path, con_git=False)
+    st = journal.status(str(proj))
+    assert st["outbox"] == 0 and st["processing"] == 0 and st["dead-letter"] == 0
+    assert st["durabilidad"] == "ok" and st["permisos"] == "ok" and st["reclamacion"] == "ok"
+    assert st["huerfanas"] == 0 and st["ultimo_dead_letter"] is None and st["avisos"] == []
+
+
+def test_status_cuenta_pendientes_y_huerfanas(tmp_path):
+    proj, _ = proyecto(tmp_path, con_git=False)
+    journal.capture_end(str(proj), session_end_payload(proj, sid="p1"))
+    _log_prompts(proj, "huerfana-status", mtime_hace_min=400)
+    st = journal.status(str(proj))
+    assert st["outbox"] == 1 and st["huerfanas"] == 1
+    assert any("recover" in a for a in st["avisos"])
+
+
+def test_status_ultimo_dead_letter_trae_causa_e_intentos(tmp_path):
+    proj, _ = proyecto(tmp_path, con_git=False)
+    ob = journal._outbox_mod()
+    dir_ = journal._journal_queue_dir(str(proj))
+    ob.escribir(dir_, "malo", {"schema_version": 99, "session_id": "s9", "reason": "other"})
+    journal.replay(str(proj))
+    st = journal.status(str(proj))
+    assert st["dead-letter"] == 1
+    assert st["ultimo_dead_letter"]["clave"] == "malo.json"
+    assert "schema_version" in st["ultimo_dead_letter"]["causa"]
+    assert any("reintentar-dead-letter" in a for a in st["avisos"])
+
+
+def test_cmd_status_imprime_json_con_flag(tmp_path):
+    proj, _ = proyecto(tmp_path, con_git=False)
+    rc, out, err = run("status", "--json", root=proj)
+    assert rc == 0 and err == ""
+    d = json.loads(out)
+    assert "outbox" in d and "avisos" in d
+
+
+def test_cmd_status_texto_por_defecto(tmp_path):
+    proj, _ = proyecto(tmp_path, con_git=False)
+    rc, out, err = run("status", root=proj)
+    assert rc == 0 and err == ""
+    assert "outbox:" in out
+
+
 # ------------------------------------------------------------------ revisión intento 1 (gaps 4/6/7/8/9/12/14/15/23)
 
 def test_capture_end_session_id_gigante_no_rompe_el_tope_de_64kib(tmp_path):

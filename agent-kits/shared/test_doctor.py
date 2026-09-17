@@ -487,12 +487,59 @@ def test_toda_linea_de_aviso_o_error_trae_arreglo(tmp_path):
         assert l["arreglo"].strip(), l
 
 
-@pytest.mark.parametrize("bloque", ["herramientas", "plugin", "configs", "estado", "memoria", "version"])
-def test_los_seis_bloques_estan_siempre(tmp_path, bloque):
+@pytest.mark.parametrize("bloque", ["herramientas", "plugin", "configs", "estado", "memoria", "version", "journal"])
+def test_los_siete_bloques_estan_siempre(tmp_path, bloque):
     inf = diag(proyecto(tmp_path))
     claves = [b["clave"] for b in inf["bloques"]]
-    assert bloque in claves and len(claves) == 6
-    assert doctor.render_md(inf).count("| | Comprobación |") == 6
+    assert bloque in claves and len(claves) == 7
+    assert doctor.render_md(inf).count("| | Comprobación |") == 7
+
+
+# ------------------------------------------------------------------ Journal (session-end-durable-capture T-06)
+
+def test_journal_sin_pendientes_ni_huerfanas_es_informativo_y_exit_0(tmp_path):
+    proj = proyecto(tmp_path)
+    inf = diag(proj)
+    journ = [b for b in inf["bloques"] if b["clave"] == "journal"][0]
+    assert not [l for l in journ["lineas"] if l["estado"] == doctor.ERROR]
+    assert inf["exit"] == 0
+
+
+def test_journal_con_dead_letter_avisa_con_el_remedio_nombrado(tmp_path):
+    proj = proyecto(tmp_path)
+    d = proj / ".claude" / "journal" / "dead-letter"
+    d.mkdir(parents=True)
+    (d / "ev1.json").write_text(json.dumps({"session_id": "s1"}), encoding="utf-8")
+    (d / "ev1.json.causa.json").write_text(
+        json.dumps({"causa": "esquema inválido", "intentos": 3, "en": "2026-09-17T00:00:00Z"}), encoding="utf-8")
+    inf = diag(proj)
+    avisos = [l for l in lineas(inf, doctor.AVISO) if "dead-letter" in l["que"]]
+    assert avisos and "reintentar-dead-letter" in avisos[0]["arreglo"]
+
+
+def test_journal_con_huerfana_dice_perdida_posible_y_nombra_recover(tmp_path):
+    proj = proyecto(tmp_path, **{"dev__json": {"sesion": {"journal": {"ventanaHuerfanaMin": 1}}}})
+    p = proj / ".claude" / "session-prompts-huerfana1.log"
+    p.write_text(json.dumps({"ts": "2026-09-17T00:00:00Z", "prompt": "hola"}) + "\n", encoding="utf-8")
+    t = _dt.datetime.now().timestamp() - 5 * 60
+    os.utime(p, (t, t))
+    inf = diag(proj)
+    avisos = [l for l in lineas(inf, doctor.AVISO) if "huérfana" in l["que"]]
+    assert avisos and "pérdida posible" in avisos[0]["detalle"].lower() and "recover" in avisos[0]["arreglo"]
+
+
+def test_journal_con_pendiente_en_outbox_dice_aviso_del_runtime_sin_perdida(tmp_path):
+    proj = proyecto(tmp_path)
+    d = proj / ".claude" / "journal" / "outbox"
+    d.mkdir(parents=True)
+    (d / "ev1.json").write_text(json.dumps({
+        "session_id": "s1", "schema_version": 1, "reason": "other", "cwd": str(proj),
+        "transcript_path": "", "captured_at": "2026-09-17T00:00:00Z",
+        "hook_event_name": "SessionEnd", "sequence": 0}), encoding="utf-8")
+    inf = diag(proj)
+    journ = [b for b in inf["bloques"] if b["clave"] == "journal"][0]
+    hc = [l for l in journ["lineas"] if "hook cancelled" in l["que"].lower()]
+    assert hc and "sin pérdida" in hc[0]["detalle"].lower()
 
 
 # ------------------------------------------------------------------ salud de la memoria (memory-retrieval T-10)

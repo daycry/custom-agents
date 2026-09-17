@@ -2268,3 +2268,28 @@ test("gap I2-4: ningún paso `exec` de ningún proveedor se queda sin `cwd`", ()
     rmSync(dir, { recursive: true, force: true })
   }
 })
+
+// ------------------------------------------------------------------ CA-12 (session-end-durable-capture T-06)
+
+test("CA-12: uninstall (copy y plugin) nunca toca `.claude/journal/` — es estado, no payload del instalador", () => {
+  const tmp = tmpProj()
+  try {
+    const proj = join(tmp, "proy"), cfg = join(tmp, "claude"), hogar = join(tmp, "home")
+    for (const d of [proj, cfg, hogar]) mkdirSync(d, { recursive: true })
+    const env = conPath(SIN_CLI, { CLAUDE_CONFIG_DIR: cfg, HOME: hogar, USERPROFILE: hogar })
+    const outbox = join(proj, ".claude", "journal", "outbox")
+    mkdirSync(outbox, { recursive: true })
+    writeFileSync(join(outbox, "ev1.json"), JSON.stringify({ session_id: "s1" }))
+
+    cli(["install", "-p", "claude-code", "--mode", "copy", "--dir", proj, "-y", "-q"], { env })
+    assert.ok(existsSync(join(outbox, "ev1.json")), "install ya tocó la cola")
+    cli(["uninstall", "-p", "claude-code", "--dir", proj, "-q"], { env })
+    assert.ok(existsSync(join(outbox, "ev1.json")), "uninstall (copy) borró .claude/journal/")
+
+    cli(["install", "-p", "claude-code", "--dir", proj, "-y", "-q"], { env })
+    cli(["uninstall", "-p", "claude-code", "--dir", proj, "-q"], { env })
+    assert.ok(existsSync(join(outbox, "ev1.json")), "uninstall (plugin) borró .claude/journal/")
+  } finally {
+    rmSync(tmp, { recursive: true, force: true })
+  }
+})
