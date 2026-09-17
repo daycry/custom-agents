@@ -18,9 +18,9 @@ verificacion: obligatoria
 |---|---:|---:|---:|---:|---:|---:|---:|
 | Fase 1 - Módulos compartidos | 2 | 2 | 100% | 0.9 / 2.5h | 1.92 / 0.8h | 0 / 0.2h | 0 / 45k |
 | Fase 2 - Captura y materialización | 2 | 2 | 100% | 2.7 / 5.5h | 4.5 / 1.6h | 0 / 0.4h | 0 / 85k |
-| Fase 3 - Reconciliación y diagnóstico | 0 | 2 | 0% | 0 / 4h | 0 / 1.2h | 0 / 0.3h | 0 / 60k |
+| Fase 3 - Reconciliación y diagnóstico | 1 | 2 | 50% | 0.3 / 4h | 0.4 / 1.2h | 0 / 0.3h | 0 / 60k |
 | Fase 4 - Pruebas, medición y cierre | 0 | 2 | 0% | 0 / 2h | 0 / 0.6h | 0 / 0.2h | 0 / 40k |
-| **TOTAL** | **4** | **8** | **50%** | **3.6 / 14h** | **6.42 / 4.2h** | **0 / 1.1h** | **0 / 230k** |
+| **TOTAL** | **5** | **8** | **63%** | **3.9 / 14h** | **6.82 / 4.2h** | **0 / 1.1h** | **0 / 230k** |
 
 ## Fase 1 - Módulos compartidos
 
@@ -110,16 +110,19 @@ verificacion: obligatoria
 ## Fase 3 - Reconciliación y diagnóstico
 
 ### T-05 - Reconciliación presupuestada en `SessionStart` y huérfanas
-- **Estado**: borrador
-- **Tiempo humano**: est. 2h · real -
-- **Prevision IA**: 25k in / 10k out tok
+- **Estado**: completado
+- **Tiempo humano**: est. 2h · real 0.3h (estimado)
+- **Prevision IA**: 25k in / 10k out tok · real (estimado): usage-meter degradó a `fuente: estimado` (sin transcripciones en este entorno); horas_ia real (estimado): 0.4h
 - **Dependencias**: T-04
 - **Tipo**: backend
 - **Archivos**: `hooks/session-context.sh`, `agent-kits/shared/journal.py`, `agent-kits/shared/test_journal.py`, `tests/test_hooks_shell.py`
-- **Verificacion**: `python -m pytest -q agent-kits/shared/test_journal.py -k "huerfana or budget" tests/test_hooks_shell.py -k session_context` -> 0/10/100 pendientes dentro del presupuesto; log de prompts sin envelope > ventana = `recuperado_sin_cierre`; sesión viva no se toca
+- **Verificacion**: `python -m pytest -q agent-kits/shared/test_journal.py -k "huerfana or budget" tests/test_hooks_shell.py -k session_context` -> **ejecutado**: `30 passed in 13.82s` (0/10/100 pendientes dentro del presupuesto sin colgar el arranque; log de prompts sin envelope pasada la ventana = `recuperado_sin_cierre`; sesión concurrente viva no se toca aunque supere la ventana; envelope pendiente lo resuelve `replay`, no `recover`, sin duplicar entrada)
+- **RED**: `test_recover_huerfana_pasada_la_ventana_se_marca_recuperado_sin_cierre` (y el resto de `recover`/`cmd_recover` en `test_journal.py`) falló con `AttributeError: module 'journal' has no attribute 'recover'`; `test_session_context_drena_la_outbox_antes_de_componer_el_contexto`/`test_session_context_recupera_huerfana_pasada_la_ventana` (`tests/test_hooks_shell.py`) fallaron porque `session-context.sh` no invocaba `replay`/`recover` (outbox seguía con 1 pendiente tras el hook; ninguna entrada `recuperado_sin_cierre` aparecía) · 2026-09-17
 **Criterios de aceptación**
-- [ ] `--budget-ms` y `--max` leídos de `dev.json` con defaults 300/3.
-- [ ] Solo entradas materializadas se inyectan en el contexto (CA-08).
+- [x] `--budget-ms` y `--max` leídos de `dev.json` (`sesion.journal.replay.{budgetMs,max}`) con defaults 300/3.
+- [x] Solo entradas materializadas se inyectan en el contexto (CA-08): `session-context.sh` llama `journal.py replay --ia no` y `journal.py recover --current-session-id <sid>` ANTES de componer nada; `bloqueado`/`errores` del JSON de `replay` se resumen en UNA línea de aviso sin bloquear el arranque; el bloque (3) sigue leyendo `journal.py latest` de DISCO, nunca de lo que `replay`/`recover` acaban de decidir en memoria.
+- **Nota**: `recover` distingue huérfana (log sin envelope ni entrada, pasada la ventana, sin ser la sesión que arranca) de «ya capturada» (hay envelope en cualquier subcarpeta de la cola o entrada de journal con ese `session_id`, la resuelve `replay`) para no duplicar entradas.
+- **Changelog**: `SessionStart` (`session-context.sh`) reconcilia el journal ANTES de componer el contexto (gap 13 de la revisión intento 1): drena la outbox con `journal.py replay --ia no --budget-ms 300 --max 3` (presupuesto/tope de `dev.json`) y materializa como `recuperado_sin_cierre` las sesiones huérfanas (`journal.py recover`, CA-07: log de prompts sin envelope y sin sesión viva pasada `sesion.journal.ventanaHuerfanaMin`, default 360 min); nunca bloquea el arranque (CA-08).
 
 ### T-06 - `journal.py status` y sección «Journal» de `/doctor`
 - **Estado**: borrador

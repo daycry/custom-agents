@@ -1084,6 +1084,104 @@ def test_cmd_replay_imprime_json_por_stdout(tmp_path):
     assert r["materializados"] == 1
 
 
+def test_replay_termina_dentro_del_presupuesto_con_0_10_100_pendientes(tmp_path):
+    """T-05 (CA-08): SessionStart no puede colgarse; con 0, 10 o 100 envelopes pendientes, `replay`
+    con `--budget-ms`/`--max` razonables (los que usará `session-context.sh`) termina y nunca dice
+    «materializado» de más de lo que reclamó (los que exceden `max` quedan en `restantes`)."""
+    for n in (0, 10, 100):
+        proj, _ = proyecto(tmp_path / f"n{n}", con_git=False)
+        for i in range(n):
+            journal.capture_end(str(proj), session_end_payload(proj, sid=f"s{i}"))
+        inicio = time.monotonic()
+        r = journal.replay(str(proj), budget_ms=300, max_n=3)
+        dur_ms = (time.monotonic() - inicio) * 1000
+        assert dur_ms < 5000, f"n={n}: replay tardó {dur_ms:.0f} ms"
+        assert r["materializados"] == min(n, 3)
+        assert r["restantes"] == max(n - 3, 0)
+
+
+# ------------------------------------------------------------------ reconciliación en SessionStart: huérfanas (T-05)
+
+def _log_prompts(proj, sid, prompt="decidimos recuperar la sesión", mtime_hace_min=None):
+    d = proj / ".claude"
+    d.mkdir(exist_ok=True)
+    p = d / f"session-prompts-{sid}.log"
+    p.write_text(json.dumps({"ts": "2026-09-17T00:00:00Z", "prompt": prompt}) + "\n", encoding="utf-8")
+    if mtime_hace_min is not None:
+        t = time.time() - mtime_hace_min * 60
+        os.utime(p, (t, t))
+    return p
+
+
+def test_recover_huerfana_pasada_la_ventana_se_marca_recuperado_sin_cierre(tmp_path):
+    """CA-07: log de prompts sin envelope, pasada la ventana (default 360 min) → `recuperado_sin_cierre`."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    _log_prompts(proj, "sh1", mtime_hace_min=400)
+    r = journal.recover(str(proj))
+    assert r["recuperadas"] == 1
+    es = journal.entradas(str(proj))
+    assert len(es) == 1 and es[0]["session_id"] == "sh1" and es[0]["cierre"] == "recuperado_sin_cierre"
+
+
+def test_recover_dentro_de_la_ventana_no_se_toca(tmp_path):
+    """Todavía podría estar viva: dentro de la ventana no se recupera nada (CA-07)."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    _log_prompts(proj, "sh2", mtime_hace_min=5)
+    r = journal.recover(str(proj))
+    assert r["recuperadas"] == 0
+    assert journal.entradas(str(proj)) == []
+
+
+def test_recover_sesion_concurrente_viva_no_se_toca_aunque_supere_la_ventana(tmp_path):
+    """CA-07: una sesión concurrente viva (su `session_id` es el actual) nunca se trata como huérfana,
+    aunque su log lleve más tiempo del de la ventana sin actividad nueva."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    _log_prompts(proj, "sh3", mtime_hace_min=400)
+    r = journal.recover(str(proj), current_session_id="sh3")
+    assert r["recuperadas"] == 0
+    assert journal.entradas(str(proj)) == []
+
+
+def test_recover_con_envelope_pendiente_no_duplica(tmp_path):
+    """Una sesión con envelope en la outbox la materializa `replay`, no `recover` (evita una segunda
+    entrada `recuperado_sin_cierre` para lo que ya va a quedar `materializado`)."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    _log_prompts(proj, "sh4", mtime_hace_min=400)
+    journal.capture_end(str(proj), session_end_payload(proj, sid="sh4"))
+    r = journal.recover(str(proj))
+    assert r["recuperadas"] == 0
+    journal.replay(str(proj))
+    assert journal.entradas(str(proj))[0]["cierre"] == "materializado"
+
+
+def test_recover_con_entrada_ya_materializada_no_duplica(tmp_path):
+    proj, _ = proyecto(tmp_path, con_git=False)
+    _log_prompts(proj, "sh5", mtime_hace_min=400)
+    journal.capture_end(str(proj), session_end_payload(proj, sid="sh5"))
+    journal.replay(str(proj))
+    assert len(journal.entradas(str(proj))) == 1
+    r = journal.recover(str(proj))
+    assert r["recuperadas"] == 0
+    assert len(journal.entradas(str(proj))) == 1
+
+
+def test_recover_ventana_configurable_por_dev_json(tmp_path):
+    proj, _ = proyecto(tmp_path, con_git=False)
+    (proj / ".claude" / "dev.json").write_text(
+        json.dumps({"sesion": {"journal": {"ventanaHuerfanaMin": 1}}}), encoding="utf-8")
+    _log_prompts(proj, "sh6", mtime_hace_min=2)
+    r = journal.recover(str(proj))
+    assert r["recuperadas"] == 1
+
+
+def test_cmd_recover_imprime_json(tmp_path):
+    proj, _ = proyecto(tmp_path, con_git=False)
+    _log_prompts(proj, "sh7", mtime_hace_min=400)
+    rc, out, err = run("recover", root=proj)
+    assert rc == 0 and err == ""
+    assert json.loads(out)["recuperadas"] == 1
+
+
 # ------------------------------------------------------------------ revisión intento 1 (gaps 4/6/7/8/9/12/14/15/23)
 
 def test_capture_end_session_id_gigante_no_rompe_el_tope_de_64kib(tmp_path):
