@@ -205,7 +205,8 @@ def test_session_context_startup_indice_mas_roadmap_bajo_el_tope(tmp_path):
     """T-02 activation-reliability: en `startup` el contexto lleva el ÍNDICE de piezas (3 bloques) y,
     detrás, el bloque del roadmap; total < 10.000 caracteres; se escribe la caché del índice."""
     proj, _ = proyecto(tmp_path)
-    rc, out, _ = hook("session-context.sh", {"hook_event_name": "SessionStart", "source": "startup"}, env_de(proj, tmp_path))
+    rc, out, _ = hook("session-context.sh", {"hook_event_name": "SessionStart", "source": "startup",
+                                             "session_id": "s-indice"}, env_de(proj, tmp_path))
     assert rc == 0
     ctx = un_json(out)["hookSpecificOutput"]["additionalContext"]
     assert ctx.startswith("Plugin custom-agents") and "Comandos:" in ctx and "Skills:" in ctx and "Agentes:" in ctx
@@ -214,7 +215,8 @@ def test_session_context_startup_indice_mas_roadmap_bajo_el_tope(tmp_path):
     assert len(ctx) < 10_000
     assert (proj / ".claude" / ".skill-index.cache").read_text(encoding="utf-8").startswith("# skill-index ")
     # `compact` también reinyecta el índice (la compactación resume la conversación; guía oficial)
-    rc, out, _ = hook("session-context.sh", {"hook_event_name": "SessionStart", "source": "compact"}, env_de(proj, tmp_path))
+    rc, out, _ = hook("session-context.sh", {"hook_event_name": "SessionStart", "source": "compact",
+                                             "session_id": "s-indice"}, env_de(proj, tmp_path))
     assert rc == 0 and "Comandos:" in un_json(out)["hookSpecificOutput"]["additionalContext"]
 
 
@@ -239,7 +241,10 @@ def test_session_context_sin_activas_solo_indice(tmp_path):
 def test_session_context_sin_activas_e_indice_off_vacio(tmp_path):
     proj, _ = proyecto(tmp_path, activa=False)
     (proj / ".claude" / "dev.json").write_text('{"sesion": {"indice": false}}', encoding="utf-8")
-    assert hook("session-context.sh", {"hook_event_name": "SessionStart", "source": "startup"}, env_de(proj, tmp_path)) == (0, "", "")
+    # `session_id` presente (contrato oficial): sin él, `recover` se guarda con un aviso propio
+    # (gap 79) que ahora SÍ llega a la línea `Journal: …` (gap 84) y rompería el `""` esperado aquí.
+    assert hook("session-context.sh", {"hook_event_name": "SessionStart", "source": "startup",
+                                       "session_id": "s-vacio"}, env_de(proj, tmp_path)) == (0, "", "")
 
 
 def test_session_context_sin_python3_silencio(tmp_path):
@@ -500,6 +505,38 @@ def test_session_context_dev_json_budget_negativo_usa_default_y_avisa(tmp_path):
     assert rc == 0
     ctx = un_json(out)["hookSpecificOutput"]["additionalContext"]
     assert "fuera de" in ctx
+
+
+def test_session_context_dev_json_budget_no_numerico_usa_default_y_avisa(tmp_path):
+    """Gap 88: `budgetMs`/`max` no numéricos (`"abc"`) caían al default EN SILENCIO (el `int()` que
+    lanzaba `ValueError` estaba fuera de cualquier `try` propio, así que el `except Exception: pass`
+    exterior se tragaba también el aviso) — ahora avisan igual que fuera de rango."""
+    proj, _ = proyecto(tmp_path)
+    (proj / ".claude" / "dev.json").write_text(
+        json.dumps({"sesion": {"journal": {"replay": {"budgetMs": "abc", "max": "xyz"}}}}), encoding="utf-8")
+    env = env_de(proj, tmp_path)
+    rc, out, _ = hook("session-context.sh", {"hook_event_name": "SessionStart", "source": "startup"}, env)
+    assert rc == 0
+    ctx = un_json(out)["hookSpecificOutput"]["additionalContext"]
+    assert "no es un entero" in ctx
+
+
+def test_session_context_expone_avisos_de_recover_agotado_en_la_linea_journal(tmp_path):
+    """Gap 84: `avisos` del propio JSON de `replay` (p. ej. `recover no ejecutado: presupuesto/max
+    agotado`) llegaba a `journal.py replay` pero el composer del hook NUNCA lo leía — solo miraba
+    `bloqueado`/`errores`. Con `max: 1` y un envelope pendiente, el drenaje agota el tope
+    COMPARTIDO (gap 83) antes de que `recover` llegue a materializar la huérfana."""
+    proj, _ = proyecto(tmp_path)
+    (proj / ".claude" / "dev.json").write_text(
+        json.dumps({"sesion": {"journal": {"replay": {"max": 1}}}}), encoding="utf-8")
+    hook("session-journal.sh", session_end(proj, sid="env1"), env_de(proj, tmp_path))
+    _log_prompts(proj, "huerB", mtime_hace_min=1500)
+    env = env_de(proj, tmp_path)
+    rc, out, _ = hook("session-context.sh", {"hook_event_name": "SessionStart", "source": "startup",
+                                             "session_id": "viva"}, env)
+    assert rc == 0
+    ctx = un_json(out)["hookSpecificOutput"]["additionalContext"]
+    assert "recover no ejecutado" in ctx and "presupuesto/max agotado" in ctx
 
 
 # ------------------------------------------------------------ user-prompt-capture (T-11/T-12) ----

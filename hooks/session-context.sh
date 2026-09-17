@@ -101,16 +101,24 @@ try:
     jr = ses.get("journal") if isinstance(ses, dict) else None
     rp = jr.get("replay") if isinstance(jr, dict) else None
     if isinstance(rp, dict):
-        b = int(rp.get("budgetMs", budget))
-        if 0 <= b <= 5000:
-            budget = b
+        try:
+            b = int(rp.get("budgetMs", budget))
+        except (TypeError, ValueError):
+            avisos.append("budgetMs no es un entero: default 300")   # gap 88: no numérico -> aviso, no silencio
         else:
-            avisos.append("budgetMs fuera de [0,5000]: default 300")
-        m = int(rp.get("max", mx))
-        if 0 <= m <= 50:
-            mx = m
+            if 0 <= b <= 5000:
+                budget = b
+            else:
+                avisos.append("budgetMs fuera de [0,5000]: default 300")
+        try:
+            m = int(rp.get("max", mx))
+        except (TypeError, ValueError):
+            avisos.append("max no es un entero: default 3")          # gap 88: idem para max
         else:
-            avisos.append("max fuera de [0,50]: default 3")
+            if 0 <= m <= 50:
+                mx = m
+            else:
+                avisos.append("max fuera de [0,50]: default 3")
 except Exception:
     pass
 print("REPLAY_BUDGET_MS=%s" % shlex.quote(str(budget)))
@@ -131,6 +139,15 @@ if d.get("bloqueado"):
 errs = d.get("errores")
 if errs:
     bits.append("%d error(es)" % len(errs))
+avisos_json = d.get("avisos")
+if avisos_json:
+    # gap 84: `avisos` del propio JSON de `replay` (p. ej. "recover no ejecutado: presupuesto/max
+    # agotado (N candidatas)") llegaba a `journal.py replay` pero NUNCA a la línea "Journal: …" del
+    # hook — acotado a ~200 caracteres para no inflar el contexto con avisos largos.
+    texto_avisos = "; ".join(str(a) for a in avisos_json)
+    if len(texto_avisos) > 200:
+        texto_avisos = texto_avisos[:199].rstrip() + "…"
+    bits.append(texto_avisos)
 clamp = sys.argv[1] if len(sys.argv) > 1 else ""
 if clamp:
     bits.append(clamp)
