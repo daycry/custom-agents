@@ -18,9 +18,9 @@ verificacion: obligatoria
 |---|---:|---:|---:|---:|---:|---:|---:|
 | Fase 1 - Módulos compartidos | 2 | 2 | 100% | 0.9 / 2.5h | 1.92 / 0.8h | 0 / 0.2h | 0 / 45k |
 | Fase 2 - Captura y materialización | 2 | 2 | 100% | 2.7 / 5.5h | 4.5 / 1.6h | 0 / 0.4h | 0 / 85k |
-| Fase 3 - Reconciliación y diagnóstico | 1 | 2 | 50% | 0.3 / 4h | 0.4 / 1.2h | 0 / 0.3h | 0 / 60k |
+| Fase 3 - Reconciliación y diagnóstico | 2 | 2 | 100% | 0.65 / 4h | 0.9 / 1.2h | 0 / 0.3h | 0 / 60k |
 | Fase 4 - Pruebas, medición y cierre | 0 | 2 | 0% | 0 / 2h | 0 / 0.6h | 0 / 0.2h | 0 / 40k |
-| **TOTAL** | **5** | **8** | **63%** | **3.9 / 14h** | **6.82 / 4.2h** | **0 / 1.1h** | **0 / 230k** |
+| **TOTAL** | **6** | **8** | **75%** | **4.25 / 14h** | **7.32 / 4.2h** | **0 / 1.1h** | **0 / 230k** |
 
 ## Fase 1 - Módulos compartidos
 
@@ -125,17 +125,19 @@ verificacion: obligatoria
 - **Changelog**: `SessionStart` (`session-context.sh`) reconcilia el journal ANTES de componer el contexto (gap 13 de la revisión intento 1): drena la outbox con `journal.py replay --ia no --budget-ms 300 --max 3` (presupuesto/tope de `dev.json`) y materializa como `recuperado_sin_cierre` las sesiones huérfanas (`journal.py recover`, CA-07: log de prompts sin envelope y sin sesión viva pasada `sesion.journal.ventanaHuerfanaMin`, default 360 min); nunca bloquea el arranque (CA-08).
 
 ### T-06 - `journal.py status` y sección «Journal» de `/doctor`
-- **Estado**: borrador
-- **Tiempo humano**: est. 2h · real -
-- **Prevision IA**: 22k in / 9k out tok
+- **Estado**: completado
+- **Tiempo humano**: est. 2h · real 0.35h (estimado)
+- **Prevision IA**: 22k in / 9k out tok · real (estimado): usage-meter degradó a `fuente: estimado` (sin transcripciones en este entorno); horas_ia real (estimado): 0.5h
 - **Dependencias**: T-04
 - **Tipo**: backend
-- **Archivos**: `agent-kits/shared/journal.py`, `agent-kits/shared/doctor.py`, `agent-kits/shared/test_doctor.py`, `commands/doctor.md`
-- **Verificacion**: `python -m pytest -q agent-kits/shared/test_doctor.py -k journal` -> estados sano / pendientes / huérfana / dead-letter con veredicto y remedio nombrado; triage del `Hook cancelled`
+- **Archivos**: `agent-kits/shared/journal.py`, `agent-kits/shared/test_journal.py`, `agent-kits/shared/doctor.py`, `agent-kits/shared/test_doctor.py`, `commands/doctor.md`, `tests/installer.test.mjs`
+- **Verificacion**: `python -m pytest -q agent-kits/shared/test_doctor.py -k journal` -> **ejecutado**: `6 passed in 0.86s` (sano / pendientes en outbox → aviso runtime sin pérdida / huérfana → pérdida posible con `recover` / dead-letter → remedio `replay --reintentar-dead-letter`); `python -m pytest -q agent-kits/shared/test_doctor.py` -> `98 passed in 13.93s`; `node --test tests/installer.test.mjs` -> `111 tests, 108 pass, 0 fail, 3 skipped` (incluye CA-12: uninstall copy/plugin no toca `.claude/journal/`)
+- **RED**: `test_journal_sin_pendientes_ni_huerfanas_es_informativo_y_exit_0` (y el resto de `journal`/`siete_bloques` en `test_doctor.py`) fallaron con `IndexError: list index out of range` (sin bloque `journal` en `diagnostico()`); `test_status_cola_vacia_es_sana` (y el resto de `status`/`cmd_status` en `test_journal.py`) fallaron con `AttributeError: module 'journal' has no attribute 'status'` · 2026-09-17
 **Criterios de aceptación**
-- [ ] `/doctor` lee `journal.py status --json`, no reimplementa la cola.
-- [ ] Distingue «aviso del runtime con entrada escrita» de «pérdida» (CA-10).
-- [ ] `purge --confirm` es el único borrado; uninstall no toca `.claude/journal/` (CA-12).
+- [x] `/doctor` lee `journal.py status --json` (subprocess, `_bloque_journal_lineas`), no reimplementa contadores/degradaciones de la cola.
+- [x] Distingue «aviso del runtime con entrada escrita» de «pérdida» (CA-10): con outbox/processing pendiente y sin huérfanas → ℹ️ «aviso del runtime, SIN pérdida»; con huérfana confirmada (`status.huerfanas > 0`) → ⚠️ «PÉRDIDA POSIBLE» + remedio `journal.py recover`.
+- [x] `purge --confirm` es el único borrado (ya existía en `outbox.py`, T-01); uninstall no toca `.claude/journal/` (CA-12): `install/install.mjs` trabaja por manifiesto de ficheros que instaló, nunca referencia `.claude/journal/`; test nuevo `tests/installer.test.mjs` (uninstall copy y plugin) lo comprueba con un envelope plantado que sobrevive a las dos formas de uninstall.
+- **Changelog**: `journal.py status [--json]` (contadores por carpeta, degradaciones, huérfanas pendientes de `recover`, backoff con su próxima fecha y la causa del último dead-letter, todo con el remedio nombrado) y una séptima sección «Journal» en `/doctor` que LEE ese `status --json` (nunca reimplementa la cola): triage del «Hook cancelled» (CA-10) y CA-12 verificado (uninstall nunca toca `.claude/journal/`).
 
 ## Fase 4 - Pruebas, medición y cierre
 

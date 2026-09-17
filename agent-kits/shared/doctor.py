@@ -3,7 +3,7 @@
 doctor.py — diagnóstico DETERMINISTA y SIN EFECTOS de la instalación del plugin en un proyecto
 (agent-kits/shared: lo invocan el comando `/doctor` y el paso 0 de `/setup`).
 
-Seis bloques, un veredicto por línea (✅ ok · ⚠️ aviso · ❌ error · ℹ️ informativo) y, en TODA
+Siete bloques, un veredicto por línea (✅ ok · ⚠️ aviso · ❌ error · ℹ️ informativo) y, en TODA
 línea ⚠️/❌, el **arreglo sugerido** en llano:
 
   a) herramientas  `python3` (≥ 3.9), `git`, `bash`, `jq` (opcional: la statusline lo usa con
@@ -49,6 +49,15 @@ línea ⚠️/❌, el **arreglo sugerido** en llano:
                    **SIN RED**: no consulta marketplace, GitHub ni npm, así que solo dice «versión X;
                    la última vez que se vio este proyecto era Y» (o «sin registro»). NUNCA afirma
                    que haya una actualización disponible — no tiene forma de saberlo.
+  g) Journal       (session-end-durable-capture T-06) LEE `journal.py status --json` (nunca
+                   reimplementa la cola, CA-10): contadores outbox/processing/done/dead-letter,
+                   degradaciones (`durabilidad`/`permisos`/`reclamacion`) y backoff pendiente
+                   (⚠️ con el remedio nombrado: `replay --reintentar-dead-letter`,
+                   `replay --reintentar-ahora`); huérfanas (⚠️ con `journal.py recover`); triage
+                   del «Hook cancelled»: envelope/entrada pendiente de la sesión → aviso del
+                   runtime SIN pérdida (ℹ️), ni envelope ni huérfana conocida → sugiere `recover`
+                   para descartar pérdida (ℹ️), huérfana confirmada → PÉRDIDA POSIBLE (⚠️). Sin
+                   `.claude/journal/` → informativo (normal en un proyecto recién instalado).
 
 **No escribe nada en el proyecto** (ni configs, ni estado, ni caché): es un diagnóstico de solo
 lectura, así que se puede lanzar sin miedo tantas veces como haga falta.
@@ -1789,6 +1798,66 @@ def bloque_version(plugin_root, project):
     return {"clave": "version", "titulo": "Versión", "lineas": ls}
 
 
+# ------------------------------------------------------------------ g) Journal (session-end-durable-capture T-06)
+
+def _bloque_journal_lineas(plugin_root, project):
+    """LEE `journal.py status --json` (no reimplementa la cola, CA-10): contadores por carpeta,
+    degradaciones, huérfanas y dead-letter con su remedio nombrado; triage del «Hook cancelled»
+    (envelope/entrada de la sesión → aviso del runtime, sin pérdida; ni envelope ni huérfana
+    conocida → sugiere `recover` para descartar pérdida)."""
+    script = os.path.join(plugin_root or HERE, "agent-kits", "shared", "journal.py")
+    if not os.path.isfile(script):
+        script = os.path.join(HERE, "journal.py")
+    if not os.path.isfile(script):
+        return [linea(INFO, "cola del journal", "`journal.py` no está para diagnosticarla",
+                      "instalación parcial: reinstala el plugin")]
+    st = _json_de(_correr([sys.executable, script, "status", "--json", "--root", project])[0])
+    if st is None:
+        return [linea(AVISO, "cola del journal", "`journal.py status --json` no devolvió JSON",
+                      "ejecútalo a mano: `python3 agent-kits/shared/journal.py status --root .`")]
+    out = [linea(INFO, "cola del journal",
+                 f"outbox {st.get('outbox', 0)} · processing {st.get('processing', 0)} · "
+                 f"done {st.get('done', 0)} · dead-letter {st.get('dead-letter', 0)}")]
+    if st.get("dead-letter"):
+        u = st.get("ultimo_dead_letter") or {}
+        detalle = f"{st['dead-letter']} envelope(s) descartado(s)"
+        if u.get("causa"):
+            detalle += f"; último: {u['causa']}"
+        out.append(linea(AVISO, "sesiones en dead-letter", detalle,
+                         "reintenta: `journal.py replay --reintentar-dead-letter`"))
+    if st.get("en_backoff"):
+        proxima = st.get("proxima_backoff")
+        out.append(linea(AVISO, "items en backoff",
+                         f"{st['en_backoff']} item(s) esperando su próximo intento" +
+                         (f" (próximo: {proxima})" if proxima else ""),
+                         "fuerza el reintento ya: `journal.py replay --reintentar-ahora`"))
+    if st.get("huerfanas"):
+        out.append(linea(AVISO, "sesiones huérfanas",
+                         f"{st['huerfanas']} sesión(es) con log de prompts sin envelope ni entrada, "
+                         "pasada la ventana configurada — «Hook cancelled»: PÉRDIDA POSIBLE",
+                         "recupera lo que se pueda: `journal.py recover`"))
+        out.append(linea(AVISO, "Hook cancelled (triage)",
+                         "sin envelope ni entrada de esta sesión: pérdida posible",
+                         "ejecuta `journal.py recover` para materializarla como `recuperado_sin_cierre`"))
+    elif st.get("processing") or st.get("outbox"):
+        out.append(linea(INFO, "Hook cancelled (triage)",
+                         "hay envelope/entrada pendiente de esta sesión: aviso del runtime, SIN pérdida "
+                         "(la materializa el próximo `SessionStart` o `journal.py replay`)"))
+    else:
+        out.append(linea(INFO, "Hook cancelled (triage)",
+                         "sin envelope pendiente ni huérfanas conocidas: si vuelve a aparecer, ejecuta "
+                         "`journal.py recover` para descartar pérdida"))
+    for campo, etiqueta in (("durabilidad", "fsync"), ("permisos", "chmod"), ("reclamacion", "os.utime al reclamar")):
+        if st.get(campo) not in (None, "ok"):
+            out.append(linea(AVISO, f"{etiqueta} degradado", f"`{campo}`: {st.get(campo)}",
+                             "revisa permisos/disco de `.claude/journal/`; la cola sigue funcionando degradada"))
+    return out
+
+
+def bloque_journal(plugin_root, project):
+    return {"clave": "journal", "titulo": "Journal", "lineas": _bloque_journal_lineas(plugin_root, project)}
+
+
 # ------------------------------------------------------------------ informe
 
 def diagnostico(project, plugin_root_explicito=None, hoy=None):
@@ -1798,6 +1867,7 @@ def diagnostico(project, plugin_root_explicito=None, hoy=None):
                bloque_configs(plugin_root, project),
                bloque_estado(plugin_root, project),
                bloque_memoria(plugin_root, project, hoy),
+               bloque_journal(plugin_root, project),
                bloque_version(plugin_root, project)]
     resumen = {e: 0 for e in ORDEN}
     for b in bloques:
