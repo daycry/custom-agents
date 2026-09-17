@@ -18,9 +18,9 @@ verificacion: obligatoria
 |---|---:|---:|---:|---:|---:|---:|---:|
 | Fase 1 - Módulos compartidos | 2 | 2 | 100% | 0.9 / 2.5h | 1.92 / 0.8h | 0 / 0.2h | 0 / 45k |
 | Fase 2 - Captura y materialización | 2 | 2 | 100% | 2.7 / 5.5h | 4.5 / 1.6h | 0 / 0.4h | 0 / 85k |
-| Fase 3 - Reconciliación y diagnóstico | 2 | 2 | 100% | 1.0 / 4h | 2.1 / 1.2h | 0 / 0.3h | 0 / 60k |
-| Fase 4 - Pruebas, medición y cierre | 2 | 2 | 100% | 0.85 / 2h | 1.6 / 0.6h | 0 / 0.2h | 0 / 40k |
-| **TOTAL** | **8** | **8** | **100%** | **5.45 / 14h** | **10.12 / 4.2h** | **0 / 1.1h** | **0 / 230k** |
+| Fase 3 - Reconciliación y diagnóstico | 1 | 2 | 50% | 1.0 / 4h | 2.1 / 1.2h | 0 / 0.3h | 0 / 60k |
+| Fase 4 - Pruebas, medición y cierre | 1 | 2 | 50% | 0.85 / 2h | 1.6 / 0.6h | 0 / 0.2h | 0 / 40k |
+| **TOTAL** | **6** | **8** | **75%** | **5.45 / 14h** | **10.12 / 4.2h** | **0 / 1.1h** | **0 / 230k** |
 
 ## Fase 1 - Módulos compartidos
 
@@ -110,7 +110,7 @@ verificacion: obligatoria
 ## Fase 3 - Reconciliación y diagnóstico
 
 ### T-05 - Reconciliación presupuestada en `SessionStart` y huérfanas
-- **Estado**: completado
+- **Estado**: en-progreso
 - **Tiempo humano**: est. 2h · real 0.3h (estimado) + fix1 (tramo 2) 0.2h (estimado)
 - **Prevision IA**: 25k in / 10k out tok · real (estimado): usage-meter degradó a `fuente: estimado` (sin transcripciones en este entorno); horas_ia real (estimado): 0.4h + fix1 (tramo 2, estimado, `usage-meter` degradó otra vez, clave `session-end-durable-capture/T-05-fix1`): 0.9h
 - **Dependencias**: T-04
@@ -146,7 +146,7 @@ verificacion: obligatoria
 ## Fase 4 - Pruebas, medición y cierre
 
 ### T-07 - Bench de captura y matriz de garantías
-- **Estado**: completado
+- **Estado**: en-progreso
 - **Tiempo humano**: est. 1h · real 0.3h (estimado) + fix1 (tramo 2) 0.2h (estimado)
 - **Prevision IA**: 12k in / 5k out tok · real (estimado): usage-meter degradó a `fuente: estimado` (sin transcripciones en este entorno); horas_ia real (estimado): 0.5h + fix1 (tramo 2, estimado, `usage-meter` degradó otra vez, clave `session-end-durable-capture/T-07-fix1`): 0.5h
 - **Dependencias**: T-03, T-05
@@ -389,3 +389,20 @@ nombres genéricos de comando); `python3 scripts/export-interop.py --check` -> `
 `python3 agent-kits/shared/scope-check.py docs/roadmap/2026-09-17-session-end-durable-capture --base
 60e7629` -> exit 0; `python3 tests/test_ci_manual_copy.py`, `python3 -m pytest -q
 tests/test_knowledge_index.py`, `python3 tests/test_ledger_lint.py` en verde. Handoff a `qa`.
+
+## Revisión de dos lentes — tramo 2, intento 2: 0 Critical · 2 Important · 6 Minor nuevos (lente A+B+C fusionada) → corrección `T-fix2` (tramo 2)
+
+Re-evaluación de 63…81: **todos cerrados** (17 con guarda con dientes; 66/69/71/79 con código correcto y guarda incompleta → recogidas en la fila 85). Hallazgo colateral: el aviso de `replay` en el hook NUNCA funcionó desde T-05 (`SyntaxError` de f-string con backslash en el snippet embebido; `098ad28`) — lo corrigió fix1 y ahora hay test. 20 mutantes sobre copia; 8 reproducciones. T-05 y T-07 vuelven a `en-progreso`.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 82 | Important | `recover --session-id` (bypass `forzada`) SOBRESCRIBE en silencio una entrada ya `materializado` degradándola a `recuperado_sin_cierre` y borrando `materializado_en`; sin aviso ni confirmación; sin test del bypass | T-05 | pendiente | `journal.py:870,884,1693-1696` |
+| 83 | Important | `max_n` no se reparte entre drenaje y recuperación: `replay(max_n=3, con_recover=True)` → 3 materializados + 3 recuperados = 6 entradas para un tope declarado de 3 (el criterio de T-05 y `design.md` afirman que se comparte) | T-05 | pendiente | `journal.py:771,865` |
+| 84 | Minor | Presupuesto agotado por el drenaje ⇒ `recover` no corre y no se avisa; el composer del hook nunca expone `avisos` del JSON | T-05 | pendiente | `journal.py:891`, `session-context.sh:129-140` |
+| 85 | Minor | Seis guardas portantes sin dientes: deadline de `recover`, cerrojo de `recover()` a demanda, bypass `forzada`, `""`/`compact` dentro de `recover()`, default 1440, warm-up del bench | T-05/T-07 | pendiente | `journal.py:891,948,884,930,945,785`, `bench-session-end.py:130` |
+| 86 | Minor | `_mtime_utc_iso` sin cota de cordura: mtime futuro/absurdo → entrada fechada en 2027/2446 que gana `latest` para siempre | T-05 | pendiente | `journal.py:841-846,894` |
+| 87 | Minor | `journal.py recover` a demanda se bloquea sin límite si otro proceso tiene `.replay.lock` (no expone `--budget-ms`/`--max`); `/doctor` recomienda ese comando | T-05 | pendiente | `journal.py:2028-2032,948,2154-2159` |
+| 88 | Minor | Doc desalineada: docstring y `--help` dicen default 360 (es 1440); `derivados_en: recover` es un valor imposible en observability ES/EN; clamp con valor no numérico cae al default sin aviso | T-05/T-06 | pendiente | `journal.py:802,2157`, `observability.md:72` |
+| 89 | Minor | JSON de `replay` inconsistente: con `con_recover=True` y `bloqueado`, faltan `recuperadas`/`candidatas` | T-05 | pendiente | `journal.py:676,757` |
+
+**Verificado OK:** `purge --confirm` borra solo la cola (4 casos, incl. `journal.dir` rechazado); presupuesto compartido (`budget=60` → rec=0); cerrojo de `recover` portante (mutante: 22 entradas/20 sesiones en 1/6); `ledger-lint` = `bcf564c` sobre 41 ledgers (0 distintas) y el gate sigue vivo con un `- [ ]` bajo negrita; bench in-process p95 1,04 ms / e2e 52,7 ms, verificación de escritura con dientes; clamps sin inyección (`shlex.quote` + `int`); triage dead-letter con dientes; todas las `Verificación` reproducen; CI ≡ copia manual.
