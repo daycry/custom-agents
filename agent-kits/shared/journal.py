@@ -36,6 +36,15 @@ Subcomandos (exit 0 SIEMPRE salvo error de uso → 2; la bitácora nunca bloquea
       versión actual y la anterior) va a `dead-letter/` con causa y NO bloquea a los demás.
       `--budget-ms`/`--max` acotan el trabajo (los usa `SessionStart`, T-05); sin ellos, drena toda
       la cola pendiente. Cada entrada escrita lleva `cierre: materializado` en el frontmatter.
+  recover [--root DIR] [--ventana-min N] [--current-session-id SID] [--session-id SID]
+      Reconciliación de HUÉRFANAS (T-05, CA-07): un log de prompts (`.claude/session-prompts-<sid>.log`)
+      sin envelope en la cola NI entrada de journal, cuyo mtime lleva más de `--ventana-min` (default
+      `sesion.journal.ventanaHuerfanaMin`, 360) sin actividad, se materializa con `draft`/`write` como
+      `cierre: recuperado_sin_cierre` (nunca inventa: el resumen sale del propio log, CA-05).
+      `--current-session-id` (la sesión que está arrancando, invocado por `session-context.sh`) nunca
+      se recupera, aunque su log supere la ventana: una sesión concurrente viva no es una huérfana.
+      `--session-id` fuerza una sesión concreta, ignorando ventana/sesión actual (a demanda). Una
+      sesión con envelope pendiente la resuelve `replay`, no `recover` (sin duplicar entrada).
   capture [--root DIR]                                   ← stdin: payload del hook UserPromptSubmit
       Añade el turno del usuario (`prompt`) como UNA línea JSON `{"ts", "prompt"}` a
       `.claude/session-prompts-<session_id>.log` (no versionado: `*.log` está en .gitignore). Reglas:
@@ -732,6 +741,113 @@ def replay(root, budget_ms=None, max_n=None, ia="auto", reintentar_dead_letter=F
         with contextlib.suppress(Exception):
             ob.limpiar_tmp_huerfanos(dir_)                            # gap 3/13/35: temporales huérfanos
         _rellenar_contadores_finales(ob, dir_, resumen)
+    return resumen
+
+
+# ------------------------------------------------------------------ reconciliación en SessionStart: huérfanas (T-05)
+
+VENTANA_HUERFANA_MIN_DEFAULT = 360    # min sin envelope ni sesión viva para tratar el log como huérfano (CA-07)
+
+
+def _extraer_sid_de_log(fn):
+    """`session_id` (saneado) a partir del nombre `session-prompts-<sid>.log`; `None` si `fn` no
+    tiene esa forma."""
+    if fn.startswith(LOG_PREFIX) and fn.endswith(".log"):
+        sid = fn[len(LOG_PREFIX):-len(".log")]
+        return sid or None
+    return None
+
+
+def _ventana_huerfana_min(root):
+    """`sesion.journal.ventanaHuerfanaMin` (minutos; default VENTANA_HUERFANA_MIN_DEFAULT = 360)."""
+    v = _dev_sesion(root).get("journal")
+    if isinstance(v, dict) and "ventanaHuerfanaMin" in v:
+        try:
+            return max(1, int(v["ventanaHuerfanaMin"]))
+        except (TypeError, ValueError):
+            pass
+    return VENTANA_HUERFANA_MIN_DEFAULT
+
+
+def _sid_ya_capturado(root, sid):
+    """True si YA hay una entrada de journal para `sid` (materializada o recuperada), o un envelope
+    en cualquier subcarpeta de la cola (`outbox`/`processing`/`done`/`dead-letter`) con ese
+    `session_id`: `recover` no debe crear una segunda entrada para una sesión que `replay` ya va a
+    materializar o ya materializó."""
+    for e in entradas(root):
+        if e.get("session_id") == sid:
+            return True
+    ob = _outbox_mod()
+    if ob is None:
+        return False
+    dir_ = _journal_queue_dir(root)
+    for sub in ("outbox", "processing", "done", "dead-letter"):
+        p = os.path.join(dir_, sub)
+        try:
+            nombres = os.listdir(p)
+        except OSError:
+            continue
+        for fn in nombres:
+            if not fn.endswith(".json") or fn.startswith(".tmp-") or fn.endswith((".manifest.json", ".causa.json")):
+                continue
+            try:
+                with open(os.path.join(p, fn), encoding="utf-8") as fh:
+                    payload = json.load(fh)
+            except (OSError, ValueError):
+                continue
+            if isinstance(payload, dict) and payload.get("session_id") == sid:
+                return True
+    return False
+
+
+def recover(root, ventana_min=None, current_session_id=None, session_id=None):
+    """Materializa como `cierre: recuperado_sin_cierre` las sesiones HUÉRFANAS (CA-07): un log de
+    prompts (`.claude/session-prompts-<sid>.log`) sin envelope ni entrada de journal, cuyo mtime
+    lleva más de `ventana_min` minutos (default `sesion.journal.ventanaHuerfanaMin`, 360) sin
+    actividad, y que no sea la sesión ACTUAL (`current_session_id`, la del payload de `SessionStart`:
+    una sesión concurrente viva nunca se toca). `session_id`: fuerza la recuperación de UNA sesión
+    concreta ignorando ventana/sesión actual (uso a demanda). Reutiliza `draft`/`write` (CA-05: nunca
+    inventa contenido — el resumen sale del propio log de prompts). Nunca lanza; una sesión
+    problemática no bloquea a las demás (queda en `avisos`). Devuelve {"recuperadas", "avisos",
+    "candidatas"} (huérfanas vistas, se hayan recuperado o no por estar ya capturadas)."""
+    resumen = {"recuperadas": 0, "avisos": [], "candidatas": 0}
+    if not proyecto_con_plugin(root) or not _journal_activo(root):
+        return resumen
+    ventana_min = ventana_min if ventana_min is not None else _ventana_huerfana_min(root)
+    d = os.path.join(root, LOG_DIR_REL)
+    try:
+        nombres = os.listdir(d)
+    except OSError:
+        return resumen
+    ahora = time.time()
+    for fn in sorted(nombres):
+        sid = _extraer_sid_de_log(fn)
+        if not sid:
+            continue
+        if session_id is not None:
+            if sid != session_id:
+                continue
+        else:
+            if current_session_id and sid == current_session_id:
+                continue                                    # sesión concurrente viva: nunca se toca (CA-07)
+            try:
+                mtime = os.stat(os.path.join(d, fn)).st_mtime
+            except OSError:
+                continue
+            if (ahora - mtime) < ventana_min * 60:
+                continue                                     # todavía dentro de la ventana: podría seguir viva
+        resumen["candidatas"] += 1
+        if _sid_ya_capturado(root, sid):
+            continue
+        try:
+            e = draft(root, sid, None, "orphan_recovery")
+            e["cierre"] = "recuperado_sin_cierre"
+            e["derivados_en"] = "recover"
+            p = write(root, e, fuente="recover")
+            if p:
+                resumen["recuperadas"] += 1
+        except Exception as ex:  # noqa: BLE001 — una sesión huérfana problemática no bloquea a las demás
+            resumen["avisos"].append(f"{sid}: {ex}")
     return resumen
 
 
@@ -1709,6 +1825,13 @@ def cmd_replay(a):
     return 0
 
 
+def cmd_recover(a):
+    r = recover(a.root, ventana_min=a.ventana_min, current_session_id=a.current_session_id,
+               session_id=a.session_id)
+    print(json.dumps(r, ensure_ascii=False))
+    return 0
+
+
 def cmd_candidatas(a):
     minimo = max(1, int(a.min))                      # el umbral anunciado en la cabecera es el aplicado (Lente B gap 6)
     lista = candidatas(a.root, minimo, a.iniciativa)
@@ -1789,6 +1912,14 @@ def main(argv=None):
     sp.add_argument("--reintentar-ahora", action="store_true",
                     help="antes de drenar, pone a 0 el no_antes_de de TODO outbox/ (gap 51, complementa --reintentar-dead-letter)")
     sp.set_defaults(fn=cmd_replay)
+
+    sp = sub.add_parser("recover", help="materializa como recuperado_sin_cierre las sesiones huérfanas (log sin envelope, sin sesión viva)")
+    comunes(sp)
+    sp.add_argument("--ventana-min", type=int, default=None,
+                    help="minutos sin actividad para tratar un log como huérfano (default: sesion.journal.ventanaHuerfanaMin, 360)")
+    sp.add_argument("--current-session-id", default=None, help="session_id de la sesión actual: nunca se recupera aunque supere la ventana (CA-07)")
+    sp.add_argument("--session-id", default=None, help="fuerza la recuperación de esta sesión concreta, ignorando ventana/sesión actual")
+    sp.set_defaults(fn=cmd_recover)
 
     sp = sub.add_parser("draft", help="borrador determinista (JSON)")
     comunes(sp)

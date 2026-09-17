@@ -1,5 +1,18 @@
 #!/usr/bin/env bash
 # Hook SessionStart (matcher `startup|resume|compact`): inyecta como contexto de sesión
+#   (0) RECONCILIACIÓN PRESUPUESTADA del journal (session-end-durable-capture T-05, gap 13 de la
+#       revisión: hasta esta pieza nadie invocaba `journal.py replay` fuera de una prueba manual, así
+#       que ninguna instalación llegaba a escribir bitácora sola). Antes de componer nada:
+#         `journal.py replay --ia no --budget-ms <sesion.journal.replay.budgetMs o 300>
+#                            --max <sesion.journal.replay.max o 3>`
+#       drena la outbox (CA-08: nunca bloquea el arranque — si `bloqueado`/`errores` viene no vacío,
+#       se dice como un aviso de UNA línea, no se reintenta ni se aborta) y
+#         `journal.py recover --current-session-id <session_id del payload>`
+#       materializa como `recuperado_sin_cierre` las sesiones huérfanas (CA-07: log de prompts sin
+#       envelope, sin sesión viva, pasada `sesion.journal.ventanaHuerfanaMin`). Solo entradas YA
+#       ESCRITAS en disco llegan a (3): `journal.py latest` lee del fichero, nunca de lo que
+#       `replay`/`recover` acaban de decidir en memoria (CA-08: nunca se inyecta una entrada sin
+#       materializar). Todo esto degrada en silencio sin `journal.py`/`outbox.py` (exit 0 igual).
 #   (1) el ÍNDICE DE PIEZAS del plugin (`skill-index.py`: comandos/skills/agentes, ≤ 45 líneas /
 #       ≤ 3.500 caracteres, con caché por hash en `.claude/.skill-index.cache`) — es lo que hace
 #       que la skill/comando correcto se dispare aunque el usuario no lo nombre; desactivable con
@@ -62,11 +75,53 @@ try: d = json.load(sys.stdin)
 except Exception: d = {}
 if not isinstance(d, dict): d = {}
 print("P_CWD=%s" % shlex.quote(str(d.get("cwd") or "")))
-print("P_SOURCE=%s" % shlex.quote(str(d.get("source") or "")))' 2>/dev/null || printf 'P_CWD=""\nP_SOURCE=""\n')"
+print("P_SOURCE=%s" % shlex.quote(str(d.get("source") or "")))
+print("P_SID=%s" % shlex.quote(str(d.get("session_id") or "")))' 2>/dev/null || printf 'P_CWD=""\nP_SOURCE=""\nP_SID=""\n')"
 ROOT="${CLAUDE_PROJECT_DIR:-${P_CWD:-}}"
 ROOT="${ROOT:-$PWD}"
 
 partes=""
+
+# (0) Reconciliación presupuestada: drena la outbox y recupera huérfanas ANTES de componer nada
+#     (T-05). `--budget-ms`/`--max` de `sesion.journal.replay.{budgetMs,max}` (default 300/3).
+if [ -f "$SHARED/journal.py" ]; then
+  read -r REPLAY_BUDGET_MS REPLAY_MAX <<< "$(PYTHONIOENCODING=utf-8:replace python3 -c '
+import json, os, sys
+root = sys.argv[1]
+budget, mx = 300, 3
+try:
+    with open(os.path.join(root, ".claude", "dev.json"), encoding="utf-8-sig") as f:
+        cfg = json.load(f)
+    ses = cfg.get("sesion") if isinstance(cfg, dict) else None
+    jr = ses.get("journal") if isinstance(ses, dict) else None
+    rp = jr.get("replay") if isinstance(jr, dict) else None
+    if isinstance(rp, dict):
+        budget = int(rp.get("budgetMs", budget))
+        mx = int(rp.get("max", mx))
+except Exception:
+    pass
+print(budget, mx)' "$ROOT" 2>/dev/null || printf '300 3\n')"
+  REPLAY_BUDGET_MS="${REPLAY_BUDGET_MS:-300}"
+  REPLAY_MAX="${REPLAY_MAX:-3}"
+  rj="$(CLAUDE_PROJECT_DIR="$ROOT" python3 "$SHARED/journal.py" replay --root "$ROOT" --ia no \
+        --budget-ms "$REPLAY_BUDGET_MS" --max "$REPLAY_MAX" 2>/dev/null || true)"
+  CLAUDE_PROJECT_DIR="$ROOT" python3 "$SHARED/journal.py" recover --root "$ROOT" \
+    --current-session-id "${P_SID:-}" >/dev/null 2>&1 || true
+  if [ -n "$rj" ]; then
+    aviso="$(printf '%s' "$rj" | PYTHONIOENCODING=utf-8:replace python3 -c '
+import json, sys
+try: d = json.load(sys.stdin)
+except Exception: d = {}
+bits = []
+if d.get("bloqueado"):
+    bits.append("bloqueado (otro replay en curso)")
+if d.get("errores"):
+    bits.append(f"{len(d[\"errores\"])} error(es)")
+if bits:
+    print("Journal: replay " + "; ".join(bits) + " — el arranque continúa igualmente (CA-08).")' 2>/dev/null || true)"
+    [ -n "$aviso" ] && partes="$aviso"
+  fi
+fi
 
 # (1) Índice de piezas (el script decide caché, dev.json y localización del plugin; exit 0 siempre).
 if [ -f "$SHARED/skill-index.py" ]; then

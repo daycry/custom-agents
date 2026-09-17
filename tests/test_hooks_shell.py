@@ -398,6 +398,65 @@ def test_session_context_reinyecta_journal_en_resume_no_en_compact(tmp_path):
     assert rc == 0 and "Journal de sesión" not in un_json(out)["hookSpecificOutput"]["additionalContext"]
 
 
+# --------------------------------------------------------- reconciliación presupuestada (T-05) ----
+
+def _log_prompts(proj, sid, mtime_hace_min=None):
+    import time as _time
+    d = proj / ".claude"
+    d.mkdir(exist_ok=True)
+    p = d / f"session-prompts-{sid}.log"
+    p.write_text(json.dumps({"ts": "2026-09-17T00:00:00Z", "prompt": "decidimos recuperar"}) + "\n", encoding="utf-8")
+    if mtime_hace_min is not None:
+        t = _time.time() - mtime_hace_min * 60
+        os.utime(p, (t, t))
+    return p
+
+
+def test_session_context_drena_la_outbox_antes_de_componer_el_contexto(tmp_path):
+    """gap 13: nadie invocaba `replay` fuera de una prueba manual — `session-context.sh` lo hace
+    ahora ANTES de componer el contexto (T-05): un envelope pendiente al arrancar/retomar se
+    materializa y solo entonces (3) lo reinyecta `journal.py latest` (CA-08)."""
+    proj, _ = proyecto(tmp_path)
+    env = env_de(proj, tmp_path)
+    hook("session-journal.sh", session_end(proj), env)
+    assert len(outbox_pendientes(proj)) == 1
+    rc, out, _ = hook("session-context.sh", {"hook_event_name": "SessionStart", "source": "startup"}, env)
+    assert rc == 0
+    assert outbox_pendientes(proj) == []
+    ctx = un_json(out)["hookSpecificOutput"]["additionalContext"]
+    assert "Journal de sesión" in ctx and "· demo ·" in ctx
+
+
+def test_session_context_recupera_huerfana_pasada_la_ventana(tmp_path):
+    """CA-07: log de prompts sin envelope, pasada la ventana (`ventanaHuerfanaMin`) → entrada
+    `recuperado_sin_cierre` visible antes de que `session-context.sh` termine de componer el contexto."""
+    proj, _ = proyecto(tmp_path)
+    (proj / ".claude" / "dev.json").write_text(json.dumps({"sesion": {"journal": {"ventanaHuerfanaMin": 1}}}),
+                                               encoding="utf-8")
+    _log_prompts(proj, "huerfana1", mtime_hace_min=5)
+    env = env_de(proj, tmp_path)
+    rc, out, _ = hook("session-context.sh", {"hook_event_name": "SessionStart", "source": "startup",
+                                             "session_id": "actual-arrancando"}, env)
+    assert rc == 0
+    d = proj / "docs" / "knowledge" / "journal"
+    contenidos = [(d / f).read_text(encoding="utf-8") for f in entradas_journal(proj)]
+    assert any("huerfana1" in c and "recuperado_sin_cierre" in c for c in contenidos)
+
+
+def test_session_context_sesion_concurrente_viva_no_se_recupera(tmp_path):
+    """CA-07: la sesión que está arrancando (su propio `session_id`) nunca se trata como huérfana,
+    aunque su log de prompts supere la ventana configurada."""
+    proj, _ = proyecto(tmp_path)
+    (proj / ".claude" / "dev.json").write_text(json.dumps({"sesion": {"journal": {"ventanaHuerfanaMin": 1}}}),
+                                               encoding="utf-8")
+    _log_prompts(proj, "viva1", mtime_hace_min=5)
+    env = env_de(proj, tmp_path)
+    rc, out, _ = hook("session-context.sh", {"hook_event_name": "SessionStart", "source": "startup",
+                                             "session_id": "viva1"}, env)
+    assert rc == 0
+    assert entradas_journal(proj) == []
+
+
 # ------------------------------------------------------------ user-prompt-capture (T-11/T-12) ----
 
 def prompt_submit(proj, sid="s1", prompt="decidimos usar FTS5"):
