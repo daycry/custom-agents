@@ -64,7 +64,35 @@ campos del MISMO envelope no confiable y no bastaba.
 
 `materializado` (envelope + verificación) · `recuperado_sin_cierre` (sin envelope; desde el log de prompts) ·
 `dead_letter` (solo en la cola, con causa). No hay `FINAL_CAPTURED` visible al usuario: el envelope es un
-detalle de la cola, no un estado del journal.
+detalle de la cola, no un estado del journal. Un envelope QUE SÍ LLEGÓ a `dead-letter/` no bloquea la
+recuperación: el log de prompts sigue siendo la fuente para `recover` (gap 68 de la revisión tramo 2 —
+antes `dead-letter/` contaba como «ya capturada» y esa sesión se perdía sin vía de recuperación).
+
+**`recover` bajo el mismo cerrojo/presupuesto que `replay` (gaps 65/66/69 de la revisión tramo 2).**
+Hasta esta corrección, `recover` corría suelto en `SessionStart` sin `--budget-ms`/`--max` propios y SIN
+cerrojo: cientos de huérfanas podían tardar segundos en un arranque (gap 65, cada `draft` corre git con el
+`GIT_TIMEOUT` de 5s por defecto, no el acotado bajo presupuesto) y dos `SessionStart` concurrentes podían
+duplicar la misma entrada (gap 66, sin exclusión mutua). `journal.py replay --con-recover` materializa la
+outbox y recupera huérfanas EN LA MISMA pasada, bajo el MISMO `_cerrojo_presupuestado` — `recover` recibe
+lo que quede del presupuesto/tope tras drenar la outbox — en vez de un cerrojo propio duplicado; `recover`
+a demanda (`journal.py recover`) toma el mismo fichero de cerrojo (`<dir>/.replay`) para serializarse
+también con `replay`. La entrada recuperada usa el mtime del LOG de prompts (UTC, convertido a ISO) como
+`captured_at` — no `hoy()` — para que la fecha del frontmatter sea la del último turno real, no la del
+momento en que corrió `recover` (gap 67); sus campos derivados de `git` se marcan `derivados_en: replay`
+(la pasada que los calculó), no `recover`.
+
+**Ventana huérfana: 360 → 1440 min / 24h (gaps 65/69 de la revisión tramo 2) — limitación aceptada por
+diseño.** Con 360 min, una sesión viva pero OCIOSA (portátil en suspensión, fin de semana, `SessionStart`
+de otra sesión corriendo `--con-recover` sin conocer el `session_id` de la primera) podía recuperarse ANTES
+de tiempo como `recuperado_sin_cierre`; solo la guarda de «sesión que arranca» (`current_session_id`)
+protege a la sesión que está iniciándose, no a OTRAS sesiones vivas y ociosas del mismo proyecto. Esto NO
+se resuelve del todo con una ventana más larga —solo se hace menos frecuente—: la limitación se acepta
+porque **se autocorrige sola al cerrar de verdad** (`escribir_sesion`/`write` son idempotentes por
+`session_id`: la entrada `materializado` de un cierre real SOBRESCRIBE la `recuperado_sin_cierre` anterior,
+así que el peor caso es una entrada temporalmente optimista, nunca datos perdidos ni duplicados). Con
+`current_session_id == ""` (el payload de `SessionStart` llegó sin `session_id`) `recover` NO corre en
+absoluto (con aviso) en vez de recuperar sin esa guarda (gap 79); tampoco corre con `source: compact` (la
+compactación no cambia el journal).
 
 **Limitación aceptada por diseño (revisión intento 1, gap 8):** la entrada usa la FECHA DEL CIERRE
 (`captured_at` del envelope, nombre de fichero y frontmatter), pero los campos derivados de `git`
@@ -128,8 +156,11 @@ de la cola quedaba sin ignorarse a sí mismo (visible en `git status -uall`).
 ## Configuración (`.claude/dev.json` → `sesion.journal`)
 
 Hoy `sesion.journal: false` desactiva. Pasa a admitir también objeto: `{"activo": true, "dir": ".claude/journal",
-"ventanaHuerfanaMin": 360, "replay": {"budgetMs": 300, "max": 3}}`; el booleano sigue valiendo (compatibilidad).
-`/setup` no añade paso: son valores por defecto sensatos; `/doctor` los muestra.
+"ventanaHuerfanaMin": 1440, "replay": {"budgetMs": 300, "max": 3}}`; el booleano sigue valiendo (compatibilidad).
+`/setup` no añade paso: son valores por defecto sensatos; `/doctor` los muestra. `budgetMs`/`max` se acotan a
+`[0, 5000]`/`[0, 50]` (gap 75 de la revisión tramo 2): fuera de rango, `session-context.sh` usa el default y
+avisa en la línea de Journal — un `dev.json` clonado con un valor desmesurado ya no hace trabajar al hook
+hasta el timeout del runtime que lo invoque.
 
 ## Multi-runtime
 

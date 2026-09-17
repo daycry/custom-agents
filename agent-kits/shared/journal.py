@@ -600,7 +600,8 @@ def _contar_resultado_reencolar(ob, resumen, resultado, clave, causa_txt):
     resumen["errores"].append({"event_id": clave, "causa": causa_txt})
 
 
-def replay(root, budget_ms=None, max_n=None, ia="auto", reintentar_dead_letter=False, reintentar_ahora=False):
+def replay(root, budget_ms=None, max_n=None, ia="auto", reintentar_dead_letter=False, reintentar_ahora=False,
+          con_recover=False, current_session_id=None, ventana_min=None, source=None):
     """Reclama y materializa envelopes pendientes de la outbox (`outbox/` → `processing/` →
     `done/`|`dead-letter/`), reutilizando `escribir_sesion` (git, log de prompts, resumen IA
     opt-in) SIN duplicar esa lógica (CA-05: nunca inventa contenido). `budget_ms`/`max_n` acotan el
@@ -632,10 +633,19 @@ def replay(root, budget_ms=None, max_n=None, ia="auto", reintentar_dead_letter=F
     registra en `errores` en vez de decir «otro replay en curso» sin serlo. Al terminar, purga
     `done/` con más de `LOG_RETENCION_DIAS` y los temporales huérfanos de la cola.
 
+    `con_recover` (gaps 65-69 de la revisión tramo 2): tras drenar la outbox, materializa TAMBIÉN
+    como `recuperado_sin_cierre` las sesiones huérfanas, bajo el MISMO cerrojo y el MISMO presupuesto
+    que el drenaje (comparten `budget_ms`/`max_n` — antes `recover` corría suelto en `SessionStart`
+    sin presupuesto ni tope propio, gap 65, y sin cerrojo, gap 66). `current_session_id`/`ventana_min`
+    se pasan tal cual a `recover` (`""` explícito desactiva `recover` con un aviso en vez de correr
+    sin guarda, gap 79); con `source == "compact"` `recover` no se ejecuta (gap 79 — la compactación
+    no cambia el journal). El tiempo/tope que sobra tras drenar la outbox es lo que le queda a
+    `recover` en esta misma pasada.
+
     Devuelve {"materializados", "dead_letter", "reintentados", "errores": [{"event_id", "causa"}],
     "restantes", "restantes_processing", "en_backoff", "avisos", "bloqueado"} (+
-    "recuperados_dead_letter"/"liberados_backoff" si se pidieron); nunca lanza (`cmd_replay` la
-    envuelve igualmente, por si acaso)."""
+    "recuperados_dead_letter"/"liberados_backoff" si se pidieron, "recuperadas"/"candidatas" si
+    `con_recover`); nunca lanza (`cmd_replay` la envuelve igualmente, por si acaso)."""
     resumen = {"materializados": 0, "dead_letter": 0, "reintentados": 0, "errores": [], "restantes": 0,
               "restantes_processing": 0, "en_backoff": 0, "avisos": [], "bloqueado": False}
     ob = _outbox_mod()
@@ -743,6 +753,25 @@ def replay(root, budget_ms=None, max_n=None, ia="auto", reintentar_dead_letter=F
                 except Exception as e2:  # noqa: BLE001 — ni el dead-letter se pudo escribir (gap 31): no abortar
                     _contar_resultado_reencolar(ob, resumen, ob.reencolar_o_dead_letter(item, f"error materializando: {e}"),
                                                 clave, f"{e}; dead_letter también falló: {e2}")
+        if con_recover:
+            # gaps 65-69/79 de la revisión tramo 2: `recover` bajo el MISMO cerrojo ya tomado arriba,
+            # con el presupuesto/tope que sobre tras drenar la outbox — nunca corre suelto ni sin tope.
+            resumen["recuperadas"], resumen["candidatas"] = 0, 0
+            if source == "compact":
+                pass
+            elif current_session_id == "":
+                resumen["avisos"].append("recover: --current-session-id vacío, se omite (guarda de sesión viva)")
+            elif proyecto_con_plugin(root) and _journal_activo(root):
+                sub = {"recuperadas": 0, "avisos": [], "candidatas": 0}
+                deadline = None
+                if budget_ms is not None:
+                    restante_ms = max(0.0, budget_ms - (time.monotonic() - inicio) * 1000)
+                    deadline = time.monotonic() + restante_ms / 1000.0
+                _recover_impl(root, sub, ventana_min, current_session_id, None, dry_run=False,
+                              deadline=deadline, max_n=max_n, git_timeout=git_timeout, ob=ob, dir_=dir_)
+                resumen["recuperadas"] += sub["recuperadas"]
+                resumen["candidatas"] += sub["candidatas"]
+                resumen["avisos"].extend(sub["avisos"])
         with contextlib.suppress(Exception):
             ob.purgar_antiguos(dir_, "done", LOG_RETENCION_DIAS)       # gap 22/33: done/ no crece para siempre
         with contextlib.suppress(Exception):
@@ -753,7 +782,11 @@ def replay(root, budget_ms=None, max_n=None, ia="auto", reintentar_dead_letter=F
 
 # ------------------------------------------------------------------ reconciliación en SessionStart: huérfanas (T-05)
 
-VENTANA_HUERFANA_MIN_DEFAULT = 360    # min sin envelope ni sesión viva para tratar el log como huérfano (CA-07)
+VENTANA_HUERFANA_MIN_DEFAULT = 1440   # min sin envelope ni sesión viva para tratar el log como huérfano (CA-07).
+# Sube de 360 a 1440 (24h) en la corrección del tramo 2 (gap 65/69): con 360 min, una sesión viva
+# ociosa (portátil en suspensión, fin de semana) podía recuperarse ANTES de tiempo como
+# `recuperado_sin_cierre`; la limitación se acepta por diseño (ver design.md, «Estados»): se
+# autocorrige sola al cerrar de verdad (`materializado` sobrescribe la entrada por `session_id`).
 
 
 def _extraer_sid_de_log(fn):
@@ -776,19 +809,17 @@ def _ventana_huerfana_min(root):
     return VENTANA_HUERFANA_MIN_DEFAULT
 
 
-def _sid_ya_capturado(root, sid):
-    """True si YA hay una entrada de journal para `sid` (materializada o recuperada), o un envelope
-    en cualquier subcarpeta de la cola (`outbox`/`processing`/`done`/`dead-letter`) con ese
-    `session_id`: `recover` no debe crear una segunda entrada para una sesión que `replay` ya va a
-    materializar o ya materializó."""
-    for e in entradas(root):
-        if e.get("session_id") == sid:
-            return True
-    ob = _outbox_mod()
+def _indice_sids_capturados(root, ob, dir_):
+    """Conjunto de `session_id` YA capturados: entradas del journal + envelopes en
+    `outbox`/`processing`/`done` (gap 68 de la revisión tramo 2: `dead-letter/` NO cuenta — un
+    envelope descartado ahí no es una captura viva, es la señal de que el LOG es la única fuente
+    para recuperar esa sesión; antes `dead-letter` se contaba como «ya capturada» y la sesión se
+    perdía sin vía de recuperación). Construido UNA VEZ por llamada a `recover` (gap 80: antes se
+    reconstruía por candidata, O(n·m) en el arranque con muchas huérfanas)."""
+    sids = {e.get("session_id") for e in entradas(root) if e.get("session_id")}
     if ob is None:
-        return False
-    dir_ = _journal_queue_dir(root)
-    for sub in ("outbox", "processing", "done", "dead-letter"):
+        return sids
+    for sub in ("outbox", "processing", "done"):
         p = os.path.join(dir_, sub)
         try:
             nombres = os.listdir(p)
@@ -802,63 +833,126 @@ def _sid_ya_capturado(root, sid):
                     payload = json.load(fh)
             except (OSError, ValueError):
                 continue
-            if isinstance(payload, dict) and payload.get("session_id") == sid:
-                return True
-    return False
+            if isinstance(payload, dict) and payload.get("session_id"):
+                sids.add(payload["session_id"])
+    return sids
 
 
-def recover(root, ventana_min=None, current_session_id=None, session_id=None, dry_run=False):
-    """Materializa como `cierre: recuperado_sin_cierre` las sesiones HUÉRFANAS (CA-07): un log de
-    prompts (`.claude/session-prompts-<sid>.log`) sin envelope ni entrada de journal, cuyo mtime
-    lleva más de `ventana_min` minutos (default `sesion.journal.ventanaHuerfanaMin`, 360) sin
-    actividad, y que no sea la sesión ACTUAL (`current_session_id`, la del payload de `SessionStart`:
-    una sesión concurrente viva nunca se toca). `session_id`: fuerza la recuperación de UNA sesión
-    concreta ignorando ventana/sesión actual (uso a demanda). Reutiliza `draft`/`write` (CA-05: nunca
-    inventa contenido — el resumen sale del propio log de prompts). `dry_run` (usa `status`, T-06):
-    cuenta cuántas se RECUPERARÍAN sin escribir nada (diagnóstico de solo lectura). Nunca lanza; una
-    sesión problemática no bloquea a las demás (queda en `avisos`). Devuelve {"recuperadas", "avisos",
-    "candidatas"} (huérfanas vistas, se hayan recuperado o no por estar ya capturadas)."""
-    resumen = {"recuperadas": 0, "avisos": [], "candidatas": 0}
-    if not proyecto_con_plugin(root) or not _journal_activo(root):
-        return resumen
+def _mtime_utc_iso(path):
+    try:
+        mtime = os.stat(path).st_mtime
+    except OSError:
+        return None
+    return _dt.datetime.fromtimestamp(mtime, _dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _recover_impl(root, resumen, ventana_min, current_session_id, session_id, dry_run, deadline,
+                  max_n, git_timeout, ob, dir_):
+    """Núcleo de `recover` (gaps 65-69/79/80 de la revisión tramo 2), compartido por `recover()` a
+    demanda y por `replay(con_recover=True)` (mismo cerrojo/presupuesto que drena la outbox). `deadline`
+    (`time.monotonic()`, o `None` sin tope) y `max_n` acotan el trabajo de ESTA pasada — antes
+    `recover` no tenía ni presupuesto ni `--max` y podía tardar segundos con cientos de huérfanas
+    (gap 65); `git_timeout` es el mismo timeout ACOTADO que usa `replay` bajo presupuesto, no el
+    `GIT_TIMEOUT` de 5 s fijo. El índice de `session_id` ya capturados se construye UNA vez (gap 80)."""
     ventana_min = ventana_min if ventana_min is not None else _ventana_huerfana_min(root)
     d = os.path.join(root, LOG_DIR_REL)
     try:
         nombres = os.listdir(d)
     except OSError:
-        return resumen
+        return
     ahora = time.time()
+    capturados = _indice_sids_capturados(root, ob, dir_)
+    recuperados_n = 0
     for fn in sorted(nombres):
         sid = _extraer_sid_de_log(fn)
         if not sid:
             continue
-        if session_id is not None:
-            if sid != session_id:
-                continue
-        else:
+        forzada = session_id is not None and sid == session_id
+        log_path_ = os.path.join(d, fn)
+        if session_id is not None and not forzada:
+            continue
+        if not forzada:
             if current_session_id and sid == current_session_id:
                 continue                                    # sesión concurrente viva: nunca se toca (CA-07)
             try:
-                mtime = os.stat(os.path.join(d, fn)).st_mtime
+                mtime = os.stat(log_path_).st_mtime
             except OSError:
                 continue
             if (ahora - mtime) < ventana_min * 60:
                 continue                                     # todavía dentro de la ventana: podría seguir viva
         resumen["candidatas"] += 1
-        if _sid_ya_capturado(root, sid):
+        if not forzada and sid in capturados:               # gap 68: `--session-id` fuerza aunque ya conste
             continue
         if dry_run:
             resumen["recuperadas"] += 1
             continue
+        if max_n is not None and recuperados_n >= max_n:
+            continue                                        # gap 65: tope de esta pasada, el resto queda para la próxima
+        if deadline is not None and time.monotonic() >= deadline:
+            continue                                        # gap 65: presupuesto agotado, el resto queda para la próxima
         try:
-            e = draft(root, sid, None, "orphan_recovery")
+            captured_at = _mtime_utc_iso(log_path_)          # gap 67: fecha/derivados del CIERRE, no de "ahora"
+            e = draft(root, sid, None, "orphan_recovery", captured_at=captured_at, git_timeout=git_timeout)
             e["cierre"] = "recuperado_sin_cierre"
-            e["derivados_en"] = "recover"
+            e["derivados_en"] = "replay"                     # `recover` corre bajo el mismo cerrojo/pasada que replay
             p = write(root, e, fuente="recover")
             if p:
                 resumen["recuperadas"] += 1
+                recuperados_n += 1
+                capturados.add(sid)
         except Exception as ex:  # noqa: BLE001 — una sesión huérfana problemática no bloquea a las demás
             resumen["avisos"].append(f"{sid}: {ex}")
+
+
+def recover(root, ventana_min=None, current_session_id=None, session_id=None, dry_run=False,
+           source=None, budget_ms=None, max_n=None):
+    """Materializa como `cierre: recuperado_sin_cierre` las sesiones HUÉRFANAS (CA-07): un log de
+    prompts (`.claude/session-prompts-<sid>.log`) sin envelope ni entrada de journal, cuyo mtime
+    lleva más de `ventana_min` minutos (default `sesion.journal.ventanaHuerfanaMin`, 1440) sin
+    actividad, y que no sea la sesión ACTUAL (`current_session_id`, la del payload de `SessionStart`:
+    una sesión concurrente viva nunca se toca). `session_id`: fuerza la recuperación de UNA sesión
+    concreta ignorando ventana/sesión actual (uso a demanda; recupera aunque ya conste capturada en
+    dead-letter, gap 68). Reutiliza `draft`/`write` (CA-05: nunca inventa contenido — el resumen sale
+    del propio log de prompts).
+
+    `source == "compact"` nunca recupera nada (gap 79: la compactación no cambia el journal, y
+    ejecutar `recover` ahí no tiene sesión de arranque que proteger de verdad). Con
+    `current_session_id == ""` (payload de `SessionStart` sin `session_id`, cadena vacía explícita —
+    distinto de `None`, que es «no se pidió guarda», el caso de un uso manual/CLI) `recover` NO
+    corre: antes, una cadena vacía desactivaba la guarda de sesión viva SIN avisar y podía recuperar
+    la propia sesión que arranca (gap 79); ahora se declara en `avisos` y no se toca nada.
+
+    Toma el MISMO cerrojo presupuestado que `replay` (`<dir>/.replay`, gap 65/66: antes escribía SIN
+    cerrojo — dos `SessionStart` concurrentes podían duplicar la misma sesión) con `budget_ms`/`max_n`
+    (gap 65: antes no tenía ni presupuesto ni tope, y cientos de huérfanas tardaban segundos en un
+    arranque). `dry_run` (usa `status`, T-06): cuenta cuántas se RECUPERARÍAN sin escribir nada ni
+    tomar el cerrojo (diagnóstico de solo lectura). Nunca lanza; una sesión problemática no bloquea a
+    las demás (queda en `avisos`). Devuelve {"recuperadas", "avisos", "candidatas"} (huérfanas vistas,
+    se hayan recuperado o no por estar ya capturadas)."""
+    resumen = {"recuperadas": 0, "avisos": [], "candidatas": 0}
+    if not proyecto_con_plugin(root) or not _journal_activo(root):
+        return resumen
+    if source == "compact":
+        return resumen
+    dir_ = _journal_queue_dir(root)
+    ob = _outbox_mod()
+    if dry_run:
+        _recover_impl(root, resumen, ventana_min, current_session_id, session_id, dry_run=True,
+                      deadline=None, max_n=None, git_timeout=GIT_TIMEOUT, ob=ob, dir_=dir_)
+        return resumen
+    if current_session_id == "":
+        resumen["avisos"].append("recover: --current-session-id vacío, se omite (guarda de sesión viva)")
+        return resumen
+    _asegurar_gitignore_local(dir_)      # el cerrojo necesita el directorio; recover() puede ser lo primero que toca la cola
+    inicio = time.monotonic()
+    with _cerrojo_presupuestado(os.path.join(dir_, ".replay"), deadline_ms=budget_ms) as (conseguido, dañada):
+        if not conseguido:
+            resumen["avisos"].append("recover: no se pudo tomar el cerrojo dentro del presupuesto " +
+                                     ("(cola dañada)" if dañada else "(otro replay/recover en curso)"))
+            return resumen
+        deadline = inicio + (budget_ms / 1000.0) if budget_ms is not None else None
+        _recover_impl(root, resumen, ventana_min, current_session_id, session_id, dry_run=False,
+                      deadline=deadline, max_n=max_n, git_timeout=GIT_TIMEOUT, ob=ob, dir_=dir_)
     return resumen
 
 
@@ -1920,7 +2014,9 @@ def cmd_replay(a):
     atrapa y se informa como `errores`, en vez de que `main()` lo trague por stderr sin JSON."""
     try:
         r = replay(a.root, budget_ms=a.budget_ms, max_n=a.max, ia=a.ia,
-                  reintentar_dead_letter=a.reintentar_dead_letter, reintentar_ahora=a.reintentar_ahora)
+                  reintentar_dead_letter=a.reintentar_dead_letter, reintentar_ahora=a.reintentar_ahora,
+                  con_recover=a.con_recover, current_session_id=a.current_session_id,
+                  ventana_min=a.ventana_min, source=a.source)
     except Exception as e:  # noqa: BLE001 — replay() ya no debería lanzar, pero cmd_replay no traga sin JSON
         r = {"materializados": 0, "dead_letter": 0, "reintentados": 0,
              "errores": [{"event_id": None, "causa": str(e)}], "restantes": 0,
@@ -1933,6 +2029,25 @@ def cmd_recover(a):
     r = recover(a.root, ventana_min=a.ventana_min, current_session_id=a.current_session_id,
                session_id=a.session_id)
     print(json.dumps(r, ensure_ascii=False))
+    return 0
+
+
+def cmd_purge(a):
+    """Borrado del árbol de la cola (`journal.py purge --confirm`, gap 63: el subcomando no existía
+    aunque `observability.md`/CA-12 ya lo publicaban); NUNCA toca `docs/knowledge/journal/` (la
+    bitácora ya materializada) ni los logs de prompts de `.claude/session-prompts-*.log` — solo la
+    cola de `outbox.py` (`_journal_queue_dir`). Sin `--confirm`: exit 2 con el motivo, no borra nada."""
+    if not a.confirm:
+        print("journal: purge requiere --confirm (borra TODA la cola: outbox/processing/done/dead-letter)",
+             file=sys.stderr)
+        return 2
+    ob = _outbox_mod()
+    if ob is None:
+        print("journal: outbox.py no disponible junto a journal.py: purge degradado", file=sys.stderr)
+        return 0
+    dir_ = _journal_queue_dir(a.root)
+    ob.purgar(dir_, confirmar=True)
+    print(json.dumps({"purgado": dir_}, ensure_ascii=False))
     return 0
 
 
@@ -2021,6 +2136,14 @@ def main(argv=None):
                     help="antes de drenar, devuelve TODO dead-letter/ a outbox/ con el contador a 0 (gap 26)")
     sp.add_argument("--reintentar-ahora", action="store_true",
                     help="antes de drenar, pone a 0 el no_antes_de de TODO outbox/ (gap 51, complementa --reintentar-dead-letter)")
+    sp.add_argument("--con-recover", action="store_true",
+                    help="tras drenar la outbox, materializa también las huérfanas bajo el mismo cerrojo/presupuesto (gap 65/66)")
+    sp.add_argument("--current-session-id", default=None,
+                    help="con --con-recover: sesión actual, nunca se recupera; \"\" desactiva recover con aviso (gap 79)")
+    sp.add_argument("--ventana-min", type=int, default=None,
+                    help="con --con-recover: minutos sin actividad para tratar un log como huérfano (default 1440)")
+    sp.add_argument("--source", default=None,
+                    help="con --con-recover: source del payload de SessionStart; \"compact\" nunca recupera (gap 79)")
     sp.set_defaults(fn=cmd_replay)
 
     sp = sub.add_parser("status", help="diagnóstico determinista de la cola: contadores, degradaciones, huérfanas, último dead-letter")
@@ -2035,6 +2158,11 @@ def main(argv=None):
     sp.add_argument("--current-session-id", default=None, help="session_id de la sesión actual: nunca se recupera aunque supere la ventana (CA-07)")
     sp.add_argument("--session-id", default=None, help="fuerza la recuperación de esta sesión concreta, ignorando ventana/sesión actual")
     sp.set_defaults(fn=cmd_recover)
+
+    sp = sub.add_parser("purge", help="borra TODO el árbol de la cola (outbox/processing/done/dead-letter); requiere --confirm")
+    comunes(sp)
+    sp.add_argument("--confirm", action="store_true", help="sin esto, no borra nada (exit 2)")
+    sp.set_defaults(fn=cmd_purge)
 
     sp = sub.add_parser("draft", help="borrador determinista (JSON)")
     comunes(sp)

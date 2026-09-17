@@ -82,13 +82,18 @@ ROOT="${ROOT:-$PWD}"
 
 partes=""
 
-# (0) Reconciliación presupuestada: drena la outbox y recupera huérfanas ANTES de componer nada
-#     (T-05). `--budget-ms`/`--max` de `sesion.journal.replay.{budgetMs,max}` (default 300/3).
+# (0) Reconciliación presupuestada: drena la outbox Y recupera huérfanas EN LA MISMA pasada
+#     (`--con-recover`, gaps 65/66/79 de la revisión tramo 2: antes `recover` corría suelto, sin
+#     presupuesto/tope propio y sin el cerrojo que sí tenía `replay` — dos `SessionStart`
+#     concurrentes podían duplicar la misma sesión). `--budget-ms`/`--max` de
+#     `sesion.journal.replay.{budgetMs,max}` (default 300/3), acotados a un rango sano (gap 75:
+#     un `dev.json` clonado con `budgetMs: 600000` ya no hace trabajar al hook hasta el timeout del
+#     runtime — fuera de rango, se usa el default y se avisa en la línea de Journal).
 if [ -f "$SHARED/journal.py" ]; then
-  read -r REPLAY_BUDGET_MS REPLAY_MAX <<< "$(PYTHONIOENCODING=utf-8:replace python3 -c '
-import json, os, sys
+  eval "$(PYTHONIOENCODING=utf-8:replace python3 -c '
+import json, os, shlex, sys
 root = sys.argv[1]
-budget, mx = 300, 3
+budget, mx, avisos = 300, 3, []
 try:
     with open(os.path.join(root, ".claude", "dev.json"), encoding="utf-8-sig") as f:
         cfg = json.load(f)
@@ -96,18 +101,26 @@ try:
     jr = ses.get("journal") if isinstance(ses, dict) else None
     rp = jr.get("replay") if isinstance(jr, dict) else None
     if isinstance(rp, dict):
-        budget = int(rp.get("budgetMs", budget))
-        mx = int(rp.get("max", mx))
+        b = int(rp.get("budgetMs", budget))
+        if 0 <= b <= 5000:
+            budget = b
+        else:
+            avisos.append("budgetMs fuera de [0,5000]: default 300")
+        m = int(rp.get("max", mx))
+        if 0 <= m <= 50:
+            mx = m
+        else:
+            avisos.append("max fuera de [0,50]: default 3")
 except Exception:
     pass
-print(budget, mx)' "$ROOT" 2>/dev/null || printf '300 3\n')"
-  REPLAY_BUDGET_MS="${REPLAY_BUDGET_MS:-300}"
-  REPLAY_MAX="${REPLAY_MAX:-3}"
+print("REPLAY_BUDGET_MS=%s" % shlex.quote(str(budget)))
+print("REPLAY_MAX=%s" % shlex.quote(str(mx)))
+print("REPLAY_CLAMP_AVISO=%s" % shlex.quote("; ".join(avisos)))' "$ROOT" 2>/dev/null || \
+    printf 'REPLAY_BUDGET_MS=300\nREPLAY_MAX=3\nREPLAY_CLAMP_AVISO=""\n')"
   rj="$(CLAUDE_PROJECT_DIR="$ROOT" python3 "$SHARED/journal.py" replay --root "$ROOT" --ia no \
-        --budget-ms "$REPLAY_BUDGET_MS" --max "$REPLAY_MAX" 2>/dev/null || true)"
-  CLAUDE_PROJECT_DIR="$ROOT" python3 "$SHARED/journal.py" recover --root "$ROOT" \
-    --current-session-id "${P_SID:-}" >/dev/null 2>&1 || true
-  if [ -n "$rj" ]; then
+        --budget-ms "$REPLAY_BUDGET_MS" --max "$REPLAY_MAX" --con-recover \
+        --current-session-id "${P_SID:-}" --source "${P_SOURCE:-}" 2>/dev/null || true)"
+  if [ -n "$rj" ] || [ -n "$REPLAY_CLAMP_AVISO" ]; then
     aviso="$(printf '%s' "$rj" | PYTHONIOENCODING=utf-8:replace python3 -c '
 import json, sys
 try: d = json.load(sys.stdin)
@@ -115,18 +128,29 @@ except Exception: d = {}
 bits = []
 if d.get("bloqueado"):
     bits.append("bloqueado (otro replay en curso)")
-if d.get("errores"):
-    bits.append(f"{len(d[\"errores\"])} error(es)")
+errs = d.get("errores")
+if errs:
+    bits.append("%d error(es)" % len(errs))
+clamp = sys.argv[1] if len(sys.argv) > 1 else ""
+if clamp:
+    bits.append(clamp)
 if bits:
-    print("Journal: replay " + "; ".join(bits) + " — el arranque continúa igualmente (CA-08).")' 2>/dev/null || true)"
-    [ -n "$aviso" ] && partes="$aviso"
+    print("Journal: replay " + "; ".join(bits) + " — el arranque continúa igualmente (CA-08).")' \
+        "$REPLAY_CLAMP_AVISO" 2>/dev/null || true)"
+    # gap 64: ANEXA (nunca sobrescribe) — antes `partes="$aviso"` lo perdía en cuanto (1) asignaba
+    # `partes="$idx"` a continuación, dejando la cola dañada invisible en la sesión.
+    [ -n "$aviso" ] && partes="${partes:+$partes
+
+}$aviso"
   fi
 fi
 
 # (1) Índice de piezas (el script decide caché, dev.json y localización del plugin; exit 0 siempre).
 if [ -f "$SHARED/skill-index.py" ]; then
   idx="$(CLAUDE_PROJECT_DIR="$ROOT" python3 "$SHARED/skill-index.py" 2>/dev/null || true)"
-  [ -n "$idx" ] && partes="$idx"
+  [ -n "$idx" ] && partes="${partes:+$partes
+
+}$idx"
 fi
 
 # (2) Estado del roadmap (solo si hay docs/roadmap y algo activo).
