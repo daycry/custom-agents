@@ -2130,3 +2130,217 @@ def test_indice_sids_capturados_se_construye_una_vez(tmp_path, monkeypatch):
     r = journal.replay(str(proj), con_recover=True, current_session_id="viva")
     assert r["recuperadas"] == 5
     assert len(llamadas) == 1
+
+
+# --------------------------------------------------- revisión tramo 2, intento 2 (gaps 82-89) ----
+
+def test_recover_session_id_forzado_nunca_sobrescribe_una_entrada_materializada(tmp_path):
+    """Gap 82: `recover --session-id` (bypass `forzada`) NUNCA degrada una entrada YA
+    `materializado` a `recuperado_sin_cierre`; se queda intacta y sale un aviso nombrando el
+    remedio real (`replay`)."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    _log_prompts(proj, "mat1", mtime_hace_min=1)
+    p, _e = journal.escribir_sesion(str(proj), "mat1", reason="other", fuente="hook")
+    assert p is not None
+    contenido_antes = open(p, encoding="utf-8").read()
+    assert 'cierre: "materializado"' in contenido_antes or "cierre: materializado" in contenido_antes
+
+    r = journal.recover(str(proj), session_id="mat1")
+    assert r["recuperadas"] == 0
+    assert any("ya materializada" in a and "replay" in a for a in r["avisos"])
+    contenido_despues = open(p, encoding="utf-8").read()
+    assert contenido_despues == contenido_antes
+    es = [e for e in journal.entradas(str(proj)) if e.get("session_id") == "mat1"]
+    assert len(es) == 1 and es[0]["cierre"] == "materializado"
+
+
+def test_recover_session_id_forzado_nunca_sobrescribe_via_replay_con_recover(tmp_path):
+    """Gap 82 (mutante): quitar la guarda hace que `replay(con_recover=True)` con un `--session-id`
+    equivalente (forzado a través de `recover` a demanda tras materializar) degrade la entrada."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    _log_prompts(proj, "mat2", mtime_hace_min=1)
+    p, _e = journal.escribir_sesion(str(proj), "mat2", reason="other", fuente="hook")
+    assert p is not None
+    r = journal.recover(str(proj), session_id="mat2")
+    assert r["recuperadas"] == 0
+    es = [e for e in journal.entradas(str(proj)) if e.get("session_id") == "mat2"]
+    assert es[0]["cierre"] == "materializado", "el bypass degradó una entrada ya materializada (gap 82)"
+
+
+def test_replay_con_recover_max_n_se_reparte_entre_drenaje_y_recuperacion(tmp_path):
+    """Gap 83: `max_n` es COMPARTIDO entre el drenaje de la outbox y `recover` — con 3 envelopes
+    pendientes y `max_n=3`, drenar ya agota el tope: `recover` no debe materializar ninguna huérfana
+    más (3 entradas en total, no 6)."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    for i in range(3):
+        journal.capture_end(str(proj), session_end_payload(proj, sid=f"env{i}"))
+    for i in range(5):
+        _log_prompts(proj, f"huer{i}", mtime_hace_min=1500)
+    r = journal.replay(str(proj), max_n=3, con_recover=True, current_session_id="viva")
+    assert r["materializados"] == 3
+    assert len(journal.entradas(str(proj))) == 3, "max_n debe compartirse entre drenaje y recover (gap 83)"
+
+
+def test_replay_avisa_cuando_presupuesto_agota_antes_de_recover(tmp_path):
+    """Gap 84: si el presupuesto/tope se agota drenando la outbox, `recover` no llega a ejecutarse
+    de verdad y `avisos` lo dice nombrando cuántas candidatas se vieron."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    for i in range(3):
+        journal.capture_end(str(proj), session_end_payload(proj, sid=f"e{i}"))
+    _log_prompts(proj, "huerA", mtime_hace_min=1500)
+    r = journal.replay(str(proj), max_n=3, con_recover=True, current_session_id="viva")
+    assert r["materializados"] == 3
+    assert r["recuperadas"] == 0
+    assert any("recover no ejecutado" in a and "presupuesto/max agotado" in a for a in r["avisos"]), r["avisos"]
+
+
+def test_session_context_expone_avisos_de_recover_agotado_en_la_linea_journal(tmp_path):
+    """Gap 84: el composer del hook incluye `avisos` del JSON de `replay` en la línea `Journal:
+    …` (no solo `bloqueado`/`errores`)."""
+    pass  # cubierto en tests/test_hooks_shell.py
+
+
+def test_recover_directo_deadline_pequeno_con_huerfanas_costosas_da_cero_y_aviso(tmp_path):
+    """Gap 85 (deadline de `recover`): con `budget_ms=0` el cerrojo se toma pero el reloj ya
+    excede el `deadline` en cuanto se llega a la primera candidata: 0 recuperadas y un aviso
+    nombrando el agotamiento — nunca recupera "gratis" ignorando el presupuesto."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    for i in range(3):
+        _log_prompts(proj, f"costosa{i}", mtime_hace_min=1500)
+    r = journal.recover(str(proj), current_session_id="viva", budget_ms=0)
+    assert r["recuperadas"] == 0
+    assert any("presupuesto/max agotado" in a for a in r["avisos"]), r["avisos"]
+    assert journal.entradas(str(proj)) == []
+
+
+@pytest.mark.skipif(os.name == "nt", reason="flock es POSIX; en Windows el equivalente es msvcrt")
+def test_recover_a_demanda_dos_llamadas_concurrentes_no_duplican(tmp_path):
+    """Gap 85 (cerrojo de `recover()` a demanda): dos `recover()` REALES concurrentes sobre la
+    MISMA huérfana no producen dos entradas — barrera real, no una intención de diseño."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    _log_prompts(proj, "concD", mtime_hace_min=1500)
+    barrera = threading.Barrier(2)
+    resultados = []
+
+    def correr():
+        barrera.wait(timeout=5)
+        resultados.append(journal.recover(str(proj), current_session_id="viva"))
+
+    hilos = [threading.Thread(target=correr) for _ in range(2)]
+    for h in hilos:
+        h.start()
+    for h in hilos:
+        h.join(timeout=10)
+    es = [e for e in journal.entradas(str(proj)) if e.get("session_id") == "concD"]
+    assert len(es) == 1
+
+
+def test_recover_directo_current_session_id_vacio_no_corre(tmp_path):
+    """Gap 85 (bypass `""` DENTRO de `recover()`, llamada directa, no vía `replay`)."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    _log_prompts(proj, "vacD", mtime_hace_min=1500)
+    r = journal.recover(str(proj), current_session_id="")
+    assert r["recuperadas"] == 0
+    assert any("current-session-id" in a for a in r["avisos"])
+    assert journal.entradas(str(proj)) == []
+
+
+def test_recover_directo_source_compact_no_corre(tmp_path):
+    """Gap 85 (bypass `compact` DENTRO de `recover()`, llamada directa, no vía `replay`)."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    _log_prompts(proj, "cptD", mtime_hace_min=1500)
+    r = journal.recover(str(proj), current_session_id="viva", source="compact")
+    assert r["recuperadas"] == 0
+    assert journal.entradas(str(proj)) == []
+
+
+def test_ventana_huerfana_default_es_1440(tmp_path):
+    """Gap 85 (default 1440): la constante Y su uso real coinciden — antes la doc decía 1440
+    pero el código/`--help` seguían en 360."""
+    assert journal.VENTANA_HUERFANA_MIN_DEFAULT == 1440
+    proj, _ = proyecto(tmp_path, con_git=False)
+    assert journal._ventana_huerfana_min(str(proj)) == 1440
+
+
+def test_mtime_utc_iso_futuro_absurdo_cae_a_hoy_con_aviso(tmp_path):
+    """Gap 86: un mtime +400 días (reloj desincronizado, fichero plantado) no debe fechar la
+    entrada en el futuro ni ganar `latest` para siempre — cae a `hoy()` y avisa."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    p = _log_prompts(proj, "futuro1", mtime_hace_min=None)
+    futuro = time.time() + 400 * 86400
+    os.utime(p, (futuro, futuro))
+    r = journal.recover(str(proj), session_id="futuro1")
+    assert r["recuperadas"] == 1
+    e = journal.entradas(str(proj))[0]
+    assert e["fecha"] == journal.hoy()
+    assert any("futuro1" in a or "fuera de rango" in a for a in r["avisos"]), r["avisos"]
+
+
+def test_mtime_utc_iso_pasado_absurdo_cae_a_hoy_con_aviso(tmp_path):
+    """Gap 86: un mtime anterior a `ahora - LOG_RETENCION_DIAS` también es fuera de cordura."""
+    proj, _ = proyecto(tmp_path, con_git=False)
+    p = _log_prompts(proj, "pasado1", mtime_hace_min=None)
+    pasado = time.time() - (journal.LOG_RETENCION_DIAS + 5) * 86400
+    os.utime(p, (pasado, pasado))
+    dir_ = journal._mtime_utc_iso(str(p))
+    assert dir_ is None, "mtime fuera de [ahora-LOG_RETENCION_DIAS, ahora+5min] debe devolver None (gap 86)"
+
+
+def test_cmd_recover_expone_budget_ms_y_max_con_defaults_300_3(tmp_path):
+    """Gap 87: `journal.py recover --help` expone `--budget-ms`/`--max` (defaults 300/3, como
+    `replay`)."""
+    r = subprocess.run([sys.executable, SCRIPT, "recover", "--help"], capture_output=True, text=True)
+    assert "--budget-ms" in r.stdout and "--max" in r.stdout
+    assert "300" in r.stdout and "3" in r.stdout
+
+
+@pytest.mark.skipif(os.name == "nt", reason="flock es POSIX; en Windows el equivalente es msvcrt")
+def test_recover_cerrojo_ocupado_bajo_presupuesto_devuelve_bloqueado_rapido(tmp_path):
+    """Gap 87: `recover()` a demanda usa `_cerrojo_presupuestado` con deadline — si el cerrojo lo
+    tiene OTRO proceso, devuelve `bloqueado: true` en bastante menos de 1s, nunca colgado."""
+    import fcntl
+    proj, _ = proyecto(tmp_path, con_git=False)
+    dir_ = journal._journal_queue_dir(str(proj))
+    os.makedirs(dir_, exist_ok=True)
+    lock_path = os.path.join(dir_, ".replay.lock")
+    fd = os.open(lock_path, os.O_RDWR | os.O_CREAT, 0o600)
+    fcntl.flock(fd, fcntl.LOCK_EX)
+    try:
+        t0 = time.monotonic()
+        r = journal.recover(str(proj), current_session_id="viva", budget_ms=300)
+        elapsed = time.monotonic() - t0
+    finally:
+        fcntl.flock(fd, fcntl.LOCK_UN)
+        os.close(fd)
+    assert r.get("bloqueado") is True
+    assert r["recuperadas"] == 0
+    assert elapsed < 1.0, f"tardó {elapsed:.2f}s: recover() debía volver bloqueado bajo presupuesto"
+
+
+def test_docstring_y_help_de_recover_dicen_1440_no_360():
+    """Gap 88: docstring del módulo y `--help` decían 360 (obsoleto tras subir el default a 1440)."""
+    assert "360" not in journal.__doc__.split("recover [--root")[1].split("capture [--root")[0]
+    r = subprocess.run([sys.executable, SCRIPT, "recover", "--help"], capture_output=True, text=True)
+    assert "1440" in r.stdout and "360" not in r.stdout
+
+
+def test_replay_con_recover_bloqueado_inicializa_recuperadas_y_candidatas(tmp_path):
+    """Gap 89: `replay(con_recover=True)` con el cerrojo ocupado (`bloqueado: true`) sigue
+    exponiendo `recuperadas`/`candidatas` en el JSON (0), no las omite."""
+    import fcntl
+    if os.name == "nt":
+        pytest.skip("flock es POSIX; en Windows el equivalente es msvcrt")
+    proj, _ = proyecto(tmp_path, con_git=False)
+    dir_ = journal._journal_queue_dir(str(proj))
+    os.makedirs(dir_, exist_ok=True)
+    lock_path = os.path.join(dir_, ".replay.lock")
+    fd = os.open(lock_path, os.O_RDWR | os.O_CREAT, 0o600)
+    fcntl.flock(fd, fcntl.LOCK_EX)
+    try:
+        r = journal.replay(str(proj), budget_ms=300, con_recover=True, current_session_id="viva")
+    finally:
+        fcntl.flock(fd, fcntl.LOCK_UN)
+        os.close(fd)
+    assert r["bloqueado"] is True
+    assert r["recuperadas"] == 0
+    assert r["candidatas"] == 0

@@ -46,7 +46,7 @@ Subcomandos (exit 0 SIEMPRE salvo error de uso → 2; la bitácora nunca bloquea
   recover [--root DIR] [--ventana-min N] [--current-session-id SID] [--session-id SID]
       Reconciliación de HUÉRFANAS (T-05, CA-07): un log de prompts (`.claude/session-prompts-<sid>.log`)
       sin envelope en la cola NI entrada de journal, cuyo mtime lleva más de `--ventana-min` (default
-      `sesion.journal.ventanaHuerfanaMin`, 360) sin actividad, se materializa con `draft`/`write` como
+      `sesion.journal.ventanaHuerfanaMin`, 1440) sin actividad, se materializa con `draft`/`write` como
       `cierre: recuperado_sin_cierre` (nunca inventa: el resumen sale del propio log, CA-05).
       `--current-session-id` (la sesión que está arrancando, invocado por `session-context.sh`) nunca
       se recupera, aunque su log supere la ventana: una sesión concurrente viva no es una huérfana.
@@ -648,6 +648,11 @@ def replay(root, budget_ms=None, max_n=None, ia="auto", reintentar_dead_letter=F
     `con_recover`); nunca lanza (`cmd_replay` la envuelve igualmente, por si acaso)."""
     resumen = {"materializados": 0, "dead_letter": 0, "reintentados": 0, "errores": [], "restantes": 0,
               "restantes_processing": 0, "en_backoff": 0, "avisos": [], "bloqueado": False}
+    if con_recover:
+        # gap 89: inicializado ANTES de cualquier `return` (incluido `bloqueado`) — el JSON de
+        # `replay(con_recover=True)` nunca debe faltar estas claves, ni siquiera cuando el cerrojo
+        # está ocupado o `outbox.py` no está disponible.
+        resumen["recuperadas"], resumen["candidatas"] = 0, 0
     ob = _outbox_mod()
     if ob is None:
         resumen["avisos"].append("outbox.py no disponible junto a journal.py: replay degradado")
@@ -767,8 +772,14 @@ def replay(root, budget_ms=None, max_n=None, ia="auto", reintentar_dead_letter=F
                 if budget_ms is not None:
                     restante_ms = max(0.0, budget_ms - (time.monotonic() - inicio) * 1000)
                     deadline = time.monotonic() + restante_ms / 1000.0
+                # gap 83: `max_n` es COMPARTIDO entre el drenaje de la outbox y `recover` — lo que
+                # ya consumió el drenaje (`procesados`) se descuenta del tope que le queda a
+                # `recover` en esta misma pasada; antes `recover` recibía el `max_n` COMPLETO otra
+                # vez, así que un `max_n=3` con 3 envelopes + huérfanas de sobra producía 6
+                # entradas para un tope declarado de 3.
+                max_n_recover = max(0, max_n - procesados) if max_n is not None else None
                 _recover_impl(root, sub, ventana_min, current_session_id, None, dry_run=False,
-                              deadline=deadline, max_n=max_n, git_timeout=git_timeout, ob=ob, dir_=dir_)
+                              deadline=deadline, max_n=max_n_recover, git_timeout=git_timeout, ob=ob, dir_=dir_)
                 resumen["recuperadas"] += sub["recuperadas"]
                 resumen["candidatas"] += sub["candidatas"]
                 resumen["avisos"].extend(sub["avisos"])
@@ -799,7 +810,7 @@ def _extraer_sid_de_log(fn):
 
 
 def _ventana_huerfana_min(root):
-    """`sesion.journal.ventanaHuerfanaMin` (minutos; default VENTANA_HUERFANA_MIN_DEFAULT = 360)."""
+    """`sesion.journal.ventanaHuerfanaMin` (minutos; default VENTANA_HUERFANA_MIN_DEFAULT = 1440)."""
     v = _dev_sesion(root).get("journal")
     if isinstance(v, dict) and "ventanaHuerfanaMin" in v:
         try:
@@ -839,9 +850,17 @@ def _indice_sids_capturados(root, ob, dir_):
 
 
 def _mtime_utc_iso(path):
+    """`None` también si el mtime está fuera de `[ahora - LOG_RETENCION_DIAS, ahora + 5 min]` (gap
+    86 de la revisión tramo 2): sin esta cota, un mtime absurdo (reloj desincronizado, fichero
+    plantado por un tercero) fechaba la entrada en 2027 o 2446 y esa fecha ganaba `latest` para
+    siempre. El llamador (`_recover_impl`) trata `None` igual que sin `captured_at`: `draft` cae a
+    `hoy()` sola."""
     try:
         mtime = os.stat(path).st_mtime
     except OSError:
+        return None
+    ahora = time.time()
+    if mtime < ahora - LOG_RETENCION_DIAS * 86400 or mtime > ahora + 300:
         return None
     return _dt.datetime.fromtimestamp(mtime, _dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -863,6 +882,7 @@ def _recover_impl(root, resumen, ventana_min, current_session_id, session_id, dr
     ahora = time.time()
     capturados = _indice_sids_capturados(root, ob, dir_)
     recuperados_n = 0
+    agotado_por_presupuesto = False      # gap 84/85: al menos una candidata se saltó por max_n/deadline
     for fn in sorted(nombres):
         sid = _extraer_sid_de_log(fn)
         if not sid:
@@ -883,15 +903,30 @@ def _recover_impl(root, resumen, ventana_min, current_session_id, session_id, dr
         resumen["candidatas"] += 1
         if not forzada and sid in capturados:               # gap 68: `--session-id` fuerza aunque ya conste
             continue
+        if forzada and any(prev.get("session_id") == sid and prev.get("cierre") == "materializado"
+                          for prev in entradas(root)):
+            # gap 82: el bypass de `--session-id` NUNCA sobrescribe en silencio una entrada YA
+            # `materializado` degradándola a `recuperado_sin_cierre` — el cierre real manda; si
+            # queda un envelope pendiente para volver a materializarla, lo resuelve `replay`, no
+            # `recover` (antes esto era un no-op silencioso que además borraba `materializado_en`).
+            resumen["avisos"].append(f"{sid}: ya materializada; usa `replay` si hay envelope pendiente")
+            continue
         if dry_run:
             resumen["recuperadas"] += 1
             continue
         if max_n is not None and recuperados_n >= max_n:
+            agotado_por_presupuesto = True
             continue                                        # gap 65: tope de esta pasada, el resto queda para la próxima
         if deadline is not None and time.monotonic() >= deadline:
+            agotado_por_presupuesto = True
             continue                                        # gap 65: presupuesto agotado, el resto queda para la próxima
         try:
             captured_at = _mtime_utc_iso(log_path_)          # gap 67: fecha/derivados del CIERRE, no de "ahora"
+            if captured_at is None:
+                # gap 86: `_mtime_utc_iso` devuelve None también cuando el mtime está fuera de
+                # cordura (reloj desincronizado, fichero plantado) — `draft` cae sola a `hoy()`
+                # (mismo camino que sin `captured_at`), pero se avisa para que no pase inadvertido.
+                resumen["avisos"].append(f"{sid}: mtime del log fuera de rango de cordura; usando la fecha de hoy")
             e = draft(root, sid, None, "orphan_recovery", captured_at=captured_at, git_timeout=git_timeout)
             e["cierre"] = "recuperado_sin_cierre"
             e["derivados_en"] = "replay"                     # `recover` corre bajo el mismo cerrojo/pasada que replay
@@ -902,6 +937,12 @@ def _recover_impl(root, resumen, ventana_min, current_session_id, session_id, dr
                 capturados.add(sid)
         except Exception as ex:  # noqa: BLE001 — una sesión huérfana problemática no bloquea a las demás
             resumen["avisos"].append(f"{sid}: {ex}")
+    if not dry_run and agotado_por_presupuesto and recuperados_n == 0:
+        # gap 84/85: el presupuesto o `max_n` se agotó (antes de recover, por drenar la outbox, o
+        # DURANTE el propio bucle con huérfanas costosas) sin recuperar NINGUNA — se dice cuántas
+        # candidatas se vieron para que no parezca que no había nada que hacer.
+        resumen["avisos"].append(
+            f"recover no ejecutado: presupuesto/max agotado ({resumen['candidatas']} candidatas)")
 
 
 def recover(root, ventana_min=None, current_session_id=None, session_id=None, dry_run=False,
@@ -927,9 +968,12 @@ def recover(root, ventana_min=None, current_session_id=None, session_id=None, dr
     (gap 65: antes no tenía ni presupuesto ni tope, y cientos de huérfanas tardaban segundos en un
     arranque). `dry_run` (usa `status`, T-06): cuenta cuántas se RECUPERARÍAN sin escribir nada ni
     tomar el cerrojo (diagnóstico de solo lectura). Nunca lanza; una sesión problemática no bloquea a
-    las demás (queda en `avisos`). Devuelve {"recuperadas", "avisos", "candidatas"} (huérfanas vistas,
-    se hayan recuperado o no por estar ya capturadas)."""
-    resumen = {"recuperadas": 0, "avisos": [], "candidatas": 0}
+    las demás (queda en `avisos`). `budget_ms`/`max_n` (gap 87 de la revisión tramo 2: antes `recover`
+    a demanda no exponía ninguno de los dos por CLI y podía bloquearse sin límite si otro proceso
+    tenía el cerrojo) acotan el cerrojo Y el trabajo de esta pasada — igual que `replay`. Devuelve
+    {"recuperadas", "avisos", "candidatas", "bloqueado"} (huérfanas vistas, se hayan recuperado o no
+    por estar ya capturadas; `bloqueado: true` si el cerrojo no se consiguió dentro del presupuesto)."""
+    resumen = {"recuperadas": 0, "avisos": [], "candidatas": 0, "bloqueado": False}
     if not proyecto_con_plugin(root) or not _journal_activo(root):
         return resumen
     if source == "compact":
@@ -949,6 +993,8 @@ def recover(root, ventana_min=None, current_session_id=None, session_id=None, dr
         if not conseguido:
             resumen["avisos"].append("recover: no se pudo tomar el cerrojo dentro del presupuesto " +
                                      ("(cola dañada)" if dañada else "(otro replay/recover en curso)"))
+            if not dañada:
+                resumen["bloqueado"] = True     # gap 87: distinto de "cola dañada" (igual que `replay`)
             return resumen
         deadline = inicio + (budget_ms / 1000.0) if budget_ms is not None else None
         _recover_impl(root, resumen, ventana_min, current_session_id, session_id, dry_run=False,
@@ -2027,7 +2073,7 @@ def cmd_replay(a):
 
 def cmd_recover(a):
     r = recover(a.root, ventana_min=a.ventana_min, current_session_id=a.current_session_id,
-               session_id=a.session_id)
+               session_id=a.session_id, budget_ms=a.budget_ms, max_n=a.max)
     print(json.dumps(r, ensure_ascii=False))
     return 0
 
@@ -2154,9 +2200,12 @@ def main(argv=None):
     sp = sub.add_parser("recover", help="materializa como recuperado_sin_cierre las sesiones huérfanas (log sin envelope, sin sesión viva)")
     comunes(sp)
     sp.add_argument("--ventana-min", type=int, default=None,
-                    help="minutos sin actividad para tratar un log como huérfano (default: sesion.journal.ventanaHuerfanaMin, 360)")
+                    help="minutos sin actividad para tratar un log como huérfano (default: sesion.journal.ventanaHuerfanaMin, 1440)")
     sp.add_argument("--current-session-id", default=None, help="session_id de la sesión actual: nunca se recupera aunque supere la ventana (CA-07)")
     sp.add_argument("--session-id", default=None, help="fuerza la recuperación de esta sesión concreta, ignorando ventana/sesión actual")
+    sp.add_argument("--budget-ms", type=int, default=300,
+                    help="corta el cerrojo y el trabajo de esta pasada al superar este presupuesto (default 300, como replay, gap 87)")
+    sp.add_argument("--max", type=int, default=3, help="máximo de huérfanas a recuperar en esta llamada (default 3, como replay, gap 87)")
     sp.set_defaults(fn=cmd_recover)
 
     sp = sub.add_parser("purge", help="borra TODO el árbol de la cola (outbox/processing/done/dead-letter); requiere --confirm")

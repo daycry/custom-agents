@@ -97,6 +97,35 @@ def test_bench_detecta_captura_que_no_escribe_nada(tmp_path, monkeypatch):
         bench.medir(3, warmup=0, root=str(tmp_path / "proj"))
 
 
+def test_bench_warmup_iterations_se_descartan_de_la_medida(tmp_path, monkeypatch):
+    """Gap 85 de la revisión tramo 2: el descarte de las `warmup` primeras iteraciones no tenía
+    ningún test con dientes — un mutante que las contara igual (o que quitara el `if medida:`)
+    habría pasado igual. Aquí el reloj se controla por completo: las iteraciones de warmup "tardan"
+    10 s cada una y las medidas ~1 ms; si el warmup se colara en `duraciones`, el máximo lo
+    delataría."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("bench_mod3", SCRIPT)
+    bench = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(bench)
+
+    warmup, iterations = 2, 3
+    valores = []
+    t = 0.0
+    for i in range(warmup + iterations):
+        if i < warmup:
+            valores += [t, t + 10.0]     # 10 s "de warmup" (perf_counter en segundos)
+            t += 10.0
+        else:
+            valores += [t, t + 0.001]    # 1 ms de una medida real
+            t += 0.001
+    it = iter(valores)
+    monkeypatch.setattr(bench.time, "perf_counter", lambda: next(it))
+
+    duraciones = bench.medir(iterations, warmup=warmup, root=str(tmp_path / "proj"))
+    assert len(duraciones) == iterations, "debe haber exactamente `iterations` medidas, ni una de warmup"
+    assert max(duraciones) < 100, f"duraciones={duraciones}: una medida de warmup (10000 ms) se coló"
+
+
 def test_bench_e2e_timeout_expired_es_fallo_estructurado(tmp_path, monkeypatch):
     """Gap 78: un `subprocess.TimeoutExpired` en la medida end-to-end produce un `FALLO`
     ESTRUCTURADO (exit 1, JSON con `fallos`), no un traceback sin capturar."""
