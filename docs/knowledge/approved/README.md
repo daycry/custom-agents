@@ -12,6 +12,12 @@ Estructura: una carpeta por `categories[].folder` de `.claude/knowledge-services
 construye el índice determinista SOLO sobre estas carpetas: falla con fichero+campo si hay un
 `id` duplicado, falta `version` o un enlace roto.
 
+**Vocabulario del campo opcional `estado` del frontmatter (gap 34, revisión de dos lentes):** si
+se declara, su único valor válido bajo este árbol es el token en español `aprobado` (coherente
+con el resto de tokens parseados en español del plugin, aunque las carpetas sean inglesas —
+`docs/CONVENTIONS.md`). Lo exige `knowledge-index.py`; `knowledge-curator` (T-04) escribe ese
+mismo token al mover un candidato aquí.
+
 Este árbol es **distinto** del legado `docs/knowledge/{adr,gotchas,lessons}/` (memoria técnica
 del propio plugin, con su índice manual en `docs/knowledge/README.md`, ADR-006 D4): no lo
 sustituye ni lo migra. Sirve al flujo de `knowledge-services` para proyectos que declaren su

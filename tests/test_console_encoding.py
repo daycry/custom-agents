@@ -311,6 +311,13 @@ SIN_SIMBOLOS_EN_LA_SALIDA = {
     # docstring/comentarios en español tienen no-ASCII (í, ó).
     "scripts/bench-session-end.py":
         "su salida (texto y --json) es un informe de percentiles con claves/etiquetas en ingles, ASCII puro",
+    # knowledge-services T-02 (gap 28): sin `docs/knowledge/approved/` en el workspace de prueba,
+    # `build_index` no encuentra carpetas ni entradas -> "knowledge-index: 0 entrada(s), sin
+    # errores" es ASCII puro; entra en SCRIPTS por su docstring/comentarios con acentos (ídice,
+    # canónica). Los mensajes de error SI llevan acentos (p. ej. "no es válido"), pero forzarlos
+    # exigiría montar un fixture de `approved/` con una entrada invalida solo para este test.
+    "agent-kits/shared/knowledge-index.py":
+        "sin `approved/` en el workspace de prueba, el veredicto por defecto es ASCII puro",
 }
 SCRIPTS_CON_SIMBOLOS = [rel for rel in SCRIPTS if rel not in SIN_SIMBOLOS_EN_LA_SALIDA]
 
@@ -349,6 +356,13 @@ def _modos():
             [("deny", lambda w: ["pre-tool", "--project-dir", "."], (0,), deny)],
         "agent-kits/shared/journal.py":
             [("draft", lambda w: ["draft", "--root", "."], (0,), None)],
+        # knowledge-services T-01/T-02/T-13 (gap 28): modos mas baratos que emiten un veredicto real.
+        "agent-kits/shared/knowledge-schema.py":
+            [("default", lambda w: ["--default"], (0,), None)],
+        "agent-kits/shared/knowledge-index.py":
+            [("indice", lambda w: ["--root", w], (0, 1), None)],
+        "agent-kits/shared/capabilities.py":
+            [("registro", lambda w: ["--root", w], (0,), None)],
         # Imprime `·` y áreas con acentos («Estimación / calibración») en cada acierto (memory-retrieval T-01).
         "agent-kits/shared/knowledge-find.py":
             [("consulta", lambda w: ["--area", "estimacion"], (0,), None)],

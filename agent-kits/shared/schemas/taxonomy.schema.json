@@ -3,6 +3,7 @@
   "$id": "https://custom-agents.local/schemas/taxonomy.schema.json",
   "title": "taxonomy.json — configuracion de knowledge-services por proyecto consumidor",
   "description": "Documenta el contrato que valida `agent-kits/shared/knowledge-schema.py` (validador stdlib, sin dependencias — ADR-018). No se interpreta con una libreria jsonschema: es la referencia legible de las mismas reglas que el validador aplica a mano. version 1.",
+  "$comment": "Vocabulario del frontmatter de una ENTRADA (no de este `taxonomy.json`, que solo describe categorias/backends/routing): bajo `docs/knowledge/approved/<folder>/`, el campo opcional `estado` (si se declara) DEBE valer el token en espanol `aprobado` — coherente con el resto de tokens parseados en espanol del plugin (`docs/CONVENTIONS.md`), aunque las carpetas del arbol sean inglesas (`approved/`, `candidates/{pending,needs_changes,rejected}/`). Lo hace cumplir `knowledge-index.py` (gap 34, revision de dos lentes); `knowledge-curator` (T-04) usa el MISMO token al aprobar un candidato.",
   "type": "object",
   "required": ["version", "categories"],
   "additionalProperties": true,

@@ -16,3 +16,9 @@ la categoría de la entrada según `.claude/knowledge-services/taxonomy.json`, o
 defecto del plugin si el proyecto no configura nada). `agent-kits/shared/knowledge-index.py`
 (T-02) **nunca** escanea este árbol: un candidato no aprobado no puede aparecer en el índice ni
 exportarse a ningún backend.
+
+**Vocabulario (gap 34, revisión de dos lentes):** `pending`/`needs_changes`/`rejected` son
+nombres de CARPETA (estado del candidato en este flujo), no un valor del campo `estado` del
+frontmatter — ese campo solo tiene sentido, con el token `aprobado`, una vez la entrada vive bajo
+`docs/knowledge/approved/<folder>/` (ver `docs/knowledge/approved/README.md`). No mezclar ambos
+vocabularios al escribir o leer una entrada.
