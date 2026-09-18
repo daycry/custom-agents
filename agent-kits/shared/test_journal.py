@@ -2289,7 +2289,7 @@ def test_mtime_utc_iso_pasado_absurdo_cae_a_hoy_con_aviso(tmp_path):
 def test_cmd_recover_expone_budget_ms_y_max_con_defaults_300_3(tmp_path):
     """Gap 87: `journal.py recover --help` expone `--budget-ms`/`--max` (defaults 300/3, como
     `replay`)."""
-    r = subprocess.run([sys.executable, SCRIPT, "recover", "--help"], capture_output=True, text=True)
+    r = subprocess.run([sys.executable, SCRIPT, "recover", "--help"], capture_output=True, text=True, encoding="utf-8", errors="replace")
     assert "--budget-ms" in r.stdout and "--max" in r.stdout
     assert "300" in r.stdout and "3" in r.stdout
 
@@ -2320,7 +2320,7 @@ def test_recover_cerrojo_ocupado_bajo_presupuesto_devuelve_bloqueado_rapido(tmp_
 def test_docstring_y_help_de_recover_dicen_1440_no_360():
     """Gap 88: docstring del módulo y `--help` decían 360 (obsoleto tras subir el default a 1440)."""
     assert "360" not in journal.__doc__.split("recover [--root")[1].split("capture [--root")[0]
-    r = subprocess.run([sys.executable, SCRIPT, "recover", "--help"], capture_output=True, text=True)
+    r = subprocess.run([sys.executable, SCRIPT, "recover", "--help"], capture_output=True, text=True, encoding="utf-8", errors="replace")
     assert "1440" in r.stdout and "360" not in r.stdout
 
 
