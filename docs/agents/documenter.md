@@ -20,12 +20,18 @@ impone nombres de carpeta.
   con "Última actualización".
 - **Idempotente**: en reejecución actualiza lo afectado y crea lo que falte, sin aplastar contenido
   escrito a mano.
+- **Propone conocimiento (opcional, buzón — T-05, `ADR-018`)**: si al documentar detecta una
+  decisión, patrón, gotcha o lección con evidencia real que no esté ya en
+  `docs/knowledge/approved/`, **crea** un fichero nuevo en `docs/knowledge/candidates/pending/`
+  con `category`/`evidencia`/`fuentes`/`tags`. Sin candidato que proponer no hay fallo.
 
 ## Qué NO hace
 
 - No implementa ni modifica el código del proyecto (solo lee).
 - No gestiona `docs/roadmap/**` (es de `planner`/`evaluator`/`qa`): solo lo enlaza.
 - No toca `docs/security-scan/**` (datos sensibles de `nemesis`).
+- **No aprueba ni mueve** un candidato de conocimiento a `approved/`/`needs_changes/`/`rejected/`,
+  ni escribe el campo `estado`: eso es exclusivo de `knowledge-curator` (ADR-018, un rol un dueño).
 
 ## Estructura: derivada, no fija
 
