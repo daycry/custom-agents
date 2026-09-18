@@ -1847,8 +1847,20 @@ def index(root):
     return p
 
 
+_LINEA_SEGURA_RE = re.compile(r"[\x00-\x1f\x7f\u200e\u200f\u202a-\u202e\u2066-\u2069]")
+
+
+def _linea_segura(texto):
+    """Texto de `latest()` que acaba en `additionalContext` (gap 97, verificación del orquestador tras
+    fix3): quita caracteres de control y marcas bidi, y normaliza saltos de línea/tabuladores a un
+    espacio — los `ficheros_tocados` salen de `git status`, así que un NOMBRE de fichero hostil
+    (repo clonado) llegaba tal cual. El texto se conserva (son citas, enmarcadas como tales); lo que
+    se impide es romper la línea o esconder contenido con RTL."""
+    return _LINEA_SEGURA_RE.sub(lambda m: " " if m.group(0) in "\n\r\t" else "", str(texto))
+
+
 def _corta(items, n=3):
-    items = [str(x) for x in items]
+    items = [_linea_segura(x) for x in items]
     if len(items) <= n:
         return "; ".join(items)
     return "; ".join(items[:n]) + f" (+{len(items) - n})"
