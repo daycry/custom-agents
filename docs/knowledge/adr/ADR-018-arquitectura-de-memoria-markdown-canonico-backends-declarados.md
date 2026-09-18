@@ -1,7 +1,7 @@
 ---
 id: ADR-018
 titulo: "Arquitectura de la memoria del plugin: Markdown canónico, backends declarados por adaptador e ingestión durable por cola compartida"
-estado: propuesta          # propuesta | aceptada | obsoleta
+estado: aceptada          # propuesta | aceptada | obsoleta
 fecha: 2026-09-17
 iniciativa: knowledge-services · graphiti-memory · session-end-durable-capture
 ---

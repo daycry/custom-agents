@@ -1,0 +1,90 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://custom-agents.local/schemas/taxonomy.schema.json",
+  "title": "taxonomy.json — configuracion de knowledge-services por proyecto consumidor",
+  "description": "Documenta el contrato que valida `agent-kits/shared/knowledge-schema.py` (validador stdlib, sin dependencias — ADR-018). No se interpreta con una libreria jsonschema: es la referencia legible de las mismas reglas que el validador aplica a mano. version 1.",
+  "type": "object",
+  "required": ["version", "categories"],
+  "additionalProperties": true,
+  "properties": {
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Version del esquema de este fichero. El plugin acepta N y N-1 (ADR-018 punto 8)."
+    },
+    "id_prefix": {
+      "type": "string",
+      "description": "Prefijo de `knowledge_id` del proyecto (p. ej. `mr` -> `mr.pattern.fast-curve`). Sin este campo, el prefijo default es el slug del directorio del proyecto."
+    },
+    "utility_scoring": {
+      "type": "boolean",
+      "default": false,
+      "description": "Opt-in. Si es true, el candidato lleva un desglose 0-10 que SOLO ordena la cola de revision; nunca decide `approved`/`rejected` por si mismo (CA-10)."
+    },
+    "evidence_levels": {
+      "type": "array",
+      "items": {"type": "string"},
+      "minItems": 1,
+      "description": "Escalera de evidencia. Sin este campo, el default del plugin aplica: observation -> single_case -> validated_case -> multiple_validated_cases -> human_confirmed_rule."
+    },
+    "denylist": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Lista negra de memoria activa, AMPLIABLE sobre el default del plugin (chain-of-thought, conversacion cruda, TODOs, planes/progreso, logs completos, salidas enormes, codigo duplicado, errores triviales, intentos sin aprendizaje, hipotesis como hechos, opiniones, redundancias)."
+    },
+    "backends": {
+      "type": "object",
+      "description": "Cada clave es un id de backend declarado. `routing` (por categoria) SOLO puede citar ids declarados aqui; un id no declarado es error de validacion (fail-closed, CA-11).",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["type"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "Adaptador que implementa el contrato `health · plan · apply · verify · rebuild · revoke` (skills/knowledge-services/backends/<type>.py). p. ej. `markdown-export` (Kwipu) o `graphiti`."
+          },
+          "enabled": {
+            "type": "boolean",
+            "default": false
+          },
+          "config": {
+            "type": "object",
+            "description": "Configuracion propia del adaptador (p. ej. `export_dir`, `health.url`, `health.timeout_ms`)."
+          }
+        }
+      }
+    },
+    "categories": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["key", "folder", "min_evidence"],
+        "properties": {
+          "key": {
+            "type": "string",
+            "description": "Clave de la categoria (p. ej. DECISION, PATTERN, GOTCHA, LESSON, o cualquier dominio propio del proyecto)."
+          },
+          "folder": {
+            "type": "string",
+            "description": "Carpeta bajo `docs/knowledge/approved/` donde viven las entradas aprobadas de esta categoria."
+          },
+          "min_evidence": {
+            "type": "string",
+            "description": "Nivel minimo exigido de `evidence_levels` para que un candidato de esta categoria pueda aprobarse."
+          },
+          "routing": {
+            "type": "object",
+            "description": "Por backend declarado en `backends`: `true` (exporta entero), `false` (no exporta) o `\"summary\"` (solo el resumen). Sin `routing` declarado, la categoria NO exporta a ningun backend (fail-closed, CA-09/CA-11).",
+            "additionalProperties": {
+              "oneOf": [
+                {"type": "boolean"},
+                {"const": "summary"}
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}
