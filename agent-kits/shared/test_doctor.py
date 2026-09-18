@@ -1550,6 +1550,7 @@ class _BackendsModFake:
         self._lanza_health = lanza_health
         self._lanza_verify = lanza_verify
         self._no_disponible = no_disponible
+        self.cfg_recibido_por_health = None  # gap 94: espia para comprobar el timeout topado
 
     def cargar_adaptador(self, tipo, directorios):
         if self._no_disponible:
@@ -1557,6 +1558,7 @@ class _BackendsModFake:
         return self
 
     def health(self, cfg):
+        self.cfg_recibido_por_health = cfg
         if self._lanza_health:
             raise RuntimeError("boom-health")
         return self._salud
@@ -1569,6 +1571,50 @@ class _BackendsModFake:
 
 def test_capacidad_backend_sin_tipo_declarado_devuelve_none():
     assert doctor._linea_capacidad_backend("x", None, {}, _BackendsModFake(), "d") is None
+
+
+def test_capacidad_backend_topa_el_timeout_antes_de_llamar_health():
+    """gap 94: un `timeout_ms` generoso en `taxonomy.json` (pensado para una publicacion real, no
+    para un diagnostico rapido) se recorta a `CAPACIDAD_TIMEOUT_MS_TOPE` antes de llegar a
+    `health()` — sin esto, una capacidad con `timeout_ms: 30000` podria colgar /doctor 30s."""
+    fake = _BackendsModFake(salud={"estado": "sano"})
+    doctor._linea_capacidad_backend("x", "t", {"health": {"url": "http://x", "timeout_ms": 30000}}, fake, "d")
+    assert fake.cfg_recibido_por_health["health"]["timeout_ms"] == doctor.CAPACIDAD_TIMEOUT_MS_TOPE
+
+
+def test_capacidad_backend_respeta_timeout_por_debajo_del_tope():
+    fake = _BackendsModFake(salud={"estado": "sano"})
+    doctor._linea_capacidad_backend("x", "t", {"health": {"url": "http://x", "timeout_ms": 500}}, fake, "d")
+    assert fake.cfg_recibido_por_health["health"]["timeout_ms"] == 500
+
+
+def test_bloque_capacidades_recorta_por_presupuesto_total(monkeypatch):
+    """gap 94: con muchas capacidades activas y una red lenta, `bloque_capacidades` no debe
+    convertirse en un diagnostico de minutos — al superar el presupuesto TOTAL, el resto se
+    reporta como recortado en vez de seguir esperando una a una."""
+    import time as time_mod
+
+    class _CapMod:
+        @staticmethod
+        def enumerar(project):
+            return [{"id": f"cap{i}", "enabled": True, "health": None} for i in range(5)]
+
+    monkeypatch.setattr(doctor, "_cargar_capabilities", lambda plugin_root: _CapMod())
+    monkeypatch.setattr(doctor, "_cargar_backends_loader", lambda plugin_root: (None, "d"))
+    monkeypatch.setattr(doctor, "CAPACIDADES_PRESUPUESTO_S", 0.05)
+
+    llamadas = []
+
+    def _linea_lenta(project, cap, backends_mod, backends_dir):
+        llamadas.append(cap["id"])
+        time_mod.sleep(0.03)
+        return doctor.linea(doctor.INFO, cap["id"], "activa")
+
+    monkeypatch.setattr(doctor, "_linea_capacidad", _linea_lenta)
+    bloque = doctor.bloque_capacidades("plugin", "project")
+    assert len(llamadas) < 5
+    avisos = [l for l in bloque["lineas"] if l["estado"] == doctor.AVISO and "recortada" in l["detalle"]]
+    assert len(avisos) == 1
 
 
 def test_capacidad_backend_off_con_timeout_es_informativo():
@@ -1592,10 +1638,13 @@ def test_capacidad_backend_degradado_es_aviso():
     assert l["arreglo"]
 
 
-def test_capacidad_backend_error_es_error():
+def test_capacidad_backend_error_es_aviso_no_error():
+    """gap 100 (fix1 knowledge-services): un backend EXTERNO en error (stack caído, respuesta
+    invalida) no debe tumbar /doctor con exit 1 — el ERROR se reserva para un fallo de
+    configuracion de la propia capacidad (`taxonomy.json` invalido, ver `_linea_capacidad`)."""
     fake = _BackendsModFake(salud={"estado": "error", "detalle": "respuesta no valida"})
     l = doctor._linea_capacidad_backend("x", "t", {}, fake, "d")
-    assert l["estado"] == doctor.ERROR
+    assert l["estado"] == doctor.AVISO
     assert l["arreglo"]
 
 

@@ -89,6 +89,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 
 # Consola Windows (cp1252) o tuberías: reconfigurar ANTES de leer o imprimir nada (GOT-005).
 for _s in (sys.stdin, sys.stdout, sys.stderr):
@@ -1490,6 +1491,23 @@ def _leer_backend_entry(project, cap):
     return ((datos.get("backends") or {}).get(cap["id"])) or {}
 
 
+CAPACIDAD_TIMEOUT_MS_TOPE = 2000  # gap 94: ninguna comprobación de red individual pasa de esto
+CAPACIDADES_PRESUPUESTO_S = 5.0  # gap 94: tope TOTAL del bloque completo, no solo por capacidad
+
+
+def _cfg_con_timeout_topado(cfg_adaptador):
+    """gap 94: copia `cfg_adaptador` con `health.timeout_ms` recortado a
+    `CAPACIDAD_TIMEOUT_MS_TOPE` — `/doctor` es un diagnóstico rápido, nunca debería quedarse
+    colgado minutos por un `timeout_ms` generoso pensado para una publicación real."""
+    cfg = dict(cfg_adaptador or {})
+    health_cfg = dict(cfg.get("health") or {})
+    actual = health_cfg.get("timeout_ms")
+    if not isinstance(actual, (int, float)) or actual > CAPACIDAD_TIMEOUT_MS_TOPE:
+        health_cfg["timeout_ms"] = CAPACIDAD_TIMEOUT_MS_TOPE
+    cfg["health"] = health_cfg
+    return cfg
+
+
 def _linea_capacidad_backend(cap_id, tipo, cfg_adaptador, backends_mod, backends_dir):
     """Comprobación de red EN VIVO de una capacidad con backend declarado (`type` + su
     `config` propia), vía el contrato de adaptador (`health`/`verify`) — `cfg_adaptador` es
@@ -1498,6 +1516,7 @@ def _linea_capacidad_backend(cap_id, tipo, cfg_adaptador, backends_mod, backends
     genérico `doctor` de la propia capacidad. Nunca lanza."""
     if not tipo:
         return None
+    cfg_adaptador = _cfg_con_timeout_topado(cfg_adaptador)  # gap 94
     try:
         adaptador = backends_mod.cargar_adaptador(tipo, [backends_dir])
     except backends_mod.AdaptadorNoDisponible as e:
@@ -1533,7 +1552,10 @@ def _linea_capacidad_backend(cap_id, tipo, cfg_adaptador, backends_mod, backends
     if estado == "degradado":
         return linea(AVISO, f"{cap_id} (backend)", detalle or "degradado", "revisa el estado del stack externo")
     if estado == "error":
-        return linea(ERROR, f"{cap_id} (backend)", detalle or "error", "revisa el stack externo y `taxonomy.json`")
+        # gap 100: el ❌ de /doctor se reserva para un error de CONFIG de la propia capacidad
+        # (taxonomy.json inválido, ver `_linea_capacidad`); un backend externo en error es un
+        # AVISO — /doctor no debe salir con exit 1 solo porque el stack externo esté caído/mal.
+        return linea(AVISO, f"{cap_id} (backend)", detalle or "error", "revisa el stack externo y `taxonomy.json`")
     return linea(INFO, f"{cap_id} (backend)", f"estado desconocido: {estado!r}", "revisa el adaptador de este backend")
 
 
@@ -1570,7 +1592,21 @@ def bloque_capacidades(plugin_root, project):
     if not capacidades:
         return {"clave": "capacidades", "titulo": "Capacidades opcionales",
                 "lineas": [linea(INFO, "capacidades opcionales", "sin capacidades registradas")]}
-    ls = [_linea_capacidad(project, cap, backends_mod, backends_dir) for cap in capacidades]
+    # gap 94: tope TOTAL del bloque (no solo por capacidad) — con muchas capacidades opcionales
+    # activas y una red lenta, /doctor no debe convertirse en un diagnóstico de minutos.
+    ls = []
+    inicio = time.monotonic()
+    recortado = 0
+    for i, cap in enumerate(capacidades):
+        if time.monotonic() - inicio > CAPACIDADES_PRESUPUESTO_S:
+            recortado = len(capacidades) - i
+            break
+        ls.append(_linea_capacidad(project, cap, backends_mod, backends_dir))
+    if recortado:
+        ls.append(linea(AVISO, "capacidades opcionales",
+                         f"comprobación de red recortada: {recortado} capacidad(es) sin comprobar "
+                         f"(tope de {CAPACIDADES_PRESUPUESTO_S:.0f}s del bloque)",
+                         "vuelve a pasar /doctor, o revisa la red del backend más lento"))
     return {"clave": "capacidades", "titulo": "Capacidades opcionales", "lineas": ls}
 
 
