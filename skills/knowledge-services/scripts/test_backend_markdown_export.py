@@ -528,5 +528,223 @@ class TestMarkdownExportVerifyHash(unittest.TestCase):
         self.assertEqual(resultado["comparacion"], "hash")
 
 
+class TestMarkdownExportFix2(unittest.TestCase):
+    """Fase 3, intento 2, fix2 (2026-09-18): gaps 109/112/115/117/121/125 - publicacion por
+    intercambio de directorio, revalidacion de host en redirecciones, DNS con tope, contencion
+    con realpath/normcase, ops sin_cambios sin cuerpo."""
+
+    def setUp(self):
+        self.mod = _cargar()
+        self.tmp = tempfile.mkdtemp(prefix="ks-export-fix2-")
+        self.root = os.path.join(self.tmp, "proyecto")
+        os.makedirs(self.root, exist_ok=True)
+        self.export_dir_rel = "kwipu-export"
+        self.cfg = {"export_dir": self.export_dir_rel, "_root": self.root,
+                    "health": {"url": "http://127.0.0.1:1/health", "timeout_ms": 100}}
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    # ---- gap 115: el staging es HERMANO de export_dir, nunca un hijo ----
+
+    def test_apply_no_deja_staging_dentro_de_export_dir(self):
+        entradas = [_entrada(id_="mr.pattern.a")]
+        self.mod.apply(self.mod.plan(entradas, self.cfg), self.cfg)
+        export_dir = os.path.join(self.root, self.export_dir_rel)
+        hijos = os.listdir(export_dir)
+        self.assertFalse(any(h.startswith(".staging-") for h in hijos))
+        padre = os.path.dirname(export_dir)
+        hermanos_staging = [h for h in os.listdir(padre)
+                             if h.startswith(os.path.basename(export_dir) + ".staging-")]
+        self.assertEqual(hermanos_staging, [])
+
+    def test_lock_es_fichero_hermano_no_hijo(self):
+        entradas = [_entrada(id_="mr.pattern.a")]
+        self.mod.apply(self.mod.plan(entradas, self.cfg), self.cfg)
+        export_dir = os.path.join(self.root, self.export_dir_rel)
+        self.assertFalse(os.path.exists(os.path.join(export_dir, ".knowledge-services.lock")))
+        self.assertFalse(os.path.exists(export_dir + ".lock"))  # se libera al salir del `with`
+
+    # ---- gap 82/115: reparacion de una corrida interrumpida (.prev huerfano) ----
+
+    def test_apply_repone_prev_huerfano_si_export_dir_desaparecio(self):
+        entradas = [_entrada(id_="mr.pattern.a")]
+        self.mod.apply(self.mod.plan(entradas, self.cfg), self.cfg)
+        export_dir = os.path.join(self.root, self.export_dir_rel)
+        prev_dir = export_dir + ".prev"
+        os.replace(export_dir, prev_dir)  # simula: primer rename hecho, proceso murio ahi
+        self.assertFalse(os.path.isdir(export_dir))
+        # `plan()` se calcula ANTES de que `apply()` repare `.prev` (no ve manifest.json todavia,
+        # asi que pide `upsert`); la reparacion ocurre dentro de `apply()`, bajo el lock, y el
+        # resultado es el mismo contenido publicado de nuevo (idempotente en contenido, aunque no
+        # literalmente "sin_cambios" para esta pasada).
+        resultado = self.mod.apply(self.mod.plan(entradas, self.cfg), self.cfg)
+        self.assertTrue(os.path.isdir(export_dir))
+        self.assertFalse(os.path.isdir(prev_dir))
+        self.assertEqual(resultado["escritos"], 1)
+
+    def test_apply_purga_staging_huerfano_viejo(self):
+        export_dir = os.path.join(self.root, self.export_dir_rel)
+        os.makedirs(export_dir, exist_ok=True)
+        staging_viejo = export_dir + ".staging-999999"
+        os.makedirs(staging_viejo, exist_ok=True)
+        viejo = 1  # epoch bajo -> edad enorme
+        os.utime(staging_viejo, (viejo, viejo))
+        self.mod.apply(self.mod.plan([], self.cfg), self.cfg)
+        self.assertFalse(os.path.isdir(staging_viejo))
+
+    # ---- gap 109: rebuild regenera un fichero publicado que se borro a mano ----
+
+    def test_rebuild_regenera_fichero_borrado_a_mano(self):
+        entradas = [_entrada(id_="mr.pattern.a")]
+        self.mod.apply(self.mod.plan(entradas, self.cfg), self.cfg)
+        ruta = os.path.join(self.root, self.export_dir_rel, "mr.pattern.a.md")
+        os.remove(ruta)
+        self.assertFalse(os.path.isfile(ruta))
+        resultado = self.mod.rebuild(entradas, self.cfg)
+        self.assertTrue(os.path.isfile(ruta))
+        self.assertEqual(resultado["escritos"], 1)
+
+    def test_plan_marca_upsert_si_el_fichero_publicado_ya_no_existe(self):
+        entradas = [_entrada(id_="mr.pattern.a")]
+        self.mod.apply(self.mod.plan(entradas, self.cfg), self.cfg)
+        ruta = os.path.join(self.root, self.export_dir_rel, "mr.pattern.a.md")
+        os.remove(ruta)
+        ops = self.mod.plan(entradas, self.cfg)
+        acciones = {op["knowledge_id"]: op["accion"] for op in ops}
+        self.assertEqual(acciones["mr.pattern.a"], "upsert")
+
+    def test_rebuild_descarta_huerfanos_no_presentes_en_entries(self):
+        entradas = [_entrada(id_="mr.pattern.a"), _entrada(id_="mr.pattern.b")]
+        self.mod.apply(self.mod.plan(entradas, self.cfg), self.cfg)
+        self.mod.rebuild([_entrada(id_="mr.pattern.a")], self.cfg)
+        export_dir = os.path.join(self.root, self.export_dir_rel)
+        self.assertTrue(os.path.isfile(os.path.join(export_dir, "mr.pattern.a.md")))
+        self.assertFalse(os.path.isfile(os.path.join(export_dir, "mr.pattern.b.md")))
+
+    # ---- gap 125: los ops sin_cambios no cargan "cuerpo" ----
+
+    def test_plan_sin_cambios_no_lleva_cuerpo(self):
+        entradas = [_entrada(id_="mr.pattern.a")]
+        self.mod.apply(self.mod.plan(entradas, self.cfg), self.cfg)
+        ops2 = self.mod.plan(entradas, self.cfg)
+        op_sin_cambios = next(op for op in ops2 if op["knowledge_id"] == "mr.pattern.a")
+        self.assertEqual(op_sin_cambios["accion"], "sin_cambios")
+        self.assertNotIn("cuerpo", op_sin_cambios)
+
+    # ---- gap 112: redireccion HTTP a host publico se rechaza sin seguirla ----
+
+    def test_health_rechaza_redireccion_a_host_publico(self):
+        class _HandlerRedirect(_ServidorFixturas):
+            def _responder(self):
+                if self.path == "/health":
+                    self.send_response(302)
+                    self.send_header("Location", "http://example.com/health")
+                    self.end_headers()
+                else:
+                    super()._responder()
+
+        httpd = HTTPServer(("127.0.0.1", 0), _HandlerRedirect)
+        puerto = httpd.server_address[1]
+        hilo = threading.Thread(target=httpd.serve_forever, daemon=True)
+        hilo.start()
+        try:
+            salud = self.mod.health(
+                {"health": {"url": f"http://127.0.0.1:{puerto}/health", "timeout_ms": 500}})
+            self.assertEqual(salud["estado"], "error")
+            self.assertIn("no local", salud["detalle"])
+        finally:
+            httpd.shutdown()
+            httpd.server_close()
+
+    def test_health_sigue_redireccion_a_host_local(self):
+        fixture = _leer_fixture("kwipu-health-2026-09-18.json")
+
+        class _HandlerRedirectLocal(_ServidorFixturas):
+            def _responder(self):
+                if self.path == "/health":
+                    self.send_response(302)
+                    loc = f"http://127.0.0.1:{self.server.server_address[1]}/health2"
+                    self.send_header("Location", loc)
+                    self.end_headers()
+                elif self.path == "/health2":
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json")
+                    self.end_headers()
+                    self.wfile.write(fixture.encode("utf-8"))
+                else:
+                    super()._responder()
+
+        httpd = HTTPServer(("127.0.0.1", 0), _HandlerRedirectLocal)
+        puerto = httpd.server_address[1]
+        hilo = threading.Thread(target=httpd.serve_forever, daemon=True)
+        hilo.start()
+        try:
+            salud = self.mod.health(
+                {"health": {"url": f"http://127.0.0.1:{puerto}/health", "timeout_ms": 500}})
+            self.assertIn(salud["estado"], ("sano", "degradado"))
+        finally:
+            httpd.shutdown()
+            httpd.server_close()
+
+    # ---- gap 117: la resolucion DNS respeta un tope y se cachea ----
+
+    def test_host_permitido_dns_lento_no_bloquea_mas_del_tope(self):
+        import time as _time
+        self.mod._dns_cache.clear()
+        original = self.mod.socket.gethostbyname
+
+        def _lento(host):
+            _time.sleep(5)
+            return "8.8.8.8"
+
+        self.mod.socket.gethostbyname = _lento
+        try:
+            t0 = _time.monotonic()
+            permitido = self.mod._host_permitido("http://dns-lento.ejemplo.invalid/x")
+            duracion = _time.monotonic() - t0
+        finally:
+            self.mod.socket.gethostbyname = original
+        self.assertFalse(permitido)
+        self.assertLess(duracion, 2.0)
+
+    def test_host_permitido_cachea_resolucion_por_proceso(self):
+        self.mod._dns_cache.clear()
+        llamadas = []
+        original = self.mod.socket.gethostbyname
+
+        def _contador(host):
+            llamadas.append(host)
+            return "127.0.0.1"
+
+        self.mod.socket.gethostbyname = _contador
+        try:
+            self.mod._host_permitido("http://cacheado.ejemplo.invalid/a")
+            self.mod._host_permitido("http://cacheado.ejemplo.invalid/b")
+        finally:
+            self.mod.socket.gethostbyname = original
+        self.assertEqual(len(llamadas), 1)
+
+    # ---- gap 121: contencion con realpath/normcase (junction o mayusculas) ----
+
+    def test_export_dir_dentro_de_approved_con_mayusculas_distintas_es_config_invalida(self):
+        cfg = dict(self.cfg, export_dir=os.path.join(
+            "Docs", "Knowledge", "Approved", "x").upper())
+        with self.assertRaises(self.mod.ConfigInvalida):
+            self.mod.plan([], cfg)
+
+    def test_export_dir_por_symlink_hacia_approved_es_config_invalida(self):
+        approved = os.path.join(self.root, "docs", "knowledge", "approved")
+        os.makedirs(approved, exist_ok=True)
+        enlace = os.path.join(self.root, "enlace-a-approved")
+        try:
+            os.symlink(approved, enlace, target_is_directory=True)
+        except (OSError, NotImplementedError):
+            self.skipTest("symlinks no disponibles en este entorno (permiso/plataforma)")
+        cfg = dict(self.cfg, export_dir=enlace)
+        with self.assertRaises(self.mod.ConfigInvalida):
+            self.mod.plan([], cfg)
+
+
 if __name__ == "__main__":
     unittest.main()
