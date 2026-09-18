@@ -20,9 +20,13 @@ flowchart LR
 
 ## 1. Entrada y salida
 
-- **Entrada:** candidatos bajo `docs/knowledge/candidates/{pending,needs_changes,rejected}/`
+- **Entrada:** candidatos bajo `docs/knowledge/candidates/{pending,needs_changes}/`
   (propuestos por `documenter`, T-05, o directamente por el usuario) y el índice de
-  `docs/knowledge/approved/` (para detectar contradicciones/duplicados).
+  `docs/knowledge/approved/` (para detectar contradicciones/duplicados). `rejected/` es
+  **terminal** (gap 49/67 de la revisión de dos lentes de la Fase 2): una vez ahí, un candidato
+  solo admite `--decision reject` (idempotente) — el curador no lo vuelve a leer para `approve`
+  ni `needs_changes`, y el disparador de la Fase 4-bis de `/dev-cycle` tampoco reacciona a
+  `rejected/**` (`commands/dev-cycle.md`).
 - **Salida:** el propio árbol de `docs/knowledge/candidates/**` (mueve/actualiza ficheros dentro) y
   `docs/knowledge/approved/<folder>/` (candidatos aprobados, con frontmatter completo). Nunca
   escribe fuera de `docs/knowledge/**`, no exporta a ningún backend y no toca `docs/roadmap/`.
@@ -64,7 +68,17 @@ nunca resuelve solo.
 
 | Entrada | Salida | Exit codes |
 |---|---|---|
-| ruta del candidato + `--decision` + categoría (frontmatter o `--category`) + `--root` | `{decision, categoria, errores[]}` (`--json`) o texto | `0` decisión permitida · `1` con errores bloqueantes (solo en `approve`) · `2` uso/taxonomía inválida/candidato inexistente |
+| ruta del candidato + `--decision` + categoría (frontmatter o `--category`) + `--root` [+ `--id`] | `{decision, categoria, errores[], avisos[]}` (`--json`) o texto | `0` decisión permitida · `1` con errores bloqueantes (solo en `approve`) · `2` uso/taxonomía inválida/candidato inexistente/`rejected/` con decisión distinta de `reject` |
+
+La guarda de colisión de `id` (gap 68 de la revisión de dos lentes de la Fase 2) compara el `id`
+del frontmatter — o, si no lo trae, el que se le vaya a asignar vía `--id <el-id>` — contra el
+índice de `approved/`; si el candidato no declara `id` y tampoco se pasa `--id`, el gate **no
+bloquea** pero añade un `aviso` (`avisos[]`, no `errores[]`) de que la colisión de id no se ha
+comprobado. La lista negra (`denylist` de `taxonomy.json`) pliega acentos en ambos lados de la
+comparación (`conversación` casa con el término `conversacion` y viceversa, gap 64), acepta
+términos de varias palabras separadas por espacio o guion (`chain of thought` ≡ `chain-of-thought`,
+gap 66) y solo exige límite de palabra en el lado del término que empieza/termina con un carácter
+de palabra (`TODO:` dispara aunque le siga `limpiar` sin espacio, gap 65).
 
 Ver `agent-kits/knowledge-curator/README.md` para el detalle del contrato y
 `agent-kits/knowledge-curator/test_curator_gate.py` para los casos cubiertos.

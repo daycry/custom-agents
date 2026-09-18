@@ -63,7 +63,7 @@ la propuesta la tiene mal, corrígela en el propio candidato antes de decidir.
 
 **P3 — Ejecutar la puerta.** Por cada candidato:
 ```bash
-python3 "$MIKIT/curator-gate.py" <candidato.md> --decision approve|reject|needs_changes [--category KEY] --root . --json
+python3 "$MIKIT/curator-gate.py" <candidato.md> --decision approve|reject|needs_changes [--category KEY] --root . [--id ID] --json
 ```
 - `errores == []` con `approve` → el candidato cumple evidencia mínima de su categoría, `fuentes`,
   `tags` y lista negra: puedes promocionarlo (P4).
@@ -73,6 +73,14 @@ python3 "$MIKIT/curator-gate.py" <candidato.md> --decision approve|reject|needs_
 - Un error de **contradicción** (el candidato afirma lo contrario de una entrada ya `approved/`) o
   de **alto impacto** (afecta a 2+ piezas del plugin, o reescribe una decisión ya tomada) no lo
   resuelve el gate — **pregunta al usuario** antes de decidir.
+- **`rejected/` es terminal** (gap 67): un candidato que ya vive ahí solo admite
+  `--decision reject` (idempotente); pedirle `approve`/`needs_changes` es error de uso (`exit 2`),
+  no una re-evaluación.
+- Si vas a **aprobar** un candidato que todavía no trae `id` en su frontmatter, pasa
+  `--id <el-id-que-le-vas-a-asignar>` (gap 68) para que la guarda de colisión lo compruebe contra
+  `approved/` ANTES de escribirlo; sin `id` ni `--id` el gate deja pasar la decisión pero devuelve
+  un `aviso` de que la colisión no se ha comprobado — no lo ignores, resuélvelo a mano si el `id`
+  que vas a poner es sospechoso de existir ya.
 
 **P4 — Escribir el resultado.**
 - **Aprobado:** mueve el fichero a `docs/knowledge/approved/<folder>/`, con frontmatter completo:
