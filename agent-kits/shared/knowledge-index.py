@@ -46,10 +46,8 @@ import sys
 
 # Consola no UTF-8 (Windows cp1252) o tuberías: reconfigurar ANTES de leer/imprimir (GOT-005).
 for _s in (sys.stdin, sys.stdout, sys.stderr):
-    try:
-        _s.reconfigure(encoding="utf-8", errors="replace")
-    except Exception:  # noqa: BLE001 - ya leído, o None (capsys/pythonw)
-        pass
+    try: _s.reconfigure(encoding="utf-8", errors="replace")
+    except Exception: pass  # noqa: BLE001 — sin reconfigure, ya leído o None (capsys, pythonw)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -124,8 +122,11 @@ def _frontmatter(texto):
                 datos[clave] = valor.strip('"').strip("'")
             i += 1
             continue
-        # Clave sin valor en la misma línea: puede ser una lista en bloque (líneas siguientes
-        # indentadas que empiezan por "- "). Si no hay ninguna, la clave queda vacía (cadena "").
+        # Clave sin valor en la misma línea: puede ser una lista en bloque (líneas siguientes con
+        # "- X", indentadas o a la MISMA sangría que la clave — gap 25: PyYAML por defecto emite
+        # los items de una secuencia de bloque SIN indentar respecto a su clave, así que exigir
+        # `indent_sub > indent_clave` dejaba esa forma, perfectamente válida, sin parsear). Si no
+        # hay ninguna, la clave queda vacía (cadena "").
         indent_clave = len(cruda) - len(cruda.lstrip())
         items = []
         j = i + 1
@@ -135,7 +136,7 @@ def _frontmatter(texto):
                 j += 1
                 continue
             indent_sub = len(sub) - len(sub.lstrip())
-            if indent_sub <= indent_clave:
+            if indent_sub < indent_clave:
                 break
             mi = _ITEM_BLOQUE_RE.match(sub.strip())
             if not mi:
@@ -169,7 +170,13 @@ def _ruta_segura_dentro(base, ruta):
     cualquier otra vía de escape que el fichero de config no controle)."""
     base_real = os.path.realpath(base)
     ruta_real = os.path.realpath(ruta)
-    return os.path.commonpath([base_real, ruta_real]) == base_real
+    try:
+        return os.path.commonpath([base_real, ruta_real]) == base_real
+    except ValueError:
+        # gap 31: un symlink/junction a OTRA unidad de Windows hace que `commonpath` lance
+        # "Paths don't have the same drive" en vez de devolver un booleano; sin unidad comun no
+        # puede estar DENTRO de `base`, así que degrada a "fuera" (fail-closed) sin traceback.
+        return False
 
 
 _ESTADOS_VALIDOS_APROBADO = {"aprobado"}
@@ -181,7 +188,13 @@ def _validar_frontmatter_forma(fm, ruta):
     errores = []
     if "estado" in fm:
         estado = fm["estado"]
-        if not isinstance(estado, str) or estado not in _ESTADOS_VALIDOS_APROBADO:
+        if estado == "":
+            # gap 33: `_frontmatter()` devuelve `""` para una clave presente SIN valor (ni
+            # escalar ni lista de bloque) — un mensaje que dice `(``)` "no es valido" confunde
+            # esto con un valor explicito mal escrito.
+            errores.append(_error(
+                "`estado` presente sin valor (se esperaba `aprobado`)", ruta, "estado"))
+        elif not isinstance(estado, str) or estado not in _ESTADOS_VALIDOS_APROBADO:
             errores.append(_error(
                 f"`estado` declarado (`{estado}`) no es válido para una entrada bajo `approved/` "
                 f"(se esperaba `aprobado`)", ruta, "estado"))
@@ -218,6 +231,11 @@ def build_index(root=None):
     indice = {}
     errores = []
     vistos_en = {}  # id -> primera ruta donde se vio (para el mensaje de duplicado)
+    # gap 30: dos `folder` declarados pueden anidarse legalmente segun `_folder_seguro`
+    # (`"adr"` y `"adr/legacy"`); sin dedupe, `os.walk` visitaba el MISMO fichero fisico dos
+    # veces (una por carpeta) y el chequeo de `id` duplicado (mas abajo) lo reportaba como error
+    # contra si mismo. Se deduplica por `os.path.realpath`, no por ruta cruda.
+    rutas_vistas_real = set()
 
     for folder in sorted(carpetas):
         d = os.path.join(base, folder)
@@ -229,7 +247,12 @@ def build_index(root=None):
             for nombre in sorted(filenames):
                 if not nombre.lower().endswith(".md") or nombre.upper() == "README.MD":
                     continue
-                rutas_md.append(os.path.join(dirpath, nombre))
+                candidata = os.path.join(dirpath, nombre)
+                real = os.path.realpath(candidata)
+                if real in rutas_vistas_real:
+                    continue
+                rutas_vistas_real.add(real)
+                rutas_md.append(candidata)
         for ruta in sorted(rutas_md):
             if not _ruta_segura_dentro(d, ruta):
                 errores.append(_error(
@@ -241,6 +264,12 @@ def build_index(root=None):
                     texto = f.read()
             except OSError as e:
                 errores.append(_error(f"no se pudo leer: {e}", ruta, "$"))
+                continue
+            except UnicodeDecodeError as e:
+                # gap 26: un .md en cp1252/latin-1 no descodifica como utf-8-sig; se reporta como
+                # error de ESTA entrada (campo "encoding") y el índice sigue con el resto, en vez
+                # de tumbar `build_index` entero con un traceback.
+                errores.append(_error(f"no se pudo leer con codificacion utf-8: {e}", ruta, "encoding"))
                 continue
             fm = _frontmatter(texto)
             id_ = fm.get("id")
