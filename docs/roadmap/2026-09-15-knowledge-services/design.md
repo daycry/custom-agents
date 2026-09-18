@@ -76,9 +76,9 @@ docs/knowledge/{candidates/{pending,needs_changes,rejected},approved/<categorias
 |---|---|---|
 | `health(cfg) -> {estado, detalle}` | salud/desfase sin efectos; `estado` en `off · sano · degradado · error` | si |
 | `plan(entries, cfg) -> ops` | calcula operaciones idempotentes a partir de las entradas `approved` YA filtradas por `routing` | si |
-| `apply(ops, cfg) -> result` | ejecuta sobre un staging de `outbox.py`; publica de forma atomica | si |
+| `apply(ops, cfg) -> result` | publica FICHERO A FICHERO con diario: escribe los `upsert` en un staging HERMANO de `export_dir` (los `sin_cambios` no se tocan), escribe `manifest.pending.json` con el estado final previsto, publica cada `upsert` con un `os.replace` individual y ejecuta los `revoke` solo sobre ficheros propios, y renombra el diario a `manifest.json`; nunca borra ficheros ajenos ni intercambia el arbol entero; un fallo a mitad deja el diario y la corrida siguiente completa la publicacion (`verify` la declara `publicacion_incompleta`). La cola (`outbox.py`) envuelve la corrida y se drena al arrancar (revision de la Fase 3, intentos 2-3) | si |
 | `verify(cfg) -> {ok, desfase}` | compara manifiesto vs fuente | si |
-| `rebuild(cfg)` | reconstruye la proyeccion entera desde `approved/` | si |
+| `rebuild(cfg)` | reconstruye la proyeccion entera desde `approved/` (= `plan(force)` + `apply`: regenera todo y retira solo huerfanos PROPIOS) | si |
 | `revoke(knowledge_id, cfg)` | invalida/tombstone una entrada retirada de `approved/` | si (puede ser no-op declarado) |
 
 `knowledge-sync.py` carga el adaptador por `type`, aplica `routing` **antes** de llamar a `plan` (el adaptador

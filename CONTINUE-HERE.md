@@ -40,8 +40,10 @@
 > (#126 rollback pierde la publicación, #127 `apply` borra todo lo ajeno en `export_dir`, incl. `export_dir: docs`,
 > #128 outbox atascada permanente) + 3 Important + 8 Minor (#129–#139). **Decisión del orquestador (excede el bucle;
 > revocable en el PR):** SUSTITUIR el diseño por «publicación por fichero con diario `manifest.pending.json`, sin mover
-> ni borrar nada ajeno» + drenaje de la outbox; **ronda `T-0X-fix3` de Fase 3 despachada** con ese diseño. Después:
-> verificación dirigida del orquestador (probes de A/B/D) → cerrar bucle Fase 3 → Fase 4 (T-04 curator, T-05 documenter, T-06 Fase 4-bis) → Fase 3 (T-07 sync +
+> ni borrar nada ajeno» + drenaje de la outbox; ronda fix3 hecha (656bfd8, 8385cf8, 3694629, 4b43f48) y **verificada por el
+> orquestador con los probes de A/B/D → bucle Fase 3 CERRADO** (deuda Minor #140: cola crece durante el backoff). Progreso
+> 10/13. Siguiente: **Fase 4 (T-10 regresión/aislamiento, T-11 docs/espejos/changelog, T-12 puertas+QA+retro)** → qa sin UI →
+> documenter → Fase 4-bis → cierre (changelog-sync, /retro, retro-gate) → push + PR (T-04 curator, T-05 documenter, T-06 Fase 4-bis) → Fase 3 (T-07 sync +
 > contrato, T-08 adaptador Kwipu, T-09 setup/doctor) → Fase 4 (T-10, T-11, T-12) → qa sin UI → documenter → cierre
 > (changelog-sync, /retro + retro-gate) → graphiti-memory.
 >
