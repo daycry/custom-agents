@@ -15,7 +15,9 @@
 > hecha** (bf97acd..47314a9: 11/11 cerrados). **Intento 3** (cb92ea0): 5 nuevos (#35–#39) → decisión del orquestador
 > (autónomo, sin Critical, convergente): ronda `fix4` (55499be, c3e7aeb) + verificación dirigida → **bucle CERRADO**
 > (ec75d4c; 39 gaps en total, 0 pendientes, #21 deuda). **Fase 2 (T-04 knowledge-curator, T-05 documenter propone,
-> T-06 Fase 4-bis) despachada al `implementer`**. Siguiente: revisión de dos lentes de la Fase 2 (intento 1) → Fase 3 (T-04 curator, T-05 documenter, T-06 Fase 4-bis) → Fase 3 (T-07 sync +
+> T-06 Fase 4-bis) HECHA** (5d03c16, db00d0f, 230a876). **Revisión Fase 2 intento 1** (4539ab2): 19 gaps (#40–#58;
+> 2 Critical: `MODOS` de `curator-gate.py` y lista negra por subcadena). **Ronda `T-0X-fix1` de Fase 2 despachada.**
+> Siguiente: intento 2 de la Fase 2 (solo lo corregido) → Fase 3 (T-04 curator, T-05 documenter, T-06 Fase 4-bis) → Fase 3 (T-07 sync +
 > contrato, T-08 adaptador Kwipu, T-09 setup/doctor) → Fase 4 (T-10, T-11, T-12) → qa sin UI → documenter → cierre
 > (changelog-sync, /retro + retro-gate) → graphiti-memory.
 >
