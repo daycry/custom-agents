@@ -20,11 +20,11 @@ verificacion: obligatoria
 
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervision (real/est) | Tokens (real/est) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| Fase 1 - Contrato y validacion | 2 | 3 | 67% | 0 / 13h | 0.47 / 3.9h | 0 / 1.0h | ~56k / 200k |
+| Fase 1 - Contrato y validacion | 3 | 3 | 100% | 0 / 13h | 0.51 / 3.9h | 0 / 1.0h | ~57k / 200k |
 | Fase 2 - Curacion y workflow | 0 | 3 | 0% | 0 / 14h | 0 / 4.2h | 0 / 1.1h | 0 / 210k |
 | Fase 3 - Backends y Kwipu | 0 | 4 | 0% | 0 / 19h | 0 / 5.7h | 0 / 1.4h | 0 / 275k |
 | Fase 4 - Regresion y cierre | 0 | 3 | 0% | 0 / 10h | 0 / 3.0h | 0 / 0.7h | 0 / 130k |
-| **TOTAL** | **2** | **13** | **15%** | **0 / 56h** | **0.47 / 16.8h** | **0 / 4.2h** | **~56k / 815k** |
+| **TOTAL** | **3** | **13** | **23%** | **0 / 56h** | **0.51 / 16.8h** | **0 / 4.2h** | **~57k / 815k** |
 
 ## Fase 1 - Contrato y validacion
 
@@ -65,15 +65,19 @@ verificacion: obligatoria
 - **Nota de alcance (para la revision de dos lentes)**: `knowledge-index.py` opera SOLO sobre `docs/knowledge/approved/<folder>/`, no sobre el corpus legado `docs/knowledge/{adr,gotchas,lessons}/` (ese sigue con el indice manual + `knowledge-lint.py` diferido de ADR-006 D4, sin tocar). Decision tomada sin respaldo literal en spec/design mas alla de "indice canonico determinista sobre la taxonomia configurada"; exigir `version`/`enlaces` a las entradas legadas habria roto ADR-001..ADR-017/GOT-.../LES-... existentes (no llevan esos campos). Tambien: el parser de frontmatter y la carga de `knowledge-schema.py` se resolvieron con un loader `importlib` por ruta relativa (mismo fichero, misma carpeta `agent-kits/shared/`) en vez de reimplementar toda la validacion de `taxonomy.json`; no hay import de `knowledge-find.py` (se mantiene el criterio de scripts standalone).
 
 ### T-03 - Estructura e ignorados de derivados
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo humano**: est. 3h · real -
+- **Tiempo IA**: real 0.04h (medido; usage-meter, 2m, 0.86 EUR)
 - **Prevision IA**: 35k in / 10k out tok
 - **Dependencias**: T-01
 - **Tipo**: docs
-- **Archivos**: `.gitignore`, `docs/knowledge/candidates/`, `docs/knowledge/approved/`, `docs/knowledge/README.md`
+- **Archivos**: `.gitignore`, `docs/knowledge/candidates/`, `docs/knowledge/approved/`, `docs/knowledge/README.md`, `tests/test_knowledge_index.py` (nota: fuera de la lista original; la propia `Verificacion` de esta tarea ya lo citaba, se añade aqui para que `scope-check.py` y esta tabla queden coherentes con lo que realmente se ejecuta)
 - **Verificacion**: `python -m pytest -q tests/test_knowledge_index.py` -> fuentes e indice coherentes sin derivados
+  - Salida real: `6 passed in 0.13s`.
+  - TDD n/a: docs/config (estructura de carpetas, README de ownership, entradas de `.gitignore`); el test de integracion se escribio junto al artefacto para verificar mecanicamente la estructura, no como ciclo RED-GREEN de una unidad de codigo.
 **Criterios de aceptación**
-- [ ] Sin arbol projects; ownership documentado; export no versionado.
+- [x] Sin arbol projects; ownership documentado; export no versionado.
+- **Changelog**: El flujo de conocimiento del proyecto ahora separa claramente lo propuesto (`candidates/`) de lo aprobado (`approved/`), con las exportaciones a backends siempre excluidas del control de versiones.
 
 ## Fase 2 - Curacion y workflow
 
