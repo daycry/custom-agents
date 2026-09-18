@@ -20,8 +20,10 @@
 > **Intento 2 Fase 2** (6dfcd42): 19/19 cerrados, 13 nuevos (#59–#71; 2 Important: acentos en la lista negra y
 > **YAML de `ci.yml` inválido en la línea 54, preexistente en master, bloquea CI**). Ronda fix2 hecha (c36707d..df20d16,
 > incl. `fix(ci)` 3b6ef8e). **Intento 3 Fase 2** (c3f8bff): 13/13 cerrados, 10 nuevos (#72–#81; 72–74 cerrados por el
-> orquestador) → decisión del orquestador (como en Fase 1): **ronda `T-04-fix3` acotada a #75–#81 despachada** + verificación
-> dirigida. Siguiente: cerrar bucle Fase 2 → Fase 3 (T-04 curator, T-05 documenter, T-06 Fase 4-bis) → Fase 3 (T-07 sync +
+> orquestador) → ronda `T-04-fix3` (3dbdd88) + verificación dirigida → **bucle Fase 2 CERRADO** (d20dfab; 42 gaps,
+> 0 pendientes). Progreso 7/13. **Fase 3 (T-07 knowledge-sync + contrato, T-08 adaptador Kwipu + skill, T-09
+> setup/doctor) despachada al `implementer`**; fixtures en `%TEMP%\ks-fixtures`. Siguiente: revisión Fase 3 → validación EN
+> VIVO del adaptador contra el bridge (activar `generated_knowledge` en `projects.yaml` del stack + `build_view` + reinicio) → Fase 4 (T-04 curator, T-05 documenter, T-06 Fase 4-bis) → Fase 3 (T-07 sync +
 > contrato, T-08 adaptador Kwipu, T-09 setup/doctor) → Fase 4 (T-10, T-11, T-12) → qa sin UI → documenter → cierre
 > (changelog-sync, /retro + retro-gate) → graphiti-memory.
 >
