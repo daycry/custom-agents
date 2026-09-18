@@ -1,5 +1,29 @@
 # CONTINUE-HERE
 
+> **2026-09-18 — EN CURSO: `/dev-cycle knowledge-services` (flujo completo, Fase 3) en la rama `feature/knowledge-services`**
+> (ramificada de `feature/session-end-durable-capture`, que está cerrada con retro pero SIN PR/merge: el PR de esa
+> iniciativa sigue pendiente; `outbox.py` solo existe en estas ramas). Objetivo del usuario (`/goal`): que el plugin,
+> con Kwipu y Graphiti activados en `.claude/knowledge-services/taxonomy.json`, se integre con el stack local
+> `dockers/knowledge-graphs` (bridge `127.0.0.1:8765`, Graphiti MCP `127.0.0.1:8001/mcp`) y el flujo sea correcto.
+> Orden: knowledge-services completo → graphiti-memory (depende de knowledge-services `completado`).
+>
+> Estado del ledger `docs/roadmap/2026-09-15-knowledge-services/tasks.md`: T-01, T-02, T-03, T-13 `completado`
+> (Fase 1 + registro de capacidades). **Revisión de dos lentes — intento 1** escrita (22 gaps: 1 Critical =
+> colisión de basename `test_knowledge_index.py` que apaga la colección del comando de CI; 10 Important; 11 Minor;
+> #19 corregido por el orquestador en `design.md`, #21 deuda aceptada). **Ronda `T-XX-fix2` despachada al
+> `implementer`** (agente fresco). Siguiente: intento 2 de la revisión (pasar la tabla del intento 1 a las lentes,
+> re-evaluar SOLO lo corregido) → Fase 2 (T-04 curator, T-05 documenter, T-06 Fase 4-bis) → Fase 3 (T-07 sync +
+> contrato, T-08 adaptador Kwipu, T-09 setup/doctor) → Fase 4 (T-10, T-11, T-12) → qa sin UI → documenter → cierre
+> (changelog-sync, /retro + retro-gate) → graphiti-memory.
+>
+> Fixtures reales del stack grabadas el 2026-09-18 para T-08 y graphiti T-04 (health, snapshot, query, MCP
+> initialize/tools-list/get_status): `C:\Users\46066917X\AppData\Local\Temp\ks-fixtures\` (regrábalas con
+> `curl` si falta la carpeta; Docker debe estar levantado). Enmiendas 2026-09-18 en ambas specs (commit `c6aced3`).
+> Linter: 1 ❌ PREEXISTENTE en `docs/knowledge/lessons/LES-016-*.md:5` (YAML del campo `estado`) que bloqueará
+> `release.py`: arreglar antes de publicar (entrecomillar el valor). `.claude/dev.json` está sin versionar
+> (`tdd: true`). Validación en vivo contra Kwipu: hacerla al cerrar T-08 (activar `generated_knowledge` en
+> `projects.yaml` del stack + `build_view` + reinicio es del usuario/stack, no del plugin).
+
 > **2026-09-11 — `installer-registro-real` PUBLICADA en v1.20.0.** PR #2 mezclado en master (`0a10e7a`), release
 > `e5774f8` + tag `v1.20.0` publicados, **CI de master en verde** en los dos commits (llevaba roja desde los merges
 > de R2 y R3 del refactor, que integré sin comprobar el workflow: corregido en esta tanda).
