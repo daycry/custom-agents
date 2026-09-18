@@ -96,6 +96,31 @@ evidencia: validated_case
 # Sin fuentes ni tags
 """
 
+# gap 61: `fuentes`/`tags` PRESENTES pero escalares (no lista) — mensaje distinto de "falta".
+CANDIDATO_FUENTES_ESCALAR = """---
+id: ca.gotcha.ejemplo
+category: GOTCHA
+evidencia: validated_case
+fuentes: docs/x.md
+tags:
+  - area:testing
+---
+
+# `fuentes` declarado pero como escalar, no lista
+"""
+
+CANDIDATO_TAGS_ESCALAR = """---
+id: ca.gotcha.ejemplo
+category: GOTCHA
+evidencia: validated_case
+fuentes:
+  - docs/x.md
+tags: area:testing
+---
+
+# `tags` declarado pero como escalar, no lista
+"""
+
 CANDIDATO_ESTADO_APPROVED_INVALIDO = """---
 id: ca.gotcha.ejemplo
 category: GOTCHA
@@ -186,6 +211,40 @@ def test_approve_sin_fuentes_ni_tags_bloquea_ambos():
         assert exit_code == 1
         campos = {e["campo"] for e in veredicto["errores"]}
         assert "fuentes" in campos and "tags" in campos
+
+
+def test_approve_fuentes_ausente_vs_escalar_dan_mensajes_distintos():
+    """Gap 61: mismo `campo` (`fuentes`), pero el diagnostico de "falta" y el de "declarado pero
+    escalar" tienen que ser mensajes DISTINTOS (gap 52 ya lo exigia para el gate; sin un test que
+    compare las dos ramas, un mutante que las colapsa en una sola sigue en verde)."""
+    with tempfile.TemporaryDirectory() as tmp:
+        ruta_ausente = _escribir(tmp, "ausente.md", CANDIDATO_SIN_FUENTES_NI_TAGS)
+        v_ausente, exit_ausente = cg.evaluar(ruta_ausente, "approve", root=tmp)
+        ruta_escalar = _escribir(tmp, "escalar.md", CANDIDATO_FUENTES_ESCALAR)
+        v_escalar, exit_escalar = cg.evaluar(ruta_escalar, "approve", root=tmp)
+
+        assert exit_ausente == 1 and exit_escalar == 1
+        msg_ausente = next(e["mensaje"] for e in v_ausente["errores"] if e["campo"] == "fuentes")
+        msg_escalar = next(e["mensaje"] for e in v_escalar["errores"] if e["campo"] == "fuentes")
+        assert msg_ausente != msg_escalar
+        assert "falta" in msg_ausente and "falta" not in msg_escalar
+        assert "declarado" in msg_escalar
+
+
+def test_approve_tags_ausente_vs_escalar_dan_mensajes_distintos():
+    """Gap 61, simetrico para `tags`."""
+    with tempfile.TemporaryDirectory() as tmp:
+        ruta_ausente = _escribir(tmp, "ausente.md", CANDIDATO_SIN_FUENTES_NI_TAGS)
+        v_ausente, exit_ausente = cg.evaluar(ruta_ausente, "approve", root=tmp)
+        ruta_escalar = _escribir(tmp, "escalar.md", CANDIDATO_TAGS_ESCALAR)
+        v_escalar, exit_escalar = cg.evaluar(ruta_escalar, "approve", root=tmp)
+
+        assert exit_ausente == 1 and exit_escalar == 1
+        msg_ausente = next(e["mensaje"] for e in v_ausente["errores"] if e["campo"] == "tags")
+        msg_escalar = next(e["mensaje"] for e in v_escalar["errores"] if e["campo"] == "tags")
+        assert msg_ausente != msg_escalar
+        assert "falta" in msg_ausente and "falta" not in msg_escalar
+        assert "declarado" in msg_escalar
 
 
 def test_approve_sin_categoria_es_error_de_uso():
@@ -323,6 +382,60 @@ def test_denylist_todo_dos_puntos_en_el_cuerpo_bloquea():
         assert any(e["campo"] == "denylist" for e in veredicto["errores"])
 
 
+def test_denylist_plegado_de_acentos_dispara_sobre_prosa_real():
+    """Gap 64: el termino por defecto `conversacion cruda` viaja SIN tildes (ASCII, deliberado),
+    pero la prosa real de un candidato SI las lleva — sin plegar acentos, «conversación cruda»
+    nunca disparaba."""
+    contenido = CANDIDATO_COMPLETO.replace(
+        "# Un gotcha de ejemplo",
+        "# Un gotcha de ejemplo\n\nEsto es una conversación cruda pegada sin depurar.")
+    with tempfile.TemporaryDirectory() as tmp:
+        ruta = _escribir(tmp, "c.md", contenido)
+        veredicto, exit_code = cg.evaluar(ruta, "approve", root=tmp)
+        assert exit_code == 1
+        assert any(e["campo"] == "denylist" for e in veredicto["errores"])
+
+
+def test_denylist_metodo_con_acento_no_dispara_nada():
+    """Gap 64, simetrico: plegar acentos no debe convertir palabras normales en falsos positivos —
+    «Método» (con tilde) sigue sin ser el marcador `TODO:` ni ningun otro termino de la lista."""
+    contenido = CANDIDATO_COMPLETO.replace(
+        "# Un gotcha de ejemplo",
+        "# Un gotcha de ejemplo\n\nEl Método public quedó probado end to end.")
+    with tempfile.TemporaryDirectory() as tmp:
+        ruta = _escribir(tmp, "c.md", contenido)
+        veredicto, exit_code = cg.evaluar(ruta, "approve", root=tmp)
+        assert exit_code == 0
+        assert veredicto["errores"] == []
+
+
+def test_denylist_todo_dos_puntos_sin_espacio_dispara():
+    """Gap 65: `TODO:limpiar` (sin espacio) tiene que disparar igual que `TODO: limpiar` — un
+    termino que ya acaba en puntuacion no debe exigir un caracter "no palabra" tras el, porque el
+    propio termino ya aporta el limite."""
+    contenido = CANDIDATO_COMPLETO.replace(
+        "# Un gotcha de ejemplo",
+        "# Un gotcha de ejemplo\n\nTODO:limpiar este caso mas adelante.")
+    with tempfile.TemporaryDirectory() as tmp:
+        ruta = _escribir(tmp, "c.md", contenido)
+        veredicto, exit_code = cg.evaluar(ruta, "approve", root=tmp)
+        assert exit_code == 1
+        assert any(e["campo"] == "denylist" for e in veredicto["errores"])
+
+
+def test_denylist_termino_multipalabra_casa_con_espacios_y_guiones():
+    """Gap 66: el termino por defecto `chain-of-thought` (guion) tiene que casar tambien con la
+    forma escrita con espacios («chain of thought»), y viceversa."""
+    contenido = CANDIDATO_COMPLETO.replace(
+        "# Un gotcha de ejemplo",
+        "# Un gotcha de ejemplo\n\nEsto es un volcado de chain of thought del agente.")
+    with tempfile.TemporaryDirectory() as tmp:
+        ruta = _escribir(tmp, "c.md", contenido)
+        veredicto, exit_code = cg.evaluar(ruta, "approve", root=tmp)
+        assert exit_code == 1
+        assert any(e["campo"] == "denylist" for e in veredicto["errores"])
+
+
 # ------------------------------------------------------------------ gap 45: degradacion sin kit compartido
 
 
@@ -337,6 +450,26 @@ def test_kit_compartido_no_disponible_degrada_sin_traceback(monkeypatch):
         assert exit_code == 2
         assert veredicto["errores"][0]["campo"] == "$"
         assert "no se encontro" in veredicto["errores"][0]["mensaje"]
+
+
+def test_kit_compartido_solo_falta_knowledge_index_degrada_sin_traceback(monkeypatch):
+    """Gap 70: el test de arriba (gap 45) parchea `SHARED` ENTERO, así que el PRIMER `_cargar`
+    (`knowledge-schema.py`) ya falla y la carga de `knowledge-index.py` nunca llega a ejecutarse —
+    un mutante que sacara esa segunda carga del `try/except` (volviendo al defecto que el gap 45
+    corrigió) seguía en verde con ese test solo. Aquí SOLO falta `knowledge-index.py`:
+    `knowledge-schema.py` carga bien, así que la carga de `ki` SÍ se ejecuta de verdad — si el
+    mutante la sacara del `try`, revienta con un traceback real en vez de degradar limpio."""
+    import shutil
+    with tempfile.TemporaryDirectory() as shared_falso:
+        shutil.copy(os.path.join(cg.SHARED, "knowledge-schema.py"), shared_falso)
+        # deliberadamente NO se copia knowledge-index.py
+        monkeypatch.setattr(cg, "SHARED", shared_falso)
+        with tempfile.TemporaryDirectory() as tmp:
+            ruta = _escribir(tmp, "c.md", CANDIDATO_COMPLETO)
+            veredicto, exit_code = cg.evaluar(ruta, "approve", root=tmp)
+            assert exit_code == 2
+            assert veredicto["errores"][0]["campo"] == "$"
+            assert "no se encontro" in veredicto["errores"][0]["mensaje"]
 
 
 # ------------------------------------------------------------------ gap 47: escalera de evidencia por defecto
@@ -394,6 +527,39 @@ def test_candidato_fuera_del_arbol_del_proyecto_no_es_un_candidato():
         assert exit_code == 2
 
 
+# ------------------------------------------------------------------ gap 67: `rejected/` es terminal
+
+
+def test_approve_sobre_candidato_en_rejected_es_error_de_uso():
+    """Gap 67: `rejected/` es terminal (invariante fijado por el gap 49) — un candidato que ya vive
+    ahi no admite `approve`, aunque el frontmatter sea perfectamente valido."""
+    with tempfile.TemporaryDirectory() as tmp:
+        ruta = _escribir(tmp, "c.md", CANDIDATO_COMPLETO, carpeta="rejected")
+        veredicto, exit_code = cg.evaluar(ruta, "approve", root=tmp)
+        assert exit_code == 2
+        assert veredicto["errores"][0]["campo"] == "$"
+        assert "terminal" in veredicto["errores"][0]["mensaje"]
+
+
+def test_needs_changes_sobre_candidato_en_rejected_es_error_de_uso():
+    """Gap 67, simetrico para `needs_changes`."""
+    with tempfile.TemporaryDirectory() as tmp:
+        ruta = _escribir(tmp, "c.md", CANDIDATO_COMPLETO, carpeta="rejected")
+        veredicto, exit_code = cg.evaluar(ruta, "needs_changes", root=tmp)
+        assert exit_code == 2
+        assert "terminal" in veredicto["errores"][0]["mensaje"]
+
+
+def test_reject_sobre_candidato_ya_en_rejected_es_idempotente():
+    """Gap 67: `--decision reject` sobre un candidato que YA vive en `rejected/` es idempotente
+    (no es un error de uso volver a rechazar lo ya rechazado)."""
+    with tempfile.TemporaryDirectory() as tmp:
+        ruta = _escribir(tmp, "c.md", CANDIDATO_COMPLETO, carpeta="rejected")
+        veredicto, exit_code = cg.evaluar(ruta, "reject", root=tmp)
+        assert exit_code == 0
+        assert veredicto["errores"] == []
+
+
 # ------------------------------------------------------------------ gap 50: colision al aprobar
 
 
@@ -419,6 +585,37 @@ def test_approve_nombre_de_fichero_ya_existente_en_destino_bloquea():
         veredicto, exit_code = cg.evaluar(ruta, "approve", root=tmp)
         assert exit_code == 1
         assert any(e["campo"] == "$" and "mismo nombre" in e["mensaje"] for e in veredicto["errores"])
+
+
+# ------------------------------------------------------------------ gap 68: `--id` para candidatos sin `id` propio
+
+
+def test_approve_sin_id_ni_override_avisa_colision_no_comprobada():
+    """Gap 68: la guarda de colision de `id` (gap 50) es inerte si el candidato no declara `id` en
+    su frontmatter — el caso mas expuesto: el candidato al que el Curator le va a asignar el `id` a
+    mano (P4). Sin `--id` tampoco, debe avisar explicitamente de que no se comprobo."""
+    contenido = CANDIDATO_COMPLETO.replace("id: ca.gotcha.ejemplo\n", "")
+    with tempfile.TemporaryDirectory() as tmp:
+        ruta = _escribir(tmp, "c.md", contenido)
+        veredicto, exit_code = cg.evaluar(ruta, "approve", root=tmp)
+        assert exit_code == 0
+        assert any(a["campo"] == "id" for a in veredicto["avisos"])
+
+
+def test_approve_con_id_override_detecta_colision_aunque_el_candidato_no_lo_declare():
+    """Gap 68: `--id` (`id_override`) deja comprobar la colision ANTES de que el Curator lo escriba
+    en disco, incluso si el candidato todavia no trae `id` en su frontmatter."""
+    contenido = CANDIDATO_COMPLETO.replace("id: ca.gotcha.ejemplo\n", "")
+    with tempfile.TemporaryDirectory() as tmp:
+        d = os.path.join(tmp, "docs", "knowledge", "approved", "gotchas")
+        os.makedirs(d, exist_ok=True)
+        with open(os.path.join(d, "otro.md"), "w", encoding="utf-8") as f:
+            f.write("---\nid: ca.gotcha.nuevo\nversion: 1\nestado: aprobado\n---\n\n# ya aprobado\n")
+        ruta = _escribir(tmp, "c.md", contenido)
+        veredicto, exit_code = cg.evaluar(ruta, "approve", root=tmp, id_override="ca.gotcha.nuevo")
+        assert exit_code == 1
+        assert any(e["campo"] == "id" for e in veredicto["errores"])
+        assert veredicto["avisos"] == []
 
 
 # ------------------------------------------------------------------ gap 53: reject/needs_changes sin category

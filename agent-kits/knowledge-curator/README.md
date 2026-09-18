@@ -15,13 +15,14 @@ en `agent-kits/shared/`; sin ellos degrada con un error claro (`KitCompartidoNoD
 un traceback.
 
 ```bash
-python3 agent-kits/knowledge-curator/curator-gate.py <candidato.md> --decision approve [--category KEY] [--root .] [--json]
+python3 agent-kits/knowledge-curator/curator-gate.py <candidato.md> --decision approve [--category KEY] [--root .] [--id ID] [--json]
 ```
 
 Exit codes: `0` decisión permitida (sin errores bloqueantes) · `1` con errores (evidencia
 insuficiente, faltan `fuentes`/`tags`, término de la lista negra, `estado` con un token que no es
 `aprobado`) · `2` error de uso (categoría inexistente, decisión inválida, candidato no encontrado,
-taxonomía inválida).
+taxonomía inválida, o un candidato en `rejected/` con una decisión distinta de `reject` — gap 67 de
+la revisión de dos lentes de la Fase 2, ver más abajo).
 
 `approve` es la única decisión que exige el contrato completo (gaps 3 y 34 de la revisión de dos
 lentes de T-01/T-02): `evidencia` presente y con rango ≥ `min_evidence` de la categoría EXACTA que
@@ -31,7 +32,17 @@ sin términos de la lista negra (`taxonomy.json` → `denylist`), y `estado` (si
 el token `aprobado` — nunca `approved`/`pending`/`needs_changes`/`rejected`, que son nombres de
 carpeta del flujo de candidatos, no valores de `estado`. Al aprobar, también se comprueba que no
 haya **colisión** con `approved/` (gap 50): ni un `id` ya indexado ni un fichero con el mismo
-nombre en la carpeta destino.
+nombre en la carpeta destino. La comprobación de `id` usa el `id` del frontmatter o, si el
+candidato aún no lo trae, el que se le vaya a asignar vía `--id <el-id>` (gap 68); sin ninguno de
+los dos el gate no bloquea, pero devuelve un `aviso` («colisión de id no comprobada») en
+`avisos[]` para que quede constancia de que esa guarda no se ha podido aplicar.
+
+La lista negra (`denylist`) pliega acentos en los dos lados de la comparación con `unicodedata`
+NFD (`conversación` casa con el término `conversacion` declarado sin tilde, y viceversa — gap 64),
+admite términos de varias palabras separadas por espacio o guion indistintamente (`chain of
+thought` ≡ `chain-of-thought` — gap 66), y el límite de palabra (`(?<!\w)`/`(?!\w)`) solo se exige
+en el lado del término cuyo carácter de borde es alfanumérico — así `TODO:` sigue disparando
+aunque le siga `limpiar` sin espacio de por medio (gap 65).
 
 `reject`/`needs_changes` NO corren nada de eso (gap 58, salvedad deliberada): ni evidencia, ni
 `fuentes`/`tags`, ni lista negra, ni el token de `estado`, ni siquiera exigen que `category` esté
@@ -44,7 +55,9 @@ decisiones.
 El candidato debe vivir bajo `docs/knowledge/candidates/{pending,needs_changes,rejected}/` del
 `--root` (contención por `realpath`, gap 48): cualquier otra ruta — un fichero ya en `approved/`,
 el corpus legado, o cualquier `.md` fuera del árbol de candidatos — es un error de uso (`exit 2`),
-no un candidato.
+no un candidato. `rejected/` es **terminal** (gap 67): un candidato que ya vive ahí solo admite
+`--decision reject` (idempotente, `exit 0`); pedirle `approve` o `needs_changes` es error de uso
+(`exit 2`, "`rejected/` es terminal") en vez de volver a evaluar el contrato.
 
 El gate **no mueve ficheros**: el agente lee el veredicto (`--json`) y, si `errores == []`, escribe
 el fichero final (bajo `approved/<folder>/` con `estado: aprobado`, o deja el candidato en su

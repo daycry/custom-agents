@@ -59,6 +59,7 @@ import json
 import os
 import re
 import sys
+import unicodedata
 
 # Consola no UTF-8 (Windows cp1252) o tuberias: reconfigurar ANTES de leer/imprimir (GOT-005).
 for _s in (sys.stdin, sys.stdout, sys.stderr):
@@ -71,7 +72,16 @@ SHARED = os.path.normpath(os.path.join(HERE, "..", "shared"))
 DECISIONES_VALIDAS = ("approve", "reject", "needs_changes")
 ESTADO_APROBADO = "aprobado"
 _TAG_CLAVE_VALOR_RE = re.compile(r"^[^:]+:.+$")
+# Las TRES carpetas del arbol de candidatos (contencion general, gap 48). `rejected/` es TERMINAL
+# (gap 49/67, invariante fijado tras el gap 49): un fichero que ya vive ahi solo admite
+# `--decision reject` (idempotente, el Curator puede re-rechazar sin que sea un error) — nunca
+# `approve` ni `needs_changes`, que reabririan un candidato descartado.
 CARPETAS_CANDIDATOS = ("pending", "needs_changes", "rejected")
+CARPETAS_ORIGEN_POR_DECISION = {
+    "approve": ("pending", "needs_changes"),
+    "needs_changes": ("pending", "needs_changes"),
+    "reject": ("pending", "needs_changes", "rejected"),
+}
 
 
 class KitCompartidoNoDisponible(Exception):
@@ -100,20 +110,20 @@ def _error(mensaje, fichero, campo):
     return {"mensaje": mensaje, "fichero": fichero, "campo": campo}
 
 
-def _candidato_dentro_del_arbol(root, ruta):
-    """True si `ruta` resuelve (realpath) dentro de
-    `<root>/docs/knowledge/candidates/{pending,needs_changes,rejected}/` (gap 48). Fail-closed:
+def _carpeta_candidato(root, ruta):
+    """La carpeta (`pending`/`needs_changes`/`rejected`) bajo la que `ruta` resuelve (realpath)
+    dentro de `<root>/docs/knowledge/candidates/` (gap 48), o `None` si no vive ahi. Fail-closed:
     cualquier fallo de resolucion (p. ej. unidades de Windows distintas) es "fuera"."""
     base = os.path.realpath(os.path.join(root or ".", "docs", "knowledge", "candidates"))
     ruta_real = os.path.realpath(ruta)
     try:
         rel = os.path.relpath(ruta_real, base)
     except ValueError:
-        return False
+        return None
     if rel == os.curdir or rel.split(os.sep)[0] == os.pardir:
-        return False
+        return None
     primera = rel.split(os.sep, 1)[0]
-    return primera in CARPETAS_CANDIDATOS
+    return primera if primera in CARPETAS_CANDIDATOS else None
 
 
 def cargar_candidato(ruta, ki):
@@ -163,37 +173,59 @@ def _rango_evidencia(niveles, nivel):
         return None
 
 
+def _plegar_acentos(texto):
+    """NFD + descarta las marcas combinantes: `conversación` -> `conversacion` (gap 64). La lista
+    negra por defecto ya viaja sin tildes (design.md, decision deliberada para que el propio gate
+    sea ASCII puro), pero la PROSA real de un candidato si las lleva — sin plegar, un termino como
+    `conversacion cruda` nunca casaba con «conversación cruda» escrito de verdad."""
+    return "".join(c for c in unicodedata.normalize("NFD", texto) if unicodedata.category(c) != "Mn")
+
+
+def _es_caracter_de_palabra(c):
+    return bool(c) and re.match(r"\w", c, re.UNICODE) is not None
+
+
 def _regex_termino(termino):
-    """Un termino de la lista negra puede tener varias palabras («conversacion cruda»): se casa
-    como secuencia con ESPACIOS FLEXIBLES entre palabras (`\\s+`, cubre saltos de linea), y con
-    limites que NO son `\\b` literal (gap 41): `\\b` falla en los dos sentidos que este termino
+    """Un termino de la lista negra puede tener varias palabras («conversacion cruda») o ir unido
+    por guion («chain-of-thought»): ambas formas casan entre si (gap 66) partiendo el termino por
+    ESPACIOS O GUIONES (`[\\s-]+`) y recomponiendolo con el mismo separador flexible entre las
+    partes — cubre saltos de linea y la variante con espacios de un termino declarado con guion (o
+    al reves).
+
+    Los limites NO son `\\b` literal (gap 41): `\\b` falla en los dos sentidos que este termino
     necesita — no detecta el limite tras un termino que acaba en puntuacion (`TODO:` seguido de un
     espacio: ninguno de los dos lados de esa posicion es un caracter de palabra), y SI detecta como
     "palabra completa" una coincidencia de mayusculas/minusculas que es en realidad OTRA palabra
     (p. ej. `todos`, dentro de "Todos los handlers", es la palabra espanola comun, no el marcador
-    `TODOs`). Se usan lookarounds `(?<!\\w)`/`(?!\\w)`: no exigen un cambio de categoria de
-    caracter, solo que el caracter contiguo (si existe) NO sea de palabra — funciona igual de bien
-    pegado a un espacio, a un signo de puntuacion o al principio/fin de la cadena."""
-    partes = [re.escape(p) for p in termino.split() if p]
+    `TODOs`). Se usan lookarounds `(?<!\\w)`/`(?!\\w)`, y SOLO en el lado cuyo caracter de borde del
+    termino es de palabra (gap 65): un termino que ya acaba (o empieza) en puntuacion —`TODO:`— no
+    exige que el caracter contiguo sea "no palabra" en ese lado, porque el propio termino ya aporta
+    el limite (`TODO:limpiar`, sin espacio, tiene que disparar)."""
+    termino_plegado = _plegar_acentos(termino)
+    partes = [re.escape(p) for p in re.split(r"[\s-]+", termino_plegado) if p]
     if not partes:
         return None
-    cuerpo = r"\s+".join(partes)
-    return re.compile(r"(?<!\w)" + cuerpo + r"(?!\w)", re.IGNORECASE)
+    cuerpo = r"[\s-]+".join(partes)
+    prefijo = r"(?<!\w)" if _es_caracter_de_palabra(termino_plegado[:1]) else ""
+    sufijo = r"(?!\w)" if _es_caracter_de_palabra(termino_plegado[-1:]) else ""
+    return re.compile(prefijo + cuerpo + sufijo, re.IGNORECASE)
 
 
 def detectar_denylist(cuerpo, denylist, fichero):
     """Errores por cada termino de la lista negra que aparece, como palabra/frase completa (gap
-    41), en el CUERPO del candidato (nunca en su frontmatter) — spec «Lista negra de memoria
-    activa»: chain-of-thought, conversacion cruda, TODO:, planes/progreso, logs completos, salidas
-    enormes, codigo duplicado, errores triviales, intentos sin aprendizaje, hipotesis como hechos,
-    opiniones, redundancias. Un candidato que cite uno de estos terminos NO se aprueba sin que el
-    Curator lo revise a mano (nunca memoria activa, spec `Alcance`)."""
+    41) y sin importar los acentos de la PROSA real (gap 64), en el CUERPO del candidato (nunca en
+    su frontmatter) — spec «Lista negra de memoria activa»: chain-of-thought, conversacion cruda,
+    TODO:, planes/progreso, logs completos, salidas enormes, codigo duplicado, errores triviales,
+    intentos sin aprendizaje, hipotesis como hechos, opiniones, redundancias. Un candidato que cite
+    uno de estos terminos NO se aprueba sin que el Curator lo revise a mano (nunca memoria activa,
+    spec `Alcance`)."""
     errores = []
+    cuerpo_plegado = _plegar_acentos(cuerpo)
     for termino in denylist or []:
         if not termino:
             continue
         patron = _regex_termino(termino)
-        if patron is not None and patron.search(cuerpo):
+        if patron is not None and patron.search(cuerpo_plegado):
             errores.append(_error(
                 f"contiene un termino de la lista negra (`{termino}`): revision humana antes de aprobar",
                 fichero, "denylist"))
@@ -277,18 +309,33 @@ def validar_aprobacion(fm, cuerpo, categoria, config, fichero, niveles_por_defec
     return errores
 
 
-def detectar_colision(ki, root, categoria, fichero, fm):
-    """Errores de COLISION al aprobar (gap 50): `knowledge-index.py` nunca escanea
+def detectar_colision(ki, root, categoria, fichero, fm, id_override=None):
+    """(errores, avisos) de COLISION al aprobar (gap 50): `knowledge-index.py` nunca escanea
     `candidates/**` (T-03), asi que no puede por si solo detectar que un candidato pisaria una
     entrada ya `approved/` — ni por `id` duplicado ni por nombre de fichero repetido en la misma
-    carpeta destino. Se comprueba aqui, con el indice YA construido sobre `approved/`."""
+    carpeta destino. Se comprueba aqui, con el indice YA construido sobre `approved/`.
+
+    Gap 68: la guarda de `id` es INERTE si el candidato no declara `id` en su frontmatter — el caso
+    mas expuesto es justo el candidato al que el Curator le va a ASIGNAR el `id` a mano (P4 de
+    `agents/knowledge-curator.md`), que en el momento de `approve` todavia no lo trae. `--id` deja
+    que el llamador pase el `id` que va a asignar para que la guarda lo compruebe ANTES de escribirlo
+    en disco; sin `--id` NI `id` en el frontmatter, la guarda no tiene nada que comprobar y lo dice
+    con un aviso explicito (no bloqueante: no es un error del candidato, es una comprobacion que no
+    se pudo hacer)."""
     errores = []
+    avisos = []
     indice, _errores_indice = ki.build_index(root)
-    id_candidato = fm.get("id")
-    if id_candidato and id_candidato in indice:
-        errores.append(_error(
-            f"ya existe una entrada aprobada con el id `{id_candidato}` "
-            f"(`{indice[id_candidato]['ruta']}`): cambia el `id` o resuelve la colision a mano",
+    id_candidato = fm.get("id") or id_override
+    if id_candidato:
+        if id_candidato in indice:
+            errores.append(_error(
+                f"ya existe una entrada aprobada con el id `{id_candidato}` "
+                f"(`{indice[id_candidato]['ruta']}`): cambia el `id` o resuelve la colision a mano",
+                fichero, "id"))
+    else:
+        avisos.append(_error(
+            "sin `id` en el frontmatter ni `--id`: la colision de id no se ha comprobado "
+            "(pasa `--id <el-que-vas-a-asignar>` antes de escribirlo en disco)",
             fichero, "id"))
     folder = categoria.get("folder") or ""
     nombre = os.path.basename(fichero)
@@ -298,21 +345,32 @@ def detectar_colision(ki, root, categoria, fichero, fm):
             f"ya existe un fichero con el mismo nombre en `{ruta_destino}`: renombra el candidato "
             f"antes de aprobar",
             fichero, "$"))
-    return errores
+    return errores, avisos
 
 
-def evaluar(ruta_candidato, decision, category_override=None, root=None):
+def evaluar(ruta_candidato, decision, category_override=None, root=None, id_override=None):
     """(veredicto_dict, exit_code). `veredicto_dict` = {decision, categoria, errores, avisos}.
-    `avisos` son notas NO bloqueantes (gap 53: p. ej. `reject`/`needs_changes` sin `category`)."""
+    `avisos` son notas NO bloqueantes (gap 53: p. ej. `reject`/`needs_changes` sin `category`; gap
+    68: colision de `id` no comprobada). `id_override` (gap 68) es el `id` que el Curator va a
+    asignar al aprobar un candidato que todavia no lo trae en el frontmatter."""
     if decision not in DECISIONES_VALIDAS:
         return {"decision": decision, "categoria": None,
                 "errores": [_error(f"decision `{decision}` invalida ({', '.join(DECISIONES_VALIDAS)})",
                                     ruta_candidato, "decision")], "avisos": []}, 2
 
-    if not _candidato_dentro_del_arbol(root, ruta_candidato):
+    carpeta = _carpeta_candidato(root, ruta_candidato)
+    if carpeta is None:
         return {"decision": decision, "categoria": None, "errores": [_error(
             f"`{ruta_candidato}` no es un candidato: debe vivir bajo "
             f"`docs/knowledge/candidates/{{pending,needs_changes,rejected}}/` de `{root or '.'}`",
+            ruta_candidato, "$")], "avisos": []}, 2
+
+    if carpeta not in CARPETAS_ORIGEN_POR_DECISION[decision]:
+        # gap 67: `rejected/` es terminal (invariante del gap 49) — solo admite `--decision reject`
+        # (idempotente, el Curator puede re-rechazar sin que sea un error de uso).
+        return {"decision": decision, "categoria": None, "errores": [_error(
+            f"`{ruta_candidato}` vive en `rejected/`, que es terminal: solo admite "
+            f"`--decision reject` (idempotente), nunca `{decision}`",
             ruta_candidato, "$")], "avisos": []}, 2
 
     try:
@@ -354,8 +412,9 @@ def evaluar(ruta_candidato, decision, category_override=None, root=None):
 
     niveles_por_defecto = ks.default_taxonomy().get("evidence_levels")
     errores = validar_aprobacion(fm, cuerpo, categoria, config, ruta_candidato, niveles_por_defecto, ruta_taxonomia)
-    errores.extend(detectar_colision(ki, root, categoria, ruta_candidato, fm))
-    veredicto = {"decision": decision, "categoria": categoria["key"], "errores": errores, "avisos": []}
+    errores_colision, avisos_colision = detectar_colision(ki, root, categoria, ruta_candidato, fm, id_override)
+    errores.extend(errores_colision)
+    veredicto = {"decision": decision, "categoria": categoria["key"], "errores": errores, "avisos": avisos_colision}
     return veredicto, (1 if errores else 0)
 
 
@@ -364,6 +423,10 @@ def _construir_parser():
     ap.add_argument("candidato", help="ruta al fichero .md del candidato")
     ap.add_argument("--decision", required=True, choices=DECISIONES_VALIDAS)
     ap.add_argument("--category", help="clave de taxonomy.json; si falta, se lee del frontmatter (`category`/`categoria`)")
+    ap.add_argument("--id", dest="id_override",
+                     help="el `id` que el Curator va a asignar al candidato al aprobarlo (gap 68); "
+                          "si falta y el frontmatter tampoco trae `id`, la guarda de colision avisa "
+                          "de que no se pudo comprobar")
     ap.add_argument("--root", default=".", help="raiz del proyecto (default: cwd)")
     ap.add_argument("--json", action="store_true", help="salida en JSON")
     return ap
@@ -371,7 +434,7 @@ def _construir_parser():
 
 def main(argv=None):
     args = _construir_parser().parse_args(argv)
-    veredicto, exit_code = evaluar(args.candidato, args.decision, args.category, args.root)
+    veredicto, exit_code = evaluar(args.candidato, args.decision, args.category, args.root, args.id_override)
 
     if args.json:
         print(json.dumps(veredicto, ensure_ascii=False))
