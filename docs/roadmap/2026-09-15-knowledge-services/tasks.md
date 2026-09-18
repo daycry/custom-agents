@@ -23,8 +23,8 @@ verificacion: obligatoria
 | Fase 1 - Contrato y validacion | 3 | 3 | 100% | 0 / 13h | 1.20 / 3.9h | 0 / 1.0h | ~57k / 200k |
 | Fase 2 - Curacion y workflow | 3 | 3 | 100% | 0 / 14h | 1.23 / 4.2h | 0 / 1.1h | ~25k / 210k |
 | Fase 3 - Backends y Kwipu | 4 | 4 | 100% | 0 / 19h | 2.71 / 5.7h | 0 / 1.4h | ~88k / 275k |
-| Fase 4 - Regresion y cierre | 1 | 3 | 33% | 0 / 10h | 0.49 / 3.0h | 0 / 0.7h | ~45k / 130k |
-| **TOTAL** | **11** | **13** | **85%** | **0 / 56h** | **5.63 / 16.8h** | **0 / 4.2h** | **~215k / 815k** |
+| Fase 4 - Regresion y cierre | 2 | 3 | 67% | 0 / 10h | 0.64 / 3.0h | 0 / 0.7h | ~55k / 130k |
+| **TOTAL** | **12** | **13** | **92%** | **0 / 56h** | **5.78 / 16.8h** | **0 / 4.2h** | **~225k / 815k** |
 
 > **Nota (gap 18, revision de dos lentes intento 1):** las horas-IA de las rondas `-fix1`/`-fix2`/`-fix3` corresponden a sesiones de correccion COMPARTIDAS entre varias tareas (una sola ventana de `usage-meter` cubriendo T-01/T-02/T-03/T-13 en fix1/fix2, y T-01/T-02/T-13 en fix3); se reparten a partes iguales entre las tareas que tocaron en esa ventana (ver nota de cada tarea) en vez de contarse enteras en cada una, para no inflar el TOTAL.
 
@@ -424,15 +424,18 @@ aun en borrador, fuera del alcance de esta ronda)
 - **Nota (decisión sin respaldo literal de la spec/plan)**: `tests/test_hooks_shell.py` NO se tocó — el plan lo listaba en `Archivos`, pero la comprobación «ningún hook invoca red» quedó como caso nuevo dentro de `tests/test_knowledge_services.py` (grep estático sobre `hooks/`), que es donde vive el resto de esta suite de regresión; añadir un caso más a `test_hooks_shell.py` habría duplicado la misma aserción en dos ficheros sin aportar cobertura adicional. Se documenta aquí por transparencia (no cruza el umbral de un ADR: es un default local de una tarea, no una decisión que cierre una alternativa transversal).
 
 ### T-11 - Documentacion, espejos y changelog
-- **Estado**: borrador
-- **Tiempo humano**: est. 3h · real -
+- **Estado**: completado
+- **Tiempo humano**: est. 3h · real 0
 - **Prevision IA**: 30k in / 12k out tok
+- **Tiempo IA**: real 0.15h (medido)
 - **Dependencias**: T-04 a T-10
 - **Tipo**: docs
-- **Archivos**: `README.md`, `README.es.md`, `docs/README.md`, `docs/en/README.md`, `docs/FLOWS.md`, `docs/en/FLOWS.md`, `docs/INTEROP.md`, `docs/en/INTEROP.md`, `docs/agents/ROLES.md`, `docs/agents/CONTRACTS.md`, `CHANGELOG.md`, `CHANGELOG.es.md`
-- **Verificacion**: `python scripts/lint_plugin.py` -> 0; lectura: ES/EN comparten alcance
+- **Archivos**: `docs/README.md`, `docs/en/README.md`, `docs/roadmap/README.md`
+- **Verificacion**: `python scripts/lint_plugin.py` -> 0; lectura: ES/EN comparten alcance. Ejecutado 2026-09-19: `lint_plugin: 10 agentes · 1 errores · 3 avisos` (el unico error es LES-016, preexistente y ajeno a esta iniciativa — YAML de una nota de otra lección, ya conocido en rondas previas de este mismo ledger).
+- **Changelog**: La documentación de referencia (README ES/EN e índice del roadmap) ya refleja el estado y el alcance del Knowledge Gate y sus backends declarados.
 **Criterios de aceptación**
-- [ ] Kwipu opcional/derivado; Graphiti diferido; ownership sin solape; doc del contrato de adaptador y de `backends` en ES/EN.
+- [x] Kwipu opcional/derivado; Graphiti diferido; ownership sin solape; doc del contrato de adaptador y de `backends` en ES/EN. Evidencia: `docs/README.md:104` y `docs/en/README.md:107` ya documentan el contrato de adaptador (6 funciones), `routing` fail-closed y el adaptador Kwipu (`markdown-export`) en paridad ES/EN (contenido escrito por T-08/T-09, revisado aquí); `docs/agents/ROLES.md:34-38` fija ownership sin solape (`documenter` propone, `knowledge-curator` aprueba/mueve, `knowledge-sync.py` exporta, `/dev-cycle` orquesta el Knowledge Gate sin que Kwipu condicione el cierre); `docs/FLOWS.md`/`docs/en/FLOWS.md` (líneas ~52 y ~116) dibujan el mismo flujo en ambos idiomas. Se actualiza la cuenta de aristas de `CONTRACTS.md` (doce→diecisiete, E15-E17 de T-10) en `docs/README.md:24` y `docs/en/README.md:24`, y se pone al día la fila de `docs/roadmap/README.md` (de "planificado" a "en implementación, Fase 4/4, T-10 cerrada").
+- **Nota (alcance reducido frente al `Archivos` original del plan)**: el plan listaba también `README.md`, `README.es.md`, `docs/FLOWS.md`+EN, `docs/INTEROP.md`+EN, `docs/agents/ROLES.md`, `docs/agents/CONTRACTS.md`, `CHANGELOG.md`, `CHANGELOG.es.md` — revisados por lectura y confirmados YA correctos/completos por T-04..T-10 (ownership, contrato de adaptador, Kwipu opcional, Graphiti diferido, ES/EN en paridad); no se tocaron porque no había nada que corregir, y tocarlos sin cambio real habría sido ruido en el diff. `CHANGELOG.md`/`CHANGELOG.es.md` los genera `changelog-sync` SOLO cuando el ledger completo del plan pasa a `estado: completado` (aún no, quedan T-12 y el cierre del ciclo) — no es responsabilidad de esta tarea forzarlo antes de tiempo.
 
 ### T-12 - Puertas completas, QA y retro
 - **Estado**: borrador
