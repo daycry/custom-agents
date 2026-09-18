@@ -115,3 +115,5 @@ proyecto via `taxonomy.json`, fail-closed, sin red desde hooks) y se precisan tr
 Alcance opt-in confirmado: un proyecto sin `backends.kwipu.enabled: true` no ejecuta nada de esto; la
 comprobacion en vivo cubre el caso «habilitado y sano», el caso «deshabilitado» lo cubren los tests de
 `capabilities.py` (T-13). Sin efecto en horas: precisa T-08 y T-09 dentro de su estimacion. Ver `tasks.md`.
+
+> **Nota 2026-09-18 (revisión de la Fase 2, gap 41).** El término de la lista negra por defecto `TODOs` pasa a ser el marcador `TODO:` (con dos puntos, como en `code-health`), y la lista negra se evalúa por frontera de palabra sobre el cuerpo del candidato: la forma anterior bloqueaba cualquier texto con «todos»/«métodos». La lista sigue siendo configurable por proyecto (`denylist` de `taxonomy.json`).
