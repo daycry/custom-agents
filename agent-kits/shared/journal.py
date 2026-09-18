@@ -44,6 +44,7 @@ Subcomandos (exit 0 SIEMPRE salvo error de uso → 2; la bitácora nunca bloquea
       --reintentar-dead-letter`, `replay --reintentar-ahora`, `recover`). Texto por defecto, `--json`
       para máquina.
   recover [--root DIR] [--ventana-min N] [--current-session-id SID] [--session-id SID]
+          [--budget-ms N] [--max N]
       Reconciliación de HUÉRFANAS (T-05, CA-07): un log de prompts (`.claude/session-prompts-<sid>.log`)
       sin envelope en la cola NI entrada de journal, cuyo mtime lleva más de `--ventana-min` (default
       `sesion.journal.ventanaHuerfanaMin`, 1440) sin actividad, se materializa con `draft`/`write` como
@@ -52,6 +53,11 @@ Subcomandos (exit 0 SIEMPRE salvo error de uso → 2; la bitácora nunca bloquea
       se recupera, aunque su log supere la ventana: una sesión concurrente viva no es una huérfana.
       `--session-id` fuerza una sesión concreta, ignorando ventana/sesión actual (a demanda). Una
       sesión con envelope pendiente la resuelve `replay`, no `recover` (sin duplicar entrada).
+      `--budget-ms`/`--max` A DEMANDA: default 0/0 = SIN presupuesto de trabajo ni tope de huérfanas
+      (materializa TODAS las candidatas que encuentre) — distinto del tope de 3 que usa `SessionStart`
+      vía `replay --con-recover`. El CERROJO, aun así, SIEMPRE es no bloqueante (techo corto). Con
+      `candidatas > recuperadas` al terminar (presupuesto/`--max` insuficiente) avisa cuántas quedan
+      y sugiere repetir `recover` o subir `--max`.
   capture [--root DIR]                                   ← stdin: payload del hook UserPromptSubmit
       Añade el turno del usuario (`prompt`) como UNA línea JSON `{"ts", "prompt"}` a
       `.claude/session-prompts-<session_id>.log` (no versionado: `*.log` está en .gitignore). Reglas:
@@ -160,6 +166,10 @@ LOG_MAX_BYTES = 256 * 1024         # tope por fichero: al superarlo se conservan
 LOG_RETENCION_DIAS = 30            # purga de `session-prompts-*.log` más viejos (mtime) al capturar
 LOG_GITIGNORE = "session-prompts-*"       # log y su `.lock`; se siembra en `.claude/.gitignore` del consumidor (revisión F4, Lente C gap 2)
 _SID_RE = re.compile(r"[^A-Za-z0-9._-]")
+_MSG_SEGURO_RE = re.compile(r"[^\w .:/\-]")   # gap 90 de la revisión tramo 2 (seguridad): caracteres
+# permitidos en un mensaje de excepción saneado para `avisos` — todo lo demás (saltos de línea,
+# control, marcas bidireccionales, comillas) se descarta, no se sustituye por un separador que
+# pudiera reconstruir texto legible para un LLM.
 
 # --- extracción DETERMINISTA de decisiones/pendientes del log crudo (T-12; sin modelo) ---
 # Una FRASE del usuario cuenta si contiene un marcador léxico (ES/EN). Deliberadamente estrecho: mejor
@@ -568,6 +578,9 @@ def _validar_envelope(payload):
 
 BUDGET_MS_AJUSTADO = 5000            # bajo esto, `replay` fuerza `ia=off` y un timeout de git más corto (gap 14)
 BUDGET_GIT_TIMEOUT = 2                # s: timeout de git bajo presupuesto ajustado
+LOCK_DEADLINE_MS_RECOVER_SIN_PRESUPUESTO = 2000   # ms: techo del CERROJO en `recover()` a demanda
+# cuando `budget_ms` es falsy (gap 91 de la revisión tramo 2) — el trabajo queda sin tope, pero
+# tomar el cerrojo nunca espera sin límite (antes sí, si `budget_ms` era `None`/`0`).
 
 
 def _rellenar_contadores_finales(ob, dir_, resumen):
@@ -850,17 +863,21 @@ def _indice_sids_capturados(root, ob, dir_):
 
 
 def _mtime_utc_iso(path):
-    """`None` también si el mtime está fuera de `[ahora - LOG_RETENCION_DIAS, ahora + 5 min]` (gap
-    86 de la revisión tramo 2): sin esta cota, un mtime absurdo (reloj desincronizado, fichero
-    plantado por un tercero) fechaba la entrada en 2027 o 2446 y esa fecha ganaba `latest` para
-    siempre. El llamador (`_recover_impl`) trata `None` igual que sin `captured_at`: `draft` cae a
+    """`None` también si el mtime está fuera de `[ahora - 2·LOG_RETENCION_DIAS, ahora + 5 min]` (gap
+    86 de la revisión tramo 2, cota corregida en el gap 92): sin esta cota, un mtime absurdo (reloj
+    desincronizado, fichero plantado por un tercero) fechaba la entrada en 2027 o 2446 y esa fecha
+    ganaba `latest` para siempre. La cota es `2×LOG_RETENCION_DIAS` (60 días), NO `LOG_RETENCION_DIAS`
+    (30 días) a secas (gap 92): un log LEGÍTIMO de 31 días, todavía sin purgar por `purgar_antiguos`
+    (que corre sobre `done/`, no sobre `session-prompts-*.log`), perdía su fecha real de cierre y
+    caía a `hoy()` sin necesidad — la ventana de cordura debe ser más ancha que la de retención, no
+    igual. El llamador (`_recover_impl`) trata `None` igual que sin `captured_at`: `draft` cae a
     `hoy()` sola."""
     try:
         mtime = os.stat(path).st_mtime
     except OSError:
         return None
     ahora = time.time()
-    if mtime < ahora - LOG_RETENCION_DIAS * 86400 or mtime > ahora + 300:
+    if mtime < ahora - 2 * LOG_RETENCION_DIAS * 86400 or mtime > ahora + 300:
         return None
     return _dt.datetime.fromtimestamp(mtime, _dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -909,7 +926,10 @@ def _recover_impl(root, resumen, ventana_min, current_session_id, session_id, dr
             # `materializado` degradándola a `recuperado_sin_cierre` — el cierre real manda; si
             # queda un envelope pendiente para volver a materializarla, lo resuelve `replay`, no
             # `recover` (antes esto era un no-op silencioso que además borraba `materializado_en`).
-            resumen["avisos"].append(f"{sid}: ya materializada; usa `replay` si hay envelope pendiente")
+            # gap 90 (seguridad): `sid` saneado ANTES de entrar en el aviso — `--session-id` puede
+            # ser cualquier cosa que el usuario teclee, pero también llega aquí DESDE el nombre de
+            # un log plantado (ruta a demanda igual que las huérfanas).
+            resumen["avisos"].append(f"{_sid_seguro(sid)}: ya materializada; usa `replay` si hay envelope pendiente")
             continue
         if dry_run:
             resumen["recuperadas"] += 1
@@ -926,7 +946,8 @@ def _recover_impl(root, resumen, ventana_min, current_session_id, session_id, dr
                 # gap 86: `_mtime_utc_iso` devuelve None también cuando el mtime está fuera de
                 # cordura (reloj desincronizado, fichero plantado) — `draft` cae sola a `hoy()`
                 # (mismo camino que sin `captured_at`), pero se avisa para que no pase inadvertido.
-                resumen["avisos"].append(f"{sid}: mtime del log fuera de rango de cordura; usando la fecha de hoy")
+                # gap 90 (seguridad): `sid` saneado, ver nota de más arriba.
+                resumen["avisos"].append(f"{_sid_seguro(sid)}: mtime del log fuera de rango de cordura; usando la fecha de hoy")
             e = draft(root, sid, None, "orphan_recovery", captured_at=captured_at, git_timeout=git_timeout)
             e["cierre"] = "recuperado_sin_cierre"
             e["derivados_en"] = "replay"                     # `recover` corre bajo el mismo cerrojo/pasada que replay
@@ -936,13 +957,20 @@ def _recover_impl(root, resumen, ventana_min, current_session_id, session_id, dr
                 recuperados_n += 1
                 capturados.add(sid)
         except Exception as ex:  # noqa: BLE001 — una sesión huérfana problemática no bloquea a las demás
-            resumen["avisos"].append(f"{sid}: {ex}")
-    if not dry_run and agotado_por_presupuesto and recuperados_n == 0:
-        # gap 84/85: el presupuesto o `max_n` se agotó (antes de recover, por drenar la outbox, o
-        # DURANTE el propio bucle con huérfanas costosas) sin recuperar NINGUNA — se dice cuántas
-        # candidatas se vieron para que no parezca que no había nada que hacer.
+            # gap 90 (seguridad, Important N1): `sid` saneado y `str(ex)` NUNCA crudo — un
+            # `session_id` hostil derivado del NOMBRE del log (`session-prompts-<hostil>.log`)
+            # puede colarse literal dentro del mensaje de la excepción (p. ej. un `OSError` que
+            # incluye la ruta en su texto) y de ahí a `additionalContext` de `SessionStart` sin que
+            # nadie lo cite como dato: `_msg_seguro` se queda con el tipo + 80 caracteres saneados.
+            resumen["avisos"].append(f"{_sid_seguro(sid)}: {_msg_seguro(ex)}")
+    if not dry_run and resumen["candidatas"] > resumen["recuperadas"]:
+        # gap 91: antes solo avisaba con `recuperados_n == 0` (agotamiento total) — con `--max`
+        # bajo (o el compartido de `SessionStart`) una recuperación PARCIAL (p. ej. 3 de 10
+        # candidatas) quedaba sin decir que faltan 7 por recuperar, así que nadie sabía que hacía
+        # falta repetir `recover`/`replay --con-recover` o subir `--max`.
+        faltan = resumen["candidatas"] - resumen["recuperadas"]
         resumen["avisos"].append(
-            f"recover no ejecutado: presupuesto/max agotado ({resumen['candidatas']} candidatas)")
+            f"{faltan} candidata(s) sin recuperar en esta pasada; repite `recover` o sube `--max`")
 
 
 def recover(root, ventana_min=None, current_session_id=None, session_id=None, dry_run=False,
@@ -968,9 +996,17 @@ def recover(root, ventana_min=None, current_session_id=None, session_id=None, dr
     (gap 65: antes no tenía ni presupuesto ni tope, y cientos de huérfanas tardaban segundos en un
     arranque). `dry_run` (usa `status`, T-06): cuenta cuántas se RECUPERARÍAN sin escribir nada ni
     tomar el cerrojo (diagnóstico de solo lectura). Nunca lanza; una sesión problemática no bloquea a
-    las demás (queda en `avisos`). `budget_ms`/`max_n` (gap 87 de la revisión tramo 2: antes `recover`
-    a demanda no exponía ninguno de los dos por CLI y podía bloquearse sin límite si otro proceso
-    tenía el cerrojo) acotan el cerrojo Y el trabajo de esta pasada — igual que `replay`. Devuelve
+    las demás (queda en `avisos`).
+
+    `budget_ms`/`max_n` A DEMANDA (gap 91 de la revisión tramo 2): default `0` = **sin presupuesto de
+    TRABAJO** (drena TODAS las huérfanas que encuentre, no las 3 de `SessionStart`) — pero el CERROJO
+    SIEMPRE usa un techo corto y no bloqueante (`LOCK_DEADLINE_MS_RECOVER_SIN_PRESUPUESTO`, 2 s) en
+    ese caso: antes, `budget_ms=None`/`0` pasaba tal cual a `_cerrojo_presupuestado`, que reintenta SIN
+    límite de tiempo sin un `deadline_ms` explícito — `recover` a demanda podía colgarse indefinidamente
+    si otro `replay`/`recover` tenía la cola. Con un `budget_ms` explícito (> 0) ese mismo valor acota
+    TANTO el cerrojo como el trabajo, como antes (gap 87). El timeout de git bajo presupuesto usa
+    `BUDGET_GIT_TIMEOUT` en vez de `GIT_TIMEOUT` cuando `budget_ms` es > 0 (gap 93: antes `recover` a
+    demanda usaba siempre el timeout largo, prometiera lo que prometiera `--help`). Devuelve
     {"recuperadas", "avisos", "candidatas", "bloqueado"} (huérfanas vistas, se hayan recuperado o no
     por estar ya capturadas; `bloqueado: true` si el cerrojo no se consiguió dentro del presupuesto)."""
     resumen = {"recuperadas": 0, "avisos": [], "candidatas": 0, "bloqueado": False}
@@ -989,16 +1025,21 @@ def recover(root, ventana_min=None, current_session_id=None, session_id=None, dr
         return resumen
     _asegurar_gitignore_local(dir_)      # el cerrojo necesita el directorio; recover() puede ser lo primero que toca la cola
     inicio = time.monotonic()
-    with _cerrojo_presupuestado(os.path.join(dir_, ".replay"), deadline_ms=budget_ms) as (conseguido, dañada):
+    # gap 91: `budget_ms` falsy (0 o None, default a demanda) NO significa "cerrojo sin límite" — el
+    # techo del CERROJO es siempre corto; solo el TRABAJO (`deadline` más abajo) queda sin tope.
+    lock_deadline_ms = budget_ms if budget_ms else LOCK_DEADLINE_MS_RECOVER_SIN_PRESUPUESTO
+    with _cerrojo_presupuestado(os.path.join(dir_, ".replay"), deadline_ms=lock_deadline_ms) as (conseguido, dañada):
         if not conseguido:
             resumen["avisos"].append("recover: no se pudo tomar el cerrojo dentro del presupuesto " +
                                      ("(cola dañada)" if dañada else "(otro replay/recover en curso)"))
             if not dañada:
                 resumen["bloqueado"] = True     # gap 87: distinto de "cola dañada" (igual que `replay`)
             return resumen
-        deadline = inicio + (budget_ms / 1000.0) if budget_ms is not None else None
+        deadline = inicio + (budget_ms / 1000.0) if budget_ms else None
+        git_timeout = BUDGET_GIT_TIMEOUT if budget_ms else GIT_TIMEOUT       # gap 93
+        max_n_efectivo = max_n if max_n else None                            # gap 91: 0 = sin tope
         _recover_impl(root, resumen, ventana_min, current_session_id, session_id, dry_run=False,
-                      deadline=deadline, max_n=max_n, git_timeout=GIT_TIMEOUT, ob=ob, dir_=dir_)
+                      deadline=deadline, max_n=max_n_efectivo, git_timeout=git_timeout, ob=ob, dir_=dir_)
     return resumen
 
 
@@ -1229,6 +1270,19 @@ def _abrir_log(path):
 def _sid_seguro(session_id):
     """`session_id` como trozo de nombre de fichero: nunca sale de `.claude/` (sin separadores)."""
     return _SID_RE.sub("_", str(session_id))[:80]
+
+
+def _msg_seguro(ex):
+    """Mensaje de excepción SANEADO para `avisos` que puedan llegar a `additionalContext` de un
+    hook (gap 90 de la revisión tramo 2, seguridad): NUNCA el `str(ex)` crudo — un `session_id`
+    hostil derivado del NOMBRE de un log plantado (`session-prompts-<texto hostil>.log`) puede
+    colarse dentro del mensaje de la excepción tal cual. Se queda con `TipoDeExcepcion` + los
+    primeros 80 caracteres restringidos a `[\\w .:/-]` (sin saltos de línea, sin caracteres de
+    control, sin marcas bidireccionales `‪`/`‮`, sin comillas)."""
+    bruto = str(ex)[:200]
+    limpio = _MSG_SEGURO_RE.sub("", bruto)[:80].strip()
+    tipo = type(ex).__name__
+    return f"{tipo}: {limpio}" if limpio else tipo
 
 
 def log_path(root, session_id):
@@ -2203,9 +2257,12 @@ def main(argv=None):
                     help="minutos sin actividad para tratar un log como huérfano (default: sesion.journal.ventanaHuerfanaMin, 1440)")
     sp.add_argument("--current-session-id", default=None, help="session_id de la sesión actual: nunca se recupera aunque supere la ventana (CA-07)")
     sp.add_argument("--session-id", default=None, help="fuerza la recuperación de esta sesión concreta, ignorando ventana/sesión actual")
-    sp.add_argument("--budget-ms", type=int, default=300,
-                    help="corta el cerrojo y el trabajo de esta pasada al superar este presupuesto (default 300, como replay, gap 87)")
-    sp.add_argument("--max", type=int, default=3, help="máximo de huérfanas a recuperar en esta llamada (default 3, como replay, gap 87)")
+    sp.add_argument("--budget-ms", type=int, default=0,
+                    help="corta el TRABAJO de esta pasada al superar este presupuesto; default 0 = sin presupuesto "
+                         "(el cerrojo, aun así, SIEMPRE es no bloqueante con un techo corto, gap 91)")
+    sp.add_argument("--max", type=int, default=0,
+                    help="máximo de huérfanas a recuperar en esta llamada; default 0 = sin tope "
+                         "(el tope de 3 es el que usa SessionStart vía `replay --con-recover`, gap 91)")
     sp.set_defaults(fn=cmd_recover)
 
     sp = sub.add_parser("purge", help="borra TODO el árbol de la cola (outbox/processing/done/dead-letter); requiere --confirm")
