@@ -20,6 +20,24 @@ Modos (excluyentes entre sí):
   --check     health() + verify(); no toca la publicación
   --rebuild   rebuild(entries, cfg) sobre TODAS las entradas ya enrutadas para este backend
 Exit codes: 0 ok · 1 con errores de índice/taxonomía/salud/desfase/apply · 2 uso/adaptador inválido.
+
+Gaps de la revisión de dos lentes corregidos en este fichero (Fase 3, intento 2, fix2, 2026-09-18):
+  - #116: un `apply()` que lanza excepción ya NO manda el envelope directo a `dead_letter` (que
+    quema su presupuesto de reintentos de un solo fallo, posiblemente transitorio: red intermitente
+    al bridge de Kwipu). Ahora usa `reencolar_o_dead_letter(item, causa, backoff=True)`: reintenta
+    con backoff creciente hasta `MAX_INTENTOS` de `outbox.py`, y solo entonces cae a dead-letter —
+    mismo criterio que ya se usaba para el envelope "ajeno" bloqueando la cola.
+  - #120: un envelope AJENO (no el de esta corrida) que bloquea `reclamar()` ya NO se manda a
+    `reencolar_o_dead_letter` sin más — eso quema SU presupuesto de reintentos por una colisión que
+    no es culpa suya (tres corridas separadas podían mandarlo a dead-letter sin que fallara nunca).
+    Ahora se mueve de vuelta a `outbox/` con `os.replace` sin tocar sus sidecars `.intentos`/
+    `.claimed_at` (su historial de reintentos queda intacto), y el bucle de reclamo está acotado a
+    `_MAX_INTENTOS_RECLAMO` vueltas; si tras esas vueltas la corrida sigue sin poder reclamar su
+    propio envelope, sale con diagnóstico real apuntando al nuevo flag `--outbox-status` (antes
+    citaba un inexistente "`--check` de la outbox").
+  - #125 (segunda mitad): tras `completar()`, se purga `done/` con `ob.purgar_antiguos(dir_outbox,
+    "done", dias=RETENCION_DONE_DIAS)` — sin esto, `done/` crecía sin límite con un `.manifest.json`
+    por corrida para siempre.
 """
 import argparse
 import importlib.util
@@ -36,6 +54,10 @@ for _s in (sys.stdin, sys.stdout, sys.stderr):
 HERE = os.path.dirname(os.path.abspath(__file__))
 SHARED = os.path.normpath(os.path.join(HERE, "..", "..", "..", "agent-kits", "shared"))
 BACKENDS_DIR = os.path.normpath(os.path.join(HERE, "..", "backends"))
+
+RETENCION_DONE_DIAS = 14  # gap 125 (segunda mitad): retención de `done/` tras publicar
+_MAX_INTENTOS_RECLAMO = 10  # gap 120: tope de vueltas intentando reclamar el envelope propio
+_CORTESIA_BACKOFF_S = 5  # gap 120: retraso NO punitivo (no toca `.intentos`) para ceder el turno
 
 
 class KitCompartidoNoDisponible(Exception):
@@ -60,6 +82,56 @@ def _cargar_por_ruta(ruta, nombre_modulo):
 
 def _error(mensaje, fichero, campo):
     return {"mensaje": mensaje, "fichero": fichero, "campo": campo}
+
+
+def _devolver_envelope_ajeno(item, dir_outbox):
+    """gap 120: repone en `outbox/` un envelope AJENO (no el de esta corrida) que `reclamar()`
+    devolvió por delante del nuestro — SIN llamar a `reencolar_o_dead_letter`/`dead_letter`: esas
+    funciones incrementan el contador `.intentos` incondicionalmente (backoff solo afecta al
+    retraso, no al conteo), así que tratarlo como "nuestro fallo" quemaba su presupuesto de
+    reintentos por una colisión que no es culpa suya — tres corridas separadas bastaban para
+    mandarlo a dead-letter sin que ninguna llamada a `apply()` hubiera fallado nunca.
+
+    Se mueve el envelope de vuelta a `outbox/` tal cual (mismo nombre), preservando el CONTADOR
+    `.intentos` (nunca se incrementa), pero con un `no_antes_de` corto (`_CORTESIA_BACKOFF_S`,
+    muy por debajo del `BACKOFF_S` punitivo de `outbox.py`) para que ESTE MISMO proceso no lo
+    vuelva a reclamar en la siguiente vuelta del bucle (sin esto, un envelope ajeno que gane el
+    orden alfabético se reclama y se devuelve indefinidamente sin dejar nunca paso al propio,
+    porque `reclamar()` es determinista y ninguna cantidad de tiempo real transcurre entre
+    llamadas consecutivas del mismo bucle). Se borra `.claimed_at` (ya no está reclamado). Devuelve
+    `True` si se repuso, `False` si la ruta ya no existía (recogida por otro proceso entre medias
+    — no es un error)."""
+    src = item["path"] if isinstance(item, dict) else str(item)
+    if not os.path.isfile(src):
+        return False
+    dst = os.path.join(dir_outbox, "outbox", os.path.basename(src))
+    try:
+        os.replace(src, dst)
+    except OSError:
+        return False
+    intentos_previos = 0
+    intentos_src = src + ".intentos"
+    if os.path.isfile(intentos_src):
+        try:
+            with open(intentos_src, encoding="utf-8") as fh:
+                intentos_previos = int(json.loads(fh.read() or "{}").get("intentos", 0))
+        except (OSError, ValueError, TypeError):
+            pass
+        try:
+            os.remove(intentos_src)
+        except OSError:
+            pass
+    try:
+        with open(dst + ".intentos", "w", encoding="utf-8") as fh:
+            fh.write(json.dumps({"intentos": intentos_previos,
+                                  "no_antes_de": time.time() + _CORTESIA_BACKOFF_S}))
+    except OSError:
+        pass
+    try:
+        os.remove(src + ".claimed_at")
+    except OSError:
+        pass
+    return True
 
 
 def _asegurar_gitignore_local(dirpath):
@@ -114,6 +186,10 @@ def _construir_entradas_enrutadas(ki, ks, root, config, backend_id, indice):
             "tags": meta.get("tags") or [],
             "modo": "resumen" if valor == "summary" else "completo",
             "cuerpo": meta.get("cuerpo") or "",
+            # gap 110 (revision de dos lentes, intento 2 fix2): propaga el `resumen:` explicito
+            # del frontmatter (ya lo extrae `build_index()`) hasta el adaptador, que lo prefiere
+            # sobre el primer parrafo automatico cuando `modo == "resumen"`.
+            "resumen": meta.get("resumen"),
             "ruta": meta["ruta"],
         })
     return entradas, errores, omitidas_por_routing
@@ -127,6 +203,8 @@ def _construir_parser():
     ap.add_argument("--dry-run", action="store_true", dest="dry_run")
     ap.add_argument("--check", action="store_true")
     ap.add_argument("--rebuild", action="store_true")
+    ap.add_argument("--outbox-status", action="store_true", dest="outbox_status",
+                     help="imprime `outbox.estado()` de la cola de este backend y sale (gap 120)")
     ap.add_argument("--backends-dir", action="append", default=[], dest="backends_dir",
                      help="carpeta extra donde buscar el adaptador `type` (repetible; CA-12)")
     return ap
@@ -134,9 +212,10 @@ def _construir_parser():
 
 def main(argv=None):
     args = _construir_parser().parse_args(argv)
-    modos = [args.dry_run, args.check, args.rebuild]
+    modos = [args.dry_run, args.check, args.rebuild, args.outbox_status]
     if sum(bool(m) for m in modos) > 1:
-        print("knowledge-sync: --dry-run, --check y --rebuild son excluyentes entre sí", file=sys.stderr)
+        print("knowledge-sync: --dry-run, --check, --rebuild y --outbox-status son excluyentes entre sí",
+              file=sys.stderr)
         return 2
 
     try:
@@ -147,6 +226,14 @@ def main(argv=None):
     except KitCompartidoNoDisponible as e:
         print(f"knowledge-sync: {e}", file=sys.stderr)
         return 2
+
+    if args.outbox_status:
+        # gap 120: no necesita taxonomía/adaptador — solo el estado de la cola de este backend.
+        dir_outbox = os.path.join(args.root, ".claude", "knowledge-services", "_sync-outbox", args.backend)
+        estado_cola = ob.estado(dir_outbox)
+        print(json.dumps({"backend": args.backend, "outbox": estado_cola}, ensure_ascii=False, indent=2)
+              if args.json else f"outbox `{args.backend}`: {estado_cola}")
+        return 0
 
     config, _origen, _ruta_tax, errores_tax = ks.cargar_taxonomia(args.root)
     if errores_tax:
@@ -240,32 +327,38 @@ def main(argv=None):
     ob.escribir(dir_outbox, clave, {"backend": args.backend, "type": tipo, "ops": ops})
     # gap 91: `reclamar` devuelve el PRIMERO pendiente alfabéticamente, no necesariamente el que
     # acabamos de escribir (puede haber envelopes de una corrida anterior atascados en `outbox/`).
-    # Si el reclamado no es el nuestro, se reencola CON backoff (para que la propia corrida no lo
-    # vuelva a reclamar en el siguiente intento y así deje paso al nuestro; sin backoff se
-    # reengancharía de inmediato y agotaría sus reintentos en esta misma corrida por algo que no
-    # es un fallo suyo) y se reintenta, acotado en intentos.
+    # gap 120 (revisión intento 2 fix2): si el reclamado no es el nuestro, se repone en `outbox/`
+    # SIN tocar su `.intentos` (`_devolver_envelope_ajeno` — no es un fallo SUYO, es una colisión
+    # de orden alfabético con la corrida actual; `reencolar_o_dead_letter` habría quemado su
+    # presupuesto de reintentos por algo que nunca falló) y se reintenta, acotado a
+    # `_MAX_INTENTOS_RECLAMO` vueltas.
     item = None
-    for _ in range(10):
+    for _ in range(_MAX_INTENTOS_RECLAMO):
         candidato = ob.reclamar(dir_outbox)
         if candidato is None:
             break
         if candidato.get("clave") == clave:
             item = candidato
             break
-        ob.reencolar_o_dead_letter(candidato, "no es el envelope reclamado por esta corrida")
+        _devolver_envelope_ajeno(candidato, dir_outbox)
     if item is None:
         print("knowledge-sync: no se pudo reclamar el envelope propio de esta corrida en la outbox "
-              "(otro envelope sigue bloqueando la cola; ver `--check` de la outbox)", file=sys.stderr)
+              "(otro envelope sigue bloqueando la cola; usa `--outbox-status` para inspeccionarla)",
+              file=sys.stderr)
         return 1
     try:
         resultado = adaptador.apply(ops, cfg)
     except Exception as e:  # noqa: BLE001 - un fallo del adaptador se registra, no tumba el CLI
-        ob.dead_letter(item, f"{type(e).__name__}: {e}")
+        # gap 116: reintenta con backoff antes de dead-letter (un fallo de `apply()` puede ser
+        # transitorio — red intermitente al bridge — y no merece perder el envelope al primer golpe).
+        veredicto = ob.reencolar_o_dead_letter(item, f"{type(e).__name__}: {e}", backoff=True)
         print(f"knowledge-sync: apply() del adaptador `{tipo}` falló: {type(e).__name__}: {e}"
-              f" (publicación anterior intacta; envelope en dead-letter)", file=sys.stderr)
+              f" (publicación anterior intacta; envelope: {veredicto})", file=sys.stderr)
         return 1
     manifiesto = resultado if isinstance(resultado, dict) else {"resultado": str(resultado)}
     ob.completar(item, manifiesto=manifiesto)
+    # gap 125 (segunda mitad): `done/` no crece sin límite — se purga lo ya viejo tras publicar.
+    ob.purgar_antiguos(dir_outbox, "done", dias=RETENCION_DONE_DIAS)
     print(json.dumps({"backend": args.backend, "entradas": len(entradas), "apply": resultado},
                       ensure_ascii=False, indent=2) if args.json else f"apply: {resultado}")
     return 0

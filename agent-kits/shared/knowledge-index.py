@@ -364,6 +364,11 @@ def build_index(root=None):
                 # para 500 entradas indexadas con 10 enrutadas; ahora, 500 — uno por entrada).
                 "category": fm.get("category"), "evidencia": fm.get("evidencia"),
                 "fuentes": fuentes, "tags": tags, "cuerpo": cuerpo,
+                # gap 110 (revision de dos lentes, intento 2 fix2): `resumen` explicito del
+                # frontmatter, si el autor lo escribio - se propaga tal cual hasta el adaptador
+                # (`markdown_export._cuerpo_segun_modo`), que ya lo usaba pero nunca lo recibia
+                # porque ni el indice ni `knowledge-sync.py` lo extraian.
+                "resumen": fm.get("resumen"),
             }
             vistos_en[id_] = ruta
 
