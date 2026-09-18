@@ -26,10 +26,8 @@ import sys
 
 # Consola no UTF-8 (Windows cp1252) o tuberías: reconfigurar ANTES de leer/imprimir (GOT-005).
 for _s in (sys.stdin, sys.stdout, sys.stderr):
-    try:
-        _s.reconfigure(encoding="utf-8", errors="replace")
-    except Exception:  # noqa: BLE001 - ya leído, o None (capsys/pythonw)
-        pass
+    try: _s.reconfigure(encoding="utf-8", errors="replace")
+    except Exception: pass  # noqa: BLE001 — sin reconfigure, ya leído o None (capsys, pythonw)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TAXONOMY_CONFIG_PATH = os.path.join(".claude", "knowledge-services", "taxonomy.json")
@@ -58,7 +56,25 @@ def _resolver(valor, root):
 
 def evaluar_capacidad(cap, root):
     """Evalua una capacidad registrada sobre `root`. Nunca lanza: cualquier fallo en
-    enabled/health/doctor se refleja como `{"estado": "error", "detalle": ...}` en ese campo."""
+    enabled/health/doctor se refleja como `{"estado": "error", "detalle": ...}` en ese campo.
+
+    Gap 32 (revision intento 2): esta es la API PUBLICA (documentada, usable fuera de
+    `enumerar()`); antes solo `enumerar()` vaciaba `_CACHE_TAXONOMIA`, asi que dos llamadas
+    DIRECTAS a `evaluar_capacidad()` entre las que se edita `taxonomy.json` servian la taxonomia
+    obsoleta a la segunda. Se vacia la cache al entrar y al salir de esta funcion tambien (mismo
+    ciclo de vida que `enumerar()`: nunca sobrevive mas alla de UNA evaluacion), conservando la
+    memoizacion intra-llamada entre `enabled`/`health`/`doctor` de la MISMA capacidad."""
+    _CACHE_TAXONOMIA.clear()
+    try:
+        return _evaluar_capacidad_sin_limpiar_cache(cap, root)
+    finally:
+        _CACHE_TAXONOMIA.clear()
+
+
+def _evaluar_capacidad_sin_limpiar_cache(cap, root):
+    """Cuerpo real de `evaluar_capacidad`, sin gestionar el ciclo de vida de la cache: lo usa
+    `enumerar()` para memoizar entre TODAS las capacidades de una pasada, y `evaluar_capacidad()`
+    para memoizar solo entre los campos de una capacidad (gap 32)."""
     salida = {"id": cap["id"], "config_path": cap.get("config_path"), "setup_step": cap.get("setup_step")}
 
     enabled, err = _resolver(cap.get("enabled", False), root)
@@ -131,7 +147,10 @@ def enumerar(root=None, registro=None):
     destino = REGISTRO if registro is None else registro
     _CACHE_TAXONOMIA.clear()
     try:
-        return [evaluar_capacidad(cap, root) for cap in destino]
+        # `_evaluar_capacidad_sin_limpiar_cache`, no `evaluar_capacidad`: esta ultima vacia la
+        # cache al entrar/salir (gap 32) y aqui se quiere compartirla entre TODAS las capacidades
+        # de la pasada, no solo dentro de cada una.
+        return [_evaluar_capacidad_sin_limpiar_cache(cap, root) for cap in destino]
     finally:
         _CACHE_TAXONOMIA.clear()
 
