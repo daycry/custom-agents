@@ -54,14 +54,25 @@ python3 "$KSSKILL" --backend kwipu --root . --check
 python3 "$KSSKILL" --backend kwipu --root . --dry-run
 python3 "$KSSKILL" --backend kwipu --root .
 python3 "$KSSKILL" --backend kwipu --root . --rebuild
+python3 "$KSSKILL" --backend kwipu --root . --outbox-status
 ```
 
-- `--check`: `health()` + `verify()`, no toca la publicación. `exit 0` solo si `estado == "sano"`
-  y `verify().ok`.
-- `--dry-run`: calcula `plan()` y lo imprime; nunca llama a `apply()`.
-- (ninguno): `plan()` + `apply()` reales, con staging idempotente de `outbox.py`; un fallo de
-  `apply()` va a `dead-letter`, la publicación anterior queda intacta.
-- `--rebuild`: `rebuild(entries, cfg)` sobre TODAS las entradas ya enrutadas para ese backend.
+- `--check`: `health()` + `verify()`, no toca la publicación ni la outbox. `exit 0` solo si
+  `estado == "sano"` y `verify().ok`.
+- `--dry-run`: calcula `plan()` y lo imprime; nunca llama a `apply()` ni drena la outbox.
+- (ninguno): primero DRENA la outbox propia — reintenta cualquier envelope PENDIENTE de este
+  mismo backend cuyo backoff ya venció (`_drenar_outbox_propia`, aplica sus `ops` de forma
+  idempotente; si vuelve a fallar, incrementa `intentos` de verdad y escala a `dead-letter` al
+  llegar a `MAX_INTENTOS`) — y LUEGO hace `plan()` + `apply()` reales del sync fresco, con
+  staging/dead-letter de `outbox.py`. Un envelope de OTRO backend que bloquee el reclamo se cede
+  con `outbox.ceder_paso()` sin tocar su presupuesto de reintentos. Un fallo de `apply()` en el
+  sync fresco reencola con backoff (nunca dead-letter directo por un solo fallo); la publicación
+  anterior queda intacta.
+- `--rebuild`: `rebuild(entries, cfg)` sobre TODAS las entradas ya enrutadas para ese backend
+  (equivale a `plan(entries, cfg, force=True)` + `apply`, fuerza `upsert` en todo).
+- `--outbox-status`: imprime `outbox.estado()` de la cola de este backend y sale — no publica ni
+  drena nada. Es el diagnóstico de referencia cuando una corrida sospecha que hay envelopes
+  atascados.
 
 Añadir un backend nuevo: un fichero `backends/<type>.py` con las 6 funciones — ver
 `backends/README.md` para el contrato exacto y `references/kwipu-adapter.md` para el ejemplo real
@@ -72,8 +83,11 @@ Añadir un backend nuevo: un fichero `backends/<type>.py` con las 6 funciones �
 
 - **Fail-closed por routing**: una categoría sin `routing` declarado, o `routing.<id>: false`,
   jamás llega al adaptador — ni siquiera para "solo probar".
-- **Nunca se borra la publicación anterior en error**: `apply()` publica ATÓMICO; un fallo va a
-  `outbox.py` `dead-letter`, no se reintenta dentro de la misma corrida.
+- **Nunca se borra la publicación anterior en error**: `apply()` publica fichero a fichero con un
+  diario (`manifest.pending.json` → publica → `manifest.json`, ver `references/kwipu-adapter.md`);
+  nunca borra ni mueve ficheros ajenos a los que el propio manifiesto controla. Un fallo va primero
+  a reencolado con backoff (`outbox.py`) y solo escala a `dead-letter` al agotar los reintentos —
+  no se reintenta dentro de la misma corrida, sí en la siguiente (drenaje antes del sync fresco).
 - **`verify` nombra, no ejecuta** (CA-16): el reindexado real es del stack, nunca de este plugin.
 - **Sin dependencias externas**: todo el código de esta skill es stdlib puro.
 
