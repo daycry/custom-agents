@@ -159,3 +159,54 @@ def test_cli_lista_capacidades(capsys, tmp_path):
     salida = capsys.readouterr().out
     assert "knowledge-gate" in salida
     assert "kwipu" in salida
+
+
+# ------------------------------------------------------------------ revisión intento 1 (fix2)
+
+def test_registrar_sin_id_levanta_valueerror():
+    """Gap 16: `registrar()` con una capacidad sin `id` (o `id` vacío) falla con un mensaje claro
+    en el momento de registrar, no con un `KeyError` a mitad del bucle de comparación."""
+    import pytest
+    registro = []
+    with pytest.raises(ValueError):
+        cap_mod.registrar({"config_path": "x"}, registro=registro)
+    with pytest.raises(ValueError):
+        cap_mod.registrar({"id": ""}, registro=registro)
+    assert registro == []
+
+
+def test_enumerar_memoiza_la_taxonomia_por_llamada(tmp_path, monkeypatch):
+    """Gap 22: dentro de una sola `enumerar()`, `taxonomy.json` se lee/valida UNA vez (hoy
+    `knowledge-gate` y `kwipu` la leen cada uno por su lado, y `kwipu` la relee en
+    enabled/health/doctor: hasta 5 lecturas por `enumerar()`)."""
+    root = str(tmp_path)
+    _taxonomy(root, backends={"kwipu": {"type": "markdown-export", "enabled": True,
+                                          "config": {"export_dir": ".claude/knowledge-services/kwipu-export"}}})
+
+    llamadas = {"n": 0}
+    original = cap_mod._cargar_knowledge_schema
+
+    def _contando():
+        llamadas["n"] += 1
+        return original()
+
+    monkeypatch.setattr(cap_mod, "_cargar_knowledge_schema", _contando)
+    cap_mod.enumerar(root)
+    assert llamadas["n"] == 1
+
+
+def test_enumerar_no_sirve_taxonomia_obsoleta_entre_llamadas(tmp_path):
+    """La cache de `enumerar()` (gap 22) no debe sobrevivir a la llamada: una taxonomia editada
+    entre dos `enumerar()` se refleja en la segunda."""
+    root = str(tmp_path)
+    _taxonomy(root, backends={"kwipu": {"type": "markdown-export", "enabled": False,
+                                          "config": {"export_dir": ".claude/knowledge-services/kwipu-export"}}})
+    primero = cap_mod.enumerar(root)
+    kwipu1 = next(c for c in primero if c["id"] == "kwipu")
+    assert kwipu1["enabled"] is False
+
+    _taxonomy(root, backends={"kwipu": {"type": "markdown-export", "enabled": True,
+                                          "config": {"export_dir": ".claude/knowledge-services/kwipu-export"}}})
+    segundo = cap_mod.enumerar(root)
+    kwipu2 = next(c for c in segundo if c["id"] == "kwipu")
+    assert kwipu2["enabled"] is True

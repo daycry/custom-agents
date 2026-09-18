@@ -87,7 +87,13 @@ def registrar(cap, registro=None):
     """Anade (o sobrescribe, por `id`) una capacidad en `registro` (por defecto, el registro
     global `REGISTRO`). Devuelve `cap`. Cada capacidad declara el contrato de seis claves; las
     piezas que la registran (kwipu -> T-08, graphiti -> otra iniciativa) no tocan este fichero
-    salvo para anadir su propia entrada."""
+    salvo para anadir su propia entrada.
+
+    Gap 16 (revision intento 1): `cap` sin un `id` no vacio levanta un `ValueError` explicito
+    aqui, en vez de un `KeyError`/comparacion silenciosa mas abajo en el bucle — un registro mal
+    formado se detecta al registrar, no a mitad de un `enumerar()` ajeno."""
+    if not isinstance(cap, dict) or not cap.get("id"):
+        raise ValueError(f"capacidad invalida: falta `id` no vacio en {cap!r}")
     destino = REGISTRO if registro is None else registro
     for i, existente in enumerate(destino):
         if existente["id"] == cap["id"]:
@@ -97,13 +103,37 @@ def registrar(cap, registro=None):
     return cap
 
 
+# Cache de taxonomia por `enumerar()` (gap 22): evita releer/revalidar `taxonomy.json` una vez
+# por capacidad (hoy knowledge-gate + kwipu la leen cada uno por su lado, y kwipu la vuelve a leer
+# en enabled/health/doctor). Se llena bajo demanda por `root` y se vacia al empezar y al terminar
+# cada `enumerar()` (nunca sobrevive entre llamadas: una taxonomia editada entre dos `enumerar()`
+# debe verse en la siguiente).
+_CACHE_TAXONOMIA = {}
+
+
+def _estado_taxonomia(root):
+    """(ks, config, origen, ruta, errores) para `root`, memoizado dentro de la `_CACHE_TAXONOMIA`
+    activa (solo mientras dura un `enumerar()`; ver `enumerar()` para el ciclo de vida)."""
+    clave = os.path.abspath(root or ".")
+    if clave not in _CACHE_TAXONOMIA:
+        ks = _cargar_knowledge_schema()
+        config, origen, ruta, errores = ks.cargar_taxonomia(root)
+        _CACHE_TAXONOMIA[clave] = (ks, config, origen, ruta, errores)
+    return _CACHE_TAXONOMIA[clave]
+
+
 def enumerar(root=None, registro=None):
     """Lista de capacidades evaluadas sobre `root` (por defecto, cwd). Recorre `registro` (por
     defecto, el registro global `REGISTRO`) sin que el orden de fallos de una capacidad afecte
-    a las demas."""
+    a las demas. Memoiza la lectura de `taxonomy.json` durante esta llamada (gap 22): la cache se
+    vacia al entrar y al salir, asi que nunca se sirve una taxonomia obsoleta a otra llamada."""
     root = root or "."
     destino = REGISTRO if registro is None else registro
-    return [evaluar_capacidad(cap, root) for cap in destino]
+    _CACHE_TAXONOMIA.clear()
+    try:
+        return [evaluar_capacidad(cap, root) for cap in destino]
+    finally:
+        _CACHE_TAXONOMIA.clear()
 
 
 # ---------------------------------------------------------------- capacidades del registro base
@@ -116,8 +146,7 @@ def _knowledge_gate_enabled(root):
 
 
 def _knowledge_gate_health(root):
-    ks = _cargar_knowledge_schema()
-    _config, _origen, ruta, errores = ks.cargar_taxonomia(root)
+    _ks, _config, _origen, ruta, errores = _estado_taxonomia(root)
     if errores:
         detalle = "; ".join(f"{e['campo']}: {e['mensaje']}" for e in errores)
         return {"estado": "error", "detalle": detalle, "fichero": ruta or TAXONOMY_CONFIG_PATH}
@@ -132,8 +161,7 @@ def _knowledge_gate_doctor(root):
 
 
 def _kwipu_backend_config(root):
-    ks = _cargar_knowledge_schema()
-    config, _origen, _ruta, errores = ks.cargar_taxonomia(root)
+    _ks, config, _origen, _ruta, errores = _estado_taxonomia(root)
     if errores or not config:
         return {}
     return (config.get("backends") or {}).get("kwipu") or {}
