@@ -213,6 +213,24 @@ class TestMarkdownExportHealth(unittest.TestCase):
             salud = self.mod.health(cfg)
         self.assertEqual(salud["estado"], "degradado")
 
+    def test_health_503_es_degradado_no_off(self):
+        """gap 92 (fix1 2026-09-18): un bridge VIVO pero roto (503, p. ej. embedder caido) no es
+        indistinguible de un stack apagado — `off` daria el remedio equivocado (levantar el stack en
+        vez de mirar el log del bridge)."""
+        with _ServidorFixturasContext({"/health": (503, b'{"error":"embedder unavailable"}')}) as srv:
+            cfg = {"health": {"url": f"{srv.base_url}/health", "timeout_ms": 2000}}
+            salud = self.mod.health(cfg)
+        self.assertEqual(salud["estado"], "degradado")
+        self.assertIn("503", salud["detalle"])
+
+    def test_health_404_sigue_siendo_error(self):
+        """Contraste del gap 92: un 4xx (URL mal configurada, no bridge roto) sigue siendo `error`,
+        no `degradado`."""
+        with _ServidorFixturasContext({"/health": (404, b"not found")}) as srv:
+            cfg = {"health": {"url": f"{srv.base_url}/health", "timeout_ms": 2000}}
+            salud = self.mod.health(cfg)
+        self.assertEqual(salud["estado"], "error")
+
     def test_health_error_con_json_malformado(self):
         with _ServidorFixturasContext({"/health": (200, b"esto no es json")}) as srv:
             cfg = {"health": {"url": f"{srv.base_url}/health", "timeout_ms": 2000}}
@@ -277,12 +295,15 @@ class TestMarkdownExportVerify(unittest.TestCase):
         self.assertIn("kwipu-mcp", remedio)
         self.assertNotIn("subprocess", remedio.lower())
 
-    def test_verify_sin_manifest_previo_es_ok_trivial(self):
+    def test_verify_sin_manifest_previo_no_es_ok_es_nunca_sincronizado(self):
+        """gap 87: manifiesto ausente/vacio ya NO es un `ok: True` trivial (falso positivo) —
+        nunca se publico nada, asi que `verify` lo declara explicitamente."""
         cfg = {"export_dir": self.export_dir,
                 "health": {"url": "http://127.0.0.1:1/health", "timeout_ms": 100}}
         resultado = self.mod.verify(cfg)
-        self.assertTrue(resultado["ok"])
+        self.assertFalse(resultado["ok"])
         self.assertEqual(resultado["desfase"], [])
+        self.assertEqual(resultado["razon"], "nunca_sincronizado")
 
     def test_verify_sin_red_nunca_lanza_y_reporta_desfase(self):
         entradas = [_entrada(id_="mr.pattern.x", cuerpo="x")]
@@ -292,6 +313,219 @@ class TestMarkdownExportVerify(unittest.TestCase):
         resultado = self.mod.verify(cfg)
         self.assertFalse(resultado["ok"])
         self.assertTrue(resultado["desfase"])
+
+
+class TestMarkdownExportFix1(unittest.TestCase):
+    """Fase 3, intento 1, fix1 (2026-09-18): gaps 82/88/89/92/93/96/97/101/102/103."""
+
+    def setUp(self):
+        self.mod = _cargar()
+        self.tmp = tempfile.mkdtemp(prefix="ks-export-fix1-")
+        self.root = os.path.join(self.tmp, "proyecto")
+        os.makedirs(self.root, exist_ok=True)
+        self.export_dir_rel = "kwipu-export"
+        self.cfg = {"export_dir": self.export_dir_rel, "_root": self.root,
+                    "health": {"url": "http://127.0.0.1:1/health", "timeout_ms": 100}}
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    # ---- gap 88/102: export_dir resuelto contra _root, nunca CWD; contencion ----
+
+    def test_export_dir_relativo_se_resuelve_contra_root_no_cwd(self):
+        entradas = [_entrada(id_="mr.pattern.a")]
+        self.mod.apply(self.mod.plan(entradas, self.cfg), self.cfg)
+        esperado = os.path.join(self.root, self.export_dir_rel, "mr.pattern.a.md")
+        self.assertTrue(os.path.isfile(esperado))
+
+    def test_export_dir_igual_a_root_es_config_invalida(self):
+        cfg = dict(self.cfg, export_dir=".")
+        with self.assertRaises(self.mod.ConfigInvalida):
+            self.mod.plan([], cfg)
+
+    def test_export_dir_dentro_de_approved_es_config_invalida(self):
+        cfg = dict(self.cfg, export_dir=os.path.join("docs", "knowledge", "approved", "x"))
+        with self.assertRaises(self.mod.ConfigInvalida):
+            self.mod.plan([], cfg)
+
+    # ---- gap 89: timeout_ms invalido cae al default en vez de reventar ----
+
+    def test_timeout_ms_no_numerico_cae_al_default(self):
+        salud = self.mod.health({"health": {"url": "http://127.0.0.1:1/health",
+                                             "timeout_ms": "no-es-un-numero"}})
+        self.assertEqual(salud["estado"], "off")  # no lanzo TypeError, siguio y fallo de red
+
+    def test_timeout_ms_none_cae_al_default(self):
+        salud = self.mod.health({"health": {"url": "http://127.0.0.1:1/health",
+                                             "timeout_ms": None}})
+        self.assertEqual(salud["estado"], "off")
+
+    # ---- gap 97: host allowlist (CWE-918) ----
+
+    def test_health_rechaza_host_publico_sin_abrir_conexion(self):
+        salud = self.mod.health({"health": {"url": "http://example.com/health", "timeout_ms": 100}})
+        self.assertEqual(salud["estado"], "error")
+        self.assertIn("no local", salud["detalle"])
+
+    def test_health_rechaza_esquema_file(self):
+        salud = self.mod.health({"health": {"url": "file:///etc/passwd", "timeout_ms": 100}})
+        self.assertEqual(salud["estado"], "error")
+
+    def test_health_permite_127_0_0_1(self):
+        salud = self.mod.health({"health": {"url": "http://127.0.0.1:1/health", "timeout_ms": 100}})
+        self.assertEqual(salud["estado"], "off")  # llego a intentar conectar (rechazo de conexion)
+
+    # ---- gap 93: plan compara hash, sin_cambios si no cambio ----
+
+    def test_plan_reporta_sin_cambios_si_el_hash_no_cambio(self):
+        entradas = [_entrada(id_="mr.pattern.a")]
+        self.mod.apply(self.mod.plan(entradas, self.cfg), self.cfg)
+        ops2 = self.mod.plan(entradas, self.cfg)
+        acciones = {op["knowledge_id"]: op["accion"] for op in ops2}
+        self.assertEqual(acciones["mr.pattern.a"], "sin_cambios")
+
+    def test_apply_no_reescribe_fichero_sin_cambios(self):
+        entradas = [_entrada(id_="mr.pattern.a")]
+        self.mod.apply(self.mod.plan(entradas, self.cfg), self.cfg)
+        ruta = os.path.join(self.root, self.export_dir_rel, "mr.pattern.a.md")
+        mtime_1 = os.path.getmtime(ruta)
+        resultado = self.mod.apply(self.mod.plan(entradas, self.cfg), self.cfg)
+        self.assertEqual(resultado["escritos"], 0)
+        self.assertEqual(resultado["sin_cambios"], 1)
+        self.assertEqual(os.path.getmtime(ruta), mtime_1)
+
+    # ---- gap 82: atomicidad -- un fallo a medias no toca la publicacion anterior ----
+
+    def test_apply_con_id_invalido_a_medias_no_toca_lo_ya_publicado(self):
+        entradas = [_entrada(id_="mr.pattern.a")]
+        self.mod.apply(self.mod.plan(entradas, self.cfg), self.cfg)
+        ruta_a = os.path.join(self.root, self.export_dir_rel, "mr.pattern.a.md")
+        with open(ruta_a, "r", encoding="utf-8") as f:
+            contenido_previo = f.read()
+        ops_mixtas = [
+            {"accion": "upsert", "knowledge_id": "mr.pattern.b", "project": "mr",
+             "category": "PATTERN", "version": 1, "confidence": "medium", "cuerpo": "x", "hash": "h"},
+            {"accion": "upsert", "knowledge_id": "../escape", "project": "mr",
+             "category": "PATTERN", "version": 1, "confidence": "medium", "cuerpo": "x", "hash": "h"},
+        ]
+        with self.assertRaises(self.mod.ConfigInvalida):
+            self.mod.apply(ops_mixtas, self.cfg)
+        # la entrada 'a' (publicada antes) sigue intacta, byte a byte
+        with open(ruta_a, "r", encoding="utf-8") as f:
+            self.assertEqual(f.read(), contenido_previo)
+        # 'b' (parte de la tanda fallida) NUNCA se publico
+        self.assertFalse(os.path.exists(
+            os.path.join(self.root, self.export_dir_rel, "mr.pattern.b.md")))
+        # no queda directorio de staging huerfano
+        restos = [d for d in os.listdir(os.path.join(self.root, self.export_dir_rel))
+                  if d.startswith(".staging-")]
+        self.assertEqual(restos, [])
+
+    # ---- gap 96: defensa en profundidad en el adaptador (ademas de knowledge-index.py) ----
+
+    def test_apply_rechaza_knowledge_id_con_escape_de_ruta(self):
+        ops = [{"accion": "upsert", "knowledge_id": "../../escape", "project": "mr",
+                "category": "PATTERN", "version": 1, "confidence": "medium",
+                "cuerpo": "x", "hash": "h"}]
+        with self.assertRaises(self.mod.ConfigInvalida):
+            self.mod.apply(ops, self.cfg)
+
+    # ---- gap 103: _base_url_snapshot preserva query/prefijo y tolera barra final ----
+
+    # ---- gap 83: modo "resumen" = primer parrafo, nunca el cuerpo completo ----
+
+    def test_modo_resumen_solo_publica_el_primer_parrafo(self):
+        entradas = [_entrada(id_="mr.pattern.a",
+                              cuerpo="Primer parrafo con la idea clave.\n\nSegundo parrafo largo "
+                                     "que no deberia salir en el resumen.\n")]
+        entradas[0]["modo"] = "resumen"
+        self.mod.apply(self.mod.plan(entradas, self.cfg), self.cfg)
+        ruta = os.path.join(self.root, self.export_dir_rel, "mr.pattern.a.md")
+        with open(ruta, "r", encoding="utf-8") as f:
+            texto = f.read()
+        self.assertIn("Primer parrafo con la idea clave.", texto)
+        self.assertNotIn("Segundo parrafo largo", texto)
+
+    def test_modo_resumen_respeta_el_campo_resumen_explicito(self):
+        entradas = [_entrada(id_="mr.pattern.a", cuerpo="Cuerpo completo irrelevante aqui.\n")]
+        entradas[0]["modo"] = "resumen"
+        entradas[0]["resumen"] = "Resumen escrito a mano por el curator."
+        self.mod.apply(self.mod.plan(entradas, self.cfg), self.cfg)
+        ruta = os.path.join(self.root, self.export_dir_rel, "mr.pattern.a.md")
+        with open(ruta, "r", encoding="utf-8") as f:
+            texto = f.read()
+        self.assertIn("Resumen escrito a mano por el curator.", texto)
+        self.assertNotIn("Cuerpo completo irrelevante", texto)
+
+    def test_modo_completo_publica_el_cuerpo_entero(self):
+        entradas = [_entrada(id_="mr.pattern.a",
+                              cuerpo="Primer parrafo.\n\nSegundo parrafo tambien presente.\n")]
+        self.mod.apply(self.mod.plan(entradas, self.cfg), self.cfg)
+        ruta = os.path.join(self.root, self.export_dir_rel, "mr.pattern.a.md")
+        with open(ruta, "r", encoding="utf-8") as f:
+            texto = f.read()
+        self.assertIn("Segundo parrafo tambien presente.", texto)
+
+    def test_base_url_snapshot_con_query_y_barra_final(self):
+        self.assertEqual(
+            self.mod._base_url_snapshot("http://127.0.0.1:8765/api/health/"),
+            "http://127.0.0.1:8765/api")
+        self.assertEqual(
+            self.mod._base_url_snapshot("http://127.0.0.1:8765/health"),
+            "http://127.0.0.1:8765")
+
+
+class TestMarkdownExportVerifyHash(unittest.TestCase):
+    """gap 101: verify() compara hash cuando el snapshot lo trae, y lo declara si no."""
+
+    def setUp(self):
+        self.mod = _cargar()
+        self.tmp = tempfile.mkdtemp(prefix="ks-export-verifyhash-")
+        self.export_dir = os.path.join(self.tmp, "kwipu-export")
+        self.cfg = {"export_dir": self.export_dir,
+                    "health": {"url": "http://127.0.0.1:1/health", "timeout_ms": 100}}
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_verify_declara_comparacion_por_nombre_si_snapshot_no_trae_hash(self):
+        entradas = [_entrada(id_="mr.pattern.readme", cuerpo="x")]
+        self.mod.apply(self.mod.plan(entradas, self.cfg), self.cfg)
+        os.replace(os.path.join(self.export_dir, "mr.pattern.readme.md"),
+                   os.path.join(self.export_dir, "README.md"))
+        manifest_path = os.path.join(self.export_dir, "manifest.json")
+        with open(manifest_path, "r", encoding="utf-8") as f:
+            m = json.load(f)
+        m["entries"]["mr.pattern.readme"]["ruta_relativa"] = "README.md"
+        with open(manifest_path, "w", encoding="utf-8") as f:
+            json.dump(m, f)
+        cuerpo = _leer_fixture("kwipu-graph-snapshot-2026-09-18.json").encode("utf-8")
+        with _ServidorFixturasContext({"/graph/snapshot": (200, cuerpo)}) as srv:
+            self.cfg["health"]["url"] = f"{srv.base_url}/health"
+            resultado = self.mod.verify(self.cfg)
+        self.assertEqual(resultado["comparacion"], "nombre")
+
+    def test_verify_detecta_desfase_por_hash_distinto_aunque_el_nombre_coincida(self):
+        entradas = [_entrada(id_="mr.pattern.readme", cuerpo="x")]
+        self.mod.apply(self.mod.plan(entradas, self.cfg), self.cfg)
+        os.replace(os.path.join(self.export_dir, "mr.pattern.readme.md"),
+                   os.path.join(self.export_dir, "README.md"))
+        manifest_path = os.path.join(self.export_dir, "manifest.json")
+        with open(manifest_path, "r", encoding="utf-8") as f:
+            m = json.load(f)
+        m["entries"]["mr.pattern.readme"]["ruta_relativa"] = "README.md"
+        with open(manifest_path, "w", encoding="utf-8") as f:
+            json.dump(m, f)
+        snapshot = json.loads(_leer_fixture("kwipu-graph-snapshot-2026-09-18.json"))
+        for nodo in snapshot.get("nodes", []):
+            if isinstance(nodo, dict) and nodo.get("file_name") == "README.md":
+                nodo["hash"] = "hash-distinto-de-mentira"
+        cuerpo = json.dumps(snapshot).encode("utf-8")
+        with _ServidorFixturasContext({"/graph/snapshot": (200, cuerpo)}) as srv:
+            self.cfg["health"]["url"] = f"{srv.base_url}/health"
+            resultado = self.mod.verify(self.cfg)
+        self.assertFalse(resultado["ok"])
+        self.assertEqual(resultado["comparacion"], "hash")
 
 
 if __name__ == "__main__":
