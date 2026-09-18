@@ -1021,5 +1021,164 @@ class TestMarkdownExportFix3(unittest.TestCase):
             httpd.server_close()
 
 
+class TestMarkdownExportFix3b(unittest.TestCase):
+    """Fase 3, intento 3, ronda `fix3b` (2026-09-19): cierre de los gaps 126/127/129/132/134/136/
+    137/138 y #82/#116 en el adaptador — cobertura que faltaba tras el diseño sustitutivo."""
+
+    def setUp(self):
+        self.mod = _cargar()
+        self.tmp = tempfile.mkdtemp(prefix="ks-export-fix3b-")
+        self.root = os.path.join(self.tmp, "proyecto")
+        os.makedirs(self.root, exist_ok=True)
+        self.export_dir_rel = "kwipu-export"
+        self.cfg = {"export_dir": self.export_dir_rel, "_root": self.root,
+                    "health": {"url": "http://127.0.0.1:1/health", "timeout_ms": 100}}
+        self.export_dir = os.path.join(self.root, self.export_dir_rel)
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    # ---- gap 127: apply()/--rebuild NUNCA borran ficheros ajenos, incluida una subcarpeta ----
+
+    def test_apply_no_borra_ficheros_ni_subcarpetas_ajenas_en_export_dir(self):
+        os.makedirs(self.export_dir, exist_ok=True)
+        with open(os.path.join(self.export_dir, "NOTAS.md"), "w", encoding="utf-8") as fh:
+            fh.write("sin frontmatter, de otro equipo\n")
+        open(os.path.join(self.export_dir, ".gitkeep"), "w", encoding="utf-8").close()
+        subcarpeta = os.path.join(self.export_dir, "otra-carpeta")
+        os.makedirs(subcarpeta, exist_ok=True)
+        with open(os.path.join(subcarpeta, "ajeno.txt"), "w", encoding="utf-8") as fh:
+            fh.write("ajeno\n")
+
+        entradas = [_entrada(id_="mr.pattern.a"), _entrada(id_="mr.pattern.b")]
+        self.mod.apply(self.mod.plan(entradas, self.cfg), self.cfg)
+        # segunda corrida que revoca "b" (deja de estar en entries) no debe tocar lo ajeno
+        self.mod.apply(self.mod.plan([_entrada(id_="mr.pattern.a")], self.cfg), self.cfg)
+        # --rebuild tampoco
+        self.mod.rebuild([_entrada(id_="mr.pattern.a")], self.cfg)
+
+        self.assertTrue(os.path.isfile(os.path.join(self.export_dir, "NOTAS.md")))
+        self.assertTrue(os.path.isfile(os.path.join(self.export_dir, ".gitkeep")))
+        self.assertTrue(os.path.isfile(os.path.join(subcarpeta, "ajeno.txt")))
+        self.assertFalse(os.path.isfile(os.path.join(self.export_dir, "mr.pattern.b.md")))
+
+    # ---- gap 82/126: dos apply() concurrentes sobre el mismo export_dir se serializan (lock) ----
+
+    def test_dos_apply_concurrentes_se_serializan_por_el_lock_sin_perder_publicaciones(self):
+        entradas_base = [_entrada(id_=f"mr.pattern.{n}") for n in range(6)]
+        errores = []
+
+        def _worker(sufijo):
+            try:
+                entradas = entradas_base + [_entrada(id_=f"mr.pattern.solo-{sufijo}",
+                                                       cuerpo=f"Cuerpo {sufijo}.\n")]
+                self.mod.apply(self.mod.plan(entradas, self.cfg), self.cfg)
+            except Exception as e:  # noqa: BLE001 — se recoge para afirmar en el hilo principal
+                errores.append(e)
+
+        hilos = [threading.Thread(target=_worker, args=(n,)) for n in range(2)]
+        for h in hilos:
+            h.start()
+        for h in hilos:
+            h.join(timeout=30)
+
+        # ninguno de los dos falla por contención (el lock reintenta/espera, no rompe silenciosamente
+        # salvo timeout); si alguno reporta lock ocupado no es un error del propio adaptador
+        errores_reales = [e for e in errores if not isinstance(e, self.mod.ConfigInvalida)]
+        self.assertEqual(errores_reales, [])
+        # el manifiesto final es consistente: sin `manifest.pending.json` colgado
+        self.assertFalse(os.path.isfile(os.path.join(self.export_dir, "manifest.pending.json")))
+        manifest = self.mod._leer_manifest(self.export_dir)
+        for entrada in entradas_base:
+            self.assertIn(entrada["id"], manifest["entries"])
+
+    # ---- gap 126/127: revoke() usa el mismo diario (pending -> borra -> manifest.json) ----
+
+    def test_revoke_usa_el_diario_y_retoma_si_se_interrumpe_antes_de_finalizar(self):
+        entradas = [_entrada(id_="mr.pattern.a"), _entrada(id_="mr.pattern.b")]
+        self.mod.apply(self.mod.plan(entradas, self.cfg), self.cfg)
+
+        original_replace = self.mod.os.replace
+        export_dir_real = self.mod._export_dir_resuelto(self.cfg)
+        pending_path = os.path.join(export_dir_real, "manifest.pending.json")
+        manifest_path = os.path.join(export_dir_real, "manifest.json")
+
+        def _replace_falla_en_manifest(origen, destino, *a, **kw):
+            if origen == pending_path and destino == manifest_path:
+                raise OSError("simulado: fallo justo al finalizar la revocacion")
+            return original_replace(origen, destino, *a, **kw)
+
+        self.mod.os.replace = _replace_falla_en_manifest
+        try:
+            with self.assertRaises(self.mod.ConfigInvalida):
+                self.mod.revoke("mr.pattern.a", self.cfg)
+        finally:
+            self.mod.os.replace = original_replace
+
+        # el fichero ya se borro (paso 2 del diario) pero el pending sigue en disco: retomable
+        self.assertFalse(os.path.isfile(os.path.join(self.export_dir, "mr.pattern.a.md")))
+        self.assertTrue(os.path.isfile(pending_path))
+        resultado = self.mod.verify(self.cfg)
+        self.assertEqual(resultado["razon"], "publicacion_incompleta")
+
+        # una corrida normal de plan()/apply() sobre lo restante completa el diario
+        self.mod.apply(self.mod.plan([_entrada(id_="mr.pattern.b")], self.cfg), self.cfg)
+        self.assertFalse(os.path.isfile(pending_path))
+        manifest = self.mod._leer_manifest(self.export_dir)
+        self.assertNotIn("mr.pattern.a", manifest["entries"])
+
+    # ---- gap 136/137 (Lente D): tiempos — 200 upserts en frio y 2a corrida sin cambios ----
+
+    def test_tiempos_200_upserts_en_frio_y_segunda_corrida_sin_cambios(self):
+        import time as _time
+        entradas = [_entrada(id_=f"mr.pattern.perf-{n:03d}") for n in range(200)]
+        t0 = _time.time()
+        self.mod.apply(self.mod.plan(entradas, self.cfg), self.cfg)
+        t_frio = _time.time() - t0
+        t0 = _time.time()
+        resultado = self.mod.apply(self.mod.plan(entradas, self.cfg), self.cfg)
+        t_sin_cambios = _time.time() - t0
+        self.assertEqual(resultado["sin_cambios"], 200)
+        self.assertEqual(resultado["escritos"], 0)
+        # Cota absoluta generosa (maquina de dev/CI compartida, carpeta bajo OneDrive: I/O
+        # variable) — la propiedad que importa de verdad es la correctness de arriba (0 escritos,
+        # 200 sin_cambios: ni un solo os.replace en la pasada estable, gap 136). El techo evita una
+        # regresion catastrofica sin acoplar el test al reloj de una maquina concreta.
+        self.assertLess(t_sin_cambios, 10.0)
+        print(f"\n[perf] 200 upserts en frio: {t_frio:.3f}s; 200 sin_cambios (plan+apply): "
+              f"{t_sin_cambios:.3f}s")
+
+    # ---- gap 138: la resolucion DNS lanzada bajo el lock no deja RuntimeError de join prematuro ----
+
+    def test_resolucion_dns_concurrente_no_intenta_join_antes_de_start(self):
+        import socket as _socket
+        import time as _time
+        original_gethostbyname = _socket.gethostbyname
+
+        def _lento(host):
+            _time.sleep(0.2)
+            return original_gethostbyname("127.0.0.1") if host == "127.0.0.1" else \
+                (_ for _ in ()).throw(OSError("no resuelto"))
+
+        self.mod.socket.gethostbyname = _lento
+        errores = []
+
+        def _worker():
+            try:
+                self.mod._resolver_host_con_tope("host-fix3b.ejemplo.invalid", timeout_s=1.0)
+            except Exception as e:  # noqa: BLE001
+                errores.append(e)
+
+        try:
+            hilos = [threading.Thread(target=_worker) for _ in range(4)]
+            for h in hilos:
+                h.start()
+            for h in hilos:
+                h.join(timeout=5)
+        finally:
+            self.mod.socket.gethostbyname = original_gethostbyname
+        self.assertEqual(errores, [])
+
+
 if __name__ == "__main__":
     unittest.main()

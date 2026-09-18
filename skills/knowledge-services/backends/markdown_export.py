@@ -226,7 +226,6 @@ def _resolver_host_con_tope(host, timeout_s=_DNS_TIMEOUT_S):
     if entrada is not None and entrada[1] > ahora:
         return entrada[0]
 
-    es_propio = False
     with _dns_inflight_lock:
         hilo = _dns_inflight.get(host)
         if hilo is None:
@@ -242,8 +241,15 @@ def _resolver_host_con_tope(host, timeout_s=_DNS_TIMEOUT_S):
             hilo.resultado = resultado
             _dns_inflight[host] = hilo
             es_propio = True
-    if es_propio:
-        hilo.start()
+        else:
+            es_propio = False
+        # gap 138 (fix3b): `start()` DENTRO del lock — si se lanzara fuera, otro hilo podia leer
+        # `_dns_inflight[host]` y llamar `join()` ANTES de que este hilo arrancara
+        # (`RuntimeError: cannot join thread before it is started`, visto en corridas concurrentes
+        # reales de 3 hilos contra el mismo host lento). `start()` es no bloqueante y barata: no
+        # amplia la seccion critica de forma perceptible.
+        if es_propio:
+            hilo.start()
 
     hilo.join(timeout_s)
     if hilo.is_alive():
