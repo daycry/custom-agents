@@ -22,9 +22,9 @@ verificacion: obligatoria
 |---|---:|---:|---:|---:|---:|---:|---:|
 | Fase 1 - Contrato y validacion | 3 | 3 | 100% | 0 / 13h | 0.51 / 3.9h | 0 / 1.0h | ~57k / 200k |
 | Fase 2 - Curacion y workflow | 0 | 3 | 0% | 0 / 14h | 0 / 4.2h | 0 / 1.1h | 0 / 210k |
-| Fase 3 - Backends y Kwipu | 0 | 4 | 0% | 0 / 19h | 0 / 5.7h | 0 / 1.4h | 0 / 275k |
+| Fase 3 - Backends y Kwipu | 1 | 4 | 25% | 0 / 19h | 0.13 / 5.7h | 0 / 1.4h | ~16k / 275k |
 | Fase 4 - Regresion y cierre | 0 | 3 | 0% | 0 / 10h | 0 / 3.0h | 0 / 0.7h | 0 / 130k |
-| **TOTAL** | **3** | **13** | **23%** | **0 / 56h** | **0.51 / 16.8h** | **0 / 4.2h** | **~57k / 815k** |
+| **TOTAL** | **4** | **13** | **31%** | **0 / 56h** | **0.64 / 16.8h** | **0 / 4.2h** | **~73k / 815k** |
 
 ## Fase 1 - Contrato y validacion
 
@@ -160,16 +160,21 @@ verificacion: obligatoria
 - [ ] `/setup` ofrece las capacidades registradas en un solo paso y escribe `taxonomy.json` desde la plantilla si no existe (CA-14).
 
 ### T-13 - Registro de capacidades `capabilities.py`
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo humano**: est. 3h · real -
+- **Tiempo IA**: real 0.13h (medido; usage-meter, 8m, 1.99 EUR)
 - **Prevision IA**: 35k in / 14k out tok
 - **Dependencias**: T-01
 - **Tipo**: backend
 - **Archivos**: `agent-kits/shared/capabilities.py`, `agent-kits/shared/test_capabilities.py`, `agent-kits/shared/README.md`, `docs/CONVENTIONS.md`, `docs/en/CONVENTIONS.md`
 - **Verificacion**: `python -m pytest -q agent-kits/shared/test_capabilities.py` -> registro con dos capacidades (`knowledge-gate`, `kwipu`) y una tercera de fixture; `enabled/health/doctor/setup_step` por capacidad; una capacidad rota degrada a `error` sin tumbar el resto
+  - Salida real: `11 passed in 0.23s`.
+  - RED: `python -m pytest -q agent-kits/shared/test_capabilities.py` contra un `capabilities.py` stub (`REGISTRO=[]`, `registrar`/`enumerar` no-op, `main` devolvia `0`) fallo con `8 failed, 3 passed in 0.29s` (KeyError/AssertionError: sin `knowledge-gate`/`kwipu`, sin evaluacion real, CLI sin salida) · 2026-09-18. Tras implementar el registro real: `11 passed in 0.23s` (GREEN).
 **Criterios de aceptación**
-- [ ] Contrato `{id, config_path, enabled, health, doctor, setup_step}` documentado; sin dependencias.
-- [ ] Anadir una capacidad es un registro nuevo, no una edicion de `doctor.py` (CA-14).
+- [x] Contrato `{id, config_path, enabled, health, doctor, setup_step}` documentado; sin dependencias.
+- [x] Anadir una capacidad es un registro nuevo, no una edicion de `doctor.py` (CA-14).
+- **Changelog**: `/setup` y `/doctor` podran enumerar las capacidades opcionales del plugin (Knowledge Gate, Kwipu y las que se añadan despues) desde un unico registro, sin codigo especifico por capacidad.
+- **Nota (para la revision de dos lentes)**: esta tarea NO toca `doctor.py` ni `setup.md` (integrarlos es T-09, fuera de este despacho); `capabilities.py` deja el registro listo para que T-09 solo llame a `enumerar()`. La comprobacion de red real de Kwipu (`GET /health` del bridge) queda deliberadamente fuera: aqui `kwipu.health` solo refleja si esta declarado/activado en `taxonomy.json`, delegando la comprobacion en vivo al adaptador `markdown-export` de T-08 (asi lo indica la enmienda 2026-09-18 del spec, punto 3, que separa contrato de lectura del adaptador del registro de capacidades).
 
 ## Fase 4 - Regresion y cierre
 

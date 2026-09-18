@@ -192,6 +192,18 @@ Rules: **config ≠ state** (config is decided by the user; state is maintained 
 is never edited by hand); every new skill that needs memory follows this pattern (`<skill>.json` +
 `<skill>-state.json`) and adds its row here.
 
+**Optional capability registry (`agent-kits/shared/capabilities.py`, ADR-018 point 7, CA-14).**
+`/setup` and `/doctor` carry no capability-specific code (kwipu today; graphiti,
+training-data-services later): each optional capability declares itself ONCE with the contract
+`{id, config_path, enabled, health, doctor, setup_step}` (`enabled`/`health`/`doctor` can be a
+static value or a `callable(root)`) and `registrar()` adds it to the global registry; `/setup`
+and `/doctor` only walk `enumerar(root)`. A capability whose `enabled`/`health`/`doctor` raises
+degrades to `{"estado": "error", "detalle": "..."}` **without taking down the evaluation of the
+others** (fail soft). `knowledge-services`'s base registry declares `knowledge-gate` (always
+active; its health is that of `taxonomy.json`, with or without a project file) and `kwipu`
+(active only with `backends.kwipu.enabled: true`; the real network health check is done by the
+`markdown-export` adapter, not the registry).
+
 ## 10. Project technical memory — `docs/knowledge/`
 
 Besides the roadmap (rule 7, decision+outcome per initiative) and configuration (rule 9), the
