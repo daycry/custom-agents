@@ -42,7 +42,10 @@ def _taxonomy(root, categories):
     return cfg
 
 
-def _entry(root, folder, filename, id_, version=1, enlaces=None, extra=""):
+def _entry(root, folder, filename, id_, version=1, enlaces=None, extra="", estado="aprobado"):
+    # gap 43 (revisión intento 1): `estado` es obligatorio bajo `approved/`; el default de este
+    # helper es el caso feliz (`aprobado`) — pasa `estado=None` para omitirlo a propósito en un
+    # test que ejercite precisamente su ausencia.
     d = os.path.join(root, "docs", "knowledge", "approved", folder)
     os.makedirs(d, exist_ok=True)
     fm = [f"id: {id_}"]
@@ -50,6 +53,8 @@ def _entry(root, folder, filename, id_, version=1, enlaces=None, extra=""):
         fm.append(f"version: {version}")
     if enlaces:
         fm.append("enlaces: [" + ", ".join(enlaces) + "]")
+    if estado is not None:
+        fm.append(f"estado: {estado}")
     contenido = "---\n" + "\n".join(fm) + "\n---\n\n# " + id_ + "\n\n" + extra + "\n"
     with open(os.path.join(d, filename), "w", encoding="utf-8") as f:
         f.write(contenido)
@@ -230,7 +235,7 @@ def test_gap8_entrada_con_bom_se_lee_igual(tmp_path):
     _taxonomy(root, _cat())
     d = os.path.join(root, "docs", "knowledge", "approved", "adr")
     os.makedirs(d, exist_ok=True)
-    contenido = "---\nid: ADR-BOM\nversion: 1\n---\n\n# bom\n"
+    contenido = "---\nid: ADR-BOM\nversion: 1\nestado: aprobado\n---\n\n# bom\n"
     with open(os.path.join(d, "ADR-BOM.md"), "w", encoding="utf-8-sig") as f:
         f.write(contenido)
     indice, errores = ki.build_index(root)
@@ -247,7 +252,7 @@ def test_gap9_enlaces_en_lista_de_bloque_se_parsean(tmp_path):
     _entry(root, "gotchas", "GOT-002.md", "GOT-002")
     d = os.path.join(root, "docs", "knowledge", "approved", "adr")
     os.makedirs(d, exist_ok=True)
-    contenido = "---\nid: ADR-BLOQUE\nversion: 1\nenlaces:\n  - GOT-002\n---\n\n# bloque\n"
+    contenido = "---\nid: ADR-BLOQUE\nversion: 1\nestado: aprobado\nenlaces:\n  - GOT-002\n---\n\n# bloque\n"
     with open(os.path.join(d, "ADR-BLOQUE.md"), "w", encoding="utf-8") as f:
         f.write(contenido)
     indice, errores = ki.build_index(root)
@@ -263,7 +268,7 @@ def test_gap17_entrada_en_subcarpeta_se_indexa(tmp_path):
     d = os.path.join(root, "docs", "knowledge", "approved", "adr", "ADR-030")
     os.makedirs(d, exist_ok=True)
     with open(os.path.join(d, "ADR-030.md"), "w", encoding="utf-8") as f:
-        f.write("---\nid: ADR-030\nversion: 1\n---\n\n# sub\n")
+        f.write("---\nid: ADR-030\nversion: 1\nestado: aprobado\n---\n\n# sub\n")
     indice, errores = ki.build_index(root)
     assert errores == []
     assert "ADR-030" in indice
@@ -280,6 +285,18 @@ def test_gap3_estado_invalido_en_entrada_aprobada_falla(tmp_path):
         f.write("---\nid: ADR-040\nversion: 1\nestado: pending\n---\n\n# x\n")
     indice, errores = ki.build_index(root)
     assert any(e["campo"] == "estado" for e in errores)
+
+
+def test_gap43_estado_ausente_en_entrada_aprobada_falla(tmp_path):
+    """Gap 43 (revisión intento 1): `estado` es OBLIGATORIO bajo `approved/`, no solo validado
+    si está presente — una entrada sin `estado` en absoluto (p. ej. escrita a mano, saltándose
+    `curator-gate.py`) debe reportar un error `campo == "estado"`, igual que si declarase un
+    valor inválido."""
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    _entry(root, "adr", "ADR-043.md", "ADR-043", estado=None)
+    indice, errores = ki.build_index(root)
+    assert any(e["campo"] == "estado" and "falta" in e["mensaje"] for e in errores)
 
 
 def test_gap3_fuentes_vacia_declarada_falla(tmp_path):
@@ -317,7 +334,7 @@ def test_gap25_enlaces_en_lista_de_bloque_sin_sangria_se_parsean(tmp_path):
     _entry(root, "gotchas", "GOT-999.md", "GOT-999")
     d = os.path.join(root, "docs", "knowledge", "approved", "adr")
     os.makedirs(d, exist_ok=True)
-    contenido = "---\nid: ADR-BLOQUE-SIN-SANGRIA\nversion: 1\nenlaces:\n- GOT-999\n---\n\n# x\n"
+    contenido = "---\nid: ADR-BLOQUE-SIN-SANGRIA\nversion: 1\nestado: aprobado\nenlaces:\n- GOT-999\n---\n\n# x\n"
     with open(os.path.join(d, "ADR-BLOQUE-SIN-SANGRIA.md"), "w", encoding="utf-8") as f:
         f.write(contenido)
     indice, errores = ki.build_index(root)
@@ -371,7 +388,7 @@ def test_gap30_carpetas_anidadas_no_duplican_el_mismo_fichero(tmp_path):
     d = os.path.join(root, "docs", "knowledge", "approved", "adr", "legacy")
     os.makedirs(d, exist_ok=True)
     with open(os.path.join(d, "ADR-LEGACY.md"), "w", encoding="utf-8") as f:
-        f.write("---\nid: ADR-LEGACY\nversion: 1\n---\n\n# legacy\n")
+        f.write("---\nid: ADR-LEGACY\nversion: 1\nestado: aprobado\n---\n\n# legacy\n")
     indice, errores = ki.build_index(root)
     assert errores == []
     assert "ADR-LEGACY" in indice
@@ -399,7 +416,7 @@ def test_gap38_carpetas_anidadas_asignan_el_folder_mas_especifico(tmp_path):
     d = os.path.join(root, "docs", "knowledge", "approved", "adr", "legacy")
     os.makedirs(d, exist_ok=True)
     with open(os.path.join(d, "ADR-LEGACY.md"), "w", encoding="utf-8") as f:
-        f.write("---\nid: ADR-LEGACY\nversion: 1\n---\n\n# legacy\n")
+        f.write("---\nid: ADR-LEGACY\nversion: 1\nestado: aprobado\n---\n\n# legacy\n")
     indice, errores = ki.build_index(root)
     assert errores == []
     assert indice["ADR-LEGACY"]["folder"] == "adr/legacy"
