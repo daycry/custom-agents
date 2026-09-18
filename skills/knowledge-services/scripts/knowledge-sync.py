@@ -80,44 +80,43 @@ def _asegurar_gitignore_local(dirpath):
 def _construir_entradas_enrutadas(ki, ks, root, config, backend_id, indice):
     """Entradas de `approved/` YA filtradas por `routing[backend_id]` (fail-closed: sin `routing`
     declarado, o `routing.<backend_id>: false`, la entrada NUNCA se construye aquí, así que el
-    adaptador jamás la ve — CA-09/CA-11). `build_index()` no trae `category`/`evidencia`/
-    `fuentes`/`tags` (solo viven en el frontmatter del propio fichero), así que se re-parsean con
-    los mismos helpers privados que ya reutiliza `curator-gate.py` (mismo criterio, mismo vecino)."""
+    adaptador jamás la ve — CA-09/CA-11).
+
+    Gap 104 (fix1): `build_index()` ahora incluye `category`/`evidencia`/`fuentes`/`tags`/`cuerpo`
+    directamente en el índice (ya se abrió y parseó el fichero para construirlo) — este helper ya
+    NO reabre ni reparsea cada `.md`, solo lee lo que el índice ya trae.
+
+    Devuelve `(entradas, errores, omitidas_por_routing)`: `omitidas_por_routing` es la lista de
+    `id` que existen en `approved/` pero no llegaron al adaptador por falta de `routing` (gap 84:
+    visibilidad de por qué una entrada "no se publicó", en vez de desaparecer en silencio)."""
     valor_por_categoria = {
         cat.get("key"): valor
         for cat, valor in ks.categorias_por_backend_con_valor(config, backend_id)
     }
     entradas = []
     errores = []
+    omitidas_por_routing = []
     for id_ in sorted(indice):
         meta = indice[id_]
-        ruta = meta["ruta"]
-        try:
-            with open(ruta, "r", encoding="utf-8-sig") as f:
-                texto = f.read()
-        except OSError as e:
-            errores.append(_error(f"no se pudo leer: {e}", ruta, "$"))
-            continue
-        fm = ki._frontmatter(texto)  # noqa: SLF001 — reuso deliberado (mismo criterio que curator-gate.py)
-        categoria_key = fm.get("category")
+        categoria_key = meta.get("category")
         valor = valor_por_categoria.get(categoria_key, False)
         if not valor:
+            omitidas_por_routing.append(id_)
             continue  # fail-closed: categoría sin routing para este backend, o routing false
-        cuerpo = ki._FRONTMATTER_RE.sub("", texto, count=1).strip()  # noqa: SLF001 — idem
         entradas.append({
             "id": id_,
             "version": meta["version"],
             "folder": meta["folder"],
             "enlaces": meta["enlaces"],
             "category": categoria_key,
-            "evidencia": fm.get("evidencia"),
-            "fuentes": fm.get("fuentes") or [],
-            "tags": fm.get("tags") or [],
+            "evidencia": meta.get("evidencia"),
+            "fuentes": meta.get("fuentes") or [],
+            "tags": meta.get("tags") or [],
             "modo": "resumen" if valor == "summary" else "completo",
-            "cuerpo": cuerpo,
-            "ruta": ruta,
+            "cuerpo": meta.get("cuerpo") or "",
+            "ruta": meta["ruta"],
         })
-    return entradas, errores
+    return entradas, errores, omitidas_por_routing
 
 
 def _construir_parser():
@@ -168,7 +167,8 @@ def main(argv=None):
     if not tipo:
         print(f"knowledge-sync: backend `{args.backend}` no declara `type` en taxonomy.json", file=sys.stderr)
         return 2
-    cfg = decl.get("config") or {}
+    cfg = dict(decl.get("config") or {})
+    cfg["_root"] = os.path.abspath(args.root)  # gap 88: export_dir se resuelve contra esto, nunca CWD
 
     try:
         adaptador = binit.cargar_adaptador(tipo, directorios=[BACKENDS_DIR, *args.backends_dir])
@@ -177,8 +177,13 @@ def main(argv=None):
         return 2
 
     if args.check:
-        salud = adaptador.health(cfg)
-        verificacion = adaptador.verify(cfg)
+        try:
+            salud = adaptador.health(cfg)
+            verificacion = adaptador.verify(cfg)
+        except Exception as e:  # noqa: BLE001 - gap 90: un adaptador que lanza no tumba el CLI
+            print(f"knowledge-sync: `health`/`verify` del adaptador `{tipo}` falló: "
+                  f"{type(e).__name__}: {e}", file=sys.stderr)
+            return 1
         salida = {"backend": args.backend, "type": tipo, "health": salud, "verify": verificacion}
         print(json.dumps(salida, ensure_ascii=False, indent=2) if args.json else
               f"health: {salud.get('estado')} ({salud.get('detalle', '')})\n"
@@ -191,19 +196,33 @@ def main(argv=None):
             print(f"{e['fichero']}: {e['campo']}: {e['mensaje']}", file=sys.stderr)
         return 1
 
-    entradas, errores_entradas = _construir_entradas_enrutadas(ki, ks, args.root, config, args.backend, indice)
+    entradas, errores_entradas, omitidas_por_routing = _construir_entradas_enrutadas(
+        ki, ks, args.root, config, args.backend, indice)
     if errores_entradas:
         for e in errores_entradas:
             print(f"{e['fichero']}: {e['campo']}: {e['mensaje']}", file=sys.stderr)
         return 1
+    if omitidas_por_routing:
+        print(f"knowledge-sync: {len(omitidas_por_routing)} entrada(s) omitida(s) por routing "
+              f"(sin `routing.{args.backend}` o `false`): {omitidas_por_routing}", file=sys.stderr)
 
     if args.rebuild:
-        resultado = adaptador.rebuild(entradas, cfg)
+        try:
+            resultado = adaptador.rebuild(entradas, cfg)
+        except Exception as e:  # noqa: BLE001 - gap 90
+            print(f"knowledge-sync: `rebuild` del adaptador `{tipo}` falló: {type(e).__name__}: {e}",
+                  file=sys.stderr)
+            return 1
         print(json.dumps({"backend": args.backend, "rebuild": resultado}, ensure_ascii=False, indent=2)
               if args.json else f"rebuild: {resultado}")
         return 0
 
-    ops = adaptador.plan(entradas, cfg)
+    try:
+        ops = adaptador.plan(entradas, cfg)
+    except Exception as e:  # noqa: BLE001 - gap 90
+        print(f"knowledge-sync: `plan` del adaptador `{tipo}` falló: {type(e).__name__}: {e}",
+              file=sys.stderr)
+        return 1
 
     if args.dry_run:
         print(json.dumps({"backend": args.backend, "entradas": len(entradas), "ops": ops},
@@ -219,9 +238,24 @@ def main(argv=None):
     _asegurar_gitignore_local(dir_outbox)
     clave = f"sync-{int(time.time() * 1000)}"
     ob.escribir(dir_outbox, clave, {"backend": args.backend, "type": tipo, "ops": ops})
-    item = ob.reclamar(dir_outbox)
+    # gap 91: `reclamar` devuelve el PRIMERO pendiente alfabéticamente, no necesariamente el que
+    # acabamos de escribir (puede haber envelopes de una corrida anterior atascados en `outbox/`).
+    # Si el reclamado no es el nuestro, se reencola CON backoff (para que la propia corrida no lo
+    # vuelva a reclamar en el siguiente intento y así deje paso al nuestro; sin backoff se
+    # reengancharía de inmediato y agotaría sus reintentos en esta misma corrida por algo que no
+    # es un fallo suyo) y se reintenta, acotado en intentos.
+    item = None
+    for _ in range(10):
+        candidato = ob.reclamar(dir_outbox)
+        if candidato is None:
+            break
+        if candidato.get("clave") == clave:
+            item = candidato
+            break
+        ob.reencolar_o_dead_letter(candidato, "no es el envelope reclamado por esta corrida")
     if item is None:
-        print("knowledge-sync: no se pudo reclamar el envelope recien escrito en la outbox", file=sys.stderr)
+        print("knowledge-sync: no se pudo reclamar el envelope propio de esta corrida en la outbox "
+              "(otro envelope sigue bloqueando la cola; ver `--check` de la outbox)", file=sys.stderr)
         return 1
     try:
         resultado = adaptador.apply(ops, cfg)

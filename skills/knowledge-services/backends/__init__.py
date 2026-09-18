@@ -14,12 +14,19 @@ Sin dependencias externas; solo stdlib (`importlib.util`).
 """
 import importlib.util
 import os
+import re
 import sys
 
 # Consola no UTF-8 (Windows cp1252) o tuberías: reconfigurar ANTES de leer/imprimir (GOT-005).
 for _s in (sys.stdin, sys.stdout, sys.stderr):
     try: _s.reconfigure(encoding="utf-8", errors="replace")
     except Exception: pass  # noqa: BLE001 — sin reconfigure, ya leído o None (capsys, pythonw)
+
+# gap 95 (CWE-94/22): `type` compone un nombre de fichero y se carga con `importlib` — sin esta
+# forma, un `type` como `../../algo` o `algo; rm -rf` podría intentar cargar (o, en `_localizar`,
+# comprobar existencia de) rutas fuera de los directorios declarados. Mismo alfabeto que `id` en
+# `knowledge-index.py`, sin barras.
+_TIPO_VALIDO_RE = re.compile(r"^[a-z][a-z0-9-]*$")
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -61,6 +68,10 @@ def cargar_adaptador(tipo, directorios=None):
     verificado, o levanta `AdaptadorNoDisponible`."""
     if not tipo or not isinstance(tipo, str):
         raise AdaptadorNoDisponible(f"`type` inválido o ausente: {tipo!r}")
+    if not _TIPO_VALIDO_RE.match(tipo):
+        raise AdaptadorNoDisponible(
+            f"`type` (`{tipo}`) no cumple la forma `[a-z][a-z0-9-]*` (sin `/`, `\\`, `.` ni "
+            "espacios) — se rechaza antes de componer una ruta de fichero con él")
     dirs = list(directorios) if directorios else [HERE]
     ruta = _localizar(tipo, dirs)
     if ruta is None:
