@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "id_prefix": "ca",
+  "utility_scoring": false,
+  "categories": [
+    {
+      "key": "DECISION",
+      "folder": "adr",
+      "min_evidence": "human_confirmed_rule",
+      "routing": {"kwipu": false}
+    },
+    {
+      "key": "PATTERN",
+      "folder": "gotchas",
+      "min_evidence": "multiple_validated_cases",
+      "routing": {"kwipu": false}
+    },
+    {
+      "key": "GOTCHA",
+      "folder": "gotchas",
+      "min_evidence": "validated_case",
+      "routing": {"kwipu": false}
+    },
+    {
+      "key": "LESSON",
+      "folder": "lessons",
+      "min_evidence": "single_case",
+      "routing": {"kwipu": false}
+    }
+  ],
+  "backends": {
+    "kwipu": {
+      "type": "markdown-export",
+      "enabled": false,
+      "config": {
+        "export_dir": ".claude/knowledge-services/kwipu-export",
+        "health": {"url": "http://127.0.0.1:8765/health", "timeout_ms": 800}
+      }
+    }
+  },
+  "evidence_levels": [
+    "observation",
+    "single_case",
+    "validated_case",
+    "multiple_validated_cases",
+    "human_confirmed_rule"
+  ],
+  "denylist": [
+    "chain-of-thought",
+    "conversacion cruda",
+    "TODOs",
+    "planes/progreso",
+    "logs completos",
+    "salidas enormes",
+    "codigo duplicado",
+    "errores triviales",
+    "intentos sin aprendizaje",
+    "hipotesis presentadas como hechos",
+    "opiniones",
+    "redundancias"
+  ]
+}

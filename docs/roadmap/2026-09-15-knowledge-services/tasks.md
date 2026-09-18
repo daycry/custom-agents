@@ -20,26 +20,30 @@ verificacion: obligatoria
 
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervision (real/est) | Tokens (real/est) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| Fase 1 - Contrato y validacion | 0 | 3 | 0% | 0 / 13h | 0 / 3.9h | 0 / 1.0h | 0 / 200k |
+| Fase 1 - Contrato y validacion | 1 | 3 | 33% | 0 / 13h | 0.08 / 3.9h | 0 / 1.0h | ~35k / 200k |
 | Fase 2 - Curacion y workflow | 0 | 3 | 0% | 0 / 14h | 0 / 4.2h | 0 / 1.1h | 0 / 210k |
 | Fase 3 - Backends y Kwipu | 0 | 4 | 0% | 0 / 19h | 0 / 5.7h | 0 / 1.4h | 0 / 275k |
 | Fase 4 - Regresion y cierre | 0 | 3 | 0% | 0 / 10h | 0 / 3.0h | 0 / 0.7h | 0 / 130k |
-| **TOTAL** | **0** | **13** | **0%** | **0 / 56h** | **0 / 16.8h** | **0 / 4.2h** | **0 / 815k** |
+| **TOTAL** | **1** | **13** | **8%** | **0 / 56h** | **0.08 / 16.8h** | **0 / 4.2h** | **~35k / 815k** |
 
 ## Fase 1 - Contrato y validacion
 
 ### T-01 - Esquema versionado `taxonomy.schema.json`, `backends` y plantillas
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo humano**: est. 5h · real -
 - **Prevision IA**: 55k in / 22k out tok
+- **Tiempo IA**: real 0.08h (medido; usage-meter, 5m, $1.61)
 - **Dependencias**: ninguna
 - **Tipo**: backend
-- **Archivos**: `agent-kits/shared/schemas/taxonomy.schema.json`, `agent-kits/shared/knowledge-schema.py`, `agent-kits/shared/test_knowledge_schema.py`, `agent-kits/shared/templates/taxonomy.json`, `docs/CONVENTIONS.md`, `docs/en/CONVENTIONS.md`, `docs/knowledge/adr/ADR-018-arquitectura-de-memoria-markdown-canonico-backends-declarados.md`
+- **Archivos**: `agent-kits/shared/schemas/taxonomy.schema.json`, `agent-kits/shared/knowledge-schema.py`, `agent-kits/shared/test_knowledge_schema.py`, `agent-kits/shared/templates/taxonomy.json`, `docs/CONVENTIONS.md`, `docs/en/CONVENTIONS.md`, `docs/knowledge/adr/ADR-018-arquitectura-de-memoria-markdown-canonico-backends-declarados.md`, `docs/knowledge/README.md` (nota: fuera de la lista original; necesario para mantener la fila de ADR-018 coherente con su nuevo estado, regla 10 "quien añade/cambia una entrada actualiza la tabla en el mismo cambio"; `docs/knowledge/**` siempre en alcance de `scope-check.py`)
 - **Verificacion**: `python -m pytest -q agent-kits/shared/test_knowledge_schema.py` -> valida `taxonomy.json` (version, categorias, evidencia, `backends`, `routing`, `evidence_levels`, `denylist`) con validador stdlib; rechaza estado/tag invalidos y un `routing` que cite un backend no declarado (CA-11, CA-13)
+  - Salida real: `23 passed in 0.09s`
+  - `RED: agent-kits/shared/test_knowledge_schema.py (con knowledge-schema.py sustituido por un stub `validar()->[]`/`main()->0`) falló con "22 failed, 1 passed" (AttributeError en `default_taxonomy`/`cargar_taxonomia`/`categorias_por_backend`, y aserciones de exit code) · 2026-09-18`
 **Criterios de aceptación**
-- [ ] `taxonomy.json` define categorias, carpeta, evidencia minima, `backends` (id, type, config) y `routing` por categoria hacia ids declarados.
-- [ ] Sin `taxonomy.json`, el plugin usa su default minimo propio (DECISION/PATTERN/GOTCHA/LESSON, backend `kwipu` desactivado) sin romper nada.
-- [ ] Una categoria sin `routing`, o con un id no declarado, no exporta a ningun backend (fail-closed); el error nombra fichero y campo; `ADR-018` pasa a `aceptada` al cerrar.
+- [x] `taxonomy.json` define categorias, carpeta, evidencia minima, `backends` (id, type, config) y `routing` por categoria hacia ids declarados.
+- [x] Sin `taxonomy.json`, el plugin usa su default minimo propio (DECISION/PATTERN/GOTCHA/LESSON, backend `kwipu` desactivado) sin romper nada.
+- [x] Una categoria sin `routing`, o con un id no declarado, no exporta a ningun backend (fail-closed); el error nombra fichero y campo; `ADR-018` pasa a `aceptada` al cerrar.
+- **Changelog**: El plugin ahora valida la configuración de conocimiento del proyecto (`taxonomy.json`) y sus backends declarados, con un default seguro cuando el proyecto no configura nada.
 
 ### T-02 - Indice canonico y validador determinista sobre la taxonomia configurada
 - **Estado**: borrador
