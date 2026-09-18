@@ -2,7 +2,7 @@
 spec: graphiti-memory
 estado: aprobada
 creado: 2026-09-15
-actualizado: 2026-09-17
+actualizado: 2026-09-18
 evaluacion: evaluation.md
 design: design.md
 plan: improvement-plan.md
@@ -44,7 +44,8 @@ No comienza implementacion hasta que `knowledge-services` entregue esquema valid
 - [ ] CA-10 - `mode: off | shadow | read`: en `shadow` se sincroniza pero el router NUNCA lee de Graphiti; `read` exige `health` sano y un `verify` sin desfase; el default es `shadow`.
 - [ ] CA-11 - `--rebuild` reconstruye el grupo entero desde `approved/` y produce el mismo manifiesto (hash) que la sincronizacion incremental; `revoke <knowledge_id>` deja tombstone/invalidacion sin borrar historial.
 - [ ] CA-12 - Las reglas del router son configuracion (`backends.graphiti.router.intents`), el `intent` lo declara quien consulta (`--intent temporal|relacional|evidencia`) y un intent no declarado cae SIEMPRE al camino local/Kwipu; ningun LLM decide el enrutado.
-- [ ] CA-13 - La ontologia nace de `taxonomy.json`: nucleo fijo minimo (`Knowledge`, `Evidence`) + un tipo de entidad por categoria (`entity_type`, default = clave de la categoria) y relaciones nucleo (`SUPPORTED_BY`, `SUPERSEDES`, `CONTRADICTS`) ampliables en `backends.graphiti.relations`; ninguna lista de dominio vive en el plugin.
+- [ ] CA-13 - (reformulado en la enmienda 2026-09-18) La ontologia nace de `taxonomy.json`, pero los `entity_types` los define el **servidor** Graphiti MCP (`config.yaml`), no el cliente: el adaptador (a) lee los tipos del servidor y mapea cada categoria a uno declarado en `backends.graphiti.entity_map` (default: `Document`), llevando `knowledge_id`, categoria y version en el cuerpo del episodio, y (b) `knowledge-sync.py --backend graphiti --propose-config` genera el bloque `entity_types` sugerido (uno por categoria + `Knowledge`, `Evidence`) para que el usuario lo aplique en su servidor. Relaciones nucleo (`SUPPORTED_BY`, `SUPERSEDES`, `CONTRADICTS`) via `add_triplet`, ampliables en `backends.graphiti.relations`; ninguna lista de dominio vive en el plugin.
+- [ ] CA-15 - El cliente es MCP **streamable HTTP** minimo con stdlib (JSON-RPC: `initialize` -> `notifications/initialized` -> `tools/call`), sin librerias: usa la URL exacta configurada (el servidor de referencia responde `307` a `/mcp/` y exige `/mcp`; el cliente sigue un 307 conservando el POST o falla con mensaje que cite la URL), reenvia `Mcp-Session-Id` en cada llamada y acepta `application/json` y `text/event-stream`. `health` = `GET /health` + `tools/call get_status`.
 - [ ] CA-14 - Antes de permitir `apply` real con Ollama, un fixture de salida estructurada invalida debe degradar a `dead-letter` via `outbox.py` sin datos corruptos en el grafo.
 
 ## Decisiones confirmadas (usuario, 2026-09-15)
@@ -73,3 +74,33 @@ adaptadores del contrato de `knowledge-services`. Graphiti pasa de «integracion
 Dependencias: `knowledge-services` **completado** (incluye T-07 contrato de adaptador y T-13 capabilities) y,
 transitivamente, `session-end-durable-capture`. Efecto en coste: +6 h base -> **50 h** con contingencia (antes
 44 h), 2,500 EUR, 545k tokens. Ver `evaluation.md` y `tasks.md`.
+## Enmienda 2026-09-18 (usuario) — validacion en vivo contra el stack local `knowledge-graphs`
+
+Motivo: se ejecuto el handshake MCP real contra el servidor de referencia (`dockers/knowledge-graphs`,
+`graphiti-mcp 1.29.1`, protocolo `2025-03-26`, FalkorDB, `127.0.0.1:8001`). Lo comprobado obliga a precisar
+T-02, T-04 y T-06 sin anadir componentes:
+
+1. **Solo MCP.** Graphiti no expone API REST mas alla de `GET /health`; todo va por `/mcp` (streamable HTTP).
+   El cliente de T-04 es un cliente MCP minimo con `urllib` (CA-15). Trampa verificada: `/mcp/` con barra
+   devuelve `307` a `/mcp` y `urllib` no sigue redirecciones en POST, con lo que el handshake falla en
+   silencio; el `initialize` devuelve `Mcp-Session-Id` que hay que reenviar.
+2. **Tools disponibles y su uso en el plan**: `add_memory` (`name`, `episode_body`, `group_id`, `source`,
+   `source_description`, `uuid`, `reference_time`, `previous_episode_uuids`) para episodios con procedencia
+   (CA-01); `add_triplet` para las relaciones nucleo; `search_nodes`/`search_memory_facts` (con
+   `valid_at_*`/`invalid_at_*`) para el router en `read` (CA-03, CA-12); `get_episodes` para `verify`;
+   `get_status` para `health`. `delete_episode`/`clear_graph` **no** son la primitiva de `revoke`: la revocacion
+   es un episodio de invalidacion que conserva historial (CA-11); `clear_graph` solo dentro de `--rebuild` y
+   acotado al `group_id` propio.
+3. **Los tipos de entidad los fija el servidor** (`config.yaml`: `Document`, `Project`, `Topic`,
+   `Organization`, `Person`); `entity_types` en las tools es un filtro de busqueda, no una definicion. CA-13 se
+   reformula: mapeo por configuracion + propuesta de bloque `entity_types` para el servidor.
+4. **Proveedor del stack de referencia**: Ollama via API compatible OpenAI (`OPENAI_API_URL=…/v1`,
+   `structured_output_mode: json_object`, `SEMAPHORE_LIMIT: 1`, ingestion lenta en CPU). Encaja con CA-09
+   (`provider: ollama`) y refuerza CA-14 (dead-letter ante JSON invalido) y el default `mode: shadow` (CA-10).
+   El `group_id` lo fija el servidor (`knowledge-graphs`) aunque las tools lo acepten por llamada: el
+   adaptador pasa siempre el suyo y `verify` avisa si el servidor responde con otro.
+
+Alcance opt-in confirmado: sin `backends.graphiti` en `taxonomy.json` (o con `mode: off`) nada de esto se
+ejecuta ni se registra. Estado del servidor de referencia al validar: 0 episodios en `knowledge-graphs`,
+coherente con que aun no existe adaptador. Sin efecto en horas: el 307 y el mapeo de tipos entran en T-04 y
+T-02. Ver `tasks.md`.

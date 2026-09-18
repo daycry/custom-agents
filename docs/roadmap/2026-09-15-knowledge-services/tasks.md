@@ -13,6 +13,8 @@ verificacion: obligatoria
 > **Ledger canonico de progreso.** Esta es la fuente unica de avance; los servicios externos son espejo.
 >
 > **Enmienda 2026-09-17** (`ADR-018`): backends declarados + contrato de adaptador + esquema versionado + registro de capacidades + cola compartida. Cambian T-01, T-07, T-08, T-09; nace T-13. Las cifras anteriores (48h · 12 tareas) quedan en el historial de git.
+>
+> **Enmienda 2026-09-18** (validacion en vivo contra `dockers/knowledge-graphs`, CA-16/CA-17): Kwipu no ingiere, indexa una vista; el export va a `generated_knowledge` y el reindexado es del stack (`verify` lo detecta, no lo ejecuta); frontmatter alineado con el Knowledge Gate. Precisa T-08 y T-09 sin cambiar horas.
 
 ## Resumen de progreso
 
@@ -123,10 +125,12 @@ verificacion: obligatoria
 - **Dependencias**: T-07
 - **Tipo**: backend
 - **Archivos**: `skills/knowledge-services/backends/markdown_export.py`, `skills/knowledge-services/scripts/test_backend_markdown_export.py`, `skills/knowledge-services/SKILL.md`, `skills/knowledge-services/references/`, `evals/cases/skill-knowledge-services.json`, `docs/README.md`, `CLAUDE.md`
-- **Verificacion**: `python -m pytest -q skills/knowledge-services/scripts/test_backend_markdown_export.py` -> export con `manifest.json` y hashes estables, `health` con URL local/timeout/sano/degradado, `rebuild` reproduce el mismo manifiesto, `revoke` retira el fichero del export
+- **Verificacion**: `python -m pytest -q skills/knowledge-services/scripts/test_backend_markdown_export.py` -> export con `manifest.json` y hashes estables, `health` con URL local/timeout/sano/degradado y parsea el JSON real de `GET /health` del bridge (`status`, `embed_model`, `property_graph`, `ollama`) desde una fixture grabada el 2026-09-18, `rebuild` reproduce el mismo manifiesto, `revoke` retira el fichero del export, `verify` marca desfase cuando el manifiesto no coincide con `/graph/snapshot` y nombra el remedio (`build_view` + reinicio) sin ejecutarlo
 **Criterios de aceptación**
 - [ ] Kwipu es un adaptador mas del contrato de T-07; nada en `knowledge-sync.py` menciona Kwipu.
 - [ ] Skill corta con referencias y sin secretos; no hooks/red ni Graphiti.
+- [ ] `export_dir` viene de `backends.kwipu.config`; el adaptador no ejecuta `build_view`, `docker` ni reinicios: el reindexado es del stack y `verify` solo lo detecta (CA-16).
+- [ ] Cada fichero exportado lleva `project`, `scope`, `category`, `source`, `confidence` + `knowledge_id`, `version`, `hash`, derivados de la entrada y de `taxonomy.json` (CA-17).
 
 ### T-09 - Opt-in en setup y doctor a traves del registro de capacidades
 - **Estado**: borrador

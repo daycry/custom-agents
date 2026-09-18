@@ -11,6 +11,8 @@ verificacion: obligatoria
 > **Ledger canonico de progreso.** Graphiti es una proyeccion; el avance y las fuentes siguen en Git.
 >
 > **Enmienda 2026-09-17** (`ADR-018`): Graphiti como segundo adaptador del contrato de knowledge-services, proveedor configurable, `mode: shadow`, rebuild/revoke y router por configuracion. Cambian T-01, T-02, T-04, T-05, T-06, T-07, T-08 (44h -> 50h).
+>
+> **Enmienda 2026-09-18** (handshake MCP real contra `dockers/knowledge-graphs`, CA-13 reformulado + CA-15): cliente MCP streamable HTTP minimo (`/mcp` sin barra, 307, `Mcp-Session-Id`), tipos de entidad del servidor con mapeo por configuracion, `revoke` sin `delete_episode`. Precisa T-02, T-04 y T-06 sin cambiar horas.
 
 ## Resumen de progreso
 
@@ -37,10 +39,10 @@ verificacion: obligatoria
 - **Estado**: borrador
 - **Dependencias**: T-01
 - **Archivos**: `skills/knowledge-services/backends/graphiti_model.py`, `tests/test_graphiti_model.py`
-- **Verificacion**: `python -m pytest -q tests/test_graphiti_model.py` -> nucleo `Knowledge`/`Evidence` + un `entity_type` por categoria de dos `taxonomy.json` distintos; relaciones nucleo + `relations` declaradas; sucesion valida
+- **Verificacion**: `python -m pytest -q tests/test_graphiti_model.py` -> cada categoria de dos `taxonomy.json` distintos se mapea a un tipo declarado por el servidor via `backends.graphiti.entity_map` (default `Document`), y una categoria sin mapeo cae al default sin fallar; `--propose-config` emite el bloque `entity_types` (uno por categoria + `Knowledge`, `Evidence`) en YAML valido; relaciones nucleo + `relations` declaradas; sucesion valida
 **Criterios de aceptación**
 - [ ] `SUPERSEDES` conserva historia y marca vigencia.
-- [ ] Ninguna lista de tipos de dominio en el codigo del plugin (CA-13).
+- [ ] Ninguna lista de tipos de dominio en el codigo del plugin; los tipos efectivos son los del servidor y el mapeo es configuracion (CA-13 reformulado, enmienda 2026-09-18).
 
 ### T-03 - Politica de escritura y autoridad
 - **Estado**: borrador
@@ -56,10 +58,11 @@ verificacion: obligatoria
 - **Estado**: borrador
 - **Dependencias**: T-01, T-02
 - **Archivos**: `skills/knowledge-services/backends/graphiti.py`, `skills/knowledge-services/backends/graphiti_providers.py`, `skills/knowledge-services/scripts/test_backend_graphiti.py`
-- **Verificacion**: `python -m pytest -q skills/knowledge-services/scripts/test_backend_graphiti.py -k "health or provider"` -> timeout y degradacion; `allow_remote: false` rechaza endpoint no loopback; los cuatro proveedores comparten firma y `none` no llama a ningun modelo
+- **Verificacion**: `python -m pytest -q skills/knowledge-services/scripts/test_backend_graphiti.py -k "health or provider or mcp"` -> timeout y degradacion; `allow_remote: false` rechaza endpoint no loopback; los cuatro proveedores comparten firma y `none` no llama a ningun modelo; contra un servidor MCP falso de la suite: `initialize` -> `notifications/initialized` -> `tools/call get_status` con `Mcp-Session-Id` reenviado, un `307` en POST se sigue conservando el metodo (o falla citando la URL), y las respuestas llegan tanto en `application/json` como en `text/event-stream` (CA-15)
 **Criterios de aceptación**
 - [ ] URL local permitida y telemetria configurable; credenciales solo por nombre de variable de entorno.
 - [ ] Anadir un proveedor es una funcion nueva en `graphiti_providers.py`, sin tocar `graphiti.py`.
+- [ ] Cliente MCP streamable HTTP con stdlib, sin librerias; `health` = `GET /health` + `get_status`; la URL configurada se usa tal cual y el 307 de `/mcp/` -> `/mcp` no rompe el handshake en silencio (CA-15).
 
 ### T-05 - `plan`/`apply` idempotentes sobre `outbox.py` y `mode: shadow`
 - **Estado**: borrador
@@ -74,7 +77,7 @@ verificacion: obligatoria
 - **Estado**: borrador
 - **Dependencias**: T-05
 - **Archivos**: `skills/knowledge-services/backends/graphiti.py`, `skills/knowledge-services/scripts/test_backend_graphiti.py`
-- **Verificacion**: `python -m pytest -q skills/knowledge-services/scripts/test_backend_graphiti.py -k "verify or rebuild or revoke"` -> desfase detectable; `--rebuild` reproduce el mismo hash de manifiesto que la sincronizacion incremental; `revoke` deja tombstone sin borrar historial
+- **Verificacion**: `python -m pytest -q skills/knowledge-services/scripts/test_backend_graphiti.py -k "verify or rebuild or revoke"` -> desfase detectable via `get_episodes` del `group_id` propio (y aviso si el servidor responde con otro grupo); `--rebuild` reproduce el mismo hash de manifiesto que la sincronizacion incremental y es el UNICO camino que llama a `clear_graph`, acotado al grupo propio; `revoke` deja tombstone como episodio de invalidacion sin llamar a `delete_episode`
 **Criterios de aceptación**
 - [ ] Error parcial no invalida fuentes ni estado previo.
 - [ ] Una entrada retirada de `approved/` aparece invalidada en el grafo tras la siguiente sincronizacion (CA-11).
