@@ -354,3 +354,50 @@ def test_dos_taxonomias_con_routing_distinto_seleccionan_categorias_distintas():
                                  categories=[dict(base, routing={"kwipu": False})])
     assert [c["key"] for c in ks.categorias_por_backend(cfg_habilitada, "kwipu")] == ["A"]
     assert [c["key"] for c in ks.categorias_por_backend(cfg_deshabilitada, "kwipu")] == []
+
+
+# ------------------------------------------------------------------ gap 27: taxonomy.json de usuario, UTF-16/BOM
+
+def test_cargar_taxonomia_con_bom_utf8_no_se_rechaza(tmp_path):
+    """Gap 27: `taxonomy.json` guardado como "UTF-8 with BOM" (VS Code, Notepad) es JSON valido;
+    antes se leia con `encoding="utf-8"` y el BOM colaba como parte de la primera clave, asi que
+    `json.load` lo rechazaba como "JSON ilegible" pese a ser valido."""
+    proyecto = tmp_path / ".claude" / "knowledge-services"
+    proyecto.mkdir(parents=True)
+    cfg = _valida(id_prefix="mr")
+    (proyecto / "taxonomy.json").write_bytes(json.dumps(cfg).encode("utf-8-sig"))
+    config, origen, _ruta, errores = ks.cargar_taxonomia(root=str(tmp_path))
+    assert origen == "proyecto"
+    assert errores == []
+    assert config["id_prefix"] == "mr"
+
+
+def test_cargar_taxonomia_en_utf16_no_lanza_unicodedecodeerror(tmp_path):
+    """Gap 27: los gaps 14/15 taparon `UnicodeDecodeError` en `default_taxonomy`/`main`, pero no
+    en el lector del fichero de PROYECTO dentro de `cargar_taxonomia` — un `taxonomy.json` en
+    UTF-16 debe degradar a un error `{fichero, campo, mensaje}`, no a un traceback."""
+    proyecto = tmp_path / ".claude" / "knowledge-services"
+    proyecto.mkdir(parents=True)
+    cfg = _valida(id_prefix="mr")
+    (proyecto / "taxonomy.json").write_bytes(json.dumps(cfg).encode("utf-16"))
+    config, origen, ruta, errores = ks.cargar_taxonomia(root=str(tmp_path))  # no debe lanzar
+    assert config is None
+    assert origen == "proyecto"
+    assert ruta is not None
+    assert len(errores) == 1
+    assert "UnicodeDecodeError" in errores[0]["mensaje"]
+
+
+# ------------------------------------------------------------------ gap 29: id_prefix con root=None usa el cwd
+
+def test_id_prefix_con_root_none_usa_el_slug_del_cwd(tmp_path, monkeypatch):
+    """Gap 29: `_con_id_prefix_por_defecto(config, root=None)` debia usar el cwd, igual que
+    `cargar_taxonomia(root=None)` ya hace desde el gap 12 — antes caia directo a `"ca"` sin
+    mirarlo."""
+    proyecto = tmp_path / "Proyecto Con Nombre"
+    proyecto.mkdir()
+    monkeypatch.chdir(proyecto)
+    config, origen, _ruta, errores = ks.cargar_taxonomia(root=None)
+    assert origen == "default"
+    assert errores == []
+    assert config["id_prefix"] == "proyecto-con-nombre"
