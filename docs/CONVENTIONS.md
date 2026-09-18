@@ -215,8 +215,14 @@ lo que "ya no hay que volver a descubrir" cada vez, generalizando el patrón de 
 - **Dónde vive.** `docs/knowledge/adr/ADR-NNN-<slug>.md` (una por decisión, plantilla
   `agent-kits/shared/templates/adr.md`), `docs/knowledge/gotchas/GOT-NNN-<slug>.md` (una por
   entrada) y `docs/knowledge/lessons/LES-NNN-<agente>-<slug>.md` (una por entrada, agrupada por
-  agente en el nombre),
-  con un `README.md` **índice de entrada** (el índice generado + `knowledge-lint.py` quedan
+  agente en el nombre). Junto a ese corpus legado (ADR/GOT/LES, indexado a mano), `knowledge-
+  services` (ADR-018) añade `docs/knowledge/candidates/{pending,needs_changes,rejected}/` (cola de
+  curación, propuesta por `documenter`/`knowledge-curator`) y `docs/knowledge/approved/<folder>/`
+  (una carpeta por `categories[].folder` de `.claude/knowledge-services/taxonomy.json`, o de la
+  plantilla por defecto del plugin): ese árbol lo indexa `agent-kits/shared/knowledge-index.py`
+  (índice determinista sobre la taxonomía configurada), distinto del índice manual de ADR/GOT/LES
+  de más abajo — nunca se mezclan.
+  Con un `README.md` **índice de entrada** (el índice generado + `knowledge-lint.py` quedan
   diferidos hasta que haya evidencia de que hacen falta: más de 15 entradas o la primera colisión
   de ID en cualquiera de las tres familias, en un lote paralelo). Un fichero por entrada en los
   tres tipos elimina la colisión de FICHERO en escritura paralela; la colisión de `id:` sigue
