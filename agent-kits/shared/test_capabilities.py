@@ -210,3 +210,22 @@ def test_enumerar_no_sirve_taxonomia_obsoleta_entre_llamadas(tmp_path):
     segundo = cap_mod.enumerar(root)
     kwipu2 = next(c for c in segundo if c["id"] == "kwipu")
     assert kwipu2["enabled"] is True
+
+
+def test_evaluar_capacidad_no_sirve_taxonomia_obsoleta_entre_llamadas_directas(tmp_path):
+    """Gap 32: `evaluar_capacidad()` es API PUBLICA, usable fuera de `enumerar()`; antes solo
+    `enumerar()` vaciaba `_CACHE_TAXONOMIA`, asi que dos llamadas DIRECTAS a
+    `evaluar_capacidad()` entre las que se edita `taxonomy.json` servian la taxonomia obsoleta a
+    la segunda."""
+    root = str(tmp_path)
+    kwipu_cap = next(c for c in cap_mod.REGISTRO if c["id"] == "kwipu")
+
+    _taxonomy(root, backends={"kwipu": {"type": "markdown-export", "enabled": False,
+                                          "config": {"export_dir": ".claude/knowledge-services/kwipu-export"}}})
+    primero = cap_mod.evaluar_capacidad(kwipu_cap, root)
+    assert primero["enabled"] is False
+
+    _taxonomy(root, backends={"kwipu": {"type": "markdown-export", "enabled": True,
+                                          "config": {"export_dir": ".claude/knowledge-services/kwipu-export"}}})
+    segundo = cap_mod.evaluar_capacidad(kwipu_cap, root)
+    assert segundo["enabled"] is True
