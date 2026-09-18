@@ -42,7 +42,7 @@
 > revocable en el PR):** SUSTITUIR el diseño por «publicación por fichero con diario `manifest.pending.json`, sin mover
 > ni borrar nada ajeno» + drenaje de la outbox; ronda fix3 hecha (656bfd8, 8385cf8, 3694629, 4b43f48) y **verificada por el
 > orquestador con los probes de A/B/D → bucle Fase 3 CERRADO** (deuda Minor #140: cola crece durante el backoff). Progreso
-> 10/13. Siguiente: **Fase 4 (T-10 regresión/aislamiento, T-11 docs/espejos/changelog, T-12 puertas+QA+retro)** → qa sin UI →
+> 10/13. **Fase 4 (T-10, T-11, T-12) despachada al `implementer`** (2026-09-19). Después: revisión de dos lentes de la Fase 4 → qa sin UI →
 > documenter → Fase 4-bis → cierre (changelog-sync, /retro, retro-gate) → push + PR (T-04 curator, T-05 documenter, T-06 Fase 4-bis) → Fase 3 (T-07 sync +
 > contrato, T-08 adaptador Kwipu, T-09 setup/doctor) → Fase 4 (T-10, T-11, T-12) → qa sin UI → documenter → cierre
 > (changelog-sync, /retro + retro-gate) → graphiti-memory.
