@@ -1493,6 +1493,14 @@ def _leer_backend_entry(project, cap):
 
 CAPACIDAD_TIMEOUT_MS_TOPE = 2000  # gap 94: ninguna comprobación de red individual pasa de esto
 CAPACIDADES_PRESUPUESTO_S = 5.0  # gap 94: tope TOTAL del bloque completo, no solo por capacidad
+_CAPACIDAD_TOPE_MS_MINIMO = 300  # gap 133 (fix3, knowledge-services): nunca recortar `tope_ms`
+                                 # por debajo de esto — un timeout de pocos ms sobre una red local
+                                 # normal declara «apagado»/«error» un backend SANO (falso
+                                 # negativo), y encima con un remedio inútil («enciende el stack»,
+                                 # cuando el problema es el propio recorte). Si el presupuesto
+                                 # restante del bloque no llega a este mínimo, la capacidad se
+                                 # marca «recortada: sin comprobar» en vez de comprobarse con un
+                                 # timeout que ya sabemos que va a dar un falso apagado.
 
 
 def _cfg_con_timeout_topado(cfg_adaptador, tope_ms=CAPACIDAD_TIMEOUT_MS_TOPE):
@@ -1500,9 +1508,16 @@ def _cfg_con_timeout_topado(cfg_adaptador, tope_ms=CAPACIDAD_TIMEOUT_MS_TOPE):
     (`CAPACIDAD_TIMEOUT_MS_TOPE` por defecto) — `/doctor` es un diagnóstico rápido, nunca debería
     quedarse colgado minutos por un `timeout_ms` generoso pensado para una publicación real.
     gap 124: `tope_ms` puede ser MENOR que la constante estática cuando ya queda poco presupuesto
-    del bloque (`bloque_capacidades`), para que la suma de capacidades nunca lo rebase."""
+    del bloque (`bloque_capacidades`), para que la suma de capacidades nunca lo rebase.
+
+    gap 133 (fix3): `tope_ms` se protege con un suelo (`_CAPACIDAD_TOPE_MS_MINIMO`) ANTES de
+    aplicarlo — antes, un `tope_ms=0` (posible si `bloque_capacidades` llegaba a pasarlo, o si un
+    llamador directo lo hacía) se escribía tal cual en `health_cfg["timeout_ms"]`, y
+    `markdown_export._timeout_s()` trata `valor <= 0` como "no configurado" y cae SILENCIOSAMENTE
+    al default de 800 ms — el recorte de `/doctor` desaparecía sin aviso justo en el caso límite."""
     cfg = dict(cfg_adaptador or {})
     health_cfg = dict(cfg.get("health") or {})
+    tope_ms = max(int(tope_ms), _CAPACIDAD_TOPE_MS_MINIMO) if tope_ms else _CAPACIDAD_TOPE_MS_MINIMO
     actual = health_cfg.get("timeout_ms")
     if not isinstance(actual, (int, float)) or actual > tope_ms:
         health_cfg["timeout_ms"] = tope_ms
@@ -1620,7 +1635,11 @@ def bloque_capacidades(plugin_root, project):
     for i, cap in enumerate(capacidades):
         transcurrido_s = time.monotonic() - inicio
         restante_s = CAPACIDADES_PRESUPUESTO_S - transcurrido_s
-        if restante_s <= 0:
+        # gap 133 (fix3): si lo que queda de presupuesto no llega ni al SUELO
+        # (`_CAPACIDAD_TOPE_MS_MINIMO`), no tiene sentido comprobar con un timeout que ya sabemos
+        # que va a declarar «apagado»/«error» un backend sano — se trata igual que presupuesto
+        # agotado (se cuenta como recortada, no como comprobada con un dato falso).
+        if restante_s * 1000 < _CAPACIDAD_TOPE_MS_MINIMO:
             recortado = len(capacidades) - i
             break
         tope_ms = min(CAPACIDAD_TIMEOUT_MS_TOPE, int(restante_s * 1000))

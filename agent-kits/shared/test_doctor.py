@@ -1687,6 +1687,57 @@ def test_bloque_capacidades_aviso_de_recorte_cita_el_tiempo_transcurrido_real(mo
     assert "transcurrid" in aviso["detalle"].lower()
 
 
+def test_bloque_capacidades_no_comprueba_con_tope_ms_por_debajo_del_suelo(monkeypatch):
+    """gap 133: cuando lo que queda de presupuesto TOTAL cae por debajo del SUELO
+    (`_CAPACIDAD_TOPE_MS_MINIMO`), la capacidad restante NO se comprueba con un timeout de pocos
+    ms -- un timeout asi de corto sobre una red local normal declara «apagado»/«error» un backend
+    SANO (falso negativo) con un remedio inutil. Se cuenta como recortada, igual que si el
+    presupuesto ya estuviera agotado del todo."""
+    import time as time_mod
+
+    class _CapMod:
+        @staticmethod
+        def enumerar(project):
+            return [{"id": "cap0", "enabled": True, "health": None},
+                    {"id": "cap1", "enabled": True, "health": None}]
+
+    monkeypatch.setattr(doctor, "_cargar_capabilities", lambda plugin_root: _CapMod())
+    monkeypatch.setattr(doctor, "_cargar_backends_loader", lambda plugin_root: (None, "d"))
+    # presupuesto total suficiente para que cap0 arranque por encima del suelo, pero que tras
+    # gastar los 50ms de cap0 deja a cap1 un resto por debajo de `_CAPACIDAD_TOPE_MS_MINIMO`.
+    monkeypatch.setattr(doctor, "CAPACIDADES_PRESUPUESTO_S", 0.32)
+
+    topes_recibidos = []
+
+    def _linea_espia(project, cap, backends_mod, backends_dir, tope_ms=None, **kwargs):
+        topes_recibidos.append(tope_ms)
+        time_mod.sleep(0.05)
+        return doctor.linea(doctor.INFO, cap["id"], "activa")
+
+    monkeypatch.setattr(doctor, "_linea_capacidad", _linea_espia)
+    bloque = doctor.bloque_capacidades("plugin", "project")
+    # cap0 se comprueba con su tope normal; cap1 NUNCA se comprueba con un tope por debajo del
+    # suelo -- o no aparece, o si aparece es con un tope >= al suelo.
+    assert len(topes_recibidos) == 1
+    for tope in topes_recibidos:
+        assert tope >= doctor._CAPACIDAD_TOPE_MS_MINIMO
+    avisos = [l for l in bloque["lineas"] if l["estado"] == doctor.AVISO and "recortada" in l["detalle"]]
+    assert len(avisos) == 1
+
+
+def test_cfg_con_timeout_topado_nunca_produce_timeout_ms_cero():
+    """gap 133: `tope_ms=0` (o negativo) escrito tal cual en `health.timeout_ms` es indistinguible
+    de "no configurado" para `markdown_export._timeout_s()` (que trata `valor <= 0` como
+    "usa el default de 800 ms") -- el recorte de `/doctor` desaparecia SILENCIOSAMENTE justo en el
+    caso limite en el que mas hace falta (presupuesto ya agotado)."""
+    cfg = doctor._cfg_con_timeout_topado({}, tope_ms=0)
+    assert cfg["health"]["timeout_ms"] > 0
+    assert cfg["health"]["timeout_ms"] >= doctor._CAPACIDAD_TOPE_MS_MINIMO
+
+    cfg_negativo = doctor._cfg_con_timeout_topado({}, tope_ms=-50)
+    assert cfg_negativo["health"]["timeout_ms"] >= doctor._CAPACIDAD_TOPE_MS_MINIMO
+
+
 def test_capacidad_backend_nunca_sincronizado_no_dice_export_atrasado():
     """gap 119: `verify()` distingue `razon: "nunca_sincronizado"` (gap 87, aun no hay ninguna
     publicacion) de un desfase real -- antes ambos caian en el mismo texto generico "export
