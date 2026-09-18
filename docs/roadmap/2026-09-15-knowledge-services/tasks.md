@@ -21,10 +21,10 @@ verificacion: obligatoria
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervision (real/est) | Tokens (real/est) |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | Fase 1 - Contrato y validacion | 3 | 3 | 100% | 0 / 13h | 1.20 / 3.9h | 0 / 1.0h | ~57k / 200k |
-| Fase 2 - Curacion y workflow | 2 | 3 | 67% | 0 / 14h | 0.73 / 4.2h | 0 / 1.1h | ~16k / 210k |
+| Fase 2 - Curacion y workflow | 3 | 3 | 100% | 0 / 14h | 0.83 / 4.2h | 0 / 1.1h | ~25k / 210k |
 | Fase 3 - Backends y Kwipu | 1 | 4 | 25% | 0 / 19h | 0.45 / 5.7h | 0 / 1.4h | ~16k / 275k |
 | Fase 4 - Regresion y cierre | 0 | 3 | 0% | 0 / 10h | 0 / 3.0h | 0 / 0.7h | 0 / 130k |
-| **TOTAL** | **6** | **13** | **46%** | **0 / 56h** | **2.38 / 16.8h** | **0 / 4.2h** | **~89k / 815k** |
+| **TOTAL** | **7** | **13** | **54%** | **0 / 56h** | **2.48 / 16.8h** | **0 / 4.2h** | **~98k / 815k** |
 
 > **Nota (gap 18, revision de dos lentes intento 1):** las horas-IA de las rondas `-fix1`/`-fix2`/`-fix3` corresponden a sesiones de correccion COMPARTIDAS entre varias tareas (una sola ventana de `usage-meter` cubriendo T-01/T-02/T-03/T-13 en fix1/fix2, y T-01/T-02/T-13 en fix3); se reparten a partes iguales entre las tareas que tocaron en esa ventana (ver nota de cada tarea) en vez de contarse enteras en cada una, para no inflar el TOTAL.
 
@@ -161,16 +161,29 @@ export-interop --check: 50 ficheros al dia
 ```
 
 ### T-06 - Fase 4-bis Knowledge Gate
-- **Estado**: borrador
-- **Tiempo humano**: est. 5h · real -
+- **Estado**: completado
+- **Tiempo humano**: est. 5h · real 0
 - **Prevision IA**: 50k in / 20k out tok
+- **Tiempo IA**: real 0.1h (medido; usage-meter, 6m, 2.08 EUR)
 - **Dependencias**: T-04, T-05
 - **Tipo**: docs
 - **Archivos**: `commands/dev-cycle.md`, `docs/FLOWS.md`, `docs/en/FLOWS.md`, `docs/agents/ROLES.md`, `docs/agents/CONTRACTS.md`, `evals/cases/command-dev-cycle.json`, `interop/**`
 - **Verificacion**: `python scripts/export-interop.py --check` -> 0; `python evals/check.py` -> 0
+- **Changelog**: `/dev-cycle` gana la Fase 4-bis "Knowledge Gate": tras QA verde y documentar, cura los candidatos de conocimiento pendientes con omision honesta si no hay ninguno.
 **Criterios de aceptación**
-- [ ] Solo tras QA/documenter; omision honesta sin candidatos.
-- [ ] Kwipu no condiciona cierre.
+- [x] Solo tras QA/documenter; omision honesta sin candidatos. Evidencia: `commands/dev-cycle.md` "Fase 4-bis — Knowledge Gate (siempre tras QA verde y `documenter`...)" + "Omision honesta. Si no hay ningun candidato, esta fase no falla ni se salta en silencio: di una sola linea ... y continua a la Fase 5. No es un gap, no bloquea el cierre".
+- [x] Kwipu no condiciona cierre. Evidencia: `commands/dev-cycle.md` "Kwipu/Graphiti nunca condicionan el cierre del ciclo. El Knowledge Gate termina cuando `knowledge-curator` deja `docs/knowledge/approved/**` correcto ... si el stack de Kwipu no esta disponible o el export/verify falla, se anota y se sigue -- nunca se detiene el cierre".
+
+**TDD n/a**: prosa (nueva seccion del orquestador `commands/dev-cycle.md` y sus diagramas en `docs/FLOWS.md`/`docs/en/FLOWS.md`; sin script/codigo testeable en esta tarea).
+
+**Verificacion (salida real):**
+```
+$ python scripts/export-interop.py --check
+export-interop --check: 50 ficheros al dia
+
+$ python evals/check.py
+evals/check: 39 ficheros · 140 casos (84 positivos, 56 negativos) · 39 piezas del repo · 0 errores
+```
 
 ## Fase 3 - Kwipu
 

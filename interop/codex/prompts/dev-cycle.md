@@ -154,6 +154,24 @@ Al salir debes tener: código implementado, revisión pasada, `qa-gate` en verde
 ## Fase 4 — Documentar (siempre, agente `documenter`)
 Con las pruebas en verde, invoca **`documenter`** para generar/actualizar la documentación del proyecto (una vez al final, no por tarea).
 
+## Fase 4-bis — Knowledge Gate (siempre tras QA verde y `documenter`, agente `knowledge-curator`)
+Tras cerrar la Fase 4, comprueba si la iniciativa dejó algún candidato bajo
+`docs/knowledge/candidates/**` (los que `documenter` pudo proponer en su P5-bis, T-05, o los que el
+propio usuario haya añadido a mano durante el ciclo). Si hay al menos uno, invoca
+**`knowledge-curator`** para que decida `approved`/`needs_changes`/`rejected` con su contrato
+determinista (`curator-gate.py`, T-04): categoría exacta, evidencia mínima, `fuentes`, `tags` y
+lista negra.
+
+- **Omisión honesta.** Si no hay ningún candidato, esta fase **no falla ni se salta en silencio**:
+  di una sola línea ("sin candidatos de conocimiento que curar") y continúa a la Fase 5. No es un
+  gap, no bloquea el cierre, no hace falta justificarlo más.
+- **Kwipu/Graphiti nunca condicionan el cierre del ciclo.** El Knowledge Gate termina cuando
+  `knowledge-curator` deja `docs/knowledge/approved/**` correcto (Markdown en git, fuente de
+  verdad, `ADR-018`). La exportación a backends (`knowledge-sync.py`, T-07..T-09) es asíncrona y
+  reconstruible: si el stack de Kwipu no está disponible o el `export`/`verify` falla, se anota y
+  se sigue — **nunca** se detiene el cierre de la iniciativa por eso.
+- Esta fase no toca `docs/roadmap/` ni el código del proyecto; solo `docs/knowledge/**`.
+
 ## Fase 5 — Seguridad (opcional, agente `nemesis`)
 Si el usuario lo pide o la iniciativa lo amerita, invoca **`nemesis`** para auditar la seguridad de lo construido (solo entornos locales/privados).
 
