@@ -42,10 +42,13 @@ def _taxonomy(root, categories):
     return cfg
 
 
-def _entry(root, folder, filename, id_, version=1, enlaces=None, extra="", estado="aprobado"):
+def _entry(root, folder, filename, id_, version=1, enlaces=None, extra="", estado="aprobado",
+           category="DECISION"):
     # gap 43 (revisión intento 1): `estado` es obligatorio bajo `approved/`; el default de este
     # helper es el caso feliz (`aprobado`) — pasa `estado=None` para omitirlo a propósito en un
-    # test que ejercite precisamente su ausencia.
+    # test que ejercite precisamente su ausencia. gap 84 (revisión Fase 3 intento 1): `category`
+    # pasa a ser obligatoria con el MISMO criterio; el default `"DECISION"` casa con la categoría
+    # por defecto de `_cat()` — pasa `category=None` para omitirla a propósito.
     d = os.path.join(root, "docs", "knowledge", "approved", folder)
     os.makedirs(d, exist_ok=True)
     fm = [f"id: {id_}"]
@@ -55,6 +58,8 @@ def _entry(root, folder, filename, id_, version=1, enlaces=None, extra="", estad
         fm.append("enlaces: [" + ", ".join(enlaces) + "]")
     if estado is not None:
         fm.append(f"estado: {estado}")
+    if category is not None:
+        fm.append(f"category: {category}")
     contenido = "---\n" + "\n".join(fm) + "\n---\n\n# " + id_ + "\n\n" + extra + "\n"
     with open(os.path.join(d, filename), "w", encoding="utf-8") as f:
         f.write(contenido)
@@ -172,7 +177,7 @@ def test_dos_taxonomias_distintas_dan_carpetas_distintas_b(tmp_path):
     root_b = os.path.join(str(tmp_path), "proyecto_b")
     os.makedirs(root_b, exist_ok=True)
     _taxonomy(root_b, [{"key": "RUNBOOK", "folder": "runbooks", "min_evidence": "observation"}])
-    _entry(root_b, "runbooks", "RUN-001.md", "RUN-001")
+    _entry(root_b, "runbooks", "RUN-001.md", "RUN-001", category="RUNBOOK")
     indice_b, errores_b = ki.build_index(root_b)
     assert errores_b == []
     assert set(e["folder"] for e in indice_b.values()) == {"runbooks"}
@@ -235,7 +240,7 @@ def test_gap8_entrada_con_bom_se_lee_igual(tmp_path):
     _taxonomy(root, _cat())
     d = os.path.join(root, "docs", "knowledge", "approved", "adr")
     os.makedirs(d, exist_ok=True)
-    contenido = "---\nid: ADR-BOM\nversion: 1\nestado: aprobado\n---\n\n# bom\n"
+    contenido = "---\nid: ADR-BOM\nversion: 1\nestado: aprobado\ncategory: DECISION\n---\n\n# bom\n"
     with open(os.path.join(d, "ADR-BOM.md"), "w", encoding="utf-8-sig") as f:
         f.write(contenido)
     indice, errores = ki.build_index(root)
@@ -252,7 +257,7 @@ def test_gap9_enlaces_en_lista_de_bloque_se_parsean(tmp_path):
     _entry(root, "gotchas", "GOT-002.md", "GOT-002")
     d = os.path.join(root, "docs", "knowledge", "approved", "adr")
     os.makedirs(d, exist_ok=True)
-    contenido = "---\nid: ADR-BLOQUE\nversion: 1\nestado: aprobado\nenlaces:\n  - GOT-002\n---\n\n# bloque\n"
+    contenido = "---\nid: ADR-BLOQUE\nversion: 1\nestado: aprobado\ncategory: DECISION\nenlaces:\n  - GOT-002\n---\n\n# bloque\n"
     with open(os.path.join(d, "ADR-BLOQUE.md"), "w", encoding="utf-8") as f:
         f.write(contenido)
     indice, errores = ki.build_index(root)
@@ -268,7 +273,7 @@ def test_gap17_entrada_en_subcarpeta_se_indexa(tmp_path):
     d = os.path.join(root, "docs", "knowledge", "approved", "adr", "ADR-030")
     os.makedirs(d, exist_ok=True)
     with open(os.path.join(d, "ADR-030.md"), "w", encoding="utf-8") as f:
-        f.write("---\nid: ADR-030\nversion: 1\nestado: aprobado\n---\n\n# sub\n")
+        f.write("---\nid: ADR-030\nversion: 1\nestado: aprobado\ncategory: DECISION\n---\n\n# sub\n")
     indice, errores = ki.build_index(root)
     assert errores == []
     assert "ADR-030" in indice
@@ -315,7 +320,7 @@ def test_gap3_tags_lista_valida_no_falla(tmp_path):
     _taxonomy(root, _cat())
     d = os.path.join(root, "docs", "knowledge", "approved", "adr")
     os.makedirs(d, exist_ok=True)
-    contenido = "---\nid: ADR-042\nversion: 1\ntags: [a, b]\nestado: aprobado\n---\n\n# x\n"
+    contenido = "---\nid: ADR-042\nversion: 1\ntags: [a, b]\nestado: aprobado\ncategory: DECISION\n---\n\n# x\n"
     with open(os.path.join(d, "ADR-042.md"), "w", encoding="utf-8") as f:
         f.write(contenido)
     indice, errores = ki.build_index(root)
@@ -334,7 +339,7 @@ def test_gap25_enlaces_en_lista_de_bloque_sin_sangria_se_parsean(tmp_path):
     _entry(root, "gotchas", "GOT-999.md", "GOT-999")
     d = os.path.join(root, "docs", "knowledge", "approved", "adr")
     os.makedirs(d, exist_ok=True)
-    contenido = "---\nid: ADR-BLOQUE-SIN-SANGRIA\nversion: 1\nestado: aprobado\nenlaces:\n- GOT-999\n---\n\n# x\n"
+    contenido = "---\nid: ADR-BLOQUE-SIN-SANGRIA\nversion: 1\nestado: aprobado\ncategory: DECISION\nenlaces:\n- GOT-999\n---\n\n# x\n"
     with open(os.path.join(d, "ADR-BLOQUE-SIN-SANGRIA.md"), "w", encoding="utf-8") as f:
         f.write(contenido)
     indice, errores = ki.build_index(root)
@@ -350,7 +355,7 @@ def test_gap25_fuentes_en_lista_de_bloque_sin_sangria_no_es_falso_positivo(tmp_p
     d = os.path.join(root, "docs", "knowledge", "approved", "adr")
     os.makedirs(d, exist_ok=True)
     contenido = ("---\nid: ADR-FUENTES-SIN-SANGRIA\nversion: 1\nestado: aprobado\n"
-                 "fuentes:\n- https://x\n---\n\n# x\n")
+                 "category: DECISION\nfuentes:\n- https://x\n---\n\n# x\n")
     with open(os.path.join(d, "ADR-FUENTES-SIN-SANGRIA.md"), "w", encoding="utf-8") as f:
         f.write(contenido)
     indice, errores = ki.build_index(root)
@@ -388,7 +393,7 @@ def test_gap30_carpetas_anidadas_no_duplican_el_mismo_fichero(tmp_path):
     d = os.path.join(root, "docs", "knowledge", "approved", "adr", "legacy")
     os.makedirs(d, exist_ok=True)
     with open(os.path.join(d, "ADR-LEGACY.md"), "w", encoding="utf-8") as f:
-        f.write("---\nid: ADR-LEGACY\nversion: 1\nestado: aprobado\n---\n\n# legacy\n")
+        f.write("---\nid: ADR-LEGACY\nversion: 1\nestado: aprobado\ncategory: DECISION_LEGACY\n---\n\n# legacy\n")
     indice, errores = ki.build_index(root)
     assert errores == []
     assert "ADR-LEGACY" in indice
@@ -416,7 +421,7 @@ def test_gap38_carpetas_anidadas_asignan_el_folder_mas_especifico(tmp_path):
     d = os.path.join(root, "docs", "knowledge", "approved", "adr", "legacy")
     os.makedirs(d, exist_ok=True)
     with open(os.path.join(d, "ADR-LEGACY.md"), "w", encoding="utf-8") as f:
-        f.write("---\nid: ADR-LEGACY\nversion: 1\nestado: aprobado\n---\n\n# legacy\n")
+        f.write("---\nid: ADR-LEGACY\nversion: 1\nestado: aprobado\ncategory: DECISION_LEGACY\n---\n\n# legacy\n")
     indice, errores = ki.build_index(root)
     assert errores == []
     assert indice["ADR-LEGACY"]["folder"] == "adr/legacy"
@@ -528,3 +533,48 @@ def test_gap33_estado_presente_sin_valor_tiene_mensaje_propio(tmp_path):
     mensajes = [e["mensaje"] for e in errores if e["campo"] == "estado"]
     assert mensajes and "sin valor" in mensajes[0]
     assert "no es válido" not in mensajes[0]
+
+
+# --------------------------------------------------------- gaps 84/96 (revision Fase 3 intento 1)
+
+def test_gap84_category_obligatoria_en_approved_falta(tmp_path):
+    """Gap 84: una entrada `approved/` sin `category` es un error de índice (mismo criterio que
+    `estado`), no una omision silenciosa aguas abajo (`knowledge-sync.py`)."""
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    _entry(root, "adr", "ADR-SIN-CATEGORY.md", "ADR-SIN-CATEGORY", category=None)
+    indice, errores = ki.build_index(root)
+    assert any(e["campo"] == "category" and "falta" in e["mensaje"] for e in errores)
+
+
+def test_gap84_category_no_declarada_en_taxonomia_falla(tmp_path):
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    _entry(root, "adr", "ADR-CATEGORY-MALA.md", "ADR-CATEGORY-MALA", category="NO-EXISTE")
+    indice, errores = ki.build_index(root)
+    assert any(e["campo"] == "category" and "no existe en la taxonomía" in e["mensaje"] for e in errores)
+
+
+def test_gap84_category_valida_indexa_el_campo(tmp_path):
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    _entry(root, "adr", "ADR-CON-CATEGORY.md", "ADR-CON-CATEGORY")
+    indice, errores = ki.build_index(root)
+    assert errores == []
+    assert indice["ADR-CON-CATEGORY"]["category"] == "DECISION"
+    assert indice["ADR-CON-CATEGORY"]["cuerpo"]
+
+
+def test_gap96_id_con_ruta_de_escape_falla_y_no_se_escribe_nada(tmp_path):
+    """Gap 96 (CWE-22): `id: "../../ESCAPE"` no debe indexarse — cualquier adaptador que componga
+    `<export_dir>/<id>.<ext>` escribiria fuera de `export_dir` con un id asi."""
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    d = os.path.join(root, "docs", "knowledge", "approved", "adr")
+    os.makedirs(d, exist_ok=True)
+    with open(os.path.join(d, "ESCAPE.md"), "w", encoding="utf-8") as f:
+        f.write("---\nid: ../../ESCAPE\nversion: 1\nestado: aprobado\ncategory: DECISION\n---\n\n# x\n")
+    indice, errores = ki.build_index(root)
+    assert "../../ESCAPE" not in indice
+    assert not indice
+    assert any(e["campo"] == "id" and "no cumple la forma" in e["mensaje"] for e in errores)
