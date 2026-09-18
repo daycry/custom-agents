@@ -21,10 +21,10 @@ verificacion: obligatoria
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervision (real/est) | Tokens (real/est) |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | Fase 1 - Contrato y validacion | 3 | 3 | 100% | 0 / 13h | 1.20 / 3.9h | 0 / 1.0h | ~57k / 200k |
-| Fase 2 - Curacion y workflow | 1 | 3 | 33% | 0 / 14h | 0.6 / 4.2h | 0 / 1.1h | ~6k / 210k |
+| Fase 2 - Curacion y workflow | 2 | 3 | 67% | 0 / 14h | 0.73 / 4.2h | 0 / 1.1h | ~16k / 210k |
 | Fase 3 - Backends y Kwipu | 1 | 4 | 25% | 0 / 19h | 0.45 / 5.7h | 0 / 1.4h | ~16k / 275k |
 | Fase 4 - Regresion y cierre | 0 | 3 | 0% | 0 / 10h | 0 / 3.0h | 0 / 0.7h | 0 / 130k |
-| **TOTAL** | **5** | **13** | **38%** | **0 / 56h** | **2.25 / 16.8h** | **0 / 4.2h** | **~79k / 815k** |
+| **TOTAL** | **6** | **13** | **46%** | **0 / 56h** | **2.38 / 16.8h** | **0 / 4.2h** | **~89k / 815k** |
 
 > **Nota (gap 18, revision de dos lentes intento 1):** las horas-IA de las rondas `-fix1`/`-fix2`/`-fix3` corresponden a sesiones de correccion COMPARTIDAS entre varias tareas (una sola ventana de `usage-meter` cubriendo T-01/T-02/T-03/T-13 en fix1/fix2, y T-01/T-02/T-13 en fix3); se reparten a partes iguales entre las tareas que tocaron en esa ventana (ver nota de cada tarea) en vez de contarse enteras en cada una, para no inflar el TOTAL.
 
@@ -132,16 +132,33 @@ evals/check: 39 ficheros · 140 casos (84 positivos, 56 negativos) · 39 piezas 
 ```
 
 ### T-05 - Documenter propone, no promociona
-- **Estado**: borrador
-- **Tiempo humano**: est. 4h · real -
+- **Estado**: completado
+- **Tiempo humano**: est. 4h · real 0
 - **Prevision IA**: 45k in / 18k out tok
+- **Tiempo IA**: real 0.13h (medido; usage-meter, 8m/3m reloj, 1.21 EUR)
 - **Dependencias**: T-04
 - **Tipo**: docs
 - **Archivos**: `agents/documenter.md`, `docs/agents/documenter.md`, `docs/agents/ROLES.md`, `docs/agents/CONTRACTS.md`, `evals/cases/agent-documenter.json`, `interop/**`
 - **Verificacion**: `python scripts/lint_plugin.py` -> contratos/rutas; `python evals/check.py` -> activacion
+- **Changelog**: `documenter` ahora propone (nunca aprueba) candidatos de conocimiento al cerrar la documentacion del proyecto.
 **Criterios de aceptación**
-- [ ] Propuesta incluye categoria, fuentes y evidencia; sin propuesta no hay fallo.
-- [ ] No escribe estados ni exports.
+- [x] Propuesta incluye categoria, fuentes y evidencia; sin propuesta no hay fallo. Evidencia: `agents/documenter.md` P5-bis (nueva) — frontmatter `category`/`evidencia`/`fuentes`/`tags`; "Si no detectas nada que merezca proponerse, omite el paso sin más: no es un fallo".
+- [x] No escribe estados ni exports. Evidencia: P5-bis "**Nunca** declares `estado`" + REGLAS "Propones, nunca apruebas conocimiento" (solo CREA ficheros nuevos en `candidates/pending/`, nunca `approved/`/`needs_changes/`/`rejected/`); no invoca ningun backend/export.
+
+**TDD n/a**: prosa (modificacion de la definicion del agente `documenter.md` y su documentacion; sin script/codigo testeable en esta tarea).
+
+**Verificacion (salida real):**
+```
+$ python scripts/lint_plugin.py
+lint_plugin: 10 agentes · 1 errores · 3 avisos
+(el unico error es el preexistente LES-016, no tocado por esta tarea)
+
+$ python evals/check.py
+evals/check: 39 ficheros · 140 casos (84 positivos, 56 negativos) · 39 piezas del repo · 0 errores
+
+$ python scripts/export-interop.py --check
+export-interop --check: 50 ficheros al dia
+```
 
 ### T-06 - Fase 4-bis Knowledge Gate
 - **Estado**: borrador
