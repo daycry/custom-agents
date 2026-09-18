@@ -289,12 +289,59 @@ def codex_marketplace_json(root):
     })
 
 
+_ARG_SEGURO_RE = re.compile(r"^[A-Za-z0-9_${}/.\-]+$")
+_COMANDOS_SHELL_TRADUCIBLES = ("bash", "sh")
+
+
+def _hook_a_shell_form(h, evento="?"):
+    """Codex no tiene el contrato de `args` (exec form) VERIFICADO como Claude Code (gap 16 de la
+    revisión intento 1 de `session-end-durable-capture`, C5 · CWE-78): un hook en exec form
+    (`command: bash`, `args: ["<ruta>"]`) se traduce a SHELL FORM (`command: 'bash "<ruta>"'`), más
+    portable, y sin depender de que el runtime destino soporte `args` sueltos. El resto de campos
+    (p.ej. `timeout`) se conserva tal cual.
+
+    Un hook SIN `args` (ya en shell form: la mayoría) pasa TAL CUAL, sin tocar — no es de la
+    incumbencia de esta función. Un hook CON `args` (exec form) traduce a shell form SOLO si
+    `command` es literalmente `bash` o `sh` (gap 53 de la revisión intento 3, B-52 · CWE-78 latente:
+    antes solo se interceptaba `command == "bash"` exacto — `/bin/bash`, `sh`, `python3 -c ...` en
+    exec form se exportaban a Codex con `args` INTACTOS, exit 0, sin ningún aviso, pese a que el
+    docstring prometía traducir todo exec form) Y tiene exactamente UN argumento que case el patrón
+    seguro `^[A-Za-z0-9_${}/.\\-]+$`. En cualquier otro caso (≠ 1 arg, `command` que no sea
+    `bash`/`sh`, o un argumento con metacaracteres) hace FALLAR el export (`ValueError`, nombrando
+    el evento, el `command` y los `args`) en vez de exportar la exec form tal cual sin aviso (gap 36
+    de la revisión intento 2).
+
+    El `command` resultante se construye por INTERPOLACIÓN DIRECTA entre comillas DOBLES
+    (`'%s "%s"' % (cmd, arg)`), IGUAL que el resto de hooks de `interop/codex/hooks.json` (gap 49 de
+    la revisión intento 3, A-49: antes se usaba `shlex.quote`, que sobre un valor con `$`/`{`/`}`
+    —como `${CLAUDE_PLUGIN_ROOT}/...`— produce comillas SIMPLES, distinto formato que los otros
+    cuatro hooks del mismo fichero; no hay fuente que confirme si Codex, al expandir
+    `${CLAUDE_PLUGIN_ROOT}` en `command`, lo hace igual dentro de comillas simples que dentro de
+    dobles — ver `docs/INTEROP.md`, checklist M-01). La seguridad NO depende de las comillas: la da
+    el patrón seguro, que EXCLUYE `(` `)` `` ` `` `"` `'` `;` `|` `&` `$(` `\\` y espacios — no hay
+    nada que un atacante pueda inyectar en el argumento para romper las comillas dobles ni para que
+    la shell interprete algo más que una ruta literal."""
+    if not (isinstance(h, dict) and "args" in h):
+        return dict(h)               # no es exec form: nada que traducir (la mayoría de los hooks)
+    cmd = h.get("command")
+    args = h.get("args")
+    if not (cmd in _COMANDOS_SHELL_TRADUCIBLES and isinstance(args, list) and len(args) == 1
+            and isinstance(args[0], str) and _ARG_SEGURO_RE.match(args[0])):
+        raise ValueError(f"_hook_a_shell_form: el hook de {evento!r} (command={cmd!r}) tiene args "
+                          f"que no se pueden traducir a shell form de forma segura ({args!r}); export abortado")
+    nh = dict(h)
+    nh["command"] = '%s "%s"' % (cmd, args[0])
+    nh.pop("args", None)
+    return nh
+
+
 def codex_hooks_json(root):
     """`interop/codex/hooks.json` — los hooks del plugin filtrados y corregidos para Codex:
 
     - `SessionStart`: matcher `startup|resume|clear` (Codex NO tiene `compact`; la compactación
       son sus eventos `PreCompact`/`PostCompact`, que este plugin no usa).
-    - `SessionEnd` y `UserPromptSubmit`: iguales (el journal y la captura del turno funcionan).
+    - `SessionEnd` y `UserPromptSubmit`: iguales (el journal y la captura del turno funcionan);
+      `SessionEnd` en exec form se traduce a shell form (`_hook_a_shell_form`, gap 16).
     - `SubagentStop`: existe en Codex; se mantiene.
     - `PostToolUse`: **se omite**. Codex solo dispara Pre/PostToolUse para la herramienta `Bash`,
       y los tres hooks del plugin reaccionan a `Write|Edit|MultiEdit`: registrarlos sería declarar
@@ -310,7 +357,7 @@ def codex_hooks_json(root):
                 ng["matcher"] = "startup|resume|clear"
             elif "matcher" in g:
                 ng["matcher"] = g["matcher"]
-            ng["hooks"] = [dict(h) for h in g.get("hooks", [])]
+            ng["hooks"] = [_hook_a_shell_form(h, evento) for h in g.get("hooks", [])]
             grupos.append(ng)
         if grupos:
             out[evento] = grupos

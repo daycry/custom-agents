@@ -8,6 +8,16 @@ si otra sesión del día ya lo usó). **Las entradas se versionan** (memoria del
 quien no quiera versionarlas añade `docs/knowledge/journal/*.md` (no este README) a su `.gitignore`.
 Este índice lo regenera `journal.py index`; no lo edites.
 
+**Campos de frontmatter de cada entrada** (`agent-kits/shared/journal.py:render`):
+
+| Campo | Valores | Qué significa |
+|---|---|---|
+| `cierre` | `materializado` · `recuperado_sin_cierre` | Con qué garantía se cerró la sesión: envelope de `SessionEnd` verificado, o recuperada del log de prompts sin cierre observado |
+| `fuente` | `hook` · `recover` · `manual` | Quién generó la entrada: `replay` del envelope del hook, `recover` sobre una sesión huérfana, o `--enrich` a mano |
+| `reason` | motivo del envelope (`clear`, `resume`, `logout`, `prompt_input_exit`, `other`) o `orphan_recovery` | Motivo de cierre; `orphan_recovery` = nunca hubo envelope |
+| `derivados_en` | `replay` | `ficheros_tocados`/`tareas_cambiadas` se calculan con git al materializar (también para huérfanas), nunca en el teardown de `SessionEnd` (CA-01) |
+| `materializado_en` | timestamp ISO UTC | Cuándo se escribió la entrada final; la `fecha` es la del cierre (`captured_at`) |
+
 | Fecha | Iniciativa | Resumen | Fuente |
 |---|---|---|---|
 | [2026-09-14](2026-09-14-plugin-refactor.md) | plugin-refactor | Sesión sobre plugin-refactor | hook |

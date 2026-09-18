@@ -50,6 +50,11 @@ desktop.ini
 .claude/usage-state.json
 .claude/jira-state.json
 .claude/confluence-state.json
+# Cola de outbox de la captura durable de SessionEnd (session-end-durable-capture, `journal.py
+# capture-end`/`replay`): envelopes de sesión, nunca versionados; sobrevive a uninstall/upgrade del
+# plugin (solo `journal.py purge --confirm` la borra). No confundir con docs/knowledge/journal/,
+# que SÍ se versiona (memoria del proyecto).
+.claude/journal/
 # Debounce del hook de progreso (última línea emitida + cerrojo flock; live-visibility, debt-cleanup).
 .claude/.progress-last
 .claude/.progress-last.lock

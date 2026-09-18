@@ -301,6 +301,16 @@ SCRIPTS = descubrir()
 SIN_SIMBOLOS_EN_LA_SALIDA = {
     "agent-kits/nemesis/tools/pick_asset.py":
         "su veredicto es una URL (ASCII) o un exit 2 mudo; entra en SCRIPTS por leer el JSON de stdin",
+    # session-end-durable-capture T-01/T-02: módulos SIN `__main__` (los consume `journal.py` por
+    # `importlib`, no tienen CLI propia) — arrancados sin argumentos no imprimen nada, ni ASCII ni
+    # símbolos; entran en SCRIPTS porque su docstring/comentarios tienen no-ASCII (í, ó, «»).
+    "agent-kits/shared/outbox.py": "sin `__main__`: al arrancar no ejecuta nada ni imprime nada",
+    "agent-kits/shared/redact.py": "sin `__main__`: al arrancar no ejecuta nada ni imprime nada",
+    # session-end-durable-capture T-07: mide `journal.py capture-end` e imprime percentiles
+    # (`p50`/`p95`/`p99`/`iterations`/`mean_ms`/`max_ms`, todo ASCII); entra en SCRIPTS porque su
+    # docstring/comentarios en español tienen no-ASCII (í, ó).
+    "scripts/bench-session-end.py":
+        "su salida (texto y --json) es un informe de percentiles con claves/etiquetas en ingles, ASCII puro",
 }
 SCRIPTS_CON_SIMBOLOS = [rel for rel in SCRIPTS if rel not in SIN_SIMBOLOS_EN_LA_SALIDA]
 
@@ -344,6 +354,10 @@ def _modos():
             [("consulta", lambda w: ["--area", "estimacion"], (0,), None)],
         "agent-kits/shared/ledger-lint.py":
             [("ledger", lambda w: [L], (0, 1), None)],
+        "agent-kits/shared/outbox.py":
+            [("importar sin CLI", lambda w: [], (0,), None)],
+        "agent-kits/shared/redact.py":
+            [("importar sin CLI", lambda w: [], (0,), None)],
         "agent-kits/shared/model-tier.py":
             [("--all", lambda w: ["--all"], (0,), None)],
         "agent-kits/shared/progress-report.py":
@@ -359,6 +373,8 @@ def _modos():
             [("brief", lambda w: [INI, "T-01"], (0,), None)],
         "agent-kits/shared/usage-meter.py":
             [("close", lambda w: ["close", "--artefacto", "x", "--state", os.path.join(w, "u.json")], (0,), None)],
+        "scripts/bench-session-end.py":
+            [("bench rapido", lambda w: ["--iterations", "1"], (0,), None)],
         "evals/check.py":
             [("cobertura", lambda w: [], (0, 1), None)],
         "evals/run.py":
@@ -1073,10 +1089,17 @@ def test_el_detector_de_python_en_linea_no_se_escapa_por_la_forma_de_citar(fragm
 
 
 def test_todo_python_en_linea_del_repo_lleva_la_variable_incluido_el_que_no_la_necesitaba():
-    """La regla es uniforme: el de `session-journal.sh` lee un FICHERO con su `encoding=` e imprime
-    `0`/`1`, así que ahí la variable no arregla nada — pero cuesta cero y evita tener que decidir,
-    por cada python en línea nuevo, si su programa lee stdin. Decidirlo exige parsear el programa, y
-    el programa se escapa por la forma de citar (ver el test de arriba)."""
+    """La regla es uniforme: cuesta cero llevar la variable incluso donde el programa no lee stdin
+    — evita tener que decidir, por cada python en línea nuevo, si su programa lee stdin. Decidirlo
+    exige parsear el programa, y el programa se escapa por la forma de citar (ver el test de arriba).
+
+    session-end-durable-capture T-03: `session-journal.sh` YA NO tiene los dos python en línea que
+    extraían `session_id`/`reason`/`cwd` y leían `dev.json` para el opt-out — el payload entero
+    viaja tal cual a `journal.py capture-end` (que decide session_id/opt-out en Python de verdad,
+    no en una línea de shell), así que el recuento baja de 8 a 6. T-05 añade DOS python en línea
+    nuevos a `session-context.sh` (leer `sesion.journal.replay.{budgetMs,max}` de `dev.json` y
+    resumir en una línea el `bloqueado`/`errores` de `replay`, antes de componer el contexto), así
+    que sube de 6 a 8."""
     sitios = []
     for rel in _shell_versionados() or []:
         texto = open(os.path.join(ROOT, rel), encoding="utf-8").read()

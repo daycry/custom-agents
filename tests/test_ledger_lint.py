@@ -287,7 +287,37 @@ def main():
     _b = "### T-01 — x\n\n- **Changelog**:\n- **Estado**: completado\n"
     assert _cs.RE_CAMPO_CHANGELOG.search(_b).group("txt") == "", "el campo vacío es VACÍO"
 
-    print("test_ledger_lint: 21/21 OK")
+    # 21) un encabezado en NEGRITA a columna 0 (`**Subtareas**`, `**Checklist manual…**`, sin
+    #     espacio tras el segundo `*`) entre los criterios y la siguiente tarea CONTINÚA el bloque
+    #     de criterios sin contar como criterio EN SÍ (gap 70 de la revisión tramo 2: vuelto al
+    #     comportamiento de `bcf564c` — la variante intermedia, `^[-*]\s`, exigía espacio tras el
+    #     marcador y por eso cerraba el bloque en cuanto veía la negrita, cambiando el conteo de
+    #     criterios en 177 tareas de 24 ledgers del repo). Sin texto adicional bajo la negrita, el
+    #     conteo de la tarea de arriba no cambia.
+    con_subtareas = doc(t1c2="x").replace(
+        "- [x] criterio dos\n\n### T-02",
+        "- [x] criterio dos\n\n**Subtareas**\n- hecha la parte A\n- hecha la parte B\n\n### T-02", 1)
+    assert con_subtareas != doc(t1c2="x"), "el replace no encontró el punto de inserción"
+    code, out = run(con_subtareas)
+    assert code == 0, out
+    tareas = {x["id"]: x for x in ll.parse_ledger(con_subtareas)["tareas"]}
+    assert tareas["T-01"]["checked"] == 2 and tareas["T-01"]["unchecked"] == 0, \
+        "**Subtareas** no debe alterar el conteo de criterios de T-01"
+
+    # 21-bis) lo que SÍ sigue bloqueando `completado` es un `- [ ]` REAL bajo esa negrita (no
+    # automatizable ≠ invisible para el gate): un checklist manual con un ítem de verdad sin marcar
+    # cuenta como criterio pendiente, tal y como cuenta cualquier otro `- [ ]` de la tarea.
+    con_checklist_pendiente_real = doc(t1c2="x").replace(
+        "- [x] criterio dos\n\n### T-02",
+        "- [x] criterio dos\n\n**Checklist manual (pendiente del usuario):**\n"
+        "- [ ] **M-01** — verificar a mano\n\n### T-02", 1)
+    code, out = run(con_checklist_pendiente_real)
+    assert code == 1, "un `- [ ]` real bajo la negrita debe seguir bloqueando `completado`"
+    tareas = {x["id"]: x for x in ll.parse_ledger(con_checklist_pendiente_real)["tareas"]}
+    assert tareas["T-01"]["checked"] == 2 and tareas["T-01"]["unchecked"] == 1, \
+        "el checklist manual con un ítem real sin marcar debe contar como criterio pendiente"
+
+    print("test_ledger_lint: 23/23 OK")
 
 
 if __name__ == "__main__":

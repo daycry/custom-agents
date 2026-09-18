@@ -1,17 +1,14 @@
 #!/usr/bin/env bash
 # Hook SessionEnd (sin matcher: también `clear`, porque un /clear cierra una unidad de trabajo):
-# deja la entrada de BITÁCORA de la sesión en `docs/knowledge/journal/AAAA-MM-DD-<slug>.md` con
-# `agent-kits/shared/journal.py write` — borrador DETERMINISTA (fecha, iniciativa activa, ficheros
-# tocados por git, tareas del ledger que cambiaron de estado, marcadores del usage-meter cerrados,
-# y — memory-retrieval T-12 — `decisiones`/`pendientes` extraídas SIN modelo del LOG CRUDO de turnos del
-# usuario que acumuló el hook UserPromptSubmit `user-prompt-capture.sh` en
-# `.claude/session-prompts-<session_id>.log`; `resumen` = primer turno de ese log, o el primer prompt
-# de la transcripción). Idempotente por `session_id`: la
-# segunda ejecución de la misma sesión ACTUALIZA la entrada, no la duplica. La última entrada la
-# reinyecta `session-context.sh` al arrancar/retomar. Desactivable con `.claude/dev.json` →
-# {"sesion": {"journal": false}}. Solo escribe en proyectos con RASTRO del plugin (`docs/roadmap/`,
-# `docs/knowledge/` o `.claude/dev.json`; lo decide `journal.py write`): en cualquier otro repo el
-# plugin instalado no siembra carpetas (T-fix1). INFORMA (escribe una nota), no decide: siempre exit 0.
+# CAPTURA ULTRALIGERA y ATÓMICA (session-end-durable-capture T-03, spec CA-01): deja un *envelope*
+# en la outbox local (`.claude/journal/outbox/`, vía `agent-kits/shared/journal.py capture-end`) y
+# NADA MÁS — no abre el transcript, no ejecuta git, no llama a IA, no usa red. La MATERIALIZACIÓN
+# (borrador determinista, git, log de prompts, resumen IA opt-in) corre después, de forma
+# recuperable: `agent-kits/shared/journal.py replay`, invocado por `session-context.sh` en
+# SessionStart con presupuesto (T-05, iniciativa aparte) o a demanda. Desactivable con
+# `.claude/dev.json` → {"sesion": {"journal": false}} (lo decide `journal.py capture-end`). Solo
+# escribe en proyectos con RASTRO del plugin (`docs/roadmap/`, `docs/knowledge/` o
+# `.claude/dev.json`). INFORMA (escribe a disco), no decide: siempre exit 0.
 #
 # Contrato oficial (code.claude.com/docs/en/hooks.md + hooks-guide.md, verificado 2026-09-03):
 #   stdin  → { hook_event_name: "SessionEnd", session_id, transcript_path, cwd,
@@ -19,20 +16,25 @@
 #   stdout → se IGNORA («Output and exit code are ignored, except terminalSequence»): SessionEnd
 #            no puede bloquear ni inyectar contexto; por eso el hook solo escribe a disco.
 #   tiempo → todos los hooks de SessionEnd comparten un presupuesto de 1,5 s que sube hasta el
-#            `timeout` por hook (máx. 60 s) → hooks.json declara `timeout: 45` (era 20; ver T-13). El script solo hace
-#            git status/diff/show locales (≤ 5 s cada uno) y lee ficheros pequeños.
-#   Hooks `prompt`/`agent`: devuelven solo la decisión {"ok","reason"} y su salida en SessionEnd se
-#   ignora — sigue siendo CIERTO (ADR-010). Lo que se revisó el 2026-09-08 (memory-retrieval T-12/T-13)
-#   es la conclusión: este hook `command` no necesita DEVOLVER nada, ESCRIBE. Por eso el resumen por IA
-#   existe como OPT-IN (`.claude/dev.json` → {"sesion": {"resumen": true}}): `journal.py write` escribe
-#   PRIMERO la entrada determinista y DESPUÉS lanza `claude -p --bare --output-format json` (el CLI
-#   headless de evals/run.py; `--bare` salta hooks/plugins → sin recursión; exige ANTHROPIC_API_KEY) con
-#   timeout IA_TIMEOUT (25 s) y re-escribe la misma entrada; sin CLI, sin clave, timeout o JSON ilegible →
-#   queda la determinista, exit 0. Por eso hooks.json sube el `timeout` de este hook a 45 (≤ 60 oficial).
-#   `journal.py write --enrich` sigue siendo la entrada MANUAL y manda sobre las dos.
+#            `timeout` por hook (máx. 60 s) → hooks.json declara `timeout: 5` (era 45: el trabajo
+#            pesado —git, IA, log de prompts— ya no corre aquí, corre en `replay`) y pasa a EXEC
+#            FORM (`command: bash`, `args: [...]`, CA-09) para que el runtime no tenga que
+#            tokenizar una línea de shell en el camino más corto posible.
 #
 # Prueba manual:
 #   echo '{"hook_event_name":"SessionEnd","session_id":"s1","reason":"other","cwd":"'"$PWD"'"}' | bash hooks/session-journal.sh
+#
+# Nota de seguridad (gap 16 de la revisión intento 1, C5 · CWE-78): `hooks/hooks.json` declara este
+# hook en EXEC FORM (`command: bash`, `args: [...]`) — un contrato VERIFICADO en Claude Code
+# (`hooks.md`, 2026-09-17): el runtime pasa `args` como argv, nunca por una shell que interprete
+# el payload. Si un runtime NO soportara `args` y en su lugar ejecutara literalmente `bash` a
+# secas (sin fichero de script) leyendo el payload de la sesión por stdin como si fuera un script
+# de shell, este propio fichero JAMÁS llegaría a correr — no hay ninguna guarda que este script
+# pueda poner para defenderse de un escenario en el que él mismo no se invoca; es técnicamente
+# imposible resolverlo desde dentro. La mitigación real está en NO declarar exec form para
+# runtimes sin verificar: `export-interop.py` traduce este hook a SHELL FORM (`bash "<ruta>"`)
+# para `interop/codex/hooks.json`, así que Codex nunca ve `args` sueltos. Ver `M-01` en el ledger
+# de la iniciativa (checklist manual: verificar en Codex real que el hook SessionEnd honra `args`).
 set -u
 
 INPUT="$(cat 2>/dev/null || true)"
@@ -48,36 +50,22 @@ if [ ! -f "$JOURNAL" ]; then
 fi
 [ -n "$JOURNAL" ] && [ -f "$JOURNAL" ] || exit 0
 
-# session_id · reason · transcript_path · cwd del payload (en una sola pasada de python).
-eval "$(printf '%s' "$INPUT" | PYTHONIOENCODING=utf-8:replace python3 -c '
-import json, shlex, sys
-try: d = json.load(sys.stdin)
-except Exception: d = {}
-if not isinstance(d, dict): d = {}
-for k in ("session_id", "reason", "transcript_path", "cwd"):
-    print("J_%s=%s" % (k.upper(), shlex.quote(str(d.get(k) or ""))))
-' 2>/dev/null || printf 'J_SESSION_ID=""\nJ_REASON=""\nJ_TRANSCRIPT_PATH=""\nJ_CWD=""\n')"
-
-ROOT="${CLAUDE_PROJECT_DIR:-${J_CWD:-$PWD}}"
-[ -d "$ROOT" ] || exit 0
-[ -n "${J_SESSION_ID:-}" ] || exit 0          # sin session_id no hay clave de idempotencia → nada
-
-# Opt-out del consumidor: .claude/dev.json → {"sesion": {"journal": false}}
-if [ -f "$ROOT/.claude/dev.json" ]; then
-  activo="$(PYTHONIOENCODING=utf-8:replace python3 -c '
-import json, sys
-try: d = json.load(open(sys.argv[1], encoding="utf-8"))
-except Exception: d = {}
-s = d.get("sesion") if isinstance(d, dict) else None
-print("0" if isinstance(s, dict) and s.get("journal") is False else "1")
-' "$ROOT/.claude/dev.json" 2>/dev/null || echo 1)"
-  [ "$activo" = "1" ] || exit 0
+# --root SOLO si CLAUDE_PROJECT_DIR está definido: si no, `cmd_capture_end` resuelve con la
+# cascada --root > CLAUDE_PROJECT_DIR > `cwd` del payload > `.` — simétrico a
+# `user-prompt-capture.sh` (gap 10 de la revisión: pasar SIEMPRE `--root "$PWD"` aquí dejaba muerta
+# esa cascada y perdía turnos capturados que ningún envelope llegaba a materializar).
+#
+# El payload entero viaja tal cual a `capture-end` (lee stdin: session_id/reason/cwd/transcript_path);
+# nada de lo que decida (session_id ausente, opt-out, sin rastro del plugin) se resuelve aquí.
+#
+# Gap 30 de la revisión intento 2: `"${ROOT_ARGS[@]}"` sobre un array VACÍO aborta bajo `set -u`
+# en bash < 4.4 (p.ej. `/bin/bash` 3.2 de macOS): sin `CLAUDE_PROJECT_DIR` el hook moría ANTES de
+# invocar `capture-end` y perdía la captura entera — asimétrico con `user-prompt-capture.sh`. Se
+# evita la expansión de un array vacío bajo `set -u` con dos ramas explícitas en vez de un array.
+if [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then
+  printf '%s' "$INPUT" | python3 "$JOURNAL" capture-end --root "$CLAUDE_PROJECT_DIR" >/dev/null 2>&1 || true
+else
+  printf '%s' "$INPUT" | python3 "$JOURNAL" capture-end >/dev/null 2>&1 || true
 fi
-
-args=(write --root "$ROOT" --session-id "$J_SESSION_ID" --fuente hook)
-[ -n "${J_REASON:-}" ] && args+=(--reason "$J_REASON")
-[ -n "${J_TRANSCRIPT_PATH:-}" ] && args+=(--transcript "$J_TRANSCRIPT_PATH")
-
-python3 "$JOURNAL" "${args[@]}" >/dev/null 2>&1 || true
 
 exit 0
