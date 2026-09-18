@@ -12,8 +12,8 @@
 > colisión de basename `test_knowledge_index.py` que apaga la colección del comando de CI; 10 Important; 11 Minor;
 > #19 corregido por el orquestador en `design.md`, #21 deuda aceptada). Ronda `T-XX-fix2` hecha (03071f9..72f64af).
 > **Intento 2** (cf23f02): 22/22 cerrados + 12 nuevos (#23–#34; #23 corregido en e66cc32). **Ronda `T-XX-fix3`
-> despachada** (gaps #24–#34, incl. #28 = snippet de consola regla 8 en los 3 scripts, 15 tests rojos de
-> `test_console_encoding.py`). Siguiente: intento 3 (ÚLTIMO del bucle: solo lo corregido) → Fase 2 (T-04 curator, T-05 documenter, T-06 Fase 4-bis) → Fase 3 (T-07 sync +
+> hecha** (bf97acd..47314a9: 11/11 cerrados). **Intento 3 (último del bucle) en curso** con las dos lentes.
+> Siguiente: cerrar intento 3 → Fase 2 (T-04 curator, T-05 documenter, T-06 Fase 4-bis) → Fase 3 (T-07 sync +
 > contrato, T-08 adaptador Kwipu, T-09 setup/doctor) → Fase 4 (T-10, T-11, T-12) → qa sin UI → documenter → cierre
 > (changelog-sync, /retro + retro-gate) → graphiti-memory.
 >
@@ -24,6 +24,18 @@
 > `release.py`: arreglar antes de publicar (entrecomillar el valor). `.claude/dev.json` está sin versionar
 > (`tdd: true`). Validación en vivo contra Kwipu: hacerla al cerrar T-08 (activar `generated_knowledge` en
 > `projects.yaml` del stack + `build_view` + reinicio es del usuario/stack, no del plugin).
+>
+> **Encargos del usuario (2026-09-18, tras el goal), en este orden al terminar el ciclo:** (1) `git push` de la
+> rama y **PR a master** (la rama `feature/session-end-durable-capture` viaja dentro: 49 commits sin PR); (2) con
+> master estable, **repasar TODOS los planes de `docs/roadmap/`** en busca de tareas pendientes (`brief-budget`
+> 0/6, `plugin-refactor` 18/22 con T-15 en-progreso, `project-specialization` 3/22, `graphiti-memory` 0/10,
+> `training-data-services`, `dev-cycle-dataset`) y decidir/ejecutar; (3) **investigar por qué la revisión de dos
+> lentes NO deja comentarios en las tareas de Jira**: el flujo se ejecuta entero pero el issue no recibe el
+> comentario con el resultado de la verificación ni de los N intentos (pistas: `jira-flow.py` eventos `revision`/
+> `gaps` con `--intento N` son «del orquestador» en `commands/dev-cycle.md` y a la vez «comentario FINAL en Jira,
+> Paso 9» en la skill `adversarial-review`: posible hueco de dueño; comprobar en un proyecto consumidor con
+> `.claude/jira.json` `enabled: true`, aquí no hay). Requisito transversal: todo debe funcionar en Claude Code,
+> Codex y OpenCode.
 
 > **2026-09-11 — `installer-registro-real` PUBLICADA en v1.20.0.** PR #2 mezclado en master (`0a10e7a`), release
 > `e5774f8` + tag `v1.20.0` publicados, **CI de master en verde** en los dos commits (llevaba roja desde los merges
