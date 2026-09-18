@@ -102,7 +102,7 @@ _TAXONOMY_FALLBACK = { \
   "denylist": [
     "chain-of-thought",
     "conversacion cruda",
-    "TODOs",
+    "TODO:",
     "planes/progreso",
     "logs completos",
     "salidas enormes",

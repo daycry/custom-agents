@@ -31,7 +31,7 @@
     "denylist": {
       "type": "array",
       "items": {"type": "string"},
-      "description": "Lista negra de memoria activa, AMPLIABLE sobre el default del plugin (chain-of-thought, conversacion cruda, TODOs, planes/progreso, logs completos, salidas enormes, codigo duplicado, errores triviales, intentos sin aprendizaje, hipotesis como hechos, opiniones, redundancias)."
+      "description": "Lista negra de memoria activa, AMPLIABLE sobre el default del plugin (chain-of-thought, conversacion cruda, TODO:, planes/progreso, logs completos, salidas enormes, codigo duplicado, errores triviales, intentos sin aprendizaje, hipotesis como hechos, opiniones, redundancias)."
     },
     "backends": {
       "type": "object",

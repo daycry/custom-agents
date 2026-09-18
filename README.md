@@ -20,12 +20,12 @@
 [![OpenCode](https://img.shields.io/badge/OpenCode-agents%20%C2%B7%20commands%20%C2%B7%20skills-f59e0b.svg)](docs/en/INTEROP.md)
 [![npx](https://img.shields.io/badge/install-npx-cb3837.svg?logo=npm&logoColor=white)](docs/en/INTEROP.md)
 [![SDD](https://img.shields.io/badge/methodology-Spec--Driven-2ea44f.svg)](docs/en/FLOWS.md)
-[![Agents](https://img.shields.io/badge/agents-9-0ea5e9.svg)](docs/en/README.md)
+[![Agents](https://img.shields.io/badge/agents-10-0ea5e9.svg)](docs/en/README.md)
 [![Skills](https://img.shields.io/badge/skills-17-0ea5e9.svg)](docs/en/README.md)
 [![Commands](https://img.shields.io/badge/commands-12-0ea5e9.svg)](docs/en/README.md)
 [![Portable skills](https://img.shields.io/badge/portable%20skills-AGENTS.md%20%C2%B7%20Cursor-0ea5e9.svg)](docs/en/INSTALL.md#using-the-skills-outside-claude-code-portable-package)
 
-From idea to tested, documented code: `requirements → budget → plan → implementation → adversarial review → E2E → docs`, with **control gates** at every step, **real cost measured in tokens**, and learning that calibrates the next estimates. Nine agents, twelve commands, self-contained (no dependencies on other plugins) — and it runs in **three runtimes**: Claude Code, Codex and OpenCode.
+From idea to tested, documented code: `requirements → budget → plan → implementation → adversarial review → E2E → docs`, with **control gates** at every step, **real cost measured in tokens**, and learning that calibrates the next estimates. Ten agents, twelve commands, self-contained (no dependencies on other plugins) — and it runs in **three runtimes**: Claude Code, Codex and OpenCode.
 
 > **How you type the commands.** Installed as a plugin, the real name carries the plugin
 > namespace: **`/custom-agents:dev-cycle`**, `/custom-agents:retro`, `/custom-agents:doctor`…
@@ -106,7 +106,7 @@ npx @daycry/custom-agents            # interactive menu; marks the runtimes it d
 
 | Runtime | Install | What you get |
 |---|---|---|
-| **Claude Code** | `/plugin marketplace add daycry/custom-agents` (or the installer) | Everything: 9 agents, 12 commands, 17 skills, hooks, status line |
+| **Claude Code** | `/plugin marketplace add daycry/custom-agents` (or the installer) | Everything: 10 agents, 12 commands, 17 skills, hooks, status line |
 | **Codex** | `codex plugin marketplace add daycry/custom-agents` (or the installer) | Skills, agents as `.toml`, commands as `/prompt:<name>` (sometimes `/prompts:<name>`), session hooks |
 | **OpenCode** | `npx @daycry/custom-agents install -p opencode` | Skills, agents, commands, hook adapter |
 

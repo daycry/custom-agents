@@ -45,8 +45,15 @@ Ejecuta `agent-kits/knowledge-curator/curator-gate.py <candidato.md> --decision 
 `estado` (si se declara) solo con el token en español **`aprobado`** —nunca
 `approved`/`pending`/`needs_changes`/`rejected`, que son nombres de carpeta del flujo de
 candidatos, no valores de `estado` (delegado desde el **gap 34** de la revisión de dos lentes de
-T-02: el mismo token que exige `knowledge-index.py` sobre `approved/`). `reject`/`needs_changes`
-solo exigen que la categoría exista.
+T-02: el mismo token que exige `knowledge-index.py` sobre `approved/`); y sin colisión con
+`approved/` (**gap 50**: ni un `id` ya indexado ni un fichero con el mismo nombre en la carpeta
+destino). `reject`/`needs_changes` **no corren nada de eso** (**gap 58**): ni evidencia, ni
+`fuentes`/`tags`, ni lista negra, ni el token de `estado`, ni siquiera exigen que `category` esté
+declarada (**gap 53** — si falta, se dictamina igual con solo un `aviso` no bloqueante); una
+`category` **inválida** (declarada pero inexistente en `taxonomy.json`) sigue siendo error de uso
+en las tres decisiones. El candidato, además, debe vivir bajo
+`docs/knowledge/candidates/{pending,needs_changes,rejected}/` del `--root` (**gap 48**,
+contención por `realpath`): cualquier otra ruta es un error de uso, no un candidato.
 
 El gate **no mueve ficheros ni detecta contradicciones semánticas**: eso es juicio del agente. Ante
 una contradicción con una entrada ya `approved/`, o un candidato de **alto impacto** (afecta a 2+

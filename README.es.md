@@ -25,7 +25,7 @@
 [![Comandos](https://img.shields.io/badge/comandos-12-0ea5e9.svg)](docs/README.md)
 [![Skills portables](https://img.shields.io/badge/skills%20portables-AGENTS.md%20%C2%B7%20Cursor-0ea5e9.svg)](docs/INSTALL.md#usar-las-skills-fuera-de-claude-code-paquete-portable)
 
-De la idea al código probado y documentado: `requisitos → presupuesto → plan → implementación → revisión adversarial → E2E → docs`, con **puertas de control** en cada paso, **coste real medido en tokens** y aprendizaje que calibra las siguientes estimaciones. Nueve agentes, doce comandos, autosuficiente (sin dependencias de otros plugins) — y funciona en **tres runtimes**: Claude Code, Codex y OpenCode.
+De la idea al código probado y documentado: `requisitos → presupuesto → plan → implementación → revisión adversarial → E2E → docs`, con **puertas de control** en cada paso, **coste real medido en tokens** y aprendizaje que calibra las siguientes estimaciones. Diez agentes, doce comandos, autosuficiente (sin dependencias de otros plugins) — y funciona en **tres runtimes**: Claude Code, Codex y OpenCode.
 
 > **Cómo se teclean los comandos.** En Claude Code instalado como plugin, el nombre real lleva el
 > espacio de nombres del plugin: **`/custom-agents:dev-cycle`**, `/custom-agents:retro`,
@@ -106,7 +106,7 @@ npx @daycry/custom-agents            # menú interactivo; marca los runtimes que
 
 | Runtime | Instalación | Qué obtienes |
 |---|---|---|
-| **Claude Code** | `/plugin marketplace add daycry/custom-agents` (o el instalador) | Todo: 9 agentes, 12 comandos, 17 skills, hooks y statusline |
+| **Claude Code** | `/plugin marketplace add daycry/custom-agents` (o el instalador) | Todo: 10 agentes, 12 comandos, 17 skills, hooks y statusline |
 | **Codex** | `codex plugin marketplace add daycry/custom-agents` (o el instalador) | Skills, agentes como `.toml`, comandos como `/prompt:<nombre>` (a veces `/prompts:<nombre>`), hooks de sesión |
 | **OpenCode** | `npx @daycry/custom-agents install -p opencode` | Skills, agentes, comandos y adaptador de hooks |
 
