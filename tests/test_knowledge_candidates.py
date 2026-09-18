@@ -1,6 +1,6 @@
 """Integracion T-03 (knowledge-services): estructura de `docs/knowledge/candidates|approved/`,
 ownership documentado y export de backends no versionado. Complementa (no repite) los tests
-unitarios de `agent-kits/shared/test_knowledge_index.py` (T-02): aqui se valida el ARBOL REAL del
+unitarios de `agent-kits/shared/test_knowledge_index_canonico.py` (T-02): aqui se valida el ARBOL REAL del
 repo, no fixtures en `tmp_path`.
 """
 import os
@@ -66,5 +66,16 @@ def test_git_check_ignore_cubre_export_derivado():
     git (fuentes e índice coherentes sin derivados: el derivado nunca compite con la fuente)."""
     resultado = subprocess.run(
         ["git", "check-ignore", "-q", ".claude/knowledge-services/kwipu-export/manifest.json"],
+        cwd=ROOT)
+    assert resultado.returncode == 0
+
+
+def test_git_check_ignore_cubre_export_derivado_anidado():
+    """Gap 11 (revision intento 1): sin el ancla `**/`, un proyecto anidado bajo `evals/fixtures/`
+    (con su propio `.claude/`) NO quedaba ignorado, a diferencia de sus vecinos (`**/.claude/
+    knowledge-index.sqlite`, unas lineas mas arriba en el mismo `.gitignore`)."""
+    resultado = subprocess.run(
+        ["git", "check-ignore", "-q",
+         "evals/fixtures/proyecto/.claude/knowledge-services/kwipu-export/manifest.json"],
         cwd=ROOT)
     assert resultado.returncode == 0
