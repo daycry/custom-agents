@@ -1,8 +1,8 @@
 ---
 spec: session-end-durable-capture
-estado: aprobada
+estado: implementada
 creado: 2026-09-17
-actualizado: 2026-09-17
+actualizado: 2026-09-18
 evaluacion: evaluation.md
 design: design.md
 plan: improvement-plan.md
