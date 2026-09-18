@@ -51,7 +51,6 @@ flowchart LR
     qasinui --> documenter
     documenter -.->|"candidato propuesto<br/>(opcional, buzón)"| kcurator["🗂️ knowledge-curator<br/>Knowledge Gate<br/>approve/needs_changes/rejected"]
     documenter --> retro["🔁 /retro<br/>calibración"]
-    kcurator -.->|"sin candidatos"| retro
     kcurator --> retro
     nemesis["🛡️ nemesis<br/>auditoría"] -.->|hallazgos críticos| analyst
     retro -.->|CALIBRATION.md| evaluator

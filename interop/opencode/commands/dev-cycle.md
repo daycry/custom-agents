@@ -155,8 +155,11 @@ Con las pruebas en verde, invoca **`documenter`** para generar/actualizar la doc
 
 ## Fase 4-bis — Knowledge Gate (siempre tras QA verde y `documenter`, agente `knowledge-curator`)
 Tras cerrar la Fase 4, comprueba si la iniciativa dejó algún candidato bajo
-`docs/knowledge/candidates/**` (los que `documenter` pudo proponer en su P5-bis, T-05, o los que el
-propio usuario haya añadido a mano durante el ciclo). Si hay al menos uno, invoca
+`docs/knowledge/candidates/{pending,needs_changes}/` (los que `documenter` pudo proponer en su
+P5-bis, T-05, o los que el propio usuario haya añadido a mano durante el ciclo). `rejected/` es
+terminal (gap 49): un candidato ya rechazado no se re-procesa, así que NO cuenta para disparar
+esta fase — solo se conserva por trazabilidad. Si hay al menos uno en `pending`/`needs_changes`,
+invoca
 **`knowledge-curator`** para que decida `approved`/`needs_changes`/`rejected` con su contrato
 determinista (`curator-gate.py`, T-04): categoría exacta, evidencia mínima, `fuentes`, `tags` y
 lista negra.
