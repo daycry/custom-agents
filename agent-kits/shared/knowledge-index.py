@@ -7,6 +7,8 @@ Opera EXCLUSIVAMENTE sobre `docs/knowledge/approved/<folder>/` (una carpeta por 
 `categories[].folder` de `.claude/knowledge-services/taxonomy.json`, o de la plantilla por
 defecto del plugin si el proyecto no configura nada — ver `knowledge-schema.py`). NUNCA escanea
 `docs/knowledge/candidates/**` (T-03): un candidato no aprobado no puede aparecer en el índice.
+Recorre subcarpetas de cada `folder` declarado (gap 17, revisión intento 1): una entrada puede
+vivir en un subdirectorio propio (p. ej. adjuntos junto al `.md`).
 
 Decisión de alcance (sin respaldo literal en spec/design, señalada para revisión): este validador
 NO toca el corpus heredado `docs/knowledge/{adr,gotchas,lessons}/` (índice manual + `knowledge-
@@ -17,6 +19,17 @@ rompería ADR-001..ADR-017/GOT-.../LES-... existentes sin necesidad.
 
 Contrato de frontmatter de una entrada aprobada:
   id (str, obligatorio) · version (int, obligatorio) · enlaces (lista opcional de ids referidos)
+  · estado (opcional; si se declara, debe ser "aprobado" — coherente con vivir bajo `approved/`)
+  · fuentes (opcional; si se declara, lista no vacía) · tags (opcional; si se declara, lista)
+
+Alcance de la validación de frontmatter (gap 3, revisión intento 1): este índice solo comprueba
+la FORMA de `estado`/`fuentes`/`tags` cuando el campo está presente — nunca los exige, y nunca
+comprueba `evidencia` contra el `min_evidence` de su categoría (una entrada de `approved/<folder>/`
+puede pertenecer a más de una `category` que comparta esa carpeta — p. ej. PATTERN y GOTCHA
+comparten `gotchas/` en la plantilla por defecto — así que el `folder` por sí solo no basta para
+resolver a qué categoría exacta pertenece y qué evidencia mínima le aplica). Esa comprobación
+semántica, y la obligatoriedad de los campos en el momento de aprobar un candidato, son del
+`knowledge-curator` (T-04), que sí conoce la categoría exacta que asignó al aprobar.
 
 Cada error es un dict {mensaje, fichero, campo} (mismo contrato que knowledge-schema.validar).
 
@@ -41,16 +54,34 @@ for _s in (sys.stdin, sys.stdout, sys.stderr):
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 
+class KnowledgeSchemaNoDisponible(Exception):
+    """`knowledge-schema.py` no se pudo cargar (gap 4): degradación explícita en vez de un
+    traceback crudo de `importlib` cuando el vecino no viaja junto a este fichero."""
+
+
 def _cargar_knowledge_schema():
     """Carga knowledge-schema.py (T-01) desde el mismo directorio. Replicado a propósito en vez
     de un import de paquete: cada script del kit compartido es standalone (ver comentario
     celdas_md en knowledge-find.py), pero ambos ficheros viajan siempre juntos en
     agent-kits/shared/, así que cargar el vecino por ruta relativa es seguro y evita duplicar
-    ~200 líneas de validación de taxonomy.json."""
+    ~200 líneas de validación de taxonomy.json.
+
+    Mecanismo B de ADR-016 (canónico + degradación, no respaldo copiado): si el fichero falta o
+    no carga, se levanta `KnowledgeSchemaNoDisponible` con un mensaje claro — el llamador
+    (`build_index`) lo convierte en un error `{fichero, campo, mensaje}` normal (exit 1), nunca en
+    un traceback (gap 4; `capabilities.py` ya degradaba así a través de `_resolver`, este fichero
+    no)."""
     ruta = os.path.join(HERE, "knowledge-schema.py")
+    if not os.path.isfile(ruta):
+        raise KnowledgeSchemaNoDisponible(f"no se encontró `{ruta}` (debería viajar junto a este fichero)")
     spec = importlib.util.spec_from_file_location("knowledge_schema", ruta)
+    if spec is None or spec.loader is None:
+        raise KnowledgeSchemaNoDisponible(f"no se pudo preparar la carga de `{ruta}`")
     mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
+    try:
+        spec.loader.exec_module(mod)
+    except Exception as e:  # noqa: BLE001 - cualquier fallo de carga degrada, no tumba el CLI
+        raise KnowledgeSchemaNoDisponible(f"{type(e).__name__}: {e}") from e
     return mod
 
 
@@ -60,29 +91,63 @@ def _error(mensaje, fichero, campo):
 
 _FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n", re.DOTALL)
 _LISTA_RE = re.compile(r"^\[(.*)\]$")
+_ITEM_BLOQUE_RE = re.compile(r"^-\s*(.+)$")
 
 
 def _frontmatter(texto):
-    """Parser mínimo de frontmatter YAML-simple (solo escalares y listas [a, b] de una línea;
-    suficiente para id, version, enlaces). Replicado deliberadamente en vez de importar el
+    """Parser mínimo de frontmatter YAML-simple: escalares, listas `[a, b]` de una línea y listas
+    en bloque (`enlaces:` seguido de líneas `  - X`, gap 9 — el `knowledge-curator`/documenter
+    suele emitir listas en bloque, no inline). Replicado deliberadamente en vez de importar el
     parser de knowledge-find.py (mismo criterio standalone que arriba, pero ese script cubre
     muchos más casos que no necesitamos aquí)."""
     m = _FRONTMATTER_RE.match(texto)
     if not m:
         return {}
     datos = {}
-    for linea in m.group(1).splitlines():
+    lineas = m.group(1).splitlines()
+    i = 0
+    while i < len(lineas):
+        linea = lineas[i]
+        cruda = linea
         linea = linea.strip()
         if not linea or linea.startswith("#") or ":" not in linea:
+            i += 1
             continue
         clave, _, valor = linea.partition(":")
         clave = clave.strip()
         valor = valor.strip()
-        ml = _LISTA_RE.match(valor)
-        if ml:
-            datos[clave] = [v.strip() for v in ml.group(1).split(",") if v.strip()]
+        if valor:
+            ml = _LISTA_RE.match(valor)
+            if ml:
+                datos[clave] = [v.strip() for v in ml.group(1).split(",") if v.strip()]
+            else:
+                datos[clave] = valor.strip('"').strip("'")
+            i += 1
+            continue
+        # Clave sin valor en la misma línea: puede ser una lista en bloque (líneas siguientes
+        # indentadas que empiezan por "- "). Si no hay ninguna, la clave queda vacía (cadena "").
+        indent_clave = len(cruda) - len(cruda.lstrip())
+        items = []
+        j = i + 1
+        while j < len(lineas):
+            sub = lineas[j]
+            if not sub.strip():
+                j += 1
+                continue
+            indent_sub = len(sub) - len(sub.lstrip())
+            if indent_sub <= indent_clave:
+                break
+            mi = _ITEM_BLOQUE_RE.match(sub.strip())
+            if not mi:
+                break
+            items.append(mi.group(1).strip().strip('"').strip("'"))
+            j += 1
+        if items:
+            datos[clave] = items
+            i = j
         else:
-            datos[clave] = valor.strip('"').strip("'")
+            datos[clave] = ""
+            i += 1
     return datos
 
 
@@ -97,12 +162,52 @@ def _carpetas_declaradas(config):
     return out
 
 
+def _ruta_segura_dentro(base, ruta):
+    """True si `ruta` (ya unida a `base`) resuelve DENTRO de `base` tras normalizar symlinks/`..`
+    (gap 6, defensa en profundidad: `knowledge-schema.validar` ya rechaza un `folder` con `..`/
+    absoluto/unidad de Windows en la config, pero esta comprobación cubre además symlinks y
+    cualquier otra vía de escape que el fichero de config no controle)."""
+    base_real = os.path.realpath(base)
+    ruta_real = os.path.realpath(ruta)
+    return os.path.commonpath([base_real, ruta_real]) == base_real
+
+
+_ESTADOS_VALIDOS_APROBADO = {"aprobado"}
+
+
+def _validar_frontmatter_forma(fm, ruta):
+    """Comprobaciones de FORMA (no de semántica de categoría, ver docstring del módulo) sobre
+    campos opcionales del frontmatter de una entrada aprobada (gap 3)."""
+    errores = []
+    if "estado" in fm:
+        estado = fm["estado"]
+        if not isinstance(estado, str) or estado not in _ESTADOS_VALIDOS_APROBADO:
+            errores.append(_error(
+                f"`estado` declarado (`{estado}`) no es válido para una entrada bajo `approved/` "
+                f"(se esperaba `aprobado`)", ruta, "estado"))
+    if "fuentes" in fm:
+        fuentes = fm["fuentes"]
+        if not isinstance(fuentes, list) or not fuentes:
+            errores.append(_error(
+                "`fuentes` declarado pero no es una lista no vacía", ruta, "fuentes"))
+    if "tags" in fm:
+        tags = fm["tags"]
+        if not isinstance(tags, list):
+            errores.append(_error("`tags` declarado pero no es una lista", ruta, "tags"))
+    return errores
+
+
 def build_index(root=None):
     """(indice, errores). indice: {id: {"ruta", "version", "folder", "enlaces"}}.
     errores: lista de {mensaje, fichero, campo}. Taxonomía inválida -> índice vacío y los
-    errores de la taxonomía (no se intenta construir nada sobre un contrato roto)."""
-    ks = _cargar_knowledge_schema()
+    errores de la taxonomía (no se intenta construir nada sobre un contrato roto). Un
+    `knowledge-schema.py` ausente o roto (gap 4) degrada igual: índice vacío + un único error
+    claro, nunca un traceback."""
     root = root or "."
+    try:
+        ks = _cargar_knowledge_schema()
+    except KnowledgeSchemaNoDisponible as e:
+        return {}, [_error(str(e), os.path.join(HERE, "knowledge-schema.py"), "$")]
     config, _origen, _ruta_taxonomia, errores_taxonomia = ks.cargar_taxonomia(root)
     if errores_taxonomia:
         return {}, errores_taxonomia
@@ -118,12 +223,21 @@ def build_index(root=None):
         d = os.path.join(base, folder)
         if not os.path.isdir(d):
             continue
-        for nombre in sorted(os.listdir(d)):
-            if not nombre.lower().endswith(".md") or nombre.upper() == "README.MD":
+        rutas_md = []
+        for dirpath, dirnames, filenames in os.walk(d):
+            dirnames.sort()
+            for nombre in sorted(filenames):
+                if not nombre.lower().endswith(".md") or nombre.upper() == "README.MD":
+                    continue
+                rutas_md.append(os.path.join(dirpath, nombre))
+        for ruta in sorted(rutas_md):
+            if not _ruta_segura_dentro(d, ruta):
+                errores.append(_error(
+                    "ruta fuera de la carpeta aprobada declarada (posible symlink/escape)",
+                    ruta, "$"))
                 continue
-            ruta = os.path.join(d, nombre)
             try:
-                with open(ruta, "r", encoding="utf-8") as f:
+                with open(ruta, "r", encoding="utf-8-sig") as f:
                     texto = f.read()
             except OSError as e:
                 errores.append(_error(f"no se pudo leer: {e}", ruta, "$"))
@@ -149,6 +263,7 @@ def build_index(root=None):
             enlaces = fm.get("enlaces") or []
             if isinstance(enlaces, str):
                 enlaces = [enlaces]
+            errores.extend(_validar_frontmatter_forma(fm, ruta))
             indice[id_] = {"ruta": ruta, "version": version, "folder": folder, "enlaces": enlaces}
             vistos_en[id_] = ruta
 

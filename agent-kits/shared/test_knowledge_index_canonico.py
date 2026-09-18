@@ -187,3 +187,119 @@ def test_cli_exit_1_con_errores(tmp_path, capsys):
     _taxonomy(root, _cat())
     _entry(root, "adr", "ADR-021.md", "ADR-021", enlaces=["NOPE-1"])
     assert ki.main(["--root", root]) == 1
+
+
+# ------------------------------------------------------------------ revisión intento 1 (fix2)
+
+def test_gap4_knowledge_schema_ausente_degrada_sin_traceback(tmp_path, monkeypatch):
+    """Gap 4: si `knowledge-schema.py` no viaja junto a este fichero, `build_index` devuelve un
+    error controlado en vez de dejar propagar el traceback de `importlib`."""
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    monkeypatch.setattr(ki, "HERE", str(tmp_path / "vacio"))
+    indice, errores = ki.build_index(root)
+    assert indice == {}
+    assert len(errores) == 1
+    assert "knowledge-schema.py" in errores[0]["mensaje"]
+
+
+def test_gap6_symlink_fuera_de_la_carpeta_aprobada_falla(tmp_path):
+    """Gap 6: defensa en profundidad — una entrada cuya ruta resuelve fuera de `approved/<folder>/`
+    (aquí simulado sin symlink real, monkeypatch de os.path.realpath sería frágil; se prueba con
+    un symlink cuando la plataforma lo soporta, y se salta si no)."""
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    fuera = tmp_path / "fuera.md"
+    fuera.write_text("---\nid: ADR-FUERA\nversion: 1\n---\n\n# fuera\n", encoding="utf-8")
+    d = os.path.join(root, "docs", "knowledge", "approved", "adr")
+    os.makedirs(d, exist_ok=True)
+    enlace = os.path.join(d, "ADR-FUERA.md")
+    try:
+        os.symlink(str(fuera), enlace)
+    except (OSError, NotImplementedError):
+        import pytest
+        pytest.skip("symlinks no soportados en esta plataforma/permiso")
+    indice, errores = ki.build_index(root)
+    assert "ADR-FUERA" not in indice
+    assert any("fuera de la carpeta aprobada" in e["mensaje"] for e in errores)
+
+
+def test_gap8_entrada_con_bom_se_lee_igual(tmp_path):
+    """Gap 8: un `.md` guardado con BOM UTF-8 (utf-8-sig) no debe fallar ni contaminar el `id`."""
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    d = os.path.join(root, "docs", "knowledge", "approved", "adr")
+    os.makedirs(d, exist_ok=True)
+    contenido = "---\nid: ADR-BOM\nversion: 1\n---\n\n# bom\n"
+    with open(os.path.join(d, "ADR-BOM.md"), "w", encoding="utf-8-sig") as f:
+        f.write(contenido)
+    indice, errores = ki.build_index(root)
+    assert errores == []
+    assert "ADR-BOM" in indice
+
+
+def test_gap9_enlaces_en_lista_de_bloque_se_parsean(tmp_path):
+    """Gap 9: `enlaces:` como lista en bloque (YAML `- item` en líneas siguientes), no solo
+    `[a, b]` inline."""
+    root = str(tmp_path)
+    cats = _cat() + [{"key": "GOTCHA", "folder": "gotchas", "min_evidence": "validated_case"}]
+    _taxonomy(root, cats)
+    _entry(root, "gotchas", "GOT-002.md", "GOT-002")
+    d = os.path.join(root, "docs", "knowledge", "approved", "adr")
+    os.makedirs(d, exist_ok=True)
+    contenido = "---\nid: ADR-BLOQUE\nversion: 1\nenlaces:\n  - GOT-002\n---\n\n# bloque\n"
+    with open(os.path.join(d, "ADR-BLOQUE.md"), "w", encoding="utf-8") as f:
+        f.write(contenido)
+    indice, errores = ki.build_index(root)
+    assert errores == []
+    assert indice["ADR-BLOQUE"]["enlaces"] == ["GOT-002"]
+
+
+def test_gap17_entrada_en_subcarpeta_se_indexa(tmp_path):
+    """Gap 17: `build_index` recorre subcarpetas de cada `folder` declarado, no solo su nivel
+    superior (una entrada puede vivir junto a sus adjuntos en un subdirectorio propio)."""
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    d = os.path.join(root, "docs", "knowledge", "approved", "adr", "ADR-030")
+    os.makedirs(d, exist_ok=True)
+    with open(os.path.join(d, "ADR-030.md"), "w", encoding="utf-8") as f:
+        f.write("---\nid: ADR-030\nversion: 1\n---\n\n# sub\n")
+    indice, errores = ki.build_index(root)
+    assert errores == []
+    assert "ADR-030" in indice
+
+
+def test_gap3_estado_invalido_en_entrada_aprobada_falla(tmp_path):
+    """Gap 3 (forma, no semántica de categoría — ver docstring del módulo): si una entrada
+    declara `estado`, debe ser `aprobado` bajo `approved/`."""
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    d = os.path.join(root, "docs", "knowledge", "approved", "adr")
+    os.makedirs(d, exist_ok=True)
+    with open(os.path.join(d, "ADR-040.md"), "w", encoding="utf-8") as f:
+        f.write("---\nid: ADR-040\nversion: 1\nestado: pending\n---\n\n# x\n")
+    indice, errores = ki.build_index(root)
+    assert any(e["campo"] == "estado" for e in errores)
+
+
+def test_gap3_fuentes_vacia_declarada_falla(tmp_path):
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    d = os.path.join(root, "docs", "knowledge", "approved", "adr")
+    os.makedirs(d, exist_ok=True)
+    with open(os.path.join(d, "ADR-041.md"), "w", encoding="utf-8") as f:
+        f.write("---\nid: ADR-041\nversion: 1\nfuentes:\n---\n\n# x\n")
+    indice, errores = ki.build_index(root)
+    assert any(e["campo"] == "fuentes" for e in errores)
+
+
+def test_gap3_tags_lista_valida_no_falla(tmp_path):
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    d = os.path.join(root, "docs", "knowledge", "approved", "adr")
+    os.makedirs(d, exist_ok=True)
+    contenido = "---\nid: ADR-042\nversion: 1\ntags: [a, b]\nestado: aprobado\n---\n\n# x\n"
+    with open(os.path.join(d, "ADR-042.md"), "w", encoding="utf-8") as f:
+        f.write(contenido)
+    indice, errores = ki.build_index(root)
+    assert errores == []
