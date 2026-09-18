@@ -248,6 +248,11 @@ def validar(config, fichero="taxonomy.json"):
         errores.append(_error("`categories` debe ser una lista no vacía", fichero, "categories"))
     else:
         vistas = set()
+        # gap 38 (fix4): dos `folder` que solo difieran en mayusculas/minusculas colapsan al MISMO
+        # directorio fisico en un filesystem case-insensitive (NTFS/Windows por defecto) aunque
+        # `knowledge-index.py` los trate como carpetas distintas — se detecta aqui, en la config,
+        # en vez de dejar que el indice descubra el choque en tiempo de escaneo.
+        folders_por_clave = {}
         for i, cat in enumerate(categories):
             campo = f"categories[{i}]"
             if not isinstance(cat, dict):
@@ -271,6 +276,16 @@ def validar(config, fichero="taxonomy.json"):
                     f"{campo}.folder `{folder}` no es una ruta relativa segura "
                     "(sin `..`, sin `/` inicial, sin `\\` ni unidad de Windows)",
                     fichero, f"{campo}.folder"))
+            else:
+                clave = folder.casefold()
+                if clave in folders_por_clave and folders_por_clave[clave] != folder:
+                    errores.append(_error(
+                        f"{campo}.folder `{folder}` colisiona con `{folders_por_clave[clave]}` "
+                        "(difieren solo en mayusculas/minusculas; en un filesystem "
+                        "case-insensitive como NTFS resuelven al mismo directorio)",
+                        fichero, f"{campo}.folder"))
+                else:
+                    folders_por_clave.setdefault(clave, folder)
             if not cat.get("min_evidence") or not isinstance(cat.get("min_evidence"), str):
                 errores.append(_error(f"{campo} no declara `min_evidence`", fichero, f"{campo}.min_evidence"))
             if cat.get("min_evidence") and cat["min_evidence"] not in evidence_levels:
@@ -362,22 +377,21 @@ def main(argv=None):
         config = default_taxonomy()
         errores = validar(config, TEMPLATE_PATH)
     elif args.ruta:
-        # Sin `os.path.isfile` previo (gap 15, TOCTOU): el propio `open()` decide, y
-        # `FileNotFoundError`/`OSError`/`UnicodeDecodeError` (antes solo `JSONDecodeError`
-        # estaba cubierto; el resto salia como traceback en vez del exit 2 documentado).
-        try:
-            with open(args.ruta, "r", encoding="utf-8") as f:
-                config = json.load(f)
-        except FileNotFoundError:
+        # gap 39 (fix4): el CLI reutiliza `cargar_taxonomia(fichero=...)` en vez de tener su
+        # propio `open()`/`json.load` duplicado — antes ese segundo lector abria con
+        # `encoding="utf-8"` (sin `-sig`) mientras `cargar_taxonomia` ya toleraba el BOM desde el
+        # gap 27, asi que el MISMO `taxonomy.json` con BOM UTF-8 pasaba por un lector y fallaba
+        # por el otro segun se invocara como fichero de proyecto o por ruta explicita del CLI. Con
+        # un unico lector no hay forma de que diverjan. `os.path.isfile` cubre inexistente Y
+        # directorio (gap 15, TOCTOU parcial: sigue habiendo una ventana entre el check y la
+        # lectura, pero `cargar_taxonomia` ya captura `OSError` alrededor del `open()`).
+        if not os.path.isfile(args.ruta):
             print(f"knowledge-schema: no existe `{args.ruta}`", file=sys.stderr)
             return 2
-        except json.JSONDecodeError as e:
-            print(f"knowledge-schema: JSON ilegible en `{args.ruta}`: {e}", file=sys.stderr)
+        config, _origen, _ruta, errores = cargar_taxonomia(fichero=args.ruta)
+        if config is None:
+            print(f"knowledge-schema: {errores[0]['mensaje']} en `{args.ruta}`", file=sys.stderr)
             return 2
-        except (OSError, UnicodeDecodeError) as e:
-            print(f"knowledge-schema: no se pudo leer `{args.ruta}`: {type(e).__name__}: {e}", file=sys.stderr)
-            return 2
-        errores = validar(config, args.ruta)
     else:
         print("knowledge-schema: falta la ruta del fichero (o usa --default)", file=sys.stderr)
         return 2
