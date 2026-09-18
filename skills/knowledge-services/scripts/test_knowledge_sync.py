@@ -214,6 +214,43 @@ def test_apply_roto_reencola_con_backoff_y_no_borra_publicacion_anterior(tmp_pat
     assert set(os.listdir(os.path.join(dir_outbox, "done"))) == done_antes
 
 
+def test_drenaje_de_envelope_propio_reencolado_agota_intentos_y_va_a_dead_letter(tmp_path, capsys):
+    """gap 128 (Critical): un envelope PROPIO reencolado tras un fallo real de `apply()` ya no se
+    queda atascado para siempre — cada corrida futura lo DRENA y reintenta aplicarlo; si el
+    backend sigue roto, escala de verdad (`intentos` sube en cada drenaje) hasta `MAX_INTENTOS` y
+    cae a dead-letter con causa REAL (antes: nunca llegaba, se trataba como "ajeno" sin fin)."""
+    root = str(tmp_path)
+    _taxonomy(root, _categorias(), backend_cfg={"forzar_error_apply": True})
+    _entrada(root, "gotchas", "e1.md", "e1", "ENRUTADA")
+    dir_outbox = os.path.join(root, ".claude", "knowledge-services", "_sync-outbox", "testx")
+
+    # Primera corrida: falla, reencola con backoff (intentos=1).
+    exit_code = ks_sync.main(["--backend", "testx", "--root", root, "--json",
+                              "--backends-dir", FIXTURES_BACKENDS])
+    assert exit_code == 1
+    capsys.readouterr()
+
+    ob_mod = ks_sync._cargar_por_ruta(  # noqa: SLF001
+        os.path.join(ks_sync.SHARED, "outbox.py"), "ks_outbox_test_drenaje_dl")
+    # libera el backoff para poder drenarlo de inmediato en la siguiente corrida (test determinista,
+    # sin esperar minutos reales)
+    ob_mod.reintentar_ahora(dir_outbox)
+
+    for _ in range(2):  # de intentos=1 a intentos=3 (MAX_INTENTOS) en dos drenajes mas
+        ks_sync.main(["--backend", "testx", "--root", root, "--json",
+                      "--backends-dir", FIXTURES_BACKENDS])
+        capsys.readouterr()
+        ob_mod.reintentar_ahora(dir_outbox)
+
+    dead = os.listdir(os.path.join(dir_outbox, "dead-letter"))
+    assert any(n.endswith(".causa.json") for n in dead)
+    causa_json = next(n for n in dead if n.endswith(".causa.json"))
+    with open(os.path.join(dir_outbox, "dead-letter", causa_json), encoding="utf-8") as f:
+        causa = json.load(f)
+    assert causa["intentos"] >= 3
+    assert "RuntimeError" in causa["causa"]  # causa REAL, no generica
+
+
 # ------------------------------------------------------------------ backend/adaptador invalidos
 
 def test_backend_no_declarado_es_error_de_uso(tmp_path):
@@ -291,9 +328,11 @@ def test_omitidas_por_routing_se_informan_por_stderr(tmp_path, capsys):
 
 
 def test_reclamar_recoge_el_envelope_propio_aunque_haya_otro_pendiente(tmp_path, capsys):
-    """gap 91: si `outbox/` ya tenía un envelope pendiente de una corrida anterior (p. ej. un
-    proceso muerto a medias), la corrida actual reclama el SUYO (por clave), no el ajeno, y deja
-    el ajeno reencolado para quien deba procesarlo."""
+    """gap 91/128: si `outbox/` ya tenía un envelope PROPIO pendiente de una corrida anterior (p.
+    ej. un proceso muerto a medias con `apply()` reencolado), `_drenar_outbox_propia` lo DRENA
+    (lo aplica y completa) ANTES de escribir el envelope fresco de esta corrida — ya no se queda
+    reencolado para siempre (gap 128, corrige la deuda declarada en #116/#120: antes un envelope
+    propio pendiente se trataba como "ajeno" indefinidamente)."""
     root = str(tmp_path)
     _taxonomy(root, _categorias())
     _entrada(root, "gotchas", "e1.md", "e1", "ENRUTADA")
@@ -301,30 +340,38 @@ def test_reclamar_recoge_el_envelope_propio_aunque_haya_otro_pendiente(tmp_path,
     ob_mod = ks_sync._cargar_por_ruta(  # noqa: SLF001 - reuso deliberado en el propio test
         os.path.join(ks_sync.SHARED, "outbox.py"), "ks_outbox_test_reclamar")
     dir_outbox = os.path.join(root, ".claude", "knowledge-services", "_sync-outbox", "testx")
-    ob_mod.escribir(dir_outbox, "sync-0-ajeno", {"backend": "testx", "type": "test", "ops": []})
+    ob_mod.escribir(dir_outbox, "sync-0-pendiente-propio", {"backend": "testx", "type": "test", "ops": []})
 
     exit_code = ks_sync.main(["--backend", "testx", "--root", root, "--json",
                               "--backends-dir", FIXTURES_BACKENDS])
     assert exit_code == 0
     salida = json.loads(capsys.readouterr().out)
     assert salida["apply"]["aplicados"] == 1
-    # el envelope ajeno sigue en outbox/ (reencolado), no se perdió ni se completó por error
-    assert os.path.isfile(os.path.join(dir_outbox, "outbox", "sync-0-ajeno.json"))
+    # el envelope propio pendiente se drenó (aplicado y completado), no se quedó reencolado
+    assert not os.path.isfile(os.path.join(dir_outbox, "outbox", "sync-0-pendiente-propio.json"))
+    assert os.path.isfile(os.path.join(dir_outbox, "done", "sync-0-pendiente-propio.json"))
 
 
-def test_devolver_envelope_ajeno_no_incrementa_intentos(tmp_path):
-    """gap 120: reponer un envelope ajeno en `outbox/` NUNCA debe subir su contador `.intentos`
-    (eso quemaria su presupuesto de reintentos por una colision de orden alfabetico que no es
-    culpa suya)."""
+def test_drenaje_cede_el_paso_a_envelope_de_otro_backend_sin_incrementar_intentos(tmp_path, capsys):
+    """gap 120/128: un envelope de OTRO backend/productor no se aplica ni se pierde — se le cede
+    el paso (`outbox.ceder_paso`, sin tocar su `.intentos`) y sigue disponible para quien deba
+    procesarlo."""
     root = str(tmp_path)
+    _taxonomy(root, _categorias())
+    _entrada(root, "gotchas", "e1.md", "e1", "ENRUTADA")
+
     ob_mod = ks_sync._cargar_por_ruta(  # noqa: SLF001
         os.path.join(ks_sync.SHARED, "outbox.py"), "ks_outbox_test_devolver")
     dir_outbox = os.path.join(root, ".claude", "knowledge-services", "_sync-outbox", "testx")
-    ob_mod.escribir(dir_outbox, "sync-0-ajeno", {"x": 1})
-    candidato = ob_mod.reclamar(dir_outbox)
-    assert candidato is not None
-    assert ks_sync._devolver_envelope_ajeno(candidato, dir_outbox) is True
+    ob_mod.escribir(dir_outbox, "sync-0-ajeno", {"backend": "otro-backend", "type": "test", "ops": []})
+
+    exit_code = ks_sync.main(["--backend", "testx", "--root", root, "--json",
+                              "--backends-dir", FIXTURES_BACKENDS])
+    assert exit_code == 0
+    salida = json.loads(capsys.readouterr().out)
+    assert salida["apply"]["aplicados"] == 1
     sidecar_path = os.path.join(dir_outbox, "outbox", "sync-0-ajeno.json.intentos")
+    assert os.path.isfile(os.path.join(dir_outbox, "outbox", "sync-0-ajeno.json"))
     with open(sidecar_path, encoding="utf-8") as f:
         sidecar = json.load(f)
     assert sidecar["intentos"] == 0
@@ -346,7 +393,10 @@ def test_outbox_status_imprime_estado_sin_tocar_taxonomia(tmp_path, capsys):
 
 def test_apply_exitoso_purga_done_antiguo(tmp_path, monkeypatch):
     """gap 125 (segunda mitad): tras `completar()`, se purga `done/` por retencion — sin esto
-    crecia sin limite con un `.manifest.json` por corrida para siempre."""
+    crecia sin limite con un `.manifest.json` por corrida para siempre. gap 139 (fix3): el
+    throttle de `_purgar_done_con_throttle` (como mucho una purga real cada `_PURGA_DONE_CADA_S`)
+    se desactiva aqui (`0`) para poder purgar dos veces seguidas dentro del mismo test."""
+    monkeypatch.setattr(ks_sync, "_PURGA_DONE_CADA_S", 0)
     root = str(tmp_path)
     _taxonomy(root, _categorias())
     _entrada(root, "gotchas", "e1.md", "e1", "ENRUTADA")
