@@ -30,6 +30,7 @@ Exit codes: 0 válido · 1 con errores (se listan en stdout) · 2 uso/JSON ilegi
 import argparse
 import json
 import os
+import re
 import sys
 
 # Consola no UTF-8 (Windows cp1252) o tuberías: reconfigurar ANTES de leer/imprimir (GOT-005).
@@ -56,7 +57,6 @@ ROUTING_VALORES = (True, False, "summary")
 # datos (no solo como texto), para que una divergencia de VALORES tambien de rojo.
 _TAXONOMY_FALLBACK = { \
   "version": 1,
-  "id_prefix": "ca",
   "utility_scoring": False,
   "categories": [
     {
@@ -122,14 +122,60 @@ def _error(mensaje, fichero, campo):
     return {"mensaje": mensaje, "fichero": fichero, "campo": campo}
 
 
+_FOLDER_UNIDAD_RE = re.compile(r"^[A-Za-z]:")
+
+
+def _folder_seguro(folder):
+    """True si `folder` es un nombre/ruta RELATIVA simple, sin forma de escapar de
+    `docs/knowledge/approved/` cuando `knowledge-index.py` la una con `os.path.join` (gap 6,
+    CWE-22): sin `..`, sin barra inicial (POSIX o Windows), sin unidad (`C:`) y sin
+    contrabarra (separador de Windows; el contrato es siempre `/`, como el resto del repo)."""
+    if not isinstance(folder, str) or not folder:
+        return False
+    if folder.startswith("/") or folder.startswith("\\"):
+        return False
+    if "\\" in folder:
+        return False
+    if _FOLDER_UNIDAD_RE.match(folder):
+        return False
+    partes = folder.split("/")
+    return all(p not in ("", ".", "..") for p in partes)
+
+
 def default_taxonomy():
     """La plantilla por defecto del plugin, leída del disco si está disponible; si no, el
-    respaldo embebido (mismo contenido). Nunca lanza."""
+    respaldo embebido (mismo contenido). Nunca lanza (gap 14: una plantilla con encoding
+    corrupto/truncado no debe tumbar el CLI ni `cargar_taxonomia`, cae al respaldo igual que un
+    fichero ilegible o JSON invalido)."""
     try:
         with open(TEMPLATE_PATH, "r", encoding="utf-8") as f:
             return json.load(f)
-    except (OSError, json.JSONDecodeError):
+    except (OSError, ValueError):
+        # ValueError cubre json.JSONDecodeError y UnicodeDecodeError (ambas subclases).
         return json.loads(json.dumps(_TAXONOMY_FALLBACK))
+
+
+_SLUG_NO_ALNUM_RE = re.compile(r"[^a-z0-9]+")
+
+
+def _slug_kebab(nombre):
+    """kebab-case determinista y minimo (minusculas, alfanumericos separados por un solo `-`,
+    sin guiones al borde). Cadena vacia si `nombre` no aporta ningun caracter alfanumerico."""
+    if not nombre:
+        return ""
+    return _SLUG_NO_ALNUM_RE.sub("-", nombre.lower()).strip("-")
+
+
+def _con_id_prefix_por_defecto(config, root):
+    """Si `config` no declara `id_prefix`, lo rellena con el slug kebab-case del directorio del
+    proyecto (`root`, design.md:57): el prefijo NUNCA es un valor fijo del plugin (gap 5) — si
+    `root` no aporta un basename utilizable (None, `.`, `/`, ruta vacia), cae a `ca` como ultimo
+    recurso documentado. No pisa un `id_prefix` explicito del proyecto."""
+    if not isinstance(config, dict) or "id_prefix" in config:
+        return config
+    base = os.path.basename(os.path.abspath(root)) if root is not None else ""
+    config["id_prefix"] = _slug_kebab(base) or "ca"
+    return config
 
 
 def validar(config, fichero="taxonomy.json"):
@@ -159,6 +205,20 @@ def validar(config, fichero="taxonomy.json"):
             valor = config[clave]
             if not isinstance(valor, list) or not all(isinstance(x, str) for x in valor):
                 errores.append(_error(f"`{clave}` debe ser una lista de cadenas", fichero, clave))
+            elif clave == "evidence_levels" and not valor:
+                # gap 13: el esquema exige minItems 1; `[]` pasaba en silencio y se sustituia
+                # por el default del plugin mas abajo, sin avisar de que el proyecto la vacio.
+                errores.append(_error("`evidence_levels` no puede estar vacía (minItems 1)", fichero, clave))
+
+    evidence_levels_cfg = config.get("evidence_levels")
+    if (isinstance(evidence_levels_cfg, list) and evidence_levels_cfg
+            and all(isinstance(x, str) for x in evidence_levels_cfg)):
+        evidence_levels = evidence_levels_cfg
+    else:
+        # gap 7: `evidence_levels` invalido (no lista, no-strings o vacio) ya quedo reportado
+        # arriba; aqui se usa el default del plugin SOLO para poder seguir comprobando
+        # `min_evidence` sin un `TypeError` (`5 in evidence_levels` con `evidence_levels=5`).
+        evidence_levels = _TAXONOMY_FALLBACK["evidence_levels"]
 
     backends = config.get("backends", {})
     backend_ids = set()
@@ -198,11 +258,19 @@ def validar(config, fichero="taxonomy.json"):
                 errores.append(_error(f"`key` duplicada: `{key}`", fichero, f"{campo}.key"))
             else:
                 vistas.add(key)
-            if not cat.get("folder") or not isinstance(cat.get("folder"), str):
+            folder = cat.get("folder")
+            if not folder or not isinstance(folder, str):
                 errores.append(_error(f"{campo} no declara `folder`", fichero, f"{campo}.folder"))
+            elif not _folder_seguro(folder):
+                # gap 6 (CWE-22): `folder` viaja tal cual hasta knowledge-index.py, que lo une a
+                # `docs/knowledge/approved/`; sin esta puerta, "../candidates/pending" o una ruta
+                # absoluta/con unidad Windows escapaban de `approved/` (path traversal por config).
+                errores.append(_error(
+                    f"{campo}.folder `{folder}` no es una ruta relativa segura "
+                    "(sin `..`, sin `/` inicial, sin `\\` ni unidad de Windows)",
+                    fichero, f"{campo}.folder"))
             if not cat.get("min_evidence") or not isinstance(cat.get("min_evidence"), str):
                 errores.append(_error(f"{campo} no declara `min_evidence`", fichero, f"{campo}.min_evidence"))
-            evidence_levels = config.get("evidence_levels") or _TAXONOMY_FALLBACK["evidence_levels"]
             if cat.get("min_evidence") and cat["min_evidence"] not in evidence_levels:
                 errores.append(_error(
                     f"{campo}.min_evidence `{cat['min_evidence']}` no está en `evidence_levels`",
@@ -230,19 +298,25 @@ def validar(config, fichero="taxonomy.json"):
 def cargar_taxonomia(root=None, fichero=None):
     """(config, origen, ruta_o_None, errores). `origen` = "proyecto" | "default".
     Si `fichero` se pasa explícito, se valida ese; si no, se busca
-    `<root>/.claude/knowledge-services/taxonomy.json`. Sin fichero de proyecto → la plantilla por
-    defecto (CA-01/CA-09), sin error. Con fichero de proyecto inválido → se devuelve igualmente
-    (para que el llamador decida) junto con los errores."""
-    ruta = fichero or (os.path.join(root or ".", PROJECT_TAXONOMY_REL) if root is not None else None)
-    if ruta and os.path.isfile(ruta):
+    `<root>/.claude/knowledge-services/taxonomy.json` — `root=None` (igual que el docstring
+    siempre prometió) busca desde el cwd, no se salta la busqueda (gap 12: antes, `root=None`
+    devolvia el default SIN mirar si el cwd tenia un `taxonomy.json` de proyecto). Sin fichero de
+    proyecto → la plantilla por defecto (CA-01/CA-09), sin error. Con fichero de proyecto
+    inválido → se devuelve igualmente (para que el llamador decida) junto con los errores. En
+    ambos casos, si `config` no declara `id_prefix`, se rellena con el slug del `root` (gap 5)."""
+    ruta = fichero or os.path.join(root if root is not None else ".", PROJECT_TAXONOMY_REL)
+    if os.path.isfile(ruta):
         try:
             with open(ruta, "r", encoding="utf-8") as f:
                 config = json.load(f)
         except (OSError, json.JSONDecodeError) as e:
             return None, "proyecto", ruta, [_error(f"JSON ilegible: {type(e).__name__}: {e}", ruta, "$")]
         errores = validar(config, ruta)
+        _con_id_prefix_por_defecto(config, root)
         return config, "proyecto", ruta, errores
-    return default_taxonomy(), "default", None, []
+    config = default_taxonomy()
+    _con_id_prefix_por_defecto(config, root)
+    return config, "default", None, []
 
 
 def backend_ids_declarados(config):
@@ -252,11 +326,20 @@ def backend_ids_declarados(config):
 def categorias_por_backend(config, backend_id):
     """Categorías cuyo `routing[backend_id]` no es `false` (fail-closed por defecto: sin
     `routing` o sin la clave del backend, la categoría NO exporta)."""
+    return [cat for cat, _valor in categorias_por_backend_con_valor(config, backend_id)]
+
+
+def categorias_por_backend_con_valor(config, backend_id):
+    """Como `categorias_por_backend`, pero devuelve pares `(categoria, valor)` — `valor` es el
+    `true`/`"summary"` literal de `routing[backend_id]` (gap 2/10): sin esto, el consumidor (el
+    adaptador `markdown-export` de T-08) no podia distinguir "entero" de "solo resumen" y
+    `categorias_por_backend` los colapsaba a la misma lista."""
     out = []
     for cat in config.get("categories") or []:
         routing = cat.get("routing") or {}
-        if routing.get(backend_id, False):
-            out.append(cat)
+        valor = routing.get(backend_id, False)
+        if valor:
+            out.append((cat, valor))
     return out
 
 
@@ -273,14 +356,20 @@ def main(argv=None):
         config = default_taxonomy()
         errores = validar(config, TEMPLATE_PATH)
     elif args.ruta:
-        if not os.path.isfile(args.ruta):
-            print(f"knowledge-schema: no existe `{args.ruta}`", file=sys.stderr)
-            return 2
+        # Sin `os.path.isfile` previo (gap 15, TOCTOU): el propio `open()` decide, y
+        # `FileNotFoundError`/`OSError`/`UnicodeDecodeError` (antes solo `JSONDecodeError`
+        # estaba cubierto; el resto salia como traceback en vez del exit 2 documentado).
         try:
             with open(args.ruta, "r", encoding="utf-8") as f:
                 config = json.load(f)
+        except FileNotFoundError:
+            print(f"knowledge-schema: no existe `{args.ruta}`", file=sys.stderr)
+            return 2
         except json.JSONDecodeError as e:
             print(f"knowledge-schema: JSON ilegible en `{args.ruta}`: {e}", file=sys.stderr)
+            return 2
+        except (OSError, UnicodeDecodeError) as e:
+            print(f"knowledge-schema: no se pudo leer `{args.ruta}`: {type(e).__name__}: {e}", file=sys.stderr)
             return 2
         errores = validar(config, args.ruta)
     else:

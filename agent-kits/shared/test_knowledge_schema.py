@@ -205,3 +205,152 @@ def test_cli_fichero_inexistente_exit_2(tmp_path):
 
 def test_cli_sin_argumentos_exit_2():
     assert ks.main([]) == 2
+
+
+def test_cli_fichero_con_encoding_invalido_exit_2(tmp_path):
+    """Gap 15: `UnicodeDecodeError` (fichero UTF-16, leido como utf-8) daba traceback en vez del
+    exit 2 documentado."""
+    p = tmp_path / "taxonomy.json"
+    p.write_bytes("{\"version\": 1}".encode("utf-16"))
+    assert ks.main([str(p)]) == 2
+
+
+def test_cli_ruta_es_directorio_exit_2(tmp_path):
+    """Gap 15: TOCTOU — `os.path.isfile` decia que existia y `open()` fallaba con `OSError`
+    (`IsADirectoryError`/`PermissionError` segun plataforma) sin capturar."""
+    d = tmp_path / "no-es-un-fichero"
+    d.mkdir()
+    assert ks.main([str(d)]) == 2
+
+
+# ------------------------------------------------------------------ id_prefix por defecto (gap 5)
+
+def test_id_prefix_por_defecto_es_el_slug_del_directorio_raiz(tmp_path):
+    root = tmp_path / "Mi Proyecto X"
+    root.mkdir()
+    config, origen, _ruta, errores = ks.cargar_taxonomia(root=str(root))
+    assert origen == "default"
+    assert errores == []
+    assert config["id_prefix"] == "mi-proyecto-x"
+
+
+def test_id_prefix_explicito_del_proyecto_no_se_pisa(tmp_path):
+    proyecto = tmp_path / ".claude" / "knowledge-services"
+    proyecto.mkdir(parents=True)
+    cfg = _valida(id_prefix="mr")
+    (proyecto / "taxonomy.json").write_text(json.dumps(cfg), encoding="utf-8")
+    config, _origen, _ruta, _errores = ks.cargar_taxonomia(root=str(tmp_path))
+    assert config["id_prefix"] == "mr"
+
+
+def test_default_template_no_declara_id_prefix_fijo():
+    """El template/`_TAXONOMY_FALLBACK` NUNCA fijan `id_prefix` (era `"ca"` a pesar de que
+    design.md:57 y el esquema documentan slug-del-proyecto como default) — lo calcula
+    `cargar_taxonomia()` a partir de `root`."""
+    assert "id_prefix" not in ks.default_taxonomy()
+    assert "id_prefix" not in ks._TAXONOMY_FALLBACK
+
+
+def test_slug_kebab_normaliza():
+    assert ks._slug_kebab("Mi Proyecto_X!!") == "mi-proyecto-x"
+    assert ks._slug_kebab("") == ""
+    assert ks._slug_kebab("---") == ""
+
+
+# ------------------------------------------------------------------ cargar_taxonomia root=None usa cwd (gap 12)
+
+def test_cargar_taxonomia_root_none_usa_el_cwd(tmp_path, monkeypatch):
+    proyecto = tmp_path / ".claude" / "knowledge-services"
+    proyecto.mkdir(parents=True)
+    cfg = _valida(id_prefix="mr")
+    (proyecto / "taxonomy.json").write_text(json.dumps(cfg), encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+    config, origen, ruta, errores = ks.cargar_taxonomia()
+    assert origen == "proyecto"
+    assert ruta is not None
+    assert errores == []
+    assert config["id_prefix"] == "mr"
+
+
+# ------------------------------------------------------------------ default_taxonomy nunca lanza (gap 14)
+
+def test_default_taxonomy_con_plantilla_corrupta_cae_al_respaldo(tmp_path, monkeypatch):
+    p = tmp_path / "taxonomy.json"
+    p.write_bytes("{\"version\": 1}".encode("utf-16"))
+    monkeypatch.setattr(ks, "TEMPLATE_PATH", str(p))
+    resultado = ks.default_taxonomy()
+    assert resultado == json.loads(json.dumps(ks._TAXONOMY_FALLBACK))
+
+
+# ------------------------------------------------------------------ folder inseguro (gap 6, CWE-22)
+
+def test_folder_con_traversal_falla():
+    cfg = _valida(categories=[
+        {"key": "X", "folder": "../candidates/pending", "min_evidence": "observation", "routing": {}},
+    ])
+    errores = ks.validar(cfg, "t.json")
+    assert any(e["campo"] == "categories[0].folder" for e in errores)
+
+
+def test_folder_absoluto_posix_falla():
+    cfg = _valida(categories=[
+        {"key": "X", "folder": "/etc/passwd", "min_evidence": "observation", "routing": {}},
+    ])
+    errores = ks.validar(cfg, "t.json")
+    assert any(e["campo"] == "categories[0].folder" for e in errores)
+
+
+def test_folder_con_unidad_windows_falla():
+    cfg = _valida(categories=[
+        {"key": "X", "folder": "C:\\evil", "min_evidence": "observation", "routing": {}},
+    ])
+    errores = ks.validar(cfg, "t.json")
+    assert any(e["campo"] == "categories[0].folder" for e in errores)
+
+
+def test_folder_simple_es_valido():
+    cfg = _valida(categories=[
+        {"key": "X", "folder": "adr/2026", "min_evidence": "observation", "routing": {}},
+    ])
+    assert ks.validar(cfg, "t.json") == []
+
+
+# ------------------------------------------------------------------ evidence_levels invalido (gap 7, 13)
+
+def test_evidence_levels_vacio_falla():
+    cfg = _valida(evidence_levels=[])
+    errores = ks.validar(cfg, "t.json")
+    assert any(e["campo"] == "evidence_levels" for e in errores)
+
+
+def test_evidence_levels_no_iterable_no_lanza_typeerror():
+    cfg = _valida(evidence_levels=5)
+    errores = ks.validar(cfg, "t.json")  # no debe lanzar TypeError
+    assert any(e["campo"] == "evidence_levels" for e in errores)
+
+
+# ------------------------------------------------------------------ routing: valor real, no solo booleano (gap 2, 10)
+
+def test_categorias_por_backend_con_valor_distingue_summary_de_true():
+    cfg = _valida(
+        backends={"kwipu": {"type": "markdown-export"}},
+        categories=[
+            {"key": "A", "folder": "a", "min_evidence": "observation", "routing": {"kwipu": True}},
+            {"key": "B", "folder": "b", "min_evidence": "observation", "routing": {"kwipu": "summary"}},
+            {"key": "C", "folder": "c", "min_evidence": "observation", "routing": {"kwipu": False}},
+        ],
+    )
+    pares = ks.categorias_por_backend_con_valor(cfg, "kwipu")
+    valores = {cat["key"]: valor for cat, valor in pares}
+    assert valores == {"A": True, "B": "summary"}
+    assert "C" not in valores
+
+
+def test_dos_taxonomias_con_routing_distinto_seleccionan_categorias_distintas():
+    base = {"key": "A", "folder": "a", "min_evidence": "observation"}
+    cfg_habilitada = _valida(backends={"kwipu": {"type": "markdown-export"}},
+                              categories=[dict(base, routing={"kwipu": True})])
+    cfg_deshabilitada = _valida(backends={"kwipu": {"type": "markdown-export"}},
+                                 categories=[dict(base, routing={"kwipu": False})])
+    assert [c["key"] for c in ks.categorias_por_backend(cfg_habilitada, "kwipu")] == ["A"]
+    assert [c["key"] for c in ks.categorias_por_backend(cfg_deshabilitada, "kwipu")] == []
