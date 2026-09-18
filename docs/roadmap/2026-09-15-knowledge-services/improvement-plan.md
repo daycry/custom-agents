@@ -10,7 +10,7 @@ generacion: {fuente: estimado, tokens_reales: {entrada: 0, salida: 0, cache_crea
 
 | Metrica | Estimado |
 |---|---:|
-| Estado | borrador |
+| Estado | en-progreso |
 | Tiempo humano | 56h (enmienda 2026-09-17; antes 48h) |
 | Tiempo IA / supervision | 16.8h / 4.2h |
 | Coste humano | 2,800 EUR + tokens por verificar |

@@ -5,7 +5,7 @@ verificacion: obligatoria
 
 # Checklist de Tareas - Servicios de conocimiento locales
 
-| **Estado** | borrador |
+| **Estado** | en-progreso |
 |---|---|
 | **Plan** | [improvement-plan.md](improvement-plan.md) |
 | **Diseno** | [design.md](design.md), O1 |
