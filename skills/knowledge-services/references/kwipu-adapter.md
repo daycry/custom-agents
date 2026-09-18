@@ -73,23 +73,85 @@ Derivaciones (ningún campo se inventa, CA-17):
 Nombre de fichero: `<knowledge_id>.md`, plano bajo `export_dir` — `knowledge_id` ya cumple
 `[A-Za-z0-9._-]+` (lo exige el Curator), así que es un nombre de fichero seguro sin sluggear.
 
-## `plan`/`apply`: idempotencia y revocación
+Durante una publicación en curso convive un `manifest.pending.json` (mismo formato, el estado
+FINAL previsto) junto al `manifest.json` ya publicado — ver diario de publicación más abajo. Su
+presencia es la señal de "publicación incompleta", nunca un estado a interpretar por fuera del
+adaptador.
 
-`plan(entries, cfg)` lee el `manifest.json` actual y compara sus claves contra
-`{e["id"] for e in entries}`:
+## `plan`/`apply`: idempotencia y publicación por fichero con diario (fix3, intento 3, 2026-09-19)
 
-- Toda entrada en `entries` genera un op `upsert` (whether or not changed — escribir el mismo
-  contenido es idempotente, no hace falta comparar hashes antes de decidir el op).
+`plan(entries, cfg)` lee el `manifest.json` actual y compara `hash`/existencia contra
+`{e["id"] for e in entries}` (`force=True` en `--rebuild`, que fuerza `upsert` en todo):
+
+- Toda entrada en `entries` cuyo `hash` calculado NO coincide con el del manifiesto (o que no
+  existía) genera un op `upsert`.
+- Toda entrada cuyo `hash` YA coincide genera un op `sin_cambios` — no lleva `cuerpo` (gap 125:
+  es el campo más pesado del envelope de la outbox, y un fichero que no cambia no lo necesita).
 - Toda clave del manifest que YA NO esté en `entries` (salió de `approved/`, o dejó de enrutar a
   Kwipu) genera un op `revoke`.
 
-`apply(ops, cfg)` escribe cada Markdown de forma atómica (tmp + `os.replace`), borra los ficheros
-de los `revoke`, y reescribe `manifest.json` entero AL FINAL — un fallo a mitad de una corrida dejaría
-ficheros ya escritos pero el manifest sin actualizar; la siguiente corrida reconcilia desde el
-estado real de `entries` (nunca hace falta una recuperación manual).
+**Este diseño SUSTITUYE al intercambio de directorio completo** (`.prev` + swap atómico de
+`export_dir`) que tenía la iniciativa hasta el intento 2: ese diseño, bajo revisión adversarial,
+resultó tener dos Critical — pérdida de datos en el rollback y borrado de ficheros AJENOS a
+`export_dir` (un `export_dir` compartido, o mal configurado, perdía contenido que no era suyo).
+`apply(ops, cfg)` publica ahora así (gaps #126/#127/#129/#132/#134/#136/#137/#138):
 
-`rebuild(entries, cfg)` es literalmente `apply(plan(entries, cfg), cfg)` — reconstruir la
-proyección entera es un caso particular de sincronizar, no un camino de código aparte.
+1. Escribe SOLO los `upsert` en un staging HERMANO de `export_dir` (`<export_dir>.staging-<pid>`);
+   los `sin_cambios` NUNCA se tocan (ni se mueven ni se reescriben — coste proporcional a los
+   CAMBIOS, no al total: una pasada sin cambios ya no cuesta un rename por fichero, gap 118/136).
+2. Antes de publicar nada, escribe `manifest.pending.json` en `export_dir` de forma atómica
+   (tmp + `os.replace`) con el estado FINAL previsto (entries + hashes de la corrida completa).
+3. Publica cada `upsert` con UN `os.replace` fichero-a-fichero desde el staging al destino —
+   nunca un intercambio del árbol entero (gap 127: un `export_dir` ajeno con ficheros de otros
+   proyectos, o `export_dir: "docs"`, ya no puede perder nada que no sea suyo) — y ejecuta los
+   `revoke` (solo ficheros que estaban en el manifiesto PROPIO, `os.remove` best-effort; nunca
+   borra un fichero que `apply()` no escribió él mismo).
+4. Renombra `manifest.pending.json` -> `manifest.json` (atómico) y borra el staging.
+
+**Caminos de fallo:**
+
+- Fallo en (1)-(2): nada cambió en `export_dir` — el staging es hermano y se descarta, y
+  `manifest.pending.json` se escribe con tmp+rename, así que un fallo a mitad de esa escritura
+  tampoco deja nada a medias (gap 126: antes un `except BaseException` sin reponer perdía la
+  publicación entera aunque fuera puramente `sin_cambios`).
+- Fallo en (3) a mitad (p. ej. `PermissionError` porque el indexador tiene un `.md` abierto): los
+  ficheros ya publicados quedan intactos, `manifest.pending.json` se conserva, y la SIGUIENTE
+  corrida lo usa como manifiesto objetivo en `plan()`: los ficheros cuyo hash en disco ya coincide
+  con el objetivo son `sin_cambios`, el resto vuelve a ser `upsert` — la publicación interrumpida
+  se completa sola, sin recuperación manual ni reintento dentro de la misma corrida.
+- `verify()` con `manifest.pending.json` presente devuelve `ok: False,
+  razon: "publicacion_incompleta"` antes que cualquier otra comprobación.
+
+`revoke()` público (para una entrada suelta que salió de `approved/`) usa el MISMO diario
+(pending -> publica -> manifest.json), no un camino de código aparte. Ya no existe `.prev` ni el
+intercambio de directorio: `_purgar_staging_huerfano` (antes `_reparar_publicacion`) solo limpia un
+`.staging-<pid>` hermano de una corrida interrumpida, nunca reconstruye nada.
+
+`rebuild(entries, cfg)` es literalmente `apply(plan(entries, cfg, force=True), cfg)` — reconstruir
+la proyección entera es un caso particular de sincronizar (con `force=True` para que TODA entrada
+sea `upsert`, no solo las que cambiaron), no un camino de código aparte.
+
+**Contención bidireccional de `export_dir`** (`_export_dir_resuelto`, gap 127): usando
+`os.path.realpath` + `os.path.normcase` (case-insensitive, resiste symlinks/junctions en
+Windows), `export_dir` no puede ser el root del proyecto, un ANCESTRO del root, quedar DENTRO de
+`docs/knowledge/`, ni CONTENER a `docs/knowledge/` — antes solo se comprobaba que no quedara dentro
+de `docs/knowledge/approved/`, y `"docs"` o `".."` pasaban todas las validaciones.
+
+**Caché DNS con TTL y sin acumulación de hilos** (`_dns_cache`, gaps #132/#138): cada resolución
+(positiva, negativa, o "no resuelta a tiempo") expira a los `_DNS_CACHE_TTL_S` segundos — un fallo
+transitorio ya no queda cacheado en negativo para siempre. El caso "colgado" (agota
+`_DNS_TIMEOUT_S` sin resolver) se cachea con un TTL corto propio (`_DNS_CACHE_TTL_S_LENTO`). Un
+registro `_dns_inflight` (protegido por `_dns_inflight_lock`) evita lanzar un hilo nuevo para el
+mismo host mientras el anterior sigue vivo: llamadas concurrentes al mismo host lento se unen
+(`join`) al hilo YA en marcha en vez de acumular uno por llamada — el hilo se arranca DENTRO de la
+sección crítica del lock (si se arrancara fuera, dos llamadas concurrentes podrían intentar unirse
+a un hilo que aún no ha hecho `start()`, `RuntimeError`).
+
+**Presupuesto de tiempo de la cadena de redirecciones** (gap #137): acotada a
+`_MAX_REDIRECCIONES` saltos, y el `timeout_ms` configurado se consume UNA VEZ para TODA la cadena
+(no por salto) — cada hop resta del `timeout` restante del siguiente, así que una cadena de
+redirecciones ya no puede multiplicar el tiempo total por el número de saltos. Cada hop revalida
+el host contra el allowlist local/privado (CWE-918/601) antes de seguirlo.
 
 ## `health`: mapeo del fixture real a `off · sano · degradado · error`
 
