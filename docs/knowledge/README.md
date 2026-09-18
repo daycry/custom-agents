@@ -16,6 +16,12 @@ cambio.**
   una entrada por sesión generada por el hook `SessionEnd` (`agent-kits/shared/journal.py`); la última se
   reinyecta al arrancar/retomar. Índice propio generado (`journal/README.md`), fuera de la tabla de abajo;
   excluida de Confluence. Lo que merezca doctrina se promueve a `adr/`/`gotchas/`/`lessons/` (regla 10).
+- **`candidates/`** y **`approved/`** (ADR-018, `knowledge-services`) — flujo de conocimiento
+  ROUTED por proyecto (fuera de este árbol legado `adr/`/`gotchas/`/`lessons/`, que sigue igual):
+  `agent-kits/shared/knowledge-index.py` construye un índice determinista SOLO sobre
+  `approved/<folder>/`, dirigido por `.claude/knowledge-services/taxonomy.json` (o la plantilla
+  por defecto del plugin); `candidates/**` nunca aparece en ese índice. No sustituye ni adelanta
+  el índice generado + `knowledge-lint.py` de esta tabla, que sigue diferido (D4 arriba).
 
 Siempre activa, sin opt-in (D3): si esta carpeta no existiera, los agentes seguirían sin quejarse
 y se crearía en el primer registro. Umbral de registro y quién escribe/lee: ver
