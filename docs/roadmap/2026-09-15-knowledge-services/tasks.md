@@ -22,9 +22,9 @@ verificacion: obligatoria
 |---|---:|---:|---:|---:|---:|---:|---:|
 | Fase 1 - Contrato y validacion | 3 | 3 | 100% | 0 / 13h | 1.20 / 3.9h | 0 / 1.0h | ~57k / 200k |
 | Fase 2 - Curacion y workflow | 3 | 3 | 100% | 0 / 14h | 1.23 / 4.2h | 0 / 1.1h | ~25k / 210k |
-| Fase 3 - Backends y Kwipu | 2 | 4 | 50% | 0 / 19h | 0.63 / 5.7h | 0 / 1.4h | ~42k / 275k |
+| Fase 3 - Backends y Kwipu | 3 | 4 | 75% | 0 / 19h | 1.02 / 5.7h | 0 / 1.4h | ~88k / 275k |
 | Fase 4 - Regresion y cierre | 0 | 3 | 0% | 0 / 10h | 0 / 3.0h | 0 / 0.7h | 0 / 130k |
-| **TOTAL** | **8** | **13** | **62%** | **0 / 56h** | **3.06 / 16.8h** | **0 / 4.2h** | **~124k / 815k** |
+| **TOTAL** | **9** | **13** | **69%** | **0 / 56h** | **3.45 / 16.8h** | **0 / 4.2h** | **~170k / 815k** |
 
 > **Nota (gap 18, revision de dos lentes intento 1):** las horas-IA de las rondas `-fix1`/`-fix2`/`-fix3` corresponden a sesiones de correccion COMPARTIDAS entre varias tareas (una sola ventana de `usage-meter` cubriendo T-01/T-02/T-03/T-13 en fix1/fix2, y T-01/T-02/T-13 en fix3); se reparten a partes iguales entre las tareas que tocaron en esa ventana (ver nota de cada tarea) en vez de contarse enteras en cada una, para no inflar el TOTAL.
 
@@ -286,18 +286,27 @@ evals/check: 39 ficheros · 140 casos (84 positivos, 56 negativos) · 39 piezas 
 - **Nota (staging de `outbox.py`)**: cada corrida de `knowledge-sync.py` escribe un envelope con clave nueva (`sync-<epoch_ms>`) en `.claude/knowledge-services/_sync-outbox/<backend>/` (con `.gitignore` propio, nunca versionado); la idempotencia del RESULTADO publicado es responsabilidad del adaptador (`plan`/`apply` deterministas sobre el mismo `approved/`), no de la clave de la cola — mismo criterio que usa `journal.py` con `session_id` (varias corridas son varios envelopes lógicos, no reintentos de uno solo).
 
 ### T-08 - Adaptador Kwipu (`markdown-export`) y skill
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo humano**: est. 5h · real -
+- **Tiempo IA**: real 0.39h (medido; usage-meter)
 - **Prevision IA**: 50k in / 20k out tok
 - **Dependencias**: T-07
 - **Tipo**: backend
-- **Archivos**: `skills/knowledge-services/backends/markdown_export.py`, `skills/knowledge-services/scripts/test_backend_markdown_export.py`, `skills/knowledge-services/SKILL.md`, `skills/knowledge-services/references/`, `evals/cases/skill-knowledge-services.json`, `docs/README.md`, `CLAUDE.md`
+- **Archivos**: `skills/knowledge-services/backends/markdown_export.py`, `skills/knowledge-services/scripts/test_backend_markdown_export.py`, `skills/knowledge-services/scripts/fixtures/kwipu-health-2026-09-18.json`, `skills/knowledge-services/scripts/fixtures/kwipu-graph-snapshot-2026-09-18.json`, `skills/knowledge-services/scripts/fixtures/kwipu-query-2026-09-18.json` (fixtures reales del bridge, no declaradas en el `Archivos` original; nota abajo), `skills/knowledge-services/SKILL.md`, `skills/knowledge-services/references/kwipu-adapter.md`, `evals/cases/skill-knowledge-services.json`, `docs/README.md`, `CLAUDE.md`, `tests/test_console_encoding.py`
 - **Verificacion**: `python -m pytest -q skills/knowledge-services/scripts/test_backend_markdown_export.py` -> export con `manifest.json` y hashes estables, `health` con URL local/timeout/sano/degradado y parsea el JSON real de `GET /health` del bridge (`status`, `embed_model`, `property_graph`, `ollama`) desde una fixture grabada el 2026-09-18, `rebuild` reproduce el mismo manifiesto, `revoke` retira el fichero del export, `verify` marca desfase cuando el manifiesto no coincide con `/graph/snapshot` y nombra el remedio (`build_view` + reinicio) sin ejecutarlo
+  - Salida real: `18 passed, 6 subtests passed in 4.29s`.
+  - RED: la misma suite contra un `markdown_export.py` stub (las 6 funciones con `raise NotImplementedError`) fallo con `23 failed, 1 passed in 2.99s` · 2026-09-18. Tras implementar el adaptador real: `18 passed, 6 subtests passed in 4.29s` (GREEN).
+  - Ademas: `python -m pytest -q tests/test_console_encoding.py -k "markdown_export or knowledge or backends"` -> `56 passed, 321 deselected in 4.37s`; suite completa `python -m pytest -q tests/test_console_encoding.py` -> `377 passed in 63.99s`; `python scripts/lint_plugin.py` -> solo el `❌` preexistente de LES-016 (description de la skill ajustada a 990 caracteres tras un aviso real de OpenCode >1024); `python evals/check.py` -> `0 errores` (144 casos, 86 positivos/58 negativos); `python scripts/export-interop.py && python scripts/export-interop.py --check` -> `50 ficheros escritos` / `50 ficheros al dia` (la skill nueva viaja sin traducir a Codex/OpenCode).
 **Criterios de aceptación**
-- [ ] Kwipu es un adaptador mas del contrato de T-07; nada en `knowledge-sync.py` menciona Kwipu.
-- [ ] Skill corta con referencias y sin secretos; no hooks/red ni Graphiti.
-- [ ] `export_dir` viene de `backends.kwipu.config`; el adaptador no ejecuta `build_view`, `docker` ni reinicios: el reindexado es del stack y `verify` solo lo detecta (CA-16).
-- [ ] Cada fichero exportado lleva `project`, `scope`, `category`, `source`, `confidence` + `knowledge_id`, `version`, `hash`, derivados de la entrada y de `taxonomy.json` (CA-17).
+- [x] Kwipu es un adaptador mas del contrato de T-07; nada en `knowledge-sync.py` menciona Kwipu.
+- [x] Skill corta con referencias y sin secretos; no hooks/red ni Graphiti.
+- [x] `export_dir` viene de `backends.kwipu.config`; el adaptador no ejecuta `build_view`, `docker` ni reinicios: el reindexado es del stack y `verify` solo lo detecta (CA-16).
+- [x] Cada fichero exportado lleva `project`, `scope`, `category`, `source`, `confidence` + `knowledge_id`, `version`, `hash`, derivados de la entrada y de `taxonomy.json` (CA-17).
+- **Changelog**: El export a Kwipu ya escribe un Markdown con metadatos de origen y confianza por cada pieza de conocimiento aprobada, y avisa (sin tocar nada del stack) cuando el grafo se queda desactualizado.
+- **Nota (fixtures reales fuera del `Archivos` original)**: las tres fixtures del bridge (`kwipu-health-2026-09-18.json`, `kwipu-graph-snapshot-2026-09-18.json`, `kwipu-query-2026-09-18.json`) se copiaron a `skills/knowledge-services/scripts/fixtures/` desde una captura real del stack local; el `Archivos` de esta tarea no las citaba de forma explicita. `kwipu-query-2026-09-18.json` no la usa ningun test (queda por si un adaptador futuro la necesita); se declara igualmente por transparencia de `scope-check.py`.
+- **Nota (derivacion de `project`, CA-17)**: el contrato de adaptador no pasa la taxonomia completa ni `root` a `plan`/`apply` (solo `entries`/`ops` + `cfg`), asi que `project` se deriva del propio `knowledge_id` (`entry["id"].split(".", 1)[0]`, el `id_prefix` que el Curator ya antepone) en vez de anadir un campo nuevo al contrato o reabrir `knowledge-sync.py`. `scope` (`"project"`) y `source` (`"agent"`) son constantes documentadas, no inventadas por entrada: reflejan que esta iniciativa solo exporta conocimiento de UN proyecto y que todo lo que llega a `approved/` paso por un agente curador. Detalle completo en `skills/knowledge-services/references/kwipu-adapter.md`.
+- **Nota (mapeo de `confidence`)**: tabla fija de `evidencia` -> `confidence` basada en la escalera POR DEFECTO del plugin (`knowledge-schema.py`); un nivel de evidencia que un proyecto haya redefinido en su propio `taxonomy.json` y no este en la tabla degrada a `medium` (no a un extremo inventado).
+- **Nota (algoritmo de `verify`)**: compara el nombre de fichero exportado (`ruta_relativa` del manifiesto) contra los `file_name` de los nodos `type == "chunk"` del snapshot (los unicos que identifican un fichero fuente; los nodos `type == "entity"` no). Detecta solo PRESENCIA (publicado pero no indexado), no obsolescencia de contenido: el snapshot fijo no expone un hash de contenido comparable, solo conteos de nodos/relaciones.
 
 ### T-09 - Opt-in en setup y doctor a traves del registro de capacidades
 - **Estado**: borrador
