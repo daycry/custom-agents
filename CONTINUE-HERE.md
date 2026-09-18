@@ -32,8 +32,11 @@
 > clasificador de permisos (recurso compartido): lo ejecuta el usuario con `!`.** **Revisión Fase 3 intento 1** (87a9fef,
 > lentes A+B+D): 23 gaps (#82–#104; 1 Critical = `apply` no atómico; 16 Important incl. `summary` sin implementar,
 > `category` omitida en silencio, `/doctor` con red, outbox reclama envelope ajeno, 3 de seguridad: `type` traversal,
-> `id` con `../`, `health.url` sin restricción de host). **Ronda `T-0X-fix1` de Fase 3 despachada.** Siguiente: intento 2 →
-> cerrar bucle Fase 3 → Fase 4 (T-04 curator, T-05 documenter, T-06 Fase 4-bis) → Fase 3 (T-07 sync +
+> `id` con `../`, `health.url` sin restricción de host). Ronda fix1 hecha (217875c..c27c969; T-02-fix6/T-04-fix4 los
+> comiteó el orquestador). **Intento 2 Fase 3** (86b5838): 21/23 cerrados, 2 parciales (#82, #85) + 17 nuevos (#109–#125;
+> Critical #109 = `--rebuild` no-op tras el fix por hash). El orquestador FIJÓ el diseño de publicación por intercambio de
+> directorio (staging hermano + dos renames) en el ledger. **Ronda `T-0X-fix2` de Fase 3 despachada.** Revalidación en
+> vivo OK (summary, 2.º apply 0 escritos, verify desfase). Siguiente: intento 3 (último) → cerrar bucle Fase 3 → Fase 4 (T-04 curator, T-05 documenter, T-06 Fase 4-bis) → Fase 3 (T-07 sync +
 > contrato, T-08 adaptador Kwipu, T-09 setup/doctor) → Fase 4 (T-10, T-11, T-12) → qa sin UI → documenter → cierre
 > (changelog-sync, /retro + retro-gate) → graphiti-memory.
 >
