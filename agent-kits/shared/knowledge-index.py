@@ -237,7 +237,13 @@ def build_index(root=None):
     # contra si mismo. Se deduplica por `os.path.realpath`, no por ruta cruda.
     rutas_vistas_real = set()
 
-    for folder in sorted(carpetas):
+    # gap 38 (fix4): procesar los `folder` MAS ANIDADOS primero (mas segmentos `/`) para que, con
+    # `"adr"` y `"adr/legacy"` declarados, el fichero fisico que vive bajo `adr/legacy/` se asigne
+    # a la carpeta MAS ESPECIFICA (gana el dedupe de `rutas_vistas_real`) en vez de a la carpeta
+    # exterior que `os.walk` recorre igual por recursion. A igual profundidad, orden alfabetico
+    # (mismo criterio que el `sorted(carpetas)` original) para que el resto de casos (carpetas no
+    # relacionadas) sean deterministas y no cambien de comportamiento.
+    for folder in sorted(carpetas, key=lambda f: (-f.count("/"), f)):
         d = os.path.join(base, folder)
         if not os.path.isdir(d):
             continue
@@ -248,17 +254,24 @@ def build_index(root=None):
                 if not nombre.lower().endswith(".md") or nombre.upper() == "README.MD":
                     continue
                 candidata = os.path.join(dirpath, nombre)
+                # gap 37 (fix4, regresion del dedupe del gap 30): la contencion se comprueba
+                # ANTES de registrar la `realpath` en `rutas_vistas_real`, no despues. Con el
+                # orden antiguo, una ruta ILEGITIMA (p. ej. una junction que resuelve al mismo
+                # fichero fisico que una entrada legitima de OTRA carpeta) consumia la entrada del
+                # dedupe antes de ser rechazada, y la entrada legitima desaparecia del indice al
+                # encontrarla ya "vista". Rechazar sin registrar deja la entrada legitima intacta
+                # para cuando le toque su turno.
+                if not _ruta_segura_dentro(d, candidata):
+                    errores.append(_error(
+                        "ruta fuera de la carpeta aprobada declarada (posible symlink/escape)",
+                        candidata, "$"))
+                    continue
                 real = os.path.realpath(candidata)
                 if real in rutas_vistas_real:
                     continue
                 rutas_vistas_real.add(real)
                 rutas_md.append(candidata)
         for ruta in sorted(rutas_md):
-            if not _ruta_segura_dentro(d, ruta):
-                errores.append(_error(
-                    "ruta fuera de la carpeta aprobada declarada (posible symlink/escape)",
-                    ruta, "$"))
-                continue
             try:
                 with open(ruta, "r", encoding="utf-8-sig") as f:
                     texto = f.read()
