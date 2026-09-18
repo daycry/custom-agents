@@ -578,3 +578,28 @@ def test_gap96_id_con_ruta_de_escape_falla_y_no_se_escribe_nada(tmp_path):
     assert "../../ESCAPE" not in indice
     assert not indice
     assert any(e["campo"] == "id" and "no cumple la forma" in e["mensaje"] for e in errores)
+
+
+def test_gap110_resumen_explicito_del_frontmatter_se_propaga_al_indice(tmp_path):
+    """Gap 110 (revision de dos lentes, intento 2 fix2): un `resumen:` explicito en el
+    frontmatter debe llegar hasta `knowledge-sync.py` -> adaptador (`_cuerpo_segun_modo`), que ya
+    sabia usarlo pero nunca lo recibia porque el indice no lo extraia."""
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    d = os.path.join(root, "docs", "knowledge", "approved", "adr")
+    os.makedirs(d, exist_ok=True)
+    with open(os.path.join(d, "ADR-RES.md"), "w", encoding="utf-8") as f:
+        f.write("---\nid: ADR-RES\nversion: 1\nestado: aprobado\ncategory: DECISION\n"
+                "resumen: Resumen escrito a mano.\n---\n\n# x\n\nCuerpo completo largo.\n")
+    indice, errores = ki.build_index(root)
+    assert errores == []
+    assert indice["ADR-RES"]["resumen"] == "Resumen escrito a mano."
+
+
+def test_entrada_sin_resumen_explicito_tiene_resumen_none(tmp_path):
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    _entry(root, "adr", "ADR-001.md", "ADR-001")
+    indice, errores = ki.build_index(root)
+    assert errores == []
+    assert indice["ADR-001"]["resumen"] is None

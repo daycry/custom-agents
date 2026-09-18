@@ -182,7 +182,11 @@ def test_reejecucion_es_idempotente_en_el_resultado(tmp_path, capsys):
     assert salida["apply"]["aplicados"] == 1
 
 
-def test_apply_roto_va_a_dead_letter_y_no_borra_publicacion_anterior(tmp_path, capsys):
+def test_apply_roto_reencola_con_backoff_y_no_borra_publicacion_anterior(tmp_path, capsys):
+    """gap 116 (revision de dos lentes, intento 2 fix2): un fallo de `apply()` reencola con
+    backoff en vez de ir directo a dead-letter (podria ser transitorio) — solo tras agotar los
+    reintentos de ESE MISMO envelope cae a dead-letter (comportamiento de
+    `outbox.reencolar_o_dead_letter`, ya cubierto por su propia suite)."""
     root = str(tmp_path)
     _taxonomy(root, _categorias())
     _entrada(root, "gotchas", "e1.md", "e1", "ENRUTADA")
@@ -200,10 +204,12 @@ def test_apply_roto_va_a_dead_letter_y_no_borra_publicacion_anterior(tmp_path, c
     assert exit_code == 1
     err = capsys.readouterr().err
     assert "apply()" in err and "publicación anterior intacta" in err
+    assert "envelope: reencolado" in err  # gap 116: NO dead-letter al primer fallo
 
     dead = os.path.join(dir_outbox, "dead-letter")
-    assert os.path.isdir(dead)
-    assert any(n.endswith(".json") and not n.endswith(".causa.json") for n in os.listdir(dead))
+    assert not os.path.isdir(dead) or not os.listdir(dead)
+    # el envelope fallido sigue vivo en outbox/, en backoff, listo para reintentarse mas tarde
+    assert any(n.endswith(".json") for n in os.listdir(os.path.join(dir_outbox, "outbox")))
     # La publicacion de la primera corrida sigue intacta en done/.
     assert set(os.listdir(os.path.join(dir_outbox, "done"))) == done_antes
 
@@ -304,6 +310,60 @@ def test_reclamar_recoge_el_envelope_propio_aunque_haya_otro_pendiente(tmp_path,
     assert salida["apply"]["aplicados"] == 1
     # el envelope ajeno sigue en outbox/ (reencolado), no se perdió ni se completó por error
     assert os.path.isfile(os.path.join(dir_outbox, "outbox", "sync-0-ajeno.json"))
+
+
+def test_devolver_envelope_ajeno_no_incrementa_intentos(tmp_path):
+    """gap 120: reponer un envelope ajeno en `outbox/` NUNCA debe subir su contador `.intentos`
+    (eso quemaria su presupuesto de reintentos por una colision de orden alfabetico que no es
+    culpa suya)."""
+    root = str(tmp_path)
+    ob_mod = ks_sync._cargar_por_ruta(  # noqa: SLF001
+        os.path.join(ks_sync.SHARED, "outbox.py"), "ks_outbox_test_devolver")
+    dir_outbox = os.path.join(root, ".claude", "knowledge-services", "_sync-outbox", "testx")
+    ob_mod.escribir(dir_outbox, "sync-0-ajeno", {"x": 1})
+    candidato = ob_mod.reclamar(dir_outbox)
+    assert candidato is not None
+    assert ks_sync._devolver_envelope_ajeno(candidato, dir_outbox) is True
+    sidecar_path = os.path.join(dir_outbox, "outbox", "sync-0-ajeno.json.intentos")
+    with open(sidecar_path, encoding="utf-8") as f:
+        sidecar = json.load(f)
+    assert sidecar["intentos"] == 0
+    assert sidecar["no_antes_de"] > 0  # cortesia, para no ser reclamado de inmediato otra vez
+
+
+def test_outbox_status_imprime_estado_sin_tocar_taxonomia(tmp_path, capsys):
+    """gap 120: `--outbox-status` reemplaza la referencia fantasma a un `--check` de la outbox
+    (que nunca existió) por un flag real; funciona incluso sin `taxonomy.json` valido, porque solo
+    necesita `outbox.estado()`."""
+    root = str(tmp_path)
+    exit_code = ks_sync.main(["--backend", "testx", "--root", root, "--outbox-status", "--json"])
+    assert exit_code == 0
+    salida = json.loads(capsys.readouterr().out)
+    assert salida["backend"] == "testx"
+    assert "outbox" in salida
+    assert salida["outbox"]["outbox"] == 0  # cola vacia (nunca se escribio nada todavia)
+
+
+def test_apply_exitoso_purga_done_antiguo(tmp_path, monkeypatch):
+    """gap 125 (segunda mitad): tras `completar()`, se purga `done/` por retencion — sin esto
+    crecia sin limite con un `.manifest.json` por corrida para siempre."""
+    root = str(tmp_path)
+    _taxonomy(root, _categorias())
+    _entrada(root, "gotchas", "e1.md", "e1", "ENRUTADA")
+    ks_sync.main(["--backend", "testx", "--root", root, "--json", "--backends-dir", FIXTURES_BACKENDS])
+    dir_outbox = os.path.join(root, ".claude", "knowledge-services", "_sync-outbox", "testx")
+    done_dir = os.path.join(dir_outbox, "done")
+    manifest_viejo = next(f for f in os.listdir(done_dir) if f.endswith(".manifest.json"))
+    manifest_path = os.path.join(done_dir, manifest_viejo)
+    with open(manifest_path, encoding="utf-8") as f:
+        datos = json.load(f)
+    datos["completado_en"] = "2020-01-01T00:00:00Z"  # muy anterior a RETENCION_DONE_DIAS
+    with open(manifest_path, "w", encoding="utf-8") as f:
+        json.dump(datos, f)
+
+    _entrada(root, "gotchas", "e2.md", "e2", "ENRUTADA")
+    ks_sync.main(["--backend", "testx", "--root", root, "--json", "--backends-dir", FIXTURES_BACKENDS])
+    assert not os.path.isfile(manifest_path)  # se purgo tras la segunda publicacion
 
 
 def test_entradas_enrutadas_no_reabren_el_fichero_md(tmp_path, monkeypatch):
