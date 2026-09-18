@@ -37,10 +37,11 @@ El plugin **no** declara una taxonomia propia de categorias de conocimiento. Dec
   ],
   "backends": {
     "kwipu":    {"type": "markdown-export", "enabled": true,
-                 "path": ".claude/knowledge-services/kwipu-export", "health": {"url": "http://127.0.0.1:8765/health", "timeout_ms": 800}},
-    "graphiti": {"type": "graphiti", "enabled": false, "mode": "shadow",
-                 "endpoint": "http://127.0.0.1:8000", "group_id": "mr-local",
-                 "provider": {"llm": "ollama", "model": "qwen2.5:7b", "embedder": "ollama", "embedder_model": "nomic-embed-text"}}
+                 "config": {"export_dir": ".claude/knowledge-services/kwipu-export",
+                            "health": {"url": "http://127.0.0.1:8765/health", "timeout_ms": 800}}},
+    "graphiti": {"type": "graphiti", "enabled": false,
+                 "config": {"mode": "shadow", "endpoint": "http://127.0.0.1:8001/mcp", "group_id": "mr-local",
+                            "provider": {"llm": "ollama", "model": "qwen2.5:7b", "embedder": "ollama", "embedder_model": "nomic-embed-text"}}}
   }
 }
 ```
