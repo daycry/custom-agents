@@ -35,8 +35,13 @@
 > `id` con `../`, `health.url` sin restricción de host). Ronda fix1 hecha (217875c..c27c969; T-02-fix6/T-04-fix4 los
 > comiteó el orquestador). **Intento 2 Fase 3** (86b5838): 21/23 cerrados, 2 parciales (#82, #85) + 17 nuevos (#109–#125;
 > Critical #109 = `--rebuild` no-op tras el fix por hash). El orquestador FIJÓ el diseño de publicación por intercambio de
-> directorio (staging hermano + dos renames) en el ledger. **Ronda `T-0X-fix2` de Fase 3 despachada.** Revalidación en
-> vivo OK (summary, 2.º apply 0 escritos, verify desfase). Siguiente: intento 3 (último) → cerrar bucle Fase 3 → Fase 4 (T-04 curator, T-05 documenter, T-06 Fase 4-bis) → Fase 3 (T-07 sync +
+> directorio (staging hermano + dos renames) en el ledger. Ronda fix2 hecha (02b9c57..36504ff). **Intento 3 Fase 3**
+> (21f5f5c + anexo D 9c95f45): 17/19 cerrados; **3 Critical NUEVOS en los caminos de fallo del swap de directorio**
+> (#126 rollback pierde la publicación, #127 `apply` borra todo lo ajeno en `export_dir`, incl. `export_dir: docs`,
+> #128 outbox atascada permanente) + 3 Important + 8 Minor (#129–#139). **Decisión del orquestador (excede el bucle;
+> revocable en el PR):** SUSTITUIR el diseño por «publicación por fichero con diario `manifest.pending.json`, sin mover
+> ni borrar nada ajeno» + drenaje de la outbox; **ronda `T-0X-fix3` de Fase 3 despachada** con ese diseño. Después:
+> verificación dirigida del orquestador (probes de A/B/D) → cerrar bucle Fase 3 → Fase 4 (T-04 curator, T-05 documenter, T-06 Fase 4-bis) → Fase 3 (T-07 sync +
 > contrato, T-08 adaptador Kwipu, T-09 setup/doctor) → Fase 4 (T-10, T-11, T-12) → qa sin UI → documenter → cierre
 > (changelog-sync, /retro + retro-gate) → graphiti-memory.
 >
