@@ -21,10 +21,10 @@ verificacion: obligatoria
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervision (real/est) | Tokens (real/est) |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | Fase 1 - Contrato y validacion | 3 | 3 | 100% | 0 / 13h | 1.20 / 3.9h | 0 / 1.0h | ~57k / 200k |
-| Fase 2 - Curacion y workflow | 0 | 3 | 0% | 0 / 14h | 0 / 4.2h | 0 / 1.1h | 0 / 210k |
+| Fase 2 - Curacion y workflow | 1 | 3 | 33% | 0 / 14h | 0.6 / 4.2h | 0 / 1.1h | ~6k / 210k |
 | Fase 3 - Backends y Kwipu | 1 | 4 | 25% | 0 / 19h | 0.45 / 5.7h | 0 / 1.4h | ~16k / 275k |
 | Fase 4 - Regresion y cierre | 0 | 3 | 0% | 0 / 10h | 0 / 3.0h | 0 / 0.7h | 0 / 130k |
-| **TOTAL** | **4** | **13** | **31%** | **0 / 56h** | **1.65 / 16.8h** | **0 / 4.2h** | **~73k / 815k** |
+| **TOTAL** | **5** | **13** | **38%** | **0 / 56h** | **2.25 / 16.8h** | **0 / 4.2h** | **~79k / 815k** |
 
 > **Nota (gap 18, revision de dos lentes intento 1):** las horas-IA de las rondas `-fix1`/`-fix2`/`-fix3` corresponden a sesiones de correccion COMPARTIDAS entre varias tareas (una sola ventana de `usage-meter` cubriendo T-01/T-02/T-03/T-13 en fix1/fix2, y T-01/T-02/T-13 en fix3); se reparten a partes iguales entre las tareas que tocaron en esa ventana (ver nota de cada tarea) en vez de contarse enteras en cada una, para no inflar el TOTAL.
 
@@ -104,18 +104,32 @@ verificacion: obligatoria
 ## Fase 2 - Curacion y workflow
 
 ### T-04 - Agente knowledge-curator, docs y evals
-- **Estado**: borrador
-- **Tiempo humano**: est. 5h · real -
+- **Estado**: completado
+- **Tiempo humano**: est. 5h · real 0
 - **Prevision IA**: 55k in / 24k out tok
+- **Tiempo IA**: real 0.6h (estimado; marcador de `usage-meter` arrancado tarde por el implementer -tras construir el agente, el kit y la documentacion, no al inicio-, duracion medida ~0.0h/0.11 EUR no refleja el trabajo real; se deja a juicio del implementer, igual que el criterio ya documentado en T-01-fix4)
 - **Dependencias**: T-01, T-02
 - **Tipo**: docs
 - **Archivos**: `agents/knowledge-curator.md`, `agent-kits/knowledge-curator/`, `docs/agents/knowledge-curator.md`, `docs/agents/ROLES.md`, `docs/README.md`, `CLAUDE.md`, `evals/cases/agent-knowledge-curator.json`, `interop/**`
 - **Verificacion**: `python scripts/lint_plugin.py` -> frontmatter/dependencias; `python evals/check.py` -> casos de activacion
+- **Changelog**: Nuevo agente `knowledge-curator`, el unico que aprueba o rechaza conocimiento propuesto y lo mueve a `docs/knowledge/approved/`.
 **Criterios de aceptación**
-- [ ] Unico escritor de candidatos/aprobados; contradicciones y alto impacto piden usuario.
-- [ ] Interop regenerado.
-- [ ] **Delegado desde el gap 3 de la revision de dos lentes intento 1 (T-01/T-02)**: al aprobar un candidato, el curator conoce la categoria EXACTA asignada (algo que `knowledge-index.py` no puede inferir solo del `folder`, porque una carpeta puede servir a varias categorias) y por tanto es quien debe (a) exigir `estado`/`evidencia`/`fuentes`/`tags` como obligatorios en el momento de aprobar (el indice solo valida su FORMA cuando estan presentes, nunca su presencia), y (b) comparar `evidencia` contra el `min_evidence` de esa categoria exacta antes de mover el candidato a `approved/`.
-- [ ] **Delegado desde el gap 34 de la revision de dos lentes intento 2 (T-02)**: al escribir el frontmatter de una entrada aprobada, el curator usa el mismo token en espanol `aprobado` para `estado` que exige `knowledge-index.py` (fijado en `agent-kits/shared/schemas/taxonomy.schema.json` y en `docs/knowledge/approved/README.md`/`docs/knowledge/candidates/README.md`) — nunca `approved`/`pending`/`needs_changes`/`rejected` (esos son nombres de carpeta del flujo de candidatos, no valores de `estado`).
+- [x] Unico escritor de candidatos/aprobados; contradicciones y alto impacto piden usuario. Evidencia: `agents/knowledge-curator.md` P3/P4 y REGLAS ("Contradicciones y alto impacto piden usuario"); `docs/agents/ROLES.md` fila `knowledge-curator` (ESCRIBE: unico en `candidates/**` y `approved/**`).
+- [x] Interop regenerado. Evidencia: `python scripts/export-interop.py` -> "50 ficheros escritos (codex + opencode)"; `python scripts/export-interop.py --check` -> "50 ficheros al dia".
+- [x] **Delegado desde el gap 3 de la revision de dos lentes intento 1 (T-01/T-02)**: al aprobar un candidato, el curator conoce la categoria EXACTA asignada (algo que `knowledge-index.py` no puede inferir solo del `folder`, porque una carpeta puede servir a varias categorias) y por tanto es quien debe (a) exigir `estado`/`evidencia`/`fuentes`/`tags` como obligatorios en el momento de aprobar (el indice solo valida su FORMA cuando estan presentes, nunca su presencia), y (b) comparar `evidencia` contra el `min_evidence` de esa categoria exacta antes de mover el candidato a `approved/`. Evidencia: `agent-kits/knowledge-curator/curator-gate.py` (`validar_categoria` + `validar_aprobacion`, rango de `evidencia` contra `min_evidence` de la categoria exacta) y sus tests `test_evaluar_approve_categoria_exacta_evidencia_insuficiente_bloquea` / `test_evaluar_approve_categoria_override_respetada` en `agent-kits/knowledge-curator/test_curator_gate.py`.
+- [x] **Delegado desde el gap 34 de la revision de dos lentes intento 2 (T-02)**: al escribir el frontmatter de una entrada aprobada, el curator usa el mismo token en espanol `aprobado` para `estado` que exige `knowledge-index.py` (fijado en `agent-kits/shared/schemas/taxonomy.schema.json` y en `docs/knowledge/approved/README.md`/`docs/knowledge/candidates/README.md`) — nunca `approved`/`pending`/`needs_changes`/`rejected` (esos son nombres de carpeta del flujo de candidatos, no valores de `estado`). Evidencia: `curator-gate.py::validar_aprobacion` (`ESTADO_APROBADO = "aprobado"`, bloquea `estado: approved`) y tests `test_evaluar_approve_estado_approved_ingles_bloquea` / `test_evaluar_approve_estado_aprobado_literal_no_bloquea`.
+
+**RED**: `agent-kits/knowledge-curator/test_curator_gate.py` fallo con "14 failed, 3 passed in 0.37s" (stub temporal de `evaluar()`/`main()` sin logica real) · 2026-09-18. **GREEN**: misma suite con la implementacion real -> "17 passed in 0.49s".
+
+**Verificacion (salida real):**
+```
+$ python scripts/lint_plugin.py
+lint_plugin: 10 agentes · 1 errores · 3 avisos
+(el unico error es el preexistente LES-016, no tocado por esta tarea)
+
+$ python evals/check.py
+evals/check: 39 ficheros · 140 casos (84 positivos, 56 negativos) · 39 piezas del repo · 0 errores
+```
 
 ### T-05 - Documenter propone, no promociona
 - **Estado**: borrador
