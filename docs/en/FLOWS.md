@@ -49,11 +49,15 @@ flowchart LR
     qa -.->|red| implementer
     review -.->|"plan with test-plan: n/a (sin UI)"| qasinui["✅ qa · no-UI mode<br/>ledger-lint + coverage-check<br/>no Playwright, no URL"]
     qasinui --> documenter
+    documenter -.->|"candidate proposed<br/>(optional, mailbox)"| kcurator["🗂️ knowledge-curator<br/>Knowledge Gate<br/>approve/needs_changes/rejected"]
     documenter --> retro["🔁 /retro<br/>calibration"]
+    kcurator -.->|"no candidates"| retro
+    kcurator --> retro
     nemesis["🛡️ nemesis<br/>audit"] -.->|critical findings| analyst
     retro -.->|CALIBRATION.md| evaluator
     style fin1 fill:#fdecea,stroke:#ef9a9a
     style documenter fill:#e8f5e9,stroke:#81c784
+    style kcurator fill:#e8f5e9,stroke:#81c784
 ```
 
 Everything lives in **one folder per initiative**: `docs/roadmap/<fecha>-<slug>/`
@@ -109,7 +113,10 @@ flowchart TD
     R --> I["qa · local E2E<br/>verdict: qa-gate.py"]
     I -->|"red (max 3 attempts,<br/>then ask)"| H
     I -->|green| J["documenter<br/>once at the end"]
-    J --> CS["changelog-sync skill<br/>[Unreleased] EN + [Sin publicar] ES<br/>from the closed ledger"]
+    J --> KG{"any candidates under<br/>docs/knowledge/candidates/**?"}
+    KG -->|yes| KC["knowledge-curator<br/>Knowledge Gate<br/>(curator-gate.py)"]
+    KG -.->|"no: honest omission<br/>(one line, no failure)"| CS
+    KC --> CS["changelog-sync skill<br/>[Unreleased] EN + [Sin publicar] ES<br/>from the closed ledger"]
     CS --> K["optional: nemesis<br/>audit"]
     K --> RG["step 8: /retro + retro-gate.py<br/>retro.md + row in CALIBRATION.md<br/>(gate: exit 0)"]
     RG -->|"exit 0"| L(["closeout: plan completado · retro<br/>spec implementada"])
