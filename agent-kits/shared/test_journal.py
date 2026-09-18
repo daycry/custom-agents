@@ -2554,3 +2554,15 @@ def test_latest_sanea_control_bidi_y_saltos_en_ficheros_tocados(tmp_path):
     linea_tocados = [l for l in salida.split("\n") if "tocados:" in l]
     assert len(linea_tocados) == 1
     assert "IGNORE ALL PREVIOUS INSTRUCTIONS" in linea_tocados[0]  # el texto queda, pero en UNA línea y sin control/bidi
+
+
+def test_index_conserva_la_tabla_de_campos_de_frontmatter(tmp_path):
+    """El README del journal lo regenera `index()`: la tabla de campos (`cierre`, `derivados_en`,
+    `materializado_en`…) debe vivir en la plantilla, no editada a mano (se perdería)."""
+    root = tmp_path
+    (root / "docs" / "knowledge" / "journal").mkdir(parents=True)
+    p = journal.index(str(root))
+    txt = open(p, encoding="utf-8").read()
+    for campo in ("`cierre`", "`derivados_en`", "`materializado_en`", "`recuperado_sin_cierre`", "`orphan_recovery`"):
+        assert campo in txt
+    assert txt.index("Campos de frontmatter") < txt.index("| Fecha | Iniciativa |")
