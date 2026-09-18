@@ -1588,6 +1588,17 @@ def test_capacidad_backend_respeta_timeout_por_debajo_del_tope():
     assert fake.cfg_recibido_por_health["health"]["timeout_ms"] == 500
 
 
+def test_capacidad_backend_inyecta_root_del_proyecto_antes_de_health(tmp_path):
+    """gap 111: `doctor.py` conoce `project` (la raiz real donde vive `taxonomy.json`) pero no lo
+    pasaba al adaptador -- un backend cuya `health()`/`verify()` necesite resolver rutas relativas
+    (p. ej. `export_dir` de markdown_export.py, gap 88) recibia un `cfg` sin `_root` y resolvia
+    contra el CWD del proceso, no la raiz del proyecto diagnosticado."""
+    fake = _BackendsModFake(salud={"estado": "sano"})
+    doctor._linea_capacidad_backend("x", "t", {"health": {"url": "http://x"}}, fake, "d",
+                                    project=str(tmp_path))
+    assert fake.cfg_recibido_por_health["_root"] == os.path.abspath(str(tmp_path))
+
+
 def test_bloque_capacidades_recorta_por_presupuesto_total(monkeypatch):
     """gap 94: con muchas capacidades activas y una red lenta, `bloque_capacidades` no debe
     convertirse en un diagnostico de minutos — al superar el presupuesto TOTAL, el resto se
@@ -1605,7 +1616,7 @@ def test_bloque_capacidades_recorta_por_presupuesto_total(monkeypatch):
 
     llamadas = []
 
-    def _linea_lenta(project, cap, backends_mod, backends_dir):
+    def _linea_lenta(project, cap, backends_mod, backends_dir, **kwargs):
         llamadas.append(cap["id"])
         time_mod.sleep(0.03)
         return doctor.linea(doctor.INFO, cap["id"], "activa")
@@ -1615,6 +1626,78 @@ def test_bloque_capacidades_recorta_por_presupuesto_total(monkeypatch):
     assert len(llamadas) < 5
     avisos = [l for l in bloque["lineas"] if l["estado"] == doctor.AVISO and "recortada" in l["detalle"]]
     assert len(avisos) == 1
+
+
+def test_bloque_capacidades_topa_tope_ms_al_presupuesto_restante(monkeypatch):
+    """gap 124: `tope_ms` no es la constante ESTATICA `CAPACIDAD_TIMEOUT_MS_TOPE` para todas las
+    capacidades del bloque -- si ya se gasto la mayor parte del presupuesto TOTAL en las
+    anteriores, la que queda por comprobar recibe el PRESUPUESTO RESTANTE (mas corto), no el tope
+    fijo completo, para que la suma nunca rebase `CAPACIDADES_PRESUPUESTO_S`."""
+    import time as time_mod
+
+    class _CapMod:
+        @staticmethod
+        def enumerar(project):
+            return [{"id": "cap0", "enabled": True, "health": None},
+                    {"id": "cap1", "enabled": True, "health": None}]
+
+    monkeypatch.setattr(doctor, "_cargar_capabilities", lambda plugin_root: _CapMod())
+    monkeypatch.setattr(doctor, "_cargar_backends_loader", lambda plugin_root: (None, "d"))
+    monkeypatch.setattr(doctor, "CAPACIDADES_PRESUPUESTO_S", 2.02)
+
+    topes_recibidos = []
+
+    def _linea_espia(project, cap, backends_mod, backends_dir, tope_ms=None, **kwargs):
+        topes_recibidos.append(tope_ms)
+        time_mod.sleep(0.05)
+        return doctor.linea(doctor.INFO, cap["id"], "activa")
+
+    monkeypatch.setattr(doctor, "_linea_capacidad", _linea_espia)
+    doctor.bloque_capacidades("plugin", "project")
+    assert len(topes_recibidos) == 2
+    assert topes_recibidos[0] == doctor.CAPACIDAD_TIMEOUT_MS_TOPE
+    # tras gastar ~50ms del presupuesto total (2.02s), a la segunda capacidad le queda menos
+    # margen que el tope fijo de 2000ms -- se recorta al presupuesto restante.
+    assert topes_recibidos[1] < doctor.CAPACIDAD_TIMEOUT_MS_TOPE
+
+
+def test_bloque_capacidades_aviso_de_recorte_cita_el_tiempo_transcurrido_real(monkeypatch):
+    """gap 124: el mensaje de recorte citaba siempre el tope CONFIGURADO
+    (`CAPACIDADES_PRESUPUESTO_S`), no el tiempo REAL transcurrido -- con una sola capacidad lenta
+    que ya rebasa el presupuesto, el tiempo transcurrido real es mayor que el tope nominal."""
+    import time as time_mod
+
+    class _CapMod:
+        @staticmethod
+        def enumerar(project):
+            return [{"id": f"cap{i}", "enabled": True, "health": None} for i in range(3)]
+
+    monkeypatch.setattr(doctor, "_cargar_capabilities", lambda plugin_root: _CapMod())
+    monkeypatch.setattr(doctor, "_cargar_backends_loader", lambda plugin_root: (None, "d"))
+    monkeypatch.setattr(doctor, "CAPACIDADES_PRESUPUESTO_S", 0.05)
+
+    def _linea_lenta(project, cap, backends_mod, backends_dir, **kwargs):
+        time_mod.sleep(0.08)
+        return doctor.linea(doctor.INFO, cap["id"], "activa")
+
+    monkeypatch.setattr(doctor, "_linea_capacidad", _linea_lenta)
+    bloque = doctor.bloque_capacidades("plugin", "project")
+    aviso = next(l for l in bloque["lineas"] if l["estado"] == doctor.AVISO and "recortada" in l["detalle"])
+    assert "0s" not in aviso["detalle"].split("tope de ")[0]
+    assert "transcurrid" in aviso["detalle"].lower()
+
+
+def test_capacidad_backend_nunca_sincronizado_no_dice_export_atrasado():
+    """gap 119: `verify()` distingue `razon: "nunca_sincronizado"` (gap 87, aun no hay ninguna
+    publicacion) de un desfase real -- antes ambos caian en el mismo texto generico "export
+    atrasado (0 desfase(s))", que es enganoso cuando `desfase` esta vacio precisamente porque
+    todavia no se ha publicado nada."""
+    fake = _BackendsModFake(salud={"estado": "sano"},
+                            verificacion={"ok": False, "desfase": [], "razon": "nunca_sincronizado"})
+    l = doctor._linea_capacidad_backend("x", "t", {}, fake, "d")
+    assert l["estado"] == doctor.AVISO
+    assert "export atrasado" not in l["detalle"]
+    assert "nunca" in l["detalle"].lower() or "sin publicar" in l["detalle"].lower()
 
 
 def test_capacidad_backend_off_con_timeout_es_informativo():

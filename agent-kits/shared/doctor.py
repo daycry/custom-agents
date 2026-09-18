@@ -1495,28 +1495,36 @@ CAPACIDAD_TIMEOUT_MS_TOPE = 2000  # gap 94: ninguna comprobación de red individ
 CAPACIDADES_PRESUPUESTO_S = 5.0  # gap 94: tope TOTAL del bloque completo, no solo por capacidad
 
 
-def _cfg_con_timeout_topado(cfg_adaptador):
-    """gap 94: copia `cfg_adaptador` con `health.timeout_ms` recortado a
-    `CAPACIDAD_TIMEOUT_MS_TOPE` — `/doctor` es un diagnóstico rápido, nunca debería quedarse
-    colgado minutos por un `timeout_ms` generoso pensado para una publicación real."""
+def _cfg_con_timeout_topado(cfg_adaptador, tope_ms=CAPACIDAD_TIMEOUT_MS_TOPE):
+    """gap 94: copia `cfg_adaptador` con `health.timeout_ms` recortado a `tope_ms`
+    (`CAPACIDAD_TIMEOUT_MS_TOPE` por defecto) — `/doctor` es un diagnóstico rápido, nunca debería
+    quedarse colgado minutos por un `timeout_ms` generoso pensado para una publicación real.
+    gap 124: `tope_ms` puede ser MENOR que la constante estática cuando ya queda poco presupuesto
+    del bloque (`bloque_capacidades`), para que la suma de capacidades nunca lo rebase."""
     cfg = dict(cfg_adaptador or {})
     health_cfg = dict(cfg.get("health") or {})
     actual = health_cfg.get("timeout_ms")
-    if not isinstance(actual, (int, float)) or actual > CAPACIDAD_TIMEOUT_MS_TOPE:
-        health_cfg["timeout_ms"] = CAPACIDAD_TIMEOUT_MS_TOPE
+    if not isinstance(actual, (int, float)) or actual > tope_ms:
+        health_cfg["timeout_ms"] = tope_ms
     cfg["health"] = health_cfg
     return cfg
 
 
-def _linea_capacidad_backend(cap_id, tipo, cfg_adaptador, backends_mod, backends_dir):
+def _linea_capacidad_backend(cap_id, tipo, cfg_adaptador, backends_mod, backends_dir,
+                             project=None, tope_ms=CAPACIDAD_TIMEOUT_MS_TOPE):
     """Comprobación de red EN VIVO de una capacidad con backend declarado (`type` + su
     `config` propia), vía el contrato de adaptador (`health`/`verify`) — `cfg_adaptador` es
     EXACTAMENTE lo que `knowledge-sync.py` le pasaría (`decl.get("config")`, nunca la entrada
-    entera). `None` si no aplica (sin `type` declarado) — el llamador cae entonces al texto
-    genérico `doctor` de la propia capacidad. Nunca lanza."""
+    entera), MÁS `_root` (gap 111: la raíz real del proyecto diagnosticado, para que un backend
+    que resuelva rutas relativas — p. ej. `export_dir` de markdown_export.py, gap 88 — no caiga
+    al CWD del proceso de `/doctor`). `None` si no aplica (sin `type` declarado) — el llamador
+    cae entonces al texto genérico `doctor` de la propia capacidad. Nunca lanza."""
     if not tipo:
         return None
-    cfg_adaptador = _cfg_con_timeout_topado(cfg_adaptador)  # gap 94
+    cfg_adaptador = dict(cfg_adaptador or {})
+    if project is not None:
+        cfg_adaptador["_root"] = os.path.abspath(project)  # gap 111
+    cfg_adaptador = _cfg_con_timeout_topado(cfg_adaptador, tope_ms)  # gap 94 / gap 124
     try:
         adaptador = backends_mod.cargar_adaptador(tipo, [backends_dir])
     except backends_mod.AdaptadorNoDisponible as e:
@@ -1537,6 +1545,12 @@ def _linea_capacidad_backend(cap_id, tipo, cfg_adaptador, backends_mod, backends
                          "revisa la configuración de red del backend en `taxonomy.json`")
         if verificacion.get("ok", True):
             return linea(OK, f"{cap_id} (backend)", "sano, sin desfase")
+        if verificacion.get("razon") == "nunca_sincronizado":
+            # gap 119: distinto de un desfase real (gap 87) — todavía no hay ninguna publicación
+            # previa, así que "export atrasado (0 desfase(s))" sería engañoso (no hay nada atrasado,
+            # simplemente no se ha sincronizado nunca).
+            return linea(AVISO, f"{cap_id} (backend)", "nunca sincronizado (sin publicación previa)",
+                         "publica por primera vez: `python skills/knowledge-services/scripts/knowledge-sync.py --rebuild`")
         desfases = verificacion.get("desfase") or []
         primero = desfases[0] if desfases else {}
         extra = f" · … y {len(desfases) - 1} más" if len(desfases) > 1 else ""
@@ -1559,11 +1573,12 @@ def _linea_capacidad_backend(cap_id, tipo, cfg_adaptador, backends_mod, backends
     return linea(INFO, f"{cap_id} (backend)", f"estado desconocido: {estado!r}", "revisa el adaptador de este backend")
 
 
-def _linea_capacidad(project, cap, backends_mod, backends_dir):
+def _linea_capacidad(project, cap, backends_mod, backends_dir, tope_ms=CAPACIDAD_TIMEOUT_MS_TOPE):
     """Una fila por capacidad registrada (`capabilities.enumerar()`): error de configuración
     primero (p. ej. `taxonomy.json` inválido, con fichero+detalle+arreglo), desactivada después, y
     si está activa con backend declarado, la comprobación EN VIVO de `_linea_capacidad_backend`
-    (si no aplica, el texto genérico `doctor` de la propia capacidad, sin red)."""
+    (si no aplica, el texto genérico `doctor` de la propia capacidad, sin red). `tope_ms` (gap 124)
+    es el presupuesto de red RESTANTE del bloque, no siempre `CAPACIDAD_TIMEOUT_MS_TOPE`."""
     salud = cap.get("health")
     estado = salud.get("estado") if isinstance(salud, dict) else salud
     if estado == "error":
@@ -1575,7 +1590,7 @@ def _linea_capacidad(project, cap, backends_mod, backends_dir):
     if backends_mod is not None:
         entrada = _leer_backend_entry(project, cap)
         l = _linea_capacidad_backend(cap["id"], entrada.get("type"), entrada.get("config") or {},
-                                     backends_mod, backends_dir)
+                                     backends_mod, backends_dir, project=project, tope_ms=tope_ms)
         if l is not None:
             return l
     return linea(INFO, cap["id"], cap.get("doctor") or "activa")
@@ -1594,18 +1609,27 @@ def bloque_capacidades(plugin_root, project):
                 "lineas": [linea(INFO, "capacidades opcionales", "sin capacidades registradas")]}
     # gap 94: tope TOTAL del bloque (no solo por capacidad) — con muchas capacidades opcionales
     # activas y una red lenta, /doctor no debe convertirse en un diagnóstico de minutos.
+    # gap 124: el tope POR CAPACIDAD (`tope_ms`) se recorta al presupuesto RESTANTE del bloque
+    # (no siempre `CAPACIDAD_TIMEOUT_MS_TOPE` completo), para que la suma de varias capacidades
+    # activas nunca rebase `CAPACIDADES_PRESUPUESTO_S`; y el aviso de recorte cita el tiempo
+    # transcurrido REAL, no el tope nominal configurado (pueden diferir si una sola capacidad
+    # lenta ya lo rebasó por sí sola).
     ls = []
     inicio = time.monotonic()
     recortado = 0
     for i, cap in enumerate(capacidades):
-        if time.monotonic() - inicio > CAPACIDADES_PRESUPUESTO_S:
+        transcurrido_s = time.monotonic() - inicio
+        restante_s = CAPACIDADES_PRESUPUESTO_S - transcurrido_s
+        if restante_s <= 0:
             recortado = len(capacidades) - i
             break
-        ls.append(_linea_capacidad(project, cap, backends_mod, backends_dir))
+        tope_ms = min(CAPACIDAD_TIMEOUT_MS_TOPE, int(restante_s * 1000))
+        ls.append(_linea_capacidad(project, cap, backends_mod, backends_dir, tope_ms=tope_ms))
     if recortado:
+        transcurrido_final_s = time.monotonic() - inicio
         ls.append(linea(AVISO, "capacidades opcionales",
                          f"comprobación de red recortada: {recortado} capacidad(es) sin comprobar "
-                         f"(tope de {CAPACIDADES_PRESUPUESTO_S:.0f}s del bloque)",
+                         f"(tope de {CAPACIDADES_PRESUPUESTO_S:.0f}s del bloque, {transcurrido_final_s:.1f}s transcurridos)",
                          "vuelve a pasar /doctor, o revisa la red del backend más lento"))
     return {"clave": "capacidades", "titulo": "Capacidades opcionales", "lineas": ls}
 
