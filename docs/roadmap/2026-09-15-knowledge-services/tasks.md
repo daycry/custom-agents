@@ -20,11 +20,11 @@ verificacion: obligatoria
 
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervision (real/est) | Tokens (real/est) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| Fase 1 - Contrato y validacion | 1 | 3 | 33% | 0 / 13h | 0.08 / 3.9h | 0 / 1.0h | ~35k / 200k |
+| Fase 1 - Contrato y validacion | 2 | 3 | 67% | 0 / 13h | 0.47 / 3.9h | 0 / 1.0h | ~56k / 200k |
 | Fase 2 - Curacion y workflow | 0 | 3 | 0% | 0 / 14h | 0 / 4.2h | 0 / 1.1h | 0 / 210k |
 | Fase 3 - Backends y Kwipu | 0 | 4 | 0% | 0 / 19h | 0 / 5.7h | 0 / 1.4h | 0 / 275k |
 | Fase 4 - Regresion y cierre | 0 | 3 | 0% | 0 / 10h | 0 / 3.0h | 0 / 0.7h | 0 / 130k |
-| **TOTAL** | **1** | **13** | **8%** | **0 / 56h** | **0.08 / 16.8h** | **0 / 4.2h** | **~35k / 815k** |
+| **TOTAL** | **2** | **13** | **15%** | **0 / 56h** | **0.47 / 16.8h** | **0 / 4.2h** | **~56k / 815k** |
 
 ## Fase 1 - Contrato y validacion
 
@@ -46,17 +46,23 @@ verificacion: obligatoria
 - **Changelog**: El plugin ahora valida la configuración de conocimiento del proyecto (`taxonomy.json`) y sus backends declarados, con un default seguro cuando el proyecto no configura nada.
 
 ### T-02 - Indice canonico y validador determinista sobre la taxonomia configurada
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo humano**: est. 5h · real -
+- **Tiempo IA**: real 0.39h (medido; usage-meter, 23m, 2.13 EUR)
 - **Prevision IA**: 55k in / 22k out tok
 - **Dependencias**: T-01
 - **Tipo**: backend
 - **Archivos**: `agent-kits/shared/knowledge-schema.py`, `agent-kits/shared/knowledge-index.py`, `agent-kits/shared/test_knowledge_schema.py`, `agent-kits/shared/test_knowledge_index.py`, `docs/knowledge/README.md`
 - **Verificacion**: `python -m pytest -q agent-kits/shared/test_knowledge_schema.py agent-kits/shared/test_knowledge_index.py` -> indice estable y errores con ruta/campo, dos fixtures de `taxonomy.json` distintas dan carpetas/routing distintos
+  - Salida real: `36 passed in 0.66s` (0 fallos).
+  - Regresion `knowledge-find.py` (`python -m pytest -q tests/test_knowledge_find.py`): `2 failed, 70 passed in 38.12s` — confirmado PRE-EXISTENTE: mismos 2 fallos (`test_show_imprime_la_entrada_completa_tal_cual`, `test_show_json_envuelve_el_contenido_con_su_ficha`, diff de espacios finales en `LES-001`) reproducidos igual en `git stash` sobre HEAD `3f28be7` (antes de tocar T-02); no son una regresion introducida por esta tarea.
+  - RED: `python -m pytest -q agent-kits/shared/test_knowledge_index.py` contra un `knowledge-index.py` stub (`build_index` devolvia `{}, []`, `main` devolvia `0`) fallo con `9 failed, 4 passed in 0.33s` (AssertionError en duplicados/version/enlaces/candidatos/CLI) · 2026-09-18. Tras implementar `build_index`/`main` reales: `13 passed in 0.72s` (GREEN).
 **Criterios de aceptación**
-- [ ] ID duplicado, version y enlaces rotos fallan; candidatos no aparecen.
-- [ ] `knowledge-find.py` no se rompe.
-- [ ] Dos proyectos con `taxonomy.json` distintos (p. ej. el default del plugin vs. uno con categorias de dominio propio) producen carpetas y enrutado distintos sin tocar codigo.
+- [x] ID duplicado, version y enlaces rotos fallan; candidatos no aparecen.
+- [x] `knowledge-find.py` no se rompe.
+- [x] Dos proyectos con `taxonomy.json` distintos (p. ej. el default del plugin vs. uno con categorias de dominio propio) producen carpetas y enrutado distintos sin tocar codigo.
+- **Changelog**: El plugin valida y construye un indice de conocimiento aprobado por proyecto, detectando IDs duplicados, versiones ausentes o enlaces rotos antes de exportarlos.
+- **Nota de alcance (para la revision de dos lentes)**: `knowledge-index.py` opera SOLO sobre `docs/knowledge/approved/<folder>/`, no sobre el corpus legado `docs/knowledge/{adr,gotchas,lessons}/` (ese sigue con el indice manual + `knowledge-lint.py` diferido de ADR-006 D4, sin tocar). Decision tomada sin respaldo literal en spec/design mas alla de "indice canonico determinista sobre la taxonomia configurada"; exigir `version`/`enlaces` a las entradas legadas habria roto ADR-001..ADR-017/GOT-.../LES-... existentes (no llevan esos campos). Tambien: el parser de frontmatter y la carga de `knowledge-schema.py` se resolvieron con un loader `importlib` por ruta relativa (mismo fichero, misma carpeta `agent-kits/shared/`) en vez de reimplementar toda la validacion de `taxonomy.json`; no hay import de `knowledge-find.py` (se mantiene el criterio de scripts standalone).
 
 ### T-03 - Estructura e ignorados de derivados
 - **Estado**: borrador
