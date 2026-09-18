@@ -27,24 +27,58 @@ fijarlas — decisión de T-08, ver también `skills/knowledge-services/backends
     tabla degrada a `medium` (no se inventa un extremo).
 
 Gaps de la revisión de dos lentes corregidos en este fichero:
-  - #82/#109/#115/#118/#123 (intento 2, Fase 3, fix2, 2026-09-18): **publicación por intercambio
-    de directorio.** `apply()` ya NO usa un staging DENTRO de `export_dir`: construye el árbol
-    completo en un directorio HERMANO (`<export_dir>.staging-<pid>`, fuera de lo que Kwipu
-    indexa), mueve (`os.replace`, sin reescribir) los ficheros `sin_cambios`, escribe los
-    `upsert` y el `manifest.json` nuevo ahí, y publica con DOS `os.replace` de directorio
-    (`export_dir` -> `export_dir.prev`, staging -> `export_dir`), borrando `.prev` al final. La
-    ventana no atómica es el instante entre esos dos renames (mucho más corta que escribir 500+
-    ficheros uno a uno). `plan()` decide `sin_cambios` SOLO si el hash coincide Y el fichero
-    publicado existe todavía (gap 109: antes un fichero borrado a mano nunca se regeneraba).
-    `rebuild()` fuerza `upsert` de TODA `entries` (`plan(..., force=True)`): como construye el
-    staging desde cero a partir de `entries`, cualquier huérfano que no esté en `entries` muere
-    solo (nunca se copia al staging), sin necesidad de barrer ficheros sueltos. Al arrancar
-    `apply()`, se repara/purga cualquier `.prev`/`.staging-*` de más de `_STAGING_TTL_S` que haya
-    quedado de una corrida interrumpida (`SIGKILL` a medio camino). El lock (`_LockDirectorio`)
-    también es un fichero HERMANO (`<export_dir>.lock`), no dentro del árbol que se intercambia.
-    Si el rename de directorio no es viable en este sistema de ficheros (p. ej. Windows con un
-    handle abierto por un indexador externo dentro de `export_dir`), `apply()` lo propaga como
-    `ConfigInvalida` con el motivo real en vez de dejar el árbol a medias.
+  - #82/#109/#115/#118/#123 (intento 2, Fase 3, fix2, 2026-09-18): publicación por intercambio de
+    directorio (SUSTITUIDA en fix3, ver bloque siguiente — se deja la referencia histórica porque
+    `plan()`/`rebuild()` siguen citando estos números en sus docstrings).
+  - **#126/#127/#129/#132/#134/#136/#137/#138 (intento 3, Fase 3, fix3, 2026-09-18): publicación
+    por FICHERO con diario, sustituyendo el intercambio de directorio (decisión del orquestador —
+    ese diseño resultó en dos Critical nuevos: pérdida de datos en el rollback y borrado de
+    ficheros ajenos a `export_dir`).** Algoritmo (`docs/roadmap/2026-09-15-knowledge-services/
+    tasks.md`, bloque «Diseño sustitutivo»):
+      1. `plan()` como siempre (hash + existencia; `force=True` en `--rebuild`).
+      2. `apply()` escribe SOLO los `upsert` en un staging HERMANO (`<export_dir>.staging-<pid>`);
+         los `sin_cambios` NUNCA SE TOCAN (ni se mueven ni se reescriben — elimina de raíz la
+         regresión O(N) del gap 136: una pasada sin cambios ya no cuesta un rename por fichero).
+      3. Antes de publicar nada, escribe `manifest.pending.json` en `export_dir` (tmp+`os.replace`
+         atómico, `_escribir_manifest_atomico`) con el estado final previsto (entries + hashes).
+      4. Publica cada `upsert` con UN `os.replace` fichero-a-fichero desde el staging al destino
+         (nunca el árbol entero — gap 127: un `export_dir` ajeno con ficheros de otros proyectos,
+         o `export_dir: "docs"`, ya no puede perder nada que no sea suyo) y ejecuta los `revoke`
+         (solo ficheros que estaban en el manifiesto propio, `os.remove` best-effort).
+      5. Renombra `manifest.pending.json` -> `manifest.json` (atómico) y borra el staging.
+    Si falla en (2)-(3): nada ha cambiado en `export_dir` (staging es hermano, se descarta; el
+    `manifest.pending.json` se escribe con tmp+rename, así que un fallo a mitad de esa escritura
+    tampoco dejó nada a medias — gap 126, antes un `except BaseException` sin reponer perdía la
+    publicación entera aunque fuera puramente `sin_cambios`). Si falla en (4) a mitad (p. ej.
+    `PermissionError` porque el indexador tiene un `.md` abierto): los ficheros ya publicados
+    quedan intactos, `manifest.pending.json` se conserva, y la SIGUIENTE corrida lo usa como
+    manifiesto objetivo en `plan()`: los ficheros cuyo hash en disco ya coincide con el objetivo
+    son `sin_cambios`, el resto vuelve a ser `upsert` — así se completa la publicación
+    interrumpida sin perder nada, sin necesidad de reintentar dentro de la misma corrida.
+    `verify()` con `manifest.pending.json` presente devuelve `ok: False,
+    razon: "publicacion_incompleta"` (antes que cualquier otra comprobación). El lock hermano
+    (`_LockDirectorio`) se conserva sin cambios. Contención BIDIRECCIONAL en
+    `_export_dir_resuelto` (gap 127): `export_dir` no puede contener ni estar contenido en
+    `docs/knowledge/`, ni ser el root del proyecto ni un ANCESTRO del root (antes solo se
+    comprobaba que `export_dir` no quedara dentro de `docs/knowledge/approved/`; `"docs"` o `".."`
+    pasaban todas las validaciones y un solo `apply()` podía barrer medio proyecto). `revoke()`
+    público usa el mismo diario (pending -> publica -> manifest.json). Ya no existe `.prev` ni el
+    intercambio de directorio: `_purgar_staging_huerfano` (antes `_reparar_publicacion`) solo
+    limpia un `.staging-<pid>` hermano de una corrida interrumpida, nunca reconstruye nada.
+    Coste: proporcional a los CAMBIOS (una escritura + un rename por fichero cambiado; 0 por
+    `sin_cambios`, gap 118/136 corregido).
+  - #132/#138: la caché DNS (`_dns_cache`) ya no es indefinida por proceso: cada resolución
+    (positiva, negativa o "no resuelta a tiempo") expira a los `_DNS_CACHE_TTL_S` segundos, así que
+    un fallo transitorio no queda cacheado en negativo para siempre. El caso "colgado" (agota
+    `_DNS_TIMEOUT_S` sin resolver) también se cachea, con un TTL corto (`_DNS_CACHE_TTL_S_LENTO`),
+    y un registro `_dns_inflight` evita lanzar un hilo nuevo para el mismo host mientras el
+    anterior sigue vivo: llamadas repetidas al mismo host lento se unen (`join`) al hilo YA en
+    marcha en vez de acumular uno por llamada.
+  - #137: las redirecciones HTTP están acotadas a `_MAX_REDIRECCIONES` saltos, y el presupuesto de
+    tiempo de toda la CADENA es el `timeout_ms` configurado UNA VEZ (no por salto): cada hop
+    reduce el `timeout` restante del siguiente en vez de heredar el valor original completo, así
+    que una cadena de redirecciones ya no puede multiplicar el tiempo total por el número de
+    saltos.
   - #87: `verify()` sin manifiesto (o vacío) devuelve `ok: False` con `razon: "nunca_sincronizado"`
     en vez de un `ok: True` trivial (falso positivo: nunca se sincronizó nada).
   - #88/#102: `export_dir` se resuelve contra `cfg["_root"]` (nunca CWD) y se valida que no sea el
@@ -74,6 +108,7 @@ Gaps de la revisión de dos lentes corregidos en este fichero:
     envelope de la outbox en una corrida sin cambios; `apply()` no lo necesita para un fichero que
     solo se mueve tal cual).
 """
+import contextlib
 import hashlib
 import ipaddress
 import json
@@ -94,14 +129,23 @@ for _s in (sys.stdin, sys.stdout, sys.stderr):
 
 MANIFEST_VERSION = 1
 MANIFEST_NOMBRE = "manifest.json"
+MANIFEST_PENDING_NOMBRE = "manifest.pending.json"  # gap 126/136 (fix3): diario de la publicación
+                                                    # por fichero — objetivo escrito ANTES de
+                                                    # publicar ningún fichero, renombrado a
+                                                    # `manifest.json` al terminar
 _LOCK_SUFIJO = ".lock"
 _LOCK_TTL_S = 60  # un lock más viejo que esto se considera huérfano (proceso muerto)
 _STAGING_PREFIJO = ".staging-"
-_PREV_SUFIJO = ".prev"
-_STAGING_TTL_S = 60  # gap 82/115: un `.staging-*`/`.prev` hermano más viejo que esto es de una
-                     # corrida interrumpida (SIGKILL) — se repara/purga al arrancar `apply()`
+_STAGING_TTL_S = 60  # gap 82/115: un `.staging-*` hermano más viejo que esto es de una corrida
+                     # interrumpida (SIGKILL) — se purga al arrancar `apply()`
 _DNS_TIMEOUT_S = 1.0  # gap 117: tope de la resolución DNS de `_host_permitido`, independiente
                       # del `timeout_ms` HTTP configurado
+_DNS_CACHE_TTL_S = 300  # gap 132: una resolución (positiva o negativa) expira; un fallo
+                        # transitorio ya no queda cacheado en negativo para siempre
+_DNS_CACHE_TTL_S_LENTO = 5  # gap 138: el caso "colgado" (agotó _DNS_TIMEOUT_S) se cachea con un
+                            # TTL corto para no perforar el `join()` en cada llamada consecutiva,
+                            # pero se reintenta pronto (podría ser un pico transitorio del DNS)
+_MAX_REDIRECCIONES = 5  # gap 137: tope de saltos de una cadena de redirección HTTP
 
 REMEDIO = "reindexar: `build_view` + reiniciar `kwipu`, `kwipu-bridge`, `kwipu-mcp`"
 
@@ -116,7 +160,10 @@ _MAPA_CONFIANZA = {
 _SUFIJOS_LOCALES = (".test", ".local", ".internal")
 _HOSTS_LOCALES_LITERALES = {"localhost", "host.docker.internal"}
 
-_dns_cache = {}  # gap 117: caché de resolución por proceso — {host: ip_str}
+_dns_cache = {}  # gap 117/132/138: caché de resolución por proceso — {host: (ip_str_o_None, expira_ts)}
+_dns_inflight = {}  # gap 138: {host: threading.Thread} — una resolución lenta en marcha se
+                    # reutiliza (join) en vez de lanzar un hilo nuevo por cada llamada concurrente
+_dns_inflight_lock = threading.Lock()
 
 
 class ConfigInvalida(Exception):
@@ -166,25 +213,51 @@ def _resolver_host_con_tope(host, timeout_s=_DNS_TIMEOUT_S):
     lento, reintentos agotados) mucho más de lo que pide `timeout_ms`. Se resuelve en un hilo
     aparte con `join(timeout_s)`: si no termina a tiempo, se trata como "no resuelto" ESTA vez
     (fail-closed en `_host_permitido`) sin esperar más, y NO se cachea (podría resolver más tarde).
-    Cachea por proceso el resultado positivo o negativo para no repetir la resolución en cada
-    llamada de `health()`/`verify()` sobre el mismo host."""
-    if host in _dns_cache:
-        return _dns_cache[host]
-    resultado = {}
+    Cachea por proceso el resultado positivo o negativo, con TTL (gap 132: antes la caché era
+    indefinida por proceso — un fallo transitorio de DNS quedaba cacheado en negativo para
+    siempre; ahora expira a los `_DNS_CACHE_TTL_S` segundos). El caso "colgado" también se cachea,
+    con un TTL corto (`_DNS_CACHE_TTL_S_LENTO`), y usa un registro de resoluciones en marcha
+    (`_dns_inflight`, gap 138) para que llamadas concurrentes/consecutivas al mismo host lento se
+    UNAN (`join`) al hilo ya lanzado en vez de acumular un hilo nuevo por cada llamada — sin esto,
+    un bridge que tarda en resolver podía acabar con un hilo colgado por cada `health()`/`verify()`
+    que le llegara mientras tanto."""
+    ahora = time.time()
+    entrada = _dns_cache.get(host)
+    if entrada is not None and entrada[1] > ahora:
+        return entrada[0]
 
-    def _resolver():
-        try:
-            resultado["ip"] = socket.gethostbyname(host)
-        except OSError:
-            resultado["ip"] = None
+    es_propio = False
+    with _dns_inflight_lock:
+        hilo = _dns_inflight.get(host)
+        if hilo is None:
+            resultado = {}
 
-    hilo = threading.Thread(target=_resolver, daemon=True)
-    hilo.start()
+            def _resolver():
+                try:
+                    resultado["ip"] = socket.gethostbyname(host)
+                except OSError:
+                    resultado["ip"] = None
+
+            hilo = threading.Thread(target=_resolver, daemon=True)
+            hilo.resultado = resultado
+            _dns_inflight[host] = hilo
+            es_propio = True
+    if es_propio:
+        hilo.start()
+
     hilo.join(timeout_s)
     if hilo.is_alive():
-        return None  # colgado: no se cachea, se reintentará en la próxima llamada
-    ip = resultado.get("ip")
-    _dns_cache[host] = ip
+        # gap 138: colgado esta vez — se cachea "no resuelto" con TTL corto (no perfora el tope en
+        # llamadas consecutivas inmediatas, pero se reintenta pronto). El hilo sigue en marcha en
+        # `_dns_inflight`: quien lo lanzó lo retirará cuando termine (abajo).
+        _dns_cache[host] = (None, time.time() + _DNS_CACHE_TTL_S_LENTO)
+        return None
+
+    ip = getattr(hilo, "resultado", {}).get("ip")
+    if es_propio:
+        with _dns_inflight_lock:
+            _dns_inflight.pop(host, None)
+    _dns_cache[host] = (ip, time.time() + _DNS_CACHE_TTL_S)
     return ip
 
 
@@ -217,35 +290,71 @@ def _host_permitido(url):
     return bool(ip.is_loopback or ip.is_private)
 
 
-class _RedirectHandlerLocalOnly(urllib.request.HTTPRedirectHandler):
-    """gap 112: revalida CADA salto de una redirección HTTP contra `_host_permitido` antes de
-    seguirlo — el `HTTPRedirectHandler` por defecto de `urllib` sigue redirecciones sin mirar el
-    host destino, así que un bridge local comprometido (o mal configurado) podía usar un `302` para
-    hacer que `health()`/`verify()` hablaran con un host público."""
+class _SinRedireccionAutomatica(urllib.request.HTTPRedirectHandler):
+    """gap 137: NO sigue redirecciones automáticamente (`redirect_request` -> `None` hace que la
+    cadena de manejadores de `urllib` termine propagando el `HTTPError` 30x tal cual, en vez de
+    perseguir el `Location` por su cuenta). `_urlopen_local` las sigue A MANO, con un presupuesto
+    de tiempo TOTAL para toda la cadena en vez de por salto — el `HTTPRedirectHandler` de serie
+    reutiliza el `timeout` original en CADA salto (`OpenerDirector.open()` se lo reasigna al
+    request nuevo en cada `self.parent.open(new, timeout=req.timeout)`), así que antes una cadena
+    de N redirecciones podía tardar hasta N veces `timeout_ms` en vez de, como mucho, una vez."""
 
     def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: N802 — API de urllib
-        if not _host_permitido(newurl):
-            raise _RedireccionNoPermitida(newurl)
-        return super().redirect_request(req, fp, code, msg, headers, newurl)
+        return None
 
 
 def _urlopen_local(url, timeout_s):
-    """`urlopen` con un `opener` que revalida el host en cada redirección (gap 112). Usa un
-    `opener` nuevo por llamada: es barato (sin estado que compartir) y evita cualquier fuga de
-    configuración entre llamadas a `health()`/`verify()` en el mismo proceso."""
-    opener = urllib.request.build_opener(_RedirectHandlerLocalOnly)
-    return opener.open(url, timeout=timeout_s)
+    """Sigue redirecciones a mano (gap 137, ver `_SinRedireccionAutomatica`): revalida CADA salto
+    contra `_host_permitido` ANTES de seguirlo (gap 112 — un bridge local comprometido no puede
+    usar un `302` para hablar con un host público), acota el número de saltos a
+    `_MAX_REDIRECCIONES`, y reparte un presupuesto de tiempo ÚNICO (`timeout_s`) entre toda la
+    cadena: cada hop resta lo que ya ha tardado del tiempo que le queda al siguiente, en vez de
+    heredar `timeout_s` completo en cada salto. Usa un `opener` nuevo por llamada: es barato (sin
+    estado que compartir) y evita cualquier fuga de configuración entre llamadas de
+    `health()`/`verify()` en el mismo proceso."""
+    opener = urllib.request.build_opener(_SinRedireccionAutomatica)
+    deadline = time.time() + timeout_s
+    url_actual = url
+    saltos = 0
+    while True:
+        if not _host_permitido(url_actual):
+            raise _RedireccionNoPermitida(url_actual)
+        restante = deadline - time.time()
+        if restante <= 0:
+            raise TimeoutError(
+                f"tiempo agotado (presupuesto total {timeout_s:.3f}s) siguiendo la cadena de "
+                f"redirecciones hacia `{url_actual}`")
+        try:
+            return opener.open(url_actual, timeout=restante)
+        except urllib.error.HTTPError as e:
+            if e.code not in (301, 302, 303, 307, 308):
+                raise
+            newurl = e.headers.get("Location") if e.headers else None
+            if not newurl:
+                raise
+            saltos += 1
+            if saltos > _MAX_REDIRECCIONES:
+                raise _RedireccionNoPermitida(
+                    urllib.parse.urljoin(url_actual, newurl)) from e
+            url_actual = urllib.parse.urljoin(url_actual, newurl)
 
 
 def _export_dir_resuelto(cfg):
-    """Resuelve `export_dir` contra `cfg["_root"]` (gap 88: nunca CWD) y valida que no sea el
-    propio root ni un subdirectorio de `docs/knowledge/approved/` (gap 102: no se pisa la fuente
-    canónica). `knowledge-sync.py`/`doctor.py` deben inyectar `_root` en el `cfg` del adaptador.
+    """Resuelve `export_dir` contra `cfg["_root"]` (gap 88: nunca CWD) y valida la contención
+    BIDIRECCIONAL con `docs/knowledge/` y con el root del proyecto (gap 127, fix3): antes solo se
+    comprobaba que `export_dir` no quedara DENTRO de `docs/knowledge/approved/` y que no fuera el
+    root exacto — `export_dir: "docs"` (que CONTIENE `docs/knowledge/`) o `export_dir: ".."` (un
+    ANCESTRO del root) pasaban esa comprobación sin problema, y con la publicación por fichero
+    (gap 126) un `apply()`/`rebuild()` sobre esa config podía escribir/borrar fuera del árbol que
+    el adaptador tiene permiso de tocar. Ahora se rechazan las CUATRO formas de solape:
+    `export_dir` == root, `export_dir` ANCESTRO del root, `export_dir` DENTRO de
+    `docs/knowledge/`, `export_dir` CONTIENE `docs/knowledge/`. `knowledge-sync.py`/`doctor.py`
+    deben inyectar `_root` en el `cfg` del adaptador.
 
     Gap 121: la contención usa `os.path.realpath` (no solo `abspath`, que no sigue symlinks ni
     junctions) y compara con `os.path.normcase` (en Windows, insensible a mayúsculas): sin esto,
-    un junction/symlink que apuntara a `approved/`, o una ruta con mayúsculas distintas, evadía la
-    comprobación."""
+    un junction/symlink que apuntara a `docs/knowledge/`, o una ruta con mayúsculas distintas,
+    evadía la comprobación."""
     export_dir = (cfg or {}).get("export_dir")
     if not export_dir:
         raise ConfigInvalida("falta `export_dir` en la config del backend")
@@ -253,16 +362,26 @@ def _export_dir_resuelto(cfg):
     root_abs = os.path.realpath(root)
     resuelto = export_dir if os.path.isabs(export_dir) else os.path.join(root_abs, export_dir)
     resuelto_real = os.path.realpath(resuelto)
-    if os.path.normcase(resuelto_real) == os.path.normcase(root_abs):
+    sep_nc = os.path.normcase(os.sep)
+    resuelto_nc = os.path.normcase(resuelto_real)
+    root_nc = os.path.normcase(root_abs)
+    if resuelto_nc == root_nc:
         raise ConfigInvalida(
             f"`export_dir` (`{export_dir}`) no puede ser la raíz del proyecto (`{root_abs}`)")
-    approved_real = os.path.realpath(os.path.join(root_abs, "docs", "knowledge", "approved"))
-    approved_nc = os.path.normcase(approved_real)
-    resuelto_nc = os.path.normcase(resuelto_real)
-    if resuelto_nc == approved_nc or resuelto_nc.startswith(approved_nc + os.path.normcase(os.sep)):
+    if root_nc.startswith(resuelto_nc + sep_nc):
+        raise ConfigInvalida(
+            f"`export_dir` (`{export_dir}`) no puede ser un ANCESTRO de la raíz del proyecto "
+            f"(`{root_abs}` quedaría dentro de `{resuelto_real}`)")
+    conocimiento_real = os.path.realpath(os.path.join(root_abs, "docs", "knowledge"))
+    conocimiento_nc = os.path.normcase(conocimiento_real)
+    if resuelto_nc == conocimiento_nc or resuelto_nc.startswith(conocimiento_nc + sep_nc):
         raise ConfigInvalida(
             f"`export_dir` (`{export_dir}`) no puede quedar dentro de "
-            "`docs/knowledge/approved/` (pisaría la fuente canónica)")
+            "`docs/knowledge/` (pisaría la fuente canónica)")
+    if conocimiento_nc == resuelto_nc or conocimiento_nc.startswith(resuelto_nc + sep_nc):
+        raise ConfigInvalida(
+            f"`export_dir` (`{export_dir}`) no puede CONTENER `docs/knowledge/` "
+            f"(`{conocimiento_real}` quedaría dentro de `{resuelto_real}`)")
     return resuelto_real
 
 
@@ -316,24 +435,74 @@ def _render_markdown(op):
     return frontmatter + op["cuerpo"].rstrip() + "\n", hash_
 
 
-def _leer_manifest(export_dir):
-    ruta = os.path.join(export_dir, MANIFEST_NOMBRE)
+def _hash_publicado_en(ruta):
+    """Lee el `hash: ...` del frontmatter YA ESCRITO en disco (gap 126/136, fix3): decidir
+    `sin_cambios` comparando solo el hash GUARDADO en el manifiesto/pending contra el hash
+    recién calculado no basta cuando el objetivo viene de `manifest.pending.json` — ese fichero
+    describe lo que `apply()` PRETENDÍA dejar publicado, no necesariamente lo que ya está en disco
+    (una entrada puede figurar en el pending con su hash NUEVO sin que el `os.replace` que la
+    publica haya llegado a ejecutarse todavía). Comparar el hash calculado contra el que el propio
+    FICHERO dice tener (su frontmatter) es la única forma fiable de saber si ese fichero concreto
+    ya refleja ese contenido, venga el objetivo de `manifest.json` o de una publicación
+    interrumpida. `None` si el fichero no existe, no es legible, o no trae la línea (fichero
+    ajeno/corrupto) — nunca lanza."""
+    try:
+        with open(ruta, "r", encoding="utf-8") as fh:
+            for _ in range(15):  # el frontmatter de `_render_markdown` cabe en ~10 líneas
+                linea = fh.readline()
+                if not linea:
+                    break
+                if linea.startswith("hash: "):
+                    return linea[len("hash: "):].strip()
+    except OSError:
+        return None
+    return None
+
+
+def _leer_manifest_json(ruta):
+    """Lee un fichero de manifiesto (nombre indistinto: `manifest.json` o
+    `manifest.pending.json`) desde una ruta concreta. `None` si no existe o es ilegible/inválido
+    (nunca lanza: un manifiesto corrupto se trata como ausente, no como error fatal)."""
     if not os.path.isfile(ruta):
-        return {"version": MANIFEST_VERSION, "entries": {}}
+        return None
     try:
         with open(ruta, "r", encoding="utf-8-sig") as f:
             datos = json.load(f)
     except (OSError, ValueError):
-        return {"version": MANIFEST_VERSION, "entries": {}}
+        return None
     if not isinstance(datos, dict) or not isinstance(datos.get("entries"), dict):
-        return {"version": MANIFEST_VERSION, "entries": {}}
+        return None
     return datos
 
 
-def _escribir_manifest_en(destino_dir, manifest):
-    ruta = os.path.join(destino_dir, MANIFEST_NOMBRE)
-    with open(ruta, "w", encoding="utf-8") as fh:
-        fh.write(json.dumps(manifest, ensure_ascii=False, indent=2))
+def _leer_manifest(export_dir):
+    """`manifest.json` PUBLICADO; `{"version": ..., "entries": {}}` si no existe o es inválido."""
+    return _leer_manifest_json(os.path.join(export_dir, MANIFEST_NOMBRE)) or \
+        {"version": MANIFEST_VERSION, "entries": {}}
+
+
+def _leer_pending(export_dir):
+    """gap 126/136 (fix3): `manifest.pending.json` de una publicación interrumpida, o `None` si no
+    hay ninguna en curso. `plan()`/`apply()`/`revoke()` lo usan como manifiesto OBJETIVO cuando
+    existe (en vez del `manifest.json` ya publicado) para retomar exactamente donde se quedó."""
+    return _leer_manifest_json(os.path.join(export_dir, MANIFEST_PENDING_NOMBRE))
+
+
+def _escribir_manifest_atomico(ruta, manifest):
+    """tmp + `os.replace` en el MISMO directorio (atómico a nivel de SO, gap 126): un fallo
+    escribiendo el contenido (disco lleno, permisos, proceso matado a mitad) nunca deja un
+    `manifest.pending.json`/`manifest.json` a medias legible como JSON roto — o se escribe
+    entero, o no se toca nada de lo que había antes en `ruta`."""
+    directorio = os.path.dirname(ruta) or "."
+    fd, tmp = tempfile.mkstemp(prefix=".tmp-manifest-", dir=directorio)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(json.dumps(manifest, ensure_ascii=False, indent=2))
+        os.replace(tmp, ruta)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            os.remove(tmp)
+        raise
 
 
 class _LockDirectorio:
@@ -430,19 +599,27 @@ def _cuerpo_json_o_none(http_error):
 
 
 def plan(entries, cfg, force=False):
-    """Idempotente: mismas `entries` -> mismo `ops`. Compara contra `manifest.json` en
+    """Idempotente: mismas `entries` -> mismo `ops`. Compara contra el manifiesto OBJETIVO en
     `export_dir` para calcular los `revoke` de entradas que ya no están en `entries` (salieron de
-    `approved/` o dejaron de enrutar a este backend).
+    `approved/` o dejaron de enrutar a este backend). Gap 126/136 (fix3): si hay una publicación
+    interrumpida (`manifest.pending.json`), se usa ESE como objetivo en vez de `manifest.json` —
+    así una corrida que retoma tras un corte compara contra lo que se PRETENDÍA publicar, no
+    contra el estado (parcial) que quedó en disco, y completa exactamente lo que falta.
 
     Gap 93: si el hash calculado ya coincide con el del manifiesto, la operación es `sin_cambios`
-    (no reescribe lo que no cambió). Gap 109: además del hash, se exige que el fichero publicado
-    siga existiendo — si se borró a mano (indexador, antivirus, limpieza), la operación vuelve a
-    ser `upsert` aunque el hash no haya cambiado, en vez de un `sin_cambios` que nunca regenera
-    nada. `force=True` (usado por `rebuild()`) ignora el manifiesto por completo: TODO es `upsert`,
-    para reconstruir la proyección entera desde cero. Gap 125: los `sin_cambios` no llevan
-    `cuerpo` — `apply()` no lo necesita para mover un fichero tal cual."""
+    (no reescribe lo que no cambió). Gap 109/126 (fix3): además del hash declarado en el
+    manifiesto, se comprueba el hash EMBEBIDO EN EL FICHERO en disco (`_hash_publicado_en`) — no
+    solo que exista. Sin esto, un objetivo tomado de `manifest.pending.json` (que puede listar el
+    hash NUEVO de un `upsert` que aún no llegó a publicarse) haría pasar por `sin_cambios` un
+    fichero que en realidad sigue con el contenido VIEJO; comparando contra el hash que el propio
+    fichero dice tener en su frontmatter, esa entrada vuelve a ser `upsert` hasta que de verdad se
+    publique. `force=True` (usado por `rebuild()`) ignora cualquier pendiente y usa `manifest.json`
+    publicado, con TODO como `upsert`, para reconstruir la proyección entera desde cero. Gap 125:
+    los `sin_cambios` no llevan `cuerpo` — `apply()` no lo necesita para un fichero que no se
+    toca."""
     export_dir = _export_dir_resuelto(cfg)
-    manifest = _leer_manifest(export_dir)
+    pending = None if force else _leer_pending(export_dir)
+    manifest = pending if pending is not None else _leer_manifest(export_dir)
     ids_actuales = {e["id"] for e in entries}
     ops = []
     for e in entries:
@@ -452,8 +629,8 @@ def plan(entries, cfg, force=False):
         hash_ = _hash_contenido(e["id"], version, category, cuerpo)
         entrada_previa = manifest["entries"].get(e["id"])
         ruta_relativa_previa = (entrada_previa or {}).get("ruta_relativa")
-        publicado_existe = bool(ruta_relativa_previa) and os.path.isfile(
-            os.path.join(export_dir, ruta_relativa_previa))
+        publicado_existe = bool(ruta_relativa_previa) and _hash_publicado_en(
+            os.path.join(export_dir, ruta_relativa_previa)) == (entrada_previa or {}).get("hash")
         sin_cambios = (not force) and bool(entrada_previa) and \
             entrada_previa.get("hash") == hash_ and publicado_existe
         op = {
@@ -476,28 +653,15 @@ def plan(entries, cfg, force=False):
     return ops
 
 
-def _sibling(export_dir, sufijo):
-    return export_dir.rstrip(os.sep) + sufijo
-
-
-def _reparar_publicacion(export_dir):
-    """gap 82/115: al arrancar `apply()` (ya bajo el lock), repone/purga cualquier resto de una
-    corrida interrumpida (`SIGKILL` entre los dos renames, o antes de llegar a ellos):
-      - `<export_dir>.prev` presente y `export_dir` AUSENTE: el primer rename (export_dir ->
-        .prev) se completó pero el segundo (staging -> export_dir) nunca llegó a ejecutarse (o el
-        propio staging se perdió) — se repone `.prev` a `export_dir` para no dejar el proyecto sin
-        publicación.
-      - `<export_dir>.prev` presente y `export_dir` TAMBIÉN presente: el intercambio se completó
-        de verdad, solo faltó borrar `.prev` — se borra sin más.
-      - `<export_dir>.staging-*` más viejo que `_STAGING_TTL_S`: staging de una corrida que murió
-        antes de llegar a los renames — se purga (el `export_dir` de entonces, si existía, sigue
-        intacto porque el intercambio nunca empezó)."""
-    prev_dir = _sibling(export_dir, _PREV_SUFIJO)
-    if os.path.isdir(prev_dir):
-        if not os.path.isdir(export_dir):
-            os.replace(prev_dir, export_dir)
-        else:
-            _borrar_arbol(prev_dir)
+def _purgar_staging_huerfano(export_dir):
+    """gap 82/115/126 (fix3): al arrancar `apply()` (ya bajo el lock), purga cualquier
+    `.staging-*` HERMANO de una corrida interrumpida (`SIGKILL` entre crear el staging y publicar)
+    más viejo que `_STAGING_TTL_S`. Ya no hay `.prev` que reparar: la publicación por fichero
+    (ver docstring del módulo) nunca intercambia el directorio entero, así que un corte a medias
+    solo puede dejar (a) un staging HERMANO con `upsert` sin publicar — inofensivo, se reconstruye
+    desde `entries` en la próxima corrida, esta función solo limpia el directorio sobrante — o
+    (b) un `manifest.pending.json` DENTRO de `export_dir`, que `plan()`/`verify()` ya saben leer y
+    que esta función NUNCA toca (es la prueba de qué falta publicar, no basura)."""
     padre = os.path.dirname(export_dir) or "."
     base = os.path.basename(export_dir)
     try:
@@ -517,104 +681,115 @@ def _reparar_publicacion(export_dir):
             _borrar_arbol(ruta)
 
 
+def _manifest_objetivo_de(ops):
+    """El manifiesto que `apply()` PRETENDE dejar publicado al terminar `ops` (se escribe como
+    `manifest.pending.json` ANTES de tocar ningún fichero — gap 126/136). Usa el `hash` que
+    `plan()` ya calculó para cada op (upsert y sin_cambios lo llevan siempre); los `revoke` no
+    aportan entrada."""
+    entries = {}
+    for op in ops:
+        accion = op["accion"]
+        if accion == "revoke":
+            continue
+        ruta_relativa = op.get("ruta_relativa") or _slug_fichero(op["knowledge_id"])
+        entries[op["knowledge_id"]] = {
+            "ruta_relativa": ruta_relativa, "hash": op.get("hash"),
+            "version": op.get("version"), "category": op.get("category"),
+        }
+    return {"version": MANIFEST_VERSION, "entries": entries}
+
+
 def apply(ops, cfg):
-    """Publica por INTERCAMBIO DE DIRECTORIO (gap 82/109/115/118/123): construye el árbol completo
-    en un staging HERMANO de `export_dir` (fuera del árbol que Kwipu indexa), y solo al final lo
-    intercambia por `export_dir` con dos `os.replace` de directorio. Un fallo mientras se construye
-    el staging no toca `export_dir` para nada — se borra el staging y se relanza la excepción. Un
-    lock hermano (`<export_dir>.lock`) serializa `apply()`/`revoke()` concurrentes."""
+    """Publica FICHERO A FICHERO con un diario (gap 82/109/115/118/123/126/127/136, ver docstring
+    del módulo): renderiza los `upsert` en un staging HERMANO de `export_dir` (los `sin_cambios`
+    NUNCA se tocan), escribe `manifest.pending.json` con el objetivo ANTES de publicar nada, y
+    publica cada fichero con UN `os.replace` (nunca el árbol entero). Un fallo antes de escribir
+    el pending no toca `export_dir` para nada. Un fallo publicando a mitad deja lo ya publicado
+    intacto y el `manifest.pending.json` en disco para que la SIGUIENTE corrida complete el resto
+    (`plan()` lo usa como objetivo). Un lock hermano (`<export_dir>.lock`) serializa
+    `apply()`/`revoke()` concurrentes."""
     export_dir = _export_dir_resuelto(cfg)
     with _LockDirectorio(_lock_path(export_dir)):
-        _reparar_publicacion(export_dir)
-        manifest_previo = _leer_manifest(export_dir)
+        os.makedirs(export_dir, exist_ok=True)
+        _purgar_staging_huerfano(export_dir)
+        pending_previo = _leer_pending(export_dir)
+        manifest_previo_efectivo = pending_previo if pending_previo is not None \
+            else _leer_manifest(export_dir)
+        manifest_objetivo = _manifest_objetivo_de(ops)
         staging_dir = f"{export_dir}{_STAGING_PREFIJO}{os.getpid()}"
         if os.path.isdir(staging_dir):
             _borrar_arbol(staging_dir)  # pid reutilizado de una corrida anterior: empezar limpio
         os.makedirs(staging_dir, exist_ok=True)
-        manifest = {"version": MANIFEST_VERSION, "entries": {}}
         escritos = sin_cambios = revocados = 0
+        rutas_upsert = []
         try:
             for op in ops:
-                if op["accion"] == "upsert":
-                    contenido, hash_ = _render_markdown(op)
+                accion = op["accion"]
+                if accion == "upsert":
+                    contenido, _hash = _render_markdown(op)
                     ruta_relativa = _slug_fichero(op["knowledge_id"])
-                    destino = os.path.join(staging_dir, ruta_relativa)
-                    os.makedirs(os.path.dirname(destino) or staging_dir, exist_ok=True)
-                    with open(destino, "w", encoding="utf-8") as fh:
+                    tmp = os.path.join(staging_dir, ruta_relativa)
+                    os.makedirs(os.path.dirname(tmp) or staging_dir, exist_ok=True)
+                    with open(tmp, "w", encoding="utf-8") as fh:
                         fh.write(contenido)
-                    manifest["entries"][op["knowledge_id"]] = {
-                        "ruta_relativa": ruta_relativa, "hash": hash_,
-                        "version": op.get("version"), "category": op.get("category"),
-                    }
+                    rutas_upsert.append(ruta_relativa)
                     escritos += 1
-                elif op["accion"] == "sin_cambios":
-                    ruta_relativa = op.get("ruta_relativa") or _slug_fichero(op["knowledge_id"])
-                    origen = os.path.join(export_dir, ruta_relativa)
-                    destino = os.path.join(staging_dir, ruta_relativa)
-                    os.makedirs(os.path.dirname(destino) or staging_dir, exist_ok=True)
-                    if os.path.isfile(origen):
-                        os.replace(origen, destino)  # mueve, mtime intacto — nunca reescribe
-                    else:
-                        # Carrera rara (el fichero desapareció entre `plan()` y `apply()`, algo
-                        # que `plan()` ya no debería dejar pasar en el camino normal): se
-                        # reconstruye a partir del manifiesto previo con lo que se conozca, en
-                        # vez de perder la entrada en silencio.
-                        entrada_previa = manifest_previo["entries"].get(op["knowledge_id"]) or {}
-                        raise ConfigInvalida(
-                            f"`{origen}` se esperaba `sin_cambios` pero ya no existe "
-                            f"(hash previo `{entrada_previa.get('hash', '?')}`); repite `plan()` "
-                            "y `apply()` — posible carrera con un borrado externo")
-                    manifest["entries"][op["knowledge_id"]] = {
-                        "ruta_relativa": ruta_relativa, "hash": op.get("hash"),
-                        "version": op.get("version"), "category": op.get("category"),
-                    }
-                    sin_cambios += 1
-                elif op["accion"] == "revoke":
-                    revocados += 1  # gap: revoke = NO mover el fichero al staging; muere solo
-            manifest["version"] = MANIFEST_VERSION
-            _escribir_manifest_en(staging_dir, manifest)
+                elif accion == "sin_cambios":
+                    sin_cambios += 1  # nunca se toca (diseño sustitutivo, gap 118/136)
+                elif accion == "revoke":
+                    revocados += 1
+            pending_path = os.path.join(export_dir, MANIFEST_PENDING_NOMBRE)
+            _escribir_manifest_atomico(pending_path, manifest_objetivo)
         except BaseException:
             _borrar_arbol(staging_dir)
             raise
-        _publicar_intercambio(export_dir, staging_dir)
+        try:
+            _publicar_por_fichero(
+                staging_dir, export_dir, rutas_upsert,
+                [op["knowledge_id"] for op in ops if op["accion"] == "revoke"],
+                manifest_previo_efectivo)
+        finally:
+            _borrar_arbol(staging_dir)
         return {
             "escritos": escritos, "sin_cambios": sin_cambios, "revocados": revocados,
             "export_dir": export_dir,
         }
 
 
-def _publicar_intercambio(export_dir, staging_dir):
-    """Los dos `os.replace` de directorio que materializan la publicación (gap 82): si
-    `export_dir` ya existe, se aparta a `.prev` primero (un `rename` no puede pisar un directorio
-    NO VACÍO en POSIX/Windows) y se borra al final; si el segundo rename fallara, se repone `.prev`
-    para no dejar el proyecto sin publicación. Si el filesystem no admite el rename de un
-    directorio en este punto (p. ej. Windows con un handle abierto dentro por un indexador
-    externo), se propaga como `ConfigInvalida` con el motivo real — no hay forma segura de
-    reintentar automáticamente sin saber qué lo tiene abierto (documentado en el módulo)."""
-    prev_dir = _sibling(export_dir, _PREV_SUFIJO)
-    habia_previo = os.path.isdir(export_dir)
-    if habia_previo:
+def _publicar_por_fichero(staging_dir, export_dir, rutas_upsert, ids_a_revocar,
+                           manifest_previo_efectivo):
+    """El paso (4)-(5) del diario (ver docstring del módulo): publica cada `upsert` con UN
+    `os.replace` fichero-a-fichero, ejecuta los `revoke` (best-effort — un fichero ya borrado a
+    mano no es un error), y renombra `manifest.pending.json` -> `manifest.json`. Si un `os.replace`
+    de un `upsert` falla a mitad (p. ej. el indexador tiene el `.md` abierto en Windows), los
+    ficheros ya publicados quedan intactos y `manifest.pending.json` se conserva sin renombrar:
+    la SIGUIENTE corrida lo lee en `plan()` y reintenta solo lo que falta — no hace falta repetir
+    dentro de esta misma llamada (gap 126/127: nunca se pierde ni se toca nada ajeno)."""
+    for ruta_relativa in rutas_upsert:
+        origen = os.path.join(staging_dir, ruta_relativa)
+        destino = os.path.join(export_dir, ruta_relativa)
         try:
-            os.replace(export_dir, prev_dir)
+            os.replace(origen, destino)
         except OSError as e:
-            _borrar_arbol(staging_dir)
             raise ConfigInvalida(
-                f"no se pudo apartar la publicación anterior (`{export_dir}` -> `{prev_dir}`): "
-                f"{type(e).__name__}: {e} (publicación anterior intacta; staging descartado)") from e
+                f"no se pudo publicar `{ruta_relativa}` (`{origen}` -> `{destino}`): "
+                f"{type(e).__name__}: {e}; `manifest.pending.json` queda en `{export_dir}` para "
+                "completar la publicación en la próxima corrida (nada más se ha perdido)") from e
+    for knowledge_id in ids_a_revocar:
+        entrada = manifest_previo_efectivo["entries"].get(knowledge_id)
+        if not entrada:
+            continue
+        ruta = os.path.join(export_dir, entrada.get("ruta_relativa") or "")
+        with contextlib.suppress(OSError):
+            os.remove(ruta)
+    pending_path = os.path.join(export_dir, MANIFEST_PENDING_NOMBRE)
+    manifest_path = os.path.join(export_dir, MANIFEST_NOMBRE)
     try:
-        os.replace(staging_dir, export_dir)
+        os.replace(pending_path, manifest_path)
     except OSError as e:
-        if habia_previo:
-            try:
-                os.replace(prev_dir, export_dir)
-            except OSError:
-                pass  # no se pudo ni siquiera reponer: la próxima `apply()` lo repara (`_reparar_publicacion`)
-        _borrar_arbol(staging_dir)
         raise ConfigInvalida(
-            f"no se pudo publicar el staging (`{staging_dir}` -> `{export_dir}`): "
-            f"{type(e).__name__}: {e} (publicación anterior repuesta si fue posible)") from e
-    if habia_previo:
-        _borrar_arbol(prev_dir)
+            f"no se pudo finalizar la publicación (`{pending_path}` -> `{manifest_path}`): "
+            f"{type(e).__name__}: {e}; `manifest.pending.json` queda para reintentar") from e
 
 
 def _borrar_arbol(ruta):
@@ -637,32 +812,44 @@ def _borrar_arbol(ruta):
 
 def rebuild(entries, cfg):
     """Reconstruye la proyección ENTERA desde `entries` (gap 109): `plan(..., force=True)` marca
-    TODO como `upsert` (ignora el manifiesto), y como `apply()` construye el staging desde cero
-    solo con lo que hay en `ops`, cualquier fichero huérfano del `export_dir` anterior (borrado de
-    `entries`, o nunca reflejado en el manifiesto) simplemente no se copia al staging nuevo — mismo
-    resultado que borrar la publicación y repetir `plan()`+`apply()`, sin pasar por ese borrado
-    manual (T-07, desviación documentada de la firma de `design.md`: `rebuild` recibe `entries`,
-    no solo `cfg`)."""
+    TODO como `upsert` contra el `manifest.json` publicado (ignora cualquier pendiente), y
+    `apply()` publica cada `upsert` fichero a fichero y ejecuta los `revoke` de lo que ya no esté
+    en `entries` — mismo resultado que borrar la publicación y repetir `plan()`+`apply()`, sin
+    pasar por ese borrado manual (T-07, desviación documentada de la firma de `design.md`:
+    `rebuild` recibe `entries`, no solo `cfg`)."""
     ops = plan(entries, cfg, force=True)
     return apply(ops, cfg)
 
 
 def revoke(knowledge_id, cfg):
-    """No-op declarado si `knowledge_id` no está publicado (nunca lanza). Ruta directa (no pasa
-    por el intercambio de directorio completo: es UN fichero), pero sigue serializada con el mismo
-    lock hermano que `apply()` para no pisarse con una publicación en curso."""
+    """No-op declarado si `knowledge_id` no está publicado (nunca lanza). Usa el mismo diario que
+    `apply()` (gap 126/127, fix3: pending -> borra el fichero -> `manifest.json`), y la misma
+    lectura pending-o-manifest para saber cuál es el estado objetivo actual; serializada con el
+    mismo lock hermano que `apply()` para no pisarse con una publicación en curso."""
     export_dir = _export_dir_resuelto(cfg)
     with _LockDirectorio(_lock_path(export_dir)):
-        manifest = _leer_manifest(export_dir)
-        entrada = manifest["entries"].pop(knowledge_id, None)
+        os.makedirs(export_dir, exist_ok=True)
+        pending_previo = _leer_pending(export_dir)
+        manifest_actual = pending_previo if pending_previo is not None else _leer_manifest(export_dir)
+        entrada = manifest_actual["entries"].get(knowledge_id)
         if entrada is None:
             return {"revocado": False, "knowledge_id": knowledge_id}
-        ruta = os.path.join(export_dir, entrada["ruta_relativa"])
-        try:
+        objetivo = {
+            "version": MANIFEST_VERSION,
+            "entries": {k: v for k, v in manifest_actual["entries"].items() if k != knowledge_id},
+        }
+        pending_path = os.path.join(export_dir, MANIFEST_PENDING_NOMBRE)
+        manifest_path = os.path.join(export_dir, MANIFEST_NOMBRE)
+        _escribir_manifest_atomico(pending_path, objetivo)
+        ruta = os.path.join(export_dir, entrada.get("ruta_relativa") or "")
+        with contextlib.suppress(OSError):
             os.remove(ruta)
-        except OSError:
-            pass
-        _escribir_manifest_en(export_dir, manifest)
+        try:
+            os.replace(pending_path, manifest_path)
+        except OSError as e:
+            raise ConfigInvalida(
+                f"no se pudo finalizar la revocación (`{pending_path}` -> `{manifest_path}`): "
+                f"{type(e).__name__}: {e}; `manifest.pending.json` queda para reintentar") from e
         return {"revocado": True, "knowledge_id": knowledge_id}
 
 
@@ -688,8 +875,16 @@ def verify(cfg):
     que se declara `ok: False` con `razon: "nunca_sincronizado"` (doctor.py lo muestra como aviso,
     no como desfase real). Gap 101: si el snapshot trae `hash` por nodo, se compara también el
     contenido, no solo el nombre; si no lo trae, se declara `comparacion: "nombre"`. Gap 112: la
-    petición al snapshot revalida el host de cualquier redirección antes de seguirla."""
+    petición al snapshot revalida el host de cualquier redirección antes de seguirla. Gap 126/136
+    (fix3): un `manifest.pending.json` presente significa una publicación interrumpida a medio
+    completar — se declara ANTES que cualquier otra comprobación (`razon: "publicacion_incompleta"`
+    en vez de comparar contra un `manifest.json` que ya sabemos que no refleja el objetivo)."""
     export_dir = _export_dir_resuelto(cfg)
+    if _leer_pending(export_dir) is not None:
+        return {"ok": False, "desfase": [], "razon": "publicacion_incompleta",
+                "detalle": "hay una publicación interrumpida (`manifest.pending.json` en "
+                           f"`{export_dir}`); repite la sincronización (`plan()`+`apply()`, o la "
+                           "publicación normal) para completarla"}
     manifest = _leer_manifest(export_dir)
     if not manifest["entries"]:
         return {"ok": False, "desfase": [], "razon": "nunca_sincronizado",
