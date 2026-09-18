@@ -72,8 +72,9 @@ desktop.ini
 **/.claude/knowledge-index.sqlite.*
 # Exportaciones de backends declarados en taxonomy.json (knowledge-services, ADR-018): SIEMPRE
 # reconstruibles desde docs/knowledge/approved/ (fuente de verdad); nunca versionar el derivado.
-.claude/knowledge-services/kwipu-export/
-.claude/knowledge-services/*-export/
+# `**/`: también en proyectos anidados (p. ej. el fixture de evals con su propio `.claude/`).
+**/.claude/knowledge-services/kwipu-export/
+**/.claude/knowledge-services/*-export/
 
 # Papelera local (device_bash no puede borrar): nunca versionar
 _to_delete/

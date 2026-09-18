@@ -215,8 +215,14 @@ have to be re-discovered", generalizing the bookend pattern from `agents/nemesis
 - **Where it lives.** `docs/knowledge/adr/ADR-NNN-<slug>.md` (one per decision, template
   `agent-kits/shared/templates/adr.md`), `docs/knowledge/gotchas/GOT-NNN-<slug>.md` (one per
   entry) and `docs/knowledge/lessons/LES-NNN-<agent>-<slug>.md` (one per entry, grouped by agent
-  in the filename),
-  with an **entry-point** index `README.md` (the generated index + `knowledge-lint.py` remain
+  in the filename). Alongside that legacy corpus (ADR/GOT/LES, manually indexed), `knowledge-
+  services` (ADR-018) adds `docs/knowledge/candidates/{pending,needs_changes,rejected}/` (curation
+  queue, proposed by `documenter`/`knowledge-curator`) and `docs/knowledge/approved/<folder>/`
+  (one folder per `categories[].folder` in `.claude/knowledge-services/taxonomy.json`, or the
+  plugin's default template): that tree is indexed by `agent-kits/shared/knowledge-index.py`
+  (deterministic index over the configured taxonomy), distinct from the manual ADR/GOT/LES index
+  below — never mixed together.
+  With an **entry-point** index `README.md` (the generated index + `knowledge-lint.py` remain
   deferred until there is evidence they are needed: more than 15 entries, or the first ID
   collision in any of the three families, in a parallel batch). One file per entry across all
   three types removes the FILE collision risk in parallel writes; the `id:` collision risk
