@@ -22,9 +22,9 @@ verificacion: obligatoria
 |---|---:|---:|---:|---:|---:|---:|---:|
 | Fase 1 - Contrato y validacion | 3 | 3 | 100% | 0 / 13h | 1.20 / 3.9h | 0 / 1.0h | ~57k / 200k |
 | Fase 2 - Curacion y workflow | 3 | 3 | 100% | 0 / 14h | 1.23 / 4.2h | 0 / 1.1h | ~25k / 210k |
-| Fase 3 - Backends y Kwipu | 1 | 4 | 25% | 0 / 19h | 0.45 / 5.7h | 0 / 1.4h | ~16k / 275k |
+| Fase 3 - Backends y Kwipu | 2 | 4 | 50% | 0 / 19h | 0.63 / 5.7h | 0 / 1.4h | ~42k / 275k |
 | Fase 4 - Regresion y cierre | 0 | 3 | 0% | 0 / 10h | 0 / 3.0h | 0 / 0.7h | 0 / 130k |
-| **TOTAL** | **7** | **13** | **54%** | **0 / 56h** | **2.88 / 16.8h** | **0 / 4.2h** | **~98k / 815k** |
+| **TOTAL** | **8** | **13** | **62%** | **0 / 56h** | **3.06 / 16.8h** | **0 / 4.2h** | **~124k / 815k** |
 
 > **Nota (gap 18, revision de dos lentes intento 1):** las horas-IA de las rondas `-fix1`/`-fix2`/`-fix3` corresponden a sesiones de correccion COMPARTIDAS entre varias tareas (una sola ventana de `usage-meter` cubriendo T-01/T-02/T-03/T-13 en fix1/fix2, y T-01/T-02/T-13 en fix3); se reparten a partes iguales entre las tareas que tocaron en esa ventana (ver nota de cada tarea) en vez de contarse enteras en cada una, para no inflar el TOTAL.
 
@@ -265,17 +265,25 @@ evals/check: 39 ficheros · 140 casos (84 positivos, 56 negativos) · 39 piezas 
 ## Fase 3 - Kwipu
 
 ### T-07 - `knowledge-sync.py`, contrato de adaptador y adaptador `test`
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo humano**: est. 7h · real -
+- **Tiempo IA**: real 0.18h (medido; usage-meter)
 - **Prevision IA**: 70k in / 30k out tok
 - **Dependencias**: T-02, T-03, `session-end-durable-capture` T-01 (`outbox.py`)
 - **Tipo**: backend
-- **Archivos**: `skills/knowledge-services/scripts/knowledge-sync.py`, `skills/knowledge-services/backends/__init__.py`, `skills/knowledge-services/backends/README.md`, `skills/knowledge-services/scripts/test_knowledge_sync.py`, `evals/fixtures/knowledge-services/backend_test.py`, `.gitignore`
+- **Archivos**: `skills/knowledge-services/scripts/knowledge-sync.py`, `skills/knowledge-services/backends/__init__.py`, `skills/knowledge-services/backends/README.md`, `skills/knowledge-services/scripts/test_knowledge_sync.py`, `evals/fixtures/knowledge-services/backend_test.py`, `tests/test_console_encoding.py`, `.gitignore`
 - **Verificacion**: `python -m pytest -q skills/knowledge-services/scripts/test_knowledge_sync.py` -> `routing` aplicado ANTES de `plan`; `--dry-run`/`--check`/`--rebuild`; staging y dead-letter via `outbox.py`; el adaptador `type: "test"` de la fixture recibe exactamente las entradas enrutadas sin tocar el nucleo (CA-12, CA-15)
+  - Salida real: `14 passed in 0.69s`.
+  - RED: la misma suite contra un `knowledge-sync.py` stub (`def main(argv=None): return 0`) fallo con `14 failed in 1.12s` (JSONDecodeError al parsear un stdout vacio, y asserts de exit code `0 == 2`/`0 == 1`) · 2026-09-18. Tras implementar el CLI real: `14 passed in 0.69s` (GREEN).
+  - Ademas: `python -m pytest -q tests/test_console_encoding.py` -> `369 passed in 86.91s` (snippet de consola + `MODOS` de `knowledge-sync.py` y `backends/__init__.py` al dia); `python scripts/lint_plugin.py` -> solo el `❌` preexistente de LES-016; `python evals/check.py` -> `0 errores` (sin cambios, la skill nace en T-08).
 **Criterios de aceptación**
-- [ ] Solo approved valido; reejecucion idempotente; un error no borra la publicacion anterior.
-- [ ] El contrato (`health · plan · apply · verify · rebuild · revoke`) esta documentado y un adaptador incompleto falla al cargar con mensaje claro.
-- [ ] Una categoria con `routing.<id>: false` nunca llega al adaptador; `"summary"` entrega solo el resumen declarado.
+- [x] Solo approved valido; reejecucion idempotente; un error no borra la publicacion anterior.
+- [x] El contrato (`health · plan · apply · verify · rebuild · revoke`) esta documentado y un adaptador incompleto falla al cargar con mensaje claro.
+- [x] Una categoria con `routing.<id>: false` nunca llega al adaptador; `"summary"` entrega solo el resumen declarado.
+- **Changelog**: Nuevo motor interno `knowledge-sync` que publica el conocimiento aprobado del proyecto a servicios externos configurables, respetando siempre las reglas de enrutado por categoría.
+- **Nota (desviacion documentada del contrato de `design.md`)**: `rebuild(cfg)` de la tabla del diseno paso a `rebuild(entries, cfg)`: reconstruir exige saber que deberia existir, y el enrutado sigue siendo responsabilidad exclusiva del nucleo (nunca del adaptador). Ver `skills/knowledge-services/backends/README.md`.
+- **Nota (convencion de nombre de fichero del adaptador)**: `type` -> `<type>.py` para los adaptadores reales (p. ej. `markdown_export.py`, T-08) y `type` -> `backend_<type>.py` como alternativa (usada por la fixture `backend_test.py`, CA-12) para que un `type` corto de test no choque de nombre con un futuro adaptador real. Ninguna de las dos formas hardcodea un backend concreto en `backends/__init__.py`.
+- **Nota (staging de `outbox.py`)**: cada corrida de `knowledge-sync.py` escribe un envelope con clave nueva (`sync-<epoch_ms>`) en `.claude/knowledge-services/_sync-outbox/<backend>/` (con `.gitignore` propio, nunca versionado); la idempotencia del RESULTADO publicado es responsabilidad del adaptador (`plan`/`apply` deterministas sobre el mismo `approved/`), no de la clave de la cola — mismo criterio que usa `journal.py` con `session_id` (varias corridas son varios envelopes lógicos, no reintentos de uno solo).
 
 ### T-08 - Adaptador Kwipu (`markdown-export`) y skill
 - **Estado**: borrador

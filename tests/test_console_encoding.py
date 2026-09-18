@@ -318,6 +318,9 @@ SIN_SIMBOLOS_EN_LA_SALIDA = {
     # exigiría montar un fixture de `approved/` con una entrada invalida solo para este test.
     "agent-kits/shared/knowledge-index.py":
         "sin `approved/` en el workspace de prueba, el veredicto por defecto es ASCII puro",
+    # knowledge-services T-07: sin `__main__` (lo carga `knowledge-sync.py` por `importlib`, no
+    # tiene CLI propia); arrancado sin argumentos no imprime nada.
+    "skills/knowledge-services/backends/__init__.py": "sin `__main__`: al arrancar no ejecuta nada ni imprime nada",
 }
 SCRIPTS_CON_SIMBOLOS = [rel for rel in SCRIPTS if rel not in SIN_SIMBOLOS_EN_LA_SALIDA]
 
@@ -361,6 +364,12 @@ def _modos():
             [("default", lambda w: ["--default"], (0,), None)],
         "agent-kits/shared/knowledge-index.py":
             [("indice", lambda w: ["--root", w], (0, 1), None)],
+        # knowledge-services T-07: reutiliza la misma taxonomia INVALIDA del taller (`kc-taxonomia-invalida`,
+        # `evidence_levels: []`) para que `cargar_taxonomia()` reenvie el mensaje con tilde
+        # ("no puede estar vacía") en vez de necesitar un fixture propio.
+        "skills/knowledge-services/scripts/knowledge-sync.py":
+            [("taxonomia invalida", lambda w: [
+                "--backend", "kwipu", "--root", os.path.join(w, "kc-taxonomia-invalida"), "--check"], (2,), None)],
         # gap 69: la taxonomia rota del `taller` (`evidence_levels: []`) hace que `evaluar()`
         # reenvie el error de `knowledge-schema.validar()` con tilde ("no puede estar vacía");
         # `--decision reject` no exime esa comprobacion (se hace ANTES de mirar la decision).
@@ -376,6 +385,8 @@ def _modos():
         "agent-kits/shared/ledger-lint.py":
             [("ledger", lambda w: [L], (0, 1), None)],
         "agent-kits/shared/outbox.py":
+            [("importar sin CLI", lambda w: [], (0,), None)],
+        "skills/knowledge-services/backends/__init__.py":
             [("importar sin CLI", lambda w: [], (0,), None)],
         "agent-kits/shared/redact.py":
             [("importar sin CLI", lambda w: [], (0,), None)],
