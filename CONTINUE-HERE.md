@@ -22,8 +22,14 @@
 > incl. `fix(ci)` 3b6ef8e). **Intento 3 Fase 2** (c3f8bff): 13/13 cerrados, 10 nuevos (#72–#81; 72–74 cerrados por el
 > orquestador) → ronda `T-04-fix3` (3dbdd88) + verificación dirigida → **bucle Fase 2 CERRADO** (d20dfab; 42 gaps,
 > 0 pendientes). Progreso 7/13. **Fase 3 (T-07 knowledge-sync + contrato, T-08 adaptador Kwipu + skill, T-09
-> setup/doctor) despachada al `implementer`**; fixtures en `%TEMP%\ks-fixtures`. Siguiente: revisión Fase 3 → validación EN
-> VIVO del adaptador contra el bridge (activar `generated_knowledge` en `projects.yaml` del stack + `build_view` + reinicio) → Fase 4 (T-04 curator, T-05 documenter, T-06 Fase 4-bis) → Fase 3 (T-07 sync +
+> setup/doctor) HECHA** (00cb695, cc1fc26, cecb3ac; progreso 10/13). **Revisión Fase 3 intento 1 en curso** (lentes A+B+D;
+> C no aplica). **Validación EN VIVO ya hecha por el orquestador** desde `%TEMP%\ks-live-demo` contra el bridge real:
+> `health` = sano, `--dry-run`/apply escriben el export con frontmatter CA-17, `--check` detecta desfase contra
+> `/graph/snapshot` y nombra el remedio. Hallazgo: una entrada de `approved/` SIN `category:` se omite en silencio
+> (pasado a las lentes). **El cierre físico (activar `generated_knowledge` en `projects.yaml`, exportar a
+> `kwipu-data/generated/projects/<id>/`, `python -m source_manager.build_view --config kwipu/config/projects.yaml
+> --output kwipu/runtime/knowledge-view-v2`, `docker compose restart kwipu kwipu-bridge kwipu-mcp`) lo DENEGÓ el
+> clasificador de permisos (recurso compartido): lo ejecuta el usuario con `!`.** Siguiente: cerrar revisión Fase 3 → Fase 4 (T-04 curator, T-05 documenter, T-06 Fase 4-bis) → Fase 3 (T-07 sync +
 > contrato, T-08 adaptador Kwipu, T-09 setup/doctor) → Fase 4 (T-10, T-11, T-12) → qa sin UI → documenter → cierre
 > (changelog-sync, /retro + retro-gate) → graphiti-memory.
 >
