@@ -100,3 +100,5 @@ y `training-data-services` anaden las suyas sin tocar `doctor.py` (CA-14).
 Fuera de alcance de esta iniciativa (se trata aparte): un proyecto puede mantener su propio dataset (p. ej. `training_data/` de un pipeline de entrenamiento) en cualquier ruta fuera de `docs/knowledge/`; el plugin no lo lee, no lo valida ni lo exporta.
 
 > **Nota 2026-09-18 (revisión de la Fase 2, gap 55).** La línea «`documenter` retorna propuestas con categoría (validada contra `taxonomy.json`)» queda matizada por la implementación de T-05: `documenter` propone la categoría como mejor estimación y NO la valida (sin puerta mecánica, arista E13 de `CONTRACTS.md`); la validación contra la taxonomía la hace `curator-gate.py` cuando `knowledge-curator` decide. Un rol, un dueño (ADR-011): el buzón no valida, el curador sí.
+
+> **Nota 2026-09-18 (revisión de la Fase 2, gap 41).** Lista negra por defecto: `TODO:` (marcador) en vez de `TODOs`; coincidencia por frontera de palabra sobre el cuerpo, no por subcadena.
