@@ -240,6 +240,11 @@ lo que "ya no hay que volver a descubrir" cada vez, generalizando el patrón de 
   tres tipos elimina la colisión de FICHERO en escritura paralela; la colisión de `id:` sigue
   siendo posible en las tres familias (ADR/GOT/LES), con la misma mitigación (renumerar y
   declararlo en la retro), ver regla anterior.
+  **Migración (gap 113, revisión de dos lentes Fase 3 intento 2, 2026-09-18):** el campo
+  `category` de `docs/knowledge/approved/<folder>/` era opcional cuando este árbol nació y pasó a
+  **obligatorio** (`knowledge-index.py` lo exige al indexar, `curator-gate.py` bloquea `approve`
+  sin él) — ver la nota de migración de `docs/knowledge/approved/README.md` si un proyecto tiene
+  entradas anteriores a ese cambio.
 - **Siempre activa, sin opt-in.** Si `docs/knowledge/` no existiera, ningún agente se queja: la
   carpeta nace en el primer registro. Es la misma filosofía de degradación silenciosa que el resto
   del plugin (constitución, Jira, Confluence), pero sin interruptor — no hay nada que activar.
