@@ -386,6 +386,118 @@ def test_gap31_ruta_segura_dentro_degrada_sin_traceback_si_commonpath_revienta(m
     assert ki._ruta_segura_dentro(os.getcwd(), os.path.join(os.getcwd(), "x")) is False
 
 
+def test_gap38_carpetas_anidadas_asignan_el_folder_mas_especifico(tmp_path):
+    """Gap 38 (cola del gap 30, revision intento 3): con `folder: "adr"` y `folder: "adr/legacy"`
+    anidados, la entrada fisica bajo `adr/legacy/` debe indexarse con el `folder` MAS ESPECIFICO
+    (`"adr/legacy"`), no con el de la carpeta exterior que `os.walk` recorre igual por
+    recursion (antes de fix4 ganaba el primero de `sorted(carpetas)` == "adr")."""
+    root = str(tmp_path)
+    cats = [{"key": "DECISION", "folder": "adr", "min_evidence": "human_confirmed_rule"},
+            {"key": "DECISION_LEGACY", "folder": "adr/legacy",
+             "min_evidence": "human_confirmed_rule"}]
+    _taxonomy(root, cats)
+    d = os.path.join(root, "docs", "knowledge", "approved", "adr", "legacy")
+    os.makedirs(d, exist_ok=True)
+    with open(os.path.join(d, "ADR-LEGACY.md"), "w", encoding="utf-8") as f:
+        f.write("---\nid: ADR-LEGACY\nversion: 1\n---\n\n# legacy\n")
+    indice, errores = ki.build_index(root)
+    assert errores == []
+    assert indice["ADR-LEGACY"]["folder"] == "adr/legacy"
+
+
+def test_gap37_dedupe_no_debe_consumir_una_ruta_rechazada_por_contencion(tmp_path, monkeypatch):
+    """Gap 37 (Important, regresion del dedupe del gap 30, revision intento 3): antes de fix4 la
+    `realpath` se registraba en `rutas_vistas_real` ANTES de que `_ruta_segura_dentro` rechazara la
+    ruta. Con `folder: "adr"` y `folder: "lessons"` y una ruta ILEGITIMA bajo `adr/espejo/` cuya
+    `realpath` colisiona con la entrada LEGITIMA de `lessons/` (simulado con monkeypatch de
+    `os.path.realpath`, una junction real de Windows es fragil de crear en CI), la entrada
+    legitima desaparecia del indice porque su realpath ya constaba como "vista". Tras el fix, la
+    ruta ilegitima se rechaza (contencion) SIN consumir el dedupe y la legitima se indexa."""
+    root = str(tmp_path)
+    cats = [{"key": "DECISION", "folder": "adr", "min_evidence": "human_confirmed_rule"},
+            {"key": "LESSON", "folder": "lessons", "min_evidence": "human_confirmed_rule"}]
+    _taxonomy(root, cats)
+    _entry(root, "adr", "ADR-1.md", "ADR-1")
+
+    espejo_dir = os.path.join(root, "docs", "knowledge", "approved", "adr", "espejo")
+    os.makedirs(espejo_dir, exist_ok=True)
+    ruta_ilegitima = os.path.join(espejo_dir, "LES-1.md")
+    with open(ruta_ilegitima, "w", encoding="utf-8") as f:
+        f.write("---\nid: LES-1\nversion: 1\n---\n\n# copia ilegitima via junction\n")
+
+    lessons_dir = os.path.join(root, "docs", "knowledge", "approved", "lessons")
+    os.makedirs(lessons_dir, exist_ok=True)
+    ruta_legitima = os.path.join(lessons_dir, "LES-1.md")
+    with open(ruta_legitima, "w", encoding="utf-8") as f:
+        f.write("---\nid: LES-1\nversion: 1\n---\n\n# legitima\n")
+
+    original_realpath = ki.os.path.realpath
+    real_legitima = original_realpath(ruta_legitima)
+    norm_ilegitima = os.path.normcase(os.path.abspath(ruta_ilegitima))
+
+    def _realpath_simulando_junction(p):
+        # Simula `approved/adr/espejo -> approved/lessons/`: la ruta ilegitima resuelve al MISMO
+        # fichero fisico que la legitima, como haria una junction/symlink real.
+        if os.path.normcase(os.path.abspath(p)) == norm_ilegitima:
+            return real_legitima
+        return original_realpath(p)
+
+    monkeypatch.setattr(ki.os.path, "realpath", _realpath_simulando_junction)
+
+    indice, errores = ki.build_index(root)
+    assert "ADR-1" in indice
+    assert "LES-1" in indice
+    assert indice["LES-1"]["ruta"] == ruta_legitima
+    assert indice["LES-1"]["folder"] == "lessons"
+    assert any("fuera de la carpeta aprobada" in e["mensaje"] for e in errores)
+
+
+def test_gap37_dedupe_con_junction_real_si_la_plataforma_lo_soporta(tmp_path):
+    """Gap 37: variante con una junction/symlink REAL en vez de monkeypatch, para no depender
+    solo de la simulacion. `mklink /J` en Windows (no requiere privilegios elevados, a diferencia
+    de un symlink); `os.symlink` en POSIX. Se salta limpio si la plataforma/permiso no lo permite."""
+    import subprocess
+
+    root = str(tmp_path)
+    cats = [{"key": "DECISION", "folder": "adr", "min_evidence": "human_confirmed_rule"},
+            {"key": "LESSON", "folder": "lessons", "min_evidence": "human_confirmed_rule"}]
+    _taxonomy(root, cats)
+    _entry(root, "adr", "ADR-1.md", "ADR-1")
+
+    lessons_dir = os.path.join(root, "docs", "knowledge", "approved", "lessons")
+    os.makedirs(lessons_dir, exist_ok=True)
+    ruta_legitima = os.path.join(lessons_dir, "LES-1.md")
+    with open(ruta_legitima, "w", encoding="utf-8") as f:
+        f.write("---\nid: LES-1\nversion: 1\n---\n\n# legitima\n")
+
+    adr_dir = os.path.join(root, "docs", "knowledge", "approved", "adr")
+    os.makedirs(adr_dir, exist_ok=True)
+    espejo = os.path.join(adr_dir, "espejo")
+
+    import pytest
+    if os.name == "nt":
+        try:
+            # `mklink` imprime en la codepage local de la consola (no necesariamente utf-8), y no
+            # nos interesa su salida mas alla de si tuvo exito: `errors="replace"` evita un
+            # `UnicodeDecodeError` en el hilo lector de `subprocess` sin depender de la codepage.
+            subprocess.run(["cmd", "/c", "mklink", "/J", espejo, lessons_dir],
+                            check=True, capture_output=True, text=True,
+                            encoding="utf-8", errors="replace")
+        except (OSError, subprocess.CalledProcessError) as e:
+            pytest.skip(f"no se pudo crear la junction: {e}")
+    else:
+        try:
+            os.symlink(lessons_dir, espejo, target_is_directory=True)
+        except (OSError, NotImplementedError) as e:
+            pytest.skip(f"symlinks no soportados en esta plataforma/permiso: {e}")
+
+    indice, errores = ki.build_index(root)
+    assert "ADR-1" in indice
+    assert "LES-1" in indice
+    assert indice["LES-1"]["ruta"] == ruta_legitima
+    assert any("fuera de la carpeta aprobada" in e["mensaje"] for e in errores)
+
+
 def test_gap33_estado_presente_sin_valor_tiene_mensaje_propio(tmp_path):
     """Gap 33: `estado:` sin valor (clave presente, cadena vacía tras el parser) es un mensaje
     DISTINTO de "valor inválido" — no debe confundirse con `estado: algo-mal-escrito`."""
