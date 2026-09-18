@@ -119,6 +119,28 @@
       "guardarrail_previo": "solo CONDUCTUAL (skills/changelog-sync/scripts/test_changelog_sync.py comparaba resultados, no texto: una divergencia sin efecto pasaba)"
     },
     {
+      "id": "redact_redactar",
+      "mecanismo": "A",
+      "que_es": "Redaccion DETERMINISTA de secretos evidentes (redactar + REDACTADO + _SECRETOS_RE): fuente unica extraida de journal.py (session-end-durable-capture T-02, CA-11). journal.py sustituye este respaldo por los simbolos de redact.py en tiempo de carga si el fichero viaja junto a el (caso normal); el respaldo solo se ejecuta si journal.py viaja SIN redact.py (paquete portable).",
+      "canonico": "agent-kits/shared/redact.py",
+      "copias": [
+        {"ruta": "agent-kits/shared/redact.py", "inicio": "# --8<-- redact (redactar + constantes) — REPLICADO LITERAL en agent-kits/shared/redact.py (canónico) y en agent-kits/shared/journal.py (respaldo local, ADR-016)", "fin": "# --8<-- fin redact (redactar + constantes)"},
+        {"ruta": "agent-kits/shared/journal.py", "inicio": "# --8<-- redact (redactar + constantes) — REPLICADO LITERAL en agent-kits/shared/redact.py (canónico) y en agent-kits/shared/journal.py (respaldo local, ADR-016)", "fin": "# --8<-- fin redact (redactar + constantes)"}
+      ],
+      "guardarrail_previo": "ninguno (este es el hueco que cierra ADR-016 para esta iniciativa)"
+    },
+    {
+      "id": "hook_cmd_con_args",
+      "mecanismo": "A",
+      "que_es": "Construccion de `cmds` (command + args, exec form) para escanear rutas `${CLAUDE_PLUGIN_ROOT}/...` en hooks/hooks.json: el linter ya lo hacia (session-end-durable-capture T-03) y /doctor solo miraba `command`, asi que no detectaba un script inexistente en `args` (revision intento 1, gap 11).",
+      "canonico": "scripts/lint_plugin.py",
+      "copias": [
+        {"ruta": "scripts/lint_plugin.py", "inicio": "# --8<-- hook_cmd_con_args (cmds desde command+args) — REPLICADO LITERAL en scripts/lint_plugin.py y en agent-kits/shared/doctor.py", "fin": "# --8<-- fin hook_cmd_con_args"},
+        {"ruta": "agent-kits/shared/doctor.py", "inicio": "# --8<-- hook_cmd_con_args (cmds desde command+args) — REPLICADO LITERAL en scripts/lint_plugin.py y en agent-kits/shared/doctor.py", "fin": "# --8<-- fin hook_cmd_con_args"}
+      ],
+      "guardarrail_previo": "ninguno (session-end-durable-capture T-fix1 lo declara al detectar la duplicacion)"
+    },
+    {
       "id": "imports_de_cabecera",
       "mecanismo": "no-codigo",
       "no_codigo": true,

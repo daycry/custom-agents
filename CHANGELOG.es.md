@@ -9,6 +9,18 @@ y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Fixed — iniciativa `session-end-durable-capture` (2026-09-17)
+
+- **T-01 — `outbox.py`: cola atómica con claim, done y dead-letter** Nueva cola atómica compartida `agent-kits/shared/outbox.py` (claim exclusivo, reencolado de huérfanos, backoff, dead-letter, permisos privados), para el journal y los futuros exportadores de memoria.
+- **T-02 — `redact.py` extraído de `journal.py` (una sola fuente)** `redact.py` extrae la redacción de secretos de `journal.py` a un módulo compartido único (CA-11), con copia declarada en `copias.json` para el paquete portable.
+- **T-03 — `journal.py capture-end` + exec form en `hooks.json`** `SessionEnd` pasa a captura ultraligera (`journal.py capture-end`, exec form, `timeout: 5`): un envelope atómico en la cola, sin git, IA ni red. Un `Hook cancelled` ya no pierde la sesión.
+- **T-04 — `journal.py replay`: claim, materialización, verificación, dead-letter** `journal.py replay` materializa la cola con claim exclusivo, cerrojo presupuestado, reintentos con backoff y dead-letter por item; la entrada lleva `cierre` y la fecha real del cierre.
+- **T-05 — Reconciliación presupuestada en `SessionStart` y huérfanas** `SessionStart` drena la cola y recupera huérfanas en la misma pasada (`replay --con-recover`, 300 ms / 3 items, acotado en `dev.json`); `recover` a demanda sin tope, `purge --confirm`, avisos saneados
+- **T-06 — `journal.py status` y sección «Journal» de `/doctor`** `journal.py status` y sección «Journal» en `/doctor` con contadores, huérfanas, dead-letter y remedio nombrado; triage del «Hook cancelled» (aviso del runtime frente a pérdida real).
+- **T-07 — Bench de captura y matriz de garantías** `scripts/bench-session-end.py` mide la captura in-process (p95 ≤ 100 ms en CI) y comprueba que escribe; matriz de garantías en `observability` ES/EN y `FLOWS` ES/EN al flujo captura → cola → replay.
+- **T-08 — GOT-011, changelog, interop y puertas** `GOT-011` documenta la causa y el remedio del `Hook cancelled`; checklist manual M-01 para verificar el hook en Codex real.
+
+
 ## [1.20.2] - 2026-09-15
 
 ### Corregido

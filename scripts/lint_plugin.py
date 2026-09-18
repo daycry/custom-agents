@@ -1428,7 +1428,12 @@ def lint_hooks(root):
         for g in grupos:
             for h in (g.get("hooks", []) if isinstance(g, dict) else []):
                 if isinstance(h, dict) and h.get("type") == "command":
-                    cmds.append(str(h.get("command", "")))
+                    # Exec form (`command: bash`, `args: [...]`, session-end-durable-capture T-03):
+                    # la ruta del script vive en `args`, no en `command`; se escanean los dos.
+                    # --8<-- hook_cmd_con_args (cmds desde command+args) — REPLICADO LITERAL en scripts/lint_plugin.py y en agent-kits/shared/doctor.py
+                    args = h.get("args") if isinstance(h.get("args"), list) else []
+                    cmds.append(" ".join([str(h.get("command", ""))] + [str(a) for a in args]))
+                    # --8<-- fin hook_cmd_con_args
         e, w = lint_hook_commands(root, cmds, f"hooks/hooks.json [{evento}]")
         errs.extend(e)
         warns.extend(w)
@@ -1515,6 +1520,7 @@ PIEZAS_PLANIFICADAS = {
     "agent-kits/shared/pieces-registry.py": "F2 del tercer bucle (ADR-014)",
     "agent-kits/shared/role-collision.py": "F2 del tercer bucle (ADR-014)",
     "agent-kits/shared/project-scan.py": "F2 del tercer bucle (ADR-014)",
+    "agent-kits/shared/capabilities.py": "knowledge-services T-13 (ADR-018)",
 }
 COMANDOS_PLANIFICADOS = {"specialize": "F2 del tercer bucle (docs/SPECIALIZATION.md)"}
 # TOLERANCIA 2 — `x` es el nombre-comodín del repo en los ejemplos (`commands/x.md`, `docs/x.md`,
@@ -1525,6 +1531,7 @@ STEMS_PLACEHOLDER = {"x", "test_x"}
 # la documentación. `/doctor`, `/retro`… sí son nuestros y NO van aquí.
 COMANDOS_TOLERADOS = {
     "clear", "agents", "reload-plugins", "help", "config", "skill", "statusline",  # nativos
+    "exit", "resume",                                                              # nativos (sesión)
     "plugin",                                                                      # nativo
     "algo", "nombre", "comando", "x",                                              # comodines
     "comandos", "commands", "command", "name",   # la palabra «comando» citada en prosa ES/EN

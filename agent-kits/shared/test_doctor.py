@@ -222,6 +222,28 @@ def test_hook_con_script_inexistente_es_error(tmp_path):
     assert any("comprobación local" in l["detalle"] for l in lineas(inf))
 
 
+def test_hook_exec_form_con_script_inexistente_en_args_es_error(tmp_path):
+    """Gap 11 de la revisión intento 1: `doctor.py` solo escaneaba `command`; con exec form
+    (`command: bash`, `args: [...]`, session-end-durable-capture T-03) el script inexistente vive
+    en `args` y antes no se detectaba."""
+    plug = tmp_path / "plug"
+    (plug / "agents").mkdir(parents=True)
+    (plug / "agents" / "demo.md").write_text("---\nname: demo\n---\n", encoding="utf-8")
+    (plug / ".claude-plugin").mkdir()
+    (plug / ".claude-plugin" / "plugin.json").write_text(
+        json.dumps({"name": "custom-agents", "version": "9.9.9"}), encoding="utf-8")
+    (plug / "hooks").mkdir()
+    (plug / "hooks" / "hooks.json").write_text(json.dumps({"hooks": {"SessionEnd": [
+        {"hooks": [{"type": "command", "command": "bash",
+                    "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/no-existe.sh"], "timeout": 5}]}]}}),
+        encoding="utf-8")
+    inf = diag(proyecto(tmp_path), plug)
+    errores = [l for l in lineas(inf, doctor.ERROR) if l["que"] == "hook sin script"]
+    assert len(errores) == 1, [l["que"] for l in lineas(inf)]
+    assert "hooks/no-existe.sh" in errores[0]["detalle"]
+    assert inf["exit"] == 1
+
+
 def test_hook_sin_bit_ejecutable_es_aviso_con_chmod(tmp_path):
     plug = plugin(tmp_path, ejecutable=False)
     inf = diag(proyecto(tmp_path), plug)
@@ -465,12 +487,94 @@ def test_toda_linea_de_aviso_o_error_trae_arreglo(tmp_path):
         assert l["arreglo"].strip(), l
 
 
-@pytest.mark.parametrize("bloque", ["herramientas", "plugin", "configs", "estado", "memoria", "version"])
-def test_los_seis_bloques_estan_siempre(tmp_path, bloque):
+@pytest.mark.parametrize("bloque", ["herramientas", "plugin", "configs", "estado", "memoria", "version", "journal"])
+def test_los_siete_bloques_estan_siempre(tmp_path, bloque):
     inf = diag(proyecto(tmp_path))
     claves = [b["clave"] for b in inf["bloques"]]
-    assert bloque in claves and len(claves) == 6
-    assert doctor.render_md(inf).count("| | Comprobación |") == 6
+    assert bloque in claves and len(claves) == 7
+    assert doctor.render_md(inf).count("| | Comprobación |") == 7
+
+
+# ------------------------------------------------------------------ Journal (session-end-durable-capture T-06)
+
+def test_journal_sin_pendientes_ni_huerfanas_es_informativo_y_exit_0(tmp_path):
+    proj = proyecto(tmp_path)
+    inf = diag(proj)
+    journ = [b for b in inf["bloques"] if b["clave"] == "journal"][0]
+    assert not [l for l in journ["lineas"] if l["estado"] == doctor.ERROR]
+    assert inf["exit"] == 0
+
+
+def test_journal_con_dead_letter_avisa_con_el_remedio_nombrado(tmp_path):
+    proj = proyecto(tmp_path)
+    d = proj / ".claude" / "journal" / "dead-letter"
+    d.mkdir(parents=True)
+    (d / "ev1.json").write_text(json.dumps({"session_id": "s1"}), encoding="utf-8")
+    (d / "ev1.json.causa.json").write_text(
+        json.dumps({"causa": "esquema inválido", "intentos": 3, "en": "2026-09-17T00:00:00Z"}), encoding="utf-8")
+    inf = diag(proj)
+    avisos = [l for l in lineas(inf, doctor.AVISO) if "dead-letter" in l["que"]]
+    assert avisos and "reintentar-dead-letter" in avisos[0]["arreglo"]
+
+
+def test_journal_con_huerfana_dice_perdida_posible_y_nombra_recover(tmp_path):
+    proj = proyecto(tmp_path, **{"dev__json": {"sesion": {"journal": {"ventanaHuerfanaMin": 1}}}})
+    p = proj / ".claude" / "session-prompts-huerfana1.log"
+    p.write_text(json.dumps({"ts": "2026-09-17T00:00:00Z", "prompt": "hola"}) + "\n", encoding="utf-8")
+    t = _dt.datetime.now().timestamp() - 5 * 60
+    os.utime(p, (t, t))
+    inf = diag(proj)
+    # Gap 77 de la revisión tramo 2: UN solo bloque de triage (antes salían dos avisos redundantes,
+    # "sesiones huérfanas" + "Hook cancelled (triage)", diciendo lo mismo dos veces).
+    avisos = [l for l in lineas(inf, doctor.AVISO) if "huérfana" in l["detalle"]]
+    assert len(avisos) == 1
+    assert "pérdida posible" in avisos[0]["detalle"].lower() and "recover" in avisos[0]["arreglo"]
+
+
+def test_journal_dead_letter_menciona_perdida_posible_y_los_dos_remedios(tmp_path):
+    """Gap 68 (parte doctor): el triage de dead-letter dice «pérdida posible» y nombra AMBOS
+    remedios (`recover` y `replay --reintentar-dead-letter`), no solo el segundo."""
+    proj = proyecto(tmp_path)
+    d = proj / ".claude" / "journal" / "dead-letter"
+    d.mkdir(parents=True)
+    (d / "ev1.json").write_text(json.dumps({"session_id": "s1"}), encoding="utf-8")
+    (d / "ev1.json.causa.json").write_text(
+        json.dumps({"causa": "esquema inválido", "intentos": 3, "en": "2026-09-17T00:00:00Z"}), encoding="utf-8")
+    inf = diag(proj)
+    avisos = [l for l in lineas(inf, doctor.AVISO) if "dead-letter" in l["que"]]
+    assert avisos
+    assert "pérdida posible" in avisos[0]["detalle"].lower()
+    assert "recover" in avisos[0]["arreglo"] and "reintentar-dead-letter" in avisos[0]["arreglo"]
+
+
+def test_journal_triage_no_habla_de_esta_sesion(tmp_path):
+    """Gap 77: los contadores de `status` son GLOBALES a la cola, no de «esta sesión» — el triage
+    no debe insinuar que son por sesión."""
+    proj = proyecto(tmp_path)
+    d = proj / ".claude" / "journal" / "outbox"
+    d.mkdir(parents=True)
+    (d / "ev1.json").write_text(json.dumps({
+        "session_id": "s1", "schema_version": 1, "reason": "other", "cwd": str(proj),
+        "transcript_path": "", "captured_at": "2026-09-17T00:00:00Z",
+        "hook_event_name": "SessionEnd", "sequence": 0}), encoding="utf-8")
+    inf = diag(proj)
+    journ = [b for b in inf["bloques"] if b["clave"] == "journal"][0]
+    textos = " ".join(l["detalle"] for l in journ["lineas"])
+    assert "de esta sesión" not in textos
+
+
+def test_journal_con_pendiente_en_outbox_dice_aviso_del_runtime_sin_perdida(tmp_path):
+    proj = proyecto(tmp_path)
+    d = proj / ".claude" / "journal" / "outbox"
+    d.mkdir(parents=True)
+    (d / "ev1.json").write_text(json.dumps({
+        "session_id": "s1", "schema_version": 1, "reason": "other", "cwd": str(proj),
+        "transcript_path": "", "captured_at": "2026-09-17T00:00:00Z",
+        "hook_event_name": "SessionEnd", "sequence": 0}), encoding="utf-8")
+    inf = diag(proj)
+    journ = [b for b in inf["bloques"] if b["clave"] == "journal"][0]
+    hc = [l for l in journ["lineas"] if "hook cancelled" in l["que"].lower()]
+    assert hc and "sin pérdida" in hc[0]["detalle"].lower()
 
 
 # ------------------------------------------------------------------ salud de la memoria (memory-retrieval T-10)

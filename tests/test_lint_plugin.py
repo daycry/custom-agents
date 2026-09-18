@@ -315,6 +315,20 @@ def casos_citas_comandos():
         assert "no existe como" not in out, f"falso positivo en una tolerancia declarada\n{out}"
 
 
+def caso_citas_comandos_exit_resume():
+    """Gap 81 de la revisión tramo 2: `/exit`/`/resume` (nativos de sesión, `COMANDOS_TOLERADOS`)
+    no tenían un test PROPIO — solo `/clear` estaba cubierto explícitamente en 50, y `/exit`/`/resume`
+    se citan de verdad en la matriz de garantías de esta iniciativa (`docs/observability.md`)."""
+    with tempfile.TemporaryDirectory() as tmp:
+        make_plugin(tmp, {"alpha": AGENT_OK.format(name="alpha")})
+        _escribe(tmp, "agents/alpha.md", AGENT_OK.format(name="alpha")
+                 + "\nAl cerrar con `/exit` o `/resume` la sesión, ver la matriz de garantías.\n")
+        code, out = run(tmp)
+        assert code == 0, out
+        assert "/exit" not in out and "/resume" not in out, \
+            f"/exit y /resume son nativos de sesion (COMANDOS_TOLERADOS): no deben avisar\n{out}"
+
+
 def casos_matriz_contratos():
     """51-52) `docs/agents/CONTRACTS.md`: una fila de arista con la columna Puerta VACIA avisa con
     la arista, y una Puerta que nombra un script inexistente tambien; una matriz sana no avisa."""
@@ -1011,13 +1025,14 @@ dependencies:
     casos_copias_forma_de_definicion()
     casos_citas_rutas()
     casos_citas_comandos()
+    caso_citas_comandos_exit_resume()
     casos_matriz_contratos()
     casos_citas_en_docs()
     casos_cita_de_comando_con_argumento()
     casos_matriz_fila_en_negrita()
     casos_tolerancias_caducadas()
 
-    print("test_lint_plugin: 58/58 OK")
+    print("test_lint_plugin: 59/59 OK")
 
 
 if __name__ == "__main__":
