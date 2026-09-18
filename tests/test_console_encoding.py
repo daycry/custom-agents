@@ -321,6 +321,9 @@ SIN_SIMBOLOS_EN_LA_SALIDA = {
     # knowledge-services T-07: sin `__main__` (lo carga `knowledge-sync.py` por `importlib`, no
     # tiene CLI propia); arrancado sin argumentos no imprime nada.
     "skills/knowledge-services/backends/__init__.py": "sin `__main__`: al arrancar no ejecuta nada ni imprime nada",
+    # T-08: adaptador Kwipu sin `__main__` (solo funciones del contrato de adaptador, consumidas
+    # por `knowledge-sync.py` vía `importlib`); arrancado sin argumentos no imprime nada.
+    "skills/knowledge-services/backends/markdown_export.py": "sin `__main__`: al arrancar no ejecuta nada ni imprime nada",
 }
 SCRIPTS_CON_SIMBOLOS = [rel for rel in SCRIPTS if rel not in SIN_SIMBOLOS_EN_LA_SALIDA]
 
@@ -387,6 +390,8 @@ def _modos():
         "agent-kits/shared/outbox.py":
             [("importar sin CLI", lambda w: [], (0,), None)],
         "skills/knowledge-services/backends/__init__.py":
+            [("importar sin CLI", lambda w: [], (0,), None)],
+        "skills/knowledge-services/backends/markdown_export.py":
             [("importar sin CLI", lambda w: [], (0,), None)],
         "agent-kits/shared/redact.py":
             [("importar sin CLI", lambda w: [], (0,), None)],
