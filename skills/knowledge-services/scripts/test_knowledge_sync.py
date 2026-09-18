@@ -244,6 +244,137 @@ def test_adaptador_incompleto_falla_al_cargar_con_mensaje_claro(tmp_path):
     assert exit_code == 2
 
 
+# ------------------------------------------------------------------ fix1 (2026-09-18): gaps 84/88/90/91/104
+
+def test_check_reporta_error_de_adaptador_como_exit_1_sin_traceback(tmp_path, capsys):
+    """gap 90: `health()`/`verify()` de un adaptador que lanza no tumban el CLI con traceback."""
+    root = str(tmp_path)
+    _taxonomy(root, _categorias(), backend_cfg={"forzar_error_health": True})
+    exit_code = ks_sync.main(["--backend", "testx", "--root", root, "--check",
+                              "--backends-dir", FIXTURES_BACKENDS])
+    assert exit_code == 1
+    err = capsys.readouterr().err
+    assert "falló" in err and "RuntimeError" in err
+
+
+def test_plan_roto_reporta_exit_1_sin_traceback(tmp_path, capsys):
+    """gap 90: `plan()` de un adaptador que lanza (camino de publicación real) sale limpio."""
+    root = str(tmp_path)
+    _taxonomy(root, _categorias(), backend_cfg={"forzar_error_plan": True})
+    _entrada(root, "gotchas", "e1.md", "e1", "ENRUTADA")
+    exit_code = ks_sync.main(["--backend", "testx", "--root", root, "--json",
+                              "--backends-dir", FIXTURES_BACKENDS])
+    assert exit_code == 1
+    err = capsys.readouterr().err
+    assert "plan" in err and "RuntimeError" in err
+    # no se escribió nada en la outbox: el fallo fue antes de llegar a ella
+    assert not os.path.isdir(os.path.join(root, ".claude", "knowledge-services", "_sync-outbox"))
+
+
+def test_omitidas_por_routing_se_informan_por_stderr(tmp_path, capsys):
+    """gap 84: una entrada sin routing para este backend no desaparece en silencio."""
+    root = str(tmp_path)
+    _taxonomy(root, _categorias())
+    _entrada(root, "gotchas", "e1.md", "e1", "ENRUTADA")
+    _entrada(root, "gotchas", "e2.md", "e2", "SIN_ROUTING")
+    exit_code = ks_sync.main(["--backend", "testx", "--root", root, "--dry-run", "--json",
+                              "--backends-dir", FIXTURES_BACKENDS])
+    assert exit_code == 0
+    err = capsys.readouterr().err
+    assert "omitida" in err and "e2" in err
+
+
+def test_reclamar_recoge_el_envelope_propio_aunque_haya_otro_pendiente(tmp_path, capsys):
+    """gap 91: si `outbox/` ya tenía un envelope pendiente de una corrida anterior (p. ej. un
+    proceso muerto a medias), la corrida actual reclama el SUYO (por clave), no el ajeno, y deja
+    el ajeno reencolado para quien deba procesarlo."""
+    root = str(tmp_path)
+    _taxonomy(root, _categorias())
+    _entrada(root, "gotchas", "e1.md", "e1", "ENRUTADA")
+
+    ob_mod = ks_sync._cargar_por_ruta(  # noqa: SLF001 - reuso deliberado en el propio test
+        os.path.join(ks_sync.SHARED, "outbox.py"), "ks_outbox_test_reclamar")
+    dir_outbox = os.path.join(root, ".claude", "knowledge-services", "_sync-outbox", "testx")
+    ob_mod.escribir(dir_outbox, "sync-0-ajeno", {"backend": "testx", "type": "test", "ops": []})
+
+    exit_code = ks_sync.main(["--backend", "testx", "--root", root, "--json",
+                              "--backends-dir", FIXTURES_BACKENDS])
+    assert exit_code == 0
+    salida = json.loads(capsys.readouterr().out)
+    assert salida["apply"]["aplicados"] == 1
+    # el envelope ajeno sigue en outbox/ (reencolado), no se perdió ni se completó por error
+    assert os.path.isfile(os.path.join(dir_outbox, "outbox", "sync-0-ajeno.json"))
+
+
+def test_entradas_enrutadas_no_reabren_el_fichero_md(tmp_path, monkeypatch):
+    """gap 104: `_construir_entradas_enrutadas` usa los campos que ya trae `build_index()`
+    (`category`/`evidencia`/`fuentes`/`tags`/`cuerpo`) en vez de reabrir cada `.md`."""
+    root = str(tmp_path)
+    _taxonomy(root, _categorias())
+    _entrada(root, "gotchas", "e1.md", "e1", "ENRUTADA")
+
+    ki = ks_sync._cargar_por_ruta(  # noqa: SLF001
+        os.path.join(ks_sync.SHARED, "knowledge-index.py"), "ks_ki_test_no_reread")
+    ks = ks_sync._cargar_por_ruta(os.path.join(ks_sync.SHARED, "knowledge-schema.py"), "ks_ks_test_no_reread")
+    indice, errores = ki.build_index(root)
+    assert errores == []
+
+    aperturas = []
+    real_open = open
+
+    def _open_espia(ruta, *a, **kw):
+        aperturas.append(ruta)
+        return real_open(ruta, *a, **kw)
+
+    config, _o, _r, _e = ks.cargar_taxonomia(root)
+    monkeypatch.setattr("builtins.open", _open_espia)
+    entradas, errores_e, omitidas = ks_sync._construir_entradas_enrutadas(  # noqa: SLF001
+        ki, ks, root, config, "testx", indice)
+    assert errores_e == []
+    assert len(entradas) == 1
+    assert entradas[0]["cuerpo"].strip() == "cuerpo de e1"
+    assert not any(a.endswith("e1.md") for a in aperturas)
+
+
+def test_export_dir_relativo_del_backend_recibe_root_absoluto(tmp_path, capsys):
+    """gap 88: el `cfg` que llega al adaptador trae `_root` absoluto (nunca depende del cwd del
+    proceso que invoca `knowledge-sync.py`)."""
+    root = str(tmp_path)
+    _taxonomy(root, _categorias())
+    _entrada(root, "gotchas", "e1.md", "e1", "ENRUTADA")
+    capturado = {}
+    adaptador_dir = os.path.join(root, "adaptador-espia")
+    os.makedirs(adaptador_dir, exist_ok=True)
+    with open(os.path.join(adaptador_dir, "espia.py"), "w", encoding="utf-8") as f:
+        f.write(
+            "def health(cfg):\n    return {'estado': 'sano'}\n"
+            "def plan(entries, cfg):\n"
+            "    import json, os\n"
+            "    with open(os.path.join(os.path.dirname(__file__), 'visto.json'), 'w') as fh:\n"
+            "        json.dump({'root': cfg.get('_root')}, fh)\n"
+            "    return []\n"
+            "def apply(ops, cfg):\n    return {'aplicados': 0}\n"
+            "def verify(cfg):\n    return {'ok': True, 'desfase': []}\n"
+            "def rebuild(entries, cfg):\n    return {'reconstruidos': 0}\n"
+            "def revoke(knowledge_id, cfg):\n    return {'revocado': knowledge_id}\n"
+        )
+    taxonomy = {
+        "version": 1, "id_prefix": "ks", "categories": _categorias(),
+        "evidence_levels": ["observation"],
+        "backends": {"testx": {"type": "espia", "enabled": True, "config": {}}},
+    }
+    d = os.path.join(root, ".claude", "knowledge-services")
+    os.makedirs(d, exist_ok=True)
+    with open(os.path.join(d, "taxonomy.json"), "w", encoding="utf-8") as f:
+        json.dump(taxonomy, f)
+    exit_code = ks_sync.main(["--backend", "testx", "--root", root, "--dry-run",
+                              "--backends-dir", adaptador_dir])
+    assert exit_code == 0
+    with open(os.path.join(adaptador_dir, "visto.json"), "r", encoding="utf-8") as f:
+        visto = json.load(f)
+    assert visto["root"] == os.path.abspath(root)
+
+
 def test_adaptador_tipo_desconocido_falla_al_cargar_con_mensaje_claro(tmp_path, capsys):
     root = str(tmp_path)
     cfg = {
