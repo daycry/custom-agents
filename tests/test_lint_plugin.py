@@ -289,6 +289,23 @@ def casos_citas_rutas():
         assert "que no existe" not in out, f"falso positivo en una tolerancia declarada\n{out}"
 
 
+def caso_citas_rutas_skill_knowledge_services():
+    """T-10 (knowledge-services): una pieza que cita una ruta inexistente DENTRO de la skill nueva
+    `skills/knowledge-services/` recibe el mismo aviso que cualquier otra skill — la tolerancia
+    (iii) de `casos_citas_rutas` (ruta relativa a la raíz de la skill que la cita) no debe
+    esconder un fichero que de verdad no existe."""
+    with tempfile.TemporaryDirectory() as tmp:
+        make_plugin(tmp, {"alpha": AGENT_OK.format(name="alpha")})
+        _escribe(tmp, "skills/knowledge-services/SKILL.md",
+                 "Ejecuta `scripts/no-existe-de-verdad.py` para publicar.\n")
+        _escribe(tmp, "skills/knowledge-services/scripts/knowledge-sync.py", "x = 1\n")
+        code, out = run(tmp)
+        assert code == 0, f"la comprobacion nace como AVISO, no como error\n{out}"
+        assert "scripts/no-existe-de-verdad.py" in out, \
+            f"la ruta rota de la skill nueva no se ve\n{out}"
+        assert "skills/knowledge-services/SKILL.md:" in out, f"falta fichero:linea\n{out}"
+
+
 def casos_citas_comandos():
     """49-50) Un `/comando` citado que no existe como `commands/<x>.md` es AVISO; los nativos de
     Claude Code, los comodines de la doc y la forma con espacio de nombres `/custom-agents:<cmd>`
@@ -1024,6 +1041,7 @@ dependencies:
     casos_copias_por_copia()
     casos_copias_forma_de_definicion()
     casos_citas_rutas()
+    caso_citas_rutas_skill_knowledge_services()
     casos_citas_comandos()
     caso_citas_comandos_exit_resume()
     casos_matriz_contratos()

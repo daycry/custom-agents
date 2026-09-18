@@ -133,14 +133,27 @@ def _frontmatter(texto):
         j = i + 1
         while j < len(lineas):
             sub = lineas[j]
-            if not sub.strip():
+            sub_strip = sub.strip()
+            if not sub_strip:
                 j += 1
                 continue
             indent_sub = len(sub) - len(sub.lstrip())
             if indent_sub < indent_clave:
                 break
-            mi = _ITEM_BLOQUE_RE.match(sub.strip())
+            # gap heredado (revisión Fase 2 intento 2, T-10): un comentario `#` intercalado entre
+            # los items de una lista en bloque paraba el escaneo en seco (no casaba con `- X`) y
+            # truncaba en silencio el resto de la lista. Se salta sin consumir el item.
+            if sub_strip.startswith("#"):
+                j += 1
+                continue
+            mi = _ITEM_BLOQUE_RE.match(sub_strip)
             if not mi:
+                # gap heredado (T-10): un item vacío (`-` sin contenido) tampoco casa con
+                # `_ITEM_BLOQUE_RE` (exige al menos un carácter tras el guion); se descarta el
+                # item vacío en vez de interpretarlo como el fin de la lista.
+                if sub_strip == "-":
+                    j += 1
+                    continue
                 break
             items.append(mi.group(1).strip().strip('"').strip("'"))
             j += 1
@@ -164,12 +177,20 @@ def _carpetas_declaradas(config):
     return out
 
 
-def _ruta_segura_dentro(base, ruta):
+def _ruta_segura_dentro(base, ruta, base_real=None):
     """True si `ruta` (ya unida a `base`) resuelve DENTRO de `base` tras normalizar symlinks/`..`
     (gap 6, defensa en profundidad: `knowledge-schema.validar` ya rechaza un `folder` con `..`/
     absoluto/unidad de Windows en la config, pero esta comprobación cubre además symlinks y
-    cualquier otra vía de escape que el fichero de config no controle)."""
-    base_real = os.path.realpath(base)
+    cualquier otra vía de escape que el fichero de config no controle).
+
+    `base_real` (gap heredado, revisión Fase 2 intento 2, T-10 — coste lineal de `realpath` por
+    fichero en Windows, donde resolver symlinks es una llamada al sistema cara): `realpath(base)`
+    es el MISMO valor durante todo el recorrido de una carpeta declarada, así que `build_index` lo
+    calcula UNA vez por carpeta y lo pasa aquí en vez de dejar que se recalcule por cada candidato.
+    Si no se pasa (p. ej. desde un test que llama a esta función directamente), se calcula como
+    antes — el parámetro es opt-in, no rompe el contrato existente."""
+    if base_real is None:
+        base_real = os.path.realpath(base)
     ruta_real = os.path.realpath(ruta)
     try:
         return os.path.commonpath([base_real, ruta_real]) == base_real
@@ -281,6 +302,9 @@ def build_index(root=None):
         d = os.path.join(base, folder)
         if not os.path.isdir(d):
             continue
+        # gap heredado (T-10): calculado UNA vez por carpeta, no por cada fichero candidato (ver
+        # docstring de `_ruta_segura_dentro`).
+        d_real = os.path.realpath(d)
         rutas_md = []
         for dirpath, dirnames, filenames in os.walk(d):
             dirnames.sort()
@@ -295,7 +319,7 @@ def build_index(root=None):
                 # dedupe antes de ser rechazada, y la entrada legitima desaparecia del indice al
                 # encontrarla ya "vista". Rechazar sin registrar deja la entrada legitima intacta
                 # para cuando le toque su turno.
-                if not _ruta_segura_dentro(d, candidata):
+                if not _ruta_segura_dentro(d, candidata, base_real=d_real):
                     errores.append(_error(
                         "ruta fuera de la carpeta aprobada declarada (posible symlink/escape)",
                         candidata, "$"))

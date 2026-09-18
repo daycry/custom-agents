@@ -286,11 +286,17 @@ def validar(config, fichero="taxonomy.json"):
                         fichero, f"{campo}.folder"))
                 else:
                     folders_por_clave.setdefault(clave, folder)
-            if not cat.get("min_evidence") or not isinstance(cat.get("min_evidence"), str):
+            # gap heredado (revisión Fase 2 intento 2, T-10): `min_evidence` presente pero de tipo
+            # incorrecto (p. ej. un entero) disparaba DOS errores encadenados — "no declara" por el
+            # `isinstance` y luego "no está en evidence_levels" porque el valor no-string tampoco
+            # está en esa lista de strings. Un solo defecto de forma basta; el segundo chequeo (la
+            # pertenencia a `evidence_levels`) solo tiene sentido si el valor YA es un string.
+            min_evidence = cat.get("min_evidence")
+            if not min_evidence or not isinstance(min_evidence, str):
                 errores.append(_error(f"{campo} no declara `min_evidence`", fichero, f"{campo}.min_evidence"))
-            if cat.get("min_evidence") and cat["min_evidence"] not in evidence_levels:
+            elif min_evidence not in evidence_levels:
                 errores.append(_error(
-                    f"{campo}.min_evidence `{cat['min_evidence']}` no está en `evidence_levels`",
+                    f"{campo}.min_evidence `{min_evidence}` no está en `evidence_levels`",
                     fichero, f"{campo}.min_evidence"))
             routing = cat.get("routing")
             if routing is not None:
