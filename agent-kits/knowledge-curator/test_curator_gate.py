@@ -822,3 +822,28 @@ def test_cli_texto_con_errores_tambien_imprime_avisos(capsys):
         assert exit_code == 1
         assert "evidencia" in out
         assert "aviso:" in out and "id" in out
+
+
+def test_approve_con_category_override_y_sin_category_en_frontmatter_avisa():
+    """gap 84: si `category` solo viene de `--category` (el candidato no la trae en su propio
+    frontmatter), el gate deja pasar (no es un error de uso) pero avisa que hay que escribirla
+    en el fichero al mover a `approved/` (P4 de `agents/knowledge-curator.md`)."""
+    with tempfile.TemporaryDirectory() as tmp:
+        ruta = _escribir(tmp, "c.md", CANDIDATO_SIN_CATEGORIA)
+        veredicto, exit_code = cg.evaluar(ruta, "approve", category_override="GOTCHA", root=tmp)
+        assert exit_code == 0
+        assert veredicto["errores"] == []
+        assert any(
+            a["campo"] == "category" and "no está en el frontmatter" in a["mensaje"]
+            for a in veredicto["avisos"]
+        )
+
+
+def test_approve_con_category_en_frontmatter_no_avisa():
+    """Contraste del gap 84: si el candidato YA trae `category` en su propio frontmatter
+    (aunque se sobreescriba con `--category`), no hace falta el recordatorio."""
+    with tempfile.TemporaryDirectory() as tmp:
+        ruta = _escribir(tmp, "c.md", CANDIDATO_COMPLETO)
+        veredicto, exit_code = cg.evaluar(ruta, "approve", category_override="LESSON", root=tmp)
+        assert exit_code == 0
+        assert not any(a["campo"] == "category" for a in veredicto.get("avisos", []))

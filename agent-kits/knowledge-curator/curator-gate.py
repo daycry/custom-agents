@@ -482,7 +482,18 @@ def evaluar(ruta_candidato, decision, category_override=None, root=None, id_over
     errores.extend(errores_id_override)
     errores_colision, avisos_colision = detectar_colision(ki, root, categoria, ruta_candidato, fm, id_efectivo)
     errores.extend(errores_colision)
-    veredicto = {"decision": decision, "categoria": categoria["key"], "errores": errores, "avisos": avisos_colision}
+    avisos = list(avisos_colision)
+    if not (fm.get("category") or fm.get("categoria")):
+        # gap 84 (revisión Fase 3 intento 1): `category` llega SOLO por `--category`, no está en
+        # el frontmatter del candidato — el gate no escribe el fichero (eso es P4 del agente,
+        # `agents/knowledge-curator.md`), así que se lo recuerda explícitamente en vez de dejar
+        # que se olvide: `knowledge-index.py` exige `category` en `approved/` (gap 84) y una
+        # entrada sin ella ahí es un error de índice, no una omisión silenciosa.
+        avisos.append(_error(
+            f"`category` viene de --category (`{categoria['key']}`) y no está en el frontmatter "
+            f"del candidato: escríbela en el fichero al mover a `approved/` (P4)",
+            ruta_candidato, "category"))
+    veredicto = {"decision": decision, "categoria": categoria["key"], "errores": errores, "avisos": avisos}
     return veredicto, (1 if errores else 0)
 
 
