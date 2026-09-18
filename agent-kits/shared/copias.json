@@ -141,6 +141,18 @@
       "guardarrail_previo": "ninguno (session-end-durable-capture T-fix1 lo declara al detectar la duplicacion)"
     },
     {
+      "id": "taxonomy_fallback",
+      "mecanismo": "A",
+      "que_es": "Contenido por defecto de taxonomy.json (knowledge-services T-01/T-01-fix1, ADR-018): el respaldo embebido de knowledge-schema.py tiene que reflejar el MISMO contenido que la plantilla que se lee del disco, o `default_taxonomy()` devuelve datos distintos segun si `templates/taxonomy.json` viaja o no con el paquete.",
+      "canonico": "agent-kits/shared/templates/taxonomy.json",
+      "copias": [
+        {"ruta": "agent-kits/shared/templates/taxonomy.json", "inicio": "\"version\": 1,", "fin": "]"},
+        {"ruta": "agent-kits/shared/knowledge-schema.py", "inicio": "\"version\": 1,", "fin": "]",
+         "sustituciones": [["False", "false"]], "respaldos": ["_TAXONOMY_FALLBACK"]}
+      ],
+      "guardarrail_previo": "agent-kits/shared/test_knowledge_schema.py::test_default_fallback_coincide_con_el_template (nuevo, compara ademas como DATOS, no solo como texto)"
+    },
+    {
       "id": "imports_de_cabecera",
       "mecanismo": "no-codigo",
       "no_codigo": true,
