@@ -182,16 +182,39 @@ def _ruta_segura_dentro(base, ruta):
 
 _ESTADOS_VALIDOS_APROBADO = {"aprobado"}
 
+# gap 84/96 (revisión Fase 3 intento 1): `id` tiene que cumplir la MISMA forma que ya asume
+# `markdown_export.py` («`knowledge_id` ya cumple `[A-Za-z0-9._-]+`, lo exige el Curator») — pero
+# nadie lo comprobaba aquí. Sin este chequeo, `id: "../../ESCAPE"` pasaba el índice intacto y
+# cualquier adaptador que componga una ruta con ese `id` (p. ej. `<export_dir>/<id>.md`) escribe
+# fuera de `export_dir` (CWE-22). Defensa en profundidad: el adaptador vuelve a validar la misma
+# forma por su cuenta, nunca confía en que el índice ya lo hizo.
+_ID_VALIDO_RE = re.compile(r"^[A-Za-z0-9._-]+$")
 
-def _validar_frontmatter_forma(fm, ruta):
+
+def _validar_frontmatter_forma(fm, ruta, categorias_validas):
     """Comprobaciones de FORMA (no de semántica de categoría, ver docstring del módulo) sobre
     el frontmatter de una entrada aprobada (gap 3). `estado` es OBLIGATORIO bajo `approved/`
     (gap 43, revisión intento 1): antes de esta versión solo se validaba su forma cuando estaba
     presente, lo que permitía una entrada `approved/` sin `estado` en absoluto; el gate de
     aprobación (`curator-gate.py`, T-04) siempre lo escribe, así que ausente aquí es señal de
     una entrada tocada a mano o por un flujo que se saltó el gate. `fuentes`/`tags` siguen
-    siendo opcionales (solo se valida su forma si están presentes)."""
+    siendo opcionales (solo se valida su forma si están presentes). `category` pasa a ser
+    OBLIGATORIA (gap 84, revisión Fase 3 intento 1) con el MISMO criterio que `estado`: sin ella,
+    `knowledge-sync.py` no puede decidir el `routing` de la entrada y antes la descartaba en
+    silencio, indistinguible del fail-closed por routing declarado a `false`."""
     errores = []
+    if "category" not in fm:
+        errores.append(_error(
+            "falta `category` (obligatorio en una entrada bajo `approved/`; el curador la escribe "
+            "al aprobar, ver `agents/knowledge-curator.md` P4)", ruta, "category"))
+    else:
+        category = fm["category"]
+        if category == "":
+            errores.append(_error("`category` presente sin valor", ruta, "category"))
+        elif not isinstance(category, str) or category not in categorias_validas:
+            errores.append(_error(
+                f"`category` declarada (`{category}`) no existe en la taxonomía "
+                f"(declaradas: {sorted(categorias_validas) or 'ninguna'})", ruta, "category"))
     if "estado" not in fm:
         errores.append(_error(
             "falta `estado` (obligatorio en una entrada bajo `approved/`; debe ser `aprobado`)",
@@ -237,6 +260,7 @@ def build_index(root=None):
 
     base = os.path.join(root, "docs", "knowledge", "approved")
     carpetas = _carpetas_declaradas(config)
+    categorias_validas = {cat.get("key") for cat in (config.get("categories") or []) if cat.get("key")}
 
     indice = {}
     errores = []
@@ -299,6 +323,14 @@ def build_index(root=None):
             if not id_:
                 errores.append(_error("falta `id` en el frontmatter", ruta, "id"))
                 continue
+            if not isinstance(id_, str) or not _ID_VALIDO_RE.match(id_):
+                # gap 96 (CWE-22): sin este chequeo, un `id` con `../` o separadores de ruta
+                # (`/`, `\`) llega intacto a cualquier adaptador que componga
+                # `<export_dir>/<id>.<ext>` y escribe fuera de `export_dir`.
+                errores.append(_error(
+                    f"`id` (`{id_}`) no cumple la forma `[A-Za-z0-9._-]+` (sin `/`, `\\` ni rutas)",
+                    ruta, "id"))
+                continue
             if id_ in indice:
                 errores.append(_error(
                     f"id duplicado `{id_}` (ya declarado en `{vistos_en[id_]}`)", ruta, "id"))
@@ -315,8 +347,24 @@ def build_index(root=None):
             enlaces = fm.get("enlaces") or []
             if isinstance(enlaces, str):
                 enlaces = [enlaces]
-            errores.extend(_validar_frontmatter_forma(fm, ruta))
-            indice[id_] = {"ruta": ruta, "version": version, "folder": folder, "enlaces": enlaces}
+            errores.extend(_validar_frontmatter_forma(fm, ruta, categorias_validas))
+            cuerpo = _FRONTMATTER_RE.sub("", texto, count=1).strip()
+            fuentes = fm.get("fuentes") or []
+            if isinstance(fuentes, str):
+                fuentes = [fuentes]
+            tags = fm.get("tags") or []
+            if isinstance(tags, str):
+                tags = [tags]
+            indice[id_] = {
+                "ruta": ruta, "version": version, "folder": folder, "enlaces": enlaces,
+                # gap 104 (rendimiento): el frontmatter YA se parseó y el cuerpo YA se leyó para
+                # construir este índice — se guardan aquí para que `knowledge-sync.py` (y
+                # cualquier otro consumidor) NUNCA tenga que reabrir el fichero solo para
+                # recuperar `category`/`evidencia`/`fuentes`/`tags`/`cuerpo` (antes: 1000 open()
+                # para 500 entradas indexadas con 10 enrutadas; ahora, 500 — uno por entrada).
+                "category": fm.get("category"), "evidencia": fm.get("evidencia"),
+                "fuentes": fuentes, "tags": tags, "cuerpo": cuerpo,
+            }
             vistos_en[id_] = ruta
 
     # Enlaces rotos: se resuelven una vez que TODO el índice está construido (un enlace puede
