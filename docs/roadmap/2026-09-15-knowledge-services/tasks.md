@@ -20,11 +20,11 @@ verificacion: obligatoria
 
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervision (real/est) | Tokens (real/est) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| Fase 1 - Contrato y validacion | 3 | 3 | 100% | 0 / 13h | 0.51 / 3.9h | 0 / 1.0h | ~57k / 200k |
+| Fase 1 - Contrato y validacion | 3 | 3 | 100% | 0 / 13h | 0.72 / 3.9h | 0 / 1.0h | ~57k / 200k |
 | Fase 2 - Curacion y workflow | 0 | 3 | 0% | 0 / 14h | 0 / 4.2h | 0 / 1.1h | 0 / 210k |
-| Fase 3 - Backends y Kwipu | 1 | 4 | 25% | 0 / 19h | 0.13 / 5.7h | 0 / 1.4h | ~16k / 275k |
+| Fase 3 - Backends y Kwipu | 1 | 4 | 25% | 0 / 19h | 0.34 / 5.7h | 0 / 1.4h | ~16k / 275k |
 | Fase 4 - Regresion y cierre | 0 | 3 | 0% | 0 / 10h | 0 / 3.0h | 0 / 0.7h | 0 / 130k |
-| **TOTAL** | **4** | **13** | **31%** | **0 / 56h** | **0.64 / 16.8h** | **0 / 4.2h** | **~73k / 815k** |
+| **TOTAL** | **4** | **13** | **31%** | **0 / 56h** | **1.06 / 16.8h** | **0 / 4.2h** | **~73k / 815k** |
 
 ## Fase 1 - Contrato y validacion
 
@@ -32,10 +32,10 @@ verificacion: obligatoria
 - **Estado**: completado
 - **Tiempo humano**: est. 5h · real -
 - **Prevision IA**: 55k in / 22k out tok
-- **Tiempo IA**: real 0.08h (medido; usage-meter, 5m, $1.61)
+- **Tiempo IA**: real 0.29h (medido; usage-meter, 0.08h T-01 + 0.21h T-01-fix1)
 - **Dependencias**: ninguna
 - **Tipo**: backend
-- **Archivos**: `agent-kits/shared/schemas/taxonomy.schema.json`, `agent-kits/shared/knowledge-schema.py`, `agent-kits/shared/test_knowledge_schema.py`, `agent-kits/shared/templates/taxonomy.json`, `docs/CONVENTIONS.md`, `docs/en/CONVENTIONS.md`, `docs/knowledge/adr/ADR-018-arquitectura-de-memoria-markdown-canonico-backends-declarados.md`, `docs/knowledge/README.md` (nota: fuera de la lista original; necesario para mantener la fila de ADR-018 coherente con su nuevo estado, regla 10 "quien añade/cambia una entrada actualiza la tabla en el mismo cambio"; `docs/knowledge/**` siempre en alcance de `scope-check.py`)
+- **Archivos**: `agent-kits/shared/schemas/taxonomy.schema.json`, `agent-kits/shared/knowledge-schema.py`, `agent-kits/shared/test_knowledge_schema.py`, `agent-kits/shared/templates/taxonomy.json`, `agent-kits/shared/copias.json`, `tests/test_knowledge_index.py`, `tests/test_knowledge_candidates.py`, `docs/CONVENTIONS.md`, `docs/en/CONVENTIONS.md`, `docs/knowledge/adr/ADR-018-arquitectura-de-memoria-markdown-canonico-backends-declarados.md`, `docs/knowledge/README.md` (nota: fuera de la lista original; necesario para mantener la fila de ADR-018 coherente con su nuevo estado, regla 10 "quien añade/cambia una entrada actualiza la tabla en el mismo cambio"; `docs/knowledge/**` siempre en alcance de `scope-check.py`)
 - **Verificacion**: `python -m pytest -q agent-kits/shared/test_knowledge_schema.py` -> valida `taxonomy.json` (version, categorias, evidencia, `backends`, `routing`, `evidence_levels`, `denylist`) con validador stdlib; rechaza estado/tag invalidos y un `routing` que cite un backend no declarado (CA-11, CA-13)
   - Salida real: `23 passed in 0.09s`
   - `RED: agent-kits/shared/test_knowledge_schema.py (con knowledge-schema.py sustituido por un stub `validar()->[]`/`main()->0`) falló con "22 failed, 1 passed" (AttributeError en `default_taxonomy`/`cargar_taxonomia`/`categorias_por_backend`, y aserciones de exit code) · 2026-09-18`
@@ -43,6 +43,7 @@ verificacion: obligatoria
 - [x] `taxonomy.json` define categorias, carpeta, evidencia minima, `backends` (id, type, config) y `routing` por categoria hacia ids declarados.
 - [x] Sin `taxonomy.json`, el plugin usa su default minimo propio (DECISION/PATTERN/GOTCHA/LESSON, backend `kwipu` desactivado) sin romper nada.
 - [x] Una categoria sin `routing`, o con un id no declarado, no exporta a ningun backend (fail-closed); el error nombra fichero y campo; `ADR-018` pasa a `aceptada` al cerrar.
+- **Nota T-01-fix1 (correccion posterior, 2026-09-18)**: `lint_plugin.py` senalaba `_TAXONOMY_FALLBACK` (antes `DEFAULT_TAXONOMY_FALLBACK`) como constante de respaldo sin fila en `copias.json` (ADR-016) y el respaldo habia divergido del canonico (`templates/taxonomy.json`) — faltaba `backends.kwipu.config.health`. RED: `agent-kits/shared/test_knowledge_schema.py::test_default_fallback_coincide_con_el_template` fallo con `AssertionError` (diff mostraba `health` ausente) · 2026-09-18. Fix: se anadio el bloque `taxonomy_fallback` a `copias.json` (mecanismo A, ancla `"version": 1,`/`]`, sustitucion `False`->`false`), se corrigio el respaldo para que coincida byte a byte con la plantilla, y se reformateo la constante `DEFAULT_TAXONOMY_FALLBACK` -> `_TAXONOMY_FALLBACK` (unico nombre que casa a la vez con la heuristica de `lint_plugin.py`, que hace `findall` no anclado, y con el `respaldos` de `copias.json`, que exige definicion anclada al inicio de linea). GREEN: `python -m pytest -q agent-kits/shared/test_knowledge_schema.py` -> `24 passed in 0.28s`. Se detecto ademas una colision de nombre de fichero introducida por el propio T-03 (`tests/test_knowledge_index.py` sobreescribio, sin darse cuenta, un test previo de `memory-retrieval`); se restauro el original y se reubico el contenido de T-03 en `tests/test_knowledge_candidates.py` (ver nota en T-03). Verificacion final de esta ronda: `python -m pytest -q tests/test_copias_declaradas.py agent-kits/shared/test_knowledge_schema.py` -> `45 passed in 0.52s`; `python scripts/lint_plugin.py` -> solo queda el `❌` preexistente de LES-016; `agent-kits/shared/ledger-lint.py docs/roadmap/2026-09-15-knowledge-services/tasks.md` -> exit 0.
 - **Changelog**: El plugin ahora valida la configuración de conocimiento del proyecto (`taxonomy.json`) y sus backends declarados, con un default seguro cuando el proyecto no configura nada.
 
 ### T-02 - Indice canonico y validador determinista sobre la taxonomia configurada
@@ -71,13 +72,14 @@ verificacion: obligatoria
 - **Prevision IA**: 35k in / 10k out tok
 - **Dependencias**: T-01
 - **Tipo**: docs
-- **Archivos**: `.gitignore`, `docs/knowledge/candidates/`, `docs/knowledge/approved/`, `docs/knowledge/README.md`, `tests/test_knowledge_index.py` (nota: fuera de la lista original; la propia `Verificacion` de esta tarea ya lo citaba, se añade aqui para que `scope-check.py` y esta tabla queden coherentes con lo que realmente se ejecuta)
-- **Verificacion**: `python -m pytest -q tests/test_knowledge_index.py` -> fuentes e indice coherentes sin derivados
+- **Archivos**: `.gitignore`, `docs/knowledge/candidates/`, `docs/knowledge/approved/`, `docs/knowledge/README.md`, `tests/test_knowledge_candidates.py` (nota: fuera de la lista original; la propia `Verificacion` de esta tarea ya lo citaba, se añade aqui para que `scope-check.py` y esta tabla queden coherentes con lo que realmente se ejecuta)
+- **Verificacion**: `python -m pytest -q tests/test_knowledge_candidates.py` -> fuentes e indice coherentes sin derivados
   - Salida real: `6 passed in 0.13s`.
   - TDD n/a: docs/config (estructura de carpetas, README de ownership, entradas de `.gitignore`); el test de integracion se escribio junto al artefacto para verificar mecanicamente la estructura, no como ciclo RED-GREEN de una unidad de codigo.
 **Criterios de aceptación**
 - [x] Sin arbol projects; ownership documentado; export no versionado.
 - **Changelog**: El flujo de conocimiento del proyecto ahora separa claramente lo propuesto (`candidates/`) de lo aprobado (`approved/`), con las exportaciones a backends siempre excluidas del control de versiones.
+- **Nota T-01-fix1 (correccion posterior, 2026-09-18)**: el fichero de test de esta tarea se creo originalmente como `tests/test_knowledge_index.py`, nombre que YA pertenecia a un test previo de `memory-retrieval` (biyeccion del indice de `docs/knowledge/README.md`, commit `5f516f8`) y quedo sobrescrito sin darse cuenta (gap encontrado al correr la suite completa de `copias.json`). Se renombro a `tests/test_knowledge_candidates.py` y se restauro el fichero original; ver tambien el `Archivos`/`Verificacion` de esta tarea, ya corregidos arriba.
 
 ## Fase 2 - Curacion y workflow
 
@@ -162,11 +164,11 @@ verificacion: obligatoria
 ### T-13 - Registro de capacidades `capabilities.py`
 - **Estado**: completado
 - **Tiempo humano**: est. 3h · real -
-- **Tiempo IA**: real 0.13h (medido; usage-meter, 8m, 1.99 EUR)
+- **Tiempo IA**: real 0.34h (medido; usage-meter, 0.13h T-13 + 0.21h T-13-fix1)
 - **Prevision IA**: 35k in / 14k out tok
 - **Dependencias**: T-01
 - **Tipo**: backend
-- **Archivos**: `agent-kits/shared/capabilities.py`, `agent-kits/shared/test_capabilities.py`, `agent-kits/shared/README.md`, `docs/CONVENTIONS.md`, `docs/en/CONVENTIONS.md`
+- **Archivos**: `agent-kits/shared/capabilities.py`, `agent-kits/shared/test_capabilities.py`, `agent-kits/shared/README.md`, `scripts/lint_plugin.py`, `docs/CONVENTIONS.md`, `docs/en/CONVENTIONS.md`
 - **Verificacion**: `python -m pytest -q agent-kits/shared/test_capabilities.py` -> registro con dos capacidades (`knowledge-gate`, `kwipu`) y una tercera de fixture; `enabled/health/doctor/setup_step` por capacidad; una capacidad rota degrada a `error` sin tumbar el resto
   - Salida real: `11 passed in 0.23s`.
   - RED: `python -m pytest -q agent-kits/shared/test_capabilities.py` contra un `capabilities.py` stub (`REGISTRO=[]`, `registrar`/`enumerar` no-op, `main` devolvia `0`) fallo con `8 failed, 3 passed in 0.29s` (KeyError/AssertionError: sin `knowledge-gate`/`kwipu`, sin evaluacion real, CLI sin salida) · 2026-09-18. Tras implementar el registro real: `11 passed in 0.23s` (GREEN).
@@ -175,6 +177,7 @@ verificacion: obligatoria
 - [x] Anadir una capacidad es un registro nuevo, no una edicion de `doctor.py` (CA-14).
 - **Changelog**: `/setup` y `/doctor` podran enumerar las capacidades opcionales del plugin (Knowledge Gate, Kwipu y las que se añadan despues) desde un unico registro, sin codigo especifico por capacidad.
 - **Nota (para la revision de dos lentes)**: esta tarea NO toca `doctor.py` ni `setup.md` (integrarlos es T-09, fuera de este despacho); `capabilities.py` deja el registro listo para que T-09 solo llame a `enumerar()`. La comprobacion de red real de Kwipu (`GET /health` del bridge) queda deliberadamente fuera: aqui `kwipu.health` solo refleja si esta declarado/activado en `taxonomy.json`, delegando la comprobacion en vivo al adaptador `markdown-export` de T-08 (asi lo indica la enmienda 2026-09-18 del spec, punto 3, que separa contrato de lectura del adaptador del registro de capacidades).
+- **Nota T-13-fix1 (correccion posterior, 2026-09-18)**: `lint_plugin.py` seguia listando `agent-kits/shared/capabilities.py` en `PIEZAS_PLANIFICADAS` (aviso de pieza planificada-pero-ausente) pese a que esta tarea ya lo construyo — se elimino la entrada de la lista y se anadio `scripts/lint_plugin.py` al `Archivos` de esta tarea (arriba). TDD n/a: es una lista de datos estatica, no logica nueva. Verificacion: `python scripts/lint_plugin.py` -> solo el `❌` preexistente de LES-016, sin el aviso de `capabilities.py`.
 
 ## Fase 4 - Regresion y cierre
 
