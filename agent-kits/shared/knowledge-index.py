@@ -19,11 +19,12 @@ rompería ADR-001..ADR-017/GOT-.../LES-... existentes sin necesidad.
 
 Contrato de frontmatter de una entrada aprobada:
   id (str, obligatorio) · version (int, obligatorio) · enlaces (lista opcional de ids referidos)
-  · estado (opcional; si se declara, debe ser "aprobado" — coherente con vivir bajo `approved/`)
+  · estado (obligatorio, gap 43; debe ser "aprobado" — coherente con vivir bajo `approved/`)
   · fuentes (opcional; si se declara, lista no vacía) · tags (opcional; si se declara, lista)
 
-Alcance de la validación de frontmatter (gap 3, revisión intento 1): este índice solo comprueba
-la FORMA de `estado`/`fuentes`/`tags` cuando el campo está presente — nunca los exige, y nunca
+Alcance de la validación de frontmatter (gap 3, revisión intento 1; `estado` pasó a obligatorio
+en el gap 43): este índice exige `estado` y comprueba la FORMA de `estado`/`fuentes`/`tags`
+(`fuentes`/`tags` solo si el campo está presente — nunca los exige), y nunca
 comprueba `evidencia` contra el `min_evidence` de su categoría (una entrada de `approved/<folder>/`
 puede pertenecer a más de una `category` que comparta esa carpeta — p. ej. PATTERN y GOTCHA
 comparten `gotchas/` en la plantilla por defecto — así que el `folder` por sí solo no basta para
@@ -184,9 +185,18 @@ _ESTADOS_VALIDOS_APROBADO = {"aprobado"}
 
 def _validar_frontmatter_forma(fm, ruta):
     """Comprobaciones de FORMA (no de semántica de categoría, ver docstring del módulo) sobre
-    campos opcionales del frontmatter de una entrada aprobada (gap 3)."""
+    el frontmatter de una entrada aprobada (gap 3). `estado` es OBLIGATORIO bajo `approved/`
+    (gap 43, revisión intento 1): antes de esta versión solo se validaba su forma cuando estaba
+    presente, lo que permitía una entrada `approved/` sin `estado` en absoluto; el gate de
+    aprobación (`curator-gate.py`, T-04) siempre lo escribe, así que ausente aquí es señal de
+    una entrada tocada a mano o por un flujo que se saltó el gate. `fuentes`/`tags` siguen
+    siendo opcionales (solo se valida su forma si están presentes)."""
     errores = []
-    if "estado" in fm:
+    if "estado" not in fm:
+        errores.append(_error(
+            "falta `estado` (obligatorio en una entrada bajo `approved/`; debe ser `aprobado`)",
+            ruta, "estado"))
+    else:
         estado = fm["estado"]
         if estado == "":
             # gap 33: `_frontmatter()` devuelve `""` para una clave presente SIN valor (ni
