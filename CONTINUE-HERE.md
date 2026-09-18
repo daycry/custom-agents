@@ -12,8 +12,10 @@
 > colisión de basename `test_knowledge_index.py` que apaga la colección del comando de CI; 10 Important; 11 Minor;
 > #19 corregido por el orquestador en `design.md`, #21 deuda aceptada). Ronda `T-XX-fix2` hecha (03071f9..72f64af).
 > **Intento 2** (cf23f02): 22/22 cerrados + 12 nuevos (#23–#34; #23 corregido en e66cc32). **Ronda `T-XX-fix3`
-> hecha** (bf97acd..47314a9: 11/11 cerrados). **Intento 3 (último del bucle) en curso** con las dos lentes.
-> Siguiente: cerrar intento 3 → Fase 2 (T-04 curator, T-05 documenter, T-06 Fase 4-bis) → Fase 3 (T-07 sync +
+> hecha** (bf97acd..47314a9: 11/11 cerrados). **Intento 3** (cb92ea0): 5 nuevos (#35–#39) → decisión del orquestador
+> (autónomo, sin Critical, convergente): ronda `fix4` (55499be, c3e7aeb) + verificación dirigida → **bucle CERRADO**
+> (ec75d4c; 39 gaps en total, 0 pendientes, #21 deuda). **Fase 2 (T-04 knowledge-curator, T-05 documenter propone,
+> T-06 Fase 4-bis) despachada al `implementer`**. Siguiente: revisión de dos lentes de la Fase 2 (intento 1) → Fase 3 (T-04 curator, T-05 documenter, T-06 Fase 4-bis) → Fase 3 (T-07 sync +
 > contrato, T-08 adaptador Kwipu, T-09 setup/doctor) → Fase 4 (T-10, T-11, T-12) → qa sin UI → documenter → cierre
 > (changelog-sync, /retro + retro-gate) → graphiti-memory.
 >
