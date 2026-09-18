@@ -10,9 +10,10 @@
 > Estado del ledger `docs/roadmap/2026-09-15-knowledge-services/tasks.md`: T-01, T-02, T-03, T-13 `completado`
 > (Fase 1 + registro de capacidades). **Revisión de dos lentes — intento 1** escrita (22 gaps: 1 Critical =
 > colisión de basename `test_knowledge_index.py` que apaga la colección del comando de CI; 10 Important; 11 Minor;
-> #19 corregido por el orquestador en `design.md`, #21 deuda aceptada). **Ronda `T-XX-fix2` despachada al
-> `implementer`** (agente fresco). Siguiente: intento 2 de la revisión (pasar la tabla del intento 1 a las lentes,
-> re-evaluar SOLO lo corregido) → Fase 2 (T-04 curator, T-05 documenter, T-06 Fase 4-bis) → Fase 3 (T-07 sync +
+> #19 corregido por el orquestador en `design.md`, #21 deuda aceptada). Ronda `T-XX-fix2` hecha (03071f9..72f64af).
+> **Intento 2** (cf23f02): 22/22 cerrados + 12 nuevos (#23–#34; #23 corregido en e66cc32). **Ronda `T-XX-fix3`
+> despachada** (gaps #24–#34, incl. #28 = snippet de consola regla 8 en los 3 scripts, 15 tests rojos de
+> `test_console_encoding.py`). Siguiente: intento 3 (ÚLTIMO del bucle: solo lo corregido) → Fase 2 (T-04 curator, T-05 documenter, T-06 Fase 4-bis) → Fase 3 (T-07 sync +
 > contrato, T-08 adaptador Kwipu, T-09 setup/doctor) → Fase 4 (T-10, T-11, T-12) → qa sin UI → documenter → cierre
 > (changelog-sync, /retro + retro-gate) → graphiti-memory.
 >
