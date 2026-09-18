@@ -603,3 +603,70 @@ def test_entrada_sin_resumen_explicito_tiene_resumen_none(tmp_path):
     indice, errores = ki.build_index(root)
     assert errores == []
     assert indice["ADR-001"]["resumen"] is None
+
+
+def test_gapT10_comentario_en_medio_de_lista_de_bloque_no_trunca(tmp_path):
+    """T-10 (heredado de la revisión Fase 2 intento 2, `knowledge-index.py:144`): un comentario
+    `#` intercalado entre los items de una lista en bloque del frontmatter truncaba la lista en
+    silencio (el parser paraba en la primera línea que no casaba con `- X`). Un comentario debe
+    saltarse sin cortar el resto de items."""
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    d = os.path.join(root, "docs", "knowledge", "approved", "adr")
+    os.makedirs(d, exist_ok=True)
+    contenido = (
+        "---\nid: ADR-COMENTARIO-EN-LISTA\nversion: 1\nestado: aprobado\ncategory: DECISION\n"
+        "fuentes:\n  - https://a\n  # nota interna, ignorar\n  - https://b\n---\n\n# x\n"
+    )
+    with open(os.path.join(d, "ADR-COMENTARIO-EN-LISTA.md"), "w", encoding="utf-8") as f:
+        f.write(contenido)
+    indice, errores = ki.build_index(root)
+    assert errores == []
+    assert indice["ADR-COMENTARIO-EN-LISTA"]["fuentes"] == ["https://a", "https://b"]
+
+
+def test_gapT10_item_vacio_en_medio_de_lista_de_bloque_no_trunca(tmp_path):
+    """T-10 (heredado): un item vacío (`-` sin contenido) intercalado entre items de una lista en
+    bloque tampoco debe truncar el resto de la lista; el item vacío se descarta, no se propaga."""
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    d = os.path.join(root, "docs", "knowledge", "approved", "adr")
+    os.makedirs(d, exist_ok=True)
+    contenido = (
+        "---\nid: ADR-ITEM-VACIO-EN-LISTA\nversion: 1\nestado: aprobado\ncategory: DECISION\n"
+        "fuentes:\n  - https://a\n  -\n  - https://b\n---\n\n# x\n"
+    )
+    with open(os.path.join(d, "ADR-ITEM-VACIO-EN-LISTA.md"), "w", encoding="utf-8") as f:
+        f.write(contenido)
+    indice, errores = ki.build_index(root)
+    assert errores == []
+    assert indice["ADR-ITEM-VACIO-EN-LISTA"]["fuentes"] == ["https://a", "https://b"]
+
+
+def test_gapT10_realpath_de_la_carpeta_base_se_calcula_una_vez_por_carpeta(tmp_path, monkeypatch):
+    """T-10 (heredado, coste lineal de `realpath` por fichero): `_ruta_segura_dentro` recalculaba
+    `realpath(base)` para CADA fichero de la carpeta, aunque `base` es el mismo valor durante todo
+    el recorrido de esa carpeta. `build_index` debe calcularlo UNA vez por carpeta declarada y
+    reutilizarlo; se mide contando las llamadas reales a `os.path.realpath`."""
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    d = os.path.join(root, "docs", "knowledge", "approved", "adr")
+    os.makedirs(d, exist_ok=True)
+    n = 5
+    for i in range(n):
+        _entry(root, "adr", f"ADR-{i}.md", f"ADR-{i}")
+    llamadas = []
+    real_realpath = os.path.realpath
+
+    def _contando(p):
+        llamadas.append(p)
+        return real_realpath(p)
+
+    monkeypatch.setattr(ki.os.path, "realpath", _contando)
+    indice, errores = ki.build_index(root)
+    assert errores == []
+    assert len(indice) == n
+    # 1 llamada por la base de la carpeta (antes: 1 por CADA fichero candidato, coste lineal
+    # evitable) + hasta 2 por fichero candidato (contención + dedupe, ambas necesarias y ajenas a
+    # este gap): nunca más de 1 + 2*n.
+    assert len(llamadas) <= 1 + 2 * n

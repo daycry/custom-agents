@@ -437,3 +437,17 @@ def test_id_prefix_con_root_none_usa_el_slug_del_cwd(tmp_path, monkeypatch):
     assert origen == "default"
     assert errores == []
     assert config["id_prefix"] == "proyecto-con-nombre"
+
+
+def test_min_evidence_no_string_produce_un_solo_error():
+    """T-10 (heredado de la revisión Fase 2 intento 2, `knowledge-schema.py:274-279`): antes,
+    `min_evidence: 1` (int) disparaba DOS errores (`no declara min_evidence` por el `isinstance`
+    seguido de `no está en evidence_levels`, porque `1 not in evidence_levels` también es cierto
+    para un entero). Un valor presente pero de tipo incorrecto es UN solo defecto, no dos."""
+    cfg = _valida(categories=[
+        {"key": "X", "folder": "x", "min_evidence": 1, "routing": {}},
+    ])
+    errores = ks.validar(cfg, "t")
+    errores_min_evidence = [e for e in errores if e["campo"] == "categories[0].min_evidence"]
+    assert len(errores_min_evidence) == 1
+    assert "min_evidence" in errores_min_evidence[0]["mensaje"]
