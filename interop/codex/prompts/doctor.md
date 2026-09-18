@@ -1,5 +1,5 @@
 ---
-description: "Diagnóstico de la instalación del plugin en este proyecto — herramientas (python3, git, jq, node, Playwright), plugin y hooks registrados, statusline, configs de .claude (rates, dev, jira, confluence) y estado del trabajo (marcadores de medición huérfanos, iniciativas en progreso, memoria técnica —curadas, índice, FTS5, journal, calibración—, evals), con veredicto ✅/⚠️/❌ y el arreglo concreto de cada línea. Solo lee; no toca nada y no usa red. Úsalo cuando el usuario diga \"¿está bien instalado?\", \"diagnostica el plugin\", \"por qué no funciona el hook\", \"comprueba mi configuración\", \"doctor\"."
+description: "Diagnóstico de la instalación del plugin en este proyecto — herramientas (python3, git, jq, node, Playwright), plugin y hooks registrados, statusline, configs de .claude (rates, dev, jira, confluence) y estado del trabajo (marcadores de medición huérfanos, iniciativas en progreso, memoria técnica —curadas, índice, FTS5, journal, calibración—, evals), con veredicto ✅/⚠️/❌ y el arreglo concreto de cada línea. Solo lee; no toca nada. Sin red salvo la comprobación en vivo de capacidades opcionales activadas en `taxonomy.json` (p. ej. `kwipu`), acotada a hosts locales/privados y a un tope total de tiempo (gap 85, fix1 knowledge-services). Úsalo cuando el usuario diga \"¿está bien instalado?\", \"diagnostica el plugin\", \"por qué no funciona el hook\", \"comprueba mi configuración\", \"doctor\"."
 argument-hint: "(opcional) --json para la salida en JSON"
 ---
 <!-- GENERADO por scripts/export-interop.py desde commands/doctor.md — no lo edites a mano.
@@ -13,7 +13,7 @@ argument-hint: "(opcional) --json para la salida en JSON"
 
 Primera parada cuando algo "no salta": el hook que no aparece, la statusline que no se ve, el
 coste que sale a 0, la skill que no encuentra su script. Comprueba la instalación **sin tocar
-nada** y sin red: cada línea lleva su veredicto y, si algo falla, **qué comando lo arregla**.
+nada**: cada línea lleva su veredicto y, si algo falla, **qué comando lo arregla**.
 
 ## Pasos
 1. Localiza el script del kit compartido y ejecútalo:
