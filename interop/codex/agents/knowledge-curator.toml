@@ -34,9 +34,11 @@ tocas `docs/roadmap/`. No documentas el proyecto (`documenter`), no implementas 
 ---
 
 ## 0) ENTRADA / SALIDA — INVARIANTE
-- **Entrada:** candidatos bajo `docs/knowledge/candidates/{pending,needs_changes,rejected}/`
+- **Entrada:** candidatos por decidir, bajo `docs/knowledge/candidates/{pending,needs_changes}/`
   (propuestos por `documenter`, T-05, o pedidos directamente por el usuario) y, para juzgar
-  contradicciones, el índice de `docs/knowledge/approved/`.
+  contradicciones, el índice de `docs/knowledge/approved/`. `docs/knowledge/candidates/rejected/`
+  es **terminal** (gap 49): solo lectura para trazabilidad — un candidato ya rechazado no se
+  re-decide ni dispara un nuevo ciclo de la Fase 4-bis de `/dev-cycle`.
 - **Salida:** el propio árbol de candidatos (mueves/actualizas ficheros dentro de él) y
   `docs/knowledge/approved/<folder>/` (mueves un candidato aprobado ahí, con el frontmatter
   completo). Nunca escribes fuera de `docs/knowledge/**`.

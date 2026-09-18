@@ -318,6 +318,12 @@ SIN_SIMBOLOS_EN_LA_SALIDA = {
     # exigiría montar un fixture de `approved/` con una entrada invalida solo para este test.
     "agent-kits/shared/knowledge-index.py":
         "sin `approved/` en el workspace de prueba, el veredicto por defecto es ASCII puro",
+    # knowledge-services T-04 (gap 40): TODOS sus mensajes de error (`_error(...)`) y `print()` son
+    # texto en español SIN tildes a propósito (p. ej. "categoria", "invalida", "esta"), y el veredicto
+    # feliz (`curator-gate: \`approve\` permitido (categoria \`X\`)`) tambien es ASCII puro; no hay
+    # ninguna ruta de impresion que emita no-ASCII de verdad.
+    "agent-kits/knowledge-curator/curator-gate.py":
+        "todos sus mensajes de error y el veredicto feliz estan escritos sin tildes; ASCII puro",
 }
 SCRIPTS_CON_SIMBOLOS = [rel for rel in SCRIPTS if rel not in SIN_SIMBOLOS_EN_LA_SALIDA]
 
@@ -361,6 +367,8 @@ def _modos():
             [("default", lambda w: ["--default"], (0,), None)],
         "agent-kits/shared/knowledge-index.py":
             [("indice", lambda w: ["--root", w], (0, 1), None)],
+        "agent-kits/knowledge-curator/curator-gate.py":
+            [("candidato inexistente", lambda w: [os.path.join(w, "nope.md"), "--decision", "reject"], (2,), None)],
         "agent-kits/shared/capabilities.py":
             [("registro", lambda w: ["--root", w], (0,), None)],
         # Imprime `·` y áreas con acentos («Estimación / calibración») en cada acierto (memory-retrieval T-01).
