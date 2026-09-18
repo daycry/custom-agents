@@ -565,23 +565,8 @@ class TestMarkdownExportFix2(unittest.TestCase):
         self.assertFalse(os.path.exists(os.path.join(export_dir, ".knowledge-services.lock")))
         self.assertFalse(os.path.exists(export_dir + ".lock"))  # se libera al salir del `with`
 
-    # ---- gap 82/115: reparacion de una corrida interrumpida (.prev huerfano) ----
-
-    def test_apply_repone_prev_huerfano_si_export_dir_desaparecio(self):
-        entradas = [_entrada(id_="mr.pattern.a")]
-        self.mod.apply(self.mod.plan(entradas, self.cfg), self.cfg)
-        export_dir = os.path.join(self.root, self.export_dir_rel)
-        prev_dir = export_dir + ".prev"
-        os.replace(export_dir, prev_dir)  # simula: primer rename hecho, proceso murio ahi
-        self.assertFalse(os.path.isdir(export_dir))
-        # `plan()` se calcula ANTES de que `apply()` repare `.prev` (no ve manifest.json todavia,
-        # asi que pide `upsert`); la reparacion ocurre dentro de `apply()`, bajo el lock, y el
-        # resultado es el mismo contenido publicado de nuevo (idempotente en contenido, aunque no
-        # literalmente "sin_cambios" para esta pasada).
-        resultado = self.mod.apply(self.mod.plan(entradas, self.cfg), self.cfg)
-        self.assertTrue(os.path.isdir(export_dir))
-        self.assertFalse(os.path.isdir(prev_dir))
-        self.assertEqual(resultado["escritos"], 1)
+    # ---- gap 82/115/126 (fix3): ya no hay `.prev` que reparar (diseño sustitutivo, ver
+    # TestMarkdownExportFix3) — solo queda purgar un staging hermano huérfano ----
 
     def test_apply_purga_staging_huerfano_viejo(self):
         export_dir = os.path.join(self.root, self.export_dir_rel)
@@ -744,6 +729,296 @@ class TestMarkdownExportFix2(unittest.TestCase):
         cfg = dict(self.cfg, export_dir=enlace)
         with self.assertRaises(self.mod.ConfigInvalida):
             self.mod.plan([], cfg)
+
+
+class TestMarkdownExportFix3(unittest.TestCase):
+    """Fase 3, intento 3, fix3 (2026-09-18): gaps 126/127/129/132/134/136/137/138 — diseño
+    sustitutivo de publicación por fichero con diario (sustituye el intercambio de directorio de
+    fix2), contención bidireccional de `export_dir`, caché DNS con TTL + resoluciones en marcha
+    unidas, redirecciones acotadas con presupuesto de tiempo total de la cadena."""
+
+    def setUp(self):
+        self.mod = _cargar()
+        self.tmp = tempfile.mkdtemp(prefix="ks-export-fix3-")
+        self.root = os.path.join(self.tmp, "proyecto")
+        os.makedirs(self.root, exist_ok=True)
+        self.export_dir_rel = "kwipu-export"
+        self.cfg = {"export_dir": self.export_dir_rel, "_root": self.root,
+                    "health": {"url": "http://127.0.0.1:1/health", "timeout_ms": 100}}
+        self.export_dir = os.path.join(self.root, self.export_dir_rel)
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    # ---- gap 126: una corrida PURAMENTE sin_cambios que falla escribiendo el diario no toca nada ----
+
+    def test_apply_sin_cambios_que_falla_escribiendo_el_pending_no_toca_export_dir(self):
+        entradas = [_entrada(id_="mr.pattern.a"), _entrada(id_="mr.pattern.b")]
+        self.mod.apply(self.mod.plan(entradas, self.cfg), self.cfg)
+        antes = sorted(os.listdir(self.export_dir))
+        manifest_antes = open(os.path.join(self.export_dir, "manifest.json"), encoding="utf-8").read()
+
+        def _falla(*a, **kw):
+            raise OSError("disco lleno (simulado)")
+
+        original = self.mod._escribir_manifest_atomico
+        self.mod._escribir_manifest_atomico = _falla
+        try:
+            with self.assertRaises(OSError):
+                self.mod.apply(self.mod.plan(entradas, self.cfg), self.cfg)
+        finally:
+            self.mod._escribir_manifest_atomico = original
+        self.assertEqual(sorted(os.listdir(self.export_dir)), antes)
+        self.assertEqual(
+            open(os.path.join(self.export_dir, "manifest.json"), encoding="utf-8").read(),
+            manifest_antes)
+        self.assertFalse(os.path.isfile(os.path.join(self.export_dir, "manifest.pending.json")))
+
+    # ---- gap 126/127: un fallo publicando UN fichero deja los demas intactos y permite retomar ----
+
+    def test_apply_con_fallo_a_mitad_de_publicar_deja_lo_ya_publicado_intacto_y_retoma(self):
+        entradas = [_entrada(id_=f"mr.pattern.{n}") for n in "abcd"]
+        self.mod.apply(self.mod.plan(entradas, self.cfg), self.cfg)
+        # segunda corrida: cambia "d" (unico upsert), el resto sin_cambios
+        entradas2 = [_entrada(id_=f"mr.pattern.{n}") for n in "abc"] + \
+            [_entrada(id_="mr.pattern.d", cuerpo="Cuerpo nuevo.\n")]
+        ops = self.mod.plan(entradas2, self.cfg)
+        acciones = {op["knowledge_id"]: op["accion"] for op in ops}
+        self.assertEqual(acciones["mr.pattern.d"], "upsert")
+        self.assertEqual(acciones["mr.pattern.a"], "sin_cambios")
+
+        original_replace = self.mod.os.replace
+        export_dir_real = self.mod._export_dir_resuelto(self.cfg)
+        destino_d = os.path.join(export_dir_real, "mr.pattern.d.md")
+
+        def _replace_falla_en_d(origen, destino, *a, **kw):
+            if destino == destino_d:
+                raise OSError("PermissionError simulado: fichero abierto por el indexador")
+            return original_replace(origen, destino, *a, **kw)
+
+        self.mod.os.replace = _replace_falla_en_d
+        try:
+            with self.assertRaises(self.mod.ConfigInvalida):
+                self.mod.apply(ops, self.cfg)
+        finally:
+            self.mod.os.replace = original_replace
+        # el pending sigue en disco, "d" no se publico, pero a/b/c (sin_cambios) siguen intactos
+        self.assertTrue(os.path.isfile(os.path.join(self.export_dir, "manifest.pending.json")))
+        for letra in "abc":
+            self.assertTrue(os.path.isfile(os.path.join(self.export_dir, f"mr.pattern.{letra}.md")))
+        contenido_d_antiguo = open(destino_d, encoding="utf-8").read()
+        self.assertNotIn("Cuerpo nuevo.", contenido_d_antiguo)
+
+        # la siguiente corrida (sin fallo) retoma y termina de publicar "d"
+        resultado = self.mod.apply(self.mod.plan(entradas2, self.cfg), self.cfg)
+        self.assertEqual(resultado["escritos"], 1)
+        self.assertIn("Cuerpo nuevo.", open(destino_d, encoding="utf-8").read())
+        self.assertFalse(os.path.isfile(os.path.join(self.export_dir, "manifest.pending.json")))
+
+    def test_verify_con_publicacion_pendiente_declara_publicacion_incompleta(self):
+        entradas = [_entrada(id_="mr.pattern.a")]
+        self.mod.apply(self.mod.plan(entradas, self.cfg), self.cfg)
+        pending = {"version": 1, "entries": self.mod._leer_manifest(self.export_dir)["entries"]}
+        self.mod._escribir_manifest_atomico(
+            os.path.join(self.export_dir, "manifest.pending.json"), pending)
+        resultado = self.mod.verify(self.cfg)
+        self.assertFalse(resultado["ok"])
+        self.assertEqual(resultado["razon"], "publicacion_incompleta")
+
+    # ---- gap 127: contencion bidireccional — "docs" o ".." pasaban antes, ahora se rechazan ----
+
+    def test_export_dir_igual_a_docs_que_contiene_docs_knowledge_es_config_invalida(self):
+        cfg = dict(self.cfg, export_dir="docs")
+        with self.assertRaises(self.mod.ConfigInvalida):
+            self.mod.plan([], cfg)
+
+    def test_export_dir_ancestro_del_root_es_config_invalida(self):
+        cfg = dict(self.cfg, export_dir="..")
+        with self.assertRaises(self.mod.ConfigInvalida):
+            self.mod.plan([], cfg)
+
+    def test_export_dir_dentro_de_docs_knowledge_sin_approved_es_config_invalida(self):
+        cfg = dict(self.cfg, export_dir=os.path.join("docs", "knowledge", "otra-carpeta"))
+        with self.assertRaises(self.mod.ConfigInvalida):
+            self.mod.plan([], cfg)
+
+    # ---- gap 127: apply()/rebuild() nunca tocan ficheros ajenos a lo que ellos mismos publicaron ----
+
+    def test_rebuild_no_toca_ficheros_ajenos_en_export_dir(self):
+        os.makedirs(self.export_dir, exist_ok=True)
+        with open(os.path.join(self.export_dir, "NOTAS.md"), "w", encoding="utf-8") as fh:
+            fh.write("notas de otro equipo, no tocar\n")
+        entradas = [_entrada(id_="mr.pattern.a")]
+        self.mod.rebuild(entradas, self.cfg)
+        self.assertTrue(os.path.isfile(os.path.join(self.export_dir, "NOTAS.md")))
+        self.assertTrue(os.path.isfile(os.path.join(self.export_dir, "mr.pattern.a.md")))
+
+    # ---- gap 136: una pasada puramente sin_cambios no toca ni un fichero en disco ----
+
+    def test_apply_sin_cambios_no_modifica_el_mtime_de_los_ficheros(self):
+        entradas = [_entrada(id_="mr.pattern.a"), _entrada(id_="mr.pattern.b")]
+        self.mod.apply(self.mod.plan(entradas, self.cfg), self.cfg)
+        ruta = os.path.join(self.export_dir, "mr.pattern.a.md")
+        mtime_antes = os.path.getmtime(ruta)
+        resultado = self.mod.apply(self.mod.plan(entradas, self.cfg), self.cfg)
+        self.assertEqual(resultado["sin_cambios"], 2)
+        self.assertEqual(resultado["escritos"], 0)
+        self.assertEqual(os.path.getmtime(ruta), mtime_antes)
+
+    # ---- gap 132/138: cache DNS con TTL y resoluciones en marcha unidas ----
+
+    def test_dns_cache_expira_y_reintenta_tras_el_ttl(self):
+        self.mod._dns_cache.clear()
+        llamadas = []
+        original = self.mod.socket.gethostbyname
+
+        def _contador(host):
+            llamadas.append(host)
+            return "127.0.0.1"
+
+        self.mod.socket.gethostbyname = _contador
+        try:
+            self.mod._host_permitido("http://cache-ttl.ejemplo.invalid/a")
+            self.assertEqual(len(llamadas), 1)
+            # forzar expiracion manualmente (sin dormir _DNS_CACHE_TTL_S de verdad)
+            ip, _expira = self.mod._dns_cache["cache-ttl.ejemplo.invalid"]
+            self.mod._dns_cache["cache-ttl.ejemplo.invalid"] = (ip, 0.0)
+            self.mod._host_permitido("http://cache-ttl.ejemplo.invalid/b")
+        finally:
+            self.mod.socket.gethostbyname = original
+        self.assertEqual(len(llamadas), 2)
+
+    def test_dns_colgado_se_cachea_con_ttl_corto_no_indefinido(self):
+        import time as _time
+        self.mod._dns_cache.clear()
+        self.mod._dns_inflight.clear()
+        original = self.mod.socket.gethostbyname
+
+        def _lento(host):
+            _time.sleep(5)
+            return "8.8.8.8"
+
+        self.mod.socket.gethostbyname = _lento
+        try:
+            self.mod._resolver_host_con_tope("dns-colgado.ejemplo.invalid", timeout_s=0.1)
+            self.assertIn("dns-colgado.ejemplo.invalid", self.mod._dns_cache)
+            _ip, expira = self.mod._dns_cache["dns-colgado.ejemplo.invalid"]
+            self.assertLessEqual(expira - _time.time(), self.mod._DNS_CACHE_TTL_S_LENTO + 0.5)
+        finally:
+            self.mod.socket.gethostbyname = original
+
+    def test_llamadas_concurrentes_al_mismo_host_lento_se_unen_a_un_solo_hilo(self):
+        import time as _time
+        self.mod._dns_cache.clear()
+        self.mod._dns_inflight.clear()
+        original = self.mod.socket.gethostbyname
+        resoluciones = []
+
+        def _lento(host):
+            resoluciones.append(host)  # una entrada por RESOLUCION real (no por hilo lanzado)
+            _time.sleep(0.3)
+            return "8.8.8.8"
+
+        self.mod.socket.gethostbyname = _lento
+        try:
+            resultados = []
+
+            def _worker():
+                resultados.append(
+                    self.mod._resolver_host_con_tope("host-compartido.ejemplo.invalid", timeout_s=1.0))
+
+            hilos = [threading.Thread(target=_worker) for _ in range(3)]
+            for h in hilos:
+                h.start()
+            for h in hilos:
+                h.join(2.0)
+        finally:
+            self.mod.socket.gethostbyname = original
+        # las 3 llamadas concurrentes al mismo host lento se UNEN al mismo hilo de resolución
+        # (gap 138): solo una debió disparar `socket.gethostbyname`, no una por llamada.
+        self.assertEqual(len(resoluciones), 1)
+        self.assertTrue(all(r == "8.8.8.8" for r in resultados))
+
+    # ---- gap 137: la cadena de redirecciones tiene tope de saltos y presupuesto TOTAL de tiempo ----
+
+    def test_cadena_de_redirecciones_respeta_el_presupuesto_total_no_por_salto(self):
+        fixture = _leer_fixture("kwipu-health-2026-09-18.json")
+        n_saltos = 6
+
+        class _HandlerCadena(_ServidorFixturas):
+            def _responder(self):
+                if self.path == "/health":
+                    self.send_response(302)
+                    self.send_header("Location", "/r0")
+                    self.end_headers()
+                    return
+                if self.path.startswith("/r"):
+                    n = int(self.path[2:])
+                    if n < n_saltos:
+                        self.send_response(302)
+                        self.send_header("Location", f"/r{n + 1}")
+                        self.end_headers()
+                        return
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json")
+                    self.end_headers()
+                    self.wfile.write(fixture.encode("utf-8"))
+                    return
+                super()._responder()
+
+        httpd = HTTPServer(("127.0.0.1", 0), _HandlerCadena)
+        puerto = httpd.server_address[1]
+        hilo = threading.Thread(target=httpd.serve_forever, daemon=True)
+        hilo.start()
+        try:
+            import time as _time
+            t0 = _time.monotonic()
+            salud = self.mod.health(
+                {"health": {"url": f"http://127.0.0.1:{puerto}/health", "timeout_ms": 1500}})
+            duracion = _time.monotonic() - t0
+            # n_saltos (6) < _MAX_REDIRECCIONES (5)? no: 6 > 5, así que se rechaza por tope de saltos
+            self.assertEqual(salud["estado"], "error")
+            self.assertLess(duracion, 2.0)  # nunca 1.5s * (saltos+1)
+        finally:
+            httpd.shutdown()
+            httpd.server_close()
+
+    def test_cadena_de_redirecciones_dentro_del_tope_de_saltos_funciona(self):
+        fixture = _leer_fixture("kwipu-health-2026-09-18.json")
+        n_saltos = 3
+
+        class _HandlerCadenaCorta(_ServidorFixturas):
+            def _responder(self):
+                if self.path == "/health":
+                    self.send_response(302)
+                    self.send_header("Location", "/r0")
+                    self.end_headers()
+                    return
+                if self.path.startswith("/r"):
+                    n = int(self.path[2:])
+                    if n < n_saltos:
+                        self.send_response(302)
+                        self.send_header("Location", f"/r{n + 1}")
+                        self.end_headers()
+                        return
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json")
+                    self.end_headers()
+                    self.wfile.write(fixture.encode("utf-8"))
+                    return
+                super()._responder()
+
+        httpd = HTTPServer(("127.0.0.1", 0), _HandlerCadenaCorta)
+        puerto = httpd.server_address[1]
+        hilo = threading.Thread(target=httpd.serve_forever, daemon=True)
+        hilo.start()
+        try:
+            salud = self.mod.health(
+                {"health": {"url": f"http://127.0.0.1:{puerto}/health", "timeout_ms": 1500}})
+            self.assertIn(salud["estado"], ("sano", "degradado"))
+        finally:
+            httpd.shutdown()
+            httpd.server_close()
 
 
 if __name__ == "__main__":
