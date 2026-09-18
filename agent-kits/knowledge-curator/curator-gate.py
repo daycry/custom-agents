@@ -184,29 +184,49 @@ def _plegar_acentos(texto):
 def _es_caracter_de_palabra(c):
     return bool(c) and re.match(r"\w", c, re.UNICODE) is not None
 
+# Gap 77: el limite IZQUIERDO de un termino que empieza en caracter de palabra (`TODO:`, `codigo
+# duplicado`...) no puede ser cualquier caracter "no de palabra" — `(?<!\w)` deja pasar `/`, `:` o
+# `.` sin espacio, que es justo como aparece un termino DENTRO de una URL o una ruta
+# (`https://x/TODO:1234`, `a.b.TODO:`). El termino solo dispara si lo que precede es el inicio del
+# texto, un espacio, o puntuacion de APERTURA de frase — nunca un separador de ruta/URL ni una letra
+# u otro simbolo cualquiera.
+_PRECEDENTE_PERMITIDO_NEGADO = "[^\\s(\\[\"'¿¡\\-—]"  # ( [ " ' ¿ ¡ - —
+
+# Gap 78/80: el separador entre las PARTES de un termino multi-palabra («conversacion cruda»,
+# «chain-of-thought», `chain_of_thought`) casa espacios, guiones y guiones bajos indistintamente
+# (gap 80: se sumo `_` al `[\s-]+` original) — pero un salto de linea NO puede colar una frontera de
+# lista markdown (gap 78): `\n` seguido (tras espacios) de una viñeta (`- `, `* `, `+ `), una
+# numeracion (`1. `/`1) `) o una linea en blanco no cuenta como separador valido, porque eso son dos
+# elementos DISTINTOS de una lista, no el mismo termino partido por el formato.
+_SEPARADOR_TERMINO = (
+    r"(?:[ \t_-]+|\n(?![ \t]*(?:\n|[-*+][ \t]|\d+[.)][ \t])))"
+)
+
 
 def _regex_termino(termino):
     """Un termino de la lista negra puede tener varias palabras («conversacion cruda») o ir unido
-    por guion («chain-of-thought»): ambas formas casan entre si (gap 66) partiendo el termino por
-    ESPACIOS O GUIONES (`[\\s-]+`) y recomponiendolo con el mismo separador flexible entre las
-    partes — cubre saltos de linea y la variante con espacios de un termino declarado con guion (o
-    al reves).
+    por guion («chain-of-thought») o guion bajo (`chain_of_thought`, gap 80): las tres formas casan
+    entre si partiendo el termino por ESPACIOS, GUIONES O GUIONES BAJOS (`[\\s_-]+`) y
+    recomponiendolo con el mismo separador flexible entre las partes — cubre saltos de linea (salvo
+    que crucen una frontera de lista markdown, gap 78) y la variante con espacios de un termino
+    declarado con guion (o al reves).
 
     Los limites NO son `\\b` literal (gap 41): `\\b` falla en los dos sentidos que este termino
     necesita — no detecta el limite tras un termino que acaba en puntuacion (`TODO:` seguido de un
     espacio: ninguno de los dos lados de esa posicion es un caracter de palabra), y SI detecta como
     "palabra completa" una coincidencia de mayusculas/minusculas que es en realidad OTRA palabra
     (p. ej. `todos`, dentro de "Todos los handlers", es la palabra espanola comun, no el marcador
-    `TODOs`). Se usan lookarounds `(?<!\\w)`/`(?!\\w)`, y SOLO en el lado cuyo caracter de borde del
-    termino es de palabra (gap 65): un termino que ya acaba (o empieza) en puntuacion —`TODO:`— no
-    exige que el caracter contiguo sea "no palabra" en ese lado, porque el propio termino ya aporta
-    el limite (`TODO:limpiar`, sin espacio, tiene que disparar)."""
+    `TODOs`). Se usan lookarounds, y SOLO en el lado cuyo caracter de borde del termino es de
+    palabra (gap 65): un termino que ya acaba (o empieza) en puntuacion —`TODO:`— no exige nada en
+    ese lado, porque el propio termino ya aporta el limite (`TODO:limpiar`, sin espacio, tiene que
+    disparar). El lado IZQUIERDO, ademas, exige que el caracter previo sea inicio/espacio/apertura
+    de frase (gap 77), nunca un separador de ruta o URL sin espacio."""
     termino_plegado = _plegar_acentos(termino)
-    partes = [re.escape(p) for p in re.split(r"[\s-]+", termino_plegado) if p]
+    partes = [re.escape(p) for p in re.split(r"[\s_-]+", termino_plegado) if p]
     if not partes:
         return None
-    cuerpo = r"[\s-]+".join(partes)
-    prefijo = r"(?<!\w)" if _es_caracter_de_palabra(termino_plegado[:1]) else ""
+    cuerpo = _SEPARADOR_TERMINO.join(partes)
+    prefijo = f"(?<!{_PRECEDENTE_PERMITIDO_NEGADO})" if _es_caracter_de_palabra(termino_plegado[:1]) else ""
     sufijo = r"(?!\w)" if _es_caracter_de_palabra(termino_plegado[-1:]) else ""
     return re.compile(prefijo + cuerpo + sufijo, re.IGNORECASE)
 
@@ -309,6 +329,43 @@ def validar_aprobacion(fm, cuerpo, categoria, config, fichero, niveles_por_defec
     return errores
 
 
+_ID_FORMA_RE = re.compile(r"^[A-Za-z0-9._-]+$")
+
+
+def validar_id_override(id_override, fm, config, fichero):
+    """(id_efectivo_o_None, errores, error_de_uso_o_None). Gaps 75/79: normaliza y valida `--id`
+    ANTES de que `detectar_colision()` lo use.
+      - `id_override is None` (no se paso `--id`): nada que hacer, `(None, [], None)`.
+      - Gap 79: se `strip()`ea primero; en blanco (`--id "   "`) es un error de USO (exit 2), no un
+        id valido que apague en silencio el aviso de «colision no comprobada» de detectar_colision.
+      - Gap 79: forma — solo `[A-Za-z0-9._-]`, y si la taxonomia declara `id_prefix` (siempre lo
+        hace tras `cargar_taxonomia()`, con el slug del proyecto como respaldo — gap 5 de
+        `knowledge-schema.py`) el id debe empezar por `<id_prefix>.`.
+      - Gap 75: si el frontmatter YA trae `id` y `--id` es OTRO valor, es un error bloqueante que
+        nombra los dos — antes `fm.get("id") or id_override` descartaba `--id` en silencio y el
+        gate aprobaba usando el `id` del frontmatter sin comprobar el que el Curator pensaba
+        asignar de verdad."""
+    if id_override is None:
+        return None, [], None
+    valor = id_override.strip()
+    if not valor:
+        return None, [], _error("`--id` no puede estar en blanco", fichero, "id")
+    errores = []
+    if not _ID_FORMA_RE.match(valor):
+        errores.append(_error(
+            f"`--id` `{valor}` tiene forma invalida (solo se admite [A-Za-z0-9._-])", fichero, "id"))
+    prefijo = config.get("id_prefix") if isinstance(config, dict) else None
+    if prefijo and not valor.startswith(f"{prefijo}."):
+        errores.append(_error(
+            f"`--id` `{valor}` no empieza por el prefijo `{prefijo}.` de la taxonomia", fichero, "id"))
+    id_frontmatter = fm.get("id")
+    if id_frontmatter and id_frontmatter != valor:
+        errores.append(_error(
+            f"`id` del frontmatter (`{id_frontmatter}`) y `--id` (`{valor}`) no coinciden: "
+            f"resuelve la discrepancia antes de aprobar", fichero, "id"))
+    return valor, errores, None
+
+
 def detectar_colision(ki, root, categoria, fichero, fm, id_override=None):
     """(errores, avisos) de COLISION al aprobar (gap 50): `knowledge-index.py` nunca escanea
     `candidates/**` (T-03), asi que no puede por si solo detectar que un candidato pisaria una
@@ -321,7 +378,11 @@ def detectar_colision(ki, root, categoria, fichero, fm, id_override=None):
     que el llamador pase el `id` que va a asignar para que la guarda lo compruebe ANTES de escribirlo
     en disco; sin `--id` NI `id` en el frontmatter, la guarda no tiene nada que comprobar y lo dice
     con un aviso explicito (no bloqueante: no es un error del candidato, es una comprobacion que no
-    se pudo hacer)."""
+    se pudo hacer).
+
+    `id_override` aqui YA llega saneado por `validar_id_override()` (gaps 75/79: `strip()`eado,
+    validado en forma/prefijo, y comprobado contra `fm["id"]` si el candidato ya lo trae) — este
+    parametro nunca es una cadena en blanco ni un valor que contradiga al del frontmatter."""
     errores = []
     avisos = []
     indice, _errores_indice = ki.build_index(root)
@@ -410,9 +471,16 @@ def evaluar(ruta_candidato, decision, category_override=None, root=None, id_over
     if errores_categoria:
         return {"decision": decision, "categoria": clave_categoria, "errores": errores_categoria, "avisos": []}, 2
 
+    # Gaps 75/79: `--id` se sanea ANTES de tocar la guarda de colision — en blanco es un error de
+    # USO (exit 2, como cualquier otro argumento mal formado), no un id valido en silencio.
+    id_efectivo, errores_id_override, error_uso_id = validar_id_override(id_override, fm, config, ruta_candidato)
+    if error_uso_id:
+        return {"decision": decision, "categoria": categoria["key"], "errores": [error_uso_id], "avisos": []}, 2
+
     niveles_por_defecto = ks.default_taxonomy().get("evidence_levels")
     errores = validar_aprobacion(fm, cuerpo, categoria, config, ruta_candidato, niveles_por_defecto, ruta_taxonomia)
-    errores_colision, avisos_colision = detectar_colision(ki, root, categoria, ruta_candidato, fm, id_override)
+    errores.extend(errores_id_override)
+    errores_colision, avisos_colision = detectar_colision(ki, root, categoria, ruta_candidato, fm, id_efectivo)
     errores.extend(errores_colision)
     veredicto = {"decision": decision, "categoria": categoria["key"], "errores": errores, "avisos": avisos_colision}
     return veredicto, (1 if errores else 0)
@@ -426,7 +494,9 @@ def _construir_parser():
     ap.add_argument("--id", dest="id_override",
                      help="el `id` que el Curator va a asignar al candidato al aprobarlo (gap 68); "
                           "si falta y el frontmatter tampoco trae `id`, la guarda de colision avisa "
-                          "de que no se pudo comprobar")
+                          "de que no se pudo comprobar. En blanco es un error de uso (gap 79); si "
+                          "el frontmatter ya trae `id` y difiere, bloquea (gap 75); debe tener forma "
+                          "`[A-Za-z0-9._-]+` y empezar por el `id_prefix.` de la taxonomia (gap 79)")
     ap.add_argument("--root", default=".", help="raiz del proyecto (default: cwd)")
     ap.add_argument("--json", action="store_true", help="salida en JSON")
     return ap
@@ -440,13 +510,17 @@ def main(argv=None):
         print(json.dumps(veredicto, ensure_ascii=False))
         return exit_code
 
+    # Gap 81: los avisos (p. ej. «colision de id no comprobada») son informativos y pueden convivir
+    # con errores bloqueantes (approve incompleto Y sin `--id`) — antes solo se imprimian en la
+    # rama `exit_code == 0`, asi que con errores (exit 1/2) desaparecian de la salida en texto (solo
+    # sobrevivian en `--json`). Se imprimen SIEMPRE que existan, sea cual sea el exit code.
     if exit_code == 0:
         print(f"curator-gate: `{args.decision}` permitido (categoria `{veredicto['categoria']}`)")
-        for a in veredicto.get("avisos") or []:
-            print(f"aviso: {a['fichero']}: {a['campo']}: {a['mensaje']}")
     else:
         for e in veredicto["errores"]:
             print(f"{e['fichero']}: {e['campo']}: {e['mensaje']}")
+    for a in veredicto.get("avisos") or []:
+        print(f"aviso: {a['fichero']}: {a['campo']}: {a['mensaje']}")
     return exit_code
 
 

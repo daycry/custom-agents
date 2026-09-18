@@ -23,7 +23,7 @@ jobs:
           node-version: "22"
 
       - name: Instalar pytest
-        run: pip install pytest
+        run: pip install pytest pyyaml
 
       - name: Linter del plugin
         run: python scripts/lint_plugin.py

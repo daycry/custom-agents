@@ -648,3 +648,177 @@ def test_approve_tag_sin_dos_puntos_bloquea():
         veredicto, exit_code = cg.evaluar(ruta, "approve", root=tmp)
         assert exit_code == 1
         assert any(e["campo"] == "tags" and "clave:valor" in e["mensaje"] for e in veredicto["errores"])
+
+
+# ------------------------------------------------------------------ gap 75: --id vs id del frontmatter
+
+
+def test_approve_id_override_distinto_del_frontmatter_bloquea_y_nombra_los_dos():
+    """Gap 75: `--id` ya no se descarta en silencio si el frontmatter trae un `id` distinto —
+    antes `fm.get("id") or id_override` usaba el del frontmatter sin comprobar el que el Curator
+    pensaba asignar de verdad, y aprobaba sin avisos ni errores."""
+    with tempfile.TemporaryDirectory() as tmp:
+        _taxonomy(tmp, [{"key": "GOTCHA", "folder": "gotchas", "min_evidence": "validated_case"}])
+        ruta = _escribir(tmp, "c.md", CANDIDATO_COMPLETO)  # id: ca.gotcha.ejemplo
+        veredicto, exit_code = cg.evaluar(ruta, "approve", root=tmp, id_override="ca.gotcha.real")
+        assert exit_code == 1
+        errores_id = [e for e in veredicto["errores"] if e["campo"] == "id"]
+        assert len(errores_id) == 1
+        assert "ca.gotcha.ejemplo" in errores_id[0]["mensaje"]
+        assert "ca.gotcha.real" in errores_id[0]["mensaje"]
+
+
+def test_approve_id_override_igual_al_frontmatter_no_bloquea():
+    with tempfile.TemporaryDirectory() as tmp:
+        _taxonomy(tmp, [{"key": "GOTCHA", "folder": "gotchas", "min_evidence": "validated_case"}])
+        ruta = _escribir(tmp, "c.md", CANDIDATO_COMPLETO)  # id: ca.gotcha.ejemplo
+        veredicto, exit_code = cg.evaluar(ruta, "approve", root=tmp, id_override="ca.gotcha.ejemplo")
+        assert exit_code == 0
+        assert veredicto["errores"] == []
+
+
+# ------------------------------------------------------------------ gap 77: TODO: dentro de una URL/ruta no dispara
+
+
+def test_denylist_todo_dentro_de_url_no_dispara():
+    """Gap 77: el caracter previo a un termino que empieza en palabra debe ser inicio, espacio o
+    puntuacion de apertura de frase - una `/` (como en una URL) no cuenta, y antes `(?<!\\w)` lo
+    dejaba pasar porque `/` no es un caracter de palabra."""
+    contenido = CANDIDATO_COMPLETO.replace(
+        "# Un gotcha de ejemplo",
+        "# Un gotcha de ejemplo\n\nVer https://x/TODO:1234 para mas contexto.")
+    with tempfile.TemporaryDirectory() as tmp:
+        ruta = _escribir(tmp, "c.md", contenido)
+        veredicto, exit_code = cg.evaluar(ruta, "approve", root=tmp)
+        assert exit_code == 0
+        assert veredicto["errores"] == []
+
+
+def test_denylist_todo_tras_punto_pegado_no_dispara():
+    """Gap 77: tampoco dispara si lo precede `.` sin espacio (paquete/ruta)."""
+    contenido = CANDIDATO_COMPLETO.replace(
+        "# Un gotcha de ejemplo",
+        "# Un gotcha de ejemplo\n\nEl modulo pkg.TODO:limpiar no es el marcador real.")
+    with tempfile.TemporaryDirectory() as tmp:
+        ruta = _escribir(tmp, "c.md", contenido)
+        veredicto, exit_code = cg.evaluar(ruta, "approve", root=tmp)
+        assert exit_code == 0
+        assert veredicto["errores"] == []
+
+
+def test_denylist_todo_tras_apertura_de_frase_si_dispara():
+    """Gap 77, simetrico: el caracter previo permitido incluye puntuacion de apertura de frase -
+    `(TODO: limpiar)` sigue disparando."""
+    contenido = CANDIDATO_COMPLETO.replace(
+        "# Un gotcha de ejemplo",
+        "# Un gotcha de ejemplo\n\nQueda pendiente (TODO: limpiar este caso).")
+    with tempfile.TemporaryDirectory() as tmp:
+        ruta = _escribir(tmp, "c.md", contenido)
+        veredicto, exit_code = cg.evaluar(ruta, "approve", root=tmp)
+        assert exit_code == 1
+        assert any(e["campo"] == "denylist" for e in veredicto["errores"])
+
+
+# ------------------------------------------------------------------ gap 78: separador no cruza vineta markdown
+
+
+def test_denylist_termino_no_casa_a_traves_de_una_vineta_markdown():
+    """Gap 78: `codigo\\n- duplicado` no es el termino `codigo duplicado` partido por formato: son
+    dos items DISTINTOS de una lista markdown. El separador flexible no puede cruzar un `\\n`
+    seguido de una vineta."""
+    contenido = CANDIDATO_COMPLETO.replace(
+        "# Un gotcha de ejemplo",
+        "# Un gotcha de ejemplo\n\nRevisar:\n\ncodigo\n- duplicado en el modulo.")
+    with tempfile.TemporaryDirectory() as tmp:
+        ruta = _escribir(tmp, "c.md", contenido)
+        veredicto, exit_code = cg.evaluar(ruta, "approve", root=tmp)
+        assert exit_code == 0
+        assert veredicto["errores"] == []
+
+
+def test_denylist_termino_si_casa_a_traves_de_un_salto_de_linea_normal():
+    """Gap 78, simetrico: un salto de linea sin vineta ni linea en blanco de por medio sigue siendo
+    un separador valido (no rompe el caso ya cubierto por el gap 66)."""
+    contenido = CANDIDATO_COMPLETO.replace(
+        "# Un gotcha de ejemplo",
+        "# Un gotcha de ejemplo\n\nEsto es codigo\nduplicado que hay que revisar.")
+    with tempfile.TemporaryDirectory() as tmp:
+        ruta = _escribir(tmp, "c.md", contenido)
+        veredicto, exit_code = cg.evaluar(ruta, "approve", root=tmp)
+        assert exit_code == 1
+        assert any(e["campo"] == "denylist" for e in veredicto["errores"])
+
+
+# ------------------------------------------------------------------ gap 79: --id se valida (blanco, forma, prefijo)
+
+
+def test_approve_id_override_en_blanco_es_error_de_uso():
+    contenido = CANDIDATO_COMPLETO.replace("id: ca.gotcha.ejemplo\n", "")
+    with tempfile.TemporaryDirectory() as tmp:
+        ruta = _escribir(tmp, "c.md", contenido)
+        veredicto, exit_code = cg.evaluar(ruta, "approve", root=tmp, id_override="   ")
+        assert exit_code == 2
+        assert any(e["campo"] == "id" for e in veredicto["errores"])
+
+
+def test_approve_id_override_con_caracteres_invalidos_bloquea():
+    contenido = CANDIDATO_COMPLETO.replace("id: ca.gotcha.ejemplo\n", "")
+    with tempfile.TemporaryDirectory() as tmp:
+        _taxonomy(tmp, [{"key": "GOTCHA", "folder": "gotchas", "min_evidence": "validated_case"}])
+        ruta = _escribir(tmp, "c.md", contenido)
+        veredicto, exit_code = cg.evaluar(ruta, "approve", root=tmp, id_override="ca.gotcha ejemplo!")
+        assert exit_code == 1
+        assert any(e["campo"] == "id" and "forma invalida" in e["mensaje"] for e in veredicto["errores"])
+
+
+def test_approve_id_override_sin_el_prefijo_de_la_taxonomia_bloquea():
+    contenido = CANDIDATO_COMPLETO.replace("id: ca.gotcha.ejemplo\n", "")
+    with tempfile.TemporaryDirectory() as tmp:
+        _taxonomy(tmp, [{"key": "GOTCHA", "folder": "gotchas", "min_evidence": "validated_case"}])
+        ruta = _escribir(tmp, "c.md", contenido)
+        veredicto, exit_code = cg.evaluar(ruta, "approve", root=tmp, id_override="otro.gotcha.ejemplo")
+        assert exit_code == 1
+        assert any(e["campo"] == "id" and "prefijo" in e["mensaje"] for e in veredicto["errores"])
+
+
+def test_approve_id_override_valido_con_prefijo_no_bloquea():
+    contenido = CANDIDATO_COMPLETO.replace("id: ca.gotcha.ejemplo\n", "")
+    with tempfile.TemporaryDirectory() as tmp:
+        _taxonomy(tmp, [{"key": "GOTCHA", "folder": "gotchas", "min_evidence": "validated_case"}])
+        ruta = _escribir(tmp, "c.md", contenido)
+        veredicto, exit_code = cg.evaluar(ruta, "approve", root=tmp, id_override="ca.gotcha.nuevo")
+        assert exit_code == 0
+        assert veredicto["errores"] == []
+
+
+# ------------------------------------------------------------------ gap 80: guion bajo tambien separa palabras
+
+
+def test_denylist_termino_con_guion_bajo_dispara():
+    """Gap 80: `chain_of_thought` (guion bajo) tiene que disparar igual que `chain-of-thought` o
+    `chain of thought` - el split/join solo cubria `[\\s-]+`, sin `_`."""
+    contenido = CANDIDATO_COMPLETO.replace(
+        "# Un gotcha de ejemplo",
+        "# Un gotcha de ejemplo\n\nEsto es un volcado de chain_of_thought del agente.")
+    with tempfile.TemporaryDirectory() as tmp:
+        ruta = _escribir(tmp, "c.md", contenido)
+        veredicto, exit_code = cg.evaluar(ruta, "approve", root=tmp)
+        assert exit_code == 1
+        assert any(e["campo"] == "denylist" for e in veredicto["errores"])
+
+
+# ------------------------------------------------------------------ gap 81: los avisos se imprimen tambien con errores
+
+
+def test_cli_texto_con_errores_tambien_imprime_avisos(capsys):
+    """Gap 81: antes, `aviso: ...` (p. ej. colision de id no comprobada) solo se imprimia en la
+    rama `exit_code == 0` de `main()` - con errores bloqueantes desaparecia de la salida en texto."""
+    contenido = CANDIDATO_COMPLETO.replace("id: ca.gotcha.ejemplo\n", "").replace(
+        "evidencia: validated_case\n", "")  # sin evidencia (error) y sin id (aviso)
+    with tempfile.TemporaryDirectory() as tmp:
+        ruta = _escribir(tmp, "c.md", contenido)
+        exit_code = cg.main([ruta, "--decision", "approve", "--root", tmp])
+        out = capsys.readouterr().out
+        assert exit_code == 1
+        assert "evidencia" in out
+        assert "aviso:" in out and "id" in out
