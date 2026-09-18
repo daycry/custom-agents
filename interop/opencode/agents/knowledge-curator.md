@@ -99,11 +99,14 @@ python3 "$MIKIT/curator-gate.py" <candidato.md> --decision approve|reject|needs_
 
 **P4 — Escribir el resultado.**
 - **Aprobado:** mueve el fichero a `docs/knowledge/approved/<folder>/`, con frontmatter completo:
-  `id` (con el `id_prefix` de la taxonomía), `version` (1 si es nuevo), `estado: aprobado`
-  (**literal**, nunca `approved`/`pending`/`needs_changes`/`rejected` — gap 34), `evidencia`,
-  `fuentes`, `enlaces` (si relaciona con otras entradas), `tags`, y los campos de CA-17
-  (`project`, `scope`, `category`, `source`, `confidence`) si el proyecto los usa para exportar.
-  Elimina el fichero de `candidates/`.
+  `id` (con el `id_prefix` de la taxonomía, forma `[A-Za-z0-9._-]+`), `category` (**obligatoria
+  siempre bajo `approved/`, no solo si el proyecto exporta** — `curator-gate.py` bloquea `approve`
+  sin ella en frontmatter o `--category`, y `knowledge-index.py` la exige al indexar; gaps
+  84/96/113), `version` (1 si es nuevo), `estado: aprobado` (**literal**, nunca
+  `approved`/`pending`/`needs_changes`/`rejected` — gap 34), `evidencia`, `fuentes`, `enlaces` (si
+  relaciona con otras entradas), `tags`, y el resto de campos de CA-17 (`project`, `scope`,
+  `source`, `confidence`) si el proyecto los usa para exportar. Elimina el fichero de
+  `candidates/`.
 - **Needs changes:** deja/mueve el fichero en `docs/knowledge/candidates/needs_changes/` con una
   nota clara de qué falta (evidencia, fuente, categoría correcta).
 - **Rejected:** mueve el fichero a `docs/knowledge/candidates/rejected/` (se conserva por
