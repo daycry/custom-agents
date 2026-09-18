@@ -47,28 +47,74 @@ VERSIONES_SOPORTADAS = (1,)
 ROUTING_VALORES = (True, False, "summary")
 
 # Respaldo embebido si `templates/taxonomy.json` no viaja con este fichero (instalación parcial
-# o paquete portable "solo skills" — ver agent-kits/shared/README.md). Debe reflejar el mismo
-# contenido que la plantilla; test_knowledge_schema.py compara ambos.
-DEFAULT_TAXONOMY_FALLBACK = {
-    "version": 1,
-    "id_prefix": "ca",
-    "utility_scoring": False,
-    "categories": [
-        {"key": "DECISION", "folder": "adr", "min_evidence": "human_confirmed_rule", "routing": {"kwipu": False}},
-        {"key": "PATTERN", "folder": "gotchas", "min_evidence": "multiple_validated_cases", "routing": {"kwipu": False}},
-        {"key": "GOTCHA", "folder": "gotchas", "min_evidence": "validated_case", "routing": {"kwipu": False}},
-        {"key": "LESSON", "folder": "lessons", "min_evidence": "single_case", "routing": {"kwipu": False}},
-    ],
-    "backends": {
-        "kwipu": {"type": "markdown-export", "enabled": False,
-                  "config": {"export_dir": ".claude/knowledge-services/kwipu-export"}},
+# o paquete portable "solo skills" — ver agent-kits/shared/README.md). El bloque de abajo (desde
+# `"version": 1,` hasta el `]` del denylist) es COPIA LITERAL del contenido de
+# `templates/taxonomy.json` (agent-kits/shared/copias.json, bloque `taxonomy_fallback`, ADR-016):
+# la unica diferencia tolerada es `False` en vez de `false` (JSON no admite identificadores de
+# Python), que la `sustitucion` del registro normaliza antes de comparar byte a byte. Ademas,
+# test_knowledge_schema.py::test_default_fallback_coincide_con_el_template compara AMBOS como
+# datos (no solo como texto), para que una divergencia de VALORES tambien de rojo.
+_TAXONOMY_FALLBACK = { \
+  "version": 1,
+  "id_prefix": "ca",
+  "utility_scoring": False,
+  "categories": [
+    {
+      "key": "DECISION",
+      "folder": "adr",
+      "min_evidence": "human_confirmed_rule",
+      "routing": {"kwipu": False}
     },
-    "evidence_levels": ["observation", "single_case", "validated_case",
-                         "multiple_validated_cases", "human_confirmed_rule"],
-    "denylist": ["chain-of-thought", "conversacion cruda", "TODOs", "planes/progreso",
-                 "logs completos", "salidas enormes", "codigo duplicado", "errores triviales",
-                 "intentos sin aprendizaje", "hipotesis presentadas como hechos", "opiniones",
-                 "redundancias"],
+    {
+      "key": "PATTERN",
+      "folder": "gotchas",
+      "min_evidence": "multiple_validated_cases",
+      "routing": {"kwipu": False}
+    },
+    {
+      "key": "GOTCHA",
+      "folder": "gotchas",
+      "min_evidence": "validated_case",
+      "routing": {"kwipu": False}
+    },
+    {
+      "key": "LESSON",
+      "folder": "lessons",
+      "min_evidence": "single_case",
+      "routing": {"kwipu": False}
+    }
+  ],
+  "backends": {
+    "kwipu": {
+      "type": "markdown-export",
+      "enabled": False,
+      "config": {
+        "export_dir": ".claude/knowledge-services/kwipu-export",
+        "health": {"url": "http://127.0.0.1:8765/health", "timeout_ms": 800}
+      }
+    }
+  },
+  "evidence_levels": [
+    "observation",
+    "single_case",
+    "validated_case",
+    "multiple_validated_cases",
+    "human_confirmed_rule"
+  ],
+  "denylist": [
+    "chain-of-thought",
+    "conversacion cruda",
+    "TODOs",
+    "planes/progreso",
+    "logs completos",
+    "salidas enormes",
+    "codigo duplicado",
+    "errores triviales",
+    "intentos sin aprendizaje",
+    "hipotesis presentadas como hechos",
+    "opiniones",
+    "redundancias"
+  ]
 }
 
 
@@ -83,7 +129,7 @@ def default_taxonomy():
         with open(TEMPLATE_PATH, "r", encoding="utf-8") as f:
             return json.load(f)
     except (OSError, json.JSONDecodeError):
-        return json.loads(json.dumps(DEFAULT_TAXONOMY_FALLBACK))
+        return json.loads(json.dumps(_TAXONOMY_FALLBACK))
 
 
 def validar(config, fichero="taxonomy.json"):
@@ -156,7 +202,7 @@ def validar(config, fichero="taxonomy.json"):
                 errores.append(_error(f"{campo} no declara `folder`", fichero, f"{campo}.folder"))
             if not cat.get("min_evidence") or not isinstance(cat.get("min_evidence"), str):
                 errores.append(_error(f"{campo} no declara `min_evidence`", fichero, f"{campo}.min_evidence"))
-            evidence_levels = config.get("evidence_levels") or DEFAULT_TAXONOMY_FALLBACK["evidence_levels"]
+            evidence_levels = config.get("evidence_levels") or _TAXONOMY_FALLBACK["evidence_levels"]
             if cat.get("min_evidence") and cat["min_evidence"] not in evidence_levels:
                 errores.append(_error(
                     f"{campo}.min_evidence `{cat['min_evidence']}` no está en `evidence_levels`",

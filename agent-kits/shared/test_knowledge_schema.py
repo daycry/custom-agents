@@ -18,7 +18,7 @@ ks = _load()
 
 
 def _valida(**over):
-    cfg = json.loads(json.dumps(ks.DEFAULT_TAXONOMY_FALLBACK))
+    cfg = json.loads(json.dumps(ks._TAXONOMY_FALLBACK))
     cfg.update(over)
     return cfg
 
@@ -30,7 +30,20 @@ def test_default_template_es_valido():
 
 
 def test_default_fallback_es_valido():
-    assert ks.validar(json.loads(json.dumps(ks.DEFAULT_TAXONOMY_FALLBACK)), "fallback") == []
+    assert ks.validar(json.loads(json.dumps(ks._TAXONOMY_FALLBACK)), "fallback") == []
+
+
+def test_default_fallback_coincide_con_el_template():
+    """T-01-fix1 (lint_plugin.py, ADR-016): el respaldo embebido tiene que ser el MISMO contenido
+    que `templates/taxonomy.json`, no solo cada uno valido por su lado — sin este test, el
+    respaldo podia divergir del canonico en SILENCIO (aqui detecta que faltaba
+    `backends.kwipu.config.health`)."""
+    with open(os.path.join(HERE, "templates", "taxonomy.json"), encoding="utf-8") as f:
+        plantilla = json.load(f)
+    respaldo = json.loads(json.dumps(ks._TAXONOMY_FALLBACK))
+    assert respaldo == plantilla, (
+        "_TAXONOMY_FALLBACK (knowledge-schema.py) diverge de templates/taxonomy.json: "
+        "actualiza el respaldo para que refleje el mismo contenido")
 
 
 def test_falta_version():
