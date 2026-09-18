@@ -487,12 +487,12 @@ def test_toda_linea_de_aviso_o_error_trae_arreglo(tmp_path):
         assert l["arreglo"].strip(), l
 
 
-@pytest.mark.parametrize("bloque", ["herramientas", "plugin", "configs", "estado", "memoria", "version", "journal"])
-def test_los_siete_bloques_estan_siempre(tmp_path, bloque):
+@pytest.mark.parametrize("bloque", ["herramientas", "plugin", "configs", "estado", "capacidades", "memoria", "version", "journal"])
+def test_los_ocho_bloques_estan_siempre(tmp_path, bloque):
     inf = diag(proyecto(tmp_path))
     claves = [b["clave"] for b in inf["bloques"]]
-    assert bloque in claves and len(claves) == 7
-    assert doctor.render_md(inf).count("| | Comprobación |") == 7
+    assert bloque in claves and len(claves) == 8
+    assert doctor.render_md(inf).count("| | Comprobación |") == 8
 
 
 # ------------------------------------------------------------------ Journal (session-end-durable-capture T-06)
@@ -1499,3 +1499,218 @@ def test_b45_la_mención_en_negrita_markdown_si_es_un_comando_tecleable(tmp_path
         plugin(tmp_path / "glob"), "dev-cycle", "doctor",
         doc={"README.md": "Los ficheros `docs/**/dev-cycle.md` se generan solos.\n"})
     assert doctor._doc_viva_sin_namespace(str(plug3), ["dev-cycle", "doctor"]) == []
+
+
+# ------------------------------------------------------------------ capacidades opcionales (T-09)
+# El registro `capabilities.py` (T-13) y el cargador GENERICO de adaptadores de `knowledge-services`
+# (`backends/__init__.py`) son los REALES: nada aqui simula `capabilities.py`. Solo el contrato
+# de adaptador (`health`/`verify`) se dobla con fakes cuando hace falta controlar un estado que el
+# adaptador real (red) no puede dar deterministamente en un test (timeout/degradado/error/excepcion).
+
+BACKENDS_INIT_REAL = os.path.join(ROOT, "skills", "knowledge-services", "backends", "__init__.py")
+FIXTURES_BACKENDS = os.path.join(ROOT, "evals", "fixtures", "knowledge-services")
+
+_spec_b = importlib.util.spec_from_file_location("backends_init_doctor_test", BACKENDS_INIT_REAL)
+backends_real = importlib.util.module_from_spec(_spec_b)
+_spec_b.loader.exec_module(backends_real)
+
+
+def _cap(id_="x", enabled=True, health=None, config_path=None, doctor_txt=None):
+    return {"id": id_, "config_path": config_path, "enabled": enabled,
+            "health": health if health is not None else {"estado": "declarado"},
+            "doctor": doctor_txt if doctor_txt is not None else f"{id_}: activa",
+            "setup_step": "..."}
+
+
+def _taxonomy_con_backend(tmp_path, cap_id, tipo, config, enabled=True):
+    """`.claude/knowledge-services/taxonomy.json` con SOLO el backend que hace falta para el test
+    (no se valida contra el esquema completo: `_leer_backend_entry` solo lee `backends.<id>`,
+    igual que hace `knowledge-sync.py` -- no pasa por `knowledge-schema.py`)."""
+    d = tmp_path / ".claude" / "knowledge-services"
+    d.mkdir(parents=True, exist_ok=True)
+    datos = {"backends": {cap_id: {"type": tipo, "enabled": enabled, "config": config}}}
+    (d / "taxonomy.json").write_text(json.dumps(datos), encoding="utf-8")
+    return os.path.join(".claude", "knowledge-services", "taxonomy.json")
+
+
+class _AdaptadorNoDisponibleFake(Exception):
+    pass
+
+
+class _BackendsModFake:
+    """Doble del contrato de `backends/__init__.py` con el estado de `health`/`verify` fijado a
+    mano -- solo para las ramas que un adaptador real no puede dar de forma determinista sin red
+    (timeout/degradado/error/excepcion). Las ramas sano/export atrasado/adaptador no disponible
+    se prueban con el cargador y el adaptador REALES mas abajo."""
+    AdaptadorNoDisponible = _AdaptadorNoDisponibleFake
+
+    def __init__(self, salud=None, verificacion=None, lanza_health=False, lanza_verify=False, no_disponible=False):
+        self._salud = salud or {}
+        self._verificacion = verificacion
+        self._lanza_health = lanza_health
+        self._lanza_verify = lanza_verify
+        self._no_disponible = no_disponible
+
+    def cargar_adaptador(self, tipo, directorios):
+        if self._no_disponible:
+            raise self.AdaptadorNoDisponible(f"sin adaptador para `{tipo}`")
+        return self
+
+    def health(self, cfg):
+        if self._lanza_health:
+            raise RuntimeError("boom-health")
+        return self._salud
+
+    def verify(self, cfg):
+        if self._lanza_verify:
+            raise RuntimeError("boom-verify")
+        return self._verificacion
+
+
+def test_capacidad_backend_sin_tipo_declarado_devuelve_none():
+    assert doctor._linea_capacidad_backend("x", None, {}, _BackendsModFake(), "d") is None
+
+
+def test_capacidad_backend_off_con_timeout_es_informativo():
+    fake = _BackendsModFake(salud={"estado": "off", "detalle": "sin conexion a http://x: TimeoutError: timed out"})
+    l = doctor._linea_capacidad_backend("x", "t", {}, fake, "d")
+    assert l["estado"] == doctor.INFO
+    assert "timeout" in l["detalle"].lower()
+    assert l["arreglo"]
+
+
+def test_capacidad_backend_off_sin_timeout_es_informativo():
+    fake = _BackendsModFake(salud={"estado": "off", "detalle": "sin `health.url` configurada"})
+    l = doctor._linea_capacidad_backend("x", "t", {}, fake, "d")
+    assert l["estado"] == doctor.INFO
+
+
+def test_capacidad_backend_degradado_es_aviso():
+    fake = _BackendsModFake(salud={"estado": "degradado", "detalle": "status=degraded"})
+    l = doctor._linea_capacidad_backend("x", "t", {}, fake, "d")
+    assert l["estado"] == doctor.AVISO
+    assert l["arreglo"]
+
+
+def test_capacidad_backend_error_es_error():
+    fake = _BackendsModFake(salud={"estado": "error", "detalle": "respuesta no valida"})
+    l = doctor._linea_capacidad_backend("x", "t", {}, fake, "d")
+    assert l["estado"] == doctor.ERROR
+    assert l["arreglo"]
+
+
+def test_capacidad_backend_health_lanza_excepcion_degrada_a_aviso():
+    fake = _BackendsModFake(lanza_health=True)
+    l = doctor._linea_capacidad_backend("x", "t", {}, fake, "d")
+    assert l["estado"] == doctor.AVISO
+    assert "health()" in l["detalle"]
+
+
+def test_capacidad_backend_verify_lanza_excepcion_degrada_a_aviso():
+    fake = _BackendsModFake(salud={"estado": "sano"}, lanza_verify=True)
+    l = doctor._linea_capacidad_backend("x", "t", {}, fake, "d")
+    assert l["estado"] == doctor.AVISO
+    assert "verify()" in l["detalle"]
+
+
+def test_capacidad_backend_real_sano_sin_desfase_via_adaptador_de_fixture():
+    """Adaptador REAL (`backends/__init__.py`, `cargar_adaptador`) sobre el `type: "test"` de
+    `evals/fixtures/knowledge-services/backend_test.py` (el mismo que usa knowledge-sync)."""
+    l = doctor._linea_capacidad_backend("x", "test", {"estado_salud": "sano", "desfase": []},
+                                        backends_real, FIXTURES_BACKENDS)
+    assert l["estado"] == doctor.OK
+    assert "sano" in l["detalle"]
+
+
+def test_capacidad_backend_real_export_atrasado_via_adaptador_de_fixture():
+    cfg = {"estado_salud": "sano",
+           "desfase": [{"knowledge_id": "a.pattern.x", "motivo": "no indexado", "remedio": "reindexa: build_view"}]}
+    l = doctor._linea_capacidad_backend("x", "test", cfg, backends_real, FIXTURES_BACKENDS)
+    assert l["estado"] == doctor.AVISO
+    assert "export atrasado" in l["detalle"]
+    assert l["arreglo"] == "reindexa: build_view"
+
+
+def test_capacidad_backend_real_tipo_sin_adaptador_es_aviso():
+    l = doctor._linea_capacidad_backend("x", "tipo-que-no-existe", {}, backends_real, FIXTURES_BACKENDS)
+    assert l["estado"] == doctor.AVISO
+    assert "no disponible" in l["detalle"]
+
+
+def test_linea_capacidad_desactivada_es_informativa():
+    l = doctor._linea_capacidad(".", _cap(enabled=False), None, None)
+    assert l["estado"] == doctor.INFO
+    assert l["detalle"] == "desactivado"
+    assert l["arreglo"]
+
+
+def test_linea_capacidad_taxonomy_invalida_reporta_fichero_y_campo():
+    cap = _cap(health={"estado": "error", "detalle": "categories: la lista no puede estar vacia",
+                       "fichero": "taxonomy.json"})
+    l = doctor._linea_capacidad(".", cap, None, None)
+    assert l["estado"] == doctor.ERROR
+    assert "categories" in l["detalle"] and "taxonomy.json" in l["detalle"]
+    assert "taxonomy.json" in l["arreglo"]
+
+
+def test_linea_capacidad_activa_sin_backend_usa_el_texto_generico_de_la_propia_capacidad():
+    l = doctor._linea_capacidad(".", _cap(doctor_txt="x: activa, sin comprobacion de red"), None, None)
+    assert l["estado"] == doctor.INFO
+    assert l["detalle"] == "x: activa, sin comprobacion de red"
+
+
+def test_linea_capacidad_activa_con_backend_en_vivo_via_taxonomy_json(tmp_path):
+    config_path = _taxonomy_con_backend(tmp_path, "midbackend", "test", {"estado_salud": "sano", "desfase": []})
+    cap = _cap(id_="midbackend", config_path=config_path)
+    l = doctor._linea_capacidad(str(tmp_path), cap, backends_real, FIXTURES_BACKENDS)
+    assert l["estado"] == doctor.OK
+
+
+def test_doctor_py_no_menciona_kwipu_literalmente():
+    """T-09: todo lo que sabe este fichero sobre una capacidad concreta llega por el contrato
+    `{id, config_path, enabled, health, doctor, setup_step}` de `capabilities.py` -- nunca un
+    literal de backend en el propio codigo de /doctor."""
+    texto = open(SCRIPT, encoding="utf-8").read()
+    assert "kwipu" not in texto.lower()
+
+
+def test_bloque_capacidades_via_capabilities_real_proyecto_sin_config(tmp_path):
+    """`capabilities.py` REAL (no un doble): sin `taxonomy.json` de proyecto, `knowledge-gate`
+    usa la plantilla por defecto (ok) y la capacidad opcional aparece desactivada."""
+    proj = proyecto(tmp_path)
+    b = doctor.bloque_capacidades(None, str(proj))
+    ids = {l["que"] for l in b["lineas"]}
+    assert "knowledge-gate" in ids
+    assert any(i for i in ids if i != "knowledge-gate")   # al menos una capacidad opcional mas
+    otra = next(l for l in b["lineas"] if l["que"] != "knowledge-gate")
+    assert otra["estado"] == doctor.INFO
+    assert otra["detalle"] == "desactivado"
+
+
+def test_bloque_capacidades_via_capabilities_real_taxonomy_invalida(tmp_path):
+    """`categories` vacia (esquema real, `knowledge-schema.py`) -> knowledge-gate en error con
+    fichero + campo + arreglo, via el pipeline REAL `capabilities.enumerar()` -> `_linea_capacidad`."""
+    proj = tmp_path / "proj"
+    d = proj / ".claude" / "knowledge-services"
+    d.mkdir(parents=True, exist_ok=True)
+    (d / "taxonomy.json").write_text(json.dumps({"version": 1, "categories": []}), encoding="utf-8")
+    b = doctor.bloque_capacidades(None, str(proj))
+    kg = next(l for l in b["lineas"] if l["que"] == "knowledge-gate")
+    assert kg["estado"] == doctor.ERROR
+    assert "taxonomy.json" in kg["detalle"] or "taxonomy.json" in kg["arreglo"]
+    assert kg["arreglo"]
+
+
+def test_bloque_capacidades_capabilities_no_disponible_degrada_a_informativo(monkeypatch):
+    """`capabilities.py` ausente (instalacion parcial): el bloque no rompe /doctor, informa."""
+    monkeypatch.setattr(doctor, "_cargar_capabilities", lambda plugin_root: None)
+    b = doctor.bloque_capacidades(None, ".")
+    assert len(b["lineas"]) == 1
+    assert b["lineas"][0]["estado"] == doctor.INFO
+
+
+def test_bloque_capacidades_esta_en_diagnostico(tmp_path):
+    proj = proyecto(tmp_path)
+    inf = diag(proj)
+    claves = {b["clave"] for b in inf["bloques"]}
+    assert "capacidades" in claves

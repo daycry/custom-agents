@@ -66,6 +66,15 @@ los valores actuales y ofrece cambiarlos.
    - **No** → no escribas la clave `tests` (ausente = sin gate; el `implementer` solo informa si la herramienta de cobertura está disponible).
    - **Número** → escribe `"tests": {"coberturaMinima": N}` en `.claude/dev.json` (mergeando, sin pisar `tdd`/`worktree`/`subagentes`/`guardrails`/`statusline`/`revision`/`modelos`).
    - Idempotente: si `tests.coberturaMinima` ya existe, muestra el valor y ofrece cambiarlo o quitarlo.
+5-sexies. **Capacidades opcionales del plugin (registro `capabilities.py`, CA-14).** Lista las capacidades registradas (hoy el Knowledge Gate, siempre activo, y un backend de `knowledge-services` como Kwipu) en un único paso, sin preguntar por cada una a mano:
+   ```bash
+   SHAREDKIT="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type d -path '*agent-kits/shared' 2>/dev/null | head -1)"
+   python3 "$SHAREDKIT/capabilities.py" --root .      # una línea por capacidad: id, enabled, health, doctor
+   ```
+   - Si no existe `.claude/knowledge-services/taxonomy.json`, ofrece crearlo desde la plantilla del plugin (`agent-kits/shared/templates/taxonomy.json`) — todos los backends nacen `enabled: false` (el Knowledge Gate funciona igual con la plantilla en memoria, sin escribir nada, si el usuario prefiere no crearlo).
+   - Por cada capacidad desactivada que el usuario quiera activar, sigue el `setup_step` que ella misma declara (p. ej. para un backend: `backends.<id>.enabled: true` + su `config` propia en `taxonomy.json`) — este paso **no** conecta nada por su cuenta (nada de auto-discovery de red); solo declara la config.
+   - Menciona `/doctor` como la forma de comprobar, DESPUÉS de activar una capacidad con backend, si está sana en vivo (comprobación de red real, opcional y sin bloquear este paso).
+   - Idempotente: relanzar este paso vuelve a mostrar el estado actual sin repreguntar lo ya declarado.
 6. **Resumen final**: tabla corta con lo decidido y dónde vive cada config, y los siguientes pasos naturales (`/pm-cycle <idea>` para la primera iniciativa, o `@analyst` si la idea está verde).
 
 ## Reglas
