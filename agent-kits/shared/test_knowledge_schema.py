@@ -215,6 +215,18 @@ def test_cli_fichero_con_encoding_invalido_exit_2(tmp_path):
     assert ks.main([str(p)]) == 2
 
 
+def test_cli_fichero_con_bom_utf8_exit_0(tmp_path):
+    """Gap 39 (Important, revision intento 3, fix4): el CLI `knowledge-schema.py <ruta>` abria con
+    `encoding="utf-8"` (sin `-sig`) mientras `cargar_taxonomia` ya tolera el BOM UTF-8 desde el
+    gap 27 — el MISMO `taxonomy.json` con BOM pasaba por `cargar_taxonomia` (fichero de proyecto)
+    pero fallaba como "JSON ilegible" por el CLI explicito. Tras fix4 ambos caminos comparten UN
+    solo lector (`cargar_taxonomia(fichero=...)`)."""
+    p = tmp_path / "taxonomy.json"
+    cfg = _valida(id_prefix="mr")
+    p.write_bytes(json.dumps(cfg).encode("utf-8-sig"))
+    assert ks.main([str(p)]) == 0
+
+
 def test_cli_ruta_es_directorio_exit_2(tmp_path):
     """Gap 15: TOCTOU — `os.path.isfile` decia que existia y `open()` fallaba con `OSError`
     (`IsADirectoryError`/`PermissionError` segun plataforma) sin capturar."""
@@ -306,6 +318,30 @@ def test_folder_con_unidad_windows_falla():
     ])
     errores = ks.validar(cfg, "t.json")
     assert any(e["campo"] == "categories[0].folder" for e in errores)
+
+
+def test_folder_colision_solo_por_mayusculas_falla():
+    """Gap 38b (revision intento 3, fix4): dos `folder` que solo difieren en mayusculas/minusculas
+    resuelven al MISMO directorio en un filesystem case-insensitive (NTFS por defecto en Windows);
+    `validar()` debe reportarlo como error de config, no dejar que `knowledge-index.py` lo
+    descubra en tiempo de escaneo."""
+    cfg = _valida(categories=[
+        {"key": "X", "folder": "ADR", "min_evidence": "observation", "routing": {}},
+        {"key": "Y", "folder": "adr", "min_evidence": "observation", "routing": {}},
+    ])
+    errores = ks.validar(cfg, "t.json")
+    assert any(e["campo"] == "categories[1].folder" for e in errores)
+
+
+def test_folder_repetido_identico_no_es_colision():
+    """Dos categorias compartiendo el MISMO `folder` (misma cadena, ej. PATTERN/GOTCHA en
+    `gotchas/` de la plantilla por defecto) es legitimo, no una colision de mayusculas."""
+    cfg = _valida(categories=[
+        {"key": "X", "folder": "gotchas", "min_evidence": "observation", "routing": {}},
+        {"key": "Y", "folder": "gotchas", "min_evidence": "observation", "routing": {}},
+    ])
+    errores = ks.validar(cfg, "t.json")
+    assert not any(e["campo"] in ("categories[0].folder", "categories[1].folder") for e in errores)
 
 
 def test_folder_simple_es_valido():
