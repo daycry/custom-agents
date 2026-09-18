@@ -22,6 +22,10 @@ hash: <sha256 hex>
 <cuerpo de la entrada>
 ```
 
+`category` viene siempre de la entrada `approved/` de origen, donde es un campo **obligatorio**
+del frontmatter (gap 113, migración documentada en `docs/knowledge/approved/README.md` para
+proyectos con entradas anteriores a ese cambio) — el adaptador nunca la infiere ni la inventa.
+
 Derivaciones (ningún campo se inventa, CA-17):
 
 - **`knowledge_id`** = `entry["id"]` tal cual — el Curator ya lo escribe con `id_prefix.` delante

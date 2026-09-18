@@ -240,6 +240,11 @@ have to be re-discovered", generalizing the bookend pattern from `agents/nemesis
   three types removes the FILE collision risk in parallel writes; the `id:` collision risk
   remains possible across all three families (ADR/GOT/LES), with the same mitigation (renumber
   and declare it in the retro), see previous rule.
+  **Migration (gap 113, two-lens review Phase 3 attempt 2, 2026-09-18):** the `category` field
+  under `docs/knowledge/approved/<folder>/` was optional when this tree was born and became
+  **mandatory** (`knowledge-index.py` requires it when indexing, `curator-gate.py` blocks
+  `approve` without it) — see the migration note in `docs/knowledge/approved/README.md` if a
+  project has entries predating that change.
 - **Always active, no opt-in.** If `docs/knowledge/` did not exist, no agent would complain: the
   folder is created on first write. Same silent-degradation philosophy as the rest of the plugin
   (constitution, Jira, Confluence), but without a switch — there is nothing to turn on.
