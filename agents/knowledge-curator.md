@@ -81,11 +81,17 @@ python3 "$MIKIT/curator-gate.py" <candidato.md> --decision approve|reject|needs_
 - **`rejected/` es terminal** (gap 67): un candidato que ya vive ahí solo admite
   `--decision reject` (idempotente); pedirle `approve`/`needs_changes` es error de uso (`exit 2`),
   no una re-evaluación.
-- Si vas a **aprobar** un candidato que todavía no trae `id` en su frontmatter, pasa
-  `--id <el-id-que-le-vas-a-asignar>` (gap 68) para que la guarda de colisión lo compruebe contra
-  `approved/` ANTES de escribirlo; sin `id` ni `--id` el gate deja pasar la decisión pero devuelve
-  un `aviso` de que la colisión no se ha comprobado — no lo ignores, resuélvelo a mano si el `id`
-  que vas a poner es sospechoso de existir ya.
+- Si vas a **aprobar** un candidato que todavía no trae `id` en su frontmatter, `--id
+  <el-id-que-le-vas-a-asignar>` es **obligatorio** (gaps 68/75/79) — pásalo siempre que el
+  candidato no traiga `id` propio, para que la guarda de colisión lo compruebe contra `approved/`
+  ANTES de escribirlo; sin `id` ni `--id` el gate deja pasar la decisión pero devuelve un `aviso`
+  de que la colisión no se ha comprobado — no lo ignores, resuélvelo a mano si el `id` que vas a
+  poner es sospechoso de existir ya. El gate valida `--id` por ti: en blanco es error de uso (`exit
+  2`), tiene que tener forma `[A-Za-z0-9._-]+` y empezar por el `id_prefix.` de la taxonomía (gap
+  79); y si el candidato YA trae `id` en el frontmatter y pasas un `--id` **distinto**, es un
+  conflicto que bloquea la aprobación (`exit 1`, gap 75) — nunca lo resuelve el gate por ti
+  quedándose con uno de los dos en silencio: decide cuál es el correcto (normalmente el del
+  frontmatter, si el candidato ya lo trae bien puesto) y repite sin la discrepancia.
 
 **P4 — Escribir el resultado.**
 - **Aprobado:** mueve el fichero a `docs/knowledge/approved/<folder>/`, con frontmatter completo:

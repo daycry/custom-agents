@@ -74,11 +74,19 @@ La guarda de colisión de `id` (gap 68 de la revisión de dos lentes de la Fase 
 del frontmatter — o, si no lo trae, el que se le vaya a asignar vía `--id <el-id>` — contra el
 índice de `approved/`; si el candidato no declara `id` y tampoco se pasa `--id`, el gate **no
 bloquea** pero añade un `aviso` (`avisos[]`, no `errores[]`) de que la colisión de id no se ha
-comprobado. La lista negra (`denylist` de `taxonomy.json`) pliega acentos en ambos lados de la
-comparación (`conversación` casa con el término `conversacion` y viceversa, gap 64), acepta
-términos de varias palabras separadas por espacio o guion (`chain of thought` ≡ `chain-of-thought`,
-gap 66) y solo exige límite de palabra en el lado del término que empieza/termina con un carácter
-de palabra (`TODO:` dispara aunque le siga `limpiar` sin espacio, gap 65).
+comprobado. `--id` se valida antes de usarse (gaps 75/79): en blanco (`--id "   "`) es error de
+**uso** (`exit 2`); debe tener forma `[A-Za-z0-9._-]+` y empezar por el `id_prefix.` de la
+taxonomía; y si el frontmatter YA trae `id` y `--id` es un valor **distinto**, es un error
+bloqueante (`exit 1`, `errores[]`) que nombra los dos — el gate ya no descarta `--id` en silencio
+quedándose con el del frontmatter. La lista negra (`denylist` de `taxonomy.json`) pliega acentos en
+ambos lados de la comparación (`conversación` casa con el término `conversacion` y viceversa, gap
+64), acepta términos de varias palabras separadas por espacio, guion o guion bajo (`chain of
+thought` ≡ `chain-of-thought` ≡ `chain_of_thought`, gap 66/80) y solo exige límite de palabra en el
+lado del término que empieza/termina con un carácter de palabra (`TODO:` dispara aunque le siga
+`limpiar` sin espacio, gap 65) — el límite izquierdo es además más estricto que "no letra": solo
+dispara tras inicio de texto, espacio o puntuación de apertura de frase, nunca tras un separador de
+ruta/URL sin espacio (`https://x/TODO:1234` no dispara, gap 77), y el separador flexible entre
+palabras no cruza una frontera de lista markdown (`codigo\n- duplicado` no dispara, gap 78).
 
 Ver `agent-kits/knowledge-curator/README.md` para el detalle del contrato y
 `agent-kits/knowledge-curator/test_curator_gate.py` para los casos cubiertos.

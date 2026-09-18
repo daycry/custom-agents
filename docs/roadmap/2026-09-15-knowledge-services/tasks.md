@@ -108,12 +108,13 @@ verificacion: obligatoria
 - **Estado**: completado
 - **Tiempo humano**: est. 5h · real 0
 - **Prevision IA**: 55k in / 24k out tok
-- **Tiempo IA**: real 0.95h (0.6h de fix1 estimado + 0.35h de fix2 estimado; marcador de `usage-meter` arrancado/cerrado sin ventana util en ambas rondas -mismo patron degradado ya documentado en T-01-fix4-, se deja a juicio del implementer)
+- **Tiempo IA**: real 1.13h (0.6h de fix1 estimado + 0.35h de fix2 estimado + 0.18h de fix3 medido, `usage-meter`, artefacto `knowledge-services/T-04-fix3`, 11m/7m reloj, 1.9 EUR)
 - **Dependencias**: T-01, T-02
 - **Tipo**: docs
-- **Archivos**: `agents/knowledge-curator.md`, `agent-kits/knowledge-curator/`, `docs/agents/knowledge-curator.md`, `docs/agents/ROLES.md`, `docs/README.md`, `CLAUDE.md`, `evals/cases/agent-knowledge-curator.json`, `interop/**`, `ci.yml.MANUAL-COPY` (gap 42), `.github/workflows/ci.yml` (gap 42), `README.md` (gap 56), `README.es.md` (gap 56), `docs/en/README.md` (gap 44), `agent-kits/shared/templates/taxonomy.json` (gap 41, desviacion), `agent-kits/shared/knowledge-schema.py` (gap 41, desviacion), `agent-kits/shared/schemas/taxonomy.schema.json` (gap 41, desviacion), `tests/test_console_encoding.py` (gap 40), `docs/roadmap/2026-09-15-knowledge-services/spec.md` (nota de desviación del gap 41 escrita por el orquestador: lista negra `TODO:` por frontera de palabra), `tests/test_ci_manual_copy.py` (gap 71: `test_workflow_es_yaml_valido` nuevo)
-- **Verificacion**: `python scripts/lint_plugin.py` -> frontmatter/dependencias; `python evals/check.py` -> casos de activacion; tras fix1 ademas: `python -m pytest -q agent-kits/knowledge-curator/test_curator_gate.py` -> 41 passed (17 originales + 12 de fix1 + 12 de fix2: acentos, fronteras, multi-palabra, `rejected/` terminal, `--id`, presente-vs-escalar, kit parcial); `python -m pytest -q tests/test_ci_manual_copy.py` -> 13 passed (gap 42 + `test_workflow_es_yaml_valido` del gap 71; `ci.yml.MANUAL-COPY`/`.github/workflows/ci.yml` enumeran `agent-kits/knowledge-curator`); `python -m pytest -q tests/test_console_encoding.py -k curator` -> 8 passed (gap 40)
+- **Archivos**: `agents/knowledge-curator.md`, `agent-kits/knowledge-curator/`, `docs/agents/knowledge-curator.md`, `docs/agents/ROLES.md`, `docs/README.md`, `CLAUDE.md`, `evals/cases/agent-knowledge-curator.json`, `interop/**`, `ci.yml.MANUAL-COPY` (gap 42, gap 76), `.github/workflows/ci.yml` (gap 42, gap 76), `README.md` (gap 56), `README.es.md` (gap 56), `docs/en/README.md` (gap 44), `agent-kits/shared/templates/taxonomy.json` (gap 41, desviacion), `agent-kits/shared/knowledge-schema.py` (gap 41, desviacion), `agent-kits/shared/schemas/taxonomy.schema.json` (gap 41, desviacion), `tests/test_console_encoding.py` (gap 40), `docs/roadmap/2026-09-15-knowledge-services/spec.md` (nota de desviación del gap 41 escrita por el orquestador: lista negra `TODO:` por frontera de palabra), `tests/test_ci_manual_copy.py` (gap 71: `test_workflow_es_yaml_valido` nuevo; gap 76: guardian explicito en CI)
+- **Verificacion**: `python scripts/lint_plugin.py` -> frontmatter/dependencias; `python evals/check.py` -> casos de activacion; `python -m pytest -q agent-kits/knowledge-curator/test_curator_gate.py` -> 54 passed (17 originales + 12 de fix1 + 12 de fix2 + 5 de intento3(72-74, documentales) + 8 de fix3: `--id` vs frontmatter, URL/ruta, vineta markdown, guion bajo, `--id` en blanco/forma/prefijo, avisos con errores); `python -m pytest -q tests/test_ci_manual_copy.py` -> 13 passed (gap 42, 71, 76: `pip install pytest pyyaml` + guardian explicito en CI); `python -m pytest -q tests/test_console_encoding.py -k curator` -> 8 passed (gap 40)
 - **Salida real (fix2, orquestador 2026-09-18)**: `41 passed in 0.77s` · `13 passed in 0.27s` · `test_console_encoding.py -k curator` `8 passed` (gap 72)
+- **Salida real (fix3, 2026-09-18)**: `54 passed in 1.85s` (`agent-kits/knowledge-curator/test_curator_gate.py`) · `13 passed in 0.74s` (`tests/test_ci_manual_copy.py`) · `test_console_encoding.py -k curator` `8 passed in 0.89s` · ver «Verificacion final fix3 Fase 2» mas abajo para el resto de la puerta
 - **Changelog**: Nuevo agente `knowledge-curator`, el unico que aprueba o rechaza conocimiento propuesto y lo mueve a `docs/knowledge/approved/`.
 **Criterios de aceptación**
 - [x] Unico escritor de candidatos/aprobados; contradicciones y alto impacto piden usuario. Evidencia: `agents/knowledge-curator.md` P3/P4 y REGLAS ("Contradicciones y alto impacto piden usuario"); `docs/agents/ROLES.md` fila `knowledge-curator` (ESCRIBE: unico en `candidates/**` y `approved/**`).
@@ -163,6 +164,37 @@ export-interop: 50 ficheros escritos (codex + opencode)
 
 $ python scripts/export-interop.py --check
 export-interop --check: 50 ficheros al dia
+```
+
+**Verificacion final fix3 Fase 2 (salida real, 2026-09-18):**
+```
+$ python -m pytest -q agent-kits/knowledge-curator/test_curator_gate.py tests/test_ci_manual_copy.py
+67 passed in 1.53s
+
+$ python -m pytest -q tests/test_console_encoding.py -k curator
+8 passed, 345 deselected in 2.07s
+
+$ python -c "import yaml; [yaml.safe_load(open(f, encoding='utf-8')) for f in ['ci.yml.MANUAL-COPY','release.yml.MANUAL-COPY','headless.yml.MANUAL-COPY','.github/workflows/ci.yml','.github/workflows/release.yml','.github/workflows/headless.yml']]; print('6 workflows: YAML valido')"
+6 workflows: YAML valido
+
+# Simulacro CI=1 sin pyyaml (gap 76): find_spec('yaml') bloqueado por monkeypatch
+FAIL esperado en CI sin pyyaml: PyYAML no esta disponible en CI: el guardian del gap 71 (YAML
+valido de los workflows) no se puede comprobar de verdad aqui. El workflow debe instalarlo
+(`pip install pytest pyyaml`, gap 76).
+
+$ python scripts/export-interop.py --check
+export-interop --check: 50 ficheros al dia
+
+$ python scripts/lint_plugin.py
+lint_plugin: 10 agentes · 1 errores · 3 avisos
+(el unico error es el preexistente LES-016, no tocado por esta ronda)
+
+$ python agent-kits/shared/scope-check.py docs/roadmap/2026-09-15-knowledge-services --base 5cda8b9
+scope-check: 2026-09-15-knowledge-services · base --base 5cda8b9 · 39 fichero(s) cambiado(s) · 119 patron(es) declarados en Archivos
+✅ en alcance (37) · ❌ fuera de alcance (0): — · exit 0
+
+$ python agent-kits/shared/ledger-lint.py docs/roadmap/2026-09-15-knowledge-services/tasks.md
+ledger-lint: 0 incoherencias · 6 avisos (tasks.md, preexistentes de T-07/T-08/T-09/T-10/T-11/T-12: sin campo Changelog)
 ```
 
 ### T-05 - Documenter propone, no promociona
@@ -532,13 +564,19 @@ Traspaso: las lentes re-evaluaron SOLO #59–#71 (Lente A con probes CLI de 64/6
 | 72 | Important | La Verificacion de T-04 no se refresco tras fix2 (`29 passed`/`10 passed` frente a `41`/`13` hoy) y no habia `Salida real (fix2)` en la tarea | T-04 | **corregido por el orquestador** (este commit: Verificacion actualizada + bullet de salida real) | Lente A; `41 passed in 0.77s`, `13 passed in 0.27s` |
 | 73 | Minor | `docs/agents/CONTRACTS.md` E14 seguia declarando entrada `candidates/**` y sin el exit 2 de `approve` sobre `rejected/` | T-06 | **corregido por el orquestador** (fila E14 alineada con `rejected/` terminal) | Lente A |
 | 74 | Minor | Las notas del gap 41 en `spec.md`/`design.md` decian «frontera de palabra» sin recoger plegado de acentos, frontera asimetrica y espacio≡guion (gaps 64/65/66) | T-04 | **corregido por el orquestador** (notas ampliadas) | Lente A |
-| 75 | **Important** | `--id` se descarta EN SILENCIO si el frontmatter ya trae `id` (`curator-gate.py:328`, `fm.get("id") or id_override`): con `id: ca.gotcha.placeholder` y `--id ca.gotcha.real` (ya en `approved/`) -> exit 0 sin errores ni avisos; el curador escribe el id duplicado | T-04 | pendiente | Lente B, probe |
-| 76 | **Important** | `test_workflow_es_yaml_valido` se salta en CI: `pytest.importorskip("yaml")` y el workflow solo hace `pip install pytest` (`ci.yml:26`, ambas copias) -> el guardian del gap 71 solo vive en la maquina del desarrollador (`10 passed, 3 skipped` simulando CI) | T-04 | pendiente | Lente B, simulado |
-| 77 | Minor | Frontera asimetrica del gap 65: `TODO:` dispara dentro de URLs/rutas (`https://x/TODO:1234`) y bloquea `approve` sin escape (`curator-gate.py:209-210`) | T-04 | pendiente | Lente B, probe |
-| 78 | Minor | El separador `[\s-]+` casa a traves de salto de linea + viñeta markdown (`codigo\n- duplicado`), disparando terminos que no estan escritos (`curator-gate.py:205,208`) | T-04 | pendiente | Lente B, probe |
-| 79 | Minor | `--id` no valida forma ni prefijo, y un valor en blanco (`--id "   "`) apaga el aviso de «colision no comprobada» (`curator-gate.py:328,426`) | T-04 | pendiente | Lente B, probe |
-| 80 | Minor | El split `[\s-]+` no cubre el guion bajo: `chain_of_thought` no se detecta (`curator-gate.py:205`) | T-04 | pendiente | Lente B, probe |
-| 81 | Minor | El aviso del gap 68 solo se imprime en la rama `exit_code == 0` de `main()` (`curator-gate.py:443-449`): con errores bloqueantes desaparece de la salida de texto (solo `--json`) | T-04 | pendiente | Lente B |
+| 75 | **Important** | `--id` se descarta EN SILENCIO si el frontmatter ya trae `id` (`curator-gate.py:328`, `fm.get("id") or id_override`): con `id: ca.gotcha.placeholder` y `--id ca.gotcha.real` (ya en `approved/`) -> exit 0 sin errores ni avisos; el curador escribe el id duplicado | T-04 | corregido: `validar_id_override()` nueva (T-04-fix3); si `fm["id"]` y `--id` difieren, error bloqueante `{campo: "id", ...}` que nombra los dos valores; la guarda de colision (`detectar_colision`) recibe el `id_efectivo` ya saneado, nunca el `id_override` crudo | `test_approve_id_override_distinto_del_frontmatter_bloquea_y_nombra_los_dos` / `test_approve_id_override_igual_al_frontmatter_no_bloquea` |
+| 76 | **Important** | `test_workflow_es_yaml_valido` se salta en CI: `pytest.importorskip("yaml")` y el workflow solo hace `pip install pytest` (`ci.yml:26`, ambas copias) -> el guardian del gap 71 solo vive en la maquina del desarrollador (`10 passed, 3 skipped` simulando CI) | T-04 | corregido: `pip install pytest pyyaml` en `ci.yml.MANUAL-COPY`/`.github/workflows/ci.yml` (byte-identicas); `test_workflow_es_yaml_valido` ahora falla EXPLICITO (`pytest.fail`) si `$CI` esta definido y `yaml` no esta disponible, en vez de saltarse en silencio | simulacro con `CI=1` + `importlib.util.find_spec` bloqueado para `yaml`: `FAIL esperado en CI sin pyyaml: PyYAML no esta disponible en CI: ...` (ver Verificacion final fix3) |
+| 77 | Minor | Frontera asimetrica del gap 65: `TODO:` dispara dentro de URLs/rutas (`https://x/TODO:1234`) y bloquea `approve` sin escape (`curator-gate.py:209-210`) | T-04 | corregido: el limite izquierdo de un termino que empieza en caracter de palabra ya no es `(?<!\w)` sino `(?<![^\s(\[\"'¿¡\-—])` — solo dispara si lo precede inicio de texto, espacio o puntuacion de APERTURA de frase, nunca un separador de ruta/URL sin espacio | `test_denylist_todo_dentro_de_url_no_dispara` / `test_denylist_todo_tras_punto_pegado_no_dispara` / `test_denylist_todo_tras_apertura_de_frase_si_dispara` (simetrico) |
+| 78 | Minor | El separador `[\s-]+` casa a traves de salto de linea + viñeta markdown (`codigo\n- duplicado`), disparando terminos que no estan escritos (`curator-gate.py:205,208`) | T-04 | corregido: `_SEPARADOR_TERMINO` nuevo — un `\n` solo separa palabras del termino si NO va seguido (tras espacios) de una vineta (`-`/`*`/`+` + espacio), una numeracion (`1.`/`1)` + espacio) ni de otra linea en blanco | `test_denylist_termino_no_casa_a_traves_de_una_vineta_markdown` / `test_denylist_termino_si_casa_a_traves_de_un_salto_de_linea_normal` (simetrico, no rompe el gap 66) |
+| 79 | Minor | `--id` no valida forma ni prefijo, y un valor en blanco (`--id "   "`) apaga el aviso de «colision no comprobada» (`curator-gate.py:328,426`) | T-04 | corregido: `validar_id_override()` hace `strip()` (blanco -> error de USO, `exit 2`, antes de tocar la guarda de colision), valida forma `[A-Za-z0-9._-]+` y que empiece por `<id_prefix>.` de la taxonomia (siempre presente, `cargar_taxonomia` la rellena con el slug del proyecto si no hay una propia) | `test_approve_id_override_en_blanco_es_error_de_uso` / `test_approve_id_override_con_caracteres_invalidos_bloquea` / `test_approve_id_override_sin_el_prefijo_de_la_taxonomia_bloquea` / `test_approve_id_override_valido_con_prefijo_no_bloquea` |
+| 80 | Minor | El split `[\s-]+` no cubre el guion bajo: `chain_of_thought` no se detecta (`curator-gate.py:205`) | T-04 | corregido: split/join pasan a `[\s_-]+` (se suma `_`) tanto en `_regex_termino` como en `_SEPARADOR_TERMINO` | `test_denylist_termino_con_guion_bajo_dispara` |
+| 81 | Minor | El aviso del gap 68 solo se imprime en la rama `exit_code == 0` de `main()` (`curator-gate.py:443-449`): con errores bloqueantes desaparece de la salida de texto (solo `--json`) | T-04 | corregido: `main()` imprime `avisos` SIEMPRE que existan, fuera del `if exit_code == 0`/`else` de errores | `test_cli_texto_con_errores_tambien_imprime_avisos` |
+
+**Nota T-04-fix3 (correccion de la revision de dos lentes, Fase 2, ronda `fix3` acotada por el orquestador al 3.er intento, 2026-09-18)**: los 7 gaps de codigo (#75, #77-#81) son locales a `agent-kits/knowledge-curator/curator-gate.py`; el gap #76 es de CI (`ci.yml.MANUAL-COPY`/`.github/workflows/ci.yml` + `tests/test_ci_manual_copy.py`). Sin cuarta pasada de lentes (decision ya registrada por el orquestador en el bloque de arriba); verificacion dirigida: tests nuevos por gap + reproduccion de los probes de la Lente B.
+  - `RED (fix3-f2)`: con `curator-gate.py` en el estado del commit `df20d16` (antes de esta ronda) y los 8 tests nuevos ya escritos, `python -m pytest -q agent-kits/knowledge-curator/test_curator_gate.py -k "gap_override or id_override or url_no_dispara or vineta_markdown or guion_bajo or con_errores_tambien"` -> `8 failed, 3 passed in 0.97s` (gaps 75, 77, 78, 79x3, 80, 81) · 2026-09-18.
+  - `RED (fix3-f2, gap 76)`: simulacro `CI=1` + `importlib.util.find_spec("yaml")` bloqueado sobre el `test_workflow_es_yaml_valido` ORIGINAL (con `pytest.importorskip("yaml")` sin el guardian nuevo): el test se SALTA (`Skipped`) en vez de fallar — confirmado antes de anadir la comprobacion explicita de `$CI`.
+  - **GREEN**: `python -m pytest -q agent-kits/knowledge-curator/test_curator_gate.py` -> `54 passed in 1.85s` (46 previos + 8 nuevos de esta ronda); `python -m pytest -q tests/test_ci_manual_copy.py` -> `13 passed` (mismo numero de tests, `test_workflow_es_yaml_valido` reforzado sin anadir parametrizaciones nuevas).
+  - Documentacion actualizada (gaps 75/79): `agent-kits/knowledge-curator/README.md` (parrafo `--id` + parrafo denylist ampliado con gaps 77/78/80), `agents/knowledge-curator.md` (P4: `--id` obligatorio cuando el candidato no trae `id`, conflicto bloquea), `docs/agents/knowledge-curator.md` (tabla + parrafo de la guarda de `id` y de la lista negra).
 
 **Decision del orquestador al 3.er intento con gaps (misma regla y mismo criterio que en la Fase 1).** Modo autonomo (`/goal`), usuario no disponible; gaps convergentes (19 -> 13 -> 10, de los cuales 3 documentales ya cerrados aqui), 0 Critical; los 7 de codigo son locales a `curator-gate.py`/CI. Se elige **seguir** con UNA ronda `fix3` acotada a #75–#81 y verificacion dirigida del orquestador (tests nuevos + probes de la Lente B reproducidos), sin cuarta pasada de lentes. Registrado para que el usuario pueda revocarlo en el PR.
 

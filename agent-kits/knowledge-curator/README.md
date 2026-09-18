@@ -37,12 +37,28 @@ candidato aún no lo trae, el que se le vaya a asignar vía `--id <el-id>` (gap 
 los dos el gate no bloquea, pero devuelve un `aviso` («colisión de id no comprobada») en
 `avisos[]` para que quede constancia de que esa guarda no se ha podido aplicar.
 
+`--id` se valida antes de usarse (gaps 75/79, revisión de dos lentes, ronda `fix3`): se
+`strip()`ea (un valor en blanco, p. ej. `--id "   "`, es un error de **uso**, `exit 2`, no un id
+válido en silencio), debe tener forma `[A-Za-z0-9._-]+` y empezar por el `id_prefix.` de la
+taxonomía del proyecto (o el derivado del slug del `root` si no declara uno propio — siempre hay
+uno, `knowledge-schema.cargar_taxonomia` lo rellena). Y si el frontmatter **ya trae** un `id`
+distinto del pasado por `--id`, es un error bloqueante que nombra los dos valores (antes,
+`fm.get("id") or id_override` descartaba `--id` en silencio y el gate aprobaba usando el `id` del
+frontmatter sin comprobar el que el Curator pensaba asignar de verdad).
+
 La lista negra (`denylist`) pliega acentos en los dos lados de la comparación con `unicodedata`
 NFD (`conversación` casa con el término `conversacion` declarado sin tilde, y viceversa — gap 64),
-admite términos de varias palabras separadas por espacio o guion indistintamente (`chain of
-thought` ≡ `chain-of-thought` — gap 66), y el límite de palabra (`(?<!\w)`/`(?!\w)`) solo se exige
-en el lado del término cuyo carácter de borde es alfanumérico — así `TODO:` sigue disparando
-aunque le siga `limpiar` sin espacio de por medio (gap 65).
+admite términos de varias palabras separadas por espacio, guion o guion bajo indistintamente
+(`chain of thought` ≡ `chain-of-thought` ≡ `chain_of_thought` — gap 66, guion bajo sumado en el
+gap 80), y el límite de palabra solo se exige en el lado del término cuyo carácter de borde es
+alfanumérico — así `TODO:` sigue disparando aunque le siga `limpiar` sin espacio de por medio (gap
+65). El límite IZQUIERDO de un término que empieza en palabra es más estricto que `(?<!\w)` (gap
+77): solo dispara si lo precede el inicio del texto, un espacio o puntuación de apertura de frase
+(`(`, `[`, `"`, `'`, `¿`, `¡`, `-`, `—`) — nunca un separador de ruta/URL sin espacio
+(`https://x/TODO:1234` no dispara). El separador flexible entre palabras de un término
+multi-palabra tampoco cruza una frontera de lista markdown (gap 78): `codigo\n- duplicado` no es
+el término `codigo duplicado` partido por formato (dos ítems distintos de una lista), pero
+`codigo\nduplicado` (salto de línea sin viñeta ni línea en blanco) sigue disparando igual.
 
 `reject`/`needs_changes` NO corren nada de eso (gap 58, salvedad deliberada): ni evidencia, ni
 `fuentes`/`tags`, ni lista negra, ni el token de `estado`, ni siquiera exigen que `category` esté
