@@ -45,11 +45,15 @@ declare su propio `type` — el núcleo (`knowledge-sync.py`) no cambia al añad
 
 ## Uso
 
+Plugin instalable (regla 5 de `docs/CONVENTIONS.md`): localiza el script en runtime con el
+patrón de seis raíces, nunca una ruta relativa fija.
+
 ```bash
-python skills/knowledge-services/scripts/knowledge-sync.py --backend kwipu --root . --check
-python skills/knowledge-services/scripts/knowledge-sync.py --backend kwipu --root . --dry-run
-python skills/knowledge-services/scripts/knowledge-sync.py --backend kwipu --root .
-python skills/knowledge-services/scripts/knowledge-sync.py --backend kwipu --root . --rebuild
+KSSKILL="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type f -path '*skills/knowledge-services/scripts/knowledge-sync.py' 2>/dev/null | head -1)"
+python3 "$KSSKILL" --backend kwipu --root . --check
+python3 "$KSSKILL" --backend kwipu --root . --dry-run
+python3 "$KSSKILL" --backend kwipu --root .
+python3 "$KSSKILL" --backend kwipu --root . --rebuild
 ```
 
 - `--check`: `health()` + `verify()`, no toca la publicación. `exit 0` solo si `estado == "sano"`

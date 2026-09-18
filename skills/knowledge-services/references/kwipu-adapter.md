@@ -127,16 +127,31 @@ lleva:
 inalcanzable, `verify` devuelve `ok: false` con un único desfase explicando el motivo de la
 conexión — nunca lanza una excepción sin capturar.
 
+## Modo `resumen` (gap 83, fix1 2026-09-18)
+
+`knowledge-sync.py` decide QUÉ entradas van en `modo: "resumen"` (según `routing.<backend>:
+"summary"` en `taxonomy.json`); este adaptador decide QUÉ ES un resumen — el núcleo nunca corta
+texto. `_cuerpo_segun_modo()`:
+
+1. Si la entrada trae un campo `resumen` (string no vacío) en su frontmatter, se publica tal cual.
+2. Si no, se publica el PRIMER PÁRRAFO del cuerpo (hasta la primera línea en blanco).
+
+`modo: "completo"` (default) publica el cuerpo íntegro, sin recortar.
+
 ## Validar contra el bridge real (fuera de los tests, opt-in del operador)
 
-Con Kwipu corriendo en `http://127.0.0.1:8765` y un `taxonomy.json` con `backends.kwipu.enabled: true`:
+Con Kwipu corriendo en `http://127.0.0.1:8765` y un `taxonomy.json` con `backends.kwipu.enabled: true`
+(localiza el script con el patrón de seis raíces, ver `SKILL.md` § Uso):
 
 ```bash
-python skills/knowledge-services/scripts/knowledge-sync.py --backend kwipu --root <proyecto> --check
-python skills/knowledge-services/scripts/knowledge-sync.py --backend kwipu --root <proyecto> --dry-run
-python skills/knowledge-services/scripts/knowledge-sync.py --backend kwipu --root <proyecto>
-python skills/knowledge-services/scripts/knowledge-sync.py --backend kwipu --root <proyecto> --check
+KSSKILL="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type f -path '*skills/knowledge-services/scripts/knowledge-sync.py' 2>/dev/null | head -1)"
+python3 "$KSSKILL" --backend kwipu --root <proyecto> --check
+python3 "$KSSKILL" --backend kwipu --root <proyecto> --dry-run
+python3 "$KSSKILL" --backend kwipu --root <proyecto>
+python3 "$KSSKILL" --backend kwipu --root <proyecto> --check
 ```
 
 El último `--check` debería reportar `verify: ok` una vez Kwipu haya corrido su `build_view` sobre
-`export_dir` — si sigue en desfase, el mensaje ya nombra el remedio exacto.
+`export_dir` — si sigue en desfase, el mensaje ya nombra el remedio exacto. Un `verify` con
+`razon: "nunca_sincronizado"` (manifest vacío/ausente) significa que todavía no se ha corrido ni
+un `apply` real — no es un desfase, es que nunca se publicó nada.

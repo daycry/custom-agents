@@ -37,6 +37,16 @@ cumple el contrato completo (fichero ausente, no carga, o falta una función) le
 `AdaptadorNoDisponible` con un mensaje que nombra exactamente qué falta — `knowledge-sync.py` lo
 convierte en `exit 2`, nunca en un traceback.
 
+## Modo `resumen` (gap 83, fix1 2026-09-18)
+
+Cada entrada que `knowledge-sync.py` pasa a `plan`/`rebuild` trae `modo: "completo"` o
+`modo: "resumen"` (según `routing.<backend>` sea `true` o `"summary"` en `taxonomy.json`) — el
+núcleo NUNCA decide qué es un resumen, solo marca la intención. Cada adaptador es responsable de
+interpretarlo: el criterio de referencia (`markdown_export.py`, ver `references/kwipu-adapter.md`)
+es "el campo `resumen` del frontmatter si existe, si no el primer párrafo del cuerpo". Un
+adaptador nuevo puede definir otro criterio, pero tiene que documentarlo — nunca ignorar `modo` y
+publicar siempre el cuerpo completo.
+
 ## Adaptador de fixture (CA-12)
 
 `evals/fixtures/knowledge-services/backend_test.py` implementa el contrato completo de forma
