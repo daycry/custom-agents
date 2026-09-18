@@ -35,10 +35,8 @@ import sys
 
 # Consola no UTF-8 (Windows cp1252) o tuberías: reconfigurar ANTES de leer/imprimir (GOT-005).
 for _s in (sys.stdin, sys.stdout, sys.stderr):
-    try:
-        _s.reconfigure(encoding="utf-8", errors="replace")
-    except Exception:  # noqa: BLE001 — ya leído, o None (capsys/pythonw)
-        pass
+    try: _s.reconfigure(encoding="utf-8", errors="replace")
+    except Exception: pass  # noqa: BLE001 — sin reconfigure, ya leído o None (capsys, pythonw)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE_PATH = os.path.join(HERE, "templates", "taxonomy.json")
@@ -169,11 +167,15 @@ def _slug_kebab(nombre):
 def _con_id_prefix_por_defecto(config, root):
     """Si `config` no declara `id_prefix`, lo rellena con el slug kebab-case del directorio del
     proyecto (`root`, design.md:57): el prefijo NUNCA es un valor fijo del plugin (gap 5) — si
-    `root` no aporta un basename utilizable (None, `.`, `/`, ruta vacia), cae a `ca` como ultimo
-    recurso documentado. No pisa un `id_prefix` explicito del proyecto."""
+    `root` no aporta un basename utilizable (`.`, `/`, ruta vacia), cae a `ca` como ultimo
+    recurso documentado. No pisa un `id_prefix` explicito del proyecto.
+
+    `root=None` usa el cwd real (gap 29), el mismo criterio que `cargar_taxonomia` ya aplica para
+    localizar `taxonomy.json` (gap 12) — antes esta funcion trataba `None` como "sin raiz" y caia
+    directo a `ca`, aunque `cargar_taxonomia(root=None)` SI mirase el cwd."""
     if not isinstance(config, dict) or "id_prefix" in config:
         return config
-    base = os.path.basename(os.path.abspath(root)) if root is not None else ""
+    base = os.path.basename(os.path.abspath(root if root is not None else "."))
     config["id_prefix"] = _slug_kebab(base) or "ca"
     return config
 
@@ -307,9 +309,13 @@ def cargar_taxonomia(root=None, fichero=None):
     ruta = fichero or os.path.join(root if root is not None else ".", PROJECT_TAXONOMY_REL)
     if os.path.isfile(ruta):
         try:
-            with open(ruta, "r", encoding="utf-8") as f:
+            # gap 27: `utf-8-sig` tolera el BOM UTF-8 (VS Code/Notepad) sin rechazarlo como "JSON
+            # ilegible"; `(OSError, ValueError)` cubre además `json.JSONDecodeError` y
+            # `UnicodeDecodeError` (p. ej. `taxonomy.json` guardado en UTF-16) en vez de dejarlo
+            # propagar como traceback crudo hasta `/doctor`.
+            with open(ruta, "r", encoding="utf-8-sig") as f:
                 config = json.load(f)
-        except (OSError, json.JSONDecodeError) as e:
+        except (OSError, ValueError) as e:
             return None, "proyecto", ruta, [_error(f"JSON ilegible: {type(e).__name__}: {e}", ruta, "$")]
         errores = validar(config, ruta)
         _con_id_prefix_por_defecto(config, root)
