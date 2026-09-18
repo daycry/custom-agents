@@ -208,6 +208,7 @@ verificacion: obligatoria
 **Criterios de aceptación**
 - [ ] Mutantes de filtrado mueren.
 - [ ] YAML corrupto y rutas maliciosas fallan de forma segura.
+- [ ] Casos heredados de la revision de dos lentes (intento 3, fuera de ronda): comentario `#` o item vacio `-` dentro de una lista en bloque del frontmatter no trunca la lista en silencio; `min_evidence` no-string produce UN solo error; el coste de `realpath` por fichero queda medido o acotado.
 
 ### T-11 - Documentacion, espejos y changelog
 - **Estado**: borrador
@@ -299,3 +300,19 @@ Fuera de esta ronda: la capa (b) del gap 6 (contencion por `realpath`) solo se e
 - `python agent-kits/shared/ledger-lint.py docs/roadmap/2026-09-15-knowledge-services/tasks.md` -> `0 incoherencias · 9 avisos (tasks.md)`, exit 0 (los 9 avisos son T-04..T-12 sin campo `Changelog`, tareas aun no empezadas, ajenos a esta ronda).
 
 Con esto quedan cerrados los 34/34 gaps de las dos rondas de revision de dos lentes (22 del intento 1 + 12 del intento 2, incluidos los 5 Important #24/25/26/27/28 y los 6 Minor #29-#34) sobre Fase 1 completa y T-13.
+
+## Revisión de dos lentes — intento 3 (último del bucle): 11/11 gaps del intento 2 cerrados; 5 gaps NUEVOS (3 Important, 2 Minor, 0 Critical), lentes A+B, rango `cf23f02..47314a9`
+
+Traspaso: las lentes re-evaluaron SOLO #24–#34 y no reabrieron nada de los intentos 1 y 2. Lente A: `test_console_encoding.py` -> `345 passed` (gap 28); coleccion completa `1803 tests collected`; snippet byte a byte identico a `model-tier.py:38-40`; `scope-check` exit 0; multi-runtime ✓ (solo stdlib, rutas por `dirname`, config bajo `.claude/`). Lente B: reprodujo #25–#34 por `importlib` (incl. junction `mklink /J` para el symlink que Windows no permite) y midio que la memoizacion sigue en 1 lectura de `taxonomy.json` por llamada.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 35 | Important | La ronda fix3 anadio tests a `test_knowledge_schema.py` (+3) y `test_capabilities.py` (+1) pero la `Verificacion` de T-01 y T-13 no se refresco: su salida pegada sigue siendo la de fix2 (`40 passed` / `14 passed` frente a `43` / `15` hoy) y el texto no menciona lo garantizado desde fix3 (BOM/UTF-16 tolerado, `id_prefix` con `root=None`, cache de `evaluar_capacidad()`) | T-01/T-13 | pendiente | Lente A (`tasks.md:41-42,185-186`) |
+| 36 | Minor | TDD: el gap 29 no tiene linea `RED (fix3):` en ninguna parte del ledger (el test no es vacuo: la linea pre-fix daba `"ca"`) | T-01 | pendiente | Lente A |
+| 37 | **Important** | **Regresion del dedupe por `realpath` (fix del gap 30)**: la `realpath` se registra en `rutas_vistas_real` durante el `os.walk` ANTES de que `_ruta_segura_dentro` rechace la ruta; con `folder: "adr"` y `folder: "lessons"` y una junction `approved/adr/espejo -> approved/lessons/`, la primera aparicion (ilegitima) gasta la entrada y `LES-1.md` (legitimo, dentro de su carpeta) DESAPARECE del indice y genera un «enlace roto» falso. Antes de fix3: `ids=['ADR-1','LES-1']` + 1 error de contencion; ahora `ids=['ADR-1']` + 2 errores (`knowledge-index.py:251-255` vs `:257`) | T-02 | pendiente | Lente B, medido con junction contra `cf23f02` |
+| 38 | Minor | Cola del gap 30: con dos `folder` anidados (`"adr"` y `"adr/legacy"`), las entradas de la carpeta interior se indexan con el `folder` de la EXTERIOR (gana el primero de `sorted(carpetas)`) y heredan categoria/`routing` equivocados; en Windows dos `folder` que solo difieran en mayusculas colapsan igual (`knowledge-index.py:247-255,296`) | T-02 | pendiente | Lente B, probe `{'ADR-1':'adr','LEG-1':'adr'}` |
+| 39 | Important | El `utf-8-sig` del gap 27 se aplico a UNO de los dos lectores del mismo `taxonomy.json`: el CLI documentado `knowledge-schema.py <ruta>` sigue abriendo con `encoding="utf-8"` (`knowledge-schema.py:369` frente a `:316`) y rechaza un BOM UTF-8 como «JSON ilegible» (exit 2) mientras `cargar_taxonomia` lo acepta | T-01 | pendiente | Lente B, medido (`rc=2`) |
+
+**Decision del orquestador al 3.er intento con gaps (regla del bucle acotado: «PARA y pregunta»).** El usuario ha fijado el objetivo en modo autonomo (`/goal`) y no esta disponible para responder; los gaps convergen (22 -> 12 -> 5), ninguno es Critical, dos son de ledger (#35, #36) y los tres de codigo son locales (#37 orden de dos lineas, #38 asignacion de `folder`, #39 un `encoding`). Se elige **seguir** con UNA ronda `fix4` acotada a #35–#39 y una **verificacion dirigida del orquestador** (tests nuevos de cada gap + los probes de la Lente B reproducidos, sin cuarta pasada de lentes). Queda registrado para que el usuario pueda revocarlo en el PR; si lo revoca, las tareas vuelven a `en-progreso` y se re-planifica con `planner`.
+
+Fuera de esta ronda (anotado por la Lente B, codigo anterior ya aprobado, no reabierto): un comentario `#` o un item vacio `-` en medio de una lista en bloque trunca la lista en silencio (`knowledge-index.py:144`); `validar()` emite dos errores para `min_evidence: 1` (int) (`knowledge-schema.py:274-279`); coste lineal de `realpath` por fichero en Windows. Los tres van a T-10 (regresion) como casos a cubrir.
