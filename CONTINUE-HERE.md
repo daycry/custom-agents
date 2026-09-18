@@ -29,7 +29,11 @@
 > (pasado a las lentes). **El cierre físico (activar `generated_knowledge` en `projects.yaml`, exportar a
 > `kwipu-data/generated/projects/<id>/`, `python -m source_manager.build_view --config kwipu/config/projects.yaml
 > --output kwipu/runtime/knowledge-view-v2`, `docker compose restart kwipu kwipu-bridge kwipu-mcp`) lo DENEGÓ el
-> clasificador de permisos (recurso compartido): lo ejecuta el usuario con `!`.** Siguiente: cerrar revisión Fase 3 → Fase 4 (T-04 curator, T-05 documenter, T-06 Fase 4-bis) → Fase 3 (T-07 sync +
+> clasificador de permisos (recurso compartido): lo ejecuta el usuario con `!`.** **Revisión Fase 3 intento 1** (87a9fef,
+> lentes A+B+D): 23 gaps (#82–#104; 1 Critical = `apply` no atómico; 16 Important incl. `summary` sin implementar,
+> `category` omitida en silencio, `/doctor` con red, outbox reclama envelope ajeno, 3 de seguridad: `type` traversal,
+> `id` con `../`, `health.url` sin restricción de host). **Ronda `T-0X-fix1` de Fase 3 despachada.** Siguiente: intento 2 →
+> cerrar bucle Fase 3 → Fase 4 (T-04 curator, T-05 documenter, T-06 Fase 4-bis) → Fase 3 (T-07 sync +
 > contrato, T-08 adaptador Kwipu, T-09 setup/doctor) → Fase 4 (T-10, T-11, T-12) → qa sin UI → documenter → cierre
 > (changelog-sync, /retro + retro-gate) → graphiti-memory.
 >
