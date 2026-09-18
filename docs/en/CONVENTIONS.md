@@ -204,6 +204,18 @@ active; its health is that of `taxonomy.json`, with or without a project file) a
 (active only with `backends.kwipu.enabled: true`; the real network health check is done by the
 `markdown-export` adapter, not the registry).
 
+`/doctor` (T-09) adds an **"Optional capabilities"** block, also generic: one row per capability
+from `enumerar(root)`, with no capability-specific string anywhere in `doctor.py` (invalid config
+→ ❌ with file+field+fix; disabled → ℹ️; active with a declared backend → LIVE network check by
+loading the same generic adapter `knowledge-sync.py` uses
+(`skills/knowledge-services/backends/__init__.py::cargar_adaptador`), never importing it by name —
+✅ healthy with no drift, ⚠️ stale export with the fix that `verify()` names without running it,
+⚠️/❌ degraded/error, ℹ️ unreachable or timeout; active without a backend → the capability's own
+generic `doctor` text). `/setup` (step 5-sexies) shows the registered capabilities in a single
+pass and offers to create `.claude/knowledge-services/taxonomy.json` from the plugin's template if
+it doesn't exist yet; enabling a specific capability follows the `setup_step` it declares itself,
+and the step never connects anything on its own.
+
 ## 10. Project technical memory — `docs/knowledge/`
 
 Besides the roadmap (rule 7, decision+outcome per initiative) and configuration (rule 9), the

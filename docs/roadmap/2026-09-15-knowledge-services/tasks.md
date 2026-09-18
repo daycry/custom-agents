@@ -22,9 +22,9 @@ verificacion: obligatoria
 |---|---:|---:|---:|---:|---:|---:|---:|
 | Fase 1 - Contrato y validacion | 3 | 3 | 100% | 0 / 13h | 1.20 / 3.9h | 0 / 1.0h | ~57k / 200k |
 | Fase 2 - Curacion y workflow | 3 | 3 | 100% | 0 / 14h | 1.23 / 4.2h | 0 / 1.1h | ~25k / 210k |
-| Fase 3 - Backends y Kwipu | 3 | 4 | 75% | 0 / 19h | 1.02 / 5.7h | 0 / 1.4h | ~88k / 275k |
+| Fase 3 - Backends y Kwipu | 4 | 4 | 100% | 0 / 19h | 1.74 / 5.7h | 0 / 1.4h | ~88k / 275k |
 | Fase 4 - Regresion y cierre | 0 | 3 | 0% | 0 / 10h | 0 / 3.0h | 0 / 0.7h | 0 / 130k |
-| **TOTAL** | **9** | **13** | **69%** | **0 / 56h** | **3.45 / 16.8h** | **0 / 4.2h** | **~170k / 815k** |
+| **TOTAL** | **10** | **13** | **77%** | **0 / 56h** | **4.17 / 16.8h** | **0 / 4.2h** | **~170k / 815k** |
 
 > **Nota (gap 18, revision de dos lentes intento 1):** las horas-IA de las rondas `-fix1`/`-fix2`/`-fix3` corresponden a sesiones de correccion COMPARTIDAS entre varias tareas (una sola ventana de `usage-meter` cubriendo T-01/T-02/T-03/T-13 en fix1/fix2, y T-01/T-02/T-13 en fix3); se reparten a partes iguales entre las tareas que tocaron en esa ventana (ver nota de cada tarea) en vez de contarse enteras en cada una, para no inflar el TOTAL.
 
@@ -309,17 +309,25 @@ evals/check: 39 ficheros · 140 casos (84 positivos, 56 negativos) · 39 piezas 
 - **Nota (algoritmo de `verify`)**: compara el nombre de fichero exportado (`ruta_relativa` del manifiesto) contra los `file_name` de los nodos `type == "chunk"` del snapshot (los unicos que identifican un fichero fuente; los nodos `type == "entity"` no). Detecta solo PRESENCIA (publicado pero no indexado), no obsolescencia de contenido: el snapshot fijo no expone un hash de contenido comparable, solo conteos de nodos/relaciones.
 
 ### T-09 - Opt-in en setup y doctor a traves del registro de capacidades
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo humano**: est. 4h · real -
+- **Tiempo IA**: real 0.72h (medido; usage-meter, sesion `knowledge-services/T-09`)
 - **Prevision IA**: 40k in / 16k out tok
 - **Dependencias**: T-08, T-13
 - **Tipo**: devops
 - **Archivos**: `commands/setup.md`, `commands/doctor.md`, `agent-kits/shared/doctor.py`, `agent-kits/shared/test_doctor.py`, `docs/CONVENTIONS.md`, `docs/en/CONVENTIONS.md`, `docs/INTEROP.md`, `docs/en/INTEROP.md`, `interop/**`
 - **Verificacion**: `python -m pytest -q agent-kits/shared/test_doctor.py` -> desactivado, sano, timeout, export atrasado y `taxonomy.json` invalido con fichero+campo+arreglo; `doctor.py` no contiene la cadena `kwipu` (todo llega por `capabilities.py`); `python scripts/export-interop.py --check` -> 0
+  - Salida real: `python -m pytest -q agent-kits/shared/test_doctor.py` -> `1 failed, 119 passed in 133.00s` (el unico fallo es `test_hook_sin_bit_ejecutable_es_aviso_con_chmod`, preexistente y NO relacionado con esta tarea: confirmado con `git stash`/`git stash pop` contra el commit previo `cc1fc26`, falla identico sin mis cambios — limitacion de bits ejecutables POSIX en Windows).
+  - Salida real: `grep -ni "kwipu" agent-kits/shared/doctor.py` -> sin coincidencias.
+  - Salida real: `python scripts/export-interop.py && python scripts/export-interop.py --check` -> `export-interop: 50 ficheros escritos (codex + opencode)` / `export-interop --check: 50 ficheros al dia`.
+  - `python agent-kits/shared/scope-check.py docs/roadmap/2026-09-15-knowledge-services` -> los 10 ficheros tocados en esta tarea caen dentro de `Archivos`; los 5 «fuera de alcance» que reporta son de tareas previas ya cerradas (T-08/T-09-improvement-plan/roadmap README), no de este cambio.
+  - `python scripts/lint_plugin.py` -> mismo `❌` preexistente de `LES-016` (sin relacion, fichero no tocado por esta tarea) y los mismos 3 avisos de nombres genericos de comandos; sin avisos nuevos por esta tarea.
+  - RED: `python -m pytest -q agent-kits/shared/test_doctor.py -k "capacidad or ocho_bloques"` contra el `doctor.py` previo (sin bloque de capacidades) fallaria con `AttributeError`/`KeyError` por falta de `bloque_capacidades`/clave `capacidades`; tras implementar: `18 passed` (mas el ajuste de `test_los_ocho_bloques_estan_siempre`) · 2026-09-18.
 **Criterios de aceptación**
-- [ ] Config no sensible e idempotente; no MCP automatico.
-- [ ] Fallo opcional no es error de ciclo.
-- [ ] `/setup` ofrece las capacidades registradas en un solo paso y escribe `taxonomy.json` desde la plantilla si no existe (CA-14).
+- [x] Config no sensible e idempotente; no MCP automatico.
+- [x] Fallo opcional no es error de ciclo.
+- [x] `/setup` ofrece las capacidades registradas en un solo paso y escribe `taxonomy.json` desde la plantilla si no existe (CA-14).
+- **Changelog**: `/doctor` ahora avisa en vivo si una capacidad opcional (como Kwipu) esta desactivada, mal configurada o con el grafo externo desactualizado, y `/setup` ofrece activarlas y crear su configuracion en un solo paso.
 
 ### T-13 - Registro de capacidades `capabilities.py`
 - **Estado**: completado

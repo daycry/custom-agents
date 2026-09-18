@@ -204,6 +204,18 @@ su salud es la de `taxonomy.json`, con o sin fichero de proyecto) y `kwipu` (act
 `backends.kwipu.enabled: true`; la comprobación de red real la hace el adaptador
 `markdown-export`, no el registro).
 
+`/doctor` (T-09) añade un bloque **«Capacidades opcionales»**, genérico también: una fila por
+capacidad de `enumerar(root)`, sin ninguna cadena específica de capacidad en `doctor.py` (config
+inválida → ❌ con fichero+campo+arreglo; desactivada → ℹ️; activa con un backend declarado →
+comprobación de red EN VIVO cargando el mismo adaptador genérico que usa `knowledge-sync.py`
+(`skills/knowledge-services/backends/__init__.py::cargar_adaptador`), nunca importándolo por
+nombre — ✅ sano sin desfase, ⚠️ export atrasado con el remedio que nombra `verify()` sin
+ejecutarlo, ⚠️/❌ degradado/error, ℹ️ sin conexión o timeout; activa sin backend → el texto
+genérico `doctor` de la propia capacidad). `/setup` (paso 5-sexies) muestra las capacidades
+registradas en un único paso y ofrece crear `.claude/knowledge-services/taxonomy.json` desde la
+plantilla del plugin si no existe; activar una capacidad concreta sigue el `setup_step` que ella
+misma declara, y el paso nunca conecta nada por su cuenta.
+
 ## 10. Memoria técnica del proyecto — `docs/knowledge/`
 
 Además del roadmap (regla 7, decisión+resultado por iniciativa) y de la configuración (regla 9),
