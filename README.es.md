@@ -20,7 +20,7 @@
 [![OpenCode](https://img.shields.io/badge/OpenCode-agentes%20%C2%B7%20comandos%20%C2%B7%20skills-f59e0b.svg)](docs/INTEROP.md)
 [![npx](https://img.shields.io/badge/instalaci%C3%B3n-npx-cb3837.svg?logo=npm&logoColor=white)](docs/INTEROP.md)
 [![SDD](https://img.shields.io/badge/metodolog%C3%ADa-Spec--Driven-2ea44f.svg)](docs/FLOWS.md)
-[![Agentes](https://img.shields.io/badge/agentes-9-0ea5e9.svg)](docs/README.md)
+[![Agentes](https://img.shields.io/badge/agentes-10-0ea5e9.svg)](docs/README.md)
 [![Skills](https://img.shields.io/badge/skills-18-0ea5e9.svg)](docs/README.md)
 [![Comandos](https://img.shields.io/badge/comandos-12-0ea5e9.svg)](docs/README.md)
 [![Skills portables](https://img.shields.io/badge/skills%20portables-AGENTS.md%20%C2%B7%20Cursor-0ea5e9.svg)](docs/INSTALL.md#usar-las-skills-fuera-de-claude-code-paquete-portable)
