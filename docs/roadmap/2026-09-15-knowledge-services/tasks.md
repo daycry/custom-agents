@@ -912,3 +912,29 @@ changelog-sync --check: sin entradas pendientes ✅
 No se ejecuta aqui de nuevo la suite completa del repo (`python -m pytest tests agent-kits/shared agent-kits/knowledge-curator skills/knowledge-services/scripts -q`, ya corrida en la Verificacion de T-12 con `42 failed, 2002 passed`) por instruccion explicita de esta ronda (no correr la suite completa, usar filtros dirigidos); los 42 rojos de esa ejecucion previa quedan reclasificados por el gap #149 (uno de ellos, `test_manifests`, era propio y ya esta corregido — el recuento de rojos verdaderamente ajenos a esta iniciativa baja a 41).
 
 **Tiempo IA (fix1, medido, mismo criterio que el gap #18):** `usage-meter.py status` confirma que los 5 marcadores (`T-10-fix1`, `T-02-fix8`, `T-08-fix5`, `T-11-fix1`, `T-12-fix1`) comparten la MISMA ventana (`01:00:13`-`01:00:14` de inicio, `01:34:56`-`01:34:58` de cierre, 1-2s de diferencia) — 0.68h totales repartidos a partes iguales entre las 5 tareas tocadas en esta ronda: 0.136h cada una (T-10-fix1), (T-02-fix8), (T-08-fix5), (T-11-fix1), (T-12-fix1), marcados `(medido)`.
+
+## Revisión de dos lentes — intento 2 (Fase 4: T-10, T-11, T-12): 17/20 cerrados + 3 parciales cerrados por el orquestador; 15 gaps NUEVOS (0 Critical, 6 Important, 9 Minor), lentes A+B, rango `c26461a..f023e56`
+
+Traspaso: ambas lentes re-evaluaron SOLO #141–#160. Lente A: 17 ✓, 3 parciales (#144 cita CA-14, #146 badge ES, #149 bloque de rojos) + 4 de traza; Lente B: 9/9 de codigo ✓ con 11 mutantes sobre copia (`file` en allowlist, reversion del fix 143, `utility>=8`, DNS siempre, `HTTPException` en `health`/`verify`, escaneo de `candidates/**` ×2, `curl` en `hooks/sub/`, `urlopen` en frontmatter real, fichero no UTF-8) y 5 sondas de evasion. **Los 7 gaps de la Lente A (#161–#167) los corrigio el orquestador en `3528f11`** (badge ES 10 agentes; fila CA-14 con los tests reales; bloque de rojos coherente «41 preexistentes + 1 propio corregido»; notas `T-02-fix8`/`T-08-fix5` con RED reproducido; LES-016 declarado en `Archivos` de T-12; evidencia de #142 sin constante inexistente; Verificacion de T-11 actualizada).
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 161 | Important | CA-14 de la matriz citaba un test inexistente | T-12 | **corregido por el orquestador** (`3528f11`) | Lente A |
+| 162 | Important | `README.es.md:23` badge `agentes-9` con 10 agentes | T-11 | **corregido por el orquestador** (`3528f11`) | Lente A |
+| 163 | Important | Bloque «Rojos de la ronda completa» contradictorio (42/41, `test_manifests` listado y a la vez corregido) | T-12 | **corregido por el orquestador** (`3528f11`) | Lente A |
+| 164 | Important | `870b411` (T-02-fix8) y `735e523` (T-08-fix5) sin nota ni `RED` en su tarea | T-02/T-08 | **corregido por el orquestador** (`3528f11`, RED reproducido por la Lente A) | Lente A |
+| 165 | Minor | `LES-016` modificado sin declarar en `Archivos` de T-12 | T-12 | **corregido por el orquestador** (`3528f11`) | Lente A |
+| 166 | Minor | Evidencia de #142 citaba `_ESQUEMAS_PERMITIDOS` (no existe) | T-10 | **corregido por el orquestador** (`3528f11`) | Lente A |
+| 167 | Minor | Verificacion de T-11 decia «LES-016 ajeno a esta iniciativa» tras haberse corregido en #150 | T-11 | **corregido por el orquestador** (`3528f11`) | Lente A |
+| 168 | Important | El escaneo del frontmatter `hooks:` se corta en la primera linea en blanco o comentario a columna 0 (`tests/test_knowledge_services.py:508`, regex de lineas indentadas consecutivas): un segundo matcher con `curl` tras una linea en blanco pasa (`1 passed`) | T-10 | pendiente | Lente B, sonda |
+| 169 | Important | El escaneo no cubre los scripts que los hooks INVOCAN fuera de `hooks/` (`agent-kits/shared/{journal,knowledge-find,progress-report,skill-index,ledger-lint,guardrail-check}.py`): `import urllib.request` en `journal.py` pasa (`tests/test_knowledge_services.py:488-497`) | T-10 | pendiente | Lente B, sonda |
+| 170 | Minor | Falso rojo por subcadena sobre el texto completo: un hook que DOCUMENTE «no hace red (ni curl ni urllib)» rompe la suite (`:467-471,494-497`) | T-10 | pendiente | Lente B, sonda |
+| 171 | Minor | Lista de terminos asimetrica: `knowledge-sync` sin extension esta, `curator-gate` sin extension no (`:468`) | T-10 | pendiente | Lente B |
+| 172 | Minor | El recorte de comentario inline exige DOS espacios (`partition("  #")`, `knowledge-index.py:169`); YAML marca comentario con UNO: `- ADR-002 # ver` reproduce el falso «enlace roto» | T-02 | pendiente | Lente B, sonda |
+| 173 | Minor | El `partition("  #")` se aplica ANTES de quitar comillas: `- "a  # b"` -> `a` (`knowledge-index.py:169-170`) | T-02 | pendiente | Lente B, sonda |
+| 174 | Minor | La mitad `verify()` del fix #155 no tiene test: quitar `HTTPException` de la tupla de `verify()` deja la suite verde (`markdown_export.py:925`) | T-08 | pendiente | Lente B, mutante |
+| 175 | Minor | El test antiguo de host publico (`example.com`) sigue haciendo DNS real en cada suite (`tests/test_knowledge_services.py:371-374`) | T-10 | pendiente | Lente B, espia |
+
+Fuera de lente (anotado): CWE-117, `detalle`/`motivo` embeben bytes crudos del servidor (CRLF/ANSI) en `markdown_export.py:582,928` -> sanear antes de imprimir (se incluye en la ronda como #176 Minor).
+
+| 176 | Minor | `health()`/`verify()` embeben bytes crudos de la respuesta del servidor en `detalle`/`motivo` (CRLF, secuencias ANSI) que acaban en `/doctor` (CWE-117) | T-08 | pendiente | Lente B (fuera de lente) |
