@@ -6,7 +6,7 @@
 > Consejo dado al usuario: mergear PR #9 ya; release SOLO tras verificar la ronda fix3 del fix de Jira y mergearla;
 > graphiti-memory no entra en la próxima release.
 >
-> - **`fix/jira-review-comments`** (worktree `jira-fix`): revisión intento 3 (`2e71dd4`) NO cerrable por el Critical #20
+> - **`fix/jira-review-comments`** (worktree `jira-fix`) → **PR #10 en BORRADOR sobre master** (`7f4942a`, con changelog): fix3 `c7e6b20` hecho, verificación dirigida pendiente. Revisión intento 3 (`2e71dd4`) NO cerrable por el Critical #20
 >   (`aprobado`/brief miraban UNA sección por intento; un Critical cruzado `T-04/T-07` en otra fase no bloqueaba Done).
 >   Decisión del orquestador: ronda `fix3` (unión de todas las filas que citan la tarea para `aprobado` y el brief;
 >   publicación por sección cabecera-primero declarada) + verificación dirigida. **Siguiente paso: verificación dirigida
