@@ -42,6 +42,21 @@ def test_tipo_desconocido_pero_con_forma_valida_da_mensaje_de_no_encontrado():
         assert "no se encontró" in str(e)
 
 
+def test_adaptador_graphiti_vacio_falla_con_mensaje_claro(tmp_path):
+    """graphiti-memory T-01 (CA-08): antes de que exista el adaptador real (T-04), un
+    `graphiti.py` vacío debe fallar el contrato con un mensaje que nombre las funciones que
+    faltan — nunca un traceback de `importlib` ni un `AttributeError` en tiempo de uso."""
+    (tmp_path / "graphiti.py").write_text("# adaptador aun no implementado\n", encoding="utf-8")
+    try:
+        binit.cargar_adaptador("graphiti", directorios=[str(tmp_path)])
+        assert False, "debería haber levantado AdaptadorNoDisponible"
+    except binit.AdaptadorNoDisponible as e:
+        mensaje = str(e)
+        assert "no implementa el contrato completo" in mensaje
+        for funcion in binit.FUNCIONES_OBLIGATORIAS:
+            assert funcion in mensaje
+
+
 if __name__ == "__main__":
     import unittest
     unittest.main()

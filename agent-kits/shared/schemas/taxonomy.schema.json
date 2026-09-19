@@ -50,7 +50,7 @@
           },
           "config": {
             "type": "object",
-            "description": "Configuracion propia del adaptador (p. ej. `export_dir`, `health.url`, `health.timeout_ms`)."
+            "description": "Configuracion propia del adaptador (p. ej. `export_dir`, `health.url`, `health.timeout_ms` para `markdown-export`). Para `type: \"graphiti\"` (graphiti-memory ADR-018/T-01): `mode` (`off|shadow|read`, default `shadow`), `endpoint` (URL `/mcp`; loopback/privado salvo `allow_remote: true`), `group_id`, `provider` ({`llm`: `ollama|openai|anthropic|none`, `model`, `embedder`, `embedder_model`, `base_url`, `api_key_env` — SOLO el nombre de la variable de entorno, nunca la credencial), `entity_map` ({categoria: tipo declarado por el SERVIDOR Graphiti; default `Document`}), `relations` (lista ampliable sobre `SUPPORTED_BY`/`SUPERSEDES`/`CONTRADICTS`), `router.intents` ({intent: booleano}), `telemetria` (booleano) y `health` ({url, timeout_ms}). Validado a mano en `agent-kits/shared/knowledge-schema.py::_validar_backend_graphiti`."
           }
         }
       }

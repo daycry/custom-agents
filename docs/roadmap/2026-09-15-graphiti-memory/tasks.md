@@ -18,22 +18,35 @@ verificacion: obligatoria
 
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervision (real/est) | Tokens (real/est) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| Fase 1 - Contrato y modelo | 0 | 3 | 0% | 0 / 13h | 0 / 3.9h | 0 / 1.0h | 0 / 175k |
+| Fase 1 - Contrato y modelo | 1 | 3 | 33% | 0 / 13h | 0.14 / 3.9h | 0 / 1.0h | ~65k / 175k |
 | Fase 2 - Sincronizacion | 0 | 3 | 0% | 0 / 16h | 0 / 4.8h | 0 / 1.2h | 0 / 200k |
 | Fase 3 - Router y configuracion | 0 | 2 | 0% | 0 / 11h | 0 / 3.3h | 0 / 0.9h | 0 / 110k |
 | Fase 4 - Regresion y cierre | 0 | 2 | 0% | 0 / 10h | 0 / 3h | 0 / 0.7h | 0 / 60k |
-| **TOTAL** | **0** | **10** | **0%** | **0 / 50h** | **0 / 15h** | **0 / 3.8h** | **0 / 545k** |
+| **TOTAL** | **1** | **10** | **10%** | **0 / 50h** | **0.14 / 15h** | **0 / 3.8h** | **~65k / 545k** |
 
 ## Fase 1 - Contrato y modelo
 
 ### T-01 - Puerta de dependencia, `backends.graphiti` en el esquema y suite de contrato
-- **Estado**: borrador
+- **Estado**: completado
 - **Dependencias**: `knowledge-services` completado (T-07 contrato de adaptador, T-13 capabilities)
-- **Archivos**: `agent-kits/shared/schemas/taxonomy.schema.json`, `agent-kits/shared/knowledge-schema.py`, `agent-kits/shared/test_knowledge_schema.py`, `docs/CONVENTIONS.md`, `docs/en/CONVENTIONS.md`
-- **Verificacion**: `python -m pytest -q agent-kits/shared/test_knowledge_schema.py -k graphiti` -> valida `backends.graphiti` (`mode`, `provider`, `router`, `relations`, `allow_remote`) y rechaza cualquier entrada no aprobada; la suite de contrato de adaptadores de knowledge-services corre contra un `graphiti.py` vacio y falla con mensaje claro
+- **Archivos**: `agent-kits/shared/schemas/taxonomy.schema.json`, `agent-kits/shared/knowledge-schema.py`, `agent-kits/shared/test_knowledge_schema.py`, `agent-kits/shared/templates/taxonomy.json`, `skills/knowledge-services/scripts/test_backends_init.py`, `docs/CONVENTIONS.md`, `docs/en/CONVENTIONS.md`
+- **Verificacion**: `python -m pytest -q agent-kits/shared/test_knowledge_schema.py -k graphiti` -> valida `backends.graphiti` (`mode`, `provider`, `router`, `relations`, `allow_remote`) y rechaza cualquier entrada no aprobada; la suite de contrato de adaptadores de knowledge-services corre contra un `graphiti.py` vacio y falla con mensaje claro. Salida real:
+  ```
+  $ python -m pytest -q agent-kits/shared/test_knowledge_schema.py -k graphiti
+  ...............                                                          [100%]
+  15 passed, 47 deselected in 0.08s
+
+  $ python -m pytest -q skills/knowledge-services/scripts/test_backends_init.py -k graphiti
+  .                                                                        [100%]
+  1 passed, 3 deselected in 0.22s
+  ```
+  RED previo (evidencia TDD, 2026-09-19): `agent-kits/shared/test_knowledge_schema.py -k graphiti` falló con `11 failed, 4 passed` antes de implementar `_validar_backend_graphiti`/el bloque `backends.graphiti` de la plantilla; el test del `graphiti.py` vacío (`test_adaptador_graphiti_vacio_falla_con_mensaje_claro`) pasó en verde desde el primer intento porque reutiliza el mecanismo genérico ya existente de `AdaptadorNoDisponible` (`backends/__init__.py`), sin necesitar código nuevo — TDD n/a para esa parte concreta.
+- **Changelog**: Los proyectos pueden declarar un backend Graphiti opcional (desactivado por defecto) en su configuración de conocimiento, con validación de endpoint local, proveedor de modelo y reglas de enrutado.
+- **Tiempo humano**: est. - · real -
+- **Tiempo IA**: real 0.14h (medido; usage-meter, artefacto `graphiti-memory/T-01`, 4m reloj, 3.64 EUR)
 **Criterios de aceptación**
-- [ ] El modelo exige ID, version, hash, evidencia y ruta fuente.
-- [ ] `provider.llm` acepta `ollama | openai | anthropic | none`; ningun modelo ni endpoint tiene default cableado salvo loopback (CA-09).
+- [x] El modelo exige ID, version, hash, evidencia y ruta fuente. *(hereda del contrato ya validado por `knowledge-schema.py` para toda entrada `approved`; sin cambio en T-01, que añade la config del backend, no el modelo de entrada — ver T-02 para el modelo de nodos/relaciones.)*
+- [x] `provider.llm` acepta `ollama | openai | anthropic | none`; ningun modelo ni endpoint tiene default cableado salvo loopback (CA-09). Cubierto por `test_graphiti_provider_llm_invalido`, `test_graphiti_provider_none_no_exige_modelo`, `test_graphiti_endpoint_no_local_sin_allow_remote_falla`.
 
 ### T-02 - Ontologia derivada de `taxonomy.json` y relaciones temporales
 - **Estado**: borrador

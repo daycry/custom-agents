@@ -137,6 +137,122 @@ def test_backend_enabled_no_booleano():
     assert any(e["campo"] == "backends.kwipu.enabled" for e in errores)
 
 
+# ------------------------------------------------------------------ backends.graphiti (T-01, CA-09/CA-10/CA-12/CA-13)
+
+def _graphiti_config(**over):
+    cfg = {
+        "mode": "shadow",
+        "endpoint": "http://127.0.0.1:8001/mcp",
+        "group_id": "knowledge-graphs",
+        "allow_remote": False,
+        "provider": {"llm": "ollama", "model": "qwen2.5:7b", "base_url": "http://127.0.0.1:11434",
+                     "embedder": "ollama", "embedder_model": "nomic-embed-text"},
+        "entity_map": {"PATTERN": "Document"},
+        "relations": ["MITIGATES", "APPLIES_TO"],
+        "router": {"intents": {"temporal": True, "relacional": False, "evidencia": False}},
+        "telemetria": False,
+        "health": {"url": "http://127.0.0.1:8001/health", "timeout_ms": 3000},
+    }
+    cfg.update(over)
+    return cfg
+
+
+def _con_graphiti(config):
+    cfg = _valida()
+    cfg["backends"]["graphiti"] = {"type": "graphiti", "enabled": True, "config": config}
+    return cfg
+
+
+def test_graphiti_config_valida_no_da_error():
+    errores = ks.validar(_con_graphiti(_graphiti_config()), "t.json")
+    assert errores == []
+
+
+def test_graphiti_mode_invalido():
+    cfg = _con_graphiti(_graphiti_config(mode="lectura-total"))
+    errores = ks.validar(cfg, "t.json")
+    assert any(e["campo"] == "backends.graphiti.config.mode" for e in errores)
+
+
+def test_graphiti_endpoint_no_local_sin_allow_remote_falla():
+    cfg = _con_graphiti(_graphiti_config(endpoint="http://ejemplo-remoto.com/mcp", allow_remote=False))
+    errores = ks.validar(cfg, "t.json")
+    assert any(e["campo"] == "backends.graphiti.config.endpoint" for e in errores)
+
+
+def test_graphiti_endpoint_no_local_con_allow_remote_es_valido():
+    cfg = _con_graphiti(_graphiti_config(endpoint="http://ejemplo-remoto.com/mcp", allow_remote=True))
+    assert ks.validar(cfg, "t.json") == []
+
+
+def test_graphiti_provider_llm_invalido():
+    cfg = _con_graphiti(_graphiti_config(provider={"llm": "gemini"}))
+    errores = ks.validar(cfg, "t.json")
+    assert any(e["campo"] == "backends.graphiti.config.provider.llm" for e in errores)
+
+
+def test_graphiti_provider_none_no_exige_modelo():
+    cfg = _con_graphiti(_graphiti_config(provider={"llm": "none"}))
+    assert ks.validar(cfg, "t.json") == []
+
+
+def test_graphiti_provider_api_key_no_puede_ser_un_secreto_inline():
+    """CA-09: las credenciales viajan por NOMBRE de variable de entorno, nunca un valor literal
+    largo (heurística: un `api_key_env` con espacios no es un nombre de variable válido)."""
+    cfg = _con_graphiti(_graphiti_config(provider={"llm": "openai", "api_key_env": "sk-abc 123 real key"}))
+    errores = ks.validar(cfg, "t.json")
+    assert any(e["campo"] == "backends.graphiti.config.provider.api_key_env" for e in errores)
+
+
+def test_graphiti_provider_api_key_env_como_nombre_de_variable_es_valido():
+    cfg = _con_graphiti(_graphiti_config(provider={"llm": "openai", "api_key_env": "OPENAI_API_KEY"}))
+    assert ks.validar(cfg, "t.json") == []
+
+
+def test_graphiti_router_intents_valor_no_booleano():
+    cfg = _con_graphiti(_graphiti_config(router={"intents": {"temporal": "si"}}))
+    errores = ks.validar(cfg, "t.json")
+    assert any(e["campo"] == "backends.graphiti.config.router.intents.temporal" for e in errores)
+
+
+def test_graphiti_relations_no_lista_de_cadenas():
+    cfg = _con_graphiti(_graphiti_config(relations=[1, 2]))
+    errores = ks.validar(cfg, "t.json")
+    assert any(e["campo"] == "backends.graphiti.config.relations" for e in errores)
+
+
+def test_graphiti_entity_map_no_es_objeto_de_cadenas():
+    cfg = _con_graphiti(_graphiti_config(entity_map={"PATTERN": 1}))
+    errores = ks.validar(cfg, "t.json")
+    assert any(e["campo"] == "backends.graphiti.config.entity_map" for e in errores)
+
+
+def test_graphiti_health_timeout_ms_no_numerico():
+    cfg = _con_graphiti(_graphiti_config(health={"url": "http://127.0.0.1:8001/health", "timeout_ms": "rapido"}))
+    errores = ks.validar(cfg, "t.json")
+    assert any(e["campo"] == "backends.graphiti.config.health.timeout_ms" for e in errores)
+
+
+def test_graphiti_telemetria_no_booleana():
+    cfg = _con_graphiti(_graphiti_config(telemetria="no"))
+    errores = ks.validar(cfg, "t.json")
+    assert any(e["campo"] == "backends.graphiti.config.telemetria" for e in errores)
+
+
+def test_graphiti_allow_remote_no_booleano():
+    cfg = _con_graphiti(_graphiti_config(allow_remote="no"))
+    errores = ks.validar(cfg, "t.json")
+    assert any(e["campo"] == "backends.graphiti.config.allow_remote" for e in errores)
+
+
+def test_template_por_defecto_declara_graphiti_deshabilitado():
+    """Regla del ledger: la plantilla gana el backend `graphiti` con `enabled: false` (opt-in)."""
+    tpl = ks.default_taxonomy()
+    assert tpl["backends"]["graphiti"]["type"] == "graphiti"
+    assert tpl["backends"]["graphiti"]["enabled"] is False
+    assert ks.validar(tpl, "template") == []
+
+
 # ------------------------------------------------------------------ estado/tag inválidos (CA-01, CA-13)
 
 def test_utility_scoring_no_booleano():
