@@ -51,7 +51,8 @@
 > Ronda fix2 hecha (a5a8046, 05d3bf4, bd63112): 9/9. **Intento 3 Fase 4** (fb34ac9): 9/9 cerrados + 9 nuevos (#177–#185;
 > 2 Important: cita de test retirado en el ledger y regresión en `_lineas_de_codigo` del test de hooks). Decisión del
 > orquestador: ronda fix3 hecha (d522234) y **verificada → bucle Fase 4 CERRADO**. Las 4 fases revisadas (185 gaps).
-> Siguiente: qa sin UI →
+> **qa sin UI VERDE** (e890478: 480 passed, matriz CA-01..17 verificada, `testing/qa-report.md`+pdf). **documenter en curso**
+> (coherencia doc + candidatos en `docs/knowledge/candidates/pending/`). Siguiente:
 > documenter → Fase 4-bis → cierre (changelog-sync, /retro, retro-gate) → push + PR (T-04 curator, T-05 documenter, T-06 Fase 4-bis) → Fase 3 (T-07 sync +
 > contrato, T-08 adaptador Kwipu, T-09 setup/doctor) → Fase 4 (T-10, T-11, T-12) → qa sin UI → documenter → cierre
 > (changelog-sync, /retro + retro-gate) → graphiti-memory.
