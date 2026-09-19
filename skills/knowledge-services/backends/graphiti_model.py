@@ -2,7 +2,8 @@
 """
 backends/graphiti_model.py — ontología derivada de `taxonomy.json` para el adaptador `graphiti`
 (graphiti-memory T-02, ADR-018 enmienda 2026-09-17, CA-13 reformulado en la enmienda 2026-09-18;
-T-01-fix1: gaps #2/#4/#5/#12 de la revisión de dos lentes, intento 1).
+T-01-fix1: gaps #2/#4/#5/#12 de la revisión de dos lentes, intento 1; T-02-fix2: gaps
+#16/#18/#20/#22 de la revisión de dos lentes, intento 2).
 
 No es el adaptador (`graphiti.py`, T-04): este módulo es PURO (sin red, sin disco, sin
 `outbox.py`) y solo calcula datos a partir de la taxonomía y de `backends.graphiti.config`:
@@ -10,15 +11,24 @@ No es el adaptador (`graphiti.py`, T-04): este módulo es PURO (sin red, sin dis
   - `tipo_entidad` / `tipos_por_categoria`: los tipos de entidad los fija el SERVIDOR Graphiti MCP
     (`config.yaml`), no el cliente. Este módulo NUNCA declara una lista de tipos de dominio: cada
     categoría de `taxonomy.json` se mapea a un tipo declarado en `backends.graphiti.config.entity_map`
-    (por el usuario, contra los tipos reales de SU servidor); sin mapeo, el default es `Document`
-    (el tipo más genérico del servidor de referencia, `dockers/knowledge-graphs`).
+    (por el usuario, contra los tipos reales de SU servidor); sin mapeo VÁLIDO (T-02-fix2 gap #20:
+    un valor ausente, vacío/blanco o no-cadena NUNCA se usa como tipo — avisa con `RuntimeWarning`
+    y cae al default), el default es `Document` (el tipo más genérico del servidor de referencia,
+    `dockers/knowledge-graphs`).
   - `proponer_entity_types_yaml`: genera el bloque `entity_types` (YAML de mano, sin PyYAML —
     mismo criterio que `skills/api-contract/scripts/openapi-lint.py`) que el usuario puede pegar en
     el `config.yaml` de SU servidor: una entrada por CATEGORÍA de `taxonomy.json` (T-01-fix1 gap
-    #2) — nombre `entity_map[key]` si está declarado, si no `TitleCase(key)` (nunca un genérico
-    compartido tipo `Document`, sin lista de dominio en código); dos categorías que resuelven al
-    mismo nombre explícito se deduplican en una sola entrada — más los dos tipos núcleo del
-    adaptador, `Knowledge` y `Evidence`. `name:` va siempre escapado (gap #4).
+    #2) — nombre `entity_map[key]` si es un valor VÁLIDO, si no `TitleCase` Unicode de la propia
+    `key` (T-02-fix2 gap #18: NFKC + `[^\\W_]+`, nunca un genérico compartido tipo `Document`, sin
+    lista de dominio en código); dos categorías que resuelven al mismo nombre EXPLÍCITO se
+    deduplican en una sola entrada, pero dos que derivan IMPLÍCITAMENTE (sin mapeo) al mismo
+    nombre, o cuya `key` no aporta ningún carácter alfanumérico, son un error explícito que pide
+    declarar `entity_map` para esa `key` — más los dos tipos núcleo del adaptador, `Knowledge` y
+    `Evidence`. `name:` va siempre escapado (gap #4).
+  - `proponer_config`: la propuesta COMPLETA (T-02-fix2 gap #16) — el bloque `entity_types` de
+    arriba Y el `entity_map` que hace esos tipos EFECTIVOS al pegarlo en
+    `backends.graphiti.config.entity_map` del `taxonomy.json` del proyecto; sin aplicar ese
+    `entity_map`, todo episodio sigue viajando como el genérico `Document`.
   - `relaciones_efectivas`: relaciones núcleo (`SUPPORTED_BY`, `SUPERSEDES`, `CONTRADICTS`, vía
     `add_triplet` en el adaptador) más las que el proyecto declare en `backends.graphiti.config.relations`,
     sin duplicar las del núcleo.
@@ -27,11 +37,13 @@ No es el adaptador (`graphiti.py`, T-04): este módulo es PURO (sin red, sin dis
     cuál es la vigente (la última) y cuáles quedan invalidadas (todas las anteriores), CA-11.
 
 Sin dependencias externas; solo stdlib (`json`, usado solo para escapar cadenas como escalares
-YAML entre comillas dobles — un escalar `"..."` con `json.dumps` es YAML válido).
+YAML entre comillas dobles — un escalar `"..."` con `json.dumps` es YAML válido; `unicodedata`
+para normalizar `key`s no-ASCII antes de derivarles un `TitleCase`).
 """
 import json
 import re
 import sys
+import unicodedata
 import warnings
 
 # Consola no UTF-8 (Windows cp1252) o tuberías: reconfigurar ANTES de leer/imprimir (GOT-005).
@@ -57,11 +69,32 @@ TIPOS_NUCLEO = (
 TIPO_POR_DEFECTO = "Document"
 
 
+def _valor_entity_map(entity_map, key, quien):
+    """Valor de `entity_map[key]` SOLO si es una cadena no vacía (tras `strip()`); si la clave no
+    está declarada, devuelve `None` en silencio (caso normal: "sin mapeo para esta categoría"). Si
+    ESTÁ declarada pero es inválida (no-cadena, o cadena vacía/blanca), avisa con `RuntimeWarning`
+    y la trata como si no estuviera — NUNCA deja pasar `None`/un número/una cadena vacía como si
+    fuera un tipo de entidad real (T-02-fix2 gap #20; misma tolerancia en `tipo_entidad` y en la
+    propuesta `proponer_entity_types_yaml`/`proponer_config`)."""
+    if key not in entity_map:
+        return None
+    valor = entity_map[key]
+    if isinstance(valor, str) and valor.strip():
+        return valor
+    warnings.warn(
+        f"{quien}: entity_map[{key!r}] debe ser una cadena no vacía, recibido {valor!r}; "
+        "se ignora el mapeo para esta categoría",
+        RuntimeWarning,
+        stacklevel=3,
+    )
+    return None
+
+
 def tipo_entidad(categoria_key, config, default=TIPO_POR_DEFECTO):
     """Tipo de entidad EFECTIVO (del servidor) para una categoría de `taxonomy.json`, según
     `backends.graphiti.config.entity_map` (`config` es ese `config`, no la taxonomía entera).
-    Sin mapeo para `categoria_key` (o sin `entity_map`/`config`), cae a `default`. `config` con un
-    tipo distinto de `dict`/`None` (T-01-fix1 gap #12) NUNCA rompe la llamada: se avisa con
+    Sin mapeo VÁLIDO para `categoria_key` (o sin `entity_map`/`config`), cae a `default`. `config`
+    con un tipo distinto de `dict`/`None` (T-01-fix1 gap #12) NUNCA rompe la llamada: se avisa con
     `RuntimeWarning` y se cae a `default`, igual que sin mapeo."""
     if config is not None and not isinstance(config, dict):
         warnings.warn(
@@ -74,7 +107,8 @@ def tipo_entidad(categoria_key, config, default=TIPO_POR_DEFECTO):
     entity_map = (config or {}).get("entity_map") or {}
     if not isinstance(entity_map, dict):
         return default
-    return entity_map.get(categoria_key, default)
+    valor = _valor_entity_map(entity_map, categoria_key, "tipo_entidad")
+    return valor if valor is not None else default
 
 
 def tipos_por_categoria(taxonomy, config):
@@ -112,12 +146,76 @@ def _yaml_cadena(valor):
 
 
 def _titlecase_clave(key):
-    """`TitleCase` de una `key` de categoría sin lista de dominio: divide por cualquier separador
-    no alfanumérico (`_`, `-`, espacio, …) y capitaliza cada trozo — `"MULTI_WORD-key"` ->
-    `"MultiWordKey"`. Determinista y sin diccionario de dominios (T-01-fix1 gap #2: el nombre no
-    lo decide el código, lo decide `entity_map` o, en su ausencia, la propia `key`)."""
-    partes = re.split(r"[^0-9A-Za-z]+", key or "")
-    return "".join(parte[:1].upper() + parte[1:].lower() for parte in partes if parte)
+    """`TitleCase` Unicode de una `key` de categoría sin lista de dominio: normaliza a NFKC
+    (T-02-fix2 gap #18: una `key` en forma NFD, p. ej. `"e" + acento combinante`, produce el
+    mismo resultado que su forma NFC precompuesta) y extrae cada tramo de caracteres
+    alfanuméricos Unicode (`[^\\W_]+` — cualquier separador no alfanumérico, `_`, `-`, espacio,
+    puntuación… se descarta; `\\W`/`\\w` en Python 3 ya cubren letras no-ASCII como `á`/`日本`),
+    capitalizando cada trozo — `"MULTI_WORD-key"` -> `"MultiWordKey"`, `"decisión"` ->
+    `"Decisión"`, `"日本"` -> `"日本"` (sin mayúscula/minúscula en ese alfabeto, se conserva tal
+    cual). Determinista y sin diccionario de dominios: el nombre no lo decide el código, lo decide
+    `entity_map` o, en su ausencia, la propia `key`. Una `key` sin ningún carácter alfanumérico
+    (p. ej. `"___"`) devuelve cadena vacía — el llamante decide qué hacer con eso."""
+    normalizada = unicodedata.normalize("NFKC", key or "")
+    partes = re.findall(r"[^\W_]+", normalizada, flags=re.UNICODE)
+    return "".join(parte[:1].upper() + parte[1:].lower() for parte in partes)
+
+
+def _config_a_entity_map(config, quien):
+    """`config["entity_map"]` como `dict`, o `{}` si `config` no es un `dict`/`None` — nunca deja
+    propagar un `AttributeError`/`TypeError` cuando `config` llega mal formado (T-02-fix2 gap
+    #22: el endurecimiento de entrada de `tipo_entidad` no llegaba a `proponer_entity_types_yaml`;
+    `config` lista o `entity_map` no-`dict` degradan con `RuntimeWarning`, igual que `tipo_entidad`
+    con un `config` no-`dict`)."""
+    if config is not None and not isinstance(config, dict):
+        warnings.warn(
+            f"{quien}: 'config' debe ser un dict o None, recibido {type(config).__name__}; "
+            "se ignora el entity_map declarado",
+            RuntimeWarning,
+            stacklevel=3,
+        )
+        return {}
+    entity_map = (config or {}).get("entity_map")
+    return entity_map if isinstance(entity_map, dict) else {}
+
+
+def _entity_map_propuesto(taxonomy, entity_map_declarado, quien):
+    """`{categoria_key: nombre}` para TODAS las `categories[]` de `taxonomy`: el valor de
+    `entity_map_declarado[key]` si es VÁLIDO (`_valor_entity_map`, gap #20), si no el `TitleCase`
+    Unicode de la propia `key` (`_titlecase_clave`, gap #18) — nunca el genérico `Document` (T-01-
+    fix1 gap #2). Una `key` no-cadena es un `ValueError` explícito (gap #22: antes, `key` entera o
+    lista rompía con `TypeError`/`unhashable type`); un nombre derivado vacío (`key` sin ningún
+    carácter alfanumérico) o que colisiona IMPLÍCITAMENTE con el de otra `key` (ninguna de las dos
+    tiene mapeo explícito) también son un `ValueError` explícito — nunca una entrada vacía ni una
+    fusión accidental de dos categorías distintas (gap #18)."""
+    propuesto = {}
+    derivados_por_nombre = {}
+    for cat in (taxonomy or {}).get("categories") or []:
+        key = cat.get("key") if isinstance(cat, dict) else None
+        if not key:
+            continue
+        if not isinstance(key, str):
+            raise ValueError(
+                f"{quien}: 'key' de categoría debe ser una cadena, recibido "
+                f"{type(key).__name__}: {key!r}"
+            )
+        nombre = _valor_entity_map(entity_map_declarado, key, quien)
+        if nombre is None:
+            nombre = _titlecase_clave(key)
+            if not nombre:
+                raise ValueError(
+                    f"{quien}: la categoría '{key}' no deriva ningún nombre válido; "
+                    f"declara `entity_map.{key}` explícitamente"
+                )
+            if nombre in derivados_por_nombre and derivados_por_nombre[nombre] != key:
+                raise ValueError(
+                    f"{quien}: las categorías '{derivados_por_nombre[nombre]}' y '{key}' derivan "
+                    f"al mismo nombre '{nombre}' sin mapeo explícito; declara `entity_map.{key}` "
+                    "para desambiguar"
+                )
+            derivados_por_nombre[nombre] = key
+        propuesto[key] = nombre
+    return propuesto
 
 
 def proponer_entity_types_yaml(taxonomy, config):
@@ -126,26 +224,22 @@ def proponer_entity_types_yaml(taxonomy, config):
     --propose-config`, T-04/T-05 lo exponen como CLI; esta función solo calcula el texto).
 
     T-01-fix1 gap #2 (arbitraje del orquestador): UNA entrada por categoría de `taxonomy.json`,
-    no por tipo efectivo agrupado — el nombre es `entity_map[key]` si el usuario lo declaró, o si
-    no `_titlecase_clave(key)` (nunca un genérico compartido como `Document`, y sin lista de
-    dominio en este módulo); dos categorías que resuelven al MISMO nombre (mapeadas explícitamente
-    al mismo tipo) se deduplican en una sola entrada `name:`, con la descripción listando ambas
-    categorías. Más los dos tipos núcleo del adaptador (`Knowledge`, `Evidence`). Orden
-    determinista: alfabético por nombre, núcleo al final. `name:` y `description:` van SIEMPRE
-    escapados con `_yaml_cadena` (gap #4): un nombre hostil (`"Doc: interno"`, con salto de línea,
-    `"yes"`, cadena vacía, …) nunca rompe el YAML ni inyecta una entrada."""
-    entity_map = (config or {}).get("entity_map")
-    if not isinstance(entity_map, dict):
-        entity_map = {}
+    no por tipo efectivo agrupado — el nombre es `entity_map[key]` si el usuario lo declaró con un
+    valor VÁLIDO (gap #20), o si no `_titlecase_clave(key)` (nunca un genérico compartido como
+    `Document`, y sin lista de dominio en este módulo); dos categorías que resuelven al MISMO
+    nombre EXPLÍCITO (mapeadas a mano al mismo tipo) se deduplican en una sola entrada `name:`, con
+    la descripción listando ambas categorías — dos que colisionan de forma IMPLÍCITA son un error
+    (gap #18, ver `_entity_map_propuesto`). Más los dos tipos núcleo del adaptador (`Knowledge`,
+    `Evidence`). Orden determinista: alfabético por nombre, núcleo al final. `name:` y
+    `description:` van SIEMPRE escapados con `_yaml_cadena` (gap #4): un nombre hostil (`"Doc:
+    interno"`, con salto de línea, `"yes"`, …) nunca rompe el YAML ni inyecta una entrada."""
+    entity_map = _config_a_entity_map(config, "proponer_entity_types_yaml")
+    entity_map_efectivo = _entity_map_propuesto(taxonomy, entity_map, "proponer_entity_types_yaml")
     nombres_nucleo = {nombre for nombre, _ in TIPOS_NUCLEO}
 
     categorias_por_nombre = {}
-    for cat in (taxonomy or {}).get("categories") or []:
-        key = cat.get("key") if isinstance(cat, dict) else None
-        if not key:
-            continue
-        nombre = entity_map[key] if key in entity_map else _titlecase_clave(key)
-        if not isinstance(nombre, str) or nombre in nombres_nucleo:
+    for key, nombre in entity_map_efectivo.items():
+        if nombre in nombres_nucleo:
             continue
         categorias_por_nombre.setdefault(nombre, []).append(key)
 
@@ -158,6 +252,33 @@ def proponer_entity_types_yaml(taxonomy, config):
         lineas.append(f"  - name: {_yaml_cadena(nombre)}")
         lineas.append(f"    description: {_yaml_cadena(descripcion)}")
     return "\n".join(lineas) + "\n"
+
+
+def proponer_config(taxonomy, config):
+    """Propuesta COMPLETA para adoptar tipos de entidad por categoría (T-02-fix2 gap #16): el
+    bloque `entity_types` de arriba (`proponer_entity_types_yaml`) para el `config.yaml` del
+    SERVIDOR Graphiti Y el bloque `entity_map` que hay que pegar en
+    `backends.graphiti.config.entity_map` del `taxonomy.json` del proyecto para que esos tipos
+    sean EFECTIVOS — sin aplicar el `entity_map` devuelto aquí, `tipo_entidad`/`tipos_por_categoria`
+    seguirían etiquetando toda categoría sin mapeo explícito como el genérico `Document`: los
+    `entity_types` propuestos existirían en el servidor, pero ningún episodio los usaría.
+
+    Devuelve `{"entity_types_yaml": str, "entity_map": {categoria: nombre}, "nota": str}`.
+    Aplicar el `entity_map` devuelto (p. ej. `tipos_por_categoria(taxonomy, {"entity_map":
+    resultado["entity_map"]})`) da EXACTAMENTE los nombres propuestos, categoría por categoría —
+    ver `test_proponer_config_aplicar_entity_map_hace_tipos_por_categoria_igual_a_lo_propuesto`."""
+    entity_map_declarado = _config_a_entity_map(config, "proponer_config")
+    entity_map_propuesto = _entity_map_propuesto(taxonomy, entity_map_declarado, "proponer_config")
+    entity_types_yaml = proponer_entity_types_yaml(taxonomy, {"entity_map": entity_map_propuesto})
+    return {
+        "entity_types_yaml": entity_types_yaml,
+        "entity_map": entity_map_propuesto,
+        "nota": (
+            "Sin aplicar este `entity_map` en `backends.graphiti.config` del proyecto, todos "
+            "los episodios viajan como el tipo genérico `Document` (los `entity_types` de "
+            "arriba no llegan a usarse)."
+        ),
+    }
 
 
 def cadena_supersedes(versiones):
