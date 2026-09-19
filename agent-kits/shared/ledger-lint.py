@@ -265,6 +265,19 @@ def secciones_revision(texto):
     return out
 
 
+def ids_de_tarea(texto):
+    """IDs `T-NN` citados en `texto` (regex `\\bT-\\d{2}\\b`), fuente UNICA de "que tareas cita
+    una celda o una cabecera" (jira-review-comments T-03-fix2, gaps #14/#15/#17). Antes cada sitio
+    -`menciones()` aqui, el filtro de filas de `revision`/`gaps` y de `aprobado` en `jira-flow.py`,
+    `_gaps_pendientes_de_tarea` en `task-brief.py`- comparaba la celda `Tarea` con `==`/`in` sobre
+    el texto ENTERO, asi que una celda combinada `T-02/T-04` (una fila de gap que afecta a dos
+    tareas a la vez) no contaba para NINGUNA de las dos: `--task T-04` no encontraba su propia
+    fila. Con esta funcion, `T-02/T-04` cuenta para T-02 Y para T-04 en TODOS los sitios por
+    igual - nunca cuenta si el id aparece dentro de otra palabra mas larga (limite `\\b`) ni si
+    solo aparece en `Correccion`/`Evidencia` (esta funcion no las mira; ver `menciones()`)."""
+    return set(re.findall(r"\bT-\d{2}\b", texto))
+
+
 def menciones(seccion):
     """IDs `T-NN` que una seccion MENCIONA, para elegir entre varias del mismo intento: SOLO la
     LINEA de cabecera (`seccion["cabecera"]`, una sola linea: nunca el parrafo de contexto que le
@@ -273,27 +286,43 @@ def menciones(seccion):
     de contexto y dan falsos positivos en un ledger real con fases que se referencian entre si
     (gap #1: una fila de la Fase 1 cita "T-04" en su celda `Correccion`; el parrafo de contexto de
     otra fase tambien puede citar "T-04" sin ser SU tarea)."""
-    ids = set(re.findall(r"\bT-\d{2}\b", seccion["cabecera"]))
+    ids = ids_de_tarea(seccion["cabecera"])
     for f in seccion["filas"]:
-        ids |= set(re.findall(r"\bT-\d{2}\b", f["tarea"]))
+        ids |= ids_de_tarea(f["tarea"])
     return ids
 
 
 def seleccionar_seccion(secciones, intento, tareas):
-    """(seccion, aviso) - entre las secciones de `secciones` con ese `intento`, elige la que
-    MENCIONE alguna de `tareas`; si varias mencionan, la ULTIMA (mas reciente); si ninguna
-    menciona, la ultima de ese intento con un aviso explicando el porque. Sin candidatas para ese
-    `intento` -> (None, None). Sin `tareas`, o con UNA SOLA candidata para ese intento (ledger de
-    una sola fase: no hay ambiguedad que resolver, y una seccion de cierre sin filas -"sin gaps"-
-    no menciona ninguna tarea por definicion) -> esa candidata, sin aviso."""
+    """(seccion, aviso) - entre las secciones de `secciones` con ese `intento`, prioriza en TRES
+    niveles (jira-review-comments T-03-fix2, gap #14, con el ledger REAL de knowledge-services
+    como caso de aceptacion: `T-04 --intento 2` tiene DOS candidatas con filas de T-04 - la Fase 2,
+    su seccion PROPIA -cabecera "Fase 2 (T-04, T-05, T-06)"-, con 13 filas; y la Fase 3, que solo
+    la cita en dos filas `T-02/T-04` como gap CRUZADO descubierto durante la revision de OTRA
+    fase-):
+      1) seccion PROPIA: alguna de `tareas` esta en la CABECERA -> entre esas, la ULTIMA (si mas
+         de una fase, insolito, declarase la misma tarea en su cabecera). Gana SIEMPRE sobre una
+         seccion ajena que solo la cite en una fila, tenga o no gaps propios (si no tiene filas es
+         el caso legitimo "sin gaps para T-XX": una fase que cerro limpia esa tarea).
+      2) sin seccion propia: seccion AJENA con FILAS que citan alguna de `tareas` (celda combinada
+         `T-02/T-04` u otra) -> la ULTIMA de esas, sin aviso (gaps cruzados reales: FX2 de la ronda
+         fix2, una fila `T-02/T-04` Critical sin secccion propia para ninguna de las dos).
+      3) ninguna la menciona de ningun modo -> la ULTIMA de ese intento, con aviso.
+    Sin candidatas para ese `intento` -> (None, None). Sin `tareas`, o con UNA SOLA candidata para
+    ese intento (ledger de una sola fase: no hay ambiguedad que resolver) -> esa candidata, sin
+    aviso."""
     candidatas = [s for s in secciones if s["intento"] == intento]
     if not candidatas:
         return None, None
     if not tareas or len(candidatas) == 1:
         return candidatas[-1], None
-    coincide = [s for s in candidatas if menciones(s) & set(tareas)]
-    if coincide:
-        return coincide[-1], None
+    tareas_set = set(tareas)
+    propias = [s for s in candidatas if ids_de_tarea(s["cabecera"]) & tareas_set]
+    if propias:
+        return propias[-1], None
+    ajenas = [s for s in candidatas
+              if any(ids_de_tarea(f["tarea"]) & tareas_set for f in s["filas"])]
+    if ajenas:
+        return ajenas[-1], None
     aviso = (f"el intento {intento} tiene {len(candidatas)} secciones «## Revisión de dos "
              f"lentes — intento {intento}» (probablemente una por fase) y ninguna menciona "
              f"{', '.join(tareas)} en la cabecera o en la columna Tarea: se usa la última "
@@ -301,24 +330,54 @@ def seleccionar_seccion(secciones, intento, tareas):
     return candidatas[-1], aviso
 
 
+def _menciones_efectivas(secciones):
+    """`menciones()` de cada seccion, EN ORDEN, con herencia para las rondas de cierre ANONIMAS
+    (`## Revision de dos lentes - intento N: sin gaps`, sin ningun T-NN en la cabecera NI filas):
+    heredan las menciones de la seccion INMEDIATAMENTE anterior, porque un "sin gaps" de cierre no
+    tiene por que repetir el nombre de la tarea que ya cerro limpia (ledger de una sola fase:
+    intento 1 cita T-01 en sus filas, intento 2 "sin gaps" no cita nada y aun asi es SU cierre).
+    Una seccion que si declara tareas en la cabecera (aunque sean DE OTRA fase, p.ej. "Fase 2
+    (T-04)") NO es anonima y NUNCA hereda - es la fase de otra tarea, no un cierre generico (gap
+    #16 de jira-review-comments fix2: numeracion CONTINUA entre fases, Fase 1 intento 1 (T-01) /
+    Fase 2 intento 2 (T-04), sin repetir numero; el intento 2 de Fase 2 no puede "servir" de cierre
+    para T-01). Tampoco hereda si hay una FRONTERA estructural con la seccion anterior - otro
+    encabezado `## ` (una `## Fase N`, un `### T-XX` nuevo...) entre el `fin` de la seccion previa
+    y el `inicio` de esta (`secciones_revision` ya calcula `fin` como el siguiente `## ` de
+    CUALQUIER tipo): sin esa frontera, "sin gaps" tras "sin gaps" en cabeceras igual de anonimas
+    (p.ej. "Fase 2 - sin gaps" dos veces, sin ningun T-NN en ninguna) haria que la Fase 2 heredara
+    las menciones de la Fase 1 anterior solo por venir despues en el fichero."""
+    out = []
+    previa = set()
+    fin_previa = None
+    for s in secciones:
+        m = menciones(s)
+        anonima = not ids_de_tarea(s["cabecera"]) and not s["filas"]
+        sin_frontera = fin_previa is not None and fin_previa == s["inicio"]
+        eff = previa if (not m and anonima and sin_frontera) else m
+        out.append(eff)
+        previa = eff
+        fin_previa = s["fin"]
+    return out
+
+
 def ultimo_intento_para(secciones, tareas):
-    """Intento MAS ALTO relevante para `tareas`. Sin AMBIGUEDAD (cada numero de intento aparece en
-    UNA sola seccion - el caso normal de un ledger de una sola fase, donde una seccion de cierre
-    "sin gaps" no menciona ninguna tarea por definicion) es simplemente el maximo GLOBAL, igual que
-    antes. Con AMBIGUEDAD (algun numero de intento se repite - varias fases con su propia pista de
-    revision) se restringe a las secciones que MENCIONAN alguna de `tareas`: el maximo GLOBAL podia
-    venir de otra fase sin que la tarea pedida tenga nada que ver (gap #2: `aprobado` concedia Done
-    con un Critical pendiente de OTRA fase). `None` si esta ultima busqueda no encuentra ninguna
-    seccion que mencione esas tareas (sin evidencia: rechazo, no adivinar)."""
+    """Intento MAS ALTO relevante para `tareas`, restringido a las secciones cuyas menciones
+    EFECTIVAS (`_menciones_efectivas()`: `menciones()` con herencia solo para cierres anonimos, ver
+    arriba) casan con `tareas` - SIN el atajo anterior de usar el maximo GLOBAL cuando los numeros
+    de intento no se repiten (gap #16 de jira-review-comments fix2: con numeracion CONTINUA entre
+    fases, el atajo cogia la ultima fase aunque no mencionara la tarea pedida y dejaba inalcanzable
+    el aviso de "ninguna seccion menciona"). El maximo GLOBAL podia venir de otra fase sin que la
+    tarea pedida tenga nada que ver (gap #2: `aprobado` concedia Done con un Critical pendiente de
+    OTRA fase). `None` si ninguna seccion menciona esas tareas, ni directa ni por herencia (sin
+    evidencia: rechazo, no adivinar)."""
     if not secciones:
         return None
-    intentos = [s["intento"] for s in secciones]
-    if len(intentos) == len(set(intentos)):
-        return max(intentos)
-    candidatas = [s for s in secciones if menciones(s) & set(tareas)]
+    tareas_set = set(tareas)
+    efectivas = _menciones_efectivas(secciones)
+    candidatas = [s["intento"] for s, eff in zip(secciones, efectivas) if eff & tareas_set]
     if not candidatas:
         return None
-    return max(s["intento"] for s in candidatas)
+    return max(candidatas)
 
 
 # --8<-- fin secciones_revision
