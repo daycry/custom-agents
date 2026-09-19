@@ -18,11 +18,11 @@ verificacion: obligatoria
 
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervision (real/est) | Tokens (real/est) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| Fase 1 - Contrato y modelo | 1 | 3 | 33% | 0 / 13h | 0.14 / 3.9h | 0 / 1.0h | ~65k / 175k |
+| Fase 1 - Contrato y modelo | 2 | 3 | 67% | 0 / 13h | 0.47 / 3.9h | 0 / 1.0h | ~223k / 175k |
 | Fase 2 - Sincronizacion | 0 | 3 | 0% | 0 / 16h | 0 / 4.8h | 0 / 1.2h | 0 / 200k |
 | Fase 3 - Router y configuracion | 0 | 2 | 0% | 0 / 11h | 0 / 3.3h | 0 / 0.9h | 0 / 110k |
 | Fase 4 - Regresion y cierre | 0 | 2 | 0% | 0 / 10h | 0 / 3h | 0 / 0.7h | 0 / 60k |
-| **TOTAL** | **1** | **10** | **10%** | **0 / 50h** | **0.14 / 15h** | **0 / 3.8h** | **~65k / 545k** |
+| **TOTAL** | **2** | **10** | **20%** | **0 / 50h** | **0.47 / 15h** | **0 / 3.8h** | **~223k / 545k** |
 
 ## Fase 1 - Contrato y modelo
 
@@ -49,13 +49,19 @@ verificacion: obligatoria
 - [x] `provider.llm` acepta `ollama | openai | anthropic | none`; ningun modelo ni endpoint tiene default cableado salvo loopback (CA-09). Cubierto por `test_graphiti_provider_llm_invalido`, `test_graphiti_provider_none_no_exige_modelo`, `test_graphiti_endpoint_no_local_sin_allow_remote_falla`.
 
 ### T-02 - Ontologia derivada de `taxonomy.json` y relaciones temporales
-- **Estado**: borrador
+- **Estado**: completado
 - **Dependencias**: T-01
-- **Archivos**: `skills/knowledge-services/backends/graphiti_model.py`, `tests/test_graphiti_model.py`
+- **Archivos**: `skills/knowledge-services/backends/graphiti_model.py`, `tests/test_graphiti_model.py`, `tests/test_console_encoding.py`
 - **Verificacion**: `python -m pytest -q tests/test_graphiti_model.py` -> cada categoria de dos `taxonomy.json` distintos se mapea a un tipo declarado por el servidor via `backends.graphiti.entity_map` (default `Document`), y una categoria sin mapeo cae al default sin fallar; `--propose-config` emite el bloque `entity_types` (uno por categoria + `Knowledge`, `Evidence`) en YAML valido; relaciones nucleo + `relations` declaradas; sucesion valida
+  - RED: `tests/test_graphiti_model.py` fallaba con `FileNotFoundError` al cargar `skills/knowledge-services/backends/graphiti_model.py` (el modulo no existia) · 2026-09-19
+  - GREEN: `python -m pytest -q tests/test_graphiti_model.py` -> `14 passed in 0.12s`
+  - `python -m pytest -q tests/test_console_encoding.py` -> `385 passed in 91.10s` (snippet UTF-8 + entradas en `SIN_SIMBOLOS_EN_LA_SALIDA`/`_modos()` para el nuevo modulo, regla 8 de CONVENTIONS)
+- **Changelog**: Graphiti ya deriva sus tipos de entidad y relaciones desde la taxonomia del proyecto, sin listas de dominio fijas en el plugin.
+- **Tiempo humano**: est. - · real -
+- **Tiempo IA**: real 0.33h (medido; usage-meter, artefacto graphiti-memory/T-02, 10m reloj, 3.50 EUR)
 **Criterios de aceptación**
-- [ ] `SUPERSEDES` conserva historia y marca vigencia.
-- [ ] Ninguna lista de tipos de dominio en el codigo del plugin; los tipos efectivos son los del servidor y el mapeo es configuracion (CA-13 reformulado, enmienda 2026-09-18).
+- [x] `SUPERSEDES` conserva historia y marca vigencia — `cadena_supersedes()` devuelve `relaciones` (todas las `SUPERSEDES` consecutivas, ninguna version se pierde), `vigentes` (solo la ultima) e `invalidados` (las anteriores); `vigentes | invalidados` es siempre el conjunto completo de entrada (`test_cadena_supersedes_conserva_historia_y_marca_vigencia`).
+- [x] Ninguna lista de tipos de dominio en el codigo del plugin; los tipos efectivos son los del servidor y el mapeo es configuracion (CA-13 reformulado, enmienda 2026-09-18) — `tipo_entidad`/`tipos_por_categoria` solo leen `config["entity_map"]` (config del proyecto) y caen a `Document` (el generico del servidor de referencia) sin declarar ningun tipo de dominio; probado contra dos `taxonomy.json` distintos (`test_tipos_por_categoria_dos_taxonomias_distintas`).
 
 ### T-03 - Politica de escritura y autoridad
 - **Estado**: borrador
