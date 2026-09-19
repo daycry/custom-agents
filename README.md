@@ -21,7 +21,7 @@
 [![npx](https://img.shields.io/badge/install-npx-cb3837.svg?logo=npm&logoColor=white)](docs/en/INTEROP.md)
 [![SDD](https://img.shields.io/badge/methodology-Spec--Driven-2ea44f.svg)](docs/en/FLOWS.md)
 [![Agents](https://img.shields.io/badge/agents-10-0ea5e9.svg)](docs/en/README.md)
-[![Skills](https://img.shields.io/badge/skills-17-0ea5e9.svg)](docs/en/README.md)
+[![Skills](https://img.shields.io/badge/skills-18-0ea5e9.svg)](docs/en/README.md)
 [![Commands](https://img.shields.io/badge/commands-12-0ea5e9.svg)](docs/en/README.md)
 [![Portable skills](https://img.shields.io/badge/portable%20skills-AGENTS.md%20%C2%B7%20Cursor-0ea5e9.svg)](docs/en/INSTALL.md#using-the-skills-outside-claude-code-portable-package)
 
@@ -106,7 +106,7 @@ npx @daycry/custom-agents            # interactive menu; marks the runtimes it d
 
 | Runtime | Install | What you get |
 |---|---|---|
-| **Claude Code** | `/plugin marketplace add daycry/custom-agents` (or the installer) | Everything: 10 agents, 12 commands, 17 skills, hooks, status line |
+| **Claude Code** | `/plugin marketplace add daycry/custom-agents` (or the installer) | Everything: 10 agents, 12 commands, 18 skills, hooks, status line |
 | **Codex** | `codex plugin marketplace add daycry/custom-agents` (or the installer) | Skills, agents as `.toml`, commands as `/prompt:<name>` (sometimes `/prompts:<name>`), session hooks |
 | **OpenCode** | `npx @daycry/custom-agents install -p opencode` | Skills, agents, commands, hook adapter |
 
@@ -218,6 +218,7 @@ flowchart LR
 | **reviewer** | One review lens (A/B/C) on fresh context, read-only by construction; structured output that `adversarial-review` merges. |
 | **qa** | E2E with Playwright (local hosts only), verdict via `qa-gate.py`, md+pdf report with evidence. |
 | **documenter** | Technical and product documentation derived from the project itself, once at cycle close. |
+| **knowledge-curator** | Reviews and approves/rejects candidates in `docs/knowledge/candidates/`; only writer of `approved/` and `rejected/` (`curator-gate.py`). |
 | **nemesis** | Cybersecurity audit: 8-dimension SAST + active pentest **local only** (non-negotiable guardrail). |
 
 > Installed as a plugin, commands carry the plugin namespace: **`/custom-agents:dev-cycle`**, `/custom-agents:doctor`… The short form below works with the `--mode copy` bundle; `/custom-agents:doctor` tells you which applies.
@@ -237,7 +238,7 @@ flowchart LR
 | `/confluence-pull` | Confluence → local `docs/` (PM without git). |
 | `/doctor` | Deterministic install diagnosis: tools, plugin/hooks, statusline, `.claude/` configs, work state — ✅/⚠️/❌ verdict with the fix per line, read-only, no network. |
 
-Shared skills: `jira-sync` · `confluence-publish` / `confluence-pull` · `roadmap-dashboard` · `debug-root-cause` · `adversarial-review` · `cybersecurity` · `to-pdf` · `rates-verify` · `plugin-dev` · `quick-implement` · `tdd` · `code-health` · `dependency-upgrade` · `changelog-sync` · `unit-tests` · `api-contract`. Deterministic scripts (all with tests): `usage-meter` · `task-brief` · `model-tier` · `journal` · `code-health` · `deps-inventory` · `worklog` · `qa-gate` · `ledger-lint` · `coverage-check` · `build_dashboard` · `lint_plugin`.
+Shared skills: `jira-sync` · `confluence-publish` / `confluence-pull` · `roadmap-dashboard` · `debug-root-cause` · `adversarial-review` · `cybersecurity` · `to-pdf` · `rates-verify` · `plugin-dev` · `quick-implement` · `tdd` · `code-health` · `dependency-upgrade` · `changelog-sync` · `unit-tests` · `api-contract` · `knowledge-services`. Deterministic scripts (all with tests): `usage-meter` · `task-brief` · `model-tier` · `journal` · `code-health` · `deps-inventory` · `worklog` · `qa-gate` · `ledger-lint` · `coverage-check` · `build_dashboard` · `lint_plugin`.
 
 </details>
 
