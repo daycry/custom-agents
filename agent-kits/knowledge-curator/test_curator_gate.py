@@ -175,6 +175,62 @@ def test_approve_candidato_completo_es_permitido():
         assert veredicto["categoria"] == "GOTCHA"
 
 
+# ------------------------------------------------------------------ CA-10: utility_scoring
+
+
+CANDIDATO_UTILITY_ALTO_SIN_EVIDENCIA = """---
+id: ca.gotcha.ejemplo
+category: GOTCHA
+utility: 10
+fuentes:
+  - docs/x.md
+tags:
+  - area:testing
+---
+
+# Sin evidencia, con utility alto
+"""
+
+CANDIDATO_UTILITY_ALTO_CON_EVIDENCIA = """---
+id: ca.gotcha.ejemplo
+category: GOTCHA
+evidencia: validated_case
+utility: 10
+fuentes:
+  - docs/x.md
+tags:
+  - area:testing
+---
+
+# Con evidencia, con utility alto
+"""
+
+
+def test_ca10_utility_alto_sin_evidencia_sigue_sin_aprobar():
+    """CA-10 de `spec.md`: con `utility_scoring` activo, el score (`utility: 10`, el máximo) nunca
+    decide un estado por sí solo — `curator-gate.py` ni siquiera lee `utility` (gap 147: no existe
+    lógica alguna que lo use para saltarse la validación de evidencia), así que un candidato con
+    `utility: 10` pero SIN evidencia sigue bloqueado exactamente igual que sin utility_scoring."""
+    with tempfile.TemporaryDirectory() as tmp:
+        _taxonomy(tmp, [{"key": "GOTCHA", "folder": "gotchas", "min_evidence": "observation"}])
+        ruta = _escribir(tmp, "c.md", CANDIDATO_UTILITY_ALTO_SIN_EVIDENCIA)
+        veredicto, exit_code = cg.evaluar(ruta, "approve", root=tmp)
+        assert exit_code == 1
+        assert any(e["campo"] == "evidencia" for e in veredicto["errores"])
+
+
+def test_ca10_utility_alto_con_evidencia_suficiente_aprueba_por_la_evidencia_no_por_el_score():
+    """Contraparte del mutante anterior: el mismo `utility: 10` con evidencia suficiente sí
+    aprueba — pero por cumplir el contrato de evidencia, no porque el score decida nada (el campo
+    `utility` es inerte para `curator-gate.py`, solo ordena la cola de revisión del Curator)."""
+    with tempfile.TemporaryDirectory() as tmp:
+        _taxonomy(tmp, [{"key": "GOTCHA", "folder": "gotchas", "min_evidence": "observation"}])
+        ruta = _escribir(tmp, "c.md", CANDIDATO_UTILITY_ALTO_CON_EVIDENCIA)
+        veredicto, exit_code = cg.evaluar(ruta, "approve", root=tmp)
+        assert exit_code == 0
+        assert veredicto["errores"] == []
+
+
 def test_approve_respeta_category_override_sobre_frontmatter():
     with tempfile.TemporaryDirectory() as tmp:
         ruta = _escribir(tmp, "c.md", CANDIDATO_COMPLETO)  # frontmatter dice GOTCHA

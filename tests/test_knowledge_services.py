@@ -211,19 +211,30 @@ def test_mutante_categoria_sin_routing_declarado_nunca_exporta(tmp_path, capsys)
 
 def test_mutante_candidato_en_candidates_nunca_se_indexa_ni_exporta(tmp_path, capsys):
     """Un candidato jamás movido a `approved/` (aprobado o no) no puede llegar al índice ni al
-    adaptador — `knowledge-index.py` NUNCA escanea `docs/knowledge/candidates/**`."""
+    adaptador — `knowledge-index.py` NUNCA escanea `docs/knowledge/candidates/**`.
+
+    Gap 160 (revisión de dos lentes, Fase 4 intento 1): la versión anterior afirmaba el negativo
+    sobre un universo VACÍO — `approved/` no tenía ninguna entrada, así que "el candidato no está
+    en el índice" era trivialmente cierto (el índice estaba vacío por completo, no porque hubiera
+    filtrado nada). La versión fuerte crea TAMBIÉN una entrada válida en `approved/<folder>` y
+    comprueba que el índice contiene ESA entrada (el escaneo funciona) y no el candidato (el
+    filtro funciona) — un mutante que hiciera `build_index` escanear `candidates/**` entero haría
+    fallar esta aserción del recuento, cosa que la versión vacía anterior nunca podía detectar."""
     root = str(tmp_path)
     _taxonomy(root, _categorias_base(),
               backends={"testx": {"type": "test", "enabled": True, "config": {}}})
     _candidato(root, "nunca-aprobado", "ENRUTADA")
+    ruta_aprobada = _candidato(root, "si-aprobada", "ENRUTADA", carpeta="pending")
+    _aprobar_en_disco(root, ruta_aprobada, "gotchas", "si-aprobada", "ENRUTADA")
 
     indice, errores = ki.build_index(root)
     assert errores == []
     assert "nunca-aprobado" not in indice
+    assert set(indice) == {"si-aprobada"}
 
     assert ks_sync.main(["--backend", "testx", "--root", root, "--backends-dir", FIXTURES_BACKENDS, "--dry-run", "--json"]) == 0
     salida = json.loads(capsys.readouterr().out)
-    assert salida["entradas"] == 0
+    assert salida["entradas"] == 1
 
 
 def test_mutante_denylist_bloquea_la_aprobacion(tmp_path):
@@ -333,10 +344,49 @@ def test_health_url_file_scheme_se_rechaza_sin_abrir_nada():
     assert salud["estado"] == "error"
 
 
+def test_host_permitido_rechaza_scheme_file_con_host_local_declarado():
+    """Gap 142 (revisión de dos lentes, Fase 4 intento 1): el test anterior (`file:///etc/passwd`)
+    es vacuo — esa URL no tiene host (`urlsplit(...).hostname` es `None`), así que cae por «sin
+    host», no por el allowlist de esquemas: un mutante que añadiera `file` al allowlist
+    (`("http", "https", "file")`) seguiría pasando ese test sin que nadie lo notara. Con un host
+    LOCAL explícito (`file://localhost/x.json`) la única cosa que puede rechazar la URL es el
+    chequeo de esquema — si el mutante lo quitara, esto pasaría a `True`."""
+    assert markdown_export._host_permitido("file://localhost/x.json") is False
+    assert markdown_export._host_permitido("http://127.0.0.1/x") is True
+
+
+def test_health_url_file_scheme_con_host_local_se_rechaza_sin_resolver_dns(monkeypatch):
+    """Complementa el test anterior verificando además el efecto observable en `health()`: se
+    rechaza sin abrir ninguna conexión ni resolver DNS (espía sobre `socket.gethostbyname`)."""
+    llamadas = []
+    monkeypatch.setattr(
+        markdown_export.socket, "gethostbyname",
+        lambda h: llamadas.append(h) or (_ for _ in ()).throw(OSError("no debería llamarse")))
+    salud = markdown_export.health(
+        {"health": {"url": "file://localhost/x.json", "timeout_ms": 100}})
+    assert salud["estado"] == "error"
+    assert llamadas == []
+
+
 def test_health_url_host_publico_se_rechaza_sin_conexion():
     salud = markdown_export.health({"health": {"url": "http://example.com/health", "timeout_ms": 100}})
     assert salud["estado"] == "error"
     assert "no local" in salud["detalle"]
+
+
+def test_health_url_host_publico_ip_literal_se_rechaza_sin_dns_real(monkeypatch):
+    """Gap 152: la versión con `example.com` hace una resolución DNS REAL (lenta y no
+    determinista en CI sin red); usando una IP pública LITERAL no hace falta resolver nada — el
+    rechazo se decide con `ipaddress.ip_address` puro, sin tocar la red — y sigue siendo un host
+    no local/privado genuino (no un accidente de "no hay DNS", que sería el motivo equivocado)."""
+    llamadas = []
+    monkeypatch.setattr(markdown_export.socket, "gethostbyname",
+                         lambda h: llamadas.append(h) or "0.0.0.0")
+    salud = markdown_export.health(
+        {"health": {"url": "http://93.184.216.34/health", "timeout_ms": 100}})
+    assert salud["estado"] == "error"
+    assert "no local" in salud["detalle"]
+    assert llamadas == []  # una IP literal no necesita resolución DNS
 
 
 def test_health_url_redireccion_a_host_publico_se_rechaza(tmp_path):
@@ -364,29 +414,156 @@ def test_health_url_redireccion_a_host_publico_se_rechaza(tmp_path):
         assert "redirecci" in salud["detalle"]
     finally:
         httpd.shutdown()
+        httpd.server_close()  # gap 153: sin esto el socket queda en TIME_WAIT/abierto
         hilo.join(timeout=2)
+        assert not hilo.is_alive(), "el hilo del servidor de test no terminó (gap 153)"
+
+
+def test_health_url_servidor_local_responde_no_http_no_lanza(tmp_path):
+    """Gap 155: `health()` documenta «nunca lanza» pero dejaba escapar `http.client.HTTPException`
+    (un servidor local que responde texto que no es una respuesta HTTP válida — `BadStatusLine`,
+    subclase de `HTTPException`, no de `OSError`) hasta el llamador, que solo captura
+    `Exception` genérico en algunos sitios. Un servidor local (permitido por el allowlist de host)
+    que devuelve basura no-HTTP debe degradar a `estado: "error"`, nunca lanzar."""
+    import socket as socket_mod
+
+    servidor = socket_mod.socket(socket_mod.AF_INET, socket_mod.SOCK_STREAM)
+    servidor.bind(("127.0.0.1", 0))
+    servidor.listen(1)
+    puerto = servidor.getsockname()[1]
+
+    def _responder():
+        try:
+            conn, _addr = servidor.accept()
+            with conn:
+                conn.recv(1024)
+                conn.sendall(b"esto no es HTTP en absoluto\r\n\r\n")
+        except OSError:
+            pass
+
+    hilo = threading.Thread(target=_responder, daemon=True)
+    hilo.start()
+    try:
+        salud = markdown_export.health(
+            {"health": {"url": f"http://127.0.0.1:{puerto}/health", "timeout_ms": 500}})
+        assert salud["estado"] == "error"
+    finally:
+        servidor.close()
+        hilo.join(timeout=2)
+        assert not hilo.is_alive()
 
 
 # ------------------------------------------------------------------ hooks sin red ----
 
-def test_ningun_hook_invoca_knowledge_sync_ni_curator_gate():
-    """CA de la spec «red desde hooks» fuera de alcance: ningún hook del ciclo (`hooks/*.sh`,
-    `hooks/hooks.json`) debe disparar `knowledge-sync.py` ni `curator-gate.py` — ambos hacen red
-    (el backend `markdown-export`) o mutan `docs/knowledge/`, y los hooks del ciclo (PostToolUse,
-    SubagentStop, SessionStart/End, UserPromptSubmit) SOLO informan (systemMessage/
-    additionalContext), nunca ejecutan lógica de publicación."""
-    prohibido = ("knowledge-sync.py", "curator-gate.py")
+# gap 141/154 (revisión de dos lentes, Fase 4 intento 1): la lista anterior solo buscaba los dos
+# nombres de script (`knowledge-sync.py`/`curator-gate.py`) en los ficheros DIRECTOS de `hooks/`
+# (sin recursión), tragaba `UnicodeDecodeError` con un `continue` silencioso (un hook binario o
+# corrupto quedaba sin analizar, no como fallo), y no miraba el frontmatter `hooks:` de
+# `agents/*.md` (un agente puede declarar un hook `command` inline con la misma red prohibida sin
+# que exista ningún fichero bajo `hooks/`). Se amplía a los términos de red/publicación que la
+# revisión señaló (`urllib`, `urlopen`, `socket`, `http.client`, `requests`, `curl`, `wget`,
+# `Invoke-WebRequest`, `markdown_export`) y a `knowledge-sync` SIN extensión (un `command` puede
+# invocar el script por su nombre de módulo, sin `.py`, según el shell).
+_TERMINOS_RED_PROHIBIDOS = (
+    "knowledge-sync.py", "knowledge-sync", "curator-gate.py", "markdown_export",
+    "urllib", "urlopen", "socket", "http.client", "requests", "curl", "wget",
+    "invoke-webrequest",
+)
+
+_HOOKS_FRONTMATTER_RE = None  # se compila perezosamente (evita el import de `re` en el módulo)
+
+
+def _texto_o_fallo_si_no_decodifica(ruta):
+    """Lee un fichero en UTF-8; no decodificar es un FALLO explícito (gap 154), nunca un `skip`
+    silencioso — un hook binario/corrupto que ADEMÁS invoque red no debe colarse por un
+    `except: continue`."""
+    with open(ruta, "rb") as f:
+        crudo = f.read()
+    try:
+        return crudo.decode("utf-8")
+    except UnicodeDecodeError as e:
+        raise AssertionError(f"`{ruta}` no es UTF-8 decodificable: {e}") from e
+
+
+def _ofensores_de_red_en_hooks(hooks_dir=None):
+    """Recorre `hooks/**` RECURSIVAMENTE (gap 154: antes solo el nivel superior)."""
+    hooks_dir = hooks_dir if hooks_dir is not None else HOOKS_DIR
     ofensores = []
-    for nombre in sorted(os.listdir(HOOKS_DIR)):
-        ruta = os.path.join(HOOKS_DIR, nombre)
-        if not os.path.isfile(ruta):
+    for raiz, _dirs, ficheros in os.walk(hooks_dir):
+        for nombre in sorted(ficheros):
+            ruta = os.path.join(raiz, nombre)
+            texto_l = _texto_o_fallo_si_no_decodifica(ruta).lower()
+            for termino in _TERMINOS_RED_PROHIBIDOS:
+                if termino in texto_l:
+                    ofensores.append((os.path.relpath(ruta, hooks_dir), termino))
+    return ofensores
+
+
+def _ofensores_de_red_en_frontmatter_agentes(agents_dir=None):
+    """`hooks:` en el frontmatter de `agents/*.md` (gap 154: nadie lo miraba)."""
+    import re
+    agents_dir = agents_dir if agents_dir is not None else os.path.join(ROOT, "agents")
+    if not os.path.isdir(agents_dir):
+        return []
+    patron = re.compile(r"(?m)^hooks:\s*\n((?:[ \t]+\S.*\n?)*)")
+    ofensores = []
+    for nombre in sorted(os.listdir(agents_dir)):
+        if not nombre.endswith(".md"):
             continue
-        try:
-            with open(ruta, encoding="utf-8") as f:
-                texto = f.read()
-        except UnicodeDecodeError:
+        ruta = os.path.join(agents_dir, nombre)
+        texto = _texto_o_fallo_si_no_decodifica(ruta)
+        m = patron.search(texto)
+        if not m:
             continue
-        for termino in prohibido:
-            if termino in texto:
+        bloque = m.group(1).lower()
+        for termino in _TERMINOS_RED_PROHIBIDOS:
+            if termino in bloque:
                 ofensores.append((nombre, termino))
-    assert ofensores == [], f"hook invoca un script de red/mutación de docs/knowledge: {ofensores}"
+    return ofensores
+
+
+def test_ningun_hook_ni_frontmatter_de_agente_invoca_red_ni_scripts_de_publicacion():
+    """CA de la spec «red desde hooks» fuera de alcance: ningún hook del ciclo (`hooks/**`,
+    recursivo) ni el frontmatter `hooks:` de ningún agente debe disparar `knowledge-sync.py` ni
+    `curator-gate.py` (hacen red o mutan `docs/knowledge/`) NI hacer red por su cuenta — los hooks
+    del ciclo (PostToolUse, SubagentStop, SessionStart/End, UserPromptSubmit) SOLO informan
+    (systemMessage/additionalContext), nunca ejecutan lógica de publicación ni abren conexiones."""
+    ofensores = _ofensores_de_red_en_hooks() + _ofensores_de_red_en_frontmatter_agentes()
+    assert ofensores == [], f"hook/frontmatter invoca red o script de publicación: {ofensores}"
+
+
+def test_mutante_hook_con_curl_en_subcarpeta_muere(tmp_path):
+    """Mutante (gap 141): un hook con `curl https://…` debe morir — y en una SUBCARPETA de
+    `hooks/`, para probar la recursión del gap 154 (la lista anterior no recorría subdirectorios)."""
+    sub = tmp_path / "sub"
+    sub.mkdir()
+    (sub / "malo.sh").write_text("#!/bin/sh\ncurl https://ejemplo.invalido/x\n", encoding="utf-8")
+    ofensores = _ofensores_de_red_en_hooks(str(tmp_path))
+    assert ofensores == [(os.path.join("sub", "malo.sh"), "curl")]
+
+
+def test_mutante_hook_no_decodificable_es_fallo_no_skip(tmp_path):
+    """Gap 154: un fichero no UTF-8 bajo `hooks/` debe hacer FALLAR el escaneo (`AssertionError`),
+    no saltarse en silencio — un hook corrupto que ADEMÁS invoque red no debe colarse."""
+    (tmp_path / "binario.bin").write_bytes(b"\xff\xfe\x00\x01\x02\x03")
+    with pytest.raises(AssertionError):
+        _ofensores_de_red_en_hooks(str(tmp_path))
+
+
+def test_mutante_frontmatter_de_agente_con_urllib_muere(tmp_path):
+    """Mutante (gap 141/154): un `command` de `hooks:` en el frontmatter de un agente que use
+    `urllib.request.urlopen` debe morir aunque no exista NINGÚN fichero bajo `hooks/`."""
+    contenido = (
+        "---\nname: falso\nmodel: sonnet\nhooks:\n"
+        "  PreToolUse:\n"
+        "    - matcher: \"Write\"\n"
+        "      hooks:\n"
+        "        - type: command\n"
+        "          command: 'python -c \"import urllib.request; "
+        "urllib.request.urlopen(1)\"'\n"
+        "---\n\n# Falso\n"
+    )
+    (tmp_path / "falso.md").write_text(contenido, encoding="utf-8")
+    ofensores = _ofensores_de_red_en_frontmatter_agentes(str(tmp_path))
+    assert ("falso.md", "urllib") in ofensores
+    assert ("falso.md", "urlopen") in ofensores
