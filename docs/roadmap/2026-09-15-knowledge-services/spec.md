@@ -1,8 +1,8 @@
 ---
 spec: knowledge-services
-estado: aprobada
+estado: implementada
 creado: 2026-09-15
-actualizado: 2026-09-18
+actualizado: 2026-09-19
 evaluacion: evaluation.md
 design: design.md
 plan: improvement-plan.md
