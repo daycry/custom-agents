@@ -1,5 +1,7 @@
 ---
 generacion: {fuente: estimado, tokens_reales: {entrada: 0, salida: 0, cache_creacion: 0, cache_lectura: 0}, eur: null, horas_ia: 0.0, duracion: 0m, ratio_usado: 0}
+estado: completado
+changelog: Added
 verificacion: obligatoria
 ---
 
