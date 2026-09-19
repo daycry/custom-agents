@@ -52,7 +52,10 @@
 > 2 Important: cita de test retirado en el ledger y regresión en `_lineas_de_codigo` del test de hooks). Decisión del
 > orquestador: ronda fix3 hecha (d522234) y **verificada → bucle Fase 4 CERRADO**. Las 4 fases revisadas (185 gaps).
 > **qa sin UI VERDE** (e890478: 480 passed, matriz CA-01..17 verificada, `testing/qa-report.md`+pdf). **documenter en curso**
-> (coherencia doc + candidatos en `docs/knowledge/candidates/pending/`). Siguiente:
+> HECHO (baa3339: doc ya coherente; 3 candidatos en `candidates/pending/`). **Fase 4-bis en curso**: `knowledge-curator`
+> no existe en el plugin instalado (1.20.2) → despachado como subagente genérico leyendo `agents/knowledge-curator.md`.
+> Siguiente: cierre Fase 6 (plan/tasks `completado`, changelog-sync, /retro + retro-gate, spec `implementada`, índice,
+> declarar en alcance los ficheros de las enmiendas, merge origin/master sin conflictos, push, PR) →
 > documenter → Fase 4-bis → cierre (changelog-sync, /retro, retro-gate) → push + PR (T-04 curator, T-05 documenter, T-06 Fase 4-bis) → Fase 3 (T-07 sync +
 > contrato, T-08 adaptador Kwipu, T-09 setup/doctor) → Fase 4 (T-10, T-11, T-12) → qa sin UI → documenter → cierre
 > (changelog-sync, /retro + retro-gate) → graphiti-memory.
