@@ -78,11 +78,13 @@
 > 0/6, `plugin-refactor` 18/22 con T-15 en-progreso, `project-specialization` 3/22, `graphiti-memory` 0/10,
 > `training-data-services`, `dev-cycle-dataset`) y decidir/ejecutar; (3) **investigar por qué la revisión de dos
 > lentes NO deja comentarios en las tareas de Jira**: el flujo se ejecuta entero pero el issue no recibe el
-> comentario con el resultado de la verificación ni de los N intentos (pistas: `jira-flow.py` eventos `revision`/
-> `gaps` con `--intento N` son «del orquestador» en `commands/dev-cycle.md` y a la vez «comentario FINAL en Jira,
-> Paso 9» en la skill `adversarial-review`: posible hueco de dueño; comprobar en un proyecto consumidor con
-> `.claude/jira.json` `enabled: true`, aquí no hay). Requisito transversal: todo debe funcionar en Claude Code,
-> Codex y OpenCode.
+> comentario con el resultado de la verificación ni de los N intentos (pistas: en aquel momento `jira-flow.py`
+> eventos `revision`/`gaps` con `--intento N` eran «del orquestador» en `commands/dev-cycle.md` y a la vez
+> «comentario FINAL en Jira, Paso 9» en la skill `adversarial-review`: hueco de dueño). **RESUELTO** por la
+> iniciativa `docs/roadmap/2026-09-19-jira-review-comments/`: la skill `adversarial-review` es ahora el dueño
+> único (Paso 7 de `jira-sync`, no Paso 9; firma `--actor reviewer`), `dev-cycle.md` ya no dice «del orquestador»
+> y `tests/test_review_jira_owner.py` guardarraíla que ningún fichero vivo reabra otro dueño. Requisito
+> transversal: todo debe funcionar en Claude Code, Codex y OpenCode.
 
 > **2026-09-11 — `installer-registro-real` PUBLICADA en v1.20.0.** PR #2 mezclado en master (`0a10e7a`), release
 > `e5774f8` + tag `v1.20.0` publicados, **CI de master en verde** en los dos commits (llevaba roja desde los merges
