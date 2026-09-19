@@ -7,9 +7,11 @@ Ejecutar: python3 -m pytest -q skills/jira-sync/scripts/test_jira_flow.py
 import importlib.util
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
+from pathlib import Path
 
 import pytest
 
@@ -864,6 +866,109 @@ def test_fx3_aprobado_t04_usa_su_propio_intento_2_sin_gaps(ledger_fx3):
     assert [o["tipo"] for o in plan["ops"]] == ["etiqueta", "transicion", "comentario"]
 
 
+# ------------------------------------------------------- FXP: gap cruzado en OTRA sección DEL MISMO intento
+
+LEDGER_FXP = """---
+tasks: demo-fxp
+descripcion: Ledger con DOS secciones del MISMO intento (jira-review-comments fix3, gap #20) —
+  "Fase 2 (T-04, T-05) — sin gaps" está limpia, pero OTRA sección del mismo intento 1 (la de la
+  Fase 1, que revisa T-07) tiene una fila cruzada Critical `T-04/T-07` sin corregir. Con el
+  criterio antiguo (UNA sección por intento, cabecera-primero) `aprobado T-04` elegía la limpia y
+  concedía Done sin ver el Critical.
+estado: en-progreso
+creado: 2026-09-19
+actualizado: 2026-09-19
+via: rapida
+verificacion: obligatoria
+generacion:
+  fuente: estimado
+---
+
+# Checklist de Tareas — demo-fxp (vía rápida)
+
+## Fase 1
+
+### T-07 — algo de la fase 1
+
+- **Descripción**: hacer la cosa C.
+- **Estado**: completado
+- **Archivos**: `app/c.py`
+- **Verificación**: `python3 -m pytest -q tests/test_c.py` → 1 passed.
+
+**Criterios de aceptación**
+- [x] hecho
+
+## Revisión de dos lentes — intento 1: Fase 1 (T-07) — 1 gap
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 1 | **Critical** | inconsistencia cruzada entre el listado paginado y el cierre de sesión | T-04/T-07 | — | — |
+
+## Fase 2
+
+### T-04 — otra cosa
+
+- **Descripción**: hacer la cosa B.
+- **Estado**: completado
+- **Archivos**: `app/b.py`
+- **Verificación**: `python3 -m pytest -q tests/test_b.py` → 2 passed.
+
+**Criterios de aceptación**
+- [x] hecho
+
+### T-05 — otra cosa mas
+
+- **Descripción**: hacer la cosa D.
+- **Estado**: completado
+- **Archivos**: `app/d.py`
+- **Verificación**: `python3 -m pytest -q tests/test_d.py` → 1 passed.
+
+**Criterios de aceptación**
+- [x] hecho
+
+## Revisión de dos lentes — intento 1: Fase 2 (T-04, T-05) — sin gaps
+
+Bucle cerrado.
+"""
+
+
+@pytest.fixture
+def ledger_fxp(tmp_path):
+    (tmp_path / ".claude").mkdir(exist_ok=True)
+    (tmp_path / ".claude" / "jira.json").write_text('{"enabled": true}', encoding="utf-8")
+    p = tmp_path / "tasks.md"
+    p.write_text(LEDGER_FXP, encoding="utf-8")
+    return str(p)
+
+
+def test_fxp_aprobado_t04_rechaza_por_el_critical_cruzado_de_otra_seccion_del_mismo_intento(ledger_fxp):
+    """(FXP, gap #20) La sección PROPIA de T-04 («Fase 2 … — sin gaps») está limpia, pero OTRA
+    sección del MISMO intento (la de la Fase 1, T-07) tiene una fila `T-04/T-07` Critical sin
+    corregir. `aprobado --task T-04` debe rechazar citando ese Critical — no basta con mirar la
+    sección "dueña" cabecera-primero."""
+    code, out, err = _run("--ledger", ledger_fxp, "--event", "aprobado", "--actor", "orquestador",
+                          "--task", "T-04", "--qa-verde")
+    assert code == 2
+    assert "bloqueado" in err and "inconsistencia cruzada" in err
+
+
+def test_fxp_aprobado_t07_rechaza_por_el_mismo_critical_cruzado(ledger_fxp):
+    """(FXP) Control simétrico: T-07 (la tarea "propietaria" de la sección con el gap) también
+    debe rechazar por la misma fila — el bloqueo es por tarea mencionada, no por sección dueña."""
+    code, out, err = _run("--ledger", ledger_fxp, "--event", "aprobado", "--actor", "orquestador",
+                          "--task", "T-07", "--qa-verde")
+    assert code == 2
+    assert "bloqueado" in err and "inconsistencia cruzada" in err
+
+
+def test_fxp_aprobado_t05_no_se_bloquea_por_el_critical_cruzado_de_otra_tarea(ledger_fxp):
+    """(FXP) Control negativo: T-05 no aparece en la fila cruzada `T-04/T-07`, así que su
+    `aprobado` debe seguir aceptándose."""
+    plan = _plan_json("--ledger", ledger_fxp, "--event", "aprobado", "--actor", "orquestador",
+                      "--task", "T-05", "--qa-verde")
+    assert [o["tipo"] for o in plan["ops"]] == ["etiqueta", "transicion", "comentario"]
+
+
 LEDGER_FASE_REABIERTA = LEDGER_MULTIFASE + """
 ## Fase 3 — Reapertura
 
@@ -1076,6 +1181,154 @@ def test_root_resuelve_la_config_desde_otra_carpeta(ledger, tmp_path):
         plan = _plan_json("--ledger", ledger, "--event", "arrancar", "--actor", "implementer",
                           "--task", "T-01", "--root", str(tmp_path), cwd=ajeno)
         assert len(plan["ops"]) == 2 and plan["jira"] == "activado"
+
+
+# ---------------------------------------------- M2b: dos secciones AJENAS del mismo intento (fix3, gap #21)
+
+LEDGER_M2B = """---
+tasks: demo-m2b
+descripcion: Ninguna cabecera del intento 1 nombra T-04 (ninguna es su seccion PROPIA); DOS
+  secciones lo citan solo como fila cruzada. `seleccionar_seccion` debe elegir la ULTIMA de esas
+  ajenas (rama del gap #21 -- antes sin test dedicado, el docstring citaba FX2 por error: su
+  cabecera SI lleva T-02/T-04).
+estado: en-progreso
+creado: 2026-09-19
+actualizado: 2026-09-19
+via: rapida
+verificacion: obligatoria
+generacion:
+  fuente: estimado
+---
+
+# Checklist de Tareas — demo-m2b (via rapida)
+
+## Fase 1
+
+### T-01 — algo
+
+- **Descripcion**: hacer la cosa A.
+- **Estado**: completado
+- **Archivos**: `app/a.py`
+- **Verificacion**: `python3 -m pytest -q tests/test_a.py` -> 1 passed.
+
+**Criterios de aceptacion**
+- [x] hecho
+
+## Revision de dos lentes — intento 1: Fase 1 (T-01) — 1 gap (primera ajena, mas antigua)
+
+| # | Grado | Gap | Tarea | Correccion | Evidencia |
+|---|---|---|---|---|---|
+| 1 | Minor | gap cruzado antiguo | T-01/T-04 | corregido: ya resuelto | `test_a.py` |
+
+## Fase 2
+
+### T-02 — otra cosa
+
+- **Descripcion**: hacer la cosa B.
+- **Estado**: completado
+- **Archivos**: `app/b.py`
+- **Verificacion**: `python3 -m pytest -q tests/test_b.py` -> 1 passed.
+
+**Criterios de aceptacion**
+- [x] hecho
+
+## Revision de dos lentes — intento 1: Fase 2 (T-02) — 1 gap (segunda ajena, la mas reciente)
+
+| # | Grado | Gap | Tarea | Correccion | Evidencia |
+|---|---|---|---|---|---|
+| 1 | **Critical** | gap cruzado reciente | T-02/T-04 | pendiente | `test_b.py` |
+
+## Fase 3
+
+### T-04 — la tarea en cuestion
+
+- **Descripcion**: hacer la cosa E.
+- **Estado**: completado
+- **Archivos**: `app/e.py`
+- **Verificacion**: `python3 -m pytest -q tests/test_e.py` -> 1 passed.
+
+**Criterios de aceptacion**
+- [x] hecho
+"""
+
+
+@pytest.fixture
+def ledger_m2b(tmp_path):
+    (tmp_path / ".claude").mkdir(exist_ok=True)
+    (tmp_path / ".claude" / "jira.json").write_text('{"enabled": true}', encoding="utf-8")
+    p = tmp_path / "tasks.md"
+    p.write_text(LEDGER_M2B, encoding="utf-8")
+    return str(p)
+
+
+def test_m2b_gaps_de_t04_elige_la_ultima_seccion_ajena_no_la_primera(ledger_m2b):
+    """(fix3, gap #21) Ninguna cabecera del intento 1 nombra T-04: dos secciones AJENAS la citan
+    solo por fila. `seleccionar_seccion` debe traer la ULTIMA (Fase 2, gap Critical reciente), no
+    la PRIMERA (Fase 1, gap Minor ya corregido) -- mata el mutante `ajenas[-1] -> ajenas[0]`."""
+    plan = _plan_json("--ledger", ledger_m2b, "--event", "gaps", "--actor", "reviewer",
+                      "--task", "T-04", "--intento", "1", "--json")
+    comentario = next(o for o in plan["ops"] if o["tipo"] == "comentario")
+    assert "gap cruzado reciente" in comentario["cuerpo"]
+    assert "gap cruzado antiguo" not in comentario["cuerpo"]
+
+
+
+# ------------------------------------- aceptacion sobre el ledger REAL (fix3, gap #22) ----------
+
+LEDGER_REAL_KNOWLEDGE_SERVICES = (
+    Path(__file__).resolve().parents[3] / "docs" / "roadmap" /
+    "2026-09-15-knowledge-services" / "tasks.md")
+
+
+@pytest.mark.skipif(not LEDGER_REAL_KNOWLEDGE_SERVICES.is_file(),
+                    reason="ledger real de knowledge-services no esta en este arbol")
+def test_aprobado_sobre_el_ledger_real_de_knowledge_services_concede_done(tmp_path):
+    """(fix3, gap #22 -- arbitraje fix2 (4) exigia un test de aceptacion sobre el ledger REAL en
+    ESTE fichero y no habia ninguno; solo docstrings). La iniciativa `knowledge-services` esta
+    CERRADA (todos sus gaps `corregido:`): con la union de TODAS las secciones que citan la tarea
+    (arbitraje fix3), ni T-04 (Fase 2) ni T-10 (Fase 4) tienen ninguna fila pendiente -- `aprobado`
+    debe conceder Done con `--qa-verde` para las dos, sin que el intento mas alto de OTRA fase (u
+    otra seccion del mismo intento) las bloquee."""
+    d = tmp_path / "2026-09-15-knowledge-services"
+    d.mkdir()
+    ledger = d / "tasks.md"
+    shutil.copyfile(LEDGER_REAL_KNOWLEDGE_SERVICES, ledger)
+    (d / ".claude").mkdir()
+    (d / ".claude" / "jira.json").write_text('{"enabled": true}', encoding="utf-8")
+
+    for tarea in ("T-04", "T-10"):
+        plan = _plan_json("--ledger", str(ledger), "--event", "aprobado", "--actor", "orquestador",
+                          "--task", tarea, "--qa-verde", "--json")
+        tipos = [o["tipo"] for o in plan["ops"]]
+        assert "transicion" in tipos, f"{tarea}: {plan}"
+        transicion = next(o for o in plan["ops"] if o["tipo"] == "transicion")
+        assert transicion["objetivo_logico"] == "done"
+
+
+@pytest.mark.skipif(not LEDGER_REAL_KNOWLEDGE_SERVICES.is_file(),
+                    reason="ledger real de knowledge-services no esta en este arbol")
+def test_gaps_sobre_el_ledger_real_de_knowledge_services_por_intento(tmp_path):
+    """(fix3, gap #22) `--event gaps --task T-04` sobre las tres cabeceras reales de su Fase 2 --
+    ninguna revienta ni devuelve `None`, y cada intento trae SU PROPIA tabla (no la de otra fase ni
+    la de otro intento)."""
+    d = tmp_path / "2026-09-15-knowledge-services"
+    d.mkdir()
+    ledger = d / "tasks.md"
+    shutil.copyfile(LEDGER_REAL_KNOWLEDGE_SERVICES, ledger)
+    (d / ".claude").mkdir()
+    (d / ".claude" / "jira.json").write_text('{"enabled": true}', encoding="utf-8")
+
+    for intento in ("1", "2", "3"):
+        plan = _plan_json("--ledger", str(ledger), "--event", "gaps", "--actor", "reviewer",
+                          "--task", "T-04", "--intento", intento, "--json")
+        comentario = next(o for o in plan["ops"] if o["tipo"] == "comentario")
+        assert f"intento {intento}" in comentario["cuerpo"]
+
+    plan = _plan_json("--ledger", str(ledger), "--event", "gaps", "--actor", "reviewer",
+                      "--task", "T-10", "--intento", "3", "--json")
+    comentario = next(o for o in plan["ops"] if o["tipo"] == "comentario")
+    assert "intento 3" in comentario["cuerpo"] and "T-10" in comentario["cuerpo"]
+
 
 
 # ---------------------------------------------------------------- unidad: split de fila Markdown
