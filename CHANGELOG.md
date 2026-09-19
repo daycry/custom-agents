@@ -9,6 +9,8 @@ and versioning follows [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.21.0] - 2026-09-19
+
 ### Fixed — `jira-review-comments` initiative (2026-09-19)
 
 - **T-01 — La skill `adversarial-review` publica el evento `revision`/`gaps` de CADA intento** The adversarial review now posts its verdict to Jira after every attempt (the `revision`/`gaps` comment with the graded gap table), so each task's issue shows the result of each verification; before, four pieces each assumed another one would post it and nothing reached Jira.
@@ -579,6 +581,7 @@ Adoption of best practices from the top agent collections (reference agent colle
 
 Versions predating the introduction of this changelog: a bundle with the `nemesis`, `evaluator`, `planner`, `pdfy` and `qa` agents, and the shared `cybersecurity` and `to-pdf` skills. Packaged as a plugin + marketplace.
 
+[1.21.0]: https://github.com/daycry/custom-agents/releases/tag/v1.21.0
 [1.20.2]: https://github.com/daycry/custom-agents/releases/tag/v1.20.2
 [1.20.0]: https://github.com/daycry/custom-agents/releases/tag/v1.20.0
 [1.19.0]: https://github.com/daycry/custom-agents/releases/tag/v1.19.0
