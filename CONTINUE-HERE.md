@@ -48,7 +48,9 @@
 > 0 Critical, 10 Important, 10 Minor (#141–#160; incl. #150 = arreglar el YAML de LES-016 que bloquea `release.py`).
 > Ronda fix1 hecha (8c96d74..f023e56): 20/20; **`lint_plugin` 0 errores** (LES-016 arreglado). **Intento 2 Fase 4** (c7bc62d):
 > 7 documentales cerrados por el orquestador (3528f11) + 9 nuevos de la Lente B (#168–#176; 2 Important en la red de hooks).
-> **Ronda `T-XX-fix2` de Fase 4 despachada.** Después: verificación dirigida/intento 3 → cerrar bucle → qa sin UI →
+> Ronda fix2 hecha (a5a8046, 05d3bf4, bd63112): 9/9. **Intento 3 Fase 4** (fb34ac9): 9/9 cerrados + 9 nuevos (#177–#185;
+> 2 Important: cita de test retirado en el ledger y regresión en `_lineas_de_codigo` del test de hooks). Decisión del
+> orquestador: **ronda `T-XX-fix3` de Fase 4 despachada** + verificación dirigida. Después: cerrar bucle → qa sin UI →
 > documenter → Fase 4-bis → cierre (changelog-sync, /retro, retro-gate) → push + PR (T-04 curator, T-05 documenter, T-06 Fase 4-bis) → Fase 3 (T-07 sync +
 > contrato, T-08 adaptador Kwipu, T-09 setup/doctor) → Fase 4 (T-10, T-11, T-12) → qa sin UI → documenter → cierre
 > (changelog-sync, /retro + retro-gate) → graphiti-memory.
