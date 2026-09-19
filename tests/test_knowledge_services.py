@@ -391,15 +391,32 @@ def test_health_url_host_publico_ip_literal_se_rechaza_sin_dns_real(monkeypatch)
     assert llamadas == []  # una IP literal no necesita resolución DNS
 
 
-def test_health_url_redireccion_a_host_publico_se_rechaza(tmp_path):
+def test_health_url_redireccion_a_host_publico_se_rechaza(tmp_path, monkeypatch):
     """Un servidor local (permitido) que redirige a un host público no debe seguir la
-    redirección — mismo criterio SSRF que un `health.url` público directo."""
+    redirección — mismo criterio SSRF que un `health.url` público directo.
+
+    Gap 179 (revisión Fase 4 intento 3): la versión anterior redirigía a `http://example.com/
+    health`, que hace una resolución DNS REAL (la evidencia del gap 175 — «ningún test de esta
+    suite hace ya DNS real» — era falsa mientras este test siguiera vivo). Se usa la misma IP
+    pública LITERAL que el gap 152 (`93.184.216.34`; `203.0.113.1`/TEST-NET-3 NO sirve aquí porque
+    `ipaddress.ip_address(...).is_private` la clasifica como privada/reservada en la stdlib, así
+    que `_host_permitido` la aceptaría y el test intentaría conectar de verdad) y un espía sobre
+    `socket.gethostbyname` que falla si se le llama con un hostname (no una IP) — así queda
+    demostrado que NINGÚN salto de esta cadena de redirección resuelve DNS de verdad."""
     from http.server import BaseHTTPRequestHandler, HTTPServer
+
+    llamadas = []
+
+    def _gethostbyname_espia(host):
+        llamadas.append(host)
+        raise AssertionError(f"DNS real para {host!r}: gap 179, no debería resolverse nada")
+
+    monkeypatch.setattr(markdown_export.socket, "gethostbyname", _gethostbyname_espia)
 
     class _Handler(BaseHTTPRequestHandler):
         def do_GET(self):
             self.send_response(302)
-            self.send_header("Location", "http://example.com/health")
+            self.send_header("Location", "http://93.184.216.34/health")
             self.end_headers()
 
         def log_message(self, *a, **k):  # noqa: D401 - silenciar logging de test
@@ -414,11 +431,44 @@ def test_health_url_redireccion_a_host_publico_se_rechaza(tmp_path):
             {"health": {"url": f"http://127.0.0.1:{puerto}/health", "timeout_ms": 500}})
         assert salud["estado"] == "error"
         assert "redirecci" in salud["detalle"]
+        assert llamadas == [], f"hizo DNS real: {llamadas} (gap 179)"
     finally:
         httpd.shutdown()
         httpd.server_close()  # gap 153: sin esto el socket queda en TIME_WAIT/abierto
         hilo.join(timeout=2)
         assert not hilo.is_alive(), "el hilo del servidor de test no terminó (gap 153)"
+
+
+def test_health_url_redireccion_a_location_mal_formado_no_lanza(tmp_path):
+    """Gap 184 (revisión Fase 4 intento 3): un `Location` con un corchete de IPv6 sin cerrar
+    (`http://[`) hace que `urllib.parse.urljoin`, dentro de `_urlopen_local`, lance `ValueError` —
+    antes escapaba de `health()` sin capturar (pese a que su docstring promete «nunca lanza»);
+    `verify()` ya lo capturaba porque su bloque agrupa `ValueError` por otra razón (el `json.loads`
+    del snapshot). `health()` debe degradar igual que las demás ramas de red, no lanzar."""
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+
+    class _Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(302)
+            self.send_header("Location", "http://[")
+            self.end_headers()
+
+        def log_message(self, *a, **k):  # noqa: D401 - silenciar logging de test
+            pass
+
+    httpd = HTTPServer(("127.0.0.1", 0), _Handler)
+    hilo = threading.Thread(target=httpd.serve_forever, daemon=True)
+    hilo.start()
+    try:
+        puerto = httpd.server_address[1]
+        salud = markdown_export.health(
+            {"health": {"url": f"http://127.0.0.1:{puerto}/health", "timeout_ms": 500}})
+        assert salud["estado"] == "error"
+        assert "mal formad" in salud["detalle"]
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
+        hilo.join(timeout=2)
 
 
 def test_health_url_servidor_local_responde_no_http_no_lanza(tmp_path):
@@ -542,6 +592,13 @@ def test_health_y_verify_sanean_bytes_crudos_del_servidor_en_detalle_y_motivo(tm
         assert "\r" not in salud["detalle"]
         assert "\n" not in salud["detalle"]
         assert "\x1b" not in salud["detalle"]
+        # gap 182 (revisión Fase 4 intento 3): la alternativa ANSI del patrón era INALCANZABLE
+        # (`[ -]` de `[\x00-\x1f\x7f]` casaba antes que `\x1b\[[0-9;]*[A-Za-z]` al ser la primera
+        # del `|`) — solo se sustituía el propio `\x1b`, dejando el resto de la secuencia
+        # (`[31m`, `[0m`) intacto en el texto. La aserción anterior (`"\x1b" not in ...`) no lo
+        # detectaba porque solo mira el ESC, no la secuencia completa.
+        assert "[31m" not in salud["detalle"], salud["detalle"]
+        assert "[0m" not in salud["detalle"], salud["detalle"]
         assert len(salud["detalle"]) <= 200
     finally:
         servidor.close()
@@ -558,7 +615,48 @@ def test_health_y_verify_sanean_bytes_crudos_del_servidor_en_detalle_y_motivo(tm
         assert "\r" not in motivo
         assert "\n" not in motivo
         assert "\x1b" not in motivo
+        assert "[31m" not in motivo, motivo  # gap 182
+        assert "[0m" not in motivo, motivo  # gap 182
         assert len(motivo) <= 200
+    finally:
+        servidor.close()
+        hilo.join(timeout=2)
+        assert not hilo.is_alive()
+
+
+def test_gap182_tope_200_se_aplica_al_texto_del_servidor_no_al_prefijo(tmp_path):
+    """Gap 182 (revisión Fase 4 intento 3): el tope de 200 caracteres se aplicaba DESPUÉS de
+    anteponer el prefijo propio (`f"respuesta no HTTP de {url}: ..."` pasaba ENTERO por
+    `_sanear_detalle`), así que una respuesta larga del servidor se llevaba menos de 200
+    caracteres de margen (el prefijo se comía parte del tope) y además el prefijo podía
+    desaparecer si el texto del servidor por sí solo ya llegaba a 200. El tope debe aplicarse
+    SOLO al texto no confiable del servidor, con el prefijo (de confianza, generado por este
+    módulo) SIEMPRE visible completo delante."""
+    import socket as socket_mod
+
+    servidor = socket_mod.socket(socket_mod.AF_INET, socket_mod.SOCK_STREAM)
+    servidor.bind(("127.0.0.1", 0))
+    servidor.listen(1)
+    puerto = servidor.getsockname()[1]
+    basura = b"X" * 5000
+
+    def _responder():
+        try:
+            conn, _addr = servidor.accept()
+            with conn:
+                conn.recv(1024)
+                conn.sendall(basura + b"\r\n\r\n")
+        except OSError:
+            pass
+
+    hilo = threading.Thread(target=_responder, daemon=True)
+    hilo.start()
+    try:
+        salud = markdown_export.health(
+            {"health": {"url": f"http://127.0.0.1:{puerto}/health", "timeout_ms": 500}})
+        assert salud["estado"] == "error"
+        assert salud["detalle"].startswith("respuesta no HTTP de "), salud["detalle"]
+        assert "X" * 200 in salud["detalle"], salud["detalle"]
     finally:
         servidor.close()
         hilo.join(timeout=2)
@@ -595,6 +693,12 @@ _ALLOWLIST_USOS_LOCALES_DE_RED = frozenset()
 
 _RUTA_SCRIPT_RE = re.compile(r"[\w./-]+\.(?:py|sh)")
 
+# gap 181 (revisión Fase 4 intento 3): el seguimiento de invocaciones era de UN SOLO NIVEL
+# (`session-journal.sh -> journal.py`, pero NO seguía lo que `journal.py` a su vez invoca —
+# `outbox.py`). Se acota a 4 saltos para no perseguir una cola arbitrariamente larga; `vistos`
+# corta cualquier ciclo real de invocaciones antes de llegar a ese tope.
+_MAX_PROFUNDIDAD_SEGUIMIENTO = 4
+
 
 def _texto_o_fallo_si_no_decodifica(ruta):
     """Lee un fichero en UTF-8; no decodificar es un FALLO explícito (gap 154), nunca un `skip`
@@ -612,9 +716,69 @@ def _lineas_de_codigo(texto, nombre_fichero=""):
     """Parte de CÓDIGO de cada línea (lo que precede al marcador de comentario) — gap 170: nada
     de subcadena sobre texto de comentario/documentación, ni para detectar un término prohibido
     (abajo) ni para seguir una invocación de script (gap 169: una línea que solo MENCIONE
-    `outbox.py` en un comentario, sin invocarlo, no debe hacer que el escaneo lo siga)."""
+    `outbox.py` en un comentario, sin invocarlo, no debe hacer que el escaneo lo siga).
+
+    Gap 178 (revisión Fase 4 intento 3, REGRESIÓN del fix del gap 170): `linea.split(marcador,
+    1)[0]` corta en el PRIMER marcador de la línea sin mirar si está dentro de una cadena
+    entrecomillada — `sed "s/#.*//" x; curl …` cortaba en el `#` DENTRO de `"s/#.*//"` y perdía el
+    `curl` que venía después (`1 passed` en vez de `1 failed`); en un `.js`, la `//` de una URL
+    (`"https://evil"`) cortaba igual y escondía cualquier término posterior en la misma línea. Se
+    recorta con `_recortar_comentario_de_codigo`, que respeta comillas simples/dobles y, para
+    `//`, exige que no vaya precedido de `:` (para no tropezar con URLs sueltas fuera de
+    comillas).
+
+    Gap 181 (revisión Fase 4 intento 3, hallado al implementar el seguimiento transitivo): en
+    `.py`, un DOCSTRING triple-comillado (`\"\"\"...\"\"\"`/`'''...'''`) es documentación, no
+    código — este propio repositorio narra sus gaps en docstrings extensos que mencionan de
+    pasada rutas de OTROS scripts reales (`evals/run.py`, `task-brief.py`, …), y con el
+    seguimiento transitivo esas menciones se colaban como «invocaciones» y arrastraban ficheros
+    ajenos (incluido, en una corrida real, `tests/test_console_encoding.py`) al escaneo de
+    términos prohibidos. Se descartan ANTES de partir en líneas, igual que ya se descartan los
+    comentarios `#`/`//`."""
+    texto = _quitar_docstrings_triple_comilla(texto, nombre_fichero)
     marcador = "//" if nombre_fichero.endswith(".js") else "#"
-    return [linea.split(marcador, 1)[0] for linea in texto.splitlines()]
+    return [_recortar_comentario_de_codigo(linea, marcador) for linea in texto.splitlines()]
+
+
+_DOCSTRING_TRIPLE_RE = re.compile(r'"""[\s\S]*?"""|\'\'\'[\s\S]*?\'\'\'')
+
+
+def _quitar_docstrings_triple_comilla(texto, nombre_fichero):
+    """Gap 181: solo se aplica a `.py` — un docstring triple-comillado es EXCLUSIVO de Python; en
+    `.sh`/`.js` no existe esa sintaxis y `'''`/`\"\"\"` ahí serían, como mucho, tres comillas
+    simples seguidas (ya cubiertas por el recorte por comillas de `_recortar_comentario_de_codigo`
+    línea a línea)."""
+    if not nombre_fichero.endswith(".py"):
+        return texto
+    return _DOCSTRING_TRIPLE_RE.sub("", texto)
+
+
+def _recortar_comentario_de_codigo(linea, marcador):
+    """Recorta `linea` en la primera aparición REAL del `marcador` de comentario: fuera de
+    cualquier cadena entrecomillada (`'`/`"`) y, si el marcador es `//`, solo si no va precedido
+    de `:` (para no tropezar con `https://…` cuando aparece fuera de comillas)."""
+    comilla_abierta = None
+    m = len(marcador)
+    i = 0
+    n = len(linea)
+    while i < n:
+        c = linea[i]
+        if comilla_abierta:
+            if c == comilla_abierta:
+                comilla_abierta = None
+            i += 1
+            continue
+        if c in ("'", '"'):
+            comilla_abierta = c
+            i += 1
+            continue
+        if linea[i:i + m] == marcador:
+            if marcador == "//" and i > 0 and linea[i - 1] == ":":
+                i += 1
+                continue
+            return linea[:i]
+        i += 1
+    return linea
 
 
 def _termino_en_codigo(texto_l, termino, nombre_fichero=""):
@@ -660,12 +824,23 @@ def _resolver_ruta_script(ruta_rel, root):
     return None
 
 
-def _ofensores_de_scripts_invocados(rutas_rel, root, vistos):
+def _ofensores_de_scripts_invocados(rutas_rel, root, vistos, profundidad=1):
     """gap 169: sigue las invocaciones — para cada ruta `.py`/`.sh` citada por un hook o un
     frontmatter, resuelve el fichero real y le aplica la MISMA lista de términos prohibidos (con
     la misma disciplina de código/frontera de palabra del gap 170/171), salvo que esté en la
-    allowlist explícita de usos locales legítimos."""
+    allowlist explícita de usos locales legítimos.
+
+    Gap 181 (revisión Fase 4 intento 3): el seguimiento era de UN SOLO NIVEL — un hook que invoca
+    un script "limpio" que a su vez invoca OTRO script con `urllib` pasaba desapercibido
+    (`session-journal.sh -> journal.py -> outbox.py`; `urllib` en `outbox.py` no se detectaba
+    porque nadie escaneaba más allá de `journal.py`). Ahora es TRANSITIVO: las rutas `.py`/`.sh`
+    que cada script resuelto invoca a su vez también se siguen, hasta
+    `_MAX_PROFUNDIDAD_SEGUIMIENTO` saltos — `vistos` sigue cortando cualquier ciclo (A invoca B
+    invoca A) antes de llegar a ese tope."""
     ofensores = []
+    if profundidad > _MAX_PROFUNDIDAD_SEGUIMIENTO:
+        return ofensores
+    siguientes_rutas = set()
     for ruta_rel in sorted(rutas_rel):
         resuelta = _resolver_ruta_script(ruta_rel, root)
         if not resuelta:
@@ -677,10 +852,14 @@ def _ofensores_de_scripts_invocados(rutas_rel, root, vistos):
         etiqueta = os.path.relpath(resuelta, root).replace(os.sep, "/")
         if etiqueta in _ALLOWLIST_USOS_LOCALES_DE_RED:
             continue
-        texto_script_l = _texto_o_fallo_si_no_decodifica(resuelta).lower()
+        texto_script = _texto_o_fallo_si_no_decodifica(resuelta)
+        texto_script_l = texto_script.lower()
         for termino in _TERMINOS_RED_PROHIBIDOS:
             if _termino_en_codigo(texto_script_l, termino, os.path.basename(resuelta)):
                 ofensores.append((etiqueta, termino))
+        siguientes_rutas |= _rutas_script_invocadas(texto_script, os.path.basename(resuelta))
+    if siguientes_rutas:
+        ofensores += _ofensores_de_scripts_invocados(siguientes_rutas, root, vistos, profundidad + 1)
     return ofensores
 
 
@@ -781,7 +960,7 @@ def test_mutante_hook_con_curl_en_subcarpeta_muere(tmp_path):
     sub = tmp_path / "sub"
     sub.mkdir()
     (sub / "malo.sh").write_text("#!/bin/sh\ncurl https://ejemplo.invalido/x\n", encoding="utf-8")
-    ofensores = _ofensores_de_red_en_hooks(str(tmp_path))
+    ofensores = _ofensores_de_red_en_hooks(str(tmp_path), root=str(tmp_path))
     assert ofensores == [(os.path.join("sub", "malo.sh"), "curl")]
 
 
@@ -790,7 +969,7 @@ def test_mutante_hook_no_decodificable_es_fallo_no_skip(tmp_path):
     no saltarse en silencio — un hook corrupto que ADEMÁS invoque red no debe colarse."""
     (tmp_path / "binario.bin").write_bytes(b"\xff\xfe\x00\x01\x02\x03")
     with pytest.raises(AssertionError):
-        _ofensores_de_red_en_hooks(str(tmp_path))
+        _ofensores_de_red_en_hooks(str(tmp_path), root=str(tmp_path))
 
 
 def test_mutante_frontmatter_de_agente_con_urllib_muere(tmp_path):
@@ -807,7 +986,7 @@ def test_mutante_frontmatter_de_agente_con_urllib_muere(tmp_path):
         "---\n\n# Falso\n"
     )
     (tmp_path / "falso.md").write_text(contenido, encoding="utf-8")
-    ofensores = _ofensores_de_red_en_frontmatter_agentes(str(tmp_path))
+    ofensores = _ofensores_de_red_en_frontmatter_agentes(str(tmp_path), root=str(tmp_path))
     assert ("falso.md", "urllib") in ofensores
     assert ("falso.md", "urlopen") in ofensores
 
@@ -832,7 +1011,7 @@ def test_mutante_frontmatter_con_segundo_matcher_tras_linea_en_blanco_muere(tmp_
         "---\n\n# Falso\n"
     )
     (tmp_path / "falso.md").write_text(contenido, encoding="utf-8")
-    ofensores = _ofensores_de_red_en_frontmatter_agentes(str(tmp_path))
+    ofensores = _ofensores_de_red_en_frontmatter_agentes(str(tmp_path), root=str(tmp_path))
     assert ("falso.md", "curl") in ofensores
 
 
@@ -856,7 +1035,7 @@ def test_mutante_frontmatter_con_comentario_a_columna_0_no_corta_el_bloque(tmp_p
         "---\n\n# Falso\n"
     )
     (tmp_path / "falso.md").write_text(contenido, encoding="utf-8")
-    ofensores = _ofensores_de_red_en_frontmatter_agentes(str(tmp_path))
+    ofensores = _ofensores_de_red_en_frontmatter_agentes(str(tmp_path), root=str(tmp_path))
     assert ("falso.md", "wget") in ofensores
 
 
@@ -876,7 +1055,7 @@ def test_mutante_frontmatter_se_detiene_en_la_siguiente_clave_de_nivel_0(tmp_pat
         "---\n\n# Falso\n"
     )
     (tmp_path / "falso.md").write_text(contenido, encoding="utf-8")
-    ofensores = _ofensores_de_red_en_frontmatter_agentes(str(tmp_path))
+    ofensores = _ofensores_de_red_en_frontmatter_agentes(str(tmp_path), root=str(tmp_path))
     assert ofensores == []
 
 
@@ -920,6 +1099,85 @@ def test_mutante_script_invocado_por_frontmatter_con_socket_muere(tmp_path):
     assert ("agent-kits/shared/ayudante2.py", "socket") in ofensores
 
 
+def test_gap181_seguimiento_transitivo_de_dos_saltos_muere(tmp_path):
+    """Gap 181 (revisión Fase 4 intento 3): el seguimiento de invocaciones era de UN SOLO NIVEL —
+    `hooks/invoca.sh` invoca `nivel1.py` (limpio), que a su vez invoca `nivel2.py` (con
+    `urllib`); antes de este fix `nivel2.py` nunca se escaneaba porque nadie seguía lo que
+    `nivel1.py` invoca. Reproduce el patrón real `session-journal.sh -> journal.py ->
+    outbox.py`."""
+    hooks_dir = tmp_path / "hooks"
+    hooks_dir.mkdir()
+    shared_dir = tmp_path / "agent-kits" / "shared"
+    shared_dir.mkdir(parents=True)
+    (hooks_dir / "invoca.sh").write_text(
+        "#!/bin/sh\npython3 \"$CLAUDE_PLUGIN_ROOT/agent-kits/shared/nivel1.py\"\n",
+        encoding="utf-8")
+    (shared_dir / "nivel1.py").write_text(
+        "import subprocess\nsubprocess.run(['python3', 'agent-kits/shared/nivel2.py'])\n",
+        encoding="utf-8")
+    (shared_dir / "nivel2.py").write_text(
+        "import urllib.request\nurllib.request.urlopen('http://x')\n", encoding="utf-8")
+    ofensores = _ofensores_de_red_en_hooks(str(hooks_dir), root=str(tmp_path))
+    assert ("agent-kits/shared/nivel2.py", "urllib") in ofensores
+    assert ("agent-kits/shared/nivel2.py", "urlopen") in ofensores
+    # nivel1.py en sí no menciona ningún término prohibido en su propio código.
+    assert all(etiqueta != "agent-kits/shared/nivel1.py" for etiqueta, _termino in ofensores)
+
+
+def test_gap181_ciclo_de_invocaciones_no_cuelga(tmp_path):
+    """Gap 181: un ciclo real de invocaciones (A invoca B, B invoca A) no debe colgar el escaneo
+    ni recursión infinita — `vistos` corta el ciclo antes de perseguirlo de nuevo, y el ofensor de
+    `curl` en `nivel_b.py` se detecta igualmente."""
+    hooks_dir = tmp_path / "hooks"
+    hooks_dir.mkdir()
+    shared_dir = tmp_path / "agent-kits" / "shared"
+    shared_dir.mkdir(parents=True)
+    (hooks_dir / "invoca.sh").write_text(
+        "#!/bin/sh\npython3 \"$CLAUDE_PLUGIN_ROOT/agent-kits/shared/nivel_a.py\"\n",
+        encoding="utf-8")
+    (shared_dir / "nivel_a.py").write_text(
+        "import subprocess\nsubprocess.run(['python3', 'agent-kits/shared/nivel_b.py'])\n",
+        encoding="utf-8")
+    (shared_dir / "nivel_b.py").write_text(
+        "import subprocess\n"
+        "subprocess.run(['python3', 'agent-kits/shared/nivel_a.py'])\n"
+        "subprocess.run(['curl', 'https://ejemplo.invalido/x'])\n",
+        encoding="utf-8")
+    ofensores = _ofensores_de_red_en_hooks(str(hooks_dir), root=str(tmp_path))
+    assert ("agent-kits/shared/nivel_b.py", "curl") in ofensores
+
+
+def test_gap181_docstring_de_script_seguido_no_arrastra_menciones_de_otros_ficheros(tmp_path):
+    """Gap 181 (hallado al implementar el seguimiento transitivo, no en la lista original de la
+    revisión): un script seguido transitivamente puede tener un DOCSTRING extenso (patrón real de
+    este repo) que MENCIONE de pasada la ruta de otro fichero real — sin invocarlo. Antes del
+    recorte de docstrings triple-comillados, esa mención colaba el fichero mencionado en el
+    escaneo (en una corrida real: `agent-kits/shared/outbox.py` mencionaba `knowledge-sync.py` en
+    su docstring y arrastraba, encadenado, `tests/test_console_encoding.py`). Aquí: `nivel1.py`
+    (seguido desde `hooks/invoca.sh`) documenta en su docstring que «esto lo usa también
+    otro_real.py», y `otro_real.py` (que SÍ existe en `tmp_path` y SÍ tiene `curl` en su código)
+    NO debe aparecer entre los ofensores porque nadie lo invoca de verdad."""
+    hooks_dir = tmp_path / "hooks"
+    hooks_dir.mkdir()
+    (hooks_dir / "invoca.sh").write_text(
+        "#!/bin/sh\npython3 \"$CLAUDE_PLUGIN_ROOT/otro_real.py\"\n", encoding="utf-8")
+    (tmp_path / "otro_real.py").write_text(
+        '"""Docstring que documenta, sin invocar, otro_real2.py."""\n'
+        "print('no hace red')\n",
+        encoding="utf-8")
+    (tmp_path / "otro_real2.py").write_text(
+        "import subprocess\nsubprocess.run(['curl', 'https://ejemplo.invalido/x'])\n",
+        encoding="utf-8")
+    # `otro_real.py` no vive bajo `agent-kits/shared/` ni `hooks/`, así que `_resolver_ruta_script`
+    # no lo encuentra por nombre — se ejercita directamente `_ofensores_de_scripts_invocados` con
+    # la ruta exacta para centrar el test en el recorte de docstrings, no en la resolución de
+    # rutas (ya cubierta por otros tests de esta suite).
+    ofensores = _ofensores_de_scripts_invocados({"otro_real.py"}, str(tmp_path), set())
+    assert ofensores == []
+    etiquetas = {etiqueta for etiqueta, _termino in ofensores}
+    assert "otro_real2.py" not in etiquetas
+
+
 def test_falso_positivo_comentario_documentando_la_prohibicion_no_rompe_la_suite(tmp_path):
     """Gap 170: un hook que DOCUMENTE la prohibición («no hace red ni curl ni urllib») en un
     comentario no debe contarse como ofensor — antes se buscaba la subcadena sobre el texto
@@ -929,7 +1187,7 @@ def test_falso_positivo_comentario_documentando_la_prohibicion_no_rompe_la_suite
         "# Este hook no hace red (ni curl ni urllib): solo informa via systemMessage.\n"
         "echo '{\"systemMessage\": \"ok\"}'\n",
         encoding="utf-8")
-    ofensores = _ofensores_de_red_en_hooks(str(tmp_path))
+    ofensores = _ofensores_de_red_en_hooks(str(tmp_path), root=str(tmp_path))
     assert ofensores == []
 
 
@@ -947,8 +1205,30 @@ def test_falso_positivo_comentario_en_frontmatter_no_rompe_la_suite(tmp_path):
         "---\n\n# Falso\n"
     )
     (tmp_path / "falso.md").write_text(contenido, encoding="utf-8")
-    ofensores = _ofensores_de_red_en_frontmatter_agentes(str(tmp_path))
+    ofensores = _ofensores_de_red_en_frontmatter_agentes(str(tmp_path), root=str(tmp_path))
     assert ofensores == []
+
+
+def test_regresion_gap178_termino_tras_comilla_con_almohadilla_se_detecta(tmp_path):
+    """Gap 178 (revisión Fase 4 intento 3): `sed "s/#.*//" x; curl …` tiene un `#` DENTRO de una
+    cadena entrecomillada (`"s/#.*//"`) — el corte naive en el primer `#` de la línea perdía el
+    `curl` que viene después del `;`. Con la cadena reconocida, el `#` interior no cuenta como
+    marcador y `curl` sigue siendo código."""
+    (tmp_path / "malo.sh").write_text(
+        "#!/bin/sh\n" 'sed "s/#.*//" x; curl https://ejemplo.invalido/x\n',
+        encoding="utf-8")
+    ofensores = _ofensores_de_red_en_hooks(str(tmp_path), root=str(tmp_path))
+    assert ("malo.sh", "curl") in ofensores
+
+
+def test_regresion_gap178_js_con_url_en_comillas_no_esconde_termino_posterior(tmp_path):
+    """Gap 178, mismo criterio en `.js` (marcador `//`): una URL entrecomillada (`"https://evil"`)
+    no debe cortar la línea antes de un `curl` que aparezca después — ni por estar dentro de
+    comillas, ni porque la `//` de `https://` va precedida de `:`."""
+    (tmp_path / "malo.js").write_text(
+        'const u = "https://evil"; curl(u);\n', encoding="utf-8")
+    ofensores = _ofensores_de_red_en_hooks(str(tmp_path), root=str(tmp_path))
+    assert (os.path.join("malo.js"), "curl") in ofensores
 
 
 def test_mutante_curator_gate_sin_extension_muere(tmp_path):
@@ -958,5 +1238,5 @@ def test_mutante_curator_gate_sin_extension_muere(tmp_path):
     (tmp_path / "malo.sh").write_text(
         "#!/bin/sh\ncurator-gate --decision approve --category DECISION\n",
         encoding="utf-8")
-    ofensores = _ofensores_de_red_en_hooks(str(tmp_path))
+    ofensores = _ofensores_de_red_en_hooks(str(tmp_path), root=str(tmp_path))
     assert ("malo.sh", "curator-gate") in ofensores
