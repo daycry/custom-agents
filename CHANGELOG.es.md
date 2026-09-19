@@ -9,6 +9,13 @@ y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Fixed — iniciativa `jira-review-comments` (2026-09-19)
+
+- **T-01 — La skill `adversarial-review` publica el evento `revision`/`gaps` de CADA intento** The adversarial review now posts its verdict to Jira after every attempt (the `revision`/`gaps` comment with the graded gap table), so each task's issue shows the result of each verification; before, four pieces each assumed another one would post it and nothing reached Jira.
+- **T-02 — Guardarraíl: test de propiedad única sobre los ficheros reales** A regression test now guards that exactly one piece owns posting the review verdict to Jira. (`tests/test_review_jira_owner.py`, `docs/roadmap/README.md`)
+- **T-03 — `jira-flow.py` elige la sección del intento por las tareas pedidas** The review comment posted to Jira for a task now comes from that task's own review round, not from a different phase that happened to share the same attempt number.
+- **T-04 — `ledger-lint.py` avisa de cabeceras de revisión que NO casan con el patrón** `ledger-lint` now flags review headers with the wrong shape so a task's Jira comment never silently comes from the wrong review round. (`agent-kits/shared/ledger-lint.py`, `tests/test_ledger_lint.py`)
+
 ### Added — iniciativa `knowledge-services` (2026-09-15)
 
 - **T-01 — Esquema versionado `taxonomy.schema.json`, `backends` y plantillas** El plugin ahora valida la configuración de conocimiento del proyecto (`taxonomy.json`) y sus backends declarados, con un default seguro y sensible al proyecto (sin id_prefix ni rutas de categoría inseguras heredadas del plugin) cuando el proyecto no configura nada.
