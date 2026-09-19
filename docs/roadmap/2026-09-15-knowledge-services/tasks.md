@@ -543,7 +543,7 @@ Fuera de esta ronda: la capa (b) del gap 6 (contencion por `realpath`) solo se e
 
 Con esto quedan cerrados los 34/34 gaps de las dos rondas de revision de dos lentes (22 del intento 1 + 12 del intento 2, incluidos los 5 Important #24/25/26/27/28 y los 6 Minor #29-#34) sobre Fase 1 completa y T-13.
 
-## Revisión de dos lentes — intento 3 (último del bucle): 11/11 gaps del intento 2 cerrados; 5 gaps NUEVOS (3 Important, 2 Minor, 0 Critical), lentes A+B, rango `cf23f02..47314a9`
+## Revisión de dos lentes — intento 3: último del bucle — 11/11 gaps del intento 2 cerrados; 5 gaps NUEVOS (3 Important, 2 Minor, 0 Critical), lentes A+B, rango `cf23f02..47314a9`
 
 Traspaso: las lentes re-evaluaron SOLO #24–#34 y no reabrieron nada de los intentos 1 y 2. Lente A: `test_console_encoding.py` -> `345 passed` (gap 28); coleccion completa `1803 tests collected`; snippet byte a byte identico a `model-tier.py:38-40`; `scope-check` exit 0; multi-runtime ✓ (solo stdlib, rutas por `dirname`, config bajo `.claude/`). Lente B: reprodujo #25–#34 por `importlib` (incl. junction `mklink /J` para el symlink que Windows no permite) y midio que la memoizacion sigue en 1 lectura de `taxonomy.json` por llamada.
 
@@ -570,7 +570,7 @@ Nota de medicion (transparencia): el marcador de `usage-meter` de esta ronda se 
 
 **Cierre del bucle de revisión (orquestador, 2026-09-18) — Fase 1 + T-13 sin gaps pendientes.** Ronda `fix4` (`55499be`, `c3e7aeb`) verificada de forma dirigida por el orquestador: los 6 tests nuevos de #37/#38/#39 pasan (`6 passed`); sonda propia del CLI con BOM (`main([ruta]) -> 0`, gap 39) y del orden contención-antes-de-dedupe en `build_index` (gap 37); suites de la iniciativa `118 passed, 1 skipped`; `test_console_encoding.py -k "knowledge or capabilities"` `32 passed`; `scope-check` 0 fuera de alcance; `lint_plugin` solo el ❌ preexistente de LES-016; `ledger-lint` 0 incoherencias. Sin entradas `propuesta` de esta iniciativa en `docs/knowledge/` que promover (ADR-018 ya `aceptada` en T-01). Gaps totales del bucle: 39 (1 Critical, 19 Important, 19 Minor); 37 corregidos, 1 corregido por el orquestador (#19/#23), 1 deuda aceptada (#21). Lentes que corrieron en los tres intentos: A+B (C y D no aplicaron por `review-lens-select.py`).
 
-## Revisión de dos lentes — intento 1 (Fase 2: T-04, T-05, T-06): 19 gaps (2 Critical, 9 Important, 8 Minor), lentes A+B (C y D no aplican por `review-lens-select.py`), rango `5cda8b9..230a876`
+## Revisión de dos lentes — intento 1: Fase 2 (T-04, T-05, T-06) — 19 gaps (2 Critical, 9 Important, 8 Minor), lentes A+B (C y D no aplican por `review-lens-select.py`), rango `5cda8b9..230a876`
 
 Puerta previa: `scope-check.py --base 5cda8b9` -> 24 ficheros, 0 fuera de alcance, exit 0. `export-interop.py --check` -> 50 ficheros al dia. `evals/check.py` -> 0 errores. Decisiones flaggeadas por el implementer: (a) contrato de `curator-gate.py` con `reject`/`needs_changes` exentos de evidencia -> conforme (design.md:59, criterio delegado «al aprobar»), con la salvedad del gap 58; (b) `documenter` solo crea en `pending/` -> conforme con respaldo literal (spec.md:28, ADR-018 §6); (c) trailer `Co-Authored-By` con el modelo del implementer -> neutro (sin regla en CONTRIBUTING/CONVENTIONS; distingue autoria). Numeracion continua del ledger (#40 en adelante).
 
@@ -598,7 +598,7 @@ Puerta previa: `scope-check.py --base 5cda8b9` -> 24 ficheros, 0 fuera de alcanc
 
 Fuera de esta ronda (anotado): `validar_aprobacion()` usa `ki._frontmatter` (API privada) sin fila en `CONTRACTS.md` (comparar con E12) -> T-10/T-11; `detectar_denylist` vuelca el texto del candidato en el mensaje sin recortar (Lente C no activa) -> T-10.
 
-## Revisión de dos lentes — intento 2 (Fase 2: T-04, T-05, T-06): 19/19 gaps del intento 1 cerrados; 13 gaps NUEVOS (2 Important, 11 Minor), lentes A+B, rango `4539ab2..e6ef4af`
+## Revisión de dos lentes — intento 2: Fase 2 (T-04, T-05, T-06) — 19/19 gaps del intento 1 cerrados; 13 gaps NUEVOS (2 Important, 11 Minor), lentes A+B, rango `4539ab2..e6ef4af`
 
 Traspaso: las lentes re-evaluaron SOLO #40–#58. Arbitraje de #52: la Lente B valida el rebate en el CODIGO actual (distingue presente-escalar de ausente) y la Lente A demuestra con `git log -S` que la correccion entro en `3766c79` (esta ronda), no antes -> gap cerrado, rebate incorrecto como traza, sin test (gap 61). Lente A: `test_console_encoding -k curator` 8 passed; `test_curator_gate.py` 29 passed; `test_ci_manual_copy.py` 10 passed; `export-interop --check` 50 al dia; `scope-check` 0 fuera; probes CLI de 41/48/53. Lente B: 37 probes (`importlib`/`subprocess`) sobre denylist, contencion, evidencia, colision, degradacion del kit y `estado`.
 
@@ -665,7 +665,7 @@ ledger-lint: 0 incoherencias · 6 avisos (tasks.md)   (los 6 avisos son T-07..T-
 
 Decisiones sin respaldo literal explícito (declaradas): (a) el término de lista negra `TODO:` se sigue plegando de acentos igual que cualquier otro término (gap 64) — no hay cita textual que lo exima, se aplica el mismo criterio a todos los términos por consistencia; (b) `--id` es opcional y su ausencia solo genera `aviso`, nunca error — decisión ya tomada por el gap 68 tal como lo describe la revisión, sin margen de interpretación adicional.
 
-## Revisión de dos lentes — intento 3 (Fase 2: T-04, T-05, T-06; último del bucle): 13/13 gaps del intento 2 cerrados; 10 gaps NUEVOS (3 Important, 7 Minor, 0 Critical), lentes A+B, rango `6dfcd42..df20d16`
+## Revisión de dos lentes — intento 3: Fase 2 (T-04, T-05, T-06; último del bucle) — 13/13 gaps del intento 2 cerrados; 10 gaps NUEVOS (3 Important, 7 Minor, 0 Critical), lentes A+B, rango `6dfcd42..df20d16`
 
 Traspaso: las lentes re-evaluaron SOLO #59–#71 (Lente A con probes CLI de 64/65/66/67/68/69 y `yaml.safe_load` sobre las 6 copias de workflow; Lente B con mutantes sobre copia del kit fuera del repo: `gap61-fuentes`, `gap61-tags`, `gap70-ki-fuera-del-try` -> `1 failed, 40 passed` cada uno, sin mutar `41 passed`). Nada de #1–#58 reabierto.
 
@@ -696,7 +696,7 @@ Comprobado y SIN defecto por la Lente B (para no reabrir): plegado de acentos si
 
 **Cierre del bucle de revisión de la Fase 2 (orquestador, 2026-09-18) — T-04, T-05, T-06 sin gaps pendientes.** Ronda `fix3` (`3dbdd88`) verificada de forma dirigida: los 8 tests nuevos de #75–#81 pasan; sondas propias: `--id` distinto del `id` del frontmatter -> exit 1 con los dos ids nombrados y validacion de prefijo (#75/#79), `--id "   "` -> exit 2 (#79), CI simulado con `CI=1` y `yaml` bloqueado -> `3 failed` explicitos en vez de skip y los 6 workflows instalan `pyyaml` (#76); `test_curator_gate.py` + `test_ci_manual_copy.py` + `test_copias_declaradas.py` `88 passed`; `test_console_encoding -k "curator or knowledge or capabilities"` `40 passed`; YAML de los 6 workflows valido; `export-interop --check` 50 al dia; `evals/check` 0; `scope-check` 0 fuera de alcance; `lint_plugin` solo el ❌ preexistente de LES-016; `ledger-lint` 0 incoherencias. Gaps de la Fase 2: 42 (#40–#81: 2 Critical, 14 Important, 26 Minor); 38 corregidos por el implementer, 4 por el orquestador (#55, #72, #73, #74), 0 rebatidos validos, 0 deuda. Lentes en los tres intentos: A+B (C y D no aplicaron). Sin entradas `propuesta` de esta iniciativa en `docs/knowledge/` que promover.
 
-## Revisión de dos lentes — intento 1 (Fase 3: T-07, T-08, T-09): 23 gaps (1 Critical, 16 Important, 6 Minor), lentes A+B+D (C no activa por `review-lens-select.py`, pero la Lente B levanto tres hallazgos de seguridad que el orquestador incorpora), rango `5a6a3f2..cecb3ac`
+## Revisión de dos lentes — intento 1: Fase 3 (T-07, T-08, T-09) — 23 gaps (1 Critical, 16 Important, 6 Minor), lentes A+B+D (C no activa por `review-lens-select.py`, pero la Lente B levanto tres hallazgos de seguridad que el orquestador incorpora), rango `5a6a3f2..cecb3ac`
 
 Puerta previa: `scope-check.py --base 5a6a3f2` -> 28 ficheros, 0 fuera de alcance, exit 0. `export-interop --check` 50 al dia; `evals/check` 0 errores (144 casos). Lente D activada por rutas (`markdown_export.py`, fixture `kwipu-query`, `test_backend_markdown_export.py`) y medida sobre un arbol sintetico de 500 entradas. **Validacion EN VIVO del orquestador** (previa a la revision, desde `%TEMP%/ks-live-demo` contra el bridge real `127.0.0.1:8765`): `health` -> `sano`; con `category: GOTCHA` `--dry-run` 1 entrada, `apply` escribe `demo.GOT-001.md` con frontmatter CA-17 + `manifest.json`, `--check` -> `verify.ok=false` con desfase y remedio «reindexar: `build_view` + reiniciar `kwipu`, `kwipu-bridge`, `kwipu-mcp`» (CA-16 cumplido). El cierre fisico (activar `generated_knowledge` en `projects.yaml`, `build_view`, `docker compose restart`) lo denego el clasificador de permisos: es del usuario. Hallazgos en vivo juzgados por la Lente A: (a) entrada sin `category` omitida en silencio -> gap 84; (b) health/export/verify conformes; (c) `escritos: 1` en el 2.o apply cuenta ops, no cambios -> no es gap de idempotencia, pero si de rendimiento (gap 93).
 
@@ -741,7 +741,7 @@ Rama `feature/knowledge-services`, sin nueva rama ni tocar `master`. Commits `T-
 - `python agent-kits/shared/scope-check.py docs/roadmap/2026-09-15-knowledge-services --base 5a6a3f2` -> exit 0, 34 en alcance, 0 fuera de alcance (se añadio `skills/knowledge-services/scripts/test_backends_init.py`, nuevo en esta ronda, al `Archivos` de T-07 con nota).
 - `python agent-kits/shared/ledger-lint.py docs/roadmap/2026-09-15-knowledge-services/tasks.md` -> `ledger-lint: 0 incoherencias · 3 avisos` (los 3 avisos son de T-10/T-11/T-12 sin campo `Changelog`, tareas de la Fase 4 aun no cerradas por esta ronda, sin relacion con los gaps 82-104).
 
-## Revisión de dos lentes — intento 2 (Fase 3: T-07, T-08, T-09): 21/23 gaps del intento 1 cerrados, 2 parciales (#82 Critical, #85); 17 gaps NUEVOS (1 Critical, 10 Important, 6 Minor), lentes A+B+D, rango `87a9fef..c27c969`
+## Revisión de dos lentes — intento 2: Fase 3 (T-07, T-08, T-09) — 21/23 gaps del intento 1 cerrados, 2 parciales (#82 Critical, #85); 17 gaps NUEVOS (1 Critical, 10 Important, 6 Minor), lentes A+B+D, rango `87a9fef..c27c969`
 
 Traspaso: las lentes re-evaluaron SOLO #82–#104. Lente D midio #93 (2.a corrida sin cambios: 28,5 s -> 1,1 s, `escritos 0`, mtime 0/500), #104 (500 `open()` en vez de 1000) y #94 (acotacion de `timeout_ms` si; tope total no). Lente B reprodujo 27 escenarios (probes, servidores falsos, `SIGKILL`, junction, 2 hilos). **Revalidacion EN VIVO del orquestador** con el adaptador corregido contra el bridge real: `health` sano; `--dry-run` 2 entradas; `apply` `escritos 2`; 2.o `apply` `escritos 0, sin_cambios 2`; `routing "summary"` publica solo el primer parrafo; `--check` desfase con remedio. Parciales del intento 1, ambos **cerrados en esta ronda `fix2`**: **#82** (publicacion fichero a fichero fuera de transaccion; fallo en la op N deja 1..N-1 publicados con manifiesto viejo; staging DENTRO de `export_dir` sin barrido) — corregido por `T-08-fix2` (`02b9c57`) con el rediseño de publicación por intercambio de directorio (staging hermano, swap de dos `os.replace`, reparación de arranque interrumpido, barrido de huérfanos por TTL; ver también gaps 109/115/118); **#85** (bullet «Sin red por diseño» en `commands/doctor.md:72`) — corregido por `T-09-fix2` (`bfe908f`): el bullet queda acotado explícitamente a la comprobación de versión del marketplace, aclarando que las capacidades opcionales SÍ hacen una comprobación en vivo acotada a hosts locales/privados y a un tope total de tiempo.
 
@@ -814,7 +814,7 @@ Los 3 avisos son T-10/T-11/T-12 sin campo `Changelog` (tareas de la Fase 4 aún 
 
 **Gaps de la Revisión de dos lentes — intento 2 (Fase 3): 19 (1 Critical, 10 Important, 6 Minor) + 2 parciales heredados del intento 1 (#82 Critical, #85 Minor); 21 corregidos en código (T-07-fix2/T-08-fix2/T-09-fix2), 2 corregidos en documentación (#113/#114, T-02-fix7/T-04-fix5), 0 rebatidos, 0 deuda de código (1 deuda de diseño declarada arriba, #116/#120).**
 
-## Revisión de dos lentes — intento 3 (Fase 3: T-07, T-08, T-09; último del bucle): 17 de 19 gaps cerrados; #82 y #116 siguen abiertos; 10 gaps NUEVOS (3 Critical, 3 Important, 4 Minor), lentes A+B (+D pendiente de anexo), rango `86b5838..36504ff`
+## Revisión de dos lentes — intento 3: Fase 3 (T-07, T-08, T-09; último del bucle) — 17 de 19 gaps cerrados; #82 y #116 siguen abiertos; 10 gaps NUEVOS (3 Critical, 3 Important, 4 Minor), lentes A+B (+D pendiente de anexo), rango `86b5838..36504ff`
 
 Traspaso: las lentes re-evaluaron SOLO #82, #85, #109–#125. Cerrados con evidencia: #85, #109 (rebuild real, fichero borrado regenerado, huerfanos retirados), #110 (`resumen:` E2E por CLI), #111, #112 (301/302/303/307/308 a host publico rechazados; a localhost permitidos; `file://` rechazado), #113, #114, #115, #117 (tope DNS; cache con matiz #130), #118, #119, #120 (letra), #121, #122, #123 (parcial: un `makedirs` por op), #124, #125. **Revalidacion EN VIVO del orquestador** con el mecanismo nuevo contra el bridge real: `health` sano, `apply` 2 escritos, 2.o apply 0 escritos/2 sin cambios, `resumen:` explicito respetado, fichero borrado a mano regenerado, `--rebuild` rc 0, sin restos hermanos, `--check` desfase con remedio. Todo eso es el camino feliz; los Critical de abajo estan en los caminos de fallo.
 
@@ -854,7 +854,7 @@ Sin defecto (Lente D): barrido de `.staging-*` = un `listdir` del padre; reparac
 |---|---|---|---|---|---|
 | 140 | Minor | La cola de la outbox crece un envelope por corrida fallida mientras dura el backoff (no acotada dentro de la ventana); se drena y agota intentos al vencer | T-07 | **deuda aceptada** (orquestador): acotar por numero maximo de pendientes propios es mejora, no defecto de correccion | probe del orquestador (15 corridas -> 15 pendientes, 0 dead-letter, recuperacion inmediata) |
 
-## Revisión de dos lentes — intento 1 (Fase 4: T-10, T-11, T-12): 20 gaps (0 Critical, 10 Important, 10 Minor), lentes A+B (C y D no aplican), rango `9d89568..32e98d8`
+## Revisión de dos lentes — intento 1: Fase 4 (T-10, T-11, T-12) — 20 gaps (0 Critical, 10 Important, 10 Minor), lentes A+B (C y D no aplican), rango `9d89568..32e98d8`
 
 Puerta previa: `scope-check.py --base 9d89568` -> 16 ficheros, 0 fuera de alcance, exit 0. Ambas lentes mataron los mutantes de filtrado (routing fail-open, denylist off, contencion off, `type` sin validar) y reprodujeron el RED de los 3 fixes heredados de T-10 contra `9d89568` (4 failed). `test_manifests` 4 passed tras `32e98d8`. `changelog-sync --check` sin pendientes; `ledger-lint` 0/0; `retro-gate` exit 1 (esperado). Stash `stash@{0}` del implementer: 1 linea de `tasks.md` ya superada por HEAD (se puede descartar).
 
@@ -923,7 +923,7 @@ No se ejecuta aqui de nuevo la suite completa del repo (`python -m pytest tests 
 
 **Tiempo IA (fix1, medido, mismo criterio que el gap #18):** `usage-meter.py status` confirma que los 5 marcadores (`T-10-fix1`, `T-02-fix8`, `T-08-fix5`, `T-11-fix1`, `T-12-fix1`) comparten la MISMA ventana (`01:00:13`-`01:00:14` de inicio, `01:34:56`-`01:34:58` de cierre, 1-2s de diferencia) — 0.68h totales repartidos a partes iguales entre las 5 tareas tocadas en esta ronda: 0.136h cada una (T-10-fix1), (T-02-fix8), (T-08-fix5), (T-11-fix1), (T-12-fix1), marcados `(medido)`.
 
-## Revisión de dos lentes — intento 2 (Fase 4: T-10, T-11, T-12): 17/20 cerrados + 3 parciales cerrados por el orquestador; 15 gaps NUEVOS (0 Critical, 6 Important, 9 Minor), lentes A+B, rango `c26461a..f023e56`
+## Revisión de dos lentes — intento 2: Fase 4 (T-10, T-11, T-12) — 17/20 cerrados + 3 parciales cerrados por el orquestador; 15 gaps NUEVOS (0 Critical, 6 Important, 9 Minor), lentes A+B, rango `c26461a..f023e56`
 
 Traspaso: ambas lentes re-evaluaron SOLO #141–#160. Lente A: 17 ✓, 3 parciales (#144 cita CA-14, #146 badge ES, #149 bloque de rojos) + 4 de traza; Lente B: 9/9 de codigo ✓ con 11 mutantes sobre copia (`file` en allowlist, reversion del fix 143, `utility>=8`, DNS siempre, `HTTPException` en `health`/`verify`, escaneo de `candidates/**` ×2, `curl` en `hooks/sub/`, `urlopen` en frontmatter real, fichero no UTF-8) y 5 sondas de evasion. **Los 7 gaps de la Lente A (#161–#167) los corrigio el orquestador en `3528f11`** (badge ES 10 agentes; fila CA-14 con los tests reales; bloque de rojos coherente «41 preexistentes + 1 propio corregido»; notas `T-02-fix8`/`T-08-fix5` con RED reproducido; LES-016 declarado en `Archivos` de T-12; evidencia de #142 sin constante inexistente; Verificacion de T-11 actualizada).
 
@@ -976,7 +976,7 @@ No se corrio de nuevo la suite completa del repo (instruccion explicita de esta 
 
 **Tiempo IA (fix2, estimado):** los tres marcadores de `usage-meter.py` (`T-10-fix2`, `T-02-fix9`, `T-08-fix6`) se abrieron y cerraron sin ventana de respuestas del modelo que medir (mismo patron que el gap del T-02-fix4 anterior — el trabajo real de esta ronda ya estaba hecho cuando se arrancaron los marcadores); a juicio, marcados `(estimado)`: 0.15h (T-10-fix2, gaps 168/169/170/171/175), 0.12h (T-02-fix9, gaps 172/173), 0.15h (T-08-fix6, gaps 174/176).
 
-## Revisión de dos lentes — intento 3 (Fase 4: T-10, T-11, T-12; último del bucle): 9/9 gaps del intento 2 cerrados; 9 gaps NUEVOS (0 Critical, 2 Important, 7 Minor), lentes A+B, rango `c7bc62d..bd63112`
+## Revisión de dos lentes — intento 3: Fase 4 (T-10, T-11, T-12; último del bucle) — 9/9 gaps del intento 2 cerrados; 9 gaps NUEVOS (0 Critical, 2 Important, 7 Minor), lentes A+B, rango `c7bc62d..bd63112`
 
 Traspaso: ambas lentes re-evaluaron SOLO #168–#176 (Lente B con 7 mutantes sobre copia, todos muertos, y sondas sobre el repo real: `urllib` en `journal.py` -> rojo; comentario legitimo -> verde; espia DNS global). Puertas: `lint_plugin` 0 errores; `evals/check` 0; `export-interop --check` 50; `scope-check --base 9d89568` 0 fuera; `ledger-lint` 0/0; `changelog-sync --check` sin pendientes; suite de la iniciativa `211 passed, 2 skipped`.
 

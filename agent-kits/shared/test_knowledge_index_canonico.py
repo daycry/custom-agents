@@ -490,7 +490,9 @@ def test_gap37_dedupe_con_junction_real_si_la_plataforma_lo_soporta(tmp_path):
     os.makedirs(lessons_dir, exist_ok=True)
     ruta_legitima = os.path.join(lessons_dir, "LES-1.md")
     with open(ruta_legitima, "w", encoding="utf-8") as f:
-        f.write("---\nid: LES-1\nversion: 1\n---\n\n# legitima\n")
+        # entrada LEGITIMA de verdad (aprobada y con `category`): asi el unico error posible del indice es el de
+        # contencion, y la asercion final no puede quedar satisfecha por otro motivo (en CI Linux fallaba por `category`)
+        f.write("---\nid: LES-1\nversion: 1\nestado: aprobado\ncategory: LESSON\n---\n\n# legitima\n")
 
     adr_dir = os.path.join(root, "docs", "knowledge", "approved", "adr")
     os.makedirs(adr_dir, exist_ok=True)
@@ -517,7 +519,12 @@ def test_gap37_dedupe_con_junction_real_si_la_plataforma_lo_soporta(tmp_path):
     assert "ADR-1" in indice
     assert "LES-1" in indice
     assert indice["LES-1"]["ruta"] == ruta_legitima
-    assert any("fuera de la carpeta aprobada" in e["mensaje"] for e in errores)
+    # Windows: `os.walk` entra en la junction (parece un directorio real) y la contencion la rechaza con error.
+    # POSIX: `os.walk(followlinks=False)` NO entra en el symlink, asi que no hay nada que rechazar (CI Linux).
+    # Ambos cumplen el invariante del gap 37: la entrada legitima sigue en el indice con su ruta real y sin duplicado.
+    mensajes = [e["mensaje"] for e in errores]
+    otros = [m for m in mensajes if "fuera de la carpeta aprobada" not in m]
+    assert not otros, f"el unico error admisible es el de contencion: {otros}"
 
 
 def test_gap33_estado_presente_sin_valor_tiene_mensaje_propio(tmp_path):
