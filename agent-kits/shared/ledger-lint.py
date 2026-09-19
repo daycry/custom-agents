@@ -478,6 +478,20 @@ def lint(path):
             warnings.append(f"{t['id']}: sin campo **Changelog** (otras tareas lo declaran) — su "
                             f"bullet del CHANGELOG degradará al título")
 
+    # ---- cabeceras de revisión que no casan con REVISION_HDR_PATTERN (T-04, jira-review-comments) ----
+    # `jira-flow.py` (evento `revision`/`gaps`) y `task-brief.py` solo VEN las secciones que casan con
+    # este patrón — una cabecera con paréntesis tras el número («intento 1 (Fase 2: T-04): …») no
+    # casa (el patrón exige `:` o fin de línea justo tras el número) y esa sección queda invisible
+    # para los dos, sin aviso alguno hasta ahora: el implementer creía que el mecanismo fallaba
+    # cuando en realidad la sección nunca se veía.
+    for i, ln in enumerate(text.splitlines(), 1):
+        s = ln.strip()
+        if s.startswith("## Revisi") and "dos lentes" in s and not REVISION_HDR_RE.match(s):
+            warnings.append(
+                f"línea {i}: cabecera de revisión no casa con REVISION_HDR_PATTERN: "
+                f"jira-flow/task-brief no la verán — usa `## Revisión de dos lentes — "
+                f"intento N: <resumen>` (sin paréntesis tras N)")
+
     # ---- tabla de resumen (completadas/total por fase) ----
     resumen_rows = re.findall(
         r"^\|\s*\*{0,2}\s*(Fase\s+(?:\d+|única|unica)\b[^|*]*)\*{0,2}\s*\|\s*\*{0,2}(\d+)\*{0,2}\*?\s*\|\s*\*{0,2}(\d+)\*{0,2}\s*\|",

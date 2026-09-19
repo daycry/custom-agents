@@ -383,6 +383,154 @@ def test_gaps_intento_inexistente_exit_2(ledger):
     assert code == 2 and "intento 9" in err
 
 
+# ------------------------------------------- revision / gaps: varias fases, mismo número de intento
+
+LEDGER_MULTIFASE = """---
+tasks: demo-multifase
+descripcion: Iniciativa de prueba con dos fases, cada una con su propio "intento 1".
+estado: en-progreso
+creado: 2026-09-19
+actualizado: 2026-09-19
+via: rapida
+verificacion: obligatoria
+generacion:
+  fuente: estimado
+---
+
+# Checklist de Tareas — demo-multifase (vía rápida)
+
+## Resumen de progreso
+
+| Fase | Completadas | Total | Progreso |
+|------|------------|-------|----------|
+| Fase 1 | 2 | 2 | 100% |
+| Fase 2 | 2 | 2 | 100% |
+
+## Fase 1 — Endpoint de health-check
+
+### T-01 — Endpoint de health-check
+
+- **Descripción**: Añade `GET /health`.
+- **Estado**: completado
+- **Archivos**: `app/health.py`
+- **Verificación**: `python3 -m pytest -q tests/test_health.py` → 3 passed.
+
+**Criterios de aceptación**
+- [x] `GET /health` devuelve 200.
+
+### T-02 — Documentar el endpoint
+
+- **Descripción**: Documenta `GET /health` en el README, sin código.
+- **Estado**: completado
+- **Archivos**: `README.md`
+- **Verificación**: `grep -c health README.md` → 1.
+
+**Criterios de aceptación**
+- [x] El README menciona `/health`.
+
+## Revisión de dos lentes — intento 1: 1 gap corregido (0 Critical, 1 Important, 0 Minor)
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 1 | Important | Falta validar que la DB responde antes de devolver 200 | T-01 | Añadido `db.ping()` con timeout | `test_health_falla_si_db_cae` |
+
+## Fase 2 — Panel de administración
+
+### T-04 — Listado paginado
+
+- **Descripción**: Endpoint `GET /admin/items` paginado.
+- **Estado**: completado
+- **Archivos**: `app/admin.py`
+- **Verificación**: `python3 -m pytest -q tests/test_admin.py` → 2 passed.
+
+**Criterios de aceptación**
+- [x] `GET /admin/items` pagina por `?page=`.
+
+### T-05 — Autorización del panel
+
+- **Descripción**: Solo usuarios `admin` acceden al panel.
+- **Estado**: completado
+- **Archivos**: `app/auth.py`
+- **Verificación**: `python3 -m pytest -q tests/test_auth.py` → 2 passed.
+
+**Criterios de aceptación**
+- [x] Un usuario no-admin recibe 403.
+
+## Revisión de dos lentes — intento 1: 1 gap corregido para T-04; T-05 sin gaps (0 Critical, 1 Important, 0 Minor)
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 1 | Important | La paginación no valida `page<=0` | T-04 | Añadida validación con 400 | `test_admin_page_invalida` |
+"""
+
+
+@pytest.fixture
+def ledger_multifase(tmp_path):
+    """Como `ledger`, pero con DOS fases que comparten el mismo número de intento (1): reproduce el
+    ledger real de `knowledge-services`, donde cada fase arranca su propio bucle de revisión."""
+    (tmp_path / ".claude").mkdir(exist_ok=True)
+    (tmp_path / ".claude" / "jira.json").write_text('{"enabled": true}', encoding="utf-8")
+    p = tmp_path / "tasks.md"
+    p.write_text(LEDGER_MULTIFASE, encoding="utf-8")
+    return str(p)
+
+
+def test_gaps_intento_repetido_elige_la_seccion_que_menciona_la_tarea_pedida(ledger_multifase):
+    """(a) Dos secciones «intento 1» (una por fase): `--task T-04` trae la tabla de la Fase 2, NUNCA
+    la de la Fase 1 (T-01)."""
+    plan = _plan_json("--ledger", ledger_multifase, "--event", "gaps", "--actor", "reviewer",
+                      "--task", "T-04", "--intento", "1",
+                      "--state", str(_state_con_claves(ledger_multifase, **{"T-04": "PROJ-4"})))
+    cuerpo = next(o for o in plan["ops"] if o["tipo"] == "comentario")["cuerpo"]
+    assert "La paginación no valida" in cuerpo
+    assert "db.ping()" not in cuerpo   # gap de la Fase 1 (T-01) — no debe colarse
+    assert not any("ninguna menciona" in a for a in plan["avisos"])   # match directo, sin fallback
+
+
+def test_gaps_intento_repetido_tarea_de_la_otra_fase(ledger_multifase):
+    """(a bis) `--task T-01` sigue trayendo la tabla de la Fase 1, no la de la Fase 2."""
+    plan = _plan_json("--ledger", ledger_multifase, "--event", "gaps", "--actor", "reviewer",
+                      "--task", "T-01", "--intento", "1",
+                      "--state", str(_state_con_claves(ledger_multifase, **{"T-01": "PROJ-1"})))
+    cuerpo = next(o for o in plan["ops"] if o["tipo"] == "comentario")["cuerpo"]
+    assert "db.ping()" in cuerpo
+    assert "La paginación no valida" not in cuerpo
+
+
+def test_revision_intento_repetido_usa_la_seccion_de_la_tarea_pedida(ledger_multifase):
+    """(b) `--task T-05 --intento 1`: la Fase 2 dice «sin gaps» para T-05 (solo T-04 tiene fila), pero
+    la Fase 1 SÍ tenía gaps (de T-01) con el mismo número de intento. Debe ganar la Fase 2 (la que
+    menciona T-05) y aceptar el evento `revision` (exit 0), no fallar con «SÍ tiene gaps»."""
+    plan = _plan_json("--ledger", ledger_multifase, "--event", "revision", "--actor", "reviewer",
+                      "--task", "T-05", "--intento", "1",
+                      "--state", str(_state_con_claves(ledger_multifase, **{"T-05": "PROJ-5"})))
+    cuerpo = next(o for o in plan["ops"] if o["tipo"] == "comentario")["cuerpo"]
+    assert "T-05" in cuerpo
+    assert not any(o["tipo"] == "transicion" for o in plan["ops"])   # revisión limpia: sin reabrir
+
+
+def test_gaps_intento_repetido_tarea_sin_mencion_cae_en_la_ultima_con_aviso(ledger_multifase):
+    """(c) Una tarea que ninguna de las secciones «intento 1» menciona (ni cabecera ni columna
+    Tarea): cae en la ÚLTIMA sección (la de la Fase 2) y avisa del porqué, en vez de fallar en
+    silencio con la sección arbitraria de la Fase 1."""
+    plan = _plan_json("--ledger", ledger_multifase, "--event", "revision", "--actor", "reviewer",
+                      "--task", "T-02", "--intento", "1",
+                      "--state", str(_state_con_claves(ledger_multifase, **{"T-02": "PROJ-2"})))
+    assert any("ninguna menciona" in a and "T-02" in a for a in plan["avisos"])
+    cuerpo = next(o for o in plan["ops"] if o["tipo"] == "comentario")["cuerpo"]
+    assert "db.ping()" not in cuerpo   # NO la sección de la Fase 1 elegida a ciegas
+
+
+def test_seccion_unica_de_ese_intento_no_cambia_de_comportamiento(ledger):
+    """(d) Con una sola sección para ese `intento` (el ledger clásico de un intento por fase), el
+    resultado es idéntico al de antes de este cambio: sigue funcionando la suite existente arriba
+    (`test_revision_sin_gaps_usa_el_resumen_del_ledger`, etc.) — este test solo documenta el caso."""
+    plan = _plan_json("--ledger", ledger, "--event", "revision", "--actor", "reviewer",
+                      "--task", "T-01", "--intento", "2", "--fecha", "2026-09-03")
+    cuerpo = next(o for o in plan["ops"] if o["tipo"] == "comentario")["cuerpo"]
+    assert "intento 2: sin gaps" in cuerpo
+
+
 # ---------------------------------------------------------------- qa-verde / qa-rojo
 
 def test_qa_verde_incluye_resumen_y_evidencia_derivada_del_slug(ledger):

@@ -263,42 +263,78 @@ def _split_fila_md(ln):
     return celdas
 
 
-def seccion_revision(texto, intento):
-    """(resumen_cabecera, [filas de gap]) de la sección `## Revisión de dos lentes — intento N`.
-    Cada fila: {"grado","gap","tarea","correccion","evidencia"}. (None, []) si no existe esa N."""
+def seccion_revision(texto, intento, tareas=None):
+    """(resumen_cabecera, [filas de gap], aviso) de la sección `## Revisión de dos lentes —
+    intento N`. Cada fila: {"grado","gap","tarea","correccion","evidencia"}. (None, [], None) si
+    no existe esa N.
+
+    Un ledger con varias fases tiene una cabecera «intento 1» POR FASE: coger la PRIMERA que
+    encaje con ese número (como hacía antes) es arbitrario y cuela gaps/resúmenes de la fase
+    equivocada. Con `tareas` (lista de `T-XX` pedidas), entre TODAS las secciones con ese
+    `intento`, elige la que MENCIONE alguna de esas tareas — SOLO en la cabecera/resumen o en la
+    columna `Tarea` de sus filas (patrón T-NN), nunca en `Corrección`/`Evidencia`: esas
+    celdas citan tests y otras tareas de contexto y darían falsos positivos en un ledger real con
+    fases que se referencian entre sí. Si ninguna sección menciona las tareas pedidas, la ÚLTIMA
+    (la más reciente), con `aviso` explicando el porqué. Con una sola sección para ese `intento`,
+    o sin `tareas`, el criterio no cambia: se usa esa única sección (o la primera, si `tareas` es
+    `None`)."""
     matches = list(_REVISION_HDR_RE.finditer(texto))
-    objetivo = next((m for m in matches if int(m.group(1)) == intento), None)
-    if not objetivo:
-        return None, []
-    resumen = (objetivo.group(2) or "").strip()   # cabecera sin `: resumen` → cadena vacía
-    inicio = objetivo.end()
-    fin = matches[matches.index(objetivo) + 1].start() if matches.index(objetivo) + 1 < len(matches) \
-        else len(texto)
-    cuerpo = texto[inicio:fin]
-    # párrafo de contexto ANTES de la tabla (si lo hay) — se une al resumen de la cabecera; se para
-    # en la primera fila `|` para no arrastrar notas/callouts posteriores a la tabla (pueden ser largos)
-    parrafo = []
-    for ln in cuerpo.splitlines():
-        s = ln.strip()
-        if s.startswith("|"):
-            break
-        if s:
-            parrafo.append(s)
-    if parrafo:
-        resumen = (resumen + " " + " ".join(parrafo)).strip()
-    filas = []
-    for ln in cuerpo.splitlines():
-        ln = ln.strip()
-        if not ln.startswith("|") or set(ln.replace("|", "").strip()) <= {"-", " "}:
-            continue
-        celdas = _split_fila_md(ln)
-        if len(celdas) < 6 or celdas[0] in ("#", ""):
-            continue
-        if not re.match(r"^\d+$", celdas[0]):
-            continue
-        filas.append({"num": celdas[0], "grado": celdas[1], "gap": celdas[2],
-                      "tarea": celdas[3], "correccion": celdas[4], "evidencia": celdas[5]})
-    return resumen, filas
+    candidatos = [m for m in matches if int(m.group(1)) == intento]
+    if not candidatos:
+        return None, [], None
+
+    def _extraer(m):
+        """(resumen, filas) de la sección que empieza en el match `m` — misma lógica de párrafo de
+        contexto + parseo de tabla que antes, ahora reutilizable para CUALQUIER candidato, no solo
+        el finalmente elegido (así el criterio de selección usa los mismos datos que el resultado)."""
+        resumen_m = (m.group(2) or "").strip()   # cabecera sin `: resumen` → cadena vacía
+        i = matches.index(m)
+        fin_m = matches[i + 1].start() if i + 1 < len(matches) else len(texto)
+        cuerpo_m = texto[m.end():fin_m]
+        parrafo = []
+        for ln in cuerpo_m.splitlines():
+            s = ln.strip()
+            if s.startswith("|"):
+                break
+            if s:
+                parrafo.append(s)
+        if parrafo:
+            resumen_m = (resumen_m + " " + " ".join(parrafo)).strip()
+        filas_m = []
+        for ln in cuerpo_m.splitlines():
+            ln = ln.strip()
+            if not ln.startswith("|") or set(ln.replace("|", "").strip()) <= {"-", " "}:
+                continue
+            celdas = _split_fila_md(ln)
+            if len(celdas) < 6 or celdas[0] in ("#", ""):
+                continue
+            if not re.match(r"^\d+$", celdas[0]):
+                continue
+            filas_m.append({"num": celdas[0], "grado": celdas[1], "gap": celdas[2],
+                            "tarea": celdas[3], "correccion": celdas[4], "evidencia": celdas[5]})
+        return resumen_m, filas_m
+
+    objetivo = candidatos[0]
+    aviso = None
+    if len(candidatos) > 1 and tareas:
+        def _menciona(m):
+            resumen_m, filas_m = _extraer(m)
+            mencionadas = set(re.findall(r"\bT-\d{2}\b", resumen_m))
+            for f in filas_m:
+                mencionadas |= set(re.findall(r"\bT-\d{2}\b", f["tarea"]))
+            return any(t in mencionadas for t in tareas)
+
+        coincide = [m for m in candidatos if _menciona(m)]
+        if coincide:
+            objetivo = coincide[0]
+        else:
+            objetivo = candidatos[-1]
+            aviso = (f"el intento {intento} tiene {len(candidatos)} secciones «## Revisión de dos "
+                     f"lentes — intento {intento}» (probablemente una por fase) y ninguna menciona "
+                     f"{', '.join(tareas)} en la cabecera o en la columna Tarea: se usa la última "
+                     f"(más reciente) — revisa si es la sección correcta")
+    resumen, filas = _extraer(objetivo)
+    return resumen, filas, aviso
 
 
 # ------------------------------------------------------------------ plantillas + firma
@@ -510,7 +546,7 @@ def evidencia_aprobado(texto, tareas, qa_verde):
     # párrafo de contexto que `seccion_revision` le pega para el comentario de `revision` aquí solo
     # alargaría el comentario de Done.
     resumen = (ultimo.group(2) or "").strip()
-    _, filas = seccion_revision(texto, intento)
+    _, filas, _ = seccion_revision(texto, intento, tareas)
     pendientes = [f for f in filas if f["tarea"] in tareas and _gap_pendiente(f)]
     if pendientes:
         detalle = "; ".join(f"#{f['num']} {f['grado']}: {_acortar(f['gap'], 60)}" for f in pendientes)
@@ -610,9 +646,11 @@ def construir_plan(args):
 
     elif args.event in ("revision", "gaps"):
         intento = args.intento          # obligatorio para estos dos eventos (validado arriba)
-        resumen_hdr, filas = seccion_revision(texto, intento)
+        resumen_hdr, filas, aviso_seccion = seccion_revision(texto, intento, tareas)
         if resumen_hdr is None:
             return None, [f"no hay sección `## Revisión de dos lentes — intento {intento}` en el ledger"], 2
+        if aviso_seccion:
+            avisos.append(aviso_seccion)
         filas_tarea = [f for f in filas if f["tarea"] in tareas]
         if args.event == "gaps" and not filas_tarea:
             return None, [f"el intento {intento} no tiene gaps para {', '.join(tareas)} — usa `--event revision`"], 2
