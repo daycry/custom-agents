@@ -306,9 +306,6 @@ def main(argv=None):
               f"(declarados: {sorted(backends_declarados) or 'ninguno'})", file=sys.stderr)
         return 2
     decl = backends_declarados[args.backend] or {}
-    if not decl.get("enabled", False):
-        print(f"knowledge-sync: backend `{args.backend}` tiene `enabled: false` en taxonomy.json", file=sys.stderr)
-        return 2
     tipo = decl.get("type")
     if not tipo:
         print(f"knowledge-sync: backend `{args.backend}` no declara `type` en taxonomy.json", file=sys.stderr)
@@ -321,6 +318,12 @@ def main(argv=None):
         # unica puerta de entrada prevista por el plan (T-02 la aplazo "a T-04/T-05")-. Solo tiene
         # sentido para el backend `graphiti` (el resto no tiene tipos de entidad que proponer, ni
         # necesita que su adaptador este disponible para ESTE modo -no toca red ni manifiestos-).
+        #
+        # Gap #61 (Minor): este modo no toca red ni manifiestos -solo propone `entity_map`/tipos a
+        # partir de la taxonomía local- así que NO depende de que el backend esté habilitado. El
+        # chequeo de `enabled: false` corria ANTES de esta rama, y la plantilla por defecto envia
+        # `graphiti` con `enabled: false` -así que `--propose-config` era inalcanzable en la
+        # configuración de fábrica, justo el caso de uso mas comun (proponer antes de habilitar).
         if tipo != "graphiti":
             print(f"knowledge-sync: --propose-config solo aplica a backends `type: graphiti` "
                   f"(`{args.backend}` es `{tipo}`)", file=sys.stderr)
@@ -336,6 +339,10 @@ def main(argv=None):
             print(json.dumps(propuesta["entity_map"], ensure_ascii=False, indent=2))
             print(f"\n{propuesta['nota']}")
         return 0
+
+    if not decl.get("enabled", False):
+        print(f"knowledge-sync: backend `{args.backend}` tiene `enabled: false` en taxonomy.json", file=sys.stderr)
+        return 2
 
     try:
         adaptador = binit.cargar_adaptador(tipo, directorios=[BACKENDS_DIR, *args.backends_dir])

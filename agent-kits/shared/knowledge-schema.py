@@ -62,6 +62,7 @@ _BACKEND_CLAVES = ("type", "enabled", "config")
 _GRAPHITI_CONFIG_CLAVES = (
     "mode", "endpoint", "group_id", "allow_remote", "provider", "entity_map",
     "relations", "router", "telemetria", "health", "timeout_ms", "concurrency",
+    "episode_body_max_kb",
 )
 _GRAPHITI_PROVIDER_CLAVES = ("llm", "model", "embedder", "embedder_model", "base_url", "api_key_env")
 _GRAPHITI_ROUTER_CLAVES = ("intents", "default")
@@ -76,6 +77,19 @@ _ENV_VAR_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _SUFIJOS_LOCALES = (".test", ".local", ".internal")
 _HOSTS_LOCALES_LITERALES = {"localhost", "host.docker.internal"}
 # --8<-- fin hosts locales COMPARTIDO
+
+
+def _normalizar_ip(ip):
+    """Gap #53 (Critical): un literal IPv4-mapeado en IPv6 (`::ffff:169.254.169.254`,
+    `::ffff:0.0.0.0`, `::ffff:8.8.8.8`) no es `is_loopback`/`is_private` a ojos de
+    `ipaddress.IPv6Address` -esos atributos solo miran el prefijo IPv6 nativo-, así que
+    `_endpoint_es_local` podía dar por NO-local (fail-closed, exigiendo `allow_remote: true`) un
+    endpoint que en realidad SÍ resuelve a loopback/privado, o viceversa con el link-local de
+    metadatos de nube. Se normaliza SIEMPRE a la IPv4 equivalente antes de clasificar (mismo
+    criterio que `graphiti.py::_normalizar_ip`, no se declara como bloque compartido porque cada
+    fichero la aplica sobre un objeto `ipaddress` obtenido de forma distinta)."""
+    mapeada = getattr(ip, "ipv4_mapped", None)
+    return mapeada if mapeada is not None else ip
 
 
 def _endpoint_es_local(endpoint):
@@ -96,10 +110,24 @@ def _endpoint_es_local(endpoint):
     if host in _HOSTS_LOCALES_LITERALES or host.endswith(_SUFIJOS_LOCALES):
         return True
     try:
-        ip = ipaddress.ip_address(host)
+        ip = _normalizar_ip(ipaddress.ip_address(host))
     except ValueError:
         return False
     return bool(ip.is_loopback or ip.is_private)
+
+
+def _url_parseable(url):
+    """Gap #63 (Minor, doble fail-open): `_url_con_userinfo` fail-abre a `False` (no hay
+    userinfo) ante una URL que `urlsplit` no puede interpretar (p. ej. un `[` suelto en el
+    userinfo), así que una URL de ese tipo saltaba el chequeo de credenciales embebidas y caía
+    directa al chequeo de host local, que SÍ interpolaba la URL cruda (con las credenciales) en
+    el mensaje de error. Se rechaza explícitamente cualquier URL no parseable ANTES de esos dos
+    chequeos, sin repetir la URL en el mensaje."""
+    try:
+        urllib.parse.urlparse(url)
+        return True
+    except ValueError:
+        return False
 
 # Respaldo embebido si `templates/taxonomy.json` no viaja con este fichero (instalación parcial
 # o paquete portable "solo skills" — ver agent-kits/shared/README.md). El bloque de abajo (desde
@@ -263,6 +291,11 @@ def _validar_backend_graphiti(bcfg, campo, fichero, errores):
         elif not (endpoint.startswith("http://") or endpoint.startswith("https://")):
             errores.append(_error(
                 "`endpoint` debe ser una URL http(s)", fichero, f"{campo_c}.endpoint"))
+        elif not _url_parseable(endpoint):
+            # gap #63: no se interpola `endpoint` -si no se puede ni parsear no hay forma segura
+            # de mostrarlo sin arriesgar credenciales embebidas mal formadas.
+            errores.append(_error(
+                "`endpoint` no es una URL válida (no se puede interpretar)", fichero, f"{campo_c}.endpoint"))
         elif _url_con_userinfo(endpoint):
             # gap #43: userinfo (`usuario:token@host`) nunca se acepta, aunque el host sea local.
             errores.append(_error(
@@ -345,6 +378,16 @@ def _validar_backend_graphiti(bcfg, campo, fichero, errores):
             errores.append(_error(
                 "`concurrency` debe ser un entero mayor o igual que 1", fichero, f"{campo_c}.concurrency"))
 
+    episode_body_max_kb = config.get("episode_body_max_kb")
+    if "episode_body_max_kb" in config and not _numero_finito_mayor_que(episode_body_max_kb, 0):
+        # Gap #64 (Minor): tope configurable, con aviso, del tamaño de `episode_body` que viaja
+        # a `add_memory` (el arbitraje de #42 lo pedía); mismo guardarraíl que `timeout_ms`
+        # (entero finito, nunca bool, > 0 — el default de 512 KiB lo aplica `graphiti.py` cuando
+        # la clave no está declarada).
+        errores.append(_error(
+            "`episode_body_max_kb` debe ser un entero finito y mayor que 0",
+            fichero, f"{campo_c}.episode_body_max_kb"))
+
     relations = config.get("relations")
     if relations is not None:
         if not isinstance(relations, list) or not all(
@@ -395,6 +438,11 @@ def _validar_backend_graphiti(bcfg, campo, fichero, errores):
                 elif not (health_url.startswith("http://") or health_url.startswith("https://")):
                     errores.append(_error(
                         "`health.url` debe ser una URL http(s)", fichero, f"{campo_c}.health.url"))
+                elif not _url_parseable(health_url):
+                    # gap #63: mismo guardarraíl que `endpoint`, sin interpolar la URL cruda.
+                    errores.append(_error(
+                        "`health.url` no es una URL válida (no se puede interpretar)",
+                        fichero, f"{campo_c}.health.url"))
                 elif _url_con_userinfo(health_url):
                     # gap #43: mismo guardarraíl que `endpoint`.
                     errores.append(_error(
