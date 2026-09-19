@@ -733,3 +733,119 @@ def test_gap143_enlace_con_comentario_inline_no_es_falso_enlace_roto(tmp_path):
     indice, errores = ki.build_index(root)
     assert errores == [], errores
     assert indice["ADR-ORIGEN"]["enlaces"] == ["ADR-DESTINO"]
+
+
+# --------------------------------------------------------- gaps 172/173 (revision de dos
+# lentes, Fase 4 intento 2): `_recortar_comentario_inline` recorta con UN espacio antes de `#`
+# (YAML no exige dos), nunca dentro de comillas, y nunca si `#` va pegado al valor.
+
+def test_gap172_comentario_inline_con_un_solo_espacio_se_recorta(tmp_path):
+    """Gap 172: el recorte anterior exigia `"  #"` (DOS espacios); YAML marca un comentario con
+    UNO solo. `- ADR-002 # ver` (un espacio) dejaba `"ADR-002 # ver"` entero como item, y en
+    `enlaces:` eso producia un falso `enlace roto` porque ese id compuesto nunca existe."""
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    d = os.path.join(root, "docs", "knowledge", "approved", "adr")
+    os.makedirs(d, exist_ok=True)
+    with open(os.path.join(d, "ADR-002.md"), "w", encoding="utf-8") as f:
+        f.write("---\nid: ADR-002\nversion: 1\nestado: aprobado\ncategory: DECISION\n---\n\n# d\n")
+    contenido = (
+        "---\nid: ADR-ORIGEN-172\nversion: 1\nestado: aprobado\ncategory: DECISION\n"
+        "enlaces:\n  - ADR-002 # ver\n---\n\n# o\n"
+    )
+    with open(os.path.join(d, "ADR-ORIGEN-172.md"), "w", encoding="utf-8") as f:
+        f.write(contenido)
+    indice, errores = ki.build_index(root)
+    assert errores == [], errores
+    assert indice["ADR-ORIGEN-172"]["enlaces"] == ["ADR-002"]
+
+
+def test_gap173_comentario_inline_tras_dos_espacios_sigue_funcionando(tmp_path):
+    """Gap 172/173: la forma anterior (DOS espacios) no debe romperse con el fix del espacio
+    unico."""
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    d = os.path.join(root, "docs", "knowledge", "approved", "adr")
+    os.makedirs(d, exist_ok=True)
+    contenido = (
+        "---\nid: ADR-DOSESPACIOS\nversion: 1\nestado: aprobado\ncategory: DECISION\n"
+        "fuentes:\n  - https://a  # nota inline\n---\n\n# x\n"
+    )
+    with open(os.path.join(d, "ADR-DOSESPACIOS.md"), "w", encoding="utf-8") as f:
+        f.write(contenido)
+    indice, errores = ki.build_index(root)
+    assert errores == [], errores
+    assert indice["ADR-DOSESPACIOS"]["fuentes"] == ["https://a"]
+
+
+def test_gap173_comentario_dentro_de_comillas_no_se_recorta(tmp_path):
+    """Gap 173: el recorte se aplicaba ANTES de quitar comillas — `- "a  # b"` perdia todo lo que
+    seguia al `#` aunque estuviera DENTRO de la cadena entrecomillada (`-> "a"` en vez de
+    `"a  # b"`). Un `#` dentro de comillas nunca es un comentario YAML."""
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    d = os.path.join(root, "docs", "knowledge", "approved", "adr")
+    os.makedirs(d, exist_ok=True)
+    contenido = (
+        "---\nid: ADR-COMILLAS\nversion: 1\nestado: aprobado\ncategory: DECISION\n"
+        "fuentes:\n  - \"a  # b\"\n---\n\n# x\n"
+    )
+    with open(os.path.join(d, "ADR-COMILLAS.md"), "w", encoding="utf-8") as f:
+        f.write(contenido)
+    indice, errores = ki.build_index(root)
+    assert errores == [], errores
+    assert indice["ADR-COMILLAS"]["fuentes"] == ["a  # b"]
+
+
+def test_gap173_hash_pegado_al_valor_url_con_fragmento_no_se_recorta(tmp_path):
+    """Gap 173: `#` pegado al valor (fragmento de URL) no es un comentario."""
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    d = os.path.join(root, "docs", "knowledge", "approved", "adr")
+    os.makedirs(d, exist_ok=True)
+    contenido = (
+        "---\nid: ADR-FRAGMENTO\nversion: 1\nestado: aprobado\ncategory: DECISION\n"
+        "fuentes:\n  - https://a#frag\n---\n\n# x\n"
+    )
+    with open(os.path.join(d, "ADR-FRAGMENTO.md"), "w", encoding="utf-8") as f:
+        f.write(contenido)
+    indice, errores = ki.build_index(root)
+    assert errores == [], errores
+    assert indice["ADR-FRAGMENTO"]["fuentes"] == ["https://a#frag"]
+
+
+def test_gap173_hash_pegado_al_valor_lenguaje_csharp_no_se_recorta(tmp_path):
+    """Gap 173: `C#` (nombre de lenguaje) no debe perder la `#` — no hay espacio delante."""
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    d = os.path.join(root, "docs", "knowledge", "approved", "adr")
+    os.makedirs(d, exist_ok=True)
+    contenido = (
+        "---\nid: ADR-CSHARP\nversion: 1\nestado: aprobado\ncategory: DECISION\n"
+        "tags:\n  - C#\n---\n\n# x\n"
+    )
+    with open(os.path.join(d, "ADR-CSHARP.md"), "w", encoding="utf-8") as f:
+        f.write(contenido)
+    indice, errores = ki.build_index(root)
+    assert errores == [], errores
+    assert indice["ADR-CSHARP"]["tags"] == ["C#"]
+
+
+def test_gap173_hash_pegado_al_valor_ancla_de_seccion_no_se_recorta(tmp_path):
+    """Gap 173: `ADR-001#sec` (ancla de sección) no debe perder la `#` — no hay espacio
+    delante."""
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    d = os.path.join(root, "docs", "knowledge", "approved", "adr")
+    os.makedirs(d, exist_ok=True)
+    with open(os.path.join(d, "ADR-001.md"), "w", encoding="utf-8") as f:
+        f.write("---\nid: ADR-001\nversion: 1\nestado: aprobado\ncategory: DECISION\n---\n\n# d\n")
+    contenido = (
+        "---\nid: ADR-ANCLA\nversion: 1\nestado: aprobado\ncategory: DECISION\n"
+        "fuentes:\n  - ADR-001#sec\n---\n\n# x\n"
+    )
+    with open(os.path.join(d, "ADR-ANCLA.md"), "w", encoding="utf-8") as f:
+        f.write(contenido)
+    indice, errores = ki.build_index(root)
+    assert errores == [], errores
+    assert indice["ADR-ANCLA"]["fuentes"] == ["ADR-001#sec"]

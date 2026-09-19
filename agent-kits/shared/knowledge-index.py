@@ -93,6 +93,32 @@ _LISTA_RE = re.compile(r"^\[(.*)\]$")
 _ITEM_BLOQUE_RE = re.compile(r"^-\s*(.+)$")
 
 
+def _recortar_comentario_inline(contenido):
+    """Recorta el comentario inline (si lo hay) de un item de lista en bloque (gap 172/173,
+    revisión de dos lentes Fase 4 intento 2). Reglas, por orden:
+
+    - Un `#` DENTRO de un valor entrecomillado (`'` o `"`) nunca es un comentario — se ignora
+      mientras se está dentro de las comillas, tanto si el `#` viene precedido de espacio como si
+      no (`- "a  # b"` conserva `a  # b` completo, no solo `a`).
+    - Fuera de comillas, un `#` precedido de un espacio o un tab SÍ es un comentario YAML (basta
+      UN espacio, no dos) y todo desde ahí (incluido ese espacio) se descarta.
+    - Un `#` pegado al valor sin espacio delante (`https://a#frag`, `C#`, `ADR-001#sec`) no es un
+      comentario: no se recorta.
+    """
+    comilla_abierta = None
+    for i, c in enumerate(contenido):
+        if comilla_abierta:
+            if c == comilla_abierta:
+                comilla_abierta = None
+            continue
+        if c in ('"', "'"):
+            comilla_abierta = c
+            continue
+        if c == "#" and i > 0 and contenido[i - 1] in (" ", "\t"):
+            return contenido[: i - 1].rstrip()
+    return contenido
+
+
 def _frontmatter(texto):
     """Parser mínimo de frontmatter YAML-simple: escalares, listas `[a, b]` de una línea y listas
     en bloque (`enlaces:` seguido de líneas `  - X`, gap 9 — el `knowledge-curator`/documenter
@@ -159,14 +185,22 @@ def _frontmatter(texto):
             # saltaba un comentario en SU PROPIA línea (`  # nota`, sin guion) — una línea
             # `- # nota` SÍ casa con `_ITEM_BLOQUE_RE` (guion + contenido) y colaba `"# nota"`
             # como item basura. Se trata igual que un comentario suelto: se salta sin consumir el
-            # item. `- valor  # nota` (comentario tras DOS espacios) conserva solo `valor` — un
-            # `#` pegado al valor (p. ej. un fragmento de URL, `https://a#frag`) no se recorta,
-            # solo la forma con dos espacios de por medio se considera comentario.
+            # item.
             contenido_item = mi.group(1)
             if contenido_item.strip().startswith("#"):
                 j += 1
                 continue
-            valor_item, _, _resto = contenido_item.partition("  #")
+            # gap 172/173 (revisión de dos lentes, Fase 4 intento 2): el recorte exigía DOS
+            # espacios antes de `#` (`partition("  #")`), pero YAML marca un comentario inline con
+            # UN solo espacio o tab delante — `- ADR-002 # ver` (un espacio) colaba `"ADR-002 # ver"`
+            # entero como item, produciendo un falso «enlace roto». Además se recortaba ANTES de
+            # quitar comillas: `- "a  # b"` perdía todo lo que seguía a `#` aunque estuviera DENTRO
+            # de la cadena entrecomillada. `_recortar_comentario_inline` distingue: (a) un `#`
+            # precedido de espacio/tab y FUERA de comillas es un comentario y se recorta; (b) un
+            # `#` dentro de un valor entrecomillado nunca es un comentario, se conserva íntegro; (c)
+            # un `#` pegado al valor sin espacio delante (`https://a#frag`, `C#`, `ADR-001#sec`)
+            # tampoco se recorta.
+            valor_item = _recortar_comentario_inline(contenido_item)
             items.append(valor_item.strip().strip('"').strip("'"))
             j += 1
         if items:
