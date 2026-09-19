@@ -19,6 +19,7 @@ Ejecutar: python -m pytest -q tests/test_knowledge_services.py
 import importlib.util
 import json
 import os
+import re
 import sys
 import threading
 
@@ -368,12 +369,13 @@ def test_health_url_file_scheme_con_host_local_se_rechaza_sin_resolver_dns(monke
     assert llamadas == []
 
 
-def test_health_url_host_publico_se_rechaza_sin_conexion():
-    salud = markdown_export.health({"health": {"url": "http://example.com/health", "timeout_ms": 100}})
-    assert salud["estado"] == "error"
-    assert "no local" in salud["detalle"]
-
-
+# gap 175 (revisión de dos lentes, Fase 4 intento 2): el test anterior de host público usaba
+# `example.com`, que hace una resolución DNS REAL en cada corrida de la suite (lenta, no
+# determinista sin red, y un host genuino de terceros al que no deberíamos apuntar ni para
+# resolverlo). Se retira en favor del siguiente, que cubre EXACTAMENTE el mismo caso (host
+# público rechazado, `estado == "error"`, `"no local"` en el detalle) con una IP literal y un
+# espía sobre `socket.gethostbyname` que demuestra que no hace ninguna llamada — ningún test de
+# esta suite hace ya DNS real.
 def test_health_url_host_publico_ip_literal_se_rechaza_sin_dns_real(monkeypatch):
     """Gap 152: la versión con `example.com` hace una resolución DNS REAL (lenta y no
     determinista en CI sin red); usando una IP pública LITERAL no hace falta resolver nada — el
@@ -453,6 +455,116 @@ def test_health_url_servidor_local_responde_no_http_no_lanza(tmp_path):
         assert not hilo.is_alive()
 
 
+def test_verify_url_servidor_local_responde_no_http_no_lanza(tmp_path):
+    """Gap 174: `health()` ya tenía cubierta la mitad de la excepción de `http.client.HTTPException`
+    (gap 155), pero `verify()` captura la MISMA excepción en su propia llamada a `/graph/snapshot`
+    (`markdown_export.py`) sin que ningún test la ejerciera — un mutante que quitara
+    `http.client.HTTPException` de la tupla de `except` de `verify()` seguía dejando la suite en
+    verde. Un servidor local (permitido) que responde texto no-HTTP debe degradar `verify()` a
+    `ok: False`, nunca lanzar."""
+    import socket as socket_mod
+
+    export_dir = str(tmp_path / "export")
+    os.makedirs(export_dir, exist_ok=True)
+    manifest_path = os.path.join(export_dir, "manifest.json")
+    with open(manifest_path, "w", encoding="utf-8") as f:
+        json.dump({"version": 1, "entries": {
+            "mr.pattern.x": {"ruta_relativa": "x.md", "hash": "abc"}}}, f)
+
+    servidor = socket_mod.socket(socket_mod.AF_INET, socket_mod.SOCK_STREAM)
+    servidor.bind(("127.0.0.1", 0))
+    servidor.listen(1)
+    puerto = servidor.getsockname()[1]
+
+    def _responder():
+        try:
+            conn, _addr = servidor.accept()
+            with conn:
+                conn.recv(1024)
+                conn.sendall(b"esto no es HTTP en absoluto\r\n\r\n")
+        except OSError:
+            pass
+
+    hilo = threading.Thread(target=_responder, daemon=True)
+    hilo.start()
+    try:
+        cfg = {"export_dir": export_dir,
+               "health": {"url": f"http://127.0.0.1:{puerto}/health", "timeout_ms": 500}}
+        resultado = markdown_export.verify(cfg)
+        assert resultado["ok"] is False
+        assert resultado["desfase"]
+    finally:
+        servidor.close()
+        hilo.join(timeout=2)
+        assert not hilo.is_alive()
+
+
+def test_health_y_verify_sanean_bytes_crudos_del_servidor_en_detalle_y_motivo(tmp_path):
+    """Gap 176 (CWE-117, señalado fuera de lente por la Lente B): `health()`/`verify()` embebían
+    los bytes crudos de la excepción de red (mensaje de `OSError`/`HTTPException`, que puede
+    contener lo que el servidor haya devuelto) directamente en `detalle`/`motivo`, que acaban
+    impresos por `/doctor` — un servidor que responda CRLF + secuencias ANSI podía inyectar
+    saltos de línea/color en esa salida. Se sanea: recorte a 200 caracteres y los caracteres de
+    control (incluidas secuencias ANSI) se sustituyen por un espacio."""
+    import socket as socket_mod
+
+    export_dir = str(tmp_path / "export")
+    os.makedirs(export_dir, exist_ok=True)
+    manifest_path = os.path.join(export_dir, "manifest.json")
+    with open(manifest_path, "w", encoding="utf-8") as f:
+        json.dump({"version": 1, "entries": {
+            "mr.pattern.x": {"ruta_relativa": "x.md", "hash": "abc"}}}, f)
+
+    def _servidor_con_basura_ansi():
+        servidor = socket_mod.socket(socket_mod.AF_INET, socket_mod.SOCK_STREAM)
+        servidor.bind(("127.0.0.1", 0))
+        servidor.listen(1)
+        puerto = servidor.getsockname()[1]
+
+        def _responder():
+            try:
+                conn, _addr = servidor.accept()
+                with conn:
+                    conn.recv(1024)
+                    conn.sendall(b"basura\r\n\x1b[31mrojo\x1b[0m\r\n\r\n")
+            except OSError:
+                pass
+
+        hilo = threading.Thread(target=_responder, daemon=True)
+        hilo.start()
+        return servidor, hilo, puerto
+
+    servidor, hilo, puerto = _servidor_con_basura_ansi()
+    try:
+        salud = markdown_export.health(
+            {"health": {"url": f"http://127.0.0.1:{puerto}/health", "timeout_ms": 500}})
+        assert salud["estado"] == "error"
+        assert "\r" not in salud["detalle"]
+        assert "\n" not in salud["detalle"]
+        assert "\x1b" not in salud["detalle"]
+        assert len(salud["detalle"]) <= 200
+    finally:
+        servidor.close()
+        hilo.join(timeout=2)
+        assert not hilo.is_alive()
+
+    servidor, hilo, puerto = _servidor_con_basura_ansi()
+    try:
+        cfg = {"export_dir": export_dir,
+               "health": {"url": f"http://127.0.0.1:{puerto}/health", "timeout_ms": 500}}
+        resultado = markdown_export.verify(cfg)
+        assert resultado["ok"] is False
+        motivo = resultado["desfase"][0]["motivo"]
+        assert "\r" not in motivo
+        assert "\n" not in motivo
+        assert "\x1b" not in motivo
+        assert len(motivo) <= 200
+    finally:
+        servidor.close()
+        hilo.join(timeout=2)
+        assert not hilo.is_alive()
+
+
 # ------------------------------------------------------------------ hooks sin red ----
 
 # gap 141/154 (revisión de dos lentes, Fase 4 intento 1): la lista anterior solo buscaba los dos
@@ -462,15 +574,26 @@ def test_health_url_servidor_local_responde_no_http_no_lanza(tmp_path):
 # `agents/*.md` (un agente puede declarar un hook `command` inline con la misma red prohibida sin
 # que exista ningún fichero bajo `hooks/`). Se amplía a los términos de red/publicación que la
 # revisión señaló (`urllib`, `urlopen`, `socket`, `http.client`, `requests`, `curl`, `wget`,
-# `Invoke-WebRequest`, `markdown_export`) y a `knowledge-sync` SIN extensión (un `command` puede
-# invocar el script por su nombre de módulo, sin `.py`, según el shell).
+# `Invoke-WebRequest`, `markdown_export`) y a `knowledge-sync`/`curator-gate` SIN extensión (un
+# `command` puede invocar el script por su nombre de módulo, sin `.py`, según el shell — gap 171,
+# revisión Fase 4 intento 2: la lista anterior tenía `knowledge-sync` sin extensión pero no su
+# gemelo `curator-gate`, asimetría sin motivo).
 _TERMINOS_RED_PROHIBIDOS = (
-    "knowledge-sync.py", "knowledge-sync", "curator-gate.py", "markdown_export",
+    "knowledge-sync.py", "knowledge-sync", "curator-gate.py", "curator-gate", "markdown_export",
     "urllib", "urlopen", "socket", "http.client", "requests", "curl", "wget",
     "invoke-webrequest",
 )
 
-_HOOKS_FRONTMATTER_RE = None  # se compila perezosamente (evita el import de `re` en el módulo)
+# gap 169 (revisión Fase 4 intento 2): comprobado con grep ANTES de este fix — ninguno de los
+# scripts que los hooks/frontmatter invocan hoy (`agent-kits/shared/{guardrail-check,ledger-lint,
+# progress-report,journal,skill-index,knowledge-find}.py`) usa `socket`/`urllib`/`http.client`/
+# `requests`/`curl`/`wget` para nada, legítimo o no. Si alguno lo necesitase en el futuro (p. ej.
+# una resolución DNS puramente local), se declara aquí con su ruta relativa al repo y el motivo —
+# ese script queda excluido del escaneo de scripts invocados, nunca de los hooks/frontmatter
+# directos.
+_ALLOWLIST_USOS_LOCALES_DE_RED = frozenset()
+
+_RUTA_SCRIPT_RE = re.compile(r"[\w./-]+\.(?:py|sh)")
 
 
 def _texto_o_fallo_si_no_decodifica(ruta):
@@ -485,49 +608,169 @@ def _texto_o_fallo_si_no_decodifica(ruta):
         raise AssertionError(f"`{ruta}` no es UTF-8 decodificable: {e}") from e
 
 
-def _ofensores_de_red_en_hooks(hooks_dir=None):
-    """Recorre `hooks/**` RECURSIVAMENTE (gap 154: antes solo el nivel superior)."""
-    hooks_dir = hooks_dir if hooks_dir is not None else HOOKS_DIR
+def _lineas_de_codigo(texto, nombre_fichero=""):
+    """Parte de CÓDIGO de cada línea (lo que precede al marcador de comentario) — gap 170: nada
+    de subcadena sobre texto de comentario/documentación, ni para detectar un término prohibido
+    (abajo) ni para seguir una invocación de script (gap 169: una línea que solo MENCIONE
+    `outbox.py` en un comentario, sin invocarlo, no debe hacer que el escaneo lo siga)."""
+    marcador = "//" if nombre_fichero.endswith(".js") else "#"
+    return [linea.split(marcador, 1)[0] for linea in texto.splitlines()]
+
+
+def _termino_en_codigo(texto_l, termino, nombre_fichero=""):
+    """Gap 170/171 (revisión Fase 4 intento 2): antes se buscaba `termino in texto_l` sobre el
+    TEXTO COMPLETO del fichero, así que un hook que solo DOCUMENTASE la prohibición («no hace red
+    ni curl ni urllib») rompía la suite por subcadena en su propio comentario. Se mira solo la
+    parte de CÓDIGO de cada línea y con frontera de "palabra" (un guion cuenta como parte del
+    término — `curator-gate` no debe casar dentro de un identificador más largo, ni al revés)."""
+    patron = re.compile(r"(?<![\w-])" + re.escape(termino) + r"(?![\w-])")
+    for codigo in _lineas_de_codigo(texto_l, nombre_fichero):
+        if patron.search(codigo):
+            return True
+    return False
+
+
+def _rutas_script_invocadas(texto, nombre_fichero=""):
+    """gap 169: rutas `.py`/`.sh` citadas en la parte de CÓDIGO de un hook/frontmatter (p. ej.
+    `python3 "$SHARED/journal.py"`, `bash "hooks/mark-docs-pending.sh"`,
+    `agent-kits/shared/guardrail-check.py`) — el `$VAR/` delante de una ruta no forma parte de la
+    ruta de fichero real, así que se descarta junto con la barra que lo sigue. Gap 170: solo en
+    código, no en un comentario que meramente MENCIONE el nombre de otro script sin invocarlo (p.
+    ej. una nota de diseño que dice «esto también lo usa outbox.py» no debe hacer que el escaneo
+    se vaya a leer `outbox.py` y le aplique la lista de términos)."""
+    rutas = set()
+    for codigo in _lineas_de_codigo(texto, nombre_fichero):
+        rutas |= {m.group(0).lstrip("$/") for m in _RUTA_SCRIPT_RE.finditer(codigo)}
+    return rutas
+
+
+def _resolver_ruta_script(ruta_rel, root):
+    """gap 169: resuelve una ruta citada (relativa al repo, o solo el nombre de fichero tras una
+    variable de shell) contra `root`; si no existe tal cual, cae a buscarla por NOMBRE bajo
+    `agent-kits/shared/` y `hooks/` (las dos carpetas donde viven hoy los scripts que los hooks
+    invocan)."""
+    candidato = os.path.normpath(os.path.join(root, ruta_rel))
+    if os.path.isfile(candidato):
+        return candidato
+    nombre = os.path.basename(ruta_rel)
+    for carpeta in (os.path.join(root, "agent-kits", "shared"), os.path.join(root, "hooks")):
+        posible = os.path.join(carpeta, nombre)
+        if os.path.isfile(posible):
+            return posible
+    return None
+
+
+def _ofensores_de_scripts_invocados(rutas_rel, root, vistos):
+    """gap 169: sigue las invocaciones — para cada ruta `.py`/`.sh` citada por un hook o un
+    frontmatter, resuelve el fichero real y le aplica la MISMA lista de términos prohibidos (con
+    la misma disciplina de código/frontera de palabra del gap 170/171), salvo que esté en la
+    allowlist explícita de usos locales legítimos."""
     ofensores = []
-    for raiz, _dirs, ficheros in os.walk(hooks_dir):
-        for nombre in sorted(ficheros):
-            ruta = os.path.join(raiz, nombre)
-            texto_l = _texto_o_fallo_si_no_decodifica(ruta).lower()
-            for termino in _TERMINOS_RED_PROHIBIDOS:
-                if termino in texto_l:
-                    ofensores.append((os.path.relpath(ruta, hooks_dir), termino))
+    for ruta_rel in sorted(rutas_rel):
+        resuelta = _resolver_ruta_script(ruta_rel, root)
+        if not resuelta:
+            continue
+        resuelta = os.path.normpath(resuelta)
+        if resuelta in vistos:
+            continue
+        vistos.add(resuelta)
+        etiqueta = os.path.relpath(resuelta, root).replace(os.sep, "/")
+        if etiqueta in _ALLOWLIST_USOS_LOCALES_DE_RED:
+            continue
+        texto_script_l = _texto_o_fallo_si_no_decodifica(resuelta).lower()
+        for termino in _TERMINOS_RED_PROHIBIDOS:
+            if _termino_en_codigo(texto_script_l, termino, os.path.basename(resuelta)):
+                ofensores.append((etiqueta, termino))
     return ofensores
 
 
-def _ofensores_de_red_en_frontmatter_agentes(agents_dir=None):
-    """`hooks:` en el frontmatter de `agents/*.md` (gap 154: nadie lo miraba)."""
-    import re
+def _ofensores_de_red_en_hooks(hooks_dir=None, root=None):
+    """Recorre `hooks/**` RECURSIVAMENTE (gap 154: antes solo el nivel superior) y, gap 169,
+    sigue además los scripts que cada hook invoca fuera de `hooks/`."""
+    hooks_dir = hooks_dir if hooks_dir is not None else HOOKS_DIR
+    root = root if root is not None else ROOT
+    ofensores = []
+    scripts_invocados = set()
+    vistos = set()
+    for raiz, _dirs, ficheros in os.walk(hooks_dir):
+        for nombre in sorted(ficheros):
+            ruta = os.path.join(raiz, nombre)
+            vistos.add(os.path.normpath(ruta))
+            texto = _texto_o_fallo_si_no_decodifica(ruta)
+            texto_l = texto.lower()
+            for termino in _TERMINOS_RED_PROHIBIDOS:
+                if _termino_en_codigo(texto_l, termino, nombre):
+                    ofensores.append((os.path.relpath(ruta, hooks_dir), termino))
+            scripts_invocados |= _rutas_script_invocadas(texto)
+    ofensores += _ofensores_de_scripts_invocados(scripts_invocados, root, vistos)
+    return ofensores
+
+
+def _bloque_hooks_frontmatter(texto):
+    """gap 168 (revisión Fase 4 intento 2): la versión anterior (`(?:[ \\t]+\\S.*\\n?)*`) exigía
+    que TODAS las líneas del bloque estuvieran indentadas y no vacías — se cortaba en la primera
+    línea en blanco o en el primer comentario a columna 0 intercalados dentro de un `hooks:` real
+    (ambos son YAML válido dentro de un bloque de mapeo, y de hecho `agents/implementer.md` y
+    `agents/architect.md` tienen un comentario a columna 0 justo debajo de su bloque `hooks:`,
+    antes de `dependencies:`). Ahora se extrae TODO desde `hooks:` hasta la siguiente CLAVE de
+    nivel 0 del frontmatter (`^[A-Za-z_][\\w-]*:` sin indentar) o el cierre `---`, incluyendo
+    líneas en blanco y comentarios intercalados."""
+    # `splitlines()` normaliza CRLF/LF por igual (gap 168, hallado al escribir el test en disco en
+    # Windows: un `\r\n` tras `hooks:` no casaba con un `\n` literal en la regex anterior).
+    todas = texto.splitlines(keepends=True)
+    inicio = None
+    for idx, linea in enumerate(todas):
+        if linea.rstrip("\r\n") == "hooks:":
+            inicio = idx + 1
+            break
+    if inicio is None:
+        return None
+    clave_top_re = re.compile(r"^[A-Za-z_][\w-]*:(\s|$)")
+    lineas = []
+    for linea in todas[inicio:]:
+        cuerpo = linea.rstrip("\r\n")
+        if cuerpo.strip() == "---":
+            break
+        if cuerpo[:1] not in (" ", "\t") and cuerpo.strip() != "" and clave_top_re.match(cuerpo):
+            break
+        lineas.append(linea)
+    return "".join(lineas)
+
+
+def _ofensores_de_red_en_frontmatter_agentes(agents_dir=None, root=None):
+    """`hooks:` en el frontmatter de `agents/*.md` (gap 154: nadie lo miraba; gap 168: el corte
+    prematuro en blanco/comentario; gap 169: sigue los scripts que el bloque invoca)."""
     agents_dir = agents_dir if agents_dir is not None else os.path.join(ROOT, "agents")
+    root = root if root is not None else ROOT
     if not os.path.isdir(agents_dir):
         return []
-    patron = re.compile(r"(?m)^hooks:\s*\n((?:[ \t]+\S.*\n?)*)")
     ofensores = []
+    scripts_invocados = set()
+    vistos = set()
     for nombre in sorted(os.listdir(agents_dir)):
         if not nombre.endswith(".md"):
             continue
         ruta = os.path.join(agents_dir, nombre)
         texto = _texto_o_fallo_si_no_decodifica(ruta)
-        m = patron.search(texto)
-        if not m:
+        bloque = _bloque_hooks_frontmatter(texto)
+        if bloque is None:
             continue
-        bloque = m.group(1).lower()
+        bloque_l = bloque.lower()
         for termino in _TERMINOS_RED_PROHIBIDOS:
-            if termino in bloque:
+            if _termino_en_codigo(bloque_l, termino, nombre):
                 ofensores.append((nombre, termino))
+        scripts_invocados |= _rutas_script_invocadas(bloque)
+    ofensores += _ofensores_de_scripts_invocados(scripts_invocados, root, vistos)
     return ofensores
 
 
 def test_ningun_hook_ni_frontmatter_de_agente_invoca_red_ni_scripts_de_publicacion():
     """CA de la spec «red desde hooks» fuera de alcance: ningún hook del ciclo (`hooks/**`,
-    recursivo) ni el frontmatter `hooks:` de ningún agente debe disparar `knowledge-sync.py` ni
-    `curator-gate.py` (hacen red o mutan `docs/knowledge/`) NI hacer red por su cuenta — los hooks
-    del ciclo (PostToolUse, SubagentStop, SessionStart/End, UserPromptSubmit) SOLO informan
-    (systemMessage/additionalContext), nunca ejecutan lógica de publicación ni abren conexiones."""
+    recursivo, siguiendo los scripts que invoca) ni el frontmatter `hooks:` de ningún agente debe
+    disparar `knowledge-sync.py` ni `curator-gate.py` (hacen red o mutan `docs/knowledge/`) NI
+    hacer red por su cuenta — los hooks del ciclo (PostToolUse, SubagentStop, SessionStart/End,
+    UserPromptSubmit) SOLO informan (systemMessage/additionalContext), nunca ejecutan lógica de
+    publicación ni abren conexiones."""
     ofensores = _ofensores_de_red_en_hooks() + _ofensores_de_red_en_frontmatter_agentes()
     assert ofensores == [], f"hook/frontmatter invoca red o script de publicación: {ofensores}"
 
@@ -567,3 +810,153 @@ def test_mutante_frontmatter_de_agente_con_urllib_muere(tmp_path):
     ofensores = _ofensores_de_red_en_frontmatter_agentes(str(tmp_path))
     assert ("falso.md", "urllib") in ofensores
     assert ("falso.md", "urlopen") in ofensores
+
+
+def test_mutante_frontmatter_con_segundo_matcher_tras_linea_en_blanco_muere(tmp_path):
+    """Gap 168: la regex anterior cortaba el bloque `hooks:` en la primera línea en blanco — un
+    SEGUNDO matcher, separado del primero por una línea vacía (YAML válido dentro del mismo mapeo
+    `hooks:`), con `curl` en su `command`, pasaba desapercibido (`0 ofensores` cuando debía haber
+    1)."""
+    contenido = (
+        "---\nname: falso\nmodel: sonnet\nhooks:\n"
+        "  PreToolUse:\n"
+        "    - matcher: \"Write\"\n"
+        "      hooks:\n"
+        "        - type: command\n"
+        "          command: 'echo hola'\n"
+        "\n"
+        "    - matcher: \"Bash\"\n"
+        "      hooks:\n"
+        "        - type: command\n"
+        "          command: 'curl https://ejemplo.invalido/x'\n"
+        "---\n\n# Falso\n"
+    )
+    (tmp_path / "falso.md").write_text(contenido, encoding="utf-8")
+    ofensores = _ofensores_de_red_en_frontmatter_agentes(str(tmp_path))
+    assert ("falso.md", "curl") in ofensores
+
+
+def test_mutante_frontmatter_con_comentario_a_columna_0_no_corta_el_bloque(tmp_path):
+    """Gap 168: un comentario YAML a columna 0 intercalado en el bloque `hooks:` (patrón real de
+    `agents/implementer.md`/`agents/architect.md`, que tienen justo un `# Dependencias
+    declaradas...` entre `hooks:` y `dependencies:`) tampoco debía cortar el escaneo — un segundo
+    matcher DESPUÉS de ese comentario con `wget` debía seguir detectándose."""
+    contenido = (
+        "---\nname: falso\nmodel: sonnet\nhooks:\n"
+        "  PreToolUse:\n"
+        "    - matcher: \"Write\"\n"
+        "      hooks:\n"
+        "        - type: command\n"
+        "          command: 'echo hola'\n"
+        "# comentario a columna 0, no es una clave de nivel 0\n"
+        "    - matcher: \"Bash\"\n"
+        "      hooks:\n"
+        "        - type: command\n"
+        "          command: 'wget https://ejemplo.invalido/x'\n"
+        "---\n\n# Falso\n"
+    )
+    (tmp_path / "falso.md").write_text(contenido, encoding="utf-8")
+    ofensores = _ofensores_de_red_en_frontmatter_agentes(str(tmp_path))
+    assert ("falso.md", "wget") in ofensores
+
+
+def test_mutante_frontmatter_se_detiene_en_la_siguiente_clave_de_nivel_0(tmp_path):
+    """Gap 168 (complemento): el bloque `hooks:` no debe devorar el resto del frontmatter — un
+    término prohibido que viva en OTRA clave de nivel 0 (aquí `description:`, tras `hooks:`) no
+    cuenta como parte del bloque `hooks:` (el frontmatter real ya prohíbe esos términos fuera de
+    `hooks:` con otras reglas del propio linter del plugin, no con este escaneo)."""
+    contenido = (
+        "---\nname: falso\nmodel: sonnet\nhooks:\n"
+        "  PreToolUse:\n"
+        "    - matcher: \"Write\"\n"
+        "      hooks:\n"
+        "        - type: command\n"
+        "          command: 'echo hola'\n"
+        "description: menciona curl solo como ejemplo de herramienta, no la ejecuta\n"
+        "---\n\n# Falso\n"
+    )
+    (tmp_path / "falso.md").write_text(contenido, encoding="utf-8")
+    ofensores = _ofensores_de_red_en_frontmatter_agentes(str(tmp_path))
+    assert ofensores == []
+
+
+def test_mutante_script_invocado_por_hook_con_urllib_muere(tmp_path):
+    """Gap 169: el escaneo anterior solo miraba los ficheros DIRECTOS de `hooks/**` — un hook que
+    invoque un script fuera de `hooks/` (típico: `agent-kits/shared/*.py`) con `import
+    urllib.request` dentro pasaba desapercibido. Se construye un repo sintético en `tmp_path` con
+    su propio `agent-kits/shared/ayudante.py` para no depender del árbol real."""
+    hooks_dir = tmp_path / "hooks"
+    hooks_dir.mkdir()
+    shared_dir = tmp_path / "agent-kits" / "shared"
+    shared_dir.mkdir(parents=True)
+    (hooks_dir / "invoca.sh").write_text(
+        "#!/bin/sh\npython3 \"$CLAUDE_PLUGIN_ROOT/agent-kits/shared/ayudante.py\"\n",
+        encoding="utf-8")
+    (shared_dir / "ayudante.py").write_text(
+        "import urllib.request\nurllib.request.urlopen('http://x')\n", encoding="utf-8")
+    ofensores = _ofensores_de_red_en_hooks(str(hooks_dir), root=str(tmp_path))
+    assert ("agent-kits/shared/ayudante.py", "urllib") in ofensores
+    assert ("agent-kits/shared/ayudante.py", "urlopen") in ofensores
+
+
+def test_mutante_script_invocado_por_frontmatter_con_socket_muere(tmp_path):
+    """Gap 169: mismo criterio que el test anterior, pero siguiendo la invocación desde el
+    frontmatter `hooks:` de un agente (no desde `hooks/**`)."""
+    shared_dir = tmp_path / "agent-kits" / "shared"
+    shared_dir.mkdir(parents=True)
+    (shared_dir / "ayudante2.py").write_text(
+        "import socket\nsocket.gethostbyname('x')\n", encoding="utf-8")
+    contenido = (
+        "---\nname: falso\nmodel: sonnet\nhooks:\n"
+        "  PreToolUse:\n"
+        "    - matcher: \"Write\"\n"
+        "      hooks:\n"
+        "        - type: command\n"
+        "          command: 'python3 \"agent-kits/shared/ayudante2.py\"'\n"
+        "---\n\n# Falso\n"
+    )
+    (tmp_path / "falso.md").write_text(contenido, encoding="utf-8")
+    ofensores = _ofensores_de_red_en_frontmatter_agentes(str(tmp_path), root=str(tmp_path))
+    assert ("agent-kits/shared/ayudante2.py", "socket") in ofensores
+
+
+def test_falso_positivo_comentario_documentando_la_prohibicion_no_rompe_la_suite(tmp_path):
+    """Gap 170: un hook que DOCUMENTE la prohibición («no hace red ni curl ni urllib») en un
+    comentario no debe contarse como ofensor — antes se buscaba la subcadena sobre el texto
+    COMPLETO del fichero, sin distinguir código de comentario."""
+    (tmp_path / "documentado.sh").write_text(
+        "#!/bin/sh\n"
+        "# Este hook no hace red (ni curl ni urllib): solo informa via systemMessage.\n"
+        "echo '{\"systemMessage\": \"ok\"}'\n",
+        encoding="utf-8")
+    ofensores = _ofensores_de_red_en_hooks(str(tmp_path))
+    assert ofensores == []
+
+
+def test_falso_positivo_comentario_en_frontmatter_no_rompe_la_suite(tmp_path):
+    """Gap 170, mismo criterio en el frontmatter: un comentario dentro del bloque `hooks:` que
+    documente la prohibición no debe contarse."""
+    contenido = (
+        "---\nname: falso\nmodel: sonnet\nhooks:\n"
+        "  PreToolUse:\n"
+        "    - matcher: \"Write\"\n"
+        "      hooks:\n"
+        "        - type: command\n"
+        "          command: 'echo hola'\n"
+        "          # este command no hace red (ni curl ni urllib)\n"
+        "---\n\n# Falso\n"
+    )
+    (tmp_path / "falso.md").write_text(contenido, encoding="utf-8")
+    ofensores = _ofensores_de_red_en_frontmatter_agentes(str(tmp_path))
+    assert ofensores == []
+
+
+def test_mutante_curator_gate_sin_extension_muere(tmp_path):
+    """Gap 171: `knowledge-sync` sin extensión ya estaba en la lista; `curator-gate` sin extensión
+    (un `command` puede invocar el módulo por su nombre, sin `.py`, según el shell) no lo estaba —
+    asimetría sin motivo entre los dos gemelos de publicación/mutación."""
+    (tmp_path / "malo.sh").write_text(
+        "#!/bin/sh\ncurator-gate --decision approve --category DECISION\n",
+        encoding="utf-8")
+    ofensores = _ofensores_de_red_en_hooks(str(tmp_path))
+    assert ("malo.sh", "curator-gate") in ofensores
