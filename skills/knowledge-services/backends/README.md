@@ -47,6 +47,29 @@ es "el campo `resumen` del frontmatter si existe, si no el primer párrafo del c
 adaptador nuevo puede definir otro criterio, pero tiene que documentarlo — nunca ignorar `modo` y
 publicar siempre el cuerpo completo.
 
+## Adaptador `graphiti` (ADR-018, T-04/T-05/T-06)
+
+Segundo adaptador real del contrato: publica hacia un servidor Graphiti MCP (protocolo
+streamable-HTTP, `POST <endpoint>/mcp`, JSON-RPC) resuelto en `backends/graphiti.py`, con las
+funciones de proveedor (`none`/`ollama`/`openai`/`anthropic`) en `graphiti_providers.py` — añadir
+un proveedor nuevo es una función nueva ahí, sin tocar `graphiti.py` (ver su docstring para la
+decisión de que la extracción de entidades la hace el SERVIDOR, no el cliente).
+
+- **Idempotencia**: manifiesto local propio (`graphiti-manifest.json` bajo
+  `.claude/knowledge-services/`, patrón diario `.pending` → publicado, igual que
+  `markdown_export.py`) con ids de episodio deterministas (`uuid5(group_id:knowledge_id:version)`)
+  — repetir `apply()` con el mismo estado no crea duplicados.
+- **`mode: shadow`** (default): nunca lee del grafo (`verify`/`health` con red siguen permitidos,
+  pero `plan`/`apply` no dependen de una lectura previa); `mode: read` exige `health` sano y
+  `verify` sin desfase (CA-10).
+- **`rebuild`** es el ÚNICO camino que llama a `clear_graph`, acotado al `group_id` propio, y
+  reproduce el mismo manifiesto que la sincronización incremental (uuid5 determinista).
+- **`revoke`** nunca llama a `delete_episode`: escribe un episodio tombstone
+  (`<id>@tombstone`) y, si hay una versión previa, una relación `SUPERSEDES` hacia su uuid.
+- **Guardarraíl de red**: mismo criterio `hosts_locales` que `markdown_export.py` (loopback,
+  privada, `.test`/`.local`/`.internal`, `host.docker.internal`), declarado en `copias.json`
+  (ADR-016, tercera copia) — fail-closed salvo `allow_remote: true`.
+
 ## Adaptador de fixture (CA-12)
 
 `evals/fixtures/knowledge-services/backend_test.py` implementa el contrato completo de forma

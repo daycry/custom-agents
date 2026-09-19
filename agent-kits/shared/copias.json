@@ -146,10 +146,11 @@
       "que_es": "Hosts/sufijos locales reconocidos SIN resolucion DNS (`localhost`, `host.docker.internal`, `*.test`/`*.local`/`*.internal`): el adaptador Kwipu ya los usaba en su chequeo runtime; el validador estatico de graphiti-memory (T-01-fix1, gap 15) los necesita para no empujar a un usuario dockerizado a `allow_remote: true`.",
       "canonico": "skills/knowledge-services/backends/markdown_export.py",
       "copias": [
-        {"ruta": "skills/knowledge-services/backends/markdown_export.py", "inicio": "# --8<-- hosts locales COMPARTIDO (graphiti-memory T-01-fix1) — REPLICADO LITERAL en skills/knowledge-services/backends/markdown_export.py y agent-kits/shared/knowledge-schema.py", "fin": "# --8<-- fin hosts locales COMPARTIDO"},
-        {"ruta": "agent-kits/shared/knowledge-schema.py", "inicio": "# --8<-- hosts locales COMPARTIDO (graphiti-memory T-01-fix1) — REPLICADO LITERAL en skills/knowledge-services/backends/markdown_export.py y agent-kits/shared/knowledge-schema.py", "fin": "# --8<-- fin hosts locales COMPARTIDO"}
+        {"ruta": "skills/knowledge-services/backends/markdown_export.py", "inicio": "# --8<-- hosts locales COMPARTIDO (graphiti-memory T-01-fix1) — REPLICADO LITERAL en skills/knowledge-services/backends/markdown_export.py, agent-kits/shared/knowledge-schema.py y skills/knowledge-services/backends/graphiti.py", "fin": "# --8<-- fin hosts locales COMPARTIDO"},
+        {"ruta": "agent-kits/shared/knowledge-schema.py", "inicio": "# --8<-- hosts locales COMPARTIDO (graphiti-memory T-01-fix1) — REPLICADO LITERAL en skills/knowledge-services/backends/markdown_export.py, agent-kits/shared/knowledge-schema.py y skills/knowledge-services/backends/graphiti.py", "fin": "# --8<-- fin hosts locales COMPARTIDO"},
+        {"ruta": "skills/knowledge-services/backends/graphiti.py", "inicio": "# --8<-- hosts locales COMPARTIDO (graphiti-memory T-01-fix1) — REPLICADO LITERAL en skills/knowledge-services/backends/markdown_export.py, agent-kits/shared/knowledge-schema.py y skills/knowledge-services/backends/graphiti.py", "fin": "# --8<-- fin hosts locales COMPARTIDO"}
       ],
-      "guardarrail_previo": "ninguno (este es el hueco que cierra la ronda fix1 de graphiti-memory)"
+      "guardarrail_previo": "ninguno (este es el hueco que cierra la ronda fix1 de graphiti-memory; T-04 de la Fase 2 anade la tercera copia)"
     },
     {
       "id": "taxonomy_fallback",

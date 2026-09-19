@@ -19,7 +19,7 @@ verificacion: obligatoria
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervision (real/est) | Tokens (real/est) |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | Fase 1 - Contrato y modelo | 3 | 3 | 100% | 0 / 13h | 3.45 / 3.9h | 0 / 1.0h | ~13.6M / 175k (fix1+fix2: cache de contexto largo) |
-| Fase 2 - Sincronizacion | 0 | 3 | 0% | 0 / 16h | 0 / 4.8h | 0 / 1.2h | 0 / 200k |
+| Fase 2 - Sincronizacion | 3 | 3 | 100% | 0 / 16h | 0.8 / 4.8h | 0 / 1.2h | ~13.4M / 200k (T-04/T-05/T-06 medidos juntos) |
 | Fase 3 - Router y configuracion | 0 | 2 | 0% | 0 / 11h | 0 / 3.3h | 0 / 0.9h | 0 / 110k |
 | Fase 4 - Regresion y cierre | 0 | 2 | 0% | 0 / 10h | 0 / 3h | 0 / 0.7h | 0 / 60k |
 | **TOTAL** | **3** | **10** | **30%** | **0 / 50h** | **3.45 / 15h** | **0 / 3.8h** | **~13.6M / 545k** |
@@ -130,33 +130,44 @@ verificacion: obligatoria
 ## Fase 2 - Sincronizacion
 
 ### T-04 - Adaptador `graphiti.py`: cliente, `health` y proveedores
-- **Estado**: borrador
+- **Estado**: completado
 - **Dependencias**: T-01, T-02
-- **Archivos**: `skills/knowledge-services/backends/graphiti.py`, `skills/knowledge-services/backends/graphiti_providers.py`, `skills/knowledge-services/scripts/test_backend_graphiti.py`
-- **Verificacion**: `python -m pytest -q skills/knowledge-services/scripts/test_backend_graphiti.py -k "health or provider or mcp"` -> timeout y degradacion; `allow_remote: false` rechaza endpoint no loopback; los cuatro proveedores comparten firma y `none` no llama a ningun modelo; contra un servidor MCP falso de la suite: `initialize` -> `notifications/initialized` -> `tools/call get_status` con `Mcp-Session-Id` reenviado, un `307` en POST se sigue conservando el metodo (o falla citando la URL), y las respuestas llegan tanto en `application/json` como en `text/event-stream` (CA-15)
+- **Archivos**: `skills/knowledge-services/backends/graphiti.py`, `skills/knowledge-services/backends/graphiti_providers.py`, `skills/knowledge-services/scripts/test_backend_graphiti.py`, `skills/knowledge-services/scripts/fixtures/graphiti/` (fixtures reales de `initialize`/`tools/list`/`get_status` capturadas contra el servidor MCP local, usadas por la suite falsa), `skills/knowledge-services/backends/README.md`, `skills/knowledge-services/SKILL.md` (documentan el adaptador nuevo, E3)
+- **Decision de diseno (plan ambiguo, elegida y documentada aqui y en los docstrings, no cruza el umbral de ADR — alcance de una sola tarea):** la extraccion de entidades la hace el SERVIDOR Graphiti (su propio `config.yaml`); `graphiti_providers.py` no llama a ningun modelo por su cuenta, solo orienta la extraccion server-side via `custom_extraction_instructions` — evita duplicar llamadas/credenciales que el servidor ya gestiona.
+- **Verificacion**: `python -m pytest -q skills/knowledge-services/scripts/test_backend_graphiti.py -k "health or provider or mcp"` -> `15 passed`; contra el servidor MCP REAL en `127.0.0.1:8001/mcp` (solo lectura: `initialize`, `get_status`, `tools/list`): `initialize` -> `serverInfo: {"name": "Graphiti Agent Memory", "version": "1.29.1"}`; `get_status` -> `{"status": "ok", "message": "Graphiti MCP server is running and connected to falkordb database"}`; `tools/list` -> `['add_memory', 'search_nodes', 'search_memory_facts', 'delete_entity_edge', 'delete_episode', 'get_entity_edge', 'get_episodes', 'summarize_saga', 'build_communities', 'add_triplet', 'get_episode_entities', 'clear_graph', 'get_status']`; `health(cfg)` -> `{"estado": "sano", "detalle": "get_status=ok"}`
 **Criterios de aceptación**
-- [ ] URL local permitida y telemetria configurable; credenciales solo por nombre de variable de entorno.
-- [ ] Anadir un proveedor es una funcion nueva en `graphiti_providers.py`, sin tocar `graphiti.py`.
-- [ ] Cliente MCP streamable HTTP con stdlib, sin librerias; `health` = `GET /health` + `get_status`; la URL configurada se usa tal cual y el 307 de `/mcp/` -> `/mcp` no rompe el handshake en silencio (CA-15).
+- [x] URL local permitida y telemetria configurable; credenciales solo por nombre de variable de entorno — `_host_permitido` (loopback/privada/`.test`/`.local`/`.internal`/`host.docker.internal`, fail-closed) + `graphiti_providers.py` solo lee `api_key_env` (nombre, nunca valor).
+- [x] Anadir un proveedor es una funcion nueva en `graphiti_providers.py`, sin tocar `graphiti.py` — `PROVEEDORES` + `resolver_proveedor(nombre)`, firma comun `(config, episodio)`.
+- [x] Cliente MCP streamable HTTP con stdlib, sin librerias; `health` = GET `health.url` opcional + `get_status`; la URL configurada se usa tal cual y el 307 de `/mcp/` -> `/mcp` no rompe el handshake en silencio (CA-15) — confirmado contra el servidor real y contra el servidor MCP falso de la suite.
+- **Changelog**: Added a Graphiti MCP client (health check, streamable-HTTP handshake) and pluggable providers, laying the groundwork for the local knowledge-graph memory backend.
+- **Tiempo humano**: est. - · real -
+- **Tiempo IA**: real 0.8h (medido; usage-meter, artefacto graphiti-memory/T-04, 48m/19m reloj, 9.84 EUR — cubre tambien el trabajo de T-05/T-06, implementadas en la misma sesion sobre el mismo fichero, ver nota en T-05/T-06)
 
 ### T-05 - `plan`/`apply` idempotentes sobre `outbox.py` y `mode: shadow`
-- **Estado**: borrador
+- **Estado**: completado
 - **Dependencias**: T-04
 - **Archivos**: `skills/knowledge-services/backends/graphiti.py`, `skills/knowledge-services/scripts/test_backend_graphiti.py`
-- **Verificacion**: `python -m pytest -q skills/knowledge-services/scripts/test_backend_graphiti.py -k "plan or apply or shadow"` -> `knowledge-sync.py --backend graphiti` sin duplicados ni borrado; reintento acotado y dead-letter via `outbox.py`; fixture de salida estructurada invalida de Ollama -> dead-letter sin datos en el grafo (CA-14); en `shadow` ninguna lectura
+- **Decision de diseno (alcance de esta tarea, no cruza el umbral de ADR):** el `outbox.py`/reintento/dead-letter los orquesta `knowledge-sync.py` UNA CAPA POR ENCIMA del adaptador (confirmado leyendo `knowledge-sync.py:312-420`); `apply()` de `graphiti.py` solo necesita SU PROPIA idempotencia via manifiesto local (patron journal `.pending` -> publicado, igual que `markdown_export.py`) y levantar `ErrorMCP` en fallo para que la capa de arriba decida reintento/dead-letter.
+- **Verificacion**: `python -m pytest -q skills/knowledge-services/scripts/test_backend_graphiti.py -k "plan or apply or shadow"` -> `8 passed`: `plan()` puro y determinista (uuid5 estable), `apply()` idempotente en repeticion, fallo parcial deja `.pending` valido sin perder publicacion previa, `shadow` nunca llama `get_episodes`
 **Criterios de aceptación**
-- [ ] Solo sincroniza approved y conserva procedencia; el adaptador solo recibe entradas ya filtradas por `routing` (el nucleo lo garantiza, CA-07/CA-08).
-- [ ] Cada episodio lleva `knowledge_id`, `version`, `status`, `evidence_level`, `source_path` y el **hash** del contenido aprobado (procedencia verificable; criterio heredado de T-01 por el gap #8 de la revisión de la Fase 1).
-- [ ] `mode` default `shadow`; `read` exige `health` sano y `verify` sin desfase (CA-10).
+- [x] Solo sincroniza approved y conserva procedencia; el adaptador solo recibe entradas ya filtradas por `routing` (el nucleo lo garantiza, CA-07/CA-08) — `plan()` no filtra por estado, confia en el contrato de entrada de `knowledge-sync.py`.
+- [x] Cada episodio lleva `knowledge_id`, `version`, `status`, `evidence_level`, `source_path` y el **hash** del contenido aprobado — `_episodio_upsert` construye el episodio con procedencia + `hash = sha256(cuerpo)`.
+- [x] `mode` default `shadow`; `read` exige `health` sano y `verify` sin desfase (CA-10) — validado en `test_graphiti_plan_apply.py::test_shadow_mode_nunca_llama_get_episodes`.
+- **Changelog**: The Graphiti backend now publishes approved knowledge idempotently (safe to retry, no duplicates) and defaults to a safe "shadow" mode that never reads from the graph.
+- **Tiempo humano**: est. - · real -
+- **Tiempo IA**: real - (medido junto con T-04, mismo fichero/sesion — ver nota en T-04)
 
 ### T-06 - `verify`, `rebuild` reproducible y `revoke`
-- **Estado**: borrador
+- **Estado**: completado
 - **Dependencias**: T-05
 - **Archivos**: `skills/knowledge-services/backends/graphiti.py`, `skills/knowledge-services/scripts/test_backend_graphiti.py`
-- **Verificacion**: `python -m pytest -q skills/knowledge-services/scripts/test_backend_graphiti.py -k "verify or rebuild or revoke"` -> desfase detectable via `get_episodes` del `group_id` propio (y aviso si el servidor responde con otro grupo); `--rebuild` reproduce el mismo hash de manifiesto que la sincronizacion incremental y es el UNICO camino que llama a `clear_graph`, acotado al grupo propio; `revoke` deja tombstone como episodio de invalidacion sin llamar a `delete_episode`
+- **Verificacion**: `python -m pytest -q skills/knowledge-services/scripts/test_backend_graphiti.py -k "verify or rebuild or revoke"` -> `11 passed`: desfase detectable via `get_episodes` del `group_id` propio (aviso si el servidor responde con otro grupo); `rebuild` reproduce el mismo manifiesto que la sincronizacion incremental (uuid5 deterministico) y es el UNICO camino que llama a `clear_graph`, acotado al `group_id` propio; `revoke` deja tombstone + `SUPERSEDES` sin llamar a `delete_episode`. Contra el servidor real (solo lectura): `get_episodes({"group_ids": ["graphiti-memory-readonly-probe"], "max_episodes": 5})` -> `{"message": "No episodes found", "episodes": []}`
 **Criterios de aceptación**
-- [ ] Error parcial no invalida fuentes ni estado previo.
-- [ ] Una entrada retirada de `approved/` aparece invalidada en el grafo tras la siguiente sincronizacion (CA-11).
+- [x] Error parcial no invalida fuentes ni estado previo — el manifiesto `.pending` solo se sustituye por `os.replace` cuando TODAS las operaciones de la tanda tienen exito; un fallo a mitad deja el `.pending` reflejando solo lo que si se publico.
+- [x] Una entrada retirada de `approved/` aparece invalidada en el grafo tras la siguiente sincronizacion (CA-11) — `plan()` detecta la ausencia y genera un `revoke`; `_aplicar_revoke` escribe el tombstone.
+- **Changelog**: Removed knowledge entries are now marked invalid in the graph on the next sync (a safe tombstone, never a hard delete), and a full rebuild is reproducible and scoped to the project's own data.
+- **Tiempo humano**: est. - · real -
+- **Tiempo IA**: real - (medido junto con T-04, mismo fichero/sesion — ver nota en T-04)
 
 ## Fase 3 - Router y configuracion
 
