@@ -307,7 +307,7 @@ def _validar_backend_graphiti(bcfg, campo, fichero, errores):
     if "timeout_ms" in config and not _numero_finito_mayor_que(timeout_ms, 0):
         # T-01-fix2 gap #19/#21: mismo guardarraíl que `health.timeout_ms` (finito, > 0).
         errores.append(_error(
-            "`timeout_ms` debe ser numérico, finito y mayor que 0", fichero, f"{campo_c}.timeout_ms"))
+            "`timeout_ms` debe ser un entero finito y mayor que 0", fichero, f"{campo_c}.timeout_ms"))
 
     concurrency = config.get("concurrency")
     if "concurrency" in config:
@@ -380,7 +380,7 @@ def _validar_backend_graphiti(bcfg, campo, fichero, errores):
                 # T-01-fix2 gap #21: `timeout_ms <= 0` con NaN/Infinity siempre da `False` (toda
                 # comparación con NaN lo es), así que `float('nan')`/`float('inf')` colaban aquí.
                 errores.append(_error(
-                    "`health.timeout_ms` debe ser numérico, finito y mayor que 0",
+                    "`health.timeout_ms` debe ser un entero finito y mayor que 0",
                     fichero, f"{campo_c}.health.timeout_ms"))
 
     if bcfg.get("enabled") is True:

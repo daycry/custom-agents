@@ -452,6 +452,36 @@ def test_graphiti_config_timeout_ms_negativo_o_cero_falla():
         assert any(e["campo"] == "backends.graphiti.config.timeout_ms" for e in errores), valor
 
 
+def test_graphiti_config_timeout_ms_booleano_falla_m18():
+    """Gap #27 (mutante M18): `timeout_ms: true`/`False` es un `bool` (subclase de `int` en
+    Python) — sin el `isinstance(valor, bool)` explícito de `_numero_finito_mayor_que`,
+    `math.isfinite(True) and True > 0` daría `True` y la suite seguía en verde."""
+    for valor in (True, False):
+        cfg = _con_graphiti(_graphiti_config(timeout_ms=valor))
+        errores = ks.validar(cfg, "t.json")
+        assert any(e["campo"] == "backends.graphiti.config.timeout_ms" for e in errores), valor
+
+
+def test_graphiti_health_timeout_ms_booleano_falla_m18():
+    """Gap #27 (mutante M18), mismo guardarraíl en `health.timeout_ms`."""
+    for valor in (True, False):
+        cfg = _con_graphiti(_graphiti_config(
+            health={"url": "http://127.0.0.1:8001/health", "timeout_ms": valor}))
+        errores = ks.validar(cfg, "t.json")
+        assert any(e["campo"] == "backends.graphiti.config.health.timeout_ms" for e in errores), valor
+
+
+def test_graphiti_config_timeout_ms_flotante_falla_con_mensaje_que_dice_entero():
+    """Gap #30: el mensaje debe decir «entero» (CONVENTIONS documenta `timeout_ms` como entero de
+    milisegundos); antes decía «numérico, finito y mayor que 0», que un `3000.0` SÍ cumple aunque
+    la validación lo rechace por no ser `int`."""
+    cfg = _con_graphiti(_graphiti_config(timeout_ms=3000.0))
+    errores = ks.validar(cfg, "t.json")
+    campo = [e for e in errores if e["campo"] == "backends.graphiti.config.timeout_ms"]
+    assert campo, errores
+    assert "entero" in campo[0]["mensaje"]
+
+
 def test_graphiti_config_concurrency_valido_no_da_error():
     cfg = _con_graphiti(_graphiti_config(concurrency=1))
     assert ks.validar(cfg, "t.json") == []
