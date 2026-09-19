@@ -152,22 +152,24 @@ Formato y reglas: `"$SHAREDKIT/rationalization-table.md"`. Aplican a cada lente 
   lentes, AAAA-MM-DD, intento N)` (formato único de `"$SHAREDKIT/knowledge-write.md"` §Autoría).
   Si el 3.º intento sigue con gaps sin resolver, quedan en `propuesta`. `ledger-lint.py` exit 0
   tras escribir.
-- **Jira (solo si `.claude/jira.json` `enabled` Y el plan se volcó):** el orquestador dispara, POR
-  CADA intento (no solo al cerrar), el evento `revision` (sin gaps) o `gaps` (con la tabla) de
-  `jira-flow.py` — Paso 7 de `jira-sync`, `--intento N` obligatorio —, que comenta YA FIRMADO por el
-  `reviewer` (`ca-reviewer`) leyendo la sección `## Revisión de dos lentes` recién escrita; con gaps
-  el issue **se reabre** a *En curso* y el aviso al `implementer` va por el ledger (`task-brief.py`),
-  no por Jira. El **worklog** `[revisión]` por intento lo imputa el orquestador (contabilidad del
-  ciclo, no del método) con las horas medidas. Done es el evento `aprobado` aparte, del
-  **orquestador** (`--actor orquestador` + evidencia en el ledger + `--qa-verde`): nunca aquí, nunca `qa`.
+- **Jira — lo publica ESTA skill, POR CADA intento (dueño único; solo si `.claude/jira.json`
+  `enabled` Y el plan se volcó).** Nada más escribir la sección del intento en `tasks.md`, ejecuta
+  `python3 "$JF" plan --ledger <tasks.md> --event revision|gaps --actor reviewer --task T-XX[,T-YY]
+  --intento N --json` (`JF` = `jira-flow.py` de `jira-sync`, Paso 7; `--batch` en granularidad fase)
+  y aplica sus `ops` (etiqueta → transición → comentario) con las tools del conector, en orden. El
+  script elige entre `revision` (sin gaps) y `gaps` (tabla de ESE intento), comenta YA FIRMADO por el
+  `reviewer` (`ca-reviewer`) y con gaps **reabre** el issue. Sin `jira.json`/issue → `ops: []` con aviso:
+  anótalo y sigue. No lo delegues «al orquestador» ni «para el cierre»: sin este paso el ciclo acaba sin
+  rastro del veredicto de cada intento. La cabecera de la sección debe ser `## Revisión de dos lentes —
+  intento N: <Fase X (T-…)> — <resumen>` (es lo que casa `REVISION_HDR_PATTERN`; paréntesis tras `N` la ocultan).
+  Fuera quedan el **worklog** `[revisión]` (orquestador) y Done (`aprobado`, `--actor orquestador` + `--qa-verde`): nunca aquí, nunca `qa`.
 - **Mensaje final al orquestador:** disciplina de `"$SHAREDKIT/output-discipline.md"` (≤ ~12
   líneas: veredicto, nº de gaps por grado, lentes que corrieron, ruta del ledger actualizado,
   siguiente paso). El detalle vive en el ledger.
 
-> **Compatibilidad de la etiqueta.** La sección en los ledgers y el promotor de `docs/knowledge/`
-> siguen llamándose **«Revisión de dos lentes»** aunque hayan corrido C y/o D (`/retro` y
-> `knowledge-write.md` lo buscan literal); anota en el texto qué corrió de verdad (p. ej. "lentes:
-> A+B+C", "A+B+D" o "A+B+C+D").
+> **Compatibilidad de la etiqueta.** La sección del ledger y el promotor de `docs/knowledge/` siguen
+> llamándose **«Revisión de dos lentes»** aunque corran C y/o D (`/retro` y `knowledge-write.md` lo buscan
+> literal); anota en el texto qué corrió de verdad (p. ej. "lentes: A+B+C", "A+B+D" o "A+B+C+D").
 
 ## Scripts propios
 
@@ -190,10 +192,9 @@ Formato y reglas: `"$SHAREDKIT/rationalization-table.md"`. Aplican a cada lente 
 
 ## Degradación
 
-Sin `scope-check.py` o sin git → puerta saltada con aviso. Sin `review-lens-select.py` → solo A+B
-(dilo). Sin `skills/cybersecurity/references/` → la Lente C corre con criterio propio y lo anota.
-Sin `personas/` → Lente B genérica. Sin agente `reviewer` → subagente genérico con el mismo prompt
-(dilo). Sin `model-tier.py` → frontmatter. Sin Jira activo → nada se publica. Nada de esto bloquea
-la revisión; lo obligatorio es el bucle acotado y la traza en el ledger cuando hay ledger.
+Sin `scope-check.py` o sin git → puerta saltada con aviso. Sin `review-lens-select.py` → solo A+B (dilo).
+Sin `skills/cybersecurity/references/` → la Lente C corre con criterio propio y lo anota. Sin `personas/` →
+Lente B genérica. Sin agente `reviewer` → subagente genérico con el mismo prompt (dilo). Sin `model-tier.py` →
+frontmatter. Sin Jira activo → nada se publica. Nada de esto bloquea; lo obligatorio es el bucle acotado y la traza en el ledger.
 
 > **Lente C — tercer disparador (T-18, hueco E4).** Además de los patrones de código peligroso y los stems de ruta, `review-lens-select.py` dispara la Lente C cuando el diff abre un canal de **texto controlado por el consumidor** (`.claude/**`, `dev.json`, `personas/`, `CONTINUE-HERE*`, `docs/knowledge/**`) hacia un fichero que **compone un prompt o un brief**: motivo `tipo: flujo` con fichero y línea. Detalle y límites en `references/lens-c-heuristics.md`.
