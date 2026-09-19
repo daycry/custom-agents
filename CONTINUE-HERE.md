@@ -16,17 +16,20 @@
 >    (comando completo), tabla de dev-cycle, review-publish y ROLES alineados, test `tests/test_review_jira_owner.py`. Causa 2:
 >    `seccion_revision` elegía la PRIMERA sección con ese nº de intento (en ledgers multifase publicaba «sin gaps» falso) →
 >    elige por tarea, cae en la última; `ledger-lint` avisa de cabeceras que no casan. Ledger
->    `docs/roadmap/2026-09-19-jira-review-comments/tasks.md` 4/4 `completado`. **En curso: revisión de dos lentes intento 1
->    (A+B; C/D no aplican).** Después: ronda fix si hay gaps, sección de revisión en el ledger, `changelog-sync --only
+>    `docs/roadmap/2026-09-19-jira-review-comments/tasks.md` 4/4 `completado`. Revisión intento 1 (`b720a81`): 13 gaps (2 Critical:
+>    la selección elegía la PRIMERA sección y `aprobado` usaba el `max()` global) → ronda fix1 (`1170af5` parser único
+>    `secciones_revision`/`seleccionar_seccion` en `ledger-lint.py` usado por jira-flow y task-brief; `42e86be` docs: FLOWS ES/EN,
+>    jira-sync SKILL, README/plantilla de shared, CONTRACTS E19). **En curso: intento 2 (verificación dirigida).** Después: sección de revisión en el ledger, `changelog-sync --only
 >    jira-review-comments` (Fixed), push, PR (base `feature/knowledge-services` hasta que #9 se mergee; luego master).
 > 3. **`feature/graphiti-memory`** (árbol principal; `4a672a4` = merge de knowledge-services con los fixes de CI):
 >    `/dev-cycle graphiti-memory completo`. **Fase 1 (T-01..T-03) HECHA** (`0c70937`, `5a32012`, `7d67a4c`). **Revisión Fase 1
 >    intento 1** (`2ffc69f`): 15 gaps (0 Critical, 7 Important, 8 Minor) + enmienda 2026-09-19 en `design.md` (config anidada
 >    estricta, `group_id` sin default, guardarraíl local/privado, `telemetria`) + criterio `hash` movido de T-01 a T-05. Ronda
->    fix1 HECHA (`20d44a6` T-01-fix1, `3bb4bdb` T-02-fix1; 15/15 según el implementer). **En curso: intento 2 (A+B) sobre
->    `2ffc69f..3bb4bdb`** (ignorar el merge en scope-check/lens-select: los motivos C/D que salen son del bench test mergeado,
->    no de esta fase). Siguiente: cerrar bucle Fase 1 → Fase 2 (T-04 adaptador `graphiti.py` cliente MCP streamable HTTP
->    contra `127.0.0.1:8001/mcp`, T-05, T-06) → Fase 3 (T-07 router, T-08 capability) → Fase 4 (T-09, T-10) → qa sin UI →
+>    fix1 HECHA (`20d44a6` T-01-fix1, `3bb4bdb` T-02-fix1; 15/15 según el implementer). Intento 2 (`0073415`): 11 nuevos (3 Important) → fix2 (`e19d35a`, `b315943`). Intento 3 (`f5da093`): 11/11, 4 Minor →
+>    **bucle Fase 1 CERRADO**; los 3 Minor restantes cerrados en `92cdde8`. **Fase 2 (T-04 adaptador `graphiti.py` cliente MCP,
+>    T-05 plan/apply, T-06 verify/rebuild/revoke) HECHA en `616f0e3`** (33 tests con servidor MCP falso; validación en vivo SOLO
+>    lectura contra `127.0.0.1:8001/mcp`; prohibido escribir en el servidor real). **En curso: revisión Fase 2 intento 1 con lentes
+>    A + B(+D) + C (C a demanda del orquestador: cliente HTTP/DNS/`clear_graph`).** Siguiente: Fase 3 (T-07 router, T-08 capability) → Fase 4 (T-09, T-10) → qa sin UI →
 >    documenter → 4-bis → cierre → PR apilado sobre #9. Validar en vivo contra el Graphiti real cuando exista T-04.
 > 4. **Inventario de pendientes (petición 2 del usuario, ya hecho, para decidir):** brief-budget 0/6 (en-progreso, ninguna
 >    iniciada), plugin-refactor 17/21 (T-15 en-progreso; T-20 revisión por tramos, T-21 corrección, T-22 cierre),
