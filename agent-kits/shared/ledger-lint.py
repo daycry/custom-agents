@@ -380,6 +380,64 @@ def ultimo_intento_para(secciones, tareas):
     return max(candidatas)
 
 
+# jira-review-comments T-03-fix3, gap #20 — criterio de "gap pendiente" de una fila (misma lista
+# que ya usaba `evidencia_aprobado`: sin corrección registrada, o placeholder de que sigue
+# abierta; `descartado (rebatido)` cierra la fila aunque no haya código). Antes vivía SOLO en
+# `jira-flow.py` (privado, `_gap_pendiente`); ahora es canónico aquí porque `filas_pendientes_de_
+# tarea` (abajo) lo necesita y la usan los dos llamadores por igual.
+GAP_PENDIENTE_RE = re.compile(r"^(?:|-+|—|–|n/?a|todo|pendiente\b.*|sin corregir\b.*|\?+)$", re.I)
+GAP_REBATIDO_RE = re.compile(r"rebatid|descartad", re.I)
+
+
+def gap_pendiente(fila):
+    """True si la fila de gap NO tiene corrección registrada (celda vacía o placeholder) y no está
+    `descartado (rebatido)`: una tarea con gaps así NO puede pasar a Done."""
+    correccion = re.sub(r"[`*_]", "", (fila.get("correccion") or "")).strip()
+    evidencia = (fila.get("evidencia") or "").strip()
+    if GAP_REBATIDO_RE.search(correccion) or GAP_REBATIDO_RE.search(evidencia):
+        return False
+    return bool(GAP_PENDIENTE_RE.match(correccion))
+
+
+def filas_pendientes_de_tarea(secciones, tarea):
+    """(intento, [filas]) — evidencia para DECIDIR sobre `tarea` (evento `aprobado`; gaps
+    pendientes del brief de `task-brief.py`; jira-review-comments T-03-fix3, gap #20).
+
+    Dos usos, dos reglas (arbitraje fix3, sustituye a (2) del fix2 para DECIDIR — PUBLICAR un
+    comentario de un intento concreto sigue siendo `seleccionar_seccion()`/`seccion_revision()`,
+    cabecera-primero, sin cambios):
+      - **Publicar un intento** (`revision`/`gaps`): UNA sección por intento, la dueña de la fase
+        (`seleccionar_seccion`).
+      - **Decidir sobre una tarea** (esta función): UNIÓN de TODAS las filas de TODAS las secciones
+        de revisión que MENCIONAN `tarea` EFECTIVAMENTE (`_menciones_efectivas()`: `menciones()` —
+        cabecera o columna `Tarea` — con herencia solo para cierres anónimos, igual que
+        `ultimo_intento_para`), en
+        CUALQUIER intento y CUALQUIER fase — no solo la sección "dueña". Antes `evidencia_aprobado`
+        miraba UNA sola sección por intento (cabecera-primero, vía `seccion_revision`): con la
+        sección propia de la fase limpia («Fase 2 (T-04, T-05) — sin gaps») y un Critical cruzado
+        `T-04/T-07` descubierto en la revisión de OTRA fase del MISMO intento, la regla
+        cabecera-primero elegía la limpia y `aprobado T-04` concedía Done sin ver el Critical.
+
+    Devuelve `(intento_reportado, filas)`: `intento_reportado` es el intento MÁS ALTO entre las
+    secciones que MENCIONAN `tarea`; `filas` son SOLO las PENDIENTES (`gap_pendiente()`) de esas
+    secciones, cada una anotada con `seccion` (su cabecera) e `intento` de origen, para que el
+    llamador cite fichero+sección al rechazar. `(None, [])` si NINGUNA sección menciona `tarea` —
+    sin evidencia, no se adivina."""
+    if not secciones:
+        return None, []
+    efectivas = _menciones_efectivas(secciones)
+    citantes = [s for s, eff in zip(secciones, efectivas) if tarea in eff]
+    if not citantes:
+        return None, []
+    intento = max(s["intento"] for s in citantes)
+    pendientes = []
+    for s in citantes:
+        for f in s["filas"]:
+            if tarea in ids_de_tarea(f["tarea"]) and gap_pendiente(f):
+                pendientes.append(dict(f, seccion=s["cabecera"], intento=s["intento"]))
+    return intento, pendientes
+
+
 # --8<-- fin secciones_revision
 
 def parse_verificacion(lines, i):
