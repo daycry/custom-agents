@@ -245,10 +245,62 @@ def _revision_hdr_re(ledger_lint=None):
 _REVISION_HDR_RE = _revision_hdr_re(_cargar_ledger_lint())
 
 
-def _split_fila_md(ln):
-    """Divide una fila de tabla Markdown por `|`, IGNORANDO los `|` dentro de un tramo `` `código` ``
-    (gaps reales del ledger citan regex con alternancia `a|b|c` en un code span — un split ingenuo
-    trocea la celda). No es un parser Markdown completo: basta para code spans de una línea."""
+VALLA_PATTERN = r"^[^\S\n]*(?:`{3,}|~{3,})"
+
+_VALLA_RE = re.compile(VALLA_PATTERN)
+
+
+def sin_vallas(text):
+    """`text` con las líneas DENTRO de una valla de código vaciadas (mismo número de líneas)."""
+    # --8<-- sin_vallas (cuerpo) — REPLICADO LITERAL en agent-kits/shared/ledger-lint.py y en
+    # skills/changelog-sync/scripts/changelog-sync.py (dos copias independientes: la skill viaja sin
+    # este kit). DECLARADO en agent-kits/shared/copias.json (ADR-016), que lista la ÚNICA diferencia
+    # tolerada (el nombre de la regex de valla); tests/test_copias_declaradas.py compara el resto
+    # byte a byte — antes solo había un test CONDUCTUAL y una divergencia sin efecto pasaba.
+    out, cerco = [], None
+    for ln in text.split("\n"):
+        m = _VALLA_RE.match(ln)
+        if cerco is None:
+            if m:
+                cerco = m.group(0).strip()[0] * len(m.group(0).strip())
+                out.append("")
+                continue
+        else:
+            out.append("")
+            if m and m.group(0).strip()[0] == cerco[0] and len(m.group(0).strip()) >= len(cerco):
+                cerco = None
+            continue
+        out.append(ln)
+    # --8<-- fin sin_vallas (cuerpo)
+    return "\n".join(out)
+
+
+# --8<-- secciones_revision (parser de secciones + seleccion) -- REPLICADO LITERAL en
+# agent-kits/shared/ledger-lint.py (canonico) y como respaldo local en
+# skills/jira-sync/scripts/jira-flow.py y agent-kits/shared/task-brief.py (sin este kit,
+# ADR-016, jira-review-comments T-03-fix1). Declarado en agent-kits/shared/copias.json.
+# ---------------------------------------------------------------------------------------------
+# Parser UNICO de SECCIONES de revision + seleccion entre varias del mismo intento
+# [jira-review-comments T-03-fix1, gaps #1/#2/#5]. Antes `jira-flow.py` y `task-brief.py` tenian
+# CADA UNO su propio criterio de "que seccion es esta": `jira-flow` cortaba el cuerpo de una
+# seccion en la siguiente cabecera de REVISION (no en el siguiente `## ` cualquiera), asi que el
+# parrafo de contexto se tragaba fases enteras (bloques `### T-XX` de la fase siguiente) y una
+# "mencion" casaba con celdas `Correccion`/`Evidencia` que citan otras tareas de contexto; ademas
+# elegia la PRIMERA candidata que mencionaba la tarea, no la mas reciente. `task-brief.py` ni
+# siquiera filtraba por fase: usaba el intento MAXIMO GLOBAL del ledger. Fuente unica: parsea
+# TODAS las secciones de una vez (`secciones_revision`), calcula la mencion con el mismo criterio
+# (`menciones`: solo cabecera+resumen y columna `Tarea`, nunca `Correccion`/`Evidencia`) y elige
+# con el mismo criterio (`seleccionar_seccion`, `ultimo_intento_para`). `jira-flow.py` y
+# `task-brief.py` importan este modulo y, si el kit no viaja con el paquete, replican estas
+# funciones LITERALMENTE como respaldo local - DECLARADO en `agent-kits/shared/copias.json`
+# (bloque `secciones_revision`, ADR-016): hay test que compara las cadenas.
+_HDR_CUALQUIERA_RE = re.compile(r"^##[ \t]+.*$", re.M)
+
+
+def split_fila_md(ln):
+    """Divide una fila de tabla Markdown por `|`, ignorando los `|` dentro de un tramo
+    `` `codigo` `` (una celda de gap puede citar una regex con alternancia `a|b|c`; un split
+    ingenuo la trocearia). No es un parser Markdown completo: basta para code spans de una linea."""
     celdas, actual, en_codigo = [], [], False
     for ch in ln.strip().strip("|"):
         if ch == "`":
@@ -263,78 +315,123 @@ def _split_fila_md(ln):
     return celdas
 
 
-def seccion_revision(texto, intento, tareas=None):
-    """(resumen_cabecera, [filas de gap], aviso) de la sección `## Revisión de dos lentes —
-    intento N`. Cada fila: {"grado","gap","tarea","correccion","evidencia"}. (None, [], None) si
-    no existe esa N.
-
-    Un ledger con varias fases tiene una cabecera «intento 1» POR FASE: coger la PRIMERA que
-    encaje con ese número (como hacía antes) es arbitrario y cuela gaps/resúmenes de la fase
-    equivocada. Con `tareas` (lista de `T-XX` pedidas), entre TODAS las secciones con ese
-    `intento`, elige la que MENCIONE alguna de esas tareas — SOLO en la cabecera/resumen o en la
-    columna `Tarea` de sus filas (patrón T-NN), nunca en `Corrección`/`Evidencia`: esas
-    celdas citan tests y otras tareas de contexto y darían falsos positivos en un ledger real con
-    fases que se referencian entre sí. Si ninguna sección menciona las tareas pedidas, la ÚLTIMA
-    (la más reciente), con `aviso` explicando el porqué. Con una sola sección para ese `intento`,
-    o sin `tareas`, el criterio no cambia: se usa esa única sección (o la primera, si `tareas` es
-    `None`)."""
-    matches = list(_REVISION_HDR_RE.finditer(texto))
-    candidatos = [m for m in matches if int(m.group(1)) == intento]
-    if not candidatos:
-        return None, [], None
-
-    def _extraer(m):
-        """(resumen, filas) de la sección que empieza en el match `m` — misma lógica de párrafo de
-        contexto + parseo de tabla que antes, ahora reutilizable para CUALQUIER candidato, no solo
-        el finalmente elegido (así el criterio de selección usa los mismos datos que el resultado)."""
-        resumen_m = (m.group(2) or "").strip()   # cabecera sin `: resumen` → cadena vacía
-        i = matches.index(m)
-        fin_m = matches[i + 1].start() if i + 1 < len(matches) else len(texto)
-        cuerpo_m = texto[m.end():fin_m]
+def secciones_revision(texto):
+    """Lista de TODAS las secciones `## Revision de dos lentes - intento N` del ledger, en orden
+    de aparicion: [{"intento", "cabecera", "resumen", "filas", "inicio", "fin"}, ...]. `fin` es el
+    siguiente encabezado `## ` de CUALQUIER tipo (o fin de fichero) - no el siguiente `##
+    Revision`, que dejaba fases enteras dentro del cuerpo de una seccion (gap #1). Respeta
+    `sin_vallas()`: una cabecera citada dentro de una valla de codigo no cuenta como seccion."""
+    limpio = sin_vallas(texto)
+    cabeceras = [m.start() for m in _HDR_CUALQUIERA_RE.finditer(limpio)]
+    out = []
+    for m in _REVISION_HDR_RE.finditer(limpio):
+        intento = int(m.group(1))
+        resumen = (m.group(2) or "").strip()
+        fin = next((p for p in cabeceras if p > m.start()), len(limpio))
+        cuerpo = limpio[m.end():fin]
         parrafo = []
-        for ln in cuerpo_m.splitlines():
+        for ln in cuerpo.splitlines():
             s = ln.strip()
             if s.startswith("|"):
                 break
             if s:
                 parrafo.append(s)
         if parrafo:
-            resumen_m = (resumen_m + " " + " ".join(parrafo)).strip()
-        filas_m = []
-        for ln in cuerpo_m.splitlines():
-            ln = ln.strip()
-            if not ln.startswith("|") or set(ln.replace("|", "").strip()) <= {"-", " "}:
+            resumen = (resumen + " " + " ".join(parrafo)).strip()
+        filas = []
+        for ln in cuerpo.splitlines():
+            s = ln.strip()
+            if not s.startswith("|") or set(s.replace("|", "").strip()) <= {"-", " "}:
                 continue
-            celdas = _split_fila_md(ln)
-            if len(celdas) < 6 or celdas[0] in ("#", ""):
+            celdas = split_fila_md(s)
+            if len(celdas) < 6 or celdas[0] in ("#", "") or not re.match(r"^\d+$", celdas[0]):
                 continue
-            if not re.match(r"^\d+$", celdas[0]):
-                continue
-            filas_m.append({"num": celdas[0], "grado": celdas[1], "gap": celdas[2],
-                            "tarea": celdas[3], "correccion": celdas[4], "evidencia": celdas[5]})
-        return resumen_m, filas_m
+            filas.append({"num": celdas[0], "grado": celdas[1], "gap": celdas[2],
+                          "tarea": celdas[3], "correccion": celdas[4], "evidencia": celdas[5]})
+        out.append({"intento": intento, "cabecera": m.group(0).strip(), "resumen": resumen,
+                     "filas": filas, "inicio": m.start(), "fin": fin})
+    return out
 
-    objetivo = candidatos[0]
-    aviso = None
-    if len(candidatos) > 1 and tareas:
-        def _menciona(m):
-            resumen_m, filas_m = _extraer(m)
-            mencionadas = set(re.findall(r"\bT-\d{2}\b", resumen_m))
-            for f in filas_m:
-                mencionadas |= set(re.findall(r"\bT-\d{2}\b", f["tarea"]))
-            return any(t in mencionadas for t in tareas)
 
-        coincide = [m for m in candidatos if _menciona(m)]
-        if coincide:
-            objetivo = coincide[0]
-        else:
-            objetivo = candidatos[-1]
-            aviso = (f"el intento {intento} tiene {len(candidatos)} secciones «## Revisión de dos "
-                     f"lentes — intento {intento}» (probablemente una por fase) y ninguna menciona "
-                     f"{', '.join(tareas)} en la cabecera o en la columna Tarea: se usa la última "
-                     f"(más reciente) — revisa si es la sección correcta")
-    resumen, filas = _extraer(objetivo)
-    return resumen, filas, aviso
+def menciones(seccion):
+    """IDs `T-NN` que una seccion MENCIONA, para elegir entre varias del mismo intento: SOLO la
+    LINEA de cabecera (`seccion["cabecera"]`, una sola linea: nunca el parrafo de contexto que le
+    sigue, que `secciones_revision` pega a `resumen` solo para renderizar el comentario) y la
+    columna `Tarea` de sus filas - NUNCA `Correccion`/`Evidencia`, que citan tests y otras tareas
+    de contexto y dan falsos positivos en un ledger real con fases que se referencian entre si
+    (gap #1: una fila de la Fase 1 cita "T-04" en su celda `Correccion`; el parrafo de contexto de
+    otra fase tambien puede citar "T-04" sin ser SU tarea)."""
+    ids = set(re.findall(r"\bT-\d{2}\b", seccion["cabecera"]))
+    for f in seccion["filas"]:
+        ids |= set(re.findall(r"\bT-\d{2}\b", f["tarea"]))
+    return ids
+
+
+def seleccionar_seccion(secciones, intento, tareas):
+    """(seccion, aviso) - entre las secciones de `secciones` con ese `intento`, elige la que
+    MENCIONE alguna de `tareas`; si varias mencionan, la ULTIMA (mas reciente); si ninguna
+    menciona, la ultima de ese intento con un aviso explicando el porque. Sin candidatas para ese
+    `intento` -> (None, None). Sin `tareas`, o con UNA SOLA candidata para ese intento (ledger de
+    una sola fase: no hay ambiguedad que resolver, y una seccion de cierre sin filas -"sin gaps"-
+    no menciona ninguna tarea por definicion) -> esa candidata, sin aviso."""
+    candidatas = [s for s in secciones if s["intento"] == intento]
+    if not candidatas:
+        return None, None
+    if not tareas or len(candidatas) == 1:
+        return candidatas[-1], None
+    coincide = [s for s in candidatas if menciones(s) & set(tareas)]
+    if coincide:
+        return coincide[-1], None
+    aviso = (f"el intento {intento} tiene {len(candidatas)} secciones «## Revisión de dos "
+             f"lentes — intento {intento}» (probablemente una por fase) y ninguna menciona "
+             f"{', '.join(tareas)} en la cabecera o en la columna Tarea: se usa la última "
+             f"(más reciente) — revisa si es la sección correcta")
+    return candidatas[-1], aviso
+
+
+def ultimo_intento_para(secciones, tareas):
+    """Intento MAS ALTO relevante para `tareas`. Sin AMBIGUEDAD (cada numero de intento aparece en
+    UNA sola seccion - el caso normal de un ledger de una sola fase, donde una seccion de cierre
+    "sin gaps" no menciona ninguna tarea por definicion) es simplemente el maximo GLOBAL, igual que
+    antes. Con AMBIGUEDAD (algun numero de intento se repite - varias fases con su propia pista de
+    revision) se restringe a las secciones que MENCIONAN alguna de `tareas`: el maximo GLOBAL podia
+    venir de otra fase sin que la tarea pedida tenga nada que ver (gap #2: `aprobado` concedia Done
+    con un Critical pendiente de OTRA fase). `None` si esta ultima busqueda no encuentra ninguna
+    seccion que mencione esas tareas (sin evidencia: rechazo, no adivinar)."""
+    if not secciones:
+        return None
+    intentos = [s["intento"] for s in secciones]
+    if len(intentos) == len(set(intentos)):
+        return max(intentos)
+    candidatas = [s for s in secciones if menciones(s) & set(tareas)]
+    if not candidatas:
+        return None
+    return max(s["intento"] for s in candidatas)
+
+
+# --8<-- fin secciones_revision
+
+
+def seccion_revision(texto, intento, tareas=None):
+    """(resumen_cabecera, [filas de gap], aviso) de la sección `## Revisión de dos lentes —
+    intento N` que MENCIONA alguna de `tareas` (o la última de ese intento si ninguna encaja o
+    si `tareas` es None/vacío). Delega en `agent-kits/shared/ledger-lint.py` (fuente única del
+    parser + criterio de selección, gaps #1/#2/#5 de jira-review-comments); si el kit no viaja
+    con el paquete portable, usa la replica local sentinelada mas abajo. (None, [], None) si esa
+    N no existe en el ledger."""
+    ledger_lint = _cargar_ledger_lint()
+    lista_tareas = list(tareas) if tareas else []
+    if ledger_lint is not None:
+        secciones = ledger_lint.secciones_revision(texto)
+        seccion, aviso = ledger_lint.seleccionar_seccion(secciones, intento, lista_tareas)
+    else:
+        secciones = secciones_revision(texto)
+        seccion, aviso = seleccionar_seccion(secciones, intento, lista_tareas)
+    if seccion is None:
+        return None, [], None
+    return seccion["resumen"], seccion["filas"], aviso
+
+
 
 
 # ------------------------------------------------------------------ plantillas + firma
@@ -525,9 +622,13 @@ def evidencia_aprobado(texto, tareas, qa_verde):
 
     `aprobado` es el ÚNICO evento que marca Done, así que no se emite a ciegas (antes se emitía
     siempre, sin comprobar nada). Exige las DOS cosas que la tabla de la Fase 3 promete:
-      1) **revisión limpia**: existe una sección `## Revisión de dos lentes — intento N` y la
-         ÚLTIMA (la N más alta) no deja filas de gap PENDIENTES para esas tareas (sin filas, o
-         todas con corrección registrada / `descartado (rebatido)`);
+      1) **revisión limpia**: entre las secciones `## Revisión de dos lentes — intento N` que
+         MENCIONAN alguna de estas tareas, la de intento MÁS ALTO no deja filas de gap
+         PENDIENTES para ellas (sin filas, o todas con corrección registrada / `descartado
+         (rebatido)`). El intento máximo se calcula SOLO entre las secciones que mencionan estas
+         tareas — no el máximo GLOBAL del ledger: otra fase pudo llegar a un intento mayor sin
+         que la tarea pedida tenga nada que ver (gap #2 de jira-review-comments: `aprobado`
+         concedía Done con un Critical pendiente de OTRA fase);
       2) **rastro de qa verde**: `--qa-verde`. El ledger no tiene una marca canónica de «qa verde»
          (el veredicto vive en `docs/roadmap/<slug>/testing/report.md`), así que el flag es la
          declaración explícita del orquestador, que SOLO lo pasa tras leer el **exit 0 de
@@ -536,25 +637,32 @@ def evidencia_aprobado(texto, tareas, qa_verde):
     if not qa_verde:
         return None, ("`aprobado` sin `--qa-verde`: Done exige el verde de qa. Ejecuta "
                       "`agent-kits/qa/qa-gate.py` y, SOLO si su exit es 0, repite con `--qa-verde`")
-    matches = list(_REVISION_HDR_RE.finditer(texto))
-    if not matches:
+    ledger_lint = _cargar_ledger_lint()
+    if ledger_lint is not None:
+        secciones = ledger_lint.secciones_revision(texto)
+        intento = ledger_lint.ultimo_intento_para(secciones, tareas)
+    else:
+        secciones = secciones_revision(texto)
+        intento = ultimo_intento_para(secciones, tareas)
+    if not secciones:
         return None, ("`aprobado` sin evidencia: el ledger no tiene ninguna sección `## Revisión de "
                       "dos lentes — intento N`. Sin revisión de dos lentes no hay Done")
-    ultimo = max(matches, key=lambda m: int(m.group(1)))
-    intento = int(ultimo.group(1))
-    # para el cierre basta el resumen de la CABECERA («sin gaps», «12 gaps corregidos (…)»); el
-    # párrafo de contexto que `seccion_revision` le pega para el comentario de `revision` aquí solo
-    # alargaría el comentario de Done.
-    resumen = (ultimo.group(2) or "").strip()
-    _, filas, _ = seccion_revision(texto, intento, tareas)
+    if intento is None:
+        return None, (f"`aprobado` sin evidencia: ninguna sección `## Revisión de dos lentes — "
+                      f"intento N` menciona {', '.join(tareas)} en la cabecera o en la columna "
+                      f"Tarea — no se puede dar por revisada sin evidencia")
+    resumen, filas, aviso = seccion_revision(texto, intento, tareas)
     pendientes = [f for f in filas if f["tarea"] in tareas and _gap_pendiente(f)]
     if pendientes:
         detalle = "; ".join(f"#{f['num']} {f['grado']}: {_acortar(f['gap'], 60)}" for f in pendientes)
-        return None, (f"`aprobado` bloqueado: el último intento de revisión ({intento}) deja "
-                      f"{len(pendientes)} gap(s) sin corrección registrada para "
-                      f"{', '.join(tareas)} → {detalle}. Corrígelos (o anótalos como `descartado "
-                      f"(rebatido)` con evidencia) y vuelve a intentarlo")
-    return {"intento": intento, "resumen": resumen or "", "gaps": len(filas)}, None
+        return None, (f"`aprobado` bloqueado: el último intento de revisión que menciona "
+                      f"{', '.join(tareas)} ({intento}) deja {len(pendientes)} gap(s) sin "
+                      f"corrección registrada → {detalle}. Corrígelos (o anótalos como "
+                      f"`descartado (rebatido)` con evidencia) y vuelve a intentarlo")
+    info = {"intento": intento, "resumen": resumen or "", "gaps": len(filas)}
+    if aviso:
+        info["aviso"] = aviso
+    return info, None
 
 
 # ------------------------------------------------------------------ plan principal
@@ -592,6 +700,8 @@ def construir_plan(args):
         evidencia_ok, razon = evidencia_aprobado(texto, tareas, args.qa_verde)
         if evidencia_ok is None:
             return None, [razon], 2
+        if evidencia_ok.get("aviso"):
+            avisos.append(evidencia_ok["aviso"])
 
     # --- opt-in: con Jira apagado el ciclo es idéntico, simplemente no publica nada
     root = args.root or os.getcwd()

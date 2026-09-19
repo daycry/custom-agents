@@ -340,7 +340,28 @@ def main():
     assert code == 0, out
     assert "cabecera de revisión no casa" not in out, out
 
-    print("test_ledger_lint: 25/25 OK")
+    # 24) [gap #12, jira-review-comments T-03-fix1] una cabecera con paréntesis CITADA dentro de
+    #     una valla de código (ejemplo de la propia doc del ledger, no una sección real) no debe
+    #     avisar: `sin_vallas()` la vacía antes de mirarla.
+    con_paren_en_valla = doc() + (
+        "\n```\n## Revisión de dos lentes — intento 1 (Fase 2: T-04): 3 gaps\n```\n")
+    code, out = run(con_paren_en_valla)
+    assert code == 0, out
+    assert "cabecera de revisión no casa" not in out, out
+
+    # 25) [gap #13, jira-review-comments T-03-fix1] una cabecera con `###` (tres almohadillas) SÍ
+    #     debe avisar: `REVISION_HDR_PATTERN` exige `##` exacto, así que ni `jira-flow.py` ni
+    #     `task-brief.py` la ven — antes el propio aviso solo miraba `## Revisi` (dos almohadillas)
+    #     y no la detectaba.
+    con_h3 = doc() + ("\n### Revisión de dos lentes — intento 1: 3 gaps\n\n"
+                       "| # | Grado | Gap | Tarea | Corrección | Evidencia |\n"
+                       "|---|---|---|---|---|---|\n"
+                       "| 1 | Minor | gap | T-04 | corregido | test |\n")
+    code, out = run(con_h3)
+    assert code == 0, out
+    assert "cabecera de revisión no casa con REVISION_HDR_PATTERN" in out, out
+
+    print("test_ledger_lint: 27/27 OK")
 
 
 if __name__ == "__main__":

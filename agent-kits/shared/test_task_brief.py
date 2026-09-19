@@ -1163,6 +1163,107 @@ def test_gaps_tarea_sin_gaps_en_el_ultimo_intento_no_inyecta(inic):
     assert rc == 0 and "## Gaps pendientes" not in out
 
 
+# --------------------------- ledger MULTIFASE: selección por MENCIÓN, no por intento GLOBAL ----
+# (jira-review-comments T-03-fix1, gaps #1/#2/#5: antes `_gaps_pendientes_de_tarea` usaba el
+# intento MÁXIMO GLOBAL del ledger + una coincidencia EXACTA de columna `Tarea`, así que una fase
+# con más intentos «tapaba» los gaps reales de una tarea de OTRA fase — devolvía None aunque esa
+# fase tuviera filas de gap pendientes en su propio último intento.)
+
+TASKS_MULTIFASE = """# Checklist de Tareas — multifase
+
+## Resumen de progreso
+
+| Fase | Completadas | Total | Progreso |
+|------|------------|-------|----------|
+| Fase 1 | 1 | 1 | 100% |
+| Fase 2 | 1 | 1 | 100% |
+
+## Fase 1
+
+### T-01 — tarea de la fase 1
+
+- **Descripción**: hacer A.
+- **Estado**: completado
+
+**Criterios de aceptación**
+- [x] A funciona
+
+## Revisión de dos lentes — intento 1: Fase 1 — 1 gap (1 Important)
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 1 | Important | Falta validar A | T-01 | pendiente | — |
+
+## Fase 2
+
+### T-04 — tarea de la fase 2
+
+- **Descripción**: hacer B.
+- **Estado**: completado
+
+**Criterios de aceptación**
+- [x] B funciona
+
+## Revisión de dos lentes — intento 1: Fase 2 — sin gaps
+
+Todo corregido y reverificado.
+
+## Revisión de dos lentes — intento 2: Fase 2 — sin gaps
+
+Segunda pasada, sigue limpio.
+
+## Revisión de dos lentes — intento 3: Fase 2 — 1 gap (1 Minor)
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 1 | Minor | Falta un comentario en B | T-04 | pendiente | — |
+"""
+
+
+def test_gaps_fase_con_menos_intentos_no_queda_tapada_por_otra_fase(inic):
+    """T-01 (Fase 1, único intento: el 1) SÍ debe ver su gap pendiente aunque la Fase 2 haya
+    llegado al intento 3 — el intento máximo GLOBAL (3) no es el de la Fase 1."""
+    (inic / "tasks.md").write_text(TASKS_MULTIFASE, encoding="utf-8")
+    rc, out = _run([str(inic), "T-01", "--sin-lint", "--constitucion", str(inic / "no.md")])
+    assert rc == 0
+    assert "## Gaps pendientes de revisión (intento 1" in out
+    assert "Falta validar A" in out
+
+
+def test_gaps_fase_reabierta_usa_su_propio_ultimo_intento(inic):
+    """T-04 (Fase 2) tiene dos intentos limpios y un tercero que reabre con un gap propio: debe
+    inyectarse el gap del intento 3, no «sin gaps» de un intento anterior."""
+    (inic / "tasks.md").write_text(TASKS_MULTIFASE, encoding="utf-8")
+    rc, out = _run([str(inic), "T-04", "--sin-lint", "--constitucion", str(inic / "no.md")])
+    assert rc == 0
+    assert "## Gaps pendientes de revisión (intento 3" in out
+    assert "Falta un comentario en B" in out
+
+
+LEDGER_REAL_KNOWLEDGE_SERVICES = (
+    Path(__file__).resolve().parents[2] / "docs" / "roadmap" /
+    "2026-09-15-knowledge-services" / "tasks.md")
+
+
+@pytest.mark.skipif(not LEDGER_REAL_KNOWLEDGE_SERVICES.is_file(),
+                    reason="ledger real de knowledge-services no está en este árbol")
+def test_gaps_sobre_el_ledger_real_de_knowledge_services(tmp_path):
+    """Ledger real de producción con 4 fases y 3 intentos cada una (12 secciones «## Revisión de
+    dos lentes», ADR-016/gap #5): T-04 (Fase 2) debe devolver las filas de SU último intento (el
+    3, 10 filas), y T-10 (Fase 4) las del suyo (el 3, 9 filas) — no `None` por culpa del intento
+    GLOBAL más alto de otra fase."""
+    d = tmp_path / "2026-09-15-knowledge-services"
+    d.mkdir()
+    shutil.copyfile(LEDGER_REAL_KNOWLEDGE_SERVICES, d / "tasks.md")
+    rc, out = _run([str(d), "T-04", "--sin-lint", "--constitucion", str(d / "no.md")])
+    assert rc == 0
+    assert "## Gaps pendientes de revisión (intento 3" in out
+
+    rc, out = _run([str(d), "T-10", "--sin-lint", "--constitucion", str(d / "no.md")])
+    assert rc == 0
+    assert "## Gaps pendientes de revisión (intento 3" in out
+
+
 # --------------------------------------------------------- el lado PADRE de GOT-005 (T-04) ----
 
 SCRIPT = str(Path(__file__).parent / "task-brief.py")
