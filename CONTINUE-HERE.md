@@ -1,5 +1,47 @@
 # CONTINUE-HERE
 
+> **2026-09-19 (tarde) — TRES RAMAS EN VUELO; leer este bloque antes que el resto (el resto es histórico).**
+>
+> 1. **`feature/knowledge-services` → PR #9 a master: CI VERDE (run 35423149251), `CLEAN MERGEABLE`, sin mergear** (el
+>    merge lo decide el usuario). Worktree `C:\Users\46066917X\ks-fix`. Cinco commits de corrección de CI encima del cierre:
+>    `11221b6` (hooks/«knowledge»), `1b392db` (corpus con `approved/`, gap37 agnóstico, `.claude/dev.json` fuera del índice
+>    e ignorado: había entrado por error en `3dbdd88` y rompía `test_tdd_false_o_ausente_no_inyecta`), `eea751f` (fixture
+>    gap37), `e8a406f` (bench p95 adaptativo, flaky), `2dca4c0` (**cabeceras «Revisión de dos lentes — intento N: …»
+>    normalizadas**: con paréntesis tras N no casan con `REVISION_HDR_PATTERN` y jira-flow/task-brief no las veían; bytes de
+>    control fuera del ledger). Comentario resumen en el PR. **Pendiente del usuario:** reindexar el stack Kwipu y `git stash drop stash@{0}`.
+> 2. **`fix/jira-review-comments`** (worktree `C:\Users\46066917X\jira-fix`, rebasada sobre `2dca4c0`, commits `c71f484`
+>    T-01+T-02 y `9437a4d` T-03+T-04, SIN push): encargo del usuario «los reviews no añaden comentarios en Jira». Causa 1:
+>    nadie era dueño de `jira-flow.py --event revision|gaps` (skill decía «orquestador», dev-cycle decía «adversarial-review»,
+>    review-publish decía «reviewer», ROLES decía «orquestador/implementer») → dueño único = skill `adversarial-review` §6
+>    (comando completo), tabla de dev-cycle, review-publish y ROLES alineados, test `tests/test_review_jira_owner.py`. Causa 2:
+>    `seccion_revision` elegía la PRIMERA sección con ese nº de intento (en ledgers multifase publicaba «sin gaps» falso) →
+>    elige por tarea, cae en la última; `ledger-lint` avisa de cabeceras que no casan. Ledger
+>    `docs/roadmap/2026-09-19-jira-review-comments/tasks.md` 4/4 `completado`. **En curso: revisión de dos lentes intento 1
+>    (A+B; C/D no aplican).** Después: ronda fix si hay gaps, sección de revisión en el ledger, `changelog-sync --only
+>    jira-review-comments` (Fixed), push, PR (base `feature/knowledge-services` hasta que #9 se mergee; luego master).
+> 3. **`feature/graphiti-memory`** (árbol principal; `4a672a4` = merge de knowledge-services con los fixes de CI):
+>    `/dev-cycle graphiti-memory completo`. **Fase 1 (T-01..T-03) HECHA** (`0c70937`, `5a32012`, `7d67a4c`). **Revisión Fase 1
+>    intento 1** (`2ffc69f`): 15 gaps (0 Critical, 7 Important, 8 Minor) + enmienda 2026-09-19 en `design.md` (config anidada
+>    estricta, `group_id` sin default, guardarraíl local/privado, `telemetria`) + criterio `hash` movido de T-01 a T-05. Ronda
+>    fix1 HECHA (`20d44a6` T-01-fix1, `3bb4bdb` T-02-fix1; 15/15 según el implementer). **En curso: intento 2 (A+B) sobre
+>    `2ffc69f..3bb4bdb`** (ignorar el merge en scope-check/lens-select: los motivos C/D que salen son del bench test mergeado,
+>    no de esta fase). Siguiente: cerrar bucle Fase 1 → Fase 2 (T-04 adaptador `graphiti.py` cliente MCP streamable HTTP
+>    contra `127.0.0.1:8001/mcp`, T-05, T-06) → Fase 3 (T-07 router, T-08 capability) → Fase 4 (T-09, T-10) → qa sin UI →
+>    documenter → 4-bis → cierre → PR apilado sobre #9. Validar en vivo contra el Graphiti real cuando exista T-04.
+> 4. **Inventario de pendientes (petición 2 del usuario, ya hecho, para decidir):** brief-budget 0/6 (en-progreso, ninguna
+>    iniciada), plugin-refactor 17/21 (T-15 en-progreso; T-20 revisión por tramos, T-21 corrección, T-22 cierre),
+>    project-specialization 3/22, graphiti-memory 3/10 (en vuelo), dev-cycle-dataset 0/8 y training-data-services 0/11
+>    (borrador, dependen de knowledge-services).
+>
+> Reglas de esta sesión: `PATH="$PWD/.venv/Scripts:$PATH"` y `python`; el modo auto deniega tocar el stack docker y
+> `git stash drop`; agentes nuevos (`knowledge-curator`) no existen en el plugin instalado (1.20.2): despachar con
+> general-purpose leyendo `agents/<nombre>.md`; `export-interop.py` en Windows reescribe los 50 ficheros con otro EOL
+> (revertir los que `git diff --quiet` dé limpios).
+
+---
+
+## Histórico (2026-09-18 → 2026-09-19 mañana)
+
 > **2026-09-18 — EN CURSO: `/dev-cycle knowledge-services` (flujo completo, Fase 3) en la rama `feature/knowledge-services`**
 > (ramificada de `feature/session-end-durable-capture`, que está cerrada con retro pero SIN PR/merge: el PR de esa
 > iniciativa sigue pendiente; `outbox.py` solo existe en estas ramas). Objetivo del usuario (`/goal`): que el plugin,
