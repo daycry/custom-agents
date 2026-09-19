@@ -36,6 +36,7 @@ import http.client
 import ipaddress
 import json
 import os
+import re
 import socket
 import sys
 import threading
@@ -58,14 +59,35 @@ except ImportError:  # cargado por importlib.util.spec_from_file_location (backe
     _gp = _ilu.module_from_spec(_spec)
     _spec.loader.exec_module(_gp)
 
+try:
+    from . import graphiti_model as _gm  # paquete normal (tests que importan por ruta relativa)
+except ImportError:  # cargado por importlib.util.spec_from_file_location (backends/__init__.py)
+    import importlib.util as _ilu2
+    _RUTA_MODEL = os.path.join(os.path.dirname(os.path.abspath(__file__)), "graphiti_model.py")
+    _spec2 = _ilu2.spec_from_file_location("ks_backend_graphiti_model", _RUTA_MODEL)
+    _gm = _ilu2.module_from_spec(_spec2)
+    _spec2.loader.exec_module(_gm)
+
 
 # --8<-- hosts locales COMPARTIDO (graphiti-memory T-01-fix1) — REPLICADO LITERAL en skills/knowledge-services/backends/markdown_export.py, agent-kits/shared/knowledge-schema.py y skills/knowledge-services/backends/graphiti.py
 _SUFIJOS_LOCALES = (".test", ".local", ".internal")
 _HOSTS_LOCALES_LITERALES = {"localhost", "host.docker.internal"}
 # --8<-- fin hosts locales COMPARTIDO
+# Gap #34 (revisión Fase 2 intento 1): las dos constantes de arriba ya NO se usan como
+# cortocircuito de `_host_permitido` (ver abajo) — un host con nombre se RESUELVE SIEMPRE, sin
+# excepción para literales/sufijos "conocidos" (ese cortocircuito es exactamente el agujero (a)
+# del gap: un `307 Location` hacia `exfil.internal` pasaba sin resolver DNS). Se mantienen
+# declaradas solo para no romper el contrato byte-a-byte de `copias.json` (bloque `hosts_locales`,
+# tercera copia añadida en T-04).
 
 _DNS_TIMEOUT_S = 2.0
-_MAX_REDIRECCIONES = 5
+_DNS_CACHE_TTL_S = 300  # gap #44: una resolución positiva expira a los 5 min (mismo patrón TTL
+                        # que `markdown_export.py`, sin ser copia literal: implementación propia)
+_DNS_CACHE_TTL_S_LENTO = 5  # resolución vacía o colgada: TTL corto, para no perforar el tope de
+                            # tiempo en cada llamada consecutiva pero tampoco cachear "no hay ruta"
+                            # por mucho tiempo si la red se recupera
+_dns_cache = {}  # {host: (lista_de_ips, expira_epoch_s)}
+_MAX_REDIRECCIONES = 3  # gap #34: solo 307/308 se siguen (preservan método); como máximo 3 saltos
 _PROTOCOLO_MCP = "2025-03-26"
 _NAMESPACE_EPISODIOS = uuid.UUID("6f9c9b0a-6f1e-4a4a-9c1e-6f6f6f6f6f6f")  # constante propia, estable
 
@@ -101,39 +123,137 @@ def _resolver_host(host, timeout_s=_DNS_TIMEOUT_S):
     return [info[4][0] for info in resultado["direcciones"]]
 
 
-def _host_permitido(url, allow_remote):
-    """True si `url` apunta a un host local/privado (mismo criterio que el adaptador Kwipu) o si
-    `allow_remote` lo autoriza explicitamente. Fail-closed: cualquier fallo de parseo/resolucion
-    devuelve False."""
+def _resolver_host_cacheado(host, timeout_s=_DNS_TIMEOUT_S):
+    """Cachea por proceso el resultado de `_resolver_host` con TTL (gap #44: sin caché, cada POST
+    y cada salto de redirección resolvía DNS de nuevo). Un resultado vacío (sin resolver o
+    colgado) se cachea con un TTL corto para no perforar el tope de tiempo en llamadas
+    consecutivas, pero tampoco bloquear una recuperación de red por mucho tiempo."""
+    ahora = time.time()
+    entrada = _dns_cache.get(host)
+    if entrada and entrada[1] > ahora:
+        return entrada[0]
+    direcciones = _resolver_host(host, timeout_s)
+    ttl = _DNS_CACHE_TTL_S if direcciones else _DNS_CACHE_TTL_S_LENTO
+    _dns_cache[host] = (direcciones, ahora + ttl)
+    return direcciones
+
+
+def _direcciones_de_host(host, timeout_s=_DNS_TIMEOUT_S):
+    """Direcciones IP de `host`: si ya es un literal IP se devuelve tal cual (sin red); si es un
+    nombre, se RESUELVE SIEMPRE (gap #34: antes, `localhost`/sufijos "conocidos" devolvían `True`
+    sin resolver, así que un `307 Location` hacia un host con nombre nunca se comprobaba de
+    verdad — se validaba la CADENA, no la IP real a la que apunta ese nombre en ese momento)."""
+    try:
+        return [str(ipaddress.ip_address(host))]
+    except ValueError:
+        pass
+    return _resolver_host_cacheado(host, timeout_s)
+
+
+def _direccion_prohibida_siempre(ip):
+    """Link-local (`169.254.0.0/16`, `fe80::/10`, típico endpoint de metadatos de nube) y
+    no-especificada (`0.0.0.0`, `::`) se rechazan SIEMPRE, incluso con `allow_remote: true` (gap
+    #34c): `allow_remote` autoriza salir a redes remotas, no a la red de metadatos del propio
+    host ni a direcciones sin sentido como destino de conexión."""
+    return bool(ip.is_link_local or ip.is_unspecified)
+
+
+def _direccion_permitida(ip, allow_remote):
+    if _direccion_prohibida_siempre(ip):
+        return False
     if allow_remote:
-        try:
-            return urllib.parse.urlsplit(url).scheme in ("http", "https")
-        except ValueError:
-            return False
+        return True
+    return bool(ip.is_loopback or ip.is_private)
+
+
+def _validar_host(url, allow_remote):
+    """Direcciones IP validadas de `url`, o `None` si el host no está permitido (fail-closed ante
+    cualquier fallo de parseo/resolución). TODAS las direcciones resueltas de un host con nombre
+    deben ser loopback/privadas (o autorizadas por `allow_remote`, salvo las SIEMPRE prohibidas de
+    `_direccion_prohibida_siempre`) — un host que resuelve a varias IPs y solo alguna es privada
+    ya no basta (gap #34b, DNS rebinding parcial)."""
     try:
         partes = urllib.parse.urlsplit(url)
     except ValueError:
-        return False
+        return None
     if partes.scheme not in ("http", "https"):
-        return False
+        return None
+    if partes.username or partes.password:
+        return None  # gap #43: userinfo en la URL nunca se acepta
     host = partes.hostname or ""
     if not host:
-        return False
-    if host in _HOSTS_LOCALES_LITERALES or host.endswith(_SUFIJOS_LOCALES):
-        return True
+        return None
+    direcciones = _direcciones_de_host(host)
+    if not direcciones:
+        return None  # no resuelto a tiempo, o sin direcciones: fail-closed
+    ips = []
+    for direccion in direcciones:
+        try:
+            ips.append(ipaddress.ip_address(direccion))
+        except ValueError:
+            return None
+    if not all(_direccion_permitida(ip, allow_remote) for ip in ips):
+        return None
+    return [str(ip) for ip in ips]
+
+
+def _host_permitido(url, allow_remote):
+    """True si `url` apunta a un host local/privado (o `allow_remote` lo autoriza, salvo las
+    direcciones SIEMPRE prohibidas). Ver `_validar_host` para el detalle; esta función es el
+    booleano que consumen `health()`/`_get_health_endpoint()`."""
+    return _validar_host(url, allow_remote) is not None
+
+
+def _conectar_por_ip_si_http(url, direcciones_validas):
+    """Mitigación del TOCTOU entre `_validar_host` y la conexión real (gap #34, riesgo residual
+    documentado): si el esquema es `http` y el host es un NOMBRE (no ya un literal IP), la
+    conexión TCP se hace contra una de las IPs YA VALIDADAS, preservando la cabecera `Host`
+    original para que el servidor siga viendo el mismo virtual host. Para `https` esto rompe la
+    validación del certificado (SNI se negocia contra la IP, no el nombre) y NO se aplica: el
+    riesgo de que la IP cambie entre la validación y el `connect()` queda como residual para
+    `https`, aceptable porque el invariante local/privado del repo ya exige que el endpoint sea
+    loopback/privado (superficie de ataque acotada a la propia red del proyecto)."""
+    partes = urllib.parse.urlsplit(url)
+    if partes.scheme != "http" or not partes.hostname or not direcciones_validas:
+        return url, None
     try:
-        ip = ipaddress.ip_address(host)
-        return bool(ip.is_loopback or ip.is_private)
+        ipaddress.ip_address(partes.hostname)
+        return url, None  # ya es un literal IP: nada que sustituir
     except ValueError:
         pass
-    for direccion in _resolver_host(host):
-        try:
-            ip = ipaddress.ip_address(direccion)
-        except ValueError:
-            continue
-        if ip.is_loopback or ip.is_private:
-            return True
-    return False
+    ip = direcciones_validas[0]
+    netloc = f"[{ip}]" if ":" in ip else ip
+    if partes.port:
+        netloc += f":{partes.port}"
+    host_cabecera = partes.hostname + (f":{partes.port}" if partes.port else "")
+    return partes._replace(netloc=netloc).geturl(), host_cabecera
+
+
+def _sanear_url_para_mensaje(url):
+    """Nunca imprime userinfo (gap #43) ni bytes no confiables (gap #41) en un mensaje de error:
+    reconstruye la URL sin credenciales y aplica `_sanear_detalle` (control/ANSI fuera, tope de
+    200 caracteres) sobre el resultado."""
+    try:
+        partes = urllib.parse.urlsplit(url)
+    except ValueError:
+        return _sanear_detalle(url)
+    if partes.username or partes.password:
+        netloc = (partes.hostname or "") + (f":{partes.port}" if partes.port else "")
+        partes = partes._replace(netloc=netloc)
+    return _sanear_detalle(partes.geturl())
+
+
+# --8<-- sanear_detalle (funcion) — REPLICADO LITERAL en skills/knowledge-services/backends/markdown_export.py y skills/knowledge-services/backends/graphiti.py
+_CONTROL_O_ANSI_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]|[\x00-\x1f\x7f]")
+_SANEADO_TOPE_CHARS = 200
+
+
+def _sanear_detalle(texto):
+    """Recorta a 200 caracteres y sustituye caracteres de control (incluidas las secuencias ANSI
+    `ESC[...`) por un espacio; ver comentario arriba para el porqué de cada regla."""
+    saneado = _CONTROL_O_ANSI_RE.sub(" ", str(texto))
+    return saneado[:_SANEADO_TOPE_CHARS]
+# --8<-- fin sanear_detalle (funcion)
 
 
 class _SinRedireccionAutomatica(urllib.request.HTTPRedirectHandler):
@@ -157,28 +277,52 @@ def _url_mcp(endpoint):
 
 
 def _post_json(url, payload, cabeceras, timeout_s, allow_remote):
-    """POST JSON con seguimiento MANUAL de redirecciones (307/308 preservan el metodo, a
-    diferencia de lo que hace `urllib` con 301/302/303 por defecto): revalida `_host_permitido`
-    en CADA salto y comparte un unico presupuesto de tiempo total (`deadline`, no por salto)."""
+    """POST JSON con seguimiento MANUAL de redirecciones: SOLO 307/308 se siguen (preservan el
+    método; 301/302/303 se tratan como error citando la URL — gap #34d, antes se seguían los
+    cinco códigos re-POSTeando el cuerpo completo a un destino no confiable), como máximo
+    `_MAX_REDIRECCIONES` saltos, revalidando `_validar_host` en CADA salto y sin reenviar
+    `Mcp-Session-Id` si el salto cambia de host (gap #34e/M3/M4). Comparte un único presupuesto de
+    tiempo total (`deadline`, no por salto)."""
     opener = urllib.request.build_opener(_SinRedireccionAutomatica)
     cuerpo = json.dumps(payload).encode("utf-8")
     url_actual = url
+    cabeceras_actuales = dict(cabeceras)
+    try:
+        host_original = urllib.parse.urlsplit(url).hostname
+    except ValueError:
+        host_original = None
     deadline = time.monotonic() + timeout_s
     for _ in range(_MAX_REDIRECCIONES + 1):
-        if not _host_permitido(url_actual, allow_remote):
-            raise HostNoPermitido(url_actual)
+        direcciones = _validar_host(url_actual, allow_remote)
+        if direcciones is None:
+            raise HostNoPermitido(_sanear_url_para_mensaje(url_actual))
         restante = deadline - time.monotonic()
         if restante <= 0:
-            raise TimeoutError(f"timeout MCP agotado contra {url_actual}")
-        req = urllib.request.Request(url_actual, data=cuerpo, headers=cabeceras, method="POST")
+            raise TimeoutError(f"timeout MCP agotado contra {_sanear_url_para_mensaje(url_actual)}")
+        url_conexion, host_cabecera = _conectar_por_ip_si_http(url_actual, direcciones)
+        req = urllib.request.Request(url_conexion, data=cuerpo, headers=cabeceras_actuales, method="POST")
+        if host_cabecera:
+            req.add_unredirected_header("Host", host_cabecera)
         try:
             return opener.open(req, timeout=restante)
         except urllib.error.HTTPError as e:
-            if e.code in (301, 302, 303, 307, 308) and e.headers and e.headers.get("Location"):
-                url_actual = urllib.parse.urljoin(url_actual, e.headers.get("Location"))
-                continue
-            raise
-    raise ErrorMCP(f"demasiadas redirecciones siguiendo {url}")
+            location = e.headers.get("Location") if e.headers else None
+            if not location:
+                raise
+            if e.code not in (307, 308):
+                raise ErrorMCP(
+                    f"redireccion HTTP {e.code} no soportada (solo se siguen 307/308): "
+                    f"{_sanear_url_para_mensaje(url_actual)} -> {_sanear_url_para_mensaje(location)}")
+            nueva_url = urllib.parse.urljoin(url_actual, location)
+            try:
+                host_nuevo = urllib.parse.urlsplit(nueva_url).hostname
+            except ValueError:
+                host_nuevo = None
+            if host_nuevo != host_original:
+                cabeceras_actuales.pop("Mcp-Session-Id", None)
+            url_actual = nueva_url
+            continue
+    raise ErrorMCP(f"demasiadas redirecciones ({_MAX_REDIRECCIONES}) siguiendo {_sanear_url_para_mensaje(url)}")
 
 
 def _leer_respuesta_mcp(resp):
@@ -189,16 +333,27 @@ def _leer_respuesta_mcp(resp):
     crudo = resp.read().decode("utf-8", errors="replace")
     session_id = resp.headers.get("Mcp-Session-Id")
     if "text/event-stream" in (tipo or ""):
-        datos = None
+        # gap #38: un evento SSE puede traer el JSON partido en VARIAS lineas `data:` (se
+        # concatenan con "\n", spec SSE); antes solo se guardaba la ULTIMA linea `data:` de todo
+        # el cuerpo, perdiendo el resto si el JSON estaba partido en mas de una linea o si habia
+        # mas de un evento en el cuerpo. Se acumula por evento (separado por linea en blanco) y
+        # se devuelve el ULTIMO evento no vacio (el resultado final de la peticion).
+        eventos = []
+        actual = []
         for linea in crudo.splitlines():
-            linea = linea.strip()
+            if linea.strip() == "":
+                if actual:
+                    eventos.append("\n".join(actual))
+                    actual = []
+                continue
             if linea.startswith("data:"):
-                fragmento = linea[len("data:"):].strip()
-                if fragmento:
-                    datos = fragmento
-        if datos is None:
+                actual.append(linea[len("data:"):].lstrip(" "))
+        if actual:
+            eventos.append("\n".join(actual))
+        eventos = [e for e in eventos if e.strip()]
+        if not eventos:
             return None, session_id
-        return json.loads(datos), session_id
+        return json.loads(eventos[-1]), session_id
     if not crudo.strip():
         return None, session_id
     return json.loads(crudo), session_id
@@ -225,8 +380,20 @@ class ClienteMCP:
             cabeceras["Mcp-Session-Id"] = self._session_id
         return cabeceras
 
-    def _llamar(self, payload):
-        resp = _post_json(self._url, payload, self._cabeceras(), self._timeout_s, self._allow_remote)
+    def _llamar(self, payload, _reintentar_sesion=True):
+        """Gap #49: si el servidor ya olvido la sesion (`Mcp-Session-Id` caducado/desconocido)
+        responde 404/400 en vez de re-emitir una sesion nueva; sin este reintento, esa condicion
+        se colaba hasta el llamador como un `HTTPError` crudo aunque re-`initialize()`-arse
+        resuelve el problema. Se reintenta UNA sola vez (`_reintentar_sesion=False` en el
+        reintento) para no entrar en bucle si el servidor esta realmente caido."""
+        try:
+            resp = _post_json(self._url, payload, self._cabeceras(), self._timeout_s, self._allow_remote)
+        except urllib.error.HTTPError as e:
+            if _reintentar_sesion and self._session_id and e.code in (400, 404):
+                self._session_id = None
+                self.initialize()
+                return self._llamar(payload, _reintentar_sesion=False)
+            raise
         try:
             cuerpo, session_id = _leer_respuesta_mcp(resp)
         finally:
@@ -266,7 +433,17 @@ class ClienteMCP:
         return self._peticion("tools/list")
 
     def tools_call(self, nombre, argumentos=None):
-        return self._peticion("tools/call", {"name": nombre, "arguments": argumentos or {}})
+        """Gap #33 (Critical): `tools/call` puede devolver un `result` valido a nivel JSON-RPC
+        pero con `isError: true` a nivel de HERRAMIENTA (el servidor Graphiti asi informa fallos
+        de la propia tool, p. ej. `add_memory` con datos invalidos) — sin este chequeo, esas
+        llamadas se contaban como aplicadas con exito en `apply()` en vez de caer a
+        `fallidos`/dead-letter."""
+        resultado = self._peticion("tools/call", {"name": nombre, "arguments": argumentos or {}})
+        if isinstance(resultado, dict) and resultado.get("isError"):
+            contenido = _contenido_tool_call(resultado)
+            detalle = contenido if contenido is not None else resultado.get("content")
+            raise ErrorMCP(f"tool `{nombre}` devolvio isError=true: {_sanear_detalle(detalle)}")
+        return resultado
 
     def get_status(self):
         return self.tools_call("get_status", {})
@@ -300,33 +477,67 @@ def _timeout_s(cfg, clave="timeout_ms", default_ms=3000):
 
 def _get_health_endpoint(url, timeout_s, allow_remote, _saltos=0):
     """GET simple contra `health.url` (endpoint de liveness separado del protocolo MCP, si el
-    proyecto lo declara); sigue como maximo un salto de redireccion manualmente."""
-    if not _host_permitido(url, allow_remote):
-        return {"estado": "error", "detalle": f"host no local/privado, rechazado: {url}"}
+    proyecto lo declara); sigue como maximo `_MAX_REDIRECCIONES` saltos, SOLO 307/308 (gap #34d,
+    mismo criterio que `_post_json`: 301/302/303 no se siguen, se informan como error), revalidando
+    `_validar_host` en cada salto y conectando por IP validada si el esquema es `http`."""
+    direcciones = _validar_host(url, allow_remote)
+    if direcciones is None:
+        return {"estado": "error", "detalle": f"host no local/privado, rechazado: {_sanear_url_para_mensaje(url)}"}
     opener = urllib.request.build_opener(_SinRedireccionAutomatica)
+    url_conexion, host_cabecera = _conectar_por_ip_si_http(url, direcciones)
+    req = urllib.request.Request(url_conexion, method="GET")
+    if host_cabecera:
+        req.add_unredirected_header("Host", host_cabecera)
     try:
-        with opener.open(urllib.request.Request(url, method="GET"), timeout=timeout_s) as resp:
+        with opener.open(req, timeout=timeout_s) as resp:
             cuerpo = resp.read()
     except urllib.error.HTTPError as e:
-        if e.code in (301, 302, 303, 307, 308) and e.headers and e.headers.get("Location") and _saltos < _MAX_REDIRECCIONES:
-            destino = urllib.parse.urljoin(url, e.headers.get("Location"))
+        location = e.headers.get("Location") if e.headers else None
+        if location and e.code in (307, 308) and _saltos < _MAX_REDIRECCIONES:
+            destino = urllib.parse.urljoin(url, location)
             return _get_health_endpoint(destino, timeout_s, allow_remote, _saltos + 1)
-        return {"estado": "degradado" if 500 <= e.code < 600 else "error", "detalle": f"HTTP {e.code} de {url}"}
+        if location and e.code not in (307, 308):
+            return {"estado": "error",
+                    "detalle": f"redireccion HTTP {e.code} no soportada (solo 307/308) de "
+                               f"{_sanear_url_para_mensaje(url)}"}
+        return {"estado": "degradado" if 500 <= e.code < 600 else "error",
+                "detalle": f"HTTP {e.code} de {_sanear_url_para_mensaje(url)}"}
     except (urllib.error.URLError, TimeoutError, socket.timeout, http.client.HTTPException, OSError) as e:
-        return {"estado": "off", "detalle": f"sin conexion a {url}: {type(e).__name__}: {e}"}
+        # gap #41: `e` puede llevar bytes CRUDOS de lo que respondió el servidor (p. ej.
+        # `BadStatusLine` incluye la primera línea recibida tal cual) — se sanea antes de exponerlo.
+        return {"estado": "off",
+                "detalle": f"sin conexion a {_sanear_url_para_mensaje(url)}: {type(e).__name__}: {_sanear_detalle(e)}"}
     try:
         datos = json.loads(cuerpo.decode("utf-8"))
     except (ValueError, UnicodeDecodeError) as e:
-        return {"estado": "error", "detalle": f"respuesta no JSON de {url}: {e}"}
+        return {"estado": "error", "detalle": f"respuesta no JSON de {_sanear_url_para_mensaje(url)}: {_sanear_detalle(e)}"}
     sano = isinstance(datos, dict) and datos.get("status") == "ok"
     return {"estado": "sano" if sano else "degradado",
             "detalle": json.dumps(datos, ensure_ascii=False) if isinstance(datos, (dict, list)) else str(datos)}
+
+
+def _modo(cfg):
+    """`mode` normalizado (`off`/`shadow`/`read`), default `shadow` (mismo default que el
+    esquema). Gap #35: antes se validaba pero nadie lo LEIA -`off` seguia sincronizando y
+    `rebuild` seguia ejecutando `clear_graph`-."""
+    modo = (cfg or {}).get("mode")
+    return modo if modo in ("off", "shadow", "read") else "shadow"
+
+
+def _aplicar_telemetria(cfg):
+    """Gap #45: `telemetria` (bool, `design.md:47`) se traduce a la variable de entorno
+    `GRAPHITI_TELEMETRY_ENABLED` que lee el SDK/servidor Graphiti ANTES de abrir cualquier
+    conexion MCP -no hay otro punto de extension en este cliente minimo para comunicarlo-."""
+    os.environ["GRAPHITI_TELEMETRY_ENABLED"] = "true" if bool((cfg or {}).get("telemetria")) else "false"
 
 
 def health(cfg):
     """Nunca lanza (contrato de adaptador, design.md): `health.url` (si esta declarada, GET
     simple) + `get_status` via MCP (`initialize` -> `tools/call get_status`)."""
     cfg = cfg or {}
+    if _modo(cfg) == "off":
+        return {"estado": "off", "detalle": "off por configuracion (mode=off)"}
+    _aplicar_telemetria(cfg)
     endpoint = cfg.get("endpoint")
     if not endpoint:
         return {"estado": "off", "detalle": "sin `endpoint` configurado"}
@@ -345,14 +556,15 @@ def health(cfg):
         cliente.initialize()
         resultado = cliente.get_status()
     except HostNoPermitido as e:
-        return {"estado": "error", "detalle": f"host no local/privado, rechazado: {e}"}
+        return {"estado": "error", "detalle": f"host no local/privado, rechazado: {_sanear_detalle(e)}"}
     except urllib.error.HTTPError as e:
         return {"estado": "degradado" if 500 <= e.code < 600 else "error",
-                "detalle": f"HTTP {e.code} de {endpoint}"}
+                "detalle": f"HTTP {e.code} de {_sanear_url_para_mensaje(endpoint)}"}
     except (urllib.error.URLError, TimeoutError, socket.timeout, http.client.HTTPException, OSError) as e:
-        return {"estado": "off", "detalle": f"sin conexion a {endpoint}: {type(e).__name__}: {e}"}
+        return {"estado": "off",
+                "detalle": f"sin conexion a {_sanear_url_para_mensaje(endpoint)}: {type(e).__name__}: {_sanear_detalle(e)}"}
     except (ErrorMCP, ValueError) as e:
-        return {"estado": "error", "detalle": f"{type(e).__name__}: {e}"}
+        return {"estado": "error", "detalle": f"{type(e).__name__}: {_sanear_detalle(e)}"}
 
     contenido = _contenido_tool_call(resultado) or {}
     status = contenido.get("status") if isinstance(contenido, dict) else None
@@ -451,26 +663,96 @@ def plan(entries, cfg, force=False):
     return ops
 
 
-def _episodio_upsert(group_id, op):
+_DELIM_PROVENIENCIA = "--- procedencia ---"
+_DELIM_CONTENIDO = "--- contenido ---"
+
+
+def _escapar_delimitador(texto, delimitador):
+    """Gap #42: si el cuerpo del episodio empieza por (o contiene) el propio delimitador, un
+    cuerpo hostil podia falsificar procedencia insertando un segundo bloque `knowledge_id: …
+    status: aprobado …` que el extractor server-side leeria como si fuera la cabecera real. Se
+    escapa anteponiendo un backslash a cualquier aparicion literal del delimitador dentro del
+    cuerpo NO CONFIABLE."""
+    return texto.replace(delimitador, "\\" + delimitador)
+
+
+def _episodio_upsert(group_id, op, cfg=None):
+    """CA-13 (gap #36): el episodio lleva `category` y `entity_type` (resuelto contra
+    `backends.graphiti.config.entity_map` via `graphiti_model.tipo_entidad`) ademas del `hash`
+    del aprobado, y `hash_enviado` -el hash de lo que REALMENTE viaja al servidor, que con
+    `modo: resumen` es distinto del `hash` del cuerpo completo (T-05 lo necesita para detectar
+    cambios que solo afectan al resumen)."""
+    cfg = cfg or {}
     cuerpo_texto = op.get("resumen") if op.get("modo") == "resumen" and op.get("resumen") else op["cuerpo"]
+    hash_enviado = hashlib.sha256(cuerpo_texto.encode("utf-8")).hexdigest()
+    categoria = op.get("category")
+    entity_type = _gm.tipo_entidad(categoria, cfg)
+    # Gap #42: bloque de procedencia DELIMITADO (nunca texto plano concatenado sin marca), con el
+    # cuerpo NO CONFIABLE escapado si contiene alguno de los delimitadores.
     proveniencia = (
+        f"{_DELIM_PROVENIENCIA}\n"
         f"knowledge_id: {op['id']}\nversion: {op['version']}\nstatus: aprobado\n"
-        f"evidence_level: {op.get('evidencia')}\nsource_path: {op.get('ruta')}\nhash: {op['hash']}\n\n"
+        f"category: {categoria}\nentity_type: {entity_type}\n"
+        f"evidence_level: {op.get('evidencia')}\nsource_path: {op.get('ruta')}\nhash: {op['hash']}\n"
+        f"{_DELIM_CONTENIDO}\n"
     )
+    cuerpo_escapado = _escapar_delimitador(_escapar_delimitador(cuerpo_texto, _DELIM_PROVENIENCIA), _DELIM_CONTENIDO)
     return {
         "name": f"{op['id']}@{op['version']}",
-        "episode_body": proveniencia + cuerpo_texto,
+        "episode_body": proveniencia + cuerpo_escapado,
         "group_id": group_id,
         "source": "text",
         "source_description": "custom-agents:graphiti-memory",
         "uuid": _uuid_episodio(group_id, op["id"], op["version"]),
+        "category": categoria,
+        "entity_type": entity_type,
+        "hash_enviado": hash_enviado,
     }
 
 
-def _aplicar_upsert(cliente, proveedor, provider_cfg, group_id, op):
-    episodio = proveedor(provider_cfg, _episodio_upsert(group_id, op))
+def _aplicar_upsert(cliente, proveedor, provider_cfg, group_id, op, cfg=None, entrada_previa=None):
+    """Gap #40: si `entrada_previa` (la versión publicada anterior de este `id`) existe y su
+    `version` cambió, se emite ADEMÁS un tombstone de esa versión anterior + `SUPERSEDES` hacia
+    ella (sucesión observable, CA-11) — el nuevo episodio nunca sustituye a la anterior en
+    silencio."""
+    episodio = proveedor(provider_cfg, _episodio_upsert(group_id, op, cfg))
+    # Gap #46 (CA-14): un proveedor que devuelve una estructura invalida (falta `name`,
+    # `episode_body` o `group_id`, p. ej. un bug de un proveedor futuro) NUNCA debe llegar a
+    # `add_memory` -se rechaza aqui y la op cae a `fallidos`/dead-letter como cualquier otro
+    # `ErrorMCP`, sin gastar una llamada de red con datos incompletos.
+    if not isinstance(episodio, dict) or not episodio.get("name") or not episodio.get("episode_body") \
+            or not episodio.get("group_id"):
+        raise ErrorMCP(
+            f"proveedor devolvio una estructura invalida para `add_memory` (faltan "
+            f"name/episode_body/group_id): {_sanear_detalle(episodio)}")
     cliente.tools_call("add_memory", episodio)
+    if entrada_previa and entrada_previa.get("version") != op.get("version") and entrada_previa.get("uuid"):
+        _tombstone_supersedes(cliente, group_id, op["id"], entrada_previa["uuid"], episodio["uuid"],
+                              f"{op['id']} superado por version {op.get('version')}")
     return episodio["uuid"]
+
+
+def _tombstone_supersedes(cliente, group_id, id_, uuid_anterior, uuid_nuevo, fact):
+    """Episodio tombstone de `uuid_anterior` + triplete `SUPERSEDES` (`uuid_nuevo` -> `uuid_anterior`,
+    campos `*_uuid`: gap #40, la tool espera `source_node_uuid`/`target_node_uuid`, no
+    `*_node_name`). NUNCA llama a `delete_episode` (design.md, enmienda 2026-09-18)."""
+    tombstone_uuid = _uuid_tombstone(group_id, f"{id_}:{uuid_anterior}")
+    cliente.tools_call("add_memory", {
+        "name": f"{id_}@tombstone",
+        "episode_body": f"knowledge_id: {id_}\nstatus: invalidado\n\nEntrada retirada o superada.",
+        "group_id": group_id,
+        "source": "text",
+        "source_description": "custom-agents:graphiti-memory",
+        "uuid": tombstone_uuid,
+    })
+    cliente.tools_call("add_triplet", {
+        "source_node_uuid": uuid_nuevo,
+        "edge_name": "SUPERSEDES",
+        "fact": fact,
+        "target_node_uuid": uuid_anterior,
+        "group_id": group_id,
+    })
+    return tombstone_uuid
 
 
 def _aplicar_revoke(cliente, group_id, entrada_previa, id_):
@@ -489,7 +771,7 @@ def _aplicar_revoke(cliente, group_id, entrada_previa, id_):
     })
     if entrada_previa.get("uuid"):
         cliente.tools_call("add_triplet", {
-            "source_node_name": tombstone_uuid,
+            "source_node_uuid": tombstone_uuid,
             "edge_name": "SUPERSEDES",
             "fact": f"{id_} invalidado",
             "target_node_name": entrada_previa["uuid"],
@@ -499,31 +781,33 @@ def _aplicar_revoke(cliente, group_id, entrada_previa, id_):
 
 
 def apply(ops, cfg):
-    """Diario pendiente->publicado (idempotencia PROPIA ante reintentos): escribe el manifiesto
-    `.pending` con el OBJETIVO completo ANTES de tocar el servidor, aplica cada op, y solo si
-    TODAS tuvieron exito renombra `.pending` -> publicado. Un fallo parcial deja el `.pending`
-    reflejando solo lo que SI se aplico -nunca pierde ni corrompe lo publicado antes-, y levanta
-    para que `knowledge-sync.py` decida el reintento/dead-letter (via `outbox.py`, una capa por
-    encima)."""
+    """Diario pendiente->publicado (idempotencia PROPIA ante reintentos). Gap #32 (Critical): el
+    `.pending` se escribe INCREMENTALMENTE -una vez por op, justo DESPUES de que esa op tuvo
+    exito contra el servidor-, nunca el objetivo completo ANTES de tocar el servidor: si el
+    proceso muere a mitad (no una excepcion Python capturable, sino un corte/kill real), el
+    `.pending` en disco refleja EXACTAMENTE lo que de verdad se aplico hasta ese instante, ni una
+    op de mas. Un fallo parcial (excepcion capturada) deja el `.pending` ya coherente -no hace
+    falta recalcularlo al final- y levanta para que `knowledge-sync.py` decida el
+    reintento/dead-letter (via `outbox.py`, una capa por encima).
+
+    Gap #44 (Minor D): `config.concurrency` (validado por el esquema, entero >= 1) queda
+    RESERVADO -no se usa un `ThreadPoolExecutor`- porque el servidor Graphiti de referencia
+    (`design.md:77-78`) impone `SEMAPHORE_LIMIT: 1`: paralelizar aqui no ganaria nada y anadiria
+    una fuente de fallos parciales intercalados dificil de razonar sobre `.pending`. La cache de
+    resolucion DNS (`_resolver_host_cacheado`, TTL corto) es la mitigacion real del coste de
+    "una conexion + una resolucion DNS por operacion" que motivo este gap."""
     cfg = cfg or {}
+    if _modo(cfg) == "off":
+        raise ConfigInvalida("`mode: off`: el adaptador no aplica cambios (gap #35)")
+    _aplicar_telemetria(cfg)
     group_id = cfg.get("group_id")
     if not group_id:
         raise ConfigInvalida("`group_id` vacio: no se puede aplicar sin un grupo estable")
     manifest, _pendiente = _leer_manifest(cfg)
     publicado = dict(manifest.get("entradas") or {})
-    objetivo = dict(publicado)
-    for op in ops:
-        if op["tipo"] == "revoke":
-            objetivo.pop(op["id"], None)
-        else:
-            objetivo[op["id"]] = {
-                "version": op["version"], "hash": op["hash"], "category": op.get("category"),
-                "uuid": _uuid_episodio(group_id, op["id"], op["version"]),
-            }
-    _escribir_manifest(cfg, {"group_id": group_id, "entradas": objetivo}, sufijo=".pending")
 
     if not ops:
-        _escribir_manifest(cfg, {"group_id": group_id, "entradas": objetivo})
+        _escribir_manifest(cfg, {"group_id": group_id, "entradas": publicado})
         _borrar_pending(cfg)
         return {"aplicados": 0, "revocados": 0}
 
@@ -534,34 +818,34 @@ def apply(ops, cfg):
     cliente = ClienteMCP(cfg.get("endpoint"), timeout_s=timeout_s, allow_remote=allow_remote)
     cliente.initialize()
 
+    progreso = dict(publicado)  # se muta y se persiste tras CADA op con éxito, no al final
+    _escribir_manifest(cfg, {"group_id": group_id, "entradas": progreso}, sufijo=".pending")
     aplicados, revocados, fallidos = 0, 0, []
     for op in ops:
         try:
             if op["tipo"] == "upsert":
-                _aplicar_upsert(cliente, proveedor, provider_cfg, group_id, op)
+                _aplicar_upsert(cliente, proveedor, provider_cfg, group_id, op, cfg=cfg,
+                                entrada_previa=publicado.get(op["id"]))
+                progreso[op["id"]] = {
+                    "version": op["version"], "hash": op["hash"], "category": op.get("category"),
+                    "uuid": _uuid_episodio(group_id, op["id"], op["version"]),
+                }
                 aplicados += 1
             else:
                 _aplicar_revoke(cliente, group_id, publicado.get(op["id"]), op["id"])
+                progreso.pop(op["id"], None)
                 revocados += 1
         except Exception as e:  # noqa: BLE001 - un fallo de una op no debe perder las demas
             fallidos.append({"id": op["id"], "tipo": op["tipo"], "error": f"{type(e).__name__}: {e}"})
+            continue
+        _escribir_manifest(cfg, {"group_id": group_id, "entradas": progreso}, sufijo=".pending")
 
     if fallidos:
-        ids_fallidos = {f["id"] for f in fallidos}
-        objetivo_parcial = dict(publicado)
-        for op in ops:
-            if op["id"] in ids_fallidos:
-                continue
-            if op["tipo"] == "upsert":
-                objetivo_parcial[op["id"]] = objetivo[op["id"]]
-            else:
-                objetivo_parcial.pop(op["id"], None)
-        _escribir_manifest(cfg, {"group_id": group_id, "entradas": objetivo_parcial}, sufijo=".pending")
         raise ErrorMCP(
             f"{len(fallidos)} operacion(es) fallaron; publicacion parcial retenida en "
             f"`graphiti-manifest.pending.json`: {fallidos}")
 
-    _escribir_manifest(cfg, {"group_id": group_id, "entradas": objetivo})
+    _escribir_manifest(cfg, {"group_id": group_id, "entradas": progreso})
     _borrar_pending(cfg)
     return {"aplicados": aplicados, "revocados": revocados}
 
@@ -577,6 +861,9 @@ def rebuild(entries, cfg):
     manifiesto local a juego y republica todo via `plan(force=True)` + `apply()` — reproduce el
     MISMO hash de manifiesto que la sincronizacion incremental (mismos uuid5 deterministas)."""
     cfg = cfg or {}
+    if _modo(cfg) == "off":
+        raise ConfigInvalida("`mode: off`: el adaptador no reconstruye el grafo (gap #35)")
+    _aplicar_telemetria(cfg)
     group_id = cfg.get("group_id")
     if not group_id:
         raise ConfigInvalida("`group_id` vacio: no se puede reconstruir sin un grupo estable")
@@ -594,11 +881,29 @@ def revoke(knowledge_id, cfg):
     """No-op DECLARADO si `knowledge_id` no esta publicado (contrato de adaptador); si lo esta,
     reusa el diario de `apply()` con una sola operacion `revoke` (misma seguridad ante fallos)."""
     cfg = cfg or {}
+    if _modo(cfg) == "off":
+        raise ConfigInvalida("`mode: off`: el adaptador no revoca (gap #35)")
     manifest, _pendiente = _leer_manifest(cfg)
     if knowledge_id not in (manifest.get("entradas") or {}):
         return {"revocado": False, "razon": "no publicado", "id": knowledge_id}
     resultado = apply([{"tipo": "revoke", "id": knowledge_id}], cfg)
     return {"revocado": True, "id": knowledge_id, "resultado": resultado}
+
+
+def puede_leer(cfg):
+    """Gap #35: `read` exige `health` sano Y `verify` sin desfase antes de servir lecturas (el
+    router de T-07 llamara a esta funcion antes de leer); `shadow`/`off` nunca autorizan lectura
+    -`shadow` solo escribe-. Nunca lanza (mismo contrato que `health`/`verify`)."""
+    cfg = cfg or {}
+    if _modo(cfg) != "read":
+        return {"puede": False, "razon": f"mode={_modo(cfg)!r} no autoriza lectura (solo `read`)"}
+    veredicto_health = health(cfg)
+    if veredicto_health.get("estado") != "sano":
+        return {"puede": False, "razon": f"health no sano: {veredicto_health}"}
+    veredicto_verify = verify(cfg)
+    if veredicto_verify.get("ok") is not True:
+        return {"puede": False, "razon": f"verify con desfase o ilegible: {veredicto_verify}"}
+    return {"puede": True}
 
 
 _REMEDIO_DESFASE = ("reindexar: ejecutar `knowledge-sync.py --backend <id>` (o `--rebuild` si el "
@@ -622,32 +927,61 @@ def verify(cfg):
     if not group_id:
         return {"ok": False, "razon": "sin group_id", "desfase": []}
     allow_remote = bool(cfg.get("allow_remote", False))
+    esperados = {f"{id_}@{meta.get('version')}" for id_, meta in entradas.items()}
+    nombres_remotos = set()
+    otros_grupos = set()
+    respuesta_ilegible = False
     try:
         cliente = ClienteMCP(cfg.get("endpoint"), timeout_s=_timeout_s(cfg), allow_remote=allow_remote)
         cliente.initialize()
-        resultado = cliente.tools_call(
-            "get_episodes", {"group_ids": [group_id], "max_episodes": max(len(entradas) * 2, 50)})
+        # Gap #39: `get_episodes` es una ventana de los MAS RECIENTES, no un filtro por nombre —
+        # una entrada antigua real puede quedar fuera de una ventana fija. Se pide una ventana
+        # generosa y, si TODAVIA faltan nombres esperados y la respuesta llego "llena" (indicio de
+        # que hay mas detras), se AMPLIA la ventana hasta `_MAX_EPISODIOS_VERIFY` o hasta que dos
+        # peticiones consecutivas devuelvan el mismo tamano (el servidor ya no tiene mas).
+        max_episodes = max(len(entradas) * 2, 50)
+        tamano_previo = -1
+        for _ in range(4):
+            resultado = cliente.tools_call(
+                "get_episodes", {"group_ids": [group_id], "max_episodes": max_episodes})
+            contenido = _contenido_tool_call(resultado)
+            if contenido is None:
+                respuesta_ilegible = True
+                episodios_remotos = []
+            elif isinstance(contenido, list):
+                episodios_remotos = contenido
+            elif isinstance(contenido, dict):
+                episodios_remotos = contenido.get("episodes")
+                if episodios_remotos is None:
+                    respuesta_ilegible = True
+                    episodios_remotos = []
+            else:
+                respuesta_ilegible = True
+                episodios_remotos = []
+            nombres_remotos = set()
+            otros_grupos = set()
+            for ep in episodios_remotos:
+                if not isinstance(ep, dict):
+                    continue
+                grupo_ep = ep.get("group_id")
+                if grupo_ep and grupo_ep != group_id:
+                    otros_grupos.add(grupo_ep)
+                    continue
+                if ep.get("name"):
+                    nombres_remotos.add(ep["name"])
+            faltan = esperados - nombres_remotos
+            if not faltan or respuesta_ilegible or len(episodios_remotos) == tamano_previo:
+                break
+            if len(episodios_remotos) < max_episodes:
+                break  # el servidor ya devolvio TODO lo que tiene (menos de lo pedido)
+            tamano_previo = len(episodios_remotos)
+            max_episodes = min(max_episodes * 4, _MAX_EPISODIOS_VERIFY)
     except Exception as e:  # noqa: BLE001 - verify() nunca lanza (mismo contrato que health())
-        return {"ok": False, "razon": f"no se pudo consultar get_episodes: {type(e).__name__}: {e}",
+        return {"ok": False, "razon": f"no se pudo consultar get_episodes: {type(e).__name__}: {_sanear_detalle(e)}",
                 "desfase": []}
-    contenido = _contenido_tool_call(resultado)
-    if isinstance(contenido, list):
-        episodios_remotos = contenido
-    elif isinstance(contenido, dict):
-        episodios_remotos = contenido.get("episodes") or []
-    else:
-        episodios_remotos = []
-    nombres_remotos = set()
-    otros_grupos = set()
-    for ep in episodios_remotos:
-        if not isinstance(ep, dict):
-            continue
-        grupo_ep = ep.get("group_id")
-        if grupo_ep and grupo_ep != group_id:
-            otros_grupos.add(grupo_ep)
-            continue
-        if ep.get("name"):
-            nombres_remotos.add(ep["name"])
+    if respuesta_ilegible:
+        return {"ok": None, "razon": "respuesta de get_episodes ilegible (no es lista ni {\"episodes\": [...]})",
+                "desfase": []}
     desfase = [
         {"knowledge_id": id_, "motivo": "episodio no encontrado en el grafo", "remedio": _REMEDIO_DESFASE}
         for id_, meta in sorted(entradas.items())
@@ -657,3 +991,6 @@ def verify(cfg):
     if otros_grupos:
         salida["aviso"] = f"el servidor devolvio episodios de otro(s) group_id: {sorted(otros_grupos)}"
     return salida
+
+
+_MAX_EPISODIOS_VERIFY = 5000  # tope duro de la ampliacion de ventana de get_episodes (gap #39)

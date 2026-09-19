@@ -185,6 +185,20 @@ def test_graphiti_endpoint_no_local_con_allow_remote_es_valido():
     assert ks.validar(cfg, "t.json") == []
 
 
+def test_graphiti_endpoint_con_userinfo_falla_gap43():
+    """Gap #43 (revisión Fase 2 intento 1): userinfo (`usuario:token@host`) en `endpoint` pasaba
+    el guardarraíl de red y se imprimía verbatim en `detalle`/`HostNoPermitido`/dead-letter."""
+    cfg = _con_graphiti(_graphiti_config(endpoint="http://svc:TOKEN@127.0.0.1:8001/mcp"))
+    errores = ks.validar(cfg, "t.json")
+    assert any(e["campo"] == "backends.graphiti.config.endpoint" for e in errores)
+
+
+def test_graphiti_health_url_con_userinfo_falla_gap43():
+    cfg = _con_graphiti(_graphiti_config(health={"url": "http://svc:TOKEN@127.0.0.1:8001/health"}))
+    errores = ks.validar(cfg, "t.json")
+    assert any(e["campo"] == "backends.graphiti.config.health.url" for e in errores)
+
+
 def test_graphiti_provider_llm_invalido():
     cfg = _con_graphiti(_graphiti_config(provider={"llm": "gemini"}))
     errores = ks.validar(cfg, "t.json")
@@ -205,8 +219,21 @@ def test_graphiti_provider_api_key_no_puede_ser_un_secreto_inline():
 
 
 def test_graphiti_provider_api_key_env_como_nombre_de_variable_es_valido():
-    cfg = _con_graphiti(_graphiti_config(provider={"llm": "openai", "api_key_env": "OPENAI_API_KEY"}))
+    cfg = _con_graphiti(_graphiti_config(
+        provider={"llm": "openai", "api_key_env": "OPENAI_API_KEY", "model": "gpt-4o-mini"}))
     assert ks.validar(cfg, "t.json") == []
+
+
+def test_graphiti_provider_model_obligatorio_si_llm_no_es_none_gap37():
+    """Gap #37 (revisión Fase 2 intento 1): sin `provider.model`, `graphiti_providers.py` caía a
+    un modelo CABLEADO en el código (`qwen2.5:7b`/`gpt-4o-mini`/`claude-haiku`), contra CA-09."""
+    cfg = _con_graphiti(_graphiti_config(provider={"llm": "ollama"}))
+    errores = ks.validar(cfg, "t.json")
+    assert any(e["campo"] == "backends.graphiti.config.provider.model" for e in errores)
+    cfg_ok = _con_graphiti(_graphiti_config(provider={"llm": "ollama", "model": "qwen2.5:7b"}))
+    assert ks.validar(cfg_ok, "t.json") == []
+    cfg_none = _con_graphiti(_graphiti_config(provider={"llm": "none"}))
+    assert ks.validar(cfg_none, "t.json") == []
 
 
 def test_graphiti_router_intents_valor_no_booleano():

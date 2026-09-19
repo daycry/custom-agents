@@ -59,16 +59,34 @@ decisión de que la extracción de entidades la hace el SERVIDOR, no el cliente)
   `.claude/knowledge-services/`, patrón diario `.pending` → publicado, igual que
   `markdown_export.py`) con ids de episodio deterministas (`uuid5(group_id:knowledge_id:version)`)
   — repetir `apply()` con el mismo estado no crea duplicados.
-- **`mode: shadow`** (default): nunca lee del grafo (`verify`/`health` con red siguen permitidos,
-  pero `plan`/`apply` no dependen de una lectura previa); `mode: read` exige `health` sano y
-  `verify` sin desfase (CA-10).
+- **`mode`** (fix1 revisión Fase 2, gap #35, CA-10): `off` corta ANTES de abrir red — `health`
+  informa `{"estado": "off"}` sin conectar y `apply`/`rebuild`/`revoke` rechazan con
+  `ConfigInvalida`; `shadow` (default) escribe pero nunca lee (`plan`/`apply` no dependen de una
+  lectura previa); `read` exige `health` sano Y `verify` sin desfase antes de autorizar una
+  lectura (`puede_leer(cfg)`, que el futuro router de T-07 consumirá).
 - **`rebuild`** es el ÚNICO camino que llama a `clear_graph`, acotado al `group_id` propio, y
   reproduce el mismo manifiesto que la sincronización incremental (uuid5 determinista).
 - **`revoke`** nunca llama a `delete_episode`: escribe un episodio tombstone
-  (`<id>@tombstone`) y, si hay una versión previa, una relación `SUPERSEDES` hacia su uuid.
-- **Guardarraíl de red**: mismo criterio `hosts_locales` que `markdown_export.py` (loopback,
-  privada, `.test`/`.local`/`.internal`, `host.docker.internal`), declarado en `copias.json`
-  (ADR-016, tercera copia) — fail-closed salvo `allow_remote: true`.
+  (`<id>@tombstone`) y, si hay una versión previa, una relación `SUPERSEDES` hacia su uuid
+  (con los campos `source_node_uuid`/`target_node_uuid` que exige la tool, no `*_node_name`); un
+  cambio de `version` en `apply()` emite el mismo tombstone+`SUPERSEDES` hacia la versión anterior
+  (CA-11, sucesión observable).
+- **Guardarraíl de red** (fix1, gap #34): todo host con nombre se resuelve SIEMPRE (nunca hay
+  atajo por sufijo/literal) y TODAS sus direcciones deben ser loopback/privadas; link-local
+  (`169.254.0.0/16`, `fe80::/10`) y direcciones no especificadas se rechazan SIEMPRE, incluso con
+  `allow_remote: true`; de una redirección solo se siguen 307/308 (≤ 3 saltos, revalidando el host
+  en CADA salto, sin reenviar `Mcp-Session-Id` a otro host) — 301/302/303 son error. La función
+  `_sanear_detalle` (copia declarada de `markdown_export.py`, ADR-016) sanea cualquier texto crudo
+  del servidor antes de exponerlo en un mensaje.
+- **`telemetria`** (bool) se traduce a la variable de entorno `GRAPHITI_TELEMETRY_ENABLED` que lee
+  el SDK/servidor antes de abrir la primera conexión de cada llamada pública (`health`/`apply`/
+  `rebuild`; `revoke` la aplica transitivamente al llamar a `apply` internamente).
+- **`concurrency`** (validado por el esquema) queda RESERVADO — el servidor de referencia impone
+  `SEMAPHORE_LIMIT: 1`, así que `apply()` sigue secuencial a propósito; el coste de una conexión +
+  resolución DNS por operación se mitiga con una caché de resolución de TTL corto, no con paralelismo.
+- **`knowledge-sync.py --backend <id> --propose-config`**: imprime la propuesta de
+  `graphiti_model.proponer_config` (bloque `entity_types` para el `config.yaml` del servidor +
+  `entity_map` para `taxonomy.json`) sin aplicar nada; solo válido para `type: graphiti`.
 
 ## Adaptador de fixture (CA-12)
 

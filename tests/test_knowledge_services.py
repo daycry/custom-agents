@@ -1240,3 +1240,33 @@ def test_mutante_curator_gate_sin_extension_muere(tmp_path):
         encoding="utf-8")
     ofensores = _ofensores_de_red_en_hooks(str(tmp_path), root=str(tmp_path))
     assert ("malo.sh", "curator-gate") in ofensores
+
+
+def test_propose_config_backend_graphiti_imprime_propuesta_sin_aplicar_nada(tmp_path, capsys):
+    """Fix1 gap #36 (CA-13): `--propose-config` es la puerta de entrada que `graphiti_model.
+    proponer_config` no tenia -T-02 la aplazo "a T-04/T-05" y nadie la cablio-; comprueba que
+    imprime el YAML de `entity_types` y el `entity_map` propuesto SIN tocar ningun manifiesto ni
+    llamar a ningun servidor (no hay `endpoint` valido en la config del backend)."""
+    root = str(tmp_path)
+    categorias = [{"key": "GOTCHA", "folder": "gotchas", "min_evidence": "observation"}]
+    _taxonomy(root, categorias, backends={
+        "graphiti": {"type": "graphiti", "enabled": True,
+                     "config": {"group_id": "proy-test", "endpoint": "http://127.0.0.1:1",
+                                "provider": {"llm": "none"}, "mode": "shadow"}}})
+    rc = ks_sync.main(["--backend", "graphiti", "--root", root, "--propose-config"])
+    salida = capsys.readouterr().out
+    assert rc == 0
+    assert "entity_types" in salida
+    assert "GOTCHA" in salida
+    # nada de infraestructura de sincronizacion se creo (no llamo a apply/plan/health/verify)
+    assert not os.path.isfile(os.path.join(root, ".claude", "knowledge-services",
+                                            "graphiti-manifest.json"))
+
+
+def test_propose_config_rechaza_backend_no_graphiti(tmp_path, capsys):
+    root = str(tmp_path)
+    _taxonomy(root, _categorias_base(),
+              backends={"testx": {"type": "test", "enabled": True, "config": {}}})
+    rc = ks_sync.main(["--backend", "testx", "--root", root, "--propose-config"])
+    assert rc == 2
+    assert "solo aplica a backends" in capsys.readouterr().err

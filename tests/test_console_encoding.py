@@ -327,6 +327,10 @@ SIN_SIMBOLOS_EN_LA_SALIDA = {
     # graphiti-memory T-02: modulo PURO (sin red/disco), sin `__main__` (lo carga `graphiti.py`,
     # T-04, o los tests, por `importlib`); arrancado sin argumentos no imprime nada.
     "skills/knowledge-services/backends/graphiti_model.py": "sin `__main__`: al arrancar no ejecuta nada ni imprime nada",
+    # graphiti-memory T-04-fix1 (gap #31): adaptador y proveedores sin `__main__` (los carga
+    # `backends/__init__.py::cargar_adaptador("graphiti", ...)`, igual que markdown_export.py).
+    "skills/knowledge-services/backends/graphiti.py": "sin `__main__`: al arrancar no ejecuta nada ni imprime nada",
+    "skills/knowledge-services/backends/graphiti_providers.py": "sin `__main__`: al arrancar no ejecuta nada ni imprime nada",
 }
 SCRIPTS_CON_SIMBOLOS = [rel for rel in SCRIPTS if rel not in SIN_SIMBOLOS_EN_LA_SALIDA]
 
@@ -397,6 +401,10 @@ def _modos():
         "skills/knowledge-services/backends/markdown_export.py":
             [("importar sin CLI", lambda w: [], (0,), None)],
         "skills/knowledge-services/backends/graphiti_model.py":
+            [("importar sin CLI", lambda w: [], (0,), None)],
+        "skills/knowledge-services/backends/graphiti.py":
+            [("importar sin CLI", lambda w: [], (0,), None)],
+        "skills/knowledge-services/backends/graphiti_providers.py":
             [("importar sin CLI", lambda w: [], (0,), None)],
         "agent-kits/shared/redact.py":
             [("importar sin CLI", lambda w: [], (0,), None)],

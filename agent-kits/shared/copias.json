@@ -165,6 +165,17 @@
       "guardarrail_previo": "agent-kits/shared/test_knowledge_schema.py::test_default_fallback_coincide_con_el_template (nuevo, compara ademas como DATOS, no solo como texto)"
     },
     {
+      "id": "sanear_detalle",
+      "mecanismo": "A",
+      "que_es": "Saneado de texto NO CONFIABLE (mensajes de red/servidor) antes de embeberlo en `detalle`/mensajes de error: recorta a 200 caracteres y sustituye caracteres de control/secuencias ANSI por un espacio (gaps 176/182 de markdown_export.py, reutilizado en graphiti.py gap #41 de la revisión Fase 2 intento 1 de graphiti-memory: mismo riesgo, CWE-117, contra el mismo tipo de servidor local).",
+      "canonico": "skills/knowledge-services/backends/markdown_export.py",
+      "copias": [
+        {"ruta": "skills/knowledge-services/backends/markdown_export.py", "inicio": "# --8<-- sanear_detalle (funcion) — REPLICADO LITERAL en skills/knowledge-services/backends/markdown_export.py y skills/knowledge-services/backends/graphiti.py", "fin": "# --8<-- fin sanear_detalle (funcion)"},
+        {"ruta": "skills/knowledge-services/backends/graphiti.py", "inicio": "# --8<-- sanear_detalle (funcion) — REPLICADO LITERAL en skills/knowledge-services/backends/markdown_export.py y skills/knowledge-services/backends/graphiti.py", "fin": "# --8<-- fin sanear_detalle (funcion)"}
+      ],
+      "guardarrail_previo": "ninguno (este es el hueco que cierra el gap #41 de graphiti-memory)"
+    },
+    {
       "id": "imports_de_cabecera",
       "mecanismo": "no-codigo",
       "no_codigo": true,

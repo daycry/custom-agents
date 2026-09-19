@@ -567,27 +567,31 @@ def _lock_path(export_dir):
 # (primera alternativa), el motor nunca llegaba a intentar la segunda: solo se sustituía el propio
 # `ESC` y el resto de la secuencia (`[31m`, `[0m`) quedaba intacto en el texto. Se reordena para
 # que la alternativa ANSI (más específica) se intente PRIMERO.
+#
+# gap 176 (CWE-117, fuera de lente, señalado por la Lente B): `health()`/`verify()` embebían el
+# mensaje de la excepción de red — que en el caso de `http.client.HTTPException`/`OSError` puede
+# contener bytes CRUDOS de lo que respondió el servidor (p. ej. `BadStatusLine` incluye la primera
+# línea recibida tal cual) — directamente en `detalle`/`motivo`, que acaban impresos por `/doctor`.
+# Un servidor (aunque sea local, ya pasó `_host_permitido`) que devuelva CRLF o secuencias de
+# escape ANSI podía así inyectar saltos de línea o color en esa salida.
+#
+# gap 182 (revisión Fase 4 intento 3): el tope de 200 debe aplicarse SOLO al texto NO CONFIABLE (lo
+# que viene del servidor) — los llamadores NUNCA deben pasar el prefijo propio (de confianza,
+# f"... de {url}: ") dentro de este saneado: si lo hacen, el prefijo se come parte del tope (o lo
+# desplaza fuera de los 200 caracteres) sin ganar nada, porque el prefijo no es el dato peligroso.
+# El prefijo se antepone DESPUÉS, sobre el resultado ya saneado y recortado.
+#
+# --8<-- sanear_detalle (funcion) — REPLICADO LITERAL en skills/knowledge-services/backends/markdown_export.py y skills/knowledge-services/backends/graphiti.py
 _CONTROL_O_ANSI_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]|[\x00-\x1f\x7f]")
 _SANEADO_TOPE_CHARS = 200
 
 
 def _sanear_detalle(texto):
-    """Gap 176 (CWE-117, fuera de lente, señalado por la Lente B): `health()`/`verify()` embebían
-    el mensaje de la excepción de red — que en el caso de `http.client.HTTPException`/`OSError`
-    puede contener bytes CRUDOS de lo que respondió el servidor (p. ej. `BadStatusLine` incluye la
-    primera línea recibida tal cual) — directamente en `detalle`/`motivo`, que acaban impresos por
-    `/doctor`. Un servidor (aunque sea local, ya pasó `_host_permitido`) que devuelva CRLF o
-    secuencias de escape ANSI podía así inyectar saltos de línea o color en esa salida. Se recorta
-    a 200 caracteres y se sustituyen los caracteres de control (incluidas las secuencias ANSI
-    `ESC[...`) por un espacio.
-
-    Gap 182 (revisión Fase 4 intento 3): el tope de 200 debe aplicarse SOLO al texto NO CONFIABLE
-    (lo que viene del servidor) — los llamadores NUNCA deben pasar el prefijo propio (de
-    confianza, `f"... de {url}: "`) dentro de este saneado: si lo hacen, el prefijo se come parte
-    del tope (o lo desplaza fuera de los 200 caracteres) sin ganar nada, porque el prefijo no es
-    el dato peligroso. El prefijo se antepone DESPUÉS, sobre el resultado ya saneado y recortado."""
+    """Recorta a 200 caracteres y sustituye caracteres de control (incluidas las secuencias ANSI
+    `ESC[...`) por un espacio; ver comentario arriba para el porqué de cada regla."""
     saneado = _CONTROL_O_ANSI_RE.sub(" ", str(texto))
     return saneado[:_SANEADO_TOPE_CHARS]
+# --8<-- fin sanear_detalle (funcion)
 
 
 def health(cfg):
