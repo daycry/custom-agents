@@ -531,6 +531,85 @@ def test_seccion_unica_de_ese_intento_no_cambia_de_comportamiento(ledger):
     assert "intento 2: sin gaps" in cuerpo
 
 
+def test_mencion_no_se_cuela_desde_correccion_ni_evidencia(ledger_multifase):
+    """(mutante M3) La celda `Corrección` del gap de la Fase 1 cita `db.ping()`, no un `T-XX`, pero
+    si `menciones()` escaneara `Corrección`/`Evidencia` en vez de solo cabecera+columna `Tarea`,
+    una tarea que solo aparece citada ahí (nunca en su propia columna `Tarea`) podría colar la
+    sección equivocada. Aquí `T-02` (existe en el ledger, pero solo en la Fase 1 y nunca en NINGUNA
+    celda `Tarea` ni cabecera de revisión) debe caer en el aviso de «ninguna menciona», nunca en un
+    falso positivo."""
+    plan = _plan_json("--ledger", ledger_multifase, "--event", "revision", "--actor", "reviewer",
+                      "--task", "T-02", "--intento", "1",
+                      "--state", str(_state_con_claves(ledger_multifase, **{"T-02": "PROJ-2"})))
+    assert any("ninguna menciona" in a and "T-02" in a for a in plan["avisos"])
+
+
+LEDGER_FASE_REABIERTA = LEDGER_MULTIFASE + """
+## Fase 3 — Reapertura
+
+### T-06 — Ajuste tardío sobre el panel
+
+- **Descripción**: Un hallazgo tardío obliga a retocar T-04.
+- **Estado**: completado
+- **Archivos**: `app/admin.py`
+- **Verificación**: `python3 -m pytest -q tests/test_admin.py` → 3 passed.
+
+**Criterios de aceptación**
+- [x] El ajuste tardío queda cubierto.
+
+## Revisión de dos lentes — intento 1: Fase 3 reabre T-04 (1 Minor)
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 1 | Minor | Falta un `assert` adicional en el ajuste tardío | T-04 | pendiente | — |
+"""
+
+
+@pytest.fixture
+def ledger_fase_reabierta(tmp_path):
+    """Como `ledger_multifase`, pero con una TERCERA sección «intento 1» (Fase 3) que REABRE T-04
+    (una tarea de la Fase 2) — el caso real de `knowledge-services`, donde una fase posterior cita
+    en su tabla de gaps una tarea de una fase ya cerrada."""
+    (tmp_path / ".claude").mkdir(exist_ok=True)
+    (tmp_path / ".claude" / "jira.json").write_text('{"enabled": true}', encoding="utf-8")
+    p = tmp_path / "tasks.md"
+    p.write_text(LEDGER_FASE_REABIERTA, encoding="utf-8")
+    return str(p)
+
+
+def test_gaps_fase_reabierta_la_mas_reciente_gana_sobre_la_original(ledger_fase_reabierta):
+    """(mutante M2, «fase reabierta») T-04 aparece en la sección de la Fase 2 (ya cerrada, un gap
+    corregido) Y en la de la Fase 3 (la reapertura, con un gap nuevo). Con `coincide[-1]` (la
+    ÚLTIMA que menciona, no `coincide[0]`) gana la Fase 3 — el estado ACTUAL de T-04."""
+    plan = _plan_json("--ledger", ledger_fase_reabierta, "--event", "gaps", "--actor", "reviewer",
+                      "--task", "T-04", "--intento", "1",
+                      "--state", str(_state_con_claves(ledger_fase_reabierta, **{"T-04": "PROJ-4"})))
+    cuerpo = next(o for o in plan["ops"] if o["tipo"] == "comentario")["cuerpo"]
+    assert "assert" in cuerpo and "ajuste tardío" in cuerpo
+    assert "La paginación no valida" not in cuerpo   # el gap ORIGINAL de la Fase 2, ya cerrado
+
+
+def test_aprobado_rechaza_si_la_fase_de_la_tarea_no_llega_al_intento_mas_alto_global(
+        ledger_fase_reabierta):
+    """`aprobado` para T-04 debe mirar el intento MÁS ALTO ENTRE LAS SECCIONES QUE MENCIONAN T-04
+    (Fase 2 intento 1 + Fase 3 intento 1, ambas «intento 1»): la Fase 3 reabrió T-04 con un gap
+    `pendiente`, así que debe bloquear — nunca aceptar solo porque la Fase 2 ya estaba cerrada."""
+    code, out, err = _run("--ledger", ledger_fase_reabierta, "--event", "aprobado",
+                          "--actor", "orquestador", "--task", "T-04", "--qa-verde")
+    assert code == 2
+    assert "bloqueado" in err
+
+
+def test_aprobado_de_una_tarea_limpia_no_lo_bloquea_el_gap_pendiente_de_otra_fase(
+        ledger_fase_reabierta):
+    """T-05 (Fase 2) no aparece mencionada en la reapertura de la Fase 3: su `aprobado` debe seguir
+    aceptándose aunque OTRA fase (la de T-04) tenga un gap `pendiente` — el bloqueo es por tarea,
+    no un cerrojo global del ledger."""
+    plan = _plan_json("--ledger", ledger_fase_reabierta, "--event", "aprobado",
+                      "--actor", "orquestador", "--task", "T-05", "--qa-verde")
+    assert [o["tipo"] for o in plan["ops"]] == ["etiqueta", "transicion", "comentario"]
+
+
 # ---------------------------------------------------------------- qa-verde / qa-rojo
 
 def test_qa_verde_incluye_resumen_y_evidencia_derivada_del_slug(ledger):
@@ -683,7 +762,7 @@ def test_root_resuelve_la_config_desde_otra_carpeta(ledger, tmp_path):
 
 def test_split_fila_md_respeta_pipes_dentro_de_backticks():
     fila = "| 6 | Minor | texto | T-02 | `a|b|c` regla | `evidencia:1` |"
-    celdas = jf._split_fila_md(fila)
+    celdas = jf.split_fila_md(fila)
     assert celdas == ["6", "Minor", "texto", "T-02", "`a|b|c` regla", "`evidencia:1`"]
 
 
