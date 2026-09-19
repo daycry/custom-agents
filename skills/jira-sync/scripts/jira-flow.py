@@ -123,10 +123,9 @@ EVENTOS_CON_INTENTO = ("revision", "gaps", "qa-verde", "qa-rojo")
 # En `revision`/`gaps` el intento NO puede caer a 1 en silencio: el número elige la SECCIÓN del
 # ledger que se publica y el pie «intento N+1 de 3» del comentario. Sin él → exit 2 (T-fix1).
 EVENTOS_INTENTO_OBLIGATORIO = ("revision", "gaps")
-# Marcadores de una fila de gap SIN corregir (celda «Corrección» vacía o con un placeholder):
-# bloquean `aprobado`. Una fila `descartado (rebatido)` NO bloquea: es una decisión tomada.
-_GAP_PENDIENTE_RE = re.compile(r"^(?:|-+|—|–|n/?a|todo|pendiente\b.*|sin corregir\b.*|\?+)$", re.I)
-_GAP_REBATIDO_RE = re.compile(r"rebatid|descartad", re.I)
+# El criterio de «fila de gap pendiente» y la función `gap_pendiente`/`filas_pendientes_de_tarea`
+# viven ahora en el bloque replicado `secciones_revision` (más abajo, jira-review-comments
+# T-03-fix3 gap #20) — antes eran privados de este fichero (`_GAP_PENDIENTE_RE`/`_gap_pendiente`).
 
 
 def _cargar_ledger_lint():
@@ -245,10 +244,62 @@ def _revision_hdr_re(ledger_lint=None):
 _REVISION_HDR_RE = _revision_hdr_re(_cargar_ledger_lint())
 
 
-def _split_fila_md(ln):
-    """Divide una fila de tabla Markdown por `|`, IGNORANDO los `|` dentro de un tramo `` `código` ``
-    (gaps reales del ledger citan regex con alternancia `a|b|c` en un code span — un split ingenuo
-    trocea la celda). No es un parser Markdown completo: basta para code spans de una línea."""
+VALLA_PATTERN = r"^[^\S\n]*(?:`{3,}|~{3,})"
+
+_VALLA_RE = re.compile(VALLA_PATTERN)
+
+
+def sin_vallas(text):
+    """`text` con las líneas DENTRO de una valla de código vaciadas (mismo número de líneas)."""
+    # --8<-- sin_vallas (cuerpo) — REPLICADO LITERAL en agent-kits/shared/ledger-lint.py y en
+    # skills/changelog-sync/scripts/changelog-sync.py (dos copias independientes: la skill viaja sin
+    # este kit). DECLARADO en agent-kits/shared/copias.json (ADR-016), que lista la ÚNICA diferencia
+    # tolerada (el nombre de la regex de valla); tests/test_copias_declaradas.py compara el resto
+    # byte a byte — antes solo había un test CONDUCTUAL y una divergencia sin efecto pasaba.
+    out, cerco = [], None
+    for ln in text.split("\n"):
+        m = _VALLA_RE.match(ln)
+        if cerco is None:
+            if m:
+                cerco = m.group(0).strip()[0] * len(m.group(0).strip())
+                out.append("")
+                continue
+        else:
+            out.append("")
+            if m and m.group(0).strip()[0] == cerco[0] and len(m.group(0).strip()) >= len(cerco):
+                cerco = None
+            continue
+        out.append(ln)
+    # --8<-- fin sin_vallas (cuerpo)
+    return "\n".join(out)
+
+
+# --8<-- secciones_revision (parser de secciones + seleccion) -- REPLICADO LITERAL en
+# agent-kits/shared/ledger-lint.py (canonico) y como respaldo local en
+# skills/jira-sync/scripts/jira-flow.py y agent-kits/shared/task-brief.py (sin este kit,
+# ADR-016, jira-review-comments T-03-fix1). Declarado en agent-kits/shared/copias.json.
+# ---------------------------------------------------------------------------------------------
+# Parser UNICO de SECCIONES de revision + seleccion entre varias del mismo intento
+# [jira-review-comments T-03-fix1, gaps #1/#2/#5]. Antes `jira-flow.py` y `task-brief.py` tenian
+# CADA UNO su propio criterio de "que seccion es esta": `jira-flow` cortaba el cuerpo de una
+# seccion en la siguiente cabecera de REVISION (no en el siguiente `## ` cualquiera), asi que el
+# parrafo de contexto se tragaba fases enteras (bloques `### T-XX` de la fase siguiente) y una
+# "mencion" casaba con celdas `Correccion`/`Evidencia` que citan otras tareas de contexto; ademas
+# elegia la PRIMERA candidata que mencionaba la tarea, no la mas reciente. `task-brief.py` ni
+# siquiera filtraba por fase: usaba el intento MAXIMO GLOBAL del ledger. Fuente unica: parsea
+# TODAS las secciones de una vez (`secciones_revision`), calcula la mencion con el mismo criterio
+# (`menciones`: solo cabecera+resumen y columna `Tarea`, nunca `Correccion`/`Evidencia`) y elige
+# con el mismo criterio (`seleccionar_seccion`, `ultimo_intento_para`). `jira-flow.py` y
+# `task-brief.py` importan este modulo y, si el kit no viaja con el paquete, replican estas
+# funciones LITERALMENTE como respaldo local - DECLARADO en `agent-kits/shared/copias.json`
+# (bloque `secciones_revision`, ADR-016): hay test que compara las cadenas.
+_HDR_CUALQUIERA_RE = re.compile(r"^##[ \t]+.*$", re.M)
+
+
+def split_fila_md(ln):
+    """Divide una fila de tabla Markdown por `|`, ignorando los `|` dentro de un tramo
+    `` `codigo` `` (una celda de gap puede citar una regex con alternancia `a|b|c`; un split
+    ingenuo la trocearia). No es un parser Markdown completo: basta para code spans de una linea."""
     celdas, actual, en_codigo = [], [], False
     for ch in ln.strip().strip("|"):
         if ch == "`":
@@ -263,42 +314,240 @@ def _split_fila_md(ln):
     return celdas
 
 
-def seccion_revision(texto, intento):
-    """(resumen_cabecera, [filas de gap]) de la sección `## Revisión de dos lentes — intento N`.
-    Cada fila: {"grado","gap","tarea","correccion","evidencia"}. (None, []) si no existe esa N."""
-    matches = list(_REVISION_HDR_RE.finditer(texto))
-    objetivo = next((m for m in matches if int(m.group(1)) == intento), None)
-    if not objetivo:
+def secciones_revision(texto):
+    """Lista de TODAS las secciones `## Revision de dos lentes - intento N` del ledger, en orden
+    de aparicion: [{"intento", "cabecera", "resumen", "filas", "inicio", "fin"}, ...]. `fin` es el
+    siguiente encabezado `## ` de CUALQUIER tipo (o fin de fichero) - no el siguiente `##
+    Revision`, que dejaba fases enteras dentro del cuerpo de una seccion (gap #1). Respeta
+    `sin_vallas()`: una cabecera citada dentro de una valla de codigo no cuenta como seccion."""
+    limpio = sin_vallas(texto)
+    cabeceras = [m.start() for m in _HDR_CUALQUIERA_RE.finditer(limpio)]
+    out = []
+    for m in _REVISION_HDR_RE.finditer(limpio):
+        intento = int(m.group(1))
+        resumen = (m.group(2) or "").strip()
+        fin = next((p for p in cabeceras if p > m.start()), len(limpio))
+        cuerpo = limpio[m.end():fin]
+        parrafo = []
+        for ln in cuerpo.splitlines():
+            s = ln.strip()
+            if s.startswith("|"):
+                break
+            if s:
+                parrafo.append(s)
+        if parrafo:
+            resumen = (resumen + " " + " ".join(parrafo)).strip()
+        filas = []
+        for ln in cuerpo.splitlines():
+            s = ln.strip()
+            if not s.startswith("|") or set(s.replace("|", "").strip()) <= {"-", " "}:
+                continue
+            celdas = split_fila_md(s)
+            if len(celdas) < 6 or celdas[0] in ("#", "") or not re.match(r"^\d+$", celdas[0]):
+                continue
+            filas.append({"num": celdas[0], "grado": celdas[1], "gap": celdas[2],
+                          "tarea": celdas[3], "correccion": celdas[4], "evidencia": celdas[5]})
+        out.append({"intento": intento, "cabecera": m.group(0).strip(), "resumen": resumen,
+                     "filas": filas, "inicio": m.start(), "fin": fin})
+    return out
+
+
+def ids_de_tarea(texto):
+    """IDs `T-NN` citados en `texto` (regex `\\bT-\\d{2}\\b`), fuente UNICA de "que tareas cita
+    una celda o una cabecera" (jira-review-comments T-03-fix2, gaps #14/#15/#17). Antes cada sitio
+    -`menciones()` aqui, el filtro de filas de `revision`/`gaps` y de `aprobado` en `jira-flow.py`,
+    `_gaps_pendientes_de_tarea` en `task-brief.py`- comparaba la celda `Tarea` con `==`/`in` sobre
+    el texto ENTERO, asi que una celda combinada `T-02/T-04` (una fila de gap que afecta a dos
+    tareas a la vez) no contaba para NINGUNA de las dos: `--task T-04` no encontraba su propia
+    fila. Con esta funcion, `T-02/T-04` cuenta para T-02 Y para T-04 en TODOS los sitios por
+    igual - nunca cuenta si el id aparece dentro de otra palabra mas larga (limite `\\b`) ni si
+    solo aparece en `Correccion`/`Evidencia` (esta funcion no las mira; ver `menciones()`)."""
+    return set(re.findall(r"\bT-\d{2}\b", texto))
+
+
+def menciones(seccion):
+    """IDs `T-NN` que una seccion MENCIONA, para elegir entre varias del mismo intento: SOLO la
+    LINEA de cabecera (`seccion["cabecera"]`, una sola linea: nunca el parrafo de contexto que le
+    sigue, que `secciones_revision` pega a `resumen` solo para renderizar el comentario) y la
+    columna `Tarea` de sus filas - NUNCA `Correccion`/`Evidencia`, que citan tests y otras tareas
+    de contexto y dan falsos positivos en un ledger real con fases que se referencian entre si
+    (gap #1: una fila de la Fase 1 cita "T-04" en su celda `Correccion`; el parrafo de contexto de
+    otra fase tambien puede citar "T-04" sin ser SU tarea)."""
+    ids = ids_de_tarea(seccion["cabecera"])
+    for f in seccion["filas"]:
+        ids |= ids_de_tarea(f["tarea"])
+    return ids
+
+
+def seleccionar_seccion(secciones, intento, tareas):
+    """(seccion, aviso) - entre las secciones de `secciones` con ese `intento`, prioriza en TRES
+    niveles (jira-review-comments T-03-fix2, gap #14, con el ledger REAL de knowledge-services
+    como caso de aceptacion: `T-04 --intento 2` tiene DOS candidatas con filas de T-04 - la Fase 2,
+    su seccion PROPIA -cabecera "Fase 2 (T-04, T-05, T-06)"-, con 13 filas; y la Fase 3, que solo
+    la cita en dos filas `T-02/T-04` como gap CRUZADO descubierto durante la revision de OTRA
+    fase-):
+      1) seccion PROPIA: alguna de `tareas` esta en la CABECERA -> entre esas, la ULTIMA (si mas
+         de una fase, insolito, declarase la misma tarea en su cabecera). Gana SIEMPRE sobre una
+         seccion ajena que solo la cite en una fila, tenga o no gaps propios (si no tiene filas es
+         el caso legitimo "sin gaps para T-XX": una fase que cerro limpia esa tarea).
+      2) sin seccion propia: seccion AJENA con FILAS que citan alguna de `tareas` (celda combinada
+         `T-02/T-04` u otra) -> la ULTIMA de esas, sin aviso (gaps cruzados reales: FX2 de la ronda
+         fix2, una fila `T-02/T-04` Critical sin secccion propia para ninguna de las dos).
+      3) ninguna la menciona de ningun modo -> la ULTIMA de ese intento, con aviso.
+    Sin candidatas para ese `intento` -> (None, None). Sin `tareas`, o con UNA SOLA candidata para
+    ese intento (ledger de una sola fase: no hay ambiguedad que resolver) -> esa candidata, sin
+    aviso."""
+    candidatas = [s for s in secciones if s["intento"] == intento]
+    if not candidatas:
+        return None, None
+    if not tareas or len(candidatas) == 1:
+        return candidatas[-1], None
+    tareas_set = set(tareas)
+    propias = [s for s in candidatas if ids_de_tarea(s["cabecera"]) & tareas_set]
+    if propias:
+        return propias[-1], None
+    ajenas = [s for s in candidatas
+              if any(ids_de_tarea(f["tarea"]) & tareas_set for f in s["filas"])]
+    if ajenas:
+        return ajenas[-1], None
+    aviso = (f"el intento {intento} tiene {len(candidatas)} secciones «## Revisión de dos "
+             f"lentes — intento {intento}» (probablemente una por fase) y ninguna menciona "
+             f"{', '.join(tareas)} en la cabecera o en la columna Tarea: se usa la última "
+             f"(más reciente) — revisa si es la sección correcta")
+    return candidatas[-1], aviso
+
+
+def _menciones_efectivas(secciones):
+    """`menciones()` de cada seccion, EN ORDEN, con herencia para las rondas de cierre ANONIMAS
+    (`## Revision de dos lentes - intento N: sin gaps`, sin ningun T-NN en la cabecera NI filas):
+    heredan las menciones de la seccion INMEDIATAMENTE anterior, porque un "sin gaps" de cierre no
+    tiene por que repetir el nombre de la tarea que ya cerro limpia (ledger de una sola fase:
+    intento 1 cita T-01 en sus filas, intento 2 "sin gaps" no cita nada y aun asi es SU cierre).
+    Una seccion que si declara tareas en la cabecera (aunque sean DE OTRA fase, p.ej. "Fase 2
+    (T-04)") NO es anonima y NUNCA hereda - es la fase de otra tarea, no un cierre generico (gap
+    #16 de jira-review-comments fix2: numeracion CONTINUA entre fases, Fase 1 intento 1 (T-01) /
+    Fase 2 intento 2 (T-04), sin repetir numero; el intento 2 de Fase 2 no puede "servir" de cierre
+    para T-01). Tampoco hereda si hay una FRONTERA estructural con la seccion anterior - otro
+    encabezado `## ` (una `## Fase N`, un `### T-XX` nuevo...) entre el `fin` de la seccion previa
+    y el `inicio` de esta (`secciones_revision` ya calcula `fin` como el siguiente `## ` de
+    CUALQUIER tipo): sin esa frontera, "sin gaps" tras "sin gaps" en cabeceras igual de anonimas
+    (p.ej. "Fase 2 - sin gaps" dos veces, sin ningun T-NN en ninguna) haria que la Fase 2 heredara
+    las menciones de la Fase 1 anterior solo por venir despues en el fichero."""
+    out = []
+    previa = set()
+    fin_previa = None
+    for s in secciones:
+        m = menciones(s)
+        anonima = not ids_de_tarea(s["cabecera"]) and not s["filas"]
+        sin_frontera = fin_previa is not None and fin_previa == s["inicio"]
+        eff = previa if (not m and anonima and sin_frontera) else m
+        out.append(eff)
+        previa = eff
+        fin_previa = s["fin"]
+    return out
+
+
+def ultimo_intento_para(secciones, tareas):
+    """Intento MAS ALTO relevante para `tareas`, restringido a las secciones cuyas menciones
+    EFECTIVAS (`_menciones_efectivas()`: `menciones()` con herencia solo para cierres anonimos, ver
+    arriba) casan con `tareas` - SIN el atajo anterior de usar el maximo GLOBAL cuando los numeros
+    de intento no se repiten (gap #16 de jira-review-comments fix2: con numeracion CONTINUA entre
+    fases, el atajo cogia la ultima fase aunque no mencionara la tarea pedida y dejaba inalcanzable
+    el aviso de "ninguna seccion menciona"). El maximo GLOBAL podia venir de otra fase sin que la
+    tarea pedida tenga nada que ver (gap #2: `aprobado` concedia Done con un Critical pendiente de
+    OTRA fase). `None` si ninguna seccion menciona esas tareas, ni directa ni por herencia (sin
+    evidencia: rechazo, no adivinar)."""
+    if not secciones:
+        return None
+    tareas_set = set(tareas)
+    efectivas = _menciones_efectivas(secciones)
+    candidatas = [s["intento"] for s, eff in zip(secciones, efectivas) if eff & tareas_set]
+    if not candidatas:
+        return None
+    return max(candidatas)
+
+
+# jira-review-comments T-03-fix3, gap #20 — criterio de "gap pendiente" de una fila (misma lista
+# que ya usaba `evidencia_aprobado`: sin corrección registrada, o placeholder de que sigue
+# abierta; `descartado (rebatido)` cierra la fila aunque no haya código). Antes vivía SOLO en
+# `jira-flow.py` (privado, `_gap_pendiente`); ahora es canónico aquí porque `filas_pendientes_de_
+# tarea` (abajo) lo necesita y la usan los dos llamadores por igual.
+GAP_PENDIENTE_RE = re.compile(r"^(?:|-+|—|–|n/?a|todo|pendiente\b.*|sin corregir\b.*|\?+)$", re.I)
+GAP_REBATIDO_RE = re.compile(r"rebatid|descartad", re.I)
+
+
+def gap_pendiente(fila):
+    """True si la fila de gap NO tiene corrección registrada (celda vacía o placeholder) y no está
+    `descartado (rebatido)`: una tarea con gaps así NO puede pasar a Done."""
+    correccion = re.sub(r"[`*_]", "", (fila.get("correccion") or "")).strip()
+    evidencia = (fila.get("evidencia") or "").strip()
+    if GAP_REBATIDO_RE.search(correccion) or GAP_REBATIDO_RE.search(evidencia):
+        return False
+    return bool(GAP_PENDIENTE_RE.match(correccion))
+
+
+def filas_pendientes_de_tarea(secciones, tarea):
+    """(intento, [filas]) — evidencia para DECIDIR sobre `tarea` (evento `aprobado`; gaps
+    pendientes del brief de `task-brief.py`; jira-review-comments T-03-fix3, gap #20).
+
+    Dos usos, dos reglas (arbitraje fix3, sustituye a (2) del fix2 para DECIDIR — PUBLICAR un
+    comentario de un intento concreto sigue siendo `seleccionar_seccion()`/`seccion_revision()`,
+    cabecera-primero, sin cambios):
+      - **Publicar un intento** (`revision`/`gaps`): UNA sección por intento, la dueña de la fase
+        (`seleccionar_seccion`).
+      - **Decidir sobre una tarea** (esta función): UNIÓN de TODAS las filas de TODAS las secciones
+        de revisión que MENCIONAN `tarea` EFECTIVAMENTE (`_menciones_efectivas()`: `menciones()` —
+        cabecera o columna `Tarea` — con herencia solo para cierres anónimos, igual que
+        `ultimo_intento_para`), en
+        CUALQUIER intento y CUALQUIER fase — no solo la sección "dueña". Antes `evidencia_aprobado`
+        miraba UNA sola sección por intento (cabecera-primero, vía `seccion_revision`): con la
+        sección propia de la fase limpia («Fase 2 (T-04, T-05) — sin gaps») y un Critical cruzado
+        `T-04/T-07` descubierto en la revisión de OTRA fase del MISMO intento, la regla
+        cabecera-primero elegía la limpia y `aprobado T-04` concedía Done sin ver el Critical.
+
+    Devuelve `(intento_reportado, filas)`: `intento_reportado` es el intento MÁS ALTO entre las
+    secciones que MENCIONAN `tarea`; `filas` son SOLO las PENDIENTES (`gap_pendiente()`) de esas
+    secciones, cada una anotada con `seccion` (su cabecera) e `intento` de origen, para que el
+    llamador cite fichero+sección al rechazar. `(None, [])` si NINGUNA sección menciona `tarea` —
+    sin evidencia, no se adivina."""
+    if not secciones:
         return None, []
-    resumen = (objetivo.group(2) or "").strip()   # cabecera sin `: resumen` → cadena vacía
-    inicio = objetivo.end()
-    fin = matches[matches.index(objetivo) + 1].start() if matches.index(objetivo) + 1 < len(matches) \
-        else len(texto)
-    cuerpo = texto[inicio:fin]
-    # párrafo de contexto ANTES de la tabla (si lo hay) — se une al resumen de la cabecera; se para
-    # en la primera fila `|` para no arrastrar notas/callouts posteriores a la tabla (pueden ser largos)
-    parrafo = []
-    for ln in cuerpo.splitlines():
-        s = ln.strip()
-        if s.startswith("|"):
-            break
-        if s:
-            parrafo.append(s)
-    if parrafo:
-        resumen = (resumen + " " + " ".join(parrafo)).strip()
-    filas = []
-    for ln in cuerpo.splitlines():
-        ln = ln.strip()
-        if not ln.startswith("|") or set(ln.replace("|", "").strip()) <= {"-", " "}:
-            continue
-        celdas = _split_fila_md(ln)
-        if len(celdas) < 6 or celdas[0] in ("#", ""):
-            continue
-        if not re.match(r"^\d+$", celdas[0]):
-            continue
-        filas.append({"num": celdas[0], "grado": celdas[1], "gap": celdas[2],
-                      "tarea": celdas[3], "correccion": celdas[4], "evidencia": celdas[5]})
-    return resumen, filas
+    efectivas = _menciones_efectivas(secciones)
+    citantes = [s for s, eff in zip(secciones, efectivas) if tarea in eff]
+    if not citantes:
+        return None, []
+    intento = max(s["intento"] for s in citantes)
+    pendientes = []
+    for s in citantes:
+        for f in s["filas"]:
+            if tarea in ids_de_tarea(f["tarea"]) and gap_pendiente(f):
+                pendientes.append(dict(f, seccion=s["cabecera"], intento=s["intento"]))
+    return intento, pendientes
+
+
+# --8<-- fin secciones_revision
+
+
+def seccion_revision(texto, intento, tareas=None):
+    """(resumen_cabecera, [filas de gap], aviso) de la sección `## Revisión de dos lentes —
+    intento N` que MENCIONA alguna de `tareas` (o la última de ese intento si ninguna encaja o
+    si `tareas` es None/vacío). Delega en `agent-kits/shared/ledger-lint.py` (fuente única del
+    parser + criterio de selección, gaps #1/#2/#5 de jira-review-comments); si el kit no viaja
+    con el paquete portable, usa la replica local sentinelada mas abajo. (None, [], None) si esa
+    N no existe en el ledger."""
+    ledger_lint = _cargar_ledger_lint()
+    lista_tareas = list(tareas) if tareas else []
+    if ledger_lint is not None:
+        secciones = ledger_lint.secciones_revision(texto)
+        seccion, aviso = ledger_lint.seleccionar_seccion(secciones, intento, lista_tareas)
+    else:
+        secciones = secciones_revision(texto)
+        seccion, aviso = seleccionar_seccion(secciones, intento, lista_tareas)
+    if seccion is None:
+        return None, [], None
+    return seccion["resumen"], seccion["filas"], aviso
+
+
 
 
 # ------------------------------------------------------------------ plantillas + firma
@@ -474,51 +723,64 @@ def _anotar_flujo(state_path, clave, fecha):
 
 # ------------------------------------- evidencia para `aprobado` (la puerta de Done, T-fix1 #1)
 
-def _gap_pendiente(fila):
-    """True si la fila de gap NO tiene corrección registrada (celda vacía o placeholder) y no está
-    `descartado (rebatido)`: una tarea con gaps así NO puede pasar a Done."""
-    correccion = re.sub(r"[`*_]", "", (fila.get("correccion") or "")).strip()
-    evidencia = (fila.get("evidencia") or "").strip()
-    if _GAP_REBATIDO_RE.search(correccion) or _GAP_REBATIDO_RE.search(evidencia):
-        return False
-    return bool(_GAP_PENDIENTE_RE.match(correccion))
-
-
 def evidencia_aprobado(texto, tareas, qa_verde):
-    """(info, razon): qué evidencia respalda un `aprobado`, o por qué NO se puede emitir.
+    """(info, razon): que evidencia respalda un `aprobado`, o por que NO se puede emitir.
 
-    `aprobado` es el ÚNICO evento que marca Done, así que no se emite a ciegas (antes se emitía
+    `aprobado` es el UNICO evento que marca Done, asi que no se emite a ciegas (antes se emitia
     siempre, sin comprobar nada). Exige las DOS cosas que la tabla de la Fase 3 promete:
-      1) **revisión limpia**: existe una sección `## Revisión de dos lentes — intento N` y la
-         ÚLTIMA (la N más alta) no deja filas de gap PENDIENTES para esas tareas (sin filas, o
-         todas con corrección registrada / `descartado (rebatido)`);
-      2) **rastro de qa verde**: `--qa-verde`. El ledger no tiene una marca canónica de «qa verde»
-         (el veredicto vive en `docs/roadmap/<slug>/testing/report.md`), así que el flag es la
-         declaración explícita del orquestador, que SOLO lo pasa tras leer el **exit 0 de
+      1) **revision limpia, POR TAREA, UNION de TODAS las secciones que la citan** (arbitraje
+         fix3, gap #20 de jira-review-comments — sustituye al criterio de UNA sola sección por
+         intento que usaba antes esta funcion): para cada tarea de `tareas`, `filas_pendientes_
+         de_tarea()` recorre TODAS las secciones `## Revision de dos lentes` que la mencionan
+         EFECTIVAMENTE (cabecera o columna Tarea, con herencia solo en cierres anonimos), en
+         CUALQUIER intento y CUALQUIER fase — no solo la seccion "duena" de su fase (eso es
+         `seleccionar_seccion()`, que sigue siendo cabecera-primero pero es SOLO para PUBLICAR el
+         comentario de un intento concreto). Antes, con la seccion propia de la fase limpia
+         ("Fase 2 (T-04, T-05) — sin gaps") y un Critical cruzado `T-04/T-07` nacido en la
+         revision de OTRA fase del MISMO intento, la regla cabecera-primero elegia la limpia y
+         `aprobado T-04` concedia Done sin ver el Critical. El intento que se REPORTA es el mas
+         alto entre las secciones que citan cada tarea; sin ninguna sección que la cite,
+         rechazo sin adivinar (gap #2 original, sigue vigente).
+      2) **rastro de qa verde**: `--qa-verde`. El ledger no tiene una marca canonica de «qa verde»
+         (el veredicto vive en `docs/roadmap/<slug>/testing/report.md`), asi que el flag es la
+         declaracion explicita del orquestador, que SOLO lo pasa tras leer el **exit 0 de
          `agent-kits/qa/qa-gate.py`** (documentado en `references/progress-sync.md`).
     """
     if not qa_verde:
         return None, ("`aprobado` sin `--qa-verde`: Done exige el verde de qa. Ejecuta "
                       "`agent-kits/qa/qa-gate.py` y, SOLO si su exit es 0, repite con `--qa-verde`")
-    matches = list(_REVISION_HDR_RE.finditer(texto))
-    if not matches:
+    ledger_lint = _cargar_ledger_lint()
+    if ledger_lint is not None:
+        secciones = ledger_lint.secciones_revision(texto)
+    else:
+        secciones = secciones_revision(texto)
+    if not secciones:
         return None, ("`aprobado` sin evidencia: el ledger no tiene ninguna sección `## Revisión de "
                       "dos lentes — intento N`. Sin revisión de dos lentes no hay Done")
-    ultimo = max(matches, key=lambda m: int(m.group(1)))
-    intento = int(ultimo.group(1))
-    # para el cierre basta el resumen de la CABECERA («sin gaps», «12 gaps corregidos (…)»); el
-    # párrafo de contexto que `seccion_revision` le pega para el comentario de `revision` aquí solo
-    # alargaría el comentario de Done.
-    resumen = (ultimo.group(2) or "").strip()
-    _, filas = seccion_revision(texto, intento)
-    pendientes = [f for f in filas if f["tarea"] in tareas and _gap_pendiente(f)]
+    intentos, pendientes = [], []
+    for t in tareas:
+        if ledger_lint is not None:
+            intento_t, filas_t = ledger_lint.filas_pendientes_de_tarea(secciones, t)
+        else:
+            intento_t, filas_t = filas_pendientes_de_tarea(secciones, t)
+        if intento_t is None:
+            return None, (f"`aprobado` sin evidencia: ninguna sección `## Revisión de dos lentes — "
+                          f"intento N` menciona {t} en la cabecera o en la columna Tarea — no se "
+                          f"puede dar por revisada sin evidencia")
+        intentos.append(intento_t)
+        pendientes.extend(filas_t)
     if pendientes:
-        detalle = "; ".join(f"#{f['num']} {f['grado']}: {_acortar(f['gap'], 60)}" for f in pendientes)
-        return None, (f"`aprobado` bloqueado: el último intento de revisión ({intento}) deja "
-                      f"{len(pendientes)} gap(s) sin corrección registrada para "
-                      f"{', '.join(tareas)} → {detalle}. Corrígelos (o anótalos como `descartado "
-                      f"(rebatido)` con evidencia) y vuelve a intentarlo")
-    return {"intento": intento, "resumen": resumen or "", "gaps": len(filas)}, None
+        detalle = "; ".join(
+            f"#{f['num']} {f['grado']}: {_acortar(f['gap'], 60)} (sección «{_acortar(f['seccion'], 50)}»)"
+            for f in pendientes)
+        return None, (f"`aprobado` bloqueado: {', '.join(tareas)} deja(n) {len(pendientes)} gap(s) "
+                      f"sin corrección registrada en las secciones de revisión que los citan → "
+                      f"{detalle}. Corrígelos (o anótalos como `descartado (rebatido)` con "
+                      f"evidencia) y vuelve a intentarlo")
+    intento = max(intentos)
+    resumen, _filas_pub, _aviso_pub = seccion_revision(texto, intento, tareas)
+    info = {"intento": intento, "resumen": resumen or "", "gaps": len(pendientes)}
+    return info, None
 
 
 # ------------------------------------------------------------------ plan principal
@@ -556,6 +818,8 @@ def construir_plan(args):
         evidencia_ok, razon = evidencia_aprobado(texto, tareas, args.qa_verde)
         if evidencia_ok is None:
             return None, [razon], 2
+        if evidencia_ok.get("aviso"):
+            avisos.append(evidencia_ok["aviso"])
 
     # --- opt-in: con Jira apagado el ciclo es idéntico, simplemente no publica nada
     root = args.root or os.getcwd()
@@ -610,10 +874,13 @@ def construir_plan(args):
 
     elif args.event in ("revision", "gaps"):
         intento = args.intento          # obligatorio para estos dos eventos (validado arriba)
-        resumen_hdr, filas = seccion_revision(texto, intento)
+        resumen_hdr, filas, aviso_seccion = seccion_revision(texto, intento, tareas)
         if resumen_hdr is None:
             return None, [f"no hay sección `## Revisión de dos lentes — intento {intento}` en el ledger"], 2
-        filas_tarea = [f for f in filas if f["tarea"] in tareas]
+        if aviso_seccion:
+            avisos.append(aviso_seccion)
+        tareas_set = set(tareas)
+        filas_tarea = [f for f in filas if ids_de_tarea(f["tarea"]) & tareas_set]
         if args.event == "gaps" and not filas_tarea:
             return None, [f"el intento {intento} no tiene gaps para {', '.join(tareas)} — usa `--event revision`"], 2
         if args.event == "revision" and filas_tarea:

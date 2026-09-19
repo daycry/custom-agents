@@ -317,7 +317,51 @@ def main():
     assert tareas["T-01"]["checked"] == 2 and tareas["T-01"]["unchecked"] == 1, \
         "el checklist manual con un ítem real sin marcar debe contar como criterio pendiente"
 
-    print("test_ledger_lint: 23/23 OK")
+    # 22) [T-04, jira-review-comments] cabecera de revisión con paréntesis TRAS el número de
+    #     intento («intento 1 (Fase 2: T-04): …») no casa con REVISION_HDR_PATTERN — ni
+    #     `jira-flow.py` ni `task-brief.py` la ven — así que es un AVISO (no error: el ledger
+    #     sigue siendo válido, solo esa sección queda invisible para los dos scripts).
+    con_paren = doc() + ("\n## Revisión de dos lentes — intento 1 (Fase 2: T-04): 3 gaps\n\n"
+                         "| # | Grado | Gap | Tarea | Corrección | Evidencia |\n"
+                         "|---|---|---|---|---|---|\n"
+                         "| 1 | Minor | gap | T-04 | corregido | test |\n")
+    code, out = run(con_paren)
+    assert code == 0, out
+    assert "cabecera de revisión no casa con REVISION_HDR_PATTERN" in out, out
+    assert "usa `## Revisión de dos lentes — intento N: <resumen>`" in out, out
+
+    # 23) …pero la forma recomendada, resumen de la fase DENTRO del `: <resumen>` en vez de un
+    #     paréntesis tras el número («intento 1: Fase 2 (T-04) — …»), sí casa: sin aviso.
+    sin_paren = doc() + ("\n## Revisión de dos lentes — intento 1: Fase 2 (T-04) — 3 gaps\n\n"
+                         "| # | Grado | Gap | Tarea | Corrección | Evidencia |\n"
+                         "|---|---|---|---|---|---|\n"
+                         "| 1 | Minor | gap | T-04 | corregido | test |\n")
+    code, out = run(sin_paren)
+    assert code == 0, out
+    assert "cabecera de revisión no casa" not in out, out
+
+    # 24) [gap #12, jira-review-comments T-03-fix1] una cabecera con paréntesis CITADA dentro de
+    #     una valla de código (ejemplo de la propia doc del ledger, no una sección real) no debe
+    #     avisar: `sin_vallas()` la vacía antes de mirarla.
+    con_paren_en_valla = doc() + (
+        "\n```\n## Revisión de dos lentes — intento 1 (Fase 2: T-04): 3 gaps\n```\n")
+    code, out = run(con_paren_en_valla)
+    assert code == 0, out
+    assert "cabecera de revisión no casa" not in out, out
+
+    # 25) [gap #13, jira-review-comments T-03-fix1] una cabecera con `###` (tres almohadillas) SÍ
+    #     debe avisar: `REVISION_HDR_PATTERN` exige `##` exacto, así que ni `jira-flow.py` ni
+    #     `task-brief.py` la ven — antes el propio aviso solo miraba `## Revisi` (dos almohadillas)
+    #     y no la detectaba.
+    con_h3 = doc() + ("\n### Revisión de dos lentes — intento 1: 3 gaps\n\n"
+                       "| # | Grado | Gap | Tarea | Corrección | Evidencia |\n"
+                       "|---|---|---|---|---|---|\n"
+                       "| 1 | Minor | gap | T-04 | corregido | test |\n")
+    code, out = run(con_h3)
+    assert code == 0, out
+    assert "cabecera de revisión no casa con REVISION_HDR_PATTERN" in out, out
+
+    print("test_ledger_lint: 27/27 OK")
 
 
 if __name__ == "__main__":

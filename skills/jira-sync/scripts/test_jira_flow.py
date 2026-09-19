@@ -7,9 +7,11 @@ Ejecutar: python3 -m pytest -q skills/jira-sync/scripts/test_jira_flow.py
 import importlib.util
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
+from pathlib import Path
 
 import pytest
 
@@ -383,6 +385,656 @@ def test_gaps_intento_inexistente_exit_2(ledger):
     assert code == 2 and "intento 9" in err
 
 
+# ------------------------------------------- revision / gaps: varias fases, mismo número de intento
+
+LEDGER_MULTIFASE = """---
+tasks: demo-multifase
+descripcion: Iniciativa de prueba con dos fases, cada una con su propio "intento 1".
+estado: en-progreso
+creado: 2026-09-19
+actualizado: 2026-09-19
+via: rapida
+verificacion: obligatoria
+generacion:
+  fuente: estimado
+---
+
+# Checklist de Tareas — demo-multifase (vía rápida)
+
+## Resumen de progreso
+
+| Fase | Completadas | Total | Progreso |
+|------|------------|-------|----------|
+| Fase 1 | 2 | 2 | 100% |
+| Fase 2 | 2 | 2 | 100% |
+
+## Fase 1 — Endpoint de health-check
+
+### T-01 — Endpoint de health-check
+
+- **Descripción**: Añade `GET /health`.
+- **Estado**: completado
+- **Archivos**: `app/health.py`
+- **Verificación**: `python3 -m pytest -q tests/test_health.py` → 3 passed.
+
+**Criterios de aceptación**
+- [x] `GET /health` devuelve 200.
+
+### T-02 — Documentar el endpoint
+
+- **Descripción**: Documenta `GET /health` en el README, sin código.
+- **Estado**: completado
+- **Archivos**: `README.md`
+- **Verificación**: `grep -c health README.md` → 1.
+
+**Criterios de aceptación**
+- [x] El README menciona `/health`.
+
+## Revisión de dos lentes — intento 1: 1 gap corregido (0 Critical, 1 Important, 0 Minor)
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 1 | Important | Falta validar que la DB responde antes de devolver 200 | T-01 | Añadido `db.ping()` con timeout | `test_health_falla_si_db_cae` |
+
+## Fase 2 — Panel de administración
+
+### T-04 — Listado paginado
+
+- **Descripción**: Endpoint `GET /admin/items` paginado.
+- **Estado**: completado
+- **Archivos**: `app/admin.py`
+- **Verificación**: `python3 -m pytest -q tests/test_admin.py` → 2 passed.
+
+**Criterios de aceptación**
+- [x] `GET /admin/items` pagina por `?page=`.
+
+### T-05 — Autorización del panel
+
+- **Descripción**: Solo usuarios `admin` acceden al panel.
+- **Estado**: completado
+- **Archivos**: `app/auth.py`
+- **Verificación**: `python3 -m pytest -q tests/test_auth.py` → 2 passed.
+
+**Criterios de aceptación**
+- [x] Un usuario no-admin recibe 403.
+
+## Revisión de dos lentes — intento 1: 1 gap corregido para T-04; T-05 sin gaps (0 Critical, 1 Important, 0 Minor)
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 1 | Important | La paginación no valida `page<=0` | T-04 | Añadida validación con 400 | `test_admin_page_invalida` |
+"""
+
+
+@pytest.fixture
+def ledger_multifase(tmp_path):
+    """Como `ledger`, pero con DOS fases que comparten el mismo número de intento (1): reproduce el
+    ledger real de `knowledge-services`, donde cada fase arranca su propio bucle de revisión."""
+    (tmp_path / ".claude").mkdir(exist_ok=True)
+    (tmp_path / ".claude" / "jira.json").write_text('{"enabled": true}', encoding="utf-8")
+    p = tmp_path / "tasks.md"
+    p.write_text(LEDGER_MULTIFASE, encoding="utf-8")
+    return str(p)
+
+
+def test_gaps_intento_repetido_elige_la_seccion_que_menciona_la_tarea_pedida(ledger_multifase):
+    """(a) Dos secciones «intento 1» (una por fase): `--task T-04` trae la tabla de la Fase 2, NUNCA
+    la de la Fase 1 (T-01)."""
+    plan = _plan_json("--ledger", ledger_multifase, "--event", "gaps", "--actor", "reviewer",
+                      "--task", "T-04", "--intento", "1",
+                      "--state", str(_state_con_claves(ledger_multifase, **{"T-04": "PROJ-4"})))
+    cuerpo = next(o for o in plan["ops"] if o["tipo"] == "comentario")["cuerpo"]
+    assert "La paginación no valida" in cuerpo
+    assert "db.ping()" not in cuerpo   # gap de la Fase 1 (T-01) — no debe colarse
+    assert not any("ninguna menciona" in a for a in plan["avisos"])   # match directo, sin fallback
+
+
+def test_gaps_intento_repetido_tarea_de_la_otra_fase(ledger_multifase):
+    """(a bis) `--task T-01` sigue trayendo la tabla de la Fase 1, no la de la Fase 2."""
+    plan = _plan_json("--ledger", ledger_multifase, "--event", "gaps", "--actor", "reviewer",
+                      "--task", "T-01", "--intento", "1",
+                      "--state", str(_state_con_claves(ledger_multifase, **{"T-01": "PROJ-1"})))
+    cuerpo = next(o for o in plan["ops"] if o["tipo"] == "comentario")["cuerpo"]
+    assert "db.ping()" in cuerpo
+    assert "La paginación no valida" not in cuerpo
+
+
+def test_revision_intento_repetido_usa_la_seccion_de_la_tarea_pedida(ledger_multifase):
+    """(b) `--task T-05 --intento 1`: la Fase 2 dice «sin gaps» para T-05 (solo T-04 tiene fila), pero
+    la Fase 1 SÍ tenía gaps (de T-01) con el mismo número de intento. Debe ganar la Fase 2 (la que
+    menciona T-05) y aceptar el evento `revision` (exit 0), no fallar con «SÍ tiene gaps»."""
+    plan = _plan_json("--ledger", ledger_multifase, "--event", "revision", "--actor", "reviewer",
+                      "--task", "T-05", "--intento", "1",
+                      "--state", str(_state_con_claves(ledger_multifase, **{"T-05": "PROJ-5"})))
+    cuerpo = next(o for o in plan["ops"] if o["tipo"] == "comentario")["cuerpo"]
+    assert "T-05" in cuerpo
+    assert not any(o["tipo"] == "transicion" for o in plan["ops"])   # revisión limpia: sin reabrir
+
+
+def test_gaps_intento_repetido_tarea_sin_mencion_cae_en_la_ultima_con_aviso(ledger_multifase):
+    """(c) Una tarea que ninguna de las secciones «intento 1» menciona (ni cabecera ni columna
+    Tarea): cae en la ÚLTIMA sección (la de la Fase 2) y avisa del porqué, en vez de fallar en
+    silencio con la sección arbitraria de la Fase 1."""
+    plan = _plan_json("--ledger", ledger_multifase, "--event", "revision", "--actor", "reviewer",
+                      "--task", "T-02", "--intento", "1",
+                      "--state", str(_state_con_claves(ledger_multifase, **{"T-02": "PROJ-2"})))
+    assert any("ninguna menciona" in a and "T-02" in a for a in plan["avisos"])
+    cuerpo = next(o for o in plan["ops"] if o["tipo"] == "comentario")["cuerpo"]
+    assert "db.ping()" not in cuerpo   # NO la sección de la Fase 1 elegida a ciegas
+
+
+def test_seccion_unica_de_ese_intento_no_cambia_de_comportamiento(ledger):
+    """(d) Con una sola sección para ese `intento` (el ledger clásico de un intento por fase), el
+    resultado es idéntico al de antes de este cambio: sigue funcionando la suite existente arriba
+    (`test_revision_sin_gaps_usa_el_resumen_del_ledger`, etc.) — este test solo documenta el caso."""
+    plan = _plan_json("--ledger", ledger, "--event", "revision", "--actor", "reviewer",
+                      "--task", "T-01", "--intento", "2", "--fecha", "2026-09-03")
+    cuerpo = next(o for o in plan["ops"] if o["tipo"] == "comentario")["cuerpo"]
+    assert "intento 2: sin gaps" in cuerpo
+
+
+def test_mencion_no_se_cuela_desde_correccion_ni_evidencia(ledger_multifase):
+    """(mutante M3) La celda `Corrección` del gap de la Fase 1 cita `db.ping()`, no un `T-XX`, pero
+    si `menciones()` escaneara `Corrección`/`Evidencia` en vez de solo cabecera+columna `Tarea`,
+    una tarea que solo aparece citada ahí (nunca en su propia columna `Tarea`) podría colar la
+    sección equivocada. Aquí `T-02` (existe en el ledger, pero solo en la Fase 1 y nunca en NINGUNA
+    celda `Tarea` ni cabecera de revisión) debe caer en el aviso de «ninguna menciona», nunca en un
+    falso positivo."""
+    plan = _plan_json("--ledger", ledger_multifase, "--event", "revision", "--actor", "reviewer",
+                      "--task", "T-02", "--intento", "1",
+                      "--state", str(_state_con_claves(ledger_multifase, **{"T-02": "PROJ-2"})))
+    assert any("ninguna menciona" in a and "T-02" in a for a in plan["avisos"])
+
+
+LEDGER_MENCION_VENENOSA = """---
+tasks: demo-mencion-venenosa
+descripcion: Ledger con una celda `Corrección` que cita literalmente un `T-XX` que NO es la tarea
+  de esa fila (veneno real para el mutante M3, jira-review-comments fix2 gap #17).
+estado: en-progreso
+creado: 2026-09-19
+actualizado: 2026-09-19
+via: rapida
+verificacion: obligatoria
+generacion:
+  fuente: estimado
+---
+
+# Checklist de Tareas — demo-mencion-venenosa (vía rápida)
+
+## Fase única
+
+### T-01 — Endpoint de health-check
+
+- **Descripción**: Añade `GET /health`.
+- **Estado**: completado
+- **Archivos**: `app/health.py`
+- **Verificación**: `python3 -m pytest -q tests/test_health.py` → 3 passed.
+
+**Criterios de aceptación**
+- [x] `GET /health` devuelve 200.
+
+### T-04 — Listado paginado
+
+- **Descripción**: tarea real del ledger, pero NUNCA mencionada en ninguna cabecera ni columna
+  `Tarea` de ninguna sección de revisión — solo aparece citada dentro de `Corrección`/`Evidencia`
+  de una fila de T-01.
+- **Estado**: completado
+- **Archivos**: `app/admin.py`
+- **Verificación**: `python3 -m pytest -q tests/test_admin.py` → 2 passed.
+
+**Criterios de aceptación**
+- [x] `GET /admin/items` pagina por `?page=`.
+
+## Revisión de dos lentes — intento 1: Fase única, parte A (T-01) — 1 gap corregido
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 1 | Important | Falta validar la DB | T-01 | Coordinado con T-04: ver su endpoint paginado | Ref. cruzada a T-04 en `test_health_falla_si_db_cae` |
+
+### T-05 — Autorización del panel
+
+- **Descripción**: una segunda sección de revisión con el MISMO número de intento (1), para
+  forzar la ambigüedad que resuelve `seleccionar_seccion` — sin ella, con una única candidata por
+  intento, el aviso «ninguna menciona» nunca se dispara (no hay nada que desambiguar).
+- **Estado**: completado
+- **Archivos**: `app/auth.py`
+- **Verificación**: `python3 -m pytest -q tests/test_auth.py` → 2 passed.
+
+**Criterios de aceptación**
+- [x] hecho
+
+## Revisión de dos lentes — intento 1: Fase única, parte B (T-05) — sin gaps
+
+Bucle cerrado, 0 gaps.
+"""
+
+
+@pytest.fixture
+def ledger_mencion_venenosa(tmp_path):
+    (tmp_path / ".claude").mkdir(exist_ok=True)
+    (tmp_path / ".claude" / "jira.json").write_text('{"enabled": true}', encoding="utf-8")
+    p = tmp_path / "tasks.md"
+    p.write_text(LEDGER_MENCION_VENENOSA, encoding="utf-8")
+    return str(p)
+
+
+def test_mencion_venenosa_en_correccion_y_evidencia_no_cuenta_como_mencion_de_esa_tarea(
+        ledger_mencion_venenosa):
+    """(mutante M3, veneno real) La celda `Corrección`/`Evidencia` de la ÚNICA fila del ledger cita
+    literalmente `T-04` dos veces, pero esa fila es de `T-01` (columna Tarea) y `T-04` no existe
+    como tarea real del ledger, ni en ninguna cabecera de revisión. Si `menciones()` escaneara
+    `Corrección`/`Evidencia` (en vez de solo cabecera + columna `Tarea`), un `--task T-04` colaría
+    esta sección como si la mencionara de verdad — con `intento` resuelto y SIN el aviso de
+    «ninguna sección menciona»."""
+    plan = _plan_json("--ledger", ledger_mencion_venenosa, "--event", "revision",
+                      "--actor", "reviewer", "--task", "T-04", "--intento", "1",
+                      "--state", str(_state_con_claves(ledger_mencion_venenosa, **{"T-04": "PROJ-4"})))
+    assert any("ninguna menciona" in a and "T-04" in a for a in plan["avisos"])
+
+
+def test_mencion_venenosa_no_permite_aprobar_una_tarea_nunca_revisada(ledger_mencion_venenosa):
+    """(mutante M3, veneno real — cara `aprobado`) Sin la mención efectiva correcta, `ultimo_intento_
+    para` devolvería un intento para `T-04` solo porque su nombre aparece citado en `Corrección`/
+    `Evidencia` de una fila de `T-01` — y como esa fila filtra por columna `Tarea` (T-01, no T-04),
+    `evidencia_aprobado` no encontraría gaps PENDIENTES para T-04 y lo aprobaría sin que NINGUNA
+    sección de revisión haya mencionado nunca a `T-04` en su cabecera o columna Tarea. Debe
+    rechazarse por falta de evidencia, no aprobarse a ciegas."""
+    code, out, err = _run("--ledger", ledger_mencion_venenosa, "--event", "aprobado",
+                          "--actor", "orquestador", "--task", "T-04", "--qa-verde")
+    assert code == 2
+    assert "sin evidencia" in err and "T-04" in err
+
+
+# ---------------------------------------------------------------- FX2: fila combinada `T-02/T-04`
+
+LEDGER_FX2 = """---
+tasks: demo-fx2
+descripcion: Ledger con una fila de gap combinada `T-02/T-04` (jira-review-comments fix2, gaps
+  #14/#15) — debe contar para LAS DOS tareas, nunca solo para el texto exacto de la celda.
+estado: en-progreso
+creado: 2026-09-19
+actualizado: 2026-09-19
+via: rapida
+verificacion: obligatoria
+generacion:
+  fuente: estimado
+---
+
+# Checklist de Tareas — demo-fx2 (vía rápida)
+
+## Fase 1
+
+### T-01 — algo
+
+- **Descripción**: hacer la cosa A.
+- **Estado**: completado
+- **Archivos**: `app/a.py`
+- **Verificación**: `python3 -m pytest -q tests/test_a.py` → 1 passed.
+
+**Criterios de aceptación**
+- [x] hecho
+
+## Revisión de dos lentes — intento 1: Fase 1 (T-01) — 1 gap
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 1 | **Critical** | rompe todo | T-01 | corregido: x | `test_a` -> passed |
+
+## Revisión de dos lentes — intento 2: Fase 1 (T-01) — sin gaps
+
+Bucle cerrado, 0 gaps.
+
+## Fase 2
+
+### T-02 — Documentar
+
+- **Descripción**: documentar la cosa combinada.
+- **Estado**: completado
+- **Archivos**: `README.md`
+- **Verificación**: `grep -c combinado README.md` → 1.
+
+**Criterios de aceptación**
+- [x] hecho
+
+### T-04 — otra cosa
+
+- **Descripción**: hacer la cosa combinada.
+- **Estado**: completado
+- **Archivos**: `app/b.py`
+- **Verificación**: `python3 -m pytest -q tests/test_b.py` → 2 passed.
+
+**Criterios de aceptación**
+- [x] hecho
+
+### T-05 — un detalle
+
+- **Descripción**: un detalle menor de UI.
+- **Estado**: completado
+- **Archivos**: `app/ui.py`
+- **Verificación**: `python3 -m pytest -q tests/test_ui.py` → 1 passed.
+
+**Criterios de aceptación**
+- [x] hecho
+
+## Revisión de dos lentes — intento 1: Fase 2 (T-02/T-04) — 2 gaps
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 1 | **Critical** | corrupción de datos al combinar T-02 y T-04 | T-02/T-04 | — | — |
+| 2 | Minor | detalle de UI | T-05 | corregido: y | `test_ui` -> passed |
+"""
+
+
+@pytest.fixture
+def ledger_fx2(tmp_path):
+    (tmp_path / ".claude").mkdir(exist_ok=True)
+    (tmp_path / ".claude" / "jira.json").write_text('{"enabled": true}', encoding="utf-8")
+    p = tmp_path / "tasks.md"
+    p.write_text(LEDGER_FX2, encoding="utf-8")
+    return str(p)
+
+
+def test_fx2_gaps_fila_combinada_aparece_en_el_brief_de_t04(ledger_fx2):
+    """(FX2) El evento `gaps` para T-04 debe mostrar la fila combinada `T-02/T-04`, aunque el texto
+    exacto de la celda `Tarea` nunca sea `T-04` a solas (gap #14)."""
+    plan = _plan_json("--ledger", ledger_fx2, "--event", "gaps", "--actor", "reviewer",
+                      "--task", "T-04", "--intento", "1",
+                      "--state", str(_state_con_claves(ledger_fx2, **{"T-04": "PROJ-4"})))
+    cuerpo = next(o for o in plan["ops"] if o["tipo"] == "comentario")["cuerpo"]
+    assert "corrupción de datos" in cuerpo
+
+
+def test_fx2_gaps_fila_combinada_aparece_tambien_en_el_brief_de_t02(ledger_fx2):
+    """(FX2) La misma fila combinada, para T-02: no solo T-04 se beneficia del `ids_de_tarea` por
+    regex — las dos mitades de la celda cuentan (gap #14)."""
+    plan = _plan_json("--ledger", ledger_fx2, "--event", "gaps", "--actor", "reviewer",
+                      "--task", "T-02", "--intento", "1",
+                      "--state", str(_state_con_claves(ledger_fx2, **{"T-02": "PROJ-2"})))
+    cuerpo = next(o for o in plan["ops"] if o["tipo"] == "comentario")["cuerpo"]
+    assert "corrupción de datos" in cuerpo
+
+
+def test_fx2_aprobado_t04_rechaza_por_la_fila_combinada_pendiente(ledger_fx2):
+    """(FX2, gap #15) `aprobado --task T-04` debe RECHAZAR: la fila `T-02/T-04` Critical no tiene
+    corrección registrada (`—`/`—`). Si `evidencia_aprobado` comparase la celda `Tarea` con `==`
+    en vez de por `ids_de_tarea`, esta fila jamás filtraría para `T-04` y `aprobado` la aprobaría
+    a ciegas con un Critical sin corregir."""
+    code, out, err = _run("--ledger", ledger_fx2, "--event", "aprobado", "--actor", "orquestador",
+                          "--task", "T-04", "--qa-verde")
+    assert code == 2
+    assert "bloqueado" in err and "corrupción de datos" in err
+
+
+def test_fx2_aprobado_t02_rechaza_por_la_misma_fila_combinada(ledger_fx2):
+    """(FX2, gap #15) Simétrico: `aprobado --task T-02` también debe rechazar por la misma fila
+    combinada, aunque T-02 ya esté "completado" como tarea documental."""
+    code, out, err = _run("--ledger", ledger_fx2, "--event", "aprobado", "--actor", "orquestador",
+                          "--task", "T-02", "--qa-verde")
+    assert code == 2
+    assert "bloqueado" in err and "corrupción de datos" in err
+
+
+def test_fx2_aprobado_t05_no_se_bloquea_por_el_critical_de_otras_tareas(ledger_fx2):
+    """(FX2) Control: T-05 SÍ tiene su propio gap, pero está corregido — su `aprobado` no debe
+    bloquearse por el Critical combinado de T-02/T-04, que no lo menciona."""
+    code, out, err = _run("--ledger", ledger_fx2, "--event", "aprobado", "--actor", "orquestador",
+                          "--task", "T-05", "--qa-verde")
+    assert code == 0
+
+
+# ------------------------------------------------------- FX3: numeración continua entre fases
+
+LEDGER_FX3 = """---
+tasks: demo-fx3
+descripcion: Ledger con numeración de intento CONTINUA entre fases (jira-review-comments fix2,
+  gap #16) — Fase 1 se queda en su intento 1 (con un Critical pendiente) mientras la Fase 2 ya
+  va por su intento 2 ("sin gaps"). El máximo GLOBAL (2) no debe usarse para T-01.
+estado: en-progreso
+creado: 2026-09-19
+actualizado: 2026-09-19
+via: rapida
+verificacion: obligatoria
+generacion:
+  fuente: estimado
+---
+
+# Checklist de Tareas — demo-fx3 (vía rápida)
+
+## Fase 1
+
+### T-01 — algo
+
+- **Descripción**: hacer la cosa A.
+- **Estado**: completado
+- **Archivos**: `app/a.py`
+- **Verificación**: `python3 -m pytest -q tests/test_a.py` → 1 passed.
+
+**Criterios de aceptación**
+- [x] hecho
+
+## Revisión de dos lentes — intento 1: Fase 1 (T-01) — 1 gap
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 1 | **Critical** | rompe todo | T-01 | — | — |
+
+## Fase 2
+
+### T-04 — otra cosa
+
+- **Descripción**: hacer la cosa B.
+- **Estado**: completado
+- **Archivos**: `app/b.py`
+- **Verificación**: `python3 -m pytest -q tests/test_b.py` → 2 passed.
+
+**Criterios de aceptación**
+- [x] hecho
+
+## Revisión de dos lentes — intento 2: Fase 2 (T-04) — sin gaps
+
+Bucle cerrado.
+"""
+
+
+@pytest.fixture
+def ledger_fx3(tmp_path):
+    (tmp_path / ".claude").mkdir(exist_ok=True)
+    (tmp_path / ".claude" / "jira.json").write_text('{"enabled": true}', encoding="utf-8")
+    p = tmp_path / "tasks.md"
+    p.write_text(LEDGER_FX3, encoding="utf-8")
+    return str(p)
+
+
+def test_fx3_aprobado_t01_rechaza_citando_el_critical_de_la_fase_1(ledger_fx3):
+    """(FX3, gap #16) `aprobado --task T-01` debe mirar el intento MÁS ALTO ENTRE LAS SECCIONES QUE
+    MENCIONAN T-01 (solo el 1, la Fase 1) — NUNCA el máximo GLOBAL del ledger (2, de la Fase 2, que
+    no menciona T-01 en absoluto). El atajo antiguo (`len(intentos) == len(set(intentos))` →
+    devolver el máximo global) habría cogido el intento 2 de la Fase 2 y, o bien fallado con
+    «ninguna sección de intento 2 menciona T-01», o peor: dejado sin detectar el Critical
+    pendiente real de la Fase 1."""
+    code, out, err = _run("--ledger", ledger_fx3, "--event", "aprobado", "--actor", "orquestador",
+                          "--task", "T-01", "--qa-verde")
+    assert code == 2
+    assert "bloqueado" in err and "rompe todo" in err
+
+
+def test_fx3_aprobado_t04_usa_su_propio_intento_2_sin_gaps(ledger_fx3):
+    """(FX3) Control: T-04 SÍ debe resolver limpio con su propio intento 2 («sin gaps»), sin que el
+    Critical pendiente de la Fase 1 (T-01, intento 1) lo bloquee — el bloqueo es por tarea."""
+    plan = _plan_json("--ledger", ledger_fx3, "--event", "aprobado", "--actor", "orquestador",
+                      "--task", "T-04", "--qa-verde")
+    assert [o["tipo"] for o in plan["ops"]] == ["etiqueta", "transicion", "comentario"]
+
+
+# ------------------------------------------------------- FXP: gap cruzado en OTRA sección DEL MISMO intento
+
+LEDGER_FXP = """---
+tasks: demo-fxp
+descripcion: Ledger con DOS secciones del MISMO intento (jira-review-comments fix3, gap #20) —
+  "Fase 2 (T-04, T-05) — sin gaps" está limpia, pero OTRA sección del mismo intento 1 (la de la
+  Fase 1, que revisa T-07) tiene una fila cruzada Critical `T-04/T-07` sin corregir. Con el
+  criterio antiguo (UNA sección por intento, cabecera-primero) `aprobado T-04` elegía la limpia y
+  concedía Done sin ver el Critical.
+estado: en-progreso
+creado: 2026-09-19
+actualizado: 2026-09-19
+via: rapida
+verificacion: obligatoria
+generacion:
+  fuente: estimado
+---
+
+# Checklist de Tareas — demo-fxp (vía rápida)
+
+## Fase 1
+
+### T-07 — algo de la fase 1
+
+- **Descripción**: hacer la cosa C.
+- **Estado**: completado
+- **Archivos**: `app/c.py`
+- **Verificación**: `python3 -m pytest -q tests/test_c.py` → 1 passed.
+
+**Criterios de aceptación**
+- [x] hecho
+
+## Revisión de dos lentes — intento 1: Fase 1 (T-07) — 1 gap
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 1 | **Critical** | inconsistencia cruzada entre el listado paginado y el cierre de sesión | T-04/T-07 | — | — |
+
+## Fase 2
+
+### T-04 — otra cosa
+
+- **Descripción**: hacer la cosa B.
+- **Estado**: completado
+- **Archivos**: `app/b.py`
+- **Verificación**: `python3 -m pytest -q tests/test_b.py` → 2 passed.
+
+**Criterios de aceptación**
+- [x] hecho
+
+### T-05 — otra cosa mas
+
+- **Descripción**: hacer la cosa D.
+- **Estado**: completado
+- **Archivos**: `app/d.py`
+- **Verificación**: `python3 -m pytest -q tests/test_d.py` → 1 passed.
+
+**Criterios de aceptación**
+- [x] hecho
+
+## Revisión de dos lentes — intento 1: Fase 2 (T-04, T-05) — sin gaps
+
+Bucle cerrado.
+"""
+
+
+@pytest.fixture
+def ledger_fxp(tmp_path):
+    (tmp_path / ".claude").mkdir(exist_ok=True)
+    (tmp_path / ".claude" / "jira.json").write_text('{"enabled": true}', encoding="utf-8")
+    p = tmp_path / "tasks.md"
+    p.write_text(LEDGER_FXP, encoding="utf-8")
+    return str(p)
+
+
+def test_fxp_aprobado_t04_rechaza_por_el_critical_cruzado_de_otra_seccion_del_mismo_intento(ledger_fxp):
+    """(FXP, gap #20) La sección PROPIA de T-04 («Fase 2 … — sin gaps») está limpia, pero OTRA
+    sección del MISMO intento (la de la Fase 1, T-07) tiene una fila `T-04/T-07` Critical sin
+    corregir. `aprobado --task T-04` debe rechazar citando ese Critical — no basta con mirar la
+    sección "dueña" cabecera-primero."""
+    code, out, err = _run("--ledger", ledger_fxp, "--event", "aprobado", "--actor", "orquestador",
+                          "--task", "T-04", "--qa-verde")
+    assert code == 2
+    assert "bloqueado" in err and "inconsistencia cruzada" in err
+
+
+def test_fxp_aprobado_t07_rechaza_por_el_mismo_critical_cruzado(ledger_fxp):
+    """(FXP) Control simétrico: T-07 (la tarea "propietaria" de la sección con el gap) también
+    debe rechazar por la misma fila — el bloqueo es por tarea mencionada, no por sección dueña."""
+    code, out, err = _run("--ledger", ledger_fxp, "--event", "aprobado", "--actor", "orquestador",
+                          "--task", "T-07", "--qa-verde")
+    assert code == 2
+    assert "bloqueado" in err and "inconsistencia cruzada" in err
+
+
+def test_fxp_aprobado_t05_no_se_bloquea_por_el_critical_cruzado_de_otra_tarea(ledger_fxp):
+    """(FXP) Control negativo: T-05 no aparece en la fila cruzada `T-04/T-07`, así que su
+    `aprobado` debe seguir aceptándose."""
+    plan = _plan_json("--ledger", ledger_fxp, "--event", "aprobado", "--actor", "orquestador",
+                      "--task", "T-05", "--qa-verde")
+    assert [o["tipo"] for o in plan["ops"]] == ["etiqueta", "transicion", "comentario"]
+
+
+LEDGER_FASE_REABIERTA = LEDGER_MULTIFASE + """
+## Fase 3 — Reapertura
+
+### T-06 — Ajuste tardío sobre el panel
+
+- **Descripción**: Un hallazgo tardío obliga a retocar T-04.
+- **Estado**: completado
+- **Archivos**: `app/admin.py`
+- **Verificación**: `python3 -m pytest -q tests/test_admin.py` → 3 passed.
+
+**Criterios de aceptación**
+- [x] El ajuste tardío queda cubierto.
+
+## Revisión de dos lentes — intento 1: Fase 3 reabre T-04 (1 Minor)
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 1 | Minor | Falta un `assert` adicional en el ajuste tardío | T-04 | pendiente | — |
+"""
+
+
+@pytest.fixture
+def ledger_fase_reabierta(tmp_path):
+    """Como `ledger_multifase`, pero con una TERCERA sección «intento 1» (Fase 3) que REABRE T-04
+    (una tarea de la Fase 2) — el caso real de `knowledge-services`, donde una fase posterior cita
+    en su tabla de gaps una tarea de una fase ya cerrada."""
+    (tmp_path / ".claude").mkdir(exist_ok=True)
+    (tmp_path / ".claude" / "jira.json").write_text('{"enabled": true}', encoding="utf-8")
+    p = tmp_path / "tasks.md"
+    p.write_text(LEDGER_FASE_REABIERTA, encoding="utf-8")
+    return str(p)
+
+
+def test_gaps_fase_reabierta_la_mas_reciente_gana_sobre_la_original(ledger_fase_reabierta):
+    """(mutante M2, «fase reabierta») T-04 aparece en la sección de la Fase 2 (ya cerrada, un gap
+    corregido) Y en la de la Fase 3 (la reapertura, con un gap nuevo). Con `coincide[-1]` (la
+    ÚLTIMA que menciona, no `coincide[0]`) gana la Fase 3 — el estado ACTUAL de T-04."""
+    plan = _plan_json("--ledger", ledger_fase_reabierta, "--event", "gaps", "--actor", "reviewer",
+                      "--task", "T-04", "--intento", "1",
+                      "--state", str(_state_con_claves(ledger_fase_reabierta, **{"T-04": "PROJ-4"})))
+    cuerpo = next(o for o in plan["ops"] if o["tipo"] == "comentario")["cuerpo"]
+    assert "assert" in cuerpo and "ajuste tardío" in cuerpo
+    assert "La paginación no valida" not in cuerpo   # el gap ORIGINAL de la Fase 2, ya cerrado
+
+
+def test_aprobado_rechaza_si_la_fase_de_la_tarea_no_llega_al_intento_mas_alto_global(
+        ledger_fase_reabierta):
+    """`aprobado` para T-04 debe mirar el intento MÁS ALTO ENTRE LAS SECCIONES QUE MENCIONAN T-04
+    (Fase 2 intento 1 + Fase 3 intento 1, ambas «intento 1»): la Fase 3 reabrió T-04 con un gap
+    `pendiente`, así que debe bloquear — nunca aceptar solo porque la Fase 2 ya estaba cerrada."""
+    code, out, err = _run("--ledger", ledger_fase_reabierta, "--event", "aprobado",
+                          "--actor", "orquestador", "--task", "T-04", "--qa-verde")
+    assert code == 2
+    assert "bloqueado" in err
+
+
+def test_aprobado_de_una_tarea_limpia_no_lo_bloquea_el_gap_pendiente_de_otra_fase(
+        ledger_fase_reabierta):
+    """T-05 (Fase 2) no aparece mencionada en la reapertura de la Fase 3: su `aprobado` debe seguir
+    aceptándose aunque OTRA fase (la de T-04) tenga un gap `pendiente` — el bloqueo es por tarea,
+    no un cerrojo global del ledger."""
+    plan = _plan_json("--ledger", ledger_fase_reabierta, "--event", "aprobado",
+                      "--actor", "orquestador", "--task", "T-05", "--qa-verde")
+    assert [o["tipo"] for o in plan["ops"]] == ["etiqueta", "transicion", "comentario"]
+
+
 # ---------------------------------------------------------------- qa-verde / qa-rojo
 
 def test_qa_verde_incluye_resumen_y_evidencia_derivada_del_slug(ledger):
@@ -531,11 +1183,159 @@ def test_root_resuelve_la_config_desde_otra_carpeta(ledger, tmp_path):
         assert len(plan["ops"]) == 2 and plan["jira"] == "activado"
 
 
+# ---------------------------------------------- M2b: dos secciones AJENAS del mismo intento (fix3, gap #21)
+
+LEDGER_M2B = """---
+tasks: demo-m2b
+descripcion: Ninguna cabecera del intento 1 nombra T-04 (ninguna es su seccion PROPIA); DOS
+  secciones lo citan solo como fila cruzada. `seleccionar_seccion` debe elegir la ULTIMA de esas
+  ajenas (rama del gap #21 -- antes sin test dedicado, el docstring citaba FX2 por error: su
+  cabecera SI lleva T-02/T-04).
+estado: en-progreso
+creado: 2026-09-19
+actualizado: 2026-09-19
+via: rapida
+verificacion: obligatoria
+generacion:
+  fuente: estimado
+---
+
+# Checklist de Tareas — demo-m2b (via rapida)
+
+## Fase 1
+
+### T-01 — algo
+
+- **Descripcion**: hacer la cosa A.
+- **Estado**: completado
+- **Archivos**: `app/a.py`
+- **Verificacion**: `python3 -m pytest -q tests/test_a.py` -> 1 passed.
+
+**Criterios de aceptacion**
+- [x] hecho
+
+## Revision de dos lentes — intento 1: Fase 1 (T-01) — 1 gap (primera ajena, mas antigua)
+
+| # | Grado | Gap | Tarea | Correccion | Evidencia |
+|---|---|---|---|---|---|
+| 1 | Minor | gap cruzado antiguo | T-01/T-04 | corregido: ya resuelto | `test_a.py` |
+
+## Fase 2
+
+### T-02 — otra cosa
+
+- **Descripcion**: hacer la cosa B.
+- **Estado**: completado
+- **Archivos**: `app/b.py`
+- **Verificacion**: `python3 -m pytest -q tests/test_b.py` -> 1 passed.
+
+**Criterios de aceptacion**
+- [x] hecho
+
+## Revision de dos lentes — intento 1: Fase 2 (T-02) — 1 gap (segunda ajena, la mas reciente)
+
+| # | Grado | Gap | Tarea | Correccion | Evidencia |
+|---|---|---|---|---|---|
+| 1 | **Critical** | gap cruzado reciente | T-02/T-04 | pendiente | `test_b.py` |
+
+## Fase 3
+
+### T-04 — la tarea en cuestion
+
+- **Descripcion**: hacer la cosa E.
+- **Estado**: completado
+- **Archivos**: `app/e.py`
+- **Verificacion**: `python3 -m pytest -q tests/test_e.py` -> 1 passed.
+
+**Criterios de aceptacion**
+- [x] hecho
+"""
+
+
+@pytest.fixture
+def ledger_m2b(tmp_path):
+    (tmp_path / ".claude").mkdir(exist_ok=True)
+    (tmp_path / ".claude" / "jira.json").write_text('{"enabled": true}', encoding="utf-8")
+    p = tmp_path / "tasks.md"
+    p.write_text(LEDGER_M2B, encoding="utf-8")
+    return str(p)
+
+
+def test_m2b_gaps_de_t04_elige_la_ultima_seccion_ajena_no_la_primera(ledger_m2b):
+    """(fix3, gap #21) Ninguna cabecera del intento 1 nombra T-04: dos secciones AJENAS la citan
+    solo por fila. `seleccionar_seccion` debe traer la ULTIMA (Fase 2, gap Critical reciente), no
+    la PRIMERA (Fase 1, gap Minor ya corregido) -- mata el mutante `ajenas[-1] -> ajenas[0]`."""
+    plan = _plan_json("--ledger", ledger_m2b, "--event", "gaps", "--actor", "reviewer",
+                      "--task", "T-04", "--intento", "1", "--json")
+    comentario = next(o for o in plan["ops"] if o["tipo"] == "comentario")
+    assert "gap cruzado reciente" in comentario["cuerpo"]
+    assert "gap cruzado antiguo" not in comentario["cuerpo"]
+
+
+
+# ------------------------------------- aceptacion sobre el ledger REAL (fix3, gap #22) ----------
+
+LEDGER_REAL_KNOWLEDGE_SERVICES = (
+    Path(__file__).resolve().parents[3] / "docs" / "roadmap" /
+    "2026-09-15-knowledge-services" / "tasks.md")
+
+
+@pytest.mark.skipif(not LEDGER_REAL_KNOWLEDGE_SERVICES.is_file(),
+                    reason="ledger real de knowledge-services no esta en este arbol")
+def test_aprobado_sobre_el_ledger_real_de_knowledge_services_concede_done(tmp_path):
+    """(fix3, gap #22 -- arbitraje fix2 (4) exigia un test de aceptacion sobre el ledger REAL en
+    ESTE fichero y no habia ninguno; solo docstrings). La iniciativa `knowledge-services` esta
+    CERRADA (todos sus gaps `corregido:`): con la union de TODAS las secciones que citan la tarea
+    (arbitraje fix3), ni T-04 (Fase 2) ni T-10 (Fase 4) tienen ninguna fila pendiente -- `aprobado`
+    debe conceder Done con `--qa-verde` para las dos, sin que el intento mas alto de OTRA fase (u
+    otra seccion del mismo intento) las bloquee."""
+    d = tmp_path / "2026-09-15-knowledge-services"
+    d.mkdir()
+    ledger = d / "tasks.md"
+    shutil.copyfile(LEDGER_REAL_KNOWLEDGE_SERVICES, ledger)
+    (d / ".claude").mkdir()
+    (d / ".claude" / "jira.json").write_text('{"enabled": true}', encoding="utf-8")
+
+    for tarea in ("T-04", "T-10"):
+        plan = _plan_json("--ledger", str(ledger), "--event", "aprobado", "--actor", "orquestador",
+                          "--task", tarea, "--qa-verde", "--json")
+        tipos = [o["tipo"] for o in plan["ops"]]
+        assert "transicion" in tipos, f"{tarea}: {plan}"
+        transicion = next(o for o in plan["ops"] if o["tipo"] == "transicion")
+        assert transicion["objetivo_logico"] == "done"
+
+
+@pytest.mark.skipif(not LEDGER_REAL_KNOWLEDGE_SERVICES.is_file(),
+                    reason="ledger real de knowledge-services no esta en este arbol")
+def test_gaps_sobre_el_ledger_real_de_knowledge_services_por_intento(tmp_path):
+    """(fix3, gap #22) `--event gaps --task T-04` sobre las tres cabeceras reales de su Fase 2 --
+    ninguna revienta ni devuelve `None`, y cada intento trae SU PROPIA tabla (no la de otra fase ni
+    la de otro intento)."""
+    d = tmp_path / "2026-09-15-knowledge-services"
+    d.mkdir()
+    ledger = d / "tasks.md"
+    shutil.copyfile(LEDGER_REAL_KNOWLEDGE_SERVICES, ledger)
+    (d / ".claude").mkdir()
+    (d / ".claude" / "jira.json").write_text('{"enabled": true}', encoding="utf-8")
+
+    for intento in ("1", "2", "3"):
+        plan = _plan_json("--ledger", str(ledger), "--event", "gaps", "--actor", "reviewer",
+                          "--task", "T-04", "--intento", intento, "--json")
+        comentario = next(o for o in plan["ops"] if o["tipo"] == "comentario")
+        assert f"intento {intento}" in comentario["cuerpo"]
+
+    plan = _plan_json("--ledger", str(ledger), "--event", "gaps", "--actor", "reviewer",
+                      "--task", "T-10", "--intento", "3", "--json")
+    comentario = next(o for o in plan["ops"] if o["tipo"] == "comentario")
+    assert "intento 3" in comentario["cuerpo"] and "T-10" in comentario["cuerpo"]
+
+
+
 # ---------------------------------------------------------------- unidad: split de fila Markdown
 
 def test_split_fila_md_respeta_pipes_dentro_de_backticks():
     fila = "| 6 | Minor | texto | T-02 | `a|b|c` regla | `evidencia:1` |"
-    celdas = jf._split_fila_md(fila)
+    celdas = jf.split_fila_md(fila)
     assert celdas == ["6", "Minor", "texto", "T-02", "`a|b|c` regla", "`evidencia:1`"]
 
 
