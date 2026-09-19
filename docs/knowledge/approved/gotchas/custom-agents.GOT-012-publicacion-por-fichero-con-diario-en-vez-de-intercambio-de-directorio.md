@@ -1,14 +1,26 @@
 ---
+id: custom-agents.GOT-012
 category: GOTCHA
+version: 1
+estado: aprobado
 evidencia: validated_case
+project: custom-agents
+scope: project
+source: agent
+confidence: medium
 fuentes:
   - docs/roadmap/2026-09-15-knowledge-services/tasks.md (gaps #126, #127; ronda fix3)
   - commit 02b9c57 (T-08-fix2, diseño de intercambio de directorio)
   - commit 656bfd8 (T-08-fix3, diseño sustitutivo por fichero)
+  - skills/knowledge-services/scripts/test_backend_markdown_export.py (tests citados en Evidencia)
+enlaces:
+  - custom-agents.PAT-001
 tags:
   - agente:knowledge-services
   - area:publicacion-atomica
   - riesgo:perdida-de-datos
+curador: knowledge-curator
+fecha_aprobacion: 2026-09-19
 ---
 
 ## Publicar una proyección con intercambio de directorio completo pierde datos ajenos y rompe el rollback
@@ -33,5 +45,10 @@ tags:
 - **Evidencia:** tests `test_apply_no_borra_ficheros_ni_subcarpetas_ajenas_en_export_dir`,
   `test_rebuild_no_toca_ficheros_ajenos_en_export_dir`,
   `test_export_dir_igual_a_docs_que_contiene_docs_knowledge_es_config_invalida`,
-  `test_export_dir_ancestro_del_root_es_config_invalida` (`tests/test_knowledge_services.py`),
+  `test_export_dir_ancestro_del_root_es_config_invalida`
+  (`skills/knowledge-services/scripts/test_backend_markdown_export.py`),
   todos en verde tras `656bfd8`.
+
+---
+
+*Curado el 2026-09-19 por `knowledge-curator` (`/dev-cycle` Fase 4-bis, `knowledge-services`): gaps #126/#127, commits `02b9c57`/`656bfd8` y los cuatro tests verificados (existen y pasan); la cita del fichero de tests se corrigió a su ruta real (`skills/knowledge-services/scripts/test_backend_markdown_export.py`, no `tests/test_knowledge_services.py`). Afín a `LES-016` del corpus legado (estados intermedios con dueño): el diario `manifest.pending.json` es ese dueño.*

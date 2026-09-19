@@ -1,14 +1,28 @@
 ---
+id: custom-agents.PAT-001
 category: PATTERN
+version: 1
+estado: aprobado
 evidencia: multiple_validated_cases
+project: custom-agents
+scope: project
+source: agent
+confidence: medium
 fuentes:
   - docs/roadmap/2026-09-15-knowledge-services/spec.md (CA-16)
-  - docs/roadmap/2026-09-15-knowledge-services/tasks.md (T-08, validación en vivo contra el bridge real)
+  - docs/roadmap/2026-09-15-knowledge-services/tasks.md (T-08, validación en vivo del orquestador contra el bridge real, Fase 3)
+  - skills/knowledge-services/backends/README.md (contrato health/plan/apply/verify/rebuild/revoke)
   - skills/knowledge-services/backends/markdown_export.py (health/verify)
+  - skills/knowledge-services/scripts/test_backend_markdown_export.py (tests health_*/verify_*)
+  - agent-kits/shared/doctor.py (T-09: consume el enum y muestra el remedio de verify() sin ejecutarlo)
+enlaces:
+  - custom-agents.GOT-012
 tags:
   - agente:knowledge-services
   - area:integracion-externa
   - riesgo:acoplamiento
+curador: knowledge-curator
+fecha_aprobacion: 2026-09-19
 ---
 
 ## Un adaptador a un sistema externo opcional degrada con un estado explícito y nunca ejecuta operaciones del propio stack
@@ -35,3 +49,14 @@ tags:
   "aplicar los cambios de verdad" (rebuild de índice, reinicio de servicio, migración) no es
   responsabilidad del plugin — el patrón es health explícito + verify que detecta y nombra, nunca
   ejecuta.
+- **Evidencia:** validación en vivo del orquestador contra `127.0.0.1:8765` (ledger, Fase 3);
+  `test_health_off_sin_red`, `test_health_503_es_degradado_no_off`, `test_health_404_sigue_siendo_error`,
+  `test_verify_detecta_desfase_y_nombra_el_remedio_sin_ejecutarlo`,
+  `test_verify_sin_red_nunca_lanza_y_reporta_desfase`
+  (`skills/knowledge-services/scripts/test_backend_markdown_export.py`, 20 tests `health_*`/`verify_*`
+  en verde); y un segundo consumidor del mismo contrato, `/doctor` (T-09, `agent-kits/shared/doctor.py`),
+  que muestra el remedio que nombra `verify()` y tampoco lo ejecuta.
+
+---
+
+*Curado el 2026-09-19 por `knowledge-curator` (`/dev-cycle` Fase 4-bis, `knowledge-services`): CA-16, la validación en vivo (ledger, Fase 3) y el código de `health`/`verify` verificados; el nivel `multiple_validated_cases` se sostiene con tres validaciones independientes que existían sin citarse (en vivo, 20 tests `health_*`/`verify_*`, `/doctor` T-09 como segundo consumidor) y se añadieron como fuentes.*
