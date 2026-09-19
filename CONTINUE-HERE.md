@@ -2,11 +2,24 @@
 
 > **2026-09-19 (tarde) — TRES RAMAS EN VUELO; leer este bloque antes que el resto (el resto es histórico).**
 >
-> **PUNTO DE REANUDACIÓN (límite de sesión de la API a las ~09:50, se levanta a las 10:10 Europe/Madrid): las 4 revisiones en
-> curso murieron SIN informe y hay que relanzarlas tal cual:** (a) graphiti Fase 2 intento 1, lentes A + B(+D) + C sobre
-> `git diff 92cdde8..616f0e3` (los briefs están en la transcripción de la sesión e615924e; C a demanda por cliente HTTP/DNS/`clear_graph`;
-> solo lectura contra el servidor real); (b) jira-review-comments intento 2 (verificación dirigida A+B) sobre `git diff b720a81..HEAD`
-> del worktree `jira-fix` (13 gaps del intento 1; ledger real de knowledge-services como fixture). Ambos árboles limpios.
+> **PUNTO DE REANUDACIÓN (2026-09-19, 13:30; el usuario pidió cerrar aquí tras los commits + push).**
+> Consejo dado al usuario: mergear PR #9 ya; release SOLO tras verificar la ronda fix3 del fix de Jira y mergearla;
+> graphiti-memory no entra en la próxima release.
+>
+> - **`fix/jira-review-comments`** (worktree `jira-fix`): revisión intento 3 (`2e71dd4`) NO cerrable por el Critical #20
+>   (`aprobado`/brief miraban UNA sección por intento; un Critical cruzado `T-04/T-07` en otra fase no bloqueaba Done).
+>   Decisión del orquestador: ronda `fix3` (unión de todas las filas que citan la tarea para `aprobado` y el brief;
+>   publicación por sección cabecera-primero declarada) + verificación dirigida. **Siguiente paso: verificación dirigida
+>   de fix3 (FXP, M2b, aceptación sobre el ledger real en `test_jira_flow.py`, Verificación de T-03)** → `changelog-sync
+>   --only jira-review-comments` (Fixed) → PR sobre master (con #9 mergeado) → release.
+> - **`feature/graphiti-memory`**: Fase 2 revisión intento 2 (`c06e249`, 16 nuevos, 3 Critical) → ronda fix2 `92f1bc6`
+>   cierra los 3 Critical (#51 SSE por `id`, #52 multi-IP/`localhost`, #53 IPv4-mapeada) + #54-#56, #58, #62-#66 con 25
+>   tests dedicados; **quedan #57 parcial (test redirect `.internal`/IMDS), #61 sin test, #59/#60 (ledger/docs: Verificaciones
+>   con cifras reales, criterio de T-05, etiquetas «pre-fix1», CONVENTIONS ES/EN + esquema para `provider.model`/userinfo,
+>   residual de #40 en README/design) y las 12 parciales del intento 1 (#32-#50) por cerrar en el ledger.** Siguiente:
+>   ronda fix3 + intento 3 (último) con lentes A+B+C → Fase 3 (T-07, T-08) → Fase 4 → qa sin UI → documenter → 4-bis → cierre.
+>   Regla: ningún gap `corregido` sin test dedicado nombrado en su Evidencia. `.claude/dev.json` (`tdd: true`) es local e
+>   ignorado: si desaparece al mezclar, restaurarlo desde `ks-fix/.claude/dev.json`.
 >
 > 1. **`feature/knowledge-services` → PR #9 a master: CI VERDE (run 35423149251), `CLEAN MERGEABLE`, sin mergear** (el
 >    merge lo decide el usuario). Worktree `C:\Users\46066917X\ks-fix`. Cinco commits de corrección de CI encima del cierre:
