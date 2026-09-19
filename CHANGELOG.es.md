@@ -9,6 +9,15 @@ y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+## [1.21.0] - 2026-09-19
+
+### Fixed — iniciativa `jira-review-comments` (2026-09-19)
+
+- **T-01 — La skill `adversarial-review` publica el evento `revision`/`gaps` de CADA intento** The adversarial review now posts its verdict to Jira after every attempt (the `revision`/`gaps` comment with the graded gap table), so each task's issue shows the result of each verification; before, four pieces each assumed another one would post it and nothing reached Jira.
+- **T-02 — Guardarraíl: test de propiedad única sobre los ficheros reales** A regression test now guards that exactly one piece owns posting the review verdict to Jira. (`tests/test_review_jira_owner.py`, `docs/roadmap/README.md`)
+- **T-03 — `jira-flow.py` elige la sección del intento por las tareas pedidas** The review comment posted to Jira for a task now comes from that task's own review round, not from a different phase that happened to share the same attempt number.
+- **T-04 — `ledger-lint.py` avisa de cabeceras de revisión que NO casan con el patrón** `ledger-lint` now flags review headers with the wrong shape so a task's Jira comment never silently comes from the wrong review round. (`agent-kits/shared/ledger-lint.py`, `tests/test_ledger_lint.py`)
+
 ### Added — iniciativa `knowledge-services` (2026-09-15)
 
 - **T-01 — Esquema versionado `taxonomy.schema.json`, `backends` y plantillas** El plugin ahora valida la configuración de conocimiento del proyecto (`taxonomy.json`) y sus backends declarados, con un default seguro y sensible al proyecto (sin id_prefix ni rutas de categoría inseguras heredadas del plugin) cuando el proyecto no configura nada.
@@ -35,7 +44,6 @@ y el versionado sigue [SemVer](https://semver.org/lang/es/).
 - **T-06 — `journal.py status` y sección «Journal» de `/doctor`** `journal.py status` y sección «Journal» en `/doctor` con contadores, huérfanas, dead-letter y remedio nombrado; triage del «Hook cancelled» (aviso del runtime frente a pérdida real).
 - **T-07 — Bench de captura y matriz de garantías** `scripts/bench-session-end.py` mide la captura in-process (p95 ≤ 100 ms en CI) y comprueba que escribe; matriz de garantías en `observability` ES/EN y `FLOWS` ES/EN al flujo captura → cola → replay.
 - **T-08 — GOT-011, changelog, interop y puertas** `GOT-011` documenta la causa y el remedio del `Hook cancelled`; checklist manual M-01 para verificar el hook en Codex real.
-
 
 ## [1.20.2] - 2026-09-15
 
@@ -576,6 +584,7 @@ Adopción de las mejores prácticas de las colecciones top de agentes (coleccion
 
 Versiones anteriores a la introducción de este changelog: bundle con los agentes `nemesis`, `evaluator`, `planner`, `pdfy` y `qa`, y las skills compartidas `cybersecurity` y `to-pdf`. Empaquetado como plugin + marketplace.
 
+[1.21.0]: https://github.com/daycry/custom-agents/releases/tag/v1.21.0
 [1.20.2]: https://github.com/daycry/custom-agents/releases/tag/v1.20.2
 [1.20.0]: https://github.com/daycry/custom-agents/releases/tag/v1.20.0
 [1.19.0]: https://github.com/daycry/custom-agents/releases/tag/v1.19.0

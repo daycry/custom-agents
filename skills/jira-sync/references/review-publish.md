@@ -6,12 +6,14 @@
 > REABRE el issue** (transición a la categoría `indeterminate`, destino lógico `reabrir`): si la
 > tarea vuelve a `en-progreso` en el ledger, el tablero tiene que contarlo igual (T-fix1).
 
-## `revision` / `gaps` — el `reviewer`, tras CADA intento del bucle de dos lentes
+## `revision` / `gaps` — la skill `adversarial-review`, tras CADA intento del bucle de dos lentes
 
-El agente **revisor** (revisión adversarial de dos lentes de `/dev-cycle`, bucle acotado a 3
-intentos con `implementer`) escribe, tras CADA intento, la sección `## Revisión de dos lentes —
-intento N` en `tasks.md` (tabla `# · Grado · Gap · Tarea · Corrección · Evidencia`, o "sin gaps").
-Este paso publica ESE intento en Jira — no espera al cierre del bucle:
+**Quién lo ejecuta (dueño único):** la skill **`adversarial-review`**, en su paso 6 «Salida y traza»,
+corriendo en el contexto de quien la invocó (`/dev-cycle`, `quick-implement` o el usuario). No el
+agente `reviewer` (solo lectura, sin tools de Jira), no el orquestador «al cerrar», no `implementer`.
+La skill escribe, tras CADA intento del bucle (acotado a 3 con `implementer`), la sección
+`## Revisión de dos lentes — intento N` en `tasks.md` (tabla `# · Grado · Gap · Tarea · Corrección ·
+Evidencia`, o "sin gaps") y acto seguido publica ESE intento en Jira — no espera al cierre del bucle:
 
 ```bash
 JF="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type f -path '*skills/jira-sync/scripts/jira-flow.py' 2>/dev/null | head -1)"
