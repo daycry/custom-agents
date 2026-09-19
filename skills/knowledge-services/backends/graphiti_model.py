@@ -187,9 +187,17 @@ def _entity_map_propuesto(taxonomy, entity_map_declarado, quien):
     lista rompía con `TypeError`/`unhashable type`); un nombre derivado vacío (`key` sin ningún
     carácter alfanumérico) o que colisiona IMPLÍCITAMENTE con el de otra `key` (ninguna de las dos
     tiene mapeo explícito) también son un `ValueError` explícito — nunca una entrada vacía ni una
-    fusión accidental de dos categorías distintas (gap #18)."""
-    propuesto = {}
-    derivados_por_nombre = {}
+    fusión accidental de dos categorías distintas (gap #18).
+
+    T-01-fix3 gap #28 (revisión Fase 1, intento 3): el chequeo de colisión de #18 solo comparaba
+    un nombre DERIVADO contra otro nombre DERIVADO — `entity_map: {"ADR": "Decision"}` + una
+    categoría `decision` SIN mapeo (cuyo `_titlecase_clave` deriva exactamente `"Decision"`)
+    fusionaba silenciosamente ambas categorías en la misma entrada `name: "Decision"` del YAML
+    propuesto. Se resuelve en DOS pasadas: la primera recoge los nombres EXPLÍCITOS de
+    `entity_map_declarado` (dedupe intencional entre sí — varias categorías pueden mapear a mano
+    al mismo tipo, T-01-fix1 gap #2); la segunda deriva el resto y comprueba el nombre derivado
+    contra AMBOS conjuntos (explícitos y derivados), no solo contra los derivados."""
+    categorias = []
     for cat in (taxonomy or {}).get("categories") or []:
         key = cat.get("key") if isinstance(cat, dict) else None
         if not key:
@@ -199,21 +207,44 @@ def _entity_map_propuesto(taxonomy, entity_map_declarado, quien):
                 f"{quien}: 'key' de categoría debe ser una cadena, recibido "
                 f"{type(key).__name__}: {key!r}"
             )
+        categorias.append(key)
+
+    # Primera pasada: nombres EXPLÍCITOS declarados en `entity_map`. Varias categorías pueden
+    # compartir el mismo nombre explícito a propósito (no es una colisión: el usuario lo pidió).
+    explicito_por_key = {}
+    nombres_explicitos = set()
+    for key in categorias:
         nombre = _valor_entity_map(entity_map_declarado, key, quien)
-        if nombre is None:
-            nombre = _titlecase_clave(key)
-            if not nombre:
-                raise ValueError(
-                    f"{quien}: la categoría '{key}' no deriva ningún nombre válido; "
-                    f"declara `entity_map.{key}` explícitamente"
-                )
-            if nombre in derivados_por_nombre and derivados_por_nombre[nombre] != key:
-                raise ValueError(
-                    f"{quien}: las categorías '{derivados_por_nombre[nombre]}' y '{key}' derivan "
-                    f"al mismo nombre '{nombre}' sin mapeo explícito; declara `entity_map.{key}` "
-                    "para desambiguar"
-                )
-            derivados_por_nombre[nombre] = key
+        if nombre is not None:
+            explicito_por_key[key] = nombre
+            nombres_explicitos.add(nombre)
+
+    # Segunda pasada: deriva el resto (sin mapeo explícito) y comprueba contra AMBOS conjuntos.
+    propuesto = {}
+    derivados_por_nombre = {}
+    for key in categorias:
+        if key in explicito_por_key:
+            propuesto[key] = explicito_por_key[key]
+            continue
+        nombre = _titlecase_clave(key)
+        if not nombre:
+            raise ValueError(
+                f"{quien}: la categoría '{key}' no deriva ningún nombre válido; "
+                f"declara `entity_map.{key}` explícitamente"
+            )
+        if nombre in nombres_explicitos:
+            raise ValueError(
+                f"{quien}: la categoría '{key}' deriva el nombre '{nombre}', ya usado "
+                "explícitamente por otra categoría en `entity_map`; declara "
+                f"`entity_map.{key}` para desambiguar"
+            )
+        if nombre in derivados_por_nombre and derivados_por_nombre[nombre] != key:
+            raise ValueError(
+                f"{quien}: las categorías '{derivados_por_nombre[nombre]}' y '{key}' derivan "
+                f"al mismo nombre '{nombre}' sin mapeo explícito; declara `entity_map.{key}` "
+                "para desambiguar"
+            )
+        derivados_por_nombre[nombre] = key
         propuesto[key] = nombre
     return propuesto
 

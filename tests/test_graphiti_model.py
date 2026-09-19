@@ -248,6 +248,21 @@ def test_proponer_entity_types_yaml_colision_implicita_falla_explicito():
         gm.proponer_entity_types_yaml(taxonomy, {})
 
 
+def test_proponer_entity_types_yaml_colision_mixta_explicita_implicita_falla_explicito():
+    """Gap #28 (revisión Fase 1, intento 3): `entity_map: {"ADR": "Decision"}` + una categoría
+    `decision` SIN mapeo, cuyo TitleCase deriva exactamente `"Decision"`, fusionaba dos categorías
+    distintas en una sola entrada del YAML propuesto (el chequeo de colisión de #18 solo comparaba
+    derivado contra derivado, nunca contra un nombre EXPLÍCITO ya en uso)."""
+    taxonomy = {
+        "categories": [
+            {"key": "ADR", "folder": "x", "min_evidence": "x"},
+            {"key": "decision", "folder": "x", "min_evidence": "x"},
+        ],
+    }
+    with pytest.raises(ValueError, match="entity_map"):
+        gm.proponer_entity_types_yaml(taxonomy, {"entity_map": {"ADR": "Decision"}})
+
+
 # ------------------------------------------------------- T-02-fix2 gap #22: tolerancia de entrada
 
 def test_proponer_entity_types_yaml_config_no_dict_degrada_con_aviso():
