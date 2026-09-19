@@ -47,6 +47,9 @@ desktop.ini
 # === Estado LOCAL de las configs del plugin (no versionar) ===
 # Marcadores del medidor y mapas de sincronización: son de la máquina/sesión,
 # no del proyecto. `.claude/rates.json` SÍ se versiona (config económica del repo).
+# `.claude/dev.json` es la disciplina LOCAL de quien desarrolla el plugin (tdd/worktree/subagentes), no del repo:
+# comiteado rompe los tests que suponen «sin dev.json» (task-brief cae al dev.json del cwd).
+.claude/dev.json
 .claude/usage-state.json
 .claude/jira-state.json
 .claude/confluence-state.json

@@ -779,7 +779,11 @@ def test_session_context_sin_knowledge_sin_aciertos_o_sin_activa_no_emite_el_blo
     env = env_de(proj, tmp_path)
     payload = {"hook_event_name": "SessionStart", "source": "startup"}
     rc, out_sin, _ = hook("session-context.sh", payload, env)
-    assert rc == 0 and "Memoria técnica" not in _ctx(out_sin) and "knowledge" not in _ctx(out_sin).lower()
+    # Sin `docs/knowledge/` no hay bloque de memoria: ni su título ni la línea de detalle (`knowledge-find.py --show`).
+    # No se comprueba la subcadena «knowledge» a secas: el índice de piezas la contiene legítimamente desde que
+    # existen la skill `knowledge-services` y el agente `knowledge-curator` (gap de CI del PR #9, 2026-09-19).
+    ctx_sin = _ctx(out_sin)
+    assert rc == 0 and "Memoria técnica" not in ctx_sin and "knowledge-find.py" not in ctx_sin
     # corpus SIN entradas del área activa → mismo contexto que sin carpeta
     kn = _knowledge(proj)
     (kn / "adr" / "ADR-001-lentes-en-paralelo.md").unlink()
