@@ -517,7 +517,11 @@ def test_gap37_dedupe_con_junction_real_si_la_plataforma_lo_soporta(tmp_path):
     assert "ADR-1" in indice
     assert "LES-1" in indice
     assert indice["LES-1"]["ruta"] == ruta_legitima
-    assert any("fuera de la carpeta aprobada" in e["mensaje"] for e in errores)
+    # Windows: `os.walk` entra en la junction (parece un directorio real) y la contencion la rechaza con error.
+    # POSIX: `os.walk(followlinks=False)` NO entra en el symlink, asi que no hay nada que rechazar (CI Linux).
+    # Ambos cumplen el invariante del gap 37: la entrada legitima sigue en el indice con su ruta real y sin duplicado.
+    mensajes = [e["mensaje"] for e in errores]
+    assert not mensajes or any("fuera de la carpeta aprobada" in m for m in mensajes), mensajes
 
 
 def test_gap33_estado_presente_sin_valor_tiene_mensaje_propio(tmp_path):
