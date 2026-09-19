@@ -59,9 +59,10 @@ ejemplo de la enmienda 2026-09-17 donde difieran.
   Cualquier clave no reconocida a nivel de `backends.<id>` o dentro de `config`/`provider`/`router`/`health` es
   **error** de validación (así el ejemplo plano antiguo no pasa en silencio). Ejemplo vigente: el bloque `graphiti` de
   `agent-kits/shared/templates/taxonomy.json`.
-- **`group_id` sin default cableado.** Si el proyecto no lo declara, se deriva del slug del directorio del proyecto
-  (mismo criterio que `id_prefix`); dos instalaciones en la misma máquina no comparten grupo por omisión. Con
-  `enabled: true` debe ser una cadena no vacía.
+- **`group_id` sin default cableado.** Si el proyecto no lo declara, se deriva del nombre del directorio del proyecto
+  como slug **Unicode** (NFKC, `[^\W_]`), buscando el backend por `type: "graphiti"`; a diferencia de `id_prefix`, **no**
+  cae a `"ca"`: si no se puede derivar, con `enabled: true` la validación falla pidiendo declararlo (revisión Fase 1,
+  gaps #17, #23, #29). Dos instalaciones en la misma máquina no comparten grupo por omisión.
 - **Guardarraíl de red = el del repo (local o privado), no solo loopback.** `endpoint` y `health.url` aceptan sin
   `allow_remote` los mismos hosts que el adaptador Kwipu (`localhost`, loopback, redes privadas, sufijos locales como
   `*.test`/`host.docker.internal`, `lib-guardrail.sh`); cualquier otro exige `allow_remote: true`. La frase «allow-list de
