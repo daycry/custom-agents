@@ -544,6 +544,326 @@ def test_mencion_no_se_cuela_desde_correccion_ni_evidencia(ledger_multifase):
     assert any("ninguna menciona" in a and "T-02" in a for a in plan["avisos"])
 
 
+LEDGER_MENCION_VENENOSA = """---
+tasks: demo-mencion-venenosa
+descripcion: Ledger con una celda `Corrección` que cita literalmente un `T-XX` que NO es la tarea
+  de esa fila (veneno real para el mutante M3, jira-review-comments fix2 gap #17).
+estado: en-progreso
+creado: 2026-09-19
+actualizado: 2026-09-19
+via: rapida
+verificacion: obligatoria
+generacion:
+  fuente: estimado
+---
+
+# Checklist de Tareas — demo-mencion-venenosa (vía rápida)
+
+## Fase única
+
+### T-01 — Endpoint de health-check
+
+- **Descripción**: Añade `GET /health`.
+- **Estado**: completado
+- **Archivos**: `app/health.py`
+- **Verificación**: `python3 -m pytest -q tests/test_health.py` → 3 passed.
+
+**Criterios de aceptación**
+- [x] `GET /health` devuelve 200.
+
+### T-04 — Listado paginado
+
+- **Descripción**: tarea real del ledger, pero NUNCA mencionada en ninguna cabecera ni columna
+  `Tarea` de ninguna sección de revisión — solo aparece citada dentro de `Corrección`/`Evidencia`
+  de una fila de T-01.
+- **Estado**: completado
+- **Archivos**: `app/admin.py`
+- **Verificación**: `python3 -m pytest -q tests/test_admin.py` → 2 passed.
+
+**Criterios de aceptación**
+- [x] `GET /admin/items` pagina por `?page=`.
+
+## Revisión de dos lentes — intento 1: Fase única, parte A (T-01) — 1 gap corregido
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 1 | Important | Falta validar la DB | T-01 | Coordinado con T-04: ver su endpoint paginado | Ref. cruzada a T-04 en `test_health_falla_si_db_cae` |
+
+### T-05 — Autorización del panel
+
+- **Descripción**: una segunda sección de revisión con el MISMO número de intento (1), para
+  forzar la ambigüedad que resuelve `seleccionar_seccion` — sin ella, con una única candidata por
+  intento, el aviso «ninguna menciona» nunca se dispara (no hay nada que desambiguar).
+- **Estado**: completado
+- **Archivos**: `app/auth.py`
+- **Verificación**: `python3 -m pytest -q tests/test_auth.py` → 2 passed.
+
+**Criterios de aceptación**
+- [x] hecho
+
+## Revisión de dos lentes — intento 1: Fase única, parte B (T-05) — sin gaps
+
+Bucle cerrado, 0 gaps.
+"""
+
+
+@pytest.fixture
+def ledger_mencion_venenosa(tmp_path):
+    (tmp_path / ".claude").mkdir(exist_ok=True)
+    (tmp_path / ".claude" / "jira.json").write_text('{"enabled": true}', encoding="utf-8")
+    p = tmp_path / "tasks.md"
+    p.write_text(LEDGER_MENCION_VENENOSA, encoding="utf-8")
+    return str(p)
+
+
+def test_mencion_venenosa_en_correccion_y_evidencia_no_cuenta_como_mencion_de_esa_tarea(
+        ledger_mencion_venenosa):
+    """(mutante M3, veneno real) La celda `Corrección`/`Evidencia` de la ÚNICA fila del ledger cita
+    literalmente `T-04` dos veces, pero esa fila es de `T-01` (columna Tarea) y `T-04` no existe
+    como tarea real del ledger, ni en ninguna cabecera de revisión. Si `menciones()` escaneara
+    `Corrección`/`Evidencia` (en vez de solo cabecera + columna `Tarea`), un `--task T-04` colaría
+    esta sección como si la mencionara de verdad — con `intento` resuelto y SIN el aviso de
+    «ninguna sección menciona»."""
+    plan = _plan_json("--ledger", ledger_mencion_venenosa, "--event", "revision",
+                      "--actor", "reviewer", "--task", "T-04", "--intento", "1",
+                      "--state", str(_state_con_claves(ledger_mencion_venenosa, **{"T-04": "PROJ-4"})))
+    assert any("ninguna menciona" in a and "T-04" in a for a in plan["avisos"])
+
+
+def test_mencion_venenosa_no_permite_aprobar_una_tarea_nunca_revisada(ledger_mencion_venenosa):
+    """(mutante M3, veneno real — cara `aprobado`) Sin la mención efectiva correcta, `ultimo_intento_
+    para` devolvería un intento para `T-04` solo porque su nombre aparece citado en `Corrección`/
+    `Evidencia` de una fila de `T-01` — y como esa fila filtra por columna `Tarea` (T-01, no T-04),
+    `evidencia_aprobado` no encontraría gaps PENDIENTES para T-04 y lo aprobaría sin que NINGUNA
+    sección de revisión haya mencionado nunca a `T-04` en su cabecera o columna Tarea. Debe
+    rechazarse por falta de evidencia, no aprobarse a ciegas."""
+    code, out, err = _run("--ledger", ledger_mencion_venenosa, "--event", "aprobado",
+                          "--actor", "orquestador", "--task", "T-04", "--qa-verde")
+    assert code == 2
+    assert "sin evidencia" in err and "T-04" in err
+
+
+# ---------------------------------------------------------------- FX2: fila combinada `T-02/T-04`
+
+LEDGER_FX2 = """---
+tasks: demo-fx2
+descripcion: Ledger con una fila de gap combinada `T-02/T-04` (jira-review-comments fix2, gaps
+  #14/#15) — debe contar para LAS DOS tareas, nunca solo para el texto exacto de la celda.
+estado: en-progreso
+creado: 2026-09-19
+actualizado: 2026-09-19
+via: rapida
+verificacion: obligatoria
+generacion:
+  fuente: estimado
+---
+
+# Checklist de Tareas — demo-fx2 (vía rápida)
+
+## Fase 1
+
+### T-01 — algo
+
+- **Descripción**: hacer la cosa A.
+- **Estado**: completado
+- **Archivos**: `app/a.py`
+- **Verificación**: `python3 -m pytest -q tests/test_a.py` → 1 passed.
+
+**Criterios de aceptación**
+- [x] hecho
+
+## Revisión de dos lentes — intento 1: Fase 1 (T-01) — 1 gap
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 1 | **Critical** | rompe todo | T-01 | corregido: x | `test_a` -> passed |
+
+## Revisión de dos lentes — intento 2: Fase 1 (T-01) — sin gaps
+
+Bucle cerrado, 0 gaps.
+
+## Fase 2
+
+### T-02 — Documentar
+
+- **Descripción**: documentar la cosa combinada.
+- **Estado**: completado
+- **Archivos**: `README.md`
+- **Verificación**: `grep -c combinado README.md` → 1.
+
+**Criterios de aceptación**
+- [x] hecho
+
+### T-04 — otra cosa
+
+- **Descripción**: hacer la cosa combinada.
+- **Estado**: completado
+- **Archivos**: `app/b.py`
+- **Verificación**: `python3 -m pytest -q tests/test_b.py` → 2 passed.
+
+**Criterios de aceptación**
+- [x] hecho
+
+### T-05 — un detalle
+
+- **Descripción**: un detalle menor de UI.
+- **Estado**: completado
+- **Archivos**: `app/ui.py`
+- **Verificación**: `python3 -m pytest -q tests/test_ui.py` → 1 passed.
+
+**Criterios de aceptación**
+- [x] hecho
+
+## Revisión de dos lentes — intento 1: Fase 2 (T-02/T-04) — 2 gaps
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 1 | **Critical** | corrupción de datos al combinar T-02 y T-04 | T-02/T-04 | — | — |
+| 2 | Minor | detalle de UI | T-05 | corregido: y | `test_ui` -> passed |
+"""
+
+
+@pytest.fixture
+def ledger_fx2(tmp_path):
+    (tmp_path / ".claude").mkdir(exist_ok=True)
+    (tmp_path / ".claude" / "jira.json").write_text('{"enabled": true}', encoding="utf-8")
+    p = tmp_path / "tasks.md"
+    p.write_text(LEDGER_FX2, encoding="utf-8")
+    return str(p)
+
+
+def test_fx2_gaps_fila_combinada_aparece_en_el_brief_de_t04(ledger_fx2):
+    """(FX2) El evento `gaps` para T-04 debe mostrar la fila combinada `T-02/T-04`, aunque el texto
+    exacto de la celda `Tarea` nunca sea `T-04` a solas (gap #14)."""
+    plan = _plan_json("--ledger", ledger_fx2, "--event", "gaps", "--actor", "reviewer",
+                      "--task", "T-04", "--intento", "1",
+                      "--state", str(_state_con_claves(ledger_fx2, **{"T-04": "PROJ-4"})))
+    cuerpo = next(o for o in plan["ops"] if o["tipo"] == "comentario")["cuerpo"]
+    assert "corrupción de datos" in cuerpo
+
+
+def test_fx2_gaps_fila_combinada_aparece_tambien_en_el_brief_de_t02(ledger_fx2):
+    """(FX2) La misma fila combinada, para T-02: no solo T-04 se beneficia del `ids_de_tarea` por
+    regex — las dos mitades de la celda cuentan (gap #14)."""
+    plan = _plan_json("--ledger", ledger_fx2, "--event", "gaps", "--actor", "reviewer",
+                      "--task", "T-02", "--intento", "1",
+                      "--state", str(_state_con_claves(ledger_fx2, **{"T-02": "PROJ-2"})))
+    cuerpo = next(o for o in plan["ops"] if o["tipo"] == "comentario")["cuerpo"]
+    assert "corrupción de datos" in cuerpo
+
+
+def test_fx2_aprobado_t04_rechaza_por_la_fila_combinada_pendiente(ledger_fx2):
+    """(FX2, gap #15) `aprobado --task T-04` debe RECHAZAR: la fila `T-02/T-04` Critical no tiene
+    corrección registrada (`—`/`—`). Si `evidencia_aprobado` comparase la celda `Tarea` con `==`
+    en vez de por `ids_de_tarea`, esta fila jamás filtraría para `T-04` y `aprobado` la aprobaría
+    a ciegas con un Critical sin corregir."""
+    code, out, err = _run("--ledger", ledger_fx2, "--event", "aprobado", "--actor", "orquestador",
+                          "--task", "T-04", "--qa-verde")
+    assert code == 2
+    assert "bloqueado" in err and "corrupción de datos" in err
+
+
+def test_fx2_aprobado_t02_rechaza_por_la_misma_fila_combinada(ledger_fx2):
+    """(FX2, gap #15) Simétrico: `aprobado --task T-02` también debe rechazar por la misma fila
+    combinada, aunque T-02 ya esté "completado" como tarea documental."""
+    code, out, err = _run("--ledger", ledger_fx2, "--event", "aprobado", "--actor", "orquestador",
+                          "--task", "T-02", "--qa-verde")
+    assert code == 2
+    assert "bloqueado" in err and "corrupción de datos" in err
+
+
+def test_fx2_aprobado_t05_no_se_bloquea_por_el_critical_de_otras_tareas(ledger_fx2):
+    """(FX2) Control: T-05 SÍ tiene su propio gap, pero está corregido — su `aprobado` no debe
+    bloquearse por el Critical combinado de T-02/T-04, que no lo menciona."""
+    code, out, err = _run("--ledger", ledger_fx2, "--event", "aprobado", "--actor", "orquestador",
+                          "--task", "T-05", "--qa-verde")
+    assert code == 0
+
+
+# ------------------------------------------------------- FX3: numeración continua entre fases
+
+LEDGER_FX3 = """---
+tasks: demo-fx3
+descripcion: Ledger con numeración de intento CONTINUA entre fases (jira-review-comments fix2,
+  gap #16) — Fase 1 se queda en su intento 1 (con un Critical pendiente) mientras la Fase 2 ya
+  va por su intento 2 ("sin gaps"). El máximo GLOBAL (2) no debe usarse para T-01.
+estado: en-progreso
+creado: 2026-09-19
+actualizado: 2026-09-19
+via: rapida
+verificacion: obligatoria
+generacion:
+  fuente: estimado
+---
+
+# Checklist de Tareas — demo-fx3 (vía rápida)
+
+## Fase 1
+
+### T-01 — algo
+
+- **Descripción**: hacer la cosa A.
+- **Estado**: completado
+- **Archivos**: `app/a.py`
+- **Verificación**: `python3 -m pytest -q tests/test_a.py` → 1 passed.
+
+**Criterios de aceptación**
+- [x] hecho
+
+## Revisión de dos lentes — intento 1: Fase 1 (T-01) — 1 gap
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 1 | **Critical** | rompe todo | T-01 | — | — |
+
+## Fase 2
+
+### T-04 — otra cosa
+
+- **Descripción**: hacer la cosa B.
+- **Estado**: completado
+- **Archivos**: `app/b.py`
+- **Verificación**: `python3 -m pytest -q tests/test_b.py` → 2 passed.
+
+**Criterios de aceptación**
+- [x] hecho
+
+## Revisión de dos lentes — intento 2: Fase 2 (T-04) — sin gaps
+
+Bucle cerrado.
+"""
+
+
+@pytest.fixture
+def ledger_fx3(tmp_path):
+    (tmp_path / ".claude").mkdir(exist_ok=True)
+    (tmp_path / ".claude" / "jira.json").write_text('{"enabled": true}', encoding="utf-8")
+    p = tmp_path / "tasks.md"
+    p.write_text(LEDGER_FX3, encoding="utf-8")
+    return str(p)
+
+
+def test_fx3_aprobado_t01_rechaza_citando_el_critical_de_la_fase_1(ledger_fx3):
+    """(FX3, gap #16) `aprobado --task T-01` debe mirar el intento MÁS ALTO ENTRE LAS SECCIONES QUE
+    MENCIONAN T-01 (solo el 1, la Fase 1) — NUNCA el máximo GLOBAL del ledger (2, de la Fase 2, que
+    no menciona T-01 en absoluto). El atajo antiguo (`len(intentos) == len(set(intentos))` →
+    devolver el máximo global) habría cogido el intento 2 de la Fase 2 y, o bien fallado con
+    «ninguna sección de intento 2 menciona T-01», o peor: dejado sin detectar el Critical
+    pendiente real de la Fase 1."""
+    code, out, err = _run("--ledger", ledger_fx3, "--event", "aprobado", "--actor", "orquestador",
+                          "--task", "T-01", "--qa-verde")
+    assert code == 2
+    assert "bloqueado" in err and "rompe todo" in err
+
+
+def test_fx3_aprobado_t04_usa_su_propio_intento_2_sin_gaps(ledger_fx3):
+    """(FX3) Control: T-04 SÍ debe resolver limpio con su propio intento 2 («sin gaps»), sin que el
+    Critical pendiente de la Fase 1 (T-01, intento 1) lo bloquee — el bloqueo es por tarea."""
+    plan = _plan_json("--ledger", ledger_fx3, "--event", "aprobado", "--actor", "orquestador",
+                      "--task", "T-04", "--qa-verde")
+    assert [o["tipo"] for o in plan["ops"]] == ["etiqueta", "transicion", "comentario"]
+
+
 LEDGER_FASE_REABIERTA = LEDGER_MULTIFASE + """
 ## Fase 3 — Reapertura
 
