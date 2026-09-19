@@ -1,12 +1,14 @@
 <!--
-  PLANTILLA FIJA: comentario de revisión que se publica en Jira (jira-sync Paso 9)
-  y/o se muestra al usuario. Formato IDÉNTICO siempre: el revisor emite su resultado
+  PLANTILLA FIJA: informe de revisión para el LEDGER y/o para mostrar al usuario. El
+  comentario que SÍ se publica en Jira lo renderiza `jira-flow.py` (jira-sync Paso 7,
+  con su propia plantilla en `skills/jira-sync/assets/comment-revision-*.md`) — esta
+  NO es esa plantilla. Formato IDÉNTICO siempre: el revisor emite su resultado
   ESTRUCTURADO por criterio y se renderiza contra esta plantilla.
   Sustituye los {{PLACEHOLDER}} y borra los comentarios guía.
   Modo tarea: una instancia por T-XX. Modo fase: una sola instancia por fase, con un
   bloque "### T-XX" por cada tarea de la fase.
 -->
-## 🔍 Revisión de la implementación — {{Fase N · título  |  T-XX · título}}
+## 🔍 Informe de revisión (ledger) — {{Fase N · título  |  T-XX · título}}
 
 **Veredicto:** {{✅ APROBADA  |  ❌ CON GAPS}} · **Revisión superada en {{N}} intento(s)** · **Tiempo de revisión:** {{XhYm — formato humano de usage-meter.py fmt, p. ej. 1h 32m}}
 

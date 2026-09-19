@@ -1080,12 +1080,23 @@ TASKS_CON_GAPS = TASKS + """
 
 | # | Grado | Gap | Tarea | Corrección | Evidencia |
 |---|---|---|---|---|---|
-| 1 | Important | Falta manejar el caso vacío | T-01 | Añadir guard clause | `test_caso_vacio` |
-| 2 | Minor | Regex sin anclar: `` `(?:a|b|c)` `` colisiona con `abc` | T-01 | Anclar con `$` | `test_no_colisiona` |
-| 3 | Important | Falta la sección de errores | T-02 | Añadir sección | `grep -c errores README.md` |
+| 1 | Important | Falta manejar el caso vacío | T-01 | pendiente: Añadir guard clause | `test_caso_vacio` |
+| 2 | Minor | Regex sin anclar: `` `(?:a|b|c)` `` colisiona con `abc` | T-01 | pendiente: Anclar con `$` | `test_no_colisiona` |
+| 3 | Important | Falta la sección de errores | T-02 | pendiente: Añadir sección | `grep -c errores README.md` |
 """
 
-TASKS_INTENTO_2_LIMPIO = TASKS_CON_GAPS + """
+# `Corrección` en "corregido: …" (no "pendiente: …" como en TASKS_CON_GAPS): esta ledger representa
+# un ledger YA REVISADO una segunda vez y limpio — la convención real (FX2/FX3/FXP,
+# jira-review-comments fix3 gap #20) es que un intento posterior "sin gaps" viene acompañado de que
+# el intento anterior quedó marcado `corregido:` fila a fila; nunca se infiere el cierre solo por
+# el "sin gaps" de OTRA sección.
+TASKS_INTENTO_2_LIMPIO = TASKS_CON_GAPS.replace(
+    "pendiente: Añadir guard clause", "corregido: Añadir guard clause"
+).replace(
+    "pendiente: Anclar con `$`", "corregido: Anclar con `$`"
+).replace(
+    "pendiente: Añadir sección", "corregido: Añadir sección"
+) + """
 ## Revisión de dos lentes — intento 2: sin gaps
 
 Todo corregido y reverificado.
@@ -1156,11 +1167,176 @@ def test_gaps_tarea_sin_gaps_en_el_ultimo_intento_no_inyecta(inic):
     """T-02 no aparece en la tabla del intento 1 salvo el gap #3 (que sí es suyo) — comprueba el caso
     inverso: pedir el brief de una tarea limpia en un ledger que SÍ tiene gaps (de otra tarea)."""
     tasks_solo_t01 = TASKS_CON_GAPS.replace(
-        "| 3 | Important | Falta la sección de errores | T-02 | Añadir sección | `grep -c errores README.md` |\n",
+        "| 3 | Important | Falta la sección de errores | T-02 | pendiente: Añadir sección | `grep -c errores README.md` |\n",
         "")
     (inic / "tasks.md").write_text(tasks_solo_t01, encoding="utf-8")
     rc, out = _run([str(inic), "T-02", "--sin-lint", "--constitucion", str(inic / "no.md")])
     assert rc == 0 and "## Gaps pendientes" not in out
+
+
+# --------------------------- ledger MULTIFASE: selección por MENCIÓN, no por intento GLOBAL ----
+# (jira-review-comments T-03-fix1, gaps #1/#2/#5: antes `_gaps_pendientes_de_tarea` usaba el
+# intento MÁXIMO GLOBAL del ledger + una coincidencia EXACTA de columna `Tarea`, así que una fase
+# con más intentos «tapaba» los gaps reales de una tarea de OTRA fase — devolvía None aunque esa
+# fase tuviera filas de gap pendientes en su propio último intento.)
+
+TASKS_MULTIFASE = """# Checklist de Tareas — multifase
+
+## Resumen de progreso
+
+| Fase | Completadas | Total | Progreso |
+|------|------------|-------|----------|
+| Fase 1 | 1 | 1 | 100% |
+| Fase 2 | 1 | 1 | 100% |
+
+## Fase 1
+
+### T-01 — tarea de la fase 1
+
+- **Descripción**: hacer A.
+- **Estado**: completado
+
+**Criterios de aceptación**
+- [x] A funciona
+
+## Revisión de dos lentes — intento 1: Fase 1 — 1 gap (1 Important)
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 1 | Important | Falta validar A | T-01 | pendiente | — |
+
+## Fase 2
+
+### T-04 — tarea de la fase 2
+
+- **Descripción**: hacer B.
+- **Estado**: completado
+
+**Criterios de aceptación**
+- [x] B funciona
+
+## Revisión de dos lentes — intento 1: Fase 2 — sin gaps
+
+Todo corregido y reverificado.
+
+## Revisión de dos lentes — intento 2: Fase 2 — sin gaps
+
+Segunda pasada, sigue limpio.
+
+## Revisión de dos lentes — intento 3: Fase 2 — 1 gap (1 Minor)
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 1 | Minor | Falta un comentario en B | T-04 | pendiente | — |
+"""
+
+
+def test_gaps_fase_con_menos_intentos_no_queda_tapada_por_otra_fase(inic):
+    """T-01 (Fase 1, único intento: el 1) SÍ debe ver su gap pendiente aunque la Fase 2 haya
+    llegado al intento 3 — el intento máximo GLOBAL (3) no es el de la Fase 1."""
+    (inic / "tasks.md").write_text(TASKS_MULTIFASE, encoding="utf-8")
+    rc, out = _run([str(inic), "T-01", "--sin-lint", "--constitucion", str(inic / "no.md")])
+    assert rc == 0
+    assert "## Gaps pendientes de revisión (intento 1" in out
+    assert "Falta validar A" in out
+
+
+def test_gaps_fase_reabierta_usa_su_propio_ultimo_intento(inic):
+    """T-04 (Fase 2) tiene dos intentos limpios y un tercero que reabre con un gap propio: debe
+    inyectarse el gap del intento 3, no «sin gaps» de un intento anterior."""
+    (inic / "tasks.md").write_text(TASKS_MULTIFASE, encoding="utf-8")
+    rc, out = _run([str(inic), "T-04", "--sin-lint", "--constitucion", str(inic / "no.md")])
+    assert rc == 0
+    assert "## Gaps pendientes de revisión (intento 3" in out
+    assert "Falta un comentario en B" in out
+
+
+TASKS_FXP = """---
+tasks: demo-fxp
+descripcion: Ledger con DOS secciones del MISMO intento (jira-review-comments fix3, gap #20) —
+  "Fase 2 (T-04) — sin gaps" está limpia, pero OTRA sección del mismo intento 1 (la de la Fase 1,
+  que revisa T-07) tiene una fila cruzada Critical `T-04/T-07` sin corregir.
+estado: en-progreso
+creado: 2026-09-19
+actualizado: 2026-09-19
+via: rapida
+verificacion: obligatoria
+generacion:
+  fuente: estimado
+---
+
+# Checklist de Tareas — demo-fxp (vía rápida)
+
+## Fase 1
+
+### T-07 — tarea de la fase 1
+
+- **Descripción**: hacer C.
+- **Estado**: completado
+
+**Criterios de aceptación**
+- [x] C funciona
+
+## Revisión de dos lentes — intento 1: Fase 1 (T-07) — 1 gap
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 1 | Critical | inconsistencia cruzada | T-04/T-07 | pendiente | — |
+
+## Fase 2
+
+### T-04 — tarea de la fase 2
+
+- **Descripción**: hacer B.
+- **Estado**: completado
+
+**Criterios de aceptación**
+- [x] B funciona
+
+## Revisión de dos lentes — intento 1: Fase 2 (T-04) — sin gaps
+
+Bucle cerrado.
+"""
+
+
+def test_fxp_gaps_muestra_el_critical_cruzado_de_otra_seccion_del_mismo_intento(inic):
+    """(FXP, gap #20) La sección propia de T-04 («Fase 2 (T-04) — sin gaps») está limpia, pero
+    OTRA sección del MISMO intento (la de la Fase 1, T-07) tiene una fila `T-04/T-07` Critical sin
+    corregir. El brief de redespacho de T-04 debe mostrarla — no basta con mirar la sección
+    "dueña" cabecera-primero."""
+    (inic / "tasks.md").write_text(TASKS_FXP, encoding="utf-8")
+    rc, out = _run([str(inic), "T-04", "--sin-lint", "--constitucion", str(inic / "no.md")])
+    assert rc == 0
+    assert "## Gaps pendientes de revisión (intento 1" in out
+    assert "inconsistencia cruzada" in out
+
+
+LEDGER_REAL_KNOWLEDGE_SERVICES = (
+    Path(__file__).resolve().parents[2] / "docs" / "roadmap" /
+    "2026-09-15-knowledge-services" / "tasks.md")
+
+
+@pytest.mark.skipif(not LEDGER_REAL_KNOWLEDGE_SERVICES.is_file(),
+                    reason="ledger real de knowledge-services no está en este árbol")
+def test_gaps_sobre_el_ledger_real_de_knowledge_services(tmp_path):
+    """Ledger real de producción con 4 fases y 3 intentos cada una (12 secciones «## Revisión de
+    dos lentes», ADR-016/gap #5): T-04 (Fase 2) y T-10 (Fase 4) no deben reventar ni devolver
+    `None` por un fallo de selección (el intento GLOBAL más alto de otra fase no debe tapar la
+    sección propia). Esta iniciativa está CERRADA (todos sus gaps quedaron `corregido`): con el
+    filtro de «pendiente» correcto (jira-review-comments fix3, gap #20 — antes esta función
+    devolvía TODAS las filas de la sección elegida, corregidas o no, así que el brief mostraba
+    como «pendientes» gaps ya cerrados hace tiempo), el brief no debe inyectar ninguna sección de
+    gaps para ninguna de las dos — no queda nada pendiente que redespachar."""
+    d = tmp_path / "2026-09-15-knowledge-services"
+    d.mkdir()
+    shutil.copyfile(LEDGER_REAL_KNOWLEDGE_SERVICES, d / "tasks.md")
+    rc, out = _run([str(d), "T-04", "--sin-lint", "--constitucion", str(d / "no.md")])
+    assert rc == 0
+    assert "## Gaps pendientes de revisión" not in out
+
+    rc, out = _run([str(d), "T-10", "--sin-lint", "--constitucion", str(d / "no.md")])
+    assert rc == 0
+    assert "## Gaps pendientes de revisión" not in out
 
 
 # --------------------------------------------------------- el lado PADRE de GOT-005 (T-04) ----

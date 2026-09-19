@@ -99,7 +99,11 @@ manifiesto y cierra en llano con recuento y enlaces. → `references/create-and-
 ## Paso 7 — ciclo de eventos firmado (comentarios + horas + Done)
 
 Cada evento (`arrancar` · `implementado` · `revision` · `gaps` · `aprobado` · `qa-verde` · `qa-rojo`) lo
-dispara su actor fijo (`implementer` · `reviewer` · `qa` · **`orquestador`** para `aprobado`) ejecutando
+ejecuta una pieza fija: `implementer` (`arrancar`/`implementado`) · la skill `adversarial-review` (su
+paso 6, para `revision`/`gaps`) · `qa` · **`orquestador`** para `aprobado`. `--actor` es la FIRMA del
+comentario (`implementer` · `reviewer` · `qa` · `orquestador`), NO el ejecutor: `--actor reviewer` lo
+firma la skill `adversarial-review`, nunca el agente `reviewer` (solo lectura, sin tools de Jira). Se
+ejecuta con
 `scripts/jira-flow.py plan --event <evento> --actor <actor> --task T-XX --ledger tasks.md --json`: el script **lee el ledger** y devuelve el plan de operaciones
 (transición · etiqueta `ca-<agente>` · comentario YA FIRMADO — `> 🤖 **[custom-agents · <agente>]** ·
 <rol> · <fecha>` — · comando de `worklog.py`); el agente solo **ejecuta** ese plan vía el conector, nunca

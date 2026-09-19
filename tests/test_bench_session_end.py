@@ -56,10 +56,13 @@ def test_bench_mide_in_process_no_solo_subproceso(tmp_path):
     """Gap 71: la medida que se assertea es IN-PROCESS (`journal.capture_end` cronometrado
     directamente), no dominada por el arranque del intérprete — debe quedar muy por debajo de lo
     que tardaría un subproceso Python (decenas de ms)."""
+    # MEDIANA, no p99: la cola in-process en un runner de CI cargado supera los 20 ms sin que el bench
+    # mida nada distinto (PR #10, run 35443037756). La propiedad es «in-process, no subproceso»: la
+    # mediana in-process tiene que quedar muy por debajo de lo que tarda un arranque de Python.
     r = run("--iterations", "10", "--json")
     assert r.returncode == 0, r.stderr
     d = json.loads(r.stdout)
-    assert d["p99_ms"] < 20, f"p99_ms={d['p99_ms']} sugiere que se sigue midiendo el subproceso"
+    assert d["p50_ms"] < 20, f"p50_ms={d['p50_ms']} sugiere que se sigue midiendo el subproceso"
 
 
 def test_bench_reporta_e2e_p50_informativo_sin_assertarlo(tmp_path):
@@ -77,7 +80,9 @@ def test_bench_reporta_e2e_p50_informativo_sin_assertarlo(tmp_path):
     assert r.returncode == 0, r.stderr
     d = json.loads(r.stdout)
     assert "e2e_p50_ms" in d
-    assert d["e2e_p50_ms"] > d["p95_ms"], "e2e (con arranque de Python) debe ser más lento que in-process"
+    # mediana contra mediana: comparar la cola in-process (p95) con la mediana e2e mezclaba ruido de
+    # cola con tendencia central y fallaba en runners cargados (PR #10, rerun del run 35443037756)
+    assert d["e2e_p50_ms"] > d["p50_ms"], "e2e (con arranque de Python) debe ser más lento que in-process"
     # discriminante cuando la máquina lo permite: si el e2e queda POR ENCIMA del umbral y aun así el
     # exit fue 0, queda demostrado que la aserción no lo tuvo en cuenta (si no lo supera, no concluye)
     if d["e2e_p50_ms"] > umbral_ms:
