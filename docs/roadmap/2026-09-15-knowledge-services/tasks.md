@@ -23,8 +23,8 @@ verificacion: obligatoria
 | Fase 1 - Contrato y validacion | 3 | 3 | 100% | 0 / 13h | 1.20 / 3.9h | 0 / 1.0h | ~57k / 200k |
 | Fase 2 - Curacion y workflow | 3 | 3 | 100% | 0 / 14h | 1.23 / 4.2h | 0 / 1.1h | ~25k / 210k |
 | Fase 3 - Backends y Kwipu | 4 | 4 | 100% | 0 / 19h | 2.71 / 5.7h | 0 / 1.4h | ~88k / 275k |
-| Fase 4 - Regresion y cierre | 2 | 3 | 67% | 0 / 10h | 0.64 / 3.0h | 0 / 0.7h | ~55k / 130k |
-| **TOTAL** | **12** | **13** | **92%** | **0 / 56h** | **5.78 / 16.8h** | **0 / 4.2h** | **~225k / 815k** |
+| Fase 4 - Regresion y cierre | 3 | 3 | 100% | 0 / 10h | 1.01 / 3.0h | 0 / 0.7h | ~60k / 130k |
+| **TOTAL** | **13** | **13** | **100%** | **0 / 56h** | **6.15 / 16.8h** | **0 / 4.2h** | **~230k / 815k** |
 
 > **Nota (gap 18, revision de dos lentes intento 1):** las horas-IA de las rondas `-fix1`/`-fix2`/`-fix3` corresponden a sesiones de correccion COMPARTIDAS entre varias tareas (una sola ventana de `usage-meter` cubriendo T-01/T-02/T-03/T-13 en fix1/fix2, y T-01/T-02/T-13 en fix3); se reparten a partes iguales entre las tareas que tocaron en esa ventana (ver nota de cada tarea) en vez de contarse enteras en cada una, para no inflar el TOTAL.
 
@@ -438,16 +438,27 @@ aun en borrador, fuera del alcance de esta ronda)
 - **Nota (alcance reducido frente al `Archivos` original del plan)**: el plan listaba también `README.md`, `README.es.md`, `docs/FLOWS.md`+EN, `docs/INTEROP.md`+EN, `docs/agents/ROLES.md`, `docs/agents/CONTRACTS.md`, `CHANGELOG.md`, `CHANGELOG.es.md` — revisados por lectura y confirmados YA correctos/completos por T-04..T-10 (ownership, contrato de adaptador, Kwipu opcional, Graphiti diferido, ES/EN en paridad); no se tocaron porque no había nada que corregir, y tocarlos sin cambio real habría sido ruido en el diff. `CHANGELOG.md`/`CHANGELOG.es.md` los genera `changelog-sync` SOLO cuando el ledger completo del plan pasa a `estado: completado` (aún no, quedan T-12 y el cierre del ciclo) — no es responsabilidad de esta tarea forzarlo antes de tiempo.
 
 ### T-12 - Puertas completas, QA y retro
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo humano**: est. 3h · real -
+- **Tiempo IA**: 0.37h (medido)
 - **Prevision IA**: 20k in / 12k out tok
 - **Dependencias**: T-10, T-11
 - **Tipo**: test
-- **Archivos**: `docs/roadmap/2026-09-15-knowledge-services/tasks.md`, `docs/roadmap/2026-09-15-knowledge-services/testing/`, `interop/**`
-- **Verificacion**: `python scripts/lint_plugin.py` -> 0 · `python evals/check.py` -> 0 · `python scripts/export-interop.py --check` -> 0
+- **Archivos**: `docs/roadmap/2026-09-15-knowledge-services/tasks.md`, `docs/roadmap/2026-09-15-knowledge-services/testing/README.md`
+- **Verificacion**: `python scripts/lint_plugin.py` -> 0 errores (3 avisos preexistentes: LES-016 + 2 nombres genericos) · `python evals/check.py` -> 0 errores (40 ficheros, 144 casos) · `python scripts/export-interop.py --check` -> 0 (50 ficheros al dia) · suite completa UNA sola vez (`python -m pytest tests agent-kits/shared agent-kits/knowledge-curator skills/knowledge-services/scripts -q`) -> `42 failed, 2002 passed, 12 skipped, 1 xfailed, 6 subtests passed in 1199.79s` · `python agent-kits/shared/retro-gate.py docs/roadmap/2026-09-15-knowledge-services` -> exit 1 (esperado)
+- **Changelog**: Cierra la implementacion de knowledge-services (esquema, curador, sincronizacion con backends y exportador Markdown para Kwipu) con su regresion end-to-end documentada.
 **Criterios de aceptación**
-- [ ] Ledger con evidencia y revision sin gaps Critical/Important.
-- [ ] QA reconoce sin UI y retro abre `retro-gate.py`.
+- [x] Ledger con evidencia y revision sin gaps Critical/Important — Resumen de progreso 13/13 (100%); revision de dos lentes (intento 1, arriba) cerrada sin Critical/Important abiertos (todos "corregido"/"corregido por el orquestador"/"deuda aceptada" explicita, #21).
+- [x] QA reconoce sin UI y retro abre `retro-gate.py` — `docs/roadmap/2026-09-15-knowledge-services/testing/README.md` documenta el modo sin UI (`test-plan: n/a`, patron ADR-017) y la tabla CA-01..CA-17 ↔ tests; `retro-gate.py` confirmado en exit 1 (ver Verificacion), como se espera ANTES del cierre del ciclo por `/dev-cycle`.
+
+**Rojos de la ronda completa (clasificados, ninguno de esta iniciativa).** La suite completa (unica ejecucion, ver Verificacion) deja 42 rojos, TODOS artefactos de ejecutar en Windows/git-bash en vez de Linux (CI real), y NINGUNO toca ficheros de `knowledge-services` (`knowledge-schema.py`, `knowledge-index.py`, `curator-gate.py`, `knowledge-sync.py`, `backends/`, `capabilities.py`, `markdown_export.py` o sus tests):
+- `tests/test_hooks_shell.py` (17): bit ejecutable no preservado por Windows, `flock` no disponible, `WinError 1314` (symlinks sin privilegio elevado) — ya clasificados en T-10.
+- `agent-kits/shared/test_journal.py` (6) y `agent-kits/shared/test_outbox.py` (2): `ModuleNotFoundError: No module named 'fcntl'`, permisos POSIX (`0o777`≠`0o700` en NTFS), separador de ruta (`\\` vs `/` en asserts de igualdad literal).
+- `tests/test_confluence_scope.py` (4), `tests/test_knowledge_find.py` (2), `tests/test_manifests.py` (2), `tests/test_release.py` (3), `tests/test_suites_no_pytest.py` (2), `agent-kits/shared/test_doctor.py` (1), `agent-kits/shared/test_progress_report.py` (1), `agent-kits/shared/test_task_brief.py` (1): mismo patron (permisos NTFS, CRLF/encoding, `git`+identidad en Windows, mensajes de `lint_plugin`/`chmod` especificos de POSIX). Confirmado por lectura de cada traza: ninguno menciona `taxonomy`, `knowledge_index`, `curator_gate`, `knowledge_sync`, `backends` ni `markdown_export`.
+- `tests/test_manifests.py::test_descriptions_listan_exactamente_las_piezas` cita literalmente «skill knowledge-services existe y no se list[a]» pero es deuda PREEXISTENTE de T-08 (commit `cc1fc26`, 2026-09-17), no introducida por T-10/T-11/T-12: confirmado con `git log --follow -- skills/knowledge-services` (la skill nace en T-08, muy antes de esta fase) — no es un rojo nuevo de este cierre, y corregir manifiestos esta fuera del alcance de T-12 (seria tocar `plugin.json`/`marketplace.json`, no declarados en `Archivos`).
+- **Nota (aviso repetido de `usage-meter.py close`):** las tres CALIBRATION avisos ("fila marcada (estimado); fuera de la mediana") de este cierre son ruido conocido de la calibracion actual del plugin (pocas filas medidas todavia), no un problema de esta tarea.
+- **Nota (scope-check sigue exit 1, mismo preexistente de T-10, ahora 4 ficheros en vez de 5):** `python agent-kits/shared/scope-check.py docs/roadmap/2026-09-15-knowledge-services` -> `82 en alcance, 4 fuera de alcance (docs/roadmap/2026-09-15-graphiti-memory/{improvement-plan.md,spec.md,tasks.md}`, `docs/roadmap/2026-09-15-knowledge-services/improvement-plan.md), 0 avisos`. `docs/roadmap/README.md` (el 5.º de la nota de T-10) ya no aparece porque T-11 lo tocó y lo declaró en su `Archivos`; los 4 restantes siguen siendo deuda de fases/commits anteriores (`650127a`, `c6aced3`) fuera del alcance de escritura del `implementer` en `docs/roadmap/` (solo `tasks.md`) — queda anotado para que `/dev-cycle`/la revision final lo resuelva antes del cierre del ciclo.
+- **Nota (`ledger-lint` en verde):** `python agent-kits/shared/ledger-lint.py docs/roadmap/2026-09-15-knowledge-services/tasks.md` -> `0 incoherencias · 0 avisos` (las 13 tareas tienen ya su campo `Changelog`).
 
 ## Revisión de dos lentes — intento 1: 22 gaps (1 Critical, 10 Important, 11 Minor), lentes A+B (C y D no aplican por `review-lens-select.py`), alcance Fase 1 + T-13 (`650127a..df2e2dd`)
 
