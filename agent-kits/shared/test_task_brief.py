@@ -991,7 +991,10 @@ def test_tdd_true_en_dev_json_inyecta_la_skill(tmp_path):
     assert "RED:" in out, "el brief recuerda la evidencia del rojo que debe devolver"
 
 
-def test_tdd_false_o_ausente_no_inyecta(tmp_path, inic):
+def test_tdd_false_o_ausente_no_inyecta(tmp_path, inic, monkeypatch):
+    # cwd hermetico: `_tdd_activo` cae a `.claude/dev.json` del cwd y un checkout con dev.json local (tdd: true)
+    # convertiria «sin dev.json» en «con dev.json» (paso en CI del PR #9 por un dev.json comiteado por error).
+    monkeypatch.chdir(tmp_path)
     d = _dev_json(tmp_path, '{"tdd": false}')
     rc, out = _run([str(d), "T-01", "--sin-lint", "--constitucion", str(d / "no.md")])
     assert rc == 0 and "skill `tdd`" not in out
