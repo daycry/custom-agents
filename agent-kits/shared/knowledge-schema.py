@@ -30,9 +30,11 @@ Exit codes: 0 válido · 1 con errores (se listan en stdout) · 2 uso/JSON ilegi
 import argparse
 import ipaddress
 import json
+import math
 import os
 import re
 import sys
+import unicodedata
 import urllib.parse
 
 # Consola no UTF-8 (Windows cp1252) o tuberías: reconfigurar ANTES de leer/imprimir (GOT-005).
@@ -59,7 +61,7 @@ GRAPHITI_PROVIDER_LLM_VALORES = ("ollama", "openai", "anthropic", "none")
 _BACKEND_CLAVES = ("type", "enabled", "config")
 _GRAPHITI_CONFIG_CLAVES = (
     "mode", "endpoint", "group_id", "allow_remote", "provider", "entity_map",
-    "relations", "router", "telemetria", "health",
+    "relations", "router", "telemetria", "health", "timeout_ms", "concurrency",
 )
 _GRAPHITI_PROVIDER_CLAVES = ("llm", "model", "embedder", "embedder_model", "base_url", "api_key_env")
 _GRAPHITI_ROUTER_CLAVES = ("intents", "default")
@@ -157,7 +159,9 @@ _TAXONOMY_FALLBACK = { \
         "relations": [],
         "router": {"intents": {"temporal": False, "relacional": False, "evidencia": False}},
         "telemetria": False,
-        "health": {"url": "http://127.0.0.1:8001/health", "timeout_ms": 3000}
+        "health": {"url": "http://127.0.0.1:8001/health", "timeout_ms": 3000},
+        "timeout_ms": 3000,
+        "concurrency": 1
       }
     }
   },
@@ -187,6 +191,19 @@ _TAXONOMY_FALLBACK = { \
 
 def _error(mensaje, fichero, campo):
     return {"mensaje": mensaje, "fichero": fichero, "campo": campo}
+
+
+def _numero_finito_mayor_que(valor, minimo):
+    """True si `valor` es un `int` FINITO (nunca `bool`, que es subclase de `int`) y
+    estrictamente mayor que `minimo` (T-01-fix2 gap #19/#21: los `timeout_ms` del contrato son
+    milisegundos ENTEROS — `int > 0`, nunca un `float`). Antes, `health.timeout_ms` aceptaba
+    cualquier `int`/`float` y solo comprobaba `timeout_ms <= 0`, y toda comparación con `NaN` es
+    `False` en Python: `float('nan')` y `float('inf')` pasaban el chequeo sin que
+    `socket.settimeout` pudiera aceptarlos en runtime; un `float` subnormal como `1e-09` también
+    colaba como "> 0" aunque no representa milisegundos enteros con sentido."""
+    if isinstance(valor, bool) or not isinstance(valor, int):
+        return False
+    return math.isfinite(valor) and valor > minimo
 
 
 def _validar_backend_graphiti(bcfg, campo, fichero, errores):
@@ -276,11 +293,30 @@ def _validar_backend_graphiti(bcfg, campo, fichero, errores):
 
     entity_map = config.get("entity_map")
     if entity_map is not None:
+        # T-01-fix2 gap #20 (parte schema, mutante M15): un valor cadena VACIA o solo blancos
+        # (`""`, `"  "`) pasaba `isinstance(v, str)` y quedaba como tipo de entidad efectivo; el
+        # adaptador Graphiti lo enviaria tal cual al servidor.
         if not isinstance(entity_map, dict) or not all(
-                isinstance(k, str) and isinstance(v, str) for k, v in entity_map.items()):
+                isinstance(k, str) and isinstance(v, str) and v.strip()
+                for k, v in entity_map.items()):
             errores.append(_error(
-                "`entity_map` debe ser un objeto {categoria: tipo_del_servidor} de cadenas",
+                "`entity_map` debe ser un objeto {categoria: tipo_del_servidor} de cadenas no vacías",
                 fichero, f"{campo_c}.entity_map"))
+
+    timeout_ms = config.get("timeout_ms")
+    if "timeout_ms" in config and not _numero_finito_mayor_que(timeout_ms, 0):
+        # T-01-fix2 gap #19/#21: mismo guardarraíl que `health.timeout_ms` (finito, > 0).
+        errores.append(_error(
+            "`timeout_ms` debe ser numérico, finito y mayor que 0", fichero, f"{campo_c}.timeout_ms"))
+
+    concurrency = config.get("concurrency")
+    if "concurrency" in config:
+        if (isinstance(concurrency, bool) or not isinstance(concurrency, int)
+                or concurrency < 1):
+            # T-01-fix2 gap #19: consistente con `SEMAPHORE_LIMIT: 1` del stack de referencia
+            # (docs/knowledge/gotchas del stack local Graphiti); entero, nunca bool, >= 1.
+            errores.append(_error(
+                "`concurrency` debe ser un entero mayor o igual que 1", fichero, f"{campo_c}.concurrency"))
 
     relations = config.get("relations")
     if relations is not None:
@@ -339,13 +375,13 @@ def _validar_backend_graphiti(bcfg, campo, fichero, errores):
                         f"`health.url` `{health_url}` no es local/privado; declara "
                         "`allow_remote: true` para permitir un health remoto (CA-09)",
                         fichero, f"{campo_c}.health.url"))
-            timeout_ms = health.get("timeout_ms")
-            if timeout_ms is not None:
-                if (not isinstance(timeout_ms, (int, float)) or isinstance(timeout_ms, bool)
-                        or timeout_ms <= 0):
-                    errores.append(_error(
-                        "`health.timeout_ms` debe ser numérico y mayor que 0",
-                        fichero, f"{campo_c}.health.timeout_ms"))
+            health_timeout_ms = health.get("timeout_ms")
+            if health_timeout_ms is not None and not _numero_finito_mayor_que(health_timeout_ms, 0):
+                # T-01-fix2 gap #21: `timeout_ms <= 0` con NaN/Infinity siempre da `False` (toda
+                # comparación con NaN lo es), así que `float('nan')`/`float('inf')` colaban aquí.
+                errores.append(_error(
+                    "`health.timeout_ms` debe ser numérico, finito y mayor que 0",
+                    fichero, f"{campo_c}.health.timeout_ms"))
 
     if bcfg.get("enabled") is True:
         # gap #6: con el backend habilitado, `endpoint`, `provider.llm` y `mode` son obligatorios
@@ -409,6 +445,32 @@ def _slug_kebab(nombre):
     return _SLUG_NO_ALNUM_RE.sub("-", nombre.lower()).strip("-")
 
 
+def _graphiti_backends(config):
+    """Todos los `(id, bcfg)` de `config["backends"]` cuyo `type` sea `"graphiti"` (T-01-fix2
+    gap #17): antes, `_con_group_id_por_defecto` solo miraba la clave literal
+    `backends.graphiti`, así que un backend declarado como `backends.graphiti_dev` o
+    `backends.mi_graphiti` (mismo `type`, otra clave) nunca recibía `group_id` derivado."""
+    backends = config.get("backends")
+    if not isinstance(backends, dict):
+        return []
+    return [(bid, bcfg) for bid, bcfg in backends.items()
+            if isinstance(bcfg, dict) and bcfg.get("type") == "graphiti"]
+
+
+_SLUG_UNICODE_SEP_RE = re.compile(r"[\W_]+", re.UNICODE)
+
+
+def _slug_unicode(nombre):
+    """Slug consciente de Unicode (NFKC + minúsculas + separador de restos no alfanuméricos),
+    para `group_id` (T-01-fix2 gap #23). A diferencia de `_slug_kebab` (solo ASCII), conserva
+    letras/dígitos no latinos (acentos, CJK, cirílico...) en vez de descartarlos todos y caer a
+    cadena vacía. Sin fallback `"ca"` aquí a propósito: ver nota en `_con_group_id_por_defecto`."""
+    if not nombre:
+        return ""
+    normalizado = unicodedata.normalize("NFKC", nombre).lower()
+    return _SLUG_UNICODE_SEP_RE.sub("-", normalizado).strip("-")
+
+
 def _con_id_prefix_por_defecto(config, root):
     """Si `config` no declara `id_prefix`, lo rellena con el slug kebab-case del directorio del
     proyecto (`root`, design.md:57): el prefijo NUNCA es un valor fijo del plugin (gap 5) — si
@@ -426,23 +488,55 @@ def _con_id_prefix_por_defecto(config, root):
 
 
 def _con_group_id_por_defecto(config, root):
-    """Si `backends.graphiti.config` existe y no declara `group_id` (o lo declara vacío), lo
-    rellena con el slug kebab-case del directorio del proyecto — MISMO criterio que
-    `_con_id_prefix_por_defecto` (gap #3 de la revisión de la Fase 1): el `group_id` NUNCA es un
-    valor fijo del plugin, así dos instalaciones en la misma máquina no comparten grupo por
-    omisión. No pisa un `group_id` explícito y no vacío. `root=None` usa el cwd real, igual que
-    `_con_id_prefix_por_defecto`."""
+    """Para CADA backend de `type: "graphiti"` (T-01-fix2 gap #17: por `type`, no por la clave
+    literal `graphiti` — ver `_graphiti_backends`) que no declare `group_id` (o lo declare
+    vacío), lo rellena con el slug Unicode del directorio del proyecto (gap #23:
+    `_slug_unicode`, no `_slug_kebab` — conserva nombres no ASCII en vez de vaciarlos). No pisa
+    un `group_id` explícito y no vacío. `root=None` usa el cwd real, igual que
+    `_con_id_prefix_por_defecto`.
+
+    A propósito SIN fallback `"ca"` aquí (a diferencia de `_con_id_prefix_por_defecto`): un
+    directorio sin ningún carácter alfanumérico (p. ej. solo símbolos) produciría un slug vacío
+    y, si cayera a `"ca"` en silencio, dos instalaciones distintas con nombres "raros" acabarían
+    compartiendo el MISMO `group_id` de Graphiti — mezclando su memoria de proyecto sin que nadie
+    lo pidiera; exactamente la clase de bug que el gap #3 ya corrigió para nombres ASCII
+    corrientes. `id_prefix` SÍ mantiene el fallback `"ca"` (no se toca aquí, rompería
+    `test_id_prefix_*`): un `id_prefix` colisionado es cosmético (prefijo de fichero local); un
+    `group_id` colisionado fusiona datos de otro proyecto en el grafo de conocimiento remoto. Si
+    el slug deriva vacío con el backend habilitado, `_errores_group_id_tras_derivar` levanta un
+    error explícito pidiendo declarar `group_id` a mano, en vez de fallar en silencio."""
     if not isinstance(config, dict):
         return config
-    graphiti_bcfg = (config.get("backends") or {}).get("graphiti")
-    if not isinstance(graphiti_bcfg, dict):
-        return config
-    graphiti_config = graphiti_bcfg.get("config")
-    if not isinstance(graphiti_config, dict) or graphiti_config.get("group_id"):
-        return config
     base = os.path.basename(os.path.abspath(root if root is not None else "."))
-    graphiti_config["group_id"] = _slug_kebab(base) or "ca"
+    slug = _slug_unicode(base)
+    for _bid, graphiti_bcfg in _graphiti_backends(config):
+        graphiti_config = graphiti_bcfg.get("config")
+        if not isinstance(graphiti_config, dict) or graphiti_config.get("group_id"):
+            continue
+        if slug:
+            graphiti_config["group_id"] = slug
     return config
+
+
+def _errores_group_id_tras_derivar(config, ruta):
+    """Tras `_con_group_id_por_defecto` (T-01-fix2 gaps #17/#23): con el backend graphiti
+    habilitado, `group_id` es obligatorio — si el directorio del proyecto no aportó ningún
+    carácter alfanumérico y no se derivó nada, exige declararlo explícito en vez de dejarlo
+    ausente en silencio (o caer a un fallback fijo que fusionaría proyectos distintos, ver nota
+    en `_con_group_id_por_defecto`). Debe invocarse DESPUÉS de la derivación, no dentro de
+    `validar()`: `validar()` corre antes de que `cargar_taxonomia` derive nada."""
+    errores = []
+    for bid, bcfg in _graphiti_backends(config):
+        if bcfg.get("enabled") is not True:
+            continue
+        graphiti_config = bcfg.get("config")
+        group_id = graphiti_config.get("group_id") if isinstance(graphiti_config, dict) else None
+        if not isinstance(group_id, str) or not group_id.strip():
+            errores.append(_error(
+                "`group_id` es obligatorio con el backend habilitado y no se pudo derivar del "
+                "directorio del proyecto (sin caracteres alfanuméricos); declara `group_id` "
+                "explícitamente", ruta, f"backends.{bid}.config.group_id"))
+    return errores
 
 
 def validar(config, fichero="taxonomy.json"):
@@ -617,11 +711,15 @@ def cargar_taxonomia(root=None, fichero=None):
         errores = validar(config, ruta)
         _con_id_prefix_por_defecto(config, root)
         _con_group_id_por_defecto(config, root)
+        # T-01-fix2 gaps #17/#23: `group_id` obligatorio con el backend habilitado se comprueba
+        # DESPUÉS de derivar (validar() corre antes de que exista el slug derivado).
+        errores = errores + _errores_group_id_tras_derivar(config, ruta)
         return config, "proyecto", ruta, errores
     config = default_taxonomy()
     _con_id_prefix_por_defecto(config, root)
     _con_group_id_por_defecto(config, root)
-    return config, "default", None, []
+    errores = _errores_group_id_tras_derivar(config, None)
+    return config, "default", None, errores
 
 
 def backend_ids_declarados(config):

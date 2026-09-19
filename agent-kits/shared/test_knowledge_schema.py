@@ -418,6 +418,146 @@ def test_graphiti_relations_con_cadena_vacia_falla():
     assert any(e["campo"] == "backends.graphiti.config.relations" for e in errores)
 
 
+# --------------------------------------------- T-01-fix2 gap #20: entity_map con valor vacio (M15)
+
+def test_graphiti_entity_map_valor_vacio_falla_m15():
+    cfg = _con_graphiti(_graphiti_config(entity_map={"PATTERN": ""}))
+    errores = ks.validar(cfg, "t.json")
+    assert any(e["campo"] == "backends.graphiti.config.entity_map" for e in errores)
+
+
+def test_graphiti_entity_map_valor_blanco_falla():
+    cfg = _con_graphiti(_graphiti_config(entity_map={"PATTERN": "   "}))
+    errores = ks.validar(cfg, "t.json")
+    assert any(e["campo"] == "backends.graphiti.config.entity_map" for e in errores)
+
+
+# --------------------------------------------- T-01-fix2 gap #19: timeout_ms/concurrency de config
+
+def test_graphiti_config_timeout_ms_valido_no_da_error():
+    cfg = _con_graphiti(_graphiti_config(timeout_ms=3000))
+    assert ks.validar(cfg, "t.json") == []
+
+
+def test_graphiti_config_timeout_ms_no_numerico_falla():
+    cfg = _con_graphiti(_graphiti_config(timeout_ms="rapido"))
+    errores = ks.validar(cfg, "t.json")
+    assert any(e["campo"] == "backends.graphiti.config.timeout_ms" for e in errores)
+
+
+def test_graphiti_config_timeout_ms_negativo_o_cero_falla():
+    for valor in (-5, 0):
+        cfg = _con_graphiti(_graphiti_config(timeout_ms=valor))
+        errores = ks.validar(cfg, "t.json")
+        assert any(e["campo"] == "backends.graphiti.config.timeout_ms" for e in errores), valor
+
+
+def test_graphiti_config_concurrency_valido_no_da_error():
+    cfg = _con_graphiti(_graphiti_config(concurrency=1))
+    assert ks.validar(cfg, "t.json") == []
+
+
+def test_graphiti_config_concurrency_invalido_falla():
+    for valor in (0, -1, 1.5, "1", True):
+        cfg = _con_graphiti(_graphiti_config(concurrency=valor))
+        errores = ks.validar(cfg, "t.json")
+        assert any(e["campo"] == "backends.graphiti.config.concurrency" for e in errores), valor
+
+
+def test_template_declara_timeout_ms_y_concurrency_por_defecto():
+    tpl = ks.default_taxonomy()
+    graphiti_cfg = tpl["backends"]["graphiti"]["config"]
+    assert graphiti_cfg["timeout_ms"] == 3000
+    assert graphiti_cfg["concurrency"] == 1
+    assert ks.validar(tpl, "template") == []
+
+
+# ------------------------------- T-01-fix2 gap #21: finitos (NaN/Infinity) en timeout_ms/concurrency
+
+def test_graphiti_health_timeout_ms_no_finito_falla():
+    for valor in (float("nan"), float("inf"), float("-inf"), 1e-09):
+        cfg = _con_graphiti(_graphiti_config(
+            health={"url": "http://127.0.0.1:8001/health", "timeout_ms": valor}))
+        errores = ks.validar(cfg, "t.json")
+        assert any(e["campo"] == "backends.graphiti.config.health.timeout_ms" for e in errores), valor
+
+
+def test_graphiti_config_timeout_ms_no_finito_falla():
+    for valor in (float("nan"), float("inf"), 1e-09):
+        cfg = _con_graphiti(_graphiti_config(timeout_ms=valor))
+        errores = ks.validar(cfg, "t.json")
+        assert any(e["campo"] == "backends.graphiti.config.timeout_ms" for e in errores), valor
+
+
+# ---------------------------------------------- T-01-fix2 gap #17: group_id derivado por `type`
+
+def test_con_group_id_por_defecto_deriva_por_type_no_por_clave_literal():
+    """Mutante M14: un backend `graphiti` con un ID DISTINTO de la clave literal `graphiti`
+    también recibe su `group_id` derivado — antes, `_con_group_id_por_defecto` solo miraba
+    `backends['graphiti']`, ignorando cualquier otro id declarado con `type: graphiti`."""
+    config = _valida()
+    graphiti_config = _graphiti_config()
+    del graphiti_config["group_id"]
+    config["backends"] = {"mi-grafo": {"type": "graphiti", "enabled": True, "config": graphiti_config}}
+    resultado = ks._con_group_id_por_defecto(config, "/tmp/mi-proyecto-x")
+    assert resultado["backends"]["mi-grafo"]["config"]["group_id"] == "mi-proyecto-x"
+
+
+def test_group_id_obligatorio_tras_derivar_si_directorio_sin_alfanumericos(tmp_path):
+    """Mutante M16: `group_id` faltante con `enabled: true` no puede validar en silencio — si el
+    slug del directorio del proyecto queda vacío (sin caracteres alfanuméricos), es un error
+    explícito en vez de un `group_id` ausente que T-04 resolvería cayendo al grupo por defecto del
+    cliente MCP (justo lo que el gap #3 original quería impedir)."""
+    root = tmp_path / "___"
+    proyecto = root / ".claude" / "knowledge-services"
+    proyecto.mkdir(parents=True)
+    cfg = _con_graphiti(_graphiti_config())
+    del cfg["backends"]["graphiti"]["config"]["group_id"]
+    (proyecto / "taxonomy.json").write_text(json.dumps(cfg), encoding="utf-8")
+    config, origen, _ruta, errores = ks.cargar_taxonomia(root=str(root))
+    assert origen == "proyecto"
+    assert "group_id" not in config["backends"]["graphiti"]["config"]
+    assert any("group_id" in e["campo"] for e in errores)
+
+
+def test_group_id_no_obligatorio_tras_derivar_si_backend_deshabilitado(tmp_path):
+    root = tmp_path / "___"
+    proyecto = root / ".claude" / "knowledge-services"
+    proyecto.mkdir(parents=True)
+    cfg = _con_graphiti(_graphiti_config())
+    cfg["backends"]["graphiti"]["enabled"] = False
+    del cfg["backends"]["graphiti"]["config"]["group_id"]
+    (proyecto / "taxonomy.json").write_text(json.dumps(cfg), encoding="utf-8")
+    config, _origen, _ruta, errores = ks.cargar_taxonomia(root=str(root))
+    assert not any("group_id" in e["campo"] for e in errores)
+
+
+# --------------------------------------------- T-01-fix2 gap #23: slug Unicode para group_id
+
+def test_group_id_se_deriva_con_slug_unicode_no_cae_a_ca(tmp_path):
+    root = tmp_path / "日本"
+    root.mkdir()
+    config, origen, _ruta, errores = ks.cargar_taxonomia(root=str(root))
+    assert origen == "default"
+    assert errores == []
+    assert config["backends"]["graphiti"]["config"]["group_id"] == "日本"
+    assert config["backends"]["graphiti"]["config"]["group_id"] != "ca"
+
+
+def test_group_id_se_deriva_con_slug_unicode_acentos(tmp_path):
+    root = tmp_path / "áéí"
+    root.mkdir()
+    config, _origen, _ruta, _errores = ks.cargar_taxonomia(root=str(root))
+    assert config["backends"]["graphiti"]["config"]["group_id"] == "áéí"
+
+
+def test_slug_unicode_normaliza():
+    assert ks._slug_unicode("Mi Proyecto_X!!") == "mi-proyecto-x"
+    assert ks._slug_unicode("") == ""
+    assert ks._slug_unicode("---") == ""
+    assert ks._slug_unicode("日本") == "日本"
+
+
 def test_template_por_defecto_declara_graphiti_deshabilitado():
     """Regla del ledger: la plantilla gana el backend `graphiti` con `enabled: false` (opt-in)."""
     tpl = ks.default_taxonomy()
