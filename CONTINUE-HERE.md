@@ -1,5 +1,89 @@
 # CONTINUE-HERE
 
+> **2026-09-18 — EN CURSO: `/dev-cycle knowledge-services` (flujo completo, Fase 3) en la rama `feature/knowledge-services`**
+> (ramificada de `feature/session-end-durable-capture`, que está cerrada con retro pero SIN PR/merge: el PR de esa
+> iniciativa sigue pendiente; `outbox.py` solo existe en estas ramas). Objetivo del usuario (`/goal`): que el plugin,
+> con Kwipu y Graphiti activados en `.claude/knowledge-services/taxonomy.json`, se integre con el stack local
+> `dockers/knowledge-graphs` (bridge `127.0.0.1:8765`, Graphiti MCP `127.0.0.1:8001/mcp`) y el flujo sea correcto.
+> Orden: knowledge-services completo → graphiti-memory (depende de knowledge-services `completado`).
+>
+> Estado del ledger `docs/roadmap/2026-09-15-knowledge-services/tasks.md`: T-01, T-02, T-03, T-13 `completado`
+> (Fase 1 + registro de capacidades). **Revisión de dos lentes — intento 1** escrita (22 gaps: 1 Critical =
+> colisión de basename `test_knowledge_index.py` que apaga la colección del comando de CI; 10 Important; 11 Minor;
+> #19 corregido por el orquestador en `design.md`, #21 deuda aceptada). Ronda `T-XX-fix2` hecha (03071f9..72f64af).
+> **Intento 2** (cf23f02): 22/22 cerrados + 12 nuevos (#23–#34; #23 corregido en e66cc32). **Ronda `T-XX-fix3`
+> hecha** (bf97acd..47314a9: 11/11 cerrados). **Intento 3** (cb92ea0): 5 nuevos (#35–#39) → decisión del orquestador
+> (autónomo, sin Critical, convergente): ronda `fix4` (55499be, c3e7aeb) + verificación dirigida → **bucle CERRADO**
+> (ec75d4c; 39 gaps en total, 0 pendientes, #21 deuda). **Fase 2 (T-04 knowledge-curator, T-05 documenter propone,
+> T-06 Fase 4-bis) HECHA** (5d03c16, db00d0f, 230a876). **Revisión Fase 2 intento 1** (4539ab2): 19 gaps (#40–#58;
+> 2 Critical: `MODOS` de `curator-gate.py` y lista negra por subcadena). Ronda fix1 hecha (cfacc18..e6ef4af).
+> **Intento 2 Fase 2** (6dfcd42): 19/19 cerrados, 13 nuevos (#59–#71; 2 Important: acentos en la lista negra y
+> **YAML de `ci.yml` inválido en la línea 54, preexistente en master, bloquea CI**). Ronda fix2 hecha (c36707d..df20d16,
+> incl. `fix(ci)` 3b6ef8e). **Intento 3 Fase 2** (c3f8bff): 13/13 cerrados, 10 nuevos (#72–#81; 72–74 cerrados por el
+> orquestador) → ronda `T-04-fix3` (3dbdd88) + verificación dirigida → **bucle Fase 2 CERRADO** (d20dfab; 42 gaps,
+> 0 pendientes). Progreso 7/13. **Fase 3 (T-07 knowledge-sync + contrato, T-08 adaptador Kwipu + skill, T-09
+> setup/doctor) HECHA** (00cb695, cc1fc26, cecb3ac; progreso 10/13). **Revisión Fase 3 intento 1 en curso** (lentes A+B+D;
+> C no aplica). **Validación EN VIVO ya hecha por el orquestador** desde `%TEMP%\ks-live-demo` contra el bridge real:
+> `health` = sano, `--dry-run`/apply escriben el export con frontmatter CA-17, `--check` detecta desfase contra
+> `/graph/snapshot` y nombra el remedio. Hallazgo: una entrada de `approved/` SIN `category:` se omite en silencio
+> (pasado a las lentes). **El cierre físico (activar `generated_knowledge` en `projects.yaml`, exportar a
+> `kwipu-data/generated/projects/<id>/`, `python -m source_manager.build_view --config kwipu/config/projects.yaml
+> --output kwipu/runtime/knowledge-view-v2`, `docker compose restart kwipu kwipu-bridge kwipu-mcp`) lo DENEGÓ el
+> clasificador de permisos (recurso compartido): lo ejecuta el usuario con `!`.** **Revisión Fase 3 intento 1** (87a9fef,
+> lentes A+B+D): 23 gaps (#82–#104; 1 Critical = `apply` no atómico; 16 Important incl. `summary` sin implementar,
+> `category` omitida en silencio, `/doctor` con red, outbox reclama envelope ajeno, 3 de seguridad: `type` traversal,
+> `id` con `../`, `health.url` sin restricción de host). Ronda fix1 hecha (217875c..c27c969; T-02-fix6/T-04-fix4 los
+> comiteó el orquestador). **Intento 2 Fase 3** (86b5838): 21/23 cerrados, 2 parciales (#82, #85) + 17 nuevos (#109–#125;
+> Critical #109 = `--rebuild` no-op tras el fix por hash). El orquestador FIJÓ el diseño de publicación por intercambio de
+> directorio (staging hermano + dos renames) en el ledger. Ronda fix2 hecha (02b9c57..36504ff). **Intento 3 Fase 3**
+> (21f5f5c + anexo D 9c95f45): 17/19 cerrados; **3 Critical NUEVOS en los caminos de fallo del swap de directorio**
+> (#126 rollback pierde la publicación, #127 `apply` borra todo lo ajeno en `export_dir`, incl. `export_dir: docs`,
+> #128 outbox atascada permanente) + 3 Important + 8 Minor (#129–#139). **Decisión del orquestador (excede el bucle;
+> revocable en el PR):** SUSTITUIR el diseño por «publicación por fichero con diario `manifest.pending.json`, sin mover
+> ni borrar nada ajeno» + drenaje de la outbox; ronda fix3 hecha (656bfd8, 8385cf8, 3694629, 4b43f48) y **verificada por el
+> orquestador con los probes de A/B/D → bucle Fase 3 CERRADO** (deuda Minor #140: cola crece durante el backoff). Progreso
+> 10/13. **Fase 4 HECHA** (7d654e2 T-10, 22d09e7 T-11, aed7584 T-12; + 32e98d8 T-08-fix4 manifiestos): **13/13**.
+> Suite completa una vez: 42 rojos, todos preexistentes de Windows salvo `test_manifests` (arreglado en 32e98d8). Queda un
+> `git stash@{0}` inocuo del implementer (no pudo `stash drop`: pide autorización). **Revisión Fase 4 intento 1** (c26461a):
+> 0 Critical, 10 Important, 10 Minor (#141–#160; incl. #150 = arreglar el YAML de LES-016 que bloquea `release.py`).
+> Ronda fix1 hecha (8c96d74..f023e56): 20/20; **`lint_plugin` 0 errores** (LES-016 arreglado). **Intento 2 Fase 4** (c7bc62d):
+> 7 documentales cerrados por el orquestador (3528f11) + 9 nuevos de la Lente B (#168–#176; 2 Important en la red de hooks).
+> Ronda fix2 hecha (a5a8046, 05d3bf4, bd63112): 9/9. **Intento 3 Fase 4** (fb34ac9): 9/9 cerrados + 9 nuevos (#177–#185;
+> 2 Important: cita de test retirado en el ledger y regresión en `_lineas_de_codigo` del test de hooks). Decisión del
+> orquestador: ronda fix3 hecha (d522234) y **verificada → bucle Fase 4 CERRADO**. Las 4 fases revisadas (185 gaps).
+> **qa sin UI VERDE** (e890478: 480 passed, matriz CA-01..17 verificada, `testing/qa-report.md`+pdf). **documenter en curso**
+> HECHO (baa3339: doc ya coherente; 3 candidatos en `candidates/pending/`). **Fase 4-bis en curso**: `knowledge-curator`
+> no existe en el plugin instalado (1.20.2) → despachado como subagente genérico leyendo `agents/knowledge-curator.md`.
+> Fase 4-bis HECHA (fc568a7: 3 aprobados en `approved/`). **Cierre Fase 6 HECHO**: plan/tasks `completado`, changelog-sync
+> (Added), retro + fila CALIBRATION (estimado) + candidato de lección de proceso, retro-gate ABIERTA, spec `implementada`,
+> merge origin/master limpio, **push + PR #9** (https://github.com/daycry/custom-agents/pull/9), CI en curso.
+> **knowledge-services CERRADA.** Siguiente (orden del usuario): graphiti-memory (rama `feature/graphiti-memory` desde este
+> HEAD; PR apilado sobre #9) → con master estable, repaso de tareas pendientes de todos los planes → corrección de los
+> comentarios de revisión en Jira (dueño único de `jira-flow.py revision/gaps`; ver memoria) →
+> documenter → Fase 4-bis → cierre (changelog-sync, /retro, retro-gate) → push + PR (T-04 curator, T-05 documenter, T-06 Fase 4-bis) → Fase 3 (T-07 sync +
+> contrato, T-08 adaptador Kwipu, T-09 setup/doctor) → Fase 4 (T-10, T-11, T-12) → qa sin UI → documenter → cierre
+> (changelog-sync, /retro + retro-gate) → graphiti-memory.
+>
+> Fixtures reales del stack grabadas el 2026-09-18 para T-08 y graphiti T-04 (health, snapshot, query, MCP
+> initialize/tools-list/get_status): `C:\Users\46066917X\AppData\Local\Temp\ks-fixtures\` (regrábalas con
+> `curl` si falta la carpeta; Docker debe estar levantado). Enmiendas 2026-09-18 en ambas specs (commit `c6aced3`).
+> Linter: 1 ❌ PREEXISTENTE en `docs/knowledge/lessons/LES-016-*.md:5` (YAML del campo `estado`) que bloqueará
+> `release.py`: arreglar antes de publicar (entrecomillar el valor). `.claude/dev.json` está sin versionar
+> (`tdd: true`). Validación en vivo contra Kwipu: hacerla al cerrar T-08 (activar `generated_knowledge` en
+> `projects.yaml` del stack + `build_view` + reinicio es del usuario/stack, no del plugin).
+>
+> **Encargos del usuario (2026-09-18, tras el goal), en este orden al terminar el ciclo:** (1) `git push` de la
+> rama y **PR a master** (la rama `feature/session-end-durable-capture` viaja dentro: 49 commits sin PR); (2) con
+> master estable, **repasar TODOS los planes de `docs/roadmap/`** en busca de tareas pendientes (`brief-budget`
+> 0/6, `plugin-refactor` 18/22 con T-15 en-progreso, `project-specialization` 3/22, `graphiti-memory` 0/10,
+> `training-data-services`, `dev-cycle-dataset`) y decidir/ejecutar; (3) **investigar por qué la revisión de dos
+> lentes NO deja comentarios en las tareas de Jira**: el flujo se ejecuta entero pero el issue no recibe el
+> comentario con el resultado de la verificación ni de los N intentos (pistas: `jira-flow.py` eventos `revision`/
+> `gaps` con `--intento N` son «del orquestador» en `commands/dev-cycle.md` y a la vez «comentario FINAL en Jira,
+> Paso 9» en la skill `adversarial-review`: posible hueco de dueño; comprobar en un proyecto consumidor con
+> `.claude/jira.json` `enabled: true`, aquí no hay). Requisito transversal: todo debe funcionar en Claude Code,
+> Codex y OpenCode.
+
 > **2026-09-11 — `installer-registro-real` PUBLICADA en v1.20.0.** PR #2 mezclado en master (`0a10e7a`), release
 > `e5774f8` + tag `v1.20.0` publicados, **CI de master en verde** en los dos commits (llevaba roja desde los merges
 > de R2 y R3 del refactor, que integré sin comprobar el workflow: corregido en esta tanda).

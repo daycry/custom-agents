@@ -2,7 +2,7 @@
 id: LES-016
 tipo: leccion
 area: Diseño / colas y estado durable
-estado: aceptada (validada: usuario, 2026-09-18)
+estado: "aceptada (validada: usuario, 2026-09-18)"
 fuente: 2026-09-17-session-end-durable-capture/retro.md#aprendizajes
 ---
 

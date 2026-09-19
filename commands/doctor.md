@@ -1,5 +1,5 @@
 ---
-description: Diagnóstico de la instalación del plugin en este proyecto — herramientas (python3, git, jq, node, Playwright), plugin y hooks registrados, statusline, configs de .claude (rates, dev, jira, confluence) y estado del trabajo (marcadores de medición huérfanos, iniciativas en progreso, memoria técnica —curadas, índice, FTS5, journal, calibración—, evals), con veredicto ✅/⚠️/❌ y el arreglo concreto de cada línea. Solo lee; no toca nada y no usa red. Úsalo cuando el usuario diga "¿está bien instalado?", "diagnostica el plugin", "por qué no funciona el hook", "comprueba mi configuración", "doctor".
+description: Diagnóstico de la instalación del plugin en este proyecto — herramientas (python3, git, jq, node, Playwright), plugin y hooks registrados, statusline, configs de .claude (rates, dev, jira, confluence) y estado del trabajo (marcadores de medición huérfanos, iniciativas en progreso, memoria técnica —curadas, índice, FTS5, journal, calibración—, evals), con veredicto ✅/⚠️/❌ y el arreglo concreto de cada línea. Solo lee; no toca nada. Sin red salvo la comprobación en vivo de capacidades opcionales activadas en `taxonomy.json` (p. ej. `kwipu`), acotada a hosts locales/privados y a un tope total de tiempo. Úsalo cuando el usuario diga "¿está bien instalado?", "diagnostica el plugin", "por qué no funciona el hook", "comprueba mi configuración", "doctor".
 argument-hint: "(opcional) --json para la salida en JSON"
 ---
 
@@ -7,7 +7,7 @@ argument-hint: "(opcional) --json para la salida en JSON"
 
 Primera parada cuando algo "no salta": el hook que no aparece, la statusline que no se ve, el
 coste que sale a 0, la skill que no encuentra su script. Comprueba la instalación **sin tocar
-nada** y sin red: cada línea lleva su veredicto y, si algo falla, **qué comando lo arregla**.
+nada**: cada línea lleva su veredicto y, si algo falla, **qué comando lo arregla**.
 
 ## Pasos
 1. Localiza el script del kit compartido y ejecútalo:
@@ -68,8 +68,11 @@ nada** y sin red: cada línea lleva su veredicto y, si algo falla, **qué comand
   `CLAUDE.md`) va en forma corta: una nota al pie decenas de líneas más abajo no la satisface,
   porque quien teclea lo hace antes de llegar a ella. Los registros fechados (`docs/roadmap/`,
   `docs/knowledge/`, CHANGELOG) no se miran: quedan como se escribieron.
-- **Siete bloques**: herramientas · plugin y hooks · statusline · configs de `.claude/` · estado del trabajo · **memoria técnica** (`docs/knowledge/`: entradas curadas por familia y estado, índice README —❌ si rompe la biyección—, índice FTS5, journal a 0 con memoria curada, `CALIBRATION.md` desfasada con iniciativas cerradas sin retro — la retro es puerta de cierre desde `memory-retrieval` T-17) · **Journal** (session-end-durable-capture T-06: lee `journal.py status --json` — contadores outbox/processing/done/dead-letter, huérfanas, backoff pendiente con el remedio nombrado, y triage del «Hook cancelled»: aviso del runtime sin pérdida vs. pérdida posible).
-- **Sin red por diseño**: `/doctor` no consulta el marketplace, así que no puede decir si hay una
-  versión más nueva del plugin; solo informa de la versión instalada.
+- **Ocho bloques**: herramientas · plugin y hooks · statusline · configs de `.claude/` · estado del trabajo · **capacidades opcionales** (`agent-kits/shared/capabilities.py`, T-09/T-13, CA-14: una fila por capacidad registrada —hoy el Knowledge Gate y, si el proyecto lo declara, un backend de `knowledge-services`— SIN código específico por capacidad; config inválida → ❌ con fichero+campo+arreglo, desactivada → ℹ️, activa con backend declarado → comprobación de red EN VIVO vía SU adaptador —✅ sano sin desfase, ⚠️ export atrasado con el remedio que nombra `verify()` [nunca lo ejecuta], ⚠️/❌ degradado/error, ℹ️ sin conexión o timeout— y sin backend, el texto genérico de la propia capacidad) · **memoria técnica** (`docs/knowledge/`: entradas curadas por familia y estado, índice README —❌ si rompe la biyección—, índice FTS5, journal a 0 con memoria curada, `CALIBRATION.md` desfasada con iniciativas cerradas sin retro — la retro es puerta de cierre desde `memory-retrieval` T-17) · **Journal** (session-end-durable-capture T-06: lee `journal.py status --json` — contadores outbox/processing/done/dead-letter, huérfanas, backoff pendiente con el remedio nombrado, y triage del «Hook cancelled»: aviso del runtime sin pérdida vs. pérdida posible).
+- **La versión del plugin es sin red por diseño**: `/doctor` no consulta el marketplace, así que
+  no puede decir si hay una versión más nueva del plugin; solo informa de la versión instalada.
+  (Esto NO es una afirmación general de "sin red": las capacidades opcionales activadas en
+  `taxonomy.json`, ver «ocho bloques» arriba, sí hacen una comprobación en vivo acotada a hosts
+  locales/privados y a un tope total de tiempo.)
 - **No confundir con `/setup`**: `/doctor` diagnostica lo que ya hay (solo lectura); `/setup`
   configura y escribe (`rates.json`, `dev.json`, opt-ins de Jira/Confluence, statusline).

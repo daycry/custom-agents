@@ -9,6 +9,22 @@ and versioning follows [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Added — `knowledge-services` initiative (2026-09-15)
+
+- **T-01 — Esquema versionado `taxonomy.schema.json`, `backends` y plantillas** El plugin ahora valida la configuración de conocimiento del proyecto (`taxonomy.json`) y sus backends declarados, con un default seguro y sensible al proyecto (sin id_prefix ni rutas de categoría inseguras heredadas del plugin) cuando el proyecto no configura nada.
+- **T-02 — Indice canonico y validador determinista sobre la taxonomia configurada** El plugin valida y construye un indice de conocimiento aprobado por proyecto, detectando IDs duplicados, versiones ausentes, enlaces rotos, rutas fuera de la carpeta aprobada o campos de frontmatter mal formados antes de exportarlos.
+- **T-03 — Estructura e ignorados de derivados** El flujo de conocimiento del proyecto ahora separa claramente lo propuesto (`candidates/`) de lo aprobado (`approved/`), con las exportaciones a backends siempre excluidas del control de versiones, incluso en proyectos anidados.
+- **T-04 — Agente knowledge-curator, docs y evals** Nuevo agente `knowledge-curator`, el unico que aprueba o rechaza conocimiento propuesto y lo mueve a `docs/knowledge/approved/`.
+- **T-05 — Documenter propone, no promociona** `documenter` ahora propone (nunca aprueba) candidatos de conocimiento al cerrar la documentacion del proyecto. (`agents/documenter.md`, `docs/agents/documenter.md`, `docs/agents/ROLES.md`)
+- **T-06 — Fase 4-bis Knowledge Gate** `/dev-cycle` gana la Fase 4-bis "Knowledge Gate": tras QA verde y documentar, cura los candidatos de conocimiento pendientes con omision honesta si no hay ninguno.
+- **T-07 — `knowledge-sync.py`, contrato de adaptador y adaptador `test`** Nuevo motor interno `knowledge-sync` que publica el conocimiento aprobado del proyecto a servicios externos configurables, respetando siempre las reglas de enrutado por categoría.
+- **T-08 — Adaptador Kwipu (`markdown-export`) y skill** El export a Kwipu ya escribe un Markdown con metadatos de origen y confianza por cada pieza de conocimiento aprobada, y avisa (sin tocar nada del stack) cuando el grafo se queda desactualizado.
+- **T-09 — Opt-in en setup y doctor a traves del registro de capacidades** `/doctor` ahora avisa en vivo si una capacidad opcional (como Kwipu) esta desactivada, mal configurada o con el grafo externo desactualizado, y `/setup` ofrece activarlas y crear su configuracion en un solo paso.
+- **T-13 — Registro de capacidades `capabilities.py`** `/setup` y `/doctor` podran enumerar las capacidades opcionales del plugin (Knowledge Gate, Kwipu y las que se añadan despues) desde un unico registro, sin codigo especifico por capacidad, con una sola lectura de `taxonomy.json` por consulta. (`agent-kits/shared/capabilities.py`, `agent-kits/shared/test_capabilities.py`, `agent-kits/shared/README.md`)
+- **T-10 — Aislamiento, seguridad y regresion** Se añade una suite de regresión de extremo a extremo para el Knowledge Gate y se corrigen tres fallos heredados (listas de frontmatter que se truncaban con comentarios, un doble error de validación y un coste innecesario al indexar).
+- **T-11 — Documentacion, espejos y changelog** La documentación de referencia (README ES/EN e índice del roadmap) ya refleja el estado y el alcance del Knowledge Gate y sus backends declarados. (`docs/README.md`, `docs/en/README.md`, `docs/roadmap/README.md`)
+- **T-12 — Puertas completas, QA y retro** Cierra la implementacion de knowledge-services (esquema, curador, sincronizacion con backends y exportador Markdown para Kwipu) con su regresion end-to-end documentada.
+
 ### Fixed — `session-end-durable-capture` initiative (2026-09-17)
 
 - **T-01 — `outbox.py`: cola atómica con claim, done y dead-letter** Nueva cola atómica compartida `agent-kits/shared/outbox.py` (claim exclusivo, reencolado de huérfanos, backoff, dead-letter, permisos privados), para el journal y los futuros exportadores de memoria.

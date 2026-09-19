@@ -65,11 +65,23 @@ def test_bench_mide_in_process_no_solo_subproceso(tmp_path):
 def test_bench_reporta_e2e_p50_informativo_sin_assertarlo(tmp_path):
     """Gap 71: `e2e_p50_ms` se reporta aparte (informativo, incluye el arranque de Python) y NUNCA
     entra en las aserciones de `--assert-p95-ms`/`--assert-p99-ms` (que siguen siendo in-process)."""
-    r = run("--iterations", "5", "--e2e-iterations", "2", "--assert-p95-ms", "20", "--json")
+    # Umbral ADAPTATIVO, no 20 ms fijos: en un runner de CI cargado el p95 in-process superó los 20 ms y
+    # el test fallaba por la máquina, no por el bench (PR #9, run 35422462468). Se mide primero sin
+    # aserción y se exige después un p95 con holgura x4 (mínimo 20 ms); lo que se prueba aquí es que
+    # `e2e_p50_ms` se reporta y NO entra en la aserción, no la velocidad absoluta de la máquina.
+    r0 = run("--iterations", "5", "--e2e-iterations", "2", "--json")
+    assert r0.returncode == 0, r0.stderr
+    d0 = json.loads(r0.stdout)
+    umbral_ms = max(20.0, float(d0["p95_ms"]) * 4)
+    r = run("--iterations", "5", "--e2e-iterations", "2", "--assert-p95-ms", str(umbral_ms), "--json")
     assert r.returncode == 0, r.stderr
     d = json.loads(r.stdout)
     assert "e2e_p50_ms" in d
     assert d["e2e_p50_ms"] > d["p95_ms"], "e2e (con arranque de Python) debe ser más lento que in-process"
+    # discriminante cuando la máquina lo permite: si el e2e queda POR ENCIMA del umbral y aun así el
+    # exit fue 0, queda demostrado que la aserción no lo tuvo en cuenta (si no lo supera, no concluye)
+    if d["e2e_p50_ms"] > umbral_ms:
+        assert d["p95_ms"] <= umbral_ms
 
 
 def test_bench_sin_e2e_iterations_omite_el_campo():

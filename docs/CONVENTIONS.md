@@ -183,6 +183,7 @@ Cada skill guarda su config (decisiones del usuario) y su estado (memoria de má
 | `jira.json` | Opt-in + política de jornada (`alCubrirJornada`) | skill `jira-sync` o `/setup` | Recrear con `/setup`; defaults seguros |
 | `jira-state.json` | Mapeo T-XX↔issue, imputado por día, banco de horas | `jira-sync` (vía `worklog.py`) | Mapeo: re-derivable de las claves anotadas en `tasks.md`; imputado/banco: revisar worklogs en Jira |
 | `dev.json` | Disciplina de la cadena nativa de `/dev-cycle`: `tdd` (RED-GREEN-REFACTOR con evidencia del rojo), `worktree` (iniciativa en worktree aislado), `subagentes` (una tarea = un subagente fresco), `constitucion` (decisión del opt-in de `docs/CONSTITUTION.md` — distingue "declinado" de "nunca preguntado"), `guardrails` (hook de guardia del implementer: `true` por defecto; `false` o `{"alcance","ramaPrincipal","git"}` por regla), `revision.lenteSeguridad` (`auto` por defecto: la lente C de seguridad de `adversarial-review` solo si `review-lens-select.py` detecta rutas/líneas sensibles; `siempre` · `nunca`; lo pregunta `/setup` paso 5-ter), `revision.lenteRendimiento` (superiority T-04, mismo vocabulario y mismo default `auto`: la lente D de rendimiento del MISMO `review-lens-select.py` solo si detecta rutas de repositorio/consulta/cola o patrones costosos —N+1, `await` en bucle, `sleep` bloqueante—; lo pregunta el mismo paso 5-ter), `revision.excluir` (lista de globs `**`-aware que se sacan de la heurística de **ruta** de las lentes C y D —cada una con sus propios stems—, no de la de contenido — p. ej. `["hooks/**"]` en un repo cuyos hooks se llamen `session-*.sh`; ajuste manual), `tests.coberturaMinima` (superiority T-03, **ausente por defecto = sin gate**: umbral mínimo N de cobertura por diff que `implementer` P5 comprueba con la skill `unit-tests` —`coverage-gate.py --changed-only`— solo si la herramienta oficial del stack está instalada; sin ella, solo informa sin bloquear; lo pregunta `/setup` paso 5-quinquies), `sesion.indice` (`true` por defecto: el hook `SessionStart` inyecta el índice compacto de piezas de `skill-index.py`; `false` lo apaga y deja solo el contexto de retoma del roadmap), `sesion.journal` (booleano o `{activo, dir, ventanaHuerfanaMin, replay: {budgetMs, max}}`; `true`/activo por defecto: el hook `SessionEnd` solo captura el envelope en `.claude/journal/outbox/` y `SessionStart`/`replay` materializan la entrada de bitácora en `docs/knowledge/journal/`, reinyectando la última; `false` lo apaga — regla 10), `sesion.captura` (`true` por defecto: el hook `UserPromptSubmit` acumula el turno del usuario en el log crudo no versionado del que `SessionEnd` extrae `decisiones`/`pendientes`; `false` lo apaga — regla 10), `sesion.resumen` (`false` por defecto: con `true`, `SessionEnd` pide a `claude -p --bare` un resumen de la sesión DESPUÉS de escribir la entrada determinista; sin CLI, sin `ANTHROPIC_API_KEY` o con timeout degrada a la determinista — regla 10), `sesion.memoria` (`true` por defecto: el hook `SessionStart` inyecta el bloque de memoria técnica del área de la iniciativa activa —`knowledge-find.py` enrutado, ≤ 1.200 caracteres—; `false` lo apaga y deja índice, retoma y journal), `alcance.excluir` (plugin-refactor T-11, lista de globs `**`-aware que **amplía de forma ADITIVA** la lista por defecto de `agent-kits/shared/scope-check.py` —`CONTINUE-HERE*.md` · `.claude/**` · `docs/knowledge/journal/**`: lo que escribe el orquestador, la instalación o un hook y no es de ninguna tarea—; lo excluido **no** es «fuera de alcance» (no cambia el exit code) pero se lista en la clave `excluidos` del `--json`, y un fichero declarado en el campo `Archivos` de una tarea gana a la exclusión, igual que `docs/knowledge/**` (memoria del proyecto: `SIEMPRE_EN_ALCANCE` se evalúa ANTES que la exclusión de usuario, así que un `docs/**` en `alcance.excluir` no saca del alcance un ADR nuevo); el default no se puede vaciar desde `dev.json`; si un glob de usuario deja la lista «fuera de alcance» VACÍA habiendo cambios que sin él saldrían fuera, o se come ≥ la mitad del diff (≥ 3 ficheros), la puerta lo AVISA en stderr y en la clave `avisos` del `--json` sin cambiar el exit code — el `--json` publica además `excluir_vigente`, `excluir_usuario` y `excluidos_patron` (qué glob excluyó cada fichero); valor mal formado o fichero ilegible → aviso en stderr y default; ajuste manual, `/setup` no lo pregunta), `modelos` (**tiering configurable, capa 2** — `{"<agente>": {"model": "haiku|sonnet|opus|inherit|claude-…", "effort": "low|medium|high|xhigh|max"}}`, parcial y por agente; lo resuelve `agent-kits/shared/model-tier.py` y lo pasan los orquestadores en el parámetro `model` del Agent tool; `effort` aquí es informativo — el Agent tool no lo admite por invocación —; la invocación manual `@agente` sigue el frontmatter; lo pregunta `/setup` paso 5-quater). Todo opt-in con defaults `false` salvo `guardrails` (activo), `revision.lenteSeguridad`/`revision.lenteRendimiento` (`auto` cada una), `sesion.indice`, `sesion.journal`, `sesion.captura` y `sesion.memoria` (activos), `sesion.resumen` (apagado), `modelos` (ausente = frontmatter) `tests.coberturaMinima` (ausente = sin gate) y `alcance.excluir` (ausente = solo el default del script) | `/setup` o a mano | Recrear con `/setup`; sin fichero o corrupto → defaults `false` + aviso (comportamiento clásico) |
+| `knowledge-services/taxonomy.json` | Config de `knowledge-services` (ADR-018): categorías de conocimiento por proyecto (`key`/`folder`/`min_evidence`/`routing`), `backends` declarados (`id`, `type`, `enabled`, `config`) y `routing` por categoría que solo puede citar ids declarados (fail-closed, CA-11). Validado con `agent-kits/shared/knowledge-schema.py` (stdlib, sin dependencias) contra `agent-kits/shared/schemas/taxonomy.schema.json`. Sin este fichero, el plugin usa la plantilla por defecto (`agent-kits/shared/templates/taxonomy.json`: DECISION/PATTERN/GOTCHA/LESSON alineado con `adr/`/`gotchas/`/`lessons/`, backend `kwipu` desactivado) | `/setup` (desde la plantilla) o a mano | Recrear desde `agent-kits/shared/templates/taxonomy.json`; sin fichero, el plugin degrada a esa misma plantilla en memoria |
 | `usage-state.json` | Marcadores de medición de coste (`usage-meter.py`: offsets por transcripción y artefacto) | `usage-meter.py` | Borrarlo es inocuo: se pierden los marcadores abiertos; los siguientes `start` lo recrean |
 | `journal/` | Cola atómica de la captura durable de `SessionEnd` (`outbox/` → `processing/` → `done/`/`dead-letter/`, módulo `agent-kits/shared/outbox.py`); **no versionada**, con su propio `.gitignore` sembrado por el propio hook y excluida del `.gitignore` raíz; sobrevive a un uninstall/upgrade del plugin | hook `session-journal.sh` (`journal.py capture-end`), materializada por `journal.py replay`/`recover` | Solo `journal.py purge --confirm` la borra; una entrada perdida antes del envelope se recupera hasta el último prompt capturado (`recover`, `cierre: recuperado_sin_cierre`) |
 | `.confluence-pending` | Marca efímera del hook (hay docs sin sincronizar) | hook `PostToolUse` | Borrarla es inocuo; la skill re-detecta por manifiesto |
@@ -190,6 +191,30 @@ Cada skill guarda su config (decisiones del usuario) y su estado (memoria de má
 Reglas: **config ≠ estado** (la config la decide el usuario; el estado lo mantiene la máquina y
 nunca se edita a mano); toda skill nueva que necesite memoria sigue este patrón (`<skill>.json` +
 `<skill>-state.json`) y añade su fila aquí.
+
+**Registro de capacidades opcionales (`agent-kits/shared/capabilities.py`, ADR-018 punto 7,
+CA-14).** `/setup` y `/doctor` no llevan código específico por capacidad opcional (kwipu hoy;
+graphiti, training-data-services después): cada capacidad se declara UNA vez con el contrato
+`{id, config_path, enabled, health, doctor, setup_step}` (`enabled`/`health`/`doctor` pueden ser
+un valor estático o un `callable(root)`) y `registrar()` la añade al registro global; `/setup` y
+`/doctor` solo recorren `enumerar(root)`. Una capacidad cuyo `enabled`/`health`/`doctor` lanza
+degrada a `{"estado": "error", "detalle": "..."}` **sin tumbar la evaluación de las demás**
+(fail soft). El registro base de `knowledge-services` declara `knowledge-gate` (siempre activo;
+su salud es la de `taxonomy.json`, con o sin fichero de proyecto) y `kwipu` (activo solo con
+`backends.kwipu.enabled: true`; la comprobación de red real la hace el adaptador
+`markdown-export`, no el registro).
+
+`/doctor` (T-09) añade un bloque **«Capacidades opcionales»**, genérico también: una fila por
+capacidad de `enumerar(root)`, sin ninguna cadena específica de capacidad en `doctor.py` (config
+inválida → ❌ con fichero+campo+arreglo; desactivada → ℹ️; activa con un backend declarado →
+comprobación de red EN VIVO cargando el mismo adaptador genérico que usa `knowledge-sync.py`
+(`skills/knowledge-services/backends/__init__.py::cargar_adaptador`), nunca importándolo por
+nombre — ✅ sano sin desfase, ⚠️ export atrasado con el remedio que nombra `verify()` sin
+ejecutarlo, ⚠️/❌ degradado/error, ℹ️ sin conexión o timeout; activa sin backend → el texto
+genérico `doctor` de la propia capacidad). `/setup` (paso 5-sexies) muestra las capacidades
+registradas en un único paso y ofrece crear `.claude/knowledge-services/taxonomy.json` desde la
+plantilla del plugin si no existe; activar una capacidad concreta sigue el `setup_step` que ella
+misma declara, y el paso nunca conecta nada por su cuenta.
 
 ## 10. Memoria técnica del proyecto — `docs/knowledge/`
 
@@ -202,13 +227,24 @@ lo que "ya no hay que volver a descubrir" cada vez, generalizando el patrón de 
 - **Dónde vive.** `docs/knowledge/adr/ADR-NNN-<slug>.md` (una por decisión, plantilla
   `agent-kits/shared/templates/adr.md`), `docs/knowledge/gotchas/GOT-NNN-<slug>.md` (una por
   entrada) y `docs/knowledge/lessons/LES-NNN-<agente>-<slug>.md` (una por entrada, agrupada por
-  agente en el nombre),
-  con un `README.md` **índice de entrada** (el índice generado + `knowledge-lint.py` quedan
+  agente en el nombre). Junto a ese corpus legado (ADR/GOT/LES, indexado a mano), `knowledge-
+  services` (ADR-018) añade `docs/knowledge/candidates/{pending,needs_changes,rejected}/` (cola de
+  curación, propuesta por `documenter`/`knowledge-curator`) y `docs/knowledge/approved/<folder>/`
+  (una carpeta por `categories[].folder` de `.claude/knowledge-services/taxonomy.json`, o de la
+  plantilla por defecto del plugin): ese árbol lo indexa `agent-kits/shared/knowledge-index.py`
+  (índice determinista sobre la taxonomía configurada), distinto del índice manual de ADR/GOT/LES
+  de más abajo — nunca se mezclan.
+  Con un `README.md` **índice de entrada** (el índice generado + `knowledge-lint.py` quedan
   diferidos hasta que haya evidencia de que hacen falta: más de 15 entradas o la primera colisión
   de ID en cualquiera de las tres familias, en un lote paralelo). Un fichero por entrada en los
   tres tipos elimina la colisión de FICHERO en escritura paralela; la colisión de `id:` sigue
   siendo posible en las tres familias (ADR/GOT/LES), con la misma mitigación (renumerar y
   declararlo en la retro), ver regla anterior.
+  **Migración (gap 113, revisión de dos lentes Fase 3 intento 2, 2026-09-18):** el campo
+  `category` de `docs/knowledge/approved/<folder>/` era opcional cuando este árbol nació y pasó a
+  **obligatorio** (`knowledge-index.py` lo exige al indexar, `curator-gate.py` bloquea `approve`
+  sin él) — ver la nota de migración de `docs/knowledge/approved/README.md` si un proyecto tiene
+  entradas anteriores a ese cambio.
 - **Siempre activa, sin opt-in.** Si `docs/knowledge/` no existiera, ningún agente se queja: la
   carpeta nace en el primer registro. Es la misma filosofía de degradación silenciosa que el resto
   del plugin (constitución, Jira, Confluence), pero sin interruptor — no hay nada que activar.

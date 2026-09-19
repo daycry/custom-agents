@@ -1,0 +1,879 @@
+"""Tests de `knowledge-index.py` (knowledge-services T-02).
+
+El índice opera SOLO sobre `docs/knowledge/approved/<folder>/` (y nunca sobre
+`docs/knowledge/candidates/**`) para no tocar el corpus heredado de `docs/knowledge/{adr,gotchas,
+lessons}` — ese árbol lo sigue gobernando el índice manual + `knowledge-lint.py` diferido de
+ADR-006 (D4). `knowledge-index.py` es un validador NUEVO y distinto, dirigido por la taxonomía
+configurada (`.claude/knowledge-services/taxonomy.json`), para el flujo de candidatos/aprobados de
+`knowledge-services`. Decisión sin respaldo literal en spec/design más allá de "índice canónico
+determinista sobre la taxonomía configurada" — señalada para revisión.
+"""
+import importlib.util
+import json
+import os
+import sys
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+
+
+def _load():
+    spec = importlib.util.spec_from_file_location("knowledge_index", os.path.join(HERE, "knowledge-index.py"))
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules["knowledge_index"] = mod
+    spec.loader.exec_module(mod)
+    return mod
+
+
+ki = _load()
+
+
+def _taxonomy(root, categories):
+    cfg = {
+        "version": 1,
+        "id_prefix": "ca",
+        "categories": categories,
+        "evidence_levels": ["observation", "single_case", "validated_case",
+                             "multiple_validated_cases", "human_confirmed_rule"],
+    }
+    d = os.path.join(root, ".claude", "knowledge-services")
+    os.makedirs(d, exist_ok=True)
+    with open(os.path.join(d, "taxonomy.json"), "w", encoding="utf-8") as f:
+        json.dump(cfg, f)
+    return cfg
+
+
+def _entry(root, folder, filename, id_, version=1, enlaces=None, extra="", estado="aprobado",
+           category="DECISION"):
+    # gap 43 (revisión intento 1): `estado` es obligatorio bajo `approved/`; el default de este
+    # helper es el caso feliz (`aprobado`) — pasa `estado=None` para omitirlo a propósito en un
+    # test que ejercite precisamente su ausencia. gap 84 (revisión Fase 3 intento 1): `category`
+    # pasa a ser obligatoria con el MISMO criterio; el default `"DECISION"` casa con la categoría
+    # por defecto de `_cat()` — pasa `category=None` para omitirla a propósito.
+    d = os.path.join(root, "docs", "knowledge", "approved", folder)
+    os.makedirs(d, exist_ok=True)
+    fm = [f"id: {id_}"]
+    if version is not None:
+        fm.append(f"version: {version}")
+    if enlaces:
+        fm.append("enlaces: [" + ", ".join(enlaces) + "]")
+    if estado is not None:
+        fm.append(f"estado: {estado}")
+    if category is not None:
+        fm.append(f"category: {category}")
+    contenido = "---\n" + "\n".join(fm) + "\n---\n\n# " + id_ + "\n\n" + extra + "\n"
+    with open(os.path.join(d, filename), "w", encoding="utf-8") as f:
+        f.write(contenido)
+
+
+def _cat(key="DECISION", folder="adr", min_evidence="human_confirmed_rule"):
+    return [{"key": key, "folder": folder, "min_evidence": min_evidence}]
+
+
+# ------------------------------------------------------------------ básico
+
+def test_indice_vacio_sin_entradas(tmp_path):
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    indice, errores = ki.build_index(root)
+    assert indice == {}
+    assert errores == []
+
+
+def test_una_entrada_valida(tmp_path):
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    _entry(root, "adr", "ADR-001.md", "ADR-001")
+    indice, errores = ki.build_index(root)
+    assert errores == []
+    assert "ADR-001" in indice
+    assert indice["ADR-001"]["folder"] == "adr"
+
+
+def test_id_duplicado_falla_con_ruta_y_campo(tmp_path):
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    _entry(root, "adr", "ADR-001.md", "ADR-001")
+    _entry(root, "adr", "ADR-001-bis.md", "ADR-001")
+    indice, errores = ki.build_index(root)
+    assert any(e["campo"] == "id" and "duplicad" in e["mensaje"] for e in errores)
+    assert all(e.get("fichero") for e in errores)
+
+
+def test_version_faltante_falla(tmp_path):
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    _entry(root, "adr", "ADR-002.md", "ADR-002", version=None)
+    indice, errores = ki.build_index(root)
+    assert any(e["campo"] == "version" for e in errores)
+
+
+def test_enlace_roto_falla(tmp_path):
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    _entry(root, "adr", "ADR-003.md", "ADR-003", enlaces=["GOT-999"])
+    indice, errores = ki.build_index(root)
+    assert any(e["campo"] == "enlaces" and "GOT-999" in e["mensaje"] for e in errores)
+
+
+def test_enlace_valido_no_falla(tmp_path):
+    root = str(tmp_path)
+    cats = _cat() + [{"key": "GOTCHA", "folder": "gotchas", "min_evidence": "validated_case"}]
+    _taxonomy(root, cats)
+    _entry(root, "gotchas", "GOT-001.md", "GOT-001")
+    _entry(root, "adr", "ADR-004.md", "ADR-004", enlaces=["GOT-001"])
+    indice, errores = ki.build_index(root)
+    assert errores == []
+
+
+def test_candidatos_no_aparecen_en_el_indice(tmp_path):
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    _entry(root, "adr", "ADR-005.md", "ADR-005")
+    d = os.path.join(root, "docs", "knowledge", "candidates", "pending")
+    os.makedirs(d, exist_ok=True)
+    with open(os.path.join(d, "CAND-001.md"), "w", encoding="utf-8") as f:
+        f.write("---\nid: CAND-001\nversion: 1\n---\n\n# candidato\n")
+    indice, errores = ki.build_index(root)
+    assert "CAND-001" not in indice
+    assert "ADR-005" in indice
+
+
+def test_readme_de_carpeta_se_ignora(tmp_path):
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    d = os.path.join(root, "docs", "knowledge", "approved", "adr")
+    os.makedirs(d, exist_ok=True)
+    with open(os.path.join(d, "README.md"), "w", encoding="utf-8") as f:
+        f.write("# no es una entrada\n")
+    indice, errores = ki.build_index(root)
+    assert indice == {}
+    assert errores == []
+
+
+def test_taxonomia_invalida_no_construye_indice(tmp_path):
+    root = str(tmp_path)
+    d = os.path.join(root, ".claude", "knowledge-services")
+    os.makedirs(d, exist_ok=True)
+    with open(os.path.join(d, "taxonomy.json"), "w", encoding="utf-8") as f:
+        json.dump({"categories": []}, f)  # falta version, categories vacía
+    indice, errores = ki.build_index(root)
+    assert indice == {}
+    assert errores
+
+
+# ------------------------------------------------------------------ dos proyectos, dos taxonomías
+
+def test_dos_taxonomias_distintas_dan_carpetas_distintas_a(tmp_path):
+    root_a = os.path.join(str(tmp_path), "proyecto_a")
+    os.makedirs(root_a, exist_ok=True)
+    _taxonomy(root_a, [{"key": "DECISION", "folder": "adr", "min_evidence": "human_confirmed_rule"}])
+    _entry(root_a, "adr", "ADR-010.md", "ADR-010")
+    indice_a, errores_a = ki.build_index(root_a)
+    assert errores_a == []
+    assert set(e["folder"] for e in indice_a.values()) == {"adr"}
+
+
+def test_dos_taxonomias_distintas_dan_carpetas_distintas_b(tmp_path):
+    root_b = os.path.join(str(tmp_path), "proyecto_b")
+    os.makedirs(root_b, exist_ok=True)
+    _taxonomy(root_b, [{"key": "RUNBOOK", "folder": "runbooks", "min_evidence": "observation"}])
+    _entry(root_b, "runbooks", "RUN-001.md", "RUN-001", category="RUNBOOK")
+    indice_b, errores_b = ki.build_index(root_b)
+    assert errores_b == []
+    assert set(e["folder"] for e in indice_b.values()) == {"runbooks"}
+
+
+# ------------------------------------------------------------------ CLI
+
+def test_cli_exit_0_sin_errores(tmp_path, capsys):
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    _entry(root, "adr", "ADR-020.md", "ADR-020")
+    assert ki.main(["--root", root]) == 0
+
+
+def test_cli_exit_1_con_errores(tmp_path, capsys):
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    _entry(root, "adr", "ADR-021.md", "ADR-021", enlaces=["NOPE-1"])
+    assert ki.main(["--root", root]) == 1
+
+
+# ------------------------------------------------------------------ revisión intento 1 (fix2)
+
+def test_gap4_knowledge_schema_ausente_degrada_sin_traceback(tmp_path, monkeypatch):
+    """Gap 4: si `knowledge-schema.py` no viaja junto a este fichero, `build_index` devuelve un
+    error controlado en vez de dejar propagar el traceback de `importlib`."""
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    monkeypatch.setattr(ki, "HERE", str(tmp_path / "vacio"))
+    indice, errores = ki.build_index(root)
+    assert indice == {}
+    assert len(errores) == 1
+    assert "knowledge-schema.py" in errores[0]["mensaje"]
+
+
+def test_gap6_symlink_fuera_de_la_carpeta_aprobada_falla(tmp_path):
+    """Gap 6: defensa en profundidad — una entrada cuya ruta resuelve fuera de `approved/<folder>/`
+    (aquí simulado sin symlink real, monkeypatch de os.path.realpath sería frágil; se prueba con
+    un symlink cuando la plataforma lo soporta, y se salta si no)."""
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    fuera = tmp_path / "fuera.md"
+    fuera.write_text("---\nid: ADR-FUERA\nversion: 1\n---\n\n# fuera\n", encoding="utf-8")
+    d = os.path.join(root, "docs", "knowledge", "approved", "adr")
+    os.makedirs(d, exist_ok=True)
+    enlace = os.path.join(d, "ADR-FUERA.md")
+    try:
+        os.symlink(str(fuera), enlace)
+    except (OSError, NotImplementedError):
+        import pytest
+        pytest.skip("symlinks no soportados en esta plataforma/permiso")
+    indice, errores = ki.build_index(root)
+    assert "ADR-FUERA" not in indice
+    assert any("fuera de la carpeta aprobada" in e["mensaje"] for e in errores)
+
+
+def test_gap8_entrada_con_bom_se_lee_igual(tmp_path):
+    """Gap 8: un `.md` guardado con BOM UTF-8 (utf-8-sig) no debe fallar ni contaminar el `id`."""
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    d = os.path.join(root, "docs", "knowledge", "approved", "adr")
+    os.makedirs(d, exist_ok=True)
+    contenido = "---\nid: ADR-BOM\nversion: 1\nestado: aprobado\ncategory: DECISION\n---\n\n# bom\n"
+    with open(os.path.join(d, "ADR-BOM.md"), "w", encoding="utf-8-sig") as f:
+        f.write(contenido)
+    indice, errores = ki.build_index(root)
+    assert errores == []
+    assert "ADR-BOM" in indice
+
+
+def test_gap9_enlaces_en_lista_de_bloque_se_parsean(tmp_path):
+    """Gap 9: `enlaces:` como lista en bloque (YAML `- item` en líneas siguientes), no solo
+    `[a, b]` inline."""
+    root = str(tmp_path)
+    cats = _cat() + [{"key": "GOTCHA", "folder": "gotchas", "min_evidence": "validated_case"}]
+    _taxonomy(root, cats)
+    _entry(root, "gotchas", "GOT-002.md", "GOT-002")
+    d = os.path.join(root, "docs", "knowledge", "approved", "adr")
+    os.makedirs(d, exist_ok=True)
+    contenido = "---\nid: ADR-BLOQUE\nversion: 1\nestado: aprobado\ncategory: DECISION\nenlaces:\n  - GOT-002\n---\n\n# bloque\n"
+    with open(os.path.join(d, "ADR-BLOQUE.md"), "w", encoding="utf-8") as f:
+        f.write(contenido)
+    indice, errores = ki.build_index(root)
+    assert errores == []
+    assert indice["ADR-BLOQUE"]["enlaces"] == ["GOT-002"]
+
+
+def test_gap17_entrada_en_subcarpeta_se_indexa(tmp_path):
+    """Gap 17: `build_index` recorre subcarpetas de cada `folder` declarado, no solo su nivel
+    superior (una entrada puede vivir junto a sus adjuntos en un subdirectorio propio)."""
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    d = os.path.join(root, "docs", "knowledge", "approved", "adr", "ADR-030")
+    os.makedirs(d, exist_ok=True)
+    with open(os.path.join(d, "ADR-030.md"), "w", encoding="utf-8") as f:
+        f.write("---\nid: ADR-030\nversion: 1\nestado: aprobado\ncategory: DECISION\n---\n\n# sub\n")
+    indice, errores = ki.build_index(root)
+    assert errores == []
+    assert "ADR-030" in indice
+
+
+def test_gap3_estado_invalido_en_entrada_aprobada_falla(tmp_path):
+    """Gap 3 (forma, no semántica de categoría — ver docstring del módulo): si una entrada
+    declara `estado`, debe ser `aprobado` bajo `approved/`."""
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    d = os.path.join(root, "docs", "knowledge", "approved", "adr")
+    os.makedirs(d, exist_ok=True)
+    with open(os.path.join(d, "ADR-040.md"), "w", encoding="utf-8") as f:
+        f.write("---\nid: ADR-040\nversion: 1\nestado: pending\n---\n\n# x\n")
+    indice, errores = ki.build_index(root)
+    assert any(e["campo"] == "estado" for e in errores)
+
+
+def test_gap43_estado_ausente_en_entrada_aprobada_falla(tmp_path):
+    """Gap 43 (revisión intento 1): `estado` es OBLIGATORIO bajo `approved/`, no solo validado
+    si está presente — una entrada sin `estado` en absoluto (p. ej. escrita a mano, saltándose
+    `curator-gate.py`) debe reportar un error `campo == "estado"`, igual que si declarase un
+    valor inválido."""
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    _entry(root, "adr", "ADR-043.md", "ADR-043", estado=None)
+    indice, errores = ki.build_index(root)
+    assert any(e["campo"] == "estado" and "falta" in e["mensaje"] for e in errores)
+
+
+def test_gap3_fuentes_vacia_declarada_falla(tmp_path):
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    d = os.path.join(root, "docs", "knowledge", "approved", "adr")
+    os.makedirs(d, exist_ok=True)
+    with open(os.path.join(d, "ADR-041.md"), "w", encoding="utf-8") as f:
+        f.write("---\nid: ADR-041\nversion: 1\nfuentes:\n---\n\n# x\n")
+    indice, errores = ki.build_index(root)
+    assert any(e["campo"] == "fuentes" for e in errores)
+
+
+def test_gap3_tags_lista_valida_no_falla(tmp_path):
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    d = os.path.join(root, "docs", "knowledge", "approved", "adr")
+    os.makedirs(d, exist_ok=True)
+    contenido = "---\nid: ADR-042\nversion: 1\ntags: [a, b]\nestado: aprobado\ncategory: DECISION\n---\n\n# x\n"
+    with open(os.path.join(d, "ADR-042.md"), "w", encoding="utf-8") as f:
+        f.write(contenido)
+    indice, errores = ki.build_index(root)
+    assert errores == []
+
+
+# --------------------------------------------------------- gaps 25/26/30/31/33 (revision intento 2)
+
+def test_gap25_enlaces_en_lista_de_bloque_sin_sangria_se_parsean(tmp_path):
+    """Gap 25: PyYAML por defecto emite los items de una secuencia de bloque SIN indentar respecto
+    a su clave (`enlaces:\n- GOT-999`, no `enlaces:\n  - GOT-999`); el parser debe reconocer las
+    dos formas."""
+    root = str(tmp_path)
+    cats = _cat() + [{"key": "GOTCHA", "folder": "gotchas", "min_evidence": "validated_case"}]
+    _taxonomy(root, cats)
+    _entry(root, "gotchas", "GOT-999.md", "GOT-999")
+    d = os.path.join(root, "docs", "knowledge", "approved", "adr")
+    os.makedirs(d, exist_ok=True)
+    contenido = "---\nid: ADR-BLOQUE-SIN-SANGRIA\nversion: 1\nestado: aprobado\ncategory: DECISION\nenlaces:\n- GOT-999\n---\n\n# x\n"
+    with open(os.path.join(d, "ADR-BLOQUE-SIN-SANGRIA.md"), "w", encoding="utf-8") as f:
+        f.write(contenido)
+    indice, errores = ki.build_index(root)
+    assert errores == []
+    assert indice["ADR-BLOQUE-SIN-SANGRIA"]["enlaces"] == ["GOT-999"]
+
+
+def test_gap25_fuentes_en_lista_de_bloque_sin_sangria_no_es_falso_positivo(tmp_path):
+    """Gap 25: `fuentes`/`tags` en bloque SIN sangría no deben disparar el falso positivo del
+    gap 3 ("declarado pero no es una lista")."""
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    d = os.path.join(root, "docs", "knowledge", "approved", "adr")
+    os.makedirs(d, exist_ok=True)
+    contenido = ("---\nid: ADR-FUENTES-SIN-SANGRIA\nversion: 1\nestado: aprobado\n"
+                 "category: DECISION\nfuentes:\n- https://x\n---\n\n# x\n")
+    with open(os.path.join(d, "ADR-FUENTES-SIN-SANGRIA.md"), "w", encoding="utf-8") as f:
+        f.write(contenido)
+    indice, errores = ki.build_index(root)
+    assert errores == []
+
+
+def test_gap26_entrada_con_encoding_invalido_no_tumba_el_indice(tmp_path):
+    """Gap 26: un `.md` en cp1252/latin-1 lanza `UnicodeDecodeError` con `utf-8-sig`; debe
+    reportarse como error de ESA entrada (campo `encoding`) y el índice sigue con el resto."""
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    d = os.path.join(root, "docs", "knowledge", "approved", "adr")
+    os.makedirs(d, exist_ok=True)
+    with open(os.path.join(d, "ADR-CP1252.md"), "wb") as f:
+        f.write("---\nid: ADR-CP1252\nversion: 1\n---\n\n# ñáé\n".encode("cp1252"))
+    _entry(root, "adr", "ADR-OK.md", "ADR-OK")
+    indice, errores = ki.build_index(root)
+    assert "ADR-OK" in indice
+    assert "ADR-CP1252" not in indice
+    assert any(e["campo"] == "encoding" for e in errores)
+
+
+def test_gap30_carpetas_anidadas_no_duplican_el_mismo_fichero(tmp_path):
+    """Gap 30: `folder: "adr"` y `folder: "adr/legacy"` (config legal según `_folder_seguro`)
+    caminan sobre el MISMO fichero físico bajo `adr/legacy/`; no debe reportarse como `id`
+    duplicado contra sí mismo."""
+    root = str(tmp_path)
+    cats = [{"key": "DECISION", "folder": "adr", "min_evidence": "human_confirmed_rule"},
+            # El contrato de `folder` siempre usa "/" (`_folder_seguro` rechaza "\\", el
+            # separador de Windows: es CONFIG, no una ruta de sistema, y `os.path.join` la
+            # traduce igual en las dos plataformas).
+            {"key": "DECISION_LEGACY", "folder": "adr/legacy",
+             "min_evidence": "human_confirmed_rule"}]
+    _taxonomy(root, cats)
+    d = os.path.join(root, "docs", "knowledge", "approved", "adr", "legacy")
+    os.makedirs(d, exist_ok=True)
+    with open(os.path.join(d, "ADR-LEGACY.md"), "w", encoding="utf-8") as f:
+        f.write("---\nid: ADR-LEGACY\nversion: 1\nestado: aprobado\ncategory: DECISION_LEGACY\n---\n\n# legacy\n")
+    indice, errores = ki.build_index(root)
+    assert errores == []
+    assert "ADR-LEGACY" in indice
+
+
+def test_gap31_ruta_segura_dentro_degrada_sin_traceback_si_commonpath_revienta(monkeypatch):
+    """Gap 31: `os.path.commonpath` lanza `ValueError` con un symlink a otra unidad de Windows;
+    `_ruta_segura_dentro` debe degradar a `False` (fail-closed), no reventar."""
+    def _commonpath_revienta(_rutas):
+        raise ValueError("Paths don't have the same drive")
+    monkeypatch.setattr(ki.os.path, "commonpath", _commonpath_revienta)
+    assert ki._ruta_segura_dentro(os.getcwd(), os.path.join(os.getcwd(), "x")) is False
+
+
+def test_gap38_carpetas_anidadas_asignan_el_folder_mas_especifico(tmp_path):
+    """Gap 38 (cola del gap 30, revision intento 3): con `folder: "adr"` y `folder: "adr/legacy"`
+    anidados, la entrada fisica bajo `adr/legacy/` debe indexarse con el `folder` MAS ESPECIFICO
+    (`"adr/legacy"`), no con el de la carpeta exterior que `os.walk` recorre igual por
+    recursion (antes de fix4 ganaba el primero de `sorted(carpetas)` == "adr")."""
+    root = str(tmp_path)
+    cats = [{"key": "DECISION", "folder": "adr", "min_evidence": "human_confirmed_rule"},
+            {"key": "DECISION_LEGACY", "folder": "adr/legacy",
+             "min_evidence": "human_confirmed_rule"}]
+    _taxonomy(root, cats)
+    d = os.path.join(root, "docs", "knowledge", "approved", "adr", "legacy")
+    os.makedirs(d, exist_ok=True)
+    with open(os.path.join(d, "ADR-LEGACY.md"), "w", encoding="utf-8") as f:
+        f.write("---\nid: ADR-LEGACY\nversion: 1\nestado: aprobado\ncategory: DECISION_LEGACY\n---\n\n# legacy\n")
+    indice, errores = ki.build_index(root)
+    assert errores == []
+    assert indice["ADR-LEGACY"]["folder"] == "adr/legacy"
+
+
+def test_gap37_dedupe_no_debe_consumir_una_ruta_rechazada_por_contencion(tmp_path, monkeypatch):
+    """Gap 37 (Important, regresion del dedupe del gap 30, revision intento 3): antes de fix4 la
+    `realpath` se registraba en `rutas_vistas_real` ANTES de que `_ruta_segura_dentro` rechazara la
+    ruta. Con `folder: "adr"` y `folder: "lessons"` y una ruta ILEGITIMA bajo `adr/espejo/` cuya
+    `realpath` colisiona con la entrada LEGITIMA de `lessons/` (simulado con monkeypatch de
+    `os.path.realpath`, una junction real de Windows es fragil de crear en CI), la entrada
+    legitima desaparecia del indice porque su realpath ya constaba como "vista". Tras el fix, la
+    ruta ilegitima se rechaza (contencion) SIN consumir el dedupe y la legitima se indexa."""
+    root = str(tmp_path)
+    cats = [{"key": "DECISION", "folder": "adr", "min_evidence": "human_confirmed_rule"},
+            {"key": "LESSON", "folder": "lessons", "min_evidence": "human_confirmed_rule"}]
+    _taxonomy(root, cats)
+    _entry(root, "adr", "ADR-1.md", "ADR-1")
+
+    espejo_dir = os.path.join(root, "docs", "knowledge", "approved", "adr", "espejo")
+    os.makedirs(espejo_dir, exist_ok=True)
+    ruta_ilegitima = os.path.join(espejo_dir, "LES-1.md")
+    with open(ruta_ilegitima, "w", encoding="utf-8") as f:
+        f.write("---\nid: LES-1\nversion: 1\n---\n\n# copia ilegitima via junction\n")
+
+    lessons_dir = os.path.join(root, "docs", "knowledge", "approved", "lessons")
+    os.makedirs(lessons_dir, exist_ok=True)
+    ruta_legitima = os.path.join(lessons_dir, "LES-1.md")
+    with open(ruta_legitima, "w", encoding="utf-8") as f:
+        f.write("---\nid: LES-1\nversion: 1\n---\n\n# legitima\n")
+
+    original_realpath = ki.os.path.realpath
+    real_legitima = original_realpath(ruta_legitima)
+    norm_ilegitima = os.path.normcase(os.path.abspath(ruta_ilegitima))
+
+    def _realpath_simulando_junction(p):
+        # Simula `approved/adr/espejo -> approved/lessons/`: la ruta ilegitima resuelve al MISMO
+        # fichero fisico que la legitima, como haria una junction/symlink real.
+        if os.path.normcase(os.path.abspath(p)) == norm_ilegitima:
+            return real_legitima
+        return original_realpath(p)
+
+    monkeypatch.setattr(ki.os.path, "realpath", _realpath_simulando_junction)
+
+    indice, errores = ki.build_index(root)
+    assert "ADR-1" in indice
+    assert "LES-1" in indice
+    assert indice["LES-1"]["ruta"] == ruta_legitima
+    assert indice["LES-1"]["folder"] == "lessons"
+    assert any("fuera de la carpeta aprobada" in e["mensaje"] for e in errores)
+
+
+def test_gap37_dedupe_con_junction_real_si_la_plataforma_lo_soporta(tmp_path):
+    """Gap 37: variante con una junction/symlink REAL en vez de monkeypatch, para no depender
+    solo de la simulacion. `mklink /J` en Windows (no requiere privilegios elevados, a diferencia
+    de un symlink); `os.symlink` en POSIX. Se salta limpio si la plataforma/permiso no lo permite."""
+    import subprocess
+
+    root = str(tmp_path)
+    cats = [{"key": "DECISION", "folder": "adr", "min_evidence": "human_confirmed_rule"},
+            {"key": "LESSON", "folder": "lessons", "min_evidence": "human_confirmed_rule"}]
+    _taxonomy(root, cats)
+    _entry(root, "adr", "ADR-1.md", "ADR-1")
+
+    lessons_dir = os.path.join(root, "docs", "knowledge", "approved", "lessons")
+    os.makedirs(lessons_dir, exist_ok=True)
+    ruta_legitima = os.path.join(lessons_dir, "LES-1.md")
+    with open(ruta_legitima, "w", encoding="utf-8") as f:
+        # entrada LEGITIMA de verdad (aprobada y con `category`): asi el unico error posible del indice es el de
+        # contencion, y la asercion final no puede quedar satisfecha por otro motivo (en CI Linux fallaba por `category`)
+        f.write("---\nid: LES-1\nversion: 1\nestado: aprobado\ncategory: LESSON\n---\n\n# legitima\n")
+
+    adr_dir = os.path.join(root, "docs", "knowledge", "approved", "adr")
+    os.makedirs(adr_dir, exist_ok=True)
+    espejo = os.path.join(adr_dir, "espejo")
+
+    import pytest
+    if os.name == "nt":
+        try:
+            # `mklink` imprime en la codepage local de la consola (no necesariamente utf-8), y no
+            # nos interesa su salida mas alla de si tuvo exito: `errors="replace"` evita un
+            # `UnicodeDecodeError` en el hilo lector de `subprocess` sin depender de la codepage.
+            subprocess.run(["cmd", "/c", "mklink", "/J", espejo, lessons_dir],
+                            check=True, capture_output=True, text=True,
+                            encoding="utf-8", errors="replace")
+        except (OSError, subprocess.CalledProcessError) as e:
+            pytest.skip(f"no se pudo crear la junction: {e}")
+    else:
+        try:
+            os.symlink(lessons_dir, espejo, target_is_directory=True)
+        except (OSError, NotImplementedError) as e:
+            pytest.skip(f"symlinks no soportados en esta plataforma/permiso: {e}")
+
+    indice, errores = ki.build_index(root)
+    assert "ADR-1" in indice
+    assert "LES-1" in indice
+    assert indice["LES-1"]["ruta"] == ruta_legitima
+    # Windows: `os.walk` entra en la junction (parece un directorio real) y la contencion la rechaza con error.
+    # POSIX: `os.walk(followlinks=False)` NO entra en el symlink, asi que no hay nada que rechazar (CI Linux).
+    # Ambos cumplen el invariante del gap 37: la entrada legitima sigue en el indice con su ruta real y sin duplicado.
+    mensajes = [e["mensaje"] for e in errores]
+    otros = [m for m in mensajes if "fuera de la carpeta aprobada" not in m]
+    assert not otros, f"el unico error admisible es el de contencion: {otros}"
+
+
+def test_gap33_estado_presente_sin_valor_tiene_mensaje_propio(tmp_path):
+    """Gap 33: `estado:` sin valor (clave presente, cadena vacía tras el parser) es un mensaje
+    DISTINTO de "valor inválido" — no debe confundirse con `estado: algo-mal-escrito`."""
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    d = os.path.join(root, "docs", "knowledge", "approved", "adr")
+    os.makedirs(d, exist_ok=True)
+    with open(os.path.join(d, "ADR-ESTADO-VACIO.md"), "w", encoding="utf-8") as f:
+        f.write("---\nid: ADR-ESTADO-VACIO\nversion: 1\nestado:\n---\n\n# x\n")
+    indice, errores = ki.build_index(root)
+    mensajes = [e["mensaje"] for e in errores if e["campo"] == "estado"]
+    assert mensajes and "sin valor" in mensajes[0]
+    assert "no es válido" not in mensajes[0]
+
+
+# --------------------------------------------------------- gaps 84/96 (revision Fase 3 intento 1)
+
+def test_gap84_category_obligatoria_en_approved_falta(tmp_path):
+    """Gap 84: una entrada `approved/` sin `category` es un error de índice (mismo criterio que
+    `estado`), no una omision silenciosa aguas abajo (`knowledge-sync.py`)."""
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    _entry(root, "adr", "ADR-SIN-CATEGORY.md", "ADR-SIN-CATEGORY", category=None)
+    indice, errores = ki.build_index(root)
+    assert any(e["campo"] == "category" and "falta" in e["mensaje"] for e in errores)
+
+
+def test_gap84_category_no_declarada_en_taxonomia_falla(tmp_path):
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    _entry(root, "adr", "ADR-CATEGORY-MALA.md", "ADR-CATEGORY-MALA", category="NO-EXISTE")
+    indice, errores = ki.build_index(root)
+    assert any(e["campo"] == "category" and "no existe en la taxonomía" in e["mensaje"] for e in errores)
+
+
+def test_gap84_category_valida_indexa_el_campo(tmp_path):
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    _entry(root, "adr", "ADR-CON-CATEGORY.md", "ADR-CON-CATEGORY")
+    indice, errores = ki.build_index(root)
+    assert errores == []
+    assert indice["ADR-CON-CATEGORY"]["category"] == "DECISION"
+    assert indice["ADR-CON-CATEGORY"]["cuerpo"]
+
+
+def test_gap96_id_con_ruta_de_escape_falla_y_no_se_escribe_nada(tmp_path):
+    """Gap 96 (CWE-22): `id: "../../ESCAPE"` no debe indexarse — cualquier adaptador que componga
+    `<export_dir>/<id>.<ext>` escribiria fuera de `export_dir` con un id asi."""
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    d = os.path.join(root, "docs", "knowledge", "approved", "adr")
+    os.makedirs(d, exist_ok=True)
+    with open(os.path.join(d, "ESCAPE.md"), "w", encoding="utf-8") as f:
+        f.write("---\nid: ../../ESCAPE\nversion: 1\nestado: aprobado\ncategory: DECISION\n---\n\n# x\n")
+    indice, errores = ki.build_index(root)
+    assert "../../ESCAPE" not in indice
+    assert not indice
+    assert any(e["campo"] == "id" and "no cumple la forma" in e["mensaje"] for e in errores)
+
+
+def test_gap110_resumen_explicito_del_frontmatter_se_propaga_al_indice(tmp_path):
+    """Gap 110 (revision de dos lentes, intento 2 fix2): un `resumen:` explicito en el
+    frontmatter debe llegar hasta `knowledge-sync.py` -> adaptador (`_cuerpo_segun_modo`), que ya
+    sabia usarlo pero nunca lo recibia porque el indice no lo extraia."""
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    d = os.path.join(root, "docs", "knowledge", "approved", "adr")
+    os.makedirs(d, exist_ok=True)
+    with open(os.path.join(d, "ADR-RES.md"), "w", encoding="utf-8") as f:
+        f.write("---\nid: ADR-RES\nversion: 1\nestado: aprobado\ncategory: DECISION\n"
+                "resumen: Resumen escrito a mano.\n---\n\n# x\n\nCuerpo completo largo.\n")
+    indice, errores = ki.build_index(root)
+    assert errores == []
+    assert indice["ADR-RES"]["resumen"] == "Resumen escrito a mano."
+
+
+def test_entrada_sin_resumen_explicito_tiene_resumen_none(tmp_path):
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    _entry(root, "adr", "ADR-001.md", "ADR-001")
+    indice, errores = ki.build_index(root)
+    assert errores == []
+    assert indice["ADR-001"]["resumen"] is None
+
+
+def test_gapT10_comentario_en_medio_de_lista_de_bloque_no_trunca(tmp_path):
+    """T-10 (heredado de la revisión Fase 2 intento 2, `knowledge-index.py:144`): un comentario
+    `#` intercalado entre los items de una lista en bloque del frontmatter truncaba la lista en
+    silencio (el parser paraba en la primera línea que no casaba con `- X`). Un comentario debe
+    saltarse sin cortar el resto de items."""
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    d = os.path.join(root, "docs", "knowledge", "approved", "adr")
+    os.makedirs(d, exist_ok=True)
+    contenido = (
+        "---\nid: ADR-COMENTARIO-EN-LISTA\nversion: 1\nestado: aprobado\ncategory: DECISION\n"
+        "fuentes:\n  - https://a\n  # nota interna, ignorar\n  - https://b\n---\n\n# x\n"
+    )
+    with open(os.path.join(d, "ADR-COMENTARIO-EN-LISTA.md"), "w", encoding="utf-8") as f:
+        f.write(contenido)
+    indice, errores = ki.build_index(root)
+    assert errores == []
+    assert indice["ADR-COMENTARIO-EN-LISTA"]["fuentes"] == ["https://a", "https://b"]
+
+
+def test_gapT10_item_vacio_en_medio_de_lista_de_bloque_no_trunca(tmp_path):
+    """T-10 (heredado): un item vacío (`-` sin contenido) intercalado entre items de una lista en
+    bloque tampoco debe truncar el resto de la lista; el item vacío se descarta, no se propaga."""
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    d = os.path.join(root, "docs", "knowledge", "approved", "adr")
+    os.makedirs(d, exist_ok=True)
+    contenido = (
+        "---\nid: ADR-ITEM-VACIO-EN-LISTA\nversion: 1\nestado: aprobado\ncategory: DECISION\n"
+        "fuentes:\n  - https://a\n  -\n  - https://b\n---\n\n# x\n"
+    )
+    with open(os.path.join(d, "ADR-ITEM-VACIO-EN-LISTA.md"), "w", encoding="utf-8") as f:
+        f.write(contenido)
+    indice, errores = ki.build_index(root)
+    assert errores == []
+    assert indice["ADR-ITEM-VACIO-EN-LISTA"]["fuentes"] == ["https://a", "https://b"]
+
+
+def test_gapT10_realpath_de_la_carpeta_base_se_calcula_una_vez_por_carpeta(tmp_path, monkeypatch):
+    """T-10 (heredado, coste lineal de `realpath` por fichero): `_ruta_segura_dentro` recalculaba
+    `realpath(base)` para CADA fichero de la carpeta, aunque `base` es el mismo valor durante todo
+    el recorrido de esa carpeta. `build_index` debe calcularlo UNA vez por carpeta declarada y
+    reutilizarlo; se mide contando las llamadas reales a `os.path.realpath`."""
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    d = os.path.join(root, "docs", "knowledge", "approved", "adr")
+    os.makedirs(d, exist_ok=True)
+    n = 5
+    for i in range(n):
+        _entry(root, "adr", f"ADR-{i}.md", f"ADR-{i}")
+    llamadas = []
+    real_realpath = os.path.realpath
+
+    def _contando(p):
+        llamadas.append(p)
+        return real_realpath(p)
+
+    monkeypatch.setattr(ki.os.path, "realpath", _contando)
+    indice, errores = ki.build_index(root)
+    assert errores == []
+    assert len(indice) == n
+    # 1 llamada por la base de la carpeta (antes: 1 por CADA fichero candidato, coste lineal
+    # evitable) + hasta 2 por fichero candidato (contención + dedupe, ambas necesarias y ajenas a
+    # este gap): nunca más de 1 + 2*n.
+    assert len(llamadas) <= 1 + 2 * n
+
+
+def test_gap143_comentario_tras_guion_solo_no_produce_item_basura(tmp_path):
+    """Gap 143 (revisión de dos lentes, Fase 4 intento 1): el fix heredado de T-10 (gap `#`
+    intercalado) solo cubría un comentario en su PROPIA línea (`  # nota`, sin guion). Una línea
+    `- # nota` SÍ casa con `_ITEM_BLOQUE_RE` (guion seguido de contenido) y antes de este fix
+    colaba `"# nota"` como item basura de la lista. Debe ignorarse igual que un comentario suelto."""
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    d = os.path.join(root, "docs", "knowledge", "approved", "adr")
+    os.makedirs(d, exist_ok=True)
+    contenido = (
+        "---\nid: ADR-COMENTARIO-CON-GUION\nversion: 1\nestado: aprobado\ncategory: DECISION\n"
+        "fuentes:\n  - https://a\n  - # nota con guion\n  - https://b\n---\n\n# x\n"
+    )
+    with open(os.path.join(d, "ADR-COMENTARIO-CON-GUION.md"), "w", encoding="utf-8") as f:
+        f.write(contenido)
+    indice, errores = ki.build_index(root)
+    assert errores == []
+    assert indice["ADR-COMENTARIO-CON-GUION"]["fuentes"] == ["https://a", "https://b"]
+
+
+def test_gap143_comentario_inline_tras_dos_espacios_se_recorta_del_item(tmp_path):
+    """Gap 143: `- valor  # nota` arrastraba el comentario dentro del valor del item (`"valor  #
+    nota"` en vez de `"valor"`), lo que en `enlaces:` producía un falso «enlace roto» porque el
+    id nunca casaba con ninguna entrada real del índice. El comentario, marcado por DOS espacios
+    antes del `#` (o por estar solo en la línea, gap anterior), se recorta; un `#` pegado al valor
+    (p. ej. un fragmento de URL) no se toca."""
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    d = os.path.join(root, "docs", "knowledge", "approved", "adr")
+    os.makedirs(d, exist_ok=True)
+    contenido = (
+        "---\nid: ADR-COMENTARIO-INLINE\nversion: 1\nestado: aprobado\ncategory: DECISION\n"
+        "fuentes:\n  - https://a  # nota inline\n  - https://b#fragmento\n---\n\n# x\n"
+    )
+    with open(os.path.join(d, "ADR-COMENTARIO-INLINE.md"), "w", encoding="utf-8") as f:
+        f.write(contenido)
+    indice, errores = ki.build_index(root)
+    assert errores == []
+    assert indice["ADR-COMENTARIO-INLINE"]["fuentes"] == ["https://a", "https://b#fragmento"]
+
+
+def test_gap143_enlace_con_comentario_inline_no_es_falso_enlace_roto(tmp_path):
+    """Gap 143: un `enlaces:` en lista de bloque con comentario inline (`- ADR-DESTINO  # nota`)
+    arrastraba el comentario dentro del id citado, y como ese id compuesto nunca existe en el
+    índice, `build_index` reportaba un falso `enlace roto`."""
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    d = os.path.join(root, "docs", "knowledge", "approved", "adr")
+    os.makedirs(d, exist_ok=True)
+    with open(os.path.join(d, "ADR-DESTINO.md"), "w", encoding="utf-8") as f:
+        f.write(
+            "---\nid: ADR-DESTINO\nversion: 1\nestado: aprobado\ncategory: DECISION\n---\n\n# d\n")
+    contenido = (
+        "---\nid: ADR-ORIGEN\nversion: 1\nestado: aprobado\ncategory: DECISION\n"
+        "enlaces:\n  - ADR-DESTINO  # ver tambien\n---\n\n# o\n"
+    )
+    with open(os.path.join(d, "ADR-ORIGEN.md"), "w", encoding="utf-8") as f:
+        f.write(contenido)
+    indice, errores = ki.build_index(root)
+    assert errores == [], errores
+    assert indice["ADR-ORIGEN"]["enlaces"] == ["ADR-DESTINO"]
+
+
+# --------------------------------------------------------- gaps 172/173 (revision de dos
+# lentes, Fase 4 intento 2): `_recortar_comentario_inline` recorta con UN espacio antes de `#`
+# (YAML no exige dos), nunca dentro de comillas, y nunca si `#` va pegado al valor.
+
+def test_gap172_comentario_inline_con_un_solo_espacio_se_recorta(tmp_path):
+    """Gap 172: el recorte anterior exigia `"  #"` (DOS espacios); YAML marca un comentario con
+    UNO solo. `- ADR-002 # ver` (un espacio) dejaba `"ADR-002 # ver"` entero como item, y en
+    `enlaces:` eso producia un falso `enlace roto` porque ese id compuesto nunca existe."""
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    d = os.path.join(root, "docs", "knowledge", "approved", "adr")
+    os.makedirs(d, exist_ok=True)
+    with open(os.path.join(d, "ADR-002.md"), "w", encoding="utf-8") as f:
+        f.write("---\nid: ADR-002\nversion: 1\nestado: aprobado\ncategory: DECISION\n---\n\n# d\n")
+    contenido = (
+        "---\nid: ADR-ORIGEN-172\nversion: 1\nestado: aprobado\ncategory: DECISION\n"
+        "enlaces:\n  - ADR-002 # ver\n---\n\n# o\n"
+    )
+    with open(os.path.join(d, "ADR-ORIGEN-172.md"), "w", encoding="utf-8") as f:
+        f.write(contenido)
+    indice, errores = ki.build_index(root)
+    assert errores == [], errores
+    assert indice["ADR-ORIGEN-172"]["enlaces"] == ["ADR-002"]
+
+
+def test_gap173_comentario_inline_tras_dos_espacios_sigue_funcionando(tmp_path):
+    """Gap 172/173: la forma anterior (DOS espacios) no debe romperse con el fix del espacio
+    unico."""
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    d = os.path.join(root, "docs", "knowledge", "approved", "adr")
+    os.makedirs(d, exist_ok=True)
+    contenido = (
+        "---\nid: ADR-DOSESPACIOS\nversion: 1\nestado: aprobado\ncategory: DECISION\n"
+        "fuentes:\n  - https://a  # nota inline\n---\n\n# x\n"
+    )
+    with open(os.path.join(d, "ADR-DOSESPACIOS.md"), "w", encoding="utf-8") as f:
+        f.write(contenido)
+    indice, errores = ki.build_index(root)
+    assert errores == [], errores
+    assert indice["ADR-DOSESPACIOS"]["fuentes"] == ["https://a"]
+
+
+def test_gap173_comentario_dentro_de_comillas_no_se_recorta(tmp_path):
+    """Gap 173: el recorte se aplicaba ANTES de quitar comillas — `- "a  # b"` perdia todo lo que
+    seguia al `#` aunque estuviera DENTRO de la cadena entrecomillada (`-> "a"` en vez de
+    `"a  # b"`). Un `#` dentro de comillas nunca es un comentario YAML."""
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    d = os.path.join(root, "docs", "knowledge", "approved", "adr")
+    os.makedirs(d, exist_ok=True)
+    contenido = (
+        "---\nid: ADR-COMILLAS\nversion: 1\nestado: aprobado\ncategory: DECISION\n"
+        "fuentes:\n  - \"a  # b\"\n---\n\n# x\n"
+    )
+    with open(os.path.join(d, "ADR-COMILLAS.md"), "w", encoding="utf-8") as f:
+        f.write(contenido)
+    indice, errores = ki.build_index(root)
+    assert errores == [], errores
+    assert indice["ADR-COMILLAS"]["fuentes"] == ["a  # b"]
+
+
+def test_gap173_hash_pegado_al_valor_url_con_fragmento_no_se_recorta(tmp_path):
+    """Gap 173: `#` pegado al valor (fragmento de URL) no es un comentario."""
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    d = os.path.join(root, "docs", "knowledge", "approved", "adr")
+    os.makedirs(d, exist_ok=True)
+    contenido = (
+        "---\nid: ADR-FRAGMENTO\nversion: 1\nestado: aprobado\ncategory: DECISION\n"
+        "fuentes:\n  - https://a#frag\n---\n\n# x\n"
+    )
+    with open(os.path.join(d, "ADR-FRAGMENTO.md"), "w", encoding="utf-8") as f:
+        f.write(contenido)
+    indice, errores = ki.build_index(root)
+    assert errores == [], errores
+    assert indice["ADR-FRAGMENTO"]["fuentes"] == ["https://a#frag"]
+
+
+def test_gap173_hash_pegado_al_valor_lenguaje_csharp_no_se_recorta(tmp_path):
+    """Gap 173: `C#` (nombre de lenguaje) no debe perder la `#` — no hay espacio delante."""
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    d = os.path.join(root, "docs", "knowledge", "approved", "adr")
+    os.makedirs(d, exist_ok=True)
+    contenido = (
+        "---\nid: ADR-CSHARP\nversion: 1\nestado: aprobado\ncategory: DECISION\n"
+        "tags:\n  - C#\n---\n\n# x\n"
+    )
+    with open(os.path.join(d, "ADR-CSHARP.md"), "w", encoding="utf-8") as f:
+        f.write(contenido)
+    indice, errores = ki.build_index(root)
+    assert errores == [], errores
+    assert indice["ADR-CSHARP"]["tags"] == ["C#"]
+
+
+def test_gap173_hash_pegado_al_valor_ancla_de_seccion_no_se_recorta(tmp_path):
+    """Gap 173: `ADR-001#sec` (ancla de sección) no debe perder la `#` — no hay espacio
+    delante."""
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    d = os.path.join(root, "docs", "knowledge", "approved", "adr")
+    os.makedirs(d, exist_ok=True)
+    with open(os.path.join(d, "ADR-001.md"), "w", encoding="utf-8") as f:
+        f.write("---\nid: ADR-001\nversion: 1\nestado: aprobado\ncategory: DECISION\n---\n\n# d\n")
+    contenido = (
+        "---\nid: ADR-ANCLA\nversion: 1\nestado: aprobado\ncategory: DECISION\n"
+        "fuentes:\n  - ADR-001#sec\n---\n\n# x\n"
+    )
+    with open(os.path.join(d, "ADR-ANCLA.md"), "w", encoding="utf-8") as f:
+        f.write(contenido)
+    indice, errores = ki.build_index(root)
+    assert errores == [], errores
+    assert indice["ADR-ANCLA"]["fuentes"] == ["ADR-001#sec"]
+
+
+def test_gap183_apostrofo_en_medio_del_valor_no_abre_comillas(tmp_path):
+    """Gap 183 (revisión Fase 4 intento 3): la versión anterior trataba CUALQUIER comilla como
+    apertura de cadena, así que un apóstrofo dentro de una palabra normal (`Don't`, sin comillas
+    de verdad envolviendo el valor) dejaba todo lo que seguía "dentro de comillas" sin cerrar
+    nunca — el comentario inline legítimo ya no se recortaba. Una comilla solo abre cadena si es
+    el PRIMER carácter no-blanco del valor, igual que YAML."""
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    d = os.path.join(root, "docs", "knowledge", "approved", "adr")
+    os.makedirs(d, exist_ok=True)
+    contenido = (
+        "---\nid: ADR-APOSTROFO\nversion: 1\nestado: aprobado\ncategory: DECISION\n"
+        "fuentes:\n  - Don't repeat yourself  # nota\n---\n\n# x\n"
+    )
+    with open(os.path.join(d, "ADR-APOSTROFO.md"), "w", encoding="utf-8") as f:
+        f.write(contenido)
+    indice, errores = ki.build_index(root)
+    assert errores == [], errores
+    assert indice["ADR-APOSTROFO"]["fuentes"] == ["Don't repeat yourself"]

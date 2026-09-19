@@ -14,6 +14,7 @@ se niega a publicar con una copia atrasada.
 
 Ejecutar: python3 tests/test_ci_manual_copy.py   (o pytest -q tests)
 """
+import importlib.util
 import os
 import sys
 
@@ -103,6 +104,33 @@ if pytest is not None:
         if estado == "skip":
             pytest.skip(detalle)
         assert estado == "ok", detalle
+
+    @pytest.mark.parametrize("nombre", COPIAS)
+    def test_workflow_es_yaml_valido(nombre):
+        """Gap 71: `ci.yml.MANUAL-COPY:54` tenia un `- name:` con `: ` dentro de un escalar plano
+        (`Bench captura de SessionEnd (CA-02: p95 ...)`), lo que hacia el workflow ENTERO invalido
+        para `yaml.safe_load` — la puerta de CI del propio PR nunca llega a correr. Se comprueba con
+        `pyyaml` si esta disponible (`pytest.importorskip`); sin el, el fichero puede seguir teniendo
+        el mismo defecto sin que este test lo vea, pero no bloquea (mismo criterio degradado que el
+        resto de la suite).
+
+        Gap 76: ese degradado solo vale FUERA de CI. En CI (`$CI` definido) el propio workflow ya
+        instala `pyyaml` (gap 76 fix: `pip install pytest pyyaml`); si en CI faltara igualmente, un
+        `importorskip` silencioso dejaria el guardian del gap 71 viviendo solo en la maquina del
+        desarrollador otra vez. Por eso, en CI, un `yaml` ausente es un FALLO explicito, no un
+        skip."""
+        if os.environ.get("CI") and importlib.util.find_spec("yaml") is None:
+            pytest.fail(
+                "PyYAML no esta disponible en CI: el guardian del gap 71 (YAML valido de los "
+                "workflows) no se puede comprobar de verdad aqui. El workflow debe instalarlo "
+                "(`pip install pytest pyyaml`, gap 76)."
+            )
+        yaml = pytest.importorskip("yaml")
+        for candidato in (os.path.join(ROOT, f"{nombre}.MANUAL-COPY"), os.path.join(ROOT, ".github", "workflows", nombre)):
+            if not os.path.isfile(candidato):
+                continue
+            with open(candidato, encoding="utf-8") as f:
+                yaml.safe_load(f)   # ScannerError/ParserError si el YAML es invalido
 
     def test_lint_plugin_avisa_con_el_mismo_criterio(tmp_path):
         """`lint_manual_copies` del linter: iguales → sin aviso; distintas → aviso con el `cp`."""

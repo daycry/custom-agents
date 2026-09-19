@@ -10,7 +10,7 @@ generacion: {fuente: estimado, tokens_reales: {entrada: 0, salida: 0, cache_crea
 
 | Metrica | Estimado |
 |---|---:|
-| Estado | borrador |
+| Estado | completado |
 | Tiempo humano | 56h (enmienda 2026-09-17; antes 48h) |
 | Tiempo IA / supervision | 16.8h / 4.2h |
 | Coste humano | 2,800 EUR + tokens por verificar |
@@ -33,4 +33,5 @@ generacion: {fuente: estimado, tokens_reales: {entrada: 0, salida: 0, cache_crea
 - Staging, manifiesto y dead-letter salen de `agent-kits/shared/outbox.py`; no hay una segunda cola.
 - El utility scoring es opt-in, apagado por defecto, y nunca decide un estado por si mismo.
 - Sin configuracion o salud Kwipu, todo el ciclo actual funciona sin bloquear.
+- Kwipu indexa una vista, no ingiere: el plugin escribe el export en `generated_knowledge` y el reindexado (`build_view` + reinicio) es del stack; `verify` detecta el desfase y nombra el remedio, nunca lo ejecuta (enmienda 2026-09-18, CA-16).
 - Graphiti no aparece en codigo, configuracion o writers de esta iniciativa.

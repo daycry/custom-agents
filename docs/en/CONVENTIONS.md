@@ -183,6 +183,7 @@ Each skill stores its config (user decisions) and its state (machine memory) in 
 | `jira.json` | Opt-in + workday policy (`alCubrirJornada`) | `jira-sync` skill or `/setup` | Recreate with `/setup`; safe defaults |
 | `jira-state.json` | T-XX↔issue mapping, logged time per day, hours bank | `jira-sync` (via `worklog.py`) | Mapping: re-derivable from the keys annotated in `tasks.md`; logged time/bank: review worklogs in Jira |
 | `dev.json` | Discipline of `/dev-cycle`'s native chain: `tdd` (RED-GREEN-REFACTOR with evidence of the red), `worktree` (initiative in an isolated worktree), `subagentes` (one task = one fresh subagent), `constitucion` (decision on the `docs/CONSTITUTION.md` opt-in — distinguishes "declined" from "never asked"), `guardrails` (the implementer's guard hook: `true` by default; `false` or `{"alcance","ramaPrincipal","git"}` per rule), `revision.lenteSeguridad` (`auto` by default: the security lens C of `adversarial-review` only when `review-lens-select.py` detects sensitive paths/lines; `siempre` · `nunca`; asked by `/setup` step 5-ter), `revision.lenteRendimiento` (superiority T-04, same vocabulary and same `auto` default: the performance lens D of the SAME `review-lens-select.py`, only when it detects repository/query/queue paths or costly patterns —N+1, `await` in a loop, blocking `sleep`—; asked by the same step 5-ter), `revision.excluir` (list of `**`-aware globs removed from lenses C's and D's **path** heuristic —each with its own stems—, not from the content one — e.g. `["hooks/**"]` for a repo whose hooks are named `session-*.sh`; manual setting), `tests.coberturaMinima` (superiority T-03, **absent by default = no gate**: minimum diff coverage threshold N that `implementer` step P5 checks with the `unit-tests` skill —`coverage-gate.py --changed-only`— only when the stack's official tool is installed; without it, informational only, never blocking; asked by `/setup` step 5-quinquies), `sesion.indice` (`true` by default: the `SessionStart` hook injects the compact piece index from `skill-index.py`; `false` turns it off and leaves only the roadmap resume context), `sesion.journal` (boolean or `{activo, dir, ventanaHuerfanaMin, replay: {budgetMs, max}}`; `true`/active by default: the `SessionEnd` hook only captures the envelope under `.claude/journal/outbox/` and `SessionStart`/`replay` materialize the session log entry under `docs/knowledge/journal/`, re-injecting the latest one; `false` turns it off — rule 10), `sesion.captura` (`true` by default: the `UserPromptSubmit` hook appends the user's turn to the raw, unversioned log from which `SessionEnd` extracts `decisiones`/`pendientes`; `false` turns it off — rule 10), `sesion.resumen` (`false` by default: with `true`, `SessionEnd` asks `claude -p --bare` for a session summary AFTER writing the deterministic entry; without the CLI, without `ANTHROPIC_API_KEY` or on timeout it degrades to the deterministic one — rule 10), `sesion.memoria` (`true` by default: the `SessionStart` hook injects the technical-memory block for the active initiative's area — routed `knowledge-find.py`, ≤ 1,200 chars —; `false` turns it off and leaves index, resume and journal), `alcance.excluir` (plugin-refactor T-11, list of `**`-aware globs that **ADDITIVELY extends** `agent-kits/shared/scope-check.py`'s default list —`CONTINUE-HERE*.md` · `.claude/**` · `docs/knowledge/journal/**`: what the orchestrator, the installation or a hook writes and that belongs to no task—; what is excluded is **not** "out of scope" (the exit code does not change) but it is listed under the `--json` key `excluidos`, and a file declared in a task's `Archivos` field wins over the exclusion, and so does `docs/knowledge/**` (project memory: `SIEMPRE_EN_ALCANCE` is evaluated BEFORE the user exclusion, so a `docs/**` under `alcance.excluir` cannot push a new ADR out of scope); the default cannot be emptied from `dev.json`; if a user glob leaves the "out of scope" list EMPTY while there are changes that would otherwise be out, or swallows ≥ half of the diff (≥ 3 files), the gate WARNS on stderr and in the `--json` key `avisos` without changing the exit code — the `--json` also publishes `excluir_vigente`, `excluir_usuario` and `excluidos_patron` (which glob excluded each file); a malformed value or an unreadable file → warning on stderr and default; manual setting, `/setup` does not ask for it), `modelos` (**configurable tiering, layer 2** — `{"<agent>": {"model": "haiku|sonnet|opus|inherit|claude-…", "effort": "low|medium|high|xhigh|max"}}`, partial and per agent; resolved by `agent-kits/shared/model-tier.py` and passed by the orchestrators in the Agent tool's `model` parameter; `effort` here is informative — the Agent tool has no per-invocation effort —; a manual `@agent` invocation follows the frontmatter; asked by `/setup` step 5-quater). All opt-in with defaults `false` except `guardrails` (on), `revision.lenteSeguridad`/`revision.lenteRendimiento` (`auto` each), `sesion.indice`, `sesion.journal`, `sesion.captura` and `sesion.memoria` (on), `sesion.resumen` (off), `modelos` (absent = frontmatter) `tests.coberturaMinima` (absent = no gate) and `alcance.excluir` (absent = the script's default only) | `/setup` or by hand | Recreate with `/setup`; missing or corrupted file → defaults `false` + warning (classic behavior) |
+| `knowledge-services/taxonomy.json` | `knowledge-services` config (ADR-018): per-project knowledge categories (`key`/`folder`/`min_evidence`/`routing`), declared `backends` (`id`, `type`, `enabled`, `config`), and per-category `routing` that can only cite declared ids (fail-closed, CA-11). Validated with `agent-kits/shared/knowledge-schema.py` (stdlib, no dependencies) against `agent-kits/shared/schemas/taxonomy.schema.json`. Without this file, the plugin uses the default template (`agent-kits/shared/templates/taxonomy.json`: DECISION/PATTERN/GOTCHA/LESSON aligned with `adr/`/`gotchas/`/`lessons/`, `kwipu` backend disabled) | `/setup` (from the template) or by hand | Recreate from `agent-kits/shared/templates/taxonomy.json`; without the file, the plugin degrades to that same template in memory |
 | `usage-state.json` | Cost-measurement markers (`usage-meter.py`: offsets per transcript and artifact) | `usage-meter.py` | Deleting it is harmless: open markers are lost; subsequent `start` calls recreate it |
 | `journal/` | Atomic queue for `SessionEnd`'s durable capture (`outbox/` → `processing/` → `done/`/`dead-letter/`, module `agent-kits/shared/outbox.py`); **unversioned**, with its own `.gitignore` seeded by the hook itself and excluded from the root `.gitignore`; survives a plugin uninstall/upgrade | `session-journal.sh` hook (`journal.py capture-end`), materialized by `journal.py replay`/`recover` | Only `journal.py purge --confirm` deletes it; an entry lost before the envelope is recovered up to the last captured prompt (`recover`, `cierre: recuperado_sin_cierre`) |
 | `.confluence-pending` | Ephemeral hook flag (there are unsynced docs) | `PostToolUse` hook | Deleting it is harmless; the skill re-detects via manifest |
@@ -190,6 +191,30 @@ Each skill stores its config (user decisions) and its state (machine memory) in 
 Rules: **config ≠ state** (config is decided by the user; state is maintained by the machine and
 is never edited by hand); every new skill that needs memory follows this pattern (`<skill>.json` +
 `<skill>-state.json`) and adds its row here.
+
+**Optional capability registry (`agent-kits/shared/capabilities.py`, ADR-018 point 7, CA-14).**
+`/setup` and `/doctor` carry no capability-specific code (kwipu today; graphiti,
+training-data-services later): each optional capability declares itself ONCE with the contract
+`{id, config_path, enabled, health, doctor, setup_step}` (`enabled`/`health`/`doctor` can be a
+static value or a `callable(root)`) and `registrar()` adds it to the global registry; `/setup`
+and `/doctor` only walk `enumerar(root)`. A capability whose `enabled`/`health`/`doctor` raises
+degrades to `{"estado": "error", "detalle": "..."}` **without taking down the evaluation of the
+others** (fail soft). `knowledge-services`'s base registry declares `knowledge-gate` (always
+active; its health is that of `taxonomy.json`, with or without a project file) and `kwipu`
+(active only with `backends.kwipu.enabled: true`; the real network health check is done by the
+`markdown-export` adapter, not the registry).
+
+`/doctor` (T-09) adds an **"Optional capabilities"** block, also generic: one row per capability
+from `enumerar(root)`, with no capability-specific string anywhere in `doctor.py` (invalid config
+→ ❌ with file+field+fix; disabled → ℹ️; active with a declared backend → LIVE network check by
+loading the same generic adapter `knowledge-sync.py` uses
+(`skills/knowledge-services/backends/__init__.py::cargar_adaptador`), never importing it by name —
+✅ healthy with no drift, ⚠️ stale export with the fix that `verify()` names without running it,
+⚠️/❌ degraded/error, ℹ️ unreachable or timeout; active without a backend → the capability's own
+generic `doctor` text). `/setup` (step 5-sexies) shows the registered capabilities in a single
+pass and offers to create `.claude/knowledge-services/taxonomy.json` from the plugin's template if
+it doesn't exist yet; enabling a specific capability follows the `setup_step` it declares itself,
+and the step never connects anything on its own.
 
 ## 10. Project technical memory — `docs/knowledge/`
 
@@ -202,13 +227,24 @@ have to be re-discovered", generalizing the bookend pattern from `agents/nemesis
 - **Where it lives.** `docs/knowledge/adr/ADR-NNN-<slug>.md` (one per decision, template
   `agent-kits/shared/templates/adr.md`), `docs/knowledge/gotchas/GOT-NNN-<slug>.md` (one per
   entry) and `docs/knowledge/lessons/LES-NNN-<agent>-<slug>.md` (one per entry, grouped by agent
-  in the filename),
-  with an **entry-point** index `README.md` (the generated index + `knowledge-lint.py` remain
+  in the filename). Alongside that legacy corpus (ADR/GOT/LES, manually indexed), `knowledge-
+  services` (ADR-018) adds `docs/knowledge/candidates/{pending,needs_changes,rejected}/` (curation
+  queue, proposed by `documenter`/`knowledge-curator`) and `docs/knowledge/approved/<folder>/`
+  (one folder per `categories[].folder` in `.claude/knowledge-services/taxonomy.json`, or the
+  plugin's default template): that tree is indexed by `agent-kits/shared/knowledge-index.py`
+  (deterministic index over the configured taxonomy), distinct from the manual ADR/GOT/LES index
+  below — never mixed together.
+  With an **entry-point** index `README.md` (the generated index + `knowledge-lint.py` remain
   deferred until there is evidence they are needed: more than 15 entries, or the first ID
   collision in any of the three families, in a parallel batch). One file per entry across all
   three types removes the FILE collision risk in parallel writes; the `id:` collision risk
   remains possible across all three families (ADR/GOT/LES), with the same mitigation (renumber
   and declare it in the retro), see previous rule.
+  **Migration (gap 113, two-lens review Phase 3 attempt 2, 2026-09-18):** the `category` field
+  under `docs/knowledge/approved/<folder>/` was optional when this tree was born and became
+  **mandatory** (`knowledge-index.py` requires it when indexing, `curator-gate.py` blocks
+  `approve` without it) — see the migration note in `docs/knowledge/approved/README.md` if a
+  project has entries predating that change.
 - **Always active, no opt-in.** If `docs/knowledge/` did not exist, no agent would complain: the
   folder is created on first write. Same silent-degradation philosophy as the rest of the plugin
   (constitution, Jira, Confluence), but without a switch — there is nothing to turn on.

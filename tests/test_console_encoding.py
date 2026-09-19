@@ -311,6 +311,19 @@ SIN_SIMBOLOS_EN_LA_SALIDA = {
     # docstring/comentarios en español tienen no-ASCII (í, ó).
     "scripts/bench-session-end.py":
         "su salida (texto y --json) es un informe de percentiles con claves/etiquetas en ingles, ASCII puro",
+    # knowledge-services T-02 (gap 28): sin `docs/knowledge/approved/` en el workspace de prueba,
+    # `build_index` no encuentra carpetas ni entradas -> "knowledge-index: 0 entrada(s), sin
+    # errores" es ASCII puro; entra en SCRIPTS por su docstring/comentarios con acentos (ídice,
+    # canónica). Los mensajes de error SI llevan acentos (p. ej. "no es válido"), pero forzarlos
+    # exigiría montar un fixture de `approved/` con una entrada invalida solo para este test.
+    "agent-kits/shared/knowledge-index.py":
+        "sin `approved/` en el workspace de prueba, el veredicto por defecto es ASCII puro",
+    # knowledge-services T-07: sin `__main__` (lo carga `knowledge-sync.py` por `importlib`, no
+    # tiene CLI propia); arrancado sin argumentos no imprime nada.
+    "skills/knowledge-services/backends/__init__.py": "sin `__main__`: al arrancar no ejecuta nada ni imprime nada",
+    # T-08: adaptador Kwipu sin `__main__` (solo funciones del contrato de adaptador, consumidas
+    # por `knowledge-sync.py` vía `importlib`); arrancado sin argumentos no imprime nada.
+    "skills/knowledge-services/backends/markdown_export.py": "sin `__main__`: al arrancar no ejecuta nada ni imprime nada",
 }
 SCRIPTS_CON_SIMBOLOS = [rel for rel in SCRIPTS if rel not in SIN_SIMBOLOS_EN_LA_SALIDA]
 
@@ -349,12 +362,36 @@ def _modos():
             [("deny", lambda w: ["pre-tool", "--project-dir", "."], (0,), deny)],
         "agent-kits/shared/journal.py":
             [("draft", lambda w: ["draft", "--root", "."], (0,), None)],
+        # knowledge-services T-01/T-02/T-13 (gap 28): modos mas baratos que emiten un veredicto real.
+        "agent-kits/shared/knowledge-schema.py":
+            [("default", lambda w: ["--default"], (0,), None)],
+        "agent-kits/shared/knowledge-index.py":
+            [("indice", lambda w: ["--root", w], (0, 1), None)],
+        # knowledge-services T-07: reutiliza la misma taxonomia INVALIDA del taller (`kc-taxonomia-invalida`,
+        # `evidence_levels: []`) para que `cargar_taxonomia()` reenvie el mensaje con tilde
+        # ("no puede estar vacía") en vez de necesitar un fixture propio.
+        "skills/knowledge-services/scripts/knowledge-sync.py":
+            [("taxonomia invalida", lambda w: [
+                "--backend", "kwipu", "--root", os.path.join(w, "kc-taxonomia-invalida"), "--check"], (2,), None)],
+        # gap 69: la taxonomia rota del `taller` (`evidence_levels: []`) hace que `evaluar()`
+        # reenvie el error de `knowledge-schema.validar()` con tilde ("no puede estar vacía");
+        # `--decision reject` no exime esa comprobacion (se hace ANTES de mirar la decision).
+        "agent-kits/knowledge-curator/curator-gate.py":
+            [("taxonomia invalida", lambda w: [
+                os.path.join(w, "kc-taxonomia-invalida", "docs", "knowledge", "candidates", "pending", "c.md"),
+                "--decision", "reject", "--root", os.path.join(w, "kc-taxonomia-invalida")], (2,), None)],
+        "agent-kits/shared/capabilities.py":
+            [("registro", lambda w: ["--root", w], (0,), None)],
         # Imprime `·` y áreas con acentos («Estimación / calibración») en cada acierto (memory-retrieval T-01).
         "agent-kits/shared/knowledge-find.py":
             [("consulta", lambda w: ["--area", "estimacion"], (0,), None)],
         "agent-kits/shared/ledger-lint.py":
             [("ledger", lambda w: [L], (0, 1), None)],
         "agent-kits/shared/outbox.py":
+            [("importar sin CLI", lambda w: [], (0,), None)],
+        "skills/knowledge-services/backends/__init__.py":
+            [("importar sin CLI", lambda w: [], (0,), None)],
+        "skills/knowledge-services/backends/markdown_export.py":
             [("importar sin CLI", lambda w: [], (0,), None)],
         "agent-kits/shared/redact.py":
             [("importar sin CLI", lambda w: [], (0,), None)],
@@ -439,6 +476,20 @@ def taller(tmp_path_factory):
     (w / "results.json").write_text(json.dumps({"suites": [{"title": "s", "specs": [
         {"title": "E2E-01 algo", "ok": True, "tests": [{"results": [{"status": "passed"}]}]}]}]}),
         encoding="utf-8")
+    # knowledge-services (gap 69): un sub-arbol PROPIO (no `w` directo: `w` es el `--root` de otros
+    # modos, p. ej. `knowledge-index.py`, y una `taxonomy.json` de proyecto ahi les cambiaria SU
+    # veredicto) con un candidato real bajo `pending/` + una `taxonomy.json` INVALIDA
+    # (`evidence_levels` vacio) para que `curator-gate.py` de verdad reenvie el error de
+    # `knowledge-schema.validar()` que SI lleva tilde ("no puede estar vacía") — la ruta de la
+    # guarda de contencion (candidato inexistente) nunca llega a cargar la taxonomia.
+    kc = w / "kc-taxonomia-invalida"
+    pending = kc / "docs" / "knowledge" / "candidates" / "pending"
+    pending.mkdir(parents=True)
+    (pending / "c.md").write_text("---\ncategory: GOTCHA\n---\n\n# candidato\n", encoding="utf-8")
+    taxonomia_dir = kc / ".claude" / "knowledge-services"
+    taxonomia_dir.mkdir(parents=True)
+    (taxonomia_dir / "taxonomy.json").write_text(
+        json.dumps({"version": 1, "evidence_levels": []}), encoding="utf-8")
     return str(w)
 
 
