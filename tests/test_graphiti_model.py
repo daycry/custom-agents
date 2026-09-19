@@ -11,6 +11,8 @@ import importlib.util
 import os
 import sys
 
+import pytest
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 MODULE_PATH = os.path.normpath(os.path.join(
     HERE, "..", "skills", "knowledge-services", "backends", "graphiti_model.py"))
@@ -96,33 +98,95 @@ def test_relaciones_efectivas_relations_no_lista_se_ignora():
 # ------------------------------------------------------------------ propuesta de entity_types (YAML)
 
 def test_proponer_entity_types_yaml_incluye_nucleo_y_categorias():
+    # T-01-fix1 gap #2: una entrada POR CATEGORÍA (no por tipo efectivo agrupado); sin mapeo
+    # explícito en `entity_map`, el nombre se deriva de la `key` en TitleCase — nunca el
+    # genérico `Document` (eso escondería PATTERN/GOTCHA bajo el mismo tipo sin que el usuario
+    # lo decidiera).
     config = {"entity_map": {"DECISION": "Organization"}}
     yaml_texto = gm.proponer_entity_types_yaml(TAXONOMIA_A, config)
     assert yaml_texto.startswith("entity_types:\n")
-    assert "name: Organization" in yaml_texto
-    assert "name: Document" in yaml_texto  # PATTERN y GOTCHA, sin mapeo -> default
-    assert "name: Knowledge" in yaml_texto
-    assert "name: Evidence" in yaml_texto
-    # Un mismo tipo efectivo compartido por 2 categorías no se duplica como entrada.
-    assert yaml_texto.count("name: Document") == 1
+    assert f'name: {gm._yaml_cadena("Organization")}' in yaml_texto
+    assert f'name: {gm._yaml_cadena("Pattern")}' in yaml_texto  # sin mapeo -> TitleCase(key)
+    assert f'name: {gm._yaml_cadena("Gotcha")}' in yaml_texto  # sin mapeo -> TitleCase(key)
+    assert f'name: {gm._yaml_cadena("Knowledge")}' in yaml_texto
+    assert f'name: {gm._yaml_cadena("Evidence")}' in yaml_texto
+    assert "Document" not in yaml_texto
 
 
 def test_proponer_entity_types_yaml_es_yaml_valido():
-    import pytest
     yaml = pytest.importorskip("yaml")
     config = {"entity_map": {"TOOL": "Project"}}
     yaml_texto = gm.proponer_entity_types_yaml(TAXONOMIA_B, config)
     parsed = yaml.safe_load(yaml_texto)
     assert isinstance(parsed, dict) and "entity_types" in parsed
     nombres = {entrada["name"] for entrada in parsed["entity_types"]}
-    assert nombres == {"Project", "Document", "Knowledge", "Evidence"}
+    assert nombres == {"Project", "Runbook", "Knowledge", "Evidence"}
 
 
 def test_proponer_entity_types_yaml_taxonomia_vacia_solo_nucleo():
     yaml_texto = gm.proponer_entity_types_yaml({"categories": []}, {})
-    assert "name: Knowledge" in yaml_texto
-    assert "name: Evidence" in yaml_texto
-    assert "name: Document" not in yaml_texto
+    assert f'name: {gm._yaml_cadena("Knowledge")}' in yaml_texto
+    assert f'name: {gm._yaml_cadena("Evidence")}' in yaml_texto
+    assert "Document" not in yaml_texto
+
+
+def test_proponer_entity_types_yaml_dedupe_por_nombre_explicito():
+    # Dos categorías mapeadas al MISMO tipo explícito no duplican la entrada `name:`.
+    taxonomy = {
+        "categories": [
+            {"key": "DECISION", "folder": "adr", "min_evidence": "x"},
+            {"key": "RUNBOOK", "folder": "runbooks", "min_evidence": "x"},
+        ],
+    }
+    config = {"entity_map": {"DECISION": "Organization", "RUNBOOK": "Organization"}}
+    yaml_texto = gm.proponer_entity_types_yaml(taxonomy, config)
+    assert yaml_texto.count(f'name: {gm._yaml_cadena("Organization")}') == 1
+    assert "DECISION" in yaml_texto and "RUNBOOK" in yaml_texto
+
+
+def test_proponer_entity_types_yaml_titlecase_normaliza_separadores():
+    taxonomy = {
+        "categories": [{"key": "MULTI_WORD-KEY", "folder": "x", "min_evidence": "x"}],
+    }
+    yaml_texto = gm.proponer_entity_types_yaml(taxonomy, {})
+    assert f'name: {gm._yaml_cadena("MultiWordKey")}' in yaml_texto
+
+
+# --------------------------------------------------------- T-01-fix1 gap #4: `name:` escapado
+
+def test_proponer_entity_types_yaml_escapa_nombres_hostiles():
+    nombres_hostiles = [
+        "Doc: interno",
+        "Doc\n  - name: Injected",
+        "yes",
+        "no",
+        "",
+        "{a: 1}",
+        "null",
+    ]
+    for nombre in nombres_hostiles:
+        taxonomy = {"categories": [{"key": "X", "folder": "x", "min_evidence": "x"}]}
+        config = {"entity_map": {"X": nombre}}
+        yaml_texto = gm.proponer_entity_types_yaml(taxonomy, config)
+        # El nombre hostil SIEMPRE va entre comillas dobles (mismo criterio que `description`);
+        # nunca aparece como escalar YAML sin comillas ni inyecta líneas nuevas de mapeo (se
+        # cuentan solo las líneas REALES `  - name:`, no la subcadena dentro del valor escapado).
+        assert f"name: {gm._yaml_cadena(nombre)}" in yaml_texto
+        lineas_name = [l for l in yaml_texto.splitlines() if l.startswith("  - name:")]
+        assert len(lineas_name) == 3  # X + Knowledge + Evidence, ninguna inyectada
+
+
+def test_proponer_entity_types_yaml_nombres_hostiles_son_yaml_valido():
+    yaml = pytest.importorskip("yaml")
+    taxonomy = {"categories": [{"key": "X", "folder": "x", "min_evidence": "x"}]}
+    for nombre in ("Doc: interno", "Doc\n  - name: Injected", "yes", "", "{a: 1}"):
+        config = {"entity_map": {"X": nombre}}
+        yaml_texto = gm.proponer_entity_types_yaml(taxonomy, config)
+        parsed = yaml.safe_load(yaml_texto)
+        entradas = parsed["entity_types"]
+        assert len(entradas) == 3
+        nombres = [e["name"] for e in entradas]
+        assert nombre in nombres
 
 
 # ------------------------------------------------------------------ sucesión SUPERSEDES (CA-11)
@@ -161,6 +225,69 @@ def test_cadena_supersedes_una_sola_version_no_genera_relaciones():
 def test_cadena_supersedes_vacia():
     resultado = gm.cadena_supersedes([])
     assert resultado == {"relaciones": [], "vigentes": set(), "invalidados": set()}
+
+
+# ------------------------------------------------------------ T-01-fix1 gap #5: invariantes
+
+def test_cadena_supersedes_ids_repetidos_lanza_valueerror():
+    versiones = [
+        {"knowledge_id": "mr.pattern.x.v1"},
+        {"knowledge_id": "mr.pattern.x.v2"},
+        {"knowledge_id": "mr.pattern.x.v1"},  # repetido: [A, B, A]
+    ]
+    with pytest.raises(ValueError):
+        gm.cadena_supersedes(versiones)
+
+
+def test_cadena_supersedes_ids_repetidos_consecutivos_lanza_valueerror():
+    versiones = [{"knowledge_id": "a"}, {"knowledge_id": "a"}, {"knowledge_id": "b"}]
+    with pytest.raises(ValueError):
+        gm.cadena_supersedes(versiones)  # evitaría SUPERSEDES a→a (auto-sucesión)
+
+
+def test_cadena_supersedes_vigentes_e_invalidados_son_disjuntos():
+    resultado = gm.cadena_supersedes([{"knowledge_id": "x"}, {"knowledge_id": "y"}])
+    assert resultado["vigentes"] & resultado["invalidados"] == set()
+
+
+def test_cadena_supersedes_ninguna_relacion_es_auto_sucesion():
+    resultado = gm.cadena_supersedes(
+        [{"knowledge_id": "a"}, {"knowledge_id": "b"}, {"knowledge_id": "c"}]
+    )
+    for relacion in resultado["relaciones"]:
+        assert relacion["origen"] != relacion["destino"]
+
+
+# ------------------------------------------------------------- T-01-fix1 gap #12: validacion
+
+def test_cadena_supersedes_elemento_sin_knowledge_id_lanza_valueerror():
+    with pytest.raises(ValueError):
+        gm.cadena_supersedes([{"id": "B"}])
+
+
+def test_cadena_supersedes_no_lista_lanza_typeerror():
+    with pytest.raises(TypeError):
+        gm.cadena_supersedes({"knowledge_id": "a"})
+
+
+def test_cadena_supersedes_elemento_no_dict_lanza_typeerror():
+    with pytest.raises(TypeError):
+        gm.cadena_supersedes(["a", "b"])
+
+
+def test_cadena_supersedes_knowledge_id_vacio_lanza_valueerror():
+    with pytest.raises(ValueError):
+        gm.cadena_supersedes([{"knowledge_id": ""}])
+
+
+def test_cadena_supersedes_knowledge_id_no_string_lanza_valueerror():
+    with pytest.raises(ValueError):
+        gm.cadena_supersedes([{"knowledge_id": 123}])
+
+
+def test_tipo_entidad_config_no_dict_cae_al_default_con_warning():
+    with pytest.warns(RuntimeWarning):
+        assert gm.tipo_entidad("adr", ["entity_map"]) == "Document"
 
 
 if __name__ == "__main__":
