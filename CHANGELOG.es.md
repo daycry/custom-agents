@@ -9,6 +9,8 @@ y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+## [1.21.0] - 2026-09-19
+
 ### Fixed — iniciativa `jira-review-comments` (2026-09-19)
 
 - **T-01 — La skill `adversarial-review` publica el evento `revision`/`gaps` de CADA intento** The adversarial review now posts its verdict to Jira after every attempt (the `revision`/`gaps` comment with the graded gap table), so each task's issue shows the result of each verification; before, four pieces each assumed another one would post it and nothing reached Jira.
@@ -42,7 +44,6 @@ y el versionado sigue [SemVer](https://semver.org/lang/es/).
 - **T-06 — `journal.py status` y sección «Journal» de `/doctor`** `journal.py status` y sección «Journal» en `/doctor` con contadores, huérfanas, dead-letter y remedio nombrado; triage del «Hook cancelled» (aviso del runtime frente a pérdida real).
 - **T-07 — Bench de captura y matriz de garantías** `scripts/bench-session-end.py` mide la captura in-process (p95 ≤ 100 ms en CI) y comprueba que escribe; matriz de garantías en `observability` ES/EN y `FLOWS` ES/EN al flujo captura → cola → replay.
 - **T-08 — GOT-011, changelog, interop y puertas** `GOT-011` documenta la causa y el remedio del `Hook cancelled`; checklist manual M-01 para verificar el hook en Codex real.
-
 
 ## [1.20.2] - 2026-09-15
 
@@ -583,6 +584,7 @@ Adopción de las mejores prácticas de las colecciones top de agentes (coleccion
 
 Versiones anteriores a la introducción de este changelog: bundle con los agentes `nemesis`, `evaluator`, `planner`, `pdfy` y `qa`, y las skills compartidas `cybersecurity` y `to-pdf`. Empaquetado como plugin + marketplace.
 
+[1.21.0]: https://github.com/daycry/custom-agents/releases/tag/v1.21.0
 [1.20.2]: https://github.com/daycry/custom-agents/releases/tag/v1.20.2
 [1.20.0]: https://github.com/daycry/custom-agents/releases/tag/v1.20.0
 [1.19.0]: https://github.com/daycry/custom-agents/releases/tag/v1.19.0
