@@ -968,3 +968,21 @@ ledger-lint: 0 incoherencias · 0 avisos (tasks.md)
 No se corrio de nuevo la suite completa del repo (instruccion explicita de esta ronda: filtros dirigidos, no full-suite); los 41 rojos ajenos a esta iniciativa (artefactos de Windows/git-bash, ver desglose al pie de T-12) no cambian con esta ronda (ningun fichero de esta ronda esta en su lista).
 
 **Tiempo IA (fix2, estimado):** los tres marcadores de `usage-meter.py` (`T-10-fix2`, `T-02-fix9`, `T-08-fix6`) se abrieron y cerraron sin ventana de respuestas del modelo que medir (mismo patron que el gap del T-02-fix4 anterior — el trabajo real de esta ronda ya estaba hecho cuando se arrancaron los marcadores); a juicio, marcados `(estimado)`: 0.15h (T-10-fix2, gaps 168/169/170/171/175), 0.12h (T-02-fix9, gaps 172/173), 0.15h (T-08-fix6, gaps 174/176).
+
+## Revisión de dos lentes — intento 3 (Fase 4: T-10, T-11, T-12; último del bucle): 9/9 gaps del intento 2 cerrados; 9 gaps NUEVOS (0 Critical, 2 Important, 7 Minor), lentes A+B, rango `c7bc62d..bd63112`
+
+Traspaso: ambas lentes re-evaluaron SOLO #168–#176 (Lente B con 7 mutantes sobre copia, todos muertos, y sondas sobre el repo real: `urllib` en `journal.py` -> rojo; comentario legitimo -> verde; espia DNS global). Puertas: `lint_plugin` 0 errores; `evals/check` 0; `export-interop --check` 50; `scope-check --base 9d89568` 0 fuera; `ledger-lint` 0/0; `changelog-sync --check` sin pendientes; suite de la iniciativa `211 passed, 2 skipped`.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 177 | Important | El criterio `[x]` «YAML corrupto y rutas maliciosas fallan de forma segura» de T-10 cita `test_health_url_host_publico_se_rechaza_sin_conexion` (retirado en #175) y el nombre viejo `test_ningun_hook_invoca_knowledge_sync_ni_curator_gate` (renombrado en fix1): evidencia inejecutable (`tasks.md:428`) | T-10 | pendiente | Lente A |
+| 178 | Important | REGRESION del fix #170: `_lineas_de_codigo()` corta la linea en el primer `#`/`//` sin mirar comillas, asi que un termino prohibido POSTERIOR en la misma linea ya no se detecta (`sed "s/#.*//" x; curl …` -> `1 passed`; en `c7bc62d` daba `1 failed`); en `.js` la `//` de una URL corta antes de `curl` (`tests/test_knowledge_services.py:611-618`) | T-10 | pendiente | Lente B, sondas con control |
+| 179 | Minor | La suite sigue haciendo DNS real: `test_health_url_redireccion_a_host_publico_se_rechaza` redirige a `http://example.com/health` (`:402`); espia global -> `[('gethostbyname','example.com')]`; la evidencia de #175 («ningun test hace DNS real») es falsa | T-10 | pendiente | Lentes A y B |
+| 180 | Minor | #176 parcial: solo se saneo la rama `HTTPException`; la rama `urllib.error.HTTPError` (4xx/5xx con cuerpo) embebe el cuerpo crudo sin tope (`markdown_export.py:595-596`) y `e.url` de `_RedireccionNoPermitida` (`:593,943`) | T-08 | pendiente | Lente B, servidor local |
+| 181 | Minor | El seguidor de invocaciones de hooks es de un solo nivel: `session-journal.sh` -> `journal.py` -> `outbox.py`; `urllib` en `outbox.py` pasa (`:663-685`) | T-10 | pendiente | Lente B, sonda |
+| 182 | Minor | `_sanear_detalle()`: la alternativa ANSI del patron es inalcanzable (`` casa antes en `[ -]`, queda `[31m`) y el tope de 200 se aplica tras el prefijo (`markdown_export.py:562-576`) | T-08 | pendiente | Lente B |
+| 183 | Minor | `_recortar_comentario_inline()` trata una comilla en CUALQUIER posicion como apertura: `Don't  # nota` ya no se recorta (`knowledge-index.py:110-116`) | T-02 | pendiente | Lente B, sonda |
+| 184 | Minor | `health()` deja escapar `ValueError` (`Location: http://[` -> `urlparse` lanza) mientras `verify()` lo captura (`markdown_export.py:598` vs `:945`); contenido por los llamadores | T-08 | pendiente | Lente B |
+| 185 | Minor | Tests de #170/#171 llaman a los escaneres sin `root=` y resuelven contra el repo real (`tests/test_knowledge_services.py:869,884,899`) | T-10 | pendiente | Lente B |
+
+**Decision del orquestador al 3.er intento con gaps (misma regla y criterio que en las Fases 1-3).** 0 Critical; los 2 Important son una cita de evidencia en el ledger y una regresion en un test de la red de seguridad (no en codigo de produccion). Se elige **seguir** con UNA ronda `fix3` acotada a #177–#185 y verificacion dirigida del orquestador. Registrado para que el usuario pueda revocarlo en el PR.
