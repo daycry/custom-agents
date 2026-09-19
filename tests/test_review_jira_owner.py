@@ -20,6 +20,8 @@ DEVCYCLE = os.path.join(ROOT, "commands", "dev-cycle.md")
 REVIEW_PUBLISH = os.path.join(ROOT, "skills", "jira-sync", "references", "review-publish.md")
 ROLES = os.path.join(ROOT, "docs", "agents", "ROLES.md")
 JIRA_FLOW = os.path.join(ROOT, "skills", "jira-sync", "scripts", "jira-flow.py")
+JIRA_SYNC_SKILL = os.path.join(ROOT, "skills", "jira-sync", "SKILL.md")
+SHARED_README = os.path.join(ROOT, "agent-kits", "shared", "README.md")
 
 
 def _leer(p):
@@ -91,6 +93,33 @@ def test_roles_no_atribuye_la_publicacion_al_orquestador_ni_al_implementer():
     assert "lo publica el orquestador/implementer" not in fila_reviewer
     fila_skill = next(l for l in t.splitlines() if l.startswith("| **adversarial-review** |"))
     assert "publica en Jira el evento `revision`/`gaps`" in fila_skill, fila_skill[:300]
+
+
+# --- 5. jira-sync SKILL.md: --actor es la FIRMA, no el ejecutor (gap #7) --------------------------
+
+def test_jira_sync_skill_distingue_actor_firma_de_ejecutor():
+    t = _leer(JIRA_SYNC_SKILL)
+    s7 = _seccion(t, r"^## Paso 7")
+    assert "adversarial-review" in s7, "Paso 7 debe nombrar a la skill como ejecutor de revision/gaps"
+    assert re.search(r"--actor.{0,40}FIRMA", s7, re.S) or re.search(r"FIRMA.{0,40}--actor", s7, re.S), \
+        "Paso 7 debe aclarar que --actor es la firma del comentario, no el ejecutor"
+    ofensiva = re.search(r"dispara su actor fijo", s7)
+    assert not ofensiva, "Paso 7 vuelve a decir que el actor es quien dispara el evento"
+
+
+# --- 6. «Paso 9» no existe en ningún sitio del repo vivo (gap #8) ---------------------------------
+
+def test_ningun_fichero_vivo_remite_a_un_paso_9_de_jira_sync():
+    for ruta in (SKILL, DEVCYCLE, REVIEW_PUBLISH, ROLES, JIRA_SYNC_SKILL, SHARED_README):
+        t = _leer(ruta)
+        assert "Paso 9" not in t, f"{ruta}: jira-sync no tiene Paso 9 (es el Paso 7, por intento)"
+
+
+def test_shared_readme_no_atribuye_review_report_template_al_comentario_de_jira():
+    t = _leer(SHARED_README)
+    fila = next(l for l in t.splitlines() if l.startswith("| `review-report.template.md`"))
+    assert "informe de revisión" in fila.lower() and "ledger" in fila.lower(), fila
+    assert "Paso 9" not in fila, fila
 
 
 # --- 4. El mecanismo funciona: lo que faltaba era el dueño ---------------------------------------
