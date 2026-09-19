@@ -67,3 +67,12 @@ ejemplo de la enmienda 2026-09-17 donde difieran.
   `*.test`/`host.docker.internal`, `lib-guardrail.sh`); cualquier otro exige `allow_remote: true`. La frase «allow-list de
   loopback por defecto» de la sección inicial se lee así.
 - **Vocabulario.** La clave es `telemetria` (vocabulario ES de `dev.json`), no `telemetry`; `health.timeout_ms` > 0.
+- **Propuesta de tipos y tipo efectivo (revisión Fase 1, intento 2, gap #16).** Sin `entity_map` todos los episodios
+  viajan con el tipo genérico del servidor (`Document`); `--propose-config` emite el bloque `entity_types` para el
+  `config.yaml` del servidor **y** el `entity_map` para `taxonomy.json` que los hace efectivos (una entrada por categoría,
+  nombre = `entity_map[key]` o TitleCase Unicode de la `key`; si no se puede derivar un nombre, error que pide declarar el
+  mapeo). Donde la sección inicial dice «un `entity_type` por categoría … default la clave», se lee así.
+- **Claves de cliente (gap #19).** `config.timeout_ms` (entero finito > 0; timeout de las llamadas MCP) y
+  `config.concurrency` (entero ≥ 1; default 1, coherente con `SEMAPHORE_LIMIT: 1` del stack de referencia) forman parte
+  de la lista cerrada de `config`. `group_id` se deriva por `type: "graphiti"` (no por la clave del backend) y, con
+  `enabled: true`, debe quedar como cadena no vacía (slug Unicode; si no se puede derivar, error que pide declararlo).
