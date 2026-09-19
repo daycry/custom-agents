@@ -47,3 +47,23 @@ No hay red desde hooks. El cliente usa timeout, allow-list de loopback por defec
 - **Seguridad**: `allow_remote: false` limita a loopback; `telemetry: false` fija `GRAPHITI_TELEMETRY_ENABLED`;
   ninguna credencial en `taxonomy.json` (variables de entorno referenciadas por nombre).
 - Se registra en `capabilities.py` (`graphiti`) para `/setup` y `/doctor` sin tocar `doctor.py`.
+
+## Enmienda 2026-09-19 — forma de la configuración y guardarraíl de red (revisión de la Fase 1, intento 1)
+
+Registrada por el orquestador tras la revisión de dos lentes de la Fase 1 (gaps #1, #3, #9, #10). Prevalece sobre el
+ejemplo de la enmienda 2026-09-17 donde difieran.
+
+- **Forma anidada, no plana.** El bloque de Graphiti sigue el patrón genérico de `knowledge-services`
+  (`backends.<id> = {type, enabled, config}`, igual que `markdown-export`): `mode`, `endpoint`, `group_id`,
+  `allow_remote`, `provider`, `entity_map`, `relations`, `router`, `telemetria` y `health` viven **dentro de `config`**.
+  Cualquier clave no reconocida a nivel de `backends.<id>` o dentro de `config`/`provider`/`router`/`health` es
+  **error** de validación (así el ejemplo plano antiguo no pasa en silencio). Ejemplo vigente: el bloque `graphiti` de
+  `agent-kits/shared/templates/taxonomy.json`.
+- **`group_id` sin default cableado.** Si el proyecto no lo declara, se deriva del slug del directorio del proyecto
+  (mismo criterio que `id_prefix`); dos instalaciones en la misma máquina no comparten grupo por omisión. Con
+  `enabled: true` debe ser una cadena no vacía.
+- **Guardarraíl de red = el del repo (local o privado), no solo loopback.** `endpoint` y `health.url` aceptan sin
+  `allow_remote` los mismos hosts que el adaptador Kwipu (`localhost`, loopback, redes privadas, sufijos locales como
+  `*.test`/`host.docker.internal`, `lib-guardrail.sh`); cualquier otro exige `allow_remote: true`. La frase «allow-list de
+  loopback por defecto» de la sección inicial se lee así.
+- **Vocabulario.** La clave es `telemetria` (vocabulario ES de `dev.json`), no `telemetry`; `health.timeout_ms` > 0.
