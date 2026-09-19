@@ -189,6 +189,18 @@ _TAXONOMY_FALLBACK = { \
 }
 
 
+def _url_con_userinfo(url):
+    """True si `url` lleva credenciales embebidas (`http://svc:TOKEN@host/…`, gap #43 de la
+    revisión Fase 2 intento 1): nunca debe aceptarse en `endpoint`/`health.url` — viajarían
+    verbatim en mensajes de error/`detalle` de `graphiti.py`. Fail-open a False ante URL
+    ilegible: el resto de comprobaciones (forma http(s), host local) ya la rechazan."""
+    try:
+        parsed = urllib.parse.urlparse(url)
+    except ValueError:
+        return False
+    return bool(parsed.username or parsed.password)
+
+
 def _error(mensaje, fichero, campo):
     return {"mensaje": mensaje, "fichero": fichero, "campo": campo}
 
@@ -251,6 +263,11 @@ def _validar_backend_graphiti(bcfg, campo, fichero, errores):
         elif not (endpoint.startswith("http://") or endpoint.startswith("https://")):
             errores.append(_error(
                 "`endpoint` debe ser una URL http(s)", fichero, f"{campo_c}.endpoint"))
+        elif _url_con_userinfo(endpoint):
+            # gap #43: userinfo (`usuario:token@host`) nunca se acepta, aunque el host sea local.
+            errores.append(_error(
+                "`endpoint` no puede contener credenciales embebidas (userinfo); usa "
+                "`provider.api_key_env` para credenciales", fichero, f"{campo_c}.endpoint"))
         elif not allow_remote and not _endpoint_es_local(endpoint):
             errores.append(_error(
                 f"`endpoint` `{endpoint}` no es local/privado; declara `allow_remote: true` "
@@ -280,6 +297,16 @@ def _validar_backend_graphiti(bcfg, campo, fichero, errores):
                 errores.append(_error(
                     f"`provider.llm` `{llm}` no es uno de {GRAPHITI_PROVIDER_LLM_VALORES}",
                     fichero, f"{campo_c}.provider.llm"))
+            elif llm != "none":
+                # gap #37 (revisión Fase 2 intento 1): sin `provider.model` obligatorio,
+                # `graphiti_providers.py` caía a un modelo CABLEADO en el código
+                # (`qwen2.5:7b`/`gpt-4o-mini`/`claude-haiku`) contra CA-09 ("ningún modelo ni
+                # endpoint tiene default cableado"); con `llm != "none"` el modelo es del proyecto.
+                modelo = provider.get("model")
+                if not isinstance(modelo, str) or not modelo.strip():
+                    errores.append(_error(
+                        "`provider.model` es obligatorio cuando `provider.llm` no es \"none\"",
+                        fichero, f"{campo_c}.provider.model"))
             for clave in ("model", "embedder", "embedder_model", "base_url"):
                 if clave in provider and not isinstance(provider[clave], str):
                     errores.append(_error(
@@ -368,6 +395,11 @@ def _validar_backend_graphiti(bcfg, campo, fichero, errores):
                 elif not (health_url.startswith("http://") or health_url.startswith("https://")):
                     errores.append(_error(
                         "`health.url` debe ser una URL http(s)", fichero, f"{campo_c}.health.url"))
+                elif _url_con_userinfo(health_url):
+                    # gap #43: mismo guardarraíl que `endpoint`.
+                    errores.append(_error(
+                        "`health.url` no puede contener credenciales embebidas (userinfo); usa "
+                        "`provider.api_key_env` para credenciales", fichero, f"{campo_c}.health.url"))
                 elif not allow_remote and not _endpoint_es_local(health_url):
                     # gap #7: mismo guardarraíl que `endpoint` (precedente `markdown_export.py`
                     # pasando `health_url` por `_host_permitido` antes de llamarlo).

@@ -32,11 +32,21 @@ def proveedor_none(config, episodio):
     return dict(episodio)
 
 
-def _con_instrucciones_de_extraccion(config, episodio, nombre_proveedor, modelo_por_defecto):
+def _con_instrucciones_de_extraccion(config, episodio, nombre_proveedor):
     """Comun a los proveedores que SI orientan la extraccion server-side: fija `source: "text"`
     (el cuerpo es markdown, no JSON ya estructurado) y una `custom_extraction_instructions` que
-    cita el modelo configurado, sin llamar a ningun API externo desde este proceso."""
-    modelo = (config or {}).get("model") or modelo_por_defecto
+    cita el modelo configurado, sin llamar a ningun API externo desde este proceso.
+
+    Gap #37 (revision Fase 2 intento 1): SIN modelo por defecto cableado aqui (antes
+    `qwen2.5:7b`/`gpt-4o-mini`/`claude-haiku`, contra CA-09 -"ningun modelo ni endpoint tiene
+    default cableado"-); `provider.model` es obligatorio en el esquema cuando `llm != "none"`
+    (`agent-kits/shared/knowledge-schema.py`), asi que si llega aqui sin `model` es un fallo de
+    invariante del llamador, no un default silencioso que enmascare la falta de configuracion."""
+    modelo = (config or {}).get("model")
+    if not modelo:
+        raise ValueError(
+            f"provider.model es obligatorio para provider.llm={nombre_proveedor!r} "
+            "(el esquema ya lo exige; config invalida llego hasta el adaptador)")
     salida = dict(episodio)
     salida["source"] = "text"
     salida["custom_extraction_instructions"] = (
@@ -48,15 +58,15 @@ def _con_instrucciones_de_extraccion(config, episodio, nombre_proveedor, modelo_
 
 
 def proveedor_ollama(config, episodio):
-    return _con_instrucciones_de_extraccion(config, episodio, "ollama", "qwen2.5:7b")
+    return _con_instrucciones_de_extraccion(config, episodio, "ollama")
 
 
 def proveedor_openai(config, episodio):
-    return _con_instrucciones_de_extraccion(config, episodio, "openai", "gpt-4o-mini")
+    return _con_instrucciones_de_extraccion(config, episodio, "openai")
 
 
 def proveedor_anthropic(config, episodio):
-    return _con_instrucciones_de_extraccion(config, episodio, "anthropic", "claude-haiku")
+    return _con_instrucciones_de_extraccion(config, episodio, "anthropic")
 
 
 PROVEEDORES = {

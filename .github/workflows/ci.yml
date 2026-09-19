@@ -49,7 +49,7 @@ jobs:
         # que 68 casos de tests/ (test_export_skills, test_release, test_roadmap_index) no corrían
         # en CI. Y al revés, las 8 suites de tests/ que son scripts (sin `def test_*`) pytest no las
         # recoge: las ejecuta `tests/test_suites_no_pytest.py`, para que la puerta local sea la de CI.
-        run: python -m pytest tests agent-kits/shared agent-kits/knowledge-curator skills/adversarial-review/scripts skills/code-health/scripts skills/dependency-upgrade/scripts skills/changelog-sync/scripts skills/unit-tests/scripts skills/api-contract/scripts skills/jira-sync/scripts evals -q
+        run: python -m pytest tests agent-kits/shared agent-kits/knowledge-curator skills/adversarial-review/scripts skills/code-health/scripts skills/dependency-upgrade/scripts skills/changelog-sync/scripts skills/unit-tests/scripts skills/api-contract/scripts skills/jira-sync/scripts skills/knowledge-services/scripts evals -q
 
       - name: "Bench captura de SessionEnd (CA-02: p95 ≤ 100 ms / p99 ≤ 300 ms)"
         # session-end-durable-capture: mide journal.py capture-end end-to-end (30 iteraciones, el

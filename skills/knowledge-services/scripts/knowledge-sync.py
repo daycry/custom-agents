@@ -260,6 +260,10 @@ def _construir_parser():
     ap.add_argument("--rebuild", action="store_true")
     ap.add_argument("--outbox-status", action="store_true", dest="outbox_status",
                      help="imprime `outbox.estado()` de la cola de este backend y sale (gap 120)")
+    ap.add_argument("--propose-config", action="store_true", dest="propose_config",
+                     help="imprime la propuesta de `graphiti_model.proponer_config` (entity_types "
+                          "para el config.yaml del servidor + entity_map para taxonomy.json) y sale, "
+                          "sin aplicar nada (gap #36, CA-13)")
     ap.add_argument("--backends-dir", action="append", default=[], dest="backends_dir",
                      help="carpeta extra donde buscar el adaptador `type` (repetible; CA-12)")
     return ap
@@ -267,10 +271,10 @@ def _construir_parser():
 
 def main(argv=None):
     args = _construir_parser().parse_args(argv)
-    modos = [args.dry_run, args.check, args.rebuild, args.outbox_status]
+    modos = [args.dry_run, args.check, args.rebuild, args.outbox_status, args.propose_config]
     if sum(bool(m) for m in modos) > 1:
-        print("knowledge-sync: --dry-run, --check, --rebuild y --outbox-status son excluyentes entre sí",
-              file=sys.stderr)
+        print("knowledge-sync: --dry-run, --check, --rebuild, --outbox-status y --propose-config "
+              "son excluyentes entre sí", file=sys.stderr)
         return 2
 
     try:
@@ -311,6 +315,27 @@ def main(argv=None):
         return 2
     cfg = dict(decl.get("config") or {})
     cfg["_root"] = os.path.abspath(args.root)  # gap 88: export_dir se resuelve contra esto, nunca CWD
+
+    if args.propose_config:
+        # Gap #36 (CA-13): `graphiti_model.proponer_config` no tenia ningun llamador -esta era su
+        # unica puerta de entrada prevista por el plan (T-02 la aplazo "a T-04/T-05")-. Solo tiene
+        # sentido para el backend `graphiti` (el resto no tiene tipos de entidad que proponer, ni
+        # necesita que su adaptador este disponible para ESTE modo -no toca red ni manifiestos-).
+        if tipo != "graphiti":
+            print(f"knowledge-sync: --propose-config solo aplica a backends `type: graphiti` "
+                  f"(`{args.backend}` es `{tipo}`)", file=sys.stderr)
+            return 2
+        gm = _cargar_por_ruta(os.path.join(BACKENDS_DIR, "graphiti_model.py"), "ks_backend_graphiti_model")
+        propuesta = gm.proponer_config(config, cfg)
+        if args.json:
+            print(json.dumps({"backend": args.backend, "propose_config": propuesta},
+                              ensure_ascii=False, indent=2))
+        else:
+            print(propuesta["entity_types_yaml"])
+            print(f"\n# entity_map propuesto para backends.{args.backend}.config.entity_map:")
+            print(json.dumps(propuesta["entity_map"], ensure_ascii=False, indent=2))
+            print(f"\n{propuesta['nota']}")
+        return 0
 
     try:
         adaptador = binit.cargar_adaptador(tipo, directorios=[BACKENDS_DIR, *args.backends_dir])
