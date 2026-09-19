@@ -114,6 +114,7 @@ import http.client
 import ipaddress
 import json
 import os
+import re
 import socket
 import sys
 import tempfile
@@ -558,6 +559,23 @@ def _lock_path(export_dir):
     return export_dir.rstrip(os.sep) + _LOCK_SUFIJO
 
 
+_CONTROL_O_ANSI_RE = re.compile(r"[\x00-\x1f\x7f]|\x1b\[[0-9;]*[A-Za-z]")
+_SANEADO_TOPE_CHARS = 200
+
+
+def _sanear_detalle(texto):
+    """Gap 176 (CWE-117, fuera de lente, señalado por la Lente B): `health()`/`verify()` embebían
+    el mensaje de la excepción de red — que en el caso de `http.client.HTTPException`/`OSError`
+    puede contener bytes CRUDOS de lo que respondió el servidor (p. ej. `BadStatusLine` incluye la
+    primera línea recibida tal cual) — directamente en `detalle`/`motivo`, que acaban impresos por
+    `/doctor`. Un servidor (aunque sea local, ya pasó `_host_permitido`) que devuelva CRLF o
+    secuencias de escape ANSI podía así inyectar saltos de línea o color en esa salida. Se recorta
+    a 200 caracteres y se sustituyen los caracteres de control (incluidas las secuencias ANSI
+    `ESC[...`) por un espacio, ANTES de anteponer cualquier prefijo propio (`f"... : {texto}"`)."""
+    saneado = _CONTROL_O_ANSI_RE.sub(" ", str(texto))
+    return saneado[:_SANEADO_TOPE_CHARS]
+
+
 def health(cfg):
     """Nunca lanza: cualquier fallo de red/parseo degrada a un `estado` del enum
     `off · sano · degradado · error` (design.md, tabla del contrato de adaptador)."""
@@ -584,7 +602,10 @@ def health(cfg):
         # que no es HTTP en absoluto (`BadStatusLine`, etc.) — `http.client.HTTPException` NO es
         # subclase de `OSError`, así que sin este `except` explícito escapaba hasta el llamador
         # pese a que este docstring promete «nunca lanza».
-        return {"estado": "error", "detalle": f"respuesta no HTTP de {url}: {type(e).__name__}: {e}"}
+        # gap 176 (CWE-117): el mensaje de `BadStatusLine` incluye la primera línea CRUDA que
+        # respondió el servidor — se sanea (control/ANSI fuera, tope 200) antes de devolverla.
+        return {"estado": "error",
+                "detalle": _sanear_detalle(f"respuesta no HTTP de {url}: {type(e).__name__}: {e}")}
     try:
         datos = json.loads(cuerpo.decode("utf-8"))
     except (ValueError, UnicodeDecodeError) as e:
@@ -925,8 +946,11 @@ def verify(cfg):
             ValueError, UnicodeDecodeError, http.client.HTTPException) as e:
         # gap 155: `http.client.HTTPException` (respuesta no HTTP de un host local permitido)
         # no es subclase de `OSError`; se captura explícitamente, igual que en `health()`.
+        # gap 176 (CWE-117): mismo saneado que en `health()` — el mensaje de excepción puede
+        # traer bytes crudos del servidor (CRLF, ANSI) que acaban impresos por `/doctor`.
         return {"ok": False, "desfase": [{"knowledge_id": None,
-                "motivo": f"no se pudo conectar a {snapshot_url}: {type(e).__name__}: {e}",
+                "motivo": _sanear_detalle(
+                    f"no se pudo conectar a {snapshot_url}: {type(e).__name__}: {e}"),
                 "remedio": REMEDIO}]}
     nodos_por_nombre = {
         n.get("file_name"): n for n in (snapshot.get("nodes") or [])
