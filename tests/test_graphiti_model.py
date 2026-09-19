@@ -1,11 +1,15 @@
 """
 tests/test_graphiti_model.py — `skills/knowledge-services/backends/graphiti_model.py`
-(graphiti-memory T-02, ADR-018 enmienda 2026-09-18, CA-13 reformulado).
+(graphiti-memory T-02, ADR-018 enmienda 2026-09-18, CA-13 reformulado;
+T-02-fix2: gaps #16/#18/#20/#22/#26 de la revisión de dos lentes, intento 2).
 
 Cubre: mapeo categoría -> tipo de entidad EFECTIVO del servidor (`entity_map`, default
-`Document`), el bloque `entity_types` propuesto para `config.yaml` del servidor (uno por tipo
-efectivo + `Knowledge`/`Evidence`), las relaciones núcleo + `relations` declaradas, y la
-sucesión `SUPERSEDES` (conserva historia, marca vigencia).
+`Document` si la categoría no tiene mapeo válido), el bloque `entity_types` propuesto para
+`config.yaml` del servidor (UNA entrada POR CATEGORÍA — nombre `entity_map[key]` si es una
+cadena no vacía, si no `TitleCase` Unicode de la propia `key` — más `Knowledge`/`Evidence`;
+nunca el genérico `Document` en la propuesta), la propuesta COMPLETA `proponer_config`
+(`entity_types` + el `entity_map` que los hace efectivos, gap #16), las relaciones núcleo +
+`relations` declaradas, y la sucesión `SUPERSEDES` (conserva historia, marca vigencia).
 """
 import importlib.util
 import os
@@ -153,6 +157,11 @@ def test_proponer_entity_types_yaml_titlecase_normaliza_separadores():
 
 
 # --------------------------------------------------------- T-01-fix1 gap #4: `name:` escapado
+#
+# Nota (T-02-fix2 gap #20): la cadena vacía/blanca ya NO es un "nombre hostil que se escapa" —
+# es un valor INVÁLIDO de `entity_map` (igual que en `tipo_entidad`) que degrada con aviso al
+# nombre derivado de la `key`; ver `test_proponer_entity_types_yaml_valor_vacio_degrada_...`
+# más abajo. Las listas de aquí solo cubren nombres hostiles que SÍ son cadenas no vacías.
 
 def test_proponer_entity_types_yaml_escapa_nombres_hostiles():
     nombres_hostiles = [
@@ -160,7 +169,6 @@ def test_proponer_entity_types_yaml_escapa_nombres_hostiles():
         "Doc\n  - name: Injected",
         "yes",
         "no",
-        "",
         "{a: 1}",
         "null",
     ]
@@ -179,7 +187,7 @@ def test_proponer_entity_types_yaml_escapa_nombres_hostiles():
 def test_proponer_entity_types_yaml_nombres_hostiles_son_yaml_valido():
     yaml = pytest.importorskip("yaml")
     taxonomy = {"categories": [{"key": "X", "folder": "x", "min_evidence": "x"}]}
-    for nombre in ("Doc: interno", "Doc\n  - name: Injected", "yes", "", "{a: 1}"):
+    for nombre in ("Doc: interno", "Doc\n  - name: Injected", "yes", "{a: 1}"):
         config = {"entity_map": {"X": nombre}}
         yaml_texto = gm.proponer_entity_types_yaml(taxonomy, config)
         parsed = yaml.safe_load(yaml_texto)
@@ -187,6 +195,106 @@ def test_proponer_entity_types_yaml_nombres_hostiles_son_yaml_valido():
         assert len(entradas) == 3
         nombres = [e["name"] for e in entradas]
         assert nombre in nombres
+
+
+# ------------------------------------------------ T-02-fix2 gap #20: valores invalidos de entity_map
+
+def test_tipo_entidad_valor_vacio_en_entity_map_degrada_con_aviso():
+    for valor_invalido in ("", "   ", 123, [], None):
+        config = {"entity_map": {"DECISION": valor_invalido}}
+        with pytest.warns(RuntimeWarning):
+            assert gm.tipo_entidad("DECISION", config) == "Document"
+
+
+def test_proponer_entity_types_yaml_valor_vacio_degrada_al_nombre_derivado():
+    taxonomy = {"categories": [{"key": "X", "folder": "x", "min_evidence": "x"}]}
+    for valor_invalido in ("", "   ", 123, []):
+        config = {"entity_map": {"X": valor_invalido}}
+        with pytest.warns(RuntimeWarning):
+            yaml_texto = gm.proponer_entity_types_yaml(taxonomy, config)
+        # Sin valor valido en entity_map, cae al nombre derivado de la key (TitleCase("X") = "X"),
+        # NUNCA emite `name: ""` ni omite la categoria en silencio.
+        assert 'name: "X"' in yaml_texto
+
+
+# ------------------------------------------------------ T-02-fix2 gap #18: TitleCase Unicode
+
+def test_titlecase_clave_normaliza_unicode():
+    assert gm._titlecase_clave("decisión") == "Decisión"
+    assert gm._titlecase_clave("日本") == "日本"
+
+
+def test_titlecase_clave_nfkc_normaliza_forma_de_composicion():
+    # 'e' + combining acute accent (forma NFD) debe normalizar a la misma TitleCase que 'é' (NFC).
+    nfd = "café"  # café en forma descompuesta
+    assert gm._titlecase_clave(nfd) == gm._titlecase_clave("café")
+
+
+def test_proponer_entity_types_yaml_key_sin_alfanumericos_falla_explicito():
+    taxonomy = {"categories": [{"key": "___", "folder": "x", "min_evidence": "x"}]}
+    with pytest.raises(ValueError, match="entity_map"):
+        gm.proponer_entity_types_yaml(taxonomy, {})
+
+
+def test_proponer_entity_types_yaml_colision_implicita_falla_explicito():
+    # Dos keys distintas que, SIN mapeo explicito, derivan al mismo TitleCase ("MultiWord").
+    taxonomy = {
+        "categories": [
+            {"key": "MULTI WORD", "folder": "x", "min_evidence": "x"},
+            {"key": "MULTI-WORD", "folder": "x", "min_evidence": "x"},
+        ],
+    }
+    with pytest.raises(ValueError, match="entity_map"):
+        gm.proponer_entity_types_yaml(taxonomy, {})
+
+
+# ------------------------------------------------------- T-02-fix2 gap #22: tolerancia de entrada
+
+def test_proponer_entity_types_yaml_config_no_dict_degrada_con_aviso():
+    taxonomy = {"categories": [{"key": "X", "folder": "x", "min_evidence": "x"}]}
+    with pytest.warns(RuntimeWarning):
+        yaml_texto = gm.proponer_entity_types_yaml(taxonomy, ["entity_map"])
+    assert 'name: "X"' in yaml_texto
+
+
+def test_proponer_entity_types_yaml_key_no_string_lanza_valueerror():
+    taxonomy = {"categories": [{"key": 123, "folder": "x", "min_evidence": "x"}]}
+    with pytest.raises(ValueError):
+        gm.proponer_entity_types_yaml(taxonomy, {})
+
+
+def test_proponer_config_config_no_dict_degrada_con_aviso():
+    taxonomy = {"categories": [{"key": "X", "folder": "x", "min_evidence": "x"}]}
+    with pytest.warns(RuntimeWarning):
+        resultado = gm.proponer_config(taxonomy, ["entity_map"])
+    assert resultado["entity_map"] == {"X": "X"}
+
+
+# ------------------------------------------------------------- T-02-fix2 gap #16: proponer_config
+
+def test_proponer_config_devuelve_yaml_y_entity_map_completos():
+    resultado = gm.proponer_config(TAXONOMIA_A, {"entity_map": {"DECISION": "Organization"}})
+    assert set(resultado.keys()) == {"entity_types_yaml", "entity_map", "nota"}
+    assert resultado["entity_types_yaml"].startswith("entity_types:\n")
+    assert resultado["entity_map"] == {
+        "DECISION": "Organization",
+        "PATTERN": "Pattern",
+        "GOTCHA": "Gotcha",
+    }
+    assert "Document" in resultado["nota"]
+
+
+def test_proponer_config_aplicar_entity_map_hace_tipos_por_categoria_igual_a_lo_propuesto():
+    resultado = gm.proponer_config(TAXONOMIA_A, {})
+    config_aplicada = {"entity_map": resultado["entity_map"]}
+    assert gm.tipos_por_categoria(TAXONOMIA_A, config_aplicada) == resultado["entity_map"]
+
+
+def test_proponer_config_sin_taxonomia_solo_nucleo():
+    resultado = gm.proponer_config({"categories": []}, {})
+    assert resultado["entity_map"] == {}
+    assert "Knowledge" in resultado["entity_types_yaml"]
+    assert "Evidence" in resultado["entity_types_yaml"]
 
 
 # ------------------------------------------------------------------ sucesión SUPERSEDES (CA-11)
