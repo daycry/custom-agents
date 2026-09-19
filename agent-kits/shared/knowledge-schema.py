@@ -28,10 +28,12 @@ Uso:
 Exit codes: 0 válido · 1 con errores (se listan en stdout) · 2 uso/JSON ilegible.
 """
 import argparse
+import ipaddress
 import json
 import os
 import re
 import sys
+import urllib.parse
 
 # Consola no UTF-8 (Windows cp1252) o tuberías: reconfigurar ANTES de leer/imprimir (GOT-005).
 for _s in (sys.stdin, sys.stdout, sys.stderr):
@@ -44,6 +46,38 @@ PROJECT_TAXONOMY_REL = os.path.join(".claude", "knowledge-services", "taxonomy.j
 
 VERSIONES_SOPORTADAS = (1,)
 ROUTING_VALORES = (True, False, "summary")
+
+# `backends.<id>.config` de `type: "graphiti"` (graphiti-memory T-01, ADR-018 enmienda 2026-09-17,
+# CA-09/CA-10/CA-12/CA-13). Validación ESTÁTICA de configuración (no hace red ni DNS): distinta
+# del check runtime con resolución DNS de `backends/markdown_export.py::_host_permitido`, que
+# vive en el adaptador porque necesita seguir redirecciones reales.
+GRAPHITI_MODE_VALORES = ("off", "shadow", "read")
+GRAPHITI_PROVIDER_LLM_VALORES = ("ollama", "openai", "anthropic", "none")
+# Nombre de variable de entorno: mismo alfabeto que un identificador de shell POSIX habitual.
+# Un valor con espacios o que empiece por dígito no es un nombre de variable — es, casi siempre,
+# un secreto pegado por error donde solo debía ir el NOMBRE de la variable que lo contiene (CA-09).
+_ENV_VAR_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
+def _endpoint_es_local(endpoint):
+    """True si el host de `endpoint` es literalmente loopback/privado (IP literal o
+    `localhost`), sin resolución DNS — validación de config en frío, no en tiempo de conexión.
+    Un hostname no-IP (p. ej. `mi-graphiti.local`) no puede afirmarse local sin resolver, así que
+    NO cuenta como local aquí (fail-closed: exige `allow_remote: true` para ese caso)."""
+    try:
+        parsed = urllib.parse.urlparse(endpoint)
+    except ValueError:
+        return False
+    host = (parsed.hostname or "").lower()
+    if not host:
+        return False
+    if host == "localhost":
+        return True
+    try:
+        ip = ipaddress.ip_address(host)
+    except ValueError:
+        return False
+    return bool(ip.is_loopback or ip.is_private)
 
 # Respaldo embebido si `templates/taxonomy.json` no viaja con este fichero (instalación parcial
 # o paquete portable "solo skills" — ver agent-kits/shared/README.md). El bloque de abajo (desde
@@ -90,6 +124,22 @@ _TAXONOMY_FALLBACK = { \
         "export_dir": ".claude/knowledge-services/kwipu-export",
         "health": {"url": "http://127.0.0.1:8765/health", "timeout_ms": 800}
       }
+    },
+    "graphiti": {
+      "type": "graphiti",
+      "enabled": False,
+      "config": {
+        "mode": "shadow",
+        "endpoint": "http://127.0.0.1:8001/mcp",
+        "group_id": "knowledge-graphs",
+        "allow_remote": False,
+        "provider": {"llm": "none"},
+        "entity_map": {},
+        "relations": [],
+        "router": {"intents": {"temporal": False, "relacional": False, "evidencia": False}},
+        "telemetria": False,
+        "health": {"url": "http://127.0.0.1:8001/health", "timeout_ms": 3000}
+      }
     }
   },
   "evidence_levels": [
@@ -118,6 +168,110 @@ _TAXONOMY_FALLBACK = { \
 
 def _error(mensaje, fichero, campo):
     return {"mensaje": mensaje, "fichero": fichero, "campo": campo}
+
+
+def _validar_backend_graphiti(bcfg, campo, fichero, errores):
+    """Reglas propias de `type: "graphiti"` (T-01), sobre `bcfg["config"]`. El chequeo genérico
+    de `backends.<id>` (type/enabled/config es-un-objeto) ya corrió antes de llamar aquí; esta
+    función solo mira dentro de `config` y no repite esas comprobaciones."""
+    config = bcfg.get("config")
+    if not isinstance(config, dict):
+        return  # ya reportado como error genérico de `backends.<id>.config`
+    campo_c = f"{campo}.config"
+
+    mode = config.get("mode")
+    if mode is not None and mode not in GRAPHITI_MODE_VALORES:
+        errores.append(_error(
+            f"`mode` `{mode}` no es uno de {GRAPHITI_MODE_VALORES}", fichero, f"{campo_c}.mode"))
+
+    if "allow_remote" in config and not isinstance(config["allow_remote"], bool):
+        errores.append(_error("`allow_remote` debe ser booleano", fichero, f"{campo_c}.allow_remote"))
+
+    endpoint = config.get("endpoint")
+    if endpoint is not None:
+        if not isinstance(endpoint, str) or not endpoint:
+            errores.append(_error("`endpoint` debe ser una cadena no vacía", fichero, f"{campo_c}.endpoint"))
+        elif not (endpoint.startswith("http://") or endpoint.startswith("https://")):
+            errores.append(_error(
+                "`endpoint` debe ser una URL http(s)", fichero, f"{campo_c}.endpoint"))
+        elif not config.get("allow_remote") and not _endpoint_es_local(endpoint):
+            errores.append(_error(
+                f"`endpoint` `{endpoint}` no es loopback/privado; declara `allow_remote: true` "
+                "para permitir un endpoint remoto (CA-09)", fichero, f"{campo_c}.endpoint"))
+
+    if "group_id" in config and not isinstance(config["group_id"], str):
+        errores.append(_error("`group_id` debe ser una cadena", fichero, f"{campo_c}.group_id"))
+
+    provider = config.get("provider")
+    if provider is not None:
+        if not isinstance(provider, dict):
+            errores.append(_error("`provider` debe ser un objeto", fichero, f"{campo_c}.provider"))
+        else:
+            llm = provider.get("llm")
+            if llm is None:
+                errores.append(_error("`provider.llm` es obligatorio", fichero, f"{campo_c}.provider.llm"))
+            elif llm not in GRAPHITI_PROVIDER_LLM_VALORES:
+                errores.append(_error(
+                    f"`provider.llm` `{llm}` no es uno de {GRAPHITI_PROVIDER_LLM_VALORES}",
+                    fichero, f"{campo_c}.provider.llm"))
+            for clave in ("model", "embedder", "embedder_model", "base_url"):
+                if clave in provider and not isinstance(provider[clave], str):
+                    errores.append(_error(
+                        f"`provider.{clave}` debe ser una cadena", fichero, f"{campo_c}.provider.{clave}"))
+            api_key_env = provider.get("api_key_env")
+            if api_key_env is not None:
+                if not isinstance(api_key_env, str) or not _ENV_VAR_RE.match(api_key_env):
+                    errores.append(_error(
+                        "`provider.api_key_env` debe ser el NOMBRE de una variable de entorno "
+                        "(nunca la credencial en sí, CA-09)", fichero, f"{campo_c}.provider.api_key_env"))
+
+    entity_map = config.get("entity_map")
+    if entity_map is not None:
+        if not isinstance(entity_map, dict) or not all(
+                isinstance(k, str) and isinstance(v, str) for k, v in entity_map.items()):
+            errores.append(_error(
+                "`entity_map` debe ser un objeto {categoria: tipo_del_servidor} de cadenas",
+                fichero, f"{campo_c}.entity_map"))
+
+    relations = config.get("relations")
+    if relations is not None:
+        if not isinstance(relations, list) or not all(isinstance(r, str) for r in relations):
+            errores.append(_error(
+                "`relations` debe ser una lista de cadenas", fichero, f"{campo_c}.relations"))
+
+    router = config.get("router")
+    if router is not None:
+        if not isinstance(router, dict):
+            errores.append(_error("`router` debe ser un objeto", fichero, f"{campo_c}.router"))
+        else:
+            intents = router.get("intents")
+            if intents is not None:
+                if not isinstance(intents, dict):
+                    errores.append(_error(
+                        "`router.intents` debe ser un objeto {intent: booleano}",
+                        fichero, f"{campo_c}.router.intents"))
+                else:
+                    for intent, valor in intents.items():
+                        if not isinstance(valor, bool):
+                            errores.append(_error(
+                                f"`router.intents.{intent}` debe ser booleano",
+                                fichero, f"{campo_c}.router.intents.{intent}"))
+
+    if "telemetria" in config and not isinstance(config["telemetria"], bool):
+        errores.append(_error("`telemetria` debe ser booleano", fichero, f"{campo_c}.telemetria"))
+
+    health = config.get("health")
+    if health is not None:
+        if not isinstance(health, dict):
+            errores.append(_error("`health` debe ser un objeto", fichero, f"{campo_c}.health"))
+        else:
+            if "url" in health and not isinstance(health["url"], str):
+                errores.append(_error("`health.url` debe ser una cadena", fichero, f"{campo_c}.health.url"))
+            timeout_ms = health.get("timeout_ms")
+            if timeout_ms is not None and (
+                    not isinstance(timeout_ms, (int, float)) or isinstance(timeout_ms, bool)):
+                errores.append(_error(
+                    "`health.timeout_ms` debe ser numérico", fichero, f"{campo_c}.health.timeout_ms"))
 
 
 _FOLDER_UNIDAD_RE = re.compile(r"^[A-Za-z]:")
@@ -240,6 +394,8 @@ def validar(config, fichero="taxonomy.json"):
                 errores.append(_error(f"backend `{bid}`: `enabled` debe ser booleano", fichero, f"{campo}.enabled"))
             if "config" in bcfg and not isinstance(bcfg["config"], dict):
                 errores.append(_error(f"backend `{bid}`: `config` debe ser un objeto", fichero, f"{campo}.config"))
+            elif bcfg.get("type") == "graphiti":
+                _validar_backend_graphiti(bcfg, campo, fichero, errores)
 
     categories = config.get("categories")
     if categories is None:
