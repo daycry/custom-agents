@@ -42,7 +42,6 @@
       "config": {
         "mode": "shadow",
         "endpoint": "http://127.0.0.1:8001/mcp",
-        "group_id": "knowledge-graphs",
         "allow_remote": false,
         "provider": {"llm": "none"},
         "entity_map": {},

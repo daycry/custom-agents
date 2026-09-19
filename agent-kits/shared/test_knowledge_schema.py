@@ -245,6 +245,179 @@ def test_graphiti_allow_remote_no_booleano():
     assert any(e["campo"] == "backends.graphiti.config.allow_remote" for e in errores)
 
 
+# ------------------------------------------------------------------ T-01-fix1: revision de dos lentes, Fase 1 intento 1
+
+def test_graphiti_clave_desconocida_a_nivel_de_backend_falla():
+    """Gap #1: el ejemplo PLANO antiguo (`endpoint` fuera de `config`) tiene que dar error, no
+    pasar en silencio."""
+    cfg = _valida()
+    cfg["backends"]["graphiti"] = {
+        "type": "graphiti", "enabled": True,
+        "endpoint": "http://evil.com/mcp", "api_key": "sk-secreto-inline",
+        "config": _graphiti_config(),
+    }
+    errores = ks.validar(cfg, "t.json")
+    assert any(e["campo"] == "backends.graphiti.endpoint" for e in errores)
+    assert any(e["campo"] == "backends.graphiti.api_key" for e in errores)
+
+
+def test_graphiti_clave_desconocida_en_config_falla():
+    cfg = _con_graphiti(_graphiti_config(api_key="sk-secreto-inline"))
+    errores = ks.validar(cfg, "t.json")
+    assert any(e["campo"] == "backends.graphiti.config.api_key" for e in errores)
+
+
+def test_graphiti_clave_desconocida_en_provider_falla():
+    cfg = _con_graphiti(_graphiti_config(provider={"llm": "ollama", "modelo": "qwen2.5:7b"}))
+    errores = ks.validar(cfg, "t.json")
+    assert any(e["campo"] == "backends.graphiti.config.provider.modelo" for e in errores)
+
+
+def test_graphiti_clave_desconocida_en_router_falla():
+    cfg = _con_graphiti(_graphiti_config(router={"intents": {"temporal": True}, "modelo": "gpt-4"}))
+    errores = ks.validar(cfg, "t.json")
+    assert any(e["campo"] == "backends.graphiti.config.router.modelo" for e in errores)
+
+
+def test_graphiti_clave_desconocida_en_health_falla():
+    cfg = _con_graphiti(_graphiti_config(health={"url": "http://127.0.0.1:8001/health", "puerto": 8001}))
+    errores = ks.validar(cfg, "t.json")
+    assert any(e["campo"] == "backends.graphiti.config.health.puerto" for e in errores)
+
+
+def test_group_id_sin_default_cableado_en_template():
+    """Gap #3: ni la plantilla ni el respaldo fijan `group_id` a `knowledge-graphs` (el grupo del
+    stack de referencia); dos consumidores en la misma maquina no pueden compartir grupo por
+    omision."""
+    tpl = ks.default_taxonomy()
+    assert "group_id" not in tpl["backends"]["graphiti"]["config"]
+    assert "group_id" not in ks._TAXONOMY_FALLBACK["backends"]["graphiti"]["config"]
+    assert ks.validar(tpl, "template") == []
+
+
+def test_group_id_se_deriva_del_slug_del_proyecto(tmp_path):
+    root = tmp_path / "Mi Proyecto Graphiti"
+    root.mkdir()
+    config, origen, _ruta, errores = ks.cargar_taxonomia(root=str(root))
+    assert origen == "default"
+    assert errores == []
+    assert config["backends"]["graphiti"]["config"]["group_id"] == "mi-proyecto-graphiti"
+
+
+def test_group_id_explicito_no_se_pisa(tmp_path):
+    proyecto = tmp_path / ".claude" / "knowledge-services"
+    proyecto.mkdir(parents=True)
+    cfg = _con_graphiti(_graphiti_config(group_id="grupo-explicito"))
+    (proyecto / "taxonomy.json").write_text(json.dumps(cfg), encoding="utf-8")
+    config, _origen, _ruta, _errores = ks.cargar_taxonomia(root=str(tmp_path))
+    assert config["backends"]["graphiti"]["config"]["group_id"] == "grupo-explicito"
+
+
+def test_group_id_vacio_es_invalido():
+    cfg = _con_graphiti(_graphiti_config(group_id=""))
+    errores = ks.validar(cfg, "t.json")
+    assert any(e["campo"] == "backends.graphiti.config.group_id" for e in errores)
+
+
+def test_graphiti_habilitado_sin_config_falla_en_endpoint_provider_y_mode():
+    """Gap #6: `{"type":"graphiti","enabled":true}` sin `config` ya no valida en silencio."""
+    cfg = _valida()
+    cfg["backends"]["graphiti"] = {"type": "graphiti", "enabled": True}
+    errores = ks.validar(cfg, "t.json")
+    campos = {e["campo"] for e in errores}
+    assert "backends.graphiti.config.endpoint" in campos
+    assert "backends.graphiti.config.provider.llm" in campos
+    assert "backends.graphiti.config.mode" in campos
+
+
+def test_graphiti_habilitado_config_vacia_falla_en_endpoint_provider_y_mode():
+    cfg = _valida()
+    cfg["backends"]["graphiti"] = {"type": "graphiti", "enabled": True, "config": {}}
+    errores = ks.validar(cfg, "t.json")
+    campos = {e["campo"] for e in errores}
+    assert "backends.graphiti.config.endpoint" in campos
+    assert "backends.graphiti.config.provider.llm" in campos
+    assert "backends.graphiti.config.mode" in campos
+
+
+def test_graphiti_deshabilitado_sin_config_no_exige_nada():
+    cfg = _valida()
+    cfg["backends"]["graphiti"] = {"type": "graphiti", "enabled": False}
+    assert ks.validar(cfg, "t.json") == []
+
+
+def test_graphiti_health_url_remota_publica_sin_allow_remote_falla():
+    """Gap #7: `health.url` pasa por el MISMO guardarraíl que `endpoint`."""
+    cfg = _con_graphiti(_graphiti_config(health={"url": "http://evil.com/health", "timeout_ms": 3000}))
+    errores = ks.validar(cfg, "t.json")
+    assert any(e["campo"] == "backends.graphiti.config.health.url" for e in errores)
+
+
+def test_graphiti_health_url_remota_con_allow_remote_es_valida():
+    cfg = _con_graphiti(_graphiti_config(
+        allow_remote=True, endpoint="http://ejemplo-remoto.com/mcp",
+        health={"url": "http://ejemplo-remoto.com/health", "timeout_ms": 3000}))
+    assert ks.validar(cfg, "t.json") == []
+
+
+def test_graphiti_health_timeout_ms_negativo_o_cero_falla():
+    """Gap #11."""
+    for valor in (-5, 0):
+        cfg = _con_graphiti(_graphiti_config(health={"url": "http://127.0.0.1:8001/health", "timeout_ms": valor}))
+        errores = ks.validar(cfg, "t.json")
+        assert any(e["campo"] == "backends.graphiti.config.health.timeout_ms" for e in errores), valor
+
+
+def test_graphiti_host_local_con_sufijo_docker_es_valido():
+    """Gap #15: mismo criterio de hosts locales que el adaptador Kwipu (`host.docker.internal`,
+    sufijos `.test`/`.local`/`.internal`), no solo loopback/IP privada literal."""
+    cfg = _con_graphiti(_graphiti_config(
+        endpoint="http://host.docker.internal:8001/mcp", allow_remote=False,
+        health={"url": "http://mi-graphiti.test/health", "timeout_ms": 3000}))
+    assert ks.validar(cfg, "t.json") == []
+
+
+# ------------------------------------------------------------------ mutantes M9/M10/M12 (gap #13)
+
+def test_graphiti_endpoint_host_local_por_subcadena_falla_m9():
+    """M9: `"localhost" in host` sobrevivia — `localhost.evil.com` NO es local."""
+    cfg = _con_graphiti(_graphiti_config(endpoint="http://localhost.evil.com/mcp", allow_remote=False))
+    errores = ks.validar(cfg, "t.json")
+    assert any(e["campo"] == "backends.graphiti.config.endpoint" for e in errores)
+
+
+def test_graphiti_endpoint_ip_publica_literal_falla_m10():
+    """M10: cualquier IP literal se aceptaba — una IP publica (`8.8.8.8`) sigue exigiendo
+    `allow_remote: true`."""
+    cfg = _con_graphiti(_graphiti_config(endpoint="http://8.8.8.8/mcp", allow_remote=False))
+    errores = ks.validar(cfg, "t.json")
+    assert any(e["campo"] == "backends.graphiti.config.endpoint" for e in errores)
+
+
+def test_graphiti_provider_vacio_falla_m12():
+    """M12: `provider: {}` (sin `llm`) tiene que fallar."""
+    cfg = _con_graphiti(_graphiti_config(provider={}))
+    errores = ks.validar(cfg, "t.json")
+    assert any(e["campo"] == "backends.graphiti.config.provider.llm" for e in errores)
+
+
+# ------------------------------------------------------------------ gap #14: allow_remote estricto, relations sin vacios
+
+def test_graphiti_allow_remote_string_no_autoriza_endpoint_remoto():
+    """Gap #14: `allow_remote: "no"` (string, truthy en Python) NO puede colarse como si
+    autorizara un endpoint remoto."""
+    cfg = _con_graphiti(_graphiti_config(endpoint="http://ejemplo-remoto.com/mcp", allow_remote="no"))
+    errores = ks.validar(cfg, "t.json")
+    assert any(e["campo"] == "backends.graphiti.config.allow_remote" for e in errores)
+    assert any(e["campo"] == "backends.graphiti.config.endpoint" for e in errores)
+
+
+def test_graphiti_relations_con_cadena_vacia_falla():
+    cfg = _con_graphiti(_graphiti_config(relations=["MITIGATES", ""]))
+    errores = ks.validar(cfg, "t.json")
+    assert any(e["campo"] == "backends.graphiti.config.relations" for e in errores)
+
+
 def test_template_por_defecto_declara_graphiti_deshabilitado():
     """Regla del ledger: la plantilla gana el backend `graphiti` con `enabled: false` (opt-in)."""
     tpl = ks.default_taxonomy()
