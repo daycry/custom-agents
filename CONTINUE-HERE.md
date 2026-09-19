@@ -46,7 +46,8 @@
 > Suite completa una vez: 42 rojos, todos preexistentes de Windows salvo `test_manifests` (arreglado en 32e98d8). Queda un
 > `git stash@{0}` inocuo del implementer (no pudo `stash drop`: pide autorización). **Revisión Fase 4 intento 1** (c26461a):
 > 0 Critical, 10 Important, 10 Minor (#141–#160; incl. #150 = arreglar el YAML de LES-016 que bloquea `release.py`).
-> **Ronda `T-1X-fix1` de Fase 4 despachada.** Después: intento 2 → qa sin UI →
+> Ronda fix1 hecha (8c96d74..f023e56): 20/20; **`lint_plugin` 0 errores** (LES-016 arreglado). **Intento 2 Fase 4 en curso (A+B).**
+> Después: cerrar bucle → qa sin UI →
 > documenter → Fase 4-bis → cierre (changelog-sync, /retro, retro-gate) → push + PR (T-04 curator, T-05 documenter, T-06 Fase 4-bis) → Fase 3 (T-07 sync +
 > contrato, T-08 adaptador Kwipu, T-09 setup/doctor) → Fase 4 (T-10, T-11, T-12) → qa sin UI → documenter → cierre
 > (changelog-sync, /retro + retro-gate) → graphiti-memory.
