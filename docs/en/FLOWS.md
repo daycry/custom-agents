@@ -174,8 +174,8 @@ Fase 3" table of `commands/dev-cycle.md` (single source).
 |---|---|---|---|
 | `arrancar` | `implementer` | → *In Progress* (`en-curso`) | — |
 | `implementado` | `implementer` | — (stays In Progress) | `ca-implementer` |
-| `revision` (attempt with no gaps) | `reviewer` | — | `ca-reviewer` |
-| `gaps` (attempt with gaps) | `reviewer` | → *In Progress* (`reabrir`) | `ca-reviewer` |
+| `revision` (attempt with no gaps) | `adversarial-review` skill (signs as `--actor reviewer`) | — | `ca-reviewer` |
+| `gaps` (attempt with gaps) | `adversarial-review` skill (signs as `--actor reviewer`) | → *In Progress* (`reabrir`) | `ca-reviewer` |
 | `qa-verde` / `qa-rojo` | `qa` | — | `ca-qa` |
 | `aprobado` | **the orchestrator** (`/dev-cycle`) | → *Done* (`done`) | `ca-orquestador` |
 
@@ -183,8 +183,8 @@ Fase 3" table of `commands/dev-cycle.md` (single source).
 flowchart LR
     A["arrancar<br/>implementer"] --> B["implementado<br/>implementer"]
     B --> C{"two-lens<br/>review"}
-    C -->|no gaps| D["revision<br/>reviewer"]
-    C -->|gaps| E["gaps<br/>reviewer<br/>REOPENS the issue"]
+    C -->|no gaps| D["revision<br/>adversarial-review"]
+    C -->|gaps| E["gaps<br/>adversarial-review<br/>REOPENS the issue"]
     E -->|brief with gaps| B
     D --> F{"qa-gate.py"}
     F -->|red| G["qa-rojo<br/>qa"]
