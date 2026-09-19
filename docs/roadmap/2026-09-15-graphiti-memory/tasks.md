@@ -18,11 +18,11 @@ verificacion: obligatoria
 
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervision (real/est) | Tokens (real/est) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| Fase 1 - Contrato y modelo | 2 | 3 | 67% | 0 / 13h | 0.47 / 3.9h | 0 / 1.0h | ~223k / 175k |
+| Fase 1 - Contrato y modelo | 3 | 3 | 100% | 0 / 13h | 0.65 / 3.9h | 0 / 1.0h | ~311k / 175k |
 | Fase 2 - Sincronizacion | 0 | 3 | 0% | 0 / 16h | 0 / 4.8h | 0 / 1.2h | 0 / 200k |
 | Fase 3 - Router y configuracion | 0 | 2 | 0% | 0 / 11h | 0 / 3.3h | 0 / 0.9h | 0 / 110k |
 | Fase 4 - Regresion y cierre | 0 | 2 | 0% | 0 / 10h | 0 / 3h | 0 / 0.7h | 0 / 60k |
-| **TOTAL** | **2** | **10** | **20%** | **0 / 50h** | **0.47 / 15h** | **0 / 3.8h** | **~223k / 545k** |
+| **TOTAL** | **3** | **10** | **30%** | **0 / 50h** | **0.65 / 15h** | **0 / 3.8h** | **~311k / 545k** |
 
 ## Fase 1 - Contrato y modelo
 
@@ -64,12 +64,19 @@ verificacion: obligatoria
 - [x] Ninguna lista de tipos de dominio en el codigo del plugin; los tipos efectivos son los del servidor y el mapeo es configuracion (CA-13 reformulado, enmienda 2026-09-18) — `tipo_entidad`/`tipos_por_categoria` solo leen `config["entity_map"]` (config del proyecto) y caen a `Document` (el generico del servidor de referencia) sin declarar ningun tipo de dominio; probado contra dos `taxonomy.json` distintos (`test_tipos_por_categoria_dos_taxonomias_distintas`).
 
 ### T-03 - Politica de escritura y autoridad
-- **Estado**: borrador
+- **Estado**: completado
 - **Dependencias**: T-01
-- **Archivos**: `agents/knowledge-curator.md`, `docs/agents/ROLES.md`, `docs/agents/CONTRACTS.md`, `interop/**`
+- **Archivos**: `agents/knowledge-curator.md`, `docs/agents/knowledge-curator.md`, `docs/agents/ROLES.md`, `docs/agents/CONTRACTS.md`, `interop/**`
 - **Verificacion**: `python scripts/lint_plugin.py` -> ownership y rutas validos
+  - TDD n/a: cambio de documentacion/ownership (frontmatter, matrices y prosa), sin codigo testeable propio; la puerta mecanica es el propio linter y el `grep` declarado en la nueva arista E18
+  - `python scripts/lint_plugin.py` -> `10 agentes · 0 errores · 4 avisos` (los 4 avisos son previos al cambio: 3 nombres de comando genericos + 1 cita a `skills/knowledge-services/backends/graphiti.py`, que llega en T-04 y aun no existe)
+  - `python scripts/export-interop.py && python scripts/export-interop.py --check` -> `50 ficheros escritos` y `50 ficheros al dia`
+  - `grep -rn -i graphiti agents/*.md | grep -v knowledge-curator` -> salida vacia (ningun otro agente cita Graphiti)
+- **Changelog**: Documentada la unica via de escritura a Graphiti (knowledge-sync.py tras la aprobacion del curator); ningun agente normal escribe en el grafo directamente.
+- **Tiempo humano**: est. - · real -
+- **Tiempo IA**: real 0.18h (medido; usage-meter, artefacto graphiti-memory/T-03, 3m reloj, 2.17 EUR)
 **Criterios de aceptación**
-- [ ] Ningun agente normal escribe Graphiti.
+- [x] Ningun agente normal escribe Graphiti — `agents/knowledge-curator.md`/`docs/agents/knowledge-curator.md` declaran a `knowledge-sync.py` (disparado tras la aprobacion del Curator, filtrado por `routing.graphiti`) como unica via; `docs/agents/ROLES.md` y la nueva arista **E18** de `docs/agents/CONTRACTS.md` lo dejan escrito con puerta ejecutable (`grep` sobre `agents/*.md`); ningun otro fichero de `agents/` cita Graphiti (verificado arriba).
 
 ## Fase 2 - Sincronizacion
 
