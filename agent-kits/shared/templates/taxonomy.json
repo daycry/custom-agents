@@ -48,7 +48,9 @@
         "relations": [],
         "router": {"intents": {"temporal": false, "relacional": false, "evidencia": false}},
         "telemetria": false,
-        "health": {"url": "http://127.0.0.1:8001/health", "timeout_ms": 3000}
+        "health": {"url": "http://127.0.0.1:8001/health", "timeout_ms": 3000},
+        "timeout_ms": 3000,
+        "concurrency": 1
       }
     }
   },
