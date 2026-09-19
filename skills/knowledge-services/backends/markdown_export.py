@@ -110,6 +110,7 @@ Gaps de la revisión de dos lentes corregidos en este fichero:
 """
 import contextlib
 import hashlib
+import http.client
 import ipaddress
 import json
 import os
@@ -578,6 +579,12 @@ def health(cfg):
         return {"estado": "degradado" if 500 <= e.code < 600 else "error", "detalle": detalle}
     except (urllib.error.URLError, TimeoutError, OSError) as e:
         return {"estado": "off", "detalle": f"sin conexión a {url}: {type(e).__name__}: {e}"}
+    except http.client.HTTPException as e:
+        # gap 155: un servidor local (permitido, ya pasó `_host_permitido`) puede responder algo
+        # que no es HTTP en absoluto (`BadStatusLine`, etc.) — `http.client.HTTPException` NO es
+        # subclase de `OSError`, así que sin este `except` explícito escapaba hasta el llamador
+        # pese a que este docstring promete «nunca lanza».
+        return {"estado": "error", "detalle": f"respuesta no HTTP de {url}: {type(e).__name__}: {e}"}
     try:
         datos = json.loads(cuerpo.decode("utf-8"))
     except (ValueError, UnicodeDecodeError) as e:
@@ -915,7 +922,9 @@ def verify(cfg):
                 "motivo": f"redirección a host no local/privado, rechazada: {e.url}",
                 "remedio": REMEDIO}]}
     except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, OSError,
-            ValueError, UnicodeDecodeError) as e:
+            ValueError, UnicodeDecodeError, http.client.HTTPException) as e:
+        # gap 155: `http.client.HTTPException` (respuesta no HTTP de un host local permitido)
+        # no es subclase de `OSError`; se captura explícitamente, igual que en `health()`.
         return {"ok": False, "desfase": [{"knowledge_id": None,
                 "motivo": f"no se pudo conectar a {snapshot_url}: {type(e).__name__}: {e}",
                 "remedio": REMEDIO}]}
