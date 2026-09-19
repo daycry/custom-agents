@@ -670,3 +670,66 @@ def test_gapT10_realpath_de_la_carpeta_base_se_calcula_una_vez_por_carpeta(tmp_p
     # evitable) + hasta 2 por fichero candidato (contención + dedupe, ambas necesarias y ajenas a
     # este gap): nunca más de 1 + 2*n.
     assert len(llamadas) <= 1 + 2 * n
+
+
+def test_gap143_comentario_tras_guion_solo_no_produce_item_basura(tmp_path):
+    """Gap 143 (revisión de dos lentes, Fase 4 intento 1): el fix heredado de T-10 (gap `#`
+    intercalado) solo cubría un comentario en su PROPIA línea (`  # nota`, sin guion). Una línea
+    `- # nota` SÍ casa con `_ITEM_BLOQUE_RE` (guion seguido de contenido) y antes de este fix
+    colaba `"# nota"` como item basura de la lista. Debe ignorarse igual que un comentario suelto."""
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    d = os.path.join(root, "docs", "knowledge", "approved", "adr")
+    os.makedirs(d, exist_ok=True)
+    contenido = (
+        "---\nid: ADR-COMENTARIO-CON-GUION\nversion: 1\nestado: aprobado\ncategory: DECISION\n"
+        "fuentes:\n  - https://a\n  - # nota con guion\n  - https://b\n---\n\n# x\n"
+    )
+    with open(os.path.join(d, "ADR-COMENTARIO-CON-GUION.md"), "w", encoding="utf-8") as f:
+        f.write(contenido)
+    indice, errores = ki.build_index(root)
+    assert errores == []
+    assert indice["ADR-COMENTARIO-CON-GUION"]["fuentes"] == ["https://a", "https://b"]
+
+
+def test_gap143_comentario_inline_tras_dos_espacios_se_recorta_del_item(tmp_path):
+    """Gap 143: `- valor  # nota` arrastraba el comentario dentro del valor del item (`"valor  #
+    nota"` en vez de `"valor"`), lo que en `enlaces:` producía un falso «enlace roto» porque el
+    id nunca casaba con ninguna entrada real del índice. El comentario, marcado por DOS espacios
+    antes del `#` (o por estar solo en la línea, gap anterior), se recorta; un `#` pegado al valor
+    (p. ej. un fragmento de URL) no se toca."""
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    d = os.path.join(root, "docs", "knowledge", "approved", "adr")
+    os.makedirs(d, exist_ok=True)
+    contenido = (
+        "---\nid: ADR-COMENTARIO-INLINE\nversion: 1\nestado: aprobado\ncategory: DECISION\n"
+        "fuentes:\n  - https://a  # nota inline\n  - https://b#fragmento\n---\n\n# x\n"
+    )
+    with open(os.path.join(d, "ADR-COMENTARIO-INLINE.md"), "w", encoding="utf-8") as f:
+        f.write(contenido)
+    indice, errores = ki.build_index(root)
+    assert errores == []
+    assert indice["ADR-COMENTARIO-INLINE"]["fuentes"] == ["https://a", "https://b#fragmento"]
+
+
+def test_gap143_enlace_con_comentario_inline_no_es_falso_enlace_roto(tmp_path):
+    """Gap 143: un `enlaces:` en lista de bloque con comentario inline (`- ADR-DESTINO  # nota`)
+    arrastraba el comentario dentro del id citado, y como ese id compuesto nunca existe en el
+    índice, `build_index` reportaba un falso `enlace roto`."""
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    d = os.path.join(root, "docs", "knowledge", "approved", "adr")
+    os.makedirs(d, exist_ok=True)
+    with open(os.path.join(d, "ADR-DESTINO.md"), "w", encoding="utf-8") as f:
+        f.write(
+            "---\nid: ADR-DESTINO\nversion: 1\nestado: aprobado\ncategory: DECISION\n---\n\n# d\n")
+    contenido = (
+        "---\nid: ADR-ORIGEN\nversion: 1\nestado: aprobado\ncategory: DECISION\n"
+        "enlaces:\n  - ADR-DESTINO  # ver tambien\n---\n\n# o\n"
+    )
+    with open(os.path.join(d, "ADR-ORIGEN.md"), "w", encoding="utf-8") as f:
+        f.write(contenido)
+    indice, errores = ki.build_index(root)
+    assert errores == [], errores
+    assert indice["ADR-ORIGEN"]["enlaces"] == ["ADR-DESTINO"]

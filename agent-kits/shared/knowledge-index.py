@@ -155,7 +155,19 @@ def _frontmatter(texto):
                     j += 1
                     continue
                 break
-            items.append(mi.group(1).strip().strip('"').strip("'"))
+            # gap 143 (revisión de dos lentes, Fase 4 intento 1): el fix heredado de arriba solo
+            # saltaba un comentario en SU PROPIA línea (`  # nota`, sin guion) — una línea
+            # `- # nota` SÍ casa con `_ITEM_BLOQUE_RE` (guion + contenido) y colaba `"# nota"`
+            # como item basura. Se trata igual que un comentario suelto: se salta sin consumir el
+            # item. `- valor  # nota` (comentario tras DOS espacios) conserva solo `valor` — un
+            # `#` pegado al valor (p. ej. un fragmento de URL, `https://a#frag`) no se recorta,
+            # solo la forma con dos espacios de por medio se considera comentario.
+            contenido_item = mi.group(1)
+            if contenido_item.strip().startswith("#"):
+                j += 1
+                continue
+            valor_item, _, _resto = contenido_item.partition("  #")
+            items.append(valor_item.strip().strip('"').strip("'"))
             j += 1
         if items:
             datos[clave] = items
