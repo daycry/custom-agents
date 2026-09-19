@@ -1,0 +1,25 @@
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "protocolVersion": "2025-03-26",
+    "capabilities": {
+      "experimental": {},
+      "prompts": {
+        "listChanged": false
+      },
+      "resources": {
+        "subscribe": false,
+        "listChanged": false
+      },
+      "tools": {
+        "listChanged": false
+      }
+    },
+    "serverInfo": {
+      "name": "Graphiti Agent Memory",
+      "version": "1.29.1"
+    },
+    "instructions": "\nGraphiti is a memory service for AI agents built on a temporally-aware knowledge graph. It performs\nwell with dynamic data such as user interactions, changing enterprise data, and external information.\n\nGraphiti organizes data as episodes (content snippets), nodes (entities), and facts (relationships\nbetween entities). Each piece of information is partitioned by group_id, so you can maintain separate\nknowledge domains in one graph.\n\nBi-temporal model: every episode records both when it was ingested and when the events it describes\nactually occurred. Pass reference_time to add_memory to set the event-occurrence time; otherwise the\ncurrent time is used. Facts carry valid_at / invalid_at metadata, so a fact can be superseded by newer\ninformation while its history is preserved.\n\nCore tools:\n- add_memory: add an episode (text, message, or JSON). Supports reference_time (bi-temporal),\n  excluded_entity_types and custom_extraction_instructions to steer extraction,\n  previous_episode_uuids to supply explicit context, update_communities to refresh community summaries,\n  and saga / saga_previous_episode_uuid to associate the episode with an ordered saga.\n- add_triplet: write a single fact (source entity -> fact -> target entity) directly, bypassing\n  extraction. graphiti-core resolves/deduplicates the endpoint entities and generates embeddings.\n- search_nodes: semantic + keyword + graph search over entities, optionally filtered by entity type\n  (node label) and re-ranked around a center_node_uuid.\n- search_memory_facts: search over facts (edges), optionally filtered by edge (fact) type and by\n  valid_at / invalid_at date ranges.\n- summarize_saga: generate or refresh the running summary of a saga's episodes.\n- build_communities: detect entity communities and produce higher-level community summaries.\n- get_episode_entities: trace provenance \u2014 the entities and facts created by specific episode UUIDs.\n- get_entity_edge / get_episodes: retrieve specific facts or episodes.\n- delete_episode: remove an episode and cascade-delete the entities/facts it solely created.\n- delete_entity_edge / clear_graph: remove a fact, or clear a group's data.\n\nCustom types: the server can register rich entity-type and edge-type models (with attributes and\nextraction instructions) from configuration, and constrain which edge types are allowed between which\nentity types via an edge_type_map. With no such configuration, default extraction behavior applies.\n\nWhen adding information, provide descriptive names and detailed content to improve search quality.\nWhen searching, use specific queries and consider filtering by group_id, type, or date range. The\nserver requires a configured database and valid API keys for language-model operations.\n"
+  }
+}

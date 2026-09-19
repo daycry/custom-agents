@@ -38,6 +38,7 @@ declare su propio `type` — el núcleo (`knowledge-sync.py`) no cambia al añad
 | `scripts/knowledge-sync.py` | Único punto de entrada; nunca menciona un backend concreto. |
 | `backends/__init__.py` | Carga y valida el adaptador por `type` (`backends/README.md`: contrato completo de las 6 funciones). |
 | `backends/markdown_export.py` | Adaptador Kwipu (`type: "markdown-export"`): CA-17/CA-16, ver `references/kwipu-adapter.md`. |
+| `backends/graphiti.py` + `backends/graphiti_providers.py` | Adaptador Graphiti (`type: "graphiti"`, ADR-018): cliente MCP, `mode: shadow`/`read`, `rebuild`/`revoke` — ver `backends/README.md`. |
 | `agent-kits/shared/knowledge-schema.py` | Taxonomía del proyecto (`taxonomy.json`), fail-closed. |
 | `agent-kits/shared/knowledge-index.py` | Índice de `approved/`. |
 | `agent-kits/shared/outbox.py` | Staging/dead-letter reutilizado (CA-15), nunca reimplementado aquí. |
