@@ -2,6 +2,12 @@
 
 > **2026-09-19 (tarde) — TRES RAMAS EN VUELO; leer este bloque antes que el resto (el resto es histórico).**
 >
+> **PUNTO DE REANUDACIÓN (límite de sesión de la API a las ~09:50, se levanta a las 10:10 Europe/Madrid): las 4 revisiones en
+> curso murieron SIN informe y hay que relanzarlas tal cual:** (a) graphiti Fase 2 intento 1, lentes A + B(+D) + C sobre
+> `git diff 92cdde8..616f0e3` (los briefs están en la transcripción de la sesión e615924e; C a demanda por cliente HTTP/DNS/`clear_graph`;
+> solo lectura contra el servidor real); (b) jira-review-comments intento 2 (verificación dirigida A+B) sobre `git diff b720a81..HEAD`
+> del worktree `jira-fix` (13 gaps del intento 1; ledger real de knowledge-services como fixture). Ambos árboles limpios.
+>
 > 1. **`feature/knowledge-services` → PR #9 a master: CI VERDE (run 35423149251), `CLEAN MERGEABLE`, sin mergear** (el
 >    merge lo decide el usuario). Worktree `C:\Users\46066917X\ks-fix`. Cinco commits de corrección de CI encima del cierre:
 >    `11221b6` (hooks/«knowledge»), `1b392db` (corpus con `approved/`, gap37 agnóstico, `.claude/dev.json` fuera del índice
