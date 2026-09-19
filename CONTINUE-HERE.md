@@ -56,7 +56,10 @@
 > no existe en el plugin instalado (1.20.2) → despachado como subagente genérico leyendo `agents/knowledge-curator.md`.
 > Fase 4-bis HECHA (fc568a7: 3 aprobados en `approved/`). **Cierre Fase 6 HECHO**: plan/tasks `completado`, changelog-sync
 > (Added), retro + fila CALIBRATION (estimado) + candidato de lección de proceso, retro-gate ABIERTA, spec `implementada`,
-> merge origin/master limpio, **push + PR #9** (https://github.com/daycry/custom-agents/pull/9), CI en curso.
+> merge origin/master limpio, **push + PR #9** (https://github.com/daycry/custom-agents/pull/9). CI 1.a pasada ROJA solo en
+> Linux (`test_hooks_shell::…sin_knowledge…` prohibía la subcadena «knowledge», que ahora trae el índice de piezas): arreglado
+> en `11221b6` (worktree `C:/Users/46066917X/ks-fix` sobre la rama del PR; bórralo con `git worktree remove` al acabar) y
+> relanzada. **Pendiente: mezclar `11221b6` en `feature/graphiti-memory` cuando el implementer de la Fase 1 termine.**
 > **knowledge-services CERRADA.** Siguiente (orden del usuario): graphiti-memory (rama `feature/graphiti-memory` desde este
 > HEAD; PR apilado sobre #9) → con master estable, repaso de tareas pendientes de todos los planes → corrección de los
 > comentarios de revisión en Jira (dueño único de `jira-flow.py revision/gaps`; ver memoria) →
