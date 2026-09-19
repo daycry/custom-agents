@@ -159,8 +159,10 @@ _MAPA_CONFIANZA = {
     "human_confirmed_rule": "high",
 }
 
+# --8<-- hosts locales COMPARTIDO (graphiti-memory T-01-fix1) — REPLICADO LITERAL en skills/knowledge-services/backends/markdown_export.py y agent-kits/shared/knowledge-schema.py
 _SUFIJOS_LOCALES = (".test", ".local", ".internal")
 _HOSTS_LOCALES_LITERALES = {"localhost", "host.docker.internal"}
+# --8<-- fin hosts locales COMPARTIDO
 
 _dns_cache = {}  # gap 117/132/138: caché de resolución por proceso — {host: (ip_str_o_None, expira_ts)}
 _dns_inflight = {}  # gap 138: {host: threading.Thread} — una resolución lenta en marcha se

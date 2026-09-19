@@ -53,17 +53,37 @@ ROUTING_VALORES = (True, False, "summary")
 # vive en el adaptador porque necesita seguir redirecciones reales.
 GRAPHITI_MODE_VALORES = ("off", "shadow", "read")
 GRAPHITI_PROVIDER_LLM_VALORES = ("ollama", "openai", "anthropic", "none")
+# Claves reconocidas de `backends.<id>` (todos los tipos) y de `backends.<id>.config` para
+# `type: "graphiti"` — enmienda 2026-09-19 de design.md (gap #1/#14 de la revisión de la Fase 1):
+# cualquier clave fuera de estos conjuntos es ERROR, no se ignora en silencio.
+_BACKEND_CLAVES = ("type", "enabled", "config")
+_GRAPHITI_CONFIG_CLAVES = (
+    "mode", "endpoint", "group_id", "allow_remote", "provider", "entity_map",
+    "relations", "router", "telemetria", "health",
+)
+_GRAPHITI_PROVIDER_CLAVES = ("llm", "model", "embedder", "embedder_model", "base_url", "api_key_env")
+_GRAPHITI_ROUTER_CLAVES = ("intents", "default")
+_GRAPHITI_HEALTH_CLAVES = ("url", "timeout_ms")
 # Nombre de variable de entorno: mismo alfabeto que un identificador de shell POSIX habitual.
 # Un valor con espacios o que empiece por dígito no es un nombre de variable — es, casi siempre,
 # un secreto pegado por error donde solo debía ir el NOMBRE de la variable que lo contiene (CA-09).
 _ENV_VAR_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 
+# --8<-- hosts locales COMPARTIDO (graphiti-memory T-01-fix1) — REPLICADO LITERAL en skills/knowledge-services/backends/markdown_export.py y agent-kits/shared/knowledge-schema.py
+_SUFIJOS_LOCALES = (".test", ".local", ".internal")
+_HOSTS_LOCALES_LITERALES = {"localhost", "host.docker.internal"}
+# --8<-- fin hosts locales COMPARTIDO
+
+
 def _endpoint_es_local(endpoint):
-    """True si el host de `endpoint` es literalmente loopback/privado (IP literal o
-    `localhost`), sin resolución DNS — validación de config en frío, no en tiempo de conexión.
-    Un hostname no-IP (p. ej. `mi-graphiti.local`) no puede afirmarse local sin resolver, así que
-    NO cuenta como local aquí (fail-closed: exige `allow_remote: true` para ese caso)."""
+    """True si el host de `endpoint` es literalmente loopback/privado, o uno de los hosts/sufijos
+    locales reconocidos sin resolución DNS (`_HOSTS_LOCALES_LITERALES`/`_SUFIJOS_LOCALES`, mismo
+    criterio que el adaptador Kwipu — gap 15 de la revisión de la Fase 1) — validación de config
+    en frío, no en tiempo de conexión. Un hostname no-IP fuera de esas listas (p. ej.
+    `mi-graphiti.local` sin el sufijo `.local`... en realidad SÍ lo cubre; algo como
+    `mi-graphiti.example.com`) no puede afirmarse local sin resolver, así que NO cuenta como local
+    aquí (fail-closed: exige `allow_remote: true` para ese caso)."""
     try:
         parsed = urllib.parse.urlparse(endpoint)
     except ValueError:
@@ -71,7 +91,7 @@ def _endpoint_es_local(endpoint):
     host = (parsed.hostname or "").lower()
     if not host:
         return False
-    if host == "localhost":
+    if host in _HOSTS_LOCALES_LITERALES or host.endswith(_SUFIJOS_LOCALES):
         return True
     try:
         ip = ipaddress.ip_address(host)
@@ -131,7 +151,6 @@ _TAXONOMY_FALLBACK = { \
       "config": {
         "mode": "shadow",
         "endpoint": "http://127.0.0.1:8001/mcp",
-        "group_id": "knowledge-graphs",
         "allow_remote": False,
         "provider": {"llm": "none"},
         "entity_map": {},
@@ -176,16 +195,37 @@ def _validar_backend_graphiti(bcfg, campo, fichero, errores):
     función solo mira dentro de `config` y no repite esas comprobaciones."""
     config = bcfg.get("config")
     if not isinstance(config, dict):
-        return  # ya reportado como error genérico de `backends.<id>.config`
+        # gap #6: `config` ausente (o de tipo invalido, ya reportado como error generico de
+        # `backends.<id>.config`) NO exime del chequeo de obligatoriedad con `enabled: true` —
+        # antes, `{"type":"graphiti","enabled":true}` sin `config` pasaba en silencio.
+        if bcfg.get("enabled") is True:
+            campo_c = f"{campo}.config"
+            errores.append(_error(
+                "`endpoint` es obligatorio con el backend habilitado", fichero, f"{campo_c}.endpoint"))
+            errores.append(_error(
+                "`provider.llm` es obligatorio con el backend habilitado", fichero, f"{campo_c}.provider.llm"))
+            errores.append(_error(
+                "`mode` es obligatorio con el backend habilitado", fichero, f"{campo_c}.mode"))
+        return
     campo_c = f"{campo}.config"
+
+    for clave in config:
+        if clave not in _GRAPHITI_CONFIG_CLAVES:
+            errores.append(_error(
+                f"clave desconocida `{clave}` en `config` de `type: \"graphiti\"`",
+                fichero, f"{campo_c}.{clave}"))
+
+    allow_remote_declarado = config.get("allow_remote")
+    if "allow_remote" in config and not isinstance(allow_remote_declarado, bool):
+        errores.append(_error("`allow_remote` debe ser booleano", fichero, f"{campo_c}.allow_remote"))
+    # gap #14: leído por identidad estricta, nunca por truthiness — `"no"` (str, truthy en Python)
+    # no puede colarse como si autorizara un endpoint remoto.
+    allow_remote = allow_remote_declarado is True
 
     mode = config.get("mode")
     if mode is not None and mode not in GRAPHITI_MODE_VALORES:
         errores.append(_error(
             f"`mode` `{mode}` no es uno de {GRAPHITI_MODE_VALORES}", fichero, f"{campo_c}.mode"))
-
-    if "allow_remote" in config and not isinstance(config["allow_remote"], bool):
-        errores.append(_error("`allow_remote` debe ser booleano", fichero, f"{campo_c}.allow_remote"))
 
     endpoint = config.get("endpoint")
     if endpoint is not None:
@@ -194,19 +234,28 @@ def _validar_backend_graphiti(bcfg, campo, fichero, errores):
         elif not (endpoint.startswith("http://") or endpoint.startswith("https://")):
             errores.append(_error(
                 "`endpoint` debe ser una URL http(s)", fichero, f"{campo_c}.endpoint"))
-        elif not config.get("allow_remote") and not _endpoint_es_local(endpoint):
+        elif not allow_remote and not _endpoint_es_local(endpoint):
             errores.append(_error(
-                f"`endpoint` `{endpoint}` no es loopback/privado; declara `allow_remote: true` "
+                f"`endpoint` `{endpoint}` no es local/privado; declara `allow_remote: true` "
                 "para permitir un endpoint remoto (CA-09)", fichero, f"{campo_c}.endpoint"))
 
-    if "group_id" in config and not isinstance(config["group_id"], str):
+    group_id = config.get("group_id")
+    if "group_id" in config and not isinstance(group_id, str):
         errores.append(_error("`group_id` debe ser una cadena", fichero, f"{campo_c}.group_id"))
+    elif isinstance(group_id, str) and not group_id.strip():
+        # gap #3: sin default cableado (se deriva del slug del proyecto en `cargar_taxonomia`,
+        # igual que `id_prefix`); una vez declarado (o derivado) NO puede ser cadena vacía.
+        errores.append(_error("`group_id` no puede ser una cadena vacía", fichero, f"{campo_c}.group_id"))
 
     provider = config.get("provider")
     if provider is not None:
         if not isinstance(provider, dict):
             errores.append(_error("`provider` debe ser un objeto", fichero, f"{campo_c}.provider"))
         else:
+            for clave in provider:
+                if clave not in _GRAPHITI_PROVIDER_CLAVES:
+                    errores.append(_error(
+                        f"clave desconocida `{clave}` en `provider`", fichero, f"{campo_c}.provider.{clave}"))
             llm = provider.get("llm")
             if llm is None:
                 errores.append(_error("`provider.llm` es obligatorio", fichero, f"{campo_c}.provider.llm"))
@@ -235,15 +284,22 @@ def _validar_backend_graphiti(bcfg, campo, fichero, errores):
 
     relations = config.get("relations")
     if relations is not None:
-        if not isinstance(relations, list) or not all(isinstance(r, str) for r in relations):
+        if not isinstance(relations, list) or not all(
+                isinstance(r, str) and r for r in relations):
             errores.append(_error(
-                "`relations` debe ser una lista de cadenas", fichero, f"{campo_c}.relations"))
+                "`relations` debe ser una lista de cadenas no vacías", fichero, f"{campo_c}.relations"))
 
     router = config.get("router")
     if router is not None:
         if not isinstance(router, dict):
             errores.append(_error("`router` debe ser un objeto", fichero, f"{campo_c}.router"))
         else:
+            for clave in router:
+                if clave not in _GRAPHITI_ROUTER_CLAVES:
+                    errores.append(_error(
+                        f"clave desconocida `{clave}` en `router`", fichero, f"{campo_c}.router.{clave}"))
+            if "default" in router and not isinstance(router["default"], str):
+                errores.append(_error("`router.default` debe ser una cadena", fichero, f"{campo_c}.router.default"))
             intents = router.get("intents")
             if intents is not None:
                 if not isinstance(intents, dict):
@@ -265,13 +321,48 @@ def _validar_backend_graphiti(bcfg, campo, fichero, errores):
         if not isinstance(health, dict):
             errores.append(_error("`health` debe ser un objeto", fichero, f"{campo_c}.health"))
         else:
-            if "url" in health and not isinstance(health["url"], str):
-                errores.append(_error("`health.url` debe ser una cadena", fichero, f"{campo_c}.health.url"))
+            for clave in health:
+                if clave not in _GRAPHITI_HEALTH_CLAVES:
+                    errores.append(_error(
+                        f"clave desconocida `{clave}` en `health`", fichero, f"{campo_c}.health.{clave}"))
+            health_url = health.get("url")
+            if "url" in health:
+                if not isinstance(health_url, str) or not health_url:
+                    errores.append(_error("`health.url` debe ser una cadena no vacía", fichero, f"{campo_c}.health.url"))
+                elif not (health_url.startswith("http://") or health_url.startswith("https://")):
+                    errores.append(_error(
+                        "`health.url` debe ser una URL http(s)", fichero, f"{campo_c}.health.url"))
+                elif not allow_remote and not _endpoint_es_local(health_url):
+                    # gap #7: mismo guardarraíl que `endpoint` (precedente `markdown_export.py`
+                    # pasando `health_url` por `_host_permitido` antes de llamarlo).
+                    errores.append(_error(
+                        f"`health.url` `{health_url}` no es local/privado; declara "
+                        "`allow_remote: true` para permitir un health remoto (CA-09)",
+                        fichero, f"{campo_c}.health.url"))
             timeout_ms = health.get("timeout_ms")
-            if timeout_ms is not None and (
-                    not isinstance(timeout_ms, (int, float)) or isinstance(timeout_ms, bool)):
-                errores.append(_error(
-                    "`health.timeout_ms` debe ser numérico", fichero, f"{campo_c}.health.timeout_ms"))
+            if timeout_ms is not None:
+                if (not isinstance(timeout_ms, (int, float)) or isinstance(timeout_ms, bool)
+                        or timeout_ms <= 0):
+                    errores.append(_error(
+                        "`health.timeout_ms` debe ser numérico y mayor que 0",
+                        fichero, f"{campo_c}.health.timeout_ms"))
+
+    if bcfg.get("enabled") is True:
+        # gap #6: con el backend habilitado, `endpoint`, `provider.llm` y `mode` son obligatorios
+        # (antes, `{"type":"graphiti","enabled":true}` sin `config`, o `config` sin ninguna de
+        # estas claves, validaba en silencio y `knowledge-sync.py` entregaba `cfg = {}` al
+        # adaptador).
+        if not endpoint:
+            errores.append(_error(
+                "`endpoint` es obligatorio con el backend habilitado", fichero, f"{campo_c}.endpoint"))
+        if provider is None:
+            # `provider` presente sin `llm` ya se reportó arriba; aquí solo falta el caso
+            # "provider ausente del todo".
+            errores.append(_error(
+                "`provider.llm` es obligatorio con el backend habilitado", fichero, f"{campo_c}.provider.llm"))
+        if not mode:
+            errores.append(_error(
+                "`mode` es obligatorio con el backend habilitado", fichero, f"{campo_c}.mode"))
 
 
 _FOLDER_UNIDAD_RE = re.compile(r"^[A-Za-z]:")
@@ -331,6 +422,26 @@ def _con_id_prefix_por_defecto(config, root):
         return config
     base = os.path.basename(os.path.abspath(root if root is not None else "."))
     config["id_prefix"] = _slug_kebab(base) or "ca"
+    return config
+
+
+def _con_group_id_por_defecto(config, root):
+    """Si `backends.graphiti.config` existe y no declara `group_id` (o lo declara vacío), lo
+    rellena con el slug kebab-case del directorio del proyecto — MISMO criterio que
+    `_con_id_prefix_por_defecto` (gap #3 de la revisión de la Fase 1): el `group_id` NUNCA es un
+    valor fijo del plugin, así dos instalaciones en la misma máquina no comparten grupo por
+    omisión. No pisa un `group_id` explícito y no vacío. `root=None` usa el cwd real, igual que
+    `_con_id_prefix_por_defecto`."""
+    if not isinstance(config, dict):
+        return config
+    graphiti_bcfg = (config.get("backends") or {}).get("graphiti")
+    if not isinstance(graphiti_bcfg, dict):
+        return config
+    graphiti_config = graphiti_bcfg.get("config")
+    if not isinstance(graphiti_config, dict) or graphiti_config.get("group_id"):
+        return config
+    base = os.path.basename(os.path.abspath(root if root is not None else "."))
+    graphiti_config["group_id"] = _slug_kebab(base) or "ca"
     return config
 
 
@@ -395,6 +506,14 @@ def validar(config, fichero="taxonomy.json"):
             if "config" in bcfg and not isinstance(bcfg["config"], dict):
                 errores.append(_error(f"backend `{bid}`: `config` debe ser un objeto", fichero, f"{campo}.config"))
             elif bcfg.get("type") == "graphiti":
+                # gap #1: cualquier clave fuera de {type, enabled, config} a nivel de
+                # `backends.graphiti` (p. ej. el `endpoint` PLANO del ejemplo antiguo de
+                # design.md) es error — antes se ignoraba en silencio.
+                for clave in bcfg:
+                    if clave not in _BACKEND_CLAVES:
+                        errores.append(_error(
+                            f"backend `{bid}`: clave desconocida `{clave}` (¿pertenece a `config`?)",
+                            fichero, f"{campo}.{clave}"))
                 _validar_backend_graphiti(bcfg, campo, fichero, errores)
 
     categories = config.get("categories")
@@ -482,7 +601,8 @@ def cargar_taxonomia(root=None, fichero=None):
     devolvia el default SIN mirar si el cwd tenia un `taxonomy.json` de proyecto). Sin fichero de
     proyecto → la plantilla por defecto (CA-01/CA-09), sin error. Con fichero de proyecto
     inválido → se devuelve igualmente (para que el llamador decida) junto con los errores. En
-    ambos casos, si `config` no declara `id_prefix`, se rellena con el slug del `root` (gap 5)."""
+    ambos casos, si `config` no declara `id_prefix`, se rellena con el slug del `root` (gap 5); lo
+    mismo para `backends.graphiti.config.group_id` (gap #3 de la revisión de la Fase 1)."""
     ruta = fichero or os.path.join(root if root is not None else ".", PROJECT_TAXONOMY_REL)
     if os.path.isfile(ruta):
         try:
@@ -496,9 +616,11 @@ def cargar_taxonomia(root=None, fichero=None):
             return None, "proyecto", ruta, [_error(f"JSON ilegible: {type(e).__name__}: {e}", ruta, "$")]
         errores = validar(config, ruta)
         _con_id_prefix_por_defecto(config, root)
+        _con_group_id_por_defecto(config, root)
         return config, "proyecto", ruta, errores
     config = default_taxonomy()
     _con_id_prefix_por_defecto(config, root)
+    _con_group_id_por_defecto(config, root)
     return config, "default", None, []
 
 
