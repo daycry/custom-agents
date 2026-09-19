@@ -47,6 +47,9 @@ desktop.ini
 # === Estado LOCAL de las configs del plugin (no versionar) ===
 # Marcadores del medidor y mapas de sincronización: son de la máquina/sesión,
 # no del proyecto. `.claude/rates.json` SÍ se versiona (config económica del repo).
+# `.claude/dev.json` es la disciplina LOCAL de quien desarrolla el plugin (tdd/worktree/subagentes), no del repo:
+# comiteado rompe los tests que suponen «sin dev.json» (task-brief cae al dev.json del cwd).
+.claude/dev.json
 .claude/usage-state.json
 .claude/jira-state.json
 .claude/confluence-state.json
@@ -70,6 +73,11 @@ desktop.ini
 # `**/`: también en proyectos anidados (el fixture de evals tiene su propio docs/knowledge/, T-09).
 **/.claude/knowledge-index.sqlite
 **/.claude/knowledge-index.sqlite.*
+# Exportaciones de backends declarados en taxonomy.json (knowledge-services, ADR-018): SIEMPRE
+# reconstruibles desde docs/knowledge/approved/ (fuente de verdad); nunca versionar el derivado.
+# `**/`: también en proyectos anidados (p. ej. el fixture de evals con su propio `.claude/`).
+**/.claude/knowledge-services/kwipu-export/
+**/.claude/knowledge-services/*-export/
 
 # Papelera local (device_bash no puede borrar): nunca versionar
 _to_delete/

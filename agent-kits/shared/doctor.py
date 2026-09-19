@@ -3,7 +3,7 @@
 doctor.py — diagnóstico DETERMINISTA y SIN EFECTOS de la instalación del plugin en un proyecto
 (agent-kits/shared: lo invocan el comando `/doctor` y el paso 0 de `/setup`).
 
-Siete bloques, un veredicto por línea (✅ ok · ⚠️ aviso · ❌ error · ℹ️ informativo) y, en TODA
+Ocho bloques, un veredicto por línea (✅ ok · ⚠️ aviso · ❌ error · ℹ️ informativo) y, en TODA
 línea ⚠️/❌, el **arreglo sugerido** en llano:
 
   a) herramientas  `python3` (≥ 3.9), `git`, `bash`, `jq` (opcional: la statusline lo usa con
@@ -29,6 +29,17 @@ línea ⚠️/❌, el **arreglo sugerido** en llano:
                    obligatorios presentes; fichero ausente → «no configurado» informativo).
   d) estado        marcadores huérfanos de `usage-state.json` (`usage-meter.py status`), iniciativas
                    `en-progreso` (`progress-report.py active`) y último informe de `evals/reports/`.
+  h) capacidades   (registro opcional, `agent-kits/shared/capabilities.py`, T-09/T-13, CA-14): una
+                   fila por cada capacidad registrada — SIN código específico por capacidad aquí;
+                   todo llega por el contrato `{id, config_path, enabled, health, doctor, setup_step}`
+                   (id que da nombre a la fila, sea cual sea). Config
+                   inválida (p. ej. `taxonomy.json` roto) → ❌ con fichero+detalle+arreglo;
+                   desactivada → ℹ️; activa con backend declarado → comprobación de red EN VIVO vía
+                   el adaptador de esa capacidad (`health()`/`verify()`, cargado genéricamente por
+                   `type` como hace `knowledge-sync.py`): ✅ sano sin desfase, ⚠️ export atrasado
+                   (con el remedio que nombra `verify()`, nunca lo ejecuta) o degradado/error, ℹ️
+                   sin conexión o timeout (normal con el stack externo apagado); activa sin backend
+                   declarado → el texto genérico `doctor` de la capacidad, sin red.
   e) memoria       salud de la memoria técnica (memory-retrieval T-10 — hasta entonces `/doctor` daba
                    «Instalación sana» con 0 entradas de journal, sin contar las curadas ni validar nada):
                    entradas CURADAS de `docs/knowledge/{adr,gotchas,lessons}` por familia y por `estado`
@@ -78,6 +89,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 
 # Consola Windows (cp1252) o tuberías: reconfigurar ANTES de leer o imprimir nada (GOT-005).
 for _s in (sys.stdin, sys.stdout, sys.stderr):
@@ -1408,6 +1420,239 @@ def bloque_estado(plugin_root, project):
     return {"clave": "estado", "titulo": "Estado del trabajo", "lineas": ls}
 
 
+# ------------------------------------------------------------------ capacidades opcionales (`capabilities.py`, T-09)
+# Este bloque NUNCA nombra una capacidad concreta en el código: todo lo que sabe viene del
+# contrato `{id, config_path, enabled, health, doctor, setup_step}` de `capabilities.py`
+# (CA-14 — añadir una capacidad nueva no toca este fichero). La comprobación de red EN VIVO de una
+# capacidad con backend declarado la hace SU PROPIO adaptador (`skills/knowledge-services/backends/`,
+# cargado de forma genérica por `type`, igual que hace `knowledge-sync.py`) — este bloque solo
+# interpreta el enum `off · sano · degradado · error` y el resultado de `verify()` que ese
+# adaptador devuelve, sin conocer su identidad.
+
+def _cargar_capabilities(plugin_root):
+    """`capabilities.py` (T-13) como módulo, sin efectos. None si no está (instalación parcial)."""
+    for base in ((os.path.join(plugin_root, "agent-kits", "shared") if plugin_root else None), HERE):
+        path = os.path.join(base, "capabilities.py") if base else None
+        if path and os.path.isfile(path):
+            previo = sys.dont_write_bytecode
+            sys.dont_write_bytecode = True
+            try:
+                import importlib.util
+                spec = importlib.util.spec_from_file_location("capabilities_doctor", path)
+                mod = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(mod)
+                return mod
+            except Exception:        # noqa: BLE001 — degradación: sin bloque de capacidades
+                return None
+            finally:
+                sys.dont_write_bytecode = previo
+    return None
+
+
+def _cargar_backends_loader(plugin_root):
+    """(módulo `backends/__init__.py`, directorio) del cargador GENÉRICO de adaptadores de
+    `knowledge-services` (`cargar_adaptador(tipo, directorios)`) — este fichero no importa ningún
+    adaptador concreto, solo el cargador que resuelve `type -> módulo` en tiempo de consulta.
+    `(None, None)` si la skill no está instalada (instalación parcial): las capacidades sin
+    backend declarado no la necesitan."""
+    candidatos = []
+    if plugin_root:
+        candidatos.append(os.path.join(plugin_root, "skills", "knowledge-services", "backends"))
+    candidatos.append(os.path.join(HERE, "..", "..", "skills", "knowledge-services", "backends"))
+    for d in candidatos:
+        path = os.path.join(d, "__init__.py")
+        if os.path.isfile(path):
+            previo = sys.dont_write_bytecode
+            sys.dont_write_bytecode = True
+            try:
+                import importlib.util
+                spec = importlib.util.spec_from_file_location("backends_init_doctor", path)
+                mod = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(mod)
+                return mod, d
+            except Exception:        # noqa: BLE001 — degradación: sin comprobación de red en vivo
+                return None, None
+            finally:
+                sys.dont_write_bytecode = previo
+    return None, None
+
+
+def _leer_backend_entry(project, cap):
+    """Entrada cruda `backends.<id>` (`{"type", "enabled", "config": {...}}`) del `config_path`
+    que la propia capacidad declara — genérico: solo busca su propio `cap['id']` dentro de su
+    propio fichero, nunca asume cuál es."""
+    path = cap.get("config_path")
+    if not path:
+        return {}
+    ruta = path if os.path.isabs(path) else os.path.join(project, path)
+    datos, _err = _leer_json(ruta)
+    if not isinstance(datos, dict):
+        return {}
+    return ((datos.get("backends") or {}).get(cap["id"])) or {}
+
+
+CAPACIDAD_TIMEOUT_MS_TOPE = 2000  # gap 94: ninguna comprobación de red individual pasa de esto
+CAPACIDADES_PRESUPUESTO_S = 5.0  # gap 94: tope TOTAL del bloque completo, no solo por capacidad
+_CAPACIDAD_TOPE_MS_MINIMO = 300  # gap 133 (fix3, knowledge-services): nunca recortar `tope_ms`
+                                 # por debajo de esto — un timeout de pocos ms sobre una red local
+                                 # normal declara «apagado»/«error» un backend SANO (falso
+                                 # negativo), y encima con un remedio inútil («enciende el stack»,
+                                 # cuando el problema es el propio recorte). Si el presupuesto
+                                 # restante del bloque no llega a este mínimo, la capacidad se
+                                 # marca «recortada: sin comprobar» en vez de comprobarse con un
+                                 # timeout que ya sabemos que va a dar un falso apagado.
+
+
+def _cfg_con_timeout_topado(cfg_adaptador, tope_ms=CAPACIDAD_TIMEOUT_MS_TOPE):
+    """gap 94: copia `cfg_adaptador` con `health.timeout_ms` recortado a `tope_ms`
+    (`CAPACIDAD_TIMEOUT_MS_TOPE` por defecto) — `/doctor` es un diagnóstico rápido, nunca debería
+    quedarse colgado minutos por un `timeout_ms` generoso pensado para una publicación real.
+    gap 124: `tope_ms` puede ser MENOR que la constante estática cuando ya queda poco presupuesto
+    del bloque (`bloque_capacidades`), para que la suma de capacidades nunca lo rebase.
+
+    gap 133 (fix3): `tope_ms` se protege con un suelo (`_CAPACIDAD_TOPE_MS_MINIMO`) ANTES de
+    aplicarlo — antes, un `tope_ms=0` (posible si `bloque_capacidades` llegaba a pasarlo, o si un
+    llamador directo lo hacía) se escribía tal cual en `health_cfg["timeout_ms"]`, y
+    `markdown_export._timeout_s()` trata `valor <= 0` como "no configurado" y cae SILENCIOSAMENTE
+    al default de 800 ms — el recorte de `/doctor` desaparecía sin aviso justo en el caso límite."""
+    cfg = dict(cfg_adaptador or {})
+    health_cfg = dict(cfg.get("health") or {})
+    tope_ms = max(int(tope_ms), _CAPACIDAD_TOPE_MS_MINIMO) if tope_ms else _CAPACIDAD_TOPE_MS_MINIMO
+    actual = health_cfg.get("timeout_ms")
+    if not isinstance(actual, (int, float)) or actual > tope_ms:
+        health_cfg["timeout_ms"] = tope_ms
+    cfg["health"] = health_cfg
+    return cfg
+
+
+def _linea_capacidad_backend(cap_id, tipo, cfg_adaptador, backends_mod, backends_dir,
+                             project=None, tope_ms=CAPACIDAD_TIMEOUT_MS_TOPE):
+    """Comprobación de red EN VIVO de una capacidad con backend declarado (`type` + su
+    `config` propia), vía el contrato de adaptador (`health`/`verify`) — `cfg_adaptador` es
+    EXACTAMENTE lo que `knowledge-sync.py` le pasaría (`decl.get("config")`, nunca la entrada
+    entera), MÁS `_root` (gap 111: la raíz real del proyecto diagnosticado, para que un backend
+    que resuelva rutas relativas — p. ej. `export_dir` de markdown_export.py, gap 88 — no caiga
+    al CWD del proceso de `/doctor`). `None` si no aplica (sin `type` declarado) — el llamador
+    cae entonces al texto genérico `doctor` de la propia capacidad. Nunca lanza."""
+    if not tipo:
+        return None
+    cfg_adaptador = dict(cfg_adaptador or {})
+    if project is not None:
+        cfg_adaptador["_root"] = os.path.abspath(project)  # gap 111
+    cfg_adaptador = _cfg_con_timeout_topado(cfg_adaptador, tope_ms)  # gap 94 / gap 124
+    try:
+        adaptador = backends_mod.cargar_adaptador(tipo, [backends_dir])
+    except backends_mod.AdaptadorNoDisponible as e:
+        return linea(AVISO, f"{cap_id} (backend)", f"adaptador `{tipo}` no disponible: {e}",
+                     "revisa el campo `type` en `taxonomy.json`, o instala/añade el adaptador correspondiente")
+    try:
+        salud = adaptador.health(cfg_adaptador) or {}
+    except Exception as e:           # noqa: BLE001 — una capacidad opcional rota no tumba /doctor
+        return linea(AVISO, f"{cap_id} (backend)", f"`health()` lanzó {type(e).__name__}: {e}",
+                     "revisa la configuración de red del backend en `taxonomy.json`")
+    estado = salud.get("estado")
+    detalle = salud.get("detalle", "") or ""
+    if estado == "sano":
+        try:
+            verificacion = adaptador.verify(cfg_adaptador) or {}
+        except Exception as e:       # noqa: BLE001
+            return linea(AVISO, f"{cap_id} (backend)", f"`verify()` lanzó {type(e).__name__}: {e}",
+                         "revisa la configuración de red del backend en `taxonomy.json`")
+        if verificacion.get("ok", True):
+            return linea(OK, f"{cap_id} (backend)", "sano, sin desfase")
+        if verificacion.get("razon") == "nunca_sincronizado":
+            # gap 119: distinto de un desfase real (gap 87) — todavía no hay ninguna publicación
+            # previa, así que "export atrasado (0 desfase(s))" sería engañoso (no hay nada atrasado,
+            # simplemente no se ha sincronizado nunca).
+            return linea(AVISO, f"{cap_id} (backend)", "nunca sincronizado (sin publicación previa)",
+                         "publica por primera vez: `python skills/knowledge-services/scripts/knowledge-sync.py --rebuild`")
+        desfases = verificacion.get("desfase") or []
+        primero = desfases[0] if desfases else {}
+        extra = f" · … y {len(desfases) - 1} más" if len(desfases) > 1 else ""
+        return linea(AVISO, f"{cap_id} (backend)",
+                     f"export atrasado ({len(desfases)} desfase(s)): {primero.get('motivo', 'sin motivo detallado')}{extra}",
+                     primero.get("remedio", "reindexa el backend externo"))
+    if estado == "off":
+        if "timeout" in detalle.lower():
+            return linea(INFO, f"{cap_id} (backend)", f"timeout comprobando la salud ({detalle})",
+                         "normal si el stack externo está apagado o es lento; enciéndelo/ajusta el timeout y vuelve a pasar /doctor")
+        return linea(INFO, f"{cap_id} (backend)", detalle or "sin conexión",
+                     "normal si el stack externo está apagado; enciéndelo y vuelve a pasar /doctor")
+    if estado == "degradado":
+        return linea(AVISO, f"{cap_id} (backend)", detalle or "degradado", "revisa el estado del stack externo")
+    if estado == "error":
+        # gap 100: el ❌ de /doctor se reserva para un error de CONFIG de la propia capacidad
+        # (taxonomy.json inválido, ver `_linea_capacidad`); un backend externo en error es un
+        # AVISO — /doctor no debe salir con exit 1 solo porque el stack externo esté caído/mal.
+        return linea(AVISO, f"{cap_id} (backend)", detalle or "error", "revisa el stack externo y `taxonomy.json`")
+    return linea(INFO, f"{cap_id} (backend)", f"estado desconocido: {estado!r}", "revisa el adaptador de este backend")
+
+
+def _linea_capacidad(project, cap, backends_mod, backends_dir, tope_ms=CAPACIDAD_TIMEOUT_MS_TOPE):
+    """Una fila por capacidad registrada (`capabilities.enumerar()`): error de configuración
+    primero (p. ej. `taxonomy.json` inválido, con fichero+detalle+arreglo), desactivada después, y
+    si está activa con backend declarado, la comprobación EN VIVO de `_linea_capacidad_backend`
+    (si no aplica, el texto genérico `doctor` de la propia capacidad, sin red). `tope_ms` (gap 124)
+    es el presupuesto de red RESTANTE del bloque, no siempre `CAPACIDAD_TIMEOUT_MS_TOPE`."""
+    salud = cap.get("health")
+    estado = salud.get("estado") if isinstance(salud, dict) else salud
+    if estado == "error":
+        detalle = salud.get("detalle", "") if isinstance(salud, dict) else ""
+        fichero = (salud.get("fichero") if isinstance(salud, dict) else None) or cap.get("config_path") or "?"
+        return linea(ERROR, cap["id"], f"{fichero}: {detalle}", f"corrige `{fichero}`")
+    if not cap.get("enabled"):
+        return linea(INFO, cap["id"], "desactivado", "opcional: sigue el `setup_step` del registro si quieres activarla")
+    if backends_mod is not None:
+        entrada = _leer_backend_entry(project, cap)
+        l = _linea_capacidad_backend(cap["id"], entrada.get("type"), entrada.get("config") or {},
+                                     backends_mod, backends_dir, project=project, tope_ms=tope_ms)
+        if l is not None:
+            return l
+    return linea(INFO, cap["id"], cap.get("doctor") or "activa")
+
+
+def bloque_capacidades(plugin_root, project):
+    cap_mod = _cargar_capabilities(plugin_root)
+    if cap_mod is None:
+        return {"clave": "capacidades", "titulo": "Capacidades opcionales",
+                "lineas": [linea(INFO, "capacidades opcionales", "`capabilities.py` no disponible",
+                                 "instalación parcial: reinstala el plugin o comprueba `agent-kits/shared/`")]}
+    backends_mod, backends_dir = _cargar_backends_loader(plugin_root)
+    capacidades = cap_mod.enumerar(project)
+    if not capacidades:
+        return {"clave": "capacidades", "titulo": "Capacidades opcionales",
+                "lineas": [linea(INFO, "capacidades opcionales", "sin capacidades registradas")]}
+    # gap 94: tope TOTAL del bloque (no solo por capacidad) — con muchas capacidades opcionales
+    # activas y una red lenta, /doctor no debe convertirse en un diagnóstico de minutos.
+    # gap 124: el tope POR CAPACIDAD (`tope_ms`) se recorta al presupuesto RESTANTE del bloque
+    # (no siempre `CAPACIDAD_TIMEOUT_MS_TOPE` completo), para que la suma de varias capacidades
+    # activas nunca rebase `CAPACIDADES_PRESUPUESTO_S`; y el aviso de recorte cita el tiempo
+    # transcurrido REAL, no el tope nominal configurado (pueden diferir si una sola capacidad
+    # lenta ya lo rebasó por sí sola).
+    ls = []
+    inicio = time.monotonic()
+    recortado = 0
+    for i, cap in enumerate(capacidades):
+        transcurrido_s = time.monotonic() - inicio
+        restante_s = CAPACIDADES_PRESUPUESTO_S - transcurrido_s
+        # gap 133 (fix3): si lo que queda de presupuesto no llega ni al SUELO
+        # (`_CAPACIDAD_TOPE_MS_MINIMO`), no tiene sentido comprobar con un timeout que ya sabemos
+        # que va a declarar «apagado»/«error» un backend sano — se trata igual que presupuesto
+        # agotado (se cuenta como recortada, no como comprobada con un dato falso).
+        if restante_s * 1000 < _CAPACIDAD_TOPE_MS_MINIMO:
+            recortado = len(capacidades) - i
+            break
+        tope_ms = min(CAPACIDAD_TIMEOUT_MS_TOPE, int(restante_s * 1000))
+        ls.append(_linea_capacidad(project, cap, backends_mod, backends_dir, tope_ms=tope_ms))
+    if recortado:
+        transcurrido_final_s = time.monotonic() - inicio
+        ls.append(linea(AVISO, "capacidades opcionales",
+                         f"comprobación de red recortada: {recortado} capacidad(es) sin comprobar "
+                         f"(tope de {CAPACIDADES_PRESUPUESTO_S:.0f}s del bloque, {transcurrido_final_s:.1f}s transcurridos)",
+                         "vuelve a pasar /doctor, o revisa la red del backend más lento"))
+    return {"clave": "capacidades", "titulo": "Capacidades opcionales", "lineas": ls}
+
+
 # ------------------------------------------------------------------ e) memoria técnica (memory-retrieval T-10)
 
 # --8<-- celdas de tabla Markdown COMPARTIDAS — REPLICADO LITERAL en scripts/lint_plugin.py,
@@ -1868,6 +2113,7 @@ def diagnostico(project, plugin_root_explicito=None, hoy=None):
                bloque_plugin(plugin_root, project, plugin_root_explicito),
                bloque_configs(plugin_root, project),
                bloque_estado(plugin_root, project),
+               bloque_capacidades(plugin_root, project),
                bloque_memoria(plugin_root, project, hoy),
                bloque_journal(plugin_root, project),
                bloque_version(plugin_root, project)]

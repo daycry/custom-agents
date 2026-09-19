@@ -795,3 +795,51 @@ def test_completar_corte_entre_manifiesto_y_envelope_es_recuperable(tmp_path, mo
     assert os.path.isfile(manifest_path)                    # el manifiesto YA está en done/
     dst = outbox.completar(item, {"cierre": "materializado"})   # segundo intento: idempotente, sin error
     assert os.path.isfile(dst) and os.path.isfile(dst + ".manifest.json")
+
+
+# ------------------------------------------------------------------ ceder_paso (gap 128/139,
+# knowledge-services T-07-fix3: primitiva unica del formato de sidecars — antes reimplementada a
+# mano en knowledge-sync.py)
+
+def test_ceder_paso_devuelve_a_outbox_sin_incrementar_intentos(tmp_path, monkeypatch):
+    """Reloj simulado (`outbox.time.time`), NUNCA `time.sleep` real: en una corrida de la suite
+    completa (150+ tests, ~30s) un margen de milisegundos reales es demasiado fragil (LES-Windows:
+    comparar tiempos de reloj real entre asserts consecutivos es flaky bajo carga de CI/antivirus)."""
+    reloj = [1_000_000.0]
+    monkeypatch.setattr(outbox.time, "time", lambda: reloj[0])
+    d = tmp_path / "cola"
+    outbox.escribir(str(d), "ajeno", {"a": 1})
+    item = outbox.reclamar(str(d))
+    assert item is not None
+    ok = outbox.ceder_paso(item, cortesia_s=5.0)
+    assert ok is True
+    st = outbox.estado(str(d))
+    assert st["outbox"] == 1 and st["processing"] == 0
+    sidecar = outbox._leer_sidecar(os.path.join(str(d), "outbox", "ajeno.json" + outbox.INTENTOS_SUFFIX))
+    assert sidecar["intentos"] == 0            # NUNCA se incrementa (no es un fallo suyo)
+    assert sidecar["no_antes_de"] > reloj[0]
+    assert outbox.reclamar(str(d)) is None     # cortesia vigente: no reclamable de inmediato
+    reloj[0] += 5.1                            # avanza el reloj simulado, sin sleep real
+    assert outbox.reclamar(str(d)) is not None  # pasada la cortesia, vuelve a ser reclamable
+
+
+def test_ceder_paso_preserva_intentos_previos_de_un_reencolado_anterior(tmp_path):
+    """Un envelope que YA fallo una vez (intentos=1 por un `reencolar_o_dead_letter` previo) y que
+    ahora es "ajeno" para esta corrida no debe perder ni ganar intentos al cederle el paso."""
+    d = tmp_path / "cola"
+    outbox.escribir(str(d), "ev1", {"a": 1})
+    item = outbox.reclamar(str(d))
+    outbox.reencolar_o_dead_letter(item, "fallo transitorio previo", backoff=False)
+    item2 = outbox.reclamar(str(d))
+    assert item2 is not None
+    outbox.ceder_paso(item2, cortesia_s=0.05)
+    sidecar = outbox._leer_sidecar(os.path.join(str(d), "outbox", "ev1.json" + outbox.INTENTOS_SUFFIX))
+    assert sidecar["intentos"] == 1            # el 1 previo se conserva TAL CUAL, no sube a 2
+
+
+def test_ceder_paso_ruta_inexistente_devuelve_false_sin_lanzar(tmp_path):
+    d = tmp_path / "cola"
+    outbox.escribir(str(d), "ev1", {"a": 1})
+    item = outbox.reclamar(str(d))
+    os.remove(item["path"])  # recogido por otro proceso entre medias
+    assert outbox.ceder_paso(item) is False

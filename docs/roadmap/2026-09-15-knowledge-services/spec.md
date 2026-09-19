@@ -1,8 +1,8 @@
 ---
 spec: knowledge-services
-estado: aprobada
+estado: implementada
 creado: 2026-09-15
-actualizado: 2026-09-17
+actualizado: 2026-09-19
 evaluacion: evaluation.md
 design: design.md
 plan: improvement-plan.md
@@ -51,6 +51,8 @@ Mantener `docs/knowledge/` como fuente de verdad versionada y anadir un Knowledg
 - [ ] CA-13 - `taxonomy.json` se valida contra `agent-kits/shared/schemas/taxonomy.schema.json` (version, categorias, backends, routing, evidence_levels, denylist) con validador stdlib; `/doctor` senala fichero, campo y arreglo.
 - [ ] CA-14 - `/setup` y `/doctor` enumeran las capacidades opcionales desde `capabilities.py` (kwipu hoy; graphiti, training despues) sin codigo especifico por capacidad en `doctor.py`.
 - [ ] CA-15 - El exportador usa `agent-kits/shared/outbox.py` (de `session-end-durable-capture`) para staging atomico, manifiesto y dead-letter; no reimplementa la cola.
+- [ ] CA-16 - El adaptador `markdown-export` escribe en el directorio que declare `backends.kwipu.config.export_dir` (en el stack de referencia, `kwipu-data/generated/projects/<id>/`, la clase «Generated Knowledge» de `projects.yaml`); el **reindexado** de Kwipu (`build_view` + reinicio de `kwipu`/`kwipu-bridge`/`kwipu-mcp`) es del stack, no del plugin: `verify` detecta el desfase comparando el manifiesto del export con `GET /health` y `GET /graph/snapshot` y **nombra** el remedio sin ejecutarlo.
+- [ ] CA-17 - El frontmatter de cada fichero exportado lleva los campos del Knowledge Gate del stack (`project`, `scope`, `category`, `source`, `confidence`) ademas de `knowledge_id`, `version` y `hash`, con valores derivados de la entrada aprobada y de `taxonomy.json`; ningun campo se inventa.
 
 ## Decisiones confirmadas (usuario, 2026-09-15/16)
 
@@ -88,3 +90,30 @@ extensible** (base de proyectos con dominios y backends distintos) se decide, y 
 Efecto en alcance/coste: +8 h base (esquema y validador +1, contrato de adaptador +1, Kwipu como adaptador +2,
 capabilities +3, doctor/setup sobre capabilities +1); **48 h -> 56 h** con contingencia, 2.400 -> 2.800 EUR,
 715k -> 815k tokens. Ver `evaluation.md` y `tasks.md` (T-13 nueva).
+
+## Enmienda 2026-09-18 (usuario) — validacion en vivo contra el stack local `knowledge-graphs`
+
+Motivo: se comprobo el contrato real de Kwipu contra el despliegue de referencia (`dockers/knowledge-graphs`,
+bridge en `127.0.0.1:8765`, todos los contenedores `Up`). Las premisas del plan se sostienen (backend opt-in por
+proyecto via `taxonomy.json`, fail-closed, sin red desde hooks) y se precisan tres puntos, sin nuevos componentes:
+
+1. **Kwipu no tiene API de ingesta.** Indexa una vista de solo lectura que `source_manager/build_view.py`
+   construye desde la allowlist `kwipu/config/projects.yaml`; hay que reiniciar `kwipu`, `kwipu-bridge` y
+   `kwipu-mcp` para que la relean. El adaptador `markdown-export` (T-08) solo escribe el export; el destino es
+   la clase «Generated Knowledge» del stack (`generated_knowledge.path`, hoy `enabled: false`, lo activa el
+   usuario). El reindexado queda **fuera del plugin** y `verify` lo detecta como desfase (CA-16).
+2. **Contrato de lectura verificado**: `GET /health` (`status: ok|degraded`, `llm_model`, `embed_model`,
+   `property_graph.{present,valid,node_count,relation_count}`, `ollama.{reachable,models[]}`), `POST /query {q}`
+   -> `answer`, `citations[{node_id,file_name,score}]`, `cited_files`, y `GET /graph/snapshot` (nodos con
+   `file_path` y enlaces de procedencia `DEFINES`). `health` del adaptador lee ese JSON tal cual; el router de
+   `knowledge-find.py` puede usar `/query`. El bridge responde 503 si cambia el embedder del indice: `health`
+   debe reportar `embed_model` para que `/doctor` lo muestre.
+3. **Frontmatter alineado con el Knowledge Gate del stack** (`docs/futuro/knowledge-gate.md`): `project`,
+   `scope`, `category`, `source`, `confidence` (CA-17), para que el export del plugin y el gate del stack sean la
+   misma cosa y no dos formatos.
+
+Alcance opt-in confirmado: un proyecto sin `backends.kwipu.enabled: true` no ejecuta nada de esto; la
+comprobacion en vivo cubre el caso «habilitado y sano», el caso «deshabilitado» lo cubren los tests de
+`capabilities.py` (T-13). Sin efecto en horas: precisa T-08 y T-09 dentro de su estimacion. Ver `tasks.md`.
+
+> **Nota 2026-09-18 (revisión de la Fase 2, gap 41).** El término de la lista negra por defecto `TODOs` pasa a ser el marcador `TODO:` (con dos puntos, como en `code-health`), y la lista negra se evalúa sobre el cuerpo del candidato con plegado de acentos (NFD), frontera de palabra asimétrica (no se exige tras un término que acaba en puntuación, p. ej. `TODO:`) y espacio≡guion en términos multi-palabra (gaps 41/64/65/66 de la Fase 2): la forma anterior bloqueaba cualquier texto con «todos»/«métodos». La lista sigue siendo configurable por proyecto (`denylist` de `taxonomy.json`).

@@ -451,6 +451,30 @@ def reencolar_o_dead_letter(item, causa, intentos_max=MAX_INTENTOS, backoff=True
     return REENCOLADO if ok else ERROR
 
 
+def ceder_paso(item, cortesia_s=5.0):
+    """`processing/` -> `outbox/` SIN tocar el contador `.intentos` (gap 128/139, `knowledge-
+    services` T-07-fix3): para un envelope AJENO (de otro backend/productor) que `reclamar()`
+    entregó por delante del que nos interesa — no es un fallo SUYO, es una colisión de orden
+    alfabético; `reencolar_o_dead_letter` incrementaría su contador de reintentos por algo que
+    nunca falló. Preserva el `intentos` YA guardado (lo lee del sidecar `.intentos` actual, lo
+    reescribe TAL CUAL) y fija `no_antes_de = ahora + cortesia_s` (tope por `_no_antes_de_valido`
+    en la lectura) para que el MISMO proceso no lo vuelva a reclamar en la siguiente vuelta de su
+    propio bucle de drenaje/reclamo, dejando paso al envelope que sí le interesa. Antes esta lógica
+    vivía duplicada en `knowledge-sync.py` (`_devolver_envelope_ajeno`), reescribiendo a mano el
+    formato de los sidecars — única fuente de verdad del formato: aquí. Devuelve `True` si se
+    movió, `False` si la ruta ya no existía (recogida por otro proceso entre medias — no es un
+    error)."""
+    src = item["path"] if isinstance(item, dict) else str(item)
+    if not os.path.isfile(src):
+        return False
+    intentos = _leer_sidecar(src + INTENTOS_SUFFIX)["intentos"]
+    no_antes_de = time.time() + cortesia_s
+    try:
+        return _mover_a_outbox_con_intentos(src, intentos, no_antes_de)
+    except OSError:
+        return False
+
+
 def reintentar_dead_letter(dir_):
     """Mueve TODO `dead-letter/` de vuelta a `outbox/` con el contador de intentos a 0: remedio
     nombrado para una sesión que se creía perdida para siempre (gap 26; `/doctor`, T-06, lo

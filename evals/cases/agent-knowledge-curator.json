@@ -1,0 +1,34 @@
+{
+  "target": "agent:knowledge-curator",
+  "cases": [
+    {
+      "id": "knowledge-curator-literal",
+      "prompt": "Revisa los candidatos de docs/knowledge y aprueba/rechaza esta propuesta de memoria sobre el gotcha de encoding en Windows.",
+      "trigger": "literal",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "evidencia"
+        ]
+      },
+      "notes": "Disparador literal «revisa los candidatos de docs/knowledge»/«aprueba/rechaza esta propuesta de memoria»."
+    },
+    {
+      "id": "knowledge-curator-parafrasis",
+      "prompt": "Tengo tres borradores de lecciones bajo docs/knowledge/candidates/pending/: decide cuáles pasan a conocimiento aprobado y cuáles necesitan más evidencia antes.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true
+      }
+    },
+    {
+      "id": "knowledge-curator-neg-documentar-proyecto",
+      "prompt": "Documenta el proyecto: genera la documentación técnica y de producto en docs/ a partir del código real.",
+      "expect": {
+        "activates": false,
+        "redirect": "agent:documenter"
+      },
+      "notes": "Vecino: generar la documentación de docs/ es documenter; curar docs/knowledge/candidates es knowledge-curator."
+    }
+  ]
+}

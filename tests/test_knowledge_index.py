@@ -44,7 +44,15 @@ def ficheros(base):
         d = os.path.join(base, c)
         if os.path.isdir(d):
             out += [f"{c}/{f}" for f in sorted(os.listdir(d)) if f.endswith(".md") and f.lower() != "readme.md"]
-    return out
+    # Knowledge Gate (knowledge-services, ADR-018): las entradas aprobadas viven en `approved/<folder>/` y el
+    # curador las anade a la MISMA tabla del indice (el linter solo admite una), con ruta `approved/<folder>/<f>`.
+    ap = os.path.join(base, "approved")
+    if os.path.isdir(ap):
+        for c in sorted(os.listdir(ap)):
+            d = os.path.join(ap, c)
+            if os.path.isdir(d):
+                out += [f"approved/{c}/{f}" for f in sorted(os.listdir(d)) if f.endswith(".md") and f.lower() != "readme.md"]
+    return sorted(out)
 
 
 # --------------------------------------------------------------- el repo de hoy
@@ -69,7 +77,7 @@ def test_las_cifras_del_corpus_de_hoy(real):
     assert len(filas) == len(fs) >= 31
     assert sorted(f["ruta"] for f in filas) == fs
     assert all(f["area"] for f in filas)
-    assert all(f["id"] and re.match(r"^(ADR|GOT|LES)-\d{3}$", f["id"]) for f in filas)
+    assert all(f["id"] and re.match(r"^(?:[a-z0-9][a-z0-9-]*\.)?(ADR|GOT|LES|PAT)-\d{3}$", f["id"]) for f in filas), "ids legados ADR/GOT/LES-NNN o aprobados por el Knowledge Gate con prefijo <id_prefix>."
 
 
 def test_para_los_adr_el_area_solo_vive_en_el_indice(real):
