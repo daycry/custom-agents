@@ -104,18 +104,25 @@ def _recortar_comentario_inline(contenido):
       UN espacio, no dos) y todo desde ahí (incluido ese espacio) se descarta.
     - Un `#` pegado al valor sin espacio delante (`https://a#frag`, `C#`, `ADR-001#sec`) no es un
       comentario: no se recorta.
-    """
-    comilla_abierta = None
-    for i, c in enumerate(contenido):
-        if comilla_abierta:
-            if c == comilla_abierta:
-                comilla_abierta = None
-            continue
-        if c in ('"', "'"):
-            comilla_abierta = c
-            continue
-        if c == "#" and i > 0 and contenido[i - 1] in (" ", "\t"):
-            return contenido[: i - 1].rstrip()
+
+    Gap 183 (revisión Fase 4 intento 3): una comilla NO abre cadena salvo que sea el PRIMER
+    carácter no-blanco del valor — igual que YAML, donde un escalar entrecomillado empieza en el
+    propio carácter de apertura. La versión anterior trataba CUALQUIER comilla como apertura, así
+    que un apóstrofo dentro de una palabra normal (`Don't  # nota`) dejaba todo lo que seguía
+    «dentro de comillas» sin cerrar nunca, y el comentario ya no se recortaba."""
+    lstripped = contenido.lstrip()
+    if lstripped[:1] in ('"', "'"):
+        comilla = lstripped[0]
+        offset = len(contenido) - len(lstripped)
+        cierre = contenido.find(comilla, offset + 1)
+        inicio_busqueda = cierre + 1 if cierre != -1 else len(contenido)
+    else:
+        inicio_busqueda = 0
+    resto = contenido[inicio_busqueda:]
+    for j, c in enumerate(resto):
+        if c == "#" and j > 0 and resto[j - 1] in (" ", "\t"):
+            corte = inicio_busqueda + j
+            return contenido[: corte - 1].rstrip()
     return contenido
 
 

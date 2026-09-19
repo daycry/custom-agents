@@ -849,3 +849,24 @@ def test_gap173_hash_pegado_al_valor_ancla_de_seccion_no_se_recorta(tmp_path):
     indice, errores = ki.build_index(root)
     assert errores == [], errores
     assert indice["ADR-ANCLA"]["fuentes"] == ["ADR-001#sec"]
+
+
+def test_gap183_apostrofo_en_medio_del_valor_no_abre_comillas(tmp_path):
+    """Gap 183 (revisión Fase 4 intento 3): la versión anterior trataba CUALQUIER comilla como
+    apertura de cadena, así que un apóstrofo dentro de una palabra normal (`Don't`, sin comillas
+    de verdad envolviendo el valor) dejaba todo lo que seguía "dentro de comillas" sin cerrar
+    nunca — el comentario inline legítimo ya no se recortaba. Una comilla solo abre cadena si es
+    el PRIMER carácter no-blanco del valor, igual que YAML."""
+    root = str(tmp_path)
+    _taxonomy(root, _cat())
+    d = os.path.join(root, "docs", "knowledge", "approved", "adr")
+    os.makedirs(d, exist_ok=True)
+    contenido = (
+        "---\nid: ADR-APOSTROFO\nversion: 1\nestado: aprobado\ncategory: DECISION\n"
+        "fuentes:\n  - Don't repeat yourself  # nota\n---\n\n# x\n"
+    )
+    with open(os.path.join(d, "ADR-APOSTROFO.md"), "w", encoding="utf-8") as f:
+        f.write(contenido)
+    indice, errores = ki.build_index(root)
+    assert errores == [], errores
+    assert indice["ADR-APOSTROFO"]["fuentes"] == ["Don't repeat yourself"]

@@ -559,7 +559,13 @@ def _lock_path(export_dir):
     return export_dir.rstrip(os.sep) + _LOCK_SUFIJO
 
 
-_CONTROL_O_ANSI_RE = re.compile(r"[\x00-\x1f\x7f]|\x1b\[[0-9;]*[A-Za-z]")
+# gap 182 (revisión Fase 4 intento 3): la alternativa ANSI (`\x1b\[[0-9;]*[A-Za-z]`) era
+# INALCANZABLE porque `re` prueba las alternativas de un `|` EN ORDEN en cada posición y se queda
+# con la PRIMERA que casa (no la más larga) — como `\x1b` ya cae dentro de `[\x00-\x1f\x7f]`
+# (primera alternativa), el motor nunca llegaba a intentar la segunda: solo se sustituía el propio
+# `ESC` y el resto de la secuencia (`[31m`, `[0m`) quedaba intacto en el texto. Se reordena para
+# que la alternativa ANSI (más específica) se intente PRIMERO.
+_CONTROL_O_ANSI_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]|[\x00-\x1f\x7f]")
 _SANEADO_TOPE_CHARS = 200
 
 
@@ -571,7 +577,13 @@ def _sanear_detalle(texto):
     `/doctor`. Un servidor (aunque sea local, ya pasó `_host_permitido`) que devuelva CRLF o
     secuencias de escape ANSI podía así inyectar saltos de línea o color en esa salida. Se recorta
     a 200 caracteres y se sustituyen los caracteres de control (incluidas las secuencias ANSI
-    `ESC[...`) por un espacio, ANTES de anteponer cualquier prefijo propio (`f"... : {texto}"`)."""
+    `ESC[...`) por un espacio.
+
+    Gap 182 (revisión Fase 4 intento 3): el tope de 200 debe aplicarse SOLO al texto NO CONFIABLE
+    (lo que viene del servidor) — los llamadores NUNCA deben pasar el prefijo propio (de
+    confianza, `f"... de {url}: "`) dentro de este saneado: si lo hacen, el prefijo se come parte
+    del tope (o lo desplaza fuera de los 200 caracteres) sin ganar nada, porque el prefijo no es
+    el dato peligroso. El prefijo se antepone DESPUÉS, sobre el resultado ya saneado y recortado."""
     saneado = _CONTROL_O_ANSI_RE.sub(" ", str(texto))
     return saneado[:_SANEADO_TOPE_CHARS]
 
@@ -590,10 +602,15 @@ def health(cfg):
         with _urlopen_local(url, timeout_s) as resp:
             cuerpo = resp.read()
     except _RedireccionNoPermitida as e:
-        return {"estado": "error", "detalle": f"redirección a host no local/privado, rechazada: {e.url}"}
+        # gap 180: `e.url` viene del cabecera `Location` del servidor (no confiable) — se sanea
+        # ANTES de anteponer el prefijo de confianza, igual que en el resto de ramas (gap 182).
+        return {"estado": "error",
+                "detalle": f"redirección a host no local/privado, rechazada: {_sanear_detalle(e.url)}"}
     except urllib.error.HTTPError as e:
+        # gap 180: `cuerpo_err` es JSON ya parseado, pero sus valores de cadena vienen del
+        # servidor tal cual (CRLF/ANSI, sin tope) — se sanea su representación antes de embeberla.
         cuerpo_err = _cuerpo_json_o_none(e)
-        detalle = f"HTTP {e.code} de {url}" + (f": {cuerpo_err}" if cuerpo_err else "")
+        detalle = f"HTTP {e.code} de {url}" + (f": {_sanear_detalle(cuerpo_err)}" if cuerpo_err else "")
         return {"estado": "degradado" if 500 <= e.code < 600 else "error", "detalle": detalle}
     except (urllib.error.URLError, TimeoutError, OSError) as e:
         return {"estado": "off", "detalle": f"sin conexión a {url}: {type(e).__name__}: {e}"}
@@ -604,8 +621,19 @@ def health(cfg):
         # pese a que este docstring promete «nunca lanza».
         # gap 176 (CWE-117): el mensaje de `BadStatusLine` incluye la primera línea CRUDA que
         # respondió el servidor — se sanea (control/ANSI fuera, tope 200) antes de devolverla.
+        # gap 182: el tope de 200 se aplica SOLO a `{e}` (lo no confiable), no al prefijo propio
+        # (`respuesta no HTTP de {url}: {type(e).__name__}: `, de confianza) — si no, el prefijo
+        # se come parte del tope o lo desplaza fuera de los 200 caracteres.
         return {"estado": "error",
-                "detalle": _sanear_detalle(f"respuesta no HTTP de {url}: {type(e).__name__}: {e}")}
+                "detalle": f"respuesta no HTTP de {url}: {type(e).__name__}: {_sanear_detalle(e)}"}
+    except ValueError as e:
+        # gap 184: un `Location` mal formado (p. ej. `http://[` con un corchete de IPv6 sin
+        # cerrar) hace que `urllib.parse.urljoin`/`urlsplit`, dentro de `_urlopen_local`, lancen
+        # `ValueError` — antes escapaba de `health()` pese al docstring («nunca lanza»); `verify()`
+        # ya lo capturaba porque su propio bloque agrupa `ValueError` (por otra razón: el `json.
+        # loads` del snapshot). Mismo tratamiento que las demás ramas de red: nunca lanza, degrada.
+        return {"estado": "error",
+                "detalle": f"URL o redirección mal formada en {url}: {_sanear_detalle(e)}"}
     try:
         datos = json.loads(cuerpo.decode("utf-8"))
     except (ValueError, UnicodeDecodeError) as e:
@@ -939,8 +967,10 @@ def verify(cfg):
             cuerpo = resp.read()
         snapshot = json.loads(cuerpo.decode("utf-8"))
     except _RedireccionNoPermitida as e:
+        # gap 180: `e.url` viene de un cabecera `Location` no confiable — se sanea antes del
+        # prefijo propio, igual que en `health()`.
         return {"ok": False, "desfase": [{"knowledge_id": None,
-                "motivo": f"redirección a host no local/privado, rechazada: {e.url}",
+                "motivo": f"redirección a host no local/privado, rechazada: {_sanear_detalle(e.url)}",
                 "remedio": REMEDIO}]}
     except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, OSError,
             ValueError, UnicodeDecodeError, http.client.HTTPException) as e:
@@ -948,9 +978,11 @@ def verify(cfg):
         # no es subclase de `OSError`; se captura explícitamente, igual que en `health()`.
         # gap 176 (CWE-117): mismo saneado que en `health()` — el mensaje de excepción puede
         # traer bytes crudos del servidor (CRLF, ANSI) que acaban impresos por `/doctor`.
+        # gap 182: el tope de 200 se aplica SOLO a `{e}` (lo no confiable) para no comerse el
+        # prefijo propio (`no se pudo conectar a {snapshot_url}: {type(e).__name__}: `).
         return {"ok": False, "desfase": [{"knowledge_id": None,
-                "motivo": _sanear_detalle(
-                    f"no se pudo conectar a {snapshot_url}: {type(e).__name__}: {e}"),
+                "motivo": f"no se pudo conectar a {snapshot_url}: {type(e).__name__}: "
+                          f"{_sanear_detalle(e)}",
                 "remedio": REMEDIO}]}
     nodos_por_nombre = {
         n.get("file_name"): n for n in (snapshot.get("nodes") or [])
