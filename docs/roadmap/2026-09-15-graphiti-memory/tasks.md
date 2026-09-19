@@ -4,7 +4,7 @@ verificacion: obligatoria
 
 # Checklist de Tareas - Memoria Graphiti
 
-| **Estado** | borrador |
+| **Estado** | en-progreso |
 |---|---|
 | **Plan** | [improvement-plan.md](improvement-plan.md) |
 
