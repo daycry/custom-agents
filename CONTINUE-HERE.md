@@ -42,7 +42,10 @@
 > revocable en el PR):** SUSTITUIR el diseño por «publicación por fichero con diario `manifest.pending.json`, sin mover
 > ni borrar nada ajeno» + drenaje de la outbox; ronda fix3 hecha (656bfd8, 8385cf8, 3694629, 4b43f48) y **verificada por el
 > orquestador con los probes de A/B/D → bucle Fase 3 CERRADO** (deuda Minor #140: cola crece durante el backoff). Progreso
-> 10/13. **Fase 4 (T-10, T-11, T-12) despachada al `implementer`** (2026-09-19). Después: revisión de dos lentes de la Fase 4 → qa sin UI →
+> 10/13. **Fase 4 HECHA** (7d654e2 T-10, 22d09e7 T-11, aed7584 T-12; + 32e98d8 T-08-fix4 manifiestos): **13/13**.
+> Suite completa una vez: 42 rojos, todos preexistentes de Windows salvo `test_manifests` (arreglado en 32e98d8). Queda un
+> `git stash@{0}` inocuo del implementer (no pudo `stash drop`: pide autorización). **Revisión Fase 4 intento 1 en curso (A+B)**.
+> Después: qa sin UI →
 > documenter → Fase 4-bis → cierre (changelog-sync, /retro, retro-gate) → push + PR (T-04 curator, T-05 documenter, T-06 Fase 4-bis) → Fase 3 (T-07 sync +
 > contrato, T-08 adaptador Kwipu, T-09 setup/doctor) → Fase 4 (T-10, T-11, T-12) → qa sin UI → documenter → cierre
 > (changelog-sync, /retro + retro-gate) → graphiti-memory.
