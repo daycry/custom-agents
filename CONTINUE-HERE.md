@@ -11,14 +11,23 @@
 > **`/dev-cycle graphiti-memory completo` — Fase 2 (T-04, T-05, T-06) en bucle de revisión.** Intento 1 (20 gaps,
 > #31-#50) → fix1; intento 2 (`c06e249`: 16 nuevos #51-#66, 3 Critical) → fix2 `92f1bc6` (3 Critical + 8 más con
 > 25 tests en `TestGraphitiFase2Fix2`). Baseline hoy: 384 passed en las 5 rutas graphiti/knowledge.
-> **EN CURSO: ronda `fix3`** (marcador `graphiti-memory/T-04-fix3` abierto 08:07Z) despachada al `implementer`:
-> #57-resto (tests redirect `.internal`/IMDS/`0.0.0.0`), #61-test, #59 (Verificaciones reales + cita de T-05 +
-> etiquetas «pre-fix1» y «51 passed» fuera), #60 (schema/CONVENTIONS ES-EN/README + párrafo para `design.md`
-> que pega el orquestador) y las 12 parciales del intento 1 con test dedicado. **Siguiente:** cerrar el marcador y
-> pegar `Tiempo IA (fix3)` en T-04 → **intento 3 (último) con lentes A+B+C** (rango `92cdde8..HEAD`; C a demanda
-> del orquestador: cliente HTTP/DNS/`clear_graph`) → Fase 3 (T-07 router en `knowledge-find.py`, T-08 capability
-> `graphiti` en `capabilities.py`/setup/doctor/INTEROP) → Fase 4 (T-09, T-10) → qa sin UI → documenter → 4-bis
-> (`knowledge-curator`) → changelog-sync → /retro (retro-gate) → cierre → PR sobre master.
+> **Ronda `fix3` HECHA** (`6bf75a0`, 1.47h medidas; sin código de producción: tests dedicados, evidencia del ledger,
+> docs de contrato; deuda #40/#60 en `design.md`, `77474ad`). **Intento 3 (último) HECHO y escrito en el ledger:
+> NO CIERRA** — lentes A+B(+D)+C en paralelo: A 0 Critical (solo evidencia: #76 test SSE multilínea, #77 invariante
+> «el núcleo no nombra graphiti» roto por `--propose-config`); B y C coinciden en **3 Critical**: #67 `apply()` con
+> `.pending` heredado + servidor caído PUBLICA `{}` y borra el `.pending` (pérdida del manifiesto), #68 la
+> reconciliación de #54 solo corre en la rama `if not ops`, #69 `add_triplet` sin `source_node_name`/`target_node_name`
+> (obligatorios en el fixture real → CA-11 no observable contra el servidor real). 8 Important (#70-#77), 11 Minor
+> (#78-#88), 1 descartado (rojo intermitente = mutantes de otra lente sobre el MISMO checkout: gap de proceso de la
+> skill, candidata a lección). T-04/T-05/T-06 vueltas a `en-progreso`; Resumen de progreso corregido (3/10, IA 7.96h).
+> **PARADO A PETICIÓN DEL USUARIO tras escribir el intento 3.** Decisión recomendada (registrada en el ledger, bucle
+> agotado → confirmar con el usuario al retomar): **ronda `fix4` + verificación dirigida** (B y C sobre lo corregido, en
+> copias aisladas del árbol), implementer con `opus` (poner `"modelos": {"implementer": "opus"}` en `.claude/dev.json`),
+> marcador `usage-meter start --artefacto graphiti-memory/T-05-fix4`, brief = las 22 filas #67-#88 con sus arbitrajes +
+> los repros del scratchpad de esta sesión (`repro_d1/d2b/d3/d4/d7.py`, probes `p3/p4/p5/p7/p9/p10/p11`; se pierden
+> al cambiar de sesión: reproducir desde la descripción de la fila). Después: cerrar T-04..T-06, Resumen, `Tiempo IA
+> (fix4)` → Fase 3 (T-07 router `knowledge-find.py --intent`, T-08 capability `graphiti`) → Fase 4 → qa sin UI →
+> documenter → 4-bis → changelog-sync → /retro → cierre → PR sobre master.
 > Reglas: `PATH="$PWD/.venv/Scripts:$PATH"` y `python` (+ `-p no:cacheprovider`); ningún gap `corregido` sin test
 > dedicado nombrado; nada de escrituras contra el Graphiti real (`127.0.0.1:8001`); `export-interop.py` en Windows
 > reescribe EOL (revertir los limpios); modelos por `model-tier.py` (implementer sonnet, reviewer opus).
