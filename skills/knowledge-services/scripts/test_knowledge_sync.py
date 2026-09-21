@@ -578,3 +578,15 @@ def test_fix4_gap72_causa_con_ansi_del_adaptador_se_sanea_antes_de_imprimirla(tm
     assert "\x1b" not in err
     assert "banner falso" in err
     assert len(err) < 1000
+
+
+def test_fix5_gap93_la_causa_sanea_bidi_separadores_unicode_y_c1():
+    """Mutante #93: la clase `[\x00-\x1f\x7f]` de `_sanear_causa` dejaba pasar los controles bidi
+    (`U+202E` RLO invierte visualmente lo que lee el humano), los separadores Unicode
+    `U+2028`/`U+2029` (muchos visores los rompen como salto de linea, igual que el CRLF de #72)
+    y los C1 `U+0080-U+009F` (entre ellos `U+009B`, el CSI de un caracter) — y esta causa se
+    imprime por stderr y se persiste como `causa` en la dead-letter."""
+    saneada = ks_sync._sanear_causa("a‮b c d\u009be⁦f\u0080g")
+    for prohibido in ("‮", " ", " ", "\u009b", "⁦", "\u0080"):
+        assert prohibido not in saneada, repr(prohibido)
+    assert "abcdefg" == saneada.replace(" ", "")

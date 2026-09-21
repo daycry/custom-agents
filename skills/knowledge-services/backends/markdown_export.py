@@ -582,13 +582,21 @@ def _lock_path(export_dir):
 # El prefijo se antepone DESPUÉS, sobre el resultado ya saneado y recortado.
 #
 # --8<-- sanear_detalle (funcion) — REPLICADO LITERAL en skills/knowledge-services/backends/markdown_export.py y skills/knowledge-services/backends/graphiti.py
-_CONTROL_O_ANSI_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]|[\x00-\x1f\x7f]")
+# Gap #93 (Minor, fix5): la clase [\x00-\x1f\x7f] dejaba pasar tres familias que TAMBIEN
+# falsifican una linea de log o invierten visualmente el texto de un mensaje/`causa`: los
+# controles C1 (\x80-\x9f, entre ellos CSI \x9b), los separadores Unicode de linea/parrafo
+# ( / , que muchos visores rompen como salto de linea) y los controles bidi
+# (‪-‮ RLO/LRO..., ⁦-⁩ isolates), con los que un texto hostil del servidor
+# puede reordenar lo que el humano lee sin cambiar un solo byte del resto.
+_CONTROL_O_ANSI_RE = re.compile(
+    r"\x1b\[[0-9;]*[A-Za-z]|[\x00-\x1f\x7f-\x9f  ‪-‮⁦-⁩]")
 _SANEADO_TOPE_CHARS = 200
 
 
 def _sanear_detalle(texto):
     """Recorta a 200 caracteres y sustituye caracteres de control (incluidas las secuencias ANSI
-    `ESC[...`) por un espacio; ver comentario arriba para el porqué de cada regla."""
+    `ESC[...`, los C1, los separadores Unicode y los controles bidi) por un espacio; ver
+    comentario arriba para el porque de cada regla."""
     saneado = _CONTROL_O_ANSI_RE.sub(" ", str(texto))
     return saneado[:_SANEADO_TOPE_CHARS]
 # --8<-- fin sanear_detalle (funcion)
