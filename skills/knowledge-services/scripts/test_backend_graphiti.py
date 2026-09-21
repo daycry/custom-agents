@@ -1779,8 +1779,13 @@ class TestGraphitiFase2Fix4(unittest.TestCase):
             manifest, _ = self.mod._leer_manifest(cfg)
         self.assertEqual(manifest["group_id"], "proy-test")
         self.assertTrue(any("grupo-viejo" in a for a in resultado.get("avisos") or []))
+        # El nombre del archivado cambio en fix5 (gap #91: prefijo `archivado-` + huella del
+        # `group_id` crudo, para no colisionar con el marcador `.pending` ni entre grupos que
+        # sanean igual); lo que este test vigila sigue siendo lo mismo: que el manifiesto viejo
+        # SOBREVIVA con sus `uuid`.
         archivado = os.path.join(self.tmp, ".claude", "knowledge-services",
-                                 "graphiti-manifest.grupo-viejo.json")
+                                 "graphiti-manifest"
+                                 + self.mod._sufijo_archivado("grupo-viejo") + ".json")
         self.assertTrue(os.path.isfile(archivado))
         with open(archivado, encoding="utf-8") as f:
             self.assertIn(entrada["id"], json.load(f)["entradas"])
@@ -2093,6 +2098,299 @@ class TestGraphitiFase2Fix4(unittest.TestCase):
         self.assertEqual(self.mod._tope_episode_body_bytes({"episode_body_max_kb": 2}), 2 * 1024)
         self.assertEqual(self.mod._tope_episode_body_bytes({"episode_body_max_kb": True}),
                          self.mod._EPISODE_BODY_MAX_KB_DEFAULT * 1024)
+
+
+class TestGraphitiFase2Fix5(unittest.TestCase):
+    """Ronda `fix5` de la Fase 2: 1 Important (#89) y 4 Minor (#90-#93) de la verificacion
+    dirigida de fix4, mas dos notas fuera de lente (#94, #95) y el test que faltaba para
+    `_MAX_FALLIDOS_EN_MENSAJE`. Un test dedicado por gap, nombrado `test_fix5_gapNN_*`; cada uno
+    muere al revertir su correccion (mutante nombrado en el docstring y en `tasks.md`)."""
+
+    def setUp(self):
+        self.mod = _cargar("graphiti.py", "ks_backend_graphiti_test_fix5")
+        self.tmp = tempfile.mkdtemp(prefix="ks-graphiti-fix5-")
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _cfg(self, endpoint, **extra):
+        cfg = {"_root": self.tmp, "group_id": "proy-test", "endpoint": endpoint,
+               "allow_remote": False, "timeout_ms": 2000, "provider": {"llm": "none"}}
+        cfg.update(extra)
+        return cfg
+
+    # -- #89 (Important): un `revoke` podado por la reconciliacion se emite IGUALMENTE ----------
+
+    def test_fix5_gap89_revoke_de_una_entrada_podada_emite_tombstone_y_supersedes(self):
+        """Mutante #89 (el codigo de fix4): la poda de #68 quitaba del `publicado` la entrada que
+        el servidor no confirma (episodio fuera de la ventana de `get_episodes`, o `uuid` distinto
+        por #79), asi que `_aplicar_revoke` recibia `entrada_previa=None`, salia con `return None`
+        SIN emitir nada... y `apply()` contaba `revocados += 1`: el episodio quedaba VIVO e
+        irrevocable en el grafo y un `revoke()` posterior respondia "no publicado". Escenario
+        exacto de la lente B: con el mutante, `tools/call` solo trae `['get_episodes']` y el
+        resultado es `{"aplicados": 0, "revocados": 1}`."""
+        def _get_episodes(_args):
+            return {"structuredContent": {"episodes": []}}  # el servidor no confirma nada
+
+        with _ServidorMCPContext(respuestas_tools={"get_episodes": _get_episodes}) as srv:
+            cfg = self._cfg(srv.endpoint)
+            # `.pending` heredado (reconciliacion POSIBLE, pero sin confirmacion de la entrada)
+            self.mod._escribir_manifest(cfg, {"group_id": "proy-test", "entradas": {
+                "mem.fuera": {"version": 3, "hash": "h", "uuid": "u-fuera"}}}, sufijo=".pending")
+            resultado = self.mod.apply([{"tipo": "revoke", "id": "mem.fuera"}], cfg)
+            llamadas = list(srv.llamadas)
+
+        tombstones = [a for n, a in llamadas
+                      if n == "add_memory" and a.get("name") == "mem.fuera@tombstone"]
+        tripletes = [a for n, a in llamadas if n == "add_triplet"]
+        self.assertTrue(tombstones, "el tombstone (`add_memory`) tiene que salir hacia el servidor")
+        self.assertTrue(tripletes, "el `SUPERSEDES` (`add_triplet`) tiene que salir hacia el servidor")
+        self.assertEqual(tripletes[0]["edge_name"], "SUPERSEDES")
+        # el nombre del nodo invalidado se reconstruye del manifiesto heredado, no se inventa
+        self.assertEqual(tripletes[0]["target_node_name"], "mem.fuera@3")
+        self.assertEqual(tripletes[0]["target_node_uuid"], "u-fuera")
+        self.assertEqual(resultado["revocados"], 1)
+        self.assertTrue(any("revocan IGUALMENTE" in a for a in resultado.get("avisos") or []),
+                        "el aviso de la poda tiene que distinguir revocado de re-propuesto")
+
+    def test_fix5_gap89_revoke_sin_datos_para_el_nombre_va_a_fallidos_no_a_revocados(self):
+        """Mismo gap, el otro lado del arbitraje: si NO hay datos para reconstruir el nombre/uuid
+        (nada en el manifiesto, o una entrada sin `version`), la op va a `fallidos` con causa
+        explicita — nunca a `revocados`. Con el mutante devolvia `{"aplicados": 0, "revocados": 1}`
+        sin haber llamado al servidor."""
+        with _ServidorMCPContext() as srv:
+            cfg = self._cfg(srv.endpoint)
+            with self.assertRaises(self.mod.ErrorMCP) as ctx:
+                self.mod.apply([{"tipo": "revoke", "id": "mem.sin.rastro"}], cfg)
+            self.assertIn("no se cuenta como revocado", str(ctx.exception))
+
+            cfg2 = self._cfg(srv.endpoint, group_id="proy-test-2")
+            self.mod._escribir_manifest(cfg2, {"group_id": "proy-test-2", "entradas": {
+                "mem.sin.version": {"hash": "h", "uuid": "u1"}}})
+            with self.assertRaises(self.mod.ErrorMCP) as ctx2:
+                self.mod.apply([{"tipo": "revoke", "id": "mem.sin.version"}], cfg2)
+            self.assertIn("no se cuenta como revocado", str(ctx2.exception))
+            nombres_falsos = [a for n, a in srv.llamadas
+                              if n == "add_triplet" and "@None" in str(a.get("target_node_name"))]
+        self.assertEqual(nombres_falsos, [])
+
+    def test_fix5_gap89_el_aviso_de_la_poda_distingue_upsert_de_revocado(self):
+        """El aviso unico de fix4 ("`plan()` las volvera a proponer como `upsert`") era FALSO para
+        los ids que ya no estan en `approved/`. Con dos entradas no confirmadas —una con `upsert`
+        y otra con `revoke` en la misma corrida— el aviso tiene que decir de cada una lo que de
+        verdad le pasa."""
+        def _get_episodes(_args):
+            return {"structuredContent": {"episodes": []}}
+
+        viva = _entrada(id_="mem.viva", cuerpo="Cuerpo vivo.\n")
+        hash_viva = hashlib.sha256(viva["cuerpo"].encode("utf-8")).hexdigest()
+        with _ServidorMCPContext(respuestas_tools={"get_episodes": _get_episodes}) as srv:
+            cfg = self._cfg(srv.endpoint)
+            self.mod._escribir_manifest(cfg, {"group_id": "proy-test", "entradas": {
+                "mem.viva": {"version": 1, "hash": hash_viva, "uuid": "u-viva"},
+                "mem.retirada": {"version": 2, "hash": "h", "uuid": "u-retirada"},
+            }}, sufijo=".pending")
+            ops = self.mod.plan([viva], cfg)  # `mem.retirada` ya no esta en `approved/`
+            self.assertEqual(sorted((o["tipo"], o["id"]) for o in ops),
+                             [("revoke", "mem.retirada")])
+            # se fuerza tambien el `upsert` de la viva (la poda la devuelve a "no publicada")
+            ops = ops + [o for o in self.mod.plan([viva], cfg, force=True)]
+            resultado = self.mod.apply(ops, cfg)
+        avisos = " | ".join(resultado.get("avisos") or [])
+        self.assertIn("republican como `upsert`", avisos)
+        self.assertIn("mem.viva", avisos.split("republican como `upsert`")[1])
+        self.assertIn("revocan IGUALMENTE", avisos)
+        self.assertIn("mem.retirada", avisos.split("revocan IGUALMENTE")[1])
+        self.assertEqual((resultado["aplicados"], resultado["revocados"]), (1, 1))
+
+    # -- #90 (Minor): `health()` propaga el tope de respuesta ----------------------------------
+
+    def test_fix5_gap90_health_propaga_max_respuesta_kb_al_cliente(self):
+        """Mutante #90: `health()` era el UNICO de los cinco constructores de `ClienteMCP` sin
+        `max_respuesta_bytes`, asi que `config.max_respuesta_kb` no protegia a `/doctor` (que es
+        justo quien llama a `health()`), contra lo que pedia el arbitraje de #70."""
+        capturado = {}
+        Original = self.mod.ClienteMCP
+
+        class _Espia(Original):
+            def __init__(self, *args, **kwargs):
+                capturado.update(kwargs)
+                super().__init__(*args, **kwargs)
+
+        with _ServidorMCPContext() as srv:
+            self.mod.ClienteMCP = _Espia
+            try:
+                salud = self.mod.health(self._cfg(srv.endpoint, max_respuesta_kb=16))
+            finally:
+                self.mod.ClienteMCP = Original
+        self.assertEqual(salud["estado"], "sano")
+        self.assertEqual(capturado.get("max_respuesta_bytes"), 16 * 1024)
+
+    # -- #91 (Minor): el nombre del manifiesto archivado no colisiona --------------------------
+
+    def test_fix5_gap91_archivado_no_colisiona_con_el_marcador_pending(self):
+        """Mutante #91a: con el sufijo derivado SOLO del `group_id` saneado, un `group_id` viejo
+        que sanea a `pending` producia `graphiti-manifest.pending.json` — el MARCADOR de
+        publicacion interrumpida, que `_borrar_pending()` borra tres lineas despues: el aviso
+        prometia un fichero de rescate que ya no existia."""
+        import glob
+        with _ServidorMCPContext() as srv:
+            cfg = self._cfg(srv.endpoint)
+            entrada = _entrada()
+            hash_ = hashlib.sha256(entrada["cuerpo"].encode("utf-8")).hexdigest()
+            self.mod._escribir_manifest(cfg, {"group_id": "pending", "entradas": {
+                entrada["id"]: {"version": 1, "hash": hash_, "uuid": "u1"}}})
+            resultado = self.mod.apply(self.mod.plan([entrada], cfg), cfg)
+        directorio = os.path.join(self.tmp, ".claude", "knowledge-services")
+        archivados = glob.glob(os.path.join(directorio, "graphiti-manifest.archivado-*.json"))
+        self.assertEqual(len(archivados), 1, "el manifiesto del grupo viejo tiene que sobrevivir")
+        with open(archivados[0], encoding="utf-8") as f:
+            self.assertIn(entrada["id"], json.load(f)["entradas"])
+        # el aviso nombra un fichero que EXISTE de verdad
+        nombre = os.path.basename(archivados[0])
+        self.assertTrue(any(nombre in a for a in resultado.get("avisos") or []))
+        self.assertFalse(os.path.isfile(self.mod._manifest_path(cfg, ".pending")))
+
+    def test_fix5_gap91_grupos_que_sanean_igual_no_se_pisan_ni_se_sobrescriben(self):
+        """Mutante #91b: `proy/a` y `proy_a` saneaban al MISMO nombre de fichero, asi que el
+        segundo archivado pisaba al primero (uuid perdidos). Ademas, archivar dos veces el mismo
+        grupo no debe sobrescribir el archivo anterior."""
+        self.assertNotEqual(self.mod._sufijo_archivado("proy/a"),
+                            self.mod._sufijo_archivado("proy_a"))
+        cfg = self._cfg("http://127.0.0.1:1")
+        r1 = self.mod._archivar_manifest_de_otro_grupo(
+            cfg, {"group_id": "proy/a", "entradas": {"a": {"version": 1}}}, "proy/a")
+        r2 = self.mod._archivar_manifest_de_otro_grupo(
+            cfg, {"group_id": "proy_a", "entradas": {"b": {"version": 1}}}, "proy_a")
+        r3 = self.mod._archivar_manifest_de_otro_grupo(
+            cfg, {"group_id": "proy/a", "entradas": {"c": {"version": 1}}}, "proy/a")
+        self.assertEqual(len({r1, r2, r3}), 3)
+        for ruta, id_ in ((r1, "a"), (r2, "b"), (r3, "c")):
+            with open(ruta, encoding="utf-8") as f:
+                self.assertIn(id_, json.load(f)["entradas"])
+
+    # -- #92 (Minor): los avisos no se pierden en una publicacion parcial ----------------------
+
+    def test_fix5_gap92_los_avisos_viajan_en_la_error_de_publicacion_parcial(self):
+        """Mutante #92: `raise ErrorMCP(...)` solo llevaba el resumen de `fallidos`, asi que los
+        avisos acumulados (archivado de #73, poda de #68/#89) se perdian en cuanto una op fallaba
+        — justo el caso en el que el operador mas los necesita."""
+        def _add_memory(_args):
+            return {"isError": True, "content": [{"type": "text", "text": "boom"}]}
+
+        with _ServidorMCPContext(respuestas_tools={"add_memory": _add_memory}) as srv:
+            cfg = self._cfg(srv.endpoint)
+            entrada = _entrada()
+            hash_ = hashlib.sha256(entrada["cuerpo"].encode("utf-8")).hexdigest()
+            self.mod._escribir_manifest(cfg, {"group_id": "grupo-viejo", "entradas": {
+                entrada["id"]: {"version": 1, "hash": hash_, "uuid": "u1"}}})
+            with self.assertRaises(self.mod.ErrorMCP) as ctx:
+                self.mod.apply(self.mod.plan([entrada], cfg), cfg)
+        mensaje = str(ctx.exception)
+        self.assertIn("avisos:", mensaje)
+        self.assertIn("grupo-viejo", mensaje)
+        self.assertTrue(getattr(ctx.exception, "avisos", None))
+
+    def test_fix5_gap92_el_resumen_de_avisos_va_acotado_y_saneado(self):
+        """El adjunto de #92 no puede reabrir #72 (CWE-117): se acota el numero de avisos citados
+        y se sanea cada uno."""
+        cortos = [f"\x1b[2Javiso {i}" for i in range(9)]
+        resumen = self.mod._resumen_avisos(cortos)
+        self.assertNotIn("\x1b", resumen)
+        self.assertIn("aviso 4", resumen)
+        self.assertNotIn("aviso 5", resumen)  # tope de avisos citados
+        self.assertIn("y 4 mas", resumen)
+        largos = ["B" * 500 for _ in range(9)]
+        self.assertLessEqual(len(self.mod._resumen_avisos(largos)),
+                             self.mod._TOPE_RESUMEN_AVISOS_CHARS)
+
+    # -- #93 (Minor): el saneado tapa bidi, separadores Unicode y C1 ---------------------------
+
+    def test_fix5_gap93_sanear_detalle_tapa_bidi_separadores_y_c1(self):
+        """Mutante #93: la clase `[\\x00-\\x1f\\x7f]` dejaba pasar `U+202E` (RLO, invierte
+        visualmente lo que lee el humano), `U+2028`/`U+2029` (separadores que muchos visores
+        rompen como salto de linea, igual que el CRLF de #72) y los C1 `U+0080-U+009F` (entre
+        ellos `U+009B`, el CSI de un solo caracter)."""
+        crudo = "a‮b c d\u009be⁦f\u0080g"
+        for mod in (self.mod, _cargar("markdown_export.py", "ks_backend_md_export_fix5")):
+            saneado = mod._sanear_detalle(crudo)
+            for prohibido in ("‮", " ", " ", "\u009b", "⁦", "\u0080"):
+                self.assertNotIn(prohibido, saneado, f"{mod.__name__}: {prohibido!r} sin sanear")
+            self.assertIn("abcdefg", saneado.replace(" ", ""))
+
+    # -- #94 (Minor, fuera de lente B): nunca se fabrica un nombre de nodo ----------------------
+
+    def test_fix5_gap94_sin_version_previa_no_se_fabrica_un_nodo_fantasma(self):
+        """Mutante #94: `_nombre_episodio(id_, entrada_previa.get("version"))` daba `<id>@None` y
+        los fallbacks `or _nombre_episodio(id_, "anterior"/"actual")` fabricaban nombres de nodos
+        INEXISTENTES: el `add_triplet` pasaba el `required` del servidor y colgaba el `SUPERSEDES`
+        de un fantasma."""
+        with _ServidorMCPContext() as srv:
+            cfg = self._cfg(srv.endpoint)
+            entrada = _entrada(version=2, cuerpo="Cuerpo v2.\n")
+            self.mod._escribir_manifest(cfg, {"group_id": "proy-test", "entradas": {
+                entrada["id"]: {"hash": "viejo", "uuid": "u-previo"}}})  # sin `version`
+            with self.assertRaises(self.mod.ErrorMCP) as ctx:
+                self.mod.apply(self.mod.plan([entrada], cfg), cfg)
+            llamadas = list(srv.llamadas)
+        self.assertIn("no se inventa un nombre de nodo", str(ctx.exception))
+        self.assertEqual([a for n, a in llamadas if n == "add_triplet"], [])
+        self.assertEqual([a for n, a in llamadas
+                          if n == "add_memory" and "@None" in str(a.get("name"))], [])
+
+    def test_fix5_gap94_tombstone_supersedes_exige_los_nombres_reales(self):
+        """Los fallbacks "anterior"/"actual" ya no existen: sin nombres reales, `SUPERSEDES` no
+        sale (con el mutante salia hacia `<id>@anterior`, un nodo que nadie creo nunca)."""
+        with _ServidorMCPContext() as srv:
+            cliente = self.mod.ClienteMCP(srv.endpoint, timeout_s=2.0)
+            cliente.initialize()
+            with self.assertRaises(self.mod.ErrorMCP):
+                self.mod._tombstone_supersedes(cliente, "proy-test", "mem.x", "u-viejo", "u-nuevo",
+                                               "fact")
+            self.assertEqual([a for n, a in srv.llamadas if n == "add_triplet"], [])
+
+    # -- #95 (Minor, fuera de lente B/D): la cache de `verify` se invalida al escribir ----------
+
+    def test_fix5_gap95_apply_rebuild_y_revoke_invalidan_la_cache_de_verify(self):
+        """Mutante #95: `_verify_cacheado` guardaba el veredicto 5 s y NADIE lo invalidaba, asi
+        que justo tras un `rebuild()`/`apply()`/`revoke()` exitoso `puede_leer()` podia autorizar
+        una lectura con un veredicto OBSOLETO."""
+        def _get_episodes(_args):
+            return {"structuredContent": {"episodes": []}}
+
+        with _ServidorMCPContext(respuestas_tools={"get_episodes": _get_episodes}) as srv:
+            cfg = self._cfg(srv.endpoint)
+            clave = (cfg["endpoint"], cfg["group_id"], cfg["_root"])
+            entrada = _entrada()
+
+            for accion in ("apply", "rebuild", "revoke"):
+                self.mod._cache_verify[clave] = ({"ok": True, "marca": "obsoleto"},
+                                                 time.monotonic() + 999)
+                if accion == "apply":
+                    self.mod.apply(self.mod.plan([entrada], cfg), cfg)
+                elif accion == "rebuild":
+                    self.mod.rebuild([entrada], cfg)
+                else:
+                    self.mod.revoke(entrada["id"], cfg)
+                self.assertNotIn(clave, self.mod._cache_verify,
+                                 f"`{accion}()` tiene que tirar el veredicto cacheado")
+                self.assertNotEqual(self.mod._verify_cacheado(cfg).get("marca"), "obsoleto")
+
+    # -- Lente A: `_MAX_FALLIDOS_EN_MENSAJE` no tenia test propio ------------------------------
+
+    def test_fix5_el_tope_de_fallidos_citados_en_el_mensaje_es_real(self):
+        """Mutante "citar todos" (`fallidos[:]` en vez de `fallidos[:_MAX_FALLIDOS_EN_MENSAJE]`):
+        sobrevivia porque ningun test miraba CUANTOS fallos se citan (el de #72 solo medía la
+        longitud total, que el tope de 800 caracteres ya acotaba)."""
+        fallidos = [{"id": f"mem.x{i}", "tipo": "upsert", "error": "boom"} for i in range(7)]
+        resumen = self.mod._resumen_fallidos(fallidos)
+        self.assertEqual(self.mod._MAX_FALLIDOS_EN_MENSAJE, 5)
+        for i in range(5):
+            self.assertIn(f"mem.x{i}", resumen)
+        for i in (5, 6):
+            self.assertNotIn(f"mem.x{i}", resumen)
+        self.assertIn("y 2 mas", resumen)
 
 
 if __name__ == "__main__":

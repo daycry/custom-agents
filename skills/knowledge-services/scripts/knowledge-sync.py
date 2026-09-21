@@ -142,7 +142,11 @@ def _cargar_por_ruta(ruta, nombre_modulo):
     return mod
 
 
-_CONTROL_O_ANSI_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]|[\x00-\x1f\x7f]")
+# Gap #93 (Minor, fix5): misma ampliacion que `_sanear_detalle` de los adaptadores -C1
+# (\x80-\x9f), separadores Unicode ( / ) y controles bidi (‪-‮,
+# ⁦-⁩)-: esta causa se imprime por stderr y se persiste en la dead-letter.
+_CONTROL_O_ANSI_RE = re.compile(
+    r"\x1b\[[0-9;]*[A-Za-z]|[\x00-\x1f\x7f-\x9f  ‪-‮⁦-⁩]")
 _TOPE_CAUSA_CHARS = 400
 
 

@@ -104,13 +104,20 @@ decisión de que la extracción de entidades la hace el SERVIDOR, no el cliente)
 - **Cambio de `group_id`** (gap #73): el manifiesto pertenece a UN grupo. Si `taxonomy.json` cambia
   `group_id`, la base de comparación pasa a estar VACÍA (todo `upsert` contra el grupo nuevo), se
   avisa en el resultado de `apply()` y el manifiesto anterior se conserva como
-  `graphiti-manifest.<group_id-viejo>.json` para poder revocar a mano lo que quedó en el grupo
-  viejo (el adaptador NUNCA revoca en un grupo que ya no es el suyo).
+  `graphiti-manifest.archivado-<group_id-viejo-saneado>-<huella>.json` para poder revocar a mano
+  lo que quedó en el grupo viejo (el adaptador NUNCA revoca en un grupo que ya no es el suyo). El
+  prefijo `archivado-` y la huella del `group_id` crudo evitan que ese fichero choque con el
+  marcador `graphiti-manifest.pending.json` o con el de otro grupo que sanee igual (gap #91); si
+  ya existe, el nuevo se numera (`-2`, `-3`…) en vez de sobrescribirlo.
 - **`.pending` heredado** (gaps #54/#67/#68/#79): un `.pending` de una corrida cortada se
   CONFIRMA contra el servidor (`get_episodes`) antes de promoverlo a publicado, **siempre** —
   también cuando la corrida actual trae operaciones nuevas. Lo que el servidor no reconoce se
   quita del manifiesto y `plan()` lo vuelve a proponer como `upsert` en la siguiente pasada
-  (reintentar de más nunca pierde datos; promover de más, sí). Si NO se puede preguntar al
+  (reintentar de más nunca pierde datos; promover de más, sí) — salvo que la entrada ya no esté en
+  `approved/`: entonces su `revoke` se emite IGUALMENTE (tombstone + `SUPERSEDES`) con el nombre y
+  el `uuid` reconstruidos del manifiesto heredado, y `revocados` solo cuenta lo que de verdad se
+  envió al servidor (gap #89). El aviso del resultado distingue los tres casos (se republica /
+  se revoca igualmente / sin operación en esta corrida). Si NO se puede preguntar al
   servidor (caído, timeout, respuesta ilegible), `apply()` no toca nada —ni el `.pending` ni el
   publicado— y devuelve `{"aplicados": 0, "pendiente_sin_confirmar": true, "avisos": [...]}`.
   La confirmación exige que el `uuid` coincida **cuando `get_episodes` lo devuelve**; si el

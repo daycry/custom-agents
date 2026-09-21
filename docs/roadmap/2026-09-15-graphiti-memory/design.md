@@ -82,3 +82,10 @@ ejemplo de la enmienda 2026-09-17 donde difieran.
   `config.concurrency` (entero ≥ 1; default 1, coherente con `SEMAPHORE_LIMIT: 1` del stack de referencia) forman parte
   de la lista cerrada de `config`. `group_id` se deriva por `type: "graphiti"` (no por la clave del backend) y, con
   `enabled: true`, debe quedar como cadena no vacía (slug Unicode; si no se puede derivar, error que pide declararlo).
+
+## Enmiendas tras la verificación dirigida de la Fase 2 (fix4 + fix5, 2026-09-21)
+
+- **`revoke` sobre una entrada podada del `.pending` heredado (gap #89):** un `revoke` cuya entrada la reconciliación no pudo confirmar se emite igual (tombstone + `SUPERSEDES`) con el nombre `<id>@<version>` y el uuid5 determinista reconstruidos del manifiesto heredado; sin datos suficientes va a `fallidos` con causa explícita, nunca a `revocados`. Un `apply()` llamado a mano con una op de `revoke` sin rastro alguno levanta error (antes se contaba como revocado).
+- **Archivado del manifiesto al cambiar `group_id` (gaps #73/#91):** el fichero pasa a `graphiti-manifest.archivado-<group_id saneado>-<sha1(group_id)[:8]>.json`, con sufijo `-2`, `-3`… si ya existe; nunca colisiona con el marcador `.pending` ni entre grupos que saneen igual. sha1 es huella de nombre, no criptografía.
+- **Caché de `verify` (gap #95):** se invalida por clave `(endpoint, group_id, _root)` al final de `apply()`, `rebuild()` y `revoke()`.
+- **Tope de lectura configurable (`max_respuesta_kb`, gaps #70/#90):** lo respetan los cinco constructores del cliente MCP, `health()` incluido.

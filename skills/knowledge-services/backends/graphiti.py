@@ -327,13 +327,21 @@ def _sanear_url_para_mensaje(url):
 
 
 # --8<-- sanear_detalle (funcion) — REPLICADO LITERAL en skills/knowledge-services/backends/markdown_export.py y skills/knowledge-services/backends/graphiti.py
-_CONTROL_O_ANSI_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]|[\x00-\x1f\x7f]")
+# Gap #93 (Minor, fix5): la clase [\x00-\x1f\x7f] dejaba pasar tres familias que TAMBIEN
+# falsifican una linea de log o invierten visualmente el texto de un mensaje/`causa`: los
+# controles C1 (\x80-\x9f, entre ellos CSI \x9b), los separadores Unicode de linea/parrafo
+# ( / , que muchos visores rompen como salto de linea) y los controles bidi
+# (‪-‮ RLO/LRO..., ⁦-⁩ isolates), con los que un texto hostil del servidor
+# puede reordenar lo que el humano lee sin cambiar un solo byte del resto.
+_CONTROL_O_ANSI_RE = re.compile(
+    r"\x1b\[[0-9;]*[A-Za-z]|[\x00-\x1f\x7f-\x9f  ‪-‮⁦-⁩]")
 _SANEADO_TOPE_CHARS = 200
 
 
 def _sanear_detalle(texto):
     """Recorta a 200 caracteres y sustituye caracteres de control (incluidas las secuencias ANSI
-    `ESC[...`) por un espacio; ver comentario arriba para el porqué de cada regla."""
+    `ESC[...`, los C1, los separadores Unicode y los controles bidi) por un espacio; ver
+    comentario arriba para el porque de cada regla."""
     saneado = _CONTROL_O_ANSI_RE.sub(" ", str(texto))
     return saneado[:_SANEADO_TOPE_CHARS]
 # --8<-- fin sanear_detalle (funcion)
@@ -803,7 +811,12 @@ def health(cfg):
         detalle_get = veredicto_get["detalle"]
 
     try:
-        cliente = ClienteMCP(endpoint, timeout_s=_timeout_s(cfg), allow_remote=allow_remote)
+        # Gap #90 (Minor, fix5): `health()` era el UNICO de los cinco constructores de
+        # `ClienteMCP` que no propagaba el tope de respuesta -ignoraba `config.max_respuesta_kb`,
+        # justo en la funcion que llama `/doctor` (el arbitraje de #70 pedia el tope tambien
+        # aqui).
+        cliente = ClienteMCP(endpoint, timeout_s=_timeout_s(cfg), allow_remote=allow_remote,
+                             max_respuesta_bytes=_max_respuesta_bytes(cfg))
         cliente.initialize()
         resultado = cliente.get_status()
     except HostNoPermitido as e:
@@ -1070,6 +1083,14 @@ def _aplicar_upsert(cliente, proveedor, provider_cfg, group_id, op, cfg=None, en
     `version` cambió, se emite ADEMÁS un tombstone de esa versión anterior + `SUPERSEDES` hacia
     ella (sucesión observable, CA-11) — el nuevo episodio nunca sustituye a la anterior en
     silencio. Devuelve `(uuid, aviso_tope_o_None)` (gap #64)."""
+    # Gap #94 (Minor, fix5): si la entrada previa publicada no trae `version`, el nombre del nodo
+    # anterior (`<id>@<version>`) saldria como `<id>@None` — un nodo que no existe en el grafo:
+    # `add_triplet` pasaria el `required` del servidor y colgaria el `SUPERSEDES` de un fantasma.
+    # No se fabrica: la op cae a `fallidos` con causa explicita ANTES de tocar el servidor.
+    if entrada_previa and entrada_previa.get("uuid") and entrada_previa.get("version") is None:
+        raise ErrorMCP(
+            f"entrada previa de `{op['id']}` sin `version` en el manifiesto: no se puede nombrar "
+            f"el episodio anterior para el `SUPERSEDES` (no se inventa un nombre de nodo)")
     episodio_base, aviso_tope = _episodio_upsert(group_id, op, cfg)
     episodio = proveedor(provider_cfg, episodio_base)
     # Gap #46 (CA-14): un proveedor que devuelve una estructura invalida (falta `name`,
@@ -1085,8 +1106,8 @@ def _aplicar_upsert(cliente, proveedor, provider_cfg, group_id, op, cfg=None, en
     if entrada_previa and entrada_previa.get("version") != op.get("version") and entrada_previa.get("uuid"):
         _tombstone_supersedes(cliente, group_id, op["id"], entrada_previa["uuid"], episodio["uuid"],
                               f"{op['id']} superado por version {op.get('version')}",
-                              nombre_anterior=_nombre_episodio(op["id"], entrada_previa.get("version")),
-                              nombre_nuevo=episodio.get("name") or _nombre_episodio(op["id"], op.get("version")))
+                              nombre_anterior=_nombre_episodio(op["id"], entrada_previa["version"]),
+                              nombre_nuevo=episodio["name"])
     return episodio["uuid"], aviso_tope
 
 
@@ -1101,7 +1122,15 @@ def _tombstone_supersedes(cliente, group_id, id_, uuid_anterior, uuid_nuevo, fac
     OPCIONALES — el arbitraje de #40 ("usa `*_uuid`") era incompleto: hay que enviar nombre Y
     uuid. Sin los nombres, el servidor real responde `isError` y TODO camino de
     sucesion/invalidacion (CA-11) caia a `fallidos`/dead-letter. NUNCA llama a `delete_episode`
-    (design.md, enmienda 2026-09-18)."""
+    (design.md, enmienda 2026-09-18).
+
+    Gap #94 (Minor, fix5): los fallbacks `_nombre_episodio(id_, "anterior"/"actual")` fabricaban
+    nombres de nodos INEXISTENTES cuando el llamante no sabia el nombre real; pasaban el
+    `required` del servidor y colgaban la arista de un fantasma. Ahora es un error explicito."""
+    if not nombre_anterior or not nombre_nuevo:
+        raise ErrorMCP(
+            f"`SUPERSEDES` de `{id_}` sin los nombres REALES de los nodos (anterior/nuevo): no se "
+            f"fabrican nombres (`add_triplet` los exige y uno inventado crea un nodo fantasma)")
     tombstone_uuid = _uuid_tombstone(group_id, f"{id_}:{uuid_anterior}")
     cliente.tools_call("add_memory", {
         "name": f"{id_}@tombstone",
@@ -1112,11 +1141,11 @@ def _tombstone_supersedes(cliente, group_id, id_, uuid_anterior, uuid_nuevo, fac
         "uuid": tombstone_uuid,
     })
     cliente.tools_call("add_triplet", {
-        "source_node_name": nombre_nuevo or _nombre_episodio(id_, "actual"),
+        "source_node_name": nombre_nuevo,
         "source_node_uuid": uuid_nuevo,
         "edge_name": "SUPERSEDES",
         "fact": fact,
-        "target_node_name": nombre_anterior or _nombre_episodio(id_, "anterior"),
+        "target_node_name": nombre_anterior,
         "target_node_uuid": uuid_anterior,
         "group_id": group_id,
     })
@@ -1125,9 +1154,17 @@ def _tombstone_supersedes(cliente, group_id, id_, uuid_anterior, uuid_nuevo, fac
 
 def _aplicar_revoke(cliente, group_id, entrada_previa, id_):
     """Tombstone: un episodio de invalidacion + (si habia un uuid previo publicado) un triplete
-    `SUPERSEDES` hacia el. NUNCA llama a `delete_episode` (design.md, enmienda 2026-09-18)."""
+    `SUPERSEDES` hacia el. NUNCA llama a `delete_episode` (design.md, enmienda 2026-09-18).
+
+    Gap #94 (Minor, fix5): con `uuid` previo pero sin `version` en el manifiesto, el
+    `target_node_name` salia como `<id>@None` (nodo inexistente): se rechaza antes de emitir
+    nada y la op cae a `fallidos` con causa explicita."""
     if not entrada_previa:
         return None
+    if entrada_previa.get("uuid") and entrada_previa.get("version") is None:
+        raise ErrorMCP(
+            f"entrada publicada de `{id_}` sin `version` en el manifiesto: no se puede nombrar el "
+            f"episodio a invalidar para el `SUPERSEDES` (no se inventa un nombre de nodo)")
     tombstone_uuid = _uuid_tombstone(group_id, id_)
     cliente.tools_call("add_memory", {
         "name": f"{id_}@tombstone",
@@ -1147,7 +1184,7 @@ def _aplicar_revoke(cliente, group_id, entrada_previa, id_):
             "source_node_uuid": tombstone_uuid,
             "edge_name": "SUPERSEDES",
             "fact": f"{id_} invalidado",
-            "target_node_name": _nombre_episodio(id_, entrada_previa.get("version")),
+            "target_node_name": _nombre_episodio(id_, entrada_previa["version"]),
             "target_node_uuid": entrada_previa["uuid"],
             "group_id": group_id,
         })
@@ -1179,6 +1216,13 @@ def apply(ops, cfg):
         raise ConfigInvalida("`group_id` vacio: no se puede aplicar sin un grupo estable")
     manifest, _pendiente = _leer_manifest(cfg)
     avisos = []
+    # Gap #89 (Important, fix5): copia del manifiesto OBJETIVO ANTES de cualquier poda. La
+    # reconciliacion de #68 puede quitar de `publicado` una entrada que el servidor no confirma
+    # (episodio fuera de la ventana de `get_episodes`, o `uuid` distinto por #79); si esa entrada
+    # tiene un `revoke` en `ops`, sus datos (version + uuid) siguen aqui y el tombstone se emite
+    # igual. Sin esto, `_aplicar_revoke` recibia `None`, salia sin llamar al servidor y la op se
+    # contaba como `revocados`: episodio VIVO e irrevocable en el grafo.
+    heredado = dict(manifest.get("entradas") or {})
 
     # Gap #73 (Important): el manifiesto pertenece a UN `group_id`. Si cambio, su contenido no
     # describe el grupo nuevo: se archiva para poder revocarlo a mano y la base queda vacia.
@@ -1192,6 +1236,9 @@ def apply(ops, cfg):
         _borrar_pending(cfg)
         _pendiente = False
         publicado = {}
+        # Los `uuid` del manifiesto viejo pertenecen a OTRO `group_id`: no sirven para revocar
+        # nada en el grupo actual (gap #73), asi que tampoco se heredan (gap #89).
+        heredado = {}
     else:
         publicado = dict(manifest.get("entradas") or {})
 
@@ -1214,15 +1261,35 @@ def apply(ops, cfg):
                     "avisos": avisos}
         no_confirmadas = sorted(set(publicado) - set(confirmadas))
         if no_confirmadas:
+            # Gap #89 (fix5): el aviso unico ("`plan()` las volvera a proponer como `upsert`") era
+            # FALSO para los ids que ya no estan en `approved/`: esos traen un `revoke`, no un
+            # `upsert`. Se desglosa por lo que de verdad les pasa en ESTA corrida.
+            ids_upsert = {o.get("id") for o in ops if o.get("tipo") == "upsert"}
+            ids_revoke = {o.get("id") for o in ops if o.get("tipo") == "revoke"}
             avisos.append(
                 "entradas del `.pending` heredado NO confirmadas por el servidor (se quitan del "
-                "manifiesto; `plan()` las volvera a proponer como `upsert`): "
-                + ", ".join(no_confirmadas))
+                "manifiesto): " + ", ".join(no_confirmadas))
+            re_propuestas = [i for i in no_confirmadas if i in ids_upsert]
+            a_revocar = [i for i in no_confirmadas if i in ids_revoke]
+            sin_operacion = [i for i in no_confirmadas
+                             if i not in ids_upsert and i not in ids_revoke]
+            if re_propuestas:
+                avisos.append("de ellas, se republican como `upsert` en esta corrida: "
+                              + ", ".join(re_propuestas))
+            if a_revocar:
+                avisos.append(
+                    "de ellas, se revocan IGUALMENTE contra el servidor (tombstone + `SUPERSEDES` "
+                    "con los datos del manifiesto heredado): " + ", ".join(a_revocar))
+            if sin_operacion:
+                avisos.append(
+                    "de ellas, sin operacion en esta corrida; `plan()` las volvera a proponer como "
+                    "`upsert` solo si siguen en `approved/`: " + ", ".join(sin_operacion))
         publicado = confirmadas
 
     if not ops:
         _escribir_manifest(cfg, {"group_id": group_id, "entradas": publicado})
         _borrar_pending(cfg)
+        _invalidar_cache_verify(cfg)  # gap #95: el manifiesto cambio, el `verify` cacheado sobra
         resultado = {"aplicados": 0, "revocados": 0}
         if avisos:
             resultado["avisos"] = avisos
@@ -1253,7 +1320,13 @@ def apply(ops, cfg):
                 }
                 aplicados += 1
             else:
-                _aplicar_revoke(cliente, group_id, publicado.get(op["id"]), op["id"])
+                # Gap #89: `revocados` SOLO se incrementa despues de que el tombstone (y su
+                # `SUPERSEDES`) hayan salido de verdad hacia el servidor; si no hay datos para
+                # reconstruir el nombre/uuid, `_entrada_para_revoke` levanta y la op cae a
+                # `fallidos` con causa explicita, nunca a `revocados`.
+                _aplicar_revoke(cliente, group_id,
+                                _entrada_para_revoke(group_id, op["id"], publicado, heredado),
+                                op["id"])
                 progreso.pop(op["id"], None)
                 revocados += 1
         except Exception as e:  # noqa: BLE001 - un fallo de una op no debe perder las demas
@@ -1262,20 +1335,63 @@ def apply(ops, cfg):
         _escribir_manifest(cfg, {"group_id": group_id, "entradas": progreso}, sufijo=".pending")
 
     if fallidos:
-        raise ErrorMCP(
+        # Gap #92 (Minor, fix5): los `avisos` acumulados (archivado de #73, poda de #68/#89,
+        # truncado de #64) se PERDIAN cuando alguna op fallaba: la `ErrorMCP` solo llevaba el
+        # resumen de fallidos y `knowledge-sync.py` no imprime otra cosa. Viajan tambien en el
+        # mensaje (saneados y con tope, como los fallidos) y como atributo `avisos`.
+        _invalidar_cache_verify(cfg)
+        error = ErrorMCP(
             f"{len(fallidos)} operacion(es) fallaron; publicacion parcial retenida en "
-            f"`graphiti-manifest.pending.json`: {_resumen_fallidos(fallidos)}")
+            f"`graphiti-manifest.pending.json`: {_resumen_fallidos(fallidos)}"
+            + (f"; avisos: {_resumen_avisos(avisos)}" if avisos else ""))
+        error.avisos = list(avisos)
+        raise error
 
     _escribir_manifest(cfg, {"group_id": group_id, "entradas": progreso})
     _borrar_pending(cfg)
+    _invalidar_cache_verify(cfg)  # gap #95: acaba de cambiar el grafo y el manifiesto
     resultado = {"aplicados": aplicados, "revocados": revocados}
     if avisos:  # gap #64: solo se añade la clave si hay algo que avisar (compatibilidad con
         resultado["avisos"] = avisos  # las comparaciones exactas de tests existentes)
     return resultado
 
 
+def _entrada_para_revoke(group_id, id_, publicado, heredado):
+    """Gap #89 (Important, fix5): datos con los que emitir el tombstone de un `revoke`. Se prefiere
+    el manifiesto ya reconciliado (`publicado`) y, si la poda de #68/#89 quito la entrada de ahi,
+    se cae al manifiesto HEREDADO (`.pending`/publicado previo): el nombre del episodio
+    (`<id>@<version>`) y el `uuid` (uuid5 determinista, reconstruible desde
+    `group_id:id:version`) bastan para invalidarlo en el grafo. Sin `version` no hay forma de
+    nombrar el nodo: se levanta y la op cae a `fallidos` con causa explicita (nunca se cuenta como
+    revocada)."""
+    entrada = publicado.get(id_) or heredado.get(id_)
+    if not entrada:
+        raise ErrorMCP(
+            f"`revoke` de `{id_}`: sin rastro en el manifiesto (ni publicado ni heredado), no hay "
+            f"datos para emitir el tombstone; no se cuenta como revocado")
+    version = entrada.get("version")
+    if version is None:
+        raise ErrorMCP(
+            f"`revoke` de `{id_}`: la entrada del manifiesto no trae `version`, no se puede "
+            f"reconstruir el nombre del episodio (`<id>@<version>`); no se cuenta como revocado")
+    return {**entrada, "version": version,
+            "uuid": entrada.get("uuid") or _uuid_episodio(group_id, id_, version)}
+
+
 _MAX_FALLIDOS_EN_MENSAJE = 5
 _TOPE_RESUMEN_FALLIDOS_CHARS = 800
+_MAX_AVISOS_EN_MENSAJE = 5
+_TOPE_RESUMEN_AVISOS_CHARS = 800
+
+
+def _resumen_avisos(avisos):
+    """Gap #92: mismo tratamiento que `_resumen_fallidos` (acotar, sanear, capar) para los avisos
+    que se adjuntan al mensaje de la `ErrorMCP` de una publicacion parcial."""
+    piezas = [_sanear_detalle(a) for a in avisos[:_MAX_AVISOS_EN_MENSAJE]]
+    resumen = "; ".join(piezas)
+    if len(avisos) > _MAX_AVISOS_EN_MENSAJE:
+        resumen += f"; ... y {len(avisos) - _MAX_AVISOS_EN_MENSAJE} mas"
+    return resumen[:_TOPE_RESUMEN_AVISOS_CHARS]
 
 
 def _resumen_fallidos(fallidos):
@@ -1291,13 +1407,30 @@ def _resumen_fallidos(fallidos):
     return resumen[:_TOPE_RESUMEN_FALLIDOS_CHARS]
 
 
+def _sufijo_archivado(grupo_previo):
+    """Gap #91 (Minor, fix5): el sufijo derivado SOLO del `group_id` saneado podia chocar con
+    otros ficheros del mismo directorio. (a) Un `group_id` que sanea a `pending` producia
+    `graphiti-manifest.pending.json` — el MARCADOR de publicacion interrumpida, que
+    `_borrar_pending()` borra tres lineas despues: el aviso prometia un fichero que ya no existe.
+    (b) Dos `group_id` distintos que sanean igual (`proy/a` y `proy_a`) se sobrescribian entre si.
+    El sufijo lleva prefijo propio (`archivado-`, que ningun otro fichero del directorio usa) y
+    una huella corta del `group_id` CRUDO, que distingue los que sanean igual."""
+    saneado = re.sub(r"[^A-Za-z0-9._-]", "_", grupo_previo)
+    huella = hashlib.sha1(grupo_previo.encode("utf-8")).hexdigest()[:8]
+    return f".archivado-{saneado}-{huella}"
+
+
 def _archivar_manifest_de_otro_grupo(cfg, manifest, grupo_previo):
     """Gap #73: conserva el manifiesto del `group_id` ANTERIOR como
-    `graphiti-manifest.<group_id-viejo>.json` (el nombre se sanea para que un `group_id` con
-    caracteres raros no componga una ruta) — sin esto, sus `uuid` se perdian y sus episodios
-    quedaban en el grafo sin forma de revocarlos."""
-    sufijo = "." + re.sub(r"[^A-Za-z0-9._-]", "_", grupo_previo)
-    return _escribir_manifest(cfg, manifest, sufijo=sufijo)
+    `graphiti-manifest.archivado-<group_id-saneado>-<huella>.json` (gap #91) — sin esto, sus
+    `uuid` se perdian y sus episodios quedaban en el grafo sin forma de revocarlos. Si ese fichero
+    ya existe (un ida y vuelta entre dos grupos), NO se sobrescribe: se numera (`-2`, `-3`...)."""
+    sufijo = _sufijo_archivado(grupo_previo)
+    candidato, n = sufijo, 1
+    while os.path.isfile(_manifest_path(cfg, candidato)):
+        n += 1
+        candidato = f"{sufijo}-{n}"
+    return _escribir_manifest(cfg, manifest, sufijo=candidato)
 
 
 def _borrar_pending(cfg):
@@ -1329,6 +1462,7 @@ def rebuild(entries, cfg):
     cliente.tools_call("clear_graph", {"group_ids": [group_id]})
     _escribir_manifest(cfg, {"group_id": group_id, "entradas": {}})
     _borrar_pending(cfg)
+    _invalidar_cache_verify(cfg)  # gap #95: el grafo acaba de vaciarse; el verify cacheado miente
     ops = plan(entries, cfg, force=True)
     return apply(ops, cfg)
 
@@ -1343,11 +1477,21 @@ def revoke(knowledge_id, cfg):
     if knowledge_id not in (manifest.get("entradas") or {}):
         return {"revocado": False, "razon": "no publicado", "id": knowledge_id}
     resultado = apply([{"tipo": "revoke", "id": knowledge_id}], cfg)
+    _invalidar_cache_verify(cfg)  # gap #95 (`apply` ya invalida; explicito por si cambia)
     return {"revocado": True, "id": knowledge_id, "resultado": resultado}
 
 
 _CACHE_VERIFY_TTL_S = 5  # gap #70 (lente D): ventana corta, solo para no repetir el barrido
 _cache_verify = {}       # {(endpoint, group_id, root): (veredicto, expira_monotonic)}
+
+
+def _invalidar_cache_verify(cfg):
+    """Gap #95 (Minor, fix5): la cache de `verify()` (TTL 5 s) no se invalidaba nunca, asi que
+    justo despues de un `apply()`/`rebuild()`/`revoke()` exitoso `puede_leer()` podia autorizar
+    una lectura con un veredicto OBSOLETO (hasta 5 s de desfase invisible). Cada escritura que
+    cambia el manifiesto o el grafo tira la entrada de SU clave (endpoint, group_id, root)."""
+    cfg = cfg or {}
+    _cache_verify.pop((cfg.get("endpoint"), cfg.get("group_id"), cfg.get("_root")), None)
 
 
 def _verify_cacheado(cfg):
