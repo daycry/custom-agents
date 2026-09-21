@@ -229,3 +229,130 @@ def test_evaluar_capacidad_no_sirve_taxonomia_obsoleta_entre_llamadas_directas(t
                                           "config": {"export_dir": ".claude/knowledge-services/kwipu-export"}}})
     segundo = cap_mod.evaluar_capacidad(kwipu_cap, root)
     assert segundo["enabled"] is True
+
+
+# ------------------------------------------------------------------ capacidad `graphiti` (T-08)
+# La capacidad entra SOLO por el registro (CA-14): `/setup` y `/doctor` la ven sin codigo propio.
+# Estados: deshabilitado · off · shadow · read · degradado, cada uno con veredicto y remedio.
+
+def _taxonomy_graphiti(root, enabled=True, mode="shadow", extra=None):
+    cfg = {"mode": mode, "endpoint": "http://127.0.0.1:8001/mcp", "group_id": "proy-demo",
+           "allow_remote": False, "provider": {"llm": "none"}}
+    cfg.update(extra or {})
+    return _taxonomy(root, backends={"graphiti": {"type": "graphiti", "enabled": enabled,
+                                                  "config": cfg}})
+
+
+def _cap_graphiti(root):
+    return next(c for c in cap_mod.enumerar(root) if c["id"] == "graphiti")
+
+
+def test_registro_base_declara_graphiti():
+    assert "graphiti" in {c["id"] for c in cap_mod.REGISTRO}
+
+
+def test_graphiti_deshabilitado_por_defecto(tmp_path):
+    root = str(tmp_path)
+    _taxonomy(root)
+    cap = _cap_graphiti(root)
+    assert cap["enabled"] is False
+    assert cap["health"]["estado"] == "deshabilitado"
+    assert "graphiti" in cap["doctor"]
+
+
+def test_graphiti_en_shadow_no_lee(tmp_path):
+    root = str(tmp_path)
+    _taxonomy_graphiti(root, mode="shadow")
+    cap = _cap_graphiti(root)
+    assert cap["enabled"] is True
+    assert cap["health"]["estado"] == "shadow"
+    assert "no lee" in cap["doctor"].lower()
+    assert cap["health"]["remedio"]
+
+
+def test_graphiti_en_read_lo_declara_con_remedio(tmp_path):
+    root = str(tmp_path)
+    _taxonomy_graphiti(root, mode="read")
+    cap = _cap_graphiti(root)
+    assert cap["health"]["estado"] == "read"
+    assert "read" in cap["doctor"]
+
+
+def test_graphiti_en_off_esta_apagado_aunque_enabled_sea_true(tmp_path):
+    root = str(tmp_path)
+    _taxonomy_graphiti(root, mode="off")
+    cap = _cap_graphiti(root)
+    assert cap["health"]["estado"] == "off"
+    assert cap["health"]["remedio"]
+
+
+def test_graphiti_sin_endpoint_es_degradado_con_remedio(tmp_path):
+    """Declarado y habilitado pero sin con que hablar: degradado, con el arreglo concreto."""
+    root = str(tmp_path)
+    _taxonomy(root, backends={"graphiti": {"type": "graphiti", "enabled": True,
+                                           "config": {"mode": "shadow", "group_id": "x"}}})
+    cap = _cap_graphiti(root)
+    assert cap["health"]["estado"] == "degradado"
+    assert "endpoint" in cap["health"]["remedio"]
+
+
+def test_graphiti_con_config_invalida_es_degradado_y_nombra_el_campo(tmp_path):
+    """`group_id` NO entra aqui: el esquema lo DERIVA del slug del proyecto (T-01-fix2), asi que
+    nunca falta. Lo que si falta en este ejemplo es `provider.llm`, obligatorio con el backend
+    habilitado — y la capacidad tiene que decir `degradado` (esta encendido y mal), no
+    «deshabilitado», nombrando el campo a corregir."""
+    root = str(tmp_path)
+    _taxonomy(root, backends={"graphiti": {"type": "graphiti", "enabled": True,
+                                           "config": {"mode": "read",
+                                                      "endpoint": "http://127.0.0.1:8001/mcp"}}})
+    cap = _cap_graphiti(root)
+    assert cap["health"]["estado"] == "degradado"
+    assert "provider.llm" in cap["health"]["remedio"]
+    assert "degradado" in cap["doctor"]
+
+
+def test_graphiti_reconoce_un_backend_con_otra_clave_pero_type_graphiti(tmp_path):
+    """T-01-fix2: el backend se identifica por `type`, no por la clave literal."""
+    root = str(tmp_path)
+    _taxonomy(root, backends={"mi_grafo": {"type": "graphiti", "enabled": True,
+                                           "config": {"mode": "read", "group_id": "x",
+                                                      "endpoint": "http://127.0.0.1:8001/mcp",
+                                                      "provider": {"llm": "none"}}}})
+    cap = _cap_graphiti(root)
+    assert cap["enabled"] is True
+    assert cap["health"]["estado"] == "read"
+    assert "mi_grafo" in cap["doctor"]
+
+
+def test_graphiti_no_hace_red_al_enumerar(tmp_path, monkeypatch):
+    """`/doctor` ya hace la comprobacion EN VIVO por su cuenta (contrato de adaptador): enumerar
+    las capacidades no debe abrir ni un socket."""
+    import socket
+    root = str(tmp_path)
+    _taxonomy_graphiti(root, mode="read")
+
+    def _prohibido(*a, **k):
+        raise AssertionError("capabilities.enumerar() no debe hacer red")
+
+    monkeypatch.setattr(socket, "create_connection", _prohibido)
+    monkeypatch.setattr(socket, "getaddrinfo", _prohibido)
+    cap = _cap_graphiti(root)
+    assert cap["health"]["estado"] == "read"
+
+
+def test_graphiti_setup_step_no_registra_mcp_ni_toca_config_global(tmp_path):
+    cap = next(c for c in cap_mod.REGISTRO if c["id"] == "graphiti")
+    paso = cap["setup_step"].lower()
+    assert "taxonomy.json" in paso
+    for prohibido in ("claude mcp add", "~/.claude.json", "settings.json", "mcp add"):
+        assert prohibido not in paso
+
+
+def test_graphiti_taxonomia_invalida_no_tumba_las_demas_capacidades(tmp_path):
+    root = str(tmp_path)
+    d = os.path.join(root, ".claude", "knowledge-services")
+    os.makedirs(d, exist_ok=True)
+    with open(os.path.join(d, "taxonomy.json"), "w", encoding="utf-8") as f:
+        f.write("{ roto")
+    ids = {c["id"] for c in cap_mod.enumerar(root)}
+    assert {"knowledge-gate", "kwipu", "graphiti"} <= ids

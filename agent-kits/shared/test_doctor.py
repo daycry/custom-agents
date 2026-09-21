@@ -1897,3 +1897,22 @@ def test_bloque_capacidades_esta_en_diagnostico(tmp_path):
     inf = diag(proj)
     claves = {b["clave"] for b in inf["bloques"]}
     assert "capacidades" in claves
+
+
+# ------------------------------------------------------------------ graphiti-memory T-08 (CA-14)
+
+def test_doctor_no_nombra_la_capacidad_graphiti():
+    """CA-14: una capacidad opcional entra por `capabilities.py`; `/doctor` la recorre sin codigo
+    propio — este fichero no puede mencionarla."""
+    with open(os.path.join(HERE, "doctor.py"), encoding="utf-8") as f:
+        assert "graphiti" not in f.read().lower()
+
+
+def test_doctor_pinta_una_capacidad_nueva_sin_tocar_doctor_py(tmp_path):
+    """La prueba de que el registro basta: una capacidad inventada al vuelo sale en el bloque."""
+    cap = {"id": "capacidad-inventada", "config_path": None, "enabled": True,
+           "health": {"estado": "shadow", "detalle": "escribe pero no lee",
+                      "remedio": "pon `mode: read` cuando quieras leer"},
+           "doctor": "capacidad-inventada: shadow (escribe, no lee)", "setup_step": "-"}
+    l = doctor._linea_capacidad(str(tmp_path), cap, None, None)
+    assert "capacidad-inventada" in json.dumps(l, ensure_ascii=False)

@@ -176,6 +176,7 @@ sustituye, y aquí está dicho.
 | **Guardrail de guardia por agente** (`implementer`, `architect`) | ✅ `deny` real vía `hooks:` del frontmatter (`ADR-007`) | ❌ no existe hook por agente → el agente lo **auto-comprueba** con `guardrail-check.py` (el preámbulo se lo dice y le da el comando) | ❌ igual que Codex; `permission` acota herramientas, no rutas |
 | `reviewer` de solo lectura | ✅ sin Write/Edit en `tools` | ✅ `sandbox_mode = "read-only"` | ✅ `permission.edit: deny` |
 | Statusline del roadmap | ✅ opt-in | ❌ | ❌ |
+| **Memoria de grafo** (capacidad `graphiti`, opt-in) | ✅ `/doctor` la comprueba en vivo por su adaptador | ✅ igual: el adaptador habla HTTP con el endpoint declarado, no con el MCP del runtime | ✅ igual; sin hook de contexto, el estado solo se ve al pasar `/doctor` |
 | `permission` de OpenCode | — | — | ⚠️ el instalador **no lo toca** si ya existe: OpenCode aplica «la última regla que casa», así que añadir `skill: {"*": "allow"}` detrás de un `deny` tuyo te lo abriría. Si tienes política propia, comprueba que las skills `custom-agents` no caigan en un `deny`. |
 
 Los tres huecos que más importan:

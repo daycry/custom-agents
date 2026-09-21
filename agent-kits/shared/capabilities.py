@@ -204,6 +204,115 @@ def _kwipu_doctor(root):
         return "kwipu: deshabilitado (backends.kwipu.enabled: false o sin declarar)"
     return f"kwipu: {salud['estado']} — {salud.get('detalle', '')}".rstrip(" —")
 
+# --- capacidad `graphiti` (graphiti-memory T-08, ADR-018) ---------------------------------------
+# Una capacidad mas en el registro: ni `/setup` ni `/doctor` llevan codigo propio para ella
+# (CA-14 — `doctor.py` no contiene la cadena `graphiti`). Aqui NO se hace red: el estado que se
+# publica sale de la CONFIGURACION (`mode`, via el `_modo` del propio adaptador) y la comprobacion
+# EN VIVO (`health()`/`verify()` del adaptador) la hace `/doctor` por su cuenta, con su presupuesto
+# de tiempo — igual que con `kwipu`.
+
+GRAPHITI_TYPE = "graphiti"
+_GRAPHITI_ADAPTADOR_REL = ("skills", "knowledge-services", "backends", "graphiti.py")
+
+
+def _graphiti_declaracion(root):
+    """`(id_del_backend, declaracion)` del backend de tipo `graphiti` declarado en `taxonomy.json`:
+    la clave literal `graphiti` si existe y, si no, el primero (por orden de clave) cuyo `type` sea
+    `graphiti` — el backend se identifica por `type`, no por la clave (T-01-fix2). `(None, {})` si
+    no hay ninguno o la taxonomia no se pudo leer.
+
+    La declaracion se lee AUNQUE la taxonomia traiga errores de validacion: un `graphiti` mal
+    configurado tiene que salir como `degradado` con su arreglo (`_graphiti_health`), no como
+    «deshabilitado» — que es justo lo contrario de lo que pasa (esta declarado y encendido)."""
+    _ks, config, _origen, _ruta, _errores = _estado_taxonomia(root)
+    if not config:
+        return None, {}
+    backends = config.get("backends")
+    if not isinstance(backends, dict):
+        return None, {}
+    candidatos = [(bid, decl) for bid, decl in sorted(backends.items())
+                  if isinstance(decl, dict) and decl.get("type") == GRAPHITI_TYPE]
+    if not candidatos:
+        return None, {}
+    for bid, decl in candidatos:
+        if bid == GRAPHITI_TYPE:
+            return bid, decl
+    return candidatos[0]
+
+
+
+def _graphiti_errores_de_config(root, bid):
+    """Mensajes de validacion (`knowledge-schema.py`) que afectan a ESTE backend, ya formateados."""
+    _ks, _config, _origen, _ruta, errores = _estado_taxonomia(root)
+    prefijo = f"backends.{bid}."
+    return [f"`{e['campo'][len(prefijo):]}`: {e['mensaje']}" for e in (errores or [])
+            if str(e.get("campo", "")).startswith(prefijo)]
+
+def _graphiti_modo(cfg):
+    """`mode` normalizado. Se pregunta al ADAPTADOR (`_modo`, fuente unica del default y del enum)
+    y solo si no esta instalado se cae a la misma regla por escrito."""
+    ruta = os.path.join(os.path.dirname(os.path.dirname(HERE)), *_GRAPHITI_ADAPTADOR_REL)
+    try:
+        spec = importlib.util.spec_from_file_location("capabilities_graphiti_adaptador", ruta)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod._modo(cfg)
+    except Exception:  # noqa: BLE001 — sin adaptador instalado, el default del esquema
+        modo = (cfg or {}).get("mode")
+        return modo if modo in ("off", "shadow", "read") else "shadow"
+
+
+def _graphiti_enabled(root):
+    _bid, decl = _graphiti_declaracion(root)
+    return bool(decl.get("enabled", False))
+
+
+_GRAPHITI_REMEDIOS = {
+    "off": "pon `mode: \"shadow\"` en `backends.<id>.config` de `taxonomy.json` para empezar a "
+           "sincronizar sin leer",
+    "shadow": "cuando el grafo este poblado y `knowledge-sync.py --check` no de desfase, pon "
+              "`mode: \"read\"` para que el router pueda leerlo",
+    "read": "comprueba la salud real con `/doctor` (o `knowledge-sync.py --backend <id> --check`): "
+            "en `read` cada consulta enrutada exige `health` sano y `verify` sin desfase",
+}
+
+
+def _graphiti_health(root):
+    bid, decl = _graphiti_declaracion(root)
+    if not decl.get("enabled", False):
+        return {"estado": "deshabilitado",
+                "detalle": "sin declarar o con `enabled: false` en `taxonomy.json`"}
+    cfg = decl.get("config") if isinstance(decl.get("config"), dict) else {}
+    faltan = [clave for clave in ("endpoint", "group_id") if not cfg.get(clave)]
+    errores_config = _graphiti_errores_de_config(root, bid)
+    if faltan or errores_config:
+        # Declarado y habilitado pero incompleto/invalido: es un problema de CONFIGURACION, no del
+        # stack externo — se nombra el campo y el fichero, nunca «deshabilitado» (esta encendido).
+        detalle = "; ".join(errores_config) or (
+            "habilitado sin " + ", ".join("`" + c + "`" for c in faltan))
+        pendientes = faltan or [e.split("`")[1] for e in errores_config if "`" in e]
+        return {"estado": "degradado", "backend": bid, "detalle": detalle,
+                "remedio": f"corrige `backends.{bid}.config` en `taxonomy.json`: "
+                           + ", ".join("`" + c + "`" for c in pendientes)}
+    modo = _graphiti_modo(cfg)
+    detalles = {
+        "off": "apagado por configuracion (`mode: off`): no sincroniza ni lee",
+        "shadow": "sincroniza pero NO lee: el router nunca consulta el grafo en `shadow` (CA-10)",
+        "read": "lectura enrutada activa: `knowledge-find.py --intent <intent>` puede servirse del "
+                "grafo si el intent esta declarado en `router.intents` y `health`/`verify` acompanan",
+    }
+    return {"estado": modo, "backend": bid, "detalle": detalles[modo],
+            "remedio": _GRAPHITI_REMEDIOS[modo]}
+
+
+def _graphiti_doctor(root):
+    salud = _graphiti_health(root)
+    if salud["estado"] == "deshabilitado":
+        return "graphiti: deshabilitado (sin backend `type: graphiti` habilitado en taxonomy.json)"
+    backend = salud.get("backend") or "?"
+    return (f"graphiti: `{backend}` en `{salud['estado']}` — {salud['detalle']} · "
+            f"{salud.get('remedio', '')}").rstrip(" ·")
+
 
 REGISTRO = [
     {
@@ -224,6 +333,18 @@ REGISTRO = [
         "doctor": _kwipu_doctor,
         "setup_step": "declara `backends.kwipu.enabled: true` en `taxonomy.json` y el `export_dir` "
                       "donde el adaptador `markdown-export` escribira el export derivado",
+    },
+    {
+        "id": "graphiti",
+        "config_path": TAXONOMY_CONFIG_PATH,
+        "enabled": _graphiti_enabled,
+        "health": _graphiti_health,
+        "doctor": _graphiti_doctor,
+        "setup_step": "declara un backend `type: \"graphiti\"` con `enabled: true` en "
+                      "`taxonomy.json` (`endpoint` local del servidor MCP, `group_id` propio del "
+                      "proyecto, `provider` y `mode`: empieza en `shadow`); no registra ningun "
+                      "servidor MCP ni toca configuracion global de Claude Code — el adaptador "
+                      "habla con el endpoint declarado y nada mas",
     },
 ]
 
