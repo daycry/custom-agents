@@ -1,5 +1,32 @@
 # CONTINUE-HERE
 
+> **2026-09-21 — UNA SOLA RAMA EN VUELO: `feature/graphiti-memory`. Leer este bloque; el resto es histórico.**
+>
+> Estado del repo: PR #9 (`knowledge-services`) y PR #10 (`jira-review-comments`) **mergeadas en master**; **release
+> v1.21.0 publicada** (`ac42f08`); master mezclado en `feature/graphiti-memory` (`6ce6a00`). Máquina nueva
+> (usuario `47888230E`): `.venv` recreado hoy (`python -m venv .venv` + `pip install pytest pyyaml`) y
+> `.claude/dev.json` restaurado a mano (`{"tdd": true, "worktree": false, "subagentes": false}`, ignorado por git).
+> Sin `.claude/jira.json` → sin worklog ni comentarios Jira en esta iniciativa.
+>
+> **`/dev-cycle graphiti-memory completo` — Fase 2 (T-04, T-05, T-06) en bucle de revisión.** Intento 1 (20 gaps,
+> #31-#50) → fix1; intento 2 (`c06e249`: 16 nuevos #51-#66, 3 Critical) → fix2 `92f1bc6` (3 Critical + 8 más con
+> 25 tests en `TestGraphitiFase2Fix2`). Baseline hoy: 384 passed en las 5 rutas graphiti/knowledge.
+> **EN CURSO: ronda `fix3`** (marcador `graphiti-memory/T-04-fix3` abierto 08:07Z) despachada al `implementer`:
+> #57-resto (tests redirect `.internal`/IMDS/`0.0.0.0`), #61-test, #59 (Verificaciones reales + cita de T-05 +
+> etiquetas «pre-fix1» y «51 passed» fuera), #60 (schema/CONVENTIONS ES-EN/README + párrafo para `design.md`
+> que pega el orquestador) y las 12 parciales del intento 1 con test dedicado. **Siguiente:** cerrar el marcador y
+> pegar `Tiempo IA (fix3)` en T-04 → **intento 3 (último) con lentes A+B+C** (rango `92cdde8..HEAD`; C a demanda
+> del orquestador: cliente HTTP/DNS/`clear_graph`) → Fase 3 (T-07 router en `knowledge-find.py`, T-08 capability
+> `graphiti` en `capabilities.py`/setup/doctor/INTEROP) → Fase 4 (T-09, T-10) → qa sin UI → documenter → 4-bis
+> (`knowledge-curator`) → changelog-sync → /retro (retro-gate) → cierre → PR sobre master.
+> Reglas: `PATH="$PWD/.venv/Scripts:$PATH"` y `python` (+ `-p no:cacheprovider`); ningún gap `corregido` sin test
+> dedicado nombrado; nada de escrituras contra el Graphiti real (`127.0.0.1:8001`); `export-interop.py` en Windows
+> reescribe EOL (revertir los limpios); modelos por `model-tier.py` (implementer sonnet, reviewer opus).
+
+---
+
+## Histórico (2026-09-19 tarde)
+
 > **2026-09-19 (tarde) — TRES RAMAS EN VUELO; leer este bloque antes que el resto (el resto es histórico).**
 >
 > **PUNTO DE REANUDACIÓN (2026-09-19, 13:30; el usuario pidió cerrar aquí tras los commits + push).**
