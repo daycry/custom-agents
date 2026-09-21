@@ -119,7 +119,7 @@ for _s in (sys.stdin, sys.stdout, sys.stderr):
     try: _s.reconfigure(encoding="utf-8", errors="replace")
     except Exception: pass  # noqa: BLE001 — sin reconfigure, ya leído o None (capsys, pythonw)
 
-# --8<-- sanear_detalle (funcion) — REPLICADO LITERAL en las CUATRO copias declaradas del bloque `sanear_detalle` de agent-kits/shared/copias.json
+# --8<-- sanear_detalle (funcion) — REPLICADO LITERAL en las CINCO copias declaradas del bloque `sanear_detalle` de agent-kits/shared/copias.json
 # Gap #93 (Minor, fix5): la clase [\x00-\x1f\x7f] dejaba pasar tres familias que TAMBIEN
 # falsifican una linea de log o invierten visualmente el texto de un mensaje/`causa`: los
 # controles C1 (\x80-\x9f, entre ellos CSI \x9b), los separadores Unicode de linea/parrafo
@@ -1143,9 +1143,14 @@ def filtrar_remotos(aciertos, tipo="", area=""):
 
 
 def _aciertos_del_backend(respuesta, backend_id, limit, tipo="", area=""):
-    """`(aciertos, descartados)` a partir de lo que devuelve `consultar` del adaptador (una lista
-    de aciertos, o un dict con la clave `aciertos`), ya post-filtrados por `tipo`/`area`
-    (gap #104). `limit` 0 = sin tope (el adaptador ya trae el suyo)."""
+    """`(aciertos, descartados, filtrados)` a partir de lo que devuelve `consultar` del adaptador
+    (una lista de aciertos, o un dict con la clave `aciertos`), ya post-filtrados por `tipo`/`area`
+    (gap #104). `limit` 0 = sin tope (el adaptador ya trae el suyo).
+
+    Gap #117 (Important, fix2 Fase 3): lo que TIRA el post-filtro se devuelve aparte (`filtrados`)
+    en vez de desaparecer — antes el descarte no ponia `motivo` ni contaba en `descartados` (se
+    contaban ANTES de filtrar), asi que una consulta enrutada podia devolver `origen: backend`,
+    `total: 0` sin decir por que y sin llegar nunca a consultar el corpus local."""
     brutos = respuesta.get("aciertos") if isinstance(respuesta, dict) else respuesta
     if not isinstance(brutos, list):
         brutos = []
@@ -1156,10 +1161,12 @@ def _aciertos_del_backend(respuesta, backend_id, limit, tipo="", area=""):
             descartados += 1
         else:
             aciertos.append(normalizado)
-    aciertos = filtrar_remotos(aciertos, tipo=tipo, area=area)
+    tras_filtro = filtrar_remotos(aciertos, tipo=tipo, area=area)
+    filtrados = len(aciertos) - len(tras_filtro)
+    aciertos = tras_filtro
     if limit:
         aciertos = aciertos[:limit]
-    return aciertos, descartados
+    return aciertos, descartados, filtrados
 
 
 def consultar_intent(root, intent, texto="", limit=LIMIT_DEFAULT, area="", tipo="",
@@ -1228,8 +1235,12 @@ def consultar_intent(root, intent, texto="", limit=LIMIT_DEFAULT, area="", tipo=
         except Exception as e:  # noqa: BLE001 — un adaptador que lanza no tumba la consulta
             motivos.append(f"`{bid}`: `consultar` falló: {type(e).__name__}: {e}")
             continue
-        aciertos, descartados = _aciertos_del_backend(respuesta, bid, limit, tipo=tipo, area=area)
-        motivo_backend = (respuesta.get("motivo") or "") if isinstance(respuesta, dict) else ""
+        aciertos, descartados, filtrados = _aciertos_del_backend(respuesta, bid, limit,
+                                                                 tipo=tipo, area=area)
+        # Gap #123 (Minor, CWE-117/74): el `motivo` del adaptador era el UNICO campo de origen
+        # backend que el nucleo NO saneaba, y fix1 lo convirtio en salida (stderr y `--json`).
+        motivo_backend = _sanear_detalle(
+            (respuesta.get("motivo") or "") if isinstance(respuesta, dict) else "")
         # Gap #102 (Important): 0 aciertos CON motivo no es una respuesta autorizada -es un
         # backend que no pudo servir (servidor caido tras un `verify` cacheado, `get_episodes`
         # ilegible, `ErrorResponse`...)-: se degrada a local con el motivo a la vista, en vez de
@@ -1237,8 +1248,16 @@ def consultar_intent(root, intent, texto="", limit=LIMIT_DEFAULT, area="", tipo=
         if not aciertos and motivo_backend:
             motivos.append(f"`{bid}`: {motivo_backend}")
             continue
-        info.update({"origen": "backend", "backend": bid, "descartados": descartados,
-                     "motivo": motivo_backend})
+        # Gap #117 (Important): si el post-filtro `--tipo`/`--area` se llevo TODO lo que el grafo
+        # sirvio, el backend no ha respondido a la consulta que se hizo — se cae al camino LOCAL
+        # (que es donde vive la doctrina) diciendo cuantos aciertos tiro el filtro, en vez de
+        # servir un vacio con `origen: backend`.
+        if not aciertos and filtrados:
+            motivos.append(f"`{bid}`: {filtrados} acierto(s) del grafo descartados por el "
+                           f"post-filtro `--tipo`/`--area` (0 tras filtrar): se sirve lo local")
+            continue
+        info.update({"origen": "backend", "backend": bid,
+                     "descartados": descartados + filtrados, "motivo": motivo_backend})
         return aciertos, info
 
     info["motivo"] = "; ".join(motivos)

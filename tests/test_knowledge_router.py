@@ -531,9 +531,11 @@ def test_f3fix1_gap104_el_nucleo_postfiltra_tipo_en_los_aciertos_remotos(tmp_pat
     root = str(tmp_path)
     _taxonomia(root)
     stub = _escribir_stub(str(tmp_path / "bk"))
-    aciertos, _info = kf.consultar_intent(root, "temporal", texto="x", limit=5, tipo="gotcha",
-                                          directorios=[stub])
-    assert aciertos == []
+    # fix2 (gap #117): 0 aciertos TRAS filtrar ya no se sirve como `origen: backend` con total 0
+    # -se cae al camino local diciendo cuantos tiro el post-filtro.
+    aciertos, info = kf.consultar_intent(root, "temporal", texto="x", limit=5, tipo="gotcha",
+                                         directorios=[stub])
+    assert aciertos is None and "post-filtro" in info["motivo"], info
     aciertos, _info = kf.consultar_intent(root, "temporal", texto="x", limit=5, tipo="adr",
                                           directorios=[stub])
     assert [a["id"] for a in aciertos] == ["ADR-100"]
@@ -543,9 +545,9 @@ def test_f3fix1_gap104_el_nucleo_postfiltra_area_en_los_aciertos_remotos(tmp_pat
     root = str(tmp_path)
     _taxonomia(root)
     stub = _escribir_stub(str(tmp_path / "bk"))
-    aciertos, _info = kf.consultar_intent(root, "temporal", texto="x", limit=5, area="seguridad",
-                                          directorios=[stub])
-    assert aciertos == []
+    aciertos, info = kf.consultar_intent(root, "temporal", texto="x", limit=5, area="seguridad",
+                                         directorios=[stub])
+    assert aciertos is None and "post-filtro" in info["motivo"], info   # fix2, gap #117
     aciertos, _info = kf.consultar_intent(root, "temporal", texto="x", limit=5, area="memoria",
                                           directorios=[stub])
     assert [a["id"] for a in aciertos] == ["ADR-100"]
@@ -633,3 +635,150 @@ def test_f3fix1_gap110_el_docstring_documenta_intent_backends_dir_y_los_exit_2()
         assert literal in uso, literal
     salidas = doc.split("Exit codes:", 1)[1]
     assert "--related" in salidas and "--doctrina" in salidas
+
+
+# --------------------------------------------------------------- fix2 Fase 3: #117 y #123
+# El gap #117 (Important, intento 2) se cerro con un test verde que usaba un STUB con
+# `categoria: "adr"`/`area: "memoria"` — vocabulario que el adaptador REAL nunca produce. Estos
+# tests montan el camino COMPLETO: adaptador `graphiti.py` real + servidor MCP falso + las
+# categorias REALES de la taxonomia (`DECISION`/`GOTCHA`/`LESSON`).
+
+_SUITE_GRAPHITI = os.path.join(ROOT, "skills", "knowledge-services", "scripts",
+                               "test_backend_graphiti.py")
+_BACKENDS_DIR = os.path.join(ROOT, "skills", "knowledge-services", "backends")
+
+
+def _cargar_suite_graphiti():
+    spec = importlib.util.spec_from_file_location("suite_graphiti_para_router", _SUITE_GRAPHITI)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def _taxonomia_graphiti(root, endpoint, **extra_config):
+    """`taxonomy.json` con un backend `type: "graphiti"` REAL y las categorias de verdad."""
+    cfg = {"mode": "read", "endpoint": endpoint, "allow_remote": False, "group_id": "proy-test",
+           "provider": {"llm": "none"}, "timeout_ms": 5000,
+           "router": {"intents": {"temporal": True}}}
+    cfg.update(extra_config)
+    data = {
+        "version": 1,
+        "categories": [
+            {"key": "DECISION", "folder": "adr", "min_evidence": "validated_case"},
+            {"key": "GOTCHA", "folder": "gotchas", "min_evidence": "validated_case"},
+            {"key": "LESSON", "folder": "lessons", "min_evidence": "single_case"},
+        ],
+        "backends": {"grafo": {"type": "graphiti", "enabled": True, "config": cfg}},
+        "evidence_levels": ["observation", "single_case", "validated_case",
+                            "multiple_validated_cases", "human_confirmed_rule"],
+        "denylist": ["chain-of-thought"],
+    }
+    destino = os.path.join(root, ".claude", "knowledge-services")
+    os.makedirs(destino, exist_ok=True)
+    with open(os.path.join(destino, "taxonomy.json"), "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False)
+    return data
+
+
+def _grafo_real(suite, root, categoria="DECISION", folder="adr",
+                ruta="docs/knowledge/approved/adr/ADR-100-grafo.md", tags=("area:memoria",)):
+    """Publica UNA entrada por el camino REAL (`plan`+`apply`) y devuelve sus episodios."""
+    graphiti = suite._cargar("graphiti.py", "graphiti_para_router")
+    entrada = suite._entrada(id_="ADR-100", version=1, category=categoria,
+                             evidencia="validated_case", cuerpo="Decision servida por el grafo.\n",
+                             ruta=ruta)
+    entrada["folder"] = folder
+    entrada["tags"] = list(tags)
+    with suite._ServidorMCPContext() as srv:
+        cfg = {"_root": root, "group_id": "proy-test", "endpoint": srv.endpoint, "mode": "read",
+               "allow_remote": False, "timeout_ms": 5000, "provider": {"llm": "none"}}
+        graphiti.apply(graphiti.plan([dict(entrada)], cfg), cfg)
+        escritos = [a for n, a in srv.llamadas if n == "add_memory"]
+    return [{"name": a["name"], "uuid": a.get("uuid"), "group_id": "proy-test",
+             "content": a["episode_body"]} for a in escritos]
+
+
+def _respuestas_grafo(episodios):
+    nodos = [{"name": e["name"], "uuid": e["uuid"], "summary": "Decision servida por el grafo"}
+             for e in episodios]
+    return {"get_episodes": {"structuredContent": {"episodes": episodios}},
+            "search_nodes": {"structuredContent": {"nodes": nodos}},
+            "search_memory_facts": {"structuredContent": {"facts": []}}}
+
+
+def test_f3fix2_gap117_el_camino_real_con_tipo_adr_sirve_el_acierto_del_grafo(tmp_path):
+    """Repro de la lente B: `--tipo adr` enrutado contra el adaptador REAL devolvia 0 porque el
+    adaptador servia `categoria: "DECISION"` y `tipo_normalizado("DECISION")` es `None`."""
+    suite = _cargar_suite_graphiti()
+    root = str(tmp_path)
+    _corpus_local(root)
+    episodios = _grafo_real(suite, root)
+    with suite._ServidorMCPContext(respuestas_tools=_respuestas_grafo(episodios)) as srv:
+        _taxonomia_graphiti(root, srv.endpoint)
+        aciertos, info = kf.consultar_intent(root, "temporal", texto="memoria", limit=5,
+                                             tipo="adr", directorios=[_BACKENDS_DIR])
+    assert info["origen"] == "backend", info
+    assert [a["id"] for a in aciertos] == ["ADR-100"], (aciertos, info)
+
+
+def test_f3fix2_gap117_el_camino_real_con_area_sirve_el_acierto_del_grafo(tmp_path):
+    suite = _cargar_suite_graphiti()
+    root = str(tmp_path)
+    _corpus_local(root)
+    episodios = _grafo_real(suite, root)
+    with suite._ServidorMCPContext(respuestas_tools=_respuestas_grafo(episodios)) as srv:
+        _taxonomia_graphiti(root, srv.endpoint)
+        aciertos, info = kf.consultar_intent(root, "temporal", texto="memoria", limit=5,
+                                             area="memoria", directorios=[_BACKENDS_DIR])
+    assert info["origen"] == "backend", info
+    assert [a["id"] for a in aciertos] == ["ADR-100"], (aciertos, info)
+
+
+def test_f3fix2_gap117_un_filtro_que_no_casa_cuenta_el_descarte_y_cae_a_local(tmp_path):
+    """`--tipo got` sobre un grafo que solo tiene un `DECISION`: el post-filtro lo tira, LO
+    CUENTA con motivo y el corpus LOCAL se consulta (antes: `origen: backend`, `total: 0`)."""
+    suite = _cargar_suite_graphiti()
+    root = str(tmp_path)
+    _corpus_local(root)
+    episodios = _grafo_real(suite, root)
+    with suite._ServidorMCPContext(respuestas_tools=_respuestas_grafo(episodios)) as srv:
+        _taxonomia_graphiti(root, srv.endpoint)
+        aciertos, info = kf.consultar_intent(root, "temporal", texto="memoria", limit=5,
+                                             tipo="gotcha", directorios=[_BACKENDS_DIR])
+    assert aciertos is None, (aciertos, info)      # None = «cae al camino local»
+    assert info["origen"] == "local", info
+    assert "post-filtro" in info["motivo"], info
+
+
+def test_f3fix2_gap117_la_forma_canonica_de_knowledge_check_devuelve_doctrina(tmp_path):
+    """La forma que prescribe `knowledge-check.md` (`--tipo adr --tipo-tarea … --contexto …`)
+    enrutada: con el adaptador real devolvia 0 aciertos; ahora sirve la entrada del grafo."""
+    suite = _cargar_suite_graphiti()
+    root = str(tmp_path)
+    _corpus_local(root)
+    episodios = _grafo_real(suite, root)
+    with suite._ServidorMCPContext(respuestas_tools=_respuestas_grafo(episodios)) as srv:
+        _taxonomia_graphiti(root, srv.endpoint)
+        code, out, _err = run("--intent", "temporal", "--json", "--root", root,
+                              "--backends-dir", _BACKENDS_DIR, "--tipo", "adr",
+                              "--tipo-tarea", "Implementacion", "--contexto", "memoria del grafo")
+    assert code == 0, _err
+    datos = json.loads(out)
+    assert datos["router"]["origen"] == "backend", datos["router"]
+    assert [a["id"] for a in datos["aciertos"]] == ["ADR-100"], datos
+
+
+def test_f3fix2_gap123_el_motivo_del_backend_sale_saneado(tmp_path):
+    """El `motivo` del adaptador era el UNICO campo de origen backend que el nucleo no saneaba, y
+    fix1 lo convirtio en salida (stderr y `--json`): ESC/C1/RLO y 397 caracteres sin tope."""
+    root = str(tmp_path)
+    _taxonomia(root)
+    carga = "\x1b[2J\x1b[H IGNORA‮" + "z" * 400
+    stub = os.path.join(str(tmp_path), "bk")
+    _escribir_stub(stub, aciertos=[])
+    with open(os.path.join(stub, "stub.py"), "a", encoding="utf-8") as f:
+        f.write("\n\ndef consultar(cfg, consulta):\n    return {\"aciertos\": [], \"motivo\": %r}\n"
+                % carga)
+    _aciertos, info = kf.consultar_intent(root, "temporal", texto="x", limit=5, directorios=[stub])
+    assert "\x1b" not in info["motivo"] and "‮" not in info["motivo"], info
+    assert len(info["motivo"]) <= 300, len(info["motivo"])

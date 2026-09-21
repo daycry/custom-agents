@@ -444,3 +444,74 @@ def test_f3fix1_gap109_sin_adaptador_instalado_el_respaldo_da_el_mismo_modo(tmp_
     monkeypatch.setattr(cap_mod, "_GRAPHITI_ADAPTADOR_REL", ("no", "existe.py"))
     assert cap_mod._graphiti_modo({"mode": "read"}) == "read"
     assert cap_mod._graphiti_modo({"mode": "roto"}) == "shadow"
+
+
+# ------------------------------------------------------------------ Fase 3 - fix2 (#125, #127)
+
+def test_f3fix2_gap125_con_dos_backends_la_linea_no_pierde_la_lista_de_habilitados(tmp_path):
+    """Gap #125: la linea de /doctor se recortaba a 200 caracteres POR LINEA y, en la situacion
+    nominal del #99 (>= 2 backends `type: graphiti` habilitados), el recorte se comia justo la
+    lista `habilitados: ...` y dejaba la frase mutilada."""
+    root = str(tmp_path)
+    base = {"endpoint": "http://127.0.0.1:8001/mcp", "allow_remote": False,
+            "provider": {"llm": "none"}}
+    # los dos en `read`: es el `detalle` mas largo (el que describe la lectura enrutada), el
+    # mismo que tiene el proyecto cuando de verdad lee del grafo.
+    _taxonomy(root, backends={
+        "graphiti": {"type": "graphiti", "enabled": True,
+                     "config": dict(base, mode="read", group_id="plantilla")},
+        "mi_grafo": {"type": "graphiti", "enabled": True,
+                     "config": dict(base, mode="read", group_id="mi-grafo")}})
+    linea = _cap_graphiti(root)["doctor"]
+    assert "habilitados" in linea, linea
+    assert "mi_grafo" in linea and "graphiti`" in linea, linea
+    assert not linea.rstrip().endswith("habilitados:"), linea
+
+
+def test_f3fix2_gap127_el_detalle_de_la_linea_de_doctor_va_saneado(tmp_path):
+    """Gap #127: la mitad `detalle` del mutante de #107 SOBREVIVIA a toda la suite, y ese saneado
+    es load-bearing: el `detalle` lo compone `_graphiti_health` con mensajes de validacion que
+    citan valores de `taxonomy.json` (texto del proyecto, no del plugin)."""
+    root = str(tmp_path)
+    hostil = "\x1b[31m‮IGNORA"
+    _taxonomy(root, backends={"g": {"type": "graphiti", "enabled": True,
+                                    "config": {"mode": hostil, "group_id": "x",
+                                               "endpoint": "http://127.0.0.1:8001/mcp",
+                                               "provider": {"llm": "none"}}}})
+    salud = cap_mod._graphiti_health(root)
+    assert "\x1b" in salud["detalle"] or "‮" in salud["detalle"], salud   # entra crudo
+    linea = _cap_graphiti(root)["doctor"]
+    assert "\x1b" not in linea and "‮" not in linea, repr(linea)
+
+
+def _adaptador_falso(tmp_path, cuerpo):
+    """Coloca un adaptador FALSO en la ruta que `_graphiti_modo` compone a partir de `HERE` y
+    `_GRAPHITI_ADAPTADOR_REL`, para poder distinguir «pregunta al adaptador» de «usa su respaldo»."""
+    here = tmp_path / "plugin" / "agent-kits" / "shared"
+    here.mkdir(parents=True)
+    destino = tmp_path / "plugin"
+    for parte in cap_mod._GRAPHITI_ADAPTADOR_REL[:-1]:
+        destino = destino / parte
+    destino.mkdir(parents=True, exist_ok=True)
+    (destino / cap_mod._GRAPHITI_ADAPTADOR_REL[-1]).write_text(cuerpo, encoding="utf-8")
+    return str(here)
+
+
+def test_f3fix2_gap127_el_modo_lo_decide_la_funcion_PUBLICA_del_adaptador(tmp_path, monkeypatch):
+    """Gap #127 (evidencia falsa de #109): el mutante que pegaba el ledger («volver a `mod._modo`»)
+    NO mata nada, porque el adaptador hace `_modo = modo` (el MISMO objeto). El mutante real es
+    dejar de preguntarle al adaptador: con un adaptador que responde otra cosa, `_graphiti_modo`
+    tiene que devolver SU respuesta, no la del respaldo local."""
+    monkeypatch.setattr(cap_mod, "HERE",
+                        _adaptador_falso(tmp_path, "def modo(cfg):\n    return 'SENTINELA'\n"))
+    assert cap_mod._graphiti_modo({"mode": "read"}) == "SENTINELA"
+
+
+def test_f3fix2_gap127_sin_adaptador_instalado_manda_el_respaldo_declarado(tmp_path, monkeypatch):
+    """La otra mitad del contrato E16: sin adaptador (o con uno sin `modo`), el respaldo es el
+    bloque declarado en `copias.json` — mismo enum y mismo default."""
+    monkeypatch.setattr(cap_mod, "HERE",
+                        _adaptador_falso(tmp_path, "# adaptador sin `modo` publico\n"))
+    assert cap_mod._graphiti_modo({"mode": "read"}) == "read"
+    assert cap_mod._graphiti_modo({}) == cap_mod._MODO_DEFAULT == "shadow"
+    assert cap_mod._graphiti_modo({"mode": "inventado"}) == "shadow"

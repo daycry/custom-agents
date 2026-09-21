@@ -2826,3 +2826,328 @@ class TestGraphitiFase3Fix1(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestGraphitiFase3Fix2(unittest.TestCase):
+    """Ronda fix2 de la Fase 3 (revision de dos lentes, intento 2): gaps #117 (el adaptador sirve
+    `tipo`/`area` con el vocabulario del corpus LOCAL, no la clave de taxonomia), #118 (se sirve
+    la version VIGENTE, no el primer hit), #121 (procedencia resuelta ampliando la ventana, y lo
+    que quede fuera se CUENTA), #124 (un hit de otro `group_id` no se sirve) y #131 (el emisor
+    usa la constante del sufijo)."""
+
+    def setUp(self):
+        self.mod = _cargar("graphiti.py", "ks_backend_graphiti_f3fix2")
+        self.tmp = tempfile.mkdtemp(prefix="ks-graphiti-f3fix2-")
+        self.mod._cache_verify.clear()
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _cfg(self, endpoint, **extra):
+        cfg = {"_root": self.tmp, "group_id": "proy-test", "endpoint": endpoint, "mode": "read",
+               "allow_remote": False, "timeout_ms": 2000, "provider": {"llm": "none"}}
+        cfg.update(extra)
+        return cfg
+
+    def _respuestas(self, episodios, nodos=None, hechos=None):
+        return {
+            "get_episodes": {"structuredContent": {"episodes": episodios}},
+            "search_nodes": {"structuredContent": {"nodes": nodos or []}},
+            "search_memory_facts": {"structuredContent": {"facts": hechos or []}},
+        }
+
+    def _publicar(self, lotes):
+        """Publica por el camino REAL (`plan` + `apply`) contra el servidor falso y devuelve los
+        episodios tal y como quedaron en el grafo (lo que de verdad se envio a `add_memory`)."""
+        with _ServidorMCPContext() as srv:
+            cfg = self._cfg(srv.endpoint)
+            for lote in lotes:
+                self.mod.apply(self.mod.plan([dict(e) for e in lote], cfg), cfg)
+            escritos = [a for n, a in srv.llamadas if n == "add_memory"]
+        return [{"name": a["name"], "uuid": a.get("uuid"), "group_id": "proy-test",
+                 "content": a["episode_body"]} for a in escritos]
+
+    # -- #117: el adaptador sirve el vocabulario del corpus LOCAL --------------------------------
+
+    def test_f3fix2_gap117_el_acierto_trae_tipo_local_y_area_no_la_clave_de_taxonomia(self):
+        """Con las categorias REALES de la taxonomia (`DECISION`/`GOTCHA`/`LESSON`), el acierto
+        servido trae `tipo` con el vocabulario que el nucleo sabe normalizar (`adr`/`gotchas`/
+        `lessons`, los `folder` declarados) y el `area` de la entrada -no solo `categoria`."""
+        casos = [("mem.adr.uno", "DECISION", "adr", "docs/knowledge/approved/adr/ADR-100.md"),
+                 ("mem.got.dos", "GOTCHA", "gotchas", "docs/knowledge/approved/gotchas/GOT-001.md"),
+                 ("mem.les.tres", "LESSON", "lessons", "docs/knowledge/approved/lessons/LES-001.md")]
+        for id_, categoria, folder, ruta in casos:
+            entrada = _entrada(id_=id_, version=1, category=categoria,
+                               evidencia="validated_case", cuerpo="Cuerpo de " + id_ + ".\n", ruta=ruta)
+            entrada["folder"] = folder
+            entrada["tags"] = ["area:memoria tecnica", "agente:implementer"]
+            episodios = self._publicar([[entrada]])
+            nodos = [{"name": episodios[0]["name"], "uuid": episodios[0]["uuid"], "summary": "res"}]
+            with _ServidorMCPContext(respuestas_tools=self._respuestas(episodios, nodos=nodos)) as srv:
+                salida = self.mod.consultar(self._cfg(srv.endpoint), {"texto": "memoria", "limit": 5})
+            self.assertEqual(len(salida["aciertos"]), 1, salida)
+            acierto = salida["aciertos"][0]
+            self.assertEqual(acierto["tipo"], folder, acierto)
+            self.assertEqual(acierto["categoria"], categoria, acierto)
+            self.assertIn("memoria", acierto["area"], acierto)
+
+    # -- #118: se sirve la version VIGENTE, no el primer hit -------------------------------------
+
+    def _episodios_v1_y_v2(self):
+        entrada = _entrada(id_="mem.adr.grafo", version=1, category="DECISION",
+                           evidencia="validated_case", cuerpo="Cuerpo v1.\n",
+                           ruta="docs/knowledge/approved/adr/ADR-100.md")
+        entrada["folder"] = "adr"
+        return self._publicar([[dict(entrada)], [dict(entrada, version=2, cuerpo="Cuerpo v2.\n")]])
+
+    def _consultar_con_orden(self, episodios, orden):
+        por_nombre = {e["name"]: e for e in episodios}
+        nodos = []
+        for v in orden:
+            ep = por_nombre["mem.adr.grafo@" + str(v)]
+            nodos.append({"name": ep["name"], "uuid": ep["uuid"], "summary": "resumen v" + str(v)})
+        with _ServidorMCPContext(respuestas_tools=self._respuestas(episodios, nodos=nodos)) as srv:
+            return self.mod.consultar(self._cfg(srv.endpoint), {"texto": "memoria", "limit": 5})
+
+    def test_f3fix2_gap118_con_v1_y_v2_se_sirve_la_vigente_venga_en_el_orden_que_venga(self):
+        episodios = self._episodios_v1_y_v2()   # publicados UNA vez por el camino real
+        for orden in ([1, 2], [2, 1]):
+            salida = self._consultar_con_orden(episodios, orden)
+            self.assertEqual(len(salida["aciertos"]), 1, (orden, salida))
+            acierto = salida["aciertos"][0]
+            self.assertEqual(acierto["version"], "2", (orden, acierto))
+            self.assertEqual(acierto["estado"], "aprobado", (orden, acierto))
+
+    # -- #121: procedencia mas alla de la ventana inicial, y lo que quede fuera se CUENTA --------
+
+    def _grafo_de(self, n_episodios, indices_nuestros):
+        """`n_episodios` episodios en el grafo; los `indices_nuestros` son entradas nuestras (con
+        procedencia), el resto ruido de otras ingestas. `get_episodes` devuelve los MAS RECIENTES
+        primero, asi que el indice 0 (el mas antiguo) queda al final."""
+        episodios, mios = [], {}
+        for i in range(n_episodios):
+            if i in indices_nuestros:
+                op = {"id": "mem.adr.e" + str(i), "version": 1, "hash": "h" * 8,
+                      "category": "DECISION", "evidencia": "validated_case", "folder": "adr",
+                      "ruta": "docs/knowledge/approved/adr/ADR-%03d.md" % i,
+                      "cuerpo": "Cuerpo " + str(i) + ".\n"}
+                ep, _aviso = self.mod._episodio_upsert("proy-test", op)
+                episodios.append({"name": ep["name"], "uuid": ep["uuid"], "group_id": "proy-test",
+                                  "content": ep["episode_body"]})
+                mios[i] = episodios[-1]
+            else:
+                episodios.append({"name": "ruido-" + str(i), "uuid": "u-" + str(i),
+                                  "group_id": "proy-test", "content": "ruido " + str(i)})
+        return list(reversed(episodios)), mios
+
+    def _respuestas_ventana(self, episodios, nodos):
+        def get_episodes(args):
+            tope = args.get("max_episodes") or len(episodios)
+            return {"structuredContent": {"episodes": episodios[:tope]}}
+        return {"get_episodes": get_episodes,
+                "search_nodes": {"structuredContent": {"nodes": nodos}},
+                "search_memory_facts": {"structuredContent": {"facts": []}}}
+
+    def test_f3fix2_gap121_recall_con_500_episodios_por_encima_del_95_por_ciento(self):
+        indices = list(range(0, 500, 25))          # 20 entradas repartidas por TODO el grafo
+        episodios, mios = self._grafo_de(500, set(indices))
+        nodos = [{"name": mios[i]["name"], "uuid": mios[i]["uuid"], "summary": "res"} for i in indices]
+        with _ServidorMCPContext(respuestas_tools=self._respuestas_ventana(episodios, nodos)) as srv:
+            salida = self.mod.consultar(self._cfg(srv.endpoint), {"texto": "memoria", "limit": 20})
+        recall = len(salida["aciertos"]) / float(len(indices))
+        self.assertGreaterEqual(recall, 0.95, (recall, salida.get("motivo"),
+                                               salida.get("fuera_de_ventana")))
+
+    def test_f3fix2_gap121_lo_que_queda_fuera_de_ventana_se_cuenta_y_sale_en_el_motivo(self):
+        """Con la ventana topada a mano (`max_episodes`), lo no resuelto NO desaparece en
+        silencio: se cuenta aparte de `descartados` y se nombra en el `motivo`."""
+        indices = list(range(0, 500, 25))
+        episodios, mios = self._grafo_de(500, set(indices))
+        nodos = [{"name": mios[i]["name"], "uuid": mios[i]["uuid"], "summary": "res"} for i in indices]
+        with _ServidorMCPContext(respuestas_tools=self._respuestas_ventana(episodios, nodos)) as srv:
+            salida = self.mod.consultar(self._cfg(srv.endpoint, max_episodes=60),
+                                        {"texto": "memoria", "limit": 20})
+        self.assertGreater(salida.get("fuera_de_ventana", 0), 0, salida)
+        self.assertIn("fuera de la ventana", salida.get("motivo", ""), salida)
+
+    # -- #124: un hit de OTRO grupo no se sirve con nuestra procedencia --------------------------
+
+    def _episodio_propio(self):
+        op = {"id": "mem.adr.grafo", "version": 1, "hash": "h" * 8, "category": "DECISION",
+              "evidencia": "validated_case", "folder": "adr",
+              "ruta": "docs/knowledge/approved/adr/ADR-100.md", "cuerpo": "Cuerpo.\n"}
+        ep, _aviso = self.mod._episodio_upsert("proy-test", op)
+        return {"name": ep["name"], "uuid": ep["uuid"], "group_id": "proy-test",
+                "content": ep["episode_body"]}
+
+    def test_f3fix2_gap124_un_hit_de_otro_group_id_se_descarta(self):
+        episodio = self._episodio_propio()
+        nodos = [{"name": episodio["name"], "uuid": episodio["uuid"], "summary": "res",
+                  "group_id": "GRUPO-AJENO"}]
+        with _ServidorMCPContext(respuestas_tools=self._respuestas([episodio], nodos=nodos)) as srv:
+            salida = self.mod.consultar(self._cfg(srv.endpoint), {"texto": "memoria", "limit": 5})
+        self.assertEqual(salida["aciertos"], [], salida)
+        self.assertGreaterEqual(salida["descartados"], 1, salida)
+
+    def test_f3fix2_gap124_un_hit_sin_group_id_sigue_sirviendose(self):
+        episodio = self._episodio_propio()
+        nodos = [{"name": episodio["name"], "uuid": episodio["uuid"], "summary": "res"}]
+        with _ServidorMCPContext(respuestas_tools=self._respuestas([episodio], nodos=nodos)) as srv:
+            salida = self.mod.consultar(self._cfg(srv.endpoint), {"texto": "memoria", "limit": 5})
+        self.assertEqual(len(salida["aciertos"]), 1, salida)
+
+    # -- #131: emisor y lector comparten la constante del sufijo ---------------------------------
+
+    def test_f3fix2_gap131_el_revoke_nombra_el_tombstone_con_la_constante(self):
+        """Mutante: mover `_SUFIJO_TOMBSTONE` tiene que mover TAMBIEN el nombre que emite el
+        revoke; con el literal cableado, emisor y lector se desalineaban en silencio."""
+        original = self.mod._SUFIJO_TOMBSTONE
+        try:
+            self.mod._SUFIJO_TOMBSTONE = "@lapida"
+            entrada = _entrada(id_="mem.adr.grafo", version=1, category="DECISION",
+                               evidencia="validated_case", cuerpo="Cuerpo.\n",
+                               ruta="docs/knowledge/approved/adr/ADR-100.md")
+            with _ServidorMCPContext() as srv:
+                cfg = self._cfg(srv.endpoint)
+                self.mod.apply(self.mod.plan([dict(entrada)], cfg), cfg)
+                self.mod.apply(self.mod.plan([], cfg), cfg)   # sin entradas -> revoke
+                nombres = [a.get("name") for n, a in srv.llamadas if n == "add_memory"]
+            self.assertIn("mem.adr.grafo@lapida", nombres)
+        finally:
+            self.mod._SUFIJO_TOMBSTONE = original
+
+
+class TestGraphitiFase3Fix2Verify(unittest.TestCase):
+    """Gaps #120 (los dos topes de #70 se contradecian en el escenario de referencia documentado
+    -500 entradas / 15 000 episodios- y dejaban `puede_leer` en false con los DEFAULTS) y #126
+    (compatibilidad hacia atras: tombstones `@tombstone` de SUCESION publicados antes de fix1)."""
+
+    def setUp(self):
+        self.mod = _cargar("graphiti.py", "ks_backend_graphiti_f3fix2_verify")
+        self.tmp = tempfile.mkdtemp(prefix="ks-graphiti-f3fix2v-")
+        self.mod._cache_verify.clear()
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _cfg(self, endpoint, **extra):
+        cfg = {"_root": self.tmp, "group_id": "proy-test", "endpoint": endpoint, "mode": "read",
+               "allow_remote": False, "timeout_ms": 5000, "provider": {"llm": "none"}}
+        cfg.update(extra)
+        return cfg
+
+    # ---------------------------------------------------------------- escenario de referencia
+    _CUERPO_EPISODIO = "x" * 3000        # ~3 KiB por episodio, la medida de la lente D
+
+    def _escenario_referencia(self, n_entradas=500, n_episodios=15000):
+        """Manifiesto con `n_entradas` publicadas y un grafo con `n_episodios` (el resto, ruido de
+        otras ingestas). Devuelve `(episodios_mas_recientes_primero, manifiesto)`."""
+        entradas, episodios = {}, []
+        for i in range(n_episodios):
+            if i < n_entradas:
+                nombre = "mem.adr.e%04d@1" % i
+                entradas["mem.adr.e%04d" % i] = {"version": 1, "hash": "h" * 8,
+                                                 "uuid": "u-%05d" % i}
+            else:
+                nombre = "ruido-%05d" % i
+            episodios.append({"name": nombre, "uuid": "u-%05d" % i, "group_id": "proy-test",
+                              "content": self._CUERPO_EPISODIO})
+        manifiesto = {"group_id": "proy-test", "entradas": entradas}
+        return list(reversed(episodios)), manifiesto
+
+    def _respuestas_ventana(self, episodios):
+        def get_episodes(args):
+            tope = args.get("max_episodes") or len(episodios)
+            return {"structuredContent": {"episodes": episodios[:tope]}}
+        return {"get_episodes": get_episodes}
+
+    def _escribir_manifest(self, cfg, manifiesto):
+        self.mod._escribir_manifest(cfg, manifiesto)
+
+    def test_f3fix2_gap120_el_escenario_de_referencia_verifica_con_los_defaults(self):
+        """500 entradas / 15 000 episodios, sin tocar `max_respuesta_kb` ni `max_episodes`:
+        `verify()` NO revienta el tope de lectura y `puede_leer` autoriza la consulta."""
+        episodios, manifiesto = self._escenario_referencia()
+        with _ServidorMCPContext(respuestas_tools=self._respuestas_ventana(episodios)) as srv:
+            cfg = self._cfg(srv.endpoint)
+            self._escribir_manifest(cfg, manifiesto)
+            veredicto = self.mod.verify(cfg)
+            self.assertIs(veredicto.get("ok"), True, veredicto)
+            self.assertTrue(self.mod.puede_leer(cfg).get("puede"), self.mod.puede_leer(cfg))
+
+    def test_f3fix2_gap120_lo_que_no_cupo_en_la_ventana_no_se_declara_desfase(self):
+        """Lo no confirmado por tope de lectura sale como `no_verificado` + aviso: «no he podido
+        mirarlo» no es «no esta» (misma distincion del gap #67)."""
+        episodios, manifiesto = self._escenario_referencia()
+        with _ServidorMCPContext(respuestas_tools=self._respuestas_ventana(episodios)) as srv:
+            cfg = self._cfg(srv.endpoint)
+            self._escribir_manifest(cfg, manifiesto)
+            veredicto = self.mod.verify(cfg)
+        self.assertEqual(veredicto.get("desfase"), [], veredicto)
+        self.assertGreater(veredicto.get("no_verificado", 0), 0, veredicto)
+        self.assertIn("ventana", veredicto.get("aviso", ""), veredicto)
+
+    def test_f3fix2_gap120_una_entrada_que_de_verdad_falta_sigue_siendo_desfase(self):
+        """El aviso de ventana incompleta no puede tapar un desfase REAL: con el grafo entero
+        dentro de la ventana, una entrada ausente sigue saliendo como desfase."""
+        episodios, manifiesto = self._escenario_referencia(n_entradas=3, n_episodios=10)
+        manifiesto["entradas"]["mem.adr.fantasma"] = {"version": 1, "hash": "h" * 8}
+        with _ServidorMCPContext(respuestas_tools=self._respuestas_ventana(episodios)) as srv:
+            cfg = self._cfg(srv.endpoint)
+            self._escribir_manifest(cfg, manifiesto)
+            veredicto = self.mod.verify(cfg)
+        self.assertIs(veredicto.get("ok"), False, veredicto)
+        self.assertEqual([d["knowledge_id"] for d in veredicto["desfase"]], ["mem.adr.fantasma"])
+
+
+    def test_f3fix2_gap120_el_escenario_de_referencia_tambien_CONSULTA_con_aciertos(self):
+        """Cierre del gap #120 de punta a punta: en el escenario de referencia con los defaults no
+        basta con que `verify` no falle -la consulta enrutada tiene que SERVIR aciertos."""
+        episodios, manifiesto = self._escenario_referencia()
+        # Publicadas al final (lo normal justo despues de una publicacion): las 500 entradas son
+        # los episodios mas RECIENTES del grupo.
+        nuestras = [e for e in episodios if e["name"].startswith("mem.adr.")]
+        resto = [e for e in episodios if not e["name"].startswith("mem.adr.")]
+        ordenados = nuestras + resto
+        op = {"id": "mem.adr.e0000", "version": 1, "hash": "h" * 8, "category": "DECISION",
+              "evidencia": "validated_case", "folder": "adr",
+              "ruta": "docs/knowledge/approved/adr/ADR-000.md", "cuerpo": "Cuerpo."}
+        ep, _aviso = self.mod._episodio_upsert("proy-test", op)
+        ordenados[0] = {"name": ep["name"], "uuid": ep["uuid"], "group_id": "proy-test",
+                        "content": ep["episode_body"]}
+
+        def get_episodes(args):
+            tope = args.get("max_episodes") or len(ordenados)
+            return {"structuredContent": {"episodes": ordenados[:tope]}}
+
+        respuestas = {"get_episodes": get_episodes,
+                      "search_nodes": {"structuredContent": {"nodes": [
+                          {"name": ep["name"], "uuid": ep["uuid"], "summary": "res"}]}},
+                      "search_memory_facts": {"structuredContent": {"facts": []}}}
+        with _ServidorMCPContext(respuestas_tools=respuestas) as srv:
+            cfg = self._cfg(srv.endpoint)
+            self._escribir_manifest(cfg, manifiesto)
+            self.assertTrue(self.mod.puede_leer(cfg).get("puede"), self.mod.puede_leer(cfg))
+            salida = self.mod.consultar(cfg, {"texto": "memoria", "limit": 5})
+        self.assertEqual([a["id"] for a in salida["aciertos"]], ["mem.adr.e0000"], salida)
+        self.assertEqual(salida.get("fuera_de_ventana", 0), 0, salida)
+
+    # ---------------------------------------------------------------- #126: migracion
+    def test_f3fix2_gap126_un_tombstone_de_sucesion_antiguo_se_avisa_en_verify(self):
+        """Grafo publicado ANTES de fix1: la sucesion de version dejaba `<id>@tombstone`, que el
+        lector de hoy interpreta como revoke (invalida la entrada entera). `verify()` lo detecta
+        -tombstone sin `revoke` en el manifiesto- y NOMBRA el remedio (`--rebuild`), CA-16."""
+        episodios = [
+            {"name": "mem.adr.uno@2", "uuid": "u-2", "group_id": "proy-test", "content": "c"},
+            {"name": "mem.adr.uno@tombstone", "uuid": "u-t", "group_id": "proy-test", "content": "c"},
+        ]
+        manifiesto = {"group_id": "proy-test",
+                      "entradas": {"mem.adr.uno": {"version": 2, "hash": "h" * 8}}}
+        with _ServidorMCPContext(respuestas_tools=self._respuestas_ventana(episodios)) as srv:
+            cfg = self._cfg(srv.endpoint)
+            self._escribir_manifest(cfg, manifiesto)
+            veredicto = self.mod.verify(cfg)
+        self.assertIn("rebuild", veredicto.get("aviso", ""), veredicto)
+        self.assertIn("mem.adr.uno", veredicto.get("aviso", ""), veredicto)
