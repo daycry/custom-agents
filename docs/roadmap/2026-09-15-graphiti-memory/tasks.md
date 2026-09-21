@@ -219,13 +219,36 @@ verificacion: obligatoria
 - **Tiempo IA**: real 0.91h (medido; usage-meter, artefacto `graphiti-memory/T-07`, 6.46 EUR, 55m de trabajo / 1h 23m de reloj)
 
 ### T-08 - Capacidad `graphiti` registrada, setup/doctor y documentacion runtime
-- **Estado**: borrador
+- **Estado**: completado
 - **Dependencias**: T-04, T-07
-- **Archivos**: `agent-kits/shared/capabilities.py`, `agent-kits/shared/test_capabilities.py`, `commands/setup.md`, `commands/doctor.md`, `docs/INTEROP.md`, `docs/en/INTEROP.md`, `interop/**`
-- **Verificacion**: `python -m pytest -q agent-kits/shared/test_capabilities.py agent-kits/shared/test_doctor.py -k graphiti` -> off/shadow/read/degradado con veredicto y remedio; `doctor.py` no contiene la cadena `graphiti`
+- **Archivos**: `agent-kits/shared/capabilities.py`, `agent-kits/shared/test_capabilities.py`, `agent-kits/shared/test_doctor.py` (dos tests que fijan CA-14 desde el lado de `/doctor`: la cadena `graphiti` no aparece en `doctor.py` y una capacidad inventada al vuelo sale pintada sin tocarlo), `commands/setup.md`, `commands/doctor.md`, `docs/INTEROP.md`, `docs/en/INTEROP.md`, `interop/**` (regenerado: solo cambian los 4 ficheros derivados de `commands/doctor.md` y `commands/setup.md`)
+- **Verificacion**: `python -m pytest -q -p no:cacheprovider agent-kits/shared/test_capabilities.py agent-kits/shared/test_doctor.py -k graphiti` -> off/shadow/read/degradado con veredicto y remedio; `doctor.py` no contiene la cadena `graphiti`. Salida real (2026-09-21):
+  ```
+  $ python -m pytest -q -p no:cacheprovider agent-kits/shared/test_capabilities.py agent-kits/shared/test_doctor.py -k graphiti
+  ............                                                             [100%]
+  12 passed, 145 deselected in 0.52s
+
+  $ grep -c graphiti agent-kits/shared/doctor.py
+  0
+
+  $ python agent-kits/shared/capabilities.py --root .
+  knowledge-gate: enabled=True health=ok — knowledge-gate: taxonomy.json valido ((plantilla por defecto))
+  kwipu: enabled=False health=deshabilitado — kwipu: deshabilitado (backends.kwipu.enabled: false o sin declarar)
+  graphiti: enabled=False health=deshabilitado — graphiti: deshabilitado (sin backend `type: graphiti` habilitado en taxonomy.json)
+
+  $ python scripts/export-interop.py && python scripts/export-interop.py --check
+  export-interop: 50 ficheros escritos (codex + opencode)
+  export-interop --check: 50 ficheros al día
+  ```
+  - RED (TDD, 2026-09-21): `python -m pytest -q -p no:cacheprovider agent-kits/shared/test_capabilities.py agent-kits/shared/test_doctor.py -k graphiti` -> `11 failed, 1 passed` con `AssertionError: assert 'graphiti' in {'knowledge-gate', 'kwipu'}` (el registro no la declaraba). La parte de `commands/setup.md`, `commands/doctor.md` y los dos `INTEROP.md` es **TDD n/a: prosa** (el unico automatismo que la cubre es `export-interop --check`, ejecutado arriba).
+  - **Decision del implementer:** `capabilities.py` NO hace red al enumerar (test `test_graphiti_no_hace_red_al_enumerar`, con `socket` monkepatcheado). El estado publicado sale de la CONFIGURACION (`mode`, preguntado al `_modo` del propio adaptador, que es la fuente unica del enum y del default) y la comprobacion EN VIVO la sigue haciendo `/doctor` por su cuenta con su presupuesto de tiempo, via `health()`/`verify()` del adaptador — exactamente el patron de `kwipu`, y evita pagar dos veces la misma red en cada `/doctor`.
+  - **Precision sobre `group_id`:** un backend habilitado sin `group_id` NO puede darse: el esquema lo DERIVA del slug del proyecto (T-01-fix2). Lo que si sale como `degradado` (con el campo nombrado) es cualquier otro error de validacion del backend -p. ej. `provider.llm` ausente-, en vez del enganoso «deshabilitado» que daria leer solo `enabled`.
 **Criterios de aceptación**
-- [ ] Config no registra MCP ni toca configuracion global.
-- [ ] La capacidad entra por `capabilities.py`, sin editar `doctor.py` (CA-14 de knowledge-services).
+- [x] Config no registra MCP ni toca configuracion global — el `setup_step` de la capacidad declara `backends.<id>` en `taxonomy.json` del PROYECTO y nada mas; `test_graphiti_setup_step_no_registra_mcp_ni_toca_config_global` prohibe que el paso mencione `claude mcp add`/`~/.claude.json`/`settings.json`, y la seccion nueva de `commands/doctor.md` y el paso de `commands/setup.md` lo dicen en llano. El adaptador habla HTTP con el `endpoint` LOCAL declarado, sin pasar por el cliente MCP del runtime (fila nueva de la tabla de degradacion en `docs/INTEROP.md` y `docs/en/INTEROP.md`).
+- [x] La capacidad entra por `capabilities.py`, sin editar `doctor.py` (CA-14 de knowledge-services) — entrada nueva en `REGISTRO` con las seis claves del contrato y los cinco estados (`deshabilitado`/`off`/`shadow`/`read`/`degradado`), cada uno con detalle y remedio; `grep -c graphiti agent-kits/shared/doctor.py` -> 0, fijado ademas por `test_doctor_no_nombra_la_capacidad_graphiti`, y `test_doctor_pinta_una_capacidad_nueva_sin_tocar_doctor_py` demuestra que el registro basta para que salga pintada.
+- **Changelog**: Projects can now turn on the optional Graphiti graph memory from `/setup` and see its state in `/doctor` (off, shadow, read or misconfigured, each with the fix); enabling it only edits the project's own knowledge configuration and never registers an MCP server or touches global settings.
+- **Tiempo humano**: est. - · real -
+- **Tiempo IA**: real 0.22h (medido; usage-meter, artefacto `graphiti-memory/T-08`, 5.16 EUR)
 
 ## Fase 4 - Regresion y cierre
 
