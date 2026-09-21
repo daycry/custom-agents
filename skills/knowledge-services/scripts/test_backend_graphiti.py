@@ -1213,5 +1213,165 @@ class TestGraphitiFase2Fix2(unittest.TestCase):
         self.assertEqual(ops, [{"tipo": "revoke", "id": "mem.bueno"}])
 
 
+class TestGraphitiFase2Fix3(unittest.TestCase):
+    """Gap #57 (resto, Important): redireccion a un host con NOMBRE `.internal` que resuelve a
+    IP publica, redireccion al endpoint de metadatos de nube (IMDS) y redireccion a una
+    direccion no especificada (`0.0.0.0`/`[::]`) -las tres deben rechazarse SIEMPRE, tambien con
+    `allow_remote: true`-, y confirmacion de que la cache DNS de #62 SI se usa para `http` (su
+    contrapartida, "no se usa para `https`", ya la cubre `test_gap62_validar_host_no_usa_cache_para_https`).
+    Cada test se demostro en rojo contra un mutante temporal (revertido antes de este commit;
+    ver `tasks.md`, fila #57 de la ronda fix3, para el nombre exacto del mutante y como se
+    reprodujo el rojo)."""
+
+    def setUp(self):
+        self.mod = _cargar("graphiti.py", "ks_backend_graphiti_test_fix3")
+        self.tmp = tempfile.mkdtemp(prefix="ks-graphiti-fix3-")
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _cfg(self, endpoint, **extra):
+        cfg = {"_root": self.tmp, "group_id": "proy-test", "endpoint": endpoint,
+               "allow_remote": False, "timeout_ms": 2000, "provider": {"llm": "none"}}
+        cfg.update(extra)
+        return cfg
+
+    def _servidor_redirige(self, location):
+        """Servidor local que responde CUALQUIER POST con un `307` hacia `location` -igual que
+        `TestGraphitiRedireccionYSesion.test_m4_...`, pero el destino aqui es un host con NOMBRE
+        o una direccion prohibida, no un literal IP publico."""
+        class _Handler(BaseHTTPRequestHandler):
+            def do_POST(self):  # noqa: N802
+                largo = int(self.headers.get("Content-Length", 0))
+                self.rfile.read(largo) if largo else None
+                self.send_response(307)
+                self.send_header("Location", location)
+                self.end_headers()
+
+            def log_message(self, *a, **k):
+                pass
+
+        httpd = HTTPServer(("127.0.0.1", 0), _Handler)
+        hilo = threading.Thread(target=httpd.serve_forever, daemon=True)
+        hilo.start()
+        return httpd
+
+    # -- #57-resto (a): redireccion a host `.internal` que resuelve a IP publica ---------------
+
+    def test_fix3a_redireccion_a_host_con_nombre_interno_que_resuelve_a_ip_publica_se_rechaza(self):
+        """Mutante N3-nombre: si `_direcciones_de_host` confiara en el SUFIJO del nombre
+        (`.internal`) sin resolverlo de verdad -el bug historico de #34, ya corregido: la rama de
+        sufijos devolvia `True` sin resolver IP-, esta redireccion se seguiria y el cuerpo
+        completo del episodio se re-POSTearia a un host que en realidad es publico."""
+        import unittest.mock as mock
+
+        def _resolver_falso(host, timeout_s=self.mod._DNS_TIMEOUT_S):
+            if host == "exfil.internal":
+                return ["8.8.8.8"]  # nombre "interno" que en realidad resuelve a IP publica
+            return []
+
+        httpd = self._servidor_redirige("http://exfil.internal/mcp")
+        try:
+            with mock.patch.object(self.mod, "_resolver_host", side_effect=_resolver_falso):
+                cliente = self.mod.ClienteMCP(f"http://127.0.0.1:{httpd.server_address[1]}",
+                                               timeout_s=2.0, allow_remote=False)
+                with self.assertRaises(self.mod.HostNoPermitido):
+                    cliente.initialize()
+        finally:
+            httpd.shutdown()
+            httpd.server_close()
+
+    # -- #57-resto (b): redireccion al endpoint de metadatos de nube (IMDS) --------------------
+
+    def test_fix3b_redireccion_a_imds_se_rechaza_incluso_con_allow_remote(self):
+        """Mutante N7-IMDS-redirect: si `_direccion_prohibida_siempre` no comprobara
+        `is_link_local`, un `307` hacia `169.254.169.254` (IMDS) se seguiria SIEMPRE, incluso con
+        `allow_remote: true` -que solo autoriza salir a redes remotas, nunca a la red de
+        metadatos del propio host (gap #34c, ya cubierto para el endpoint DIRECTO; aqui se
+        cubre el mismo destino llegando por REDIRECCION)."""
+        httpd = self._servidor_redirige("http://169.254.169.254/latest/meta-data")
+        try:
+            cliente = self.mod.ClienteMCP(f"http://127.0.0.1:{httpd.server_address[1]}",
+                                           timeout_s=2.0, allow_remote=True)
+            with self.assertRaises(self.mod.HostNoPermitido):
+                cliente.initialize()
+        finally:
+            httpd.shutdown()
+            httpd.server_close()
+
+    # -- #57-resto (c): redireccion a direccion no especificada (0.0.0.0 / [::]) ---------------
+
+    def test_fix3c_redireccion_a_direccion_no_especificada_se_rechaza_siempre(self):
+        """Mutante N8-unspecified: si `_direccion_prohibida_siempre` no comprobara
+        `is_unspecified`, un `307` hacia `0.0.0.0`/`[::]` se seguiria (tambien con
+        `allow_remote: true`)."""
+        for destino in ("http://0.0.0.0/mcp", "http://[::]/mcp"):
+            with self.subTest(destino=destino):
+                httpd = self._servidor_redirige(destino)
+                try:
+                    cliente = self.mod.ClienteMCP(f"http://127.0.0.1:{httpd.server_address[1]}",
+                                                   timeout_s=2.0, allow_remote=True)
+                    with self.assertRaises(self.mod.HostNoPermitido):
+                        cliente.initialize()
+                finally:
+                    httpd.shutdown()
+                    httpd.server_close()
+
+    # -- #57-resto (d): la cache DNS de #62 SI se usa para `http` -------------------------------
+
+    def test_fix3d_cache_dns_se_usa_para_http(self):
+        """Complemento de #62 (que prueba que NO se cachea para `https`): aqui se confirma que SI
+        se cachea para `http` (comportamiento por defecto, `cachear=True`). Mutante: forzar
+        `_resolver_host_cacheado` a ignorar `_dns_cache` (llamar siempre a `_resolver_host`) hace
+        que la segunda llamada resuelva de nuevo en vez de servirse de la cache."""
+        import unittest.mock as mock
+        llamadas = []
+        original = self.mod._resolver_host
+
+        def _resolver_contador(host, timeout_s=self.mod._DNS_TIMEOUT_S):
+            llamadas.append(host)
+            return original(host, timeout_s)
+
+        with mock.patch.object(self.mod, "_resolver_host", side_effect=_resolver_contador):
+            primero = self.mod._direcciones_de_host("localhost", cachear=True)
+            segundo = self.mod._direcciones_de_host("localhost", cachear=True)
+        self.assertEqual(len(llamadas), 1)  # la segunda llamada se sirvio de la cache
+        self.assertEqual(primero, segundo)
+
+    # -- #40 (Important, parte "cerrada" sin test dedicado hasta ahora): cambio de VERSION -------
+    # (no retirada) emite tombstone + SUPERSEDES con los campos `*_uuid` correctos ---------------
+
+    def test_fix3_gap40_cambio_de_version_emite_tombstone_y_supersedes_con_uuid_correctos(self):
+        """`test_entrada_retirada_de_approved_genera_revoke_y_tombstone` (TestGraphitiPlanApply)
+        y `test_gap56_revoke_usa_target_node_uuid_no_target_node_name` (Fix2) cubren el camino de
+        RETIRADA (`_aplicar_revoke`); ninguno cubria el camino DISTINTO de CAMBIO DE VERSION
+        (`_aplicar_upsert` -> `_tombstone_supersedes`) que el arbitraje de #40 tambien exige.
+        Mutante: comentar la llamada a `_tombstone_supersedes` en `_aplicar_upsert` (la condicion
+        `entrada_previa and entrada_previa.get("version") != op.get("version") and
+        entrada_previa.get("uuid")`) hace que un cambio de version deje de ser observable."""
+        with _ServidorMCPContext() as srv:
+            cfg = self._cfg(srv.endpoint)
+            self.mod.apply(self.mod.plan([_entrada(version=1)], cfg), cfg)
+            uuid_v1, _ = next((a.get("uuid"), n) for n, a in srv.llamadas if n == "add_memory")
+            self.mod.apply(self.mod.plan([_entrada(version=2)], cfg), cfg)
+            llamadas_add_memory = [a for n, a in srv.llamadas if n == "add_memory"]
+            llamadas_add_triplet = [a for n, a in srv.llamadas if n == "add_triplet"]
+        # tombstone de la version 1 (episodio adicional con `@tombstone`)
+        self.assertTrue(any(a.get("name", "").endswith("@tombstone") for a in llamadas_add_memory))
+        # SUPERSEDES con los campos correctos, apuntando al uuid de la version 1
+        supersedes = next(a for a in llamadas_add_triplet if a.get("edge_name") == "SUPERSEDES")
+        self.assertEqual(supersedes.get("target_node_uuid"), uuid_v1)
+        self.assertNotIn("target_node_name", supersedes)
+        self.assertNotIn("source_node_name", supersedes)
+        # NUNCA se llama a `delete_episode` (design.md, enmienda 2026-09-18)
+        self.assertFalse(any(n == "delete_episode" for n, _a in srv.llamadas))
+
+    # -- #61 (Minor, test pendiente de fix2): `--propose-config` alcanzable con `enabled: false` --
+    # (test dedicado en `tests/test_knowledge_services.py`, backend deshabilitado por defecto;
+    # este backend no necesita test aqui porque la propia rama `enabled: false` -> corte con
+    # exit 2 se prueba contra el flag del script, no contra el adaptador)
+
+
 if __name__ == "__main__":
     unittest.main()

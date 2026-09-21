@@ -1270,3 +1270,25 @@ def test_propose_config_rechaza_backend_no_graphiti(tmp_path, capsys):
     rc = ks_sync.main(["--backend", "testx", "--root", root, "--propose-config"])
     assert rc == 2
     assert "solo aplica a backends" in capsys.readouterr().err
+
+
+def test_propose_config_alcanzable_con_enabled_false(tmp_path, capsys):
+    """Fix2/fix3 gap #61 (Minor): la plantilla por defecto (`agent-kits/shared/templates/
+    taxonomy.json`) declara `backends.graphiti` con `enabled: false` -es la configuracion de
+    fabrica, el caso mas comun antes de habilitar el backend-. Antes de fix2 el chequeo
+    `if not decl.get("enabled", False): return 2` corria ANTES de la rama `--propose-config`,
+    asi que este modo (que no toca red ni manifiestos, solo propone `entity_map`/tipos a partir
+    de la taxonomia local) era INALCANZABLE justo en ese caso. Mutante: mover el chequeo de
+    `enabled` de vuelta a ANTES de `if args.propose_config:` reproduce el corte con `rc == 2`
+    que este test detecta."""
+    root = str(tmp_path)
+    categorias = [{"key": "GOTCHA", "folder": "gotchas", "min_evidence": "observation"}]
+    _taxonomy(root, categorias, backends={
+        "graphiti": {"type": "graphiti", "enabled": False,
+                     "config": {"group_id": "proy-test", "endpoint": "http://127.0.0.1:1",
+                                "provider": {"llm": "none"}, "mode": "shadow"}}})
+    rc = ks_sync.main(["--backend", "graphiti", "--root", root, "--propose-config"])
+    salida = capsys.readouterr().out
+    assert rc == 0
+    assert "entity_types" in salida
+    assert "GOTCHA" in salida
