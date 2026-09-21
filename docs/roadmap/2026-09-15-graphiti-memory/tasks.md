@@ -184,13 +184,39 @@ verificacion: obligatoria
 ## Fase 3 - Router y configuracion
 
 ### T-07 - Router por configuracion e intent declarado
-- **Estado**: borrador
+- **Estado**: completado
 - **Dependencias**: T-05, T-06
-- **Archivos**: `agent-kits/shared/knowledge-find.py`, `agent-kits/shared/test_knowledge_find.py`, `tests/test_knowledge_router.py`
-- **Verificacion**: `python -m pytest -q tests/test_knowledge_router.py agent-kits/shared/test_knowledge_find.py -k intent` -> sin `--intent` o con intent no declarado -> local/Kwipu; `--intent temporal` con `mode: read` y `intents.temporal: true` -> Graphiti; con `mode: shadow` -> local aunque el intent este declarado
+- **Archivos**: `agent-kits/shared/knowledge-find.py`, `tests/test_knowledge_find.py` (el plan escribia `agent-kits/shared/test_knowledge_find.py`, que NO existe: la suite de `knowledge-find.py` vive en `tests/` desde `memory-retrieval`; ademas dos ficheros de test con el MISMO basename en dos carpetas sin `__init__.py` rompen la recoleccion de pytest -import file mismatch-, asi que los casos `-k intent` se anaden a la suite real), `tests/test_knowledge_router.py` (nuevo), `skills/knowledge-services/backends/graphiti.py` (funcion OPCIONAL `consultar` del contrato -sin ella el router no tiene a quien preguntar- y apertura del envoltorio `{"result": ...}` del servidor real), `skills/knowledge-services/scripts/test_backend_graphiti.py`
+- **Verificacion**: `python -m pytest -q -p no:cacheprovider tests/test_knowledge_router.py tests/test_knowledge_find.py -k intent` -> sin `--intent` o con intent no declarado -> local/Kwipu; `--intent temporal` con `mode: read` y `intents.temporal: true` -> Graphiti; con `mode: shadow` -> local aunque el intent este declarado. Salida real (2026-09-21):
+  ```
+  $ python -m pytest -q -p no:cacheprovider tests/test_knowledge_router.py tests/test_knowledge_find.py -k intent
+  ................                                                         [100%]
+  16 passed, 81 deselected in 2.92s
+
+  $ python -m pytest -q -p no:cacheprovider tests/test_knowledge_router.py
+  22 passed in 2.07s
+
+  $ python -m pytest -q -p no:cacheprovider skills/knowledge-services/scripts/test_backend_graphiti.py
+  147 passed, 2 subtests passed in 84.38s
+
+  $ grep -c graphiti agent-kits/shared/knowledge-find.py
+  0
+  ```
+  Contra el servidor real (SOLO lectura: `initialize` + `get_status` + `search_nodes`/`search_memory_facts`/`get_episodes` de un grupo de sonda vacio; ninguna escritura):
+  ```
+  health: {"estado": "sano", "detalle": "get_status=ok"}
+  puede_leer: {"puede": true}
+  consultar: {"aciertos": [], "descartados": 0, "motivo": ""}
+  ```
+  - RED (TDD, 2026-09-21): `python -m pytest -q -p no:cacheprovider tests/test_knowledge_router.py` -> `17 failed, 5 passed` con `AttributeError: module 'knowledge_find_router' has no attribute 'consultar_intent'`; `tests/test_knowledge_find.py -k intent` -> `2 failed, 1 passed` (`assert 2 == 0`: `--intent` no existia como argumento); `skills/.../test_backend_graphiti.py -k Consultar` -> `15 failed` con `AttributeError: module 'ks_backend_graphiti_test_consultar' has no attribute 'consultar'`; y el hallazgo del envoltorio real -> `-k Envoltorio` `3 failed, 1 passed`.
+  - **Hallazgo de la sonda real (corregido aqui):** el servidor envuelve el `structuredContent` de `get_episodes`/`search_nodes`/`search_memory_facts` bajo una unica clave `result` (`get_status` no). Con el envoltorio sin abrir, `consultar` y tambien el `verify()`/`_reconciliar_publicado()` ya existentes veian "respuesta ilegible" contra el servidor REAL aunque las fixtures del servidor falso (structuredContent plano) estuvieran verdes: `_desenvolver_result` abre SOLO el caso inequivoco (clave unica `result` con dict/lista dentro).
+  - **Decision del implementer (el plan no lo fijaba):** el router lee `taxonomy.json` con `json` y NO carga `knowledge-schema.py` para validarla. `knowledge-find.py` lo invoca el hook `SessionStart` (`session-context.sh`) y el guardarrail estatico de `tests/test_knowledge_services.py` sigue las invocaciones de forma transitiva: cargar el validador metia `urllib` (solo `urllib.parse`) en el grafo alcanzable desde un hook y tumbaba `test_ningun_hook_ni_frontmatter_de_agente_invoca_red_ni_scripts_de_publicacion`. El router no necesita validar -exige `enabled: true`, `type` y `router.intents.<intent> is True`: una taxonomia invalida no enruta, no enruta mal-; la validacion completa y la derivacion de `group_id` siguen en `knowledge-sync.py`/`capabilities.py`/`/doctor`, y un backend sin `group_id` no lee (lo rechaza su adaptador) y degrada a local con motivo.
 **Criterios de aceptación**
-- [ ] Resultados traen evidencia, estado y ruta canonica.
-- [ ] Ningun LLM decide el enrutado; las reglas viven en `backends.graphiti.router` (CA-12).
+- [x] Resultados traen evidencia, estado y ruta canonica — fail-closed en los DOS lados: el adaptador solo construye un acierto desde el bloque `--- procedencia ---` del episodio propio (`_procedencia_de_episodio`; un nodo de extraccion sin episodio detras se descarta y se cuenta en `descartados`), y el nucleo descarta ademas cualquier acierto sin `id`/`estado`/`evidencia`/`ruta` no vacios (`CLAVES_ACIERTO_REMOTO`). `evidencia` viaja en el JSON de la capa 1 como clave ANADIDA (ninguna renombrada).
+- [x] Ningun LLM decide el enrutado; las reglas viven en `backends.graphiti.router` (CA-12) — `backends_para_intent()` exige `enabled: true` y `intents.<intent> is True` ESTRICTO (ni `1` ni `"si"`), el intent lo declara quien consulta (`--intent`, validado contra `[a-z][a-z0-9_-]*`) y el nucleo resuelve el adaptador por `type` con `cargar_adaptador` (el literal `graphiti` no aparece en `knowledge-find.py`: `grep -c` -> 0).
+- **Changelog**: Knowledge queries can now declare an intent (`knowledge-find.py --intent temporal`): if the project's configuration routes that intent to a graph backend in read mode, the answer comes from the graph with its evidence, status and source path; anything else falls back to the local corpus.
+- **Tiempo humano**: est. - · real -
+- **Tiempo IA**: real 0.91h (medido; usage-meter, artefacto `graphiti-memory/T-07`, 6.46 EUR, 55m de trabajo / 1h 23m de reloj)
 
 ### T-08 - Capacidad `graphiti` registrada, setup/doctor y documentacion runtime
 - **Estado**: borrador
