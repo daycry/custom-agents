@@ -34,6 +34,11 @@ No hay red desde hooks. El cliente usa timeout, allow-list de loopback por defec
   (claim, reintento acotado, dead-letter); `verify` compara el manifiesto del grupo con `approved/`; `rebuild`
   vacia el grupo y reproduce el manifiesto; `revoke` escribe la invalidacion (`SUPERSEDES` hacia tombstone) sin
   borrar historial.
+  **Deuda aceptada (gaps #40/#60 de la revisión de la Fase 2, 2026-09-21):** `rebuild` reconstruye únicamente el estado
+  VIGENTE desde `entries`; la traza histórica de sucesión (tombstones y relaciones `SUPERSEDES` de versiones ya
+  superadas antes del rebuild) no se reproduce tras un `--rebuild` — la invalidación de lo vigente en ese momento sí
+  es correcta. Reproducir el historial completo exigiría que el manifiesto conservara las versiones superadas
+  (`status: superseded`) y usar `graphiti_model.cadena_supersedes`; queda fuera del alcance acotado de esta iniciativa.
 - **Proveedor**: `provider.llm` en `ollama | openai | anthropic | none`. Con `none` el adaptador no extrae
   entidades: solo acepta episodios con estructura ya calculada (util para CI y para proyectos sin modelo local).
   Cada proveedor es una funcion pequena con la misma firma; anadir uno no toca el adaptador.
