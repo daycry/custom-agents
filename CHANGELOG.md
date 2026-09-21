@@ -9,6 +9,10 @@ and versioning follows [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Codex marketplace: `policy.authentication` was `NONE`, which Codex rejects.** `codex plugin marketplace add` failed with «unknown variant `NONE`, expected `ON_INSTALL` or `ON_USE`» at `.agents/plugins/marketplace.json`. The generator now emits `ON_INSTALL` (the spec default; the plugin has no services to authenticate) and a test pins the enum. (`scripts/export-interop.py`, `tests/test_export_interop.py`, `.agents/plugins/marketplace.json`)
+
 ## [1.21.0] - 2026-09-19
 
 ### Fixed — `jira-review-comments` initiative (2026-09-19)

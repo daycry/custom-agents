@@ -119,6 +119,9 @@ def test_codex_marketplace_valido():
     assert mk["plugins"], "marketplace sin plugins"
     p = mk["plugins"][0]
     assert p["policy"]["installation"] in ("AVAILABLE", "INSTALLED_BY_DEFAULT", "NOT_AVAILABLE")
+    # Enum cerrado de Codex: `NONE` rompía `codex plugin marketplace add` («unknown variant `NONE`,
+    # expected `ON_INSTALL` or `ON_USE`»).
+    assert p["policy"]["authentication"] in ("ON_INSTALL", "ON_USE")
     assert p["category"] and p["source"]["source"] == "local"
     assert p["version"] == json.loads(leer(".claude-plugin/plugin.json"))["version"]
 
