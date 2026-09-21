@@ -62,7 +62,7 @@ _BACKEND_CLAVES = ("type", "enabled", "config")
 _GRAPHITI_CONFIG_CLAVES = (
     "mode", "endpoint", "group_id", "allow_remote", "provider", "entity_map",
     "relations", "router", "telemetria", "health", "timeout_ms", "concurrency",
-    "episode_body_max_kb",
+    "episode_body_max_kb", "max_respuesta_kb", "max_episodes",
 )
 _GRAPHITI_PROVIDER_CLAVES = ("llm", "model", "embedder", "embedder_model", "base_url", "api_key_env")
 _GRAPHITI_ROUTER_CLAVES = ("intents", "default")
@@ -79,17 +79,45 @@ _HOSTS_LOCALES_LITERALES = {"localhost", "host.docker.internal"}
 # --8<-- fin hosts locales COMPARTIDO
 
 
+# --8<-- direccion prohibida siempre COMPARTIDO (graphiti-memory T-04-fix4, gaps #71/#75) - REPLICADO LITERAL en skills/knowledge-services/backends/graphiti.py y agent-kits/shared/knowledge-schema.py
 def _normalizar_ip(ip):
-    """Gap #53 (Critical): un literal IPv4-mapeado en IPv6 (`::ffff:169.254.169.254`,
-    `::ffff:0.0.0.0`, `::ffff:8.8.8.8`) no es `is_loopback`/`is_private` a ojos de
-    `ipaddress.IPv6Address` -esos atributos solo miran el prefijo IPv6 nativo-, así que
-    `_endpoint_es_local` podía dar por NO-local (fail-closed, exigiendo `allow_remote: true`) un
-    endpoint que en realidad SÍ resuelve a loopback/privado, o viceversa con el link-local de
-    metadatos de nube. Se normaliza SIEMPRE a la IPv4 equivalente antes de clasificar (mismo
-    criterio que `graphiti.py::_normalizar_ip`, no se declara como bloque compartido porque cada
-    fichero la aplica sobre un objeto `ipaddress` obtenido de forma distinta)."""
+    """Desenvuelve las formas de TRANSICION IPv6 -> IPv4 antes de clasificar una direccion:
+    IPv4-mapeada (`::ffff:169.254.169.254`, gap #53), 6to4 (`2002::/16`, gap #71) y Teredo
+    (`2001:0::/32`, gap #71; se toma la direccion del CLIENTE, que es la que de verdad se
+    contacta). CPython clasifica esas tres formas mirando SOLO el prefijo IPv6 nativo, asi que
+    sin desenvolverlas un `2002:a9fe:a9fe::1` (= el endpoint de metadatos `169.254.169.254`) es
+    `is_private=True` y se cuela por el guardarrail de red (CWE-918)."""
     mapeada = getattr(ip, "ipv4_mapped", None)
-    return mapeada if mapeada is not None else ip
+    if mapeada is not None:
+        return mapeada
+    seis_a_cuatro = getattr(ip, "sixtofour", None)
+    if seis_a_cuatro is not None:
+        return seis_a_cuatro
+    teredo = getattr(ip, "teredo", None)
+    if teredo is not None:
+        return teredo[1]
+    return ip
+
+
+def _es_transicion_ipv6(ip):
+    """True si `ip` es 6to4 o Teredo. Ninguna de las dos es nunca un endpoint local legitimo de
+    este proyecto (el invariante es `localhost`/red privada), y las dos las clasifica CPython
+    como privadas por su prefijo: se rechazan como clase, no solo cuando lo que envuelven es una
+    direccion prohibida."""
+    return getattr(ip, "sixtofour", None) is not None or getattr(ip, "teredo", None) is not None
+
+
+def _direccion_prohibida_siempre(ip):
+    """Link-local (`169.254.0.0/16`, `fe80::/10`, tipico endpoint de metadatos de nube), no
+    especificada (`0.0.0.0`, `::`) y prefijos de transicion IPv6 (6to4/Teredo) se rechazan
+    SIEMPRE, incluso con `allow_remote: true` (gaps #34c y #71): `allow_remote` autoriza salir a
+    redes remotas, no a la red de metadatos del propio host ni a direcciones sin sentido como
+    destino de conexion."""
+    if _es_transicion_ipv6(ip):
+        return True
+    ip = _normalizar_ip(ip)
+    return bool(ip.is_link_local or ip.is_unspecified)
+# --8<-- fin direccion prohibida siempre COMPARTIDO
 
 
 def _endpoint_es_local(endpoint):
@@ -114,6 +142,27 @@ def _endpoint_es_local(endpoint):
     except ValueError:
         return False
     return bool(ip.is_loopback or ip.is_private)
+
+
+def _url_con_direccion_prohibida(url):
+    """Gap #75 (Important, CWE-1287): defensa en profundidad — la MISMA regla que el adaptador
+    aplica en tiempo de conexion (`_direccion_prohibida_siempre`: link-local/metadatos de nube,
+    direccion no especificada y prefijos de transicion IPv6) tiene que rechazar la config en
+    FRIO. Antes, `endpoint: http://169.254.169.254/mcp` validaba sin error (el link-local IPv4 es
+    `is_private` para CPython) mientras el adaptador lo rechazaba SIEMPRE: el usuario se llevaba
+    el "no" en ejecucion, no al validar."""
+    try:
+        parsed = urllib.parse.urlparse(url)
+    except ValueError:
+        return False
+    host = (parsed.hostname or "").lower()
+    if not host:
+        return False
+    try:
+        ip = ipaddress.ip_address(host)
+    except ValueError:
+        return False  # un nombre no se resuelve aqui (validacion en frio): lo hace el adaptador
+    return _direccion_prohibida_siempre(ip)
 
 
 def _url_parseable(url):
@@ -301,10 +350,31 @@ def _validar_backend_graphiti(bcfg, campo, fichero, errores):
             errores.append(_error(
                 "`endpoint` no puede contener credenciales embebidas (userinfo); usa "
                 "`provider.api_key_env` para credenciales", fichero, f"{campo_c}.endpoint"))
+        elif _url_con_direccion_prohibida(endpoint):
+            # gap #75: prohibida SIEMPRE, tambien con `allow_remote: true` (misma regla que el
+            # adaptador: `allow_remote` autoriza salir a redes remotas, no a la red de metadatos
+            # del propio host, a `0.0.0.0`/`::` ni a prefijos de transicion IPv6 -gap #71-).
+            errores.append(_error(
+                f"`endpoint` `{endpoint}` apunta a una direccion prohibida SIEMPRE (metadatos de "
+                "nube/link-local, no especificada o 6to4/Teredo), ni siquiera con "
+                "`allow_remote: true`", fichero, f"{campo_c}.endpoint"))
         elif not allow_remote and not _endpoint_es_local(endpoint):
             errores.append(_error(
                 f"`endpoint` `{endpoint}` no es local/privado; declara `allow_remote: true` "
                 "para permitir un endpoint remoto (CA-09)", fichero, f"{campo_c}.endpoint"))
+
+    # gap #70 (fix4): topes de RECURSOS del adaptador — enteros estrictos y mayores que 0.
+    # `max_respuesta_kb` capa la lectura de CADA respuesta MCP (default 8192 KiB, 8 MiB);
+    # `max_episodes` capa la ventana de `get_episodes` que barre `verify()`.
+    for clave_tope, descripcion in (
+            ("max_respuesta_kb", "tope de lectura de una respuesta MCP, en KiB"),
+            ("max_episodes", "tope de la ventana de `get_episodes` de `verify()`")):
+        valor_tope = config.get(clave_tope)
+        if clave_tope in config and (isinstance(valor_tope, bool)
+                                      or not isinstance(valor_tope, int) or valor_tope <= 0):
+            errores.append(_error(
+                f"`{clave_tope}` debe ser un entero mayor que 0 ({descripcion})",
+                fichero, f"{campo_c}.{clave_tope}"))
 
     group_id = config.get("group_id")
     if "group_id" in config and not isinstance(group_id, str):
@@ -448,6 +518,12 @@ def _validar_backend_graphiti(bcfg, campo, fichero, errores):
                     errores.append(_error(
                         "`health.url` no puede contener credenciales embebidas (userinfo); usa "
                         "`provider.api_key_env` para credenciales", fichero, f"{campo_c}.health.url"))
+                elif _url_con_direccion_prohibida(health_url):
+                    # gap #75: mismo guardarrail que `endpoint`, tambien con `allow_remote: true`.
+                    errores.append(_error(
+                        f"`health.url` `{health_url}` apunta a una direccion prohibida SIEMPRE "
+                        "(metadatos de nube/link-local, no especificada o 6to4/Teredo), ni "
+                        "siquiera con `allow_remote: true`", fichero, f"{campo_c}.health.url"))
                 elif not allow_remote and not _endpoint_es_local(health_url):
                     # gap #7: mismo guardarraíl que `endpoint` (precedente `markdown_export.py`
                     # pasando `health_url` por `_host_permitido` antes de llamarlo).

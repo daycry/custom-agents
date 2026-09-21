@@ -13,6 +13,7 @@ import os
 import sys
 import tempfile
 import threading
+import time
 import unittest
 import uuid
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -38,6 +39,25 @@ _FIXTURE_INITIALIZE = _leer_fixture("graphiti-mcp-initialize-2026-09-18.json")
 _FIXTURE_TOOLS_LIST = _leer_fixture("graphiti-mcp-tools-list-2026-09-18.json")
 _FIXTURE_GET_STATUS = _leer_fixture("graphiti-mcp-get-status-2026-09-18.json")
 
+# Gap #69 (Critical, fix4): el CONTRATO REAL del servidor -el `required` de cada tool, capturado
+# en el fixture `tools/list`- lo hace cumplir el servidor falso de esta suite. Sin esto, una
+# llamada que omite un campo obligatorio (p. ej. `add_triplet` sin `source_node_name`) pasaba
+# verde aqui y fallaba contra el servidor REAL con `isError`.
+_REQUIRED_POR_TOOL = {
+    t["name"]: tuple((t.get("inputSchema") or {}).get("required") or ())
+    for t in _FIXTURE_TOOLS_LIST["result"]["tools"]
+}
+
+
+def _campos_obligatorios_que_faltan(nombre, argumentos):
+    """Campos `required` del fixture real ausentes (o vacios) en `argumentos`."""
+    faltan = []
+    for campo in _REQUIRED_POR_TOOL.get(nombre, ()):
+        valor = (argumentos or {}).get(campo)
+        if valor is None or valor == "":
+            faltan.append(campo)
+    return faltan
+
 
 class _ServidorMCPFalso(BaseHTTPRequestHandler):
     """Dispatcher JSON-RPC minimo sobre POST `/mcp`. `respuestas_tools` mapea
@@ -50,6 +70,8 @@ class _ServidorMCPFalso(BaseHTTPRequestHandler):
     session_id = "sesion-fake-1"
     forma_redirect = None  # None | "redirect_una_vez" (simula 307 de "/mcp/" -> "/mcp")
     forzar_sse = False
+    sse_partido = False  # gap #76: parte el JSON del `result` en DOS lineas `data:` (spec SSE)
+    validar_required = True  # gap #69: exige el `required` del fixture real en cada `tools/call`
 
     def do_POST(self):  # noqa: N802 - nombre impuesto por BaseHTTPRequestHandler
         largo = int(self.headers.get("Content-Length", 0))
@@ -84,6 +106,16 @@ class _ServidorMCPFalso(BaseHTTPRequestHandler):
             nombre = params.get("name")
             argumentos = params.get("arguments") or {}
             type(self).llamadas.append((nombre, argumentos))
+            if self.validar_required:
+                faltan = _campos_obligatorios_que_faltan(nombre, argumentos)
+                if faltan:
+                    # Igual que el servidor real: error de la TOOL (`isError`), no de JSON-RPC.
+                    self._responder_json({"jsonrpc": "2.0", "id": id_, "result": {
+                        "isError": True,
+                        "content": [{"type": "text", "text":
+                                     f"missing required argument(s) for `{nombre}`: {faltan}"}],
+                    }})
+                    return
             if nombre == "get_status":
                 cuerpo = dict(_FIXTURE_GET_STATUS)
                 cuerpo["id"] = id_
@@ -101,9 +133,20 @@ class _ServidorMCPFalso(BaseHTTPRequestHandler):
         self.send_response(200)
         if self.session_id:
             self.send_header("Mcp-Session-Id", self.session_id)
-        if self.forzar_sse:
+        if self.forzar_sse or self.sse_partido:
             self.send_header("Content-Type", "text/event-stream")
-            datos = f"data: {json.dumps(cuerpo)}\n\n".encode("utf-8")
+            crudo_json = json.dumps(cuerpo)
+            if self.sse_partido:
+                # Gap #76: un evento SSE puede traer el JSON repartido en VARIAS lineas `data:`
+                # (spec SSE: el cuerpo del evento es la concatenacion de sus lineas `data:` con
+                # un salto de linea), y el servidor Graphiti lo hace con resultados largos. Se
+                # reparte por LINEAS del JSON indentado: cada linea es un `data:` propio y solo
+                # la concatenacion de TODAS vuelve a ser JSON valido.
+                lineas = json.dumps(cuerpo, indent=2).splitlines()
+                datos = ("".join(f"data: {linea}\n" for linea in lineas)
+                          + "\n").encode("utf-8")
+            else:
+                datos = f"data: {crudo_json}\n\n".encode("utf-8")
         else:
             self.send_header("Content-Type", "application/json")
             datos = json.dumps(cuerpo).encode("utf-8")
@@ -975,10 +1018,17 @@ class TestGraphitiFase2Fix2(unittest.TestCase):
                   "entradas": {"mem.fantasma": {"version": 1, "hash": "h",
                                                  "uuid": "11111111-1111-1111-1111-111111111111"}}},
             sufijo=".pending")
-        with _ServidorMCPContext() as srv:  # el servidor real NUNCA tuvo `mem.fantasma`
+        def _get_episodes(_args):
+            return {"structuredContent": {"episodes": []}}  # legible, y NUNCA tuvo `mem.fantasma`
+
+        # Fix4 (gap #67): "el servidor dice que no lo tiene" (respuesta legible, lista vacia) es
+        # distinto de "no he podido preguntarle" -este test es el PRIMER caso: se confirma que no
+        # esta y se descarta del manifiesto; el segundo lo cubre `test_fix4_gap67_*`.
+        with _ServidorMCPContext(respuestas_tools={"get_episodes": _get_episodes}) as srv:
             cfg2 = self._cfg(srv.endpoint)
             resultado = self.mod.apply([], cfg2)  # `plan()` no ve diferencias contra el `.pending`
-        self.assertEqual(resultado, {"aplicados": 0, "revocados": 0})
+        self.assertEqual(resultado["aplicados"], 0)
+        self.assertNotIn("pendiente_sin_confirmar", resultado)
         manifest_final, _ = self.mod._leer_manifest(cfg2)
         self.assertNotIn("mem.fantasma", manifest_final["entradas"])
 
@@ -1014,16 +1064,19 @@ class TestGraphitiFase2Fix2(unittest.TestCase):
 
     # -- #56 (Important, mutante N6): `add_triplet` de `_aplicar_revoke` con el campo correcto --
 
-    def test_gap56_revoke_usa_target_node_uuid_no_target_node_name(self):
-        """Mutante: volver a `target_node_name` hace que esta clave NUNCA aparezca en los
-        argumentos capturados de `add_triplet`."""
+    def test_gap56_revoke_usa_target_node_uuid_y_tambien_el_nombre_obligatorio(self):
+        """Mutante: quitar `target_node_uuid` hace que esta clave NUNCA aparezca en los
+        argumentos capturados de `add_triplet`. Fix4 (gap #69): el contrato REAL de la tool
+        declara ADEMAS `source_node_name`/`target_node_name` como OBLIGATORIOS -el arbitraje de
+        #56/#40 ("solo `*_uuid`") era incompleto-, asi que se comprueban los cuatro campos."""
         with _ServidorMCPContext() as srv:
             cfg = self._cfg(srv.endpoint)
             self.mod.apply(self.mod.plan([_entrada()], cfg), cfg)
             self.mod.apply(self.mod.plan([], cfg), cfg)  # revoke
             _nombre, argumentos = next(l for l in srv.llamadas if l[0] == "add_triplet")
         self.assertIn("target_node_uuid", argumentos)
-        self.assertNotIn("target_node_name", argumentos)
+        self.assertEqual(argumentos["target_node_name"], "mem.gotchas.graphiti-timeout@1")
+        self.assertEqual(argumentos["source_node_name"], "mem.gotchas.graphiti-timeout@tombstone")
 
     # -- #57 (Important): M7 con un hang de verdad, no un puerto cerrado ------------------------
 
@@ -1362,8 +1415,11 @@ class TestGraphitiFase2Fix3(unittest.TestCase):
         # SUPERSEDES con los campos correctos, apuntando al uuid de la version 1
         supersedes = next(a for a in llamadas_add_triplet if a.get("edge_name") == "SUPERSEDES")
         self.assertEqual(supersedes.get("target_node_uuid"), uuid_v1)
-        self.assertNotIn("target_node_name", supersedes)
-        self.assertNotIn("source_node_name", supersedes)
+        # Gap #69 (fix4): el contrato REAL de `add_triplet` (fixture `tools/list`) declara
+        # `required: [source_node_name, edge_name, fact, target_node_name]` — el arbitraje de #40
+        # ("usa `*_uuid`") era incompleto: van los CUATRO campos, nombre Y uuid.
+        self.assertEqual(supersedes.get("target_node_name"), "mem.gotchas.graphiti-timeout@1")
+        self.assertEqual(supersedes.get("source_node_name"), "mem.gotchas.graphiti-timeout@2")
         # NUNCA se llama a `delete_episode` (design.md, enmienda 2026-09-18)
         self.assertFalse(any(n == "delete_episode" for n, _a in srv.llamadas))
 
@@ -1371,6 +1427,672 @@ class TestGraphitiFase2Fix3(unittest.TestCase):
     # (test dedicado en `tests/test_knowledge_services.py`, backend deshabilitado por defecto;
     # este backend no necesita test aqui porque la propia rama `enabled: false` -> corte con
     # exit 2 se prueba contra el flag del script, no contra el adaptador)
+
+
+class TestGraphitiFase2Fix4(unittest.TestCase):
+    """Ronda `fix4` de la Fase 2 (revision de dos lentes, intento 3): 3 Critical (#67, #68, #69),
+    8 Important (#70-#77) y 11 Minor (#78-#88). Un test dedicado por gap, nombrado
+    `test_fix4_gapNN_*`; cada uno muere al revertir su correccion (mutante nombrado en el
+    docstring y en la fila del gap en `tasks.md`)."""
+
+    def setUp(self):
+        self.mod = _cargar("graphiti.py", "ks_backend_graphiti_test_fix4")
+        self.tmp = tempfile.mkdtemp(prefix="ks-graphiti-fix4-")
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _cfg(self, endpoint, **extra):
+        cfg = {"_root": self.tmp, "group_id": "proy-test", "endpoint": endpoint,
+               "allow_remote": False, "timeout_ms": 2000, "provider": {"llm": "none"}}
+        cfg.update(extra)
+        return cfg
+
+    # -- #67 (Critical): una reconciliacion que NO puede confirmar nunca escribe manifiesto ----
+
+    def test_fix4_gap67_reconciliacion_sin_servidor_no_pisa_el_manifiesto_publicado(self):
+        """Mutante #67 (el codigo previo a fix4): `_reconciliar_publicado` devolvia `{}` ante
+        cualquier excepcion y `apply()` escribia ESE `{}` como manifiesto PUBLICADO, borrando el
+        `.pending` — "no se promueve nada" implementado como "se despublica todo": episodios
+        irrevocables en el grafo y sin rastro local."""
+        cfg = self._cfg("http://127.0.0.1:1")  # nada escuchando: la confirmacion no es posible
+        entradas = {"mem.x": {"version": 1, "hash": "h", "uuid": "u1"}}
+        self.mod._escribir_manifest(cfg, {"group_id": "proy-test", "entradas": entradas})
+        self.mod._escribir_manifest(cfg, {"group_id": "proy-test", "entradas": entradas},
+                                    sufijo=".pending")
+        resultado = self.mod.apply([], cfg)
+        self.assertTrue(resultado.get("pendiente_sin_confirmar"))
+        self.assertEqual(resultado.get("aplicados"), 0)
+        self.assertTrue(resultado.get("avisos"))
+        # el `.pending` sigue ahi y el PUBLICADO conserva sus entradas (nada se despublico)
+        self.assertTrue(os.path.isfile(self.mod._manifest_path(cfg, ".pending")))
+        with open(self.mod._manifest_path(cfg), encoding="utf-8") as f:
+            publicado = json.load(f)
+        self.assertEqual(publicado["entradas"], entradas)
+
+    def test_fix4_gap67_revoke_sigue_disponible_tras_una_reconciliacion_fallida(self):
+        """Corolario del mismo gap: como el manifiesto publicado sobrevive, `revoke()` sigue
+        viendo la entrada como publicada (con el mutante decia "no publicado" para siempre)."""
+        cfg = self._cfg("http://127.0.0.1:1")
+        entradas = {"mem.x": {"version": 1, "hash": "h", "uuid": "u1"}}
+        self.mod._escribir_manifest(cfg, {"group_id": "proy-test", "entradas": entradas})
+        self.mod._escribir_manifest(cfg, {"group_id": "proy-test", "entradas": entradas},
+                                    sufijo=".pending")
+        resultado = self.mod.apply([], cfg)
+        self.assertTrue(resultado.get("pendiente_sin_confirmar"))
+
+        def _get_episodes(_args):
+            return {"structuredContent": {"episodes": [
+                {"name": "mem.x@1", "uuid": "u1", "group_id": "proy-test"}]}}
+
+        # el servidor vuelve: la entrada SIGUE publicada en el manifiesto, asi que se puede
+        # revocar de verdad (con el mutante, `revoke()` decia "no publicado" para siempre y los
+        # episodios quedaban en el grafo sin forma de invalidarlos).
+        with _ServidorMCPContext(respuestas_tools={"get_episodes": _get_episodes}) as srv:
+            cfg_vivo = self._cfg(srv.endpoint)
+            veredicto = self.mod.revoke("mem.x", cfg_vivo)
+            tombstones = [a for n, a in srv.llamadas
+                          if n == "add_memory" and a.get("name", "").endswith("@tombstone")]
+        self.assertTrue(veredicto["revocado"])
+        self.assertTrue(tombstones)
+
+    # -- #68 (Critical): el `.pending` heredado se reconcilia TAMBIEN con ops nuevas ------------
+
+    def test_fix4_gap68_pending_heredado_se_reconcilia_aunque_haya_ops_nuevas(self):
+        """Mutante #68: la reconciliacion de #54 solo vivia en la rama `if not ops`, asi que con
+        >= 1 op nueva la entrada fantasma del `.pending` se promovia a PUBLICADO con cero
+        llamadas de confirmacion — con hash/version coincidentes, `plan()` no la volvia a
+        proponer jamas."""
+        def _get_episodes(_args):
+            # el servidor solo reconoce la entrada REAL, nunca la fantasma
+            return {"structuredContent": {"episodes": [
+                {"name": "mem.real@1", "group_id": "proy-test"}]}}
+
+        real = _entrada(id_="mem.real", cuerpo="Cuerpo real.\n")
+        fantasma = _entrada(id_="mem.fantasma", cuerpo="Cuerpo fantasma.\n")
+
+        def _hash_de(entrada):
+            return hashlib.sha256(entrada["cuerpo"].encode("utf-8")).hexdigest()
+
+        with _ServidorMCPContext(respuestas_tools={"get_episodes": _get_episodes}) as srv:
+            cfg = self._cfg(srv.endpoint)
+            # `.pending` heredado de una corrida cortada: `mem.real` SI llego al servidor,
+            # `mem.fantasma` no (pero el `.pending` afirma que si).
+            self.mod._escribir_manifest(cfg, {"group_id": "proy-test", "entradas": {
+                "mem.real": {"version": 1, "hash": _hash_de(real), "uuid": "u-real"},
+                "mem.fantasma": {"version": 1, "hash": _hash_de(fantasma), "uuid": "u-fantasma"},
+            }}, sufijo=".pending")
+            nueva = _entrada(id_="mem.nueva", cuerpo="Cuerpo nuevo.\n")
+            # `plan()` solo ve UNA op nueva (las otras dos "coinciden" con el `.pending`)
+            ops = self.mod.plan([real, fantasma, nueva], cfg)
+            self.assertEqual([o["id"] for o in ops], ["mem.nueva"])
+            resultado = self.mod.apply(ops, cfg)
+            self.assertEqual(resultado["aplicados"], 1)
+            self.assertTrue(any(n == "get_episodes" for n, _a in srv.llamadas))
+            manifest, _ = self.mod._leer_manifest(cfg)
+        self.assertIn("mem.real", manifest["entradas"])
+        self.assertIn("mem.nueva", manifest["entradas"])
+        self.assertNotIn("mem.fantasma", manifest["entradas"])
+        self.assertTrue(any("mem.fantasma" in a for a in resultado.get("avisos") or []))
+
+    def test_fix4_gap68_lo_no_confirmado_se_vuelve_a_proponer_como_upsert(self):
+        """La consecuencia observable: tras la reconciliacion, `plan()` VUELVE a proponer la
+        entrada fantasma (con el mutante quedaba con hash/version coincidentes y `plan()` no la
+        proponia nunca mas — solo `--rebuild` la arreglaba)."""
+        def _get_episodes(_args):
+            return {"structuredContent": {"episodes": []}}
+
+        fantasma = _entrada(id_="mem.fantasma", cuerpo="Cuerpo fantasma 2.\n")
+        with _ServidorMCPContext(respuestas_tools={"get_episodes": _get_episodes}) as srv:
+            cfg = self._cfg(srv.endpoint)
+            hash_f = hashlib.sha256(fantasma["cuerpo"].encode("utf-8")).hexdigest()
+            self.mod._escribir_manifest(cfg, {"group_id": "proy-test", "entradas": {
+                "mem.fantasma": {"version": 1, "hash": hash_f, "uuid": "u-fantasma"},
+            }}, sufijo=".pending")
+            nueva = _entrada(id_="mem.nueva", cuerpo="Cuerpo nuevo.\n")
+            self.mod.apply(self.mod.plan([nueva, fantasma], cfg), cfg)
+            ops = self.mod.plan([nueva, fantasma], cfg)
+        self.assertIn("mem.fantasma", [o["id"] for o in ops if o["tipo"] == "upsert"])
+
+    # -- #69 (Critical): `add_triplet` cumple el `required` del contrato REAL -------------------
+
+    def test_fix4_gap69_el_servidor_falso_valida_el_required_del_fixture_real(self):
+        """Primero, el guardarrail de la propia suite: una llamada que omite un campo
+        obligatorio del fixture `tools/list` tiene que fallar con `isError` (mutante: poner
+        `validar_required = False` deja pasar cualquier llamada incompleta)."""
+        self.assertEqual(_REQUIRED_POR_TOOL["add_triplet"],
+                         ("source_node_name", "edge_name", "fact", "target_node_name"))
+        with _ServidorMCPContext() as srv:
+            cliente = self.mod.ClienteMCP(srv.endpoint, timeout_s=2.0)
+            cliente.initialize()
+            with self.assertRaises(self.mod.ErrorMCP) as ctx:
+                cliente.tools_call("add_triplet", {"source_node_uuid": "a", "edge_name": "SUPERSEDES",
+                                                   "fact": "f", "target_node_uuid": "b"})
+        self.assertIn("source_node_name", str(ctx.exception))
+
+    def test_fix4_gap69_supersedes_de_cambio_de_version_envia_nombre_y_uuid(self):
+        """Mutante #69a: quitar `source_node_name`/`target_node_name` de `_tombstone_supersedes`
+        devuelve el fallo real (`isError` -> `ErrorMCP` -> `fallidos`) en CADA cambio de version."""
+        with _ServidorMCPContext() as srv:
+            cfg = self._cfg(srv.endpoint)
+            self.mod.apply(self.mod.plan([_entrada(version=1)], cfg), cfg)
+            uuid_v1 = next(a.get("uuid") for n, a in srv.llamadas if n == "add_memory")
+            resultado = self.mod.apply(self.mod.plan([_entrada(version=2)], cfg), cfg)
+            triplets = [a for n, a in srv.llamadas if n == "add_triplet"]
+        self.assertEqual(resultado["aplicados"], 1)
+        supersedes = next(a for a in triplets if a.get("edge_name") == "SUPERSEDES")
+        self.assertEqual(supersedes["target_node_uuid"], uuid_v1)
+        self.assertEqual(supersedes["target_node_name"], "mem.gotchas.graphiti-timeout@1")
+        self.assertEqual(supersedes["source_node_name"], "mem.gotchas.graphiti-timeout@2")
+        self.assertFalse(_campos_obligatorios_que_faltan("add_triplet", supersedes))
+
+    def test_fix4_gap69_supersedes_de_revoke_envia_nombre_y_uuid(self):
+        """Mutante #69b: el camino de REVOKE (`_aplicar_revoke`) es DISTINTO del de cambio de
+        version y tambien enviaba solo `*_uuid`."""
+        with _ServidorMCPContext() as srv:
+            cfg = self._cfg(srv.endpoint)
+            self.mod.apply(self.mod.plan([_entrada()], cfg), cfg)
+            veredicto = self.mod.revoke("mem.gotchas.graphiti-timeout", cfg)
+            triplets = [a for n, a in srv.llamadas if n == "add_triplet"]
+        self.assertTrue(veredicto["revocado"])
+        supersedes = next(a for a in triplets if a.get("edge_name") == "SUPERSEDES")
+        self.assertEqual(supersedes["source_node_name"], "mem.gotchas.graphiti-timeout@tombstone")
+        self.assertEqual(supersedes["target_node_name"], "mem.gotchas.graphiti-timeout@1")
+        self.assertTrue(supersedes.get("target_node_uuid"))
+        self.assertFalse(_campos_obligatorios_que_faltan("add_triplet", supersedes))
+
+    # -- #70 (Important): tope de lectura MCP, MemoryError y ventana de verify ------------------
+
+    def test_fix4_gap70_respuesta_mcp_mas_grande_que_el_tope_es_error_mcp(self):
+        """Mutante #70a: `resp.read()` sin tope en `_leer_respuesta_mcp` — una respuesta enorme
+        (o infinita) del servidor se leia entera en memoria."""
+        def _get_episodes(_args):
+            return {"structuredContent": {"episodes": [{"name": "x" * 1000, "group_id": "proy-test"}
+                                                        for _ in range(500)]}}
+
+        with _ServidorMCPContext(respuestas_tools={"get_episodes": _get_episodes}) as srv:
+            cliente = self.mod.ClienteMCP(srv.endpoint, timeout_s=3.0, max_respuesta_bytes=16 * 1024)
+            cliente.initialize()
+            with self.assertRaises(self.mod.ErrorMCP) as ctx:
+                cliente.tools_call("get_episodes", {"group_ids": ["proy-test"]})
+        self.assertIn("max_respuesta_kb", str(ctx.exception))
+
+    def test_fix4_gap70_max_respuesta_kb_de_la_config_llega_al_cliente(self):
+        self.assertEqual(self.mod._max_respuesta_bytes({}),
+                         self.mod._MAX_RESPUESTA_KB_DEFAULT * 1024)
+        self.assertEqual(self.mod._max_respuesta_bytes({"max_respuesta_kb": 16}), 16 * 1024)
+        self.assertEqual(self.mod._max_respuesta_bytes({"max_respuesta_kb": 1.5}),
+                         self.mod._MAX_RESPUESTA_KB_DEFAULT * 1024)  # float: invalido (gap #88)
+
+    def test_fix4_gap70_health_y_verify_no_lanzan_ante_memoryerror(self):
+        """Mutante #70b: `MemoryError` no estaba en los `except` de `health()`/`verify()`, asi que
+        una respuesta gigante tumbaba `/doctor` y `--check` con traceback (el contrato de
+        adaptador dice que estas dos funciones NUNCA lanzan)."""
+        import unittest.mock as mock
+
+        with _ServidorMCPContext() as srv:
+            cfg = self._cfg(srv.endpoint)
+            self.mod._escribir_manifest(cfg, {"group_id": "proy-test", "entradas": {
+                "mem.x": {"version": 1, "hash": "h", "uuid": "u1"}}})
+            with mock.patch.object(self.mod, "_leer_respuesta_mcp",
+                                   side_effect=MemoryError("respuesta gigante")):
+                salud = self.mod.health(cfg)
+                veredicto = self.mod.verify(cfg)
+                lectura = self.mod.puede_leer({**cfg, "mode": "read"})
+        self.assertIn(salud["estado"], ("error", "off", "degradado"))
+        self.assertIs(veredicto["ok"], False)
+        self.assertFalse(lectura["puede"])
+
+    def test_fix4_gap70_ventana_de_verify_respeta_max_episodes_configurado(self):
+        """Mutante #70c: la ventana de `get_episodes` se ampliaba hasta `_MAX_EPISODIOS_VERIFY`
+        (5000) sin tope configurable — hasta 4 barridos de miles de episodios por `verify()`."""
+        pedidos = []
+
+        def _get_episodes(args):
+            pedidos.append(args.get("max_episodes"))
+            return {"structuredContent": {"episodes": [
+                {"name": f"relleno-{i}", "group_id": "proy-test"}
+                for i in range(args.get("max_episodes") or 0)]}}
+
+        with _ServidorMCPContext(respuestas_tools={"get_episodes": _get_episodes}) as srv:
+            cfg = self._cfg(srv.endpoint, max_episodes=60)
+            self.mod._escribir_manifest(cfg, {"group_id": "proy-test", "entradas": {
+                "mem.x": {"version": 1, "hash": "h", "uuid": "u1"}}})
+            self.mod.verify(cfg)
+        self.assertTrue(pedidos)
+        self.assertLessEqual(max(pedidos), 60)
+
+    def test_fix4_gap70_puede_leer_no_repite_verify_dentro_del_ttl(self):
+        """Mutante #70d: `puede_leer()` encadenaba `health()`+`verify()` SIN cache, asi que el
+        router de T-07 barreria el grafo entero en CADA consulta."""
+        def _get_episodes(_args):
+            return {"structuredContent": {"episodes": [{"name": "mem.x@1", "group_id": "proy-test"}]}}
+
+        with _ServidorMCPContext(respuestas_tools={"get_episodes": _get_episodes}) as srv:
+            cfg = self._cfg(srv.endpoint, mode="read")
+            self.mod._escribir_manifest(cfg, {"group_id": "proy-test", "entradas": {
+                "mem.x": {"version": 1, "hash": "h", "uuid": "u1"}}})
+            primero = self.mod.puede_leer(cfg)
+            segundo = self.mod.puede_leer(cfg)
+            barridos = [n for n, _a in srv.llamadas if n == "get_episodes"]
+        self.assertTrue(primero["puede"])
+        self.assertTrue(segundo["puede"])
+        self.assertEqual(len(barridos), 1)
+
+    # -- #71 (Important): prefijos de transicion IPv6 (6to4 / Teredo) --------------------------
+
+    def test_fix4_gap71_6to4_hacia_el_imds_se_rechaza_siempre(self):
+        """Mutante #71a: sin desenvolver `sixtofour`, `2002:a9fe:a9fe::1` (= 169.254.169.254) es
+        `is_private=True` para CPython y colaba como "local/privado" con `allow_remote: false`."""
+        for allow_remote in (False, True):
+            self.assertFalse(self.mod._host_permitido("http://[2002:a9fe:a9fe::1]/mcp", allow_remote))
+
+    def test_fix4_gap71_teredo_se_rechaza_siempre(self):
+        """Mutante #71b: `2001:0::/32` (Teredo) tambien es `is_private=True` en CPython."""
+        for allow_remote in (False, True):
+            self.assertFalse(
+                self.mod._host_permitido("http://[2001:0:4136:e378:8000:63bf:3fff:fdd2]/mcp",
+                                          allow_remote))
+
+    def test_fix4_gap71_ipv4_mapeada_al_imds_sigue_rechazada(self):
+        """El tercer literal del arbitraje (regresion de #53, que ya estaba cerrado)."""
+        for allow_remote in (False, True):
+            self.assertFalse(self.mod._host_permitido("http://[::ffff:169.254.169.254]/mcp",
+                                                       allow_remote))
+
+    # -- #72 (Important): texto crudo del servidor saneado en TODOS los caminos -----------------
+
+    def test_fix4_gap72_error_jsonrpc_del_servidor_se_sanea_antes_de_interpolarlo(self):
+        """Mutante #72a: `_peticion` interpolaba `cuerpo['error']` CRUDO (`graphiti.py:521`) —
+        3 000 caracteres con `ESC[2J` (borra la pantalla) y CRLF directos a stderr. CWE-117."""
+        class _Handler(BaseHTTPRequestHandler):
+            def do_POST(self):  # noqa: N802
+                largo = int(self.headers.get("Content-Length", 0))
+                self.rfile.read(largo) if largo else None
+                peticion_id = 1
+                cuerpo = json.dumps({"jsonrpc": "2.0", "id": peticion_id, "error": {
+                    "code": -1, "message": "\x1b[2Jbanner falso\r\n" + "A" * 3000}}).encode("utf-8")
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(cuerpo)
+
+            def log_message(self, *a, **k):
+                pass
+
+        httpd = HTTPServer(("127.0.0.1", 0), _Handler)
+        threading.Thread(target=httpd.serve_forever, daemon=True).start()
+        try:
+            cliente = self.mod.ClienteMCP(f"http://127.0.0.1:{httpd.server_address[1]}", timeout_s=2.0)
+            with self.assertRaises(self.mod.ErrorMCP) as ctx:
+                cliente.initialize()
+        finally:
+            httpd.shutdown()
+            httpd.server_close()
+        mensaje = str(ctx.exception)
+        self.assertNotIn("\x1b", mensaje)
+        self.assertNotIn("\r", mensaje)
+        self.assertLess(len(mensaje), 400)
+
+    def test_fix4_gap72_resumen_de_fallidos_de_apply_tiene_tope_y_va_saneado(self):
+        """Mutante #72b: `apply()` concatenaba la lista COMPLETA de `fallidos` (con el texto del
+        servidor tal cual) en el mensaje de `ErrorMCP`."""
+        def _add_memory(_args):
+            return {"isError": True, "content": [{"type": "text",
+                                                   "text": "\x1b[2J" + "B" * 4000}]}
+
+        with _ServidorMCPContext(respuestas_tools={"add_memory": _add_memory}) as srv:
+            cfg = self._cfg(srv.endpoint)
+            ops = self.mod.plan([_entrada(id_=f"mem.x{i}", cuerpo=f"c{i}") for i in range(30)], cfg)
+            with self.assertRaises(self.mod.ErrorMCP) as ctx:
+                self.mod.apply(ops, cfg)
+        mensaje = str(ctx.exception)
+        self.assertNotIn("\x1b", mensaje)
+        self.assertLess(len(mensaje), 1200)  # 30 fallos x ~250 chars crudos = ~7 500 sin tope
+        self.assertIn("30 operacion(es) fallaron", mensaje)
+
+    # -- #73 (Important): cambio de `group_id` ------------------------------------------------
+
+    def test_fix4_gap73_cambio_de_group_id_replantea_todo_como_upsert(self):
+        """Mutante #73a: `plan()` comparaba contra `manifest["entradas"]` sin mirar
+        `manifest["group_id"]`, asi que cambiar de grupo dejaba la sincronizacion en no-op y el
+        grupo nuevo VACIO."""
+        cfg = self._cfg("http://127.0.0.1:1")
+        entrada = _entrada()
+        hash_ = hashlib.sha256(entrada["cuerpo"].encode("utf-8")).hexdigest()
+        self.mod._escribir_manifest(cfg, {"group_id": "grupo-viejo", "entradas": {
+            entrada["id"]: {"version": 1, "hash": hash_, "uuid": "u1"}}})
+        ops = self.mod.plan([entrada], cfg)  # cfg.group_id = "proy-test" != "grupo-viejo"
+        self.assertEqual([o["tipo"] for o in ops], ["upsert"])
+
+    def test_fix4_gap73_cambio_de_group_id_archiva_el_manifiesto_viejo_y_avisa(self):
+        """Mutante #73b: el manifiesto del grupo viejo se sobrescribia conservando sus `uuid`, asi
+        que sus episodios quedaban sin rastro local (irrevocables salvo a mano)."""
+        with _ServidorMCPContext() as srv:
+            cfg = self._cfg(srv.endpoint)
+            entrada = _entrada()
+            hash_ = hashlib.sha256(entrada["cuerpo"].encode("utf-8")).hexdigest()
+            self.mod._escribir_manifest(cfg, {"group_id": "grupo-viejo", "entradas": {
+                entrada["id"]: {"version": 1, "hash": hash_, "uuid": "u1"}}})
+            resultado = self.mod.apply(self.mod.plan([entrada], cfg), cfg)
+            manifest, _ = self.mod._leer_manifest(cfg)
+        self.assertEqual(manifest["group_id"], "proy-test")
+        self.assertTrue(any("grupo-viejo" in a for a in resultado.get("avisos") or []))
+        archivado = os.path.join(self.tmp, ".claude", "knowledge-services",
+                                 "graphiti-manifest.grupo-viejo.json")
+        self.assertTrue(os.path.isfile(archivado))
+        with open(archivado, encoding="utf-8") as f:
+            self.assertIn(entrada["id"], json.load(f)["entradas"])
+
+    # -- #74 (Important): los dos mutantes vivos de #34 (N3a y N4) -----------------------------
+
+    def test_fix4_gap74_redireccion_302_no_se_sigue_ni_repostea_el_cuerpo(self):
+        """Mutante N3a (`graphiti.py:369`): permitir 301/302/303 ademas de 307/308 hace que el
+        cuerpo COMPLETO del episodio se re-POSTee al destino de la redireccion. El destino de
+        este test cuenta las peticiones que recibe: con el mutante recibe una."""
+        recibidas = []
+
+        class _Destino(BaseHTTPRequestHandler):
+            def do_POST(self):  # noqa: N802
+                largo = int(self.headers.get("Content-Length", 0))
+                recibidas.append(self.rfile.read(largo) if largo else b"")
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"jsonrpc": "2.0", "id": 1, "result": {}}).encode())
+
+            def log_message(self, *a, **k):
+                pass
+
+        destino = HTTPServer(("127.0.0.1", 0), _Destino)
+        threading.Thread(target=destino.serve_forever, daemon=True).start()
+        url_destino = f"http://127.0.0.1:{destino.server_address[1]}/mcp"
+
+        class _Origen(BaseHTTPRequestHandler):
+            def do_POST(self):  # noqa: N802
+                largo = int(self.headers.get("Content-Length", 0))
+                self.rfile.read(largo) if largo else None
+                self.send_response(302)
+                self.send_header("Location", url_destino)
+                self.end_headers()
+
+            def log_message(self, *a, **k):
+                pass
+
+        origen = HTTPServer(("127.0.0.1", 0), _Origen)
+        threading.Thread(target=origen.serve_forever, daemon=True).start()
+        try:
+            cliente = self.mod.ClienteMCP(f"http://127.0.0.1:{origen.server_address[1]}", timeout_s=2.0)
+            with self.assertRaises(self.mod.ErrorMCP) as ctx:
+                cliente.initialize()
+        finally:
+            origen.shutdown(); origen.server_close()
+            destino.shutdown(); destino.server_close()
+        self.assertIn("302", str(ctx.exception))
+        self.assertEqual(recibidas, [])  # el cuerpo NUNCA llego al destino de la redireccion
+
+    def test_fix4_gap74_host_que_resuelve_a_ips_mixtas_se_rechaza_entero(self):
+        """Mutante N4 (`graphiti.py:219`): `all(...)` -> `any(...)` sobre las IPs resueltas deja
+        pasar un host que resuelve a una IP privada Y a una publica (DNS rebinding parcial)."""
+        self.mod._dns_cache["mixto.test"] = (["127.0.0.1", "8.8.8.8"], time.time() + 300)
+        try:
+            self.assertFalse(self.mod._host_permitido("http://mixto.test:8000/mcp", False))
+            self.assertIsNone(self.mod._validar_host("http://mixto.test:8000/mcp", False))
+        finally:
+            self.mod._dns_cache.pop("mixto.test", None)
+
+    # -- #76 (Important): `result` partido en dos lineas `data:` -------------------------------
+
+    def test_fix4_gap76_sse_con_result_partido_en_dos_lineas_data_se_concatena(self):
+        """Mutante N-38 (`graphiti.py:425,431`): `eventos.append(actual[-1])` en vez de
+        `"\\n".join(actual)` se queda con la ULTIMA linea `data:` del evento, asi que un `result`
+        repartido en dos lineas (spec SSE) deja de parsearse."""
+        with _ServidorMCPContext(sse_partido=True) as srv:
+            cliente = self.mod.ClienteMCP(srv.endpoint, timeout_s=2.0)
+            resultado = cliente.initialize()
+        self.assertEqual(resultado["protocolVersion"], "2025-03-26")
+
+    # -- #78 (Minor): la sesion no cruza a otro puerto/esquema del mismo host -------------------
+
+    def test_fix4_gap78_redireccion_a_otro_puerto_del_mismo_host_no_reenvia_la_sesion(self):
+        """Mutante #78: comparar solo `hostname` (y contra el PRIMER salto) entrega el
+        `Mcp-Session-Id` a otro servicio del mismo host (`127.0.0.1:A` -> `127.0.0.1:B`). CWE-200."""
+        cabeceras_destino = []
+
+        class _Destino(BaseHTTPRequestHandler):
+            def do_POST(self):  # noqa: N802
+                largo = int(self.headers.get("Content-Length", 0))
+                crudo = self.rfile.read(largo) if largo else b"{}"
+                cabeceras_destino.append(self.headers.get("Mcp-Session-Id"))
+                id_ = json.loads(crudo.decode("utf-8")).get("id")
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"jsonrpc": "2.0", "id": id_, "result": {}}).encode())
+
+            def log_message(self, *a, **k):
+                pass
+
+        destino = HTTPServer(("127.0.0.1", 0), _Destino)
+        threading.Thread(target=destino.serve_forever, daemon=True).start()
+        url_destino = f"http://127.0.0.1:{destino.server_address[1]}/mcp"
+
+        class _Origen(BaseHTTPRequestHandler):
+            def do_POST(self):  # noqa: N802
+                largo = int(self.headers.get("Content-Length", 0))
+                self.rfile.read(largo) if largo else None
+                self.send_response(307)
+                self.send_header("Location", url_destino)
+                self.end_headers()
+
+            def log_message(self, *a, **k):
+                pass
+
+        origen = HTTPServer(("127.0.0.1", 0), _Origen)
+        threading.Thread(target=origen.serve_forever, daemon=True).start()
+        try:
+            cliente = self.mod.ClienteMCP(f"http://127.0.0.1:{origen.server_address[1]}", timeout_s=2.0)
+            cliente._session_id = "sesion-secreta"
+            cliente._peticion("tools/list")
+        finally:
+            origen.shutdown(); origen.server_close()
+            destino.shutdown(); destino.server_close()
+        self.assertEqual(cabeceras_destino, [None])
+
+    # -- #79 (Minor): la reconciliacion exige uuid coincidente si el servidor lo devuelve -------
+
+    def test_fix4_gap79_reconciliacion_rechaza_un_uuid_que_no_coincide(self):
+        """Mutante #79: confirmar solo por `name` deja que un servidor rogue "suprima" entradas
+        de forma permanente afirmando tener un episodio con el mismo nombre. CWE-345."""
+        def _get_episodes(_args):
+            return {"structuredContent": {"episodes": [
+                {"name": "mem.x@1", "uuid": "uuid-de-otro", "group_id": "proy-test"}]}}
+
+        with _ServidorMCPContext(respuestas_tools={"get_episodes": _get_episodes}) as srv:
+            cfg = self._cfg(srv.endpoint)
+            entradas = {"mem.x": {"version": 1, "hash": "h", "uuid": "uuid-bueno"}}
+            confirmadas, ok = self.mod._reconciliar_publicado(cfg, "proy-test", entradas)
+        self.assertTrue(ok)
+        self.assertEqual(confirmadas, {})
+
+    def test_fix4_gap79_reconciliacion_acepta_el_uuid_que_coincide(self):
+        def _get_episodes(_args):
+            return {"structuredContent": {"episodes": [
+                {"name": "mem.x@1", "uuid": "uuid-bueno", "group_id": "proy-test"}]}}
+
+        with _ServidorMCPContext(respuestas_tools={"get_episodes": _get_episodes}) as srv:
+            cfg = self._cfg(srv.endpoint)
+            entradas = {"mem.x": {"version": 1, "hash": "h", "uuid": "uuid-bueno"}}
+            confirmadas, ok = self.mod._reconciliar_publicado(cfg, "proy-test", entradas)
+        self.assertTrue(ok)
+        self.assertIn("mem.x", confirmadas)
+
+    # -- #80 (Minor): el truncado nunca se come la procedencia; `hash_enviado` va despues -------
+
+    def test_fix4_gap80_truncado_preserva_el_bloque_de_procedencia_entero(self):
+        """Mutante #80a: truncar `episode_body` ENTERO (cabecera incluida) con un tope pequeño y
+        un `source_path`/`id` largos dejaba el episodio sin `hash:` ni `--- contenido ---`."""
+        # `episode_body_max_kb` es entero (KiB): se barre la LONGITUD de la cabecera alrededor
+        # del tope. Con el truncado ciego, toda cabecera de mas de `tope - len(marcador)` bytes
+        # salia MUTILADA (sin `hash:`, sin `--- contenido ---`) y sin aviso de que el bloque de
+        # procedencia se habia perdido; ahora, o la cabecera esta ENTERA, o es un error declarado.
+        def _op(relleno):
+            return {"id": "mem." + "l" * 100, "version": 1, "hash": "h" * 64, "cuerpo": "C" * 5000,
+                    "category": "GOTCHA", "evidencia": "observation",
+                    "ruta": "docs/" + "r" * relleno, "modo": "completo", "resumen": None}
+
+        comprobadas = 0
+        for relleno in range(0, 1100, 7):
+            op = _op(relleno)
+            try:
+                episodio, aviso = self.mod._episodio_upsert(
+                    "proy-test", op, {"episode_body_max_kb": 1})
+            except self.mod.ErrorMCP:
+                continue  # la cabecera sola no cabe: error DECLARADO (nunca mutilada)
+            comprobadas += 1
+            self.assertIn("hash: " + "h" * 64, episodio["episode_body"], relleno)
+            self.assertIn(self.mod._DELIM_CONTENIDO, episodio["episode_body"], relleno)
+            self.assertTrue(aviso, relleno)  # el cuerpo (5 000 B) siempre excede 1 KiB
+            self.assertLessEqual(len(episodio["episode_body"].encode("utf-8")), 1024, relleno)
+        self.assertGreater(comprobadas, 50)
+
+    def test_fix4_gap80_cabecera_sola_mayor_que_el_tope_es_error_declarado(self):
+        op = {"id": "mem." + "l" * 3000, "version": 1, "hash": "h" * 64, "cuerpo": "C",
+              "category": "GOTCHA", "evidencia": "observation", "ruta": "docs/x.md",
+              "modo": "completo", "resumen": None}
+        with self.assertRaises(self.mod.ErrorMCP):
+            self.mod._episodio_upsert("proy-test", op, {"episode_body_max_kb": 1})
+
+    def test_fix4_gap80_hash_enviado_es_el_de_lo_que_de_verdad_viaja(self):
+        """Mutante #80b: `hash_enviado` se calculaba ANTES de truncar, contra su propio docstring
+        ("el hash de lo que REALMENTE viaja al servidor")."""
+        cuerpo = "C" * 5000
+        op = {"id": "mem.x", "version": 1, "hash": "h" * 64, "cuerpo": cuerpo,
+              "category": "GOTCHA", "evidencia": "observation", "ruta": "docs/x.md",
+              "modo": "completo", "resumen": None}
+        episodio, aviso = self.mod._episodio_upsert("proy-test", op, {"episode_body_max_kb": 1})
+        self.assertTrue(aviso)
+        self.assertNotEqual(episodio["hash_enviado"],
+                            hashlib.sha256(cuerpo.encode("utf-8")).hexdigest())
+        # sin truncado, `hash_enviado` sigue siendo el hash del cuerpo entero
+        op_corta = dict(op, cuerpo="corto")
+        episodio2, aviso2 = self.mod._episodio_upsert("proy-test", op_corta, {})
+        self.assertIsNone(aviso2)
+        self.assertEqual(episodio2["hash_enviado"],
+                         hashlib.sha256("corto".encode("utf-8")).hexdigest())
+
+    # -- #81 (Minor): temporal UNICO para el manifiesto ----------------------------------------
+
+    def test_fix4_gap81_escribir_manifest_no_usa_un_temporal_de_nombre_fijo(self):
+        """Mutante #81: con `<ruta>.tmp` fijo, dos `knowledge-sync` concurrentes compiten. Aqui se
+        OCUPA ese nombre fijo con un directorio: con el temporal fijo, `open()` revienta."""
+        cfg = self._cfg("http://127.0.0.1:1")
+        directorio = self.mod._manifest_dir(cfg)
+        os.makedirs(directorio, exist_ok=True)
+        os.makedirs(self.mod._manifest_path(cfg) + ".tmp", exist_ok=True)
+        ruta = self.mod._escribir_manifest(cfg, {"group_id": "proy-test", "entradas": {}})
+        self.assertTrue(os.path.isfile(ruta))
+
+    # -- #82 (Minor): `rebuild` marca el `.pending` ANTES de `clear_graph` ----------------------
+
+    def test_fix4_gap82_rebuild_marca_el_pending_antes_de_clear_graph(self):
+        """Mutante #82: `clear_graph` ANTES de vaciar el manifiesto — si el borrado ocurre y la
+        lectura falla, el grafo queda vacio y el manifiesto afirma que todo esta publicado."""
+        estado = {}
+
+        def _clear_graph(_args):
+            estado["pending_existia"] = os.path.isfile(
+                os.path.join(self.tmp, ".claude", "knowledge-services",
+                             "graphiti-manifest.pending.json"))
+            return {"structuredContent": {"ok": True}}
+
+        with _ServidorMCPContext(respuestas_tools={"clear_graph": _clear_graph}) as srv:
+            cfg = self._cfg(srv.endpoint)
+            self.mod.rebuild([_entrada()], cfg)
+        self.assertTrue(estado.get("pending_existia"))
+
+    # -- #83 (Minor D): presupuesto de tiempo COMPARTIDO entre candidatas IP --------------------
+
+    def test_fix4_gap83_el_presupuesto_de_tiempo_no_se_multiplica_por_candidata(self):
+        """Mutante #83a: `restante` integro por candidata (`graphiti.py:352-364`) multiplica el
+        `timeout_ms` por el numero de IPs y de saltos (`localhost` dual-stack = 2x)."""
+        import unittest.mock as mock
+        timeouts = []
+
+        mod = self.mod
+
+        arranque = time.monotonic()
+
+        class _OpenerFalso:
+            def open(self, req, timeout=None):
+                timeouts.append((timeout, time.monotonic() - arranque))
+                time.sleep(0.3)  # esta candidata CONSUME presupuesto antes de fallar
+                raise mod.urllib.error.URLError("sin ruta")
+
+        self.mod._dns_cache["dual.test"] = (["127.0.0.1", "10.0.0.7", "192.168.5.5"],
+                                             time.time() + 300)
+        try:
+            with mock.patch.object(self.mod.urllib.request, "build_opener",
+                                   return_value=_OpenerFalso()):
+                with self.assertRaises(Exception):
+                    self.mod._post_json("http://dual.test:8000/mcp", {"jsonrpc": "2.0", "id": 1},
+                                        {}, 2.0, False)
+        finally:
+            self.mod._dns_cache.pop("dual.test", None)
+        self.assertEqual(len(timeouts), 3)
+        # Presupuesto COMPARTIDO: ninguna candidata puede terminar MAS ALLA del deadline global
+        # (con el mutante, la tercera arrancaba en t=0,6 s con 2,0 s por delante: 2,6 s > 2,0 s).
+        for tope, transcurrido in timeouts:
+            self.assertLessEqual(tope + transcurrido, 2.05, timeouts)
+
+    def test_fix4_gap83_health_endpoint_tambien_comparte_el_presupuesto(self):
+        """Mutante #83b: `_get_health_endpoint` no llevaba deadline ninguno entre candidatas ni
+        entre saltos, asi que `/doctor` podia gastar hasta 6,4 s con un `timeout_ms: 3000`."""
+        import unittest.mock as mock
+        timeouts = []
+        mod = self.mod
+
+        arranque = time.monotonic()
+
+        class _OpenerFalso:
+            def open(self, req, timeout=None):
+                timeouts.append((timeout, time.monotonic() - arranque))
+                time.sleep(0.3)
+                raise mod.urllib.error.URLError("sin ruta")
+
+        self.mod._dns_cache["dual2.test"] = (["127.0.0.1", "10.0.0.7"], time.time() + 300)
+        try:
+            with mock.patch.object(self.mod.urllib.request, "build_opener",
+                                   return_value=_OpenerFalso()):
+                veredicto = self.mod._get_health_endpoint("http://dual2.test:8000/health", 1.0, False)
+        finally:
+            self.mod._dns_cache.pop("dual2.test", None)
+        self.assertEqual(veredicto["estado"], "off")
+        self.assertEqual(len(timeouts), 2)
+        for tope, transcurrido in timeouts:
+            self.assertLessEqual(tope + transcurrido, 1.05, timeouts)
+
+    # -- #84 (Minor D): orden ESTABLE, solo por familia ----------------------------------------
+
+    def test_fix4_gap84_orden_de_direcciones_es_estable_dentro_de_cada_familia(self):
+        """Mutante #84: ordenar por `(familia, cadena)` reordena dentro de la familia por texto y
+        tira la preferencia RFC 6724 que ya trae `getaddrinfo`."""
+        entrada = ["192.168.1.9", "10.0.0.1", "::1", "fd00::2"]
+        self.assertEqual(self.mod._direcciones_ipv4_primero(entrada),
+                         ["192.168.1.9", "10.0.0.1", "::1", "fd00::2"])
+
+    # -- #88 (Minor): `episode_body_max_kb` entero estricto, como el esquema --------------------
+
+    def test_fix4_gap88_episode_body_max_kb_float_se_ignora_como_en_el_esquema(self):
+        """Mutante #88: aceptar `float` aqui mientras el esquema exige entero (`isinstance(valor,
+        (int, float))`) deja que una config RECHAZADA por el validador cambie el comportamiento
+        del adaptador si se cuela por otra via."""
+        self.assertEqual(self.mod._tope_episode_body_bytes({"episode_body_max_kb": 1.5}),
+                         self.mod._EPISODE_BODY_MAX_KB_DEFAULT * 1024)
+        self.assertEqual(self.mod._tope_episode_body_bytes({"episode_body_max_kb": 2}), 2 * 1024)
+        self.assertEqual(self.mod._tope_episode_body_bytes({"episode_body_max_kb": True}),
+                         self.mod._EPISODE_BODY_MAX_KB_DEFAULT * 1024)
 
 
 if __name__ == "__main__":

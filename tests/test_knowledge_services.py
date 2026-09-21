@@ -1263,13 +1263,17 @@ def test_propose_config_backend_graphiti_imprime_propuesta_sin_aplicar_nada(tmp_
                                             "graphiti-manifest.json"))
 
 
-def test_propose_config_rechaza_backend_no_graphiti(tmp_path, capsys):
+def test_propose_config_en_un_backend_que_no_la_define_lo_dice_sin_nombrarlo(tmp_path, capsys):
+    """Gap #77 (fix4): el nucleo ya no corta con `if tipo != "<un backend>"` -eso rompia el
+    invariante «el nucleo no nombra ningun backend» (`improvement-plan.md:17`, CA-12)-: pregunta
+    al ADAPTADOR por la funcion opcional `proponer_config` y, si no la define, lo dice."""
     root = str(tmp_path)
     _taxonomy(root, _categorias_base(),
               backends={"testx": {"type": "test", "enabled": True, "config": {}}})
-    rc = ks_sync.main(["--backend", "testx", "--root", root, "--propose-config"])
+    rc = ks_sync.main(["--backend", "testx", "--root", root, "--propose-config",
+                       "--backends-dir", FIXTURES_BACKENDS])
     assert rc == 2
-    assert "solo aplica a backends" in capsys.readouterr().err
+    assert "no propone configuraci" in capsys.readouterr().err
 
 
 def test_propose_config_alcanzable_con_enabled_false(tmp_path, capsys):

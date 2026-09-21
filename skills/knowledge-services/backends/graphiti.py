@@ -39,6 +39,7 @@ import os
 import re
 import socket
 import sys
+import tempfile
 import threading
 import time
 import urllib.error
@@ -162,23 +163,45 @@ def _direcciones_de_host(host, timeout_s=_DNS_TIMEOUT_S, cachear=True):
     return _resolver_host_cacheado(host, timeout_s)
 
 
+# --8<-- direccion prohibida siempre COMPARTIDO (graphiti-memory T-04-fix4, gaps #71/#75) - REPLICADO LITERAL en skills/knowledge-services/backends/graphiti.py y agent-kits/shared/knowledge-schema.py
 def _normalizar_ip(ip):
-    """Gap #53 (Critical): un literal IPv4-mapeado en IPv6 (`::ffff:169.254.169.254`,
-    `::ffff:0.0.0.0`, `::ffff:8.8.8.8`) NO es `is_link_local`/`is_unspecified`/`is_private` a
-    ojos de `ipaddress.IPv6Address` -esos atributos solo miran el prefijo IPv6 nativo-, así que
-    se clasificaba como IPv6 "normal" y podía saltarse la lista de bloqueo del propio metadata
-    endpoint de nube. Se normaliza SIEMPRE a la dirección IPv4 equivalente antes de clasificar."""
+    """Desenvuelve las formas de TRANSICION IPv6 -> IPv4 antes de clasificar una direccion:
+    IPv4-mapeada (`::ffff:169.254.169.254`, gap #53), 6to4 (`2002::/16`, gap #71) y Teredo
+    (`2001:0::/32`, gap #71; se toma la direccion del CLIENTE, que es la que de verdad se
+    contacta). CPython clasifica esas tres formas mirando SOLO el prefijo IPv6 nativo, asi que
+    sin desenvolverlas un `2002:a9fe:a9fe::1` (= el endpoint de metadatos `169.254.169.254`) es
+    `is_private=True` y se cuela por el guardarrail de red (CWE-918)."""
     mapeada = getattr(ip, "ipv4_mapped", None)
-    return mapeada if mapeada is not None else ip
+    if mapeada is not None:
+        return mapeada
+    seis_a_cuatro = getattr(ip, "sixtofour", None)
+    if seis_a_cuatro is not None:
+        return seis_a_cuatro
+    teredo = getattr(ip, "teredo", None)
+    if teredo is not None:
+        return teredo[1]
+    return ip
+
+
+def _es_transicion_ipv6(ip):
+    """True si `ip` es 6to4 o Teredo. Ninguna de las dos es nunca un endpoint local legitimo de
+    este proyecto (el invariante es `localhost`/red privada), y las dos las clasifica CPython
+    como privadas por su prefijo: se rechazan como clase, no solo cuando lo que envuelven es una
+    direccion prohibida."""
+    return getattr(ip, "sixtofour", None) is not None or getattr(ip, "teredo", None) is not None
 
 
 def _direccion_prohibida_siempre(ip):
-    """Link-local (`169.254.0.0/16`, `fe80::/10`, típico endpoint de metadatos de nube) y
-    no-especificada (`0.0.0.0`, `::`) se rechazan SIEMPRE, incluso con `allow_remote: true` (gap
-    #34c): `allow_remote` autoriza salir a redes remotas, no a la red de metadatos del propio
-    host ni a direcciones sin sentido como destino de conexión."""
+    """Link-local (`169.254.0.0/16`, `fe80::/10`, tipico endpoint de metadatos de nube), no
+    especificada (`0.0.0.0`, `::`) y prefijos de transicion IPv6 (6to4/Teredo) se rechazan
+    SIEMPRE, incluso con `allow_remote: true` (gaps #34c y #71): `allow_remote` autoriza salir a
+    redes remotas, no a la red de metadatos del propio host ni a direcciones sin sentido como
+    destino de conexion."""
+    if _es_transicion_ipv6(ip):
+        return True
     ip = _normalizar_ip(ip)
     return bool(ip.is_link_local or ip.is_unspecified)
+# --8<-- fin direccion prohibida siempre COMPARTIDO
 
 
 def _direccion_permitida(ip, allow_remote):
@@ -213,11 +236,15 @@ def _validar_host(url, allow_remote):
     ips = []
     for direccion in direcciones:
         try:
-            ips.append(_normalizar_ip(ipaddress.ip_address(direccion)))
+            ip = ipaddress.ip_address(direccion)
         except ValueError:
             return None
-    if not all(_direccion_permitida(ip, allow_remote) for ip in ips):
-        return None
+        # Gap #71: la AUTORIZACION se decide sobre la direccion TAL CUAL (para que
+        # `_direccion_prohibida_siempre` pueda ver que es 6to4/Teredo); lo que se devuelve para
+        # conectar es la forma ya normalizada (IPv4 equivalente cuando la hay, gap #53).
+        if not _direccion_permitida(ip, allow_remote):
+            return None
+        ips.append(_normalizar_ip(ip))
     return [str(ip) for ip in ips]
 
 
@@ -234,12 +261,15 @@ def _direcciones_ipv4_primero(direcciones_validas):
     `localhost` puede resolver `['::1', '127.0.0.1']` con la IPv6 primero aunque el servidor
     real solo escuche en IPv4, así que la conexión fallaba con la pila real disponible en la
     IP siguiente de la misma lista ya validada."""
-    def _clave(ip):
+    def _familia(ip):
+        # Gap #84 (Minor D): la clave es SOLO la familia -`sorted` es estable, asi que dentro de
+        # cada familia se conserva el orden que dio `getaddrinfo` (preferencia RFC 6724). Con
+        # `(familia, cadena)` se reordenaba por texto y esa preferencia se tiraba a la basura.
         try:
-            return (0, ip) if ipaddress.ip_address(ip).version == 4 else (1, ip)
+            return 0 if ipaddress.ip_address(ip).version == 4 else 1
         except ValueError:
-            return (2, ip)
-    return sorted(direcciones_validas, key=_clave)
+            return 2
+    return sorted(direcciones_validas, key=_familia)
 
 
 def _conectar_por_ip_si_http(url, direcciones_validas):
@@ -340,22 +370,37 @@ def _post_json(url, payload, cabeceras, timeout_s, allow_remote):
     cuerpo = json.dumps(payload).encode("utf-8")
     url_actual = url
     cabeceras_actuales = dict(cabeceras)
-    try:
-        host_original = urllib.parse.urlsplit(url).hostname
-    except ValueError:
-        host_original = None
+    def _origen(u):
+        """Gap #78 (Minor, CWE-200): la identidad de un salto es `(esquema, host, puerto)`, no
+        solo el hostname — `127.0.0.1:A` y `127.0.0.1:B` son servicios DISTINTOS y la sesion MCP
+        no debe cruzar de uno a otro (ni de `https` a `http`)."""
+        try:
+            partes_u = urllib.parse.urlsplit(u)
+        except ValueError:
+            return None
+        return (partes_u.scheme, partes_u.hostname, partes_u.port)
+
+    origen_actual = _origen(url)
     deadline = time.monotonic() + timeout_s
     for _ in range(_MAX_REDIRECCIONES + 1):
         direcciones = _validar_host(url_actual, allow_remote)
         if direcciones is None:
             raise HostNoPermitido(_sanear_url_para_mensaje(url_actual))
-        restante = deadline - time.monotonic()
-        if restante <= 0:
-            raise TimeoutError(f"timeout MCP agotado contra {_sanear_url_para_mensaje(url_actual)}")
         candidatos = _conectar_por_ip_si_http(url_actual, direcciones)
         redireccion_pendiente = None
         error_conexion = None
         for indice, (url_conexion, host_cabecera) in enumerate(candidatos):
+            # Gap #83 (Minor D): el presupuesto es COMPARTIDO -lo que QUEDA se recalcula antes
+            # de CADA candidata y de cada salto, y se REPARTE entre las candidatas que faltan-.
+            # Antes se calculaba una sola vez por salto y cada IP recibia el tope entero otra
+            # vez, asi que `timeout_ms: 3000` con `localhost` dual-stack costaba hasta 6 s. El
+            # reparto conserva el fallback del gap #52: una primera IP que se cuelga no puede
+            # quedarse con TODO el presupuesto y dejar sin intento a las ya validadas que faltan.
+            restante = deadline - time.monotonic()
+            if restante <= 0:
+                raise TimeoutError(
+                    f"timeout MCP agotado contra {_sanear_url_para_mensaje(url_actual)}")
+            restante = restante / (len(candidatos) - indice)
             req = urllib.request.Request(
                 url_conexion, data=cuerpo, headers=cabeceras_actuales, method="POST")
             if host_cabecera:
@@ -382,12 +427,12 @@ def _post_json(url, payload, cabeceras, timeout_s, allow_remote):
                 continue
         if redireccion_pendiente is not None:
             nueva_url = urllib.parse.urljoin(url_actual, redireccion_pendiente)
-            try:
-                host_nuevo = urllib.parse.urlsplit(nueva_url).hostname
-            except ValueError:
-                host_nuevo = None
-            if host_nuevo != host_original:
+            origen_nuevo = _origen(nueva_url)
+            # Gap #78: se compara contra el salto ANTERIOR (no contra el primero) y por la terna
+            # completa: cualquier cambio de esquema, host o puerto tira la cabecera de sesion.
+            if origen_nuevo is None or origen_nuevo != origen_actual:
                 cabeceras_actuales.pop("Mcp-Session-Id", None)
+            origen_actual = origen_nuevo
             url_actual = nueva_url
             continue
         if error_conexion is not None:
@@ -395,7 +440,41 @@ def _post_json(url, payload, cabeceras, timeout_s, allow_remote):
     raise ErrorMCP(f"demasiadas redirecciones ({_MAX_REDIRECCIONES}) siguiendo {_sanear_url_para_mensaje(url)}")
 
 
-def _leer_respuesta_mcp(resp, id_esperado=None):
+_MAX_RESPUESTA_KB_DEFAULT = 8192  # gap #70: tope duro de lectura de UNA respuesta MCP (8 MiB)
+_TROZO_LECTURA_BYTES = 64 * 1024
+
+
+def _max_respuesta_bytes(cfg):
+    """`max_respuesta_kb` (entero > 0, KiB); valor invalido o ausente -> el default (gap #70).
+    Mismo criterio de tipo ESTRICTO que el esquema (gap #88): un `float` no es un entero."""
+    valor = (cfg or {}).get("max_respuesta_kb", _MAX_RESPUESTA_KB_DEFAULT)
+    if isinstance(valor, bool) or not isinstance(valor, int) or valor <= 0:
+        valor = _MAX_RESPUESTA_KB_DEFAULT
+    return valor * 1024
+
+
+def _leer_cuerpo_acotado(resp, max_bytes):
+    """Gap #70 (Important): la lectura de una respuesta MCP va POR TROZOS y con tope duro — antes
+    era un `resp.read()` sin limite en TODAS las llamadas (a diferencia de `health.url`, capado
+    en #58): 120 MB anunciados = 240 MB de pico, y un stream infinito daba `MemoryError`, que no
+    estaba en los `except` de `health()` (que por contrato NUNCA lanza). Exceder el tope es un
+    `ErrorMCP` explicito, nunca un `MemoryError`."""
+    trozos = []
+    total = 0
+    while True:
+        trozo = resp.read(_TROZO_LECTURA_BYTES)
+        if not trozo:
+            break
+        total += len(trozo)
+        if total > max_bytes:
+            raise ErrorMCP(
+                f"respuesta MCP mayor que el tope de lectura ({max_bytes} bytes, "
+                f"`max_respuesta_kb`): se corta la lectura")
+        trozos.append(trozo)
+    return b"".join(trozos)
+
+
+def _leer_respuesta_mcp(resp, id_esperado=None, max_bytes=None):
     """Las respuestas MCP llegan como `application/json` o como `text/event-stream` (SSE, lineas
     `data: <json>`); se devuelve `(cuerpo_parseado_o_None, session_id_o_None)`.
 
@@ -412,7 +491,9 @@ def _leer_respuesta_mcp(resp, id_esperado=None):
     llamador -`_peticion`- ya lo trata como `ErrorMCP`: "respuesta vacia")."""
     tipo = (resp.headers.get_content_type() if hasattr(resp.headers, "get_content_type")
             else resp.headers.get("Content-Type", ""))
-    crudo = resp.read().decode("utf-8", errors="replace")
+    crudo = _leer_cuerpo_acotado(
+        resp, max_bytes if max_bytes is not None else _MAX_RESPUESTA_KB_DEFAULT * 1024
+    ).decode("utf-8", errors="replace")
     session_id = resp.headers.get("Mcp-Session-Id")
     if "text/event-stream" in (tipo or ""):
         # Un evento SSE puede traer el JSON partido en VARIAS lineas `data:` (se concatenan con
@@ -462,12 +543,15 @@ class ClienteMCP:
     `tools/call`, con `Mcp-Session-Id` capturado del handshake y reenviado en toda llamada
     posterior."""
 
-    def __init__(self, endpoint, timeout_s=3.0, allow_remote=False):
+    def __init__(self, endpoint, timeout_s=3.0, allow_remote=False, max_respuesta_bytes=None):
         self._url = _url_mcp(endpoint)
         self._timeout_s = timeout_s
         self._allow_remote = allow_remote
         self._session_id = None
         self._siguiente_id = 1
+        # gap #70: tope duro de lectura por respuesta (`config.max_respuesta_kb`)
+        self._max_respuesta_bytes = (max_respuesta_bytes if max_respuesta_bytes
+                                      else _MAX_RESPUESTA_KB_DEFAULT * 1024)
 
     def _cabeceras(self):
         cabeceras = {
@@ -496,7 +580,8 @@ class ClienteMCP:
             # Gap #51: se pasa el `id` de la propia peticion (None para notificaciones) para que
             # el lector SSE descarte cualquier `notifications/progress` intercalada y solo tome
             # el evento que responde a ESTA llamada.
-            cuerpo, session_id = _leer_respuesta_mcp(resp, id_esperado=payload.get("id"))
+            cuerpo, session_id = _leer_respuesta_mcp(
+                resp, id_esperado=payload.get("id"), max_bytes=self._max_respuesta_bytes)
         finally:
             resp.close()
         if session_id:
@@ -518,7 +603,11 @@ class ClienteMCP:
         if not isinstance(cuerpo, dict):
             raise ErrorMCP(f"respuesta de `{metodo}` no es un objeto JSON-RPC valido")
         if "error" in cuerpo:
-            raise ErrorMCP(f"MCP `{metodo}` -> {cuerpo['error']}")
+            # Gap #72 (Important, CWE-117): el `error` viene del SERVIDOR (texto no confiable:
+            # secuencias ANSI que borran la pantalla, CRLF que falsifican una linea de log, miles
+            # de caracteres) y acababa interpolado CRUDO en stderr y en la `causa` de la
+            # dead-letter. Se sanea igual que el resto de texto de red.
+            raise ErrorMCP(f"MCP `{metodo}` -> {_sanear_detalle(cuerpo['error'])}")
         if "result" not in cuerpo:
             raise ErrorMCP(f"respuesta de `{metodo}` sin `result` ni `error`")
         return cuerpo.get("result")
@@ -587,12 +676,16 @@ def _timeout_s(cfg, clave="timeout_ms", default_ms=3000):
 _MAX_LECTURA_HEALTH_BYTES = 64 * 1024  # gap #58: tope duro de lectura, ver mas abajo
 
 
-def _get_health_endpoint(url, timeout_s, allow_remote, _saltos=0):
+def _get_health_endpoint(url, timeout_s, allow_remote, _saltos=0, _deadline=None):
     """GET simple contra `health.url` (endpoint de liveness separado del protocolo MCP, si el
     proyecto lo declara); sigue como maximo `_MAX_REDIRECCIONES` saltos, SOLO 307/308 (gap #34d,
     mismo criterio que `_post_json`: 301/302/303 no se siguen, se informan como error), revalidando
     `_validar_host` en cada salto y conectando por IP validada si el esquema es `http` (gap #52:
     prueba TODAS las IPs ya validadas, IPv4 primero, no solo la primera de la lista)."""
+    # Gap #83 (Minor D): presupuesto de tiempo COMPARTIDO entre candidatas IP y entre saltos de
+    # redireccion (antes, cada candidata y cada salto recibian `timeout_s` entero: `/doctor`
+    # podia gastar 6,4 s con `timeout_ms: 3000`).
+    deadline = _deadline if _deadline is not None else time.monotonic() + timeout_s
     direcciones = _validar_host(url, allow_remote)
     if direcciones is None:
         return {"estado": "error", "detalle": f"host no local/privado, rechazado: {_sanear_url_para_mensaje(url)}"}
@@ -601,22 +694,28 @@ def _get_health_endpoint(url, timeout_s, allow_remote, _saltos=0):
     cuerpo = None
     error_final = None
     for indice, (url_conexion, host_cabecera) in enumerate(candidatos):
+        restante = deadline - time.monotonic()
+        if restante <= 0:
+            return {"estado": "off",
+                    "detalle": f"timeout agotado contra {_sanear_url_para_mensaje(url)}"}
+        restante = restante / (len(candidatos) - indice)  # gap #83: reparto, ver `_post_json`
         req = urllib.request.Request(url_conexion, method="GET")
         if host_cabecera:
             req.add_unredirected_header("Host", host_cabecera)
         try:
-            with opener.open(req, timeout=timeout_s) as resp:
+            with opener.open(req, timeout=restante) as resp:
                 # Gap #58 (Important): el camino de EXITO leia `resp.read()` sin tope, a
                 # diferencia de los caminos de error de esta misma funcion -un endpoint de
                 # salud que devuelva un cuerpo enorme (o infinito) podia agotar memoria; se
                 # capa a `_MAX_LECTURA_HEALTH_BYTES` igual que hace `verify()` con las paginas.
-                cuerpo = resp.read(_MAX_LECTURA_HEALTH_BYTES + 1)
+                cuerpo = resp.read(_MAX_LECTURA_HEALTH_BYTES + 1)  # noqa: S conservado (#58)
             break
         except urllib.error.HTTPError as e:
             location = e.headers.get("Location") if e.headers else None
             if location and e.code in (307, 308) and _saltos < _MAX_REDIRECCIONES:
                 destino = urllib.parse.urljoin(url, location)
-                return _get_health_endpoint(destino, timeout_s, allow_remote, _saltos + 1)
+                return _get_health_endpoint(destino, timeout_s, allow_remote, _saltos + 1,
+                                            _deadline=deadline)
             if location and e.code not in (307, 308):
                 return {"estado": "error",
                         "detalle": f"redireccion HTTP {e.code} no soportada (solo 307/308) de "
@@ -666,6 +765,23 @@ def _aplicar_telemetria(cfg):
     os.environ["GRAPHITI_TELEMETRY_ENABLED"] = "true" if bool((cfg or {}).get("telemetria")) else "false"
 
 
+def proponer_config(taxonomy, cfg):
+    """Funcion OPCIONAL del contrato de adaptador (gap #77, Important): el NUCLEO
+    (`knowledge-sync.py --propose-config`) no conoce ningun backend concreto -invariante del plan
+    (`improvement-plan.md:17`) y de ADR-018/CA-12-, asi que pregunta al adaptador si sabe proponer
+    configuracion y, si la funcion existe, delega en ella. Aqui se delega a su vez en
+    `graphiti_model.proponer_config` (tipos de entidad por categoria) y se añade `texto`, el
+    render legible que el nucleo imprime tal cual cuando no se pide `--json`."""
+    propuesta = _gm.proponer_config(taxonomy, cfg or {})
+    texto = (
+        propuesta["entity_types_yaml"]
+        + "\n# entity_map propuesto para backends.<id>.config.entity_map:\n"
+        + json.dumps(propuesta["entity_map"], ensure_ascii=False, indent=2)
+        + "\n\n" + propuesta["nota"]
+    )
+    return {**propuesta, "texto": texto}
+
+
 def health(cfg):
     """Nunca lanza (contrato de adaptador, design.md): `health.url` (si esta declarada, GET
     simple) + `get_status` via MCP (`initialize` -> `tools/call get_status`)."""
@@ -698,7 +814,9 @@ def health(cfg):
     except (urllib.error.URLError, TimeoutError, socket.timeout, http.client.HTTPException, OSError) as e:
         return {"estado": "off",
                 "detalle": f"sin conexion a {_sanear_url_para_mensaje(endpoint)}: {type(e).__name__}: {_sanear_detalle(e)}"}
-    except (ErrorMCP, ValueError) as e:
+    except (ErrorMCP, ValueError, MemoryError) as e:
+        # Gap #70: `MemoryError` tambien se captura -una respuesta gigante no puede tumbar
+        # `health()`, que por contrato NUNCA lanza (y es lo que llama `/doctor`).
         return {"estado": "error", "detalle": f"{type(e).__name__}: {_sanear_detalle(e)}"}
 
     contenido = _contenido_tool_call(resultado) or {}
@@ -768,13 +886,25 @@ def _leer_manifest(cfg):
 
 
 def _escribir_manifest(cfg, datos, sufijo=""):
+    """Escritura atomica (`os.replace`) con temporal UNICO en el mismo directorio (gap #81: con
+    un `<ruta>.tmp` FIJO, dos `knowledge-sync` concurrentes competian por el mismo fichero —en
+    POSIX mezclando JSON, en Windows con un `PermissionError` fuera de todo `try`—; mismo patron
+    que `markdown_export.py`, que ya usaba `mkstemp`)."""
     directorio = _manifest_dir(cfg)
     os.makedirs(directorio, exist_ok=True)
     ruta = _manifest_path(cfg, sufijo)
-    tmp = ruta + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(datos, f, ensure_ascii=False, indent=2, sort_keys=True)
-    os.replace(tmp, ruta)
+    descriptor, tmp = tempfile.mkstemp(prefix=os.path.basename(ruta) + ".", suffix=".tmp",
+                                       dir=directorio)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as f:
+            json.dump(datos, f, ensure_ascii=False, indent=2, sort_keys=True)
+        os.replace(tmp, ruta)
+    except BaseException:
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
+        raise
     return ruta
 
 
@@ -796,7 +926,7 @@ def plan(entries, cfg, force=False):
     if not group_id:
         raise ConfigInvalida("`group_id` vacio: no se puede planificar sin un grupo estable")
     manifest, _pendiente = _leer_manifest(cfg)
-    objetivo = manifest.get("entradas") or {}
+    objetivo = _entradas_del_grupo(manifest, group_id)
     ops = []
     vistos = set()
     for entrada in sorted(entries, key=lambda e: e["id"]):
@@ -820,6 +950,23 @@ def plan(entries, cfg, force=False):
     return ops
 
 
+def _grupo_del_manifiesto(manifest):
+    grupo = (manifest or {}).get("group_id")
+    return grupo if isinstance(grupo, str) and grupo else None
+
+
+def _entradas_del_grupo(manifest, group_id):
+    """Gap #73 (Important): el manifiesto pertenece a UN `group_id`. Si el proyecto cambia
+    `group_id` en `taxonomy.json`, sus entradas NO describen el grupo nuevo (que esta vacio):
+    compararlas dejaba la sincronizacion en un no-op silencioso -grupo nuevo vacio para siempre-
+    y ademas conservaba los `uuid` del grupo viejo (un `SUPERSEDES` posterior habria apuntado a
+    otro grupo). Con grupo distinto, la base de comparacion es VACIA: todo `upsert`."""
+    grupo_previo = _grupo_del_manifiesto(manifest)
+    if grupo_previo is not None and group_id and grupo_previo != group_id:
+        return {}
+    return (manifest or {}).get("entradas") or {}
+
+
 _DELIM_PROVENIENCIA = "--- procedencia ---"
 _DELIM_CONTENIDO = "--- contenido ---"
 
@@ -838,10 +985,12 @@ _EPISODE_BODY_MAX_KB_DEFAULT = 512  # gap #64: tope por defecto si `episode_body
 
 def _tope_episode_body_bytes(cfg):
     """`episode_body_max_kb` (entero > 0, KiB); valor invalido o ausente -> el default."""
+    # Gap #88 (Minor): entero ESTRICTO, igual que el esquema (`integer`) -aceptar `float` aqui
+    # dejaba que una config RECHAZADA por el validador cambiara el comportamiento del adaptador.
     valor = (cfg or {}).get("episode_body_max_kb", _EPISODE_BODY_MAX_KB_DEFAULT)
-    if isinstance(valor, bool) or not isinstance(valor, (int, float)) or valor <= 0:
+    if isinstance(valor, bool) or not isinstance(valor, int) or valor <= 0:
         valor = _EPISODE_BODY_MAX_KB_DEFAULT
-    return int(valor * 1024)
+    return valor * 1024
 
 
 def _episodio_upsert(group_id, op, cfg=None):
@@ -859,7 +1008,6 @@ def _episodio_upsert(group_id, op, cfg=None):
     no un fallo de la operacion."""
     cfg = cfg or {}
     cuerpo_texto = op.get("resumen") if op.get("modo") == "resumen" and op.get("resumen") else op["cuerpo"]
-    hash_enviado = hashlib.sha256(cuerpo_texto.encode("utf-8")).hexdigest()
     categoria = op.get("category")
     entity_type = _gm.tipo_entidad(categoria, cfg)
     # Gap #42: bloque de procedencia DELIMITADO (nunca texto plano concatenado sin marca), con el
@@ -872,17 +1020,32 @@ def _episodio_upsert(group_id, op, cfg=None):
         f"{_DELIM_CONTENIDO}\n"
     )
     cuerpo_escapado = _escapar_delimitador(_escapar_delimitador(cuerpo_texto, _DELIM_PROVENIENCIA), _DELIM_CONTENIDO)
-    episode_body = proveniencia + cuerpo_escapado
     aviso = None
     tope = _tope_episode_body_bytes(cfg)
-    cuerpo_bytes = episode_body.encode("utf-8")
-    if len(cuerpo_bytes) > tope:
-        marcador = "\n[... episode_body truncado por episode_body_max_kb ...]"
-        recorte = tope - len(marcador.encode("utf-8"))
-        recorte = max(recorte, 0)
-        episode_body = cuerpo_bytes[:recorte].decode("utf-8", errors="ignore") + marcador
-        aviso = (f"episode_body de `{op['id']}@{op['version']}` truncado de {len(cuerpo_bytes)} a "
-                 f"{tope} bytes (episode_body_max_kb)")
+    # Gap #80 (Minor): se trunca SOLO el contenido -la cabecera de procedencia queda INTACTA-.
+    # Antes se truncaba el `episode_body` entero desde el principio, asi que con un tope pequeño
+    # y un `id`/`source_path` largos el episodio se quedaba sin `hash:` y sin el delimitador
+    # `--- contenido ---` (el docstring decia "siempre cabe", y no era verdad). Si la cabecera
+    # SOLA no cabe, es un error declarado, no un episodio mutilado.
+    marcador = "\n[... episode_body truncado por episode_body_max_kb ...]"
+    proveniencia_bytes = len(proveniencia.encode("utf-8"))
+    marcador_bytes = len(marcador.encode("utf-8"))
+    if proveniencia_bytes + marcador_bytes > tope:
+        raise ErrorMCP(
+            f"el bloque de procedencia de `{op['id']}@{op['version']}` ({proveniencia_bytes} bytes) "
+            f"no cabe en `episode_body_max_kb` ({tope} bytes): sube el tope o acorta `id`/`ruta`")
+    contenido_bytes = cuerpo_escapado.encode("utf-8")
+    if proveniencia_bytes + len(contenido_bytes) > tope:
+        recorte = tope - proveniencia_bytes - marcador_bytes
+        cuerpo_escapado = contenido_bytes[:max(recorte, 0)].decode("utf-8", errors="ignore") + marcador
+        aviso = (f"episode_body de `{op['id']}@{op['version']}` truncado de "
+                 f"{proveniencia_bytes + len(contenido_bytes)} a {tope} bytes "
+                 f"(episode_body_max_kb); el bloque de procedencia se preserva entero")
+    episode_body = proveniencia + cuerpo_escapado
+    # Gap #80 (b): `hash_enviado` es "el hash de lo que REALMENTE viaja al servidor", asi que se
+    # calcula DESPUES de truncar (antes se calculaba sobre el cuerpo completo, contra su propio
+    # docstring: dos truncados distintos del mismo cuerpo daban el mismo `hash_enviado`).
+    hash_enviado = hashlib.sha256(cuerpo_escapado.encode("utf-8")).hexdigest()
     return {
         "name": f"{op['id']}@{op['version']}",
         "episode_body": episode_body,
@@ -894,6 +1057,12 @@ def _episodio_upsert(group_id, op, cfg=None):
         "entity_type": entity_type,
         "hash_enviado": hash_enviado,
     }, aviso
+
+
+def _nombre_episodio(id_, version):
+    """Nombre del episodio tal y como viaja en `add_memory` (`<id>@<version>`): es el
+    `source_node_name`/`target_node_name` que `add_triplet` exige por contrato (gap #69)."""
+    return f"{id_}@{version}"
 
 
 def _aplicar_upsert(cliente, proveedor, provider_cfg, group_id, op, cfg=None, entrada_previa=None):
@@ -915,14 +1084,24 @@ def _aplicar_upsert(cliente, proveedor, provider_cfg, group_id, op, cfg=None, en
     cliente.tools_call("add_memory", episodio)
     if entrada_previa and entrada_previa.get("version") != op.get("version") and entrada_previa.get("uuid"):
         _tombstone_supersedes(cliente, group_id, op["id"], entrada_previa["uuid"], episodio["uuid"],
-                              f"{op['id']} superado por version {op.get('version')}")
+                              f"{op['id']} superado por version {op.get('version')}",
+                              nombre_anterior=_nombre_episodio(op["id"], entrada_previa.get("version")),
+                              nombre_nuevo=episodio.get("name") or _nombre_episodio(op["id"], op.get("version")))
     return episodio["uuid"], aviso_tope
 
 
-def _tombstone_supersedes(cliente, group_id, id_, uuid_anterior, uuid_nuevo, fact):
-    """Episodio tombstone de `uuid_anterior` + triplete `SUPERSEDES` (`uuid_nuevo` -> `uuid_anterior`,
-    campos `*_uuid`: gap #40, la tool espera `source_node_uuid`/`target_node_uuid`, no
-    `*_node_name`). NUNCA llama a `delete_episode` (design.md, enmienda 2026-09-18)."""
+def _tombstone_supersedes(cliente, group_id, id_, uuid_anterior, uuid_nuevo, fact,
+                          nombre_anterior=None, nombre_nuevo=None):
+    """Episodio tombstone de `uuid_anterior` + triplete `SUPERSEDES` (`uuid_nuevo` ->
+    `uuid_anterior`).
+
+    Gap #69 (Critical, fix4): el CONTRATO REAL de la tool (fixture capturado
+    `fixtures/graphiti/graphiti-mcp-tools-list-2026-09-18.json`) declara
+    `required: [source_node_name, edge_name, fact, target_node_name]` y deja los `*_uuid` como
+    OPCIONALES — el arbitraje de #40 ("usa `*_uuid`") era incompleto: hay que enviar nombre Y
+    uuid. Sin los nombres, el servidor real responde `isError` y TODO camino de
+    sucesion/invalidacion (CA-11) caia a `fallidos`/dead-letter. NUNCA llama a `delete_episode`
+    (design.md, enmienda 2026-09-18)."""
     tombstone_uuid = _uuid_tombstone(group_id, f"{id_}:{uuid_anterior}")
     cliente.tools_call("add_memory", {
         "name": f"{id_}@tombstone",
@@ -933,9 +1112,11 @@ def _tombstone_supersedes(cliente, group_id, id_, uuid_anterior, uuid_nuevo, fac
         "uuid": tombstone_uuid,
     })
     cliente.tools_call("add_triplet", {
+        "source_node_name": nombre_nuevo or _nombre_episodio(id_, "actual"),
         "source_node_uuid": uuid_nuevo,
         "edge_name": "SUPERSEDES",
         "fact": fact,
+        "target_node_name": nombre_anterior or _nombre_episodio(id_, "anterior"),
         "target_node_uuid": uuid_anterior,
         "group_id": group_id,
     })
@@ -958,14 +1139,15 @@ def _aplicar_revoke(cliente, group_id, entrada_previa, id_):
     })
     if entrada_previa.get("uuid"):
         cliente.tools_call("add_triplet", {
+            # Gap #56 (Important, mutante N6) + gap #69 (Critical, fix4): este camino -el de
+            # REVOKE- es DISTINTO del de version-superada y tambien enviaba solo los `*_uuid`.
+            # El contrato REAL de `add_triplet` exige los NOMBRES (`required` del fixture
+            # `tools/list`) y acepta los uuid como refuerzo: se envian los cuatro campos.
+            "source_node_name": f"{id_}@tombstone",
             "source_node_uuid": tombstone_uuid,
             "edge_name": "SUPERSEDES",
             "fact": f"{id_} invalidado",
-            # Gap #56 (Important, mutante N6): esta llamada usaba `target_node_name` -la tool
-            # `add_triplet` solo reconoce `target_node_uuid`- así que el triplete SUPERSEDES del
-            # camino de REVOKE nunca enlazaba con el episodio anterior (`_tombstone_supersedes`,
-            # el camino de version-superada, ya usaba el campo correcto; este es un camino
-            # DISTINTO y seguia roto).
+            "target_node_name": _nombre_episodio(id_, entrada_previa.get("version")),
             "target_node_uuid": entrada_previa["uuid"],
             "group_id": group_id,
         })
@@ -996,29 +1178,67 @@ def apply(ops, cfg):
     if not group_id:
         raise ConfigInvalida("`group_id` vacio: no se puede aplicar sin un grupo estable")
     manifest, _pendiente = _leer_manifest(cfg)
-    publicado = dict(manifest.get("entradas") or {})
+    avisos = []
+
+    # Gap #73 (Important): el manifiesto pertenece a UN `group_id`. Si cambio, su contenido no
+    # describe el grupo nuevo: se archiva para poder revocarlo a mano y la base queda vacia.
+    grupo_previo = _grupo_del_manifiesto(manifest)
+    if grupo_previo is not None and grupo_previo != group_id:
+        ruta_archivada = _archivar_manifest_de_otro_grupo(cfg, manifest, grupo_previo)
+        avisos.append(
+            f"`group_id` cambio de `{grupo_previo}` a `{group_id}`: la base de comparacion queda "
+            f"vacia (todo `upsert`) y el manifiesto anterior se conserva en "
+            f"`{os.path.basename(ruta_archivada)}` para revocacion manual")
+        _borrar_pending(cfg)
+        _pendiente = False
+        publicado = {}
+    else:
+        publicado = dict(manifest.get("entradas") or {})
+
+    # Gap #68 (Critical): la reconciliacion de #54 se hace SIEMPRE que haya `.pending` heredado
+    # -tambien con ops nuevas por delante-, nunca solo en la rama `if not ops`: con >= 1 op, la
+    # entrada fantasma se promovia a PUBLICADO con cero confirmaciones y, con hash/version
+    # coincidentes, `plan()` no la volvia a proponer jamas.
+    if _pendiente and publicado:
+        confirmadas, confirmacion_posible = _reconciliar_publicado(cfg, group_id, publicado)
+        if not confirmacion_posible:
+            # Gap #67 (Critical): si la reconciliacion NO puede confirmar (servidor caido,
+            # timeout, respuesta ilegible), no se toca nada -ni el `.pending` ni el publicado-.
+            # Antes se escribia el `{}` derivado del fallo como manifiesto PUBLICADO: "no se
+            # promueve nada" implementado como "se despublica todo" (episodios irrevocables en
+            # el grafo y sin rastro local).
+            avisos.append(
+                "no se pudo CONFIRMAR contra el servidor el `.pending` heredado: no se toca ni el "
+                "pendiente ni el manifiesto publicado; reintenta cuando el servidor responda")
+            return {"aplicados": 0, "revocados": 0, "pendiente_sin_confirmar": True,
+                    "avisos": avisos}
+        no_confirmadas = sorted(set(publicado) - set(confirmadas))
+        if no_confirmadas:
+            avisos.append(
+                "entradas del `.pending` heredado NO confirmadas por el servidor (se quitan del "
+                "manifiesto; `plan()` las volvera a proponer como `upsert`): "
+                + ", ".join(no_confirmadas))
+        publicado = confirmadas
 
     if not ops:
-        # Gap #54: si lo que se esta promoviendo viene de un `.pending` heredado (no del
-        # manifiesto ya publicado), se CONFIRMA contra el servidor antes de darlo por bueno —
-        # `plan()` no vio diferencias porque comparo contra este mismo `.pending`, no porque el
-        # servidor ya tuviera esas entradas.
-        if _pendiente:
-            publicado = _reconciliar_publicado(cfg, group_id, publicado)
         _escribir_manifest(cfg, {"group_id": group_id, "entradas": publicado})
         _borrar_pending(cfg)
-        return {"aplicados": 0, "revocados": 0}
+        resultado = {"aplicados": 0, "revocados": 0}
+        if avisos:
+            resultado["avisos"] = avisos
+        return resultado
 
     allow_remote = bool(cfg.get("allow_remote", False))
     timeout_s = _timeout_s(cfg)
     proveedor = _gp.resolver_proveedor(((cfg.get("provider") or {}).get("llm")) or "none")
     provider_cfg = cfg.get("provider") or {}
-    cliente = ClienteMCP(cfg.get("endpoint"), timeout_s=timeout_s, allow_remote=allow_remote)
+    cliente = ClienteMCP(cfg.get("endpoint"), timeout_s=timeout_s, allow_remote=allow_remote,
+                         max_respuesta_bytes=_max_respuesta_bytes(cfg))
     cliente.initialize()
 
     progreso = dict(publicado)  # se muta y se persiste tras CADA op con éxito, no al final
     _escribir_manifest(cfg, {"group_id": group_id, "entradas": progreso}, sufijo=".pending")
-    aplicados, revocados, fallidos, avisos = 0, 0, [], []
+    aplicados, revocados, fallidos = 0, 0, []
     for op in ops:
         try:
             if op["tipo"] == "upsert":
@@ -1044,7 +1264,7 @@ def apply(ops, cfg):
     if fallidos:
         raise ErrorMCP(
             f"{len(fallidos)} operacion(es) fallaron; publicacion parcial retenida en "
-            f"`graphiti-manifest.pending.json`: {fallidos}")
+            f"`graphiti-manifest.pending.json`: {_resumen_fallidos(fallidos)}")
 
     _escribir_manifest(cfg, {"group_id": group_id, "entradas": progreso})
     _borrar_pending(cfg)
@@ -1052,6 +1272,32 @@ def apply(ops, cfg):
     if avisos:  # gap #64: solo se añade la clave si hay algo que avisar (compatibilidad con
         resultado["avisos"] = avisos  # las comparaciones exactas de tests existentes)
     return resultado
+
+
+_MAX_FALLIDOS_EN_MENSAJE = 5
+_TOPE_RESUMEN_FALLIDOS_CHARS = 800
+
+
+def _resumen_fallidos(fallidos):
+    """Gap #72 (Important, CWE-117): el resumen de `fallidos` se concatenaba ENTERO y con el
+    texto del servidor tal cual dentro del mensaje de `ErrorMCP` -que `knowledge-sync.py` imprime
+    y persiste como `causa` en la dead-letter-. Se acota el numero de fallos citados, se sanea
+    cada causa y se capa el total."""
+    piezas = [f"{f.get('tipo')} `{f.get('id')}`: {_sanear_detalle(f.get('error'))}"
+              for f in fallidos[:_MAX_FALLIDOS_EN_MENSAJE]]
+    resumen = "; ".join(piezas)
+    if len(fallidos) > _MAX_FALLIDOS_EN_MENSAJE:
+        resumen += f"; ... y {len(fallidos) - _MAX_FALLIDOS_EN_MENSAJE} mas"
+    return resumen[:_TOPE_RESUMEN_FALLIDOS_CHARS]
+
+
+def _archivar_manifest_de_otro_grupo(cfg, manifest, grupo_previo):
+    """Gap #73: conserva el manifiesto del `group_id` ANTERIOR como
+    `graphiti-manifest.<group_id-viejo>.json` (el nombre se sanea para que un `group_id` con
+    caracteres raros no componga una ruta) — sin esto, sus `uuid` se perdian y sus episodios
+    quedaban en el grafo sin forma de revocarlos."""
+    sufijo = "." + re.sub(r"[^A-Za-z0-9._-]", "_", grupo_previo)
+    return _escribir_manifest(cfg, manifest, sufijo=sufijo)
 
 
 def _borrar_pending(cfg):
@@ -1072,8 +1318,14 @@ def rebuild(entries, cfg):
     if not group_id:
         raise ConfigInvalida("`group_id` vacio: no se puede reconstruir sin un grupo estable")
     allow_remote = bool(cfg.get("allow_remote", False))
-    cliente = ClienteMCP(cfg.get("endpoint"), timeout_s=_timeout_s(cfg), allow_remote=allow_remote)
+    cliente = ClienteMCP(cfg.get("endpoint"), timeout_s=_timeout_s(cfg), allow_remote=allow_remote,
+                         max_respuesta_bytes=_max_respuesta_bytes(cfg))
     cliente.initialize()
+    # Gap #82 (Minor): el `.pending` VACIO se escribe ANTES de `clear_graph` -es la marca de que
+    # hay una reconstruccion en curso-. Si `clear_graph` borra y luego falla la lectura de la
+    # respuesta (timeout), el grafo queda vacio: con la marca, `verify()` dice
+    # "publicacion_incompleta" en vez de afirmar que todo sigue publicado (incremental no-op).
+    _escribir_manifest(cfg, {"group_id": group_id, "entradas": {}}, sufijo=".pending")
     cliente.tools_call("clear_graph", {"group_ids": [group_id]})
     _escribir_manifest(cfg, {"group_id": group_id, "entradas": {}})
     _borrar_pending(cfg)
@@ -1094,6 +1346,26 @@ def revoke(knowledge_id, cfg):
     return {"revocado": True, "id": knowledge_id, "resultado": resultado}
 
 
+_CACHE_VERIFY_TTL_S = 5  # gap #70 (lente D): ventana corta, solo para no repetir el barrido
+_cache_verify = {}       # {(endpoint, group_id, root): (veredicto, expira_monotonic)}
+
+
+def _verify_cacheado(cfg):
+    """Gap #70 (Important, lente D): `puede_leer()` encadena `health()` + `verify()` y el router
+    de T-07 la llamara POR CONSULTA — sin cache, cada consulta barria el grafo entero con
+    `get_episodes`. El resultado se cachea en PROCESO con un TTL corto (5 s): suficiente para una
+    rafaga de consultas, demasiado corto para enmascarar un desfase real."""
+    cfg = cfg or {}
+    clave = (cfg.get("endpoint"), cfg.get("group_id"), cfg.get("_root"))
+    ahora = time.monotonic()
+    entrada = _cache_verify.get(clave)
+    if entrada and entrada[1] > ahora:
+        return entrada[0]
+    veredicto = verify(cfg)
+    _cache_verify[clave] = (veredicto, ahora + _CACHE_VERIFY_TTL_S)
+    return veredicto
+
+
 def puede_leer(cfg):
     """Gap #35: `read` exige `health` sano Y `verify` sin desfase antes de servir lecturas (el
     router de T-07 llamara a esta funcion antes de leer); `shadow`/`off` nunca autorizan lectura
@@ -1104,7 +1376,7 @@ def puede_leer(cfg):
     veredicto_health = health(cfg)
     if veredicto_health.get("estado") != "sano":
         return {"puede": False, "razon": f"health no sano: {veredicto_health}"}
-    veredicto_verify = verify(cfg)
+    veredicto_verify = _verify_cacheado(cfg)
     if veredicto_verify.get("ok") is not True:
         return {"puede": False, "razon": f"verify con desfase o ilegible: {veredicto_verify}"}
     return {"puede": True}
@@ -1121,19 +1393,35 @@ class _RespuestaIlegible(Exception):
     la forma esperada (ni lista ni `{"episodes": [...]}`)."""
 
 
-def _nombres_remotos_confirmados(cliente, group_id, entradas):
+def _max_episodios_verify(cfg):
+    """`max_episodes` (entero > 0): tope de la ventana de `get_episodes` que barre `verify()`
+    (gap #70). Ausente o invalido -> `_MAX_EPISODIOS_VERIFY`, el tope duro historico."""
+    valor = (cfg or {}).get("max_episodes", _MAX_EPISODIOS_VERIFY)
+    if isinstance(valor, bool) or not isinstance(valor, int) or valor <= 0:
+        valor = _MAX_EPISODIOS_VERIFY
+    return min(valor, _MAX_EPISODIOS_VERIFY)
+
+
+def _nombres_remotos_confirmados(cliente, group_id, entradas, tope_episodios=None):
     """`get_episodes` es una ventana de los MAS RECIENTES, no un filtro por nombre — una entrada
     antigua real puede quedar fuera de una ventana fija (gap #39). Se pide una ventana generosa
     y, si TODAVIA faltan nombres esperados y la respuesta llego "llena" (indicio de que hay mas
     detras), se AMPLIA la ventana hasta `_MAX_EPISODIOS_VERIFY` o hasta que dos peticiones
     consecutivas devuelvan el mismo tamano (el servidor ya no tiene mas). Devuelve
-    `(nombres_remotos, otros_grupos)`; lanza `_RespuestaIlegible` si el servidor responde algo
-    sin forma reconocible. Extraido de `verify()` para que `apply()` (gap #54) pueda reutilizarlo
-    al reconciliar un `.pending` heredado antes de promoverlo."""
+    `(nombres_remotos, otros_grupos, uuids_remotos)` -`uuids_remotos` mapea nombre -> `uuid` SOLO
+    para los episodios en los que el servidor lo devuelve (gap #79)-; lanza `_RespuestaIlegible`
+    si el servidor responde algo sin forma reconocible. Extraido de `verify()` para que `apply()`
+    (gap #54) pueda reutilizarlo al reconciliar un `.pending` heredado antes de promoverlo.
+
+    Gap #70 (Important, lente D): la ventana se amplia como maximo hasta `tope_episodios`
+    (`config.max_episodes`, default `_MAX_EPISODIOS_VERIFY`) — sin tope configurable, `verify()`
+    podia barrer hasta 15 000 episodios (~31 MB) para devolver un booleano."""
+    tope = tope_episodios or _MAX_EPISODIOS_VERIFY
     esperados = {f"{id_}@{meta.get('version')}" for id_, meta in entradas.items()}
     nombres_remotos = set()
     otros_grupos = set()
-    max_episodes = max(len(entradas) * 2, 50)
+    uuids_remotos = {}
+    max_episodes = min(max(len(entradas) * 2, 50), tope)
     tamano_previo = -1
     for _ in range(4):
         resultado = cliente.tools_call(
@@ -1151,6 +1439,7 @@ def _nombres_remotos_confirmados(cliente, group_id, entradas):
             raise _RespuestaIlegible()
         nombres_remotos = set()
         otros_grupos = set()
+        uuids_remotos = {}
         for ep in episodios_remotos:
             if not isinstance(ep, dict):
                 continue
@@ -1160,14 +1449,18 @@ def _nombres_remotos_confirmados(cliente, group_id, entradas):
                 continue
             if ep.get("name"):
                 nombres_remotos.add(ep["name"])
+                if ep.get("uuid"):
+                    uuids_remotos[ep["name"]] = ep["uuid"]
         faltan = esperados - nombres_remotos
         if not faltan or len(episodios_remotos) == tamano_previo:
             break
         if len(episodios_remotos) < max_episodes:
             break  # el servidor ya devolvio TODO lo que tiene (menos de lo pedido)
+        if max_episodes >= tope:
+            break  # gap #70: ventana al tope configurado, no se amplia mas
         tamano_previo = len(episodios_remotos)
-        max_episodes = min(max_episodes * 4, _MAX_EPISODIOS_VERIFY)
-    return nombres_remotos, otros_grupos
+        max_episodes = min(max_episodes * 4, tope)
+    return nombres_remotos, otros_grupos, uuids_remotos
 
 
 def _reconciliar_publicado(cfg, group_id, entradas):
@@ -1179,20 +1472,39 @@ def _reconciliar_publicado(cfg, group_id, entradas):
     `add_memory`. Antes de promover, se confirma cada entrada contra `get_episodes` del propio
     `group_id`; lo no confirmado se descarta del manifiesto (una proxima `plan()` la volvera a
     proponer como `upsert`, que es el comportamiento seguro: reintentar de mas nunca pierde datos,
-    promover de mas si). Sin servidor disponible para confirmar, no se promueve NADA."""
+    promover de mas si).
+
+    Devuelve `(confirmadas, confirmacion_posible)` (gap #67, Critical): distinguir "el servidor
+    dice que no tiene esto" de "no he podido preguntarle" es la diferencia entre no promover y
+    DESPUBLICAR. Antes devolvia `{}` en los dos casos y `apply()` escribia ese `{}` como
+    manifiesto publicado, dejando episodios irrevocables en el grafo y sin rastro local.
+
+    Gap #79 (Minor, CWE-345): un nombre que el servidor AFIRMA tener no basta si ademas devuelve
+    un `uuid` que no es el nuestro (un servidor rogue podria "suprimir" entradas de forma
+    permanente). Cuando `get_episodes` devuelve `uuid`, tiene que coincidir; cuando no lo
+    devuelve, se confirma por nombre (limite documentado en `backends/README.md`)."""
     if not entradas:
-        return entradas
+        return entradas, True
     allow_remote = bool(cfg.get("allow_remote", False))
     try:
-        cliente = ClienteMCP(cfg.get("endpoint"), timeout_s=_timeout_s(cfg), allow_remote=allow_remote)
+        cliente = ClienteMCP(cfg.get("endpoint"), timeout_s=_timeout_s(cfg),
+                             allow_remote=allow_remote,
+                             max_respuesta_bytes=_max_respuesta_bytes(cfg))
         cliente.initialize()
-        nombres_remotos, _otros_grupos = _nombres_remotos_confirmados(cliente, group_id, entradas)
-    except Exception:  # noqa: BLE001 - sin servidor disponible/respuesta ilegible: no se promueve nada
-        return {}
-    return {
-        id_: meta for id_, meta in entradas.items()
-        if f"{id_}@{meta.get('version')}" in nombres_remotos
-    }
+        nombres_remotos, _otros_grupos, uuids_remotos = _nombres_remotos_confirmados(
+            cliente, group_id, entradas, _max_episodios_verify(cfg))
+    except Exception:  # noqa: BLE001 - sin servidor/respuesta ilegible: NO se puede confirmar
+        return {}, False
+    confirmadas = {}
+    for id_, meta in entradas.items():
+        nombre = f"{id_}@{meta.get('version')}"
+        if nombre not in nombres_remotos:
+            continue
+        uuid_remoto = uuids_remotos.get(nombre)
+        if uuid_remoto and meta.get("uuid") and uuid_remoto != meta.get("uuid"):
+            continue
+        confirmadas[id_] = meta
+    return confirmadas, True
 
 
 def verify(cfg):
@@ -1217,9 +1529,12 @@ def verify(cfg):
         return {"ok": False, "razon": "sin group_id", "desfase": []}
     allow_remote = bool(cfg.get("allow_remote", False))
     try:
-        cliente = ClienteMCP(cfg.get("endpoint"), timeout_s=_timeout_s(cfg), allow_remote=allow_remote)
+        cliente = ClienteMCP(cfg.get("endpoint"), timeout_s=_timeout_s(cfg),
+                             allow_remote=allow_remote,
+                             max_respuesta_bytes=_max_respuesta_bytes(cfg))
         cliente.initialize()
-        nombres_remotos, otros_grupos = _nombres_remotos_confirmados(cliente, group_id, entradas)
+        nombres_remotos, otros_grupos, _uuids_remotos = _nombres_remotos_confirmados(
+            cliente, group_id, entradas, _max_episodios_verify(cfg))
     except _RespuestaIlegible:
         return {"ok": None, "razon": "respuesta de get_episodes ilegible (no es lista ni {\"episodes\": [...]})",
                 "desfase": []}

@@ -6,6 +6,7 @@ un adaptador `type: "test"` cargado desde fuera del árbol real del plugin recib
 entradas ya enrutadas (CA-12: añadir un backend no toca el núcleo).
 """
 import importlib.util
+import io
 import json
 import os
 import sys
@@ -501,3 +502,79 @@ def test_adaptador_tipo_desconocido_falla_al_cargar_con_mensaje_claro(tmp_path, 
     exit_code = ks_sync.main(["--backend", "testx", "--root", root, "--check"])
     assert exit_code == 2
     assert "no se encontró un adaptador" in capsys.readouterr().err
+
+
+# ------------------------------------------------------------------ fix4 (#72/#77)
+
+def _adaptador_tmp(tmp_path, tipo, cuerpo_extra=""):
+    """Escribe un adaptador de fixture completo (`backend_<tipo>.py`) en una carpeta propia y
+    devuelve esa carpeta, para pasarla por `--backends-dir` (CA-12: el nucleo no cambia)."""
+    d = tmp_path / f"adaptadores-{tipo}"
+    d.mkdir(exist_ok=True)
+    (d / f"backend_{tipo}.py").write_text(
+        "def health(cfg):\n    return {'estado': 'sano'}\n\n"
+        "def plan(entries, cfg):\n    return []\n\n"
+        "def apply(ops, cfg):\n    return {'aplicados': 0}\n\n"
+        "def verify(cfg):\n    return {'ok': True, 'desfase': []}\n\n"
+        "def rebuild(entries, cfg):\n    return {'aplicados': 0}\n\n"
+        "def revoke(kid, cfg):\n    return {'revocado': False}\n\n" + cuerpo_extra,
+        encoding="utf-8")
+    return str(d)
+
+
+def test_fix4_gap77_el_nucleo_no_nombra_ningun_backend_concreto(tmp_path):
+    """Gap #77 (Important): `improvement-plan.md:17` declara el invariante «el nucleo de
+    `knowledge-sync.py` no lo nombra» (ADR-018, CA-12) y `--propose-config` lo rompio con
+    `if tipo != "graphiti"` + la carga de `graphiti_model.py` por ruta DESDE el nucleo. Mutante:
+    devolver cualquiera de esas dos lineas al nucleo."""
+    fuente = io.open(os.path.join(HERE, "knowledge-sync.py"), encoding="utf-8").read()
+    assert "graphiti" not in fuente.lower()
+
+
+def test_fix4_gap77_propose_config_delega_en_la_funcion_opcional_del_adaptador(tmp_path, capsys):
+    """El nucleo llama a `proponer_config(taxonomy, cfg)` SI el adaptador la define; el contenido
+    de la propuesta es cosa del backend."""
+    root = str(tmp_path)
+    _taxonomy(root, _categorias())
+    dir_adaptador = _adaptador_tmp(
+        tmp_path, "test",
+        "def proponer_config(taxonomy, cfg):\n"
+        "    return {'texto': 'PROPUESTA DEL ADAPTADOR', 'entity_map': {'X': 'Y'}}\n")
+    rc = ks_sync.main(["--backend", "testx", "--root", root, "--propose-config",
+                       "--backends-dir", dir_adaptador])
+    assert rc == 0
+    assert "PROPUESTA DEL ADAPTADOR" in capsys.readouterr().out
+
+
+def test_fix4_gap77_propose_config_en_un_backend_que_no_la_define_lo_dice_sin_traceback(tmp_path, capsys):
+    root = str(tmp_path)
+    _taxonomy(root, _categorias())
+    rc = ks_sync.main(["--backend", "testx", "--root", root, "--propose-config",
+                       "--backends-dir", FIXTURES_BACKENDS])
+    assert rc == 2
+    assert "no propone configuraci" in capsys.readouterr().err
+
+
+def test_fix4_gap72_causa_con_ansi_del_adaptador_se_sanea_antes_de_imprimirla(tmp_path, capsys):
+    """Gap #72 (Important, CWE-117): `knowledge-sync.py` interpolaba `{e}` tal cual (`:183`,
+    `:387`, `:450`), asi que el texto CRUDO del servidor (secuencias ANSI, CRLF, 3 000
+    caracteres) llegaba a stderr y a la `causa` persistida en la dead-letter. Mutante: quitar
+    `_sanear_causa` de esos tres puntos."""
+    root = str(tmp_path)
+    _taxonomy(root, _categorias())
+    _entrada(root, "gotchas", "GOT-001.md", "ks.gotchas.uno", "ENRUTADA")
+    dir_adaptador = _adaptador_tmp(
+        tmp_path, "test",
+        "def _explota():\n"
+        "    raise RuntimeError('\\x1b[2Jbanner falso\\r\\n' + 'A' * 3000)\n")
+    # `plan` del adaptador de fixture no explota: se sustituye por uno que si lo hace
+    ruta = os.path.join(dir_adaptador, "backend_test.py")
+    fuente = io.open(ruta, encoding="utf-8").read().replace(
+        "def plan(entries, cfg):\n    return []", "def plan(entries, cfg):\n    _explota()")
+    io.open(ruta, "w", encoding="utf-8").write(fuente)
+    rc = ks_sync.main(["--backend", "testx", "--root", root, "--backends-dir", dir_adaptador])
+    err = capsys.readouterr().err
+    assert rc == 1
+    assert "\x1b" not in err
+    assert "banner falso" in err
+    assert len(err) < 1000
