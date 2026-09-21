@@ -236,6 +236,21 @@ def test_graphiti_provider_model_obligatorio_si_llm_no_es_none_gap37():
     assert ks.validar(cfg_none, "t.json") == []
 
 
+def test_graphiti_episode_body_max_kb_valido_no_da_error():
+    """Gap #64/#60 (fix3): `episode_body_max_kb` (tope del cuerpo del episodio, gap #64) es una
+    clave declarada explícitamente en la lista cerrada de `config` de `knowledge-schema.py` desde
+    fix2, pero sin test dedicado en el esquema hasta ahora."""
+    cfg = _con_graphiti(_graphiti_config(episode_body_max_kb=256))
+    assert ks.validar(cfg, "t.json") == []
+
+
+def test_graphiti_episode_body_max_kb_invalido_falla():
+    for valor in (0, -1, "512", True):
+        cfg = _con_graphiti(_graphiti_config(episode_body_max_kb=valor))
+        errores = ks.validar(cfg, "t.json")
+        assert any(e["campo"] == "backends.graphiti.config.episode_body_max_kb" for e in errores), valor
+
+
 def test_graphiti_router_intents_valor_no_booleano():
     cfg = _con_graphiti(_graphiti_config(router={"intents": {"temporal": "si"}}))
     errores = ks.validar(cfg, "t.json")

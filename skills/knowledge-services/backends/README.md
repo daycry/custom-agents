@@ -65,7 +65,22 @@ decisión de que la extracción de entidades la hace el SERVIDOR, no el cliente)
   lectura previa); `read` exige `health` sano Y `verify` sin desfase antes de autorizar una
   lectura (`puede_leer(cfg)`, que el futuro router de T-07 consumirá).
 - **`rebuild`** es el ÚNICO camino que llama a `clear_graph`, acotado al `group_id` propio, y
-  reproduce el mismo manifiesto que la sincronización incremental (uuid5 determinista).
+  reproduce el mismo manifiesto que la sincronización incremental (uuid5 determinista). **Deuda
+  aceptada (gap #40/#60):** `rebuild` solo reconstruye el estado VIGENTE desde `entries` — la
+  traza histórica de sucesión (tombstones y relaciones `SUPERSEDES` de versiones ya superadas)
+  NO se reproduce tras un `--rebuild`; la invalidación de lo que sigue vigente en el momento del
+  rebuild sí es correcta. Reproducir el historial completo requeriría que el manifiesto conservara
+  las versiones superadas (`status: superseded`) y usar `graphiti_model.cadena_supersedes`, fuera
+  del alcance acotado de esta iniciativa.
+- **`provider.model`** es OBLIGATORIO cuando `provider.llm` no es `none` (gap #37): sin él,
+  `graphiti_providers.py` no tiene ningún modelo cableado por defecto (CA-09), así que la config
+  debe declararlo explícitamente. **`endpoint`/`health.url`** nunca pueden llevar userinfo
+  (`usuario:token@host`, gap #43): usa `provider.api_key_env` para credenciales. **Literales
+  IPv4-mapeados en IPv6** (`::ffff:169.254.169.254`, etc.) se normalizan SIEMPRE antes de
+  clasificarlos como locales/privados/prohibidos (gap #53), tanto en el adaptador como en el
+  esquema. **`episode_body_max_kb`** (opcional, entero > 0, default 512 KiB) acota el tamaño del
+  `episode_body` enviado a `add_memory`; por encima del tope se trunca con un marcador y `apply()`
+  añade un aviso en el resultado (gap #64).
 - **`revoke`** nunca llama a `delete_episode`: escribe un episodio tombstone
   (`<id>@tombstone`) y, si hay una versión previa, una relación `SUPERSEDES` hacia su uuid
   (con los campos `source_node_uuid`/`target_node_uuid` que exige la tool, no `*_node_name`); un
