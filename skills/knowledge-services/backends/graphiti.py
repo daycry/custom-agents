@@ -655,20 +655,39 @@ class ClienteMCP:
         return self.tools_call("get_status", {})
 
 
+def _desenvolver_result(contenido):
+    """T-07 (sonda de solo lectura contra el servidor REAL, 2026-09-21): el servidor envuelve el
+    `structuredContent` de las tools cuyo esquema de salida NO es un objeto declarado bajo una
+    UNICA clave `result` (`{"result": {"message": ..., "episodes": [...]}}`) — asi responden
+    `get_episodes`, `search_nodes` y `search_memory_facts`; `get_status`, en cambio, lo devuelve
+    plano (fixture `graphiti-mcp-get-status-2026-09-18.json`). Sin abrir ese envoltorio,
+    `verify()`/`_reconciliar_publicado()`/`consultar()` veian "respuesta ilegible" contra el
+    servidor real aunque las fixtures del servidor falso (structuredContent plano) pasaran.
+
+    Se abre SOLO el caso inequivoco: un dict con esa unica clave y un dict/lista dentro. Un
+    `result` conviviendo con otras claves, o escalar, se devuelve tal cual (podria ser el
+    contenido legitimo de otra tool)."""
+    if isinstance(contenido, dict) and list(contenido) == ["result"] \
+            and isinstance(contenido["result"], (dict, list)):
+        return contenido["result"]
+    return contenido
+
+
 def _contenido_tool_call(resultado):
     """Un resultado de `tools/call` trae `structuredContent` (dict/list ya parseado) o
-    `content[].text` (JSON como cadena, hay que parsearlo); se prueban ambas formas."""
+    `content[].text` (JSON como cadena, hay que parsearlo); se prueban ambas formas. El envoltorio
+    `{"result": ...}` del servidor real se abre en las dos (ver `_desenvolver_result`)."""
     if not isinstance(resultado, dict):
         return None
     estructurado = resultado.get("structuredContent")
     if estructurado is not None:
-        return estructurado
+        return _desenvolver_result(estructurado)
     contenido = resultado.get("content")
     if isinstance(contenido, list):
         for bloque in contenido:
             if isinstance(bloque, dict) and bloque.get("type") == "text":
                 try:
-                    return json.loads(bloque.get("text", ""))
+                    return _desenvolver_result(json.loads(bloque.get("text", "")))
                 except (ValueError, TypeError):
                     continue
     return None
@@ -1697,3 +1716,161 @@ def verify(cfg):
 
 
 _MAX_EPISODIOS_VERIFY = 5000  # tope duro de la ampliacion de ventana de get_episodes (gap #39)
+
+
+# ------------------------------------------------------------------ lectura enrutada (T-07)
+# `consultar` es la funcion OPCIONAL del contrato de adaptador que usa el router por intent de
+# `knowledge-find.py --intent` (CA-12): el NUCLEO no sabe que existe Graphiti, solo pregunta al
+# adaptador declarado en `taxonomy.json`. Nunca lanza y nunca escribe: solo `search_nodes`,
+# `search_memory_facts` y `get_episodes`, los tres acotados al `group_id` propio.
+
+_MAX_EPISODIOS_CONSULTA = 200   # ventana de procedencia por consulta (acotada ademas por
+                                # `config.max_episodes`): una consulta no barre el grafo entero
+
+
+def _procedencia_de_episodio(episodio):
+    """Bloque `--- procedencia ---` de un episodio como dict (`knowledge_id`, `version`, `status`,
+    `category`, `evidence_level`, `source_path`, `hash`), o `None` si el episodio no lo trae.
+    Es la UNICA fuente de la procedencia que se sirve: lo que no esta aqui no se inventa."""
+    if not isinstance(episodio, dict):
+        return None
+    contenido = episodio.get("content") or episodio.get("episode_body") or ""
+    if not isinstance(contenido, str) or _DELIM_PROVENIENCIA not in contenido:
+        return None
+    cabecera = contenido.split(_DELIM_PROVENIENCIA, 1)[1].split(_DELIM_CONTENIDO, 1)[0]
+    datos = {}
+    for linea in cabecera.splitlines():
+        if ":" not in linea:
+            continue
+        clave, valor = linea.split(":", 1)
+        clave, valor = clave.strip(), valor.strip()
+        if clave and valor:
+            datos[clave] = valor
+    return datos or None
+
+
+def _indice_procedencia(cliente, group_id, tope):
+    """`(procedencia_por_nombre_de_episodio, ids_invalidados)` del `group_id` propio. Los
+    episodios de OTRO grupo se ignoran (aislamiento multi-proyecto, gap #73) y los `@tombstone`
+    marcan invalidada su entrada (CA-11). Lanza `_RespuestaIlegible` si `get_episodes` no
+    responde ni una lista ni `{"episodes": [...]}`."""
+    resultado = cliente.tools_call("get_episodes", {"group_ids": [group_id], "max_episodes": tope})
+    contenido = _contenido_tool_call(resultado)
+    if isinstance(contenido, list):
+        episodios = contenido
+    elif isinstance(contenido, dict):
+        episodios = contenido.get("episodes")
+    else:
+        episodios = None
+    if not isinstance(episodios, list):
+        raise _RespuestaIlegible()
+    por_nombre, invalidados = {}, set()
+    for ep in episodios:
+        if not isinstance(ep, dict):
+            continue
+        grupo = ep.get("group_id")
+        if grupo and grupo != group_id:
+            continue
+        nombre = ep.get("name") or ""
+        if nombre.endswith("@tombstone"):
+            invalidados.add(nombre[: -len("@tombstone")])
+            continue
+        procedencia = _procedencia_de_episodio(ep)
+        if procedencia and procedencia.get("knowledge_id"):
+            por_nombre[nombre] = dict(procedencia, uuid=ep.get("uuid"))
+    return por_nombre, invalidados
+
+
+def _hits_de_busqueda(resultado, clave):
+    """Lista de aciertos de un `search_*` (`{"nodes": [...]}`/`{"facts": [...]}` o lista pelada)."""
+    contenido = _contenido_tool_call(resultado)
+    if isinstance(contenido, list):
+        return [h for h in contenido if isinstance(h, dict)]
+    if isinstance(contenido, dict):
+        lista = contenido.get(clave)
+        if isinstance(lista, list):
+            return [h for h in lista if isinstance(h, dict)]
+    return []
+
+
+def _nombres_de_hit(hit):
+    """Nombres de episodio que cita un acierto de busqueda (nodo o hecho)."""
+    nombres = []
+    for clave in ("name", "source_node_name", "target_node_name"):
+        valor = hit.get(clave)
+        if isinstance(valor, str) and valor:
+            nombres.append(valor)
+    return nombres
+
+
+def _limite_consulta(consulta):
+    valor = (consulta or {}).get("limit")
+    if isinstance(valor, bool) or not isinstance(valor, int) or valor <= 0:
+        return 10
+    return min(valor, 100)
+
+
+def consultar(cfg, consulta):
+    """Funcion OPCIONAL del contrato (lectura). Devuelve
+    `{"aciertos": [...], "descartados": int, "motivo": str}` y NUNCA lanza.
+
+    Cada acierto trae la terna que lo hace auditable -`estado`, `evidencia` y `ruta` canonica-
+    leida del bloque de procedencia del episodio; un acierto de busqueda que no case con ningun
+    episodio propio se DESCARTA (fail-closed) en vez de servirse con huecos rellenados a ojo."""
+    cfg = cfg or {}
+    consulta = consulta or {}
+    vacio = {"aciertos": [], "descartados": 0}
+    permiso = puede_leer(cfg)
+    if not permiso.get("puede"):
+        return dict(vacio, motivo=permiso.get("razon") or "lectura no autorizada")
+    texto = (consulta.get("texto") or "").strip()
+    if not texto:
+        return dict(vacio, motivo="consulta sin texto: no se pregunta al grafo")
+    group_id = cfg.get("group_id")
+    if not group_id:
+        return dict(vacio, motivo="sin `group_id`: no se consulta un grupo que no es el propio")
+
+    limit = _limite_consulta(consulta)
+    tope_episodios = min(max(limit * 5, 50), _max_episodios_verify(cfg), _MAX_EPISODIOS_CONSULTA)
+    try:
+        cliente = ClienteMCP(cfg.get("endpoint"), timeout_s=_timeout_s(cfg),
+                             allow_remote=bool(cfg.get("allow_remote", False)),
+                             max_respuesta_bytes=_max_respuesta_bytes(cfg))
+        cliente.initialize()
+        nodos = _hits_de_busqueda(cliente.tools_call(
+            "search_nodes", {"query": texto, "group_ids": [group_id], "max_nodes": limit}), "nodes")
+        hechos = _hits_de_busqueda(cliente.tools_call(
+            "search_memory_facts", {"query": texto, "group_ids": [group_id], "max_facts": limit}), "facts")
+        por_nombre, invalidados = _indice_procedencia(cliente, group_id, tope_episodios)
+    except _RespuestaIlegible:
+        return dict(vacio, motivo="respuesta de get_episodes ilegible (no es lista ni {\"episodes\": [...]})")
+    except Exception as e:  # noqa: BLE001 - mismo contrato que health()/verify(): nunca lanza
+        return dict(vacio, motivo=f"no se pudo consultar el grafo: {type(e).__name__}: {_sanear_detalle(e)}")
+
+    aciertos, vistos, descartados = [], set(), 0
+    for hit, clase in [(h, "nodo") for h in nodos] + [(h, "hecho") for h in hechos]:
+        procedencia = next((por_nombre[n] for n in _nombres_de_hit(hit) if n in por_nombre), None)
+        if procedencia is None:
+            descartados += 1
+            continue
+        knowledge_id = procedencia.get("knowledge_id")
+        if knowledge_id in vistos:
+            continue
+        vistos.add(knowledge_id)
+        acierto = {
+            "id": knowledge_id,
+            "version": procedencia.get("version"),
+            "estado": "invalidado" if knowledge_id in invalidados else (procedencia.get("status") or "aprobado"),
+            "evidencia": procedencia.get("evidence_level"),
+            "ruta": procedencia.get("source_path"),
+            "categoria": procedencia.get("category"),
+            "titular": hit.get("summary") or hit.get("fact") or knowledge_id,
+            "uuid": procedencia.get("uuid"),
+            "fuente": clase,
+        }
+        if clase == "hecho":
+            # El intent temporal vive de esto: la vigencia la declara el grafo, no el cliente.
+            acierto.update({"fact": hit.get("fact"), "valid_at": hit.get("valid_at"),
+                            "invalid_at": hit.get("invalid_at")})
+        aciertos.append(acierto)
+    return {"aciertos": aciertos[:limit], "descartados": descartados, "motivo": ""}

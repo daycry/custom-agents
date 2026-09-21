@@ -99,6 +99,7 @@ Exit codes:
 """
 import argparse
 import hashlib
+import importlib.util
 import json
 import os
 import re
@@ -799,12 +800,17 @@ def linea_compacta(e, ancho=LINEA_MAX):
 
 
 def acierto_json(e):
-    return {
+    salida = {
         "id": e["id"], "tipo": e["tipo"], "estado": e["estado"], "estado_detalle": e["estado_detalle"],
         "area": e["area"], "titular": e["titular"], "ruta": e["ruta"], "linea": linea_compacta(e),
         "puntuacion": e.get("puntuacion", 0), "iniciativa": e["iniciativa"], "fecha": e["fecha"],
         "origen": e.get("origen", "proyecto"),
     }
+    # `evidencia` solo la traen los aciertos servidos por un backend (T-07): clave AÑADIDA, ninguna
+    # renombrada — los consumidores del corpus local ven exactamente el mismo objeto que antes.
+    if e.get("evidencia"):
+        salida["evidencia"] = e["evidencia"]
+    return salida
 
 
 def resolver_root(arg_root):
@@ -935,6 +941,200 @@ def json_related(e, rel, indice):
     return data
 
 
+# ------------------------------------------------------------------ capa 1 ENRUTADA POR INTENT (T-07)
+# El enrutado es CONFIGURACIÓN, no criterio de un modelo (CA-12): quien consulta DECLARA su intent
+# (`--intent temporal`) y `.claude/knowledge-services/taxonomy.json` dice, por backend, qué intents
+# atiende (`backends.<id>.config.router.intents.<intent>: true`). Aquí no se nombra ningún backend
+# concreto: el adaptador se resuelve por `type` con el mismo cargador que usa `knowledge-sync.py`
+# (`skills/knowledge-services/backends/__init__.py::cargar_adaptador`), igual que `--propose-config`.
+# Cualquier tropiezo (sin config, config inválida, adaptador ausente/roto, backend que no autoriza
+# la lectura o que no expone `consultar`) DEGRADA al camino local de siempre con un motivo; nunca
+# bloquea ni cambia el exit code.
+
+AQUI = os.path.dirname(os.path.abspath(__file__))
+BACKENDS_REL = ("skills", "knowledge-services", "backends")
+INTENT_RE = re.compile(r"^[a-z][a-z0-9_-]*$")   # un intent compone configuración, no una ruta
+# Un acierto servido por un backend solo se sirve si trae las tres cosas que lo hacen auditable
+# (criterio de T-07): evidencia, estado y ruta canónica — más el ID. Fail-closed: lo que no las
+# trae se descarta y se cuenta, nunca se rellena con un valor inventado.
+CLAVES_ACIERTO_REMOTO = ("id", "estado", "evidencia", "ruta")
+
+
+def _dir_backends():
+    """`<plugin>/skills/knowledge-services/backends` (este fichero vive en `agent-kits/shared/`)."""
+    return os.path.join(os.path.dirname(os.path.dirname(AQUI)), *BACKENDS_REL)
+
+
+def _cargar_modulo(ruta, nombre):
+    spec = importlib.util.spec_from_file_location(nombre, ruta)
+    if spec is None or spec.loader is None:
+        raise ImportError("no se pudo preparar la carga de `%s`" % ruta)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def taxonomia(root):
+    """`(config, motivo_o_None)` leída de `<root>/.claude/knowledge-services/taxonomy.json` con
+    `json` y nada más. NUNCA lanza: sin fichero, con JSON roto o con una forma inesperada devuelve
+    `(None, motivo)` y la consulta se atiende en local.
+
+    Decisión del implementer (T-07, el plan no lo fijaba): aquí NO se carga `knowledge-schema.py`
+    para validar la taxonomía, aunque sea el validador canónico. Este script lo invoca el hook
+    `SessionStart` (`session-context.sh`) y el invariante del plan es que ningún hook alcance
+    código con capacidad de red; `knowledge-schema.py` importa `urllib` (solo para PARSEAR URLs,
+    pero el guardarraíl estático de `tests/test_knowledge_services.py` sigue las invocaciones de
+    forma transitiva y no distingue `urllib.parse` de `urllib.request`, con la allowlist vacía a
+    propósito). El router no necesita validar: exige `enabled: true`, `type` y
+    `router.intents.<intent> is True` — una taxonomía inválida no enruta, no enruta mal. La
+    validación completa (y la derivación de `group_id`) siguen donde estaban: `knowledge-sync.py`,
+    `capabilities.py` y `/doctor`; un backend sin `group_id` declarado no lee (su adaptador lo
+    rechaza) y se degrada a local con motivo."""
+    ruta = os.path.join(root or ".", ".claude", "knowledge-services", "taxonomy.json")
+    if not os.path.isfile(ruta):
+        return None, f"no hay `{os.path.join('.claude', 'knowledge-services', 'taxonomy.json')}`"
+    try:
+        with open(ruta, encoding="utf-8") as f:
+            config = json.load(f)
+    except (OSError, ValueError) as e:
+        return None, f"no se pudo leer `{ruta}`: {type(e).__name__}: {e}"
+    if not isinstance(config, dict):
+        return None, f"`{ruta}` no es un objeto JSON"
+    return config, None
+
+
+def backends_para_intent(config, intent):
+    """`[(id, type, config_del_backend)]` de los backends HABILITADOS cuyo
+    `config.router.intents.<intent>` es EXACTAMENTE `true` (booleano: ni `1`, ni `"si"` — una
+    verdad difusa en la configuración no abre una lectura remota), ordenados por id."""
+    backends = (config or {}).get("backends")
+    if not isinstance(backends, dict):
+        return []
+    elegidos = []
+    for bid in sorted(backends):
+        decl = backends[bid]
+        if not isinstance(decl, dict) or decl.get("enabled") is not True or not decl.get("type"):
+            continue
+        cfg = decl.get("config")
+        cfg = cfg if isinstance(cfg, dict) else {}
+        router = cfg.get("router")
+        intents = router.get("intents") if isinstance(router, dict) else None
+        if isinstance(intents, dict) and intents.get(intent) is True:
+            elegidos.append((bid, decl["type"], cfg))
+    return elegidos
+
+
+def acierto_remoto(bruto, backend_id):
+    """Normaliza un acierto servido por un backend al mismo diccionario que usa el corpus local
+    (para que `linea_compacta`/`acierto_json` no distingan el origen), o `None` si le falta alguna
+    de las `CLAVES_ACIERTO_REMOTO`."""
+    if not isinstance(bruto, dict):
+        return None
+    for clave in CLAVES_ACIERTO_REMOTO:
+        valor = bruto.get(clave)
+        if not isinstance(valor, str) or not valor.strip():
+            return None
+    return {
+        "id": bruto["id"].strip(),
+        "tipo": (bruto.get("tipo") or bruto.get("categoria") or "").strip(),
+        "estado": bruto["estado"].strip(),
+        "estado_detalle": (bruto.get("estado_detalle") or "").strip(),
+        "area": (bruto.get("area") or "").strip(),
+        "titular": (bruto.get("titular") or "").strip(),
+        "ruta": bruto["ruta"].strip(),
+        "evidencia": bruto["evidencia"].strip(),
+        "puntuacion": bruto.get("puntuacion", 0),
+        "iniciativa": (bruto.get("iniciativa") or "").strip(),
+        "fecha": (bruto.get("fecha") or "").strip(),
+        "origen": f"backend:{backend_id}",
+    }
+
+
+def _aciertos_del_backend(respuesta, backend_id, limit):
+    """`(aciertos, descartados)` a partir de lo que devuelve `consultar` del adaptador (una lista
+    de aciertos, o un dict con la clave `aciertos`)."""
+    brutos = respuesta.get("aciertos") if isinstance(respuesta, dict) else respuesta
+    if not isinstance(brutos, list):
+        brutos = []
+    aciertos, descartados = [], 0
+    for bruto in brutos:
+        normalizado = acierto_remoto(bruto, backend_id)
+        if normalizado is None:
+            descartados += 1
+        else:
+            aciertos.append(normalizado)
+    if limit:
+        aciertos = aciertos[:limit]
+    return aciertos, descartados
+
+
+def consultar_intent(root, intent, texto="", limit=LIMIT_DEFAULT, area="", tipo="",
+                     directorios=None, config=None):
+    """Aplica el router a `intent`. Devuelve `(aciertos, info)`:
+      - `aciertos` es una LISTA (posiblemente vacía) si un backend atendió la consulta;
+      - `aciertos` es `None` si hay que caer al camino local de siempre (el router no resuelve la
+        consulta local: la deja íntegra a `buscar()`/`buscar_enrutado()`).
+    `info` = `{"intent", "origen": "local"|"backend", "backend": id|None, "motivo"[, "descartados"]}`."""
+    info = {"intent": intent, "origen": "local", "backend": None, "motivo": ""}
+    if config is None:
+        config, motivo = taxonomia(root)
+        if config is None:
+            info["motivo"] = motivo
+            return None, info
+    candidatos = backends_para_intent(config, intent)
+    if not candidatos:
+        info["motivo"] = (f"ningún backend habilitado declara el intent `{intent}` en "
+                          f"`router.intents` (la consulta se atiende en local)")
+        return None, info
+
+    dirs = [_dir_backends(), *(directorios or [])]
+    try:
+        binit = _cargar_modulo(os.path.join(_dir_backends(), "__init__.py"), "kf_backends_init")
+    except Exception as e:  # noqa: BLE001
+        info["motivo"] = f"no se pudo cargar el contrato de adaptadores: {type(e).__name__}: {e}"
+        return None, info
+
+    motivos = []
+    for bid, tipo_backend, cfg_backend in candidatos:
+        cfg = dict(cfg_backend)
+        cfg["_root"] = os.path.abspath(root or ".")   # el adaptador resuelve sus rutas contra esto
+        try:
+            adaptador = binit.cargar_adaptador(tipo_backend, directorios=dirs)
+        except Exception as e:  # noqa: BLE001 — incluye `AdaptadorNoDisponible`
+            motivos.append(f"`{bid}`: {e}")
+            continue
+        consultar = getattr(adaptador, "consultar", None)
+        if not callable(consultar):
+            motivos.append(f"`{bid}` (`type: {tipo_backend}`): su adaptador no expone `consultar`")
+            continue
+        puede_leer = getattr(adaptador, "puede_leer", None)
+        if not callable(puede_leer):
+            motivos.append(f"`{bid}` (`type: {tipo_backend}`): su adaptador no expone `puede_leer`")
+            continue
+        try:
+            permiso = puede_leer(cfg)
+        except Exception as e:  # noqa: BLE001
+            motivos.append(f"`{bid}`: `puede_leer` falló: {type(e).__name__}: {e}")
+            continue
+        if not (isinstance(permiso, dict) and permiso.get("puede") is True):
+            razon = permiso.get("razon") if isinstance(permiso, dict) else permiso
+            motivos.append(f"`{bid}` no autoriza la lectura: {razon}")
+            continue
+        try:
+            respuesta = consultar(cfg, {"intent": intent, "texto": texto, "limit": limit,
+                                        "area": area, "tipo": tipo})
+        except Exception as e:  # noqa: BLE001 — un adaptador que lanza no tumba la consulta
+            motivos.append(f"`{bid}`: `consultar` falló: {type(e).__name__}: {e}")
+            continue
+        aciertos, descartados = _aciertos_del_backend(respuesta, bid, limit)
+        info.update({"origen": "backend", "backend": bid, "descartados": descartados,
+                     "motivo": (respuesta.get("motivo") or "") if isinstance(respuesta, dict) else ""})
+        return aciertos, info
+
+    info["motivo"] = "; ".join(motivos)
+    return None, info
+
+
 # ------------------------------------------------------------------ CLI
 
 def _limit(valor):
@@ -948,6 +1148,15 @@ def _limit(valor):
     return n
 
 
+def _intent(valor):
+    """`--intent NOMBRE`: `[a-z][a-z0-9_-]*`. Un intent es una CLAVE de configuración, no texto
+    libre: se rechaza antes de consultar `router.intents` con él (y antes de que componga nada)."""
+    if not INTENT_RE.match(valor or ""):
+        raise argparse.ArgumentTypeError(
+            f"`{valor}` no es un intent válido (`[a-z][a-z0-9_-]*`, p. ej. `temporal`)")
+    return valor
+
+
 def _construir_parser():
     ap = argparse.ArgumentParser(description="recuperación determinista de docs/knowledge/ (tres capas)")
     ap.add_argument("texto", nargs="*", help="consulta libre (capa 1)")
@@ -956,6 +1165,12 @@ def _construir_parser():
     ap.add_argument("--limit", type=_limit, default=LIMIT_DEFAULT, help=f"aciertos máximos (default {LIMIT_DEFAULT}; 0 = sin tope; negativo = error)")
     ap.add_argument("--json", action="store_true")
     ap.add_argument("--root", help="raíz del proyecto (default: $CLAUDE_PROJECT_DIR → cwd)")
+    ap.add_argument("--intent", type=_intent, default=None,
+                    help="intent DECLARADO de la consulta (p. ej. `temporal`): si algún backend habilitado "
+                         "lo declara en `router.intents` de taxonomy.json y autoriza la lectura, la consulta "
+                         "se sirve desde él; si no, cae al camino local de siempre (CA-12)")
+    ap.add_argument("--backends-dir", action="append", default=[], dest="backends_dir",
+                    help="carpeta extra donde buscar el adaptador del backend enrutado (repetible)")
     ap.add_argument("--no-index", action="store_true", help="recorrido plano de los ficheros, sin leer ni escribir el índice")
     ap.add_argument("--doctrina", action="store_true",
                     help=f"busca en la DOCTRINA del plugin ({DOCTRINA_REL}: las lecciones ciertas para cualquier proyecto) "
@@ -1043,10 +1258,13 @@ def _ejecutar_consulta(args, entradas, path, texto, enrutado):
     return aciertos, total, consulta
 
 
-def _imprimir_resultado(args, indice, corpus, consulta, total, aciertos):
+def _imprimir_resultado(args, indice, corpus, consulta, total, aciertos, router=None):
     if args.json:
         data = {"version": VERSION_JSON, "indice": indice["indice"], "corpus": corpus, "consulta": consulta,
                 "total": total, "aciertos": [acierto_json(a) for a in aciertos]}
+        if router is not None:
+            data["router"] = {"intent": router["intent"], "origen": router["origen"],
+                              "backend": router["backend"]}
         if indice.get("indice_motivo"):
             data["indice_motivo"] = indice["indice_motivo"]
         print(json.dumps(data, ensure_ascii=False))
@@ -1057,6 +1275,14 @@ def _imprimir_resultado(args, indice, corpus, consulta, total, aciertos):
 
 def main(argv=None):
     args = _construir_parser().parse_args(argv)
+    if args.intent and (args.related or args.show):
+        print("knowledge-find: `--intent` es de la capa 1; no se combina con `--related`/`--show`",
+              file=sys.stderr)
+        return 2
+    if args.intent and args.doctrina:
+        print("knowledge-find: `--intent` enruta la memoria del PROYECTO; no se combina con `--doctrina`",
+              file=sys.stderr)
+        return 2
     root = resolver_root(args.root)
     texto = " ".join(args.texto)
     corpus = "doctrina" if args.doctrina else "proyecto"
@@ -1070,8 +1296,27 @@ def main(argv=None):
         print("knowledge-find: `--contexto/--tipo-tarea/--iniciativa` no se combinan con texto libre ni `--area`",
               file=sys.stderr)
         return 2
+    router = None
+    if args.intent:
+        aciertos_backend, router = consultar_intent(
+            root, args.intent, texto=texto, limit=args.limit, area=args.area, tipo=args.tipo,
+            directorios=args.backends_dir)
+        if router["origen"] == "local":
+            print(f"knowledge-find: intent `{args.intent}` atendido en local: {router['motivo']}",
+                  file=sys.stderr)
+        else:
+            consulta = {"texto": texto, "area": args.area, "tipo": args.tipo, "limit": args.limit,
+                        "intent": args.intent}
+            if router.get("descartados"):
+                print(f"knowledge-find: {router['descartados']} acierto(s) de `{router['backend']}` "
+                      f"descartados por no traer id/estado/evidencia/ruta", file=sys.stderr)
+            _imprimir_resultado(args, indice, corpus, consulta, len(aciertos_backend),
+                                aciertos_backend, router=router)
+            return 0
     aciertos, total, consulta = _ejecutar_consulta(args, entradas, path, texto, enrutado)
-    _imprimir_resultado(args, indice, corpus, consulta, total, aciertos)
+    if args.intent:
+        consulta["intent"] = args.intent
+    _imprimir_resultado(args, indice, corpus, consulta, total, aciertos, router=router)
     return 0
 
 

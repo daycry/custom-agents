@@ -2392,6 +2392,235 @@ class TestGraphitiFase2Fix5(unittest.TestCase):
             self.assertNotIn(f"mem.x{i}", resumen)
         self.assertIn("y 2 mas", resumen)
 
+# ============================================================ T-07 · `consultar` (lectura enrutada)
+
+class TestGraphitiConsultar(unittest.TestCase):
+    """`consultar(cfg, consulta)` — la funcion OPCIONAL del contrato que usa el router de
+    `knowledge-find.py --intent` (T-07). Solo lee: `search_nodes`/`search_memory_facts` acotados
+    al `group_id` propio, y la procedencia (id, estado, evidencia, ruta canonica) sale del bloque
+    `--- procedencia ---` del episodio, nunca se inventa."""
+
+    def setUp(self):
+        self.mod = _cargar("graphiti.py", "ks_backend_graphiti_test_consultar")
+        self.tmp = tempfile.mkdtemp(prefix="ks-graphiti-consulta-")
+        self.mod._cache_verify.clear()
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _cfg(self, endpoint, **extra):
+        cfg = {"_root": self.tmp, "group_id": "proy-test", "endpoint": endpoint, "mode": "read",
+               "allow_remote": False, "timeout_ms": 2000, "provider": {"llm": "none"}}
+        cfg.update(extra)
+        return cfg
+
+    def _episodio(self, id_="mem.adr.grafo", version=1, evidencia="validated_case",
+                  ruta="docs/knowledge/approved/adr/ADR-100.md", categoria="DECISION"):
+        op = {"id": id_, "version": version, "hash": "h" * 8, "category": categoria,
+              "evidencia": evidencia, "ruta": ruta, "cuerpo": "Cuerpo de la entrada.\n"}
+        episodio, _aviso = self.mod._episodio_upsert("proy-test", op)
+        return {"name": episodio["name"], "uuid": episodio["uuid"], "group_id": "proy-test",
+                "content": episodio["episode_body"]}
+
+    def _respuestas(self, episodios, nodos=None, hechos=None):
+        return {
+            "get_episodes": {"structuredContent": {"episodes": episodios}},
+            "search_nodes": {"structuredContent": {"nodes": nodos or []}},
+            "search_memory_facts": {"structuredContent": {"facts": hechos or []}},
+        }
+
+    # -- las tres puertas: modo, texto y permiso ------------------------------------------------
+
+    def test_consultar_en_shadow_no_lee_y_lo_dice(self):
+        cfg = self._cfg("http://127.0.0.1:1", mode="shadow")
+        salida = self.mod.consultar(cfg, {"texto": "memoria", "limit": 5})
+        self.assertEqual(salida["aciertos"], [])
+        self.assertIn("shadow", salida["motivo"])
+
+    def test_consultar_en_off_no_lee(self):
+        cfg = self._cfg("http://127.0.0.1:1", mode="off")
+        salida = self.mod.consultar(cfg, {"texto": "memoria", "limit": 5})
+        self.assertEqual(salida["aciertos"], [])
+        self.assertIn("off", salida["motivo"])
+
+    def test_consultar_sin_texto_no_llama_al_servidor(self):
+        with _ServidorMCPContext(respuestas_tools=self._respuestas([])) as srv:
+            salida = self.mod.consultar(self._cfg(srv.endpoint), {"texto": "   ", "limit": 5})
+            self.assertEqual(salida["aciertos"], [])
+            self.assertEqual([n for n, _a in srv.llamadas if n.startswith("search")], [])
+        self.assertIn("sin texto", salida["motivo"])
+
+    def test_consultar_nunca_lanza_si_el_servidor_no_responde(self):
+        cfg = self._cfg("http://127.0.0.1:1")
+        salida = self.mod.consultar(cfg, {"texto": "memoria", "limit": 5})
+        self.assertEqual(salida["aciertos"], [])
+        self.assertTrue(salida["motivo"])
+
+    # -- el camino feliz -----------------------------------------------------------------------
+
+    def test_consultar_devuelve_evidencia_estado_y_ruta_canonica(self):
+        ep = self._episodio()
+        nodos = [{"name": ep["name"], "uuid": ep["uuid"], "summary": "resumen del nodo"}]
+        with _ServidorMCPContext(respuestas_tools=self._respuestas([ep], nodos=nodos)) as srv:
+            salida = self.mod.consultar(self._cfg(srv.endpoint), {"texto": "memoria", "limit": 5})
+        self.assertEqual(len(salida["aciertos"]), 1)
+        acierto = salida["aciertos"][0]
+        self.assertEqual(acierto["id"], "mem.adr.grafo")
+        self.assertEqual(acierto["estado"], "aprobado")
+        self.assertEqual(acierto["evidencia"], "validated_case")
+        self.assertEqual(acierto["ruta"], "docs/knowledge/approved/adr/ADR-100.md")
+        self.assertEqual(acierto["version"], "1")
+
+    def test_consultar_acota_todas_las_llamadas_al_group_id_propio(self):
+        ep = self._episodio()
+        nodos = [{"name": ep["name"], "uuid": ep["uuid"]}]
+        with _ServidorMCPContext(respuestas_tools=self._respuestas([ep], nodos=nodos)) as srv:
+            self.mod.consultar(self._cfg(srv.endpoint), {"texto": "memoria", "limit": 5})
+            for nombre, argumentos in srv.llamadas:
+                if nombre in ("search_nodes", "search_memory_facts", "get_episodes"):
+                    self.assertEqual(argumentos.get("group_ids"), ["proy-test"], nombre)
+
+    def test_consultar_un_hecho_trae_su_vigencia_temporal(self):
+        """El intent `temporal` existe por esto: `search_memory_facts` da `valid_at`/`invalid_at`."""
+        ep = self._episodio()
+        hechos = [{"fact": "A sustituye a B", "valid_at": "2026-09-01T00:00:00Z", "invalid_at": None,
+                   "source_node_name": ep["name"], "target_node_name": "otro"}]
+        with _ServidorMCPContext(respuestas_tools=self._respuestas([ep], hechos=hechos)) as srv:
+            salida = self.mod.consultar(self._cfg(srv.endpoint), {"texto": "memoria", "limit": 5})
+        acierto = salida["aciertos"][0]
+        self.assertEqual(acierto["fact"], "A sustituye a B")
+        self.assertEqual(acierto["valid_at"], "2026-09-01T00:00:00Z")
+
+    def test_consultar_marca_invalidado_lo_que_tiene_tombstone(self):
+        ep = self._episodio()
+        tombstone = {"name": "mem.adr.grafo@tombstone", "group_id": "proy-test",
+                     "content": "knowledge_id: mem.adr.grafo\nstatus: invalidado\n"}
+        nodos = [{"name": ep["name"], "uuid": ep["uuid"]}]
+        with _ServidorMCPContext(respuestas_tools=self._respuestas([ep, tombstone], nodos=nodos)) as srv:
+            salida = self.mod.consultar(self._cfg(srv.endpoint), {"texto": "memoria", "limit": 5})
+        self.assertEqual(salida["aciertos"][0]["estado"], "invalidado")
+
+    # -- fail-closed: sin procedencia no hay acierto --------------------------------------------
+
+    def test_consultar_descarta_un_nodo_sin_procedencia_conocida(self):
+        """Un nodo que no casa con ningun episodio propio NO se sirve con datos inventados."""
+        nodos = [{"name": "NodoDeExtraccion", "uuid": "u-1", "summary": "entidad suelta"}]
+        with _ServidorMCPContext(respuestas_tools=self._respuestas([], nodos=nodos)) as srv:
+            salida = self.mod.consultar(self._cfg(srv.endpoint), {"texto": "memoria", "limit": 5})
+        self.assertEqual(salida["aciertos"], [])
+        self.assertEqual(salida["descartados"], 1)
+
+    def test_consultar_descarta_un_episodio_de_otro_grupo(self):
+        ajeno = dict(self._episodio(), group_id="otro-proyecto")
+        nodos = [{"name": ajeno["name"], "uuid": ajeno["uuid"]}]
+        with _ServidorMCPContext(respuestas_tools=self._respuestas([ajeno], nodos=nodos)) as srv:
+            salida = self.mod.consultar(self._cfg(srv.endpoint), {"texto": "memoria", "limit": 5})
+        self.assertEqual(salida["aciertos"], [])
+
+    def test_consultar_no_repite_la_misma_entrada_dos_veces(self):
+        ep = self._episodio()
+        nodos = [{"name": ep["name"], "uuid": ep["uuid"]}]
+        hechos = [{"fact": "x", "source_node_name": ep["name"], "target_node_name": "otro"}]
+        with _ServidorMCPContext(respuestas_tools=self._respuestas([ep], nodos=nodos, hechos=hechos)) as srv:
+            salida = self.mod.consultar(self._cfg(srv.endpoint), {"texto": "memoria", "limit": 5})
+        self.assertEqual([a["id"] for a in salida["aciertos"]], ["mem.adr.grafo"])
+
+    def test_consultar_respeta_el_limite_pedido(self):
+        episodios = [self._episodio(id_=f"mem.adr.e{i}") for i in range(6)]
+        nodos = [{"name": e["name"], "uuid": e["uuid"]} for e in episodios]
+        with _ServidorMCPContext(respuestas_tools=self._respuestas(episodios, nodos=nodos)) as srv:
+            salida = self.mod.consultar(self._cfg(srv.endpoint), {"texto": "memoria", "limit": 2})
+        self.assertEqual(len(salida["aciertos"]), 2)
+
+    def test_consultar_con_respuesta_ilegible_degrada_sin_lanzar(self):
+        respuestas = {"get_episodes": {"content": [{"type": "text", "text": "no es json"}]},
+                      "search_nodes": {"structuredContent": {"nodes": []}},
+                      "search_memory_facts": {"structuredContent": {"facts": []}}}
+        with _ServidorMCPContext(respuestas_tools=respuestas) as srv:
+            salida = self.mod.consultar(self._cfg(srv.endpoint), {"texto": "memoria", "limit": 5})
+        self.assertEqual(salida["aciertos"], [])
+        self.assertTrue(salida["motivo"])
+
+    def test_consultar_no_escribe_nada_en_el_grafo(self):
+        ep = self._episodio()
+        nodos = [{"name": ep["name"], "uuid": ep["uuid"]}]
+        with _ServidorMCPContext(respuestas_tools=self._respuestas([ep], nodos=nodos)) as srv:
+            self.mod.consultar(self._cfg(srv.endpoint), {"texto": "memoria", "limit": 5})
+            escrituras = {"add_memory", "add_triplet", "clear_graph", "delete_episode",
+                          "delete_entity_edge", "build_communities"}
+            self.assertEqual([n for n, _a in srv.llamadas if n in escrituras], [])
+
+    def test_parsear_procedencia_de_un_cuerpo_sin_bloque_es_none(self):
+        self.assertIsNone(self.mod._procedencia_de_episodio({"content": "texto suelto"}))
+class TestGraphitiEnvoltorioResultReal(unittest.TestCase):
+    """T-07 (hallazgo de la sonda de SOLO LECTURA contra el servidor real, 2026-09-21): el
+    servidor envuelve el `structuredContent` de VARIAS tools bajo una unica clave `result`
+    (`{"result": {"episodes": [...]}}`) — `get_status` no, porque su esquema de salida SI es un
+    objeto declarado. Con el envoltorio sin abrir, `get_episodes`/`search_*` parecian ilegibles
+    contra el servidor REAL aunque las fixtures del servidor falso (structuredContent plano)
+    pasaran en verde."""
+
+    def setUp(self):
+        self.mod = _cargar("graphiti.py", "ks_backend_graphiti_test_envoltorio")
+        self.tmp = tempfile.mkdtemp(prefix="ks-graphiti-envoltorio-")
+        self.mod._cache_verify.clear()
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_contenido_tool_call_abre_el_envoltorio_result(self):
+        self.assertEqual(
+            self.mod._contenido_tool_call({"structuredContent": {"result": {"episodes": []}}}),
+            {"episodes": []})
+        self.assertEqual(
+            self.mod._contenido_tool_call({"structuredContent": {"result": [1, 2]}}), [1, 2])
+
+    def test_contenido_tool_call_no_abre_lo_que_no_es_el_envoltorio(self):
+        # `get_status` real: structuredContent plano, sin `result` -> se devuelve tal cual
+        self.assertEqual(self.mod._contenido_tool_call({"structuredContent": {"status": "ok"}}),
+                         {"status": "ok"})
+        # `result` conviviendo con otras claves NO es el envoltorio de una sola clave
+        payload = {"result": {"a": 1}, "message": "x"}
+        self.assertEqual(self.mod._contenido_tool_call({"structuredContent": payload}), payload)
+        # `result` escalar tampoco (no es un contenido de tool)
+        self.assertEqual(self.mod._contenido_tool_call({"structuredContent": {"result": 7}}),
+                         {"result": 7})
+
+    def test_consultar_con_la_forma_real_del_servidor(self):
+        op = {"id": "mem.adr.real", "version": 1, "hash": "h" * 8, "category": "DECISION",
+              "evidencia": "validated_case", "ruta": "docs/knowledge/approved/adr/ADR-101.md",
+              "cuerpo": "Cuerpo.\n"}
+        episodio, _aviso = self.mod._episodio_upsert("proy-test", op)
+        ep = {"name": episodio["name"], "uuid": episodio["uuid"], "group_id": "proy-test",
+              "content": episodio["episode_body"]}
+        respuestas = {
+            "get_episodes": {"structuredContent": {"result": {"message": "ok", "episodes": [ep]}}},
+            "search_nodes": {"structuredContent": {"result": {"message": "ok", "nodes": [
+                {"name": ep["name"], "uuid": ep["uuid"], "summary": "resumen"}]}}},
+            "search_memory_facts": {"structuredContent": {"result": {"message": "ok", "facts": []}}},
+        }
+        cfg = {"_root": self.tmp, "group_id": "proy-test", "mode": "read", "allow_remote": False,
+               "timeout_ms": 2000, "provider": {"llm": "none"}}
+        with _ServidorMCPContext(respuestas_tools=respuestas) as srv:
+            cfg["endpoint"] = srv.endpoint
+            salida = self.mod.consultar(cfg, {"texto": "memoria", "limit": 5})
+        self.assertEqual([a["id"] for a in salida["aciertos"]], ["mem.adr.real"])
+
+    def test_verify_con_la_forma_real_del_servidor_no_es_ilegible(self):
+        """El mismo envoltorio dejaba `verify()` en `ok: None` («respuesta ilegible») contra el
+        servidor real en cuanto el manifiesto tenia una entrada."""
+        cfg = {"_root": self.tmp, "group_id": "proy-test", "mode": "read", "allow_remote": False,
+               "timeout_ms": 2000, "provider": {"llm": "none"}}
+        self.mod._escribir_manifest(cfg, {"group_id": "proy-test", "entradas": {
+            "mem.adr.real": {"version": 1, "hash": "h", "uuid": "u-1"}}})
+        respuestas = {"get_episodes": {"structuredContent": {"result": {"episodes": [
+            {"name": "mem.adr.real@1", "uuid": "u-1", "group_id": "proy-test"}]}}}}
+        with _ServidorMCPContext(respuestas_tools=respuestas) as srv:
+            cfg["endpoint"] = srv.endpoint
+            veredicto = self.mod.verify(cfg)
+        self.assertEqual(veredicto, {"ok": True, "desfase": []})
 
 if __name__ == "__main__":
     unittest.main()

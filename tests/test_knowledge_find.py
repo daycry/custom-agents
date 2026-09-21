@@ -805,3 +805,31 @@ def test_enrutado_sobre_el_corpus_real_devops_trae_hooks_y_consola(real):
     ids = {a["id"] for a in json.loads(out)["aciertos"]}
     assert {"ADR-007", "ADR-010", "GOT-005"} <= ids, ids
     assert not any(i in ids for i in ("LES-001", "LES-005", "LES-009")), "la estimación no es área de devops"
+
+
+# =============================================================== graphiti-memory T-07 · router por intent
+
+def test_intent_sin_backends_declarados_cae_al_camino_local_de_siempre(proyecto):
+    """Un proyecto SIN `taxonomy.json` (el caso de fábrica) no cambia de comportamiento con
+    `--intent`: mismos aciertos que sin él, exit 0, y el JSON lo declara (`router.origen: local`)."""
+    code_sin, out_sin, _ = run("consola", "--json", "--root", str(proyecto))
+    code_con, out_con, _ = run("consola", "--intent", "temporal", "--json", "--root", str(proyecto))
+    assert (code_sin, code_con) == (0, 0)
+    sin, con = json.loads(out_sin), json.loads(out_con)
+    assert [a["id"] for a in con["aciertos"]] == [a["id"] for a in sin["aciertos"]]
+    assert con["router"]["origen"] == "local" and con["router"]["backend"] is None
+    assert con["consulta"]["intent"] == "temporal"
+
+
+def test_intent_tambien_se_admite_en_la_consulta_enrutada_por_area(proyecto):
+    """El intent es ORTOGONAL a `--contexto/--tipo-tarea/--iniciativa`: no se estorban."""
+    code, out, _ = run("--tipo-tarea", "devops", "--intent", "temporal", "--json", "--root", str(proyecto))
+    assert code == 0
+    d = json.loads(out)
+    assert d["consulta"]["intent"] == "temporal" and "claves" in d["consulta"]
+    assert d["router"]["origen"] == "local"
+
+
+def test_intent_vacio_es_error_de_uso(proyecto):
+    code, out, err = run("consola", "--intent", "", "--root", str(proyecto))
+    assert code == 2 and out == "" and "intent" in err.lower()
