@@ -344,6 +344,17 @@
       "guardarrail_previo": "ninguno (este es el hueco que cierra la ronda fix1 de graphiti-memory; T-04 de la Fase 2 anade la tercera copia)"
     },
     {
+      "id": "direccion_prohibida_siempre",
+      "mecanismo": "A",
+      "que_es": "Clasificacion de las direcciones IP que se rechazan SIEMPRE -link-local (metadatos de nube), no especificada y los prefijos de TRANSICION IPv6 6to4/Teredo (gap #71)- junto con el desenvoltorio previo de esas formas de transicion. El adaptador la aplica en tiempo de conexion y el validador estatico en frio: la MISMA regla en los dos sitios es la defensa en profundidad que pedia el arbitraje del gap #75 (CWE-1287/CWE-918); antes, el esquema tenia una reimplementacion propia y mas pobre (solo IPv4-mapeada).",
+      "canonico": "skills/knowledge-services/backends/graphiti.py",
+      "copias": [
+        {"ruta": "skills/knowledge-services/backends/graphiti.py", "inicio": "# --8<-- direccion prohibida siempre COMPARTIDO (graphiti-memory T-04-fix4, gaps #71/#75) - REPLICADO LITERAL en skills/knowledge-services/backends/graphiti.py y agent-kits/shared/knowledge-schema.py", "fin": "# --8<-- fin direccion prohibida siempre COMPARTIDO"},
+        {"ruta": "agent-kits/shared/knowledge-schema.py", "inicio": "# --8<-- direccion prohibida siempre COMPARTIDO (graphiti-memory T-04-fix4, gaps #71/#75) - REPLICADO LITERAL en skills/knowledge-services/backends/graphiti.py y agent-kits/shared/knowledge-schema.py", "fin": "# --8<-- fin direccion prohibida siempre COMPARTIDO"}
+      ],
+      "guardarrail_previo": "ninguno (la mitad de esquema de los gaps #53/#63 era una reimplementacion aparte, sin test propio ni registro; la ronda fix4 de graphiti-memory la unifica)"
+    },
+    {
       "id": "taxonomy_fallback",
       "mecanismo": "A",
       "que_es": "Contenido por defecto de taxonomy.json (knowledge-services T-01/T-01-fix1, ADR-018): el respaldo embebido de knowledge-schema.py tiene que reflejar el MISMO contenido que la plantilla que se lee del disco, o `default_taxonomy()` devuelve datos distintos segun si `templates/taxonomy.json` viaja o no con el paquete.",

@@ -83,14 +83,50 @@ decisión de que la extracción de entidades la hace el SERVIDOR, no el cliente)
   añade un aviso en el resultado (gap #64).
 - **`revoke`** nunca llama a `delete_episode`: escribe un episodio tombstone
   (`<id>@tombstone`) y, si hay una versión previa, una relación `SUPERSEDES` hacia su uuid
-  (con los campos `source_node_uuid`/`target_node_uuid` que exige la tool, no `*_node_name`); un
+  (con los CUATRO campos que exige el contrato real de la tool: `source_node_name`/
+  `target_node_name` son OBLIGATORIOS según el `required` del `tools/list` capturado, y los
+  `*_uuid` viajan además como refuerzo — gap #69, el arbitraje anterior de #40/#56 «solo `*_uuid`»
+  era incompleto y hacía fallar TODO camino de sucesión contra el servidor real); un
   cambio de `version` en `apply()` emite el mismo tombstone+`SUPERSEDES` hacia la versión anterior
   (CA-11, sucesión observable).
+- **Topes de recursos** (`max_respuesta_kb`, `max_episodes` — gap #70, lente D): cada respuesta
+  MCP se lee POR TROZOS con un tope duro (`max_respuesta_kb`, entero > 0, default **8192 KiB =
+  8 MiB**); pasarse es un `ErrorMCP` explícito, nunca un `MemoryError` (que además ya se captura
+  en `health`/`verify`/`puede_leer`, funciones que por contrato no lanzan). La ventana de
+  `get_episodes` que barre `verify()` se amplía como mucho hasta `max_episodes` (entero > 0,
+  default 5000). **Escenario de carga de referencia:** con 500 entradas publicadas y ~15 000
+  episodios en el grupo, `verify()` hacía hasta 4 barridos de 1000/4000/5000/5000 episodios
+  (~31 MB transferidos, ~35 MB de pico) para devolver un booleano; con `max_episodes: 2000` ese
+  peor caso baja a ~4 MB por barrido, y `puede_leer()` —que el router de T-07 llamará por
+  consulta— reutiliza el resultado de `verify()` cacheado en proceso durante 5 s en vez de barrer
+  el grafo en cada consulta. Ajusta `max_episodes` por encima del número de episodios que
+  esperas en el grupo si `verify()` empieza a reportar desfases falsos.
+- **Cambio de `group_id`** (gap #73): el manifiesto pertenece a UN grupo. Si `taxonomy.json` cambia
+  `group_id`, la base de comparación pasa a estar VACÍA (todo `upsert` contra el grupo nuevo), se
+  avisa en el resultado de `apply()` y el manifiesto anterior se conserva como
+  `graphiti-manifest.<group_id-viejo>.json` para poder revocar a mano lo que quedó en el grupo
+  viejo (el adaptador NUNCA revoca en un grupo que ya no es el suyo).
+- **`.pending` heredado** (gaps #54/#67/#68/#79): un `.pending` de una corrida cortada se
+  CONFIRMA contra el servidor (`get_episodes`) antes de promoverlo a publicado, **siempre** —
+  también cuando la corrida actual trae operaciones nuevas. Lo que el servidor no reconoce se
+  quita del manifiesto y `plan()` lo vuelve a proponer como `upsert` en la siguiente pasada
+  (reintentar de más nunca pierde datos; promover de más, sí). Si NO se puede preguntar al
+  servidor (caído, timeout, respuesta ilegible), `apply()` no toca nada —ni el `.pending` ni el
+  publicado— y devuelve `{"aplicados": 0, "pendiente_sin_confirmar": true, "avisos": [...]}`.
+  La confirmación exige que el `uuid` coincida **cuando `get_episodes` lo devuelve**; si el
+  servidor no devuelve `uuid`, la confirmación es solo por nombre (`<id>@<version>`): límite
+  conocido, un servidor hostil podría afirmar tener un episodio que no tiene.
 - **Guardarraíl de red** (fix1, gap #34): todo host con nombre se resuelve SIEMPRE (nunca hay
   atajo por sufijo/literal) y TODAS sus direcciones deben ser loopback/privadas; link-local
-  (`169.254.0.0/16`, `fe80::/10`) y direcciones no especificadas se rechazan SIEMPRE, incluso con
-  `allow_remote: true`; de una redirección solo se siguen 307/308 (≤ 3 saltos, revalidando el host
-  en CADA salto, sin reenviar `Mcp-Session-Id` a otro host) — 301/302/303 son error. La función
+  (`169.254.0.0/16`, `fe80::/10`), direcciones no especificadas y los prefijos de TRANSICIÓN IPv6
+  6to4 (`2002::/16`) y Teredo (`2001:0::/32`) —que CPython clasifica como privados y envuelven una
+  IPv4 arbitraria, p. ej. `2002:a9fe:a9fe::1` = `169.254.169.254`— se rechazan SIEMPRE, incluso
+  con `allow_remote: true`, en el adaptador Y en el validador estático (gaps #71/#75, copia
+  declarada `direccion_prohibida_siempre` en `copias.json`); de una redirección solo se siguen
+  307/308 (≤ 3 saltos, revalidando el host en CADA salto y sin reenviar `Mcp-Session-Id` si
+  cambia el esquema, el host **o el puerto** respecto al salto anterior — gap #78) — 301/302/303
+  son error. El presupuesto de `timeout_ms` es ÚNICO para toda la petición: se reparte entre las
+  IPs candidatas y los saltos, nunca se multiplica por ellos (gap #83). La función
   `_sanear_detalle` (copia declarada de `markdown_export.py`, ADR-016) sanea cualquier texto crudo
   del servidor antes de exponerlo en un mensaje.
 - **`telemetria`** (bool) se traduce a la variable de entorno `GRAPHITI_TELEMETRY_ENABLED` que lee
@@ -99,9 +135,13 @@ decisión de que la extracción de entidades la hace el SERVIDOR, no el cliente)
 - **`concurrency`** (validado por el esquema) queda RESERVADO — el servidor de referencia impone
   `SEMAPHORE_LIMIT: 1`, así que `apply()` sigue secuencial a propósito; el coste de una conexión +
   resolución DNS por operación se mitiga con una caché de resolución de TTL corto, no con paralelismo.
-- **`knowledge-sync.py --backend <id> --propose-config`**: imprime la propuesta de
-  `graphiti_model.proponer_config` (bloque `entity_types` para el `config.yaml` del servidor +
-  `entity_map` para `taxonomy.json`) sin aplicar nada; solo válido para `type: graphiti`.
+- **`knowledge-sync.py --backend <id> --propose-config`**: el núcleo llama a la función
+  **opcional** `proponer_config(taxonomy, cfg)` del adaptador (séptima función del contrato, la
+  única no obligatoria) y, si existe, imprime su clave `texto` tal cual (o el JSON completo con
+  `--json`); si el adaptador no la define, lo dice y sale con 2. El núcleo NO nombra ningún
+  backend concreto (gap #77, invariante del plan y CA-12). En `graphiti.py` la propuesta es el
+  bloque `entity_types` para el `config.yaml` del servidor + el `entity_map` para
+  `taxonomy.json`, sin aplicar nada ni tocar la red.
 
 ## Adaptador de fixture (CA-12)
 

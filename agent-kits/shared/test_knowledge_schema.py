@@ -952,3 +952,79 @@ def test_min_evidence_no_string_produce_un_solo_error():
     errores_min_evidence = [e for e in errores if e["campo"] == "categories[0].min_evidence"]
     assert len(errores_min_evidence) == 1
     assert "min_evidence" in errores_min_evidence[0]["mensaje"]
+
+
+# ------------------------------------------------------------------ fix4 (#71/#75): defensa en
+# profundidad del guardarrail de red TAMBIEN en el validador estatico (el adaptador ya la tiene).
+
+def test_fix4_gap75_endpoint_al_imds_falla_incluso_con_allow_remote():
+    """Gap #75 (Important): el esquema daba por «local/privado» `169.254.169.254` (`is_private`
+    de `ipaddress` incluye el link-local IPv4), asi que una config con el endpoint de metadatos
+    de nube VALIDABA mientras el adaptador la rechaza SIEMPRE — defensa en profundidad rota
+    (CWE-1287). Mutante: quitar `_direccion_prohibida_siempre` del validador."""
+    for allow_remote in (False, True):
+        cfg = _con_graphiti(_graphiti_config(endpoint="http://169.254.169.254/mcp",
+                                              allow_remote=allow_remote))
+        errores = ks.validar(cfg, "t.json")
+        assert any(e["campo"] == "backends.graphiti.config.endpoint" for e in errores), allow_remote
+
+
+def test_fix4_gap75_endpoint_no_especificado_falla_siempre():
+    for endpoint in ("http://0.0.0.0:8001/mcp", "http://[::]:8001/mcp"):
+        cfg = _con_graphiti(_graphiti_config(endpoint=endpoint, allow_remote=True))
+        errores = ks.validar(cfg, "t.json")
+        assert any(e["campo"] == "backends.graphiti.config.endpoint" for e in errores), endpoint
+
+
+def test_fix4_gap75_health_url_al_imds_falla_siempre():
+    cfg = _con_graphiti(_graphiti_config(health={"url": "http://[::ffff:169.254.169.254]/health"},
+                                          allow_remote=True))
+    errores = ks.validar(cfg, "t.json")
+    assert any(e["campo"] == "backends.graphiti.config.health.url" for e in errores)
+
+
+def test_fix4_gap71_prefijos_de_transicion_ipv6_fallan_en_el_esquema():
+    """Gap #71 (Important): `2002::/16` (6to4) y `2001:0::/32` (Teredo) son `is_private=True` en
+    CPython, asi que un `2002:a9fe:a9fe::1` (= 169.254.169.254) colaba por el validador igual que
+    por el adaptador. Los tres literales del arbitraje, en el esquema."""
+    for host in ("[2002:a9fe:a9fe::1]", "[2001:0:4136:e378:8000:63bf:3fff:fdd2]",
+                 "[::ffff:169.254.169.254]"):
+        for allow_remote in (False, True):
+            cfg = _con_graphiti(_graphiti_config(endpoint=f"http://{host}:8001/mcp",
+                                                  allow_remote=allow_remote))
+            errores = ks.validar(cfg, "t.json")
+            assert any(e["campo"] == "backends.graphiti.config.endpoint" for e in errores), host
+
+
+def test_fix4_gap75_url_parseable_rechaza_una_url_que_no_parsea():
+    """La mitad de esquema de #63 tampoco tenia test propio (mutante s63: `_url_parseable`
+    devolviendo siempre `True`)."""
+    assert ks._url_parseable("http://127.0.0.1:8001/mcp") is True
+    assert ks._url_parseable("http://usuario[malo:x@127.0.0.1:8001/mcp") is False
+
+
+def test_fix4_gap75_endpoint_no_parseable_falla():
+    cfg = _con_graphiti(_graphiti_config(endpoint="http://usuario[malo:x@127.0.0.1:8001/mcp"))
+    errores = ks.validar(cfg, "t.json")
+    assert any(e["campo"] == "backends.graphiti.config.endpoint" for e in errores)
+
+
+def test_fix4_gap70_max_respuesta_kb_y_max_episodes_son_claves_declaradas():
+    """Gap #70: las dos opciones nuevas del adaptador (tope de lectura MCP y ventana de `verify`)
+    tienen que estar DECLARADAS en el esquema — una clave no declarada es error, no se ignora."""
+    cfg = _con_graphiti(_graphiti_config(max_respuesta_kb=8192, max_episodes=2000))
+    assert ks.validar(cfg, "t.json") == []
+
+
+def test_fix4_gap70_max_respuesta_kb_invalido_falla():
+    for valor in (0, -1, 1.5, "8192", True):
+        cfg = _con_graphiti(_graphiti_config(max_respuesta_kb=valor))
+        errores = ks.validar(cfg, "t.json")
+        assert any(e["campo"] == "backends.graphiti.config.max_respuesta_kb" for e in errores), valor
+
+
+def test_fix4_gap70_max_episodes_invalido_falla():
+    for valor in (0, -3, 2.5, "500"):
+        cfg = _con_graphiti(_graphiti_config(max_episodes=valor))
+        errores = ks.validar(cfg, "t.json")
+        assert any(e["campo"] == "backends.graphiti.config.max_episodes" for e in errores), valor

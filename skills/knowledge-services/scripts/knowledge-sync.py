@@ -70,6 +70,7 @@ import argparse
 import importlib.util
 import json
 import os
+import re
 import sys
 import time
 
@@ -141,6 +142,23 @@ def _cargar_por_ruta(ruta, nombre_modulo):
     return mod
 
 
+_CONTROL_O_ANSI_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]|[\x00-\x1f\x7f]")
+_TOPE_CAUSA_CHARS = 400
+
+
+def _sanear_causa(texto):
+    """Gap #72 (Important, CWE-117): la causa de un fallo del adaptador puede traer texto CRUDO
+    del servidor (secuencias ANSI que borran la pantalla, CRLF que falsifican una linea de log con
+    el prefijo real del CLI, miles de caracteres). Se sanea ANTES de imprimirla por stderr y
+    ANTES de persistirla como `causa` en la outbox/dead-letter. No es especifico de ningun
+    backend: cualquier adaptador puede propagar texto de un tercero."""
+    return _CONTROL_O_ANSI_RE.sub(" ", str(texto))[:_TOPE_CAUSA_CHARS]
+
+
+def _causa(e):
+    return _sanear_causa(f"{type(e).__name__}: {e}")
+
+
 def _error(mensaje, fichero, campo):
     return {"mensaje": mensaje, "fichero": fichero, "campo": campo}
 
@@ -180,7 +198,7 @@ def _drenar_outbox_propia(ob, adaptador, cfg, dir_outbox, backend_id):
         try:
             resultado = adaptador.apply(payload["ops"], cfg)
         except Exception as e:  # noqa: BLE001 - un fallo del adaptador se registra, no tumba el CLI
-            ob.reencolar_o_dead_letter(item, f"{type(e).__name__}: {e}", backoff=True)
+            ob.reencolar_o_dead_letter(item, _causa(e), backoff=True)  # gap #72: saneada
             fallidos += 1
             continue
         manifiesto = resultado if isinstance(resultado, dict) else {"resultado": str(resultado)}
@@ -261,9 +279,9 @@ def _construir_parser():
     ap.add_argument("--outbox-status", action="store_true", dest="outbox_status",
                      help="imprime `outbox.estado()` de la cola de este backend y sale (gap 120)")
     ap.add_argument("--propose-config", action="store_true", dest="propose_config",
-                     help="imprime la propuesta de `graphiti_model.proponer_config` (entity_types "
-                          "para el config.yaml del servidor + entity_map para taxonomy.json) y sale, "
-                          "sin aplicar nada (gap #36, CA-13)")
+                     help="imprime la propuesta de configuración del adaptador del backend "
+                          "(función OPCIONAL `proponer_config` del contrato) y sale, sin aplicar "
+                          "nada ni tocar la red (gap #36, CA-13)")
     ap.add_argument("--backends-dir", action="append", default=[], dest="backends_dir",
                      help="carpeta extra donde buscar el adaptador `type` (repetible; CA-12)")
     return ap
@@ -314,30 +332,47 @@ def main(argv=None):
     cfg["_root"] = os.path.abspath(args.root)  # gap 88: export_dir se resuelve contra esto, nunca CWD
 
     if args.propose_config:
-        # Gap #36 (CA-13): `graphiti_model.proponer_config` no tenia ningun llamador -esta era su
-        # unica puerta de entrada prevista por el plan (T-02 la aplazo "a T-04/T-05")-. Solo tiene
-        # sentido para el backend `graphiti` (el resto no tiene tipos de entidad que proponer, ni
-        # necesita que su adaptador este disponible para ESTE modo -no toca red ni manifiestos-).
+        # Gap #36 (CA-13): la propuesta de configuracion no tenia ningun llamador -esta es su
+        # unica puerta de entrada prevista por el plan (T-02 la aplazo "a T-04/T-05")-.
         #
-        # Gap #61 (Minor): este modo no toca red ni manifiestos -solo propone `entity_map`/tipos a
-        # partir de la taxonomía local- así que NO depende de que el backend esté habilitado. El
-        # chequeo de `enabled: false` corria ANTES de esta rama, y la plantilla por defecto envia
-        # `graphiti` con `enabled: false` -así que `--propose-config` era inalcanzable en la
+        # Gap #61 (Minor): este modo no toca red ni manifiestos -solo propone configuracion a
+        # partir de la taxonomia local- así que NO depende de que el backend esté habilitado. El
+        # chequeo de `enabled: false` corria ANTES de esta rama, y la plantilla por defecto trae
+        # el backend con `enabled: false` -así que `--propose-config` era inalcanzable en la
         # configuración de fábrica, justo el caso de uso mas comun (proponer antes de habilitar).
-        if tipo != "graphiti":
-            print(f"knowledge-sync: --propose-config solo aplica a backends `type: graphiti` "
-                  f"(`{args.backend}` es `{tipo}`)", file=sys.stderr)
+        #
+        # Gap #77 (Important, fix4): el NUCLEO no nombra ningun backend concreto (invariante del
+        # plan, `improvement-plan.md:17`, y CA-12 de ADR-018). Antes, esta rama cortaba con
+        # `if tipo != "<un backend>"` y cargaba un modulo de ESE backend por ruta: un tercer
+        # backend con configuracion proponible no podia usar el flag sin editar este fichero.
+        # Ahora es una funcion OPCIONAL del contrato de adaptador: `proponer_config(taxonomy,
+        # cfg)`; si el adaptador no la define, se dice y se sale.
+        try:
+            adaptador_propuesta = binit.cargar_adaptador(
+                tipo, directorios=[BACKENDS_DIR, *args.backends_dir])
+        except binit.AdaptadorNoDisponible as e:
+            print(f"knowledge-sync: {e}", file=sys.stderr)
             return 2
-        gm = _cargar_por_ruta(os.path.join(BACKENDS_DIR, "graphiti_model.py"), "ks_backend_graphiti_model")
-        propuesta = gm.proponer_config(config, cfg)
+        proponer = getattr(adaptador_propuesta, "proponer_config", None)
+        if not callable(proponer):
+            print(f"knowledge-sync: el backend `{args.backend}` (`type: {tipo}`) no propone "
+                  f"configuración (su adaptador no define `proponer_config`)", file=sys.stderr)
+            return 2
+        try:
+            propuesta = proponer(config, cfg)
+        except Exception as e:  # noqa: BLE001 - un adaptador que lanza no tumba el CLI (gap 90)
+            print(f"knowledge-sync: `proponer_config` del adaptador `{tipo}` falló: {_causa(e)}",
+                  file=sys.stderr)
+            return 1
         if args.json:
             print(json.dumps({"backend": args.backend, "propose_config": propuesta},
                               ensure_ascii=False, indent=2))
+        elif isinstance(propuesta, dict) and propuesta.get("texto"):
+            # `texto` es el render legible que devuelve el propio adaptador (el nucleo no conoce
+            # las claves concretas de la propuesta).
+            print(propuesta["texto"])
         else:
-            print(propuesta["entity_types_yaml"])
-            print(f"\n# entity_map propuesto para backends.{args.backend}.config.entity_map:")
-            print(json.dumps(propuesta["entity_map"], ensure_ascii=False, indent=2))
-            print(f"\n{propuesta['nota']}")
+            print(json.dumps(propuesta, ensure_ascii=False, indent=2))
         return 0
 
     if not decl.get("enabled", False):
@@ -356,7 +391,7 @@ def main(argv=None):
             verificacion = adaptador.verify(cfg)
         except Exception as e:  # noqa: BLE001 - gap 90: un adaptador que lanza no tumba el CLI
             print(f"knowledge-sync: `health`/`verify` del adaptador `{tipo}` falló: "
-                  f"{type(e).__name__}: {e}", file=sys.stderr)
+                  f"{_causa(e)}", file=sys.stderr)  # gap #72
             return 1
         salida = {"backend": args.backend, "type": tipo, "health": salud, "verify": verificacion}
         print(json.dumps(salida, ensure_ascii=False, indent=2) if args.json else
@@ -384,8 +419,8 @@ def main(argv=None):
         try:
             resultado = adaptador.rebuild(entradas, cfg)
         except Exception as e:  # noqa: BLE001 - gap 90
-            print(f"knowledge-sync: `rebuild` del adaptador `{tipo}` falló: {type(e).__name__}: {e}",
-                  file=sys.stderr)
+            print(f"knowledge-sync: `rebuild` del adaptador `{tipo}` falló: {_causa(e)}",
+                  file=sys.stderr)  # gap #72
             return 1
         print(json.dumps({"backend": args.backend, "rebuild": resultado}, ensure_ascii=False, indent=2)
               if args.json else f"rebuild: {resultado}")
@@ -394,8 +429,8 @@ def main(argv=None):
     try:
         ops = adaptador.plan(entradas, cfg)
     except Exception as e:  # noqa: BLE001 - gap 90
-        print(f"knowledge-sync: `plan` del adaptador `{tipo}` falló: {type(e).__name__}: {e}",
-              file=sys.stderr)
+        print(f"knowledge-sync: `plan` del adaptador `{tipo}` falló: {_causa(e)}",
+              file=sys.stderr)  # gap #72
         return 1
 
     if args.dry_run:
@@ -446,8 +481,8 @@ def main(argv=None):
     except Exception as e:  # noqa: BLE001 - un fallo del adaptador se registra, no tumba el CLI
         # gap 116: reintenta con backoff antes de dead-letter (un fallo de `apply()` puede ser
         # transitorio — red intermitente al bridge — y no merece perder el envelope al primer golpe).
-        veredicto = ob.reencolar_o_dead_letter(item, f"{type(e).__name__}: {e}", backoff=True)
-        print(f"knowledge-sync: apply() del adaptador `{tipo}` falló: {type(e).__name__}: {e}"
+        veredicto = ob.reencolar_o_dead_letter(item, _causa(e), backoff=True)  # gap #72
+        print(f"knowledge-sync: apply() del adaptador `{tipo}` falló: {_causa(e)}"
               f" (publicación anterior intacta; envelope: {veredicto})", file=sys.stderr)
         return 1
     manifiesto = resultado if isinstance(resultado, dict) else {"resultado": str(resultado)}
