@@ -1028,3 +1028,25 @@ def test_fix4_gap70_max_episodes_invalido_falla():
         cfg = _con_graphiti(_graphiti_config(max_episodes=valor))
         errores = ks.validar(cfg, "t.json")
         assert any(e["campo"] == "backends.graphiti.config.max_episodes" for e in errores), valor
+
+
+# ------------------------------------------------------------------ Fase 3 - fix2 (#132)
+
+def test_f3fix2_gap132_el_validador_usa_la_copia_declarada_de_group_id(tmp_path):
+    """Gap #132 (salvedad de #97): `_config_con_group_id` estaba COPIADO aqui pero no lo llamaba
+    nadie (codigo muerto), y `_con_group_id_por_defecto` conservaba su propio predicado (`truthy`
+    frente a `isinstance(str) and strip()`): con `group_id: "   "` los dos caminos divergian -el
+    router derivaba el slug y el validador se quedaba con los espacios."""
+    config = {"backends": {"g": {"type": "graphiti", "enabled": True,
+                                 "config": {"group_id": "   "}}}}
+    ks._con_group_id_por_defecto(config, str(tmp_path / "mi-proyecto"))
+    derivado = config["backends"]["g"]["config"]["group_id"]
+    esperado = ks._config_con_group_id({"group_id": "   "}, str(tmp_path / "mi-proyecto"))["group_id"]
+    assert derivado == esperado == "mi-proyecto", (derivado, esperado)
+
+
+def test_f3fix2_gap132_un_group_id_explicito_sigue_intacto(tmp_path):
+    config = {"backends": {"g": {"type": "graphiti", "enabled": True,
+                                 "config": {"group_id": "mio"}}}}
+    ks._con_group_id_por_defecto(config, str(tmp_path / "otro"))
+    assert config["backends"]["g"]["config"]["group_id"] == "mio"

@@ -1951,3 +1951,64 @@ def test_f3fix1_gap99_una_fila_por_backend_habilitado(tmp_path):
     assert isinstance(ls, list) and len(ls) == 2
     texto = json.dumps(ls, ensure_ascii=False)
     assert "uno" in texto and "dos" in texto
+
+
+# ------------------------------------------------------------------ fix2 Fase 3 (#119, #122)
+
+def test_f3fix2_gap119_el_presupuesto_se_reevalua_dentro_del_bucle_por_backend(monkeypatch):
+    """Gap #119: el bucle por backend de #99 hacia `health()`+`verify()` de red por CADA backend
+    declarado, pero el presupuesto del bloque solo se miraba una vez por CAPACIDAD -> N x coste
+    sin aviso (medido con blackhole TCP: 1 backend 3,14s, 2 -> 6,19s, 3 -> 9,24s)."""
+    import time as time_mod
+    destino = None
+    cap = {"id": "capacidad-x", "config_path": None, "enabled": True,
+           "health": {"estado": "read", "backends": ["uno", "dos", "tres"]},
+           "doctor": "capacidad-x: activa", "setup_step": "-"}
+    comprobados = []
+
+    def _backend_lento(cap_id, tipo, cfg, backends_mod, backends_dir, project=None, tope_ms=None):
+        comprobados.append(cap_id)
+        time_mod.sleep(0.05)
+        return doctor.linea(doctor.OK, f"{cap_id} (backend)", "sano, sin desfase")
+
+    monkeypatch.setattr(doctor, "_linea_capacidad_backend", _backend_lento)
+    monkeypatch.setattr(doctor, "_leer_backend_entry", lambda p, c, b=None: {"type": "test", "config": {}})
+    deadline = time_mod.monotonic() + 0.06
+    ls = doctor._linea_capacidad("proj", cap, object(), "d", deadline=deadline)
+    assert isinstance(ls, list)
+    assert len(comprobados) < 3, comprobados
+    texto = json.dumps(ls, ensure_ascii=False)
+    assert "presupuesto" in texto, texto
+
+
+def test_f3fix2_gap119_el_tope_de_timeout_alcanza_al_timeout_ms_de_nivel_superior():
+    """`_cfg_con_timeout_topado` recortaba SOLO `health.timeout_ms`; el `timeout_ms` de nivel
+    superior (el que usan `initialize`/`get_status` del adaptador) se colaba entero."""
+    cfg = doctor._cfg_con_timeout_topado({"timeout_ms": 30000, "health": {"timeout_ms": 30000}})
+    assert cfg["timeout_ms"] <= doctor.CAPACIDAD_TIMEOUT_MS_TOPE, cfg
+    assert cfg["health"]["timeout_ms"] <= doctor.CAPACIDAD_TIMEOUT_MS_TOPE, cfg
+
+
+def test_f3fix2_gap119_la_ventana_de_lectura_se_acota_para_el_diagnostico():
+    """`/doctor` es un diagnostico, no una verificacion exhaustiva: la ventana de lectura que el
+    adaptador use en `verify()` se recorta (15 MiB por backend en el escenario de referencia)."""
+    cfg = doctor._cfg_con_timeout_topado({"max_episodes": 5000})
+    assert cfg["max_episodes"] <= doctor.CAPACIDAD_VENTANA_TOPE, cfg
+    cfg_sin = doctor._cfg_con_timeout_topado({})
+    assert cfg_sin["max_episodes"] <= doctor.CAPACIDAD_VENTANA_TOPE, cfg_sin
+
+
+def test_f3fix2_gap122_la_etiqueta_multi_backend_sanea_la_clave(monkeypatch):
+    """Gap #107 reabierto por el camino NUEVO de #99: con UN backend la etiqueta es `cap["id"]`
+    (saneado en origen), pero con VARIOS se interpola la clave CRUDA del backend."""
+    hostil = "aaa\x1b[31m‮EVIL"
+    cap = {"id": "capacidad-x", "config_path": None, "enabled": True,
+           "health": {"estado": "read", "backends": [hostil, "otro"]},
+           "doctor": "capacidad-x: activa", "setup_step": "-"}
+    monkeypatch.setattr(doctor, "_leer_backend_entry", lambda p, c, b=None: {"type": "test", "config": {}})
+    monkeypatch.setattr(doctor, "_linea_capacidad_backend",
+                        lambda cap_id, *a, **k: doctor.linea(doctor.OK, f"{cap_id} (backend)", "sano"))
+    ls = doctor._linea_capacidad("proj", cap, object(), "d")
+    texto = json.dumps(ls, ensure_ascii=False)
+    assert "\\u001b" not in texto and "\x1b" not in texto, texto
+    assert "\\u202e" not in texto and "‮" not in texto, texto

@@ -30,7 +30,7 @@ for _s in (sys.stdin, sys.stdout, sys.stderr):
     try: _s.reconfigure(encoding="utf-8", errors="replace")
     except Exception: pass  # noqa: BLE001 — sin reconfigure, ya leído o None (capsys, pythonw)
 
-# --8<-- sanear_detalle (funcion) — REPLICADO LITERAL en las CUATRO copias declaradas del bloque `sanear_detalle` de agent-kits/shared/copias.json
+# --8<-- sanear_detalle (funcion) — REPLICADO LITERAL en las CINCO copias declaradas del bloque `sanear_detalle` de agent-kits/shared/copias.json
 # Gap #93 (Minor, fix5): la clase [\x00-\x1f\x7f] dejaba pasar tres familias que TAMBIEN
 # falsifican una linea de log o invierten visualmente el texto de un mensaje/`causa`: los
 # controles C1 (\x80-\x9f, entre ellos CSI \x9b), los separadores Unicode de linea/parrafo
@@ -372,8 +372,6 @@ def _graphiti_health(root):
         # (el router los recorre por orden de clave): se declaran TODOS para que `/doctor` pinte
         # una fila de red por cada uno, no solo por el que representa la capacidad.
         salud["backends"] = habilitados
-        salud["detalle"] += (" · hay " + str(len(habilitados)) + " backends `type: graphiti` "
-                             "habilitados: " + ", ".join("`" + b + "`" for b in habilitados))
     return salud
 
 
@@ -385,9 +383,19 @@ def _graphiti_doctor(root):
     # mensajes de validacion; se sanean antes de componer la linea que lee un humano.
     backends = salud.get("backends") or [salud.get("backend") or "?"]
     nombres = ", ".join("`" + _sanear_detalle(b) + "`" for b in backends)
+    # Gap #125 (Minor, fix2 Fase 3): el tope de `_sanear_detalle` es POR PIEZA, no por linea, y la
+    # lista de backends habilitados es su propia pieza. Antes se concatenaba DENTRO de `detalle`
+    # (`_graphiti_health`) y, en la situacion nominal del #99 (>= 2 backends habilitados), el
+    # recorte de 200 caracteres del `detalle` de `read` se comia justo esa lista: la frase acababa
+    # en «hay 2 backends `type: graphiti` » y se perdia lo unico que la fila anadia.
+    piezas = [_sanear_detalle(salud["detalle"])]
+    if len(salud.get("backends") or []) > 1:
+        piezas.append(_sanear_detalle(
+            "hay " + str(len(salud["backends"])) + " backends `type: graphiti` habilitados: "
+            + ", ".join("`" + b + "`" for b in salud["backends"])))
+    piezas.append(_sanear_detalle(salud.get("remedio", "")))
     return (f"graphiti: {nombres} en `{_sanear_detalle(salud['estado'])}` — "
-            f"{_sanear_detalle(salud['detalle'])} · "
-            f"{_sanear_detalle(salud.get('remedio', ''))}").rstrip(" ·")
+            + " · ".join(p for p in piezas if p)).rstrip(" ·—").rstrip()
 
 
 REGISTRO = [

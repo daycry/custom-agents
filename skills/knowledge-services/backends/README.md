@@ -110,8 +110,24 @@ decisión de que la extracción de entidades la hace el SERVIDOR, no el cliente)
   más los dos tombstones de arriba; la `ruta` servida tiene que ser relativa y caer bajo
   `docs/knowledge/` (fail-closed, gap #106) y TODO texto de origen servidor —`summary`/`fact`,
   que genera el LLM de Graphiti a partir de lo ingerido— sale saneado (sin control/ANSI/bidi,
-  tope de 200 caracteres, gap #98). Los filtros `tipo`/`area` NO los aplica el adaptador (la
-  `category` del grafo no es el tipo/área del corpus local): los post-filtra el núcleo.
+  tope de 200 caracteres, gap #98). Los filtros `tipo`/`area` los aplica el NÚCLEO como
+  post-filtro, pero el adaptador tiene que servirle el vocabulario que el núcleo entiende
+  (gap #117, fix2 de la Fase 3): además de `categoria` (la clave de taxonomía, `DECISION`/
+  `GOTCHA`/…), cada acierto trae **`tipo`** —el `categories[].folder` DECLARADO en
+  `taxonomy.json` (`adr`/`gotchas`/`lessons`), que es justo lo que `knowledge-find.tipo_normalizado`
+  traduce al tipo local— y **`area`** (los `tags` `area:<valor>` de la entrada). Los dos viajan en
+  el bloque de procedencia del episodio (`local_folder`, `area`); para un grafo publicado ANTES de
+  fix2, el `tipo` se deriva de la propia `source_path` (`docs/knowledge/approved/<folder>/…`) y el
+  `area` queda vacía hasta republicar. Ninguna equivalencia categoría→tipo se cablea en el núcleo
+  ni en el adaptador: sale de la taxonomía y del frontmatter del proyecto.
+- **Ventana de procedencia de `consultar`** (gap #121): `search_nodes`/`search_memory_facts`
+  buscan en TODO el grafo, pero la procedencia solo se puede leer con `get_episodes`, que es una
+  ventana de los MÁS RECIENTES y **no tiene cursor de paginación** en el contrato real (solo
+  acepta `group_ids` y `max_episodes`; no hay ninguna herramienta que devuelva un episodio por
+  `uuid`). Por eso la ventana arranca pequeña y se amplía ×4 hasta resolver todos los aciertos,
+  hasta que el servidor devuelva menos de lo pedido, o hasta el tope (`max_episodes`, como mucho
+  2000 por consulta). Lo que siga sin resolver NO desaparece: sale como `fuera_de_ventana`
+  (contador propio, distinto de `descartados`) y en el `motivo`.
 - **Topes de recursos** (`max_respuesta_kb`, `max_episodes` — gap #70, lente D): cada respuesta
   MCP se lee POR TROZOS con un tope duro (`max_respuesta_kb`, entero > 0, default **8192 KiB =
   8 MiB**); pasarse es un `ErrorMCP` explícito, nunca un `MemoryError` (que además ya se captura
@@ -124,6 +140,23 @@ decisión de que la extracción de entidades la hace el SERVIDOR, no el cliente)
   consulta— reutiliza el resultado de `verify()` cacheado en proceso durante 5 s en vez de barrer
   el grafo en cada consulta. Ajusta `max_episodes` por encima del número de episodios que
   esperas en el grupo si `verify()` empieza a reportar desfases falsos.
+  **Los dos topes se cruzan** (gap #120, fix2 de la Fase 3): con los DEFAULTS, la ampliación de la
+  ventana llegaba a 4000 episodios ≈ 12,5 MiB, por encima de `max_respuesta_kb` (8 MiB) — `verify`
+  fallaba, `puede_leer` daba false y TODA consulta enrutada degradaba a local con 0 aciertos. La
+  regla de coherencia es `max_episodes × tamaño_medio_de_episodio ≤ max_respuesta_kb` (con ~3 KiB
+  por episodio: **`max_respuesta_kb` ≈ 3 × `max_episodes`**, en KiB). Como `get_episodes` no
+  pagina, la «página» es la propia ventana: cuando una ampliación NO cabe en el tope de lectura se
+  conserva el resultado de la última que sí cupo y la ventana se declara **incompleta**. En ese
+  caso `verify()` NO llama desfase a lo que no ha podido mirar (misma distinción del gap #67):
+  devuelve `ok: true` con `no_verificado: N` y un `aviso` que lo dice; y `apply()` no promueve
+  nada (`confirmacion_posible` false), para no despublicar por no haber mirado.
+- **Migración de grafos publicados antes de la separación `@superseded`/`@tombstone`** (gap #126):
+  hasta fix1 de la Fase 3, la sucesión de versión emitía `<id>@tombstone`, el MISMO nombre que usa
+  el revoke; el lector de hoy interpreta ese sufijo como «entrada invalidada entera». Un grafo
+  publicado desde la rama antes de `59d9e35` (ningún release contiene esos commits) hay que
+  **republicarlo**: `knowledge-sync.py --backend <id> --rebuild`. `verify()` lo detecta y lo
+  NOMBRA —tombstone de una entrada que el manifiesto da por vigente ⇒ `aviso` con el remedio—,
+  nunca lo ejecuta por su cuenta (CA-16).
 - **Cambio de `group_id`** (gap #73): el manifiesto pertenece a UN grupo. Si `taxonomy.json` cambia
   `group_id`, la base de comparación pasa a estar VACÍA (todo `upsert` contra el grupo nuevo), se
   avisa en el resultado de `apply()` y el manifiesto anterior se conserva como

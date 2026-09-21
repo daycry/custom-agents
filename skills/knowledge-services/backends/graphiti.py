@@ -326,7 +326,7 @@ def _sanear_url_para_mensaje(url):
     return _sanear_detalle(partes.geturl())
 
 
-# --8<-- sanear_detalle (funcion) — REPLICADO LITERAL en las CUATRO copias declaradas del bloque `sanear_detalle` de agent-kits/shared/copias.json
+# --8<-- sanear_detalle (funcion) — REPLICADO LITERAL en las CINCO copias declaradas del bloque `sanear_detalle` de agent-kits/shared/copias.json
 # Gap #93 (Minor, fix5): la clase [\x00-\x1f\x7f] dejaba pasar tres familias que TAMBIEN
 # falsifican una linea de log o invierten visualmente el texto de un mensaje/`causa`: los
 # controles C1 (\x80-\x9f, entre ellos CSI \x9b), los separadores Unicode de linea/parrafo
@@ -988,6 +988,10 @@ def plan(entries, cfg, force=False):
             "category": entrada.get("category"), "evidencia": entrada.get("evidencia"),
             "fuentes": entrada.get("fuentes") or [], "ruta": entrada.get("ruta"),
             "resumen": entrada.get("resumen"), "modo": entrada.get("modo"), "cuerpo": cuerpo,
+            # Gap #117 (Important, fix2 Fase 3): el `folder` declarado en `taxonomy.json` y los
+            # `tags` de la entrada viajan hasta el episodio para que la procedencia lleve el
+            # vocabulario del corpus LOCAL (`tipo`/`area`), no solo la clave de taxonomia.
+            "folder": entrada.get("folder"), "tags": entrada.get("tags") or [],
         })
     if not force:
         for id_ in sorted(set(objetivo) - vistos):
@@ -1038,6 +1042,38 @@ def _tope_episode_body_bytes(cfg):
     return valor * 1024
 
 
+_PREFIJO_TAG_AREA = "area:"
+
+
+def _folder_declarado(op):
+    """`categories[].folder` de la entrada (lo que `knowledge-sync.py` trae del indice), o el
+    segmento de carpeta de su `ruta` bajo `docs/knowledge/approved/` si la op no lo trae (ops
+    construidas a mano en tests o por un llamador antiguo). Nunca inventa un valor: sin ninguna
+    de las dos fuentes devuelve `None` y el campo se omite del bloque de procedencia."""
+    folder = op.get("folder")
+    if isinstance(folder, str) and folder.strip():
+        return folder.strip().strip("/").split("/")[0]
+    ruta = op.get("ruta")
+    if isinstance(ruta, str):
+        partes = [p for p in ruta.replace("\\", "/").split("/") if p]
+        if len(partes) >= 5 and partes[:3] == ["docs", "knowledge", "approved"]:
+            return partes[3]
+    return None
+
+
+def _area_de_entrada(op):
+    """`area` de la entrada a partir de sus `tags` `area:<valor>` (la convencion que ya usan las
+    entradas de `docs/knowledge/approved/`), o `None`. Varios tags `area:` se unen por espacio:
+    el post-filtro del nucleo casa por TOKEN, no por igualdad."""
+    tags = op.get("tags")
+    if not isinstance(tags, (list, tuple)):
+        return None
+    valores = [t[len(_PREFIJO_TAG_AREA):].strip() for t in tags
+               if isinstance(t, str) and t.lower().startswith(_PREFIJO_TAG_AREA)]
+    valores = [v for v in valores if v]
+    return " ".join(valores) or None
+
+
 def _episodio_upsert(group_id, op, cfg=None):
     """CA-13 (gap #36): el episodio lleva `category` y `entity_type` (resuelto contra
     `backends.graphiti.config.entity_map` via `graphiti_model.tipo_entidad`) ademas del `hash`
@@ -1063,6 +1099,15 @@ def _episodio_upsert(group_id, op, cfg=None):
     # («no se rellena con un valor inventado» decia el docstring de `consultar`, y se rellenaba).
     _campos = [("knowledge_id", op["id"]), ("version", op["version"]), ("status", "aprobado"),
                ("category", categoria), ("entity_type", entity_type),
+               # Gap #117 (Important, fix2 Fase 3): la `category` es la clave de taxonomia
+               # (`DECISION`/`GOTCHA`/...), un vocabulario que el corpus LOCAL no conoce -el
+               # post-filtro `--tipo`/`--area` del nucleo la descartaba SIEMPRE-. `local_folder`
+               # es el `categories[].folder` DECLARADO en `taxonomy.json` (`adr`/`gotchas`/
+               # `lessons`), que es justo el vocabulario que `knowledge-find.tipo_normalizado`
+               # sabe traducir al tipo local; `area` sale de los `tags` `area:<...>` de la propia
+               # entrada. Ninguna equivalencia se cablea aqui ni en el nucleo: las dos salen de la
+               # taxonomia y del frontmatter del proyecto.
+               ("local_folder", _folder_declarado(op)), ("area", _area_de_entrada(op)),
                ("evidence_level", op.get("evidencia")), ("source_path", op.get("ruta")),
                ("hash", op["hash"])]
     proveniencia = _DELIM_PROVENIENCIA + "\n" + "".join(
@@ -1214,7 +1259,7 @@ def _aplicar_revoke(cliente, group_id, entrada_previa, id_):
             f"episodio a invalidar para el `SUPERSEDES` (no se inventa un nombre de nodo)")
     tombstone_uuid = _uuid_tombstone(group_id, id_)
     cliente.tools_call("add_memory", {
-        "name": f"{id_}@tombstone",
+        "name": f"{id_}{_SUFIJO_TOMBSTONE}",
         "episode_body": f"knowledge_id: {id_}\nstatus: invalidado\n\nEntrada retirada de `approved/`.",
         "group_id": group_id,
         "source": "text",
@@ -1227,7 +1272,7 @@ def _aplicar_revoke(cliente, group_id, entrada_previa, id_):
             # REVOKE- es DISTINTO del de version-superada y tambien enviaba solo los `*_uuid`.
             # El contrato REAL de `add_triplet` exige los NOMBRES (`required` del fixture
             # `tools/list`) y acepta los uuid como refuerzo: se envian los cuatro campos.
-            "source_node_name": f"{id_}@tombstone",
+            "source_node_name": f"{id_}{_SUFIJO_TOMBSTONE}",
             "source_node_uuid": tombstone_uuid,
             "edge_name": "SUPERSEDES",
             "fact": f"{id_} invalidado",
@@ -1609,17 +1654,41 @@ def _nombres_remotos_confirmados(cliente, group_id, entradas, tope_episodios=Non
 
     Gap #70 (Important, lente D): la ventana se amplia como maximo hasta `tope_episodios`
     (`config.max_episodes`, default `_MAX_EPISODIOS_VERIFY`) — sin tope configurable, `verify()`
-    podia barrer hasta 15 000 episodios (~31 MB) para devolver un booleano."""
+    podia barrer hasta 15 000 episodios (~31 MB) para devolver un booleano.
+
+    Gap #120 (Important, fix2 Fase 3): los dos topes de #70 se CONTRADECIAN con sus defaults en
+    el escenario de referencia documentado (`backends/README.md`: 500 entradas / 15 000
+    episodios). La ampliacion llegaba a 4 000 episodios (~12,5 MiB), por encima de
+    `max_respuesta_kb` (8 MiB) — `ErrorMCP`, `verify` en falso, `puede_leer` en false y TODA
+    consulta enrutada degradada a local. `get_episodes` no tiene cursor de paginacion (el
+    contrato real solo acepta `group_ids` y `max_episodes`), asi que la "pagina" es la propia
+    ventana: cuando una ampliacion NO cabe en el tope de lectura se conserva el resultado de la
+    ultima ventana que SI cupo y se declara la ventana INCOMPLETA. Devuelve por eso
+    `(nombres_remotos, otros_grupos, uuids_remotos, ventana_completa, tombstones_de_entradas_vivas)`:
+    lo que no se pudo mirar no es lo mismo que lo que no esta (misma distincion del gap #67), y
+    `tombstones_de_entradas_vivas` alimenta el aviso de migracion del gap #126."""
     tope = tope_episodios or _MAX_EPISODIOS_VERIFY
     esperados = {f"{id_}@{meta.get('version')}" for id_, meta in entradas.items()}
     nombres_remotos = set()
     otros_grupos = set()
     uuids_remotos = {}
+    tombstones = set()
+    ventana_completa = True
     max_episodes = min(max(len(entradas) * 2, 50), tope)
     tamano_previo = -1
-    for _ in range(4):
-        resultado = cliente.tools_call(
-            "get_episodes", {"group_ids": [group_id], "max_episodes": max_episodes})
+    hubo_ventana_buena = False
+    for _ in range(6):
+        try:
+            resultado = cliente.tools_call(
+                "get_episodes", {"group_ids": [group_id], "max_episodes": max_episodes})
+        except ErrorMCP:
+            # Gap #120: la ventana ampliada no cabe en `max_respuesta_kb`. Si ya hubo una que SI
+            # cupo, se conserva y se declara incompleta; si ni la PRIMERA cabe, es un error real
+            # de configuracion y sube al llamador como hasta ahora.
+            if not hubo_ventana_buena:
+                raise
+            ventana_completa = False
+            break
         contenido = _contenido_tool_call(resultado)
         if contenido is None:
             raise _RespuestaIlegible()
@@ -1631,9 +1700,11 @@ def _nombres_remotos_confirmados(cliente, group_id, entradas, tope_episodios=Non
                 raise _RespuestaIlegible()
         else:
             raise _RespuestaIlegible()
+        hubo_ventana_buena = True
         nombres_remotos = set()
         otros_grupos = set()
         uuids_remotos = {}
+        tombstones = set()
         for ep in episodios_remotos:
             if not isinstance(ep, dict):
                 continue
@@ -1645,16 +1716,25 @@ def _nombres_remotos_confirmados(cliente, group_id, entradas, tope_episodios=Non
                 nombres_remotos.add(ep["name"])
                 if ep.get("uuid"):
                     uuids_remotos[ep["name"]] = ep["uuid"]
+                if ep["name"].endswith(_SUFIJO_TOMBSTONE):
+                    tombstones.add(ep["name"][: -len(_SUFIJO_TOMBSTONE)])
         faltan = esperados - nombres_remotos
         if not faltan or len(episodios_remotos) == tamano_previo:
             break
         if len(episodios_remotos) < max_episodes:
             break  # el servidor ya devolvio TODO lo que tiene (menos de lo pedido)
         if max_episodes >= tope:
-            break  # gap #70: ventana al tope configurado, no se amplia mas
+            # Gap #70: ventana al tope configurado, no se amplia mas. Gap #120: si TODAVIA faltan
+            # nombres, la ventana no ha podido confirmarlo todo -se declara incompleta.
+            ventana_completa = not faltan
+            break
         tamano_previo = len(episodios_remotos)
         max_episodes = min(max_episodes * 4, tope)
-    return nombres_remotos, otros_grupos, uuids_remotos
+    # Gap #126 (Minor, fix2 Fase 3): tombstone `<id>@tombstone` de una entrada que el manifiesto
+    # da por VIVA = grafo publicado antes de fix1, cuando la sucesion de version usaba el mismo
+    # sufijo que el revoke; el lector de hoy invalidaria la entrada entera.
+    tombstones_vivos = sorted(tombstones & set(entradas))
+    return nombres_remotos, otros_grupos, uuids_remotos, ventana_completa, tombstones_vivos
 
 
 def _reconciliar_publicado(cfg, group_id, entradas):
@@ -1685,9 +1765,15 @@ def _reconciliar_publicado(cfg, group_id, entradas):
                              allow_remote=allow_remote,
                              max_respuesta_bytes=_max_respuesta_bytes(cfg))
         cliente.initialize()
-        nombres_remotos, _otros_grupos, uuids_remotos = _nombres_remotos_confirmados(
+        (nombres_remotos, _otros_grupos, uuids_remotos, ventana_completa,
+         _tombstones) = _nombres_remotos_confirmados(
             cliente, group_id, entradas, _max_episodios_verify(cfg))
     except Exception:  # noqa: BLE001 - sin servidor/respuesta ilegible: NO se puede confirmar
+        return {}, False
+    if not ventana_completa:
+        # Gap #120: con la ventana incompleta NO se puede afirmar que lo no visto no esta -y aqui
+        # "no confirmado" significa DESPUBLICAR del manifiesto. Se trata como "no he podido
+        # preguntar" (gap #67): no se promueve nada, no se pierde nada.
         return {}, False
     confirmadas = {}
     for id_, meta in entradas.items():
@@ -1727,7 +1813,8 @@ def verify(cfg):
                              allow_remote=allow_remote,
                              max_respuesta_bytes=_max_respuesta_bytes(cfg))
         cliente.initialize()
-        nombres_remotos, otros_grupos, _uuids_remotos = _nombres_remotos_confirmados(
+        (nombres_remotos, otros_grupos, _uuids_remotos, ventana_completa,
+         tombstones_vivos) = _nombres_remotos_confirmados(
             cliente, group_id, entradas, _max_episodios_verify(cfg))
     except _RespuestaIlegible:
         return {"ok": None, "razon": "respuesta de get_episodes ilegible (no es lista ni {\"episodes\": [...]})",
@@ -1735,14 +1822,36 @@ def verify(cfg):
     except Exception as e:  # noqa: BLE001 - verify() nunca lanza (mismo contrato que health())
         return {"ok": False, "razon": f"no se pudo consultar get_episodes: {type(e).__name__}: {_sanear_detalle(e)}",
                 "desfase": []}
-    desfase = [
+    no_confirmadas = [id_ for id_, meta in sorted(entradas.items())
+                      if f"{id_}@{meta.get('version')}" not in nombres_remotos]
+    # Gap #120 (fix2 Fase 3): con la ventana INCOMPLETA (el tope de lectura corto la ampliacion),
+    # lo no confirmado NO es desfase -es "no he podido mirarlo"-. Declararlo desfase dejaba
+    # `verify` en falso, `puede_leer` en false y toda consulta enrutada degradada a local en el
+    # escenario de referencia con los defaults. Se publica como `no_verificado` + aviso.
+    desfase = [] if (no_confirmadas and not ventana_completa) else [
         {"knowledge_id": id_, "motivo": "episodio no encontrado en el grafo", "remedio": _REMEDIO_DESFASE}
-        for id_, meta in sorted(entradas.items())
-        if f"{id_}@{meta.get('version')}" not in nombres_remotos
+        for id_ in no_confirmadas
     ]
     salida = {"ok": not desfase, "desfase": desfase}
+    avisos = []
     if otros_grupos:
-        salida["aviso"] = f"el servidor devolvio episodios de otro(s) group_id: {sorted(otros_grupos)}"
+        avisos.append(f"el servidor devolvio episodios de otro(s) group_id: {sorted(otros_grupos)}")
+    if no_confirmadas and not ventana_completa:
+        salida["no_verificado"] = len(no_confirmadas)
+        avisos.append(
+            f"{len(no_confirmadas)} entrada(s) sin confirmar: la ventana de `get_episodes` no "
+            f"alcanzo el grafo entero (tope de lectura `max_respuesta_kb` o `max_episodes`); "
+            f"no se declaran desfase porque no se han podido mirar")
+    if tombstones_vivos:
+        # Gap #126: migracion de grafos publicados ANTES de fix1 (sucesion y revoke compartian el
+        # sufijo `@tombstone`). Se NOMBRA el remedio, nunca se ejecuta (CA-16).
+        avisos.append(
+            f"tombstone `@tombstone` de entrada(s) que el manifiesto da por vigentes "
+            f"({', '.join(tombstones_vivos[:5])}{' …' if len(tombstones_vivos) > 5 else ''}): "
+            f"grafo publicado antes de la separacion `@superseded`/`@tombstone`; el lector las "
+            f"daria por invalidadas. Republica con `knowledge-sync.py --backend <id> --rebuild`")
+    if avisos:
+        salida["aviso"] = " · ".join(avisos)
     return salida
 
 
@@ -1755,8 +1864,12 @@ _MAX_EPISODIOS_VERIFY = 5000  # tope duro de la ampliacion de ventana de get_epi
 # adaptador declarado en `taxonomy.json`. Nunca lanza y nunca escribe: solo `search_nodes`,
 # `search_memory_facts` y `get_episodes`, los tres acotados al `group_id` propio.
 
-_MAX_EPISODIOS_CONSULTA = 200   # ventana de procedencia por consulta (acotada ademas por
-                                # `config.max_episodes`): una consulta no barre el grafo entero
+# Gap #121 (fix2 Fase 3): la ventana de procedencia de una consulta ARRANCA pequena y se amplia
+# solo si quedan aciertos sin resolver (`_indice_procedencia`), con este tope duro por encima del
+# corpus objetivo declarado (500 entradas, `backends/README.md`) y siempre acotada ademas por
+# `config.max_episodes` y por `config.max_respuesta_kb` (el tope de lectura de cada respuesta).
+_MAX_EPISODIOS_CONSULTA = 2000
+_VENTANA_CONSULTA_INICIAL = 50
 
 
 def _procedencia_de_episodio(episodio):
@@ -1809,7 +1922,7 @@ def _episodio_del_grupo(episodio, group_id, grupos_pedidos):
     return grupos_pedidos == 1
 
 
-def _indice_procedencia(cliente, group_id, tope):
+def _indice_procedencia_ventana(cliente, group_id, tope):
     """`(procedencia_por_nombre_de_episodio, ids_invalidados, nombres_superados)` del `group_id`
     propio. Los episodios de OTRO grupo se ignoran (aislamiento multi-proyecto, gap #73;
     `_episodio_del_grupo` decide, gap #105), los `@tombstone` marcan invalidada la ENTRADA
@@ -1844,7 +1957,38 @@ def _indice_procedencia(cliente, group_id, tope):
         procedencia = _procedencia_de_episodio(ep)
         if procedencia and procedencia.get("knowledge_id"):
             por_nombre[nombre] = dict(procedencia, uuid=ep.get("uuid"))
-    return por_nombre, invalidados, superados
+    return por_nombre, invalidados, superados, len(episodios)
+
+
+def _indice_procedencia(cliente, group_id, tope, nombres_buscados=()):
+    """Gap #121 (Important, fix2 Fase 3): `get_episodes` es una ventana de los MAS RECIENTES
+    mientras `search_nodes`/`search_memory_facts` buscan en TODO el grafo, asi que una ventana
+    FIJA (200 episodios) dejaba fuera -en silencio- casi todo acierto de un grafo poblado (recall
+    medido: 100 % con 100 episodios, 5 % con 2 000). El contrato REAL del servidor no tiene
+    ninguna herramienta que devuelva un episodio por `uuid` ni un cursor de paginacion
+    (`tools/list` de 2026-09-18: `get_episodes` solo acepta `group_ids` y `max_episodes`), asi
+    que la unica paginacion posible es AMPLIAR la ventana: se pide x4 hasta resolver todos los
+    `nombres_buscados`, hasta que el servidor devuelva menos de lo pedido (ya dio todo lo que
+    tiene) o hasta el tope configurado.
+
+    Devuelve `(por_nombre, invalidados, superados, ventana_completa)`. `ventana_completa` es
+    `False` SOLO cuando el tope corto la ampliacion con nombres aun sin resolver: es lo que el
+    llamador cuenta como `fuera_de_ventana` en vez de callarselo."""
+    ventana = min(max(len(nombres_buscados) * 2, _VENTANA_CONSULTA_INICIAL), tope)
+    leidos_previo = -1
+    while True:
+        por_nombre, invalidados, superados, leidos = _indice_procedencia_ventana(
+            cliente, group_id, ventana)
+        if all(n in por_nombre for n in nombres_buscados):
+            return por_nombre, invalidados, superados, True
+        if leidos < ventana or leidos == leidos_previo:
+            # El servidor ya devolvio TODO lo que tiene: lo que falta NO esta fuera de la ventana
+            # (simplemente no es un episodio nuestro), asi que la ventana si esta completa.
+            return por_nombre, invalidados, superados, True
+        if ventana >= tope:
+            return por_nombre, invalidados, superados, False
+        leidos_previo = leidos
+        ventana = min(ventana * 4, tope)
 
 
 def _hits_de_busqueda(resultado, clave):
@@ -1899,6 +2043,38 @@ def _nombres_de_hit(hit):
     return nombres
 
 
+def _grupo_ajeno(hit, group_id):
+    """Gap #124 (fix2 Fase 3): ¿el acierto de busqueda declara un `group_id` que NO es el propio?
+    Un nodo de otro grupo llamado `ADR-001@1` se servia como titular de NUESTRO `ADR-001`, con
+    nuestra procedencia. Sin `group_id` declarado no se descarta (la busqueda ya iba acotada)."""
+    grupo = hit.get("group_id") if isinstance(hit, dict) else None
+    return bool(grupo) and grupo != group_id
+
+
+def _folder_de_ruta(ruta):
+    """`folder` declarado de una ruta canonica `docs/knowledge/approved/<folder>/...` (gap #117,
+    respaldo para grafos publicados antes de fix2, sin `local_folder` en la procedencia)."""
+    partes = [p for p in (ruta or "").split("/") if p]
+    return partes[3] if len(partes) >= 5 and partes[:3] == ["docs", "knowledge", "approved"] else ""
+
+
+def _version_entera(acierto):
+    try:
+        return int(str(acierto.get("version")).strip())
+    except (TypeError, ValueError):
+        return -1
+
+
+def _mas_vigente(candidato, previo):
+    """Gap #118: entre dos episodios del MISMO `knowledge_id`, gana el que no esta invalidado; a
+    igualdad de estado, el de `version` mayor. Nunca «el primero que llego»."""
+    vivo_c = candidato.get("estado") != "invalidado"
+    vivo_p = previo.get("estado") != "invalidado"
+    if vivo_c != vivo_p:
+        return vivo_c
+    return _version_entera(candidato) > _version_entera(previo)
+
+
 _TOPE_CONSULTA = 100      # tope duro de aciertos por consulta, tambien para `--limit 0`
 _LIMITE_CONSULTA_DEFAULT = 10
 
@@ -1944,7 +2120,7 @@ def consultar(cfg, consulta):
         return dict(vacio, motivo="sin `group_id`: no se consulta un grupo que no es el propio")
 
     limit = _limite_consulta(consulta)
-    tope_episodios = min(max(limit * 5, 50), _max_episodios_verify(cfg), _MAX_EPISODIOS_CONSULTA)
+    tope_episodios = min(_max_episodios_verify(cfg), _MAX_EPISODIOS_CONSULTA)
     try:
         cliente = ClienteMCP(cfg.get("endpoint"), timeout_s=_timeout_s(cfg),
                              allow_remote=bool(cfg.get("allow_remote", False)),
@@ -1954,17 +2130,31 @@ def consultar(cfg, consulta):
             "search_nodes", {"query": texto, "group_ids": [group_id], "max_nodes": limit}), "nodes")
         hechos, motivo_hechos = _hits_de_busqueda(cliente.tools_call(
             "search_memory_facts", {"query": texto, "group_ids": [group_id], "max_facts": limit}), "facts")
-        por_nombre, invalidados, superados = _indice_procedencia(cliente, group_id, tope_episodios)
+        hits = [(h, "nodo") for h in nodos] + [(h, "hecho") for h in hechos]
+        # Gap #124 (Minor, CWE-346/863, fix2 Fase 3): un hit que declara OTRO `group_id` no se
+        # empareja con nuestra procedencia (se descarta antes de buscar su episodio); un hit sin
+        # `group_id` sigue valiendo -la busqueda ya se acoto a `group_ids: [group_id]`, misma
+        # regla fail-closed que `_episodio_del_grupo`.
+        hits_propios = [(h, c) for h, c in hits if not _grupo_ajeno(h, group_id)]
+        descartados = len(hits) - len(hits_propios)
+        nombres_buscados = sorted({n for h, _c in hits_propios for n in _nombres_de_hit(h)})
+        por_nombre, invalidados, superados, ventana_completa = _indice_procedencia(
+            cliente, group_id, tope_episodios, nombres_buscados)
     except _RespuestaIlegible as e:
         return dict(vacio, motivo=str(e) or "respuesta de get_episodes ilegible")
     except Exception as e:  # noqa: BLE001 - mismo contrato que health()/verify(): nunca lanza
         return dict(vacio, motivo=f"no se pudo consultar el grafo: {type(e).__name__}: {_sanear_detalle(e)}")
 
-    aciertos, vistos, descartados = [], set(), 0
-    for hit, clase in [(h, "nodo") for h in nodos] + [(h, "hecho") for h in hechos]:
+    candidatos, fuera_de_ventana = {}, 0
+    for hit, clase in hits_propios:
         nombre = next((n for n in _nombres_de_hit(hit) if n in por_nombre), None)
         if nombre is None:
-            descartados += 1
+            # Gap #121: «no lo he podido mirar» (la ventana no llego) NO es «no cuadra» -se
+            # cuenta aparte y sale en el `motivo`, nunca en silencio.
+            if not ventana_completa:
+                fuera_de_ventana += 1
+            else:
+                descartados += 1
             continue
         procedencia = por_nombre[nombre]
         knowledge_id = procedencia.get("knowledge_id")
@@ -1977,9 +2167,6 @@ def consultar(cfg, consulta):
         if not status or not evidencia or not ruta:
             descartados += 1
             continue
-        if knowledge_id in vistos:
-            continue
-        vistos.add(knowledge_id)
         invalidado = knowledge_id in invalidados or nombre in superados
         acierto = {
             "id": _texto_servido(knowledge_id),
@@ -1988,6 +2175,12 @@ def consultar(cfg, consulta):
             "evidencia": _texto_servido(evidencia),
             "ruta": ruta,
             "categoria": _texto_servido(procedencia.get("category")),
+            # Gap #117: vocabulario del corpus LOCAL (el `folder` declarado en la taxonomia y el
+            # `area` de la entrada), que es lo que el post-filtro `--tipo`/`--area` del nucleo
+            # sabe normalizar. Sin `local_folder` en la procedencia (grafo publicado antes de
+            # fix2) se deriva de la propia `ruta` canonica, que lleva el mismo `folder`.
+            "tipo": _texto_servido(procedencia.get("local_folder") or _folder_de_ruta(ruta)),
+            "area": _texto_servido(procedencia.get("area") or ""),
             "titular": _texto_servido(hit.get("summary") or hit.get("fact") or knowledge_id),
             "uuid": _texto_servido(procedencia.get("uuid")),
             "fuente": clase,
@@ -1997,6 +2190,22 @@ def consultar(cfg, consulta):
             acierto.update({"fact": _texto_servido(hit.get("fact")),
                             "valid_at": _texto_servido(hit.get("valid_at")),
                             "invalid_at": _texto_servido(hit.get("invalid_at"))})
-        aciertos.append(acierto)
-    motivo = "; ".join(m for m in (motivo_nodos, motivo_hechos) if m)
-    return {"aciertos": aciertos[:limit], "descartados": descartados, "motivo": motivo}
+        # Gap #118 (Important, fix2 Fase 3; residual de #96): cuando la busqueda devuelve v1 Y v2
+        # del mismo `knowledge_id` -el caso NORMAL: dos versiones de la misma entrada casan la
+        # misma query- la deduplicacion se quedaba con el PRIMER hit, asi que `[v1, v2]` servia
+        # «version 1 · invalidado» y tiraba la v2 aprobada en silencio. Se agrupa por
+        # `knowledge_id` y se sirve la VIGENTE (la no invalidada de mayor `version`).
+        previo = candidatos.get(knowledge_id)
+        if previo is None or _mas_vigente(acierto, previo):
+            candidatos[knowledge_id] = acierto
+        # Las versiones descartadas por no ser la vigente NO son «descartados»: la entrada SI se
+        # sirve (es el mismo `knowledge_id`), solo que por su version vigente.
+
+    aciertos = list(candidatos.values())
+    motivos = [m for m in (motivo_nodos, motivo_hechos) if m]
+    if fuera_de_ventana:
+        motivos.append(
+            f"{fuera_de_ventana} acierto(s) fuera de la ventana de procedencia "
+            f"({tope_episodios} episodios, `max_episodes`): sube `max_episodes` o acota la consulta")
+    return {"aciertos": aciertos[:limit], "descartados": descartados,
+            "fuera_de_ventana": fuera_de_ventana, "motivo": "; ".join(motivos)}

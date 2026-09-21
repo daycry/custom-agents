@@ -690,13 +690,18 @@ def _con_group_id_por_defecto(config, root):
     error explícito pidiendo declarar `group_id` a mano, en vez de fallar en silencio."""
     if not isinstance(config, dict):
         return config
-    slug = _group_id_por_defecto(root)
     for _bid, graphiti_bcfg in _graphiti_backends(config):
         graphiti_config = graphiti_bcfg.get("config")
-        if not isinstance(graphiti_config, dict) or graphiti_config.get("group_id"):
+        if not isinstance(graphiti_config, dict):
             continue
-        if slug:
-            graphiti_config["group_id"] = slug
+        # Gap #132 (Minor, fix2 Fase 3; salvedad de #97): la derivacion la hace la COPIA DECLARADA
+        # `_config_con_group_id` (la misma que usa el router en `knowledge-find.py`), no un
+        # predicado propio. Con el `truthy` de antes, `group_id: "   "` se conservaba aqui y el
+        # router SI derivaba el slug: dos respuestas distintas para la misma config. La copia
+        # nunca pisa un `group_id` explicito y no vacio, asi que asignar su resultado es seguro.
+        derivado = _config_con_group_id(graphiti_config, root).get("group_id")
+        if derivado:
+            graphiti_config["group_id"] = derivado
     return config
 
 
