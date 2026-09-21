@@ -20,9 +20,9 @@ verificacion: obligatoria
 |---|---:|---:|---:|---:|---:|---:|---:|
 | Fase 1 - Contrato y modelo | 3 | 3 | 100% | 0 / 13h | 3.45 / 3.9h | 0 / 1.0h | ~13.6M / 175k (fix1+fix2: cache de contexto largo) |
 | Fase 2 - Sincronizacion | 3 | 3 | 100% | 0 / 16h | 7.75 / 4.8h | 0 / 1.2h | ~19.3M+ / 200k (T-04/T-05/T-06 medidos juntos: base 0.8h + fix1 2.24h + fix3 1.47h + fix4 2.73h + fix5 0.51h; tokens de fix4 no capturados en el primer cierre, ~5.9M de fix5 sumados) |
-| Fase 3 - Router y configuracion | 0 | 2 | 0% | 0 / 11h | 0 / 3.3h | 0 / 0.9h | 0 / 110k |
+| Fase 3 - Router y configuracion | 2 | 2 | 100% | 0 / 11h | 1.13 / 3.3h | 0 / 0.9h | medido / 110k (T-07 0.91h · T-08 0.22h) |
 | Fase 4 - Regresion y cierre | 0 | 2 | 0% | 0 / 10h | 0 / 3h | 0 / 0.7h | 0 / 60k |
-| **TOTAL** | **6** | **10** | **60%** | **0 / 50h** | **11.20 / 15h** | **0 / 3.8h** | **~33M+ / 545k** |
+| **TOTAL** | **8** | **10** | **80%** | **0 / 50h** | **12.33 / 15h** | **0 / 3.8h** | **~33M+ / 545k** |
 
 ## Fase 1 - Contrato y modelo
 
