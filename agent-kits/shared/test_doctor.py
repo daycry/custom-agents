@@ -1916,3 +1916,38 @@ def test_doctor_pinta_una_capacidad_nueva_sin_tocar_doctor_py(tmp_path):
            "doctor": "capacidad-inventada: shadow (escribe, no lee)", "setup_step": "-"}
     l = doctor._linea_capacidad(str(tmp_path), cap, None, None)
     assert "capacidad-inventada" in json.dumps(l, ensure_ascii=False)
+
+
+def test_f3fix1_gap99_la_fila_de_backend_usa_el_id_que_declara_la_capacidad(tmp_path):
+    """Gap #99: `/doctor` leia `backends.<cap_id>` de `taxonomy.json` (la clave literal de la
+    capacidad), asi que con el backend declarado con OTRA clave no habia fila `(backend)` ni
+    comprobacion en vivo. Ahora usa el `backend` que devuelve la propia capacidad."""
+    destino = tmp_path / ".claude" / "knowledge-services"
+    destino.mkdir(parents=True)
+    (destino / "taxonomy.json").write_text(json.dumps({"backends": {
+        "mi_backend": {"type": "test", "enabled": True, "config": {"estado_salud": "sano"}}}}),
+        encoding="utf-8")
+    cap = {"id": "capacidad-x", "config_path": os.path.join(".claude", "knowledge-services",
+                                                            "taxonomy.json"),
+           "enabled": True, "health": {"estado": "read", "backend": "mi_backend"},
+           "doctor": "capacidad-x: activa", "setup_step": "-"}
+    l = doctor._linea_capacidad(str(tmp_path), cap, backends_real, FIXTURES_BACKENDS)
+    texto = json.dumps(l, ensure_ascii=False)
+    assert "(backend)" in texto and "sano" in texto
+
+
+def test_f3fix1_gap99_una_fila_por_backend_habilitado(tmp_path):
+    destino = tmp_path / ".claude" / "knowledge-services"
+    destino.mkdir(parents=True)
+    (destino / "taxonomy.json").write_text(json.dumps({"backends": {
+        "uno": {"type": "test", "enabled": True, "config": {"estado_salud": "sano"}},
+        "dos": {"type": "test", "enabled": True, "config": {"estado_salud": "sano"}}}}),
+        encoding="utf-8")
+    cap = {"id": "capacidad-x", "config_path": os.path.join(".claude", "knowledge-services",
+                                                            "taxonomy.json"),
+           "enabled": True, "health": {"estado": "read", "backends": ["uno", "dos"]},
+           "doctor": "capacidad-x: activa", "setup_step": "-"}
+    ls = doctor._linea_capacidad(str(tmp_path), cap, backends_real, FIXTURES_BACKENDS)
+    assert isinstance(ls, list) and len(ls) == 2
+    texto = json.dumps(ls, ensure_ascii=False)
+    assert "uno" in texto and "dos" in texto

@@ -1477,10 +1477,31 @@ def _cargar_backends_loader(plugin_root):
     return None, None
 
 
-def _leer_backend_entry(project, cap):
+def _ids_backend_declarados(cap):
+    """Ids de backend que declara la propia capacidad en su `health` (`backends` — varios — o
+    `backend` — uno —); si no declara ninguno, su propio `id`.
+
+    gap 99 (iniciativa de memoria de grafo, fix1 Fase 3): `/doctor` buscaba `backends.<cap_id>` en el
+    `config_path`, es decir, asumía que la clave del backend en la config es el id de la
+    capacidad. Con el backend declarado bajo otra clave (lo normal: la plantilla de fábrica ocupa
+    la clave literal), no había fila `(backend)` ni comprobación de red en vivo aunque la
+    capacidad estuviera activa. Sigue siendo genérico: es la capacidad quien dice su id, no
+    `/doctor` quien lo adivina."""
+    salud = cap.get("health")
+    if isinstance(salud, dict):
+        varios = salud.get("backends")
+        if isinstance(varios, list) and varios:
+            return [str(b) for b in varios]
+        uno = salud.get("backend")
+        if isinstance(uno, str) and uno:
+            return [uno]
+    return [cap["id"]]
+
+
+def _leer_backend_entry(project, cap, backend_id=None):
     """Entrada cruda `backends.<id>` (`{"type", "enabled", "config": {...}}`) del `config_path`
-    que la propia capacidad declara — genérico: solo busca su propio `cap['id']` dentro de su
-    propio fichero, nunca asume cuál es."""
+    que la propia capacidad declara — genérico: busca el id que la capacidad declara (o, sin
+    declaración, su propio `cap['id']`) dentro de su propio fichero, nunca asume cuál es."""
     path = cap.get("config_path")
     if not path:
         return {}
@@ -1488,7 +1509,7 @@ def _leer_backend_entry(project, cap):
     datos, _err = _leer_json(ruta)
     if not isinstance(datos, dict):
         return {}
-    return ((datos.get("backends") or {}).get(cap["id"])) or {}
+    return ((datos.get("backends") or {}).get(backend_id or cap["id"])) or {}
 
 
 CAPACIDAD_TIMEOUT_MS_TOPE = 2000  # gap 94: ninguna comprobación de red individual pasa de esto
@@ -1603,11 +1624,21 @@ def _linea_capacidad(project, cap, backends_mod, backends_dir, tope_ms=CAPACIDAD
     if not cap.get("enabled"):
         return linea(INFO, cap["id"], "desactivado", "opcional: sigue el `setup_step` del registro si quieres activarla")
     if backends_mod is not None:
-        entrada = _leer_backend_entry(project, cap)
-        l = _linea_capacidad_backend(cap["id"], entrada.get("type"), entrada.get("config") or {},
-                                     backends_mod, backends_dir, project=project, tope_ms=tope_ms)
-        if l is not None:
-            return l
+        # gap 99: UNA fila por backend declarado por la capacidad (normalmente uno); con varios,
+        # la etiqueta lleva la clave para que se distingan.
+        ids = _ids_backend_declarados(cap)
+        lineas = []
+        for bid in ids:
+            entrada = _leer_backend_entry(project, cap, bid)
+            etiqueta = cap["id"] if len(ids) == 1 else f"{cap['id']}:{bid}"
+            l = _linea_capacidad_backend(etiqueta, entrada.get("type"), entrada.get("config") or {},
+                                         backends_mod, backends_dir, project=project, tope_ms=tope_ms)
+            if l is not None:
+                lineas.append(l)
+        if len(lineas) == 1:
+            return lineas[0]
+        if lineas:
+            return lineas
     return linea(INFO, cap["id"], cap.get("doctor") or "activa")
 
 
@@ -1643,7 +1674,9 @@ def bloque_capacidades(plugin_root, project):
             recortado = len(capacidades) - i
             break
         tope_ms = min(CAPACIDAD_TIMEOUT_MS_TOPE, int(restante_s * 1000))
-        ls.append(_linea_capacidad(project, cap, backends_mod, backends_dir, tope_ms=tope_ms))
+        resultado = _linea_capacidad(project, cap, backends_mod, backends_dir, tope_ms=tope_ms)
+        # gap 99: una capacidad puede rendir VARIAS filas (un backend declarado por cada id).
+        ls.extend(resultado) if isinstance(resultado, list) else ls.append(resultado)
     if recortado:
         transcurrido_final_s = time.monotonic() - inicio
         ls.append(linea(AVISO, "capacidades opcionales",

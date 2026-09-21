@@ -29,6 +29,18 @@ Nota de diseño (T-07, desviación documentada de la tabla de `design.md`): `reb
 existir; el enrutado sigue siendo responsabilidad exclusiva del núcleo — `rebuild` nunca decide
 qué entra, solo cómo se materializa.
 
+## Funciones OPCIONALES del contrato
+
+Además de las 6 obligatorias, un adaptador puede exponer estas; el núcleo las pide con
+`getattr(...)` y, si no están, sigue sin ellas (nunca son un requisito de carga).
+
+| Función | Firma | Quién la usa | Qué significa que exista |
+|---|---|---|---|
+| `puede_leer` | `(cfg) -> {"puede": bool, "razon": str}` | el router de `knowledge-find.py --intent` | el backend decide si AUTORIZA una lectura ahora mismo (modo, salud, desfase). Sin `puede: true` exacto, el router no consulta |
+| `consultar` | `(cfg, consulta) -> {"aciertos": [...], "descartados": int, "motivo": str}` | el router de `knowledge-find.py --intent` (T-07, CA-12) | **es lo que hace ENRUTABLE a un backend**: un adaptador sin `consultar` puede publicar pero nunca servir una consulta. `consulta` = `{"intent", "texto", "limit", "area", "tipo", "claves", "iniciativa"}`; devuelve `aciertos` (lista), `descartados` (int, lo que se descartó fail-closed) y `motivo` (str); cada acierto tiene que traer `id`, `estado`, `evidencia` y `ruta` canónica (el núcleo descarta, fail-closed, el que no las traiga) y `motivo` NO VACÍO con 0 aciertos significa «no pude servir» → el núcleo degrada a local con ese motivo a la vista (nunca lanza, igual que `health`) |
+| `modo` | `(cfg) -> "off"\|"shadow"\|"read"` | `capabilities.py` (estado de la capacidad, sin red) | `modo(cfg)`: el adaptador es la fuente única del enum y del default de `mode`; quien lo necesite lo pregunta en vez de reimplementarlo |
+| `proponer_config` | `(taxonomy, cfg) -> dict` | `knowledge-sync.py --propose-config` | el adaptador sabe proponer su propia configuración a partir de la taxonomía del proyecto |
+
 ## Carga y validación
 
 `backends/__init__.py::cargar_adaptador(tipo, directorios=None)` busca el fichero, lo carga con
@@ -63,7 +75,8 @@ decisión de que la extracción de entidades la hace el SERVIDOR, no el cliente)
   informa `{"estado": "off"}` sin conectar y `apply`/`rebuild`/`revoke` rechazan con
   `ConfigInvalida`; `shadow` (default) escribe pero nunca lee (`plan`/`apply` no dependen de una
   lectura previa); `read` exige `health` sano Y `verify` sin desfase antes de autorizar una
-  lectura (`puede_leer(cfg)`, que el futuro router de T-07 consumirá).
+  lectura (`puede_leer(cfg)`, que el router de `knowledge-find.py --intent` consume antes
+  de cada consulta enrutada, junto con `consultar(cfg, consulta)`).
 - **`rebuild`** es el ÚNICO camino que llama a `clear_graph`, acotado al `group_id` propio, y
   reproduce el mismo manifiesto que la sincronización incremental (uuid5 determinista). **Deuda
   aceptada (gap #40/#60):** `rebuild` solo reconstruye el estado VIGENTE desde `entries` — la
@@ -87,8 +100,18 @@ decisión de que la extracción de entidades la hace el SERVIDOR, no el cliente)
   `target_node_name` son OBLIGATORIOS según el `required` del `tools/list` capturado, y los
   `*_uuid` viajan además como refuerzo — gap #69, el arbitraje anterior de #40/#56 «solo `*_uuid`»
   era incompleto y hacía fallar TODO camino de sucesión contra el servidor real); un
-  cambio de `version` en `apply()` emite el mismo tombstone+`SUPERSEDES` hacia la versión anterior
-  (CA-11, sucesión observable).
+  cambio de `version` en `apply()` emite un tombstone+`SUPERSEDES` hacia la versión anterior
+  (CA-11, sucesión observable) — con OTRO nombre de episodio: `<id>@<version>@superseded`, que
+  invalida solo esa versión, frente al `<id>@tombstone` del revoke, que invalida la entrada
+  entera. Compartir nombre hacía que toda entrada que hubiera subido de versión se sirviera como
+  `invalidado`, también en su versión vigente (gap #96 de la revisión de la Fase 3).
+- **Lectura enrutada** (`consultar`, T-07): la vigencia la decide el `status` del bloque de
+  procedencia del episodio servido (sin `status` no hay acierto: no se rellena con `aprobado`)
+  más los dos tombstones de arriba; la `ruta` servida tiene que ser relativa y caer bajo
+  `docs/knowledge/` (fail-closed, gap #106) y TODO texto de origen servidor —`summary`/`fact`,
+  que genera el LLM de Graphiti a partir de lo ingerido— sale saneado (sin control/ANSI/bidi,
+  tope de 200 caracteres, gap #98). Los filtros `tipo`/`area` NO los aplica el adaptador (la
+  `category` del grafo no es el tipo/área del corpus local): los post-filtra el núcleo.
 - **Topes de recursos** (`max_respuesta_kb`, `max_episodes` — gap #70, lente D): cada respuesta
   MCP se lee POR TROZOS con un tope duro (`max_respuesta_kb`, entero > 0, default **8192 KiB =
   8 MiB**); pasarse es un `ErrorMCP` explícito, nunca un `MemoryError` (que además ya se captura
@@ -97,7 +120,7 @@ decisión de que la extracción de entidades la hace el SERVIDOR, no el cliente)
   default 5000). **Escenario de carga de referencia:** con 500 entradas publicadas y ~15 000
   episodios en el grupo, `verify()` hacía hasta 4 barridos de 1000/4000/5000/5000 episodios
   (~31 MB transferidos, ~35 MB de pico) para devolver un booleano; con `max_episodes: 2000` ese
-  peor caso baja a ~4 MB por barrido, y `puede_leer()` —que el router de T-07 llamará por
+  peor caso baja a ~4 MB por barrido, y `puede_leer()` —que el router llama por
   consulta— reutiliza el resultado de `verify()` cacheado en proceso durante 5 s en vez de barrer
   el grafo en cada consulta. Ajusta `max_episodes` por encima del número de episodios que
   esperas en el grupo si `verify()` empieza a reportar desfases falsos.

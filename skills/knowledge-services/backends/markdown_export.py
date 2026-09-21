@@ -581,7 +581,7 @@ def _lock_path(export_dir):
 # desplaza fuera de los 200 caracteres) sin ganar nada, porque el prefijo no es el dato peligroso.
 # El prefijo se antepone DESPUÉS, sobre el resultado ya saneado y recortado.
 #
-# --8<-- sanear_detalle (funcion) — REPLICADO LITERAL en skills/knowledge-services/backends/markdown_export.py y skills/knowledge-services/backends/graphiti.py
+# --8<-- sanear_detalle (funcion) — REPLICADO LITERAL en las CUATRO copias declaradas del bloque `sanear_detalle` de agent-kits/shared/copias.json
 # Gap #93 (Minor, fix5): la clase [\x00-\x1f\x7f] dejaba pasar tres familias que TAMBIEN
 # falsifican una linea de log o invierten visualmente el texto de un mensaje/`causa`: los
 # controles C1 (\x80-\x9f, entre ellos CSI \x9b), los separadores Unicode de linea/parrafo

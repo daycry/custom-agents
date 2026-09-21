@@ -326,7 +326,7 @@ def _sanear_url_para_mensaje(url):
     return _sanear_detalle(partes.geturl())
 
 
-# --8<-- sanear_detalle (funcion) — REPLICADO LITERAL en skills/knowledge-services/backends/markdown_export.py y skills/knowledge-services/backends/graphiti.py
+# --8<-- sanear_detalle (funcion) — REPLICADO LITERAL en las CUATRO copias declaradas del bloque `sanear_detalle` de agent-kits/shared/copias.json
 # Gap #93 (Minor, fix5): la clase [\x00-\x1f\x7f] dejaba pasar tres familias que TAMBIEN
 # falsifican una linea de log o invierten visualmente el texto de un mensaje/`causa`: los
 # controles C1 (\x80-\x9f, entre ellos CSI \x9b), los separadores Unicode de linea/parrafo
@@ -777,12 +777,25 @@ def _get_health_endpoint(url, timeout_s, allow_remote, _saltos=0, _deadline=None
             "detalle": _sanear_detalle(detalle_bruto)}
 
 
-def _modo(cfg):
-    """`mode` normalizado (`off`/`shadow`/`read`), default `shadow` (mismo default que el
-    esquema). Gap #35: antes se validaba pero nadie lo LEIA -`off` seguia sincronizando y
-    `rebuild` seguia ejecutando `clear_graph`-."""
-    modo = (cfg or {}).get("mode")
-    return modo if modo in ("off", "shadow", "read") else "shadow"
+# --8<-- modo del backend (funcion publica del contrato, T-08-fix1) — REPLICADO LITERAL en las copias declaradas del bloque `modo_backend` de agent-kits/shared/copias.json
+# Gap #109 (Minor, fix1 Fase 3): `capabilities.py` duplicaba el enum y el default de `mode` sin
+# declararlo como copia (ADR-016) y ademas llamaba al simbolo PRIVADO `_modo` del adaptador,
+# fuera del contrato E16. El adaptador expone `modo(cfg)` -funcion OPCIONAL del contrato,
+# documentada en `backends/README.md`- y el respaldo de `capabilities.py` (para cuando el
+# adaptador no esta instalado) es ESTE MISMO bloque, declarado en `copias.json`.
+_MODOS = ("off", "shadow", "read")
+_MODO_DEFAULT = "shadow"
+
+
+def modo(cfg):
+    """`mode` normalizado (`off`/`shadow`/`read`), default `shadow` (el mismo del esquema).
+    Gap #35: antes se validaba pero nadie lo LEIA -`off` seguia sincronizando-."""
+    valor = (cfg or {}).get("mode")
+    return valor if valor in _MODOS else _MODO_DEFAULT
+# --8<-- fin modo del backend
+
+
+_modo = modo   # alias interno historico (este modulo lo usa en health/apply/verify/puede_leer)
 
 
 def _aplicar_telemetria(cfg):
@@ -1044,13 +1057,17 @@ def _episodio_upsert(group_id, op, cfg=None):
     entity_type = _gm.tipo_entidad(categoria, cfg)
     # Gap #42: bloque de procedencia DELIMITADO (nunca texto plano concatenado sin marca), con el
     # cuerpo NO CONFIABLE escapado si contiene alguno de los delimitadores.
-    proveniencia = (
-        f"{_DELIM_PROVENIENCIA}\n"
-        f"knowledge_id: {op['id']}\nversion: {op['version']}\nstatus: aprobado\n"
-        f"category: {categoria}\nentity_type: {entity_type}\n"
-        f"evidence_level: {op.get('evidencia')}\nsource_path: {op.get('ruta')}\nhash: {op['hash']}\n"
-        f"{_DELIM_CONTENIDO}\n"
-    )
+    # Gap #116 (Minor, fix1 Fase 3): un campo nulo se OMITE; antes se interpolaba con f-string y
+    # el episodio viajaba con la cadena literal `"None"` como `evidence_level`/`source_path`, que
+    # el fail-closed del nucleo aceptaba como si fuera una evidencia y una ruta canonica reales
+    # («no se rellena con un valor inventado» decia el docstring de `consultar`, y se rellenaba).
+    _campos = [("knowledge_id", op["id"]), ("version", op["version"]), ("status", "aprobado"),
+               ("category", categoria), ("entity_type", entity_type),
+               ("evidence_level", op.get("evidencia")), ("source_path", op.get("ruta")),
+               ("hash", op["hash"])]
+    proveniencia = _DELIM_PROVENIENCIA + "\n" + "".join(
+        f"{clave}: {valor}\n" for clave, valor in _campos
+        if valor is not None and str(valor).strip() != "") + _DELIM_CONTENIDO + "\n"
     cuerpo_escapado = _escapar_delimitador(_escapar_delimitador(cuerpo_texto, _DELIM_PROVENIENCIA), _DELIM_CONTENIDO)
     aviso = None
     tope = _tope_episode_body_bytes(cfg)
@@ -1130,6 +1147,10 @@ def _aplicar_upsert(cliente, proveedor, provider_cfg, group_id, op, cfg=None, en
     return episodio["uuid"], aviso_tope
 
 
+_SUFIJO_TOMBSTONE = "@tombstone"      # revoke: invalida la ENTRADA entera (todas sus versiones)
+_SUFIJO_SUPERSEDED = "@superseded"    # sucesion: invalida SOLO el episodio de la version superada
+
+
 def _tombstone_supersedes(cliente, group_id, id_, uuid_anterior, uuid_nuevo, fact,
                           nombre_anterior=None, nombre_nuevo=None):
     """Episodio tombstone de `uuid_anterior` + triplete `SUPERSEDES` (`uuid_nuevo` ->
@@ -1150,10 +1171,17 @@ def _tombstone_supersedes(cliente, group_id, id_, uuid_anterior, uuid_nuevo, fac
         raise ErrorMCP(
             f"`SUPERSEDES` de `{id_}` sin los nombres REALES de los nodos (anterior/nuevo): no se "
             f"fabrican nombres (`add_triplet` los exige y uno inventado crea un nodo fantasma)")
+    # Gap #96 (Critical, fix1 Fase 3): el tombstone de SUCESION DE VERSION no puede llamarse
+    # igual que el de REVOKE (`<id>@tombstone`): `_indice_procedencia` invalidaba por `id`, asi
+    # que subir de version dejaba invalidada tambien la version nueva (toda entrada que alguna
+    # vez subio de version se servia como `invalidado`). Aqui se nombra la VERSION superada
+    # (`<id>@<version>@superseded`), y solo esa; el `@tombstone` queda para el revoke, que si
+    # invalida la entrada entera.
     tombstone_uuid = _uuid_tombstone(group_id, f"{id_}:{uuid_anterior}")
     cliente.tools_call("add_memory", {
-        "name": f"{id_}@tombstone",
-        "episode_body": f"knowledge_id: {id_}\nstatus: invalidado\n\nEntrada retirada o superada.",
+        "name": f"{nombre_anterior}{_SUFIJO_SUPERSEDED}",
+        "episode_body": (f"knowledge_id: {id_}\nepisodio: {nombre_anterior}\n"
+                         f"status: invalidado\n\nVersion superada por `{nombre_nuevo}`."),
         "group_id": group_id,
         "source": "text",
         "source_description": "custom-agents:graphiti-memory",
@@ -1552,8 +1580,11 @@ _REMEDIO_PUBLICACION_INCOMPLETA = ("reintentar `knowledge-sync.py --backend <id>
 
 
 class _RespuestaIlegible(Exception):
-    """Señal interna de `_nombres_remotos_confirmados`: la respuesta de `get_episodes` no tenia
-    la forma esperada (ni lista ni `{"episodes": [...]}`)."""
+    """Señal interna de `_nombres_remotos_confirmados`/`_indice_procedencia`: la respuesta de
+    `get_episodes` no tenia la forma esperada (ni lista ni `{"episodes": [...]}`), o el servidor
+    devolvio la variante `ErrorResponse` del `outputSchema` real (gap #102, fix1 Fase 3). El
+    texto de la excepcion es el MOTIVO que se propaga al llamador: un backend que no pudo servir
+    no puede parecer un backend que sirvio 0 aciertos."""
 
 
 def _max_episodios_verify(cfg):
@@ -1749,13 +1780,48 @@ def _procedencia_de_episodio(episodio):
     return datos or None
 
 
+def _error_de_respuesta(contenido):
+    """Motivo saneado si el contenido es la variante `ErrorResponse` del `outputSchema` real
+    (`{"error": "..."}`, fixture `graphiti-mcp-tools-list-2026-09-18.json`), o `None`. Gap #102
+    (Important, fix1 Fase 3): esa variante se leia como «0 aciertos» y el fallo del servidor
+    desaparecia -el nucleo servia una respuesta vacia como si fuera autorizada-."""
+    if isinstance(contenido, dict):
+        error = contenido.get("error")
+        if isinstance(error, str) and error.strip():
+            return _sanear_detalle(error.strip())
+    return None
+
+
+def _episodio_del_grupo(episodio, group_id, grupos_pedidos):
+    """¿Este episodio es del grupo propio? Gap #105 (Minor, CWE-346/863, fix1 Fase 3): el
+    `outputSchema` de `get_episodes` declara los episodios como objetos ABIERTOS
+    (`additionalProperties: true`), asi que `group_id` NO esta garantizado en la respuesta -y la
+    sonda de solo lectura contra el servidor real (2026-09-21) no pudo confirmarlo porque el
+    grafo esta vacio (`get_episodes` sin filtro: «No episodes found»)-. Por eso la regla es la
+    que permite el arbitraje: un episodio SIN `group_id` se acepta SOLO cuando la consulta se
+    acoto a UN unico `group_ids` (es el servidor quien filtro, y solo pudo filtrar por ese); con
+    mas de un grupo pedido, o con un `group_id` distinto del propio, fail-closed."""
+    if not isinstance(episodio, dict):
+        return False
+    grupo = episodio.get("group_id")
+    if grupo:
+        return grupo == group_id
+    return grupos_pedidos == 1
+
+
 def _indice_procedencia(cliente, group_id, tope):
-    """`(procedencia_por_nombre_de_episodio, ids_invalidados)` del `group_id` propio. Los
-    episodios de OTRO grupo se ignoran (aislamiento multi-proyecto, gap #73) y los `@tombstone`
-    marcan invalidada su entrada (CA-11). Lanza `_RespuestaIlegible` si `get_episodes` no
-    responde ni una lista ni `{"episodes": [...]}`."""
-    resultado = cliente.tools_call("get_episodes", {"group_ids": [group_id], "max_episodes": tope})
+    """`(procedencia_por_nombre_de_episodio, ids_invalidados, nombres_superados)` del `group_id`
+    propio. Los episodios de OTRO grupo se ignoran (aislamiento multi-proyecto, gap #73;
+    `_episodio_del_grupo` decide, gap #105), los `@tombstone` marcan invalidada la ENTRADA
+    entera (revoke, CA-11) y los `@superseded` marcan invalidado SOLO el episodio de la version
+    superada (gap #96: la version vigente sigue aprobada). Lanza `_RespuestaIlegible` -con el
+    motivo dentro- si `get_episodes` responde un `ErrorResponse` o una forma inesperada."""
+    group_ids = [group_id]
+    resultado = cliente.tools_call("get_episodes", {"group_ids": group_ids, "max_episodes": tope})
     contenido = _contenido_tool_call(resultado)
+    error = _error_de_respuesta(contenido)
+    if error:
+        raise _RespuestaIlegible(f"get_episodes: {error}")
     if isinstance(contenido, list):
         episodios = contenido
     elif isinstance(contenido, dict):
@@ -1763,34 +1829,64 @@ def _indice_procedencia(cliente, group_id, tope):
     else:
         episodios = None
     if not isinstance(episodios, list):
-        raise _RespuestaIlegible()
-    por_nombre, invalidados = {}, set()
+        raise _RespuestaIlegible('respuesta de get_episodes ilegible (no es lista ni {"episodes": [...]})')
+    por_nombre, invalidados, superados = {}, set(), set()
     for ep in episodios:
-        if not isinstance(ep, dict):
-            continue
-        grupo = ep.get("group_id")
-        if grupo and grupo != group_id:
+        if not _episodio_del_grupo(ep, group_id, len(group_ids)):
             continue
         nombre = ep.get("name") or ""
-        if nombre.endswith("@tombstone"):
-            invalidados.add(nombre[: -len("@tombstone")])
+        if nombre.endswith(_SUFIJO_SUPERSEDED):
+            superados.add(nombre[: -len(_SUFIJO_SUPERSEDED)])
+            continue
+        if nombre.endswith(_SUFIJO_TOMBSTONE):
+            invalidados.add(nombre[: -len(_SUFIJO_TOMBSTONE)])
             continue
         procedencia = _procedencia_de_episodio(ep)
         if procedencia and procedencia.get("knowledge_id"):
             por_nombre[nombre] = dict(procedencia, uuid=ep.get("uuid"))
-    return por_nombre, invalidados
+    return por_nombre, invalidados, superados
 
 
 def _hits_de_busqueda(resultado, clave):
-    """Lista de aciertos de un `search_*` (`{"nodes": [...]}`/`{"facts": [...]}` o lista pelada)."""
+    """`(aciertos, motivo)` de un `search_*` (`{"nodes": [...]}`/`{"facts": [...]}` o lista
+    pelada). Gap #102 (fix1 Fase 3): la variante `ErrorResponse` del `outputSchema` real
+    (`{"error": "..."}`) devuelve MOTIVO en vez de una lista vacia silenciosa."""
     contenido = _contenido_tool_call(resultado)
+    error = _error_de_respuesta(contenido)
+    if error:
+        return [], f"{clave}: {error}"
     if isinstance(contenido, list):
-        return [h for h in contenido if isinstance(h, dict)]
+        return [h for h in contenido if isinstance(h, dict)], ""
     if isinstance(contenido, dict):
         lista = contenido.get(clave)
         if isinstance(lista, list):
-            return [h for h in lista if isinstance(h, dict)]
-    return []
+            return [h for h in lista if isinstance(h, dict)], ""
+    return [], ""
+
+
+def _ruta_canonica(valor):
+    """`source_path` servido por el grafo, normalizado, o `None` si no es una ruta RELATIVA bajo
+    `docs/knowledge/`. Gap #106 (Minor, CWE-22, fix1 Fase 3): la ruta se imprime como «ruta
+    canonica» junto a un `estado` de doctrina y la consume quien luego abre el fichero; una ruta
+    absoluta, con `..` o fuera de `docs/knowledge/` no se sirve (fail-closed), no se recorta."""
+    if not isinstance(valor, str):
+        return None
+    ruta = _sanear_detalle(valor).strip().replace("\\", "/")
+    if not ruta or ruta.startswith("/") or ":" in ruta.split("/")[0]:
+        return None
+    partes = [p for p in ruta.split("/") if p not in ("", ".")]
+    if any(p == ".." for p in partes):
+        return None
+    normalizada = "/".join(partes)
+    return normalizada if normalizada.startswith("docs/knowledge/") else None
+
+
+def _texto_servido(valor):
+    """Gap #98 (Important, CWE-117/1007/150, fix1 Fase 3): TODO string de origen servidor
+    (`summary`/`fact`/`source_path`/`evidence_level`/`valid_at`... los genera el LLM de Graphiti
+    a partir de lo ingerido) se sanea -tope de 200 caracteres, sin controles/ANSI/bidi/C1- ANTES
+    de devolverlo, porque acaba en stdout y en el contexto del agente. `None` se conserva."""
+    return None if valor is None else _sanear_detalle(valor)
 
 
 def _nombres_de_hit(hit):
@@ -1803,11 +1899,20 @@ def _nombres_de_hit(hit):
     return nombres
 
 
+_TOPE_CONSULTA = 100      # tope duro de aciertos por consulta, tambien para `--limit 0`
+_LIMITE_CONSULTA_DEFAULT = 10
+
+
 def _limite_consulta(consulta):
+    """Gap #114 (Minor, fix1 Fase 3): `--limit 0` es «sin tope» en el `--help` del nucleo (y es
+    lo que usa `session-context.sh`), no «10». Aqui `0` se traduce al tope DOCUMENTADO de la
+    consulta (`_TOPE_CONSULTA`); un valor ausente o invalido sigue siendo el default de 10."""
     valor = (consulta or {}).get("limit")
-    if isinstance(valor, bool) or not isinstance(valor, int) or valor <= 0:
-        return 10
-    return min(valor, 100)
+    if isinstance(valor, bool) or not isinstance(valor, int) or valor < 0:
+        return _LIMITE_CONSULTA_DEFAULT
+    if valor == 0:
+        return _TOPE_CONSULTA
+    return min(valor, _TOPE_CONSULTA)
 
 
 def consultar(cfg, consulta):
@@ -1816,7 +1921,15 @@ def consultar(cfg, consulta):
 
     Cada acierto trae la terna que lo hace auditable -`estado`, `evidencia` y `ruta` canonica-
     leida del bloque de procedencia del episodio; un acierto de busqueda que no case con ningun
-    episodio propio se DESCARTA (fail-closed) en vez de servirse con huecos rellenados a ojo."""
+    episodio propio se DESCARTA (fail-closed) en vez de servirse con huecos rellenados a ojo.
+
+    fix1 de la Fase 3: la vigencia la decide el `status` del bloque de procedencia del episodio
+    SERVIDO (sin `status` no hay acierto, gap #116) mas los tombstones -`@tombstone` invalida la
+    entrada entera (revoke), `@superseded` solo la version superada (gap #96)-; todo texto de
+    origen servidor sale saneado (gap #98) y la `ruta` tiene que ser canonica (gap #106). Los
+    filtros `tipo`/`area` NO se aplican aqui: la `category` del grafo (DECISION/GOTCHA/...) no es
+    el `tipo`/`area` del corpus local y no hay equivalencia declarada en la config del backend
+    -el post-filtro lo hace el nucleo sobre los aciertos remotos (gap #104)-."""
     cfg = cfg or {}
     consulta = consulta or {}
     vacio = {"aciertos": [], "descartados": 0}
@@ -1837,40 +1950,53 @@ def consultar(cfg, consulta):
                              allow_remote=bool(cfg.get("allow_remote", False)),
                              max_respuesta_bytes=_max_respuesta_bytes(cfg))
         cliente.initialize()
-        nodos = _hits_de_busqueda(cliente.tools_call(
+        nodos, motivo_nodos = _hits_de_busqueda(cliente.tools_call(
             "search_nodes", {"query": texto, "group_ids": [group_id], "max_nodes": limit}), "nodes")
-        hechos = _hits_de_busqueda(cliente.tools_call(
+        hechos, motivo_hechos = _hits_de_busqueda(cliente.tools_call(
             "search_memory_facts", {"query": texto, "group_ids": [group_id], "max_facts": limit}), "facts")
-        por_nombre, invalidados = _indice_procedencia(cliente, group_id, tope_episodios)
-    except _RespuestaIlegible:
-        return dict(vacio, motivo="respuesta de get_episodes ilegible (no es lista ni {\"episodes\": [...]})")
+        por_nombre, invalidados, superados = _indice_procedencia(cliente, group_id, tope_episodios)
+    except _RespuestaIlegible as e:
+        return dict(vacio, motivo=str(e) or "respuesta de get_episodes ilegible")
     except Exception as e:  # noqa: BLE001 - mismo contrato que health()/verify(): nunca lanza
         return dict(vacio, motivo=f"no se pudo consultar el grafo: {type(e).__name__}: {_sanear_detalle(e)}")
 
     aciertos, vistos, descartados = [], set(), 0
     for hit, clase in [(h, "nodo") for h in nodos] + [(h, "hecho") for h in hechos]:
-        procedencia = next((por_nombre[n] for n in _nombres_de_hit(hit) if n in por_nombre), None)
-        if procedencia is None:
+        nombre = next((n for n in _nombres_de_hit(hit) if n in por_nombre), None)
+        if nombre is None:
             descartados += 1
             continue
+        procedencia = por_nombre[nombre]
         knowledge_id = procedencia.get("knowledge_id")
+        # Fail-closed (gaps #106/#116): sin `status`, sin nivel de evidencia o con una `ruta` que
+        # no es canonica, el acierto NO se sirve -antes `status` caia a `"aprobado"` y la ruta se
+        # servia tal cual viniera-.
+        status = procedencia.get("status")
+        evidencia = procedencia.get("evidence_level")
+        ruta = _ruta_canonica(procedencia.get("source_path"))
+        if not status or not evidencia or not ruta:
+            descartados += 1
+            continue
         if knowledge_id in vistos:
             continue
         vistos.add(knowledge_id)
+        invalidado = knowledge_id in invalidados or nombre in superados
         acierto = {
-            "id": knowledge_id,
-            "version": procedencia.get("version"),
-            "estado": "invalidado" if knowledge_id in invalidados else (procedencia.get("status") or "aprobado"),
-            "evidencia": procedencia.get("evidence_level"),
-            "ruta": procedencia.get("source_path"),
-            "categoria": procedencia.get("category"),
-            "titular": hit.get("summary") or hit.get("fact") or knowledge_id,
-            "uuid": procedencia.get("uuid"),
+            "id": _texto_servido(knowledge_id),
+            "version": _texto_servido(procedencia.get("version")),
+            "estado": "invalidado" if invalidado else _texto_servido(status),
+            "evidencia": _texto_servido(evidencia),
+            "ruta": ruta,
+            "categoria": _texto_servido(procedencia.get("category")),
+            "titular": _texto_servido(hit.get("summary") or hit.get("fact") or knowledge_id),
+            "uuid": _texto_servido(procedencia.get("uuid")),
             "fuente": clase,
         }
         if clase == "hecho":
             # El intent temporal vive de esto: la vigencia la declara el grafo, no el cliente.
-            acierto.update({"fact": hit.get("fact"), "valid_at": hit.get("valid_at"),
-                            "invalid_at": hit.get("invalid_at")})
+            acierto.update({"fact": _texto_servido(hit.get("fact")),
+                            "valid_at": _texto_servido(hit.get("valid_at")),
+                            "invalid_at": _texto_servido(hit.get("invalid_at"))})
         aciertos.append(acierto)
-    return {"aciertos": aciertos[:limit], "descartados": descartados, "motivo": ""}
+    motivo = "; ".join(m for m in (motivo_nodos, motivo_hechos) if m)
+    return {"aciertos": aciertos[:limit], "descartados": descartados, "motivo": motivo}

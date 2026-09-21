@@ -613,18 +613,45 @@ def _graphiti_backends(config):
             if isinstance(bcfg, dict) and bcfg.get("type") == "graphiti"]
 
 
+# --8<-- group_id por defecto COMPARTIDO (memoria de grafo, T-07-fix1) — REPLICADO LITERAL en agent-kits/shared/knowledge-schema.py y agent-kits/shared/knowledge-find.py
+# Gap #97 (Critical, fix1 Fase 3): la derivacion del `group_id` por defecto (el slug Unicode del
+# directorio del proyecto) la aplicaba SOLO el validador al cargar la taxonomia, asi que el router
+# de `knowledge-find.py` -que NO carga el validador, para que ningun hook alcance codigo con
+# capacidad de red- servia al adaptador la config CRUDA; con la plantilla de fabrica (que no trae
+# `group_id`) el backend cortaba con «sin group_id» y la consulta devolvia 0 en la configuracion
+# NOMINAL. La regla vive aqui, una sola vez, y sin un solo import de red.
 _SLUG_UNICODE_SEP_RE = re.compile(r"[\W_]+", re.UNICODE)
 
 
 def _slug_unicode(nombre):
-    """Slug consciente de Unicode (NFKC + minúsculas + separador de restos no alfanuméricos),
-    para `group_id` (T-01-fix2 gap #23). A diferencia de `_slug_kebab` (solo ASCII), conserva
-    letras/dígitos no latinos (acentos, CJK, cirílico...) en vez de descartarlos todos y caer a
-    cadena vacía. Sin fallback `"ca"` aquí a propósito: ver nota en `_con_group_id_por_defecto`."""
+    """Slug consciente de Unicode (NFKC + minusculas + separador de restos no alfanumericos),
+    para `group_id` (T-01-fix2 gap #23). A diferencia de un slug solo ASCII, conserva
+    letras/digitos no latinos (acentos, CJK, cirilico...) en vez de descartarlos todos y caer a
+    cadena vacia. Sin fallback fijo a proposito: ver `_group_id_por_defecto`."""
     if not nombre:
         return ""
     normalizado = unicodedata.normalize("NFKC", nombre).lower()
     return _SLUG_UNICODE_SEP_RE.sub("-", normalizado).strip("-")
+
+
+def _group_id_por_defecto(root):
+    """Slug Unicode del directorio del proyecto (`root=None` -> cwd real), o `""` si el nombre no
+    aporta ningun caracter alfanumerico. SIN fallback fijo: dos instalaciones con nombres "raros"
+    no pueden acabar compartiendo grupo remoto (fusionaria su memoria)."""
+    return _slug_unicode(os.path.basename(os.path.abspath(root if root is not None else ".")))
+
+
+def _config_con_group_id(cfg, root):
+    """Config EFECTIVA de un backend: la declarada MAS el `group_id` derivado si no lo trae (o lo
+    trae vacio). Nunca pisa un `group_id` explicito."""
+    efectiva = dict(cfg or {})
+    declarado = efectiva.get("group_id")
+    if not (isinstance(declarado, str) and declarado.strip()):
+        derivado = _group_id_por_defecto(root)
+        if derivado:
+            efectiva["group_id"] = derivado
+    return efectiva
+# --8<-- fin group_id por defecto COMPARTIDO
 
 
 def _con_id_prefix_por_defecto(config, root):
@@ -663,8 +690,7 @@ def _con_group_id_por_defecto(config, root):
     error explícito pidiendo declarar `group_id` a mano, en vez de fallar en silencio."""
     if not isinstance(config, dict):
         return config
-    base = os.path.basename(os.path.abspath(root if root is not None else "."))
-    slug = _slug_unicode(base)
+    slug = _group_id_por_defecto(root)
     for _bid, graphiti_bcfg in _graphiti_backends(config):
         graphiti_config = graphiti_bcfg.get("config")
         if not isinstance(graphiti_config, dict) or graphiti_config.get("group_id"):

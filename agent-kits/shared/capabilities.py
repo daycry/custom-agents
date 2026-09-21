@@ -22,12 +22,34 @@ Uso:
 import argparse
 import importlib.util
 import os
+import re
 import sys
 
 # Consola no UTF-8 (Windows cp1252) o tuberías: reconfigurar ANTES de leer/imprimir (GOT-005).
 for _s in (sys.stdin, sys.stdout, sys.stderr):
     try: _s.reconfigure(encoding="utf-8", errors="replace")
     except Exception: pass  # noqa: BLE001 — sin reconfigure, ya leído o None (capsys, pythonw)
+
+# --8<-- sanear_detalle (funcion) — REPLICADO LITERAL en las CUATRO copias declaradas del bloque `sanear_detalle` de agent-kits/shared/copias.json
+# Gap #93 (Minor, fix5): la clase [\x00-\x1f\x7f] dejaba pasar tres familias que TAMBIEN
+# falsifican una linea de log o invierten visualmente el texto de un mensaje/`causa`: los
+# controles C1 (\x80-\x9f, entre ellos CSI \x9b), los separadores Unicode de linea/parrafo
+# ( / , que muchos visores rompen como salto de linea) y los controles bidi
+# (‪-‮ RLO/LRO..., ⁦-⁩ isolates), con los que un texto hostil del servidor
+# puede reordenar lo que el humano lee sin cambiar un solo byte del resto.
+_CONTROL_O_ANSI_RE = re.compile(
+    r"\x1b\[[0-9;]*[A-Za-z]|[\x00-\x1f\x7f-\x9f  ‪-‮⁦-⁩]")
+_SANEADO_TOPE_CHARS = 200
+
+
+def _sanear_detalle(texto):
+    """Recorta a 200 caracteres y sustituye caracteres de control (incluidas las secuencias ANSI
+    `ESC[...`, los C1, los separadores Unicode y los controles bidi) por un espacio; ver
+    comentario arriba para el porque de cada regla."""
+    saneado = _CONTROL_O_ANSI_RE.sub(" ", str(texto))
+    return saneado[:_SANEADO_TOPE_CHARS]
+# --8<-- fin sanear_detalle (funcion)
+
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TAXONOMY_CONFIG_PATH = os.path.join(".claude", "knowledge-services", "taxonomy.json")
@@ -198,11 +220,18 @@ def _kwipu_health(root):
     return {"estado": "declarado", "detalle": "health de red la resuelve el adaptador (T-08)"}
 
 
+def _kwipu_doctor_texto(bid, salud):
+    """Linea de `/doctor` de una capacidad con backend, con la CLAVE y el DETALLE saneados
+    (gap #107, CWE-117: los dos se interpolaban crudos y acaban en un log que lee un humano)."""
+    return (f"{_sanear_detalle(bid)}: {_sanear_detalle(salud.get('estado', '?'))} — "
+            f"{_sanear_detalle(salud.get('detalle', ''))}").rstrip(" —")
+
+
 def _kwipu_doctor(root):
     salud = _kwipu_health(root)
     if salud["estado"] == "deshabilitado":
         return "kwipu: deshabilitado (backends.kwipu.enabled: false o sin declarar)"
-    return f"kwipu: {salud['estado']} — {salud.get('detalle', '')}".rstrip(" —")
+    return _kwipu_doctor_texto("kwipu", salud)
 
 # --- capacidad `graphiti` (graphiti-memory T-08, ADR-018) ---------------------------------------
 # Una capacidad mas en el registro: ni `/setup` ni `/doctor` llevan codigo propio para ella
@@ -211,33 +240,66 @@ def _kwipu_doctor(root):
 # EN VIVO (`health()`/`verify()` del adaptador) la hace `/doctor` por su cuenta, con su presupuesto
 # de tiempo — igual que con `kwipu`.
 
+# --8<-- modo del backend (funcion publica del contrato, T-08-fix1) — REPLICADO LITERAL en las copias declaradas del bloque `modo_backend` de agent-kits/shared/copias.json
+# Gap #109 (Minor, fix1 Fase 3): `capabilities.py` duplicaba el enum y el default de `mode` sin
+# declararlo como copia (ADR-016) y ademas llamaba al simbolo PRIVADO `_modo` del adaptador,
+# fuera del contrato E16. El adaptador expone `modo(cfg)` -funcion OPCIONAL del contrato,
+# documentada en `backends/README.md`- y el respaldo de `capabilities.py` (para cuando el
+# adaptador no esta instalado) es ESTE MISMO bloque, declarado en `copias.json`.
+_MODOS = ("off", "shadow", "read")
+_MODO_DEFAULT = "shadow"
+
+
+def modo(cfg):
+    """`mode` normalizado (`off`/`shadow`/`read`), default `shadow` (el mismo del esquema).
+    Gap #35: antes se validaba pero nadie lo LEIA -`off` seguia sincronizando-."""
+    valor = (cfg or {}).get("mode")
+    return valor if valor in _MODOS else _MODO_DEFAULT
+# --8<-- fin modo del backend
+
+
 GRAPHITI_TYPE = "graphiti"
 _GRAPHITI_ADAPTADOR_REL = ("skills", "knowledge-services", "backends", "graphiti.py")
 
 
-def _graphiti_declaracion(root):
-    """`(id_del_backend, declaracion)` del backend de tipo `graphiti` declarado en `taxonomy.json`:
-    la clave literal `graphiti` si existe y, si no, el primero (por orden de clave) cuyo `type` sea
-    `graphiti` — el backend se identifica por `type`, no por la clave (T-01-fix2). `(None, {})` si
-    no hay ninguno o la taxonomia no se pudo leer.
-
-    La declaracion se lee AUNQUE la taxonomia traiga errores de validacion: un `graphiti` mal
+def _graphiti_candidatos(root):
+    """`[(id, declaracion)]` de TODOS los backends de `type: graphiti` de `taxonomy.json`, por
+    orden de clave. Se leen AUNQUE la taxonomia traiga errores de validacion: un `graphiti` mal
     configurado tiene que salir como `degradado` con su arreglo (`_graphiti_health`), no como
     «deshabilitado» — que es justo lo contrario de lo que pasa (esta declarado y encendido)."""
     _ks, config, _origen, _ruta, _errores = _estado_taxonomia(root)
     if not config:
-        return None, {}
+        return []
     backends = config.get("backends")
     if not isinstance(backends, dict):
-        return None, {}
-    candidatos = [(bid, decl) for bid, decl in sorted(backends.items())
-                  if isinstance(decl, dict) and decl.get("type") == GRAPHITI_TYPE]
+        return []
+    return [(bid, decl) for bid, decl in sorted(backends.items())
+            if isinstance(decl, dict) and decl.get("type") == GRAPHITI_TYPE]
+
+
+def _graphiti_habilitados(root):
+    """Ids de los backends `type: graphiti` con `enabled: true` (gap #99)."""
+    return [bid for bid, decl in _graphiti_candidatos(root) if decl.get("enabled") is True]
+
+
+def _graphiti_declaracion(root):
+    """`(id_del_backend, declaracion)` del backend de tipo `graphiti` que representa la capacidad.
+
+    Gap #99 (Important, fix1 Fase 3): el desempate por la clave literal `graphiti` se aplicaba
+    ANTES de mirar `enabled`, asi que la situacion NOMINAL tras `/setup` —la plantilla de fabrica
+    deja `backends.graphiti` declarado y APAGADO, y el proyecto declara el suyo con otra clave y
+    encendido— daba «deshabilitado» en `/doctor` mientras el router SI leia del otro. Ahora
+    mandan los HABILITADOS (y entre ellos, la clave literal solo desempata); si no hay ninguno
+    habilitado, se informa del primero declarado. `(None, {})` si no hay ninguno."""
+    candidatos = _graphiti_candidatos(root)
     if not candidatos:
         return None, {}
-    for bid, decl in candidatos:
+    habilitados = [(bid, decl) for bid, decl in candidatos if decl.get("enabled") is True]
+    preferentes = habilitados or candidatos
+    for bid, decl in preferentes:
         if bid == GRAPHITI_TYPE:
             return bid, decl
-    return candidatos[0]
+    return preferentes[0]
 
 
 
@@ -249,17 +311,18 @@ def _graphiti_errores_de_config(root, bid):
             if str(e.get("campo", "")).startswith(prefijo)]
 
 def _graphiti_modo(cfg):
-    """`mode` normalizado. Se pregunta al ADAPTADOR (`_modo`, fuente unica del default y del enum)
-    y solo si no esta instalado se cae a la misma regla por escrito."""
+    """`mode` normalizado. Se pregunta al ADAPTADOR por su funcion PUBLICA `modo(cfg)` (fuente
+    unica del default y del enum, gap #109: antes se llamaba al simbolo privado `_modo`, fuera
+    del contrato E16) y solo si no esta instalado se cae al respaldo local —que es la MISMA
+    regla, declarada como copia en `copias.json` (bloque `modo_backend`, ADR-016)."""
     ruta = os.path.join(os.path.dirname(os.path.dirname(HERE)), *_GRAPHITI_ADAPTADOR_REL)
     try:
         spec = importlib.util.spec_from_file_location("capabilities_graphiti_adaptador", ruta)
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
-        return mod._modo(cfg)
-    except Exception:  # noqa: BLE001 — sin adaptador instalado, el default del esquema
-        modo = (cfg or {}).get("mode")
-        return modo if modo in ("off", "shadow", "read") else "shadow"
+        return mod.modo(cfg)
+    except Exception:  # noqa: BLE001 — sin adaptador instalado, el respaldo declarado
+        return modo(cfg)
 
 
 def _graphiti_enabled(root):
@@ -294,24 +357,37 @@ def _graphiti_health(root):
         return {"estado": "degradado", "backend": bid, "detalle": detalle,
                 "remedio": f"corrige `backends.{bid}.config` en `taxonomy.json`: "
                            + ", ".join("`" + c + "`" for c in pendientes)}
-    modo = _graphiti_modo(cfg)
+    modo_backend = _graphiti_modo(cfg)
     detalles = {
         "off": "apagado por configuracion (`mode: off`): no sincroniza ni lee",
         "shadow": "sincroniza pero NO lee: el router nunca consulta el grafo en `shadow` (CA-10)",
         "read": "lectura enrutada activa: `knowledge-find.py --intent <intent>` puede servirse del "
                 "grafo si el intent esta declarado en `router.intents` y `health`/`verify` acompanan",
     }
-    return {"estado": modo, "backend": bid, "detalle": detalles[modo],
-            "remedio": _GRAPHITI_REMEDIOS[modo]}
+    salud = {"estado": modo_backend, "backend": bid, "detalle": detalles[modo_backend],
+             "remedio": _GRAPHITI_REMEDIOS[modo_backend]}
+    habilitados = _graphiti_habilitados(root)
+    if len(habilitados) > 1:
+        # Gap #99: varios backends `type: graphiti` encendidos a la vez son configuracion valida
+        # (el router los recorre por orden de clave): se declaran TODOS para que `/doctor` pinte
+        # una fila de red por cada uno, no solo por el que representa la capacidad.
+        salud["backends"] = habilitados
+        salud["detalle"] += (" · hay " + str(len(habilitados)) + " backends `type: graphiti` "
+                             "habilitados: " + ", ".join("`" + b + "`" for b in habilitados))
+    return salud
 
 
 def _graphiti_doctor(root):
     salud = _graphiti_health(root)
     if salud["estado"] == "deshabilitado":
         return "graphiti: deshabilitado (sin backend `type: graphiti` habilitado en taxonomy.json)"
-    backend = salud.get("backend") or "?"
-    return (f"graphiti: `{backend}` en `{salud['estado']}` — {salud['detalle']} · "
-            f"{salud.get('remedio', '')}").rstrip(" ·")
+    # Gap #107 (CWE-117): la clave del backend y el `detalle` vienen de configuracion y de
+    # mensajes de validacion; se sanean antes de componer la linea que lee un humano.
+    backends = salud.get("backends") or [salud.get("backend") or "?"]
+    nombres = ", ".join("`" + _sanear_detalle(b) + "`" for b in backends)
+    return (f"graphiti: {nombres} en `{_sanear_detalle(salud['estado'])}` — "
+            f"{_sanear_detalle(salud['detalle'])} · "
+            f"{_sanear_detalle(salud.get('remedio', ''))}").rstrip(" ·")
 
 
 REGISTRO = [
