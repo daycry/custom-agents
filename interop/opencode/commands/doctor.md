@@ -85,7 +85,7 @@ nada**: cada línea lleva su veredicto y, si algo falla, **qué comando lo arreg
 ## Memoria de grafo (`graphiti`), si el proyecto la declara
 
 Es una **capacidad opcional más** del registro (`capabilities.py`), igual que `kwipu`: `/doctor`
-no lleva ni una línea de código propia para ella (CA-14 — la cadena `graphiti` no aparece en
+no lleva ni una línea de código propia para ella (CA-14 de knowledge-services — la cadena `graphiti` no aparece en
 `agent-kits/shared/doctor.py`). Lo que verás en el bloque «Capacidades opcionales»:
 
 | Fila | Qué significa | Qué hacer |

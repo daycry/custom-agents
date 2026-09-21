@@ -1296,3 +1296,75 @@ def test_propose_config_alcanzable_con_enabled_false(tmp_path, capsys):
     assert rc == 0
     assert "entity_types" in salida
     assert "GOTCHA" in salida
+
+
+# =============================================== graphiti-memory, revision Fase 3 intento 1 (fix1)
+# Gaps de DOCUMENTACION y de guardarrail que la revision devolvio con arbitraje explicito. Cada
+# uno falla si se revierte el texto correspondiente (son su unica puerta mecanica).
+
+def _texto(*partes):
+    with open(os.path.join(ROOT, *partes), encoding="utf-8") as f:
+        return f.read()
+
+
+def test_f3fix1_gap100_el_contrato_de_adaptador_documenta_consultar():
+    """#100: `consultar(cfg, consulta)` es la funcion OPCIONAL que hace ENRUTABLE a un backend;
+    la fuente unica del contrato (`backends/README.md`) no la mencionaba."""
+    readme = _texto("skills", "knowledge-services", "backends", "README.md")
+    assert "consultar(cfg, consulta)" in readme
+    for clave in ("aciertos", "descartados", "motivo"):
+        assert "`" + clave + "`" in readme, clave
+    assert "modo(cfg)" in readme          # #109: la otra funcion opcional del contrato
+    # y ya no habla en futuro de un router que existe (T-07)
+    assert "futuro router" not in readme
+
+
+def test_f3fix1_gap101_ningun_hook_invoca_el_nucleo_con_intent():
+    """#101: el invariante «ninguna llamada desde hooks» no tenia puerta. `--intent` (y
+    `--backends-dir`) son los unicos flags de `knowledge-find.py` que pueden cargar un adaptador
+    de backend -codigo con capacidad de red-: ningun hook puede usarlos."""
+    ofensores = []
+    for carpeta, _dirs, ficheros in os.walk(HOOKS_DIR):
+        for nombre in ficheros:
+            if not nombre.endswith((".sh", ".py", ".js", ".json")):
+                continue
+            ruta = os.path.join(carpeta, nombre)
+            with open(ruta, encoding="utf-8", errors="replace") as f:
+                texto = f.read()
+            if "knowledge-find.py" not in texto and "capabilities.py" not in texto:
+                continue
+            for flag in ("--intent", "--backends-dir"):
+                if flag in texto:
+                    ofensores.append((os.path.relpath(ruta, ROOT), flag))
+    assert ofensores == [], ofensores
+
+
+def test_f3fix1_gap108_router_default_esta_declarada_como_reservada():
+    """#108: `router.default` es config validada y documentada que ningun codigo lee; se declara
+    RESERVADA (CA-12 exige caer a local) en el esquema y en CONVENTIONS ES/EN."""
+    esquema = _texto("agent-kits", "shared", "schemas", "taxonomy.schema.json")
+    assert "reservada" in esquema.lower()
+    for doc in (("docs", "CONVENTIONS.md"), ("docs", "en", "CONVENTIONS.md")):
+        texto = _texto(*doc)
+        assert "router.default" in texto, doc
+        linea = [l for l in texto.splitlines() if "router.default" in l][0]
+        assert "reserv" in linea.lower(), doc
+
+
+def test_f3fix1_gap112_doctor_md_cualifica_la_iniciativa_del_criterio():
+    """#112: en la spec de `graphiti-memory`, CA-14 es OTRO criterio."""
+    doctor_md = _texto("commands", "doctor.md")
+    assert "CA-14 de knowledge-services" in doctor_md
+    for linea in doctor_md.splitlines():
+        if "CA-14" in linea:
+            assert "knowledge-services" in linea, linea
+
+
+def test_f3fix1_gap113_e18_declara_la_arista_de_lectura():
+    """#113: E18 decia «ningun agente distinto de `knowledge-sync.py` invoca el adaptador
+    directamente» y T-07/T-08 anadieron dos invocaciones de SOLO LECTURA."""
+    contratos = _texto("docs", "agents", "CONTRACTS.md")
+    fila = [l for l in contratos.splitlines() if l.startswith("| E18 ")][0]
+    assert "escritura" in fila.lower()
+    assert "knowledge-find.py" in fila and "capabilities.py" in fila
+    assert "puede_leer" in fila or "consultar" in fila
