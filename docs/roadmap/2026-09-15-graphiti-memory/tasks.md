@@ -426,13 +426,35 @@ verificacion: obligatoria
 ## Fase 4 - Regresion y cierre
 
 ### T-09 - Aislamiento, modelos locales y seguridad
-- **Estado**: en-progreso
+- **Estado**: completado
 - **Nota (2026-09-22, orquestador)**: implementer detenido a peticion del usuario (cierre de sesion) con la tarea a medias: `tests/test_graphiti_security.py` creado (747 lineas, **20 passed** en Windows; cubre secciones 1-4 del brief: sin red desde hooks, sin datos excluidos, CA-14 dead-letter con Ollama invalido, CA-05 agentes sin escritura directa; la seccion 5 —guardarrail de red del cliente MCP como regresion del repo— quedo sin empezar). Ledger sin `RED:`/`Verificacion`/criterio marcado: al retomar, revisar el fichero, completar la seccion 5, ejecutar la Verificacion y cerrar. `Tiempo IA` parcial: 2.06h (medido; usage-meter, artefacto graphiti-memory/T-09, 2h4m reloj, 10.99 EUR — ventana cerrada por el orquestador al detener al implementer; la continuacion se mide con `T-09-bis`).
 - **Dependencias**: T-01 a T-08
 - **Archivos**: `tests/test_graphiti_security.py`, `tests/test_hooks_shell.py`
-- **Verificacion**: `python -m pytest -q tests/test_graphiti_security.py tests/test_hooks_shell.py` -> sin datos excluidos ni red desde hooks
+- **Nota (2026-09-22, implementer bis)**: al retomar, la seccion 5 SI estaba escrita en el fichero comiteado (5 tests: IMDS en sus 4 formas con y sin `allow_remote`, `0.0.0.0`/`::`, hosts publicos, 301/302/303 no seguidas ni re-POSTeadas y la sesion que no cruza de puerto) — lo que faltaba respecto al brief era el **308** (solo se probaba el 307), el cambio de **hostname** con el mismo puerto, la **revalidacion del guardarrail en CADA salto** y el **tope de la cadena** de redirecciones. Anadidos 3 tests nuevos + el 307/308 en el existente (20 -> 23), sin duplicar los 20 anteriores; secciones 1-4 revisadas y no triviales (la 1 lleva su propio andamiaje `test_el_recorrido_alcanza_de_verdad_los_scripts_de_los_hooks`, que impide que el escaneo pase en vacio).
+- **Verificacion**: `python -m pytest -q tests/test_graphiti_security.py tests/test_hooks_shell.py` -> sin datos excluidos ni red desde hooks. Salida real (2026-09-22):
+  ```
+  $ python -m pytest -q -p no:cacheprovider tests/test_graphiti_security.py
+  .......................                                                  [100%]
+  23 passed in 25.15s
+
+  $ python -m pytest -q -p no:cacheprovider tests/test_graphiti_security.py tests/test_hooks_shell.py
+  ...
+  FAILED tests/test_hooks_shell.py::test_todos_los_hooks_son_bash_valido_y_ejecutables
+  52 failed, 30 passed in 169.27s (0:02:49)
+  ```
+  Los **52 rojos son de `tests/test_hooks_shell.py` y son PREEXISTENTES en Windows** (los hooks se ejecutan con `bash`/`python3`, que esta maquina no expone): no los toca esta tarea ni son regresion — la suite nueva aporta los 23 verdes (`30 passed` = 23 + los 7 de `test_hooks_shell.py` que no dependen de `bash`).
+  - **RED (evidencia TDD, 2026-09-22)**: los 4 tests nuevos/ampliados de la seccion 5 fijan comportamiento YA implementado, asi que el rojo se obtiene con **mutantes puntuales y nombrados** en `skills/knowledge-services/backends/graphiti.py` (revertidos con `git checkout --` tras cada uno):
+    - `M1 (origen solo por puerto)`: `_origen` devuelve `(puerto,)` -> `FAILED test_la_sesion_tampoco_cruza_de_hostname_con_el_mismo_puerto` (`tests/test_graphiti_security.py:776: AssertionError`)
+    - `M2 (308 no se sigue)`: `if e.code not in (307,)` -> `FAILED test_la_sesion_no_cruza_esquema_host_ni_puerto` (`graphiti.py:423: ErrorMCP`)
+    - `M3 (el rechazo del salto deja de ser HostNoPermitido)`: `raise ErrorMCP(...)` en la revalidacion por salto -> `FAILED test_cada_salto_de_redireccion_se_revalida_contra_el_guardarrail` (`graphiti.py:396: ErrorMCP`)
+    - `M4 (un salto mas en la cadena)`: `range(_MAX_REDIRECCIONES + 2)` -> `FAILED test_una_cadena_de_redirecciones_no_es_infinita` (`tests/test_graphiti_security.py:813: AssertionError`)
+  - **Limite declarado (margen):** el cambio de **esquema** de la terna `(esquema, host, puerto)` no se ejerce con servidor real (haria falta TLS en loopback); lo cubren M1 (que mata «solo el puerto») y el caso de hostname. Queda anotado aqui para la revision.
 **Criterios de aceptación**
-- [ ] Ollama JSON invalido degrada sin datos corruptos.
+- [x] Ollama JSON invalido degrada sin datos corruptos — `test_ca14_salida_estructurada_invalida_del_proveedor_no_llega_a_add_memory` y `test_ca14_ollama_invalido_acaba_en_dead_letter_sin_tocar_el_manifiesto` (CA-14: ni un `add_memory`, dead-letter via `outbox.py`, manifiesto intacto); ademas CA-04 (`test_ca04_endpoint_apagado_degrada_sin_bloquear`, `test_ca04_backend_sin_datos_no_bloquea_la_lectura_enrutada`), CA-01/CA-07 (`test_solo_las_entradas_aprobadas_y_enrutadas_generan_episodios`, `test_ningun_episodio_lleva_texto_de_lo_excluido`), CA-05/E18 (`test_ca05_*`, `test_e18_ningun_agente_normal_cita_el_backend_graphiti`) y el guardarrail de red del cliente MCP (seccion 5, 8 tests). Todo contra el servidor MCP FALSO y servidores efimeros en loopback: cero escrituras contra el servidor real.
+- **Changelog**: The repository now has a security regression suite for the Graphiti memory: hooks make no network calls, excluded data never reaches the graph, an invalid local model output degrades to dead-letter, and the MCP client refuses cloud metadata endpoints, public hosts and unsafe redirects.
+- **Tiempo humano**: est. - · real -
+- **Tiempo IA**: real 2.06h (medido; usage-meter, artefacto `graphiti-memory/T-09`, 2h4m reloj, 10.99 EUR — ver Nota del orquestador)
+- **Tiempo IA (bis)**: real 0.18h (medido; usage-meter, artefacto `graphiti-memory/T-09-bis`, 8m reloj, 1.77 EUR) — continuacion: seccion 5 completada + cierre del ledger
 
 ### T-10 - Interop, QA y retro
 - **Estado**: borrador

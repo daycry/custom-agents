@@ -732,16 +732,83 @@ def test_redirecciones_301_302_303_no_se_siguen(monkeypatch):
 
 
 def test_la_sesion_no_cruza_esquema_host_ni_puerto(monkeypatch):
-    """Gap #78 (CWE-200): `127.0.0.1:A` y `127.0.0.1:B` son servicios DISTINTOS — un 307 hacia
-    otro puerto no puede llevarse el `Mcp-Session-Id` de la sesion anterior."""
+    """Gap #78 (CWE-200): `127.0.0.1:A` y `127.0.0.1:B` son servicios DISTINTOS — un 307 **ni un
+    308** (los dos codigos que SI se siguen, porque preservan el metodo) puede llevarse el
+    `Mcp-Session-Id` de la sesion anterior a otro puerto."""
     espia = _EspiaConexiones(monkeypatch)
-    with _ServidorEfimero(_responder_initialize) as destino:
-        with _ServidorEfimero(_redirector(307, destino.endpoint + "/mcp")) as origen:
+    for codigo in (307, 308):
+        with _ServidorEfimero(_responder_initialize) as destino:
+            with _ServidorEfimero(_redirector(codigo, destino.endpoint + "/mcp")) as origen:
+                cliente = gr.ClienteMCP(origen.endpoint, timeout_s=2.0, allow_remote=False)
+                cliente._session_id = "sesion-del-origen"
+                cliente.initialize()
+            cabeceras_origen = origen.peticiones[0][1]
+            cabeceras_destino = destino.peticiones[0][1]
+        assert cabeceras_origen.get("Mcp-Session-Id") == "sesion-del-origen", codigo
+        assert not any(k.lower() == "mcp-session-id" for k in cabeceras_destino), (codigo,
+                                                                                  cabeceras_destino)
+    assert espia.fuera_de_loopback == []
+
+
+def test_la_sesion_tampoco_cruza_de_hostname_con_el_mismo_puerto(monkeypatch):
+    """Misma terna del gap #78 aislando el HOST: `localhost` y `127.0.0.1` son el mismo destino
+    fisico y el MISMO puerto, pero no el mismo origen — un 307 entre ambos tira igual la cabecera
+    de sesion (el mutante «comparar solo el puerto» sobrevive sin este caso)."""
+    espia = _EspiaConexiones(monkeypatch)
+    peticiones = []
+
+    def _responder(handler):
+        # primer POST: redirige a SI MISMO por nombre; segundo: contesta el handshake
+        peticiones.append(dict(handler.headers))
+        if len(peticiones) == 1:
+            _redirector(307, "http://localhost:%s/mcp" % handler.server.server_address[1])(handler)
+        else:
+            _responder_initialize(handler)
+
+    with _ServidorEfimero(_responder) as servidor:
+        cliente = gr.ClienteMCP(servidor.endpoint, timeout_s=5.0, allow_remote=False)
+        cliente._session_id = "sesion-por-ip"
+        cliente.initialize()
+    # 1) initialize con la sesion vieja -> 307; 2) initialize ya SIN la sesion (otro origen);
+    # 3) la `notifications/initialized` posterior, que ya lleva la sesion NUEVA del handshake.
+    assert len(peticiones) >= 2, peticiones
+    assert peticiones[0].get("Mcp-Session-Id") == "sesion-por-ip"
+    assert not any(k.lower() == "mcp-session-id" for k in peticiones[1]), peticiones[1]
+    assert espia.fuera_de_loopback == []
+
+
+def test_cada_salto_de_redireccion_se_revalida_contra_el_guardarrail(monkeypatch):
+    """Gaps #34e/#71: que el PRIMER salto sea loopback no autoriza el segundo — un `Location`
+    hacia el IMDS (en sus cuatro formas) o hacia un host publico se rechaza en el salto, sin un
+    solo `connect()` fuera de loopback."""
+    espia = _EspiaConexiones(monkeypatch)
+    destinos = [url for url, _ in _IMDS] + ["http://8.8.8.8:8000/mcp", "http://[::]:8000/mcp"]
+    for destino in destinos:
+        with _ServidorEfimero(_redirector(307, destino)) as origen:
             cliente = gr.ClienteMCP(origen.endpoint, timeout_s=2.0, allow_remote=False)
-            cliente._session_id = "sesion-del-origen"
+            try:
+                cliente.initialize()
+                raise AssertionError("siguio la redireccion hacia %s" % destino)
+            except gr.HostNoPermitido:
+                pass
+            assert origen.peticiones, destino
+    assert espia.fuera_de_loopback == []
+
+
+def test_una_cadena_de_redirecciones_no_es_infinita(monkeypatch):
+    """`_MAX_REDIRECCIONES`: un servidor que se redirige a si mismo no puede tener al cliente (y
+    al ciclo que lo invoca) dando saltos para siempre."""
+    espia = _EspiaConexiones(monkeypatch)
+
+    def _siempre_redirige(handler):
+        _redirector(307, "http://127.0.0.1:%s/mcp" % handler.server.server_address[1])(handler)
+
+    with _ServidorEfimero(_siempre_redirige) as bucle:
+        cliente = gr.ClienteMCP(bucle.endpoint, timeout_s=5.0, allow_remote=False)
+        try:
             cliente.initialize()
-        cabeceras_origen = origen.peticiones[0][1]
-        cabeceras_destino = destino.peticiones[0][1]
-    assert cabeceras_origen.get("Mcp-Session-Id") == "sesion-del-origen"
-    assert not any(k.lower() == "mcp-session-id" for k in cabeceras_destino), cabeceras_destino
+            raise AssertionError("no corto la cadena de redirecciones")
+        except gr.ErrorMCP as e:
+            assert "demasiadas redirecciones" in str(e), str(e)
+        assert len(bucle.peticiones) == gr._MAX_REDIRECCIONES + 1, len(bucle.peticiones)
     assert espia.fuera_de_loopback == []
