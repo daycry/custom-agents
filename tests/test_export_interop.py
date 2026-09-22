@@ -119,6 +119,11 @@ def test_codex_marketplace_valido():
     assert mk["plugins"], "marketplace sin plugins"
     p = mk["plugins"][0]
     assert p["policy"]["installation"] in ("AVAILABLE", "INSTALLED_BY_DEFAULT", "NOT_AVAILABLE")
+    # Codex ≥ 0.155 (esquema serde) solo admite estos dos valores: un `NONE` invalida el manifiesto
+    # ENTERO y rompe `codex plugin marketplace list` para TODOS los marketplaces del usuario
+    # (gap M-01, verificado con codex-cli 0.155.1 en Windows).
+    assert p["policy"]["authentication"] in ("ON_INSTALL", "ON_USE"), \
+        "authentication no válido para Codex: %r" % p["policy"]["authentication"]
     assert p["category"] and p["source"]["source"] == "local"
     assert p["version"] == json.loads(leer(".claude-plugin/plugin.json"))["version"]
 
