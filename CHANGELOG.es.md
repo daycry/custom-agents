@@ -9,6 +9,14 @@ y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+## [1.21.1] - 2026-09-22
+
+### Fixed — instalaciones en Codex y OpenCode (2026-09-22)
+
+- **`ad770e4` — El manifiesto del plugin viaja a OpenCode y `/doctor` distingue ausente de roto** User-scope installs now ship the `.claude-plugin/` manifest into the OpenCode plugin, and `/doctor` reports an absent field differently from a broken one, with a `.codex-plugin/` fallback. (`install/providers.mjs`, `agent-kits/shared/doctor.py`, `tests/installer.test.mjs`, `agent-kits/shared/test_doctor.py`)
+- **`09f55b2` — Codex: `authentication` válido, alta en la raíz y sin duplicar la entrada** The Codex manifest now ships `authentication: ON_INSTALL` (`NONE` broke `marketplace list` entirely), `marketplace add` resolves `source.path` against the marketplace root, and the registry merge upserts in place — keeping foreign entries and collapsing historical duplicates. (`scripts/export-interop.py`, `install/providers.mjs`, `install/install.mjs`)
+- **`8a35aaa` — Los 4 rojos preexistentes de Windows, diagnosticados y cerrados** `matarArbol` falls back to PowerShell CIM when `wmic` is missing (Win 11), the I2-1 test fakes `HOME`, the toast test gates on a real `python3` (the Microsoft Store stub fooled `command -v`), and the executable-bit test skips on Windows, where +x does not exist. (`install/install.mjs`, `tests/installer.test.mjs`, `tests/opencode-plugin.test.mjs`, `agent-kits/shared/test_doctor.py`)
+
 ## [1.21.0] - 2026-09-19
 
 ### Fixed — iniciativa `jira-review-comments` (2026-09-19)
@@ -584,6 +592,7 @@ Adopción de las mejores prácticas de las colecciones top de agentes (coleccion
 
 Versiones anteriores a la introducción de este changelog: bundle con los agentes `nemesis`, `evaluator`, `planner`, `pdfy` y `qa`, y las skills compartidas `cybersecurity` y `to-pdf`. Empaquetado como plugin + marketplace.
 
+[1.21.1]: https://github.com/daycry/custom-agents/releases/tag/v1.21.1
 [1.21.0]: https://github.com/daycry/custom-agents/releases/tag/v1.21.0
 [1.20.2]: https://github.com/daycry/custom-agents/releases/tag/v1.20.2
 [1.20.0]: https://github.com/daycry/custom-agents/releases/tag/v1.20.0
