@@ -367,6 +367,22 @@ def _url_mcp(endpoint):
     return sin_barra + "/mcp"
 
 
+def _origen(u):
+    """Identidad de un salto de redireccion: la terna `(esquema, host, puerto)`.
+
+    Gap #78 (Minor, CWE-200): no basta el hostname — `127.0.0.1:A` y `127.0.0.1:B` son servicios
+    DISTINTOS y la sesion MCP no debe cruzar de uno a otro (ni de `https` a `http`).
+
+    Gap #160 (Minor, fix1 Fase 4): estaba anidada dentro de `_post_json`, asi que el cambio de
+    ESQUEMA no lo podia ejercer ningun test sin TLS real (el mutante «terna sin esquema»
+    sobrevivia). A nivel de modulo es verificable con una prueba unitaria."""
+    try:
+        partes_u = urllib.parse.urlsplit(u)
+    except ValueError:
+        return None
+    return (partes_u.scheme, partes_u.hostname, partes_u.port)
+
+
 def _post_json(url, payload, cabeceras, timeout_s, allow_remote):
     """POST JSON con seguimiento MANUAL de redirecciones: SOLO 307/308 se siguen (preservan el
     método; 301/302/303 se tratan como error citando la URL — gap #34d, antes se seguían los
@@ -378,16 +394,6 @@ def _post_json(url, payload, cabeceras, timeout_s, allow_remote):
     cuerpo = json.dumps(payload).encode("utf-8")
     url_actual = url
     cabeceras_actuales = dict(cabeceras)
-    def _origen(u):
-        """Gap #78 (Minor, CWE-200): la identidad de un salto es `(esquema, host, puerto)`, no
-        solo el hostname — `127.0.0.1:A` y `127.0.0.1:B` son servicios DISTINTOS y la sesion MCP
-        no debe cruzar de uno a otro (ni de `https` a `http`)."""
-        try:
-            partes_u = urllib.parse.urlsplit(u)
-        except ValueError:
-            return None
-        return (partes_u.scheme, partes_u.hostname, partes_u.port)
-
     origen_actual = _origen(url)
     deadline = time.monotonic() + timeout_s
     for _ in range(_MAX_REDIRECCIONES + 1):
@@ -1159,6 +1165,47 @@ def _nombre_episodio(id_, version):
     return f"{id_}@{version}"
 
 
+# Campos que el adaptador CONSUME despues de `add_memory` (`uuid` -lo que se devuelve y lo que
+# usa el `SUPERSEDES` de #40- y `name`) o que el contrato de la tool exige (`episode_body`,
+# `group_id`, `source`, `source_description`): ninguno puede faltar ni venir vacio en lo que
+# devuelve el proveedor (gap #154).
+_CAMPOS_EPISODIO_OBLIGATORIOS = ("uuid", "name", "episode_body", "group_id", "source",
+                                 "source_description")
+# Identidad del episodio: el proveedor ORIENTA la extraccion (instrucciones, `source`); no
+# re-nombra ni re-identifica el episodio. El manifiesto recalcula el `uuid` con `_uuid_episodio`,
+# asi que un `uuid`/`name`/`group_id` distinto del construido dejaria grafo y manifiesto
+# desalineados: el mismo dano que un `uuid` ausente.
+_CAMPOS_EPISODIO_IDENTIDAD = ("uuid", "name", "group_id")
+
+
+def _vacio_para_add_memory(valor):
+    return valor is None or (isinstance(valor, str) and valor.strip() == "")
+
+
+def _validar_episodio_del_proveedor(episodio, episodio_base):
+    """Fail-closed del gap #46, ampliado por el #154: valida ANTES de tocar el servidor que el
+    episodio devuelto por el proveedor (a) es un objeto, (b) trae con valor todos los campos que el
+    adaptador consume despues o que la tool exige, (c) no ha perdido ni vaciado ningun campo que
+    `_episodio_upsert` habia construido y (d) no ha alterado la identidad del episodio. Levanta
+    `ErrorMCP` -la op cae a `fallidos`/dead-letter- sin gastar una llamada de red."""
+    if not isinstance(episodio, dict):
+        raise ErrorMCP(
+            f"proveedor devolvio una estructura invalida para `add_memory` (no es un objeto): "
+            f"{_sanear_detalle(episodio)}")
+    base = episodio_base if isinstance(episodio_base, dict) else {}
+    faltan = [c for c in _CAMPOS_EPISODIO_OBLIGATORIOS if _vacio_para_add_memory(episodio.get(c))]
+    perdidos = [c for c, v in sorted(base.items())
+                if not _vacio_para_add_memory(v) and c not in faltan
+                and _vacio_para_add_memory(episodio.get(c))]
+    alterados = [c for c in _CAMPOS_EPISODIO_IDENTIDAD
+                 if c in base and c not in faltan and episodio.get(c) != base.get(c)]
+    if faltan or perdidos or alterados:
+        raise ErrorMCP(
+            f"proveedor devolvio una estructura invalida para `add_memory` (campos ausentes o "
+            f"vacios: {faltan}; campos perdidos del episodio construido: {perdidos}; identidad "
+            f"alterada: {alterados}): {_sanear_detalle(episodio)}")
+
+
 def _aplicar_upsert(cliente, proveedor, provider_cfg, group_id, op, cfg=None, entrada_previa=None):
     """Gap #40: si `entrada_previa` (la versión publicada anterior de este `id`) existe y su
     `version` cambió, se emite ADEMÁS un tombstone de esa versión anterior + `SUPERSEDES` hacia
@@ -1174,15 +1221,19 @@ def _aplicar_upsert(cliente, proveedor, provider_cfg, group_id, op, cfg=None, en
             f"el episodio anterior para el `SUPERSEDES` (no se inventa un nombre de nodo)")
     episodio_base, aviso_tope = _episodio_upsert(group_id, op, cfg)
     episodio = proveedor(provider_cfg, episodio_base)
-    # Gap #46 (CA-14): un proveedor que devuelve una estructura invalida (falta `name`,
-    # `episode_body` o `group_id`, p. ej. un bug de un proveedor futuro) NUNCA debe llegar a
-    # `add_memory` -se rechaza aqui y la op cae a `fallidos`/dead-letter como cualquier otro
-    # `ErrorMCP`, sin gastar una llamada de red con datos incompletos.
-    if not isinstance(episodio, dict) or not episodio.get("name") or not episodio.get("episode_body") \
-            or not episodio.get("group_id"):
-        raise ErrorMCP(
-            f"proveedor devolvio una estructura invalida para `add_memory` (faltan "
-            f"name/episode_body/group_id): {_sanear_detalle(episodio)}")
+    # Gap #46 (CA-14): un proveedor que devuelve una estructura invalida (p. ej. un bug de un
+    # proveedor futuro) NUNCA debe llegar a `add_memory` -se rechaza aqui y la op cae a
+    # `fallidos`/dead-letter como cualquier otro `ErrorMCP`, sin gastar una llamada de red con
+    # datos incompletos.
+    #
+    # Gap #154 (Important, fix1 Fase 4): la validacion miraba `name`/`episode_body`/`group_id`
+    # pero NO `uuid`, que es justo el campo que el adaptador consume DESPUES de la llamada (el
+    # `SUPERSEDES` de #40 y el valor que devuelve esta funcion). Un proveedor que no lo devolvia
+    # pasaba la validacion, el episodio SALIA al grafo y solo entonces reventaba con
+    # `KeyError: 'uuid'`: la op caia a dead-letter dejando un episodio VIVO en el grafo que el
+    # manifiesto no registra y que `revoke` no puede invalidar -datos corruptos, justo lo que
+    # CA-14 prohibe-. Ahora se valida ANTES, fail-closed, todo lo que se consume despues.
+    _validar_episodio_del_proveedor(episodio, episodio_base)
     cliente.tools_call("add_memory", episodio)
     if entrada_previa and entrada_previa.get("version") != op.get("version") and entrada_previa.get("uuid"):
         _tombstone_supersedes(cliente, group_id, op["id"], entrada_previa["uuid"], episodio["uuid"],

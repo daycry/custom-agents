@@ -10,7 +10,8 @@ deterministas contra los 15 criterios de aceptación de `spec.md`. Esta línea e
 no un ✅**: la puerta de cobertura E2E no se ha ejecutado porque no aplica.
 
 Todo lo de abajo corre contra el **servidor MCP falso** (`_ServidorMCPContext` de
-`skills/knowledge-services/scripts/test_backend_graphiti.py`) y contra servidores efímeros
+`skills/knowledge-services/scripts/_mcp_fake.py`, módulo de apoyo compartido por las dos suites
+desde el gap #166) y contra servidores efímeros
 propios en `127.0.0.1:0`: el servidor Graphiti real estaba **apagado** y no se escribió en
 ningún grafo real.
 
@@ -18,16 +19,15 @@ ningún grafo real.
 
 ```
 $ python agent-kits/shared/ledger-lint.py docs/roadmap/2026-09-15-graphiti-memory/tasks.md
-⚠️  T-10: sin campo **Changelog** (otras tareas lo declaran) — su bullet del CHANGELOG degradará al título
-❌ resumen descuadrado en «Fase 4 - Regresion y cierre»: tabla dice 0/2, las tareas dicen 1/2
-ledger-lint: 1 incoherencias · 1 avisos (tasks.md)
+ledger-lint: 0 incoherencias · 0 avisos (tasks.md)
 ```
 
-Esa es la salida en el momento de cerrar T-09 (T-10 todavía sin `Changelog`, Fase 4 a medias).
-Tras cerrar T-10 la única incoherencia que queda es el **Resumen de progreso**, que por
-decisión del orquestador de esta iniciativa NO lo escribe el implementer (es suyo, igual que en
-el gap #111 de la Fase 3): la fila «Fase 4» dirá 0/2 hasta que él la ponga en 2/2. La salida
-final está pegada en el campo `Verificacion` de T-10 en el ledger.
+Esa es la salida **vigente** (2026-09-22, tras la ronda `fix1` de la Fase 4). Gap #159/#165 de
+la revisión intento 1: antes aquí estaba pegada una salida con ❌ y ⚠️ que ya no reproduce —era
+la del momento de cerrar T-09 (T-10 todavía sin `Changelog`) y la del desfase del **Resumen de
+progreso**, que en esta iniciativa lo escribe el ORQUESTADOR (decisión suya desde el gap #111 de
+la Fase 3), no el implementer. Con T-09/T-10 de vuelta en `en-progreso` para la ronda `fix1`, la
+tabla y las tareas vuelven a cuadrar y el ledger sale limpio.
 
 ## 2. `coverage-check.py` (modo sin UI)
 
@@ -57,10 +57,10 @@ FAILED tests/test_knowledge_find.py::test_show_imprime_la_entrada_completa_tal_c
 FAILED tests/test_knowledge_find.py::test_show_json_envuelve_el_contenido_con_su_ficha
 FAILED tests/test_knowledge_find.py::test_ca04_show_adr012_la_entrada_mas_grande_cabe_en_10800_caracteres
 FAILED agent-kits/shared/test_doctor.py::test_hook_sin_bit_ejecutable_es_aviso_con_chmod
-4 failed, 823 passed, 1 skipped, 8 subtests passed in 460.64s (0:07:40)
+4 failed, 835 passed, 1 skipped, 8 subtests passed in 312.57s (0:05:12)
 ```
 
-`823 = 800` (línea base de la Fase 3) `+ 23` de `tests/test_graphiti_security.py`. Los **4
+`835 = 800` (línea base de la Fase 3) `+ 35` de `tests/test_graphiti_security.py` (23 en la entrega inicial `+ 12` de la ronda `fix1` de la Fase 4: #154, #155, #156, #157, #160 y #166). Salida re-pegada el 2026-09-22 tras esa ronda. Los **4
 rojos son PREEXISTENTES y solo de Windows** (los tres `test_*show*` por CRLF/`cp1252`, el de
 `chmod` por el bit de ejecución de NTFS), idénticos a los de la Fase 3: no son regresión.
 
@@ -92,7 +92,7 @@ Windows no expone. No se tocan en esta iniciativa.
 | CA-11 | `--rebuild` reproducible (mismo manifiesto) y `revoke` sin borrar historial | `skills/knowledge-services/scripts/test_backend_graphiti.py::test_rebuild_reproduce_el_mismo_manifiesto_que_la_sincronizacion_incremental` · `::test_rebuild_es_el_unico_camino_que_llama_a_clear_graph_acotado_al_grupo_propio` · `::test_revoke_escribe_tombstone_sin_llamar_a_delete_episode` |
 | CA-12 | Router por configuración, `intent` declarado, no declarado → local | `tests/test_knowledge_router.py::test_backends_para_intent_solo_los_habilitados_que_declaran_el_intent` · `::test_backends_para_intent_exige_true_estricto_no_verdad_difusa` · `::test_cli_intent_no_declarado_sirve_lo_local` · `::test_cli_intent_invalido_es_error_de_uso` |
 | CA-13 | Ontología desde `taxonomy.json`, `entity_types` los define el servidor | `tests/test_graphiti_model.py::test_proponer_entity_types_yaml_incluye_nucleo_y_categorias` · `::test_tipo_entidad_usa_entity_map` · `::test_proponer_config_devuelve_yaml_y_entity_map_completos` · `skills/knowledge-services/scripts/test_backend_graphiti.py::test_episodio_lleva_category_entity_type_y_hash_enviado` |
-| CA-14 | Salida estructurada inválida del proveedor → dead-letter, sin datos corruptos | `tests/test_graphiti_security.py::test_ca14_salida_estructurada_invalida_del_proveedor_no_llega_a_add_memory` · `::test_ca14_ollama_invalido_acaba_en_dead_letter_sin_tocar_el_manifiesto` |
+| CA-14 | Salida estructurada inválida del proveedor → dead-letter, sin datos corruptos | `tests/test_graphiti_security.py::test_ca14_un_doble_de_proveedor_con_estructura_invalida_no_llega_a_add_memory` · `::test_ca14_ollama_invalido_acaba_en_dead_letter_sin_tocar_el_manifiesto` · `::test_ca14_el_proveedor_real_que_pierde_el_uuid_no_gasta_add_memory_y_acaba_en_dead_letter` (fix1, gap #154: el proveedor REAL, mutado para perder el `uuid`) |
 | CA-15 | Cliente MCP streamable HTTP mínimo con stdlib (`/mcp` sin barra, 307, sesión) | `skills/knowledge-services/scripts/test_backend_graphiti.py::test_initialize_y_get_status_via_handshake_completo` · `::test_redireccion_307_de_mcp_con_barra_se_sigue_sin_romper` · `::test_sesion_caducada_404_reintenta_initialize_una_vez` · `tests/test_graphiti_security.py::test_la_sesion_no_cruza_esquema_host_ni_puerto` |
 
 Los 15 CA tienen al menos dos tests que los ejercen; ninguno queda «cubierto por inspección».
@@ -118,7 +118,17 @@ de corrección):
 | Fase 1 (T-01..T-03) | 3 intentos | 30 | 0 | 10 | 20 | 0 |
 | Fase 2 (T-04..T-06) | 3 intentos + verificación dirigida | 65 | 10 | 23 | 32 | 0 |
 | Fase 3 (T-07, T-08) | 3 intentos + verificación dirigida | 58 | 2 | 15 | 41 | 0 |
-| **TOTAL** | **10 secciones** | **153** | **12** | **48** | **93** | **0** |
+| **Subtotal Fases 1-3** | **11 secciones** | **154** | **12** | **48** | **94** | **0** |
+| Fase 4 (T-09, T-10) | 1 intento (+ ronda `fix1`) | 14 | 0 | 4 | 10 | 2 |
+| **TOTAL** | **12 secciones** | **168** | **12** | **52** | **104** | **2** |
+
+Dos correcciones de la revisión intento 1 de la Fase 4 sobre esta misma tabla: **#161** (eran
+**11** secciones en las Fases 1-3, no 10: F1 3 · F2 3 + verificación dirigida · F3 3 +
+verificación dirigida) y **#159** (el script de conteo ignoraba en silencio la fila con ID `—`
+de la verificación `fix5`, así que el subtotal real es **154 filas / 94 Minor**, no 153/93).
+Las **2 filas sin cerrar** son #162 y #163 de la Fase 4: las dos están asignadas al
+**orquestador** (celda de tokens del Resumen y marca del criterio de T-10 al cerrar el ciclo),
+no al implementer; no hay ningún Critical/Important abierto.
 
 Comprobación reproducible (recorre las secciones «Revisión…»/«Verificación dirigida…» del
 ledger, cuenta filas por grado y lista las que no tienen marca de cierre en NINGUNA celda):
@@ -126,33 +136,48 @@ ledger, cuenta filas por grado y lista las que no tienen marca de cierre en NING
 ```python
 import re
 t = open("docs/roadmap/2026-09-15-graphiti-memory/tasks.md", encoding="utf-8").read()
-tot, pend = {}, []
+tot, pend, secciones = {}, [], 0
 for s in re.split(r"\n## ", t):
     cab = s.splitlines()[0]
     if not re.match(r"(Revisi|Verificaci)", cab):
         continue
+    secciones += 1
     for l in s.splitlines():
-        if not re.match(r"^\|\s*\d+\s*\|", l):
+        # gap #159: TODA fila de tabla con columna Grado (antes `^\|\s*\d+\s*\|`, que se dejaba
+        # fuera en silencio las filas con ID no numérico, p. ej. el `—` de la verificación fix5)
+        if not l.startswith("|") or l.startswith("|---"):
             continue
         cols = [c.strip() for c in l.strip().strip("|").split("|")]
-        g = re.sub(r"[*]", "", cols[1]).split(" (")[0]
+        if len(cols) < 3:
+            continue
+        g = re.sub(r"[*]", "", cols[1]).split(" (")[0].strip()
+        if g not in ("Critical", "Important", "Minor"):     # cabecera u otra tabla
+            continue
         tot[g] = tot.get(g, 0) + 1
         if not any(re.match(r"\**(corregid|descartad|cerrad|sin cambio|no aplica|n/a|confirmad|ya estaba)", c, re.I) for c in cols[2:]):
-            pend.append((cab[:50], cols[0], g))
-print("TOTAL filas por grado:", tot)
-print("filas SIN marca de cierre en ninguna celda:", len(pend))
+            pend.append((cab[:40], cols[0], g))
+print("secciones:", secciones)
+print("TOTAL filas por grado:", tot, "| total:", sum(tot.values()))
+print("filas SIN marca de cierre en ninguna celda:", len(pend), pend)
 ```
 
 Salida real (2026-09-22):
 
 ```
-TOTAL filas por grado: {'Important': 48, 'Minor': 93, 'Critical': 12}
-filas SIN marca de cierre en ninguna celda: 0
+secciones: 12
+TOTAL filas por grado: {'Important': 52, 'Minor': 104, 'Critical': 12} | total: 168
+filas SIN marca de cierre en ninguna celda: 2 [('Revisión de dos lentes — intento 1: Fase', '162', 'Minor'), ('Revisión de dos lentes — intento 1: Fase', '163', 'Minor')]
 ```
 
-**0 gaps Critical/Important pendientes** al cierre de la Fase 4. La Fase 4 (T-09, T-10) aún no
-ha pasado por su propia revisión de dos lentes: la dispara el orquestador después de esta
-entrega y sus gaps irán a una sección nueva del ledger.
+(Las dos filas abiertas son las del **orquestador**: #162 —celda de tokens del Resumen de
+progreso— y #163 —marca del criterio de T-10 al cerrar el ciclo—. Ninguna es del implementer.)
+
+**0 gaps Critical/Important pendientes**. La Fase 4 YA pasó su revisión intento 1 (sección
+propia del ledger, 0 Critical · 4 Important · 10 Minor): los 4 Important (#154 validación del
+episodio sin `uuid`, #155 puerta de hooks con tres agujeros, #156 espía inalcanzable, #157
+CA-05 con literal frágil) y los Minor del implementer están cerrados en la ronda `fix1` con su
+evidencia y su mutante en el ledger. Quedan abiertas a propósito las dos filas del orquestador
+(#162, #163) y la revisión intento 2, que él dispara después de esta ronda.
 
 ## 6. Puertas del repo
 
@@ -172,8 +197,9 @@ Las tres en exit 0. Los 3 avisos de `lint_plugin` son nombres genéricos de coma
 
 ## Veredicto
 
-**Verde, sin UI.** 823 tests verdes en las 9 rutas de la iniciativa (4 rojos preexistentes de
+**Verde, sin UI.** 835 tests verdes en las 9 rutas de la iniciativa (4 rojos preexistentes de
 Windows, ninguno de esta fase), los 15 CA cruzados con tests reales, puerta E18 en verde, las
 tres puertas del repo en 0 y ninguna escritura contra el servidor Graphiti real. Lo único
-abierto es de proceso, no de producto: el **Resumen de progreso** del ledger (lo actualiza el
-orquestador) y la **revisión de dos lentes de la Fase 4**, todavía por lanzar.
+abierto es de proceso, no de producto: el **Resumen de progreso** y la celda de tokens del
+ledger (los actualiza el orquestador, filas #162/#163) y la **revisión intento 2** de la Fase 4,
+que él dispara tras la ronda `fix1` cuya evidencia está en el ledger.

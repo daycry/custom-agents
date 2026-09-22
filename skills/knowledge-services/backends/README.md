@@ -67,6 +67,16 @@ funciones de proveedor (`none`/`ollama`/`openai`/`anthropic`) en `graphiti_provi
 un proveedor nuevo es una función nueva ahí, sin tocar `graphiti.py` (ver su docstring para la
 decisión de que la extracción de entidades la hace el SERVIDOR, no el cliente).
 
+- **Contrato de salida de un proveedor** (gap #46, ampliado por el #154 en la revisión de la
+  Fase 4): lo que devuelve la función de proveedor se valida ANTES de llamar a `add_memory`, y la
+  operación cae a `fallidos`/dead-letter sin gastar la llamada de red si (a) falta o viene vacío
+  cualquiera de `uuid`, `name`, `episode_body`, `group_id`, `source` o `source_description`; (b)
+  pierde o vacía algún campo que `_episodio_upsert` había construido; o (c) cambia la **identidad**
+  del episodio (`uuid`/`name`/`group_id`). Un proveedor ORIENTA la extracción (instrucciones,
+  `source`): no re-nombra ni re-identifica el episodio. El `uuid` es el caso que motivó el
+  endurecimiento: el manifiesto lo recalcula con `_uuid_episodio`, así que un episodio publicado
+  con otro `uuid` (o sin él) quedaría vivo en el grafo y fuera del manifiesto — `revoke` no podría
+  invalidarlo, que es justo lo que CA-14 prohíbe.
 - **Idempotencia**: manifiesto local propio (`graphiti-manifest.json` bajo
   `.claude/knowledge-services/`, patrón diario `.pending` → publicado, igual que
   `markdown_export.py`) con ids de episodio deterministas (`uuid5(group_id:knowledge_id:version)`)
