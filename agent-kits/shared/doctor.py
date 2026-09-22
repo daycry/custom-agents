@@ -1621,7 +1621,27 @@ def _linea_capacidad_backend(cap_id, tipo, cfg_adaptador, backends_mod, backends
         except Exception as e:       # noqa: BLE001
             return linea(AVISO, f"{cap_id} (backend)", f"`verify()` lanzó {type(e).__name__}: {e}",
                          "revisa la configuración de red del backend en `taxonomy.json`")
+        # gap #133 (Important, fix3 de la Fase 3 del ciclo en curso): `verify()` tiene TRES
+        # veredictos, no dos. Con la ventana de lectura cortada (`estado: incompleto`), «sin
+        # desfase» es mentira: el adaptador no ha podido mirar. Y como /doctor recorta la ventana
+        # a `CAPACIDAD_VENTANA_TOPE`, esa rama es la NORMAL en cuanto el grupo crece — pintarla
+        # como OK dejaba a /doctor estructuralmente incapaz de avisar de un desfase real.
+        aviso_verify = _sanear_detalle(verificacion.get("aviso") or "")
+        if verificacion.get("estado") == "incompleto" or verificacion.get("no_verificado"):
+            sin_confirmar = verificacion.get("no_verificado") or "?"
+            return linea(AVISO, f"{cap_id} (backend)",
+                         f"verificación incompleta: {sin_confirmar} entrada(s) sin confirmar"
+                         + (f" · {aviso_verify}" if aviso_verify else ""),
+                         _sanear_detalle(verificacion.get("remedio") or "")
+                         or "sube los topes de lectura del backend (`max_respuesta_kb`/"
+                            "`max_episodes`) en `taxonomy.json` y vuelve a pasar /doctor")
         if verificacion.get("ok", True):
+            if aviso_verify:
+                # gap #133/#147: el `aviso` de un `verify` SIN desfase (p. ej. el remedio de
+                # migracion `--rebuild` del gap #126) se tiraba: ningun consumidor lo mostraba.
+                return linea(AVISO, f"{cap_id} (backend)", f"sano, sin desfase, con aviso: {aviso_verify}",
+                             _sanear_detalle(verificacion.get("remedio") or "")
+                             or "sigue el remedio que nombra el aviso del backend")
             return linea(OK, f"{cap_id} (backend)", "sano, sin desfase")
         if verificacion.get("razon") == "nunca_sincronizado":
             # gap 119: distinto de un desfase real (gap 87) — todavía no hay ninguna publicación
@@ -1668,8 +1688,13 @@ def _linea_capacidad(project, cap, backends_mod, backends_dir, tope_ms=CAPACIDAD
     salud = cap.get("health")
     estado = salud.get("estado") if isinstance(salud, dict) else salud
     if estado == "error":
-        detalle = salud.get("detalle", "") if isinstance(salud, dict) else ""
-        fichero = (salud.get("fichero") if isinstance(salud, dict) else None) or cap.get("config_path") or "?"
+        # gap #137 (Minor, CWE-117, fix3 de la Fase 3 del ciclo en curso): #122 saneó la etiqueta
+        # multi-backend pero no ESTA rama, que interpola crudos el `detalle` de validación de
+        # `taxonomy.json` y su `fichero` — los dos vienen del proyecto, no del plugin (probe: 711
+        # caracteres con ESC/RLO/C1 en la línea de /doctor).
+        detalle = _sanear_detalle(salud.get("detalle", "") if isinstance(salud, dict) else "")
+        fichero = _sanear_detalle(
+            (salud.get("fichero") if isinstance(salud, dict) else None) or cap.get("config_path") or "?")
         return linea(ERROR, cap["id"], f"{fichero}: {detalle}", f"corrige `{fichero}`")
     if not cap.get("enabled"):
         return linea(INFO, cap["id"], "desactivado", "opcional: sigue el `setup_step` del registro si quieres activarla")

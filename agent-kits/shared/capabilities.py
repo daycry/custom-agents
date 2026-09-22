@@ -382,7 +382,11 @@ def _graphiti_doctor(root):
     # Gap #107 (CWE-117): la clave del backend y el `detalle` vienen de configuracion y de
     # mensajes de validacion; se sanean antes de componer la linea que lee un humano.
     backends = salud.get("backends") or [salud.get("backend") or "?"]
-    nombres = ", ".join("`" + _sanear_detalle(b) + "`" for b in backends)
+    # Gap #147 (Minor, fix3 Fase 3): con >= 2 backends habilitados la linea decia la lista DOS
+    # veces (aqui y en la pieza que anadio #125). El encabezado se queda con el CONTEO y la lista
+    # vive en su propia pieza (la que el recorte de 200 caracteres por pieza no se come).
+    nombres = (", ".join("`" + _sanear_detalle(b) + "`" for b in backends) if len(backends) == 1
+               else str(len(backends)) + " backends `type: graphiti`")
     # Gap #125 (Minor, fix2 Fase 3): el tope de `_sanear_detalle` es POR PIEZA, no por linea, y la
     # lista de backends habilitados es su propia pieza. Antes se concatenaba DENTRO de `detalle`
     # (`_graphiti_health`) y, en la situacion nominal del #99 (>= 2 backends habilitados), el

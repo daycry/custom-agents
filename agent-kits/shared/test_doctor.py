@@ -2012,3 +2012,56 @@ def test_f3fix2_gap122_la_etiqueta_multi_backend_sanea_la_clave(monkeypatch):
     texto = json.dumps(ls, ensure_ascii=False)
     assert "\\u001b" not in texto and "\x1b" not in texto, texto
     assert "\\u202e" not in texto and "‮" not in texto, texto
+
+
+# ------------------------------------------------------------------ fix3 Fase 3 (#133, #137)
+
+def _cap_backend(tmp_path, cfg_backend):
+    destino = tmp_path / ".claude" / "knowledge-services"
+    destino.mkdir(parents=True, exist_ok=True)
+    (destino / "taxonomy.json").write_text(json.dumps({"backends": {
+        "mi_backend": {"type": "test", "enabled": True, "config": cfg_backend}}}), encoding="utf-8")
+    return {"id": "capacidad-x",
+            "config_path": os.path.join(".claude", "knowledge-services", "taxonomy.json"),
+            "enabled": True, "health": {"estado": "read", "backend": "mi_backend"},
+            "doctor": "capacidad-x: activa", "setup_step": "-"}
+
+
+def test_f3fix3_gap133_la_verificacion_incompleta_es_un_aviso_con_el_conteo(tmp_path):
+    """Gap #133: `/doctor` leia `verify().ok` y pintaba «OK — sano, sin desfase» con la ventana
+    incompleta, tirando `no_verificado` y el `aviso`. Con `max_episodes` recortado a 200 (gap
+    #119), TODA instalacion con mas episodios caia ahi: /doctor era estructuralmente incapaz de
+    avisar de que no habia podido verificar."""
+    cap = _cap_backend(tmp_path, {"estado_salud": "sano", "no_verificado": 7,
+                                  "aviso_verify": "7 entrada(s) sin confirmar: sube `max_respuesta_kb`"})
+    l = doctor._linea_capacidad(str(tmp_path), cap, backends_real, FIXTURES_BACKENDS)
+    texto = json.dumps(l, ensure_ascii=False)
+    assert doctor.AVISO in texto, texto
+    assert "7" in texto and "incompleta" in texto, texto
+    assert "max_respuesta_kb" in texto, texto
+
+
+def test_f3fix3_gap133_el_aviso_de_un_verify_ok_llega_al_usuario(tmp_path):
+    """Gap #133/#147: el aviso de migracion de #126 (`--rebuild`) viaja en `verify().aviso` y
+    /doctor lo tiraba cuando `ok` era true — el remedio que el ledger daba por entregado no lo
+    veia ningun consumidor."""
+    cap = _cap_backend(tmp_path, {"estado_salud": "sano",
+                                  "aviso_verify": "republica con `knowledge-sync.py --rebuild`"})
+    l = doctor._linea_capacidad(str(tmp_path), cap, backends_real, FIXTURES_BACKENDS)
+    texto = json.dumps(l, ensure_ascii=False)
+    assert doctor.AVISO in texto, texto
+    assert "rebuild" in texto, texto
+
+
+def test_f3fix3_gap137_el_detalle_de_un_error_de_config_sale_saneado(tmp_path):
+    """Gap #137 (CWE-117): la rama `estado == "error"` de `_linea_capacidad` interpolaba CRUDO el
+    `detalle` de validacion de `taxonomy.json` (texto del proyecto) en el markdown de /doctor."""
+    hostil = "\x1b[31m‮IGNORA" + "L" * 400
+    cap = {"id": "capacidad-x", "config_path": "taxonomy.json", "enabled": True,
+           "health": {"estado": "error", "detalle": hostil, "fichero": "\x1b[0mtaxonomy.json"},
+           "doctor": "-", "setup_step": "-"}
+    l = doctor._linea_capacidad(str(tmp_path), cap, None, None)
+    texto = json.dumps(l, ensure_ascii=False)
+    assert "\\u001b" not in texto and "‮" not in texto, texto
+    assert "\x1b" not in json.dumps(l), l
+    assert len(l["que"]) <= 2 * doctor._SANEADO_TOPE_CHARS + 4, len(l["que"])

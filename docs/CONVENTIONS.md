@@ -210,7 +210,10 @@ inválida → ❌ con fichero+campo+arreglo; desactivada → ℹ️; activa con 
 comprobación de red EN VIVO cargando el mismo adaptador genérico que usa `knowledge-sync.py`
 (`skills/knowledge-services/backends/__init__.py::cargar_adaptador`), nunca importándolo por
 nombre — ✅ sano sin desfase, ⚠️ export atrasado con el remedio que nombra `verify()` sin
-ejecutarlo, ⚠️/❌ degradado/error, ℹ️ sin conexión o timeout; activa sin backend → el texto
+ejecutarlo, ⚠️ **verificación incompleta** (el tercer veredicto de `verify()`: el tope de lectura
+cortó la ventana, con el conteo de entradas sin confirmar y el aviso del adaptador — `no he podido
+mirarlo` no es `no hay desfase`, gap #133 de `graphiti-memory`), ⚠️ sano **con aviso** (p. ej. el
+remedio de migración que nombra el adaptador), ⚠️/❌ degradado/error, ℹ️ sin conexión o timeout; activa sin backend → el texto
 genérico `doctor` de la propia capacidad). `/setup` (paso 5-sexies) muestra las capacidades
 registradas en un único paso y ofrece crear `.claude/knowledge-services/taxonomy.json` desde la
 plantilla del plugin si no existe; activar una capacidad concreta sigue el `setup_step` que ella

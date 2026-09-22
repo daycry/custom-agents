@@ -13,6 +13,10 @@ sin red ni disco fuera de lo que el propio `cfg` le indique.
   "forzar_error_plan"   -> si es verdadero, `plan()` levanta `RuntimeError` (gap 90, idem para el
                           camino de publicación real y `--dry-run`)
   "desfase"        -> lista que `verify()` devuelve tal cual en `desfase` (default vacía)
+  "no_verificado"  -> entero: entradas que `verify()` NO pudo confirmar (gap #133, fix3 de la
+                      Fase 3): el tercer veredicto `incompleto` — ni `ok` ni `desfase`
+  "aviso_verify"   -> texto del `aviso` que devuelve `verify()` (gap #133: el aviso viaja hasta
+                      /doctor y `--check`, que antes lo tiraban)
 """
 
 
@@ -35,8 +39,16 @@ def apply(ops, cfg):
 
 
 def verify(cfg):
-    desfase = list((cfg or {}).get("desfase") or [])
-    return {"ok": not desfase, "desfase": desfase}
+    cfg = cfg or {}
+    desfase = list(cfg.get("desfase") or [])
+    no_verificado = int(cfg.get("no_verificado") or 0)
+    estado = "desfase" if desfase else ("incompleto" if no_verificado else "ok")
+    salida = {"ok": estado == "ok", "estado": estado, "desfase": desfase}
+    if no_verificado:
+        salida["no_verificado"] = no_verificado
+    if cfg.get("aviso_verify"):
+        salida["aviso"] = cfg["aviso_verify"]
+    return salida
 
 
 def rebuild(entries, cfg):

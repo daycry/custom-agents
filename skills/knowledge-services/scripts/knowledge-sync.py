@@ -398,9 +398,18 @@ def main(argv=None):
                   f"{_causa(e)}", file=sys.stderr)  # gap #72
             return 1
         salida = {"backend": args.backend, "type": tipo, "health": salud, "verify": verificacion}
-        print(json.dumps(salida, ensure_ascii=False, indent=2) if args.json else
-              f"health: {salud.get('estado')} ({salud.get('detalle', '')})\n"
-              f"verify: {'ok' if verificacion.get('ok') else 'desfase'} {verificacion.get('desfase', [])}")
+        # gap #133 (fix3 de la Fase 3 del ciclo en curso): `verify()` tiene TRES veredictos
+        # (`ok` · `incompleto` · `desfase`). `--check` imprimia «ok»/«desfase» y tiraba
+        # `no_verificado` y `aviso` -incluido el remedio de migracion (`--rebuild`)-, asi que una
+        # verificacion que no pudo mirar el grafo se leia como «todo en orden» (y salia 0).
+        estado_verify = verificacion.get("estado") or ("ok" if verificacion.get("ok") else "desfase")
+        texto = (f"health: {salud.get('estado')} ({salud.get('detalle', '')})\n"
+                 f"verify: {estado_verify} {verificacion.get('desfase', [])}")
+        if verificacion.get("no_verificado"):
+            texto += f" · no_verificado: {verificacion['no_verificado']}"
+        if verificacion.get("aviso"):
+            texto += f"\naviso: {verificacion['aviso']}"
+        print(json.dumps(salida, ensure_ascii=False, indent=2) if args.json else texto)
         return 0 if salud.get("estado") == "sano" and verificacion.get("ok") else 1
 
     indice, errores_indice = ki.build_index(args.root)
