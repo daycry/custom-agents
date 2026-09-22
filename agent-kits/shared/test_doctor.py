@@ -2065,3 +2065,103 @@ def test_f3fix3_gap137_el_detalle_de_un_error_de_config_sale_saneado(tmp_path):
     assert "\\u001b" not in texto and "‮" not in texto, texto
     assert "\x1b" not in json.dumps(l), l
     assert len(l["que"]) <= 2 * doctor._SANEADO_TOPE_CHARS + 4, len(l["que"])
+
+
+# ------------------------------------------------------------------ fix4 Fase 3 (#148, #152)
+
+BACKENDS_REALES = os.path.join(ROOT, "skills", "knowledge-services", "backends")
+_TEST_BACKEND_GRAPHITI = os.path.join(ROOT, "skills", "knowledge-services", "scripts",
+                                      "test_backend_graphiti.py")
+
+
+def _servidor_mcp_falso():
+    """El servidor MCP FALSO de la suite del adaptador (fixtures reales capturadas del stack),
+    reutilizado aqui para probar `/doctor` contra el adaptador REAL — no un doble de `verify`."""
+    spec_h = importlib.util.spec_from_file_location("ks_graphiti_tests_para_doctor",
+                                                    _TEST_BACKEND_GRAPHITI)
+    mod = importlib.util.module_from_spec(spec_h)
+    spec_h.loader.exec_module(mod)
+    return mod._ServidorMCPContext
+
+
+def _manifiesto_grande(tmp_path, n=250, borradas=()):
+    """Manifiesto con `n` entradas publicadas y el `get_episodes` que las sirve (menos las
+    `borradas`, que simulan un desfase REAL en el grafo), recortado a `max_episodes`."""
+    d = tmp_path / ".claude" / "knowledge-services"
+    d.mkdir(parents=True, exist_ok=True)
+    entradas = {f"mem.pattern.x{i:03d}": {"version": 1, "hash": "h"} for i in range(n)}
+    (d / "graphiti-manifest.json").write_text(
+        json.dumps({"group_id": "proy-test", "entradas": entradas}), encoding="utf-8")
+    vivos = [f"{id_}@1" for id_ in sorted(entradas) if id_ not in borradas]
+
+    def _get_episodes(args):
+        tope = int((args or {}).get("max_episodes") or 0)
+        return {"structuredContent": {"episodes": [
+            {"name": nombre, "group_id": "proy-test", "uuid": nombre} for nombre in vivos[:tope]]}}
+
+    return _get_episodes
+
+
+def _linea_graphiti(tmp_path, get_episodes):
+    ctx = _servidor_mcp_falso()
+    with ctx(respuestas_tools={"get_episodes": get_episodes}) as srv:
+        return doctor._linea_capacidad_backend(
+            "kb", "graphiti",
+            {"endpoint": srv.endpoint, "group_id": "proy-test", "mode": "read",
+             "timeout_ms": 5000, "max_episodes": 50000},
+            backends_real, BACKENDS_REALES, project=str(tmp_path))
+
+
+def test_f3fix4_gap148_grafo_sano_mas_grande_que_la_ventana_de_doctor_no_es_aviso(tmp_path):
+    """Gap #148 (Important): con el recorte de ventana de /doctor (`CAPACIDAD_VENTANA_TOPE`, gap
+    #119) TODA instalacion con mas entradas que la ventana caia en la rama `incompleto` de #133 y
+    salia ⚠️ «verificacion incompleta» con un remedio (`max_respuesta_kb`/`max_episodes`) que el
+    propio /doctor pisa. Un grafo SANO no puede dar ⚠️ por el recorte del diagnostico."""
+    linea = _linea_graphiti(tmp_path, _manifiesto_grande(tmp_path, 250))
+    texto = json.dumps(linea, ensure_ascii=False)
+    assert linea["estado"] in (doctor.OK, doctor.INFO), texto
+    assert "200" in texto and "250" in texto, texto
+    assert "--check" in texto, texto
+    assert "max_respuesta_kb" not in texto and "max_episodes" not in texto, texto
+
+
+def test_f3fix4_gap148_la_linea_acotada_dice_que_no_ve_desfases_fuera_de_la_ventana(tmp_path):
+    """Gap #148: con la ventana recortada, un desfase REAL fuera de ella es indistinguible de lo
+    sano — la fila lo DICE (y manda a la verificacion completa) en vez de prometer lo que no
+    puede ver. 250 entradas, una borrada del grafo: mismo veredicto acotado, honesto."""
+    linea = _linea_graphiti(tmp_path, _manifiesto_grande(tmp_path, 250, borradas={"mem.pattern.x000"}))
+    texto = json.dumps(linea, ensure_ascii=False)
+    assert linea["estado"] in (doctor.OK, doctor.INFO), texto
+    assert "desfase" in texto.lower(), texto
+    assert "--check" in texto, texto
+
+
+def test_f3fix4_gap148_el_detalle_no_repite_el_conteo_de_sin_confirmar(tmp_path):
+    """Gap #148: el `detalle` interpolaba su propio conteo Y el `aviso` del adaptador, que lo
+    repite («N entrada(s) sin confirmar · N entrada(s) sin confirmar: la ventana…»)."""
+    cap = _cap_backend(tmp_path, {"estado_salud": "sano", "no_verificado": 7, "total": 7,
+                                  "aviso_verify": "7 entrada(s) sin confirmar: sube `max_respuesta_kb`"})
+    linea = doctor._linea_capacidad(str(tmp_path), cap, backends_real, FIXTURES_BACKENDS)
+    assert linea["estado"] == doctor.AVISO, linea
+    assert linea["detalle"].count("sin confirmar") == 1, linea["detalle"]
+
+
+def test_f3fix4_gap148_incompleto_dentro_de_la_ventana_de_doctor_sigue_siendo_aviso(tmp_path):
+    """Gap #148 no puede tapar #133: si el manifiesto CABIA en la ventana de /doctor y aun asi la
+    verificacion sale incompleta, el limite es del backend (su tope de lectura) y eso SI es ⚠️."""
+    cap = _cap_backend(tmp_path, {"estado_salud": "sano", "no_verificado": 3, "total": 10,
+                                  "aviso_verify": "3 entrada(s) sin confirmar: tope de lectura"})
+    linea = doctor._linea_capacidad(str(tmp_path), cap, backends_real, FIXTURES_BACKENDS)
+    assert linea["estado"] == doctor.AVISO, linea
+    assert "incompleta" in linea["detalle"], linea
+
+
+def test_f3fix4_gap152_verify_no_verificable_es_informativo_con_su_razon(tmp_path):
+    """Gap #152: `verify()` tiene CUATRO veredictos (`ok`/`desfase`/`incompleto`/`no_verificable`)
+    y /doctor no leia el cuarto: `mode: off` o un endpoint ausente caian en la rama de desfase y
+    se pintaban como «export atrasado (0 desfase(s)): sin motivo detallado»."""
+    cap = _cap_backend(tmp_path, {"estado_salud": "sano", "no_verificable": "mode: off"})
+    linea = doctor._linea_capacidad(str(tmp_path), cap, backends_real, FIXTURES_BACKENDS)
+    assert linea["estado"] == doctor.INFO, linea
+    assert "mode: off" in linea["detalle"], linea
+    assert "export atrasado" not in linea["detalle"], linea

@@ -167,7 +167,18 @@ decisión de que la extracción de entidades la hace el SERVIDOR, no el cliente)
   sigue pidiendo `verify` sin desfase, y «no he podido mirarlo» no es «no hay desfase»).
   `knowledge-sync.py --check` lo imprime y sale ≠ 0; `/doctor` lo pinta ⚠️ con el conteo y el aviso
   —también cuando el veredicto es `ok` pero trae aviso, que es por donde viaja el remedio
-  `--rebuild` de la migración de abajo—.
+  `--rebuild` de la migración de abajo—. El cuarto veredicto, `no_verificable`, sale como ℹ️ con su
+  `razon` (no es un desfase: es que no se pudo verificar).
+  **El umbral de `/doctor` es OTRO** (gap #148, fix4 de la Fase 3): `/doctor` es un DIAGNÓSTICO
+  rápido y recorta `max_episodes` a **200** (`CAPACIDAD_VENTANA_TOPE`, gap #119) antes de llamar al
+  adaptador, así que en un grupo con más entradas publicadas que esa ventana el veredicto
+  `incompleto` es SUYO, no del backend: subír los topes de `taxonomy.json` no lo cambia (los pisa).
+  Por eso `verify()` publica `total` (entradas del manifiesto) junto a `no_verificado` cuando el
+  veredicto es `incompleto`: con `total` > la ventana que el llamador impuso, la fila de `/doctor`
+  es ℹ️ «verificación acotada a 200 de N entrada(s)» y manda a la verificación COMPLETA
+  (`knowledge-sync.py --backend <id> --check`), diciendo además que un desfase fuera de esa ventana
+  no se ve desde ahí. El ⚠️ se reserva a lo que SÍ es del backend: `desfase`, o `incompleto` cuando
+  el manifiesto sí cabía en la ventana que se le pasó.
   **Umbral con los DEFAULTS** (gap #140): la regla de coherencia de arriba, con los defaults
   (`max_respuesta_kb` 8192 KiB y ~3 KiB por episodio), cubre unos **2 700 episodios del grupo**.
   Por encima, la verificación sale `incompleto` —y con `mode: read` la lectura enrutada queda

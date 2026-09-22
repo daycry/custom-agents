@@ -886,3 +886,26 @@ def test_f3fix3_gap138_la_razon_de_puede_leer_sale_saneada_y_acotada(tmp_path):
     assert info["origen"] == "local"
     assert "\x1b" not in info["motivo"] and "‮" not in info["motivo"], info["motivo"]
     assert len(info["motivo"]) < 400, len(info["motivo"])
+
+
+# --------------------------------------------------------------- fix4 Fase 3 (#151)
+
+def test_f3fix4_gap151_cada_descarte_sale_con_su_conteo_exacto_en_su_propia_linea(tmp_path):
+    """Gap #151 (agujero de evidencia de #141): el test de #141 solo miraba que «1 acierto(s)»
+    apareciera EN ALGÚN SITIO del stderr, así que el mutante que devuelve el contador fusionado
+    (`descartados + filtrados`) sobrevivía — las dos líneas siguen saliendo y una de ellas trae el
+    «1». Se afirma la línea COMPLETA de cada causa: 1 descarte del núcleo (acierto sin evidencia)
+    y 1 del post-filtro `--tipo` (una gotcha con `--tipo adr`)."""
+    root = str(tmp_path)
+    _corpus_local(root)
+    _taxonomia(root)
+    _stub_fix3(str(tmp_path / "bk"),
+               [_acierto("ADR-100"), _acierto("ADR-101", completo=False), _acierto("GOT-100", tipo="gotchas")])
+    code, out, err = run("--intent", "temporal", "--tipo", "adr", "memoria",
+                         "--backends-dir", str(tmp_path / "bk"), "--root", root)
+    assert code == 0, err
+    lineas = [l.strip() for l in err.splitlines()]
+    assert ("knowledge-find: 1 acierto(s) de `grafo` descartados por no traer "
+            "id/estado/evidencia/ruta") in lineas, err
+    assert ("knowledge-find: 1 acierto(s) de `grafo` descartados por el post-filtro "
+            "`--tipo`/`--area`") in lineas, err
