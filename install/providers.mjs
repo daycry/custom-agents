@@ -375,6 +375,10 @@ const codex = {
         type: "merge",
         to: join(mktRoot, "plugins", "marketplace.json"),
         merge: marketplaceCodex(mktRoot, plugin, version),
+        // Upsert por `name`: sin esto, «lo que ya existe MANDA» + el append por referencia de
+        // `fusionar` congelaba la versión vieja y AÑADÍA una segunda entrada del plugin en cada
+        // reinstalación (gap M-01, verificado con la CLI de Codex en 0.155.1).
+        upsert: { plugins: "name" },
       },
       // Copiar el plugin no basta: Codex solo lo carga si el marketplace está dado de alta y el
       // plugin HABILITADO. Lo primero es cosa de su CLI (opcional: sin `codex` se dice el comando
@@ -382,7 +386,12 @@ const codex = {
       {
         type: "exec",
         cmd: "codex",
-        args: ["plugin", "marketplace", "add", mktRoot],
+        // Codex espera la RAÍZ del marketplace (el padre de `.agents/`): busca el manifiesto en
+        // `<raíz>/.agents/plugins/marketplace.json` y resuelve `source.path` contra la raíz (por
+        // eso `marketplaceCodex` calcula la relativa desde `join(mktRoot, "..")`). Pasarle
+        // `mktRoot` hacía que buscara `<mktRoot>/.agents/...` y fallaba SIEMPRE con la CLI en el
+        // PATH («marketplace root does not contain a supported manifest»).
+        args: ["plugin", "marketplace", "add", join(mktRoot, "..")],
         // `mktRoot` ya es absoluto, pero se lanza igualmente desde `--dir`: ninguna CLI del
         // instalador puede acabar operando sobre el directorio desde el que se invoco `npx`.
         cwd: dir,
@@ -429,7 +438,10 @@ function marketplaceCodex(mktRoot, plugin, version) {
       name: PLUGIN,
       version,
       source: { source: "local", path: rel },
-      policy: { installation: "AVAILABLE", authentication: "NONE" },
+      // Codex (≥ 0.155) rechaza `authentication: "NONE"` — solo `ON_INSTALL` | `ON_USE` — y un
+      // valor desconocido invalida el manifiesto completo (falla `marketplace list` entero).
+      // Con `source: local` el valor no desencadena ninguna autenticación real.
+      policy: { installation: "AVAILABLE", authentication: "ON_INSTALL" },
       category: "Productivity",
     }],
   }
