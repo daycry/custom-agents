@@ -244,6 +244,12 @@ def test_hook_exec_form_con_script_inexistente_en_args_es_error(tmp_path):
     assert inf["exit"] == 1
 
 
+# Windows no puede afirmar esto: `os.chmod(path, 0o644)` deja el fichero en `0o666` y
+# `os.access(path, X_OK)` devuelve siempre True (el execute allí es por extensión de fichero), así
+# que el doctor NO puede ver el bit y el aviso no puede aparecer — el chequeo es POSIX puro.
+@pytest.mark.skipif(sys.platform == "win32",
+                    reason="el bit +x por fichero no existe en Windows: chmod no lo quita y "
+                           "os.access(X_OK) miente; CI Linux es la puerta")
 def test_hook_sin_bit_ejecutable_es_aviso_con_chmod(tmp_path):
     plug = plugin(tmp_path, ejecutable=False)
     inf = diag(proyecto(tmp_path), plug)

@@ -2210,7 +2210,12 @@ test("gap I2-1: un `false` en `local` manda sobre el `true` de `project` y de `u
 test("gap I2-1: `status` ve el apagado de `.claude/settings.local.json`", () => {
   const proj = tmpProj()
   const cfg = tmpProj()
-  const env = { ...process.env, NO_COLOR: "1", CLAUDE_CONFIG_DIR: cfg }
+  const hogar = tmpProj()
+  // HOME falso: los OTROS proveedores (Codex, OpenCode) leen su config en el HOME de la MÁQUINA
+  // y su «registrado: sí» legítimo rompía la aserción global — ningún test toca el HOME real.
+  const env = { ...process.env, NO_COLOR: "1", CLAUDE_CONFIG_DIR: cfg,
+    HOME: hogar, USERPROFILE: hogar, CODEX_HOME: join(hogar, ".codex"),
+    PROGRAMDATA: join(hogar, "ProgramData") }
   try {
     mkdirSync(join(cfg, "plugins"), { recursive: true })
     writeFileSync(join(cfg, "plugins", "installed_plugins.json"), JSON.stringify(
@@ -2225,7 +2230,7 @@ test("gap I2-1: `status` ve el apagado de `.claude/settings.local.json`", () => 
     assert.match(s, /APAGADO/)
     assert.match(s, /settings\.local\.json/, "y se nombra el fichero que manda")
   } finally {
-    for (const d of [proj, cfg]) rmSync(d, { recursive: true, force: true })
+    for (const d of [proj, cfg, hogar]) rmSync(d, { recursive: true, force: true })
   }
 })
 
