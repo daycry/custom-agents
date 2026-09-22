@@ -268,6 +268,11 @@ test("install → idempotente → uninstall preciso", () => {
     assert.ok(existsSync(join(proj, ".opencode", "agents", "reviewer.md")))
     assert.ok(existsSync(join(proj, ".opencode", "plugins", "custom-agents-hooks.js")))
     assert.ok(existsSync(join(proj, "opencode.json")))
+    // El manifiesto viaja también: `/doctor` lee `<raíz>/.claude-plugin/plugin.json` para decir la
+    // versión instalada y OpenCode no tiene otro origen (sin él salía «sin campo `version`» con el
+    // remedio de añadir un campo a un fichero que no existía).
+    const manif = JSON.parse(readFileSync(join(proj, ".opencode", ".claude-plugin", "plugin.json"), "utf8"))
+    assert.equal(manif.version, VERSION, "el manifiesto no viaja a OpenCode o su versión diverge")
 
     // 2) idempotencia: reinstalar no cambia el recuento ni duplica instructions
     cli(["install", "-p", "opencode", "--dir", proj, "-q"])
@@ -286,6 +291,8 @@ test("install → idempotente → uninstall preciso", () => {
     assert.ok(existsSync(ajeno), "uninstall borró un fichero que no era suyo")
     assert.ok(existsSync(join(proj, "opencode.json")), "uninstall borró la config del usuario")
     assert.ok(!existsSync(join(proj, ".opencode", "agents", "reviewer.md")))
+    assert.ok(!existsSync(join(proj, ".opencode", ".claude-plugin", "plugin.json")),
+      "uninstall dejó el manifiesto huérfano")
     assert.ok(!existsSync(join(proj, ".opencode", MANIFEST)))
   } finally {
     rmSync(proj, { recursive: true, force: true })

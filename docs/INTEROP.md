@@ -110,6 +110,7 @@ Cinco garantías del instalador, con test cada una en `tests/installer.test.mjs`
 | **Comandos** (12) | `commands/*.md` (`/nombre`) | `~/.codex/prompts/*.md` (`/prompt:nombre`, a veces `/prompts:nombre`) | `.opencode/commands/*.md` (`/nombre`) |
 | **Hooks** | `hooks/hooks.json` | `interop/codex/hooks.json` (subconjunto) | `.opencode/plugins/custom-agents-hooks.js` (adaptador JS) |
 | **Kits** (`agent-kits/`) | `.claude/agent-kits/` | dentro del plugin | `.opencode/agent-kits/` |
+| **Manifiesto** (`plugin.json`, de donde sale la versión) | dentro del plugin instalado (`.claude-plugin/`) | `.codex-plugin/plugin.json` | `.claude-plugin/plugin.json` — lo que `/doctor` lee para decir la versión (con fallback al de Codex) |
 | **Statusline** | opt-in en `/setup` | — | — |
 
 El formato de cada destino está verificado contra la doc oficial de su herramienta (Codex:
