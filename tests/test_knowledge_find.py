@@ -833,3 +833,32 @@ def test_intent_tambien_se_admite_en_la_consulta_enrutada_por_area(proyecto):
 def test_intent_vacio_es_error_de_uso(proyecto):
     code, out, err = run("consola", "--intent", "", "--root", str(proyecto))
     assert code == 2 and out == "" and "intent" in err.lower()
+
+
+# --------------------------------------------------------------- fix3 Fase 3 (#143)
+
+def test_f3fix3_gap143_el_area_tambien_sale_del_tag_area_del_frontmatter():
+    """Gap #143: el adaptador de grafo deriva el `area` de los `tags` `area:<v>` y el índice local
+    solo leía el campo `area:` del frontmatter — y las entradas reales de `approved/` traen el tag
+    y NO el campo, así que `--area X` devolvía cosas distintas según el camino (local o enrutado).
+    Una sola regla: el campo manda y los tags son el respaldo."""
+    texto = ("---\nid: GOT-010\ntitulo: Una gotcha con tags\nestado: aprobada\n"
+             "tags: [area:memoria tecnica, agente:implementer]\n---\n\n# GOT-010\n\ncuerpo\n")
+    fila = kf.leer_entrada("gotchas", "gotcha", "GOT-010-tags.md", texto, {})
+    assert "memoria" in fila["area"], fila
+    # el campo explícito sigue mandando sobre el tag
+    texto2 = texto.replace("estado: aprobada\n", "estado: aprobada\narea: Scripts / consola\n")
+    fila2 = kf.leer_entrada("gotchas", "gotcha", "GOT-010-tags.md", texto2, {})
+    assert fila2["area"] == "Scripts / consola", fila2
+
+
+def test_f3fix3_gap143_el_filtro_area_encuentra_la_entrada_que_solo_trae_el_tag(tmp_path):
+    kn = tmp_path / "docs" / "knowledge" / "gotchas"
+    kn.mkdir(parents=True)
+    (kn / "GOT-010-tags.md").write_text(
+        "---\nid: GOT-010\ntitulo: Una gotcha con tags\nestado: aprobada\nfecha: 2026-09-22\n"
+        "tags: [area:memoria tecnica]\n---\n\n# GOT-010\n\ncuerpo de la gotcha\n", encoding="utf-8")
+    (tmp_path / "docs" / "knowledge" / "README.md").write_text("# fixture\n", encoding="utf-8")
+    code, out, err = run("--area", "memoria", "--json", "--root", str(tmp_path))
+    assert code == 0, err
+    assert [a["id"] for a in json.loads(out)["aciertos"]] == ["GOT-010"], out

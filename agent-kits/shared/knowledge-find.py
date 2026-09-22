@@ -412,6 +412,28 @@ def _ids_en(texto):
     return [f"{a}-{b}" for a, b in ID_RE.findall(texto or "")]
 
 
+_PREFIJO_TAG_AREA = "area:"
+
+
+def _area_de_tags(tags):
+    """Gap #143 (Minor, fix3 Fase 3): UNA sola regla para el `area`. Las entradas de
+    `docs/knowledge/approved/` declaran el área como tag (`tags: [area:memoria tecnica, …]`) y no
+    como campo, que es justo lo que ya lee el adaptador de grafo al componer la procedencia;
+    el índice local solo miraba el campo `area:`/la fila del README, así que `--area X` devolvía
+    cosas distintas según la consulta se atendiera en local o enrutada. Los tags son el RESPALDO:
+    el campo explícito (y la fila del índice) siguen mandando."""
+    if not isinstance(tags, str) or not tags:
+        return ""
+    valores = []
+    for pieza in tags.strip().strip("[]").split(","):
+        pieza = pieza.strip().strip("\"'").lstrip("- ").strip()
+        if pieza.lower().startswith(_PREFIJO_TAG_AREA):
+            valor = pieza[len(_PREFIJO_TAG_AREA):].strip()
+            if valor:
+                valores.append(valor)
+    return " ".join(valores)
+
+
 def leer_entrada(carpeta, tipo, fichero, text, filas_por_ruta):
     ruta_rel = f"{carpeta}/{fichero}"
     fm, cuerpo = frontmatter(text)
@@ -430,7 +452,7 @@ def leer_entrada(carpeta, tipo, fichero, text, filas_por_ruta):
         "tipo": tipo,
         "estado": estado_corto(estado_detalle),
         "estado_detalle": estado_detalle,
-        "area": (fm.get("area") or fila.get("area") or "").strip(),
+        "area": (fm.get("area") or fila.get("area") or _area_de_tags(fm.get("tags")) or "").strip(),
         "titular": titular,
         "ruta": f"docs/knowledge/{ruta_rel}",
         "ruta_corta": ruta_rel,
@@ -1225,8 +1247,11 @@ def consultar_intent(root, intent, texto="", limit=LIMIT_DEFAULT, area="", tipo=
             motivos.append(f"`{bid}`: `puede_leer` falló: {type(e).__name__}: {e}")
             continue
         if not (isinstance(permiso, dict) and permiso.get("puede") is True):
+            # Gap #138 (Minor, CWE-400/117, fix3 Fase 3): la `razon` la escribe el ADAPTADOR (con
+            # uno de terceros, texto arbitrario: ESC/RLO/C1 y sin tope) y acaba en stderr, en
+            # `--json` y en el contexto del agente. Mismo saneado que el `motivo` (gap #123).
             razon = permiso.get("razon") if isinstance(permiso, dict) else permiso
-            motivos.append(f"`{bid}` no autoriza la lectura: {razon}")
+            motivos.append(f"`{bid}` no autoriza la lectura: {_sanear_detalle(razon)}")
             continue
         try:
             respuesta = consultar(cfg, {"intent": intent, "texto": texto, "limit": limit,
@@ -1256,8 +1281,13 @@ def consultar_intent(root, intent, texto="", limit=LIMIT_DEFAULT, area="", tipo=
             motivos.append(f"`{bid}`: {filtrados} acierto(s) del grafo descartados por el "
                            f"post-filtro `--tipo`/`--area` (0 tras filtrar): se sirve lo local")
             continue
+        # Gap #141 (Minor, fix3 Fase 3): `descartados` (lo que el NUCLEO tiro por no traer
+        # id/estado/evidencia/ruta) y `filtrados` (lo que se llevo el post-filtro `--tipo`/`--area`
+        # del usuario, que SI traia las cuatro claves) se fusionaban en un solo contador que el
+        # mensaje atribuia entero al adaptador. Se publica el total (compatibilidad) y el desglose.
         info.update({"origen": "backend", "backend": bid,
-                     "descartados": descartados + filtrados, "motivo": motivo_backend})
+                     "descartados": descartados + filtrados, "sin_terna": descartados,
+                     "filtrados": filtrados, "motivo": motivo_backend})
         return aciertos, info
 
     info["motivo"] = "; ".join(motivos)
@@ -1453,9 +1483,18 @@ def main(argv=None):
             if enrutado:
                 consulta.update({"contexto": args.contexto or "", "tipo_tarea": args.tipo_tarea or "",
                                  "iniciativa": args.iniciativa or "", "claves": claves_router})
-            if router.get("descartados"):
-                print(f"knowledge-find: {router['descartados']} acierto(s) de `{router['backend']}` "
+            # Gap #141 (fix3 Fase 3): cada descarte con SU causa (el núcleo y el post-filtro no se
+            # depuran igual). Gap #142: el `motivo` del backend que SÍ sirvió (donde viaja
+            # `fuera_de_ventana`) solo salía en `--json`; en texto —la forma que prescribe
+            # `knowledge-check.md`— el recorte de la respuesta era invisible.
+            if router.get("sin_terna"):
+                print(f"knowledge-find: {router['sin_terna']} acierto(s) de `{router['backend']}` "
                       f"descartados por no traer id/estado/evidencia/ruta", file=sys.stderr)
+            if router.get("filtrados"):
+                print(f"knowledge-find: {router['filtrados']} acierto(s) de `{router['backend']}` "
+                      f"descartados por el post-filtro `--tipo`/`--area`", file=sys.stderr)
+            if router.get("motivo"):
+                print(f"knowledge-find: `{router['backend']}`: {router['motivo']}", file=sys.stderr)
             _imprimir_resultado(args, indice, corpus, consulta, len(aciertos_backend),
                                 aciertos_backend, router=router)
             return 0

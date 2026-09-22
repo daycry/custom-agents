@@ -127,7 +127,16 @@ decisión de que la extracción de entidades la hace el SERVIDOR, no el cliente)
   `uuid`). Por eso la ventana arranca pequeña y se amplía ×4 hasta resolver todos los aciertos,
   hasta que el servidor devuelva menos de lo pedido, o hasta el tope (`max_episodes`, como mucho
   2000 por consulta). Lo que siga sin resolver NO desaparece: sale como `fuera_de_ventana`
-  (contador propio, distinto de `descartados`) y en el `motivo`.
+  (contador propio, distinto de `descartados`) y en el `motivo`, que nombra la palanca que de
+  verdad existe en cada caso (fix3 de la Fase 3): `max_respuesta_kb` si quien cortó fue el tope de
+  lectura (gap #134 — y la ventana que no cabe ya no tira lo que la anterior había resuelto),
+  `max_episodes` si la ventana llegó al tope CONFIGURADO, y **ninguna** si quien corta es el tope
+  duro de 2000 episodios por consulta, que ninguna clave sube (gap #136). Dos reglas más de fix3:
+  la ventana solo se amplía por nombres con forma de episodio propio (`<id>@<version>`), no por las
+  entidades que cita `search_memory_facts` —`source_node_name`/`target_node_name` los extrae el LLM
+  y nunca estarán en `get_episodes`, así que esperarlos ampliaba la ventana en TODA consulta (gap
+  #135)—; y si la respuesta trae episodios de OTRO `group_id` (el servidor no respetó el filtro), la
+  ventana no se da por completa: lo no resuelto es `fuera_de_ventana`, no un descarte (gap #146).
 - **Topes de recursos** (`max_respuesta_kb`, `max_episodes` — gap #70, lente D): cada respuesta
   MCP se lee POR TROZOS con un tope duro (`max_respuesta_kb`, entero > 0, default **8192 KiB =
   8 MiB**); pasarse es un `ErrorMCP` explícito, nunca un `MemoryError` (que además ya se captura
@@ -148,8 +157,26 @@ decisión de que la extracción de entidades la hace el SERVIDOR, no el cliente)
   pagina, la «página» es la propia ventana: cuando una ampliación NO cabe en el tope de lectura se
   conserva el resultado de la última que sí cupo y la ventana se declara **incompleta**. En ese
   caso `verify()` NO llama desfase a lo que no ha podido mirar (misma distinción del gap #67):
-  devuelve `ok: true` con `no_verificado: N` y un `aviso` que lo dice; y `apply()` no promueve
-  nada (`confirmacion_posible` false), para no despublicar por no haber mirado.
+  publica `no_verificado: N` con un `aviso` que lo dice; y `apply()` no promueve nada
+  (`confirmacion_posible` false), para no despublicar por no haber mirado.
+  **Los TRES veredictos de `verify()`** (gap #133, fix3 de la Fase 3 — antes eran dos y el tercero
+  se disfrazaba del primero): el resultado trae `estado` con `ok` · `incompleto` · `desfase`
+  (`no_verificable` cuando ni se pudo preguntar: `mode: off`, sin `group_id`, respuesta ilegible).
+  `ok: true` queda RESERVADO a la verificación COMPLETA y sin desfase; `incompleto` publica
+  `no_verificado: N`, `aviso` y `remedio`, y **no autoriza lectura** (`puede_leer` en false: CA-10
+  sigue pidiendo `verify` sin desfase, y «no he podido mirarlo» no es «no hay desfase»).
+  `knowledge-sync.py --check` lo imprime y sale ≠ 0; `/doctor` lo pinta ⚠️ con el conteo y el aviso
+  —también cuando el veredicto es `ok` pero trae aviso, que es por donde viaja el remedio
+  `--rebuild` de la migración de abajo—.
+  **Umbral con los DEFAULTS** (gap #140): la regla de coherencia de arriba, con los defaults
+  (`max_respuesta_kb` 8192 KiB y ~3 KiB por episodio), cubre unos **2 700 episodios del grupo**.
+  Por encima, la verificación sale `incompleto` —y con `mode: read` la lectura enrutada queda
+  cerrada— salvo que las entradas publicadas caigan dentro de la ventana de los más recientes (el
+  caso nominal justo después de publicar). Las tres palancas, en orden de preferencia: (1) publicar
+  en un `group_id` PROPIO del proyecto, para que el grupo no acumule episodios de otras ingestas;
+  (2) subir `max_respuesta_kb` a ≈ 3 × el número de episodios del grupo (en KiB); (3) subir
+  `max_episodes` hasta ese mismo número (tope duro 5000). Los defaults no se suben a ciegas:
+  `max_respuesta_kb` es el guardarraíl de memoria del proceso.
 - **Migración de grafos publicados antes de la separación `@superseded`/`@tombstone`** (gap #126):
   hasta fix1 de la Fase 3, la sucesión de versión emitía `<id>@tombstone`, el MISMO nombre que usa
   el revoke; el lector de hoy interpreta ese sufijo como «entrada invalidada entera». Un grafo

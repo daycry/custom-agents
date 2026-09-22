@@ -590,3 +590,30 @@ def test_fix5_gap93_la_causa_sanea_bidi_separadores_unicode_y_c1():
     for prohibido in ("‮", " ", " ", "\u009b", "⁦", "\u0080"):
         assert prohibido not in saneada, repr(prohibido)
     assert "abcdefg" == saneada.replace(" ", "")
+
+
+# ------------------------------------------------------------------ fix3 Fase 3 (#133)
+
+def test_f3fix3_gap133_check_imprime_el_veredicto_incompleto_y_sale_no_cero(tmp_path, capsys):
+    """Gap #133: `--check` imprimia `verify: ok []` y salia 0 con la verificacion INCOMPLETA (el
+    tercer veredicto del gap #120), tirando `no_verificado` y el `aviso` -incluido el remedio de
+    migracion `--rebuild`-. «No he podido mirarlo» no es «esta todo bien»."""
+    root = str(tmp_path)
+    _taxonomy(root, _categorias(), backend_cfg={
+        "estado_salud": "sano", "no_verificado": 7,
+        "aviso_verify": "7 entrada(s) sin confirmar; republica con `--rebuild`"})
+    exit_code = ks_sync.main(["--backend", "testx", "--root", root, "--check",
+                              "--backends-dir", FIXTURES_BACKENDS])
+    salida = capsys.readouterr().out
+    assert exit_code != 0, salida
+    assert "incompleto" in salida, salida
+    assert "no_verificado: 7" in salida, salida
+    assert "rebuild" in salida, salida
+
+
+def test_f3fix3_gap133_check_sin_desfase_sigue_saliendo_cero(tmp_path, capsys):
+    root = str(tmp_path)
+    _taxonomy(root, _categorias(), backend_cfg={"estado_salud": "sano"})
+    assert ks_sync.main(["--backend", "testx", "--root", root, "--check",
+                         "--backends-dir", FIXTURES_BACKENDS]) == 0
+    assert "verify: ok" in capsys.readouterr().out

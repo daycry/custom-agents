@@ -210,6 +210,10 @@ from `enumerar(root)`, with no capability-specific string anywhere in `doctor.py
 loading the same generic adapter `knowledge-sync.py` uses
 (`skills/knowledge-services/backends/__init__.py::cargar_adaptador`), never importing it by name —
 ✅ healthy with no drift, ⚠️ stale export with the fix that `verify()` names without running it,
+⚠️ **incomplete verification** (`verify()`'s third verdict: the read cap cut the window, with the
+count of unconfirmed entries and the adapter's warning — «I could not look» is not «no drift»,
+gap #133 of `graphiti-memory`), ⚠️ healthy **with a warning** (e.g. the migration fix the adapter
+names),
 ⚠️/❌ degraded/error, ℹ️ unreachable or timeout; active without a backend → the capability's own
 generic `doctor` text). `/setup` (step 5-sexies) shows the registered capabilities in a single
 pass and offers to create `.claude/knowledge-services/taxonomy.json` from the plugin's template if

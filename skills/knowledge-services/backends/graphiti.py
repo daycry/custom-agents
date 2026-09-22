@@ -1611,15 +1611,40 @@ def puede_leer(cfg):
         return {"puede": False, "razon": f"mode={_modo(cfg)!r} no autoriza lectura (solo `read`)"}
     veredicto_health = health(cfg)
     if veredicto_health.get("estado") != "sano":
-        return {"puede": False, "razon": f"health no sano: {veredicto_health}"}
+        return {"puede": False, "razon": _sanear_detalle(f"health no sano: {veredicto_health}")}
     veredicto_verify = _verify_cacheado(cfg)
+    # Gap #133 (Important, fix3 Fase 3): la verificacion INCOMPLETA (`estado: incompleto`, gap
+    # #120) no autoriza lectura — CA-10 sigue pidiendo `verify` SIN desfase, y una ventana que no
+    # ha confirmado nada no es «sin desfase», es «no he podido mirarlo». Fail-closed con el
+    # remedio a la vista (gap #138: la razon viaja a stderr y al contexto del agente, saneada).
+    if veredicto_verify.get("estado") == "incompleto" or veredicto_verify.get("no_verificado"):
+        return {"puede": False, "razon": _sanear_detalle(
+            f"verificacion incompleta: {veredicto_verify.get('no_verificado')} entrada(s) sin "
+            f"confirmar; sube `max_respuesta_kb`/`max_episodes` en `taxonomy.json` (mientras la "
+            f"ventana no alcance el grafo no se autoriza lectura)")}
     if veredicto_verify.get("ok") is not True:
-        return {"puede": False, "razon": f"verify con desfase o ilegible: {veredicto_verify}"}
+        return {"puede": False,
+                "razon": _sanear_detalle(f"verify con desfase o ilegible: {veredicto_verify}")}
     return {"puede": True}
 
 
 _REMEDIO_DESFASE = ("reindexar: ejecutar `knowledge-sync.py --backend <id>` (o `--rebuild` si el "
                     "desfase persiste); este `verify()` nunca lo ejecuta por su cuenta (CA-16)")
+_REMEDIO_VENTANA_INCOMPLETA = (
+    "sube `max_respuesta_kb` (y `max_episodes` si el grupo tiene mas episodios que la ventana) en "
+    "`backends.<id>.config` de `taxonomy.json`, o publica en un `group_id` propio del proyecto: "
+    "mientras la ventana no alcance el grafo, la verificacion es INCOMPLETA y no autoriza lectura")
+
+
+def _lista_resumida(valores, tope=5):
+    """Gap #138 (Minor, CWE-400/117, fix3 Fase 3): una lista de origen SERVIDOR (los `group_id`
+    ajenos que devolvio `get_episodes`) no se interpola entera -3 000 grupos eran 45 KB de aviso
+    a stderr, a `--json` y al contexto del agente-: se muestran los primeros y se cuenta el resto,
+    cada pieza saneada (control/ANSI/bidi) y acotada."""
+    valores = list(valores)
+    mostrados = [_sanear_detalle(str(v))[:60] for v in valores[:tope]]
+    resto = len(valores) - len(mostrados)
+    return ", ".join("`" + m + "`" for m in mostrados) + (f" y {resto} mas" if resto > 0 else "")
 _REMEDIO_PUBLICACION_INCOMPLETA = ("reintentar `knowledge-sync.py --backend <id>`: la publicacion "
                                    "anterior no completo (`graphiti-manifest.pending.json` presente)")
 
@@ -1796,17 +1821,17 @@ def verify(cfg):
     # contra el servidor via `tools_call("get_episodes", ...)`, distinto del resto del
     # adaptador (`health`/`apply`/`rebuild` si respetan `mode: off`).
     if _modo(cfg) == "off":
-        return {"ok": None, "razon": "mode: off"}
+        return {"ok": None, "estado": "no_verificable", "razon": "mode: off"}
     if os.path.isfile(_manifest_path(cfg, ".pending")):
-        return {"ok": False, "razon": "publicacion_incompleta", "desfase": [],
+        return {"ok": False, "estado": "desfase", "razon": "publicacion_incompleta", "desfase": [],
                 "remedio": _REMEDIO_PUBLICACION_INCOMPLETA}
     manifest, _pendiente = _leer_manifest(cfg)
     entradas = manifest.get("entradas") or {}
     if not entradas:
-        return {"ok": True, "desfase": []}
+        return {"ok": True, "estado": "ok", "desfase": []}
     group_id = cfg.get("group_id") or manifest.get("group_id")
     if not group_id:
-        return {"ok": False, "razon": "sin group_id", "desfase": []}
+        return {"ok": False, "estado": "no_verificable", "razon": "sin group_id", "desfase": []}
     allow_remote = bool(cfg.get("allow_remote", False))
     try:
         cliente = ClienteMCP(cfg.get("endpoint"), timeout_s=_timeout_s(cfg),
@@ -1817,10 +1842,12 @@ def verify(cfg):
          tombstones_vivos) = _nombres_remotos_confirmados(
             cliente, group_id, entradas, _max_episodios_verify(cfg))
     except _RespuestaIlegible:
-        return {"ok": None, "razon": "respuesta de get_episodes ilegible (no es lista ni {\"episodes\": [...]})",
+        return {"ok": None, "estado": "no_verificable",
+                "razon": "respuesta de get_episodes ilegible (no es lista ni {\"episodes\": [...]})",
                 "desfase": []}
     except Exception as e:  # noqa: BLE001 - verify() nunca lanza (mismo contrato que health())
-        return {"ok": False, "razon": f"no se pudo consultar get_episodes: {type(e).__name__}: {_sanear_detalle(e)}",
+        return {"ok": False, "estado": "no_verificable",
+                "razon": f"no se pudo consultar get_episodes: {type(e).__name__}: {_sanear_detalle(e)}",
                 "desfase": []}
     no_confirmadas = [id_ for id_, meta in sorted(entradas.items())
                       if f"{id_}@{meta.get('version')}" not in nombres_remotos]
@@ -1832,12 +1859,23 @@ def verify(cfg):
         {"knowledge_id": id_, "motivo": "episodio no encontrado en el grafo", "remedio": _REMEDIO_DESFASE}
         for id_ in no_confirmadas
     ]
-    salida = {"ok": not desfase, "desfase": desfase}
+    # Gap #133 (Important, fix3 Fase 3): TRES veredictos, no dos. «No he podido mirarlo» no se
+    # puede leer como «sin desfase»: `puede_leer` autorizaba lecturas con CERO entradas
+    # confirmadas, `/doctor` pintaba «sano, sin desfase» y `--check` salia 0. El campo `ok` se
+    # reserva a la verificacion COMPLETA y sin desfase; `estado` nombra cual de los tres es.
+    incompleto = bool(no_confirmadas) and not ventana_completa
+    estado = "desfase" if desfase else ("incompleto" if incompleto else "ok")
+    salida = {"ok": estado == "ok", "estado": estado, "desfase": desfase}
     avisos = []
     if otros_grupos:
-        avisos.append(f"el servidor devolvio episodios de otro(s) group_id: {sorted(otros_grupos)}")
-    if no_confirmadas and not ventana_completa:
+        # Gap #138 (Minor, CWE-400/117, fix3 Fase 3): la lista entera de `group_id` ajenos (que
+        # vienen del servidor) acababa cruda en stderr, en `--json` y en el contexto del agente:
+        # 3 000 grupos = 45 KB de aviso. Se resume y se sanea pieza a pieza.
+        avisos.append("el servidor devolvio episodios de otro(s) group_id: "
+                      + _lista_resumida(sorted(otros_grupos)))
+    if incompleto:
         salida["no_verificado"] = len(no_confirmadas)
+        salida["remedio"] = _REMEDIO_VENTANA_INCOMPLETA
         avisos.append(
             f"{len(no_confirmadas)} entrada(s) sin confirmar: la ventana de `get_episodes` no "
             f"alcanzo el grafo entero (tope de lectura `max_respuesta_kb` o `max_episodes`); "
@@ -1923,7 +1961,8 @@ def _episodio_del_grupo(episodio, group_id, grupos_pedidos):
 
 
 def _indice_procedencia_ventana(cliente, group_id, tope):
-    """`(procedencia_por_nombre_de_episodio, ids_invalidados, nombres_superados)` del `group_id`
+    """`(procedencia_por_nombre_de_episodio, ids_invalidados, nombres_superados, leidos,
+    ajenos)` del `group_id`
     propio. Los episodios de OTRO grupo se ignoran (aislamiento multi-proyecto, gap #73;
     `_episodio_del_grupo` decide, gap #105), los `@tombstone` marcan invalidada la ENTRADA
     entera (revoke, CA-11) y los `@superseded` marcan invalidado SOLO el episodio de la version
@@ -1944,8 +1983,15 @@ def _indice_procedencia_ventana(cliente, group_id, tope):
     if not isinstance(episodios, list):
         raise _RespuestaIlegible('respuesta de get_episodes ilegible (no es lista ni {"episodes": [...]})')
     por_nombre, invalidados, superados = {}, set(), set()
+    ajenos = 0
     for ep in episodios:
         if not _episodio_del_grupo(ep, group_id, len(group_ids)):
+            # Gap #146 (Minor, fix3 Fase 3): un episodio que declara OTRO `group_id` significa que
+            # el servidor NO ha respetado el filtro `group_ids` -la ventana de los mas recientes
+            # se comparte con otros grupos-, asi que el llamador no puede leer «he visto todos
+            # los mios» de un `leidos < ventana` que cuenta episodios que no son suyos.
+            if isinstance(ep, dict) and ep.get("group_id"):
+                ajenos += 1
             continue
         nombre = ep.get("name") or ""
         if nombre.endswith(_SUFIJO_SUPERSEDED):
@@ -1957,7 +2003,21 @@ def _indice_procedencia_ventana(cliente, group_id, tope):
         procedencia = _procedencia_de_episodio(ep)
         if procedencia and procedencia.get("knowledge_id"):
             por_nombre[nombre] = dict(procedencia, uuid=ep.get("uuid"))
-    return por_nombre, invalidados, superados, len(episodios)
+    return por_nombre, invalidados, superados, len(episodios), ajenos
+
+
+_RE_NOMBRE_EPISODIO = re.compile(r"^.+@(?:\d+)$")
+
+
+def _es_nombre_de_episodio(nombre):
+    """¿Este nombre tiene la forma de un episodio NUESTRO (`<knowledge_id>@<version>`, o uno de
+    los dos tombstones)? Gap #135: lo que cita un hit puede ser el nombre de una ENTIDAD extraida
+    por el LLM (`source_node_name`), que nunca estara en `get_episodes` por mucho que se amplie
+    la ventana -esperarlo convertia la ampliacion en incondicional y mentia en el `motivo`."""
+    if not isinstance(nombre, str) or not nombre:
+        return False
+    return bool(_RE_NOMBRE_EPISODIO.match(nombre)) or nombre.endswith(
+        (_SUFIJO_TOMBSTONE, _SUFIJO_SUPERSEDED))
 
 
 def _indice_procedencia(cliente, group_id, tope, nombres_buscados=()):
@@ -1971,22 +2031,46 @@ def _indice_procedencia(cliente, group_id, tope, nombres_buscados=()):
     `nombres_buscados`, hasta que el servidor devuelva menos de lo pedido (ya dio todo lo que
     tiene) o hasta el tope configurado.
 
-    Devuelve `(por_nombre, invalidados, superados, ventana_completa)`. `ventana_completa` es
-    `False` SOLO cuando el tope corto la ampliacion con nombres aun sin resolver: es lo que el
-    llamador cuenta como `fuera_de_ventana` en vez de callarselo."""
-    ventana = min(max(len(nombres_buscados) * 2, _VENTANA_CONSULTA_INICIAL), tope)
+    Devuelve `(por_nombre, invalidados, superados, ventana_completa, causa)`. `ventana_completa`
+    es `False` cuando la ventana NO pudo abarcar lo que se buscaba: es lo que el llamador cuenta
+    como `fuera_de_ventana` en vez de callarselo, y `causa` (`tope` · `lectura` · `grupos`) dice
+    cual de los tres limites cortó, para que el `motivo` nombre la palanca que de verdad existe.
+
+    Gap #135 (Minor, fix3 Fase 3): solo se espera a resolver los nombres con FORMA de episodio
+    propio (`<id>@<version>`). Un hit de `search_memory_facts` cita `source_node_name`/
+    `target_node_name` -entidades que extrae el LLM, nunca episodios nuestros-, asi que el
+    `all(...)` era insatisfacible y disparaba la ampliacion (hasta 4 `get_episodes`) en TODA
+    consulta, incluso con el acierto ya resuelto en la primera ventana.
+
+    Gap #134 (Important, fix3 Fase 3; REGRESION de fix2): una ventana ampliada que no cabe en
+    `max_respuesta_kb` levanta `ErrorMCP`. Sin capturarlo aqui, subia al `except Exception` de
+    `consultar` y la consulta devolvia 0 aciertos, TIRANDO los que la ventana pequena ya habia
+    resuelto (con episodios de ~4 KiB y los defaults, toda consulta enrutada caia a 0). Se
+    conserva la ultima ventana buena y se declara incompleta, como ya hacia `verify()` (#120)."""
+    buscables = [n for n in nombres_buscados if _es_nombre_de_episodio(n)]
+    ventana = min(max(len(buscables) * 2, _VENTANA_CONSULTA_INICIAL), tope)
     leidos_previo = -1
+    ultima_buena = ({}, set(), set())
+    hubo_ventana_buena = False
     while True:
-        por_nombre, invalidados, superados, leidos = _indice_procedencia_ventana(
-            cliente, group_id, ventana)
-        if all(n in por_nombre for n in nombres_buscados):
-            return por_nombre, invalidados, superados, True
+        try:
+            por_nombre, invalidados, superados, leidos, ajenos = _indice_procedencia_ventana(
+                cliente, group_id, ventana)
+        except ErrorMCP:
+            if not hubo_ventana_buena:
+                raise     # ni la PRIMERA ventana cabe: es un error de configuracion, no un limite
+            return (*ultima_buena, False, "lectura")
+        ultima_buena, hubo_ventana_buena = (por_nombre, invalidados, superados), True
+        if all(n in por_nombre for n in buscables):
+            return por_nombre, invalidados, superados, True, ""
         if leidos < ventana or leidos == leidos_previo:
             # El servidor ya devolvio TODO lo que tiene: lo que falta NO esta fuera de la ventana
-            # (simplemente no es un episodio nuestro), asi que la ventana si esta completa.
-            return por_nombre, invalidados, superados, True
+            # (simplemente no es un episodio nuestro), asi que la ventana si esta completa...
+            # salvo que la respuesta traiga episodios de otros grupos (gap #146): entonces el
+            # servidor no ha filtrado por `group_ids` y `leidos` no mide lo NUESTRO.
+            return por_nombre, invalidados, superados, not ajenos, ("grupos" if ajenos else "")
         if ventana >= tope:
-            return por_nombre, invalidados, superados, False
+            return por_nombre, invalidados, superados, False, "tope"
         leidos_previo = leidos
         ventana = min(ventana * 4, tope)
 
@@ -2091,6 +2175,27 @@ def _limite_consulta(consulta):
     return min(valor, _TOPE_CONSULTA)
 
 
+def _remedio_ventana(cfg, causa, tope):
+    """Gap #136 (Minor, fix3 Fase 3): el `motivo` de `fuera_de_ventana` prometia «sube
+    `max_episodes`» TAMBIEN cuando quien cortaba era el tope duro por consulta del adaptador
+    (`_MAX_EPISODIOS_CONSULTA`), que ninguna clave de configuracion sube (barrido `max_episodes`
+    2000 -> 50000 de la lente D: recall identico). Cada causa nombra la palanca que de verdad
+    existe -o dice que no hay ninguna."""
+    if causa == "lectura":
+        return ("el tope de lectura corto la ampliacion de la ventana (`max_respuesta_kb`): "
+                "subelo o acota la consulta")
+    if causa == "grupos":
+        return ("el servidor devolvio episodios de otro(s) `group_id`: la ventana de "
+                "`get_episodes` no es solo la de este grupo")
+    if causa == "tope":
+        if _max_episodios_verify(cfg) < _MAX_EPISODIOS_CONSULTA:
+            return (f"ventana al tope configurado ({tope} episodios): sube `max_episodes` o "
+                    f"acota la consulta")
+        return (f"ventana al tope duro del adaptador ({tope} episodios por consulta, que "
+                f"`max_episodes` no sube): acota la consulta")
+    return f"ventana de {tope} episodios"
+
+
 def consultar(cfg, consulta):
     """Funcion OPCIONAL del contrato (lectura). Devuelve
     `{"aciertos": [...], "descartados": int, "motivo": str}` y NUNCA lanza.
@@ -2138,7 +2243,7 @@ def consultar(cfg, consulta):
         hits_propios = [(h, c) for h, c in hits if not _grupo_ajeno(h, group_id)]
         descartados = len(hits) - len(hits_propios)
         nombres_buscados = sorted({n for h, _c in hits_propios for n in _nombres_de_hit(h)})
-        por_nombre, invalidados, superados, ventana_completa = _indice_procedencia(
+        por_nombre, invalidados, superados, ventana_completa, causa_ventana = _indice_procedencia(
             cliente, group_id, tope_episodios, nombres_buscados)
     except _RespuestaIlegible as e:
         return dict(vacio, motivo=str(e) or "respuesta de get_episodes ilegible")
@@ -2150,8 +2255,10 @@ def consultar(cfg, consulta):
         nombre = next((n for n in _nombres_de_hit(hit) if n in por_nombre), None)
         if nombre is None:
             # Gap #121: «no lo he podido mirar» (la ventana no llego) NO es «no cuadra» -se
-            # cuenta aparte y sale en el `motivo`, nunca en silencio.
-            if not ventana_completa:
+            # cuenta aparte y sale en el `motivo`, nunca en silencio. Gap #135 (fix3): y un hit
+            # que no cita NINGUN nombre con forma de episodio propio (entidades del LLM) es un
+            # descarte legitimo aunque la ventana este incompleta: no hay ventana que lo resuelva.
+            if not ventana_completa and any(_es_nombre_de_episodio(n) for n in _nombres_de_hit(hit)):
                 fuera_de_ventana += 1
             else:
                 descartados += 1
@@ -2204,8 +2311,7 @@ def consultar(cfg, consulta):
     aciertos = list(candidatos.values())
     motivos = [m for m in (motivo_nodos, motivo_hechos) if m]
     if fuera_de_ventana:
-        motivos.append(
-            f"{fuera_de_ventana} acierto(s) fuera de la ventana de procedencia "
-            f"({tope_episodios} episodios, `max_episodes`): sube `max_episodes` o acota la consulta")
+        motivos.append(f"{fuera_de_ventana} acierto(s) fuera de la ventana de procedencia: "
+                       + _remedio_ventana(cfg, causa_ventana, tope_episodios))
     return {"aciertos": aciertos[:limit], "descartados": descartados,
             "fuera_de_ventana": fuera_de_ventana, "motivo": "; ".join(motivos)}

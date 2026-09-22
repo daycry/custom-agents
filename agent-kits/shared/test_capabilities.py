@@ -515,3 +515,33 @@ def test_f3fix2_gap127_sin_adaptador_instalado_manda_el_respaldo_declarado(tmp_p
     assert cap_mod._graphiti_modo({"mode": "read"}) == "read"
     assert cap_mod._graphiti_modo({}) == cap_mod._MODO_DEFAULT == "shadow"
     assert cap_mod._graphiti_modo({"mode": "inventado"}) == "shadow"
+
+
+# ------------------------------------------------------------------ Fase 3 - fix3 (#147)
+
+def test_f3fix3_gap147_la_linea_no_repite_la_lista_de_backends(tmp_path):
+    """Gap #147: con >= 2 backends habilitados, la linea de /doctor traia la lista DOS veces (el
+    encabezado `nombres` y la pieza que anadio #125), gastando el presupuesto de la linea en
+    decir lo mismo dos veces."""
+    root = str(tmp_path)
+    base = {"endpoint": "http://127.0.0.1:8001/mcp", "allow_remote": False,
+            "provider": {"llm": "none"}}
+    _taxonomy(root, backends={
+        "graphiti": {"type": "graphiti", "enabled": True,
+                     "config": dict(base, mode="read", group_id="plantilla")},
+        "mi_grafo": {"type": "graphiti", "enabled": True,
+                     "config": dict(base, mode="read", group_id="mi-grafo")}})
+    linea = _cap_graphiti(root)["doctor"]
+    assert linea.count("mi_grafo") == 1, linea
+    assert linea.count("habilitados") == 1, linea
+    assert "mi_grafo" in linea and "graphiti`" in linea, linea
+
+
+def test_f3fix3_gap147_con_un_solo_backend_la_linea_lo_nombra_igual(tmp_path):
+    root = str(tmp_path)
+    _taxonomy(root, backends={"mi_grafo": {"type": "graphiti", "enabled": True, "config": {
+        "endpoint": "http://127.0.0.1:8001/mcp", "allow_remote": False, "mode": "read",
+        "group_id": "mi-grafo", "provider": {"llm": "none"}}}})
+    linea = _cap_graphiti(root)["doctor"]
+    assert linea.count("mi_grafo") == 1, linea
+    assert "habilitados" not in linea, linea

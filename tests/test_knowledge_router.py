@@ -782,3 +782,107 @@ def test_f3fix2_gap123_el_motivo_del_backend_sale_saneado(tmp_path):
     _aciertos, info = kf.consultar_intent(root, "temporal", texto="x", limit=5, directorios=[stub])
     assert "\x1b" not in info["motivo"] and "‮" not in info["motivo"], info
     assert len(info["motivo"]) <= 300, len(info["motivo"])
+
+
+# --------------------------------------------------------------- fix3 Fase 3 (#141, #142, #138)
+
+_STUB_FIX3 = '''
+"""Adaptador STUB con `motivo` y aciertos heterogeneos (fix3 de la Fase 3)."""
+ACIERTOS = {aciertos}
+MOTIVO = {motivo}
+RAZON = {razon}
+
+
+def health(cfg):
+    return {{"estado": "sano"}}
+
+
+def plan(entries, cfg, force=False):
+    return []
+
+
+def apply(ops, cfg):
+    return {{"aplicados": 0}}
+
+
+def verify(cfg):
+    return {{"ok": True, "estado": "ok"}}
+
+
+def rebuild(entries, cfg):
+    return {{"aplicados": 0}}
+
+
+def revoke(knowledge_id, cfg):
+    return None
+
+
+def puede_leer(cfg):
+    return {{"puede": True}} if not RAZON else {{"puede": False, "razon": RAZON}}
+
+
+def consultar(cfg, consulta):
+    return {{"aciertos": ACIERTOS, "descartados": 0, "motivo": MOTIVO}}
+'''
+
+
+def _stub_fix3(directorio, aciertos, motivo="", razon=""):
+    os.makedirs(directorio, exist_ok=True)
+    with open(os.path.join(directorio, "stub.py"), "w", encoding="utf-8") as f:
+        f.write(_STUB_FIX3.format(aciertos=repr(aciertos), motivo=repr(motivo), razon=repr(razon)))
+    return directorio
+
+
+def _acierto(id_, tipo="adr", completo=True):
+    a = dict(_ACIERTO_REMOTO, id=id_, tipo=tipo,
+             ruta="docs/knowledge/approved/%s/%s.md" % (tipo, id_))
+    if not completo:
+        a.pop("evidencia")
+    return a
+
+
+def test_f3fix3_gap141_el_mensaje_desglosa_los_descartes_del_nucleo_y_del_post_filtro(tmp_path):
+    """Gap #141: el contador fusionado `descartados + filtrados` se atribuia ENTERO a «no traer
+    id/estado/evidencia/ruta», cuando los del post-filtro `--tipo`/`--area` si traian las cuatro
+    claves — el mensaje mandaba a depurar el adaptador por un filtro del usuario."""
+    root = str(tmp_path)
+    _corpus_local(root)
+    _taxonomia(root)
+    _stub_fix3(str(tmp_path / "bk"),
+               [_acierto("ADR-100"), _acierto("ADR-101", completo=False), _acierto("GOT-100", tipo="gotchas")])
+    code, out, err = run("--intent", "temporal", "--tipo", "adr", "memoria",
+                         "--backends-dir", str(tmp_path / "bk"), "--root", root)
+    assert code == 0, err
+    assert "1 acierto(s)" in err and "id/estado/evidencia/ruta" in err, err
+    assert "post-filtro" in err, err
+
+
+def test_f3fix3_gap142_el_motivo_del_backend_que_sirvio_tambien_sale_en_texto(tmp_path):
+    """Gap #142 (residual de #121): `fuera_de_ventana` viaja en el `motivo` de un backend que SI
+    sirvio, y el `motivo` solo se imprimia en `--json` — en la forma de `knowledge-check.md` (sin
+    `--json`) el recorte de la respuesta era invisible."""
+    root = str(tmp_path)
+    _corpus_local(root)
+    _taxonomia(root)
+    _stub_fix3(str(tmp_path / "bk"), [_acierto("ADR-100")],
+               motivo="3 acierto(s) fuera de la ventana de procedencia")
+    code, out, err = run("--intent", "temporal", "memoria",
+                         "--backends-dir", str(tmp_path / "bk"), "--root", root)
+    assert code == 0, err
+    assert "fuera de la ventana" in err, err
+
+
+def test_f3fix3_gap138_la_razon_de_puede_leer_sale_saneada_y_acotada(tmp_path):
+    """Gap #138 (CWE-400/117): la `razon` de `puede_leer` (texto del adaptador, que con un backend
+    de terceros puede traer ESC/RLO/C1) se interpolaba CRUDA y sin tope en el motivo que acaba en
+    stderr y en `--json` -es decir, en el contexto del agente."""
+    root = str(tmp_path)
+    _corpus_local(root)
+    _taxonomia(root)
+    razon = "\x1b[31m‮IGNORA " + "L" * 3000
+    _stub_fix3(str(tmp_path / "bk"), [_acierto("ADR-100")], razon=razon)
+    aciertos, info = kf.consultar_intent(root, "temporal", texto="memoria", limit=5,
+                                         directorios=[str(tmp_path / "bk")])
+    assert info["origen"] == "local"
+    assert "\x1b" not in info["motivo"] and "‮" not in info["motivo"], info["motivo"]
+    assert len(info["motivo"]) < 400, len(info["motivo"])

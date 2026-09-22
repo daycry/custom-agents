@@ -411,7 +411,7 @@ class TestGraphitiVerifyRebuildRevoke(unittest.TestCase):
 
     def test_verify_nunca_sincronizado_es_ok(self):
         cfg = self._cfg("http://127.0.0.1:1")
-        self.assertEqual(self.mod.verify(cfg), {"ok": True, "desfase": []})
+        self.assertEqual(self.mod.verify(cfg), {"ok": True, "estado": "ok", "desfase": []})
 
     def test_verify_publicacion_incompleta_nombra_remedio_sin_ejecutarlo(self):
         cfg = self._cfg("http://127.0.0.1:1")
@@ -443,7 +443,7 @@ class TestGraphitiVerifyRebuildRevoke(unittest.TestCase):
             self.mod._escribir_manifest(
                 cfg, {"group_id": "proy-test",
                       "entradas": {"mem.x": {"version": 1, "hash": "h", "uuid": "u1"}}})
-            self.assertEqual(self.mod.verify(cfg), {"ok": True, "desfase": []})
+            self.assertEqual(self.mod.verify(cfg), {"ok": True, "estado": "ok", "desfase": []})
 
     def test_verify_avisa_si_el_servidor_devuelve_otro_group_id(self):
         def _get_episodes(_args):
@@ -674,7 +674,7 @@ class TestGraphitiVerifyPaginacion(unittest.TestCase):
                 cfg, {"group_id": "proy-test",
                       "entradas": {"mem.antigua": {"version": 1, "hash": "h", "uuid": "u1"}}})
             veredicto = self.mod.verify(cfg)
-        self.assertEqual(veredicto, {"ok": True, "desfase": []})
+        self.assertEqual(veredicto, {"ok": True, "estado": "ok", "desfase": []})
         self.assertGreater(max(llamadas_max_episodes), 50)  # de verdad amplio la ventana
 
     def test_respuesta_ilegible_se_distingue_de_grafo_vacio(self):
@@ -1060,7 +1060,7 @@ class TestGraphitiFase2Fix2(unittest.TestCase):
         self.mod._escribir_manifest(
             cfg, {"group_id": "proy-test", "entradas": {"mem.x": {"version": 1, "hash": "h"}}})
         resultado = self.mod.verify(cfg)
-        self.assertEqual(resultado, {"ok": None, "razon": "mode: off"})
+        self.assertEqual(resultado, {"ok": None, "estado": "no_verificable", "razon": "mode: off"})
 
     # -- #56 (Important, mutante N6): `add_triplet` de `_aplicar_revoke` con el campo correcto --
 
@@ -2621,7 +2621,7 @@ class TestGraphitiEnvoltorioResultReal(unittest.TestCase):
         with _ServidorMCPContext(respuestas_tools=respuestas) as srv:
             cfg["endpoint"] = srv.endpoint
             veredicto = self.mod.verify(cfg)
-        self.assertEqual(veredicto, {"ok": True, "desfase": []})
+        self.assertEqual(veredicto, {"ok": True, "estado": "ok", "desfase": []})
 
 # ======================================================= Fase 3 - fix1 (revision intento 1)
 
@@ -3068,14 +3068,25 @@ class TestGraphitiFase3Fix2Verify(unittest.TestCase):
 
     def test_f3fix2_gap120_el_escenario_de_referencia_verifica_con_los_defaults(self):
         """500 entradas / 15 000 episodios, sin tocar `max_respuesta_kb` ni `max_episodes`:
-        `verify()` NO revienta el tope de lectura y `puede_leer` autoriza la consulta."""
+        `verify()` NO revienta el tope de lectura (eso era el gap #120: `ok: false` por
+        `ErrorMCP`) y lo no confirmado sale como `no_verificado`.
+
+        CONTRATO CAMBIADO en fix3 (gap #133): con las 500 entradas ENTERRADAS bajo 14 500
+        episodios mas recientes del mismo grupo, la ventana no confirma ninguna — eso es el
+        veredicto `incompleto`, y NO autoriza lectura (antes se leia como «sin desfase» y
+        `puede_leer` decia true con cero entradas confirmadas). Con las entradas dentro de la
+        ventana -el caso nominal justo despues de publicar, que cubre el test de mas abajo- el
+        veredicto sigue siendo `ok` y la lectura sigue autorizada."""
         episodios, manifiesto = self._escenario_referencia()
         with _ServidorMCPContext(respuestas_tools=self._respuestas_ventana(episodios)) as srv:
             cfg = self._cfg(srv.endpoint)
             self._escribir_manifest(cfg, manifiesto)
             veredicto = self.mod.verify(cfg)
-            self.assertIs(veredicto.get("ok"), True, veredicto)
-            self.assertTrue(self.mod.puede_leer(cfg).get("puede"), self.mod.puede_leer(cfg))
+            self.assertEqual(veredicto.get("estado"), "incompleto", veredicto)
+            self.assertNotIn("ErrorMCP", veredicto.get("razon", ""), veredicto)
+            permiso = self.mod.puede_leer(cfg)
+            self.assertFalse(permiso.get("puede"), permiso)
+            self.assertIn("max_respuesta_kb", permiso.get("razon", ""), permiso)
 
     def test_f3fix2_gap120_lo_que_no_cupo_en_la_ventana_no_se_declara_desfase(self):
         """Lo no confirmado por tope de lectura sale como `no_verificado` + aviso: «no he podido
@@ -3115,8 +3126,12 @@ class TestGraphitiFase3Fix2Verify(unittest.TestCase):
               "evidencia": "validated_case", "folder": "adr",
               "ruta": "docs/knowledge/approved/adr/ADR-000.md", "cuerpo": "Cuerpo."}
         ep, _aviso = self.mod._episodio_upsert("proy-test", op)
-        ordenados[0] = {"name": ep["name"], "uuid": ep["uuid"], "group_id": "proy-test",
-                        "content": ep["episode_body"]}
+        # fix3 (gap #133): el episodio REAL sustituye al de su MISMO nombre, no al primero de la
+        # lista — clobbering `ordenados[0]` borraba del grafo la entrada `mem.adr.e0499`, y con el
+        # `puede_leer` estricto de #133 eso ya no es «una entrada de menos que da igual».
+        indice = next(i for i, e in enumerate(ordenados) if e["name"] == ep["name"])
+        ordenados[indice] = {"name": ep["name"], "uuid": ep["uuid"], "group_id": "proy-test",
+                             "content": ep["episode_body"]}
 
         def get_episodes(args):
             tope = args.get("max_episodes") or len(ordenados)
@@ -3151,3 +3166,252 @@ class TestGraphitiFase3Fix2Verify(unittest.TestCase):
             veredicto = self.mod.verify(cfg)
         self.assertIn("rebuild", veredicto.get("aviso", ""), veredicto)
         self.assertIn("mem.adr.uno", veredicto.get("aviso", ""), veredicto)
+
+
+class TestGraphitiFase3Fix3(unittest.TestCase):
+    """Ronda fix3 de la Fase 3 (revision de dos lentes, intento 3): #134 (REGRESION de fix2: la
+    ampliacion de ventana de `consultar` no capturaba `ErrorMCP` y tiraba los aciertos que la
+    ventana pequena YA habia resuelto), #133 (tres veredictos de `verify` -`ok`/`incompleto`/
+    `desfase`- y `puede_leer` que solo autoriza con verificacion COMPLETA), #135/#136/#146 (la
+    ampliacion y su motivo dejan de mentir), #138 (aviso acotado y saneado) y #144/#145 (los
+    mutantes que la lente B dejo vivos: M22, M1/M21, M4/M5)."""
+
+    def setUp(self):
+        self.mod = _cargar("graphiti.py", "ks_backend_graphiti_f3fix3")
+        self.tmp = tempfile.mkdtemp(prefix="ks-graphiti-f3fix3-")
+        self.mod._cache_verify.clear()
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    # ------------------------------------------------------------------ andamiaje
+    def _cfg(self, endpoint, **extra):
+        cfg = {"_root": self.tmp, "group_id": "proy-test", "endpoint": endpoint, "mode": "read",
+               "allow_remote": False, "timeout_ms": 5000, "provider": {"llm": "none"}}
+        cfg.update(extra)
+        return cfg
+
+    def _episodio(self, id_, version=1, cuerpo="Cuerpo.\n", folder="adr",
+                  ruta="docs/knowledge/approved/adr/ADR-100.md"):
+        """Episodio tal y como lo EMITE el adaptador (camino real `_episodio_upsert`), para que la
+        procedencia que lee `consultar` sea la de verdad y no un bloque inventado en el test."""
+        op = {"id": id_, "version": version, "hash": "h" * 8, "category": "DECISION",
+              "evidencia": "validated_case", "folder": folder, "ruta": ruta, "cuerpo": cuerpo}
+        ep, _aviso = self.mod._episodio_upsert("proy-test", op)
+        return {"name": ep["name"], "uuid": ep["uuid"], "group_id": "proy-test",
+                "content": ep["episode_body"]}
+
+    def _ruido(self, n, cuerpo="ruido", grupo="proy-test", prefijo="ruido"):
+        return [{"name": "%s-%04d" % (prefijo, i), "uuid": "u-%s-%04d" % (prefijo, i),
+                 "group_id": grupo, "content": cuerpo} for i in range(n)]
+
+    def _respuestas(self, episodios, nodos=(), hechos=()):
+        def get_episodes(args):
+            tope = args.get("max_episodes") or len(episodios)
+            return {"structuredContent": {"episodes": episodios[:tope]}}
+        return {"get_episodes": get_episodes,
+                "search_nodes": {"structuredContent": {"nodes": list(nodos)}},
+                "search_memory_facts": {"structuredContent": {"facts": list(hechos)}}}
+
+    def _manifiesto(self, cfg, entradas):
+        self.mod._escribir_manifest(cfg, {"group_id": "proy-test", "entradas": entradas})
+
+    # ------------------------------------------------------------------ #134 (Important)
+    def test_f3fix3_gap134_la_ampliacion_que_no_cabe_conserva_lo_ya_resuelto(self):
+        """Regresion de fix2: con episodios >= 4 KiB y un `max_respuesta_kb` que la ventana
+        AMPLIADA no respeta, el `ErrorMCP` subia hasta el `except Exception` de `consultar` y la
+        consulta devolvia 0 aciertos -tirando el que la ventana pequena ya habia resuelto-."""
+        cuerpo = "x" * 4300                       # >= 4,0 KiB por episodio (la medida de la lente D)
+        visible = self._episodio("mem.adr.visible", cuerpo=cuerpo)
+        enterrado = self._episodio("mem.adr.enterrado", cuerpo=cuerpo,
+                                   ruta="docs/knowledge/approved/adr/ADR-200.md")
+        episodios = [visible] + self._ruido(300, cuerpo=cuerpo) + [enterrado]
+        nodos = [{"name": visible["name"], "uuid": visible["uuid"], "summary": "res"},
+                 {"name": enterrado["name"], "uuid": enterrado["uuid"], "summary": "res"}]
+        with _ServidorMCPContext(respuestas_tools=self._respuestas(episodios, nodos=nodos)) as srv:
+            salida = self.mod.consultar(self._cfg(srv.endpoint, max_respuesta_kb=512),
+                                        {"texto": "memoria", "limit": 10})
+        self.assertEqual([a["id"] for a in salida["aciertos"]], ["mem.adr.visible"], salida)
+        self.assertEqual(salida.get("fuera_de_ventana"), 1, salida)
+        self.assertIn("max_respuesta_kb", salida.get("motivo", ""), salida)
+
+    def test_f3fix3_gap134_si_ni_la_primera_ventana_cabe_sigue_siendo_un_error_con_motivo(self):
+        """El respaldo es «conservar la ultima ventana BUENA», no «tragarse el error»: sin ninguna
+        ventana que quepa, la consulta sigue degradando a local con el motivo a la vista."""
+        cuerpo = "x" * 4300
+        visible = self._episodio("mem.adr.visible", cuerpo=cuerpo)
+        episodios = [visible] + self._ruido(300, cuerpo=cuerpo)
+        nodos = [{"name": visible["name"], "uuid": visible["uuid"], "summary": "res"}]
+        with _ServidorMCPContext(respuestas_tools=self._respuestas(episodios, nodos=nodos)) as srv:
+            salida = self.mod.consultar(self._cfg(srv.endpoint, max_respuesta_kb=8),
+                                        {"texto": "memoria", "limit": 10})
+        self.assertEqual(salida["aciertos"], [], salida)
+        self.assertTrue(salida.get("motivo"), salida)
+
+    # ------------------------------------------------------------------ #133 (Important)
+    def test_f3fix3_gap133_la_ventana_incompleta_es_un_veredicto_propio_y_no_autoriza_lectura(self):
+        """`verify()` con la ventana cortada no es «sin desfase»: es un TERCER veredicto
+        (`incompleto`) y `puede_leer` no autoriza una lectura con 0 entradas confirmadas."""
+        with _ServidorMCPContext(respuestas_tools=self._respuestas(self._ruido(300))) as srv:
+            cfg = self._cfg(srv.endpoint, max_episodes=100)
+            self._manifiesto(cfg, {"mem.adr.uno": {"version": 1, "hash": "h" * 8},
+                                   "mem.adr.dos": {"version": 1, "hash": "h" * 8}})
+            veredicto = self.mod.verify(cfg)
+            permiso = self.mod.puede_leer(cfg)
+        self.assertEqual(veredicto.get("estado"), "incompleto", veredicto)
+        self.assertIs(veredicto.get("ok"), False, veredicto)
+        self.assertEqual(veredicto.get("desfase"), [], veredicto)
+        self.assertEqual(veredicto.get("no_verificado"), 2, veredicto)
+        self.assertFalse(permiso.get("puede"), permiso)
+        self.assertIn("incompleta", permiso.get("razon", ""), permiso)
+
+    def test_f3fix3_gap133_con_la_ventana_completa_el_veredicto_es_ok_y_autoriza(self):
+        ep = self._episodio("mem.adr.uno")
+        with _ServidorMCPContext(respuestas_tools=self._respuestas([ep])) as srv:
+            cfg = self._cfg(srv.endpoint)
+            self._manifiesto(cfg, {"mem.adr.uno": {"version": 1, "hash": "h" * 8}})
+            veredicto = self.mod.verify(cfg)
+            permiso = self.mod.puede_leer(cfg)
+        self.assertEqual(veredicto.get("estado"), "ok", veredicto)
+        self.assertIs(veredicto.get("ok"), True, veredicto)
+        self.assertTrue(permiso.get("puede"), permiso)
+
+    def test_f3fix3_gap133_una_entrada_que_falta_de_verdad_es_desfase_no_incompleto(self):
+        ep = self._episodio("mem.adr.uno")
+        with _ServidorMCPContext(respuestas_tools=self._respuestas([ep])) as srv:
+            cfg = self._cfg(srv.endpoint)
+            self._manifiesto(cfg, {"mem.adr.uno": {"version": 1, "hash": "h" * 8},
+                                   "mem.adr.fantasma": {"version": 1, "hash": "h" * 8}})
+            veredicto = self.mod.verify(cfg)
+        self.assertEqual(veredicto.get("estado"), "desfase", veredicto)
+        self.assertEqual([d["knowledge_id"] for d in veredicto["desfase"]], ["mem.adr.fantasma"])
+
+    # ------------------------------------------------------------------ #144 (mutante M22)
+    def test_f3fix3_gap144_reconciliar_no_promueve_nada_con_la_ventana_incompleta(self):
+        """Guardarrail load-bearing desde fix2 (evita reabrir el Critical #67): con la ventana
+        incompleta, `_reconciliar_publicado` no confirma NI lo que vio -confirmar de menos
+        DESPUBLICA-. Mutante M22 (quitar el `if not ventana_completa`) muere aqui."""
+        episodios = [self._episodio("mem.adr.presente")] + self._ruido(300)
+        entradas = {"mem.adr.presente": {"version": 1, "hash": "h" * 8},
+                    "mem.adr.ausente": {"version": 1, "hash": "h" * 8}}
+        with _ServidorMCPContext(respuestas_tools=self._respuestas(episodios)) as srv:
+            cfg = self._cfg(srv.endpoint, max_episodes=100)
+            confirmadas, posible = self.mod._reconciliar_publicado(cfg, "proy-test", entradas)
+        self.assertEqual(confirmadas, {}, confirmadas)
+        self.assertFalse(posible)
+
+    # ------------------------------------------------------------------ #135 / #136 / #146
+    def test_f3fix3_gap135_un_hit_de_entidades_no_amplia_la_ventana(self):
+        """`search_memory_facts` cita `source_node_name`/`target_node_name` (ENTIDADES extraidas
+        por el LLM, nunca episodios nuestros): esperar a resolverlas hacia insatisfacible el
+        `all(...)` y disparaba la ampliacion en TODA consulta."""
+        ep = self._episodio("mem.adr.uno")
+        episodios = [ep] + self._ruido(200)
+        nodos = [{"name": ep["name"], "uuid": ep["uuid"], "summary": "res"}]
+        hechos = [{"fact": "Graphiti usa Neo4j", "source_node_name": "Graphiti",
+                   "target_node_name": "Neo4j", "valid_at": "2026-01-01"}]
+        with _ServidorMCPContext(respuestas_tools=self._respuestas(episodios, nodos, hechos)) as srv:
+            salida = self.mod.consultar(self._cfg(srv.endpoint), {"texto": "memoria", "limit": 10})
+            llamadas = [n for n, _a in srv.llamadas if n == "get_episodes"]
+        self.assertEqual(len(llamadas), 1, llamadas)
+        self.assertEqual([a["id"] for a in salida["aciertos"]], ["mem.adr.uno"], salida)
+        self.assertEqual(salida.get("fuera_de_ventana", 0), 0, salida)
+        self.assertEqual(salida.get("descartados"), 1, salida)
+
+    def test_f3fix3_gap135_con_la_ventana_incompleta_un_hit_de_entidades_sigue_siendo_descarte(self):
+        """Complemento del anterior: aunque la ventana quede INCOMPLETA, un hit que no cita ningun
+        nombre con forma de episodio propio no es «no lo he podido mirar» -ninguna ventana lo
+        resolveria-, asi que cuenta como descarte y no infla `fuera_de_ventana`."""
+        episodios = self._ruido(300)
+        nodos = [{"name": "mem.adr.buscada@1", "uuid": "u-x", "summary": "res"}]
+        hechos = [{"fact": "Graphiti usa Neo4j", "source_node_name": "Graphiti",
+                   "target_node_name": "Neo4j"}]
+        with _ServidorMCPContext(respuestas_tools=self._respuestas(episodios, nodos, hechos)) as srv:
+            salida = self.mod.consultar(self._cfg(srv.endpoint, max_episodes=60),
+                                        {"texto": "memoria", "limit": 10})
+        self.assertEqual(salida.get("fuera_de_ventana"), 1, salida)   # solo el nombre de episodio
+        self.assertEqual(salida.get("descartados"), 1, salida)        # el hecho de entidades
+
+    def test_f3fix3_gap136_el_motivo_no_promete_max_episodes_cuando_el_tope_es_duro(self):
+        """El remedio «sube `max_episodes`» era inerte cuando quien corta es el tope DURO por
+        consulta del adaptador: el mensaje deja de prometer una palanca que no existe."""
+        original = self.mod._MAX_EPISODIOS_CONSULTA
+        try:
+            self.mod._MAX_EPISODIOS_CONSULTA = 60
+            episodios = self._ruido(300)
+            nodos = [{"name": "mem.adr.buscada@1", "uuid": "u-x", "summary": "res"}]
+            with _ServidorMCPContext(respuestas_tools=self._respuestas(episodios, nodos)) as srv:
+                salida = self.mod.consultar(self._cfg(srv.endpoint), {"texto": "memoria", "limit": 10})
+        finally:
+            self.mod._MAX_EPISODIOS_CONSULTA = original
+        self.assertGreater(salida.get("fuera_de_ventana", 0), 0, salida)
+        self.assertNotIn("sube `max_episodes`", salida.get("motivo", ""), salida)
+        self.assertIn("tope", salida.get("motivo", ""), salida)
+
+    def test_f3fix3_gap136_con_max_episodes_por_debajo_del_tope_el_motivo_si_lo_nombra(self):
+        episodios = self._ruido(300)
+        nodos = [{"name": "mem.adr.buscada@1", "uuid": "u-x", "summary": "res"}]
+        with _ServidorMCPContext(respuestas_tools=self._respuestas(episodios, nodos)) as srv:
+            salida = self.mod.consultar(self._cfg(srv.endpoint, max_episodes=60),
+                                        {"texto": "memoria", "limit": 10})
+        self.assertGreater(salida.get("fuera_de_ventana", 0), 0, salida)
+        self.assertIn("max_episodes", salida.get("motivo", ""), salida)
+
+    def test_f3fix3_gap146_con_ruido_de_otro_grupo_lo_no_resuelto_no_es_un_descarte(self):
+        """`leidos` contaba episodios de TODOS los grupos y `por_nombre` solo los propios: con
+        ruido ajeno, un acierto propio sin resolver se contaba como «no cuadra» en vez de «no lo
+        he podido mirar»."""
+        episodios = (self._ruido(20, grupo="OTRO-GRUPO", prefijo="ajeno")
+                     + [self._episodio("mem.adr.presente")])
+        nodos = [{"name": "mem.adr.buscada@1", "uuid": "u-x", "summary": "res"}]
+        with _ServidorMCPContext(respuestas_tools=self._respuestas(episodios, nodos)) as srv:
+            salida = self.mod.consultar(self._cfg(srv.endpoint), {"texto": "memoria", "limit": 10})
+        self.assertEqual(salida.get("fuera_de_ventana"), 1, salida)
+        self.assertEqual(salida.get("descartados"), 0, salida)
+
+    # ------------------------------------------------------------------ #138 (CWE-400/117)
+    def test_f3fix3_gap138_el_aviso_de_otros_grupos_se_acota_y_se_sanea(self):
+        hostil = "\x1b[31m‮GRUPO"
+        ajenos = [{"name": "x-%03d" % i, "uuid": "u-%03d" % i, "group_id": hostil + str(i),
+                   "content": "c"} for i in range(30)]
+        ep = self._episodio("mem.adr.uno")
+        with _ServidorMCPContext(respuestas_tools=self._respuestas([ep] + ajenos)) as srv:
+            cfg = self._cfg(srv.endpoint)
+            self._manifiesto(cfg, {"mem.adr.uno": {"version": 1, "hash": "h" * 8}})
+            veredicto = self.mod.verify(cfg)
+        aviso = veredicto.get("aviso", "")
+        self.assertIn("y 25 mas", aviso, aviso)
+        self.assertLess(len(aviso), 600, len(aviso))
+        self.assertNotIn("\x1b", aviso)
+        self.assertNotIn("‮", aviso)
+
+    # ------------------------------------------------------------------ #145 (mutantes M1/M21/M4/M5)
+    def test_f3fix3_gap145_sin_local_folder_en_la_procedencia_el_tipo_sale_de_la_ruta(self):
+        """M21: respaldo de #117 para grafos publicados ANTES de fix2 (sin `local_folder`)."""
+        ep = self._episodio("mem.adr.uno")
+        ep["content"] = "\n".join(l for l in ep["content"].splitlines()
+                                  if not l.startswith("local_folder:"))
+        nodos = [{"name": ep["name"], "uuid": ep["uuid"], "summary": "res"}]
+        with _ServidorMCPContext(respuestas_tools=self._respuestas([ep], nodos)) as srv:
+            salida = self.mod.consultar(self._cfg(srv.endpoint), {"texto": "memoria", "limit": 5})
+        self.assertEqual([a["tipo"] for a in salida["aciertos"]], ["adr"], salida)
+
+    def test_f3fix3_gap145_sin_folder_declarado_el_episodio_lo_deriva_de_la_ruta(self):
+        """M1: `_folder_declarado` cae a la `ruta` cuando la op no trae `folder`."""
+        op = {"id": "mem.got.uno", "version": 1, "hash": "h" * 8, "category": "GOTCHA",
+              "evidencia": "validated_case", "cuerpo": "Cuerpo.\n",
+              "ruta": "docs/knowledge/approved/gotchas/GOT-001.md"}
+        ep, _aviso = self.mod._episodio_upsert("proy-test", op)
+        self.assertIn("local_folder: gotchas", ep["episode_body"])
+
+    def test_f3fix3_gap145_la_vigencia_manda_sobre_la_version_y_la_version_desempata(self):
+        """M4/M5: precedencia estado > version y desempate por `version` de `_mas_vigente`."""
+        vivo_v1 = {"estado": "aprobado", "version": "1"}
+        invalido_v5 = {"estado": "invalidado", "version": "5"}
+        self.assertTrue(self.mod._mas_vigente(vivo_v1, invalido_v5))
+        self.assertFalse(self.mod._mas_vigente(invalido_v5, vivo_v1))
+        self.assertTrue(self.mod._mas_vigente({"estado": "aprobado", "version": "2"}, vivo_v1))
+        self.assertFalse(self.mod._mas_vigente(vivo_v1, {"estado": "aprobado", "version": "2"}))
+        self.assertEqual(self.mod._version_entera({"version": "no-numerica"}), -1)
+        self.assertEqual(self.mod._version_entera({"version": " 7 "}), 7)
