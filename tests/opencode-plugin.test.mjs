@@ -35,8 +35,12 @@ const disponible = (cmd, args) => {
 // Los hooks del plugin necesitan `bash` Y `python3`; sin uno de los dos salen en silencio con
 // exit 0 (degradación por diseño), así que los casos que esperan SALIDA se saltan — afirmar lo
 // contrario sería afirmar el entorno, no el adaptador. Mismo criterio que tests/test_hooks_shell.py.
+// El gate EJECUTA python3, no solo `command -v`: en Windows el alias de la Microsoft Store deja
+// un `python3` en PATH que «existe» pero solo imprime «Python was not found» (exit 1). Con
+// `command -v` el gate pasaba, `progress-report.py` nunca corría, el hook se callaba por diseño
+// y el test de toast caía con «visto: (nada)» — rojo preexistente en Windows.
 const HAY_BASH = disponible("bash", ["-c", "exit 0"])
-const HAY_PYTHON3 = HAY_BASH && disponible("bash", ["-c", "command -v python3"])
+const HAY_PYTHON3 = HAY_BASH && disponible("bash", ["-c", "python3 -c \"import sys\""])
 const PUEDE_EJECUTAR_HOOKS = HAY_BASH && HAY_PYTHON3
 
 // Ledger REAL del repo como fixture, igual que `tests/test_hooks_shell.py`: el formato que

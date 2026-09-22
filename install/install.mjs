@@ -910,12 +910,23 @@ function matarArbol(pid) {
   // 2) Y los HUÉRFANOS: al expirar, Node ya ha matado al hijo directo (el `cmd.exe`), así que
   //    `taskkill /T` no encuentra a quién seguir y el nieto —la CLI de verdad— se queda vivo
   //    (comprobado con `tasklist`). Su `ParentProcessId` sigue apuntando al pid muerto, que es
-  //    justo por donde se les pesca. Si no hay `wmic` (Windows recientes), se degrada en silencio.
+  //    justo por donde se les pesca. `wmic` ya NO existe en Windows 11 (24H2 lo retiró de la
+  //    imagen), así que si esa vía falla se cae a PowerShell + CIM —el sustituto oficial— con la
+  //    MISMA consulta por `ParentProcessId`. Los dos pasos son mejor esfuerzo: nunca peor que
+  //    antes (gap B-12: sin el respaldo, el nieto sobrevivía al timeout en silencio).
   try {
     execFileSync(deSistema(join("wbem", "WMIC.exe"), "wmic"),
       ["process", "where", `(ParentProcessId=${pid})`, "call", "terminate"],
       { stdio: "ignore", timeout: 15_000 })
-  } catch { /* mejor esfuerzo: nunca peor que antes */ }
+  } catch {
+    try {
+      execFileSync(deSistema(join("WindowsPowerShell", "v1.0", "powershell.exe"), "powershell"),
+        ["-NoProfile", "-NonInteractive", "-Command",
+          `Get-CimInstance Win32_Process -Filter 'ParentProcessId=${pid}' `
+          + `| ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }`],
+        { stdio: "ignore", timeout: 15_000 })
+    } catch { /* ni siquiera PowerShell: mejor esfuerzo, nunca peor que antes */ }
+  }
 }
 
 function correr(cmd, args, cwd) {
