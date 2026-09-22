@@ -426,7 +426,8 @@ verificacion: obligatoria
 ## Fase 4 - Regresion y cierre
 
 ### T-09 - Aislamiento, modelos locales y seguridad
-- **Estado**: borrador
+- **Estado**: en-progreso
+- **Nota (2026-09-22, orquestador)**: implementer detenido a peticion del usuario (cierre de sesion) con la tarea a medias: `tests/test_graphiti_security.py` creado (747 lineas, **20 passed** en Windows; cubre secciones 1-4 del brief: sin red desde hooks, sin datos excluidos, CA-14 dead-letter con Ollama invalido, CA-05 agentes sin escritura directa; la seccion 5 —guardarrail de red del cliente MCP como regresion del repo— quedo sin empezar). Ledger sin `RED:`/`Verificacion`/criterio marcado: al retomar, revisar el fichero, completar la seccion 5, ejecutar la Verificacion y cerrar. `Tiempo IA` parcial: 2.06h (medido; usage-meter, artefacto graphiti-memory/T-09, 2h4m reloj, 10.99 EUR — ventana cerrada por el orquestador al detener al implementer; la continuacion se mide con `T-09-bis`).
 - **Dependencias**: T-01 a T-08
 - **Archivos**: `tests/test_graphiti_security.py`, `tests/test_hooks_shell.py`
 - **Verificacion**: `python -m pytest -q tests/test_graphiti_security.py tests/test_hooks_shell.py` -> sin datos excluidos ni red desde hooks
