@@ -451,6 +451,57 @@ def test_version_seen_compara_sin_afirmar_actualizacion(tmp_path):
     assert any("sin registro previo" in l["detalle"] for l in lineas(sin))
 
 
+def test_version_sin_manifiesto_es_aviso_de_ausente_no_de_campo(tmp_path):
+    """Raíz válida sin NINGÚN manifiesto (las instalaciones de OpenCode anteriores a v1.21.x): el
+    diagnóstico no puede ser «sin campo `version`», porque su remedio («añade el campo») apuntaba a
+    un fichero que NO existía. El aviso nombra el manifiesto ausente y degrada sin bloquear."""
+    plug = plugin(tmp_path)
+    os.remove(os.path.join(plug, ".claude-plugin", "plugin.json"))
+    inf = diag(proyecto(tmp_path), plug)
+    aviso = [l for l in lineas(inf, doctor.AVISO) if l["que"] == "versión del plugin"]
+    assert len(aviso) == 1, aviso
+    assert "manifiesto" in aviso[0]["detalle"]
+    assert "sin campo" not in aviso[0]["detalle"]
+    assert "install" in aviso[0]["arreglo"]
+    assert inf["exit"] == 0
+
+
+def test_version_lee_el_manifiesto_de_codex_si_falta_el_de_claude(tmp_path):
+    """Instalación de Codex: solo `.codex-plugin/plugin.json` → la versión sale (nombrando su
+    origen); era el MISMO falso «sin campo version» que en OpenCode."""
+    plug = plugin(tmp_path)
+    os.remove(os.path.join(plug, ".claude-plugin", "plugin.json"))
+    codex = plug / ".codex-plugin"
+    codex.mkdir()
+    (codex / "plugin.json").write_text(
+        json.dumps({"name": "custom-agents", "version": "8.8.8"}), encoding="utf-8")
+    inf = diag(proyecto(tmp_path), plug)
+    ver = [l for l in lineas(inf) if l["que"] == "versión del plugin"]
+    assert len(ver) == 1, ver
+    assert ver[0]["estado"] == doctor.INFO
+    assert "8.8.8" in ver[0]["detalle"] and ".codex-plugin" in ver[0]["detalle"]
+    assert inf["exit"] == 0
+
+
+def test_version_manifiesto_roto_es_error_y_no_tapa_el_bueno(tmp_path):
+    """Un manifiesto ROTO sigue siendo ❌ (no es un aviso), pero un `.codex-plugin` sano que trae la
+    MISMA versión manda sobre él: los dos manifiestos llevan el mismo número por construcción."""
+    plug = plugin(tmp_path)
+    (plug / ".claude-plugin" / "plugin.json").write_text("{roto", encoding="utf-8")
+    roto = diag(proyecto(tmp_path), plug)
+    errores = [l for l in lineas(roto, doctor.ERROR) if l["que"] == "plugin.json"]
+    assert len(errores) == 1, errores
+
+    codex = plug / ".codex-plugin"
+    codex.mkdir()
+    (codex / "plugin.json").write_text(
+        json.dumps({"name": "custom-agents", "version": "9.9.9"}), encoding="utf-8")
+    bueno = diag(proyecto(tmp_path), plug)
+    ver = [l for l in lineas(bueno) if l["que"] == "versión del plugin"]
+    assert len(ver) == 1 and ver[0]["estado"] == doctor.INFO and "9.9.9" in ver[0]["detalle"]
+    assert not [l for l in lineas(bueno, doctor.ERROR) if l["que"] == "plugin.json"]
+
+
 def test_plugin_no_localizable_es_error_con_arreglo(tmp_path):
     vacio = tmp_path / "no-plugin"
     vacio.mkdir()

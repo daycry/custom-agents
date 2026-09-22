@@ -1993,26 +1993,58 @@ AVISO_SIN_RED = ("sin red por diseño: `/doctor` NO consulta el marketplace, as�
 
 
 def _bloque_version_plugin(plugin_root):
-    """Líneas + versión detectada de `.claude-plugin/plugin.json` (o None si no se pudo leer)."""
+    """Líneas + versión detectada del manifiesto del plugin (o None si no se pudo leer).
+
+    Dos manifiestos posibles: `.claude-plugin/plugin.json` (el de la fuente; viaja a Claude Code y
+    a la instalación de OpenCode) y `.codex-plugin/plugin.json` (Codex). Se prueban en ese orden y
+    la versión es la misma en los dos (la garantiza `tests/test_export_interop.py`).
+
+    El DETALLE de un fichero AUSENTE no es «falta el campo `version`»: `_leer_json` devuelve
+    `(None, None)` cuando el path no existe (solo da error si el fichero existe y está roto), y el
+    `else` de antes interpretaba ese `None` como «manifiesto sin versión» — decía «añade el campo»
+    para un fichero que no estaba, y el remedio no arreglaba nada. Hoy se distinguen los tres
+    casos: ausente (instalación que no copia el manifiesto), presente sin campo, y presente roto.
+    """
     ls = []
     version = None
-    datos, err = (_leer_json(os.path.join(plugin_root, ".claude-plugin", "plugin.json"))
-                  if plugin_root else (None, "plugin no localizado"))
     if not plugin_root:
         ls.append(linea(INFO, "versión del plugin", "no legible: el plugin no está localizado",
                         "ver la línea ❌ del bloque Plugin; "
                         + AVISO_SIN_RED))
-    elif err:
-        ls.append(linea(ERROR, "plugin.json", err,
-                        "restaura el fichero del plugin (`claude plugin update`): sin él Claude Code "
-                        "no puede cargarlo"))
+        return ls, None
+
+    manifiestos = [(".claude-plugin", "plugin.json"), (".codex-plugin", "plugin.json")]
+    errores = []
+    for carpeta, nombre in manifiestos:
+        rel = f"{carpeta}/{nombre}"
+        datos, err = _leer_json(os.path.join(plugin_root, carpeta, nombre))
+        if err:
+            # No se reporta aún: si OTRO manifiesto trae la versión, esa manda (son la misma) y un
+            # `.claude-plugin` roto no tapa un `.codex-plugin` sano.
+            errores.append(f"`{rel}`: {err}")
+            continue
+        if datos is None:
+            continue                                  # este manifiesto no está: siguiente candidato
+        if not isinstance(datos, dict) or not datos.get("version"):
+            ls.append(linea(AVISO, "versión del plugin",
+                            f"`{rel}` existe pero sin campo `version`",
+                            f"añade `\"version\": \"X.Y.Z\"` a {rel} (o restaura el manifiesto)"))
+            return ls, None
+        version = datos["version"]
+        origen = "" if carpeta == ".claude-plugin" else f" (leído de `{rel}`)"
+        ls.append(linea(INFO, "versión del plugin", f"{version}{origen} — {AVISO_SIN_RED}"))
+        return ls, version
+
+    if errores:
+        ls.append(linea(ERROR, "plugin.json", " · ".join(errores),
+                        "restaura el manifiesto: reinstálalo "
+                        "(`npx @daycry/custom-agents install -p <runtime>`)"))
     else:
-        version = (datos or {}).get("version") if isinstance(datos, dict) else None
-        if not version:
-            ls.append(linea(AVISO, "versión del plugin", "sin campo `version` en `.claude-plugin/plugin.json`",
-                            "restaura el fichero del plugin o añade `\"version\": \"X.Y.Z\"`"))
-        else:
-            ls.append(linea(INFO, "versión del plugin", f"{version} — {AVISO_SIN_RED}"))
+        ls.append(linea(AVISO, "versión del plugin",
+                        "sin manifiesto del plugin: no hay `.claude-plugin/plugin.json` ni "
+                        "`.codex-plugin/plugin.json` en la raíz detectada",
+                        "actualiza la instalación (`npx @daycry/custom-agents install -p <runtime>`) "
+                        "para que viaje el manifiesto"))
     return ls, version
 
 

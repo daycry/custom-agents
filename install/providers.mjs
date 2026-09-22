@@ -480,6 +480,11 @@ const opencode = {
       ...PAYLOAD_COMUN.map((p) => ({ type: "copy", from: p, to: join(base, p) })),
       { type: "copy", from: "interop/opencode/agents", to: join(base, "agents") },
       { type: "copy", from: "interop/opencode/commands", to: join(base, "commands") },
+      // El manifiesto del plugin viaja también aquí: sin él `/doctor` no puede decir la versión
+      // instalada (lee `<raíz>/.claude-plugin/plugin.json`) y OpenCode no tiene ningún otro origen
+      // de versión. Solo es metadata (name/version/description…): OpenCode autodescubre
+      // `plugins/*.js`, no esta carpeta, así que no cambia nada cómo carga.
+      { type: "copy", from: ".claude-plugin", to: join(base, ".claude-plugin") },
       {
         type: "copy",
         from: `interop/opencode/plugins/${ADAPTADOR_OPENCODE}`,
