@@ -1574,7 +1574,22 @@ def revoke(knowledge_id, cfg):
 
 
 _CACHE_VERIFY_TTL_S = 5  # gap #70 (lente D): ventana corta, solo para no repetir el barrido
-_cache_verify = {}       # {(endpoint, group_id, root): (veredicto, expira_monotonic)}
+# Gap #149 (Minor, fix4 Fase 3): un veredicto FAIL-CLOSED (`incompleto`/`no_verificable`) no
+# cambia solo -hace falta editar `taxonomy.json`, encender el stack o republicar-, y sin embargo
+# se re-barria el grafo ENTERO cada 5 s para volver a decir que no: 20 consultas espaciadas ≈
+# 294 MiB para devolver 0 aciertos. Ventana larga para el «no», corta para el «si» (un desfase
+# REAL si aparece sin que nadie toque nada, y ese no se puede enmascarar).
+_CACHE_VERIFY_TTL_FAILCLOSED_S = 300
+_cache_verify = {}       # {clave de `_clave_cache_verify`: (veredicto, expira_monotonic)}
+
+
+def _clave_cache_verify(cfg):
+    """Gap #149: la clave lleva TAMBIEN los topes que deciden el veredicto (`max_episodes`,
+    `max_respuesta_kb`) y el modo — si no, el TTL largo sobreviviria al remedio que el propio
+    veredicto nombra («sube los topes»), que es justo lo que el usuario acaba de hacer."""
+    cfg = cfg or {}
+    return (cfg.get("endpoint"), cfg.get("group_id"), cfg.get("_root"),
+            _modo(cfg), _max_episodios_verify(cfg), _max_respuesta_bytes(cfg))
 
 
 def _invalidar_cache_verify(cfg):
@@ -1583,7 +1598,12 @@ def _invalidar_cache_verify(cfg):
     una lectura con un veredicto OBSOLETO (hasta 5 s de desfase invisible). Cada escritura que
     cambia el manifiesto o el grafo tira la entrada de SU clave (endpoint, group_id, root)."""
     cfg = cfg or {}
-    _cache_verify.pop((cfg.get("endpoint"), cfg.get("group_id"), cfg.get("_root")), None)
+    # Gap #149: la clave ahora lleva ademas los topes de lectura, asi que se tira TODA entrada de
+    # este (endpoint, group_id, root) -la escritura invalida el veredicto, se hubiera calculado
+    # con los topes que se hubiera calculado.
+    destino = (cfg.get("endpoint"), cfg.get("group_id"), cfg.get("_root"))
+    for clave in [k for k in _cache_verify if k[:3] == destino]:
+        _cache_verify.pop(clave, None)
 
 
 def _verify_cacheado(cfg):
@@ -1592,13 +1612,18 @@ def _verify_cacheado(cfg):
     `get_episodes`. El resultado se cachea en PROCESO con un TTL corto (5 s): suficiente para una
     rafaga de consultas, demasiado corto para enmascarar un desfase real."""
     cfg = cfg or {}
-    clave = (cfg.get("endpoint"), cfg.get("group_id"), cfg.get("_root"))
+    clave = _clave_cache_verify(cfg)
     ahora = time.monotonic()
     entrada = _cache_verify.get(clave)
     if entrada and entrada[1] > ahora:
         return entrada[0]
     veredicto = verify(cfg)
-    _cache_verify[clave] = (veredicto, ahora + _CACHE_VERIFY_TTL_S)
+    # Gap #149: el «no» fail-closed se cachea largo (solo cambia con una edicion de config -que
+    # cambia la clave- o con una escritura -que invalida-); el «si» sigue con la ventana corta.
+    ttl = (_CACHE_VERIFY_TTL_FAILCLOSED_S
+           if veredicto.get("estado") in ("incompleto", "no_verificable")
+           else _CACHE_VERIFY_TTL_S)
+    _cache_verify[clave] = (veredicto, ahora + ttl)
     return veredicto
 
 
@@ -1875,6 +1900,12 @@ def verify(cfg):
                       + _lista_resumida(sorted(otros_grupos)))
     if incompleto:
         salida["no_verificado"] = len(no_confirmadas)
+        # Gap #148 (Important, fix4 Fase 3): un veredicto `incompleto` no dice QUIEN corto la
+        # ventana. `total` (entradas del manifiesto) es lo que le falta al consumidor para
+        # distinguir «el backend no llego» de «la ventana que YO le pase no daba para tanto»
+        # (`/doctor` recorta `max_episodes` a su tope de diagnostico): con `total` > la ventana
+        # que el llamador impuso, el limite es SUYO y no hay nada que avisar del backend.
+        salida["total"] = len(entradas)
         salida["remedio"] = _REMEDIO_VENTANA_INCOMPLETA
         avisos.append(
             f"{len(no_confirmadas)} entrada(s) sin confirmar: la ventana de `get_episodes` no "
@@ -2060,6 +2091,15 @@ def _indice_procedencia(cliente, group_id, tope, nombres_buscados=()):
             if not hubo_ventana_buena:
                 raise     # ni la PRIMERA ventana cabe: es un error de configuracion, no un limite
             return (*ultima_buena, False, "lectura")
+        except _RespuestaIlegible:
+            # Gap #153 (Minor, fix4 Fase 3): mismo patron que #134 por OTRA excepcion. Una ventana
+            # AMPLIADA que el servidor responde con una forma inesperada (o un `ErrorResponse`)
+            # levantaba `_RespuestaIlegible`, que subia al `except` de `consultar` y tiraba los
+            # aciertos que la ventana pequena YA habia resuelto. Con una ventana buena detras se
+            # conserva y se declara incompleta; sin ninguna, sigue subiendo como error real.
+            if not hubo_ventana_buena:
+                raise
+            return (*ultima_buena, False, "ilegible")
         ultima_buena, hubo_ventana_buena = (por_nombre, invalidados, superados), True
         if all(n in por_nombre for n in buscables):
             return por_nombre, invalidados, superados, True, ""
@@ -2184,6 +2224,13 @@ def _remedio_ventana(cfg, causa, tope):
     if causa == "lectura":
         return ("el tope de lectura corto la ampliacion de la ventana (`max_respuesta_kb`): "
                 "subelo o acota la consulta")
+    if causa == "ilegible":
+        # Gap #153 (fix4 Fase 3): no hay palanca de config que arregle esto -es el servidor el que
+        # responde una forma que no es la del `outputSchema`-, asi que el motivo lo DICE en vez de
+        # prometer un tope que subir.
+        return ("la ampliacion de la ventana devolvio una respuesta ilegible de `get_episodes` "
+                "(no es lista ni `{\"episodes\": [...]}`): se sirve lo resuelto en la ventana "
+                "anterior")
     if causa == "grupos":
         return ("el servidor devolvio episodios de otro(s) `group_id`: la ventana de "
                 "`get_episodes` no es solo la de este grupo")

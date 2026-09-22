@@ -3415,3 +3415,126 @@ class TestGraphitiFase3Fix3(unittest.TestCase):
         self.assertFalse(self.mod._mas_vigente(vivo_v1, {"estado": "aprobado", "version": "2"}))
         self.assertEqual(self.mod._version_entera({"version": "no-numerica"}), -1)
         self.assertEqual(self.mod._version_entera({"version": " 7 "}), 7)
+
+
+class TestGraphitiFase3Fix4(unittest.TestCase):
+    """Ronda fix4 de la Fase 3 (verificacion dirigida de fix3): #148 (`verify` publica `total`
+    para que el consumidor distinga «el backend no llego» de «la ventana que YO le pase se quedo
+    corta»), #149 (el veredicto fail-closed `incompleto`/`no_verificable` no se re-barre a coste
+    completo cada 5 s) y #153 (la ampliacion de ventana de `consultar` que devuelve una respuesta
+    ILEGIBLE conserva la ultima ventana buena, igual que #134 hizo con `ErrorMCP`)."""
+
+    # El andamiaje (servidor falso, episodios REALES del adaptador, manifiesto) es el mismo de
+    # fix3: se reusa por referencia, no por herencia -heredar volveria a ejecutar toda la clase.
+    tearDown = TestGraphitiFase3Fix3.tearDown
+    _cfg = TestGraphitiFase3Fix3._cfg
+    _episodio = TestGraphitiFase3Fix3._episodio
+    _ruido = TestGraphitiFase3Fix3._ruido
+    _respuestas = TestGraphitiFase3Fix3._respuestas
+    _manifiesto = TestGraphitiFase3Fix3._manifiesto
+
+    def setUp(self):
+        self.mod = _cargar("graphiti.py", "ks_backend_graphiti_f3fix4")
+        self.tmp = tempfile.mkdtemp(prefix="ks-graphiti-f3fix4-")
+        self.mod._cache_verify.clear()
+
+    # ------------------------------------------------------------------ #148 (Important)
+    def test_f3fix4_gap148_el_veredicto_incompleto_publica_el_total_del_manifiesto(self):
+        """Gap #148: sin `total`, un consumidor que RECORTA la ventana (`/doctor`, gap #119) no
+        puede saber si la verificacion quedo incompleta por su propio recorte o por el backend."""
+        with _ServidorMCPContext(respuestas_tools=self._respuestas(self._ruido(300))) as srv:
+            cfg = self._cfg(srv.endpoint, max_episodes=100)
+            self._manifiesto(cfg, {"mem.adr.uno": {"version": 1, "hash": "h" * 8},
+                                   "mem.adr.dos": {"version": 1, "hash": "h" * 8}})
+            veredicto = self.mod.verify(cfg)
+        self.assertEqual(veredicto.get("estado"), "incompleto", veredicto)
+        self.assertEqual(veredicto.get("total"), 2, veredicto)
+
+    # ------------------------------------------------------------------ #149 (Minor)
+    def test_f3fix4_gap149_el_veredicto_incompleto_no_se_re_barre_cada_cinco_segundos(self):
+        """Gap #149 (lente D): `incompleto` es fail-closed y solo cambia editando la config o
+        republicando, pero se recalculaba a coste COMPLETO cada 5 s (TTL de #70): 20 consultas
+        espaciadas = ~294 MiB de `get_episodes` para devolver 0 aciertos."""
+        with _ServidorMCPContext(respuestas_tools=self._respuestas(self._ruido(300))) as srv:
+            cfg = self._cfg(srv.endpoint, max_episodes=100)
+            self._manifiesto(cfg, {"mem.adr.uno": {"version": 1, "hash": "h" * 8}})
+            primero = self.mod._verify_cacheado(cfg)
+            llamadas = len([l for l in srv.llamadas if l[0] == "get_episodes"])
+            reloj = self.mod.time.monotonic
+            self.mod.time = type("R", (), {"monotonic": staticmethod(lambda: reloj() + 60)})()
+            try:
+                segundo = self.mod._verify_cacheado(cfg)
+            finally:
+                self.mod.time = time
+            despues = len([l for l in srv.llamadas if l[0] == "get_episodes"])
+        self.assertEqual(primero.get("estado"), "incompleto", primero)
+        self.assertEqual(segundo.get("estado"), "incompleto", segundo)
+        self.assertEqual(despues, llamadas, "el veredicto fail-closed se re-barrio a los 60 s")
+
+    def test_f3fix4_gap149_subir_los_topes_en_la_config_invalida_la_cache(self):
+        """El remedio que el propio veredicto NOMBRA (`sube `max_episodes``) tiene que surtir
+        efecto en la siguiente llamada: la cache no puede sobrevivir a un cambio de config."""
+        # El episodio propio queda SEPULTADO tras el ruido: con la ventana de 100 no se alcanza
+        # (veredicto `incompleto`), con 2000 si (`ok`).
+        episodios = self._ruido(300) + [self._episodio("mem.adr.uno")]
+        with _ServidorMCPContext(respuestas_tools=self._respuestas(episodios)) as srv:
+            cfg = self._cfg(srv.endpoint, max_episodes=100)
+            self._manifiesto(cfg, {"mem.adr.uno": {"version": 1, "hash": "h" * 8}})
+            incompleto = self.mod._verify_cacheado(cfg)
+            completo = self.mod._verify_cacheado(self._cfg(srv.endpoint, max_episodes=2000))
+        self.assertEqual(incompleto.get("estado"), "incompleto", incompleto)
+        self.assertEqual(completo.get("estado"), "ok", completo)
+
+    def test_f3fix4_gap149_un_veredicto_ok_conserva_la_ventana_corta_de_cache(self):
+        """#149 no puede tapar #70/#95: un `ok` SI se recalcula pronto (5 s), porque un desfase
+        real aparece sin que nadie toque la config."""
+        ep = self._episodio("mem.adr.uno")
+        with _ServidorMCPContext(respuestas_tools=self._respuestas([ep])) as srv:
+            cfg = self._cfg(srv.endpoint)
+            self._manifiesto(cfg, {"mem.adr.uno": {"version": 1, "hash": "h" * 8}})
+            self.mod._verify_cacheado(cfg)
+            llamadas = len([l for l in srv.llamadas if l[0] == "get_episodes"])
+            reloj = self.mod.time.monotonic
+            self.mod.time = type("R", (), {"monotonic": staticmethod(lambda: reloj() + 60)})()
+            try:
+                self.mod._verify_cacheado(cfg)
+            finally:
+                self.mod.time = time
+            despues = len([l for l in srv.llamadas if l[0] == "get_episodes"])
+        self.assertGreater(despues, llamadas, "un `ok` cacheado 60 s enmascararia un desfase real")
+
+    # ------------------------------------------------------------------ #153 (Minor)
+    def test_f3fix4_gap153_la_ampliacion_ilegible_conserva_la_ventana_pequena(self):
+        """Gap #153: mismo patron que #134 por OTRA excepcion. La ventana AMPLIADA que devuelve
+        una respuesta ilegible levantaba `_RespuestaIlegible`, que subia al `except` de
+        `consultar` y tiraba los aciertos que la ventana pequena YA habia resuelto."""
+        visible = self._episodio("mem.adr.visible")
+        enterrado = self._episodio("mem.adr.enterrado",
+                                   ruta="docs/knowledge/approved/adr/ADR-200.md")
+        episodios = [visible] + self._ruido(300) + [enterrado]
+        nodos = [{"name": visible["name"], "uuid": visible["uuid"], "summary": "res"},
+                 {"name": enterrado["name"], "uuid": enterrado["uuid"], "summary": "res"}]
+
+        def get_episodes(args):
+            tope = args.get("max_episodes") or len(episodios)
+            if tope > 50:   # la AMPLIACION: el servidor responde una forma inesperada
+                return {"structuredContent": {"episodes": "no-soy-una-lista"}}
+            return {"structuredContent": {"episodes": episodios[:tope]}}
+
+        respuestas = dict(self._respuestas(episodios, nodos=nodos), get_episodes=get_episodes)
+        with _ServidorMCPContext(respuestas_tools=respuestas) as srv:
+            salida = self.mod.consultar(self._cfg(srv.endpoint), {"texto": "memoria", "limit": 10})
+        self.assertEqual([a["id"] for a in salida["aciertos"]], ["mem.adr.visible"], salida)
+        self.assertEqual(salida.get("fuera_de_ventana"), 1, salida)
+        self.assertIn("ilegible", salida.get("motivo", ""), salida)
+
+    def test_f3fix4_gap153_si_ni_la_primera_ventana_es_legible_sigue_siendo_un_error(self):
+        """El respaldo es «conservar la ultima ventana BUENA», no «tragarse la respuesta rota»."""
+        visible = self._episodio("mem.adr.visible")
+        nodos = [{"name": visible["name"], "uuid": visible["uuid"], "summary": "res"}]
+        respuestas = dict(self._respuestas([visible], nodos=nodos),
+                          get_episodes=lambda _a: {"structuredContent": {"episodes": 42}})
+        with _ServidorMCPContext(respuestas_tools=respuestas) as srv:
+            salida = self.mod.consultar(self._cfg(srv.endpoint), {"texto": "memoria", "limit": 10})
+        self.assertEqual(salida["aciertos"], [], salida)
+        self.assertIn("ilegible", salida.get("motivo", ""), salida)

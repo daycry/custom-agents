@@ -102,8 +102,19 @@ La fila `graphiti (backend)` es la comprobación de red **en vivo** que hace el 
 contra el endpoint **local** declarado. `/doctor` no registra ningún servidor MCP ni toca
 configuración global: solo lee.
 
-Como `/doctor` recorta la ventana de lectura del adaptador (es un diagnóstico, no una
-verificación exhaustiva), un grupo con más episodios que esa ventana sale como **⚠️ verificación
-incompleta: N entrada(s) sin confirmar** con el remedio del adaptador (subir `max_respuesta_kb`/
-`max_episodes`, o publicar en un `group_id` propio del proyecto). No es un desfase: es que no se
-ha podido mirar — y por eso tampoco autoriza la lectura enrutada (CA-10).
+`/doctor` recorta la ventana de lectura del adaptador a **200 entradas** (es un diagnóstico, no
+una verificación exhaustiva). De ahí salen dos filas distintas, y conviene no confundirlas:
+
+- **ℹ️ «verificación acotada a 200 de N entrada(s) por /doctor»** — el manifiesto tiene más
+  entradas que esa ventana, así que el recorte es de `/doctor`, no un problema del backend: subir
+  `max_respuesta_kb`/`max_episodes` en `taxonomy.json` no cambia esta fila (el diagnóstico los
+  pisa). Un desfase FUERA de esa ventana no se ve desde aquí; la verificación completa es
+  `python skills/knowledge-services/scripts/knowledge-sync.py --backend <id> --check`.
+- **⚠️ «verificación incompleta: N entrada(s) sin confirmar»** — el manifiesto SÍ cabía en la
+  ventana y aun así el adaptador no pudo confirmarlo todo: el límite es suyo (su tope de lectura),
+  y el remedio que da la fila es el del adaptador. No es un desfase: es que no se ha podido mirar
+  — y por eso tampoco autoriza la lectura enrutada (CA-10).
+
+Y un tercer caso: **ℹ️ «verificación no disponible: …»** cuando el adaptador responde el veredicto
+`no_verificable` (backend en `mode: off`, sin endpoint, respuesta ilegible); la fila trae su
+`razon` en vez de inventarse un «export atrasado».

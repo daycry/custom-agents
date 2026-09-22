@@ -1629,12 +1629,44 @@ def _linea_capacidad_backend(cap_id, tipo, cfg_adaptador, backends_mod, backends
         aviso_verify = _sanear_detalle(verificacion.get("aviso") or "")
         if verificacion.get("estado") == "incompleto" or verificacion.get("no_verificado"):
             sin_confirmar = verificacion.get("no_verificado") or "?"
+            # gap #148 (Important, fix4 de la Fase 3 del ciclo en curso): esa rama se combinaba con
+            # el recorte de ventana de #119 (`CAPACIDAD_VENTANA_TOPE`) y convertia TODA instalacion
+            # con mas entradas que la ventana en un ⚠️ permanente, con un remedio («sube
+            # `max_respuesta_kb`/`max_episodes`») que el propio /doctor pisa al recortar. Si el
+            # backend declara un `total` (entradas a verificar) MAYOR que la ventana que /doctor le
+            # paso, el limite es NUESTRO, no suyo: la fila lo dice (informativa) y manda a la
+            # verificacion completa, que no la hace un diagnostico rapido.
+            ventana = cfg_adaptador.get("max_episodes")
+            total = verificacion.get("total")
+            if (isinstance(total, int) and not isinstance(total, bool)
+                    and isinstance(ventana, int) and total > ventana):
+                return linea(INFO, f"{cap_id} (backend)",
+                             f"verificación acotada a {ventana} de {total} entrada(s) por /doctor "
+                             f"(diagnóstico rápido): {sin_confirmar} sin confirmar; un desfase "
+                             f"fuera de esa ventana no se ve desde aquí",
+                             "verificación completa: `python skills/knowledge-services/scripts/"
+                             "knowledge-sync.py --backend <id> --check`")
+            # El conteo se dice UNA vez: el `aviso` del adaptador ya lo trae (#148), asi que ese
+            # fragmento no se repite detras del nuestro.
+            extra = " · ".join(t for t in aviso_verify.split(" · ")
+                               if f"{sin_confirmar} entrada(s) sin confirmar" not in t)
             return linea(AVISO, f"{cap_id} (backend)",
                          f"verificación incompleta: {sin_confirmar} entrada(s) sin confirmar"
-                         + (f" · {aviso_verify}" if aviso_verify else ""),
+                         + (f" · {extra}" if extra else ""),
                          _sanear_detalle(verificacion.get("remedio") or "")
                          or "sube los topes de lectura del backend (`max_respuesta_kb`/"
                             "`max_episodes`) en `taxonomy.json` y vuelve a pasar /doctor")
+        if verificacion.get("estado") == "no_verificable":
+            # gap #152 (Minor, fix4 de la Fase 3 del ciclo en curso): el CUARTO veredicto («no he
+            # podido verificar»: backend en `mode: off`, sin endpoint, respuesta ilegible) caia en
+            # la rama de desfase y salia como «export atrasado (0 desfase(s)): sin motivo
+            # detallado» — un atraso inventado sobre una verificacion que no llego a hacerse.
+            return linea(INFO, f"{cap_id} (backend)",
+                         "verificación no disponible: "
+                         + (_sanear_detalle(verificacion.get("razon") or "") or "sin motivo detallado"),
+                         _sanear_detalle(verificacion.get("remedio") or "")
+                         or "normal si el backend no está en modo verificable; revisa su `config` "
+                            "en `taxonomy.json` si esperabas verificación")
         if verificacion.get("ok", True):
             if aviso_verify:
                 # gap #133/#147: el `aviso` de un `verify` SIN desfase (p. ej. el remedio de

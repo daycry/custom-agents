@@ -862,3 +862,53 @@ def test_f3fix3_gap143_el_filtro_area_encuentra_la_entrada_que_solo_trae_el_tag(
     code, out, err = run("--area", "memoria", "--json", "--root", str(tmp_path))
     assert code == 0, err
     assert [a["id"] for a in json.loads(out)["aciertos"]] == ["GOT-010"], out
+
+
+# --------------------------------------------------------------- fix4 Fase 3 (#150)
+
+_FM_REAL_APPROVED = (
+    "---\n"
+    "id: custom-agents.GOT-012\n"
+    "category: GOTCHA\n"
+    "version: 1\n"
+    "estado: aprobado\n"
+    "evidencia: validated_case\n"
+    "fuentes:\n"
+    "  - docs/roadmap/2026-09-15-knowledge-services/tasks.md (gaps #126, #127)\n"
+    "enlaces:\n"
+    "  - custom-agents.PAT-001\n"
+    "tags:\n"
+    "  - agente:knowledge-services\n"
+    "  - area:publicacion-atomica\n"
+    "  - riesgo:perdida-de-datos\n"
+    "curador: knowledge-curator\n"
+    "---\n\n# GOT-012\n\ncuerpo\n")
+
+
+def test_f3fix4_gap150_el_area_sale_del_tag_en_lista_de_bloque_como_en_approved():
+    """Gap #150 (#143 parcial): TODAS las entradas reales de `docs/knowledge/approved/` declaran
+    los tags como lista de BLOQUE (`tags:\n  - area:x`), no en línea. El `frontmatter()` aplana
+    esa lista sin comas, así que el parser de tags devolvía un área compuesta basura
+    («publicacion-atomica - riesgo:perdida-de-datos»): el área local seguía sin coincidir con la
+    que sirve el adaptador de grafo, que es lo que #143 venía a arreglar."""
+    fila = kf.leer_entrada("gotchas", "gotcha", "custom-agents.GOT-012-x.md", _FM_REAL_APPROVED, {})
+    assert fila["area"] == "publicacion-atomica", fila
+
+
+def test_f3fix4_gap150_el_parser_de_tags_no_confunde_guiones_internos_ni_otros_tags():
+    """Los guiones DENTRO del valor (`root-cause`) no parten el tag, y solo los `area:` cuentan."""
+    assert kf._area_de_tags("- agente:x - area:root-cause - riesgo:y") == "root-cause"
+    assert kf._area_de_tags("[area:memoria tecnica, agente:implementer]") == "memoria tecnica"
+    assert kf._area_de_tags("- agente:implementer - riesgo:z") == ""
+
+
+def test_f3fix4_gap150_el_filtro_area_encuentra_la_entrada_con_tags_en_bloque(tmp_path):
+    kn = tmp_path / "docs" / "knowledge" / "gotchas"
+    kn.mkdir(parents=True)
+    (kn / "GOT-012-bloque.md").write_text(_FM_REAL_APPROVED, encoding="utf-8")
+    (tmp_path / "docs" / "knowledge" / "README.md").write_text("# fixture\n", encoding="utf-8")
+    code, out, err = run("--area", "publicacion-atomica", "--json", "--root", str(tmp_path))
+    assert code == 0, err
+    # el `id` que sirve el indice local es el corto (`GOT-012`); lo que prueba este test es que
+    # el `--area` del tag en lista de bloque la ENCUENTRA.
+    assert [a["id"] for a in json.loads(out)["aciertos"]] == ["GOT-012"], out

@@ -413,6 +413,7 @@ def _ids_en(texto):
 
 
 _PREFIJO_TAG_AREA = "area:"
+_SEP_TAGS_RE = re.compile(r",|(?:^|\s)-\s+")
 
 
 def _area_de_tags(tags):
@@ -425,7 +426,13 @@ def _area_de_tags(tags):
     if not isinstance(tags, str) or not tags:
         return ""
     valores = []
-    for pieza in tags.strip().strip("[]").split(","):
+    # Gap #150 (Minor, fix4 Fase 3): las entradas reales de `docs/knowledge/approved/` declaran
+    # los tags como lista de BLOQUE (`tags:\n  - area:x\n  - riesgo:y`), que `frontmatter()`
+    # aplana SIN comas — partir solo por comas devolvía un área compuesta basura
+    # («publicacion-atomica - riesgo:perdida-de-datos»). Se parte además por el guion de item
+    # (inicio de cadena o precedido de espacio, y seguido de espacio), que no puede confundirse
+    # con un guion interno del valor (`root-cause`).
+    for pieza in _SEP_TAGS_RE.split(tags.strip().strip("[]")):
         pieza = pieza.strip().strip("\"'").lstrip("- ").strip()
         if pieza.lower().startswith(_PREFIJO_TAG_AREA):
             valor = pieza[len(_PREFIJO_TAG_AREA):].strip()
