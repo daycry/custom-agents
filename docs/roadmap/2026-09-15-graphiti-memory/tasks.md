@@ -21,8 +21,8 @@ verificacion: obligatoria
 | Fase 1 - Contrato y modelo | 3 | 3 | 100% | 0 / 13h | 3.45 / 3.9h | 0 / 1.0h | ~13.6M / 175k (fix1+fix2: cache de contexto largo) |
 | Fase 2 - Sincronizacion | 3 | 3 | 100% | 0 / 16h | 7.75 / 4.8h | 0 / 1.2h | ~19.3M+ / 200k (T-04/T-05/T-06 medidos juntos: base 0.8h + fix1 2.24h + fix3 1.47h + fix4 2.73h + fix5 0.51h; tokens de fix4 no capturados en el primer cierre, ~5.9M de fix5 sumados) |
 | Fase 3 - Router y configuracion | 2 | 2 | 100% | 0 / 11h | 5.18 / 3.3h | 0 / 0.9h | ~24M+ / 110k (T-07 0.91h · T-08 0.22h · fix1 1.14h · fix2 1.11h · fix3 1.16h · fix4 0.64h; tokens medidos por marcador salvo T-07/T-08 base) |
-| Fase 4 - Regresion y cierre | 0 | 2 | 0% | 0 / 10h | 0 / 3h | 0 / 0.7h | 0 / 60k |
-| **TOTAL** | **8** | **10** | **80%** | **0 / 50h** | **16.38 / 15h** | **0 / 3.8h** | **~57M+ / 545k** |
+| Fase 4 - Regresion y cierre | 2 | 2 | 100% (pendiente revisión de dos lentes) | 0 / 10h | 2.71 / 3h | 0 / 0.7h | medido / 60k (T-09 2.06h + 0.18h bis · T-10 0.47h) |
+| **TOTAL** | **10** | **10** | **100% (plan; cierre pendiente de revisión F4, qa, doc, retro)** | **0 / 50h** | **19.09 / 15h** | **0 / 3.8h** | **~60M+ / 545k** |
 
 ## Fase 1 - Contrato y modelo
 
