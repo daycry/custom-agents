@@ -38,6 +38,7 @@ import importlib.util
 import json
 import os
 import re
+import shutil
 import socket
 import sys
 import threading
@@ -58,11 +59,23 @@ def _cargar(ruta, nombre):
     return mod
 
 
-# El servidor MCP falso (fixtures reales capturadas del stack) y el constructor de entradas de la
-# suite del adaptador se REUTILIZAN; los tests de abajo son propios.
-_suite_adaptador = _cargar(os.path.join(KS_SCRIPTS, "test_backend_graphiti.py"),
-                           "graphiti_suite_adaptador_para_seguridad")
-ServidorMCP = _suite_adaptador._ServidorMCPContext
+# El servidor MCP falso (fixtures reales capturadas del stack) y el constructor de entradas se
+# REUTILIZAN; los tests de abajo son propios.
+#
+# Gap #166 (Minor, fix1 Fase 4): antes se importaba `test_backend_graphiti.py` POR RUTA con un
+# nombre de modulo propio, asi que bajo la invocacion unica de pytest de CI ese fichero de tests se
+# cargaba DOS veces (dos juegos de fixtures y dos clases de handler, con estado compartido entre
+# suites). Ahora las dos suites cargan el modulo de APOYO `_mcp_fake.py` con el mismo nombre
+# canonico y comprobando `sys.modules`: una sola ejecucion por proceso.
+def _cargar_apoyo_mcp():
+    nombre = "ks_graphiti_mcp_fake"
+    if nombre in sys.modules:
+        return sys.modules[nombre]
+    return _cargar(os.path.join(KS_SCRIPTS, "_mcp_fake.py"), nombre)
+
+
+_apoyo_mcp = _cargar_apoyo_mcp()
+ServidorMCP = _apoyo_mcp._ServidorMCPContext
 
 ks_sync = _cargar(os.path.join(KS_SCRIPTS, "knowledge-sync.py"), "ks_sync_seguridad")
 gr = _cargar(os.path.join(KS_BACKENDS, "graphiti.py"), "ks_graphiti_seguridad")
@@ -73,14 +86,32 @@ ob = _cargar(os.path.join(SHARED, "outbox.py"), "outbox_seguridad")
 # ====================================================================== 1. sin red desde hooks
 
 _TERMINOS_RED = ("urllib", "urlopen", "http.client", "httpx", "requests.", "socket.socket",
-                 "socket.create_connection", "curl ", "wget ", "invoke-webrequest")
+                 "socket.create_connection", "curl ", "wget ", "invoke-webrequest",
+                 # gap #155: una cadena INLINE de un hook no es python, asi que el termino
+                 # peligroso puede ser un binario o una IP a pelo (IMDS de nube).
+                 "169.254.169.254", "metadata.google.internal")
+# Binarios de red que solo tienen sentido en una cadena INLINE (no son python): se buscan
+# TOKENIZANDO, no como subcadena (`nc ` casaria dentro de `sync `, `func `...).
+_BINARIOS_DE_RED = {"curl", "wget", "nc", "ncat", "telnet", "ssh", "scp", "invoke-webrequest"}
 _MODULOS_RED = {"urllib", "urllib.request", "urllib.parse", "http.client", "httplib", "socket",
                 "requests", "httpx", "ssl"}
 # Los dos scripts que los hooks SI invocan y que definen en su propio argparse los flags
 # prohibidos: la prohibicion es para quien los LLAMA, no para la herramienta que los declara.
 _HERRAMIENTAS = {"knowledge-find.py", "capabilities.py"}
 _MAX_SALTOS = 5
-_RUTA_RE = re.compile(r"[\w./\\-]+\.(?:py|sh)")
+# Gap #155 (Important, fix1 Fase 4): el lookahead final quita los falsos positivos del escaneo de
+# CODIGO (`hashlib.sha256` casaba como `hashlib.sh`). Hace falta porque a partir de este fix una
+# cita que no resuelve YA NO se descarta en silencio: es un fallo.
+_RUTA_RE = re.compile(r"[\w./\\-]+\.(?:py|sh)(?![\w])")
+# Token de una cita dentro de una cadena de shell (`bash "${X}/hooks/a.sh"`, `python3 "$S/b.py"`).
+_TOKEN_SCRIPT_RE = re.compile(r"""[^\s"'`;|&()]*\.(?:py|sh)(?![\w])""")
+_EXPANSION_SHELL_RE = re.compile(r"\$\{[^}]*\}|\$\w+")
+# Lista blanca EXPLICITA de citas que no corresponden a un fichero del repo. Vacia a proposito:
+# todo hook del plugin invoca scripts del plugin. Añadir una entrada aqui es una decision
+# consciente y revisable, no el descarte silencioso que encontro el gap #155.
+_CITAS_SIN_FICHERO_PERMITIDAS = ()
+_FLAGS_QUE_CARGAN_ADAPTADOR = ("--intent", "--backends-dir")
+_SCRIPTS_CON_RED = ("knowledge-sync.py", "capabilities.py")
 
 
 def _texto(ruta):
@@ -129,106 +160,280 @@ def _modulos_importados(ruta):
     return modulos
 
 
-def _resolver(ruta_rel):
-    """Ruta real de un script citado: relativa al repo, o por NOMBRE bajo `agent-kits/shared/` y
-    `hooks/` (las dos carpetas de donde salen los scripts que los hooks invocan)."""
+def _resolver(ruta_rel, root=ROOT):
+    """Ruta real de un script citado: relativa al repo, o por NOMBRE bajo `agent-kits/shared/`,
+    `hooks/` y `skills/knowledge-services/backends/` (las carpetas de donde salen los scripts que
+    los hooks invocan y el contrato de adaptadores que `knowledge-find.py` nombra)."""
     ruta_rel = ruta_rel.replace("\\", "/").lstrip("$/")
-    candidato = os.path.normpath(os.path.join(ROOT, ruta_rel))
-    if os.path.isfile(candidato):
+    if not ruta_rel or ruta_rel in (".py", ".sh"):
+        return None                       # cita vacia: lo que queda de `${BASE}.py` (gap #155)
+    candidato = os.path.normpath(os.path.join(root, ruta_rel))
+    raiz = os.path.normpath(root)
+    if candidato.startswith(raiz + os.sep) and os.path.isfile(candidato):
         return candidato
-    for carpeta in (SHARED, os.path.join(ROOT, "hooks")):
+    for carpeta in (os.path.join(root, "agent-kits", "shared"), os.path.join(root, "hooks"),
+                    os.path.join(root, "skills", "knowledge-services", "backends")):
         posible = os.path.join(carpeta, os.path.basename(ruta_rel))
         if os.path.isfile(posible):
             return posible
     return None
 
 
-def _scripts_citados_por_hooks_json():
-    with open(HOOKS_JSON, encoding="utf-8") as f:
-        config = json.load(f)
-    textos = []
-    for eventos in (config.get("hooks") or {}).values():
-        for bloque in eventos:
-            for hook in bloque.get("hooks") or []:
-                textos.append(str(hook.get("command", "")))
-                textos += [str(a) for a in hook.get("args") or []]
-    citados = set()
-    for texto in textos:
-        citados |= {m.group(0) for m in _RUTA_RE.finditer(texto)}
-    return citados
+def _parte_literal(token):
+    """Parte VERIFICABLE de una cita: lo que queda tras la ULTIMA expansion de variable.
+    `${CLAUDE_PLUGIN_ROOT}/hooks/session-context.sh` -> `/hooks/session-context.sh` (resuelve);
+    `$SHARED/${BASE}.py` -> `.py` (no resuelve: una cita compuesta con variables no se puede
+    verificar estaticamente y, desde el gap #155, es un FALLO, no un descarte silencioso)."""
+    trozos = list(_EXPANSION_SHELL_RE.finditer(token))
+    return token[trozos[-1].end():] if trozos else token
 
 
-def _alcanzables_desde_hooks_json():
-    """Cierre TRANSITIVO (hasta `_MAX_SALTOS`) de los scripts que `hooks/hooks.json` alcanza:
-    `{etiqueta relativa al repo: ruta absoluta}`."""
-    pendientes, vistos = _scripts_citados_por_hooks_json(), {}
+def _citas_de_cadena(texto):
+    """Citas a `.py`/`.sh` que aparecen en una cadena de shell, en su forma ORIGINAL (para poder
+    decir en el fallo que la cita venia compuesta por variables)."""
+    return {m.group(0) for m in _TOKEN_SCRIPT_RE.finditer(texto)}
+
+
+def _bloque_hooks_frontmatter(texto):
+    """Bloque `hooks:` del frontmatter YAML de un agente (ADR-007), hasta la siguiente clave de
+    primer nivel. `None` si el agente no declara hooks."""
+    texto = texto.replace(chr(13) + chr(10), chr(10))   # el repo usa CRLF: sin esto no casa
+    m = re.search(r"^hooks:[ \t]*\n(?P<bloque>(?:[ \t].*\n|\n)*)", texto, re.M)
+    return m.group("bloque") if m else None
+
+
+def _cadenas_inline(root=ROOT):
+    """[(origen, cadena)] con TODO lo que arranca un hook SIN pasar por un fichero del repo: las
+    cadenas `command`/`args` de `hooks/hooks.json` y las del bloque `hooks:` del frontmatter de
+    cada `agents/*.md` (ADR-007: el guardarrail del implementer/architect vive ahi, no en
+    `hooks.json`). El gap #155 las tenia fuera del recorrido -solo se miraban los ficheros a los
+    que resolvian-, asi que un `curl` o un `--intent` escritos ALLI MISMO pasaban en vacio."""
+    cadenas = []
+    ruta_json = os.path.join(root, "hooks", "hooks.json")
+    if os.path.isfile(ruta_json):
+        with open(ruta_json, encoding="utf-8") as f:
+            config = json.load(f)
+        for evento, eventos in sorted((config.get("hooks") or {}).items()):
+            for bloque in eventos:
+                for hook in bloque.get("hooks") or []:
+                    cadenas.append(("hooks/hooks.json %s command" % evento,
+                                    str(hook.get("command", ""))))
+                    for indice, arg in enumerate(hook.get("args") or []):
+                        cadenas.append(("hooks/hooks.json %s args[%d]" % (evento, indice), str(arg)))
+    base_agentes = os.path.join(root, "agents")
+    if os.path.isdir(base_agentes):
+        for nombre in sorted(os.listdir(base_agentes)):
+            if not nombre.endswith(".md"):
+                continue
+            bloque = _bloque_hooks_frontmatter(_texto(os.path.join(base_agentes, nombre)))
+            if not bloque:
+                continue
+            for numero, linea in enumerate(bloque.splitlines(), 1):
+                if linea.strip() and not linea.lstrip().startswith("#"):
+                    cadenas.append(("agents/%s hooks: L%d" % (nombre, numero), linea))
+    return cadenas
+
+
+def _recorrido_hooks(root=ROOT):
+    """Cierre TRANSITIVO (hasta `_MAX_SALTOS`) de lo que los hooks alcanzan, partiendo de las dos
+    fuentes reales (`hooks.json` Y los frontmatter `hooks:`). Devuelve
+    `({etiqueta relativa: ruta absoluta}, [(origen, cita) de las citas que NO resuelven])`."""
+    pendientes, sin_resolver = set(), []
+    for origen, cadena in _cadenas_inline(root):
+        for cita in _citas_de_cadena(cadena):
+            literal = _parte_literal(cita)
+            if _resolver(literal, root):
+                pendientes.add(literal)
+            elif cita not in _CITAS_SIN_FICHERO_PERMITIDAS:
+                sin_resolver.append((origen, cita))
+    vistos = {}
     for _salto in range(_MAX_SALTOS):
         siguientes = set()
         for rel in sorted(pendientes):
-            resuelta = _resolver(rel)
+            resuelta = _resolver(rel, root)
             if not resuelta:
                 continue
-            etiqueta = os.path.relpath(resuelta, ROOT).replace(os.sep, "/")
+            etiqueta = os.path.relpath(resuelta, root).replace(os.sep, "/")
             if etiqueta in vistos:
                 continue
             vistos[etiqueta] = resuelta
-            siguientes |= {m.group(0) for m in _RUTA_RE.finditer(_codigo(resuelta))}
+            for cita in sorted({m.group(0) for m in _RUTA_RE.finditer(_codigo(resuelta))}):
+                if _resolver(cita, root):
+                    siguientes.add(cita)
+                elif cita not in _CITAS_SIN_FICHERO_PERMITIDAS:
+                    sin_resolver.append((etiqueta, cita))
         pendientes = siguientes
         if not pendientes:
             break
-    return vistos
+    return vistos, sin_resolver
+
+
+def _fuentes_ejecutables(root=ROOT):
+    """[(etiqueta, texto, ruta_o_None)] de TODO lo que un hook ejecuta: las cadenas inline (que no
+    tienen fichero detras) y el CODIGO de cada script alcanzable."""
+    fuentes = [(origen, cadena, None) for origen, cadena in _cadenas_inline(root)]
+    alcanzables, _ = _recorrido_hooks(root)
+    fuentes += [(etiqueta, _codigo(ruta), ruta) for etiqueta, ruta in sorted(alcanzables.items())]
+    return fuentes
+
+
+def _ofensores_de_red(root=ROOT):
+    ofensores = []
+    for etiqueta, texto, ruta in _fuentes_ejecutables(root):
+        bajo = texto.lower()
+        for termino in _TERMINOS_RED:
+            if termino in bajo:
+                ofensores.append((etiqueta, termino))
+        for modulo in (sorted(_modulos_importados(ruta) & _MODULOS_RED) if ruta else []):
+            ofensores.append((etiqueta, "import " + modulo))
+        if ruta is None:                  # cadena inline: ademas, binarios de red como TOKEN
+            for token in re.split(r"""[\s;|&()"'`]+""", bajo):
+                if token.strip("/" + chr(92)) in _BINARIOS_DE_RED:
+                    ofensores.append((etiqueta, token))
+    return ofensores
+
+
+def _ofensores_de_scripts_con_red(root=ROOT):
+    ofensores = []
+    for etiqueta, texto, ruta in _fuentes_ejecutables(root):
+        for prohibido in _SCRIPTS_CON_RED:
+            if prohibido in texto and (ruta is None or os.path.basename(ruta) != prohibido):
+                ofensores.append((etiqueta, prohibido))
+    return ofensores
+
+
+def _ofensores_de_flags_de_adaptador(root=ROOT):
+    ofensores = []
+    for etiqueta, texto, ruta in _fuentes_ejecutables(root):
+        if ruta is not None and os.path.basename(ruta) in _HERRAMIENTAS:
+            continue                      # la herramienta DECLARA el flag; no se lo pasa a nadie
+        for flag in _FLAGS_QUE_CARGAN_ADAPTADOR:
+            if flag in texto:
+                ofensores.append((etiqueta, flag))
+    return ofensores
 
 
 def test_el_recorrido_alcanza_de_verdad_los_scripts_de_los_hooks():
     """Andamiaje del resto de la seccion: si el recorrido dejara de encontrar los scripts reales,
-    los tests de abajo pasarian EN VACIO (el fallo mas peligroso de un escaneo)."""
-    alcanzables = _alcanzables_desde_hooks_json()
+    los tests de abajo pasarian EN VACIO (el fallo mas peligroso de un escaneo). Gap #155: exige
+    tambien los hooks del FRONTMATTER (ADR-007) y su cierre transitivo (`guardrail-check.py`),
+    que antes quedaban fuera del recorrido."""
+    alcanzables, _ = _recorrido_hooks()
     for esperado in ("hooks/session-context.sh", "hooks/session-journal.sh",
                      "agent-kits/shared/journal.py", "agent-kits/shared/outbox.py",
-                     "agent-kits/shared/knowledge-find.py", "agent-kits/shared/skill-index.py"):
+                     "agent-kits/shared/knowledge-find.py", "agent-kits/shared/skill-index.py",
+                     # hooks declarados en el frontmatter de un agente, no en `hooks.json`
+                     "hooks/implementer-guardrail.sh", "hooks/architect-guardrail.sh",
+                     "agent-kits/shared/guardrail-check.py"):
         assert esperado in alcanzables, (esperado, sorted(alcanzables))
     assert len(alcanzables) >= 8, sorted(alcanzables)
+    origenes = {o.split(" ")[0] for o, _ in _cadenas_inline()}
+    assert "hooks/hooks.json" in origenes and "agents/implementer.md" in origenes, sorted(origenes)
+
+
+def test_toda_cita_de_script_desde_un_hook_resuelve_a_un_fichero_real():
+    """Gap #155: una cita que no resolvia se descartaba EN SILENCIO (`continue`), asi que un hook
+    que invocase su script por VARIABLE (`python3 "$SHARED/${BASE}.py"`) era invisible para toda
+    la seccion. Ahora es un fallo: o la cita se puede verificar, o esta en la lista blanca."""
+    _alcanzables, sin_resolver = _recorrido_hooks()
+    assert sin_resolver == [], sin_resolver
 
 
 def test_ningun_script_alcanzable_desde_hooks_toca_la_red():
     """«Llamadas de red en hooks» esta FUERA DE ALCANCE (spec.md). Se mira el CODIGO (sin
-    comentarios ni docstrings) de todo el cierre transitivo."""
-    ofensores = []
-    for etiqueta, ruta in sorted(_alcanzables_desde_hooks_json().items()):
-        codigo = _codigo(ruta).lower()
-        for termino in _TERMINOS_RED:
-            if termino in codigo:
-                ofensores.append((etiqueta, termino))
-        for modulo in sorted(_modulos_importados(ruta) & _MODULOS_RED):
-            ofensores.append((etiqueta, "import " + modulo))
-    assert ofensores == [], ofensores
+    comentarios ni docstrings) de todo el cierre transitivo Y las cadenas inline que arrancan los
+    hooks (gap #155: un `curl http://169.254.169.254/...` escrito en el propio `hooks.json` o en
+    el frontmatter de un agente no pasa por ningun fichero)."""
+    assert _ofensores_de_red() == [], _ofensores_de_red()
 
 
 def test_ningun_script_alcanzable_desde_hooks_invoca_el_sincronizador_ni_capabilities():
     """`knowledge-sync.py` y `capabilities.py` son caminos que cargan un adaptador de backend
-    (codigo CON capacidad de red): ningun hook puede llegar a ellos."""
-    ofensores = []
-    for etiqueta, ruta in sorted(_alcanzables_desde_hooks_json().items()):
-        codigo = _codigo(ruta)
-        for prohibido in ("knowledge-sync.py", "capabilities.py"):
-            if prohibido in codigo and os.path.basename(ruta) != prohibido:
-                ofensores.append((etiqueta, prohibido))
-    assert ofensores == [], ofensores
+    (codigo CON capacidad de red): ningun hook puede llegar a ellos, ni por fichero ni inline."""
+    assert _ofensores_de_scripts_con_red() == [], _ofensores_de_scripts_con_red()
 
 
 def test_ningun_hook_pasa_intent_ni_backends_dir_a_knowledge_find():
     """`--intent`/`--backends-dir` son los UNICOS flags de `knowledge-find.py` que cargan un
-    adaptador (CA-12): ningun llamador alcanzable desde los hooks los usa."""
-    ofensores = []
-    for etiqueta, ruta in sorted(_alcanzables_desde_hooks_json().items()):
-        if os.path.basename(ruta) in _HERRAMIENTAS:
-            continue
-        codigo = _codigo(ruta)
-        for flag in ("--intent", "--backends-dir"):
-            if flag in codigo:
-                ofensores.append((etiqueta, flag))
-    assert ofensores == [], ofensores
+    adaptador (CA-12): ningun llamador alcanzable desde los hooks los usa, tampoco en la cadena
+    `command` del propio `hooks.json` ni en el frontmatter de un agente (gap #155)."""
+    assert _ofensores_de_flags_de_adaptador() == [], _ofensores_de_flags_de_adaptador()
 
+
+# --------------------------------------------------------- mutantes de la puerta (gap #155)
+# Cada mutante reproduce una de las tres formas en las que la puerta pasaba en vacio, sobre un repo
+# MINIMO en `tmp_path` (jamas sobre el arbol real).
+
+def _repo_minimo(tmp_path, hooks_json=None, agente=None, ficheros=None):
+    """Repo de mentira con la forma que el recorrido necesita: `hooks/hooks.json`, `agents/*.md`
+    con su frontmatter y los scripts que se citen."""
+    root = os.path.join(str(tmp_path), "repo-mutante")
+    _escribir(os.path.join(root, "hooks", "hooks.json"),
+              json.dumps(hooks_json if hooks_json is not None else {"hooks": {}}))
+    os.makedirs(os.path.join(root, "agents"), exist_ok=True)
+    # `_escribir` abre en modo texto: en Windows traduce y un contenido que YA venia con CRLF
+    # (todo fichero del repo) acabaria con un retorno de carro duplicado, que ningun parser
+    # reconoce.
+    _lf = lambda c: c.replace(chr(13) + chr(10), chr(10))
+    if agente:
+        _escribir(os.path.join(root, "agents", "implementer.md"), _lf(agente))
+    for rel, contenido in (ficheros or {}).items():
+        _escribir(os.path.join(root, *rel.split("/")), _lf(contenido))
+    return root
+
+
+def _hooks_json_con(comando):
+    return {"hooks": {"SessionStart": [{"hooks": [{"type": "command", "command": comando}]}]}}
+
+
+def test_mutante_h6_un_hook_que_pasa_intent_inline_no_pasa_la_puerta(tmp_path):
+    """Mutante H6: `hooks.json` invoca `knowledge-find.py --intent relacional` en la propia cadena
+    `command` (el flag que carga un adaptador con red). Con el escaneo anterior: 23 passed."""
+    root = _repo_minimo(tmp_path, hooks_json=_hooks_json_con(
+        'python3 "${CLAUDE_PLUGIN_ROOT}/agent-kits/shared/knowledge-find.py" --intent relacional'),
+        ficheros={"agent-kits/shared/knowledge-find.py": "import os\n"})
+    assert _ofensores_de_flags_de_adaptador(root), "el mutante H6 sobrevive"
+
+
+def test_mutante_h7_un_hook_que_hace_curl_al_imds_no_pasa_la_puerta(tmp_path):
+    """Mutante H7: `hooks.json` con un `curl` al IMDS de nube escrito inline (sin fichero de por
+    medio). Con el escaneo anterior: 23 passed."""
+    root = _repo_minimo(tmp_path, hooks_json=_hooks_json_con(
+        "curl http://169.254.169.254/latest/meta-data/iam/security-credentials/"))
+    assert _ofensores_de_red(root), "el mutante H7 sobrevive"
+
+
+def test_mutante_una_cita_por_variable_no_se_descarta_en_silencio(tmp_path):
+    """Mutante: el hook compone la ruta de su script con variables (`python3 "$SHARED/${BASE}.py"`),
+    que `_RUTA_RE` no ve, y el fichero real hace `urlopen` al IMDS. Con el escaneo anterior los
+    cuatro tests de la seccion PASABAN."""
+    root = _repo_minimo(tmp_path, hooks_json=_hooks_json_con(
+        'SHARED="${CLAUDE_PLUGIN_ROOT}/agent-kits/shared"; BASE=net-probe; python3 "$SHARED/${BASE}.py"'),
+        ficheros={"agent-kits/shared/net-probe.py":
+                  "import urllib.request\nurllib.request.urlopen('http://169.254.169.254/')\n"})
+    alcanzables, sin_resolver = _recorrido_hooks(root)
+    assert sin_resolver, "la cita por variable se sigue descartando en silencio"
+    assert "net-probe.py" not in str(sorted(alcanzables)), sorted(alcanzables)
+
+
+def test_mutante_urllib_en_un_hook_del_frontmatter_no_pasa_la_puerta(tmp_path):
+    """Mutante: `guardrail-check.py` -alcanzable SOLO desde el frontmatter `hooks:` del
+    implementer (ADR-007)- importa `urllib.request`. Antes 4 tests PASABAN porque el frontmatter
+    no formaba parte del recorrido. Se usan los ficheros REALES del repo, copiados y mutados."""
+    root = _repo_minimo(
+        tmp_path,
+        agente=_texto(os.path.join(ROOT, "agents", "implementer.md")),
+        ficheros={"hooks/implementer-guardrail.sh":
+                      _texto(os.path.join(ROOT, "hooks", "implementer-guardrail.sh")),
+                  "agent-kits/shared/guardrail-check.py":
+                      "import urllib.request\n" + _texto(os.path.join(SHARED, "guardrail-check.py"))})
+    alcanzables, _ = _recorrido_hooks(root)
+    assert "agent-kits/shared/guardrail-check.py" in alcanzables, sorted(alcanzables)
+    assert any("guardrail-check.py" in etiqueta for etiqueta, _t in _ofensores_de_red(root)), \
+        "el mutante `urllib` en un hook del frontmatter sobrevive"
+
+
+# ------------------------------------------------- espia VIVO sobre `cargar_adaptador` (gap #156)
 
 _LLAMADA_KF_RE = re.compile(
     r"""run\(\s*os\.path\.join\(shared,\s*["']knowledge-find\.py["']\)\s*,(?P<args>[^)]*)\)""")
@@ -243,26 +448,42 @@ def _flags_reales_de_session_context():
     return re.findall(r"""["'](--[\w-]+)["']""", m.group("args"))
 
 
-def test_el_argv_real_del_hook_no_carga_ningun_adaptador(tmp_path, monkeypatch, capsys):
+def _proyecto_con_backend_de_grafo_habilitado(root):
+    """Gap #156: sin `taxonomy.json` el router sale ANTES de tocar `cargar_adaptador`
+    (`knowledge-find.py`, `taxonomia(root) is None`), asi que el espia era INALCANZABLE y el test
+    pasaba en vacio. Aqui el proyecto declara un backend de grafo habilitado en lectura y con el
+    intent en `router.intents`: el unico motivo para que el espia no salte es el argv."""
+    _escribir(os.path.join(root, "docs", "knowledge", "README.md"), "# Memoria tecnica\n")
+    taxonomia = {
+        "version": 1,
+        "categories": [{"key": "DECISION", "folder": "adr", "min_evidence": "observation"}],
+        "evidence_levels": ["observation", "single_case", "validated_case",
+                            "multiple_validated_cases", "human_confirmed_rule"],
+        "backends": {"graphiti": {"type": "graphiti", "enabled": True, "config": {
+            "mode": "read", "group_id": "proy-seguridad", "endpoint": "http://127.0.0.1:8001/mcp",
+            "allow_remote": False, "timeout_ms": 2000,
+            "router": {"intents": {"relacional": True}}}}},
+    }
+    _escribir(os.path.join(root, ".claude", "knowledge-services", "taxonomy.json"),
+              json.dumps(taxonomia, ensure_ascii=False))
+
+
+def _espia_de_carga_de_adaptador(monkeypatch):
     """Espia VIVO sobre `cargar_adaptador` (el unico camino del nucleo hacia un modulo con red):
-    con el argv EXACTO del hook, `knowledge-find.py` no puede llegar a el."""
-    flags = _flags_reales_de_session_context()
-    assert flags, "el hook ya no pasa ningun flag a knowledge-find.py"
-    assert "--intent" not in flags and "--backends-dir" not in flags, flags
-
-    root = str(tmp_path)
-    os.makedirs(os.path.join(root, "docs", "knowledge"), exist_ok=True)
-    with open(os.path.join(root, "docs", "knowledge", "README.md"), "w", encoding="utf-8") as f:
-        f.write("# Memoria tecnica\n")
-
+    registra el intento y levanta, asi que ningun adaptador real llega a cargarse (cero red)."""
     binit = _cargar(os.path.join(KS_BACKENDS, "__init__.py"), "binit_espia_seguridad")
+    cargas = []
 
-    def _prohibido(*a, **k):
-        raise AssertionError("el argv del hook no puede cargar un adaptador de backend")
+    def _espia(tipo, *a, **k):
+        cargas.append(tipo)
+        raise RuntimeError("espia: aqui se habria cargado un adaptador con capacidad de red")
 
-    monkeypatch.setattr(binit, "cargar_adaptador", _prohibido)
+    monkeypatch.setattr(binit, "cargar_adaptador", _espia)
     monkeypatch.setattr(kf, "_cargar_modulo", lambda *a, **k: binit)
+    return cargas
 
+
+def _argv_del_hook(flags, root):
     valores = {"--root": root, "--limit": "0",
                "--contexto": "Checklist de Tareas - Memoria Graphiti",
                "--iniciativa": "graphiti-memory"}
@@ -271,8 +492,36 @@ def test_el_argv_real_del_hook_no_carga_ningun_adaptador(tmp_path, monkeypatch, 
         argv.append(flag)
         if flag in valores:
             argv.append(valores[flag])
-    assert kf.main(argv) == 0
+    return argv
+
+
+def test_el_espia_de_adaptadores_si_salta_cuando_se_pasa_intent(tmp_path, monkeypatch, capsys):
+    """CONTROL POSITIVO del gap #156: con el MISMO proyecto y el MISMO espia, añadir `--intent
+    relacional` SI llega a `cargar_adaptador`. Sin este control el test de abajo no demuestra
+    nada: podria estar pasando porque el camino esta muerto (que es lo que pasaba)."""
+    root = str(tmp_path)
+    _proyecto_con_backend_de_grafo_habilitado(root)
+    cargas = _espia_de_carga_de_adaptador(monkeypatch)
+    assert kf.main(_argv_del_hook(_flags_reales_de_session_context(), root)
+                   + ["--intent", "relacional"]) == 0
+    capsys.readouterr()
+    assert cargas == ["graphiti"], cargas
+
+
+def test_el_argv_real_del_hook_no_carga_ningun_adaptador(tmp_path, monkeypatch, capsys):
+    """Con el argv EXACTO del hook -y un proyecto donde el backend de grafo SI esta habilitado y
+    enrutado (control positivo arriba)-, `knowledge-find.py` no llega a `cargar_adaptador`."""
+    flags = _flags_reales_de_session_context()
+    assert flags, "el hook ya no pasa ningun flag a knowledge-find.py"
+    assert "--intent" not in flags and "--backends-dir" not in flags, flags
+
+    root = str(tmp_path)
+    _proyecto_con_backend_de_grafo_habilitado(root)
+    cargas = _espia_de_carga_de_adaptador(monkeypatch)
+    assert kf.main(_argv_del_hook(flags, root)) == 0
+    assert cargas == [], cargas
     assert "aciertos" in json.loads(capsys.readouterr().out)
+
 
 
 # ============================================ 2. ningun dato excluido llega al grafo (CA-01/CA-07)
@@ -302,7 +551,7 @@ def _entrada_md(root, folder, fichero, id_, category, cuerpo, version=1, estado=
               % (id_, version, estado, category, cuerpo))
 
 
-def _taxonomia_graphiti(root, endpoint, provider=None, extra_config=None):
+def _taxonomia_graphiti(root, endpoint, provider=None, extra_config=None, tipo="graphiti"):
     """Taxonomia con UN backend `graphiti` habilitado y tres categorias: enrutada, sin `routing`
     declarado y `routing.graphiti: false` (CA-07, fail-closed)."""
     config = {
@@ -325,7 +574,7 @@ def _taxonomia_graphiti(root, endpoint, provider=None, extra_config=None):
         ],
         "evidence_levels": ["observation", "single_case", "validated_case",
                             "multiple_validated_cases", "human_confirmed_rule"],
-        "backends": {"graphiti": {"type": "graphiti", "enabled": True, "config": cfg_backend}},
+        "backends": {"graphiti": {"type": tipo, "enabled": True, "config": cfg_backend}},
     }
     _escribir(os.path.join(root, ".claude", "knowledge-services", "taxonomy.json"),
               json.dumps(taxonomia, ensure_ascii=False))
@@ -413,18 +662,23 @@ def _proveedor_ollama_roto(_config, _episodio):
     return {"episode_body": "{\"entities\": [", "modelo": "qwen2.5:7b"}
 
 
-def test_ca14_salida_estructurada_invalida_del_proveedor_no_llega_a_add_memory(tmp_path,
-                                                                               monkeypatch):
-    """CA-14, primera forma: con `provider.llm: ollama` y una salida estructurada invalida, la op
-    falla ANTES de gastar la llamada de red — el grafo no ve nada y el manifiesto PUBLICADO no se
-    toca (no hay datos corruptos)."""
+def test_ca14_un_doble_de_proveedor_con_estructura_invalida_no_llega_a_add_memory(tmp_path,
+                                                                                  monkeypatch):
+    """CA-14, primera forma: una salida estructurada invalida hace fallar la op ANTES de gastar la
+    llamada de red — el grafo no ve nada y el manifiesto PUBLICADO no se toca (no hay datos
+    corruptos).
+
+    Gap #154 (Important, fix1 Fase 4): este test inyecta un DOBLE en la entrada `ollama` de
+    `PROVEEDORES` (el proveedor real de `ollama` no se ejerce aqui; el titulo anterior lo vendia
+    como si si). Al proveedor REAL, mutado en una copia del modulo, lo ejerce
+    `test_ca14_el_proveedor_real_que_pierde_el_uuid_...`, justo debajo."""
     root = str(tmp_path)
     with ServidorMCP() as srv:
         monkeypatch.setitem(gr._gp.PROVEEDORES, "ollama", _proveedor_ollama_roto)
         cfg = {"_root": root, "group_id": "proy-seguridad", "endpoint": srv.endpoint,
                "allow_remote": False, "timeout_ms": 2000,
                "provider": {"llm": "ollama", "model": "qwen2.5:7b"}}
-        ops = gr.plan([_suite_adaptador._entrada()], cfg)
+        ops = gr.plan([_apoyo_mcp._entrada()], cfg)
         assert ops, "sin operaciones no habria nada que probar"
         fallo = None
         try:
@@ -509,63 +763,251 @@ def test_ca04_backend_sin_datos_no_bloquea_la_lectura_enrutada(tmp_path):
     assert respuesta.get("aciertos") == []
 
 
+def _backends_con_proveedor_que_pierde_el_uuid(tmp_path):
+    """Copia REAL de los modulos del adaptador con UNA sola mutacion, en el proveedor de verdad
+    (`graphiti_providers._con_instrucciones_de_extraccion`, el que usa `ollama`): reconstruye el
+    episodio y PIERDE el `uuid`. Es el bug que destapo el gap #154 -la validacion previa a
+    `add_memory` miraba `name`/`episode_body`/`group_id` pero no `uuid`, asi que el episodio SALIA
+    al grafo y el `KeyError` posterior mandaba la op a dead-letter: un episodio vivo en el grafo
+    que el manifiesto no conoce y que `revoke` no puede invalidar-.
+
+    La copia se carga con `--backends-dir` bajo un `type` propio (`graphiti-sinuuid`), porque el
+    directorio real gana siempre para `type: graphiti`: asi el arbol del repo no se toca.
+    Devuelve `(directorio, tipo)`."""
+    destino = os.path.join(str(tmp_path), "backends-sin-uuid")
+    os.makedirs(destino, exist_ok=True)
+    for origen, nombre in (("graphiti.py", "graphiti_sinuuid.py"),
+                           ("graphiti_providers.py", "graphiti_providers.py"),
+                           ("graphiti_model.py", "graphiti_model.py")):
+        shutil.copy2(os.path.join(KS_BACKENDS, origen), os.path.join(destino, nombre))
+    ruta = os.path.join(destino, "graphiti_providers.py")
+    texto = _texto(ruta)
+    ancla = "    salida = dict(episodio)"    # sin el salto: el repo usa CRLF
+    assert ancla in texto, "cambio `_con_instrucciones_de_extraccion`: la mutacion ya no aplica"
+    _escribir(ruta, texto.replace(ancla, ancla + chr(10) + '    salida.pop("uuid", None)', 1))
+    return destino, "graphiti-sinuuid"
+
+
+def test_ca14_el_proveedor_real_que_pierde_el_uuid_no_gasta_add_memory_y_acaba_en_dead_letter(
+        tmp_path, capsys):
+    """Gap #154: con el proveedor REAL mutado para perder el `uuid`, `apply()` falla ANTES de
+    `add_memory` (cero llamadas de escritura al grafo), el envelope acaba en `dead-letter/` con la
+    causa y ni el manifiesto publicado ni el `.pending` registran la entrada: no queda ni un
+    episodio huerfano que `revoke` no pueda invalidar."""
+    root = str(tmp_path)
+    dir_outbox = os.path.join(root, ".claude", "knowledge-services", "_sync-outbox", "graphiti")
+    base_manifiesto = os.path.join(root, ".claude", "knowledge-services")
+    backends, tipo = _backends_con_proveedor_que_pierde_el_uuid(tmp_path)
+    argv = ["--backend", "graphiti", "--root", root, "--json", "--backends-dir", backends]
+    with ServidorMCP() as srv:
+        _proyecto_con_datos_excluidos(root, srv.endpoint, tipo=tipo)
+        assert ks_sync.main(argv) == 1
+        err = capsys.readouterr().err
+        assert "estructura invalida" in err, err
+        assert "uuid" in err, err
+        for _ in range(2):                            # intentos 2 y 3 -> MAX_INTENTOS
+            ob.reintentar_ahora(dir_outbox)
+            ks_sync.main(argv)
+            capsys.readouterr()
+        # lo PRIMERO: el grafo no vio NADA (ni un `add_memory` con datos que el manifiesto no
+        # podra referenciar)
+        assert _add_memory(srv.llamadas) == [], _add_memory(srv.llamadas)
+    muertos = _dead_letter(dir_outbox)
+    causa_json = next((n for n in muertos if n.endswith(".causa.json")), None)
+    assert causa_json, ("el envelope fallido nunca llego a dead-letter", muertos)
+    with open(os.path.join(dir_outbox, "dead-letter", causa_json), encoding="utf-8") as f:
+        causa = json.load(f)
+    assert causa["intentos"] >= 3
+    assert "uuid" in causa["causa"], causa["causa"]
+    assert not os.path.isfile(os.path.join(base_manifiesto, "graphiti-manifest.json"))
+    pendiente = os.path.join(base_manifiesto, "graphiti-manifest.pending.json")
+    if os.path.isfile(pendiente):                     # se escribe vacio ANTES de la primera op
+        with open(pendiente, encoding="utf-8") as f:
+            assert json.load(f).get("entradas") == {}, "el `.pending` registro un episodio que el grafo no tiene"
+
+
 # ================================ 4. CA-05: ninguna pieza escribe en el grafo por su cuenta
 
+# La skill DUEÑA (el sincronizador y su documentacion) es la unica que puede describir la
+# escritura: el invariante es que NADIE MAS la invoque. `SKILL.md` sigue siendo estricta para las
+# primitivas (es lo que se inyecta en el contexto de un agente); su `backends/README.md` y sus
+# `references/` documentan el adaptador, no instruyen a nadie a llamarlo.
+PREFIJO_SKILL_DUENA = "skills/knowledge-services/"
 PIEZAS_SKILL_DUENA = ("skills/knowledge-services/SKILL.md",)
 _PRIMITIVAS_ESCRITURA = ("add_memory", "add_triplet", "clear_graph", "delete_episode",
                          "delete_entity_edge", "delete_group")
 _FLAGS_SOLO_LECTURA = ("--check", "--dry-run", "--outbox-status", "--propose-config")
+# Gap #157: `--check` NO blanquea una linea que ademas publica; y una publicacion no siempre se
+# escribe con `--backend <id>` a secas (`apply`/`revoke` son subcomandos del mismo camino).
+_TOKENS_DE_ESCRITURA = ("apply", "revoke", "--rebuild")
+_DIRECTORIOS_NO_PIEZA = {"tests", "fixtures", "__pycache__", "node_modules", ".git"}
 
 
-def _piezas():
-    """`agents/*.md` + `commands/*.md` + `skills/*/SKILL.md` (etiqueta relativa -> ruta)."""
+def _piezas(root=ROOT):
+    """Piezas que se INYECTAN en el contexto de un agente (etiqueta relativa -> ruta):
+    `agents/*.md`, `commands/*.md` y TODO `.md` bajo `skills/` y `agent-kits/` (gap #157: un
+    `references/*.md` o un fragmento de `agent-kits/shared/` instruye igual que una `SKILL.md`, y
+    quedaban fuera del recorrido). Se excluyen tests y fixtures, que no instruyen a nadie."""
     piezas = {}
-    for carpeta, patron in (("agents", ".md"), ("commands", ".md")):
-        base = os.path.join(ROOT, carpeta)
+    for carpeta in ("agents", "commands"):
+        base = os.path.join(root, carpeta)
+        if not os.path.isdir(base):
+            continue
         for nombre in sorted(os.listdir(base)):
-            if nombre.endswith(patron):
+            if nombre.endswith(".md"):
                 piezas[carpeta + "/" + nombre] = os.path.join(base, nombre)
-    base_skills = os.path.join(ROOT, "skills")
-    for nombre in sorted(os.listdir(base_skills)):
-        ruta = os.path.join(base_skills, nombre, "SKILL.md")
-        if os.path.isfile(ruta):
-            piezas["skills/" + nombre + "/SKILL.md"] = ruta
+    for carpeta in ("skills", "agent-kits"):
+        base = os.path.join(root, carpeta)
+        if not os.path.isdir(base):
+            continue
+        for directorio, subdirs, ficheros in os.walk(base):
+            subdirs[:] = sorted(d for d in subdirs if d not in _DIRECTORIOS_NO_PIEZA)
+            for nombre in sorted(ficheros):
+                if not nombre.endswith(".md") or nombre.startswith("test_"):
+                    continue
+                ruta = os.path.join(directorio, nombre)
+                piezas[os.path.relpath(ruta, root).replace(os.sep, "/")] = ruta
     return piezas
 
 
-def test_el_recorrido_de_piezas_no_esta_vacio():
-    """Andamiaje: sin piezas, los dos tests de abajo pasarian en vacio."""
-    piezas = _piezas()
-    assert "agents/knowledge-curator.md" in piezas and "commands/dev-cycle.md" in piezas
-    assert len(piezas) >= 20, sorted(piezas)
+def _tokens(linea):
+    """Tokens de una linea de instrucciones: se sueltan comillas, backticks y parentesis, asi que
+    `python3 "$KS/knowledge-sync.py" --backend graphiti` da los mismos tokens que la forma sin
+    entrecomillar (gap #157: el literal `knowledge-sync.py --backend` exigia que las dos palabras
+    fueran CONTIGUAS, y la regla 5 del repo obliga justo a lo contrario)."""
+    return [t for t in re.split(r"""[\s`"'()<>,]+""", linea.strip()) if t]
 
 
-def test_ca05_ninguna_pieza_invoca_primitivas_de_escritura_en_el_grafo():
-    """CA-05: solo el sincronizador escribe. Ninguna pieza (agente, comando o skill), incluida la
-    skill duena, manda `add_memory`/`add_triplet`/`clear_graph`/`delete_*` por su cuenta."""
+def _invocacion_de_escritura(linea):
+    """Motivo por el que la linea es una ESCRITURA en el grafo, o `None`. Reconoce la invocacion
+    con la ruta entrecomillada o en variable (`"$KSSKILL"`) y los flags en cualquier orden; el
+    `--check` solo exime si en la MISMA linea no hay `apply`/`revoke`/`--rebuild`."""
+    tokens = _tokens(linea)
+    if "--backend" not in tokens:
+        return None
+    cita_script = any(t.endswith("knowledge-sync.py") for t in tokens)
+    cita_variable = any(t.startswith("$") or t.startswith("${") for t in tokens)
+    if not (cita_script or cita_variable):
+        return None
+    escritura = [t for t in tokens if t in _TOKENS_DE_ESCRITURA]
+    lectura = [t for t in tokens if t in _FLAGS_SOLO_LECTURA]
+    if escritura:
+        return "publica en el grafo (%s) aunque la linea traiga %s" % (
+            ", ".join(escritura), lectura or "ningun flag de solo lectura")
+    if not lectura:
+        return "invoca `--backend` sin ningun flag de solo lectura"
+    return None
+
+
+def _ofensores_de_primitivas(root=ROOT):
     ofensores = []
-    for etiqueta, ruta in sorted(_piezas().items()):
+    for etiqueta, ruta in sorted(_piezas(root).items()):
+        if etiqueta.startswith(PREFIJO_SKILL_DUENA) and etiqueta not in PIEZAS_SKILL_DUENA:
+            continue                      # documentacion del propio adaptador, no instrucciones
         texto = _texto(ruta)
         for primitiva in _PRIMITIVAS_ESCRITURA:
             if primitiva in texto:
                 ofensores.append((etiqueta, primitiva))
-    assert ofensores == [], ofensores
+    return ofensores
+
+
+def _ofensores_de_sincronizador(root=ROOT):
+    ofensores = []
+    for etiqueta, ruta in sorted(_piezas(root).items()):
+        if etiqueta.startswith(PREFIJO_SKILL_DUENA):
+            continue
+        for numero, linea in enumerate(_texto(ruta).splitlines(), 1):
+            motivo = _invocacion_de_escritura(linea)
+            if motivo:
+                ofensores.append((etiqueta, numero, motivo, linea.strip()[:120]))
+    return ofensores
+
+
+def test_el_recorrido_de_piezas_no_esta_vacio():
+    """Andamiaje: sin piezas, los dos tests de abajo pasarian en vacio. Gap #157: exige tambien
+    las piezas que se inyectan sin ser `SKILL.md` (referencias y fragmentos compartidos)."""
+    piezas = _piezas()
+    for esperada in ("agents/knowledge-curator.md", "commands/dev-cycle.md",
+                     "skills/knowledge-services/SKILL.md",
+                     "skills/adversarial-review/references/lens-prompts.md",
+                     "agent-kits/shared/knowledge-check.md"):
+        assert esperada in piezas, (esperada, len(piezas))
+    assert len(piezas) >= 100, len(piezas)
+
+
+def test_ca05_ninguna_pieza_invoca_primitivas_de_escritura_en_el_grafo():
+    """CA-05: solo el sincronizador escribe. Ninguna pieza (agente, comando, skill, referencia o
+    fragmento compartido), incluida la `SKILL.md` duena, manda
+    `add_memory`/`add_triplet`/`clear_graph`/`delete_*` por su cuenta."""
+    assert _ofensores_de_primitivas() == [], _ofensores_de_primitivas()
 
 
 def test_ca05_ninguna_pieza_ajena_invoca_el_sincronizador_en_modo_escritura():
     """Fuera de la skill `knowledge-services`, una pieza puede NOMBRAR `knowledge-sync.py`, pero
     solo en un modo de SOLO LECTURA (`--check`/`--dry-run`/`--outbox-status`/`--propose-config`):
-    una publicacion real (`--backend <id>` a secas, o `--rebuild`) es escritura en el grafo."""
-    ofensores = []
-    for etiqueta, ruta in sorted(_piezas().items()):
-        if etiqueta in PIEZAS_SKILL_DUENA:
-            continue
-        for linea in _texto(ruta).splitlines():
-            if "knowledge-sync.py --backend" not in linea and "knowledge-sync.py` --backend" not in linea:
-                continue
-            if not any(flag in linea for flag in _FLAGS_SOLO_LECTURA) or "--rebuild" in linea:
-                ofensores.append((etiqueta, linea.strip()[:120]))
-    assert ofensores == [], ofensores
+    una publicacion real (`--backend <id>` a secas, `apply`, `revoke` o `--rebuild`) es escritura
+    en el grafo, este la ruta entrecomillada, en variable o con los flags en otro orden."""
+    assert _ofensores_de_sincronizador() == [], _ofensores_de_sincronizador()
+
+
+# ----------------------------------------------------- mutantes de la puerta CA-05 (gap #157)
+# Los cinco sobre un repo MINIMO en `tmp_path`: tres formas de invocacion que el literal anterior
+# no veia y dos piezas inyectadas que no estaban en el recorrido.
+
+def _repo_de_piezas(tmp_path, piezas):
+    """Repo de mentira con las piezas indicadas (`{ruta relativa: contenido}`)."""
+    root = os.path.join(str(tmp_path), "repo-piezas")
+    for rel, contenido in piezas.items():
+        _escribir(os.path.join(root, *rel.split("/")), contenido)
+    return root
+
+
+_MUTANTES_INVOCACION = (
+    ("ruta entrecomillada (regla 5)",
+     'python3 "$KS/knowledge-sync.py" --backend graphiti --root .'),
+    ("flags reordenados",
+     "python3 skills/knowledge-services/scripts/knowledge-sync.py --rebuild --backend graphiti"),
+    ("`--check` y despues, sin --check, publica",
+     "primero `knowledge-sync.py --backend graphiti --check` y despues "
+     "`knowledge-sync.py --backend graphiti apply`"),
+    ("ruta en variable, estilo de la SKILL.md",
+     'python3 "$KSSKILL" --backend graphiti --root .'),
+)
+
+
+def test_mutantes_de_invocacion_del_sincronizador_no_pasan_la_puerta(tmp_path):
+    """Mutantes 1-4 del gap #157: cuatro formas REALES de publicar en el grafo desde una pieza
+    ajena que el literal `knowledge-sync.py --backend` + «hay un `--check` en la linea» dejaba
+    pasar (los tres primeros sobrevivian en la revision)."""
+    for descripcion, linea in _MUTANTES_INVOCACION:
+        root = _repo_de_piezas(tmp_path, {"commands/dev-cycle.md":
+                                          "# dev-cycle\n\n" + linea + "\n"})
+        ofensores = _ofensores_de_sincronizador(root)
+        assert ofensores, ("el mutante sobrevive: " + descripcion, linea)
+
+
+def test_una_linea_de_solo_lectura_sigue_siendo_legitima(tmp_path):
+    """Control negativo del mutante anterior: la puerta no puede volverse un «cualquier mencion a
+    `--backend` es escritura» (eso romperia `/doctor`, que documenta el `--check`)."""
+    root = _repo_de_piezas(tmp_path, {"commands/doctor.md":
+                                      "python skills/knowledge-services/scripts/knowledge-sync.py "
+                                      "--backend <id> --check\n"})
+    assert _ofensores_de_sincronizador(root) == [], _ofensores_de_sincronizador(root)
+
+
+def test_mutante_primitivas_en_una_pieza_inyectada_que_no_es_skill_md(tmp_path):
+    """Mutante 5 del gap #157: `add_memory`/`clear_graph` en una referencia de skill y una
+    publicacion en un fragmento de `agent-kits/shared/` -dos piezas que se inyectan igual que una
+    `SKILL.md` y que el recorrido anterior (`agents/*.md` + `commands/*.md` + `skills/*/SKILL.md`)
+    no miraba: 3 tests verdes-."""
+    root = _repo_de_piezas(tmp_path, {
+        "skills/adversarial-review/references/lens-prompts.md":
+            "Lente C: manda `add_memory` y luego `clear_graph` para limpiar.\n",
+        "agent-kits/shared/knowledge-check.md":
+            'Publica con `python3 "$KS/knowledge-sync.py" --backend graphiti apply`.\n'})
+    primitivas = _ofensores_de_primitivas(root)
+    assert [e for e, _p in primitivas if "lens-prompts" in e], primitivas
+    assert _ofensores_de_sincronizador(root), "la publicacion en `agent-kits/shared/` sobrevive"
 
 
 def test_e18_ningun_agente_normal_cita_el_backend_graphiti():
@@ -583,6 +1025,7 @@ def test_e18_ningun_agente_normal_cita_el_backend_graphiti():
     assert citas == [], citas
     curador = _texto(os.path.join(base, "knowledge-curator.md"))
     assert "No exportas" in curador and "CONTRACTS.md` E18" in curador
+
 
 
 # ============================ 5. guardarrail de red del cliente MCP (regresion del repo)
@@ -810,5 +1253,31 @@ def test_una_cadena_de_redirecciones_no_es_infinita(monkeypatch):
             raise AssertionError("no corto la cadena de redirecciones")
         except gr.ErrorMCP as e:
             assert "demasiadas redirecciones" in str(e), str(e)
-        assert len(bucle.peticiones) == gr._MAX_REDIRECCIONES + 1, len(bucle.peticiones)
+        # Gap #158 (Minor, fix1 Fase 4): el oraculo era `gr._MAX_REDIRECCIONES + 1`, es decir, la
+        # constante del modulo MUTADO -subirla de 3 a 8 pasaba-. El tope esperado va literal.
+        assert len(bucle.peticiones) == 4, (len(bucle.peticiones), gr._MAX_REDIRECCIONES)
     assert espia.fuera_de_loopback == []
+
+
+def test_el_origen_de_un_salto_es_la_terna_esquema_host_puerto():
+    """Gap #160 (Minor, fix1 Fase 4): el LIMITE declarado del test de sesion era que el cambio de
+    ESQUEMA no lo ejercia nadie (sin TLS real no hay servidor `https` efimero). `_origen` ya es una
+    funcion de modulo, asi que la terna se prueba unitariamente: dos URLs que SOLO difieren en el
+    esquema son origenes distintos (mutante «terna sin esquema»: muere aqui)."""
+    assert gr._origen("http://127.0.0.1:8000/mcp") != gr._origen("https://127.0.0.1:8000/mcp")
+    assert gr._origen("http://127.0.0.1:8000/mcp") == gr._origen("http://127.0.0.1:8000/otra/ruta")
+    assert gr._origen("http://127.0.0.1:8000/mcp") != gr._origen("http://127.0.0.1:8001/mcp")
+    assert gr._origen("http://127.0.0.1:8000/mcp") != gr._origen("http://localhost:8000/mcp")
+    assert gr._origen("http://[::1:8000/mcp") is None          # URL invalida: sin origen
+
+
+# ============================================ 6. higiene de la propia suite (gap #166)
+
+def test_el_servidor_mcp_falso_se_carga_una_sola_vez():
+    """Gap #166: el modulo de apoyo `_mcp_fake.py` no puede quedar cargado con DOS nombres de
+    modulo distintos (una copia por suite, con estado propio) bajo la invocacion unica de pytest
+    que usa CI."""
+    cargados = sorted(nombre for nombre, modulo in list(sys.modules.items())
+                      if getattr(modulo, "__file__", None)
+                      and os.path.basename(str(modulo.__file__)) == "_mcp_fake.py")
+    assert cargados == ["ks_graphiti_mcp_fake"], cargados
