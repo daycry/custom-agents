@@ -457,12 +457,46 @@ verificacion: obligatoria
 - **Tiempo IA (bis)**: real 0.18h (medido; usage-meter, artefacto `graphiti-memory/T-09-bis`, 8m reloj, 1.77 EUR) — continuacion: seccion 5 completada + cierre del ledger
 
 ### T-10 - Interop, QA y retro
-- **Estado**: borrador
+- **Estado**: completado
 - **Dependencias**: T-09
-- **Archivos**: `docs/roadmap/2026-09-15-graphiti-memory/testing/`, `interop/**`
-- **Verificacion**: `python scripts/lint_plugin.py` -> 0 · `python evals/check.py` -> 0 · `python scripts/export-interop.py --check` -> 0
+- **Archivos**: `docs/roadmap/2026-09-15-graphiti-memory/testing/` (nuevo: `testing/qa-report.md`), `interop/**` (sin cambios: no se ha tocado `commands/`/`agents/`/`hooks/` en la Fase 4, `--check` al dia)
+- **Verificacion**: `python scripts/lint_plugin.py` -> 0 · `python evals/check.py` -> 0 · `python scripts/export-interop.py --check` -> 0. Salida real (2026-09-22):
+  ```
+  $ python scripts/lint_plugin.py
+  lint_plugin: 10 agentes · 0 errores · 3 avisos        (exit 0; los 3 avisos son nombres genericos de comando, preexistentes)
+
+  $ python evals/check.py
+  evals/check: 40 ficheros · 144 casos (86 positivos, 58 negativos) · 40 piezas del repo · 0 errores
+
+  $ python scripts/export-interop.py --check
+  export-interop --check: 50 ficheros al día
+  ```
+  Suite de las 8 rutas de la iniciativa **mas** la suite de seguridad de T-09:
+  ```
+  $ python -m pytest -q -p no:cacheprovider tests/test_knowledge_router.py tests/test_knowledge_find.py agent-kits/shared/test_capabilities.py agent-kits/shared/test_doctor.py skills/knowledge-services/scripts tests/test_knowledge_services.py agent-kits/shared/test_knowledge_schema.py tests/test_copias_declaradas.py tests/test_graphiti_security.py
+  4 failed, 823 passed, 1 skipped, 8 subtests passed in 460.64s (0:07:40)
+  ```
+  823 = 800 (base de la Fase 3) + 23 de la suite nueva; los 4 rojos son los PREEXISTENTES de Windows (tres `test_*show*` de `tests/test_knowledge_find.py` y `test_hook_sin_bit_ejecutable_es_aviso_con_chmod`).
+  Puerta E18 de `docs/agents/CONTRACTS.md`, tal y como la declara su columna «Puerta»:
+  ```
+  $ grep -rn -i graphiti agents/*.md | grep -v knowledge-curator.md | wc -l
+  0
+  $ python -m pytest -q -p no:cacheprovider tests/test_graphiti_model.py tests/test_knowledge_router.py tests/test_knowledge_services.py -k "router or f3fix1"
+  53 passed, 84 deselected in 19.75s
+  ```
+  `ledger-lint` sobre este mismo fichero, con T-09 y T-10 ya cerradas:
+  ```
+  $ python agent-kits/shared/ledger-lint.py docs/roadmap/2026-09-15-graphiti-memory/tasks.md
+  ❌ resumen descuadrado en «Fase 4 - Regresion y cierre»: tabla dice 0/2, las tareas dicen 2/2
+  ledger-lint: 1 incoherencias · 0 avisos (tasks.md)
+  ```
+  La UNICA incoherencia que queda es el **Resumen de progreso**, que en esta iniciativa lo escribe el ORQUESTADOR (decision suya desde el gap #111 de la Fase 3; el brief de esta tarea lo repite: «NO toques el Resumen de progreso»). Queda declarado aqui para que no se lea como un descuido: al ponerlo en 2/2, `ledger-lint` sale en 0.
+  - **TDD n/a: prosa** — `testing/qa-report.md` es un informe, no codigo testeable. Lo que SI se ha verificado mecanicamente de el: las 46 citas `fichero::test` de la tabla CA existen de verdad en el repo (script que abre cada fichero y busca `def <test>(`) -> `citas: 46 | inexistentes: 0`, y el conteo de gaps de las 10 secciones de revision sale de un script sobre el ledger, no de leerlo a ojo -> `{'Important': 48, 'Minor': 93, 'Critical': 12}` y `filas SIN marca de cierre en ninguna celda: 0`.
 **Criterios de aceptación**
-- [ ] QA sin UI y revision no dejan gaps pendientes.
+- [x] QA sin UI y revision no dejan gaps pendientes — `testing/qa-report.md` en modo sin UI (sin Playwright ni PDF): `ledger-lint` y `coverage-check` con salida real (`test_plan_na: true`, `gwt_sin_id: 0`, `rutas_ui: []`, exit 0), tabla CA-01..CA-15 ↔ tests reales (46 citas verificadas), puerta E18, las tres puertas del repo en 0 y el conteo mecanico de las 10 secciones de revision de las Fases 1-3: 153 filas (12 Critical, 48 Important, 93 Minor) y **0 sin cerrar**. La revision de la Fase 4 (esta misma entrega) todavia no ha corrido: la dispara el orquestador despues.
+- **Changelog**: The Graphiti memory initiative ships with a QA report for its no-UI verification: every acceptance criterion is mapped to the tests that exercise it, and the plugin lint, evals and interop checks are green.
+- **Tiempo humano**: est. - · real -
+- **Tiempo IA**: real 0.47h (medido; usage-meter, artefacto `graphiti-memory/T-10`, 16m reloj, 3.88 EUR)
 
 ## Revisión de dos lentes — intento 1: Fase 1 (T-01, T-02, T-03) — 15 gaps (0 Critical, 7 Important, 8 Minor), lentes A+B (C y D no aplican: `review-lens-select.py` sin motivos), rango `58b0ef6..7d67a4c`
 
