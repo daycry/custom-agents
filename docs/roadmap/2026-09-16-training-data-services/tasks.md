@@ -4,7 +4,7 @@ verificacion: obligatoria
 
 # Checklist de Tareas - Captura de casos y dataset
 
-| **Estado** | borrador |
+| **Estado** | en-progreso |
 |---|---|
 | **Plan** | [improvement-plan.md](improvement-plan.md) |
 | **Diseno** | [design.md](design.md), O1 |
