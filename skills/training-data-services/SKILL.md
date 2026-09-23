@@ -1,0 +1,102 @@
+---
+name: training-data-services
+description: >
+  Captura DETERMINISTA de casos (petición, contexto, trayectoria chat/SFT sin chain-of-thought,
+  métricas opacas del proyecto, validación) en un case store versionado FUERA de Git y de
+  `docs/knowledge/`, y ensamblado de dataset solo con casos Gold aprobados por un humano. Opt-in
+  por proyecto con `.claude/knowledge-services/training.json`; sin él, cero impacto. El plugin
+  valida FORMA, nunca dominio: no calcula métricas, no marca Gold solo, no entrena ni sirve
+  modelos. `scripts/case_schema.py` valida `training.json` y el esquema del caso (vocabularios
+  cerrados de `validation.status` y `outcome`, mapeo declarado desde `useful|dead_end|corrected`).
+  Úsala cuando el usuario diga "guarda este intento como caso", "captura casos para entrenar un
+  modelo local", "valida el esquema del caso", "prepara un dataset con los casos aprobados",
+  "activa training-data-services", o al activar la capacidad `training` desde `/setup`.
+---
+
+# training-data-services — casos versionados y dataset Gold, sin saber nada del dominio
+
+Algunos proyectos repiten tareas con una forma objetiva de medir el éxito y quieren conservar cada
+intento para entrenar después un modelo local más barato. Esta skill da el **mecanismo genérico**:
+esquema del caso, recorder determinista, puerta humana para Gold y ensamblador de dataset. Todo lo
+de dominio (métricas, simulación, herramientas) es del proyecto consumidor.
+
+> Regla central: **Gold es siempre una acción humana explícita** y **solo Gold se exporta**. El
+> conocimiento aprobado nunca alimenta hacia atrás al case store (anti-leakage).
+
+## Cuándo NO usarla
+
+- Para curar o aprobar conocimiento (`docs/knowledge/candidates/`): eso es `knowledge-curator`. Esta
+  skill, como mucho, **propone** un caso Gold como candidato (puente opt-in `bridge_to_curator`).
+- Para publicar conocimiento aprobado a un backend (Kwipu): eso es `knowledge-services`.
+- Para calcular una métrica, simular o evaluar semánticamente un resultado: código del proyecto.
+- Para lanzar un fine-tuning, servir un modelo o correr un benchmark: siempre fuera del plugin.
+- Sin `training.json` (o con `enabled: false`) no hay nada que hacer: la capacidad está apagada y
+  eso es correcto, no un error.
+
+## Piezas
+
+| Fichero | Qué es |
+|---|---|
+| `scripts/case_schema.py` | Validador stdlib de `training.json` y del caso (exit 0 válido · 1 errores · 2 uso/JSON ilegible). Fuente única de los vocabularios cerrados y del mapeo de `outcome`. |
+
+## Config opt-in — `.claude/knowledge-services/training.json`
+
+| Clave | Obligatoria | Qué es |
+|---|---|---|
+| `version` | sí | `1` |
+| `enabled` | no (`false`) | Activa la capacidad `training` |
+| `root` | si `enabled` | Raíz del case store; la elige el proyecto (relativa a su raíz o absoluta); nunca dentro de `docs/knowledge/` |
+| `id_prefix` | si `enabled` | Slug que prefija el `case_id`: `<id_prefix>-<family>.<variant>` |
+| `ids` | no | `family_pattern` / `variant_pattern` (regex, sin puntos por defecto) · `version_width` (dígitos de `v<NNN>`, 3 por defecto) |
+| `bridge_to_curator` | no (`false`) | Un caso Gold puede proponerse como candidato a `knowledge-curator` (nunca se aprueba solo) |
+
+Cualquier otra clave se rechaza (salvo `$comment`), para que una errata no pase en silencio.
+
+## Esquema del caso (resumen; el contrato completo vive en el docstring de `case_schema.py`)
+
+- Obligatorios: `case_id`, `version` (entero ≥ 1), `family`, `variant`, `request` (literal),
+  `trajectory` (turnos `system|user|assistant|tool` con `content`/`tool_calls`), `validation`,
+  `outcome`.
+- `validation.status` ∈ `pending · approved · needs_changes · rejected`; `approved` ⇔
+  `approved_by_human: true`.
+- `outcome` ∈ `success · failure · corrected`; `corrected` exige `supersedes_case: "<case_id>@v<N>"`.
+- La trayectoria **nunca** guarda chain-of-thought (`reasoning`, `thinking`… se rechazan).
+- `metrics` es un objeto JSON opaco del proyecto; el plugin no lo interpreta.
+- `context`: texto u objeto libre; admite `refs: [{"ref": "<fichero:línea|nodo>", "kind": "..."}]`
+  opcional para citar procedencia (nadie está obligado a usarla).
+- `artifacts`: solo referencias `{path, hash, kind}`; nunca contenido binario inline.
+
+### Mapeo declarado de `outcome` desde fuentes externas
+
+El vocabulario cerrado no se amplía: una fuente externa se **traduce** con `mapear_outcome(valor,
+fuente)` según la tabla `OUTCOME_MAPEO`. Lo que no esté en la tabla devuelve `None` (no se inventa).
+
+| Fuente | Valor externo | `outcome` |
+|---|---|---|
+| `graphify` (`save-result`) | `useful` | `success` |
+| `graphify` | `dead_end` | `failure` |
+| `graphify` | `corrected` | `corrected` (el caso debe declarar `supersedes_case`) |
+
+## Proceso
+
+1. **Activar**: el proyecto crea `training.json` con `enabled: true`, `root` e `id_prefix` (paso de
+   `/setup` de la capacidad `training`).
+2. **Validar** antes de escribir nada: `python3 scripts/case_schema.py config <training.json>` y
+   `python3 scripts/case_schema.py case <caso.json> --config <training.json>`.
+3. **Grabar** cada intento con el recorder (T-04, pendiente): nunca sobrescribe `case_id`+versión,
+   redacta secretos antes de tocar disco, conserva los rechazados.
+4. **Aprobar Gold** a mano (T-05, pendiente): la transición a `approved` exige `--approved-by-human`.
+5. **Ensamblar** el dataset (T-07…T-09, pendiente): solo Gold, dedup por shingles, benchmark
+   reservado por familia completa.
+
+## Degradación
+
+- Sin `training.json` o con `enabled: false`: la capacidad no existe para el ciclo (CA-01).
+- `training.json` inválido: `/doctor` lo informa con fichero y campo; nada del ciclo se bloquea.
+- Sin `python3`: la skill no puede validar; el resto del plugin sigue igual.
+
+## Scripts y rutas
+
+Rutas relativas dentro de la skill; desde fuera, `find` sobre las seis raíces de la regla 5 de
+`docs/CONVENTIONS.md` (`-path '*skills/training-data-services'`). Tests junto a los scripts
+(`scripts/test_*.py`), sin dependencias externas.

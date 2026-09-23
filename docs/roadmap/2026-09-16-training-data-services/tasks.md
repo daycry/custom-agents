@@ -24,16 +24,21 @@ verificacion: obligatoria
 ## Fase 1 - Config, redaccion compartida y capacidad
 
 ### T-01 - Esquema de `training.json` y del caso
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo humano**: est. 3h · real -
+- **Tiempo IA**: real 0.22h (medido; usage-meter `training-data-services/T-01`, 13m, 37.8k out tok)
 - **Prevision IA**: 35k in / 14k out tok
 - **Dependencias**: ninguna
 - **Tipo**: docs
-- **Archivos**: `agent-kits/shared/`, `docs/CONVENTIONS.md`, `docs/en/CONVENTIONS.md`
+- **Archivos**: `skills/training-data-services/SKILL.md`, `skills/training-data-services/scripts/case_schema.py`, `skills/training-data-services/scripts/test_case_schema.py`, `evals/cases/skill-training-data-services.json`, `docs/CONVENTIONS.md`, `docs/en/CONVENTIONS.md`, `docs/README.md`, `docs/en/README.md`, `CLAUDE.md`, `interop/**` (nota: el plan citaba agent-kits/shared/, que T-01 no toca; la skill nueva exige fila en docs/README.md, docs/en/README.md y CLAUDE.md (regla de plugin-dev) y entra en el indice generado `interop/opencode/custom-agents-index.md`)
 - **Verificacion**: `python -m pytest -q skills/training-data-services/scripts/test_case_schema.py` -> valida `training.json` y esquema de caso, rechaza estados/outcome invalidos
+  - Salida real (2026-09-23): `36 passed in 1.10s`
+- **RED**: `test_case_schema.py` (todo el modulo) fallo en la coleccion con `FileNotFoundError: [Errno 2] No such file or directory: '.../skills/training-data-services/scripts/case_schema.py'` · 2026-09-23
+- **Nota**: decisiones con margen — (1) nombre del validador `case_schema.py` (con guion bajo: lo importan recorder/ensamblador); (2) `root` dentro de `docs/knowledge/` se rechaza (coherente con ADR-019 de T-03); (3) clave desconocida en `training.json` es error (erratas visibles; `$comment` admitido); (4) `validation.approved_by_human: true` con status distinto de `approved` es error (coherencia); (5) ajuste del orquestador 2026-09-23: `OUTCOME_MAPEO["graphify"]` = `useful->success · dead_end->failure · corrected->corrected` + `mapear_outcome()`, sin ampliar el vocabulario cerrado; `context.refs` opcional `[{ref, kind}]`; (6) estructura de ids = la de `design.md` (`cases/<family>.<variant>/v<NNN>`).
+- **Changelog**: New opt-in `training-data-services` skill: `training.json` config and a dependency-free case schema validator with closed status/outcome vocabularies and a declared mapping from `useful|dead_end|corrected`.
 **Criterios de aceptación**
-- [ ] `training.json` declara root, `id_prefix`, y si el puente a `knowledge-curator` esta activo.
-- [ ] El esquema del caso exige `case_id`, `version`, `outcome`, y valida `validation.status` contra el vocabulario cerrado.
+- [x] `training.json` declara root, `id_prefix`, y si el puente a `knowledge-curator` esta activo.
+- [x] El esquema del caso exige `case_id`, `version`, `outcome`, y valida `validation.status` contra el vocabulario cerrado.
 
 ### T-02 - Consumir `redact.py` compartido y registrar la capacidad `training`
 - **Estado**: borrador
