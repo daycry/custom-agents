@@ -15,11 +15,11 @@ verificacion: obligatoria
 
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervision (real/est) | Tokens (real/est) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| Fase 1 - Config, redaccion compartida y capacidad | 0 | 3 | 0% | 0 / 6.5h | 0 / 2.0h | 0 / 0.5h | 0 / 85k |
+| Fase 1 - Config, redaccion compartida y capacidad | 3 | 3 | 100% (pendiente revisión de dos lentes) | 0 / 6.5h | 0.41 / 2.0h | 0 / 0.5h | medido / 85k (T-01 0.22h · T-02 0.12h · T-03 0.07h) |
 | Fase 2 - Recorder y puerta humana | 0 | 3 | 0% | 0 / 8h | 0 / 2.4h | 0 / 0.6h | 0 / 120k |
 | Fase 3 - Dedup, particion y ensamblador | 0 | 3 | 0% | 0 / 14h | 0 / 4.2h | 0 / 1.1h | 0 / 210k |
 | Fase 4 - Setup, doctor y cierre | 0 | 2 | 0% | 0 / 11h | 0 / 3.3h | 0 / 0.8h | 0 / 160k |
-| **TOTAL** | **0** | **11** | **0%** | **0 / 39.5h** | **0 / 11.9h** | **0 / 3.0h** | **0 / 575k** |
+| **TOTAL** | **3** | **11** | **27%** | **0 / 39.5h** | **0.41 / 11.9h** | **0 / 3.0h** | **medido / 575k** |
 
 ## Fase 1 - Config, redaccion compartida y capacidad
 
