@@ -48,7 +48,7 @@ de dominio (métricas, simulación, herramientas) es del proyecto consumidor.
 |---|---|---|
 | `version` | sí | `1` |
 | `enabled` | no (`false`) | Activa la capacidad `training` |
-| `root` | si `enabled` | Raíz del case store; la elige el proyecto (relativa a su raíz o absoluta); nunca dentro de `docs/knowledge/` |
+| `root` | si `enabled` | Raíz del case store; la elige el proyecto (relativa a su raíz o absoluta, sin `~`); nunca dentro de `<proyecto>/docs/knowledge/` (resuelto con `realpath`, sin distinguir mayúsculas) |
 | `id_prefix` | si `enabled` | Slug que prefija el `case_id`: `<id_prefix>-<family>.<variant>` |
 | `ids` | no | `family_pattern` / `variant_pattern` (regex, sin puntos por defecto) · `version_width` (dígitos de `v<NNN>`, 3 por defecto) |
 | `bridge_to_curator` | no (`false`) | Un caso Gold puede proponerse como candidato a `knowledge-curator` (nunca se aprueba solo) |
@@ -62,8 +62,11 @@ Cualquier otra clave se rechaza (salvo `$comment`), para que una errata no pase 
   `outcome`.
 - `validation.status` ∈ `pending · approved · needs_changes · rejected`; `approved` ⇔
   `approved_by_human: true`.
-- `outcome` ∈ `success · failure · corrected`; `corrected` exige `supersedes_case: "<case_id>@v<N>"`.
-- La trayectoria **nunca** guarda chain-of-thought (`reasoning`, `thinking`… se rechazan).
+- `outcome` ∈ `success · failure · corrected`; `corrected` exige (y solo él admite)
+  `supersedes_case: "<case_id>@v<N>"` del mismo `case_id` y una versión anterior.
+- La trayectoria **nunca** guarda chain-of-thought: toda clave que empiece por `reasoning`, `thinking`,
+  `thought`, `chain_of_thought` o `scratchpad` (sin distinguir mayúsculas, a cualquier profundidad del
+  turno, incluidos los `arguments`) se rechaza. Un tipo inesperado es un error `{campo, mensaje}`, nunca un crash.
 - `metrics` es un objeto JSON opaco del proyecto; el plugin no lo interpreta.
 - `context`: texto u objeto libre; admite `refs: [{"ref": "<fichero:línea|nodo>", "kind": "..."}]`
   opcional para citar procedencia (nadie está obligado a usarla).

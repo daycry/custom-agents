@@ -10,8 +10,9 @@ proyecto; `context`/`constraints` tienen esquema libre salvo la lista opcional `
 Contrato de `training.json` (version 1) — opt-in: sin fichero, la capacidad no existe (CA-01):
   version (int, obligatorio, 1) · enabled (bool, default false)
   root (str, obligatorio si enabled): raiz del case store, relativa a la raiz del proyecto o
-       absoluta; la elige el proyecto (el plugin no impone nombre) y NUNCA dentro de
-       `docs/knowledge/` (ADR-019: el case store no es memoria curada)
+       absoluta (sin `~`: no se expande); la elige el proyecto (el plugin no impone nombre) y NUNCA
+       dentro de `<proyecto>/docs/knowledge/` (ADR-019), resuelto con realpath y sin distinguir
+       mayusculas
   id_prefix (str slug, obligatorio si enabled): prefijo de `case_id` (`<id_prefix>-<family>.<variant>`)
   ids (obj opcional): family_pattern · variant_pattern (regex; default `^[a-z0-9][a-z0-9_-]*$`,
        sin puntos: el punto separa familia y variante) · version_width (int 1..6, default 3 -> v001)
@@ -24,11 +25,13 @@ Contrato de un caso (lo que el recorder reparte en metadata/request/context/... 
   request (str|obj no vacio, LITERAL)                     obligatorio
   trajectory (lista no vacia de turnos chat/SFT)          obligatorio
       turno: role in system|user|assistant|tool · content (str) · tool_calls [{name, arguments}]
-      · name (obligatorio en `tool`) · ts; NUNCA chain-of-thought (reasoning/thinking/...)
+      · name (obligatorio en `tool`) · ts; NUNCA chain-of-thought (claves que empiezan por
+      reasoning/thinking/thought/chain_of_thought/scratchpad, sin distinguir mayusculas, a
+      cualquier profundidad del turno); family/variant sin separadores, `..` ni controles
   validation {status, approved_by_human, approved_at?, reviewer_note?}   obligatorio
       status in pending|approved|needs_changes|rejected; approved <=> approved_by_human true
-  outcome in success|failure|corrected (obligatorio); corrected exige
-      supersedes_case = "<case_id>@v<N>" (par fallo -> correccion, CA-12)
+  outcome in success|failure|corrected (obligatorio); corrected exige, y solo corrected admite,
+      supersedes_case = "<case_id>@v<N>": mismo case_id, version anterior (par fallo -> correccion, CA-12)
   context (str|obj opcional; `refs`: [{"ref": "<fichero:linea|nodo>", "kind": "..."}] opcional)
   constraints (obj opcional) · metrics (obj opcional, opaco) · created_at (str opcional)
   artifacts (lista opcional de {path, hash "<algo>:<hex>", kind}; nunca contenido inline)
@@ -39,8 +42,9 @@ Mapeo DECLARADO de vocabularios externos de outcome (`OUTCOME_MAPEO`), sin ampli
 Cada error es `{campo, mensaje}` (el campo nombra la clave concreta, p. ej. `trajectory[2].role`).
 
 Uso:
-  case_schema.py config <training.json>                  # exit 0 valido · 1 errores · 2 uso/JSON
-  case_schema.py case <caso.json> [--config <training.json>]
+  case_schema.py config <training.json> [--project-root <dir>]   # exit 0 valido · 1 errores de
+  case_schema.py case <caso.json> [--config <training.json>]       #   validacion · 2 uso/JSON ilegible
+  (un valor de tipo inesperado es SIEMPRE un error de validacion `{campo, mensaje}` -> exit 1)
 """
 import argparse
 import json
@@ -63,19 +67,66 @@ OUTCOME_MAPEO = {
     "graphify": {"useful": "success", "dead_end": "failure", "corrected": "corrected"},
 }
 ROLES = ("system", "user", "assistant", "tool")
-CLAVES_COT = ("reasoning", "reasoning_content", "thinking", "thought", "thoughts", "chain_of_thought")
+# Prefijos (comparacion case-insensitive, `-` == `_`) de claves de chain-of-thought: cubren
+# `reasoning_content`, `reasoning_details`, `thoughts`, `Thinking`... y se buscan en TODO el turno
+# (recursivo, incluidos `tool_calls[].arguments`), no solo en su primer nivel (fix1, gap #6).
+CLAVES_COT = ("reasoning", "thinking", "thought", "chain_of_thought", "scratchpad")
 CLAVES_INLINE = ("content", "data", "bytes", "base64", "blob")
 
+# Todos los patrones se evaluan con `re.fullmatch` (fix1, gap #4): con fullmatch, `$` ya no acepta
+# un `\n` final y un patron del proyecto sin anclas no casa solo un prefijo.
 PATRON_ID_DEFECTO = r"^[a-z0-9][a-z0-9_-]*$"
-PATRON_PREFIJO = re.compile(r"^[a-z0-9][a-z0-9-]*$")
-PATRON_HASH = re.compile(r"^[a-z0-9]+:[0-9a-fA-F]+$")
+PATRON_PREFIJO = re.compile(r"[a-z0-9][a-z0-9-]*")
+PATRON_HASH = re.compile(r"[a-z0-9]+:[0-9a-fA-F]+")
+PATRON_REFERENCIA = re.compile(r"(\S+)@v(\d+)")
 VERSION_WIDTH_DEFECTO = 3
 CLAVES_CONFIG = ("version", "enabled", "root", "id_prefix", "ids", "bridge_to_curator", "$comment")
 CLAVES_IDS = ("family_pattern", "variant_pattern", "version_width")
+ERRORES_REGEX = (re.error, OverflowError, RecursionError, MemoryError)
 
 
 def _err(campo, mensaje):
     return {"campo": campo, "mensaje": mensaje}
+
+
+def _componente_inseguro(v):
+    """Motivo por el que `v` no puede ser un componente de ruta del case store (`family`,
+    `variant`, `id_prefix`), o None. Independiente del patron del proyecto (CWE-22, gap #4)."""
+    if "/" in v or "\\" in v:
+        return "no puede contener separadores de ruta"
+    if ".." in v:
+        return "no puede contener `..`"
+    if any(ord(c) < 32 or ord(c) == 127 for c in v):
+        return "no puede contener caracteres de control"
+    return None
+
+
+def _casa(patron, valor):
+    """`re.fullmatch` que nunca lanza: un patron roto (no validado) cuenta como no casar."""
+    try:
+        return re.fullmatch(patron, valor) is not None
+    except ERRORES_REGEX:
+        return False
+
+
+def _canon(ruta):
+    """Ruta comparable: absoluta, sin `..`, enlaces resueltos y SIN distinguir mayusculas (en
+    Windows/macOS `Docs/Knowledge` es el mismo directorio; en Linux se rechaza igual: la regla
+    peca de estricta, nunca de laxa)."""
+    return os.path.normcase(os.path.realpath(ruta)).casefold()
+
+
+def _root_en_docs_knowledge(root, raiz_proyecto):
+    """True si `root` (relativo a `raiz_proyecto` o absoluto) cae en `<proyecto>/docs/knowledge/`."""
+    raiz = raiz_proyecto or "."
+    destino = root.replace("\\", "/") if not os.path.isabs(root) else root
+    destino = destino if os.path.isabs(destino) else os.path.join(raiz, destino)
+    try:
+        k = _canon(os.path.join(raiz, "docs", "knowledge"))
+        d = _canon(destino)
+    except (OSError, ValueError):
+        return True   # ruta que ni siquiera se puede resolver: se rechaza (fail closed)
+    return d == k or d.startswith(k.rstrip("\\/") + os.sep)
 
 
 def _es_int(v):
@@ -88,8 +139,10 @@ def _str_no_vacio(v):
 
 # ------------------------------------------------------------------ training.json
 
-def validar_config(cfg):
-    """Lista de errores `{campo, mensaje}` de un `training.json` ya parseado ([] = valido)."""
+def validar_config(cfg, raiz_proyecto=None):
+    """Lista de errores `{campo, mensaje}` de un `training.json` ya parseado ([] = valido).
+    `raiz_proyecto` (default: cwd) es contra la que se resuelve `root` para rechazarlo si cae
+    dentro de `<proyecto>/docs/knowledge/`, sea relativo, absoluto o con otra capitalizacion."""
     if not isinstance(cfg, dict):
         return [_err("(raiz)", "training.json debe ser un objeto JSON")]
     errores = []
@@ -102,6 +155,8 @@ def validar_config(cfg):
     if not isinstance(enabled, bool):
         errores.append(_err("enabled", "debe ser booleano"))
         enabled = False
+    if "$comment" in cfg and not isinstance(cfg["$comment"], str):
+        errores.append(_err("$comment", "debe ser texto"))
     if "bridge_to_curator" in cfg and not isinstance(cfg["bridge_to_curator"], bool):
         errores.append(_err("bridge_to_curator", "debe ser booleano"))
 
@@ -109,13 +164,15 @@ def validar_config(cfg):
         root = cfg.get("root")
         if not _str_no_vacio(root):
             errores.append(_err("root", "obligatorio con enabled: true (ruta del case store elegida por el proyecto)"))
-        else:
-            norm = os.path.normpath(root.replace("\\", "/")).replace("\\", "/")
-            if not os.path.isabs(root) and (norm == "docs/knowledge" or norm.startswith("docs/knowledge/")):
-                errores.append(_err("root", "el case store no puede vivir dentro de docs/knowledge/ (ADR-019)"))
+        elif root.startswith("~"):
+            errores.append(_err("root", "`~` no se expande: usa una ruta relativa al proyecto o absoluta explicita"))
+        elif any(ord(c) < 32 for c in root):
+            errores.append(_err("root", "no puede contener caracteres de control"))
+        elif _root_en_docs_knowledge(root, raiz_proyecto):
+            errores.append(_err("root", "el case store no puede vivir dentro de docs/knowledge/ (ADR-019)"))
     if "id_prefix" in cfg or enabled:
         pref = cfg.get("id_prefix")
-        if not isinstance(pref, str) or not PATRON_PREFIJO.match(pref):
+        if not isinstance(pref, str) or not PATRON_PREFIJO.fullmatch(pref):
             errores.append(_err("id_prefix", "obligatorio con enabled: true; slug `^[a-z0-9][a-z0-9-]*$`"))
 
     ids = cfg.get("ids")
@@ -128,12 +185,13 @@ def validar_config(cfg):
                     errores.append(_err(f"ids.{clave}", f"clave desconocida (admitidas: {', '.join(CLAVES_IDS)})"))
             for clave in ("family_pattern", "variant_pattern"):
                 if clave in ids:
+                    if not isinstance(ids[clave], str):
+                        errores.append(_err(f"ids.{clave}", "regex invalida: no es una cadena"))
+                        continue
                     try:
-                        if not isinstance(ids[clave], str):
-                            raise re.error("no es una cadena")
                         re.compile(ids[clave])
-                    except re.error as e:
-                        errores.append(_err(f"ids.{clave}", f"regex invalida: {e}"))
+                    except ERRORES_REGEX as e:   # OverflowError/RecursionError tambien (gap #3)
+                        errores.append(_err(f"ids.{clave}", f"regex invalida: {type(e).__name__}: {e}"))
             if "version_width" in ids:
                 w = ids["version_width"]
                 if not _es_int(w) or not 1 <= w <= 6:
@@ -152,7 +210,7 @@ def cargar_config(root):
             cfg = json.load(f)
     except (OSError, ValueError) as e:
         return None, ruta, [_err("(fichero)", f"JSON ilegible: {e}")]
-    errores = validar_config(cfg)
+    errores = validar_config(cfg, root or ".")
     return (cfg if not errores else None), ruta, errores
 
 
@@ -174,13 +232,22 @@ def referencia_version(case_id, version, width=VERSION_WIDTH_DEFECTO):
 
 
 def directorio_version(family, variant, version, width=VERSION_WIDTH_DEFECTO):
-    """Ruta RELATIVA a `<root>` de una version: `cases/<family>.<variant>/v<NNN>` (design.md)."""
+    """Ruta RELATIVA a `<root>` de una version: `cases/<family>.<variant>/v<NNN>` (design.md).
+    `ValueError` si `family`/`variant` no son un componente de ruta seguro (gap #4, CWE-22): esta
+    funcion nunca devuelve una ruta que se salga de `cases/`, aunque el caso no se haya validado."""
+    for nombre, v in (("family", family), ("variant", variant)):
+        motivo = "debe ser texto no vacio" if not _str_no_vacio(v) else _componente_inseguro(v)
+        if motivo:
+            raise ValueError(f"{nombre} {v!r}: {motivo}")
     return os.path.join("cases", f"{family}.{variant}", f"v{int(version):0{width}d}")
 
 
 def mapear_outcome(valor, fuente=None):
     """Traduce un outcome externo al vocabulario cerrado segun `OUTCOME_MAPEO`. Sin `fuente`, solo
-    acepta el vocabulario propio. Lo desconocido devuelve None (nunca se inventa un outcome)."""
+    acepta el vocabulario propio. Lo desconocido (o de tipo no texto) devuelve None (nunca se
+    inventa un outcome ni se lanza con un valor no hashable, gap #1)."""
+    if not isinstance(valor, str) or (fuente is not None and not isinstance(fuente, str)):
+        return None
     if fuente is None:
         return valor if valor in OUTCOMES else None
     return (OUTCOME_MAPEO.get(fuente) or {}).get(valor)
@@ -188,14 +255,39 @@ def mapear_outcome(valor, fuente=None):
 
 # ------------------------------------------------------------------ caso
 
+def _es_clave_cot(clave):
+    if not isinstance(clave, str):
+        return False
+    norm = clave.casefold().replace("-", "_")
+    return any(norm.startswith(p) for p in CLAVES_COT)
+
+
+def _buscar_cot(valor, campo, errores, profundidad=0):
+    """Recorre `valor` (dicts, listas y `arguments` en texto JSON) y anota cada clave de CoT."""
+    if profundidad > 50:
+        return
+    if isinstance(valor, str) and campo.endswith(".arguments"):
+        try:
+            valor = json.loads(valor)
+        except ValueError:
+            return
+    if isinstance(valor, dict):
+        for clave, sub in valor.items():
+            if _es_clave_cot(clave):
+                errores.append(_err(f"{campo}.{clave}", "prohibido: la trayectoria nunca guarda chain-of-thought"))
+            else:
+                _buscar_cot(sub, f"{campo}.{clave}", errores, profundidad + 1)
+    elif isinstance(valor, list):
+        for j, sub in enumerate(valor):
+            _buscar_cot(sub, f"{campo}[{j}]", errores, profundidad + 1)
+
+
 def _validar_turno(i, turno, errores):
     campo = f"trajectory[{i}]"
     if not isinstance(turno, dict):
         errores.append(_err(campo, "cada turno debe ser un objeto"))
         return
-    for clave in CLAVES_COT:
-        if clave in turno:
-            errores.append(_err(f"{campo}.{clave}", "prohibido: la trayectoria nunca guarda chain-of-thought"))
+    _buscar_cot(turno, campo, errores)
     rol = turno.get("role")
     if rol not in ROLES:
         errores.append(_err(f"{campo}.role", f"obligatorio; uno de {', '.join(ROLES)}"))
@@ -263,7 +355,7 @@ def _validar_artifacts(arts, errores):
                 errores.append(_err(f"{campo}.{clave}", "prohibido contenido inline: solo referencia con ruta y hash"))
         if not _str_no_vacio(a.get("path")):
             errores.append(_err(f"{campo}.path", "obligatorio"))
-        if not isinstance(a.get("hash"), str) or not PATRON_HASH.match(a["hash"]):
+        if not isinstance(a.get("hash"), str) or not PATRON_HASH.fullmatch(a["hash"]):
             errores.append(_err(f"{campo}.hash", "obligatorio: `<algoritmo>:<hex>` (p. ej. sha256:...)"))
         if "kind" in a and not isinstance(a["kind"], str):
             errores.append(_err(f"{campo}.kind", "debe ser texto"))
@@ -297,8 +389,10 @@ def validar_caso(caso, config=None):
     pat_fam, pat_var, width = patrones_id(config)
     for campo, patron in (("family", pat_fam), ("variant", pat_var)):
         v = caso.get(campo)
-        if not isinstance(v, str) or not re.match(patron, v):
-            errores.append(_err(campo, f"obligatorio; debe casar con {patron}"))
+        if not isinstance(v, str) or not _casa(patron, v):
+            errores.append(_err(campo, f"obligatorio; debe casar ENTERO con {patron}"))
+        elif _componente_inseguro(v):
+            errores.append(_err(campo, f"{_componente_inseguro(v)} (es un directorio del case store)"))
 
     version = caso.get("version")
     if not _es_int(version) or version < 1:
@@ -314,7 +408,7 @@ def validar_caso(caso, config=None):
             if case_id != esperado:
                 errores.append(_err("case_id", f"debe ser `{esperado}` (id_prefix + family.variant)"))
         elif not (case_id == base or (case_id.endswith("-" + base)
-                                      and PATRON_PREFIJO.match(case_id[: -len(base) - 1] or "?"))):
+                                      and PATRON_PREFIJO.fullmatch(case_id[: -len(base) - 1] or "?"))):
             errores.append(_err("case_id", f"debe ser `[<id_prefix>-]{base}`"))
 
     if "created_at" in caso and not isinstance(caso["created_at"], str):
@@ -344,21 +438,41 @@ def validar_caso(caso, config=None):
         _validar_validation(caso["validation"], errores)
 
     outcome = caso.get("outcome")
-    if outcome not in OUTCOMES:
+    if not isinstance(outcome, str):
+        # gap #1: un outcome no texto (lista, dict, None...) es un error de campo, nunca un crash
+        errores.append(_err("outcome", f"obligatorio, texto; uno de {', '.join(OUTCOMES)}"))
+    elif outcome not in OUTCOMES:
         extra = ""
         for fuente, tabla in OUTCOME_MAPEO.items():
             if outcome in tabla:
                 extra = f" (vocabulario `{fuente}`: mapea con mapear_outcome -> `{tabla[outcome]}`)"
         errores.append(_err("outcome", f"obligatorio; uno de {', '.join(OUTCOMES)}{extra}"))
-    sup = caso.get("supersedes_case")
-    patron_sup = re.compile(r"^\S+@v\d+$")
-    if sup is not None and (not isinstance(sup, str) or not patron_sup.match(sup)):
-        errores.append(_err("supersedes_case", "formato `<case_id>@v<N>`"))
-    elif outcome == "corrected" and sup is None:
-        errores.append(_err("supersedes_case", "obligatorio con outcome `corrected` (`<case_id>@v<N>` del fallo)"))
+    _validar_supersedes(caso, outcome, errores)
 
     _validar_artifacts(caso.get("artifacts"), errores)
     return errores
+
+
+def _validar_supersedes(caso, outcome, errores):
+    """gap #5: `supersedes_case` solo con `corrected` (y ahi obligatorio), apuntando a una version
+    ESTRICTAMENTE anterior del MISMO `case_id` (par fallo -> correccion, CA-12 de design.md)."""
+    sup = caso.get("supersedes_case")
+    if sup is None:
+        if outcome == "corrected":
+            errores.append(_err("supersedes_case", "obligatorio con outcome `corrected` (`<case_id>@v<N>` del fallo)"))
+        return
+    m = PATRON_REFERENCIA.fullmatch(sup) if isinstance(sup, str) else None
+    if m is None:
+        errores.append(_err("supersedes_case", "formato `<case_id>@v<N>`"))
+        return
+    if outcome != "corrected":
+        errores.append(_err("supersedes_case", "solo con outcome `corrected` (un caso que corrige a otro)"))
+        return
+    case_id, version = caso.get("case_id"), caso.get("version")
+    if isinstance(case_id, str) and m.group(1) != case_id:
+        errores.append(_err("supersedes_case", f"debe apuntar al mismo case_id `{case_id}` (una version anterior)"))
+    elif _es_int(version) and int(m.group(2)) >= version:
+        errores.append(_err("supersedes_case", f"debe apuntar a una version anterior a v{version} (nunca a si mismo ni a una posterior)"))
 
 
 # ------------------------------------------------------------------ CLI
@@ -377,28 +491,41 @@ def _imprimir(errores, ruta):
     return 1
 
 
+def _raiz_de(ruta_config, explicita=None):
+    """Raiz del proyecto contra la que se resuelve `root`: la explicita (`--project-root`), la que
+    se deduce si el fichero esta en `<proyecto>/.claude/knowledge-services/training.json`, o cwd."""
+    if explicita:
+        return explicita
+    absoluta = os.path.abspath(ruta_config)
+    if os.path.normcase(absoluta).endswith(os.path.normcase(os.sep + CONFIG_REL)):
+        return absoluta[: -len(CONFIG_REL) - 1]
+    return os.getcwd()
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description="Valida training.json o un caso del case store.")
     sub = ap.add_subparsers(dest="cmd", required=True)
     p_cfg = sub.add_parser("config", help="valida un training.json")
     p_cfg.add_argument("fichero")
+    p_cfg.add_argument("--project-root", help="raiz del proyecto (default: deducida de la ruta o cwd)")
     p_case = sub.add_parser("case", help="valida un caso (JSON unico)")
     p_case.add_argument("fichero")
     p_case.add_argument("--config", help="training.json del proyecto (prefijo y patrones de id)")
+    p_case.add_argument("--project-root", help="raiz del proyecto (default: deducida de --config o cwd)")
     args = ap.parse_args(argv)
     try:
         datos = _leer_json(args.fichero)
         config = None
         if args.cmd == "case" and args.config:
             config = _leer_json(args.config)
-            errores_cfg = validar_config(config)
+            errores_cfg = validar_config(config, _raiz_de(args.config, args.project_root))
             if errores_cfg:
                 return _imprimir(errores_cfg, args.config)
     except (OSError, ValueError) as e:
         print(f"error: JSON ilegible o fichero ausente: {e}", file=sys.stderr)
         return 2
     if args.cmd == "config":
-        return _imprimir(validar_config(datos), args.fichero)
+        return _imprimir(validar_config(datos, _raiz_de(args.fichero, args.project_root)), args.fichero)
     return _imprimir(validar_caso(datos, config), args.fichero)
 
 

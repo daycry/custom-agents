@@ -34,7 +34,9 @@ línea ⚠️/❌, el **arreglo sugerido** en llano:
                    todo llega por el contrato `{id, config_path, enabled, health, doctor, setup_step}`
                    (id que da nombre a la fila, sea cual sea). Config
                    inválida (p. ej. `taxonomy.json` roto) → ❌ con fichero+detalle+arreglo;
-                   desactivada → ℹ️; activa con backend declarado → comprobación de red EN VIVO vía
+                   desactivada → ℹ️ (y OMITIDA si su `config_path` no existe en el proyecto: opt-in
+                   sin configurar = cero impacto, salvo `--verbose`/`--all`); activa con backend
+                   declarado → comprobación de red EN VIVO vía
                    el adaptador de esa capacidad (`health()`/`verify()`, cargado genéricamente por
                    `type` como hace `knowledge-sync.py`): ✅ sano sin desfase, ⚠️ export atrasado
                    (con el remedio que nombra `verify()`, nunca lo ejecuta) o degradado/error, ℹ️
@@ -74,7 +76,7 @@ línea ⚠️/❌, el **arreglo sugerido** en llano:
 lectura, así que se puede lanzar sin miedo tantas veces como haga falta.
 
 Uso:
-  doctor.py [--root DIR] [--plugin-root DIR] [--json] [--hoy AAAA-MM-DD]
+  doctor.py [--root DIR] [--plugin-root DIR] [--json] [--verbose|--all] [--hoy AAAA-MM-DD]
   (`--hoy` fija la fecha de referencia de la antigüedad de CALIBRATION.md; default: hoy. Para tests.)
 Exit:
   0  sin ❌ (los ⚠️/ℹ️ no bloquean: el plugin degrada, no rompe)
@@ -1611,7 +1613,20 @@ def _linea_capacidad(project, cap, backends_mod, backends_dir, tope_ms=CAPACIDAD
     return linea(INFO, cap["id"], cap.get("doctor") or "activa")
 
 
-def bloque_capacidades(plugin_root, project):
+def _optin_sin_configurar(project, cap):
+    """Regla GENÉRICA del contrato de capacidades (fix1 de la Fase 1, gap #9): una
+    capacidad DESACTIVADA, sin error, cuyo `config_path` declarado no existe en el proyecto es un
+    opt-in que el proyecto no ha tocado — cero impacto: no pinta fila salvo `--verbose`. Sin
+    `config_path` declarado no se puede saber, así que se muestra (conservador)."""
+    salud = cap.get("health")
+    estado = salud.get("estado") if isinstance(salud, dict) else salud
+    ruta = cap.get("config_path")
+    if cap.get("enabled") or estado == "error" or not ruta:
+        return False
+    return not os.path.exists(ruta if os.path.isabs(ruta) else os.path.join(project, ruta))
+
+
+def bloque_capacidades(plugin_root, project, verbose=False):
     cap_mod = _cargar_capabilities(plugin_root)
     if cap_mod is None:
         return {"clave": "capacidades", "titulo": "Capacidades opcionales",
@@ -1622,6 +1637,12 @@ def bloque_capacidades(plugin_root, project):
     if not capacidades:
         return {"clave": "capacidades", "titulo": "Capacidades opcionales",
                 "lineas": [linea(INFO, "capacidades opcionales", "sin capacidades registradas")]}
+    if not verbose:
+        capacidades = [c for c in capacidades if not _optin_sin_configurar(project, c)]
+        if not capacidades:
+            return {"clave": "capacidades", "titulo": "Capacidades opcionales",
+                    "lineas": [linea(INFO, "capacidades opcionales", "ninguna configurada en este proyecto",
+                                     "`--verbose` lista también los opt-in sin configurar")]}
     # gap 94: tope TOTAL del bloque (no solo por capacidad) — con muchas capacidades opcionales
     # activas y una red lenta, /doctor no debe convertirse en un diagnóstico de minutos.
     # gap 124: el tope POR CAPACIDAD (`tope_ms`) se recorta al presupuesto RESTANTE del bloque
@@ -2139,13 +2160,13 @@ def bloque_journal(plugin_root, project):
 
 # ------------------------------------------------------------------ informe
 
-def diagnostico(project, plugin_root_explicito=None, hoy=None):
+def diagnostico(project, plugin_root_explicito=None, hoy=None, verbose=False):
     plugin_root = localizar_plugin(plugin_root_explicito)
     bloques = [bloque_herramientas(),
                bloque_plugin(plugin_root, project, plugin_root_explicito),
                bloque_configs(plugin_root, project),
                bloque_estado(plugin_root, project),
-               bloque_capacidades(plugin_root, project),
+               bloque_capacidades(plugin_root, project, verbose=verbose),
                bloque_memoria(plugin_root, project, hoy),
                bloque_journal(plugin_root, project),
                bloque_version(plugin_root, project)]
@@ -2196,6 +2217,8 @@ def main(argv=None):
     ap.add_argument("--root", default=".", help="proyecto a diagnosticar (default: cwd)")
     ap.add_argument("--plugin-root", default=None, help="raíz del plugin (default: autodetección)")
     ap.add_argument("--json", action="store_true")
+    ap.add_argument("--verbose", "--all", dest="verbose", action="store_true",
+                    help="incluye las capacidades opcionales desactivadas sin su fichero de config")
     ap.add_argument("--hoy", default=None, help="fecha de referencia AAAA-MM-DD para la antigüedad de CALIBRATION.md (tests)")
     args = ap.parse_args(argv)
 
@@ -2213,7 +2236,7 @@ def main(argv=None):
         print(f"❌ uso: --plugin-root `{args.plugin_root}` no es un directorio", file=sys.stderr)
         return 2
 
-    inf = diagnostico(args.root, args.plugin_root, hoy)
+    inf = diagnostico(args.root, args.plugin_root, hoy, verbose=args.verbose)
     print(json.dumps(inf, ensure_ascii=False, indent=2) if args.json else render_md(inf))
     return inf["exit"]
 
