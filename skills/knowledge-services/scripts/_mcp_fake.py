@@ -76,9 +76,9 @@ class _ServidorMCPFalso(BaseHTTPRequestHandler):
 
     def do_POST(self):  # noqa: N802 - nombre impuesto por BaseHTTPRequestHandler
         largo = int(self.headers.get("Content-Length", 0))
-        # Siempre se drena el cuerpo ANTES de responder (incluso en la rama de redirección): un
+        # Siempre se drena el cuerpo ANTES de responder (incluso en la rama de redireccion): un
         # cuerpo sin leer deja datos pendientes en el socket que Windows corta con
-        # ConnectionAbortedError en la siguiente petición de la misma suite.
+        # ConnectionAbortedError en la siguiente peticion de la misma suite.
         crudo = self.rfile.read(largo) if largo else b"{}"
         if self.forma_redirect == "redirect_una_vez" and self.path == "/mcp/":
             self.send_response(307)
