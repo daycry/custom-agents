@@ -45,31 +45,46 @@ exigibles por esta puerta, pero sí se cruzan a mano con tests en el punto 4.
 
 ## 3. Suites de la iniciativa
 
-Las 8 rutas de la iniciativa **más** la suite de seguridad nueva de T-09:
+Las 8 rutas de la iniciativa **más** la suite de seguridad de T-09 (salida re-pegada el 2026-09-23
+tras la ronda `fix2` de la Fase 4):
 
 ```
-$ python -m pytest -q -p no:cacheprovider tests/test_knowledge_router.py tests/test_knowledge_find.py \
-    agent-kits/shared/test_capabilities.py agent-kits/shared/test_doctor.py \
+$ python -m pytest -q -p no:cacheprovider tests/test_graphiti_security.py tests/test_knowledge_router.py \
+    tests/test_knowledge_find.py agent-kits/shared/test_capabilities.py agent-kits/shared/test_doctor.py \
     skills/knowledge-services/scripts tests/test_knowledge_services.py \
-    agent-kits/shared/test_knowledge_schema.py tests/test_copias_declaradas.py \
-    tests/test_graphiti_security.py
+    agent-kits/shared/test_knowledge_schema.py tests/test_copias_declaradas.py
 FAILED tests/test_knowledge_find.py::test_show_imprime_la_entrada_completa_tal_cual
 FAILED tests/test_knowledge_find.py::test_show_json_envuelve_el_contenido_con_su_ficha
 FAILED tests/test_knowledge_find.py::test_ca04_show_adr012_la_entrada_mas_grande_cabe_en_10800_caracteres
 FAILED agent-kits/shared/test_doctor.py::test_hook_sin_bit_ejecutable_es_aviso_con_chmod
-4 failed, 835 passed, 1 skipped, 8 subtests passed in 312.57s (0:05:12)
+4 failed, 859 passed, 1 skipped, 8 subtests passed in 2294.76s (0:38:14)
 ```
 
-`835 = 800` (línea base de la Fase 3) `+ 35` de `tests/test_graphiti_security.py` (23 en la entrega inicial `+ 12` de la ronda `fix1` de la Fase 4: #154, #155, #156, #157, #160 y #166). Salida re-pegada el 2026-09-22 tras esa ronda. Los **4
-rojos son PREEXISTENTES y solo de Windows** (los tres `test_*show*` por CRLF/`cp1252`, el de
-`chmod` por el bit de ejecución de NTFS), idénticos a los de la Fase 3: no son regresión.
+`859 = 800` (línea base de la Fase 3) `+ 59` de `tests/test_graphiti_security.py` (23 en la entrega
+inicial `+ 12` de `fix1` `+ 24` de `fix2`: #168, #173-#177, #179-#183). Los **4 rojos** de siempre
+son PREEXISTENTES y solo de Windows (los tres `test_*show*` por CRLF/`cp1252`, el de `chmod` por el
+bit de ejecución de NTFS). En dos de las tres corridas completas de `fix2` cayó además UN test
+distinto cada vez (`test_backend_markdown_export.py` y `test_backend_graphiti.py`, ninguno tocado en
+la ronda), verde en aislamiento y en su fichero: flake bajo carga, no regresión.
 
 Suite de seguridad sola:
 
 ```
 $ python -m pytest -q -p no:cacheprovider tests/test_graphiti_security.py
-23 passed in 25.15s
+59 passed in 29.98s
 ```
+
+Suites de consola (gap #168: el módulo de apoyo `_mcp_fake.py` rompía `tests/test_console_encoding.py`
+en CI; ahora es solo ASCII):
+
+```
+$ python -m pytest -q -p no:cacheprovider tests/test_console_encoding.py tests/test_suites_no_pytest.py
+FAILED tests/test_suites_no_pytest.py::test_la_suite_script_pasa[test_lint_plugin.py]
+1 failed, 411 passed in 84.39s (0:01:24)
+```
+
+El rojo que queda es PREEXISTENTE de Windows (también en la base `a6723ec`, que daba `5 failed`:
+estos 4 de `_mcp_fake.py` + este).
 
 `tests/test_hooks_shell.py` (segunda ruta de la `Verificacion` de T-09) da **52 rojos
 preexistentes en esta máquina**: sus tests ejecutan los hooks con `bash`/`python3`, que este
@@ -197,7 +212,7 @@ Las tres en exit 0. Los 3 avisos de `lint_plugin` son nombres genéricos de coma
 
 ## Veredicto
 
-**Verde, sin UI.** 835 tests verdes en las 9 rutas de la iniciativa (4 rojos preexistentes de
+**Verde, sin UI.** 859 tests verdes en las 9 rutas de la iniciativa (4 rojos preexistentes de
 Windows, ninguno de esta fase), los 15 CA cruzados con tests reales, puerta E18 en verde, las
 tres puertas del repo en 0 y ninguna escritura contra el servidor Graphiti real. Lo único
 abierto es de proceso, no de producto: el **Resumen de progreso** y la celda de tokens del

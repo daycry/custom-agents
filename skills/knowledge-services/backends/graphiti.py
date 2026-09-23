@@ -1166,9 +1166,12 @@ def _nombre_episodio(id_, version):
 
 
 # Campos que el adaptador CONSUME despues de `add_memory` (`uuid` -lo que se devuelve y lo que
-# usa el `SUPERSEDES` de #40- y `name`) o que el contrato de la tool exige (`episode_body`,
-# `group_id`, `source`, `source_description`): ninguno puede faltar ni venir vacio en lo que
-# devuelve el proveedor (gap #154).
+# usa el `SUPERSEDES` de #40- y `name`) o que exige NUESTRO episodio construido (`episode_body`,
+# `group_id`, `source`, `source_description`, los que `_episodio_upsert` siempre rellena): ninguno
+# puede faltar ni venir vacio en lo que devuelve el proveedor (gap #154). Gap #185 (fix2 Fase 4):
+# no es el servidor quien los exige -el `inputSchema` real de `add_memory` solo declara
+# `required: ["name", "episode_body"]`-; los exigimos nosotros para que el grafo reciba siempre la
+# procedencia y el `group_id` del proyecto, y no los defaults del servidor.
 _CAMPOS_EPISODIO_OBLIGATORIOS = ("uuid", "name", "episode_body", "group_id", "source",
                                  "source_description")
 # Identidad del episodio: el proveedor ORIENTA la extraccion (instrucciones, `source`); no
