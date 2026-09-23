@@ -238,7 +238,7 @@ flowchart LR
 | `/confluence-pull` | Confluence → `docs/` local (PM sin git). |
 | `/doctor` | Diagnóstico determinista de la instalación: herramientas, plugin/hooks, statusline, configs de `.claude/`, estado del trabajo — veredicto ✅/⚠️/❌ con el arreglo por línea, solo lectura, sin red. |
 
-Skills compartidas: `jira-sync` · `confluence-publish` / `confluence-pull` · `roadmap-dashboard` · `debug-root-cause` · `adversarial-review` · `cybersecurity` · `to-pdf` · `rates-verify` · `plugin-dev` · `quick-implement` · `tdd` · `code-health` · `dependency-upgrade` · `changelog-sync` · `unit-tests` · `api-contract` · `knowledge-services`. Scripts deterministas (todos con tests): `usage-meter` · `task-brief` · `model-tier` · `journal` · `code-health` · `deps-inventory` · `worklog` · `qa-gate` · `ledger-lint` · `coverage-check` · `build_dashboard` · `lint_plugin`.
+Skills compartidas: `jira-sync` · `confluence-publish` / `confluence-pull` · `roadmap-dashboard` · `debug-root-cause` · `adversarial-review` · `cybersecurity` · `to-pdf` · `rates-verify` · `plugin-dev` · `quick-implement` · `tdd` · `code-health` · `dependency-upgrade` · `changelog-sync` · `unit-tests` · `api-contract` · `knowledge-services` · `training-data-services`. Scripts deterministas (todos con tests): `usage-meter` · `task-brief` · `model-tier` · `journal` · `code-health` · `deps-inventory` · `worklog` · `qa-gate` · `ledger-lint` · `coverage-check` · `build_dashboard` · `lint_plugin`.
 
 </details>
 

@@ -1918,7 +1918,8 @@ def test_bloque_capacidades_via_capabilities_real_proyecto_sin_config(tmp_path):
     """`capabilities.py` REAL (no un doble): sin `taxonomy.json` de proyecto, `knowledge-gate`
     usa la plantilla por defecto (ok) y la capacidad opcional aparece desactivada."""
     proj = proyecto(tmp_path)
-    b = doctor.bloque_capacidades(None, str(proj))
+    # fix1 gap #9: las desactivadas SIN su fichero de config solo salen con `verbose`
+    b = doctor.bloque_capacidades(None, str(proj), verbose=True)
     ids = {l["que"] for l in b["lineas"]}
     assert "knowledge-gate" in ids
     assert any(i for i in ids if i != "knowledge-gate")   # al menos una capacidad opcional mas
@@ -1954,3 +1955,61 @@ def test_bloque_capacidades_esta_en_diagnostico(tmp_path):
     inf = diag(proj)
     claves = {b["clave"] for b in inf["bloques"]}
     assert "capacidades" in claves
+
+
+# ------------------------------------------------------------------ fix1 gap #9 (training-data-services)
+
+def test_f1fix1_gap09_optin_sin_su_config_se_omite_salvo_verbose(tmp_path, monkeypatch):
+    """Regla GENERICA del contrato de capacidades: una capacidad desactivada cuyo `config_path` no
+    existe en el proyecto no pinta nada en /doctor (cero impacto de un opt-in no configurado) salvo
+    con `--verbose`; con su fichero, activa, o en error, sale siempre. Sin nombres de capacidad."""
+    proj = tmp_path / "proj"
+    (proj / "cfg").mkdir(parents=True)
+    (proj / "cfg" / "b.json").write_text("{}", encoding="utf-8")
+    caps = [_cap("a", enabled=False, config_path=os.path.join("cfg", "a.json")),
+            _cap("b", enabled=False, config_path=os.path.join("cfg", "b.json")),
+            _cap("c", enabled=True, config_path=os.path.join("cfg", "c.json")),
+            _cap("d", enabled=False, config_path=os.path.join("cfg", "d.json"),
+                 health={"estado": "error", "detalle": "roto", "fichero": "cfg/d.json"}),
+            _cap("e", enabled=False, config_path=None)]
+
+    class _CapMod:
+        @staticmethod
+        def enumerar(project):
+            return caps
+
+    monkeypatch.setattr(doctor, "_cargar_capabilities", lambda plugin_root: _CapMod())
+    monkeypatch.setattr(doctor, "_cargar_backends_loader", lambda plugin_root: (None, "d"))
+    normal = {l["que"] for l in doctor.bloque_capacidades(None, str(proj))["lineas"]}
+    assert normal == {"b", "c", "d", "e"}
+    verbose = {l["que"] for l in doctor.bloque_capacidades(None, str(proj), verbose=True)["lineas"]}
+    assert verbose == {"a", "b", "c", "d", "e"}
+
+
+def test_f1fix1_gap09_todas_omitidas_deja_una_linea_informativa(tmp_path, monkeypatch):
+    class _CapMod:
+        @staticmethod
+        def enumerar(project):
+            return [_cap("a", enabled=False, config_path="no-existe.json")]
+
+    monkeypatch.setattr(doctor, "_cargar_capabilities", lambda plugin_root: _CapMod())
+    monkeypatch.setattr(doctor, "_cargar_backends_loader", lambda plugin_root: (None, "d"))
+    b = doctor.bloque_capacidades(None, str(tmp_path))
+    assert [l["que"] for l in b["lineas"]] == ["capacidades opcionales"]
+    assert b["lineas"][0]["estado"] == doctor.INFO and "--verbose" in b["lineas"][0]["arreglo"]
+
+
+def test_f1fix1_gap09_proyecto_sin_config_no_pinta_desactivadas_y_verbose_si(tmp_path):
+    """Pipeline REAL (`capabilities.enumerar()`): sin ficheros de config de proyecto, ninguna fila
+    `desactivado`; `--verbose` (CLI) las muestra."""
+    proj = proyecto(tmp_path)
+    b = doctor.bloque_capacidades(None, str(proj))
+    assert not [l for l in b["lineas"] if l["detalle"] == "desactivado"]
+    for flag in ("--verbose", "--all"):
+        r = run("--root", str(proj), "--json", flag)
+        inf = json.loads(r.stdout)
+        cap = next(x for x in inf["bloques"] if x["clave"] == "capacidades")
+        assert [l for l in cap["lineas"] if l["detalle"] == "desactivado"], flag
+    r = run("--root", str(proj), "--json")
+    cap = next(x for x in json.loads(r.stdout)["bloques"] if x["clave"] == "capacidades")
+    assert not [l for l in cap["lineas"] if l["detalle"] == "desactivado"]

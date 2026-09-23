@@ -335,3 +335,23 @@ def test_training_valida_con_el_esquema_de_la_skill(tmp_path, monkeypatch):
 def test_cli_lista_training(capsys, tmp_path):
     assert cap_mod.main(["--root", str(tmp_path)]) == 0
     assert "training" in capsys.readouterr().out
+
+
+def test_f1fix1_gap02_training_root_en_docs_knowledge_absoluto_o_capitalizado_es_error(tmp_path):
+    """gap #2: `capabilities` valida con la raiz del PROYECTO (via `cargar_config(root)`), asi que
+    un `root` absoluto o con otra capitalizacion dentro de `<proyecto>/docs/knowledge/` es error."""
+    root = str(tmp_path)
+    for mal in (str(tmp_path / "docs" / "knowledge" / "cases"), "Docs/Knowledge/cases"):
+        _training(root, enabled=True, root=mal, id_prefix="geo")
+        t = _cap_training(root)
+        assert t["enabled"] is False, mal
+        assert t["health"]["estado"] == "error" and "root" in t["health"]["detalle"], mal
+
+
+def test_f1fix1_gap07_training_root_con_tilde_es_error(tmp_path):
+    """gap #7: `~` ni se expande ni se toma literal (`<proyecto>/~/store`): error de config."""
+    root = str(tmp_path)
+    _training(root, enabled=True, root="~/store", id_prefix="geo")
+    t = _cap_training(root)
+    assert t["health"]["estado"] == "error" and "root" in t["health"]["detalle"]
+    assert not (tmp_path / "~").exists()

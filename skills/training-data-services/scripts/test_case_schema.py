@@ -322,3 +322,161 @@ def test_sin_dependencias_externas():
         texto = f.read()
     for prohibido in ("import jsonschema", "import yaml", "import requests"):
         assert prohibido not in texto
+
+
+
+# ------------------------------------------------------------------ fix1 (revision intento 1, Fase 1)
+
+RAROS = ([], ["success"], {}, {"a": 1}, None, 1.5, True, 0)
+
+
+def _es_lista_de_errores(errores):
+    return isinstance(errores, list) and all(set(e) == {"campo", "mensaje"} for e in errores)
+
+
+def test_f1fix1_gap01_tipos_inesperados_devuelven_campo_y_mensaje():
+    """gap #1: un valor de tipo inesperado (list/dict/None/...) nunca lanza: `{campo, mensaje}`."""
+    for campo in ("outcome", "case_id", "family", "variant", "version", "supersedes_case", "request",
+                  "trajectory", "context", "constraints", "metrics", "artifacts", "created_at"):
+        for raro in RAROS:
+            errores = cs.validar_caso(_caso(**{campo: raro}))
+            assert _es_lista_de_errores(errores), (campo, raro)
+    for raro in RAROS:
+        val = {"status": raro, "approved_by_human": False}
+        errores = cs.validar_caso(_caso(validation=val))
+        assert _es_lista_de_errores(errores) and "validation.status" in _campos(errores), raro
+        for fuente in (None, "graphify", raro):
+            assert cs.mapear_outcome(raro, fuente) is None, (raro, fuente)
+    for campo in ("outcome", "case_id"):
+        for raro in ([], ["success"], {"a": 1}, None):
+            assert campo in _campos(cs.validar_caso(_caso(**{campo: raro}))), (campo, raro)
+    for campo in ("version", "enabled", "root", "id_prefix", "ids", "bridge_to_curator", "$comment"):
+        for raro in RAROS:
+            assert _es_lista_de_errores(cs.validar_config(dict(CONFIG_OK, **{campo: raro}))), (campo, raro)
+
+
+def test_f1fix1_gap01_cli_tipo_inesperado_es_exit_1_sin_traceback(tmp_path):
+    mal = tmp_path / "mal.json"
+    mal.write_text(json.dumps(_caso(outcome=["success"])), encoding="utf-8")
+    r = _cli("case", str(mal))
+    assert r.returncode == 1, r.stderr
+    assert "outcome" in r.stdout and "Traceback" not in r.stderr
+    roto = tmp_path / "roto.json"
+    roto.write_text("[", encoding="utf-8")
+    assert _cli("config", str(roto)).returncode == 2
+
+
+def test_f1fix1_gap02_root_dentro_de_docs_knowledge_absoluto_relativo_o_capitalizado(tmp_path):
+    """gap #2 (M19): la regla se resuelve contra la raiz del proyecto, no textualmente."""
+    raiz = str(tmp_path)
+    absoluto = os.path.join(raiz, "docs", "knowledge", "cases")
+    for mal in (absoluto, "docs/knowledge/cases", "Docs/Knowledge/x", "DOCS/knowledge",
+                "./x/../docs/knowledge/y", os.path.join(raiz, "Docs", "KNOWLEDGE")):
+        assert "root" in _campos(cs.validar_config(dict(CONFIG_OK, root=mal), raiz)), mal
+    for bien in (os.path.join(raiz, "data", "cases"), "../case-store", "docs/knowledge-cases"):
+        assert cs.validar_config(dict(CONFIG_OK, root=bien), raiz) == [], bien
+
+
+def test_f1fix1_gap02_cargar_config_pasa_la_raiz_del_proyecto(tmp_path):
+    d = tmp_path / ".claude" / "knowledge-services"
+    d.mkdir(parents=True)
+    absoluto = str(tmp_path / "docs" / "knowledge" / "cases")
+    (d / "training.json").write_text(json.dumps(dict(CONFIG_OK, root=absoluto)), encoding="utf-8")
+    config, _ruta, errores = cs.cargar_config(str(tmp_path))
+    assert config is None and "root" in _campos(errores)
+
+
+def test_f1fix1_gap03_regex_que_revienta_al_compilar_es_error_de_campo():
+    for patron in ("a{4294967296}", "(" * 2000 + ")" * 2000):
+        cfg = copy.deepcopy(CONFIG_OK)
+        cfg["ids"]["family_pattern"] = patron
+        errores = cs.validar_config(cfg)
+        assert "ids.family_pattern" in _campos(errores), patron[:20]
+
+
+def test_f1fix1_gap04_anclas_y_traversal():
+    for campo in ("family", "variant"):
+        for mal in ("ramp\n", "r/../../x", "r\\x", "..", "a\x00b"):
+            assert campo in _campos(cs.validar_caso(_caso(**{campo: mal}))), (campo, mal)
+    assert "id_prefix" in _campos(cs.validar_config(dict(CONFIG_OK, id_prefix="geo\n")))
+    sup = _caso(outcome="corrected", version=2, supersedes_case="geo-ramp.steep@v001\n")
+    assert "supersedes_case" in _campos(cs.validar_caso(sup))
+    # patron del proyecto sin anclas: fullmatch, y separadores/`..` rechazados igualmente
+    cfg = copy.deepcopy(CONFIG_OK)
+    cfg["ids"]["family_pattern"] = "[a-z]"
+    cfg["ids"]["variant_pattern"] = ".*"
+    assert cs.validar_config(cfg) == []
+    c = _caso(family="r/../../x", case_id="geo-r/../../x.steep")
+    assert "family" in _campos(cs.validar_caso(c, cfg))
+    assert "family" in _campos(cs.validar_caso(_caso(family="rr", case_id="geo-rr.steep"), cfg))
+    assert "variant" in _campos(cs.validar_caso(_caso(variant="a/b", case_id="geo-ramp.a/b"), cfg))
+    for mal in (("r/../../x", "steep"), ("ramp", ".."), ("ramp", "a\\b")):
+        try:
+            cs.directorio_version(mal[0], mal[1], 1)
+        except ValueError:
+            continue
+        raise AssertionError(f"directorio_version acepto {mal!r}")
+
+
+def test_f1fix1_gap05_supersedes_case_coherente_con_el_caso():
+    ok = _caso(outcome="corrected", version=2, supersedes_case="geo-ramp.steep@v001")
+    assert cs.validar_caso(ok) == []
+    for sup, version in (("geo-ramp.steep@v002", 2),      # se reemplaza a si mismo
+                         ("geo-ramp.steep@v003", 2),      # version posterior
+                         ("geo-otra.cosa@v001", 2)):      # otro case_id
+        c = _caso(outcome="corrected", version=version, supersedes_case=sup)
+        assert "supersedes_case" in _campos(cs.validar_caso(c)), sup
+    for outcome in ("success", "failure"):
+        c = _caso(outcome=outcome, version=2, supersedes_case="geo-ramp.steep@v001")
+        assert "supersedes_case" in _campos(cs.validar_caso(c)), outcome
+
+
+def test_f1fix1_gap06_chain_of_thought_case_insensitive_por_prefijo_y_recursivo():
+    for clave in ("Thinking", "reasoning_details", "REASONING", "scratchpad", "Chain_Of_Thought", "thoughts"):
+        tr = copy.deepcopy(CASO_OK["trajectory"])
+        tr[2][clave] = "pienso que..."
+        assert "trajectory[2]." + clave in _campos(cs.validar_caso(_caso(trajectory=tr))), clave
+    tr = copy.deepcopy(CASO_OK["trajectory"])
+    tr[2]["tool_calls"][0]["arguments"] = {"angle": 30, "reasoning": "porque..."}
+    assert "trajectory[2].tool_calls[0].arguments.reasoning" in _campos(cs.validar_caso(_caso(trajectory=tr)))
+    tr = copy.deepcopy(CASO_OK["trajectory"])
+    tr[2]["tool_calls"][0]["arguments"] = json.dumps({"opts": {"Thinking": "x"}})
+    assert "trajectory[2].tool_calls[0].arguments.opts.Thinking" in _campos(cs.validar_caso(_caso(trajectory=tr)))
+    tr = copy.deepcopy(CASO_OK["trajectory"])
+    tr[1]["meta"] = [{"scratchpad_notes": "x"}]
+    assert "trajectory[1].meta[0].scratchpad_notes" in _campos(cs.validar_caso(_caso(trajectory=tr)))
+    # lo inocuo no dispara
+    assert cs.validar_caso(CASO_OK) == []
+
+
+def test_f1fix1_gap07_root_con_tilde_se_rechaza():
+    for mal in ("~/store", "~", "~otro/x"):
+        assert "root" in _campos(cs.validar_config(dict(CONFIG_OK, root=mal))), mal
+
+
+def test_f1fix1_gap14_m2_version_booleana_en_config():
+    assert "version" in _campos(cs.validar_config(dict(CONFIG_OK, version=True)))
+
+
+def test_f1fix1_gap14_m15_version_width_entre_1_y_6():
+    for w, valido in ((1, True), (6, True), (0, False), (7, False), (60, False)):
+        cfg = copy.deepcopy(CONFIG_OK)
+        cfg["ids"]["version_width"] = w
+        assert ("ids.version_width" not in _campos(cs.validar_config(cfg))) is valido, w
+
+
+def test_f1fix1_gap14_m16_tool_calls_solo_en_assistant():
+    tr = copy.deepcopy(CASO_OK["trajectory"])
+    tr[1]["tool_calls"] = [{"name": "make_ramp", "arguments": {}}]
+    assert "trajectory[1].tool_calls" in _campos(cs.validar_caso(_caso(trajectory=tr)))
+
+
+def test_f1fix1_gap14_m17_refs_kind_debe_ser_texto():
+    c = _caso(context={"refs": [{"ref": "src/a.py:1", "kind": 5}]})
+    assert "context.refs[0].kind" in _campos(cs.validar_caso(c))
+
+
+def test_f1fix1_gap14_m18_clave_desconocida_dentro_de_ids():
+    cfg = copy.deepcopy(CONFIG_OK)
+    cfg["ids"]["family_regex"] = "^x$"
+    assert "ids.family_regex" in _campos(cs.validar_config(cfg))

@@ -72,3 +72,39 @@ def test_sin_redact_py_se_niega(tmp_path):
     """Instalacion parcial sin `agent-kits/shared/redact.py`: error explicito, nunca sin redactar."""
     with pytest.raises(rec.RedaccionNoDisponible):
         rec.cargar_redact([str(tmp_path / "no-existe")])
+
+
+# ------------------------------------------------------------------ fix1 (revision intento 1, Fase 1)
+
+def test_f1fix1_gap08_redactar_estructura_recorre_tuplas_sets_y_claves():
+    """gap #8: un secreto en una tupla, un set o una CLAVE de dict tambien se redacta."""
+    secreto = "sk-ant-" + "b" * 24
+    entrada = {"t": ("ok", "token=abc123XYZ789"), "s": {"password=Sup3rS3creto!"},
+               "f": frozenset({secreto}), secreto: "valor", 7: "no-texto"}
+    salida = rec.redactar_estructura(entrada)
+    plano = repr(salida)
+    for fuga in ("abc123XYZ789", "Sup3rS3creto", secreto):
+        assert fuga not in plano, fuga
+    assert isinstance(salida["t"], tuple) and salida["t"][0] == "ok"
+    assert isinstance(salida["s"], set) and isinstance(salida["f"], frozenset)
+    assert 7 in salida                        # claves no textuales intactas
+    assert secreto in entrada                 # la entrada no muta
+
+
+def test_f1fix1_gap08_import_sin_redact_py_no_falla_pero_redactar_si(tmp_path, monkeypatch):
+    """gap #8: `redact.py` se carga al REDACTAR (perezoso), no al importar: sin el, importar el
+    modulo funciona y es la redaccion la que levanta `RedaccionNoDisponible` (fail closed)."""
+    monkeypatch.delenv("CLAUDE_PLUGIN_ROOT", raising=False)
+    aislado = tmp_path / "scripts"
+    aislado.mkdir()
+    copia = aislado / "case-recorder.py"
+    with open(RECORDER_PATH, encoding="utf-8") as f:
+        copia.write_text(f.read(), encoding="utf-8")
+    mod = _load(str(copia), "case_recorder_sin_redact")
+    try:
+        with pytest.raises(mod.RedaccionNoDisponible):
+            mod.redactar_estructura({"request": "token=abc123XYZ789"})
+        with pytest.raises(mod.RedaccionNoDisponible):
+            mod.redactar("token=abc123XYZ789")
+    finally:
+        sys.modules.pop("case_recorder_sin_redact", None)

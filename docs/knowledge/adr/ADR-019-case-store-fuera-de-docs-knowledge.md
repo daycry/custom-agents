@@ -53,3 +53,17 @@ piezas: el esquema de `training.json` (`case_schema.py`), el recorder (T-04), la
 - Perder `training.json` solo apaga la capacidad: el case store en `root` no se toca.
 - El proyecto es responsable del respaldo del case store (fuera del alcance del plugin).
 - La memoria de `docs/knowledge/` no cambia: sigue siendo la única fuente de verdad curada (ADR-018).
+
+## Relación con ADR-018 (fuente de verdad)
+
+[ADR-018](ADR-018-arquitectura-de-memoria-markdown-canonico-backends-declarados.md) punto 1 dice que
+la fuente de verdad es el Markdown en git y que «cualquier dataset» es una proyección reconstruible
+desde ella. Esta ADR no lo contradice, lo acota: **ADR-018 habla del conocimiento curado; el case
+store es evidencia bruta no curada, deliberadamente fuera de git y de `docs/knowledge/`**. No es una
+segunda fuente del conocimiento del proyecto ni un índice suyo: es materia prima (peticiones,
+trayectorias, fallos) que nunca se reconstruye desde `docs/knowledge/` —el anti-leakage lo prohíbe— y
+de la que solo se obtienen dos cosas derivadas: el dataset de `exports/` (proyección del case store,
+reconstruible desde él con su `manifest.json`) y, por el puente opt-in, candidatos `pending` que
+entran en la fuente curada de ADR-018 por la puerta de siempre (`knowledge-curator`). El «dataset» de
+ADR-018 punto 1 es el que se proyecta desde la memoria curada; el de esta ADR se proyecta desde la
+evidencia bruta, y por eso vive con ella y no en git.
