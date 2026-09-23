@@ -194,8 +194,8 @@ is never edited by hand); every new skill that needs memory follows this pattern
 `<skill>-state.json`) and adds its row here.
 
 **Optional capability registry (`agent-kits/shared/capabilities.py`, ADR-018 point 7, CA-14).**
-`/setup` and `/doctor` carry no capability-specific code (kwipu today; graphiti,
-training-data-services later): each optional capability declares itself ONCE with the contract
+`/setup` and `/doctor` carry no capability-specific code (kwipu and training
+today; graphiti later): each optional capability declares itself ONCE with the contract
 `{id, config_path, enabled, health, doctor, setup_step}` (`enabled`/`health`/`doctor` can be a
 static value or a `callable(root)`) and `registrar()` adds it to the global registry; `/setup`
 and `/doctor` only walk `enumerar(root)`. A capability whose `enabled`/`health`/`doctor` raises
@@ -203,7 +203,11 @@ degrades to `{"estado": "error", "detalle": "..."}` **without taking down the ev
 others** (fail soft). `knowledge-services`'s base registry declares `knowledge-gate` (always
 active; its health is that of `taxonomy.json`, with or without a project file) and `kwipu`
 (active only with `backends.kwipu.enabled: true`; the real network health check is done by the
-`markdown-export` adapter, not the registry).
+`markdown-export` adapter, not the registry). `training-data-services` adds `training` (active
+only with a valid `.claude/knowledge-services/training.json` and `enabled: true`; validated with
+the skill's `case_schema.py`, no network: `deshabilitado` without the file, ❌ with file and field
+if invalid, `declarado`/`ok` depending on whether the case store `root` exists; reporting never
+creates it).
 
 `/doctor` (T-09) adds an **"Optional capabilities"** block, also generic: one row per capability
 from `enumerar(root)`, with no capability-specific string anywhere in `doctor.py` (invalid config
