@@ -122,7 +122,7 @@ $ python -m pytest -q -p no:cacheprovider tests/test_graphiti_model.py tests/tes
 53 passed, 84 deselected in 19.75s
 ```
 
-## 5. Revisión adversarial de las tres fases
+## 5. Revisión adversarial de las cuatro fases
 
 Conteo mecánico por **fila** de todas las tablas de revisión del ledger (una misma fila se
 repite entre intentos cuando el siguiente intento la re-verifica; lo que decide es su columna
@@ -131,19 +131,25 @@ de corrección):
 | Fase | Secciones | Filas | Critical | Important | Minor | Sin cerrar |
 |---|---|---:|---:|---:|---:|---:|
 | Fase 1 (T-01..T-03) | 3 intentos | 30 | 0 | 10 | 20 | 0 |
-| Fase 2 (T-04..T-06) | 3 intentos + verificación dirigida | 65 | 10 | 23 | 32 | 0 |
+| Fase 2 (T-04..T-06) | 3 intentos + verificación dirigida | 66 | 10 | 23 | 33 | 0 |
 | Fase 3 (T-07, T-08) | 3 intentos + verificación dirigida | 58 | 2 | 15 | 41 | 0 |
 | **Subtotal Fases 1-3** | **11 secciones** | **154** | **12** | **48** | **94** | **0** |
-| Fase 4 (T-09, T-10) | 1 intento (+ ronda `fix1`) | 14 | 0 | 4 | 10 | 2 |
-| **TOTAL** | **12 secciones** | **168** | **12** | **52** | **104** | **2** |
+| Fase 4 (T-09, T-10) | 3 intentos (+ rondas `fix1`, `fix2` y micro-ronda `fix3`) | 38 | 0 | 8 | 30 | 8 |
+| **TOTAL** | **14 secciones** | **192** | **12** | **56** | **124** | **8** |
 
 Dos correcciones de la revisión intento 1 de la Fase 4 sobre esta misma tabla: **#161** (eran
 **11** secciones en las Fases 1-3, no 10: F1 3 · F2 3 + verificación dirigida · F3 3 +
 verificación dirigida) y **#159** (el script de conteo ignoraba en silencio la fila con ID `—`
 de la verificación `fix5`, así que el subtotal real es **154 filas / 94 Minor**, no 153/93).
-Las **2 filas sin cerrar** son #162 y #163 de la Fase 4: las dos están asignadas al
+La fila de la Fase 2 decía 65 filas / 32 Minor: esa corrección del #159 llegó al subtotal pero
+no a la fila por fase (la fila `—` de la verificación `fix5` es de la Fase 2); corregida aquí en
+la ronda `fix3` (gap #193), con el desglose por fase del mismo recorrido del script.
+Fase 4 = intento 1 (14: 0 C · 4 I · 10 M) + intento 2 (14: 0 C · 4 I · 10 M) + intento 3
+(10: 0 C · 0 I · 10 M). Las **8 filas sin cerrar** son: **#162 y #163**, asignadas al
 **orquestador** (celda de tokens del Resumen y marca del criterio de T-10 al cerrar el ciclo),
-no al implementer; no hay ningún Critical/Important abierto.
+y **#187-#192**, los seis Minor del intento 3 que se declaran como **deuda** en `design.md`
+§«Límites conocidos de la puerta estática de hooks (deuda declarada, 2026-09-23)» (#190 es
+parcial: su punto (d) SÍ se corrigió en `fix3`). Ninguna es Critical/Important.
 
 Comprobación reproducible (recorre las secciones «Revisión…»/«Verificación dirigida…» del
 ledger, cuenta filas por grado y lista las que no tienen marca de cierre en NINGUNA celda):
@@ -176,23 +182,43 @@ print("TOTAL filas por grado:", tot, "| total:", sum(tot.values()))
 print("filas SIN marca de cierre en ninguna celda:", len(pend), pend)
 ```
 
-Salida real (2026-09-22):
+Salida real (2026-09-23, tras el intento 3 de la Fase 4 y la micro-ronda `fix3`):
 
 ```
-secciones: 12
-TOTAL filas por grado: {'Important': 52, 'Minor': 104, 'Critical': 12} | total: 168
-filas SIN marca de cierre en ninguna celda: 2 [('Revisión de dos lentes — intento 1: Fase', '162', 'Minor'), ('Revisión de dos lentes — intento 1: Fase', '163', 'Minor')]
+secciones: 14
+TOTAL filas por grado: {'Important': 56, 'Minor': 124, 'Critical': 12} | total: 192
+filas SIN marca de cierre en ninguna celda: 8 [('Revisión de dos lentes — intento 1: Fase', '162', 'Minor'), ('Revisión de dos lentes — intento 1: Fase', '163', 'Minor'), ('Revisión de dos lentes — intento 3: Fase', '187', 'Minor'), ('Revisión de dos lentes — intento 3: Fase', '188', 'Minor'), ('Revisión de dos lentes — intento 3: Fase', '189', 'Minor'), ('Revisión de dos lentes — intento 3: Fase', '190', 'Minor'), ('Revisión de dos lentes — intento 3: Fase', '191', 'Minor'), ('Revisión de dos lentes — intento 3: Fase', '192', 'Minor')]
 ```
 
-(Las dos filas abiertas son las del **orquestador**: #162 —celda de tokens del Resumen de
-progreso— y #163 —marca del criterio de T-10 al cerrar el ciclo—. Ninguna es del implementer.)
+(Dos filas abiertas son del **orquestador**: #162 —celda de tokens del Resumen de progreso— y
+#163 —marca del criterio de T-10 al cerrar el ciclo—. Las otras seis, #187-#192, son deuda
+declarada: el script no las da por cerradas porque su celda de corrección empieza por «deuda
+declarada», no por una marca de cierre, y así debe ser.)
 
-**0 gaps Critical/Important pendientes**. La Fase 4 YA pasó su revisión intento 1 (sección
-propia del ledger, 0 Critical · 4 Important · 10 Minor): los 4 Important (#154 validación del
-episodio sin `uuid`, #155 puerta de hooks con tres agujeros, #156 espía inalcanzable, #157
-CA-05 con literal frágil) y los Minor del implementer están cerrados en la ronda `fix1` con su
-evidencia y su mutante en el ledger. Quedan abiertas a propósito las dos filas del orquestador
-(#162, #163) y la revisión intento 2, que él dispara después de esta ronda.
+**0 gaps Critical/Important pendientes.** La Fase 4 pasó tres intentos de revisión: el 1
+(4 Important: #154 validación del episodio sin `uuid`, #155 puerta de hooks con tres agujeros,
+#156 espía inalcanzable, #157 CA-05 con literal frágil) se cerró en `fix1`; el 2 (4 Important:
+#168 regresión de CI por acentos, #173 binarios de red en argv de scripts alcanzables, #174
+identidad/perdidos sin test, #175 CA-05 multilínea) se cerró en `fix2`; el 3 cerró el bucle con
+0 Critical / 0 Important y 10 Minor. De esos 10, la micro-ronda `fix3` corrigió en código
+#186 (regresión de `fix2`: el comentario de shell se quita línea a línea), #190(d) (test de la
+valla sin cerrar), #194 (`--ia on` buscado por línea lógica) y este mismo #193; #195 es de
+entorno (MAX_PATH en worktrees profundos, lo cierra el orquestador); #187-#192 quedan como deuda
+declarada, con la iniciativa futura `hooks-gate-hardening` propuesta.
+
+Suite de seguridad y suites de encoding, re-pegadas tras la micro-ronda `fix3`:
+
+```
+$ python -m pytest -q -p no:cacheprovider tests/test_graphiti_security.py
+63 passed in 36.20s
+
+$ python -m pytest -q -p no:cacheprovider tests/test_console_encoding.py tests/test_suites_no_pytest.py
+FAILED tests/test_suites_no_pytest.py::test_la_suite_script_pasa[test_lint_plugin.py]
+1 failed, 411 passed in 89.83s (0:01:29)
+```
+
+63 = 59 (tras `fix2`) + 4 tests de `fix3`. El rojo de `test_lint_plugin.py` es PREEXISTENTE y de
+Windows (también en la base `a6723ec`): el linter avisa del bit de ejecución que NTFS no conserva.
 
 ## 6. Puertas del repo
 
@@ -212,9 +238,13 @@ Las tres en exit 0. Los 3 avisos de `lint_plugin` son nombres genéricos de coma
 
 ## Veredicto
 
-**Verde, sin UI.** 859 tests verdes en las 9 rutas de la iniciativa (4 rojos preexistentes de
-Windows, ninguno de esta fase), los 15 CA cruzados con tests reales, puerta E18 en verde, las
-tres puertas del repo en 0 y ninguna escritura contra el servidor Graphiti real. Lo único
-abierto es de proceso, no de producto: el **Resumen de progreso** y la celda de tokens del
-ledger (los actualiza el orquestador, filas #162/#163) y la **revisión intento 2** de la Fase 4,
-que él dispara tras la ronda `fix1` cuya evidencia está en el ledger.
+**Verde, sin UI.** 863 tests verdes en las 9 rutas de la iniciativa (4 rojos preexistentes de
+Windows, ninguno de esta fase), la suite de seguridad en 63 passed, los 15 CA cruzados con tests
+reales, puerta E18 en verde, las tres puertas del repo en 0 y ninguna escritura contra el
+servidor Graphiti real. La revisión adversarial de las **cuatro** fases suma 14 secciones y 192
+filas (12 Critical · 56 Important · 124 Minor) con **0 Critical/Important abiertos**; la Fase 4
+cerró su bucle en el intento 3. Lo único abierto es de proceso o deuda declarada, no de
+producto: el **Resumen de progreso** y la celda de tokens del ledger (los actualiza el
+orquestador, filas #162/#163) y los seis Minor #187-#192, límites conocidos de la puerta
+estática de hooks declarados en `design.md` y propuestos como iniciativa futura
+`hooks-gate-hardening`.

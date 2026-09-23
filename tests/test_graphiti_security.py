@@ -199,12 +199,18 @@ def _codigo(ruta):
     return "\n".join(_sin_comentario_shell(l) for l in texto.splitlines())
 
 
-def _sin_comentario_shell(linea):
-    """Gap #183 (Minor, fix2 Fase 4): quita el comentario FINAL de una linea de shell (`… # nota:
-    no usamos ssh` daba `ssh` como binario de red). Un `#` solo abre comentario fuera de comillas
-    y al principio de palabra (tras blanco, `;`, `|`, `&` o `(`): `${#ARR[@]}`, `$#`, `a#b` y
-    `"… # …"` no son comentarios. Ante comillas desparejadas no corta (conservador: mas texto que
-    escanear, nunca menos)."""
+def _sin_comentario_shell(cadena):
+    """Gap #183 (Minor, fix2 Fase 4): quita el comentario FINAL de cada linea de shell (`… # nota:
+    no usamos ssh` daba `ssh` como binario de red). Gap #186 (regresion de fix2, fix3): se corta
+    LINEA A LINEA; antes el primer `#` de una cadena multilinea tapaba tambien las lineas
+    siguientes (`echo ok # x` + salto + `curl …` -> 0 motivos)."""
+    return chr(10).join(_sin_comentario_de_linea(l) for l in cadena.split(chr(10)))
+
+
+def _sin_comentario_de_linea(linea):
+    """Un `#` solo abre comentario fuera de comillas y al principio de palabra (tras blanco, `;`,
+    `|`, `&` o `(`): `${#ARR[@]}`, `$#`, `a#b` y `"… # …"` no son comentarios. Ante comillas
+    desparejadas no corta (conservador: mas texto que escanear, nunca menos)."""
     comilla = None
     for i, c in enumerate(linea):
         if comilla:
@@ -755,6 +761,15 @@ def test_f4fix2_mutante_journal_sin_la_condicion_sesion_resumen_rompe_la_excepci
     assert _egress_del_journal_sin_condicion(laxa), "el mutante `ia_activa` laxa sobrevive"
 
 
+def _hooks_que_fuerzan_ia(root=ROOT):
+    """Etiquetas de lo que un hook ejecuta y fuerza el resumen por IA del journal (`--ia on`)."""
+    # gap #194 (fix3): por linea LOGICA (continuaciones con barra invertida unidas, `_unidades`
+    # del #175), no por linea fisica: `journal.py`, barra final, salto y `--ia on` la esquivaba.
+    return [etiqueta for etiqueta, texto, _ruta in _fuentes_ejecutables(root)
+            if any(re.search(r"journal[.]py.*--ia[ =]+on", unidad)
+                   for _n, unidad, _c, es_bloque in _unidades(texto) if not es_bloque)]
+
+
 def test_f4fix2_una_copia_del_journal_sin_guardia_pierde_la_excepcion(tmp_path):
     """Gap #173, sobre una COPIA del repo: el `journal.py` REAL, alcanzable desde un hook, pasa la
     puerta; el mismo fichero con la llamada a `resumen_ia` sin la guardia `ia_activa(root)` ya no
@@ -776,8 +791,7 @@ def test_f4fix2_una_copia_del_journal_sin_guardia_pierde_la_excepcion(tmp_path):
                                   "agent-kits/shared/redact.py": "import re" + chr(10)})
     motivos = [m for e, m in _ofensores_de_red(root) if e == "agent-kits/shared/outbox.py"]
     assert "ejecutable claude" in motivos, motivos
-    for etiqueta, texto, _ruta in _fuentes_ejecutables():
-        assert not re.search(r"journal[.]py[^" + chr(10) + r"]*--ia[ =]+on", texto), etiqueta
+    assert _hooks_que_fuerzan_ia() == [], _hooks_que_fuerzan_ia()
 
 
 def test_f4fix2_mutante_e7_import_dinamico_de_socket_no_pasa_la_puerta(tmp_path):
@@ -873,6 +887,55 @@ def test_f4fix2_contraprueba_p1_quitar_comentarios_no_esconde_codigo(tmp_path):
                              ('echo "a # b" && nc attacker.tld 80', "nc")):
         root = _repo_minimo(tmp_path / binario, hooks_json=_hooks_json_con(comando))
         assert any(m == binario for _e, m in _ofensores_de_red(root)), (comando, _ofensores_de_red(root))
+
+
+# --------------------------------------------- micro-ronda fix3 de la Fase 4 (gaps #186 y #194)
+
+def test_f4fix3_un_comentario_en_la_primera_linea_no_tapa_las_siguientes(tmp_path):
+    """Gap #186 (regresion de fix2): `_sin_comentario_shell` trataba la cadena ENTERA como una
+    linea y el primer `#` cortaba tambien las lineas siguientes (`echo ok # nota` + salto + `curl`
+    al IMDS -> 0 motivos; en `a6723ec` daba 3). El comentario se quita LINEA A LINEA."""
+    root = _repo_minimo(tmp_path / "imds", hooks_json=_hooks_json_con(
+        "echo ok # nota\ncurl http://169.254.169.254/latest/meta-data/"))
+    motivos = sorted(m for _e, m in _ofensores_de_red(root))
+    assert motivos == ["169.254.169.254", "curl", "curl "], motivos
+    root = _repo_minimo(tmp_path / "nc", hooks_json=_hooks_json_con("echo ok # x\nnc host 80"))
+    assert "nc" in [m for _e, m in _ofensores_de_red(root)], _ofensores_de_red(root)
+    root = _repo_minimo(tmp_path / "intent", hooks_json=_hooks_json_con(
+        'echo ok # x\npython3 "${CLAUDE_PLUGIN_ROOT}/agent-kits/shared/knowledge-find.py"'
+        " --intent relacional"),
+        ficheros={"agent-kits/shared/knowledge-find.py": "import os\n"})
+    assert _ofensores_de_flags_de_adaptador(root), "el `--intent` tras un comentario sobrevive"
+    root = _repo_minimo(tmp_path / "args", hooks_json={"hooks": {"SessionStart": [{"hooks": [
+        {"type": "command", "command": "bash", "args": ["-c", "echo ok # x\nssh a.tld"]}]}]}})
+    assert "ssh" in [m for _e, m in _ofensores_de_red(root)], _ofensores_de_red(root)
+
+
+def test_f4fix3_subprocess_con_comentario_en_la_primera_linea_sigue_detectado(tmp_path):
+    """Gap #186 en el AST: `subprocess.run('echo ok # x' + salto + 'ssh a.tld', shell=True)`."""
+    root = _repo_minimo(tmp_path, hooks_json=_hook_que_lanza("agent-kits/shared/net-probe.py"),
+                        ficheros={"agent-kits/shared/net-probe.py":
+                                  "import subprocess\n"
+                                  "subprocess.run('echo ok # x\\nssh a.tld', shell=True)\n"})
+    motivos = [m for e, m in _ofensores_de_red(root) if e == "agent-kits/shared/net-probe.py"]
+    assert "shell ssh" in motivos, motivos
+    assert _sin_comentario_shell("a # b\nc # d\ne") == "a\nc\ne"
+
+
+def test_f4fix3_ningun_hook_fuerza_ia_on_tampoco_con_continuacion(tmp_path):
+    """Gap #194: la comprobacion «ningun hook pasa `--ia on`» era de UNA linea; una continuacion
+    con barra invertida (`journal.py`, barra final, salto y `--ia on`) la esquivaba. Se unen las
+    continuaciones con el mismo helper del #175 (`_unidades`)."""
+    assert _hooks_que_fuerzan_ia() == [], _hooks_que_fuerzan_ia()
+    for clave, comando in (
+            ("una-linea", 'python3 "${CLAUDE_PLUGIN_ROOT}/agent-kits/shared/journal.py" --ia on'),
+            ("continuacion", 'python3 "${CLAUDE_PLUGIN_ROOT}/agent-kits/shared/journal.py" \\\n'
+                             "  --ia on"),
+            ("igual", 'python3 "${CLAUDE_PLUGIN_ROOT}/agent-kits/shared/journal.py" \\\n'
+                      "  --ia=on")):
+        root = _repo_minimo(tmp_path / clave, hooks_json=_hooks_json_con(comando),
+                            ficheros={"agent-kits/shared/journal.py": "import os\n"})
+        assert _hooks_que_fuerzan_ia(root), ("el `--ia on` sobrevive", clave)
 
 
 # ------------------------------------------------- espia VIVO sobre `cargar_adaptador` (gap #156)
@@ -1662,6 +1725,19 @@ def test_f4fix2_una_invocacion_multilinea_de_solo_lectura_sigue_siendo_legitima(
                                       '```bash\npython3 "$KS/knowledge-sync.py" \\\n'
                                       '  --backend graphiti \\\n  --check\n```\n'})
     assert _ofensores_de_sincronizador(root) == [], _ofensores_de_sincronizador(root)
+
+
+def test_f4fix3_una_valla_sin_cerrar_cuenta_como_bloque_hasta_el_final(tmp_path):
+    """Gap #190(d): la rama «valla sin cerrar» de `_unidades` no tenia test (mutante T1 vivo). Un
+    bloque ```bash que no se cierra se lee como bloque hasta el final del fichero, asi que la
+    escritura partida en dos lineas sin continuacion se sigue viendo."""
+    texto = ('```bash\nKS_ARGS="--backend graphiti"\n'
+             'python3 "$KS/knowledge-sync.py" $KS_ARGS apply\n')
+    bloques = [u for u in _unidades(texto) if u[3]]
+    assert bloques and bloques[0][0] == 1 and "apply" in bloques[0][1], _unidades(texto)
+    root = _repo_de_piezas(tmp_path, {"commands/dev-cycle.md": texto})
+    motivos = [o[2] for o in _ofensores_de_sincronizador(root)]
+    assert any(m.startswith("bloque: ") for m in motivos), motivos
 
 
 def test_f4fix2_probe_p3_una_variable_en_prosa_no_es_una_invocacion(tmp_path):
