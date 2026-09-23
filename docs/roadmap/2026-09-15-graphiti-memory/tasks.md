@@ -1,10 +1,11 @@
 ---
 verificacion: obligatoria
+estado: completado
 ---
 
 # Checklist de Tareas - Memoria Graphiti
 
-| **Estado** | en-progreso |
+| **Estado** | completado |
 |---|---|
 | **Plan** | [improvement-plan.md](improvement-plan.md) |
 
