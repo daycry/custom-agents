@@ -1,0 +1,13 @@
+{
+  "$comment": "Copia a .claude/knowledge-services/training.json del proyecto y ajusta root/id_prefix. root: fuera de Git y nunca dentro de docs/knowledge/ (ADR-019). Valida con: python3 scripts/case_schema.py config <training.json>",
+  "version": 1,
+  "enabled": true,
+  "root": "../case-store",
+  "id_prefix": "geo",
+  "ids": {
+    "family_pattern": "^[a-z0-9][a-z0-9_-]*$",
+    "variant_pattern": "^[a-z0-9][a-z0-9_-]*$",
+    "version_width": 3
+  },
+  "bridge_to_curator": false
+}

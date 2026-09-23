@@ -1,0 +1,6 @@
+{
+  "status": "rejected",
+  "approved_by_human": false,
+  "approved_at": null,
+  "reviewer_note": "La anchura viola constraints.min_width_m: la bola se sale."
+}

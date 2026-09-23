@@ -39,6 +39,7 @@ de dominio (métricas, simulación, herramientas) es del proyecto consumidor.
 |---|---|
 | `scripts/case_schema.py` | Validador stdlib de `training.json` y del caso (exit 0 válido · 1 errores · 2 uso/JSON ilegible). Fuente única de los vocabularios cerrados y del mapeo de `outcome`. |
 | `scripts/case-recorder.py` | Recorder (T-04 en adelante). Hoy expone solo `redactar`/`redactar_estructura`, delegadas en `agent-kits/shared/redact.py` (fuente única de patrones de secretos); sin `redact.py` se niega a grabar. |
+| `assets/` | Plantillas del case store: `training.example.json`, ejemplo completo `case-store-example/` (caso con par fallo → corrección) y `README.md` con la estructura y cada fichero de versión (`metadata.json`, `validation.json`, `cases_index.jsonl`…). Ubicación: `docs/knowledge/adr/ADR-019-case-store-fuera-de-docs-knowledge.md`. |
 | Capacidad `training` | Entrada de `agent-kits/shared/capabilities.py`: `deshabilitado` sin fichero, `error` con fichero y campo si la config es inválida, `declarado`/`ok` según exista `root`. Sin red. |
 
 ## Config opt-in — `.claude/knowledge-services/training.json`

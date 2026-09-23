@@ -1,0 +1,4 @@
+{"case_id": "geo-ramp.steep", "version": 1, "family": "ramp", "variant": "steep", "status": "pending", "outcome": "failure", "updated_at": "2026-09-23T10:00:08Z"}
+{"case_id": "geo-ramp.steep", "version": 1, "family": "ramp", "variant": "steep", "status": "rejected", "outcome": "failure", "updated_at": "2026-09-23T10:05:00Z"}
+{"case_id": "geo-ramp.steep", "version": 2, "family": "ramp", "variant": "steep", "status": "pending", "outcome": "corrected", "updated_at": "2026-09-23T10:10:07Z"}
+{"case_id": "geo-ramp.steep", "version": 2, "family": "ramp", "variant": "steep", "status": "approved", "outcome": "corrected", "updated_at": "2026-09-23T10:20:00Z"}

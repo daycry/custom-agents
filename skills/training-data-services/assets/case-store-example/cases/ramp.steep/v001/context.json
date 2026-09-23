@@ -1,0 +1,13 @@
+{
+  "text": "Escena vacia con suelo plano y una bola de radio 0.1",
+  "refs": [
+    {
+      "ref": "src/scene/ramp.py:42",
+      "kind": "code"
+    },
+    {
+      "ref": "ramp-generator",
+      "kind": "graph-node"
+    }
+  ]
+}

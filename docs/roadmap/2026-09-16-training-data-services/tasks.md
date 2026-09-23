@@ -58,16 +58,21 @@ verificacion: obligatoria
 - [x] `redact.py` sigue siendo la unica fuente de los patrones de secretos del plugin; el recorder no define ninguno propio.
 
 ### T-03 - Plantillas y estructura de directorios del case store
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo humano**: est. 2h · real -
+- **Tiempo IA**: real 0.07h (medido; usage-meter `training-data-services/T-03`, 4m, 14.4k out tok)
 - **Prevision IA**: 20k in / 8k out tok
 - **Dependencias**: T-01
 - **Tipo**: docs
-- **Archivos**: `skills/training-data-services/assets/`, `docs/knowledge/adr/`
+- **Archivos**: `skills/training-data-services/assets/`, `skills/training-data-services/scripts/test_assets.py`, `skills/training-data-services/SKILL.md`, `docs/knowledge/adr/`, `docs/knowledge/README.md` (nota: `test_assets.py` convierte la verificacion «lectura» en una comprobacion ejecutable de que el ejemplo valida con `case_schema.py` y sigue `design.md`; `SKILL.md` gana la fila de `assets/`)
 - **Verificacion**: lectura: la estructura documentada coincide con `design.md`
+  - Salida real (2026-09-23): lectura hecha — `assets/README.md` reproduce el arbol de `design.md` (`<root>/cases_index.jsonl`, `cases/<family>.<variant>/v<NNN>/{metadata,request,context,constraints,metrics,validation}.json + trajectory.jsonl + final/`, `exports/<export_id>/{manifest.json,train.jsonl,benchmark.jsonl}`); ejecutable: `python -m pytest -q skills/training-data-services/scripts/test_assets.py` -> `7 passed in 0.04s`; skill completa `python -m pytest -q skills/training-data-services/scripts` -> 48 passed (con `test_knowledge_index.py`/`test_skill_size.py`: `86 passed`)
+- **RED**: `test_assets.py` 6 de 7 fallaron con `FileNotFoundError` (sin `assets/training.example.json`, `assets/README.md` ni `assets/case-store-example/`) · 2026-09-23
+- **Nota**: decisiones con margen — (1) las «plantillas comentadas» son un ejemplo completo y validable (`case-store-example/`, caso `geo-ramp.steep` con `v001` failure/rejected conservada y `v002` corrected/Gold humano) + `README.md` con la tabla de campos, porque JSON no admite comentarios y un `$comment` dentro de `metadata.json` ensuciaria los casos reales; `training.example.json` si lleva `$comment` (el esquema lo admite); (2) `design.md` dice `final/` = «solo referencias» sin nombrar fichero: se fija `final/artifacts.json` (lista `{path, hash, kind}`), a confirmar por T-04; (3) `request.json` = `{"request": ...}`; (4) ADR-019 `propuesta` (cruza el umbral: cierra alternativas y afecta a `case_schema.py`, recorder, capacidad `training` y puente a curator). Rojos preexistentes de Windows NO de esta tarea: `tests/test_knowledge_find.py` `test_show_imprime_la_entrada_completa_tal_cual`, `test_show_json_envuelve_el_contenido_con_su_ficha`, `test_ca04_show_adr012_...` (copia de trabajo `w/crlf` de ADR-003/ADR-012/LES con `core.autocrlf=true`; comparan byte a byte con LF).
+- **Changelog**: Case store templates ship with the skill: an example store with a failure-then-correction pair, an index sample and a field-by-field guide; the store lives outside Git and `docs/knowledge/`.
 **Criterios de aceptación**
-- [ ] Plantillas de `metadata.json`/`validation.json`/`cases_index.jsonl` documentadas con ejemplos.
-- [ ] ADR propuesta con la decision de mantener el case store fuera de `docs/knowledge/`.
+- [x] Plantillas de `metadata.json`/`validation.json`/`cases_index.jsonl` documentadas con ejemplos.
+- [x] ADR propuesta con la decision de mantener el case store fuera de `docs/knowledge/`.
 
 ## Fase 2 - Recorder y puerta humana
 
