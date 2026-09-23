@@ -9,6 +9,19 @@ y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Added — iniciativa `graphiti-memory` (2026-09-15)
+
+- **T-01 — Puerta de dependencia, `backends.graphiti` en el esquema y suite de contrato** Los proyectos pueden declarar un backend Graphiti opcional (desactivado por defecto) en su configuración de conocimiento, con validación de endpoint local, proveedor de modelo, timeout/concurrencia de las llamadas y reglas de enrutado.
+- **T-02 — Ontologia derivada de `taxonomy.json` y relaciones temporales** Graphiti ya deriva sus tipos de entidad y relaciones desde la taxonomia del proyecto, sin listas de dominio fijas en el plugin, y la propuesta de configuración incluye ahora el mapeo que hace esos tipos realmente efectivos. (`skills/knowledge-services/backends/graphiti_model.py`, `tests/test_graphiti_model.py`, `tests/test_console_encoding.py`)
+- **T-03 — Politica de escritura y autoridad** Documentada la unica via de escritura a Graphiti (knowledge-sync.py tras la aprobacion del curator); ningun agente normal escribe en el grafo directamente. (`agents/knowledge-curator.md`, `docs/agents/knowledge-curator.md`, `docs/agents/ROLES.md`)
+- **T-04 — Adaptador `graphiti.py`: cliente, `health` y proveedores** Added a Graphiti MCP client (health check, streamable-HTTP handshake) and pluggable providers, laying the groundwork for the local knowledge-graph memory backend.
+- **T-05 — `plan`/`apply` idempotentes sobre `outbox.py` y `mode: shadow`** The Graphiti backend now publishes approved knowledge idempotently (safe to retry, no duplicates) and defaults to a safe "shadow" mode that never reads from the graph.
+- **T-06 — `verify`, `rebuild` reproducible y `revoke`** Removed knowledge entries are now marked invalid in the graph on the next sync (a safe tombstone, never a hard delete), and a full rebuild is reproducible and scoped to the project's own data.
+- **T-07 — Router por configuracion e intent declarado** Knowledge queries can now declare an intent (`knowledge-find.py --intent temporal`): if the project's configuration routes that intent to a graph backend in read mode, the answer comes from the graph with its evidence, status and source path; anything else falls back to the local corpus.
+- **T-08 — Capacidad `graphiti` registrada, setup/doctor y documentacion runtime** Projects can now turn on the optional Graphiti graph memory from `/setup` and see its state in `/doctor` (off, shadow, read or misconfigured, each with the fix); enabling it only edits the project's own knowledge configuration and never registers an MCP server or touches global settings.
+- **T-09 — Aislamiento, modelos locales y seguridad** The repository now has a security regression suite for the Graphiti memory: hooks make no network calls, excluded data never reaches the graph, an invalid local model output degrades to dead-letter, and the MCP client refuses cloud metadata endpoints, public hosts and unsafe redirects.
+- **T-10 — Interop, QA y retro** The Graphiti memory initiative ships with a QA report for its no-UI verification: every acceptance criterion is mapped to the tests that exercise it, and the plugin lint, evals and interop checks are green.
+
 ### Fixed
 
 - **Marketplace de Codex: `policy.authentication` valía `NONE`, que Codex rechaza.** `codex plugin marketplace add` fallaba con «unknown variant `NONE`, expected `ON_INSTALL` or `ON_USE`» en `.agents/plugins/marketplace.json`. El generador emite ahora `ON_INSTALL` (el default del spec; el plugin no tiene servicios que autenticar) y un test fija el enum. (`scripts/export-interop.py`, `tests/test_export_interop.py`, `.agents/plugins/marketplace.json`)

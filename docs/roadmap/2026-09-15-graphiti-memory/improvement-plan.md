@@ -9,7 +9,7 @@ test-plan: n/a (sin UI)
 
 | Metrica | Estimado |
 |---|---:|
-| Estado | en-progreso |
+| Estado | completado |
 | Tiempo humano | 50h (enmienda 2026-09-17; antes 44h) |
 | Tokens | 545k |
 | Coste humano | 2,500 EUR + tokens por verificar |
