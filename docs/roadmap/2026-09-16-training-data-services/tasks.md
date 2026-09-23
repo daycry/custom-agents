@@ -15,16 +15,16 @@ verificacion: obligatoria
 
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervision (real/est) | Tokens (real/est) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| Fase 1 - Config, redaccion compartida y capacidad | 3 | 3 | 100% (pendiente revisión de dos lentes) | 0 / 6.5h | 0.41 / 2.0h | 0 / 0.5h | medido / 85k (T-01 0.22h · T-02 0.12h · T-03 0.07h) |
+| Fase 1 - Config, redaccion compartida y capacidad | 0 | 3 | 0% (reabiertas por la revisión intento 1: fix1 pendiente) | 0 / 6.5h | 0.41 / 2.0h | 0 / 0.5h | ~70k out+in? / 85k (T-01 0.22h · T-02 0.12h · T-03 0.07h; tokens por marcador: 37.8k · 17.3k · 14.4k de salida) |
 | Fase 2 - Recorder y puerta humana | 0 | 3 | 0% | 0 / 8h | 0 / 2.4h | 0 / 0.6h | 0 / 120k |
 | Fase 3 - Dedup, particion y ensamblador | 0 | 3 | 0% | 0 / 14h | 0 / 4.2h | 0 / 1.1h | 0 / 210k |
 | Fase 4 - Setup, doctor y cierre | 0 | 2 | 0% | 0 / 11h | 0 / 3.3h | 0 / 0.8h | 0 / 160k |
-| **TOTAL** | **3** | **11** | **27%** | **0 / 39.5h** | **0.41 / 11.9h** | **0 / 3.0h** | **medido / 575k** |
+| **TOTAL** | **0** | **11** | **0%** | **0 / 39.5h** | **0.41 / 11.9h** | **0 / 3.0h** | **medido / 575k** |
 
 ## Fase 1 - Config, redaccion compartida y capacidad
 
 ### T-01 - Esquema de `training.json` y del caso
-- **Estado**: completado
+- **Estado**: en-progreso
 - **Tiempo humano**: est. 3h · real -
 - **Tiempo IA**: real 0.22h (medido; usage-meter `training-data-services/T-01`, 13m, 37.8k out tok)
 - **Prevision IA**: 35k in / 14k out tok
@@ -41,7 +41,7 @@ verificacion: obligatoria
 - [x] El esquema del caso exige `case_id`, `version`, `outcome`, y valida `validation.status` contra el vocabulario cerrado.
 
 ### T-02 - Consumir `redact.py` compartido y registrar la capacidad `training`
-- **Estado**: completado
+- **Estado**: en-progreso
 - **Tiempo humano**: est. 1.5h · real -
 - **Tiempo IA**: real 0.12h (medido; usage-meter `training-data-services/T-02`, 7m, 17.3k out tok)
 - **Prevision IA**: 18k in / 7k out tok
@@ -58,7 +58,7 @@ verificacion: obligatoria
 - [x] `redact.py` sigue siendo la unica fuente de los patrones de secretos del plugin; el recorder no define ninguno propio.
 
 ### T-03 - Plantillas y estructura de directorios del case store
-- **Estado**: completado
+- **Estado**: en-progreso
 - **Tiempo humano**: est. 2h · real -
 - **Tiempo IA**: real 0.07h (medido; usage-meter `training-data-services/T-03`, 4m, 14.4k out tok)
 - **Prevision IA**: 20k in / 8k out tok
@@ -172,3 +172,26 @@ verificacion: obligatoria
 - **Verificacion**: `python -m pytest -q tests/test_training_data_services.py tests/test_hooks_shell.py` -> ningun binario inline, ningun caso no-Gold exportado, hooks sin red; `python scripts/lint_plugin.py` -> 0 · `python evals/check.py` -> 0
 **Criterios de aceptación**
 - [ ] Suite completa en verde; revision de dos lentes sin gaps Critical/Important; QA sin UI verde; retro abre `retro-gate.py`.
+
+## Revisión de dos lentes — intento 1: Fase 1 (T-01, T-02, T-03) — 14 gaps (0 Critical, 2 Important, 12 Minor), lentes A+B+D (D por `review-lens-select.py`: `regex-en-bucle` en `case_schema.py:129`, resultó falso positivo; C no aplica), rango `bab4fb5..ef4841f`
+
+Puertas previas: `scope-check --base origin/master` → 1 fuera (`improvement-plan.md`, cambio de Estado del orquestador en `bab4fb5`: **arbitraje, no-gap**) · `ledger-lint` 0/8 (Changelog ausente en T-04…T-11, aún borrador) · `lint_plugin` 0 · `evals/check` 0 (148 casos) · `export-interop --check` al día · `grep -c training doctor.py` 0. Tres worktrees separados (`tds-lente-a-i1|b-i1|d-i1`); 3 falsos rojos por MAX_PATH de GOT-012 en las copias (verdes en el árbol principal; ver GOT candidato en `needs_changes`). Lente A: criterios de T-01/T-02/T-03 ✓ con evidencia reproducida cifra a cifra (36 · 10/21 · 7 · 79 · 393 passed), RED de T-02 reproducido cargando `capabilities.py@bab4fb5` (9/10 fallan), skill nueva conforme a `plugin-dev` (105 líneas, description 921 chars, eval 2+1), CONVENTIONS ES/EN equivalentes. Lente B: ~40 sondas sobre `validar_caso`/`validar_config`, 11 configs sobre `capabilities`, assets validan (`v001` rechazada conservada + `v002` corrected Gold coherentes); 28 mutantes, 23 muertos, **5 vivos** (M2, M15, M16, M17, M18) + M19 equivalente. Lente D: `validar_caso` ×10 000 = 0,46 s, `redactar_estructura` 5 MB en 0,39 s, capacidad O(1) sin listar el store, carga de `case_schema.py` ≈9 ms por `/doctor`: sin hallazgos. Fusión: B-1 → #1; B-2 + A-1 → #2; B-3 → #3; B-4 + C nota → #4; B-5 → #5; B-6 → #6; B-7 → #7; B-8 + A «fuera de lente» (import al cargar) → #8; A-2 → #9; A-3 → #10; A-4 → #11; A-5 → #12; A-6 → #13; mutantes vivos → #14.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia | Lente |
+|---|---|---|---|---|---|---|
+| 1 | **Important** | `validar_caso` lanza `TypeError: unhashable type` con un `outcome` no hashable (`case_schema.py:350` `outcome in tabla`, ídem `:186` en `mapear_outcome`): `"outcome": ["success"]` → traceback por CLI con **exit 1**, el mismo código que «errores de validación»; el recorder de T-04 heredaría el crash. **Arbitraje:** todo valor de tipo inesperado devuelve `{campo, mensaje}` (comprobar `isinstance(str)` antes de mirar vocabularios); exit 2 reservado a uso/entrada ilegible, 1 a validación; tests con `list`/`dict`/`None` en `outcome`, `status`, `case_id` | T-01 | pendiente | B |
+| 2 | **Important** | La regla «`root` nunca dentro de `docs/knowledge/`» (ADR-019 Decisión 2, fila de CONVENTIONS) solo cubre rutas relativas en minúsculas: `case_schema.py:114` exige `not os.path.isabs(root) and …`; `validar_config` no recibe la raíz del proyecto aunque `cargar_config(root)` la tiene. `"root": "C:/proj/docs/knowledge/cases"` → `[]` y capacidad `ok`; `"Docs/Knowledge/x"` → `[]` (en Windows/macOS es el mismo directorio). Mutante M19 (quitar `isabs`) sobrevive: no hay test del absoluto. **Arbitraje:** resolver `root` contra la raíz del proyecto (`realpath`/`normcase`) y rechazar si cae dentro de `<proyecto>/docs/knowledge/` sea relativo, absoluto o con otra capitalización; `validar_config(cfg, raiz_proyecto)`; tests con los tres casos | T-01/T-03 | pendiente | B + A |
+| 3 | Minor | Una regex que compila pero revienta (`OverflowError`, p. ej. `family_pattern: "a{4294967296}"`) no la captura `except re.error` (`case_schema.py:131-136`): CLI con traceback; en `capabilities` degrada sin el campo. **Arbitraje:** capturar `(re.error, OverflowError, RecursionError)` y devolver el campo | T-01 | pendiente | B |
+| 4 | Minor | Las anclas `$` aceptan `\n` final y los patrones del proyecto se evalúan con `re.match` (parcial) (`case_schema.py:69,70,300,354`): `family: "ramp\n"`, `id_prefix: "geo\n"`, `supersedes_case: "…@v1\n"` → `[]` (nombre de directorio inválido en Windows al grabar); con `family_pattern: "[a-z]"` sin anclas, `family: "r/../../x"` → `[]` y `directorio_version` devuelve `cases\r/../../x.steep\v001` (traversal, CWE-22). **Arbitraje:** `\Z` en vez de `$`, `re.fullmatch` para los patrones del proyecto, y rechazo explícito de separadores de ruta/`..`/controles en `family`/`variant`/`id_prefix`; tests | T-01 | pendiente | B |
+| 5 | Minor | `supersedes_case` no se comprueba contra el propio caso ni contra el `case_id` (`case_schema.py:353-358`): un v1 `corrected` que se reemplaza a sí mismo, o que apunta a otro `case_id`, o `outcome: success` con `supersedes_case` → `[]`; el par fallo → corrección (CA-12 de design) queda sin garantizar. **Arbitraje:** `supersedes_case` obligatorio solo con `corrected`, mismo `case_id`, versión estrictamente menor; tests | T-01 | pendiente | B |
+| 6 | Minor | El filtro anti chain-of-thought (`case_schema.py:196-198`) solo mira claves exactas, en minúscula y en el primer nivel del turno: `Thinking`, `reasoning_details`, `tool_calls[].arguments.reasoning` pasan. **Arbitraje:** comparación case-insensitive por prefijo (`thinking`, `reasoning`, `chain_of_thought`, `scratchpad`) y recursiva dentro del turno; tests | T-01 | pendiente | B |
+| 7 | Minor | `root` con `~` ni se expande ni se rechaza (`capabilities.py:251-253`): `"~/store"` → `declarado` con la ruta literal `<proyecto>\~\store`. **Arbitraje:** rechazar `~` en el validador (el `root` es relativo al proyecto o absoluto explícito) y test | T-02 | pendiente | B |
+| 8 | Minor | `redactar_estructura` (`case-recorder.py:63-69`) no redacta elementos de tuplas/sets ni claves de dict (latente hasta T-04); y `case-recorder.py:57` carga `redact.py` al importar el módulo, así que sin él falla cualquier import, no solo grabar. **Arbitraje:** recorrer tuplas/sets/claves; carga perezosa de `redact` en la función de grabar con `RedaccionNoDisponible` al grabar; tests | T-02 | pendiente | B + A |
+| 9 | Minor | Registrar `training` en `REGISTRO` hace que `/doctor` pinte «training · desactivado» en todo proyecto sin `training.json` (`capabilities.py:303`, `doctor.py:1603-1604`), en contra del criterio de T-10 («sin `training.json`, `/doctor` no reporta nada») y del «cero impacto» de CA-01; `doctor.py` no puede filtrar sin código específico (prohibido). **Arbitraje del orquestador:** regla GENÉRICA en el contrato de capacidades: una capacidad opt-in cuyo `config_path` no existe se omite del bloque de `/doctor` salvo `--verbose`/`--all` (aplica a `kwipu`/`graphiti`/`training` por igual); documentar en CONVENTIONS y `commands/doctor.md`; test genérico en `test_doctor.py` sin nombrar capacidades; se hace en esta ronda para no arrastrarlo a T-10 | T-02 (→ T-10) | pendiente | A |
+| 10 | Minor | Aristas nuevas sin fila en `docs/agents/CONTRACTS.md` («una arista nueva se declara el día que se crea», `:12,17`): kit → skill (`capabilities.py:216` → `skills/training-data-services/scripts/case_schema.py`) y skill → shared (`case-recorder.py` → `agent-kits/shared/redact.py`); la nota del ledger las difería a T-11 y omitía la segunda. **Arbitraje:** declararlas ahora con su Puerta (tests existentes) | T-02 | pendiente | A |
+| 11 | Minor | ADR-019 no reconcilia su decisión con ADR-018 punto 1 («cualquier dataset es una proyección reconstruible desde el Markdown en git»): el case store es una segunda fuente fuera de git y ADR-019 solo dice «fuente de verdad **curada**» (`ADR-019:55` vs `ADR-018:24-26`). **Arbitraje:** párrafo explícito en ADR-019 («ADR-018 habla del conocimiento curado; el case store es evidencia bruta no curada, deliberadamente fuera de git y de `docs/knowledge/`») y enlace cruzado | T-03 | pendiente | A |
+| 12 | Minor | La lista «Shared skills» de `README.md:241` / `README.es.md:241` no incluye la skill nueva y ninguna tarea lo prevé. **Arbitraje:** añadirla en ambos README raíz | T-01 | pendiente | A |
+| 13 | Minor | Celda de tokens del Resumen dice `medido` sin cifra aunque los tres marcadores la dan (37.8k + 17.3k + 14.4k out). **Arbitraje:** orquestador al cerrar fix1 | Resumen | pendiente (orquestador, al cerrar fix1) | A |
+| 14 | Minor | Mutantes vivos (agujeros de test): M2 (`version: true` aceptado al quitar `_es_int`, `:99`), M15 (`version_width <= 60`, `:139`), M16 (`tool_calls` fuera de `assistant`, `:206`), M17 (`refs[].kind` no texto, `:246`), M18 (claves desconocidas dentro de `ids`, `:127`). **Arbitraje:** un test por mutante | T-01 | pendiente | B |
+
+**Decisión del orquestador (2026-09-23):** 2 Important ⇒ T-01/T-02/T-03 vuelven a `en-progreso`; ronda `fix1` (implementer `opus`, marcador `training-data-services/T-01-fix1`) sobre #1-#12 y #14 (#13 del orquestador) y **revisión intento 2 de 3**. Regla de higiene para lentes e implementer: worktrees con nombre único (`tds-lente-<x>-i<N>`), scripts en `_tools/` propios y borrado al cerrar; MAX_PATH: candidata a gotcha ya en `needs_changes`.
