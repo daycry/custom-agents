@@ -194,8 +194,8 @@ nunca se edita a mano); toda skill nueva que necesite memoria sigue este patrón
 `<skill>-state.json`) y añade su fila aquí.
 
 **Registro de capacidades opcionales (`agent-kits/shared/capabilities.py`, ADR-018 punto 7,
-CA-14).** `/setup` y `/doctor` no llevan código específico por capacidad opcional (kwipu hoy;
-graphiti, training-data-services después): cada capacidad se declara UNA vez con el contrato
+CA-14).** `/setup` y `/doctor` no llevan código específico por capacidad opcional (kwipu y training
+hoy; graphiti después): cada capacidad se declara UNA vez con el contrato
 `{id, config_path, enabled, health, doctor, setup_step}` (`enabled`/`health`/`doctor` pueden ser
 un valor estático o un `callable(root)`) y `registrar()` la añade al registro global; `/setup` y
 `/doctor` solo recorren `enumerar(root)`. Una capacidad cuyo `enabled`/`health`/`doctor` lanza
@@ -203,7 +203,10 @@ degrada a `{"estado": "error", "detalle": "..."}` **sin tumbar la evaluación de
 (fail soft). El registro base de `knowledge-services` declara `knowledge-gate` (siempre activo;
 su salud es la de `taxonomy.json`, con o sin fichero de proyecto) y `kwipu` (activo solo con
 `backends.kwipu.enabled: true`; la comprobación de red real la hace el adaptador
-`markdown-export`, no el registro).
+`markdown-export`, no el registro). `training-data-services` añade `training` (activa solo con
+`.claude/knowledge-services/training.json` válido y `enabled: true`; valida con el `case_schema.py`
+de la skill, sin red: `deshabilitado` sin fichero, ❌ con fichero y campo si es inválido,
+`declarado`/`ok` según exista el `root` del case store; informar nunca lo crea).
 
 `/doctor` (T-09) añade un bloque **«Capacidades opcionales»**, genérico también: una fila por
 capacidad de `enumerar(root)`, sin ninguna cadena específica de capacidad en `doctor.py` (config

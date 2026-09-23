@@ -229,3 +229,109 @@ def test_evaluar_capacidad_no_sirve_taxonomia_obsoleta_entre_llamadas_directas(t
                                           "config": {"export_dir": ".claude/knowledge-services/kwipu-export"}}})
     segundo = cap_mod.evaluar_capacidad(kwipu_cap, root)
     assert segundo["enabled"] is True
+
+
+# ------------------------------------------------------------------ capacidad `training` (training-data-services T-02)
+
+def _training(proyecto, **cfg):
+    d = os.path.join(proyecto, ".claude", "knowledge-services")
+    os.makedirs(d, exist_ok=True)
+    datos = {"version": 1}
+    datos.update(cfg)
+    with open(os.path.join(d, "training.json"), "w", encoding="utf-8") as f:
+        json.dump(datos, f)
+    return os.path.join(d, "training.json")
+
+
+def _cap_training(root):
+    return next(c for c in cap_mod.enumerar(root) if c["id"] == "training")
+
+
+def test_training_registrada_con_el_contrato_de_seis_claves():
+    cap = next(c for c in cap_mod.REGISTRO if c["id"] == "training")
+    assert set(cap.keys()) >= {"id", "config_path", "enabled", "health", "doctor", "setup_step"}
+    assert cap["config_path"].replace("\\", "/") == ".claude/knowledge-services/training.json"
+    assert "training.json" in cap["setup_step"]
+
+
+def test_training_sin_fichero_deshabilitada_y_sin_efectos(tmp_path):
+    """CA-01: sin `training.json` la capacidad no existe para el ciclo y no crea nada en disco."""
+    root = str(tmp_path)
+    t = _cap_training(root)
+    assert t["enabled"] is False
+    assert t["health"]["estado"] == "deshabilitado"
+    assert "deshabilitad" in t["doctor"]
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_training_enabled_false_deshabilitada(tmp_path):
+    root = str(tmp_path)
+    _training(root, enabled=False)
+    t = _cap_training(root)
+    assert t["enabled"] is False and t["health"]["estado"] == "deshabilitado"
+
+
+def test_training_activa_con_root_existente(tmp_path):
+    root = str(tmp_path)
+    (tmp_path / "store").mkdir()
+    _training(root, enabled=True, root="store", id_prefix="geo")
+    t = _cap_training(root)
+    assert t["enabled"] is True
+    assert t["health"]["estado"] == "ok"
+    assert os.path.normcase(t["health"]["root"]) == os.path.normcase(str(tmp_path / "store"))
+    assert t["doctor"].startswith("training:")
+
+
+def test_training_activa_con_root_aun_inexistente_es_declarada(tmp_path):
+    root = str(tmp_path)
+    _training(root, enabled=True, root="store", id_prefix="geo")
+    t = _cap_training(root)
+    assert t["enabled"] is True
+    assert t["health"]["estado"] == "declarado"
+    assert not (tmp_path / "store").exists()  # informar nunca crea el case store
+
+
+def test_training_config_invalida_es_error_con_fichero_y_campo(tmp_path):
+    root = str(tmp_path)
+    ruta = _training(root, enabled=True)  # sin root ni id_prefix
+    t = _cap_training(root)
+    assert t["enabled"] is False
+    assert t["health"]["estado"] == "error"
+    assert t["health"]["fichero"] == ruta
+    assert "root" in t["health"]["detalle"]
+
+
+def test_training_json_ilegible_es_error_sin_tumbar_el_resto(tmp_path):
+    root = str(tmp_path)
+    d = tmp_path / ".claude" / "knowledge-services"
+    d.mkdir(parents=True)
+    (d / "training.json").write_text("{roto", encoding="utf-8")
+    resultado = {c["id"]: c for c in cap_mod.enumerar(root)}
+    assert resultado["training"]["health"]["estado"] == "error"
+    assert resultado["knowledge-gate"]["health"]["estado"] == "ok"
+
+
+def test_training_sin_red():
+    """La capacidad solo lee un JSON local: ni sockets ni HTTP en `capabilities.py`."""
+    with open(os.path.join(HERE, "capabilities.py"), "r", encoding="utf-8") as f:
+        texto = f.read()
+    for prohibido in ("import socket", "urllib.request", "http.client"):
+        assert prohibido not in texto
+
+
+def test_training_valida_con_el_esquema_de_la_skill(tmp_path, monkeypatch):
+    """Una sola fuente del esquema: `capabilities.py` valida con `case_schema.py` de la skill; si
+    la skill no viaja (paquete parcial), degrada a `declarado` sin inventar validacion propia."""
+    root = str(tmp_path)
+    _training(root, enabled=True, root="store", id_prefix="geo", bridge_to_curator="si")
+    assert _cap_training(root)["health"]["estado"] == "error"
+    monkeypatch.setattr(cap_mod, "_cargar_case_schema", lambda: None)
+    t = _cap_training(root)
+    assert t["enabled"] is True
+    assert t["health"]["estado"] == "declarado"
+    assert "case_schema.py" in t["health"]["detalle"]
+
+
+def test_cli_lista_training(capsys, tmp_path):
+    assert cap_mod.main(["--root", str(tmp_path)]) == 0
+    assert "training" in capsys.readouterr().out

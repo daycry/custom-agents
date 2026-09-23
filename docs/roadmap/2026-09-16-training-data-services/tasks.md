@@ -41,16 +41,21 @@ verificacion: obligatoria
 - [x] El esquema del caso exige `case_id`, `version`, `outcome`, y valida `validation.status` contra el vocabulario cerrado.
 
 ### T-02 - Consumir `redact.py` compartido y registrar la capacidad `training`
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo humano**: est. 1.5h · real -
+- **Tiempo IA**: real 0.12h (medido; usage-meter `training-data-services/T-02`, 7m, 17.3k out tok)
 - **Prevision IA**: 18k in / 7k out tok
-- **Dependencias**: `session-end-durable-capture` T-02 (`redact.py`), `knowledge-services` T-13 (`capabilities.py`)
+- **Dependencias**: `session-end-durable-capture` T-02 (`redact.py`), `knowledge-services` T-13 (`capabilities.py`) — ambas cerradas (`session-end-durable-capture` en `completado`; `redact.py` y `capabilities.py` presentes)
 - **Tipo**: backend
-- **Archivos**: `agent-kits/shared/capabilities.py`, `agent-kits/shared/test_capabilities.py`, `skills/training-data-services/scripts/test_case_recorder.py`
+- **Archivos**: `agent-kits/shared/capabilities.py`, `agent-kits/shared/test_capabilities.py`, `skills/training-data-services/scripts/case-recorder.py`, `skills/training-data-services/scripts/test_case_recorder.py`, `skills/training-data-services/SKILL.md`, `tests/test_console_encoding.py`, `docs/CONVENTIONS.md`, `docs/en/CONVENTIONS.md` (nota: `case-recorder.py` nace aqui minimo —solo la redaccion delegada— con el nombre que fija T-04; `test_console_encoding.py` exige declarar el modo de arranque de todo script con no-ASCII: cubre `case_schema.py` de T-01, que se habia quedado fuera, y `case-recorder.py`; el parrafo del registro de capacidades de CONVENTIONS ES/EN describe la entrada nueva, E3)
 - **Verificacion**: `python -m pytest -q agent-kits/shared/test_capabilities.py -k training agent-kits/shared/test_redact.py` -> la capacidad `training` expone enabled/health/doctor/setup_step; el recorder importa `redactar` de `redact.py` (una sola fuente)
+  - Salida real (2026-09-23): `10 passed, 21 deselected in 0.29s` (el `-k training` filtra tambien `test_redact.py`); sin filtro: `python -m pytest -q skills/training-data-services/scripts agent-kits/shared/test_redact.py agent-kits/shared/test_capabilities.py` -> `72 passed in 1.22s`; `tests/test_console_encoding.py` -> `393 passed`; `agent-kits/shared/test_doctor.py` -> `131 passed, 1 skipped`
+- **RED**: `test_training_*` de `test_capabilities.py` (9 de 10) fallaron con `StopIteration` (no hay capacidad `training` en `REGISTRO`); `test_case_recorder.py` fallo en la coleccion con `FileNotFoundError: ... skills/training-data-services/scripts/case-recorder.py` · 2026-09-23
+- **Nota**: decisiones con margen — (1) `capabilities.py` valida `training.json` cargando `case_schema.py` de la skill (una sola fuente del esquema; skills/ y agent-kits/ son hermanos); sin la skill degrada a `declarado` sin validacion propia; (2) config invalida -> `health.estado: error` con fichero y campo (mismo trato que `knowledge-gate`: /doctor lo pinta en rojo pero el ciclo no se bloquea); (3) sin `redact.py` el recorder levanta `RedaccionNoDisponible` en vez de caer a una copia local (fail closed); (4) `doctor.py` sin tocar (`grep -c training` -> 0). Pendiente para T-11: registrar en `docs/agents/CONTRACTS.md` el acoplamiento nuevo `agent-kits/shared/capabilities.py` -> `skills/training-data-services/scripts/case_schema.py`.
+- **Changelog**: `/doctor` and `/setup` now list the opt-in `training` capability (off without `training.json`, no network), and case redaction reuses the plugin's single shared secret-redaction module.
 **Criterios de aceptación**
-- [ ] **Enmienda 2026-09-17**: la extraccion de `redact.py` desde `journal.py` la hace `session-end-durable-capture` (unica iniciativa que refactoriza `journal.py`); aqui solo se consume. Sin esa dependencia cerrada, esta tarea queda `bloqueada`.
-- [ ] `redact.py` sigue siendo la unica fuente de los patrones de secretos del plugin; el recorder no define ninguno propio.
+- [x] **Enmienda 2026-09-17**: la extraccion de `redact.py` desde `journal.py` la hace `session-end-durable-capture` (unica iniciativa que refactoriza `journal.py`); aqui solo se consume. Sin esa dependencia cerrada, esta tarea queda `bloqueada`.
+- [x] `redact.py` sigue siendo la unica fuente de los patrones de secretos del plugin; el recorder no define ninguno propio.
 
 ### T-03 - Plantillas y estructura de directorios del case store
 - **Estado**: borrador

@@ -3,7 +3,7 @@
 capabilities.py — registro de CAPACIDADES OPCIONALES del plugin (ADR-018 punto 7, CA-14,
 `knowledge-services` T-13). Sin dependencias externas.
 
-Cada capacidad opcional (kwipu hoy; graphiti, training-data-services despues) declara un dict
+Cada capacidad opcional (kwipu y training hoy; graphiti despues) declara un dict
 con el contrato:
   {id, config_path, enabled, health, doctor, setup_step}
 
@@ -20,6 +20,7 @@ Uso:
   capabilities.py [--root <ruta>]   # lista las capacidades registradas y su estado; exit 0
 """
 import argparse
+import json
 import importlib.util
 import os
 import sys
@@ -205,6 +206,79 @@ def _kwipu_doctor(root):
     return f"kwipu: {salud['estado']} — {salud.get('detalle', '')}".rstrip(" —")
 
 
+TRAINING_CONFIG_PATH = os.path.join(".claude", "knowledge-services", "training.json")
+
+
+def _cargar_case_schema():
+    """`case_schema.py` de la skill `training-data-services` (fuente UNICA del esquema de
+    `training.json`, T-01). skills/ y agent-kits/ son hermanos en el repo y en la instalacion del
+    plugin; si la skill no viaja (paquete parcial), None y la capacidad degrada a `declarado`."""
+    ruta = os.path.normpath(os.path.join(HERE, "..", "..", "skills", "training-data-services",
+                                         "scripts", "case_schema.py"))
+    if not os.path.isfile(ruta):
+        return None
+    spec = importlib.util.spec_from_file_location("tds_case_schema", ruta)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def _estado_training(root):
+    """(config|None, ruta|None, errores, validado) del `training.json` de `root`. Solo lee un JSON
+    local: sin red, sin crear nada (CA-01, CA-07). `validado` es False si falta `case_schema.py`."""
+    ruta = os.path.join(root or ".", TRAINING_CONFIG_PATH)
+    if not os.path.isfile(ruta):
+        return None, None, [], True
+    cs = _cargar_case_schema()
+    if cs is not None:
+        config, ruta_cs, errores = cs.cargar_config(root or ".")
+        return config, ruta_cs, errores, True
+    try:
+        with open(ruta, encoding="utf-8") as f:
+            config = json.load(f)
+    except (OSError, ValueError) as e:
+        return None, ruta, [{"campo": "(fichero)", "mensaje": f"JSON ilegible: {e}"}], False
+    if not isinstance(config, dict):
+        return None, ruta, [{"campo": "(raiz)", "mensaje": "training.json debe ser un objeto JSON"}], False
+    return config, ruta, [], False
+
+
+def _training_enabled(root):
+    config, _ruta, errores, _validado = _estado_training(root)
+    return bool(config and not errores and config.get("enabled") is True)
+
+
+def _training_root(root, config):
+    destino = config.get("root") or ""
+    return destino if os.path.isabs(destino) else os.path.abspath(os.path.join(root or ".", destino))
+
+
+def _training_health(root):
+    config, ruta, errores, validado = _estado_training(root)
+    if errores:
+        detalle = "; ".join(f"{e['campo']}: {e['mensaje']}" for e in errores)
+        return {"estado": "error", "detalle": detalle, "fichero": ruta or TRAINING_CONFIG_PATH}
+    if not config or config.get("enabled") is not True:
+        return {"estado": "deshabilitado"}
+    if not validado:
+        return {"estado": "declarado",
+                "detalle": "sin `case_schema.py` de la skill training-data-services: config sin validar"}
+    store = _training_root(root, config)
+    if not os.path.isdir(store):
+        return {"estado": "declarado", "root": store,
+                "detalle": f"el case store `{store}` aun no existe (lo crea el recorder al grabar)"}
+    return {"estado": "ok", "root": store, "detalle": f"case store en `{store}`"}
+
+
+def _training_doctor(root):
+    salud = _training_health(root)
+    if salud["estado"] == "deshabilitado":
+        return "training: deshabilitado (sin training.json o enabled: false)"
+    if salud["estado"] == "error":
+        return f"training: {salud['detalle']} — corrige `{salud['fichero']}`"
+    return f"training: {salud['estado']} — {salud.get('detalle', '')}".rstrip(" —")
+
+
 REGISTRO = [
     {
         "id": "knowledge-gate",
@@ -224,6 +298,17 @@ REGISTRO = [
         "doctor": _kwipu_doctor,
         "setup_step": "declara `backends.kwipu.enabled: true` en `taxonomy.json` y el `export_dir` "
                       "donde el adaptador `markdown-export` escribira el export derivado",
+    },
+    {
+        "id": "training",
+        "config_path": TRAINING_CONFIG_PATH,
+        "enabled": _training_enabled,
+        "health": _training_health,
+        "doctor": _training_doctor,
+        "setup_step": "crea `.claude/knowledge-services/training.json` con `version: 1`, "
+                      "`enabled: true`, el `root` del case store (fuera de Git y de "
+                      "`docs/knowledge/`) y el `id_prefix` de los casos; `bridge_to_curator` "
+                      "opcional (skill `training-data-services`)",
     },
 ]
 
