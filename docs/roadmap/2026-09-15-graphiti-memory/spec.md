@@ -1,8 +1,8 @@
 ---
 spec: graphiti-memory
-estado: aprobada
+estado: implementada
 creado: 2026-09-15
-actualizado: 2026-09-18
+actualizado: 2026-09-23
 evaluacion: evaluation.md
 design: design.md
 plan: improvement-plan.md
