@@ -1,12 +1,22 @@
 ---
+id: custom-agents.GOT-013
 category: GOTCHA
+version: 1
+estado: aprobado
 evidencia: validated_case
-fuentes: [docs/roadmap/2026-09-15-graphiti-memory/tasks.md]
-tags: [area:adversarial-review, agente:reviewer, tipo:proceso]
 project: custom-agents
 scope: project
 source: agent
 confidence: medium
+fuentes:
+  - docs/roadmap/2026-09-15-graphiti-memory/tasks.md (gap #184, Minor proceso, revisión Fase 4 intento 2 — incidentes (a)-(d) y arbitraje)
+  - docs/roadmap/2026-09-15-graphiti-memory/tasks.md (gap #167, revisión Fase 4 intento 1 — incidente de proceso de la Lente C, primera forma del patrón)
+tags:
+  - area:adversarial-review
+  - agente:reviewer
+  - tipo:proceso
+curador: knowledge-curator
+fecha_aprobacion: 2026-09-23
 ---
 # Worktrees de revisión con mutation testing necesitan nombre único e insensible a mayúsculas, y scripts en subdirectorio propio
 
@@ -30,3 +40,7 @@ corrió pytest en el worktree de otra … Arbitraje: nombres de worktree únicos
 mayúsculas (`lente-a-<intento>`), scripts de cada rol en su propio subdirectorio y borrado al
 cerrar"*; incidente de proceso citado también en #167 (intento 1) como primera forma del mismo
 patrón.
+
+---
+
+*Curado el 2026-09-23 por `knowledge-curator` (`/dev-cycle` Fase 4-bis, `graphiti-memory`): gaps #184 y #167 verificados en el ledger (la cita de #184 es literal; #167 consta como «incidente de proceso de C» en la fusión del intento 1). Sin solape con lo ya aprobado ni con `LES-010` del corpus legado (que trata la revisión adversarial como skill, no su higiene de entorno). El nivel `validated_case` se sostiene: el patrón apareció en dos intentos consecutivos y el arbitraje se aplicó (scratchpad limpiado, reglas en los briefs de las lentes en el intento 3, que corrió sin repetir el incidente).*

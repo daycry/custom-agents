@@ -1,12 +1,26 @@
 ---
+id: custom-agents.LES-019
 category: LESSON
+version: 1
+estado: aprobado
 evidencia: validated_case
-fuentes: [docs/roadmap/2026-09-15-graphiti-memory/design.md, docs/roadmap/2026-09-15-graphiti-memory/tasks.md]
-tags: [area:seguridad, agente:documenter, tipo:proceso]
 project: custom-agents
 scope: project
 source: agent
 confidence: medium
+fuentes:
+  - docs/roadmap/2026-09-15-graphiti-memory/design.md (sección «Límites conocidos de la puerta estática de hooks (deuda declarada, 2026-09-23)», #187-#192 e iniciativa propuesta `hooks-gate-hardening`)
+  - docs/roadmap/2026-09-15-graphiti-memory/tasks.md (revisión Fase 4 intento 3, gaps #186-#195: 0 Critical / 0 Important, 10 Minor; micro-ronda fix3)
+  - tests/test_graphiti_security.py (la puerta estática: AST de `.py` alcanzables + tokenización de `.sh`)
+enlaces:
+  - custom-agents.LES-017
+tags:
+  - area:seguridad
+  - agente:documenter
+  - agente:reviewer
+  - tipo:proceso
+curador: knowledge-curator
+fecha_aprobacion: 2026-09-23
 ---
 # Una puerta estática de hooks es una denylist: declarar sus límites como deuda, con propuesta de iniciativa
 
@@ -35,3 +49,7 @@ alcanzable real los usa hoy, y la suite del repo los pinaría al primer cambio q
 introdujera"*, con los 6 puntos #187-#192 y la propuesta de cierre: *"Iniciativa futura propuesta:
 `hooks-gate-hardening` — llevar la puerta estática de hooks a un análisis por sitio de llamada …
 cerrando #187-#192."*
+
+---
+
+*Curado el 2026-09-23 por `knowledge-curator` (`/dev-cycle` Fase 4-bis, `graphiti-memory`): la sección de `design.md` existe con los seis límites #187-#192 (cada uno con `fichero:línea` de `tests/test_graphiti_security.py`) y la propuesta `hooks-gate-hardening`; el ledger confirma el cierre del bucle en 0 Critical / 0 Important. Enlazada a `custom-agents.LES-017` sin solapar: aquella dice CÓMO casar un término prohibido (frontera de palabra, acentos, comentarios); esta, QUÉ prueba y qué no prueba una puerta por patrones y cómo se registra su deuda. No contradice `ADR-007` (deny solo con alcance de agente): la puerta vive en la suite, no en `hooks/hooks.json`. Se añadió `agente:reviewer` a los tags: la regla la aplica quien cierra el bucle de revisión.*
