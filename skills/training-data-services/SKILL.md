@@ -102,7 +102,9 @@ fuente)` según la tabla `OUTCOME_MAPEO`. Lo que no esté en la tabla devuelve `
    [--project-root <dir>]` (exit 0 ok · 1 rechazo · 2 uso/JSON ilegible). Redacta secretos, valida
    lo ya redactado y solo entonces escribe. Sin `version` toma la siguiente libre; una versión
    existente nunca se sobrescribe (reserva atómica, también en paralelo). No hay borrado.
-4. **Aprobar Gold** a mano (T-05, pendiente): la transición a `approved` exige `--approved-by-human`.
+4. **Aprobar Gold** a mano: `case-recorder.py set-status <case_id> <versión> approved
+   --approved-by-human [--note …]`. Sin el flag, rechazo explícito. `needs_changes`, `rejected` y
+   `pending` no lo piden. Solo se reescribe `validation.json` (atómico); lo demás es inmutable.
 5. **Ensamblar** el dataset (T-07…T-09, pendiente): solo Gold, dedup por shingles, benchmark
    reservado por familia completa.
 
