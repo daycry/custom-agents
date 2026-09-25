@@ -38,7 +38,7 @@ de dominio (métricas, simulación, herramientas) es del proyecto consumidor.
 | Fichero | Qué es |
 |---|---|
 | `scripts/case_schema.py` | Validador stdlib de `training.json` y del caso (exit 0 válido · 1 errores · 2 uso/JSON ilegible). Fuente única de los vocabularios cerrados y del mapeo de `outcome`. |
-| `scripts/case-recorder.py` | Recorder (API importable + CLI `record`). Graba cada intento como versión inmutable `cases/<family>.<variant>/v<NNN>/`. La redacción la delega en `agent-kits/shared/redact.py` (fuente única); sin él se niega a grabar. Un caso `corrected` exige que exista la versión que corrige. |
+| `scripts/case-recorder.py` | Recorder (API importable + CLI `record` · `set-status` · `index` · `list`). Graba cada intento como versión inmutable `cases/<family>.<variant>/v<NNN>/`. La redacción la delega en `agent-kits/shared/redact.py` (fuente única); sin él se niega a grabar. Un caso `corrected` exige que exista la versión que corrige. |
 | `assets/` | Plantillas del case store: `training.example.json`, ejemplo completo `case-store-example/` (caso con par fallo → corrección) y `README.md` con la estructura y cada fichero de versión (`metadata.json`, `validation.json`, `cases_index.jsonl`…). Ubicación: `docs/knowledge/adr/ADR-019-case-store-fuera-de-docs-knowledge.md`. |
 | Capacidad `training` | Entrada de `agent-kits/shared/capabilities.py`: `deshabilitado` sin fichero, `error` con fichero y campo si la config es inválida, `declarado`/`ok` según exista `root`. Sin red. |
 
@@ -105,6 +105,9 @@ fuente)` según la tabla `OUTCOME_MAPEO`. Lo que no esté en la tabla devuelve `
 4. **Aprobar Gold** a mano: `case-recorder.py set-status <case_id> <versión> approved
    --approved-by-human [--note …]`. Sin el flag, rechazo explícito. `needs_changes`, `rejected` y
    `pending` no lo piden. Solo se reescribe `validation.json` (atómico); lo demás es inmutable.
+   Consulta con `list [--status S] [--family F] [--outcome O] [--json]`. El índice
+   `cases_index.jsonl` es una caché: `index check` lo compara con `cases/` (exit 1 si difiere) e
+   `index rebuild` lo reconstruye. Una línea corrupta se ignora con aviso.
 5. **Ensamblar** el dataset (T-07…T-09, pendiente): solo Gold, dedup por shingles, benchmark
    reservado por familia completa.
 
