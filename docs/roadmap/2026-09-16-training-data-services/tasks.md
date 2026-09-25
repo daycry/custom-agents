@@ -15,16 +15,16 @@ verificacion: obligatoria
 
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervision (real/est) | Tokens (real/est) |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| Fase 1 - Config, redaccion compartida y capacidad | 0 | 3 | 0% (fix2 hecha: revisión intento 3 de 3 pendiente) | 0 / 6.5h | 4.37 / 2.0h | 0 / 0.5h | ~132.7k out (37.8k + 17.3k + 14.4k + fix2 63.2k; fix1 sin cifra de tokens: marcador cerrado en otra máquina sin pegar su salida) / 85k (T-01 0.22h · T-02 0.12h · T-03 0.07h · fix1 2.87h reloj incl. corte de sesión · fix2 1.09h) |
-| Fase 2 - Recorder y puerta humana | 0 | 3 | 0% | 0 / 8h | 0 / 2.4h | 0 / 0.6h | 0 / 120k |
+| Fase 1 - Config, redaccion compartida y capacidad | 3 | 3 | 100% (revisión cerrada en el intento 3; fix3 verificada por el orquestador) | 0 / 6.5h | 5.25 / 2.0h | 0 / 0.5h | ~180.8k out (37.8k + 17.3k + 14.4k + fix2 63.2k + fix3 48.1k; fix1 sin cifra de tokens: marcador cerrado en otra máquina sin pegar su salida) / 85k (T-01 0.22h · T-02 0.12h · T-03 0.07h · fix1 2.87h reloj incl. corte de sesión · fix2 1.09h · fix3 0.88h) |
+| Fase 2 - Recorder y puerta humana | 3 | 3 | 100% (revisión de dos lentes pendiente) | 0 / 8h | 0.43 / 2.4h | 0 / 0.6h | ~92.8k out (43.9k + 16.1k + 32.8k) / 120k (T-04 0.20h · T-05 0.07h · T-06 0.16h) |
 | Fase 3 - Dedup, particion y ensamblador | 0 | 3 | 0% | 0 / 14h | 0 / 4.2h | 0 / 1.1h | 0 / 210k |
 | Fase 4 - Setup, doctor y cierre | 0 | 2 | 0% | 0 / 11h | 0 / 3.3h | 0 / 0.8h | 0 / 160k |
-| **TOTAL** | **0** | **11** | **0%** | **0 / 39.5h** | **4.37 / 11.9h** | **0 / 3.0h** | **~132.7k out / 575k** |
+| **TOTAL** | **6** | **11** | **55%** | **0 / 39.5h** | **5.68 / 11.9h** | **0 / 3.0h** | **~273.6k out / 575k** |
 
 ## Fase 1 - Config, redaccion compartida y capacidad
 
 ### T-01 - Esquema de `training.json` y del caso
-- **Estado**: en-progreso
+- **Estado**: completado
 - **Tiempo humano**: est. 3h · real -
 - **Tiempo IA**: real 0.22h (medido; usage-meter `training-data-services/T-01`, 13m, 37.8k out tok)
 - **Tiempo IA (fix1)**: real 2.87h (medido; usage-meter, artefacto training-data-services/T-01-fix1, 2h52m reloj incl. corte de sesión y reanudación, 17.80 EUR — cubre T-01/T-02/T-03 fix1; implementer `opus`)
@@ -48,7 +48,7 @@ verificacion: obligatoria
 - [x] El esquema del caso exige `case_id`, `version`, `outcome`, y valida `validation.status` contra el vocabulario cerrado.
 
 ### T-02 - Consumir `redact.py` compartido y registrar la capacidad `training`
-- **Estado**: en-progreso
+- **Estado**: completado
 - **Tiempo humano**: est. 1.5h · real -
 - **Tiempo IA**: real 0.12h (medido; usage-meter `training-data-services/T-02`, 7m, 17.3k out tok)
 - **Tiempo IA (fix1)**: real - (medido junto con T-01-fix1 — ver nota en T-01)
@@ -68,7 +68,7 @@ verificacion: obligatoria
 - [x] `redact.py` sigue siendo la unica fuente de los patrones de secretos del plugin; el recorder no define ninguno propio.
 
 ### T-03 - Plantillas y estructura de directorios del case store
-- **Estado**: en-progreso
+- **Estado**: completado
 - **Tiempo humano**: est. 2h · real -
 - **Tiempo IA**: real 0.07h (medido; usage-meter `training-data-services/T-03`, 4m, 14.4k out tok)
 - **Tiempo IA (fix1)**: real - (medido junto con T-01-fix1 — ver nota en T-01)
@@ -258,3 +258,14 @@ Puertas: `scope-check --base origin/master` 1 fuera (`improvement-plan.md`, arbi
 | 30 | Minor | Regla 1 de `docs-style.md` (frases cortas): fix2 alarga a ~50 palabras, con dos incisos, la frase del filtro CoT (`SKILL.md:70-73`), que mete dos reglas en una. **Arbitraje:** partirla en dos frases (prefijos prohibidos · lista blanca y límite de anidamiento) | T-01 | corregido (fix3): partida en dos viñetas de frases cortas — «nunca chain-of-thought: prefijos prohibidos, sin distinguir mayúsculas, a cualquier profundidad (también en `arguments`)» · «Excepciones y límite: parámetros de proveedor solo en `tool_calls[].arguments`; > 50 niveles se rechaza» — y el «tipo inesperado» en su propia viñeta | TDD n/a: prosa. `SKILL.md:70-76`; `tests/test_skill_size.py` y `tests/test_export_skills.py` verdes (dentro de las puertas de fix3) | A |
 
 **Decisión del orquestador (2026-09-25):** intento 3 de 3 sin Critical/Important ⇒ el bucle de revisión de la Fase 1 queda CERRADO. Los 5 Minor no bloquean, pero el objetivo vigente del usuario («terminar sin gaps ni errores») no admite deuda: micro-ronda `fix3` (implementer `opus`, marcador `training-data-services/T-01-fix3`) sobre #26, #27, #29 y #30 (#28 del orquestador, hecho), con **verificación dirigida del orquestador** (reproducir cada escenario y matar cada mutante nombrado) en lugar de un 4.º intento, mismo precedente que graphiti-memory F2/F3. Tras la verificación: T-01..T-03 `completado` y Resumen 3/11.
+
+**Verificación dirigida de fix3 (orquestador, 2026-09-25)** — sin 4.º intento de lentes; escenarios reproducidos con un script propio (no el del implementer) sobre el árbol de `9327f22` y mutantes sobre una copia `git archive HEAD` en el scratchpad:
+
+| # | Escenario reproducido | Mutante | Veredicto |
+|---|---|---|---|
+| 26 | `root` = `\?\Volume{9c21469e-…}\…\proj\docs\knowledge\cases` (existe), `…\docs\knowledge\nuevo\cases` (no existe) y `\?\GLOBALROOT\Device\HarddiskVolumeZZ\x\docs\knowledge` → los tres `['root']`; controles `…\store` por volumen y `store` relativo → `[]` (sin falsos positivos) | quitar el `return True` fail-closed → `1 failed`; quitar el candidato post-`realpath` → `1 failed` | ✓ cerrado |
+| 27 | `case_schema.py case deep.json` con 100 000 listas anidadas → exit 2, `error: JSON ilegible (anidamiento excesivo)`, sin traceback | `except RecursionError` del CLI → otra excepción: `1 failed`; ídem en `cargar_config`: `1 failed` | ✓ cerrado |
+| 29 | (a) `arguments` texto con 5 000 niveles → error de campo `trajectory[0].tool_calls[0].arguments`, sin crash; (b) reconstrucción UNC | (a) `except RecursionError` → otra: `1 failed`; (b) `return resto` en vez de `"\\\\" + resto`: `2 failed` | ✓ cerrado |
+| 30 | `SKILL.md:70-76` en viñetas cortas, una regla por viñeta | — (prosa) | ✓ cerrado |
+
+⇒ Fase 1 sin gaps pendientes (30/30 cerrados): T-01, T-02 y T-03 → `completado`; Resumen 3/3 (Fase 1) y 6/11 total con la Fase 2 implementada (su revisión va a continuación).
