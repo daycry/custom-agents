@@ -30,6 +30,12 @@ reviewer_note=None)` — puerta humana para Gold (T-05): `approved` exige `appro
 explicito. `needs_changes`/`rejected`/`pending` no lo requieren y dejan `approved_by_human: false`.
 Solo se reescribe `validation.json` (temporal + `os.replace`); el resto de la version es inmutable.
 
+Indice `<root>/cases_index.jsonl` (T-06): append-only, una linea por alta y por cambio de estado
+con las claves exactas `case_id, version, family, variant, status, outcome, updated_at`; vale la
+ultima por `(case_id, version)`. Es una CACHE: `index rebuild` lo reconstruye desde `cases/` y
+`index check` lo compara. Las lineas corruptas se ignoran con aviso (y `check` las reporta). Los
+escritores se excluyen con un bloqueo sobre `<root>/.cases_index.lock` (`flock`/`msvcrt`).
+
 Estructura (`case_schema.directorio_version`, ancho `ids.version_width`):
   <root>/cases/<family>.<variant>/v<NNN>/{metadata.json, request.json ({"request": ...}),
   context.json, constraints.json, trajectory.jsonl, metrics.json, validation.json,
@@ -38,6 +44,8 @@ Estructura (`case_schema.directorio_version`, ancho `ids.version_width`):
 Uso (exit 0 ok · 1 rechazo/validacion · 2 uso/JSON ilegible, como `case_schema.py`):
   case-recorder.py record <caso.json> [--config <training.json>] [--project-root <dir>] [--approved-by-human]
   case-recorder.py set-status <case_id> <version> <status> [--approved-by-human] [--note <texto>] [...]
+  case-recorder.py index {rebuild|check} [...]     # check: exit 1 si el indice difiere de cases/
+  case-recorder.py list [--status S] [--family F] [--outcome O] [--json] [...]
 """
 import argparse
 import datetime
@@ -257,6 +265,19 @@ def _escribir(ruta, datos):
         f.write(datos)
 
 
+def _reemplazar(origen, destino):
+    """`os.replace` con reintentos acotados SOLO ante `PermissionError`: en Windows un handle ajeno
+    (antivirus, indexador) puede bloquear un instante el fichero recien escrito."""
+    import time
+    for intento in range(40):
+        try:
+            return os.replace(origen, destino)
+        except PermissionError:
+            if intento == 39:
+                raise
+            time.sleep(0.025)
+
+
 def _limpiar_temporal(tmp):
     """Elimina SOLO el temporal propio (`.tmp-*`, fichero o directorio con lo que quede dentro):
     nunca una version. Si ya no existe (se movio a su destino), no hace nada."""
@@ -300,9 +321,9 @@ def _reservar_y_mover(dir_caso, caso, width, auto):
         caso["version"] = version
         os.mkdir(os.path.join(destino, "final"))
         for rel in ficheros:
-            os.replace(os.path.join(tmp, rel), os.path.join(destino, rel))
+            _reemplazar(os.path.join(tmp, rel), os.path.join(destino, rel))
         _escribir(os.path.join(tmp, "metadata.json"), _json_bytes(_metadata(caso)))
-        os.replace(os.path.join(tmp, "metadata.json"), os.path.join(destino, "metadata.json"))
+        _reemplazar(os.path.join(tmp, "metadata.json"), os.path.join(destino, "metadata.json"))
         return destino
     finally:
         _limpiar_temporal(tmp)
@@ -361,7 +382,223 @@ def grabar(caso, config, raiz_proyecto=None, approved_by_human=False):
     _comprobar_supersedes(caso, dir_caso, width)
     destino = _reservar_y_mover(dir_caso, caso, width, auto)  # 3. escribir
     return {"case_id": caso["case_id"], "version": caso["version"],
-            "ref": cs.referencia_version(caso["case_id"], caso["version"], width), "path": destino}
+            "ref": cs.referencia_version(caso["case_id"], caso["version"], width), "path": destino,
+            "avisos": _indexar(store, _entrada(caso, caso["validation"]["status"], _ahora()))}
+
+
+# ------------------------------------------------------------------ indice cases_index.jsonl (T-06)
+
+INDICE = "cases_index.jsonl"
+BLOQUEO_INDICE = ".cases_index.lock"
+CLAVES_INDICE = ("case_id", "version", "family", "variant", "status", "outcome", "updated_at")
+ESPERA_BLOQUEO_S = 10.0
+
+
+class _Bloqueo:
+    """Exclusion mutua entre recorders (hilos o procesos) al escribir el indice: `flock` en POSIX,
+    `msvcrt.locking` en Windows, sobre `<root>/.cases_index.lock` (fichero que no se borra). El
+    append de Windows no es atomico entre descriptores distintos. Si no se obtiene en
+    `ESPERA_BLOQUEO_S`, se sigue sin el: el indice es una cache y `index check` lo detectaria."""
+
+    def __init__(self, store):
+        self.ruta = os.path.join(store, BLOQUEO_INDICE)
+        self.f = None
+
+    def __enter__(self):
+        import time
+        os.makedirs(os.path.dirname(self.ruta), exist_ok=True)
+        self.f = open(self.ruta, "a+b")
+        limite = time.monotonic() + ESPERA_BLOQUEO_S
+        while True:
+            try:
+                if os.name == "nt":
+                    import msvcrt
+                    self.f.seek(0)
+                    msvcrt.locking(self.f.fileno(), msvcrt.LK_NBLCK, 1)
+                else:
+                    import fcntl
+                    fcntl.flock(self.f.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                self.tomado = True
+                return self
+            except OSError:
+                if time.monotonic() >= limite:
+                    self.tomado = False
+                    return self
+                time.sleep(0.005)
+
+    def __exit__(self, *_exc):
+        try:
+            if self.tomado:
+                if os.name == "nt":
+                    import msvcrt
+                    self.f.seek(0)
+                    msvcrt.locking(self.f.fileno(), msvcrt.LK_UNLCK, 1)
+                else:
+                    import fcntl
+                    fcntl.flock(self.f.fileno(), fcntl.LOCK_UN)
+        finally:
+            self.f.close()
+        return False
+
+
+def _entrada(meta, status, updated_at):
+    return {"case_id": meta["case_id"], "version": meta["version"], "family": meta["family"],
+            "variant": meta["variant"], "status": status, "outcome": meta["outcome"], "updated_at": updated_at}
+
+
+def _linea(entrada):
+    return (json.dumps(entrada, ensure_ascii=False) + "\n").encode("utf-8")
+
+
+def anadir_al_indice(store, entrada):
+    """Una linea al final de `cases_index.jsonl` (append-only; nunca reescribe lo anterior)."""
+    with _Bloqueo(store):
+        with open(os.path.join(store, INDICE), "ab") as f:
+            f.write(_linea(entrada))
+
+
+def _indexar(store, entrada):
+    """Anade la linea del cambio; si el indice no se puede escribir, la version YA esta grabada:
+    se devuelve un aviso (el indice es una cache: `index rebuild` lo repone) en vez de fallar."""
+    try:
+        anadir_al_indice(store, entrada)
+        return []
+    except OSError as e:
+        return [f"{INDICE} no actualizado ({e}); reponlo con `index rebuild`"]
+
+
+def _entrada_valida(e):
+    """Motivo por el que una linea del indice no vale, o None."""
+    if not isinstance(e, dict):
+        return "no es un objeto JSON"
+    if tuple(sorted(e)) != tuple(sorted(CLAVES_INDICE)):
+        return f"claves distintas de {', '.join(CLAVES_INDICE)}"
+    if not all(isinstance(e[k], str) for k in CLAVES_INDICE if k != "version"):
+        return "valores de texto esperados"
+    if not cs._es_int(e["version"]) or e["version"] < 1:
+        return "version debe ser entero >= 1"
+    if e["status"] not in cs.VALIDATION_STATUS or e["outcome"] not in cs.OUTCOMES:
+        return "status/outcome fuera del vocabulario cerrado"
+    return None
+
+
+def leer_indice(store):
+    """`(entradas, avisos)`: la ULTIMA linea valida por `(case_id, version)` (orden de aparicion) y
+    un aviso por cada linea corrupta, que se ignora (nunca rompe la lectura)."""
+    entradas, avisos = {}, []
+    ruta = os.path.join(store, INDICE)
+    try:
+        with open(ruta, "rb") as f:
+            crudas = f.read().split(b"\n")
+    except FileNotFoundError:
+        return entradas, avisos
+    except OSError as e:
+        return entradas, [f"{INDICE} ilegible: {e}"]
+    for n, cruda in enumerate(crudas, 1):
+        if not cruda.strip():
+            continue
+        try:
+            e = json.loads(cruda.decode("utf-8"))
+            motivo = _entrada_valida(e)
+        except RecursionError:
+            motivo = "anidamiento excesivo"
+        except (ValueError, UnicodeDecodeError):
+            motivo = "JSON ilegible"
+        if motivo:
+            avisos.append(f"{INDICE} linea {n} ignorada: {motivo}")
+            continue
+        entradas[(e["case_id"], e["version"])] = e
+    return entradas, avisos
+
+
+def _mtime_iso(ruta):
+    t = datetime.datetime.fromtimestamp(os.path.getmtime(ruta), datetime.timezone.utc)
+    return t.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def estado_de_cases(store):
+    """`(entradas, avisos)` recorriendo `cases/` (la FUENTE; el indice es cache). Las versiones a
+    medio escribir (sin `metadata.json`/`validation.json`) o incoherentes con su ruta se omiten
+    con aviso. `updated_at` = mtime de `validation.json`."""
+    entradas, avisos = {}, []
+    base = os.path.join(store, "cases")
+    try:
+        casos = sorted(os.listdir(base))
+    except OSError:
+        return entradas, avisos
+    for nombre in casos:
+        dir_caso = os.path.join(base, nombre)
+        if not os.path.isdir(dir_caso) or nombre.startswith("."):
+            continue
+        for n in sorted(os.listdir(dir_caso)):
+            dir_v = os.path.join(dir_caso, n)
+            if _es_version(n) and os.path.isdir(dir_v):
+                v = int(n[1:])
+                rel = os.path.relpath(dir_v, store).replace(os.sep, "/")
+                try:
+                    with open(os.path.join(dir_v, "metadata.json"), encoding="utf-8") as f:
+                        meta = json.load(f)
+                    with open(os.path.join(dir_v, "validation.json"), encoding="utf-8") as f:
+                        val = json.load(f)
+                except (OSError, ValueError, RecursionError):
+                    avisos.append(f"{rel} omitida: a medio escribir o ilegible (sin metadata.json/validation.json validos)")
+                    continue
+                try:
+                    e = _entrada(meta, val.get("status"), _mtime_iso(os.path.join(dir_v, "validation.json")))
+                except (AttributeError, KeyError, TypeError):
+                    avisos.append(f"{rel} omitida: metadata.json/validation.json incompletos")
+                    continue
+                if f"{e['family']}.{e['variant']}" != nombre or e["version"] != v or _entrada_valida(e):
+                    avisos.append(f"{rel} omitida: metadata.json no casa con su ruta o con el esquema")
+                    continue
+                entradas[(e["case_id"], e["version"])] = e
+    return entradas, avisos
+
+
+def reconstruir_indice(store):
+    """Reescribe `cases_index.jsonl` desde `cases/` (una linea por version, ordenadas). Conserva el
+    `updated_at` de la ultima linea valida si su estado coincide. Escritura atomica. Devuelve
+    `(n_versiones, avisos)`."""
+    fuente, avisos = estado_de_cases(store)
+    previas, _ = leer_indice(store)
+    lineas = []
+    for clave in sorted(fuente, key=lambda k: (fuente[k]["family"], fuente[k]["variant"], k[1])):
+        e = dict(fuente[clave])
+        p = previas.get(clave)
+        if p and all(p[k] == e[k] for k in CLAVES_INDICE if k != "updated_at"):
+            e["updated_at"] = p["updated_at"]
+        lineas.append(_linea(e))
+    os.makedirs(store, exist_ok=True)
+    with _Bloqueo(store):
+        _escribir_atomico(os.path.join(store, INDICE), b"".join(lineas))
+    return len(lineas), avisos
+
+
+def comprobar_indice(store, width=cs.VERSION_WIDTH_DEFECTO):
+    """Diferencias entre el indice y `cases/` (lista vacia = coherente), lineas corruptas incluidas."""
+    fuente, _ = estado_de_cases(store)
+    indice, avisos = leer_indice(store)
+    difs = list(avisos)
+    for clave in sorted(set(fuente) | set(indice), key=lambda k: (k[0], k[1])):
+        ref = cs.referencia_version(clave[0], clave[1], width)
+        if clave not in indice:
+            difs.append(f"{ref}: esta en cases/ pero no en el indice")
+        elif clave not in fuente:
+            difs.append(f"{ref}: esta en el indice pero no en cases/")
+        else:
+            for k in CLAVES_INDICE:
+                if k != "updated_at" and fuente[clave][k] != indice[clave][k]:
+                    difs.append(f"{ref}: {k} es `{indice[clave][k]}` en el indice y `{fuente[clave][k]}` en cases/")
+    return difs
+
+
+def listar(store, status=None, family=None, outcome=None):
+    """Entradas del indice (ultima por version) filtradas, ordenadas por `case_id` y version."""
+    entradas, _ = leer_indice(store)
+    out = [e for e in entradas.values()
+           if (status is None or e["status"] == status) and (family is None or e["family"] == family)
+           and (outcome is None or e["outcome"] == outcome)]
+    return sorted(out, key=lambda e: (e["case_id"], e["version"]))
 
 
 # ------------------------------------------------------------------ puerta humana para Gold (T-05)
@@ -400,7 +637,7 @@ def _escribir_atomico(ruta, datos):
     try:
         with os.fdopen(fd, "wb") as f:
             f.write(datos)
-        os.replace(tmp, ruta)
+        _reemplazar(tmp, ruta)
     finally:
         _limpiar_temporal(tmp)
 
@@ -440,7 +677,8 @@ def cambiar_estado(case_id, version, status, config, raiz_proyecto=None, approve
     nueva = {"status": status, "approved_by_human": gold, "approved_at": _ahora() if gold else None,
              "reviewer_note": reviewer_note if reviewer_note is not None else previa.get("reviewer_note")}
     _escribir_atomico(ruta_val, _json_bytes(nueva))
-    return {"case_id": case_id, "version": version, "ref": ref, "status": status, "path": destino}
+    return {"case_id": case_id, "version": version, "ref": ref, "status": status, "path": destino,
+            "avisos": _indexar(raiz_store(config, raiz_proyecto), _entrada(meta, status, _ahora()))}
 
 
 # ------------------------------------------------------------------ CLI
@@ -469,6 +707,11 @@ def _config_cli(args):
     return cfg, raiz
 
 
+def _avisar(avisos):
+    for a in avisos:
+        print(f"aviso: {a}", file=sys.stderr)
+
+
 def _comunes(p):
     p.add_argument("--config", help="training.json del proyecto (default: <project-root>/.claude/knowledge-services/training.json)")
     p.add_argument("--project-root", help="raiz del proyecto (default: deducida de --config o cwd)")
@@ -490,16 +733,52 @@ def main(argv=None):
                       help="confirmacion HUMANA explicita: la unica forma de marcar Gold")
     p_st.add_argument("--note", help="reviewer_note (sin ella se conserva la anterior)")
     _comunes(p_st)
+    p_ix = sub.add_parser("index", help="indice cases_index.jsonl (cache): rebuild lo reconstruye desde cases/, check lo compara")
+    p_ix.add_argument("accion", choices=("rebuild", "check"))
+    _comunes(p_ix)
+    p_ls = sub.add_parser("list", help="lista las versiones del indice (ultima linea por version)")
+    p_ls.add_argument("--status", choices=cs.VALIDATION_STATUS)
+    p_ls.add_argument("--family")
+    p_ls.add_argument("--outcome", choices=cs.OUTCOMES)
+    p_ls.add_argument("--json", action="store_true", help="salida JSON (lista de lineas del indice)")
+    _comunes(p_ls)
     args = ap.parse_args(argv)
     try:
         config, raiz = _config_cli(args)
         if args.cmd == "record":
             caso = _leer_json(args.fichero)
-            print(json.dumps(grabar(caso, config, raiz, approved_by_human=args.approved_by_human), ensure_ascii=False))
-        elif args.cmd == "set-status":
+            r = grabar(caso, config, raiz, approved_by_human=args.approved_by_human)
+            _avisar(r["avisos"])
+            print(json.dumps(r, ensure_ascii=False))
+            return 0
+        if args.cmd == "set-status":
             r = cambiar_estado(args.case_id, args.version, args.status, config, raiz,
                                approved_by_human=args.approved_by_human, reviewer_note=args.note)
+            _avisar(r["avisos"])
             print(f"OK {r['ref']}: {r['status']}")
+            return 0
+        config_activa(config, raiz)
+        store, width = raiz_store(config, raiz), cs.patrones_id(config)[2]
+        if args.cmd == "index" and args.accion == "rebuild":
+            n, avisos = reconstruir_indice(store)
+            _avisar(avisos)
+            print(f"OK {INDICE} reconstruido desde cases/: {n} version(es)")
+            return 0
+        if args.cmd == "index":
+            difs = comprobar_indice(store, width)
+            if difs:
+                for d in difs:
+                    print(f"{INDICE}: {d}")
+                print(f"{len(difs)} diferencia(s): reconstruye con `index rebuild`", file=sys.stderr)
+                return 1
+            print(f"OK {INDICE} coherente con cases/")
+            return 0
+        entradas = listar(store, status=args.status, family=args.family, outcome=args.outcome)
+        _avisar(leer_indice(store)[1])
+        if args.json:
+            print(json.dumps(entradas, ensure_ascii=False))
+        for e in entradas if not args.json else ():
+            print(f"{cs.referencia_version(e['case_id'], e['version'], width)}  {e['status']}  {e['outcome']}  {e['updated_at']}")
         return 0
     except _EntradaIlegible as e:
         print(f"error: {e}", file=sys.stderr)

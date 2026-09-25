@@ -505,6 +505,9 @@ def test_t04_procesos_concurrentes_por_cli(tmp_path):
     assert versiones == [1, 2, 3, 4, 5]
     peticiones = {_json(store / "cases" / "ramp.steep" / f"v{v:03d}" / "request.json")["request"] for v in versiones}
     assert peticiones == {f"proceso {i}" for i in range(5)}
+    # T-06: el indice recibe las 5 altas sin perder ni mezclar lineas entre procesos
+    if hasattr(rec, "comprobar_indice"):
+        assert rec.comprobar_indice(str(store)) == []
 
 
 def _cli(*args, cwd=None):
@@ -694,3 +697,246 @@ def test_t05_gold_cli_set_status(tmp_path):
     assert _json(val)["status"] == "needs_changes" and _json(val)["approved_by_human"] is False
     assert _cli("set-status", "geo-ramp.steep", "1", "gold", "--project-root", raiz).returncode == 2
     assert _cli("set-status", "geo-ramp.steep", "7", "rejected", "--project-root", raiz).returncode == 1
+
+
+# ------------------------------------------------------------------ T-06: indice cases_index.jsonl
+
+import shutil
+
+CLAVES_INDICE = ("case_id", "version", "family", "variant", "status", "outcome", "updated_at")
+
+
+def _indice(store):
+    return _jsonl(os.path.join(str(store), "cases_index.jsonl"))
+
+
+def _ultimas(lineas):
+    """Ultima linea por (case_id, version), sin `updated_at` (lo que el indice promete)."""
+    out = {}
+    for l in lineas:
+        out[(l["case_id"], l["version"])] = {k: l[k] for k in CLAVES_INDICE if k != "updated_at"}
+    return out
+
+
+def test_t06_index_una_linea_por_alta_y_por_cambio_de_estado(tmp_path):
+    raiz, cfg, store = _proyecto(tmp_path)
+    rec.grabar(_caso(outcome="failure"), cfg, raiz)
+    rec.cambiar_estado("geo-ramp.steep", 1, "rejected", cfg, raiz)
+    rec.grabar(_caso(outcome="corrected", supersedes_case="geo-ramp.steep@v001"), cfg, raiz)
+    rec.cambiar_estado("geo-ramp.steep", 2, "approved", cfg, raiz, approved_by_human=True)
+    lineas = _indice(store)
+    assert [tuple(l) for l in lineas] == [CLAVES_INDICE] * 4          # claves EXACTAS y en orden
+    assert [(l["version"], l["status"], l["outcome"]) for l in lineas] == [
+        (1, "pending", "failure"), (1, "rejected", "failure"), (2, "pending", "corrected"), (2, "approved", "corrected")]
+    assert all(l["family"] == "ramp" and l["variant"] == "steep" and l["updated_at"].endswith("Z") for l in lineas)
+    # misma forma que el ejemplo documentado de assets/
+    ejemplo = _indice(ASSETS_EJEMPLO)
+    assert [(l["version"], l["status"]) for l in lineas] == [(l["version"], l["status"]) for l in ejemplo]
+
+
+def test_t06_index_es_append_only(tmp_path):
+    raiz, cfg, store = _proyecto(tmp_path)
+    ruta = os.path.join(str(store), "cases_index.jsonl")
+    rec.grabar(_caso(), cfg, raiz)
+    antes = open(ruta, "rb").read()
+    rec.cambiar_estado("geo-ramp.steep", 1, "needs_changes", cfg, raiz)
+    rec.grabar(_caso(), cfg, raiz)
+    despues = open(ruta, "rb").read()
+    assert despues.startswith(antes) and despues.count(b"\n") == 3 and b"\r\n" not in despues
+
+
+def test_t06_index_se_reconstruye_desde_cases_si_se_pierde_o_corrompe(tmp_path):
+    raiz, cfg, store = _proyecto(tmp_path)
+    rec.grabar(_caso(), cfg, raiz)
+    rec.cambiar_estado("geo-ramp.steep", 1, "rejected", cfg, raiz)
+    rec.grabar(_caso(variant="gentle", case_id="geo-ramp.gentle"), cfg, raiz)
+    esperado = _ultimas(_indice(store))
+    ruta = os.path.join(str(store), "cases_index.jsonl")
+    for estropear in ("perder", "corromper"):
+        if estropear == "perder":
+            os.remove(ruta)
+        else:
+            with open(ruta, "w", encoding="utf-8") as f:
+                f.write("{basura\n[1,2]\n")
+        assert rec.comprobar_indice(str(store))                       # diverge
+        n, _avisos = rec.reconstruir_indice(str(store))
+        assert n == 2
+        assert _ultimas(_indice(store)) == esperado
+        assert rec.comprobar_indice(str(store)) == []
+
+
+def test_t06_index_check_detecta_divergencias_con_detalle(tmp_path):
+    raiz, cfg, store = _proyecto(tmp_path)
+    rec.grabar(_caso(), cfg, raiz)
+    rec.grabar(_caso(), cfg, raiz)
+    _escribir_config(tmp_path, cfg)
+    assert rec.comprobar_indice(str(store)) == []
+    ok = _cli("index", "check", "--project-root", raiz)
+    assert ok.returncode == 0 and "OK" in ok.stdout, ok.stderr
+    ruta = os.path.join(str(store), "cases_index.jsonl")
+    lineas = open(ruta, encoding="utf-8").read().splitlines()
+    fantasma = dict(json.loads(lineas[0]), version=9)
+    alterada = dict(json.loads(lineas[1]), status="approved")
+    with open(ruta, "w", encoding="utf-8", newline="\n") as f:
+        f.write(json.dumps(fantasma) + "\n" + json.dumps(alterada) + "\n")   # v001 falta, v002 alterada
+    difs = rec.comprobar_indice(str(store))
+    texto = "\n".join(difs)
+    assert "geo-ramp.steep@v001" in texto and "geo-ramp.steep@v009" in texto and "geo-ramp.steep@v002" in texto
+    assert "status" in texto
+    r = _cli("index", "check", "--project-root", raiz)
+    assert r.returncode == 1 and "v009" in (r.stdout + r.stderr) and "v001" in (r.stdout + r.stderr)
+    assert _cli("index", "rebuild", "--project-root", raiz).returncode == 0
+    assert _cli("index", "check", "--project-root", raiz).returncode == 0
+
+
+def test_t06_index_lineas_corruptas_se_ignoran_con_aviso_y_check_las_reporta(tmp_path):
+    raiz, cfg, store = _proyecto(tmp_path)
+    rec.grabar(_caso(), cfg, raiz)
+    _escribir_config(tmp_path, cfg)
+    ruta = os.path.join(str(store), "cases_index.jsonl")
+    buena = json.loads(open(ruta, encoding="utf-8").read())
+    malas = ["{no es json", "[1, 2]", json.dumps({"case_id": 1}), json.dumps(dict(buena, extra=1)),
+             json.dumps(dict(buena, status="gold")), json.dumps(dict(buena, version=True)),
+             "[" * 5000 + "]" * 5000]
+    with open(ruta, "a", encoding="utf-8", newline="\n") as f:
+        f.write("\n".join(malas) + "\n\n")
+    entradas, avisos = rec.leer_indice(str(store))
+    assert list(entradas) == [("geo-ramp.steep", 1)]
+    assert len(avisos) == len(malas) and all("linea" in a for a in avisos)
+    difs = rec.comprobar_indice(str(store))
+    assert sum("linea" in d for d in difs) == len(malas)
+    r = _cli("list", "--project-root", raiz)
+    assert r.returncode == 0 and "Traceback" not in r.stderr and "geo-ramp.steep@v001" in r.stdout
+    assert "aviso" in r.stderr
+    r = _cli("index", "check", "--project-root", raiz)
+    assert r.returncode == 1 and "Traceback" not in r.stderr and "linea 2" in (r.stdout + r.stderr)
+    rec.reconstruir_indice(str(store))
+    assert rec.comprobar_indice(str(store)) == []
+
+
+def test_t06_index_list_filtra_por_status_family_y_outcome(tmp_path):
+    raiz, cfg, store = _proyecto(tmp_path)
+    rec.grabar(_caso(outcome="failure"), cfg, raiz)
+    rec.cambiar_estado("geo-ramp.steep", 1, "rejected", cfg, raiz)
+    rec.grabar(_caso(outcome="corrected", supersedes_case="geo-ramp.steep@v001"), cfg, raiz)
+    rec.cambiar_estado("geo-ramp.steep", 2, "approved", cfg, raiz, approved_by_human=True)
+    rec.grabar(_caso(family="stairs", variant="short", case_id="geo-stairs.short", outcome="success"), cfg, raiz)
+    refs = lambda es: [(e["case_id"], e["version"]) for e in es]   # noqa: E731
+    assert refs(rec.listar(str(store))) == [("geo-ramp.steep", 1), ("geo-ramp.steep", 2), ("geo-stairs.short", 1)]
+    assert refs(rec.listar(str(store), status="approved")) == [("geo-ramp.steep", 2)]
+    assert refs(rec.listar(str(store), family="stairs")) == [("geo-stairs.short", 1)]
+    assert refs(rec.listar(str(store), outcome="failure")) == [("geo-ramp.steep", 1)]
+    assert refs(rec.listar(str(store), status="pending", family="ramp")) == []
+    _escribir_config(tmp_path, cfg)
+    r = _cli("list", "--status", "approved", "--json", "--project-root", raiz)
+    assert r.returncode == 0, r.stderr
+    datos = json.loads(r.stdout)
+    assert [(d["case_id"], d["version"], d["status"]) for d in datos] == [("geo-ramp.steep", 2, "approved")]
+    assert tuple(datos[0]) == CLAVES_INDICE
+    r = _cli("list", "--outcome", "corrected", "--project-root", raiz)
+    assert r.returncode == 0 and r.stdout.strip().splitlines()[0].startswith("geo-ramp.steep@v002")
+    assert _cli("list", "--status", "gold", "--project-root", raiz).returncode == 2
+    # store que aun no existe: lista vacia, sin avisos
+    assert rec.listar(str(tmp_path / "no-hay-store")) == []
+    assert rec.leer_indice(str(tmp_path / "no-hay-store")) == ({}, [])
+
+
+def test_t06_index_concurrencia_ninguna_linea_se_pierde(tmp_path):
+    raiz, cfg, store = _proyecto(tmp_path)
+    n = 12
+    barrera = threading.Barrier(n)
+    errores = []
+
+    def graba(i):
+        barrera.wait()
+        try:
+            rec.grabar(_caso(request=f"peticion {i}"), cfg, raiz)
+        except Exception as e:   # noqa: BLE001
+            errores.append(e)
+
+    hilos = [threading.Thread(target=graba, args=(i,)) for i in range(n)]
+    for h in hilos:
+        h.start()
+    for h in hilos:
+        h.join()
+    assert not errores
+    entradas, avisos = rec.leer_indice(str(store))
+    assert avisos == [] and sorted(v for _c, v in entradas) == list(range(1, n + 1))
+    assert rec.comprobar_indice(str(store)) == []
+
+
+def test_t06_index_rebuild_conserva_updated_at_e_ignora_versiones_a_medias(tmp_path):
+    raiz, cfg, store = _proyecto(tmp_path)
+    rec.grabar(_caso(), cfg, raiz)
+    rec.cambiar_estado("geo-ramp.steep", 1, "rejected", cfg, raiz)
+    ultima = _indice(store)[-1]
+    val = store / "cases" / "ramp.steep" / "v001" / "validation.json"
+    os.utime(str(val), (1_000_000_000, 1_000_000_000))                 # mtime (2001) != updated_at
+    (store / "cases" / "ramp.steep" / "v002").mkdir()                   # a medio escribir
+    n, avisos = rec.reconstruir_indice(str(store))
+    assert n == 1 and any("v002" in a for a in avisos)
+    assert _indice(store) == [ultima]                                     # updated_at conservado
+    assert rec.comprobar_indice(str(store)) == []
+
+
+def test_t06_index_reconstruye_el_ejemplo_de_assets(tmp_path):
+    """El ejemplo documentado es coherente (check vacio) y reconstruirlo da las mismas ultimas lineas."""
+    assert rec.comprobar_indice(ASSETS_EJEMPLO) == []
+    copia = tmp_path / "ejemplo"
+    shutil.copytree(ASSETS_EJEMPLO, str(copia))
+    esperado = _ultimas(_indice(copia))
+    os.remove(os.path.join(str(copia), "cases_index.jsonl"))
+    assert rec.reconstruir_indice(str(copia))[0] == 2
+    assert _ultimas(_indice(copia)) == esperado
+    assert [l["updated_at"] for l in _indice(copia)] and all(l["updated_at"].endswith("Z") for l in _indice(copia))
+
+
+def test_t06_index_cli_sin_config_rechaza(tmp_path):
+    raiz, _cfg, _store = _proyecto(tmp_path)
+    for args in (("index", "check"), ("index", "rebuild"), ("list",)):
+        r = _cli(*args, "--project-root", raiz)
+        assert r.returncode == 1 and "training.json" in r.stderr, args
+    assert _cli("index", "borrar", "--project-root", raiz).returncode == 2
+
+
+def test_t06_index_el_bloqueo_excluye_a_otro_escritor(tmp_path):
+    """Deterministico: mientras un escritor tiene el bloqueo del indice, otro `anadir_al_indice`
+    espera (el append de Windows no es atomico entre descriptores); al soltarlo, escribe."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    rec.grabar(_caso(), cfg, raiz)
+    entrada = _indice(store)[0]
+    hecho = threading.Event()
+
+    def otro():
+        rec.anadir_al_indice(str(store), dict(entrada, status="rejected"))
+        hecho.set()
+
+    with rec._Bloqueo(str(store)) as b:
+        assert b.tomado
+        h = threading.Thread(target=otro)
+        h.start()
+        assert not hecho.wait(0.5), "escribio sin esperar al bloqueo"
+    h.join(10)
+    assert hecho.is_set() and [l["status"] for l in _indice(store)] == ["pending", "rejected"]
+
+
+def test_t06_index_rebuild_reintenta_replace_ante_bloqueo_transitorio(tmp_path, monkeypatch):
+    """Windows: un handle ajeno (antivirus) puede dar `PermissionError` un instante al sustituir
+    el indice; se reintenta de forma acotada. Otro `OSError` no se reintenta."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    rec.grabar(_caso(), cfg, raiz)
+    real, fallos = os.replace, []
+
+    def intermitente(a, b):
+        if len(fallos) < 3:
+            fallos.append(a)
+            raise PermissionError(13, "en uso por otro proceso")
+        return real(a, b)
+
+    monkeypatch.setattr(rec.os, "replace", intermitente)
+    assert rec.reconstruir_indice(str(store))[0] == 1 and len(fallos) == 3
+    monkeypatch.setattr(rec.os, "replace", lambda a, b: (_ for _ in ()).throw(OSError(28, "disco lleno")))
+    with pytest.raises(OSError):
+        rec.reconstruir_indice(str(store))
+    monkeypatch.setattr(rec.os, "replace", real)
+    assert rec.comprobar_indice(str(store)) == []
