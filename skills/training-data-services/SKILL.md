@@ -38,7 +38,7 @@ de dominio (métricas, simulación, herramientas) es del proyecto consumidor.
 | Fichero | Qué es |
 |---|---|
 | `scripts/case_schema.py` | Validador stdlib de `training.json` y del caso (exit 0 válido · 1 errores · 2 uso/JSON ilegible). Fuente única de los vocabularios cerrados y del mapeo de `outcome`. |
-| `scripts/case-recorder.py` | Recorder (T-04 en adelante). Hoy expone solo `redactar`/`redactar_estructura`, delegadas en `agent-kits/shared/redact.py` (fuente única de patrones de secretos); sin `redact.py` se niega a grabar. |
+| `scripts/case-recorder.py` | Recorder (API importable + CLI `record`). Graba cada intento como versión inmutable `cases/<family>.<variant>/v<NNN>/`. La redacción la delega en `agent-kits/shared/redact.py` (fuente única); sin él se niega a grabar. Un caso `corrected` exige que exista la versión que corrige. |
 | `assets/` | Plantillas del case store: `training.example.json`, ejemplo completo `case-store-example/` (caso con par fallo → corrección) y `README.md` con la estructura y cada fichero de versión (`metadata.json`, `validation.json`, `cases_index.jsonl`…). Ubicación: `docs/knowledge/adr/ADR-019-case-store-fuera-de-docs-knowledge.md`. |
 | Capacidad `training` | Entrada de `agent-kits/shared/capabilities.py`: `deshabilitado` sin fichero, `error` con fichero y campo si la config es inválida, `declarado`/`ok` según exista `root`. Sin red. |
 
@@ -98,8 +98,10 @@ fuente)` según la tabla `OUTCOME_MAPEO`. Lo que no esté en la tabla devuelve `
    `python3 scripts/case_schema.py case <caso.json> --config <training.json>`. `root` se resuelve
    contra la raíz deducida de `<proyecto>/.claude/knowledge-services/training.json` (o el cwd);
    `--project-root <dir>` la fija a mano. Si la ruta no se puede resolver, se rechaza.
-3. **Grabar** cada intento con el recorder (T-04, pendiente): nunca sobrescribe `case_id`+versión,
-   redacta secretos antes de tocar disco, conserva los rechazados.
+3. **Grabar** cada intento: `python3 scripts/case-recorder.py record <caso.json>
+   [--project-root <dir>]` (exit 0 ok · 1 rechazo · 2 uso/JSON ilegible). Redacta secretos, valida
+   lo ya redactado y solo entonces escribe. Sin `version` toma la siguiente libre; una versión
+   existente nunca se sobrescribe (reserva atómica, también en paralelo). No hay borrado.
 4. **Aprobar Gold** a mano (T-05, pendiente): la transición a `approved` exige `--approved-by-human`.
 5. **Ensamblar** el dataset (T-07…T-09, pendiente): solo Gold, dedup por shingles, benchmark
    reservado por familia completa.

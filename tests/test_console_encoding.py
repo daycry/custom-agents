@@ -325,11 +325,12 @@ SIN_SIMBOLOS_EN_LA_SALIDA = {
     # por `knowledge-sync.py` vía `importlib`); arrancado sin argumentos no imprime nada.
     "skills/knowledge-services/backends/markdown_export.py": "sin `__main__`: al arrancar no ejecuta nada ni imprime nada",
     # training-data-services T-01/T-02: los mensajes de `case_schema.py` (campo: mensaje, rutas) son
-    # ASCII a proposito; entra en SCRIPTS por el docstring. `case-recorder.py` (T-02) no tiene
-    # `__main__` todavia (el CLI del recorder llega en T-04): al importarse no imprime nada.
+    # ASCII a proposito; entra en SCRIPTS por el docstring. `case-recorder.py` (T-04) tiene CLI
+    # (`record`); sus mensajes (`error: ...`, `rechazado: ...`, `<campo>: <mensaje>`) son ASCII.
     "skills/training-data-services/scripts/case_schema.py":
         "sus veredictos (`OK <ruta>` / `<ruta>: <campo>: <mensaje>`) son ASCII puro",
-    "skills/training-data-services/scripts/case-recorder.py": "sin `__main__`: al arrancar no ejecuta nada ni imprime nada",
+    "skills/training-data-services/scripts/case-recorder.py":
+        "sus veredictos (`error: ...` / `rechazado: ...` / JSON del caso grabado) son ASCII puro",
 }
 SCRIPTS_CON_SIMBOLOS = [rel for rel in SCRIPTS if rel not in SIN_SIMBOLOS_EN_LA_SALIDA]
 
@@ -400,11 +401,12 @@ def _modos():
         "skills/knowledge-services/backends/markdown_export.py":
             [("importar sin CLI", lambda w: [], (0,), None)],
         # training-data-services T-01/T-02: ruta barata de uso (fichero ausente -> exit 2) y
-        # recorder importado sin CLI (carga `redact.py`, no imprime).
+        # recorder (T-04) con `--config` ausente -> exit 2, sin tocar disco.
         "skills/training-data-services/scripts/case_schema.py":
             [("fichero ausente", lambda w: ["config", os.path.join(w, "no-existe-training.json")], (2,), None)],
         "skills/training-data-services/scripts/case-recorder.py":
-            [("importar sin CLI", lambda w: [], (0,), None)],
+            [("config ausente", lambda w: ["record", os.path.join(w, "no-existe-caso.json"), "--config",
+                                            os.path.join(w, "no-existe-training.json")], (2,), None)],
         "agent-kits/shared/redact.py":
             [("importar sin CLI", lambda w: [], (0,), None)],
         "agent-kits/shared/model-tier.py":
