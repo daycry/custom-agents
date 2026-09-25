@@ -333,8 +333,11 @@ def test_t04_valida_el_caso_ya_redactado(tmp_path, monkeypatch):
         return original(caso, config)
 
     monkeypatch.setattr(rec.cs, "validar_caso", espia)
-    rec.grabar(_caso(request="password=Sup3rS3creto!"), cfg, raiz)
-    assert vistos and all("Sup3rS3creto" not in v for v in vistos)
+    r = rec.grabar(_caso(request="password=Sup3rS3creto!"), cfg, raiz)
+    # fix1 Fase 2 (gap #32): se valida el ORIGINAL (forma + CoT) y DESPUES el redactado; lo que se
+    # escribe es lo redactado (la ultima validacion es la del caso redactado)
+    assert len(vistos) == 2 and "Sup3rS3creto" in vistos[0] and "Sup3rS3creto" not in vistos[1]
+    assert b"Sup3rS3creto" not in _bytes_del_store(os.path.dirname(os.path.dirname(os.path.dirname(r["path"]))))
 
 
 def test_t04_caso_invalido_no_toca_disco(tmp_path):
@@ -876,7 +879,9 @@ def test_t06_index_rebuild_conserva_updated_at_e_ignora_versiones_a_medias(tmp_p
     n, avisos = rec.reconstruir_indice(str(store))
     assert n == 1 and any("v002" in a for a in avisos)
     assert _indice(store) == [ultima]                                     # updated_at conservado
-    assert rec.comprobar_indice(str(store)) == []
+    # fix1 Fase 2 (gap #37): una version incompleta es una incoherencia que `check` reporta
+    difs = rec.comprobar_indice(str(store))
+    assert difs and all("v002" in d for d in difs), difs
 
 
 def test_t06_index_reconstruye_el_ejemplo_de_assets(tmp_path):
@@ -940,3 +945,743 @@ def test_t06_index_rebuild_reintenta_replace_ante_bloqueo_transitorio(tmp_path, 
         rec.reconstruir_indice(str(store))
     monkeypatch.setattr(rec.os, "replace", real)
     assert rec.comprobar_indice(str(store)) == []
+
+
+# ------------------------------------------------------------------ fix1 (revision intento 1, Fase 2)
+
+import builtins
+
+FLAGS_NO_HUMANOS = ("false", "no", 1, [0], None, "true", "si")
+
+
+def _enlazar_dir(objetivo, enlace):
+    """Enlace de DIRECTORIO real: junction en Windows (no pide privilegios), symlink en POSIX."""
+    os.makedirs(str(objetivo), exist_ok=True)
+    try:
+        if os.name == "nt":
+            import _winapi
+            _winapi.CreateJunction(str(objetivo), str(enlace))
+        else:
+            os.symlink(str(objetivo), str(enlace), target_is_directory=True)
+    except (OSError, AttributeError, NotImplementedError) as e:   # pragma: no cover - entorno
+        pytest.skip(f"no se puede crear un enlace de directorio: {e}")
+
+
+def test_f2fix1_gap31_grabar_exige_flag_is_true_no_truthy(tmp_path):
+    """gap #31: `grabar` usa la MISMA puerta que `cambiar_estado` (`flag is True`)."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    gold = _caso(validation={"status": "approved", "approved_by_human": False})
+    for flag in FLAGS_NO_HUMANOS:
+        with pytest.raises(rec.Rechazo) as e:
+            rec.grabar(gold, cfg, raiz, approved_by_human=flag)
+        assert rec.MENSAJE_GOLD in str(e.value), flag
+    assert not (store / "cases").exists()
+    assert rec.grabar(gold, cfg, raiz, approved_by_human=True)["version"] == 1
+
+
+def test_f2fix1_gap31_cambiar_estado_misma_puerta(tmp_path):
+    raiz, cfg, _store, r = _grabado(tmp_path)
+    antes = open(os.path.join(r["path"], "validation.json"), "rb").read()
+    for flag in FLAGS_NO_HUMANOS:
+        with pytest.raises(rec.Rechazo) as e:
+            rec.cambiar_estado("geo-ramp.steep", 1, "approved", cfg, raiz, approved_by_human=flag)
+        assert rec.MENSAJE_GOLD in str(e.value), flag
+    assert open(os.path.join(r["path"], "validation.json"), "rb").read() == antes
+    assert rec.es_confirmacion_humana(True) is True
+    assert not any(rec.es_confirmacion_humana(f) for f in FLAGS_NO_HUMANOS)
+
+
+def test_f2fix1_gap32_cot_en_arguments_texto_no_se_cuela_al_redactar(tmp_path):
+    """gap #32 (escenario literal): el patron `pwd=` se comia la `\\` de `\\"`, el JSON dejaba de
+    parsear y el validador lo trataba como opaco: el `reasoning` llegaba a disco."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    args = json.dumps({"cmd": 'echo pwd=abcd1234" && ls', "reasoning": "pienso en voz alta"})
+    assert rec.cs.validar_caso(_caso(version=1, trajectory=[
+        {"role": "assistant", "tool_calls": [{"name": "sh", "arguments": args}]}]), cfg)   # sin redactar: se rechaza
+    tr = copy.deepcopy(CASO["trajectory"])
+    tr[1]["tool_calls"][0]["arguments"] = args
+    with pytest.raises(rec.Rechazo) as e:
+        rec.grabar(_caso(trajectory=tr), cfg, raiz)
+    assert any("reasoning" in x["campo"] for x in e.value.errores)
+    assert not store.exists()
+
+
+def test_f2fix1_gap32_arguments_texto_json_se_redacta_como_estructura(tmp_path):
+    raiz, cfg, store = _proyecto(tmp_path)
+    tr = copy.deepcopy(CASO["trajectory"])
+    tr[1]["tool_calls"][0]["arguments"] = json.dumps({"cmd": 'echo pwd=abcd1234" && ls', "n": 3})
+    r = rec.grabar(_caso(trajectory=tr), cfg, raiz)
+    grabada = _jsonl(os.path.join(r["path"], "trajectory.jsonl"))
+    args = json.loads(grabada[1]["tool_calls"][0]["arguments"])     # sigue siendo JSON valido
+    assert args["n"] == 3 and rec.REDACTADO in args["cmd"] and "abcd1234" not in args["cmd"]
+    assert b"abcd1234" not in _bytes_del_store(str(store))
+    # un `arguments` de texto que NO es JSON se redacta como texto; uno sin secretos no cambia
+    tr[1]["tool_calls"][0]["arguments"] = "no es json token=abc123XYZ789"
+    r = rec.grabar(_caso(trajectory=tr), cfg, raiz)
+    assert "abc123XYZ789" not in _jsonl(os.path.join(r["path"], "trajectory.jsonl"))[1]["tool_calls"][0]["arguments"]
+    limpio = '{"a":  1}'
+    tr[1]["tool_calls"][0]["arguments"] = limpio
+    r = rec.grabar(_caso(trajectory=tr), cfg, raiz)
+    assert _jsonl(os.path.join(r["path"], "trajectory.jsonl"))[1]["tool_calls"][0]["arguments"] == limpio
+
+
+def test_f2fix1_gap32_se_valida_el_original_y_el_redactado(tmp_path, monkeypatch):
+    """Basta que falle UNO de los dos (original o redactado) para rechazar; y el error del original
+    no filtra el secreto por stderr."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    tr = copy.deepcopy(CASO["trajectory"])
+    tr[1]["reasoning token=abc123XYZ789"] = "x"
+    with pytest.raises(rec.Rechazo) as e:
+        rec.grabar(_caso(trajectory=tr), cfg, raiz)
+    assert "abc123XYZ789" not in str(e.value) and "abc123XYZ789" not in repr(e.value.errores)
+    real = rec._redactar_caso
+    monkeypatch.setattr(rec, "_redactar_caso", lambda c: dict(real(c), trajectory=[]))
+    with pytest.raises(rec.Rechazo) as e:
+        rec.grabar(_caso(), cfg, raiz)
+    assert "trajectory" in {x["campo"] for x in e.value.errores}
+    # y al reves: una redaccion que ENMASCARA el chain-of-thought (hoy ningun patron de redact.py lo
+    # hace; el arbitraje exige no depender de ello) no lo cuela: el ORIGINAL ya se rechaza
+    tr = copy.deepcopy(CASO["trajectory"])
+    tr[1]["reasoning"] = "pienso en voz alta"
+    limpia = copy.deepcopy(CASO["trajectory"])
+    monkeypatch.setattr(rec, "_redactar_caso", lambda c: dict(real(c), trajectory=limpia))
+    with pytest.raises(rec.Rechazo) as e:
+        rec.grabar(_caso(trajectory=tr), cfg, raiz)
+    assert "trajectory[1].reasoning" in {x["campo"] for x in e.value.errores}
+    assert not store.exists()
+
+
+def test_f2fix1_gap33_rebuild_lee_y_escribe_bajo_el_mismo_bloqueo(tmp_path, monkeypatch):
+    """gap #33a (determinista): un `set-status` que llega mientras `rebuild` ya ha leido `cases/`
+    no se pierde: espera al bloqueo y su linea queda DESPUES del indice reconstruido."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    rec.grabar(_caso(), cfg, raiz)
+    original, hilo = rec.estado_de_cases, {}
+
+    def espia(*a, **k):
+        res = original(*a, **k)
+        if "t" not in hilo:
+            hilo["t"] = threading.Thread(target=rec.cambiar_estado, args=("geo-ramp.steep", 1, "rejected", cfg, raiz))
+            hilo["t"].start()
+            hilo["t"].join(0.5)
+        return res
+
+    monkeypatch.setattr(rec, "estado_de_cases", espia)
+    rec.reconstruir_indice(str(store))
+    hilo["t"].join(15)
+    assert not hilo["t"].is_alive()
+    monkeypatch.setattr(rec, "estado_de_cases", original)
+    assert rec.comprobar_indice(str(store)) == []
+    assert [e["status"] for e in rec.listar(str(store))] == ["rejected"]
+
+
+_TRABAJADOR = r"""
+import importlib.util, json, sys
+spec = importlib.util.spec_from_file_location("rec_proc", sys.argv[1])
+r = importlib.util.module_from_spec(spec); spec.loader.exec_module(r)
+cfg, raiz, papel, n, nv = json.loads(sys.argv[2]), sys.argv[3], sys.argv[4], int(sys.argv[5]), int(sys.argv[6])
+store, fallos = r.raiz_store(cfg, raiz), []
+for i in range(n):
+    try:
+        if papel.startswith("w"):
+            r.cambiar_estado("geo-ramp.steep", int(papel[1:]), ("rejected", "needs_changes", "pending")[i % 3], cfg, raiz)
+        elif papel == "rebuild":
+            k, avisos = r.reconstruir_indice(store)
+            if avisos or k != nv:
+                fallos.append(f"rebuild {k}/{nv} {avisos}")
+        else:
+            ent, avisos = r.estado_de_cases(store)
+            if avisos or len(ent) != nv:
+                fallos.append(f"lector {len(ent)}/{nv} {avisos}")
+    except Exception as e:
+        fallos.append(f"{papel}: {type(e).__name__}: {e}")
+print(json.dumps(fallos))
+"""
+
+
+def test_f2fix1_gap33_procesos_reales_set_status_rebuild_y_lectores(tmp_path):
+    """gap #33 con PROCESOS reales (acotado: 3 escritores x 24 cambios, 2 `rebuild` x 24, 2 lectores
+    x 48). Veredicto determinista sobre el invariante: ningun proceso ve una version completa como
+    ilegible o a medio escribir, ningun `set-status` se rechaza, y al final el indice == `cases/`."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    nv = 3
+    for _ in range(nv):
+        rec.grabar(_caso(), cfg, raiz)
+    papeles = [("w1", 24), ("w2", 24), ("w3", 24), ("rebuild", 24), ("rebuild", 24), ("lector", 48), ("lector", 48)]
+    procs = [subprocess.Popen([sys.executable, "-c", _TRABAJADOR, RECORDER_PATH, json.dumps(cfg), raiz, p, str(n), str(nv)],
+                              stdout=subprocess.PIPE, stderr=subprocess.PIPE) for p, n in papeles]
+    salidas = [p.communicate(timeout=300) for p in procs]
+    assert all(p.returncode == 0 for p in procs), [s[1][-400:] for s in salidas]
+    fallos = [f for s in salidas for f in json.loads(s[0])]
+    assert fallos == [], fallos[:5]
+    assert rec.comprobar_indice(str(store)) == []
+    for e in rec.listar(str(store)):
+        val = _json(store / "cases" / "ramp.steep" / f"v{e['version']:03d}" / "validation.json")
+        assert e["status"] == val["status"]
+
+
+def test_f2fix1_gap33_lector_reintenta_ante_permissionerror_transitorio(tmp_path, monkeypatch):
+    """gap #33b: un `PermissionError` al abrir (Windows, `os.replace` ajeno) se reintenta de forma
+    acotada; una version completa nunca se da por «a medio escribir» por eso."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    rec.grabar(_caso(), cfg, raiz)
+    real_open, fallos = builtins.open, []
+
+    def intermitente(ruta, *a, **k):
+        if str(ruta).endswith("validation.json") and len(fallos) < 3:
+            fallos.append(ruta)
+            raise PermissionError(13, "en uso por otro proceso")
+        return real_open(ruta, *a, **k)
+
+    monkeypatch.setattr(rec, "open", intermitente, raising=False)
+    monkeypatch.setattr(rec.time, "sleep", lambda _s: None)
+    entradas, avisos = rec.estado_de_cases(str(store))
+    assert len(fallos) == 3 and avisos == [] and list(entradas) == [("geo-ramp.steep", 1)]
+    fallos.clear()
+    assert rec.cambiar_estado("geo-ramp.steep", 1, "rejected", cfg, raiz)["status"] == "rejected"
+    assert len(fallos) == 3
+
+
+def test_f2fix1_gap33_ilegible_transitorio_no_es_a_medio_escribir(tmp_path, monkeypatch):
+    raiz, cfg, store = _proyecto(tmp_path)
+    rec.grabar(_caso(), cfg, raiz)
+    (store / "cases" / "ramp.steep" / "v002").mkdir()
+    real_open = builtins.open
+
+    def bloqueado(ruta, *a, **k):
+        if str(ruta).endswith("validation.json"):
+            raise PermissionError(13, "en uso por otro proceso")
+        return real_open(ruta, *a, **k)
+
+    monkeypatch.setattr(rec, "open", bloqueado, raising=False)
+    monkeypatch.setattr(rec.time, "sleep", lambda _s: None)
+    _e, avisos = rec.estado_de_cases(str(store))
+    v1 = [a for a in avisos if "v001" in a]
+    v2 = [a for a in avisos if "v002" in a]
+    assert v1 and "bloqueada" in v1[0] and "a medio escribir" not in v1[0]
+    assert v2 and "a medio escribir" in v2[0]
+
+
+class _SinReadCompleto:
+    def __init__(self, f):
+        self._f = f
+
+    def read(self, n=-1):
+        if n is None or n < 0:
+            raise AssertionError("read() completo del indice")
+        return self._f.read(n)
+
+    def __iter__(self):
+        return iter(self._f)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return self._f.__exit__(*exc)
+
+    def __getattr__(self, nombre):
+        return getattr(self._f, nombre)
+
+
+def test_f2fix1_gap34_list_lee_el_indice_una_vez_y_en_streaming(tmp_path, monkeypatch, capsys):
+    raiz, cfg, store = _proyecto(tmp_path)
+    rec.grabar(_caso(), cfg, raiz)
+    rec.cambiar_estado("geo-ramp.steep", 1, "rejected", cfg, raiz)
+    with open(os.path.join(str(store), "cases_index.jsonl"), "a", encoding="utf-8", newline="\n") as f:
+        f.write("{roto\n")
+    _escribir_config(tmp_path, cfg)
+    aperturas = []
+
+    def espia(ruta, modo="r", *a, **k):
+        f = builtins.open(ruta, modo, *a, **k)
+        if os.path.basename(str(ruta)) == "cases_index.jsonl":
+            aperturas.append(modo)
+            return _SinReadCompleto(f)
+        return f
+
+    monkeypatch.setattr(rec, "open", espia, raising=False)
+    assert rec.main(["list", "--project-root", raiz]) == 0
+    salida = capsys.readouterr()
+    assert len(aperturas) == 1, aperturas
+    assert "geo-ramp.steep@v001  rejected" in salida.out and "linea 3 ignorada" in salida.err
+    lista, avisos = rec.listar_con_avisos(str(store), status="rejected")
+    assert [e["version"] for e in lista] == [1] and len(avisos) == 1
+
+
+def test_f2fix1_gap35_validation_y_linea_del_indice_bajo_el_mismo_bloqueo(tmp_path, monkeypatch):
+    """gap #35 (determinista): B no puede escribir+indexar entre la escritura y el append de A."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    rec.grabar(_caso(), cfg, raiz)
+    real, hilo = rec._escribir_atomico, {}
+
+    def espia(ruta, datos):
+        real(ruta, datos)
+        if ruta.endswith("validation.json") and "t" not in hilo:
+            hilo["t"] = threading.Thread(target=rec.cambiar_estado, args=("geo-ramp.steep", 1, "rejected", cfg, raiz))
+            hilo["t"].start()
+            hilo["t"].join(0.5)
+
+    monkeypatch.setattr(rec, "_escribir_atomico", espia)
+    rec.cambiar_estado("geo-ramp.steep", 1, "approved", cfg, raiz, approved_by_human=True)
+    hilo["t"].join(15)
+    assert not hilo["t"].is_alive()
+    val = _json(store / "cases" / "ramp.steep" / "v001" / "validation.json")
+    assert val["status"] == "rejected"
+    assert _indice(store)[-1]["status"] == "rejected"
+    assert rec.comprobar_indice(str(store)) == []
+
+
+def test_f2fix1_gap36_metadata_incompleto_se_rechaza_antes_de_escribir(tmp_path):
+    raiz, cfg, store, r = _grabado(tmp_path)
+    meta = os.path.join(r["path"], "metadata.json")
+    m = _json(meta)
+    del m["outcome"]
+    with open(meta, "w", encoding="utf-8") as f:
+        json.dump(m, f)
+    val = os.path.join(r["path"], "validation.json")
+    antes, indice = open(val, "rb").read(), open(os.path.join(str(store), "cases_index.jsonl"), "rb").read()
+    with pytest.raises(rec.Rechazo) as e:
+        rec.cambiar_estado("geo-ramp.steep", 1, "rejected", cfg, raiz)
+    assert "metadata.json" in str(e.value)
+    assert open(val, "rb").read() == antes
+    assert open(os.path.join(str(store), "cases_index.jsonl"), "rb").read() == indice
+    _escribir_config(tmp_path, cfg)
+    s = _cli("set-status", "geo-ramp.steep", "1", "rejected", "--project-root", raiz)
+    assert s.returncode == 1 and "Traceback" not in s.stderr
+
+
+def test_f2fix1_gap37_version_incompleta_es_incoherencia_y_se_salta(tmp_path, monkeypatch):
+    raiz, cfg, store = _proyecto(tmp_path)
+    rec.grabar(_caso(), cfg, raiz)
+    real = rec._reemplazar
+
+    def falla_en_metadata(origen, destino):
+        if destino.endswith("metadata.json"):
+            raise OSError(28, "disco lleno")
+        return real(origen, destino)
+
+    monkeypatch.setattr(rec, "_reemplazar", falla_en_metadata)
+    with pytest.raises(OSError):
+        rec.grabar(_caso(), cfg, raiz)
+    monkeypatch.setattr(rec, "_reemplazar", real)
+    v2 = store / "cases" / "ramp.steep" / "v002"
+    assert v2.is_dir() and not (v2 / "metadata.json").exists()        # se conserva (CA-02)
+    difs = rec.comprobar_indice(str(store))
+    assert any("v002" in d and "incompleta" in d for d in difs), difs
+    _escribir_config(tmp_path, cfg)
+    r = _cli("index", "check", "--project-root", raiz)
+    assert r.returncode == 1 and "v002" in (r.stdout + r.stderr)
+    assert rec.grabar(_caso(), cfg, raiz)["version"] == 3              # la automatica la salta
+    with pytest.raises(rec.Rechazo):
+        rec.grabar(_caso(version=2), cfg, raiz)
+    assert v2.is_dir()
+
+
+def test_f2fix1_gap38_errores_de_e_s_y_version_enorme_sin_traceback(tmp_path):
+    raiz, cfg, store = _proyecto(tmp_path)
+    _escribir_config(tmp_path, cfg)
+    store.write_text("soy un fichero, no un directorio", encoding="utf-8")
+    caso = tmp_path / "caso.json"
+    caso.write_text(json.dumps(_caso()), encoding="utf-8")
+    for args in (("record", str(caso)), ("index", "rebuild")):
+        r = _cli(*args, "--project-root", raiz)
+        assert r.returncode == 2 and "Traceback" not in r.stderr and "error" in r.stderr, (args, r.stderr)
+    store.unlink()
+    rec.grabar(_caso(), cfg, raiz)
+    enorme = "v" + "9" * 5000
+    with pytest.raises(rec.Rechazo) as e:
+        rec.cambiar_estado("geo-ramp.steep", enorme, "rejected", cfg, raiz)
+    assert e.value.errores[0]["campo"] == "version"
+    r = _cli("set-status", "geo-ramp.steep", enorme, "rejected", "--project-root", raiz)
+    assert r.returncode == 1 and "Traceback" not in r.stderr
+    for grande in (10 ** 12, 10 ** 5000):
+        with pytest.raises(rec.Rechazo) as e:
+            rec.grabar(_caso(version=grande), cfg, raiz)
+        assert "version" in {x["campo"] for x in e.value.errores}
+
+
+def test_f2fix1_gap39_supersedes_exige_failure_o_corrected(tmp_path):
+    raiz, cfg, store = _proyecto(tmp_path)
+    rec.grabar(_caso(outcome="success"), cfg, raiz)
+    with pytest.raises(rec.Rechazo) as e:
+        rec.grabar(_caso(outcome="corrected", supersedes_case="geo-ramp.steep@v001"), cfg, raiz)
+    assert "supersedes_case" in {x["campo"] for x in e.value.errores} and "success" in str(e.value)
+    rec.grabar(_caso(outcome="failure"), cfg, raiz)                                           # v002
+    rec.grabar(_caso(outcome="corrected", supersedes_case="geo-ramp.steep@v002"), cfg, raiz)   # v003
+    assert rec.grabar(_caso(outcome="corrected", supersedes_case="geo-ramp.steep@v003"), cfg, raiz)["version"] == 4
+    assert sorted(os.listdir(store / "cases" / "ramp.steep")) == ["v001", "v002", "v003", "v004"]
+
+
+def test_f2fix1_gap40_mismo_numero_con_otro_ancho_se_rechaza(tmp_path):
+    raiz, cfg, store = _proyecto(tmp_path)
+    rec.grabar(_caso(), cfg, raiz)                                    # v001 (ancho 3)
+    cfg4 = dict(cfg, ids={"version_width": 4})
+    with pytest.raises(rec.Rechazo) as e:
+        rec.grabar(_caso(version=1), cfg4, raiz)
+    assert "existe" in str(e.value)
+    assert rec.grabar(_caso(), cfg4, raiz)["ref"] == "geo-ramp.steep@v0002"
+    assert sorted(os.listdir(store / "cases" / "ramp.steep")) == ["v0002", "v001"]
+    shutil.copytree(str(store / "cases" / "ramp.steep" / "v001"), str(store / "cases" / "ramp.steep" / "v01"))
+    difs = rec.comprobar_indice(str(store))
+    assert any("duplicada" in d for d in difs), difs
+
+
+def test_f2fix1_gap40_case_id_que_solo_difiere_en_mayusculas_se_rechaza(tmp_path):
+    raiz, cfg, store = _proyecto(tmp_path, family_pattern="^[A-Za-z0-9]+$")
+    rec.grabar(_caso(), cfg, raiz)
+    with pytest.raises(rec.Rechazo) as e:
+        rec.grabar(_caso(family="RAMP", case_id="geo-RAMP.steep"), cfg, raiz)
+    assert "mayusculas" in str(e.value)
+    assert sorted(os.listdir(store / "cases")) == ["ramp.steep"]
+    assert sorted(os.listdir(store / "cases" / "ramp.steep")) == ["v001"]
+
+
+def test_f2fix1_gap41_nan_e_infinity_se_rechazan(tmp_path):
+    raiz, cfg, store = _proyecto(tmp_path)
+    for cambios, campo in (({"metrics": {"score": float("nan")}}, "metrics.score"),
+                           ({"constraints": {"max": float("inf")}}, "constraints.max"),
+                           ({"context": {"l": [1, float("-inf")]}}, "context.l[1]")):
+        with pytest.raises(rec.Rechazo) as e:
+            rec.grabar(_caso(**cambios), cfg, raiz)
+        assert campo in {x["campo"] for x in e.value.errores}, e.value.errores
+    assert not store.exists()
+    with pytest.raises(ValueError):
+        rec._json_bytes({"x": float("nan")})
+
+
+def test_f2fix1_gap42_append_sobre_indice_sin_salto_final(tmp_path):
+    raiz, cfg, store, _r = _grabado(tmp_path)
+    ruta = os.path.join(str(store), "cases_index.jsonl")
+    crudo = open(ruta, "rb").read()
+    with open(ruta, "wb") as f:
+        f.write(crudo.rstrip(b"\n"))
+    rec.cambiar_estado("geo-ramp.steep", 1, "rejected", cfg, raiz)
+    entradas, avisos = rec.leer_indice(str(store))
+    assert avisos == [] and len(_indice(store)) == 2 and entradas[("geo-ramp.steep", 1)]["status"] == "rejected"
+
+
+def test_f2fix1_gap43_junction_dentro_del_store_hacia_docs_knowledge_se_rechaza(tmp_path):
+    raiz, cfg, store = _proyecto(tmp_path)
+    (store / "cases").mkdir(parents=True)
+    aprobado = tmp_path / "proj" / "docs" / "knowledge" / "approved"
+    _enlazar_dir(aprobado, store / "cases" / "ramp.steep")
+    with pytest.raises(rec.Rechazo) as e:
+        rec.grabar(_caso(), cfg, raiz)
+    assert "enlace" in str(e.value)
+    assert os.listdir(str(aprobado)) == []
+
+
+def test_f2fix1_gap43_cases_enlazado_fuera_del_store_se_rechaza(tmp_path):
+    raiz, cfg, store = _proyecto(tmp_path)
+    store.mkdir()
+    fuera = tmp_path / "fuera"
+    _enlazar_dir(fuera, store / "cases")
+    with pytest.raises(rec.Rechazo):
+        rec.grabar(_caso(), cfg, raiz)
+    assert os.listdir(str(fuera)) == []
+
+
+def test_f2fix1_gap43_set_status_y_check_con_enlace(tmp_path):
+    raiz, cfg, store = _proyecto(tmp_path)
+    r = rec.grabar(_caso(), cfg, raiz)
+    aprobado = tmp_path / "proj" / "docs" / "knowledge" / "approved"
+    shutil.copytree(r["path"], str(aprobado / "v001"))
+    m = _json(aprobado / "v001" / "metadata.json")
+    m.update(family="stairs", variant="short", case_id="geo-stairs.short")
+    (aprobado / "v001" / "metadata.json").write_text(json.dumps(m), encoding="utf-8")
+    _enlazar_dir(aprobado, store / "cases" / "stairs.short")
+    antes = (aprobado / "v001" / "validation.json").read_bytes()
+    with pytest.raises(rec.Rechazo) as e:
+        rec.cambiar_estado("geo-stairs.short", 1, "rejected", cfg, raiz)
+    assert "enlace" in str(e.value)
+    assert (aprobado / "v001" / "validation.json").read_bytes() == antes
+    difs = rec.comprobar_indice(str(store), raiz_proyecto=raiz)
+    # se omite el directorio del caso ENTERO, sin leer nada a traves del enlace
+    assert [d for d in difs if "stairs.short" in d] == ["cases/stairs.short omitido: enlace que sale del case store"], difs
+    rec.reconstruir_indice(str(store), raiz_proyecto=raiz)
+    assert [e["case_id"] for e in rec.listar(str(store))] == ["geo-ramp.steep"]
+
+
+def test_f2fix1_gap43_indice_enlazado_fuera_se_rechaza(tmp_path):
+    raiz, cfg, store = _proyecto(tmp_path)
+    store.mkdir()
+    fuera = tmp_path / "fuera.jsonl"
+    fuera.write_text("", encoding="utf-8")
+    try:
+        os.symlink(str(fuera), str(store / "cases_index.jsonl"))
+    except (OSError, NotImplementedError) as e:   # pragma: no cover - Windows sin privilegio
+        pytest.skip(f"sin symlink de fichero: {e}")
+    with pytest.raises(rec.Rechazo):
+        rec.grabar(_caso(), cfg, raiz)
+    assert fuera.read_text(encoding="utf-8") == "" and not (store / "cases").exists()
+
+
+def test_f2fix1_gap44_todo_texto_libre_se_redacta(tmp_path):
+    raiz, cfg, store = _proyecto(tmp_path)
+    fugas = ["abc123XYZ789", "zzz999QQQ111", "kkk777MMM222", "ppp555NNN333", "qqq444RRR666", "ttt111UUU999"]
+    caso = _caso(metrics={"score": 0.5, "nota": "token=" + fugas[0]},
+                 artifacts=[{"path": "final/token=" + fugas[1], "hash": "sha256:ab12", "kind": "password=" + fugas[2]}],
+                 created_at="2026-09-25 token=" + fugas[3],
+                 validation={"status": "approved", "approved_by_human": False, "reviewer_note": "secret=" + fugas[4],
+                             "approved_at": "2026-09-25 token=" + fugas[5]})
+    r = rec.grabar(caso, cfg, raiz, approved_by_human=True)
+    todo = _bytes_del_store(str(store))
+    for fuga in fugas:
+        assert fuga.encode() not in todo, fuga
+    assert _json(os.path.join(r["path"], "final", "artifacts.json"))[0]["hash"] == "sha256:ab12"
+    assert _json(os.path.join(r["path"], "metrics.json"))["score"] == 0.5
+    rec.cambiar_estado("geo-ramp.steep", 1, "rejected", cfg, raiz, reviewer_note="pwd=nota1234Secreta")
+    _escribir_config(tmp_path, cfg)
+    s = _cli("set-status", "geo-ramp.steep", "1", "needs_changes", "--note", "clave=cli9876Secreta", "--project-root", raiz)
+    assert s.returncode == 0, s.stderr
+    todo = _bytes_del_store(str(store))
+    assert b"nota1234Secreta" not in todo and b"cli9876Secreta" not in todo
+
+
+def test_f2fix1_gap45_validation_incoherente_no_se_indexa_como_gold(tmp_path):
+    raiz, cfg, store, r = _grabado(tmp_path)
+    with open(os.path.join(r["path"], "validation.json"), "w", encoding="utf-8") as f:
+        json.dump({"status": "approved", "approved_by_human": False}, f)
+    difs = rec.comprobar_indice(str(store))
+    assert any("v001" in d and "validation.json" in d for d in difs), difs
+    _escribir_config(tmp_path, cfg)
+    assert _cli("index", "check", "--project-root", raiz).returncode == 1
+    rec.reconstruir_indice(str(store))
+    assert rec.listar(str(store), status="approved") == []
+
+
+def test_f2fix1_gap46_versiones_con_scandir_sin_isdir_por_entrada(tmp_path, monkeypatch):
+    raiz, cfg, store = _proyecto(tmp_path)
+    for _ in range(12):
+        rec.grabar(_caso(), cfg, raiz)
+    llamadas = []
+    real = os.path.isdir
+
+    def contar_grabar():
+        llamadas.clear()
+        monkeypatch.setattr(rec.os.path, "isdir", lambda p: llamadas.append(p) or real(p))
+        rec.grabar(_caso(), cfg, raiz)
+        monkeypatch.setattr(rec.os.path, "isdir", real)
+        return len(llamadas)
+
+    monkeypatch.setattr(rec.os.path, "isdir", lambda p: llamadas.append(p) or real(p))
+    assert rec.versiones(str(store / "cases" / "ramp.steep")) == list(range(1, 13))
+    assert llamadas == []                                   # ni un isdir por entrada
+    monkeypatch.setattr(rec.os.path, "isdir", real)
+    con_13 = contar_grabar()                                # 12 versiones existentes
+    for _ in range(12):
+        rec.grabar(_caso(), cfg, raiz)
+    assert contar_grabar() == con_13                        # 25 existentes: mismo coste en isdir
+
+
+def test_f2fix1_gap48_ayuda_del_cli_dice_que_version_es_opcional():
+    r = _cli("record", "--help")
+    assert r.returncode == 0 and "sin `version`" in r.stdout
+
+
+def test_f2fix1_gap50_m01_supersedes_rechaza_version_a_medio_escribir(tmp_path):
+    raiz, cfg, store = _proyecto(tmp_path)
+    (store / "cases" / "ramp.steep" / "v001").mkdir(parents=True)
+    with pytest.raises(rec.Rechazo) as e:
+        rec.grabar(_caso(outcome="corrected", supersedes_case="geo-ramp.steep@v001"), cfg, raiz)
+    assert "supersedes_case" in {x["campo"] for x in e.value.errores}
+
+
+def test_f2fix1_gap50_m02_metadata_se_mueve_la_ultima(tmp_path, monkeypatch):
+    raiz, cfg, _store = _proyecto(tmp_path)
+    real, orden = rec._reemplazar, []
+    monkeypatch.setattr(rec, "_reemplazar", lambda o, d: orden.append(os.path.basename(d)) or real(o, d))
+    rec.grabar(_caso(), cfg, raiz)
+    assert orden[-1] == "metadata.json" and orden.count("metadata.json") == 1 and len(orden) == len(FICHEROS_VERSION)
+
+
+def test_f2fix1_gap50_m03_version_sin_validation_json_no_admite_cambios(tmp_path):
+    raiz, cfg, store, r = _grabado(tmp_path)
+    os.remove(os.path.join(r["path"], "validation.json"))
+    with pytest.raises(rec.Rechazo) as e:
+        rec.cambiar_estado("geo-ramp.steep", 1, "rejected", cfg, raiz)
+    assert "medio escribir" in str(e.value)
+    assert not os.path.exists(os.path.join(r["path"], "validation.json"))
+    _n, avisos = rec.reconstruir_indice(str(store))
+    assert any("v001" in a and "validation.json" in a for a in avisos), avisos
+
+
+def test_f2fix1_gap50_m05_lineas_en_blanco_se_ignoran_sin_aviso(tmp_path):
+    raiz, cfg, store, _r = _grabado(tmp_path)
+    with open(os.path.join(str(store), "cases_index.jsonl"), "ab") as f:
+        f.write(b"\n   \n\t\n")
+    rec.cambiar_estado("geo-ramp.steep", 1, "rejected", cfg, raiz)
+    entradas, avisos = rec.leer_indice(str(store))
+    assert avisos == [] and entradas[("geo-ramp.steep", 1)]["status"] == "rejected"
+    assert rec.comprobar_indice(str(store)) == []
+
+
+def test_f2fix1_gap50_m11_indice_no_escribible_da_aviso_no_excepcion(tmp_path):
+    raiz, cfg, store = _proyecto(tmp_path)
+    (store / "cases_index.jsonl").mkdir(parents=True)          # el indice no se puede abrir
+    r = rec.grabar(_caso(), cfg, raiz)
+    assert r["version"] == 1 and r["avisos"] and "index rebuild" in r["avisos"][0]
+    assert (store / "cases" / "ramp.steep" / "v001" / "metadata.json").is_file()
+    out = rec.cambiar_estado("geo-ramp.steep", 1, "rejected", cfg, raiz)
+    assert out["avisos"]
+
+
+def test_f2fix1_gap50_m14_reintentos_acotados(tmp_path, monkeypatch):
+    llamadas = []
+
+    def siempre(*_a, **_k):
+        llamadas.append(1)
+        raise PermissionError(13, "en uso")
+
+    monkeypatch.setattr(rec.time, "sleep", lambda _s: None)
+    monkeypatch.setattr(rec.os, "replace", siempre)
+    with pytest.raises(PermissionError):
+        rec._reemplazar("a", "b")
+    assert len(llamadas) == rec.REINTENTOS
+    monkeypatch.undo()
+    monkeypatch.setattr(rec.time, "sleep", lambda _s: None)
+    llamadas.clear()
+    monkeypatch.setattr(rec, "open", siempre, raising=False)
+    with pytest.raises(PermissionError):
+        rec._leer_json_reintentando(str(tmp_path / "x.json"))
+    assert len(llamadas) == rec.REINTENTOS
+
+
+def test_f2fix1_gap50_m15_rebuild_lee_dentro_del_bloqueo(tmp_path, monkeypatch):
+    raiz, cfg, store = _proyecto(tmp_path)
+    rec.grabar(_caso(), cfg, raiz)
+    estado = {"dentro": False}
+    real_bloqueo = rec._Bloqueo
+
+    class Espia(real_bloqueo):
+        def __enter__(self):
+            r = super().__enter__()
+            estado["dentro"] = True
+            return r
+
+        def __exit__(self, *exc):
+            estado["dentro"] = False
+            return super().__exit__(*exc)
+
+    vistos = []
+    real_estado, real_leer = rec.estado_de_cases, rec.leer_indice
+    monkeypatch.setattr(rec, "_Bloqueo", Espia)
+    monkeypatch.setattr(rec, "estado_de_cases", lambda *a, **k: vistos.append(("cases", estado["dentro"])) or real_estado(*a, **k))
+    monkeypatch.setattr(rec, "leer_indice", lambda *a, **k: vistos.append(("indice", estado["dentro"])) or real_leer(*a, **k))
+    rec.reconstruir_indice(str(store))
+    assert vistos and all(d for _q, d in vistos), vistos
+
+
+def test_f2fix1_gap51_sin_bloqueo_a_tiempo_falla_cerrado(tmp_path, monkeypatch, capsys):
+    raiz, cfg, store = _proyecto(tmp_path)
+    rec.grabar(_caso(), cfg, raiz)
+    _escribir_config(tmp_path, cfg)
+    monkeypatch.setattr(rec, "ESPERA_BLOQUEO_S", 0.2)
+    indice = open(os.path.join(str(store), "cases_index.jsonl"), "rb").read()
+    caso = tmp_path / "caso.json"
+    caso.write_text(json.dumps(_caso()), encoding="utf-8")
+    with rec._Bloqueo(str(store)):
+        with pytest.raises(rec.Rechazo) as e:
+            rec.grabar(_caso(), cfg, raiz)
+        assert "bloqueo" in str(e.value)
+        with pytest.raises(rec.Rechazo):
+            rec.cambiar_estado("geo-ramp.steep", 1, "rejected", cfg, raiz)
+        with pytest.raises(rec.Rechazo):
+            rec.anadir_al_indice(str(store), _indice(store)[0])
+        assert rec.main(["record", str(caso), "--project-root", raiz]) == 1
+    assert "bloqueo" in capsys.readouterr().err
+    assert sorted(os.listdir(store / "cases" / "ramp.steep")) == ["v001"]
+    assert _json(store / "cases" / "ramp.steep" / "v001" / "validation.json")["status"] == "pending"
+    assert open(os.path.join(str(store), "cases_index.jsonl"), "rb").read() == indice
+
+
+def test_f2fix1_gap40_directorio_de_otro_case_id_se_rechaza(tmp_path):
+    """gap #40b: si el directorio del caso existe y su `metadata.case_id` es otro (p. ej. el
+    `id_prefix` cambio), no se mezclan versiones de dos case_id."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    rec.grabar(_caso(), cfg, raiz)
+    otro = dict(cfg, id_prefix="otro")
+    with pytest.raises(rec.Rechazo) as e:
+        rec.grabar(_caso(case_id="otro-ramp.steep"), otro, raiz)
+    assert "pertenece a" in str(e.value)
+    assert sorted(os.listdir(store / "cases" / "ramp.steep")) == ["v001"]
+
+
+def test_f2fix1_gap43_store_en_la_raiz_del_proyecto_y_junction_a_docs_knowledge(tmp_path):
+    """gap #43: con `root: "."` el enlace no sale del store, pero cae en `docs/knowledge/`."""
+    raiz = str(tmp_path / "proj")
+    os.makedirs(raiz)
+    cfg = {"version": 1, "enabled": True, "root": ".", "id_prefix": "geo"}
+    (tmp_path / "proj" / "cases").mkdir()
+    aprobado = tmp_path / "proj" / "docs" / "knowledge" / "approved"
+    _enlazar_dir(aprobado, tmp_path / "proj" / "cases" / "ramp.steep")
+    with pytest.raises(rec.Rechazo) as e:
+        rec.grabar(_caso(), cfg, raiz)
+    assert "docs/knowledge" in str(e.value)
+    assert os.listdir(str(aprobado)) == []
+
+
+def test_f2fix1_gap43_se_recomprueba_tras_crear_temporal_y_destino(tmp_path, monkeypatch):
+    """TOCTOU (gap #43): el temporal y el destino se comprueban DESPUES de crearlos, por si un
+    enlace aparecio entre la primera comprobacion y la escritura."""
+    raiz, cfg, _store = _proyecto(tmp_path)
+    real, vistos = rec._comprobar_contencion, []
+
+    def espia(store, rutas, raiz_proyecto=None):
+        vistos.extend((os.path.basename(r), os.path.isdir(r)) for r in rutas)
+        return real(store, rutas, raiz_proyecto)
+
+    monkeypatch.setattr(rec, "_comprobar_contencion", espia)
+    rec.grabar(_caso(), cfg, raiz)
+    assert any(n.startswith(rec.PREFIJO_TEMPORAL) and existe for n, existe in vistos), vistos
+    assert ("v001", True) in vistos, vistos
+
+
+def test_f2fix1_gap43_version_enlazada_fuera_se_omite_en_check_y_rebuild(tmp_path):
+    raiz, cfg, store = _proyecto(tmp_path)
+    r = rec.grabar(_caso(), cfg, raiz)
+    fuera = tmp_path / "fuera" / "v002"
+    shutil.copytree(r["path"], str(fuera))
+    m = _json(fuera / "metadata.json")
+    m["version"] = 2
+    (fuera / "metadata.json").write_text(json.dumps(m), encoding="utf-8")
+    _enlazar_dir(fuera, store / "cases" / "ramp.steep" / "v002")
+    difs = rec.comprobar_indice(str(store))
+    assert any("v002" in d and "enlace" in d for d in difs), difs
+    n, avisos = rec.reconstruir_indice(str(store))
+    assert n == 1 and any("v002" in a and "enlace" in a for a in avisos)
+    with pytest.raises(rec.Rechazo):
+        rec.cambiar_estado("geo-ramp.steep", 2, "rejected", cfg, raiz)
+
+
+def _espia_de_bloqueo(monkeypatch):
+    estado = {"dentro": 0}
+
+    class Espia(rec._Bloqueo):
+        def __enter__(self):
+            r = super().__enter__()
+            estado["dentro"] += 1
+            return r
+
+        def __exit__(self, *exc):
+            estado["dentro"] -= 1
+            return super().__exit__(*exc)
+
+    monkeypatch.setattr(rec, "_Bloqueo", Espia)
+    return estado
+
+
+def test_f2fix1_gap35_escritura_y_append_con_el_bloqueo_tomado(tmp_path, monkeypatch):
+    """gap #35 (determinista): `validation.json` y su linea del indice se escriben DENTRO del
+    bloqueo, en `cambiar_estado` y en `grabar` (la version entera y su alta)."""
+    raiz, cfg, _store = _proyecto(tmp_path)
+    estado, vistos = _espia_de_bloqueo(monkeypatch), []
+    real_ind, real_atom, real_rep = rec._indexar, rec._escribir_atomico, rec._reemplazar
+    monkeypatch.setattr(rec, "_indexar", lambda *a: vistos.append(("indice", estado["dentro"])) or real_ind(*a))
+    monkeypatch.setattr(rec, "_escribir_atomico", lambda *a: vistos.append(("validation", estado["dentro"])) or real_atom(*a))
+    monkeypatch.setattr(rec, "_reemplazar", lambda *a: vistos.append(("version", estado["dentro"])) or real_rep(*a))
+    rec.grabar(_caso(), cfg, raiz)
+    rec.cambiar_estado("geo-ramp.steep", 1, "rejected", cfg, raiz)
+    assert {q for q, _d in vistos} == {"indice", "validation", "version"}
+    assert all(d == 1 for _q, d in vistos), vistos

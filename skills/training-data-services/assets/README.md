@@ -13,6 +13,7 @@ portable) comprueba que el ejemplo valida con `scripts/case_schema.py` y que el 
 ```text
 <root>/                                  # training.json -> root (lo elige el proyecto)
 ├── cases_index.jsonl                    # índice append-only (caché: se reconstruye desde cases/)
+├── .cases_index.lock                    # bloqueo de los escritores (persistente: nunca se borra)
 ├── cases/<family>.<variant>/            # un directorio por caso; case_id = <id_prefix>-<family>.<variant>
 │   └── v<NNN>/                          # una versión por intento; NUNCA se sobrescribe
 │       ├── metadata.json
@@ -52,8 +53,12 @@ reglas: tabla de la skill (`SKILL.md`) y docstring de `scripts/case_schema.py`.
 | `validation.json` | `status` (`pending`·`approved`·`needs_changes`·`rejected`), `approved_by_human` (`true` solo con `approved`), `approved_at`, `reviewer_note` | Plugin (forma) / humano (Gold) |
 | `final/artifacts.json` | Lista de `{path, hash: "<algoritmo>:<hex>", kind}`; nunca contenido binario inline | Proyecto |
 
-`request.json`, `context.json` y `trajectory.jsonl` pasan por la redacción de secretos compartida
-(`agent-kits/shared/redact.py`) **antes** de escribirse (el recorder, T-04).
+Todo el texto libre pasa por la redacción de secretos compartida (`agent-kits/shared/redact.py`)
+**antes** de escribirse (el recorder, T-04): `request.json`, `context.json`, `constraints.json`,
+`trajectory.jsonl`, las cadenas de `metrics.json`, `created_at` de `metadata.json`,
+`final/artifacts.json` (salvo `hash`) y `reviewer_note`/`approved_at` de `validation.json`. Los
+campos de forma cerrada (`case_id`, `family`, `variant`, `version`, `outcome`, `supersedes_case`,
+`status`, `approved_by_human`, `hash`) no se tocan.
 
 ### Ejemplo de `metadata.json` (versión corregida)
 
