@@ -67,12 +67,13 @@ Cualquier otra clave se rechaza (salvo `$comment`), para que una errata no pase 
   ≥ 1) del mismo `case_id` y una versión anterior.
 - `family`/`variant` son directorios: sin separadores, `..`, `.` (separa family y variant), `:`,
   controles, espacio final ni nombres reservados de Windows (`con`, `nul`, `com1`…), sea cual sea el patrón.
-- La trayectoria **nunca** guarda chain-of-thought: toda clave que empiece por `reasoning`, `thinking`,
-  `thought`, `chain_of_thought` o `scratchpad` (sin distinguir mayúsculas, a cualquier profundidad del
-  turno, incluidos los `arguments`) se rechaza, igual que un turno con más de 50 niveles de
-  anidamiento (no se deja de mirar). Lista blanca declarada: `reasoning_effort`, `thinking_budget` y
-  `reasoning_level` son parámetros de proveedor y se admiten **solo** dentro de `tool_calls[].arguments`.
-  Un tipo inesperado es un error `{campo, mensaje}`, nunca un crash.
+- La trayectoria **nunca** guarda chain-of-thought. Se rechaza toda clave que empiece por
+  `reasoning`, `thinking`, `thought`, `chain_of_thought` o `scratchpad`, sin distinguir mayúsculas y a
+  cualquier profundidad del turno (también en `arguments`).
+- Excepciones y límite: `reasoning_effort`, `thinking_budget` y `reasoning_level` son parámetros de
+  proveedor y se admiten **solo** dentro de `tool_calls[].arguments`. Un turno con más de 50 niveles
+  de anidamiento se rechaza.
+- Un tipo inesperado es un error `{campo, mensaje}`, nunca un crash.
 - `metrics` es un objeto JSON opaco del proyecto; el plugin no lo interpreta.
 - `context`: texto u objeto libre; admite `refs: [{"ref": "<fichero:línea|nodo>", "kind": "..."}]`
   opcional para citar procedencia (nadie está obligado a usarla).

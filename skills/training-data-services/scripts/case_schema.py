@@ -96,6 +96,7 @@ VERSION_WIDTH_DEFECTO = 3
 CLAVES_CONFIG = ("version", "enabled", "root", "id_prefix", "ids", "bridge_to_curator", "$comment")
 CLAVES_IDS = ("family_pattern", "variant_pattern", "version_width")
 ERRORES_REGEX = (re.error, OverflowError, RecursionError, MemoryError)
+ANIDAMIENTO_JSON = "JSON ilegible (anidamiento excesivo)"
 
 
 def _err(campo, mensaje):
@@ -148,18 +149,40 @@ def _sin_prefijo_extendido(ruta):
     return ruta
 
 
+def _tiene_prefijo_extendido(ruta):
+    return any(ruta[: len(p)].upper() == p.upper() for p in PREFIJOS_EXTENDIDOS)
+
+
+def _es_unidad_o_unc(ruta):
+    """True si `ruta` empieza por letra de unidad (`C:\\`) o es UNC (`\\\\srv\\sh`)."""
+    return bool(re.match(r"[A-Za-z]:[\\/]", ruta)) or ruta[:2] in ("\\\\", "//")
+
+
 def _root_en_docs_knowledge(root, raiz_proyecto):
-    """True si `root` (relativo a `raiz_proyecto` o absoluto) cae en `<proyecto>/docs/knowledge/`."""
+    """True si `root` (relativo a `raiz_proyecto` o absoluto) cae en `<proyecto>/docs/knowledge/`.
+
+    Con prefijo extendido/de dispositivo (`\\\\?\\`, `\\\\.\\`) se hacen DOS comparaciones y basta
+    una para rechazar (fix3, gap #26): (1) la de siempre, con el prefijo fuera ANTES de resolver; y
+    (2) `realpath` sobre la ruta TAL CUAL y el prefijo fuera DESPUES, que canoniza
+    `\\\\?\\Volume{guid}\\...` y `\\\\?\\GLOBALROOT\\Device\\...` a letra de unidad. Si el resto
+    tras el prefijo no es absoluto (volumen/dispositivo) y (2) no lo lleva a letra de unidad o UNC,
+    se rechaza: lo que no se puede canonizar no se puede comparar (fail closed)."""
     raiz = raiz_proyecto or "."
-    root = _sin_prefijo_extendido(root)
-    destino = root.replace("\\", "/") if not os.path.isabs(root) else root
+    sin_prefijo = _sin_prefijo_extendido(root)
+    destino = sin_prefijo.replace("\\", "/") if not os.path.isabs(sin_prefijo) else sin_prefijo
     destino = destino if os.path.isabs(destino) else os.path.join(raiz, destino)
     try:
         k = _canon(os.path.join(raiz, "docs", "knowledge"))
-        d = _canon(destino)
+        candidatos = [_canon(destino)]
+        if _tiene_prefijo_extendido(root):
+            resuelta = _sin_prefijo_extendido(os.path.realpath(root))
+            if not os.path.isabs(sin_prefijo) and not _es_unidad_o_unc(resuelta):
+                return True   # volumen/dispositivo que no se canoniza: fail closed
+            candidatos.append(os.path.normcase(resuelta).casefold())
     except (OSError, ValueError):
         return True   # ruta que ni siquiera se puede resolver: se rechaza (fail closed)
-    return d == k or d.startswith(k.rstrip("\\/") + os.sep)
+    base = k.rstrip("\\/")
+    return any(d == k or d.startswith(base + os.sep) or d.startswith(base + "/") for d in candidatos)
 
 
 def _es_int(v):
@@ -241,6 +264,9 @@ def cargar_config(root):
     try:
         with open(ruta, encoding="utf-8") as f:
             cfg = json.load(f)
+    except RecursionError:
+        # fix3, gap #27: json.load lanza RecursionError (no ValueError) con anidamiento excesivo
+        return None, ruta, [_err("(fichero)", ANIDAMIENTO_JSON)]
     except (OSError, ValueError) as e:
         return None, ruta, [_err("(fichero)", f"JSON ilegible: {e}")]
     errores = validar_config(cfg, root or ".")
@@ -572,6 +598,10 @@ def main(argv=None):
             errores_cfg = validar_config(config, _raiz_de(args.config, args.project_root))
             if errores_cfg:
                 return _imprimir(errores_cfg, args.config)
+    except RecursionError:
+        # fix3, gap #27: sin traceback; exit 2 como cualquier entrada ilegible
+        print(f"error: {ANIDAMIENTO_JSON}", file=sys.stderr)
+        return 2
     except (OSError, ValueError) as e:
         print(f"error: JSON ilegible o fichero ausente: {e}", file=sys.stderr)
         return 2

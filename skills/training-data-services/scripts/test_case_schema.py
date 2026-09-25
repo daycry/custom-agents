@@ -709,3 +709,114 @@ def test_f1fix2_gap24_n18_patron_roto_en_config_no_valida_no_lanza():
     cfg["ids"]["variant_pattern"] = "a{4294967296}"
     errores = cs.validar_caso(CASO_OK, cfg)
     assert {"family", "variant"} <= _campos(errores)
+
+
+# ------------------------------------------------------------------ fix3 (revision intento 3, Fase 1)
+
+BS = "\\"
+EN_WINDOWS = os.name == "nt"
+
+
+def _prefijos_de_volumen(ruta_absoluta):
+    r"""`\\?\Volume{guid}\...` y `\\?\GLOBALROOT\Device\HarddiskVolumeN\...` de una ruta
+    absoluta con letra de unidad (solo Windows; sin red: consultas locales del kernel)."""
+    import ctypes
+    unidad, resto = ruta_absoluta[:2], ruta_absoluta[3:]
+    vol = ctypes.create_unicode_buffer(260)
+    dev = ctypes.create_unicode_buffer(260)
+    formas = []
+    if ctypes.windll.kernel32.GetVolumeNameForVolumeMountPointW(unidad + BS, vol, 260):
+        formas.append(vol.value + resto)
+    if ctypes.windll.kernel32.QueryDosDeviceW(unidad, dev, 260):
+        formas.append(BS * 2 + "?" + BS + "GLOBALROOT" + dev.value + BS + resto)
+        formas.append(BS * 2 + "." + BS + "GLOBALROOT" + dev.value + BS + resto)
+    return formas
+
+
+def test_f1fix3_gap26_root_por_volumen_o_globalroot_no_esquiva_adr019(tmp_path):
+    r"""gap #26: `\\?\Volume{...}\<proyecto>\docs\knowledge\cases` y la forma GLOBALROOT son
+    la misma carpeta: se resuelven con realpath sobre la ruta TAL CUAL (prefijo fuera DESPUES)."""
+    if not EN_WINDOWS:
+        import pytest
+        pytest.skip("rutas de volumen/dispositivo: solo Windows")
+    raiz = os.path.realpath(str(tmp_path))
+    for existe in (False, True):
+        if existe:
+            os.makedirs(os.path.join(raiz, "docs", "knowledge", "cases"))
+        dentro = os.path.join(raiz, "docs", "knowledge", "cases")
+        formas = _prefijos_de_volumen(dentro)
+        assert formas, "sin nombre de volumen para la unidad del tmp"
+        for mal in formas:
+            assert "root" in _campos(cs.validar_config(dict(CONFIG_OK, root=mal), raiz)), (existe, mal)
+    # fuera de docs/knowledge, la misma forma de volumen se admite (se canoniza a letra de unidad)
+    for bien in _prefijos_de_volumen(os.path.join(raiz, "data", "cases")):
+        assert cs.validar_config(dict(CONFIG_OK, root=bien), raiz) == [], bien
+
+
+def test_f1fix3_gap26_prefijo_de_volumen_que_no_se_canoniza_se_rechaza(tmp_path):
+    """gap #26: un `root` con prefijo de volumen/dispositivo que realpath no lleva a letra de unidad
+    o UNC (volumen inexistente, GLOBALROOT inventado) se rechaza: fail closed."""
+    raiz = str(tmp_path)
+    for mal in (BS * 2 + "?" + BS + "Volume{00000000-0000-0000-0000-000000000000}" + BS + "data",
+                BS * 2 + "?" + BS + "GLOBALROOT" + BS + "Device" + BS + "NoExiste999" + BS + "data",
+                "//?/Volume{00000000-0000-0000-0000-000000000000}/data"):
+        errores = cs.validar_config(dict(CONFIG_OK, root=mal), raiz)
+        assert "root" in _campos(errores), mal
+
+
+def test_f1fix3_gap27_cli_json_anidado_en_exceso_es_exit_2_sin_traceback(tmp_path):
+    """gap #27: `json.load` lanza RecursionError (no ValueError) con un JSON muy anidado: el CLI
+    responde exit 2 «JSON ilegible (anidamiento excesivo)», sin traceback, en caso y en --config."""
+    hondo = tmp_path / "hondo.json"
+    hondo.write_text("[" * 100000 + "]" * 100000, encoding="utf-8")
+    bueno = tmp_path / "caso.json"
+    bueno.write_text(json.dumps(CASO_OK), encoding="utf-8")
+    script = os.path.join(HERE, "case_schema.py")
+    for args in (("case", str(hondo)), ("config", str(hondo)), ("case", str(bueno), "--config", str(hondo))):
+        r = subprocess.run([sys.executable, script, *args], capture_output=True, text=True, encoding="utf-8")
+        assert r.returncode == 2, (args, r.returncode, r.stderr[-300:])
+        assert "Traceback" not in r.stderr, r.stderr[-300:]
+        assert "anidamiento" in r.stderr, r.stderr[-300:]
+
+
+def test_f1fix3_gap27_cargar_config_con_json_anidado_es_error_de_fichero(tmp_path):
+    """gap #27 (misma clase, via `cargar_config`, que usan capabilities y el recorder): error
+    `(fichero)`, nunca RecursionError."""
+    d = tmp_path / ".claude" / "knowledge-services"
+    d.mkdir(parents=True)
+    (d / "training.json").write_text("{\"a\":" * 100000 + "1" + "}" * 100000, encoding="utf-8")
+    cfg, ruta, errores = cs.cargar_config(str(tmp_path))
+    assert cfg is None and ruta and "(fichero)" in _campos(errores)
+    assert any("anidamiento" in e["mensaje"] for e in errores), errores
+
+
+def test_f1fix3_gap29a_arguments_texto_anidado_en_exceso_no_revienta():
+    """gap #29 (a): `arguments` en texto JSON con 5000 niveles -> RecursionError al parsear ->
+    error de anidamiento (fail closed), nunca una excepcion."""
+    tr = copy.deepcopy(CASO_OK["trajectory"])
+    tr[2]["tool_calls"][0]["arguments"] = "[" * 5000 + "]" * 5000
+    errores = cs.validar_caso(_caso(trajectory=tr))
+    assert any(e["campo"] == "trajectory[2].tool_calls[0].arguments" and "anidamiento" in e["mensaje"]
+               for e in errores), errores
+
+
+def test_f1fix3_gap29b_prefijo_unc_se_reconstruye_con_doble_barra():
+    r"""gap #29 (b): `\\?\UNC\srv\sh\x` (y `//?/UNC/`) es `\\srv\sh\x`, no `srv\sh\x`."""
+    assert cs._sin_prefijo_extendido(BS * 2 + "?" + BS + "UNC" + BS + "srv" + BS + "sh" + BS + "x") == \
+        BS * 2 + "srv" + BS + "sh" + BS + "x"
+    assert cs._sin_prefijo_extendido("//?/UNC/srv/sh/x") == BS * 2 + "srv/sh/x"
+    assert cs._sin_prefijo_extendido(BS * 2 + "?" + BS + "C:" + BS + "x") == "C:" + BS + "x"
+    assert cs._sin_prefijo_extendido("C:" + BS + "x") == "C:" + BS + "x"
+
+
+def test_f1fix3_gap29b_root_unc_extendido_con_proyecto_unc(monkeypatch):
+    r"""gap #29 (b): con proyecto UNC, `\\?\UNC\<srv>\<sh>\...\docs\knowledge\cases` se
+    rechaza y el mismo prefijo fuera de docs/knowledge se admite (realpath neutro: sin red)."""
+    if not EN_WINDOWS:
+        import pytest
+        pytest.skip("rutas UNC: solo Windows")
+    monkeypatch.setattr(cs.os.path, "realpath", lambda p, *a, **k: p)
+    raiz = BS * 2 + "srv" + BS + "sh" + BS + "proj"
+    ext = BS * 2 + "?" + BS + "UNC" + BS + "srv" + BS + "sh" + BS + "proj"
+    assert cs._root_en_docs_knowledge(ext + BS + "docs" + BS + "knowledge" + BS + "cases", raiz) is True
+    assert cs._root_en_docs_knowledge(ext + BS + "data" + BS + "cases", raiz) is False
