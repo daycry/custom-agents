@@ -480,3 +480,232 @@ def test_f1fix1_gap14_m18_clave_desconocida_dentro_de_ids():
     cfg = copy.deepcopy(CONFIG_OK)
     cfg["ids"]["family_regex"] = "^x$"
     assert "ids.family_regex" in _campos(cs.validar_config(cfg))
+
+
+# ------------------------------------------------------------------ fix2 (revision intento 2, Fase 1)
+
+def _cfg_permisiva():
+    cfg = copy.deepcopy(CONFIG_OK)
+    cfg["ids"]["family_pattern"] = ".+"
+    cfg["ids"]["variant_pattern"] = ".+"
+    return cfg
+
+
+def test_f1fix2_gap19_supersedes_case_en_forma_canonica_y_version_minima_1():
+    """gap #19: `@v0`/`@v000` (inexistente), `@v1` sin relleno y digitos unicode se rechazan."""
+    for sup in ("geo-ramp.steep@v0", "geo-ramp.steep@v000", "geo-ramp.steep@v1", "geo-ramp.steep@v01",
+                "geo-ramp.steep@v0001", "geo-ramp.steep@v١", "geo-ramp.steep@v00١"):
+        c = _caso(outcome="corrected", version=2, supersedes_case=sup)
+        assert "supersedes_case" in _campos(cs.validar_caso(c)), sup
+    ok = _caso(outcome="corrected", version=2, supersedes_case="geo-ramp.steep@v001")
+    assert cs.validar_caso(ok) == []
+    # la forma canonica sigue `version_width` de la config del proyecto
+    cfg = copy.deepcopy(CONFIG_OK)
+    cfg["ids"]["version_width"] = 1
+    assert cs.validar_caso(dict(ok, supersedes_case="geo-ramp.steep@v1"), cfg) == []
+    assert "supersedes_case" in _campos(cs.validar_caso(ok, cfg))
+    # una version por encima del ancho se escribe con todos sus digitos (v1000 con width 3)
+    grande = _caso(outcome="corrected", version=1001, supersedes_case="geo-ramp.steep@v1000")
+    assert cs.validar_caso(grande) == []
+
+
+def test_f1fix2_gap20_punto_final_dos_puntos_y_nombres_reservados():
+    """gap #20: con patrones del proyecto permisivos, `.` (separador reservado family.variant),
+    punto/espacio final, `:` (flujo NTFS) y nombres reservados de Windows se rechazan."""
+    cfg = _cfg_permisiva()
+    for campo, mal in (("family", "ramp.x"), ("variant", "x.y"), ("variant", "steep."), ("variant", "steep "),
+                       ("family", "a:b"), ("family", "con"), ("variant", "NUL"), ("family", "Com1"),
+                       ("variant", "lpt9"), ("family", "aux")):
+        c = _caso(**{campo: mal})
+        c["case_id"] = cs.construir_case_id("geo", c["family"], c["variant"])
+        assert campo in _campos(cs.validar_caso(c, cfg)), (campo, mal)
+        try:
+            cs.directorio_version(c["family"], c["variant"], 1)
+        except ValueError:
+            continue
+        raise AssertionError(f"directorio_version acepto {mal!r}")
+    # lo legitimo con patron permisivo sigue pasando (`console`, `con_x`, `com10` no son reservados)
+    for fam in ("console", "con_x", "com10", "ramp"):
+        c = _caso(family=fam, case_id=f"geo-{fam}.steep")
+        assert cs.validar_caso(c, cfg) == [], fam
+
+
+def test_f1fix2_gap20_root_con_prefijo_extendido_no_esquiva_adr019(tmp_path):
+    """gap #20: `\\\\?\\<proyecto>\\docs\\knowledge\\...` (y `//?/`) es la misma carpeta."""
+    raiz = str(tmp_path)
+    dentro = os.path.join(raiz, "docs", "knowledge", "cases")
+    for mal in ("\\\\?\\" + dentro, "//?/" + dentro.replace("\\", "/")):
+        assert "root" in _campos(cs.validar_config(dict(CONFIG_OK, root=mal), raiz)), mal
+    fuera = os.path.join(raiz, "data", "cases")
+    assert cs.validar_config(dict(CONFIG_OK, root="\\\\?\\" + fuera), raiz) == []
+
+
+def test_f1fix2_gap21_anidamiento_excesivo_se_rechaza_no_se_deja_de_mirar():
+    """gap #21: pasado el limite de profundidad, error (fail closed), no silencio."""
+    profundo = {"reasoning": "pienso..."}
+    for _ in range(60):
+        profundo = {"n": profundo}
+    tr = copy.deepcopy(CASO_OK["trajectory"])
+    tr[1]["meta"] = profundo
+    errores = cs.validar_caso(_caso(trajectory=tr))
+    assert any(e["campo"].startswith("trajectory[1]") and "anidamiento" in e["mensaje"] for e in errores), errores
+    # un anidamiento razonable sin CoT no dispara nada
+    llano = {"a": 1}
+    for _ in range(10):
+        llano = {"n": llano}
+    tr = copy.deepcopy(CASO_OK["trajectory"])
+    tr[1]["meta"] = llano
+    assert cs.validar_caso(_caso(trajectory=tr)) == []
+
+
+def test_f1fix2_gap22_parametros_de_proveedor_exentos_solo_en_arguments():
+    """gap #22: `reasoning_effort`/`thinking_budget`/`reasoning_level` son parametros legitimos de
+    herramienta DENTRO de `tool_calls[].arguments`; fuera de ahi siguen siendo CoT."""
+    for clave in ("reasoning_effort", "thinking_budget", "reasoning_level", "Reasoning-Effort"):
+        tr = copy.deepcopy(CASO_OK["trajectory"])
+        tr[2]["tool_calls"][0]["arguments"] = {"angle": 30, clave: "high"}
+        assert cs.validar_caso(_caso(trajectory=tr)) == [], clave
+        tr = copy.deepcopy(CASO_OK["trajectory"])
+        tr[2]["tool_calls"][0]["arguments"] = json.dumps({"opts": {clave: 1024}})
+        assert cs.validar_caso(_caso(trajectory=tr)) == [], clave
+        tr = copy.deepcopy(CASO_OK["trajectory"])
+        tr[2][clave] = "high"                           # fuera de arguments: CoT
+        assert "trajectory[2]." + clave in _campos(cs.validar_caso(_caso(trajectory=tr))), clave
+    # la exencion es de la CLAVE, no de su contenido: CoT anidado bajo ella se sigue viendo
+    tr = copy.deepcopy(CASO_OK["trajectory"])
+    tr[2]["tool_calls"][0]["arguments"] = {"reasoning_effort": {"reasoning": "pienso..."}}
+    assert "trajectory[2].tool_calls[0].arguments.reasoning_effort.reasoning" in _campos(
+        cs.validar_caso(_caso(trajectory=tr)))
+    # cualquier otra clave de CoT dentro de arguments sigue prohibida
+    tr = copy.deepcopy(CASO_OK["trajectory"])
+    tr[2]["tool_calls"][0]["arguments"] = {"reasoning_trace": "x"}
+    assert "trajectory[2].tool_calls[0].arguments.reasoning_trace" in _campos(cs.validar_caso(_caso(trajectory=tr)))
+    # una clave del turno que IMITA la ruta de arguments no hereda la exencion
+    tr = copy.deepcopy(CASO_OK["trajectory"])
+    tr[2]["x.tool_calls[0].arguments"] = {"reasoning_effort": "high"}
+    assert any(e["campo"].endswith("reasoning_effort") for e in cs.validar_caso(_caso(trajectory=tr)))
+
+
+def test_f1fix2_gap23_realpath_que_falla_rechaza_root(tmp_path, monkeypatch):
+    """gap #23: si la ruta no se puede resolver, `root` se rechaza (fail closed)."""
+    def _revienta(*_a, **_k):
+        raise OSError("no resoluble")
+    monkeypatch.setattr(cs.os.path, "realpath", _revienta)
+    assert cs._root_en_docs_knowledge("data/cases", str(tmp_path)) is True
+
+
+def test_f1fix2_gap24_n1_realpath_resuelve_enlaces_a_docs_knowledge(tmp_path):
+    """N1 (`realpath` -> `abspath`): un enlace/junction hacia docs/knowledge se resuelve."""
+    destino = tmp_path / "docs" / "knowledge"
+    destino.mkdir(parents=True)
+    alias = tmp_path / "alias"
+    try:
+        os.symlink(str(destino), str(alias), target_is_directory=True)
+    except (OSError, NotImplementedError, AttributeError):
+        if os.name != "nt":
+            import pytest
+            pytest.skip("sin enlaces simbolicos")
+        import _winapi
+        _winapi.CreateJunction(str(destino), str(alias))
+    assert "root" in _campos(cs.validar_config(dict(CONFIG_OK, root="alias/cases"), str(tmp_path)))
+
+
+def test_f1fix2_gap24_n3_error_al_resolver_desde_validar_config(tmp_path, monkeypatch):
+    """N3 (`except` -> False): ValueError al resolver llega a `validar_config` como error de root."""
+    def _revienta(*_a, **_k):
+        raise ValueError("ruta ilegal")
+    monkeypatch.setattr(cs.os.path, "realpath", _revienta)
+    assert "root" in _campos(cs.validar_config(dict(CONFIG_OK, root="data/cases"), str(tmp_path)))
+
+
+def test_f1fix2_gap24_n4_guion_equivale_a_guion_bajo_en_cot():
+    """N4 (sin `-`->`_`): `chain-of-thought` es la misma clave que `chain_of_thought`."""
+    for clave in ("chain-of-thought", "Chain-Of-Thought"):
+        tr = copy.deepcopy(CASO_OK["trajectory"])
+        tr[2][clave] = "x"
+        assert "trajectory[2]." + clave in _campos(cs.validar_caso(_caso(trajectory=tr))), clave
+
+
+def test_f1fix2_gap24_n9_controles_en_componentes_con_patron_del_proyecto():
+    """N9: con patron permisivo, un caracter de control en family/variant se rechaza igual."""
+    cfg = _cfg_permisiva()
+    for campo, mal in (("family", "a\tb"), ("variant", "x\x01"), ("family", "a\x7fb")):
+        c = _caso(**{campo: mal})
+        c["case_id"] = cs.construir_case_id("geo", c["family"], c["variant"])
+        errores = cs.validar_caso(c, cfg)
+        assert any(e["campo"] == campo and "control" in e["mensaje"] for e in errores), (campo, mal)
+
+
+def test_f1fix2_gap24_n10_directorio_version_rechaza_texto_vacio():
+    """N10: `directorio_version` con family/variant vacio o en blanco levanta ValueError."""
+    for fam, var in (("", "steep"), ("ramp", ""), ("   ", "steep"), (None, "steep")):
+        try:
+            cs.directorio_version(fam, var, 1)
+        except ValueError:
+            continue
+        raise AssertionError(f"directorio_version acepto {(fam, var)!r}")
+
+
+def test_f1fix2_gap24_n12_comment_debe_ser_texto():
+    """N12: `$comment` no texto es error de ese campo."""
+    for raro in (5, ["x"], {"a": 1}, True):
+        assert "$comment" in _campos(cs.validar_config(dict(CONFIG_OK, **{"$comment": raro}))), raro
+    assert cs.validar_config(dict(CONFIG_OK, **{"$comment": "nota"})) == []
+
+
+def test_f1fix2_gap24_n13_root_con_caracteres_de_control():
+    """N13: `root` con caracteres de control se rechaza con ese motivo."""
+    for mal in ("data\x01cases", "data/\ncases", "\tstore"):
+        errores = cs.validar_config(dict(CONFIG_OK, root=mal))
+        assert any(e["campo"] == "root" and "control" in e["mensaje"] for e in errores), repr(mal)
+
+
+def test_f1fix2_gap24_n14_cli_resuelve_root_contra_la_raiz_del_proyecto(tmp_path):
+    """N14 (`_raiz_de`): la raiz se deduce de `<proyecto>/.claude/knowledge-services/training.json`
+    o se toma de `--project-root`, nunca del cwd cuando hay una mejor."""
+    proyecto = tmp_path / "proyecto"
+    d = proyecto / ".claude" / "knowledge-services"
+    d.mkdir(parents=True)
+    cfg = d / "training.json"
+    # absoluto: dentro de docs/knowledge SOLO si la raiz es `proyecto` (con cwd `otro`, no)
+    cfg.write_text(json.dumps(dict(CONFIG_OK, root=str(proyecto / "docs" / "knowledge" / "cases"))),
+                   encoding="utf-8")
+    otro = tmp_path / "otro"
+    otro.mkdir()
+    script = os.path.join(HERE, "case_schema.py")
+
+    def run(*args):
+        return subprocess.run([sys.executable, script, *args], capture_output=True, text=True,
+                              encoding="utf-8", cwd=str(otro))
+
+    r = run("config", str(cfg))
+    assert r.returncode == 1 and "root" in r.stdout, (r.stdout, r.stderr)
+    suelto = tmp_path / "training.json"
+    suelto.write_text(cfg.read_text(encoding="utf-8"), encoding="utf-8")
+    assert run("config", str(suelto)).returncode == 0          # cwd `otro`: no cae en docs/knowledge
+    r = run("config", str(suelto), "--project-root", str(proyecto))
+    assert r.returncode == 1 and "root" in r.stdout, (r.stdout, r.stderr)
+
+
+def test_f1fix2_gap24_n15_hash_debe_casar_entero():
+    """N15 (`PATRON_HASH.match`): un hash con basura detras se rechaza."""
+    arts = [{"path": "final/a.json", "hash": "sha256:abc123XYZ", "kind": "json"}]
+    assert "artifacts[0].hash" in _campos(cs.validar_caso(_caso(artifacts=arts)))
+    arts = [{"path": "final/a.json", "hash": "sha256:abc123 ", "kind": "json"}]
+    assert "artifacts[0].hash" in _campos(cs.validar_caso(_caso(artifacts=arts)))
+
+
+def test_f1fix2_gap24_n16_id_prefix_debe_casar_entero():
+    """N16 (`PATRON_PREFIJO.match`): un id_prefix con basura detras se rechaza (config y case_id)."""
+    for mal in ("geo!", "geo_x", "geo prefijo"):
+        assert "id_prefix" in _campos(cs.validar_config(dict(CONFIG_OK, id_prefix=mal))), mal
+    assert "case_id" in _campos(cs.validar_caso(_caso(case_id="geo!-ramp.steep")))
+
+
+def test_f1fix2_gap24_n18_patron_roto_en_config_no_valida_no_lanza():
+    """N18 (`_casa` sin `try`): una config sin validar con regex rota no hace reventar el caso."""
+    cfg = copy.deepcopy(CONFIG_OK)
+    cfg["ids"]["family_pattern"] = "("
+    cfg["ids"]["variant_pattern"] = "a{4294967296}"
+    errores = cs.validar_caso(CASO_OK, cfg)
+    assert {"family", "variant"} <= _campos(errores)

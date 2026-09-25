@@ -2,8 +2,8 @@
 
 Plantillas y ejemplo completo del **case store**: donde el proyecto guarda cada intento
 («caso») y de donde sale el dataset. La estructura es la de `design.md` (opción O1) de la
-iniciativa `2026-09-16-training-data-services`. `scripts/test_assets.py` comprueba que el
-ejemplo valida con `scripts/case_schema.py` y que el índice cuadra con las versiones.
+iniciativa `2026-09-16-training-data-services`. Un test del repo (no viaja en el paquete
+portable) comprueba que el ejemplo valida con `scripts/case_schema.py` y que el índice cuadra con las versiones.
 
 > El case store vive en el `root` que declara `training.json`, **fuera de Git y de
 > `docs/knowledge/`** (ADR-019). Esta carpeta es solo el ejemplo que viaja con el plugin.

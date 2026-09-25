@@ -27,11 +27,15 @@ Contrato de un caso (lo que el recorder reparte en metadata/request/context/... 
       turno: role in system|user|assistant|tool · content (str) · tool_calls [{name, arguments}]
       · name (obligatorio en `tool`) · ts; NUNCA chain-of-thought (claves que empiezan por
       reasoning/thinking/thought/chain_of_thought/scratchpad, sin distinguir mayusculas, a
-      cualquier profundidad del turno); family/variant sin separadores, `..` ni controles
+      cualquier profundidad del turno; exentos SOLO dentro de `tool_calls[].arguments` los
+      parametros de proveedor `CLAVES_PARAMETRO_PROVEEDOR`; > 50 niveles de anidamiento se
+      rechaza); family/variant sin separadores, `..`, `.`, `:`, controles, espacio final ni
+      nombres reservados de Windows
   validation {status, approved_by_human, approved_at?, reviewer_note?}   obligatorio
       status in pending|approved|needs_changes|rejected; approved <=> approved_by_human true
   outcome in success|failure|corrected (obligatorio); corrected exige, y solo corrected admite,
-      supersedes_case = "<case_id>@v<N>": mismo case_id, version anterior (par fallo -> correccion, CA-12)
+      supersedes_case = "<case_id>@v<NNN>" canonico (digitos ASCII, relleno a version_width, >= 1):
+      mismo case_id, version anterior (par fallo -> correccion, CA-12)
   context (str|obj opcional; `refs`: [{"ref": "<fichero:linea|nodo>", "kind": "..."}] opcional)
   constraints (obj opcional) · metrics (obj opcional, opaco) · created_at (str opcional)
   artifacts (lista opcional de {path, hash "<algo>:<hex>", kind}; nunca contenido inline)
@@ -71,6 +75,15 @@ ROLES = ("system", "user", "assistant", "tool")
 # `reasoning_content`, `reasoning_details`, `thoughts`, `Thinking`... y se buscan en TODO el turno
 # (recursivo, incluidos `tool_calls[].arguments`), no solo en su primer nivel (fix1, gap #6).
 CLAVES_COT = ("reasoning", "thinking", "thought", "chain_of_thought", "scratchpad")
+# Lista blanca DECLARADA (fix2, gap #22): parametros de proveedor que empiezan por un prefijo de
+# CoT pero no son razonamiento. Exentos SOLO como claves dentro de `tool_calls[].arguments` (a
+# cualquier profundidad); su valor se sigue recorriendo. Fuera de `arguments` siguen prohibidos.
+CLAVES_PARAMETRO_PROVEEDOR = ("reasoning_effort", "thinking_budget", "reasoning_level")
+PROFUNDIDAD_MAX = 50   # mas alla, el turno se rechaza (fix2, gap #21: fail closed, no fail open)
+# Nombres reservados de Windows (con o sin extension): no pueden ser `family`/`variant` (gap #20).
+NOMBRES_RESERVADOS = frozenset(["con", "prn", "aux", "nul"] + [f"com{i}" for i in range(1, 10)]
+                               + [f"lpt{i}" for i in range(1, 10)])
+PREFIJOS_EXTENDIDOS = ("\\\\?\\UNC\\", "//?/UNC/", "\\\\?\\", "//?/", "\\\\.\\", "//./")
 CLAVES_INLINE = ("content", "data", "bytes", "base64", "blob")
 
 # Todos los patrones se evaluan con `re.fullmatch` (fix1, gap #4): con fullmatch, `$` ya no acepta
@@ -78,7 +91,7 @@ CLAVES_INLINE = ("content", "data", "bytes", "base64", "blob")
 PATRON_ID_DEFECTO = r"^[a-z0-9][a-z0-9_-]*$"
 PATRON_PREFIJO = re.compile(r"[a-z0-9][a-z0-9-]*")
 PATRON_HASH = re.compile(r"[a-z0-9]+:[0-9a-fA-F]+")
-PATRON_REFERENCIA = re.compile(r"(\S+)@v(\d+)")
+PATRON_REFERENCIA = re.compile(r"(\S+)@v([0-9]+)", re.ASCII)   # forma canonica: ver _validar_supersedes
 VERSION_WIDTH_DEFECTO = 3
 CLAVES_CONFIG = ("version", "enabled", "root", "id_prefix", "ids", "bridge_to_curator", "$comment")
 CLAVES_IDS = ("family_pattern", "variant_pattern", "version_width")
@@ -91,13 +104,22 @@ def _err(campo, mensaje):
 
 def _componente_inseguro(v):
     """Motivo por el que `v` no puede ser un componente de ruta del case store (`family`,
-    `variant`, `id_prefix`), o None. Independiente del patron del proyecto (CWE-22, gap #4)."""
+    `variant`), o None. Independiente del patron del proyecto (CWE-22, gaps #4 y #20): el
+    directorio es `<family>.<variant>`, asi que el punto es el separador reservado."""
     if "/" in v or "\\" in v:
         return "no puede contener separadores de ruta"
     if ".." in v:
         return "no puede contener `..`"
     if any(ord(c) < 32 or ord(c) == 127 for c in v):
         return "no puede contener caracteres de control"
+    if "." in v:
+        return "no puede contener `.` (separa family y variant en case_id y directorio)"
+    if ":" in v:
+        return "no puede contener `:` (flujo alternativo NTFS / unidad)"
+    if v != v.rstrip(" "):
+        return "no puede acabar en espacio (Windows lo recorta: colision de directorios)"
+    if v.casefold() in NOMBRES_RESERVADOS:
+        return "es un nombre reservado de Windows (CON, PRN, AUX, NUL, COM1-9, LPT1-9)"
     return None
 
 
@@ -113,12 +135,23 @@ def _canon(ruta):
     """Ruta comparable: absoluta, sin `..`, enlaces resueltos y SIN distinguir mayusculas (en
     Windows/macOS `Docs/Knowledge` es el mismo directorio; en Linux se rechaza igual: la regla
     peca de estricta, nunca de laxa)."""
-    return os.path.normcase(os.path.realpath(ruta)).casefold()
+    return os.path.normcase(_sin_prefijo_extendido(os.path.realpath(_sin_prefijo_extendido(ruta)))).casefold()
+
+
+def _sin_prefijo_extendido(ruta):
+    """Quita el prefijo de ruta extendida/dispositivo de Windows (`\\\\?\\`, `\\\\?\\UNC\\`,
+    `\\\\.\\` y sus formas con `/`): `realpath` lo conserva y esquivaria la comparacion (gap #20)."""
+    for p in PREFIJOS_EXTENDIDOS:
+        if ruta[: len(p)].upper() == p.upper():
+            resto = ruta[len(p):]
+            return ("\\\\" + resto) if "UNC" in p.upper() else resto
+    return ruta
 
 
 def _root_en_docs_knowledge(root, raiz_proyecto):
     """True si `root` (relativo a `raiz_proyecto` o absoluto) cae en `<proyecto>/docs/knowledge/`."""
     raiz = raiz_proyecto or "."
+    root = _sin_prefijo_extendido(root)
     destino = root.replace("\\", "/") if not os.path.isabs(root) else root
     destino = destino if os.path.isabs(destino) else os.path.join(raiz, destino)
     try:
@@ -262,24 +295,36 @@ def _es_clave_cot(clave):
     return any(norm.startswith(p) for p in CLAVES_COT)
 
 
-def _buscar_cot(valor, campo, errores, profundidad=0):
-    """Recorre `valor` (dicts, listas y `arguments` en texto JSON) y anota cada clave de CoT."""
-    if profundidad > 50:
+def _es_parametro_proveedor(clave):
+    return isinstance(clave, str) and clave.casefold().replace("-", "_") in CLAVES_PARAMETRO_PROVEEDOR
+
+
+def _buscar_cot(valor, campo, errores, profundidad=0, ruta=()):
+    """Recorre `valor` (dicts, listas y `arguments` en texto JSON) y anota cada clave de CoT.
+    `ruta` es la ruta ESTRUCTURAL desde el turno (claves/indices reales, no el texto de `campo`,
+    que una clave podria imitar): decide si se esta dentro de `tool_calls[<j>].arguments`."""
+    if profundidad > PROFUNDIDAD_MAX:
+        # gap #21: fail closed — lo que no se puede recorrer no se puede garantizar libre de CoT
+        errores.append(_err(campo, f"anidamiento > {PROFUNDIDAD_MAX} niveles: no se puede comprobar que no haya chain-of-thought"))
         return
-    if isinstance(valor, str) and campo.endswith(".arguments"):
+    if isinstance(valor, str) and ruta and ruta[-1] == "arguments":
         try:
             valor = json.loads(valor)
+        except RecursionError:
+            errores.append(_err(campo, f"anidamiento > {PROFUNDIDAD_MAX} niveles: no se puede comprobar que no haya chain-of-thought"))
+            return
         except ValueError:
             return
+    en_arguments = len(ruta) >= 3 and ruta[0] == "tool_calls" and isinstance(ruta[1], int) and ruta[2] == "arguments"
     if isinstance(valor, dict):
         for clave, sub in valor.items():
-            if _es_clave_cot(clave):
+            if _es_clave_cot(clave) and not (en_arguments and _es_parametro_proveedor(clave)):
                 errores.append(_err(f"{campo}.{clave}", "prohibido: la trayectoria nunca guarda chain-of-thought"))
             else:
-                _buscar_cot(sub, f"{campo}.{clave}", errores, profundidad + 1)
+                _buscar_cot(sub, f"{campo}.{clave}", errores, profundidad + 1, ruta + (clave,))
     elif isinstance(valor, list):
         for j, sub in enumerate(valor):
-            _buscar_cot(sub, f"{campo}[{j}]", errores, profundidad + 1)
+            _buscar_cot(sub, f"{campo}[{j}]", errores, profundidad + 1, ruta + (j,))
 
 
 def _validar_turno(i, turno, errores):
@@ -447,15 +492,16 @@ def validar_caso(caso, config=None):
             if outcome in tabla:
                 extra = f" (vocabulario `{fuente}`: mapea con mapear_outcome -> `{tabla[outcome]}`)"
         errores.append(_err("outcome", f"obligatorio; uno de {', '.join(OUTCOMES)}{extra}"))
-    _validar_supersedes(caso, outcome, errores)
+    _validar_supersedes(caso, outcome, errores, width)
 
     _validar_artifacts(caso.get("artifacts"), errores)
     return errores
 
 
-def _validar_supersedes(caso, outcome, errores):
+def _validar_supersedes(caso, outcome, errores, width=VERSION_WIDTH_DEFECTO):
     """gap #5: `supersedes_case` solo con `corrected` (y ahi obligatorio), apuntando a una version
-    ESTRICTAMENTE anterior del MISMO `case_id` (par fallo -> correccion, CA-12 de design.md)."""
+    ESTRICTAMENTE anterior del MISMO `case_id` (par fallo -> correccion, CA-12 de design.md), en
+    forma CANONICA (`referencia_version`: digitos ASCII, relleno a `version_width`, >= 1; gap #19)."""
     sup = caso.get("supersedes_case")
     if sup is None:
         if outcome == "corrected":
@@ -465,13 +511,18 @@ def _validar_supersedes(caso, outcome, errores):
     if m is None:
         errores.append(_err("supersedes_case", "formato `<case_id>@v<N>`"))
         return
+    anterior = int(m.group(2))
+    if anterior < 1 or m.group(2) != f"{anterior:0{width}d}":
+        errores.append(_err("supersedes_case", f"forma canonica `<case_id>@v{'N' * width}` (version >= 1, {width} digitos): "
+                                                f"p. ej. `{referencia_version(m.group(1), max(anterior, 1), width)}`"))
+        return
     if outcome != "corrected":
         errores.append(_err("supersedes_case", "solo con outcome `corrected` (un caso que corrige a otro)"))
         return
     case_id, version = caso.get("case_id"), caso.get("version")
     if isinstance(case_id, str) and m.group(1) != case_id:
         errores.append(_err("supersedes_case", f"debe apuntar al mismo case_id `{case_id}` (una version anterior)"))
-    elif _es_int(version) and int(m.group(2)) >= version:
+    elif _es_int(version) and anterior >= version:
         errores.append(_err("supersedes_case", f"debe apuntar a una version anterior a v{version} (nunca a si mismo ni a una posterior)"))
 
 

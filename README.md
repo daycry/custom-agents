@@ -21,7 +21,7 @@
 [![npx](https://img.shields.io/badge/install-npx-cb3837.svg?logo=npm&logoColor=white)](docs/en/INTEROP.md)
 [![SDD](https://img.shields.io/badge/methodology-Spec--Driven-2ea44f.svg)](docs/en/FLOWS.md)
 [![Agents](https://img.shields.io/badge/agents-10-0ea5e9.svg)](docs/en/README.md)
-[![Skills](https://img.shields.io/badge/skills-18-0ea5e9.svg)](docs/en/README.md)
+[![Skills](https://img.shields.io/badge/skills-19-0ea5e9.svg)](docs/en/README.md)
 [![Commands](https://img.shields.io/badge/commands-12-0ea5e9.svg)](docs/en/README.md)
 [![Portable skills](https://img.shields.io/badge/portable%20skills-AGENTS.md%20%C2%B7%20Cursor-0ea5e9.svg)](docs/en/INSTALL.md#using-the-skills-outside-claude-code-portable-package)
 
