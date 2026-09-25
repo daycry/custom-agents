@@ -119,21 +119,37 @@ fuente)` según la tabla `OUTCOME_MAPEO`. Lo que no esté en la tabla devuelve `
 
 ### Códigos de salida y `index check`
 
-- Todos los subcomandos: exit 0 ok · 1 rechazo (caso o config inválidos, sin el flag de Gold,
-  enlace, versión que ya existe) · 2 uso, JSON ilegible o error de E/S · **exit 3 transitorio**:
-  el bloqueo no llegó a tiempo o el índice cambió durante `index rebuild`; **no se ha escrito
-  nada** y reintenta es seguro. Nunca sale exit 3 después de grabar una versión: si su línea del
-  índice no se pudo escribir, `record` sale con 0 y un aviso («`index rebuild`»); no la repitas.
-- `index check` sale con **exit 1** si hay alguna diferencia: una versión en `cases/` y no en el
-  índice (o al revés), un campo distinto, una línea corrupta del índice, o una versión que el
-  recorrido omite: incompleta (sin `metadata.json` o `validation.json`), duplicada (mismo número
-  con dos anchos), enlace (symlink/junction), un fichero que no es un fichero regular, no legible
-  tras los reintentos (bloqueada o sin permisos), JSON ilegible, `metadata.json` que
-  no casa con su ruta o con el esquema, o un `validation.json` incoherente (`approved` sin humano).
-- Es **informativo** (exit 0, línea `info:`) lo que está **en curso**: una versión sin
-  `metadata.json` cuyo directorio tiene `mtime` de hace menos de 60 s, o una completa que
-  está en `cases/` y no en el índice con `metadata.json` de hace menos de 60 s (grabación en marcha).
-  Pasados 60 s, o con un `mtime` futuro, es una incoherencia.
+Exit 0 ok · exit 1 rechazo (caso o config inválidos, sin el flag de Gold, enlace, versión que ya
+existe) · exit 2 uso, JSON ilegible, error de E/S o **permanente** (permisos, solo lectura, sistema sin
+bloqueos `ENOLCK`: reintentar no sirve, arregla la causa) · **exit 3 transitorio**: **no se ha
+escrito nada** y reintentar es seguro. Exit 3 por subcomando:
+
+- `record`: el bloqueo no llegó en la reserva, o hubo más de 64 números ocupados 3 veces seguidas.
+  Nunca después de grabar: si la línea del índice no se escribió, sale con 0 y un aviso («`index
+  rebuild`»; si el aviso dice PERMANENTE, arregla antes los permisos). No la repitas.
+- `set-status`: el bloqueo no llegó. `index rebuild`: algún bloqueo no llegó o la identidad del
+  índice (sustituido o truncado) cambió 3 veces seguidas. `index check`: la identidad cambió 3
+  veces seguidas. `list`: nunca.
+
+`index check` no escribe ni toma el bloqueo. Sale con **exit 1** si hay alguna de estas diferencias:
+
+| Motivo | Exit | Qué hacer |
+|---|---|---|
+| Versión en `cases/` y no en el índice, al revés, o un campo distinto | 1 | `index rebuild` |
+| Una línea corrupta del índice (se ignora con aviso al leerla) | 1 | `index rebuild` |
+| Versión incompleta (sin `metadata.json` o `validation.json`) o con `mtime` futuro | 1 | Repárala o graba otra versión (se conserva) |
+| Versión duplicada (mismo número con dos anchos) | 1 | Deja un solo directorio por número |
+| Entrada con nombre de versión que no es un directorio de versión (fichero, enlace roto) | 1 | Retírala o renómbrala (no cuenta como duplicado) |
+| Enlace (symlink/junction) o fichero que es un enlace duro | 1 | Sustitúyelo por el fichero real; nunca se sigue |
+| Fichero que no es un fichero regular, no legible tras los reintentos (bloqueada o sin permisos) o JSON ilegible | 1 | Revisa permisos y contenido |
+| `metadata.json` que no casa con su ruta o con el esquema, o `validation.json` incoherente (`approved` sin humano) | 1 | Corrígelo a mano; no se indexa |
+| Un temporal huérfano `.tmp-*` (raíz, `cases/` o un caso) de hace ≥ 60 s o con `mtime` futuro | 1 | Si no hay nada en marcha, bórralo a mano |
+
+Es **informativo** (exit 0, línea `info:`) lo que está **en curso**: una versión sin
+`metadata.json` cuyo directorio tiene `mtime` de hace menos de 60 s, una completa que está en
+`cases/` y no en el índice con `metadata.json` de hace menos de 60 s, o un temporal reciente. Bajo
+escritura muy intensa, `check` puede reportar un **falso positivo** transitorio que un segundo
+`check` ya no ve.
 
 ### Qué se redacta y concurrencia
 
@@ -141,15 +157,17 @@ fuente)` según la tabla `OUTCOME_MAPEO`. Lo que no esté en la tabla devuelve `
   (un `arguments` en texto JSON, como estructura), las cadenas de `metrics`, `created_at`,
   `artifacts[]` (salvo `hash`), `reviewer_note`/`approved_at` y `set-status --note`. No se tocan
   los campos cerrados: `case_id`, `family`, `variant`, `version`, `outcome`, `supersedes_case`,
-  `status`, `approved_by_human`, `hash`. Se rechazan `NaN`/`Infinity`, tipos que no son JSON, más
-  de 50 niveles de anidamiento y un `arguments` con claves duplicadas.
-- El bloqueo `<root>/.cases_index.lock` (persistente, nunca se borra) solo cubre pasos cortos: la
-  reserva de la versión, su línea del índice y cada `set-status`; los ficheros de la versión se
-  escriben sin él. `index rebuild` recorre `cases/` sin bloquear a los escritores (se serializa
-  con `<root>/.cases_rebuild.lock`) y relee del disco lo que cambió mientras tanto. Espera hasta
-  10 s; si no llega, exit 3.
+  `status`, `approved_by_human`, `hash`. Se rechazan `NaN`/`Infinity`, tipos que no son JSON, texto
+  no codificable en UTF-8, más de 50 niveles de anidamiento y un `arguments` con claves duplicadas.
+- El bloqueo `<root>/.cases_index.lock` (persistente, nunca se borra) solo cubre pasos cortos,
+  independientes del tamaño del store: la reserva de la versión, su línea del índice y cada
+  `set-status`. Los ficheros se escriben sin él; si no llega en 10 s, exit 3.
+- `index rebuild` (serializado con `<root>/.cases_rebuild.lock`) recorre `cases/` y relee del disco,
+  sin bloquear a los escritores, lo que cambió mientras tanto; con el bloqueo solo copia el
+  residual (las últimas líneas llegadas) **tal cual**. Límite declarado: un `set-status` muerto entre
+  su escritura y su línea cuya clave caiga en ese residual queda como sin rebuild; `check` lo reporta.
 - Nunca se escribe a través de un enlace que salga de `root` o entre en `docs/knowledge/`, ni en
-  un índice o bloqueo con enlaces duros; los lectores omiten todo enlace sin seguirlo.
+  un índice, bloqueo o temporal con enlaces duros; los lectores omiten todo enlace sin seguirlo.
 
 ## Degradación
 

@@ -21,8 +21,12 @@ FORMA, nunca dominio (CA-04): las metricas llegan ya calculadas por el proyecto.
      `case_id`, `family`, `variant`, `version`, `outcome`, `supersedes_case`, `validation.status`,
      `validation.approved_by_human` y `artifacts[].hash`;
   3. valida el caso YA redactado (basta que falle uno de los dos para rechazar);
-  4. solo entonces escribe, en dos secciones CORTAS con el bloqueo (diseno D-fix2, E1): S1 reserva
-     la version (`os.mkdir`, con la comprobacion de mayusculas y de «mismo numero con otro ancho»);
+  4. solo entonces escribe, en dos secciones CORTAS con el bloqueo (D-fix2 E1 + D-fix3 §1/F1): FUERA
+     del bloqueo, el recorrido O(C) de mayusculas (la existencia del caso sale del nombre EXACTO de
+     `scandir`), el dueño del directorio, la PISTA de la version (O(V)) y los ficheros en un temporal
+     `cases/.tmp-*` creados con `O_EXCL` (gap #77); S1 (bloqueo, O(1) en C y V) prueba el numero con
+     sus <= 9 anchos y hace `os.mkdir` (mas de 64 numeros ocupados -> suelta, recalcula la pista y
+     reintenta, acotado; si no, exit 3), y repite el recorrido de mayusculas SOLO para un caso nuevo;
      sin bloqueo se mueven los ficheros (W); S2 RELEE `validation.json` del disco e indexa ESE
      estado (A). Si el bloqueo no llega en S1 -> exit 3 sin escribir nada; si no llega en S2 la
      version YA esta grabada: exit 0 con aviso «index rebuild» (nunca exit 3 despues de W).
@@ -54,36 +58,50 @@ rechazan antes de leerlos. Lectura + escritura + linea del indice, con el bloque
 Indice `<root>/cases_index.jsonl` (T-06): append-only, una linea por alta y por cambio de estado
 con las claves exactas `case_id, version, family, variant, status, outcome, updated_at`; vale la
 ultima por `(case_id, version)`. Es una CACHE; el ensamblador (T-09) leera `validation.json`.
-  - `index rebuild` en tres fases, serializado por `<root>/.cases_rebuild.lock` (se toma ANTES que
-    el del indice; los escritores nunca lo toman): F0 (bloqueo) anota tamano e identidad del indice;
-    F1 (SIN bloqueo) recorre `cases/` y escribe un temporal; F2 (bloqueo, O(cola)) comprueba la
-    identidad, RELEE del disco cada version que aparece en la cola (lineas anadidas durante F1) y
-    sustituye el indice. Identidad cambiada o `PermissionError` al sustituir -> exit 3 sin tocar.
-  - `index check` sigue el mismo esquema sin escribir y devuelve exit 1 si hay alguna diferencia:
-    una version en `cases/` y no en el indice (o al reves), un campo distinto, una linea corrupta
-    del indice, y toda version que el recorrido omite: incompleta (sin `metadata.json` o
-    `validation.json`), duplicada (mismo numero con dos anchos), enlazada (symlink/junction), con un
-    fichero que no es un fichero regular, no legible tras los reintentos (bloqueada o sin permisos),
-    JSON ilegible, `metadata.json` que no casa con su ruta o con el esquema, o `validation.json`
+  - `index rebuild`, serializado por `<root>/.cases_rebuild.lock` (se toma ANTES que el del indice;
+    los escritores nunca lo toman): F0 (bloqueo, O(1)) anota la identidad del indice y su offset;
+    F1 (SIN bloqueo) recorre `cases/`; pasadas SIN bloqueo releen del disco las claves distintas de
+    la cola nueva (E3), comprobando la identidad en cada una, hasta que una lee <= 64 lineas o tras
+    8 (nunca exit 3 por trafico); F2 (bloqueo, O(bytes del residual), sin relecturas) comprueba la
+    identidad, copia el residual TAL CUAL (lineas validas) y sustituye el indice. Limite declarado
+    (E3 ampliado por F2): un `set-status` muerto entre W y A cuya clave caiga en el residual queda
+    igual que sin rebuild; `index check` lo reporta.
+  - `index check` nunca toma `.cases_index.lock` (F3: no bloquea a los escritores): mismo esquema
+    sin escribir, con una confirmacion final que relee la cola nueva y, del disco, lo que difiere, y
+    comprueba la identidad. Exit 1 si hay alguna diferencia: una version en `cases/` y no en el
+    indice (o al reves), un campo distinto, una linea corrupta del indice, un temporal huerfano
+    (`.tmp-*` de la raiz, de `cases/` o de un caso, de hace >= 60 s o con `mtime` futuro), una
+    entrada con nombre de version que no es un directorio (fichero, enlace roto), y toda version que
+    el recorrido omite: incompleta (sin `metadata.json` o `validation.json`), duplicada (mismo
+    numero con dos anchos), enlazada (symlink/junction), con un fichero que no es un fichero regular
+    o que es un enlace duro, no legible tras los reintentos (bloqueada o sin permisos), JSON
+    ilegible, `metadata.json` que no casa con su ruta o con el esquema, o `validation.json`
     incoherente. Es INFORMATIVO (exit 0) lo que esta «en curso»: una version sin `metadata.json`
-    cuyo directorio se modifico hace menos de `GRACIA_EN_CURSO_S` (60 s), o una completa sin linea
-    con `metadata.json` de hace menos de 60 s; un `mtime` futuro nunca esta «en curso».
+    cuyo directorio se modifico hace menos de `GRACIA_EN_CURSO_S` (60 s), una completa sin linea con
+    `metadata.json` de hace menos de 60 s, o un temporal reciente; un `mtime` futuro nunca esta «en
+    curso». Bajo escritura muy intensa cabe un falso positivo transitorio (un segundo `check` ya no
+    lo ve).
   - Las lineas corruptas se ignoran con aviso al leer; se lee en streaming (linea a linea).
   - Los lectores detectan enlaces por entrada sin `realpath` (`is_symlink()` o el bit «name
     surrogate» de `st_reparse_tag`; un placeholder de OneDrive no es enlace).
 
 Bloqueo `<root>/.cases_index.lock` (`flock`/`msvcrt`, fichero que no se borra nunca): solo protege
-secciones O(1) (una linea del indice, un `validation.json`, la reserva de una version). Espera con
-retroceso exponencial y jitter (5 -> 50 ms) hasta `ESPERA_BLOQUEO_S`; si no llega, no se escribe
-nada (`BloqueoNoDisponible`, exit 3: transitorio, reintenta). El SO lo libera al morir el proceso.
+secciones O(1) (una linea del indice, un `validation.json`, la reserva de una version, F0) y el
+residual de F2. Espera con retroceso exponencial y jitter (5 -> 50 ms) hasta `ESPERA_BLOQUEO_S`; si
+no llega, no se escribe nada (`BloqueoNoDisponible`, exit 3: transitorio, reintenta). Solo la
+contencion es transitoria: no poder abrirlo o un fallo que no es contencion (`ENOLCK`) es
+permanente (exit 2, gap #76). El SO lo libera al morir el proceso.
 
 Estructura (`case_schema.directorio_version`, ancho `ids.version_width`):
   <root>/cases/<family>.<variant>/v<NNN>/{metadata.json, request.json ({"request": ...}),
   context.json, constraints.json, trajectory.jsonl, metrics.json, validation.json,
   final/artifacts.json}  — JSON UTF-8 sin escapar (`ensure_ascii=False`), fin de linea LF.
 
-Uso (exit 0 ok · 1 rechazo/validacion · 2 uso/JSON ilegible/error de E/S · 3 transitorio: el
-bloqueo no llego o el indice cambio durante `rebuild`; no se escribio nada, reintenta):
+Uso (exit 0 ok · 1 rechazo/validacion · 2 uso/JSON ilegible/error de E/S o permanente: permisos,
+solo lectura, sin bloqueos · 3 transitorio: no se escribio nada, reintenta). Exit 3 por subcomando:
+`record` (el bloqueo de S1 no llego, o mas de 64 numeros ocupados 3 veces seguidas), `set-status`
+(el bloqueo no llego), `index rebuild` (algun bloqueo no llego, o la identidad del indice cambio 3
+veces seguidas), `index check` (la identidad del indice cambio 3 veces seguidas); `list`, nunca:
   case-recorder.py record <caso.json> [--config <training.json>] [--project-root <dir>] [--approved-by-human]
   case-recorder.py set-status <case_id> <version> <status> [--approved-by-human] [--note <texto>] [...]
   case-recorder.py index {rebuild|check} [...]     # check: exit 1 si el indice difiere de cases/
@@ -91,6 +109,7 @@ bloqueo no llego o el indice cambio durante `rebuild`; no se escribio nada, rein
 """
 import argparse
 import datetime
+import errno
 import hashlib
 import importlib.util
 import json
@@ -435,8 +454,46 @@ def _errores_arguments_ambiguos(caso):
     return errores
 
 
+MENSAJE_NO_UTF8 = "texto no codificable en UTF-8 (surrogate suelto): el caso debe ser texto Unicode valido"
+
+
+def _codificable(texto):
+    try:
+        texto.encode("utf-8")
+        return True
+    except UnicodeEncodeError:
+        return False
+
+
+def _errores_no_codificables(caso):
+    """gap #73: toda cadena (valor o CLAVE) que se escribiria debe codificarse en UTF-8; un surrogate
+    suelto (U+D800..U+DFFF sin pareja) acabaria en `UnicodeEncodeError` al escribir. Tambien dentro
+    de un `arguments` en texto JSON (su escape reaparece al parsearlo). Iterativo."""
+    errores, pila = [], [("", caso)]
+    while pila:
+        campo, v = pila.pop()
+        if isinstance(v, str):
+            if not _codificable(v):
+                errores.append({"campo": campo or "(caso)", "mensaje": MENSAJE_NO_UTF8})
+        elif isinstance(v, dict):
+            for k, x in v.items():
+                if isinstance(k, str) and not _codificable(k):
+                    errores.append({"campo": campo or "(caso)", "mensaje": f"clave: {MENSAJE_NO_UTF8}"})
+                    continue
+                sub = f"{campo}.{k}" if campo else str(k)
+                pila.append((sub, x))
+                if k == "arguments" and isinstance(x, str):
+                    try:
+                        pila.append((sub, json.loads(x)))
+                    except (ValueError, RecursionError):
+                        pass
+        elif isinstance(v, list):
+            pila.extend((f"{campo}[{i}]", x) for i, x in enumerate(v))
+    return errores
+
+
 def _errores_extra(caso):
-    errores = _errores_no_finitos(caso) + _errores_arguments_ambiguos(caso)
+    errores = _errores_no_finitos(caso) + _errores_arguments_ambiguos(caso) + _errores_no_codificables(caso)
     v = caso.get("version")
     if cs._es_int(v) and v > VERSION_MAX:
         errores.append({"campo": "version", "mensaje": f"fuera de rango (1..{VERSION_MAX})"})
@@ -471,19 +528,51 @@ def _es_version(nombre):
     return len(nombre) > 1 and nombre[0] == "v" and all(c in DIGITOS for c in nombre[1:])
 
 
-def _entradas_version(dir_caso):
-    """`[(numero, nombre, DirEntry)]` de los directorios `v<digitos>` de `dir_caso` (cualquier
-    ancho, enlaces incluidos: ocupan su numero), con `os.scandir` (sin un `isdir` por entrada)."""
+def _tipo_entrada(x, ruta):
+    """EL criterio de «entrada de version» (gap #74), compartido por el recorrido (`scandir`) y por
+    `_localizar_version` (`lstat`): `"dir"` (directorio real: una version), `"enlace"` (symlink o
+    junction, rota o no: nunca se sigue) u `"otro"` (fichero suelto u otra cosa); None si no existe.
+    Solo `"dir"` es una version; lo demas no cuenta como duplicado e `index check` lo reporta."""
+    try:
+        st = _stat_sin_seguir(x)
+    except FileNotFoundError:
+        return None
+    except OSError:
+        return "otro"
+    es = _es_enlace_st(st)
+    if es is None:
+        es = _motivo_enlace(x, ruta) == MOTIVO_ENLACE
+    if es:
+        return "enlace"
+    return "dir" if stat.S_ISDIR(st.st_mode) else "otro"
+
+
+def _escanear_caso(dir_caso):
+    """`(entradas, temporales)` de `dir_caso` en UN `scandir`: `entradas` = `[(numero, nombre,
+    DirEntry, tipo)]` de todo nombre `v<digitos>` (cualquier ancho y tipo, gap #74) y `temporales` =
+    los `DirEntry` `.tmp-*` (gap #80)."""
+    entradas, temporales = [], []
     try:
         with os.scandir(dir_caso) as it:
-            return [(int(e.name[1:]), e.name, e) for e in it if _es_version(e.name) and e.is_dir()]
+            for e in it:
+                if _es_version(e.name):
+                    entradas.append((int(e.name[1:]), e.name, e, _tipo_entrada(e, e.path)))
+                elif e.name.startswith(PREFIJO_TEMPORAL):
+                    temporales.append(e)
     except OSError:
-        return []
+        pass
+    return entradas, temporales
+
+
+def _entradas_version(dir_caso):
+    """`[(numero, nombre, DirEntry, tipo)]` de los nombres `v<digitos>` de `dir_caso` (gap #46: con
+    `os.scandir`, sin un `isdir` por entrada)."""
+    return _escanear_caso(dir_caso)[0]
 
 
 def _dirs_version(dir_caso):
-    """`[(numero, nombre)]` de los directorios `v<digitos>` de `dir_caso` (gap #46)."""
-    return [(n, nombre) for n, nombre, _e in _entradas_version(dir_caso)]
+    """`[(numero, nombre)]` de las VERSIONES (directorios reales `v<digitos>`) de `dir_caso`."""
+    return [(n, nombre) for n, nombre, _e, tipo in _entradas_version(dir_caso) if tipo == "dir"]
 
 
 def versiones(dir_caso):
@@ -492,24 +581,34 @@ def versiones(dir_caso):
 
 
 def _siguiente_version(dir_caso):
-    vs = versiones(dir_caso)
-    return (vs[-1] + 1) if vs else 1
+    """PISTA de la siguiente version (fuera del bloqueo, O(V)): mayor numero OCUPADO + 1, contando
+    tambien lo que no es version (un `mkdir` sobre ese nombre fallaria igual)."""
+    ns = [n for n, _nombre, _e, _t in _entradas_version(dir_caso)]
+    return (max(ns) + 1) if ns else 1
 
 
 def _nombre_version(version, width):
     return os.path.basename(cs.directorio_version("x", "y", version, width))
 
 
-def _localizar_version(dir_caso, version, width=cs.VERSION_WIDTH_DEFECTO):
-    """Nombres de directorio que existen para el NUMERO `version` con cualquier ancho (gaps #40/#60):
-    un `lstat` por ancho posible, O(1) sea cual sea el numero de versiones del caso."""
+def _ocupantes_version(dir_caso, version, width=cs.VERSION_WIDTH_DEFECTO):
+    """`{nombre: tipo}` de lo que existe para el NUMERO `version` con cualquier ancho (gaps #40/#60,
+    F1): un `lstat` por ancho posible (<= 9), O(1) sea cual sea el numero de versiones del caso."""
     anchos = range(len(str(version)), max(len(str(VERSION_MAX)), width) + 1)
-    nombres = []
+    ocupantes = {}
     for w in anchos:
         nombre = f"v{version:0{w}d}"
-        if nombre not in nombres and os.path.lexists(os.path.join(dir_caso, nombre)):
-            nombres.append(nombre)
-    return nombres
+        if nombre not in ocupantes:
+            ruta = os.path.join(dir_caso, nombre)
+            tipo = _tipo_entrada(ruta, ruta)
+            if tipo is not None:
+                ocupantes[nombre] = tipo
+    return ocupantes
+
+
+def _localizar_version(dir_caso, version, width=cs.VERSION_WIDTH_DEFECTO):
+    """Nombres de las VERSIONES (directorios reales, gap #74) del NUMERO `version` con cualquier ancho."""
+    return [n for n, tipo in _ocupantes_version(dir_caso, version, width).items() if tipo == "dir"]
 
 
 def _dentro(ruta_canon, base_canon):
@@ -649,10 +748,19 @@ def _metadata(caso):
     return meta
 
 
-def _escribir(ruta, datos):
-    os.makedirs(os.path.dirname(ruta), exist_ok=True)
-    with open(ruta, "wb") as f:
-        f.write(datos)
+class _TemporalManipulado(Rechazo):
+    """Un fichero del temporal ya existia al crearlo (p. ej. un enlace duro plantado, gap #77)."""
+
+
+def _escribir_nuevo(ruta, datos):
+    """Crea `ruta` con `O_CREAT | O_EXCL` (`"xb"`, gap #77): si ya existe —un enlace duro o simbolico
+    plantado en el temporal mientras se esperaba el bloqueo— no se escribe a traves de el."""
+    try:
+        with open(ruta, "xb") as f:
+            f.write(datos)
+    except FileExistsError:
+        raise _TemporalManipulado(f"{os.path.basename(os.path.dirname(ruta))}/{os.path.basename(ruta)} ya existia en el "
+                                  "temporal (¿enlace plantado?, CWE-59/367); no se escribe a traves de el") from None
 
 
 def _reemplazar(origen, destino):
@@ -715,50 +823,62 @@ def _limpiar_temporal(tmp):
         except OSError: pass
 
 
+SALTOS_MAX_S1 = 64                 # F1: numeros ocupados que S1 salta con el bloqueo antes de soltarlo
+REINTENTOS_S1 = 3                  # ... y veces que recalcula la pista fuera del bloqueo (luego exit 3)
+
+
 def _reservar(store, dir_caso, caso, width, auto, raiz_proyecto):
-    """S1 (con el bloqueo): numero de version con cualquier ancho (#40a) y `os.mkdir` del destino
-    (falla si existe: nadie pisa a nadie). Tras crearlo se comprueba su `realpath`. Devuelve la ruta."""
-    existentes = set(versiones(dir_caso))
-    if auto:
-        caso["version"] = max([caso["version"]] + [v + 1 for v in existentes])
-    elif caso["version"] in existentes:
-        raise Rechazo(f"{cs.referencia_version(caso['case_id'], caso['version'], width)} ya existe (con este u otro "
-                      "ancho de version): el recorder nunca sobrescribe una version (graba sin `version` para la "
-                      "siguiente libre)")
+    """S1 (con el bloqueo, O(1) en C y en V_caso: D-fix3 §1 + F1): parte de la PISTA calculada fuera
+    del bloqueo; «mismo numero con otro ancho» (#40a) por `_ocupantes_version` (<= 9 `lstat`, cubre un
+    `v0000001` a mano) y `os.mkdir` del destino (falla si existe: nadie pisa a nadie). En automatico,
+    un numero ocupado se salta; mas de `SALTOS_MAX_S1` saltos -> None (el llamador suelta el bloqueo
+    y recalcula la pista). Tras crearlo se comprueba su `realpath`. Devuelve la ruta."""
     os.makedirs(dir_caso, exist_ok=True)
-    version = caso["version"]
+    version, saltos = caso["version"], 0
     while True:
+        ocupado = bool(_ocupantes_version(dir_caso, version, width))
         destino = os.path.join(dir_caso, _nombre_version(version, width))
-        try:
-            os.mkdir(destino)
-            break
-        except FileExistsError:
-            if not auto:
-                raise Rechazo(f"{cs.referencia_version(caso['case_id'], version, width)} ya existe: el recorder "
-                              "nunca sobrescribe una version (graba sin `version` para la siguiente libre)") from None
-            version = max(version + 1, _siguiente_version(dir_caso))
+        if not ocupado:
+            try:
+                os.mkdir(destino)
+                break
+            except FileExistsError:
+                ocupado = True
+        if not auto:
+            raise Rechazo(f"{cs.referencia_version(caso['case_id'], version, width)} ya existe (con este u otro "
+                          "ancho de version): el recorder nunca sobrescribe una version (graba sin `version` para "
+                          "la siguiente libre)")
+        saltos += 1
+        if saltos > SALTOS_MAX_S1:
+            return None
+        version += 1
     _comprobar_contencion(store, [destino], raiz_proyecto)
     caso["version"] = version
     return destino
 
 
-def _mover_version(store, tmp, destino, ficheros, meta_bytes, raiz_proyecto):
+def _mover_version(store, tmp, destino, ficheros, raiz_proyecto):
     """W (SIN bloqueo): mueve los ficheros ya escritos del temporal a la version reservada;
-    `metadata.json` el ultimo. Antes vuelve a comprobar el `realpath` del destino (un enlace que
-    aparezca despues de S1, gap #43)."""
-    _comprobar_contencion(store, [destino], raiz_proyecto)
+    `metadata.json` el ultimo. Antes vuelve a comprobar el `realpath` del temporal y del destino
+    (un enlace que aparezca despues de S1, gaps #43/#75-M15)."""
+    _comprobar_contencion(store, [tmp, destino], raiz_proyecto)
     os.mkdir(os.path.join(destino, "final"))
     for rel in ficheros:
         _reemplazar(os.path.join(tmp, rel), os.path.join(destino, rel))
-    _escribir(os.path.join(tmp, "metadata.json"), meta_bytes)
     _reemplazar(os.path.join(tmp, "metadata.json"), os.path.join(destino, "metadata.json"))
 
 
 def _leer_metadata_sin_enlace(dir_v):
-    """`metadata.json` de una version (None si falta); `Rechazo` si es un enlace (gap #66)."""
+    """`metadata.json` de una version (None si falta); `Rechazo` si es un enlace, simbolico o duro
+    (gaps #66/#79)."""
     ruta = os.path.join(dir_v, "metadata.json")
     if _motivo_enlace(ruta, ruta):
         raise Rechazo(f"{os.path.basename(dir_v)}/metadata.json: {MOTIVO_ENLACE}")
+    try:
+        if os.lstat(ruta).st_nlink > 1:
+            raise Rechazo(f"{os.path.basename(dir_v)}/metadata.json: enlace duro compartido (CWE-59); no se lee")
+    except FileNotFoundError:
+        return None
     try:
         return _leer_json_reintentando(ruta)[0]
     except FileNotFoundError:
@@ -795,19 +915,35 @@ def _comprobar_supersedes(caso, dir_caso, width):
                        "del mismo case_id (par fallo -> correccion)"}])
 
 
-def _comprobar_directorio_caso(store, fam, var, case_id):
-    """gap #40b: un `case_id` que solo difiere en mayusculas de otro ya grabado compartiria
-    directorio en NTFS/APFS: se rechaza (tambien en Linux: la regla peca de estricta). Y si el
-    directorio del caso existe, su `metadata.case_id` debe ser el mismo."""
-    nombre = f"{fam}.{var}"
+def _nombres_de_cases(store):
+    """Nombres EXACTOS de `cases/` (un `scandir`, O(C)); `[]` si aun no existe."""
     try:
         with os.scandir(os.path.join(store, "cases")) as it:
-            otros = [e.name for e in it if e.name != nombre and e.name.casefold() == nombre.casefold()]
+            return [e.name for e in it]
     except FileNotFoundError:
-        return
+        return []
+
+
+def _comprobar_mayusculas(nombres, nombre, case_id):
+    """gap #40b: un `case_id` que solo difiere en mayusculas de otro ya grabado compartiria
+    directorio en NTFS/APFS: se rechaza (tambien en Linux: la regla peca de estricta)."""
+    otros = [n for n in nombres if n != nombre and n.casefold() == nombre.casefold()]
     if otros:
         raise Rechazo(f"`{case_id}`: ya existe `cases/{otros[0]}`, que solo difiere en mayusculas "
                       "(compartirian directorio en Windows/macOS); no se escribe nada")
+
+
+def _comprobar_directorio_caso(store, fam, var, case_id):
+    """FUERA del bloqueo (F1): recorrido O(C) de mayusculas en CADA `record` y, si el directorio del
+    caso existe, su `metadata.case_id` (el de su primera version completa) debe ser el mismo.
+    Devuelve si el nombre EXACTO del caso aparece en `cases/` —deducido del `scandir`, nunca de
+    `isdir`/`lexists`, que en NTFS/APFS no distinguen mayusculas (una reserva muerta `RAMP.steep`
+    haria creer que `ramp.steep` existe)."""
+    nombre = f"{fam}.{var}"
+    nombres = _nombres_de_cases(store)
+    _comprobar_mayusculas(nombres, nombre, case_id)
+    if nombre not in nombres:
+        return False
     for _n, nv in sorted(_dirs_version(os.path.join(store, "cases", nombre))):
         try:
             meta = _leer_metadata_sin_enlace(os.path.join(store, "cases", nombre, nv))
@@ -817,7 +953,8 @@ def _comprobar_directorio_caso(store, fam, var, case_id):
             continue
         if isinstance(meta, dict) and meta.get("case_id") != case_id:
             raise Rechazo(f"`cases/{nombre}` pertenece a `{meta.get('case_id')}`, no a `{case_id}`; no se escribe nada")
-        return
+        break
+    return True
 
 
 def grabar(caso, config, raiz_proyecto=None, approved_by_human=False):
@@ -864,25 +1001,41 @@ def grabar(caso, config, raiz_proyecto=None, approved_by_human=False):
     dir_caso = os.path.join(store, os.path.dirname(cs.directorio_version(fam, var, 1, width)))
     ruta_bloqueo, ruta_indice = os.path.join(store, BLOQUEO_INDICE), os.path.join(store, INDICE)
     rutas = [ruta_bloqueo, ruta_indice, os.path.join(store, "cases"), dir_caso]
-    # comprobaciones de solo lectura ANTES de escribir nada; las que dependen de otros escritores
-    # (mayusculas, numero de version, enlaces) se repiten en S1
+    # comprobaciones de solo lectura ANTES de escribir nada y FUERA del bloqueo (F1): enlaces,
+    # mayusculas O(C) y dueño del directorio, `supersedes_case`; con el bloqueo solo lo O(1)
     _comprobar_contencion(store, rutas, raiz)
     _comprobar_fichero_propio(ruta_bloqueo)
     _comprobar_fichero_propio(ruta_indice)
-    _comprobar_directorio_caso(store, fam, var, caso["case_id"])
+    existia = _comprobar_directorio_caso(store, fam, var, caso["case_id"])
     _comprobar_supersedes(caso, dir_caso, width)
     os.makedirs(os.path.join(store, "cases"), exist_ok=True)
     tmp = tempfile.mkdtemp(prefix=PREFIJO_TEMPORAL, dir=os.path.join(store, "cases"))
+    destino = None
     try:
         _comprobar_contencion(store, [tmp], raiz)
         ficheros = _ficheros_de(caso)
+        os.mkdir(os.path.join(tmp, "final"))
         for rel, datos in ficheros.items():
-            _escribir(os.path.join(tmp, rel), datos)
-        with _Bloqueo(store):                                               # 4a. S1: reservar
-            _comprobar_contencion(store, rutas, raiz)
-            _comprobar_directorio_caso(store, fam, var, caso["case_id"])
-            destino = _reservar(store, dir_caso, caso, width, auto, raiz)
-        _mover_version(store, tmp, destino, ficheros, _json_bytes(_metadata(caso)), raiz)   # 4b. W
+            _escribir_nuevo(os.path.join(tmp, rel), datos)                  # O_EXCL (gap #77)
+        for _intento in range(REINTENTOS_S1):
+            with _Bloqueo(store):                                           # 4a. S1: reservar, O(1)
+                _comprobar_contencion(store, rutas, raiz)
+                if not existia:
+                    # caso nuevo: el nombre exacto no estaba fuera; otro escritor pudo crear a la vez
+                    # uno que solo difiere en mayusculas -> O(C) con el bloqueo, UNA vez por caso nuevo
+                    _comprobar_mayusculas(_nombres_de_cases(store), f"{fam}.{var}", caso["case_id"])
+                destino = _reservar(store, dir_caso, caso, width, auto, raiz)
+            if destino is not None:
+                break
+            caso["version"] = _siguiente_version(dir_caso)                  # pista nueva, sin bloqueo
+        else:
+            raise Transitorio(f"mas de {SALTOS_MAX_S1} versiones de {caso['case_id']} grabadas a la vez por otros "
+                              f"procesos {REINTENTOS_S1} veces seguidas; no se ha escrito nada: reintenta")
+        # metadata.json, ya con su version, tambien con O_EXCL: si alguien planto un enlace en el temporal
+        # mientras se esperaba S1 -> rechazo; la reserva queda VACIA (no hay borrado, CA-02) y `index
+        # check` la reporta como incompleta pasada la gracia
+        _escribir_nuevo(os.path.join(tmp, "metadata.json"), _json_bytes(_metadata(caso)))
+        _mover_version(store, tmp, destino, ficheros, raiz)                 # 4b. W, sin bloqueo
     finally:
         _limpiar_temporal(tmp)
     avisos = _indexar_alta(store, destino, caso, width)                     # 4c. S2: A
@@ -911,6 +1064,9 @@ def _indexar_alta(store, destino, meta, width):
     except Rechazo as e:
         return [f"{no_act}: {e.mensaje}"]
     except OSError as e:
+        if _es_permanente(e):
+            return [f"{INDICE} no actualizado para {ref} (la version YA esta grabada: no la vuelvas a grabar): {e}; "
+                    "despues, `index rebuild`"]
         return [f"{no_act}: {e}"]
 
 
@@ -923,35 +1079,61 @@ CLAVES_INDICE = ("case_id", "version", "family", "variant", "status", "outcome",
 ESPERA_BLOQUEO_S = 10.0
 ESPERA_INICIAL_S = 0.005           # retroceso exponencial con jitter: 5 ms -> 50 ms (D-fix2 §4)
 ESPERA_MAX_S = 0.05
-REINTENTOS_REBUILD = 3             # identidad del indice cambiada durante F1 -> reintento acotado (E3)
+REINTENTOS_REBUILD = 3             # identidad del indice cambiada -> reintento acotado y luego exit 3 (E3)
 GRACIA_EN_CURSO_S = 60.0           # «en curso» (E5)
+COLA_MAX_BLOQUEO = 64              # F2: el residual se copia con el bloqueo cuando una pasada lee <= 64 lineas
+MAX_PASADAS = 8                    # F2/F3: pasadas SIN bloqueo de puesta al dia (nunca exit 3 por trafico)
+VENTANA_IDENTIDAD = 64 * 1024      # F4: con `st_ino == 0`, hash de los 64 KiB previos al offset consumido
+
+
+class ErrorPermanente(OSError):
+    """Fallo PERMANENTE del store (gap #76, exit 2): reintentar no sirve, hay que arreglar la causa
+    (permisos, fichero de solo lectura, sistema de ficheros sin bloqueos)."""
+
+
+def _es_contencion(e):
+    """gap #76: SOLO el fallo de la llamada de bloqueo NO bloqueante porque otro lo tiene tomado es
+    transitorio: `EAGAIN`/`EWOULDBLOCK`/`EACCES` de `flock`, `EACCES`/`EDEADLOCK` de `msvcrt.locking`.
+    `ENOLCK` (unidad sin bloqueos) o cualquier otro codigo es permanente."""
+    codigos = {errno.EAGAIN, errno.EWOULDBLOCK, errno.EACCES}
+    codigos |= {getattr(errno, n) for n in ("EDEADLOCK", "EDEADLK") if hasattr(errno, n)}
+    return getattr(e, "errno", None) in codigos
+
+
+def _intentar_bloqueo(f):
+    """UN intento NO bloqueante de bloquear `f` (`msvcrt.locking` / `flock`); `OSError` si no se puede."""
+    if _WINDOWS:
+        import msvcrt
+        f.seek(0)
+        msvcrt.locking(f.fileno(), msvcrt.LK_NBLCK, 1)
+    else:
+        import fcntl
+        fcntl.flock(f.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
 
 
 class _Bloqueo:
     """Exclusion mutua entre recorders (hilos o procesos): `flock` en POSIX, `msvcrt.locking` en
     Windows, sobre `<root>/<nombre>` (fichero que no se borra): `.cases_index.lock` (secciones O(1)
-    de los escritores y F0/F2 del `rebuild`) o `.cases_rebuild.lock` (serializa los `rebuild`). La
-    espera sondea con retroceso exponencial y jitter; si no se obtiene en `ESPERA_BLOQUEO_S`,
-    `BloqueoNoDisponible` (exit 3; quien lo pide no escribe nada). `solo_lectura` (`index check`)
-    abre el fichero sin crearlo: si no existe, ningun escritor paso por aqui y no hay que excluir a
-    nadie. El SO lo libera si el proceso muere: nunca queda un bloqueo huerfano."""
+    de los escritores y F0/F2 del `rebuild`) o `.cases_rebuild.lock` (serializa los `rebuild`).
+    `index check` no toma ninguno (F3). La espera sondea con retroceso exponencial y jitter; si no
+    se obtiene en `ESPERA_BLOQUEO_S`, `BloqueoNoDisponible` (exit 3; quien lo pide no escribe nada).
+    No poder abrir el fichero o un fallo del bloqueo que no es contencion -> `ErrorPermanente`
+    (exit 2, gap #76). El SO lo libera si el proceso muere: nunca queda un bloqueo huerfano."""
 
-    def __init__(self, store, nombre=BLOQUEO_INDICE, solo_lectura=False):
+    def __init__(self, store, nombre=BLOQUEO_INDICE):
         self.ruta = os.path.join(store, nombre)
-        self.solo_lectura = solo_lectura
         self.f = None
         self.tomado = False
 
     def __enter__(self):
+        nombre = os.path.basename(self.ruta)
         _comprobar_fichero_propio(self.ruta)
-        if self.solo_lectura:
-            try:
-                self.f = open(self.ruta, "rb")
-            except FileNotFoundError:
-                return self
-        else:
+        try:
             os.makedirs(os.path.dirname(self.ruta), exist_ok=True)
             self.f = open(self.ruta, "a+b")
+        except OSError as e:
+            raise ErrorPermanente(f"no se puede abrir {nombre} ({e}): permanente (permisos, solo lectura o ruta "
+                                  "invalida del case store); arreglalo y repite") from None
         try:
             _comprobar_fd_propio(self.f, self.ruta)
         except Rechazo:
@@ -961,21 +1143,20 @@ class _Bloqueo:
         espera = ESPERA_INICIAL_S
         while True:
             try:
-                if _WINDOWS:
-                    import msvcrt
-                    self.f.seek(0)
-                    msvcrt.locking(self.f.fileno(), msvcrt.LK_NBLCK, 1)
-                else:
-                    import fcntl
-                    fcntl.flock(self.f.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                _intentar_bloqueo(self.f)
                 self.tomado = True
                 return self
-            except OSError:
+            except OSError as e:
+                if not _es_contencion(e):
+                    self.f.close()
+                    raise ErrorPermanente(f"el sistema no permite bloquear {nombre} ({e}): permanente (p. ej. una "
+                                          "unidad de red sin bloqueos, ENOLCK); el case store necesita un sistema "
+                                          "de ficheros con bloqueos: arreglalo y repite") from None
                 restante = limite - time.monotonic()
                 if restante <= 0:
                     self.f.close()
                     raise BloqueoNoDisponible(
-                        f"otro proceso tiene el bloqueo del case store ({os.path.basename(self.ruta)}) desde hace mas de "
+                        f"otro proceso tiene el bloqueo del case store ({nombre}) desde hace mas de "
                         f"{ESPERA_BLOQUEO_S:g} s; no se ha escrito nada: reintenta") from None
                 time.sleep(min(espera * random.uniform(0.5, 1.0), restante))
                 espera = min(espera * 2, ESPERA_MAX_S)
@@ -1024,20 +1205,43 @@ def _anadir_linea(store, entrada):
 
 
 def anadir_al_indice(store, entrada):
-    """Una linea al final de `cases_index.jsonl` (append-only; nunca reescribe lo anterior)."""
+    """Una linea al final de `cases_index.jsonl` (append-only; nunca reescribe lo anterior), VALIDADA
+    CONTRA EL DISCO (F2): con el bloqueo relee la version que nombra `entrada` (la misma relectura que
+    S2) y la rechaza si no esta completa en `cases/` o si difiere de lo grabado (salvo `updated_at`).
+    Ninguna via publica mete en el indice —ni en el residual que el `rebuild` copia tal cual— una
+    linea que no refleje el disco."""
+    motivo = _entrada_valida(entrada)
+    if motivo:
+        raise Rechazo(f"entrada del indice invalida ({motivo}); no se indexa")
     _comprobar_contencion(store, [os.path.join(store, BLOQUEO_INDICE), os.path.join(store, INDICE)])
+    ref = f"{entrada['case_id']}@v{entrada['version']}"
     with _Bloqueo(store):
-        _anadir_linea(store, entrada)
+        e, aviso = _releer_de_linea(store, entrada)
+        if e is None:
+            raise Rechazo(f"{ref}: no se indexa: {aviso or 'no esta completa en cases/ (grabacion en curso)'}")
+        distintos = [k for k in CLAVES_INDICE if k != "updated_at" and e[k] != entrada[k]]
+        if distintos:
+            raise Rechazo(f"{ref}: la entrada no casa con cases/ ({', '.join(distintos)}); no se indexa")
+        _anadir_linea(store, dict(e, updated_at=entrada["updated_at"]))
+
+
+def _es_permanente(e):
+    """Permisos o solo lectura: `index rebuild` no lo arregla (gap #76)."""
+    return isinstance(e, (PermissionError, ErrorPermanente)) or getattr(e, "errno", None) in (errno.EROFS, errno.EPERM)
 
 
 def _indexar(store, entrada):
     """Anade la linea del cambio (bloqueo ya tomado); si el indice no se puede escribir (E/S, o un
     indice ajeno), el cambio YA esta en disco: se devuelve un aviso (el indice es una cache:
-    `index rebuild` lo repone) en vez de fallar, para que nadie reintente y duplique."""
+    `index rebuild` lo repone) en vez de fallar, para que nadie reintente y duplique. Si la causa es
+    permanente (permisos, solo lectura), el aviso manda arreglarla primero (gap #76)."""
     try:
         _anadir_linea(store, entrada)
         return []
     except (OSError, Rechazo) as e:
+        if _es_permanente(e):
+            return [f"{INDICE} no actualizado: no se puede escribir ({e}); PERMANENTE (permisos o solo lectura): "
+                    f"arregla los permisos de {INDICE} y despues `index rebuild`"]
         return [f"{INDICE} no actualizado ({getattr(e, 'mensaje', e)}); reponlo con `index rebuild`"]
 
 
@@ -1118,9 +1322,10 @@ def _iso(ts):
 
 def _leer_de_version(dir_v, fichero, rel):
     """`(objeto, mtime, aviso)` de un fichero de version, con `lstat` ANTES de abrir: distingue
-    «falta» (a medio escribir), «enlace» (no se lee a traves de el, gap #66), «no es un fichero
-    regular» (sin reintentos, gap #59), «no legible tras N reintentos (bloqueada o sin permisos)»
-    e «ilegible» (JSON roto)."""
+    «falta» (a medio escribir), «enlace» (no se lee a traves de el, gap #66), «enlace duro compartido»
+    (`st_nlink > 1`: podria ser un fichero de fuera del store, gap #79), «no es un fichero regular»
+    (sin reintentos, gap #59), «no legible tras N reintentos (bloqueada o sin permisos)» e «ilegible»
+    (JSON roto)."""
     ruta = os.path.join(dir_v, fichero)
     try:
         st = _stat_sin_seguir(ruta)
@@ -1133,6 +1338,9 @@ def _leer_de_version(dir_v, fichero, rel):
         return None, None, f"{rel} omitida: {fichero} es un {MOTIVO_ENLACE}"
     if not stat.S_ISREG(st.st_mode):
         return None, None, f"{rel} ilegible: {fichero} no es un fichero regular"
+    if st.st_nlink > 1:
+        return None, None, (f"{rel} omitida: {fichero} es un enlace duro compartido ({st.st_nlink} nombres para el "
+                            "mismo fichero: podria ser uno de fuera del store, CWE-59); no se lee")
     try:
         obj, mtime = _leer_json_reintentando(ruta)
         return obj, mtime, None
@@ -1191,32 +1399,74 @@ def _estado_version(store, nombre, dir_caso, numero, nombres, entrada_dir=None):
     return e, None, False, mtime_meta
 
 
+def _clasificar_temporal(entrada, rel, avisos, en_curso):
+    """gap #80: un `.tmp-*` de `cases/`, de un caso o de la raiz del store. Reciente
+    (`0 <= edad < GRACIA_EN_CURSO_S`) -> «en curso» (informativo); si no -> «temporal huerfano»
+    (incoherencia de `index check`, con la ruta). Nunca se borra aqui."""
+    try:
+        mtime = entrada.stat(follow_symlinks=False).st_mtime
+    except OSError:
+        return
+    edad = _edad(mtime)
+    if 0 <= edad < GRACIA_EN_CURSO_S:
+        en_curso[rel] = (f"{rel}: temporal en curso (modificado hace {edad:.0f} s, < {GRACIA_EN_CURSO_S:g} s): una "
+                         "grabacion o un rebuild en marcha")
+    else:
+        cuando = "con mtime futuro" if edad < 0 else f"modificado hace {edad:.0f} s"
+        avisos[rel] = (f"{rel}: temporal huerfano ({cuando}; de una grabacion o un rebuild interrumpidos): se conserva; "
+                       "si no hay nada en marcha, revisalo y borralo a mano")
+
+
 def _estado_de_cases(store, raiz_proyecto=None):
-    """`(entradas, avisos, en_curso, mtimes_meta)` recorriendo `cases/` (la FUENTE). `avisos` y
-    `en_curso` son dicts `rel -> texto`. Enlaces detectados por ENTRADA sin `realpath` (E4); solo
-    `cases/` se resuelve (una vez)."""
-    entradas, avisos, en_curso, mtimes = {}, {}, {}, {}
+    """`(entradas, avisos, en_curso, mtimes_meta, rels)` recorriendo `cases/` (la FUENTE). `avisos`
+    y `en_curso` son dicts `rel -> texto`; `rels` indexa por `(<family>.<variant>, numero)` los `rel`
+    de cada version con aviso (gap #69: la cola los retira en O(1)). Enlaces detectados por ENTRADA
+    sin `realpath` (E4); solo `cases/` se resuelve (una vez). Una entrada con nombre de version que
+    no es un directorio real (fichero, enlace) no es version ni duplicado: aviso (gap #74). Los
+    `.tmp-*` de la raiz, de `cases/` y de cada caso: «en curso» o «huerfano» (gap #80)."""
+    entradas, avisos, en_curso, mtimes, rels = {}, {}, {}, {}, {}
+    try:
+        with os.scandir(store) as it:
+            for e in it:
+                if e.name.startswith(PREFIJO_TEMPORAL):
+                    _clasificar_temporal(e, e.name, avisos, en_curso)
+    except OSError:
+        pass
     base = os.path.join(store, "cases")
     if not os.path.lexists(base):
-        return entradas, avisos, en_curso, mtimes
+        return entradas, avisos, en_curso, mtimes, rels
     motivo = _motivo_enlace(base, base) or _escapa(store, base, raiz_proyecto)
     if motivo:
         avisos["cases"] = f"cases/ omitido: {motivo}"
-        return entradas, avisos, en_curso, mtimes
+        return entradas, avisos, en_curso, mtimes, rels
+    casos = []
     try:
         with os.scandir(base) as it:
-            casos = sorted(((e.name, e.path, e) for e in it if not e.name.startswith(".") and e.is_dir()),
-                           key=lambda t: t[0])
+            for e in it:
+                if e.name.startswith(PREFIJO_TEMPORAL):
+                    _clasificar_temporal(e, f"cases/{e.name}", avisos, en_curso)
+                elif not e.name.startswith(".") and e.is_dir():
+                    casos.append((e.name, e.path, e))
     except OSError:
-        return entradas, avisos, en_curso, mtimes
-    for nombre, dir_caso, entrada_caso in casos:
+        return entradas, avisos, en_curso, mtimes, rels
+    for nombre, dir_caso, entrada_caso in sorted(casos, key=lambda t: t[0]):
         motivo = _motivo_enlace(entrada_caso, dir_caso)
         if motivo:
             avisos[f"cases/{nombre}"] = f"cases/{nombre} omitido: {motivo}"
             continue
+        entradas_v, temporales = _escanear_caso(dir_caso)
+        for t in temporales:
+            _clasificar_temporal(t, f"cases/{nombre}/{t.name}", avisos, en_curso)
         por_numero = {}
-        for v, n, ent in _entradas_version(dir_caso):
-            por_numero.setdefault(v, []).append((n, ent))
+        for v, n, ent, tipo in entradas_v:
+            rel = f"cases/{nombre}/{n}"
+            if tipo == "dir":
+                por_numero.setdefault(v, []).append((n, ent))
+            elif tipo == "enlace":
+                avisos[rel] = f"{rel} omitida: {MOTIVO_ENLACE}"
+            else:
+                avisos[rel] = (f"{rel}: no es un directorio de version (fichero u otra entrada con nombre de version): "
+                               "no cuenta como version ni como duplicado; retiralo o renombralo")
         for v, lista in sorted(por_numero.items()):
             nombres = [n for n, _e in lista]
             e, aviso, curso, mtime_meta = _estado_version(store, nombre, dir_caso, v, nombres,
@@ -1224,181 +1474,366 @@ def _estado_de_cases(store, raiz_proyecto=None):
             rel = f"cases/{nombre}/{nombres[0]}"
             if curso:
                 en_curso[rel] = aviso
+                rels.setdefault((nombre, v), []).append(rel)
             elif aviso:
                 avisos[rel] = aviso
+                rels.setdefault((nombre, v), []).append(rel)
             else:
                 entradas[(e["case_id"], e["version"])] = e
                 mtimes[(e["case_id"], e["version"])] = mtime_meta
-    return entradas, avisos, en_curso, mtimes
+    return entradas, avisos, en_curso, mtimes, rels
 
 
 def estado_de_cases(store, raiz_proyecto=None):
     """`(entradas, avisos)` recorriendo `cases/` (la FUENTE; el indice es cache). Se omiten con
     aviso: versiones incompletas o «en curso» (sin `metadata.json`/`validation.json`), enlazadas,
-    con ficheros que no son regulares, bloqueadas o ilegibles, duplicadas (mismo numero con dos
-    anchos), incoherentes con su ruta o con el esquema y `validation.json` incoherente con
-    `case_schema` (p. ej. `approved` sin humano, gap #45). `updated_at` = mtime de `validation.json`."""
-    entradas, avisos, en_curso, _m = _estado_de_cases(store, raiz_proyecto)
-    return entradas, list(avisos.values()) + list(en_curso.values())
+    con ficheros que no son regulares o con enlaces duros, bloqueadas o ilegibles, duplicadas (mismo
+    numero con dos anchos), incoherentes con su ruta o con el esquema y `validation.json` incoherente
+    con `case_schema` (p. ej. `approved` sin humano, gap #45); y los temporales HUERFANOS (gap #80;
+    uno «en curso» no es un aviso para quien lee: solo lo informa `index check`).
+    `updated_at` = mtime de `validation.json`."""
+    entradas, avisos, en_curso, _m, _r = _estado_de_cases(store, raiz_proyecto)
+    return entradas, list(avisos.values()) + [t for rel, t in en_curso.items()
+                                              if not rel.rsplit("/", 1)[-1].startswith(PREFIJO_TEMPORAL)]
 
 
-def _stat_indice(ruta):
-    return os.stat(ruta)
+# ------------------------------------------------------------------ identidad y cola del indice (F2-F4)
+
+def _stat_indice(x):
+    """`os.fstat` de un descriptor abierto o `os.stat` de una ruta (inyectable en los tests)."""
+    return os.fstat(x) if isinstance(x, int) else os.stat(x)
 
 
-def _hash_prefijo(ruta, n):
-    h = hashlib.sha256()
-    with _abrir_reintentando(ruta) as f:
-        while n > 0:
-            trozo = f.read(min(n, 1 << 20))
-            if not trozo:
-                break
-            h.update(trozo)
-            n -= len(trozo)
-    return h.hexdigest()
+def _ventana(f, off):
+    """F4: sha256 de los <= `VENTANA_IDENTIDAD` bytes previos a `off`, leidos de `f`: O(1), no del
+    prefijo entero (gap #70). Probabilistico: solo escapa una sustitucion con los mismos 64 KiB."""
+    ini = max(0, off - VENTANA_IDENTIDAD)
+    f.seek(ini)
+    return hashlib.sha256(f.read(off - ini)).hexdigest()
+
+
+def _ultimo_salto(f, fin):
+    """Offset justo detras del ultimo `\\n` de `f` antes de `fin` (0 si no hay): leido hacia atras
+    por trozos, O(ultima linea). Un offset nunca cae a mitad de una linea (F3)."""
+    pos = fin
+    while pos > 0:
+        ini = max(0, pos - VENTANA_IDENTIDAD)
+        f.seek(ini)
+        i = f.read(pos - ini).rfind(b"\n")
+        if i >= 0:
+            return ini + i + 1
+        pos = ini
+    return 0
 
 
 def _identidad(ruta):
-    """`(st_dev, st_ino, tamano, hash|None)` del indice, o None si no existe. Con `st_ino == 0`
-    (FAT/SMB: sin identidad fiable) se anade el hash de sus bytes (E3)."""
+    """F0: `(st_dev, st_ino, offset, ventana|None)` del indice (sobre UN descriptor), con `offset`
+    alineado al ultimo `\\n` y, si `st_ino == 0` (FAT/SMB: sin identidad fiable), la ventana de los
+    64 KiB previos a `offset` (F4). None si no existe."""
     try:
-        st = _stat_indice(ruta)
+        f = _abrir_reintentando(ruta)
     except FileNotFoundError:
         return None
-    return (st.st_dev, st.st_ino, st.st_size, None if st.st_ino else _hash_prefijo(ruta, st.st_size))
+    with f:
+        st = _stat_indice(f.fileno())
+        off = _ultimo_salto(f, st.st_size)
+        return (st.st_dev, st.st_ino, off, None if st.st_ino else _ventana(f, off))
 
 
-def _misma_identidad(ruta, ident0):
-    """True si el indice sigue siendo el de F0 (mismo fichero, no mas corto; con `st_ino == 0`, mismos
-    bytes hasta `offset0`). Un indice ausente en F0 no dispara el reintento (E3)."""
-    if ident0 is None:
-        return True
-    cur = _identidad(ruta)
-    if cur is None or cur[:2] != ident0[:2] or cur[2] < ident0[2]:
-        return False
-    if not ident0[1]:
-        return _hash_prefijo(ruta, ident0[2]) == ident0[3]
-    return True
+def _cursor(ident):
+    """`((st_dev, st_ino)|None, offset consumido, ventana|None)` a partir de la identidad de F0."""
+    return ((ident[0], ident[1]), ident[2], ident[3]) if ident else (None, 0, None)
 
 
-def _releer_de_linea(store, linea):
-    """E3: la version que nombra una linea de la cola, RELEIDA del disco: `(entrada|None, aviso|None)`.
-    O(1): localiza el directorio por numero (cualquier ancho) sin recorrer el caso."""
-    fam, var, numero = linea["family"], linea["variant"], linea["version"]
+def _partir_lineas(datos):
+    """Lineas crudas (con su `\\n`; la ultima puede no tenerlo) partiendo SOLO por `\\n`."""
+    partes = datos.split(b"\n")
+    lineas = [p + b"\n" for p in partes[:-1]]
+    return lineas + ([partes[-1]] if partes[-1] else [])
+
+
+def _leer_cola(ruta, cursor, hasta_eof=False):
+    """UNA lectura de la cola, sin bloqueo propio (F2/F3/F4): abre el indice y, sobre el MISMO
+    descriptor, comprueba la identidad contra `cursor` (mismo `st_dev`/`st_ino`, no mas corto que lo
+    consumido y, con `st_ino == 0`, la misma ventana de 64 KiB previa al offset consumido); despues
+    lee desde el offset consumido hasta el ULTIMO `\\n` —una linea a medio escribir se queda para la
+    lectura siguiente— o, con `hasta_eof` (el residual, con el bloqueo), hasta el final. Devuelve
+    `(lineas_crudas, cursor_nuevo)`, o None si la identidad cambio (sustituido, truncado o
+    reescrito). Un indice ausente en F0 adopta la identidad del primero que aparezca."""
+    dev_ino, off, ventana = cursor
+    try:
+        f = _abrir_reintentando(ruta)
+    except FileNotFoundError:
+        return None if dev_ino else ([], cursor)
+    with f:
+        st = _stat_indice(f.fileno())
+        if dev_ino is None:
+            dev_ino = (st.st_dev, st.st_ino)
+        elif (st.st_dev, st.st_ino) != dev_ino or st.st_size < off:
+            return None
+        if not st.st_ino and off and _ventana(f, off) != ventana:
+            return None
+        f.seek(off)
+        datos = f.read(max(0, st.st_size - off))
+        if not hasta_eof:
+            datos = datos[:datos.rfind(b"\n") + 1]
+        nuevo = off + len(datos)
+        return _partir_lineas(datos), (dev_ino, nuevo, None if st.st_ino else _ventana(f, nuevo))
+
+
+def _lineas_validas(crudas, avisos, donde):
+    """`{clave: entrada}` de las lineas crudas validas (la ULTIMA por `(case_id, version)`); un aviso
+    por cada linea corrupta, que se ignora."""
+    out = {}
+    for i, cruda in enumerate(crudas, 1):
+        if not cruda.strip():
+            continue
+        e, motivo = _parsear_linea(cruda)
+        if motivo:
+            avisos.append(f"{INDICE} linea {i} de {donde} ignorada: {motivo}")
+            continue
+        clave = (e["case_id"], e["version"])
+        out.pop(clave, None)
+        out[clave] = e
+    return out
+
+
+def _poner_al_dia(ruta, cursor, avisos, al_releer):
+    """Pasadas SIN bloqueo (F2 de D-fix3 con F2/F3/F4): cada una lee la cola nueva (hasta el ultimo
+    `\\n`, con la identidad comprobada), llama a `al_releer(clave, linea)` una vez por clave DISTINTA
+    (el llamador relee esa version del disco, E3) y avanza el offset. Para cuando una pasada lee <=
+    `COLA_MAX_BLOQUEO` lineas o tras `MAX_PASADAS`: nunca falla por trafico. Devuelve el cursor, o
+    None si la identidad cambio (el llamador vuelve a F0)."""
+    for pasada in range(1, MAX_PASADAS + 1):
+        r = _leer_cola(ruta, cursor)
+        if r is None:
+            return None
+        crudas, cursor = r
+        for clave, linea in _lineas_validas(crudas, avisos, f"la cola (pasada {pasada})").items():
+            al_releer(clave, linea)
+        if len(crudas) <= COLA_MAX_BLOQUEO:
+            break
+    return cursor
+
+
+def _releer_version(store, fam, var, numero, case_id=None):
+    """E3: la version `<fam>.<var>` numero `numero` RELEIDA del disco: `(entrada|None, aviso|None,
+    en_curso, mtime_meta)`. O(1): la localiza por numero (cualquier ancho) sin recorrer el caso."""
     try:
         cs.directorio_version(fam, var, 1)
-    except ValueError:
-        return None, f"{INDICE}: linea de la cola con family/variant que no son un directorio seguro: se ignora"
+    except (ValueError, TypeError):
+        return None, f"{INDICE}: family/variant que no son un directorio seguro: se ignora", False, None
     nombre = f"{fam}.{var}"
     base, dir_caso = os.path.join(store, "cases"), os.path.join(store, "cases", nombre)
     for ruta in (base, dir_caso):
         motivo = _motivo_enlace(ruta, ruta)
         if motivo:
-            return None, f"{os.path.relpath(ruta, store).replace(os.sep, '/')} omitido: {motivo}"
-    nombres = _localizar_version(dir_caso, numero)
+            return None, f"{os.path.relpath(ruta, store).replace(os.sep, '/')} omitido: {motivo}", False, None
+    ocupantes = _ocupantes_version(dir_caso, numero)
+    nombres = [n for n, tipo in ocupantes.items() if tipo == "dir"]
     if not nombres:
-        return None, f"{linea['case_id']}@v{numero}: en la cola del indice pero no en cases/"
-    e, aviso, curso, _m = _estado_version(store, nombre, dir_caso, numero, nombres)
-    if e is not None and e["case_id"] != linea["case_id"]:
-        return None, f"cases/{nombre}/{nombres[0]}: la linea de la cola dice `{linea['case_id']}` y metadata.json `{e['case_id']}`"
+        if ocupantes:
+            n, tipo = next(iter(ocupantes.items()))
+            return None, f"cases/{nombre}/{n}: no es un directorio de version ({tipo}): no se indexa", False, None
+        return None, f"{case_id or nombre}@v{numero}: en el indice pero no en cases/", False, None
+    e, aviso, curso, mtime_meta = _estado_version(store, nombre, dir_caso, numero, nombres)
+    if e is not None and case_id is not None and e["case_id"] != case_id:
+        return None, f"cases/{nombre}/{nombres[0]}: la linea dice `{case_id}` y metadata.json `{e['case_id']}`", False, None
+    return e, aviso, curso, mtime_meta
+
+
+def _releer_de_linea(store, linea):
+    """La version que nombra una linea del indice, releida del disco: `(entrada|None, aviso|None)`
+    («en curso» -> `(None, None)`)."""
+    e, aviso, curso, _m = _releer_version(store, linea["family"], linea["variant"], linea["version"], linea["case_id"])
     return e, (aviso if not curso else None)
 
 
+def _mismos_campos(a, b):
+    return all(a[k] == b[k] for k in CLAVES_INDICE if k != "updated_at")
+
+
+def _comprobar_temporal_propio(f, tmp):
+    """gap #78: antes del `os.replace`, el temporal del rebuild (abierto desde F1, nunca reabierto
+    por ruta) sigue siendo NUESTRO fichero: un solo nombre (`st_nlink == 1`) y la ruta apunta al
+    mismo `st_dev`/`st_ino` que el descriptor; si no -> `Rechazo` sin tocar el indice (CWE-59/367)."""
+    st = os.fstat(f.fileno())
+    try:
+        sl = _stat_sin_seguir(tmp)
+    except OSError:
+        sl = None
+    if (st.st_nlink != 1 or sl is None or _es_enlace_st(sl) or
+            (sl.st_dev, sl.st_ino) != (st.st_dev, st.st_ino)):
+        raise Rechazo(f"el temporal del rebuild ({os.path.basename(tmp)}) fue sustituido o tiene enlaces duros "
+                      f"({st.st_nlink} nombres): no se sustituye {INDICE} (CWE-59/367)")
+
+
+def _comprobar_indice_escribible(ruta):
+    """gap #76: un indice que existe y no se puede escribir (solo lectura, sin permiso) es PERMANENTE:
+    exit 2 antes de recorrer nada (reintentar el rebuild no lo arregla)."""
+    if os.path.lexists(ruta) and not os.access(ruta, os.W_OK):
+        raise ErrorPermanente(f"{INDICE} es de solo lectura o no tiene permiso de escritura: permanente; arregla sus "
+                              "permisos y repite `index rebuild`")
+
+
 def reconstruir_indice(store, raiz_proyecto=None):
-    """Reescribe `cases_index.jsonl` desde `cases/` en tres fases (D-fix2 §3 + E3), serializado por
-    `.cases_rebuild.lock` (tomado ANTES que el del indice): F0 (bloqueo, O(1)) anota tamano e
-    identidad; F1 (SIN bloqueo) recorre `cases/` y escribe las lineas en un temporal hermano,
-    conservando el `updated_at` de la ultima linea valida (hasta `offset0`) si su estado coincide;
-    F2 (bloqueo, O(cola)) comprueba la identidad, RELEE del disco cada version que aparece en la
-    cola y anade esas lineas al temporal, y lo sustituye con `os.replace`. Identidad cambiada ->
-    reintento acotado y despues `Transitorio`; `PermissionError` al sustituir -> `Transitorio` sin
-    tocar el indice. Devuelve `(n_versiones, avisos)`."""
+    """Reescribe `cases_index.jsonl` desde `cases/` (D-fix2 §3 + D-fix3 §2 con F2/F4), serializado
+    por `.cases_rebuild.lock` (tomado ANTES que el del indice):
+      - F0 (bloqueo, O(1)): identidad del indice y offset (alineado al ultimo `\\n`).
+      - F1 (SIN bloqueo): recorre `cases/`, conservando el `updated_at` de la ultima linea valida
+        (hasta el offset) si su estado coincide.
+      - Pasadas SIN bloqueo: releen del disco las claves distintas de la cola nueva (E3), comprobando
+        la identidad en cada una; paran con <= `COLA_MAX_BLOQUEO` lineas o tras `MAX_PASADAS`.
+      - F2 (bloqueo, O(bytes del residual), sin relecturas): identidad, residual copiado TAL CUAL
+        (lineas validas; un fragmento final o una linea corrupta se descartan con aviso), comprobacion
+        del temporal (gap #78) y `os.replace`.
+    Identidad cambiada -> vuelta a F0 (hasta `REINTENTOS_REBUILD`) y despues `Transitorio` (exit 3).
+    Indice de solo lectura o `PermissionError` persistente al sustituir -> `ErrorPermanente` (exit
+    2, gap #76). Devuelve `(n_versiones, avisos)`."""
     raiz = _raiz(raiz_proyecto)
     ruta = os.path.join(store, INDICE)
     _comprobar_contencion(store, [os.path.join(store, BLOQUEO_INDICE), os.path.join(store, BLOQUEO_REBUILD), ruta], raiz)
     os.makedirs(store, exist_ok=True)
+    _comprobar_indice_escribible(ruta)
     with _Bloqueo(store, BLOQUEO_REBUILD):
         for _intento in range(REINTENTOS_REBUILD):
-            with _Bloqueo(store):                                               # F0
-                ident0 = _identidad(ruta)
-            offset0 = ident0[2] if ident0 else 0
-            fuente, avisos = estado_de_cases(store, raiz)                       # F1
-            previas, _ = leer_indice(store, hasta=offset0) if offset0 else ({}, [])
-            claves = set()
-            lineas = []
-            for clave in sorted(fuente, key=lambda k: (fuente[k]["family"], fuente[k]["variant"], k[1])):
-                e = dict(fuente[clave])
-                p = previas.get(clave)
-                if p and all(p[k] == e[k] for k in CLAVES_INDICE if k != "updated_at"):
-                    e["updated_at"] = p["updated_at"]
-                lineas.append(_linea(e))
-                claves.add(clave)
-            fd, tmp = tempfile.mkstemp(prefix=PREFIJO_TEMPORAL, dir=store)
-            try:
-                with os.fdopen(fd, "wb") as f:
-                    f.write(b"".join(lineas))
-                with _Bloqueo(store):                                           # F2
-                    if not _misma_identidad(ruta, ident0):
-                        continue
-                    cola, avisos_cola = leer_indice(store, desde=offset0)
-                    avisos += avisos_cola
-                    extra = []
-                    for clave, linea in cola.items():
-                        e, aviso = _releer_de_linea(store, linea)
-                        if e is None:
-                            if aviso:
-                                avisos.append(aviso)
-                            continue
-                        if all(linea[k] == e[k] for k in CLAVES_INDICE if k != "updated_at"):
-                            e["updated_at"] = linea["updated_at"]
-                        extra.append(_linea(e))
-                        claves.add(clave)
-                    with open(tmp, "ab") as f:
-                        f.write(b"".join(extra))
-                    try:
-                        _reemplazar(tmp, ruta)
-                    except PermissionError as e:
-                        raise Transitorio(f"{INDICE} en uso por otro proceso al sustituirlo ({e}); no se ha tocado: "
-                                          "reintenta el rebuild") from None
-                return len(claves), avisos
-            finally:
-                _limpiar_temporal(tmp)
+            r = _reconstruir_una_vez(store, ruta, raiz)
+            if r is not None:
+                return r
     raise Transitorio(f"{INDICE} cambio de identidad (sustituido o truncado) durante el rebuild {REINTENTOS_REBUILD} "
                       "veces seguidas; no se ha tocado: reintenta")
 
 
+def _reconstruir_una_vez(store, ruta, raiz):
+    """Un intento de `reconstruir_indice`; None si la identidad del indice cambio (volver a F0)."""
+    with _Bloqueo(store):                                                       # F0
+        cursor = _cursor(_identidad(ruta))
+    fuente, avisos = estado_de_cases(store, raiz)                               # F1
+    previas = leer_indice(store, hasta=cursor[1])[0] if cursor[1] else {}
+    lineas = {}
+    for clave in sorted(fuente, key=lambda k: (fuente[k]["family"], fuente[k]["variant"], k[1])):
+        e = dict(fuente[clave])
+        p = previas.get(clave)
+        if p and _mismos_campos(p, e):
+            e["updated_at"] = p["updated_at"]
+        lineas[clave] = e
+
+    def al_releer(clave, linea):                                                # E3: releida del disco
+        e, aviso = _releer_de_linea(store, linea)
+        if e is None:
+            if aviso:
+                avisos.append(aviso)
+            return
+        if _mismos_campos(linea, e):
+            e["updated_at"] = linea["updated_at"]
+        lineas[clave] = e
+
+    cursor = _poner_al_dia(ruta, cursor, avisos, al_releer)                    # pasadas sin bloqueo
+    if cursor is None:
+        return None
+    fd, tmp = tempfile.mkstemp(prefix=PREFIJO_TEMPORAL, dir=store)
+    f = os.fdopen(fd, "wb")          # abierto hasta la sustitucion: NUNCA se reabre por ruta (gap #78)
+    try:
+        f.write(b"".join(_linea(e) for e in lineas.values()))
+        claves = set(lineas)
+        with _Bloqueo(store):                                                   # F2: O(residual)
+            r = _leer_cola(ruta, cursor, hasta_eof=True)
+            if r is None:
+                return None
+            for i, cruda in enumerate(r[0], 1):                                 # residual TAL CUAL
+                if not cruda.strip():
+                    continue
+                e, motivo = _parsear_linea(cruda)
+                if motivo:
+                    avisos.append(f"{INDICE} linea {i} del residual ignorada: {motivo}")
+                    continue
+                f.write(cruda if cruda.endswith(b"\n") else cruda + b"\n")
+                claves.add((e["case_id"], e["version"]))
+            f.flush()
+            _comprobar_temporal_propio(f, tmp)
+            f.close()
+            try:
+                _reemplazar(tmp, ruta)
+            except PermissionError as e:
+                raise ErrorPermanente(f"{INDICE} no se pudo sustituir tras {REINTENTOS} reintentos ({e}): permanente "
+                                      "(solo lectura, sin permisos o abierto de forma persistente por otro proceso); "
+                                      "no se ha tocado: arregla la causa y repite `index rebuild`") from None
+        return len(claves), avisos
+    finally:
+        if not f.closed:
+            f.close()
+        _limpiar_temporal(tmp)
+
+
 def comprobar_indice_detalle(store, width=cs.VERSION_WIDTH_DEFECTO, raiz_proyecto=None):
-    """`(diferencias, en_curso)` entre el indice y `cases/`, con el esquema de F0/F1/F2 del rebuild
-    SIN escribir (E5): tamano del indice (bloqueo de solo lectura, si existe el fichero), recorrido
-    de `cases/`, y la cola (lineas anadidas durante el recorrido) releyendo del disco lo que toca,
-    ANTES de reportar. `diferencias` vacia = coherente (exit 0); `en_curso` es informativo."""
+    """`(diferencias, en_curso)` entre el indice y `cases/` (E5 + D-fix3 §3 con F3), SIN escribir y
+    SIN tomar NUNCA `.cases_index.lock` (no bloquea a los escritores): offset del indice alineado al
+    ultimo `\\n`, recorrido de `cases/`, pasadas de puesta al dia sin bloqueo (releyendo del disco lo
+    que toca la cola) y una CONFIRMACION final que relee la cola nueva y, del disco, lo que difiere,
+    y comprueba la identidad. Identidad cambiada -> reintento acotado y despues `Transitorio` (exit
+    3). Bajo escritura muy intensa cabe un falso positivo transitorio que un segundo `check` ya no
+    ve. `diferencias` vacia = coherente (exit 0); `en_curso` es informativo."""
     raiz = _raiz(raiz_proyecto)
     ruta = os.path.join(store, INDICE)
     for _intento in range(REINTENTOS_REBUILD):
-        with _Bloqueo(store, solo_lectura=True):                                # F0
-            ident0 = _identidad(ruta)
-        offset0 = ident0[2] if ident0 else 0
-        fuente, avisos, en_curso, mtimes = _estado_de_cases(store, raiz)        # F1
-        indice, avisos_idx = leer_indice(store, hasta=offset0) if offset0 else ({}, [])
-        with _Bloqueo(store, solo_lectura=True):                                # F2
-            if not _misma_identidad(ruta, ident0):
-                continue
-            cola, avisos_cola = leer_indice(store, desde=offset0)
-            for clave, linea in cola.items():
-                indice[clave] = linea
-                e, aviso = _releer_de_linea(store, linea)
-                if e is not None:
-                    fuente[clave] = e
-                    mtimes[clave] = None
-                    for d in (avisos, en_curso):
-                        for rel in [r for r in d if r.startswith(f"cases/{e['family']}.{e['variant']}/v")
-                                    and _es_version(r.rsplit("/", 1)[1]) and int(r.rsplit("/", 1)[1][1:]) == clave[1]]:
-                            del d[rel]
-                elif aviso:
-                    avisos[f"cola:{clave}"] = aviso
-        break
-    else:
-        raise Transitorio(f"{INDICE} cambio de identidad durante `index check` {REINTENTOS_REBUILD} veces seguidas: reintenta")
+        r = _comprobar_una_vez(store, ruta, width, raiz)
+        if r is not None:
+            return r
+    raise Transitorio(f"{INDICE} cambio de identidad durante `index check` {REINTENTOS_REBUILD} veces seguidas: reintenta")
+
+
+def _claves_con_diferencia(fuente, indice):
+    return [c for c in set(fuente) | set(indice)
+            if c not in indice or c not in fuente or not _mismos_campos(fuente[c], indice[c])]
+
+
+def _comprobar_una_vez(store, ruta, width, raiz):
+    """Un intento de `comprobar_indice_detalle`; None si la identidad del indice cambio."""
+    cursor = _cursor(_identidad(ruta))                                          # F0, sin bloqueo
+    fuente, avisos, en_curso, mtimes, rels = _estado_de_cases(store, raiz)     # F1
+    indice, avisos_idx = leer_indice(store, hasta=cursor[1]) if cursor[1] else ({}, [])
+    avisos_cola, cola_fallidas = [], set()
+
+    def releer(fam, var, numero, case_id, origen):
+        e, aviso, curso, mtime_meta = _releer_version(store, fam, var, numero, case_id)
+        if e is not None:
+            clave = (e["case_id"], e["version"])
+            fuente[clave] = e
+            mtimes[clave] = mtime_meta if origen == "confirmacion" else None
+            avisos.pop(f"cola:{clave[0]}@{clave[1]}", None)
+            for rel in rels.pop((f"{fam}.{var}", numero), ()):                 # gap #69: O(1)
+                avisos.pop(rel, None)
+                en_curso.pop(rel, None)
+        elif origen == "confirmacion":
+            if case_id is not None:          # ya no esta completa en disco: la diferencia la da el cruce
+                fuente.pop((case_id, numero), None)
+        elif aviso and not curso:
+            avisos[f"cola:{case_id}@{numero}"] = aviso
+            cola_fallidas.add((case_id, numero))
+
+    def al_releer(clave, linea):
+        indice[clave] = linea
+        releer(linea["family"], linea["variant"], clave[1], clave[0], "cola")
+
+    cursor = _poner_al_dia(ruta, cursor, avisos_cola, al_releer)
+    if cursor is None:
+        return None
+    r = _leer_cola(ruta, cursor)                                                # confirmacion (F3)
+    if r is None:
+        return None
+    crudas, cursor = r
+    for clave, linea in _lineas_validas(crudas, avisos_cola, "la cola (confirmacion)").items():
+        al_releer(clave, linea)
+    for clave in set(_claves_con_diferencia(fuente, indice)) | cola_fallidas:   # del disco, otra vez
+        e = indice.get(clave) or fuente.get(clave)
+        if e is not None:
+            releer(e["family"], e["variant"], clave[1], clave[0], "confirmacion")
+    for (nombre, numero) in list(rels):
+        if any(rel in avisos for rel in rels.get((nombre, numero), ())):
+            fam, _sep, var = nombre.partition(".")
+            releer(fam, var, numero, None, "confirmacion")
+    if _leer_cola(ruta, cursor) is None:                                        # identidad al final
+        return None
     difs = list(avisos.values()) + avisos_idx + avisos_cola
     curso = list(en_curso.values())
     for clave in sorted(set(fuente) | set(indice), key=lambda k: (k[0], k[1])):
@@ -1421,8 +1856,9 @@ def comprobar_indice_detalle(store, width=cs.VERSION_WIDTH_DEFECTO, raiz_proyect
 
 def comprobar_indice(store, width=cs.VERSION_WIDTH_DEFECTO, raiz_proyecto=None):
     """Diferencias entre el indice y `cases/` (lista vacia = coherente): lineas corruptas y todo lo
-    que el recorrido omite (versiones incompletas, duplicadas, enlazadas, ilegibles, incoherentes)
-    cuentan como incoherencia (gap #37); lo «en curso» no (ver `comprobar_indice_detalle`)."""
+    que el recorrido omite (versiones incompletas, duplicadas, enlazadas, ilegibles, incoherentes,
+    temporales huerfanos) cuentan como incoherencia (gaps #37/#80); lo «en curso» no (ver
+    `comprobar_indice_detalle`)."""
     return comprobar_indice_detalle(store, width, raiz_proyecto)[0]
 
 
@@ -1484,7 +1920,8 @@ def _escribir_atomico(ruta, datos):
 
 
 def _ficheros_sin_enlace(destino, ref):
-    """#66: `metadata.json`/`validation.json` que sean enlace se rechazan ANTES de leerlos."""
+    """#66/#79: `metadata.json`/`validation.json` que sean enlace (simbolico o DURO: `st_nlink > 1`)
+    se rechazan ANTES de leerlos."""
     for fichero in ("metadata.json", "validation.json"):
         ruta = os.path.join(destino, fichero)
         try:
@@ -1496,6 +1933,9 @@ def _ficheros_sin_enlace(destino, ref):
             raise Rechazo(f"{ref}: {fichero} es un {MOTIVO_ENLACE}; no se lee ni se escribe")
         if not stat.S_ISREG(st.st_mode):
             raise Rechazo(f"{ref}: {fichero} no es un fichero regular; no se escribe nada")
+        if st.st_nlink > 1:
+            raise Rechazo(f"{ref}: {fichero} es un enlace duro compartido ({st.st_nlink} nombres para el mismo fichero: "
+                          "podria ser uno de fuera del store, CWE-59); no se lee ni se escribe")
 
 
 def cambiar_estado(case_id, version, status, config, raiz_proyecto=None, approved_by_human=False, reviewer_note=None):
@@ -1515,6 +1955,8 @@ def cambiar_estado(case_id, version, status, config, raiz_proyecto=None, approve
         raise Rechazo(MENSAJE_GOLD)
     if reviewer_note is not None and not isinstance(reviewer_note, str):
         raise Rechazo("nota invalida", [{"campo": "reviewer_note", "mensaje": "debe ser texto"}])
+    if reviewer_note is not None and not _codificable(reviewer_note):
+        raise Rechazo("nota invalida", [{"campo": "reviewer_note", "mensaje": MENSAJE_NO_UTF8}])
     version = _version_int(version)
     family, variant = _family_variant(case_id, config)
     width = cs.patrones_id(config)[2]
@@ -1524,9 +1966,12 @@ def cambiar_estado(case_id, version, status, config, raiz_proyecto=None, approve
     ruta_bloqueo, ruta_indice = os.path.join(store, BLOQUEO_INDICE), os.path.join(store, INDICE)
     rutas_base = [ruta_bloqueo, ruta_indice, os.path.join(store, "cases"), dir_caso]
     _comprobar_contencion(store, rutas_base, raiz)
-    nombres = _localizar_version(dir_caso, version, width)
+    ocupantes = _ocupantes_version(dir_caso, version, width)
+    nombres = [n for n, tipo in ocupantes.items() if tipo == "dir"]
     if len(nombres) > 1:
         raise Rechazo(f"{ref}: version {version} duplicada ({', '.join(nombres)}): ambigua; no se cambia el estado")
+    if not nombres and "enlace" in ocupantes.values():
+        raise Rechazo(f"{ref}: es un {MOTIVO_ENLACE}; no se lee ni se escribe")
     if not nombres:
         raise Rechazo(f"{ref} no existe en el case store (o esta a medio escribir)")
     destino = os.path.join(dir_caso, nombres[0])
@@ -1602,7 +2047,7 @@ def _comunes(p):
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description="Recorder determinista de casos (training-data-services). Exit 0 ok, "
-                                             "1 rechazo, 2 uso/E/S, 3 transitorio (bloqueo o indice cambiado: reintenta).")
+                                             "1 rechazo, 2 uso/E/S o permanente, 3 transitorio (bloqueo o indice cambiado: reintenta).")
     sub = ap.add_subparsers(dest="cmd", required=True)
     p_rec = sub.add_parser("record", help="graba un caso como version nueva (nunca sobrescribe)")
     p_rec.add_argument("fichero", help="caso en JSON: el esquema de case_schema.py, pero `version` es opcional "
@@ -1682,6 +2127,10 @@ def main(argv=None):
     except RedaccionNoDisponible as e:
         print(f"rechazado: {e}", file=sys.stderr)
         return 1
+    except ErrorPermanente as e:
+        # gap #76: permanente (permisos, solo lectura, sin bloqueos): reintentar no sirve
+        print(f"error permanente: {e}", file=sys.stderr)
+        return 2
     except OSError as e:
         # gap #38: E/S (root que es un fichero, disco lleno, permisos) -> exit 2 con mensaje, sin traceback
         print(f"error de E/S: {e}", file=sys.stderr)
