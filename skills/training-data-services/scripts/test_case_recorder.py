@@ -108,3 +108,31 @@ def test_f1fix1_gap08_import_sin_redact_py_no_falla_pero_redactar_si(tmp_path, m
             mod.redactar("token=abc123XYZ789")
     finally:
         sys.modules.pop("case_recorder_sin_redact", None)
+
+
+# ------------------------------------------------------------------ fix2 (revision intento 2, Fase 1)
+
+def test_f1fix2_gap18_claves_que_redactan_igual_no_colisionan():
+    """gap #18: dos claves distintas que se redactan al mismo literal conservan ambos valores,
+    con sufijo estable por orden de aparicion; una clave literal igual a la redactada no se pisa."""
+    k1 = "token=abc123XYZ789"
+    k2 = "token=zzz999QQQ111"
+    salida = rec.redactar_estructura({k1: "uno", k2: "dos", "ok": "tres"})
+    assert sorted(salida.values()) == ["dos", "tres", "uno"]
+    assert all("abc123XYZ789" not in k and "zzz999QQQ111" not in k for k in salida)
+    redactada = rec.redactar(k1)
+    assert salida[redactada] == "uno" and salida[redactada + " #2"] == "dos"
+    # determinista: misma entrada, mismas claves
+    assert list(rec.redactar_estructura({k1: "uno", k2: "dos", "ok": "tres"})) == list(salida)
+    # una clave NO redactada que coincide con el literal redactado se conserva tal cual
+    salida = rec.redactar_estructura({k1: "secreta", redactada: "literal"})
+    assert salida[redactada] == "literal" and sorted(salida.values()) == ["literal", "secreta"]
+
+
+def test_f1fix2_gap18_namedtuple_se_reconstruye():
+    """gap #18: una namedtuple no revienta y conserva su tipo y campos."""
+    import collections
+    Par = collections.namedtuple("Par", "clave valor")
+    salida = rec.redactar_estructura({"p": Par("api", "token=abc123XYZ789")})
+    assert isinstance(salida["p"], Par) and salida["p"].clave == "api"
+    assert "abc123XYZ789" not in salida["p"].valor

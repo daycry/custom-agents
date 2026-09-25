@@ -63,10 +63,16 @@ Cualquier otra clave se rechaza (salvo `$comment`), para que una errata no pase 
 - `validation.status` ∈ `pending · approved · needs_changes · rejected`; `approved` ⇔
   `approved_by_human: true`.
 - `outcome` ∈ `success · failure · corrected`; `corrected` exige (y solo él admite)
-  `supersedes_case: "<case_id>@v<N>"` del mismo `case_id` y una versión anterior.
+  `supersedes_case: "<case_id>@v<NNN>"` en forma canónica (dígitos ASCII, relleno a `version_width`,
+  ≥ 1) del mismo `case_id` y una versión anterior.
+- `family`/`variant` son directorios: sin separadores, `..`, `.` (separa family y variant), `:`,
+  controles, espacio final ni nombres reservados de Windows (`con`, `nul`, `com1`…), sea cual sea el patrón.
 - La trayectoria **nunca** guarda chain-of-thought: toda clave que empiece por `reasoning`, `thinking`,
   `thought`, `chain_of_thought` o `scratchpad` (sin distinguir mayúsculas, a cualquier profundidad del
-  turno, incluidos los `arguments`) se rechaza. Un tipo inesperado es un error `{campo, mensaje}`, nunca un crash.
+  turno, incluidos los `arguments`) se rechaza, igual que un turno con más de 50 niveles de
+  anidamiento (no se deja de mirar). Lista blanca declarada: `reasoning_effort`, `thinking_budget` y
+  `reasoning_level` son parámetros de proveedor y se admiten **solo** dentro de `tool_calls[].arguments`.
+  Un tipo inesperado es un error `{campo, mensaje}`, nunca un crash.
 - `metrics` es un objeto JSON opaco del proyecto; el plugin no lo interpreta.
 - `context`: texto u objeto libre; admite `refs: [{"ref": "<fichero:línea|nodo>", "kind": "..."}]`
   opcional para citar procedencia (nadie está obligado a usarla).
@@ -88,7 +94,9 @@ fuente)` según la tabla `OUTCOME_MAPEO`. Lo que no esté en la tabla devuelve `
 1. **Activar**: el proyecto crea `training.json` con `enabled: true`, `root` e `id_prefix` (paso de
    `/setup` de la capacidad `training`).
 2. **Validar** antes de escribir nada: `python3 scripts/case_schema.py config <training.json>` y
-   `python3 scripts/case_schema.py case <caso.json> --config <training.json>`.
+   `python3 scripts/case_schema.py case <caso.json> --config <training.json>`. `root` se resuelve
+   contra la raíz deducida de `<proyecto>/.claude/knowledge-services/training.json` (o el cwd);
+   `--project-root <dir>` la fija a mano. Si la ruta no se puede resolver, se rechaza.
 3. **Grabar** cada intento con el recorder (T-04, pendiente): nunca sobrescribe `case_id`+versión,
    redacta secretos antes de tocar disco, conserva los rechazados.
 4. **Aprobar Gold** a mano (T-05, pendiente): la transición a `approved` exige `--approved-by-human`.
@@ -104,5 +112,5 @@ fuente)` según la tabla `OUTCOME_MAPEO`. Lo que no esté en la tabla devuelve `
 ## Scripts y rutas
 
 Rutas relativas dentro de la skill; desde fuera, `find` sobre las seis raíces de la regla 5 de
-`docs/CONVENTIONS.md` (`-path '*skills/training-data-services'`). Tests junto a los scripts
-(`scripts/test_*.py`), sin dependencias externas.
+`docs/CONVENTIONS.md` (`-path '*skills/training-data-services'`). Los tests viven junto a los
+scripts, solo en el repo (no viajan en el paquete portable); sin dependencias externas.

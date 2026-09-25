@@ -76,14 +76,35 @@ def __getattr__(nombre):
 def redactar_estructura(valor):
     """Copia de `valor` con la redaccion de `redact.py` aplicada a cada cadena: valores y CLAVES
     textuales de dicts, elementos de listas, tuplas, sets y frozensets (recursivo, gap #8). Lo no
-    textual no se toca; la entrada no muta. Sin `redact.py` -> `RedaccionNoDisponible`."""
+    textual no se toca; la entrada no muta. Sin `redact.py` -> `RedaccionNoDisponible`.
+
+    Claves (fix2, gap #18): si dos claves distintas se redactan al mismo literal, la segunda y
+    siguientes llevan un sufijo estable por orden de aparicion (`<clave redactada> #2`, `#3`...), y
+    una clave que NO cambia al redactar conserva siempre su nombre: nunca se pierde un valor. Una
+    namedtuple se reconstruye con `_make` (mismo tipo y campos)."""
     redactar_txt = _redact_mod().redactar
+
+    def _dict(v):
+        nuevas = {k: (redactar_txt(k) if isinstance(k, str) else k) for k in v}
+        intactas = {k for k, n in nuevas.items() if n == k}
+        out = {}
+        for k, x in v.items():
+            nombre = nuevas[k]
+            if k not in intactas:
+                n = 1
+                while nombre in out or nombre in intactas:
+                    n += 1
+                    nombre = f"{nuevas[k]} #{n}"
+            out[nombre] = _rec(x)
+        return out
 
     def _rec(v):
         if isinstance(v, str):
             return redactar_txt(v)
         if isinstance(v, dict):
-            return {_rec(k) if isinstance(k, str) else k: _rec(x) for k, x in v.items()}
+            return _dict(v)
+        if isinstance(v, tuple) and hasattr(type(v), "_make"):
+            return type(v)._make(_rec(x) for x in v)
         if isinstance(v, (list, tuple, set, frozenset)):
             return type(v)(_rec(x) for x in v)
         return v
