@@ -38,7 +38,7 @@ de dominio (métricas, simulación, herramientas) es del proyecto consumidor.
 | Fichero | Qué es |
 |---|---|
 | `scripts/case_schema.py` | Validador stdlib de `training.json` y del caso (exit 0 válido · 1 errores · 2 uso/JSON ilegible). Fuente única de los vocabularios cerrados y del mapeo de `outcome`. |
-| `scripts/case-recorder.py` | Recorder (API importable + CLI `record` · `set-status` · `index` · `list`). Graba cada intento como versión inmutable `cases/<family>.<variant>/v<NNN>/`. La redacción la delega en `agent-kits/shared/redact.py` (fuente única); sin él se niega a grabar. Un caso `corrected` exige que exista la versión que corrige. |
+| `scripts/case-recorder.py` | Recorder (API importable + CLI `record` · `set-status` · `index` · `list`; todos aceptan `--config <training.json>` y `--project-root <dir>`). Graba cada intento como versión inmutable `cases/<family>.<variant>/v<NNN>/`. La redacción la delega en `agent-kits/shared/redact.py` (fuente única); sin él se niega a grabar. Un caso `corrected` exige que la versión que corrige exista y sea `failure` o `corrected`. |
 | `assets/` | Plantillas del case store: `training.example.json`, ejemplo completo `case-store-example/` (caso con par fallo → corrección) y `README.md` con la estructura y cada fichero de versión (`metadata.json`, `validation.json`, `cases_index.jsonl`…). Ubicación: `docs/knowledge/adr/ADR-019-case-store-fuera-de-docs-knowledge.md`. |
 | Capacidad `training` | Entrada de `agent-kits/shared/capabilities.py`: `deshabilitado` sin fichero, `error` con fichero y campo si la config es inválida, `declarado`/`ok` según exista `root`. Sin red. |
 
@@ -59,7 +59,8 @@ Cualquier otra clave se rechaza (salvo `$comment`), para que una errata no pase 
 
 - Obligatorios: `case_id`, `version` (entero ≥ 1), `family`, `variant`, `request` (literal),
   `trajectory` (turnos `system|user|assistant|tool` con `content`/`tool_calls`), `validation`,
-  `outcome`.
+  `outcome`. Para `record`, `version`, `case_id` y `validation` son opcionales: se asignan la
+  siguiente versión libre, `<id_prefix>-<family>.<variant>` y `pending`.
 - `validation.status` ∈ `pending · approved · needs_changes · rejected`; `approved` ⇔
   `approved_by_human: true`.
 - `outcome` ∈ `success · failure · corrected`; `corrected` exige (y solo él admite)
@@ -99,17 +100,34 @@ fuente)` según la tabla `OUTCOME_MAPEO`. Lo que no esté en la tabla devuelve `
    contra la raíz deducida de `<proyecto>/.claude/knowledge-services/training.json` (o el cwd);
    `--project-root <dir>` la fija a mano. Si la ruta no se puede resolver, se rechaza.
 3. **Grabar** cada intento: `python3 scripts/case-recorder.py record <caso.json>
-   [--project-root <dir>]` (exit 0 ok · 1 rechazo · 2 uso/JSON ilegible). Redacta secretos, valida
-   lo ya redactado y solo entonces escribe. Sin `version` toma la siguiente libre; una versión
-   existente nunca se sobrescribe (reserva atómica, también en paralelo). No hay borrado.
-4. **Aprobar Gold** a mano: `case-recorder.py set-status <case_id> <versión> approved
-   --approved-by-human [--note …]`. Sin el flag, rechazo explícito. `needs_changes`, `rejected` y
-   `pending` no lo piden. Solo se reescribe `validation.json` (atómico); lo demás es inmutable.
-   Consulta con `list [--status S] [--family F] [--outcome O] [--json]`. El índice
-   `cases_index.jsonl` es una caché: `index check` lo compara con `cases/` (exit 1 si difiere) e
-   `index rebuild` lo reconstruye. Una línea corrupta se ignora con aviso.
-5. **Ensamblar** el dataset (T-07…T-09, pendiente): solo Gold, dedup por shingles, benchmark
+   [--config <training.json>] [--project-root <dir>]` (exit 0 ok · 1 rechazo · 2 uso, JSON
+   ilegible o error de E/S). Valida el caso original (forma y chain-of-thought), redacta y vuelve
+   a validar lo redactado; solo entonces escribe. Sin `version` toma la siguiente libre (lo normal
+   al repetir un intento); con `version` explícita (p. ej. para reproducir un store) se rechaza si
+   ya existe, con cualquier ancho. Una versión nunca se sobrescribe; no hay borrado.
+4. **Aprobar Gold**, siempre a mano, por una de las dos vías (misma puerta: el flag debe ser
+   exactamente `True`): `set-status <case_id> <versión> approved --approved-by-human [--note …]`
+   sobre una versión grabada, o `record <caso.json> --approved-by-human` con un caso que ya llega
+   `approved`. Sin el flag, rechazo explícito. `needs_changes`, `rejected` y `pending` no lo piden.
+   `set-status` solo reescribe `validation.json` (atómico); lo demás es inmutable.
+5. **Consultar**: `list [--status S] [--family F] [--outcome O] [--json]` lee el índice
+   `cases_index.jsonl`, que es una **caché**: `index check` lo compara con `cases/` (exit 1 si
+   difiere, si hay versiones incompletas o duplicadas, enlaces fuera del store o un
+   `validation.json` incoherente) e `index rebuild` lo reconstruye. Una línea corrupta se ignora
+   con aviso. El ensamblador leerá `validation.json`, no el índice.
+6. **Ensamblar** el dataset (T-07…T-09, pendiente): solo Gold, dedup por shingles, benchmark
    reservado por familia completa.
+
+### Qué se redacta y concurrencia
+
+- Se redacta todo texto libre que se escribe: `request`, `context`, `constraints`, `trajectory`
+  (un `arguments` en texto JSON, como estructura), las cadenas de `metrics`, `created_at`,
+  `artifacts[]` (salvo `hash`), `reviewer_note`/`approved_at` y `set-status --note`. No se tocan
+  los campos cerrados: `case_id`, `family`, `variant`, `version`, `outcome`, `supersedes_case`,
+  `status`, `approved_by_human`, `hash`. `NaN`/`Infinity` se rechazan.
+- `record`, `set-status` e `index rebuild` escriben con el bloqueo `<root>/.cases_index.lock`
+  (persistente, nunca se borra); si no llega en 10 s, abortan sin escribir (exit 1). Nunca se
+  escribe a través de un enlace que salga de `root` o entre en `docs/knowledge/`.
 
 ## Degradación
 
