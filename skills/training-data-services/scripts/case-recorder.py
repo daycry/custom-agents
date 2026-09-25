@@ -24,6 +24,12 @@ FORMA, nunca dominio (CA-04): las metricas llegan ya calculadas por el proyecto.
   - Sin `validation`, el caso nace `pending`. Sin `case_id`, se construye con la config.
   - No hay operacion de borrado: rechazados y fallidos se conservan (CA-02).
 
+`cambiar_estado(case_id, version, status, config, raiz_proyecto, approved_by_human=False,
+reviewer_note=None)` — puerta humana para Gold (T-05): `approved` exige `approved_by_human=True`
+(`--approved-by-human`) y fija `approved_by_human: true` + `approved_at`; sin el flag, rechazo
+explicito. `needs_changes`/`rejected`/`pending` no lo requieren y dejan `approved_by_human: false`.
+Solo se reescribe `validation.json` (temporal + `os.replace`); el resto de la version es inmutable.
+
 Estructura (`case_schema.directorio_version`, ancho `ids.version_width`):
   <root>/cases/<family>.<variant>/v<NNN>/{metadata.json, request.json ({"request": ...}),
   context.json, constraints.json, trajectory.jsonl, metrics.json, validation.json,
@@ -31,6 +37,7 @@ Estructura (`case_schema.directorio_version`, ancho `ids.version_width`):
 
 Uso (exit 0 ok · 1 rechazo/validacion · 2 uso/JSON ilegible, como `case_schema.py`):
   case-recorder.py record <caso.json> [--config <training.json>] [--project-root <dir>] [--approved-by-human]
+  case-recorder.py set-status <case_id> <version> <status> [--approved-by-human] [--note <texto>] [...]
 """
 import argparse
 import datetime
@@ -251,8 +258,13 @@ def _escribir(ruta, datos):
 
 
 def _limpiar_temporal(tmp):
-    """Elimina SOLO el directorio temporal propio (`.tmp-*`) y lo que quede dentro: nunca una version."""
-    if not os.path.basename(tmp).startswith(PREFIJO_TEMPORAL):
+    """Elimina SOLO el temporal propio (`.tmp-*`, fichero o directorio con lo que quede dentro):
+    nunca una version. Si ya no existe (se movio a su destino), no hace nada."""
+    if not os.path.basename(tmp).startswith(PREFIJO_TEMPORAL) or not os.path.lexists(tmp):
+        return
+    if not os.path.isdir(tmp):
+        try: os.remove(tmp)
+        except OSError: pass
         return
     for base, dirs, fs in os.walk(tmp, topdown=False):
         for f in fs:
@@ -352,6 +364,85 @@ def grabar(caso, config, raiz_proyecto=None, approved_by_human=False):
             "ref": cs.referencia_version(caso["case_id"], caso["version"], width), "path": destino}
 
 
+# ------------------------------------------------------------------ puerta humana para Gold (T-05)
+
+def _version_int(version):
+    """`1`, `"1"` o `"v001"` -> 1; otra cosa -> `Rechazo`."""
+    if isinstance(version, bool):
+        version = None
+    if isinstance(version, str):
+        texto = version[1:] if version[:1] == "v" else version
+        version = int(texto) if texto and all(c in DIGITOS for c in texto) else None
+    if not isinstance(version, int) or version < 1:
+        raise Rechazo("version invalida", [{"campo": "version", "mensaje": "entero >= 1 (`1` o `v001`)"}])
+    return version
+
+
+def _family_variant(case_id, config):
+    """`(family, variant)` de `<id_prefix>-<family>.<variant>`; `Rechazo` si no encaja o si no
+    es un componente de ruta seguro (nunca se sale de `cases/`)."""
+    prefijo = config.get("id_prefix")
+    base = case_id[len(prefijo) + 1:] if isinstance(case_id, str) and prefijo and case_id.startswith(prefijo + "-") else None
+    partes = base.split(".") if base else []
+    if len(partes) != 2:
+        raise Rechazo("case_id invalido", [{"campo": "case_id",
+                                            "mensaje": f"debe ser `{prefijo}-<family>.<variant>` (id_prefix de training.json)"}])
+    try:
+        cs.directorio_version(partes[0], partes[1], 1)
+    except ValueError as e:
+        raise Rechazo("case_id invalido", [{"campo": "case_id", "mensaje": str(e)}]) from None
+    return partes[0], partes[1]
+
+
+def _escribir_atomico(ruta, datos):
+    """Temporal en el MISMO directorio + `os.replace`: o queda el fichero viejo o el nuevo entero."""
+    fd, tmp = tempfile.mkstemp(prefix=PREFIJO_TEMPORAL, dir=os.path.dirname(ruta))
+    try:
+        with os.fdopen(fd, "wb") as f:
+            f.write(datos)
+        os.replace(tmp, ruta)
+    finally:
+        _limpiar_temporal(tmp)
+
+
+def cambiar_estado(case_id, version, status, config, raiz_proyecto=None, approved_by_human=False, reviewer_note=None):
+    """Cambia `validation.status` de una version grabada. Solo reescribe `validation.json` (de forma
+    atomica); el resto de la version es inmutable. `approved` (Gold) exige `approved_by_human=True`
+    (`--approved-by-human`): sin el, `Rechazo` con mensaje explicito. `needs_changes`, `rejected` y
+    `pending` no lo requieren y dejan `approved_by_human: false`. Sin `reviewer_note` se conserva
+    la nota anterior. Devuelve `{case_id, version, ref, status, path}`."""
+    config_activa(config, raiz_proyecto)
+    if status not in cs.VALIDATION_STATUS:
+        raise Rechazo("estado invalido", [{"campo": "status", "mensaje": f"uno de {', '.join(cs.VALIDATION_STATUS)}"}])
+    if status == "approved" and approved_by_human is not True:
+        raise Rechazo(MENSAJE_GOLD)
+    if reviewer_note is not None and not isinstance(reviewer_note, str):
+        raise Rechazo("nota invalida", [{"campo": "reviewer_note", "mensaje": "debe ser texto"}])
+    version = _version_int(version)
+    family, variant = _family_variant(case_id, config)
+    width = cs.patrones_id(config)[2]
+    ref = cs.referencia_version(case_id, version, width)
+    destino = os.path.join(raiz_store(config, raiz_proyecto), cs.directorio_version(family, variant, version, width))
+    ruta_meta, ruta_val = os.path.join(destino, "metadata.json"), os.path.join(destino, "validation.json")
+    if not (os.path.isfile(ruta_meta) and os.path.isfile(ruta_val)):
+        raise Rechazo(f"{ref} no existe en el case store (o esta a medio escribir)")
+    try:
+        with open(ruta_meta, encoding="utf-8") as f:
+            meta = json.load(f)
+        with open(ruta_val, encoding="utf-8") as f:
+            previa = json.load(f)
+    except (OSError, ValueError, RecursionError) as e:
+        raise Rechazo(f"{ref}: metadata.json/validation.json ilegibles: {e}") from None
+    if not isinstance(meta, dict) or meta.get("case_id") != case_id:
+        raise Rechazo(f"{ref}: metadata.json no corresponde a `{case_id}`")
+    previa = previa if isinstance(previa, dict) else {}
+    gold = status == "approved"
+    nueva = {"status": status, "approved_by_human": gold, "approved_at": _ahora() if gold else None,
+             "reviewer_note": reviewer_note if reviewer_note is not None else previa.get("reviewer_note")}
+    _escribir_atomico(ruta_val, _json_bytes(nueva))
+    return {"case_id": case_id, "version": version, "ref": ref, "status": status, "path": destino}
+
+
 # ------------------------------------------------------------------ CLI
 
 def _leer_json(ruta):
@@ -391,12 +482,24 @@ def main(argv=None):
     p_rec.add_argument("--approved-by-human", action="store_true",
                        help="confirmacion HUMANA explicita para grabar un caso ya `approved` (Gold)")
     _comunes(p_rec)
+    p_st = sub.add_parser("set-status", help="cambia validation.status; `approved` (Gold) exige --approved-by-human")
+    p_st.add_argument("case_id")
+    p_st.add_argument("version", help="`1` o `v001`")
+    p_st.add_argument("status", choices=cs.VALIDATION_STATUS)
+    p_st.add_argument("--approved-by-human", action="store_true",
+                      help="confirmacion HUMANA explicita: la unica forma de marcar Gold")
+    p_st.add_argument("--note", help="reviewer_note (sin ella se conserva la anterior)")
+    _comunes(p_st)
     args = ap.parse_args(argv)
     try:
         config, raiz = _config_cli(args)
         if args.cmd == "record":
             caso = _leer_json(args.fichero)
             print(json.dumps(grabar(caso, config, raiz, approved_by_human=args.approved_by_human), ensure_ascii=False))
+        elif args.cmd == "set-status":
+            r = cambiar_estado(args.case_id, args.version, args.status, config, raiz,
+                               approved_by_human=args.approved_by_human, reviewer_note=args.note)
+            print(f"OK {r['ref']}: {r['status']}")
         return 0
     except _EntradaIlegible as e:
         print(f"error: {e}", file=sys.stderr)

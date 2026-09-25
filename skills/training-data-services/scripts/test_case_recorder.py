@@ -560,3 +560,137 @@ def test_t04_sin_red_ni_dominio():
             importados.add(n.module.split(".")[0])
     assert not importados & {"socket", "urllib", "http", "requests", "ssl", "bpy"}
     assert importados <= set(sys.stdlib_module_names)
+
+
+# ------------------------------------------------------------------ T-05: puerta humana para Gold
+
+def _grabado(tmp_path, **cambios):
+    raiz, cfg, store = _proyecto(tmp_path)
+    r = rec.grabar(_caso(**cambios), cfg, raiz)
+    return raiz, cfg, store, r
+
+
+def test_t05_gold_approved_sin_flag_falla_con_mensaje_explicito(tmp_path):
+    raiz, cfg, _store, r = _grabado(tmp_path)
+    val = os.path.join(r["path"], "validation.json")
+    antes = open(val, "rb").read()
+    for sin_flag in ({}, {"approved_by_human": False}, {"approved_by_human": 1}, {"approved_by_human": "si"}):
+        with pytest.raises(rec.Rechazo) as e:
+            rec.cambiar_estado("geo-ramp.steep", 1, "approved", cfg, raiz, **sin_flag)
+        assert "approved exige --approved-by-human: Gold es siempre una accion humana" in str(e.value), sin_flag
+    assert open(val, "rb").read() == antes
+
+
+def test_t05_gold_con_flag_fija_humano_fecha_y_nota(tmp_path):
+    raiz, cfg, _store, r = _grabado(tmp_path)
+    out = rec.cambiar_estado("geo-ramp.steep", 1, "approved", cfg, raiz, approved_by_human=True,
+                             reviewer_note="Revisado a mano: Gold.")
+    val = _json(os.path.join(r["path"], "validation.json"))
+    assert val["status"] == "approved" and val["approved_by_human"] is True
+    assert isinstance(val["approved_at"], str) and val["approved_at"].endswith("Z")
+    assert val["reviewer_note"] == "Revisado a mano: Gold."
+    assert out["status"] == "approved" and out["ref"] == "geo-ramp.steep@v001"
+
+
+def test_t05_gold_needs_changes_rejected_y_pending_no_requieren_el_flag(tmp_path):
+    raiz, cfg, _store, r = _grabado(tmp_path)
+    ruta = os.path.join(r["path"], "validation.json")
+    rec.cambiar_estado("geo-ramp.steep", 1, "approved", cfg, raiz, approved_by_human=True, reviewer_note="nota previa")
+    for status in ("needs_changes", "rejected", "pending"):
+        rec.cambiar_estado("geo-ramp.steep", 1, status, cfg, raiz)
+        val = _json(ruta)
+        assert val["status"] == status and val["approved_by_human"] is False and val["approved_at"] is None, status
+        assert val["reviewer_note"] == "nota previa"      # sin --note se conserva
+    # el resultado sigue siendo un caso valido para el esquema
+    assert rec.cs._validar_validation is not None
+    errores = []
+    rec.cs._validar_validation(_json(ruta), errores)
+    assert errores == []
+
+
+def test_t05_gold_solo_reescribe_validation_y_de_forma_atomica(tmp_path, monkeypatch):
+    raiz, cfg, _store, r = _grabado(tmp_path)
+    d = r["path"]
+    otros = {f: open(os.path.join(d, f), "rb").read() for f in FICHEROS_VERSION if f != "validation.json"}
+    rec.cambiar_estado("geo-ramp.steep", 1, "rejected", cfg, raiz, reviewer_note="no vale")
+    assert {f: open(os.path.join(d, f), "rb").read() for f in otros} == otros
+    assert _ficheros(d) == FICHEROS_VERSION                  # sin temporales
+    # si la sustitucion falla, validation.json queda como estaba y no quedan temporales
+    antes = open(os.path.join(d, "validation.json"), "rb").read()
+
+    def _falla(*_a, **_k):
+        raise OSError("disco lleno")
+
+    monkeypatch.setattr(rec.os, "replace", _falla)
+    with pytest.raises(OSError):
+        rec.cambiar_estado("geo-ramp.steep", 1, "pending", cfg, raiz)
+    assert open(os.path.join(d, "validation.json"), "rb").read() == antes
+    assert _ficheros(d) == FICHEROS_VERSION
+    assert b"\r\n" not in antes
+
+
+def test_t05_gold_estado_version_o_case_id_invalidos_se_rechazan(tmp_path):
+    raiz, cfg, store, _r = _grabado(tmp_path)
+    for args in (("geo-ramp.steep", 1, "gold"), ("geo-ramp.steep", 9, "rejected"),
+                 ("otro-ramp.steep", 1, "rejected"), ("geo-ramp", 1, "rejected"),
+                 ("geo-ramp.steep.x", 1, "rejected"), ("geo-../x.steep", 1, "rejected"),
+                 ("geo-ramp.steep", 0, "rejected"), ("geo-ramp.steep", "uno", "rejected")):
+        with pytest.raises(rec.Rechazo):
+            rec.cambiar_estado(*args, cfg, raiz)
+    # una version fuera de rango se rechaza POR SER version invalida, no por no encontrarse
+    for mala in (0, -1, "v000", "uno", True, "v", ""):
+        with pytest.raises(rec.Rechazo) as e:
+            rec.cambiar_estado("geo-ramp.steep", mala, "rejected", cfg, raiz)
+        assert e.value.errores[0]["campo"] == "version", mala
+    # una version a medio escribir (sin metadata.json) no admite cambios de estado
+    parcial = store / "cases" / "ramp.steep" / "v002"
+    parcial.mkdir()
+    with pytest.raises(rec.Rechazo):
+        rec.cambiar_estado("geo-ramp.steep", 2, "rejected", cfg, raiz)
+    # la version admite tambien la forma `v001`
+    assert rec.cambiar_estado("geo-ramp.steep", "v001", "rejected", cfg, raiz)["version"] == 1
+
+
+def test_t05_gold_sin_config_o_desactivada_no_escribe(tmp_path):
+    raiz, cfg, _store, r = _grabado(tmp_path)
+    antes = open(os.path.join(r["path"], "validation.json"), "rb").read()
+    for mala in (None, dict(cfg, enabled=False)):
+        with pytest.raises(rec.Rechazo):
+            rec.cambiar_estado("geo-ramp.steep", 1, "rejected", mala, raiz)
+    assert open(os.path.join(r["path"], "validation.json"), "rb").read() == antes
+
+
+def test_t05_gold_corrected_se_conserva_junto_al_failure_que_corrige(tmp_path):
+    """Criterio 2 de T-05: el `corrected` declara `supersedes_case` y el `failure` sigue en disco,
+    aunque se rechace y aunque la correccion llegue a Gold."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    rec.grabar(_caso(outcome="failure"), cfg, raiz)
+    rec.cambiar_estado("geo-ramp.steep", 1, "rejected", cfg, raiz, reviewer_note="se sale de la rampa")
+    sin_sup = _caso(outcome="corrected")
+    with pytest.raises(rec.Rechazo) as e:
+        rec.grabar(sin_sup, cfg, raiz)
+    assert "supersedes_case" in {x["campo"] for x in e.value.errores}
+    rec.grabar(_caso(outcome="corrected", supersedes_case="geo-ramp.steep@v001"), cfg, raiz)
+    rec.cambiar_estado("geo-ramp.steep", 2, "approved", cfg, raiz, approved_by_human=True)
+    base = store / "cases" / "ramp.steep"
+    assert _json(base / "v001" / "metadata.json")["outcome"] == "failure"
+    assert _json(base / "v001" / "validation.json")["status"] == "rejected"
+    assert _json(base / "v002" / "metadata.json")["supersedes_case"] == "geo-ramp.steep@v001"
+    assert _json(base / "v002" / "validation.json")["approved_by_human"] is True
+
+
+def test_t05_gold_cli_set_status(tmp_path):
+    raiz, cfg, _store, r = _grabado(tmp_path)
+    _escribir_config(tmp_path, cfg)
+    val = os.path.join(r["path"], "validation.json")
+    s = _cli("set-status", "geo-ramp.steep", "1", "approved", "--project-root", raiz)
+    assert s.returncode == 1 and "approved exige --approved-by-human" in s.stderr
+    assert _json(val)["status"] == "pending"
+    s = _cli("set-status", "geo-ramp.steep", "v001", "approved", "--approved-by-human", "--note", "ok humano",
+             "--project-root", raiz)
+    assert s.returncode == 0, s.stderr
+    assert _json(val)["approved_by_human"] is True and _json(val)["reviewer_note"] == "ok humano"
+    assert _cli("set-status", "geo-ramp.steep", "1", "needs_changes", "--project-root", raiz).returncode == 0
+    assert _json(val)["status"] == "needs_changes" and _json(val)["approved_by_human"] is False
+    assert _cli("set-status", "geo-ramp.steep", "1", "gold", "--project-root", raiz).returncode == 2
+    assert _cli("set-status", "geo-ramp.steep", "7", "rejected", "--project-root", raiz).returncode == 1

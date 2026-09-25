@@ -108,16 +108,21 @@ verificacion: obligatoria
 - [x] Un caso rechazado se conserva; no hay borrado silencioso. (tests `test_t04_rechazados_y_fallidos_se_conservan_no_hay_borrado`, `test_t04_corrected_exige_que_exista_la_version_que_corrige`)
 
 ### T-05 - Puerta de aprobacion humana para Gold
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo humano**: est. 3h · real -
+- **Tiempo IA**: real 0.07h (medido; usage-meter `training-data-services/T-05`, 5m reloj, 16.1k out tok, 1.33 EUR; implementer `opus`)
 - **Prevision IA**: 35k in / 14k out tok
 - **Dependencias**: T-04
 - **Tipo**: backend
-- **Archivos**: `skills/training-data-services/scripts/case-recorder.py`, `skills/training-data-services/scripts/test_case_recorder.py`
+- **Archivos**: `skills/training-data-services/scripts/case-recorder.py`, `skills/training-data-services/scripts/test_case_recorder.py`, `skills/training-data-services/SKILL.md` (nota: paso 4 de «Proceso» ya no «pendiente», E3)
 - **Verificacion**: `python -m pytest -q skills/training-data-services/scripts/test_case_recorder.py -k gold` -> transicion a approved rechazada sin `--approved-by-human`
+  - Salida real (2026-09-25): `python -m pytest -q -p no:cacheprovider skills/training-data-services/scripts/test_case_recorder.py -k gold` -> `9 passed, 27 deselected in 1.56s` (8 `test_t05_gold_*` nuevos + `test_t04_gold_no_nace_por_record_sin_flag`); fichero completo -> `36 passed in 7.71s`; puertas: `pytest skills/training-data-services/scripts agent-kits/shared/test_capabilities.py agent-kits/shared/test_redact.py tests/test_manifests.py tests/test_export_skills.py tests/test_skill_size.py tests/test_console_encoding.py` -> `582 passed in 72.08s`; `test_readme_badges` -> `10 conteo(s) verificados OK`; `lint_plugin` -> `0 errores · 3 avisos` (preexistentes); `evals/check` -> `148 casos · 0 errores`; `export-interop --check` -> `50 ficheros al día`. 11 mutantes en copia aislada -> **11 mueren** (sin puerta, flag «truthy» en vez de `is True`, escritura no atómica, sin `approved_at`, `approved_by_human` siempre true, nota que no se conserva, estado fuera del vocabulario, sin config, CLI que pasa el flag siempre, versión sin mínimo, sin limpiar el temporal); el de «versión sin mínimo» vivía en la 1.ª pasada (la `v000` inexistente rechazaba igual) y muere tras exigir el campo `version`
+- **RED**: `test_case_recorder.py -k gold` -> 8 de 9 fallaron con `AttributeError: module 'case_recorder_bajo_test' has no attribute 'cambiar_estado'` y el CLI con `invalid choice: 'set-status' (choose from 'record')` (exit 2 en vez de 1) · 2026-09-25
+- **Nota**: decisiones con margen — (1) la puerta exige `approved_by_human is True` (un `1` o `"si"` no cuentan: sin puerta trasera por tipo); (2) al salir de `approved` (a `needs_changes`/`rejected`/`pending`) se limpian `approved_by_human` y `approved_at`; sin `--note` se conserva la `reviewer_note` previa; (3) la versión admite `1` o `v001`; (4) solo se toca `validation.json` con temporal `.tmp-*` en el mismo directorio + `os.replace`; si falla, queda el fichero viejo y no quedan temporales; (5) una versión a medio escribir (sin `metadata.json`) no admite cambio de estado; `metadata.json.case_id` debe coincidir con el pedido; (6) la línea del índice por cambio de estado llega con T-06 (índice).
+- **Changelog**: Gold is always a human action: `case-recorder.py set-status … approved` fails with an explicit message unless `--approved-by-human` is passed; other statuses need no flag and only `validation.json` is rewritten, atomically.
 **Criterios de aceptación**
-- [ ] Sin el flag, marcar `approved` falla con mensaje explicito; `needs_changes`/`rejected` no lo requieren.
-- [ ] Un caso `corrected` declara `supersedes_case` y se conserva junto al `failure` que corrige.
+- [x] Sin el flag, marcar `approved` falla con mensaje explicito; `needs_changes`/`rejected` no lo requieren. (tests `test_t05_gold_approved_sin_flag_falla_con_mensaje_explicito`, `test_t05_gold_needs_changes_rejected_y_pending_no_requieren_el_flag`, `test_t05_gold_cli_set_status`)
+- [x] Un caso `corrected` declara `supersedes_case` y se conserva junto al `failure` que corrige. (test `test_t05_gold_corrected_se_conserva_junto_al_failure_que_corrige`; la existencia de la versión citada, `test_t04_corrected_exige_que_exista_la_version_que_corrige`)
 
 ### T-06 - Indice `cases_index.jsonl` y consulta basica
 - **Estado**: borrador
