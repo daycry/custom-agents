@@ -421,7 +421,9 @@ def test_t04_rechazados_y_fallidos_se_conservan_no_hay_borrado(tmp_path):
         arbol = ast.parse(f.read())
     assert "rmtree" not in ast.dump(arbol) and "unlink" not in ast.dump(arbol)
     for nodo in ast.walk(arbol):
-        if isinstance(nodo, ast.FunctionDef) and nodo.name != "_limpiar_temporal":
+        # fix4 (#82, arbitraje): `_deshacer_si_escapa` retira SOLO el fichero propio recien creado que
+        # escapo del store por un enlace (misma identidad que su descriptor); nunca una version
+        if isinstance(nodo, ast.FunctionDef) and nodo.name not in ("_limpiar_temporal", "_deshacer_si_escapa"):
             for sub in ast.walk(nodo):
                 if isinstance(sub, ast.Attribute) and sub.attr in ("remove", "rmdir", "removedirs"):
                     raise AssertionError(f"{nodo.name} borra ({sub.attr})")
@@ -1876,7 +1878,7 @@ def test_f2fix2_gap52_record_mueve_la_version_sin_el_bloqueo_s1_y_s2_cortas(tmp_
     monkeypatch.setattr(rec.os, "mkdir", lambda p, *a, **k: vistos.append(("mkdir " + os.path.basename(p), estado["dentro"]))
                         or real_mkdir(p, *a, **k))
     monkeypatch.setattr(rec, "_leer_json_reintentando",
-                        lambda ruta: vistos.append(("leer " + os.path.basename(ruta), estado["dentro"])) or real_leer(ruta))
+                        lambda ruta, *a: vistos.append(("leer " + os.path.basename(ruta), estado["dentro"])) or real_leer(ruta, *a))
     rec.grabar(_caso(), cfg, raiz)
     assert entradas == [rec.BLOQUEO_INDICE, rec.BLOQUEO_INDICE], entradas
     assert ("mkdir v001", 1) in vistos, vistos
@@ -2631,7 +2633,7 @@ def test_f2fix2_gap66_validation_o_metadata_enlazados_se_rechazan_antes_de_leer(
     for fichero in ("validation.json", "metadata.json"):
         monkeypatch.setattr(rec, "_stat_sin_seguir", lambda x, f=fichero: _St(stat.S_IFLNK) if _nombre(x) == f else real(x))
         monkeypatch.setattr(rec, "_leer_json_reintentando",
-                            lambda ruta: leidos.append(os.path.basename(ruta)) or real_leer(ruta))
+                            lambda ruta, *a: leidos.append(os.path.basename(ruta)) or real_leer(ruta, *a))
         with pytest.raises(rec.Rechazo) as e:
             rec.cambiar_estado("geo-ramp.steep", 1, "rejected", cfg, raiz)
         assert "enlace" in str(e.value) and fichero not in leidos, leidos
@@ -2768,15 +2770,25 @@ def test_f2fix3_gap67_f5_carrera_de_creacion_mayusculas_con_procesos_reales(tmp_
             p.wait(timeout=120)
             assert p.returncode == 0, err[-400:]
             salidas.append(json.loads(out))
-        dirs = [n for n in os.listdir(str(store / "cases")) if not n.startswith(".")]
-        assert len(dirs) == 1, (ronda, dirs, salidas)
-        dueno = f"geo-{dirs[0].split('.')[0]}.steep"
-        versiones_ = os.listdir(str(store / "cases" / dirs[0]))
-        assert {_json(store / "cases" / dirs[0] / v / "metadata.json")["case_id"] for v in versiones_} == {dueno}, ronda
+        dirs = sorted(n for n in os.listdir(str(store / "cases")) if not n.startswith("."))
+        # fix4 (#81): en un sistema que distingue mayusculas (Linux) dos creaciones A LA VEZ son dos
+        # directorios distintos (no chocan en disco): limite declarado, `check` reporta la pareja
+        sensible = _distingue_mayusculas(store / "cases")
+        assert len(dirs) == 1 or (sensible and len(dirs) == 2), (ronda, dirs, salidas)
+        versiones_ = []
+        for d in dirs:
+            dueno = f"geo-{d.split('.')[0]}.steep"
+            vs = os.listdir(str(store / "cases" / d))
+            assert {_json(store / "cases" / d / v / "metadata.json")["case_id"] for v in vs} == {dueno}, ronda
+            versiones_ += [f"{dueno}@{v}" for v in vs]
         ganadores = [s["ok"] for s in salidas if "ok" in s]
-        assert len(ganadores) == len(versiones_) and all(g.startswith(dueno + "@") for g in ganadores), (ronda, salidas)
+        assert sorted(ganadores) == sorted(versiones_), (ronda, salidas)
         assert all("mayusculas" in s["rechazo"] for s in salidas if "rechazo" in s), (ronda, salidas)
-        assert rec.comprobar_indice(str(store)) == []
+        difs = rec.comprobar_indice(str(store))
+        if len(dirs) == 2:
+            assert any("mayusculas" in x and "RAMP.steep" in x and "ramp.steep" in x for x in difs), difs
+        else:
+            assert difs == [], difs
 
 
 def test_f2fix3_gap67_f1_mas_de_64_saltos_suelta_el_bloqueo_recalcula_y_acota(tmp_path, monkeypatch):
@@ -3230,7 +3242,7 @@ def test_f2fix3_gap75_m7_set_status_recomprueba_enlaces_de_fichero_con_el_bloque
     real, real_leer, enlazado, leidos = rec._stat_sin_seguir, rec._leer_json_reintentando, [], []
     monkeypatch.setattr(rec, "_stat_sin_seguir",
                         lambda x: _St(stat.S_IFLNK) if enlazado and _nombre(x) == "validation.json" else real(x))
-    monkeypatch.setattr(rec, "_leer_json_reintentando", lambda ruta: leidos.append(os.path.basename(ruta)) or real_leer(ruta))
+    monkeypatch.setattr(rec, "_leer_json_reintentando", lambda ruta, *a: leidos.append(os.path.basename(ruta)) or real_leer(ruta, *a))
     _bloqueo_con_gancho(monkeypatch, lambda: enlazado.append(1))
     with pytest.raises(rec.Rechazo) as e:
         rec.cambiar_estado("geo-ramp.steep", 1, "rejected", cfg, raiz)
@@ -3333,21 +3345,23 @@ def test_f2fix3_gap76_indice_de_solo_lectura_es_permanente_y_el_consejo_no_entra
 
 
 def test_f2fix3_gap77_enlace_duro_plantado_en_el_temporal_no_se_sigue(tmp_path, monkeypatch):
-    """#77 (escenario literal): mientras `record` espera S1, alguien planta en `cases/.tmp-*/
-    metadata.json` un enlace duro a un ADR curado: el fichero se crea con `O_EXCL` -> rechazo, el
-    ADR intacto y nada grabado (la reserva queda vacia: no hay borrado)."""
+    """#77 (escenario literal): alguien planta en `cases/.tmp-*/metadata.json` un enlace duro a un ADR
+    curado (fix4, #82: el temporal ya no existe durante la espera de S1; se planta justo despues de
+    crearlo, la unica ventana que queda): el fichero se crea con `O_EXCL` -> rechazo, el ADR intacto y
+    nada grabado (la reserva queda vacia: no hay borrado)."""
     raiz, cfg, store = _proyecto(tmp_path)
     rec.grabar(_caso(), cfg, raiz)
     adr = tmp_path / "proj" / "docs" / "knowledge" / "approved" / "ADR-001.md"
     adr.parent.mkdir(parents=True)
     adr.write_bytes(b"curado\n")
+    real_mk = rec.tempfile.mkdtemp
 
-    def plantar():
-        tmps = [n for n in os.listdir(str(store / "cases")) if n.startswith(rec.PREFIJO_TEMPORAL)]
-        assert len(tmps) == 1, tmps
-        _hardlink(adr, store / "cases" / tmps[0] / "metadata.json")
+    def mk_y_plantar(*a, **k):
+        t = real_mk(*a, **k)
+        _hardlink(adr, os.path.join(t, "metadata.json"))
+        return t
 
-    _bloqueo_con_gancho(monkeypatch, plantar)
+    monkeypatch.setattr(rec.tempfile, "mkdtemp", mk_y_plantar)
     with pytest.raises(rec.Rechazo) as e:
         rec.grabar(_caso(), cfg, raiz)
     assert "ya existia en el temporal" in str(e.value)
@@ -3468,3 +3482,686 @@ def test_f2fix3_gap80_temporales_huerfanos_se_reportan_sin_borrarlos(tmp_path, m
         capsys.readouterr()
         assert rec.main(["index", "check", "--project-root", raiz]) == 1
     assert t1.exists() and t2.exists() and t3.exists() and (t1 / "request.json").exists()
+
+
+# ------------------------------------------------------------------ fix4 (verificacion dirigida fix3, Fase 2)
+# Gaps #81-#92 con el arbitraje del orquestador (tasks.md, «Verificacion dirigida — fix3: Fase 2»).
+
+
+def _distingue_mayusculas(d):
+    """True si el directorio `d` (que existe) distingue mayusculas en sus nombres."""
+    a, b = os.path.join(str(d), ".sonda-a"), os.path.join(str(d), ".SONDA-A")
+    os.mkdir(a)
+    try:
+        os.mkdir(b)
+    except FileExistsError:
+        return False
+    finally:
+        for x in (a, b):
+            try:
+                os.rmdir(x)
+            except OSError:
+                pass
+    return True
+
+
+def _cases_que_distingue_mayusculas(store):
+    """`<store>/cases` VACIO que distingue mayusculas: natural en Linux; en Windows, por directorio
+    con `fsutil file setCaseSensitiveInfo` (la semantica de un sistema POSIX). False si no se puede."""
+    cases = store / "cases"
+    cases.mkdir(parents=True)
+    if os.name == "nt":
+        subprocess.run(["fsutil.exe", "file", "setCaseSensitiveInfo", str(cases), "enable"], capture_output=True)
+    return _distingue_mayusculas(cases)
+
+
+def test_f2fix4_gap81_caso_nuevo_sin_scandir_de_cases_con_el_bloqueo(tmp_path, monkeypatch):
+    """#81: un caso NUEVO se crea con el bloqueo por `os.mkdir(cases/<family>.<variant>)` (O(1)): con
+    `.cases_index.lock` tomado no hay NINGUN `scandir`/`listdir` y el numero de llamadas es el mismo
+    con 2 que con 42 casos en el store (antes, el recorrido O(C) de mayusculas en cada caso nuevo)."""
+    raiz, cfg, store = _proyecto(tmp_path, family_pattern="^[A-Za-z0-9]+$")
+    rec.grabar(_caso_fv("uno"), cfg, raiz)
+    rec.grabar(_caso_fv("dos"), cfg, raiz)
+
+    def medir(fam):
+        with monkeypatch.context() as m:
+            cuenta = _llamadas_con_el_bloqueo(m)
+            rec.grabar(_caso_fv(fam), cfg, raiz)
+        return dict(cuenta)
+
+    base = medir("nuevoa")
+    for i in range(40):
+        rec.grabar(_caso_fv(f"fam{i}"), cfg, raiz)
+    grande = medir("nuevob")
+    assert base["scandir"] == 0 and base["listdir"] == 0, base
+    assert grande == base, (base, grande)
+
+
+def test_f2fix4_gap81_variante_creada_a_la_vez_ntfs_rechaza_y_posix_check_reporta_la_pareja(tmp_path, monkeypatch):
+    """#81 (arbitraje): mientras `record` de `ramp.steep` (caso nuevo) espera S1, otro crea
+    `cases/RAMP.steep`. En un `cases/` que NO distingue mayusculas (NTFS/APFS) el `mkdir` del caso
+    choca -> recorrido O(C) -> rechazo de mayusculas, nada grabado. En uno que SI las distingue
+    (POSIX; en Windows, `setCaseSensitiveInfo`) son directorios distintos: se graba, `index check`
+    reporta la PAREJA como incoherencia (exit 1) y el siguiente `record` lo rechaza el recorrido de
+    fuera (limite declarado)."""
+    vistos = set()
+    for nombre in ("nativo", "sensible"):
+        sub = tmp_path / nombre
+        sub.mkdir()
+        raiz, cfg, store = _proyecto(sub, family_pattern="^[A-Za-z0-9]+$")
+        if nombre == "sensible":
+            if not _cases_que_distingue_mayusculas(store):
+                continue
+        else:
+            (store / "cases").mkdir(parents=True)
+        sensible = _distingue_mayusculas(store / "cases")
+        vistos.add(sensible)
+        with monkeypatch.context() as m:
+            _bloqueo_con_gancho(m, lambda s=store: os.mkdir(str(s / "cases" / "RAMP.steep")))
+            if sensible:
+                r = rec.grabar(_caso(), cfg, raiz)
+                assert r["ref"] == "geo-ramp.steep@v001", r
+            else:
+                with pytest.raises(rec.Rechazo) as e:
+                    rec.grabar(_caso(), cfg, raiz)
+                assert "mayusculas" in str(e.value)
+                assert [n for n in os.listdir(str(store / "cases")) if not n.startswith(".")] == ["RAMP.steep"]
+                assert os.listdir(str(store / "cases" / "RAMP.steep")) == []
+                continue
+        difs = rec.comprobar_indice(str(store))
+        assert any("ramp.steep" in d and "RAMP.steep" in d and "mayusculas" in d for d in difs), difs
+        _escribir_config(sub, cfg)
+        assert rec.main(["index", "check", "--project-root", raiz]) == 1
+        with pytest.raises(rec.Rechazo) as e:
+            rec.grabar(_caso(), cfg, raiz)
+        assert "mayusculas" in str(e.value)
+    assert vistos, "ningun escenario ejecutado"
+
+
+def test_f2fix4_gap81_carrera_de_creacion_con_procesos_en_cases_que_distingue_mayusculas(tmp_path):
+    """#81, PROCESOS reales en un `cases/` que distingue mayusculas (la semantica POSIX): cuatro
+    procesos graban A LA VEZ `ramp.steep` y `RAMP.steep`. Invariante: todos terminan sin error, cada
+    directorio solo tiene versiones del `case_id` de su nombre exacto, los rechazados lo son por
+    mayusculas y, si quedan DOS directorios, `index check` reporta la pareja."""
+    for ronda in range(4):
+        base = tmp_path / f"r{ronda}"
+        base.mkdir()
+        raiz, cfg, store = _proyecto(base, family_pattern="^[A-Za-z0-9]+$")
+        if not _cases_que_distingue_mayusculas(store):
+            pytest.skip("este sistema no permite un directorio que distinga mayusculas")
+        go = base / "go"
+        familias = ("ramp", "RAMP", "ramp", "RAMP")
+        procs = [subprocess.Popen([sys.executable, "-c", _CREADOR, RECORDER_PATH, json.dumps(cfg), raiz, fam,
+                                   str(base / f"listo{i}"), str(go)], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                  stderr=subprocess.PIPE, text=True, encoding="utf-8") for i, fam in enumerate(familias)]
+        for p in procs:
+            p.stdin.write(json.dumps(_caso()))
+            p.stdin.close()
+        for i, p in enumerate(procs):
+            assert _esperar(base / f"listo{i}", p), p.communicate(timeout=30)
+        go.write_text("", encoding="utf-8")
+        salidas = []
+        for p in procs:
+            out, err = p.stdout.read(), p.stderr.read()
+            p.wait(timeout=120)
+            assert p.returncode == 0, err[-400:]
+            salidas.append(json.loads(out))
+        dirs = sorted(n for n in os.listdir(str(store / "cases")) if not n.startswith("."))
+        assert 1 <= len(dirs) <= 2, (ronda, dirs)
+        for d in dirs:
+            dueno = f"geo-{d.split('.')[0]}.steep"
+            assert {_json(store / "cases" / d / v / "metadata.json")["case_id"]
+                    for v in os.listdir(str(store / "cases" / d))} == {dueno}, (ronda, d)
+        assert all("mayusculas" in s["rechazo"] for s in salidas if "rechazo" in s), (ronda, salidas)
+        difs = rec.comprobar_indice(str(store))
+        if len(dirs) == 2:
+            assert any("mayusculas" in d and "RAMP.steep" in d and "ramp.steep" in d for d in difs), difs
+        else:
+            assert difs == [], difs
+
+
+def test_f2fix4_gap82_el_temporal_se_crea_despues_de_s1_y_sin_bloqueo(tmp_path, monkeypatch):
+    """#82: el temporal `cases/.tmp-*` de `record` se crea DESPUES de S1 (tras soltar el bloqueo): la
+    espera del bloqueo, que un tercero controla, deja de ser una ventana para plantar nada en el."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    rec.grabar(_caso(), cfg, raiz)
+    tomados, orden = _espia_de_bloqueos_por_nombre(monkeypatch)
+    eventos, real_mk = [], rec.tempfile.mkdtemp
+    monkeypatch.setattr(rec.tempfile, "mkdtemp",
+                        lambda *a, **k: eventos.append((len(orden), tuple(tomados))) or real_mk(*a, **k))
+    rec.grabar(_caso(), cfg, raiz)
+    assert eventos == [(1, ())], eventos                      # 1 bloqueo (S1) ya tomado y soltado
+
+
+def _ficheros_bajo(d):
+    return [os.path.join(b, f) for b, _ds, fs in os.walk(str(d)) for f in fs]
+
+
+def test_f2fix4_gap82_junction_plantada_en_el_temporal_no_escribe_fuera(tmp_path, monkeypatch):
+    """#82, escenario literal 1: una junction `cases/.tmp-X` -> `docs/knowledge/approved/` (a) plantada
+    durante la espera de S1 sobre todo temporal que exista y (b) que sustituye al temporal recien
+    creado: `record` no escribe NADA en `approved/` (antes, `metadata.json` ya existia alli)."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    rec.grabar(_caso(), cfg, raiz)
+    aprobado = tmp_path / "proj" / "docs" / "knowledge" / "approved"
+    aprobado.mkdir(parents=True)
+    cases = store / "cases"
+
+    def plantar():                                              # (a) durante la espera de S1
+        for n in os.listdir(str(cases)):
+            if n.startswith(rec.PREFIJO_TEMPORAL):
+                shutil.rmtree(str(cases / n))
+                _enlazar_dir(aprobado, cases / n)
+
+    with monkeypatch.context() as m:
+        _bloqueo_con_gancho(m, plantar)
+        try:
+            rec.grabar(_caso(), cfg, raiz)
+        except rec.Rechazo:
+            pass
+    assert _ficheros_bajo(aprobado) == [], _ficheros_bajo(aprobado)
+    real_mk = rec.tempfile.mkdtemp
+
+    def mk(*a, **k):                                            # (b) el temporal recien creado
+        t = real_mk(*a, **k)
+        os.rmdir(t)
+        _enlazar_dir(aprobado, t)
+        return t
+
+    monkeypatch.setattr(rec.tempfile, "mkdtemp", mk)
+    with pytest.raises(rec.Rechazo) as e:
+        rec.grabar(_caso(), cfg, raiz)
+    assert "enlace" in str(e.value) or "docs/knowledge" in str(e.value), str(e.value)
+    assert _ficheros_bajo(aprobado) == [], _ficheros_bajo(aprobado)
+    assert not [n for n in os.listdir(str(cases)) if n.startswith(rec.PREFIJO_TEMPORAL)]
+
+
+@pytest.mark.parametrize("donde", ["temporal", "version"])
+def test_f2fix4_gap82_junction_en_final_entre_mkdir_y_la_escritura_no_escribe_fuera(tmp_path, monkeypatch, donde):
+    """#82, escenario literal 2: `final/` (del temporal o de la version reservada) sustituido por una
+    junction hacia `docs/knowledge/approved/` justo despues de su `os.mkdir`: el `realpath` del padre
+    se recomprueba antes de crear (o mover) cada fichero -> rechazo, nada en `approved/`."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    rec.grabar(_caso(), cfg, raiz)
+    aprobado = tmp_path / "proj" / "docs" / "knowledge" / "approved"
+    aprobado.mkdir(parents=True)
+    real_mkdir, hecho = os.mkdir, []
+
+    def mkdir(p, *a, **k):
+        real_mkdir(p, *a, **k)
+        padre = os.path.basename(os.path.dirname(str(p)))
+        es = padre.startswith(rec.PREFIJO_TEMPORAL) if donde == "temporal" else rec._es_version(padre)
+        if os.path.basename(str(p)) == "final" and es and not hecho:
+            hecho.append(1)
+            os.rmdir(p)
+            _enlazar_dir(aprobado, p)
+
+    monkeypatch.setattr(rec.os, "mkdir", mkdir)
+    fuera, canon = [], os.path.normcase(os.path.realpath(str(aprobado)))
+    real_ab, real_rep = rec._abrir_exclusivo, rec._reemplazar
+
+    def espiar(ruta):                                           # ¿se llego a crear/mover algo AHI?
+        if os.path.normcase(os.path.realpath(os.path.dirname(ruta))) == canon:
+            fuera.append(ruta)
+
+    monkeypatch.setattr(rec, "_abrir_exclusivo", lambda ruta: espiar(ruta) or real_ab(ruta))
+    monkeypatch.setattr(rec, "_reemplazar", lambda o, d: espiar(d) or real_rep(o, d))
+    with pytest.raises(rec.Rechazo) as e:
+        rec.grabar(_caso(), cfg, raiz)
+    assert hecho and ("enlace" in str(e.value) or "docs/knowledge" in str(e.value)), str(e.value)
+    assert _ficheros_bajo(aprobado) == [], _ficheros_bajo(aprobado)
+    assert fuera == [], fuera                                   # ni siquiera un instante (padre ANTES)
+
+
+@pytest.mark.parametrize("paso", ["creacion", "movimiento"])
+def test_f2fix4_gap82_padre_cambiado_entre_la_comprobacion_y_la_creacion_se_detecta_despues(tmp_path, monkeypatch, paso):
+    """#82: la ventana residual (microsegundos, sin `openat` portable) entre recomprobar el padre y
+    crear (o mover) el fichero: si el padre se sustituye justo ahi, el `realpath` del fichero YA
+    creado lo delata -> se elimina SOLO ese fichero (el nuestro: misma identidad) y se rechaza."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    rec.grabar(_caso(), cfg, raiz)
+    aprobado = tmp_path / "proj" / "docs" / "knowledge" / "approved"
+    aprobado.mkdir(parents=True)
+    (aprobado / "ADR-001.md").write_bytes(b"curado\n")
+    real_ab, real_rep, hecho = rec._abrir_exclusivo, rec._reemplazar, []
+
+    def cambiar_padre(ruta):
+        padre = os.path.dirname(ruta)
+        if os.path.basename(padre) == "final" and not hecho:
+            hecho.append(1)
+            os.rmdir(padre)
+            _enlazar_dir(aprobado, padre)
+
+    if paso == "creacion":
+        monkeypatch.setattr(rec, "_abrir_exclusivo", lambda ruta: cambiar_padre(ruta) or real_ab(ruta))
+    else:
+        monkeypatch.setattr(rec, "_reemplazar", lambda o, d: cambiar_padre(d) or real_rep(o, d))
+    with pytest.raises(rec.Rechazo) as e:
+        rec.grabar(_caso(), cfg, raiz)
+    assert hecho and ("enlace" in str(e.value) or "docs/knowledge" in str(e.value)), str(e.value)
+    assert sorted(os.listdir(str(aprobado))) == ["ADR-001.md"]
+    assert (aprobado / "ADR-001.md").read_bytes() == b"curado\n"
+
+
+def _fuera_json(tmp_path, nombre, datos):
+    p = tmp_path / nombre
+    p.write_text(json.dumps(datos), encoding="utf-8")
+    return p
+
+
+def _sustituir_al_primer_open(monkeypatch, fichero, sustituir):
+    """`open` del recorder que, la PRIMERA vez que se abre `fichero`, ejecuta `sustituir()` y falla con
+    `PermissionError` (un handle ajeno): la sustitucion ocurre DURANTE los reintentos."""
+    real_open, hecho = builtins.open, []
+
+    def open_(ruta, *a, **k):
+        if os.path.basename(str(ruta)) == fichero and not hecho:
+            hecho.append(1)
+            sustituir()
+            raise PermissionError(13, "en uso")
+        return real_open(ruta, *a, **k)
+
+    monkeypatch.setattr(rec, "open", open_, raising=False)
+    monkeypatch.setattr(rec.time, "sleep", lambda _s: None)
+    return hecho
+
+
+@pytest.mark.parametrize("como", ["enlace_duro", "otro_fichero"])
+def test_f2fix4_gap83_set_status_lee_por_descriptor_la_sustitucion_durante_los_reintentos(tmp_path, monkeypatch, como):
+    """#83 (escenario literal): `validation.json` sustituido por un enlace DURO a un JSON de fuera (o
+    por otro fichero) mientras `set-status` reintenta la apertura: la comprobacion va sobre el
+    DESCRIPTOR (`fstat`: regular, `st_nlink == 1`, misma identidad que el `lstat` previo) -> rechazo;
+    su `reviewer_note` no se copia al store y el indice no cambia."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    r = rec.grabar(_caso(), cfg, raiz)
+    val = os.path.join(r["path"], "validation.json")
+    datos = {"status": "pending", "approved_by_human": False, "approved_at": None, "reviewer_note": "FUERA"}
+    fuera = _fuera_json(tmp_path, "fuera.json", datos)
+
+    def sustituir():
+        os.remove(val)
+        if como == "enlace_duro":
+            _hardlink(fuera, val)
+        else:
+            with builtins.open(val, "w", encoding="utf-8") as f:
+                json.dump(datos, f)
+
+    hecho = _sustituir_al_primer_open(monkeypatch, "validation.json", sustituir)
+    with pytest.raises(rec.Rechazo) as e:
+        rec.cambiar_estado("geo-ramp.steep", 1, "rejected", cfg, raiz)
+    assert hecho and ("enlace duro" in str(e.value) or "sustituido" in str(e.value)), str(e.value)
+    assert json.loads(fuera.read_text(encoding="utf-8")) == datos
+    assert [x["status"] for x in _indice(store)] == ["pending"]
+
+
+def test_f2fix4_gap83_lectores_leen_por_descriptor(tmp_path, monkeypatch):
+    """#83 en los lectores (S2, rebuild, check, dueño, `supersedes`): un fichero de version sustituido
+    por un enlace DURO durante los reintentos se omite (o se rechaza) sin leer su contenido; uno
+    sustituido por OTRO fichero regular (un `os.replace` legitimo) se vuelve a comprobar y se lee."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    r = rec.grabar(_caso(), cfg, raiz)
+    dir_v = r["path"]
+    for fichero in ("validation.json", "metadata.json"):
+        ruta = os.path.join(dir_v, fichero)
+        with open(ruta, "rb") as f:
+            original = f.read()
+        fuera = tmp_path / f"fuera-{fichero}"
+        fuera.write_bytes(original.replace(b"pending", b"rejected"))
+
+        def enlazar(ruta=ruta, fuera=fuera):
+            os.remove(ruta)
+            _hardlink(fuera, ruta)
+
+        with monkeypatch.context() as m:
+            _sustituir_al_primer_open(m, fichero, enlazar)
+            obj, _mt, aviso = rec._leer_de_version(dir_v, fichero, "cases/ramp.steep/v001")
+        assert obj is None and aviso and "enlace duro" in aviso, (obj, aviso)
+        with pytest.raises(rec.Rechazo) as e:                   # sin `lstat` previo: el descriptor manda
+            rec._leer_json_reintentando(ruta)
+        assert "enlace duro" in str(e.value)
+        if fichero == "metadata.json":
+            os.remove(ruta)
+            with open(ruta, "wb") as f:
+                f.write(original)
+            with monkeypatch.context() as m:
+                _sustituir_al_primer_open(m, fichero, enlazar)
+                with pytest.raises(rec.Rechazo) as e:
+                    rec._leer_metadata_sin_enlace(dir_v)
+            assert "enlace duro" in str(e.value)
+        os.remove(ruta)
+        with open(ruta, "wb") as f:
+            f.write(original)
+
+    def otro_regular():                                         # sustitucion legitima: se relee
+        tmp = os.path.join(dir_v, "nuevo.tmp")
+        with builtins.open(tmp, "wb") as f:
+            f.write(json.dumps({"status": "rejected", "approved_by_human": False, "approved_at": None,
+                                "reviewer_note": None}).encode("utf-8"))
+        os.replace(tmp, os.path.join(dir_v, "validation.json"))
+
+    with monkeypatch.context() as m:
+        _sustituir_al_primer_open(m, "validation.json", otro_regular)
+        obj, _mt, aviso = rec._leer_de_version(dir_v, "validation.json", "cases/ramp.steep/v001")
+    assert aviso is None and obj["status"] == "rejected", (obj, aviso)
+
+
+def test_f2fix4_gap84_check_reporta_un_fragmento_final_persistente(tmp_path):
+    """#84: un escritor muerto a mitad de linea deja un fragmento final sin `\\n`; `check` lo reporta
+    si PERSISTE en la confirmacion final (mismos bytes al releer), como `list` avisa de la linea
+    ignorada; `rebuild` lo descarta y `check` vuelve a estar limpio."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    rec.grabar(_caso(), cfg, raiz)
+    ruta = os.path.join(str(store), rec.INDICE)
+    linea = rec._linea(_indice(store)[0])
+    with open(ruta, "ab") as f:
+        f.write(linea[:len(linea) // 2])
+    difs = rec.comprobar_indice(str(store))
+    assert any("fragmento" in d and "sin salto" in d for d in difs), difs
+    assert rec.listar_con_avisos(str(store))[1], "list avisa de la linea ignorada"
+    rec.reconstruir_indice(str(store))
+    assert rec.comprobar_indice(str(store)) == []
+
+
+def test_f2fix4_gap84_un_fragmento_que_se_completa_durante_el_check_no_se_reporta(tmp_path, monkeypatch):
+    """#84: sin falso positivo con un append EN CURSO: si el fragmento se completa entre la primera
+    lectura y la confirmacion, no se reporta."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    rec.grabar(_caso(), cfg, raiz)
+    ruta = os.path.join(str(store), rec.INDICE)
+    linea = rec._linea(_indice(store)[0])
+    mitad = len(linea) // 2
+    with open(ruta, "ab") as f:
+        f.write(linea[:mitad])
+    real, hecho = rec._claves_con_diferencia, []
+
+    def completar(*a, **k):
+        if not hecho:
+            hecho.append(1)
+            with open(ruta, "ab") as f:
+                f.write(linea[mitad:])
+        return real(*a, **k)
+
+    monkeypatch.setattr(rec, "_claves_con_diferencia", completar)
+    assert rec.comprobar_indice_detalle(str(store)) == ([], []) and hecho
+
+
+def test_f2fix4_gap85_check_reporta_los_temporales_de_cada_version(tmp_path):
+    """#85: el temporal de `_escribir_atomico` vive en el directorio de la VERSION; `check` lo reporta
+    con la misma regla de gracia que #80 (reciente: «en curso»; viejo o futuro: «temporal huerfano»,
+    exit 1) y nunca lo borra; `rebuild` avisa del huerfano."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    rec.grabar(_caso(), cfg, raiz)
+    t = store / "cases" / "ramp.steep" / "v001" / ".tmp-muerto"
+    t.write_text("{}", encoding="utf-8")
+    rel = "cases/ramp.steep/v001/.tmp-muerto"
+    difs, en_curso = rec.comprobar_indice_detalle(str(store))
+    assert difs == [] and any(rel in e and "en curso" in e for e in en_curso), (difs, en_curso)
+    for cuando in (time.time() - 3600, time.time() + 3600):
+        os.utime(str(t), (cuando, cuando))
+        difs = rec.comprobar_indice(str(store))
+        assert any(rel in d and "temporal huerfano" in d for d in difs), difs
+    assert any(rel in a for a in rec.reconstruir_indice(str(store))[1])
+    assert t.exists()
+
+
+def _primera_linea(crudo):
+    return json.loads(crudo.splitlines()[0])
+
+
+def test_f2fix4_gap86_truncado_in_situ_y_regrabado_durante_el_rebuild_vuelve_a_f0(tmp_path, monkeypatch):
+    """#86: con `st_ino != 0` la identidad tambien lleva la ventana de 64 KiB previa al offset: un
+    indice truncado IN SITU (mismo inodo) y regrabado por encima del offset durante el rebuild se
+    detecta (vuelta a F0) en vez de dar exit 0 con un indice obsoleto."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    for _ in range(2):
+        rec.grabar(_caso(), cfg, raiz)
+    ruta = os.path.join(str(store), rec.INDICE)
+    assert os.stat(ruta).st_ino != 0
+    real_ident, real_f1, f0s = rec._identidad, rec.estado_de_cases, []
+    monkeypatch.setattr(rec, "_identidad", lambda r: f0s.append(1) or real_ident(r))
+
+    def f1(*a, **k):
+        if len(f0s) == 1:
+            with open(ruta, "r+b") as f:
+                crudo = f.read()
+                f.seek(0)
+                f.truncate()
+                f.write(crudo.replace(b'"pending"', b'"PENDING"') + rec._linea(_primera_linea(crudo)))
+        return real_f1(*a, **k)
+
+    monkeypatch.setattr(rec, "estado_de_cases", f1)
+    n, _avisos = rec.reconstruir_indice(str(store))
+    assert len(f0s) == 2 and n == 2, (len(f0s), n)
+    monkeypatch.setattr(rec, "estado_de_cases", real_f1)
+    assert rec.comprobar_indice(str(store)) == []
+
+
+def test_f2fix4_gap87_la_pista_solo_cuenta_directorios_de_version_en_rango(tmp_path):
+    """#87: un fichero suelto `v999999999` (o `v` + 200 digitos) o un directorio fuera de rango no
+    bloquean el `record` automatico del caso: la pista usa el criterio de #74 (directorio real con
+    nombre de version en rango); lo demas lo reporta `check`."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    rec.grabar(_caso(), cfg, raiz)
+    d = store / "cases" / "ramp.steep"
+    (d / "v999999999").write_text("x", encoding="utf-8")
+    assert rec.grabar(_caso(), cfg, raiz)["version"] == 2
+    (d / ("v" + "9" * 200)).write_text("x", encoding="utf-8")
+    assert rec.grabar(_caso(), cfg, raiz)["version"] == 3
+    (d / ("v" + "9" * 12)).mkdir()
+    assert rec.grabar(_caso(), cfg, raiz)["version"] == 4
+    difs = rec.comprobar_indice(str(store))
+    assert any("v999999999" in x for x in difs) and any("9" * 200 in x for x in difs), difs
+    assert any("9" * 12 in x and "fuera de rango" in x for x in difs), difs
+
+
+def test_f2fix4_gap88_directorio_con_versiones_de_dos_case_id_se_reporta_y_no_se_indexa_el_intruso(tmp_path, monkeypatch):
+    """#88 (la carrera del limite declarado del dueño): mientras `record` de `geo-ramp.steep` espera
+    S1, otro `id_prefix` (`xyz`) graba el mismo `family.variant`. Quedan `v001` de `xyz-…` y `v002` de
+    `geo-…` en el MISMO directorio: `check` lo reporta (exit 1) y `rebuild` no indexa la del intruso."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    cfg_x = dict(cfg, id_prefix="xyz")
+    with monkeypatch.context() as m:
+        _bloqueo_con_gancho(m, lambda: rec.grabar(_caso(case_id="xyz-ramp.steep"), cfg_x, raiz))
+        r = rec.grabar(_caso(), cfg, raiz)
+    assert r["ref"] == "geo-ramp.steep@v002", r
+    difs = rec.comprobar_indice(str(store))
+    assert any("geo-ramp.steep" in d and "xyz-ramp.steep" in d for d in difs), difs
+    _escribir_config(tmp_path, cfg)
+    assert rec.main(["index", "check", "--project-root", raiz]) == 1
+    n, avisos = rec.reconstruir_indice(str(store))
+    assert n == 1 and any("geo-ramp.steep" in a for a in avisos), (n, avisos)
+    assert [(e["case_id"], e["version"]) for e in rec.listar(str(store))] == [("xyz-ramp.steep", 1)]
+
+
+def test_f2fix4_gap89_la_confirmacion_solo_relee_lo_que_toco_la_cola_o_cambio(tmp_path, monkeypatch):
+    """#89: con el indice AUSENTE y N versiones, la confirmacion final de `check` no relee ninguna
+    del disco (la lectura de F1 ya es consistente); solo relee una clave con diferencia si la toco
+    la cola o su `validation.json` cambio desde F1."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    for _ in range(12):
+        rec.grabar(_caso(), cfg, raiz)
+    os.remove(os.path.join(str(store), rec.INDICE))
+    _envejecer(store)
+    real_rel, releidas = rec._releer_version, []
+    monkeypatch.setattr(rec, "_releer_version", lambda s, f, v, numero, *a, **k: releidas.append(numero) or
+                        real_rel(s, f, v, numero, *a, **k))
+    difs = rec.comprobar_indice(str(store))
+    assert len([d for d in difs if "no en el indice" in d]) == 12 and releidas == [], (difs, releidas)
+    val = store / "cases" / "ramp.steep" / "v005" / "validation.json"
+    real_f1 = rec._estado_de_cases
+
+    def f1_y_un_set_status_muerto(*a, **k):                     # W tras F1, sin su linea (A)
+        r = real_f1(*a, **k)
+        tmp = str(val) + ".nuevo"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump({"status": "rejected", "approved_by_human": False, "approved_at": None,
+                       "reviewer_note": None}, f)
+        os.replace(tmp, str(val))
+        return r
+
+    monkeypatch.setattr(rec, "_estado_de_cases", f1_y_un_set_status_muerto)
+    difs = rec.comprobar_indice(str(store))
+    assert releidas == [5], releidas
+    assert len([d for d in difs if "no en el indice" in d]) == 12, difs
+
+
+def test_f2fix4_gap91_m6_linea_corrupta_en_el_residual_se_descarta_con_aviso(tmp_path, monkeypatch):
+    """#91 M6: una linea corrupta en el residual del rebuild (copiado tal cual con el bloqueo) se
+    DESCARTA con aviso, sin excepcion, tambien si validarla lanzara un error inesperado; el indice
+    reconstruido queda limpio."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    rec.grabar(_caso(), cfg, raiz)
+    ruta = os.path.join(str(store), rec.INDICE)
+    real_cola = rec._leer_cola
+    corruptas = (b"no json\n", b"[1, 2]\n", b'{"a": 1}\n', b"\xff\xfe\n", b'{"x": 1}')
+
+    def cola(r, cursor, hasta_eof=False):
+        if hasta_eof:
+            with open(ruta, "ab") as f:
+                f.write(b"".join(corruptas))
+        return real_cola(r, cursor, hasta_eof)
+
+    monkeypatch.setattr(rec, "_leer_cola", cola)
+    n, avisos = rec.reconstruir_indice(str(store))
+    assert n == 1 and len([a for a in avisos if "residual ignorada" in a]) == len(corruptas), avisos
+    monkeypatch.setattr(rec, "_leer_cola", real_cola)
+    assert len(_indice(store)) == 1 and rec.comprobar_indice(str(store)) == []
+    real_valida = rec._entrada_valida
+
+    def valida(e):
+        if isinstance(e, dict) and e.get("family") == "rota":
+            raise TypeError("inesperado")
+        return real_valida(e)
+
+    monkeypatch.setattr(rec, "_entrada_valida", valida)
+    e, motivo = rec._parsear_linea(rec._linea(dict(_indice(store)[0], family="rota")))
+    assert e is None and motivo, (e, motivo)
+
+
+def test_f2fix4_gap91_m10_confirmacion_relee_una_clave_de_la_cola_sin_diferencia(tmp_path, monkeypatch):
+    """#91 M10: una linea de la cola IGUAL a lo que ya dice F1 cuya relectura falla de forma pasajera
+    deja un aviso que ninguna diferencia volveria a mirar: la confirmacion la relee (`cola_fallidas`)
+    y no hay falso positivo."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    rec.grabar(_caso(), cfg, raiz)
+    linea = _indice(store)[0]
+    real_f1, real_rel, fallos = rec._estado_de_cases, rec._releer_version, []
+
+    def f1(*a, **k):
+        r = real_f1(*a, **k)
+        with rec._Bloqueo(str(store)):
+            rec._anadir_linea(str(store), linea)                        # cola, mismo estado que F1
+        return r
+
+    def con_un_fallo(store_, fam, var, numero, case_id=None):
+        if not fallos:
+            fallos.append(1)
+            return None, ("cases/ramp.steep/v001 ilegible: validation.json no legible tras 40 reintentos "
+                          "(bloqueada o sin permisos)"), False, None
+        return real_rel(store_, fam, var, numero, case_id)
+
+    monkeypatch.setattr(rec, "_estado_de_cases", f1)
+    monkeypatch.setattr(rec, "_releer_version", con_un_fallo)
+    assert rec.comprobar_indice_detalle(str(store)) == ([], []) and fallos == [1]
+
+
+def test_f2fix4_gap91_m14_el_dueno_no_lee_un_metadata_con_enlace_duro(tmp_path):
+    """#91 M14: la comprobacion del dueño del directorio no lee un `metadata.json` con enlace duro (a
+    un JSON de fuera que dice otro `case_id`): lo salta y usa la siguiente version completa."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    r1 = rec.grabar(_caso(), cfg, raiz)
+    rec.grabar(_caso(), cfg, raiz)
+    meta = os.path.join(r1["path"], "metadata.json")
+    datos = _json(meta)
+    fuera = _fuera_json(tmp_path, "fuera-meta.json", dict(datos, case_id="xyz-ramp.steep"))
+    os.remove(meta)
+    _hardlink(fuera, meta)
+    assert rec.grabar(_caso(), cfg, raiz)["version"] == 3
+
+
+def test_f2fix4_gap91_m18_confirmacion_relee_un_fallo_pasajero_de_f1(tmp_path, monkeypatch):
+    """#91 M18: si F1 no pudo leer una version por un fallo pasajero (`PermissionError` persistente
+    solo durante el recorrido), la confirmacion la relee del disco: ni aviso ni diferencia."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    rec.grabar(_caso(), cfg, raiz)
+    rec.grabar(_caso(), cfg, raiz)
+    en_f1 = []
+    real_f1, real_leer = rec._estado_de_cases, rec._leer_json_reintentando
+
+    def f1(*a, **k):
+        en_f1.append(1)
+        try:
+            return real_f1(*a, **k)
+        finally:
+            en_f1.clear()
+
+    def leer(ruta, *a, **k):
+        if en_f1 and os.path.basename(os.path.dirname(ruta)) == "v001" and os.path.basename(ruta) == "validation.json":
+            raise PermissionError(13, "en uso")
+        return real_leer(ruta, *a, **k)
+
+    monkeypatch.setattr(rec, "_estado_de_cases", f1)
+    monkeypatch.setattr(rec, "_leer_json_reintentando", leer)
+    assert rec.comprobar_indice_detalle(str(store)) == ([], [])
+
+
+def test_f2fix4_gap91_m24_la_ventana_avanza_con_el_offset(tmp_path, monkeypatch):
+    """#91 M24: la ventana de identidad avanza con el offset consumido: con `st_ino == 0` y trafico
+    que obliga a varias pasadas, el rebuild termina en el PRIMER intento (una sola F0), sin
+    reintentos ni exit 3."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    for _ in range(2):
+        rec.grabar(_caso(), cfg, raiz)
+    linea = _indice(store)[0]
+    real_stat, real_cola, real_ident = rec._stat_indice, rec._leer_cola, rec._identidad
+
+    class SinIno:
+        def __init__(self, st):
+            self.st_dev, self.st_ino, self.st_size = st.st_dev, 0, st.st_size
+
+    pasadas, f0s = [], []
+
+    def con_trafico(r, cursor, hasta_eof=False):
+        if not hasta_eof and len(pasadas) < 3:
+            pasadas.append(1)
+            for _ in range(rec.COLA_MAX_BLOQUEO + 5):
+                rec._anadir_linea(str(store), linea)
+        return real_cola(r, cursor, hasta_eof)
+
+    monkeypatch.setattr(rec, "_stat_indice", lambda x: SinIno(real_stat(x)))
+    monkeypatch.setattr(rec, "_leer_cola", con_trafico)
+    monkeypatch.setattr(rec, "_identidad", lambda r: f0s.append(1) or real_ident(r))
+    n, avisos = rec.reconstruir_indice(str(store))
+    assert len(pasadas) == 3 and len(f0s) == 1 and n == 2, (len(pasadas), len(f0s), n, avisos)
+
+
+def test_f2fix4_gap92_temporal_que_es_un_enlace_se_reporta_como_enlace(tmp_path):
+    """#92: un `.tmp-*` que es un enlace (junction/symlink) se reporta como «enlace en el store»
+    (incoherencia, exit 1) aunque sea reciente; nunca se sigue ni se borra (ni el enlace ni el destino)."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    rec.grabar(_caso(), cfg, raiz)
+    aprobado = tmp_path / "proj" / "docs" / "knowledge" / "approved"
+    aprobado.mkdir(parents=True)
+    (aprobado / "ADR-001.md").write_bytes(b"curado\n")
+    enlaces = (store / ".tmp-r", store / "cases" / ".tmp-c", store / "cases" / "ramp.steep" / ".tmp-k")
+    for e in enlaces:
+        _enlazar_dir(aprobado, e)
+    difs, en_curso = rec.comprobar_indice_detalle(str(store))
+    for rel in (".tmp-r", "cases/.tmp-c", "cases/ramp.steep/.tmp-k"):
+        assert any(rel in d and "enlace" in d for d in difs), (rel, difs)
+        assert not any(rel in c for c in en_curso), en_curso
+    rec.reconstruir_indice(str(store))
+    assert all(os.path.lexists(str(e)) for e in enlaces)
+    assert (aprobado / "ADR-001.md").read_bytes() == b"curado\n"
+
+
+def test_f2fix4_gap81_skill_describe_lo_que_queda_bajo_el_bloqueo():
+    """#81/#90 (TDD n/a: prosa): SKILL.md describe EXACTAMENTE lo que queda bajo el bloqueo (la
+    reserva, el `mkdir` del directorio de un caso nuevo y, solo si otro lo creo a la vez, el
+    recorrido de `cases/`) y el limite declarado de POSIX (parejas que solo difieren en mayusculas)."""
+    with open(SKILL_MD, encoding="utf-8") as f:
+        texto = f.read()
+    assert "independientes del tamaño del store" not in texto
+    assert "`mkdir` del directorio del caso" in texto
+    assert "otro lo creó a la vez" in texto
+    assert "solo difieren en mayúsculas" in texto
