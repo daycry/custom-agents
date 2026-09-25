@@ -1,20 +1,18 @@
 # CONTINUE-HERE
 
-> **2026-09-25 — RAMA EN VUELO: `feature/training-data-services`. Leer este bloque; el resto es histórico.**
+> **2026-09-25 (tarde) — RAMA EN VUELO: `feature/training-data-services`. Leer este bloque; el resto es histórico.**
 >
-> Objetivo del usuario (/goal): terminar lo que queda por implementar SIN gaps ni errores (ni deuda Minor).
-> **Fase 1 CERRADA** (`7d1d4ba`): fix2 (`29d4d9d`), intento 3 (`5b0f629`, 0 Crit/Imp, 5 Minor #26-#30), fix3
-> (`8e4b67f`) + verificación dirigida del orquestador → T-01..T-03 `completado`, 30/30 gaps cerrados.
-> **Fase 2 IMPLEMENTADA** (`028d743` T-04 recorder, `1ad6bda` T-05 Gold, `9327f22` T-06 índice; 0.43h) → EN VUELO:
-> revisión de dos lentes Fase 2 intento 1 de 3, lentes A+B+C+D (C por decisión del orquestador; D por `sleep`
-> en `case-recorder.py:278`) en worktrees `C:/tf2-a|b|c|d` (detached `7d1d4ba`, base `8e4b67f`).
-> Después: sección «intento 1: Fase 2» → fixN hasta 0 gaps (también Minor) → Fase 3 (T-07 dedup, T-08 partición,
-> T-09 ensamblador + `propose-from-case.py` → `docs/knowledge/candidates/pending/`) → Fase 4 (T-10 setup/doctor,
-> T-11 aislamiento/interop/CHANGELOG) → qa sin UI → documenter → 4-bis → changelog-sync → /retro + retro-gate → PR.
-> Pendiente del usuario: borrar a mano `C:/tds-a-tmp`, `C:/tds-b-tmp` (sondas de lentes; el `rm -rf` fuera del
-> scratchpad lo bloquea un control de seguridad) y las carpetas `.git/worktrees/{tds-a,tds-b,wt-check}` (bloqueadas
-> por OneDrive). `.claude/dev.json` local: `modelos.implementer: opus`. Stash `stash@{0}` = journal del hook de
-> SessionStart en `feature/graphiti-memory` (35 commits por detrás de origin: `git pull` al volver).
+> Objetivo del usuario (/goal): terminar lo que queda SIN gaps ni errores (ni deuda Minor).
+> **Fase 1 CERRADA** (`7d1d4ba`). **Fase 2**: T-04..T-06 implementadas; revisión intento 1 (`3622377`) → fix1 (`32c5a7e`)
+> → intento 2 (`c8f511d`, regresión del lock) → diseño D-fix2 revisado ANTES de implementar (`76dd7c9`, §1 roto,
+> enmiendas E1-E6) → fix2 (`4e77cc9`) → intento 3 (`4dcc0fd`): 15/15 cerrados, 2 Important DE ESCALA #67/#68 +
+> 12 Minor #69-#80. Decisión (objetivo del usuario, precedente graphiti F2/F3): ronda `fix3` + verificación dirigida
+> B+D, no 4.º intento. EN VUELO: revisión previa del diseño D-fix3 (worktree `C:/tdz3`). Después: enmiendas al
+> ledger → `usage-meter start --artefacto training-data-services/T-04-fix3` → implementer opus (#67-#80) →
+> verificación dirigida B+D (worktrees) → T-04..T-06 `completado` → Fase 3 (T-07..T-09) → Fase 4 (T-10, T-11) → qa
+> sin UI → documenter → 4-bis → changelog-sync → /retro + retro-gate → PR. Linux: Docker Desktop arrancado; réplica
+> de CI en el scratchpad `linux/` (`ci2.sh`): HEAD y master con el MISMO conjunto de 66 rojos de contenedor.
+> `.claude/dev.json` local: `modelos.implementer: opus`. Stash `stash@{0}` = journal del hook en `feature/graphiti-memory`.
 
 > **2026-09-21 — UNA SOLA RAMA EN VUELO: `feature/graphiti-memory`. Leer este bloque; el resto es histórico.**
 >
