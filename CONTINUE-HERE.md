@@ -1,5 +1,21 @@
 # CONTINUE-HERE
 
+> **2026-09-25 — RAMA EN VUELO: `feature/training-data-services`. Leer este bloque; el resto es histórico.**
+>
+> Objetivo del usuario (/goal): terminar lo que queda por implementar SIN gaps ni errores (ni deuda Minor).
+> **Fase 1 CERRADA** (`7d1d4ba`): fix2 (`29d4d9d`), intento 3 (`5b0f629`, 0 Crit/Imp, 5 Minor #26-#30), fix3
+> (`8e4b67f`) + verificación dirigida del orquestador → T-01..T-03 `completado`, 30/30 gaps cerrados.
+> **Fase 2 IMPLEMENTADA** (`028d743` T-04 recorder, `1ad6bda` T-05 Gold, `9327f22` T-06 índice; 0.43h) → EN VUELO:
+> revisión de dos lentes Fase 2 intento 1 de 3, lentes A+B+C+D (C por decisión del orquestador; D por `sleep`
+> en `case-recorder.py:278`) en worktrees `C:/tf2-a|b|c|d` (detached `7d1d4ba`, base `8e4b67f`).
+> Después: sección «intento 1: Fase 2» → fixN hasta 0 gaps (también Minor) → Fase 3 (T-07 dedup, T-08 partición,
+> T-09 ensamblador + `propose-from-case.py` → `docs/knowledge/candidates/pending/`) → Fase 4 (T-10 setup/doctor,
+> T-11 aislamiento/interop/CHANGELOG) → qa sin UI → documenter → 4-bis → changelog-sync → /retro + retro-gate → PR.
+> Pendiente del usuario: borrar a mano `C:/tds-a-tmp`, `C:/tds-b-tmp` (sondas de lentes; el `rm -rf` fuera del
+> scratchpad lo bloquea un control de seguridad) y las carpetas `.git/worktrees/{tds-a,tds-b,wt-check}` (bloqueadas
+> por OneDrive). `.claude/dev.json` local: `modelos.implementer: opus`. Stash `stash@{0}` = journal del hook de
+> SessionStart en `feature/graphiti-memory` (35 commits por detrás de origin: `git pull` al volver).
+
 > **2026-09-21 — UNA SOLA RAMA EN VUELO: `feature/graphiti-memory`. Leer este bloque; el resto es histórico.**
 >
 > Estado del repo: PR #9 (`knowledge-services`) y PR #10 (`jira-review-comments`) **mergeadas en master**; **release
