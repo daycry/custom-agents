@@ -735,26 +735,41 @@ class _FicheroNoPropio(Rechazo):
         self.sustituido = sustituido
 
 
+def _misma_identidad(previo, st):
+    """gap #83 (fix4-bis): el fichero abierto es EL del `lstat` previo: mismo `st_dev`/`st_ino`
+    (`os.path.samestat`) Y mismo tamaño y `st_mtime_ns` y, en POSIX, `st_ctime_ns` —alli el fichero
+    que sustituye a otro puede reutilizar el mismo numero de inodo—. En Windows `st_ctime_ns` no
+    significa lo mismo en `lstat` que en `fstat` (creacion frente a cambio): no se compara."""
+    if not os.path.samestat(previo, st):
+        return False
+    claves = ("st_size", "st_mtime_ns") if _WINDOWS else ("st_size", "st_mtime_ns", "st_ctime_ns")
+    return all(getattr(previo, k, None) == getattr(st, k, None) for k in claves)
+
+
 def _motivo_descriptor(st, previo):
     """gap #83: motivo por el que el fichero abierto (`os.fstat` de su descriptor) no se lee, o None:
-    no es regular, tiene enlaces duros (`st_nlink != 1`) o no es el del `lstat` previo."""
+    no es regular, tiene enlaces duros (`st_nlink > 1`), fue reemplazado durante la lectura
+    (`st_nlink == 0`: en POSIX, el inodo desenlazado por un `os.replace`) o no es el del `lstat`
+    previo. Los dos ultimos son «sustituido» (el llamador vuelve a comprobar o rechaza), nunca
+    «enlace duro»."""
     if not stat.S_ISREG(st.st_mode):
         return "no es un fichero regular", False
-    if st.st_nlink != 1:
+    if st.st_nlink > 1:
         return (f"es un enlace duro compartido ({st.st_nlink} nombres para el mismo fichero: podria ser uno de "
                 "fuera del store, CWE-59); no se lee"), False
-    if previo is not None and not os.path.samestat(previo, st):
+    if st.st_nlink == 0 or (previo is not None and not _misma_identidad(previo, st)):
         return SUSTITUIDO, True
     return None, False
 
 
-def _leer_json_reintentando(ruta, previo=None):
+def _leer_json_reintentando(ruta, previo=None, fstat_leido=None):
     """`(objeto, mtime)` de un JSON de version, reintentando de forma ACOTADA ante `PermissionError`
     (en Windows, abrir durante un `os.replace` ajeno falla un instante, gap #33). Se lee SIEMPRE del
     descriptor ya comprobado (gap #83, CWE-367/59): `os.fstat` -> fichero regular, `st_nlink == 1` y,
     con `previo` (el `lstat` del llamador), la MISMA identidad (`os.path.samestat`); si no ->
     `_FicheroNoPropio` sin leer nada. `FileNotFoundError`, JSON ilegible o el `PermissionError`
-    persistente se propagan: el llamador los distingue."""
+    persistente se propagan: el llamador los distingue. Con `fstat_leido` (lista), se le anade el
+    `os.fstat` del descriptor del que se leyo (la firma de #89, W-B2)."""
     for intento in range(REINTENTOS):
         try:
             with open(ruta, "rb") as f:
@@ -763,6 +778,8 @@ def _leer_json_reintentando(ruta, previo=None):
                 if motivo:
                     raise _FicheroNoPropio(f"{os.path.basename(ruta)}: {motivo}", sustituido)
                 datos = f.read()
+            if fstat_leido is not None:
+                fstat_leido.append(st)
             return json.loads(datos.decode("utf-8")), st.st_mtime
         except PermissionError:
             if intento == REINTENTOS - 1:
@@ -1426,7 +1443,7 @@ def _iso(ts):
     return datetime.datetime.fromtimestamp(ts, datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def _leer_de_version(dir_v, fichero, rel):
+def _leer_de_version(dir_v, fichero, rel, fstat_leido=None):
     """`(objeto, mtime, aviso)` de un fichero de version, con `lstat` ANTES de abrir: distingue
     «falta» (a medio escribir), «enlace» (no se lee a traves de el, gap #66), «enlace duro compartido»
     (`st_nlink > 1`: podria ser un fichero de fuera del store, gap #79), «no es un fichero regular»
@@ -1451,7 +1468,7 @@ def _leer_de_version(dir_v, fichero, rel):
             return None, None, (f"{rel} omitida: {fichero} es un enlace duro compartido ({st.st_nlink} nombres para el "
                                 "mismo fichero: podria ser uno de fuera del store, CWE-59); no se lee")
         try:
-            obj, mtime = _leer_json_reintentando(ruta, st)
+            obj, mtime = _leer_json_reintentando(ruta, st, fstat_leido)
             return obj, mtime, None
         except _FicheroNoPropio as e:
             if e.sustituido:
@@ -1501,13 +1518,11 @@ def _estado_version(store, nombre, dir_caso, numero, nombres, entrada_dir=None, 
                               f"(< {GRACIA_EN_CURSO_S:g} s): una grabacion en marcha"), True, None
         return None, aviso, False, None
     if aviso is None:
-        val, mtime, aviso = _leer_de_version(dir_v, "validation.json", rel)
-        if aviso is None and firmas is not None and isinstance(meta, dict):
-            try:
-                ruta_val = os.path.join(dir_v, "validation.json")
-                firmas[(meta.get("case_id"), numero)] = (ruta_val, _firma(os.lstat(ruta_val)))
-            except OSError:
-                pass
+        leido = []
+        val, mtime, aviso = _leer_de_version(dir_v, "validation.json", rel, leido)
+        if aviso is None and firmas is not None and isinstance(meta, dict) and leido:
+            # W-B2: la firma es la del DESCRIPTOR del que se leyo, no la de un `lstat` posterior
+            firmas[(meta.get("case_id"), numero)] = (os.path.join(dir_v, "validation.json"), _firma(leido[-1]))
     if aviso:
         return None, aviso, False, None
     errores_val = []
