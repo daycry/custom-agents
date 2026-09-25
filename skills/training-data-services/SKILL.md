@@ -139,11 +139,13 @@ escrito nada** y reintentar es seguro. Exit 3 por subcomando:
 | Una línea corrupta del índice (se ignora con aviso al leerla) | 1 | `index rebuild` |
 | Versión incompleta (sin `metadata.json` o `validation.json`) o con `mtime` futuro | 1 | Repárala o graba otra versión (se conserva) |
 | Versión duplicada (mismo número con dos anchos) | 1 | Deja un solo directorio por número |
-| Entrada con nombre de versión que no es un directorio de versión (fichero, enlace roto) | 1 | Retírala o renómbrala (no cuenta como duplicado) |
+| Entrada con nombre de versión que no es un directorio de versión (fichero, enlace roto, número fuera de rango) | 1 | Retírala o renómbrala (no cuenta como duplicado) |
 | Enlace (symlink/junction) o fichero que es un enlace duro | 1 | Sustitúyelo por el fichero real; nunca se sigue |
 | Fichero que no es un fichero regular, no legible tras los reintentos (bloqueada o sin permisos) o JSON ilegible | 1 | Revisa permisos y contenido |
 | `metadata.json` que no casa con su ruta o con el esquema, o `validation.json` incoherente (`approved` sin humano) | 1 | Corrígelo a mano; no se indexa |
-| Un temporal huérfano `.tmp-*` (raíz, `cases/` o un caso) de hace ≥ 60 s o con `mtime` futuro | 1 | Si no hay nada en marcha, bórralo a mano |
+| Un temporal huérfano `.tmp-*` (raíz, `cases/`, un caso o una versión) de hace ≥ 60 s o con `mtime` futuro, o un `.tmp-*` que es un enlace | 1 | Si no hay nada en marcha, bórralo a mano (el enlace, no su destino) |
+| Un fragmento final del índice sin salto de línea que persiste (escritor muerto a mitad de línea) | 1 | `index rebuild` |
+| Dos casos que solo difieren en mayúsculas, o un directorio con versiones de dos `case_id` (no se indexa la del intruso) | 1 | Renombra, fusiona o mueve a mano |
 
 Es **informativo** (exit 0, línea `info:`) lo que está **en curso**: una versión sin
 `metadata.json` cuyo directorio tiene `mtime` de hace menos de 60 s, una completa que está en
@@ -159,9 +161,13 @@ escritura muy intensa, `check` puede reportar un **falso positivo** transitorio 
   los campos cerrados: `case_id`, `family`, `variant`, `version`, `outcome`, `supersedes_case`,
   `status`, `approved_by_human`, `hash`. Se rechazan `NaN`/`Infinity`, tipos que no son JSON, texto
   no codificable en UTF-8, más de 50 niveles de anidamiento y un `arguments` con claves duplicadas.
-- El bloqueo `<root>/.cases_index.lock` (persistente, nunca se borra) solo cubre pasos cortos,
-  independientes del tamaño del store: la reserva de la versión, su línea del índice y cada
-  `set-status`. Los ficheros se escriben sin él; si no llega en 10 s, exit 3.
+- El bloqueo `<root>/.cases_index.lock` (persistente, nunca se borra) solo cubre pasos cortos: la
+  reserva de la versión (el `mkdir` del directorio del caso si es nuevo y el de `vNNN`), su línea del
+  índice y cada `set-status`. Solo si otro lo creó a la vez (el `mkdir` del caso choca) recorre
+  `cases/` una vez para decidir; el resto no depende del tamaño del store. Los ficheros se escriben
+  sin él, en un temporal creado tras la reserva; si no llega en 10 s, exit 3.
+- Límite declarado: en un sistema que distingue mayúsculas, dos casos creados a la vez que solo
+  difieren en mayúsculas quedan en dos directorios; `index check` reporta la pareja.
 - `index rebuild` (serializado con `<root>/.cases_rebuild.lock`) recorre `cases/` y relee del disco,
   sin bloquear a los escritores, lo que cambió mientras tanto; con el bloqueo solo copia el
   residual (las últimas líneas llegadas) **tal cual**. Límite declarado: un `set-status` muerto entre
