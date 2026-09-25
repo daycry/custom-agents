@@ -90,17 +90,22 @@ verificacion: obligatoria
 ## Fase 2 - Recorder y puerta humana
 
 ### T-04 - Recorder determinista (crear/actualizar caso)
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo humano**: est. 4h · real -
+- **Tiempo IA**: real 0.20h (medido; usage-meter `training-data-services/T-04`, 13m reloj, 43.9k out tok, 3.17 EUR; implementer `opus`)
 - **Prevision IA**: 45k in / 18k out tok
 - **Dependencias**: T-01, T-02
 - **Tipo**: backend
-- **Archivos**: `skills/training-data-services/scripts/case-recorder.py`, `skills/training-data-services/scripts/test_case_recorder.py`
+- **Archivos**: `skills/training-data-services/scripts/case-recorder.py`, `skills/training-data-services/scripts/test_case_recorder.py`, `skills/training-data-services/SKILL.md`, `tests/test_console_encoding.py` (nota: `SKILL.md` —fila «Piezas» del recorder y paso 3 de «Proceso» ya no «pendiente», E3—; `test_console_encoding.py` exige declarar el modo de arranque real del script: el recorder deja de ser «sin `__main__`» y pasa al modo «config ausente» → exit 2, salida ASCII)
 - **Verificacion**: `python -m pytest -q skills/training-data-services/scripts/test_case_recorder.py` -> ID estable, nunca sobrescribe version existente, redacta antes de escribir
+  - Salida real (2026-09-25): `python -m pytest -q -p no:cacheprovider skills/training-data-services/scripts/test_case_recorder.py` -> `28 passed in 5.13s` (19 `test_t04_*` nuevos; concurrencia estable en 3 repeticiones seguidas: `3 passed` ×3); puertas: `pytest skills/training-data-services/scripts agent-kits/shared/test_capabilities.py agent-kits/shared/test_redact.py tests/test_manifests.py tests/test_export_skills.py tests/test_skill_size.py tests/test_console_encoding.py` -> `574 passed in 70.36s`; `test_readme_badges` -> `10 conteo(s) verificados OK`; `lint_plugin` -> `0 errores · 3 avisos` (preexistentes); `evals/check` -> `148 casos · 0 errores`; `export-interop --check` -> `50 ficheros al día`. 16 mutantes en copia aislada del scratchpad -> **16 mueren** (`mkdir`→`makedirs(exist_ok)`, TOCTOU `exists`+`makedirs`, versión explícita que no rechaza, sin redacción, `constraints` sin redactar, sin validar, sin comprobar `supersedes_case`, Gold sin flag, sin `enabled`, sin config, `ensure_ascii=True`, CRLF, siguiente = `len+1`, sin limpiar `.tmp-*`, `validation.json` sin claves por defecto, `request.json` sin envolver); el de «sin config» vivía en la 1.ª pasada (`validar_config(None)` también rechaza) y muere tras exigir el mensaje «falta .claude/knowledge-services/training.json»
+- **RED**: `test_case_recorder.py::test_t04_*` (18 de 19) fallaron con `AttributeError: module 'case_recorder_bajo_test' has no attribute 'grabar'` y el CLI con `returncode 0` sin salida (no había `__main__`) · 2026-09-25 (`test_t04_sin_red_ni_dominio` verde desde el principio: vigila, no implementa)
+- **Nota**: decisiones con margen — (1) el recorder carga `case_schema.py` de su misma carpeta con `importlib` (nombre privado `tds_case_schema`: una sola fuente de esquema, ids y rutas); `test_f1fix1_gap08_import_sin_redact_py_*` copia ahora también `case_schema.py` al dir aislado (su intención —sin `redact.py`— no cambia); (2) sin `validation` el caso nace `pending`; sin `case_id` se construye con `id_prefix` + `family.variant` (ID estable), y si viene debe coincidir; (3) `--approved-by-human` en `record` solo autoriza un caso que YA llega `approved`: fija `approved_by_human: true` y `approved_at` (si falta); un `approved_by_human: true` escrito en el propio caso sin el flag se rechaza igual; (4) versión automática = mayor existente + 1 (nunca rellena huecos: `v001, v002, v007` → `v008`); (5) `metadata.json` se mueve el ÚLTIMO: una versión sin él está a medio escribir (T-06 la ignora al reconstruir); (6) salida del CLI `record`: JSON `{case_id, version, ref, path}` en stdout; `RedaccionNoDisponible` → exit 1 (rechazo). Estructura en disco verificada contra `assets/case-store-example/` fichero a fichero.
+- **Changelog**: New case recorder (`case-recorder.py record`): each attempt is stored as an immutable, versioned case with secrets redacted before anything touches disk; versions are never overwritten, even by concurrent writers, and rejected cases are kept.
 **Criterios de aceptación**
-- [ ] Un `case_id`+version existente nunca se sobrescribe; escribir de nuevo crea una version siguiente.
-- [ ] La trayectoria y el contexto pasan por `redact.py` antes de tocar disco.
-- [ ] Un caso rechazado se conserva; no hay borrado silencioso.
+- [x] Un `case_id`+version existente nunca se sobrescribe; escribir de nuevo crea una version siguiente. (tests `test_t04_version_siguiente_libre_y_nunca_sobrescribe`, `test_t04_concurrencia_*`, `test_t04_reserva_atomica_aunque_la_vista_de_versiones_este_obsoleta`, `test_t04_procesos_concurrentes_por_cli`)
+- [x] La trayectoria y el contexto pasan por `redact.py` antes de tocar disco. (tests `test_t04_redacta_request_context_constraints_y_trayectoria_antes_de_escribir`, `test_t04_valida_el_caso_ya_redactado`, `test_t04_sin_redact_py_no_toca_disco`)
+- [x] Un caso rechazado se conserva; no hay borrado silencioso. (tests `test_t04_rechazados_y_fallidos_se_conservan_no_hay_borrado`, `test_t04_corrected_exige_que_exista_la_version_que_corrige`)
 
 ### T-05 - Puerta de aprobacion humana para Gold
 - **Estado**: borrador
