@@ -2507,8 +2507,18 @@ def test_f2fix2_gap61_m8_set_status_recomprueba_enlaces_con_el_bloqueo(tmp_path,
 
 
 def test_f2fix2_gap61_m6_mayusculas_se_recomprueban_con_el_bloqueo(tmp_path, monkeypatch):
+    """fix4-bis (#81): en NTFS/APFS la variante creada a la vez hace chocar el `mkdir` del caso ->
+    rechazo; en un sistema que distingue mayusculas (Linux) son dos directorios: el record pasa y
+    `check` reporta la pareja (limite declarado)."""
     raiz, cfg, store = _proyecto(tmp_path, family_pattern="^[A-Za-z0-9]+$")
+    (store / "cases").mkdir(parents=True)
+    sensible = _distingue_mayusculas(store / "cases")
     _bloqueo_con_gancho(monkeypatch, lambda: os.makedirs(str(store / "cases" / "RAMP.steep")))
+    if sensible:
+        assert rec.grabar(_caso(), cfg, raiz)["ref"] == "geo-ramp.steep@v001"
+        difs = rec.comprobar_indice(str(store))
+        assert any("mayusculas" in d and "RAMP.steep" in d and "ramp.steep" in d for d in difs), difs
+        return
     with pytest.raises(rec.Rechazo) as e:
         rec.grabar(_caso(), cfg, raiz)
     assert "mayusculas" in str(e.value)
@@ -3787,11 +3797,25 @@ def test_f2fix4_gap83_set_status_lee_por_descriptor_la_sustitucion_durante_los_r
                 json.dump(datos, f)
 
     hecho = _sustituir_al_primer_open(monkeypatch, "validation.json", sustituir)
-    with pytest.raises(rec.Rechazo) as e:
-        rec.cambiar_estado("geo-ramp.steep", 1, "rejected", cfg, raiz)
-    assert hecho and ("enlace duro" in str(e.value) or "sustituido" in str(e.value)), str(e.value)
+    if como == "enlace_duro":                                   # la amenaza real: rechazo por `st_nlink`
+        with pytest.raises(rec.Rechazo) as e:
+            rec.cambiar_estado("geo-ramp.steep", 1, "rejected", cfg, raiz)
+        assert hecho and "enlace duro" in str(e.value), str(e.value)
+        assert [x["status"] for x in _indice(store)] == ["pending"]
+    else:
+        # fix4-bis (orquestador + Lente B): «otro fichero» DENTRO del store. Invariante en ambos SO: nada
+        # de fuera del store se copia. O se rechaza por identidad distinta (NTFS; en POSIX, `ctime`),
+        # o —si el SO reutilizo el inodo y la identidad casara— lo leido es un fichero regular del
+        # store con un solo nombre (`st_nlink == 1`): no hay fuga
+        try:
+            rec.cambiar_estado("geo-ramp.steep", 1, "rejected", cfg, raiz)
+            st = os.lstat(val)
+            assert stat.S_ISREG(st.st_mode) and st.st_nlink == 1
+        except rec.Rechazo as rechazo:
+            assert "sustituido" in str(rechazo), str(rechazo)
+            assert [x["status"] for x in _indice(store)] == ["pending"]
+        assert hecho
     assert json.loads(fuera.read_text(encoding="utf-8")) == datos
-    assert [x["status"] for x in _indice(store)] == ["pending"]
 
 
 def test_f2fix4_gap83_lectores_leen_por_descriptor(tmp_path, monkeypatch):
@@ -4165,3 +4189,118 @@ def test_f2fix4_gap81_skill_describe_lo_que_queda_bajo_el_bloqueo():
     assert "`mkdir` del directorio del caso" in texto
     assert "otro lo creó a la vez" in texto
     assert "solo difieren en mayúsculas" in texto
+
+
+# ------------------------------------------------------------------ fix4-bis (Linux, python:3.11-slim)
+
+import types
+
+
+def _fstat_trucado(monkeypatch, fichero, **cambios):
+    """`os.fstat` del recorder que, para el descriptor abierto de `fichero` (la PRIMERA vez), devuelve
+    el `stat` real con `cambios` (p. ej. `st_nlink=0`: inodo desenlazado por un `os.replace` en POSIX)."""
+    real_fstat, real_open, abiertos, hechos = os.fstat, builtins.open, {}, []
+
+    def open_(ruta, *a, **k):
+        f = real_open(ruta, *a, **k)
+        if os.path.basename(str(ruta)) == fichero:
+            abiertos[f.fileno()] = True
+        return f
+
+    def fstat(fd):
+        st = real_fstat(fd)
+        if abiertos.pop(fd, False) and not hechos:
+            hechos.append(1)
+            campos = {k: getattr(st, k) for k in dir(st) if k.startswith("st_")}
+            campos.update(cambios)
+            return types.SimpleNamespace(**campos)
+        return st
+
+    monkeypatch.setattr(rec, "open", open_, raising=False)
+    monkeypatch.setattr(rec.os, "fstat", fstat)
+    return hechos
+
+
+def test_f2fix4bis_gap83_st_nlink_cero_es_reemplazado_no_enlace_duro(tmp_path, monkeypatch):
+    """fix4-bis (#83, Linux): tras un `os.replace` legitimo, el descriptor abierto apunta a un inodo
+    DESENLAZADO (`st_nlink == 0`): es «reemplazado durante la lectura» -> se vuelve a comprobar desde el
+    `lstat` y se lee el fichero nuevo; nunca «enlace duro» (solo `st_nlink > 1` lo es)."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    r = rec.grabar(_caso(), cfg, raiz)
+    motivo, sustituido = rec._motivo_descriptor(types.SimpleNamespace(st_mode=stat.S_IFREG, st_nlink=0), None)
+    assert sustituido and "enlace duro" not in motivo, motivo
+    hechos = _fstat_trucado(monkeypatch, "validation.json", st_nlink=0)
+    obj, _mt, aviso = rec._leer_de_version(r["path"], "validation.json", "cases/ramp.steep/v001")
+    assert hechos and aviso is None and obj["status"] == "pending", (obj, aviso)
+
+
+def test_f2fix4bis_gap83_set_status_rechaza_misma_ruta_con_inodo_reutilizado(tmp_path, monkeypatch):
+    """fix4-bis (#83, Linux): en POSIX el fichero que sustituye a `validation.json` puede reutilizar el
+    MISMO numero de inodo (`samestat` verdadero); la identidad incluye tamaño, `mtime` y `ctime`: con el
+    bloqueo tomado, cualquier discrepancia con el `lstat` previo -> rechazo, sin copiar nada."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    r = rec.grabar(_caso(), cfg, raiz)
+    st = os.lstat(os.path.join(r["path"], "validation.json"))
+    hechos = _fstat_trucado(monkeypatch, "validation.json", st_ctime_ns=st.st_ctime_ns + 1,
+                            st_mtime_ns=st.st_mtime_ns + 1)
+    with pytest.raises(rec.Rechazo) as e:
+        rec.cambiar_estado("geo-ramp.steep", 1, "rejected", cfg, raiz)
+    assert hechos and "sustituido" in str(e.value), str(e.value)
+    assert [x["status"] for x in _indice(store)] == ["pending"]
+
+
+LINEAS_RARAS = (b"[1]", b"1", b"null", b'"x"', b"true", b'{"a": 1}', b"[]", b"{}",
+                b'{"case_id": 1, "version": "1", "family": [], "variant": {}, "status": null, "outcome": 2, "updated_at": 3}')
+
+
+def test_f2fix4bis_mb19_ningun_tipo_de_linea_hace_lanzar_a_check_ni_a_rebuild(tmp_path):
+    """fix4-bis (Lente B, MB19): ningun tipo de linea JSON valida pero que no es una entrada (lista,
+    numero, null, texto, booleano, objeto ajeno, claves con tipos erroneos) hace lanzar a `check` ni
+    a `rebuild`, ni como fragmento final sin `\n` ni como linea del cuerpo: se ignora con aviso.
+    `_parsear_linea` devuelve siempre `(None, motivo)` para ellas."""
+    for cruda in LINEAS_RARAS:
+        e, motivo = rec._parsear_linea(cruda)
+        assert e is None and motivo, (cruda, e, motivo)
+    for i, cruda in enumerate(LINEAS_RARAS):
+        for como in ("fragmento", "cuerpo"):
+            sub = tmp_path / f"{como}{i}"
+            sub.mkdir()
+            raiz, cfg, store = _proyecto(sub)
+            rec.grabar(_caso(), cfg, raiz)
+            with open(os.path.join(str(store), rec.INDICE), "ab") as f:
+                f.write(cruda + (b"\n" if como == "cuerpo" else b""))
+            difs = rec.comprobar_indice(str(store))
+            assert difs, (cruda, como)
+            n, _avisos = rec.reconstruir_indice(str(store))
+            assert n == 1 and rec.comprobar_indice(str(store)) == [], (cruda, como)
+
+
+def test_f2fix4bis_wb2_la_firma_de_f1_sale_del_descriptor_leido(tmp_path, monkeypatch):
+    """fix4-bis (Lente B, W-B2): la firma de #89 es la del DESCRIPTOR del que se leyo `validation.json`
+    en F1, no la de un `lstat` por ruta posterior: un `set-status` muerto justo despues de la lectura
+    de F1 (antes de ese `lstat`) cambia la firma y la confirmacion relee esa version."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    for _ in range(6):
+        rec.grabar(_caso(), cfg, raiz)
+    os.remove(os.path.join(str(store), rec.INDICE))
+    _envejecer(store)
+    val = store / "cases" / "ramp.steep" / "v005" / "validation.json"
+    real_leer, hecho = rec._leer_json_reintentando, []
+
+    def leer(ruta, *a, **k):
+        r = real_leer(ruta, *a, **k)
+        if os.path.normcase(ruta) == os.path.normcase(str(val)) and not hecho:
+            hecho.append(1)                                     # W muerto justo tras la lectura de F1
+            tmp = str(val) + ".nuevo"
+            with builtins.open(tmp, "w", encoding="utf-8") as f:
+                json.dump({"status": "rejected", "approved_by_human": False, "approved_at": None,
+                           "reviewer_note": None}, f)
+            os.replace(tmp, str(val))
+        return r
+
+    real_rel, releidas = rec._releer_version, []
+    monkeypatch.setattr(rec, "_leer_json_reintentando", leer)
+    monkeypatch.setattr(rec, "_releer_version", lambda s, f, v, numero, *a, **k: releidas.append(numero) or
+                        real_rel(s, f, v, numero, *a, **k))
+    rec.comprobar_indice(str(store))
+    assert hecho and releidas == [5], releidas
