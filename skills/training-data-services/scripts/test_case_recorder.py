@@ -753,6 +753,7 @@ def test_t06_index_se_reconstruye_desde_cases_si_se_pierde_o_corrompe(tmp_path):
     rec.grabar(_caso(), cfg, raiz)
     rec.cambiar_estado("geo-ramp.steep", 1, "rejected", cfg, raiz)
     rec.grabar(_caso(variant="gentle", case_id="geo-ramp.gentle"), cfg, raiz)
+    _envejecer(store)       # fix2 (E5): una version recien grabada sin linea estaria «en curso» 60 s
     esperado = _ultimas(_indice(store))
     ruta = os.path.join(str(store), "cases_index.jsonl")
     for estropear in ("perder", "corromper"):
@@ -772,6 +773,7 @@ def test_t06_index_check_detecta_divergencias_con_detalle(tmp_path):
     raiz, cfg, store = _proyecto(tmp_path)
     rec.grabar(_caso(), cfg, raiz)
     rec.grabar(_caso(), cfg, raiz)
+    _envejecer(store)       # fix2 (E5): fuera de la gracia «en curso»
     _escribir_config(tmp_path, cfg)
     assert rec.comprobar_indice(str(store)) == []
     ok = _cli("index", "check", "--project-root", raiz)
@@ -876,6 +878,7 @@ def test_t06_index_rebuild_conserva_updated_at_e_ignora_versiones_a_medias(tmp_p
     val = store / "cases" / "ramp.steep" / "v001" / "validation.json"
     os.utime(str(val), (1_000_000_000, 1_000_000_000))                 # mtime (2001) != updated_at
     (store / "cases" / "ramp.steep" / "v002").mkdir()                   # a medio escribir
+    _envejecer(store, solo_dirs=True)   # fix2 (E5): interrumpida hace rato, no «en curso»
     n, avisos = rec.reconstruir_indice(str(store))
     assert n == 1 and any("v002" in a for a in avisos)
     assert _indice(store) == [ultima]                                     # updated_at conservado
@@ -1146,6 +1149,7 @@ def test_f2fix1_gap33_ilegible_transitorio_no_es_a_medio_escribir(tmp_path, monk
     raiz, cfg, store = _proyecto(tmp_path)
     rec.grabar(_caso(), cfg, raiz)
     (store / "cases" / "ramp.steep" / "v002").mkdir()
+    _envejecer(store, solo_dirs=True)   # fix2 (E5): interrumpida hace rato, no «en curso»
     real_open = builtins.open
 
     def bloqueado(ruta, *a, **k):
@@ -1267,6 +1271,7 @@ def test_f2fix1_gap37_version_incompleta_es_incoherencia_y_se_salta(tmp_path, mo
     monkeypatch.setattr(rec, "_reemplazar", real)
     v2 = store / "cases" / "ramp.steep" / "v002"
     assert v2.is_dir() and not (v2 / "metadata.json").exists()        # se conserva (CA-02)
+    _envejecer(store, solo_dirs=True)   # fix2 (E5): interrumpida hace rato, no «en curso»
     difs = rec.comprobar_indice(str(store))
     assert any("v002" in d and "incompleta" in d for d in difs), difs
     _escribir_config(tmp_path, cfg)
@@ -1398,7 +1403,8 @@ def test_f2fix1_gap43_set_status_y_check_con_enlace(tmp_path):
     assert (aprobado / "v001" / "validation.json").read_bytes() == antes
     difs = rec.comprobar_indice(str(store), raiz_proyecto=raiz)
     # se omite el directorio del caso ENTERO, sin leer nada a traves del enlace
-    assert [d for d in difs if "stairs.short" in d] == ["cases/stairs.short omitido: enlace que sale del case store"], difs
+    # fix2 (E4): el lector detecta el enlace POR ENTRADA (sin resolverlo) y lo omite sea cual sea su destino
+    assert [d for d in difs if "stairs.short" in d] == [f"cases/stairs.short omitido: {rec.MOTIVO_ENLACE}"], difs
     rec.reconstruir_indice(str(store), raiz_proyecto=raiz)
     assert [e["case_id"] for e in rec.listar(str(store))] == ["geo-ramp.steep"]
 
@@ -1564,13 +1570,17 @@ def test_f2fix1_gap50_m15_rebuild_lee_dentro_del_bloqueo(tmp_path, monkeypatch):
             estado["dentro"] = False
             return super().__exit__(*exc)
 
+    # fix2 (D-fix2 §3/E3): el recorrido de `cases/` (F1) va SIN el bloqueo del indice pero SIEMPRE con
+    # `.cases_rebuild.lock` (un rebuild a la vez); la cola (F2) se lee con el bloqueo del indice
+    tomados, _orden = _espia_de_bloqueos_por_nombre(monkeypatch)
     vistos = []
     real_estado, real_leer = rec.estado_de_cases, rec.leer_indice
-    monkeypatch.setattr(rec, "_Bloqueo", Espia)
-    monkeypatch.setattr(rec, "estado_de_cases", lambda *a, **k: vistos.append(("cases", estado["dentro"])) or real_estado(*a, **k))
-    monkeypatch.setattr(rec, "leer_indice", lambda *a, **k: vistos.append(("indice", estado["dentro"])) or real_leer(*a, **k))
+    monkeypatch.setattr(rec, "estado_de_cases", lambda *a, **k: vistos.append(("cases", tuple(tomados))) or real_estado(*a, **k))
+    monkeypatch.setattr(rec, "leer_indice", lambda *a, **k: vistos.append(("indice", tuple(tomados))) or real_leer(*a, **k))
     rec.reconstruir_indice(str(store))
-    assert vistos and all(d for _q, d in vistos), vistos
+    assert ("cases", (rec.BLOQUEO_REBUILD,)) in vistos, vistos
+    assert all(v[1][:1] == (rec.BLOQUEO_REBUILD,) for v in vistos), vistos
+    assert ("indice", (rec.BLOQUEO_REBUILD, rec.BLOQUEO_INDICE)) in vistos, vistos
 
 
 def test_f2fix1_gap51_sin_bloqueo_a_tiempo_falla_cerrado(tmp_path, monkeypatch, capsys):
@@ -1589,7 +1599,7 @@ def test_f2fix1_gap51_sin_bloqueo_a_tiempo_falla_cerrado(tmp_path, monkeypatch, 
             rec.cambiar_estado("geo-ramp.steep", 1, "rejected", cfg, raiz)
         with pytest.raises(rec.Rechazo):
             rec.anadir_al_indice(str(store), _indice(store)[0])
-        assert rec.main(["record", str(caso), "--project-root", raiz]) == 1
+        assert rec.main(["record", str(caso), "--project-root", raiz]) == 3   # fix2 (E2): transitorio, exit 3
     assert "bloqueo" in capsys.readouterr().err
     assert sorted(os.listdir(store / "cases" / "ramp.steep")) == ["v001"]
     assert _json(store / "cases" / "ramp.steep" / "v001" / "validation.json")["status"] == "pending"
@@ -1682,6 +1692,952 @@ def test_f2fix1_gap35_escritura_y_append_con_el_bloqueo_tomado(tmp_path, monkeyp
     monkeypatch.setattr(rec, "_escribir_atomico", lambda *a: vistos.append(("validation", estado["dentro"])) or real_atom(*a))
     monkeypatch.setattr(rec, "_reemplazar", lambda *a: vistos.append(("version", estado["dentro"])) or real_rep(*a))
     rec.grabar(_caso(), cfg, raiz)
+    en_grabar = list(vistos)
+    vistos.clear()
     rec.cambiar_estado("geo-ramp.steep", 1, "rejected", cfg, raiz)
-    assert {q for q, _d in vistos} == {"indice", "validation", "version"}
+    # fix2 (D-fix2 E1): `grabar` MUEVE la version sin el bloqueo (W) y su linea (S2) va con el;
+    # `set-status` sigue escribiendo `validation.json` (con su `os.replace`) y su linea con el bloqueo
+    assert {q for q, _d in en_grabar} == {"indice", "version"} and {q for q, _d in vistos} == {"indice", "validation", "version"}
+    assert all(d == 0 for q, d in en_grabar if q == "version") and [d for q, d in en_grabar if q == "indice"] == [1], en_grabar
     assert all(d == 1 for _q, d in vistos), vistos
+
+
+# ------------------------------------------------------------------ fix2 (revision intento 2, Fase 2)
+# Diseno D-fix2 con las enmiendas E1-E6 (tasks.md, «Revision de dos lentes — intento 2: Fase 2»).
+
+import stat
+import time
+
+SKILL_MD = os.path.normpath(os.path.join(HERE, "..", "SKILL.md"))
+
+
+def _envejecer(store, solo_dirs=False, segundos=3600):
+    """Pone el `mtime` de las versiones (directorios y, si no `solo_dirs`, su `metadata.json`) una
+    hora atras: fuera de la gracia «en curso» de `index check` (E5)."""
+    viejo = time.time() - segundos
+    for base, _dirs, fs in os.walk(os.path.join(str(store), "cases")):
+        for f in fs if not solo_dirs else ():
+            if f == "metadata.json":
+                os.utime(os.path.join(base, f), (viejo, viejo))
+        if os.path.basename(base).startswith("v"):
+            os.utime(base, (viejo, viejo))
+
+
+def _esperar(ruta, proc, t=60):
+    """Espera ACOTADA a que aparezca `ruta` (o a que `proc` termine): nunca cuelga el test."""
+    limite = time.monotonic() + t
+    while time.monotonic() < limite:
+        if os.path.exists(str(ruta)):
+            return True
+        if proc is not None and proc.poll() is not None:
+            return False
+        time.sleep(0.01)
+    return False
+
+
+# Proceso real que graba y se PARA justo despues de W (la version ya en disco, antes de S2).
+_PAUSA_TRAS_W = r"""
+import importlib.util, os, sys, time
+spec = importlib.util.spec_from_file_location("rec_proc", sys.argv[1])
+r = importlib.util.module_from_spec(spec); spec.loader.exec_module(r)
+senal, seguir = sys.argv[2], sys.argv[3]
+r.ESPERA_BLOQUEO_S = float(sys.argv[4])
+real = r._mover_version
+def pausa(*a, **k):
+    res = real(*a, **k)
+    open(senal, "w").close()
+    limite = time.monotonic() + 60
+    while not os.path.exists(seguir):
+        if time.monotonic() > limite:
+            os._exit(7)
+        time.sleep(0.01)
+    return res
+r._mover_version = pausa
+sys.exit(r.main(sys.argv[5:]))
+"""
+
+
+def _lanzar_pausado(tmp_path, espera, *args):
+    senal, seguir = tmp_path / "w_hecho", tmp_path / "seguir"
+    p = subprocess.Popen([sys.executable, "-c", _PAUSA_TRAS_W, RECORDER_PATH, str(senal), str(seguir), str(espera), *args],
+                         stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8")
+    return p, senal, seguir
+
+
+def test_f2fix2_gap52_e1_set_status_entre_w_y_a_gana_el_disco(tmp_path):
+    """E6 (a), PROCESOS reales: `record` Gold se para tras W; un `set-status rejected` (otro proceso)
+    entra entre W y A; la A de `record` relee `validation.json` en S2 e indexa ESE estado."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    _escribir_config(tmp_path, cfg)
+    gold = tmp_path / "gold.json"
+    gold.write_text(json.dumps(_caso(validation={"status": "approved", "approved_by_human": True})), encoding="utf-8")
+    p, senal, seguir = _lanzar_pausado(tmp_path, 10, "record", str(gold), "--project-root", raiz, "--approved-by-human")
+    try:
+        assert _esperar(senal, p), p.communicate(timeout=30)
+        s = _cli("set-status", "geo-ramp.steep", "1", "rejected", "--project-root", raiz)
+        assert s.returncode == 0, s.stderr
+    finally:
+        seguir.write_text("", encoding="utf-8")
+    out, err = p.communicate(timeout=120)
+    assert p.returncode == 0, err
+    assert _json(store / "cases" / "ramp.steep" / "v001" / "validation.json")["status"] == "rejected"
+    assert rec.listar(str(store), status="approved") == []
+    assert _indice(store)[-1]["status"] == "rejected"
+    assert rec.comprobar_indice(str(store)) == []
+    ls = _cli("list", "--status", "approved", "--project-root", raiz)
+    assert ls.returncode == 0 and ls.stdout.strip() == ""
+
+
+def test_f2fix2_gap52_e2_timeout_tras_w_es_exit_0_con_aviso_y_el_reintento_no_duplica(tmp_path):
+    """E6 (b), PROCESOS reales: el bloqueo no llega en S2 (la version YA esta grabada) -> exit 0 con
+    aviso «index rebuild», nunca exit 3; quien reintenta SOLO ante exit 3 no duplica la version."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    _escribir_config(tmp_path, cfg)
+    caso = tmp_path / "caso.json"
+    caso.write_text(json.dumps(_caso()), encoding="utf-8")
+    p, senal, seguir = _lanzar_pausado(tmp_path, 0.3, "record", str(caso), "--project-root", raiz)
+    assert _esperar(senal, p), p.communicate(timeout=30)
+    with rec._Bloqueo(str(store)):
+        seguir.write_text("", encoding="utf-8")
+        out, err = p.communicate(timeout=120)
+    intentos = [p.returncode]
+    while intentos[-1] == 3 and len(intentos) < 3:        # politica de quien llama: reintentar solo ante 3
+        intentos.append(_cli("record", str(caso), "--project-root", raiz).returncode)
+    assert intentos == [0], (intentos, err)
+    assert "index rebuild" in err and json.loads(out)["version"] == 1
+    assert sorted(os.listdir(store / "cases" / "ramp.steep")) == ["v001"]
+    difs, en_curso = rec.comprobar_indice_detalle(str(store))
+    assert difs == [] and any("v001" in e for e in en_curso), (difs, en_curso)
+    rec.reconstruir_indice(str(store))
+    assert rec.comprobar_indice(str(store)) == []
+
+
+_GRABADOR = r"""
+import importlib.util, json, sys
+spec = importlib.util.spec_from_file_location("rec_proc", sys.argv[1])
+r = importlib.util.module_from_spec(spec); spec.loader.exec_module(r)
+cfg, raiz, n, etiqueta = json.loads(sys.argv[2]), sys.argv[3], int(sys.argv[4]), sys.argv[5]
+caso = json.loads(sys.stdin.read())
+fallos = []
+for i in range(n):
+    try:
+        res = r.grabar(dict(caso, request=f"{etiqueta}-{i}"), cfg, raiz)
+        if res["avisos"]:
+            fallos.append(res["avisos"])
+    except Exception as e:
+        fallos.append(f"{type(e).__name__}: {e}")
+print(json.dumps(fallos))
+"""
+
+
+def test_f2fix2_gap52_procesos_reales_record_sin_rechazos(tmp_path):
+    """#52 con PROCESOS reales (acotado: 8 x 6 `record`): ningun rechazo ni aviso, versiones 1..48
+    sin huecos, cada peticion en su version, e indice == `cases/` al final."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    procs = [subprocess.Popen([sys.executable, "-c", _GRABADOR, RECORDER_PATH, json.dumps(cfg), raiz, "6", f"p{k}"],
+                              stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                              encoding="utf-8") for k in range(8)]
+    salidas = [p.communicate(json.dumps(_caso()), timeout=300) for p in procs]
+    assert all(p.returncode == 0 for p in procs), [s[1][-400:] for s in salidas]
+    fallos = [f for s in salidas for f in json.loads(s[0])]
+    assert fallos == [], fallos[:5]
+    base = store / "cases" / "ramp.steep"
+    assert sorted(os.listdir(base)) == [f"v{v:03d}" for v in range(1, 49)]
+    peticiones = {_json(base / f"v{v:03d}" / "request.json")["request"] for v in range(1, 49)}
+    assert peticiones == {f"p{k}-{i}" for k in range(8) for i in range(6)}
+    assert rec.comprobar_indice(str(store)) == []
+
+
+def test_f2fix2_gap52_record_mueve_la_version_sin_el_bloqueo_s1_y_s2_cortas(tmp_path, monkeypatch):
+    """E1 (determinista): `record` toma el bloqueo DOS veces — S1 (reserva `mkdir`) y S2 (relee
+    `validation.json` + linea) — y mueve los ficheros de la version SIN el."""
+    raiz, cfg, _store = _proyecto(tmp_path)
+    estado, vistos = _espia_de_bloqueo(monkeypatch), []
+    entradas = []
+    real_enter = rec._Bloqueo.__enter__
+
+    def contar(self):
+        entradas.append(os.path.basename(self.ruta))
+        return real_enter(self)
+
+    monkeypatch.setattr(rec._Bloqueo, "__enter__", contar)
+    real_rep, real_lin, real_mkdir = rec._reemplazar, rec._anadir_linea, os.mkdir
+    real_leer = rec._leer_json_reintentando
+    monkeypatch.setattr(rec, "_reemplazar", lambda o, d: vistos.append(("mover", estado["dentro"])) or real_rep(o, d))
+    monkeypatch.setattr(rec, "_anadir_linea", lambda *a: vistos.append(("linea", estado["dentro"])) or real_lin(*a))
+    monkeypatch.setattr(rec.os, "mkdir", lambda p, *a, **k: vistos.append(("mkdir " + os.path.basename(p), estado["dentro"]))
+                        or real_mkdir(p, *a, **k))
+    monkeypatch.setattr(rec, "_leer_json_reintentando",
+                        lambda ruta: vistos.append(("leer " + os.path.basename(ruta), estado["dentro"])) or real_leer(ruta))
+    rec.grabar(_caso(), cfg, raiz)
+    assert entradas == [rec.BLOQUEO_INDICE, rec.BLOQUEO_INDICE], entradas
+    assert ("mkdir v001", 1) in vistos, vistos
+    assert all(d == 0 for q, d in vistos if q == "mover") and any(q == "mover" for q, _d in vistos), vistos
+    assert [d for q, d in vistos if q == "linea"] == [1], vistos
+    ultimo_mover = max(i for i, (q, _d) in enumerate(vistos) if q == "mover")
+    assert ("leer validation.json", 1) in vistos[ultimo_mover:], vistos      # S2 relee el disco
+
+
+def test_f2fix2_gap52_bloqueo_no_disponible_es_exit_3_y_no_escribe(tmp_path, monkeypatch, capsys):
+    """E2: `BloqueoNoDisponible` (S1 de `record`, `set-status`, F0/F2 de `rebuild`) -> exit 3
+    «transitorio: reintenta», distinto de 1 (rechazo) y 2 (uso/E/S); no se escribe nada."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    rec.grabar(_caso(), cfg, raiz)
+    _escribir_config(tmp_path, cfg)
+    monkeypatch.setattr(rec, "ESPERA_BLOQUEO_S", 0.2)
+    caso = tmp_path / "caso.json"
+    caso.write_text(json.dumps(_caso()), encoding="utf-8")
+    malo = tmp_path / "malo.json"
+    malo.write_text(json.dumps(_caso(outcome="meh")), encoding="utf-8")
+    rec.reconstruir_indice(str(store))                  # los dos ficheros de bloqueo ya existen
+    antes = sorted(_ficheros(str(store))), _bytes_del_store(str(store))
+    capsys.readouterr()
+    with rec._Bloqueo(str(store)):
+        assert rec.main(["record", str(caso), "--project-root", raiz]) == 3
+        assert rec.main(["set-status", "geo-ramp.steep", "1", "rejected", "--project-root", raiz]) == 3
+        assert rec.main(["index", "rebuild", "--project-root", raiz]) == 3
+        assert rec.main(["record", str(malo), "--project-root", raiz]) == 1      # rechazo: antes del bloqueo
+    err = capsys.readouterr().err
+    assert err.count("reintenta") >= 3
+    assert (sorted(_ficheros(str(store))), _bytes_del_store(str(store))) == antes
+    assert issubclass(rec.BloqueoNoDisponible, rec.Transitorio) and issubclass(rec.Transitorio, rec.Rechazo)
+
+
+def test_f2fix2_gap52_espera_con_retroceso_exponencial_y_jitter(tmp_path, monkeypatch):
+    """E2/§4: el sondeo del bloqueo espera 5 ms, dobla hasta 50 ms, con jitter, y nunca pasa del limite."""
+    store = tmp_path / "s"
+    store.mkdir()
+    esperas = []
+    base = time.monotonic()
+    with rec._Bloqueo(str(store)):
+        monkeypatch.setattr(rec, "ESPERA_BLOQUEO_S", 1.0)
+        monkeypatch.setattr(rec.time, "sleep", lambda s: esperas.append(s))
+        monkeypatch.setattr(rec.time, "monotonic", lambda: base + sum(esperas))
+        with pytest.raises(rec.BloqueoNoDisponible):
+            rec._Bloqueo(str(store)).__enter__()
+        monkeypatch.undo()
+    assert esperas and esperas[0] <= rec.ESPERA_INICIAL_S + 1e-9
+    assert max(esperas) <= rec.ESPERA_MAX_S + 1e-9 and max(esperas) > 4 * rec.ESPERA_INICIAL_S
+    assert sum(esperas) <= 1.0 + 1e-9
+    en_el_tope = esperas[5:-1]                         # tras 5 duplicaciones, sin la ultima (recortada al limite)
+    assert len(en_el_tope) >= 10 and len({round(s, 6) for s in en_el_tope}) > 1   # jitter: no todas iguales
+
+
+def _espia_de_bloqueos_por_nombre(monkeypatch):
+    """Nombres de los bloqueos tomados AHORA (pila) y orden en que se toman."""
+    tomados, orden = [], []
+
+    class Espia(rec._Bloqueo):
+        def __enter__(self):
+            r = super().__enter__()
+            tomados.append(os.path.basename(self.ruta))
+            orden.append(os.path.basename(self.ruta))
+            return r
+
+        def __exit__(self, *exc):
+            tomados.remove(os.path.basename(self.ruta))
+            return super().__exit__(*exc)
+
+    monkeypatch.setattr(rec, "_Bloqueo", Espia)
+    return tomados, orden
+
+
+def test_f2fix2_gap53_rebuild_recorre_cases_sin_el_bloqueo_del_indice(tmp_path, monkeypatch):
+    """§3/E3: F1 (recorrido de `cases/`) va SIN el bloqueo del indice pero con `.cases_rebuild.lock`,
+    que se toma ANTES; F0 y F2 toman el del indice (dos secciones O(1)/O(cola))."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    rec.grabar(_caso(), cfg, raiz)
+    rec.grabar(_caso(), cfg, raiz)
+    tomados, orden = _espia_de_bloqueos_por_nombre(monkeypatch)
+    vistos = []
+    real = rec.estado_de_cases
+    monkeypatch.setattr(rec, "estado_de_cases", lambda *a, **k: vistos.append(tuple(tomados)) or real(*a, **k))
+    assert rec.reconstruir_indice(str(store))[0] == 2
+    assert vistos == [(rec.BLOQUEO_REBUILD,)], vistos
+    assert orden == [rec.BLOQUEO_REBUILD, rec.BLOQUEO_INDICE, rec.BLOQUEO_INDICE], orden
+
+
+def test_f2fix2_gap53_escritores_durante_f1_no_esperan_al_rebuild(tmp_path, monkeypatch):
+    """#53: un `record` y un `set-status` DURANTE F1 no esperan (con el bloqueo retenido por F1
+    fallarian a los 0,2 s) y sus lineas entran por la cola: el indice final == `cases/`."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    rec.grabar(_caso(), cfg, raiz)
+    monkeypatch.setattr(rec, "ESPERA_BLOQUEO_S", 0.2)
+    real, res = rec.estado_de_cases, {}
+
+    def f1_con_escritores(*a, **k):
+        r = real(*a, **k)
+        if not res:
+            res["g"] = rec.grabar(_caso(request="durante F1"), cfg, raiz)
+            res["s"] = rec.cambiar_estado("geo-ramp.steep", 1, "rejected", cfg, raiz)
+        return r
+
+    monkeypatch.setattr(rec, "estado_de_cases", f1_con_escritores)
+    n, avisos = rec.reconstruir_indice(str(store))
+    monkeypatch.setattr(rec, "estado_de_cases", real)
+    assert res["g"]["version"] == 2 and res["g"]["avisos"] == [] and res["s"]["avisos"] == []
+    assert n == 2 and avisos == []
+    assert {e["version"]: e["status"] for e in rec.listar(str(store))} == {1: "rejected", 2: "pending"}
+    assert rec.comprobar_indice(str(store)) == []
+
+
+_MUERE_TRAS_W = r"""
+import importlib.util, json, os, sys
+spec = importlib.util.spec_from_file_location("rec_proc", sys.argv[1])
+r = importlib.util.module_from_spec(spec); spec.loader.exec_module(r)
+r.ESPERA_BLOQUEO_S = 1.0
+r._indexar = lambda *a, **k: os._exit(9)          # muere entre W (validation.json) y A (su linea)
+r.cambiar_estado("geo-ramp.steep", 1, sys.argv[4], json.loads(sys.argv[2]), sys.argv[3])
+"""
+
+
+def test_f2fix2_gap53_e3_set_status_muerto_durante_f1_gana_el_disco(tmp_path, monkeypatch):
+    """E6/E3: durante F1, un `set-status rejected` deja su linea en la cola y OTRO proceso muere
+    entre W (`needs_changes`) y A: F2 relee del disco lo que toca la cola, no copia sus bytes."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    rec.grabar(_caso(), cfg, raiz)
+    real, hecho = rec.estado_de_cases, []
+
+    def f1(*a, **k):
+        r = real(*a, **k)
+        if not hecho:
+            rec.cambiar_estado("geo-ramp.steep", 1, "rejected", cfg, raiz)
+            muerto = subprocess.run([sys.executable, "-c", _MUERE_TRAS_W, RECORDER_PATH, json.dumps(cfg), raiz,
+                                     "needs_changes"], capture_output=True, text=True, encoding="utf-8", timeout=120)
+            hecho.append(muerto.returncode)
+        return r
+
+    monkeypatch.setattr(rec, "estado_de_cases", f1)
+    rec.reconstruir_indice(str(store))
+    monkeypatch.setattr(rec, "estado_de_cases", real)
+    assert hecho == [9]
+    assert _json(store / "cases" / "ramp.steep" / "v001" / "validation.json")["status"] == "needs_changes"
+    assert [e["status"] for e in rec.listar(str(store))] == ["needs_changes"]
+    assert rec.comprobar_indice(str(store)) == []
+
+
+def test_f2fix2_gap53_e3_indice_ausente_en_f0_no_dispara_el_reintento(tmp_path, monkeypatch):
+    raiz, cfg, store = _proyecto(tmp_path)
+    rec.grabar(_caso(), cfg, raiz)
+    os.remove(os.path.join(str(store), rec.INDICE))
+    real, llamadas = rec.estado_de_cases, []
+
+    def f1(*a, **k):
+        llamadas.append(1)
+        r = real(*a, **k)
+        if len(llamadas) == 1:
+            rec.grabar(_caso(request="crea el indice"), cfg, raiz)
+        return r
+
+    monkeypatch.setattr(rec, "estado_de_cases", f1)
+    assert rec.reconstruir_indice(str(store))[0] == 2
+    monkeypatch.setattr(rec, "estado_de_cases", real)
+    assert llamadas == [1]                                   # sin reintento
+    assert rec.comprobar_indice(str(store)) == []
+
+
+def test_f2fix2_gap53_e3_identidad_cambiada_reintenta_acotado_y_luego_exit_3(tmp_path, monkeypatch, capsys):
+    raiz, cfg, store = _proyecto(tmp_path)
+    rec.grabar(_caso(), cfg, raiz)
+    _escribir_config(tmp_path, cfg)
+    ruta = os.path.join(str(store), rec.INDICE)
+    antes = open(ruta, "rb").read()
+    contador = [0]
+    real = rec._identidad
+
+    def cambia(r):
+        contador[0] += 1
+        i = real(r)
+        return None if i is None else i[:1] + (contador[0],) + i[2:]
+
+    monkeypatch.setattr(rec, "_identidad", cambia)
+    with pytest.raises(rec.Transitorio):
+        rec.reconstruir_indice(str(store))
+    assert contador[0] == 2 * rec.REINTENTOS_REBUILD
+    assert rec.main(["index", "rebuild", "--project-root", raiz]) == 3
+    assert open(ruta, "rb").read() == antes
+    assert not [n for n in os.listdir(str(store)) if n.startswith(rec.PREFIJO_TEMPORAL)]
+    # tamano menor que offset0 (alguien trunco el indice durante F1): tambien reintento
+    monkeypatch.setattr(rec, "_identidad", real)
+    real_f1, veces = rec.estado_de_cases, []
+
+    def trunca(*a, **k):
+        veces.append(1)
+        if len(veces) == 1:
+            with open(ruta, "wb") as f:
+                f.write(b"")
+        return real_f1(*a, **k)
+
+    monkeypatch.setattr(rec, "estado_de_cases", trunca)
+    assert rec.reconstruir_indice(str(store))[0] == 1 and len(veces) == 2
+
+
+def test_f2fix2_gap53_e3_st_ino_cero_compara_el_hash_del_prefijo(tmp_path, monkeypatch):
+    """FAT/SMB (`st_ino == 0`): la identidad incluye un hash de los bytes previos a `offset0`; si
+    cambian durante F1 (mismo tamano), se reintenta."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    rec.grabar(_caso(), cfg, raiz)
+    ruta = os.path.join(str(store), rec.INDICE)
+    real_stat = rec._stat_indice
+
+    class SinIno:
+        def __init__(self, st):
+            self.st_dev, self.st_ino, self.st_size = st.st_dev, 0, st.st_size
+
+    monkeypatch.setattr(rec, "_stat_indice", lambda r: SinIno(real_stat(r)))
+    real_f1, veces = rec.estado_de_cases, []
+
+    def reescribe(*a, **k):
+        veces.append(1)
+        if len(veces) == 1:
+            crudo = open(ruta, "rb").read()
+            with open(ruta, "wb") as f:
+                f.write(crudo.replace(b"pending", b"PENDING"))    # mismo tamano, otros bytes
+        return real_f1(*a, **k)
+
+    monkeypatch.setattr(rec, "estado_de_cases", reescribe)
+    assert rec.reconstruir_indice(str(store))[0] == 1
+    assert len(veces) == 2
+    monkeypatch.setattr(rec, "estado_de_cases", real_f1)
+    assert rec.comprobar_indice(str(store)) == []
+
+
+def test_f2fix2_gap53_e3_permissionerror_en_el_replace_de_f2_es_exit_3_sin_tocar(tmp_path, monkeypatch):
+    raiz, cfg, store = _proyecto(tmp_path)
+    rec.grabar(_caso(), cfg, raiz)
+    _escribir_config(tmp_path, cfg)
+    ruta = os.path.join(str(store), rec.INDICE)
+    antes = open(ruta, "rb").read()
+    real = os.replace
+
+    def en_uso(a, b):
+        if os.path.basename(b) == rec.INDICE:
+            raise PermissionError(5, "Acceso denegado (un lector tiene el indice abierto)")
+        return real(a, b)
+
+    monkeypatch.setattr(rec.time, "sleep", lambda _s: None)
+    monkeypatch.setattr(rec.os, "replace", en_uso)
+    with pytest.raises(rec.Transitorio):
+        rec.reconstruir_indice(str(store))
+    assert rec.main(["index", "rebuild", "--project-root", raiz]) == 3
+    monkeypatch.setattr(rec.os, "replace", real)
+    assert open(ruta, "rb").read() == antes
+    assert not [n for n in os.listdir(str(store)) if n.startswith(rec.PREFIJO_TEMPORAL)]
+
+
+def test_f2fix2_gap53_e3_el_append_abre_el_indice_por_ruta_con_el_bloqueo(tmp_path, monkeypatch):
+    """E3 (invariante): cada append abre el indice POR RUTA despues de tomar el bloqueo (nunca un fd
+    cacheado): tras el `os.replace` del rebuild, la linea siguiente cae en el fichero NUEVO."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    estado = _espia_de_bloqueo(monkeypatch)
+    aperturas, real_open = [], builtins.open
+
+    def espia(ruta, modo="r", *a, **k):
+        if os.path.basename(str(ruta)) == rec.INDICE and ("a" in modo or "w" in modo):
+            aperturas.append(estado["dentro"])
+        return real_open(ruta, modo, *a, **k)
+
+    monkeypatch.setattr(rec, "open", espia, raising=False)
+    rec.grabar(_caso(), cfg, raiz)
+    rec.reconstruir_indice(str(store))
+    rec.cambiar_estado("geo-ramp.steep", 1, "rejected", cfg, raiz)
+    assert len(aperturas) == 2 and all(d >= 1 for d in aperturas), aperturas
+    assert _indice(store)[-1]["status"] == "rejected" and rec.comprobar_indice(str(store)) == []
+
+
+def test_f2fix2_gap53_e4_recorrido_sin_realpath_por_version(tmp_path, monkeypatch):
+    raiz, cfg, store = _proyecto(tmp_path)
+    for _ in range(3):
+        rec.grabar(_caso(), cfg, raiz)
+    real, llamadas = os.path.realpath, []
+
+    def contar():
+        llamadas.clear()
+        monkeypatch.setattr(rec.os.path, "realpath", lambda p, *a, **k: llamadas.append(p) or real(p, *a, **k))
+        rec.estado_de_cases(str(store), raiz)
+        monkeypatch.setattr(rec.os.path, "realpath", real)
+        return len(llamadas)
+
+    con_3 = contar()
+    for _ in range(9):
+        rec.grabar(_caso(), cfg, raiz)
+    assert contar() == con_3                                 # 12 versiones: mismo numero de realpath
+
+
+class _St:
+    """Resultado de `lstat` sintetico (placeholders de nube y enlaces sin privilegios)."""
+
+    def __init__(self, modo, tag=None, **extra):
+        self.st_mode = modo
+        if tag is not None:
+            self.st_reparse_tag = tag
+        self.st_nlink = 1
+        self.st_mtime = time.time()
+        for k, v in extra.items():
+            setattr(self, k, v)
+
+
+def _nombre(x):
+    return getattr(x, "name", None) or os.path.basename(str(x))
+
+
+def test_f2fix2_gap53_e4_enlace_por_name_surrogate_y_la_nube_no_es_enlace(tmp_path, monkeypatch):
+    """E4/E6: enlace = symlink o `st_reparse_tag & 0x20000000` (name surrogate: symlink y junction);
+    un placeholder de OneDrive (`0x9000001A`) NO es enlace; sin `st_reparse_tag` en Windows,
+    degradacion a `realpath`."""
+    assert rec.NAME_SURROGATE == 0x20000000
+    assert rec._es_enlace_st(_St(stat.S_IFDIR, 0x9000001A)) is False           # IO_REPARSE_TAG_CLOUD_6
+    assert rec._es_enlace_st(_St(stat.S_IFDIR, 0xA0000003)) is True            # junction (mount point)
+    assert rec._es_enlace_st(_St(stat.S_IFREG, 0xA000000C)) is True            # symlink
+    assert rec._es_enlace_st(_St(stat.S_IFLNK)) is True
+    assert rec._es_enlace_st(_St(stat.S_IFDIR, 0)) is False
+    raiz, cfg, store = _proyecto(tmp_path)
+    rec.grabar(_caso(), cfg, raiz)
+    real = rec._stat_sin_seguir
+
+    def con_tag(tag):
+        def f(x):
+            st = real(x)
+            return _St(st.st_mode, tag, st_nlink=st.st_nlink, st_mtime=st.st_mtime) if _nombre(x) == "v001" else st
+        return f
+
+    monkeypatch.setattr(rec, "_stat_sin_seguir", con_tag(0x9000001A))
+    entradas, avisos = rec.estado_de_cases(str(store))
+    assert list(entradas) == [("geo-ramp.steep", 1)] and avisos == []
+    monkeypatch.setattr(rec, "_stat_sin_seguir", con_tag(0xA0000003))
+    entradas, avisos = rec.estado_de_cases(str(store))
+    assert entradas == {} and any("v001" in a and "enlace" in a for a in avisos), avisos
+    # degradacion: en Windows sin `st_reparse_tag`, se resuelve con realpath (un enlace real se detecta)
+    monkeypatch.setattr(rec, "_stat_sin_seguir", real)
+    fuera = tmp_path / "fuera" / "v002"
+    shutil.copytree(str(store / "cases" / "ramp.steep" / "v001"), str(fuera))
+    _enlazar_dir(fuera, store / "cases" / "ramp.steep" / "v002")
+    monkeypatch.setattr(rec, "_WINDOWS", True)
+    monkeypatch.setattr(rec, "_stat_sin_seguir", lambda x: _St(stat.S_IFDIR) if _nombre(x) == "v002" else real(x))
+    _e, avisos = rec.estado_de_cases(str(store))
+    assert any("v002" in a and "enlace" in a for a in avisos), avisos
+
+
+def test_f2fix2_gap54_skill_y_docstring_documentan_exit_codes_y_check():
+    """E3 (gap #54, TDD n/a: prosa): exit 0/1/2/3 del CLI y la lista EXACTA de motivos de exit 1 de
+    `index check`, con «en curso» como informativo (exit 0)."""
+    with open(SKILL_MD, encoding="utf-8") as f:
+        s = f.read()
+    for frag in ("exit 3", "reintenta", "en curso", "60 s", "mtime", "futuro", "no es un fichero regular",
+                 "bloqueada o sin permisos", "no casa con su ruta", "línea corrupta", ".cases_rebuild.lock",
+                 "duplicada", "enlace", "`validation.json` incoherente", "en `cases/` y no en el índice"):
+        assert frag in s, frag
+    doc = rec.__doc__
+    for frag in ("exit 0", "1 rechazo", "2 uso", "3 transitorio", "en curso", "no es un fichero regular"):
+        assert frag in doc, frag
+
+
+def test_f2fix2_gap56_api_sin_raiz_proyecto_usa_el_cwd(tmp_path, monkeypatch):
+    """#56: sin `raiz_proyecto`, TODAS las funciones publicas usan el cwd (como `config_activa`) y
+    la comprobacion de `docs/knowledge/` no se salta."""
+    (tmp_path / "otro").mkdir()
+    otro, cfg_otro, _s = _proyecto(tmp_path / "otro")
+    r = rec.grabar(_caso(), cfg_otro, otro)
+    raiz = tmp_path / "proj"
+    raiz.mkdir()
+    cfg = {"version": 1, "enabled": True, "root": ".", "id_prefix": "geo"}
+    aprobado = raiz / "docs" / "knowledge" / "approved"
+    shutil.copytree(r["path"], str(aprobado / "v001"))
+    (raiz / "cases").mkdir()
+    _enlazar_dir(aprobado, raiz / "cases" / "ramp.steep")
+    antes = sorted(_ficheros(str(aprobado))), _bytes_del_store(str(aprobado))
+    monkeypatch.chdir(str(raiz))
+    with pytest.raises(rec.Rechazo):
+        rec.grabar(_caso(), cfg)
+    with pytest.raises(rec.Rechazo):
+        rec.cambiar_estado("geo-ramp.steep", 1, "rejected", cfg)
+    difs = rec.comprobar_indice(str(raiz))
+    assert any("ramp.steep" in d and "enlace" in d for d in difs), difs
+    assert rec.reconstruir_indice(str(raiz))[0] == 0
+    assert (sorted(_ficheros(str(aprobado))), _bytes_del_store(str(aprobado))) == antes
+
+
+def _anidado(n):
+    v = "hoja token=abc123XYZ789"
+    for _ in range(n):
+        v = {"a": v}
+    return v
+
+
+def test_f2fix2_gap57_anidamiento_profundo_se_rechaza_por_campo(tmp_path):
+    """#57: redactar con tope `cs.PROFUNDIDAD_MAX` -> rechazo `{campo, mensaje}`, nunca `RecursionError`."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    tope = rec.cs.PROFUNDIDAD_MAX
+    for campo in ("metrics", "context", "constraints", "request"):
+        for n in (tope + 1, 600):
+            with pytest.raises(rec.Rechazo) as e:
+                rec.grabar(_caso(**{campo: _anidado(n)}), cfg, raiz)
+            assert campo in {x["campo"] for x in e.value.errores}, (campo, n, e.value.errores)
+    assert not store.exists()
+    r = rec.grabar(_caso(metrics=_anidado(tope)), cfg, raiz)
+    assert "abc123XYZ789" not in open(os.path.join(r["path"], "metrics.json"), encoding="utf-8").read()
+    _escribir_config(tmp_path, cfg)
+    hondo = tmp_path / "hondo.json"
+    hondo.write_text(json.dumps(_caso(metrics=_anidado(600))), encoding="utf-8")
+    c = _cli("record", str(hondo), "--project-root", raiz)
+    assert c.returncode == 1 and "Traceback" not in c.stderr and "metrics" in c.stderr
+
+
+def test_f2fix2_gap58_version_en_curso_es_informativa_y_caduca(tmp_path, monkeypatch, capsys):
+    """§5/E5: una version SIN `metadata.json` con `0 <= ahora - mtime < GRACIA_EN_CURSO_S` es «en
+    curso» (informativa, exit 0); pasada la gracia, o con `mtime` futuro, es incoherencia."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    rec.grabar(_caso(), cfg, raiz)
+    _escribir_config(tmp_path, cfg)
+    v2 = store / "cases" / "ramp.steep" / "v002"
+    v2.mkdir()
+    difs, en_curso = rec.comprobar_indice_detalle(str(store))
+    assert difs == [] and len(en_curso) == 1 and "v002" in en_curso[0] and "en curso" in en_curso[0]
+    assert rec.comprobar_indice(str(store)) == []
+    capsys.readouterr()
+    assert rec.main(["index", "check", "--project-root", raiz]) == 0
+    assert "en curso" in capsys.readouterr().err
+    ahora = time.time()
+    monkeypatch.setattr(rec, "_reloj", lambda: ahora + rec.GRACIA_EN_CURSO_S + 1)
+    difs, en_curso = rec.comprobar_indice_detalle(str(store))
+    assert en_curso == [] and any("v002" in d and "incompleta" in d for d in difs), difs
+    assert rec.main(["index", "check", "--project-root", raiz]) == 1
+    monkeypatch.setattr(rec, "_reloj", time.time)
+    os.utime(str(v2), (ahora + 3600, ahora + 3600))                        # mtime futuro: nunca «en curso»
+    difs, en_curso = rec.comprobar_indice_detalle(str(store))
+    assert en_curso == [] and any("v002" in d and "futuro" in d for d in difs), difs
+    os.utime(str(v2), (ahora, ahora))
+    # con metadata.json y sin validation.json nunca esta «en curso»
+    v3 = store / "cases" / "ramp.steep" / "v003"
+    v3.mkdir()
+    m = _json(store / "cases" / "ramp.steep" / "v001" / "metadata.json")
+    m["version"] = 3
+    (v3 / "metadata.json").write_text(json.dumps(m), encoding="utf-8")
+    difs, en_curso = rec.comprobar_indice_detalle(str(store))
+    assert any("v003" in d for d in difs) and not any("v003" in e for e in en_curso), (difs, en_curso)
+
+
+def test_f2fix2_gap58_completa_sin_linea_reciente_es_en_curso(tmp_path, monkeypatch):
+    """E5: «esta en cases/ pero no en el indice» con `metadata.json` reciente = grabacion entre W y A."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    rec.grabar(_caso(), cfg, raiz)
+    open(os.path.join(str(store), rec.INDICE), "wb").close()
+    difs, en_curso = rec.comprobar_indice_detalle(str(store))
+    assert difs == [] and any("v001" in e and "en curso" in e for e in en_curso), (difs, en_curso)
+    monkeypatch.setattr(rec, "_reloj", lambda: time.time() + rec.GRACIA_EN_CURSO_S + 1)
+    difs, _en = rec.comprobar_indice_detalle(str(store))
+    assert any("v001" in d and "no en el indice" in d for d in difs), difs
+
+
+def test_f2fix2_gap58_check_lee_la_cola_antes_de_reportar(tmp_path, monkeypatch):
+    """E5: `check` toma el tamano del indice (F0), recorre `cases/` y lee la cola ANTES de reportar:
+    un `set-status` que entra entre F0 y el recorrido no es una diferencia."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    rec.grabar(_caso(), cfg, raiz)
+    real, hecho = rec._estado_de_cases, []
+
+    def set_status_antes_del_recorrido(*a, **k):
+        if not hecho:
+            hecho.append(rec.cambiar_estado("geo-ramp.steep", 1, "rejected", cfg, raiz)["status"])
+        return real(*a, **k)
+
+    monkeypatch.setattr(rec, "_estado_de_cases", set_status_antes_del_recorrido)
+    assert rec.comprobar_indice_detalle(str(store)) == ([], [])
+    assert hecho == ["rejected"]
+
+
+_BUCLE = r"""
+import importlib.util, json, os, sys, time
+spec = importlib.util.spec_from_file_location("rec_proc", sys.argv[1])
+r = importlib.util.module_from_spec(spec); spec.loader.exec_module(r)
+cfg, raiz, papel, fin = json.loads(sys.argv[2]), sys.argv[3], sys.argv[4], sys.argv[5]
+store, fallos, vueltas = r.raiz_store(cfg, raiz), [], 0
+if papel == "record":
+    caso = json.loads(sys.stdin.read())
+    for i in range(20):
+        try:
+            r.grabar(dict(caso, request=f"bucle {i}"), cfg, raiz)
+        except Exception as e:
+            fallos.append(f"{type(e).__name__}: {e}")
+else:
+    limite = time.monotonic() + 120
+    while not os.path.exists(fin) and time.monotonic() < limite and vueltas < 2000:
+        vueltas += 1
+        try:
+            difs = r.comprobar_indice(store)
+        except Exception as e:
+            difs = [f"{type(e).__name__}: {e}"]
+        if difs:
+            fallos.append(difs)
+print(json.dumps({"fallos": fallos, "vueltas": vueltas}))
+"""
+
+
+def test_f2fix2_gap58_procesos_record_y_check_en_bucle_sin_falsos_positivos(tmp_path):
+    """#58 con PROCESOS reales (acotado: 20 `record` frente a un `check` en bucle): ningun `check`
+    cuenta como incoherencia la version que `record` esta escribiendo."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    rec.grabar(_caso(), cfg, raiz)
+    fin = tmp_path / "fin"
+
+    def lanzar(papel):
+        return subprocess.Popen([sys.executable, "-c", _BUCLE, RECORDER_PATH, json.dumps(cfg), raiz, papel, str(fin)],
+                                stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                                encoding="utf-8")
+
+    chk = lanzar("check")
+    chk.stdin.close()
+    grab = lanzar("record")
+    sal_g = grab.communicate(json.dumps(_caso()), timeout=300)
+    fin.write_text("", encoding="utf-8")
+    sal_c = chk.stdout.read(), chk.stderr.read()
+    chk.wait(timeout=300)
+    assert grab.returncode == 0 and chk.returncode == 0, (sal_g[1][-400:], sal_c[1][-400:])
+    g, c = json.loads(sal_g[0]), json.loads(sal_c[0])
+    assert g["fallos"] == [] and c["fallos"] == [], (g["fallos"][:3], c["fallos"][:3])
+    assert c["vueltas"] >= 3, c
+    assert rec.comprobar_indice(str(store)) == []
+
+
+def test_f2fix2_gap59_no_es_un_fichero_sin_reintentos_y_no_legible_con_mensaje_exacto(tmp_path, monkeypatch):
+    raiz, cfg, store = _proyecto(tmp_path)
+    for _ in range(3):
+        rec.grabar(_caso(), cfg, raiz)
+    for v in (1, 2, 3):
+        meta = store / "cases" / "ramp.steep" / f"v{v:03d}" / "metadata.json"
+        meta.unlink()
+        meta.mkdir()
+    esperas = []
+    monkeypatch.setattr(rec.time, "sleep", lambda s: esperas.append(s))
+    difs = rec.comprobar_indice(str(store))
+    assert esperas == [], len(esperas)                                    # sin reintentos
+    motivos = [d for d in difs if "metadata.json no es un fichero regular" in d]
+    assert len(motivos) == 3 and not any("bloqueada por otro proceso" in d for d in difs), difs
+    # un fichero regular que no se puede leer tras los reintentos: «bloqueada o sin permisos»
+    (tmp_path / "b").mkdir()
+    raiz2, cfg2, store2 = _proyecto(tmp_path / "b")
+    rec.grabar(_caso(), cfg2, raiz2)
+    real_open = builtins.open
+
+    def denegado(ruta, *a, **k):
+        if str(ruta).endswith("validation.json"):
+            raise PermissionError(13, "Permiso denegado")
+        return real_open(ruta, *a, **k)
+
+    monkeypatch.setattr(rec, "open", denegado, raising=False)
+    difs = rec.comprobar_indice(str(store2))
+    assert any(f"no legible tras {rec.REINTENTOS} reintentos (bloqueada o sin permisos)" in d for d in difs), difs
+
+
+def test_f2fix2_gap60_set_status_y_supersedes_localizan_la_version_por_numero(tmp_path):
+    raiz, cfg, store = _proyecto(tmp_path)
+    rec.grabar(_caso(), cfg, raiz)                                          # v001 con ancho 3
+    cfg4 = dict(cfg, ids={"version_width": 4})
+    val = store / "cases" / "ramp.steep" / "v001" / "validation.json"
+    for v, st in ((1, "rejected"), ("v001", "needs_changes"), ("v0001", "pending")):
+        r = rec.cambiar_estado("geo-ramp.steep", v, st, cfg4, raiz)
+        assert r["ref"] == "geo-ramp.steep@v0001" and _json(val)["status"] == st
+    r = rec.grabar(_caso(outcome="corrected", supersedes_case="geo-ramp.steep@v0001"), cfg4, raiz)
+    assert r["ref"] == "geo-ramp.steep@v0002"
+    shutil.copytree(str(store / "cases" / "ramp.steep" / "v001"), str(store / "cases" / "ramp.steep" / "v01"))
+    with pytest.raises(rec.Rechazo) as e:
+        rec.cambiar_estado("geo-ramp.steep", 1, "rejected", cfg4, raiz)
+    assert "duplicada" in str(e.value)
+    with pytest.raises(rec.Rechazo) as e:
+        rec.grabar(_caso(outcome="corrected", supersedes_case="geo-ramp.steep@v0001"), cfg4, raiz)
+    assert "duplicada" in str(e.value)
+
+
+def _bloqueo_con_gancho(monkeypatch, gancho):
+    """`_Bloqueo` que ejecuta `gancho()` una vez, justo ANTES de tomar el primer bloqueo."""
+    hecho = []
+
+    class ConGancho(rec._Bloqueo):
+        def __enter__(self):
+            if not hecho:
+                hecho.append(1)
+                gancho()
+            return super().__enter__()
+
+    monkeypatch.setattr(rec, "_Bloqueo", ConGancho)
+    return hecho
+
+
+def test_f2fix2_gap61_m2_record_recomprueba_enlaces_con_el_bloqueo(tmp_path, monkeypatch):
+    raiz, cfg, store = _proyecto(tmp_path)
+    (store / "cases").mkdir(parents=True)
+    aprobado = tmp_path / "proj" / "docs" / "knowledge" / "approved"
+    aprobado.mkdir(parents=True)
+    _bloqueo_con_gancho(monkeypatch, lambda: _enlazar_dir(aprobado, store / "cases" / "ramp.steep"))
+    with pytest.raises(rec.Rechazo) as e:
+        rec.grabar(_caso(), cfg, raiz)
+    assert "enlace" in str(e.value)
+    assert os.listdir(str(aprobado)) == []
+
+
+def test_f2fix2_gap61_m8_set_status_recomprueba_enlaces_con_el_bloqueo(tmp_path, monkeypatch):
+    raiz, cfg, store = _proyecto(tmp_path)
+    rec.grabar(_caso(), cfg, raiz)
+    fuera = tmp_path / "fuera"
+    fuera.mkdir()
+
+    def cambiar_por_enlace():
+        os.rename(str(store / "cases" / "ramp.steep"), str(fuera / "ramp.steep"))
+        _enlazar_dir(fuera / "ramp.steep", store / "cases" / "ramp.steep")
+
+    _bloqueo_con_gancho(monkeypatch, cambiar_por_enlace)
+    val = fuera / "ramp.steep" / "v001" / "validation.json"
+    with pytest.raises(rec.Rechazo) as e:
+        rec.cambiar_estado("geo-ramp.steep", 1, "rejected", cfg, raiz)
+    assert "enlace" in str(e.value)
+    assert _json(val)["status"] == "pending"
+
+
+def test_f2fix2_gap61_m6_mayusculas_se_recomprueban_con_el_bloqueo(tmp_path, monkeypatch):
+    raiz, cfg, store = _proyecto(tmp_path, family_pattern="^[A-Za-z0-9]+$")
+    _bloqueo_con_gancho(monkeypatch, lambda: os.makedirs(str(store / "cases" / "RAMP.steep")))
+    with pytest.raises(rec.Rechazo) as e:
+        rec.grabar(_caso(), cfg, raiz)
+    assert "mayusculas" in str(e.value)
+    assert os.listdir(str(store / "cases" / "RAMP.steep")) == []
+
+
+def test_f2fix2_gap61_m15_dentro_exige_separador(tmp_path):
+    """`_dentro` no acepta un hermano con el mismo prefijo (`store-evil` no esta dentro de `store`)."""
+    base = os.path.normcase(str(tmp_path / "store"))
+    assert not rec._dentro(os.path.normcase(str(tmp_path / "store-evil" / "x")), base)
+    assert not rec._dentro(os.path.normcase(str(tmp_path / "store-evil")), base)
+    assert rec._dentro(os.path.normcase(str(tmp_path / "store" / "x")), base) and rec._dentro(base, base)
+    raiz, cfg, store = _proyecto(tmp_path)
+    store.mkdir()
+    evil = tmp_path / "store-evil" / "cases"
+    _enlazar_dir(evil, store / "cases")
+    with pytest.raises(rec.Rechazo):
+        rec.grabar(_caso(), cfg, raiz)
+    assert os.listdir(str(evil)) == []
+
+
+def test_f2fix2_gap62_mapping_que_miente_no_abre_gold_sin_flag(tmp_path):
+    """#62: el caso se convierte a tipos JSON PLANOS al entrar; un `dict` hijo cuyo `get` miente no
+    esquiva la puerta Gold, y un tipo no JSON se rechaza."""
+    raiz, cfg, store = _proyecto(tmp_path)
+
+    class Miente(dict):
+        def get(self, k, d=None):
+            return {"status": "pending", "approved_by_human": False}.get(k, d)
+
+    with pytest.raises(rec.Rechazo) as e:
+        rec.grabar(_caso(validation=Miente(status="approved", approved_by_human=True)), cfg, raiz)
+    assert rec.MENSAJE_GOLD in str(e.value)
+    assert not store.exists()
+    for raro in (object(), {1, 2}, (1, 2), b"bytes"):
+        with pytest.raises(rec.Rechazo) as e:
+            rec.grabar(_caso(metrics={"x": raro}), cfg, raiz)
+        assert any("metrics" in x["campo"] for x in e.value.errores), e.value.errores
+    with pytest.raises(rec.Rechazo):
+        rec.grabar(_caso(metrics={1: "clave no texto"}), cfg, raiz)
+    assert not store.exists()
+    assert rec.grabar(_caso(validation=Miente(status="approved", approved_by_human=True)), cfg, raiz,
+                      approved_by_human=True)["version"] == 1
+
+
+def _hardlink(origen, destino):
+    try:
+        os.link(str(origen), str(destino))
+    except (OSError, NotImplementedError) as e:   # pragma: no cover - FS sin enlaces duros
+        pytest.skip(f"sin enlaces duros: {e}")
+
+
+def test_f2fix2_gap63_hardlink_en_el_indice_o_el_bloqueo_se_rechaza(tmp_path):
+    raiz, cfg, store = _proyecto(tmp_path)
+    store.mkdir()
+    adr = tmp_path / "proj" / "docs" / "knowledge" / "approved" / "ADR-999.md"
+    adr.parent.mkdir(parents=True)
+    adr.write_bytes(b"curado\n")
+    _hardlink(adr, store / rec.INDICE)
+    with pytest.raises(rec.Rechazo) as e:
+        rec.grabar(_caso(), cfg, raiz)
+    assert "enlace duro" in str(e.value)
+    assert adr.read_bytes() == b"curado\n" and not (store / "cases" / "ramp.steep" / "v001").exists()
+    os.remove(str(store / rec.INDICE))
+    rec.grabar(_caso(), cfg, raiz)
+    val = store / "cases" / "ramp.steep" / "v001" / "validation.json"
+    os.remove(str(store / rec.INDICE))
+    _hardlink(adr, store / rec.INDICE)
+    with pytest.raises(rec.Rechazo) as e:
+        rec.cambiar_estado("geo-ramp.steep", 1, "rejected", cfg, raiz)
+    assert "enlace duro" in str(e.value) and _json(val)["status"] == "pending"
+    os.remove(str(store / rec.INDICE))
+    os.remove(str(store / rec.BLOQUEO_INDICE))
+    _hardlink(adr, store / rec.BLOQUEO_INDICE)
+    for accion in (lambda: rec.grabar(_caso(), cfg, raiz),
+                   lambda: rec.cambiar_estado("geo-ramp.steep", 1, "rejected", cfg, raiz)):
+        with pytest.raises(rec.Rechazo) as e:
+            accion()
+        assert "enlace duro" in str(e.value)
+    assert adr.read_bytes() == b"curado\n" and _json(val)["status"] == "pending"
+    assert sorted(os.listdir(str(store / "cases" / "ramp.steep"))) == ["v001"]
+
+
+def test_f2fix2_gap64_arguments_con_clave_duplicada_se_rechaza(tmp_path):
+    raiz, cfg, store = _proyecto(tmp_path)
+    secreto = "sk-ant-" + "a" * 24
+    args = '{"token": "%s", "token": "x"}' % secreto
+    for tr in ([{"role": "assistant", "tool_calls": [{"name": "sh", "arguments": args}]}],
+               [{"role": "assistant", "tool_calls": [{"name": "sh", "arguments": {"sub": {"arguments": args}}}]}]):
+        with pytest.raises(rec.Rechazo) as e:
+            rec.grabar(_caso(trajectory=tr), cfg, raiz)
+        assert any("arguments" in x["campo"] and "duplicada" in x["mensaje"] for x in e.value.errores), e.value.errores
+        assert secreto not in str(e.value)
+    assert not store.exists()
+    # defensa en profundidad: la redaccion de un `arguments` ambiguo nunca devuelve el texto original
+    assert secreto not in rec._redactar_arguments_texto(args)
+
+
+def test_f2fix2_gap65_limpiar_temporal_no_desciende_por_un_enlace(tmp_path):
+    fuera = tmp_path / "fuera"
+    fuera.mkdir()
+    (fuera / "valioso.txt").write_text("no me borres", encoding="utf-8")
+    tmp = tmp_path / ".tmp-prueba"
+    (tmp / "sub").mkdir(parents=True)
+    (tmp / "f.txt").write_text("x", encoding="utf-8")
+    _enlazar_dir(fuera, tmp / "sub" / "j")
+    rec._limpiar_temporal(str(tmp))
+    assert (fuera / "valioso.txt").read_text(encoding="utf-8") == "no me borres"
+    assert not os.path.lexists(str(tmp))
+    raiz_enlace = tmp_path / ".tmp-enlace"
+    _enlazar_dir(fuera, raiz_enlace)                                     # el propio temporal es un enlace
+    rec._limpiar_temporal(str(raiz_enlace))
+    assert (fuera / "valioso.txt").exists() and not os.path.lexists(str(raiz_enlace))
+
+
+def test_f2fix2_gap66_validation_o_metadata_enlazados_se_rechazan_antes_de_leer(tmp_path, monkeypatch):
+    """#66 en cualquier SO: `lstat` antes de leer (enlace simulado); y con symlink de fichero real
+    cuando el SO lo permite (Linux/CI; Windows sin privilegio: solo la simulacion)."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    r = rec.grabar(_caso(), cfg, raiz)
+    real, real_leer, leidos = rec._stat_sin_seguir, rec._leer_json_reintentando, []
+    for fichero in ("validation.json", "metadata.json"):
+        monkeypatch.setattr(rec, "_stat_sin_seguir", lambda x, f=fichero: _St(stat.S_IFLNK) if _nombre(x) == f else real(x))
+        monkeypatch.setattr(rec, "_leer_json_reintentando",
+                            lambda ruta: leidos.append(os.path.basename(ruta)) or real_leer(ruta))
+        with pytest.raises(rec.Rechazo) as e:
+            rec.cambiar_estado("geo-ramp.steep", 1, "rejected", cfg, raiz)
+        assert "enlace" in str(e.value) and fichero not in leidos, leidos
+        difs = rec.comprobar_indice(str(store))
+        assert any("v001" in d and "enlace" in d for d in difs), difs
+        leidos.clear()
+    monkeypatch.setattr(rec, "_stat_sin_seguir", real)
+    monkeypatch.setattr(rec, "_leer_json_reintentando", real_leer)
+    fuera = tmp_path / "fuera.json"
+    fuera.write_text(json.dumps({"status": "pending", "approved_by_human": False, "reviewer_note": "FUERA"}),
+                     encoding="utf-8")
+    val = os.path.join(r["path"], "validation.json")
+    os.remove(val)
+    try:
+        os.symlink(str(fuera), val)
+    except (OSError, NotImplementedError) as e:   # pragma: no cover - Windows sin privilegio
+        pytest.skip(f"sin symlink de fichero: {e}")
+    with pytest.raises(rec.Rechazo) as e:
+        rec.cambiar_estado("geo-ramp.steep", 1, "rejected", cfg, raiz)
+    assert "enlace" in str(e.value) and "FUERA" in fuera.read_text(encoding="utf-8")

@@ -14,6 +14,7 @@ portable) comprueba que el ejemplo valida con `scripts/case_schema.py` y que el 
 <root>/                                  # training.json -> root (lo elige el proyecto)
 ├── cases_index.jsonl                    # índice append-only (caché: se reconstruye desde cases/)
 ├── .cases_index.lock                    # bloqueo de los escritores (persistente: nunca se borra)
+├── .cases_rebuild.lock                  # serializa los `index rebuild` (persistente: nunca se borra)
 ├── cases/<family>.<variant>/            # un directorio por caso; case_id = <id_prefix>-<family>.<variant>
 │   └── v<NNN>/                          # una versión por intento; NUNCA se sobrescribe
 │       ├── metadata.json

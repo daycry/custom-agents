@@ -100,23 +100,40 @@ fuente)` según la tabla `OUTCOME_MAPEO`. Lo que no esté en la tabla devuelve `
    contra la raíz deducida de `<proyecto>/.claude/knowledge-services/training.json` (o el cwd);
    `--project-root <dir>` la fija a mano. Si la ruta no se puede resolver, se rechaza.
 3. **Grabar** cada intento: `python3 scripts/case-recorder.py record <caso.json>
-   [--config <training.json>] [--project-root <dir>]` (exit 0 ok · 1 rechazo · 2 uso, JSON
-   ilegible o error de E/S). Valida el caso original (forma y chain-of-thought), redacta y vuelve
-   a validar lo redactado; solo entonces escribe. Sin `version` toma la siguiente libre (lo normal
-   al repetir un intento); con `version` explícita (p. ej. para reproducir un store) se rechaza si
-   ya existe, con cualquier ancho. Una versión nunca se sobrescribe; no hay borrado.
+   [--config <training.json>] [--project-root <dir>]`. Valida el caso original (forma y
+   chain-of-thought), redacta y vuelve a validar lo redactado; solo entonces escribe. Sin `version`
+   toma la siguiente libre (lo normal al repetir un intento); con `version` explícita (p. ej. para
+   reproducir un store) se rechaza si ya existe, con cualquier ancho. Una versión nunca se
+   sobrescribe; no hay borrado.
 4. **Aprobar Gold**, siempre a mano, por una de las dos vías (misma puerta: el flag debe ser
    exactamente `True`): `set-status <case_id> <versión> approved --approved-by-human [--note …]`
    sobre una versión grabada, o `record <caso.json> --approved-by-human` con un caso que ya llega
    `approved`. Sin el flag, rechazo explícito. `needs_changes`, `rejected` y `pending` no lo piden.
    `set-status` solo reescribe `validation.json` (atómico); lo demás es inmutable.
 5. **Consultar**: `list [--status S] [--family F] [--outcome O] [--json]` lee el índice
-   `cases_index.jsonl`, que es una **caché**: `index check` lo compara con `cases/` (exit 1 si
-   difiere, si hay versiones incompletas o duplicadas, enlaces fuera del store o un
-   `validation.json` incoherente) e `index rebuild` lo reconstruye. Una línea corrupta se ignora
-   con aviso. El ensamblador leerá `validation.json`, no el índice.
+   `cases_index.jsonl`, que es una **caché** (una línea corrupta se ignora con aviso al leerla);
+   `index rebuild` lo reconstruye desde `cases/` e `index check` lo compara (semántica abajo). El
+   ensamblador leerá `validation.json`, no el índice.
 6. **Ensamblar** el dataset (T-07…T-09, pendiente): solo Gold, dedup por shingles, benchmark
    reservado por familia completa.
+
+### Códigos de salida y `index check`
+
+- Todos los subcomandos: exit 0 ok · 1 rechazo (caso o config inválidos, sin el flag de Gold,
+  enlace, versión que ya existe) · 2 uso, JSON ilegible o error de E/S · **exit 3 transitorio**:
+  el bloqueo no llegó a tiempo o el índice cambió durante `index rebuild`; **no se ha escrito
+  nada** y reintenta es seguro. Nunca sale exit 3 después de grabar una versión: si su línea del
+  índice no se pudo escribir, `record` sale con 0 y un aviso («`index rebuild`»); no la repitas.
+- `index check` sale con **exit 1** si hay alguna diferencia: una versión en `cases/` y no en el
+  índice (o al revés), un campo distinto, una línea corrupta del índice, o una versión que el
+  recorrido omite: incompleta (sin `metadata.json` o `validation.json`), duplicada (mismo número
+  con dos anchos), enlace (symlink/junction), un fichero que no es un fichero regular, no legible
+  tras los reintentos (bloqueada o sin permisos), JSON ilegible, `metadata.json` que
+  no casa con su ruta o con el esquema, o un `validation.json` incoherente (`approved` sin humano).
+- Es **informativo** (exit 0, línea `info:`) lo que está **en curso**: una versión sin
+  `metadata.json` cuyo directorio tiene `mtime` de hace menos de 60 s, o una completa que
+  está en `cases/` y no en el índice con `metadata.json` de hace menos de 60 s (grabación en marcha).
+  Pasados 60 s, o con un `mtime` futuro, es una incoherencia.
 
 ### Qué se redacta y concurrencia
 
@@ -124,10 +141,15 @@ fuente)` según la tabla `OUTCOME_MAPEO`. Lo que no esté en la tabla devuelve `
   (un `arguments` en texto JSON, como estructura), las cadenas de `metrics`, `created_at`,
   `artifacts[]` (salvo `hash`), `reviewer_note`/`approved_at` y `set-status --note`. No se tocan
   los campos cerrados: `case_id`, `family`, `variant`, `version`, `outcome`, `supersedes_case`,
-  `status`, `approved_by_human`, `hash`. `NaN`/`Infinity` se rechazan.
-- `record`, `set-status` e `index rebuild` escriben con el bloqueo `<root>/.cases_index.lock`
-  (persistente, nunca se borra); si no llega en 10 s, abortan sin escribir (exit 1). Nunca se
-  escribe a través de un enlace que salga de `root` o entre en `docs/knowledge/`.
+  `status`, `approved_by_human`, `hash`. Se rechazan `NaN`/`Infinity`, tipos que no son JSON, más
+  de 50 niveles de anidamiento y un `arguments` con claves duplicadas.
+- El bloqueo `<root>/.cases_index.lock` (persistente, nunca se borra) solo cubre pasos cortos: la
+  reserva de la versión, su línea del índice y cada `set-status`; los ficheros de la versión se
+  escriben sin él. `index rebuild` recorre `cases/` sin bloquear a los escritores (se serializa
+  con `<root>/.cases_rebuild.lock`) y relee del disco lo que cambió mientras tanto. Espera hasta
+  10 s; si no llega, exit 3.
+- Nunca se escribe a través de un enlace que salga de `root` o entre en `docs/knowledge/`, ni en
+  un índice o bloqueo con enlaces duros; los lectores omiten todo enlace sin seguirlo.
 
 ## Degradación
 
