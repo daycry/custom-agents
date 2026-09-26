@@ -1,19 +1,18 @@
 # CONTINUE-HERE
 
-> **2026-09-26 (madrugada) — RAMA EN VUELO: `feature/training-data-services`. Leer este bloque; el resto es histórico.**
+> **2026-09-26 — RAMA EN VUELO: `feature/training-data-services`. Leer este bloque; el resto es histórico.**
 >
 > Objetivo del usuario (/goal): terminar lo que queda SIN gaps ni errores (ni deuda Minor).
-> **Fase 1 CERRADA** (`7d1d4ba`). **Fase 2** (T-04..T-06, `en-progreso`): 3 intentos de revisión agotados → por el
-> objetivo del usuario, rondas `fixN` + verificación dirigida (precedente graphiti F2/F3). fix3 `e7b0bb4` (D-fix3) →
-> verif. `6c8e191` → fix4 `bd0d3f7` → fix4-bis `e98d97e` (rojos de Linux) → verif. `a094adb` (1 Critical #95
-> preexistente: `_limpiar_temporal` borraba recursivamente vía junction; #96 replace sobrescribía; #94 la CI no corre
-> la skill) → diseño D-fix5 revisado ANTES (`ec198b4`, enmiendas G1-G6, #107 append seguía symlink). EN VUELO:
-> implementer opus `fix5` (#94-#107; marcador `training-data-services/T-04-fix5` abierto). Después: verificación
-> dirigida B+C+D + Linux (réplica: scratchpad `linux/linux-skill.sh`, Docker Desktop) → si 0 gaps: T-04..T-06
-> `completado` → Fase 3 (T-07..T-09) → Fase 4 (T-10, T-11) → qa sin UI → documenter → 4-bis → changelog-sync →
-> /retro + retro-gate → PR. **Regla nueva:** toda ronda pega su salida de Linux en el ledger (Windows no ve los rojos
-> POSIX). Revisión previa de diseño = obligatoria en cada cambio de diseño (cazó defectos reproducidos en D-fix2,
-> D-fix3 y D-fix5). `.claude/dev.json` local: `modelos.implementer: opus`. Stash `stash@{0}` = journal del hook en
+> **Fase 1 CERRADA** (`7d1d4ba`). **Fase 2 CERRADA** (`8e01aeb`): T-04..T-06 `completado`, #31-#113 cerrados tras 3
+> intentos + rondas fix1..fix6 con verificación dirigida (B+C+D y Linux); principio D-fix5: el recorder nunca
+> destruye ni sobrescribe lo que no creó. Resumen 6/11, IA 40.13h medidas. #94 adelantado: la CI ya corre
+> `skills/training-data-services/scripts` y `skills/knowledge-services/scripts` (`ci.yml` + `.MANUAL-COPY`).
+> EN VUELO: implementer opus **Fase 3** (T-07 dedup · T-08 partición · T-09 ensamblador + `propose-from-case.py`;
+> marcadores por tarea). Después: revisión de dos lentes Fase 3 (A+B+C+D, worktrees cortos `C:/…`, Linux) → fixN →
+> Fase 4 (T-10 setup/doctor, T-11 aislamiento/interop/CHANGELOG) → qa sin UI → documenter → 4-bis → changelog-sync →
+> /retro + retro-gate → PR. Reglas: toda ronda pega salida de Linux (scratchpad `linux/soak.sh`, UN contenedor, `-m 2g`:
+> la máquina va justa de memoria; tu pila `knowledge-graphs` arrancó con Docker Desktop); revisión previa obligatoria
+> de cada diseño nuevo. `.claude/dev.json` local: `modelos.implementer: opus`. Stash `stash@{0}` = journal del hook en
 > `feature/graphiti-memory`.
 
 > **2026-09-21 — UNA SOLA RAMA EN VUELO: `feature/graphiti-memory`. Leer este bloque; el resto es histórico.**
