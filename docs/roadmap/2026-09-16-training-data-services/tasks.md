@@ -16,10 +16,10 @@ verificacion: obligatoria
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervision (real/est) | Tokens (real/est) |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | Fase 1 - Config, redaccion compartida y capacidad | 3 | 3 | 100% (revisión cerrada en el intento 3; fix3 verificada por el orquestador) | 0 / 6.5h | 5.25 / 2.0h | 0 / 0.5h | ~180.8k out (37.8k + 17.3k + 14.4k + fix2 63.2k + fix3 48.1k; fix1 sin cifra de tokens: marcador cerrado en otra máquina sin pegar su salida) / 85k (T-01 0.22h · T-02 0.12h · T-03 0.07h · fix1 2.87h reloj incl. corte de sesión · fix2 1.09h · fix3 0.88h) |
-| Fase 2 - Recorder y puerta humana | 0 | 3 | 0% (fix5 verificada: 0 Critical/Important, 6 Minor → fix6 + verificación del orquestador) | 0 / 8h | 0.43 / 2.4h | 0 / 0.6h | ~92.8k out (43.9k + 16.1k + 32.8k) / 120k (T-04 0.20h · T-05 0.07h · T-06 0.16h) |
+| Fase 2 - Recorder y puerta humana | 3 | 3 | 100% (3 intentos + 6 rondas fixN con verificación dirigida; 113 gaps cerrados) | 0 / 8h | 34.88 / 2.4h | 0 / 0.6h | ~1463.5k out (T-04 43.9k + T-05 16.1k + T-06 32.8k · fix1 165.2k · fix2 233.0k · fix3 227.1k · fix4 184.0k · fix4-bis 173.5k · fix5 272.8k · fix6 115.1k) / 120k (T-04 0.20h · T-05 0.07h · T-06 0.16h · fix1 1.32h · fix2 2.18h · fix3 7.22h · fix4 5.20h · fix4-bis 6.77h reloj incl. corte 429 · fix5 9.63h · fix6 2.13h) |
 | Fase 3 - Dedup, particion y ensamblador | 0 | 3 | 0% | 0 / 14h | 0 / 4.2h | 0 / 1.1h | 0 / 210k |
 | Fase 4 - Setup, doctor y cierre | 0 | 2 | 0% | 0 / 11h | 0 / 3.3h | 0 / 0.8h | 0 / 160k |
-| **TOTAL** | **3** | **11** | **27%** | **0 / 39.5h** | **5.68 / 11.9h** | **0 / 3.0h** | **~273.6k out / 575k** |
+| **TOTAL** | **6** | **11** | **55%** | **0 / 39.5h** | **40.13 / 11.9h** | **0 / 3.0h** | **~1644.3k out / 575k** |
 
 ## Fase 1 - Config, redaccion compartida y capacidad
 
@@ -90,7 +90,7 @@ verificacion: obligatoria
 ## Fase 2 - Recorder y puerta humana
 
 ### T-04 - Recorder determinista (crear/actualizar caso)
-- **Estado**: en-progreso
+- **Estado**: completado
 - **Tiempo humano**: est. 4h · real -
 - **Tiempo IA**: real 0.20h (medido; usage-meter `training-data-services/T-04`, 13m reloj, 43.9k out tok, 3.17 EUR; implementer `opus`)
 - **Tiempo IA (fix1)**: real 1.32h (medido; usage-meter, artefacto training-data-services/T-04-fix1, 45m reloj, 165.2k out tok, 13.93 EUR — cubre T-04/T-05/T-06 fix1; implementer opus)
@@ -133,7 +133,7 @@ verificacion: obligatoria
 - [x] Un caso rechazado se conserva; no hay borrado silencioso. (tests `test_t04_rechazados_y_fallidos_se_conservan_no_hay_borrado`, `test_t04_corrected_exige_que_exista_la_version_que_corrige`)
 
 ### T-05 - Puerta de aprobacion humana para Gold
-- **Estado**: en-progreso
+- **Estado**: completado
 - **Tiempo humano**: est. 3h · real -
 - **Tiempo IA**: real 0.07h (medido; usage-meter `training-data-services/T-05`, 5m reloj, 16.1k out tok, 1.33 EUR; implementer `opus`)
 - **Prevision IA**: 35k in / 14k out tok
@@ -156,7 +156,7 @@ verificacion: obligatoria
 - [x] Un caso `corrected` declara `supersedes_case` y se conserva junto al `failure` que corrige. (test `test_t05_gold_corrected_se_conserva_junto_al_failure_que_corrige`; la existencia de la versión citada, `test_t04_corrected_exige_que_exista_la_version_que_corrige`)
 
 ### T-06 - Indice `cases_index.jsonl` y consulta basica
-- **Estado**: en-progreso
+- **Estado**: completado
 - **Tiempo humano**: est. 1h · real -
 - **Tiempo IA**: real 0.16h (medido; usage-meter `training-data-services/T-06`, 25m reloj incl. la suite completa de `tests/` de cierre de fase, 32.8k out tok, 3.52 EUR; implementer `opus`)
 - **Prevision IA**: 10k in / 5k out tok
@@ -504,3 +504,15 @@ Principio de D-fix5 **confirmado**: tras cientos de carreras reales de 2 proceso
 | 113 | Minor | La cifra «0 exit 3» de `SKILL.md:170` vale solo sin carga y no distingue casos nuevos/existentes: con la CPU saturada y 32 escritores, 2-3/192 exit 3 (base 4), con 10⁵ casos igual que con 100 — la causa es anterior a fix5: S2 retiene el bloqueo 25-35 ms, casi todo en abrir el índice para añadir (antivirus en Windows). **Arbitraje:** (a) SKILL.md con la cifra medida y su condición («sin carga: 0; CPU saturada con 32 escritores: ~1-2 % de exit 3, independiente del tamaño del store; exit 3 = reintenta»); (b) sacar del bloqueo en S2 lo que no necesita exclusión: releer `validation.json` y validar su coherencia ANTES de tomar el bloqueo, y con el bloqueo solo comprobar identidad por descriptor (`fstat` igual a lo leído) y añadir la línea — medición antes/después del tiempo con el bloqueo en S2 | T-04 | corregido (fix6): (b) `_indexar_alta` relee y valida `validation.json` ANTES del bloqueo; con el bloqueo solo compara el `lstat` actual con la identidad del `fstat` de la lectura (`_misma_identidad`, sin abrir el fichero) y añade la linea; si cambio (un `set-status` entre la lectura y el bloqueo) o la lectura dio aviso, relee CON el bloqueo (E1 intacto). (a) SKILL.md: «32 × 6 `record`: 0 exit 3 sin carga; ~1-2 % con la CPU saturada, igual con 100 casos que con 10⁵» y «exit 3 (reintenta)» | medicion del tiempo con el bloqueo de S2 (Windows 11/NTFS con antivirus, Python 3.13, 300 `record` secuenciales por corrida, `bench113.py`): antes p50/p90 47.5/59.6 y 46.8/58.2 ms -> despues 43.7/55.1 y 42.9/53.6 ms (**-8 %**); lo que queda es `_anadir_linea` (p50 38.7 de 38.9 ms: abrir+escribir+cerrar el indice, que exige el bloqueo por el orden del append); Linux (overlay) 0.07-0.10 -> 0.05-0.07 ms. Tests `test_f2fix6_gap113_s2_relee_validation_fuera_del_bloqueo_y_con_el_solo_identidad` (RED `[1] == [0]`), `…gap113_set_status_entre_la_lectura_y_el_bloqueo_de_s2_gana_el_disco`, `test_f2fix2_gap52_record_mueve…` ajustado (RED: `('leer validation.json', 1)` con el bloqueo); mutantes M113a (sin la identidad) y M113b (siempre con el bloqueo) mueren; la cifra de (a) es la medida de la Lente D (2-3/192 con la CPU saturada, base 4), no remedida: (b) no toca la parte dominante | D |
 
 **Decisión del orquestador (2026-09-26):** 0 Critical/Important; 6 Minor de tests, mensajes y un recorte de sección crítica sin diseño nuevo ⇒ micro-ronda `fix6` (implementer `opus`, marcador `training-data-services/T-04-fix6`) con **verificación dirigida del orquestador** (reproducir cada mutante y cada escenario; suite ×40 en Linux y ×5 en Windows; puertas) en lugar de otra pasada de lentes. Si confirma: T-04..T-06 `completado`.
+
+**Verificación dirigida de fix6 (orquestador, 2026-09-26)** — sin nueva pasada de lentes (0 Critical/Important desde fix5; fix6 = tests, mensajes y recorte de S2):
+
+| # | Comprobación propia | Resultado |
+|---|---|---|
+| 108/109 | Suite de la skill ×20 en Linux (`python:3.11-slim`, un contenedor, `-m 2g`, `soak.sh` sobre `git archive` de `365ad19`) | `pasadas=20 rojos=0` (el implementer: ×40 + ×40 sin rojo) |
+| 110 | Mutantes propios en copia aislada (`git archive HEAD`): X7 (`>=` en el tope de S1), X13 (sin el reintento G2 de `_leer_metadata_sin_enlace`), X17 (`if publicado and not retirado` desactivado), X12 (`no se puede examinar` fuera de `MARCAS_TRANSITORIAS`), X3 (sin `st_nlink == 1` en `_verificar_creado`) | los 5 **mueren** (`1 failed` cada uno) |
+| 111 | Mutante propio: `_texto_ruta` devuelve el texto sin escapar | **muere** |
+| 112/113 | Tests dedicados + puertas | verdes; la desviación declarada en #113 (identidad por `lstat` frente al `fstat` de la lectura, no con el descriptor abierto, porque en Windows un handle abierto haría fallar el `os.replace` del `set-status` que tiene el bloqueo) es correcta: la comprobación sigue siendo bajo el bloqueo y todo escritor legítimo de `validation.json` lo toma |
+| Puertas | `pytest skills/training-data-services/scripts skills/knowledge-services/scripts tests/test_ci_skill_suites.py tests/test_ci_manual_copy.py tests/test_skill_size.py tests/test_export_skills.py tests/test_manifests.py` · `test_readme_badges` · `lint_plugin` · `evals/check` · `export-interop --check` · `ledger-lint` · `scope-check --base origin/master` | `458 passed, 8 skipped, 6 subtests passed` · `10 conteo(s) OK` · `0 errores · 3 avisos` · `148 casos · 0 errores` · `50 ficheros al día` · `0 incoherencias` · solo `improvement-plan.md` fuera (arbitrado); `SKILL.md` 200 líneas |
+
+⇒ **Fase 2 sin gaps pendientes (#31-#113 cerrados)**: T-04, T-05 y T-06 → `completado`; Resumen 6/11. Lección de proceso para la retro: el bucle de 3 intentos se agotó con gaps de ESCALA y de TOCTOU que solo aparecían con procesos reales, en Linux o con carga; la revisión previa de cada diseño (D-fix2, D-fix3, D-fix5) cazó defectos reproducidos antes de implementarlos, y la réplica de Linux cazó rojos que Windows no veía.
