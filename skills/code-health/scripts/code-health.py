@@ -280,12 +280,19 @@ def lineas_codigo(lines, ext):
 
 # ------------------------------------------------------------------ 1. duplicados
 
+# --8<-- shingles (ventana deslizante) COMPARTIDOS -- REPLICADO LITERAL en skills/code-health/scripts/code-health.py (canonico) y skills/training-data-services/scripts/dedup.py (ADR-016)
+def shingles(unidades, window):
+    """Shingles de `window` unidades consecutivas (lineas normalizadas, palabras...), en orden, como
+    la PROPIA cadena unida por `\\n` (nunca `hash()`: determinista entre procesos, PYTHONHASHSEED)."""
+    return ["\n".join(unidades[k:k + window]) for k in range(len(unidades) - window + 1)]
+# --8<-- fin shingles (ventana deslizante) COMPARTIDOS
+
+
 def duplicados(cod, window, top):
     """cod: {rel: [(nº, norm)]}. Shingles de `window` líneas → pares entre ficheros distintos."""
     idx = defaultdict(list)
     for rel, ls in cod.items():
-        for k in range(len(ls) - window + 1):
-            h = "\n".join(n for _, n in ls[k:k + window])     # la propia cadena: determinista entre procesos
+        for k, h in enumerate(shingles([n for _, n in ls], window)):
             idx[h].append((rel, k))
     pares = defaultdict(set)          # (relA, relB) → {(kA, kB)}
     for h, occ in idx.items():

@@ -181,16 +181,24 @@ verificacion: obligatoria
 ## Fase 3 - Dedup, particion y ensamblador
 
 ### T-07 - Deduplicacion por shingles (reutilizando `code-health.py`)
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo humano**: est. 5h · real -
+- **Tiempo IA**: real 0.17h (medido; usage-meter `training-data-services/T-07`, 10m reloj, 35.7k out tok, 3.05 EUR; implementer `opus`)
 - **Prevision IA**: 55k in / 22k out tok
 - **Dependencias**: T-04
 - **Tipo**: backend
-- **Archivos**: `skills/training-data-services/scripts/dedup.py`, `skills/training-data-services/scripts/test_dedup.py`
+- **Archivos**: `skills/training-data-services/scripts/dedup.py`, `skills/training-data-services/scripts/test_dedup.py`, `skills/code-health/scripts/code-health.py` (nota: el canonico de la copia declarada —`shingles()` extraida de `duplicados` sin cambiar su comportamiento, 28/28 tests de code-health verdes—), `agent-kits/shared/copias.json` (nota: bloque `shingles_ventana`, ADR-016)
 - **Verificacion**: `python -m pytest -q skills/training-data-services/scripts/test_dedup.py` -> near-duplicates detectados sin embeddings, boilerplate fijo no da falsos positivos
+  - Salida real (2026-09-26, Windows): `python -m pytest -q -p no:cacheprovider skills/training-data-services/scripts/test_dedup.py skills/code-health/scripts tests/test_copias_declaradas.py` -> `80 passed in 8.89s` (29 de `test_dedup.py`); `lint_plugin` -> `0 errores · 3 avisos` (preexistentes; el bloque nuevo, declarado)
+  - Salida real (2026-09-26, Linux `python:3.11-slim`, `-m 2g`): los mismos tres -> `79 passed, 1 skipped in 1.60s` (el skip es de code-health, sin git en el contenedor)
+  - Medicion (10⁴ casos sinteticos, 200 familias, prompt de sistema fijo de 150 palabras + peticion de 80 + 4 turnos, 1 de cada 10 near-duplicate del anterior): `agrupar` -> 1 000 grupos, 152 shingles de boilerplate ignorados, **1 001 pares verificados** (no ~5·10⁷), **5.3 s**, pico de memoria **225 MiB** (`tracemalloc`); con 10³ casos, 1.2 s y 22 MiB
+  - Mutantes (copia aislada del scratchpad, `mutar.py`): 10/10 **mueren** — sin filtro de boilerplate, sin la guarda de familias, prefijo un shingle mas corto, `ceil` en coma flotante, todos los pares como candidatos, sin el atajo de «misma componente», Jaccard estricto (`>`), restricciones y metricas en el texto, sin agrupar los casos «todo boilerplate», sin ordenar por id
+- **RED**: `test_dedup.py` -> `ERROR … FileNotFoundError: [Errno 2] No such file or directory: '…\scripts\dedup.py'` (colección interrumpida: el modulo no existia) · 2026-09-26; 2.ª tanda tras la 1.ª pasada de mutantes: `test_t07_par_con_jaccard_exacto_en_el_umbral_se_agrupa` (0.56 · 25 = 14.000000000000002) y `test_t07_pares_verificados_no_dependen_del_orden_de_entrada` porque `M07-techo-flotante` y `M07-orden-entrada` VIVIAN; ahora mueren
+- **Nota**: decisiones con margen — (1) solo se COPIA `shingles()` (la ventana deslizante como la propia cadena, determinista entre procesos): la normalizacion de code-health colapsa identificadores y numeros (`id`/`num`) y dejaria todo texto natural en «id id id»; aqui un token es `\w+` en `casefold`; (2) **boilerplate** = shingle en MAS de `--boilerplate` (0.5) de los casos **y** en >= 3 familias distintas: sin la condicion de familias, 10 versiones casi iguales de una familia entre 12 casos pasarian por texto fijo (falso negativo = leakage); con < 3 familias no se filtra nada (conservador, declarado); un caso todo boilerplate solo se agrupa con los que tienen exactamente sus shingles; (3) escala: filtro de PREFIJO exacto sobre el indice invertido (orden global por frecuencia y la propia cadena) + filtro de longitud + atajo de «misma componente»; Jaccard y techo con enteros (`Fraction(repr(umbral))`); (4) defaults declarados: umbral 0.8, ventana 3 palabras; un texto mas corto que la ventana es un shingle. No cruza el umbral de ADR (una sola pieza decide: `dedup.py`; el ensamblador solo lo consume).
+- **Changelog**: Near-duplicate detection between cases without embeddings or network: word shingles and Jaccard similarity with fixed boilerplate ignored, exact prefix filtering instead of comparing every pair, and deterministic groups.
 **Criterios de aceptación**
-- [ ] Dos casos casi identicos entre versiones se marcan como grupo de duplicados.
-- [ ] Texto fijo compartido por todos los casos no dispara falsos positivos.
+- [x] Dos casos casi identicos entre versiones se marcan como grupo de duplicados. (tests `test_t07_dos_versiones_casi_identicas_forman_un_grupo`, `test_t07_componentes_conexas_transitivas`, `test_t07_el_filtro_de_prefijo_da_lo_mismo_que_todos_los_pares`, `test_t07_un_grupo_grande_de_una_familia_no_se_confunde_con_boilerplate`)
+- [x] Texto fijo compartido por todos los casos no dispara falsos positivos. (tests `test_t07_texto_fijo_compartido_no_da_falsos_positivos`, `test_t07_sin_filtro_de_boilerplate_el_mismo_corpus_si_daria_falsos_positivos`, `test_t07_boilerplate_no_esconde_un_duplicado_real`)
 
 ### T-08 - Particion anti-leakage por familia
 - **Estado**: borrador
