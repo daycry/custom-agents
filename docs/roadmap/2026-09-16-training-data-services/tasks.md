@@ -201,15 +201,22 @@ verificacion: obligatoria
 - [x] Texto fijo compartido por todos los casos no dispara falsos positivos. (tests `test_t07_texto_fijo_compartido_no_da_falsos_positivos`, `test_t07_sin_filtro_de_boilerplate_el_mismo_corpus_si_daria_falsos_positivos`, `test_t07_boilerplate_no_esconde_un_duplicado_real`)
 
 ### T-08 - Particion anti-leakage por familia
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo humano**: est. 4h · real -
+- **Tiempo IA**: real 0.06h (medido; usage-meter `training-data-services/T-08`, 11.2k out tok, 0.78 EUR; implementer `opus`)
 - **Prevision IA**: 45k in / 18k out tok
 - **Dependencias**: T-07
 - **Tipo**: backend
 - **Archivos**: `skills/training-data-services/scripts/dataset-assembler.py`, `skills/training-data-services/scripts/test_dataset_assembler.py`
 - **Verificacion**: `python -m pytest -q skills/training-data-services/scripts/test_dataset_assembler.py -k leakage` -> ninguna familia queda partida entre train y benchmark
+  - Salida real (2026-09-26, Windows): `python -m pytest -q -p no:cacheprovider skills/training-data-services/scripts/test_dataset_assembler.py -k leakage` -> `5 passed, 4 deselected in 0.04s`; fichero completo -> `9 passed in 0.46s`
+  - Salida real (2026-09-26, Linux `python:3.11-slim`, `-m 2g`): fichero completo -> `9 passed in 0.11s`
+  - Mutantes (copia aislada del scratchpad): 9/9 **mueren** — particion por version en vez de por familia, sin excluir el cruce, excluir el lado de benchmark, `--conservar-duplicados` que tambien apaga el cruce, sin la negativa por benchmark vacio (funcion y CLI), sin la negativa por familia declarada sin Gold, representante elegido por texto de la referencia (`v0010` < `v009`) o el menor
+- **RED**: `test_dataset_assembler.py` -> `ERROR … FileNotFoundError` en la coleccion (`dataset-assembler.py` no existia) · 2026-09-26; `test_t08_leakage_version_10_gana_a_la_9_por_numero_no_por_texto` se reescribio con anchos distintos (`v009`/`v0010`) porque con el mismo ancho el orden por texto coincide con el numerico y el mutante «representante por texto» no habria muerto
+- **Nota**: decisiones con margen — (1) una familia declarada en `--benchmark` sin ningun caso Gold tambien se rechaza (exit 1): un benchmark que se vacia en silencio por una errata es el mismo fallo que no declararlo; (2) representante de un grupo dentro de una particion = mayor `(case_id, version)` por NUMERO (en un par fallo -> correccion gana la correccion, que conserva `supersedes_case`, CA-12); (3) el cruce se resuelve ANTES que la deduplicacion y no lo apaga `--conservar-duplicados`; (4) en este commit el CLI solo valida config y `--benchmark` (la negativa es lo que se prueba aqui); el export completo llega con T-09 en la misma fase.
+- **Changelog**: The dataset assembler reserves whole case families for the benchmark, refuses to export without an explicitly declared benchmark family, and drops training cases that are near-duplicates of a benchmark case.
 **Criterios de aceptación**
-- [ ] Sin al menos una familia reservada como benchmark, el ensamblador se niega a exportar y explica por que.
+- [x] Sin al menos una familia reservada como benchmark, el ensamblador se niega a exportar y explica por que. (tests `test_t08_sin_familia_de_benchmark_se_niega_y_explica_por_que`, `test_t08_cli_sin_benchmark_exit_1_con_motivo_y_sin_escribir_nada`, `test_t08_familia_de_benchmark_sin_casos_gold_se_niega`; particion por familia completa y cruce: `test_t08_leakage_*`)
 
 ### T-09 - Ensamblador de dataset y puente a `knowledge-curator`
 - **Estado**: borrador
