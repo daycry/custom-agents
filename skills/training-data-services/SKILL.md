@@ -25,9 +25,8 @@ de dominio (métricas, simulación, herramientas) es del proyecto consumidor.
 
 ## Cuándo NO usarla
 
-- Para curar o aprobar conocimiento (`docs/knowledge/candidates/`): eso es `knowledge-curator`. Esta
-  skill, como mucho, **propone** un caso Gold como candidato (puente opt-in `bridge_to_curator`).
-- Para publicar conocimiento aprobado a un backend (Kwipu): eso es `knowledge-services`.
+- Para curar o aprobar conocimiento (`docs/knowledge/candidates/`): `knowledge-curator` (esta skill,
+  como mucho, **propone** un caso Gold, `bridge_to_curator`); para publicarlo (Kwipu): `knowledge-services`.
 - Para calcular una métrica, simular o evaluar semánticamente un resultado: código del proyecto.
 - Para lanzar un fine-tuning, servir un modelo o correr un benchmark: siempre fuera del plugin.
 - Sin `training.json` (o con `enabled: false`) no hay nada que hacer: la capacidad está apagada y
@@ -61,29 +60,27 @@ Cualquier otra clave se rechaza (salvo `$comment`), para que una errata no pase 
   `trajectory` (turnos `system|user|assistant|tool` con `content`/`tool_calls`), `validation`,
   `outcome`. Para `record`, `version`, `case_id` y `validation` son opcionales: se asignan la
   siguiente versión libre, `<id_prefix>-<family>.<variant>` y `pending`.
-- `validation.status` ∈ `pending · approved · needs_changes · rejected`; `approved` ⇔
-  `approved_by_human: true`.
-- `outcome` ∈ `success · failure · corrected`; `corrected` exige (y solo él admite)
+- `validation.status` ∈ `pending · approved · needs_changes · rejected` (`approved` ⇔
+  `approved_by_human: true`); `outcome` ∈ `success · failure · corrected`; `corrected` exige (y solo él admite)
   `supersedes_case: "<case_id>@v<NNN>"` en forma canónica (dígitos ASCII, relleno a `version_width`,
   ≥ 1) del mismo `case_id` y una versión anterior.
 - `family`/`variant` son directorios: sin separadores, `..`, `.` (separa family y variant), `:`,
   controles, espacio final ni nombres reservados de Windows (`con`, `nul`, `com1`…), sea cual sea el patrón.
-- La trayectoria **nunca** guarda chain-of-thought. Se rechaza toda clave que empiece por
-  `reasoning`, `thinking`, `thought`, `chain_of_thought` o `scratchpad`, sin distinguir mayúsculas y a
-  cualquier profundidad del turno (también en `arguments`).
+- La trayectoria **nunca** guarda chain-of-thought: se rechaza toda clave que empiece por `reasoning`,
+  `thinking`, `thought`, `chain_of_thought` o `scratchpad` (sin distinguir mayúsculas, a cualquier
+  profundidad del turno, también en `arguments`).
 - Excepciones y límite: `reasoning_effort`, `thinking_budget` y `reasoning_level` son parámetros de
   proveedor y se admiten **solo** dentro de `tool_calls[].arguments`. Un turno con más de 50 niveles
   de anidamiento se rechaza.
-- Un tipo inesperado es un error `{campo, mensaje}`, nunca un crash.
-- `metrics` es un objeto JSON opaco del proyecto; el plugin no lo interpreta.
+- Un tipo inesperado es un error `{campo, mensaje}`, nunca un crash. `metrics` es un objeto JSON
+  opaco del proyecto (el plugin no lo interpreta); `artifacts`, solo referencias `{path, hash, kind}`.
 - `context`: texto u objeto libre; admite `refs: [{"ref": "<fichero:línea|nodo>", "kind": "..."}]`
   opcional para citar procedencia (nadie está obligado a usarla).
-- `artifacts`: solo referencias `{path, hash, kind}`; nunca contenido binario inline.
 
 ### Mapeo declarado de `outcome` desde fuentes externas
 
 El vocabulario cerrado no se amplía: una fuente externa se **traduce** con `mapear_outcome(valor,
-fuente)` según la tabla `OUTCOME_MAPEO`. Lo que no esté en la tabla devuelve `None` (no se inventa).
+fuente)` (`OUTCOME_MAPEO`); lo que no esté en la tabla devuelve `None` (no se inventa).
 
 | Fuente | Valor externo | `outcome` |
 |---|---|---|
@@ -93,8 +90,7 @@ fuente)` según la tabla `OUTCOME_MAPEO`. Lo que no esté en la tabla devuelve `
 
 ## Proceso
 
-1. **Activar**: el proyecto crea `training.json` con `enabled: true`, `root` e `id_prefix` (paso de
-   `/setup` de la capacidad `training`).
+1. **Activar**: `training.json` con `enabled: true`, `root` e `id_prefix` (`/setup`, capacidad `training`).
 2. **Validar** antes de escribir nada: `python3 scripts/case_schema.py config <training.json>` y
    `python3 scripts/case_schema.py case <caso.json> --config <training.json>`. `root` se resuelve
    contra la raíz deducida de `<proyecto>/.claude/knowledge-services/training.json` (o el cwd);
@@ -104,7 +100,8 @@ fuente)` según la tabla `OUTCOME_MAPEO`. Lo que no esté en la tabla devuelve `
    chain-of-thought), redacta y vuelve a validar lo redactado; solo entonces escribe. Sin `version`
    toma la siguiente libre (lo normal al repetir un intento); con `version` explícita (p. ej. para
    reproducir un store) se rechaza si ya existe, con cualquier ancho. Una versión nunca se
-   sobrescribe; no hay borrado.
+   sobrescribe; no hay borrado. Si la siguiente automática superaría `v999999999`, rechazo
+   explícito: el caso agotó los números (graba con otro `variant`).
 4. **Aprobar Gold**, siempre a mano, por una de las dos vías (misma puerta: el flag debe ser
    exactamente `True`): `set-status <case_id> <versión> approved --approved-by-human [--note …]`
    sobre una versión grabada, o `record <caso.json> --approved-by-human` con un caso que ya llega
@@ -114,15 +111,16 @@ fuente)` según la tabla `OUTCOME_MAPEO`. Lo que no esté en la tabla devuelve `
    `cases_index.jsonl`, que es una **caché** (una línea corrupta se ignora con aviso al leerla);
    `index rebuild` lo reconstruye desde `cases/` e `index check` lo compara (semántica abajo). El
    ensamblador leerá `validation.json`, no el índice.
-6. **Ensamblar** el dataset (T-07…T-09, pendiente): solo Gold, dedup por shingles, benchmark
-   reservado por familia completa.
+6. **Ensamblar** el dataset (T-07…T-09, pendiente): solo Gold, dedup, benchmark por familia.
 
 ### Códigos de salida y `index check`
 
 Exit 0 ok · exit 1 rechazo (caso o config inválidos, sin el flag de Gold, enlace, versión que ya
-existe) · exit 2 uso, JSON ilegible, error de E/S o **permanente** (permisos, solo lectura, sistema sin
-bloqueos `ENOLCK`: reintentar no sirve, arregla la causa) · **exit 3 transitorio**: **no se ha
-escrito nada** y reintentar es seguro. Exit 3 por subcomando:
+existe; en `record`, también el store cambió durante la escritura o una manipulación detectada) ·
+exit 2 uso, JSON ilegible, error de E/S (también al escribir la versión: disco lleno, permisos) o
+**permanente** (permisos, solo lectura, sistema sin bloqueos `ENOLCK`: reintentar no sirve, arregla
+la causa) · **exit 3 transitorio**: **no se ha escrito nada** y reintentar es seguro. Si `record`
+falla tras reservar (exit 1 o 2), la reserva queda y `index check` la reporta. Exit 3 por subcomando:
 
 - `record`: el bloqueo no llegó en la reserva, o hubo más de 64 números ocupados 3 veces seguidas.
   Nunca después de grabar: si la línea del índice no se escribió, sale con 0 y un aviso («`index
@@ -145,11 +143,13 @@ escrito nada** y reintentar es seguro. Exit 3 por subcomando:
 | `metadata.json` que no casa con su ruta o con el esquema, o `validation.json` incoherente (`approved` sin humano) | 1 | Corrígelo a mano; no se indexa |
 | Un temporal huérfano `.tmp-*` (raíz, `cases/`, un caso o una versión) de hace ≥ 60 s o con `mtime` futuro, o un `.tmp-*` que es un enlace | 1 | Si no hay nada en marcha, bórralo a mano (el enlace, no su destino) |
 | Un fragmento final del índice sin salto de línea que persiste (escritor muerto a mitad de línea) | 1 | `index rebuild` |
+| Grabación interrumpida al publicar `metadata.json` (dos nombres: él y un `.tmp-*` hermano; no es un enlace duro) | 1 | Retira ese `.tmp-*` (solo ese nombre): la versión queda completa |
 | Dos casos que solo difieren en mayúsculas, o un directorio con versiones de dos `case_id` (no se indexa la del intruso) | 1 | Renombra, fusiona o mueve a mano |
 
 Es **informativo** (exit 0, línea `info:`) lo que está **en curso**: una versión sin
-`metadata.json` cuyo directorio tiene `mtime` de hace menos de 60 s, una completa que está en
-`cases/` y no en el índice con `metadata.json` de hace menos de 60 s, o un temporal reciente. Bajo
+`metadata.json` (o con él a medio publicar) cuyo directorio tiene `mtime` de hace menos de 60 s, una
+completa que está en `cases/` y no en el índice con `metadata.json` de hace menos de 60 s, o un
+temporal reciente; y un caso que agotó los números de versión. Bajo
 escritura muy intensa, `check` puede reportar un **falso positivo** transitorio que un segundo
 `check` ya no ve.
 
@@ -165,24 +165,36 @@ escritura muy intensa, `check` puede reportar un **falso positivo** transitorio 
   reserva de la versión (el `mkdir` del directorio del caso si es nuevo y el de `vNNN`), su línea del
   índice y cada `set-status`. Solo si otro lo creó a la vez (el `mkdir` del caso choca) recorre
   `cases/` una vez para decidir; el resto no depende del tamaño del store. Los ficheros se escriben
-  sin él, en un temporal creado tras la reserva; si no llega en 10 s, exit 3.
+  sin él, tras la reserva, **directamente en `vNNN`** con `O_EXCL` (sin temporal ni `os.replace`;
+  `metadata.json` el último); si no llega en 10 s, exit 3. Fuera del bloqueo, un caso que ya existe
+  se comprueba en O(1); solo uno nuevo recorre `cases/` (10⁵ casos, 32 × 6 `record`: 0 exit 3).
 - Límite declarado: en un sistema que distingue mayúsculas, dos casos creados a la vez que solo
-  difieren en mayúsculas quedan en dos directorios; `index check` reporta la pareja.
+  difieren en mayúsculas quedan en dos directorios (los dos siguen admitiendo `record`); `index
+  check` reporta la pareja.
+- **Límites declarados de la escritura** (sin `openat`/`O_NOFOLLOW` portables): quien tenga escritura
+  en el store y sustituya un directorio por un enlace en los microsegundos entre una comprobación y
+  una creación solo puede hacer que un fichero **nuevo** del recorder (o un directorio vacío nuevo:
+  el del caso, `vNNN` o `final/`; en Windows, el índice o el bloqueo vacíos si planta un symlink de
+  fichero) aparezca fuera: nunca se sobrescribe ni se borra nada. Se detecta (exit 1) y el aviso
+  nombra la ruta solo si es el fichero creado (si no, «no localizado»). En `set-status`, con **dos**
+  sustituciones de `vNNN` en ese intervalo, puede reemplazarse un `validation.json` en el destino del
+  enlace (dentro o fuera del store) y crearse allí el temporal: quien puede hacerlo ya podía
+  escribirlo. Lo único que el recorder borra es su propio `.tmp-<token>`, si sigue siendo el suyo.
 - `index rebuild` (serializado con `<root>/.cases_rebuild.lock`) recorre `cases/` y relee del disco,
   sin bloquear a los escritores, lo que cambió mientras tanto; con el bloqueo solo copia el
   residual (las últimas líneas llegadas) **tal cual**. Límite declarado: un `set-status` muerto entre
   su escritura y su línea cuya clave caiga en ese residual queda como sin rebuild; `check` lo reporta.
 - Nunca se escribe a través de un enlace que salga de `root` o entre en `docs/knowledge/`, ni en
-  un índice, bloqueo o temporal con enlaces duros; los lectores omiten todo enlace sin seguirlo.
+  un índice, bloqueo o temporal con enlaces duros; el índice y el bloqueo se abren sin seguir
+  enlaces (`O_NOFOLLOW` en POSIX; en todos, el nombre debe ser el fichero abierto). Los lectores
+  omiten todo enlace sin seguirlo.
 
 ## Degradación
 
-- Sin `training.json` o con `enabled: false`: la capacidad no existe para el ciclo (CA-01).
-- `training.json` inválido: `/doctor` lo informa con fichero y campo; nada del ciclo se bloquea.
-- Sin `python3`: la skill no puede validar; el resto del plugin sigue igual.
+- Sin `training.json` o con `enabled: false`: la capacidad no existe para el ciclo (CA-01). Inválido:
+  `/doctor` lo informa con fichero y campo; nada se bloquea. Sin `python3`: el resto del plugin sigue.
 
 ## Scripts y rutas
 
-Rutas relativas dentro de la skill; desde fuera, `find` sobre las seis raíces de la regla 5 de
-`docs/CONVENTIONS.md` (`-path '*skills/training-data-services'`). Los tests viven junto a los
-scripts, solo en el repo (no viajan en el paquete portable); sin dependencias externas.
+Rutas relativas dentro de la skill; desde fuera, `find` sobre las seis raíces de la regla 5 de `docs/CONVENTIONS.md`
+(`-path '*skills/training-data-services'`). Los tests viven junto a los scripts, solo en el repo; sin dependencias.
