@@ -1099,11 +1099,13 @@ for i in range(n):
             r.cambiar_estado("geo-ramp.steep", int(papel[1:]), ("rejected", "needs_changes", "pending")[i % 3], cfg, raiz)
         elif papel == "rebuild":
             k, avisos = r.reconstruir_indice(store)
-            if avisos or k != nv:
+            permanentes = [a for a in avisos if not r._aviso_transitorio(a)]     # #109: transitorios, admitidos
+            if permanentes or (k != nv and not avisos):
                 fallos.append(f"rebuild {k}/{nv} {avisos}")
         else:
             ent, avisos = r.estado_de_cases(store)
-            if avisos or len(ent) != nv:
+            permanentes = [a for a in avisos if not r._aviso_transitorio(a)]
+            if permanentes or (len(ent) != nv and not avisos):
                 fallos.append(f"lector {len(ent)}/{nv} {avisos}")
     except Exception as e:
         fallos.append(f"{papel}: {type(e).__name__}: {e}")
@@ -1114,7 +1116,10 @@ print(json.dumps(fallos))
 def test_f2fix1_gap33_procesos_reales_set_status_rebuild_y_lectores(tmp_path):
     """gap #33 con PROCESOS reales (acotado: 3 escritores x 24 cambios, 2 `rebuild` x 24, 2 lectores
     x 48). Veredicto determinista sobre el invariante: ningun proceso ve una version completa como
-    ilegible o a medio escribir, ningun `set-status` se rechaza, y al final el indice == `cases/`."""
+    ilegible o a medio escribir por una causa PERMANENTE, ningun `set-status` se rechaza, y al final
+    (escritores parados) el indice == `cases/` y `list` == `validation.json`. #109 (fix6): un aviso
+    TRANSITORIO intermedio (`_aviso_transitorio`: sustituido durante la lectura) se admite; lo que
+    decide es el invariante FINAL."""
     raiz, cfg, store = _proyecto(tmp_path)
     nv = 3
     for _ in range(nv):
@@ -1894,7 +1899,9 @@ def test_f2fix2_gap52_record_mueve_la_version_sin_el_bloqueo_s1_y_s2_cortas(tmp_
     assert all(d == 0 for q, d in vistos if q == "mover") and any(q == "mover" for q, _d in vistos), vistos
     assert [d for q, d in vistos if q == "linea"] == [1], vistos
     ultimo_mover = max(i for i, (q, _d) in enumerate(vistos) if q == "mover")
-    assert ("leer validation.json", 1) in vistos[ultimo_mover:], vistos      # S2 relee el disco
+    # #113 (fix6): S2 relee el disco FUERA del bloqueo; con el, solo identidad y la linea
+    assert ("leer validation.json", 0) in vistos[ultimo_mover:], vistos
+    assert ("leer validation.json", 1) not in vistos, vistos
 
 
 def test_f2fix2_gap52_bloqueo_no_disponible_es_exit_3_y_no_escribe(tmp_path, monkeypatch, capsys):
@@ -2372,17 +2379,33 @@ _BUCLE = r"""
 import importlib.util, json, os, sys, time
 spec = importlib.util.spec_from_file_location("rec_proc", sys.argv[1])
 r = importlib.util.module_from_spec(spec); spec.loader.exec_module(r)
-cfg, raiz, papel, fin = json.loads(sys.argv[2]), sys.argv[3], sys.argv[4], sys.argv[5]
+cfg, raiz, papel, fin, prog = json.loads(sys.argv[2]), sys.argv[3], sys.argv[4], sys.argv[5], sys.argv[6]
 store, fallos, vueltas = r.raiz_store(cfg, raiz), [], 0
+ESPERA_MAX_S = 120                 # #108: tope generoso; si `check` no avanza, fallo con mensaje claro
+
+def hechas():
+    try:
+        return os.path.getsize(prog)
+    except OSError:
+        return 0
+
 if papel == "record":
     caso = json.loads(sys.stdin.read())
-    for i in range(20):
+    for i in range(1, 21):
+        # #108: sincronizacion EXPLICITA: el i-esimo `record` espera a que `check` lleve >= i vueltas,
+        # asi el aserto no depende del reparto de CPU (con #106 `record` es ~3x mas rapido)
+        limite = time.monotonic() + ESPERA_MAX_S
+        while hechas() < i and time.monotonic() < limite:
+            time.sleep(0.002)
+        if hechas() < i:
+            fallos.append(f"`check` no completo {i} vueltas en {ESPERA_MAX_S} s (lleva {hechas()}): sin progreso")
+            break
         try:
             r.grabar(dict(caso, request=f"bucle {i}"), cfg, raiz)
         except Exception as e:
             fallos.append(f"{type(e).__name__}: {e}")
 else:
-    limite = time.monotonic() + 120
+    limite = time.monotonic() + 240
     while not os.path.exists(fin) and time.monotonic() < limite and vueltas < 2000:
         vueltas += 1
         try:
@@ -2391,19 +2414,24 @@ else:
             difs = [f"{type(e).__name__}: {e}"]
         if difs:
             fallos.append(difs)
+        with open(prog, "ab") as f:            # #108: progreso tras CADA vuelta (un byte por vuelta)
+            f.write(b".")
 print(json.dumps({"fallos": fallos, "vueltas": vueltas}))
 """
 
 
 def test_f2fix2_gap58_procesos_record_y_check_en_bucle_sin_falsos_positivos(tmp_path):
     """#58 con PROCESOS reales (acotado: 20 `record` frente a un `check` en bucle): ningun `check`
-    cuenta como incoherencia la version que `record` esta escribiendo."""
+    cuenta como incoherencia la version que `record` esta escribiendo. #108 (fix6): determinista —
+    el i-esimo `record` espera a que `check` haya dado >= i vueltas (fichero de progreso), con un tope
+    de tiempo generoso que falla con mensaje claro; el aserto ya no depende del reparto de CPU."""
     raiz, cfg, store = _proyecto(tmp_path)
     rec.grabar(_caso(), cfg, raiz)
-    fin = tmp_path / "fin"
+    fin, prog = tmp_path / "fin", tmp_path / "progreso"
 
     def lanzar(papel):
-        return subprocess.Popen([sys.executable, "-c", _BUCLE, RECORDER_PATH, json.dumps(cfg), raiz, papel, str(fin)],
+        return subprocess.Popen([sys.executable, "-c", _BUCLE, RECORDER_PATH, json.dumps(cfg), raiz, papel, str(fin),
+                                 str(prog)],
                                 stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
                                 encoding="utf-8")
 
@@ -2417,7 +2445,7 @@ def test_f2fix2_gap58_procesos_record_y_check_en_bucle_sin_falsos_positivos(tmp_
     assert grab.returncode == 0 and chk.returncode == 0, (sal_g[1][-400:], sal_c[1][-400:])
     g, c = json.loads(sal_g[0]), json.loads(sal_c[0])
     assert g["fallos"] == [] and c["fallos"] == [], (g["fallos"][:3], c["fallos"][:3])
-    assert c["vueltas"] >= 3, c
+    assert c["vueltas"] >= 20, c                    # #108: garantizado por la sincronizacion, no por la CPU
     assert rec.comprobar_indice(str(store)) == []
 
 
@@ -5157,3 +5185,253 @@ def test_f2fix5_gap104_variante_creada_tras_el_primer_realpath_no_se_cuela(tmp_p
     assert hecho and "mayusculas" in str(e.value), str(e.value)
     assert [n for n in os.listdir(str(store / "cases")) if not n.startswith(".")] == ["ramp.steep"]
     assert sorted(os.listdir(str(store / "cases" / "ramp.steep"))) == ["v001"]
+
+
+# ------------------------------------------------------------------ fix6 (verificacion dirigida fix5, Fase 2)
+
+def _sustituido(n):
+    """`_leer_json_reintentando` que las `n` primeras veces (None: siempre) ve el fichero SUSTITUIDO
+    (un `os.replace` legitimo entre el `lstat` y el `fstat`) y despues lee de verdad."""
+    real, vistas = rec._leer_json_reintentando, []
+
+    def leer(ruta, *a, **k):
+        vistas.append(ruta)
+        if n is None or len(vistas) <= n:
+            raise rec._FicheroNoPropio(f"{os.path.basename(ruta)}: {rec.SUSTITUIDO}", True)
+        return real(ruta, *a, **k)
+
+    return leer, vistas
+
+
+def test_f2fix6_gap109_lector_reintenta_por_tiempo_ante_sustituciones_seguidas(tmp_path, monkeypatch):
+    """#109: seis `os.replace` legitimos seguidos entre `lstat` y `fstat` ya no agotan al lector (antes,
+    3 intentos inmediatos -> aviso «sustituido 3 veces»): reintenta con espera corta y acotada POR
+    TIEMPO y lee la version."""
+    _raiz, _cfg, _store, r = _grabado(tmp_path)
+    leer, vistas = _sustituido(6)
+    monkeypatch.setattr(rec, "_leer_json_reintentando", leer)
+    val, _m, aviso = rec._leer_de_version(r["path"], "validation.json", "cases/ramp.steep/v001")
+    assert aviso is None and val["status"] == "pending", aviso
+    assert len(vistas) == 7
+
+
+def test_f2fix6_gap109_sustitucion_perpetua_acotada_por_tiempo_con_retroceso(tmp_path, monkeypatch):
+    """#109: si el fichero no deja de cambiar, el lector se rinde pasado `PLAZO_SUSTITUIDO_S` (~250 ms)
+    con el aviso transitorio de siempre (que `check` confirma, #105): acotado, con esperas (retroceso),
+    nunca un bucle sin fin ni una espera larga."""
+    _raiz, _cfg, _store, r = _grabado(tmp_path)
+    leer, vistas = _sustituido(None)
+    monkeypatch.setattr(rec, "_leer_json_reintentando", leer)
+    esperas, real_sleep = [], time.sleep
+    monkeypatch.setattr(rec.time, "sleep", lambda s: esperas.append(s) or real_sleep(s))
+    t0 = time.monotonic()
+    _v, _m, aviso = rec._leer_de_version(r["path"], "validation.json", "cases/ramp.steep/v001")
+    dt = time.monotonic() - t0
+    assert aviso and rec.SUSTITUIDO in aviso and rec._aviso_transitorio(aviso), aviso
+    assert rec.PLAZO_SUSTITUIDO_S * 0.9 <= dt < 5, dt
+    assert esperas and max(esperas) <= rec.PLAZO_SUSTITUIDO_S and 3 < len(vistas) < 200, (esperas, len(vistas))
+
+
+def test_f2fix6_gap110_x7_la_ultima_version_libre_se_graba(tmp_path):
+    """#110 X7: con `v999999998` grabada, la automatica es `v999999999` —libre y en rango—: se graba
+    (el rechazo «agoto los numeros» es solo por ENCIMA de `VERSION_MAX`: `>`, no `>=`)."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    rec.grabar(_caso(version=rec.VERSION_MAX - 1), cfg, raiz)
+    r = rec.grabar(_caso(), cfg, raiz)
+    assert r["version"] == rec.VERSION_MAX, r
+    assert (store / "cases" / "ramp.steep" / f"v{rec.VERSION_MAX}" / "metadata.json").is_file()
+
+
+def test_f2fix6_gap110_x13_supersedes_bajo_la_carrera_g2_no_es_cwe59(tmp_path, monkeypatch):
+    """#110 X13: `supersedes_case` (`_comprobar_supersedes`) lee la version corregida mientras su
+    publicacion POSIX termina: ve dos nombres y, antes de buscar el `.tmp-*` hermano, el recorder lo
+    retira. `_leer_metadata_sin_enlace` vuelve a mirar (un solo nombre) y la lee: nunca CWE-59."""
+    _raiz, _cfg, _store, r = _grabado(tmp_path)
+    v1 = r["path"]
+    tmp = os.path.join(v1, ".tmp-publicando")
+    _hardlink(os.path.join(v1, "metadata.json"), tmp)
+    real = rec._temporal_hermano
+
+    def termina_la_publicacion(dir_v, st):
+        if os.path.exists(tmp):
+            os.remove(tmp)                                  # el recorder retira su temporal justo ahora
+        return real(dir_v, st)
+
+    monkeypatch.setattr(rec, "_temporal_hermano", termina_la_publicacion)
+    caso = _caso(outcome="corrected", supersedes_case="geo-ramp.steep@v001")
+    rec._comprobar_supersedes(caso, os.path.dirname(v1), 3)          # no lanza: existe y es `failure`
+    assert not os.path.exists(tmp)
+
+
+def test_f2fix6_gap110_x17_temporal_publicado_que_no_se_retira_es_exit_2_con_su_nombre(tmp_path, monkeypatch, capsys):
+    """#110 X17: `metadata.json` publicado pero su `.tmp-*` no se pudo retirar -> exit 2 «retira ese
+    temporal a mano (solo ese nombre)» con la reserva, nunca exit 0 ni el «no localizado» de G4."""
+    raiz, cfg, _store = _proyecto(tmp_path)
+    _escribir_config(tmp_path, cfg)
+    caso = tmp_path / "caso.json"
+    caso.write_text(json.dumps(_caso()), encoding="utf-8")
+    monkeypatch.setattr(rec, "_retirar_temporal_propio", lambda ruta, st: False)
+    capsys.readouterr()
+    assert rec.main(["record", str(caso), "--project-root", raiz]) == 2
+    err = capsys.readouterr().err
+    assert "retira ese temporal a mano" in err and "a medio publicar" in err and "no localizado" not in err, err
+    assert "la reserva cases/ramp.steep/v001 queda" in err, err
+
+
+def test_f2fix6_gap110_x12_no_se_puede_examinar_es_transitorio_y_check_lo_confirma(tmp_path, monkeypatch):
+    """#110 X12: `validation.json` que no se puede examinar UN instante (`lstat` con `OSError`) en F1 de
+    `index check` es causa TRANSITORIA (`MARCAS_TRANSITORIAS`): la confirmacion (#105) la relee y no
+    queda diferencia."""
+    _raiz, _cfg, store, _r = _grabado(tmp_path)
+    real, hecho = rec._stat_sin_seguir, []
+
+    def lstat_una_vez(x):
+        if not hecho and str(getattr(x, "path", x)).endswith("validation.json"):
+            hecho.append(1)
+            raise PermissionError(13, "en uso un instante")
+        return real(x)
+
+    monkeypatch.setattr(rec, "_stat_sin_seguir", lstat_una_vez)
+    assert rec.comprobar_indice(str(store)) == [] and hecho == [1]
+
+
+def test_f2fix6_gap110_x3_fichero_creado_con_un_segundo_nombre_se_rechaza(tmp_path, monkeypatch):
+    """#110 X3: si el fichero recien creado en la version tiene un SEGUNDO nombre (enlace duro plantado
+    entre su creacion y la comprobacion posterior) no es «el creado, de un solo nombre»: `_Manipulado`
+    (exit 1), sin borrar nada (el nombre de fuera sigue ahi)."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    fuera = tmp_path / "fuera-request.json"
+    real, hecho = rec._Canon.igual, []
+
+    def igual(self, ruta):
+        if os.path.basename(ruta) == "request.json" and not hecho:
+            hecho.append(1)
+            _hardlink(ruta, fuera)
+        return real(self, ruta)
+
+    monkeypatch.setattr(rec._Canon, "igual", igual)
+    with pytest.raises(rec.Rechazo) as e:
+        rec.grabar(_caso(), cfg, raiz)
+    assert hecho and "CWE-59" in str(e.value) and "la reserva" in str(e.value), str(e.value)
+    assert fuera.exists() and (store / "cases" / "ramp.steep" / "v001" / "request.json").exists()
+
+
+# el nombre literal de la revision (`.tmp-x\n\x1b[31maviso: borra \u2026/approved/ADR-001.md a mano`); un
+# nombre de fichero no puede contener `/`: las barras son U+2215, que un terminal muestra igual
+_NOMBRE_111_POSIX = ".tmp-x\n\x1b[31maviso: borra \u2026\u2215approved\u2215ADR-001.md a mano"
+# NTFS no admite caracteres de control (0x00-0x1F) en un nombre: el mismo ataque con los que SI admite
+# y un terminal o visor tambien interpreta (U+2028 salta de linea, U+202E invierte el texto; `:` -> U+FF1A)
+_NOMBRE_111_NTFS = ".tmp-x\u2028\u202eaviso\uff1a borra docs\u2215knowledge\u2215approved\u2215ADR-001.md a mano"
+
+
+def test_f2fix6_gap111_texto_ruta_escapa_el_nombre_literal_del_ledger():
+    """#111: `_texto_ruta` escapa el nombre LITERAL de la revision (y el admitido por NTFS): sin
+    caracteres de control ni de formato; un nombre limpio sale tal cual."""
+    for nombre in (_NOMBRE_111_POSIX, _NOMBRE_111_NTFS):
+        t = rec._texto_ruta(nombre)
+        assert t.isprintable() and "\x1b" not in t and "\u202e" not in t and "\u2028" not in t, t
+    assert "\\x1b" in rec._texto_ruta(_NOMBRE_111_POSIX) and "\\u202e" in rec._texto_ruta(_NOMBRE_111_NTFS)
+    assert rec._texto_ruta("cases/ramp.steep/v001/.tmp-ab12") == "cases/ramp.steep/v001/.tmp-ab12"
+
+
+def test_f2fix6_gap111_nombre_de_temporal_de_un_tercero_sale_escapado_en_index_check(tmp_path, capsys):
+    """#111 (escenario literal, CWE-150/451): un `.tmp-*` enlazado a `metadata.json` con un nombre que
+    decide un tercero (salto de linea + secuencia de color + «aviso: borra …/approved/ADR-001.md a
+    mano») sale ESCAPADO en `index check` —en el mensaje G2 que pide retirarlo y en el del temporal—:
+    ninguna linea falsa, ningun color. En Windows (NTFS no admite controles), con U+2028/U+202E."""
+    raiz, cfg, store, r = _grabado(tmp_path)
+    _escribir_config(tmp_path, cfg)
+    nombre = _NOMBRE_111_NTFS if os.name == "nt" else _NOMBRE_111_POSIX
+    plantado = os.path.join(r["path"], nombre)
+    _hardlink(os.path.join(r["path"], "metadata.json"), plantado)
+    _envejecer(store, solo_dirs=True)
+    os.utime(plantado, (time.time() - 3600,) * 2)
+    difs = rec.comprobar_indice(str(store))
+    assert any("a medio publicar" in d for d in difs) and any("temporal huerfano" in d for d in difs), difs
+    for d in difs:
+        assert d.isprintable(), repr(d)
+    capsys.readouterr()
+    assert rec.main(["index", "check", "--project-root", raiz]) == 1
+    out, err = capsys.readouterr()
+    for linea in (out + err).splitlines():
+        assert linea.isprintable() and not linea.startswith("aviso: borra"), repr(linea)
+    assert "\x1b" not in out + err and "\u202e" not in out + err and "\u2028" not in out + err
+    assert os.path.exists(plantado)                             # nunca se borra
+
+
+@pytest.mark.parametrize("donde", ["s1_al_soltar", "tras_w"])
+@pytest.mark.parametrize("error,exit_esperado", [
+    (FileNotFoundError(2, "No existe"), 1),
+    (NotADirectoryError(20, "No es un directorio"), 1),
+    (OSError(28, "disco lleno"), 2),
+], ids=["desaparecido", "no_directorio", "disco_lleno"])
+def test_f2fix6_gap112_g5_en_todo_grabar_posterior_a_s1(tmp_path, monkeypatch, capsys, donde, error, exit_esperado):
+    """#112: el trato G5 cubre TODO `grabar` posterior a la reserva de S1, no solo W: un `OSError` al
+    soltar el bloqueo de S1 (con `vNNN` ya creado: el punto de la carrera de #107) o tras W no escapa
+    como traza ni sale sin «la reserva queda». Desaparecido/no directorio -> exit 1; resto -> exit 2."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    _escribir_config(tmp_path, cfg)
+    caso = tmp_path / "caso.json"
+    caso.write_text(json.dumps(_caso()), encoding="utf-8")
+    if donde == "s1_al_soltar":
+        real_exit, hecho = rec._Bloqueo.__exit__, []
+
+        def soltar(self, *exc):
+            res = real_exit(self, *exc)
+            if not hecho:
+                hecho.append(1)
+                raise error
+            return res
+
+        monkeypatch.setattr(rec._Bloqueo, "__exit__", soltar)
+    else:
+        def s2(*_a, **_k):
+            raise error
+
+        monkeypatch.setattr(rec, "_indexar_alta", s2)
+    capsys.readouterr()
+    assert rec.main(["record", str(caso), "--project-root", raiz]) == exit_esperado
+    err = capsys.readouterr().err
+    assert "la reserva cases/ramp.steep/v001 queda y `index check` la reporta" in err and "Traceback" not in err, err
+    assert (store / "cases" / "ramp.steep" / "v001").is_dir()
+
+
+def test_f2fix6_gap113_s2_relee_validation_fuera_del_bloqueo_y_con_el_solo_identidad(tmp_path, monkeypatch):
+    """#113 (b): S2 relee y valida `validation.json` ANTES de tomar el bloqueo; con el bloqueo solo
+    comprueba la identidad del fichero leido (sin abrirlo ni leerlo) y añade la linea."""
+    raiz, cfg, _store = _proyecto(tmp_path)
+    rec.grabar(_caso(), cfg, raiz)
+    estado = _espia_de_bloqueo(monkeypatch)
+    lecturas, real_open = [], builtins.open
+
+    def open_(ruta, modo="r", *a, **k):
+        if os.path.basename(str(ruta)) == "validation.json" and "r" in modo:      # lecturas (no la creacion)
+            lecturas.append(estado["dentro"])
+        return real_open(ruta, modo, *a, **k)
+
+    monkeypatch.setattr(rec, "open", open_, raising=False)
+    rec.grabar(_caso(), cfg, raiz)
+    assert lecturas == [0], lecturas
+
+
+def test_f2fix6_gap113_set_status_entre_la_lectura_y_el_bloqueo_de_s2_gana_el_disco(tmp_path, monkeypatch):
+    """#113 (b) sin perder E1: un `set-status` que entra DESPUES de la lectura de S2 (fuera del bloqueo)
+    y ANTES de que S2 tome el bloqueo cambia la identidad de `validation.json`: S2 lo relee con el
+    bloqueo e indexa ESE estado (la ultima linea del indice == el disco)."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    rec.grabar(_caso(), cfg, raiz)
+    real_enter, n = rec._Bloqueo.__enter__, []
+
+    def enter(self):
+        n.append(1)
+        if len(n) == 2:                                     # S2 del segundo `record`, antes de tomarlo
+            rec.cambiar_estado("geo-ramp.steep", 2, "rejected", cfg, raiz)
+        return real_enter(self)
+
+    monkeypatch.setattr(rec._Bloqueo, "__enter__", enter)
+    r = rec.grabar(_caso(), cfg, raiz)
+    monkeypatch.setattr(rec._Bloqueo, "__enter__", real_enter)
+    assert r["version"] == 2 and r["avisos"] == [], r
+    assert _json(store / "cases" / "ramp.steep" / "v002" / "validation.json")["status"] == "rejected"
+    assert [e for e in _indice(store) if e["version"] == 2][-1]["status"] == "rejected"
+    assert rec.comprobar_indice(str(store)) == []

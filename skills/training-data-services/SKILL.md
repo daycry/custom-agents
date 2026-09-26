@@ -164,10 +164,10 @@ escritura muy intensa, `check` puede reportar un **falso positivo** transitorio 
 - El bloqueo `<root>/.cases_index.lock` (persistente, nunca se borra) solo cubre pasos cortos: la
   reserva de la versión (el `mkdir` del directorio del caso si es nuevo y el de `vNNN`), su línea del
   índice y cada `set-status`. Solo si otro lo creó a la vez (el `mkdir` del caso choca) recorre
-  `cases/` una vez para decidir; el resto no depende del tamaño del store. Los ficheros se escriben
-  sin él, tras la reserva, **directamente en `vNNN`** con `O_EXCL` (sin temporal ni `os.replace`;
-  `metadata.json` el último); si no llega en 10 s, exit 3. Fuera del bloqueo, un caso que ya existe
-  se comprueba en O(1); solo uno nuevo recorre `cases/` (10⁵ casos, 32 × 6 `record`: 0 exit 3).
+  `cases/` una vez para decidir. Los ficheros se escriben sin él, tras la reserva, **directamente en
+  `vNNN`** con `O_EXCL` (sin temporal ni `os.replace`; `metadata.json` el último); si no llega en 10 s,
+  exit 3 (reintenta). Fuera del bloqueo, un caso existente se comprueba en O(1) y uno nuevo recorre
+  `cases/`. 32 × 6 `record`: 0 exit 3 sin carga; ~1-2 % con la CPU saturada, igual con 100 casos que con 10⁵.
 - Límite declarado: en un sistema que distingue mayúsculas, dos casos creados a la vez que solo
   difieren en mayúsculas quedan en dos directorios (los dos siguen admitiendo `record`); `index
   check` reporta la pareja.
