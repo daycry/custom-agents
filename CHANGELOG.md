@@ -9,6 +9,10 @@ and versioning follows [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed — `knowledge-services` (2026-09-26)
+
+- **`markdown-export` rejects an `export_dir` inside `docs/knowledge/` whatever its letter case, on every OS** The containment check compared paths with `normcase`, which leaves letter case alone outside Windows: on macOS (case-insensitive APFS) `DOCS/KNOWLEDGE/APPROVED/x` — the same directory as `docs/knowledge/approved/x` — passed the check. It now also compares with `casefold()` everywhere (on Linux the rule errs on the strict side, like the rest of the plugin). It went unnoticed because the skill's own suite was not running in CI: it does now, together with `training-data-services`, and a repo test fails if any `skills/*/scripts` folder with tests is left out of the CI `pytest` line. (`skills/knowledge-services/backends/markdown_export.py`, `ci.yml.MANUAL-COPY`, `tests/test_ci_skill_suites.py`)
+
 ## [1.21.1] - 2026-09-22
 
 ### Fixed — Codex & OpenCode installs (2026-09-22)

@@ -362,7 +362,13 @@ def _export_dir_resuelto(cfg):
     Gap 121: la contención usa `os.path.realpath` (no solo `abspath`, que no sigue symlinks ni
     junctions) y compara con `os.path.normcase` (en Windows, insensible a mayúsculas): sin esto,
     un junction/symlink que apuntara a `docs/knowledge/`, o una ruta con mayúsculas distintas,
-    evadía la comprobación."""
+    evadía la comprobación.
+
+    training-data-services #94 (Fixed): además de `normcase` se compara con `casefold()` en TODOS
+    los sistemas: `normcase` no toca las mayúsculas fuera de Windows, así que en macOS (APFS, que no
+    las distingue) `DOCS/KNOWLEDGE/APPROVED/x` —el mismo directorio que `docs/knowledge/approved/x`—
+    pasaba la comprobación. En Linux la regla peca de estricta (rechaza un directorio distinto que
+    solo difiere en mayúsculas), nunca de laxa: el mismo criterio que `case_schema._canon`."""
     export_dir = (cfg or {}).get("export_dir")
     if not export_dir:
         raise ConfigInvalida("falta `export_dir` en la config del backend")
@@ -370,9 +376,13 @@ def _export_dir_resuelto(cfg):
     root_abs = os.path.realpath(root)
     resuelto = export_dir if os.path.isabs(export_dir) else os.path.join(root_abs, export_dir)
     resuelto_real = os.path.realpath(resuelto)
+
+    def _nc(ruta):                       # #94: sin distinguir mayúsculas también fuera de Windows
+        return os.path.normcase(ruta).casefold()
+
     sep_nc = os.path.normcase(os.sep)
-    resuelto_nc = os.path.normcase(resuelto_real)
-    root_nc = os.path.normcase(root_abs)
+    resuelto_nc = _nc(resuelto_real)
+    root_nc = _nc(root_abs)
     if resuelto_nc == root_nc:
         raise ConfigInvalida(
             f"`export_dir` (`{export_dir}`) no puede ser la raíz del proyecto (`{root_abs}`)")
@@ -381,7 +391,7 @@ def _export_dir_resuelto(cfg):
             f"`export_dir` (`{export_dir}`) no puede ser un ANCESTRO de la raíz del proyecto "
             f"(`{root_abs}` quedaría dentro de `{resuelto_real}`)")
     conocimiento_real = os.path.realpath(os.path.join(root_abs, "docs", "knowledge"))
-    conocimiento_nc = os.path.normcase(conocimiento_real)
+    conocimiento_nc = _nc(conocimiento_real)
     if resuelto_nc == conocimiento_nc or resuelto_nc.startswith(conocimiento_nc + sep_nc):
         raise ConfigInvalida(
             f"`export_dir` (`{export_dir}`) no puede quedar dentro de "

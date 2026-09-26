@@ -22,27 +22,47 @@ FORMA, nunca dominio (CA-04): las metricas llegan ya calculadas por el proyecto.
      `validation.approved_by_human` y `artifacts[].hash`;
   3. valida el caso YA redactado (basta que falle uno de los dos para rechazar);
   4. solo entonces escribe, en dos secciones CORTAS con el bloqueo (D-fix2 E1 + D-fix3 §1/F1 + fix4):
-     FUERA del bloqueo, el recorrido O(C) de mayusculas (la existencia del caso sale del nombre EXACTO
-     de `scandir`), el dueño del directorio y la PISTA de la version (O(V), solo directorios de
-     version en rango, gap #87); S1 (bloqueo, O(1) en C y V) crea el directorio de un caso nuevo con
-     `os.mkdir` —solo si choca porque otro lo creo entretanto recorre `cases/` (O(C)) para decidir
-     entre «mismo nombre» y «variante de mayusculas», gap #81—, prueba el numero con sus <= 9 anchos y
-     hace `os.mkdir` de `vNNN` (mas de 64 numeros ocupados -> suelta, recalcula la pista y reintenta,
-     acotado; si no, exit 3); DESPUES de S1 (gap #82) crea el temporal `cases/.tmp-*` y cada fichero
-     con `O_EXCL` (gap #77), recomprobando el `realpath` de su padre antes y el del fichero despues
-     (si escapa, retira SOLO ese fichero propio y rechaza); sin bloqueo se mueven los ficheros (W,
-     misma recomprobacion por fichero); S2 RELEE `validation.json` del disco e indexa ESE estado (A).
-     Si el bloqueo no llega en S1 -> exit 3 sin escribir nada; si no llega en S2 la version YA esta
-     grabada: exit 0 con aviso «index rebuild» (nunca exit 3 despues de W). Limite declarado: en un
-     sistema que distingue mayusculas, dos casos creados A LA VEZ que solo difieren en mayusculas
-     quedan en dos directorios; `index check` reporta la pareja.
+     FUERA del bloqueo, la existencia del caso (O(1) si su nombre EXACTO ya esta en `cases/`: `lstat`
+     y, en NTFS, el nombre real del `realpath` ya calculado; el recorrido O(C) de mayusculas solo para
+     un caso nuevo o en un sistema que no distingue mayusculas sin ese nombre real, gap #104), el
+     dueño del directorio y la PISTA de la version (O(V), solo directorios de version en rango, gap
+     #87); S1 (bloqueo, O(1) en C y V) crea el directorio de un caso nuevo con `os.mkdir` —solo si
+     choca porque otro lo creo entretanto recorre `cases/` (O(C)) para decidir entre «mismo nombre» y
+     «variante de mayusculas», gap #81—, prueba el numero con sus <= 9 anchos y hace `os.mkdir` de
+     `vNNN` (mas de 64 numeros ocupados -> suelta, recalcula la pista y reintenta, acotado; si no,
+     exit 3); W, DESPUES de S1 y sin bloqueo (D-fix5 §2 + G2): SIN directorio temporal, cada fichero
+     se crea DIRECTAMENTE en `vNNN` con `O_CREAT | O_EXCL` (nunca `os.replace` sobre un nombre fijo:
+     un fichero ya existente, enlace duro o simbolico plantado, es un rechazo), con el `realpath` de
+     `vNNN` recomprobado por IGUALDAD antes de crear sus ficheros y el de `final/` tras su `mkdir`;
+     tras cada creacion, comprobacion posterior (G4: `realpath` igual a la ruta esperada y el nombre
+     sigue siendo el mismo fichero que el descriptor); `metadata.json` se publica el ULTIMO desde un
+     `vNNN/.tmp-<token>` propio: en Windows `os.rename` (no sobrescribe), en POSIX `os.link` + retirar
+     el temporal (entre ambos, «a medio publicar»: ver lectores); S2 RELEE `validation.json` del disco
+     e indexa ESE estado (A). Si el bloqueo no llega en S1 -> exit 3 sin escribir nada; si no llega en
+     S2 la version YA esta grabada: exit 0 con aviso «index rebuild» (nunca exit 3 despues de W). En
+     W (G5): un fichero o directorio que desaparece o ya existe, o la manipulacion detectada -> exit 1;
+     otro error de E/S (disco lleno, permisos, solo lectura) -> exit 2; en ambos «la reserva queda y
+     `index check` la reporta» (nunca se borra nada). Limite declarado: en un sistema que distingue
+     mayusculas, dos casos creados A LA VEZ que solo difieren en mayusculas quedan en dos
+     directorios; `index check` reporta la pareja.
+  - Limite declarado de W (D-fix5, sin `openat`/`O_NOFOLLOW` portables): un tercero con escritura
+    en el store que sustituya `cases/`, el directorio del caso, `vNNN` o `final/` por un enlace en
+    el intervalo de microsegundos entre una comprobacion y una creacion solo puede hacer que un
+    fichero NUEVO del recorder (o un directorio vacio nuevo: el del caso, `vNNN` o `final/`) aparezca
+    fuera del store: nunca se sobrescribe ni se borra nada. La comprobacion posterior lo detecta
+    (exit 1) y nombra la ruta (escapada con `ascii()`) SOLO si la localiza por identidad; si no, «no
+    localizado» y no pide borrar nada (best-effort, G4).
+  - Lo UNICO que el recorder elimina es un temporal propio `.tmp-<token>`, por su nombre, tras
+    cerrarlo y solo si `lstat` es el MISMO fichero que se creo (G1): ningun borrado recursivo ni de
+    directorios; los restos quedan y `index check` los reporta.
   - Todo fichero de version se lee del DESCRIPTOR ya comprobado (gap #83): `os.fstat` -> regular,
     `st_nlink == 1` y la misma identidad que el `lstat` previo (`os.path.samestat`).
   - Sin `version`, se asigna la siguiente libre (mayor existente + 1, sea cual sea el ancho del
     directorio); con `version` que ya existe (con cualquier ancho) -> rechazo: nunca sobrescribe
-    (CA-02). Los ficheros se escriben en un temporal `cases/.tmp-*`; `metadata.json` se mueve el
-    ULTIMO: una version sin el esta a medio escribir (grabacion en curso o interrumpida): se
-    conserva, la automatica la salta e `index check` la reporta.
+    (CA-02). Si la siguiente automatica superaria `VERSION_MAX`, rechazo explicito («el caso agoto
+    los numeros de version: graba con otro `variant`», gap #100; `index check` lo informa).
+    `metadata.json` se publica el ULTIMO: una version sin el esta a medio escribir (grabacion en
+    curso o interrumpida): se conserva, la automatica la salta e `index check` la reporta.
   - Un caso no nace `approved` (Gold) por `record` salvo con `approved_by_human is True`
     (`--approved-by-human`): la MISMA puerta que `set-status` (`es_confirmacion_humana`).
   - `corrected` + `supersedes_case`: la version citada (buscada por NUMERO, con cualquier ancho)
@@ -51,17 +71,25 @@ FORMA, nunca dominio (CA-04): las metricas llegan ya calculadas por el proyecto.
   - No hay operacion de borrado: rechazados y fallidos se conservan (CA-02).
   - Nunca se escribe a traves de un enlace (symlink/junction) que saque `cases/`, el directorio
     del caso, el indice o el bloqueo fuera de `realpath(root)` o dentro de
-    `<proyecto>/docs/knowledge/` (ADR-019, CWE-59), ni en un indice/bloqueo con enlaces duros.
-    Sin `raiz_proyecto`, la raiz del proyecto es el cwd (la misma que usa `config_activa`).
+    `<proyecto>/docs/knowledge/` (ADR-019, CWE-59), ni en un indice/bloqueo con enlaces duros. El
+    indice y el bloqueo se abren con `O_NOFOLLOW` (POSIX) y, en todos los SO, tras abrir, el nombre
+    debe seguir siendo el fichero abierto (`samestat` con su `lstat`, que no sea enlace): si no,
+    rechazo sin escribir (G6, #107). Sin `raiz_proyecto`, la raiz del proyecto es el cwd.
 
 `cambiar_estado(case_id, version, status, config, raiz_proyecto, approved_by_human=False,
 reviewer_note=None)` — puerta humana para Gold (T-05): `approved` exige `approved_by_human is True`
 (`--approved-by-human`) y fija `approved_by_human: true` + `approved_at`; sin el flag, rechazo
 explicito. `needs_changes`/`rejected`/`pending` no lo requieren y dejan `approved_by_human: false`.
-Solo se reescribe `validation.json` (temporal + `os.replace`), con `reviewer_note` redactada; el
-resto de la version es inmutable. La version se localiza por NUMERO (cualquier ancho; dos
-directorios con el mismo numero -> rechazo); `metadata.json`/`validation.json` que sean enlace se
-rechazan antes de leerlos. Lectura + escritura + linea del indice, con el bloqueo (O(1)).
+Solo se reescribe `validation.json` (temporal `.tmp-<token>` con `O_EXCL` + `os.replace`), con
+`reviewer_note` redactada; el resto de la version es inmutable. La version se localiza por NUMERO
+(cualquier ancho; dos directorios con el mismo numero -> rechazo); `metadata.json`/`validation.json`
+que sean enlace se rechazan antes de leerlos. Lectura + escritura + linea del indice, con el
+bloqueo (O(1)). Justo antes del `os.replace` se reabre el `validation.json` vigente y se compara
+por descriptor con el leido, y se recomprueba el `realpath` de `vNNN` (D-fix5 §3). Limite declarado
+(G3): con DOS sustituciones de `vNNN` por un enlace en el intervalo de microsegundos de
+`set-status`, un tercero con escritura en el store puede hacer que se reemplace un fichero llamado
+`validation.json` en el destino del enlace (dentro o fuera del store) y que el temporal se cree
+alli; quien puede hacerlo ya puede escribir ese `validation.json` directamente: no hay escalada.
 
 Indice `<root>/cases_index.jsonl` (T-06): append-only, una linea por alta y por cambio de estado
 con las claves exactas `case_id, version, family, variant, status, outcome, updated_at`; vale la
@@ -77,11 +105,13 @@ ultima por `(case_id, version)`. Es una CACHE; el ensamblador (T-09) leera `vali
   - `index check` nunca toma `.cases_index.lock` (F3: no bloquea a los escritores): mismo esquema
     sin escribir, con una confirmacion final que relee la cola nueva y, del disco, SOLO las claves
     con diferencia que toco la cola, cuya relectura fallo o cuyo `validation.json` cambio desde F1
-    (#89), mas las versiones con aviso, y comprueba la identidad (con la ventana de 64 KiB SIEMPRE,
-    #86). Exit 1 si hay alguna diferencia: una version en `cases/` y no en el
+    (#89), mas las versiones con aviso de causa TRANSITORIA (bloqueada, sustituida, desaparecida al
+    leerla: #105; las de causa permanente no se releen), y comprueba la identidad (con la ventana de
+    64 KiB SIEMPRE, #86). Exit 1 si hay alguna diferencia: una version en `cases/` y no en el
     indice (o al reves), un campo distinto, una linea corrupta del indice, un fragmento final sin
     `\\n` que persiste en la confirmacion (#84), un temporal huerfano (`.tmp-*` de la raiz, de
-    `cases/`, de un caso o de una version, de hace >= 60 s o con `mtime` futuro, #85) o que es un
+    `cases/`, de un caso o —solo `check`, #103— de una version, de hace >= 60 s o con `mtime`
+    futuro, #85) o que es un
     enlace (#92), dos casos que solo difieren en mayusculas (#81), un directorio con versiones de dos
     `case_id` (la del intruso no se indexa, #88), una entrada con nombre de version que no es un
     directorio (fichero, enlace roto) o fuera de rango (#87), y toda version que
@@ -89,11 +119,13 @@ ultima por `(case_id, version)`. Es una CACHE; el ensamblador (T-09) leera `vali
     numero con dos anchos), enlazada (symlink/junction), con un fichero que no es un fichero regular
     o que es un enlace duro, no legible tras los reintentos (bloqueada o sin permisos), JSON
     ilegible, `metadata.json` que no casa con su ruta o con el esquema, o `validation.json`
-    incoherente. Es INFORMATIVO (exit 0) lo que esta «en curso»: una version sin `metadata.json`
+    incoherente, o una grabacion interrumpida al publicar `metadata.json` (G2: dos nombres, el otro
+    un `.tmp-*` hermano con el MISMO inodo; nunca se toma por enlace duro/CWE-59). Es INFORMATIVO
+    (exit 0) lo que esta «en curso»: una version sin `metadata.json` (o con el «a medio publicar»)
     cuyo directorio se modifico hace menos de `GRACIA_EN_CURSO_S` (60 s), una completa sin linea con
     `metadata.json` de hace menos de 60 s, o un temporal reciente; un `mtime` futuro nunca esta «en
-    curso». Bajo escritura muy intensa cabe un falso positivo transitorio (un segundo `check` ya no
-    lo ve).
+    curso»; y un caso que agoto los numeros de version (#100). Bajo escritura muy intensa cabe un
+    falso positivo transitorio (un segundo `check` ya no lo ve).
   - Las lineas corruptas se ignoran con aviso al leer; se lee en streaming (linea a linea).
   - Los lectores detectan enlaces por entrada sin `realpath` (`is_symlink()` o el bit «name
     surrogate» de `st_reparse_tag`; un placeholder de OneDrive no es enlace).
@@ -130,6 +162,7 @@ import json
 import math
 import os
 import random
+import secrets
 import stat
 import sys
 import tempfile
@@ -151,6 +184,10 @@ ESPERA_REINTENTO_S = 0.025
 REINTENTOS_SUSTITUIDO = 3          # gap #83: fichero de version sustituido entre `lstat` y apertura
 _WINDOWS = os.name == "nt"
 NAME_SURROGATE = 0x20000000        # bit «name surrogate» de st_reparse_tag: symlink y junction (E4)
+_O_NOFOLLOW = getattr(os, "O_NOFOLLOW", 0)   # G6: POSIX; en Windows no existe (comprobacion posterior)
+_PUBLICAR_CON_RENAME = _WINDOWS  # G2: `metadata.json` por `os.rename` (Windows) o `os.link` + retirar (POSIX)
+MENSAJE_AGOTADO = ("`{}` agoto los numeros de version (existe v{}): los `record` automaticos se rechazan; "
+                   "graba con otro `variant`; no se escribe nada")
 
 
 def _reloj():
@@ -646,13 +683,89 @@ def _escapa(store, ruta, raiz_proyecto=None):
     return None
 
 
-def _comprobar_contencion(store, rutas, raiz_proyecto=None):
-    """`Rechazo` si alguna de `rutas` escapa del store por un enlace (antes de escribir nada)."""
+def _comprobar_contencion(store, rutas, raiz_proyecto=None, ctx=None, reutilizar=False):
+    """`Rechazo` si alguna de `rutas` escapa del store por un enlace (antes de escribir nada). Con
+    `ctx` (`_Canon`), un solo `realpath` por ruta (#106)."""
     for ruta in rutas:
-        motivo = _escapa(store, ruta, raiz_proyecto)
+        motivo = ctx.motivo(ruta, reutilizar) if ctx is not None else _escapa(store, ruta, raiz_proyecto)
         if motivo:
             rel = os.path.relpath(ruta, store).replace(os.sep, "/")
             raise Rechazo(f"{rel}: {motivo}; no se escribe nada (el case store no sigue enlaces fuera de root)")
+
+
+class _Canon:
+    """#106 (D-fix5 + G4): el `realpath` del store y el de `<proyecto>/docs/knowledge/` se calculan UNA
+    vez por operacion; despues cada comprobacion cuesta UN `realpath`:
+      - `motivo(ruta)`: contencion (dentro del store, fuera de `docs/knowledge/`), sin distinguir
+        mayusculas, como `case_schema._canon` (la regla peca de estricta);
+      - `igual(ruta)`: IGUALDAD con la ruta canonica esperada (`realpath(store)/<rel>`), no
+        contencion (G4): un `vNNN` enlazado a otro sitio DEL store tambien falla.
+    Guarda el `realpath` crudo de cada ruta mirada (`real_de`): en NTFS da el nombre REAL del ultimo
+    componente; `_nombre_exacto` lo calcula DESPUES de ver que el directorio existe y la contencion
+    previa lo reutiliza una vez (`reutilizar`), sin otro `realpath` (#104/#106)."""
+
+    def __init__(self, store, raiz_proyecto=None):
+        self.store, self.raiz = store, _raiz(raiz_proyecto)
+        real = cs._sin_prefijo_extendido(os.path.realpath(cs._sin_prefijo_extendido(store)))
+        self.real = os.path.normcase(real)
+        self.canon = self.real.casefold()
+        self.dk = cs._canon(os.path.join(self.raiz, "docs", "knowledge"))
+        self.real_de = {}
+
+    @staticmethod
+    def clave(ruta):
+        return os.path.normcase(os.path.abspath(ruta))
+
+    def _resolver(self, ruta):
+        rp = os.path.realpath(cs._sin_prefijo_extendido(ruta))
+        self.real_de[self.clave(ruta)] = rp
+        return os.path.normcase(cs._sin_prefijo_extendido(rp))
+
+    def motivo(self, ruta, reutilizar=False):
+        """Como `_escapa`, con un solo `realpath` (o el recien calculado por `_nombre_exacto`, una vez,
+        con `reutilizar`; la recomprobacion con el bloqueo siempre resuelve de nuevo)."""
+        if cs._tiene_prefijo_extendido(ruta):
+            return _escapa(self.store, ruta, self.raiz)
+        try:
+            previo = self.real_de.pop(self.clave(ruta), None) if reutilizar else None
+            c = (os.path.normcase(cs._sin_prefijo_extendido(previo)) if previo is not None
+                 else self._resolver(ruta)).casefold()
+        except (OSError, ValueError):
+            return "ruta que no se puede resolver"
+        if not _dentro(c, self.canon):
+            return "enlace que sale del case store"
+        if _dentro(c, self.dk):
+            return "enlace hacia docs/knowledge/ (ADR-019)"
+        return None
+
+    def esperado(self, ruta):
+        """Ruta canonica ESPERADA de `ruta` (bajo el store), construida sin tocar el disco."""
+        return os.path.join(self.real, os.path.normcase(os.path.relpath(ruta, self.store)))
+
+    def igual(self, ruta):
+        """`(ok, realpath crudo | None)`: el `realpath` de `ruta` es EXACTAMENTE el esperado."""
+        try:
+            r = self._resolver(ruta)
+        except (OSError, ValueError):
+            return False, None
+        return r == self.esperado(ruta), self.real_de.get(self.clave(ruta))
+
+    def rel(self, ruta):
+        return _rel_store(self.store, ruta)
+
+    def comprobar_dir(self, ruta):
+        """D-fix5 §2: el directorio `ruta` (`vNNN`, `final/`) es EXACTAMENTE el esperado y no es un
+        enlace; si no -> `_Manipulado` (exit 1) antes de crear nada en el."""
+        ok, _r = self.igual(ruta)
+        if ok:
+            try:
+                st = os.lstat(ruta)
+                ok = stat.S_ISDIR(st.st_mode) and not _es_enlace_st(st)
+            except OSError:
+                ok = False
+        if not ok:
+            raise _Manipulado(f"{self.rel(ruta)}: no es el directorio esperado del case store (¿enlace plantado? "
+                              "CWE-59/367); no se crea nada en el")
 
 
 def _stat_sin_seguir(x):
@@ -710,11 +823,52 @@ def _comprobar_fichero_propio(ruta):
 
 
 def _comprobar_fd_propio(f, ruta):
-    """Lo mismo sobre el descriptor YA abierto (sin carrera entre comprobar y abrir)."""
+    """Lo mismo sobre el descriptor YA abierto (G6, #107): fichero regular de un solo nombre y el
+    nombre `ruta` sigue siendo ESE fichero (`samestat` con su `lstat`, que no es un enlace ni un punto
+    de reanalisis). Un symlink plantado entre la comprobacion y el `open` (en Windows, donde no hay
+    `O_NOFOLLOW`) o una sustitucion del nombre -> `Rechazo` antes de escribir un solo byte."""
     st = os.fstat(f.fileno())
+    nombre = os.path.basename(ruta)
     if stat.S_ISREG(st.st_mode) and st.st_nlink > 1:
-        raise Rechazo(f"{os.path.basename(ruta)}: es un enlace duro compartido ({st.st_nlink} nombres, CWE-59); "
+        raise Rechazo(f"{nombre}: es un enlace duro compartido ({st.st_nlink} nombres, CWE-59); "
                       "no se escribe nada")
+    try:
+        sl = os.lstat(ruta)
+    except OSError:
+        sl = None
+    es = _es_enlace_st(sl) if sl is not None else None
+    if es is None and sl is not None:
+        es = _motivo_enlace(ruta, ruta) == MOTIVO_ENLACE
+    if not stat.S_ISREG(st.st_mode) or sl is None or es or not os.path.samestat(sl, st):
+        raise Rechazo(f"{nombre}: el fichero abierto no es el que nombra la ruta (¿enlace plantado entre la "
+                      "comprobacion y la apertura? CWE-59/367); no se escribe nada")
+
+
+def _abrir_sin_seguir(ruta, flags):
+    """`opener` de `open()` (G6): `O_NOFOLLOW` donde existe (POSIX): un symlink en el ultimo
+    componente falla con `ELOOP` en vez de seguirse."""
+    return os.open(ruta, flags | _O_NOFOLLOW, 0o666)
+
+
+def _es_enlace_eloop(e):
+    """`open` con `O_NOFOLLOW` sobre un symlink: `ELOOP` (Linux/macOS) o `EMLINK` (FreeBSD)."""
+    return bool(_O_NOFOLLOW) and getattr(e, "errno", None) in (errno.ELOOP, getattr(errno, "EMLINK", -1))
+
+
+def _abrir_propio(ruta):
+    """Abre IN SITU (`a+b`) el indice sin seguir un enlace (G6): `O_NOFOLLOW` + `_comprobar_fd_propio`."""
+    try:
+        f = open(ruta, "a+b", opener=_abrir_sin_seguir)
+    except OSError as e:
+        if _es_enlace_eloop(e):
+            raise Rechazo(f"{os.path.basename(ruta)}: es un enlace; no se escribe a traves de el (CWE-59)") from None
+        raise
+    try:
+        _comprobar_fd_propio(f, ruta)
+    except BaseException:
+        f.close()
+        raise
+    return f
 
 
 # ------------------------------------------------------------------ lectura y escritura
@@ -813,12 +967,15 @@ def _metadata(caso):
     return meta
 
 
-class _TemporalManipulado(Rechazo):
-    """Un fichero del temporal ya existia al crearlo (p. ej. un enlace duro plantado, gap #77)."""
+class _Manipulado(Rechazo):
+    """El store cambio bajo el recorder durante W (D-fix5): un fichero ya existia al crearlo (enlace
+    duro o simbolico plantado, gap #77), un directorio no es el esperado o la comprobacion posterior
+    no encuentra el fichero creado donde debia (G4). Exit 1; no se borra nada."""
 
 
 def _abrir_exclusivo(ruta):
-    """`open(ruta, "xb")`: `O_CREAT | O_EXCL` (gap #77)."""
+    """`open(ruta, "xb")`: `O_CREAT | O_EXCL` (gap #77): nunca abre un nombre que ya existe (ni sigue
+    un symlink plantado en el ultimo componente, ni escribe en un enlace duro)."""
     return open(ruta, "xb")
 
 
@@ -826,39 +983,164 @@ def _rel_store(store, ruta):
     return os.path.relpath(ruta, store).replace(os.sep, "/")
 
 
-def _deshacer_si_escapa(store, ruta, st_propio, raiz_proyecto):
-    """gap #82: tras CREAR (o mover) `ruta`, su `realpath` debe seguir dentro del store y fuera de
-    `docs/knowledge/`; si escapa (el padre se sustituyo por un enlace en la ventana residual entre la
-    comprobacion y la creacion), se elimina SOLO ese fichero —el nuestro: misma identidad que
-    `st_propio`— y `Rechazo`. Nunca se borra otra cosa."""
-    motivo = _escapa(store, ruta, raiz_proyecto)
-    if not motivo:
-        return
+def _retirar_temporal_propio(ruta, st_propio):
+    """G1: LA UNICA eliminacion del recorder. Solo un nombre `.tmp-<token>` propio, ya cerrado, y solo
+    si `lstat` es el MISMO fichero regular que se creo (`samestat` con `st_propio`, el `fstat` tomado al
+    crearlo): un enlace, un directorio o cualquier otro fichero plantado con ese nombre se deja donde
+    esta (lo reporta `index check`). Nunca recorre ni borra directorios. Limite declarado: entre el
+    `samestat` y el `remove` un tercero que sustituya el directorio padre por un enlace solo puede
+    hacer que se retire un NOMBRE `.tmp-<token>` del destino (sin perdida de datos: el token es
+    aleatorio y el fichero, suyo). Devuelve si lo retiro (o si ya no estaba)."""
+    if not os.path.basename(ruta).startswith(PREFIJO_TEMPORAL):
+        return False
     try:
-        if os.path.samestat(os.lstat(ruta), st_propio):
-            os.remove(ruta)
+        sl = os.lstat(ruta)
+    except FileNotFoundError:
+        return True
     except OSError:
-        pass
-    raise Rechazo(f"{_rel_store(store, ruta)}: {motivo} (el directorio cambio al crear el fichero, CWE-59/367); "
-                  "el fichero propio se ha retirado y no se escribe nada mas")
+        return False
+    if not stat.S_ISREG(sl.st_mode) or _es_enlace_st(sl) or not os.path.samestat(sl, st_propio):
+        return False
+    for intento in range(REINTENTOS):
+        try:
+            os.remove(ruta)
+            return True
+        except FileNotFoundError:
+            return True
+        except PermissionError:
+            if intento == REINTENTOS - 1:
+                return False
+            time.sleep(ESPERA_REINTENTO_S)
+        except OSError:
+            return False
+    return False
 
 
-def _escribir_nuevo(store, ruta, datos, raiz_proyecto=None):
-    """Crea `ruta` (gaps #77/#82): ANTES recomprueba el `realpath` de su directorio padre (dentro del
-    store y fuera de `docs/knowledge/`), la crea con `O_CREAT | O_EXCL` —si ya existe (un enlace duro
-    o simbolico plantado) no se escribe a traves de el— y DESPUES comprueba el `realpath` del fichero
-    creado (`_deshacer_si_escapa`). Ventana residual declarada: microsegundos entre la comprobacion
-    del padre y la creacion (sin `openat` portable), cubierta por la comprobacion posterior."""
-    _comprobar_contencion(store, [os.path.dirname(ruta)], raiz_proyecto)
+def _texto_ruta(ruta):
+    """G4: una ruta que decide un tercero se muestra ESCAPADA (`ascii()`): sin caracteres de control
+    ni secuencias de terminal (CWE-150)."""
+    return ascii(ruta)
+
+
+def _verificar_creado(ctx, ruta, st_propio):
+    """G4: comprobacion POSTERIOR a crear `ruta` (best-effort). Vale si su `realpath` es EXACTAMENTE la
+    ruta canonica esperada (igualdad, no contencion) y si el nombre sigue siendo el fichero creado
+    (`samestat(lstat, st_propio)`, un solo nombre, no un enlace): asi se ve tambien un directorio que
+    se sustituyo por un enlace y se restauro antes de esta comprobacion (#97). Si no -> `_Manipulado`
+    SIN borrar nada (el borrado por ruta es justo lo que un tercero puede redirigir). El aviso nombra
+    la ruta SOLO si el `realpath` resuelto ES el fichero creado (`samestat` con su descriptor); si no,
+    «no localizado» y no pide borrar nada: la ruta la decide el tercero y podria nombrar un fichero
+    ajeno (CWE-367/451)."""
+    ok, resuelta = ctx.igual(ruta)
+    if ok:
+        try:
+            sl = os.lstat(ruta)
+            ok = (os.path.samestat(sl, st_propio) and not _es_enlace_st(sl)
+                  and (not stat.S_ISREG(sl.st_mode) or sl.st_nlink == 1))
+        except OSError:
+            ok = False
+    if ok:
+        return
+    donde = None
+    if resuelta:
+        try:
+            if os.path.samestat(os.stat(resuelta), st_propio):
+                donde = resuelta
+        except OSError:
+            pass
+    if donde:
+        raise _Manipulado(f"{ctx.rel(ruta)}: el directorio cambio durante la escritura (CWE-59/367) y el fichero creado "
+                          f"quedo en {_texto_ruta(donde)}: revisalo y retiralo a mano (el recorder no borra nada; "
+                          "comprobacion best-effort)")
+    raise _Manipulado(f"{ctx.rel(ruta)}: el directorio cambio durante la escritura (CWE-59/367) y el fichero creado no "
+                      "se ha localizado (no localizado: no se pide borrar nada; comprobacion best-effort)")
+
+
+def _crear_en_version(ctx, ruta, datos):
+    """D-fix5 §2: crea `ruta` DIRECTAMENTE en la version con `O_CREAT | O_EXCL` —si ya existe (un
+    enlace duro o simbolico plantado, gap #77) no se escribe a traves de el— y la comprobacion
+    posterior de G4. Devuelve el `fstat` del fichero creado."""
     try:
         f = _abrir_exclusivo(ruta)
     except FileExistsError:
-        raise _TemporalManipulado(f"{os.path.basename(os.path.dirname(ruta))}/{os.path.basename(ruta)} ya existia en el "
-                                  "temporal (¿enlace plantado?, CWE-59/367); no se escribe a traves de el") from None
+        raise _Manipulado(f"{ctx.rel(ruta)} ya existia en la version reservada (¿enlace plantado?, CWE-59/367); no se "
+                          "escribe a traves de el") from None
     with f:
         st = os.fstat(f.fileno())
         f.write(datos)
-    _deshacer_si_escapa(store, ruta, st, raiz_proyecto)
+    _verificar_creado(ctx, ruta, st)
+    return st
+
+
+def _enlazar_sin_sobrescribir(origen, destino):
+    """G2: publica `origen` como `destino` SIN sobrescribir nunca (`FileExistsError` si ya existe):
+    Windows -> `os.rename` (no hay ventana con dos nombres; reintentos acotados ante un
+    `PermissionError` de un handle ajeno); POSIX -> `os.link` sin seguir un symlink en `origen`
+    (el llamador retira despues el temporal: entre ambos, «a medio publicar»)."""
+    if _PUBLICAR_CON_RENAME:
+        for intento in range(REINTENTOS):
+            try:
+                return os.rename(origen, destino)
+            except PermissionError:
+                if intento == REINTENTOS - 1:
+                    raise
+                time.sleep(ESPERA_REINTENTO_S)
+    if os.link in getattr(os, "supports_follow_symlinks", ()):
+        return os.link(origen, destino, follow_symlinks=False)
+    return os.link(origen, destino)
+
+
+def _publicar_metadata(ctx, destino, datos):
+    """D-fix5 §2 + G1/G2: `metadata.json` (el que hace visible la version) se escribe en un
+    `vNNN/.tmp-<token>` propio (`O_EXCL`) y se publica con `_enlazar_sin_sobrescribir`; despues se
+    retira el temporal por la regla G1 (en Windows ya no existe) y se comprueba el publicado (G4).
+    Si algo falla, el temporal propio se retira igual y `metadata.json` no existe: la version queda
+    a medio escribir (se conserva; `index check` la reporta)."""
+    final = os.path.join(destino, "metadata.json")
+    tmp = os.path.join(destino, PREFIJO_TEMPORAL + secrets.token_hex(8))
+    try:
+        f = _abrir_exclusivo(tmp)
+    except FileExistsError:
+        raise _Manipulado(f"{ctx.rel(tmp)} ya existia (¿nombre plantado?, CWE-59/367); no se escribe a traves de "
+                          "el") from None
+    st, publicado = None, False
+    try:
+        with f:
+            st = os.fstat(f.fileno())
+            f.write(datos)
+        try:
+            _enlazar_sin_sobrescribir(tmp, final)
+        except FileExistsError:
+            raise _Manipulado(f"{ctx.rel(final)} ya existia en la version reservada (¿enlace plantado?, CWE-59/367); "
+                              "no se sobrescribe") from None
+        publicado = True
+    finally:
+        retirado = st is not None and _retirar_temporal_propio(tmp, st)
+    if publicado and not retirado:
+        raise OSError(errno.EIO, f"{ctx.rel(final)} publicado pero su temporal {os.path.basename(tmp)} no se pudo "
+                                 "retirar: la version queda «a medio publicar»; retira ese temporal a mano (solo ese "
+                                 "nombre)")
+    _verificar_creado(ctx, final, st)
+
+
+def _escribir_version(ctx, destino, caso):
+    """W (SIN bloqueo, D-fix5 §2): los ficheros de la version se crean DIRECTAMENTE en `destino`
+    (`vNNN`, reservado en S1 con `mkdir`), sin directorio temporal y sin mover nada: `realpath` de
+    `vNNN` por igualdad antes de crear sus ficheros, `mkdir` de `final/` y su `realpath` antes de
+    `final/artifacts.json`, comprobacion posterior por fichero y `metadata.json` el ULTIMO (#106:
+    dos comprobaciones por directorio + una por fichero creado)."""
+    ficheros = _ficheros_de(caso)
+    ctx.comprobar_dir(destino)
+    for rel, datos in ficheros.items():
+        if not os.path.dirname(rel):
+            _crear_en_version(ctx, os.path.join(destino, rel), datos)
+    final = os.path.join(destino, "final")
+    os.mkdir(final)
+    ctx.comprobar_dir(final)
+    for rel, datos in ficheros.items():
+        if os.path.dirname(rel):
+            _crear_en_version(ctx, os.path.join(destino, rel), datos)
+    _publicar_metadata(ctx, destino, _json_bytes(_metadata(caso)))
 
 
 def _reemplazar(origen, destino):
@@ -873,54 +1155,6 @@ def _reemplazar(origen, destino):
             time.sleep(ESPERA_REINTENTO_S)
 
 
-def _limpiar_temporal(tmp):
-    """Elimina SOLO el temporal propio (`.tmp-*`, fichero o directorio con lo que quede dentro):
-    nunca una version. Recorrido propio con `scandir` que NUNCA desciende por un enlace o punto de
-    reanalisis: elimina el ENLACE (`rmdir` de una junction/symlink de directorio, `remove` de un
-    symlink), nunca su destino (gap #65). Si ya no existe, no hace nada."""
-    if not os.path.basename(tmp).startswith(PREFIJO_TEMPORAL) or not os.path.lexists(tmp):
-        return
-    enlaces, ficheros, orden, pila = [], [], [], []
-    try:
-        es_dir = stat.S_ISDIR(_stat_sin_seguir(tmp).st_mode)
-    except OSError:
-        return
-    if _motivo_enlace(tmp, tmp):
-        enlaces.append(tmp)
-    elif es_dir:
-        pila.append(tmp)
-    else:
-        ficheros.append(tmp)
-    while pila:
-        d = pila.pop()
-        orden.append(d)
-        try:
-            with os.scandir(d) as it:
-                entradas = list(it)
-        except OSError:
-            continue
-        for e in entradas:
-            if _motivo_enlace(e, e.path):
-                enlaces.append(e.path)
-            elif e.is_dir(follow_symlinks=False):
-                pila.append(e.path)
-            else:
-                ficheros.append(e.path)
-    for ruta in enlaces:                       # el enlace, no lo que hay detras
-        for quitar in ((os.rmdir, os.remove) if _WINDOWS else (os.remove, os.rmdir)):
-            try:
-                quitar(ruta)
-                break
-            except OSError:
-                pass
-    for ruta in ficheros:
-        try: os.remove(ruta)
-        except OSError: pass
-    for d in reversed(orden):
-        try: os.rmdir(d)
-        except OSError: pass
-
-
 SALTOS_MAX_S1 = 64                 # F1: numeros ocupados que S1 salta con el bloqueo antes de soltarlo
 REINTENTOS_S1 = 3                  # ... y veces que recalcula la pista fuera del bloqueo (luego exit 3)
 
@@ -930,10 +1164,13 @@ def _reservar(store, dir_caso, caso, width, auto, raiz_proyecto):
     del bloqueo; «mismo numero con otro ancho» (#40a) por `_ocupantes_version` (<= 9 `lstat`, cubre un
     `v0000001` a mano) y `os.mkdir` del destino (falla si existe: nadie pisa a nadie). En automatico,
     un numero ocupado se salta; mas de `SALTOS_MAX_S1` saltos -> None (el llamador suelta el bloqueo
-    y recalcula la pista). Tras crearlo se comprueba su `realpath`. Devuelve la ruta. El directorio
-    del caso ya existe (`_crear_dir_caso`)."""
+    y recalcula la pista). Su `realpath` lo comprueba W por IGUALDAD antes de crear nada en el
+    (D-fix5 §2). Devuelve la ruta. El directorio del caso ya existe (`_crear_dir_caso`). Un numero
+    automatico que superaria `VERSION_MAX` -> rechazo explicito (gap #100)."""
     version, saltos = caso["version"], 0
     while True:
+        if auto and version > VERSION_MAX:
+            raise Rechazo(MENSAJE_AGOTADO.format(caso["case_id"], VERSION_MAX))
         ocupado = bool(_ocupantes_version(dir_caso, version, width))
         destino = os.path.join(dir_caso, _nombre_version(version, width))
         if not ocupado:
@@ -950,34 +1187,57 @@ def _reservar(store, dir_caso, caso, width, auto, raiz_proyecto):
         if saltos > SALTOS_MAX_S1:
             return None
         version += 1
-    _comprobar_contencion(store, [destino], raiz_proyecto)
     caso["version"] = version
     return destino
 
 
-def _mover_version(store, tmp, destino, ficheros, raiz_proyecto):
-    """W (SIN bloqueo): mueve los ficheros ya escritos del temporal a la version reservada;
-    `metadata.json` el ultimo. Antes vuelve a comprobar el `realpath` del temporal y del destino
-    (un enlace que aparezca despues de S1, gaps #43/#75-M15) y, por cada fichero (gap #82), el de su
-    directorio de origen y de destino ANTES de moverlo y el del fichero movido DESPUES."""
-    _comprobar_contencion(store, [tmp, destino], raiz_proyecto)
-    os.mkdir(os.path.join(destino, "final"))
-    for rel in list(ficheros) + ["metadata.json"]:
-        origen, dest = os.path.join(tmp, rel), os.path.join(destino, rel)
-        _comprobar_contencion(store, [os.path.dirname(origen), os.path.dirname(dest)], raiz_proyecto)
-        st = os.lstat(origen)
-        _reemplazar(origen, dest)
-        _deshacer_si_escapa(store, dest, st, raiz_proyecto)
+A_MEDIO_PUBLICAR = "a medio publicar"
+
+
+def _temporal_hermano(dir_v, st):
+    """G2: nombre del `.tmp-*` de `dir_v` que es el MISMO fichero que `st` (`lstat` de `metadata.json`)
+    cuando este es un fichero regular con EXACTAMENTE dos nombres: la publicacion POSIX (`os.link` +
+    retirar el temporal) quedo a medias —grabacion en curso o muerta entre ambos—. Sus dos nombres
+    estan en la version: no puede ser un fichero de fuera (no es CWE-59). None si no es el caso. Un
+    `scandir` de la version, solo en ese caso raro."""
+    if not stat.S_ISREG(st.st_mode) or st.st_nlink != 2:
+        return None
+    try:
+        with os.scandir(dir_v) as it:
+            candidatos = [e.path for e in it if e.name.startswith(PREFIJO_TEMPORAL)]
+    except OSError:
+        return None
+    for c in candidatos:
+        try:
+            sc = os.lstat(c)                     # no `DirEntry.stat()`: en Windows no trae st_ino
+        except OSError:
+            continue
+        if stat.S_ISREG(sc.st_mode) and os.path.samestat(sc, st):
+            return os.path.basename(c)
+    return None
+
+
+def _un_solo_nombre_ahora(ruta):
+    """G2: True si `ruta` tiene AHORA un solo nombre: el recorder retiro su temporal entre el `lstat`
+    que vio dos nombres y la busqueda del `.tmp-*` hermano (no es un enlace duro: volver a mirar)."""
+    try:
+        return os.lstat(ruta).st_nlink == 1
+    except OSError:
+        return False
 
 
 def _leer_metadata_sin_enlace(dir_v):
-    """`metadata.json` de una version (None si falta); `Rechazo` si es un enlace, simbolico o duro
-    (gaps #66/#79)."""
+    """`metadata.json` de una version (None si falta o esta «a medio publicar», G2); `Rechazo` si es
+    un enlace, simbolico o duro (gaps #66/#79)."""
     ruta = os.path.join(dir_v, "metadata.json")
     if _motivo_enlace(ruta, ruta):
         raise Rechazo(f"{os.path.basename(dir_v)}/metadata.json: {MOTIVO_ENLACE}")
     try:
         st = os.lstat(ruta)
+        if st.st_nlink > 1 and _temporal_hermano(dir_v, st):
+            return None
+        if st.st_nlink > 1 and _un_solo_nombre_ahora(ruta):
+            st = os.lstat(ruta)                 # G2: la publicacion termino entretanto
         if st.st_nlink > 1:
             raise Rechazo(f"{os.path.basename(dir_v)}/metadata.json: enlace duro compartido (CWE-59); no se lee")
     except FileNotFoundError:
@@ -1055,17 +1315,62 @@ def _crear_dir_caso(store, dir_caso, fam, var, case_id, existia):
         return True
 
 
-def _comprobar_directorio_caso(store, fam, var, case_id):
-    """FUERA del bloqueo (F1): recorrido O(C) de mayusculas en CADA `record` y, si el directorio del
-    caso existe, su `metadata.case_id` (el de su primera version completa) debe ser el mismo.
-    Devuelve si el nombre EXACTO del caso aparece en `cases/` —deducido del `scandir`, nunca de
-    `isdir`/`lexists`, que en NTFS/APFS no distinguen mayusculas (una reserva muerta `RAMP.steep`
-    haria creer que `ramp.steep` existe)."""
+def _nombre_exacto(store, nombre, ctx=None):
+    """gap #104: `(existe_exacto, nombre_real)` de `cases/<nombre>` en O(1), sin recorrer `cases/`:
+      - `lstat` del nombre: no existe -> `(None, None)` (caso nuevo: decide el recorrido O(C));
+      - `lstat` del nombre con las mayusculas invertidas: no existe, o es OTRO fichero -> el sistema
+        distingue mayusculas y el nombre exacto existe (una pareja la reporta `index check`);
+      - es el MISMO (NTFS/APFS no las distinguen): en Windows el nombre REAL es el ultimo componente
+        del `realpath` (ya calculado por la contencion: `ctx.real_de`); fuera de Windows (macOS) no
+        hay forma O(1) con la stdlib -> `(None, None)` (recorrido O(C), limite declarado).
+    Un enlace o un error -> `(None, None)`: decide el recorrido, como antes."""
+    ruta = os.path.join(store, "cases", nombre)
+    try:
+        st = os.lstat(ruta)
+    except OSError:
+        return None, None
+    if _es_enlace_st(st) is not False:
+        return None, None
+    otro = nombre.swapcase()
+    if otro == nombre:
+        return True, nombre
+    try:
+        st_otro = os.lstat(os.path.join(store, "cases", otro))
+    except FileNotFoundError:
+        return True, nombre
+    except OSError:
+        return None, None
+    if not os.path.samestat(st, st_otro):
+        return True, nombre
+    if not _WINDOWS:
+        return None, None
+    # el `realpath` se calcula AHORA, despues de ver que existe: uno de antes podria ser el de un nombre
+    # que aun no existia (devuelve la ruta tal cual) y confundir una variante creada entretanto
+    if ctx is not None:
+        ctx._resolver(ruta)
+        real = ctx.real_de[ctx.clave(ruta)]
+    else:
+        real = os.path.realpath(ruta)
+    real = os.path.basename(real.rstrip("\\/"))
+    return real == nombre, real
+
+
+def _comprobar_directorio_caso(store, fam, var, case_id, ctx=None, exacto=None):
+    """FUERA del bloqueo (F1): si el nombre EXACTO del caso ya esta en `cases/`, O(1) (gap #104: un
+    caso existente ya se valido al crearse; `_nombre_exacto`); si no —caso nuevo, o sistema que no
+    distingue mayusculas sin forma O(1) de saber el nombre real—, recorrido O(C) de mayusculas. Si el
+    directorio del caso existe, su `metadata.case_id` (el de su primera version completa) debe ser el
+    mismo. Devuelve si el nombre EXACTO existe —nunca deducido de `isdir`/`lexists`, que en NTFS/APFS
+    no distinguen mayusculas (una reserva muerta `RAMP.steep` haria creer que `ramp.steep` existe)."""
     nombre = f"{fam}.{var}"
-    nombres = _nombres_de_cases(store)
-    _comprobar_mayusculas(nombres, nombre, case_id)
-    if nombre not in nombres:
-        return False
+    exacto, real = exacto if exacto is not None else _nombre_exacto(store, nombre, ctx)
+    if exacto is False:
+        _comprobar_mayusculas([real], nombre, case_id)
+    if not exacto:
+        nombres = _nombres_de_cases(store)
+        _comprobar_mayusculas(nombres, nombre, case_id)
+        if nombre not in nombres:
+            return False
     for _n, nv in sorted(_dirs_version(os.path.join(store, "cases", nombre))):
         try:
             meta = _leer_metadata_sin_enlace(os.path.join(store, "cases", nombre, nv))
@@ -1111,6 +1416,8 @@ def grabar(caso, config, raiz_proyecto=None, approved_by_human=False):
             caso["version"] = _siguiente_version(os.path.join(store, os.path.dirname(cs.directorio_version(fam, var, 1, width))))
         except (ValueError, TypeError):
             caso["version"] = 1                              # el validador dira que falla
+        if caso["version"] > VERSION_MAX:                    # gap #100: agotado, no «fuera de rango»
+            raise Rechazo(MENSAJE_AGOTADO.format(caso.get("case_id"), VERSION_MAX))
 
     errores = cs.validar_caso(caso, config) + _errores_extra(caso)          # 1. el ORIGINAL
     if errores:
@@ -1122,19 +1429,25 @@ def grabar(caso, config, raiz_proyecto=None, approved_by_human=False):
 
     dir_caso = os.path.join(store, os.path.dirname(cs.directorio_version(fam, var, 1, width)))
     ruta_bloqueo, ruta_indice = os.path.join(store, BLOQUEO_INDICE), os.path.join(store, INDICE)
-    rutas = [ruta_bloqueo, ruta_indice, os.path.join(store, "cases"), dir_caso]
+    # #106: el directorio del caso por `realpath` (uno, `_Canon`: su resolucion pasa por `cases/`, asi
+    # que un enlace en `cases/` tambien lo delata); los FICHEROS del store (indice y bloqueo) por `lstat`
+    # (enlace o enlace duro) y, al abrirlos, por descriptor (G6)
+    ctx = _Canon(store, raiz)
+    rutas = [dir_caso]
     # comprobaciones de solo lectura ANTES de escribir nada y FUERA del bloqueo (F1): enlaces,
-    # mayusculas O(C) y dueño del directorio, `supersedes_case`; con el bloqueo solo lo O(1)
-    _comprobar_contencion(store, rutas, raiz)
+    # mayusculas (O(1) si el caso existe, #104) y dueño del directorio, `supersedes_case`; con el
+    # bloqueo solo lo O(1)
+    exacto = _nombre_exacto(store, f"{fam}.{var}", ctx)             # #104: `lstat` (y, en NTFS, el `realpath`)
+    _comprobar_contencion(store, rutas, raiz, ctx, reutilizar=True)
     _comprobar_fichero_propio(ruta_bloqueo)
     _comprobar_fichero_propio(ruta_indice)
-    existia = _comprobar_directorio_caso(store, fam, var, caso["case_id"])
+    existia = _comprobar_directorio_caso(store, fam, var, caso["case_id"], ctx, exacto)
     _comprobar_supersedes(caso, dir_caso, width)
     os.makedirs(os.path.join(store, "cases"), exist_ok=True)
     destino = None
     for _intento in range(REINTENTOS_S1):
         with _Bloqueo(store):                                               # 4a. S1: reservar, O(1)
-            _comprobar_contencion(store, rutas, raiz)
+            _comprobar_contencion(store, rutas, raiz, ctx)
             existia = _crear_dir_caso(store, dir_caso, fam, var, caso["case_id"], existia)   # gap #81
             destino = _reservar(store, dir_caso, caso, width, auto, raiz)
         if destino is not None:
@@ -1143,20 +1456,19 @@ def grabar(caso, config, raiz_proyecto=None, approved_by_human=False):
     else:
         raise Transitorio(f"mas de {SALTOS_MAX_S1} versiones de {caso['case_id']} grabadas a la vez por otros "
                           f"procesos {REINTENTOS_S1} veces seguidas; no se ha escrito nada: reintenta")
-    # gap #82: el temporal se crea DESPUES de S1 (la espera del bloqueo ya no es una ventana para plantar
-    # nada en el) y cada fichero con la recomprobacion de su padre antes y la suya despues. Si algo falla,
-    # la reserva queda VACIA o a medias (no hay borrado, CA-02) y `index check` la reporta pasada la gracia
-    tmp = tempfile.mkdtemp(prefix=PREFIJO_TEMPORAL, dir=os.path.join(store, "cases"))
+    # 4b. W, DESPUES de S1 y sin bloqueo (D-fix5 §2): sin temporal, cada fichero directo en `vNNN` con
+    # `O_EXCL`. Si algo falla, la reserva queda VACIA o a medias (no hay borrado, CA-02) y `index check`
+    # la reporta pasada la gracia; G5: desaparecido/ya existente/manipulado -> exit 1, resto de E/S -> 2
+    reserva = f"la reserva {ctx.rel(destino)} queda y `index check` la reporta"
     try:
-        _comprobar_contencion(store, [tmp], raiz)
-        ficheros = _ficheros_de(caso)
-        os.mkdir(os.path.join(tmp, "final"))
-        for rel, datos in ficheros.items():
-            _escribir_nuevo(store, os.path.join(tmp, rel), datos, raiz)     # O_EXCL + realpath (#77/#82)
-        _escribir_nuevo(store, os.path.join(tmp, "metadata.json"), _json_bytes(_metadata(caso)), raiz)
-        _mover_version(store, tmp, destino, ficheros, raiz)                 # 4b. W, sin bloqueo
-    finally:
-        _limpiar_temporal(tmp)
+        _escribir_version(ctx, destino, caso)
+    except Rechazo as e:
+        raise type(e)(f"{e.mensaje}; {reserva}") from None
+    except (FileNotFoundError, FileExistsError, NotADirectoryError) as e:
+        raise Rechazo(f"el store cambio durante la escritura de {ctx.rel(destino)} ({type(e).__name__}: "
+                      f"{e.strerror or e}); {reserva}") from None
+    except OSError as e:
+        raise OSError(e.errno, f"{e.strerror or e} al escribir {ctx.rel(destino)}; {reserva}") from None
     avisos = _indexar_alta(store, destino, caso, width)                     # 4c. S2: A
     return {"case_id": caso["case_id"], "version": caso["version"],
             "ref": cs.referencia_version(caso["case_id"], caso["version"], width), "path": destino, "avisos": avisos}
@@ -1249,8 +1561,10 @@ class _Bloqueo:
         _comprobar_fichero_propio(self.ruta)
         try:
             os.makedirs(os.path.dirname(self.ruta), exist_ok=True)
-            self.f = open(self.ruta, "a+b")
+            self.f = open(self.ruta, "a+b", opener=_abrir_sin_seguir)           # G6: sin seguir un enlace
         except OSError as e:
+            if _es_enlace_eloop(e):
+                raise Rechazo(f"{nombre}: es un enlace; no se abre a traves de el (CWE-59)") from None
             raise ErrorPermanente(f"no se puede abrir {nombre} ({e}): permanente (permisos, solo lectura o ruta "
                                   "invalida del case store); arreglalo y repite") from None
         try:
@@ -1309,12 +1623,13 @@ def _linea(entrada):
 def _anadir_linea(store, entrada):
     """Una linea al final del indice (append-only); CON el bloqueo ya tomado por el llamador. Abre
     el indice POR RUTA cada vez (nunca un descriptor cacheado: tras el `os.replace` de un `rebuild`
-    la linea cae en el fichero nuevo, E3) y rechaza un indice con enlaces duros (gap #63). Si el
+    la linea cae en el fichero nuevo, E3) sin seguir un enlace (G6, #107: `O_NOFOLLOW` en POSIX y, en
+    todos los SO, el nombre sigue siendo el fichero abierto) y rechaza un indice con enlaces duros
+    (gap #63): en cualquiera de esos casos no se escribe ni un byte. Si el
     fichero no termina en `\\n` (escritor muerto a mitad de linea), se antepone uno (gap #42)."""
     ruta = os.path.join(store, INDICE)
     _comprobar_fichero_propio(ruta)
-    with open(ruta, "a+b") as f:
-        _comprobar_fd_propio(f, ruta)
+    with _abrir_propio(ruta) as f:                     # G6 (#107): O_NOFOLLOW + nombre == descriptor
         f.seek(0, os.SEEK_END)
         prefijo = b""
         if f.tell():
@@ -1465,6 +1780,13 @@ def _leer_de_version(dir_v, fichero, rel, fstat_leido=None):
         if not stat.S_ISREG(st.st_mode):
             return None, None, f"{rel} ilegible: {fichero} no es un fichero regular"
         if st.st_nlink > 1:
+            tmp = _temporal_hermano(dir_v, st) if fichero == "metadata.json" else None
+            if tmp:                                                 # G2: publicacion POSIX a medias
+                return None, None, (f"{rel} incompleta: metadata.json {A_MEDIO_PUBLICAR} (sigue enlazado con {tmp}): "
+                                    f"grabacion interrumpida al publicarla; retira `{rel}/{tmp}` (solo ese nombre) y la "
+                                    "version queda completa")
+            if fichero == "metadata.json" and _un_solo_nombre_ahora(ruta):
+                continue                        # G2: la publicacion termino entre el `lstat` y la busqueda
             return None, None, (f"{rel} omitida: {fichero} es un enlace duro compartido ({st.st_nlink} nombres para el "
                                 "mismo fichero: podria ser uno de fuera del store, CWE-59); no se lee")
         try:
@@ -1503,7 +1825,8 @@ def _estado_version(store, nombre, dir_caso, numero, nombres, entrada_dir=None, 
     if motivo:
         return None, f"{rel} omitida: {motivo}", False, None
     meta, mtime_meta, aviso = _leer_de_version(dir_v, "metadata.json", rel)
-    if aviso and meta is None and "sin metadata.json" in aviso and "incompleta" in aviso:
+    a_medias = bool(aviso) and A_MEDIO_PUBLICAR in aviso                    # G2
+    if aviso and meta is None and "incompleta" in aviso and ("sin metadata.json" in aviso or a_medias):
         try:
             mtime_dir = _stat_sin_seguir(entrada_dir if entrada_dir is not None else dir_v).st_mtime
         except OSError:
@@ -1511,10 +1834,12 @@ def _estado_version(store, nombre, dir_caso, numero, nombres, entrada_dir=None, 
         if mtime_dir is not None:
             edad = _edad(mtime_dir)
             if edad < 0:
-                return None, (f"{rel} incompleta: sin metadata.json y con mtime futuro ({_iso(mtime_dir)}): no puede "
+                que = f"metadata.json {A_MEDIO_PUBLICAR}" if a_medias else "sin metadata.json"
+                return None, (f"{rel} incompleta: {que} y con mtime futuro ({_iso(mtime_dir)}): no puede "
                               "estar en curso; reparala o graba otra version"), False, None
             if edad < GRACIA_EN_CURSO_S:
-                return None, (f"{rel} en curso: sin metadata.json, directorio modificado hace {edad:.0f} s "
+                que = f"metadata.json {A_MEDIO_PUBLICAR}" if a_medias else "sin metadata.json"
+                return None, (f"{rel} en curso: {que}, directorio modificado hace {edad:.0f} s "
                               f"(< {GRACIA_EN_CURSO_S:g} s): una grabacion en marcha"), True, None
         return None, aviso, False, None
     if aviso is None:
@@ -1562,7 +1887,19 @@ def _clasificar_temporal(entrada, rel, avisos, en_curso):
                        "si no hay nada en marcha, revisalo y borralo a mano")
 
 
-def _estado_de_cases(store, raiz_proyecto=None, duenos=None, firmas=None):
+MARCAS_TRANSITORIAS = ("no legible tras", SUSTITUIDO, "desaparecio al leerla", "no se puede examinar")
+
+
+def _aviso_transitorio(aviso):
+    """gap #105: el aviso de una version tiene causa TRANSITORIA (bloqueada o sin permisos un
+    instante, sustituida durante la lectura, desaparecida al leerla, no examinable): la confirmacion
+    de `check` la relee. Las de causa permanente (incompleta pasada la gracia, fichero ausente o que no
+    es regular, enlace, enlace duro, JSON ilegible, incoherente, dueño distinto) no se releen."""
+    return any(m in aviso for m in MARCAS_TRANSITORIAS)
+
+
+def _estado_de_cases(store, raiz_proyecto=None, duenos=None, firmas=None, temporales_version=False,
+                     transitorias=None):
     """`(entradas, avisos, en_curso, mtimes_meta, rels)` recorriendo `cases/` (la FUENTE). `avisos`
     y `en_curso` son dicts `rel -> texto`; `rels` indexa por `(<family>.<variant>, numero)` los `rel`
     de cada version con aviso (gap #69: la cola los retira en O(1)). Enlaces detectados por ENTRADA
@@ -1573,7 +1910,10 @@ def _estado_de_cases(store, raiz_proyecto=None, duenos=None, firmas=None):
     un sistema que las distingue), un directorio `v<digitos>` fuera de rango (#87) y las versiones de
     un `case_id` distinto del dueño del directorio (el de su primera version completa, #88: no se
     indexan) son incoherencias. `duenos` (opcional) recibe `{<family>.<variant>: case_id dueño}` y
-    `firmas` `{clave: firma de validation.json}` (#89)."""
+    `firmas` `{clave: firma de validation.json}` (#89). fix5: los `.tmp-*` de CADA VERSION solo con
+    `temporales_version` (solo `index check`, que los reporta; `rebuild` no los necesita: #103);
+    `transitorias` (set opcional) recibe las `(<family>.<variant>, numero)` con aviso de causa
+    transitoria (#105); un caso con `v<VERSION_MAX>` agoto los numeros: informativo (#100)."""
     entradas, avisos, en_curso, mtimes, rels = {}, {}, {}, {}, {}
     duenos = {} if duenos is None else duenos
     try:
@@ -1616,7 +1956,10 @@ def _estado_de_cases(store, raiz_proyecto=None, duenos=None, firmas=None):
                 avisos[rel] = f"{rel}: numero de version fuera de rango (1..{VERSION_MAX}): no es una version; retiralo"
             elif tipo == "dir":
                 por_numero.setdefault(v, []).append((n, ent))
-                for t in _temporales_de(ent.path):                          # gap #85
+                if v == VERSION_MAX:                                        # gap #100
+                    en_curso[f"agotado:{nombre}"] = (f"cases/{nombre}: agoto los numeros de version ({n} existe): los "
+                                                     "`record` automaticos se rechazan; graba con otro `variant`")
+                for t in (_temporales_de(ent.path) if temporales_version else ()):   # gaps #85/#103
                     _clasificar_temporal(t, f"{rel}/{t.name}", avisos, en_curso)
             elif tipo == "enlace":
                 avisos[rel] = f"{rel} omitida: {MOTIVO_ENLACE}"
@@ -1640,6 +1983,8 @@ def _estado_de_cases(store, raiz_proyecto=None, duenos=None, firmas=None):
             elif aviso:
                 avisos[rel] = aviso
                 rels.setdefault((nombre, v), []).append(rel)
+                if transitorias is not None and _aviso_transitorio(aviso):         # gap #105
+                    transitorias.add((nombre, v))
             else:
                 entradas[(e["case_id"], e["version"])] = e
                 mtimes[(e["case_id"], e["version"])] = mtime_meta
@@ -1936,6 +2281,7 @@ def _reconstruir_una_vez(store, ruta, raiz):
         return None
     fd, tmp = tempfile.mkstemp(prefix=PREFIJO_TEMPORAL, dir=store)
     f = os.fdopen(fd, "wb")          # abierto hasta la sustitucion: NUNCA se reabre por ruta (gap #78)
+    st_tmp = os.fstat(fd)            # G1: su identidad, para retirarlo solo si sigue siendo el nuestro
     try:
         f.write(b"".join(_linea(e) for e in lineas.values()))
         claves = set(lineas)
@@ -1965,7 +2311,7 @@ def _reconstruir_una_vez(store, ruta, raiz):
     finally:
         if not f.closed:
             f.close()
-        _limpiar_temporal(tmp)
+        _retirar_temporal_propio(tmp, st_tmp)                                   # G1
 
 
 def comprobar_indice_detalle(store, width=cs.VERSION_WIDTH_DEFECTO, raiz_proyecto=None):
@@ -2017,7 +2363,9 @@ def _comprobar_una_vez(store, ruta, width, raiz):
     """Un intento de `comprobar_indice_detalle`; None si la identidad del indice cambio."""
     cursor = _cursor(_identidad(ruta))                                          # F0, sin bloqueo
     duenos, firmas = {}, {}
-    fuente, avisos, en_curso, mtimes, rels = _estado_de_cases(store, raiz, duenos, firmas)   # F1
+    transitorias = set()
+    fuente, avisos, en_curso, mtimes, rels = _estado_de_cases(store, raiz, duenos, firmas, temporales_version=True,
+                                                              transitorias=transitorias)          # F1
     indice, avisos_idx = leer_indice(store, hasta=cursor[1]) if cursor[1] else ({}, [])
     avisos_cola, cola_fallidas, tocadas = [], set(), set()
 
@@ -2072,8 +2420,8 @@ def _comprobar_una_vez(store, ruta, width, raiz):
         e = indice.get(clave) or fuente.get(clave)
         if e is not None:
             releer(e["family"], e["variant"], clave[1], clave[0], "confirmacion")
-    for (nombre, numero) in list(rels):
-        if any(rel in avisos for rel in rels.get((nombre, numero), ())):
+    for (nombre, numero) in list(rels):              # gap #105: solo las de causa TRANSITORIA
+        if (nombre, numero) in transitorias and any(rel in avisos for rel in rels.get((nombre, numero), ())):
             fam, _sep, var = nombre.partition(".")
             releer(fam, var, numero, None, "confirmacion")
     if _leer_cola(ruta, cursor) is None:                                        # identidad al final
@@ -2155,15 +2503,47 @@ def _family_variant(case_id, config):
     return partes[0], partes[1]
 
 
-def _escribir_atomico(ruta, datos):
-    """Temporal en el MISMO directorio + `os.replace`: o queda el fichero viejo o el nuevo entero."""
-    fd, tmp = tempfile.mkstemp(prefix=PREFIJO_TEMPORAL, dir=os.path.dirname(ruta))
+def _comprobar_vigente(ruta, previo):
+    """D-fix5 §3: justo antes del `os.replace`, el `validation.json` vigente se reabre y se compara
+    POR DESCRIPTOR con el que se leyo (`previo`, el `fstat` de esa lectura): regular, un solo nombre y
+    la misma identidad; si no -> `Rechazo` sin reemplazar nada."""
     try:
-        with os.fdopen(fd, "wb") as f:
+        with open(ruta, "rb") as g:
+            st = os.fstat(g.fileno())
+    except FileNotFoundError:
+        st = None
+    motivo = SUSTITUIDO if st is None else _motivo_descriptor(st, previo)[0]
+    if motivo:
+        raise _Manipulado(f"{os.path.basename(os.path.dirname(ruta))}/{os.path.basename(ruta)}: {motivo} antes de "
+                          "reemplazarlo (CWE-367/59); no se reemplaza")
+
+
+def _escribir_atomico(ruta, datos, ctx=None, previo=None):
+    """Temporal propio `.tmp-<token>` (`O_EXCL`) en el MISMO directorio + `os.replace`: o queda el
+    fichero viejo o el nuevo entero. Con `ctx`/`previo` (`set-status`, D-fix5 §3): comprobacion
+    posterior del temporal (G4), el vigente comparado por descriptor (`_comprobar_vigente`) y el
+    `realpath` del directorio por igualdad justo antes del `os.replace`, y comprobacion posterior del
+    reemplazado. El temporal, si queda, se retira SOLO por la regla G1. Limite declarado: ver G3 en
+    el docstring del modulo."""
+    tmp = os.path.join(os.path.dirname(ruta), PREFIJO_TEMPORAL + secrets.token_hex(8))
+    f = _abrir_exclusivo(tmp)
+    st = None
+    try:
+        with f:
+            st = os.fstat(f.fileno())
             f.write(datos)
+        if ctx is not None:
+            _verificar_creado(ctx, tmp, st)
+        if previo is not None:
+            _comprobar_vigente(ruta, previo)
+        if ctx is not None:
+            ctx.comprobar_dir(os.path.dirname(ruta))
         _reemplazar(tmp, ruta)
     finally:
-        _limpiar_temporal(tmp)
+        if st is not None:
+            _retirar_temporal_propio(tmp, st)
+    if ctx is not None:
+        _verificar_creado(ctx, ruta, st)
 
 
 def _ficheros_sin_enlace(destino, ref):
@@ -2182,6 +2562,13 @@ def _ficheros_sin_enlace(destino, ref):
             raise Rechazo(f"{ref}: {fichero} es un {MOTIVO_ENLACE}; no se lee ni se escribe")
         if not stat.S_ISREG(st.st_mode):
             raise Rechazo(f"{ref}: {fichero} no es un fichero regular; no se escribe nada")
+        if st.st_nlink > 1 and fichero == "metadata.json":                  # G2
+            if _temporal_hermano(destino, st):
+                raise Rechazo(f"{ref} esta {A_MEDIO_PUBLICAR} (metadata.json sigue enlazado con un temporal propio: "
+                              "grabacion en curso o interrumpida, G2); no se cambia el estado: si no hay nada en marcha, "
+                              "retira ese temporal (solo ese nombre) y repite")
+            if _un_solo_nombre_ahora(ruta):
+                st = _stat_sin_seguir(ruta)     # la publicacion termino entre el `lstat` y la busqueda
         if st.st_nlink > 1:
             raise Rechazo(f"{ref}: {fichero} es un enlace duro compartido ({st.st_nlink} nombres para el mismo fichero: "
                           "podria ser uno de fuera del store, CWE-59); no se lee ni se escribe")
@@ -2236,9 +2623,10 @@ def cambiar_estado(case_id, version, status, config, raiz_proyecto=None, approve
         _comprobar_contencion(store, rutas, raiz)
         _comprobar_fichero_propio(ruta_indice)
         stats = _ficheros_sin_enlace(destino, ref)
+        leido = []
         try:                                                    # por descriptor (gap #83)
             meta, _m = _leer_json_reintentando(ruta_meta, stats["metadata.json"])
-            previa, _m = _leer_json_reintentando(ruta_val, stats["validation.json"])
+            previa, _m = _leer_json_reintentando(ruta_val, stats["validation.json"], leido)
         except _FicheroNoPropio as e:
             raise Rechazo(f"{ref}: {e.mensaje}; no se lee ni se escribe (CWE-367/59)") from None
         except FileNotFoundError:
@@ -2257,7 +2645,9 @@ def cambiar_estado(case_id, version, status, config, raiz_proyecto=None, approve
         gold = status == "approved"
         nueva = {"status": status, "approved_by_human": gold, "approved_at": _ahora() if gold else None,
                  "reviewer_note": nota if nota is not None else previa.get("reviewer_note")}
-        _escribir_atomico(ruta_val, _json_bytes(nueva))
+        # D-fix5 §3: el vigente comparado por descriptor con el leido y `vNNN` por igualdad, justo antes
+        # del `os.replace` (limite G3 en el docstring del modulo)
+        _escribir_atomico(ruta_val, _json_bytes(nueva), _Canon(store, raiz), leido[-1] if leido else None)
         avisos = _indexar(store, entrada)
     return {"case_id": case_id, "version": version, "ref": ref, "status": status, "path": destino, "avisos": avisos}
 
