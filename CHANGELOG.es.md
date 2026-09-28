@@ -9,6 +9,10 @@ y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Fixed — `knowledge-services` (2026-09-26)
+
+- **`markdown-export` rechaza un `export_dir` dentro de `docs/knowledge/` sean cuales sean sus mayúsculas, en todos los sistemas** La contención comparaba rutas con `normcase`, que fuera de Windows no toca las mayúsculas: en macOS (APFS, que no las distingue) `DOCS/KNOWLEDGE/APPROVED/x` —el mismo directorio que `docs/knowledge/approved/x`— pasaba la comprobación. Ahora compara además con `casefold()` en todos (en Linux la regla peca de estricta, como el resto del plugin). Salió a la luz al empezar a ejecutarse la suite de la skill en la CI. (`skills/knowledge-services/backends/markdown_export.py`)
+
 ### Added — iniciativa `graphiti-memory` (2026-09-15)
 
 - **T-01 — Puerta de dependencia, `backends.graphiti` en el esquema y suite de contrato** Los proyectos pueden declarar un backend Graphiti opcional (desactivado por defecto) en su configuración de conocimiento, con validación de endpoint local, proveedor de modelo, timeout/concurrencia de las llamadas y reglas de enrutado.
