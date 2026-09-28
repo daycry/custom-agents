@@ -159,8 +159,10 @@ _MAPA_CONFIANZA = {
     "human_confirmed_rule": "high",
 }
 
+# --8<-- hosts locales COMPARTIDO (graphiti-memory T-01-fix1) — REPLICADO LITERAL en skills/knowledge-services/backends/markdown_export.py, agent-kits/shared/knowledge-schema.py y skills/knowledge-services/backends/graphiti.py
 _SUFIJOS_LOCALES = (".test", ".local", ".internal")
 _HOSTS_LOCALES_LITERALES = {"localhost", "host.docker.internal"}
+# --8<-- fin hosts locales COMPARTIDO
 
 _dns_cache = {}  # gap 117/132/138: caché de resolución por proceso — {host: (ip_str_o_None, expira_ts)}
 _dns_inflight = {}  # gap 138: {host: threading.Thread} — una resolución lenta en marcha se
@@ -362,7 +364,13 @@ def _export_dir_resuelto(cfg):
     Gap 121: la contención usa `os.path.realpath` (no solo `abspath`, que no sigue symlinks ni
     junctions) y compara con `os.path.normcase` (en Windows, insensible a mayúsculas): sin esto,
     un junction/symlink que apuntara a `docs/knowledge/`, o una ruta con mayúsculas distintas,
-    evadía la comprobación."""
+    evadía la comprobación.
+
+    training-data-services #94 (Fixed): además de `normcase` se compara con `casefold()` en TODOS
+    los sistemas: `normcase` no toca las mayúsculas fuera de Windows, así que en macOS (APFS, que no
+    las distingue) `DOCS/KNOWLEDGE/APPROVED/x` —el mismo directorio que `docs/knowledge/approved/x`—
+    pasaba la comprobación. En Linux la regla peca de estricta (rechaza un directorio distinto que
+    solo difiere en mayúsculas), nunca de laxa: el mismo criterio que `case_schema._canon`."""
     export_dir = (cfg or {}).get("export_dir")
     if not export_dir:
         raise ConfigInvalida("falta `export_dir` en la config del backend")
@@ -370,9 +378,13 @@ def _export_dir_resuelto(cfg):
     root_abs = os.path.realpath(root)
     resuelto = export_dir if os.path.isabs(export_dir) else os.path.join(root_abs, export_dir)
     resuelto_real = os.path.realpath(resuelto)
+
+    def _nc(ruta):                       # #94: sin distinguir mayúsculas también fuera de Windows
+        return os.path.normcase(ruta).casefold()
+
     sep_nc = os.path.normcase(os.sep)
-    resuelto_nc = os.path.normcase(resuelto_real)
-    root_nc = os.path.normcase(root_abs)
+    resuelto_nc = _nc(resuelto_real)
+    root_nc = _nc(root_abs)
     if resuelto_nc == root_nc:
         raise ConfigInvalida(
             f"`export_dir` (`{export_dir}`) no puede ser la raíz del proyecto (`{root_abs}`)")
@@ -381,7 +393,7 @@ def _export_dir_resuelto(cfg):
             f"`export_dir` (`{export_dir}`) no puede ser un ANCESTRO de la raíz del proyecto "
             f"(`{root_abs}` quedaría dentro de `{resuelto_real}`)")
     conocimiento_real = os.path.realpath(os.path.join(root_abs, "docs", "knowledge"))
-    conocimiento_nc = os.path.normcase(conocimiento_real)
+    conocimiento_nc = _nc(conocimiento_real)
     if resuelto_nc == conocimiento_nc or resuelto_nc.startswith(conocimiento_nc + sep_nc):
         raise ConfigInvalida(
             f"`export_dir` (`{export_dir}`) no puede quedar dentro de "
@@ -565,27 +577,39 @@ def _lock_path(export_dir):
 # (primera alternativa), el motor nunca llegaba a intentar la segunda: solo se sustituía el propio
 # `ESC` y el resto de la secuencia (`[31m`, `[0m`) quedaba intacto en el texto. Se reordena para
 # que la alternativa ANSI (más específica) se intente PRIMERO.
-_CONTROL_O_ANSI_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]|[\x00-\x1f\x7f]")
+#
+# gap 176 (CWE-117, fuera de lente, señalado por la Lente B): `health()`/`verify()` embebían el
+# mensaje de la excepción de red — que en el caso de `http.client.HTTPException`/`OSError` puede
+# contener bytes CRUDOS de lo que respondió el servidor (p. ej. `BadStatusLine` incluye la primera
+# línea recibida tal cual) — directamente en `detalle`/`motivo`, que acaban impresos por `/doctor`.
+# Un servidor (aunque sea local, ya pasó `_host_permitido`) que devuelva CRLF o secuencias de
+# escape ANSI podía así inyectar saltos de línea o color en esa salida.
+#
+# gap 182 (revisión Fase 4 intento 3): el tope de 200 debe aplicarse SOLO al texto NO CONFIABLE (lo
+# que viene del servidor) — los llamadores NUNCA deben pasar el prefijo propio (de confianza,
+# f"... de {url}: ") dentro de este saneado: si lo hacen, el prefijo se come parte del tope (o lo
+# desplaza fuera de los 200 caracteres) sin ganar nada, porque el prefijo no es el dato peligroso.
+# El prefijo se antepone DESPUÉS, sobre el resultado ya saneado y recortado.
+#
+# --8<-- sanear_detalle (funcion) — REPLICADO LITERAL en las CINCO copias declaradas del bloque `sanear_detalle` de agent-kits/shared/copias.json
+# Gap #93 (Minor, fix5): la clase [\x00-\x1f\x7f] dejaba pasar tres familias que TAMBIEN
+# falsifican una linea de log o invierten visualmente el texto de un mensaje/`causa`: los
+# controles C1 (\x80-\x9f, entre ellos CSI \x9b), los separadores Unicode de linea/parrafo
+# ( / , que muchos visores rompen como salto de linea) y los controles bidi
+# (‪-‮ RLO/LRO..., ⁦-⁩ isolates), con los que un texto hostil del servidor
+# puede reordenar lo que el humano lee sin cambiar un solo byte del resto.
+_CONTROL_O_ANSI_RE = re.compile(
+    r"\x1b\[[0-9;]*[A-Za-z]|[\x00-\x1f\x7f-\x9f  ‪-‮⁦-⁩]")
 _SANEADO_TOPE_CHARS = 200
 
 
 def _sanear_detalle(texto):
-    """Gap 176 (CWE-117, fuera de lente, señalado por la Lente B): `health()`/`verify()` embebían
-    el mensaje de la excepción de red — que en el caso de `http.client.HTTPException`/`OSError`
-    puede contener bytes CRUDOS de lo que respondió el servidor (p. ej. `BadStatusLine` incluye la
-    primera línea recibida tal cual) — directamente en `detalle`/`motivo`, que acaban impresos por
-    `/doctor`. Un servidor (aunque sea local, ya pasó `_host_permitido`) que devuelva CRLF o
-    secuencias de escape ANSI podía así inyectar saltos de línea o color en esa salida. Se recorta
-    a 200 caracteres y se sustituyen los caracteres de control (incluidas las secuencias ANSI
-    `ESC[...`) por un espacio.
-
-    Gap 182 (revisión Fase 4 intento 3): el tope de 200 debe aplicarse SOLO al texto NO CONFIABLE
-    (lo que viene del servidor) — los llamadores NUNCA deben pasar el prefijo propio (de
-    confianza, `f"... de {url}: "`) dentro de este saneado: si lo hacen, el prefijo se come parte
-    del tope (o lo desplaza fuera de los 200 caracteres) sin ganar nada, porque el prefijo no es
-    el dato peligroso. El prefijo se antepone DESPUÉS, sobre el resultado ya saneado y recortado."""
+    """Recorta a 200 caracteres y sustituye caracteres de control (incluidas las secuencias ANSI
+    `ESC[...`, los C1, los separadores Unicode y los controles bidi) por un espacio; ver
+    comentario arriba para el porque de cada regla."""
     saneado = _CONTROL_O_ANSI_RE.sub(" ", str(texto))
     return saneado[:_SANEADO_TOPE_CHARS]
+# --8<-- fin sanear_detalle (funcion)
 
 
 def health(cfg):

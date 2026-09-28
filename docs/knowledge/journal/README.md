@@ -20,6 +20,9 @@ Este índice lo regenera `journal.py index`; no lo edites.
 
 | Fecha | Iniciativa | Resumen | Fuente |
 |---|---|---|---|
+| [2026-09-18](2026-09-18-brief-budget-2.md) | brief-budget | tengo levantado los docker con kwipu y graphiti, la documentación está aquí: C:\Users\46066917X\One… | recover |
+| [2026-09-18](2026-09-18-brief-budget.md) | brief-budget | tengo levantado los docker con kwipu y graphiti, la documentación está aquí: C:\Users\46066917X\One… | recover |
 | [2026-09-14](2026-09-14-plugin-refactor.md) | plugin-refactor | Sesión sobre plugin-refactor | hook |
 | [2026-09-12](2026-09-12-plugin-refactor.md) | plugin-refactor | <task-notification> <task-id>aa201799db814ce28</task-id> <tool-use-id>toolu_01JKEBQeC2u77f6UwbYeDnn… | hook |
+| [2026-09-08](2026-09-08-brief-budget.md) | brief-budget | hay algunos md que al visualizarlos en github aparece este error: Error in user YAML: (<unknown>):… | recover |
 | [2026-09-08](2026-09-08-sesion.md) | n/a | continua con la implementación | hook |
