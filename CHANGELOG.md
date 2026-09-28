@@ -9,6 +9,8 @@ and versioning follows [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.22.0] - 2026-09-28
+
 ### Fixed — `knowledge-services` (2026-09-26)
 
 - **`markdown-export` rejects an `export_dir` inside `docs/knowledge/` whatever its letter case, on every OS** The containment check compared paths with `normcase`, which leaves letter case alone outside Windows: on macOS (case-insensitive APFS) `DOCS/KNOWLEDGE/APPROVED/x` — the same directory as `docs/knowledge/approved/x` — passed the check. It now also compares with `casefold()` everywhere (on Linux the rule errs on the strict side, like the rest of the plugin). It surfaced once the skill's own suite started running in CI. (`skills/knowledge-services/backends/markdown_export.py`)
@@ -606,6 +608,7 @@ Adoption of best practices from the top agent collections (reference agent colle
 
 Versions predating the introduction of this changelog: a bundle with the `nemesis`, `evaluator`, `planner`, `pdfy` and `qa` agents, and the shared `cybersecurity` and `to-pdf` skills. Packaged as a plugin + marketplace.
 
+[1.22.0]: https://github.com/daycry/custom-agents/releases/tag/v1.22.0
 [1.21.1]: https://github.com/daycry/custom-agents/releases/tag/v1.21.1
 [1.21.0]: https://github.com/daycry/custom-agents/releases/tag/v1.21.0
 [1.20.2]: https://github.com/daycry/custom-agents/releases/tag/v1.20.2
