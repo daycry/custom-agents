@@ -207,7 +207,14 @@ active; its health is that of `taxonomy.json`, with or without a project file) a
 only with a valid `.claude/knowledge-services/training.json` and `enabled: true`; validated with
 the skill's `case_schema.py`, no network: `deshabilitado` without the file, ❌ with file and field
 if invalid, `declarado`/`ok` depending on whether the case store `root` exists; reporting never
-creates it).
+creates it). With the store present, its `doctor` text adds (T-10, CA-07) the **case count per
+status** (`pending`/`approved`/`needs_changes`/`rejected`, read from `cases/` with the recorder's
+safe readers —`resumen_store`—, never from the index), incomplete versions and orphan temporaries,
+and the **dataset freshness** (the assembler's `estado_dataset`: no Gold, no export yet, outdated if
+a Gold is newer than the last export's `manifest.json`, or up to date). No network, writes nothing
+and **time-bounded** (`TRAINING_PLAZO_S` = 2 s: measured, 10⁴ versions take 10.7 s warm and over
+70 s cold on Windows); past the cap the count is declared **PARTIAL** ("N of M cases"), never an
+invented total.
 
 `/doctor` (T-09) adds an **"Optional capabilities"** block, also generic: one row per capability
 from `enumerar(root)`, with no capability-specific string anywhere in `doctor.py` (invalid config

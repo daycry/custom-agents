@@ -95,7 +95,8 @@ externas (`graphify`): `references/case-schema.md`.
 ## Degradación
 
 - Sin `training.json` o con `enabled: false`: la capacidad no existe para el ciclo (CA-01). Inválido:
-  `/doctor` lo informa con fichero y campo; nada se bloquea. Sin `python3`: el resto del plugin sigue.
+  `/doctor` lo informa con fichero y campo; nada se bloquea. Activo: `/doctor` da el recuento por estado
+  y si el dataset está desactualizado (tope de 2 s, «PARCIAL» si no llega). Sin `python3`: el resto sigue.
 
 ## Scripts y rutas
 

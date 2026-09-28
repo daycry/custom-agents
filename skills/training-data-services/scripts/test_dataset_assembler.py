@@ -1267,3 +1267,72 @@ def test_t09_135_sha_de_un_fichero_del_export_no_se_bloquea_en_un_fifo(tmp_path,
         os.close(os.open(str(d / "manifest.json"), os.O_WRONLY | os.O_NONBLOCK))
         h.join(5)
     assert not bloqueado and salida["r"] is None
+
+
+# ------------------------------------------------------------------ T-10: frescura del dataset para /doctor
+
+def _ns(store, *partes):
+    return os.lstat(os.path.join(str(store), *partes)).st_mtime_ns
+
+
+def test_t10_estado_dataset_sin_gold_no_hay_nada_que_exportar(tmp_path):
+    _raiz, _cfg, store = _proyecto(tmp_path)
+    d = asm.estado_dataset(str(store), None)
+    assert d["estado"] == "sin_gold" and d["exports"] == 0 and d["ultimo"] is None
+
+
+def test_t10_estado_dataset_con_gold_y_ningun_export_esta_desactualizado(tmp_path):
+    raiz, cfg, store = _store_basico(tmp_path)
+    d = asm.estado_dataset(str(store), 1)
+    assert d["estado"] == "sin_export" and d["exports"] == 0 and "ningun export" in d["motivo"]
+
+
+def test_t10_estado_dataset_al_dia_y_luego_desactualizado_por_un_gold_nuevo(tmp_path):
+    raiz, cfg, store = _store_basico(tmp_path)
+    r = _ensamblar(cfg, raiz)
+    nombre = os.path.basename(r["ruta"])
+    m = _ns(store, "exports", nombre, "manifest.json")
+    d = asm.estado_dataset(str(store), m - 1)
+    assert d["estado"] == "al_dia" and d["exports"] == 1 and d["ultimo"] == nombre
+    d = asm.estado_dataset(str(store), m + 1)
+    assert d["estado"] == "desactualizado" and d["ultimo"] == nombre and nombre in d["motivo"]
+
+
+def test_t10_estado_dataset_un_export_sin_manifest_es_incompleto_y_no_cuenta(tmp_path):
+    raiz, cfg, store = _store_basico(tmp_path)
+    (store / "exports" / "20260101-000000000000").mkdir(parents=True)
+    (store / "exports" / "falso").mkdir()
+    (store / "exports" / "falso" / "manifest.json").mkdir()          # no es un fichero regular
+    d = asm.estado_dataset(str(store), 1)
+    assert d["estado"] == "sin_export" and d["exports"] == 0 and d["incompletos"] == 2
+
+
+def test_t10_estado_dataset_no_sigue_enlaces(tmp_path):
+    raiz, cfg, store = _store_basico(tmp_path)
+    r = _ensamblar(cfg, raiz, escribir=True)
+    fuera = tmp_path / "fuera"
+    (fuera / "x").mkdir(parents=True)
+    (fuera / "x" / "manifest.json").write_text("{}", encoding="utf-8")
+    _enlazar_dir(fuera / "x", store / "exports" / "99999999-enlazado")
+    os.utime(str(fuera / "x" / "manifest.json"), ns=(4_000_000_000_000_000_000,) * 2)
+    d = asm.estado_dataset(str(store), 3_000_000_000_000_000_000)
+    assert d["ultimo"] == os.path.basename(r["ruta"]) and d["estado"] == "desactualizado"
+    assert d["incompletos"] == 1
+
+
+def test_t10_estado_dataset_exports_que_es_un_enlace_no_se_sigue(tmp_path):
+    _raiz, _cfg, store = _proyecto(tmp_path)
+    store.mkdir()
+    fuera = tmp_path / "fuera-exports"
+    (fuera / "x").mkdir(parents=True)
+    (fuera / "x" / "manifest.json").write_text("{}", encoding="utf-8")
+    _enlazar_dir(fuera, store / "exports")
+    d = asm.estado_dataset(str(store), 1)
+    assert d["estado"] == "no_verificable" and d["exports"] == 0 and "enlace" in d["motivo"]
+
+
+def test_t10_estado_dataset_no_escribe_nada(tmp_path):
+    raiz, cfg, store = _store_basico(tmp_path)
+    antes = sorted(os.listdir(str(store)))
+    asm.estado_dataset(str(store), 1)
+    assert sorted(os.listdir(str(store))) == antes and not (store / "exports").exists()

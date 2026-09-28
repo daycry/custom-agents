@@ -546,6 +546,63 @@ def ensamblar(config, raiz_proyecto, benchmark, umbral=dd.UMBRAL_DEFECTO, ventan
     return salida
 
 
+# ------------------------------------------------------------------ frescura del dataset (T-10, `/doctor`)
+
+def estado_dataset(store, gold_mtime_ns):
+    """Frescura del dataset para `/doctor` (T-10, CA-07), SOLO LECTURA y sin red: `{estado, exports,
+    incompletos, ultimo, motivo}`. Un export cuenta si es un directorio real de `exports/` (no un
+    enlace: no se sigue) con un `manifest.json` que es un fichero regular sin seguir enlaces (un export
+    sin el esta INCOMPLETO: se cuenta aparte y no vale como ultimo export). `ultimo` = el de
+    `manifest.json` con `mtime` mas reciente. `estado`: `sin_gold` (ningun Gold: nada que exportar),
+    `sin_export` (hay Gold y ningun export completo), `desactualizado` (el `validation.json` Gold mas
+    reciente, `gold_mtime_ns`, es posterior al `manifest.json` del ultimo export), `al_dia` o
+    `no_verificable` (`exports/` es un enlace o no se puede listar). Limite declarado: compara `mtime`
+    (un Gold que DEJA de serlo tras exportar no se detecta aqui; `dataset-assembler.py --dry-run` si)."""
+    exports = os.path.join(store, "exports")
+    salida = {"estado": None, "exports": 0, "incompletos": 0, "ultimo": None, "motivo": ""}
+    tipo = rec._tipo_entrada(exports, exports)
+    ultimo_ns = None
+    if tipo == "enlace" or tipo == "otro":
+        salida.update(estado="no_verificable", motivo=("exports/ es un enlace: no se sigue" if tipo == "enlace"
+                                                        else "exports/ no es un directorio"))
+        return salida
+    if tipo == "dir":
+        try:
+            with os.scandir(exports) as it:
+                entradas = [e for e in it if not e.name.startswith(".")]
+        except OSError as e:
+            salida.update(estado="no_verificable", motivo=f"exports/ no se puede listar ({type(e).__name__})")
+            return salida
+        for e in sorted(entradas, key=lambda x: x.name):
+            if rec._tipo_entrada(e, e.path) != "dir":
+                salida["incompletos"] += 1
+                continue
+            ruta_m = os.path.join(e.path, MANIFEST)
+            try:
+                st = rec._stat_sin_seguir(ruta_m)
+            except OSError:
+                st = None
+            enlace = None if st is None else rec._es_enlace_st(st)
+            if enlace is None and st is not None:
+                enlace = bool(rec._motivo_enlace(ruta_m, ruta_m))
+            if st is None or enlace or not stat.S_ISREG(st.st_mode):
+                salida["incompletos"] += 1
+                continue
+            salida["exports"] += 1
+            if ultimo_ns is None or st.st_mtime_ns > ultimo_ns:
+                ultimo_ns, salida["ultimo"] = st.st_mtime_ns, e.name
+    if gold_mtime_ns is None:
+        salida.update(estado="sin_gold", motivo="ningun caso Gold: nada que exportar")
+    elif ultimo_ns is None:
+        salida.update(estado="sin_export", motivo="hay Gold y ningun export con manifest.json todavia")
+    elif gold_mtime_ns > ultimo_ns:
+        salida.update(estado="desactualizado",
+                      motivo=f"hay Gold mas nuevo que el ultimo export `{rec._texto_ruta(salida['ultimo'])}`")
+    else:
+        salida.update(estado="al_dia", motivo=f"ultimo export `{rec._texto_ruta(salida['ultimo'])}`")
+    return salida
+
+
 # ------------------------------------------------------------------ escritura del export (sin destruir nada)
 
 def _verificar(ctx, ruta, st_propio):

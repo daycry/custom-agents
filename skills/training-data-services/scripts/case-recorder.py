@@ -198,6 +198,11 @@ def _reloj():
     return time.time()
 
 
+def _crono():
+    """Reloj monotono (inyectable en los tests): solo para el tope de `resumen_store` (T-10)."""
+    return time.monotonic()
+
+
 def _cargar_schema():
     """`case_schema.py` de la MISMA skill (fuente unica del esquema, de los ids y de las rutas)."""
     spec = importlib.util.spec_from_file_location("tds_case_schema", os.path.join(HERE, "case_schema.py"))
@@ -2055,7 +2060,7 @@ def _aviso_transitorio(aviso):
 
 
 def _estado_de_cases(store, raiz_proyecto=None, duenos=None, firmas=None, temporales_version=False,
-                     transitorias=None, crudos=None, tope=None):
+                     transitorias=None, crudos=None, tope=None, recorte=None):
     """`(entradas, avisos, en_curso, mtimes_meta, rels)` recorriendo `cases/` (la FUENTE). `avisos`
     y `en_curso` son dicts `rel -> texto`; `rels` indexa por `(<family>.<variant>, numero)` los `rel`
     de cada version con aviso (gap #69: la cola los retira en O(1)). Enlaces detectados por ENTRADA
@@ -2071,7 +2076,10 @@ def _estado_de_cases(store, raiz_proyecto=None, duenos=None, firmas=None, tempor
     `transitorias` (set opcional) recibe las `(<family>.<variant>, numero)` con aviso de causa
     transitoria (#105); un caso con `v<VERSION_MAX>` agoto los numeros: informativo (#100). `crudos`
     (dict opcional, #130): los bytes y el `fstat` de `metadata.json`/`validation.json` de cada version
-    valida (ver `_estado_version`); `tope` (#134), el tope por fichero de esas dos lecturas."""
+    valida (ver `_estado_version`); `tope` (#134), el tope por fichero de esas dos lecturas.
+    `recorte` (dict opcional, T-10: `resumen_store` de `/doctor`): `{"hasta": <instante de _crono()>}`;
+    pasado ese instante el recorrido se CORTA (entre casos o entre versiones de un caso) y anota
+    `truncado`, `casos_vistos` (casos recorridos enteros) y `casos_total`."""
     entradas, avisos, en_curso, mtimes, rels = {}, {}, {}, {}, {}
     duenos = {} if duenos is None else duenos
     try:
@@ -2099,7 +2107,12 @@ def _estado_de_cases(store, raiz_proyecto=None, duenos=None, firmas=None, tempor
     except OSError:
         return entradas, avisos, en_curso, mtimes, rels
     _avisar_parejas_mayusculas([n for n, _d, _e in casos], avisos)
+    if recorte is not None:
+        recorte.update(truncado=False, casos_vistos=0, casos_total=len(casos))
     for nombre, dir_caso, entrada_caso in sorted(casos, key=lambda t: t[0]):
+        if recorte is not None and _crono() >= recorte["hasta"]:
+            recorte["truncado"] = True
+            break
         motivo = _motivo_enlace(entrada_caso, dir_caso)
         if motivo:
             avisos[f"cases/{nombre}"] = f"{_texto_ruta('cases/' + nombre)} omitido: {motivo}"
@@ -2126,6 +2139,9 @@ def _estado_de_cases(store, raiz_proyecto=None, duenos=None, firmas=None, tempor
                 avisos[rel] = (f"{txt}: no es un directorio de version (fichero u otra entrada con nombre de version): "
                                "no cuenta como version ni como duplicado; retiralo o renombralo")
         for v, lista in sorted(por_numero.items()):
+            if recorte is not None and _crono() >= recorte["hasta"]:
+                recorte["truncado"] = True
+                break
             nombres = [n for n, _e in lista]
             e, aviso, curso, mtime_meta = _estado_version(store, nombre, dir_caso, v, nombres,
                                                           lista[0][1] if len(lista) == 1 else None, firmas, crudos,
@@ -2148,6 +2164,10 @@ def _estado_de_cases(store, raiz_proyecto=None, duenos=None, firmas=None, tempor
             else:
                 entradas[(e["case_id"], e["version"])] = e
                 mtimes[(e["case_id"], e["version"])] = mtime_meta
+        if recorte is not None:
+            if recorte["truncado"]:
+                break
+            recorte["casos_vistos"] += 1
     return entradas, avisos, en_curso, mtimes, rels
 
 
@@ -2200,6 +2220,41 @@ def estado_de_cases(store, raiz_proyecto=None, duenos=None):
     entradas, avisos, en_curso, _m, _r = _estado_de_cases(store, raiz_proyecto, duenos)
     return entradas, list(avisos.values()) + [t for rel, t in en_curso.items()
                                               if not rel.rsplit("/", 1)[-1].startswith(PREFIJO_TEMPORAL)]
+
+
+RESUMEN_PLAZO_S = 2.0              # T-10: tope del recorrido de `resumen_store` (medido: 10^4 versiones = 10,7 s
+                                   # en caliente y > 70 s en frio en Windows; con el tope, recuento PARCIAL)
+MARCA_INCOMPLETA = " incompleta: "
+MARCA_HUERFANO = "temporal huerfano"
+
+
+def resumen_store(store, raiz_proyecto=None, plazo_s=RESUMEN_PLAZO_S):
+    """Resumen de SOLO LECTURA del case store para `/doctor` (T-10, CA-07), desde `cases/` con los
+    MISMOS lectores seguros del recorrido (`_estado_de_cases`: sin seguir enlaces, por descriptor),
+    nunca desde el indice (una cache). Devuelve `{por_estado: {status: n}, versiones, incompletas,
+    huerfanos, otros_avisos, en_curso, gold_mtime_ns, truncado, casos_vistos, casos_total, plazo_s}`:
+    `incompletas` = versiones sin `metadata.json`/`validation.json` (o a medio publicar) pasada la
+    gracia; `huerfanos` = temporales `.tmp-*` huerfanos; `gold_mtime_ns` = el `mtime` (ns, del
+    descriptor leido) del `validation.json` Gold mas reciente, o None. Acotado en tiempo: pasados
+    `plazo_s` segundos corta y lo declara (`truncado`, `casos_vistos` de `casos_total`): el recuento
+    es entonces PARCIAL, nunca un total inventado. No escribe nada, no toma bloqueos, sin red."""
+    recorte = {"hasta": _crono() + plazo_s, "truncado": False, "casos_vistos": 0, "casos_total": 0}
+    firmas = {}
+    entradas, avisos, en_curso, _m, _r = _estado_de_cases(store, raiz_proyecto, firmas=firmas, recorte=recorte)
+    por_estado = {s: 0 for s in cs.VALIDATION_STATUS}
+    gold = None
+    for clave, e in entradas.items():
+        por_estado[e["status"]] = por_estado.get(e["status"], 0) + 1
+        if e["status"] == "approved" and clave in firmas:
+            ns = firmas[clave][1][2]
+            gold = ns if gold is None or ns > gold else gold
+    textos = list(avisos.values())
+    incompletas = sum(1 for t in textos if MARCA_INCOMPLETA in t)
+    huerfanos = sum(1 for t in textos if MARCA_HUERFANO in t)
+    return {"por_estado": por_estado, "versiones": len(entradas), "incompletas": incompletas,
+            "huerfanos": huerfanos, "otros_avisos": len(textos) - incompletas - huerfanos,
+            "en_curso": len(en_curso), "gold_mtime_ns": gold, "truncado": recorte["truncado"],
+            "casos_vistos": recorte["casos_vistos"], "casos_total": recorte["casos_total"], "plazo_s": plazo_s}
 
 
 # ------------------------------------------------------------------ identidad y cola del indice (F2-F4)

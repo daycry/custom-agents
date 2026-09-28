@@ -2013,3 +2013,72 @@ def test_f1fix1_gap09_proyecto_sin_config_no_pinta_desactivadas_y_verbose_si(tmp
     r = run("--root", str(proj), "--json")
     cap = next(x for x in json.loads(r.stdout)["bloques"] if x["clave"] == "capacidades")
     assert not [l for l in cap["lineas"] if l["detalle"] == "desactivado"]
+
+
+# ------------------------------------------------------------------ T-10 (training-data-services): capacidad real
+
+def _training_json(proj, **cfg):
+    d = proj / ".claude" / "knowledge-services"
+    d.mkdir(parents=True, exist_ok=True)
+    datos = {"version": 1}
+    datos.update(cfg)
+    (d / "training.json").write_text(json.dumps(datos), encoding="utf-8")
+    return d / "training.json"
+
+
+def _filas(proj, que, verbose=False):
+    b = doctor.bloque_capacidades(None, str(proj), verbose=verbose)
+    return [l for l in b["lineas"] if l["que"] == que]
+
+
+def test_t10_sin_training_json_doctor_no_reporta_nada_de_la_capacidad(tmp_path):
+    proj = proyecto(tmp_path)
+    antes = sorted(os.listdir(str(proj)))
+    assert _filas(proj, "training") == []
+    inf = diag(proj)
+    lineas = [l for b in inf["bloques"] for l in b["lineas"]]
+    assert not [l for l in lineas if "training" in f"{l['que']} {l['detalle']} {l['arreglo']}"]
+    assert sorted(os.listdir(str(proj))) == antes
+
+
+def test_t10_training_desactivado_con_fichero_es_informativo(tmp_path):
+    proj = proyecto(tmp_path)
+    _training_json(proj, enabled=False, root="../store", id_prefix="geo")
+    [l] = _filas(proj, "training")
+    assert l["estado"] == doctor.INFO and l["detalle"] == "desactivado"
+
+
+def test_t10_training_activo_informa_recuento_y_dataset_sin_bloquear(tmp_path):
+    proj = proyecto(tmp_path)
+    _training_json(proj, enabled=True, root="../store", id_prefix="geo")
+    v = tmp_path / "store" / "cases" / "ramp.steep" / "v001"
+    ejemplo = os.path.join(ROOT, "skills", "training-data-services", "assets", "case-store-example",
+                           "cases", "ramp.steep", "v002")
+    import shutil
+    shutil.copytree(ejemplo, str(v))
+    (v / "metadata.json").write_text(json.dumps({"case_id": "geo-ramp.steep", "family": "ramp", "variant": "steep",
+                                                  "version": 1, "created_at": "2026-09-23T10:00:00Z",
+                                                  "outcome": "success"}), encoding="utf-8")
+    [l] = _filas(proj, "training")
+    assert l["estado"] == doctor.INFO
+    assert "approved 1" in l["detalle"] and "(1 versiones)" in l["detalle"]
+    assert "dataset: desactualizado" in l["detalle"]
+    assert doctor.diagnostico(str(proj))["exit"] in (0, 1)
+    assert not [x for x in diag(proj)["bloques"] for y in x["lineas"]
+                if y["que"] == "training" and y["estado"] == doctor.ERROR]
+
+
+def test_t10_training_config_invalida_es_error_con_fichero_y_campo(tmp_path):
+    proj = proyecto(tmp_path)
+    ruta = _training_json(proj, enabled=True, root="../store")          # sin id_prefix
+    [l] = _filas(proj, "training")
+    assert l["estado"] == doctor.ERROR
+    assert "training.json" in l["detalle"] and "id_prefix" in l["detalle"]
+    assert "training.json" in l["arreglo"]
+    assert ruta.exists() and not (tmp_path / "store").exists()
+
+
+def test_t10_doctor_py_no_nombra_ninguna_capacidad_concreta():
+    """CA-14: la capacidad llega por el registro; `doctor.py` no tiene codigo de `training`."""
+    with open(SCRIPT, encoding="utf-8") as f:
+        assert "training" not in f.read()

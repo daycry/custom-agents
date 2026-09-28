@@ -223,6 +223,35 @@ def _cargar_case_schema():
     return mod
 
 
+TRAINING_PLAZO_S = 2.0   # T-10: tope del recuento del case store en `/doctor` (medido: 10^4 versiones
+                         # tardan 10,7 s en caliente y > 70 s en frio en Windows; pasado el tope, PARCIAL)
+_TDS = {}
+
+
+def _cargar_tds():
+    """`{"rec": case-recorder.py, "asm": dataset-assembler.py}` de la skill `training-data-services`
+    (los lectores seguros del case store y la frescura del dataset: fuente UNICA, T-10), memoizado por
+    proceso. None si la skill no viaja (paquete parcial) o no carga: el recuento degrada con aviso."""
+    if "mods" not in _TDS:
+        base = os.path.normpath(os.path.join(HERE, "..", "..", "skills", "training-data-services", "scripts"))
+        ruta = os.path.join(base, "dataset-assembler.py")
+        mods = None
+        if os.path.isfile(ruta):
+            previo = sys.dont_write_bytecode
+            sys.dont_write_bytecode = True      # `/doctor` solo lee: ni un `__pycache__` en el plugin
+            try:
+                spec = importlib.util.spec_from_file_location("tds_dataset_assembler_cap", ruta)
+                asm = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(asm)
+                mods = {"rec": asm.rec, "asm": asm}
+            except Exception:   # noqa: BLE001 — una skill rota no tumba /doctor ni /setup
+                mods = None
+            finally:
+                sys.dont_write_bytecode = previo
+        _TDS["mods"] = mods
+    return _TDS["mods"]
+
+
 def _estado_training(root):
     """(config|None, ruta|None, errores, validado) del `training.json` de `root`. Solo lee un JSON
     local: sin red, sin crear nada (CA-01, CA-07). `validado` es False si falta `case_schema.py`."""
@@ -270,13 +299,48 @@ def _training_health(root):
     return {"estado": "ok", "root": store, "detalle": f"case store en `{store}`"}
 
 
+_TEXTO_DATASET = {"sin_gold": "sin Gold", "sin_export": "desactualizado", "desactualizado": "desactualizado",
+                  "al_dia": "al dia", "no_verificable": "no verificable"}
+
+
+def _texto_recuento(res, ds):
+    """Texto de `/doctor` del recuento del case store (T-10) a partir de `resumen_store` del recorder
+    y `estado_dataset` del ensamblador (los veredictos son suyos; aqui solo se formatean)."""
+    estados = " · ".join(f"{k} {n}" for k, n in res["por_estado"].items())
+    partes = [f"casos: {estados} ({res['versiones']} versiones)",
+              f"incompletas {res['incompletas']} · temporales huerfanos {res['huerfanos']}"
+              + (f" · otros avisos {res['otros_avisos']}" if res["otros_avisos"] else "")
+              + (f" · en curso {res['en_curso']}" if res["en_curso"] else "")]
+    if res["truncado"]:
+        partes.append(f"recuento PARCIAL: {res['casos_vistos']} de {res['casos_total']} casos (tope de "
+                      f"{res['plazo_s']:g} s; el total lo da `case-recorder.py index check`)")
+    dataset = f"dataset: {_TEXTO_DATASET.get(ds['estado'], ds['estado'])} ({ds['motivo']})"
+    if ds["incompletos"]:
+        dataset += f" · {ds['incompletos']} export(s) incompleto(s)"
+    if res["truncado"]:
+        dataset += " [parcial: solo lo recorrido]"
+    partes.append(dataset)
+    return " · ".join(partes)
+
+
 def _training_doctor(root):
     salud = _training_health(root)
     if salud["estado"] == "deshabilitado":
         return "training: deshabilitado (sin training.json o enabled: false)"
     if salud["estado"] == "error":
         return f"training: {salud['detalle']} — corrige `{salud['fichero']}`"
-    return f"training: {salud['estado']} — {salud.get('detalle', '')}".rstrip(" —")
+    base = f"training: {salud['estado']} — {salud.get('detalle', '')}".rstrip(" —")
+    if salud["estado"] != "ok":
+        return base
+    tds = _cargar_tds()
+    if tds is None:
+        return f"{base} · recuento no disponible (sin los scripts de la skill training-data-services)"
+    try:
+        res = tds["rec"].resumen_store(salud["root"], root or ".", plazo_s=TRAINING_PLAZO_S)
+        ds = tds["asm"].estado_dataset(salud["root"], res["gold_mtime_ns"])
+    except Exception as e:   # noqa: BLE001 — informar nunca bloquea (CA-07)
+        return f"{base} · recuento no disponible ({type(e).__name__})"
+    return f"{base} · {_texto_recuento(res, ds)}"
 
 
 REGISTRO = [

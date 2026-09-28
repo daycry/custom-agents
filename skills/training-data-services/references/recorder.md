@@ -74,6 +74,14 @@ temporal reciente; y un caso que agotó los números de versión. Bajo
 escritura muy intensa, `check` puede reportar un **falso positivo** transitorio que un segundo
 `check` ya no ve.
 
+**Resumen para `/doctor` (`resumen_store`, T-10).** De solo lectura, sin bloqueos ni red: recorre
+`cases/` con los mismos lectores seguros (nunca el índice) y devuelve el recuento por estado
+(`pending`/`approved`/`needs_changes`/`rejected`), las versiones incompletas, los temporales
+huérfanos y el `mtime` del `validation.json` Gold más reciente. Va **acotado en tiempo**
+(`RESUMEN_PLAZO_S` = 2 s; medido en Windows: 10⁴ versiones tardan 10,7 s en caliente y más de 70 s en
+frío): pasado el tope corta entre casos o entre versiones y lo declara (`truncado`, «N de M casos»);
+el total exacto lo da `index check`.
+
 ## Qué se redacta y concurrencia
 
 - Se redacta todo texto libre que se escribe: `request`, `context`, `constraints`, `trajectory`

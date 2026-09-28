@@ -109,6 +109,13 @@ python3 scripts/dataset-assembler.py --benchmark <family>[,<family>…] [--umbra
 El plugin **no** entrena, no sirve modelos y no corre el benchmark (CA-08): el proyecto usa los JSONL
 con su herramienta.
 
+**Frescura del dataset para `/doctor` (`estado_dataset`, T-10).** Solo lectura: un export cuenta si
+es un directorio real de `exports/` (sin seguir enlaces) con un `manifest.json` regular; sin él está
+**incompleto** y no vale como último. Estados: `sin_gold`, `sin_export` (hay Gold y ningún export),
+`desactualizado` (el `validation.json` Gold más reciente es posterior al `manifest.json` del último
+export), `al_dia` o `no_verificable` (`exports/` es un enlace). Compara `mtime`: un Gold que deja de
+serlo tras exportar no se ve aquí (sí con `--dry-run`).
+
 ## Proponer un caso Gold al Curator (`scripts/propose-from-case.py`, CA-05)
 
 ```text

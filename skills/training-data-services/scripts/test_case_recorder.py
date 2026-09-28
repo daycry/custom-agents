@@ -5559,3 +5559,102 @@ def test_f3fix2_135_abrir_lectura_de_un_regular_lee_igual():
             assert os.get_blocking(f.fileno()) is True
     with pytest.raises(OSError):
         rec._abrir_lectura(HERE)
+
+
+# ------------------------------------------------------------------ T-10: resumen del store para /doctor
+
+def _store_con_estados(tmp_path):
+    """Un caso por estado (`pending`, `approved` x2, `needs_changes`, `rejected`) en familias distintas."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    for fam, estado in (("a", None), ("b", "approved"), ("c", "approved"), ("d", "needs_changes"), ("e", "rejected")):
+        r = rec.grabar(_caso(family=fam, case_id=f"geo-{fam}.steep"), cfg, raiz)
+        if estado:
+            rec.cambiar_estado(r["case_id"], r["version"], estado, cfg, raiz,
+                               approved_by_human=estado == "approved")
+    return raiz, cfg, store
+
+
+def test_t10_resumen_cuenta_por_estado_desde_cases_nunca_desde_el_indice(tmp_path):
+    raiz, _cfg, store = _store_con_estados(tmp_path)
+    # el indice es una cache: aunque MIENTA (todo `rejected`, un caso que no existe, una linea rota) no cuenta
+    lineas = (store / rec.INDICE).read_text(encoding="utf-8").splitlines()
+    falsas = [dict(json.loads(l), status="rejected") for l in lineas]
+    falsas.append(dict(falsas[0], case_id="geo-zz.steep", family="zz"))
+    (store / rec.INDICE).write_text("".join(json.dumps(x) + "\n" for x in falsas) + '{"roto"\n', encoding="utf-8")
+    r = rec.resumen_store(str(store), raiz)
+    assert r["por_estado"] == {"pending": 1, "approved": 2, "needs_changes": 1, "rejected": 1}
+    assert r["versiones"] == 5 and r["truncado"] is False
+    assert r["casos_vistos"] == r["casos_total"] == 5
+    assert r["incompletas"] == 0 and r["huerfanos"] == 0
+
+
+def test_t10_resumen_informa_incompletas_y_temporales_huerfanos(tmp_path):
+    raiz, _cfg, store = _store_con_estados(tmp_path)
+    os.remove(str(store / "cases" / "a.steep" / "v001" / "metadata.json"))
+    (store / "cases" / f"{rec.PREFIJO_TEMPORAL}resto").write_text("x", encoding="utf-8")
+    _envejecer(store)
+    viejo = time.time() - 3600
+    os.utime(str(store / "cases" / f"{rec.PREFIJO_TEMPORAL}resto"), (viejo, viejo))
+    r = rec.resumen_store(str(store), raiz)
+    assert r["incompletas"] == 1 and r["huerfanos"] == 1
+    assert r["por_estado"]["pending"] == 0 and r["versiones"] == 4
+
+
+def test_t10_resumen_gold_mtime_es_el_del_validation_mas_reciente_de_un_gold(tmp_path):
+    raiz, _cfg, store = _store_con_estados(tmp_path)
+    b = store / "cases" / "b.steep" / "v001" / "validation.json"
+    d = store / "cases" / "d.steep" / "v001" / "validation.json"
+    os.utime(str(b), ns=(1_700_000_000_000_000_000,) * 2)
+    os.utime(str(store / "cases" / "c.steep" / "v001" / "validation.json"), ns=(1_600_000_000_000_000_000,) * 2)
+    os.utime(str(d), ns=(1_900_000_000_000_000_000,) * 2)            # no Gold: no cuenta
+    r = rec.resumen_store(str(store), raiz)
+    assert r["gold_mtime_ns"] == 1_700_000_000_000_000_000
+
+
+def test_t10_resumen_sin_gold_ni_store(tmp_path):
+    raiz, _cfg, store = _proyecto(tmp_path)
+    r = rec.resumen_store(str(store), raiz)
+    assert r["versiones"] == 0 and r["gold_mtime_ns"] is None and r["truncado"] is False
+
+
+def test_t10_resumen_se_acota_en_tiempo_y_lo_declara(tmp_path, monkeypatch):
+    """Con un store grande `/doctor` no se queda minutos recorriendolo: pasado `plazo_s`, corta y
+    dice cuanto ha visto (recuento PARCIAL, nunca un total inventado)."""
+    raiz, _cfg, store = _store_con_estados(tmp_path)
+    reloj = iter(range(0, 10_000))
+    monkeypatch.setattr(rec, "_crono", lambda: next(reloj))
+    r = rec.resumen_store(str(store), raiz, plazo_s=3)
+    assert r["truncado"] is True and r["plazo_s"] == 3
+    assert 0 < r["casos_vistos"] < r["casos_total"] == 5
+    assert sum(r["por_estado"].values()) == r["versiones"] < 5
+    r0 = rec.resumen_store(str(store), raiz, plazo_s=0)
+    assert r0["truncado"] is True and r0["casos_vistos"] == 0 and r0["versiones"] == 0
+
+
+def test_t10_resumen_corta_entre_casos_aunque_no_tengan_versiones(tmp_path, monkeypatch):
+    """El tope se comprueba ANTES de cada caso, no solo por version: un store con muchos directorios de
+    caso vacios (o solo con enlaces) tambien se corta."""
+    raiz, _cfg, store = _proyecto(tmp_path)
+    for i in range(6):
+        (store / "cases" / f"f{i}.steep").mkdir(parents=True)
+    reloj = iter(range(0, 10_000))
+    monkeypatch.setattr(rec, "_crono", lambda: next(reloj))
+    r = rec.resumen_store(str(store), raiz, plazo_s=3)
+    assert r["truncado"] is True and 0 < r["casos_vistos"] < r["casos_total"] == 6
+
+
+def test_t10_resumen_corta_tambien_dentro_de_un_caso_con_muchas_versiones(tmp_path, monkeypatch):
+    raiz, cfg, store = _proyecto(tmp_path)
+    for _ in range(4):
+        rec.grabar(_caso(), cfg, raiz)
+    reloj = iter(range(0, 10_000))
+    monkeypatch.setattr(rec, "_crono", lambda: next(reloj))
+    r = rec.resumen_store(str(store), raiz, plazo_s=3)
+    assert r["truncado"] is True and r["casos_vistos"] == 0 and 0 < r["versiones"] < 4
+
+
+def test_t10_resumen_no_escribe_nada(tmp_path):
+    raiz, _cfg, store = _store_con_estados(tmp_path)
+    antes = _bytes_del_store(store)
+    rec.resumen_store(str(store), raiz)
+    assert _bytes_del_store(store) == antes

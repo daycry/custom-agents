@@ -206,7 +206,15 @@ su salud es la de `taxonomy.json`, con o sin fichero de proyecto) y `kwipu` (act
 `markdown-export`, no el registro). `training-data-services` añade `training` (activa solo con
 `.claude/knowledge-services/training.json` válido y `enabled: true`; valida con el `case_schema.py`
 de la skill, sin red: `deshabilitado` sin fichero, ❌ con fichero y campo si es inválido,
-`declarado`/`ok` según exista el `root` del case store; informar nunca lo crea).
+`declarado`/`ok` según exista el `root` del case store; informar nunca lo crea). Con el store
+presente, su texto `doctor` añade (T-10, CA-07) el **recuento de casos por estado**
+(`pending`/`approved`/`needs_changes`/`rejected`, leído de `cases/` con los lectores seguros del
+recorder —`resumen_store`—, nunca del índice), las versiones incompletas y los temporales huérfanos
+y la **frescura del dataset** (`estado_dataset` del ensamblador: sin Gold, ningún export,
+desactualizado si hay un Gold más nuevo que el `manifest.json` del último export, o al día). Sin red,
+sin escribir nada y **acotado en tiempo** (`TRAINING_PLAZO_S` = 2 s: medido, 10⁴ versiones tardan
+10,7 s en caliente y más de 70 s en frío en Windows); pasado el tope el recuento se declara
+**PARCIAL** («N de M casos»), nunca un total inventado.
 
 `/doctor` (T-09) añade un bloque **«Capacidades opcionales»**, genérico también: una fila por
 capacidad de `enumerar(root)`, sin ninguna cadena específica de capacidad en `doctor.py` (config

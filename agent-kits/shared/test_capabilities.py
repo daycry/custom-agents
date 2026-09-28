@@ -355,3 +355,183 @@ def test_f1fix1_gap07_training_root_con_tilde_es_error(tmp_path):
     t = _cap_training(root)
     assert t["health"]["estado"] == "error" and "root" in t["health"]["detalle"]
     assert not (tmp_path / "~").exists()
+
+
+# ------------------------------------------------------------------ T-10: `/doctor` informa el estado del case store
+
+import copy  # noqa: E402
+
+_CASO = {
+    "family": "ramp", "variant": "steep", "request": "Genera una rampa", "context": {"text": "vacia"},
+    "constraints": {}, "metrics": {"score": 1}, "outcome": "success", "artifacts": [],
+    "trajectory": [{"role": "user", "content": "Genera una rampa"}, {"role": "assistant", "content": "Hecho."}],
+}
+
+
+def _tds():
+    tds = cap_mod._cargar_tds()
+    assert tds is not None, "la skill training-data-services viaja con el repo"
+    return tds
+
+
+def _proyecto_training(tmp_path, estados=("pending", "approved", "approved", "needs_changes", "rejected")):
+    """Proyecto con `training.json` activo (`root: ../store`) y un caso por estado (familias distintas)."""
+    proj = tmp_path / "proj"
+    proj.mkdir()
+    cfg = {"version": 1, "enabled": True, "root": "../store", "id_prefix": "geo"}
+    _training(str(proj), **{k: v for k, v in cfg.items() if k != "version"})
+    rec = _tds()["rec"]
+    for i, estado in enumerate(estados):
+        caso = copy.deepcopy(_CASO)
+        caso["family"] = f"f{i}"
+        r = rec.grabar(caso, cfg, str(proj))
+        if estado != "pending":
+            rec.cambiar_estado(r["case_id"], r["version"], estado, cfg, str(proj),
+                               approved_by_human=estado == "approved")
+    return str(proj), cfg, tmp_path / "store"
+
+
+def _arbol(d):
+    out = {}
+    for base, dirs, fs in os.walk(str(d)):
+        for n in dirs + fs:
+            p = os.path.join(base, n)
+            st = os.lstat(p)
+            out[os.path.relpath(p, str(d))] = (st.st_size, st.st_mtime_ns)
+    return out
+
+
+def test_t10_training_doctor_informa_root_recuento_por_estado_y_dataset(tmp_path):
+    proj, _cfg, store = _proyecto_training(tmp_path)
+    t = _cap_training(proj)
+    assert t["enabled"] is True and t["health"]["estado"] == "ok"
+    txt = t["doctor"]
+    assert str(store) in txt or os.path.normcase(str(store)) in os.path.normcase(txt)
+    assert "pending 1 · approved 2 · needs_changes 1 · rejected 1 (5 versiones)" in txt
+    assert "incompletas 0" in txt and "temporales huerfanos 0" in txt
+    assert "dataset: desactualizado" in txt and "ningun export" in txt
+    assert "PARCIAL" not in txt
+
+
+def test_t10_training_doctor_dataset_al_dia_tras_exportar(tmp_path):
+    proj, cfg, store = _proyecto_training(tmp_path, estados=("approved",))
+    exp = store / "exports" / "20260928-aaaaaaaaaaaa"
+    exp.mkdir(parents=True)
+    (exp / "manifest.json").write_text("{}", encoding="utf-8")
+    os.utime(str(exp / "manifest.json"), ns=(4_000_000_000_000_000_000,) * 2)
+    txt = _cap_training(proj)["doctor"]
+    assert "dataset: al dia" in txt and "20260928-aaaaaaaaaaaa" in txt
+
+
+def test_t10_training_doctor_sin_gold_no_hay_dataset_que_exportar(tmp_path):
+    proj, _cfg, _store = _proyecto_training(tmp_path, estados=("pending", "rejected"))
+    txt = _cap_training(proj)["doctor"]
+    assert "dataset: sin Gold" in txt
+
+
+def test_t10_training_doctor_recuento_parcial_declara_el_tope(tmp_path, monkeypatch):
+    proj, _cfg, _store = _proyecto_training(tmp_path)
+    monkeypatch.setattr(cap_mod, "TRAINING_PLAZO_S", 0.0)
+    txt = _cap_training(proj)["doctor"]
+    assert "recuento PARCIAL: 0 de 5 casos" in txt and "tope" in txt
+    assert "dataset:" in txt and "parcial" in txt.split("dataset:", 1)[1]
+
+
+def test_t10_training_doctor_sin_la_skill_degrada_sin_recuento(tmp_path, monkeypatch):
+    proj, _cfg, _store = _proyecto_training(tmp_path)
+    monkeypatch.setattr(cap_mod, "_cargar_tds", lambda: None)
+    t = _cap_training(proj)
+    assert t["health"]["estado"] == "ok" and "recuento no disponible" in t["doctor"]
+
+
+def test_t10_training_doctor_un_fallo_del_recuento_no_tumba_nada(tmp_path, monkeypatch):
+    proj, _cfg, _store = _proyecto_training(tmp_path)
+    tds = _tds()
+
+    def _roto(*_a, **_k):
+        raise OSError("disco raro")
+    monkeypatch.setattr(tds["rec"], "resumen_store", _roto)
+    monkeypatch.setattr(cap_mod, "_cargar_tds", lambda: tds)
+    resultado = {c["id"]: c for c in cap_mod.enumerar(proj)}
+    assert "recuento no disponible (OSError)" in resultado["training"]["doctor"]
+    assert resultado["knowledge-gate"]["health"]["estado"] == "ok"
+
+
+def test_t10_training_doctor_no_escribe_nada(tmp_path):
+    proj, _cfg, _store = _proyecto_training(tmp_path)
+    antes = _arbol(tmp_path)
+    _cap_training(proj)
+    assert _arbol(tmp_path) == antes
+
+
+def test_t10_training_cli_exit_0_con_config_invalida(tmp_path, capsys):
+    _training(str(tmp_path), enabled=True)                               # sin root ni id_prefix
+    assert cap_mod.main(["--root", str(tmp_path)]) == 0
+    out = capsys.readouterr().out
+    assert "training: enabled=False health=error" in out and "root" in out
+
+
+def test_t10_training_doctor_pasa_su_tope_de_tiempo_al_recuento(tmp_path, monkeypatch):
+    """El recuento va acotado: `capabilities` le pasa `TRAINING_PLAZO_S` (<= 2 s) al recorder."""
+    proj, _cfg, _store = _proyecto_training(tmp_path, estados=("approved",))
+    tds = _tds()
+    vistos = []
+    original = tds["rec"].resumen_store
+
+    def _espia(store, raiz=None, plazo_s=None):
+        vistos.append(plazo_s)
+        return original(store, raiz, plazo_s=plazo_s)
+    monkeypatch.setattr(tds["rec"], "resumen_store", _espia)
+    monkeypatch.setattr(cap_mod, "_cargar_tds", lambda: tds)
+    _cap_training(proj)
+    assert vistos == [cap_mod.TRAINING_PLAZO_S] and 0 < cap_mod.TRAINING_PLAZO_S <= 2.0
+
+
+def test_t10_cargar_tds_no_escribe_bytecode_y_restaura_el_flag(monkeypatch):
+    """`/doctor` solo lee: cargar los scripts de la skill no deja `__pycache__` en el plugin."""
+    vistos = []
+    original = cap_mod.importlib.util.spec_from_file_location
+
+    def _spec(nombre, ruta):
+        spec = original(nombre, ruta)
+        exec_original = spec.loader.exec_module
+
+        def _exec(mod):
+            vistos.append(sys.dont_write_bytecode)
+            return exec_original(mod)
+        spec.loader.exec_module = _exec
+        return spec
+    monkeypatch.setattr(cap_mod.importlib.util, "spec_from_file_location", _spec)
+    monkeypatch.setattr(cap_mod, "_TDS", {})
+    monkeypatch.setattr(sys, "dont_write_bytecode", False)
+    tds = cap_mod._cargar_tds()
+    assert tds is not None and vistos and all(vistos) and sys.dont_write_bytecode is False
+
+
+def test_t10_cargar_tds_skill_ausente_o_rota_es_none(tmp_path, monkeypatch):
+    monkeypatch.setattr(cap_mod, "_TDS", {})
+    monkeypatch.setattr(cap_mod, "HERE", str(tmp_path / "agent-kits" / "shared"))
+    assert cap_mod._cargar_tds() is None
+    d = tmp_path / "skills" / "training-data-services" / "scripts"
+    d.mkdir(parents=True)
+    (d / "dataset-assembler.py").write_text("raise RuntimeError('rota')\n", encoding="utf-8")
+    monkeypatch.setattr(cap_mod, "_TDS", {})
+    assert cap_mod._cargar_tds() is None
+
+
+def test_t10_setup_ofrece_training_desde_la_plantilla_sin_activar_el_puente():
+    """`/setup` 5-sexies ofrece `training` como las demas: desde `assets/training.example.json`, con
+    `root` fuera de `docs/knowledge/` e `id_prefix`, y `bridge_to_curator` nunca activado sin preguntar."""
+    repo = os.path.dirname(os.path.dirname(HERE))
+    with open(os.path.join(repo, "commands", "setup.md"), encoding="utf-8") as f:
+        paso = f.read().split("5-sexies.", 1)[1].split("\n6. ", 1)[0]
+    for literal in ("training.example.json", "training.json", "`root`", "`id_prefix`", "docs/knowledge/",
+                    "**`bridge_to_curator` queda en `false`**", "nunca lo actives sin preguntar",
+                    "case_schema.py config"):
+        assert literal in paso, literal
+    ejemplo = os.path.join(repo, "skills", "training-data-services", "assets", "training.example.json")
+    with open(ejemplo, encoding="utf-8") as f:
+        cfg = json.load(f)
+    assert cfg["bridge_to_curator"] is False and "docs/knowledge" not in cfg["root"] and cfg["id_prefix"]
+    cap = next(c for c in cap_mod.REGISTRO if c["id"] == "training")
+    assert "`root`" in cap["setup_step"] and "`id_prefix`" in cap["setup_step"]
