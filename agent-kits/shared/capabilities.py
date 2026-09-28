@@ -24,6 +24,7 @@ import json
 import importlib.util
 import os
 import sys
+import time
 
 # Consola no UTF-8 (Windows cp1252) o tuberías: reconfigurar ANTES de leer/imprimir (GOT-005).
 for _s in (sys.stdin, sys.stdout, sys.stderr):
@@ -34,14 +35,24 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 TAXONOMY_CONFIG_PATH = os.path.join(".claude", "knowledge-services", "taxonomy.json")
 
 
+def _cargar_por_ruta(nombre, ruta):
+    """Carga un script por RUTA sin dejar bytecode (#159): `/doctor` y `/setup` solo leen, y ninguna
+    carga de una capacidad deja un `__pycache__` en el plugin. Restaura el flag al salir."""
+    previo = sys.dont_write_bytecode
+    sys.dont_write_bytecode = True
+    try:
+        spec = importlib.util.spec_from_file_location(nombre, ruta)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
+    finally:
+        sys.dont_write_bytecode = previo
+
+
 def _cargar_knowledge_schema():
     """Carga knowledge-schema.py (T-01) desde el mismo directorio. Ver la misma nota de
     knowledge-index.py: ambos ficheros viajan siempre juntos en agent-kits/shared/."""
-    ruta = os.path.join(HERE, "knowledge-schema.py")
-    spec = importlib.util.spec_from_file_location("knowledge_schema", ruta)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
+    return _cargar_por_ruta("knowledge_schema", os.path.join(HERE, "knowledge-schema.py"))
 
 
 def _resolver(valor, root):
@@ -139,14 +150,29 @@ def _estado_taxonomia(root):
     return _CACHE_TAXONOMIA[clave]
 
 
-def enumerar(root=None, registro=None):
+_PLAZO = {}
+
+
+def plazo_restante(defecto):
+    """#164: el tope de tiempo que una capacidad puede gastar AHORA: el MENOR entre su `defecto` y lo
+    que queda del `plazo_s` de la `enumerar()` en curso (sin `plazo_s`, `defecto` tal cual; nunca < 0)."""
+    hasta = _PLAZO.get("hasta")
+    if hasta is None:
+        return defecto
+    return max(0.0, min(defecto, hasta - time.monotonic()))
+
+
+def enumerar(root=None, registro=None, plazo_s=None):
     """Lista de capacidades evaluadas sobre `root` (por defecto, cwd). Recorre `registro` (por
     defecto, el registro global `REGISTRO`) sin que el orden de fallos de una capacidad afecte
     a las demas. Memoiza la lectura de `taxonomy.json` durante esta llamada (gap 22): la cache se
-    vacia al entrar y al salir, asi que nunca se sirve una taxonomia obsoleta a otra llamada."""
+    vacia al entrar y al salir, asi que nunca se sirve una taxonomia obsoleta a otra llamada.
+    `plazo_s` (#164, opcional): el presupuesto que le queda a quien llama (`/doctor`); una capacidad
+    que tarda al evaluarse lo consulta con `plazo_restante()` y nunca se pasa de el."""
     root = root or "."
     destino = REGISTRO if registro is None else registro
     _CACHE_TAXONOMIA.clear()
+    _PLAZO["hasta"] = None if plazo_s is None else time.monotonic() + max(0.0, plazo_s)
     try:
         # `_evaluar_capacidad_sin_limpiar_cache`, no `evaluar_capacidad`: esta ultima vacia la
         # cache al entrar/salir (gap 32) y aqui se quiere compartirla entre TODAS las capacidades
@@ -154,6 +180,7 @@ def enumerar(root=None, registro=None):
         return [_evaluar_capacidad_sin_limpiar_cache(cap, root) for cap in destino]
     finally:
         _CACHE_TAXONOMIA.clear()
+        _PLAZO.pop("hasta", None)
 
 
 # ---------------------------------------------------------------- capacidades del registro base
@@ -217,10 +244,7 @@ def _cargar_case_schema():
                                          "scripts", "case_schema.py"))
     if not os.path.isfile(ruta):
         return None
-    spec = importlib.util.spec_from_file_location("tds_case_schema", ruta)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
+    return _cargar_por_ruta("tds_case_schema", ruta)                  # #159: sin `__pycache__`
 
 
 TRAINING_PLAZO_S = 2.0   # T-10: tope del recuento del case store en `/doctor` (medido: 10^4 versiones
@@ -237,17 +261,11 @@ def _cargar_tds():
         ruta = os.path.join(base, "dataset-assembler.py")
         mods = None
         if os.path.isfile(ruta):
-            previo = sys.dont_write_bytecode
-            sys.dont_write_bytecode = True      # `/doctor` solo lee: ni un `__pycache__` en el plugin
-            try:
-                spec = importlib.util.spec_from_file_location("tds_dataset_assembler_cap", ruta)
-                asm = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(asm)
+            try:                                # `/doctor` solo lee: ni un `__pycache__` en el plugin
+                asm = _cargar_por_ruta("tds_dataset_assembler_cap", ruta)
                 mods = {"rec": asm.rec, "asm": asm}
             except Exception:   # noqa: BLE001 — una skill rota no tumba /doctor ni /setup
                 mods = None
-            finally:
-                sys.dont_write_bytecode = previo
         _TDS["mods"] = mods
     return _TDS["mods"]
 
@@ -282,11 +300,22 @@ def _training_root(root, config):
     return destino if os.path.isabs(destino) else os.path.abspath(os.path.join(root or ".", destino))
 
 
+def _texto(ruta):
+    """#153 (CWE-150): una ruta o nombre del store en la salida de la capacidad, ESCAPADA igual que en
+    la skill (`case-recorder._texto_ruta`: `ascii()` si tiene algo no ASCII o no imprimible —bidi
+    U+202E, CSI U+009B—); sin la skill, la misma regla aqui."""
+    tds = _cargar_tds()
+    if tds is not None:
+        return tds["rec"]._texto_ruta(ruta)
+    texto = str(ruta)
+    return texto if texto.isascii() and texto.isprintable() else ascii(texto)
+
+
 def _training_health(root):
     config, ruta, errores, validado = _estado_training(root)
     if errores:
         detalle = "; ".join(f"{e['campo']}: {e['mensaje']}" for e in errores)
-        return {"estado": "error", "detalle": detalle, "fichero": ruta or TRAINING_CONFIG_PATH}
+        return {"estado": "error", "detalle": detalle, "fichero": _texto(ruta) if ruta else TRAINING_CONFIG_PATH}
     if not config or config.get("enabled") is not True:
         return {"estado": "deshabilitado"}
     if not validado:
@@ -295,12 +324,12 @@ def _training_health(root):
     store = _training_root(root, config)
     if not os.path.isdir(store):
         return {"estado": "declarado", "root": store,
-                "detalle": f"el case store `{store}` aun no existe (lo crea el recorder al grabar)"}
-    return {"estado": "ok", "root": store, "detalle": f"case store en `{store}`"}
+                "detalle": f"el case store `{_texto(store)}` aun no existe (lo crea el recorder al grabar)"}
+    return {"estado": "ok", "root": store, "detalle": f"case store en `{_texto(store)}`"}
 
 
 _TEXTO_DATASET = {"sin_gold": "sin Gold", "sin_export": "desactualizado", "desactualizado": "desactualizado",
-                  "al_dia": "al dia", "no_verificable": "no verificable"}
+                  "al_dia": "al dia", "no_verificable": "no verificable", "parcial": "no verificado (PARCIAL)"}
 
 
 def _texto_recuento(res, ds):
@@ -309,15 +338,19 @@ def _texto_recuento(res, ds):
     estados = " · ".join(f"{k} {n}" for k, n in res["por_estado"].items())
     partes = [f"casos: {estados} ({res['versiones']} versiones)",
               f"incompletas {res['incompletas']} · temporales huerfanos {res['huerfanos']}"
+              + (f" · demasiado grandes {res['grandes']} (sin leer)" if res.get("grandes") else "")
               + (f" · otros avisos {res['otros_avisos']}" if res["otros_avisos"] else "")
               + (f" · en curso {res['en_curso']}" if res["en_curso"] else "")]
     if res["truncado"]:
-        partes.append(f"recuento PARCIAL: {res['casos_vistos']} de {res['casos_total']} casos (tope de "
+        total = f"al menos {res['casos_total']}" if res.get("listado_parcial") else f"{res['casos_total']}"
+        partes.append(f"recuento PARCIAL: {res['casos_vistos']} de {total} casos (tope de "
                       f"{res['plazo_s']:g} s; el total lo da `case-recorder.py index check`)")
     dataset = f"dataset: {_TEXTO_DATASET.get(ds['estado'], ds['estado'])} ({ds['motivo']})"
-    if ds["incompletos"]:
-        dataset += f" · {ds['incompletos']} export(s) incompleto(s)"
-    if res["truncado"]:
+    for clave, que in (("incompletos", "export(s) incompleto(s)"), ("en_curso", "export(s) en curso"),
+                       ("otros", "entrada(s) de exports/ que no son un export")):
+        if ds.get(clave):
+            dataset += f" · {ds[clave]} {que}"
+    if res["truncado"] and ds["estado"] != "parcial":
         dataset += " [parcial: solo lo recorrido]"
     partes.append(dataset)
     return " · ".join(partes)
@@ -336,8 +369,8 @@ def _training_doctor(root):
     if tds is None:
         return f"{base} · recuento no disponible (sin los scripts de la skill training-data-services)"
     try:
-        res = tds["rec"].resumen_store(salud["root"], root or ".", plazo_s=TRAINING_PLAZO_S)
-        ds = tds["asm"].estado_dataset(salud["root"], res["gold_mtime_ns"])
+        res = tds["rec"].resumen_store(salud["root"], root or ".", plazo_s=plazo_restante(TRAINING_PLAZO_S))
+        ds = tds["asm"].estado_dataset(salud["root"], res["gold"], hasta=res["hasta"], parcial=res["truncado"])
     except Exception as e:   # noqa: BLE001 — informar nunca bloquea (CA-07)
         return f"{base} · recuento no disponible ({type(e).__name__})"
     return f"{base} · {_texto_recuento(res, ds)}"

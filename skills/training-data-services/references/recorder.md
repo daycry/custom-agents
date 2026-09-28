@@ -77,10 +77,16 @@ escritura muy intensa, `check` puede reportar un **falso positivo** transitorio 
 **Resumen para `/doctor` (`resumen_store`, T-10).** De solo lectura, sin bloqueos ni red: recorre
 `cases/` con los mismos lectores seguros (nunca el índice) y devuelve el recuento por estado
 (`pending`/`approved`/`needs_changes`/`rejected`), las versiones incompletas, los temporales
-huérfanos y el `mtime` del `validation.json` Gold más reciente. Va **acotado en tiempo**
-(`RESUMEN_PLAZO_S` = 2 s; medido en Windows: 10⁴ versiones tardan 10,7 s en caliente y más de 70 s en
-frío): pasado el tope corta entre casos o entre versiones y lo declara (`truncado`, «N de M casos»);
-el total exacto lo da `index check`.
+huérfanos (también los de DENTRO de una versión, como `index check`, #149), las versiones con un
+`metadata.json`/`validation.json` por encima de `TOPE_FICHERO` (16 MiB: se mira el `st_size` del
+descriptor antes de leer y no se cargan, #148) y los Gold vigentes con su `content_hash` (para la
+frescura por contenido, #154). Cada categoría sale de un **código** que acompaña al aviso, nunca de su
+texto (que incluye nombres que elige un tercero, #157). Va **acotado en tiempo** (`RESUMEN_PLAZO_S` =
+2 s; medido en Windows: 10⁴ versiones tardan 10,7 s en caliente y más de 70 s en frío): pasado el tope
+corta entre casos, entre versiones o a mitad del listado de la raíz o de `cases/` (#152, «al menos N»)
+y lo declara (`truncado`, «N de M casos»; un caso omitido por enlace también cuenta como visto, #155);
+los reintentos de los lectores ante un bloqueo tampoco pasan del plazo (#163). El total exacto lo da
+`index check`.
 
 ## Qué se redacta y concurrencia
 

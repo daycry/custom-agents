@@ -1626,6 +1626,16 @@ def _optin_sin_configurar(project, cap):
     return not os.path.exists(ruta if os.path.isabs(ruta) else os.path.join(project, ruta))
 
 
+def _acepta_plazo(fn):
+    """#164: `enumerar` admite `plazo_s` (registros anteriores no: se les llama sin el)."""
+    import inspect
+    try:
+        params = inspect.signature(fn).parameters
+    except (TypeError, ValueError):
+        return False
+    return "plazo_s" in params or any(p.kind is inspect.Parameter.VAR_KEYWORD for p in params.values())
+
+
 def bloque_capacidades(plugin_root, project, verbose=False):
     cap_mod = _cargar_capabilities(plugin_root)
     if cap_mod is None:
@@ -1633,7 +1643,14 @@ def bloque_capacidades(plugin_root, project, verbose=False):
                 "lineas": [linea(INFO, "capacidades opcionales", "`capabilities.py` no disponible",
                                  "instalación parcial: reinstala el plugin o comprueba `agent-kits/shared/`")]}
     backends_mod, backends_dir = _cargar_backends_loader(plugin_root)
-    capacidades = cap_mod.enumerar(project)
+    # #164 (regla GENERICA del contrato): el reloj del presupuesto TOTAL arranca ANTES de `enumerar()`
+    # —una capacidad puede tardar al evaluarse (un recuento acotado)— y, si el registro lo acepta,
+    # `enumerar()` recibe como `plazo_s` el presupuesto del bloque; lo que gaste cuenta para el resto.
+    inicio = time.monotonic()
+    if _acepta_plazo(cap_mod.enumerar):
+        capacidades = cap_mod.enumerar(project, plazo_s=CAPACIDADES_PRESUPUESTO_S)
+    else:
+        capacidades = cap_mod.enumerar(project)
     if not capacidades:
         return {"clave": "capacidades", "titulo": "Capacidades opcionales",
                 "lineas": [linea(INFO, "capacidades opcionales", "sin capacidades registradas")]}
@@ -1651,7 +1668,6 @@ def bloque_capacidades(plugin_root, project, verbose=False):
     # transcurrido REAL, no el tope nominal configurado (pueden diferir si una sola capacidad
     # lenta ya lo rebasó por sí sola).
     ls = []
-    inicio = time.monotonic()
     recortado = 0
     for i, cap in enumerate(capacidades):
         transcurrido_s = time.monotonic() - inicio
@@ -2242,4 +2258,9 @@ def main(argv=None):
 
 
 if __name__ == "__main__":
+    # #159 (regla GENERICA): `/doctor` solo lee; ninguna carga por ruta que haga durante el diagnostico
+    # (capacidades, journal y lo que estos carguen despues, perezosamente) deja un `__pycache__` en el plugin,
+    # tampoco los scripts que lanza como subproceso (heredan `PYTHONDONTWRITEBYTECODE`).
+    sys.dont_write_bytecode = True
+    os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
     sys.exit(main())

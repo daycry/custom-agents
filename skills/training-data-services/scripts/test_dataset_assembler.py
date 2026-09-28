@@ -1271,19 +1271,26 @@ def test_t09_135_sha_de_un_fichero_del_export_no_se_bloquea_en_un_fifo(tmp_path,
 
 # ------------------------------------------------------------------ T-10: frescura del dataset para /doctor
 
-def _ns(store, *partes):
-    return os.lstat(os.path.join(str(store), *partes)).st_mtime_ns
+def _vigentes(store, raiz):
+    """Los Gold vigentes (`(case_id, version) -> content_hash`) tal como los ve `/doctor`."""
+    return rec.resumen_store(str(store), raiz)["gold"]
+
+
+def _viejo(ruta, segundos=3600):
+    t = time.time() - segundos
+    os.utime(str(ruta), (t, t))
 
 
 def test_t10_estado_dataset_sin_gold_no_hay_nada_que_exportar(tmp_path):
     _raiz, _cfg, store = _proyecto(tmp_path)
-    d = asm.estado_dataset(str(store), None)
-    assert d["estado"] == "sin_gold" and d["exports"] == 0 and d["ultimo"] is None
+    for gold in (None, {}):
+        d = asm.estado_dataset(str(store), gold)
+        assert d["estado"] == "sin_gold" and d["exports"] == 0 and d["ultimo"] is None
 
 
 def test_t10_estado_dataset_con_gold_y_ningun_export_esta_desactualizado(tmp_path):
     raiz, cfg, store = _store_basico(tmp_path)
-    d = asm.estado_dataset(str(store), 1)
+    d = asm.estado_dataset(str(store), _vigentes(store, raiz))
     assert d["estado"] == "sin_export" and d["exports"] == 0 and "ningun export" in d["motivo"]
 
 
@@ -1291,10 +1298,10 @@ def test_t10_estado_dataset_al_dia_y_luego_desactualizado_por_un_gold_nuevo(tmp_
     raiz, cfg, store = _store_basico(tmp_path)
     r = _ensamblar(cfg, raiz)
     nombre = os.path.basename(r["ruta"])
-    m = _ns(store, "exports", nombre, "manifest.json")
-    d = asm.estado_dataset(str(store), m - 1)
+    d = asm.estado_dataset(str(store), _vigentes(store, raiz))
     assert d["estado"] == "al_dia" and d["exports"] == 1 and d["ultimo"] == nombre
-    d = asm.estado_dataset(str(store), m + 1)
+    _grabar(cfg, raiz, family="c", variant="x", request="escalera de caracol con barandilla de hierro forjado")
+    d = asm.estado_dataset(str(store), _vigentes(store, raiz))
     assert d["estado"] == "desactualizado" and d["ultimo"] == nombre and nombre in d["motivo"]
 
 
@@ -1303,8 +1310,11 @@ def test_t10_estado_dataset_un_export_sin_manifest_es_incompleto_y_no_cuenta(tmp
     (store / "exports" / "20260101-000000000000").mkdir(parents=True)
     (store / "exports" / "falso").mkdir()
     (store / "exports" / "falso" / "manifest.json").mkdir()          # no es un fichero regular
-    d = asm.estado_dataset(str(store), 1)
+    for n in ("20260101-000000000000", "falso"):
+        _viejo(store / "exports" / n)
+    d = asm.estado_dataset(str(store), _vigentes(store, raiz))
     assert d["estado"] == "sin_export" and d["exports"] == 0 and d["incompletos"] == 2
+    assert d["en_curso"] == 0 and d["otros"] == 0
 
 
 def test_t10_estado_dataset_no_sigue_enlaces(tmp_path):
@@ -1312,12 +1322,12 @@ def test_t10_estado_dataset_no_sigue_enlaces(tmp_path):
     r = _ensamblar(cfg, raiz, escribir=True)
     fuera = tmp_path / "fuera"
     (fuera / "x").mkdir(parents=True)
-    (fuera / "x" / "manifest.json").write_text("{}", encoding="utf-8")
+    (fuera / "x" / "manifest.json").write_text('{"casos": []}', encoding="utf-8")
     _enlazar_dir(fuera / "x", store / "exports" / "99999999-enlazado")
     os.utime(str(fuera / "x" / "manifest.json"), ns=(4_000_000_000_000_000_000,) * 2)
-    d = asm.estado_dataset(str(store), 3_000_000_000_000_000_000)
-    assert d["ultimo"] == os.path.basename(r["ruta"]) and d["estado"] == "desactualizado"
-    assert d["incompletos"] == 1
+    d = asm.estado_dataset(str(store), _vigentes(store, raiz))
+    assert d["ultimo"] == os.path.basename(r["ruta"]) and d["estado"] == "al_dia"
+    assert d["otros"] == 1 and d["incompletos"] == 0
 
 
 def test_t10_estado_dataset_exports_que_es_un_enlace_no_se_sigue(tmp_path):
@@ -1327,12 +1337,82 @@ def test_t10_estado_dataset_exports_que_es_un_enlace_no_se_sigue(tmp_path):
     (fuera / "x").mkdir(parents=True)
     (fuera / "x" / "manifest.json").write_text("{}", encoding="utf-8")
     _enlazar_dir(fuera, store / "exports")
-    d = asm.estado_dataset(str(store), 1)
+    d = asm.estado_dataset(str(store), {("geo-a.x", 1): None})
     assert d["estado"] == "no_verificable" and d["exports"] == 0 and "enlace" in d["motivo"]
 
 
 def test_t10_estado_dataset_no_escribe_nada(tmp_path):
     raiz, cfg, store = _store_basico(tmp_path)
     antes = sorted(os.listdir(str(store)))
-    asm.estado_dataset(str(store), 1)
+    asm.estado_dataset(str(store), _vigentes(store, raiz))
     assert sorted(os.listdir(str(store))) == antes and not (store / "exports").exists()
+
+
+# ------------------------------------------------------------------ T-10 fix1 (revision intento 1, Fase 4)
+
+def test_t10fix1_154_frescura_por_contenido_no_por_mtime(tmp_path):
+    """#154: re-aprobar un Gold ya aprobado (o un `touch`) no deja el dataset «desactualizado»; y
+    reensamblar el mismo dia («ya existe», sin escribir) no lo deja asi para siempre. Un Gold que
+    DEJA de serlo tras exportar si lo desactualiza (antes era un limite declarado)."""
+    raiz, cfg, store = _store_basico(tmp_path)
+    r = _ensamblar(cfg, raiz, escribir=True)
+    val = store / "cases" / "a.x" / "v001" / "validation.json"
+    os.utime(str(val), ns=(4_000_000_000_000_000_000,) * 2)                            # `touch`
+    d = asm.estado_dataset(str(store), _vigentes(store, raiz))
+    assert d["estado"] == "al_dia", d
+    r2 = _ensamblar(cfg, raiz, escribir=True)                                          # «ya existe»
+    assert r2["existente"] is True and r2["ruta"] == r["ruta"]
+    assert asm.estado_dataset(str(store), _vigentes(store, raiz))["estado"] == "al_dia"
+    rec.cambiar_estado("geo-a.x", 1, "approved", cfg, raiz, approved_by_human=True)     # re-aprobar
+    os.utime(str(val), ns=(4_000_000_000_000_000_000,) * 2)
+    assert asm.estado_dataset(str(store), _vigentes(store, raiz))["estado"] == "al_dia"
+    rec.cambiar_estado("geo-bench.x", 1, "rejected", cfg, raiz)                        # deja de ser Gold
+    d = asm.estado_dataset(str(store), _vigentes(store, raiz))
+    assert d["estado"] == "desactualizado" and "ya no es Gold" in d["motivo"], d
+
+
+def test_t10fix1_154_un_gold_cuyo_contenido_cambio_desactualiza(tmp_path):
+    raiz, cfg, store = _store_basico(tmp_path)
+    _ensamblar(cfg, raiz, escribir=True)
+    gold = _vigentes(store, raiz)
+    clave = sorted(k for k, h in gold.items() if h)[0]
+    gold[clave] = "0" * 64
+    d = asm.estado_dataset(str(store), gold)
+    assert d["estado"] == "desactualizado" and "contenido" in d["motivo"], d
+
+
+def test_t10fix1_154_con_recuento_parcial_solo_se_comprueba_lo_recorrido(tmp_path):
+    raiz, cfg, store = _store_basico(tmp_path)
+    _ensamblar(cfg, raiz, escribir=True)
+    gold = _vigentes(store, raiz)
+    parte = dict([sorted(gold.items())[0]])
+    assert asm.estado_dataset(str(store), parte, parcial=True)["estado"] == "al_dia"
+    assert asm.estado_dataset(str(store), parte)["estado"] == "desactualizado"
+
+
+def test_t10fix1_156_en_curso_incompleto_y_otros_son_categorias_distintas(tmp_path):
+    """#156: un fichero suelto en `exports/` no es un «export incompleto», ni lo es el directorio de un
+    export EN CURSO (reciente, o con `exports/.lock` tomado por otro ensamblador)."""
+    raiz, cfg, store = _store_basico(tmp_path)
+    ex = store / "exports"
+    (ex / "20260101-aaaaaaaaaaaa").mkdir(parents=True)                # en curso: recien creado
+    (ex / "20250101-bbbbbbbbbbbb").mkdir()                            # incompleto: viejo, sin manifest
+    _viejo(ex / "20250101-bbbbbbbbbbbb")
+    (ex / "notas.txt").write_text("x", encoding="utf-8")              # otros: no es un export
+    d = asm.estado_dataset(str(store), _vigentes(store, raiz))
+    assert (d["en_curso"], d["incompletos"], d["otros"]) == (1, 1, 1), d
+    _viejo(ex / "20260101-aaaaaaaaaaaa", 1800)                        # viejo, pero con el bloqueo tomado:
+    with rec._Bloqueo(str(ex), asm.BLOQUEO_EXPORTS):                  # el mas reciente sigue en curso
+        d = asm.estado_dataset(str(store), _vigentes(store, raiz))
+    assert (d["en_curso"], d["incompletos"], d["otros"]) == (1, 1, 1), d
+    d = asm.estado_dataset(str(store), _vigentes(store, raiz))        # bloqueo liberado: incompleto
+    assert (d["en_curso"], d["incompletos"], d["otros"]) == (0, 2, 1), d
+
+
+def test_t10fix1_152_el_recorrido_de_exports_va_dentro_del_plazo(tmp_path):
+    """#152 (CWE-400): con el plazo agotado, `exports/` no se recorre: «no verificado (PARCIAL)»."""
+    raiz, cfg, store = _store_basico(tmp_path)
+    for i in range(30):
+        (store / "exports" / f"2026010{i % 9}-{i:012d}").mkdir(parents=True)
+    d = asm.estado_dataset(str(store), _vigentes(store, raiz), hasta=rec._crono() - 1)
+    assert d["estado"] == "parcial" and "tope de tiempo" in d["motivo"] and d["exports"] == 0, d

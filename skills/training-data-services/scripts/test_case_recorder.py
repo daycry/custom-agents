@@ -5658,3 +5658,102 @@ def test_t10_resumen_no_escribe_nada(tmp_path):
     antes = _bytes_del_store(store)
     rec.resumen_store(str(store), raiz)
     assert _bytes_del_store(store) == antes
+
+
+# ------------------------------------------------------------------ T-10 fix1 (revision intento 1, Fase 4)
+
+def _gigante(ruta, tamano):
+    """Fichero DISPERSO de `tamano` bytes: se fija el tamaño (`truncate`) sin escribir los bytes."""
+    with open(str(ruta), "wb") as f:
+        f.truncate(tamano)
+
+
+def test_t10fix1_148_resumen_no_lee_un_fichero_por_encima_del_tope(tmp_path, monkeypatch):
+    """#148 (CWE-400/770): `resumen_store` aplica el tope por fichero (`st_size` del descriptor ANTES de
+    leer): un `metadata.json` o `validation.json` mayor cuenta la version como «demasiado grande» sin
+    cargarlo en memoria."""
+    import tracemalloc
+    raiz, _cfg, store = _store_con_estados(tmp_path)
+    monkeypatch.setattr(rec, "TOPE_FICHERO", 1024 * 1024)
+    _gigante(store / "cases" / "a.steep" / "v001" / "metadata.json", 64 * 1024 * 1024)
+    _gigante(store / "cases" / "b.steep" / "v001" / "validation.json", 64 * 1024 * 1024)
+    tracemalloc.start()
+    try:
+        r = rec.resumen_store(str(store), raiz)
+        pico = tracemalloc.get_traced_memory()[1]
+    finally:
+        tracemalloc.stop()
+    assert pico < 8 * 1024 * 1024, pico
+    assert r["grandes"] == 2 and r["versiones"] == 3 and r["truncado"] is False
+    assert r["por_estado"] == {"pending": 0, "approved": 1, "needs_changes": 1, "rejected": 1}
+    assert r["otros_avisos"] == 0
+
+
+def test_t10fix1_149_resumen_cuenta_los_temporales_dentro_de_una_version_como_check(tmp_path):
+    """#149: el `.tmp-*` que quedo DENTRO de un directorio de version (escritura atomica cortada) es un
+    temporal huerfano para `/doctor` igual que para `index check` (misma regla de gracia)."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    rec.grabar(_caso(family="f0", case_id="geo-f0.steep"), cfg, raiz)
+    tmp = store / "cases" / "f0.steep" / "v001" / ".tmp-deadbeef"
+    tmp.write_bytes(b"x")
+    viejo = time.time() - 3600
+    os.utime(str(tmp), (viejo, viejo))
+    r = rec.resumen_store(str(store), raiz)
+    difs = rec.comprobar_indice(str(store), raiz_proyecto=raiz)
+    assert sum("temporal huerfano" in d for d in difs) == 1, difs
+    assert r["huerfanos"] == 1 and r["versiones"] == 1
+
+
+def test_t10fix1_155_casos_vistos_cuenta_tambien_los_omitidos(tmp_path):
+    """#155: un directorio de caso que es un enlace se omite, pero se ha EXAMINADO: cuenta en
+    `casos_vistos` (sin tope, `casos_vistos == casos_total`)."""
+    raiz, _cfg, store = _store_con_estados(tmp_path)
+    _enlazar_dir(tmp_path / "fuera", store / "cases" / "z.steep")
+    r = rec.resumen_store(str(store), raiz)
+    assert r["truncado"] is False and r["casos_vistos"] == r["casos_total"] == 6
+
+
+def test_t10fix1_157_clasifica_por_codigo_no_por_el_texto_del_aviso(tmp_path):
+    """#157: «incompletas» y «huerfanos» salen de un CODIGO que acompaña al aviso, no de una
+    subcadena de un texto que incluye nombres que elige un tercero."""
+    raiz, _cfg, store = _store_con_estados(tmp_path)
+    nombres = ["x temporal huerfano", "y incompleta. otra"]
+    if os.name != "nt":
+        nombres.append("z incompleta: y")                           # `:` no cabe en un nombre NTFS
+    for n in nombres:
+        _enlazar_dir(tmp_path / f"fuera-{len(n)}", store / "cases" / n)
+    r = rec.resumen_store(str(store), raiz)
+    assert r["incompletas"] == 0 and r["huerfanos"] == 0 and r["otros_avisos"] == len(nombres)
+
+
+def test_t10fix1_152_el_listado_de_la_raiz_y_de_cases_va_dentro_del_plazo(tmp_path, monkeypatch):
+    """#152: los `scandir` de la raiz y de `cases/` (antes del primer caso) tambien miran el plazo: un
+    `cases/` enorme no se lista entero fuera del tope; el total se declara como «al menos N»."""
+    raiz, _cfg, store = _proyecto(tmp_path)
+    for i in range(300):
+        (store / "cases" / f"f{i:03d}.steep").mkdir(parents=True)
+    reloj = iter(range(0, 10_000))
+    monkeypatch.setattr(rec, "_crono", lambda: next(reloj))
+    r = rec.resumen_store(str(store), raiz, plazo_s=2)
+    assert r["truncado"] is True and r["listado_parcial"] is True
+    assert r["casos_total"] < 300 and r["casos_vistos"] == 0 and r["versiones"] == 0
+
+
+def test_t10fix1_163_los_reintentos_de_los_lectores_respetan_el_plazo(tmp_path, monkeypatch):
+    """#163: un fichero con bloqueo exclusivo (antivirus, backup) no consume 40 x 25 ms por version
+    fuera del plazo de `resumen_store`: los reintentos paran cuando se agota."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    for fam in ("a", "b", "c"):
+        rec.grabar(_caso(family=fam, case_id=f"geo-{fam}.steep"), cfg, raiz)
+    real = rec._abrir_lectura
+
+    def bloqueado(ruta):
+        if os.path.basename(ruta) == "validation.json":
+            raise PermissionError(13, "bloqueado por otro proceso")
+        return real(ruta)
+    monkeypatch.setattr(rec, "_abrir_lectura", bloqueado)
+    t0 = time.monotonic()
+    r = rec.resumen_store(str(store), raiz, plazo_s=0.3)
+    dura = time.monotonic() - t0
+    assert dura < 0.9, dura
+    assert r["versiones"] == 0

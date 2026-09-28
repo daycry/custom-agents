@@ -181,6 +181,7 @@ DIGITOS = "0123456789"
 VERSION_MAX = 999_999_999          # 9 digitos: nunca un `int()` de miles de digitos (gap #38)
 REINTENTOS = 40                    # reintentos acotados ante PermissionError (Windows): 40 x 25 ms
 ESPERA_REINTENTO_S = 0.025
+TOPE_FICHERO = 16 * 1024 * 1024    # #134/#148: tope por fichero de `metadata.json`/`validation.json` (ensamblador y /doctor)
 PLAZO_SUSTITUIDO_S = 0.25          # gap #83/#109: fichero de version sustituido entre `lstat` y apertura:
 ESPERA_SUSTITUIDO_S = 0.002        # reintentos acotados POR TIEMPO, retroceso 2 ms -> 32 ms
 ESPERA_SUSTITUIDO_MAX_S = 0.032
@@ -928,9 +929,10 @@ class _FicheroNoPropio(Rechazo):
     """gap #83: el fichero ABIERTO (comprobado sobre su descriptor) no es un fichero regular de un
     solo nombre, o no es el mismo que se comprobo con `lstat` antes de abrirlo."""
 
-    def __init__(self, mensaje, sustituido=False):
+    def __init__(self, mensaje, sustituido=False, codigo=None):
         super().__init__(mensaje)
         self.sustituido = sustituido
+        self.codigo = codigo            # #148/#157: «grande» (por encima del tope) o None
 
 
 def _misma_identidad(previo, st):
@@ -964,7 +966,7 @@ def _json_de(datos):
     return json.loads(datos.decode("utf-8"))
 
 
-def _leer_json_reintentando(ruta, previo=None, fstat_leido=None, decodificar=_json_de, tope=None):
+def _leer_json_reintentando(ruta, previo=None, fstat_leido=None, decodificar=_json_de, tope=None, hasta=None):
     """`(objeto, mtime)` de un JSON de version, reintentando de forma ACOTADA ante `PermissionError`
     (en Windows, abrir durante un `os.replace` ajeno falla un instante, gap #33). Se lee SIEMPRE del
     descriptor ya comprobado (gap #83, CWE-367/59): `os.fstat` -> fichero regular, `st_nlink == 1` y,
@@ -975,7 +977,8 @@ def _leer_json_reintentando(ruta, previo=None, fstat_leido=None, decodificar=_js
     bytes leidos (por defecto, JSON UTF-8); el ensamblador (T-09) pide los bytes tal cual para
     hashearlos y parsearlos del MISMO descriptor comprobado. `tope` (bytes, #122): un fichero mayor
     —por el `st_size` del descriptor, antes de leer, o porque crece mientras se lee— es
-    `_FicheroNoPropio` sin cargarlo entero en memoria."""
+    `_FicheroNoPropio` sin cargarlo entero en memoria. `hasta` (#163, instante de `_crono()`): los
+    reintentos ante `PermissionError` paran cuando el plazo del llamador (`resumen_store`) se agota."""
     for intento in range(REINTENTOS):
         try:
             try:
@@ -988,7 +991,7 @@ def _leer_json_reintentando(ruta, previo=None, fstat_leido=None, decodificar=_js
                     raise _FicheroNoPropio(f"{os.path.basename(ruta)}: {motivo}", sustituido)
                 if tope is not None and st.st_size > tope:
                     raise _FicheroNoPropio(f"{os.path.basename(ruta)}: {st.st_size} bytes, por encima del tope de "
-                                           f"{tope} bytes por fichero; no se lee")
+                                           f"{tope} bytes por fichero; no se lee", codigo="grande")
                 # con tope: `read(st_size + 1)` (nunca `read(tope + 1)`: CPython reserva ese bufer entero en
                 # cada lectura); si crece mientras se lee, es un fichero que cambia -> «sustituido»
                 datos = f.read() if tope is None else f.read(st.st_size + 1)
@@ -998,7 +1001,7 @@ def _leer_json_reintentando(ruta, previo=None, fstat_leido=None, decodificar=_js
                 fstat_leido.append(st)
             return decodificar(datos), st.st_mtime
         except PermissionError:
-            if intento == REINTENTOS - 1:
+            if intento == REINTENTOS - 1 or (hasta is not None and _crono() + ESPERA_REINTENTO_S >= hasta):
                 raise
             time.sleep(ESPERA_REINTENTO_S)
 
@@ -1878,7 +1881,8 @@ def _iso(ts):
     return datetime.datetime.fromtimestamp(ts, datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def _leer_de_version(dir_v, fichero, rel, fstat_leido=None, decodificar=_json_de, tope=None):
+def _leer_de_version(dir_v, fichero, rel, fstat_leido=None, decodificar=_json_de, tope=None, codigo=None,
+                     hasta=None):
     """`(objeto, mtime, aviso)` de un fichero de version, con `lstat` ANTES de abrir: distingue
     «falta» (a medio escribir), «enlace» (no se lee a traves de el, gap #66), «enlace duro compartido»
     (`st_nlink > 1`: podria ser un fichero de fuera del store, gap #79), «no es un fichero regular»
@@ -1889,7 +1893,14 @@ def _leer_de_version(dir_v, fichero, rel, fstat_leido=None, decodificar=_json_de
     seguidos mientras el lector pierde la CPU ya no lo agotan); uno abierto con enlaces duros o que no
     es regular se omite sin leerlo. `rel` llega ya escapado (`_texto_ruta`, #111). `decodificar`: ver
     `_leer_json_reintentando` (el ensamblador, T-09, lee los bytes tal cual); `tope`, su tope por
-    fichero (#122)."""
+    fichero (#122). `codigo` (lista opcional, #157): recibe el CODIGO estructurado del aviso
+    (`incompleta`, `grande`), el que cuenta `resumen_store` sin mirar el texto; `hasta` (#163), el plazo
+    de los reintentos (tambien los de «sustituido»)."""
+    def _cod(c, aviso):
+        if codigo is not None:
+            codigo.append(c)
+        return None, None, aviso
+
     ruta = os.path.join(dir_v, fichero)
     intentos, limite, espera = 0, None, ESPERA_SUSTITUIDO_S
     while True:
@@ -1897,6 +1908,8 @@ def _leer_de_version(dir_v, fichero, rel, fstat_leido=None, decodificar=_json_de
             ahora = time.monotonic()
             if limite is None:
                 limite = ahora + PLAZO_SUSTITUIDO_S         # el primero, al instante
+                if hasta is not None:                       # #163: nunca mas alla del plazo del llamador
+                    limite = min(limite, ahora + max(0.0, hasta - _crono()))
             elif ahora >= limite:
                 break
             else:
@@ -1907,7 +1920,8 @@ def _leer_de_version(dir_v, fichero, rel, fstat_leido=None, decodificar=_json_de
             st = _stat_sin_seguir(ruta)
         except FileNotFoundError:
             que = "a medio escribir o grabacion interrumpida" if fichero == "metadata.json" else "danada"
-            return None, None, f"{rel} incompleta: sin {fichero} ({que}); se conserva, reparala o graba otra version"
+            return _cod("incompleta", f"{rel} incompleta: sin {fichero} ({que}); se conserva, reparala o graba otra "
+                        "version")
         except OSError as e:
             return None, None, f"{rel} ilegible: {fichero} no se puede examinar ({e})"
         if _motivo_enlace(ruta, ruta) if _es_enlace_st(st) is None else _es_enlace_st(st):
@@ -1918,22 +1932,27 @@ def _leer_de_version(dir_v, fichero, rel, fstat_leido=None, decodificar=_json_de
             tmp = _temporal_hermano(dir_v, st) if fichero == "metadata.json" else None
             if tmp:                                                 # G2: publicacion POSIX a medias
                 tmp = _texto_ruta(tmp)                              # #111: el nombre lo decide un tercero
-                return None, None, (f"{rel} incompleta: metadata.json {A_MEDIO_PUBLICAR} (sigue enlazado con {tmp}): "
-                                    f"grabacion interrumpida al publicarla; retira `{rel}/{tmp}` (solo ese nombre) y la "
-                                    "version queda completa")
+                return _cod("incompleta", (f"{rel} incompleta: metadata.json {A_MEDIO_PUBLICAR} (sigue enlazado con "
+                                           f"{tmp}): grabacion interrumpida al publicarla; retira `{rel}/{tmp}` (solo ese "
+                                           "nombre) y la version queda completa"))
             if fichero == "metadata.json" and _un_solo_nombre_ahora(ruta):
                 continue                        # G2: la publicacion termino entre el `lstat` y la busqueda
             return None, None, (f"{rel} omitida: {fichero} es un enlace duro compartido ({st.st_nlink} nombres para el "
                                 "mismo fichero: podria ser uno de fuera del store, CWE-59); no se lee")
         try:
-            obj, mtime = _leer_json_reintentando(ruta, st, fstat_leido, decodificar, tope)
+            if hasta is None:
+                obj, mtime = _leer_json_reintentando(ruta, st, fstat_leido, decodificar, tope)
+            else:
+                obj, mtime = _leer_json_reintentando(ruta, st, fstat_leido, decodificar, tope, hasta)
             return obj, mtime, None
         except _FicheroNoPropio as e:
             if e.sustituido:
                 continue                                            # otro fichero: comprobarlo de nuevo
+            if getattr(e, "codigo", None):
+                return _cod(e.codigo, f"{rel} omitida: {e.mensaje}")
             return None, None, f"{rel} omitida: {e.mensaje}"
         except FileNotFoundError:
-            return None, None, f"{rel} incompleta: sin {fichero} (desaparecio al leerla)"
+            return _cod("incompleta", f"{rel} incompleta: sin {fichero} (desaparecio al leerla)")
         except PermissionError as e:
             return None, None, (f"{rel} ilegible: {fichero} no legible tras {REINTENTOS} reintentos "
                                 f"(bloqueada o sin permisos): {e}")
@@ -1956,14 +1975,17 @@ def _json_y_crudo(datos):
 
 
 def _estado_version(store, nombre, dir_caso, numero, nombres, entrada_dir=None, firmas=None, crudos=None,
-                    tope=None):
+                    tope=None, codigo=None, hasta=None, gold=None):
     """Estado de UNA version desde el disco: `(entrada|None, aviso|None, en_curso, mtime_meta)`.
     Con `firmas`, anota la firma (`st_ino`, tamaño, `mtime`) del `validation.json` leido (gap #89).
     Con `crudos` (dict, #130: el ensamblador), guarda los BYTES leidos de `metadata.json` y
     `validation.json` con el `fstat` de su descriptor, `{(case_id, numero): {fichero: (bytes, fstat)}}`,
     para que la lectura del caso no los abra otra vez si siguen siendo el mismo fichero. `tope`
     (#134): el tope por fichero de `_leer_de_version` tambien en ESTAS dos lecturas (el ensamblador
-    pasa el suyo: un `metadata.json` o `validation.json` mayor omite la version con aviso sin cargarlo)."""
+    pasa el suyo: un `metadata.json` o `validation.json` mayor omite la version con aviso sin cargarlo).
+    T-10 fix1 (`resumen_store`): `codigo` (lista) recibe el codigo estructurado del aviso (#157), `hasta`
+    acota los reintentos de los lectores (#163) y `gold` (dict) recibe `{(case_id, numero): content_hash}`
+    de cada Gold humano valido (#154: la frescura del dataset se compara por CONTENIDO)."""
     leido_m = [] if crudos is not None else None
     dec = _json_y_crudo if crudos is not None else _json_de
     crudo = {}
@@ -1975,7 +1997,8 @@ def _estado_version(store, nombre, dir_caso, numero, nombres, entrada_dir=None, 
     motivo = _motivo_enlace(entrada_dir if entrada_dir is not None else dir_v, dir_v)
     if motivo:
         return None, f"{rel} omitida: {motivo}", False, None
-    meta, mtime_meta, aviso = _leer_de_version(dir_v, "metadata.json", rel, leido_m, dec, tope=tope)
+    extra = {} if codigo is None and hasta is None else {"codigo": codigo, "hasta": hasta}
+    meta, mtime_meta, aviso = _leer_de_version(dir_v, "metadata.json", rel, leido_m, dec, tope=tope, **extra)
     if crudos is not None and aviso is None:
         meta, datos_m = meta
         crudo["metadata.json"] = (datos_m, leido_m[-1])
@@ -1989,6 +2012,8 @@ def _estado_version(store, nombre, dir_caso, numero, nombres, entrada_dir=None, 
             edad = _edad(mtime_dir)
             if edad < 0:
                 que = f"metadata.json {A_MEDIO_PUBLICAR}" if a_medias else "sin metadata.json"
+                if codigo is not None and not codigo:
+                    codigo.append("incompleta")
                 return None, (f"{rel} incompleta: {que} y con mtime futuro ({_iso(mtime_dir)}): no puede "
                               "estar en curso; reparala o graba otra version"), False, None
             if edad < GRACIA_EN_CURSO_S:
@@ -1998,7 +2023,7 @@ def _estado_version(store, nombre, dir_caso, numero, nombres, entrada_dir=None, 
         return None, aviso, False, None
     if aviso is None:
         leido = []
-        val, mtime, aviso = _leer_de_version(dir_v, "validation.json", rel, leido, dec, tope=tope)
+        val, mtime, aviso = _leer_de_version(dir_v, "validation.json", rel, leido, dec, tope=tope, **extra)
         if crudos is not None and aviso is None:
             val, datos_v = val
             crudo["validation.json"] = (datos_v, leido[-1])
@@ -2020,10 +2045,13 @@ def _estado_version(store, nombre, dir_caso, numero, nombres, entrada_dir=None, 
         return None, f"{rel} omitida: metadata.json no casa con su ruta o con el esquema", False, None
     if crudos is not None:
         crudos[(e["case_id"], numero)] = crudo
+    if gold is not None and val.get("status") == "approved" and val.get("approved_by_human") is True:
+        h = val.get("content_hash")
+        gold[(e["case_id"], numero)] = h if isinstance(h, str) else None
     return e, None, False, mtime_meta
 
 
-def _clasificar_temporal(entrada, rel, avisos, en_curso):
+def _clasificar_temporal(entrada, rel, avisos, en_curso, codigos=None):
     """gap #80: un `.tmp-*` de `cases/`, de un caso o de la raiz del store. Reciente
     (`0 <= edad < GRACIA_EN_CURSO_S`) -> «en curso» (informativo); si no -> «temporal huerfano»
     (incoherencia de `index check`, con la ruta). Un `.tmp-*` que es un ENLACE (symlink/junction) se
@@ -2046,6 +2074,11 @@ def _clasificar_temporal(entrada, rel, avisos, en_curso):
         cuando = "con mtime futuro" if edad < 0 else f"modificado hace {edad:.0f} s"
         avisos[rel] = (f"{txt}: temporal huerfano ({cuando}; de una grabacion o un rebuild interrumpidos): se conserva; "
                        "si no hay nada en marcha, revisalo y borralo a mano")
+        if codigos is not None:
+            codigos[rel] = "huerfano"                                       # #157
+
+
+LISTADO_CADA = 64                  # #152: durante un listado, el plazo se mira cada 64 entradas
 
 
 MARCAS_TRANSITORIAS = ("no legible tras", SUSTITUIDO, "desaparecio al leerla", "no se puede examinar")
@@ -2060,7 +2093,7 @@ def _aviso_transitorio(aviso):
 
 
 def _estado_de_cases(store, raiz_proyecto=None, duenos=None, firmas=None, temporales_version=False,
-                     transitorias=None, crudos=None, tope=None, recorte=None):
+                     transitorias=None, crudos=None, tope=None, recorte=None, codigos=None, gold=None):
     """`(entradas, avisos, en_curso, mtimes_meta, rels)` recorriendo `cases/` (la FUENTE). `avisos`
     y `en_curso` son dicts `rel -> texto`; `rels` indexa por `(<family>.<variant>, numero)` los `rel`
     de cada version con aviso (gap #69: la cola los retira en O(1)). Enlaces detectados por ENTRADA
@@ -2078,15 +2111,31 @@ def _estado_de_cases(store, raiz_proyecto=None, duenos=None, firmas=None, tempor
     (dict opcional, #130): los bytes y el `fstat` de `metadata.json`/`validation.json` de cada version
     valida (ver `_estado_version`); `tope` (#134), el tope por fichero de esas dos lecturas.
     `recorte` (dict opcional, T-10: `resumen_store` de `/doctor`): `{"hasta": <instante de _crono()>}`;
-    pasado ese instante el recorrido se CORTA (entre casos o entre versiones de un caso) y anota
-    `truncado`, `casos_vistos` (casos recorridos enteros) y `casos_total`."""
+    pasado ese instante el recorrido se CORTA (entre casos o entre versiones de un caso, y tambien a
+    mitad del listado de la raiz o de `cases/`, #152: `listado_parcial` y `casos_total` = los listados
+    hasta ahi) y anota `truncado`, `casos_vistos` (casos examinados enteros, tambien los omitidos,
+    #155) y `casos_total`; los reintentos de los lectores tampoco pasan de ese instante (#163).
+    `codigos` (dict opcional, #157) recibe `rel -> codigo` (`incompleta`, `huerfano`, `grande`) de los
+    avisos que lo tienen; `gold` (dict opcional, #154), `{(case_id, numero): content_hash}` de los Gold."""
     entradas, avisos, en_curso, mtimes, rels = {}, {}, {}, {}, {}
     duenos = {} if duenos is None else duenos
+    hasta = recorte["hasta"] if recorte is not None else None
+    if recorte is not None:
+        recorte.update(truncado=False, listado_parcial=False, casos_vistos=0, casos_total=0)
+
+    def agotado():
+        if hasta is not None and _crono() >= hasta:                         # #152
+            recorte.update(truncado=True)
+            return True
+        return False
     try:
         with os.scandir(store) as it:
-            for e in it:
+            for i, e in enumerate(it, 1):
+                if i % LISTADO_CADA == 0 and agotado():
+                    recorte["listado_parcial"] = True
+                    return entradas, avisos, en_curso, mtimes, rels
                 if e.name.startswith(PREFIJO_TEMPORAL):
-                    _clasificar_temporal(e, e.name, avisos, en_curso)
+                    _clasificar_temporal(e, e.name, avisos, en_curso, codigos)
     except OSError:
         pass
     base = os.path.join(store, "cases")
@@ -2099,27 +2148,31 @@ def _estado_de_cases(store, raiz_proyecto=None, duenos=None, firmas=None, tempor
     casos = []
     try:
         with os.scandir(base) as it:
-            for e in it:
+            for i, e in enumerate(it, 1):
+                if i % LISTADO_CADA == 0 and agotado():                     # #152: `cases/` enorme
+                    recorte.update(listado_parcial=True, casos_total=len(casos))
+                    return entradas, avisos, en_curso, mtimes, rels
                 if e.name.startswith(PREFIJO_TEMPORAL):
-                    _clasificar_temporal(e, f"cases/{e.name}", avisos, en_curso)
+                    _clasificar_temporal(e, f"cases/{e.name}", avisos, en_curso, codigos)
                 elif not e.name.startswith(".") and e.is_dir():
                     casos.append((e.name, e.path, e))
     except OSError:
         return entradas, avisos, en_curso, mtimes, rels
     _avisar_parejas_mayusculas([n for n, _d, _e in casos], avisos)
     if recorte is not None:
-        recorte.update(truncado=False, casos_vistos=0, casos_total=len(casos))
+        recorte["casos_total"] = len(casos)
     for nombre, dir_caso, entrada_caso in sorted(casos, key=lambda t: t[0]):
-        if recorte is not None and _crono() >= recorte["hasta"]:
-            recorte["truncado"] = True
+        if agotado():
             break
         motivo = _motivo_enlace(entrada_caso, dir_caso)
         if motivo:
             avisos[f"cases/{nombre}"] = f"{_texto_ruta('cases/' + nombre)} omitido: {motivo}"
+            if recorte is not None:
+                recorte["casos_vistos"] += 1                                # #155: examinado, aunque omitido
             continue
         entradas_v, temporales = _escanear_caso(dir_caso)
         for t in temporales:
-            _clasificar_temporal(t, f"cases/{nombre}/{t.name}", avisos, en_curso)
+            _clasificar_temporal(t, f"cases/{nombre}/{t.name}", avisos, en_curso, codigos)
         por_numero = {}
         for v, n, ent, tipo in entradas_v:
             rel = f"cases/{nombre}/{n}"
@@ -2132,21 +2185,25 @@ def _estado_de_cases(store, raiz_proyecto=None, duenos=None, firmas=None, tempor
                     en_curso[f"agotado:{nombre}"] = (f"{_texto_ruta('cases/' + nombre)}: agoto los numeros de version ({n} existe): los "
                                                      "`record` automaticos se rechazan; graba con otro `variant`")
                 for t in (_temporales_de(ent.path) if temporales_version else ()):   # gaps #85/#103
-                    _clasificar_temporal(t, f"{rel}/{t.name}", avisos, en_curso)
+                    _clasificar_temporal(t, f"{rel}/{t.name}", avisos, en_curso, codigos)
             elif tipo == "enlace":
                 avisos[rel] = f"{txt} omitida: {MOTIVO_ENLACE}"
             else:
                 avisos[rel] = (f"{txt}: no es un directorio de version (fichero u otra entrada con nombre de version): "
                                "no cuenta como version ni como duplicado; retiralo o renombralo")
         for v, lista in sorted(por_numero.items()):
-            if recorte is not None and _crono() >= recorte["hasta"]:
-                recorte["truncado"] = True
+            if agotado():
                 break
             nombres = [n for n, _e in lista]
+            cod = [] if codigos is not None else None
+            extra = {} if cod is None and hasta is None and gold is None else {"codigo": cod, "hasta": hasta,
+                                                                                "gold": gold}
             e, aviso, curso, mtime_meta = _estado_version(store, nombre, dir_caso, v, nombres,
                                                           lista[0][1] if len(lista) == 1 else None, firmas, crudos,
-                                                          tope)
+                                                          tope, **extra)
             rel = f"cases/{nombre}/{nombres[0]}"
+            if cod and aviso and not curso:
+                codigos[rel] = cod[-1]                                      # #157
             if e is not None:
                 duenos.setdefault(nombre, e["case_id"])
                 aviso = _aviso_intruso(nombre, e, duenos)
@@ -2224,37 +2281,51 @@ def estado_de_cases(store, raiz_proyecto=None, duenos=None):
 
 RESUMEN_PLAZO_S = 2.0              # T-10: tope del recorrido de `resumen_store` (medido: 10^4 versiones = 10,7 s
                                    # en caliente y > 70 s en frio en Windows; con el tope, recuento PARCIAL)
-MARCA_INCOMPLETA = " incompleta: "
-MARCA_HUERFANO = "temporal huerfano"
 
 
 def resumen_store(store, raiz_proyecto=None, plazo_s=RESUMEN_PLAZO_S):
     """Resumen de SOLO LECTURA del case store para `/doctor` (T-10, CA-07), desde `cases/` con los
     MISMOS lectores seguros del recorrido (`_estado_de_cases`: sin seguir enlaces, por descriptor),
     nunca desde el indice (una cache). Devuelve `{por_estado: {status: n}, versiones, incompletas,
-    huerfanos, otros_avisos, en_curso, gold_mtime_ns, truncado, casos_vistos, casos_total, plazo_s}`:
-    `incompletas` = versiones sin `metadata.json`/`validation.json` (o a medio publicar) pasada la
-    gracia; `huerfanos` = temporales `.tmp-*` huerfanos; `gold_mtime_ns` = el `mtime` (ns, del
-    descriptor leido) del `validation.json` Gold mas reciente, o None. Acotado en tiempo: pasados
-    `plazo_s` segundos corta y lo declara (`truncado`, `casos_vistos` de `casos_total`): el recuento
-    es entonces PARCIAL, nunca un total inventado. No escribe nada, no toma bloqueos, sin red."""
-    recorte = {"hasta": _crono() + plazo_s, "truncado": False, "casos_vistos": 0, "casos_total": 0}
-    firmas = {}
-    entradas, avisos, en_curso, _m, _r = _estado_de_cases(store, raiz_proyecto, firmas=firmas, recorte=recorte)
+    huerfanos, grandes, otros_avisos, en_curso, gold, gold_mtime_ns, truncado, listado_parcial,
+    casos_vistos, casos_total, plazo_s, hasta}`: `incompletas` = versiones sin `metadata.json`/
+    `validation.json` (o a medio publicar) pasada la gracia; `huerfanos` = temporales `.tmp-*` huerfanos
+    (tambien los de DENTRO de una version, como `index check`, #149); `grandes` = versiones omitidas
+    por un `metadata.json`/`validation.json` mayor que `TOPE_FICHERO` (se mira el `st_size` del
+    descriptor ANTES de leer: nunca se cargan, #148). Se clasifican por el CODIGO que acompaña a cada
+    aviso, nunca por su texto (#157). `gold` = `{(case_id, version): content_hash|None}` de los Gold
+    humanos validos (la frescura del dataset se compara por contenido, #154); `gold_mtime_ns` = el
+    `mtime` (ns, del descriptor leido) del `validation.json` Gold mas reciente, o None. Acotado en
+    tiempo: pasados `plazo_s` segundos —tambien a mitad de un listado (#152) o de los reintentos de un
+    lector (#163)— corta y lo declara (`truncado`, `casos_vistos` de `casos_total`; con
+    `listado_parcial`, `casos_total` es «al menos»): el recuento es entonces PARCIAL, nunca un total
+    inventado. `hasta` es el instante (`_crono()`) en que vence el plazo: quien sigue (la frescura del
+    dataset) usa lo que quede. No escribe nada, no toma bloqueos, sin red."""
+    hasta = _crono() + plazo_s
+    recorte = {"hasta": hasta}
+    firmas, codigos, gold = {}, {}, {}
+    entradas, avisos, en_curso, _m, _r = _estado_de_cases(store, raiz_proyecto, firmas=firmas, temporales_version=True,
+                                                          tope=TOPE_FICHERO, recorte=recorte, codigos=codigos,
+                                                          gold=gold)
     por_estado = {s: 0 for s in cs.VALIDATION_STATUS}
-    gold = None
+    gold_ns = None
     for clave, e in entradas.items():
         por_estado[e["status"]] = por_estado.get(e["status"], 0) + 1
         if e["status"] == "approved" and clave in firmas:
             ns = firmas[clave][1][2]
-            gold = ns if gold is None or ns > gold else gold
-    textos = list(avisos.values())
-    incompletas = sum(1 for t in textos if MARCA_INCOMPLETA in t)
-    huerfanos = sum(1 for t in textos if MARCA_HUERFANO in t)
-    return {"por_estado": por_estado, "versiones": len(entradas), "incompletas": incompletas,
-            "huerfanos": huerfanos, "otros_avisos": len(textos) - incompletas - huerfanos,
-            "en_curso": len(en_curso), "gold_mtime_ns": gold, "truncado": recorte["truncado"],
-            "casos_vistos": recorte["casos_vistos"], "casos_total": recorte["casos_total"], "plazo_s": plazo_s}
+            gold_ns = ns if gold_ns is None or ns > gold_ns else gold_ns
+    cuenta = {c: 0 for c in ("incompleta", "huerfano", "grande")}
+    for rel in avisos:
+        c = codigos.get(rel)
+        if c in cuenta:
+            cuenta[c] += 1
+    return {"por_estado": por_estado, "versiones": len(entradas), "incompletas": cuenta["incompleta"],
+            "huerfanos": cuenta["huerfano"], "grandes": cuenta["grande"],
+            "otros_avisos": len(avisos) - sum(cuenta.values()), "en_curso": len(en_curso),
+            "gold": {k: v for k, v in gold.items() if k in entradas}, "gold_mtime_ns": gold_ns,
+            "truncado": recorte["truncado"], "listado_parcial": recorte["listado_parcial"],
+            "casos_vistos": recorte["casos_vistos"], "casos_total": recorte["casos_total"], "plazo_s": plazo_s,
+            "hasta": hasta}
 
 
 # ------------------------------------------------------------------ identidad y cola del indice (F2-F4)

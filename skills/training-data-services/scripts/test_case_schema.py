@@ -820,3 +820,16 @@ def test_f1fix3_gap29b_root_unc_extendido_con_proyecto_unc(monkeypatch):
     ext = BS * 2 + "?" + BS + "UNC" + BS + "srv" + BS + "sh" + BS + "proj"
     assert cs._root_en_docs_knowledge(ext + BS + "docs" + BS + "knowledge" + BS + "cases", raiz) is True
     assert cs._root_en_docs_knowledge(ext + BS + "data" + BS + "cases", raiz) is False
+
+
+def test_t10fix1_153_root_con_formato_o_control_unicode_se_rechaza():
+    """#153 (CWE-150): ademas de `ord < 32`, `root` rechaza los caracteres de control y de formato
+    Unicode (categorias Cc/Cf/Zl/Zp: U+202E, CSI U+009B, U+2028, U+2029, DEL) —pintarlos en `/doctor`
+    reordena la linea o mete una secuencia de terminal—; `id_prefix` ya es un slug ASCII."""
+    for mal in ("store\u202e", "store\x9b31m", "a\u2028b", "a\u2029b", "a\x7fb", "a\u200bb", "a\ufeffb"):
+        errores = cs.validar_config(dict(CONFIG_OK, root=mal))
+        assert any(e["campo"] == "root" and "control" in e["mensaje"] for e in errores), repr(mal)
+        raro = next(c for c in mal if not (c.isascii() and c.isprintable()))
+        errores = cs.validar_config(dict(CONFIG_OK, id_prefix="geo" + raro))
+        assert any(e["campo"] == "id_prefix" for e in errores), repr(mal)
+    assert cs.validar_config(dict(CONFIG_OK, root="../almacén de casos")) == []

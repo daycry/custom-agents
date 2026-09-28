@@ -2082,3 +2082,183 @@ def test_t10_doctor_py_no_nombra_ninguna_capacidad_concreta():
     """CA-14: la capacidad llega por el registro; `doctor.py` no tiene codigo de `training`."""
     with open(SCRIPT, encoding="utf-8") as f:
         assert "training" not in f.read()
+
+
+def test_t10fix1_164_el_reloj_del_bloque_arranca_antes_de_enumerar(monkeypatch):
+    """#164 (regla GENERICA del contrato de capacidades): lo que tarda `enumerar()` (una capacidad que
+    recuenta al evaluarse) cuenta dentro del presupuesto TOTAL del bloque, y `enumerar()` recibe el
+    plazo que queda (`plazo_s`) si lo acepta; un registro antiguo sin ese parametro sigue funcionando."""
+    import time as time_mod
+    recibidos = []
+
+    class _CapMod:
+        @staticmethod
+        def enumerar(project, plazo_s=None):
+            recibidos.append(plazo_s)
+            time_mod.sleep(0.3)
+            return [{"id": f"cap{i}", "enabled": True, "health": None} for i in range(3)]
+
+    monkeypatch.setattr(doctor, "_cargar_capabilities", lambda plugin_root: _CapMod())
+    monkeypatch.setattr(doctor, "_cargar_backends_loader", lambda plugin_root: (None, "d"))
+    monkeypatch.setattr(doctor, "CAPACIDADES_PRESUPUESTO_S", 0.32)
+    comprobadas = []
+
+    def _linea(project, cap, backends_mod, backends_dir, **kwargs):
+        comprobadas.append(cap["id"])
+        return doctor.linea(doctor.INFO, cap["id"], "activa")
+    monkeypatch.setattr(doctor, "_linea_capacidad", _linea)
+    bloque = doctor.bloque_capacidades("plugin", "project")
+    assert recibidos and 0 < recibidos[0] <= 0.32
+    assert comprobadas == [], comprobadas
+    assert any(l["estado"] == doctor.AVISO and "recortada" in l["detalle"] for l in bloque["lineas"])
+
+    class _CapModAntiguo:
+        @staticmethod
+        def enumerar(project):
+            return [{"id": "cap0", "enabled": True, "health": None}]
+    monkeypatch.setattr(doctor, "_cargar_capabilities", lambda plugin_root: _CapModAntiguo())
+    monkeypatch.setattr(doctor, "CAPACIDADES_PRESUPUESTO_S", 5.0)
+    doctor.bloque_capacidades("plugin", "project")
+    assert comprobadas == ["cap0"]
+
+
+# ------------------------------------------------------------------ T-10 fix1 #161: cobertura de doctor.py >= 90 %
+# (gate `coverage-gate.py --changed-only --min 90`): las ramas de degradacion que ningun test pisaba.
+
+def test_t10fix1_161_leer_json_correr_y_json_de_degradan_sin_lanzar(tmp_path, monkeypatch):
+    roto = tmp_path / "roto.json"
+    roto.write_text("{no es json", encoding="utf-8")
+    datos, err = doctor._leer_json(str(roto))
+    assert datos is None and "no es JSON válido" in err
+    real_open = open
+
+    def _sin_permiso(ruta, *a, **k):
+        if str(ruta) == str(roto):
+            raise PermissionError(13, "denegado")
+        return real_open(ruta, *a, **k)
+    monkeypatch.setattr("builtins.open", _sin_permiso)
+    datos, err = doctor._leer_json(str(roto))
+    monkeypatch.undo()
+    assert datos is None and err == "no se puede leer (PermissionError)"
+    assert doctor._correr(["/no/existe/binario-inexistente-xyz"]) == ("", False)
+    assert doctor._json_de("{roto") is None and doctor._json_de(None) is None
+
+
+def test_t10fix1_161_cargar_linter_sin_plugin_o_roto_es_none(tmp_path):
+    assert doctor._cargar_linter(None) is None
+    assert doctor._cargar_linter(str(tmp_path)) is None
+    (tmp_path / "scripts").mkdir()
+    (tmp_path / "scripts" / "lint_plugin.py").write_text("raise RuntimeError('roto')\n", encoding="utf-8")
+    assert doctor._cargar_linter(str(tmp_path)) is None
+
+
+def test_t10fix1_161_hooks_json_roto_ausente_o_sin_raiz(tmp_path):
+    assert doctor._bloque_plugin_hooks(str(tmp_path))[0]["estado"] == doctor.AVISO
+    (tmp_path / "hooks").mkdir()
+    (tmp_path / "hooks" / "hooks.json").write_text("{roto", encoding="utf-8")
+    assert doctor._bloque_plugin_hooks(str(tmp_path))[0]["estado"] == doctor.ERROR
+    (tmp_path / "hooks" / "hooks.json").write_text('{"hooks": []}', encoding="utf-8")
+    l = doctor._bloque_plugin_hooks(str(tmp_path))[0]
+    assert l["estado"] == doctor.ERROR and "raíz `hooks`" in l["detalle"]
+
+
+def test_t10fix1_161_entradas_plugin_y_ruta_real(monkeypatch):
+    datos = {"a": {"b": {doctor.PLUGIN_PREFIJO + "x": 1, "otro@y": 2}}}
+    assert doctor._entradas_plugin(datos, "a", "b") == {doctor.PLUGIN_PREFIJO + "x": 1}
+    assert doctor._entradas_plugin(datos, "a", "b", "c") == {}
+    assert doctor._entradas_plugin({"a": 3}, "a") == {}
+
+    def _falla(_p):
+        raise OSError("no se puede resolver")
+    monkeypatch.setattr(doctor.os.path, "realpath", _falla)
+    assert doctor._ruta_real("x") == os.path.abspath("x")
+    monkeypatch.setattr(doctor.os.path, "abspath", _falla)
+    assert doctor._ruta_real("x") == ""
+
+
+def test_t10fix1_161_dev_guardrails_regla_desconocida_y_no_booleana():
+    ls = doctor._dev_valida_guardrails([1])
+    assert ls[0]["estado"] == doctor.ERROR
+    ls = doctor._dev_valida_guardrails({"alcance": "si", "inventada": True})
+    estados = {l["que"]: l["estado"] for l in ls}
+    assert estados == {"dev.json `guardrails.alcance`": doctor.ERROR, "dev.json `guardrails.inventada`": doctor.AVISO}
+
+
+def test_t10fix1_161_marcadores_degradan_a_leer_el_estado(tmp_path, monkeypatch):
+    monkeypatch.setattr(doctor, "_correr", lambda cmd, cwd=None: ("", False))
+    (tmp_path / ".claude").mkdir()
+    (tmp_path / ".claude" / "usage-state.json").write_text("{roto", encoding="utf-8")
+    l = doctor._marcadores(None, str(tmp_path))[0]
+    assert l["estado"] == doctor.AVISO and "usage-state.json" in l["detalle"]
+    (tmp_path / ".claude" / "usage-state.json").write_text(json.dumps({"x/T-01": {}}), encoding="utf-8")
+    l = doctor._marcadores(None, str(tmp_path))[0]
+    assert l["estado"] == doctor.AVISO and "x/T-01" in l["detalle"]
+
+
+def test_t10fix1_161_informes_de_evals(tmp_path):
+    assert "sin `evals/reports/`" in doctor._informes(str(tmp_path))[0]["detalle"]
+    d = tmp_path / "evals" / "reports"
+    d.mkdir(parents=True)
+    assert doctor._informes(str(tmp_path))[0]["detalle"] == "sin informes"
+    (d / "2026-09-01.json").write_text("{}", encoding="utf-8")
+    (d / "zz.json").write_text("{}", encoding="utf-8")
+    det = doctor._informes(str(tmp_path))[0]["detalle"]
+    assert "2 informe(s)" in det and "fecha no legible" in det
+
+
+def test_t10fix1_161_lint_knowledge_index_ramas_de_error(tmp_path):
+    base = tmp_path / "docs" / "knowledge"
+    (base / "adr").mkdir(parents=True)
+    (base / "adr" / "ADR-001-x.md").write_text("---\nestado: aceptada\n---\n", encoding="utf-8")
+    assert "no existe" in doctor.lint_knowledge_index(str(tmp_path))[0]
+    (base / "README.md").write_text("# indice\n\nsin tabla\n", encoding="utf-8")
+    assert "no encuentro la tabla" in doctor.lint_knowledge_index(str(tmp_path))[0]
+    tabla = ("| Entrada | ID | Tipo | Área |\n|---|---|---|---|\n"
+             "| [a](adr/ADR-001-x.md) | ADR-001 | adr | |\n"
+             "| [b](adr/ADR-001-x.md) | ADR-001 | adr | x |\n"
+             "| sin enlace | | adr | x |\n"
+             "| [c](adr/no-existe.md) | ADR-003 | adr | x |\n"
+             "\n| [d](adr/ADR-001-x.md) | ADR-009 | adr | x |\n")
+    (base / "README.md").write_text(tabla, encoding="utf-8")
+    errs = " ".join(doctor.lint_knowledge_index(str(tmp_path)))
+    for trozo in ("fuera de la tabla", "fila sin «Área»", "ID repetido", "ruta repetida", "fila sin ID",
+                  "no enlaza a ningún fichero", "que no existe"):
+        assert trozo in errs, trozo
+
+
+def test_t10fix1_161_curadas_sin_knowledge_find_usa_el_parser_local(tmp_path):
+    base = tmp_path / "docs" / "knowledge"
+    for carpeta, fichero, estado in (("adr", "ADR-001-x.md", "aceptada"), ("gotchas", "GOT-001-y.md", None),
+                                     ("lessons", "LES-001-z.md", "Propuesta")):
+        (base / carpeta).mkdir(parents=True)
+        (base / carpeta / fichero).write_text(f"---\nestado: {estado}\n---\n" if estado else "sin frontmatter\n",
+                                              encoding="utf-8")
+        (base / carpeta / "README.md").write_text("indice\n", encoding="utf-8")
+
+    class _KfRoto:
+        @staticmethod
+        def cargar_corpus(_project):
+            raise RuntimeError("roto")
+    assert sorted(doctor._curadas(str(tmp_path), _KfRoto())) == [("adr", "aceptada"), ("gotcha", "?"),
+                                                                 ("leccion", "propuesta")]
+    assert doctor._frontmatter_estado(str(tmp_path / "no-existe.md")) == ""
+
+
+def test_t10fix1_161_main_rechaza_argumentos_invalidos(tmp_path, capsys):
+    assert doctor.main(["--hoy", "ayer"]) == 2
+    assert doctor.main(["--root", str(tmp_path / "no-existe")]) == 2
+    assert doctor.main(["--root", str(tmp_path), "--plugin-root", str(tmp_path / "no-existe")]) == 2
+    assert "❌ uso" in capsys.readouterr().err
+
+
+def test_t10fix1_161_acepta_plazo_por_firma():
+    def con(project, plazo_s=None):
+        return project
+
+    def kw(project, **k):
+        return project
+
+    def sin(project):
+        return project
+    assert doctor._acepta_plazo(con) and doctor._acepta_plazo(kw) and not doctor._acepta_plazo(sin)
+    assert doctor._acepta_plazo(object()) is False            # sin firma inspeccionable: no lanza

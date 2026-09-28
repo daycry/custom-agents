@@ -54,6 +54,7 @@ import argparse
 import json
 import os
 import re
+import unicodedata
 import sys
 
 # Consola no UTF-8 (Windows cp1252) o tuberias: reconfigurar ANTES de leer/imprimir (GOT-005).
@@ -195,6 +196,9 @@ def _str_no_vacio(v):
 
 # ------------------------------------------------------------------ training.json
 
+CATEGORIAS_PROHIBIDAS_ROOT = ("Cc", "Cf", "Zl", "Zp")
+
+
 def validar_config(cfg, raiz_proyecto=None):
     """Lista de errores `{campo, mensaje}` de un `training.json` ya parseado ([] = valido).
     `raiz_proyecto` (default: cwd) es contra la que se resuelve `root` para rechazarlo si cae
@@ -222,8 +226,11 @@ def validar_config(cfg, raiz_proyecto=None):
             errores.append(_err("root", "obligatorio con enabled: true (ruta del case store elegida por el proyecto)"))
         elif root.startswith("~"):
             errores.append(_err("root", "`~` no se expande: usa una ruta relativa al proyecto o absoluta explicita"))
-        elif any(ord(c) < 32 for c in root):
-            errores.append(_err("root", "no puede contener caracteres de control"))
+        elif any(ord(c) < 32 or unicodedata.category(c) in CATEGORIAS_PROHIBIDAS_ROOT for c in root):
+            # #153 (CWE-150): tambien los de control/formato Unicode (U+202E, CSI U+009B, U+2028/9, DEL):
+            # el `root` se pinta en `/doctor` y en los mensajes del recorder
+            errores.append(_err("root", "no puede contener caracteres de control ni de formato Unicode "
+                                        "(categorias Cc, Cf, Zl, Zp)"))
         elif _root_en_docs_knowledge(root, raiz_proyecto):
             errores.append(_err("root", "el case store no puede vivir dentro de docs/knowledge/ (ADR-019)"))
     if "id_prefix" in cfg or enabled:

@@ -417,8 +417,9 @@ def test_t10_training_doctor_dataset_al_dia_tras_exportar(tmp_path):
     proj, cfg, store = _proyecto_training(tmp_path, estados=("approved",))
     exp = store / "exports" / "20260928-aaaaaaaaaaaa"
     exp.mkdir(parents=True)
-    (exp / "manifest.json").write_text("{}", encoding="utf-8")
-    os.utime(str(exp / "manifest.json"), ns=(4_000_000_000_000_000_000,) * 2)
+    gold = _tds()["rec"].resumen_store(str(store), proj)["gold"]
+    casos = [{"case_id": c, "version": v, "content_hash": h, "motivo": None} for (c, v), h in gold.items()]
+    (exp / "manifest.json").write_text(json.dumps({"casos": casos}), encoding="utf-8")
     txt = _cap_training(proj)["doctor"]
     assert "dataset: al dia" in txt and "20260928-aaaaaaaaaaaa" in txt
 
@@ -434,7 +435,7 @@ def test_t10_training_doctor_recuento_parcial_declara_el_tope(tmp_path, monkeypa
     monkeypatch.setattr(cap_mod, "TRAINING_PLAZO_S", 0.0)
     txt = _cap_training(proj)["doctor"]
     assert "recuento PARCIAL: 0 de 5 casos" in txt and "tope" in txt
-    assert "dataset:" in txt and "parcial" in txt.split("dataset:", 1)[1]
+    assert "dataset: no verificado (PARCIAL)" in txt
 
 
 def test_t10_training_doctor_sin_la_skill_degrada_sin_recuento(tmp_path, monkeypatch):
@@ -527,7 +528,8 @@ def test_t10_setup_ofrece_training_desde_la_plantilla_sin_activar_el_puente():
         paso = f.read().split("5-sexies.", 1)[1].split("\n6. ", 1)[0]
     for literal in ("training.example.json", "training.json", "`root`", "`id_prefix`", "docs/knowledge/",
                     "**`bridge_to_curator` queda en `false`**", "nunca lo actives sin preguntar",
-                    "case_schema.py config"):
+                    "case_schema.py config", "-type d -path '*skills/training-data-services'",
+                    "<skill>/assets/training.example.json"):
         assert literal in paso, literal
     ejemplo = os.path.join(repo, "skills", "training-data-services", "assets", "training.example.json")
     with open(ejemplo, encoding="utf-8") as f:
@@ -535,3 +537,64 @@ def test_t10_setup_ofrece_training_desde_la_plantilla_sin_activar_el_puente():
     assert cfg["bridge_to_curator"] is False and "docs/knowledge" not in cfg["root"] and cfg["id_prefix"]
     cap = next(c for c in cap_mod.REGISTRO if c["id"] == "training")
     assert "`root`" in cap["setup_step"] and "`id_prefix`" in cap["setup_step"]
+
+
+# ------------------------------------------------------------------ T-10 fix1 (revision intento 1, Fase 4)
+
+def test_t10fix1_153_root_del_store_sale_escapado_en_doctor(tmp_path):
+    """#153 (CWE-150): la ruta del case store (y todo nombre del store) sale por `_texto_ruta` en la
+    salida de la capacidad: un nombre no ASCII o no imprimible nunca llega tal cual a la terminal."""
+    proj = tmp_path / "proj"
+    proj.mkdir()
+    _training(str(proj), enabled=True, root="../almacén", id_prefix="geo")
+    t = _cap_training(str(proj))
+    assert t["health"]["estado"] == "declarado" and "almacén" not in t["doctor"], t["doctor"]
+    assert ascii("almacén")[1:-1] in t["doctor"]
+    (tmp_path / "almacén").mkdir()
+    t = _cap_training(str(proj))
+    assert t["health"]["estado"] == "ok" and "almacén" not in t["doctor"], t["doctor"]
+    assert ascii("almacén")[1:-1] in t["doctor"]
+
+
+def test_t10fix1_159_doctor_con_training_activo_no_deja_pycache_en_el_plugin(tmp_path):
+    """#159: TODA carga por ruta de la capacidad (tambien `case_schema.py`, que corre antes) va con
+    `dont_write_bytecode`: `/doctor` sobre una COPIA del plugin con `training` activo no deja ni un
+    `__pycache__` nuevo."""
+    import shutil
+    import subprocess
+    repo = os.path.dirname(os.path.dirname(HERE))
+    copia = tmp_path / "plugin"
+    for rel in (os.path.join("agent-kits", "shared"), os.path.join("skills", "training-data-services", "scripts")):
+        shutil.copytree(os.path.join(repo, rel), str(copia / rel),
+                        ignore=shutil.ignore_patterns("__pycache__", "test_*"))
+    proj, _cfg, _store = _proyecto_training(tmp_path, estados=("approved",))
+    entorno = {k: v for k, v in os.environ.items() if k != "PYTHONDONTWRITEBYTECODE"}
+    for script, args in (("capabilities.py", ["--root", proj]), ("doctor.py", ["--root", proj, "--json"])):
+        r = subprocess.run([sys.executable, str(copia / "agent-kits" / "shared" / script), *args],
+                           capture_output=True, text=True, encoding="utf-8", errors="replace", env=entorno,
+                           cwd=proj, timeout=120)
+        assert r.returncode in (0, 1), (script, r.stderr[-2000:])
+        assert "training" in r.stdout, (script, r.stdout[-2000:])
+    caches = [os.path.relpath(b, str(copia)) for b, ds, _fs in os.walk(str(copia)) if b.endswith("__pycache__")]
+    assert caches == [], caches
+
+
+def test_t10fix1_164_enumerar_pasa_el_plazo_que_queda_a_las_capacidades(tmp_path, monkeypatch):
+    """#164: `enumerar(plazo_s=…)` (el presupuesto que le queda a `/doctor`) acota el recuento: la
+    capacidad recibe el MENOR entre su tope propio y lo que queda del bloque."""
+    proj, _cfg, _store = _proyecto_training(tmp_path, estados=("approved",))
+    tds = _tds()
+    vistos = []
+    original = tds["rec"].resumen_store
+
+    def _espia(store, raiz=None, plazo_s=None):
+        vistos.append(plazo_s)
+        return original(store, raiz, plazo_s=plazo_s)
+    monkeypatch.setattr(tds["rec"], "resumen_store", _espia)
+    monkeypatch.setattr(cap_mod, "_cargar_tds", lambda: tds)
+    next(c for c in cap_mod.enumerar(proj, plazo_s=0.4) if c["id"] == "training")
+    assert len(vistos) == 1 and 0 <= vistos[0] <= 0.4
+    next(c for c in cap_mod.enumerar(proj, plazo_s=0) if c["id"] == "training")
+    assert vistos[1] == 0
+    next(c for c in cap_mod.enumerar(proj) if c["id"] == "training")
+    assert vistos[2] == cap_mod.TRAINING_PLAZO_S

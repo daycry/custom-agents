@@ -109,12 +109,19 @@ python3 scripts/dataset-assembler.py --benchmark <family>[,<family>…] [--umbra
 El plugin **no** entrena, no sirve modelos y no corre el benchmark (CA-08): el proyecto usa los JSONL
 con su herramienta.
 
-**Frescura del dataset para `/doctor` (`estado_dataset`, T-10).** Solo lectura: un export cuenta si
-es un directorio real de `exports/` (sin seguir enlaces) con un `manifest.json` regular; sin él está
-**incompleto** y no vale como último. Estados: `sin_gold`, `sin_export` (hay Gold y ningún export),
-`desactualizado` (el `validation.json` Gold más reciente es posterior al `manifest.json` del último
-export), `al_dia` o `no_verificable` (`exports/` es un enlace). Compara `mtime`: un Gold que deja de
-serlo tras exportar no se ve aquí (sí con `--dry-run`).
+**Frescura del dataset para `/doctor` (`estado_dataset(store, gold, hasta, parcial)`, T-10).** Solo
+lectura: un export cuenta si es un directorio real de `exports/` (sin seguir enlaces) con un
+`manifest.json` regular. Lo demás se separa en tres (T-10 fix1, #156): **en curso** (directorio sin
+`manifest.json` modificado hace menos de la gracia, o el más reciente si otro ensamblador tiene
+`exports/.lock` tomado: se sondea sin crearlo y se suelta al instante), **incompleto** (sin
+`manifest.json` y más viejo) y **otros** (un fichero suelto, un enlace). Estados: `sin_gold`,
+`sin_export` (hay Gold y ningún export), `desactualizado` / `al_dia` **por contenido** (#154): los Gold
+vigentes que da `resumen_store` (`case_id@version` + `content_hash`) frente a los `casos` del
+`manifest.json` del último export —un Gold nuevo, uno cuyo contenido aprobado cambió o uno que dejó de
+serlo lo desactualizan; re-aprobar, un `touch` o reensamblar el mismo día («ya existe») no—; con el
+recuento PARCIAL solo se comprueba lo recorrido. `parcial` («no verificado»): el recorrido de
+`exports/` va dentro del MISMO plazo de `/doctor` (#152) y se agotó; `no_verificable`: `exports/` es
+un enlace o el manifiesto no se puede leer (tope de 16 MiB por fichero).
 
 ## Proponer un caso Gold al Curator (`scripts/propose-from-case.py`, CA-05)
 

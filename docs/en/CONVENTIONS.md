@@ -210,11 +210,13 @@ if invalid, `declarado`/`ok` depending on whether the case store `root` exists; 
 creates it). With the store present, its `doctor` text adds (T-10, CA-07) the **case count per
 status** (`pending`/`approved`/`needs_changes`/`rejected`, read from `cases/` with the recorder's
 safe readers —`resumen_store`—, never from the index), incomplete versions and orphan temporaries,
-and the **dataset freshness** (the assembler's `estado_dataset`: no Gold, no export yet, outdated if
-a Gold is newer than the last export's `manifest.json`, or up to date). No network, writes nothing
-and **time-bounded** (`TRAINING_PLAZO_S` = 2 s: measured, 10⁴ versions take 10.7 s warm and over
-70 s cold on Windows); past the cap the count is declared **PARTIAL** ("N of M cases"), never an
-invented total.
+and the **dataset freshness** (the assembler's `estado_dataset`, by CONTENT: no Gold, no export yet,
+outdated if the current Gold set —`case_id@version` + `content_hash`— is not the one in the last
+export's `manifest.json`, or up to date; in-progress, incomplete and other entries are counted
+separately). No network, writes nothing and **time-bounded** (`TRAINING_PLAZO_S` = 2 s: measured,
+10⁴ versions take 10.7 s warm and over 70 s cold on Windows; the actual cap is the smaller of that and
+what is left of the `/doctor` block, `capabilities.plazo_restante()`); past the cap the count is
+declared **PARTIAL** ("N of M cases"), never an invented total.
 
 `/doctor` (T-09) adds an **"Optional capabilities"** block, also generic: one row per capability
 from `enumerar(root)`, with no capability-specific string anywhere in `doctor.py` (invalid config

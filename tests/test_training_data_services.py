@@ -18,6 +18,7 @@ import builtins
 import copy
 import hashlib
 import importlib.util
+import io
 import json
 import os
 import re
@@ -182,6 +183,53 @@ def test_ningun_no_gold_ni_gold_sin_atar_llega_al_dataset(tmp_path):
 
 # ------------------------------------------------------------------ una sola dirección (anti-leakage)
 
+# #158: `builtins.open` y `io.open` son el MISMO objeto pero dos atributos: `pathlib.Path.read_text`
+# llama a `io.open`, así que parchear solo `builtins.open` dejaba vivo un lector por `pathlib`.
+ACCESOS_ESPIADOS = ((builtins, "open"), (io, "open"), (os, "open"), (os, "scandir"), (os, "listdir"),
+                    (os, "stat"), (os, "lstat"))
+
+
+def _espiar_accesos(monkeypatch):
+    """Lista (viva) de las rutas que se abren, listan o examinan mientras el espía está puesto."""
+    abiertos = []
+    for modulo, nombre in ACCESOS_ESPIADOS:
+        original = getattr(modulo, nombre)
+
+        def _espia(ruta, *a, _o=original, _stat=nombre in ("stat", "lstat"), **k):
+            if isinstance(ruta, (str, bytes, os.PathLike)):
+                abiertos.append((_stat, os.fsdecode(ruta)))
+            return _o(ruta, *a, **k)
+        monkeypatch.setattr(modulo, nombre, _espia)
+    return abiertos
+
+
+def _tocados(abiertos, dk):
+    """Accesos a `docs/knowledge/`: abrir o listar el directorio o algo de dentro, o examinar (`stat`)
+    algo de DENTRO. Examinar el propio `docs/knowledge` no lee nada: es la contención de ADR-019 (el
+    `realpath` de POSIX hace `lstat` de cada componente para comprobar que el store no vive ahí)."""
+    dk_canon = os.path.normcase(os.path.realpath(dk))
+    out = []
+    for es_stat, p in abiertos:
+        canon = os.path.normcase(os.path.realpath(os.path.abspath(p)))
+        if canon.startswith(dk_canon + os.sep) or (canon == dk_canon and not es_stat):
+            out.append(p)
+    return out
+
+
+def test_158_el_espia_ve_lecturas_por_pathlib_y_por_stat(tmp_path, monkeypatch):
+    """#158: el espía del anti-leakage no se deja fuera `pathlib` (`io.open`) ni `os.stat`/`os.lstat`."""
+    import pathlib
+    dk = tmp_path / "docs" / "knowledge" / "approved"
+    dk.mkdir(parents=True)
+    (dk / "k.md").write_text("TOKEN-CURADO-7f3a\n", encoding="utf-8")
+    for lector in (lambda: pathlib.Path(str(dk / "k.md")).read_text(encoding="utf-8"),
+                   lambda: os.stat(str(dk / "k.md")), lambda: os.lstat(str(dk / "k.md"))):
+        abiertos = _espiar_accesos(monkeypatch)
+        lector()
+        monkeypatch.undo()
+        assert _tocados(abiertos, str(tmp_path / "docs" / "knowledge")), "el espía no vio el acceso"
+
+
 def test_el_case_store_no_puede_vivir_en_docs_knowledge(tmp_path):
     raiz = tmp_path / "proj"
     (raiz / "docs" / "knowledge").mkdir(parents=True)
@@ -203,22 +251,12 @@ def test_nada_de_docs_knowledge_alimenta_el_store_ni_el_dataset(tmp_path, monkey
         os.makedirs(os.path.join(dk, sub), exist_ok=True)
         with open(os.path.join(dk, sub, nombre), "w", encoding="utf-8") as f:
             f.write("TOKEN-CURADO-7f3a rampa de 30 grados con bola roja\n")
-    abiertos = []
-    for modulo, nombre in ((builtins, "open"), (os, "open"), (os, "scandir"), (os, "listdir")):
-        original = getattr(modulo, nombre)
-
-        def _espia(ruta, *a, _o=original, **k):
-            if isinstance(ruta, (str, bytes, os.PathLike)):
-                abiertos.append(os.fsdecode(ruta))
-            return _o(ruta, *a, **k)
-        monkeypatch.setattr(modulo, nombre, _espia)
+    abiertos = _espiar_accesos(monkeypatch)
     _gold(cfg, raiz, "a")
     _gold(cfg, raiz, "bench")
     r = asm.ensamblar(cfg, raiz, {"bench"}, fecha=FECHA)
     monkeypatch.undo()
-    dk_canon = os.path.normcase(os.path.realpath(dk))
-    tocados = [p for p in abiertos if os.path.normcase(os.path.realpath(os.path.abspath(p))).startswith(dk_canon)]
-    assert tocados == [], tocados
+    assert _tocados(abiertos, dk) == [], _tocados(abiertos, dk)
     assert abiertos, "el espía no vio ninguna apertura"
     assert b"TOKEN-CURADO-7f3a" not in _bytes_export(str(store))
 
@@ -271,6 +309,20 @@ def test_ca01_ningun_script_del_ciclo_lee_training_json():
         assert "training.json" not in texto and "case-recorder" not in texto and "dataset-assembler" not in texto, f
     with open(os.path.join(SHARED, "doctor.py"), encoding="utf-8") as fh:
         assert "training" not in fh.read()
+    # #160: la CA nombra también `skills/knowledge-services/` (y los hooks corren en cada sesión)
+    vistos = 0
+    for base in (os.path.join(ROOT, "skills", "knowledge-services"), os.path.join(ROOT, "hooks")):
+        for d, dirs, fs in os.walk(base):
+            dirs[:] = [x for x in dirs if x != "__pycache__"]
+            for f in fs:
+                if f.startswith("test_") or not f.endswith((".py", ".sh", ".js", ".json")):
+                    continue
+                with open(os.path.join(d, f), encoding="utf-8") as fh:
+                    texto = fh.read()
+                vistos += 1
+                for prohibido in ("training.json", "case-recorder", "dataset-assembler"):
+                    assert prohibido not in texto, (os.path.relpath(os.path.join(d, f), ROOT), prohibido)
+    assert vistos >= 10, vistos
 
 
 # ------------------------------------------------------------------ CA-08 y CA-04
@@ -364,6 +416,51 @@ def test_las_aristas_de_la_skill_tienen_una_puerta_que_casa_con_los_tests():
                 assert nombre in defs, (arista, nombre)
         for filtro in re.findall(r"-k (\w+)", puerta):
             assert any(filtro in x for x in defs), (arista, filtro)
+
+
+# ------------------------------------------------------------------ #150/#151: el CHANGELOG de la iniciativa
+
+SLUG = "training-data-services"
+LEDGER = os.path.join(ROOT, "docs", "roadmap", "2026-09-16-training-data-services", "tasks.md")
+
+
+def _con_estado_completado(texto):
+    """El ledger tal cual, con `estado: completado` en el frontmatter (simula el cierre sin tocarlo)."""
+    cabeza, _sep, resto = texto.partition("\n---\n")
+    lineas = [l for l in cabeza.split("\n") if not l.startswith("estado:")]
+    return "\n".join(lineas + ["estado: completado"]) + "\n---\n" + resto
+
+
+def test_150_changelog_sync_generaria_las_11_entradas_bajo_added(tmp_path):
+    """#150: ninguna entrada ya presente en los CHANGELOG cita el slug entre comillas invertidas (el
+    chequeo de idempotencia de `changelog-sync` daría la iniciativa por sincronizada). #151: con
+    `changelog: added` en el frontmatter, las 11 tareas caen en `Added` aunque un título diga
+    «regresion». Se simula el cierre sobre una COPIA: el ledger real no cambia de estado."""
+    for fn in ("CHANGELOG.md", "CHANGELOG.es.md"):
+        with open(os.path.join(ROOT, fn), encoding="utf-8") as f:
+            texto = f.read()
+        assert f"`{SLUG}`" not in texto, fn
+        with open(str(tmp_path / fn), "w", encoding="utf-8", newline="") as f:
+            f.write(texto)
+    with open(LEDGER, encoding="utf-8") as f:
+        ledger = f.read()
+    assert re.search(r"^changelog:\s*added\b", ledger.split("\n---\n", 1)[0], re.M), "falta `changelog: added`"
+    destino = tmp_path / "docs" / "roadmap" / "2026-09-16-training-data-services"
+    destino.mkdir(parents=True)
+    (destino / "tasks.md").write_text(_con_estado_completado(ledger), encoding="utf-8")
+    script = os.path.join(ROOT, "skills", "changelog-sync", "scripts", "changelog-sync.py")
+    base = [sys.executable, script, "--root", str(tmp_path), "--dry-run", "--only", SLUG]
+    r = subprocess.run(base + ["--json"], capture_output=True, text=True, encoding="utf-8", timeout=120)
+    assert r.returncode == 0, r.stderr
+    pend = json.loads(r.stdout)["pendientes"]
+    assert [(p["slug"], p["categoria"], p["tareas"]) for p in pend] == [(SLUG, "Added", 11)], pend
+    assert sorted(pend[0]["ficheros"]) == ["CHANGELOG.es.md", "CHANGELOG.md"]
+    r = subprocess.run(base, capture_output=True, text=True, encoding="utf-8", timeout=120)
+    assert r.returncode == 0, r.stderr
+    for cabecera in (f"### Added — `{SLUG}` initiative", f"### Added — iniciativa `{SLUG}`"):
+        bloque = r.stdout.split(cabecera, 1)[1].split("\n### ", 1)[0].split("── ", 1)[0]
+        tareas = re.findall(r"^- \*\*(T-\d+) — ", bloque, re.M)
+        assert tareas == [f"T-{i:02d}" for i in range(1, 12)], (cabecera, tareas)
 
 
 def main():

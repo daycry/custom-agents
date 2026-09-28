@@ -142,7 +142,7 @@ JSONL = ("train.jsonl", "benchmark.jsonl")
 MANIFEST = "manifest.json"
 BLOQUEO_EXPORTS = ".lock"
 MAX_EXPORTS_MISMO_ID = 99
-TOPE_FICHERO = 16 * 1024 * 1024
+TOPE_FICHERO = rec.TOPE_FICHERO                 # #148: el MISMO tope por fichero que aplica `/doctor`
 BLOQUE = 64 * 1024
 ESPERA_BLOQUEO_EXPORTS_S = 120                  # #143: espera de `exports/.lock` (`--espera-bloqueo`)
 QUIEN = "el ensamblador"
@@ -548,34 +548,129 @@ def ensamblar(config, raiz_proyecto, benchmark, umbral=dd.UMBRAL_DEFECTO, ventan
 
 # ------------------------------------------------------------------ frescura del dataset (T-10, `/doctor`)
 
-def estado_dataset(store, gold_mtime_ns):
+def _bloqueo_tomado(exports):
+    """#156: True si OTRO ensamblador tiene `exports/.lock` tomado AHORA. Sondeo de solo lectura: abre
+    el fichero de bloqueo SIN crearlo (`O_RDONLY`, sin seguir un enlace), prueba UN bloqueo no bloqueante
+    y lo suelta al instante; sin fichero, o si no se puede ni abrir ni sondear, False (no se inventa un
+    «en curso»)."""
+    ruta = os.path.join(exports, BLOQUEO_EXPORTS)
+    try:
+        st = rec._stat_sin_seguir(ruta)
+        if rec._es_enlace_st(st) or not stat.S_ISREG(st.st_mode):
+            return False
+        f = open(ruta, "rb", opener=rec._abrir_sin_seguir)
+    except OSError:
+        return False
+    with f:
+        try:
+            rec._intentar_bloqueo(f)
+        except OSError as e:
+            return rec._es_contencion(e)
+        try:
+            if rec._WINDOWS:
+                import msvcrt
+                f.seek(0)
+                msvcrt.locking(f.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                import fcntl
+                fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+        except OSError:
+            pass
+    return False
+
+
+def _casos_del_manifest(ruta, previo):
+    """`{(case_id, version): (content_hash|None, motivo)}` de las entradas `casos` de un `manifest.json`,
+    leido por descriptor con el tope por fichero (`rec._leer_json_reintentando`), o None si no se puede."""
+    try:
+        m, _mt = rec._leer_json_reintentando(ruta, previo, None, rec._json_de, TOPE_FICHERO)
+    except (OSError, ValueError, RecursionError, rec.Rechazo):
+        return None
+    casos = m.get("casos") if isinstance(m, dict) else None
+    if not isinstance(casos, list):
+        return None
+    out = {}
+    for c in casos:
+        if isinstance(c, dict) and isinstance(c.get("case_id"), str) and isinstance(c.get("version"), int):
+            out[(c["case_id"], c["version"])] = (c.get("content_hash"), c.get("motivo"))
+    return out
+
+
+def _ref(clave):
+    return rec._texto_ruta(cs.referencia_version(clave[0], clave[1]))
+
+
+def _frescura(gold, casos, parcial):
+    """None si el ultimo export recoge EXACTAMENTE los Gold vigentes (por contenido), o el motivo."""
+    for clave in sorted(gold):
+        if clave not in casos:
+            return f"{_ref(clave)} es Gold y no estaba en el ultimo export"
+        h_export, motivo = casos[clave]
+        if h_export is None:
+            if motivo != MOTIVO_SIN_ATAR:
+                return f"{_ref(clave)} es Gold y el ultimo export no lo incluyo"
+        elif gold[clave] is not None and gold[clave] != h_export:
+            return f"{_ref(clave)}: su contenido aprobado cambio desde el ultimo export"
+    if not parcial:
+        for clave in sorted(casos):
+            if casos[clave][0] is not None and clave not in gold:
+                return f"{_ref(clave)} ya no es Gold y sigue en el ultimo export"
+    return None
+
+
+def estado_dataset(store, gold, hasta=None, parcial=False):
     """Frescura del dataset para `/doctor` (T-10, CA-07), SOLO LECTURA y sin red: `{estado, exports,
-    incompletos, ultimo, motivo}`. Un export cuenta si es un directorio real de `exports/` (no un
-    enlace: no se sigue) con un `manifest.json` que es un fichero regular sin seguir enlaces (un export
-    sin el esta INCOMPLETO: se cuenta aparte y no vale como ultimo export). `ultimo` = el de
-    `manifest.json` con `mtime` mas reciente. `estado`: `sin_gold` (ningun Gold: nada que exportar),
-    `sin_export` (hay Gold y ningun export completo), `desactualizado` (el `validation.json` Gold mas
-    reciente, `gold_mtime_ns`, es posterior al `manifest.json` del ultimo export), `al_dia` o
-    `no_verificable` (`exports/` es un enlace o no se puede listar). Limite declarado: compara `mtime`
-    (un Gold que DEJA de serlo tras exportar no se detecta aqui; `dataset-assembler.py --dry-run` si)."""
+    incompletos, en_curso, otros, ultimo, motivo}`. `gold` = los Gold vigentes de `rec.resumen_store`
+    (`{(case_id, version): content_hash|None}`); `parcial` = ese recuento se corto (solo se comprueba lo
+    recorrido); `hasta` = instante de `rec._crono()` en que vence el plazo de `/doctor` (#152: el
+    recorrido de `exports/` va DENTRO del mismo plazo; agotado -> `parcial`, «no verificado»).
+    Cada entrada de `exports/` (#156): `export` (directorio real con un `manifest.json` regular, sin
+    seguir enlaces), `en_curso` (directorio sin `manifest.json` modificado dentro de la gracia
+    `rec.GRACIA_EN_CURSO_S`, o el mas reciente de ellos si otro ensamblador tiene `exports/.lock`
+    tomado), `incompleto` (sin `manifest.json` y mas viejo) u `otros` (lo que no es un directorio de
+    export: un fichero suelto, un enlace). `ultimo` = el export de `manifest.json` con `mtime` mas
+    reciente. `estado`: `sin_gold`, `sin_export` (hay Gold y ningun export completo), `desactualizado`
+    / `al_dia` por CONTENIDO (#154): los Gold vigentes (`case_id@version` + `content_hash`) frente a los
+    `casos` del `manifest.json` del ultimo export —un Gold nuevo, uno cuyo contenido aprobado cambio o
+    uno que dejo de serlo lo desactualizan; re-aprobar o un `touch` no—, `parcial` o `no_verificable`
+    (`exports/` es un enlace o no se puede listar, o el manifiesto no se puede leer)."""
     exports = os.path.join(store, "exports")
-    salida = {"estado": None, "exports": 0, "incompletos": 0, "ultimo": None, "motivo": ""}
+    salida = {"estado": None, "exports": 0, "incompletos": 0, "en_curso": 0, "otros": 0, "ultimo": None,
+              "motivo": ""}
+    gold = gold or {}
+
+    def agotado():
+        return hasta is not None and rec._crono() >= hasta
+
+    def cortar():
+        salida.update(estado="parcial", motivo="se agoto el tope de tiempo de /doctor antes de recorrer exports/")
+        return salida
+    if agotado():
+        return cortar()
     tipo = rec._tipo_entrada(exports, exports)
-    ultimo_ns = None
+    ultimo = None
     if tipo == "enlace" or tipo == "otro":
         salida.update(estado="no_verificable", motivo=("exports/ es un enlace: no se sigue" if tipo == "enlace"
                                                         else "exports/ no es un directorio"))
         return salida
     if tipo == "dir":
+        entradas = []
         try:
             with os.scandir(exports) as it:
-                entradas = [e for e in it if not e.name.startswith(".")]
+                for i, e in enumerate(it, 1):
+                    if i % rec.LISTADO_CADA == 0 and agotado():
+                        return cortar()
+                    if not e.name.startswith("."):
+                        entradas.append(e)
         except OSError as e:
             salida.update(estado="no_verificable", motivo=f"exports/ no se puede listar ({type(e).__name__})")
             return salida
-        for e in sorted(entradas, key=lambda x: x.name):
+        sin_manifest = []
+        for i, e in enumerate(sorted(entradas, key=lambda x: x.name), 1):
+            if i % rec.LISTADO_CADA == 0 and agotado():
+                return cortar()
             if rec._tipo_entrada(e, e.path) != "dir":
-                salida["incompletos"] += 1
+                salida["otros"] += 1
                 continue
             ruta_m = os.path.join(e.path, MANIFEST)
             try:
@@ -586,20 +681,43 @@ def estado_dataset(store, gold_mtime_ns):
             if enlace is None and st is not None:
                 enlace = bool(rec._motivo_enlace(ruta_m, ruta_m))
             if st is None or enlace or not stat.S_ISREG(st.st_mode):
-                salida["incompletos"] += 1
+                try:
+                    mtime = rec._stat_sin_seguir(e.path).st_mtime
+                except OSError:
+                    mtime = None
+                sin_manifest.append((mtime, e.name))
                 continue
             salida["exports"] += 1
-            if ultimo_ns is None or st.st_mtime_ns > ultimo_ns:
-                ultimo_ns, salida["ultimo"] = st.st_mtime_ns, e.name
-    if gold_mtime_ns is None:
+            if ultimo is None or st.st_mtime_ns > ultimo[0]:
+                ultimo = (st.st_mtime_ns, e.name, ruta_m, st)
+        vivo = _bloqueo_tomado(exports) if sin_manifest else False
+        reciente = max(sin_manifest, key=lambda x: (x[0] or 0, x[1])) if vivo else None
+        for mtime, nombre in sin_manifest:
+            edad = None if mtime is None else rec._edad(mtime)
+            if (mtime, nombre) == reciente or (edad is not None and 0 <= edad < rec.GRACIA_EN_CURSO_S):
+                salida["en_curso"] += 1
+            else:
+                salida["incompletos"] += 1
+    if ultimo is not None:
+        salida["ultimo"] = ultimo[1]
+    if not gold:
         salida.update(estado="sin_gold", motivo="ningun caso Gold: nada que exportar")
-    elif ultimo_ns is None:
+        return salida
+    if ultimo is None:
         salida.update(estado="sin_export", motivo="hay Gold y ningun export con manifest.json todavia")
-    elif gold_mtime_ns > ultimo_ns:
-        salida.update(estado="desactualizado",
-                      motivo=f"hay Gold mas nuevo que el ultimo export `{rec._texto_ruta(salida['ultimo'])}`")
+        return salida
+    if agotado():
+        return cortar()
+    nombre = rec._texto_ruta(ultimo[1])
+    casos = _casos_del_manifest(ultimo[2], ultimo[3])
+    if casos is None:
+        salida.update(estado="no_verificable", motivo=f"el manifest.json del ultimo export `{nombre}` no se puede leer")
+        return salida
+    motivo = _frescura(gold, casos, parcial)
+    if motivo:
+        salida.update(estado="desactualizado", motivo=f"{motivo} (ultimo export `{nombre}`)")
     else:
-        salida.update(estado="al_dia", motivo=f"ultimo export `{rec._texto_ruta(salida['ultimo'])}`")
+        salida.update(estado="al_dia", motivo=f"ultimo export `{nombre}`")
     return salida
 
 
