@@ -146,6 +146,34 @@ test("fusionar: arrays se unen sin duplicar", () => {
   assert.deepEqual(add2, [], "sin cambios → no reporta claves añadidas")
 })
 
+test("fusionar: upsert por identidad reemplaza en su sitio y colapsa duplicados", () => {
+  // El `merge` del marketplace de Codex es un array de OBJETOS: sin upsert, `prev.includes(x)`
+  // (referencia) añadía una segunda entrada en cada reinstalación (gap M-01).
+  const [out, add] = fusionar(
+    {
+      plugins: [
+        { name: "custom-agents", version: "1.20.0" },
+        { name: "custom-agents", version: "1.20.0" },   // duplicado histórico: debe colapsar
+        { name: "otro", version: "3.0.0" },
+      ],
+    },
+    { plugins: [{ name: "custom-agents", version: "1.21.0" }] },
+    { plugins: "name" },
+  )
+  assert.deepEqual(out.plugins.map((p) => `${p.name}@${p.version}`),
+    ["custom-agents@1.21.0", "otro@3.0.0"],
+    "la propia se actualiza EN SU SITIO, la ajena se conserva y el duplicado se colapsa")
+  assert.ok(add.includes("plugins"), "cambió: hay que escribir")
+
+  const [same, add2] = fusionar(
+    { plugins: [{ name: "custom-agents", version: "1.21.0" }] },
+    { plugins: [{ name: "custom-agents", version: "1.21.0" }] },
+    { plugins: "name" },
+  )
+  assert.equal(same.plugins.length, 1)
+  assert.deepEqual(add2, [], "idéntica → nada que escribir (reinstalación al día)")
+})
+
 test("fusionar: no muta la entrada", () => {
   const orig = { a: 1, sub: { b: 2 } }
   fusionar(orig, { c: 3, sub: { d: 4 } })
@@ -268,6 +296,11 @@ test("install → idempotente → uninstall preciso", () => {
     assert.ok(existsSync(join(proj, ".opencode", "agents", "reviewer.md")))
     assert.ok(existsSync(join(proj, ".opencode", "plugins", "custom-agents-hooks.js")))
     assert.ok(existsSync(join(proj, "opencode.json")))
+    // El manifiesto viaja también: `/doctor` lee `<raíz>/.claude-plugin/plugin.json` para decir la
+    // versión instalada y OpenCode no tiene otro origen (sin él salía «sin campo `version`» con el
+    // remedio de añadir un campo a un fichero que no existía).
+    const manif = JSON.parse(readFileSync(join(proj, ".opencode", ".claude-plugin", "plugin.json"), "utf8"))
+    assert.equal(manif.version, VERSION, "el manifiesto no viaja a OpenCode o su versión diverge")
 
     // 2) idempotencia: reinstalar no cambia el recuento ni duplica instructions
     cli(["install", "-p", "opencode", "--dir", proj, "-q"])
@@ -286,6 +319,8 @@ test("install → idempotente → uninstall preciso", () => {
     assert.ok(existsSync(ajeno), "uninstall borró un fichero que no era suyo")
     assert.ok(existsSync(join(proj, "opencode.json")), "uninstall borró la config del usuario")
     assert.ok(!existsSync(join(proj, ".opencode", "agents", "reviewer.md")))
+    assert.ok(!existsSync(join(proj, ".opencode", ".claude-plugin", "plugin.json")),
+      "uninstall dejó el manifiesto huérfano")
     assert.ok(!existsSync(join(proj, ".opencode", MANIFEST)))
   } finally {
     rmSync(proj, { recursive: true, force: true })
@@ -649,6 +684,13 @@ test("Codex: el plan da de alta el marketplace y habilita el plugin en config.to
   const ex = plan.find((p) => p.type === "exec")
   assert.equal(ex.cmd, "codex")
   assert.deepEqual(ex.args.slice(0, 3), ["plugin", "marketplace", "add"])
+  // Codex espera la RAÍZ del marketplace (el padre de `.agents/`): ahí busca el manifiesto
+  // (`<raíz>/.agents/plugins/marketplace.json`) y contra ahí resuelve `source.path`. Pasarle
+  // `mktRoot` hacía fallar SIEMPRE el alta con la CLI en el PATH (gap M-01, verificado con
+  // codex-cli 0.155.1: «marketplace root does not contain a supported manifest»).
+  const mkt = plan.find((p) => p.type === "merge")
+  assert.equal(join(ex.args[3], ".agents", "plugins", "marketplace.json"), mkt.to,
+    "el argumento del `add` es la raíz (el padre de .agents/) del manifiesto recién escrito")
   assert.equal(ex.opcional, true, "sin codex en el PATH no se puede bloquear la instalación")
   assert.equal(ex.minVersion, "0.128.0")
   assert.ok(ex.siYaExiste.args.includes("remove"), "si ya existía con otra fuente: remove + add")
@@ -684,7 +726,10 @@ test("Codex: instala de verdad, llama a su CLI y deja el config.toml del usuario
     // El `codex` de mentira apunta lo que le piden (el `.cmd` de Windows reproduce las comillas).
     const llamada = readFileSync(log, "utf8").replace(/"/g, "")
     assert.match(llamada, /plugin marketplace add/, "no se llamó a la CLI de Codex")
-    assert.match(llamada, /[\\/]\.agents/, "el marketplace que se da de alta es el recién escrito")
+    assert.ok(!/[\\/]\.agents\b/.test(llamada),
+      "se da de alta la RAÍZ, no el .agents/ (Codex busca <raíz>/.agents/plugins/marketplace.json)")
+    assert.ok(llamada.includes(hogar),
+      `la raíz es el HOME del usuario, no su .agents/: ${llamada}`)
 
     // Desinstalar: `enabled = false` y ni una línea más del config.toml
     cli(["uninstall", "-p", "codex", "--scope", "user", "-q"], { env })
@@ -2165,7 +2210,12 @@ test("gap I2-1: un `false` en `local` manda sobre el `true` de `project` y de `u
 test("gap I2-1: `status` ve el apagado de `.claude/settings.local.json`", () => {
   const proj = tmpProj()
   const cfg = tmpProj()
-  const env = { ...process.env, NO_COLOR: "1", CLAUDE_CONFIG_DIR: cfg }
+  const hogar = tmpProj()
+  // HOME falso: los OTROS proveedores (Codex, OpenCode) leen su config en el HOME de la MÁQUINA
+  // y su «registrado: sí» legítimo rompía la aserción global — ningún test toca el HOME real.
+  const env = { ...process.env, NO_COLOR: "1", CLAUDE_CONFIG_DIR: cfg,
+    HOME: hogar, USERPROFILE: hogar, CODEX_HOME: join(hogar, ".codex"),
+    PROGRAMDATA: join(hogar, "ProgramData") }
   try {
     mkdirSync(join(cfg, "plugins"), { recursive: true })
     writeFileSync(join(cfg, "plugins", "installed_plugins.json"), JSON.stringify(
@@ -2180,7 +2230,7 @@ test("gap I2-1: `status` ve el apagado de `.claude/settings.local.json`", () => 
     assert.match(s, /APAGADO/)
     assert.match(s, /settings\.local\.json/, "y se nombra el fichero que manda")
   } finally {
-    for (const d of [proj, cfg]) rmSync(d, { recursive: true, force: true })
+    for (const d of [proj, cfg, hogar]) rmSync(d, { recursive: true, force: true })
   }
 })
 
