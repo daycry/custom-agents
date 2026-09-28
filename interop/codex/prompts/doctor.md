@@ -1,5 +1,5 @@
 ---
-description: "Diagnóstico de la instalación del plugin en este proyecto — herramientas (python3, git, jq, node, Playwright), plugin y hooks registrados, statusline, configs de .claude (rates, dev, jira, confluence) y estado del trabajo (marcadores de medición huérfanos, iniciativas en progreso, memoria técnica —curadas, índice, FTS5, journal, calibración—, evals), con veredicto ✅/⚠️/❌ y el arreglo concreto de cada línea. Solo lee; no toca nada. Sin red salvo la comprobación en vivo de capacidades opcionales activadas en `taxonomy.json` (p. ej. `kwipu`), acotada a hosts locales/privados y a un tope total de tiempo. Úsalo cuando el usuario diga \"¿está bien instalado?\", \"diagnostica el plugin\", \"por qué no funciona el hook\", \"comprueba mi configuración\", \"doctor\"."
+description: "Diagnóstico de la instalación del plugin en este proyecto — herramientas (python3, git, jq, node, Playwright), plugin y hooks registrados, statusline, configs de .claude (rates, dev, jira, confluence) y estado del trabajo (marcadores de medición huérfanos, iniciativas en progreso, memoria técnica —curadas, índice, FTS5, journal, calibración—, evals), con veredicto ✅/⚠️/❌ y el arreglo concreto de cada línea. Solo lee; no toca nada. Sin red salvo la comprobación en vivo de capacidades opcionales activadas en `taxonomy.json`, acotada a hosts locales/privados y a un tope total de tiempo (p. ej. `kwipu` o la memoria de grafo `graphiti`). Úsalo cuando el usuario diga \"¿está bien instalado?\", \"diagnostica el plugin\", \"por qué no funciona el hook\", \"comprueba mi configuración\", \"doctor\"."
 argument-hint: "(opcional) --json para la salida en JSON"
 ---
 <!-- GENERADO por scripts/export-interop.py desde commands/doctor.md — no lo edites a mano.
@@ -74,7 +74,7 @@ nada**: cada línea lleva su veredicto y, si algo falla, **qué comando lo arreg
   `CLAUDE.md`) va en forma corta: una nota al pie decenas de líneas más abajo no la satisface,
   porque quien teclea lo hace antes de llegar a ella. Los registros fechados (`docs/roadmap/`,
   `docs/knowledge/`, CHANGELOG) no se miran: quedan como se escribieron.
-- **Ocho bloques**: herramientas · plugin y hooks · statusline · configs de `.claude/` · estado del trabajo · **capacidades opcionales** (`agent-kits/shared/capabilities.py`, T-09/T-13, CA-14: una fila por capacidad registrada —hoy el Knowledge Gate y, si el proyecto lo declara, un backend de `knowledge-services`— SIN código específico por capacidad; config inválida → ❌ con fichero+campo+arreglo, desactivada → ℹ️, activa con backend declarado → comprobación de red EN VIVO vía SU adaptador —✅ sano sin desfase, ⚠️ export atrasado con el remedio que nombra `verify()` [nunca lo ejecuta], ⚠️/❌ degradado/error, ℹ️ sin conexión o timeout— y sin backend, el texto genérico de la propia capacidad) · **memoria técnica** (`docs/knowledge/`: entradas curadas por familia y estado, índice README —❌ si rompe la biyección—, índice FTS5, journal a 0 con memoria curada, `CALIBRATION.md` desfasada con iniciativas cerradas sin retro — la retro es puerta de cierre desde `memory-retrieval` T-17) · **Journal** (session-end-durable-capture T-06: lee `journal.py status --json` — contadores outbox/processing/done/dead-letter, huérfanas, backoff pendiente con el remedio nombrado, y triage del «Hook cancelled»: aviso del runtime sin pérdida vs. pérdida posible).
+- **Ocho bloques**: herramientas · plugin y hooks · statusline · configs de `.claude/` · estado del trabajo · **capacidades opcionales** (`agent-kits/shared/capabilities.py`, T-09/T-13, CA-14: una fila por capacidad registrada —hoy el Knowledge Gate y, si el proyecto lo declara, un backend de `knowledge-services`— SIN código específico por capacidad; config inválida → ❌ con fichero+campo+arreglo, desactivada → ℹ️, activa con backend declarado → comprobación de red EN VIVO vía SU adaptador —✅ sano sin desfase, ⚠️ export atrasado con el remedio que nombra `verify()` [nunca lo ejecuta], ⚠️ verificación incompleta (el tercer veredicto de `verify()`, gap #133 de `graphiti-memory`: el tope de lectura cortó la ventana) con el conteo de entradas sin confirmar y el aviso del adaptador, ⚠️ sano con aviso (el aviso del adaptador llega al usuario en vez de tirarse), ⚠️/❌ degradado/error, ℹ️ sin conexión o timeout— y sin backend, el texto genérico de la propia capacidad; una capacidad puede además publicar su propio estado de configuración —la memoria de grafo `graphiti` dice `off`/`shadow`/`read` según su `mode`, y `degradado` si está habilitada con la config incompleta, siempre con el arreglo concreto—) · **memoria técnica** (`docs/knowledge/`: entradas curadas por familia y estado, índice README —❌ si rompe la biyección—, índice FTS5, journal a 0 con memoria curada, `CALIBRATION.md` desfasada con iniciativas cerradas sin retro — la retro es puerta de cierre desde `memory-retrieval` T-17) · **Journal** (session-end-durable-capture T-06: lee `journal.py status --json` — contadores outbox/processing/done/dead-letter, huérfanas, backoff pendiente con el remedio nombrado, y triage del «Hook cancelled»: aviso del runtime sin pérdida vs. pérdida posible).
 - **La versión del plugin es sin red por diseño**: `/doctor` no consulta el marketplace, así que
   no puede decir si hay una versión más nueva del plugin; solo informa de la versión instalada.
   (Esto NO es una afirmación general de "sin red": las capacidades opcionales activadas en
@@ -82,3 +82,39 @@ nada**: cada línea lleva su veredicto y, si algo falla, **qué comando lo arreg
   locales/privados y a un tope total de tiempo.)
 - **No confundir con `/setup`**: `/doctor` diagnostica lo que ya hay (solo lectura); `/setup`
   configura y escribe (`rates.json`, `dev.json`, opt-ins de Jira/Confluence, statusline).
+
+## Memoria de grafo (`graphiti`), si el proyecto la declara
+
+Es una **capacidad opcional más** del registro (`capabilities.py`), igual que `kwipu`: `/doctor`
+no lleva ni una línea de código propia para ella (CA-14 de knowledge-services — la cadena `graphiti` no aparece en
+`agent-kits/shared/doctor.py`). Lo que verás en el bloque «Capacidades opcionales»:
+
+| Fila | Qué significa | Qué hacer |
+|---|---|---|
+| `graphiti: deshabilitado` | No hay ningún backend `type: graphiti` con `enabled: true` en `taxonomy.json` | nada; actívala con `/setup` si la quieres |
+| `graphiti: … en off` | Declarada pero apagada por configuración (`mode: off`): ni sincroniza ni lee | pon `mode: "shadow"` para empezar a sincronizar |
+| `graphiti: … en shadow` | Sincroniza y **nunca** lee: el router jamás consulta el grafo en `shadow` (CA-10) | cuando `--check` no dé desfase, pasa a `mode: "read"` |
+| `graphiti: … en read` | Lectura enrutada activa: `knowledge-find.py --intent <intent>` puede servirse del grafo si ese intent está en `router.intents` | comprueba la fila `graphiti (backend)`: en `read` cada consulta exige `health` sano y `verify` sin desfase |
+| `graphiti: … en degradado` | Habilitada pero con la configuración incompleta o inválida | corrige el campo que nombra la propia fila en `taxonomy.json` |
+
+La fila `graphiti (backend)` es la comprobación de red **en vivo** que hace el adaptador
+(`health()` + `verify()`), con el mismo tope de tiempo que cualquier otra capacidad y siempre
+contra el endpoint **local** declarado. `/doctor` no registra ningún servidor MCP ni toca
+configuración global: solo lee.
+
+`/doctor` recorta la ventana de lectura del adaptador a **200 entradas** (es un diagnóstico, no
+una verificación exhaustiva). De ahí salen dos filas distintas, y conviene no confundirlas:
+
+- **ℹ️ «verificación acotada a 200 de N entrada(s) por /doctor»** — el manifiesto tiene más
+  entradas que esa ventana, así que el recorte es de `/doctor`, no un problema del backend: subir
+  `max_respuesta_kb`/`max_episodes` en `taxonomy.json` no cambia esta fila (el diagnóstico los
+  pisa). Un desfase FUERA de esa ventana no se ve desde aquí; la verificación completa es
+  `python skills/knowledge-services/scripts/knowledge-sync.py --backend <id> --check`.
+- **⚠️ «verificación incompleta: N entrada(s) sin confirmar»** — el manifiesto SÍ cabía en la
+  ventana y aun así el adaptador no pudo confirmarlo todo: el límite es suyo (su tope de lectura),
+  y el remedio que da la fila es el del adaptador. No es un desfase: es que no se ha podido mirar
+  — y por eso tampoco autoriza la lectura enrutada (CA-10).
+
+Y un tercer caso: **ℹ️ «verificación no disponible: …»** cuando el adaptador responde el veredicto
+`no_verificable` (backend en `mode: off`, sin endpoint, respuesta ilegible); la fila trae su
+`razon` en vez de inventarse un «export atrasado».

@@ -1,0 +1,1634 @@
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "result": {
+    "tools": [
+      {
+        "name": "add_memory",
+        "description": "Add an episode to memory. This is the primary way to add information to the graph.\n\n    This function returns immediately and processes the episode addition in the background.\n    Episodes for the same group_id are processed sequentially to avoid race conditions.\n\n    Graphiti uses a bi-temporal model: each episode records both when it was ingested and\n    when the described events actually occurred (its reference_time). Pass reference_time to\n    set the event-occurrence time explicitly; otherwise the current time is used.\n\n    Args:\n        name (str): Name of the episode\n        episode_body (str): The content of the episode to persist to memory. When source='json', this must be a\n                           properly escaped JSON string, not a raw Python dictionary. The JSON data will be\n                           automatically processed to extract entities and relationships.\n        group_id (str, optional): A unique ID for this graph. If not provided, uses the default group_id from CLI\n                                 or a generated one.\n        source (str, optional): Source type, must be one of:\n                               - 'text': For plain text content (default)\n                               - 'json': For structured data\n                               - 'message': For conversation-style content\n        source_description (str, optional): Description of the source\n        uuid (str, optional): Optional UUID for the episode\n        reference_time (str, optional): ISO-8601 timestamp for when the described events occurred\n                                 (e.g. \"2025-01-15T10:30:00Z\" or \"2025-01-15T10:30:00+00:00\"). A\n                                 timezone-naive value is interpreted as UTC. Defaults to the\n                                 current time when omitted.\n        excluded_entity_types (list[str], optional): Names of configured entity types to exclude\n                                 from extraction for this episode.\n        custom_extraction_instructions (str, optional): Additional natural-language guidance passed\n                                 to the extraction model for this episode only.\n        previous_episode_uuids (list[str], optional): Explicit list of prior episode UUIDs to use\n                                 as conversational/contextual history. Overrides automatic retrieval.\n        update_communities (bool, optional): When True, incrementally update community summaries to\n                                 reflect entities affected by this episode. Defaults to False.\n        saga (str, optional): Name/id of a saga to associate this episode with. Sagas group related\n                                 episodes so their evolving narrative can be summarized via summarize_saga.\n        saga_previous_episode_uuid (str, optional): UUID of the preceding episode in the saga, used to\n                                 order episodes within the saga.\n\n    Examples:\n        # Adding plain text content\n        add_memory(\n            name=\"Company News\",\n            episode_body=\"Acme Corp announced a new product line today.\",\n            source=\"text\",\n            source_description=\"news article\",\n            group_id=\"some_arbitrary_string\"\n        )\n\n        # Adding structured JSON data\n        # NOTE: episode_body should be a JSON string (standard JSON escaping)\n        add_memory(\n            name=\"Customer Profile\",\n            episode_body='{\"company\": {\"name\": \"Acme Technologies\"}, \"products\": [{\"id\": \"P001\", \"name\": \"CloudSync\"}, {\"id\": \"P002\", \"name\": \"DataMiner\"}]}',\n            source=\"json\",\n            source_description=\"CRM data\"\n        )\n\n        # Recording an event that occurred in the past (bi-temporal)\n        add_memory(\n            name=\"Historical Note\",\n            episode_body=\"The merger closed in early 2020.\",\n            reference_time=\"2020-03-01T00:00:00Z\"\n        )\n    ",
+        "inputSchema": {
+          "properties": {
+            "name": {
+              "title": "Name",
+              "type": "string"
+            },
+            "episode_body": {
+              "title": "Episode Body",
+              "type": "string"
+            },
+            "group_id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Group Id"
+            },
+            "source": {
+              "default": "text",
+              "title": "Source",
+              "type": "string"
+            },
+            "source_description": {
+              "default": "",
+              "title": "Source Description",
+              "type": "string"
+            },
+            "uuid": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Uuid"
+            },
+            "reference_time": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Reference Time"
+            },
+            "excluded_entity_types": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Excluded Entity Types"
+            },
+            "custom_extraction_instructions": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Custom Extraction Instructions"
+            },
+            "previous_episode_uuids": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Previous Episode Uuids"
+            },
+            "update_communities": {
+              "default": false,
+              "title": "Update Communities",
+              "type": "boolean"
+            },
+            "saga": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Saga"
+            },
+            "saga_previous_episode_uuid": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Saga Previous Episode Uuid"
+            }
+          },
+          "required": [
+            "name",
+            "episode_body"
+          ],
+          "title": "add_memoryArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "$defs": {
+            "ErrorResponse": {
+              "properties": {
+                "error": {
+                  "title": "Error",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "error"
+              ],
+              "title": "ErrorResponse",
+              "type": "object"
+            },
+            "SuccessResponse": {
+              "properties": {
+                "message": {
+                  "title": "Message",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "message"
+              ],
+              "title": "SuccessResponse",
+              "type": "object"
+            }
+          },
+          "properties": {
+            "result": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/SuccessResponse"
+                },
+                {
+                  "$ref": "#/$defs/ErrorResponse"
+                }
+              ],
+              "title": "Result"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "title": "add_memoryOutput",
+          "type": "object"
+        }
+      },
+      {
+        "name": "search_nodes",
+        "description": "Search for nodes (entities) in the graph memory.\n\n    Args:\n        query: The search query\n        group_ids: Optional group ID, or list of group IDs, to filter results (a single\n            string is accepted and treated as a one-element list)\n        max_nodes: Maximum number of nodes to return (default: 10)\n        entity_types: Optional list of entity type names (node labels) to filter by\n        center_node_uuid: Optional UUID of a node to center the search around. Results\n            closer to this node in the graph are ranked higher.\n    ",
+        "inputSchema": {
+          "properties": {
+            "query": {
+              "title": "Query",
+              "type": "string"
+            },
+            "group_ids": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Group Ids"
+            },
+            "max_nodes": {
+              "default": 10,
+              "title": "Max Nodes",
+              "type": "integer"
+            },
+            "entity_types": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Entity Types"
+            },
+            "center_node_uuid": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Center Node Uuid"
+            }
+          },
+          "required": [
+            "query"
+          ],
+          "title": "search_nodesArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "$defs": {
+            "ErrorResponse": {
+              "properties": {
+                "error": {
+                  "title": "Error",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "error"
+              ],
+              "title": "ErrorResponse",
+              "type": "object"
+            },
+            "NodeResult": {
+              "properties": {
+                "uuid": {
+                  "title": "Uuid",
+                  "type": "string"
+                },
+                "name": {
+                  "title": "Name",
+                  "type": "string"
+                },
+                "labels": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "title": "Labels",
+                  "type": "array"
+                },
+                "created_at": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Created At"
+                },
+                "summary": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Summary"
+                },
+                "group_id": {
+                  "title": "Group Id",
+                  "type": "string"
+                },
+                "attributes": {
+                  "additionalProperties": true,
+                  "title": "Attributes",
+                  "type": "object"
+                }
+              },
+              "required": [
+                "uuid",
+                "name",
+                "labels",
+                "created_at",
+                "summary",
+                "group_id",
+                "attributes"
+              ],
+              "title": "NodeResult",
+              "type": "object"
+            },
+            "NodeSearchResponse": {
+              "properties": {
+                "message": {
+                  "title": "Message",
+                  "type": "string"
+                },
+                "nodes": {
+                  "items": {
+                    "$ref": "#/$defs/NodeResult"
+                  },
+                  "title": "Nodes",
+                  "type": "array"
+                }
+              },
+              "required": [
+                "message",
+                "nodes"
+              ],
+              "title": "NodeSearchResponse",
+              "type": "object"
+            }
+          },
+          "properties": {
+            "result": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/NodeSearchResponse"
+                },
+                {
+                  "$ref": "#/$defs/ErrorResponse"
+                }
+              ],
+              "title": "Result"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "title": "search_nodesOutput",
+          "type": "object"
+        }
+      },
+      {
+        "name": "search_memory_facts",
+        "description": "Search the graph memory for relevant facts (entity edges).\n\n    Args:\n        query: The search query\n        group_ids: Optional group ID, or list of group IDs, to filter results (a single\n            string is accepted and treated as a one-element list)\n        max_facts: Maximum number of facts to return (default: 10)\n        center_node_uuid: Optional UUID of a node to center the search around\n        edge_types: Optional list of edge (fact) type names to filter by\n        valid_at_after: Optional ISO-8601 lower bound; only facts whose valid_at is at or\n            after this time are returned (timezone-naive is treated as UTC)\n        valid_at_before: Optional ISO-8601 upper bound on a fact's valid_at\n        invalid_at_after: Optional ISO-8601 lower bound on a fact's invalid_at\n        invalid_at_before: Optional ISO-8601 upper bound on a fact's invalid_at\n    ",
+        "inputSchema": {
+          "properties": {
+            "query": {
+              "title": "Query",
+              "type": "string"
+            },
+            "group_ids": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Group Ids"
+            },
+            "max_facts": {
+              "default": 10,
+              "title": "Max Facts",
+              "type": "integer"
+            },
+            "center_node_uuid": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Center Node Uuid"
+            },
+            "edge_types": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Edge Types"
+            },
+            "valid_at_after": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Valid At After"
+            },
+            "valid_at_before": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Valid At Before"
+            },
+            "invalid_at_after": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Invalid At After"
+            },
+            "invalid_at_before": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Invalid At Before"
+            }
+          },
+          "required": [
+            "query"
+          ],
+          "title": "search_memory_factsArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "$defs": {
+            "ErrorResponse": {
+              "properties": {
+                "error": {
+                  "title": "Error",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "error"
+              ],
+              "title": "ErrorResponse",
+              "type": "object"
+            },
+            "FactSearchResponse": {
+              "properties": {
+                "message": {
+                  "title": "Message",
+                  "type": "string"
+                },
+                "facts": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Facts",
+                  "type": "array"
+                }
+              },
+              "required": [
+                "message",
+                "facts"
+              ],
+              "title": "FactSearchResponse",
+              "type": "object"
+            }
+          },
+          "properties": {
+            "result": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/FactSearchResponse"
+                },
+                {
+                  "$ref": "#/$defs/ErrorResponse"
+                }
+              ],
+              "title": "Result"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "title": "search_memory_factsOutput",
+          "type": "object"
+        }
+      },
+      {
+        "name": "delete_entity_edge",
+        "description": "Delete an entity edge from the graph memory.\n\n    Args:\n        uuid: UUID of the entity edge to delete\n    ",
+        "inputSchema": {
+          "properties": {
+            "uuid": {
+              "title": "Uuid",
+              "type": "string"
+            }
+          },
+          "required": [
+            "uuid"
+          ],
+          "title": "delete_entity_edgeArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "$defs": {
+            "ErrorResponse": {
+              "properties": {
+                "error": {
+                  "title": "Error",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "error"
+              ],
+              "title": "ErrorResponse",
+              "type": "object"
+            },
+            "SuccessResponse": {
+              "properties": {
+                "message": {
+                  "title": "Message",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "message"
+              ],
+              "title": "SuccessResponse",
+              "type": "object"
+            }
+          },
+          "properties": {
+            "result": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/SuccessResponse"
+                },
+                {
+                  "$ref": "#/$defs/ErrorResponse"
+                }
+              ],
+              "title": "Result"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "title": "delete_entity_edgeOutput",
+          "type": "object"
+        }
+      },
+      {
+        "name": "delete_episode",
+        "description": "Delete an episode from the graph memory.\n\n    Uses Graphiti.remove_episode, which cascades the deletion: entities and facts\n    that were created solely by this episode are removed along with it, while\n    entities and facts also supported by other episodes are preserved.\n\n    Args:\n        uuid: UUID of the episode to delete\n    ",
+        "inputSchema": {
+          "properties": {
+            "uuid": {
+              "title": "Uuid",
+              "type": "string"
+            }
+          },
+          "required": [
+            "uuid"
+          ],
+          "title": "delete_episodeArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "$defs": {
+            "ErrorResponse": {
+              "properties": {
+                "error": {
+                  "title": "Error",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "error"
+              ],
+              "title": "ErrorResponse",
+              "type": "object"
+            },
+            "SuccessResponse": {
+              "properties": {
+                "message": {
+                  "title": "Message",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "message"
+              ],
+              "title": "SuccessResponse",
+              "type": "object"
+            }
+          },
+          "properties": {
+            "result": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/SuccessResponse"
+                },
+                {
+                  "$ref": "#/$defs/ErrorResponse"
+                }
+              ],
+              "title": "Result"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "title": "delete_episodeOutput",
+          "type": "object"
+        }
+      },
+      {
+        "name": "get_entity_edge",
+        "description": "Get an entity edge from the graph memory by its UUID.\n\n    Args:\n        uuid: UUID of the entity edge to retrieve\n    ",
+        "inputSchema": {
+          "properties": {
+            "uuid": {
+              "title": "Uuid",
+              "type": "string"
+            }
+          },
+          "required": [
+            "uuid"
+          ],
+          "title": "get_entity_edgeArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "$defs": {
+            "ErrorResponse": {
+              "properties": {
+                "error": {
+                  "title": "Error",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "error"
+              ],
+              "title": "ErrorResponse",
+              "type": "object"
+            }
+          },
+          "properties": {
+            "result": {
+              "anyOf": [
+                {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                {
+                  "$ref": "#/$defs/ErrorResponse"
+                }
+              ],
+              "title": "Result"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "title": "get_entity_edgeOutput",
+          "type": "object"
+        }
+      },
+      {
+        "name": "get_episodes",
+        "description": "Get episodes from the graph memory.\n\n    Args:\n        group_ids: Optional group ID, or list of group IDs, to filter results (a single\n            string is accepted and treated as a one-element list)\n        max_episodes: Maximum number of episodes to return (default: 10)\n    ",
+        "inputSchema": {
+          "properties": {
+            "group_ids": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Group Ids"
+            },
+            "max_episodes": {
+              "default": 10,
+              "title": "Max Episodes",
+              "type": "integer"
+            }
+          },
+          "title": "get_episodesArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "$defs": {
+            "EpisodeSearchResponse": {
+              "properties": {
+                "message": {
+                  "title": "Message",
+                  "type": "string"
+                },
+                "episodes": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Episodes",
+                  "type": "array"
+                }
+              },
+              "required": [
+                "message",
+                "episodes"
+              ],
+              "title": "EpisodeSearchResponse",
+              "type": "object"
+            },
+            "ErrorResponse": {
+              "properties": {
+                "error": {
+                  "title": "Error",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "error"
+              ],
+              "title": "ErrorResponse",
+              "type": "object"
+            }
+          },
+          "properties": {
+            "result": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/EpisodeSearchResponse"
+                },
+                {
+                  "$ref": "#/$defs/ErrorResponse"
+                }
+              ],
+              "title": "Result"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "title": "get_episodesOutput",
+          "type": "object"
+        }
+      },
+      {
+        "name": "summarize_saga",
+        "description": "Summarize a saga: an ordered group of related episodes.\n\n    Generates (or refreshes) a running summary of the saga's narrative across its\n    episodes and returns the saga's name and summary text.\n\n    Sagas are keyed by (name, group_id): pass the same ``saga`` name you used with\n    add_memory. This tool resolves that name to the saga within the group and\n    summarizes it.\n\n    Args:\n        saga_name: The saga name \u2014 the same value passed as ``saga`` to add_memory.\n        group_id: Optional group ID the saga belongs to. Falls back to the default group.\n    ",
+        "inputSchema": {
+          "properties": {
+            "saga_name": {
+              "title": "Saga Name",
+              "type": "string"
+            },
+            "group_id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Group Id"
+            }
+          },
+          "required": [
+            "saga_name"
+          ],
+          "title": "summarize_sagaArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "$defs": {
+            "ErrorResponse": {
+              "properties": {
+                "error": {
+                  "title": "Error",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "error"
+              ],
+              "title": "ErrorResponse",
+              "type": "object"
+            },
+            "SagaSummaryResponse": {
+              "properties": {
+                "message": {
+                  "title": "Message",
+                  "type": "string"
+                },
+                "uuid": {
+                  "title": "Uuid",
+                  "type": "string"
+                },
+                "name": {
+                  "title": "Name",
+                  "type": "string"
+                },
+                "summary": {
+                  "title": "Summary",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "message",
+                "uuid",
+                "name",
+                "summary"
+              ],
+              "title": "SagaSummaryResponse",
+              "type": "object"
+            }
+          },
+          "properties": {
+            "result": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/SagaSummaryResponse"
+                },
+                {
+                  "$ref": "#/$defs/ErrorResponse"
+                }
+              ],
+              "title": "Result"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "title": "summarize_sagaOutput",
+          "type": "object"
+        }
+      },
+      {
+        "name": "build_communities",
+        "description": "Detect and build community summaries over the graph's entities.\n\n    Communities group densely-connected entities and produce higher-level summaries\n    that can then be searched. This is a relatively expensive operation that\n    processes the full set of entities for the given group(s).\n\n    Args:\n        group_ids: Optional group ID, or list of group IDs, to build communities for.\n            Falls back to the default group when omitted. Pass an explicit list to scope\n            community detection across multiple graphs.\n    ",
+        "inputSchema": {
+          "properties": {
+            "group_ids": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Group Ids"
+            }
+          },
+          "title": "build_communitiesArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "$defs": {
+            "BuildCommunitiesResponse": {
+              "properties": {
+                "message": {
+                  "title": "Message",
+                  "type": "string"
+                },
+                "community_count": {
+                  "title": "Community Count",
+                  "type": "integer"
+                },
+                "edge_count": {
+                  "title": "Edge Count",
+                  "type": "integer"
+                },
+                "communities": {
+                  "items": {
+                    "$ref": "#/$defs/CommunityResult"
+                  },
+                  "title": "Communities",
+                  "type": "array"
+                }
+              },
+              "required": [
+                "message",
+                "community_count",
+                "edge_count",
+                "communities"
+              ],
+              "title": "BuildCommunitiesResponse",
+              "type": "object"
+            },
+            "CommunityResult": {
+              "properties": {
+                "uuid": {
+                  "title": "Uuid",
+                  "type": "string"
+                },
+                "name": {
+                  "title": "Name",
+                  "type": "string"
+                },
+                "group_id": {
+                  "title": "Group Id",
+                  "type": "string"
+                },
+                "summary": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Summary"
+                }
+              },
+              "required": [
+                "uuid",
+                "name",
+                "group_id",
+                "summary"
+              ],
+              "title": "CommunityResult",
+              "type": "object"
+            },
+            "ErrorResponse": {
+              "properties": {
+                "error": {
+                  "title": "Error",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "error"
+              ],
+              "title": "ErrorResponse",
+              "type": "object"
+            }
+          },
+          "properties": {
+            "result": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/BuildCommunitiesResponse"
+                },
+                {
+                  "$ref": "#/$defs/ErrorResponse"
+                }
+              ],
+              "title": "Result"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "title": "build_communitiesOutput",
+          "type": "object"
+        }
+      },
+      {
+        "name": "add_triplet",
+        "description": "Directly add a single fact triplet (source entity -> fact -> target entity).\n\n    Unlike add_memory, this bypasses episode extraction and writes the relationship\n    directly. graphiti-core resolves the source/target nodes against existing entities\n    (deduplicating by name) and generates the required embeddings internally.\n\n    Args:\n        source_node_name: Name of the source entity\n        edge_name: Relationship/edge type name (e.g. \"WORKS_FOR\")\n        fact: Natural-language statement describing the relationship\n        target_node_name: Name of the target entity\n        group_id: Optional group ID. Falls back to the default group when omitted.\n        source_node_uuid: Optional UUID to reuse an existing source entity. A new UUID is\n            generated when omitted.\n        target_node_uuid: Optional UUID to reuse an existing target entity. A new UUID is\n            generated when omitted.\n    ",
+        "inputSchema": {
+          "properties": {
+            "source_node_name": {
+              "title": "Source Node Name",
+              "type": "string"
+            },
+            "edge_name": {
+              "title": "Edge Name",
+              "type": "string"
+            },
+            "fact": {
+              "title": "Fact",
+              "type": "string"
+            },
+            "target_node_name": {
+              "title": "Target Node Name",
+              "type": "string"
+            },
+            "group_id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Group Id"
+            },
+            "source_node_uuid": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Source Node Uuid"
+            },
+            "target_node_uuid": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Target Node Uuid"
+            }
+          },
+          "required": [
+            "source_node_name",
+            "edge_name",
+            "fact",
+            "target_node_name"
+          ],
+          "title": "add_tripletArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "$defs": {
+            "EdgeResult": {
+              "properties": {
+                "uuid": {
+                  "title": "Uuid",
+                  "type": "string"
+                },
+                "name": {
+                  "title": "Name",
+                  "type": "string"
+                },
+                "fact": {
+                  "title": "Fact",
+                  "type": "string"
+                },
+                "source_node_uuid": {
+                  "title": "Source Node Uuid",
+                  "type": "string"
+                },
+                "target_node_uuid": {
+                  "title": "Target Node Uuid",
+                  "type": "string"
+                },
+                "group_id": {
+                  "title": "Group Id",
+                  "type": "string"
+                },
+                "created_at": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Created At"
+                },
+                "valid_at": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Valid At"
+                },
+                "invalid_at": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Invalid At"
+                }
+              },
+              "required": [
+                "uuid",
+                "name",
+                "fact",
+                "source_node_uuid",
+                "target_node_uuid",
+                "group_id",
+                "created_at",
+                "valid_at",
+                "invalid_at"
+              ],
+              "title": "EdgeResult",
+              "type": "object"
+            },
+            "ErrorResponse": {
+              "properties": {
+                "error": {
+                  "title": "Error",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "error"
+              ],
+              "title": "ErrorResponse",
+              "type": "object"
+            },
+            "NodeResult": {
+              "properties": {
+                "uuid": {
+                  "title": "Uuid",
+                  "type": "string"
+                },
+                "name": {
+                  "title": "Name",
+                  "type": "string"
+                },
+                "labels": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "title": "Labels",
+                  "type": "array"
+                },
+                "created_at": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Created At"
+                },
+                "summary": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Summary"
+                },
+                "group_id": {
+                  "title": "Group Id",
+                  "type": "string"
+                },
+                "attributes": {
+                  "additionalProperties": true,
+                  "title": "Attributes",
+                  "type": "object"
+                }
+              },
+              "required": [
+                "uuid",
+                "name",
+                "labels",
+                "created_at",
+                "summary",
+                "group_id",
+                "attributes"
+              ],
+              "title": "NodeResult",
+              "type": "object"
+            },
+            "TripletResponse": {
+              "properties": {
+                "message": {
+                  "title": "Message",
+                  "type": "string"
+                },
+                "nodes": {
+                  "items": {
+                    "$ref": "#/$defs/NodeResult"
+                  },
+                  "title": "Nodes",
+                  "type": "array"
+                },
+                "edges": {
+                  "items": {
+                    "$ref": "#/$defs/EdgeResult"
+                  },
+                  "title": "Edges",
+                  "type": "array"
+                }
+              },
+              "required": [
+                "message",
+                "nodes",
+                "edges"
+              ],
+              "title": "TripletResponse",
+              "type": "object"
+            }
+          },
+          "properties": {
+            "result": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/TripletResponse"
+                },
+                {
+                  "$ref": "#/$defs/ErrorResponse"
+                }
+              ],
+              "title": "Result"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "title": "add_tripletOutput",
+          "type": "object"
+        }
+      },
+      {
+        "name": "get_episode_entities",
+        "description": "Get the entities (nodes) and facts (edges) created by specific episodes.\n\n    Use this to trace provenance: given one or more episode UUIDs, return the graph\n    elements that those episodes produced.\n\n    Args:\n        episode_uuids: List of episode UUIDs to look up provenance for\n    ",
+        "inputSchema": {
+          "properties": {
+            "episode_uuids": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Episode Uuids",
+              "type": "array"
+            }
+          },
+          "required": [
+            "episode_uuids"
+          ],
+          "title": "get_episode_entitiesArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "$defs": {
+            "EdgeResult": {
+              "properties": {
+                "uuid": {
+                  "title": "Uuid",
+                  "type": "string"
+                },
+                "name": {
+                  "title": "Name",
+                  "type": "string"
+                },
+                "fact": {
+                  "title": "Fact",
+                  "type": "string"
+                },
+                "source_node_uuid": {
+                  "title": "Source Node Uuid",
+                  "type": "string"
+                },
+                "target_node_uuid": {
+                  "title": "Target Node Uuid",
+                  "type": "string"
+                },
+                "group_id": {
+                  "title": "Group Id",
+                  "type": "string"
+                },
+                "created_at": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Created At"
+                },
+                "valid_at": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Valid At"
+                },
+                "invalid_at": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Invalid At"
+                }
+              },
+              "required": [
+                "uuid",
+                "name",
+                "fact",
+                "source_node_uuid",
+                "target_node_uuid",
+                "group_id",
+                "created_at",
+                "valid_at",
+                "invalid_at"
+              ],
+              "title": "EdgeResult",
+              "type": "object"
+            },
+            "EpisodeEntitiesResponse": {
+              "properties": {
+                "message": {
+                  "title": "Message",
+                  "type": "string"
+                },
+                "nodes": {
+                  "items": {
+                    "$ref": "#/$defs/NodeResult"
+                  },
+                  "title": "Nodes",
+                  "type": "array"
+                },
+                "edges": {
+                  "items": {
+                    "$ref": "#/$defs/EdgeResult"
+                  },
+                  "title": "Edges",
+                  "type": "array"
+                }
+              },
+              "required": [
+                "message",
+                "nodes",
+                "edges"
+              ],
+              "title": "EpisodeEntitiesResponse",
+              "type": "object"
+            },
+            "ErrorResponse": {
+              "properties": {
+                "error": {
+                  "title": "Error",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "error"
+              ],
+              "title": "ErrorResponse",
+              "type": "object"
+            },
+            "NodeResult": {
+              "properties": {
+                "uuid": {
+                  "title": "Uuid",
+                  "type": "string"
+                },
+                "name": {
+                  "title": "Name",
+                  "type": "string"
+                },
+                "labels": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "title": "Labels",
+                  "type": "array"
+                },
+                "created_at": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Created At"
+                },
+                "summary": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Summary"
+                },
+                "group_id": {
+                  "title": "Group Id",
+                  "type": "string"
+                },
+                "attributes": {
+                  "additionalProperties": true,
+                  "title": "Attributes",
+                  "type": "object"
+                }
+              },
+              "required": [
+                "uuid",
+                "name",
+                "labels",
+                "created_at",
+                "summary",
+                "group_id",
+                "attributes"
+              ],
+              "title": "NodeResult",
+              "type": "object"
+            }
+          },
+          "properties": {
+            "result": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/EpisodeEntitiesResponse"
+                },
+                {
+                  "$ref": "#/$defs/ErrorResponse"
+                }
+              ],
+              "title": "Result"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "title": "get_episode_entitiesOutput",
+          "type": "object"
+        }
+      },
+      {
+        "name": "clear_graph",
+        "description": "Clear all data from the graph for specified group IDs.\n\n    Args:\n        group_ids: Optional group ID, or list of group IDs, to clear (a single string is\n            accepted). If not provided, clears the default group.\n    ",
+        "inputSchema": {
+          "properties": {
+            "group_ids": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Group Ids"
+            }
+          },
+          "title": "clear_graphArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "$defs": {
+            "ErrorResponse": {
+              "properties": {
+                "error": {
+                  "title": "Error",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "error"
+              ],
+              "title": "ErrorResponse",
+              "type": "object"
+            },
+            "SuccessResponse": {
+              "properties": {
+                "message": {
+                  "title": "Message",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "message"
+              ],
+              "title": "SuccessResponse",
+              "type": "object"
+            }
+          },
+          "properties": {
+            "result": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/SuccessResponse"
+                },
+                {
+                  "$ref": "#/$defs/ErrorResponse"
+                }
+              ],
+              "title": "Result"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "title": "clear_graphOutput",
+          "type": "object"
+        }
+      },
+      {
+        "name": "get_status",
+        "description": "Get the status of the Graphiti MCP server and database connection.",
+        "inputSchema": {
+          "properties": {},
+          "title": "get_statusArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "properties": {
+            "status": {
+              "title": "Status",
+              "type": "string"
+            },
+            "message": {
+              "title": "Message",
+              "type": "string"
+            }
+          },
+          "required": [
+            "status",
+            "message"
+          ],
+          "title": "StatusResponse",
+          "type": "object"
+        }
+      }
+    ]
+  }
+}

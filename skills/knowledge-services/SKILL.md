@@ -38,6 +38,7 @@ declare su propio `type` — el núcleo (`knowledge-sync.py`) no cambia al añad
 | `scripts/knowledge-sync.py` | Único punto de entrada; nunca menciona un backend concreto. |
 | `backends/__init__.py` | Carga y valida el adaptador por `type` (`backends/README.md`: contrato completo de las 6 funciones). |
 | `backends/markdown_export.py` | Adaptador Kwipu (`type: "markdown-export"`): CA-17/CA-16, ver `references/kwipu-adapter.md`. |
+| `backends/graphiti.py` + `backends/graphiti_providers.py` | Adaptador Graphiti (`type: "graphiti"`, ADR-018): cliente MCP, `mode: shadow`/`read`, `rebuild`/`revoke` — ver `backends/README.md`. |
 | `agent-kits/shared/knowledge-schema.py` | Taxonomía del proyecto (`taxonomy.json`), fail-closed. |
 | `agent-kits/shared/knowledge-index.py` | Índice de `approved/`. |
 | `agent-kits/shared/outbox.py` | Staging/dead-letter reutilizado (CA-15), nunca reimplementado aquí. |
@@ -58,7 +59,9 @@ python3 "$KSSKILL" --backend kwipu --root . --outbox-status
 ```
 
 - `--check`: `health()` + `verify()`, no toca la publicación ni la outbox. `exit 0` solo si
-  `estado == "sano"` y `verify().ok`.
+  `estado == "sano"` y `verify().ok`. `verify()` tiene TRES veredictos (`estado`: `ok` ·
+  `incompleto` · `desfase`): `incompleto` (la ventana de lectura no alcanzó el grafo) NO es `ok`,
+  se imprime con su `no_verificado` y su `aviso`, y sale ≠ 0.
 - `--dry-run`: calcula `plan()` y lo imprime; nunca llama a `apply()` ni drena la outbox.
 - (ninguno): primero DRENA la outbox propia — reintenta cualquier envelope PENDIENTE de este
   mismo backend cuyo backoff ya venció (`_drenar_outbox_propia`, aplica sus `ops` de forma
