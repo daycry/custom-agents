@@ -1,7 +1,7 @@
 ---
 spec: project-dashboard
 descripcion: Dashboard único y opcional con el estado de todos los proyectos que usan custom-agents — emisor opt-in en el plugin (contrato JSON versionado, sin red en hooks, cola local) y dashboard aparte (API con token por proyecto, SQLite con historial, UI de kanban/detalle/métricas y MCP de consulta de solo lectura)
-estado: borrador          # borrador | aprobada | implementada | obsoleta
+estado: aprobada          # borrador | aprobada | implementada | obsoleta
 creado: 2026-09-28
 actualizado: 2026-09-28
 evaluacion: evaluation.md

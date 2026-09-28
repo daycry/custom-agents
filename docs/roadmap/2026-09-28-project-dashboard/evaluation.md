@@ -17,7 +17,7 @@ generacion:               # usage-meter.py close degradó (sin transcripciones d
 | | |
 |---|---|
 | **Fecha** | 2026-09-28 |
-| **Estado** | en-revision |
+| **Estado** | completado |
 | **Prioridad global** | Media 🟡 |
 | **Solicitante** | Daycry (usuario, vía `/pm-cycle`) |
 | **Spec** | [`spec.md`](spec.md) |
@@ -334,3 +334,8 @@ Ordenada por entrega. Horas con margen. «H IA» incluye la revisión.
 ## 📝 Changelog
 
 - 2026-09-28 — Creación (evaluator, `/pm-cycle` Fase 1). Spec creada en `borrador` en la misma sesión; evaluación en `en-revision`.
+
+## Decisión (puerta go/no-go de `/pm-cycle`, 2026-09-28)
+
+**GO del usuario**, con las condiciones de esta evaluación: (1) `architect` antes de `planner` (stack, repo, historial por entidad y retención, contrato v1, ADR frente a ADR-018); (2) go firme solo para E1 — E2 y E3 se reevalúan con la retro de E1; (3) tope de 3 intentos de revisión por entrega; (4) decidir en el diseño si se envía el texto de los gaps o solo metadatos. **Arranque diferido por decisión del usuario:** empieza cuando no quede nada pendiente del roadmap (training-data-services → arreglo de Graphiti #13 → statusline/pulido del setup → dev-cycle-dataset → brief-budget → plugin-refactor → project-specialization); hasta entonces, ni `architect` ni `planner`.
+
