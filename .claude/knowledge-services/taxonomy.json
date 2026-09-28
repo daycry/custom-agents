@@ -53,7 +53,7 @@
     },
     "graphiti": {
       "type": "graphiti",
-      "enabled": true,
+      "enabled": false,
       "config": {
         "mode": "shadow",
         "endpoint": "http://127.0.0.1:8001/mcp",
