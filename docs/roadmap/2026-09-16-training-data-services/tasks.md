@@ -17,9 +17,9 @@ verificacion: obligatoria
 |---|---:|---:|---:|---:|---:|---:|---:|
 | Fase 1 - Config, redaccion compartida y capacidad | 3 | 3 | 100% (revisión cerrada en el intento 3; fix3 verificada por el orquestador) | 0 / 6.5h | 5.25 / 2.0h | 0 / 0.5h | ~180.8k out (37.8k + 17.3k + 14.4k + fix2 63.2k + fix3 48.1k; fix1 sin cifra de tokens: marcador cerrado en otra máquina sin pegar su salida) / 85k (T-01 0.22h · T-02 0.12h · T-03 0.07h · fix1 2.87h reloj incl. corte de sesión · fix2 1.09h · fix3 0.88h) |
 | Fase 2 - Recorder y puerta humana | 3 | 3 | 100% (3 intentos + 6 rondas fixN con verificación dirigida; 113 gaps cerrados) | 0 / 8h | 34.88 / 2.4h | 0 / 0.6h | ~1463.5k out (T-04 43.9k + T-05 16.1k + T-06 32.8k · fix1 165.2k · fix2 233.0k · fix3 227.1k · fix4 184.0k · fix4-bis 173.5k · fix5 272.8k · fix6 115.1k) / 120k (T-04 0.20h · T-05 0.07h · T-06 0.16h · fix1 1.32h · fix2 2.18h · fix3 7.22h · fix4 5.20h · fix4-bis 6.77h reloj incl. corte 429 · fix5 9.63h · fix6 2.13h) |
-| Fase 3 - Dedup, particion y ensamblador | 0 | 3 | 0% (fix1 verificada: 0 Critical/Important, 14 Minor → fix2 + verificación del orquestador) | 0 / 14h | 6.09 / 4.2h | 0 / 1.1h | ~148.3k out (T-07 35.7k + T-08 11.2k + T-09 101.4k) / 210k (T-07 0.17h · T-08 0.06h · T-09 5.86h, reloj incl. ~2 días de corte por límite) |
+| Fase 3 - Dedup, particion y ensamblador | 3 | 3 | 100% (intento 1 + D-f3 revisado antes + fix1/fix2 con verificación dirigida; #114-#147 cerrados) | 0 / 14h | 27.08 / 4.2h | 0 / 1.1h | ~784.8k out (T-07 35.7k + T-08 11.2k + T-09 101.4k · fix1 419.0k · fix2 217.5k) / 210k (T-07 0.17h · T-08 0.06h · T-09 5.86h reloj incl. ~2 días de corte · fix1 14.14h · fix2 6.85h) |
 | Fase 4 - Setup, doctor y cierre | 0 | 2 | 0% | 0 / 11h | 0 / 3.3h | 0 / 0.8h | 0 / 160k |
-| **TOTAL** | **6** | **11** | **55%** | **0 / 39.5h** | **46.22 / 11.9h** | **0 / 3.0h** | **~1792.6k out / 575k** |
+| **TOTAL** | **9** | **11** | **82%** | **0 / 39.5h** | **67.21 / 11.9h** | **0 / 3.0h** | **~2428.9k out / 575k** |
 
 ## Fase 1 - Config, redaccion compartida y capacidad
 
@@ -181,7 +181,7 @@ verificacion: obligatoria
 ## Fase 3 - Dedup, particion y ensamblador
 
 ### T-07 - Deduplicacion por shingles (reutilizando `code-health.py`)
-- **Estado**: en-progreso
+- **Estado**: completado
 - **Tiempo humano**: est. 5h · real -
 - **Tiempo IA**: real 0.17h (medido; usage-meter `training-data-services/T-07`, 10m reloj, 35.7k out tok, 3.05 EUR; implementer `opus`)
 - **Tiempo IA (fix1)**: real 14.14h (medido; usage-meter `training-data-services/T-07-fix1`, 2h33m reloj, 419.0k out tok, 114.75 EUR — cubre T-07/T-08/T-09 fix1; implementer `opus`)
@@ -209,7 +209,7 @@ verificacion: obligatoria
 - [x] Texto fijo compartido por todos los casos no dispara falsos positivos. (tests `test_t07_texto_fijo_compartido_no_da_falsos_positivos`, `test_t07_sin_filtro_de_boilerplate_el_mismo_corpus_si_daria_falsos_positivos`, `test_t07_boilerplate_no_esconde_un_duplicado_real`)
 
 ### T-08 - Particion anti-leakage por familia
-- **Estado**: en-progreso
+- **Estado**: completado
 - **Tiempo humano**: est. 4h · real -
 - **Tiempo IA**: real 0.06h (medido; usage-meter `training-data-services/T-08`, 11.2k out tok, 0.78 EUR; implementer `opus`)
 - **Tiempo IA (fix1)**: real - (medido junto con T-07-fix1 — ver T-07)
@@ -232,7 +232,7 @@ verificacion: obligatoria
 - [x] Sin al menos una familia reservada como benchmark, el ensamblador se niega a exportar y explica por que. (tests `test_t08_sin_familia_de_benchmark_se_niega_y_explica_por_que`, `test_t08_cli_sin_benchmark_exit_1_con_motivo_y_sin_escribir_nada`, `test_t08_familia_de_benchmark_sin_casos_gold_se_niega`; particion por familia completa y cruce: `test_t08_leakage_*`)
 
 ### T-09 - Ensamblador de dataset y puente a `knowledge-curator`
-- **Estado**: en-progreso
+- **Estado**: completado
 - **Tiempo humano**: est. 5h · real -
 - **Tiempo IA**: real 5.86h (medido; usage-meter `training-data-services/T-09`, 101.4k out tok, 31.41 EUR; implementer `opus`). **El reloj (51h 43m, 2026-09-26T05:56Z → 2026-09-28T09:38Z) incluye un corte por el limite 429 de ~2 dias de pausa**: la cifra buena es la de tokens (las 5.86 h salen de ellos por el ratio calibrado e incluyen la recarga de contexto al reanudar)
 - **Tiempo IA (fix1)**: real - (medido junto con T-07-fix1 — ver T-07)
@@ -634,3 +634,16 @@ Lente B (Windows + Linux `python:3.11-slim`, procesos reales): #114 (4 casos →
 **Decisión del orquestador (2026-09-28):** 0 Critical/Important; 14 Minor locales (ningún cambio de protocolo: #143 mantiene el contrato E2 y solo alarga la espera; #145 es conservador en la dirección anti-fuga) ⇒ micro-ronda `fix2` (implementer `opus`, marcador `training-data-services/T-07-fix2`) con verificación dirigida del orquestador (mutantes propios por fila, Linux ×N, puertas). Si confirma: T-07..T-09 `completado`.
 
 **Puertas fix2 de la Fase 3 (2026-09-28; T-07/T-08/T-09; #134-#147 con Corrección y Evidencia en la tabla de la verificación dirigida fix1):** Windows — `pytest skills/training-data-services/scripts skills/knowledge-services/scripts skills/code-health/scripts agent-kits/knowledge-curator agent-kits/shared/test_capabilities.py agent-kits/shared/test_redact.py agent-kits/shared/test_journal.py tests/test_manifests.py tests/test_export_skills.py tests/test_skill_size.py tests/test_console_encoding.py tests/test_ci_manual_copy.py tests/test_ci_skill_suites.py tests/test_copias_declaradas.py` -> `7 failed, 1353 passed, 22 skipped, 6 subtests passed in 499.40s (0:08:19)`: los 7 son de `agent-kits/shared/test_journal.py` (`test_write_sin_rastro_del_plugin_no_escribe_nada`, `test_write_crea_entrada_con_frontmatter_e_indice`, `test_index_regenera_y_no_lista_readme`, `test_replay_termina_dentro_del_presupuesto_con_0_10_100_pendientes`, `test_replay_con_recover_bloqueado_inicializa_recuperadas_y_candidatas`, `test_recover_sid_hostil_desde_nombre_de_log_no_inyecta_en_el_aviso`, `test_recover_excepcion_con_sid_hostil_no_filtra_str_ex_crudo`), el MISMO conjunto que en un `git archive` de HEAD sin los cambios (entorno Windows; en Linux, 0) · `python tests/test_readme_badges.py` -> `test_readme_badges: 10 conteo(s) verificados OK (badges + prosa)` · `python scripts/lint_plugin.py` -> `lint_plugin: 10 agentes · 0 errores · 3 avisos` · `python evals/check.py` -> `evals/check: 41 ficheros · 149 casos (89 positivos, 60 negativos) · 41 piezas del repo · 0 errores` · `python scripts/export-interop.py --check` -> `export-interop --check: 50 ficheros al día` · `ledger-lint` -> `ledger-lint: 0 incoherencias · 2 avisos (tasks.md)` (T-10/T-11 sin **Changelog**, Fase 4) · `scope-check --base eca16ba` (`git merge-base HEAD origin/master`) -> `❌ fuera de alcance (2)`: `docs/CONSTITUTION.md` (sin versionar, del usuario: ni se toca ni entra en el commit; aplicada: cada gap con test dedicado, principio 1.4) y `docs/roadmap/2026-09-16-training-data-services/improvement-plan.md` (arbitrado); `redact.py`/`test_redact.py`/`journal.py` en alcance por la nota de #139 en T-09 · `tests/` completo -> `26 failed, 1264 passed in 376.78s (0:06:16)` = línea base (`26 failed, 1264 passed`), mismos grupos (`test_hooks_shell` ×16, `test_confluence_scope` ×4, `test_release` ×3, `test_knowledge_find` ×2, `test_suites_no_pytest[test_lint_plugin.py]`) y todos rojos también en una copia `git archive` de HEAD (0 rojos nuevos por conjuntos). Linux `python:3.11-slim`, `-m 2g`, un contenedor a la vez, árbol de trabajo (`git ls-files | tar`, en un repo git): las mismas puertas pytest -> `1378 passed, 4 skipped, 6 subtests passed in 76.87s (0:01:16)`; suite de la skill ×10 -> `pasadas=10 rojos=0`; `tests/test_hooks_shell.py` -> los mismos 2 rojos que HEAD en el contenedor (`test_progress_line_ruta_windows_con_backslashes`, `test_user_prompt_capture_acumula_el_turno_sin_stdout_y_fuera_de_git`). Mutantes (copia aislada del scratchpad, código final): **45/45 mueren** (37 Windows + 8 solo POSIX en Linux). `SKILL.md` 103 líneas, `description` sin cambios; ningún `scripts/test_*.py` citado desde `SKILL.md`/`references/`.
+
+**Verificación dirigida de fix2 (orquestador, 2026-09-28)** — sin nueva pasada de lentes (0 Critical/Important desde fix1; fix2 = 14 Minor locales):
+
+| # | Comprobación propia | Resultado |
+|---|---|---|
+| 139 | Mutantes en copia aislada (`git archive HEAD`): quitar el patrón JSON clave-valor de `redact.py`; `es_clave_sensible` siempre `False` · escenario literal: `{"password": "hunter2secret"}` → `[secreto redactado]`, `{'api_key': 'abc 123 xyz'}` → redactado (valor con espacios), `{"token":"t\"q"}` → redactado (comilla escapada), `password=Sup3rSecr3t!` → redactado, `{"passwords": …}` → intacto (clave exacta) | los 2 mutantes **mueren**; escenario conforme |
+| 134 | Mutante: el tope no llega a `metadata.json` en el recorrido | **muere** |
+| 137 | Mutante: el núcleo del manifiesto sin `redactar_estructura` | **muere** |
+| 145 | Mutante: cruce train/benchmark sin margen (umbral estricto) | **muere** |
+| Linux | `python:3.11-slim`, `git -c core.autocrlf=false archive` de `a172fa8`: suite de la skill ×10 → `pasadas=10 rojos=0`; `test_journal.py` + `test_redact.py` + `test_copias_declaradas.py` → `rojos=0` | verde (los 7 rojos de `test_journal.py` en Windows son de entorno: idénticos con y sin fix2, y verdes en Linux) |
+| Puertas Windows | `pytest skills/training-data-services/scripts agent-kits/shared/test_redact.py tests/test_copias_declaradas.py tests/test_skill_size.py tests/test_export_skills.py` · `ledger-lint` · `lint_plugin` · `export-interop --check` | `575 passed, 11 skipped` · `0 incoherencias` · `0 errores · 3 avisos` · `50 ficheros al día`; `SKILL.md` 103 líneas |
+
+⇒ **Fase 3 sin gaps pendientes (#114-#147 cerrados)**: T-07, T-08 y T-09 → `completado`; Resumen 9/11. #144 queda cerrado con su medición honesta (tramos adaptativos 64 → 8; `_frecuencias` no dominaba en estas máquinas: la cifra de la revisión no se reprodujo y así consta en su Evidencia).
