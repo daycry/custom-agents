@@ -18,8 +18,8 @@ verificacion: obligatoria
 | Fase 1 - Config, redaccion compartida y capacidad | 3 | 3 | 100% (revisión cerrada en el intento 3; fix3 verificada por el orquestador) | 0 / 6.5h | 5.25 / 2.0h | 0 / 0.5h | ~180.8k out (37.8k + 17.3k + 14.4k + fix2 63.2k + fix3 48.1k; fix1 sin cifra de tokens: marcador cerrado en otra máquina sin pegar su salida) / 85k (T-01 0.22h · T-02 0.12h · T-03 0.07h · fix1 2.87h reloj incl. corte de sesión · fix2 1.09h · fix3 0.88h) |
 | Fase 2 - Recorder y puerta humana | 3 | 3 | 100% (3 intentos + 6 rondas fixN con verificación dirigida; 113 gaps cerrados) | 0 / 8h | 34.88 / 2.4h | 0 / 0.6h | ~1463.5k out (T-04 43.9k + T-05 16.1k + T-06 32.8k · fix1 165.2k · fix2 233.0k · fix3 227.1k · fix4 184.0k · fix4-bis 173.5k · fix5 272.8k · fix6 115.1k) / 120k (T-04 0.20h · T-05 0.07h · T-06 0.16h · fix1 1.32h · fix2 2.18h · fix3 7.22h · fix4 5.20h · fix4-bis 6.77h reloj incl. corte 429 · fix5 9.63h · fix6 2.13h) |
 | Fase 3 - Dedup, particion y ensamblador | 3 | 3 | 100% (intento 1 + D-f3 revisado antes + fix1/fix2 con verificación dirigida; #114-#147 cerrados) | 0 / 14h | 27.08 / 4.2h | 0 / 1.1h | ~784.8k out (T-07 35.7k + T-08 11.2k + T-09 101.4k · fix1 419.0k · fix2 217.5k) / 210k (T-07 0.17h · T-08 0.06h · T-09 5.86h reloj incl. ~2 días de corte · fix1 14.14h · fix2 6.85h) |
-| Fase 4 - Setup, doctor y cierre | 0 | 2 | 0% | 0 / 11h | 0 / 3.3h | 0 / 0.8h | 0 / 160k |
-| **TOTAL** | **9** | **11** | **82%** | **0 / 39.5h** | **67.21 / 11.9h** | **0 / 3.0h** | **~2428.9k out / 575k** |
+| Fase 4 - Setup, doctor y cierre | 1 | 2 | 50% (T-10 completado; T-11 código hecho, pendiente de revisión, qa y retro) | 0 / 11h | 6.96 / 3.3h | 0 / 0.8h | ~132.7k out (T-10 116.0k + T-11 16.7k) / 160k (T-10 4.09h · T-11 2.87h) |
+| **TOTAL** | **10** | **11** | **91%** | **0 / 39.5h** | **74.17 / 11.9h** | **0 / 3.0h** | **~2561.6k out / 575k** |
 
 ## Fase 1 - Config, redaccion compartida y capacidad
 
