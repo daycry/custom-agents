@@ -9,6 +9,10 @@ and versioning follows [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed — `knowledge-services` (2026-09-26)
+
+- **`markdown-export` rejects an `export_dir` inside `docs/knowledge/` whatever its letter case, on every OS** The containment check compared paths with `normcase`, which leaves letter case alone outside Windows: on macOS (case-insensitive APFS) `DOCS/KNOWLEDGE/APPROVED/x` — the same directory as `docs/knowledge/approved/x` — passed the check. It now also compares with `casefold()` everywhere (on Linux the rule errs on the strict side, like the rest of the plugin). It surfaced once the skill's own suite started running in CI. (`skills/knowledge-services/backends/markdown_export.py`)
+
 ### Added — `graphiti-memory` initiative (2026-09-15)
 
 - **T-01 — Dependency gate, `backends.graphiti` in the schema and contract suite** Projects can declare an optional Graphiti backend (disabled by default) in their knowledge configuration, validated by the same schema and contract suite as the existing Kwipu adapter. (`agent-kits/shared/schemas/taxonomy.schema.json`, `agent-kits/shared/knowledge-schema.py`)
