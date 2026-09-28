@@ -282,9 +282,10 @@ def codex_marketplace_json(root):
             "version": src["version"],
             "description": src["description"],
             "source": {"source": "local", "path": "./"},
-            # `authentication` solo admite ON_INSTALL | ON_USE (plugin-json-spec.md de openai/codex; `NONE`
-            # hacía fallar `codex plugin marketplace add`: «unknown variant `NONE`»). Sin servicios
-            # que autenticar, ON_INSTALL (el default del spec) es inerte.
+            # Codex (≥ 0.155, esquema serde) ya no admite `NONE` en `authentication`:
+            # solo `ON_INSTALL` o `ON_USE` (lo que usa su marketplace oficial para plugins
+            # locales sin auth real). Un `NONE` invalida el manifiesto ENTERO y rompe
+            # `codex plugin marketplace list` para todos los marketplaces.
             "policy": {"installation": "AVAILABLE", "authentication": "ON_INSTALL"},
             "category": "Productivity",
             "keywords": src["keywords"],

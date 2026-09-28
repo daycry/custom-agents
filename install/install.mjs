@@ -256,7 +256,7 @@ function escribirJson(p, obj, bom = false) {
 }
 
 /** Fusión conservadora: lo que ya existe MANDA. Devuelve [resultado, claves añadidas]. */
-export function fusionar(actual, nuevo) {
+export function fusionar(actual, nuevo, upsert = {}) {
   const anadidas = []
   const walk = (dst, src, ruta) => {
     for (const [k, v] of Object.entries(src)) {
@@ -278,6 +278,36 @@ export function fusionar(actual, nuevo) {
           prev = [dst[k]]
           AVISOS_ESCRITURA.push(`${q}: tu valor ${JSON.stringify(dst[k])} no era una lista; `
             + `lo conservo como primer elemento`)
+        }
+        const clave = upsert[q]
+        if (clave) {
+          // Upsert por identidad (p. ej. `{ plugins: "name" }`): la entrada con la MISMA clave la
+          // gobierna el INSTALADOR y se reemplaza EN SU SITIO (una subida de versión no queda
+          // congelada); las entradas ajenas al array se conservan. Sin esta rama, la de abajo
+          // AÑADÍA una segunda entrada en CADA reinstalación: `prev.includes(x)` compara por
+          // REFERENCIA y un objeto «nuevo» nunca está en la lista leída del disco (gap M-01).
+          // También se colapsan duplicados que una versión anterior ya hubiera acumulado.
+          const porClave = new Map(v.filter((x) => x && x[clave] !== undefined)
+            .map((x) => [x[clave], x]))
+          const vistos = new Set()
+          const resultantes = []
+          let cambios = 0
+          for (const x of prev) {
+            const kx = x && x[clave] !== undefined ? x[clave] : undefined
+            if (kx !== undefined) {
+              if (vistos.has(kx)) { cambios++; continue }   // duplicado histórico: fuera
+              vistos.add(kx)
+            }
+            const nx = kx !== undefined ? porClave.get(kx) : undefined
+            if (nx === undefined) { resultantes.push(x); continue }
+            porClave.delete(kx)
+            if (JSON.stringify(nx) !== JSON.stringify(x)) cambios++
+            resultantes.push(nx)
+          }
+          const sobrantes = [...porClave.values()]
+          if (cambios || sobrantes.length) { dst[k] = [...resultantes, ...sobrantes]; anadidas.push(q) }
+          else if (!Array.isArray(dst[k])) dst[k] = prev
+          continue
         }
         const falta = v.filter((x) => !prev.includes(x))
         if (falta.length) { dst[k] = [...prev, ...falta]; anadidas.push(q) }
@@ -880,12 +910,23 @@ function matarArbol(pid) {
   // 2) Y los HUÉRFANOS: al expirar, Node ya ha matado al hijo directo (el `cmd.exe`), así que
   //    `taskkill /T` no encuentra a quién seguir y el nieto —la CLI de verdad— se queda vivo
   //    (comprobado con `tasklist`). Su `ParentProcessId` sigue apuntando al pid muerto, que es
-  //    justo por donde se les pesca. Si no hay `wmic` (Windows recientes), se degrada en silencio.
+  //    justo por donde se les pesca. `wmic` ya NO existe en Windows 11 (24H2 lo retiró de la
+  //    imagen), así que si esa vía falla se cae a PowerShell + CIM —el sustituto oficial— con la
+  //    MISMA consulta por `ParentProcessId`. Los dos pasos son mejor esfuerzo: nunca peor que
+  //    antes (gap B-12: sin el respaldo, el nieto sobrevivía al timeout en silencio).
   try {
     execFileSync(deSistema(join("wbem", "WMIC.exe"), "wmic"),
       ["process", "where", `(ParentProcessId=${pid})`, "call", "terminate"],
       { stdio: "ignore", timeout: 15_000 })
-  } catch { /* mejor esfuerzo: nunca peor que antes */ }
+  } catch {
+    try {
+      execFileSync(deSistema(join("WindowsPowerShell", "v1.0", "powershell.exe"), "powershell"),
+        ["-NoProfile", "-NonInteractive", "-Command",
+          `Get-CimInstance Win32_Process -Filter 'ParentProcessId=${pid}' `
+          + `| ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }`],
+        { stdio: "ignore", timeout: 15_000 })
+    } catch { /* ni siquiera PowerShell: mejor esfuerzo, nunca peor que antes */ }
+  }
 }
 
 function correr(cmd, args, cwd) {
@@ -1096,7 +1137,9 @@ function ejecutar(provider, opts) {
           if (paso.nota) avisos.push(`${rel(paso.to)}: ${paso.nota}`)
         }
       }
-      const [fusionado, anadidas] = fusionar(actual, aFusionar)
+      // `upsert`: arrays con identidad propia (p. ej. `plugins` por `name` en el marketplace de
+      // Codex) que se reemplazan en su sitio en vez de appendear por referencia.
+      const [fusionado, anadidas] = fusionar(actual, aFusionar, paso.upsert || {})
       // Lo que la fusión haya tenido que decidir sobre la config del usuario se dice AQUÍ, junto
       // al fichero que lo provoca (gap B-5), no al final y sin contexto.
       avisos.push(...drenarAvisosEscritura().map((a) => `${rel(paso.to)}: ${a}`))
