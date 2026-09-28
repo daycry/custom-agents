@@ -251,8 +251,10 @@ def test_t09_puente_cli(tmp_path):
     p = _cli("geo-ramp.steep", "v001", "--category", "GOTCHA", "--project-root", raiz, "--tag", "area:geometria")
     assert p.returncode == 0, p.stderr
     assert "candidates/pending/" in p.stdout and "knowledge-curator" in p.stdout
-    ruta = os.path.join(raiz, "docs", "knowledge", "candidates", "pending", "caso-geo-ramp.steep-v001.md")
-    assert "area:geometria" in open(ruta, encoding="utf-8").read()
+    pending = os.path.join(raiz, "docs", "knowledge", "candidates", "pending")
+    (nombre,) = os.listdir(pending)
+    assert nombre.startswith("caso-geo-ramp.steep-v001-") and nombre.endswith(".md")
+    assert "area:geometria" in open(os.path.join(pending, nombre), encoding="utf-8").read()
     p = _cli("geo-ramp.steep", "v001", "--category", "GOTCHA", "--project-root", raiz)
     assert p.returncode == 1 and "Traceback" not in p.stderr
     p = _cli("geo-ramp.steep", "1", "--category", "GOTCHA", "--project-root", raiz, "--tag", "sin-dos-puntos")
@@ -270,3 +272,148 @@ def test_t09_puente_nada_de_docs_knowledge_alimenta_el_case_store():
         assert "candidates" not in fuente and "approved/" not in fuente, fichero
     fuente = open(os.path.join(HERE, "propose-from-case.py"), encoding="utf-8").read()
     assert fuente.count('"approved"') == 1 and "estado: aprobado" not in fuente
+
+
+# ------------------------------------------------------------------ fix1 de la Fase 3 (#119, #121, #125, #126, #128, #132)
+
+import hashlib
+
+
+def _store(raiz):
+    return os.path.join(raiz, "..", "store")
+
+
+def test_t09_puente_con_la_capacidad_apagada_no_propone(tmp_path):
+    """#125: `proponer` exige `enabled: true` aunque `bridge_to_curator` este activo."""
+    raiz, cfg = _proyecto(tmp_path)
+    with pytest.raises(pfc.Rechazo) as e:
+        pfc.proponer(dict(cfg, enabled=False), raiz, "geo-ramp.steep", 1, "GOTCHA")
+    assert "desactivado" in str(e.value)
+    assert not os.path.exists(os.path.join(raiz, "docs"))
+
+
+def test_t09_puente_redacta_peticion_nota_y_titulo_al_escribir(tmp_path):
+    """#119 (CWE-312): `request.json` escrito por un tercero (o con un redactor viejo) con secretos
+    literales: el candidato —versionado en Git— sale redactado con `redactar_estructura`."""
+    raiz, cfg = _proyecto(tmp_path, gold=False)
+    s1, s2, s3 = ("ghp_" + "a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8", "AKIA" + "ABCDEFGHIJ012345",
+                  "password=Hunter2024!x")
+    d = os.path.join(_store(raiz), "cases", "ramp.steep", "v001")
+    with open(os.path.join(d, "request.json"), "w", encoding="utf-8") as f:
+        json.dump({"request": f"usa {s1} y {s2}"}, f)
+    rec.cambiar_estado("geo-ramp.steep", 1, "approved", cfg, raiz, approved_by_human=True)
+    vp = os.path.join(d, "validation.json")
+    v = json.load(open(vp, encoding="utf-8"))
+    v["reviewer_note"] = "ojo " + s3
+    with open(vp, "w", encoding="utf-8") as f:
+        json.dump(v, f)
+    r = pfc.proponer(cfg, raiz, "geo-ramp.steep", 1, "GOTCHA", titulo="titulo " + s2)
+    texto = open(r["ruta"], encoding="utf-8").read()
+    for s in (s1, s2, s3):
+        assert s not in texto, s
+    assert "redactado" in texto
+    assert _gate(raiz, r["ruta"]).returncode == 0
+
+
+def test_t09_puente_tag_con_un_secreto_se_rechaza(tmp_path):
+    raiz, cfg = _proyecto(tmp_path)
+    with pytest.raises(pfc.Rechazo) as e:
+        pfc.proponer(cfg, raiz, "geo-ramp.steep", 1, "GOTCHA", tags=["clave:ghp_a1B2c3D4e5F6g7H8i9J0k1L2m3"])
+    assert "tag" in str(e.value)
+    assert not os.path.exists(os.path.join(raiz, "docs"))
+
+
+def test_t09_puente_pending_sustituido_tras_prepararlo_se_detecta_y_se_nombra(tmp_path, monkeypatch):
+    """#121 (CWE-59/367): `pending/` sustituido por un enlace a `approved/` entre `_preparar_pending` y
+    la creacion: se detecta, el aviso nombra donde quedo el fichero (es el creado) y no se borra nada."""
+    raiz, cfg = _proyecto(tmp_path)
+    fuera = os.path.join(raiz, "docs", "knowledge", "approved", "gotchas")
+    real = pfc._preparar_pending
+
+    def preparar_y_sustituir(r):
+        salida = real(r)
+        os.makedirs(fuera)
+        os.rmdir(salida[0])
+        try:
+            if os.name == "nt":
+                import _winapi
+                _winapi.CreateJunction(fuera, salida[0])
+            else:
+                os.symlink(fuera, salida[0], target_is_directory=True)
+        except (OSError, AttributeError) as e:   # pragma: no cover - entorno
+            pytest.skip(f"sin enlaces de directorio: {e}")
+        return salida
+    monkeypatch.setattr(pfc, "_preparar_pending", preparar_y_sustituir)
+    with pytest.raises(pfc.Rechazo) as e:
+        pfc.proponer(cfg, raiz, "geo-ramp.steep", 1, "GOTCHA")
+    (creado,) = os.listdir(fuera)
+    assert "quedo en" in str(e.value) and creado in str(e.value) and "gotchas" in str(e.value)
+    assert "no borra nada" in str(e.value)
+
+
+def test_t09_puente_nombre_inyectivo_con_familias_no_ascii_o_mayusculas(tmp_path):
+    """#126: `geo-rampá.a` y `geo-rampé.a` (o dos que solo difieren en mayusculas) no comparten
+    nombre de candidato: slug ASCII + sufijo del hash del `case_id@version` exacto."""
+    a, b = pfc._nombre_candidato("geo-rampá.a@v001"), pfc._nombre_candidato("geo-rampé.a@v001")
+    assert a != b and a.isascii() and b.isascii() and a.endswith(".md")
+    assert pfc._nombre_candidato("geo-A.x@v001").casefold() != pfc._nombre_candidato("geo-a.x@v001").casefold()
+    h = hashlib.sha256("geo-rampá.a@v001".encode("utf-8")).hexdigest()[:10]
+    assert a == f"caso-geo-ramp-.a-v001-{h}.md"
+
+
+def test_t09_puente_dos_familias_no_ascii_se_proponen_las_dos(tmp_path):
+    raiz, cfg = _proyecto(tmp_path)
+    cfg = dict(cfg, ids={"family_pattern": "[a-zá-ú]+"})
+    for fam in ("rampá", "rampé"):
+        r = rec.grabar(dict(copy.deepcopy(CASO), family=fam), dict(cfg, bridge_to_curator=False), raiz)
+        rec.cambiar_estado(r["case_id"], 1, "approved", cfg, raiz, approved_by_human=True)
+    r1 = pfc.proponer(cfg, raiz, "geo-rampá.steep", 1, "GOTCHA")
+    r2 = pfc.proponer(cfg, raiz, "geo-rampé.steep", 1, "GOTCHA")
+    assert r1["ruta"] != r2["ruta"] and os.path.exists(r1["ruta"]) and os.path.exists(r2["ruta"])
+
+
+def test_t09_puente_taxonomia_sin_knowledge_schema_exit_2(tmp_path, monkeypatch, capsys):
+    """#128 (E23): sin `agent-kits/shared/knowledge-schema.py` (paquete parcial) -> fallo cerrado."""
+    raiz, cfg = _proyecto(tmp_path)
+    vacio = tmp_path / "sin-shared"
+    vacio.mkdir()
+    monkeypatch.setattr(pfc, "_dirs_shared", lambda: [str(vacio)])
+    with pytest.raises(pfc.KnowledgeServicesNoDisponible):
+        pfc.proponer(cfg, raiz, "geo-ramp.steep", 1, "GOTCHA")
+    assert pfc.main(["geo-ramp.steep", "1", "--category", "GOTCHA", "--project-root", raiz]) == 2
+    assert "knowledge-schema.py" in capsys.readouterr().err
+    assert not os.path.exists(os.path.join(raiz, "docs"))
+
+
+def test_t09_puente_taxonomia_ilegible_exit_2(tmp_path):
+    raiz, cfg = _proyecto(tmp_path)
+    with open(os.path.join(raiz, ".claude", "knowledge-services", "taxonomy.json"), "w", encoding="utf-8") as f:
+        f.write("{ no es json")
+    with pytest.raises(pfc.KnowledgeServicesNoDisponible):
+        pfc.proponer(cfg, raiz, "geo-ramp.steep", 1, "GOTCHA")
+    p = _cli("geo-ramp.steep", "1", "--category", "GOTCHA", "--project-root", raiz)
+    assert p.returncode == 2 and "taxonomia" in p.stderr and "Traceback" not in p.stderr
+    assert not os.path.exists(os.path.join(raiz, "docs"))
+
+
+def test_t09_puente_gold_cuyo_contenido_cambio_no_se_propone(tmp_path):
+    """#132: el Gold esta atado a su contenido (`content_hash`); cambiado despues -> rechazo."""
+    raiz, cfg = _proyecto(tmp_path)
+    d = os.path.join(_store(raiz), "cases", "ramp.steep", "v001")
+    with open(os.path.join(d, "request.json"), "w", encoding="utf-8") as f:
+        json.dump({"request": "otra peticion distinta de la aprobada"}, f)
+    with pytest.raises(pfc.Rechazo) as e:
+        pfc.proponer(cfg, raiz, "geo-ramp.steep", 1, "GOTCHA")
+    assert "content_hash" in str(e.value)
+    assert not os.path.exists(os.path.join(raiz, "docs"))
+
+
+def test_t09_puente_gold_sin_hash_de_aprobacion_se_propone_con_aviso(tmp_path):
+    raiz, cfg = _proyecto(tmp_path)
+    vp = os.path.join(_store(raiz), "cases", "ramp.steep", "v001", "validation.json")
+    v = json.load(open(vp, encoding="utf-8"))
+    del v["content_hash"]
+    with open(vp, "w", encoding="utf-8") as f:
+        json.dump(v, f)
+    r = pfc.proponer(cfg, raiz, "geo-ramp.steep", 1, "GOTCHA")
+    assert os.path.exists(r["ruta"]) and any("sin hash de aprobacion" in a for a in r["avisos"])

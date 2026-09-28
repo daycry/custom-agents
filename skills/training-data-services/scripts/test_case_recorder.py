@@ -602,6 +602,30 @@ def test_t05_gold_con_flag_fija_humano_fecha_y_nota(tmp_path):
     assert out["status"] == "approved" and out["ref"] == "geo-ramp.steep@v001"
 
 
+def test_t05_gold_guarda_content_hash_de_los_ficheros_inmutables(tmp_path):
+    """#132 (fix1 de la Fase 3): `approved` ata el Gold al contenido aprobado; los demas estados no lo
+    llevan; si un fichero inmutable no se puede leer (enlace duro), no se aprueba."""
+    import hashlib
+    raiz, cfg, _store, r = _grabado(tmp_path)
+    rec.cambiar_estado("geo-ramp.steep", 1, "approved", cfg, raiz, approved_by_human=True)
+    val = json.load(open(os.path.join(r["path"], "validation.json"), encoding="utf-8"))
+    shas = {f: hashlib.sha256(open(os.path.join(r["path"], f), "rb").read()).hexdigest() for f in rec.FICHEROS_INMUTABLES}
+    assert val["content_hash"] == rec.hash_contenido(shas) and len(val["content_hash"]) == 64
+    assert "validation.json" not in rec.FICHEROS_INMUTABLES and len(rec.FICHEROS_INMUTABLES) == 7
+    rec.cambiar_estado("geo-ramp.steep", 1, "needs_changes", cfg, raiz)
+    assert "content_hash" not in json.load(open(os.path.join(r["path"], "validation.json"), encoding="utf-8"))
+    fuera = tmp_path / "fuera.json"
+    fuera.write_bytes(open(os.path.join(r["path"], "metrics.json"), "rb").read())
+    os.remove(os.path.join(r["path"], "metrics.json"))
+    try:
+        os.link(str(fuera), os.path.join(r["path"], "metrics.json"))
+    except OSError as e:   # pragma: no cover - entorno
+        pytest.skip(f"sin enlaces duros: {e}")
+    with pytest.raises(rec.Rechazo) as e:
+        rec.cambiar_estado("geo-ramp.steep", 1, "approved", cfg, raiz, approved_by_human=True)
+    assert "content_hash" in str(e.value) and "enlace duro" in str(e.value)
+
+
 def test_t05_gold_needs_changes_rejected_y_pending_no_requieren_el_flag(tmp_path):
     raiz, cfg, _store, r = _grabado(tmp_path)
     ruta = os.path.join(r["path"], "validation.json")

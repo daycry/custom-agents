@@ -922,7 +922,7 @@ def _json_de(datos):
     return json.loads(datos.decode("utf-8"))
 
 
-def _leer_json_reintentando(ruta, previo=None, fstat_leido=None, decodificar=_json_de):
+def _leer_json_reintentando(ruta, previo=None, fstat_leido=None, decodificar=_json_de, tope=None):
     """`(objeto, mtime)` de un JSON de version, reintentando de forma ACOTADA ante `PermissionError`
     (en Windows, abrir durante un `os.replace` ajeno falla un instante, gap #33). Se lee SIEMPRE del
     descriptor ya comprobado (gap #83, CWE-367/59): `os.fstat` -> fichero regular, `st_nlink == 1` y,
@@ -931,7 +931,9 @@ def _leer_json_reintentando(ruta, previo=None, fstat_leido=None, decodificar=_js
     persistente se propagan: el llamador los distingue. Con `fstat_leido` (lista), se le anade el
     `os.fstat` del descriptor del que se leyo (la firma de #89, W-B2). `decodificar` convierte los
     bytes leidos (por defecto, JSON UTF-8); el ensamblador (T-09) pide los bytes tal cual para
-    hashearlos y parsearlos del MISMO descriptor comprobado."""
+    hashearlos y parsearlos del MISMO descriptor comprobado. `tope` (bytes, #122): un fichero mayor
+    —por el `st_size` del descriptor, antes de leer, o porque crece mientras se lee— es
+    `_FicheroNoPropio` sin cargarlo entero en memoria."""
     for intento in range(REINTENTOS):
         try:
             with open(ruta, "rb") as f:
@@ -939,7 +941,14 @@ def _leer_json_reintentando(ruta, previo=None, fstat_leido=None, decodificar=_js
                 motivo, sustituido = _motivo_descriptor(st, previo)
                 if motivo:
                     raise _FicheroNoPropio(f"{os.path.basename(ruta)}: {motivo}", sustituido)
-                datos = f.read()
+                if tope is not None and st.st_size > tope:
+                    raise _FicheroNoPropio(f"{os.path.basename(ruta)}: {st.st_size} bytes, por encima del tope de "
+                                           f"{tope} bytes por fichero; no se lee")
+                # con tope: `read(st_size + 1)` (nunca `read(tope + 1)`: CPython reserva ese bufer entero en
+                # cada lectura); si crece mientras se lee, es un fichero que cambia -> «sustituido»
+                datos = f.read() if tope is None else f.read(st.st_size + 1)
+                if tope is not None and len(datos) > st.st_size:
+                    raise _FicheroNoPropio(f"{os.path.basename(ruta)}: {SUSTITUIDO} (crecio mientras se leia)", True)
             if fstat_leido is not None:
                 fstat_leido.append(st)
             return decodificar(datos), st.st_mtime
@@ -973,6 +982,18 @@ def _metadata(caso):
     if caso.get("supersedes_case") is not None:
         meta["supersedes_case"] = caso["supersedes_case"]
     return meta
+
+
+FICHEROS_INMUTABLES = ("metadata.json", "request.json", "context.json", "constraints.json", "trajectory.jsonl",
+                       "metrics.json", "final/artifacts.json")
+
+
+def hash_contenido(shas):
+    """#132: `content_hash` de una version = sha256 de `"<fichero>\\0<sha256 del fichero>\\n"` de sus
+    ficheros INMUTABLES (todos salvo `validation.json`), en el orden de `FICHEROS_INMUTABLES`. Lo
+    guarda `set-status approved` en `validation.json` y lo recalculan el ensamblador y el puente: un
+    Gold queda atado al contenido que se aprobo. `shas`: `{fichero: sha256 hex}`."""
+    return hashlib.sha256("".join(f"{f}\0{shas[f]}\n" for f in FICHEROS_INMUTABLES).encode("utf-8")).hexdigest()
 
 
 class _Manipulado(Rechazo):
@@ -1039,7 +1060,7 @@ def _texto_seguro(mensaje):
     return "".join(c if c.isprintable() else ascii(c)[1:-1] for c in str(mensaje))
 
 
-def _verificar_creado(ctx, ruta, st_propio):
+def _verificar_creado(ctx, ruta, st_propio, quien="el recorder"):
     """G4: comprobacion POSTERIOR a crear `ruta` (best-effort). Vale si su `realpath` es EXACTAMENTE la
     ruta canonica esperada (igualdad, no contencion) y si el nombre sigue siendo el fichero creado
     (`samestat(lstat, st_propio)`, un solo nombre, no un enlace): asi se ve tambien un directorio que
@@ -1047,7 +1068,8 @@ def _verificar_creado(ctx, ruta, st_propio):
     SIN borrar nada (el borrado por ruta es justo lo que un tercero puede redirigir). El aviso nombra
     la ruta SOLO si el `realpath` resuelto ES el fichero creado (`samestat` con su descriptor); si no,
     «no localizado» y no pide borrar nada: la ruta la decide el tercero y podria nombrar un fichero
-    ajeno (CWE-367/451)."""
+    ajeno (CWE-367/451). `quien` nombra en el aviso a la pieza que escribio (el ensamblador y el puente
+    usan el mismo contrato, #118/#121)."""
     ok, resuelta = ctx.igual(ruta)
     if ok:
         try:
@@ -1067,10 +1089,11 @@ def _verificar_creado(ctx, ruta, st_propio):
             pass
     if donde:
         raise _Manipulado(f"{ctx.rel(ruta)}: el directorio cambio durante la escritura (CWE-59/367) y el fichero creado "
-                          f"quedo en {_texto_ruta(donde)}: revisalo y retiralo a mano (el recorder no borra nada; "
+                          f"quedo en {_texto_ruta(donde)}: revisalo y retiralo a mano ({quien} no borra nada; "
                           "comprobacion best-effort)")
     raise _Manipulado(f"{ctx.rel(ruta)}: el directorio cambio durante la escritura (CWE-59/367) y el fichero creado no "
-                      "se ha localizado (no localizado: no se pide borrar nada; comprobacion best-effort)")
+                      f"se ha localizado (no localizado: no se pide borrar nada; {quien} no borra nada; "
+                      "comprobacion best-effort)")
 
 
 def _crear_en_version(ctx, ruta, datos):
@@ -1807,7 +1830,7 @@ def _iso(ts):
     return datetime.datetime.fromtimestamp(ts, datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def _leer_de_version(dir_v, fichero, rel, fstat_leido=None, decodificar=_json_de):
+def _leer_de_version(dir_v, fichero, rel, fstat_leido=None, decodificar=_json_de, tope=None):
     """`(objeto, mtime, aviso)` de un fichero de version, con `lstat` ANTES de abrir: distingue
     «falta» (a medio escribir), «enlace» (no se lee a traves de el, gap #66), «enlace duro compartido»
     (`st_nlink > 1`: podria ser un fichero de fuera del store, gap #79), «no es un fichero regular»
@@ -1817,7 +1840,8 @@ def _leer_de_version(dir_v, fichero, rel, fstat_leido=None, decodificar=_json_de
     (#109: el primero al instante y despues con retroceso hasta `PLAZO_SUSTITUIDO_S`; tres `os.replace`
     seguidos mientras el lector pierde la CPU ya no lo agotan); uno abierto con enlaces duros o que no
     es regular se omite sin leerlo. `rel` llega ya escapado (`_texto_ruta`, #111). `decodificar`: ver
-    `_leer_json_reintentando` (el ensamblador, T-09, lee los bytes tal cual)."""
+    `_leer_json_reintentando` (el ensamblador, T-09, lee los bytes tal cual); `tope`, su tope por
+    fichero (#122)."""
     ruta = os.path.join(dir_v, fichero)
     intentos, limite, espera = 0, None, ESPERA_SUSTITUIDO_S
     while True:
@@ -1854,7 +1878,7 @@ def _leer_de_version(dir_v, fichero, rel, fstat_leido=None, decodificar=_json_de
             return None, None, (f"{rel} omitida: {fichero} es un enlace duro compartido ({st.st_nlink} nombres para el "
                                 "mismo fichero: podria ser uno de fuera del store, CWE-59); no se lee")
         try:
-            obj, mtime = _leer_json_reintentando(ruta, st, fstat_leido, decodificar)
+            obj, mtime = _leer_json_reintentando(ruta, st, fstat_leido, decodificar, tope)
             return obj, mtime, None
         except _FicheroNoPropio as e:
             if e.sustituido:
@@ -1879,9 +1903,19 @@ def _firma(st):
     return (st.st_ino, st.st_size, st.st_mtime_ns)
 
 
-def _estado_version(store, nombre, dir_caso, numero, nombres, entrada_dir=None, firmas=None):
+def _json_y_crudo(datos):
+    return _json_de(datos), datos
+
+
+def _estado_version(store, nombre, dir_caso, numero, nombres, entrada_dir=None, firmas=None, crudos=None):
     """Estado de UNA version desde el disco: `(entrada|None, aviso|None, en_curso, mtime_meta)`.
-    Con `firmas`, anota la firma (`st_ino`, tamaño, `mtime`) del `validation.json` leido (gap #89)."""
+    Con `firmas`, anota la firma (`st_ino`, tamaño, `mtime`) del `validation.json` leido (gap #89).
+    Con `crudos` (dict, #130: el ensamblador), guarda los BYTES leidos de `metadata.json` y
+    `validation.json` con el `fstat` de su descriptor, `{(case_id, numero): {fichero: (bytes, fstat)}}`,
+    para que la lectura del caso no los abra otra vez si siguen siendo el mismo fichero."""
+    leido_m = [] if crudos is not None else None
+    dec = _json_y_crudo if crudos is not None else _json_de
+    crudo = {}
     if len(nombres) > 1:
         return None, (f"{_texto_ruta('cases/' + nombre)}: version {numero} duplicada "
                       f"({', '.join(sorted(nombres))}): se omiten"), False, None
@@ -1890,7 +1924,10 @@ def _estado_version(store, nombre, dir_caso, numero, nombres, entrada_dir=None, 
     motivo = _motivo_enlace(entrada_dir if entrada_dir is not None else dir_v, dir_v)
     if motivo:
         return None, f"{rel} omitida: {motivo}", False, None
-    meta, mtime_meta, aviso = _leer_de_version(dir_v, "metadata.json", rel)
+    meta, mtime_meta, aviso = _leer_de_version(dir_v, "metadata.json", rel, leido_m, dec)
+    if crudos is not None and aviso is None:
+        meta, datos_m = meta
+        crudo["metadata.json"] = (datos_m, leido_m[-1])
     a_medias = bool(aviso) and A_MEDIO_PUBLICAR in aviso                    # G2
     if aviso and meta is None and "incompleta" in aviso and ("sin metadata.json" in aviso or a_medias):
         try:
@@ -1910,7 +1947,10 @@ def _estado_version(store, nombre, dir_caso, numero, nombres, entrada_dir=None, 
         return None, aviso, False, None
     if aviso is None:
         leido = []
-        val, mtime, aviso = _leer_de_version(dir_v, "validation.json", rel, leido)
+        val, mtime, aviso = _leer_de_version(dir_v, "validation.json", rel, leido, dec)
+        if crudos is not None and aviso is None:
+            val, datos_v = val
+            crudo["validation.json"] = (datos_v, leido[-1])
         if aviso is None and firmas is not None and isinstance(meta, dict) and leido:
             # W-B2: la firma es la del DESCRIPTOR del que se leyo, no la de un `lstat` posterior
             firmas[(meta.get("case_id"), numero)] = (os.path.join(dir_v, "validation.json"), _firma(leido[-1]))
@@ -1927,6 +1967,8 @@ def _estado_version(store, nombre, dir_caso, numero, nombres, entrada_dir=None, 
         return None, f"{rel} omitida: metadata.json incompleto", False, None
     if f"{e['family']}.{e['variant']}" != nombre or e["version"] != numero or _entrada_valida(e):
         return None, f"{rel} omitida: metadata.json no casa con su ruta o con el esquema", False, None
+    if crudos is not None:
+        crudos[(e["case_id"], numero)] = crudo
     return e, None, False, mtime_meta
 
 
@@ -1967,7 +2009,7 @@ def _aviso_transitorio(aviso):
 
 
 def _estado_de_cases(store, raiz_proyecto=None, duenos=None, firmas=None, temporales_version=False,
-                     transitorias=None):
+                     transitorias=None, crudos=None):
     """`(entradas, avisos, en_curso, mtimes_meta, rels)` recorriendo `cases/` (la FUENTE). `avisos`
     y `en_curso` son dicts `rel -> texto`; `rels` indexa por `(<family>.<variant>, numero)` los `rel`
     de cada version con aviso (gap #69: la cola los retira en O(1)). Enlaces detectados por ENTRADA
@@ -1981,7 +2023,9 @@ def _estado_de_cases(store, raiz_proyecto=None, duenos=None, firmas=None, tempor
     `firmas` `{clave: firma de validation.json}` (#89). fix5: los `.tmp-*` de CADA VERSION solo con
     `temporales_version` (solo `index check`, que los reporta; `rebuild` no los necesita: #103);
     `transitorias` (set opcional) recibe las `(<family>.<variant>, numero)` con aviso de causa
-    transitoria (#105); un caso con `v<VERSION_MAX>` agoto los numeros: informativo (#100)."""
+    transitoria (#105); un caso con `v<VERSION_MAX>` agoto los numeros: informativo (#100). `crudos`
+    (dict opcional, #130): los bytes y el `fstat` de `metadata.json`/`validation.json` de cada version
+    valida (ver `_estado_version`)."""
     entradas, avisos, en_curso, mtimes, rels = {}, {}, {}, {}, {}
     duenos = {} if duenos is None else duenos
     try:
@@ -2038,7 +2082,7 @@ def _estado_de_cases(store, raiz_proyecto=None, duenos=None, firmas=None, tempor
         for v, lista in sorted(por_numero.items()):
             nombres = [n for n, _e in lista]
             e, aviso, curso, mtime_meta = _estado_version(store, nombre, dir_caso, v, nombres,
-                                                          lista[0][1] if len(lista) == 1 else None, firmas)
+                                                          lista[0][1] if len(lista) == 1 else None, firmas, crudos)
             rel = f"cases/{nombre}/{nombres[0]}"
             if e is not None:
                 duenos.setdefault(nombre, e["case_id"])
@@ -2648,12 +2692,30 @@ def _ficheros_sin_enlace(destino, ref):
     return stats
 
 
+def _content_hash_de(destino, ref):
+    """#132: `hash_contenido` de los ficheros inmutables de la version `destino`, leidos por descriptor
+    con el lector de las versiones (sin seguir enlaces, un solo nombre; `final/` no puede ser un
+    enlace). Si alguno no se puede leer -> `Rechazo`: no se aprueba lo que no se puede atar."""
+    final = os.path.join(destino, "final")
+    if _motivo_enlace(final, final):
+        raise Rechazo(f"{ref}: final/ es un {MOTIVO_ENLACE}; no se aprueba (no se puede atar el content_hash)")
+    shas = {}
+    for f in FICHEROS_INMUTABLES:
+        datos, _m, aviso = _leer_de_version(destino, f, _texto_ruta(ref), decodificar=bytes)
+        if aviso:
+            raise Rechazo(f"{aviso}; no se aprueba (no se puede atar el content_hash)")
+        shas[f] = hashlib.sha256(datos).hexdigest()
+    return hash_contenido(shas)
+
+
 def cambiar_estado(case_id, version, status, config, raiz_proyecto=None, approved_by_human=False, reviewer_note=None):
     """Cambia `validation.status` de una version grabada. Solo reescribe `validation.json` (de forma
     atomica); el resto de la version es inmutable. `approved` (Gold) exige `approved_by_human is
     True` (`--approved-by-human`): sin el, `Rechazo` con mensaje explicito. `needs_changes`,
     `rejected` y `pending` no lo requieren y dejan `approved_by_human: false`. Sin `reviewer_note`
-    se conserva la nota anterior; la nueva se redacta. La version se localiza por NUMERO (cualquier
+    se conserva la nota anterior; la nueva se redacta. `approved` guarda ademas `content_hash`
+    (`hash_contenido` de los ficheros inmutables, leidos bajo el bloqueo; #132): el ensamblador y el
+    puente excluyen el Gold cuyo contenido ya no casa. La version se localiza por NUMERO (cualquier
     ancho, gap #60). Lectura, escritura de `validation.json` y su linea del indice van bajo el MISMO
     bloqueo (gap #35, O(1)); `metadata.json` se lee y valida antes de escribir nada (gap #36).
     Devuelve `{case_id, version, ref, status, path, avisos}`."""
@@ -2717,6 +2779,8 @@ def cambiar_estado(case_id, version, status, config, raiz_proyecto=None, approve
         gold = status == "approved"
         nueva = {"status": status, "approved_by_human": gold, "approved_at": _ahora() if gold else None,
                  "reviewer_note": nota if nota is not None else previa.get("reviewer_note")}
+        if gold:                                                # #132: Gold atado al contenido aprobado
+            nueva["content_hash"] = _content_hash_de(destino, ref)
         # D-fix5 §3: el vigente comparado por descriptor con el leido y `vNNN` por igualdad, justo antes
         # del `os.replace` (limite G3 en el docstring del modulo)
         _escribir_atomico(ruta_val, _json_bytes(nueva), _Canon(store, raiz), leido[-1] if leido else None)

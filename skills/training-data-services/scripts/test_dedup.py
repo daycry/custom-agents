@@ -95,7 +95,7 @@ def test_t07_umbral_fuera_de_rango_es_error():
 
 # ------------------------------------------------------------------ criterio 2: boilerplate
 
-def _con_boilerplate(n_familias=5, por_familia=3, seed=11):
+def _con_boilerplate(n_familias=7, por_familia=3, seed=11):
     rng = random.Random(seed)
     docs = []
     for f in range(n_familias):
@@ -130,7 +130,7 @@ def test_t07_boilerplate_no_esconde_un_duplicado_real():
 
 def test_t07_un_grupo_grande_de_una_familia_no_se_confunde_con_boilerplate():
     """10 versiones casi iguales de UNA familia entre 12 casos: sus shingles estan en > 50 % de los
-    casos pero en una sola familia -> no son boilerplate (el anti-leakage prefiere el falso positivo)."""
+    casos, pero con menos de `N_MIN_BOILERPLATE` casos no se filtra nada (H1): siguen agrupadas."""
     rng = random.Random(5)
     base = _frase(rng, 30)
     docs = [(f"a@v{v:03d}", "fa", base + f" intento{v}") for v in range(1, 11)]
@@ -139,16 +139,116 @@ def test_t07_un_grupo_grande_de_una_familia_no_se_confunde_con_boilerplate():
     assert _grupos(r) == [[f"a@v{v:03d}" for v in range(1, 11)]]
 
 
-def test_t07_con_menos_de_tres_familias_no_hay_filtro_de_boilerplate():
-    docs = _con_boilerplate(n_familias=2)
+def test_t07_con_menos_de_n_min_casos_no_hay_filtro_de_boilerplate():
+    """H1: con menos de `N_MIN_BOILERPLATE` (20) casos no se filtra nada, ni con muchas familias."""
+    assert dd.N_MIN_BOILERPLATE == 20 and dd.BOILERPLATE_DEFECTO == 0.5
+    docs = _con_boilerplate(n_familias=19, por_familia=1)
+    assert len(docs) == 19
+    assert dd.agrupar(docs)["boilerplate"] == 0
+    assert dd.agrupar(_con_boilerplate(n_familias=20, por_familia=1))["boilerplate"] > 0
+
+
+def test_t07_dos_familias_con_el_mismo_prompt_de_sistema_si_se_filtra():
+    """#115a: sin la regla de familias, el prompt de sistema compartido por DOS familias es plantilla."""
+    docs = _con_boilerplate(n_familias=2, por_familia=12)
+    r = dd.agrupar(docs)
+    assert r["boilerplate"] > 0 and _grupos(r) == []
+    assert "min_familias_boilerplate" not in r["parametros"]
+    assert r["parametros"]["n_min_boilerplate"] == 20
+
+
+def test_t07_bloque_en_la_mitad_justa_no_es_boilerplate():
+    """`df > fraccion · n` estricto: un bloque en EXACTAMENTE la mitad de 20 casos no se filtra."""
+    rng = random.Random(8)
+    comun = _frase(rng, 30)
+    docs = [(f"m{i:02d}@v001", f"f{i}", (comun + " " if i < 10 else "") + _frase(rng, 30)) for i in range(20)]
+    assert dd.agrupar(docs)["boilerplate"] == 0
+    docs[10] = ("m10@v001", "f10", comun + " " + _frase(rng, 30))
+    assert dd.agrupar(docs)["boilerplate"] > 0
+
+
+def test_t07_fraccion_menor_que_uno_entre_n_todo_es_plantilla():
+    """`fraccion < 1/n`: hasta un shingle de un solo caso supera `fraccion · n` -> todo es plantilla y
+    solo se agrupan los duplicados exactos (por su conjunto original)."""
+    docs = _con_boilerplate(n_familias=10, por_familia=2)
+    docs.append(("dup@v001", "d", docs[0][2]))
+    r = dd.agrupar(docs, fraccion_boilerplate=0.01)
+    distintos = len({s for _i, _f, t in docs for s in dd.shingles_de(t)})
+    assert r["boilerplate"] == distintos
+    assert _grupos(r) == [sorted([docs[0][0], "dup@v001"])]
+
+
+# ------------------------------------------------------------------ #114: la fuga entre familias
+
+def _peticion_21(rng):
+    return " ".join(f"{rng.choice(PALABRAS)}{rng.randrange(1000)}" for _ in range(21))
+
+
+def test_t07_114_near_duplicate_entre_cuatro_familias_se_agrupa():
+    """#114: peticion de 21 palabras + UNA distinta en 4 familias (Jaccard 0.9): antes, 18 shingles se
+    tomaban por boilerplate y el grupo desaparecia (fuga del benchmark a train)."""
+    rng = random.Random(114)
+    base = _peticion_21(rng)
+    docs = [(f"geo-{fam}.x@v001", fam, base + " " + extra)
+            for fam, extra in (("bench", "alfa"), ("fa", "beta"), ("fb", "gamma"), ("fc", "delta"))]
     r = dd.agrupar(docs)
     assert r["boilerplate"] == 0
+    assert _grupos(r) == [sorted(d[0] for d in docs)]
+    # tambien con 3 de 5 casos
+    docs5 = docs[:3] + [("geo-fd.x@v001", "fd", _peticion_21(rng)), ("geo-fe.x@v001", "fe", _peticion_21(rng))]
+    assert _grupos(dd.agrupar(docs5)) == [sorted(d[0] for d in docs[:3])]
+
+
+def _plantilla(palabras, seed):
+    rng = random.Random(seed)
+    return " ".join(f"{rng.choice(PALABRAS)}t{seed}x{i}" for i in range(palabras))
+
+
+def test_t07_114_a_escala_el_par_entre_familias_se_agrupa_con_plantilla_comun():
+    """#114 a escala: 10^3 casos de 10 familias con una plantilla comun (boilerplate de verdad) y un par
+    bench/train casi identico entre familias -> agrupado; nada mas se agrupa."""
+    rng = random.Random(1140)
+    plantilla = _plantilla(150, 1)
+    docs = [(f"geo-f{i % 10}.c{i:04d}@v001", f"f{i % 10}", plantilla + " " + _frase(rng, 30)) for i in range(998)]
+    base = _peticion_21(rng)
+    docs += [("geo-bench.par@v001", "bench", plantilla + " " + base + " alfa"),
+             ("geo-f3.par@v001", "f3", plantilla + " " + base + " beta")]
+    r = dd.agrupar(docs)
+    assert r["boilerplate"] > 0
+    assert _grupos(r) == [["geo-bench.par@v001", "geo-f3.par@v001"]]
+
+
+def test_t07_plantilla_del_90_por_ciento_no_da_falsos_positivos_y_avisa():
+    """Revision previa de D-f3 (§2, Critical): 10^3 casos de 10 familias con 90 % de plantilla y 10 %
+    propio -> 0 grupos (el rescate sobre el conjunto original lo agrupaba todo) y un aviso por caso que
+    conserva < 20 % de sus shingles (H2: se ve, no decide)."""
+    rng = random.Random(90)
+    plantilla = _plantilla(270, 2)
+    docs = [(f"geo-f{i % 10}.c{i:04d}@v001", f"f{i % 10}", plantilla + " " + _frase(rng, 30)) for i in range(1000)]
+    r = dd.agrupar(docs)
+    assert _grupos(r) == []
+    assert len(r["avisos"]) == 1000
+    assert all("near-duplicate no evaluable sobre la plantilla" in a["motivo"] for a in r["avisos"])
+    assert [a["id"] for a in r["avisos"]] == sorted(d[0] for d in docs)
+
+
+def test_t07_aviso_solo_si_conserva_menos_del_20_por_ciento():
+    rng = random.Random(21)
+    plantilla = _plantilla(60, 3)
+    docs = [(f"c{i:02d}@v001", f"f{i}", plantilla + " " + _frase(rng, 30)) for i in range(20)]
+    docs.append(("poco@v001", "fz", plantilla + " " + _frase(rng, 5)))
+    r = dd.agrupar(docs)
+    assert [a["id"] for a in r["avisos"]] == ["poco@v001"]
 
 
 def test_t07_caso_todo_boilerplate_solo_agrupa_con_su_identico():
     docs = _con_boilerplate()
-    docs += [("geo-vacio.a@v001", "va", SISTEMA), ("geo-vacio.b@v001", "vb", SISTEMA)]
+    mitad = " ".join(SISTEMA.split()[:60])
+    docs += [("geo-vacio.a@v001", "va", SISTEMA), ("geo-vacio.b@v001", "vb", SISTEMA),
+             ("geo-vacio.c@v001", "vc", mitad)]
     r = dd.agrupar(docs)
+    # H3: el colapso de exactos es por IGUALDAD del conjunto ORIGINAL, nunca del filtrado (los tres
+    # quedan vacios al filtrar; `c` tiene otro original y no se agrupa)
     assert _grupos(r) == [["geo-vacio.a@v001", "geo-vacio.b@v001"]]
 
 
@@ -156,7 +256,7 @@ def test_t07_caso_todo_boilerplate_solo_agrupa_con_su_identico():
 
 def _fuerza_bruta(docs, umbral, ventana, fraccion):
     """Referencia O(n^2): mismos shingles filtrados que `agrupar`, todos los pares."""
-    conjuntos = dd._conjuntos(docs, ventana, fraccion)[0]
+    conjuntos, originales = dd._conjuntos(docs, ventana, fraccion)[:2]
     padre = list(range(len(docs)))
 
     def find(x):
@@ -165,7 +265,8 @@ def _fuerza_bruta(docs, umbral, ventana, fraccion):
         return x
     for i, j in itertools.combinations(range(len(docs)), 2):
         si, sj = conjuntos[i], conjuntos[j]
-        if si and sj and dd._supera(len(si & sj), len(si | sj), dd._fraccion(umbral)):
+        if (si and sj and dd._supera(len(si & sj), len(si | sj), dd._fraccion(umbral))) \
+                or originales[i] == originales[j]:
             padre[find(i)] = find(j)
     comp = {}
     for i in range(len(docs)):
@@ -173,11 +274,10 @@ def _fuerza_bruta(docs, umbral, ventana, fraccion):
     return sorted(sorted(g) for g in comp.values() if len(g) > 1)
 
 
-@pytest.mark.parametrize("umbral", [0.3, 0.5, 0.7, 0.8, 0.9, 1.0])
-def test_t07_el_filtro_de_prefijo_da_lo_mismo_que_todos_los_pares(umbral):
+def _corpus_aleatorio(umbral, n=60):
     rng = random.Random(int(umbral * 100))
     docs = []
-    for i in range(60):
+    for i in range(n):
         base = _frase(rng, rng.randrange(3, 25))
         docs.append((f"c{i:02d}@v001", f"f{i % 7}", base))
         if rng.random() < 0.5:
@@ -185,10 +285,38 @@ def test_t07_el_filtro_de_prefijo_da_lo_mismo_que_todos_los_pares(umbral):
             for _ in range(rng.randrange(0, 4)):
                 mut[rng.randrange(len(mut))] = rng.choice(PALABRAS)
             docs.append((f"c{i:02d}@v002", f"f{i % 7}", " ".join(mut)))
+    return docs
+
+
+@pytest.mark.parametrize("umbral", [0.3, 0.5, 0.7, 0.8, 0.9, 1.0])
+def test_t07_el_filtro_de_prefijo_da_lo_mismo_que_todos_los_pares(umbral):
+    docs = _corpus_aleatorio(umbral)
     r = dd.agrupar(docs, umbral=umbral, ventana=2, fraccion_boilerplate=1.0)
-    esperado = [g for g in _fuerza_bruta(docs, umbral, 2, 1.0)]
     # los componentes del filtro no tienen singletons; la referencia tampoco
-    assert _grupos(r) == esperado
+    assert _grupos(r) == _fuerza_bruta(docs, umbral, 2, 1.0)
+
+
+@pytest.mark.parametrize("umbral", [0.5, 0.7, 0.8, 0.9])
+def test_t07_mid_prefix_y_filtro_posicional_dan_lo_mismo_que_la_fuerza_bruta(umbral):
+    """H3: indice solo del mid-prefix PPJoin + sondeo con el prefijo completo + filtro posicional y de
+    longitud = fuerza bruta, tambien con el filtro de boilerplate activo y ante permutaciones."""
+    for semilla in range(8):
+        rng = random.Random(semilla * 31 + int(umbral * 10))
+        comun = _frase(rng, 12)
+        docs = []
+        for i in range(40):
+            base = (comun + " " if rng.random() < 0.7 else "") + _frase(rng, rng.randrange(2, 14))
+            docs.append((f"s{semilla}c{i:02d}@v001", f"f{i % 5}", base))
+            for v in range(2, 2 + rng.randrange(0, 3)):
+                mut = base.split()
+                for _ in range(rng.randrange(0, 3)):
+                    mut[rng.randrange(len(mut))] = rng.choice(PALABRAS)
+                docs.append((f"s{semilla}c{i:02d}@v{v:03d}", f"f{i % 5}", " ".join(mut)))
+        esperado = _fuerza_bruta(docs, umbral, 1, 0.5)
+        for p in range(3):
+            barajado = list(docs)
+            random.Random(p).shuffle(barajado)
+            assert _grupos(dd.agrupar(barajado, umbral=umbral, ventana=1)) == esperado, (umbral, semilla, p)
 
 
 def test_t07_umbral_decimal_sin_error_de_coma_flotante():
@@ -220,6 +348,46 @@ def test_t07_escala_no_compara_todos_los_pares():
     r = dd.agrupar(docs)
     assert _grupos(r) == []
     assert r["pares_verificados"] < 3000, r["pares_verificados"]   # O(n^2) serian ~4.5 millones
+
+
+def _115a(n):
+    """#115a: DOS familias con el mismo prompt de sistema (~82 % de los shingles de cada caso: entraba
+    en todos los prefijos porque la regla «>= 3 familias» apagaba el filtro)."""
+    rng = random.Random(1151)
+    sistema = _plantilla(100, 5)
+    return [(f"c{i:05d}@v001", f"f{i % 2}", sistema + " " + _frase(rng, 22)) for i in range(n)]
+
+
+def _115b(n):
+    """#115b: dos plantillas, cada una en el 49 % de los casos (no llegan a boilerplate), y un texto
+    propio corto (~17 % de los shingles del caso): con el prefijo de siempre entraban en todos."""
+    rng = random.Random(1152)
+    x, y = _plantilla(100, 6), _plantilla(100, 7)
+    docs = []
+    for i in range(n):
+        t = x if i % 100 < 49 else y if i % 100 < 98 else ""
+        docs.append((f"c{i:05d}@v001", f"f{i % 10}", (t + " " if t else "") + _frase(rng, 22)))
+    return docs
+
+
+@pytest.mark.parametrize("corpus", [_115a, _115b])
+def test_t07_115_texto_comun_bajo_el_umbral_no_escanea_el_indice(corpus):
+    """#115 (a) y (b) a 3 000 casos: 0 escaneos del indice y 0 pares verificados (antes, n(n-1)/2)."""
+    r = dd.agrupar(corpus(3000))
+    assert _grupos(r) == []
+    assert r["escaneos_indice"] == 0, r["escaneos_indice"]
+    assert r["pares_verificados"] == 0, r["pares_verificados"]
+
+
+def test_t07_escaneos_solo_dentro_de_grupos_que_son_near_duplicates():
+    """Peor caso declarado de H3: O(m^2) escaneos solo dentro de un grupo de m near-duplicates."""
+    rng = random.Random(3)
+    base = _frase(rng, 40)
+    docs = [(f"g@v{v:03d}", "g", base + f" cambio{v} otro{v}") for v in range(1, 31)]
+    docs += [(f"r{i:03d}@v001", f"f{i % 9}", _frase(rng, 40)) for i in range(300)]
+    r = dd.agrupar(docs, umbral=0.8)
+    assert _grupos(r) == [[f"g@v{v:03d}" for v in range(1, 31)]]
+    assert 0 < r["escaneos_indice"] <= 30 * 30 * 40, r["escaneos_indice"]
 
 
 def test_t07_grupo_grande_no_verifica_cada_par():
@@ -255,6 +423,73 @@ def test_t07_pares_verificados_no_dependen_del_orden_de_entrada():
         random.Random(semilla).shuffle(barajado)
         salidas.add(json.dumps(dd.agrupar(barajado, umbral=0.4, ventana=1, fraccion_boilerplate=1.0), sort_keys=True))
     assert len(salidas) == 1
+
+
+# ------------------------------------------------------------------ H4: muestreo por valor
+
+def test_t07_bajo_el_presupuesto_el_jaccard_es_exacto():
+    r = dd.agrupar(_con_boilerplate())
+    assert r["jaccard"] == "exacto" and r["muestreo"]["r"] == 1.0
+    assert r["muestreo"]["presupuesto"] == dd.PRESUPUESTO_DEFECTO == 10 ** 7
+
+
+def test_t07_shingle_es_un_entero_de_64_bits_determinista():
+    import hashlib
+    h = dd.hash_shingle("uno\ndos\ntres")
+    assert h == int.from_bytes(hashlib.blake2b("uno\ndos\ntres".encode("utf-8"), digest_size=8).digest(), "little")
+    assert 0 <= h < 2 ** 64
+
+
+def test_t07_muestreo_global_independiente_del_orden():
+    """`r = min(1, B / suma |A_i|)` GLOBAL: el mismo conjunto muestreado sea cual sea el orden de
+    entrada (una poda con la `r` parcial dependeria del orden)."""
+    docs = _corpus_aleatorio(0.5, n=80)
+    salidas = set()
+    for semilla in range(6):
+        barajado = list(docs)
+        random.Random(semilla).shuffle(barajado)
+        r = dd.agrupar(barajado, umbral=0.5, ventana=1, fraccion_boilerplate=1.0, presupuesto=150)
+        salidas.add(json.dumps(r, sort_keys=True))
+    assert len(salidas) == 1
+    r = json.loads(salidas.pop())
+    assert r["jaccard"] == "muestreado" and 0 < r["muestreo"]["r"] < 1
+    assert r["muestreo"]["shingles"] > 150
+
+
+def test_t07_muestreo_conserva_solo_hashes_bajo_el_limite():
+    docs = _corpus_aleatorio(0.7, n=80)
+    acc = dd.Acumulador(ventana=1, presupuesto=100)
+    for d in docs:
+        acc.anadir(*d)
+    total = acc.shingles_totales
+    limite = -(-(100 << 64) // total)
+    muestras = acc.muestras()
+    assert sum(len(m) for m in muestras.values()) < total
+    for i, _fam, texto in docs:
+        completo = {dd.hash_shingle(s) for s in dd.shingles_de(texto, 1)}
+        assert set(muestras[i]) == {h for h in completo if h < limite}
+
+
+def test_t07_caso_sin_muestras_avisa_y_no_se_agrupa_con_otro_sin_muestras():
+    """Con `r < 1` un caso pequeño puede quedarse sin muestras: nunca se agrupa por tener el conjunto
+    muestreado VACIO igual que otro (el colapso de exactos usa la huella del conjunto completo)."""
+    rng = random.Random(4)
+    docs = [(f"c{i:03d}@v001", f"f{i % 5}", _frase(rng, 200)) for i in range(20)]
+    docs += [(f"p{i}@v001", "p", f"palabra{i}") for i in range(30)]
+    r = dd.agrupar(docs, ventana=1, presupuesto=200)
+    assert r["jaccard"] == "muestreado"
+    vacios = [a["id"] for a in r["avisos"] if "sin shingles muestreados" in a["motivo"]]
+    assert vacios, r["avisos"]
+    assert not any(g for g in r["grupos"] if set(g) & set(vacios))
+
+
+def test_t07_el_texto_no_se_guarda():
+    """H4: el texto se descarta al shinglearlo; el acumulador guarda enteros de 64 bits (`array('Q')`)."""
+    acc = dd.Acumulador(ventana=3)
+    acc.anadir("a@v001", "f", "uno dos tres cuatro cinco seis")
+    assert not any(isinstance(v, str) and "cuatro" in v for v in vars(acc).values())
+    (m,) = acc.muestras().values()
+    assert m.typecode == "Q"
 
 
 def test_t07_ids_duplicados_son_error():

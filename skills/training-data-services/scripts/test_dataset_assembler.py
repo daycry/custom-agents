@@ -198,6 +198,11 @@ def _manifest(r):
     return json.load(open(os.path.join(r["ruta"], "manifest.json"), encoding="utf-8"))
 
 
+def _exports(store):
+    """Los exports de `exports/` (sin el `.lock` de la exclusion entre ensambladores, #124)."""
+    return sorted(n for n in os.listdir(store / "exports") if n != ".lock")
+
+
 def test_t09_solo_gold_entra_en_el_dataset(tmp_path):
     raiz, cfg, store = _store_basico(tmp_path)
     r = _ensamblar(cfg, raiz)
@@ -274,7 +279,10 @@ def test_t09_manifest_con_hash_por_caso_particion_y_parametros(tmp_path):
     r = _ensamblar(cfg, raiz, umbral=0.9, ventana=4, fraccion_boilerplate=0.6)
     m = _manifest(r)
     assert m["parametros"] == {"benchmark": ["bench"], "umbral": 0.9, "ventana": 4, "fraccion_boilerplate": 0.6,
-                               "min_familias_boilerplate": 3, "conservar_duplicados": False}
+                               "n_min_boilerplate": 20, "presupuesto": 10 ** 7, "tope_fichero": asm.TOPE_FICHERO,
+                               "conservar_duplicados": False}
+    assert m["near_duplicates"] == {"jaccard": "exacto", "muestreo": {"r": 1.0, "presupuesto": 10 ** 7,
+                                                                      "shingles": m["near_duplicates"]["muestreo"]["shingles"]}}
     caso = {c["ref"]: c for c in m["casos"]}["geo-a.x@v002"]
     dir_v = store / "cases" / "a.x" / "v002"
     esperado = {f: hashlib.sha256((dir_v / f).read_bytes()).hexdigest() for f in asm.FICHEROS}
@@ -324,7 +332,7 @@ def test_t09_reensamblar_lo_mismo_no_escribe_nada(tmp_path):
     antes = {p: open(os.path.join(r1["ruta"], p), "rb").read() for p in os.listdir(r1["ruta"])}
     r2 = _ensamblar(cfg, raiz)
     assert r2["existente"] is True and r2["ruta"] == r1["ruta"]
-    assert os.listdir(store / "exports") == [os.path.basename(r1["ruta"])]
+    assert sorted(os.listdir(store / "exports")) == [".lock", os.path.basename(r1["ruta"])]
     assert {p: open(os.path.join(r1["ruta"], p), "rb").read() for p in os.listdir(r1["ruta"])} == antes
 
 
@@ -359,7 +367,7 @@ def test_t09_fallo_a_mitad_deja_el_export_incompleto_sin_borrar_nada(tmp_path, m
     with pytest.raises(OSError) as e:
         _ensamblar(cfg, raiz)
     assert "incompleto" in str(e.value) and "manifest.json" in str(e.value)
-    (d,) = os.listdir(store / "exports")
+    (d,) = _exports(store)
     assert sorted(os.listdir(store / "exports" / d)) == ["benchmark.jsonl", "train.jsonl"]
     monkeypatch.undo()
     r = _ensamblar(cfg, raiz)
@@ -370,16 +378,16 @@ def test_t09_fallo_a_mitad_deja_el_export_incompleto_sin_borrar_nada(tmp_path, m
 def test_t09_manifest_se_escribe_el_ultimo(tmp_path, monkeypatch):
     raiz, cfg, store = _store_basico(tmp_path)
     orden = []
-    real_crear, real_pub = asm._crear, asm._publicar_manifest
+    real_crear, real_pub = asm._abrir_export, asm._publicar_manifest
 
-    def crear(ctx, ruta, datos):
+    def crear(ctx, ruta):
         orden.append(os.path.basename(ruta))
-        return real_crear(ctx, ruta, datos)
+        return real_crear(ctx, ruta)
 
     def publicar(ctx, d, datos):
         orden.append("manifest.json")
         return real_pub(ctx, d, datos)
-    monkeypatch.setattr(asm, "_crear", crear)
+    monkeypatch.setattr(asm, "_abrir_export", crear)
     monkeypatch.setattr(asm, "_publicar_manifest", publicar)
     _ensamblar(cfg, raiz)
     assert orden == ["train.jsonl", "benchmark.jsonl", "manifest.json"]
@@ -431,7 +439,9 @@ def test_t09_version_que_es_un_enlace_de_directorio_no_se_exporta(tmp_path):
     _enlazar_dir(fuera, v2)
     r = _ensamblar(cfg, raiz, escribir=False)
     assert all(c["ref"] != "geo-a.x@v002" or c["particion"] is None for c in r["manifest"]["casos"])
-    assert any("v002" in a and "enlace" in a for a in r["manifest"]["avisos"])
+    # #117: los avisos del RECORRIDO no entran en el manifiesto (dependen del reloj): van aparte
+    assert any("v002" in a and "enlace" in a for a in r["avisos_store"])
+    assert not any("enlace" in a for a in r["manifest"]["avisos"])
 
 
 def test_t09_version_sustituida_por_enlace_tras_el_recorrido_no_se_lee(tmp_path, monkeypatch):
@@ -514,7 +524,7 @@ def test_t09_fichero_plantado_en_el_export_recien_creado_no_se_sobrescribe(tmp_p
         _ensamblar(cfg, raiz)
     monkeypatch.undo()
     assert "ya existia" in str(e.value) and "incompleto" in str(e.value)
-    (d,) = os.listdir(store / "exports")
+    (d,) = _exports(store)
     assert (store / "exports" / d / "train.jsonl").read_bytes() == b"plantado\n"
 
 
@@ -607,3 +617,396 @@ def test_t09_no_entrena_ni_sirve_ni_usa_red_ni_borra():
         for prohibido in ("import subprocess", "import socket", "urllib", "http.client", "ollama", "torch",
                           "shutil", "os.rmdir", "os.unlink", "os.replace", "os.remove(", "os.rename("):
             assert prohibido not in fuente, (fichero, prohibido)
+
+
+# ------------------------------------------------------------------ fix1 de la Fase 3 (#114-#133)
+
+import time
+import tracemalloc
+
+
+def _gold_ruta(store, fam_var, v):
+    return store / "cases" / fam_var / f"v{v:03d}"
+
+
+def test_t09_117_tmp_huerfano_envejecido_no_cambia_el_export_id(tmp_path):
+    """#117: un `.tmp-*` del store «en curso» y despues «huerfano» (el aviso lleva «hace N s»): el
+    `export_id` y los bytes del manifiesto solo dependen de los casos y los parametros."""
+    raiz, cfg, store = _store_basico(tmp_path)
+    tmp = store / ".tmp-deadbeefdeadbeef"
+    tmp.write_bytes(b"x")
+    r1 = _ensamblar(cfg, raiz)
+    assert any("temporal" in a for a in r1["avisos_store"])
+    viejo = time.time() - 3600
+    os.utime(str(tmp), (viejo, viejo))
+    r2 = _ensamblar(cfg, raiz)
+    assert r2["export_id"] == r1["export_id"] and r2["existente"] is True and r2["ruta"] == r1["ruta"]
+    assert _exports(store) == [os.path.basename(r1["ruta"])]
+    assert "temporal" not in open(os.path.join(r1["ruta"], "manifest.json"), encoding="utf-8").read()
+
+
+def test_t09_117_export_id_depende_solo_de_casos_y_parametros(tmp_path):
+    raiz, cfg, store = _store_basico(tmp_path)
+    a = _ensamblar(cfg, raiz, escribir=False)["export_id"]
+    assert _ensamblar(cfg, raiz, escribir=False, umbral=0.7)["export_id"] != a
+    (store / "cases" / "a.x" / "v001" / ".tmp-0011223344556677").write_bytes(b"y")   # otro aviso del store
+    assert _ensamblar(cfg, raiz, escribir=False)["export_id"] == a
+
+
+def test_t09_118_export_sustituido_por_enlace_se_detecta_y_se_nombra(tmp_path, monkeypatch):
+    """#118 (CWE-59/367): `exports/<id>` sustituido por un enlace a `docs/knowledge/approved/…` entre
+    la comprobacion y la creacion. El fichero aparece fuera: se detecta, el aviso NOMBRA donde quedo
+    (solo si es el fichero creado, `samestat`) escapado, y no se borra nada."""
+    raiz, cfg, store = _store_basico(tmp_path)
+    curado = tmp_path / "proj" / "docs" / "knowledge" / "approved" / "lessons"
+    curado.mkdir(parents=True)
+    real = rec._Canon.comprobar_dir
+
+    def comprobar_y_sustituir(self, ruta):
+        real(self, ruta)
+        if os.path.basename(os.path.dirname(ruta)) == "exports":
+            os.rmdir(ruta)
+            _enlazar_dir(curado, ruta)
+    monkeypatch.setattr(rec._Canon, "comprobar_dir", comprobar_y_sustituir)
+    with pytest.raises(asm.Rechazo) as e:
+        _ensamblar(cfg, raiz)
+    monkeypatch.undo()
+    msg = str(e.value)
+    assert "train.jsonl" in msg and "quedo en" in msg and "lessons" in msg and "incompleto" in msg
+    assert "no borra nada" in msg
+    assert sorted(os.listdir(curado)) == ["train.jsonl"]        # nada mas se escribio a traves del enlace
+
+
+def _secretos():
+    return "ghp_" + "a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8", "AKIA" + "ABCDEFGHIJ012345", "password=Hunter2024!x"
+
+
+def test_t09_119_train_jsonl_se_redacta_al_escribir(tmp_path):
+    """#119 (CWE-312): un secreto que llega al disco sin redactar (tercero, redactor viejo) no sale en
+    `train.jsonl`: se redacta con `redactar_estructura` del recorder al escribir."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    r = _grabar(cfg, raiz, gold=False, family="a", variant="x")
+    _grabar(cfg, raiz, family="bench", variant="x", request="engranaje de doce dientes")
+    d = _gold_ruta(store, "a.x", 1)
+    s1, s2, s3 = _secretos()
+    (d / "request.json").write_text(json.dumps({"request": "usa " + s1}), encoding="utf-8")
+    (d / "trajectory.jsonl").write_text(
+        json.dumps({"role": "user", "content": "clave " + s2}) + "\n"
+        + json.dumps({"role": "assistant", "content": "", "tool_calls": [{"name": "t", "arguments": {"x": s3}}]})
+        + "\n", encoding="utf-8")
+    rec.cambiar_estado(r["case_id"], 1, "approved", cfg, raiz, approved_by_human=True)
+    out = _ensamblar(cfg, raiz)
+    texto = open(os.path.join(out["ruta"], "train.jsonl"), encoding="utf-8").read()
+    assert "geo-a.x@v001" in texto
+    for s in (s2, s3):
+        assert s not in texto
+    assert "redactado" in texto
+
+
+def test_t09_120_cadena_fallo_correccion_no_se_descarta_por_duplicado():
+    """#120 (design.md:42, CA-12): v1 failure + v2 corrected (supersedes v1) + v3 failure en un grupo:
+    los de la cadena se conservan; la regla «version mas alta» solo entre lo que no es cadena."""
+    casos = [dict(_c("geo-a.x@v001", "a")), dict(_c("geo-a.x@v002", "a"), supersedes_case="geo-a.x@v001"),
+             dict(_c("geo-a.x@v003", "a")), dict(_c("geo-a.x@v004", "a")), _c("geo-b.x@v001", "b")]
+    grupos = [["geo-a.x@v001", "geo-a.x@v002", "geo-a.x@v003", "geo-a.x@v004"]]
+    r = {c["ref"]: c for c in asm.particionar(casos, {"b"}, grupos=grupos)}
+    for ref in ("geo-a.x@v001", "geo-a.x@v002", "geo-a.x@v004"):
+        assert r[ref]["particion"] == "train" and r[ref]["motivo"] is None, ref
+    assert r["geo-a.x@v003"]["particion"] is None and "duplicado de geo-a.x@v004" in r["geo-a.x@v003"]["motivo"]
+
+
+def test_t09_120_par_fallo_correccion_solo_se_conserva_entero():
+    casos = [_c("geo-a.x@v001", "a"), dict(_c("geo-a.x@v002", "a"), supersedes_case="geo-a.x@v001"),
+             _c("geo-b.x@v001", "b")]
+    r = {c["ref"]: c for c in asm.particionar(casos, {"b"}, grupos=[["geo-a.x@v001", "geo-a.x@v002"]])}
+    assert r["geo-a.x@v001"]["particion"] == "train" and r["geo-a.x@v002"]["particion"] == "train"
+    # el cruce de particion sigue mandando sobre la cadena (anti-leakage)
+    r = {c["ref"]: c for c in asm.particionar(casos, {"b"},
+                                              grupos=[["geo-a.x@v001", "geo-a.x@v002", "geo-b.x@v001"]])}
+    assert r["geo-a.x@v001"]["particion"] is None and r["geo-a.x@v002"]["particion"] is None
+
+
+def test_t09_120_en_el_export_el_par_fallo_correccion_llega_entero(tmp_path):
+    raiz, cfg, store = _proyecto(tmp_path)
+    texto = "genera una rampa de treinta grados con anchura minima de medio metro y una bola de radio diez"
+    _grabar(cfg, raiz, family="a", variant="x", outcome="failure", request=texto)
+    _grabar(cfg, raiz, family="a", variant="x", outcome="corrected", supersedes_case="geo-a.x@v001",
+            request=texto + " roja")
+    _grabar(cfg, raiz, family="bench", variant="x", request="engranaje de doce dientes con eje de acero",
+            trajectory=[{"role": "user", "content": "otra cosa"}, {"role": "assistant", "content": "vale"}])
+    r = _ensamblar(cfg, raiz, umbral=0.5)
+    assert ["geo-a.x@v001", "geo-a.x@v002"] in r["manifest"]["grupos_near_duplicates"]
+    refs = [l["ref"] for l in _lineas(os.path.join(r["ruta"], "train.jsonl"))]
+    assert refs == ["geo-a.x@v001", "geo-a.x@v002"]
+
+
+def test_t09_122_fichero_por_encima_del_tope_se_omite_sin_leerlo(tmp_path):
+    raiz, cfg, store = _store_basico(tmp_path)
+    r = _ensamblar(cfg, raiz, escribir=False, tope_fichero=2048)
+    assert all(c["particion"] for c in r["manifest"]["casos"] if c["ref"] in ("geo-a.x@v001", "geo-a.x@v002"))
+    tr = _gold_ruta(store, "a.x", 1) / "trajectory.jsonl"
+    with open(tr, "ab") as f:
+        f.write(b" " * 4096)
+    r = _ensamblar(cfg, raiz, escribir=False, tope_fichero=2048)
+    c = {c["ref"]: c for c in r["manifest"]["casos"]}["geo-a.x@v001"]
+    assert c["particion"] is None and "tope" in c["motivo"] and "trajectory.jsonl" in c["motivo"]
+
+
+def test_t09_122_hash_de_un_fichero_del_export_en_streaming(tmp_path):
+    """Comparar un export ajeno (p. ej. un `manifest.json` plantado de 8 MiB) no lo carga entero."""
+    d = tmp_path / "e"
+    d.mkdir()
+    (d / "manifest.json").write_bytes(b"x" * (8 * 1024 * 1024))
+    tracemalloc.start()
+    sha = asm._sha_fichero(str(d), "manifest.json")
+    pico = tracemalloc.get_traced_memory()[1]
+    tracemalloc.stop()
+    assert sha == hashlib.sha256(b"x" * (8 * 1024 * 1024)).hexdigest()
+    assert pico < 1024 * 1024, pico
+
+
+def test_t09_123_motivo_sin_rutas_absolutas_ni_errores_del_sistema(tmp_path, monkeypatch):
+    """#123 (CWE-209): el `OSError` (con la ruta absoluta del store) nunca llega a `manifest.json`."""
+    raiz, cfg, store = _store_basico(tmp_path)
+    real = rec._leer_json_reintentando
+    victima = str(_gold_ruta(store, "a.x", 1) / "request.json")
+
+    def lector(ruta, *a, **k):
+        if os.path.normcase(os.path.abspath(ruta)) == os.path.normcase(os.path.abspath(victima)):
+            raise PermissionError(13, "Permission denied", os.path.abspath(ruta))
+        return real(ruta, *a, **k)
+    monkeypatch.setattr(rec, "_leer_json_reintentando", lector)
+    r = _ensamblar(cfg, raiz)
+    texto = open(os.path.join(r["ruta"], "manifest.json"), encoding="utf-8").read()
+    c = {c["ref"]: c for c in json.loads(texto)["casos"]}["geo-a.x@v001"]
+    assert c["particion"] is None and "request.json" in c["motivo"] and "omitida" in c["motivo"]
+    for fuga in ("Errno", "WinError", "Permission denied", str(tmp_path), json.dumps(str(tmp_path))[1:-1]):
+        assert fuga not in texto, fuga
+
+
+def _ensamblador_proceso(raiz):
+    return subprocess.Popen([sys.executable, os.path.join(HERE, "dataset-assembler.py"), "--project-root", raiz,
+                             "--benchmark", "bench", "--fecha", FECHA], stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE, text=True, encoding="utf-8")
+
+
+def test_t09_124_dos_ensambladores_a_la_vez_no_duplican_el_export(tmp_path):
+    """#124: 6 procesos reales a la vez -> UN export (el resto: «ya existe»), nunca `.2`, `.3`…"""
+    raiz, cfg, store = _store_basico(tmp_path)
+    procs = [_ensamblador_proceso(raiz) for _ in range(6)]
+    salidas = [p.communicate(timeout=120) for p in procs]
+    assert [p.returncode for p in procs] == [0] * 6, salidas
+    assert len(_exports(store)) == 1, _exports(store)
+    escritos = sum(" escrito: " in o for o, _e in salidas)
+    existentes = sum("ya existe" in o for o, _e in salidas)
+    assert (escritos, existentes) == (1, 5), salidas
+
+
+def test_t09_124_la_comprobacion_y_la_creacion_van_bajo_el_bloqueo(tmp_path, monkeypatch):
+    raiz, cfg, store = _store_basico(tmp_path)
+    dentro = []
+    real_enter, real_exit = rec._Bloqueo.__enter__, rec._Bloqueo.__exit__
+
+    def enter(self):
+        dentro.append(os.path.basename(self.ruta))
+        return real_enter(self)
+
+    def exit_(self, *a):
+        dentro.append("fuera")
+        return real_exit(self, *a)
+    real_mkdir = os.mkdir
+
+    def mkdir(ruta, *a, **k):
+        if os.path.basename(os.path.dirname(str(ruta))) == "exports":
+            assert dentro and dentro[-1] == ".lock", dentro
+        return real_mkdir(ruta, *a, **k)
+    monkeypatch.setattr(rec._Bloqueo, "__enter__", enter)
+    monkeypatch.setattr(rec._Bloqueo, "__exit__", exit_)
+    monkeypatch.setattr(os, "mkdir", mkdir)
+    _ensamblar(cfg, raiz)
+    assert ".lock" in dentro and dentro[-1] == "fuera"
+
+
+def test_t09_125_publicar_manifest_verifica_despues(tmp_path, monkeypatch):
+    """#125/#133: la comprobacion POSTERIOR del manifiesto (un segundo nombre plantado tras publicarlo)."""
+    raiz, cfg, store = _store_basico(tmp_path)
+    real = rec._enlazar_sin_sobrescribir
+
+    def publicar_y_enlazar(origen, destino):
+        real(origen, destino)
+        if os.path.basename(destino) == "manifest.json":
+            try:
+                os.link(destino, destino + ".segundo-nombre")
+            except OSError as e:   # pragma: no cover - entorno
+                pytest.skip(f"sin enlaces duros: {e}")
+    monkeypatch.setattr(rec, "_enlazar_sin_sobrescribir", publicar_y_enlazar)
+    with pytest.raises(asm.Rechazo) as e:
+        _ensamblar(cfg, raiz)
+    assert "manifest.json" in str(e.value)
+
+
+def test_t09_125_el_esquema_se_valida_con_la_config_del_proyecto(tmp_path):
+    """#125: `validar_caso(caso, config)` (no `None`): una familia que el patron DEL PROYECTO no admite
+    (aunque el de por defecto si) no se exporta."""
+    raiz, cfg, store = _store_basico(tmp_path)
+    estricta = dict(cfg, ids={"family_pattern": "(bench|b)"})
+    r = asm.ensamblar(estricta, raiz, {"bench"}, fecha=FECHA, escribir=False)
+    c = {c["ref"]: c for c in r["manifest"]["casos"]}
+    assert c["geo-a.x@v001"]["particion"] is None and "esquema" in c["geo-a.x@v001"]["motivo"]
+    assert c["geo-bench.x@v001"]["particion"] == "benchmark"
+
+
+def test_t09_125_metadata_que_no_casa_con_su_ruta_se_omite(tmp_path, monkeypatch):
+    """#125: tras el recorrido, `metadata.json` de v002 pasa a decir `version: 7` (esquema valido): la
+    comprobacion «metadata casa con su ruta» de `leer_caso` lo omite."""
+    raiz, cfg, store = _store_basico(tmp_path)
+    meta = _gold_ruta(store, "a.x", 2) / "metadata.json"
+    real = rec._estado_de_cases
+
+    def recorrido_y_cambio(*a, **k):
+        salida = real(*a, **k)
+        m = json.loads(meta.read_text(encoding="utf-8"))
+        m["version"] = 7
+        meta.write_text(json.dumps(m), encoding="utf-8")
+        return salida
+    monkeypatch.setattr(rec, "_estado_de_cases", recorrido_y_cambio)
+    r = _ensamblar(cfg, raiz, escribir=False)
+    c = {c["ref"]: c for c in r["manifest"]["casos"]}["geo-a.x@v002"]
+    assert c["particion"] is None and "no casa con su ruta" in c["motivo"]
+
+
+def test_t09_130_metadata_y_validation_se_abren_una_vez_por_version_gold(tmp_path, monkeypatch):
+    """#130: lo leido en el recorrido (con su identidad `fstat`) se reutiliza en `leer_caso`."""
+    raiz, cfg, store = _store_basico(tmp_path)
+    abiertos = []
+    real = rec._leer_json_reintentando
+
+    def lector(ruta, *a, **k):
+        abiertos.append(ruta)
+        return real(ruta, *a, **k)
+    monkeypatch.setattr(rec, "_leer_json_reintentando", lector)
+    asm.ensamblar(cfg, raiz, {"bench"}, fecha=FECHA, escribir=False)
+    v002 = [os.path.basename(p) for p in abiertos if "/a.x/v002/" in p.replace(os.sep, "/")]
+    cuenta = {f: v002.count(f) for f in set(v002)}
+    # recorrido (metadata + validation) + primera pasada (los otros seis) + segunda pasada (los ocho)
+    assert cuenta == {"metadata.json": 2, "validation.json": 2, "request.json": 2, "context.json": 2,
+                      "constraints.json": 2, "trajectory.jsonl": 2, "metrics.json": 2, "artifacts.json": 2}, cuenta
+
+
+def test_t09_130_lo_leido_en_el_recorrido_no_se_reutiliza_si_cambio(tmp_path, monkeypatch):
+    raiz, cfg, store = _store_basico(tmp_path)
+    val = _gold_ruta(store, "a.x", 2) / "validation.json"
+    real = rec._estado_de_cases
+
+    def recorrido_y_cambio(*a, **k):
+        salida = real(*a, **k)
+        v = json.loads(val.read_text(encoding="utf-8"))
+        v["reviewer_note"] = "cambiada tras el recorrido, mismo tamaño?"
+        val.write_text(json.dumps(v), encoding="utf-8")
+        return salida
+    monkeypatch.setattr(rec, "_estado_de_cases", recorrido_y_cambio)
+    r = _ensamblar(cfg, raiz, escribir=False)
+    c = {c["ref"]: c for c in r["manifest"]["casos"]}["geo-a.x@v002"]
+    esperado = hashlib.sha256(val.read_bytes()).hexdigest()
+    assert c["ficheros"]["validation.json"] == esperado
+
+
+def test_t09_131_manifiesto_con_el_nombre_real_del_directorio(tmp_path):
+    raiz, cfg, store = _store_basico(tmp_path)
+    r1 = _ensamblar(cfg, raiz)
+    assert _manifest(r1)["directorio"] == r1["export_id"]
+    with open(os.path.join(r1["ruta"], "benchmark.jsonl"), "ab") as f:
+        f.write(b"{}\n")
+    r2 = _ensamblar(cfg, raiz)
+    m = _manifest(r2)
+    assert os.path.basename(r2["ruta"]) == r1["export_id"] + ".2"
+    assert m["export_id"] == r1["export_id"] and m["directorio"] == r1["export_id"] + ".2"
+
+
+def test_t09_132_gold_cuyo_contenido_cambio_tras_aprobarlo_no_se_exporta(tmp_path):
+    """#132: `set-status approved` ata el Gold al contenido (`content_hash`); si un fichero inmutable
+    cambia despues, el caso se excluye con motivo."""
+    raiz, cfg, store = _store_basico(tmp_path)
+    d = _gold_ruta(store, "a.x", 1)
+    val = json.loads((d / "validation.json").read_text(encoding="utf-8"))
+    assert val["content_hash"] == rec.hash_contenido(
+        {f: hashlib.sha256((d / f).read_bytes()).hexdigest() for f in rec.FICHEROS_INMUTABLES})
+    (d / "request.json").write_text(json.dumps({"request": "cambiada despues de aprobar"}), encoding="utf-8")
+    r = _ensamblar(cfg, raiz, escribir=False)
+    c = {c["ref"]: c for c in r["manifest"]["casos"]}["geo-a.x@v001"]
+    assert c["particion"] is None and "content_hash" in c["motivo"]
+    assert "cambiada despues" not in json.dumps(r["lineas"])
+
+
+def test_t09_132_gold_sin_hash_de_aprobacion_se_exporta_con_aviso(tmp_path):
+    raiz, cfg, store = _store_basico(tmp_path)
+    vp = _gold_ruta(store, "a.x", 1) / "validation.json"
+    v = json.loads(vp.read_text(encoding="utf-8"))
+    del v["content_hash"]
+    vp.write_text(json.dumps(v), encoding="utf-8")
+    r = _ensamblar(cfg, raiz, escribir=False)
+    c = {c["ref"]: c for c in r["manifest"]["casos"]}["geo-a.x@v001"]
+    assert c["particion"] == "train"
+    assert any("geo-a.x@v001" in a and "sin hash de aprobacion" in a for a in r["manifest"]["avisos"])
+
+
+def test_t09_133_fichero_en_otro_dispositivo_que_su_version_se_omite(tmp_path, monkeypatch):
+    """#133: la guarda de `st_dev` (inyeccion determinista: el `fstat` de `request.json` dice otro
+    dispositivo)."""
+    raiz, cfg, store = _store_basico(tmp_path)
+    real = rec._leer_de_version
+
+    def lector(dir_v, fichero, rel, fstat_leido=None, *a, **k):
+        salida = real(dir_v, fichero, rel, fstat_leido, *a, **k)
+        if fichero == "request.json" and fstat_leido and "a.x" in dir_v and dir_v.endswith("v001"):
+            st = list(fstat_leido[-1])
+            st[2] = st[2] + 1
+            fstat_leido[-1] = os.stat_result(st)
+        return salida
+    monkeypatch.setattr(rec, "_leer_de_version", lector)
+    r = _ensamblar(cfg, raiz, escribir=False)
+    c = {c["ref"]: c for c in r["manifest"]["casos"]}["geo-a.x@v001"]
+    assert c["particion"] is None and "otro dispositivo" in c["motivo"]
+
+
+def test_t09_h5_caso_cambiado_entre_pasadas_aborta_sin_manifiesto(tmp_path, monkeypatch):
+    """H5: la segunda pasada relee cada caso y comprueba el sha256 de la primera; si cambio, no se
+    publica `manifest.json` (export incompleto reconocible) y no se borra nada."""
+    raiz, cfg, store = _store_basico(tmp_path)
+    real = asm._segunda_pasada
+    d = _gold_ruta(store, "a.x", 2)
+
+    def cambio_y_pasada(*a, **k):
+        (d / "metrics.json").write_text(json.dumps({"score": 0.99}), encoding="utf-8")
+        return real(*a, **k)
+    monkeypatch.setattr(asm, "_segunda_pasada", cambio_y_pasada)
+    with pytest.raises(asm.Rechazo) as e:
+        _ensamblar(cfg, raiz)
+    assert "geo-a.x@v002" in str(e.value) and "entre pasadas" in str(e.value) and "incompleto" in str(e.value)
+    (x,) = _exports(store)
+    assert "manifest.json" not in os.listdir(store / "exports" / x)
+
+
+def test_t09_h5_no_guarda_los_casos_ni_los_bytes_del_export(tmp_path):
+    """H5: memoria O(n · muestra), nunca O(tamaño de los casos): 20 Gold con un `metrics.json` opaco de
+    ~600 KiB (no se shinglea ni se exporta) -> el pico queda por debajo de lo que ocupan en disco (antes,
+    los 20 casos leidos vivian en memoria hasta el final)."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    for i in range(20):
+        _grabar(cfg, raiz, family="bench" if i < 2 else "a", variant=f"v{i}", request=f"peticion numero {i} distinta",
+                metrics={"serie": [(i * 30000 + k) / 7 for k in range(30000)]})
+    total = sum(os.path.getsize(os.path.join(dp, f)) for dp, _d, fs in os.walk(store / "cases") for f in fs)
+    tracemalloc.start()
+    r = _ensamblar(cfg, raiz)
+    pico = tracemalloc.get_traced_memory()[1]
+    tracemalloc.stop()
+    assert r["manifest"]["ficheros"]["train.jsonl"]["lineas"] == 18 and r["lineas"] is None
+    assert total > 10 * 1024 * 1024 and pico < total / 2, (pico, total)
+
+
+def test_t09_dry_run_devuelve_lineas_y_el_mismo_manifiesto(tmp_path):
+    raiz, cfg, store = _store_basico(tmp_path)
+    seco = _ensamblar(cfg, raiz, escribir=False)
+    r = _ensamblar(cfg, raiz)
+    assert seco["manifest"] == _manifest(r)
+    assert [l["ref"] for l in seco["lineas"]["train.jsonl"]] == ["geo-a.x@v001", "geo-a.x@v002"]

@@ -11,44 +11,71 @@ skills son standalone y no se importan entre si. La normalizacion NO se copia: l
 colapsa identificadores y numeros (`id`/`num`), util para codigo e inutil para lenguaje natural;
 aqui un token es una palabra `\\w+` en minusculas (`casefold`), numeros incluidos.
 
-`agrupar(documentos, umbral, ventana, fraccion_boilerplate)` — `documentos`: iterable de
-`(id, family, texto)` (ids unicos). Devuelve los GRUPOS de near-duplicates (componentes conexas del
-grafo «Jaccard >= umbral»), deterministas: cada grupo ordenado por id y los grupos por su primer id.
+`agrupar(documentos, umbral, ventana, fraccion_boilerplate, presupuesto)` — `documentos`: iterable de
+`(id, family, texto)` (ids unicos; puede ser un generador: cada texto se descarta al shinglearlo).
+Devuelve los GRUPOS de near-duplicates (componentes conexas del grafo «Jaccard >= umbral»),
+deterministas: cada grupo ordenado por id y los grupos por su primer id. `Acumulador` es la misma
+maquina en streaming (`anadir(id, family, texto)` y despues `agrupar(umbral, fraccion)`): el
+ensamblador la alimenta caso a caso sin guardar ningun texto (fix1, H4/H5).
   - Shingles: `ventana` palabras consecutivas (un texto mas corto que la ventana es UN shingle con
-    todas sus palabras). Conjunto por caso; Jaccard = |A ∩ B| / |A ∪ B|, comparado con ENTEROS y el
-    umbral como fraccion exacta (`Fraction(repr(umbral))`: 0.7 * 10 no es 7.000000000000001).
-  - BOILERPLATE (texto fijo que se repetiria en todos los casos: prompt de sistema, plantillas): un
-    shingle presente en MAS de `fraccion_boilerplate` de los casos (frecuencia documental) Y en al
-    menos `MIN_FAMILIAS_BOILERPLATE` familias distintas se ignora. La condicion de familias evita el
-    error contrario: 10 versiones casi iguales de UNA familia entre 12 casos tienen sus shingles en
-    mas de la mitad de los casos, pero no son texto fijo. Con menos de `MIN_FAMILIAS_BOILERPLATE`
-    familias en total no se filtra nada (limite declarado, conservador: mas grupos, nunca menos —
-    un falso positivo excluye un caso; un falso negativo seria leakage). `fraccion_boilerplate=1.0`
-    desactiva el filtro. Un caso cuyo contenido es TODO boilerplate solo se agrupa con los que
-    tienen exactamente sus mismos shingles.
-  - ESCALA (sin comparar todos los pares): indice invertido de shingles —como `duplicados` de
-    code-health— recorrido con el FILTRO DE PREFIJO exacto de las uniones por similitud: con los
-    shingles de cada caso ordenados por frecuencia ascendente (desempate por la propia cadena), dos
-    casos con Jaccard >= t comparten al menos un shingle en sus prefijos de longitud
-    `|A| - ceil(t·|A|) + 1`; solo esos pares se verifican, y no se verifica un par que ya esta en la
-    misma componente. Filtro de longitud: `t·max <= min`. Coste ~ suma de (casos que comparten un
-    shingle raro)², no n²; un grupo de 1 000 copias identicas se une con ~1 000 verificaciones.
-  - `pares_verificados` en la salida hace visible el trabajo real (lo usan los tests de escala).
+    todas sus palabras); cada shingle es un ENTERO de 64 bits (`blake2b(digest_size=8)`,
+    `int.from_bytes(…, "little")`: el mismo en todos los procesos y sistemas), nunca un `str`.
+    Jaccard = |A ∩ B| / |A ∪ B| con ENTEROS y el umbral como fraccion exacta
+    (`Fraction(repr(umbral))`: 0.7 * 10 no es 7.000000000000001).
+  - MUESTREO POR VALOR (H4): se conserva el shingle `h` si `h < r · 2^64`, con
+    `r = min(1, presupuesto / suma |A_i|)` GLOBAL (la suma de los tamaños de TODOS los casos: la
+    muestra no depende del orden de entrada; mientras llega el corpus se poda con el limite vigente,
+    que solo baja). Los conjuntos muestreados son conjuntos de verdad: frecuencia documental,
+    boilerplate, prefijo, filtro posicional y Jaccard son EXACTOS sobre la muestra. Con
+    `suma |A_i| <= presupuesto` (10^7 por defecto, ~60 MiB de texto) `r = 1` y todo es exacto
+    (`jaccard: "exacto"`); si no, `jaccard: "muestreado"` y la salida declara `r`. Limite declarado:
+    con `r < 1` un caso pequeño queda con pocas muestras (o ninguna: aviso «sin shingles
+    muestreados»; entonces solo se agrupa con un duplicado EXACTO). En memoria: un `array('Q')` por
+    caso y, al agrupar, la frecuencia documental exacta contada por tramos del espacio de hashes (solo
+    se guarda la de los shingles con df >= 2; los de df == 1 nunca coinciden con otro caso y ni se
+    indexan ni se sondean).
+  - BOILERPLATE (H1; texto fijo repetido: prompt de sistema, plantillas): un shingle presente en MAS
+    de `fraccion_boilerplate` de los casos (0.5; frecuencia documental, estricta) se ignora, pero
+    solo con al menos `N_MIN_BOILERPLATE` (20) casos: por debajo no se filtra nada (#114: con 4
+    casos, lo que comparten dos near-duplicates entre familias no es plantilla). Sin condicion de
+    familias (#115a: dos familias con el mismo prompt de sistema). Limite declarado: un bloque en mas
+    de la mitad de los casos es plantilla por definicion, aunque sean versiones de una sola familia.
+    `fraccion_boilerplate=1.0` desactiva el filtro.
+  - AVISO (H2: se ve, no decide): un caso que conserva menos del 20 % de sus shingles (muestreados)
+    tras quitar el boilerplate -> `{"id", "motivo": "near-duplicate no evaluable sobre la plantilla…"}`
+    en `avisos`. Se compara igual, con lo que queda (un rescate sobre el conjunto original agrupaba
+    todo un corpus con plantilla larga: revision previa de D-f3, §2 eliminado).
+  - DUPLICADOS EXACTOS (H3): se colapsan ANTES de comparar, por IGUALDAD del conjunto ORIGINAL (sin
+    filtrar): huella `blake2b` de 128 bits del conjunto completo + igualdad de la muestra; nunca por
+    el filtrado (dos casos todo-plantilla distintos no son el mismo). 1 000 copias identicas cuestan
+    1 000 huellas y 0 pares.
+  - ESCALA (H3, PPJoin): orden global por frecuencia documental ascendente (desempate por el hash);
+    los casos se procesan por tamaño (y id); cada uno SONDEA el indice con su prefijo completo
+    `|x| - ceil(t·|x|) + 1` y despues INDEXA solo su mid-prefix `|x| - ceil(2t/(1+t)·|x|) + 1`, con
+    filtro de longitud (`t·|x| <= |y|`) y posicional (lo que queda de ambos detras de la coincidencia
+    tiene que poder llegar al solapamiento minimo `ceil(t/(1+t)·(|x|+|y|))`). Exacto: ningun par con
+    Jaccard >= t se pierde. Peor caso declarado: O(m^2) escaneos solo DENTRO de un grupo de m casos
+    que SON near-duplicates entre si; el texto comun que no llega a boilerplate (#115b) queda al final
+    del orden y no entra en el mid-prefix de nadie: 0 escaneos.
+  - `escaneos_indice` y `pares_verificados` hacen visible el trabajo real (tests de escala); `avisos`,
+    `jaccard` y `muestreo` (`r`, `presupuesto`, `shingles`) declaran la exactitud.
 
 `texto_de_caso(caso)` — el texto variable de un caso (dict con `request`, `context`, `trajectory`):
 objetos serializados con claves ordenadas (el orden de claves no cambia el texto).
 
 Uso (exit 0 ok · 2 uso, fichero ausente o JSONL ilegible; nunca un traceback):
-  dedup.py <documentos.jsonl> [--umbral 0.8] [--ventana 3] [--boilerplate 0.5] [--json]
+  dedup.py <documentos.jsonl> [--umbral 0.8] [--ventana 3] [--boilerplate 0.5] [--presupuesto 10000000] [--json]
   (una linea JSON por documento: {"id": "...", "family": "...", "text": "..."})
 """
 import argparse
+import hashlib
 import json
 import math
-import os
 import re
 import sys
-from collections import defaultdict
+from array import array
+from bisect import bisect_left
+from collections import Counter, defaultdict
 from fractions import Fraction
 
 # Consola no UTF-8 (Windows cp1252) o tuberias: reconfigurar ANTES de leer/imprimir (GOT-005).
@@ -59,7 +86,13 @@ for _s in (sys.stdin, sys.stdout, sys.stderr):
 UMBRAL_DEFECTO = 0.8
 VENTANA_DEFECTO = 3
 BOILERPLATE_DEFECTO = 0.5
-MIN_FAMILIAS_BOILERPLATE = 3
+N_MIN_BOILERPLATE = 20             # H1: por debajo, ningun shingle es plantilla
+PRESUPUESTO_DEFECTO = 10 ** 7      # H4: shingles muestreados en total (por debajo, r = 1: exacto)
+FRACCION_AVISO = Fraction(1, 5)    # H2: aviso si un caso conserva < 20 % tras quitar la plantilla
+AVISO_PLANTILLA = ("near-duplicate no evaluable sobre la plantilla: conserva {k} de {n} shingles tras quitar "
+                   "el boilerplate (< 20 %); se compara con lo que queda")
+AVISO_SIN_MUESTRAS = ("sin shingles muestreados (r < 1 y caso pequeño): solo se agrupa con un duplicado exacto; "
+                      "sube el presupuesto de muestreo para compararlo")
 _PALABRA = re.compile(r"\w+")
 
 
@@ -113,6 +146,11 @@ def texto_de_caso(caso):
     return "\n".join(partes)
 
 
+def hash_shingle(sh):
+    """Un shingle como entero de 64 bits, determinista entre procesos y sistemas (H4)."""
+    return int.from_bytes(hashlib.blake2b(sh.encode("utf-8"), digest_size=8).digest(), "little")
+
+
 def _fraccion(umbral):
     """El umbral como fraccion EXACTA en (0, 1]; si no, `ValueError`."""
     if isinstance(umbral, bool) or not isinstance(umbral, (int, float)) or math.isnan(umbral) \
@@ -130,66 +168,135 @@ def _techo(t, n):
     return -((-t.numerator * n) // t.denominator)
 
 
-def _validar(documentos, ventana, fraccion):
+def _validar_parametros(ventana, fraccion, presupuesto=PRESUPUESTO_DEFECTO):
     if isinstance(ventana, bool) or not isinstance(ventana, int) or ventana < 1:
         raise ValueError(f"ventana debe ser un entero >= 1: {ventana!r}")
     if isinstance(fraccion, bool) or not isinstance(fraccion, (int, float)) or math.isnan(fraccion) \
             or not 0 < fraccion <= 1:
         raise ValueError(f"fraccion de boilerplate fuera de (0, 1]: {fraccion!r}")
-    docs, vistos = [], set()
-    for d in documentos:
-        if not (isinstance(d, (tuple, list)) and len(d) == 3 and all(isinstance(x, str) for x in d)):
+    if isinstance(presupuesto, bool) or not isinstance(presupuesto, int) or presupuesto < 1:
+        raise ValueError(f"presupuesto de muestreo debe ser un entero >= 1: {presupuesto!r}")
+
+
+class Acumulador:
+    """Shingles muestreados de un corpus que llega caso a caso (ver docstring del modulo). No guarda
+    ningun texto: por caso, `array('Q')` ordenado de los hashes que pasan el limite vigente, la
+    huella del conjunto COMPLETO (128 bits) y su tamaño."""
+
+    def __init__(self, ventana=VENTANA_DEFECTO, presupuesto=PRESUPUESTO_DEFECTO):
+        _validar_parametros(ventana, BOILERPLATE_DEFECTO, presupuesto)
+        self.ventana, self.presupuesto = ventana, presupuesto
+        self.ids, self.huellas, self.tamanos, self.arrays = [], [], [], []
+        self._vistos = set()
+        self.shingles_totales = 0
+        self._guardados = 0
+
+    def _limite(self):
+        """Se conservan los hashes `h < limite`, con `h · suma < presupuesto · 2^64` (enteros exactos)."""
+        if self.shingles_totales <= self.presupuesto:
+            return 1 << 64
+        return -(-(self.presupuesto << 64) // self.shingles_totales)
+
+    def anadir(self, id_, family, texto):
+        """Añade un caso: su texto se shinglea y se descarta aqui mismo (H4)."""
+        if not (isinstance(id_, str) and isinstance(family, str) and isinstance(texto, str)):
             raise ValueError("cada documento es (id, family, texto), tres cadenas")
-        if d[0] in vistos:
-            raise ValueError(f"id duplicado: {d[0]!r}")
-        vistos.add(d[0])
-        docs.append(tuple(d))
-    return docs
+        if id_ in self._vistos:
+            raise ValueError(f"id duplicado: {id_!r}")
+        self._vistos.add(id_)
+        b2, desde = hashlib.blake2b, int.from_bytes                      # `hash_shingle`, en linea (coste)
+        completo = array("Q", sorted({desde(b2(sh.encode("utf-8"), digest_size=8).digest(), "little")
+                                      for sh in shingles_de(texto, self.ventana)}))
+        huella = hashlib.blake2b(completo.tobytes(), digest_size=16).digest()
+        self.shingles_totales += len(completo)
+        limite = self._limite()
+        muestra = completo if not completo or completo[-1] < limite else completo[:bisect_left(completo, limite)]
+        self.ids.append(id_)
+        self.huellas.append(huella)
+        self.tamanos.append(len(completo))
+        self.arrays.append(muestra)
+        self._guardados += len(muestra)
+        if self._guardados > 2 * self.presupuesto:                      # poda amortizada
+            self._podar()
+
+    def _podar(self):
+        limite = self._limite()
+        total = 0
+        for k, a in enumerate(self.arrays):
+            if a and a[-1] >= limite:
+                a = self.arrays[k] = a[:bisect_left(a, limite)]
+            total += len(a)
+        self._guardados = total
+
+    def muestras(self):
+        """`{id: array('Q')}` con el limite FINAL (el de la suma de todo el corpus)."""
+        self._podar()
+        return dict(zip(self.ids, self.arrays))
+
+    def agrupar(self, umbral=UMBRAL_DEFECTO, fraccion_boilerplate=BOILERPLATE_DEFECTO):
+        """Agrupa lo acumulado y CONSUME el acumulador (sus muestras se liberan al ordenarlas)."""
+        t = _fraccion(umbral)
+        _validar_parametros(self.ventana, fraccion_boilerplate, self.presupuesto)
+        self._podar()
+        return _agrupar_muestras(self, t, umbral, fraccion_boilerplate)
 
 
-def _conjuntos(docs, ventana, fraccion):
-    """`(filtrados, originales_de_vacios, n_boilerplate, df, nombres)` en el orden de `docs`: cada
-    conjunto es de ids enteros de shingle (`nombres[i]` es la cadena del id `i`). `originales_de_vacios`
-    guarda el conjunto original SOLO de los casos que se quedan vacios al quitar el boilerplate."""
-    ids, nombres, originales = {}, [], []
-    for _id, _fam, texto in docs:
-        s = set()
-        for sh in shingles_de(texto, ventana):
-            k = ids.get(sh)
-            if k is None:
-                k = ids[sh] = len(nombres)
-                nombres.append(sh)
-            s.add(k)
-        originales.append(s)
-    df = [0] * len(nombres)
-    for s in originales:
-        for k in s:
-            df[k] += 1
-    n = len(docs)
-    boiler = set()
-    if len({fam for _i, fam, _t in docs}) >= MIN_FAMILIAS_BOILERPLATE:
-        frecuentes = {k for k, c in enumerate(df) if c > fraccion * n}
-        familias = defaultdict(set)
-        if frecuentes:
-            for (_i, fam, _t), s in zip(docs, originales):
-                for k in s & frecuentes:
-                    familias[k].add(fam)
-        boiler = {k for k in frecuentes if len(familias[k]) >= MIN_FAMILIAS_BOILERPLATE}
-    filtrados, vacios = [], {}
-    for i, s in enumerate(originales):
-        f = frozenset(s - boiler) if boiler else frozenset(s)
-        filtrados.append(f)
-        if not f:
-            vacios[i] = frozenset(s)
-    return filtrados, vacios, len(boiler), df, nombres
+def _frecuencias(arrays):
+    """Frecuencia documental EXACTA de la muestra: `(compartidos, solos)` = `{hash: df}` solo de los
+    shingles con df >= 2 y cuantos tienen df == 1 (la mayoria, en un corpus real: no se guardan). Se
+    cuenta por TRAMOS del espacio de hashes (`Counter` sobre el trozo de cada array ordenado que cae en
+    el tramo): memoria O(tramo), no un dict de todo el corpus."""
+    total = sum(len(a) for a in arrays if a)
+    tramos = 1
+    while tramos < 256 and total // tramos > 1 << 18:
+        tramos *= 2
+    paso = (1 << 64) // tramos
+    compartidos, solos = {}, 0
+    for b in range(tramos):
+        lo, hi = b * paso, (b + 1) * paso if b < tramos - 1 else 1 << 64
+        trozo = []
+        for a in arrays:
+            if a:
+                trozo.extend(a[bisect_left(a, lo):bisect_left(a, hi)])
+        for h, c in Counter(trozo).items():
+            if c > 1:
+                compartidos[h] = c
+            else:
+                solos += 1
+    return compartidos, solos
 
 
-def agrupar(documentos, umbral=UMBRAL_DEFECTO, ventana=VENTANA_DEFECTO, fraccion_boilerplate=BOILERPLATE_DEFECTO):
-    """Grupos de near-duplicates (ver docstring del modulo). Determinista ante el orden de entrada."""
-    t = _fraccion(umbral)
-    docs = sorted(_validar(documentos, ventana, fraccion_boilerplate), key=lambda d: d[0])
-    conj, vacios, n_boiler, df, nombres = _conjuntos(docs, ventana, fraccion_boilerplate)
-    padre = list(range(len(docs)))
+def _boilerplate(compartidos, solos, n, fraccion):
+    """H1: `(boiler, todo, n_boilerplate)`: los shingles con `df > fraccion · n` (estricto, con enteros)
+    si `n >= N_MIN_BOILERPLATE`. `todo` si hasta un df == 1 lo supera (`fraccion < 1/n`)."""
+    if n < N_MIN_BOILERPLATE:
+        return set(), False, 0
+    f = Fraction(repr(float(fraccion)))
+    minimo = f.numerator * n // f.denominator + 1                        # menor df con df > fraccion · n
+    if minimo <= 1:
+        return set(compartidos), True, len(compartidos) + solos
+    boiler = {h for h, c in compartidos.items() if c >= minimo}
+    return boiler, False, len(boiler)
+
+
+def _conjuntos(docs, ventana, fraccion, presupuesto=PRESUPUESTO_DEFECTO):
+    """Para los tests (referencia de fuerza bruta): `(filtrados, originales, n_boilerplate)` en el orden
+    de `docs`, como `frozenset` de hashes; `originales` sin muestrear."""
+    acc = Acumulador(ventana, presupuesto)
+    for d in docs:
+        acc.anadir(*d)
+    muestras = acc.muestras()
+    boiler, todo, n_boiler = _boilerplate(*_frecuencias(list(muestras.values())), len(docs), fraccion)
+    originales = [frozenset(hash_shingle(sh) for sh in shingles_de(d[2], ventana)) for d in docs]
+    filtrados = [frozenset() if todo else frozenset(muestras[d[0]]) - boiler for d in docs]
+    return filtrados, originales, n_boiler
+
+
+def _agrupar_muestras(acc, t, umbral, fraccion):
+    ids = acc.ids
+    orden_id = sorted(range(len(ids)), key=lambda k: ids[k])
+    n = len(ids)
+    padre = list(range(n))
 
     def find(x):
         while padre[x] != x:
@@ -202,48 +309,112 @@ def agrupar(documentos, umbral=UMBRAL_DEFECTO, ventana=VENTANA_DEFECTO, fraccion
         if ra != rb:
             padre[max(ra, rb)] = min(ra, rb)
 
-    usados = sorted({k for s in conj for k in s}, key=lambda k: (df[k], nombres[k]))
-    rango = {k: r for r, k in enumerate(usados)}
-    ordenados, prefijos = [], []
-    indice = defaultdict(list)
-    for i, s in enumerate(conj):
-        orden = sorted(rango[k] for k in s)
-        p = len(orden) - _techo(t, len(orden)) + 1 if orden else 0
-        ordenados.append(orden)
-        prefijos.append(orden[:p])
-        for r in orden[:p]:
-            indice[r].append(i)
-    verificados = 0
-    for i, s in enumerate(conj):
-        if not s:
-            continue
-        candidatos = set()
-        for r in prefijos[i]:
-            candidatos.update(indice[r])
-        li = len(s)
-        for j in sorted(candidatos):
-            if j <= i or find(i) == find(j):
-                continue
-            lj = len(conj[j])
-            if min(li, lj) * t.denominator < t.numerator * max(li, lj):
-                continue                                         # filtro de longitud: J <= min/max
-            verificados += 1
-            inter = len(s & conj[j])
-            if _supera(inter, li + lj - inter, t):
-                unir(i, j)
-    por_original = {}
-    for i, orig in sorted(vacios.items()):
-        if orig in por_original:
-            unir(por_original[orig], i)
+    # H3: colapso de duplicados EXACTOS por igualdad del conjunto ORIGINAL (huella + muestra)
+    por_huella, reps, rep_de = {}, [], {}
+    for k in orden_id:
+        previos = por_huella.setdefault((acc.huellas[k], acc.tamanos[k]), [])
+        for p in previos:
+            if acc.arrays[p] == acc.arrays[k]:
+                unir(p, k)
+                rep_de[k] = p
+                break
         else:
-            por_original[orig] = i
+            previos.append(k)
+            reps.append(k)
+            rep_de[k] = k
+    por_huella = None
+
+    compartidos, solos = _frecuencias(acc.arrays)
+    boiler, todo, n_boiler = _boilerplate(compartidos, solos, n, fraccion)
+    df = compartidos.get
+    mascara = (1 << 64) - 1
+    avisos, ordenados, unicos = {}, {}, {}
+    es_rep = set(reps)
+    for k in range(n):
+        if k not in es_rep:
+            acc.arrays[k] = None                                         # duplicado exacto: ya unido
+    for k in reps:
+        a, acc.arrays[k] = acc.arrays[k], None                           # lo ordenado sustituye a la muestra
+        f = [] if todo else [h for h in a if h not in boiler] if boiler else a
+        if acc.tamanos[k] and not a:
+            avisos[k] = AVISO_SIN_MUESTRAS
+        elif a and len(f) * FRACCION_AVISO.denominator < FRACCION_AVISO.numerator * len(a):
+            avisos[k] = AVISO_PLANTILLA.format(k=len(f), n=len(a))
+        claves = sorted([(df(h, 1) << 64) | h for h in f])               # df ascendente, desempate por hash
+        f = None
+        ordenados[k] = array("Q", [c & mascara for c in claves])
+        # un shingle con df == 1 solo esta en ESTE caso: nunca coincide con otro (no se indexa ni se sondea)
+        unicos[k] = bisect_left(claves, 2 << 64)
+        claves = None
+    compartidos = df = None
+    # los duplicados exactos heredan el aviso de su representante (mismo conjunto)
+    lista_avisos = sorted(({"id": ids[k], "motivo": avisos[rep_de[k]]} for k in range(n) if rep_de[k] in avisos),
+                          key=lambda a: a["id"])
+
+    num, den = t.numerator, t.denominator
+    indice = {}
+    escaneos = verificados = 0
+    for x in sorted(reps, key=lambda k: (len(ordenados[k]), ids[k])):
+        ox = ordenados[x]
+        lx = len(ox)
+        if not lx:
+            continue
+        sondeo = lx - _techo(t, lx) + 1
+        solapes, podados = {}, set()
+        for i in range(unicos[x], sondeo):
+            lista = indice.get(ox[i])
+            if not lista:
+                continue
+            for y, j in lista:
+                escaneos += 1
+                if y in podados:
+                    continue
+                ly = len(ordenados[y])
+                if ly * den < num * lx:                                  # longitud: |y| >= t·|x|
+                    continue
+                alfa = -((-num * (lx + ly)) // (num + den))               # ceil(t/(1+t)·(|x|+|y|))
+                if solapes.get(y, 0) + 1 + min(lx - i - 1, ly - j - 1) >= alfa:
+                    solapes[y] = solapes.get(y, 0) + 1
+                else:                                                    # filtro posicional
+                    solapes.pop(y, None)
+                    podados.add(y)
+        medio = lx + 1 - (-((-2 * num * lx) // (num + den)))              # mid-prefix PPJoin
+        for i in range(unicos[x], medio):
+            indice.setdefault(ox[i], []).append((x, i))
+        if solapes:
+            sx = set(ox)
+            for y in sorted(solapes, key=lambda k: ids[k]):
+                if find(x) == find(y):
+                    continue
+                verificados += 1
+                inter = sum(1 for h in ordenados[y] if h in sx)
+                if _supera(inter, lx + len(ordenados[y]) - inter, t):
+                    unir(x, y)
     comp = defaultdict(list)
-    for i, d in enumerate(docs):
-        comp[find(i)].append(d[0])
+    for k in range(n):
+        comp[find(k)].append(ids[k])
     grupos = sorted(sorted(g) for g in comp.values() if len(g) > 1)
-    return {"grupos": grupos, "casos": len(docs), "boilerplate": n_boiler, "pares_verificados": verificados,
-            "parametros": {"umbral": umbral, "ventana": ventana, "fraccion_boilerplate": fraccion_boilerplate,
-                           "min_familias_boilerplate": MIN_FAMILIAS_BOILERPLATE}}
+    exacto = acc.shingles_totales <= acc.presupuesto
+    return {"grupos": grupos, "casos": n, "boilerplate": n_boiler, "pares_verificados": verificados,
+            "escaneos_indice": escaneos, "avisos": lista_avisos, "jaccard": "exacto" if exacto else "muestreado",
+            "muestreo": {"r": 1.0 if exacto else acc.presupuesto / acc.shingles_totales,
+                         "presupuesto": acc.presupuesto, "shingles": acc.shingles_totales},
+            "parametros": {"umbral": umbral, "ventana": acc.ventana, "fraccion_boilerplate": fraccion,
+                           "n_min_boilerplate": N_MIN_BOILERPLATE, "presupuesto": acc.presupuesto}}
+
+
+def agrupar(documentos, umbral=UMBRAL_DEFECTO, ventana=VENTANA_DEFECTO, fraccion_boilerplate=BOILERPLATE_DEFECTO,
+            presupuesto=PRESUPUESTO_DEFECTO):
+    """Grupos de near-duplicates (ver docstring del modulo). Determinista ante el orden de entrada."""
+    t = _fraccion(umbral)
+    _validar_parametros(ventana, fraccion_boilerplate, presupuesto)
+    acc = Acumulador(ventana, presupuesto)
+    for d in documentos:
+        if not (isinstance(d, (tuple, list)) and len(d) == 3):
+            raise ValueError("cada documento es (id, family, texto), tres cadenas")
+        acc.anadir(*d)
+    acc._podar()
+    return _agrupar_muestras(acc, t, umbral, fraccion_boilerplate)
 
 
 # ------------------------------------------------------------------ CLI
@@ -281,10 +452,12 @@ def main(argv=None):
     ap.add_argument("--ventana", type=int, default=VENTANA_DEFECTO, help=f"palabras por shingle (default {VENTANA_DEFECTO})")
     ap.add_argument("--boilerplate", type=float, default=BOILERPLATE_DEFECTO,
                     help=f"fraccion de casos por encima de la cual un shingle es texto fijo (default {BOILERPLATE_DEFECTO}; 1.0 = sin filtro)")
+    ap.add_argument("--presupuesto", type=int, default=PRESUPUESTO_DEFECTO,
+                    help=f"shingles muestreados en total; por debajo, Jaccard exacto (default {PRESUPUESTO_DEFECTO})")
     ap.add_argument("--json", action="store_true", help="salida JSON")
     args = ap.parse_args(argv)
     try:
-        r = agrupar(_leer_documentos(args.documentos), args.umbral, args.ventana, args.boilerplate)
+        r = agrupar(_leer_documentos(args.documentos), args.umbral, args.ventana, args.boilerplate, args.presupuesto)
     except (_Uso, ValueError) as e:
         print(f"error: {e}", file=sys.stderr)
         return 2
@@ -293,8 +466,12 @@ def main(argv=None):
         return 0
     for g in r["grupos"]:
         print("grupo: " + "  ".join(ascii(x) if not (x.isascii() and x.isprintable()) else x for x in g))
+    for a in r["avisos"]:
+        i = a["id"]
+        print(f"aviso: {i if i.isascii() and i.isprintable() else ascii(i)}: {a['motivo']}", file=sys.stderr)
     print(f"{len(r['grupos'])} grupo(s) de near-duplicates en {r['casos']} caso(s); "
-          f"{r['boilerplate']} shingle(s) de boilerplate ignorados; {r['pares_verificados']} par(es) verificados")
+          f"{r['boilerplate']} shingle(s) de boilerplate ignorados; {r['pares_verificados']} par(es) verificados; "
+          f"Jaccard {r['jaccard']}" + (f" (r = {r['muestreo']['r']:.4g})" if r["jaccard"] != "exacto" else ""))
     return 0
 
 

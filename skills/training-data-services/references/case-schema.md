@@ -10,7 +10,7 @@
   `outcome`. Para `record`, `version`, `case_id` y `validation` son opcionales: se asignan la
   siguiente versión libre, `<id_prefix>-<family>.<variant>` y `pending`.
 - `validation.status` ∈ `pending · approved · needs_changes · rejected` (`approved` ⇔
-  `approved_by_human: true`); `outcome` ∈ `success · failure · corrected`; `corrected` exige (y solo él admite)
+  `approved_by_human: true`; `set-status approved` añade `content_hash`, ver `references/recorder.md`); `outcome` ∈ `success · failure · corrected`; `corrected` exige (y solo él admite)
   `supersedes_case: "<case_id>@v<NNN>"` en forma canónica (dígitos ASCII, relleno a `version_width`,
   ≥ 1) del mismo `case_id` y una versión anterior.
 - `family`/`variant` son directorios: sin separadores, `..`, `.` (separa family y variant), `:`,

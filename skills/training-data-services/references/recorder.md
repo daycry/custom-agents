@@ -22,7 +22,12 @@
    exactamente `True`): `set-status <case_id> <versión> approved --approved-by-human [--note …]`
    sobre una versión grabada, o `record <caso.json> --approved-by-human` con un caso que ya llega
    `approved`. Sin el flag, rechazo explícito. `needs_changes`, `rejected` y `pending` no lo piden.
-   `set-status` solo reescribe `validation.json` (atómico); lo demás es inmutable.
+   `set-status` solo reescribe `validation.json` (atómico); lo demás es inmutable. Al aprobar,
+   `set-status` guarda además `content_hash` (sha256 de los siete ficheros inmutables, leídos por
+   descriptor bajo el bloqueo; si alguno no se puede leer, no aprueba): ata el Gold al contenido que
+   se aprobó y el ensamblador y el puente excluyen el que ya no casa. `record --approved-by-human` no
+   lo guarda (al escribir `validation.json` la versión aún no tiene `metadata.json`): ese Gold se
+   exporta con aviso «sin hash de aprobación» hasta pasarlo por `set-status`.
 5. **Consultar**: `list [--status S] [--family F] [--outcome O] [--json]` lee el índice
    `cases_index.jsonl`, que es una **caché** (una línea corrupta se ignora con aviso al leerla);
    `index rebuild` lo reconstruye desde `cases/` e `index check` lo compara (semántica abajo). El

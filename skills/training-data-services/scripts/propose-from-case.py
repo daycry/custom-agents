@@ -9,20 +9,30 @@ nada mas. La decision (aprobar, pedir cambios, rechazar) y el traslado a `approv
 
   - Solo con `bridge_to_curator: true` en `training.json` (si no, exit 1 con el motivo).
   - Solo desde un caso GOLD, leido del DISCO con el mismo lector que el ensamblador
-    (`dataset-assembler.leer_caso` + `es_gold`: `validation.json` por descriptor, nunca el indice).
+    (`dataset-assembler.leer_caso` + `es_gold`: `validation.json` por descriptor, nunca el indice) y
+    ATADO a su contenido (#132: `validation.content_hash` debe casar con lo leido; sin el, se propone
+    con aviso «sin hash de aprobacion»).
   - Candidato con el frontmatter que exige `curator-gate.py` al aprobar: `category` (clave de la
     taxonomia del proyecto, `.claude/knowledge-services/taxonomy.json`, o de la plantilla por
     defecto del plugin; la elige quien llama con `--category`), `evidencia: validated_case`,
     `fuentes: [training-case:<case_id>@v<NNN>]`, `source_cases: [<case_id>@v<NNN>]` y `tags`
     `clave:valor`. Sin `estado` (ese token solo existe en `approved/`). El cuerpo lleva la peticion y
     la nota del revisor en UNA linea cada una (nunca la trayectoria: la conversacion no es
-    conocimiento curado). La taxonomia se lee con `agent-kits/shared/knowledge-schema.py`
-    (`cargar_taxonomia`); sin ese fichero (paquete parcial) -> exit 2: no se puede validar la categoria.
-  - `candidates/pending/caso-<case_id>-v<NNN>.md` se crea con `O_EXCL` (nunca sobrescribe) y se
-    comprueba despues (`realpath` igual al esperado, mismo fichero, un solo nombre). Si ese nombre ya
-    existe en `pending/`, `needs_changes/`, `rejected/` o bajo `approved/` -> exit 1 (ya propuesto; un
-    rechazado no se re-propone). Cada directorio de `docs/knowledge/candidates/pending` que exista no
-    puede ser un enlace (nunca se escribe a traves de uno); los que faltan se crean con `os.mkdir`.
+    conocimiento curado). TODO texto que se escribe (peticion, nota, titulo) pasa por
+    `redactar_estructura` del recorder en ese momento (#119: el candidato se versiona en Git; un
+    secreto que llegara al disco sin redactar no sale); un `--tag` que el redactor cambiaria se rechaza.
+    Sin `redact.py` -> exit 2. La taxonomia se lee con `agent-kits/shared/knowledge-schema.py`
+    (`cargar_taxonomia`); sin ese fichero (paquete parcial) o con la taxonomia ilegible -> exit 2: no se
+    puede validar la categoria (fallo cerrado).
+  - `candidates/pending/caso-<slug ASCII>-<10 hex>.md` (#126: el sufijo es el sha256 del
+    `case_id@v<NNN>` EXACTO, asi que dos casos que solo difieren en no-ASCII o en mayusculas no
+    comparten nombre) se crea con `O_EXCL` (nunca sobrescribe) y se comprueba despues con el contrato
+    G4 del recorder (#121): `realpath` igual al esperado, mismo fichero, un solo nombre; si un tercero
+    sustituyo `pending/` por un enlace entre la preparacion y la creacion, el aviso NOMBRA donde quedo
+    el candidato (solo si es el creado) y no se borra nada. Si ese nombre ya existe en `pending/`,
+    `needs_changes/`, `rejected/` o bajo `approved/` -> exit 1 (ya propuesto; un rechazado no se
+    re-propone). Cada directorio de `docs/knowledge/candidates/pending` que exista no puede ser un
+    enlace (nunca se escribe a traves de uno); los que faltan se crean con `os.mkdir`.
   - Anti-leakage: el puente va en UNA direccion (caso -> candidato); nada de `docs/knowledge/`
     alimenta el case store ni el dataset.
 
@@ -33,6 +43,7 @@ no legible, categoria fuera de la taxonomia, ya propuesto, enlace · 2 uso, taxo
                        [--config <training.json>] [--project-root <dir>]
 """
 import argparse
+import hashlib
 import importlib.util
 import os
 import re
@@ -106,11 +117,33 @@ def _valor_tag(v):
 
 
 def _nombre_candidato(ref):
-    return "caso-" + re.sub(r"[^A-Za-z0-9._-]", "-", ref.replace("@", "-")) + ".md"
+    """#126: slug ASCII del `case_id@v<NNN>` + sufijo de 10 hex del sha256 de la referencia EXACTA."""
+    sufijo = hashlib.sha256(ref.encode("utf-8")).hexdigest()[:10]
+    return "caso-" + re.sub(r"[^A-Za-z0-9._-]", "-", ref.replace("@", "-")) + f"-{sufijo}.md"
+
+
+class _CanonPending:
+    """El contrato G4 de `_verificar_creado` (#121) para el buzon: `igual(ruta)` compara el `realpath`
+    del candidato con la ruta esperada bajo `pending/` (igualdad, no contencion)."""
+
+    def __init__(self, raiz, esperado):
+        self.raiz, self.esperado = raiz, esperado
+
+    def igual(self, ruta):
+        try:
+            r = os.path.realpath(ruta)
+        except (OSError, ValueError):
+            return False, None
+        return os.path.normcase(r) == os.path.join(self.esperado, os.path.normcase(os.path.basename(ruta))), r
+
+    def rel(self, ruta):
+        return rec._texto_ruta(os.path.relpath(ruta, self.raiz).replace(os.sep, "/"))
 
 
 def _texto_candidato(ref, caso, categoria, titulo, tags):
     val = caso["validation"]
+    redactar = rec.redactar_estructura                                  # #119: al escribir, siempre
+    titulo = redactar(titulo) if titulo else titulo
     etiquetas = [f"origen:training-case", f"familia:{_valor_tag(caso['family'])}",
                  f"outcome:{_valor_tag(caso['outcome'])}"] + list(tags)
     lineas = ["---", f"category: {categoria}", f"evidencia: {EVIDENCIA}", f"fuentes: [training-case:{ref}]",
@@ -118,10 +151,10 @@ def _texto_candidato(ref, caso, categoria, titulo, tags):
               f"# {_una_linea(titulo) if titulo else 'Caso Gold ' + ref}", "",
               "Propuesta generada desde un caso Gold del case store (training-data-services). La categoria "
               "definitiva, el texto y la decision son del `knowledge-curator`; venir de un caso Gold no aprueba nada.",
-              "", f"- Peticion: {_una_linea(caso['request'])}",
+              "", f"- Peticion: {_una_linea(redactar(caso['request']))}",
               f"- Resultado: `{caso['outcome']}`" + (f" (corrige `{caso['supersedes_case']}`)" if caso.get("supersedes_case") else "")]
     if val.get("reviewer_note"):
-        lineas.append(f"- Nota del revisor: {_una_linea(val['reviewer_note'])}")
+        lineas.append(f"- Nota del revisor: {_una_linea(redactar(val['reviewer_note']))}")
     lineas.append(f"- Caso: `{ref}` (Gold, aprobado por un humano)")
     return ("\n".join(lineas) + "\n").encode("utf-8")
 
@@ -157,12 +190,16 @@ def _ya_propuesto(raiz, nombre):
 
 
 def proponer(config, raiz_proyecto, case_id, version, categoria, titulo=None, tags=()):
-    """Crea el candidato (ver docstring del modulo). Devuelve `{ruta, ref, categoria}`."""
+    """Crea el candidato (ver docstring del modulo). Devuelve `{ruta, ref, categoria, avisos}`."""
     raiz = rec._raiz(raiz_proyecto)
-    rec.config_activa(config, raiz)
+    rec.config_activa(config, raiz)                                     # #125: `enabled: true` obligatorio
     if config.get("bridge_to_curator") is not True:
         raise Rechazo("el puente a knowledge-curator esta apagado (`bridge_to_curator: true` en training.json lo "
                       "activa); no se propone nada")
+    rec._redact_mod()                                                    # #119: fail closed, antes de nada
+    for t in tags:
+        if rec.redactar_estructura(t) != t:
+            raise Rechazo(f"tag {rec._texto_ruta(t)}: el redactor lo cambiaria (parece un secreto); no se propone nada")
     claves = categorias(raiz)
     if categoria not in claves:
         raise Rechazo(f"categoria {rec._texto_ruta(categoria)} fuera de la taxonomia del proyecto "
@@ -179,6 +216,12 @@ def proponer(config, raiz_proyecto, case_id, version, categoria, titulo=None, ta
     if not asm.es_gold(caso["validation"]):
         raise Rechazo(f"{rec._texto_ruta(ref)} no es Gold (validation.status = {caso['validation'].get('status')}): solo "
                       "un caso aprobado por un humano se puede proponer; no se propone nada")
+    avisos = []
+    estado = asm.atado(caso["validation"], _hashes["content_hash"])
+    if estado == "distinto":
+        raise Rechazo(f"{rec._texto_ruta(ref)}: {asm.MOTIVO_SIN_ATAR.replace('no se exporta', 'no se propone')}")
+    if estado == "sin":
+        avisos.append(asm.AVISO_SIN_HASH.format(ref=rec._texto_ruta(ref)).replace("se exporta", "se propone"))
     nombre = _nombre_candidato(ref)
     previo = _ya_propuesto(raiz, nombre)
     if previo:
@@ -193,16 +236,9 @@ def proponer(config, raiz_proyecto, case_id, version, categoria, titulo=None, ta
     with f:
         st = os.fstat(f.fileno())
         f.write(_texto_candidato(ref, caso, categoria, titulo, tags))
-    try:
-        sl = os.lstat(ruta)
-        ok = (os.path.normcase(os.path.realpath(ruta)) == os.path.join(esperado, os.path.normcase(nombre))
-              and os.path.samestat(sl, st) and sl.st_nlink == 1 and not rec._es_enlace_st(sl))
-    except OSError:
-        ok = False
-    if not ok:
-        raise Rechazo(f"candidates/pending/{rec._texto_ruta(nombre)}: el directorio cambio durante la escritura "
-                      "(¿enlace plantado? CWE-59/367); no se borra nada: revisa el buzon a mano")
-    return {"ruta": ruta, "ref": ref, "categoria": categoria}
+    # #121: contrato G4 del recorder (igualdad con la ruta esperada; nombra donde quedo SOLO si es el creado)
+    rec._verificar_creado(_CanonPending(raiz, esperado), ruta, st, "el puente")
+    return {"ruta": ruta, "ref": ref, "categoria": categoria, "avisos": avisos}
 
 
 def _tag(valor):
@@ -225,7 +261,7 @@ def main(argv=None):
     try:
         config, raiz = rec._config_cli(args)
         r = proponer(config, raiz, args.case_id, args.version, args.category, args.title, args.tag)
-    except (rec._EntradaIlegible, KnowledgeServicesNoDisponible) as e:
+    except (rec._EntradaIlegible, KnowledgeServicesNoDisponible, rec.RedaccionNoDisponible) as e:
         print(f"error: {rec._texto_seguro(e)}", file=sys.stderr)
         return 2
     except Rechazo as e:
@@ -236,6 +272,8 @@ def main(argv=None):
     except OSError as e:
         print(f"error de E/S: {rec._texto_seguro(e)}", file=sys.stderr)
         return 2
+    for a in r["avisos"]:
+        print(f"aviso: {rec._texto_seguro(a)}", file=sys.stderr)
     rel = os.path.relpath(r["ruta"], raiz).replace(os.sep, "/")
     print(f"OK candidato {rec._texto_ruta(rel)} ({r['categoria']}, desde {r['ref']}): pendiente de knowledge-curator "
           "(curator-gate.py); no se ha aprobado nada")

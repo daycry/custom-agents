@@ -160,3 +160,62 @@ def test_f2fix1_gap49_readme_lista_el_bloqueo_y_todos_los_redactados():
     tramo = r[r.index("Todo el texto libre"):]
     for f in ("constraints.json", "metrics.json", "final/artifacts.json", "reviewer_note", "created_at"):
         assert f in tramo, f
+
+
+# ------------------------------------------------------------------ fix1 de la Fase 3 (#127, #129)
+
+import re
+
+REPO = os.path.normpath(os.path.join(HERE, "..", "..", ".."))
+LEDGER = os.path.join(REPO, "docs", "roadmap", "2026-09-16-training-data-services", "tasks.md")
+
+
+def _filas_de_la_skill(texto):
+    return [l for l in texto.splitlines() if l.startswith("| ") and "training-data-services" in l.split("|")[1]]
+
+
+def filas_sin_piezas(textos):
+    """#129: nombres de fichero cuya fila de la skill NO menciona el ensamblador, el dedup y el puente."""
+    malos = []
+    for nombre, texto in textos.items():
+        filas = _filas_de_la_skill(texto)
+        if not filas or not all(p in filas[0] for p in ("dataset-assembler.py", "dedup.py", "propose-from-case.py")):
+            malos.append(nombre)
+    return malos
+
+
+def test_t09_129_filas_de_la_skill_en_claude_md_y_readme_es_en_nombran_sus_piezas():
+    """#129: `CLAUDE.md`, `docs/README.md` (ES) y `docs/en/README.md` (EN) describen el ensamblador, la
+    deduplicacion y el puente, a la vez en los dos idiomas."""
+    rutas = {n: os.path.join(REPO, *n.split("/")) for n in ("CLAUDE.md", "docs/README.md", "docs/en/README.md")}
+    if not all(os.path.exists(r) for r in rutas.values()):   # pragma: no cover - paquete sin docs
+        import pytest
+        pytest.skip("sin los documentos del repo")
+    assert filas_sin_piezas({n: _leer(r) for n, r in rutas.items()}) == []
+
+
+def verificaciones_sin_salida_literal(ledger, tareas=("T-07", "T-08", "T-09"), ronda="fix1"):
+    """#127: tareas cuya Verificacion no pega la salida REAL de la ronda en Windows Y en Linux (con un
+    recuento literal de pytest `N passed`), o que remiten a una salida no pegada («verde», «abajo»)."""
+    malas = []
+    for t in tareas:
+        i = ledger.index(f"### {t} ")
+        bloque = ledger[i:ledger.index("\n### ", i + 1)]
+        lineas = [l for l in bloque.splitlines() if l.strip().startswith(f"- Salida real {ronda} (")]
+        win = [l for l in lineas if "Windows" in l.split(")")[0]]
+        lin = [l for l in lineas if "Linux" in l.split(")")[0]]
+        literal = all(re.search(r"`\d+ passed", l) for l in win + lin)
+        vaga = any(re.search(r"\bverde\b|\(abajo\)", l) for l in win + lin)
+        if not win or not lin or not literal or vaga:
+            malas.append(t)
+    return malas
+
+
+def test_t09_127_verificacion_fix1_de_t07_t08_t09_con_salida_literal():
+    if not os.path.exists(LEDGER):   # pragma: no cover - paquete sin el ledger
+        import pytest
+        pytest.skip("sin el ledger del repo")
+    assert verificaciones_sin_salida_literal(_leer(LEDGER)) == []
+    # la regla rechaza lo que se pego en la ronda anterior («verde (42 + 13 tests)»)
+    assert verificaciones_sin_salida_literal("### T-07 x\n  - Salida real fix1 (2026-09-28, Windows): -> verde\n### T-08 y\n"
+                                             "### T-09 z\n### T-10 w\n") == ["T-07", "T-08", "T-09"]

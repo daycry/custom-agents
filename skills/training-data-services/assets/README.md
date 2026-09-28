@@ -25,7 +25,7 @@ portable) comprueba que el ejemplo valida con `scripts/case_schema.py` y que el 
 │       ├── metrics.json
 │       ├── validation.json
 │       └── final/artifacts.json         # solo referencias a los artefactos finales
-└── exports/<export_id>/                 # lo escribe scripts/dataset-assembler.py, nunca a mano
+└── exports/<export_id>/                 # lo escribe scripts/dataset-assembler.py, nunca a mano (+ exports/.lock)
     ├── manifest.json
     ├── train.jsonl
     └── benchmark.jsonl
@@ -51,7 +51,7 @@ reglas: tabla de la skill (`SKILL.md`) y docstring de `scripts/case_schema.py`.
 | `constraints.json` | Restricciones del intento, esquema libre | Proyecto |
 | `trajectory.jsonl` | Un turno por línea: `role` (`system`·`user`·`assistant`·`tool`), `content`, `tool_calls` (`[{name, arguments}]`, solo `assistant`), `name` (en `tool`), `ts`. **Nunca** chain-of-thought | Plugin (forma) / proyecto (turnos) |
 | `metrics.json` | Objeto JSON **ya calculado** por el proyecto; opaco para el plugin | Proyecto |
-| `validation.json` | `status` (`pending`·`approved`·`needs_changes`·`rejected`), `approved_by_human` (`true` solo con `approved`), `approved_at`, `reviewer_note` | Plugin (forma) / humano (Gold) |
+| `validation.json` | `status` (`pending`·`approved`·`needs_changes`·`rejected`), `approved_by_human` (`true` solo con `approved`), `approved_at`, `reviewer_note` y, al aprobar con `set-status`, `content_hash` (sha256 de los otros siete ficheros: ata el Gold al contenido aprobado) | Plugin (forma) / humano (Gold) |
 | `final/artifacts.json` | Lista de `{path, hash: "<algoritmo>:<hex>", kind}`; nunca contenido binario inline | Proyecto |
 
 Todo el texto libre pasa por la redacción de secretos compartida (`agent-kits/shared/redact.py`)
@@ -72,8 +72,14 @@ campos de forma cerrada (`case_id`, `family`, `variant`, `version`, `outcome`, `
 
 ```json
 {"status": "approved", "approved_by_human": true, "approved_at": "2026-09-23T10:20:00Z",
- "reviewer_note": "Correccion del fallo de v001 (anchura). Gold."}
+ "reviewer_note": "Correccion del fallo de v001 (anchura). Gold.", "content_hash": "<64 hex>"}
 ```
+
+`set-status … approved --approved-by-human` escribe `content_hash` (el `hash_contenido` del recorder
+sobre `metadata.json`, `request.json`, `context.json`, `constraints.json`, `trajectory.jsonl`,
+`metrics.json` y `final/artifacts.json`); el ensamblador y el puente excluyen el Gold cuyo contenido
+ya no casa. El `v002` de `case-store-example/` no lo lleva a propósito (Gold anterior al campo, y un
+checkout con fin de línea `CRLF` cambiaría los bytes): se exporta con el aviso «sin hash de aprobación».
 
 ## `cases_index.jsonl`
 
@@ -93,5 +99,5 @@ Lo escribe `scripts/dataset-assembler.py` (nunca a mano): `train.jsonl` y `bench
 chat (`messages`, con `case_id`/`version`/`family`/`outcome`/`supersedes_case` de procedencia) y
 `manifest.json`, **el último** (sin él, el export está incompleto): qué `case_id@version` entraron o
 se excluyeron y por qué, hash de cada uno y asignación train/benchmark por familia completa. Solo
-casos `approved` con `approved_by_human: true`; un export existente nunca se sobrescribe. Detalle:
-`references/dataset.md`.
+casos `approved` con `approved_by_human: true`; un export existente nunca se sobrescribe. `exports/.lock`
+es el bloqueo entre ensambladores (no se borra). Detalle: `references/dataset.md`.
