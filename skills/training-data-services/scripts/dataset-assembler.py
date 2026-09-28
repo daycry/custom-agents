@@ -6,7 +6,9 @@ No entrena, no sirve modelos y no corre benchmarks (CA-08): produce ficheros JSO
 
 Solo Gold (T-09, CA-03):
   - Se recorre `cases/` con el lector del recorder (`_estado_de_cases`: sin seguir enlaces; versiones
-    incompletas, en curso, duplicadas, enlazadas o incoherentes se OMITEN con aviso) y, de cada version
+    incompletas, en curso, duplicadas, enlazadas o incoherentes se OMITEN con aviso; #134: con el MISMO
+    tope por fichero en `metadata.json`/`validation.json` de TODAS las versiones, Gold o no: una mayor
+    se omite con aviso sin cargarla) y, de cada version
     `approved`, se leen SUS OCHO FICHEROS por descriptor (`_leer_de_version` con los bytes tal cual:
     fichero regular, un solo nombre, la misma identidad que su `lstat`, como mucho `tope_fichero`
     bytes —16 MiB por defecto, #122: por encima, el caso se omite con aviso sin cargarlo—), con
@@ -42,7 +44,9 @@ Particion anti-leakage (T-08):
     exportar (exit 1) y explica por que, sin escribir nada.
   - Near-duplicates (`dedup.py`, CA-06/CA-10) sobre los Gold: un grupo que cruza train/benchmark
     EXCLUYE a sus miembros de train (motivo «cruce de particion») y conserva los de benchmark — nunca
-    al reves, ni siquiera con `--conservar-duplicados`. Dentro de una misma particion (#120,
+    al reves, ni siquiera con `--conservar-duplicados`. Con Jaccard muestreado (`r < 1`, #145) el cruce
+    es CONSERVADOR: un par train/benchmark con Jaccard muestreado `>= umbral - margen` (`cruces` del
+    dedup) tambien saca de train al de train; dentro de una particion manda el umbral. Dentro de una misma particion (#120,
     design.md:42): los miembros de una CADENA `supersedes_case` (el `corrected` y lo que corrige,
     transitivamente, si ambos estan) nunca se descartan por duplicado (el par fallo -> correccion es
     dato de primera clase); entre el resto del grupo se conserva UNO, el de `(case_id, version)`
@@ -60,16 +64,20 @@ Salida (`<root>/exports/<export_id>/`):
     `sha256` (de los hashes de sus ocho ficheros, en orden fijo), `ficheros`, `content_hash`,
     `particion` y `motivo` de exclusion (no Gold, omitida, duplicado, cruce, sin atar; motivos
     NORMALIZADOS: rutas relativas al store, nunca el texto de un `OSError`, #123); los grupos de
-    near-duplicates, `near_duplicates` (`jaccard: exacto|muestreado`, `r`), los `avisos` deterministas
+    near-duplicates, `cruces_near_duplicates` (#145), `near_duplicates` (`jaccard: exacto|muestreado`, `r`,
+    `cruce`: el criterio y su margen), los `avisos` deterministas
     (dedup y Gold sin hash), los parametros, `directorio` (el nombre real, `.N` incluido, #131) y el
     `sha256` y las lineas de cada JSONL. Los avisos del RECORRIDO del store (temporales «en curso» o
     «huerfanos», versiones enlazadas…) dependen del reloj: van a `stderr` (`avisos_store`), NUNCA al
-    manifiesto ni al hash (#117).
+    manifiesto ni al hash (#117). TODO el manifiesto pasa por `redactar_estructura` antes del hash
+    (#137: un motivo del esquema cita CLAVES de la trayectoria, que pueden ser un secreto).
   - `export_id = <AAAAMMDD>-<12 hex>` del sha256 del NUCLEO: parametros + lista de casos con sus
     sha256, particion y motivo + grupos + avisos deterministas (#117); no depende de los bytes
     escritos (que son funcion de ese nucleo) ni del reloj. `manifest.sha256_contenido` es ese hash.
   - Exclusion entre ensambladores (#124): la comprobacion de «ya existe» y la creacion van bajo
-    `exports/.lock` (el `_Bloqueo` del recorder; espera acotada -> exit 3).
+    `exports/.lock` (el `_Bloqueo` del recorder); espera `--espera-bloqueo` s (120 por defecto, #143:
+    el otro lo retiene su pasada 2 entera) y despues exit 3 sin escribir nada, con la duracion de la
+    pasada 1 propia como referencia de cuanto esperar.
   - NUNCA se destruye ni se sobrescribe nada: `exports/<export_id>/` se crea con `os.mkdir`; si ya
     existe y es IDENTICO (sha256 en streaming del manifiesto y de los JSONL = los que se escribirian,
     #122), no se escribe nada (exit 0, «ya existe»); si existe y no lo es (incompleto, manipulado, un
@@ -81,7 +89,8 @@ Salida (`<root>/exports/<export_id>/`):
     que aparezca un fichero NUEVO del ensamblador fuera; se detecta y se nombra; nunca se sobrescribe
     ni se borra nada. `manifest.json` se publica desde un `.tmp-<token>` propio sin sobrescribir
     (Windows `os.rename`, POSIX `os.link` + retirar el temporal, que es LO UNICO que se elimina, solo
-    si sigue siendo el mismo fichero). Un fallo a mitad deja el export sin manifiesto (incompleto) y
+    si sigue siendo el mismo fichero); el temporal se comprueba (G4) ANTES de escribirle un byte y
+    otra vez antes de publicarlo (#136), y si ya se retiro el aviso lo dice (no pide retirar nada). Un fallo a mitad deja el export sin manifiesto (incompleto) y
     lo dice. `exports/` que sea un enlace -> rechazo sin escribir.
 
 Uso (exit 0 ok o ya existente · 1 rechazo: capacidad apagada o config invalida, sin benchmark, familia
@@ -89,9 +98,10 @@ de benchmark sin Gold, store manipulado, caso cambiado entre pasadas · 2 uso, E
 3 otro ensamblador tiene `exports/.lock`: reintenta; nunca un traceback):
   dataset-assembler.py --benchmark <family>[,<family>…] [--umbral 0.8] [--ventana 3] [--boilerplate 0.5]
                        [--presupuesto 10000000] [--conservar-duplicados] [--fecha AAAAMMDD] [--dry-run]
-                       [--config <training.json>] [--project-root <dir>]
+                       [--espera-bloqueo 120] [--config <training.json>] [--project-root <dir>]
 """
 import argparse
+import contextlib
 import datetime
 import errno
 import hashlib
@@ -102,6 +112,7 @@ import re
 import secrets
 import stat
 import sys
+import time
 
 # Consola no UTF-8 (Windows cp1252) o tuberias: reconfigurar ANTES de leer/imprimir (GOT-005).
 for _s in (sys.stdin, sys.stdout, sys.stderr):
@@ -133,12 +144,19 @@ BLOQUEO_EXPORTS = ".lock"
 MAX_EXPORTS_MISMO_ID = 99
 TOPE_FICHERO = 16 * 1024 * 1024
 BLOQUE = 64 * 1024
+ESPERA_BLOQUEO_EXPORTS_S = 120                  # #143: espera de `exports/.lock` (`--espera-bloqueo`)
 QUIEN = "el ensamblador"
 MOTIVO_SIN_BENCHMARK = ("sin familias de benchmark declaradas (`--benchmark <family>[,…]`) no se exporta: la "
                         "particion de evaluacion se reserva por familia COMPLETA antes de generar train.jsonl "
                         "(anti-leakage, CA-06/CA-11); no se ha escrito nada")
 MOTIVO_SIN_ATAR = ("Gold sin atar al contenido aprobado: el content_hash de validation.json no casa con sus ficheros "
                    "(cambiaron despues de aprobarlo); no se exporta: revisalo y vuelve a aprobarlo")
+MOTIVO_CRUCE_CONSERVADOR = ("cruce de particion (criterio conservador con Jaccard muestreado: >= umbral - margen): "
+                            "near-duplicate probable de {ref} (benchmark); anti-leakage")
+MENSAJE_BLOQUEO = ("otro ensamblador tiene exports/.lock desde hace mas de {espera:g} s: no se ha escrito nada y la "
+                   "pasada 1 (solo lectura del store) no deja nada a medias; el otro termina en lo que dura una pasada "
+                   "sobre este store (la pasada 1 de este ha tardado {pasada:.1f} s): reintenta o espera mas con "
+                   "`--espera-bloqueo <s>` (ahora {espera:g} s)")
 AVISO_SIN_HASH = ("{ref}: Gold sin hash de aprobacion (sin content_hash: aprobado antes de que existiera o con "
                   "`record --approved-by-human`); se exporta; `set-status … approved --approved-by-human` lo ata")
 
@@ -164,11 +182,13 @@ def _cadenas(casos):
     return cadena
 
 
-def particionar(casos, benchmark, grupos=(), conservar_duplicados=False):
+def particionar(casos, benchmark, grupos=(), conservar_duplicados=False, cruces=()):
     """Asigna `particion` (`train`/`benchmark`/None) y `motivo` (None o el de la exclusion) a cada caso
     `{ref, case_id, version, family[, supersedes_case]}` (T-08, ver docstring del modulo). Devuelve
     copias ordenadas por `(case_id, version)`. `Rechazo` sin benchmark o con una familia de benchmark
-    sin casos."""
+    sin casos. `cruces` (#145, solo con Jaccard muestreado): pares `[ref de train, ref de benchmark]`
+    con Jaccard muestreado >= `umbral - margen`: sacan de train al primero ANTES de agrupar (solo la
+    exclusion anti-leakage; dentro de una particion manda el umbral)."""
     benchmark = set(benchmark or ())
     if not benchmark:
         raise Rechazo(MOTIVO_SIN_BENCHMARK)
@@ -180,6 +200,11 @@ def particionar(casos, benchmark, grupos=(), conservar_duplicados=False):
     salida = {c["ref"]: dict(c, particion="benchmark" if c["family"] in benchmark else "train", motivo=None)
               for c in casos}
     cadena = _cadenas(casos)
+    for tr, be in cruces:
+        a, b = salida.get(tr), salida.get(be)
+        if a and b and a["particion"] == "train" and b["particion"] == "benchmark":
+            a["particion"] = None
+            a["motivo"] = MOTIVO_CRUCE_CONSERVADOR.format(ref=be)
     for grupo in grupos:
         miembros = sorted((salida[r] for r in grupo if r in salida), key=_clave)
         bench = [m for m in miembros if m["particion"] == "benchmark"]
@@ -348,7 +373,7 @@ def cargar(store, config, raiz, ctx, acumulador=None, tope=TOPE_FICHERO):
     `avisos_store`: los del recorrido (dependen del reloj: solo `stderr`); `avisos`: deterministas."""
     width = cs.patrones_id(config)[2]
     crudos = {}
-    entradas, av, en_curso, _mt, _rels = rec._estado_de_cases(store, raiz, crudos=crudos)
+    entradas, av, en_curso, _mt, _rels = rec._estado_de_cases(store, raiz, crudos=crudos, tope=tope)   # #134
     avisos_store = [av[k] for k in sorted(av)] + [en_curso[k] for k in sorted(en_curso)]
     gold, otros, avisos = [], [], []
     for clave in sorted(entradas):
@@ -448,7 +473,8 @@ def _bytes_manifest(manifest):
 
 def ensamblar(config, raiz_proyecto, benchmark, umbral=dd.UMBRAL_DEFECTO, ventana=dd.VENTANA_DEFECTO,
               fraccion_boilerplate=dd.BOILERPLATE_DEFECTO, conservar_duplicados=False, fecha=None, escribir=True,
-              presupuesto=dd.PRESUPUESTO_DEFECTO, tope_fichero=TOPE_FICHERO, devolver_lineas=None):
+              presupuesto=dd.PRESUPUESTO_DEFECTO, tope_fichero=TOPE_FICHERO, devolver_lineas=None,
+              espera_bloqueo=ESPERA_BLOQUEO_EXPORTS_S):
     """Ensambla el dataset (ver docstring del modulo). Devuelve `{export_id, ruta, existente, manifest,
     lineas, avisos_store}`; con `escribir=False` no toca el disco (`ruta` None) y, salvo
     `devolver_lineas=False`, devuelve las lineas (el modo de prueba es O(export); el export real no).
@@ -464,18 +490,23 @@ def ensamblar(config, raiz_proyecto, benchmark, umbral=dd.UMBRAL_DEFECTO, ventan
     dd._validar_parametros(ventana, fraccion_boilerplate, presupuesto)
     if isinstance(tope_fichero, bool) or not isinstance(tope_fichero, int) or tope_fichero < 1:
         raise ValueError(f"tope por fichero invalido: {tope_fichero!r}")
+    if isinstance(espera_bloqueo, bool) or not isinstance(espera_bloqueo, (int, float)) \
+            or not 0 < espera_bloqueo < float("inf"):
+        raise ValueError(f"espera del bloqueo invalida: {espera_bloqueo!r} (segundos > 0)")
     rec._redact_mod()                                                    # #119: fail closed, antes de nada
     store = rec.raiz_store(config, raiz)
     ctx = rec._Canon(store, raiz)
     width = cs.patrones_id(config)[2]
+    t0 = time.monotonic()
     acc = dd.Acumulador(ventana, presupuesto)
     gold, otros, avisos_store, avisos = cargar(store, config, raiz, ctx, acc, tope_fichero)
-    r_dd = acc.agrupar(umbral, fraccion_boilerplate)
+    r_dd = acc.agrupar(umbral, fraccion_boilerplate,
+                       benchmark_ids={g["ref"] for g in gold if g["family"] in benchmark})   # #145
     acc = None
-    grupos = r_dd["grupos"]
+    grupos, cruces = r_dd["grupos"], r_dd.get("cruces", [])
     avisos += [f"{a['id']}: {a['motivo']}" for a in r_dd["avisos"]]
     asignados = particionar([{k: g[k] for k in ("ref", "case_id", "version", "family", "supersedes_case")}
-                             for g in gold], benchmark, grupos, conservar_duplicados)
+                             for g in gold], benchmark, grupos, conservar_duplicados, cruces)
     por_ref = {g["ref"]: g for g in gold}
     casos = [dict({k: a[k] for k in ("ref", "case_id", "version", "family", "particion", "motivo")},
                   **{k: por_ref[a["ref"]][k] for k in ("sha256", "ficheros", "content_hash")}) for a in asignados]
@@ -485,7 +516,13 @@ def ensamblar(config, raiz_proyecto, benchmark, umbral=dd.UMBRAL_DEFECTO, ventan
                              "presupuesto": presupuesto, "tope_fichero": tope_fichero,
                              "conservar_duplicados": bool(conservar_duplicados)},
               "casos": sorted(casos + otros, key=_clave), "grupos_near_duplicates": grupos, "avisos": sorted(avisos),
-              "near_duplicates": {"jaccard": r_dd["jaccard"], "muestreo": r_dd["muestreo"]}}
+              "cruces_near_duplicates": cruces,
+              "near_duplicates": {"jaccard": r_dd["jaccard"], "muestreo": r_dd["muestreo"],
+                                  "cruce": r_dd.get("cruce", {"criterio": "umbral"})}}
+    # #137 (CWE-312/532): TODO texto del manifiesto (motivos con claves de la trayectoria, avisos, refs)
+    # pasa por la redaccion (fuente unica), ANTES del hash: el `export_id` es el del manifiesto redactado
+    nucleo = rec.redactar_estructura(nucleo)
+    pasada1 = time.monotonic() - t0
     sha = _sha(json.dumps(nucleo, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8"))
     export_id = f"{fecha}-{sha[:12]}"
     base = dict(nucleo, export_id=export_id, fecha=fecha, sha256_contenido=sha)
@@ -497,7 +534,8 @@ def ensamblar(config, raiz_proyecto, benchmark, umbral=dd.UMBRAL_DEFECTO, ventan
 
     salida = {"export_id": export_id, "ruta": None, "existente": False, "lineas": None, "avisos_store": avisos_store}
     if escribir:
-        salida["ruta"], salida["existente"], salida["manifest"] = _publicar_export(ctx, store, export_id, base, pasada)
+        salida["ruta"], salida["existente"], salida["manifest"] = _publicar_export(ctx, store, export_id, base, pasada,
+                                                                                    espera_bloqueo, pasada1)
     else:
         recoger = devolver_lineas is not False
         sumideros = {f: _Sumidero(recoger=recoger) for f in JSONL}
@@ -543,19 +581,31 @@ def _publicar_manifest(ctx, destino, datos):
         f = rec._abrir_exclusivo(tmp)
     except FileExistsError:
         raise rec._Manipulado(f"{ctx.rel(tmp)} ya existia (¿nombre plantado?); no se escribe a traves de el") from None
-    st, publicado = None, False
+    st, publicado, fallo_tmp = None, False, None
     try:
         with f:
             st = os.fstat(f.fileno())
-            f.write(datos)
-        _verificar(ctx, tmp, st)
-        try:
-            rec._enlazar_sin_sobrescribir(tmp, final)
-        except FileExistsError:
-            raise rec._Manipulado(f"{ctx.rel(final)} ya existia en el export recien creado; no se sobrescribe") from None
-        publicado = True
+            try:
+                _verificar(ctx, tmp, st)                 # #136: ANTES de escribir un byte (regla de #118)
+                f.write(datos)
+                f.flush()
+                _verificar(ctx, tmp, st)
+            except rec._Manipulado as e:
+                fallo_tmp = e
+        if fallo_tmp is None:
+            try:
+                rec._enlazar_sin_sobrescribir(tmp, final)
+            except FileExistsError:
+                raise rec._Manipulado(f"{ctx.rel(final)} ya existia en el export recien creado; no se sobrescribe") from None
+            publicado = True
     finally:
         retirado = st is not None and rec._retirar_temporal_propio(tmp, st)
+    if fallo_tmp is not None:
+        if retirado:                                     # #136: el aviso solo nombra lo que sigue existiendo
+            raise rec._Manipulado(f"{ctx.rel(tmp)}: el directorio cambio antes de publicar el manifiesto (CWE-59/367); "
+                                  "el temporal propio ya se retiro (no queda nada que retirar a mano; nada del "
+                                  f"manifiesto se escribio fuera); {QUIEN} no borra nada mas") from None
+        raise fallo_tmp
     if publicado and not retirado:
         raise OSError(errno.EIO, f"{ctx.rel(final)} publicado pero su temporal {os.path.basename(tmp)} no se pudo "
                                  "retirar: retira ese temporal a mano (solo ese nombre)")
@@ -576,8 +626,9 @@ def _sha_fichero(directorio, nombre):
     if enlace or not stat.S_ISREG(st.st_mode) or st.st_nlink != 1:
         return None
     try:
-        with open(ruta, "rb") as f:
-            if rec._motivo_descriptor(os.fstat(f.fileno()), st)[0]:
+        f, st_fd = rec._abrir_lectura(ruta)                              # #135: un FIFO no bloquea (OSError)
+        with f:
+            if rec._motivo_descriptor(st_fd, st)[0]:
                 return None
             h = hashlib.sha256()
             for bloque in iter(lambda: f.read(BLOQUE), b""):
@@ -598,9 +649,25 @@ def _identico(dir_export, datos_manifest, esperados):
     return all(_sha_fichero(dir_export, f) == esperados[f].h.hexdigest() for f in JSONL)
 
 
-def _publicar_export(ctx, store, export_id, base, pasada):
-    """`(ruta, existente, manifest)`. Bajo `exports/.lock` (#124): crea `exports/<export_id>[.N]/` con
-    `os.mkdir` y los ficheros con `O_EXCL`; nunca sobrescribe ni borra (ver docstring del modulo)."""
+@contextlib.contextmanager
+def _bloqueo_exports(exports, espera, pasada1):
+    """`exports/.lock` (#124) con la espera del ensamblador (#143): si no llega en `espera` s,
+    `BloqueoNoDisponible` (exit 3) con lo que hay que saber para reintentar."""
+    bloqueo = rec._Bloqueo(exports, BLOQUEO_EXPORTS, espera)
+    try:
+        bloqueo.__enter__()
+    except rec.BloqueoNoDisponible:
+        raise rec.BloqueoNoDisponible(MENSAJE_BLOQUEO.format(espera=espera, pasada=pasada1)) from None
+    try:
+        yield
+    finally:
+        bloqueo.__exit__(None, None, None)
+
+
+def _publicar_export(ctx, store, export_id, base, pasada, espera=ESPERA_BLOQUEO_EXPORTS_S, pasada1=0.0):
+    """`(ruta, existente, manifest)`. Bajo `exports/.lock` (#124; espera `espera` s, #143): crea
+    `exports/<export_id>[.N]/` con `os.mkdir` y los ficheros con `O_EXCL`; nunca sobrescribe ni borra
+    (ver docstring del modulo)."""
     exports = os.path.join(store, "exports")
     try:
         os.mkdir(exports)
@@ -608,7 +675,7 @@ def _publicar_export(ctx, store, export_id, base, pasada):
         pass
     ctx.comprobar_dir(exports)          # directorio real, `realpath` IGUAL al esperado: un enlace -> rechazo
     esperados = None
-    with rec._Bloqueo(exports, BLOQUEO_EXPORTS):
+    with _bloqueo_exports(exports, espera, pasada1):
         ctx.comprobar_dir(exports)
         for n in range(1, MAX_EXPORTS_MISMO_ID + 1):
             nombre = export_id if n == 1 else f"{export_id}.{n}"
@@ -665,6 +732,9 @@ def main(argv=None):
     ap.add_argument("--conservar-duplicados", action="store_true",
                     help="conserva todos los near-duplicates de una MISMA particion (el cruce train/benchmark se excluye igual)")
     ap.add_argument("--fecha", help="AAAAMMDD del export_id (default: hoy, UTC)")
+    ap.add_argument("--espera-bloqueo", type=float, default=ESPERA_BLOQUEO_EXPORTS_S, metavar="S",
+                    help=f"segundos de espera de exports/.lock si otro ensamblador lo tiene (default "
+                         f"{ESPERA_BLOQUEO_EXPORTS_S}; despues, exit 3 sin escribir nada)")
     ap.add_argument("--dry-run", action="store_true", help="imprime el manifiesto sin escribir nada")
     ap.add_argument("--config", help="training.json del proyecto (default: <project-root>/.claude/knowledge-services/training.json)")
     ap.add_argument("--project-root", help="raiz del proyecto (default: deducida de --config o cwd)")
@@ -677,7 +747,7 @@ def main(argv=None):
             raise Rechazo(MOTIVO_SIN_BENCHMARK)
         r = ensamblar(config, raiz, benchmark, args.umbral, args.ventana, args.boilerplate,
                       args.conservar_duplicados, args.fecha, escribir=not args.dry_run, presupuesto=args.presupuesto,
-                      devolver_lineas=False)
+                      devolver_lineas=False, espera_bloqueo=args.espera_bloqueo)
     except (rec._EntradaIlegible, rec.RedaccionNoDisponible) as e:
         print(f"error: {rec._texto_seguro(e)}", file=sys.stderr)
         return 2

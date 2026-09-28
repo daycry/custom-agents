@@ -282,7 +282,9 @@ def test_t09_manifest_con_hash_por_caso_particion_y_parametros(tmp_path):
                                "n_min_boilerplate": 20, "presupuesto": 10 ** 7, "tope_fichero": asm.TOPE_FICHERO,
                                "conservar_duplicados": False}
     assert m["near_duplicates"] == {"jaccard": "exacto", "muestreo": {"r": 1.0, "presupuesto": 10 ** 7,
-                                                                      "shingles": m["near_duplicates"]["muestreo"]["shingles"]}}
+                                                                      "shingles": m["near_duplicates"]["muestreo"]["shingles"]},
+                                    "cruce": {"criterio": "umbral"}}                     # #145: con r = 1, el umbral
+    assert m["cruces_near_duplicates"] == []
     caso = {c["ref"]: c for c in m["casos"]}["geo-a.x@v002"]
     dir_v = store / "cases" / "a.x" / "v002"
     esperado = {f: hashlib.sha256((dir_v / f).read_bytes()).hexdigest() for f in asm.FICHEROS}
@@ -1010,3 +1012,258 @@ def test_t09_dry_run_devuelve_lineas_y_el_mismo_manifiesto(tmp_path):
     r = _ensamblar(cfg, raiz)
     assert seco["manifest"] == _manifest(r)
     assert [l["ref"] for l in seco["lineas"]["train.jsonl"]] == ["geo-a.x@v001", "geo-a.x@v002"]
+
+
+# ------------------------------------------------------------------ fix2 de la Fase 3 (#134, #136, #137, #140, #143, #145, #147)
+
+def test_t09_134_metadata_o_validation_por_encima_del_tope_se_omiten_en_el_recorrido(tmp_path):
+    """#134 (CWE-400/770): el tope por fichero se aplica TAMBIEN al recorrido del store, que leia
+    enteros `metadata.json`/`validation.json` de TODAS las versiones (Gold o no): una version con uno
+    de ellos por encima del tope se omite con aviso, sin cargarlo."""
+    raiz, cfg, store = _store_basico(tmp_path)
+    with open(_gold_ruta(store, "b.x", 1) / "metadata.json", "ab") as f:      # rejected: no Gold
+        f.write(b" " * 8192)
+    with open(_gold_ruta(store, "b.y", 1) / "validation.json", "ab") as f:    # needs_changes
+        f.write(b" " * 8192)
+    r = _ensamblar(cfg, raiz, escribir=False, tope_fichero=4096)
+    refs = {c["ref"] for c in r["manifest"]["casos"]}
+    assert "geo-b.x@v001" not in refs and "geo-b.y@v001" not in refs
+    assert "geo-a.x@v001" in refs and "geo-bench.x@v001" in refs
+    assert any("b.x" in a and "metadata.json" in a and "tope" in a for a in r["avisos_store"]), r["avisos_store"]
+    assert any("b.y" in a and "validation.json" in a and "tope" in a for a in r["avisos_store"]), r["avisos_store"]
+
+
+def test_t09_147_lo_leido_en_el_recorrido_por_encima_del_tope_no_se_reutiliza(tmp_path):
+    """#147: `_reutilizable` descarta lo leido en el recorrido si pasa del tope de la lectura del caso
+    (`len(datos) > tope`), aunque el nombre siga siendo el mismo fichero: se relee con el tope y se omite."""
+    raiz, cfg, store = _store_basico(tmp_path)
+    with open(_gold_ruta(store, "a.x", 1) / "validation.json", "ab") as f:
+        f.write(b" " * 3000)
+    crudos = {}
+    entradas = rec._estado_de_cases(str(store), raiz, crudos=crudos)[0]
+    clave = next(k for k, e in entradas.items() if e["family"] == "a" and e["variant"] == "x" and e["version"] == 1)
+    assert len(crudos[clave]["validation.json"][0]) > 2048
+    width = asm.cs.patrones_id(cfg)[2]
+    caso, _h, aviso = asm.leer_caso(rec._Canon(str(store), raiz), str(store), entradas[clave], cfg, width,
+                                    crudos[clave], tope=2048)
+    assert caso is None and "validation.json" in aviso and "tope" in aviso, aviso
+
+
+def test_t09_136_140_ventana_del_temporal_del_manifiesto(tmp_path, monkeypatch):
+    """#136/#140 (CWE-451/367): `exports/<id>` sustituido por un enlace al arbol curado JUSTO al crear el
+    `.tmp-<token>` del manifiesto: se comprueba ANTES de escribir un byte (nada del manifiesto pasa al
+    arbol curado) y el aviso solo nombra lo que sigue existiendo (el temporal propio ya se retiro)."""
+    raiz, cfg, store = _store_basico(tmp_path)
+    curado = tmp_path / "proj" / "docs" / "knowledge" / "approved" / "lessons"
+    curado.mkdir(parents=True)
+    real_abrir, real_retirar = rec._abrir_exclusivo, rec._retirar_temporal_propio
+    tamanos = []
+
+    def abrir(ruta):
+        destino = os.path.dirname(ruta)
+        if os.path.basename(ruta).startswith(rec.PREFIJO_TEMPORAL) and \
+                os.path.basename(os.path.dirname(destino)) == "exports":
+            os.rename(destino, destino + ".aparte")
+            _enlazar_dir(curado, destino)
+        return real_abrir(ruta)
+
+    def retirar(ruta, st):
+        try:
+            tamanos.append(os.lstat(ruta).st_size)
+        except OSError:
+            tamanos.append(None)
+        return real_retirar(ruta, st)
+    monkeypatch.setattr(rec, "_abrir_exclusivo", abrir)
+    monkeypatch.setattr(rec, "_retirar_temporal_propio", retirar)
+    with pytest.raises(asm.Rechazo) as e:
+        _ensamblar(cfg, raiz)
+    monkeypatch.undo()
+    msg = str(e.value)
+    assert tamanos == [0], tamanos                                   # ni un byte del manifiesto
+    assert os.listdir(curado) == []                                  # nada queda en el arbol curado
+    assert "quedo en" not in msg and "ya se retiro" in msg and "incompleto" in msg, msg
+    (aparte,) = [n for n in os.listdir(store / "exports") if n.endswith(".aparte")]
+    assert sorted(os.listdir(store / "exports" / aparte)) == ["benchmark.jsonl", "train.jsonl"]   # nada se borra
+
+
+def test_t09_140_ventana_de_la_publicacion_del_manifiesto(tmp_path, monkeypatch):
+    """#140: `exports/<id>` sustituido por un enlace entre la comprobacion del temporal y su publicacion
+    como `manifest.json`: la publicacion falla, nada llega al arbol curado y nada se borra."""
+    raiz, cfg, store = _store_basico(tmp_path)
+    curado = tmp_path / "proj" / "docs" / "knowledge" / "approved" / "lessons"
+    curado.mkdir(parents=True)
+    real = rec._enlazar_sin_sobrescribir
+
+    def enlazar(origen, destino):
+        d = os.path.dirname(destino)
+        os.rename(d, d + ".aparte")
+        _enlazar_dir(curado, d)
+        return real(origen, destino)
+    monkeypatch.setattr(rec, "_enlazar_sin_sobrescribir", enlazar)
+    with pytest.raises((asm.Rechazo, OSError)) as e:
+        _ensamblar(cfg, raiz)
+    monkeypatch.undo()
+    assert "incompleto" in str(e.value)
+    assert os.listdir(curado) == []
+    (aparte,) = [n for n in os.listdir(store / "exports") if n.endswith(".aparte")]
+    nombres = sorted(os.listdir(store / "exports" / aparte))
+    assert nombres[1:] == ["benchmark.jsonl", "train.jsonl"] and nombres[0].startswith(rec.PREFIJO_TEMPORAL)
+
+
+@pytest.mark.skipif(os.name == "nt", reason=(
+    "#140: Windows no deja renombrar un directorio con un fichero abierto (train.jsonl): esa ventana no "
+    "existe alli; se demuestra en Linux"))
+def test_t09_140_ventana_de_benchmark_jsonl(tmp_path, monkeypatch):
+    """#140: `exports/<id>` sustituido por un enlace entre la creacion de `train.jsonl` y la de
+    `benchmark.jsonl`: el segundo se comprueba al crearlo, el aviso lo nombra (es el creado, vacio) y
+    nada mas fluye; nada se borra."""
+    raiz, cfg, store = _store_basico(tmp_path)
+    curado = tmp_path / "proj" / "docs" / "knowledge" / "approved" / "lessons"
+    curado.mkdir(parents=True)
+    real = rec._abrir_exclusivo
+
+    def abrir(ruta):
+        if os.path.basename(ruta) == "benchmark.jsonl":
+            d = os.path.dirname(ruta)
+            os.rename(d, d + ".aparte")
+            _enlazar_dir(curado, d)
+        return real(ruta)
+    monkeypatch.setattr(rec, "_abrir_exclusivo", abrir)
+    with pytest.raises(asm.Rechazo) as e:
+        _ensamblar(cfg, raiz)
+    monkeypatch.undo()
+    msg = str(e.value)
+    assert "benchmark.jsonl" in msg and "quedo en" in msg and "no borra nada" in msg, msg
+    assert os.listdir(curado) == ["benchmark.jsonl"] and (curado / "benchmark.jsonl").stat().st_size == 0
+    (aparte,) = [n for n in os.listdir(store / "exports") if n.endswith(".aparte")]
+    assert os.listdir(store / "exports" / aparte) == ["train.jsonl"]
+
+
+def test_t09_137_el_manifiesto_se_redacta(tmp_path):
+    """#137 (CWE-312/532): `casos[].motivo` copiaba el `campo` del esquema, que incluye CLAVES de la
+    trayectoria: `{"meta": {"ghp_…": {"reasoning": "x"}}}` dejaba el token literal en el manifiesto."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    r = _grabar(cfg, raiz, gold=False, family="a", variant="x")
+    _grabar(cfg, raiz, family="bench", variant="x", request="engranaje de doce dientes")
+    secreto = _secretos()[0]
+    (_gold_ruta(store, "a.x", 1) / "trajectory.jsonl").write_text(
+        json.dumps({"role": "user", "content": "hola", "meta": {secreto: {"reasoning": "x"}}}) + "\n", encoding="utf-8")
+    rec.cambiar_estado(r["case_id"], 1, "approved", cfg, raiz, approved_by_human=True)
+    out = _ensamblar(cfg, raiz)
+    texto = open(os.path.join(out["ruta"], "manifest.json"), encoding="utf-8").read()
+    c = {c["ref"]: c for c in _manifest(out)["casos"]}["geo-a.x@v001"]
+    assert c["particion"] is None and "esquema" in c["motivo"]
+    assert secreto not in texto and rec.REDACTADO in c["motivo"]
+
+
+def _con_lock_tomado(store, segundos):
+    """Un hilo toma `exports/.lock` (otro ensamblador en su pasada 2) durante `segundos`."""
+    import threading
+    os.makedirs(store / "exports", exist_ok=True)
+    tomado, soltar = threading.Event(), threading.Event()
+
+    def retener():
+        with rec._Bloqueo(str(store / "exports"), asm.BLOQUEO_EXPORTS):
+            tomado.set()
+            soltar.wait(segundos)
+    h = threading.Thread(target=retener, daemon=True)
+    h.start()
+    assert tomado.wait(10)
+    return h, soltar
+
+
+def test_t09_143_espera_del_bloqueo_configurable_y_mensaje_de_exit_3(tmp_path):
+    """#143: `exports/.lock` ocupado mas que la espera -> exit 3 sin escribir nada, con un mensaje que
+    dice que la pasada 1 no deja nada a medias y cuanto esperar (`--espera-bloqueo`, default 120 s)."""
+    assert asm.ESPERA_BLOQUEO_EXPORTS_S == 120
+    raiz, cfg, store = _store_basico(tmp_path)
+    h, soltar = _con_lock_tomado(store, 30)
+    try:
+        t0 = time.monotonic()
+        with pytest.raises(rec.BloqueoNoDisponible) as e:
+            _ensamblar(cfg, raiz, espera_bloqueo=0.5)
+        assert time.monotonic() - t0 < 5
+    finally:
+        soltar.set()
+        h.join(10)
+    msg = str(e.value.mensaje)
+    assert "0.5 s" in msg and "--espera-bloqueo" in msg and "no se ha escrito nada" in msg and "pasada 1" in msg, msg
+    assert _exports(store) == []
+
+
+def test_t09_143_con_espera_suficiente_termina_cuando_se_suelta(tmp_path):
+    raiz, cfg, store = _store_basico(tmp_path)
+    h, soltar = _con_lock_tomado(store, 1.0)
+    try:
+        r = _ensamblar(cfg, raiz, espera_bloqueo=30)
+    finally:
+        soltar.set()
+        h.join(10)
+    assert r["existente"] is False and _exports(store) == [os.path.basename(r["ruta"])]
+
+
+def test_t09_143_cli_espera_bloqueo(tmp_path):
+    raiz, cfg, store = _store_basico(tmp_path)
+    p = _cli("--project-root", raiz, "--benchmark", "bench", "--espera-bloqueo", "-1")
+    assert p.returncode == 2 and "Traceback" not in p.stderr and "espera" in p.stderr
+    h, soltar = _con_lock_tomado(store, 30)
+    try:
+        p = _cli("--project-root", raiz, "--benchmark", "bench", "--fecha", FECHA, "--espera-bloqueo", "0.3")
+    finally:
+        soltar.set()
+        h.join(10)
+    assert p.returncode == 3 and "--espera-bloqueo" in p.stderr and "Traceback" not in p.stderr, p.stderr
+
+
+def test_t09_145_cruces_conservadores_solo_excluyen_de_train():
+    """#145 (b): un par de `cruces` (Jaccard muestreado >= umbral - margen) saca de train al de train y
+    conserva el de benchmark; entre dos casos de train no hace nada."""
+    casos = [_c("geo-a.x@v001", "a"), _c("geo-a.y@v001", "a"), _c("geo-b.x@v001", "b")]
+    r = {c["ref"]: c for c in asm.particionar(casos, {"b"}, cruces=[["geo-a.x@v001", "geo-b.x@v001"],
+                                                                     ["geo-a.y@v001", "geo-a.x@v001"]])}
+    assert r["geo-a.x@v001"]["particion"] is None and "conservador" in r["geo-a.x@v001"]["motivo"]
+    assert "geo-b.x@v001" in r["geo-a.x@v001"]["motivo"]
+    assert r["geo-a.y@v001"]["particion"] == "train" and r["geo-b.x@v001"]["particion"] == "benchmark"
+
+
+def test_t09_145_el_ensamblador_pasa_el_lado_de_benchmark_y_aplica_los_cruces(tmp_path, monkeypatch):
+    raiz, cfg, store = _store_basico(tmp_path)
+    real = asm.dd.Acumulador.agrupar
+    vistos = []
+
+    def agrupar(self, *a, **k):
+        vistos.append(k.get("benchmark_ids"))
+        r = real(self, *a, **k)
+        return dict(r, cruces=[["geo-a.x@v002", "geo-bench.x@v001"]])
+    monkeypatch.setattr(asm.dd.Acumulador, "agrupar", agrupar)
+    r = _ensamblar(cfg, raiz, escribir=False)
+    assert vistos == [{"geo-bench.x@v001"}]
+    c = {c["ref"]: c for c in r["manifest"]["casos"]}
+    assert c["geo-a.x@v002"]["particion"] is None and "conservador" in c["geo-a.x@v002"]["motivo"]
+    assert r["manifest"]["cruces_near_duplicates"] == [["geo-a.x@v002", "geo-bench.x@v001"]]
+    assert r["manifest"]["near_duplicates"]["cruce"] == {"criterio": "umbral"}
+
+
+@pytest.mark.skipif(not hasattr(os, "mkfifo"), reason=(
+    "#135: FIFO solo en POSIX (Windows no tiene os.mkfifo): se demuestra en Linux"))
+def test_t09_135_sha_de_un_fichero_del_export_no_se_bloquea_en_un_fifo(tmp_path, monkeypatch):
+    """#135 (CWE-367/400): un `manifest.json` sustituido por un FIFO entre el `lstat` (que vio un
+    fichero regular) y la apertura bloqueaba `_sha_fichero` para siempre con `exports/.lock` tomado."""
+    import threading
+    d = tmp_path / "e"
+    d.mkdir()
+    regular = tmp_path / "regular.json"
+    regular.write_bytes(b"{}")
+    os.mkfifo(str(d / "manifest.json"))
+    real = rec._stat_sin_seguir
+    monkeypatch.setattr(rec, "_stat_sin_seguir", lambda x: real(str(regular)) if str(x).endswith("manifest.json")
+                        else real(x))
+    salida = {}
+    h = threading.Thread(target=lambda: salida.setdefault("r", asm._sha_fichero(str(d), "manifest.json")), daemon=True)
+    h.start()
+    h.join(3)
+    bloqueado = h.is_alive()
+    if bloqueado:
+        os.close(os.open(str(d / "manifest.json"), os.O_WRONLY | os.O_NONBLOCK))
+        h.join(5)
+    assert not bloqueado and salida["r"] is None

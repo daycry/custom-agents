@@ -25,13 +25,22 @@ skills son standalone y no se importan entre sí).
 - **Umbral**: Jaccard ≥ `--umbral` (0.8), comparado con enteros; ventana de `--ventana` (3) palabras.
 - **Muestreo por valor**: con más de `--presupuesto` (10⁷) shingles en total (~60 MiB de texto) se
   conserva cada shingle con hash `< r·2⁶⁴`, `r = presupuesto / total` global; df, plantilla, filtros y
-  Jaccard son exactos SOBRE la muestra. La salida declara `jaccard: exacto|muestreado` y `r`. Límite:
+  Jaccard son exactos SOBRE la muestra, no respecto al Jaccard real: el error típico de la estimación
+  es `±z·√(J(1−J)/k)`, con k = shingles muestreados de la unión del par (1 000 shingles por caso y
+  `r = 0.1`: k ≈ 110, ±0,076 con z = 2). La salida declara `jaccard: exacto|muestreado` y `r`. Límite:
   con `r < 1` un caso pequeño puede quedarse sin muestras (aviso; solo se agrupa con un duplicado exacto).
+- **Cruce conservador** (solo con `r < 1`): en el ensamblador, un par que CRUZA train/benchmark se
+  trata como near-duplicate si su Jaccard muestreado es `≥ umbral − margen` (el margen de arriba, con
+  z = 2 y como mucho 0,2): el de train sale de train. Dentro de una partición manda el umbral. El
+  manifiesto lo declara (`near_duplicates.cruce`, `cruces_near_duplicates`).
 - **Escala**: duplicados exactos colapsados antes (huella del conjunto completo); índice PPJoin solo
-  del *mid-prefix*, sondeo con el prefijo, filtro posicional y de longitud (exacto: ningún par con
-  Jaccard ≥ umbral se pierde). Peor caso declarado: O(m²) solo dentro de un grupo de m near-duplicates;
-  texto común por debajo de la plantilla → 0 escaneos del índice. 10⁴ casos sintéticos: cifras en la
-  Evidencia de T-07 del ledger. Grupos = componentes conexas, deterministas.
+  del *mid-prefix*, sondeo con el prefijo, filtro posicional y de longitud (exacto sobre los conjuntos
+  comparados —la muestra, con `r < 1`—: ningún par con Jaccard ≥ umbral se pierde). El índice agrupa
+  los casos de cada shingle por grupo: dentro de un grupo de m near-duplicates el coste es O(m·|x|).
+  Peor caso real declarado: m casos que comparten muchos shingles del prefijo SIN llegar al umbral,
+  O(m²·|x|) escaneos; texto común por debajo de la plantilla → 0 escaneos del índice. Cifras medidas
+  en la Evidencia de T-07 y de la verificación fix1/fix2 del ledger. Grupos = componentes conexas,
+  deterministas.
 - A mano: `python3 scripts/dedup.py <docs.jsonl> [--umbral] [--ventana] [--boilerplate] [--presupuesto] [--json]`
   (una línea `{"id", "family", "text"}` por caso; exit 0 · 2 uso o JSONL ilegible).
 
@@ -40,7 +49,7 @@ skills son standalone y no se importan entre sí).
 ```text
 python3 scripts/dataset-assembler.py --benchmark <family>[,<family>…] [--umbral 0.8] [--ventana 3]
         [--boilerplate 0.5] [--presupuesto 10000000] [--conservar-duplicados] [--fecha AAAAMMDD]
-        [--dry-run] [--config <training.json>] [--project-root <dir>]
+        [--dry-run] [--espera-bloqueo 120] [--config <training.json>] [--project-root <dir>]
 ```
 
 1. **Solo Gold**: `validation.status == "approved"` **y** `approved_by_human` exactamente `true`, leídos
@@ -50,7 +59,8 @@ python3 scripts/dataset-assembler.py --benchmark <family>[,<family>…] [--umbra
    enlazado, demasiado grande o incoherente se omite con motivo.
 2. **Gold atado al contenido**: `set-status approved` guarda `content_hash`; si ya no casa con los
    ficheros, el caso se excluye («Gold sin atar al contenido aprobado»). Sin `content_hash` (Gold
-   anterior, o `record --approved-by-human`): se exporta con aviso «sin hash de aprobación».
+   anterior, o `record --approved-by-human`): se exporta con aviso «sin hash de aprobación». Límite:
+   detecta cambios accidentales o del código del proyecto tras aprobar; **no protege frente a quien puede escribir el store**, que puede recalcular el hash (sha256 sin clave).
 3. **Benchmark declarado**: las familias de `--benchmark` van ENTERAS a benchmark; el resto, enteras a
    train. Sin `--benchmark`, o con una familia declarada sin casos Gold, **exit 1 y no se escribe nada**.
 4. **Near-duplicates**: un grupo que cruza train/benchmark saca a sus miembros de train («cruce de
@@ -62,7 +72,11 @@ python3 scripts/dataset-assembler.py --benchmark <family>[,<family>…] [--umbra
    guarda el caso; con eso decide grupos, partición y `export_id`. La segunda relee cada caso incluido,
    comprueba que su sha256 sigue siendo el de la primera y escribe su línea. Si un caso cambió entre
    ambas, se aborta **sin** `manifest.json` (export incompleto reconocible; nada se borra). Memoria:
-   la muestra del dedup, nunca los casos ni los bytes del export.
+   la del dedup, nunca los casos ni los bytes del export: 8 B por shingle muestreado + su frecuencia
+   documental (4 B) + un tramo de conteo (≤ 2²¹ shingles, ~190 MiB) + el índice del *mid-prefix*;
+   cota declarada con `--presupuesto 10⁷` y casi todo compartido (pares casi iguales): ≤ ~0,9 GiB.
+   El recorrido del store aplica el tope por fichero también a `metadata.json`/`validation.json` de
+   TODAS las versiones (una mayor se omite con aviso).
 6. **Salida** en `<root>/exports/<export_id>/` (`export_id = AAAAMMDD-<12 hex>` del hash de los casos,
    sus sha256, sus motivos y los parámetros; nunca del reloj):
    - `train.jsonl` / `benchmark.jsonl`: una línea por caso con `messages` (turnos
@@ -75,12 +89,16 @@ python3 scripts/dataset-assembler.py --benchmark <family>[,<family>…] [--umbra
      sistema); grupos de near-duplicates, `near_duplicates` (`jaccard`, `r`), avisos deterministas,
      parámetros, `directorio` (el nombre real, con `.N` si lo hay) y el hash de cada JSONL. Los avisos
      del recorrido del store (temporales, versiones enlazadas…) cambian con el reloj: salen por
-     `stderr`, nunca en el manifiesto. **Sin `manifest.json`, el export está incompleto.**
-7. **Nada destructivo**: bajo `exports/.lock` (un ensamblador a la vez; ocupado → exit 3),
+     `stderr`, nunca en el manifiesto. Todo el manifiesto se redacta antes de hashearlo (un motivo
+     puede citar claves de la trayectoria). **Sin `manifest.json`, el export está incompleto.**
+7. **Nada destructivo**: bajo `exports/.lock` (un ensamblador a la vez; si otro lo tiene, espera
+   `--espera-bloqueo` s —120— y después exit 3 sin escribir nada, diciendo cuánto tardó su propia
+   pasada 1 como referencia),
    `exports/<export_id>/` se crea con `mkdir` y cada fichero con `O_EXCL`, comprobado al crearlo y al
    cerrarlo. Si ya existe idéntico (hash en streaming), exit 0 «ya existe» sin escribir; si existe
    distinto o incompleto, se usa `<export_id>.2`, `.3`… Un fallo a mitad deja el export sin manifiesto
-   y lo dice; nunca se borra nada (lo único que se retira es el temporal propio del manifiesto).
+   y lo dice; nunca se borra nada (lo único que se retira es el temporal propio del manifiesto, que se
+   comprueba antes de escribirle nada; el aviso solo nombra lo que sigue existiendo).
    `exports/` enlazado → exit 1. Límite declarado: un tercero con escritura en `exports/` puede hacer
    que aparezca un fichero NUEVO del ensamblador fuera; se detecta y se nombra; nunca se sobrescribe
    ni se borra nada.

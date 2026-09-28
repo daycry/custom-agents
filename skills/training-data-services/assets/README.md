@@ -51,7 +51,7 @@ reglas: tabla de la skill (`SKILL.md`) y docstring de `scripts/case_schema.py`.
 | `constraints.json` | Restricciones del intento, esquema libre | Proyecto |
 | `trajectory.jsonl` | Un turno por línea: `role` (`system`·`user`·`assistant`·`tool`), `content`, `tool_calls` (`[{name, arguments}]`, solo `assistant`), `name` (en `tool`), `ts`. **Nunca** chain-of-thought | Plugin (forma) / proyecto (turnos) |
 | `metrics.json` | Objeto JSON **ya calculado** por el proyecto; opaco para el plugin | Proyecto |
-| `validation.json` | `status` (`pending`·`approved`·`needs_changes`·`rejected`), `approved_by_human` (`true` solo con `approved`), `approved_at`, `reviewer_note` y, al aprobar con `set-status`, `content_hash` (sha256 de los otros siete ficheros: ata el Gold al contenido aprobado) | Plugin (forma) / humano (Gold) |
+| `validation.json` | `status` (`pending`·`approved`·`needs_changes`·`rejected`), `approved_by_human` (`true` solo con `approved`), `approved_at`, `reviewer_note` y, al aprobar con `set-status`, `content_hash` (sha256 de los otros siete ficheros: ata el Gold al contenido aprobado; detecta cambios accidentales o del código del proyecto tras aprobar; no protege frente a quien puede escribir el store, que puede recalcular el hash (sha256 sin clave)) | Plugin (forma) / humano (Gold) |
 | `final/artifacts.json` | Lista de `{path, hash: "<algoritmo>:<hex>", kind}`; nunca contenido binario inline | Proyecto |
 
 Todo el texto libre pasa por la redacción de secretos compartida (`agent-kits/shared/redact.py`)

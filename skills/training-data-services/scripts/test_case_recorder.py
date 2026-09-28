@@ -5465,3 +5465,97 @@ def test_f2fix6_gap113_set_status_entre_la_lectura_y_el_bloqueo_de_s2_gana_el_di
     assert _json(store / "cases" / "ramp.steep" / "v002" / "validation.json")["status"] == "rejected"
     assert [e for e in _indice(store) if e["version"] == 2][-1]["status"] == "rejected"
     assert rec.comprobar_indice(str(store)) == []
+
+
+# ------------------------------------------------------------------ fix2 de la Fase 3 (#139, #135)
+
+def test_f3fix2_139_redactar_estructura_redacta_el_valor_de_una_clave_sensible():
+    """#139 (CWE-312): `{"password": "hunter2"}` como ESTRUCTURA (un dict, no texto): el valor textual
+    de una clave sensible se redacta aunque no parezca un secreto; lo no textual y el resto, intactos."""
+    entrada = {"arguments": {"password": "hunter2", "Token": "abc", "api_key": "", "n": 5,
+                             "anidado": {"secret": "s3", "nota": "hunter2"}, "token": 7}}
+    salida = rec.redactar_estructura(entrada)
+    a = salida["arguments"]
+    assert a["password"] == a["Token"] == a["anidado"]["secret"] == rec.REDACTADO
+    assert a["api_key"] == "" and a["n"] == 5 and a["token"] == 7 and a["anidado"]["nota"] == "hunter2"
+    assert entrada["arguments"]["password"] == "hunter2"               # no muta la entrada
+
+
+def test_f3fix2_139_arguments_en_texto_json_con_clave_sensible(tmp_path):
+    """#139: unos `arguments` en TEXTO JSON (`_redactar_arguments_texto`) con la forma
+    `{"password": "…"}` salen redactados y siguen siendo JSON valido."""
+    import json
+    salida = rec._redactar_arguments_texto('{"password": "hunter2", "q": "x"}')
+    assert "hunter2" not in salida and json.loads(salida) == {"password": rec.REDACTADO, "q": "x"}
+    assert "hunter2" not in rec.redactar('{"token": "hunter2"}')          # el mismo texto, por `redactar`
+
+
+_SIN_FIFO = pytest.mark.skipif(not hasattr(os, "mkfifo"), reason=(
+    "#135: FIFO solo en POSIX (Windows no tiene os.mkfifo; alli un nombre no se sustituye por una "
+    "tuberia con nombre y open no se bloquea): se demuestra en Linux"))
+
+
+def _sin_bloquear(tmp_path, fifo, fn, espera=3.0):
+    """Ejecuta `fn()` en un hilo; si sigue bloqueado tras `espera` s (un `open`/`read` sobre el FIFO),
+    lo libera abriendo el FIFO para escribir y devuelve «bloqueado»; si no, `(resultado, excepcion)`."""
+    import threading
+    salida = {}
+
+    def correr():
+        try:
+            salida["r"] = fn()
+        except BaseException as e:  # noqa: BLE001 — se inspecciona en el test
+            salida["e"] = e
+    h = threading.Thread(target=correr, daemon=True)
+    h.start()
+    h.join(espera)
+    if h.is_alive():
+        fd = os.open(str(fifo), os.O_WRONLY | os.O_NONBLOCK)
+        os.close(fd)
+        h.join(5)
+        return "bloqueado"
+    return salida.get("r"), salida.get("e")
+
+
+@_SIN_FIFO
+def test_f3fix2_135_lector_de_version_no_se_bloquea_en_un_fifo(tmp_path):
+    """#135 (CWE-367/400): el nombre pasa a ser un FIFO entre el `lstat` (de un fichero regular) y la
+    apertura: `O_NONBLOCK` + `S_ISREG` sobre el descriptor -> «no es un fichero regular», sin bloquear."""
+    regular = tmp_path / "validation.json"
+    regular.write_text("{}", encoding="utf-8")
+    previo = os.lstat(regular)
+    fifo = tmp_path / "fifo.json"
+    os.mkfifo(str(fifo))
+    r = _sin_bloquear(tmp_path, fifo, lambda: rec._leer_json_reintentando(str(fifo), previo))
+    assert r != "bloqueado"
+    assert isinstance(r[1], rec._FicheroNoPropio) and "no es un fichero regular" in r[1].mensaje
+
+
+@_SIN_FIFO
+def test_f3fix2_135_indice_y_vigente_no_se_bloquean_en_un_fifo(tmp_path):
+    """#135: el indice (`leer_indice`, `_identidad`) y la relectura de `validation.json` antes del
+    `os.replace` (`_comprobar_vigente`) tampoco se bloquean con un FIFO en su nombre."""
+    store = tmp_path / "store"
+    store.mkdir()
+    fifo = store / rec.INDICE
+    os.mkfifo(str(fifo))
+    r = _sin_bloquear(tmp_path, fifo, lambda: rec.leer_indice(str(store)))
+    assert r != "bloqueado" and r[1] is None and r[0][0] == {} and "ilegible" in r[0][1][0]
+    r = _sin_bloquear(tmp_path, fifo, lambda: rec._identidad(str(fifo)))
+    assert r != "bloqueado" and isinstance(r[1], OSError)
+    regular = tmp_path / "v.json"
+    regular.write_text("{}", encoding="utf-8")
+    r = _sin_bloquear(tmp_path, fifo, lambda: rec._comprobar_vigente(str(fifo), os.lstat(regular)))
+    assert r != "bloqueado" and isinstance(r[1], rec._Manipulado) and "no es un fichero regular" in r[1].mensaje
+
+
+def test_f3fix2_135_abrir_lectura_de_un_regular_lee_igual():
+    """#135: el lector no bloqueante abre un fichero regular como `open(ruta, "rb")` (bloqueante de
+    nuevo tras comprobarlo) y rechaza lo que no lo es (un directorio) sin leer."""
+    f, st = rec._abrir_lectura(RECORDER_PATH)
+    with f:
+        assert f.read(2) == b"#!" and st.st_size == os.path.getsize(RECORDER_PATH)
+        if hasattr(os, "mkfifo"):                                     # POSIX (en Windows no aplica)
+            assert os.get_blocking(f.fileno()) is True
+    with pytest.raises(OSError):
+        rec._abrir_lectura(HERE)

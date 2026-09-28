@@ -25,7 +25,7 @@
    `set-status` solo reescribe `validation.json` (atómico); lo demás es inmutable. Al aprobar,
    `set-status` guarda además `content_hash` (sha256 de los siete ficheros inmutables, leídos por
    descriptor bajo el bloqueo; si alguno no se puede leer, no aprueba): ata el Gold al contenido que
-   se aprobó y el ensamblador y el puente excluyen el que ya no casa. `record --approved-by-human` no
+   se aprobó y el ensamblador y el puente excluyen el que ya no casa. Límite: detecta cambios accidentales o del código del proyecto tras aprobar; **no protege frente a quien puede escribir el store**, que puede recalcular el hash (sha256 sin clave). `record --approved-by-human` no
    lo guarda (al escribir `validation.json` la versión aún no tiene `metadata.json`): ese Gold se
    exporta con aviso «sin hash de aprobación» hasta pasarlo por `set-status`.
 5. **Consultar**: `list [--status S] [--family F] [--outcome O] [--json]` lee el índice
@@ -78,7 +78,8 @@ escritura muy intensa, `check` puede reportar un **falso positivo** transitorio 
 
 - Se redacta todo texto libre que se escribe: `request`, `context`, `constraints`, `trajectory`
   (un `arguments` en texto JSON, como estructura), las cadenas de `metrics`, `created_at`,
-  `artifacts[]` (salvo `hash`), `reviewer_note`/`approved_at` y `set-status --note`. No se tocan
+  `artifacts[]` (salvo `hash`), `reviewer_note`/`approved_at` y `set-status --note`; el valor textual de
+  una clave sensible (`password`, `api_key`, `token`, `secret`…) se redacta entero. No se tocan
   los campos cerrados: `case_id`, `family`, `variant`, `version`, `outcome`, `supersedes_case`,
   `status`, `approved_by_human`, `hash`. Se rechazan `NaN`/`Infinity`, tipos que no son JSON, texto
   no codificable en UTF-8, más de 50 niveles de anidamiento y un `arguments` con claves duplicadas.

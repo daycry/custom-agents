@@ -563,3 +563,226 @@ def test_t07_sin_red_ni_embeddings():
     fuente = open(os.path.join(HERE, "dedup.py"), encoding="utf-8").read()
     for prohibido in ("import socket", "urllib", "http.client", "requests", "numpy", "sklearn", "embedding("):
         assert prohibido not in fuente
+
+
+# ------------------------------------------------------------------ fix2 de la Fase 3 (#141, #142, #144, #145, #146)
+
+def _casi_iguales(m, palabras, seed):
+    """m casos casi iguales (1 % de palabras cambiadas) de UNA familia + m de relleno aleatorio: el
+    grupo es la mitad justa del corpus, asi que no llega a boilerplate (`df > 0.5·n` estricto)."""
+    rng = random.Random(seed)
+    base = [f"w{rng.randrange(20000)}" for _ in range(palabras)]
+    docs = []
+    for i in range(m):
+        ws = list(base)
+        for _ in range(max(1, palabras // 100)):
+            ws[rng.randrange(palabras)] = f"w{rng.randrange(20000)}"
+        docs.append((f"g{i:04d}@v001", "g", " ".join(ws)))
+    docs += [(f"r{i:04d}@v001", f"r{i}", " ".join(f"w{rng.randrange(20000)}" for _ in range(palabras)))
+             for i in range(m)]
+    return docs
+
+
+def test_t07_141_grupo_de_casi_iguales_escanea_en_lineal_no_en_m_cuadrado():
+    """#141: dentro de un grupo de m near-duplicates reales se escaneaba el mid-prefix de todos contra
+    todos (O(m^2 · |x|)): con cubos por componente, un cubo ya unido a x se salta entero."""
+    m = 120
+    r = dd.agrupar(_casi_iguales(m, 200, 141))
+    assert _grupos(r) == [[f"g{i:04d}@v001" for i in range(m)]]
+    assert r["escaneos_indice"] <= 20 * m, r["escaneos_indice"]      # antes: ~2,5·10^5
+    assert r["pares_verificados"] <= 2 * m, r["pares_verificados"]
+
+
+def test_t07_141_con_cubos_grandes_sigue_igual_que_la_fuerza_bruta():
+    """#141: la verificacion adelantada de un cubo grande y el salto de cubos no pierden ningun par:
+    grupos de 12-20 casi iguales (cubos > CUBO_VERIFICACION) mezclados con ruido."""
+    for semilla in range(4):
+        rng = random.Random(1410 + semilla)
+        docs = []
+        for g in range(4):
+            base = _frase(rng, 14)
+            for v in range(rng.randrange(12, 21)):
+                mut = base.split()
+                for _ in range(rng.randrange(0, 3)):
+                    mut[rng.randrange(len(mut))] = rng.choice(PALABRAS)
+                docs.append((f"s{semilla}g{g}v{v:02d}", f"f{g}", " ".join(mut)))
+        docs += [(f"s{semilla}r{i:02d}", f"r{i}", _frase(rng, rng.randrange(4, 16))) for i in range(40)]
+        for umbral in (0.5, 0.7, 0.8):
+            esperado = _fuerza_bruta(docs, umbral, 1, 1.0)
+            assert any(len(g) > dd.CUBO_VERIFICACION for g in esperado), "el corpus no ejercita los cubos grandes"
+            assert _grupos(dd.agrupar(docs, umbral=umbral, ventana=1, fraccion_boilerplate=1.0)) == esperado
+
+
+def test_t07_142_frecuencias_por_elemento_sin_dict_de_todo_el_corpus():
+    """#142: la df se guarda como un `array('I')` por caso alineado con su muestra (4 B por shingle),
+    no en un dict {hash: df} de todos los shingles con df >= 2 (~100 B cada uno)."""
+    from array import array
+    from collections import Counter
+    rng = random.Random(142)
+    arrays = [array("Q", sorted({rng.randrange(1 << 64) for _ in range(rng.randrange(0, 30))} | {7, 9}))
+              for _ in range(50)] + [None, array("Q")]
+    ref = Counter(h for a in arrays if a for h in a)
+    dfs, hist = dd._frecuencias(arrays)
+    assert len(dfs) == len(arrays)
+    for a, d in zip(arrays, dfs):
+        assert isinstance(d, array) and d.typecode == "I"
+        assert list(d) == [ref[h] for h in (a or ())]
+    assert hist == Counter(ref.values())
+
+
+def test_t07_142_memoria_del_dedup_en_pares_casi_iguales():
+    """#142: pares v001/v002 casi iguales (casi todos los shingles con df >= 2). Con el dict global de
+    df, el pico era 84 B por shingle (Windows, `tracemalloc`); ahora 64: la muestra + la df por
+    elemento + un tramo de conteo (con 10^4 x 1 000 palabras, 421 -> ver la Evidencia de #142)."""
+    import tracemalloc
+    rng = random.Random(1420)
+    docs = []
+    for i in range(1000):
+        a = [f"w{rng.randrange(50000)}" for _ in range(200)]
+        b = list(a)
+        b[rng.randrange(200)] = "cambio"
+        docs += [(f"c{i:04d}@v001", f"f{i}", " ".join(a)), (f"c{i:04d}@v002", f"f{i}", " ".join(b))]
+    acc = dd.Acumulador()
+    for d in docs:
+        acc.anadir(*d)
+    total = acc.shingles_totales
+    tracemalloc.start()
+    antes = tracemalloc.get_traced_memory()[0]
+    r = acc.agrupar()
+    pico = tracemalloc.get_traced_memory()[1] - antes
+    tracemalloc.stop()
+    assert len(r["grupos"]) == 1000
+    assert pico / total < 72, pico / total                          # antes: 84 B por shingle
+
+
+def test_t07_144_tramos_adaptativos():
+    """#144: un solo tramo si el conteo cabe en el presupuesto de conteo (antes, 64 tramos por encima
+    de 2^18 shingles: O(tramos · n) con 10^5 casos pequeños); mas, solo si no cabe."""
+    assert dd.CONTEO_MAX_TRAMO >= 1 << 21
+    assert dd._tramos(0) == dd._tramos(1) == dd._tramos(dd.CONTEO_MAX_TRAMO) == 1
+    assert dd._tramos(dd.CONTEO_MAX_TRAMO + 1) == 2
+    assert dd._tramos(10 ** 7) == 8                                 # antes: 64
+    assert dd._tramos(10 ** 12) == 256
+
+
+def test_t07_144_varios_tramos_cuentan_lo_mismo_que_uno(monkeypatch):
+    from array import array
+    from collections import Counter
+    rng = random.Random(144)
+    arrays = [array("Q", sorted({rng.randrange(1 << 64) for _ in range(40)} | {5, (1 << 63) + 1}))
+              for _ in range(60)]
+    uno = dd._frecuencias(arrays)
+    monkeypatch.setattr(dd, "CONTEO_MAX_TRAMO", 64)
+    assert dd._tramos(sum(map(len, arrays))) > 16
+    varios = dd._frecuencias(arrays)
+    assert [list(d) for d in varios[0]] == [list(d) for d in uno[0]] and varios[1] == uno[1]
+    assert uno[1] == Counter(Counter(h for a in arrays for h in a).values())
+
+
+def _pares_145(n_pares, inter, en_benchmark):
+    """#145: pares de conjuntos de 1 000 shingles (ventana 1, palabras unicas) con `inter` en comun:
+    Jaccard real `inter / (2000 - inter)`. El segundo de cada par va a benchmark si `en_benchmark`."""
+    docs, bench = [], set()
+    for p in range(n_pares):
+        a = [f"p{p}a{i}" for i in range(1000)]
+        b = a[:inter] + [f"p{p}b{i}" for i in range(1000 - inter)]
+        docs += [(f"t{p:03d}@v001", f"t{p}", " ".join(a)), (f"b{p:03d}@v001", f"b{p}", " ".join(b))]
+        if en_benchmark:
+            bench.add(f"b{p:03d}@v001")
+    return docs, bench
+
+
+def test_t07_145_escenario_literal_cruce_conservador_con_r_de_un_decimo():
+    """#145 (Z-B1): 200 pares de 1 000 shingles, umbral 0.8, r = 0.1, Jaccard real 0.82: con el umbral
+    sobre la muestra solo se agrupaba ~2/3; el cruce train/benchmark usa `umbral - margen` y lo ve."""
+    docs, bench = _pares_145(200, 901, True)                        # J real = 901/1099 = 0.8198
+    r = dd.agrupar(docs, umbral=0.8, ventana=1, fraccion_boilerplate=1.0, presupuesto=40000, benchmark_ids=bench)
+    assert r["jaccard"] == "muestreado" and abs(r["muestreo"]["r"] - 0.1) < 1e-12
+    agrupados = sum(1 for g in r["grupos"] if len(g) == 2)
+    assert agrupados < 190, agrupados                                # el umbral sobre la muestra pierde pares
+    cruzados = {t for t, _b in r["cruces"]}
+    assert len(cruzados) >= 195, len(cruzados)
+    assert all(t.startswith("t") and b.startswith("b") and t[1:] == b[1:] for t, b in r["cruces"])
+    assert r["cruce"] == {"criterio": "conservador", "z": 2.0, "margen_max": 0.2, "umbral_minimo": 0.6,
+                          "margen": "z*sqrt(J(1-J)/k), k = shingles muestreados de la union del par"}
+
+
+def test_t07_145_el_criterio_conservador_solo_aplica_al_cruce():
+    """#145: J real 0.78 dentro de UNA particion (ninguno en benchmark): los grupos siguen con el umbral
+    (~59/200 de mas, no mas) y no hay cruces; los mismos pares cruzando particion, casi todos marcados."""
+    docs, _ = _pares_145(200, 876, False)                           # J real = 876/1124 = 0.7794
+    r = dd.agrupar(docs, umbral=0.8, ventana=1, fraccion_boilerplate=1.0, presupuesto=40000, benchmark_ids=set())
+    assert r["cruces"] == []
+    assert sum(1 for g in r["grupos"] if len(g) == 2) < 100
+    docs, bench = _pares_145(200, 876, True)
+    r2 = dd.agrupar(docs, umbral=0.8, ventana=1, fraccion_boilerplate=1.0, presupuesto=40000, benchmark_ids=bench)
+    assert r2["grupos"] == r["grupos"]                               # los grupos no cambian
+    assert len(r2["cruces"]) >= 150, len(r2["cruces"])
+
+
+def test_t07_145_con_jaccard_exacto_no_hay_criterio_conservador():
+    docs, bench = _pares_145(20, 901, True)
+    r = dd.agrupar(docs, umbral=0.8, ventana=1, fraccion_boilerplate=1.0, benchmark_ids=bench)
+    assert r["jaccard"] == "exacto" and r["cruces"] == [] and r["cruce"] == {"criterio": "umbral"}
+    assert len(r["grupos"]) == 20
+    sin = dd.agrupar(docs, umbral=0.8, ventana=1, fraccion_boilerplate=1.0, presupuesto=4000)
+    assert sin["cruces"] == [] and sin["cruce"] == {"criterio": "umbral"}   # sin benchmark declarado
+
+
+def test_t07_145_margen_de_la_estimacion():
+    assert dd._margen_cruce(0.8, 110) == pytest.approx(2 * (0.8 * 0.2 / 110) ** 0.5)
+    assert dd._margen_cruce(0.8, 1) == pytest.approx(0.2)            # acotado
+    assert dd._margen_cruce(0.3, 1) == pytest.approx(0.15)           # nunca mas de umbral/2
+    assert dd._umbral_cruce(0.8) == dd._fraccion(0.8) - dd.MARGEN_MAX_CRUCE
+
+
+def test_t07_145_duplicados_exactos_de_train_se_marcan_todos():
+    docs, bench = _pares_145(3, 901, True)
+    docs.append(("t000@v002", "t0", docs[0][2]))                    # copia exacta del de train
+    r = dd.agrupar(docs, umbral=0.8, ventana=1, fraccion_boilerplate=1.0, presupuesto=600, benchmark_ids=bench)
+    marcados = {t for t, _b in r["cruces"]}
+    assert marcados and ("t000@v001" in marcados) == ("t000@v002" in marcados)
+
+
+def test_t07_146_las_copias_exactas_heredan_el_aviso_de_su_representante():
+    """#146: el aviso H2 de un caso casi todo plantilla lo llevan tambien sus copias exactas (mismo
+    conjunto), no solo el representante (el de id menor)."""
+    rng = random.Random(146)
+    plantilla = _plantilla(60, 4)
+    docs = [(f"c{i:02d}@v001", f"f{i}", plantilla + " " + _frase(rng, 30)) for i in range(20)]
+    poco = plantilla + " " + _frase(rng, 5)
+    docs += [("poco@v001", "fz", poco), ("poco@v002", "fz", poco)]
+    r = dd.agrupar(docs)
+    assert [a["id"] for a in r["avisos"]] == ["poco@v001", "poco@v002"]
+    assert ["poco@v001", "poco@v002"] in r["grupos"]
+
+
+def _corpus_cubos(seed):
+    """#141: 1-3 grupos de 9-13 casi iguales sobre un vocabulario pequeño (cubos > CUBO_VERIFICACION,
+    que se verifican por adelantado y se saltan) + casos sueltos que comparten palabras con ellos."""
+    rng = random.Random(seed)
+    voc = [f"v{i}" for i in range(rng.randrange(8, 30))]
+    docs = []
+    for g in range(rng.randrange(1, 4)):
+        base = rng.sample(voc, rng.randrange(3, 8))
+        for k in range(rng.randrange(9, 14)):
+            ws = list(base)
+            if rng.random() < 0.5:
+                ws[rng.randrange(len(ws))] = rng.choice(voc)
+            if rng.random() < 0.3:
+                ws.append(rng.choice(voc))
+            docs.append((f"g{g}k{k:02d}", f"f{g}", " ".join(ws)))
+    for i in range(rng.randrange(3, 15)):
+        docs.append((f"z{i:02d}", f"z{i}", " ".join(rng.sample(voc, rng.randrange(2, 8)))))
+    return docs
+
+
+@pytest.mark.parametrize("seed", [5, 198] + list(range(30)))
+def test_t07_141_cubos_por_componente_igual_que_la_fuerza_bruta(seed):
+    """#141: un cubo del indice solo tiene casos de UNA componente (si se mezclaran, saltarlo perderia
+    un par: semilla 198) y la verificacion adelantada de un cubo grande solo une si el par supera el
+    umbral (semilla 5)."""
+    docs = _corpus_cubos(seed)
+    for umbral in (0.5, 0.6, 0.7, 0.8):
+        assert _grupos(dd.agrupar(docs, umbral=umbral, ventana=1, fraccion_boilerplate=1.0)) == \
+            _fuerza_bruta(docs, umbral, 1, 1.0), (seed, umbral)

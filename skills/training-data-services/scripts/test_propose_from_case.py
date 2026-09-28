@@ -417,3 +417,22 @@ def test_t09_puente_gold_sin_hash_de_aprobacion_se_propone_con_aviso(tmp_path):
         json.dump(v, f)
     r = pfc.proponer(cfg, raiz, "geo-ramp.steep", 1, "GOTCHA")
     assert os.path.exists(r["ruta"]) and any("sin hash de aprobacion" in a for a in r["avisos"])
+
+
+# ------------------------------------------------------------------ fix2 de la Fase 3 (#140)
+
+def test_t09_140_el_puente_tiene_una_sola_ventana_de_creacion(tmp_path, monkeypatch):
+    """#140: el puente crea UN solo fichero (`open(…, "xb")` del candidato), y su ventana es la de
+    `test_t09_puente_pending_sustituido_tras_prepararlo_se_detecta_y_se_nombra` (#121)."""
+    import builtins
+    raiz, cfg = _proyecto(tmp_path)
+    creados, real = [], builtins.open
+
+    def open_(ruta, modo="r", *a, **k):
+        if any(c in modo for c in "wxa+"):
+            creados.append((os.path.basename(str(ruta)), modo))
+        return real(ruta, modo, *a, **k)
+    monkeypatch.setattr(pfc, "open", open_, raising=False)
+    r = pfc.proponer(cfg, raiz, "geo-ramp.steep", 1, "GOTCHA")
+    monkeypatch.undo()
+    assert creados == [(os.path.basename(r["ruta"]), "xb")], creados

@@ -43,3 +43,29 @@ def test_solo_stdlib():
     src = open(SCRIPT, encoding="utf-8").read()
     for prohibido in ("import requests", "import urllib.request"):
         assert prohibido not in src
+
+
+def test_139_redacta_el_par_json_de_una_clave_sensible():
+    """#139 (training-data-services fix2, CWE-312): la forma JSON `"password": "…"` no casaba con
+    `password=`/`password:` (la comilla de cierre de la clave va antes de los dos puntos)."""
+    import json
+    for clave in ("password", "api_key", "token", "secret", "Password", "API-KEY", "contraseña", "pwd"):
+        texto = json.dumps({clave: "hunter2", "otro": "valor"}, ensure_ascii=False)
+        salida = redact.redactar(texto)
+        assert "hunter2" not in salida, clave
+        assert json.loads(salida) == {clave: redact.REDACTADO, "otro": "valor"}, clave
+    assert redact.redactar('{"token" :  "a\\"b c"}') == '{"token" :  "' + redact.REDACTADO + '"}'
+    assert redact.redactar("{'password': 'hunter2'}") == "{'password': '" + redact.REDACTADO + "'}"
+
+
+def test_139_par_json_de_una_clave_no_sensible_no_se_toca():
+    for limpio in ('{"tokens": "479326"}', '{"passwordless": "si"}', '{"nota": "password"}',
+                   '{"password_hint": "el perro"}', '{"password": ""}', '{"token": 5}'):
+        assert redact.redactar(limpio) == limpio, limpio
+
+
+def test_139_es_clave_sensible():
+    for k in ("password", "PASSWD", "api_key", "api-key", "apikey", "secret_key", "access_key", "token", "clave"):
+        assert redact.es_clave_sensible(k), k
+    for k in ("tokens", "my_password", "passwordless", "clave_foranea", "", "nota"):
+        assert not redact.es_clave_sensible(k), k

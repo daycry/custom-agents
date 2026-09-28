@@ -187,6 +187,7 @@ ESPERA_SUSTITUIDO_MAX_S = 0.032
 _WINDOWS = os.name == "nt"
 NAME_SURROGATE = 0x20000000        # bit «name surrogate» de st_reparse_tag: symlink y junction (E4)
 _O_NOFOLLOW = getattr(os, "O_NOFOLLOW", 0)   # G6: POSIX; en Windows no existe (comprobacion posterior)
+_O_NONBLOCK = getattr(os, "O_NONBLOCK", 0)   # #135: POSIX; un FIFO plantado no bloquea el open (Windows: 0)
 _PUBLICAR_CON_RENAME = _WINDOWS  # G2: `metadata.json` por `os.rename` (Windows) o `os.link` + retirar (POSIX)
 MENSAJE_AGOTADO = ("`{}` agoto los numeros de version (existe v{}): los `record` automaticos se rechazan; "
                    "graba con otro `variant`; no se escribe nada")
@@ -343,8 +344,12 @@ def redactar_estructura(valor):
     Claves (fix2, gap #18): si dos claves distintas se redactan al mismo literal, la segunda y
     siguientes llevan un sufijo estable por orden de aparicion (`<clave redactada> #2`, `#3`...), y
     una clave que NO cambia al redactar conserva siempre su nombre: nunca se pierde un valor. Una
-    namedtuple se reconstruye con `_make` (mismo tipo y campos)."""
-    redactar_txt = _redact_mod().redactar
+    namedtuple se reconstruye con `_make` (mismo tipo y campos). #139 (fix2 de la Fase 3): el valor
+    TEXTUAL no vacio de una clave sensible (`redact.es_clave_sensible`: `password`, `api_key`,
+    `token`…, exacta y sin distinguir mayusculas) se sustituye entero por `REDACTADO`, parezca o no un
+    secreto; un valor no textual (numero, lista, dict) se recorre como siempre."""
+    mod = _redact_mod()
+    redactar_txt, sensible, redactado = mod.redactar, mod.es_clave_sensible, mod.REDACTADO
     tope = cs.PROFUNDIDAD_MAX
 
     def _dict(v, d):
@@ -358,7 +363,8 @@ def redactar_estructura(valor):
                 while nombre in out or nombre in intactas:
                     n += 1
                     nombre = f"{nuevas[k]} #{n}"
-            out[nombre] = _rec(x, d + 1)
+            # #139: el VALOR textual (no vacio) de una clave sensible (`password`, `api_key`, `token`…)
+            out[nombre] = redactado if isinstance(x, str) and x and sensible(k) else _rec(x, d + 1)
         return out
 
     def _rec(v, d):
@@ -848,8 +854,39 @@ def _comprobar_fd_propio(f, ruta):
 
 def _abrir_sin_seguir(ruta, flags):
     """`opener` de `open()` (G6): `O_NOFOLLOW` donde existe (POSIX): un symlink en el ultimo
-    componente falla con `ELOOP` en vez de seguirse."""
-    return os.open(ruta, flags | _O_NOFOLLOW, 0o666)
+    componente falla con `ELOOP` en vez de seguirse. Con `O_NONBLOCK` (#135): un FIFO plantado no
+    bloquea la apertura; `_comprobar_fd_propio` lo rechaza despues por no ser un fichero regular (en
+    un fichero regular, `O_NONBLOCK` no cambia nada)."""
+    return os.open(ruta, flags | _O_NOFOLLOW | _O_NONBLOCK, 0o666)
+
+
+class _NoRegular(OSError):
+    """#135: el descriptor recien abierto no es un fichero regular (FIFO, dispositivo, directorio)."""
+
+
+def _abrir_no_bloqueante(ruta, flags):
+    return os.open(ruta, flags | _O_NONBLOCK)
+
+
+def _abrir_lectura(ruta):
+    """#135 (CWE-367/400): `open(ruta, "rb")` que NUNCA se bloquea si el nombre se sustituyo por un
+    FIFO entre el `lstat` del llamador y la apertura: abre con `O_NONBLOCK` (POSIX) y comprueba
+    `S_ISREG` SOBRE EL DESCRIPTOR antes de devolverlo (despues lo deja bloqueante otra vez); si no es
+    un fichero regular -> `_NoRegular` sin leer un byte. Lo usan todos los lectores por descriptor
+    del recorder (ficheros de version, indice, relectura de `validation.json`) y el ensamblador.
+    Devuelve `(fichero, fstat)`: el `fstat` de ESE descriptor (el llamador lo usa sin repetirlo)."""
+    f = open(ruta, "rb", opener=_abrir_no_bloqueante)
+    try:
+        st = os.fstat(f.fileno())
+        if not stat.S_ISREG(st.st_mode):
+            raise _NoRegular(errno.EINVAL, f"{os.path.basename(ruta)}: no es un fichero regular (FIFO o "
+                                           "dispositivo); no se lee")
+        if _O_NONBLOCK:
+            os.set_blocking(f.fileno(), True)
+    except BaseException:
+        f.close()
+        raise
+    return f, st
 
 
 def _es_enlace_eloop(e):
@@ -936,8 +973,11 @@ def _leer_json_reintentando(ruta, previo=None, fstat_leido=None, decodificar=_js
     `_FicheroNoPropio` sin cargarlo entero en memoria."""
     for intento in range(REINTENTOS):
         try:
-            with open(ruta, "rb") as f:
-                st = os.fstat(f.fileno())
+            try:
+                f, st = _abrir_lectura(ruta)                                # #135: un FIFO no bloquea
+            except _NoRegular:
+                raise _FicheroNoPropio(f"{os.path.basename(ruta)}: no es un fichero regular") from None
+            with f:
                 motivo, sustituido = _motivo_descriptor(st, previo)
                 if motivo:
                     raise _FicheroNoPropio(f"{os.path.basename(ruta)}: {motivo}", sustituido)
@@ -1619,14 +1659,16 @@ class _Bloqueo:
     Windows, sobre `<root>/<nombre>` (fichero que no se borra): `.cases_index.lock` (secciones O(1)
     de los escritores y F0/F2 del `rebuild`) o `.cases_rebuild.lock` (serializa los `rebuild`).
     `index check` no toma ninguno (F3). La espera sondea con retroceso exponencial y jitter; si no
-    se obtiene en `ESPERA_BLOQUEO_S`, `BloqueoNoDisponible` (exit 3; quien lo pide no escribe nada).
+    se obtiene en `ESPERA_BLOQUEO_S` (o en `espera` s, si se da: el ensamblador, #143),
+    `BloqueoNoDisponible` (exit 3; quien lo pide no escribe nada).
     No poder abrir el fichero o un fallo del bloqueo que no es contencion -> `ErrorPermanente`
     (exit 2, gap #76). El SO lo libera si el proceso muere: nunca queda un bloqueo huerfano."""
 
-    def __init__(self, store, nombre=BLOQUEO_INDICE):
+    def __init__(self, store, nombre=BLOQUEO_INDICE, espera=None):
         self.ruta = os.path.join(store, nombre)
         self.f = None
         self.tomado = False
+        self.espera = espera                            # #143: None -> `ESPERA_BLOQUEO_S` (el del recorder)
 
     def __enter__(self):
         nombre = os.path.basename(self.ruta)
@@ -1644,7 +1686,8 @@ class _Bloqueo:
         except Rechazo:
             self.f.close()
             raise
-        limite = time.monotonic() + ESPERA_BLOQUEO_S
+        plazo = ESPERA_BLOQUEO_S if self.espera is None else self.espera
+        limite = time.monotonic() + plazo
         espera = ESPERA_INICIAL_S
         while True:
             try:
@@ -1662,7 +1705,7 @@ class _Bloqueo:
                     self.f.close()
                     raise BloqueoNoDisponible(
                         f"otro proceso tiene el bloqueo del case store ({nombre}) desde hace mas de "
-                        f"{ESPERA_BLOQUEO_S:g} s; no se ha escrito nada: reintenta") from None
+                        f"{plazo:g} s; no se ha escrito nada: reintenta") from None
                 time.sleep(min(espera * random.uniform(0.5, 1.0), restante))
                 espera = min(espera * 2, ESPERA_MAX_S)
 
@@ -1769,7 +1812,7 @@ def _entrada_valida(e):
 def _abrir_reintentando(ruta):
     for intento in range(REINTENTOS):
         try:
-            return open(ruta, "rb")
+            return _abrir_lectura(ruta)[0]                                  # #135: un FIFO no bloquea
         except PermissionError:
             if intento == REINTENTOS - 1:
                 raise
@@ -1907,12 +1950,15 @@ def _json_y_crudo(datos):
     return _json_de(datos), datos
 
 
-def _estado_version(store, nombre, dir_caso, numero, nombres, entrada_dir=None, firmas=None, crudos=None):
+def _estado_version(store, nombre, dir_caso, numero, nombres, entrada_dir=None, firmas=None, crudos=None,
+                    tope=None):
     """Estado de UNA version desde el disco: `(entrada|None, aviso|None, en_curso, mtime_meta)`.
     Con `firmas`, anota la firma (`st_ino`, tamaño, `mtime`) del `validation.json` leido (gap #89).
     Con `crudos` (dict, #130: el ensamblador), guarda los BYTES leidos de `metadata.json` y
     `validation.json` con el `fstat` de su descriptor, `{(case_id, numero): {fichero: (bytes, fstat)}}`,
-    para que la lectura del caso no los abra otra vez si siguen siendo el mismo fichero."""
+    para que la lectura del caso no los abra otra vez si siguen siendo el mismo fichero. `tope`
+    (#134): el tope por fichero de `_leer_de_version` tambien en ESTAS dos lecturas (el ensamblador
+    pasa el suyo: un `metadata.json` o `validation.json` mayor omite la version con aviso sin cargarlo)."""
     leido_m = [] if crudos is not None else None
     dec = _json_y_crudo if crudos is not None else _json_de
     crudo = {}
@@ -1924,7 +1970,7 @@ def _estado_version(store, nombre, dir_caso, numero, nombres, entrada_dir=None, 
     motivo = _motivo_enlace(entrada_dir if entrada_dir is not None else dir_v, dir_v)
     if motivo:
         return None, f"{rel} omitida: {motivo}", False, None
-    meta, mtime_meta, aviso = _leer_de_version(dir_v, "metadata.json", rel, leido_m, dec)
+    meta, mtime_meta, aviso = _leer_de_version(dir_v, "metadata.json", rel, leido_m, dec, tope=tope)
     if crudos is not None and aviso is None:
         meta, datos_m = meta
         crudo["metadata.json"] = (datos_m, leido_m[-1])
@@ -1947,7 +1993,7 @@ def _estado_version(store, nombre, dir_caso, numero, nombres, entrada_dir=None, 
         return None, aviso, False, None
     if aviso is None:
         leido = []
-        val, mtime, aviso = _leer_de_version(dir_v, "validation.json", rel, leido, dec)
+        val, mtime, aviso = _leer_de_version(dir_v, "validation.json", rel, leido, dec, tope=tope)
         if crudos is not None and aviso is None:
             val, datos_v = val
             crudo["validation.json"] = (datos_v, leido[-1])
@@ -2009,7 +2055,7 @@ def _aviso_transitorio(aviso):
 
 
 def _estado_de_cases(store, raiz_proyecto=None, duenos=None, firmas=None, temporales_version=False,
-                     transitorias=None, crudos=None):
+                     transitorias=None, crudos=None, tope=None):
     """`(entradas, avisos, en_curso, mtimes_meta, rels)` recorriendo `cases/` (la FUENTE). `avisos`
     y `en_curso` son dicts `rel -> texto`; `rels` indexa por `(<family>.<variant>, numero)` los `rel`
     de cada version con aviso (gap #69: la cola los retira en O(1)). Enlaces detectados por ENTRADA
@@ -2025,7 +2071,7 @@ def _estado_de_cases(store, raiz_proyecto=None, duenos=None, firmas=None, tempor
     `transitorias` (set opcional) recibe las `(<family>.<variant>, numero)` con aviso de causa
     transitoria (#105); un caso con `v<VERSION_MAX>` agoto los numeros: informativo (#100). `crudos`
     (dict opcional, #130): los bytes y el `fstat` de `metadata.json`/`validation.json` de cada version
-    valida (ver `_estado_version`)."""
+    valida (ver `_estado_version`); `tope` (#134), el tope por fichero de esas dos lecturas."""
     entradas, avisos, en_curso, mtimes, rels = {}, {}, {}, {}, {}
     duenos = {} if duenos is None else duenos
     try:
@@ -2082,7 +2128,8 @@ def _estado_de_cases(store, raiz_proyecto=None, duenos=None, firmas=None, tempor
         for v, lista in sorted(por_numero.items()):
             nombres = [n for n, _e in lista]
             e, aviso, curso, mtime_meta = _estado_version(store, nombre, dir_caso, v, nombres,
-                                                          lista[0][1] if len(lista) == 1 else None, firmas, crudos)
+                                                          lista[0][1] if len(lista) == 1 else None, firmas, crudos,
+                                                          tope)
             rel = f"cases/{nombre}/{nombres[0]}"
             if e is not None:
                 duenos.setdefault(nombre, e["case_id"])
@@ -2624,10 +2671,13 @@ def _comprobar_vigente(ruta, previo):
     POR DESCRIPTOR con el que se leyo (`previo`, el `fstat` de esa lectura): regular, un solo nombre y
     la misma identidad; si no -> `Rechazo` sin reemplazar nada."""
     try:
-        with open(ruta, "rb") as g:
-            st = os.fstat(g.fileno())
+        g, st = _abrir_lectura(ruta)                                       # #135: un FIFO no bloquea
+        g.close()
     except FileNotFoundError:
         st = None
+    except _NoRegular:
+        raise _Manipulado(f"{os.path.basename(os.path.dirname(ruta))}/{os.path.basename(ruta)}: no es un fichero "
+                          "regular antes de reemplazarlo (CWE-367/59); no se reemplaza") from None
     motivo = SUSTITUIDO if st is None else _motivo_descriptor(st, previo)[0]
     if motivo:
         raise _Manipulado(f"{os.path.basename(os.path.dirname(ruta))}/{os.path.basename(ruta)}: {motivo} antes de "

@@ -24,14 +24,26 @@ for _s in (sys.stdin, sys.stdout, sys.stderr):
 
 # --8<-- redact (redactar + constantes) — REPLICADO LITERAL en agent-kits/shared/redact.py (canónico) y en agent-kits/shared/journal.py (respaldo local, ADR-016)
 REDACTADO = "[secreto redactado]"
+_CLAVES_SENSIBLES = r"api[_-]?key|secret[_-]?key|access[_-]?key|secret|token|passw(?:or)?d|pwd|clave|contrase[ñn]a"
+_CLAVE_SENSIBLE_RE = re.compile(r"(?i)(?:" + _CLAVES_SENSIBLES + r")")
 _SECRETOS_RE = (
     re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----.*?-----END [A-Z ]*PRIVATE KEY-----", re.S),
     re.compile(r"\b(?:sk-ant-|sk-|ghp_|gho_|ghu_|ghs_|ghr_|github_pat_|xox[baprs]-|glpat-|AKIA|ASIA)[A-Za-z0-9_\-]{16,}"),
     re.compile(r"\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}"),
     re.compile(r"(?i)(?P<pre>\bbearer\s+)(?P<sec>[A-Za-z0-9._~+/=\-]{20,})"),
-    re.compile(r"(?i)(?P<pre>\b(?:api[_-]?key|secret[_-]?key|access[_-]?key|secret|token|passw(?:or)?d|pwd|clave|contrase[ñn]a)\b\s*[:=]\s*[\"']?)"
+    re.compile(r"(?i)(?P<pre>\b(?:" + _CLAVES_SENSIBLES + r")\b\s*[:=]\s*[\"']?)"
                r"(?P<sec>(?=[^\s\"']*[A-Za-z])(?=[^\s\"']*[0-9!@#$%^&*])[^\s\"']{8,})"),
+    # par clave-valor JSON (o repr de Python) con la clave sensible ENTRECOMILLADA: el valor entero, sea
+    # cual sea su forma (#139 de training-data-services: `"password": "…"` no casaba con `password=`)
+    re.compile(r"(?i)(?P<pre>(?P<q>[\"'])(?:" + _CLAVES_SENSIBLES + r")(?P=q)\s*:\s*(?P<q2>[\"']))"
+               r"(?P<sec>(?:\\.|(?!(?P=q2))[^\\])+)(?=(?P=q2))"),
 )
+
+
+def es_clave_sensible(clave):
+    """True si `clave` es EXACTAMENTE una clave sensible (`password`, `api_key`, `token`…, sin
+    distinguir mayusculas): `redactar_estructura` del recorder redacta entonces su valor textual."""
+    return isinstance(clave, str) and _CLAVE_SENSIBLE_RE.fullmatch(clave) is not None
 
 
 def redactar(texto):

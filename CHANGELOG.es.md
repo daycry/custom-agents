@@ -9,6 +9,10 @@ y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Fixed — redacción de secretos (2026-09-28)
+
+- **La redacción de secretos detecta ya la forma JSON `"password": "…"`** El redactor compartido casaba `password=…` y `password: …`, pero no una clave sensible entre comillas seguida de su valor entre comillas (`"password"`, `"api_key"`, `"token"`, `"secret"`…), así que esa forma podía llegar tal cual al journal de sesión. Ahora se redacta entera, y en los datos estructurados (argumentos de las llamadas a herramientas) se redacta el valor textual de cualquier clave sensible. (`agent-kits/shared/redact.py`, `agent-kits/shared/journal.py`)
+
 ### Fixed — `knowledge-services` (2026-09-26)
 
 - **`markdown-export` rechaza un `export_dir` dentro de `docs/knowledge/` sean cuales sean sus mayúsculas, en todos los sistemas** La contención comparaba rutas con `normcase`, que fuera de Windows no toca las mayúsculas: en macOS (APFS, que no las distingue) `DOCS/KNOWLEDGE/APPROVED/x` —el mismo directorio que `docs/knowledge/approved/x`— pasaba la comprobación. Ahora compara además con `casefold()` en todos (en Linux la regla peca de estricta, como el resto del plugin). Pasó inadvertido porque la suite de la skill no corría en la CI: ahora sí, junto con `training-data-services`, y un test del repo falla si una carpeta `skills/*/scripts` con tests queda fuera de la línea `pytest` de la CI. (`skills/knowledge-services/backends/markdown_export.py`, `ci.yml.MANUAL-COPY`, `tests/test_ci_skill_suites.py`)

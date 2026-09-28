@@ -219,3 +219,26 @@ def test_t09_127_verificacion_fix1_de_t07_t08_t09_con_salida_literal():
     # la regla rechaza lo que se pego en la ronda anterior («verde (42 + 13 tests)»)
     assert verificaciones_sin_salida_literal("### T-07 x\n  - Salida real fix1 (2026-09-28, Windows): -> verde\n### T-08 y\n"
                                              "### T-09 z\n### T-10 w\n") == ["T-07", "T-08", "T-09"]
+
+
+# ------------------------------------------------------------------ fix2 de la Fase 3 (#138)
+
+LIMITE_138 = "no protege frente a quien puede escribir el store"
+
+
+def sitios_sin_limite_del_content_hash(textos):
+    """#138 (CWE-345/354): los sitios que explican `content_hash` y no declaran su limite exacto
+    (detecta cambios accidentales o del codigo del proyecto tras aprobar; NO protege frente a quien
+    puede escribir el store, que puede recalcular el hash)."""
+    return [n for n, t in textos.items()
+            if "content_hash" in t and not (LIMITE_138 in " ".join(t.split()).casefold()
+                                            and "recalcular" in t and "cambios accidentales" in t)]
+
+
+def test_t09_138_content_hash_declara_su_limite_en_los_tres_sitios():
+    base = os.path.join(HERE, "..")
+    rutas = {n: os.path.join(base, *n.split("/"))
+             for n in ("references/dataset.md", "references/recorder.md", "assets/README.md")}
+    assert sitios_sin_limite_del_content_hash({n: _leer(r) for n, r in rutas.items()}) == []
+    # la regla rechaza la prosa de antes («ata el Gold al contenido aprobado», sin el limite)
+    assert sitios_sin_limite_del_content_hash({"x": "`content_hash` ata el Gold al contenido aprobado"}) == ["x"]
