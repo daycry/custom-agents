@@ -135,22 +135,28 @@ def _leer(ruta):
 SKILL_MD = os.path.join(HERE, "..", "SKILL.md")
 
 
+def _doc_skill():
+    """La documentacion de la skill: el mapa (`SKILL.md`) + sus `references/` (ADR-008: el detalle vive alli)."""
+    refs = os.path.join(HERE, "..", "references")
+    return "\n".join([_leer(SKILL_MD)] + [_leer(os.path.join(refs, f)) for f in sorted(os.listdir(refs)) if f.endswith(".md")])
+
+
 def test_f2fix1_gap47_skill_documenta_las_dos_vias_a_gold_y_config():
     """E3 (gap #47): las dos vias a Gold (misma puerta), `--config`, y consulta/cache en su paso."""
-    s = _leer(SKILL_MD)
+    s = _doc_skill()
     assert "record <caso.json> --approved-by-human" in s and "set-status <case_id>" in s
     assert "--config <training.json>" in s
     assert "5. **Consultar**" in s and "4. **Aprobar Gold**" in s
 
 
 def test_f2fix1_gap48_skill_dice_que_version_es_opcional_en_record():
-    s = _leer(SKILL_MD)
+    s = _doc_skill()
     assert "Para `record`, `version`" in s and "siguiente versión libre" in s
 
 
 def test_f2fix1_gap49_readme_lista_el_bloqueo_y_todos_los_redactados():
     r = _leer(os.path.join(ASSETS, "README.md"))
-    assert ".cases_index.lock" in r and ".cases_index.lock" in _leer(SKILL_MD)
+    assert ".cases_index.lock" in r and ".cases_index.lock" in _doc_skill()
     tramo = r[r.index("Todo el texto libre"):]
     for f in ("constraints.json", "metrics.json", "final/artifacts.json", "reviewer_note", "created_at"):
         assert f in tramo, f

@@ -331,6 +331,10 @@ SIN_SIMBOLOS_EN_LA_SALIDA = {
         "sus veredictos (`OK <ruta>` / `<ruta>: <campo>: <mensaje>`) son ASCII puro",
     "skills/training-data-services/scripts/case-recorder.py":
         "sus veredictos (`error: ...` / `rechazado: ...` / JSON del caso grabado) son ASCII puro",
+    # training-data-services T-07: `dedup.py` entra por el docstring; su salida es ASCII (los ids no
+    # ASCII se escapan con `ascii()`, los errores son ASCII).
+    "skills/training-data-services/scripts/dedup.py":
+        "sus veredictos (`grupo: ...`, el resumen y `error: ...`) son ASCII puro (ids escapados con ascii())",
 }
 SCRIPTS_CON_SIMBOLOS = [rel for rel in SCRIPTS if rel not in SIN_SIMBOLOS_EN_LA_SALIDA]
 
@@ -404,6 +408,14 @@ def _modos():
         # recorder (T-04) con `--config` ausente -> exit 2, sin tocar disco.
         "skills/training-data-services/scripts/case_schema.py":
             [("fichero ausente", lambda w: ["config", os.path.join(w, "no-existe-training.json")], (2,), None)],
+        # training-data-services T-07/T-09: dedup con fichero ausente (exit 2); el ensamblador y el
+        # puente imprimen `…` en su `--help`.
+        "skills/training-data-services/scripts/dedup.py":
+            [("fichero ausente", lambda w: [os.path.join(w, "no-existe-docs.jsonl")], (2,), None)],
+        "skills/training-data-services/scripts/dataset-assembler.py":
+            [("--help", lambda w: ["--help"], (0,), None)],
+        "skills/training-data-services/scripts/propose-from-case.py":
+            [("--help", lambda w: ["--help"], (0,), None)],
         "skills/training-data-services/scripts/case-recorder.py":
             [("config ausente", lambda w: ["record", os.path.join(w, "no-existe-caso.json"), "--config",
                                             os.path.join(w, "no-existe-training.json")], (2,), None)],

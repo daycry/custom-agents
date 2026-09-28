@@ -918,14 +918,20 @@ def _motivo_descriptor(st, previo):
     return None, False
 
 
-def _leer_json_reintentando(ruta, previo=None, fstat_leido=None):
+def _json_de(datos):
+    return json.loads(datos.decode("utf-8"))
+
+
+def _leer_json_reintentando(ruta, previo=None, fstat_leido=None, decodificar=_json_de):
     """`(objeto, mtime)` de un JSON de version, reintentando de forma ACOTADA ante `PermissionError`
     (en Windows, abrir durante un `os.replace` ajeno falla un instante, gap #33). Se lee SIEMPRE del
     descriptor ya comprobado (gap #83, CWE-367/59): `os.fstat` -> fichero regular, `st_nlink == 1` y,
     con `previo` (el `lstat` del llamador), la MISMA identidad (`os.path.samestat`); si no ->
     `_FicheroNoPropio` sin leer nada. `FileNotFoundError`, JSON ilegible o el `PermissionError`
     persistente se propagan: el llamador los distingue. Con `fstat_leido` (lista), se le anade el
-    `os.fstat` del descriptor del que se leyo (la firma de #89, W-B2)."""
+    `os.fstat` del descriptor del que se leyo (la firma de #89, W-B2). `decodificar` convierte los
+    bytes leidos (por defecto, JSON UTF-8); el ensamblador (T-09) pide los bytes tal cual para
+    hashearlos y parsearlos del MISMO descriptor comprobado."""
     for intento in range(REINTENTOS):
         try:
             with open(ruta, "rb") as f:
@@ -936,7 +942,7 @@ def _leer_json_reintentando(ruta, previo=None, fstat_leido=None):
                 datos = f.read()
             if fstat_leido is not None:
                 fstat_leido.append(st)
-            return json.loads(datos.decode("utf-8")), st.st_mtime
+            return decodificar(datos), st.st_mtime
         except PermissionError:
             if intento == REINTENTOS - 1:
                 raise
@@ -1801,7 +1807,7 @@ def _iso(ts):
     return datetime.datetime.fromtimestamp(ts, datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def _leer_de_version(dir_v, fichero, rel, fstat_leido=None):
+def _leer_de_version(dir_v, fichero, rel, fstat_leido=None, decodificar=_json_de):
     """`(objeto, mtime, aviso)` de un fichero de version, con `lstat` ANTES de abrir: distingue
     «falta» (a medio escribir), «enlace» (no se lee a traves de el, gap #66), «enlace duro compartido»
     (`st_nlink > 1`: podria ser un fichero de fuera del store, gap #79), «no es un fichero regular»
@@ -1810,7 +1816,8 @@ def _leer_de_version(dir_v, fichero, rel, fstat_leido=None):
     (un `os.replace` legitimo entre ambos), se vuelve a comprobar desde el `lstat`, acotado POR TIEMPO
     (#109: el primero al instante y despues con retroceso hasta `PLAZO_SUSTITUIDO_S`; tres `os.replace`
     seguidos mientras el lector pierde la CPU ya no lo agotan); uno abierto con enlaces duros o que no
-    es regular se omite sin leerlo. `rel` llega ya escapado (`_texto_ruta`, #111)."""
+    es regular se omite sin leerlo. `rel` llega ya escapado (`_texto_ruta`, #111). `decodificar`: ver
+    `_leer_json_reintentando` (el ensamblador, T-09, lee los bytes tal cual)."""
     ruta = os.path.join(dir_v, fichero)
     intentos, limite, espera = 0, None, ESPERA_SUSTITUIDO_S
     while True:
@@ -1847,7 +1854,7 @@ def _leer_de_version(dir_v, fichero, rel, fstat_leido=None):
             return None, None, (f"{rel} omitida: {fichero} es un enlace duro compartido ({st.st_nlink} nombres para el "
                                 "mismo fichero: podria ser uno de fuera del store, CWE-59); no se lee")
         try:
-            obj, mtime = _leer_json_reintentando(ruta, st, fstat_leido)
+            obj, mtime = _leer_json_reintentando(ruta, st, fstat_leido, decodificar)
             return obj, mtime, None
         except _FicheroNoPropio as e:
             if e.sustituido:

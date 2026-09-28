@@ -1734,6 +1734,15 @@ import time
 SKILL_MD = os.path.normpath(os.path.join(HERE, "..", "SKILL.md"))
 
 
+def _doc_skill():
+    """El mapa (`SKILL.md`) + `references/*.md`: desde T-09 el detalle del recorder vive en
+    `references/recorder.md` (ADR-008); estos tests de prosa miran la documentacion de la skill entera."""
+    refs = os.path.normpath(os.path.join(HERE, "..", "references"))
+    partes = [open(SKILL_MD, encoding="utf-8").read()]
+    partes += [open(os.path.join(refs, f), encoding="utf-8").read() for f in sorted(os.listdir(refs)) if f.endswith(".md")]
+    return "\n".join(partes)
+
+
 def _envejecer(store, solo_dirs=False, segundos=3600):
     """Pone el `mtime` de las versiones (directorios y, si no `solo_dirs`, su `metadata.json`) una
     hora atras: fuera de la gracia «en curso» de `index check` (E5)."""
@@ -2250,8 +2259,7 @@ def test_f2fix2_gap53_e4_enlace_por_name_surrogate_y_la_nube_no_es_enlace(tmp_pa
 def test_f2fix2_gap54_skill_y_docstring_documentan_exit_codes_y_check():
     """E3 (gap #54, TDD n/a: prosa): exit 0/1/2/3 del CLI y la lista EXACTA de motivos de exit 1 de
     `index check`, con «en curso» como informativo (exit 0)."""
-    with open(SKILL_MD, encoding="utf-8") as f:
-        s = f.read()
+    s = _doc_skill()
     for frag in ("exit 3", "reintenta", "en curso", "60 s", "mtime", "futuro", "no es un fichero regular",
                  "bloqueada o sin permisos", "no casa con su ruta", "línea corrupta", ".cases_rebuild.lock",
                  "duplicada", "enlace", "`validation.json` incoherente", "en `cases/` y no en el índice"):
@@ -3212,8 +3220,7 @@ def test_f2fix3_gap71_72_skill_y_docstring_exit_por_subcomando_y_tabla_de_check(
     """#71/#72 (TDD n/a: prosa): exit 0/1/2/3 exactos POR SUBCOMANDO (con los exit 3 de `index check`
     por identidad y el 2 permanente de #76) y la tabla `motivo · exit · qué hacer` de `index check`;
     el limite ampliado de E3 y el falso positivo transitorio de `check` bajo carga."""
-    with open(SKILL_MD, encoding="utf-8") as f:
-        s = f.read()
+    s = _doc_skill()
     assert "| Motivo | Exit | Qué hacer |" in s
     for frag in ("`record`", "`set-status`", "`index rebuild`", "`index check`", "`list`", "exit 2", "permanente",
                  "identidad", "más de 64", "temporal huérfano", "no es un directorio de versión", "enlace duro",
@@ -4241,8 +4248,7 @@ def test_f2fix4_gap81_skill_describe_lo_que_queda_bajo_el_bloqueo():
     """#81/#90 (TDD n/a: prosa): SKILL.md describe EXACTAMENTE lo que queda bajo el bloqueo (la
     reserva, el `mkdir` del directorio de un caso nuevo y, solo si otro lo creo a la vez, el
     recorrido de `cases/`) y el limite declarado de POSIX (parejas que solo difieren en mayusculas)."""
-    with open(SKILL_MD, encoding="utf-8") as f:
-        texto = f.read()
+    texto = _doc_skill()
     assert "independientes del tamaño del store" not in texto
     assert "`mkdir` del directorio del caso" in texto
     assert "otro lo creó a la vez" in texto

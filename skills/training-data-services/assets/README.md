@@ -25,7 +25,7 @@ portable) comprueba que el ejemplo valida con `scripts/case_schema.py` y que el 
 │       ├── metrics.json
 │       ├── validation.json
 │       └── final/artifacts.json         # solo referencias a los artefactos finales
-└── exports/<export_id>/                 # lo escribe el ensamblador (T-08/T-09), nunca a mano
+└── exports/<export_id>/                 # lo escribe scripts/dataset-assembler.py, nunca a mano
     ├── manifest.json
     ├── train.jsonl
     └── benchmark.jsonl
@@ -89,6 +89,9 @@ recorriendo `cases/` (T-06).
 
 ## `exports/`
 
-Lo escribe el ensamblador (T-07…T-09): `manifest.json` (qué `case_id@version` entraron, hash de
-cada uno, asignación train/benchmark por familia completa), `train.jsonl` y `benchmark.jsonl` en
-formato chat (`messages`). Solo casos `approved` con `approved_by_human: true`.
+Lo escribe `scripts/dataset-assembler.py` (nunca a mano): `train.jsonl` y `benchmark.jsonl` en formato
+chat (`messages`, con `case_id`/`version`/`family`/`outcome`/`supersedes_case` de procedencia) y
+`manifest.json`, **el último** (sin él, el export está incompleto): qué `case_id@version` entraron o
+se excluyeron y por qué, hash de cada uno y asignación train/benchmark por familia completa. Solo
+casos `approved` con `approved_by_human: true`; un export existente nunca se sobrescribe. Detalle:
+`references/dataset.md`.
