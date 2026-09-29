@@ -2588,11 +2588,38 @@ def test_t10fix4_191_validation_ilegible_nunca_es_al_dia(tmp_path, monkeypatch):
         res = _vigentes(store, raiz)
         assert res["validacion_ilegible"] == 1 and res["transitorias"] == 0, res
         d = asm.estado_dataset(str(store), res)
-        causa = "1 version con validation.json ilegible: no se sabe si es Gold (revisa los permisos)"
+        causa = "1 version con validation.json ilegible: no se sabe si es Gold (revisa sus permisos y su contenido)"
         assert d["estado"] == "con_omisiones" and d["motivo"].startswith(causa), d
         assert asm.main(["--estado", "--project-root", raiz]) == 1
     finally:
         devolver()
+    assert _estado(store, raiz)["estado"] == "desactualizado"          # legible otra vez: un Gold mas
+    _ensamblar(cfg, raiz, escribir=True)
+    assert _estado(store, raiz)["estado"] == "al_dia"
+
+
+@pytest.mark.parametrize("escenario", ["json_roto", "esquema"])
+def test_t10fix5_197_validation_ilegible_por_json_o_esquema_nunca_es_al_dia(tmp_path, escenario):
+    """#197 (misma regla que #191): un Gold con `validation.json` ilegible por una causa permanente que
+    NO es de permisos (JSON roto, o JSON valido que no pasa el esquema) no se sabe si es Gold: con la
+    firma igual, `con_omisiones` con la causa primero, exit 1; nunca `al_dia`."""
+    raiz, cfg, store = _store_basico(tmp_path)
+    val = store / "cases" / "a.x" / "v002" / "validation.json"
+    original = val.read_bytes()
+    if escenario == "json_roto":
+        val.write_text('{"status": "approved", ', encoding="utf-8")
+    else:
+        v = json.loads(original.decode("utf-8"))
+        v["status"] = "inventado"
+        val.write_text(json.dumps(v), encoding="utf-8")
+    _ensamblar(cfg, raiz, escribir=True)
+    res = _vigentes(store, raiz)
+    assert res["validacion_ilegible"] == 1 and res["transitorias"] == 0, res
+    d = asm.estado_dataset(str(store), res)
+    assert d["estado"] == "con_omisiones" and d["motivo"].startswith(asm.causa_validacion_ilegible(1)), d
+    assert "su contenido" in d["motivo"], d                              # el remedio no es solo «permisos»
+    assert asm.main(["--estado", "--project-root", raiz]) == 1
+    val.write_bytes(original)
     assert _estado(store, raiz)["estado"] == "desactualizado"          # legible otra vez: un Gold mas
     _ensamblar(cfg, raiz, escribir=True)
     assert _estado(store, raiz)["estado"] == "al_dia"

@@ -6326,6 +6326,27 @@ def test_t10fix4_191_resumen_cuenta_validation_ilegible_por_causa_permanente(tmp
     assert res["validacion_ilegible"] == 0 and res["transitorias"] == 2, res
 
 
+# ------------------------------------------------------------------ T-10 fix5 (#197)
+
+def test_t10fix5_197_resumen_cuenta_validation_ilegible_por_json_roto_y_por_esquema(tmp_path):
+    """#197: `validacion_ilegible` cuenta un `validation.json` ilegible por CUALQUIER causa permanente,
+    no solo los permisos (#191): JSON roto y JSON valido que no pasa el esquema. Las dos siguen tambien en
+    `otros_avisos`; un `metadata.json` con JSON roto NO cuenta ahi y nada de esto es transitorio."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    for fam in ("a", "b", "c", "d"):
+        _gold_fix3(cfg, raiz, fam)
+    version = store / "cases"
+    (version / "b.steep" / "v001" / "validation.json").write_text('{"status": "appro', encoding="utf-8")
+    val_c = version / "c.steep" / "v001" / "validation.json"
+    v = json.loads(val_c.read_text(encoding="utf-8"))
+    v["status"] = "inventado"
+    val_c.write_text(json.dumps(v), encoding="utf-8")
+    (version / "d.steep" / "v001" / "metadata.json").write_text("{roto", encoding="utf-8")
+    res = rec.resumen_store(str(store), raiz, id_prefix="geo")
+    assert res["validacion_ilegible"] == 2, res
+    assert res["otros_avisos"] == 3 and res["n_gold"] == 1 and res["transitorias"] == 0, res
+
+
 def test_t10fix4_192_index_check_y_rebuild_aplican_el_id_prefix_de_training_json(tmp_path):
     """#192: `index check` aplica el `id_prefix` de training.json (#181/N2): una version de otro prefijo
     (grabada con otra config sobre el mismo `root`) es una incoherencia «otro `id_prefix`» (exit 1), no

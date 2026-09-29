@@ -961,9 +961,10 @@ def causa_otro_prefijo(n):
 
 
 def causa_validacion_ilegible(n):
-    """#191: la causa de `n` versiones con `validation.json` ilegible por una causa PERMANENTE."""
+    """#191/#197: la causa de `n` versiones con `validation.json` ilegible por una causa PERMANENTE
+    (permisos, JSON roto o esquema)."""
     return (f"{n} version{'es' if n != 1 else ''} con validation.json ilegible: no se sabe si "
-            f"{'son' if n != 1 else 'es'} Gold (revisa los permisos)")
+            f"{'son' if n != 1 else 'es'} Gold (revisa sus permisos y su contenido)")
 
 
 def _export_completo(exports, directorio):

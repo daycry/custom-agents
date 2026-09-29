@@ -185,10 +185,11 @@ origen, N4): cambiar `id_prefix` con un store existente deja fuera sus casos (av
 `cases/<nombre>`, nunca el `case_id`); en ese caso, usa otro `root`. Esa causa va PRIMERO (#190): si
 alguna versión tiene otro `id_prefix`, `/doctor` y `--estado` dicen `con_omisiones` con «N versiones con
 otro `id_prefix` que el de training.json: restáuralo o usa otro `root`» (exit 1; antes que el mensaje de
-#183) y el rechazo del ensamblador empieza por esa misma frase. **`validation.json` ilegible (#191).**
-Una versión cuyo `validation.json` no se puede leer por una causa PERMANENTE (`EACCES`/`EPERM` en POSIX,
-N6) no se sabe si es Gold: con la firma igual, la frescura es `con_omisiones` con «N versiones con
-validation.json ilegible: no se sabe si son Gold (revisa los permisos)» primero, nunca `al_dia`.
+#183) y el rechazo del ensamblador empieza por esa misma frase. **`validation.json` ilegible (#191/#197).**
+Una versión cuyo `validation.json` no se puede leer por CUALQUIER causa PERMANENTE (`EACCES`/`EPERM` en
+POSIX, N6; JSON roto; JSON que no pasa el esquema; no es un fichero regular) no se sabe si es Gold: con
+la firma igual, la frescura es `con_omisiones` con «N versiones con validation.json ilegible: no se sabe
+si son Gold (revisa sus permisos y su contenido)» primero, nunca `al_dia`.
 **Referencias de la muestra (#189).** El lector de la marca valida cada `ref` de `omitidos_muestra`
 con la regla de un `case_id` (la parte anterior al último `@v`: ≤ 200 caracteres, sin controles ni
 caracteres de formato Unicode; después, de 1 a 9 cifras ASCII), no con `\S+`: una `family` con un

@@ -1987,11 +1987,14 @@ def _leer_de_version(dir_v, fichero, rel, fstat_leido=None, decodificar=_json_de
             codigo.append(c)
         return None, None, aviso
 
-    def _sin_permisos():
-        """#191: un `validation.json` ilegible por una causa PERMANENTE (N6) lleva el codigo
-        `validacion_ilegible`: no se sabe si esa version es Gold."""
-        aviso = f"{rel} ilegible: {fichero} {SIN_PERMISOS}"
+    def _permanente(aviso):
+        """#191/#197: un `validation.json` ilegible por CUALQUIER causa PERMANENTE (permisos N6, no es un
+        fichero regular, JSON roto) lleva el codigo `validacion_ilegible`: no se sabe si esa version es
+        Gold. Las transitorias (`_aviso_transitorio`) no pasan por aqui."""
         return _cod("validacion_ilegible", aviso) if fichero == "validation.json" else (None, None, aviso)
+
+    def _sin_permisos():
+        return _permanente(f"{rel} ilegible: {fichero} {SIN_PERMISOS}")
 
     ruta = os.path.join(dir_v, fichero)
     intentos, limite, espera, por_plazo = 0, None, ESPERA_SUSTITUIDO_S, False
@@ -2025,7 +2028,7 @@ def _leer_de_version(dir_v, fichero, rel, fstat_leido=None, decodificar=_json_de
         if _motivo_enlace(ruta, ruta) if _es_enlace_st(st) is None else _es_enlace_st(st):
             return None, None, f"{rel} omitida: {fichero} es un {MOTIVO_ENLACE}"
         if not stat.S_ISREG(st.st_mode):
-            return None, None, f"{rel} ilegible: {fichero} no es un fichero regular"
+            return _permanente(f"{rel} ilegible: {fichero} no es un fichero regular")         # #197
         if st.st_nlink > 1:
             tmp = _temporal_hermano(dir_v, st) if fichero == "metadata.json" else None
             if tmp:                                                 # G2: publicacion POSIX a medias
@@ -2057,7 +2060,7 @@ def _leer_de_version(dir_v, fichero, rel, fstat_leido=None, decodificar=_json_de
             return None, None, (f"{rel} ilegible: {fichero} no legible tras {REINTENTOS} reintentos "
                                 f"(bloqueada o sin permisos): {e}")
         except (OSError, ValueError, RecursionError) as e:
-            return None, None, f"{rel} ilegible: {fichero} no es JSON valido ({type(e).__name__})"
+            return _permanente(f"{rel} ilegible: {fichero} no es JSON valido ({type(e).__name__})")  # #197
     return None, None, (f"{rel} ilegible: {fichero} {SUSTITUIDO} {intentos} veces seguidas en "
                         f"{PLAZO_SUSTITUIDO_S * 1000:.0f} ms")
 
@@ -2173,6 +2176,8 @@ def _estado_version(store, nombre, dir_caso, numero, nombres, entrada_dir=None, 
     errores_val = []
     cs._validar_validation(val, errores_val)
     if errores_val:
+        if codigo is not None:                      # #197: esquema invalido, causa permanente
+            codigo.append("validacion_ilegible")
         return None, (f"{rel} omitida: validation.json incoherente ({errores_val[0]['campo']}: "
                       f"{errores_val[0]['mensaje']}); no se indexa"), False, None
     try:
@@ -2503,8 +2508,8 @@ def resumen_store(store, raiz_proyecto=None, plazo_s=RESUMEN_PLAZO_S, id_prefix=
     lectura corto el plazo (#177). Se clasifican por el CODIGO que acompaña a cada aviso, nunca por su
     texto (#157). `transitorias` = versiones omitidas por una causa TRANSITORIA (M1:
     `_aviso_transitorio`). `otro_prefijo` (#190) = versiones omitidas porque su `case_id` es de otro
-    `id_prefix` que el de training.json; `validacion_ilegible` (#191) = versiones con `validation.json`
-    ilegible por una causa PERMANENTE (no se sabe si son Gold); las dos cuentan TAMBIEN en `otros_avisos`.
+    `id_prefix` que el de training.json; `validacion_ilegible` (#191/#197) = versiones con `validation.json`
+    ilegible por CUALQUIER causa PERMANENTE —permisos, JSON roto, esquema— (no se sabe si son Gold); las dos cuentan TAMBIEN en `otros_avisos`.
     `gold` = `{(case_id, version): content_hash saneado}` de los Gold humanos
     (F1/M5: `gold_de_version`; nunca la cadena de un hash invalido) y `firma` = `firma_gold(gold)`, la
     FIRMA de la entrada que compara la frescura del dataset (D-f4), con `n_gold` Gold; `gold_mtime_ns`
