@@ -189,6 +189,11 @@ decisión de que la extracción de entidades la hace el SERVIDOR, no el cliente)
   (`knowledge-sync.py --backend <id> --check`), diciendo además que un desfase fuera de esa ventana
   no se ve desde ahí. El ⚠️ se reserva a lo que SÍ es del backend: `desfase`, o `incompleto` cuando
   el manifiesto sí cabía en la ventana que se le pasó.
+  **Tope duro de `/doctor`** (C-09a): `health()` y `verify()` respetan cada uno su `timeout_ms`, pero se
+  ejecutan uno tras otro (medido con un blackhole TCP: 4,02 s con `tope_ms` = 2000). `/doctor` corre la
+  sonda en un hilo `daemon` y deja de esperar a `tope_ms` + `CAPACIDAD_MARGEN_MS` (500 ms); si no
+  termina, la fila es ⚠️ «no comprobado». Por eso ambas funciones deben ser de SOLO LECTURA: el hilo
+  abandonado sigue hasta que el proceso acaba y no debe dejar escrituras a medias.
   **Umbral con los DEFAULTS** (gap #140): la regla de coherencia de arriba, con los defaults
   (`max_respuesta_kb` 8192 KiB y ~3 KiB por episodio), cubre unos **2 700 episodios del grupo**.
   Por encima, la verificación sale `incompleto` —y con `mode: read` la lectura enrutada queda

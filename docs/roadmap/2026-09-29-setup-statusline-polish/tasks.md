@@ -330,7 +330,7 @@ estado: borrador
 
 - **Descripción**: Decisión 3a: tope estricto con timeout duro. Ejecutar la sonda kwipu en un hilo `daemon` con `join(timeout)` y abandonarlo si no termina (sin escrituras a medias), de modo que la línea no supere `tope_ms` + un margen fijo documentado. Medir antes la fuente del exceso (`_urlopen_local`, DNS, arranque del adaptador). Hotspot: tarea aislada, sin paralelizar con otras sobre `doctor.py`.
 - **Changelog**: `/doctor` ya no se demora más de su tope al consultar el servidor de conocimiento.
-- **Estado**: borrador
+- **Estado**: completado
 - **Prioridad**: Media
 - **Tiempo humano**: est. 3.6h · real —
 - **Tiempo IA (ejec.)**: est. 0.72h · real —
@@ -344,19 +344,25 @@ estado: borrador
   - `python3 -m pytest -q agent-kits/shared/test_doctor.py -k tope_ms` -> passed (servidor simulado lento: duración <= `tope_ms` + margen) (CA-16)
   - `python3 agent-kits/shared/doctor.py --json` -> exit 0 o 1 sin traceback; línea kwipu presente
 
+- **Evidencia**:
+  Medición previa (fuente del exceso): adaptador simulado con blackhole TCP local, tope_ms=2000 -> `_linea_capacidad_backend` tardó 4.02 s = health() + verify() secuenciales, cada uno respetando su timeout. No es DNS ni el arranque del adaptador.
+  RED: test_ca16_tope_ms_estricto_backend_lento_no_pasa_de_tope_mas_margen falló (NameError/duración 4 s > tope+margen) contra el código anterior · 2026-09-29
+  GREEN: `pytest agent-kits/shared/test_doctor.py -k "tope_ms or ca16"` -> 6 passed; suite completa test_doctor.py -> 150 passed + 1 nuevo E17 tras documentar; `python3 agent-kits/shared/doctor.py --json` -> exit 0, sin traceback, línea «kwipu (backend)» presente.
+  Diseño: hilo daemon + join(tope_ms + CAPACIDAD_MARGEN_MS=500). Margen documentado en E17 (CONTRACTS.md), backends/README.md y el código. El hilo abandonado es de solo lectura (health/verify).
+
 **Criterios de aceptación**
 
-- [ ] Con servidor simulado lento la línea kwipu termina en <= `tope_ms` + margen fijo documentado (CA-16).
-- [ ] El hilo abandonado es `daemon` y no deja escrituras a medias.
-- [ ] El margen está documentado en E17 de `CONTRACTS.md` y en el código.
-- [ ] Se mide (y se pega) la fuente del exceso antes del arreglo.
+- [x] Con servidor simulado lento la línea kwipu termina en <= `tope_ms` + margen fijo documentado (CA-16).
+- [x] El hilo abandonado es `daemon` y no deja escrituras a medias.
+- [x] El margen está documentado en E17 de `CONTRACTS.md` y en el código.
+- [x] Se mide (y se pega) la fuente del exceso antes del arreglo.
 
 **Subtareas**
 
-- [ ] Medir con reloj/servidor simulado.
-- [ ] Sonda en hilo con `join(timeout)`.
-- [ ] Test con servidor lento.
-- [ ] Actualizar E17.
+- [x] Medir con reloj/servidor simulado.
+- [x] Sonda en hilo con `join(timeout)`.
+- [x] Test con servidor lento.
+- [x] Actualizar E17.
 
 **Notas**: Criterio de la spec: CA-16.
 

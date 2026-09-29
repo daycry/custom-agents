@@ -15,6 +15,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 
 import pytest
 
@@ -2224,3 +2225,63 @@ def test_f3fix4_gap152_verify_no_verificable_es_informativo_con_su_razon(tmp_pat
     assert linea["estado"] == doctor.INFO, linea
     assert "mode: off" in linea["detalle"], linea
     assert "export atrasado" not in linea["detalle"], linea
+
+
+# ------------------------------------------------------------------ C-09a: tope_ms estricto (CA-16)
+
+class _AdaptadorLento:
+    """Servidor simulado lento: health() y verify() tardan `pausa_s` cada uno (como dos
+    conexiones a un blackhole TCP: medido 4,02 s con tope_ms=2000, es decir health + verify)."""
+    def __init__(self, pausa_s):
+        self.pausa_s = pausa_s
+        self.llamadas = []
+
+    def health(self, cfg):
+        self.llamadas.append("health")
+        time.sleep(self.pausa_s)
+        return {"estado": "sano"}
+
+    def verify(self, cfg):
+        self.llamadas.append("verify")
+        time.sleep(self.pausa_s)
+        return {"estado": "ok"}
+
+
+class _ModLento:
+    AdaptadorNoDisponible = _AdaptadorNoDisponibleFake
+
+    def __init__(self, adaptador):
+        self.adaptador = adaptador
+
+    def cargar_adaptador(self, tipo, directorios):
+        return self.adaptador
+
+
+def test_ca16_tope_ms_estricto_backend_lento_no_pasa_de_tope_mas_margen():
+    ad = _AdaptadorLento(pausa_s=2.0)          # health + verify = 4 s sin tope duro
+    t0 = time.monotonic()
+    l = doctor._linea_capacidad_backend("kwipu", "t", {}, _ModLento(ad), "d", tope_ms=400)
+    dur = time.monotonic() - t0
+    assert dur <= (400 + doctor.CAPACIDAD_MARGEN_MS) / 1000 + 0.3, dur
+    assert l["estado"] == doctor.AVISO and "no comprobado" in l["detalle"] and "tope" in l["detalle"], l
+
+
+def test_ca16_backend_rapido_no_se_ve_afectado_por_el_tope_duro():
+    ad = _AdaptadorLento(pausa_s=0.01)
+    l = doctor._linea_capacidad_backend("kwipu", "t", {}, _ModLento(ad), "d", tope_ms=2000)
+    assert l["estado"] == doctor.OK and ad.llamadas == ["health", "verify"], l
+
+
+def test_ca16_el_hilo_abandonado_es_daemon_y_no_bloquea_la_salida():
+    import threading
+    ad = _AdaptadorLento(pausa_s=1.0)
+    doctor._linea_capacidad_backend("kwipu", "t", {}, _ModLento(ad), "d", tope_ms=300)
+    vivos = [t for t in threading.enumerate() if t.daemon and t is not threading.main_thread()]
+    assert vivos and all(t.daemon for t in vivos)
+
+
+def test_ca16_el_margen_esta_documentado_en_contracts_e17():
+    contrato = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "docs", "agents",
+                                 "CONTRACTS.md"), encoding="utf-8").read()
+    fila = next(l for l in contrato.splitlines() if l.startswith("| E17"))
+    assert "CAPACIDAD_MARGEN_MS" in fila and "daemon" in fila
