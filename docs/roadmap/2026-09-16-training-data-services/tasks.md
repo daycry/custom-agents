@@ -885,3 +885,61 @@ Cubre #182. Sustituye la parte M2 de D-f4 («`"!transitoria"` en la firma»).
 3. **Verificación dirigida** con lentes B+C+D (y A para #185/#187), Windows + Linux.
 
 Si confirma sin Critical ni Important: T-10/T-11 `completado`.
+
+#### Enmiendas a D-f5 y a los arbitrajes de #180/#181/#183/#184 tras la revisión previa (Lente B, 2026-09-29) — SUSTITUYEN al texto anterior donde difieran
+
+**Veredicto de la Lente B** (sondas P1-P8 sobre `377657a`): implementable con enmiendas.
+- **Lo que se confirma.** La idea de D-f5 (O1 + omisiones registradas en la marca) cubre las dos caras de #182, el A-B-A (M4) y M13 (la pasada 2 y la marca van bajo `exports/.lock`: no hay `al_dia` falso nuevo). La frontera de O2 es correcta: lo que omite `_estado_de_cases` lo omiten los dos lados y ya sale en el recuento; dedup, benchmark y SIN_ATAR son resultado del ensamblado. Exigir el `id_prefix` exacto está bien: cambiar `id_prefix` ya deja fuera hoy los casos antiguos en `leer_caso` y en `set-status`, y #181(b) solo alinea `/doctor`. La firma dentro del plazo no rompe el parcial.
+- **4 Important que el texto provocaría:**
+  - **I1.** El esquema de #180 no incluye `n_min_boilerplate` ni `tope_fichero`, que el ensamblador SÍ escribe. Con «clave desconocida → inválida», TODA marca saldría inválida y el resultado sería `no_verificable` permanente.
+  - **I2.** La muestra escapada no casa `PATRON_REFERENCIA` con un `family_pattern` no ASCII, y `_bytes_marca` puede pasar de 4 KiB: el lector la rechaza y el escritor no la reemplaza.
+  - **I3.** `firmas[(case_id, n)]` se guarda ANTES de `_case_id_casa` (`case-recorder.py:2103` frente a `:2117`), así que el `case_id` gigante sigue retenido.
+  - **I4.** `resumen_store` y `capabilities` no reciben `id_prefix`. Con «solo `<nombre>` si no se declara», `/doctor` daría `n_gold=0` en todo store normal.
+
+**Enmiendas:**
+
+- **N1 (#180, sustituye su (a)).** El esquema de `parametros` es EXACTAMENTE lo que escribe el ensamblador:
+  - `umbral` y `fraccion_boilerplate`: número finito en (0, 1];
+  - `ventana`, `n_min_boilerplate`, `presupuesto` y `tope_fichero`: entero ≥ 1 (un bool no vale);
+  - `conservar_duplicados`: bool;
+  - `benchmark`: lista de cadenas cualesquiera de ≤ 256 caracteres, o la cadena `"<n> familias"` del fallback, o ausente;
+  - también se aceptan `{}` y la forma resumida de los fallbacks de `_bytes_marca`;
+  - sin validar contra el patrón de familia.
+
+  Se mantiene (b): `_texto_parametros` escapa todo valor. Test de ida y vuelta: toda marca que produce el escritor, fallbacks incluidos, pasa `_motivo_marca`.
+- **N2 (#181, sustituye su (b)/(c)).**
+  - La comprobación del `case_id` va justo después de parsear `metadata.json`, ANTES de leer `validation.json` y de guardar nada en `firmas`, `crudos`, `gold` o `entradas`. Exige longitud ≤ `CASE_ID_MAX` y `== construir_case_id(id_prefix, family, variant)`.
+  - El aviso nunca incluye el `case_id`: solo `cases/<nombre>` y la causa («otro `id_prefix` que el de training.json (¿lo cambiaste?)» o «case_id demasiado largo»).
+  - `id_prefix` se pasa EXPLÍCITO desde `cargar` y `resumen_store`; `capabilities` lo saca de `training.json`. Sin `id_prefix` se mantiene la regla permisiva de hoy, NUNCA «solo `<nombre>`».
+  - Tests:
+    - `/doctor` pasando por `capabilities` con un store normal con prefijo → `al_dia`;
+    - otro prefijo → excluido en los dos lados y ausente del manifiesto y del export;
+    - pico de memoria medido DURANTE el recorrido, ≤ 100 B por Gold.
+  - Doc: cambiar `id_prefix` con un store existente deja fuera sus casos; en ese caso, usa otro `root`.
+- **N3 (O2).**
+  - `omitidos_muestra` guarda la referencia CRUDA validada como `case_id` (≤ `CASE_ID_MAX`, forma `…@v<n>`) y se escapa solo al mostrarla.
+  - `_bytes_marca` recorta hasta caber en 4 KiB: primero la muestra, luego `benchmark`, luego `parametros`.
+  - `_escribir_marca` valida con `_motivo_marca` y con el tope los bytes EXACTOS que va a publicar. Si no pasan, no escribe y avisa: nunca deja una marca que su propio lector rechace.
+  - Test con un `family_pattern` que admite no ASCII y 11 omisiones con `case_id` de 200 caracteres.
+- **N4 (#181, sustituye su (a) en el origen).** Topes en el origen:
+  - `family` ≤ 64 y `variant` ≤ 64 en `validar_caso`;
+  - `id_prefix` ≤ 32 en `validar_config`;
+  - así, `CASE_ID_MAX` = 200 queda por encima del máximo legítimo (162).
+
+  `validar_caso` devuelve el error en su campo y nunca lanza. `construir_case_id` no lanza desde `validar_caso`.
+- **N5 (O5).** El remedio de O5 y el de `references/dataset.md:150` es: «`dataset-assembler.py --dry-run` con los parámetros de la marca: si el `export_id` coincide con el de la marca, reensamblar no cambia nada; si no, reensambla». Se retira `index check`, que no ve los ficheros inmutables (P2: rc 0 «coherente»).
+- **N6 (O3, #182 cara 2).**
+  - La muestra y el texto dan la CAUSA normalizada: `ausente`, `ilegible`, `sin permisos o bloqueado`, `esquema`, `sustituido`.
+  - El remedio incluye «o recházalo (`set-status … rejected`) si el contenido no se puede recuperar» (P6: funciona con un inmutable ausente).
+  - **Decidido:** en POSIX, `EACCES`/`EPERM` NO cuentan como transitorios (causa `sin permisos`, «revisa los permisos y reensambla»). En Windows, `PermissionError` sigue siendo `sin permisos o bloqueado`.
+  - Esto cubre también el `parcial` permanente de `/doctor` M1 con `EACCES` en `validation.json`.
+- **N7 (#183).**
+  - Orden de decisión: con 0 Gold y sin dudas, se lee la marca solo si hay exports.
+  - Marca válida con `gold > 0` y su export completo → `desactualizado`, exit 1. En otro caso → `sin_gold`.
+  - Test: tras archivar ese export → `sin_gold`.
+- **N8 (#184).**
+  - La distinción «bloqueada o sin permisos» se aplica también en `_escribir_marca` y en el `OSError` del `lstat` (`:666`). En ese caso no se reescribió la marca, lo reescribe el siguiente ensamblado, y NUNCA se da `REMEDIO_MARCA`.
+  - Texto: «bloqueada por otro proceso o sin permisos: vuelve a pasar /doctor; si persiste, revisa los permisos de `exports/.ultimo.json`».
+- **N9 (O3).** `con_omisiones` entra en `EXIT_ESTADO` (exit 1), `TEXTO_DATASET` y las ayudas de `--estado` (`:110`, `:1156`). Test del exit code.
+
+**Decisión del orquestador (2026-09-29):** D-f5 queda APROBADO con N1-N9. Siguiente paso: ronda `fix3` (implementer `opus`, marcador `training-data-services/T-10-fix3`) sobre #180-#188, y después verificación dirigida.
