@@ -1670,7 +1670,9 @@ def test_bloque_capacidades_recorta_por_presupuesto_total(monkeypatch):
             return [{"id": f"cap{i}", "enabled": True, "health": None} for i in range(5)]
 
     monkeypatch.setattr(doctor, "_cargar_capabilities", lambda plugin_root: _CapMod())
-    monkeypatch.setattr(doctor, "_cargar_backends_loader", lambda plugin_root: (None, "d"))
+    # fix2 (#167): el presupuesto solo acota las capacidades que REQUIEREN red (backend declarado)
+    monkeypatch.setattr(doctor, "_cargar_backends_loader", lambda plugin_root: (object(), "d"))
+    monkeypatch.setattr(doctor, "_leer_backend_entry", lambda project, cap, backend_id=None: {"type": "t"})
     monkeypatch.setattr(doctor, "CAPACIDADES_PRESUPUESTO_S", 0.05)
 
     llamadas = []
@@ -1701,7 +1703,9 @@ def test_bloque_capacidades_topa_tope_ms_al_presupuesto_restante(monkeypatch):
                     {"id": "cap1", "enabled": True, "health": None}]
 
     monkeypatch.setattr(doctor, "_cargar_capabilities", lambda plugin_root: _CapMod())
-    monkeypatch.setattr(doctor, "_cargar_backends_loader", lambda plugin_root: (None, "d"))
+    # fix2 (#167): el presupuesto solo acota las capacidades que REQUIEREN red (backend declarado)
+    monkeypatch.setattr(doctor, "_cargar_backends_loader", lambda plugin_root: (object(), "d"))
+    monkeypatch.setattr(doctor, "_leer_backend_entry", lambda project, cap, backend_id=None: {"type": "t"})
     monkeypatch.setattr(doctor, "CAPACIDADES_PRESUPUESTO_S", 2.02)
 
     topes_recibidos = []
@@ -1732,7 +1736,9 @@ def test_bloque_capacidades_aviso_de_recorte_cita_el_tiempo_transcurrido_real(mo
             return [{"id": f"cap{i}", "enabled": True, "health": None} for i in range(3)]
 
     monkeypatch.setattr(doctor, "_cargar_capabilities", lambda plugin_root: _CapMod())
-    monkeypatch.setattr(doctor, "_cargar_backends_loader", lambda plugin_root: (None, "d"))
+    # fix2 (#167): el presupuesto solo acota las capacidades que REQUIEREN red (backend declarado)
+    monkeypatch.setattr(doctor, "_cargar_backends_loader", lambda plugin_root: (object(), "d"))
+    monkeypatch.setattr(doctor, "_leer_backend_entry", lambda project, cap, backend_id=None: {"type": "t"})
     monkeypatch.setattr(doctor, "CAPACIDADES_PRESUPUESTO_S", 0.05)
 
     def _linea_lenta(project, cap, backends_mod, backends_dir, **kwargs):
@@ -1761,7 +1767,9 @@ def test_bloque_capacidades_no_comprueba_con_tope_ms_por_debajo_del_suelo(monkey
                     {"id": "cap1", "enabled": True, "health": None}]
 
     monkeypatch.setattr(doctor, "_cargar_capabilities", lambda plugin_root: _CapMod())
-    monkeypatch.setattr(doctor, "_cargar_backends_loader", lambda plugin_root: (None, "d"))
+    # fix2 (#167): el presupuesto solo acota las capacidades que REQUIEREN red (backend declarado)
+    monkeypatch.setattr(doctor, "_cargar_backends_loader", lambda plugin_root: (object(), "d"))
+    monkeypatch.setattr(doctor, "_leer_backend_entry", lambda project, cap, backend_id=None: {"type": "t"})
     # presupuesto total suficiente para que cap0 arranque por encima del suelo, pero que tras
     # gastar los 50ms de cap0 deja a cap1 un resto por debajo de `_CAPACIDAD_TOPE_MS_MINIMO`.
     monkeypatch.setattr(doctor, "CAPACIDADES_PRESUPUESTO_S", 0.32)
@@ -1920,7 +1928,8 @@ def test_bloque_capacidades_via_capabilities_real_proyecto_sin_config(tmp_path):
     """`capabilities.py` REAL (no un doble): sin `taxonomy.json` de proyecto, `knowledge-gate`
     usa la plantilla por defecto (ok) y la capacidad opcional aparece desactivada."""
     proj = proyecto(tmp_path)
-    b = doctor.bloque_capacidades(None, str(proj))
+    # fix1 gap #9: las desactivadas SIN su fichero de config solo salen con `verbose`
+    b = doctor.bloque_capacidades(None, str(proj), verbose=True)
     ids = {l["que"] for l in b["lineas"]}
     assert "knowledge-gate" in ids
     assert any(i for i in ids if i != "knowledge-gate")   # al menos una capacidad opcional mas
@@ -1956,6 +1965,492 @@ def test_bloque_capacidades_esta_en_diagnostico(tmp_path):
     inf = diag(proj)
     claves = {b["clave"] for b in inf["bloques"]}
     assert "capacidades" in claves
+
+
+# ------------------------------------------------------------------ fix1 gap #9 (training-data-services)
+
+def test_f1fix1_gap09_optin_sin_su_config_se_omite_salvo_verbose(tmp_path, monkeypatch):
+    """Regla GENERICA del contrato de capacidades: una capacidad desactivada cuyo `config_path` no
+    existe en el proyecto no pinta nada en /doctor (cero impacto de un opt-in no configurado) salvo
+    con `--verbose`; con su fichero, activa, o en error, sale siempre. Sin nombres de capacidad."""
+    proj = tmp_path / "proj"
+    (proj / "cfg").mkdir(parents=True)
+    (proj / "cfg" / "b.json").write_text("{}", encoding="utf-8")
+    caps = [_cap("a", enabled=False, config_path=os.path.join("cfg", "a.json")),
+            _cap("b", enabled=False, config_path=os.path.join("cfg", "b.json")),
+            _cap("c", enabled=True, config_path=os.path.join("cfg", "c.json")),
+            _cap("d", enabled=False, config_path=os.path.join("cfg", "d.json"),
+                 health={"estado": "error", "detalle": "roto", "fichero": "cfg/d.json"}),
+            _cap("e", enabled=False, config_path=None)]
+
+    class _CapMod:
+        @staticmethod
+        def enumerar(project):
+            return caps
+
+    monkeypatch.setattr(doctor, "_cargar_capabilities", lambda plugin_root: _CapMod())
+    monkeypatch.setattr(doctor, "_cargar_backends_loader", lambda plugin_root: (None, "d"))
+    normal = {l["que"] for l in doctor.bloque_capacidades(None, str(proj))["lineas"]}
+    assert normal == {"b", "c", "d", "e"}
+    verbose = {l["que"] for l in doctor.bloque_capacidades(None, str(proj), verbose=True)["lineas"]}
+    assert verbose == {"a", "b", "c", "d", "e"}
+
+
+def test_f1fix1_gap09_todas_omitidas_deja_una_linea_informativa(tmp_path, monkeypatch):
+    class _CapMod:
+        @staticmethod
+        def enumerar(project):
+            return [_cap("a", enabled=False, config_path="no-existe.json")]
+
+    monkeypatch.setattr(doctor, "_cargar_capabilities", lambda plugin_root: _CapMod())
+    monkeypatch.setattr(doctor, "_cargar_backends_loader", lambda plugin_root: (None, "d"))
+    b = doctor.bloque_capacidades(None, str(tmp_path))
+    assert [l["que"] for l in b["lineas"]] == ["capacidades opcionales"]
+    assert b["lineas"][0]["estado"] == doctor.INFO and "--verbose" in b["lineas"][0]["arreglo"]
+
+
+def test_f1fix1_gap09_proyecto_sin_config_no_pinta_desactivadas_y_verbose_si(tmp_path):
+    """Pipeline REAL (`capabilities.enumerar()`): sin ficheros de config de proyecto, ninguna fila
+    `desactivado`; `--verbose` (CLI) las muestra."""
+    proj = proyecto(tmp_path)
+    b = doctor.bloque_capacidades(None, str(proj))
+    assert not [l for l in b["lineas"] if l["detalle"] == "desactivado"]
+    for flag in ("--verbose", "--all"):
+        r = run("--root", str(proj), "--json", flag)
+        inf = json.loads(r.stdout)
+        cap = next(x for x in inf["bloques"] if x["clave"] == "capacidades")
+        assert [l for l in cap["lineas"] if l["detalle"] == "desactivado"], flag
+    r = run("--root", str(proj), "--json")
+    cap = next(x for x in json.loads(r.stdout)["bloques"] if x["clave"] == "capacidades")
+    assert not [l for l in cap["lineas"] if l["detalle"] == "desactivado"]
+
+
+# ------------------------------------------------------------------ T-10 (training-data-services): capacidad real
+
+def _training_json(proj, **cfg):
+    d = proj / ".claude" / "knowledge-services"
+    d.mkdir(parents=True, exist_ok=True)
+    datos = {"version": 1}
+    datos.update(cfg)
+    (d / "training.json").write_text(json.dumps(datos), encoding="utf-8")
+    return d / "training.json"
+
+
+def _filas(proj, que, verbose=False):
+    b = doctor.bloque_capacidades(None, str(proj), verbose=verbose)
+    return [l for l in b["lineas"] if l["que"] == que]
+
+
+def test_t10_sin_training_json_doctor_no_reporta_nada_de_la_capacidad(tmp_path):
+    proj = proyecto(tmp_path)
+    antes = sorted(os.listdir(str(proj)))
+    assert _filas(proj, "training") == []
+    inf = diag(proj)
+    lineas = [l for b in inf["bloques"] for l in b["lineas"]]
+    assert not [l for l in lineas if "training" in f"{l['que']} {l['detalle']} {l['arreglo']}"]
+    assert sorted(os.listdir(str(proj))) == antes
+
+
+def test_t10_training_desactivado_con_fichero_es_informativo(tmp_path):
+    proj = proyecto(tmp_path)
+    _training_json(proj, enabled=False, root="../store", id_prefix="geo")
+    [l] = _filas(proj, "training")
+    assert l["estado"] == doctor.INFO and l["detalle"] == "desactivado"
+
+
+def test_t10_training_activo_informa_recuento_y_dataset_sin_bloquear(tmp_path):
+    proj = proyecto(tmp_path)
+    _training_json(proj, enabled=True, root="../store", id_prefix="geo")
+    v = tmp_path / "store" / "cases" / "ramp.steep" / "v001"
+    ejemplo = os.path.join(ROOT, "skills", "training-data-services", "assets", "case-store-example",
+                           "cases", "ramp.steep", "v002")
+    import shutil
+    shutil.copytree(ejemplo, str(v))
+    (v / "metadata.json").write_text(json.dumps({"case_id": "geo-ramp.steep", "family": "ramp", "variant": "steep",
+                                                  "version": 1, "created_at": "2026-09-23T10:00:00Z",
+                                                  "outcome": "success"}), encoding="utf-8")
+    [l] = _filas(proj, "training")
+    assert l["estado"] == doctor.INFO
+    assert "approved 1" in l["detalle"] and "(1 versiones)" in l["detalle"]
+    assert "dataset: desactualizado" in l["detalle"]
+    assert doctor.diagnostico(str(proj))["exit"] in (0, 1)
+    assert not [x for x in diag(proj)["bloques"] for y in x["lineas"]
+                if y["que"] == "training" and y["estado"] == doctor.ERROR]
+
+
+def test_t10_training_config_invalida_es_error_con_fichero_y_campo(tmp_path):
+    proj = proyecto(tmp_path)
+    ruta = _training_json(proj, enabled=True, root="../store")          # sin id_prefix
+    [l] = _filas(proj, "training")
+    assert l["estado"] == doctor.ERROR
+    assert "training.json" in l["detalle"] and "id_prefix" in l["detalle"]
+    assert "training.json" in l["arreglo"]
+    assert ruta.exists() and not (tmp_path / "store").exists()
+
+
+def test_t10_doctor_py_no_nombra_ninguna_capacidad_concreta():
+    """CA-14: la capacidad llega por el registro; `doctor.py` no tiene codigo de `training`."""
+    with open(SCRIPT, encoding="utf-8") as f:
+        assert "training" not in f.read()
+
+
+def test_t10fix1_164_el_reloj_del_bloque_arranca_antes_de_enumerar(monkeypatch):
+    """#164 (regla GENERICA del contrato de capacidades): lo que tarda `enumerar()` (una capacidad que
+    recuenta al evaluarse) cuenta dentro del presupuesto TOTAL del bloque, y `enumerar()` recibe el
+    plazo que queda (`plazo_s`) si lo acepta; un registro antiguo sin ese parametro sigue funcionando."""
+    import time as time_mod
+    recibidos = []
+
+    class _CapMod:
+        @staticmethod
+        def enumerar(project, plazo_s=None):
+            recibidos.append(plazo_s)
+            time_mod.sleep(0.3)
+            return [{"id": f"cap{i}", "enabled": True, "health": None} for i in range(3)]
+
+    monkeypatch.setattr(doctor, "_cargar_capabilities", lambda plugin_root: _CapMod())
+    # fix2 (#167): el recorte solo afecta a las capacidades que REQUIEREN red (backend declarado)
+    monkeypatch.setattr(doctor, "_cargar_backends_loader", lambda plugin_root: (object(), "d"))
+    monkeypatch.setattr(doctor, "_leer_backend_entry", lambda project, cap, backend_id=None: {"type": "t"})
+    monkeypatch.setattr(doctor, "CAPACIDADES_PRESUPUESTO_S", 0.32)
+    comprobadas = []
+
+    def _linea(project, cap, backends_mod, backends_dir, **kwargs):
+        comprobadas.append(cap["id"])
+        return doctor.linea(doctor.INFO, cap["id"], "activa")
+    monkeypatch.setattr(doctor, "_linea_capacidad", _linea)
+    bloque = doctor.bloque_capacidades("plugin", "project")
+    assert recibidos and 0 < recibidos[0] <= 0.32
+    assert comprobadas == [], comprobadas
+    assert any(l["estado"] == doctor.AVISO and "recortada" in l["detalle"] for l in bloque["lineas"])
+
+    class _CapModAntiguo:
+        @staticmethod
+        def enumerar(project):
+            return [{"id": "cap0", "enabled": True, "health": None}]
+    monkeypatch.setattr(doctor, "_cargar_capabilities", lambda plugin_root: _CapModAntiguo())
+    monkeypatch.setattr(doctor, "CAPACIDADES_PRESUPUESTO_S", 5.0)
+    doctor.bloque_capacidades("plugin", "project")
+    assert comprobadas == ["cap0"]
+
+
+# ------------------------------------------------------------------ T-10 fix1 #161: cobertura de doctor.py >= 90 %
+# (gate `coverage-gate.py --changed-only --min 90`): las ramas de degradacion que ningun test pisaba.
+
+def test_t10fix1_161_leer_json_correr_y_json_de_degradan_sin_lanzar(tmp_path, monkeypatch):
+    roto = tmp_path / "roto.json"
+    roto.write_text("{no es json", encoding="utf-8")
+    datos, err = doctor._leer_json(str(roto))
+    assert datos is None and "no es JSON válido" in err
+    real_open = open
+
+    def _sin_permiso(ruta, *a, **k):
+        if str(ruta) == str(roto):
+            raise PermissionError(13, "denegado")
+        return real_open(ruta, *a, **k)
+    monkeypatch.setattr("builtins.open", _sin_permiso)
+    datos, err = doctor._leer_json(str(roto))
+    monkeypatch.undo()
+    assert datos is None and err == "no se puede leer (PermissionError)"
+    assert doctor._correr(["/no/existe/binario-inexistente-xyz"]) == ("", False)
+    assert doctor._json_de("{roto") is None and doctor._json_de(None) is None
+
+
+def test_t10fix1_161_cargar_linter_sin_plugin_o_roto_es_none(tmp_path):
+    assert doctor._cargar_linter(None) is None
+    assert doctor._cargar_linter(str(tmp_path)) is None
+    (tmp_path / "scripts").mkdir()
+    (tmp_path / "scripts" / "lint_plugin.py").write_text("raise RuntimeError('roto')\n", encoding="utf-8")
+    assert doctor._cargar_linter(str(tmp_path)) is None
+
+
+def test_t10fix1_161_hooks_json_roto_ausente_o_sin_raiz(tmp_path):
+    assert doctor._bloque_plugin_hooks(str(tmp_path))[0]["estado"] == doctor.AVISO
+    (tmp_path / "hooks").mkdir()
+    (tmp_path / "hooks" / "hooks.json").write_text("{roto", encoding="utf-8")
+    assert doctor._bloque_plugin_hooks(str(tmp_path))[0]["estado"] == doctor.ERROR
+    (tmp_path / "hooks" / "hooks.json").write_text('{"hooks": []}', encoding="utf-8")
+    l = doctor._bloque_plugin_hooks(str(tmp_path))[0]
+    assert l["estado"] == doctor.ERROR and "raíz `hooks`" in l["detalle"]
+
+
+def test_t10fix1_161_entradas_plugin_y_ruta_real(monkeypatch):
+    datos = {"a": {"b": {doctor.PLUGIN_PREFIJO + "x": 1, "otro@y": 2}}}
+    assert doctor._entradas_plugin(datos, "a", "b") == {doctor.PLUGIN_PREFIJO + "x": 1}
+    assert doctor._entradas_plugin(datos, "a", "b", "c") == {}
+    assert doctor._entradas_plugin({"a": 3}, "a") == {}
+
+    def _falla(_p):
+        raise OSError("no se puede resolver")
+    monkeypatch.setattr(doctor.os.path, "realpath", _falla)
+    assert doctor._ruta_real("x") == os.path.abspath("x")
+    monkeypatch.setattr(doctor.os.path, "abspath", _falla)
+    assert doctor._ruta_real("x") == ""
+
+
+def test_t10fix1_161_dev_guardrails_regla_desconocida_y_no_booleana():
+    ls = doctor._dev_valida_guardrails([1])
+    assert ls[0]["estado"] == doctor.ERROR
+    ls = doctor._dev_valida_guardrails({"alcance": "si", "inventada": True})
+    estados = {l["que"]: l["estado"] for l in ls}
+    assert estados == {"dev.json `guardrails.alcance`": doctor.ERROR, "dev.json `guardrails.inventada`": doctor.AVISO}
+
+
+def test_t10fix1_161_marcadores_degradan_a_leer_el_estado(tmp_path, monkeypatch):
+    monkeypatch.setattr(doctor, "_correr", lambda cmd, cwd=None: ("", False))
+    (tmp_path / ".claude").mkdir()
+    (tmp_path / ".claude" / "usage-state.json").write_text("{roto", encoding="utf-8")
+    l = doctor._marcadores(None, str(tmp_path))[0]
+    assert l["estado"] == doctor.AVISO and "usage-state.json" in l["detalle"]
+    (tmp_path / ".claude" / "usage-state.json").write_text(json.dumps({"x/T-01": {}}), encoding="utf-8")
+    l = doctor._marcadores(None, str(tmp_path))[0]
+    assert l["estado"] == doctor.AVISO and "x/T-01" in l["detalle"]
+
+
+def test_t10fix1_161_informes_de_evals(tmp_path):
+    assert "sin `evals/reports/`" in doctor._informes(str(tmp_path))[0]["detalle"]
+    d = tmp_path / "evals" / "reports"
+    d.mkdir(parents=True)
+    assert doctor._informes(str(tmp_path))[0]["detalle"] == "sin informes"
+    (d / "2026-09-01.json").write_text("{}", encoding="utf-8")
+    (d / "zz.json").write_text("{}", encoding="utf-8")
+    det = doctor._informes(str(tmp_path))[0]["detalle"]
+    assert "2 informe(s)" in det and "fecha no legible" in det
+
+
+def test_t10fix1_161_lint_knowledge_index_ramas_de_error(tmp_path):
+    base = tmp_path / "docs" / "knowledge"
+    (base / "adr").mkdir(parents=True)
+    (base / "adr" / "ADR-001-x.md").write_text("---\nestado: aceptada\n---\n", encoding="utf-8")
+    assert "no existe" in doctor.lint_knowledge_index(str(tmp_path))[0]
+    (base / "README.md").write_text("# indice\n\nsin tabla\n", encoding="utf-8")
+    assert "no encuentro la tabla" in doctor.lint_knowledge_index(str(tmp_path))[0]
+    tabla = ("| Entrada | ID | Tipo | Área |\n|---|---|---|---|\n"
+             "| [a](adr/ADR-001-x.md) | ADR-001 | adr | |\n"
+             "| [b](adr/ADR-001-x.md) | ADR-001 | adr | x |\n"
+             "| sin enlace | | adr | x |\n"
+             "| [c](adr/no-existe.md) | ADR-003 | adr | x |\n"
+             "\n| [d](adr/ADR-001-x.md) | ADR-009 | adr | x |\n")
+    (base / "README.md").write_text(tabla, encoding="utf-8")
+    errs = " ".join(doctor.lint_knowledge_index(str(tmp_path)))
+    for trozo in ("fuera de la tabla", "fila sin «Área»", "ID repetido", "ruta repetida", "fila sin ID",
+                  "no enlaza a ningún fichero", "que no existe"):
+        assert trozo in errs, trozo
+
+
+def test_t10fix1_161_curadas_sin_knowledge_find_usa_el_parser_local(tmp_path):
+    base = tmp_path / "docs" / "knowledge"
+    for carpeta, fichero, estado in (("adr", "ADR-001-x.md", "aceptada"), ("gotchas", "GOT-001-y.md", None),
+                                     ("lessons", "LES-001-z.md", "Propuesta")):
+        (base / carpeta).mkdir(parents=True)
+        (base / carpeta / fichero).write_text(f"---\nestado: {estado}\n---\n" if estado else "sin frontmatter\n",
+                                              encoding="utf-8")
+        (base / carpeta / "README.md").write_text("indice\n", encoding="utf-8")
+
+    class _KfRoto:
+        @staticmethod
+        def cargar_corpus(_project):
+            raise RuntimeError("roto")
+    assert sorted(doctor._curadas(str(tmp_path), _KfRoto())) == [("adr", "aceptada"), ("gotcha", "?"),
+                                                                 ("leccion", "propuesta")]
+    assert doctor._frontmatter_estado(str(tmp_path / "no-existe.md")) == ""
+
+
+def test_t10fix1_161_main_rechaza_argumentos_invalidos(tmp_path, capsys):
+    assert doctor.main(["--hoy", "ayer"]) == 2
+    assert doctor.main(["--root", str(tmp_path / "no-existe")]) == 2
+    assert doctor.main(["--root", str(tmp_path), "--plugin-root", str(tmp_path / "no-existe")]) == 2
+    assert "❌ uso" in capsys.readouterr().err
+
+
+def test_t10fix1_161_acepta_plazo_por_firma():
+    def con(project, plazo_s=None):
+        return project
+
+    def kw(project, **k):
+        return project
+
+    def sin(project):
+        return project
+    assert doctor._acepta_plazo(con) and doctor._acepta_plazo(kw) and not doctor._acepta_plazo(sin)
+    assert doctor._acepta_plazo(object()) is False            # sin firma inspeccionable: no lanza
+
+
+# ------------------------------------------------------------------ T-10 fix2 (#167, #179, M7): regla GENERICA
+
+def _cap_mod_lento(capacidades, segundos):
+    import time as time_mod
+
+    class _CapMod:
+        @staticmethod
+        def enumerar(project, plazo_s=None):
+            time_mod.sleep(segundos)
+            return [dict(c) for c in capacidades]
+    return _CapMod()
+
+
+def test_t10fix2_167_un_error_de_config_nunca_se_pierde_por_el_presupuesto(monkeypatch):
+    """#167: si `enumerar()` gasta el presupuesto del bloque (una capacidad que recuenta), las
+    capacidades SIN red se pintan igual (su fila ya esta calculada: coste cero) y un error de
+    configuracion nunca se descarta. El recorte solo cuenta y nombra las que requieren red (backend
+    declarado) y quedan sin comprobar."""
+    caps = [{"id": "gate", "enabled": False, "config_path": "t.json",
+             "health": {"estado": "error", "detalle": "categories: vacia", "fichero": "t.json"}},
+            {"id": "sinred", "enabled": True, "health": {"estado": "ok"}, "doctor": "sinred: activa"},
+            {"id": "conred", "enabled": True, "health": {"estado": "declarado"}, "doctor": "conred: activa"}]
+    monkeypatch.setattr(doctor, "_cargar_capabilities", lambda plugin_root: _cap_mod_lento(caps, 0.3))
+    monkeypatch.setattr(doctor, "_cargar_backends_loader", lambda plugin_root: (object(), "d"))
+    monkeypatch.setattr(doctor, "_leer_backend_entry",
+                        lambda project, cap, backend_id=None: {"type": "t"} if cap["id"] == "conred" else {})
+    monkeypatch.setattr(doctor, "CAPACIDADES_PRESUPUESTO_S", 0.32)
+    red = []
+    monkeypatch.setattr(doctor, "_linea_capacidad_backend",
+                        lambda cap_id, tipo, *a, **k: red.append(cap_id) if tipo else None)
+    bloque = doctor.bloque_capacidades("plugin", "project", verbose=True)
+    por_id = {l["que"]: l for l in bloque["lineas"]}
+    assert por_id["gate"]["estado"] == doctor.ERROR and "t.json" in por_id["gate"]["detalle"]
+    assert por_id["sinred"]["estado"] == doctor.INFO and por_id["sinred"]["detalle"] == "sinred: activa"
+    assert red == [], red
+    recorte = [l for l in bloque["lineas"] if l["estado"] == doctor.AVISO and "recortada" in l["detalle"]]
+    assert len(recorte) == 1 and "conred" in recorte[0]["detalle"] and "sinred" not in recorte[0]["detalle"]
+    assert "1 capacidad(es)" in recorte[0]["detalle"]
+
+
+def test_t10fix2_167_exit_1_con_config_invalida_aunque_el_bloque_se_agote(monkeypatch, tmp_path):
+    """#167 (el escenario de la Lente B): config de una capacidad rota + un bloque que se agota en
+    `enumerar()` -> el error sale y `/doctor` sale con exit 1 (antes: exit 0 y una sola linea de recorte)."""
+    caps = [{"id": "gate", "enabled": False, "config_path": "t.json",
+             "health": {"estado": "error", "detalle": "JSON ilegible", "fichero": "t.json"}}]
+    monkeypatch.setattr(doctor, "_cargar_capabilities", lambda plugin_root: _cap_mod_lento(caps, 0.2))
+    monkeypatch.setattr(doctor, "CAPACIDADES_PRESUPUESTO_S", 0.1)
+    inf = doctor.diagnostico(str(tmp_path), None, None, verbose=True)
+    capas = next(b for b in inf["bloques"] if b["clave"] == "capacidades")
+    assert any(l["estado"] == doctor.ERROR and l["que"] == "gate" for l in capas["lineas"]), capas
+    assert inf["exit"] == 1
+
+
+def test_t10fix2_167_una_capacidad_sin_red_detras_de_una_lenta_sale(monkeypatch):
+    """#167: una capacidad sin red detras de una lenta (que ya gasto el presupuesto) pinta su fila."""
+    import time as time_mod
+    caps = [{"id": "lenta", "enabled": True, "health": {"estado": "declarado"}, "doctor": "lenta"},
+            {"id": "local", "enabled": True, "health": {"estado": "ok"}, "doctor": "local: 3 casos"}]
+    monkeypatch.setattr(doctor, "_cargar_capabilities", lambda plugin_root: _cap_mod_lento(caps, 0.0))
+    monkeypatch.setattr(doctor, "_cargar_backends_loader", lambda plugin_root: (object(), "d"))
+    monkeypatch.setattr(doctor, "_leer_backend_entry",
+                        lambda project, cap, backend_id=None: {"type": "t"} if cap["id"] == "lenta" else {})
+    monkeypatch.setattr(doctor, "CAPACIDADES_PRESUPUESTO_S", 0.5)
+
+    def backend(cap_id, tipo, *a, **k):
+        if not tipo:
+            return None
+        time_mod.sleep(0.5)
+        return doctor.linea(doctor.INFO, f"{cap_id} (backend)", "timeout")
+    monkeypatch.setattr(doctor, "_linea_capacidad_backend", backend)
+    bloque = doctor.bloque_capacidades("plugin", "project", verbose=True)
+    nombres = [l["que"] for l in bloque["lineas"]]
+    assert "local" in nombres and "lenta (backend)" in nombres, nombres
+    assert not any("recortada" in l["detalle"] for l in bloque["lineas"]), bloque
+
+
+def test_t10fix2_m7_requiere_red_es_la_misma_condicion_de_linea_capacidad():
+    """M7: `_requiere_red` = activa, sin `health` en `error`, con backend declarado (`type`) y con el
+    cargador de backends disponible (`backends_mod is not None`)."""
+    assert doctor._requiere_red(_cap(), {"type": "t"}, object()) is True
+    assert doctor._requiere_red(_cap(), {"type": "t"}, None) is False
+    assert doctor._requiere_red(_cap(), {}, object()) is False
+    assert doctor._requiere_red(_cap(enabled=False), {"type": "t"}, object()) is False
+    assert doctor._requiere_red(_cap(health={"estado": "error"}), {"type": "t"}, object()) is False
+    assert doctor._requiere_red(_cap(), doctor._EntradaInvalida("x"), object()) is False
+
+
+def test_t10fix2_m7_la_entrada_del_backend_se_lee_una_vez_por_capacidad(monkeypatch):
+    """M7 (D3-6): `bloque_capacidades` lee la entrada del backend UNA vez por capacidad y la pasa a
+    `_requiere_red` y a `_linea_capacidad`."""
+    caps = [{"id": f"c{i}", "enabled": True, "health": {"estado": "declarado"}, "doctor": f"c{i}"} for i in range(3)]
+    monkeypatch.setattr(doctor, "_cargar_capabilities", lambda plugin_root: _cap_mod_lento(caps, 0.0))
+    monkeypatch.setattr(doctor, "_cargar_backends_loader", lambda plugin_root: (object(), "d"))
+    leidas = []
+
+    def leer(project, cap, backend_id=None):
+        leidas.append(cap["id"])
+        return {}
+    monkeypatch.setattr(doctor, "_leer_backend_entry", leer)
+    doctor.bloque_capacidades("plugin", "project", verbose=True)
+    assert leidas == ["c0", "c1", "c2"], leidas
+
+
+@pytest.mark.parametrize("datos", [{"backends": []}, {"backends": {"midbackend": 1}}, {"backends": "x"},
+                                   {"backends": {"midbackend": [1]}}])
+def test_t10fix2_179_backends_que_no_son_objetos_es_error_de_config(tmp_path, datos):
+    """#179: `backends` o `backends.<id>` de la config que no son objetos -> error de configuracion de
+    ESA capacidad (fichero y campo, sin traceback): `/doctor` sale con exit 1."""
+    d = tmp_path / ".claude" / "knowledge-services"
+    d.mkdir(parents=True)
+    (d / "taxonomy.json").write_text(json.dumps(datos), encoding="utf-8")
+    cap = _cap(id_="midbackend", config_path=os.path.join(".claude", "knowledge-services", "taxonomy.json"))
+    entrada = doctor._leer_backend_entry(str(tmp_path), cap)
+    assert isinstance(entrada, doctor._EntradaInvalida), entrada
+    l = doctor._linea_capacidad(str(tmp_path), cap, backends_real, FIXTURES_BACKENDS)
+    assert l["estado"] == doctor.ERROR and "taxonomy.json" in l["detalle"] and "backends" in l["detalle"], l
+    assert "corrige" in l["arreglo"]
+    assert doctor._leer_backend_entry(str(tmp_path), _cap(id_="midbackend")) == {}
+
+
+# ------------------------------------------------------------------ T-10/T-11 fix3 (#185): EN PROCESO
+# Las lineas que en el checkout principal solo cubria su `.claude/` local sin versionar (modelos de
+# `dev.json`, `find` de `localizar_plugin`, errores de uso de `main`), con `tmp_path` y configs
+# sinteticas: nunca el `.claude/` del checkout.
+
+def test_t10fix3_185_modelos_sin_objeto_sin_script_y_sin_json(tmp_path, monkeypatch):
+    """#185: `_modelos` con `modelos` que no es un objeto (❌), sin `model-tier.py` (ℹ️), con una salida
+    que no es JSON (⚠️) y con JSON (avisos -> ⚠️; sin avisos -> ✅ con los aplicados)."""
+    assert doctor._modelos({}, None, str(tmp_path)) == []
+    assert doctor._modelos_localizar_script(str(tmp_path)) == os.path.join(doctor.HERE, "model-tier.py")
+    [l] = doctor._modelos({"modelos": ["x"]}, None, str(tmp_path))
+    assert l["estado"] == doctor.ERROR and "no es un objeto" in l["detalle"]
+    monkeypatch.setattr(doctor, "_modelos_localizar_script", lambda _p: None)
+    [l] = doctor._modelos({"modelos": {"implementer": {"model": "opus"}}}, None, str(tmp_path))
+    assert l["estado"] == doctor.INFO and "no está para resolverlos" in l["detalle"]
+    monkeypatch.setattr(doctor, "_modelos_localizar_script", lambda _p: "model-tier.py")
+    monkeypatch.setattr(doctor, "_correr", lambda cmd, cwd=None: ("no es json", False))
+    [l] = doctor._modelos({"modelos": {"implementer": {"model": "opus"}}}, str(tmp_path), str(tmp_path))
+    assert l["estado"] == doctor.AVISO and "no devolvió JSON" in l["detalle"]
+    salida = json.dumps({"avisos": [], "agentes": [{"agente": "implementer", "fuente": {"model": "dev.json"}},
+                                                   {"agente": "qa", "fuente": {"model": "frontmatter"}}]})
+    monkeypatch.setattr(doctor, "_correr", lambda cmd, cwd=None: (salida, True))
+    [l] = doctor._modelos({"modelos": {"implementer": {"model": "opus"}}}, None, str(tmp_path))
+    assert l["estado"] == doctor.OK and "aplicados: implementer" in l["detalle"], l
+    ls = doctor._modelos_lineas_de_json({"avisos": ["modelo raro"]}, {"x": {}})
+    assert [x["estado"] for x in ls] == [doctor.AVISO] and "modelo raro" in ls[0]["detalle"]
+
+
+def test_t10fix3_185_localizar_plugin_por_find_en_el_claude_del_proyecto(tmp_path, monkeypatch):
+    """#185: `localizar_plugin` sin `--plugin-root` ni `CLAUDE_PLUGIN_ROOT` y fuera del plugin busca con
+    `find` bajo `$PWD/.claude` (y `$HOME/.claude`); un candidato que no es plugin se descarta."""
+    plugin = tmp_path / "proj" / ".claude" / "plugins" / "ca"
+    (plugin / "agents").mkdir(parents=True)
+    (plugin / "agent-kits" / "shared").mkdir(parents=True)
+    monkeypatch.chdir(str(tmp_path / "proj"))
+    monkeypatch.delenv("CLAUDE_PLUGIN_ROOT", raising=False)
+    monkeypatch.setattr(doctor, "HERE", str(tmp_path / "fuera" / "agent-kits" / "shared"))
+    monkeypatch.setattr(os.path, "expanduser", lambda p: str(tmp_path / "home") if p == "~" else p)
+    salida = f"{tmp_path / 'no-plugin' / 'agent-kits' / 'shared'}\n{plugin / 'agent-kits' / 'shared'}\n"
+    monkeypatch.setattr(doctor, "_correr", lambda cmd, cwd=None: (salida, True))
+    assert os.path.normcase(doctor.localizar_plugin()) == os.path.normcase(str(plugin))
+    monkeypatch.setattr(doctor, "_correr", lambda cmd, cwd=None: ("", True))
+    assert doctor.localizar_plugin() is None
+    assert doctor.localizar_plugin(str(tmp_path / "no-plugin")) is None
+
+
+def test_t10fix3_185_main_errores_de_uso(tmp_path, capsys):
+    """#185: `main` con `--hoy` que no es una fecha, `--root` que no es un directorio y `--plugin-root`
+    que no es un directorio -> exit 2 con el motivo en stderr, sin diagnosticar nada."""
+    assert doctor.main(["--root", str(tmp_path), "--hoy", "ayer"]) == 2
+    assert "no es una fecha" in capsys.readouterr().err
+    assert doctor.main(["--root", str(tmp_path / "no-existe")]) == 2
+    assert "no es un directorio" in capsys.readouterr().err
+    assert doctor.main(["--root", str(tmp_path), "--plugin-root", str(tmp_path / "no-existe")]) == 2
+    assert "--plugin-root" in capsys.readouterr().err
 
 
 # ------------------------------------------------------------------ graphiti-memory T-08 (CA-14)

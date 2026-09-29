@@ -3,7 +3,7 @@
 capabilities.py — registro de CAPACIDADES OPCIONALES del plugin (ADR-018 punto 7, CA-14,
 `knowledge-services` T-13). Sin dependencias externas.
 
-Cada capacidad opcional (kwipu hoy; graphiti, training-data-services despues) declara un dict
+Cada capacidad opcional (kwipu, graphiti y training) declara un dict
 con el contrato:
   {id, config_path, enabled, health, doctor, setup_step}
 
@@ -20,10 +20,12 @@ Uso:
   capabilities.py [--root <ruta>]   # lista las capacidades registradas y su estado; exit 0
 """
 import argparse
+import json
 import importlib.util
 import os
 import re
 import sys
+import time
 
 # Consola no UTF-8 (Windows cp1252) o tuberías: reconfigurar ANTES de leer/imprimir (GOT-005).
 for _s in (sys.stdin, sys.stdout, sys.stderr):
@@ -55,14 +57,24 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 TAXONOMY_CONFIG_PATH = os.path.join(".claude", "knowledge-services", "taxonomy.json")
 
 
+def _cargar_por_ruta(nombre, ruta):
+    """Carga un script por RUTA sin dejar bytecode (#159): `/doctor` y `/setup` solo leen, y ninguna
+    carga de una capacidad deja un `__pycache__` en el plugin. Restaura el flag al salir."""
+    previo = sys.dont_write_bytecode
+    sys.dont_write_bytecode = True
+    try:
+        spec = importlib.util.spec_from_file_location(nombre, ruta)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
+    finally:
+        sys.dont_write_bytecode = previo
+
+
 def _cargar_knowledge_schema():
     """Carga knowledge-schema.py (T-01) desde el mismo directorio. Ver la misma nota de
     knowledge-index.py: ambos ficheros viajan siempre juntos en agent-kits/shared/."""
-    ruta = os.path.join(HERE, "knowledge-schema.py")
-    spec = importlib.util.spec_from_file_location("knowledge_schema", ruta)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
+    return _cargar_por_ruta("knowledge_schema", os.path.join(HERE, "knowledge-schema.py"))
 
 
 def _resolver(valor, root):
@@ -87,10 +99,13 @@ def evaluar_capacidad(cap, root):
     ciclo de vida que `enumerar()`: nunca sobrevive mas alla de UNA evaluacion), conservando la
     memoizacion intra-llamada entre `enabled`/`health`/`doctor` de la MISMA capacidad."""
     _CACHE_TAXONOMIA.clear()
+    _CACHE_TRAINING.clear()
+    _CACHE_TRAINING["activa"] = True                                       # #195: una lectura por evaluacion
     try:
         return _evaluar_capacidad_sin_limpiar_cache(cap, root)
     finally:
         _CACHE_TAXONOMIA.clear()
+        _CACHE_TRAINING.clear()
 
 
 def _evaluar_capacidad_sin_limpiar_cache(cap, root):
@@ -147,6 +162,11 @@ def registrar(cap, registro=None):
 # cada `enumerar()` (nunca sobrevive entre llamadas: una taxonomia editada entre dos `enumerar()`
 # debe verse en la siguiente).
 _CACHE_TAXONOMIA = {}
+# #195: la MISMA regla para `training.json` (cuya validacion ejecuta `case_schema.py`, 11-40 ms sin
+# bytecode): se lee y valida UNA vez por `enumerar()`/`evaluar_capacidad()` y se reutiliza en `enabled`,
+# `health`, `doctor` y el recuento. Solo memoiza con la clave `activa` (dentro de una de esas llamadas);
+# fuera, cada llamada directa lee el fichero (nunca una config obsoleta).
+_CACHE_TRAINING = {}
 
 
 def _estado_taxonomia(root):
@@ -160,14 +180,31 @@ def _estado_taxonomia(root):
     return _CACHE_TAXONOMIA[clave]
 
 
-def enumerar(root=None, registro=None):
+_PLAZO = {}
+
+
+def plazo_restante(defecto):
+    """#164: el tope de tiempo que una capacidad puede gastar AHORA: el MENOR entre su `defecto` y lo
+    que queda del `plazo_s` de la `enumerar()` en curso (sin `plazo_s`, `defecto` tal cual; nunca < 0)."""
+    hasta = _PLAZO.get("hasta")
+    if hasta is None:
+        return defecto
+    return max(0.0, min(defecto, hasta - time.monotonic()))
+
+
+def enumerar(root=None, registro=None, plazo_s=None):
     """Lista de capacidades evaluadas sobre `root` (por defecto, cwd). Recorre `registro` (por
     defecto, el registro global `REGISTRO`) sin que el orden de fallos de una capacidad afecte
     a las demas. Memoiza la lectura de `taxonomy.json` durante esta llamada (gap 22): la cache se
-    vacia al entrar y al salir, asi que nunca se sirve una taxonomia obsoleta a otra llamada."""
+    vacia al entrar y al salir, asi que nunca se sirve una taxonomia obsoleta a otra llamada.
+    `plazo_s` (#164, opcional): el presupuesto que le queda a quien llama (`/doctor`); una capacidad
+    que tarda al evaluarse lo consulta con `plazo_restante()` y nunca se pasa de el."""
     root = root or "."
     destino = REGISTRO if registro is None else registro
     _CACHE_TAXONOMIA.clear()
+    _CACHE_TRAINING.clear()
+    _CACHE_TRAINING["activa"] = True                                       # #195
+    _PLAZO["hasta"] = None if plazo_s is None else time.monotonic() + max(0.0, plazo_s)
     try:
         # `_evaluar_capacidad_sin_limpiar_cache`, no `evaluar_capacidad`: esta ultima vacia la
         # cache al entrar/salir (gap 32) y aqui se quiere compartirla entre TODAS las capacidades
@@ -175,6 +212,8 @@ def enumerar(root=None, registro=None):
         return [_evaluar_capacidad_sin_limpiar_cache(cap, root) for cap in destino]
     finally:
         _CACHE_TAXONOMIA.clear()
+        _CACHE_TRAINING.clear()
+        _PLAZO.pop("hasta", None)
 
 
 # ---------------------------------------------------------------- capacidades del registro base
@@ -402,6 +441,147 @@ def _graphiti_doctor(root):
             + " · ".join(p for p in piezas if p)).rstrip(" ·—").rstrip()
 
 
+TRAINING_CONFIG_PATH = os.path.join(".claude", "knowledge-services", "training.json")
+
+
+def _cargar_case_schema():
+    """`case_schema.py` de la skill `training-data-services` (fuente UNICA del esquema de
+    `training.json`, T-01). skills/ y agent-kits/ son hermanos en el repo y en la instalacion del
+    plugin; si la skill no viaja (paquete parcial), None y la capacidad degrada a `declarado`."""
+    ruta = os.path.normpath(os.path.join(HERE, "..", "..", "skills", "training-data-services",
+                                         "scripts", "case_schema.py"))
+    if not os.path.isfile(ruta):
+        return None
+    return _cargar_por_ruta("tds_case_schema", ruta)                  # #159: sin `__pycache__`
+
+
+TRAINING_PLAZO_S = 2.0   # T-10: tope del recuento del case store en `/doctor` (medido: 10^4 versiones
+                         # tardan 10,7 s en caliente y > 70 s en frio en Windows; pasado el tope, PARCIAL)
+_TDS = {}
+
+
+def _cargar_tds():
+    """`{"rec": case-recorder.py, "asm": dataset-assembler.py}` de la skill `training-data-services`
+    (los lectores seguros del case store y la frescura del dataset: fuente UNICA, T-10), memoizado por
+    proceso. None si la skill no viaja (paquete parcial) o no carga: el recuento degrada con aviso."""
+    if "mods" not in _TDS:
+        base = os.path.normpath(os.path.join(HERE, "..", "..", "skills", "training-data-services", "scripts"))
+        ruta = os.path.join(base, "dataset-assembler.py")
+        mods = None
+        if os.path.isfile(ruta):
+            try:                                # `/doctor` solo lee: ni un `__pycache__` en el plugin
+                asm = _cargar_por_ruta("tds_dataset_assembler_cap", ruta)
+                mods = {"rec": asm.rec, "asm": asm}
+            except Exception:   # noqa: BLE001 — una skill rota no tumba /doctor ni /setup
+                mods = None
+        _TDS["mods"] = mods
+    return _TDS["mods"]
+
+
+def _estado_training(root):
+    """(config|None, ruta|None, errores, validado) del `training.json` de `root`. Solo lee un JSON
+    local: sin red, sin crear nada (CA-01, CA-07). `validado` es False si falta `case_schema.py`."""
+    ruta = os.path.join(root or ".", TRAINING_CONFIG_PATH)
+    if not os.path.isfile(ruta):
+        return None, None, [], True
+    cs = _cargar_case_schema()
+    if cs is not None:
+        config, ruta_cs, errores = cs.cargar_config(root or ".")
+        return config, ruta_cs, errores, True
+    try:
+        with open(ruta, encoding="utf-8") as f:
+            config = json.load(f)
+    except (OSError, ValueError) as e:
+        return None, ruta, [{"campo": "(fichero)", "mensaje": f"JSON ilegible: {e}"}], False
+    if not isinstance(config, dict):
+        return None, ruta, [{"campo": "(raiz)", "mensaje": "training.json debe ser un objeto JSON"}], False
+    return config, ruta, [], False
+
+
+def _training(root):
+    """#195: `_estado_training(root)` memoizado dentro de la `enumerar()`/`evaluar_capacidad()` en curso
+    (`_CACHE_TRAINING`); fuera de ellas, una lectura por llamada."""
+    if not _CACHE_TRAINING.get("activa"):
+        return _estado_training(root)
+    clave = os.path.abspath(root or ".")
+    if clave not in _CACHE_TRAINING:
+        _CACHE_TRAINING[clave] = _estado_training(root)
+    return _CACHE_TRAINING[clave]
+
+
+def _training_enabled(root):
+    config, _ruta, errores, _validado = _training(root)
+    return bool(config and not errores and config.get("enabled") is True)
+
+
+def _training_root(root, config):
+    destino = config.get("root") or ""
+    return destino if os.path.isabs(destino) else os.path.abspath(os.path.join(root or ".", destino))
+
+
+def _texto(ruta):
+    """#153 (CWE-150): una ruta o nombre del store en la salida de la capacidad, ESCAPADA igual que en
+    la skill (`case-recorder._texto_ruta`: `ascii()` si tiene algo no ASCII o no imprimible —bidi
+    U+202E, CSI U+009B—); sin la skill, la misma regla aqui."""
+    tds = _cargar_tds()
+    if tds is not None:
+        return tds["rec"]._texto_ruta(ruta)
+    texto = str(ruta)
+    return texto if texto.isascii() and texto.isprintable() else ascii(texto)
+
+
+def _training_health(root):
+    config, ruta, errores, validado = _training(root)
+    if errores:
+        detalle = "; ".join(f"{e['campo']}: {e['mensaje']}" for e in errores)
+        return {"estado": "error", "detalle": detalle, "fichero": _texto(ruta) if ruta else TRAINING_CONFIG_PATH}
+    if not config or config.get("enabled") is not True:
+        return {"estado": "deshabilitado"}
+    if not validado:
+        return {"estado": "declarado",
+                "detalle": "sin `case_schema.py` de la skill training-data-services: config sin validar"}
+    store = _training_root(root, config)
+    if not os.path.isdir(store):
+        return {"estado": "declarado", "root": store,
+                "detalle": f"el case store `{_texto(store)}` aun no existe (lo crea el recorder al grabar)"}
+    return {"estado": "ok", "root": store, "detalle": f"case store en `{_texto(store)}`"}
+
+
+def _texto_recuento(res, ds):
+    """Texto de `/doctor` del recuento del case store y de la frescura del dataset (T-10): lo da el
+    ENSAMBLADOR (`texto_estado`, fuente unica: el mismo de `dataset-assembler.py --estado`); aqui solo
+    se delega (los veredictos y su texto son de la skill)."""
+    return _cargar_tds()["asm"].texto_estado(res, ds)
+
+
+def _training_doctor(root):
+    salud = _training_health(root)
+    if salud["estado"] == "deshabilitado":
+        return "training: deshabilitado (sin training.json o enabled: false)"
+    if salud["estado"] == "error":
+        return f"training: {salud['detalle']} — corrige `{salud['fichero']}`"
+    base = f"training: {salud['estado']} — {salud.get('detalle', '')}".rstrip(" —")
+    if salud["estado"] != "ok":
+        return base
+    tds = _cargar_tds()
+    if tds is None:
+        return f"{base} · recuento no disponible (sin los scripts de la skill training-data-services)"
+    try:
+        # M10: `estado_dataset` tiene un margen propio tras el recuento; el total (recuento + margen) no pasa
+        # del tope de la capacidad ni de lo que le quede al bloque de `/doctor` (#164)
+        margen = tds["asm"].MARGEN_ESTADO_S
+        config = _training(root)[0] or {}             # #195: la lectura ya hecha, ANTES del plazo
+        total = plazo_restante(TRAINING_PLAZO_S + margen)
+        plazo = TRAINING_PLAZO_S if total >= TRAINING_PLAZO_S + margen else max(0.0, total - margen)
+        # #181/N2: el `id_prefix` de training.json, EXPLICITO (sin el, la regla permisiva del recorder)
+        res = tds["rec"].resumen_store(salud["root"], root or ".", plazo_s=plazo, id_prefix=config.get("id_prefix"))
+        ds = tds["asm"].estado_dataset(salud["root"], res)
+        texto = tds["asm"].texto_estado(res, ds)
+    except Exception as e:   # noqa: BLE001 — informar nunca bloquea (CA-07)
+        return f"{base} · recuento no disponible ({type(e).__name__})"
+    return f"{base} · {texto}"
+
+
 REGISTRO = [
     {
         "id": "knowledge-gate",
@@ -433,6 +613,17 @@ REGISTRO = [
                       "proyecto, `provider` y `mode`: empieza en `shadow`); no registra ningun "
                       "servidor MCP ni toca configuracion global de Claude Code — el adaptador "
                       "habla con el endpoint declarado y nada mas",
+    },
+    {
+        "id": "training",
+        "config_path": TRAINING_CONFIG_PATH,
+        "enabled": _training_enabled,
+        "health": _training_health,
+        "doctor": _training_doctor,
+        "setup_step": "crea `.claude/knowledge-services/training.json` con `version: 1`, "
+                      "`enabled: true`, el `root` del case store (fuera de Git y de "
+                      "`docs/knowledge/`) y el `id_prefix` de los casos; `bridge_to_curator` "
+                      "opcional (skill `training-data-services`)",
     },
 ]
 

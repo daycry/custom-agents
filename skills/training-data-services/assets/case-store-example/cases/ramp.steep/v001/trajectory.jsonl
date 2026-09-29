@@ -1,0 +1,5 @@
+{"role": "system", "content": "Generas geometria con las herramientas del proyecto.", "ts": "2026-09-23T10:00:00Z"}
+{"role": "user", "content": "Genera una rampa de 30 grados por la que la bola ruede sin salirse", "ts": "2026-09-23T10:00:01Z"}
+{"role": "assistant", "content": "", "tool_calls": [{"name": "make_ramp", "arguments": {"angle_deg": 30, "width_m": 0.3}}], "ts": "2026-09-23T10:00:05Z"}
+{"role": "tool", "name": "make_ramp", "content": "ramp created: width 0.3 m", "ts": "2026-09-23T10:00:06Z"}
+{"role": "assistant", "content": "Rampa creada con 30 grados.", "ts": "2026-09-23T10:00:07Z"}

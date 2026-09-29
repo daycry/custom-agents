@@ -34,7 +34,9 @@ línea ⚠️/❌, el **arreglo sugerido** en llano:
                    todo llega por el contrato `{id, config_path, enabled, health, doctor, setup_step}`
                    (id que da nombre a la fila, sea cual sea). Config
                    inválida (p. ej. `taxonomy.json` roto) → ❌ con fichero+detalle+arreglo;
-                   desactivada → ℹ️; activa con backend declarado → comprobación de red EN VIVO vía
+                   desactivada → ℹ️ (y OMITIDA si su `config_path` no existe en el proyecto: opt-in
+                   sin configurar = cero impacto, salvo `--verbose`/`--all`); activa con backend
+                   declarado → comprobación de red EN VIVO vía
                    el adaptador de esa capacidad (`health()`/`verify()`, cargado genéricamente por
                    `type` como hace `knowledge-sync.py`): ✅ sano sin desfase, ⚠️ export atrasado
                    (con el remedio que nombra `verify()`, nunca lo ejecuta) o degradado/error, ℹ️
@@ -74,7 +76,7 @@ línea ⚠️/❌, el **arreglo sugerido** en llano:
 lectura, así que se puede lanzar sin miedo tantas veces como haga falta.
 
 Uso:
-  doctor.py [--root DIR] [--plugin-root DIR] [--json] [--hoy AAAA-MM-DD]
+  doctor.py [--root DIR] [--plugin-root DIR] [--json] [--verbose|--all] [--hoy AAAA-MM-DD]
   (`--hoy` fija la fecha de referencia de la antigüedad de CALIBRATION.md; default: hoy. Para tests.)
 Exit:
   0  sin ❌ (los ⚠️/ℹ️ no bloquean: el plugin degrada, no rompe)
@@ -1498,10 +1500,23 @@ def _ids_backend_declarados(cap):
     return [cap["id"]]
 
 
+class _EntradaInvalida:
+    """#179: la entrada `backends.<id>` de la config de una capacidad no se puede usar (`backends` o
+    `backends.<id>` no son objetos): error de CONFIGURACIÓN de esa capacidad, nunca un traceback."""
+
+    def __init__(self, detalle):
+        self.detalle = detalle
+
+    def get(self, _clave, defecto=None):
+        return defecto
+
+
 def _leer_backend_entry(project, cap, backend_id=None):
     """Entrada cruda `backends.<id>` (`{"type", "enabled", "config": {...}}`) del `config_path`
     que la propia capacidad declara — genérico: busca el id que la capacidad declara (o, sin
-    declaración, su propio `cap['id']`) dentro de su propio fichero, nunca asume cuál es."""
+    declaración, su propio `cap['id']`) dentro de su propio fichero, nunca asume cuál es. `{}` si
+    no hay; `_EntradaInvalida` (#179) si `backends` o `backends.<id>` existen y no son objetos."""
+    bid = backend_id or cap["id"]
     path = cap.get("config_path")
     if not path:
         return {}
@@ -1509,7 +1524,34 @@ def _leer_backend_entry(project, cap, backend_id=None):
     datos, _err = _leer_json(ruta)
     if not isinstance(datos, dict):
         return {}
-    return ((datos.get("backends") or {}).get(backend_id or cap["id"])) or {}
+    backends = datos.get("backends")
+    if backends is None:
+        return {}
+    if not isinstance(backends, dict):
+        return _EntradaInvalida(f"{path}: `backends` debe ser un objeto")
+    entrada = backends.get(bid)
+    if entrada is None:
+        return {}
+    if not isinstance(entrada, dict):
+        return _EntradaInvalida(f"{path}: `backends.{bid}` debe ser un objeto")
+    return entrada
+
+
+def _leer_backend_entries(project, cap):
+    """M7 + gap 99: `{backend_id: entrada}` de TODOS los backends que declara la capacidad
+    (`_ids_backend_declarados`), leídos UNA vez por capacidad y reutilizados por `_requiere_red` y
+    `_linea_capacidad`."""
+    return {bid: _leer_backend_entry(project, cap, bid) for bid in _ids_backend_declarados(cap)}
+
+
+def _requiere_red(cap, entrada, backends_mod):
+    """#167/M7 (regla GENÉRICA): la capacidad se comprueba EN VIVO (red) en `_linea_capacidad` —
+    activa, sin `health` en `error`, con backend declarado (`type`) y con el cargador de backends
+    disponible—; las demás tienen su fila ya calculada (coste cero)."""
+    salud = cap.get("health")
+    estado = salud.get("estado") if isinstance(salud, dict) else salud
+    return (bool(cap.get("enabled")) and estado != "error" and backends_mod is not None
+            and isinstance(entrada, dict) and bool(entrada.get("type")))
 
 
 # --8<-- sanear_detalle (funcion) — REPLICADO LITERAL en las CINCO copias declaradas del bloque `sanear_detalle` de agent-kits/shared/copias.json
@@ -1704,12 +1746,14 @@ def _linea_capacidad_backend(cap_id, tipo, cfg_adaptador, backends_mod, backends
 
 
 def _linea_capacidad(project, cap, backends_mod, backends_dir, tope_ms=CAPACIDAD_TIMEOUT_MS_TOPE,
-                     deadline=None):
+                     deadline=None, entradas=None):
     """Una fila por capacidad registrada (`capabilities.enumerar()`): error de configuración
-    primero (p. ej. `taxonomy.json` inválido, con fichero+detalle+arreglo), desactivada después, y
-    si está activa con backend declarado, la comprobación EN VIVO de `_linea_capacidad_backend`
-    (si no aplica, el texto genérico `doctor` de la propia capacidad, sin red). `tope_ms` (gap 124)
-    es el presupuesto de red RESTANTE del bloque, no siempre `CAPACIDAD_TIMEOUT_MS_TOPE`.
+    primero (p. ej. `taxonomy.json` inválido, con fichero+detalle+arreglo; #179: `backends` o
+    `backends.<id>` que no son objetos), desactivada después, y si está activa con backend declarado,
+    la comprobación EN VIVO de `_linea_capacidad_backend` (si no aplica, el texto genérico `doctor` de
+    la propia capacidad, sin red). `tope_ms` (gap 124) es el presupuesto de red RESTANTE del bloque,
+    no siempre `CAPACIDAD_TIMEOUT_MS_TOPE`. `entradas` (M7): las de `_leer_backend_entries`
+    (`{backend_id: entrada}`), si el llamador ya las leyó (una sola lectura por capacidad).
 
     gap #119 (fix2 de la Fase 3 del ciclo en curso): `deadline` (un instante de `time.monotonic()`) es el
     presupuesto COMPARTIDO del bloque, y se re-evalúa DENTRO del bucle por backend — antes solo se
@@ -1728,6 +1772,12 @@ def _linea_capacidad(project, cap, backends_mod, backends_dir, tope_ms=CAPACIDAD
         fichero = _sanear_detalle(
             (salud.get("fichero") if isinstance(salud, dict) else None) or cap.get("config_path") or "?")
         return linea(ERROR, cap["id"], f"{fichero}: {detalle}", f"corrige `{fichero}`")
+    if entradas is None:
+        entradas = _leer_backend_entries(project, cap)
+    for entrada in entradas.values():
+        if isinstance(entrada, _EntradaInvalida):                               # #179
+            fichero = _sanear_detalle(cap.get("config_path") or "?")
+            return linea(ERROR, cap["id"], _sanear_detalle(entrada.detalle), f"corrige `{fichero}`")
     if not cap.get("enabled"):
         return linea(INFO, cap["id"], "desactivado", "opcional: sigue el `setup_step` del registro si quieres activarla")
     if backends_mod is not None:
@@ -1752,7 +1802,9 @@ def _linea_capacidad(project, cap, backends_mod, backends_dir, tope_ms=CAPACIDAD
                                         "vuelve a pasar /doctor, o revisa la red del backend más lento"))
                 break
             tope_backend = tope_ms if restante_ms is None else min(tope_ms, int(restante_ms))
-            entrada = _leer_backend_entry(project, cap, bid)
+            entrada = entradas.get(bid)
+            if entrada is None:
+                entrada = _leer_backend_entry(project, cap, bid)
             l = _linea_capacidad_backend(etiqueta, entrada.get("type"), entrada.get("config") or {},
                                          backends_mod, backends_dir, project=project,
                                          tope_ms=tope_backend)
@@ -1765,17 +1817,53 @@ def _linea_capacidad(project, cap, backends_mod, backends_dir, tope_ms=CAPACIDAD
     return linea(INFO, cap["id"], cap.get("doctor") or "activa")
 
 
-def bloque_capacidades(plugin_root, project):
+def _optin_sin_configurar(project, cap):
+    """Regla GENÉRICA del contrato de capacidades (fix1 de la Fase 1, gap #9): una
+    capacidad DESACTIVADA, sin error, cuyo `config_path` declarado no existe en el proyecto es un
+    opt-in que el proyecto no ha tocado — cero impacto: no pinta fila salvo `--verbose`. Sin
+    `config_path` declarado no se puede saber, así que se muestra (conservador)."""
+    salud = cap.get("health")
+    estado = salud.get("estado") if isinstance(salud, dict) else salud
+    ruta = cap.get("config_path")
+    if cap.get("enabled") or estado == "error" or not ruta:
+        return False
+    return not os.path.exists(ruta if os.path.isabs(ruta) else os.path.join(project, ruta))
+
+
+def _acepta_plazo(fn):
+    """#164: `enumerar` admite `plazo_s` (registros anteriores no: se les llama sin el)."""
+    import inspect
+    try:
+        params = inspect.signature(fn).parameters
+    except (TypeError, ValueError):
+        return False
+    return "plazo_s" in params or any(p.kind is inspect.Parameter.VAR_KEYWORD for p in params.values())
+
+
+def bloque_capacidades(plugin_root, project, verbose=False):
     cap_mod = _cargar_capabilities(plugin_root)
     if cap_mod is None:
         return {"clave": "capacidades", "titulo": "Capacidades opcionales",
                 "lineas": [linea(INFO, "capacidades opcionales", "`capabilities.py` no disponible",
                                  "instalación parcial: reinstala el plugin o comprueba `agent-kits/shared/`")]}
     backends_mod, backends_dir = _cargar_backends_loader(plugin_root)
-    capacidades = cap_mod.enumerar(project)
+    # #164 (regla GENERICA del contrato): el reloj del presupuesto TOTAL arranca ANTES de `enumerar()`
+    # —una capacidad puede tardar al evaluarse (un recuento acotado)— y, si el registro lo acepta,
+    # `enumerar()` recibe como `plazo_s` el presupuesto del bloque; lo que gaste cuenta para el resto.
+    inicio = time.monotonic()
+    if _acepta_plazo(cap_mod.enumerar):
+        capacidades = cap_mod.enumerar(project, plazo_s=CAPACIDADES_PRESUPUESTO_S)
+    else:
+        capacidades = cap_mod.enumerar(project)
     if not capacidades:
         return {"clave": "capacidades", "titulo": "Capacidades opcionales",
                 "lineas": [linea(INFO, "capacidades opcionales", "sin capacidades registradas")]}
+    if not verbose:
+        capacidades = [c for c in capacidades if not _optin_sin_configurar(project, c)]
+        if not capacidades:
+            return {"clave": "capacidades", "titulo": "Capacidades opcionales",
+                    "lineas": [linea(INFO, "capacidades opcionales", "ninguna configurada en este proyecto",
+                                     "`--verbose` lista también los opt-in sin configurar")]}
     # gap 94: tope TOTAL del bloque (no solo por capacidad) — con muchas capacidades opcionales
     # activas y una red lenta, /doctor no debe convertirse en un diagnóstico de minutos.
     # gap 124: el tope POR CAPACIDAD (`tope_ms`) se recorta al presupuesto RESTANTE del bloque
@@ -1783,30 +1871,38 @@ def bloque_capacidades(plugin_root, project):
     # activas nunca rebase `CAPACIDADES_PRESUPUESTO_S`; y el aviso de recorte cita el tiempo
     # transcurrido REAL, no el tope nominal configurado (pueden diferir si una sola capacidad
     # lenta ya lo rebasó por sí sola).
+    # #167 (regla GENÉRICA): el presupuesto solo acota la comprobación DE RED; una capacidad que no la
+    # requiere (`_requiere_red`: sin backend declarado, desactivada o con su config en error) pinta SIEMPRE
+    # su fila —ya calculada por `enumerar()`: coste cero—, así que un error de config nunca se pierde.
     ls = []
-    inicio = time.monotonic()
-    recortado = 0
-    for i, cap in enumerate(capacidades):
+    sin_comprobar = []
+    for cap in capacidades:
+        entradas = _leer_backend_entries(project, cap)                          # M7: una vez por capacidad
+        if not any(_requiere_red(cap, e, backends_mod) for e in entradas.values()):
+            resultado = _linea_capacidad(project, cap, backends_mod, backends_dir, entradas=entradas)
+            ls.extend(resultado) if isinstance(resultado, list) else ls.append(resultado)
+            continue
         transcurrido_s = time.monotonic() - inicio
         restante_s = CAPACIDADES_PRESUPUESTO_S - transcurrido_s
         # gap 133 (fix3): si lo que queda de presupuesto no llega ni al SUELO
         # (`_CAPACIDAD_TOPE_MS_MINIMO`), no tiene sentido comprobar con un timeout que ya sabemos
         # que va a declarar «apagado»/«error» un backend sano — se trata igual que presupuesto
         # agotado (se cuenta como recortada, no como comprobada con un dato falso).
-        if restante_s * 1000 < _CAPACIDAD_TOPE_MS_MINIMO:
-            recortado = len(capacidades) - i
-            break
+        if sin_comprobar or restante_s * 1000 < _CAPACIDAD_TOPE_MS_MINIMO:
+            sin_comprobar.append(cap["id"])
+            continue
         tope_ms = min(CAPACIDAD_TIMEOUT_MS_TOPE, int(restante_s * 1000))
         # gap #119: el mismo presupuesto, como DEADLINE, entra en el bucle por backend.
         resultado = _linea_capacidad(project, cap, backends_mod, backends_dir, tope_ms=tope_ms,
-                                     deadline=inicio + CAPACIDADES_PRESUPUESTO_S)
+                                     deadline=inicio + CAPACIDADES_PRESUPUESTO_S, entradas=entradas)
         # gap 99: una capacidad puede rendir VARIAS filas (un backend declarado por cada id).
         ls.extend(resultado) if isinstance(resultado, list) else ls.append(resultado)
-    if recortado:
+    if sin_comprobar:
         transcurrido_final_s = time.monotonic() - inicio
         ls.append(linea(AVISO, "capacidades opcionales",
-                         f"comprobación de red recortada: {recortado} capacidad(es) sin comprobar "
-                         f"(tope de {CAPACIDADES_PRESUPUESTO_S:.0f}s del bloque, {transcurrido_final_s:.1f}s transcurridos)",
+                         f"comprobación de red recortada: {len(sin_comprobar)} capacidad(es) sin comprobar "
+                         f"({', '.join(sin_comprobar)}; tope de {CAPACIDADES_PRESUPUESTO_S:.0f}s del bloque, "
+                         f"{transcurrido_final_s:.1f}s transcurridos)",
                          "vuelve a pasar /doctor, o revisa la red del backend más lento"))
     return {"clave": "capacidades", "titulo": "Capacidades opcionales", "lineas": ls}
 
@@ -2297,13 +2393,13 @@ def bloque_journal(plugin_root, project):
 
 # ------------------------------------------------------------------ informe
 
-def diagnostico(project, plugin_root_explicito=None, hoy=None):
+def diagnostico(project, plugin_root_explicito=None, hoy=None, verbose=False):
     plugin_root = localizar_plugin(plugin_root_explicito)
     bloques = [bloque_herramientas(),
                bloque_plugin(plugin_root, project, plugin_root_explicito),
                bloque_configs(plugin_root, project),
                bloque_estado(plugin_root, project),
-               bloque_capacidades(plugin_root, project),
+               bloque_capacidades(plugin_root, project, verbose=verbose),
                bloque_memoria(plugin_root, project, hoy),
                bloque_journal(plugin_root, project),
                bloque_version(plugin_root, project)]
@@ -2354,6 +2450,8 @@ def main(argv=None):
     ap.add_argument("--root", default=".", help="proyecto a diagnosticar (default: cwd)")
     ap.add_argument("--plugin-root", default=None, help="raíz del plugin (default: autodetección)")
     ap.add_argument("--json", action="store_true")
+    ap.add_argument("--verbose", "--all", dest="verbose", action="store_true",
+                    help="incluye las capacidades opcionales desactivadas sin su fichero de config")
     ap.add_argument("--hoy", default=None, help="fecha de referencia AAAA-MM-DD para la antigüedad de CALIBRATION.md (tests)")
     args = ap.parse_args(argv)
 
@@ -2371,10 +2469,15 @@ def main(argv=None):
         print(f"❌ uso: --plugin-root `{args.plugin_root}` no es un directorio", file=sys.stderr)
         return 2
 
-    inf = diagnostico(args.root, args.plugin_root, hoy)
+    inf = diagnostico(args.root, args.plugin_root, hoy, verbose=args.verbose)
     print(json.dumps(inf, ensure_ascii=False, indent=2) if args.json else render_md(inf))
     return inf["exit"]
 
 
 if __name__ == "__main__":
+    # #159 (regla GENERICA): `/doctor` solo lee; ninguna carga por ruta que haga durante el diagnostico
+    # (capacidades, journal y lo que estos carguen despues, perezosamente) deja un `__pycache__` en el plugin,
+    # tampoco los scripts que lanza como subproceso (heredan `PYTHONDONTWRITEBYTECODE`).
+    sys.dont_write_bytecode = True
+    os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
     sys.exit(main())

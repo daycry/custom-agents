@@ -476,6 +476,25 @@
       "guardarrail_previo": "ninguno: cada pieza tenia su propio criterio de seleccion de seccion, divergente (gaps #1/#2/#5)"
     },
     {
+      "id": "shingles_ventana",
+      "mecanismo": "A",
+      "que_es": "Shingles de ventana deslizante como la PROPIA cadena (determinista entre procesos): la tecnica de duplicados de code-health, reutilizada por el dedup de casos de training-data-services (T-07, CA-10). Las dos skills son standalone (no se importan entre si), asi que la funcion se replica literal; la normalizacion NO se copia (la de code-health colapsa identificadores y numeros, inutil para lenguaje natural).",
+      "canonico": "skills/code-health/scripts/code-health.py",
+      "copias": [
+        {
+          "ruta": "skills/code-health/scripts/code-health.py",
+          "inicio": "# --8<-- shingles (ventana deslizante) COMPARTIDOS -- REPLICADO LITERAL en skills/code-health/scripts/code-health.py (canonico) y skills/training-data-services/scripts/dedup.py (ADR-016)",
+          "fin": "# --8<-- fin shingles (ventana deslizante) COMPARTIDOS"
+        },
+        {
+          "ruta": "skills/training-data-services/scripts/dedup.py",
+          "inicio": "# --8<-- shingles (ventana deslizante) COMPARTIDOS -- REPLICADO LITERAL en skills/code-health/scripts/code-health.py (canonico) y skills/training-data-services/scripts/dedup.py (ADR-016)",
+          "fin": "# --8<-- fin shingles (ventana deslizante) COMPARTIDOS"
+        }
+      ],
+      "guardarrail_previo": "ninguno (bloque nuevo en training-data-services T-07)"
+    },
+    {
       "id": "group_id_por_defecto",
       "mecanismo": "A",
       "que_es": "Derivacion del `group_id` por defecto de un backend (slug Unicode del directorio del proyecto) y config EFECTIVA (declarada + defaults derivados). La aplicaba SOLO el validador al cargar la taxonomia, asi que el router de `knowledge-find.py` -que a proposito NO carga el validador, porque importa `urllib` y a este script lo invoca el hook `SessionStart`- servia al adaptador la config CRUDA: con la plantilla de fabrica (sin `group_id`) el backend cortaba con «sin group_id» y la consulta devolvia 0 en la configuracion NOMINAL (gap #97, Critical, revision Fase 3 intento 1 de graphiti-memory). El bloque no importa nada con capacidad de red.",
