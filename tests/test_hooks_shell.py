@@ -1030,12 +1030,14 @@ def test_statusline_json_oficial_una_linea_con_modelo_coste_y_roadmap(tmp_path):
 def _locale_coma():
     """Un locale con coma decimal instalado en esta máquina, o None (en CI mínimo no hay)."""
     try:
-        r = subprocess.run(["locale", "-a"], capture_output=True, text=True, timeout=10)
+        r = subprocess.run(["locale", "-a"], capture_output=True, text=True, encoding="utf-8", errors="replace",
+                           timeout=10)
     except (OSError, subprocess.SubprocessError):
         return None
     for nombre in r.stdout.split():
         if nombre.lower().startswith(("de_de", "es_es", "fr_fr")):
             chk = subprocess.run([BASH, "-c", 'printf "%.1f" 0.5'], capture_output=True, text=True,
+                                 encoding="utf-8", errors="replace",
                                  env={**os.environ, "LC_ALL": nombre})
             if "," in chk.stdout:  # 0.5 no es número válido y sale `0,0`: locale de coma activo
                 return nombre
