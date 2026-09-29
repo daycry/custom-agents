@@ -52,7 +52,7 @@ estado: borrador
 
 - **Descripción**: Sustituir `assertLess(t_sin_cambios, 10.0)` de `test_tiempos_200_upserts...` por una aserción sobre operaciones (0 `os.replace` y 0 escrituras en la pasada estable, con `mock`). La propiedad real es la linealidad, no los segundos.
 - **Changelog**: El test de 200 upserts del exportador Markdown deja de fallar según la carga de la máquina.
-- **Estado**: borrador
+- **Estado**: completado
 - **Prioridad**: Alta
 - **Tiempo humano**: est. 1.2h · real —
 - **Tiempo IA (ejec.)**: est. 0.27h · real —
@@ -66,17 +66,21 @@ estado: borrador
   - `for i in $(seq 20); do python3 -m pytest -q skills/knowledge-services/scripts/test_backend_markdown_export.py -k 200_upserts || break; done` -> 20 ejecuciones, 0 fallos (CA-08)
   - mutante: reescribir un fichero por upsert en la pasada estable y `python3 -m pytest -q skills/knowledge-services/scripts/test_backend_markdown_export.py -k 200_upserts` -> rojo; sin el mutante -> verde
 
+- **Evidencia**:
+  RED: test_tiempos_200_upserts_* con mutante (os.replace extra en la rama sin_cambios) falló (1 failed) · 2026-09-29
+  GREEN: bucle de 20 ejecuciones de -k 200_upserts -> 0 fallos; 1 passed sin mutante. La pasada estable hace 2 os.replace (solo manifest*), constante, sin techo en segundos.
+
 **Criterios de aceptación**
 
-- [ ] El test ya no contiene ningún techo en segundos.
-- [ ] Falla con el mutante de un `os.replace` por fichero en la pasada estable (evidencia pegada).
-- [ ] 20 ejecuciones seguidas en verde (CA-08).
+- [x] El test ya no contiene ningún techo en segundos.
+- [x] Falla con el mutante de un `os.replace` por fichero en la pasada estable (evidencia pegada).
+- [x] 20 ejecuciones seguidas en verde (CA-08).
 
 **Subtareas**
 
-- [ ] Localizar el test (líneas ~1132-1149) y contar `os.replace` con `mock.patch`.
-- [ ] Escribir el mutante y comprobar el rojo.
-- [ ] Bucle de 20 ejecuciones.
+- [x] Localizar el test (líneas ~1132-1149) y contar `os.replace` con `mock.patch`.
+- [x] Escribir el mutante y comprobar el rojo.
+- [x] Bucle de 20 ejecuciones.
 
 **Notas**: Criterio de la spec: CA-08.
 

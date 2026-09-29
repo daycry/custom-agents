@@ -1130,23 +1130,20 @@ class TestMarkdownExportFix3b(unittest.TestCase):
     # ---- gap 136/137 (Lente D): tiempos — 200 upserts en frio y 2a corrida sin cambios ----
 
     def test_tiempos_200_upserts_en_frio_y_segunda_corrida_sin_cambios(self):
-        import time as _time
+        # C-06: la propiedad real es la linealidad (operaciones), no los segundos. Se cuentan
+        # os.replace: la pasada estable solo toca el manifiesto (constante), no un fichero por upsert.
+        from unittest import mock
         entradas = [_entrada(id_=f"mr.pattern.perf-{n:03d}") for n in range(200)]
-        t0 = _time.time()
         self.mod.apply(self.mod.plan(entradas, self.cfg), self.cfg)
-        t_frio = _time.time() - t0
-        t0 = _time.time()
-        resultado = self.mod.apply(self.mod.plan(entradas, self.cfg), self.cfg)
-        t_sin_cambios = _time.time() - t0
+        replace_real = os.replace
+        with mock.patch.object(os, "replace", wraps=replace_real) as m_replace:
+            resultado = self.mod.apply(self.mod.plan(entradas, self.cfg), self.cfg)
         self.assertEqual(resultado["sin_cambios"], 200)
         self.assertEqual(resultado["escritos"], 0)
-        # Cota absoluta generosa (maquina de dev/CI compartida, carpeta bajo OneDrive: I/O
-        # variable) — la propiedad que importa de verdad es la correctness de arriba (0 escritos,
-        # 200 sin_cambios: ni un solo os.replace en la pasada estable, gap 136). El techo evita una
-        # regresion catastrofica sin acoplar el test al reloj de una maquina concreta.
-        self.assertLess(t_sin_cambios, 10.0)
-        print(f"\n[perf] 200 upserts en frio: {t_frio:.3f}s; 200 sin_cambios (plan+apply): "
-              f"{t_sin_cambios:.3f}s")
+        # solo el diario/manifiesto (constante), nunca un os.replace por fichero de entrada
+        destinos = [os.path.basename(str(c.args[1])) for c in m_replace.call_args_list]
+        self.assertLessEqual(m_replace.call_count, 2, destinos)
+        self.assertTrue(all(d.startswith("manifest") for d in destinos), destinos)
 
     # ---- gap 138: la resolucion DNS lanzada bajo el lock no deja RuntimeError de join prematuro ----
 
