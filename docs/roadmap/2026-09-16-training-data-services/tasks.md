@@ -20,8 +20,8 @@ changelog: added         # skill nueva: sin esto, «regresion» (titulo de T-11)
 | Fase 1 - Config, redaccion compartida y capacidad | 3 | 3 | 100% (revisión cerrada en el intento 3; fix3 verificada por el orquestador) | 0 / 6.5h | 5.25 / 2.0h | 0 / 0.5h | ~180.8k out (37.8k + 17.3k + 14.4k + fix2 63.2k + fix3 48.1k; fix1 sin cifra de tokens: marcador cerrado en otra máquina sin pegar su salida) / 85k (T-01 0.22h · T-02 0.12h · T-03 0.07h · fix1 2.87h reloj incl. corte de sesión · fix2 1.09h · fix3 0.88h) |
 | Fase 2 - Recorder y puerta humana | 3 | 3 | 100% (3 intentos + 6 rondas fixN con verificación dirigida; 113 gaps cerrados) | 0 / 8h | 34.88 / 2.4h | 0 / 0.6h | ~1463.5k out (T-04 43.9k + T-05 16.1k + T-06 32.8k · fix1 165.2k · fix2 233.0k · fix3 227.1k · fix4 184.0k · fix4-bis 173.5k · fix5 272.8k · fix6 115.1k) / 120k (T-04 0.20h · T-05 0.07h · T-06 0.16h · fix1 1.32h · fix2 2.18h · fix3 7.22h · fix4 5.20h · fix4-bis 6.77h reloj incl. corte 429 · fix5 9.63h · fix6 2.13h) |
 | Fase 3 - Dedup, particion y ensamblador | 3 | 3 | 100% (intento 1 + D-f3 revisado antes + fix1/fix2 con verificación dirigida; #114-#147 cerrados) | 0 / 14h | 27.08 / 4.2h | 0 / 1.1h | ~784.8k out (T-07 35.7k + T-08 11.2k + T-09 101.4k · fix1 419.0k · fix2 217.5k) / 210k (T-07 0.17h · T-08 0.06h · T-09 5.86h reloj incl. ~2 días de corte · fix1 14.14h · fix2 6.85h) |
-| Fase 4 - Setup, doctor y cierre | 2 | 2 | 100% (T-10 tras 3 intentos + fix3/fix4 con verificación dirigida; T-11 con qa sin UI, documenter y 4-bis; #197 diferido) | 0 / 11h | 35.70 / 3.3h | 0 / 0.8h | ~1099.1k out (T-10 116.0k + T-11 16.7k · fix1 182.0k · fix2 367.0k · fix3 196.9k · fix4 220.5k) / 160k (T-10 4.09h · T-11 2.87h · fix1 8.92h · fix2 7.94h · fix3 6.59h · fix4 5.29h) |
-| **TOTAL** | **11** | **11** | **100%** | **0 / 39.5h** | **102.91 / 11.9h** | **0 / 3.0h** | **~3528.0k out / 575k** |
+| Fase 4 - Setup, doctor y cierre | 2 | 2 | 100% (T-10 tras 3 intentos + fix3/fix4 con verificación dirigida; T-11 con qa sin UI, documenter y 4-bis; #197 corregido en fix5) | 0 / 11h | 38.65 / 3.3h | 0 / 0.8h | ~1099.1k out (T-10 116.0k + T-11 16.7k · fix1 182.0k · fix2 367.0k · fix3 196.9k · fix4 220.5k · fix5 228.9k) / 160k (T-10 4.09h · T-11 2.87h · fix1 8.92h · fix2 7.94h · fix3 6.59h · fix4 5.29h · fix5 2.95h) |
+| **TOTAL** | **11** | **11** | **100%** | **0 / 39.5h** | **105.86 / 11.9h** | **0 / 3.0h** | **~3756.9k out / 575k** |
 
 ## Fase 1 - Config, redaccion compartida y capacidad
 
@@ -270,6 +270,7 @@ changelog: added         # skill nueva: sin esto, «regresion» (titulo de T-11)
 - **Tiempo IA (fix2)**: real 7.94h (medido; usage-meter `training-data-services/T-10-fix2`, 9h 34m de reloj con dos cortes de sesion, 367.0k out tok, 79.27 EUR; implementer `opus` + cierre de puertas del orquestador) — cubre T-10 fix2 y T-11 fix2 (#165-#179, D-f4 enmendado M1-M13)
 - **Tiempo IA (fix3)**: real 6.59h (medido; usage-meter `training-data-services/T-10-fix3`, 1h 44m de reloj, 196.9k out tok, 38.94 EUR; implementer `opus`) — cubre T-10 fix3 y T-11 fix3 (#180-#188, D-f5 enmendado N1-N9)
 - **Tiempo IA (fix4)**: real 5.29h (medido; usage-meter `training-data-services/T-10-fix4`, 1h 23m de reloj, 220.5k out tok, 40.20 EUR; implementer `opus`) — cubre T-10 fix4 (#189-#193, #195, #196); verificacion dirigida del orquestador: 5/5 mutantes propios mueren
+- **Tiempo IA (fix5)**: real 2.95h (medido; usage-meter `training-data-services/T-10-fix5-197`, 44m de reloj, 228.9k out tok, 26.24 EUR; implementer `opus`) — #197 corregido (JSON roto, esquema, permisos y enlaces de `validation.json`)
 - **Prevision IA**: 45k in / 18k out tok
 - **Dependencias**: T-09
 - **Tipo**: devops
@@ -1029,7 +1030,7 @@ Si confirma sin Critical ni Important: T-10/T-11 `completado`.
 - **Línea kwipu de `/doctor`.** Tarda hasta 0,57 s más que su `tope_ms` bajo carga (`markdown_export.health`/`_urlopen_local`, de knowledge-services). Pasa a la iniciativa de pulido de la statusline y el setup.
 - **Tests que solo corren con la memoria local.** Unos 20 de `test_knowledge_find`/`test_knowledge_index` solo se ejecutan si existe `docs/knowledge/`. Pasarlos a un fixture es la reserva del PR #14 y va a la misma iniciativa.
 
-**Decisión del orquestador (2026-09-29).** T-10 pasa a `completado`: 0 Critical, 0 Important y 1 Minor diferido.
+**Decisión del orquestador (2026-09-29).** T-10 pasa a `completado`: 0 Critical, 0 Important y 1 Minor (#197), corregido después en fix5 por decisión del usuario (2026-09-29).
 
 T-11 sigue `en-progreso` hasta que se cierren estas puertas de su criterio:
 1. QA sin UI;

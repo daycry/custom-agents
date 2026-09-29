@@ -1,6 +1,6 @@
 ---
 spec: training-data-services
-estado: aprobada
+estado: implementada
 creado: 2026-09-16
 actualizado: 2026-09-16
 evaluacion: evaluation.md
