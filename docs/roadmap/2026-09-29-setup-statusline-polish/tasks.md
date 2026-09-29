@@ -282,7 +282,7 @@ estado: borrador
 
 - **Descripción**: Con 2+ ledgers activos la línea pasa a `📋 N activas · ▶ <slug> T-XX/YY NN%`. La iniciativa en curso sale del marcador abierto de `usage-meter` (lectura directa de `.claude/usage-state.json`, sin lanzar `usage-meter.py`; claves `<slug>/<artefacto>` y `docs/roadmap/<fecha>-<slug>/…`) y, si no hay, del `tasks.md` modificado más reciente. Un marcador de spec o evaluación sin ledger no muestra progreso (comportamiento fijado por test). La lógica va en `progress-report.py` con tests, no en bash; escaneo solo de `docs/roadmap/*/tasks.md`; una sola activa = salida idéntica.
 - **Changelog**: La statusline marca en qué iniciativa se está trabajando cuando hay varias activas.
-- **Estado**: borrador
+- **Estado**: completado
 - **Prioridad**: Media
 - **Tiempo humano**: est. 4.8h · real —
 - **Tiempo IA (ejec.)**: est. 1.08h · real —
@@ -296,20 +296,27 @@ estado: borrador
   - `python3 -m pytest -q agent-kits/shared/test_progress_report.py tests/test_hooks_shell.py -k "en_curso or statusline"` -> passed con CA-01, CA-02 y CA-03 (mismo ID en el nombre del test)
   - `python3 agent-kits/shared/progress-report.py --help` -> exit 0 (sin regresión de CLI)
 
+- **Evidencia**:
+  RED: `pytest agent-kits/shared/test_progress_report.py -k en_curso` -> 9 failed, 1 passed (falta iniciativa_en_curso); statusline_ca01/ca02/en_curso_corrupto fallaron con el script anterior (3 failed) · 2026-09-29
+  GREEN: `pytest tests/test_hooks_shell.py agent-kits/shared/test_progress_report.py -k "en_curso or statusline"` -> 24 passed; `python3 agent-kits/shared/progress-report.py --help` -> exit 0.
+  CA-01/CA-02/CA-03 (test_*_ca01/ca02/ca03_*): marcador abierto con las dos formas de clave, tasks.md más reciente sin marcador, una activa = salida idéntica sin ▶. Selección en `progress-report.py` (`iniciativa_en_curso`, pura); `active --json` añade la clave solo con 2+ activas; la statusline sólo formatea. Sin subprocesos ni red nuevos.
+  Nota: la salida con 2+ activas sin en-curso resoluble conserva «📋 N iniciativas activas»; con en-curso, «📋 N activas · ▶ …».
+  Fallo preexistente en Windows (no de esta tarea): test_session_con_activas_bloque_acotado (separador de ruta).
+
 **Criterios de aceptación**
 
-- [ ] CA-01: 4 activas + marcador abierto de `training-data-services` -> `📋 4 activas · ▶ training-data-services T-06/11 55%`.
-- [ ] CA-02: sin marcador, marca la de `tasks.md` más reciente.
-- [ ] CA-03: una sola activa -> salida idéntica a la actual, sin `▶`.
-- [ ] `usage-state.json` ausente o corrupto -> recurre al `tasks.md` más reciente; sin ninguno, línea actual.
-- [ ] Sin red y sin subprocesos nuevos por refresco.
+- [x] CA-01: 4 activas + marcador abierto de `training-data-services` -> `📋 4 activas · ▶ training-data-services T-06/11 55%`.
+- [x] CA-02: sin marcador, marca la de `tasks.md` más reciente.
+- [x] CA-03: una sola activa -> salida idéntica a la actual, sin `▶`.
+- [x] `usage-state.json` ausente o corrupto -> recurre al `tasks.md` más reciente; sin ninguno, línea actual.
+- [x] Sin red y sin subprocesos nuevos por refresco.
 
 **Subtareas**
 
-- [ ] Función pura de selección en `progress-report.py`.
-- [ ] Extraer slug de las dos formas de clave.
-- [ ] Enganche en el script bash.
-- [ ] Actualizar `docs/observability.md` (+ EN).
+- [x] Función pura de selección en `progress-report.py`.
+- [x] Extraer slug de las dos formas de clave.
+- [x] Enganche en el script bash.
+- [x] Actualizar `docs/observability.md` (+ EN).
 
 **Notas**: Criterio de la spec: CA-01, CA-02, CA-03.
 

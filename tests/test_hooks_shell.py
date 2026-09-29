@@ -1110,6 +1110,52 @@ def test_setup_5bis_find_jobs_temporal_no_gana_al_plugin_instalado(tmp_path):
     assert "/plugins/cache/p/" in ruta and "/jobs/" not in ruta, (r.stdout, r.stderr)
 
 
+def _varias_activas(tmp_path, slugs):
+    """Proyecto con un ledger activo por slug (copias del ledger de fixture)."""
+    proj, led = proyecto(tmp_path, slug=f"2026-01-01-{slugs[0]}")
+    for i, s in enumerate(slugs[1:], 2):
+        d = proj / "docs" / "roadmap" / f"2026-01-{i:02d}-{s}"
+        d.mkdir(parents=True)
+        (d / "tasks.md").write_text(led.read_text(encoding="utf-8"), encoding="utf-8")
+    return proj
+
+
+def _statusline_linea(proj, tmp_path):
+    rc, out, _ = hook("statusline", {"model": {"display_name": "Opus"}}, env_de(proj, tmp_path))
+    assert rc == 0
+    return out.strip()
+
+
+def test_statusline_ca01_en_curso_varias_activas_marca_la_del_marcador_abierto(tmp_path):
+    proj = _varias_activas(tmp_path, ["a", "b", "c", "training-data-services"])
+    (proj / ".claude" / "usage-state.json").write_text(
+        json.dumps({"training-data-services/F1-F3": {"inicio": "2026-09-29T10:00:00Z"}}), encoding="utf-8")
+    linea = _statusline_linea(proj, tmp_path)
+    assert "📋 4 activas · ▶ training-data-services T-03/4 75%" in linea, linea
+
+
+def test_statusline_ca02_en_curso_sin_marcador_marca_el_tasks_md_mas_reciente(tmp_path):
+    proj = _varias_activas(tmp_path, ["a", "b", "c"])
+    os.utime(proj / "docs" / "roadmap" / "2026-01-02-b" / "tasks.md", (4_000_000_000, 4_000_000_000))
+    linea = _statusline_linea(proj, tmp_path)
+    assert "📋 3 activas · ▶ b T-03/4" in linea, linea
+
+
+def test_statusline_ca03_en_curso_una_sola_activa_salida_identica_sin_flecha(tmp_path):
+    proj = _varias_activas(tmp_path, ["a"])
+    (proj / ".claude" / "usage-state.json").write_text(
+        json.dumps({"a/F1": {"inicio": "2026-09-29T10:00:00Z"}}), encoding="utf-8")
+    linea = _statusline_linea(proj, tmp_path)
+    assert linea == "[Opus] · 📋 a T-03/4 75%" and "▶" not in linea, linea
+
+
+def test_statusline_en_curso_usage_state_corrupto_no_rompe(tmp_path):
+    proj = _varias_activas(tmp_path, ["a", "b"])
+    (proj / ".claude" / "usage-state.json").write_text("{no es json", encoding="utf-8")
+    linea = _statusline_linea(proj, tmp_path)
+    assert "📋 2 activas · ▶ " in linea, linea
+
+
 def test_statusline_stdin_vacio_exit_0(tmp_path):
     proj, _ = proyecto(tmp_path, activa=False)
     rc, out, _ = hook("statusline", "", env_de(proj, tmp_path))

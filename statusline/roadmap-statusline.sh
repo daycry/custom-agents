@@ -79,14 +79,20 @@ if command -v python3 >/dev/null 2>&1; then
     rm_seg="$(python3 "$REPORT" active --root "$ROOT" --json 2>/dev/null | PYTHONIOENCODING=utf-8:replace python3 -c '
 import json, sys
 try:
-    a = json.load(sys.stdin).get("activas", [])
+    d = json.load(sys.stdin)
+    a = d.get("activas", [])
+    cur = d.get("iniciativa_en_curso")
 except Exception:
-    a = []
+    a, cur = [], None
 if len(a) == 1:
     r = a[0]
     print("📋 %s T-%02d/%d %d%%" % (r["slug"], r["completadas"], r["total"], r["pct"]))
 elif len(a) > 1:
-    print("📋 %d iniciativas activas" % len(a))
+    r = next((x for x in a if x.get("slug") == cur), None)
+    if r:  # C-01: la iniciativa en curso (marcador abierto del usage-meter o tasks.md más reciente)
+        print("📋 %d activas · ▶ %s T-%02d/%d %d%%" % (len(a), r["slug"], r["completadas"], r["total"], r["pct"]))
+    else:
+        print("📋 %d iniciativas activas" % len(a))
 ' 2>/dev/null)"
     [ -n "$rm_seg" ] && out="${out:+$out · }$rm_seg"
   fi

@@ -335,3 +335,85 @@ def test_titulo_con_negrita_interior_sale_sin_asteriscos(tmp_path):
     # también en el parser compartido (ledger-lint.parse_ledger), que es la fuente del título
     data = pr.resumir(p)
     assert data["en_curso"] == {"id": "T-03", "titulo": "Bold resto del título"}
+
+
+# ------------------------------------------------------------------ C-01: iniciativa en curso con varias activas
+
+def _activas_n(tmp_path, slugs):
+    for i, s in enumerate(slugs):
+        ledger(tmp_path, f"2026-09-{i + 1:02d}-{s}", DOS_FASES)
+    return tmp_path / "docs" / "roadmap"
+
+
+def _state(tmp_path, marcadores):
+    d = tmp_path / ".claude"
+    d.mkdir(exist_ok=True)
+    (d / "usage-state.json").write_text(json.dumps(marcadores), encoding="utf-8")
+
+
+def test_ca01_en_curso_marcador_abierto_gana_con_las_dos_formas_de_clave(tmp_path):
+    root = _activas_n(tmp_path, ["a", "b", "c", "training-data-services"])
+    for clave in ("training-data-services/F1-F3", "docs/roadmap/2026-09-16-training-data-services/T-06"):
+        _state(tmp_path, {clave: {"inicio": "2026-09-29T10:00:00Z"}})
+        code, out, _ = run("active", "--root", str(root), "--json")
+        d = json.loads(out)
+        assert code == 0 and len(d["activas"]) == 4
+        assert d["iniciativa_en_curso"] == "training-data-services", (clave, d.get("iniciativa_en_curso"))
+
+
+def test_ca02_en_curso_sin_marcador_usa_el_tasks_md_mas_reciente(tmp_path):
+    import os
+    root = _activas_n(tmp_path, ["a", "b", "c"])
+    for i, s in enumerate(("a", "b", "c")):
+        p = next(root.glob(f"*-{s}/tasks.md"))
+        os.utime(p, (3_000_000_000 + (10 - i) * 100, 3_000_000_000 + (10 - i) * 100))   # a es la más reciente
+    code, out, _ = run("active", "--root", str(root), "--json")
+    assert json.loads(out)["iniciativa_en_curso"] == "a"
+
+
+def test_en_curso_marcador_cerrado_no_cuenta_y_cae_al_mas_reciente(tmp_path):
+    import os
+    root = _activas_n(tmp_path, ["a", "b"])
+    os.utime(next(root.glob("*-b/tasks.md")), (4_000_000_000, 4_000_000_000))
+    _state(tmp_path, {"a/F1": {"inicio": "2026-09-29T10:00:00Z", "ultimoCierre": "2026-09-29T11:00:00Z"}})
+    code, out, _ = run("active", "--root", str(root), "--json")
+    assert json.loads(out)["iniciativa_en_curso"] == "b"
+
+
+def test_en_curso_marcador_de_spec_sin_ledger_no_muestra_progreso(tmp_path):
+    import os
+    root = _activas_n(tmp_path, ["a", "b"])
+    os.utime(next(root.glob("*-b/tasks.md")), (4_000_000_000, 4_000_000_000))
+    _state(tmp_path, {"solo-spec/spec": {"inicio": "2026-09-29T10:00:00Z"},
+                      "docs/roadmap/2026-09-01-solo-eval/evaluation": {"inicio": "2026-09-29T10:05:00Z"}})
+    code, out, _ = run("active", "--root", str(root), "--json")
+    assert json.loads(out)["iniciativa_en_curso"] == "b", "un marcador sin ledger no gana; cae al tasks.md más reciente"
+
+
+@pytest.mark.parametrize("contenido", [None, "{no es json", "[1, 2]", '{"a": 3}'])
+def test_en_curso_usage_state_ausente_o_corrupto_cae_al_mas_reciente(tmp_path, contenido):
+    import os
+    root = _activas_n(tmp_path, ["a", "b"])
+    os.utime(next(root.glob("*-a/tasks.md")), (4_000_000_000, 4_000_000_000))
+    if contenido is not None:
+        (tmp_path / ".claude").mkdir(exist_ok=True)
+        (tmp_path / ".claude" / "usage-state.json").write_text(contenido, encoding="utf-8")
+    code, out, _ = run("active", "--root", str(root), "--json")
+    assert code == 0 and json.loads(out)["iniciativa_en_curso"] == "a"
+
+
+def test_ca03_una_sola_activa_salida_json_identica_sin_iniciativa_en_curso(tmp_path):
+    root = _activas_n(tmp_path, ["a"])
+    _state(tmp_path, {"a/F1": {"inicio": "2026-09-29T10:00:00Z"}})
+    code, out, _ = run("active", "--root", str(root), "--json")
+    d = json.loads(out)
+    assert code == 0 and list(d) == ["activas"] and len(d["activas"]) == 1
+
+
+def test_iniciativa_en_curso_es_una_funcion_pura_de_slugs_y_estado():
+    rs = [{"slug": "a", "path": "/x/a/tasks.md"}, {"slug": "b", "path": "/x/b/tasks.md"}]
+    estado = {"docs/roadmap/2026-09-16-b/T-01": {"inicio": "2026-09-29T10:00:00Z"},
+              "a/T-02": {"inicio": "2026-09-29T09:00:00Z"}}
+    assert pr.iniciativa_en_curso(rs, estado, mtime=lambda p: 0) == "b", "entre dos abiertos, el de inicio más reciente"
+    assert pr.iniciativa_en_curso(rs, {}, mtime=lambda p: {"/x/a/tasks.md": 1, "/x/b/tasks.md": 5}[p]) == "b"
+    assert pr.iniciativa_en_curso([], estado, mtime=lambda p: 0) is None
