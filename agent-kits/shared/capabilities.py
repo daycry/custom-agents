@@ -77,10 +77,13 @@ def evaluar_capacidad(cap, root):
     ciclo de vida que `enumerar()`: nunca sobrevive mas alla de UNA evaluacion), conservando la
     memoizacion intra-llamada entre `enabled`/`health`/`doctor` de la MISMA capacidad."""
     _CACHE_TAXONOMIA.clear()
+    _CACHE_TRAINING.clear()
+    _CACHE_TRAINING["activa"] = True                                       # #195: una lectura por evaluacion
     try:
         return _evaluar_capacidad_sin_limpiar_cache(cap, root)
     finally:
         _CACHE_TAXONOMIA.clear()
+        _CACHE_TRAINING.clear()
 
 
 def _evaluar_capacidad_sin_limpiar_cache(cap, root):
@@ -137,6 +140,11 @@ def registrar(cap, registro=None):
 # cada `enumerar()` (nunca sobrevive entre llamadas: una taxonomia editada entre dos `enumerar()`
 # debe verse en la siguiente).
 _CACHE_TAXONOMIA = {}
+# #195: la MISMA regla para `training.json` (cuya validacion ejecuta `case_schema.py`, 11-40 ms sin
+# bytecode): se lee y valida UNA vez por `enumerar()`/`evaluar_capacidad()` y se reutiliza en `enabled`,
+# `health`, `doctor` y el recuento. Solo memoiza con la clave `activa` (dentro de una de esas llamadas);
+# fuera, cada llamada directa lee el fichero (nunca una config obsoleta).
+_CACHE_TRAINING = {}
 
 
 def _estado_taxonomia(root):
@@ -172,6 +180,8 @@ def enumerar(root=None, registro=None, plazo_s=None):
     root = root or "."
     destino = REGISTRO if registro is None else registro
     _CACHE_TAXONOMIA.clear()
+    _CACHE_TRAINING.clear()
+    _CACHE_TRAINING["activa"] = True                                       # #195
     _PLAZO["hasta"] = None if plazo_s is None else time.monotonic() + max(0.0, plazo_s)
     try:
         # `_evaluar_capacidad_sin_limpiar_cache`, no `evaluar_capacidad`: esta ultima vacia la
@@ -180,6 +190,7 @@ def enumerar(root=None, registro=None, plazo_s=None):
         return [_evaluar_capacidad_sin_limpiar_cache(cap, root) for cap in destino]
     finally:
         _CACHE_TAXONOMIA.clear()
+        _CACHE_TRAINING.clear()
         _PLAZO.pop("hasta", None)
 
 
@@ -290,8 +301,19 @@ def _estado_training(root):
     return config, ruta, [], False
 
 
+def _training(root):
+    """#195: `_estado_training(root)` memoizado dentro de la `enumerar()`/`evaluar_capacidad()` en curso
+    (`_CACHE_TRAINING`); fuera de ellas, una lectura por llamada."""
+    if not _CACHE_TRAINING.get("activa"):
+        return _estado_training(root)
+    clave = os.path.abspath(root or ".")
+    if clave not in _CACHE_TRAINING:
+        _CACHE_TRAINING[clave] = _estado_training(root)
+    return _CACHE_TRAINING[clave]
+
+
 def _training_enabled(root):
-    config, _ruta, errores, _validado = _estado_training(root)
+    config, _ruta, errores, _validado = _training(root)
     return bool(config and not errores and config.get("enabled") is True)
 
 
@@ -312,7 +334,7 @@ def _texto(ruta):
 
 
 def _training_health(root):
-    config, ruta, errores, validado = _estado_training(root)
+    config, ruta, errores, validado = _training(root)
     if errores:
         detalle = "; ".join(f"{e['campo']}: {e['mensaje']}" for e in errores)
         return {"estado": "error", "detalle": detalle, "fichero": _texto(ruta) if ruta else TRAINING_CONFIG_PATH}
@@ -351,9 +373,9 @@ def _training_doctor(root):
         # M10: `estado_dataset` tiene un margen propio tras el recuento; el total (recuento + margen) no pasa
         # del tope de la capacidad ni de lo que le quede al bloque de `/doctor` (#164)
         margen = tds["asm"].MARGEN_ESTADO_S
+        config = _training(root)[0] or {}             # #195: la lectura ya hecha, ANTES del plazo
         total = plazo_restante(TRAINING_PLAZO_S + margen)
         plazo = TRAINING_PLAZO_S if total >= TRAINING_PLAZO_S + margen else max(0.0, total - margen)
-        config = _estado_training(root)[0] or {}
         # #181/N2: el `id_prefix` de training.json, EXPLICITO (sin el, la regla permisiva del recorder)
         res = tds["rec"].resumen_store(salud["root"], root or ".", plazo_s=plazo, id_prefix=config.get("id_prefix"))
         ds = tds["asm"].estado_dataset(salud["root"], res)

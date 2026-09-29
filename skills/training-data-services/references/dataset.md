@@ -182,7 +182,26 @@ cambia nada; si no, reensambla (`index check` no ve los ficheros inmutables). **
 El recorrido de los dos lados exige `case_id == <id_prefix>-<family>.<variant>` con el `id_prefix` de
 `training.json` (y ≤ 200 caracteres, `CASE_ID_MAX`; `family`/`variant` ≤ 64 e `id_prefix` ≤ 32 en el
 origen, N4): cambiar `id_prefix` con un store existente deja fuera sus casos (aviso permanente que nombra
-`cases/<nombre>`, nunca el `case_id`); en ese caso, usa otro `root`.
+`cases/<nombre>`, nunca el `case_id`); en ese caso, usa otro `root`. Esa causa va PRIMERO (#190): si
+alguna versión tiene otro `id_prefix`, `/doctor` y `--estado` dicen `con_omisiones` con «N versiones con
+otro `id_prefix` que el de training.json: restáuralo o usa otro `root`» (exit 1; antes que el mensaje de
+#183) y el rechazo del ensamblador empieza por esa misma frase. **`validation.json` ilegible (#191).**
+Una versión cuyo `validation.json` no se puede leer por una causa PERMANENTE (`EACCES`/`EPERM` en POSIX,
+N6) no se sabe si es Gold: con la firma igual, la frescura es `con_omisiones` con «N versiones con
+validation.json ilegible: no se sabe si son Gold (revisa los permisos)» primero, nunca `al_dia`.
+**Referencias de la muestra (#189).** El lector de la marca valida cada `ref` de `omitidos_muestra`
+con la regla de un `case_id` (la parte anterior al último `@v`: ≤ 200 caracteres, sin controles ni
+caracteres de formato Unicode; después, de 1 a 9 cifras ASCII), no con `\S+`: una `family` con un
+espacio interior, que la config admite, cabe. La muestra solo guarda lo que su lector aceptaría (fuente
+única, `_motivo_referencia`); si aun así la marca no se puede publicar, el aviso dice que `/doctor` sigue
+comparando con la marca anterior, sin prometer que el siguiente ensamblado la reescriba. **Recorte de la
+marca (#196).** Si la marca no cabe en 4 KiB ni sin la muestra, lo que no cabe es `benchmark`: se
+resume ANTES en «N familias»; después la muestra se recorta de una vez, con los bytes de cada entrada.
+Como mucho 3 serializaciones de la marca bajo `exports/.lock`, y solo la primera es la entera.
+**Marcas de un esquema anterior (#193).** Una marca escrita con un esquema anterior al vigente (sin
+`omitidos`/`omitidos_muestra`, o con otra forma) se trata como AJENA: `no_verificable` con «retira
+`exports/.ultimo.json` a mano (solo ese nombre) y vuelve a ensamblar». No hay migración: la skill no se
+había publicado cuando cambió el esquema.
 
 **Umbral y `--estado` (#176, #188).** El recuento de `/doctor` (2 s) corta entre ~1 000 y ~2 000
 versiones en caliente, según la carga de la máquina (medido en Windows: ~2 000 con la máquina libre,

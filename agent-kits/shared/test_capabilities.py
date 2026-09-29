@@ -683,3 +683,52 @@ def test_t10fix3_180_parametros_forjados_no_salen_crudos_en_doctor_json(tmp_path
             texto = json.loads(fila)["detalle"]
             assert not any(c in texto for c in ("\x1b", "‮", "\u009b", " ", "\n")), texto
             assert "no verificable" in texto, texto
+
+
+# ------------------------------------------------------------------ T-10 fix4 (#190, #195)
+
+def test_t10fix4_195_training_json_se_lee_una_vez_por_enumerar_antes_del_plazo(tmp_path, monkeypatch):
+    """#195: la capacidad `training` lee y valida `training.json` UNA vez por `enumerar()` (espia sobre
+    `_estado_training`) y reutiliza el resultado en `enabled`, `health`, `doctor` y el recuento: ninguna
+    lectura despues de calcular el plazo (`plazo_restante`). Tambien con `evaluar_capacidad`, y la
+    cache no sobrevive a la llamada (una config editada se ve en la siguiente)."""
+    proj, _cfg, _store = _proyecto_training(tmp_path, estados=("approved",))
+    llamadas = []
+    original = cap_mod._estado_training
+
+    def _espia(root):
+        llamadas.append("leer")
+        return original(root)
+    real_plazo = cap_mod.plazo_restante
+
+    def _plazo(defecto):
+        llamadas.append("plazo")
+        return real_plazo(defecto)
+    monkeypatch.setattr(cap_mod, "_estado_training", _espia)
+    monkeypatch.setattr(cap_mod, "plazo_restante", _plazo)
+    t = next(c for c in cap_mod.enumerar(proj, plazo_s=5.0) if c["id"] == "training")
+    assert t["enabled"] is True and "approved 1" in t["doctor"], t
+    assert llamadas == ["leer", "plazo"], llamadas
+    llamadas.clear()
+    cap = next(c for c in cap_mod.REGISTRO if c["id"] == "training")
+    assert cap_mod.evaluar_capacidad(cap, proj)["enabled"] is True
+    assert llamadas == ["leer", "plazo"], llamadas
+    _training(proj, enabled=False, root="../store", id_prefix="geo")
+    llamadas.clear()
+    assert _cap_training(proj)["enabled"] is False and llamadas == ["leer"], llamadas
+    _training(proj, enabled=True, root="../store", id_prefix="geo")      # fuera de enumerar: sin cache
+    assert cap_mod._training_enabled(proj) is True and cap_mod._CACHE_TRAINING == {}
+
+
+def test_t10fix4_190_doctor_pone_primero_la_causa_otro_id_prefix(tmp_path):
+    """#190: con un store existente y el `id_prefix` de training.json cambiado, la fila de `/doctor`
+    dice PRIMERO «N versiones con otro `id_prefix`…: restauralo o usa otro `root`» (no el mensaje de
+    #183 ni «sin Gold»)."""
+    proj, cfg, _store = _proyecto_training(tmp_path, estados=("approved", "approved"))
+    tds = _tds()
+    tds["asm"].ensamblar(cfg, proj, {"f1"}, fecha="20260928")
+    _training(proj, enabled=True, root="../store", id_prefix="nuevo")
+    txt = _cap_training(proj)["doctor"]
+    causa = "2 versiones con otro `id_prefix` que el de training.json: restauralo o usa otro `root`"
+    assert f"dataset: {tds['asm'].TEXTO_DATASET['con_omisiones']} ({causa}" in txt, txt
+    assert "0 Gold vigentes" not in txt, txt

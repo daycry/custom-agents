@@ -97,7 +97,8 @@ externas (`graphify`): `references/case-schema.md`.
 - Sin `training.json` o con `enabled: false`: la capacidad no existe para el ciclo (CA-01). Inválido:
   `/doctor` lo informa con fichero y campo; nada se bloquea. Activo: `/doctor` da el recuento por estado
   y la frescura del dataset (firma de la entrada frente a la marca del último ensamblado, que registra
-  los Gold omitidos: ⚠️ `con_omisiones` hasta reensamblar; tope de 2 s, entre ~1 000 y ~2 000 versiones
+  los Gold omitidos: ⚠️ `con_omisiones` hasta corregir la causa y reensamblar (si era transitoria, basta
+  con reensamblar); tope de 2 s, entre ~1 000 y ~2 000 versiones
   en caliente según la carga, en sistemas de ficheros locales; «PARCIAL» si no llega:
   `dataset-assembler.py --estado` la verifica sin tope). Sin `python3`: el resto sigue.
 

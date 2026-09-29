@@ -6278,3 +6278,75 @@ def test_t10fix3_n6_causa_normalizada_de_cada_aviso():
     for aviso, causa in casos.items():
         assert rec.causa_aviso(aviso) == causa, (aviso, rec.causa_aviso(aviso))
     assert set(casos.values()) == set(rec.CAUSAS_AVISO)
+
+
+# ------------------------------------------------------------------ T-10 fix4 (#190, #191, #192)
+
+def test_t10fix4_190_resumen_cuenta_aparte_las_versiones_de_otro_id_prefix(tmp_path):
+    """#190: `resumen_store` cuenta aparte (`otro_prefijo`) las versiones omitidas por el codigo
+    `otro_prefijo` (su `case_id` no es el del `id_prefix` de training.json); `otros_avisos` sigue
+    incluyendolas. Un `case_id` demasiado largo NO es `otro_prefijo`."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    _gold_fix3(cfg, raiz, "a")
+    _gold_fix3(cfg, raiz, "b")
+    _gold_fix3(cfg, raiz, "c")
+    _meta_con_case_id(store, "b.steep", "zzzintruso-b.steep")
+    _meta_con_case_id(store, "c.steep", "x" * (rec.cs.CASE_ID_MAX + 1))
+    res = rec.resumen_store(str(store), raiz, id_prefix="geo")
+    assert res["otro_prefijo"] == 1 and res["otros_avisos"] == 2 and res["n_gold"] == 1, res
+    assert res["validacion_ilegible"] == 0, res
+    assert rec.resumen_store(str(store), raiz, id_prefix="nuevo")["otro_prefijo"] == 2
+    assert rec.resumen_store(str(store), raiz)["otro_prefijo"] == 0
+
+
+def test_t10fix4_191_resumen_cuenta_validation_ilegible_por_causa_permanente(tmp_path, monkeypatch):
+    """#191: `resumen_store` cuenta aparte (`validacion_ilegible`) las versiones con `validation.json`
+    ilegible por una causa PERMANENTE (N6: `EACCES` en POSIX); la misma causa en `metadata.json` o una
+    transitoria (Windows) no cuentan ahi."""
+    import errno as _errno
+    raiz, cfg, store = _proyecto(tmp_path)
+    _gold_fix3(cfg, raiz, "a")
+    _gold_fix3(cfg, raiz, "b")
+    _gold_fix3(cfg, raiz, "c")
+    objetivos = {os.path.normcase(str(store / "cases" / "b.steep" / "v001" / "validation.json")),
+                 os.path.normcase(str(store / "cases" / "c.steep" / "v001" / "metadata.json"))}
+    real = rec._abrir_lectura
+
+    def sin_permiso(ruta):
+        if os.path.normcase(str(ruta)) in objetivos:
+            raise PermissionError(_errno.EACCES, "Permission denied")
+        return real(ruta)
+    monkeypatch.setattr(rec, "_abrir_lectura", sin_permiso)
+    monkeypatch.setattr(rec, "ESPERA_REINTENTO_S", 0.0)
+    monkeypatch.setattr(rec, "_PERMISOS_PERMANENTES", True)
+    res = rec.resumen_store(str(store), raiz, id_prefix="geo")
+    assert res["validacion_ilegible"] == 1 and res["otros_avisos"] == 2 and res["n_gold"] == 1, res
+    monkeypatch.setattr(rec, "_PERMISOS_PERMANENTES", False)
+    res = rec.resumen_store(str(store), raiz, id_prefix="geo")
+    assert res["validacion_ilegible"] == 0 and res["transitorias"] == 2, res
+
+
+def test_t10fix4_192_index_check_y_rebuild_aplican_el_id_prefix_de_training_json(tmp_path):
+    """#192: `index check` aplica el `id_prefix` de training.json (#181/N2): una version de otro prefijo
+    (grabada con otra config sobre el mismo `root`) es una incoherencia «otro `id_prefix`» (exit 1), no
+    «en curso» ni «coherente», y sin la linea falsa «esta en el indice pero no en cases/»; `index rebuild`
+    tampoco la indexa (aviso con la misma causa). Sin ella, `check` vuelve a exit 0."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    _escribir_config(tmp_path, cfg)
+    _gold_fix3(cfg, raiz, "a")
+    otra = dict(cfg, id_prefix="otro")
+    rec.grabar(_caso(family="a", variant="y", case_id="otro-a.y"), otra, raiz)
+    assert rec.comprobar_indice(str(store)) == []                            # sin id_prefix: permisivo
+    r = _cli("index", "check", "--project-root", raiz)
+    assert r.returncode == 1, (r.stdout, r.stderr)
+    lineas = [l for l in r.stdout.splitlines() if "a.y" in l]
+    assert lineas and all("otro `id_prefix`" in l for l in lineas), r.stdout
+    assert "otro-a.y" not in r.stdout and "en curso" not in r.stdout + r.stderr, (r.stdout, r.stderr)
+    assert "esta en el indice pero no en cases/" not in r.stdout, r.stdout
+    difs, _curso = rec.comprobar_indice_detalle(str(store), raiz_proyecto=raiz, id_prefix="geo")
+    assert len(difs) == 1 and "otro `id_prefix`" in difs[0], difs
+    r = _cli("index", "rebuild", "--project-root", raiz)
+    assert r.returncode == 0 and "otro `id_prefix`" in r.stderr and "1 version(es)" in r.stdout, (r.stdout, r.stderr)
+    assert [e["case_id"] for e in rec.listar(str(store))] == ["geo-a.steep"]
+    shutil.rmtree(str(store / "cases" / "a.y"))
+    assert _cli("index", "check", "--project-root", raiz).returncode == 0

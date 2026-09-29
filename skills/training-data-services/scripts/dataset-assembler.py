@@ -126,6 +126,7 @@ import secrets
 import stat
 import sys
 import time
+import unicodedata
 
 # Consola no UTF-8 (Windows cp1252) o tuberias: reconfigurar ANTES de leer/imprimir (GOT-005).
 for _s in (sys.stdin, sys.stdout, sys.stderr):
@@ -402,7 +403,7 @@ def _omision(ref, aviso):
             "causa": rec.causa_aviso(aviso)}
 
 
-def cargar(store, config, raiz, ctx, acumulador=None, tope=TOPE_FICHERO, entrada=None, omisiones=None):
+def cargar(store, config, raiz, ctx, acumulador=None, tope=TOPE_FICHERO, entrada=None, omisiones=None, codigos=None):
     """Pasada 1 (H5): `(gold, otros, avisos_store, avisos)`. `gold`: `{ref, case_id, version, family,
     variant, supersedes_case, sha256, ficheros, content_hash}` (sin el caso: su texto va al
     `acumulador` y se descarta); `otros`: el resto de versiones con su motivo (manifiesto);
@@ -416,12 +417,13 @@ def cargar(store, config, raiz, ctx, acumulador=None, tope=TOPE_FICHERO, entrada
     `_omision` por cada Gold vigente que `leer_caso` omitio por un aviso (dedup, benchmark y «sin atar»
     NO son omisiones: son el resultado del ensamblado). El recorrido lee `metadata.json`/
     `validation.json` con `TOPE_JSON_CASO` (#171), no con `tope`, y exige el `id_prefix` de la config
-    (#181/N2)."""
+    (#181/N2). `codigos` (dict opcional, #190) recibe el codigo de cada aviso del recorrido (`otro_prefijo`…)."""
     width = cs.patrones_id(config)[2]
     crudos, gold_rec = {}, {}
     entradas, av, en_curso, _mt, _rels = rec._estado_de_cases(store, raiz, crudos=crudos, tope=rec.TOPE_JSON_CASO,
                                                               gold=gold_rec,   # #134/#171
-                                                              id_prefix=config.get("id_prefix"))   # #181/N2
+                                                              id_prefix=config.get("id_prefix"),   # #181/N2
+                                                              **({"codigos": codigos} if codigos is not None else {}))
     avisos_store = [av[k] for k in sorted(av)] + [en_curso[k] for k in sorted(en_curso)]
     gold, otros, avisos = [], [], []
     for clave in sorted(entradas):
@@ -555,8 +557,11 @@ def ensamblar(config, raiz_proyecto, benchmark, umbral=dd.UMBRAL_DEFECTO, ventan
     width = cs.patrones_id(config)[2]
     t0 = time.monotonic()
     acc = dd.Acumulador(ventana, presupuesto)
-    entrada, omisiones = {}, []
-    gold, otros, avisos_store, avisos = cargar(store, config, raiz, ctx, acc, tope_fichero, entrada, omisiones)
+    entrada, omisiones, codigos = {}, [], {}
+    gold, otros, avisos_store, avisos = cargar(store, config, raiz, ctx, acc, tope_fichero, entrada, omisiones,
+                                               codigos)
+    n_otro = sum(1 for c in codigos.values() if c == "otro_prefijo")
+    codigos = None
     firma, n_entrada = rec.firma_gold(entrada), len(entrada)                      # D-f4 F1
     entrada = None
     r_dd = acc.agrupar(umbral, fraccion_boilerplate,
@@ -564,8 +569,13 @@ def ensamblar(config, raiz_proyecto, benchmark, umbral=dd.UMBRAL_DEFECTO, ventan
     acc = None
     grupos, cruces = r_dd["grupos"], r_dd.get("cruces", [])
     avisos += [f"{a['id']}: {a['motivo']}" for a in r_dd["avisos"]]
-    asignados = particionar([{k: g[k] for k in ("ref", "case_id", "version", "family", "supersedes_case")}
-                             for g in gold], benchmark, grupos, conservar_duplicados, cruces)
+    try:
+        asignados = particionar([{k: g[k] for k in ("ref", "case_id", "version", "family", "supersedes_case")}
+                                 for g in gold], benchmark, grupos, conservar_duplicados, cruces)
+    except Rechazo as e:
+        if n_otro:                                                   # #190: la causa, PRIMERO
+            raise Rechazo(f"{causa_otro_prefijo(n_otro)}; {e.mensaje}") from None
+        raise
     por_ref = {g["ref"]: g for g in gold}
     casos = [dict({k: a[k] for k in ("ref", "case_id", "version", "family", "particion", "motivo")},
                   **{k: por_ref[a["ref"]][k] for k in ("sha256", "ficheros", "content_hash")}) for a in asignados]
@@ -698,10 +708,32 @@ def _motivo_parametros(p):
     return None
 
 
+def _motivo_referencia(ref):
+    """#189: None si `ref` es una referencia `<case_id>@v<N>` que acepta el lector de la marca, o por que
+    no. FUENTE UNICA (la usan `_motivo_omisiones` y `_muestra`): la MISMA regla que un `case_id`
+    (`rpartition("@v")`; la parte izquierda con `rec._motivo_case_id` sin `id_prefix` —longitud— y sin
+    controles ni caracteres de formato Unicode, `cs.CATEGORIAS_PROHIBIDAS_ROOT`) y un numero de version
+    de 1 a 9 cifras ASCII. Admite lo que `validar_config`/`validar_caso` admiten en `family`/`variant`
+    (un espacio interior, no ASCII); el motivo nunca repite la referencia."""
+    if not isinstance(ref, str):
+        return "referencia que no es texto"
+    case_id, sep, numero = ref.rpartition("@v")
+    if not sep or not case_id:
+        return "referencia sin la forma `<case_id>@v<N>`"
+    motivo = rec._motivo_case_id({"case_id": case_id}, None)
+    if motivo:
+        return motivo
+    if any(ord(c) < 32 or unicodedata.category(c) in cs.CATEGORIAS_PROHIBIDAS_ROOT for c in case_id):
+        return "referencia con caracteres de control o de formato Unicode"
+    if not (numero.isascii() and numero.isdigit()) or len(numero) > 9:
+        return "referencia con una version que no es de 1 a 9 cifras ASCII"
+    return None
+
+
 def _motivo_omisiones(n, muestra):
     """D-f5 O2 + N3: None si `omitidos`/`omitidos_muestra` tienen el esquema de la marca, o por que no:
     entero >= 0 (nunca bool) y lista de <= `MUESTRA_OMITIDOS` (y <= `n`) objetos `{ref, clase, causa}`,
-    con `ref` CRUDA que casa `PATRON_REFERENCIA` (`case_id` <= `CASE_ID_MAX`, version de <= 9 cifras)."""
+    con `ref` CRUDA que acepta `_motivo_referencia` (#189: la regla de un `case_id`, no `\\S+`)."""
     if isinstance(n, bool) or not isinstance(n, int) or n < 0:
         return "numero de Gold omitidos invalido"
     if not isinstance(muestra, list) or len(muestra) > MUESTRA_OMITIDOS or len(muestra) > n:
@@ -709,8 +741,7 @@ def _motivo_omisiones(n, muestra):
     for o in muestra:
         if not isinstance(o, dict) or sorted(o) != ["causa", "clase", "ref"]:
             return "muestra de Gold omitidos invalida"
-        m = cs.PATRON_REFERENCIA.fullmatch(o["ref"]) if isinstance(o["ref"], str) else None
-        if m is None or len(m.group(1)) > cs.CASE_ID_MAX or len(m.group(2)) > 9:
+        if _motivo_referencia(o["ref"]):
             return "referencia de la muestra de omitidos invalida"
         if o["clase"] not in CLASES_OMISION or o["causa"] not in rec.CAUSAS_AVISO:
             return "clase o causa de la muestra de omitidos invalida"
@@ -719,12 +750,13 @@ def _motivo_omisiones(n, muestra):
 
 def _muestra(omisiones):
     """D-f5 O2: las primeras `MUESTRA_OMITIDOS` omisiones (en orden `(case_id, version)`), SIN las que la
-    redaccion cambiaria (lo que se persiste va redactado; una referencia redactada no se guarda)."""
+    redaccion cambiaria (lo que se persiste va redactado; una referencia redactada no se guarda) y SIN
+    las que su lector rechazaria (#189: `_motivo_referencia`, la fuente unica de esa validacion)."""
     muestra = []
     for o in omisiones:
         if len(muestra) == MUESTRA_OMITIDOS:
             break
-        if rec.redactar_estructura(o["ref"]) == o["ref"]:
+        if _motivo_referencia(o["ref"]) is None and rec.redactar_estructura(o["ref"]) == o["ref"]:
             muestra.append(o)
     return muestra
 
@@ -789,25 +821,45 @@ def _serializar_marca(marca):
     return (json.dumps(marca, ensure_ascii=True, sort_keys=True) + "\n").encode("utf-8")
 
 
+def _bytes_json(valor):
+    """Bytes de `valor` DENTRO de la marca (mismo `ensure_ascii`/`sort_keys` que `_serializar_marca`)."""
+    return len(json.dumps(valor, ensure_ascii=True, sort_keys=True))
+
+
 def _bytes_marca(marca):
-    """Bytes de la marca (<= `TOPE_MARCA`, N3): si no caben, se recorta PRIMERO la muestra de omitidos
-    (`omitidos` sigue siendo el numero real), despues `benchmark` se resume en su numero de familias y,
-    como ultimo recurso, `parametros` queda en `{}` (informativos, M6)."""
+    """Bytes de la marca (<= `TOPE_MARCA`, N3), con COMO MUCHO 3 serializaciones de la marca (#196: nunca
+    en bucle, y solo la primera es la entera): si no cabe ni sin la muestra de omitidos, lo que no cabe
+    es `benchmark` y se resume ANTES en su numero de familias (y, como ultimo recurso, `parametros`
+    queda en `{}`: informativos, M6); despues la muestra se recorta DE UNA VEZ, con los bytes de cada
+    entrada (`omitidos` sigue siendo el numero real). Con `ensure_ascii`, un caracter es un byte, asi
+    que la cuenta es exacta; `_escribir_marca` valida igual los bytes que va a publicar."""
     marca = dict(marca)
-    datos = _serializar_marca(marca)
-    muestra = list(marca.get("omitidos_muestra") or ())
-    while len(datos) > TOPE_MARCA and muestra:
-        muestra.pop()
-        marca["omitidos_muestra"] = list(muestra)
-        datos = _serializar_marca(marca)
-    bench = (marca.get("parametros") or {}).get("benchmark")
-    if len(datos) > TOPE_MARCA and isinstance(bench, list):
-        marca["parametros"] = dict(marca["parametros"], benchmark=f"{len(bench)} familias")
-        datos = _serializar_marca(marca)
-    if len(datos) > TOPE_MARCA:
+    datos = _serializar_marca(marca)                                     # 1: la entera
+    if len(datos) <= TOPE_MARCA:
+        return datos
+    muestra = marca.get("omitidos_muestra")
+    muestra = list(muestra) if isinstance(muestra, list) else None
+    tamanos = [_bytes_json(o) for o in muestra or ()]
+
+    def lista(k):                                                        # bytes de `[e1, …, ek]`
+        return 2 + sum(tamanos[:k]) + 2 * max(0, k - 1)
+    base = len(datos) - (lista(len(tamanos)) - 2 if muestra is not None else 0)   # la marca con la muestra vacia
+    params = marca.get("parametros")
+    bench = params.get("benchmark") if isinstance(params, dict) else None
+    if base > TOPE_MARCA and isinstance(bench, list):                   # lo que no cabe es el benchmark
+        marca["parametros"] = dict(params, benchmark=f"{len(bench)} familias")
+        if muestra is not None:
+            marca["omitidos_muestra"] = []
+        base = len(_serializar_marca(marca))                            # 2: ya pequeña
+    if base > TOPE_MARCA:
+        base -= _bytes_json(marca.get("parametros")) - 2
         marca["parametros"] = {}
-        datos = _serializar_marca(marca)
-    return datos
+    if muestra is not None:
+        k = len(muestra)
+        while k and base - 2 + lista(k) > TOPE_MARCA:                   # aritmetica, sin serializar
+            k -= 1
+        marca["omitidos_muestra"] = muestra[:k]
+    return _serializar_marca(marca)                                     # 2 o 3
 
 
 def _motivo_bytes_marca(datos):
@@ -841,7 +893,8 @@ def _escribir_marca(ctx, exports, marca):
     motivo = _motivo_bytes_marca(datos)                                      # N3: nunca una que su lector rechace
     if motivo:
         return (f"{nombre} no se publica: la marca que se iba a escribir no pasaria su propio lector "
-                f"({motivo}); el export es valido; el siguiente ensamblado la reescribe")
+                f"({motivo}); el export es valido, pero /doctor y `--estado` siguen comparando con la marca "
+                "anterior (si la hay): su frescura no describe este ensamblado")   # #189 (c)
     tmp = os.path.join(exports, rec.PREFIJO_TEMPORAL + secrets.token_hex(8))
     st = None
     try:
@@ -900,6 +953,19 @@ def _texto_omisiones(marca, nombre):
     return texto
 
 
+def causa_otro_prefijo(n):
+    """#190: la causa de `n` versiones omitidas por otro `id_prefix` (primero en `/doctor`, `--estado` y
+    el rechazo del ensamblador)."""
+    return (f"{n} version{'es' if n != 1 else ''} con otro `id_prefix` que el de training.json: restauralo o "
+            "usa otro `root`")
+
+
+def causa_validacion_ilegible(n):
+    """#191: la causa de `n` versiones con `validation.json` ilegible por una causa PERMANENTE."""
+    return (f"{n} version{'es' if n != 1 else ''} con validation.json ilegible: no se sabe si "
+            f"{'son' if n != 1 else 'es'} Gold (revisa los permisos)")
+
+
 def _export_completo(exports, directorio):
     """F3: `exports/<directorio>/` es un directorio real (no enlace) con un `manifest.json` REGULAR (no se lee)."""
     d = os.path.join(exports, directorio)
@@ -937,7 +1003,9 @@ def estado_dataset(store, resumen=None, hasta=None):
     train/benchmark con los parametros del ultimo ensamblado, M6); `con_omisiones` (misma firma y
     `omitidos > 0`: D-f5 O3, «corrige la causa y reensambla»); o `desactualizado` (otra firma, el motivo
     por RECUENTO sin nombrar casos; o 0 Gold vigentes frente a los de una marca valida cuyo export sigue
-    completo, #183)."""
+    completo, #183). Dos causas van PRIMERO: versiones con otro `id_prefix` (#190: `con_omisiones`,
+    antes que todo lo demas tras recorrer `exports/`, tambien que #183) y, con la firma igual, versiones
+    con `validation.json` ilegible por una causa permanente (#191: `con_omisiones`, nunca `al_dia`)."""
     res = resumen if isinstance(resumen, dict) else {}
     n_gold = res.get("n_gold") or 0
     parcial = bool(res.get("truncado"))
@@ -995,6 +1063,10 @@ def estado_dataset(store, resumen=None, hasta=None):
                 salida["en_curso"] += 1
             else:
                 salida["incompletos"] += 1
+    n_otro = res.get("otro_prefijo") or 0
+    if n_otro:                                                              # #190: la causa, PRIMERO
+        salida.update(estado="con_omisiones", motivo=causa_otro_prefijo(n_otro))
+        return salida
     dudoso = parcial or transitorias
     if not n_gold and not dudoso:
         if salida["exports"] and not agotado():                             # #183/N7: solo si hay exports
@@ -1049,8 +1121,11 @@ def estado_dataset(store, resumen=None, hasta=None):
             salida.update(estado="parcial", motivo=(f"{que}: no se compara con el ultimo ensamblado `{nombre}`; "
                                                      f"{UMBRAL_DOCTOR}"))
         return salida
-    if res.get("firma") == marca["firma"] and marca["omitidos"]:            # D-f5 O3
-        salida.update(estado="con_omisiones", motivo=_texto_omisiones(marca, nombre))
+    n_val = res.get("validacion_ilegible") or 0
+    if res.get("firma") == marca["firma"] and (marca["omitidos"] or n_val):   # D-f5 O3 + #191
+        partes = ([causa_validacion_ilegible(n_val)] if n_val else []) + (
+            [_texto_omisiones(marca, nombre)] if marca["omitidos"] else [])
+        salida.update(estado="con_omisiones", motivo="; ".join(partes))
     elif res.get("firma") == marca["firma"]:
         salida.update(estado="al_dia", motivo=(f"ultimo ensamblado `{nombre}`, con los parametros del ultimo ensamblado "
                                                f"({_texto_parametros(marca['parametros'])})"))

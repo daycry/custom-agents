@@ -66,6 +66,7 @@ falla tras reservar (exit 1 o 2), la reserva queda y `index check` la reporta. E
 | Un fragmento final del índice sin salto de línea que persiste (escritor muerto a mitad de línea) | 1 | `index rebuild` |
 | Grabación interrumpida al publicar `metadata.json` (dos nombres: él y un `.tmp-*` hermano; no es un enlace duro) | 1 | Retira ese `.tmp-*` (solo ese nombre): la versión queda completa |
 | Dos casos que solo difieren en mayúsculas, o un directorio con versiones de dos `case_id` (no se indexa la del intruso) | 1 | Renombra, fusiona o mueve a mano |
+| Versión con otro `id_prefix` que el de `training.json` (#192: la misma regla del recorrido, #181/N2; sin la línea «está en el índice pero no en `cases/`»). `index rebuild` tampoco la indexa | 1 | Restaura el `id_prefix` o usa otro `root` |
 
 Es **informativo** (exit 0, línea `info:`) lo que está **en curso**: una versión sin
 `metadata.json` (o con él a medio publicar) cuyo directorio tiene `mtime` de hace menos de 60 s, una
@@ -90,7 +91,10 @@ EXPLÍCITO desde `/doctor`, `--estado` y el ensamblador, #181/N2) el `case_id` t
 `<id_prefix>-<family>.<variant>`, y uno de más de `CASE_ID_MAX` (200) caracteres se omite siempre. Se
 comprueba justo después de parsear `metadata.json`, antes de leer `validation.json` y de guardar nada
 (nunca se retiene un `case_id` gigante); el aviso nombra `cases/<nombre>` y la causa, nunca el
-`case_id`. Cambiar `id_prefix` con un store existente deja fuera sus casos: usa otro `root`. En POSIX,
+`case_id`. Cambiar `id_prefix` con un store existente deja fuera sus casos: usa otro `root`. Esas
+versiones se cuentan aparte en `otro_prefijo` (código `otro_prefijo`, #190) y las que tienen un
+`validation.json` ilegible por una causa permanente, en `validacion_ilegible` (#191); las dos siguen
+contando también en `otros_avisos`. En POSIX,
 `EACCES`/`EPERM` no se reintentan ni son transitorios (causa «sin permisos», N6); en Windows,
 `PermissionError` sigue siendo «bloqueada o sin permisos» y transitorio. `causa_aviso` da la causa
 normalizada de cada aviso (fuente única: `ausente`, `ilegible`, `sin permisos o bloqueado`, `sin

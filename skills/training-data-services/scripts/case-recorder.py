@@ -1980,12 +1980,18 @@ def _leer_de_version(dir_v, fichero, rel, fstat_leido=None, decodificar=_json_de
     es regular se omite sin leerlo. `rel` llega ya escapado (`_texto_ruta`, #111). `decodificar`: ver
     `_leer_json_reintentando` (el ensamblador, T-09, lee los bytes tal cual); `tope`, su tope por
     fichero (#122). `codigo` (lista opcional, #157): recibe el CODIGO estructurado del aviso
-    (`incompleta`, `grande`), el que cuenta `resumen_store` sin mirar el texto; `hasta` (#163), el plazo
-    de los reintentos (tambien los de «sustituido»)."""
+    (`incompleta`, `grande`, `validacion_ilegible` —#191—), el que cuenta `resumen_store` sin mirar el
+    texto; `hasta` (#163), el plazo de los reintentos (tambien los de «sustituido»)."""
     def _cod(c, aviso):
         if codigo is not None:
             codigo.append(c)
         return None, None, aviso
+
+    def _sin_permisos():
+        """#191: un `validation.json` ilegible por una causa PERMANENTE (N6) lleva el codigo
+        `validacion_ilegible`: no se sabe si esa version es Gold."""
+        aviso = f"{rel} ilegible: {fichero} {SIN_PERMISOS}"
+        return _cod("validacion_ilegible", aviso) if fichero == "validation.json" else (None, None, aviso)
 
     ruta = os.path.join(dir_v, fichero)
     intentos, limite, espera, por_plazo = 0, None, ESPERA_SUSTITUIDO_S, False
@@ -2014,7 +2020,7 @@ def _leer_de_version(dir_v, fichero, rel, fstat_leido=None, decodificar=_json_de
                         "version")
         except OSError as e:
             if _permiso_permanente(e):                                          # N6
-                return None, None, f"{rel} ilegible: {fichero} {SIN_PERMISOS}"
+                return _sin_permisos()
             return None, None, f"{rel} ilegible: {fichero} no se puede examinar ({e})"
         if _motivo_enlace(ruta, ruta) if _es_enlace_st(st) is None else _es_enlace_st(st):
             return None, None, f"{rel} omitida: {fichero} es un {MOTIVO_ENLACE}"
@@ -2047,7 +2053,7 @@ def _leer_de_version(dir_v, fichero, rel, fstat_leido=None, decodificar=_json_de
             return _cod("incompleta", f"{rel} incompleta: sin {fichero} (desaparecio al leerla)")
         except PermissionError as e:
             if _permiso_permanente(e):                                          # N6
-                return None, None, f"{rel} ilegible: {fichero} {SIN_PERMISOS}"
+                return _sin_permisos()
             return None, None, (f"{rel} ilegible: {fichero} no legible tras {REINTENTOS} reintentos "
                                 f"(bloqueada o sin permisos): {e}")
         except (OSError, ValueError, RecursionError) as e:
@@ -2066,6 +2072,10 @@ def _firma(st):
 
 def _json_y_crudo(datos):
     return _json_de(datos), datos
+
+
+MOTIVO_OTRO_PREFIJO = ("el case_id de metadata.json es de otro `id_prefix` que el de training.json (lo cambiaste?): "
+                       "con otro id_prefix, usa otro root")                # #181/N2; su codigo, `otro_prefijo` (#190)
 
 
 def _motivo_case_id(meta, id_prefix):
@@ -2089,8 +2099,7 @@ def _motivo_case_id(meta, id_prefix):
     except ValueError:
         esperado = None
     if case_id != esperado:
-        return ("el case_id de metadata.json es de otro `id_prefix` que el de training.json (lo cambiaste?): "
-                "con otro id_prefix, usa otro root")
+        return MOTIVO_OTRO_PREFIJO
     return None
 
 
@@ -2146,8 +2155,8 @@ def _estado_version(store, nombre, dir_caso, numero, nombres, entrada_dir=None, 
         motivo_id = _motivo_case_id(meta, id_prefix)                     # #181/N2: antes de todo lo demas
         if motivo_id:
             meta = crudo = None
-            if codigo is not None:
-                codigo.append("case_id")
+            if codigo is not None:                  # #190: el de otro `id_prefix`, con su codigo propio
+                codigo.append("otro_prefijo" if motivo_id == MOTIVO_OTRO_PREFIJO else "case_id")
             return None, f"{rel} omitida: {motivo_id}; no se indexa", False, None
         if hasta is not None and _crono() >= hasta:
             raise _PlazoAgotado()                           # #171: el plazo se mira ANTES de cada parseo
@@ -2462,15 +2471,15 @@ def _aviso_intruso(nombre, e, duenos):
             "`id_prefix` sobre el mismo root a la vez): no se indexa; muevela o retirala a mano")
 
 
-def estado_de_cases(store, raiz_proyecto=None, duenos=None):
+def estado_de_cases(store, raiz_proyecto=None, duenos=None, id_prefix=None):
     """`(entradas, avisos)` recorriendo `cases/` (la FUENTE; el indice es cache). Se omiten con
     aviso: versiones incompletas o «en curso» (sin `metadata.json`/`validation.json`), enlazadas,
     con ficheros que no son regulares o con enlaces duros, bloqueadas o ilegibles, duplicadas (mismo
     numero con dos anchos), incoherentes con su ruta o con el esquema y `validation.json` incoherente
     con `case_schema` (p. ej. `approved` sin humano, gap #45); y los temporales HUERFANOS (gap #80;
     uno «en curso» no es un aviso para quien lee: solo lo informa `index check`).
-    `updated_at` = mtime de `validation.json`."""
-    entradas, avisos, en_curso, _m, _r = _estado_de_cases(store, raiz_proyecto, duenos)
+    `updated_at` = mtime de `validation.json`. `id_prefix` (#192): el de training.json (`index rebuild`)."""
+    entradas, avisos, en_curso, _m, _r = _estado_de_cases(store, raiz_proyecto, duenos, id_prefix=id_prefix)
     return entradas, list(avisos.values()) + [t for rel, t in en_curso.items()
                                               if not rel.rsplit("/", 1)[-1].startswith(PREFIJO_TEMPORAL)]
 
@@ -2484,7 +2493,8 @@ def resumen_store(store, raiz_proyecto=None, plazo_s=RESUMEN_PLAZO_S, id_prefix=
     `dataset-assembler.py --estado`, desde `cases/` con los MISMOS lectores seguros del recorrido
     (`_estado_de_cases`: sin seguir enlaces, por descriptor), nunca desde el indice (una cache).
     Devuelve `{por_estado: {status: n}, versiones, incompletas, huerfanos, grandes, cortadas,
-    otros_avisos, en_curso, transitorias, gold, n_gold, firma, gold_mtime_ns, truncado,
+    otros_avisos, en_curso, transitorias, otro_prefijo, validacion_ilegible, gold, n_gold, firma,
+    gold_mtime_ns, truncado,
     listado_parcial, casos_vistos, casos_total, plazo_s, hasta}`: `incompletas` = versiones sin
     `metadata.json`/`validation.json` (o a medio publicar) pasada la gracia; `huerfanos` = temporales
     `.tmp-*` huerfanos (tambien los de DENTRO de una version, como `index check`, #149); `grandes` =
@@ -2492,7 +2502,10 @@ def resumen_store(store, raiz_proyecto=None, plazo_s=RESUMEN_PLAZO_S, id_prefix=
     el `st_size` del descriptor ANTES de leer: nunca se cargan, #148); `cortadas` = versiones cuya
     lectura corto el plazo (#177). Se clasifican por el CODIGO que acompaña a cada aviso, nunca por su
     texto (#157). `transitorias` = versiones omitidas por una causa TRANSITORIA (M1:
-    `_aviso_transitorio`). `gold` = `{(case_id, version): content_hash saneado}` de los Gold humanos
+    `_aviso_transitorio`). `otro_prefijo` (#190) = versiones omitidas porque su `case_id` es de otro
+    `id_prefix` que el de training.json; `validacion_ilegible` (#191) = versiones con `validation.json`
+    ilegible por una causa PERMANENTE (no se sabe si son Gold); las dos cuentan TAMBIEN en `otros_avisos`.
+    `gold` = `{(case_id, version): content_hash saneado}` de los Gold humanos
     (F1/M5: `gold_de_version`; nunca la cadena de un hash invalido) y `firma` = `firma_gold(gold)`, la
     FIRMA de la entrada que compara la frescura del dataset (D-f4), con `n_gold` Gold; `gold_mtime_ns`
     = el `mtime` (ns, del descriptor leido) del `validation.json` Gold mas reciente, o None.
@@ -2519,10 +2532,13 @@ def resumen_store(store, raiz_proyecto=None, plazo_s=RESUMEN_PLAZO_S, id_prefix=
             ns = firmas[clave][1][2]
             gold_ns = ns if gold_ns is None or ns > gold_ns else gold_ns
     cuenta = {c: 0 for c in ("incompleta", "huerfano", "grande", "plazo")}
+    aparte = {c: 0 for c in ("otro_prefijo", "validacion_ilegible")}           # #190/#191: tambien en `otros_avisos`
     for rel in avisos:
         c = codigos.get(rel)
         if c in cuenta:
             cuenta[c] += 1
+        elif c in aparte:
+            aparte[c] += 1
     gold = {k: v for k, v in gold.items() if k in entradas}
     if hasta is not None and _crono() >= hasta:                             # #181 d: la firma, dentro del plazo
         recorte["truncado"] = True
@@ -2532,7 +2548,8 @@ def resumen_store(store, raiz_proyecto=None, plazo_s=RESUMEN_PLAZO_S, id_prefix=
     return {"por_estado": por_estado, "versiones": len(entradas), "incompletas": cuenta["incompleta"],
             "huerfanos": cuenta["huerfano"], "grandes": cuenta["grande"], "cortadas": cuenta["plazo"],
             "otros_avisos": len(avisos) - sum(cuenta.values()), "en_curso": len(en_curso),
-            "transitorias": len(transitorias), "gold": gold, "n_gold": len(gold), "firma": firma,
+            "transitorias": len(transitorias), "otro_prefijo": aparte["otro_prefijo"],
+            "validacion_ilegible": aparte["validacion_ilegible"], "gold": gold, "n_gold": len(gold), "firma": firma,
             "gold_mtime_ns": gold_ns, "truncado": recorte["truncado"], "listado_parcial": recorte["listado_parcial"],
             "casos_vistos": recorte["casos_vistos"], "casos_total": recorte["casos_total"], "plazo_s": plazo_s,
             "hasta": hasta}
@@ -2657,9 +2674,10 @@ def _poner_al_dia(ruta, cursor, avisos, al_releer):
     return cursor
 
 
-def _releer_version(store, fam, var, numero, case_id=None):
+def _releer_version(store, fam, var, numero, case_id=None, id_prefix=None):
     """E3: la version `<fam>.<var>` numero `numero` RELEIDA del disco: `(entrada|None, aviso|None,
-    en_curso, mtime_meta)`. O(1): la localiza por numero (cualquier ancho) sin recorrer el caso."""
+    en_curso, mtime_meta)`. O(1): la localiza por numero (cualquier ancho) sin recorrer el caso. Con el
+    `id_prefix` de training.json (#192), la MISMA regla que el recorrido (`_motivo_case_id`)."""
     try:
         cs.directorio_version(fam, var, 1)
     except (ValueError, TypeError):
@@ -2677,18 +2695,24 @@ def _releer_version(store, fam, var, numero, case_id=None):
             n, tipo = next(iter(ocupantes.items()))
             return None, f"{_texto_ruta(f'cases/{nombre}/{n}')}: no es un directorio de version ({tipo}): no se indexa", False, None
         return None, f"{_texto_ruta(case_id or nombre)}@v{numero}: en el indice pero no en cases/", False, None
-    e, aviso, curso, mtime_meta = _estado_version(store, nombre, dir_caso, numero, nombres)
+    e, aviso, curso, mtime_meta = _estado_version(store, nombre, dir_caso, numero, nombres, id_prefix=id_prefix)
     if e is not None and case_id is not None and e["case_id"] != case_id:
         return None, (f"{_texto_ruta(f'cases/{nombre}/{nombres[0]}')}: la linea dice `{_texto_ruta(case_id)}` y "
                       f"metadata.json `{_texto_ruta(e['case_id'])}`"), False, None
     return e, aviso, curso, mtime_meta
 
 
-def _releer_de_linea(store, linea):
+def _releer_de_linea(store, linea, id_prefix=None):
     """La version que nombra una linea del indice, releida del disco: `(entrada|None, aviso|None)`
     («en curso» -> `(None, None)`)."""
-    e, aviso, curso, _m = _releer_version(store, linea["family"], linea["variant"], linea["version"], linea["case_id"])
+    e, aviso, curso, _m = _releer_version(store, linea["family"], linea["variant"], linea["version"], linea["case_id"],
+                                          **_con_prefijo(id_prefix))
     return e, (aviso if not curso else None)
+
+
+def _con_prefijo(id_prefix):
+    """#192: `{"id_prefix": …}` solo si hay uno (sin el, la llamada de siempre: la regla permisiva)."""
+    return {"id_prefix": id_prefix} if id_prefix is not None else {}
 
 
 def _mismos_campos(a, b):
@@ -2718,7 +2742,7 @@ def _comprobar_indice_escribible(ruta):
                               "permisos y repite `index rebuild`")
 
 
-def reconstruir_indice(store, raiz_proyecto=None):
+def reconstruir_indice(store, raiz_proyecto=None, id_prefix=None):
     """Reescribe `cases_index.jsonl` desde `cases/` (D-fix2 §3 + D-fix3 §2 con F2/F4), serializado
     por `.cases_rebuild.lock` (tomado ANTES que el del indice):
       - F0 (bloqueo, O(1)): identidad del indice y offset (alineado al ultimo `\\n`).
@@ -2731,7 +2755,8 @@ def reconstruir_indice(store, raiz_proyecto=None):
         del temporal (gap #78) y `os.replace`.
     Identidad cambiada -> vuelta a F0 (hasta `REINTENTOS_REBUILD`) y despues `Transitorio` (exit 3).
     Indice de solo lectura o `PermissionError` persistente al sustituir -> `ErrorPermanente` (exit
-    2, gap #76). Devuelve `(n_versiones, avisos)`."""
+    2, gap #76). Con el `id_prefix` de training.json (#192), una version de otro prefijo no se indexa
+    (aviso «otro `id_prefix`», la MISMA regla del recorrido). Devuelve `(n_versiones, avisos)`."""
     raiz = _raiz(raiz_proyecto)
     ruta = os.path.join(store, INDICE)
     _comprobar_contencion(store, [os.path.join(store, BLOQUEO_INDICE), os.path.join(store, BLOQUEO_REBUILD), ruta], raiz)
@@ -2739,19 +2764,19 @@ def reconstruir_indice(store, raiz_proyecto=None):
     _comprobar_indice_escribible(ruta)
     with _Bloqueo(store, BLOQUEO_REBUILD):
         for _intento in range(REINTENTOS_REBUILD):
-            r = _reconstruir_una_vez(store, ruta, raiz)
+            r = _reconstruir_una_vez(store, ruta, raiz, id_prefix)
             if r is not None:
                 return r
     raise Transitorio(f"{INDICE} cambio de identidad (sustituido o truncado) durante el rebuild {REINTENTOS_REBUILD} "
                       "veces seguidas; no se ha tocado: reintenta")
 
 
-def _reconstruir_una_vez(store, ruta, raiz):
+def _reconstruir_una_vez(store, ruta, raiz, id_prefix=None):
     """Un intento de `reconstruir_indice`; None si la identidad del indice cambio (volver a F0)."""
     with _Bloqueo(store):                                                       # F0
         cursor = _cursor(_identidad(ruta))
     duenos = {}
-    fuente, avisos = estado_de_cases(store, raiz, duenos=duenos)                # F1
+    fuente, avisos = estado_de_cases(store, raiz, duenos=duenos, id_prefix=id_prefix)   # F1
     previas = leer_indice(store, hasta=cursor[1])[0] if cursor[1] else {}
     lineas = {}
     for clave in sorted(fuente, key=lambda k: (fuente[k]["family"], fuente[k]["variant"], k[1])):
@@ -2762,7 +2787,7 @@ def _reconstruir_una_vez(store, ruta, raiz):
         lineas[clave] = e
 
     def al_releer(clave, linea):                                                # E3: releida del disco
-        e, aviso = _releer_de_linea(store, linea)
+        e, aviso = _releer_de_linea(store, linea, id_prefix)
         if e is not None:
             aviso = _aviso_intruso(f"{e['family']}.{e['variant']}", e, duenos)         # gap #88
             e = None if aviso else e
@@ -2812,18 +2837,20 @@ def _reconstruir_una_vez(store, ruta, raiz):
         _retirar_temporal_propio(tmp, st_tmp)                                   # G1
 
 
-def comprobar_indice_detalle(store, width=cs.VERSION_WIDTH_DEFECTO, raiz_proyecto=None):
+def comprobar_indice_detalle(store, width=cs.VERSION_WIDTH_DEFECTO, raiz_proyecto=None, id_prefix=None):
     """`(diferencias, en_curso)` entre el indice y `cases/` (E5 + D-fix3 §3 con F3), SIN escribir y
     SIN tomar NUNCA `.cases_index.lock` (no bloquea a los escritores): offset del indice alineado al
     ultimo `\\n`, recorrido de `cases/`, pasadas de puesta al dia sin bloqueo (releyendo del disco lo
     que toca la cola) y una CONFIRMACION final que relee la cola nueva y, del disco, lo que difiere,
     y comprueba la identidad. Identidad cambiada -> reintento acotado y despues `Transitorio` (exit
     3). Bajo escritura muy intensa cabe un falso positivo transitorio que un segundo `check` ya no
-    ve. `diferencias` vacia = coherente (exit 0); `en_curso` es informativo."""
+    ve. `diferencias` vacia = coherente (exit 0); `en_curso` es informativo. `id_prefix` (#192): el de
+    training.json; una version de otro prefijo es una incoherencia «otro `id_prefix`» (codigo
+    `otro_prefijo`, el de `resumen_store`), sin la linea «esta en el indice pero no en cases/»."""
     raiz = _raiz(raiz_proyecto)
     ruta = os.path.join(store, INDICE)
     for _intento in range(REINTENTOS_REBUILD):
-        r = _comprobar_una_vez(store, ruta, width, raiz)
+        r = _comprobar_una_vez(store, ruta, width, raiz, id_prefix)
         if r is not None:
             return r
     raise Transitorio(f"{INDICE} cambio de identidad durante `index check` {REINTENTOS_REBUILD} veces seguidas: reintenta")
@@ -2857,18 +2884,19 @@ def _cambio_desde_f1(firmas, clave):
         return True
 
 
-def _comprobar_una_vez(store, ruta, width, raiz):
+def _comprobar_una_vez(store, ruta, width, raiz, id_prefix=None):
     """Un intento de `comprobar_indice_detalle`; None si la identidad del indice cambio."""
     cursor = _cursor(_identidad(ruta))                                          # F0, sin bloqueo
-    duenos, firmas = {}, {}
+    duenos, firmas, codigos = {}, {}, {}
     transitorias = set()
     fuente, avisos, en_curso, mtimes, rels = _estado_de_cases(store, raiz, duenos, firmas, temporales_version=True,
-                                                              transitorias=transitorias)          # F1
+                                                              transitorias=transitorias, codigos=codigos,
+                                                              id_prefix=id_prefix)                 # F1
     indice, avisos_idx = leer_indice(store, hasta=cursor[1]) if cursor[1] else ({}, [])
     avisos_cola, cola_fallidas, tocadas = [], set(), set()
 
     def releer(fam, var, numero, case_id, origen):
-        e, aviso, curso, mtime_meta = _releer_version(store, fam, var, numero, case_id)
+        e, aviso, curso, mtime_meta = _releer_version(store, fam, var, numero, case_id, **_con_prefijo(id_prefix))
         if e is not None and _aviso_intruso(f"{fam}.{var}", e, duenos):                # gap #88
             avisos[_clave_intruso(e)] = _aviso_intruso(f"{fam}.{var}", e, duenos)
             fuente.pop((e["case_id"], e["version"]), None)
@@ -2939,6 +2967,9 @@ def _comprobar_una_vez(store, ruta, width, raiz):
             else:
                 difs.append(f"{ref}: esta en cases/ pero no en el indice")
         elif clave not in fuente:
+            if any(codigos.get(rel) == "otro_prefijo" and rel in avisos      # #192: ya reportada con su causa
+                   for rel in rels.get((f"{indice[clave]['family']}.{indice[clave]['variant']}", clave[1]), ())):
+                continue
             difs.append(f"{ref}: esta en el indice pero no en cases/")
         else:
             for k in CLAVES_INDICE:
@@ -2948,12 +2979,12 @@ def _comprobar_una_vez(store, ruta, width, raiz):
     return difs, curso
 
 
-def comprobar_indice(store, width=cs.VERSION_WIDTH_DEFECTO, raiz_proyecto=None):
+def comprobar_indice(store, width=cs.VERSION_WIDTH_DEFECTO, raiz_proyecto=None, id_prefix=None):
     """Diferencias entre el indice y `cases/` (lista vacia = coherente): lineas corruptas y todo lo
     que el recorrido omite (versiones incompletas, duplicadas, enlazadas, ilegibles, incoherentes,
     temporales huerfanos) cuentan como incoherencia (gaps #37/#80); lo «en curso» no (ver
     `comprobar_indice_detalle`)."""
-    return comprobar_indice_detalle(store, width, raiz_proyecto)[0]
+    return comprobar_indice_detalle(store, width, raiz_proyecto, id_prefix)[0]
 
 
 def listar_con_avisos(store, status=None, family=None, outcome=None):
@@ -3256,12 +3287,12 @@ def main(argv=None):
         config_activa(config, raiz)
         store, width = raiz_store(config, raiz), cs.patrones_id(config)[2]
         if args.cmd == "index" and args.accion == "rebuild":
-            n, avisos = reconstruir_indice(store, raiz)
+            n, avisos = reconstruir_indice(store, raiz, config.get("id_prefix"))              # #192
             _avisar(avisos)
             print(f"OK {INDICE} reconstruido desde cases/: {n} version(es)")
             return 0
         if args.cmd == "index":
-            difs, en_curso = comprobar_indice_detalle(store, width, raiz)
+            difs, en_curso = comprobar_indice_detalle(store, width, raiz, config.get("id_prefix"))   # #192
             _avisar(en_curso, "info")
             if difs:
                 for d in difs:
