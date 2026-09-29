@@ -335,6 +335,13 @@ SIN_SIMBOLOS_EN_LA_SALIDA = {
     # ASCII se escapan con `ascii()`, los errores son ASCII).
     "skills/training-data-services/scripts/dedup.py":
         "sus veredictos (`grupo: ...`, el resumen y `error: ...`) son ASCII puro (ids escapados con ascii())",
+    # graphiti-memory T-02: modulo PURO (sin red/disco), sin `__main__` (lo carga `graphiti.py`,
+    # T-04, o los tests, por `importlib`); arrancado sin argumentos no imprime nada.
+    "skills/knowledge-services/backends/graphiti_model.py": "sin `__main__`: al arrancar no ejecuta nada ni imprime nada",
+    # graphiti-memory T-04-fix1 (gap #31): adaptador y proveedores sin `__main__` (los carga
+    # `backends/__init__.py::cargar_adaptador("graphiti", ...)`, igual que markdown_export.py).
+    "skills/knowledge-services/backends/graphiti.py": "sin `__main__`: al arrancar no ejecuta nada ni imprime nada",
+    "skills/knowledge-services/backends/graphiti_providers.py": "sin `__main__`: al arrancar no ejecuta nada ni imprime nada",
 }
 SCRIPTS_CON_SIMBOLOS = [rel for rel in SCRIPTS if rel not in SIN_SIMBOLOS_EN_LA_SALIDA]
 
@@ -394,8 +401,11 @@ def _modos():
         "agent-kits/shared/capabilities.py":
             [("registro", lambda w: ["--root", w], (0,), None)],
         # Imprime `·` y áreas con acentos («Estimación / calibración») en cada acierto (memory-retrieval T-01).
+        # Sobre la memoria SINTÉTICA del fixture de evals, no la de este repo (solo local, no versionada:
+        # en CI no existe y la consulta salía vacía); `--no-index` para no escribir la caché en el fixture.
         "agent-kits/shared/knowledge-find.py":
-            [("consulta", lambda w: ["--area", "estimacion"], (0,), None)],
+            [("consulta", lambda w: ["--area", "estimacion", "--no-index",
+                                     "--root", os.path.join(ROOT, "evals", "fixtures", "project")], (0,), None)],
         "agent-kits/shared/ledger-lint.py":
             [("ledger", lambda w: [L], (0, 1), None)],
         "agent-kits/shared/outbox.py":
@@ -419,6 +429,12 @@ def _modos():
         "skills/training-data-services/scripts/case-recorder.py":
             [("config ausente", lambda w: ["record", os.path.join(w, "no-existe-caso.json"), "--config",
                                             os.path.join(w, "no-existe-training.json")], (2,), None)],
+        "skills/knowledge-services/backends/graphiti_model.py":
+            [("importar sin CLI", lambda w: [], (0,), None)],
+        "skills/knowledge-services/backends/graphiti.py":
+            [("importar sin CLI", lambda w: [], (0,), None)],
+        "skills/knowledge-services/backends/graphiti_providers.py":
+            [("importar sin CLI", lambda w: [], (0,), None)],
         "agent-kits/shared/redact.py":
             [("importar sin CLI", lambda w: [], (0,), None)],
         "agent-kits/shared/model-tier.py":

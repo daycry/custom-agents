@@ -13,6 +13,29 @@ and versioning follows [SemVer](https://semver.org/).
 
 - **Secret redaction now catches the JSON form `"password": "…"`** The shared redactor matched `password=…` and `password: …`, but not a sensitive key in quotes followed by its value in quotes (`"password"`, `"api_key"`, `"token"`, `"secret"`…), so that form could reach the session journal as written. It is now redacted whole, and structured data (tool-call arguments) redacts the text value of any sensitive key. (`agent-kits/shared/redact.py`, `agent-kits/shared/journal.py`)
 
+### Changed
+
+- The plugin repository's own technical memory (`docs/knowledge/`) is no longer versioned; the tests that relied on it now use synthetic fixtures, and the linter treats citations to it as local memory.
+
+## [1.22.0] - 2026-09-28
+
+### Fixed — `knowledge-services` (2026-09-26)
+
+- **`markdown-export` rejects an `export_dir` inside `docs/knowledge/` whatever its letter case, on every OS** The containment check compared paths with `normcase`, which leaves letter case alone outside Windows: on macOS (case-insensitive APFS) `DOCS/KNOWLEDGE/APPROVED/x` — the same directory as `docs/knowledge/approved/x` — passed the check. It now also compares with `casefold()` everywhere (on Linux the rule errs on the strict side, like the rest of the plugin). It surfaced once the skill's own suite started running in CI. (`skills/knowledge-services/backends/markdown_export.py`)
+
+### Added — `graphiti-memory` initiative (2026-09-15)
+
+- **T-01 — Dependency gate, `backends.graphiti` in the schema and contract suite** Projects can declare an optional Graphiti backend (disabled by default) in their knowledge configuration, validated by the same schema and contract suite as the existing Kwipu adapter. (`agent-kits/shared/schemas/taxonomy.schema.json`, `agent-kits/shared/knowledge-schema.py`)
+- **T-02 — Ontology derived from `taxonomy.json` and temporal relations** Graphiti now derives its entity types and relations from the project taxonomy, with no domain lists hard-coded in the plugin, and `--propose-config` suggests the mapping from the server's own entity types. (`skills/knowledge-services/backends/graphiti_model.py`)
+- **T-03 — Write policy and authority** The single write path to Graphiti is documented (`knowledge-sync.py` after the curator's approval); no regular agent writes to the graph directly, and a repository gate enforces it. (`docs/agents/CONTRACTS.md`, `agents/knowledge-curator.md`)
+- **T-04 — Adaptador `graphiti.py`: cliente, `health` y proveedores** Added a Graphiti MCP client (health check, streamable-HTTP handshake) and pluggable providers, laying the groundwork for the local knowledge-graph memory backend.
+- **T-05 — `plan`/`apply` idempotentes sobre `outbox.py` y `mode: shadow`** The Graphiti backend now publishes approved knowledge idempotently (safe to retry, no duplicates) and defaults to a safe "shadow" mode that never reads from the graph.
+- **T-06 — `verify`, `rebuild` reproducible y `revoke`** Removed knowledge entries are now marked invalid in the graph on the next sync (a safe tombstone, never a hard delete), and a full rebuild is reproducible and scoped to the project's own data.
+- **T-07 — Router por configuracion e intent declarado** Knowledge queries can now declare an intent (`knowledge-find.py --intent temporal`): if the project's configuration routes that intent to a graph backend in read mode, the answer comes from the graph with its evidence, status and source path; anything else falls back to the local corpus.
+- **T-08 — Capacidad `graphiti` registrada, setup/doctor y documentacion runtime** Projects can now turn on the optional Graphiti graph memory from `/setup` and see its state in `/doctor` (off, shadow, read or misconfigured, each with the fix); enabling it only edits the project's own knowledge configuration and never registers an MCP server or touches global settings.
+- **T-09 — Aislamiento, modelos locales y seguridad** The repository now has a security regression suite for the Graphiti memory: hooks make no network calls, excluded data never reaches the graph, an invalid local model output degrades to dead-letter, and the MCP client refuses cloud metadata endpoints, public hosts and unsafe redirects.
+- **T-10 — Interop, QA y retro** The Graphiti memory initiative ships with a QA report for its no-UI verification: every acceptance criterion is mapped to the tests that exercise it, and the plugin lint, evals and interop checks are green.
+
 ## [1.21.1] - 2026-09-22
 
 ### Fixed — Codex & OpenCode installs (2026-09-22)
@@ -593,6 +616,7 @@ Adoption of best practices from the top agent collections (reference agent colle
 
 Versions predating the introduction of this changelog: a bundle with the `nemesis`, `evaluator`, `planner`, `pdfy` and `qa` agents, and the shared `cybersecurity` and `to-pdf` skills. Packaged as a plugin + marketplace.
 
+[1.22.0]: https://github.com/daycry/custom-agents/releases/tag/v1.22.0
 [1.21.1]: https://github.com/daycry/custom-agents/releases/tag/v1.21.1
 [1.21.0]: https://github.com/daycry/custom-agents/releases/tag/v1.21.0
 [1.20.2]: https://github.com/daycry/custom-agents/releases/tag/v1.20.2

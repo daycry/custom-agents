@@ -828,20 +828,22 @@ def test_indice_fts5_ausente_informa_valido_ok_y_corrupto_avisa_sin_escribir(tmp
     assert av and "knowledge-index.sqlite" in av[0]["arreglo"]
 
 
-def test_repo_real_la_memoria_curada_se_ve_y_su_indice_pasa_el_lint():
-    """Humo sobre ESTE repo: la memoria curada se cuenta y su índice pasa el lint de T-04.
+def test_repo_real_la_memoria_curada_se_ve_y_su_indice_pasa_el_lint(tmp_path):
+    """Humo con el PLUGIN real (`plugin_root` = este repo, con su `scripts/lint_plugin.py`) sobre un
+    proyecto consumidor realista: la memoria curada se cuenta y su índice pasa el lint de T-04.
 
-    Antes este test afirmaba además que el informe traía aviso de `journal de sesión` o de
-    `calibración (CALIBRATION.md)`, y que por eso el repo nunca salía «Instalación sana».
-    Las dos premisas eran ESTADO DEL REPO, no comportamiento: en cuanto se escribe una entrada
-    de journal y se añade una fila de CALIBRATION al cerrar una iniciativa —que es justo lo que
-    el plugin manda hacer— los avisos desaparecen y el test se pone rojo por haber hecho las
-    cosas bien. Los dos avisos ya tienen cobertura propia con fixture más arriba, donde el estado
-    se controla; aquí se queda solo lo que no caduca."""
-    inf = diag(ROOT, ROOT)
+    El proyecto es una copia del fixture de evals (`evals/fixtures/project/`, contenido inventado),
+    no la memoria de ESTE repo: `docs/knowledge/` del propio repo es solo local y no está versionada,
+    así que en CI no existe. Antes el test afirmaba además avisos de journal/calibración, que eran
+    ESTADO DEL REPO, no comportamiento; esos avisos tienen cobertura propia con fixture más arriba."""
+    import shutil
+    proj = tmp_path / "proj"
+    shutil.copytree(os.path.join(ROOT, "evals", "fixtures", "project", "docs", "knowledge"),
+                    proj / "docs" / "knowledge")
+    inf = diag(proj, ROOT)
     cur = por_que(inf, "memoria curada", doctor.OK)
-    assert cur and int(re.search(r"(\d+) entrada", cur[0]["detalle"]).group(1)) >= 31
-    assert por_que(inf, "índice de memoria (README)", doctor.OK), "el índice real pasa el lint de T-04"
+    assert cur and int(re.search(r"(\d+) entrada", cur[0]["detalle"]).group(1)) == 2, cur
+    assert por_que(inf, "índice de memoria (README)", doctor.OK), "el índice del fixture pasa el lint de T-04"
 
 
 # --- estado efectivo del registro: los gaps de la revision I2 -----------------------------
@@ -1670,7 +1672,7 @@ def test_bloque_capacidades_recorta_por_presupuesto_total(monkeypatch):
     monkeypatch.setattr(doctor, "_cargar_capabilities", lambda plugin_root: _CapMod())
     # fix2 (#167): el presupuesto solo acota las capacidades que REQUIEREN red (backend declarado)
     monkeypatch.setattr(doctor, "_cargar_backends_loader", lambda plugin_root: (object(), "d"))
-    monkeypatch.setattr(doctor, "_leer_backend_entry", lambda project, cap: {"type": "t"})
+    monkeypatch.setattr(doctor, "_leer_backend_entry", lambda project, cap, backend_id=None: {"type": "t"})
     monkeypatch.setattr(doctor, "CAPACIDADES_PRESUPUESTO_S", 0.05)
 
     llamadas = []
@@ -1703,7 +1705,7 @@ def test_bloque_capacidades_topa_tope_ms_al_presupuesto_restante(monkeypatch):
     monkeypatch.setattr(doctor, "_cargar_capabilities", lambda plugin_root: _CapMod())
     # fix2 (#167): el presupuesto solo acota las capacidades que REQUIEREN red (backend declarado)
     monkeypatch.setattr(doctor, "_cargar_backends_loader", lambda plugin_root: (object(), "d"))
-    monkeypatch.setattr(doctor, "_leer_backend_entry", lambda project, cap: {"type": "t"})
+    monkeypatch.setattr(doctor, "_leer_backend_entry", lambda project, cap, backend_id=None: {"type": "t"})
     monkeypatch.setattr(doctor, "CAPACIDADES_PRESUPUESTO_S", 2.02)
 
     topes_recibidos = []
@@ -1736,7 +1738,7 @@ def test_bloque_capacidades_aviso_de_recorte_cita_el_tiempo_transcurrido_real(mo
     monkeypatch.setattr(doctor, "_cargar_capabilities", lambda plugin_root: _CapMod())
     # fix2 (#167): el presupuesto solo acota las capacidades que REQUIEREN red (backend declarado)
     monkeypatch.setattr(doctor, "_cargar_backends_loader", lambda plugin_root: (object(), "d"))
-    monkeypatch.setattr(doctor, "_leer_backend_entry", lambda project, cap: {"type": "t"})
+    monkeypatch.setattr(doctor, "_leer_backend_entry", lambda project, cap, backend_id=None: {"type": "t"})
     monkeypatch.setattr(doctor, "CAPACIDADES_PRESUPUESTO_S", 0.05)
 
     def _linea_lenta(project, cap, backends_mod, backends_dir, **kwargs):
@@ -1767,7 +1769,7 @@ def test_bloque_capacidades_no_comprueba_con_tope_ms_por_debajo_del_suelo(monkey
     monkeypatch.setattr(doctor, "_cargar_capabilities", lambda plugin_root: _CapMod())
     # fix2 (#167): el presupuesto solo acota las capacidades que REQUIEREN red (backend declarado)
     monkeypatch.setattr(doctor, "_cargar_backends_loader", lambda plugin_root: (object(), "d"))
-    monkeypatch.setattr(doctor, "_leer_backend_entry", lambda project, cap: {"type": "t"})
+    monkeypatch.setattr(doctor, "_leer_backend_entry", lambda project, cap, backend_id=None: {"type": "t"})
     # presupuesto total suficiente para que cap0 arranque por encima del suelo, pero que tras
     # gastar los 50ms de cap0 deja a cap1 un resto por debajo de `_CAPACIDAD_TOPE_MS_MINIMO`.
     monkeypatch.setattr(doctor, "CAPACIDADES_PRESUPUESTO_S", 0.32)
@@ -2109,7 +2111,7 @@ def test_t10fix1_164_el_reloj_del_bloque_arranca_antes_de_enumerar(monkeypatch):
     monkeypatch.setattr(doctor, "_cargar_capabilities", lambda plugin_root: _CapMod())
     # fix2 (#167): el recorte solo afecta a las capacidades que REQUIEREN red (backend declarado)
     monkeypatch.setattr(doctor, "_cargar_backends_loader", lambda plugin_root: (object(), "d"))
-    monkeypatch.setattr(doctor, "_leer_backend_entry", lambda project, cap: {"type": "t"})
+    monkeypatch.setattr(doctor, "_leer_backend_entry", lambda project, cap, backend_id=None: {"type": "t"})
     monkeypatch.setattr(doctor, "CAPACIDADES_PRESUPUESTO_S", 0.32)
     comprobadas = []
 
@@ -2299,7 +2301,7 @@ def test_t10fix2_167_un_error_de_config_nunca_se_pierde_por_el_presupuesto(monke
     monkeypatch.setattr(doctor, "_cargar_capabilities", lambda plugin_root: _cap_mod_lento(caps, 0.3))
     monkeypatch.setattr(doctor, "_cargar_backends_loader", lambda plugin_root: (object(), "d"))
     monkeypatch.setattr(doctor, "_leer_backend_entry",
-                        lambda project, cap: {"type": "t"} if cap["id"] == "conred" else {})
+                        lambda project, cap, backend_id=None: {"type": "t"} if cap["id"] == "conred" else {})
     monkeypatch.setattr(doctor, "CAPACIDADES_PRESUPUESTO_S", 0.32)
     red = []
     monkeypatch.setattr(doctor, "_linea_capacidad_backend",
@@ -2335,7 +2337,7 @@ def test_t10fix2_167_una_capacidad_sin_red_detras_de_una_lenta_sale(monkeypatch)
     monkeypatch.setattr(doctor, "_cargar_capabilities", lambda plugin_root: _cap_mod_lento(caps, 0.0))
     monkeypatch.setattr(doctor, "_cargar_backends_loader", lambda plugin_root: (object(), "d"))
     monkeypatch.setattr(doctor, "_leer_backend_entry",
-                        lambda project, cap: {"type": "t"} if cap["id"] == "lenta" else {})
+                        lambda project, cap, backend_id=None: {"type": "t"} if cap["id"] == "lenta" else {})
     monkeypatch.setattr(doctor, "CAPACIDADES_PRESUPUESTO_S", 0.5)
 
     def backend(cap_id, tipo, *a, **k):
@@ -2369,7 +2371,7 @@ def test_t10fix2_m7_la_entrada_del_backend_se_lee_una_vez_por_capacidad(monkeypa
     monkeypatch.setattr(doctor, "_cargar_backends_loader", lambda plugin_root: (object(), "d"))
     leidas = []
 
-    def leer(project, cap):
+    def leer(project, cap, backend_id=None):
         leidas.append(cap["id"])
         return {}
     monkeypatch.setattr(doctor, "_leer_backend_entry", leer)
@@ -2449,3 +2451,271 @@ def test_t10fix3_185_main_errores_de_uso(tmp_path, capsys):
     assert "no es un directorio" in capsys.readouterr().err
     assert doctor.main(["--root", str(tmp_path), "--plugin-root", str(tmp_path / "no-existe")]) == 2
     assert "--plugin-root" in capsys.readouterr().err
+
+
+# ------------------------------------------------------------------ graphiti-memory T-08 (CA-14)
+
+def test_doctor_no_nombra_la_capacidad_graphiti():
+    """CA-14: una capacidad opcional entra por `capabilities.py`; `/doctor` la recorre sin codigo
+    propio — este fichero no puede mencionarla."""
+    with open(os.path.join(HERE, "doctor.py"), encoding="utf-8") as f:
+        assert "graphiti" not in f.read().lower()
+
+
+def test_doctor_pinta_una_capacidad_nueva_sin_tocar_doctor_py(tmp_path):
+    """La prueba de que el registro basta: una capacidad inventada al vuelo sale en el bloque."""
+    cap = {"id": "capacidad-inventada", "config_path": None, "enabled": True,
+           "health": {"estado": "shadow", "detalle": "escribe pero no lee",
+                      "remedio": "pon `mode: read` cuando quieras leer"},
+           "doctor": "capacidad-inventada: shadow (escribe, no lee)", "setup_step": "-"}
+    l = doctor._linea_capacidad(str(tmp_path), cap, None, None)
+    assert "capacidad-inventada" in json.dumps(l, ensure_ascii=False)
+
+
+def test_f3fix1_gap99_la_fila_de_backend_usa_el_id_que_declara_la_capacidad(tmp_path):
+    """Gap #99: `/doctor` leia `backends.<cap_id>` de `taxonomy.json` (la clave literal de la
+    capacidad), asi que con el backend declarado con OTRA clave no habia fila `(backend)` ni
+    comprobacion en vivo. Ahora usa el `backend` que devuelve la propia capacidad."""
+    destino = tmp_path / ".claude" / "knowledge-services"
+    destino.mkdir(parents=True)
+    (destino / "taxonomy.json").write_text(json.dumps({"backends": {
+        "mi_backend": {"type": "test", "enabled": True, "config": {"estado_salud": "sano"}}}}),
+        encoding="utf-8")
+    cap = {"id": "capacidad-x", "config_path": os.path.join(".claude", "knowledge-services",
+                                                            "taxonomy.json"),
+           "enabled": True, "health": {"estado": "read", "backend": "mi_backend"},
+           "doctor": "capacidad-x: activa", "setup_step": "-"}
+    l = doctor._linea_capacidad(str(tmp_path), cap, backends_real, FIXTURES_BACKENDS)
+    texto = json.dumps(l, ensure_ascii=False)
+    assert "(backend)" in texto and "sano" in texto
+
+
+def test_f3fix1_gap99_una_fila_por_backend_habilitado(tmp_path):
+    destino = tmp_path / ".claude" / "knowledge-services"
+    destino.mkdir(parents=True)
+    (destino / "taxonomy.json").write_text(json.dumps({"backends": {
+        "uno": {"type": "test", "enabled": True, "config": {"estado_salud": "sano"}},
+        "dos": {"type": "test", "enabled": True, "config": {"estado_salud": "sano"}}}}),
+        encoding="utf-8")
+    cap = {"id": "capacidad-x", "config_path": os.path.join(".claude", "knowledge-services",
+                                                            "taxonomy.json"),
+           "enabled": True, "health": {"estado": "read", "backends": ["uno", "dos"]},
+           "doctor": "capacidad-x: activa", "setup_step": "-"}
+    ls = doctor._linea_capacidad(str(tmp_path), cap, backends_real, FIXTURES_BACKENDS)
+    assert isinstance(ls, list) and len(ls) == 2
+    texto = json.dumps(ls, ensure_ascii=False)
+    assert "uno" in texto and "dos" in texto
+
+
+# ------------------------------------------------------------------ fix2 Fase 3 (#119, #122)
+
+def test_f3fix2_gap119_el_presupuesto_se_reevalua_dentro_del_bucle_por_backend(monkeypatch):
+    """Gap #119: el bucle por backend de #99 hacia `health()`+`verify()` de red por CADA backend
+    declarado, pero el presupuesto del bloque solo se miraba una vez por CAPACIDAD -> N x coste
+    sin aviso (medido con blackhole TCP: 1 backend 3,14s, 2 -> 6,19s, 3 -> 9,24s)."""
+    import time as time_mod
+    destino = None
+    cap = {"id": "capacidad-x", "config_path": None, "enabled": True,
+           "health": {"estado": "read", "backends": ["uno", "dos", "tres"]},
+           "doctor": "capacidad-x: activa", "setup_step": "-"}
+    comprobados = []
+
+    def _backend_lento(cap_id, tipo, cfg, backends_mod, backends_dir, project=None, tope_ms=None):
+        comprobados.append(cap_id)
+        time_mod.sleep(0.05)
+        return doctor.linea(doctor.OK, f"{cap_id} (backend)", "sano, sin desfase")
+
+    monkeypatch.setattr(doctor, "_linea_capacidad_backend", _backend_lento)
+    monkeypatch.setattr(doctor, "_leer_backend_entry", lambda p, c, b=None: {"type": "test", "config": {}})
+    deadline = time_mod.monotonic() + 0.06
+    ls = doctor._linea_capacidad("proj", cap, object(), "d", deadline=deadline)
+    assert isinstance(ls, list)
+    assert len(comprobados) < 3, comprobados
+    texto = json.dumps(ls, ensure_ascii=False)
+    assert "presupuesto" in texto, texto
+
+
+def test_f3fix2_gap119_el_tope_de_timeout_alcanza_al_timeout_ms_de_nivel_superior():
+    """`_cfg_con_timeout_topado` recortaba SOLO `health.timeout_ms`; el `timeout_ms` de nivel
+    superior (el que usan `initialize`/`get_status` del adaptador) se colaba entero."""
+    cfg = doctor._cfg_con_timeout_topado({"timeout_ms": 30000, "health": {"timeout_ms": 30000}})
+    assert cfg["timeout_ms"] <= doctor.CAPACIDAD_TIMEOUT_MS_TOPE, cfg
+    assert cfg["health"]["timeout_ms"] <= doctor.CAPACIDAD_TIMEOUT_MS_TOPE, cfg
+
+
+def test_f3fix2_gap119_la_ventana_de_lectura_se_acota_para_el_diagnostico():
+    """`/doctor` es un diagnostico, no una verificacion exhaustiva: la ventana de lectura que el
+    adaptador use en `verify()` se recorta (15 MiB por backend en el escenario de referencia)."""
+    cfg = doctor._cfg_con_timeout_topado({"max_episodes": 5000})
+    assert cfg["max_episodes"] <= doctor.CAPACIDAD_VENTANA_TOPE, cfg
+    cfg_sin = doctor._cfg_con_timeout_topado({})
+    assert cfg_sin["max_episodes"] <= doctor.CAPACIDAD_VENTANA_TOPE, cfg_sin
+
+
+def test_f3fix2_gap122_la_etiqueta_multi_backend_sanea_la_clave(monkeypatch):
+    """Gap #107 reabierto por el camino NUEVO de #99: con UN backend la etiqueta es `cap["id"]`
+    (saneado en origen), pero con VARIOS se interpola la clave CRUDA del backend."""
+    hostil = "aaa\x1b[31m‮EVIL"
+    cap = {"id": "capacidad-x", "config_path": None, "enabled": True,
+           "health": {"estado": "read", "backends": [hostil, "otro"]},
+           "doctor": "capacidad-x: activa", "setup_step": "-"}
+    monkeypatch.setattr(doctor, "_leer_backend_entry", lambda p, c, b=None: {"type": "test", "config": {}})
+    monkeypatch.setattr(doctor, "_linea_capacidad_backend",
+                        lambda cap_id, *a, **k: doctor.linea(doctor.OK, f"{cap_id} (backend)", "sano"))
+    ls = doctor._linea_capacidad("proj", cap, object(), "d")
+    texto = json.dumps(ls, ensure_ascii=False)
+    assert "\\u001b" not in texto and "\x1b" not in texto, texto
+    assert "\\u202e" not in texto and "‮" not in texto, texto
+
+
+# ------------------------------------------------------------------ fix3 Fase 3 (#133, #137)
+
+def _cap_backend(tmp_path, cfg_backend):
+    destino = tmp_path / ".claude" / "knowledge-services"
+    destino.mkdir(parents=True, exist_ok=True)
+    (destino / "taxonomy.json").write_text(json.dumps({"backends": {
+        "mi_backend": {"type": "test", "enabled": True, "config": cfg_backend}}}), encoding="utf-8")
+    return {"id": "capacidad-x",
+            "config_path": os.path.join(".claude", "knowledge-services", "taxonomy.json"),
+            "enabled": True, "health": {"estado": "read", "backend": "mi_backend"},
+            "doctor": "capacidad-x: activa", "setup_step": "-"}
+
+
+def test_f3fix3_gap133_la_verificacion_incompleta_es_un_aviso_con_el_conteo(tmp_path):
+    """Gap #133: `/doctor` leia `verify().ok` y pintaba «OK — sano, sin desfase» con la ventana
+    incompleta, tirando `no_verificado` y el `aviso`. Con `max_episodes` recortado a 200 (gap
+    #119), TODA instalacion con mas episodios caia ahi: /doctor era estructuralmente incapaz de
+    avisar de que no habia podido verificar."""
+    cap = _cap_backend(tmp_path, {"estado_salud": "sano", "no_verificado": 7,
+                                  "aviso_verify": "7 entrada(s) sin confirmar: sube `max_respuesta_kb`"})
+    l = doctor._linea_capacidad(str(tmp_path), cap, backends_real, FIXTURES_BACKENDS)
+    texto = json.dumps(l, ensure_ascii=False)
+    assert doctor.AVISO in texto, texto
+    assert "7" in texto and "incompleta" in texto, texto
+    assert "max_respuesta_kb" in texto, texto
+
+
+def test_f3fix3_gap133_el_aviso_de_un_verify_ok_llega_al_usuario(tmp_path):
+    """Gap #133/#147: el aviso de migracion de #126 (`--rebuild`) viaja en `verify().aviso` y
+    /doctor lo tiraba cuando `ok` era true — el remedio que el ledger daba por entregado no lo
+    veia ningun consumidor."""
+    cap = _cap_backend(tmp_path, {"estado_salud": "sano",
+                                  "aviso_verify": "republica con `knowledge-sync.py --rebuild`"})
+    l = doctor._linea_capacidad(str(tmp_path), cap, backends_real, FIXTURES_BACKENDS)
+    texto = json.dumps(l, ensure_ascii=False)
+    assert doctor.AVISO in texto, texto
+    assert "rebuild" in texto, texto
+
+
+def test_f3fix3_gap137_el_detalle_de_un_error_de_config_sale_saneado(tmp_path):
+    """Gap #137 (CWE-117): la rama `estado == "error"` de `_linea_capacidad` interpolaba CRUDO el
+    `detalle` de validacion de `taxonomy.json` (texto del proyecto) en el markdown de /doctor."""
+    hostil = "\x1b[31m‮IGNORA" + "L" * 400
+    cap = {"id": "capacidad-x", "config_path": "taxonomy.json", "enabled": True,
+           "health": {"estado": "error", "detalle": hostil, "fichero": "\x1b[0mtaxonomy.json"},
+           "doctor": "-", "setup_step": "-"}
+    l = doctor._linea_capacidad(str(tmp_path), cap, None, None)
+    texto = json.dumps(l, ensure_ascii=False)
+    assert "\\u001b" not in texto and "‮" not in texto, texto
+    assert "\x1b" not in json.dumps(l), l
+    assert len(l["que"]) <= 2 * doctor._SANEADO_TOPE_CHARS + 4, len(l["que"])
+
+
+# ------------------------------------------------------------------ fix4 Fase 3 (#148, #152)
+
+BACKENDS_REALES = os.path.join(ROOT, "skills", "knowledge-services", "backends")
+_TEST_BACKEND_GRAPHITI = os.path.join(ROOT, "skills", "knowledge-services", "scripts",
+                                      "test_backend_graphiti.py")
+
+
+def _servidor_mcp_falso():
+    """El servidor MCP FALSO de la suite del adaptador (fixtures reales capturadas del stack),
+    reutilizado aqui para probar `/doctor` contra el adaptador REAL — no un doble de `verify`."""
+    spec_h = importlib.util.spec_from_file_location("ks_graphiti_tests_para_doctor",
+                                                    _TEST_BACKEND_GRAPHITI)
+    mod = importlib.util.module_from_spec(spec_h)
+    spec_h.loader.exec_module(mod)
+    return mod._ServidorMCPContext
+
+
+def _manifiesto_grande(tmp_path, n=250, borradas=()):
+    """Manifiesto con `n` entradas publicadas y el `get_episodes` que las sirve (menos las
+    `borradas`, que simulan un desfase REAL en el grafo), recortado a `max_episodes`."""
+    d = tmp_path / ".claude" / "knowledge-services"
+    d.mkdir(parents=True, exist_ok=True)
+    entradas = {f"mem.pattern.x{i:03d}": {"version": 1, "hash": "h"} for i in range(n)}
+    (d / "graphiti-manifest.json").write_text(
+        json.dumps({"group_id": "proy-test", "entradas": entradas}), encoding="utf-8")
+    vivos = [f"{id_}@1" for id_ in sorted(entradas) if id_ not in borradas]
+
+    def _get_episodes(args):
+        tope = int((args or {}).get("max_episodes") or 0)
+        return {"structuredContent": {"episodes": [
+            {"name": nombre, "group_id": "proy-test", "uuid": nombre} for nombre in vivos[:tope]]}}
+
+    return _get_episodes
+
+
+def _linea_graphiti(tmp_path, get_episodes):
+    ctx = _servidor_mcp_falso()
+    with ctx(respuestas_tools={"get_episodes": get_episodes}) as srv:
+        return doctor._linea_capacidad_backend(
+            "kb", "graphiti",
+            {"endpoint": srv.endpoint, "group_id": "proy-test", "mode": "read",
+             "timeout_ms": 5000, "max_episodes": 50000},
+            backends_real, BACKENDS_REALES, project=str(tmp_path))
+
+
+def test_f3fix4_gap148_grafo_sano_mas_grande_que_la_ventana_de_doctor_no_es_aviso(tmp_path):
+    """Gap #148 (Important): con el recorte de ventana de /doctor (`CAPACIDAD_VENTANA_TOPE`, gap
+    #119) TODA instalacion con mas entradas que la ventana caia en la rama `incompleto` de #133 y
+    salia ⚠️ «verificacion incompleta» con un remedio (`max_respuesta_kb`/`max_episodes`) que el
+    propio /doctor pisa. Un grafo SANO no puede dar ⚠️ por el recorte del diagnostico."""
+    linea = _linea_graphiti(tmp_path, _manifiesto_grande(tmp_path, 250))
+    texto = json.dumps(linea, ensure_ascii=False)
+    assert linea["estado"] in (doctor.OK, doctor.INFO), texto
+    assert "200" in texto and "250" in texto, texto
+    assert "--check" in texto, texto
+    assert "max_respuesta_kb" not in texto and "max_episodes" not in texto, texto
+
+
+def test_f3fix4_gap148_la_linea_acotada_dice_que_no_ve_desfases_fuera_de_la_ventana(tmp_path):
+    """Gap #148: con la ventana recortada, un desfase REAL fuera de ella es indistinguible de lo
+    sano — la fila lo DICE (y manda a la verificacion completa) en vez de prometer lo que no
+    puede ver. 250 entradas, una borrada del grafo: mismo veredicto acotado, honesto."""
+    linea = _linea_graphiti(tmp_path, _manifiesto_grande(tmp_path, 250, borradas={"mem.pattern.x000"}))
+    texto = json.dumps(linea, ensure_ascii=False)
+    assert linea["estado"] in (doctor.OK, doctor.INFO), texto
+    assert "desfase" in texto.lower(), texto
+    assert "--check" in texto, texto
+
+
+def test_f3fix4_gap148_el_detalle_no_repite_el_conteo_de_sin_confirmar(tmp_path):
+    """Gap #148: el `detalle` interpolaba su propio conteo Y el `aviso` del adaptador, que lo
+    repite («N entrada(s) sin confirmar · N entrada(s) sin confirmar: la ventana…»)."""
+    cap = _cap_backend(tmp_path, {"estado_salud": "sano", "no_verificado": 7, "total": 7,
+                                  "aviso_verify": "7 entrada(s) sin confirmar: sube `max_respuesta_kb`"})
+    linea = doctor._linea_capacidad(str(tmp_path), cap, backends_real, FIXTURES_BACKENDS)
+    assert linea["estado"] == doctor.AVISO, linea
+    assert linea["detalle"].count("sin confirmar") == 1, linea["detalle"]
+
+
+def test_f3fix4_gap148_incompleto_dentro_de_la_ventana_de_doctor_sigue_siendo_aviso(tmp_path):
+    """Gap #148 no puede tapar #133: si el manifiesto CABIA en la ventana de /doctor y aun asi la
+    verificacion sale incompleta, el limite es del backend (su tope de lectura) y eso SI es ⚠️."""
+    cap = _cap_backend(tmp_path, {"estado_salud": "sano", "no_verificado": 3, "total": 10,
+                                  "aviso_verify": "3 entrada(s) sin confirmar: tope de lectura"})
+    linea = doctor._linea_capacidad(str(tmp_path), cap, backends_real, FIXTURES_BACKENDS)
+    assert linea["estado"] == doctor.AVISO, linea
+    assert "incompleta" in linea["detalle"], linea
+
+
+def test_f3fix4_gap152_verify_no_verificable_es_informativo_con_su_razon(tmp_path):
+    """Gap #152: `verify()` tiene CUATRO veredictos (`ok`/`desfase`/`incompleto`/`no_verificable`)
+    y /doctor no leia el cuarto: `mode: off` o un endpoint ausente caian en la rama de desfase y
+    se pintaban como «export atrasado (0 desfase(s)): sin motivo detallado»."""
+    cap = _cap_backend(tmp_path, {"estado_salud": "sano", "no_verificable": "mode: off"})
+    linea = doctor._linea_capacidad(str(tmp_path), cap, backends_real, FIXTURES_BACKENDS)
+    assert linea["estado"] == doctor.INFO, linea
+    assert "mode: off" in linea["detalle"], linea
+    assert "export atrasado" not in linea["detalle"], linea

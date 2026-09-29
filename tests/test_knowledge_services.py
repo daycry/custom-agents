@@ -1240,3 +1240,131 @@ def test_mutante_curator_gate_sin_extension_muere(tmp_path):
         encoding="utf-8")
     ofensores = _ofensores_de_red_en_hooks(str(tmp_path), root=str(tmp_path))
     assert ("malo.sh", "curator-gate") in ofensores
+
+
+def test_propose_config_backend_graphiti_imprime_propuesta_sin_aplicar_nada(tmp_path, capsys):
+    """Fix1 gap #36 (CA-13): `--propose-config` es la puerta de entrada que `graphiti_model.
+    proponer_config` no tenia -T-02 la aplazo "a T-04/T-05" y nadie la cablio-; comprueba que
+    imprime el YAML de `entity_types` y el `entity_map` propuesto SIN tocar ningun manifiesto ni
+    llamar a ningun servidor (no hay `endpoint` valido en la config del backend)."""
+    root = str(tmp_path)
+    categorias = [{"key": "GOTCHA", "folder": "gotchas", "min_evidence": "observation"}]
+    _taxonomy(root, categorias, backends={
+        "graphiti": {"type": "graphiti", "enabled": True,
+                     "config": {"group_id": "proy-test", "endpoint": "http://127.0.0.1:1",
+                                "provider": {"llm": "none"}, "mode": "shadow"}}})
+    rc = ks_sync.main(["--backend", "graphiti", "--root", root, "--propose-config"])
+    salida = capsys.readouterr().out
+    assert rc == 0
+    assert "entity_types" in salida
+    assert "GOTCHA" in salida
+    # nada de infraestructura de sincronizacion se creo (no llamo a apply/plan/health/verify)
+    assert not os.path.isfile(os.path.join(root, ".claude", "knowledge-services",
+                                            "graphiti-manifest.json"))
+
+
+def test_propose_config_en_un_backend_que_no_la_define_lo_dice_sin_nombrarlo(tmp_path, capsys):
+    """Gap #77 (fix4): el nucleo ya no corta con `if tipo != "<un backend>"` -eso rompia el
+    invariante «el nucleo no nombra ningun backend» (`improvement-plan.md:17`, CA-12)-: pregunta
+    al ADAPTADOR por la funcion opcional `proponer_config` y, si no la define, lo dice."""
+    root = str(tmp_path)
+    _taxonomy(root, _categorias_base(),
+              backends={"testx": {"type": "test", "enabled": True, "config": {}}})
+    rc = ks_sync.main(["--backend", "testx", "--root", root, "--propose-config",
+                       "--backends-dir", FIXTURES_BACKENDS])
+    assert rc == 2
+    assert "no propone configuraci" in capsys.readouterr().err
+
+
+def test_propose_config_alcanzable_con_enabled_false(tmp_path, capsys):
+    """Fix2/fix3 gap #61 (Minor): la plantilla por defecto (`agent-kits/shared/templates/
+    taxonomy.json`) declara `backends.graphiti` con `enabled: false` -es la configuracion de
+    fabrica, el caso mas comun antes de habilitar el backend-. Antes de fix2 el chequeo
+    `if not decl.get("enabled", False): return 2` corria ANTES de la rama `--propose-config`,
+    asi que este modo (que no toca red ni manifiestos, solo propone `entity_map`/tipos a partir
+    de la taxonomia local) era INALCANZABLE justo en ese caso. Mutante: mover el chequeo de
+    `enabled` de vuelta a ANTES de `if args.propose_config:` reproduce el corte con `rc == 2`
+    que este test detecta."""
+    root = str(tmp_path)
+    categorias = [{"key": "GOTCHA", "folder": "gotchas", "min_evidence": "observation"}]
+    _taxonomy(root, categorias, backends={
+        "graphiti": {"type": "graphiti", "enabled": False,
+                     "config": {"group_id": "proy-test", "endpoint": "http://127.0.0.1:1",
+                                "provider": {"llm": "none"}, "mode": "shadow"}}})
+    rc = ks_sync.main(["--backend", "graphiti", "--root", root, "--propose-config"])
+    salida = capsys.readouterr().out
+    assert rc == 0
+    assert "entity_types" in salida
+    assert "GOTCHA" in salida
+
+
+# =============================================== graphiti-memory, revision Fase 3 intento 1 (fix1)
+# Gaps de DOCUMENTACION y de guardarrail que la revision devolvio con arbitraje explicito. Cada
+# uno falla si se revierte el texto correspondiente (son su unica puerta mecanica).
+
+def _texto(*partes):
+    with open(os.path.join(ROOT, *partes), encoding="utf-8") as f:
+        return f.read()
+
+
+def test_f3fix1_gap100_el_contrato_de_adaptador_documenta_consultar():
+    """#100: `consultar(cfg, consulta)` es la funcion OPCIONAL que hace ENRUTABLE a un backend;
+    la fuente unica del contrato (`backends/README.md`) no la mencionaba."""
+    readme = _texto("skills", "knowledge-services", "backends", "README.md")
+    assert "consultar(cfg, consulta)" in readme
+    for clave in ("aciertos", "descartados", "motivo"):
+        assert "`" + clave + "`" in readme, clave
+    assert "modo(cfg)" in readme          # #109: la otra funcion opcional del contrato
+    # y ya no habla en futuro de un router que existe (T-07)
+    assert "futuro router" not in readme
+
+
+def test_f3fix1_gap101_ningun_hook_invoca_el_nucleo_con_intent():
+    """#101: el invariante «ninguna llamada desde hooks» no tenia puerta. `--intent` (y
+    `--backends-dir`) son los unicos flags de `knowledge-find.py` que pueden cargar un adaptador
+    de backend -codigo con capacidad de red-: ningun hook puede usarlos."""
+    ofensores = []
+    for carpeta, _dirs, ficheros in os.walk(HOOKS_DIR):
+        for nombre in ficheros:
+            if not nombre.endswith((".sh", ".py", ".js", ".json")):
+                continue
+            ruta = os.path.join(carpeta, nombre)
+            with open(ruta, encoding="utf-8", errors="replace") as f:
+                texto = f.read()
+            if "knowledge-find.py" not in texto and "capabilities.py" not in texto:
+                continue
+            for flag in ("--intent", "--backends-dir"):
+                if flag in texto:
+                    ofensores.append((os.path.relpath(ruta, ROOT), flag))
+    assert ofensores == [], ofensores
+
+
+def test_f3fix1_gap108_router_default_esta_declarada_como_reservada():
+    """#108: `router.default` es config validada y documentada que ningun codigo lee; se declara
+    RESERVADA (CA-12 exige caer a local) en el esquema y en CONVENTIONS ES/EN."""
+    esquema = _texto("agent-kits", "shared", "schemas", "taxonomy.schema.json")
+    assert "reservada" in esquema.lower()
+    for doc in (("docs", "CONVENTIONS.md"), ("docs", "en", "CONVENTIONS.md")):
+        texto = _texto(*doc)
+        assert "router.default" in texto, doc
+        linea = [l for l in texto.splitlines() if "router.default" in l][0]
+        assert "reserv" in linea.lower(), doc
+
+
+def test_f3fix1_gap112_doctor_md_cualifica_la_iniciativa_del_criterio():
+    """#112: en la spec de `graphiti-memory`, CA-14 es OTRO criterio."""
+    doctor_md = _texto("commands", "doctor.md")
+    assert "CA-14 de knowledge-services" in doctor_md
+    for linea in doctor_md.splitlines():
+        if "CA-14" in linea:
+            assert "knowledge-services" in linea, linea
+
+
+def test_f3fix1_gap113_e18_declara_la_arista_de_lectura():
+    """#113: E18 decia «ningun agente distinto de `knowledge-sync.py` invoca el adaptador
+    directamente» y T-07/T-08 anadieron dos invocaciones de SOLO LECTURA."""
+    contratos = _texto("docs", "agents", "CONTRACTS.md")
+    fila = [l for l in contratos.splitlines() if l.startswith("| E18 ")][0]
+    assert "escritura" in fila.lower()
+    assert "knowledge-find.py" in fila and "capabilities.py" in fila
+    assert "puede_leer" in fila or "consultar" in fila

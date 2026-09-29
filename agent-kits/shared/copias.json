@@ -332,6 +332,29 @@
       "guardarrail_previo": "ninguno (session-end-durable-capture T-fix1 lo declara al detectar la duplicacion)"
     },
     {
+      "id": "hosts_locales",
+      "mecanismo": "A",
+      "que_es": "Hosts/sufijos locales reconocidos SIN resolucion DNS (`localhost`, `host.docker.internal`, `*.test`/`*.local`/`*.internal`): el adaptador Kwipu ya los usaba en su chequeo runtime; el validador estatico de graphiti-memory (T-01-fix1, gap 15) los necesita para no empujar a un usuario dockerizado a `allow_remote: true`.",
+      "canonico": "skills/knowledge-services/backends/markdown_export.py",
+      "copias": [
+        {"ruta": "skills/knowledge-services/backends/markdown_export.py", "inicio": "# --8<-- hosts locales COMPARTIDO (graphiti-memory T-01-fix1) — REPLICADO LITERAL en skills/knowledge-services/backends/markdown_export.py, agent-kits/shared/knowledge-schema.py y skills/knowledge-services/backends/graphiti.py", "fin": "# --8<-- fin hosts locales COMPARTIDO"},
+        {"ruta": "agent-kits/shared/knowledge-schema.py", "inicio": "# --8<-- hosts locales COMPARTIDO (graphiti-memory T-01-fix1) — REPLICADO LITERAL en skills/knowledge-services/backends/markdown_export.py, agent-kits/shared/knowledge-schema.py y skills/knowledge-services/backends/graphiti.py", "fin": "# --8<-- fin hosts locales COMPARTIDO"},
+        {"ruta": "skills/knowledge-services/backends/graphiti.py", "inicio": "# --8<-- hosts locales COMPARTIDO (graphiti-memory T-01-fix1) — REPLICADO LITERAL en skills/knowledge-services/backends/markdown_export.py, agent-kits/shared/knowledge-schema.py y skills/knowledge-services/backends/graphiti.py", "fin": "# --8<-- fin hosts locales COMPARTIDO"}
+      ],
+      "guardarrail_previo": "ninguno (este es el hueco que cierra la ronda fix1 de graphiti-memory; T-04 de la Fase 2 anade la tercera copia)"
+    },
+    {
+      "id": "direccion_prohibida_siempre",
+      "mecanismo": "A",
+      "que_es": "Clasificacion de las direcciones IP que se rechazan SIEMPRE -link-local (metadatos de nube), no especificada y los prefijos de TRANSICION IPv6 6to4/Teredo (gap #71)- junto con el desenvoltorio previo de esas formas de transicion. El adaptador la aplica en tiempo de conexion y el validador estatico en frio: la MISMA regla en los dos sitios es la defensa en profundidad que pedia el arbitraje del gap #75 (CWE-1287/CWE-918); antes, el esquema tenia una reimplementacion propia y mas pobre (solo IPv4-mapeada).",
+      "canonico": "skills/knowledge-services/backends/graphiti.py",
+      "copias": [
+        {"ruta": "skills/knowledge-services/backends/graphiti.py", "inicio": "# --8<-- direccion prohibida siempre COMPARTIDO (graphiti-memory T-04-fix4, gaps #71/#75) - REPLICADO LITERAL en skills/knowledge-services/backends/graphiti.py y agent-kits/shared/knowledge-schema.py", "fin": "# --8<-- fin direccion prohibida siempre COMPARTIDO"},
+        {"ruta": "agent-kits/shared/knowledge-schema.py", "inicio": "# --8<-- direccion prohibida siempre COMPARTIDO (graphiti-memory T-04-fix4, gaps #71/#75) - REPLICADO LITERAL en skills/knowledge-services/backends/graphiti.py y agent-kits/shared/knowledge-schema.py", "fin": "# --8<-- fin direccion prohibida siempre COMPARTIDO"}
+      ],
+      "guardarrail_previo": "ninguno (la mitad de esquema de los gaps #53/#63 era una reimplementacion aparte, sin test propio ni registro; la ronda fix4 de graphiti-memory la unifica)"
+    },
+    {
       "id": "taxonomy_fallback",
       "mecanismo": "A",
       "que_es": "Contenido por defecto de taxonomy.json (knowledge-services T-01/T-01-fix1, ADR-018): el respaldo embebido de knowledge-schema.py tiene que reflejar el MISMO contenido que la plantilla que se lee del disco, o `default_taxonomy()` devuelve datos distintos segun si `templates/taxonomy.json` viaja o no con el paquete.",
@@ -358,6 +381,20 @@
         }
       ],
       "guardarrail_previo": "agent-kits/shared/test_knowledge_schema.py::test_default_fallback_coincide_con_el_template (nuevo, compara ademas como DATOS, no solo como texto)"
+    },
+    {
+      "id": "sanear_detalle",
+      "mecanismo": "A",
+      "que_es": "Saneado de texto NO CONFIABLE (mensajes de red/servidor) antes de embeberlo en `detalle`/mensajes de error: recorta a 200 caracteres y sustituye caracteres de control/secuencias ANSI por un espacio (gaps 176/182 de markdown_export.py, reutilizado en graphiti.py gap #41 de la revisión Fase 2 intento 1 de graphiti-memory: mismo riesgo, CWE-117, contra el mismo tipo de servidor local). Gaps #98/#107 (fix1 de la Fase 3 de graphiti-memory): el nucleo `knowledge-find.py` sanea tambien lo que le sirve un backend por el router (`summary`/`fact`/`source_path` los genera el LLM del grafo y acaban en stdout y en el contexto del agente) y `capabilities.py` la clave y el `detalle` que interpola en la linea de `/doctor`. Gap #122 (fix2 de la Fase 3 de graphiti-memory): `doctor.py` interpola la CLAVE del backend en la etiqueta de la fila cuando una capacidad declara VARIOS (camino nuevo del gap #99), asi que necesita el mismo saneado — quinta copia.",
+      "canonico": "skills/knowledge-services/backends/markdown_export.py",
+      "copias": [
+        {"ruta": "skills/knowledge-services/backends/markdown_export.py", "inicio": "# --8<-- sanear_detalle (funcion) — REPLICADO LITERAL en las CINCO copias declaradas del bloque `sanear_detalle` de agent-kits/shared/copias.json", "fin": "# --8<-- fin sanear_detalle (funcion)"},
+        {"ruta": "skills/knowledge-services/backends/graphiti.py", "inicio": "# --8<-- sanear_detalle (funcion) — REPLICADO LITERAL en las CINCO copias declaradas del bloque `sanear_detalle` de agent-kits/shared/copias.json", "fin": "# --8<-- fin sanear_detalle (funcion)"},
+        {"ruta": "agent-kits/shared/knowledge-find.py", "inicio": "# --8<-- sanear_detalle (funcion) — REPLICADO LITERAL en las CINCO copias declaradas del bloque `sanear_detalle` de agent-kits/shared/copias.json", "fin": "# --8<-- fin sanear_detalle (funcion)"},
+        {"ruta": "agent-kits/shared/capabilities.py", "inicio": "# --8<-- sanear_detalle (funcion) — REPLICADO LITERAL en las CINCO copias declaradas del bloque `sanear_detalle` de agent-kits/shared/copias.json", "fin": "# --8<-- fin sanear_detalle (funcion)"},
+        {"ruta": "agent-kits/shared/doctor.py", "inicio": "# --8<-- sanear_detalle (funcion) — REPLICADO LITERAL en las CINCO copias declaradas del bloque `sanear_detalle` de agent-kits/shared/copias.json", "fin": "# --8<-- fin sanear_detalle (funcion)"}
+      ],
+      "guardarrail_previo": "ninguno (este es el hueco que cierra el gap #41 de graphiti-memory)"
     },
     {
       "id": "imports_de_cabecera",
@@ -456,6 +493,28 @@
         }
       ],
       "guardarrail_previo": "ninguno (bloque nuevo en training-data-services T-07)"
+    },
+    {
+      "id": "group_id_por_defecto",
+      "mecanismo": "A",
+      "que_es": "Derivacion del `group_id` por defecto de un backend (slug Unicode del directorio del proyecto) y config EFECTIVA (declarada + defaults derivados). La aplicaba SOLO el validador al cargar la taxonomia, asi que el router de `knowledge-find.py` -que a proposito NO carga el validador, porque importa `urllib` y a este script lo invoca el hook `SessionStart`- servia al adaptador la config CRUDA: con la plantilla de fabrica (sin `group_id`) el backend cortaba con «sin group_id» y la consulta devolvia 0 en la configuracion NOMINAL (gap #97, Critical, revision Fase 3 intento 1 de graphiti-memory). El bloque no importa nada con capacidad de red.",
+      "canonico": "agent-kits/shared/knowledge-schema.py",
+      "copias": [
+        {"ruta": "agent-kits/shared/knowledge-schema.py", "inicio": "# --8<-- group_id por defecto COMPARTIDO (memoria de grafo, T-07-fix1) — REPLICADO LITERAL en agent-kits/shared/knowledge-schema.py y agent-kits/shared/knowledge-find.py", "fin": "# --8<-- fin group_id por defecto COMPARTIDO"},
+        {"ruta": "agent-kits/shared/knowledge-find.py", "inicio": "# --8<-- group_id por defecto COMPARTIDO (memoria de grafo, T-07-fix1) — REPLICADO LITERAL en agent-kits/shared/knowledge-schema.py y agent-kits/shared/knowledge-find.py", "fin": "# --8<-- fin group_id por defecto COMPARTIDO"}
+      ],
+      "guardarrail_previo": "ninguno: la derivacion vivia solo en el validador y el router tenia su propia regla (ninguna)"
+    },
+    {
+      "id": "modo_backend",
+      "mecanismo": "A",
+      "que_es": "`modo(cfg)` (enum `off|shadow|read` + default `shadow`): funcion PUBLICA OPCIONAL del contrato de adaptador. `capabilities.py` la necesita para publicar el estado de la capacidad sin hacer red y, cuando el adaptador no esta instalado, cae a este MISMO bloque como respaldo —antes duplicaba el enum sin declararlo y llamaba al simbolo PRIVADO `_modo` del adaptador, fuera del contrato E16 (gap #109, revision Fase 3 intento 1 de graphiti-memory; mismo patron que el gap #9 con `hosts_locales`).",
+      "canonico": "skills/knowledge-services/backends/graphiti.py",
+      "copias": [
+        {"ruta": "skills/knowledge-services/backends/graphiti.py", "inicio": "# --8<-- modo del backend (funcion publica del contrato, T-08-fix1) — REPLICADO LITERAL en las copias declaradas del bloque `modo_backend` de agent-kits/shared/copias.json", "fin": "# --8<-- fin modo del backend"},
+        {"ruta": "agent-kits/shared/capabilities.py", "inicio": "# --8<-- modo del backend (funcion publica del contrato, T-08-fix1) — REPLICADO LITERAL en las copias declaradas del bloque `modo_backend` de agent-kits/shared/copias.json", "fin": "# --8<-- fin modo del backend"}
+      ],
+      "guardarrail_previo": "ninguno: `capabilities._graphiti_modo` reimplementaba el enum y el default a mano"
     }
   ]
 }

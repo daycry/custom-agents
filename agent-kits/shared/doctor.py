@@ -1479,6 +1479,27 @@ def _cargar_backends_loader(plugin_root):
     return None, None
 
 
+def _ids_backend_declarados(cap):
+    """Ids de backend que declara la propia capacidad en su `health` (`backends` — varios — o
+    `backend` — uno —); si no declara ninguno, su propio `id`.
+
+    gap 99 (iniciativa de memoria de grafo, fix1 Fase 3): `/doctor` buscaba `backends.<cap_id>` en el
+    `config_path`, es decir, asumía que la clave del backend en la config es el id de la
+    capacidad. Con el backend declarado bajo otra clave (lo normal: la plantilla de fábrica ocupa
+    la clave literal), no había fila `(backend)` ni comprobación de red en vivo aunque la
+    capacidad estuviera activa. Sigue siendo genérico: es la capacidad quien dice su id, no
+    `/doctor` quien lo adivina."""
+    salud = cap.get("health")
+    if isinstance(salud, dict):
+        varios = salud.get("backends")
+        if isinstance(varios, list) and varios:
+            return [str(b) for b in varios]
+        uno = salud.get("backend")
+        if isinstance(uno, str) and uno:
+            return [uno]
+    return [cap["id"]]
+
+
 class _EntradaInvalida:
     """#179: la entrada `backends.<id>` de la config de una capacidad no se puede usar (`backends` o
     `backends.<id>` no son objetos): error de CONFIGURACIÓN de esa capacidad, nunca un traceback."""
@@ -1490,11 +1511,12 @@ class _EntradaInvalida:
         return defecto
 
 
-def _leer_backend_entry(project, cap):
+def _leer_backend_entry(project, cap, backend_id=None):
     """Entrada cruda `backends.<id>` (`{"type", "enabled", "config": {...}}`) del `config_path`
-    que la propia capacidad declara — genérico: solo busca su propio `cap['id']` dentro de su
-    propio fichero, nunca asume cuál es. `{}` si no hay; `_EntradaInvalida` (#179) si `backends` o
-    `backends.<id>` existen y no son objetos."""
+    que la propia capacidad declara — genérico: busca el id que la capacidad declara (o, sin
+    declaración, su propio `cap['id']`) dentro de su propio fichero, nunca asume cuál es. `{}` si
+    no hay; `_EntradaInvalida` (#179) si `backends` o `backends.<id>` existen y no son objetos."""
+    bid = backend_id or cap["id"]
     path = cap.get("config_path")
     if not path:
         return {}
@@ -1507,12 +1529,19 @@ def _leer_backend_entry(project, cap):
         return {}
     if not isinstance(backends, dict):
         return _EntradaInvalida(f"{path}: `backends` debe ser un objeto")
-    entrada = backends.get(cap["id"])
+    entrada = backends.get(bid)
     if entrada is None:
         return {}
     if not isinstance(entrada, dict):
-        return _EntradaInvalida(f"{path}: `backends.{cap['id']}` debe ser un objeto")
+        return _EntradaInvalida(f"{path}: `backends.{bid}` debe ser un objeto")
     return entrada
+
+
+def _leer_backend_entries(project, cap):
+    """M7 + gap 99: `{backend_id: entrada}` de TODOS los backends que declara la capacidad
+    (`_ids_backend_declarados`), leídos UNA vez por capacidad y reutilizados por `_requiere_red` y
+    `_linea_capacidad`."""
+    return {bid: _leer_backend_entry(project, cap, bid) for bid in _ids_backend_declarados(cap)}
 
 
 def _requiere_red(cap, entrada, backends_mod):
@@ -1525,6 +1554,27 @@ def _requiere_red(cap, entrada, backends_mod):
             and isinstance(entrada, dict) and bool(entrada.get("type")))
 
 
+# --8<-- sanear_detalle (funcion) — REPLICADO LITERAL en las CINCO copias declaradas del bloque `sanear_detalle` de agent-kits/shared/copias.json
+# Gap #93 (Minor, fix5): la clase [\x00-\x1f\x7f] dejaba pasar tres familias que TAMBIEN
+# falsifican una linea de log o invierten visualmente el texto de un mensaje/`causa`: los
+# controles C1 (\x80-\x9f, entre ellos CSI \x9b), los separadores Unicode de linea/parrafo
+# ( / , que muchos visores rompen como salto de linea) y los controles bidi
+# (‪-‮ RLO/LRO..., ⁦-⁩ isolates), con los que un texto hostil del servidor
+# puede reordenar lo que el humano lee sin cambiar un solo byte del resto.
+_CONTROL_O_ANSI_RE = re.compile(
+    r"\x1b\[[0-9;]*[A-Za-z]|[\x00-\x1f\x7f-\x9f  ‪-‮⁦-⁩]")
+_SANEADO_TOPE_CHARS = 200
+
+
+def _sanear_detalle(texto):
+    """Recorta a 200 caracteres y sustituye caracteres de control (incluidas las secuencias ANSI
+    `ESC[...`, los C1, los separadores Unicode y los controles bidi) por un espacio; ver
+    comentario arriba para el porque de cada regla."""
+    saneado = _CONTROL_O_ANSI_RE.sub(" ", str(texto))
+    return saneado[:_SANEADO_TOPE_CHARS]
+# --8<-- fin sanear_detalle (funcion)
+
+
 CAPACIDAD_TIMEOUT_MS_TOPE = 2000  # gap 94: ninguna comprobación de red individual pasa de esto
 CAPACIDADES_PRESUPUESTO_S = 5.0  # gap 94: tope TOTAL del bloque completo, no solo por capacidad
 _CAPACIDAD_TOPE_MS_MINIMO = 300  # gap 133 (fix3, knowledge-services): nunca recortar `tope_ms`
@@ -1535,6 +1585,16 @@ _CAPACIDAD_TOPE_MS_MINIMO = 300  # gap 133 (fix3, knowledge-services): nunca rec
                                  # restante del bloque no llega a este mínimo, la capacidad se
                                  # marca «recortada: sin comprobar» en vez de comprobarse con un
                                  # timeout que ya sabemos que va a dar un falso apagado.
+
+
+CAPACIDAD_VENTANA_TOPE = 200     # gap #119 (fix2 de la Fase 3 del ciclo en curso): /doctor es un
+                                 # DIAGNOSTICO, no una verificacion exhaustiva. Un adaptador que
+                                 # declare `max_episodes` (la ventana de lectura que barre su
+                                 # `verify()`) la recibe recortada a esto: con la ventana entera,
+                                 # el escenario de referencia de knowledge-services transferia
+                                 # ~15 MiB POR BACKEND en cada pasada de /doctor. Es una clave del
+                                 # vocabulario COMPARTIDO de config de backends, no de ninguna
+                                 # capacidad concreta (CA-14: /doctor no nombra ningun backend).
 
 
 def _cfg_con_timeout_topado(cfg_adaptador, tope_ms=CAPACIDAD_TIMEOUT_MS_TOPE):
@@ -1556,6 +1616,17 @@ def _cfg_con_timeout_topado(cfg_adaptador, tope_ms=CAPACIDAD_TIMEOUT_MS_TOPE):
     if not isinstance(actual, (int, float)) or actual > tope_ms:
         health_cfg["timeout_ms"] = tope_ms
     cfg["health"] = health_cfg
+    # gap #119 (fix2 de la Fase 3 del ciclo en curso): el tope se quedaba en `health.timeout_ms` y el
+    # `timeout_ms` de NIVEL SUPERIOR -el de las llamadas que hace `verify()`- se colaba entero,
+    # asi que `CAPACIDAD_TIMEOUT_MS_TOPE` no aplicaba a la mitad cara del diagnostico.
+    actual_superior = cfg.get("timeout_ms")
+    if not isinstance(actual_superior, (int, float)) or actual_superior > tope_ms:
+        cfg["timeout_ms"] = tope_ms
+    # gap #119: y la VENTANA de lectura se acota siempre (declarada o no) para que `verify()` en
+    # /doctor no barra el grafo entero.
+    ventana = cfg.get("max_episodes")
+    if not isinstance(ventana, int) or isinstance(ventana, bool) or ventana > CAPACIDAD_VENTANA_TOPE:
+        cfg["max_episodes"] = CAPACIDAD_VENTANA_TOPE
     return cfg
 
 
@@ -1592,7 +1663,59 @@ def _linea_capacidad_backend(cap_id, tipo, cfg_adaptador, backends_mod, backends
         except Exception as e:       # noqa: BLE001
             return linea(AVISO, f"{cap_id} (backend)", f"`verify()` lanzó {type(e).__name__}: {e}",
                          "revisa la configuración de red del backend en `taxonomy.json`")
+        # gap #133 (Important, fix3 de la Fase 3 del ciclo en curso): `verify()` tiene TRES
+        # veredictos, no dos. Con la ventana de lectura cortada (`estado: incompleto`), «sin
+        # desfase» es mentira: el adaptador no ha podido mirar. Y como /doctor recorta la ventana
+        # a `CAPACIDAD_VENTANA_TOPE`, esa rama es la NORMAL en cuanto el grupo crece — pintarla
+        # como OK dejaba a /doctor estructuralmente incapaz de avisar de un desfase real.
+        aviso_verify = _sanear_detalle(verificacion.get("aviso") or "")
+        if verificacion.get("estado") == "incompleto" or verificacion.get("no_verificado"):
+            sin_confirmar = verificacion.get("no_verificado") or "?"
+            # gap #148 (Important, fix4 de la Fase 3 del ciclo en curso): esa rama se combinaba con
+            # el recorte de ventana de #119 (`CAPACIDAD_VENTANA_TOPE`) y convertia TODA instalacion
+            # con mas entradas que la ventana en un ⚠️ permanente, con un remedio («sube
+            # `max_respuesta_kb`/`max_episodes`») que el propio /doctor pisa al recortar. Si el
+            # backend declara un `total` (entradas a verificar) MAYOR que la ventana que /doctor le
+            # paso, el limite es NUESTRO, no suyo: la fila lo dice (informativa) y manda a la
+            # verificacion completa, que no la hace un diagnostico rapido.
+            ventana = cfg_adaptador.get("max_episodes")
+            total = verificacion.get("total")
+            if (isinstance(total, int) and not isinstance(total, bool)
+                    and isinstance(ventana, int) and total > ventana):
+                return linea(INFO, f"{cap_id} (backend)",
+                             f"verificación acotada a {ventana} de {total} entrada(s) por /doctor "
+                             f"(diagnóstico rápido): {sin_confirmar} sin confirmar; un desfase "
+                             f"fuera de esa ventana no se ve desde aquí",
+                             "verificación completa: `python skills/knowledge-services/scripts/"
+                             "knowledge-sync.py --backend <id> --check`")
+            # El conteo se dice UNA vez: el `aviso` del adaptador ya lo trae (#148), asi que ese
+            # fragmento no se repite detras del nuestro.
+            extra = " · ".join(t for t in aviso_verify.split(" · ")
+                               if f"{sin_confirmar} entrada(s) sin confirmar" not in t)
+            return linea(AVISO, f"{cap_id} (backend)",
+                         f"verificación incompleta: {sin_confirmar} entrada(s) sin confirmar"
+                         + (f" · {extra}" if extra else ""),
+                         _sanear_detalle(verificacion.get("remedio") or "")
+                         or "sube los topes de lectura del backend (`max_respuesta_kb`/"
+                            "`max_episodes`) en `taxonomy.json` y vuelve a pasar /doctor")
+        if verificacion.get("estado") == "no_verificable":
+            # gap #152 (Minor, fix4 de la Fase 3 del ciclo en curso): el CUARTO veredicto («no he
+            # podido verificar»: backend en `mode: off`, sin endpoint, respuesta ilegible) caia en
+            # la rama de desfase y salia como «export atrasado (0 desfase(s)): sin motivo
+            # detallado» — un atraso inventado sobre una verificacion que no llego a hacerse.
+            return linea(INFO, f"{cap_id} (backend)",
+                         "verificación no disponible: "
+                         + (_sanear_detalle(verificacion.get("razon") or "") or "sin motivo detallado"),
+                         _sanear_detalle(verificacion.get("remedio") or "")
+                         or "normal si el backend no está en modo verificable; revisa su `config` "
+                            "en `taxonomy.json` si esperabas verificación")
         if verificacion.get("ok", True):
+            if aviso_verify:
+                # gap #133/#147: el `aviso` de un `verify` SIN desfase (p. ej. el remedio de
+                # migracion `--rebuild` del gap #126) se tiraba: ningun consumidor lo mostraba.
+                return linea(AVISO, f"{cap_id} (backend)", f"sano, sin desfase, con aviso: {aviso_verify}",
+                             _sanear_detalle(verificacion.get("remedio") or "")
+                             or "sigue el remedio que nombra el aviso del backend")
             return linea(OK, f"{cap_id} (backend)", "sano, sin desfase")
         if verificacion.get("razon") == "nunca_sincronizado":
             # gap 119: distinto de un desfase real (gap 87) — todavía no hay ninguna publicación
@@ -1622,32 +1745,75 @@ def _linea_capacidad_backend(cap_id, tipo, cfg_adaptador, backends_mod, backends
     return linea(INFO, f"{cap_id} (backend)", f"estado desconocido: {estado!r}", "revisa el adaptador de este backend")
 
 
-def _linea_capacidad(project, cap, backends_mod, backends_dir, tope_ms=CAPACIDAD_TIMEOUT_MS_TOPE, entrada=None):
+def _linea_capacidad(project, cap, backends_mod, backends_dir, tope_ms=CAPACIDAD_TIMEOUT_MS_TOPE,
+                     deadline=None, entradas=None):
     """Una fila por capacidad registrada (`capabilities.enumerar()`): error de configuración
     primero (p. ej. `taxonomy.json` inválido, con fichero+detalle+arreglo; #179: `backends` o
     `backends.<id>` que no son objetos), desactivada después, y si está activa con backend declarado,
     la comprobación EN VIVO de `_linea_capacidad_backend` (si no aplica, el texto genérico `doctor` de
     la propia capacidad, sin red). `tope_ms` (gap 124) es el presupuesto de red RESTANTE del bloque,
-    no siempre `CAPACIDAD_TIMEOUT_MS_TOPE`. `entrada` (M7): la de `_leer_backend_entry`, si el
-    llamador ya la leyó (una sola lectura por capacidad)."""
+    no siempre `CAPACIDAD_TIMEOUT_MS_TOPE`. `entradas` (M7): las de `_leer_backend_entries`
+    (`{backend_id: entrada}`), si el llamador ya las leyó (una sola lectura por capacidad).
+
+    gap #119 (fix2 de la Fase 3 del ciclo en curso): `deadline` (un instante de `time.monotonic()`) es el
+    presupuesto COMPARTIDO del bloque, y se re-evalúa DENTRO del bucle por backend — antes solo se
+    miraba una vez por CAPACIDAD, así que una capacidad con N backends declarados (situación
+    nominal del gap 99) multiplicaba por N el coste de red sin ningún aviso de recorte. Al
+    agotarse, los backends que faltan salen como «no comprobado: presupuesto», nunca en silencio
+    y nunca esperando."""
     salud = cap.get("health")
     estado = salud.get("estado") if isinstance(salud, dict) else salud
     if estado == "error":
-        detalle = salud.get("detalle", "") if isinstance(salud, dict) else ""
-        fichero = (salud.get("fichero") if isinstance(salud, dict) else None) or cap.get("config_path") or "?"
+        # gap #137 (Minor, CWE-117, fix3 de la Fase 3 del ciclo en curso): #122 saneó la etiqueta
+        # multi-backend pero no ESTA rama, que interpola crudos el `detalle` de validación de
+        # `taxonomy.json` y su `fichero` — los dos vienen del proyecto, no del plugin (probe: 711
+        # caracteres con ESC/RLO/C1 en la línea de /doctor).
+        detalle = _sanear_detalle(salud.get("detalle", "") if isinstance(salud, dict) else "")
+        fichero = _sanear_detalle(
+            (salud.get("fichero") if isinstance(salud, dict) else None) or cap.get("config_path") or "?")
         return linea(ERROR, cap["id"], f"{fichero}: {detalle}", f"corrige `{fichero}`")
-    if entrada is None:
-        entrada = _leer_backend_entry(project, cap)
-    if isinstance(entrada, _EntradaInvalida):                                   # #179
-        fichero = cap.get("config_path") or "?"
-        return linea(ERROR, cap["id"], entrada.detalle, f"corrige `{fichero}`")
+    if entradas is None:
+        entradas = _leer_backend_entries(project, cap)
+    for entrada in entradas.values():
+        if isinstance(entrada, _EntradaInvalida):                               # #179
+            fichero = _sanear_detalle(cap.get("config_path") or "?")
+            return linea(ERROR, cap["id"], _sanear_detalle(entrada.detalle), f"corrige `{fichero}`")
     if not cap.get("enabled"):
         return linea(INFO, cap["id"], "desactivado", "opcional: sigue el `setup_step` del registro si quieres activarla")
     if backends_mod is not None:
-        l = _linea_capacidad_backend(cap["id"], entrada.get("type"), entrada.get("config") or {},
-                                     backends_mod, backends_dir, project=project, tope_ms=tope_ms)
-        if l is not None:
-            return l
+        # gap 99: UNA fila por backend declarado por la capacidad (normalmente uno); con varios,
+        # la etiqueta lleva la clave para que se distingan.
+        ids = _ids_backend_declarados(cap)
+        lineas = []
+        for i, bid in enumerate(ids):
+            # gap #122 (CWE-117/1007, fix2 de la Fase 3 del ciclo en curso): la clave del backend viene de `taxonomy.json` y con UN solo
+            # backend la etiqueta era `cap["id"]` (ya saneado en origen); con varios se interpolaba
+            # CRUDA en el markdown de /doctor. Se sanea SOLO la etiqueta: la clave cruda sigue
+            # siendo la que busca `_leer_backend_entry` en el fichero.
+            etiqueta = cap["id"] if len(ids) == 1 else f"{cap['id']}:{_sanear_detalle(bid)}"
+            # gap #119: presupuesto compartido, re-evaluado por BACKEND (no una vez por capacidad).
+            restante_ms = None if deadline is None else (deadline - time.monotonic()) * 1000
+            if restante_ms is not None and restante_ms < _CAPACIDAD_TOPE_MS_MINIMO:
+                for pendiente in ids[i:]:
+                    etiqueta_p = (cap["id"] if len(ids) == 1
+                                  else f"{cap['id']}:{_sanear_detalle(pendiente)}")
+                    lineas.append(linea(AVISO, f"{etiqueta_p} (backend)",
+                                        "no comprobado: presupuesto de red del bloque agotado",
+                                        "vuelve a pasar /doctor, o revisa la red del backend más lento"))
+                break
+            tope_backend = tope_ms if restante_ms is None else min(tope_ms, int(restante_ms))
+            entrada = entradas.get(bid)
+            if entrada is None:
+                entrada = _leer_backend_entry(project, cap, bid)
+            l = _linea_capacidad_backend(etiqueta, entrada.get("type"), entrada.get("config") or {},
+                                         backends_mod, backends_dir, project=project,
+                                         tope_ms=tope_backend)
+            if l is not None:
+                lineas.append(l)
+        if len(lineas) == 1:
+            return lineas[0]
+        if lineas:
+            return lineas
     return linea(INFO, cap["id"], cap.get("doctor") or "activa")
 
 
@@ -1711,9 +1877,10 @@ def bloque_capacidades(plugin_root, project, verbose=False):
     ls = []
     sin_comprobar = []
     for cap in capacidades:
-        entrada = _leer_backend_entry(project, cap)                             # M7: una vez por capacidad
-        if not _requiere_red(cap, entrada, backends_mod):
-            ls.append(_linea_capacidad(project, cap, backends_mod, backends_dir, entrada=entrada))
+        entradas = _leer_backend_entries(project, cap)                          # M7: una vez por capacidad
+        if not any(_requiere_red(cap, e, backends_mod) for e in entradas.values()):
+            resultado = _linea_capacidad(project, cap, backends_mod, backends_dir, entradas=entradas)
+            ls.extend(resultado) if isinstance(resultado, list) else ls.append(resultado)
             continue
         transcurrido_s = time.monotonic() - inicio
         restante_s = CAPACIDADES_PRESUPUESTO_S - transcurrido_s
@@ -1725,7 +1892,11 @@ def bloque_capacidades(plugin_root, project, verbose=False):
             sin_comprobar.append(cap["id"])
             continue
         tope_ms = min(CAPACIDAD_TIMEOUT_MS_TOPE, int(restante_s * 1000))
-        ls.append(_linea_capacidad(project, cap, backends_mod, backends_dir, tope_ms=tope_ms, entrada=entrada))
+        # gap #119: el mismo presupuesto, como DEADLINE, entra en el bucle por backend.
+        resultado = _linea_capacidad(project, cap, backends_mod, backends_dir, tope_ms=tope_ms,
+                                     deadline=inicio + CAPACIDADES_PRESUPUESTO_S, entradas=entradas)
+        # gap 99: una capacidad puede rendir VARIAS filas (un backend declarado por cada id).
+        ls.extend(resultado) if isinstance(resultado, list) else ls.append(resultado)
     if sin_comprobar:
         transcurrido_final_s = time.monotonic() - inicio
         ls.append(linea(AVISO, "capacidades opcionales",

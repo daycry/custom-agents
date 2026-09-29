@@ -87,18 +87,25 @@ Uso:
   knowledge-find.py [texto libre…] [--area A] [--tipo T] [--limit N] [--json] [--root DIR]
   knowledge-find.py --doctrina [misma sintaxis]   # DOCTRINA del plugin (assets, T-16), no la memoria del proyecto
   knowledge-find.py [--contexto TEXTO] [--tipo-tarea TIPO] [--iniciativa SLUG] [--tipo T] [--limit N] [--json]
+  knowledge-find.py […] --intent NOMBRE [--backends-dir DIR]   # capa 1 ENRUTADA por configuración (T-07):
+                                                 # `--intent` la sirve un backend declarado en taxonomy.json
+                                                 # si lo autoriza; si no, cae a local. `--backends-dir`
+                                                 # (repetible) añade carpetas donde buscar su adaptador.
   knowledge-find.py --related <ID> [--json] [--root DIR]
   knowledge-find.py --show <ID> [--json] [--root DIR]
 Exit codes:
-  0  consulta atendida (también con 0 aciertos, sin `docs/knowledge/` o con el índice degradado:
-     la degradación NUNCA bloquea y NUNCA cambia el exit code);
+  0  consulta atendida (también con 0 aciertos, sin `docs/knowledge/`, con el índice degradado o con
+     el router caído a local: la degradación NUNCA bloquea y NUNCA cambia el exit code);
   1  `--show`/`--related` con un ID que no existe (error de uso: una línea en stderr);
   2  argumentos inválidos (argparse): también `--limit` negativo (mensaje de uso; antes -1 era «sin
-     tope» en silencio; el «sin tope» explícito es `--limit 0`) y texto libre o `--area` combinados con
-     el enrutado.
+     tope» en silencio; el «sin tope» explícito es `--limit 0`), un `--intent` que no case
+     `[a-z][a-z0-9_-]*`, y las combinaciones prohibidas: texto libre o `--area` con el enrutado, y
+     `--intent` con `--related`/`--show` (es de la capa 1) o con `--doctrina` (enruta la memoria
+     del PROYECTO, no los assets del plugin).
 """
 import argparse
 import hashlib
+import importlib.util
 import json
 import os
 import re
@@ -111,6 +118,68 @@ from collections import Counter
 for _s in (sys.stdin, sys.stdout, sys.stderr):
     try: _s.reconfigure(encoding="utf-8", errors="replace")
     except Exception: pass  # noqa: BLE001 — sin reconfigure, ya leído o None (capsys, pythonw)
+
+# --8<-- sanear_detalle (funcion) — REPLICADO LITERAL en las CINCO copias declaradas del bloque `sanear_detalle` de agent-kits/shared/copias.json
+# Gap #93 (Minor, fix5): la clase [\x00-\x1f\x7f] dejaba pasar tres familias que TAMBIEN
+# falsifican una linea de log o invierten visualmente el texto de un mensaje/`causa`: los
+# controles C1 (\x80-\x9f, entre ellos CSI \x9b), los separadores Unicode de linea/parrafo
+# ( / , que muchos visores rompen como salto de linea) y los controles bidi
+# (‪-‮ RLO/LRO..., ⁦-⁩ isolates), con los que un texto hostil del servidor
+# puede reordenar lo que el humano lee sin cambiar un solo byte del resto.
+_CONTROL_O_ANSI_RE = re.compile(
+    r"\x1b\[[0-9;]*[A-Za-z]|[\x00-\x1f\x7f-\x9f  ‪-‮⁦-⁩]")
+_SANEADO_TOPE_CHARS = 200
+
+
+def _sanear_detalle(texto):
+    """Recorta a 200 caracteres y sustituye caracteres de control (incluidas las secuencias ANSI
+    `ESC[...`, los C1, los separadores Unicode y los controles bidi) por un espacio; ver
+    comentario arriba para el porque de cada regla."""
+    saneado = _CONTROL_O_ANSI_RE.sub(" ", str(texto))
+    return saneado[:_SANEADO_TOPE_CHARS]
+# --8<-- fin sanear_detalle (funcion)
+
+
+# --8<-- group_id por defecto COMPARTIDO (memoria de grafo, T-07-fix1) — REPLICADO LITERAL en agent-kits/shared/knowledge-schema.py y agent-kits/shared/knowledge-find.py
+# Gap #97 (Critical, fix1 Fase 3): la derivacion del `group_id` por defecto (el slug Unicode del
+# directorio del proyecto) la aplicaba SOLO el validador al cargar la taxonomia, asi que el router
+# de `knowledge-find.py` -que NO carga el validador, para que ningun hook alcance codigo con
+# capacidad de red- servia al adaptador la config CRUDA; con la plantilla de fabrica (que no trae
+# `group_id`) el backend cortaba con «sin group_id» y la consulta devolvia 0 en la configuracion
+# NOMINAL. La regla vive aqui, una sola vez, y sin un solo import de red.
+_SLUG_UNICODE_SEP_RE = re.compile(r"[\W_]+", re.UNICODE)
+
+
+def _slug_unicode(nombre):
+    """Slug consciente de Unicode (NFKC + minusculas + separador de restos no alfanumericos),
+    para `group_id` (T-01-fix2 gap #23). A diferencia de un slug solo ASCII, conserva
+    letras/digitos no latinos (acentos, CJK, cirilico...) en vez de descartarlos todos y caer a
+    cadena vacia. Sin fallback fijo a proposito: ver `_group_id_por_defecto`."""
+    if not nombre:
+        return ""
+    normalizado = unicodedata.normalize("NFKC", nombre).lower()
+    return _SLUG_UNICODE_SEP_RE.sub("-", normalizado).strip("-")
+
+
+def _group_id_por_defecto(root):
+    """Slug Unicode del directorio del proyecto (`root=None` -> cwd real), o `""` si el nombre no
+    aporta ningun caracter alfanumerico. SIN fallback fijo: dos instalaciones con nombres "raros"
+    no pueden acabar compartiendo grupo remoto (fusionaria su memoria)."""
+    return _slug_unicode(os.path.basename(os.path.abspath(root if root is not None else ".")))
+
+
+def _config_con_group_id(cfg, root):
+    """Config EFECTIVA de un backend: la declarada MAS el `group_id` derivado si no lo trae (o lo
+    trae vacio). Nunca pisa un `group_id` explicito."""
+    efectiva = dict(cfg or {})
+    declarado = efectiva.get("group_id")
+    if not (isinstance(declarado, str) and declarado.strip()):
+        derivado = _group_id_por_defecto(root)
+        if derivado:
+            efectiva["group_id"] = derivado
+    return efectiva
+# --8<-- fin group_id por defecto COMPARTIDO
+
 
 VERSION_JSON = 1
 LINEA_MAX = 120            # ≤ 30 tokens por acierto (spec CA-02)
@@ -343,6 +412,35 @@ def _ids_en(texto):
     return [f"{a}-{b}" for a, b in ID_RE.findall(texto or "")]
 
 
+_PREFIJO_TAG_AREA = "area:"
+_SEP_TAGS_RE = re.compile(r",|(?:^|\s)-\s+")
+
+
+def _area_de_tags(tags):
+    """Gap #143 (Minor, fix3 Fase 3): UNA sola regla para el `area`. Las entradas de
+    `docs/knowledge/approved/` declaran el área como tag (`tags: [area:memoria tecnica, …]`) y no
+    como campo, que es justo lo que ya lee el adaptador de grafo al componer la procedencia;
+    el índice local solo miraba el campo `area:`/la fila del README, así que `--area X` devolvía
+    cosas distintas según la consulta se atendiera en local o enrutada. Los tags son el RESPALDO:
+    el campo explícito (y la fila del índice) siguen mandando."""
+    if not isinstance(tags, str) or not tags:
+        return ""
+    valores = []
+    # Gap #150 (Minor, fix4 Fase 3): las entradas reales de `docs/knowledge/approved/` declaran
+    # los tags como lista de BLOQUE (`tags:\n  - area:x\n  - riesgo:y`), que `frontmatter()`
+    # aplana SIN comas — partir solo por comas devolvía un área compuesta basura
+    # («publicacion-atomica - riesgo:perdida-de-datos»). Se parte además por el guion de item
+    # (inicio de cadena o precedido de espacio, y seguido de espacio), que no puede confundirse
+    # con un guion interno del valor (`root-cause`).
+    for pieza in _SEP_TAGS_RE.split(tags.strip().strip("[]")):
+        pieza = pieza.strip().strip("\"'").lstrip("- ").strip()
+        if pieza.lower().startswith(_PREFIJO_TAG_AREA):
+            valor = pieza[len(_PREFIJO_TAG_AREA):].strip()
+            if valor:
+                valores.append(valor)
+    return " ".join(valores)
+
+
 def leer_entrada(carpeta, tipo, fichero, text, filas_por_ruta):
     ruta_rel = f"{carpeta}/{fichero}"
     fm, cuerpo = frontmatter(text)
@@ -361,7 +459,7 @@ def leer_entrada(carpeta, tipo, fichero, text, filas_por_ruta):
         "tipo": tipo,
         "estado": estado_corto(estado_detalle),
         "estado_detalle": estado_detalle,
-        "area": (fm.get("area") or fila.get("area") or "").strip(),
+        "area": (fm.get("area") or fila.get("area") or _area_de_tags(fm.get("tags")) or "").strip(),
         "titular": titular,
         "ruta": f"docs/knowledge/{ruta_rel}",
         "ruta_corta": ruta_rel,
@@ -774,10 +872,13 @@ def recorta(s, n):
 
 def linea_compacta(e, ancho=LINEA_MAX):
     """`ID · estado · área · titular · ruta` en ≤ `ancho` caracteres (ver docstring del módulo)."""
-    id_, estado = e["id"], e["estado"] or "?"
-    area = re.sub(r"\s+", " ", e.get("area") or "—").strip()
-    titular = re.sub(r"\s+", " ", e.get("titular") or "—").strip()
-    ruta = e.get("ruta_corta") or e.get("ruta") or ""
+    # Gap #98 (Important, fix1 Fase 3): un acierto puede venir de un BACKEND (texto generado por
+    # el LLM del grafo a partir de lo ingerido), y esta linea va a stdout y al contexto del
+    # agente: se sanea SIEMPRE (controles/ANSI/bidi/C1 + tope) antes de componerla.
+    id_, estado = _sanear_detalle(e["id"]), _sanear_detalle(e["estado"] or "?")
+    area = re.sub(r"\s+", " ", _sanear_detalle(e.get("area") or "—")).strip()
+    titular = re.sub(r"\s+", " ", _sanear_detalle(e.get("titular") or "—")).strip()
+    ruta = _sanear_detalle(e.get("ruta_corta") or e.get("ruta") or "")
     carpeta = ruta.split("/", 1)[0] if "/" in ruta else ""
 
     def compone(a, t, r):
@@ -799,12 +900,17 @@ def linea_compacta(e, ancho=LINEA_MAX):
 
 
 def acierto_json(e):
-    return {
+    salida = {
         "id": e["id"], "tipo": e["tipo"], "estado": e["estado"], "estado_detalle": e["estado_detalle"],
         "area": e["area"], "titular": e["titular"], "ruta": e["ruta"], "linea": linea_compacta(e),
         "puntuacion": e.get("puntuacion", 0), "iniciativa": e["iniciativa"], "fecha": e["fecha"],
         "origen": e.get("origen", "proyecto"),
     }
+    # `evidencia` solo la traen los aciertos servidos por un backend (T-07): clave AÑADIDA, ninguna
+    # renombrada — los consumidores del corpus local ven exactamente el mismo objeto que antes.
+    if e.get("evidencia"):
+        salida["evidencia"] = e["evidencia"]
+    return salida
 
 
 def resolver_root(arg_root):
@@ -935,6 +1041,266 @@ def json_related(e, rel, indice):
     return data
 
 
+# ------------------------------------------------------------------ capa 1 ENRUTADA POR INTENT (T-07)
+# El enrutado es CONFIGURACIÓN, no criterio de un modelo (CA-12): quien consulta DECLARA su intent
+# (`--intent temporal`) y `.claude/knowledge-services/taxonomy.json` dice, por backend, qué intents
+# atiende (`backends.<id>.config.router.intents.<intent>: true`). Aquí no se nombra ningún backend
+# concreto: el adaptador se resuelve por `type` con el mismo cargador que usa `knowledge-sync.py`
+# (`skills/knowledge-services/backends/__init__.py::cargar_adaptador`), igual que `--propose-config`.
+# Cualquier tropiezo (sin config, config inválida, adaptador ausente/roto, backend que no autoriza
+# la lectura o que no expone `consultar`) DEGRADA al camino local de siempre con un motivo; nunca
+# bloquea ni cambia el exit code.
+
+AQUI = os.path.dirname(os.path.abspath(__file__))
+BACKENDS_REL = ("skills", "knowledge-services", "backends")
+INTENT_RE = re.compile(r"^[a-z][a-z0-9_-]*$")   # un intent compone configuración, no una ruta
+# Un acierto servido por un backend solo se sirve si trae las tres cosas que lo hacen auditable
+# (criterio de T-07): evidencia, estado y ruta canónica — más el ID. Fail-closed: lo que no las
+# trae se descarta y se cuenta, nunca se rellena con un valor inventado.
+CLAVES_ACIERTO_REMOTO = ("id", "estado", "evidencia", "ruta")
+
+
+def _dir_backends():
+    """`<plugin>/skills/knowledge-services/backends` (este fichero vive en `agent-kits/shared/`)."""
+    return os.path.join(os.path.dirname(os.path.dirname(AQUI)), *BACKENDS_REL)
+
+
+def _cargar_modulo(ruta, nombre):
+    spec = importlib.util.spec_from_file_location(nombre, ruta)
+    if spec is None or spec.loader is None:
+        raise ImportError("no se pudo preparar la carga de `%s`" % ruta)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def taxonomia(root):
+    """`(config, motivo_o_None)` leída de `<root>/.claude/knowledge-services/taxonomy.json` con
+    `json` y nada más. NUNCA lanza: sin fichero, con JSON roto o con una forma inesperada devuelve
+    `(None, motivo)` y la consulta se atiende en local.
+
+    Decisión del implementer (T-07, el plan no lo fijaba): aquí NO se carga `knowledge-schema.py`
+    para validar la taxonomía, aunque sea el validador canónico. Este script lo invoca el hook
+    `SessionStart` (`session-context.sh`) y el invariante del plan es que ningún hook alcance
+    código con capacidad de red; `knowledge-schema.py` importa `urllib` (solo para PARSEAR URLs,
+    pero el guardarraíl estático de `tests/test_knowledge_services.py` sigue las invocaciones de
+    forma transitiva y no distingue `urllib.parse` de `urllib.request`, con la allowlist vacía a
+    propósito). El router no necesita validar: exige `enabled: true`, `type` y
+    `router.intents.<intent> is True` — una taxonomía inválida no enruta, no enruta mal. La
+    validación completa (y la derivación de `group_id`) siguen donde estaban: `knowledge-sync.py`,
+    `capabilities.py` y `/doctor`; un backend sin `group_id` declarado no lee (su adaptador lo
+    rechaza) y se degrada a local con motivo."""
+    ruta = os.path.join(root or ".", ".claude", "knowledge-services", "taxonomy.json")
+    if not os.path.isfile(ruta):
+        return None, f"no hay `{os.path.join('.claude', 'knowledge-services', 'taxonomy.json')}`"
+    try:
+        with open(ruta, encoding="utf-8") as f:
+            config = json.load(f)
+    except (OSError, ValueError) as e:
+        return None, f"no se pudo leer `{ruta}`: {type(e).__name__}: {e}"
+    if not isinstance(config, dict):
+        return None, f"`{ruta}` no es un objeto JSON"
+    return config, None
+
+
+def backends_para_intent(config, intent):
+    """`[(id, type, config_del_backend)]` de los backends HABILITADOS cuyo
+    `config.router.intents.<intent>` es EXACTAMENTE `true` (booleano: ni `1`, ni `"si"` — una
+    verdad difusa en la configuración no abre una lectura remota), ordenados por id."""
+    backends = (config or {}).get("backends")
+    if not isinstance(backends, dict):
+        return []
+    elegidos = []
+    for bid in sorted(backends):
+        decl = backends[bid]
+        if not isinstance(decl, dict) or decl.get("enabled") is not True or not decl.get("type"):
+            continue
+        cfg = decl.get("config")
+        cfg = cfg if isinstance(cfg, dict) else {}
+        router = cfg.get("router")
+        intents = router.get("intents") if isinstance(router, dict) else None
+        if isinstance(intents, dict) and intents.get(intent) is True:
+            elegidos.append((bid, decl["type"], cfg))
+    return elegidos
+
+
+def acierto_remoto(bruto, backend_id):
+    """Normaliza un acierto servido por un backend al mismo diccionario que usa el corpus local
+    (para que `linea_compacta`/`acierto_json` no distingan el origen), o `None` si le falta alguna
+    de las `CLAVES_ACIERTO_REMOTO`."""
+    if not isinstance(bruto, dict):
+        return None
+    for clave in CLAVES_ACIERTO_REMOTO:
+        valor = bruto.get(clave)
+        if not isinstance(valor, str) or not valor.strip():
+            return None
+    # Gap #98: `_sanear_detalle` en CADA campo de origen backend (tope + sin controles/ANSI/bidi):
+    # el adaptador ya sanea, pero el nucleo no puede fiarse de que TODO adaptador lo haga.
+    return {
+        "id": _sanear_detalle(bruto["id"]).strip(),
+        "tipo": _sanear_detalle(bruto.get("tipo") or bruto.get("categoria") or "").strip(),
+        "estado": _sanear_detalle(bruto["estado"]).strip(),
+        "estado_detalle": _sanear_detalle(bruto.get("estado_detalle") or "").strip(),
+        "area": _sanear_detalle(bruto.get("area") or "").strip(),
+        "titular": _sanear_detalle(bruto.get("titular") or "").strip(),
+        "ruta": _sanear_detalle(bruto["ruta"]).strip(),
+        "evidencia": _sanear_detalle(bruto["evidencia"]).strip(),
+        "puntuacion": bruto.get("puntuacion", 0),
+        "iniciativa": _sanear_detalle(bruto.get("iniciativa") or "").strip(),
+        "fecha": _sanear_detalle(bruto.get("fecha") or "").strip(),
+        "origen": f"backend:{backend_id}",
+    }
+
+
+def filtrar_remotos(aciertos, tipo="", area=""):
+    """Gap #104 (Important, fix1 Fase 3): `--tipo`/`--area` viajaban al adaptador pero ni el
+    adaptador los usaba ni el nucleo post-filtraba, asi que en el camino enrutado eran filtros
+    que no filtraban (`--tipo got --area seguridad` devolvia un `adr` de otra area). El criterio
+    es EL MISMO del camino local (`tipo_normalizado`/`filtra_area`, normalizado y por token); un
+    acierto remoto que no case se descarta -un filtro que no se puede satisfacer devuelve 0, no
+    algo que no lo cumple-."""
+    tipo_n = tipo_normalizado(tipo) if tipo else None
+    area_toks = tokens(area)
+    out = []
+    for a in aciertos:
+        if tipo and (tipo_n is None or tipo_normalizado(a.get("tipo") or "") != tipo_n):
+            continue
+        if area_toks and not filtra_area(a, area_toks):
+            continue
+        out.append(a)
+    return out
+
+
+def _aciertos_del_backend(respuesta, backend_id, limit, tipo="", area=""):
+    """`(aciertos, descartados, filtrados)` a partir de lo que devuelve `consultar` del adaptador
+    (una lista de aciertos, o un dict con la clave `aciertos`), ya post-filtrados por `tipo`/`area`
+    (gap #104). `limit` 0 = sin tope (el adaptador ya trae el suyo).
+
+    Gap #117 (Important, fix2 Fase 3): lo que TIRA el post-filtro se devuelve aparte (`filtrados`)
+    en vez de desaparecer — antes el descarte no ponia `motivo` ni contaba en `descartados` (se
+    contaban ANTES de filtrar), asi que una consulta enrutada podia devolver `origen: backend`,
+    `total: 0` sin decir por que y sin llegar nunca a consultar el corpus local."""
+    brutos = respuesta.get("aciertos") if isinstance(respuesta, dict) else respuesta
+    if not isinstance(brutos, list):
+        brutos = []
+    aciertos, descartados = [], 0
+    for bruto in brutos:
+        normalizado = acierto_remoto(bruto, backend_id)
+        if normalizado is None:
+            descartados += 1
+        else:
+            aciertos.append(normalizado)
+    tras_filtro = filtrar_remotos(aciertos, tipo=tipo, area=area)
+    filtrados = len(aciertos) - len(tras_filtro)
+    aciertos = tras_filtro
+    if limit:
+        aciertos = aciertos[:limit]
+    return aciertos, descartados, filtrados
+
+
+def consultar_intent(root, intent, texto="", limit=LIMIT_DEFAULT, area="", tipo="",
+                     directorios=None, config=None, claves=None, iniciativa=""):
+    """Aplica el router a `intent`. Devuelve `(aciertos, info)`:
+      - `aciertos` es una LISTA (posiblemente vacía) si un backend atendió la consulta;
+      - `aciertos` es `None` si hay que caer al camino local de siempre (el router no resuelve la
+        consulta local: la deja íntegra a `buscar()`/`buscar_enrutado()`).
+    `info` = `{"intent", "origen": "local"|"backend", "backend": id|None, "motivo"[, "descartados"]}`."""
+    info = {"intent": intent, "origen": "local", "backend": None, "motivo": ""}
+    if config is None:
+        config, motivo = taxonomia(root)
+        if config is None:
+            info["motivo"] = motivo
+            return None, info
+    candidatos = backends_para_intent(config, intent)
+    if not candidatos:
+        info["motivo"] = (f"ningún backend habilitado declara el intent `{intent}` en "
+                          f"`router.intents` (la consulta se atiende en local)")
+        return None, info
+
+    dirs = [_dir_backends(), *(directorios or [])]
+    try:
+        binit = _cargar_modulo(os.path.join(_dir_backends(), "__init__.py"), "kf_backends_init")
+    except Exception as e:  # noqa: BLE001
+        info["motivo"] = f"no se pudo cargar el contrato de adaptadores: {type(e).__name__}: {e}"
+        return None, info
+
+    motivos = []
+    for bid, tipo_backend, cfg_backend in candidatos:
+        # Gap #97 (Critical): al adaptador le llega la config EFECTIVA -la declarada mas los
+        # defaults derivados-, nunca la cruda de `taxonomy.json`. Sin `group_id` efectivo no se
+        # consulta a ciegas: es la clave que acota la lectura al grupo del propio proyecto.
+        cfg = _config_con_group_id(cfg_backend, root)
+        cfg["_root"] = os.path.abspath(root or ".")   # el adaptador resuelve sus rutas contra esto
+        if not cfg.get("group_id"):
+            motivos.append(f"`{bid}`: sin `group_id` efectivo (no esta declarado en "
+                           f"`taxonomy.json` y no se pudo derivar del directorio del proyecto)")
+            continue
+        try:
+            adaptador = binit.cargar_adaptador(tipo_backend, directorios=dirs)
+        except Exception as e:  # noqa: BLE001 — incluye `AdaptadorNoDisponible`
+            motivos.append(f"`{bid}`: {e}")
+            continue
+        consultar = getattr(adaptador, "consultar", None)
+        if not callable(consultar):
+            motivos.append(f"`{bid}` (`type: {tipo_backend}`): su adaptador no expone `consultar`")
+            continue
+        puede_leer = getattr(adaptador, "puede_leer", None)
+        if not callable(puede_leer):
+            motivos.append(f"`{bid}` (`type: {tipo_backend}`): su adaptador no expone `puede_leer`")
+            continue
+        try:
+            permiso = puede_leer(cfg)
+        except Exception as e:  # noqa: BLE001
+            motivos.append(f"`{bid}`: `puede_leer` falló: {type(e).__name__}: {e}")
+            continue
+        if not (isinstance(permiso, dict) and permiso.get("puede") is True):
+            # Gap #138 (Minor, CWE-400/117, fix3 Fase 3): la `razon` la escribe el ADAPTADOR (con
+            # uno de terceros, texto arbitrario: ESC/RLO/C1 y sin tope) y acaba en stderr, en
+            # `--json` y en el contexto del agente. Mismo saneado que el `motivo` (gap #123).
+            razon = permiso.get("razon") if isinstance(permiso, dict) else permiso
+            motivos.append(f"`{bid}` no autoriza la lectura: {_sanear_detalle(razon)}")
+            continue
+        try:
+            respuesta = consultar(cfg, {"intent": intent, "texto": texto, "limit": limit,
+                                        "area": area, "tipo": tipo, "claves": list(claves or []),
+                                        "iniciativa": iniciativa})
+        except Exception as e:  # noqa: BLE001 — un adaptador que lanza no tumba la consulta
+            motivos.append(f"`{bid}`: `consultar` falló: {type(e).__name__}: {e}")
+            continue
+        aciertos, descartados, filtrados = _aciertos_del_backend(respuesta, bid, limit,
+                                                                 tipo=tipo, area=area)
+        # Gap #123 (Minor, CWE-117/74): el `motivo` del adaptador era el UNICO campo de origen
+        # backend que el nucleo NO saneaba, y fix1 lo convirtio en salida (stderr y `--json`).
+        motivo_backend = _sanear_detalle(
+            (respuesta.get("motivo") or "") if isinstance(respuesta, dict) else "")
+        # Gap #102 (Important): 0 aciertos CON motivo no es una respuesta autorizada -es un
+        # backend que no pudo servir (servidor caido tras un `verify` cacheado, `get_episodes`
+        # ilegible, `ErrorResponse`...)-: se degrada a local con el motivo a la vista, en vez de
+        # servir el vacio como si el grafo hubiera dicho "no hay nada".
+        if not aciertos and motivo_backend:
+            motivos.append(f"`{bid}`: {motivo_backend}")
+            continue
+        # Gap #117 (Important): si el post-filtro `--tipo`/`--area` se llevo TODO lo que el grafo
+        # sirvio, el backend no ha respondido a la consulta que se hizo — se cae al camino LOCAL
+        # (que es donde vive la doctrina) diciendo cuantos aciertos tiro el filtro, en vez de
+        # servir un vacio con `origen: backend`.
+        if not aciertos and filtrados:
+            motivos.append(f"`{bid}`: {filtrados} acierto(s) del grafo descartados por el "
+                           f"post-filtro `--tipo`/`--area` (0 tras filtrar): se sirve lo local")
+            continue
+        # Gap #141 (Minor, fix3 Fase 3): `descartados` (lo que el NUCLEO tiro por no traer
+        # id/estado/evidencia/ruta) y `filtrados` (lo que se llevo el post-filtro `--tipo`/`--area`
+        # del usuario, que SI traia las cuatro claves) se fusionaban en un solo contador que el
+        # mensaje atribuia entero al adaptador. Se publica el total (compatibilidad) y el desglose.
+        info.update({"origen": "backend", "backend": bid,
+                     "descartados": descartados + filtrados, "sin_terna": descartados,
+                     "filtrados": filtrados, "motivo": motivo_backend})
+        return aciertos, info
+
+    info["motivo"] = "; ".join(motivos)
+    return None, info
+
+
 # ------------------------------------------------------------------ CLI
 
 def _limit(valor):
@@ -948,6 +1314,15 @@ def _limit(valor):
     return n
 
 
+def _intent(valor):
+    """`--intent NOMBRE`: `[a-z][a-z0-9_-]*`. Un intent es una CLAVE de configuración, no texto
+    libre: se rechaza antes de consultar `router.intents` con él (y antes de que componga nada)."""
+    if not INTENT_RE.match(valor or ""):
+        raise argparse.ArgumentTypeError(
+            f"`{valor}` no es un intent válido (`[a-z][a-z0-9_-]*`, p. ej. `temporal`)")
+    return valor
+
+
 def _construir_parser():
     ap = argparse.ArgumentParser(description="recuperación determinista de docs/knowledge/ (tres capas)")
     ap.add_argument("texto", nargs="*", help="consulta libre (capa 1)")
@@ -956,6 +1331,12 @@ def _construir_parser():
     ap.add_argument("--limit", type=_limit, default=LIMIT_DEFAULT, help=f"aciertos máximos (default {LIMIT_DEFAULT}; 0 = sin tope; negativo = error)")
     ap.add_argument("--json", action="store_true")
     ap.add_argument("--root", help="raíz del proyecto (default: $CLAUDE_PROJECT_DIR → cwd)")
+    ap.add_argument("--intent", type=_intent, default=None,
+                    help="intent DECLARADO de la consulta (p. ej. `temporal`): si algún backend habilitado "
+                         "lo declara en `router.intents` de taxonomy.json y autoriza la lectura, la consulta "
+                         "se sirve desde él; si no, cae al camino local de siempre (CA-12)")
+    ap.add_argument("--backends-dir", action="append", default=[], dest="backends_dir",
+                    help="carpeta extra donde buscar el adaptador del backend enrutado (repetible)")
     ap.add_argument("--no-index", action="store_true", help="recorrido plano de los ficheros, sin leer ni escribir el índice")
     ap.add_argument("--doctrina", action="store_true",
                     help=f"busca en la DOCTRINA del plugin ({DOCTRINA_REL}: las lecciones ciertas para cualquier proyecto) "
@@ -1043,10 +1424,18 @@ def _ejecutar_consulta(args, entradas, path, texto, enrutado):
     return aciertos, total, consulta
 
 
-def _imprimir_resultado(args, indice, corpus, consulta, total, aciertos):
+def _imprimir_resultado(args, indice, corpus, consulta, total, aciertos, router=None):
     if args.json:
         data = {"version": VERSION_JSON, "indice": indice["indice"], "corpus": corpus, "consulta": consulta,
                 "total": total, "aciertos": [acierto_json(a) for a in aciertos]}
+        if router is not None:
+            # Gap #115 (Minor): `descartados` y `motivo` estaban solo en stderr; el JSON es lo que
+            # consumen los hooks y `task-brief.py`, y son justo los dos datos que explican por que
+            # una consulta enrutada trae lo que trae.
+            data["router"] = {"intent": router["intent"], "origen": router["origen"],
+                              "backend": router["backend"],
+                              "descartados": router.get("descartados", 0),
+                              "motivo": router.get("motivo", "")}
         if indice.get("indice_motivo"):
             data["indice_motivo"] = indice["indice_motivo"]
         print(json.dumps(data, ensure_ascii=False))
@@ -1057,6 +1446,14 @@ def _imprimir_resultado(args, indice, corpus, consulta, total, aciertos):
 
 def main(argv=None):
     args = _construir_parser().parse_args(argv)
+    if args.intent and (args.related or args.show):
+        print("knowledge-find: `--intent` es de la capa 1; no se combina con `--related`/`--show`",
+              file=sys.stderr)
+        return 2
+    if args.intent and args.doctrina:
+        print("knowledge-find: `--intent` enruta la memoria del PROYECTO; no se combina con `--doctrina`",
+              file=sys.stderr)
+        return 2
     root = resolver_root(args.root)
     texto = " ".join(args.texto)
     corpus = "doctrina" if args.doctrina else "proyecto"
@@ -1070,8 +1467,48 @@ def main(argv=None):
         print("knowledge-find: `--contexto/--tipo-tarea/--iniciativa` no se combinan con texto libre ni `--area`",
               file=sys.stderr)
         return 2
+    router = None
+    if args.intent:
+        # Gap #103 (Important): en el camino enrutado se perdian `--contexto/--tipo-tarea/
+        # --iniciativa` (al backend llegaba `texto: ""`), que es justo la forma que prescribe
+        # `knowledge-check.md` y la que usa `session-context.sh`. Ahora se deriva el MISMO texto
+        # que usa el camino local (las claves del enrutado por area) y las claves viajan tambien
+        # como tales; si el backend no sirve nada, `consultar_intent` degrada y se sirve lo local.
+        texto_router, claves_router = texto, []
+        if enrutado:
+            claves_router, _aviso_claves = claves_enrutado(args.contexto or "", args.tipo_tarea or "")
+            texto_router = " ".join(claves_router)
+        aciertos_backend, router = consultar_intent(
+            root, args.intent, texto=texto_router, limit=args.limit, area=args.area, tipo=args.tipo,
+            directorios=args.backends_dir, claves=claves_router, iniciativa=args.iniciativa or "")
+        if router["origen"] == "local":
+            print(f"knowledge-find: intent `{args.intent}` atendido en local: {router['motivo']}",
+                  file=sys.stderr)
+        else:
+            consulta = {"texto": texto_router, "area": args.area, "tipo": args.tipo,
+                        "limit": args.limit, "intent": args.intent}
+            if enrutado:
+                consulta.update({"contexto": args.contexto or "", "tipo_tarea": args.tipo_tarea or "",
+                                 "iniciativa": args.iniciativa or "", "claves": claves_router})
+            # Gap #141 (fix3 Fase 3): cada descarte con SU causa (el núcleo y el post-filtro no se
+            # depuran igual). Gap #142: el `motivo` del backend que SÍ sirvió (donde viaja
+            # `fuera_de_ventana`) solo salía en `--json`; en texto —la forma que prescribe
+            # `knowledge-check.md`— el recorte de la respuesta era invisible.
+            if router.get("sin_terna"):
+                print(f"knowledge-find: {router['sin_terna']} acierto(s) de `{router['backend']}` "
+                      f"descartados por no traer id/estado/evidencia/ruta", file=sys.stderr)
+            if router.get("filtrados"):
+                print(f"knowledge-find: {router['filtrados']} acierto(s) de `{router['backend']}` "
+                      f"descartados por el post-filtro `--tipo`/`--area`", file=sys.stderr)
+            if router.get("motivo"):
+                print(f"knowledge-find: `{router['backend']}`: {router['motivo']}", file=sys.stderr)
+            _imprimir_resultado(args, indice, corpus, consulta, len(aciertos_backend),
+                                aciertos_backend, router=router)
+            return 0
     aciertos, total, consulta = _ejecutar_consulta(args, entradas, path, texto, enrutado)
-    _imprimir_resultado(args, indice, corpus, consulta, total, aciertos)
+    if args.intent:
+        consulta["intent"] = args.intent
+    _imprimir_resultado(args, indice, corpus, consulta, total, aciertos, router=router)
     return 0
 
 

@@ -732,3 +732,319 @@ def test_t10fix4_190_doctor_pone_primero_la_causa_otro_id_prefix(tmp_path):
     causa = "2 versiones con otro `id_prefix` que el de training.json: restauralo o usa otro `root`"
     assert f"dataset: {tds['asm'].TEXTO_DATASET['con_omisiones']} ({causa}" in txt, txt
     assert "0 Gold vigentes" not in txt, txt
+
+
+# ------------------------------------------------------------------ capacidad `graphiti` (T-08)
+# La capacidad entra SOLO por el registro (CA-14): `/setup` y `/doctor` la ven sin codigo propio.
+# Estados: deshabilitado · off · shadow · read · degradado, cada uno con veredicto y remedio.
+
+def _taxonomy_graphiti(root, enabled=True, mode="shadow", extra=None):
+    cfg = {"mode": mode, "endpoint": "http://127.0.0.1:8001/mcp", "group_id": "proy-demo",
+           "allow_remote": False, "provider": {"llm": "none"}}
+    cfg.update(extra or {})
+    return _taxonomy(root, backends={"graphiti": {"type": "graphiti", "enabled": enabled,
+                                                  "config": cfg}})
+
+
+def _cap_graphiti(root):
+    return next(c for c in cap_mod.enumerar(root) if c["id"] == "graphiti")
+
+
+def test_registro_base_declara_graphiti():
+    assert "graphiti" in {c["id"] for c in cap_mod.REGISTRO}
+
+
+def test_graphiti_deshabilitado_por_defecto(tmp_path):
+    root = str(tmp_path)
+    _taxonomy(root)
+    cap = _cap_graphiti(root)
+    assert cap["enabled"] is False
+    assert cap["health"]["estado"] == "deshabilitado"
+    assert "graphiti" in cap["doctor"]
+
+
+def test_graphiti_en_shadow_no_lee(tmp_path):
+    root = str(tmp_path)
+    _taxonomy_graphiti(root, mode="shadow")
+    cap = _cap_graphiti(root)
+    assert cap["enabled"] is True
+    assert cap["health"]["estado"] == "shadow"
+    assert "no lee" in cap["doctor"].lower()
+    assert cap["health"]["remedio"]
+
+
+def test_graphiti_en_read_lo_declara_con_remedio(tmp_path):
+    root = str(tmp_path)
+    _taxonomy_graphiti(root, mode="read")
+    cap = _cap_graphiti(root)
+    assert cap["health"]["estado"] == "read"
+    assert "read" in cap["doctor"]
+
+
+def test_graphiti_en_off_esta_apagado_aunque_enabled_sea_true(tmp_path):
+    root = str(tmp_path)
+    _taxonomy_graphiti(root, mode="off")
+    cap = _cap_graphiti(root)
+    assert cap["health"]["estado"] == "off"
+    assert cap["health"]["remedio"]
+
+
+def test_graphiti_sin_endpoint_es_degradado_con_remedio(tmp_path):
+    """Declarado y habilitado pero sin con que hablar: degradado, con el arreglo concreto."""
+    root = str(tmp_path)
+    _taxonomy(root, backends={"graphiti": {"type": "graphiti", "enabled": True,
+                                           "config": {"mode": "shadow", "group_id": "x"}}})
+    cap = _cap_graphiti(root)
+    assert cap["health"]["estado"] == "degradado"
+    assert "endpoint" in cap["health"]["remedio"]
+
+
+def test_graphiti_con_config_invalida_es_degradado_y_nombra_el_campo(tmp_path):
+    """`group_id` NO entra aqui: el esquema lo DERIVA del slug del proyecto (T-01-fix2), asi que
+    nunca falta. Lo que si falta en este ejemplo es `provider.llm`, obligatorio con el backend
+    habilitado — y la capacidad tiene que decir `degradado` (esta encendido y mal), no
+    «deshabilitado», nombrando el campo a corregir."""
+    root = str(tmp_path)
+    _taxonomy(root, backends={"graphiti": {"type": "graphiti", "enabled": True,
+                                           "config": {"mode": "read",
+                                                      "endpoint": "http://127.0.0.1:8001/mcp"}}})
+    cap = _cap_graphiti(root)
+    assert cap["health"]["estado"] == "degradado"
+    assert "provider.llm" in cap["health"]["remedio"]
+    assert "degradado" in cap["doctor"]
+
+
+def test_graphiti_reconoce_un_backend_con_otra_clave_pero_type_graphiti(tmp_path):
+    """T-01-fix2: el backend se identifica por `type`, no por la clave literal."""
+    root = str(tmp_path)
+    _taxonomy(root, backends={"mi_grafo": {"type": "graphiti", "enabled": True,
+                                           "config": {"mode": "read", "group_id": "x",
+                                                      "endpoint": "http://127.0.0.1:8001/mcp",
+                                                      "provider": {"llm": "none"}}}})
+    cap = _cap_graphiti(root)
+    assert cap["enabled"] is True
+    assert cap["health"]["estado"] == "read"
+    assert "mi_grafo" in cap["doctor"]
+
+
+def test_graphiti_no_hace_red_al_enumerar(tmp_path, monkeypatch):
+    """`/doctor` ya hace la comprobacion EN VIVO por su cuenta (contrato de adaptador): enumerar
+    las capacidades no debe abrir ni un socket."""
+    import socket
+    root = str(tmp_path)
+    _taxonomy_graphiti(root, mode="read")
+
+    def _prohibido(*a, **k):
+        raise AssertionError("capabilities.enumerar() no debe hacer red")
+
+    monkeypatch.setattr(socket, "create_connection", _prohibido)
+    monkeypatch.setattr(socket, "getaddrinfo", _prohibido)
+    cap = _cap_graphiti(root)
+    assert cap["health"]["estado"] == "read"
+
+
+def test_graphiti_setup_step_no_registra_mcp_ni_toca_config_global(tmp_path):
+    cap = next(c for c in cap_mod.REGISTRO if c["id"] == "graphiti")
+    paso = cap["setup_step"].lower()
+    assert "taxonomy.json" in paso
+    for prohibido in ("claude mcp add", "~/.claude.json", "settings.json", "mcp add"):
+        assert prohibido not in paso
+
+
+def test_graphiti_taxonomia_invalida_no_tumba_las_demas_capacidades(tmp_path):
+    root = str(tmp_path)
+    d = os.path.join(root, ".claude", "knowledge-services")
+    os.makedirs(d, exist_ok=True)
+    with open(os.path.join(d, "taxonomy.json"), "w", encoding="utf-8") as f:
+        f.write("{ roto")
+    ids = {c["id"] for c in cap_mod.enumerar(root)}
+    assert {"knowledge-gate", "kwipu", "graphiti"} <= ids
+
+
+# ------------------------------------------------------------------ Fase 3 - fix1 (gaps #99/#107/#109)
+
+def _taxonomy_dos_graphiti(root, enabled_plantilla=False, enabled_propio=True, mode="read"):
+    """La situacion NOMINAL tras `/setup`: la plantilla de fabrica deja `graphiti` declarado y
+    APAGADO, y el proyecto declara el suyo con otra clave y encendido."""
+    base = {"endpoint": "http://127.0.0.1:8001/mcp", "allow_remote": False,
+            "provider": {"llm": "none"}}
+    return _taxonomy(root, backends={
+        "graphiti": {"type": "graphiti", "enabled": enabled_plantilla,
+                     "config": dict(base, mode="shadow", group_id="plantilla")},
+        "mi_grafo": {"type": "graphiti", "enabled": enabled_propio,
+                     "config": dict(base, mode=mode, group_id="mi-grafo")},
+    })
+
+
+def test_f3fix1_gap99_la_plantilla_apagada_no_esconde_el_backend_habilitado(tmp_path):
+    """Gap #99: con la clave literal `graphiti` (apagada) + `mi_grafo` (encendido, `read`), la
+    capacidad decia «deshabilitado» mientras el router SI leia de `mi_grafo`."""
+    root = str(tmp_path)
+    _taxonomy_dos_graphiti(root)
+    cap = _cap_graphiti(root)
+    assert cap["enabled"] is True
+    assert cap["health"]["estado"] == "read"
+    assert cap["health"]["backend"] == "mi_grafo"
+
+
+def test_f3fix1_gap99_sin_ninguno_habilitado_sigue_siendo_deshabilitado(tmp_path):
+    root = str(tmp_path)
+    _taxonomy_dos_graphiti(root, enabled_propio=False)
+    cap = _cap_graphiti(root)
+    assert cap["enabled"] is False
+    assert cap["health"]["estado"] == "deshabilitado"
+
+
+def test_f3fix1_gap99_con_varios_habilitados_se_declaran_todos(tmp_path):
+    root = str(tmp_path)
+    _taxonomy_dos_graphiti(root, enabled_plantilla=True)
+    cap = _cap_graphiti(root)
+    assert cap["health"]["backends"] == ["graphiti", "mi_grafo"]
+    assert "mi_grafo" in cap["doctor"]
+
+
+def test_f3fix1_gap107_la_linea_de_doctor_sanea_la_clave_y_el_detalle(tmp_path):
+    """CWE-117: la clave del backend y el detalle se interpolan crudos en la linea de /doctor."""
+    root = str(tmp_path)
+    _taxonomy(root, backends={"g\x1b[31mID": {"type": "graphiti", "enabled": True,
+                                              "config": {"mode": "read", "group_id": "x",
+                                                         "endpoint": "http://127.0.0.1:8001/mcp",
+                                                         "provider": {"llm": "none"}}}})
+    linea = _cap_graphiti(root)["doctor"]
+    assert "\x1b" not in linea
+
+
+def test_f3fix1_gap107_la_linea_de_kwipu_tambien_se_sanea(tmp_path):
+    root = str(tmp_path)
+    _taxonomy(root, backends={"kwipu": {"type": "markdown-export", "enabled": True,
+                                        "config": {"export_dir": "x"}}})
+    cap = next(c for c in cap_mod.enumerar(root) if c["id"] == "kwipu")
+    assert "\x1b" not in cap["doctor"]
+    salida = cap_mod._kwipu_doctor_texto("kwipu", {"estado": "declarado",
+                                                   "detalle": "det\x1balle\u202e"})
+    assert "\x1b" not in salida and "\u202e" not in salida
+
+
+def test_f3fix1_gap109_el_adaptador_expone_modo_publico(tmp_path):
+    """Gap #109: `capabilities.py` llamaba al simbolo PRIVADO `mod._modo` (fuera del contrato
+    E16); el adaptador expone `modo(cfg)` como funcion opcional documentada."""
+    import importlib.util
+    ruta = os.path.join(os.path.dirname(os.path.dirname(HERE)),
+                        "skills", "knowledge-services", "backends", "graphiti.py")
+    spec = importlib.util.spec_from_file_location("graphiti_para_capabilities", ruta)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    assert callable(getattr(mod, "modo", None))
+    assert mod.modo({"mode": "read"}) == "read"
+    assert mod.modo({}) == "shadow"
+    assert mod.modo({"mode": "inventado"}) == "shadow"
+    # el respaldo local de capabilities.py es la MISMA regla (copia declarada, ADR-016)
+    for cfg in ({"mode": "read"}, {"mode": "off"}, {}, {"mode": "inventado"}, None):
+        assert cap_mod.modo(cfg) == mod.modo(cfg), cfg
+
+
+def test_f3fix1_gap109_sin_adaptador_instalado_el_respaldo_da_el_mismo_modo(tmp_path, monkeypatch):
+    monkeypatch.setattr(cap_mod, "_GRAPHITI_ADAPTADOR_REL", ("no", "existe.py"))
+    assert cap_mod._graphiti_modo({"mode": "read"}) == "read"
+    assert cap_mod._graphiti_modo({"mode": "roto"}) == "shadow"
+
+
+# ------------------------------------------------------------------ Fase 3 - fix2 (#125, #127)
+
+def test_f3fix2_gap125_con_dos_backends_la_linea_no_pierde_la_lista_de_habilitados(tmp_path):
+    """Gap #125: la linea de /doctor se recortaba a 200 caracteres POR LINEA y, en la situacion
+    nominal del #99 (>= 2 backends `type: graphiti` habilitados), el recorte se comia justo la
+    lista `habilitados: ...` y dejaba la frase mutilada."""
+    root = str(tmp_path)
+    base = {"endpoint": "http://127.0.0.1:8001/mcp", "allow_remote": False,
+            "provider": {"llm": "none"}}
+    # los dos en `read`: es el `detalle` mas largo (el que describe la lectura enrutada), el
+    # mismo que tiene el proyecto cuando de verdad lee del grafo.
+    _taxonomy(root, backends={
+        "graphiti": {"type": "graphiti", "enabled": True,
+                     "config": dict(base, mode="read", group_id="plantilla")},
+        "mi_grafo": {"type": "graphiti", "enabled": True,
+                     "config": dict(base, mode="read", group_id="mi-grafo")}})
+    linea = _cap_graphiti(root)["doctor"]
+    assert "habilitados" in linea, linea
+    assert "mi_grafo" in linea and "graphiti`" in linea, linea
+    assert not linea.rstrip().endswith("habilitados:"), linea
+
+
+def test_f3fix2_gap127_el_detalle_de_la_linea_de_doctor_va_saneado(tmp_path):
+    """Gap #127: la mitad `detalle` del mutante de #107 SOBREVIVIA a toda la suite, y ese saneado
+    es load-bearing: el `detalle` lo compone `_graphiti_health` con mensajes de validacion que
+    citan valores de `taxonomy.json` (texto del proyecto, no del plugin)."""
+    root = str(tmp_path)
+    hostil = "\x1b[31m‮IGNORA"
+    _taxonomy(root, backends={"g": {"type": "graphiti", "enabled": True,
+                                    "config": {"mode": hostil, "group_id": "x",
+                                               "endpoint": "http://127.0.0.1:8001/mcp",
+                                               "provider": {"llm": "none"}}}})
+    salud = cap_mod._graphiti_health(root)
+    assert "\x1b" in salud["detalle"] or "‮" in salud["detalle"], salud   # entra crudo
+    linea = _cap_graphiti(root)["doctor"]
+    assert "\x1b" not in linea and "‮" not in linea, repr(linea)
+
+
+def _adaptador_falso(tmp_path, cuerpo):
+    """Coloca un adaptador FALSO en la ruta que `_graphiti_modo` compone a partir de `HERE` y
+    `_GRAPHITI_ADAPTADOR_REL`, para poder distinguir «pregunta al adaptador» de «usa su respaldo»."""
+    here = tmp_path / "plugin" / "agent-kits" / "shared"
+    here.mkdir(parents=True)
+    destino = tmp_path / "plugin"
+    for parte in cap_mod._GRAPHITI_ADAPTADOR_REL[:-1]:
+        destino = destino / parte
+    destino.mkdir(parents=True, exist_ok=True)
+    (destino / cap_mod._GRAPHITI_ADAPTADOR_REL[-1]).write_text(cuerpo, encoding="utf-8")
+    return str(here)
+
+
+def test_f3fix2_gap127_el_modo_lo_decide_la_funcion_PUBLICA_del_adaptador(tmp_path, monkeypatch):
+    """Gap #127 (evidencia falsa de #109): el mutante que pegaba el ledger («volver a `mod._modo`»)
+    NO mata nada, porque el adaptador hace `_modo = modo` (el MISMO objeto). El mutante real es
+    dejar de preguntarle al adaptador: con un adaptador que responde otra cosa, `_graphiti_modo`
+    tiene que devolver SU respuesta, no la del respaldo local."""
+    monkeypatch.setattr(cap_mod, "HERE",
+                        _adaptador_falso(tmp_path, "def modo(cfg):\n    return 'SENTINELA'\n"))
+    assert cap_mod._graphiti_modo({"mode": "read"}) == "SENTINELA"
+
+
+def test_f3fix2_gap127_sin_adaptador_instalado_manda_el_respaldo_declarado(tmp_path, monkeypatch):
+    """La otra mitad del contrato E16: sin adaptador (o con uno sin `modo`), el respaldo es el
+    bloque declarado en `copias.json` — mismo enum y mismo default."""
+    monkeypatch.setattr(cap_mod, "HERE",
+                        _adaptador_falso(tmp_path, "# adaptador sin `modo` publico\n"))
+    assert cap_mod._graphiti_modo({"mode": "read"}) == "read"
+    assert cap_mod._graphiti_modo({}) == cap_mod._MODO_DEFAULT == "shadow"
+    assert cap_mod._graphiti_modo({"mode": "inventado"}) == "shadow"
+
+
+# ------------------------------------------------------------------ Fase 3 - fix3 (#147)
+
+def test_f3fix3_gap147_la_linea_no_repite_la_lista_de_backends(tmp_path):
+    """Gap #147: con >= 2 backends habilitados, la linea de /doctor traia la lista DOS veces (el
+    encabezado `nombres` y la pieza que anadio #125), gastando el presupuesto de la linea en
+    decir lo mismo dos veces."""
+    root = str(tmp_path)
+    base = {"endpoint": "http://127.0.0.1:8001/mcp", "allow_remote": False,
+            "provider": {"llm": "none"}}
+    _taxonomy(root, backends={
+        "graphiti": {"type": "graphiti", "enabled": True,
+                     "config": dict(base, mode="read", group_id="plantilla")},
+        "mi_grafo": {"type": "graphiti", "enabled": True,
+                     "config": dict(base, mode="read", group_id="mi-grafo")}})
+    linea = _cap_graphiti(root)["doctor"]
+    assert linea.count("mi_grafo") == 1, linea
+    assert linea.count("habilitados") == 1, linea
+    assert "mi_grafo" in linea and "graphiti`" in linea, linea
+
+
+def test_f3fix3_gap147_con_un_solo_backend_la_linea_lo_nombra_igual(tmp_path):
+    root = str(tmp_path)
+    _taxonomy(root, backends={"mi_grafo": {"type": "graphiti", "enabled": True, "config": {
+        "endpoint": "http://127.0.0.1:8001/mcp", "allow_remote": False, "mode": "read",
+        "group_id": "mi-grafo", "provider": {"llm": "none"}}}})
+    linea = _cap_graphiti(root)["doctor"]
+    assert linea.count("mi_grafo") == 1, linea
+    assert "habilitados" not in linea, linea
