@@ -1797,6 +1797,7 @@ def test_t10fix2_170_la_lectura_de_la_marca_respeta_el_plazo(tmp_path, monkeypat
     plazo de `/doctor` (+ el margen propio de M10) y la frescura sale «no verificado (PARCIAL)»
     (antes: 40 x 25 ms = 1 s con un plazo de 50 ms). En Windows el bloqueo es REAL (`CreateFileW`,
     share 0); en POSIX, donde no hay bloqueo obligatorio, se simula con `PermissionError`."""
+    monkeypatch.setattr(rec, "_PERMISOS_PERMANENTES", False)   # N6 (fix3): simula el bloqueo TRANSITORIO de Windows
     raiz, cfg, store = _store_basico(tmp_path)
     _ensamblar(cfg, raiz, escribir=True)
     res = rec.resumen_store(str(store), raiz)

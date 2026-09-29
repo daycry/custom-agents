@@ -1164,6 +1164,7 @@ def test_f2fix1_gap33_procesos_reales_set_status_rebuild_y_lectores(tmp_path):
 def test_f2fix1_gap33_lector_reintenta_ante_permissionerror_transitorio(tmp_path, monkeypatch):
     """gap #33b: un `PermissionError` al abrir (Windows, `os.replace` ajeno) se reintenta de forma
     acotada; una version completa nunca se da por «a medio escribir» por eso."""
+    monkeypatch.setattr(rec, "_PERMISOS_PERMANENTES", False)   # N6 (fix3): simula el bloqueo TRANSITORIO de Windows
     raiz, cfg, store = _proyecto(tmp_path)
     rec.grabar(_caso(), cfg, raiz)
     real_open, fallos = builtins.open, []
@@ -1184,6 +1185,7 @@ def test_f2fix1_gap33_lector_reintenta_ante_permissionerror_transitorio(tmp_path
 
 
 def test_f2fix1_gap33_ilegible_transitorio_no_es_a_medio_escribir(tmp_path, monkeypatch):
+    monkeypatch.setattr(rec, "_PERMISOS_PERMANENTES", False)   # N6 (fix3): simula el bloqueo TRANSITORIO de Windows
     raiz, cfg, store = _proyecto(tmp_path)
     rec.grabar(_caso(), cfg, raiz)
     (store / "cases" / "ramp.steep" / "v002").mkdir()
@@ -1577,6 +1579,7 @@ def test_f2fix1_gap50_m11_indice_no_escribible_da_aviso_no_excepcion(tmp_path):
 
 
 def test_f2fix1_gap50_m14_reintentos_acotados(tmp_path, monkeypatch):
+    monkeypatch.setattr(rec, "_PERMISOS_PERMANENTES", False)   # N6 (fix3): simula el bloqueo TRANSITORIO de Windows
     llamadas = []
 
     def siempre(*_a, **_k):
@@ -2482,6 +2485,7 @@ def test_f2fix2_gap58_procesos_record_y_check_en_bucle_sin_falsos_positivos(tmp_
 
 
 def test_f2fix2_gap59_no_es_un_fichero_sin_reintentos_y_no_legible_con_mensaje_exacto(tmp_path, monkeypatch):
+    monkeypatch.setattr(rec, "_PERMISOS_PERMANENTES", False)   # N6 (fix3): simula el bloqueo TRANSITORIO de Windows
     raiz, cfg, store = _proyecto(tmp_path)
     for _ in range(3):
         rec.grabar(_caso(), cfg, raiz)
@@ -3871,6 +3875,7 @@ def test_f2fix4_gap83_set_status_lee_por_descriptor_la_sustitucion_durante_los_r
     por otro fichero) mientras `set-status` reintenta la apertura: la comprobacion va sobre el
     DESCRIPTOR (`fstat`: regular, `st_nlink == 1`, misma identidad que el `lstat` previo) -> rechazo;
     su `reviewer_note` no se copia al store y el indice no cambia."""
+    monkeypatch.setattr(rec, "_PERMISOS_PERMANENTES", False)   # N6 (fix3): simula el bloqueo TRANSITORIO de Windows
     raiz, cfg, store = _proyecto(tmp_path)
     r = rec.grabar(_caso(), cfg, raiz)
     val = os.path.join(r["path"], "validation.json")
@@ -3911,6 +3916,7 @@ def test_f2fix4_gap83_lectores_leen_por_descriptor(tmp_path, monkeypatch):
     """#83 en los lectores (S2, rebuild, check, dueño, `supersedes`): un fichero de version sustituido
     por un enlace DURO durante los reintentos se omite (o se rechaza) sin leer su contenido; uno
     sustituido por OTRO fichero regular (un `os.replace` legitimo) se vuelve a comprobar y se lee."""
+    monkeypatch.setattr(rec, "_PERMISOS_PERMANENTES", False)   # N6 (fix3): simula el bloqueo TRANSITORIO de Windows
     raiz, cfg, store = _proyecto(tmp_path)
     r = rec.grabar(_caso(), cfg, raiz)
     dir_v = r["path"]
@@ -4195,6 +4201,7 @@ def test_f2fix4_gap91_m14_el_dueno_no_lee_un_metadata_con_enlace_duro(tmp_path):
 def test_f2fix4_gap91_m18_confirmacion_relee_un_fallo_pasajero_de_f1(tmp_path, monkeypatch):
     """#91 M18: si F1 no pudo leer una version por un fallo pasajero (`PermissionError` persistente
     solo durante el recorrido), la confirmacion la relee del disco: ni aviso ni diferencia."""
+    monkeypatch.setattr(rec, "_PERMISOS_PERMANENTES", False)   # N6 (fix3): simula el bloqueo TRANSITORIO de Windows
     raiz, cfg, store = _proyecto(tmp_path)
     rec.grabar(_caso(), cfg, raiz)
     rec.grabar(_caso(), cfg, raiz)
@@ -5024,6 +5031,7 @@ def test_f2fix5_gap105_la_confirmacion_no_relee_versiones_con_aviso_permanente(t
     """#105: la confirmacion de `check` relee SOLO las versiones con aviso de causa transitoria. Con 12
     versiones sin `validation.json` pasada la gracia (permanente) -> 0 relecturas (antes, 12); una
     version bloqueada durante F1 (transitoria) se sigue releyendo (M18) y no queda diferencia."""
+    monkeypatch.setattr(rec, "_PERMISOS_PERMANENTES", False)   # N6 (fix3): simula el bloqueo TRANSITORIO de Windows
     raiz, cfg, store = _proyecto(tmp_path)
     for _ in range(12):
         rec.grabar(_caso(), cfg, raiz)
@@ -5312,6 +5320,7 @@ def test_f2fix6_gap110_x12_no_se_puede_examinar_es_transitorio_y_check_lo_confir
     """#110 X12: `validation.json` que no se puede examinar UN instante (`lstat` con `OSError`) en F1 de
     `index check` es causa TRANSITORIA (`MARCAS_TRANSITORIAS`): la confirmacion (#105) la relee y no
     queda diferencia."""
+    monkeypatch.setattr(rec, "_PERMISOS_PERMANENTES", False)   # N6 (fix3): simula el bloqueo TRANSITORIO de Windows
     _raiz, _cfg, store, _r = _grabado(tmp_path)
     real, hecho = rec._stat_sin_seguir, []
 
@@ -5883,6 +5892,7 @@ def test_t10fix2_177_si_el_plazo_corta_los_reintentos_el_recuento_es_parcial_y_l
     """#177: cuando es el PLAZO de `/doctor` quien corta los reintentos de un lector (no el numero de
     reintentos), el recuento queda `truncado` y la version se cuenta como «cortada por el plazo»,
     nunca como «no legible tras 40 reintentos» ni como un aviso mas."""
+    monkeypatch.setattr(rec, "_PERMISOS_PERMANENTES", False)   # N6 (fix3): simula el bloqueo TRANSITORIO de Windows
     raiz, cfg, store = _proyecto(tmp_path)
     rec.grabar(_caso(), cfg, raiz)
     real = rec._abrir_lectura
@@ -6020,6 +6030,7 @@ def test_t10fix2_m5_case_id_que_no_casa_el_patron_se_omite_con_aviso(tmp_path):
 def test_t10fix2_m1_resumen_cuenta_las_versiones_con_aviso_transitorio(tmp_path, monkeypatch):
     """M1: `resumen_store` declara `transitorias` (versiones omitidas por una causa TRANSITORIA,
     `_aviso_transitorio`): con ellas la frescura no se da por buena; las omisiones permanentes no."""
+    monkeypatch.setattr(rec, "_PERMISOS_PERMANENTES", False)   # N6 (fix3): simula el bloqueo TRANSITORIO de Windows
     raiz, cfg, store = _proyecto(tmp_path)
     for fam in ("a", "b"):
         rec.grabar(_caso(family=fam, case_id=f"geo-{fam}.steep"), cfg, raiz)
