@@ -2643,3 +2643,10 @@ def test_t10fix4_196_marca_con_benchmark_enorme_como_mucho_3_serializaciones(mon
     assert leida["parametros"] == PARAMETROS_OK and 0 < k < 10 and leida["omitidos_muestra"] == largas[:k], leida
     siguiente = len(real(largas[k], ensure_ascii=True, sort_keys=True)) + 2
     assert len(datos) + siguiente > asm.TOPE_MARCA                           # recorta lo justo, de una vez
+    for n in range(20, 200):                                                 # la cuenta exacta, en cada frontera
+        refs = [dict(OMISION_OK, ref="ñ" * n + f"@v{i:03d}") for i in range(10)]
+        datos = asm._bytes_marca(dict(MARCA_OK, omitidos=10, omitidos_muestra=refs))
+        k = len(json.loads(datos)["omitidos_muestra"])
+        assert len(datos) <= asm.TOPE_MARCA, (n, len(datos))
+        if k < 10:
+            assert len(datos) + len(real(refs[k], ensure_ascii=True, sort_keys=True)) + 2 > asm.TOPE_MARCA, n
