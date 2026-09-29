@@ -93,7 +93,7 @@ comprueba justo después de parsear `metadata.json`, antes de leer `validation.j
 (nunca se retiene un `case_id` gigante); el aviso nombra `cases/<nombre>` y la causa, nunca el
 `case_id`. Cambiar `id_prefix` con un store existente deja fuera sus casos: usa otro `root`. Esas
 versiones se cuentan aparte en `otro_prefijo` (código `otro_prefijo`, #190) y las que tienen un
-`validation.json` ilegible por cualquier causa permanente (permisos, JSON roto, esquema), en
+`validation.json` ilegible por cualquier causa permanente (permisos, JSON roto, esquema, enlace simbólico o duro compartido), en
 `validacion_ilegible` (#191/#197); las dos siguen
 contando también en `otros_avisos`. En POSIX,
 `EACCES`/`EPERM` no se reintentan ni son transitorios (causa «sin permisos», N6); en Windows,

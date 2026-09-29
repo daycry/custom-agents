@@ -1989,7 +1989,7 @@ def _leer_de_version(dir_v, fichero, rel, fstat_leido=None, decodificar=_json_de
 
     def _permanente(aviso):
         """#191/#197: un `validation.json` ilegible por CUALQUIER causa PERMANENTE (permisos N6, no es un
-        fichero regular, JSON roto) lleva el codigo `validacion_ilegible`: no se sabe si esa version es
+        fichero regular, enlace simbolico o duro compartido, JSON roto) lleva el codigo `validacion_ilegible`: no se sabe si esa version es
         Gold. Las transitorias (`_aviso_transitorio`) no pasan por aqui."""
         return _cod("validacion_ilegible", aviso) if fichero == "validation.json" else (None, None, aviso)
 
@@ -2026,7 +2026,7 @@ def _leer_de_version(dir_v, fichero, rel, fstat_leido=None, decodificar=_json_de
                 return _sin_permisos()
             return None, None, f"{rel} ilegible: {fichero} no se puede examinar ({e})"
         if _motivo_enlace(ruta, ruta) if _es_enlace_st(st) is None else _es_enlace_st(st):
-            return None, None, f"{rel} omitida: {fichero} es un {MOTIVO_ENLACE}"
+            return _permanente(f"{rel} omitida: {fichero} es un {MOTIVO_ENLACE}")               # #197
         if not stat.S_ISREG(st.st_mode):
             return _permanente(f"{rel} ilegible: {fichero} no es un fichero regular")         # #197
         if st.st_nlink > 1:
@@ -2038,8 +2038,8 @@ def _leer_de_version(dir_v, fichero, rel, fstat_leido=None, decodificar=_json_de
                                            "nombre) y la version queda completa"))
             if fichero == "metadata.json" and _un_solo_nombre_ahora(ruta):
                 continue                        # G2: la publicacion termino entre el `lstat` y la busqueda
-            return None, None, (f"{rel} omitida: {fichero} es un enlace duro compartido ({st.st_nlink} nombres para el "
-                                "mismo fichero: podria ser uno de fuera del store, CWE-59); no se lee")
+            return _permanente(f"{rel} omitida: {fichero} es un enlace duro compartido ({st.st_nlink} nombres para "
+                               "el mismo fichero: podria ser uno de fuera del store, CWE-59); no se lee")  # #197
         try:
             if hasta is None:
                 obj, mtime = _leer_json_reintentando(ruta, st, fstat_leido, decodificar, tope)
@@ -2051,7 +2051,7 @@ def _leer_de_version(dir_v, fichero, rel, fstat_leido=None, decodificar=_json_de
                 continue                                            # otro fichero: comprobarlo de nuevo
             if getattr(e, "codigo", None):
                 return _cod(e.codigo, f"{rel} omitida: {e.mensaje}")
-            return None, None, f"{rel} omitida: {e.mensaje}"
+            return _permanente(f"{rel} omitida: {e.mensaje}")                   # #197: visto en el descriptor
         except FileNotFoundError:
             return _cod("incompleta", f"{rel} incompleta: sin {fichero} (desaparecio al leerla)")
         except PermissionError as e:

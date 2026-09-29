@@ -187,7 +187,7 @@ alguna versión tiene otro `id_prefix`, `/doctor` y `--estado` dicen `con_omisio
 otro `id_prefix` que el de training.json: restáuralo o usa otro `root`» (exit 1; antes que el mensaje de
 #183) y el rechazo del ensamblador empieza por esa misma frase. **`validation.json` ilegible (#191/#197).**
 Una versión cuyo `validation.json` no se puede leer por CUALQUIER causa PERMANENTE (`EACCES`/`EPERM` en
-POSIX, N6; JSON roto; JSON que no pasa el esquema; no es un fichero regular) no se sabe si es Gold: con
+POSIX, N6; JSON roto; JSON que no pasa el esquema; no es un fichero regular; enlace simbólico o duro compartido, que no se lee) no se sabe si es Gold: con
 la firma igual, la frescura es `con_omisiones` con «N versiones con validation.json ilegible: no se sabe
 si son Gold (revisa sus permisos y su contenido)» primero, nunca `al_dia`.
 **Referencias de la muestra (#189).** El lector de la marca valida cada `ref` de `omitidos_muestra`
