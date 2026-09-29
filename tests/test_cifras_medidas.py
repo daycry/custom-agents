@@ -67,7 +67,9 @@ SCRIPT = os.path.join(ROOT, "skills", "changelog-sync", "scripts", "changelog-sy
 
 # Ficheros donde vive alguna cifra de la escalera. Añadir uno aquí es la forma de meterlo en la
 # puerta; una cifra en un fichero que no esté en la lista no la vigila nadie (limitación honesta:
-# el test verifica lo MARCADO, no descubre copias sin marcar).
+# el test verifica lo MARCADO, no descubre copias sin marcar). Las dos de `docs/knowledge/` son
+# memoria LOCAL no versionada: sin la carpeta (CI) no existen y `_recorrer` las salta, así que sus
+# cifras fechadas solo se comprueban en local, donde la carpeta está.
 FICHEROS = [
     "skills/changelog-sync/references/medicion-escalera.md",
     "skills/changelog-sync/SKILL.md",

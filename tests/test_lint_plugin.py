@@ -412,6 +412,32 @@ def casos_citas_en_docs():
         assert "borrado.md" not in out and "/contacto" not in out, f"el registro no se escanea\n{out}"
 
 
+def caso_citas_memoria_local():
+    """60) `docs/knowledge/**` es memoria LOCAL no versionada de este repo (TOLERANCIA 6): una pieza
+    que cita `docs/knowledge/...` no avisa aunque la carpeta falte (CI, clon limpio), y si la
+    carpeta existe en local tampoco se escanea como citante — mismo veredicto con ella y sin ella.
+    El control negativo prueba que la tolerancia es de ESE prefijo, no un silencio general."""
+    cita = ("Ver `docs/knowledge/adr/ADR-099-inventada.md`, `docs/knowledge/README.md` y "
+            "`agent-kits/shared/no-existe.py`.\n")
+    salidas = []
+    for con_memoria in (False, True):
+        with tempfile.TemporaryDirectory() as tmp:
+            make_plugin(tmp, {"alpha": AGENT_OK.format(name="alpha")})
+            _escribe(tmp, "agents/alpha.md", AGENT_OK.format(name="alpha") + "\n" + cita)
+            _escribe(tmp, "docs/agents/alpha.md", cita)
+            if con_memoria:     # memoria local presente, con una cita rota DENTRO: no se escanea
+                _escribe(tmp, "docs/knowledge/candidates/pending/c.md", "Vi `agents/borrado.md`.\n")
+            code, out = run(tmp)
+            assert code == 0, out
+            assert "docs/knowledge/" not in out, \
+                f"una cita a la memoria local no es rot (con_memoria={con_memoria})\n{out}"
+            assert "borrado.md" not in out, f"la memoria local no se escanea como citante\n{out}"
+            assert out.count("agent-kits/shared/no-existe.py") == 2, \
+                f"el resto de rutas rotas sigue avisando\n{out}"
+            salidas.append(sorted(l for l in out.splitlines() if "que no existe" in l))
+    assert salidas[0] == salidas[1], f"mismo veredicto de citas con y sin la carpeta\n{salidas}"
+
+
 def casos_cita_de_comando_con_argumento():
     """56) La forma CANONICA de citar un comando en este repo es `/comando <argumento>` (gap B-8).
     El filtro de plantillas la descartaba entera, asi que las citas BIEN escritas eran justo las
@@ -1046,11 +1072,12 @@ dependencies:
     caso_citas_comandos_exit_resume()
     casos_matriz_contratos()
     casos_citas_en_docs()
+    caso_citas_memoria_local()
     casos_cita_de_comando_con_argumento()
     casos_matriz_fila_en_negrita()
     casos_tolerancias_caducadas()
 
-    print("test_lint_plugin: 59/59 OK")
+    print("test_lint_plugin: 60/60 OK")
 
 
 if __name__ == "__main__":

@@ -9,6 +9,10 @@ and versioning follows [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- The plugin repository's own technical memory (`docs/knowledge/`) is no longer versioned; the tests that relied on it now use synthetic fixtures, and the linter treats citations to it as local memory.
+
 ## [1.22.0] - 2026-09-28
 
 ### Fixed — `knowledge-services` (2026-09-26)

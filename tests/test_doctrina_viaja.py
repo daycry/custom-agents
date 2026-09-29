@@ -3,10 +3,10 @@
 Fase 5: T-15 assets · T-16 `knowledge-find.py --doctrina` + prompt del `evaluator`; spec CA-21/CA-22).
 
 Doctrina = lo que es cierto para CUALQUIER proyecto que use estos agentes (hoy: las 9 lecciones de
-«Estimación / calibración», `LES-001…009`). Vive UNA vez como memoria de este repo (`docs/knowledge/lessons/`)
-y viaja como copia byte a byte en `agent-kits/evaluator/assets/doctrina/` — la copia es inevitable porque
-`docs/` no llega a una instalación «copiar como `.claude/`»; este test es lo que la mantiene idéntica (mismo
-patrón que `tests/test_ci_manual_copy.py` con los `.MANUAL-COPY`). La memoria del PROYECTO consumidor
+«Estimación / calibración», `LES-001…009`). La copia VERSIONADA es `agent-kits/evaluator/assets/doctrina/`;
+su original vive en la memoria de este repo (`docs/knowledge/lessons/`), que es SOLO LOCAL (no se versiona).
+Donde existe, `test_la_doctrina_sigue_identica_a_la_memoria_local_de_este_repo` la mantiene idéntica; sin
+ella (CI) ese test se salta con motivo y el comprobador de copias se prueba sobre un árbol sintético. La memoria del PROYECTO consumidor
 (`docs/knowledge/`) no se toca: `--doctrina` lee los assets, y sin la bandera un proyecto sin memoria da 0.
 
 Ejecutar: python3 -m pytest -q tests/test_doctrina_viaja.py
@@ -79,24 +79,27 @@ def test_son_exactamente_las_nueve_lecciones_de_estimacion():
 
 
 def test_una_sola_fuente_las_copias_son_byte_a_byte_y_el_comprobador_caza_divergencias(tmp_path):
-    assert diferencias(DOCTRINA, LESSONS) == []
-    if shutil.which("git"):     # la igualdad que de verdad VIAJA: el blob del índice, no los bytes del disco
-        for fn in ficheros_doctrina():
-            r = subprocess.run(["git", "rev-parse", f":agent-kits/evaluator/assets/doctrina/{fn}",
-                                f":docs/knowledge/lessons/{fn}"], cwd=ROOT, capture_output=True, text=True,
-                               encoding="utf-8", errors="replace")
-            if r.returncode == 0:
-                blob_doctrina, blob_original = r.stdout.split()
-                assert blob_doctrina == blob_original, f"{fn}: los blobs difieren en el índice de git"
+    """El comprobador de copias sobre un árbol SINTÉTICO: corre siempre, también en CI. La igualdad con la
+    memoria real de este repo (solo local) la vigila el test siguiente, donde esa memoria existe."""
     d, l = tmp_path / "doctrina", tmp_path / "lessons"
     d.mkdir()
     l.mkdir()
     (l / "LES-001-x.md").write_bytes(b"a\n")
     (d / "LES-001-x.md").write_bytes(b"a\n")
+    assert diferencias(str(d), str(l)) == []
+    (l / "LES-001-x.md").write_bytes(b"a\r\n")         # CRLF frente a LF no es divergencia (autocrlf)
+    assert diferencias(str(d), str(l)) == []
     (d / "LES-002-y.md").write_bytes(b"b\n")
     assert diferencias(str(d), str(l)) == [("LES-002-y.md", "sin original")]
     (d / "LES-001-x.md").write_bytes(b"A\n")
     assert ("LES-001-x.md", "difiere") in diferencias(str(d), str(l))
+
+
+@pytest.mark.skipif(not os.path.isdir(LESSONS),
+                    reason="docs/knowledge/ es memoria local de este repo, no versionada: sin ella no hay "
+                           "original con el que comparar la doctrina (el comprobador se prueba en sintético)")
+def test_la_doctrina_sigue_identica_a_la_memoria_local_de_este_repo():
+    assert diferencias(DOCTRINA, LESSONS) == []
 
 
 def test_el_criterio_de_doctrina_esta_escrito_y_aplicado_entrada_por_entrada():
@@ -139,16 +142,22 @@ def test_ca21_doctrina_en_un_proyecto_sin_memoria_y_la_memoria_sigue_naciendo_va
     assert sorted(os.listdir(proj)) == ["src"]
 
 
-def test_doctrina_y_memoria_del_proyecto_no_se_mezclan_en_este_repo():
-    rc, out, _ = run("--doctrina", "--area", "estimacion", "--limit", "0")
+def test_doctrina_y_memoria_del_proyecto_no_se_mezclan_en_este_repo(tmp_path):
+    """El proyecto es una copia de la memoria SINTÉTICA del fixture de evals (1 lección de «Estimación /
+    calibración» + 1 gotcha), no la de este repo: esa es solo local y en CI no existe."""
+    proj = tmp_path / "proj"
+    shutil.copytree(os.path.join(ROOT, "evals", "fixtures", "project", "docs", "knowledge"),
+                    proj / "docs" / "knowledge")
+    raiz = ("--root", str(proj))
+    rc, out, _ = run("--doctrina", "--area", "estimacion", "--limit", "0", *raiz)
     lineas = [l for l in out.splitlines() if l.strip()]
     assert rc == 0 and len(lineas) == 9 and all("doctrina/" in l and "lessons/" not in l for l in lineas)
-    rc, out2, _ = run("--area", "estimacion", "--tipo", "lesson", "--limit", "0")
+    rc, out2, _ = run("--area", "estimacion", "--tipo", "lesson", "--limit", "0", *raiz)
     lineas2 = [l for l in out2.splitlines() if l.strip()]
-    assert rc == 0 and len(lineas2) >= 9 and all("lessons/" in l and "doctrina/" not in l for l in lineas2)
-    rc, out3, _ = run("--doctrina", "--json", "--limit", "0")
+    assert rc == 0 and len(lineas2) == 1 and all("lessons/" in l and "doctrina/" not in l for l in lineas2)
+    rc, out3, _ = run("--doctrina", "--json", "--limit", "0", *raiz)
     assert json.loads(out3)["corpus"] == "doctrina"
-    rc, out4, _ = run("--json", "--area", "estimacion", "--limit", "1")
+    rc, out4, _ = run("--json", "--area", "estimacion", "--limit", "1", *raiz)
     d4 = json.loads(out4)
     assert d4["corpus"] == "proyecto" and d4["aciertos"][0]["origen"] == "proyecto"
 
