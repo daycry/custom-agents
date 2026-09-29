@@ -9,6 +9,10 @@ y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Cambiado
+
+- La memoria técnica del propio repositorio del plugin (`docs/knowledge/`) deja de versionarse; los tests que dependían de ella usan fixtures sintéticos y el linter trata sus citas como memoria local.
+
 ## [1.22.0] - 2026-09-28
 
 ### Fixed — `knowledge-services` (2026-09-26)
