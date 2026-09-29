@@ -1,11 +1,12 @@
 ---
+estado: completado
 verificacion: obligatoria
 changelog: added         # skill nueva: sin esto, «regresion» (titulo de T-11) casaria con Fixed (#151)
 ---
 
 # Checklist de Tareas - Captura de casos y dataset
 
-| **Estado** | en-progreso |
+| **Estado** | completado |
 |---|---|
 | **Plan** | [improvement-plan.md](improvement-plan.md) |
 | **Diseno** | [design.md](design.md), O1 |
@@ -19,8 +20,8 @@ changelog: added         # skill nueva: sin esto, «regresion» (titulo de T-11)
 | Fase 1 - Config, redaccion compartida y capacidad | 3 | 3 | 100% (revisión cerrada en el intento 3; fix3 verificada por el orquestador) | 0 / 6.5h | 5.25 / 2.0h | 0 / 0.5h | ~180.8k out (37.8k + 17.3k + 14.4k + fix2 63.2k + fix3 48.1k; fix1 sin cifra de tokens: marcador cerrado en otra máquina sin pegar su salida) / 85k (T-01 0.22h · T-02 0.12h · T-03 0.07h · fix1 2.87h reloj incl. corte de sesión · fix2 1.09h · fix3 0.88h) |
 | Fase 2 - Recorder y puerta humana | 3 | 3 | 100% (3 intentos + 6 rondas fixN con verificación dirigida; 113 gaps cerrados) | 0 / 8h | 34.88 / 2.4h | 0 / 0.6h | ~1463.5k out (T-04 43.9k + T-05 16.1k + T-06 32.8k · fix1 165.2k · fix2 233.0k · fix3 227.1k · fix4 184.0k · fix4-bis 173.5k · fix5 272.8k · fix6 115.1k) / 120k (T-04 0.20h · T-05 0.07h · T-06 0.16h · fix1 1.32h · fix2 2.18h · fix3 7.22h · fix4 5.20h · fix4-bis 6.77h reloj incl. corte 429 · fix5 9.63h · fix6 2.13h) |
 | Fase 3 - Dedup, particion y ensamblador | 3 | 3 | 100% (intento 1 + D-f3 revisado antes + fix1/fix2 con verificación dirigida; #114-#147 cerrados) | 0 / 14h | 27.08 / 4.2h | 0 / 1.1h | ~784.8k out (T-07 35.7k + T-08 11.2k + T-09 101.4k · fix1 419.0k · fix2 217.5k) / 210k (T-07 0.17h · T-08 0.06h · T-09 5.86h reloj incl. ~2 días de corte · fix1 14.14h · fix2 6.85h) |
-| Fase 4 - Setup, doctor y cierre | 1 | 2 | 50% (T-10 completado tras 3 intentos + fix3/fix4 con verificación dirigida; T-11 pendiente de qa, documenter, 4-bis, changelog y retro) | 0 / 11h | 35.70 / 3.3h | 0 / 0.8h | ~1099.1k out (T-10 116.0k + T-11 16.7k · fix1 182.0k · fix2 367.0k · fix3 196.9k · fix4 220.5k) / 160k (T-10 4.09h · T-11 2.87h · fix1 8.92h · fix2 7.94h · fix3 6.59h · fix4 5.29h) |
-| **TOTAL** | **10** | **11** | **91%** | **0 / 39.5h** | **102.91 / 11.9h** | **0 / 3.0h** | **~3528.0k out / 575k** |
+| Fase 4 - Setup, doctor y cierre | 2 | 2 | 100% (T-10 tras 3 intentos + fix3/fix4 con verificación dirigida; T-11 con qa sin UI, documenter y 4-bis; #197 diferido) | 0 / 11h | 35.70 / 3.3h | 0 / 0.8h | ~1099.1k out (T-10 116.0k + T-11 16.7k · fix1 182.0k · fix2 367.0k · fix3 196.9k · fix4 220.5k) / 160k (T-10 4.09h · T-11 2.87h · fix1 8.92h · fix2 7.94h · fix3 6.59h · fix4 5.29h) |
+| **TOTAL** | **11** | **11** | **100%** | **0 / 39.5h** | **102.91 / 11.9h** | **0 / 3.0h** | **~3528.0k out / 575k** |
 
 ## Fase 1 - Config, redaccion compartida y capacidad
 
@@ -290,7 +291,7 @@ changelog: added         # skill nueva: sin esto, «regresion» (titulo de T-11)
 - [x] Sin `training.json`, `/doctor` no reporta nada de esta capacidad; con el, informa sin bloquear. (tests `test_t10_sin_training_json_doctor_no_reporta_nada_de_la_capacidad`, `test_t10_training_desactivado_con_fichero_es_informativo`, `test_t10_training_activo_informa_recuento_y_dataset_sin_bloquear`, `test_t10_training_config_invalida_es_error_con_fichero_y_campo`, `test_t10_training_doctor_informa_root_recuento_por_estado_y_dataset`, `test_t10_training_doctor_recuento_parcial_declara_el_tope`, `test_t10_training_doctor_un_fallo_del_recuento_no_tumba_nada`, `test_t10_training_doctor_no_escribe_nada`, `test_t10_resumen_cuenta_por_estado_desde_cases_nunca_desde_el_indice`, `test_t10_resumen_se_acota_en_tiempo_y_lo_declara`, `test_t10_estado_dataset_al_dia_y_luego_desactualizado_por_un_gold_nuevo`, `test_t10_setup_ofrece_training_desde_la_plantilla_sin_activar_el_puente`, `test_t10_doctor_py_no_nombra_ninguna_capacidad_concreta`)
 
 ### T-11 - Aislamiento, regresion, interop y cierre
-- **Estado**: en-progreso
+- **Estado**: completado
 - **Tiempo humano**: est. 7h · real -
 - **Tiempo IA**: real 2.87h (medido; usage-meter `training-data-services/T-11`, 44m de reloj, 16.7k out tok, 10.89 EUR; implementer `opus`) — la redaccion inicial de `tests/test_training_data_services.py` y del bloque de `tests/test_hooks_shell.py` quedo medida dentro de T-10 (ver su nota); esta cifra cubre mutantes, puertas, Linux y el cierre documental
 - **Prevision IA**: 65k in / 25k out tok
@@ -309,7 +310,7 @@ changelog: added         # skill nueva: sin esto, «regresion» (titulo de T-11)
 - **Nota**: hecho por el implementer (lo de codigo, tests y docs): `tests/test_training_data_services.py` (nuevo, con `main()` para el bucle `python tests/test_*.py` de la CI): binarios inline (caso y export), solo Gold humano atado (`content_hash`) aunque el indice mienta, `root` en `docs/knowledge/` rechazado, nada de `docs/knowledge/` abierto por recorder/ensamblador (espia de `open`/`os.open`/`scandir`/`listdir`) ni texto curado en el store, CA-01 (capabilities, `/doctor` y `knowledge-find` identicos sin `training.json` y con `enabled: false`; ningun script de `agent-kits/shared/` salvo `capabilities.py` nombra `training.json`), CA-08 (sin `subprocess`/red/entrenadores en la skill), CA-04 (`metrics` opaco) y la Puerta de E20-E24 en `CONTRACTS.md` casando con los tests actuales (tras fix1/fix2 de la Fase 3 las cinco casan: E20 `test_training_valida_con_el_esquema_de_la_skill` + `test_f1fix1_gap02_*`, E21/E22 por fichero, E23 `-k taxonomia` + sus dos tests, E24 nueva de T-10); `tests/test_hooks_shell.py`: ningun hook ni script que invoquen nombra el case store o abre red, y todos los eventos con la capacidad activa dejan el store byte a byte igual. Adelantados y COMPROBADOS (no rehechos): #94 (`ci.yml.MANUAL-COPY` y `.github/workflows/ci.yml` con `skills/training-data-services/scripts`, `tests/test_ci_skill_suites.py`, `markdown_export.py` con `casefold`, nota en el ledger de knowledge-services) y #129 (filas de la skill en `CLAUDE.md`, `docs/README.md`, `docs/en/README.md`); (fix2, #175) en `CHANGELOG.md` y `CHANGELOG.es.md` de esta rama solo queda la entrada `Fixed` de #139 (redaccion de la forma JSON `"password": "…"`): la de `markdown-export` (#94) se retiro en fix1 (#150) porque ya se publico en `master` v1.22.0 (entro por `graphiti-memory`), asi que al fusionar `master` ya no queda duplicada; solo `markdown_export.py` puede dar un conflicto trivial (el mismo `casefold`). Las entradas de la iniciativa las genera `changelog-sync` al cerrar desde el campo `Changelog` de T-01..T-11 (todas lo tienen; el de T-11 nombra ya lo nuevo de #94 en la CI, #174) y el test de #150 es invariante al cierre (#166). PENDIENTE (del orquestador, criterio de la tarea): revision de dos lentes de la Fase 4, QA sin UI, retro y `retro-gate.py`; por eso la tarea sigue `en-progreso` y el criterio sin marcar
 - **Changelog**: Isolation tests guarantee only human-approved Gold reaches the dataset and hooks never touch the case store; CI now also runs the training-data-services and knowledge-services test suites.
 **Criterios de aceptación**
-- [ ] Suite completa en verde; revision de dos lentes sin gaps Critical/Important; QA sin UI verde; retro abre `retro-gate.py`. (parte del implementer hecha: suite completa sin rojos nuevos en Windows y Linux; faltan la revision de dos lentes, QA sin UI y la retro con `retro-gate.py`, del orquestador)
+- [x] Suite completa en verde; revision de dos lentes sin gaps Critical/Important; QA sin UI verde; retro abre `retro-gate.py`. (suite: Linux `python:3.11-slim` tras el merge de master 3631 passed, 0 failed; Windows sin rojos nuevos frente a master · revision: intento 3 + verificacion dirigida de fix3 y fix4 sin Critical/Important, #197 diferido al backlog por la regla P5=b de sdd-proporcional · QA sin UI: `testing/report.md`, 12/12 CA con test ejecutado, ℹ️ sin UI por diseno · retro: paso 8 de la Fase 6, `retro-gate.py` es la puerta de la spec `implementada`)
 
 ## Revisión de dos lentes — intento 1: Fase 1 (T-01, T-02, T-03) — 14 gaps (0 Critical, 2 Important, 12 Minor), lentes A+B+D (D por `review-lens-select.py`: `regex-en-bucle` en `case_schema.py:129`, resultó falso positivo; C no aplica), rango `bab4fb5..ef4841f`
 
