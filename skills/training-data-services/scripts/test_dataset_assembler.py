@@ -2452,3 +2452,23 @@ def test_t10fix3_n9_con_omisiones_exit_1_texto_y_ayudas(tmp_path, capsys):
         asm.main(["--help"])
     ayuda = capsys.readouterr().out
     assert "con omisiones" in " ".join(ayuda.split()) and "con omisiones" in asm.__doc__, ayuda
+
+
+def test_t10fix3_186_cada_cargador_de_la_skill_carga_sin_bytecode_y_restaura(tmp_path, monkeypatch):
+    """#186 (el mutante que el test estatico no veia): CADA cargador por ruta de la skill —el del
+    ensamblador, el del recorder (`_cargar_por_ruta`, tambien `cargar_redact`) y el del puente— ejecuta
+    el modulo con `sys.dont_write_bytecode` = True y lo deja como estaba al salir, aunque se le llame
+    directamente (sin otro cargador por encima que ya lo hubiera puesto)."""
+    for nombre in ("espia.py", "redact.py"):
+        (tmp_path / nombre).write_text("import sys\nVISTO = sys.dont_write_bytecode\n", encoding="utf-8")
+    pfc = _load("propose-from-case.py", "tds_pfc_186")
+    espia = str(tmp_path / "espia.py")
+    monkeypatch.setattr(sys, "dont_write_bytecode", False)
+    cargadores = {"asm._cargar": lambda: asm._cargar(espia, "tds_espia_asm"),
+                  "rec._cargar_por_ruta": lambda: rec._cargar_por_ruta("tds_espia_rec", espia),
+                  "rec.cargar_redact": lambda: rec.cargar_redact([str(tmp_path)]),
+                  "pfc._cargar": lambda: pfc._cargar(espia, "tds_espia_pfc")}
+    for que, cargar in cargadores.items():
+        mod = cargar()
+        assert mod.VISTO is True, que
+        assert sys.dont_write_bytecode is False, que
