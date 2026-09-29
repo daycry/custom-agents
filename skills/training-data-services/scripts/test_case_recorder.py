@@ -1592,6 +1592,7 @@ def test_f2fix1_gap50_m14_reintentos_acotados(tmp_path, monkeypatch):
         rec._reemplazar("a", "b")
     assert len(llamadas) == rec.REINTENTOS
     monkeypatch.undo()
+    monkeypatch.setattr(rec, "_PERMISOS_PERMANENTES", False)   # N6 (fix3): el `undo` de arriba tambien lo quita
     monkeypatch.setattr(rec.time, "sleep", lambda _s: None)
     llamadas.clear()
     monkeypatch.setattr(rec, "open", siempre, raising=False)
