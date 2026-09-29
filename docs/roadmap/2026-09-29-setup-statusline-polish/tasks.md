@@ -133,7 +133,7 @@ estado: borrador
 
 - **Descripción**: Reproducir el `$0,00` (coma decimal en `printf '%.2f'` bajo locale; redondeo) y arreglarlo con `LC_NUMERIC=C`; un coste positivo < 0,01 se muestra `<$0.01`, nunca como cero. Sin red ni subprocesos extra.
 - **Changelog**: La statusline muestra el coste de la sesión correctamente con cualquier locale.
-- **Estado**: borrador
+- **Estado**: completado
 - **Prioridad**: Alta
 - **Tiempo humano**: est. 1.2h · real —
 - **Tiempo IA (ejec.)**: est. 0.27h · real —
@@ -147,17 +147,21 @@ estado: borrador
   - `python3 -m pytest -q tests/test_hooks_shell.py -k statusline_coste` -> passed (0,42 con locale de coma -> `$0.42`; 0,004 -> `<$0.01`) (CA-05)
   - `bash -n statusline/roadmap-statusline.sh` -> exit 0
 
+- **Evidencia**:
+  RED: test_statusline_coste_con_locale_de_coma_decimal_sigue_siendo_punto (LC_ALL=de_DE.utf8) falló con `0,00` en vez de `$0.42`; test_statusline_coste_pequeno_positivo_[0.004 y 0.0001] fallaron con `$0.00` · 2026-09-29
+  GREEN: `pytest tests/test_hooks_shell.py -k statusline` -> 9 passed; `bash -n statusline/roadmap-statusline.sh` -> exit 0. Sin locale de coma instalado (CI mínimo) el test de locale se omite con aviso.
+
 **Criterios de aceptación**
 
-- [ ] Con coste 0,42 y locale de coma decimal la salida contiene `$0.42` (CA-05).
-- [ ] Un coste positivo menor de 0,01 no se muestra como `$0.00`.
-- [ ] Si el locale de coma no existe en CI, el test lo simula o se omite con aviso (no falla en falso).
+- [x] Con coste 0,42 y locale de coma decimal la salida contiene `$0.42` (CA-05).
+- [x] Un coste positivo menor de 0,01 no se muestra como `$0.00`.
+- [x] Si el locale de coma no existe en CI, el test lo simula o se omite con aviso (no falla en falso).
 
 **Subtareas**
 
-- [ ] Test rojo que reproduce el defecto.
-- [ ] Aplicar `LC_NUMERIC=C` y el formato `<$0.01`.
-- [ ] Comprobar salida idéntica en el resto de casos.
+- [x] Test rojo que reproduce el defecto.
+- [x] Aplicar `LC_NUMERIC=C` y el formato `<$0.01`.
+- [x] Comprobar salida idéntica en el resto de casos.
 
 **Notas**: Criterio de la spec: CA-05.
 

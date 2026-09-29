@@ -55,11 +55,16 @@ out=""
 [ -n "$model" ] && out="[$model]"
 # Coste y contexto solo si son numéricos (un valor raro se omite, no se imprime a medias).
 if printf '%s' "$cost" | grep -qE '^[0-9]+([.][0-9]+)?$'; then
-  cost_fmt="$(printf '%.2f' "$cost" 2>/dev/null)"
-  [ -n "$cost_fmt" ] && out="${out:+$out }\$${cost_fmt}"
+  cost_fmt="$(LC_ALL=C printf '%.2f' "$cost" 2>/dev/null)"
+  # C-03: un coste positivo por debajo del céntimo no se muestra como $0.00.
+  if [ "$cost_fmt" = "0.00" ] && printf '%s' "$cost" | grep -qE '[1-9]'; then
+    out="${out:+$out }<\$0.01"
+  elif [ -n "$cost_fmt" ]; then
+    out="${out:+$out }\$${cost_fmt}"
+  fi
 fi
 if printf '%s' "$ctx" | grep -qE '^[0-9]+([.][0-9]+)?$'; then
-  ctx_int="$(printf '%.0f' "$ctx" 2>/dev/null)"
+  ctx_int="$(LC_ALL=C printf '%.0f' "$ctx" 2>/dev/null)"
   [ -n "$ctx_int" ] && out="${out:+$out }ctx ${ctx_int}%"
 fi
 

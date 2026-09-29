@@ -1027,6 +1027,44 @@ def test_statusline_json_oficial_una_linea_con_modelo_coste_y_roadmap(tmp_path):
     assert "📋 demo T-03/4" in lineas[0], out
 
 
+def _locale_coma():
+    """Un locale con coma decimal instalado en esta máquina, o None (en CI mínimo no hay)."""
+    try:
+        r = subprocess.run(["locale", "-a"], capture_output=True, text=True, timeout=10)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    for nombre in r.stdout.split():
+        if nombre.lower().startswith(("de_de", "es_es", "fr_fr")):
+            chk = subprocess.run([BASH, "-c", 'printf "%.1f" 0.5'], capture_output=True, text=True,
+                                 env={**os.environ, "LC_ALL": nombre})
+            if "," in chk.stdout:  # 0.5 no es número válido y sale `0,0`: locale de coma activo
+                return nombre
+    return None
+
+
+def test_statusline_coste_con_locale_de_coma_decimal_sigue_siendo_punto(tmp_path):
+    """C-03 / CA-05: `printf '%.2f' 0.42` bajo un locale de coma daba `0,00` (invalid number)."""
+    loc = _locale_coma()
+    if loc is None:
+        pytest.skip("aviso: no hay locale de coma decimal instalado; la regresión no es simulable aquí")
+    proj, _ = proyecto(tmp_path, activa=False)
+    env = env_de(proj, tmp_path)
+    env["LC_ALL"] = loc
+    env.pop("LANG", None)
+    payload = {"model": {"display_name": "Opus"}, "cost": {"total_cost_usd": 0.42}}
+    rc, out, _ = hook("statusline", payload, env)
+    assert rc == 0 and "$0.42" in out and "0,00" not in out, out
+
+
+@pytest.mark.parametrize("coste, esperado", [(0.004, "<$0.01"), (0.0001, "<$0.01"), (0.42, "$0.42"),
+                                             (0.01, "$0.01"), (0, "$0.00"), (12.345, "$12.35")])
+def test_statusline_coste_pequeno_positivo_nunca_se_muestra_como_cero(tmp_path, coste, esperado):
+    proj, _ = proyecto(tmp_path, activa=False)
+    payload = {"model": {"display_name": "Opus"}, "cost": {"total_cost_usd": coste}}
+    rc, out, _ = hook("statusline", payload, env_de(proj, tmp_path))
+    assert rc == 0 and out.startswith("[Opus] " + esperado), (coste, out)
+
+
 def test_statusline_stdin_vacio_exit_0(tmp_path):
     proj, _ = proyecto(tmp_path, activa=False)
     rc, out, _ = hook("statusline", "", env_de(proj, tmp_path))
