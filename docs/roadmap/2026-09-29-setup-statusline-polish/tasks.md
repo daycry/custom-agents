@@ -205,7 +205,7 @@ estado: borrador
 
 - **Descripción**: `_scan_leer_eval` acepta `Coste`/`Esfuerzo humano` (histórico) y `Tiempo humano`/`Coste humano a N EUR/h`/`Coste humano (N EUR/h)`, y recurre a `estado:` del frontmatter cuando no hay fila `Estado`. CA-07 revisado: `graphiti-memory` no tiene tabla de coste; el lector devuelve nulo para coste y esfuerzo con un aviso explícito que nombra la evaluación (no parsea prosa ni reescribe el registro). Ojo con «1,300 EUR» (coma de miles): no reutilizar `_num()` a ciegas.
 - **Changelog**: El dashboard vuelve a mostrar coste y esfuerzo de las evaluaciones recientes y avisa cuando una no tiene tabla.
-- **Estado**: borrador
+- **Estado**: completado
 - **Prioridad**: Media
 - **Tiempo humano**: est. 3.6h · real —
 - **Tiempo IA (ejec.)**: est. 0.90h · real —
@@ -219,19 +219,24 @@ estado: borrador
   - `python3 -m pytest -q tests/test_dashboard.py` -> passed, con un caso por variante de etiqueta (`Tiempo humano`, `Coste humano a N EUR/h`, `Coste humano (N EUR/h)`, histórica) (CA-07)
   - `python3 skills/roadmap-dashboard/scripts/build_dashboard.py --json` sobre este repo -> 4 de las 5 evaluaciones afectadas con coste y esfuerzo no nulos; `graphiti-memory` nulo con aviso nominal
 
+- **Evidencia**:
+  RED: `python tests/test_dashboard.py` -> FALLO: variante Tiempo humano: esperado '39.5h (33h base +20%)', obtenido None · 2026-09-29
+  GREEN: `python tests/test_dashboard.py` -> OK (3 iniciativas, 1 aviso esperado). Variantes cubiertas: histórica, `Tiempo humano`, `Coste humano a N EUR/h`, `Coste humano (N EUR/h)`, estado por frontmatter, sin tabla (nulo + aviso nominal).
+  build_dashboard.py --root docs/roadmap --json: knowledge-services, training-data-services y setup-statusline-polish con coste y esfuerzo no nulos y eval_estado=completado; graphiti-memory nulo + aviso «2026-09-15-graphiti-memory: evaluation.md presente pero no se leyeron coste, esfuerzo». (Hoy 3 de las 4 con tabla son afectadas por las etiquetas nuevas; las históricas ya se leían.) El aviso «no se leyeron eval_estado…» desapareció.
+
 **Criterios de aceptación**
 
-- [ ] Cada variante de etiqueta tiene su test (CA-07 revisado).
-- [ ] Las 4 evaluaciones con tabla aportan coste y esfuerzo no nulos; `graphiti-memory` da nulo + aviso nominal, sin excepción.
-- [ ] El estado se lee del frontmatter si no hay fila `Estado`; el aviso «no se leyeron eval_estado…» desaparece.
-- [ ] «1,300 EUR» (coma de miles) no se lee como 1,3.
+- [x] Cada variante de etiqueta tiene su test (CA-07 revisado).
+- [x] Las 4 evaluaciones con tabla aportan coste y esfuerzo no nulos; `graphiti-memory` da nulo + aviso nominal, sin excepción.
+- [x] El estado se lee del frontmatter si no hay fila `Estado`; el aviso «no se leyeron eval_estado…» desaparece.
+- [x] «1,300 EUR» (coma de miles) no se lee como 1,3.
 
 **Subtareas**
 
-- [ ] Fixtures de cada variante.
-- [ ] Alias de etiquetas y lectura de frontmatter.
-- [ ] Aviso nominal para evaluaciones sin tabla.
-- [ ] Comprobar contra las 5 evaluaciones reales (solo lectura).
+- [x] Fixtures de cada variante.
+- [x] Alias de etiquetas y lectura de frontmatter.
+- [x] Aviso nominal para evaluaciones sin tabla.
+- [x] Comprobar contra las 5 evaluaciones reales (solo lectura).
 
 **Notas**: Criterio de la spec: CA-07 (revisado). Reescritura de CA-07 propuesta en el plan (sincronizar `spec.md`).
 

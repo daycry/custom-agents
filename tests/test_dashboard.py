@@ -23,6 +23,57 @@ def contains(text, needle, msg):
     assert needle in text, f"{msg}: no contiene {needle!r}"
 
 
+def _eval_variantes():
+    """C-05 / CA-07: las dos familias de etiquetas de evaluation.md + estado por frontmatter."""
+    import tempfile
+    import shutil
+    tmp = tempfile.mkdtemp(prefix="dash-eval-")
+
+    def crear(slug, fm_estado, filas):
+        d = os.path.join(tmp, slug)
+        os.makedirs(d)
+        with open(os.path.join(d, "spec.md"), "w", encoding="utf-8") as f:
+            f.write("---\nestado: aprobada\n---\n\n# Spec\n")
+        cuerpo = "---\nevaluation: x\n" + (f"estado: {fm_estado}\n" if fm_estado else "") + "---\n\n# Eval\n\n"
+        if filas is not None:
+            cuerpo += "| Metrica | Estimado | Confianza |\n|---|---:|---|\n" + "\n".join(filas) + "\n"
+        else:
+            cuerpo += "Estimacion en prosa: 50h humanas, 545k tokens. Sin tabla.\n"
+        with open(os.path.join(d, "evaluation.md"), "w", encoding="utf-8") as f:
+            f.write(cuerpo)
+
+    try:
+        crear("2026-09-01-historica", None, ["| **Estado** | completado |", "| Esfuerzo humano | **12 h** | Alta |",
+                                             "| Coste | **~605 EUR** | Alta |"])
+        crear("2026-09-02-nueva-a", "completado", ["| Tiempo humano | 39.5h (33h base +20%) | Media |",
+                                                   "| Coste humano a 50 EUR/h | 1,975 EUR - antes 2,050 EUR | Media |"])
+        crear("2026-09-03-nueva-b", "completado", ["| Tiempo humano | 56h | Media |",
+                                                   "| Coste humano (50 EUR/h) | 1,300 EUR | Media |"])
+        crear("2026-09-04-sin-tabla", "completado", None)
+        by = {r["slug"]: r for r in bd.scan(tmp)}
+        h = by["2026-09-01-historica"]
+        eq((h["eval_estado"], h["coste"], h["esfuerzo"]), ("completado", "~605 EUR", "12 h"), "variante historica")
+        a = by["2026-09-02-nueva-a"]
+        eq(a["esfuerzo"], "39.5h (33h base +20%)", "variante Tiempo humano")
+        eq(a["coste"], "1,975 EUR - antes 2,050 EUR", "variante Coste humano a N EUR/h (coma de miles intacta)")
+        eq(a["eval_estado"], "completado", "estado desde el frontmatter si no hay fila Estado")
+        b = by["2026-09-03-nueva-b"]
+        eq(b["coste"], "1,300 EUR", "variante Coste humano (N EUR/h): 1,300 no se lee como 1,3")
+        eq(b["esfuerzo"], "56h", "esfuerzo de la variante b")
+        st = by["2026-09-04-sin-tabla"]
+        eq((st["coste"], st["esfuerzo"], st["eval_estado"]), (None, None, "completado"), "sin tabla: nulo, sin excepcion")
+        warns = bd.warnings_for(list(by.values()))
+        assert any("2026-09-04-sin-tabla" in w and "coste" in w for w in warns), f"aviso nominal esperado: {warns}"
+        assert not any("eval_estado" in w for w in warns), f"el estado se lee del frontmatter: {warns}"
+        assert not any("nueva-a" in w or "nueva-b" in w or "historica" in w for w in warns), warns
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def test_evaluaciones_con_las_dos_familias_de_etiquetas():
+    _eval_variantes()
+
+
 def run():
     inits = bd.scan(FIX)
     by = {r["slug"]: r for r in inits}
@@ -238,6 +289,7 @@ def run():
     assert any("2026-01-12-beta" in w and "aprobada" in w for w in warns), \
         f"se esperaba un aviso de incoherencia para beta; avisos={warns}"
 
+    _eval_variantes()
     print(f"OK: {len(inits)} iniciativas, {len(warns)} aviso(s) esperado(s). Todo pasa.")
 
 
