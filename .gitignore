@@ -106,3 +106,6 @@ CONTINUE-HERE.local.md
 # La doctrina que viaja con el plugin está en `agent-kits/evaluator/assets/doctrina/`.
 # Anclada a la raíz: el fixture de evals conserva su propio docs/knowledge/ versionado.
 /docs/knowledge/
+# Traspaso de sesion (CONTINUE-HERE): solo local, acumula rutas y datos de la maquina.
+/CONTINUE-HERE.md
+/CONTINUE-HERE.local.md
