@@ -340,3 +340,29 @@ def test_evaluar_modulo_ausente_sigue_dando_exit_2_no_disponible():
         cg.subprocess.run = real
     assert res["exit"] == 2 and "no está disponible" in res["aviso"]
 
+
+
+def test_sondear_herramienta_stacks_no_pytest_y_desconocido(monkeypatch=None):
+    d = tempfile.mkdtemp(prefix="cg-")
+    real_which = cg.shutil.which
+    try:
+        cg.shutil.which = lambda nombre: "/x/" + nombre
+        assert cg.sondear_herramienta("jest", d) == "disponible"
+        assert cg.sondear_herramienta("vitest", d) == "disponible"
+        assert cg.sondear_herramienta("phpunit", d) == "disponible"
+        assert cg.sondear_herramienta("go", d) == "disponible"
+        cg.shutil.which = lambda nombre: None
+        for stack in ("jest", "vitest", "phpunit", "go", "desconocido"):
+            assert cg.sondear_herramienta(stack, d) == "ausente", stack
+    finally:
+        cg.shutil.which = real_which
+
+
+def test_sondear_herramienta_pytest_oserror_es_ausente():
+    fake, _ = _sonda_falsa([OSError("sin python")])
+    real = cg.subprocess.run
+    cg.subprocess.run = fake
+    try:
+        assert cg.sondear_herramienta("pytest", ".") == "ausente"
+    finally:
+        cg.subprocess.run = real
