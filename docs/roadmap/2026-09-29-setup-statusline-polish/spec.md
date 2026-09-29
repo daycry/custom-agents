@@ -7,7 +7,7 @@ creado: 2026-09-29
 actualizado: 2026-09-29
 evaluacion: evaluation.md
 design: n/a
-plan: pendiente
+plan: improvement-plan.md
 generacion:
   inicio: 2026-09-29T18:47:03Z
   fin: 2026-09-29T18:49:02Z
@@ -20,7 +20,7 @@ generacion:
 # setup-statusline-polish — pulido de setup, statusline y puertas
 
 > **Evaluación:** [`evaluation.md`](evaluation.md) (en-revision · go condicionado · ≈ 2.729 € de referencia humana, ≈ 266 € ejecutando con agentes)
-> **Plan de implementación:** pendiente
+> **Plan de implementación:** [`improvement-plan.md`](improvement-plan.md)
 
 > **Terminología:** *stack* = carpeta local del stack de grafos de conocimiento del usuario (`<stack>/`). *Iniciativa en curso* = la iniciativa en la que se trabaja ahora, distinta de «activa» (cualquier ledger no completado). `id_prefix` = clave de `taxonomy.json` que prefija los `knowledge_id`.
 
@@ -115,7 +115,7 @@ Se reutilizan `usage-meter.py` (marcador abierto), `knowledge-schema.py` (`id_pr
 - [ ] [GWT] CA-04 — Dado una copia vieja del script bajo `~/.claude/jobs` y otra en el plugin instalado, Cuando el `find` de la statusline o el de `/setup` 5-bis resuelven la ruta, Entonces devuelven la del plugin o proyecto, nunca la temporal.
 - [ ] [GWT] CA-05 — Dado un coste de sesión de 0,42 con locale de coma decimal, Cuando se renderiza, Entonces muestra `$0.42`, no `$0,00`; un coste positivo menor de 0,01 no se muestra como cero engañoso.
 - [ ] [GWT] CA-06 — Dado `pytest_cov` instalado y un arranque lento del intérprete, Cuando corre `coverage-gate.py`, Entonces no informa «no disponible»; solo lo hace si el módulo falta de verdad (exit 2 con aviso, nunca un % inventado).
-- [ ] [GWT] CA-07 — Dadas las 5 `evaluation.md` afectadas, Cuando corre `build_dashboard.py`, Entonces cada una aporta coste y esfuerzo no nulos, y hay un test con una fila de cada variante de etiqueta (`Tiempo humano`, `Coste humano a N EUR/h` y las históricas).
+- [ ] [GWT] CA-07 — Dadas las 5 `evaluation.md` afectadas, Cuando corre `build_dashboard.py`, Entonces las 4 que tienen tabla de coste aportan coste y esfuerzo no nulos (con un test por variante de etiqueta: `Tiempo humano`, `Coste humano a N EUR/h`, `Coste humano (N EUR/h)` y las históricas), `graphiti-memory`, que no tiene tabla, devuelve nulo con un aviso que nombra la evaluación y sin excepción, y el estado se lee del frontmatter si no hay fila `Estado`.
 - [ ] CA-08 — El test de 200 upserts no depende del reloj: pasa igual con la máquina cargada y falla si la operación deja de ser lineal (aserción sobre número de operaciones o reloj inyectado). Se verifica ejecutándolo 20 veces en bucle sin fallos.
 - [ ] [GWT] CA-09 — Dado un `projects.yaml` reconocido sin el proyecto, Cuando se ejecuta el script y el usuario confirma, Entonces existe copia de seguridad, se añade exactamente un bloque con `root` = `export_dir` de `taxonomy.json` y el resto del fichero queda byte a byte igual.
 - [ ] [GWT] CA-10 — Dado el mismo proyecto ya presente con la misma `root`, Cuando se ejecuta de nuevo, Entonces no cambia nada (idempotente) y lo dice.
