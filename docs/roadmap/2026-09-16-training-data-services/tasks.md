@@ -728,3 +728,71 @@ Cubre #168, #169, #170, #171 (parte), #176. Principio: la frescura responde a «
 - **Escenarios que deben quedar en test:** B2-1 literal (SIN_ATAR → re-aprobar → `desactualizado` → reensamblar → `al_dia`); nota de A (Gold excluido por aviso → `al_dia` y reensamblar da «ya existe» → sigue `al_dia`); B2-2 literal (E1 → rechazar → E2 → re-aprobar → reensamblar «ya existe» E1 → `al_dia`); marca plantada como enlace duro / symlink / fichero de 1 MiB → no se reemplaza ni se sigue, aviso; `.tmp` de la marca con una muerte a mitad → la marca anterior intacta; 13 700+ Gold → la frescura se verifica con `--estado`; concurrencia: 6 ensambladores → una sola marca coherente con un export existente.
 
 **Decisión del orquestador (2026-09-29):** 2 Important (#165, #166) ⇒ T-10 y T-11 siguen `en-progreso`; D-f4 pasa por revisión previa (Lentes B + D) ANTES de implementarse; luego ronda `fix2` (implementer `opus`, marcador `training-data-services/T-10-fix2`) sobre #165-#178 y **revisión intento 3 de 3**. #167 es regla genérica de `doctor.py` (sin código de `training`).
+
+#### Enmiendas a D-f4 tras la revisión previa (Lentes B + D, 2026-09-29) — SUSTITUYEN al diseño y a los arbitrajes de #165/#167/#171/#176 donde difieran
+
+Lente B (sondas sobre `c91a96a`): implementable con enmiendas. La idea central (firma de la entrada, no del resultado) cierra #168/#169. Hay 3 Important de veredicto falso:
+- G1: una versión incompleta vieja deja `no_verificable` para siempre (`incompletas=1`, `gold=2`).
+- G2: un aviso transitorio de `leer_caso` («no legible tras 40 reintentos») da `al_dia` falso (train 0 con bloqueo, 1 sin él, misma firma).
+- G3: el export `<id>.2` tras una muerte, más una marca con solo `export_id`, da una marca que reensamblar no limpia.
+
+Y 5 Minor (G4-G8).
+
+Equivalencia básica confirmada: los dos lados recorren TODAS las versiones Gold (`dataset-assembler.py:379`, `case-recorder.py:2307`). `metadata.json`/`validation.json` legítimos quedan muy por debajo de 1 MiB (`case-recorder.py:1025-1031`).
+
+Lente D (Windows, medido): viable con enmiendas. Hay 2 Important:
+- D3-1: `gold` retiene `content_hash` sin validar. Un Gold con hash de 1 MB → `/doctor` retiene 0,55-0,71 GB en 2 s, y la firma suma 1,9 s y 2 GB de pico.
+- D3-2: con ~8 entradas por versión, el plazo cada `LISTADO_CADA` no salta nunca. 2×10⁴ `scandir` cuestan 1,3-2,7 s, y cortar en el bucle 1 deja 0 versiones.
+
+Otras mediciones:
+- Marca: escribirla cuesta p50 4,35 ms y leerla p50 3,4 ms, frente a 126-150 ms del manifiesto. En 7 de 200 escrituras `os.replace` dio `PermissionError` sin ningún lector.
+- `json.loads` de 1 MiB: 21 ms y 24 MiB. `[`×200 000 → `RecursionError` en 0,2 ms.
+- La firma de 10⁵ Gold saneados cuesta 36 ms.
+- El corte de `/doctor` llega a ~1,9×10³ versiones en caliente y ~3×10² en frío (no a 10⁴).
+
+Enmiendas:
+
+- **M1 (G1).** «No verificado» solo si el recuento se CORTÓ (`truncado`, incluido el corte de reintentos de #177) o si hubo un aviso transitorio (`_aviso_transitorio`). Las omisiones permanentes (incompletas, grandes, ilegibles, enlaces) son las mismas en los dos lados, porque comparten `_estado_de_cases`: se compara con normalidad. Test: versión incompleta vieja + marca al día → `al_dia`.
+- **M2 (G2).** Un Gold que `leer_caso` omite con un aviso TRANSITORIO entra en la firma del ensamblador con el valor `"!transitoria"`. Nunca coincide con lo que ve `/doctor`, así que da `desactualizado` y reensamblar lo limpia. Con una causa permanente queda el `content_hash` tal cual. Test con el `PermissionError` sustituido.
+- **M3 (G3).** La marca guarda `directorio`: el basename REAL que devuelve `_publicar_export`, validado con `^[0-9]{8}-[0-9a-f]{12}(\.([2-9]|[1-9][0-9]))?$`. F3 comprueba ESE directorio. Test: `exports/<id>/` incompleto → ensamblar → `.2` → `al_dia`; reensamblar → «ya existe» → `al_dia`.
+- **M4 (G4).** La firma del ensamblador usa, para cada versión, la lectura de `validation.json` que DECIDIÓ su destino: la de `leer_caso` si se llegó a leer (sin entrada si ya no es Gold) y la de `_estado_de_cases` si no. Test del A-B-A (aprobada H → rechazada durante la pasada 1 → re-aprobada H) → `desactualizado`.
+- **M5 (G5 + D3-1).**
+  - Líneas de la firma sin ambigüedad: `json.dumps([case_id, version, h], ensure_ascii=True)`, una por línea.
+  - `content_hash` cuenta solo si casa `^[0-9a-f]{64}$`, que es lo que produce el recorder. Cualquier otro valor pasa a un centinela fijo `"!"`, distinto de ausente (`null`) e igual en los dos lados. `resumen_store` y la pasada 1 retienen el centinela, NUNCA la cadena.
+  - Un `case_id` que no casa el patrón de id deja la versión omitida con aviso en `_estado_de_cases` (los dos lados).
+  - Declarar en `references/dataset.md` que la firma no ve cambios en los ficheros inmutables: su remedio es `index check` o volver a aprobar.
+  - Test: Gold con `content_hash` de 1 MB → memoria retenida por Gold ≤ 100 B y firma < 50 ms.
+- **M6 (G6).**
+  - Los parámetros del ensamblado (`--benchmark`, `--umbral`, `--ventana`, `--boilerplate`, `--presupuesto`, `--conservar-duplicados`) NO entran en la firma: `/doctor` no sabe con cuáles se ensamblará la próxima vez.
+  - La marca guarda `parametros` a título informativo: lo muestran `--estado` y el texto de `al_dia`, «con los parámetros del último ensamblado».
+  - `al_dia` significa «mismo train/benchmark con esos parámetros», no «mismo `export_id`».
+  - La firma se lee siempre con `TOPE_JSON_CASO`, sin depender de `tope_fichero`.
+- **M7 (G7 + D3-6).** `_requiere_red` añade `backends_mod is not None` (condición de `doctor.py:1604`). `bloque_capacidades` lee la entrada del backend UNA vez por capacidad y la pasa a `_requiere_red` y a `_linea_capacidad`.
+- **M8 (G8 + D3-5).**
+  - La marca se publica con `rec._reemplazar` (reintentos acotados), no con `os.replace` a secas.
+  - Su `.tmp` se retira en un `finally` con `_retirar_temporal_propio`.
+  - Una marca inválida o ajena da `no_verificable` con el remedio «retira `exports/.ultimo.json` a mano (solo ese nombre)»: nunca se reemplaza.
+  - La ventana TOCTOU entre la comprobación y el reemplazo se declara como el límite G3 del recorder. El reemplazo nunca escribe a través de un enlace.
+  - Si la marca no se puede escribir después de un export válido: exit 0 con aviso. El export es válido y el siguiente ensamblado («ya existe») la reescribe.
+- **M9 (D3-2, sustituye al arbitraje de #165).**
+  - Un único bucle por versión, en orden: `_estado_version` y después sus `.tmp-*`.
+  - El plazo se mira ANTES de cada versión y, dentro de `_temporales_de`/`_escanear_caso`, cada `LISTADO_CADA` entradas ITERADAS (no las que casan).
+  - `_temporales_de` marca `truncado` desde dentro. «Parcial» conserva lo ya contado.
+  - Tests: 2×10⁴ versiones y plazo de 2 s → ≤ 2,3 s y `versiones > 0`; 1,5×10⁵ `.tmp-*` en una versión → ≤ plazo + 300 ms, `parcial`.
+- **M10 (D3-3).**
+  - `estado_dataset` tiene margen propio: `hasta + 0,3 s`, dentro de los 5 s del bloque. Así lee la marca y lista `exports/` aunque el recuento se haya cortado.
+  - En parcial, si los Gold ya contados superan el `gold` de la marca → `desactualizado`. Es cierto: lo contado es un subconjunto del recorrido completo con las mismas reglas.
+  - Cualquier otro parcial → «no verificado (PARCIAL)» + `dataset-assembler.py --estado`.
+- **M11 (D3-4).** `references/dataset.md` y el texto del «no verificado» dan:
+  - el umbral medido: ~2×10³ versiones en caliente, ~3×10² en frío;
+  - el coste de `--estado`: ~1 ms por versión en caliente, ~7 ms en frío.
+- **M12 (D3-7).** El límite «sistemas de ficheros locales» se declara en la doc de `/doctor` y en el test. Una sola llamada del SO que se bloquea (SMB colgado, placeholder de OneDrive) no queda acotada por comprobaciones entre llamadas. El hilo con `join(timeout)` queda fuera de alcance.
+- **M13 (nota «fuera de lente» de D).**
+  - La firma de la marca es SIEMPRE la de la pasada 1 del ensamblado que escribió su export (M4). Con ensambladores concurrentes, la última marca puede describir una instantánea más vieja: el resultado es `desactualizado` (cierto) y reensamblar lo limpia, nunca un `al_dia` falso.
+  - Test de concurrencia: 6 ensambladores → marca coherente con un export existente.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia | Lente |
+|---|---|---|---|---|---|---|
+| 179 | Minor | **Preexistente, en el camino de #167:** `_leer_backend_entry` lanza `AttributeError` si `backends` o `backends.<id>` de `taxonomy.json` no son objetos (`doctor.py:1492`), y `_requiere_red` lo heredaría. **Arbitraje:** si no son objetos → ❌ de configuración de esa capacidad (sin traceback, exit 1); test con `{"backends": []}` y `{"backends": {"kwipu": 1}}` | T-10 (#167) | pendiente | | B (fuera de lente) |
+
+**Decisión del orquestador (2026-09-29):** D-f4 queda APROBADO con M1-M13 → ronda `fix2` (implementer `opus`, marcador `training-data-services/T-10-fix2`) sobre #165-#179 y **revisión intento 3 de 3**.
