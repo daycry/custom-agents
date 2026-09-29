@@ -417,3 +417,15 @@ def test_iniciativa_en_curso_es_una_funcion_pura_de_slugs_y_estado():
     assert pr.iniciativa_en_curso(rs, estado, mtime=lambda p: 0) == "b", "entre dos abiertos, el de inicio más reciente"
     assert pr.iniciativa_en_curso(rs, {}, mtime=lambda p: {"/x/a/tasks.md": 1, "/x/b/tasks.md": 5}[p]) == "b"
     assert pr.iniciativa_en_curso([], estado, mtime=lambda p: 0) is None
+
+
+def test_en_curso_helpers_directos(tmp_path):
+    assert pr._slug_de_clave("a") is None and pr._slug_de_clave("") is None
+    assert pr._slug_de_clave("docs" + chr(92) + "roadmap" + chr(92) + "2026-09-16-x-y" + chr(92) + "T-01") == "x-y"
+    assert pr._slug_de_clave("x-y/spec") == "x-y"
+    assert pr._leer_usage_state(str(tmp_path / "docs" / "roadmap")) == {}
+    rs = [{"slug": "a", "path": "no-existe"}, {"slug": "b", "path": "tampoco"}]
+
+    def _falla(p):
+        raise OSError(p)
+    assert pr.iniciativa_en_curso(rs, {"a/F1": "no es un dict", "b/F1": {"ultimoCierre": "x"}}, mtime=_falla) == "a"
