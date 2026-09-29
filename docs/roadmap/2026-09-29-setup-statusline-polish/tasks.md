@@ -10,14 +10,14 @@ generacion:
   ratio_usado: 479326     # CALIBRATION.md (mediana de 5)
 verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige ledger-lint
 riesgo: medio              # piloto de sdd-proporcional
-estado: borrador
+estado: en-progreso
 ---
 
 # Checklist de Tareas — setup-statusline-polish (pulido de setup, statusline y puertas)
 
 | | |
 |---|---|
-| **Estado** | borrador |
+| **Estado** | en-progreso |
 | **Fecha** | 2026-09-29 |
 | **Plan** | [`improvement-plan.md`](./improvement-plan.md) |
 | **Diseño** | n/a (la ADR de T-09 cubre el encaje de C-07) |
@@ -32,13 +32,13 @@ estado: borrador
 
 | Fase | Completadas | Total | Progreso | H. humanas (real/est) | H. IA ejec. (real/est) | Supervisión (real/est) | Tokens (real/est) |
 |------|------------|-------|----------|-----------------------|------------------------|------------------------|-------------------|
-| Fase 1 — Estabilizar la suite (tests deterministas) | 0 | 2 | 0% | 0 / 4.8h | 0 / 0.99h | 0 / 0.25h | 0 / 475k |
-| Fase 2 — Quick wins de visibilidad y puertas | 0 | 5 | 0% | 0 / 14.4h | 0 / 3.42h | 0 / 0.85h | 0 / 1639k |
-| Fase 3 — `/doctor`: tope estricto de la línea kwipu | 0 | 1 | 0% | 0 / 3.6h | 0 / 0.72h | 0 / 0.18h | 0 / 345k |
+| Fase 1 — Estabilizar la suite (tests deterministas) | 2 | 2 | 100% | 0 / 4.8h | 0 / 0.99h | 0 / 0.25h | 0 / 475k |
+| Fase 2 — Quick wins de visibilidad y puertas | 5 | 5 | 100% | 0 / 14.4h | 0 / 3.42h | 0 / 0.85h | 0 / 1639k |
+| Fase 3 — `/doctor`: tope estricto de la línea kwipu | 1 | 1 | 100% | 0 / 3.6h | 0 / 0.72h | 0 / 0.18h | 0 / 345k |
 | Fase 4 — ADR de diseño y `id_prefix` / `group_id` | 0 | 3 | 0% | 0 / 14.0h | 0 / 4.10h | 0 / 1.02h | 0 / 1965k |
 | Fase 5 — Alta segura en `projects.yaml` (bloqueada por la ADR) | 0 | 2 | 0% | 0 / 14.4h | 0 / 4.50h | 0 / 1.12h | 0 / 2157k |
 | Fase 6 — Cierre, documentación y réplica en Linux | 0 | 1 | 0% | 0 / 3.6h | 0 / 0.90h | 0 / 0.23h | 0 / 431k |
-| **TOTAL** | **0** | **14** | **0%** | **0 / 54.8h** | **0 / 14.63h** | **0 / 3.66h** | **0 / 7013k** |
+| **TOTAL** | **8** | **14** | **57%** | **0 / 54.8h** | **0 / 14.63h** | **0 / 3.66h** | **0 / 7013k** |
 
 > **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada. Ver `skills/jira-sync/SKILL.md`.
 
@@ -46,7 +46,7 @@ estado: borrador
 
 ## Fase 1 — Estabilizar la suite (tests deterministas)
 
-**Estado**: borrador · **Estimado**: 4.8h · **Real**: — · **Coste est.**: 246 € · **Tokens est.**: 475k
+**Estado**: completado · **Estimado**: 4.8h · **Real**: — · **Coste est.**: 246 € · **Tokens est.**: 475k
 
 ### T-01 — C-06 - Test de 200 upserts sin reloj
 
@@ -127,7 +127,7 @@ estado: borrador
 
 ## Fase 2 — Quick wins de visibilidad y puertas
 
-**Estado**: borrador · **Estimado**: 14.4h · **Real**: — · **Coste est.**: 742 € · **Tokens est.**: 1639k
+**Estado**: completado · **Estimado**: 14.4h · **Real**: — · **Coste est.**: 742 € · **Tokens est.**: 1639k
 
 ### T-03 — C-03 - Statusline: coste correcto
 
@@ -324,7 +324,7 @@ estado: borrador
 
 ## Fase 3 — `/doctor`: tope estricto de la línea kwipu
 
-**Estado**: borrador · **Estimado**: 3.6h · **Real**: — · **Coste est.**: 185 € · **Tokens est.**: 345k
+**Estado**: completado · **Estimado**: 3.6h · **Real**: — · **Coste est.**: 185 € · **Tokens est.**: 345k
 
 ### T-08 — C-09a - `/doctor`: línea kwipu con `tope_ms` estricto
 
