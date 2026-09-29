@@ -1050,3 +1050,189 @@ def test_f3fix2_gap132_un_group_id_explicito_sigue_intacto(tmp_path):
                                  "config": {"group_id": "mio"}}}}
     ks._con_group_id_por_defecto(config, str(tmp_path / "otro"))
     assert config["backends"]["g"]["config"]["group_id"] == "mio"
+
+
+# ------------------------------------------------------------------ setup-statusline-polish T-10/T-11
+# `id_prefix` elegible y derivación de nombre y `group_id` SOLO en instalaciones nuevas (CA-14);
+# avisos sin bloqueo (CA-15).
+
+def _proyecto(tmp_path, nombre="mi-proyecto", taxonomy=None, manifiesto=None):
+    root = tmp_path / nombre
+    d = root / ".claude" / "knowledge-services"
+    d.mkdir(parents=True)
+    if taxonomy is not None:
+        (d / "taxonomy.json").write_text(json.dumps(taxonomy), encoding="utf-8")
+    if manifiesto is not None:
+        (d / manifiesto[0]).write_text(json.dumps(manifiesto[1]), encoding="utf-8")
+    return str(root)
+
+
+def _taxonomia_graphiti(enabled=False, **cfg):
+    t = ks.default_taxonomy()
+    t["backends"]["graphiti"]["enabled"] = enabled
+    t["backends"]["graphiti"]["config"].update(cfg)
+    return t
+
+
+def _group_id_efectivo(root):
+    config, _o, _r, _e = ks.cargar_taxonomia(root)
+    return config["backends"]["graphiti"]["config"].get("group_id")
+
+
+def _leer_tax(root):
+    with open(os.path.join(root, ks.PROJECT_TAXONOMY_REL), encoding="utf-8") as f:
+        return json.load(f)
+
+
+def test_CA_14_propone_el_slug_de_la_carpeta_y_valida_la_forma(tmp_path):
+    root = _proyecto(tmp_path, "Mi Proyecto_X", _taxonomia_graphiti())
+    r = ks.preparar_id_prefix(root)
+    assert r["propuesta"] == "mi-proyecto-x" and r["id_prefix"] == "mi-proyecto-x"
+    assert ks.id_prefix_valido("abc-1") and not ks.id_prefix_valido("-abc")
+    assert not ks.id_prefix_valido("Abc") and not ks.id_prefix_valido("a_b")
+    assert not ks.id_prefix_valido("a" * 65) and not ks.id_prefix_valido("")
+    assert not ks.id_prefix_valido(None)
+
+
+def test_CA_14_carpeta_sin_alfanumericos_propone_ca(tmp_path):
+    root = _proyecto(tmp_path, "---", _taxonomia_graphiti())
+    assert ks.proponer_id_prefix(root) == "ca"
+
+
+def test_CA_14_instalacion_nueva_guarda_id_prefix_y_group_id_explicito(tmp_path):
+    root = _proyecto(tmp_path, "carpeta", _taxonomia_graphiti())
+    r = ks.preparar_id_prefix(root, "nombre-elegido", aplicar=True)
+    assert r["ok"] and r["escrito"] and r["instalacion_previa"] is False
+    guardado = _leer_tax(root)
+    assert guardado["id_prefix"] == "nombre-elegido"
+    assert guardado["backends"]["graphiti"]["config"]["group_id"] == "nombre-elegido"
+    assert _group_id_efectivo(root) == "nombre-elegido"
+
+
+def test_CA_14_sin_taxonomy_json_lo_crea_desde_la_plantilla(tmp_path):
+    root = _proyecto(tmp_path, "carpeta")
+    r = ks.preparar_id_prefix(root, "nuevo", aplicar=True)
+    assert r["ok"] and r["escrito"]
+    assert _group_id_efectivo(root) == "nuevo"
+
+
+def test_CA_14_id_prefix_invalido_rechaza_y_no_guarda(tmp_path):
+    root = _proyecto(tmp_path, "carpeta", _taxonomia_graphiti())
+    ruta = os.path.join(root, ks.PROJECT_TAXONOMY_REL)
+    antes = open(ruta, encoding="utf-8").read()
+    r = ks.preparar_id_prefix(root, "Nombre Malo!", aplicar=True)
+    assert r["ok"] is False and r["escrito"] is False and "id_prefix" in r["error"]
+    assert open(ruta, encoding="utf-8").read() == antes
+
+
+def test_CA_14_group_id_conservado_con_id_prefix_distinto_de_la_carpeta(tmp_path):
+    """Instalación previa (backend activo, group_id implícito de la carpeta): elegir un
+    `id_prefix` distinto NO cambia el `group_id` efectivo."""
+    root = _proyecto(tmp_path, "carpeta-vieja", _taxonomia_graphiti(enabled=True))
+    antes = _group_id_efectivo(root)
+    assert antes == "carpeta-vieja"
+    r = ks.preparar_id_prefix(root, "otro-nombre", aplicar=True)
+    assert r["instalacion_previa"] is True and r["escrito"] is True
+    assert _group_id_efectivo(root) == antes == "carpeta-vieja"
+    assert "group_id" not in _leer_tax(root)["backends"]["graphiti"]["config"]
+
+
+def test_CA_14_aviso_de_group_id_implicito_conservado(tmp_path):
+    root = _proyecto(tmp_path, "carpeta-vieja", _taxonomia_graphiti(enabled=True))
+    r = ks.preparar_id_prefix(root, "otro-nombre")
+    assert any("group_id" in a and "carpeta-vieja" in a for a in r["avisos"])
+    assert "backend graphiti activo" in r["motivos_previa"]
+
+
+def test_CA_14_instalacion_previa_por_manifiesto_publicado_o_pendiente(tmp_path):
+    for nombre in ("graphiti-manifest.json", "graphiti-manifest.pending.json"):
+        root = _proyecto(tmp_path / nombre, "c", _taxonomia_graphiti(),
+                         manifiesto=(nombre, {"group_id": "c", "entradas": {}}))
+        r = ks.preparar_id_prefix(root, "otro", aplicar=True)
+        assert r["instalacion_previa"] is True, nombre
+        assert _group_id_efectivo(root) == "c"
+
+
+def test_CA_14_group_id_explicito_nunca_se_toca(tmp_path):
+    root = _proyecto(tmp_path, "c", _taxonomia_graphiti(group_id="mio"))
+    r = ks.preparar_id_prefix(root, "otro", aplicar=True)
+    assert r["instalacion_previa"] is True
+    assert _group_id_efectivo(root) == "mio"
+    assert not r["avisos"]      # nada implícito que avisar
+
+
+def test_CA_14_preparar_no_escribe_sin_aplicar(tmp_path):
+    root = _proyecto(tmp_path, "c", _taxonomia_graphiti())
+    r = ks.preparar_id_prefix(root, "otro")
+    assert r["ok"] and r["escrito"] is False
+    assert "id_prefix" not in _leer_tax(root)
+
+
+def test_CA_14_taxonomy_ilegible_o_invalida_no_se_pisa(tmp_path):
+    root = _proyecto(tmp_path, "c")
+    ruta = os.path.join(root, ks.PROJECT_TAXONOMY_REL)
+    with open(ruta, "w", encoding="utf-8") as f:
+        f.write("{no json")
+    r = ks.preparar_id_prefix(root, "otro", aplicar=True)
+    assert r["ok"] is False and r["escrito"] is False
+    assert open(ruta, encoding="utf-8").read() == "{no json"
+    with open(ruta, "w", encoding="utf-8") as f:
+        f.write("[]")
+    assert ks.preparar_id_prefix(root, "otro", aplicar=True)["ok"] is False
+
+
+def test_CA_14_cli_setup_id_prefix_exit_codes(tmp_path, capsys):
+    root = _proyecto(tmp_path, "c", _taxonomia_graphiti())
+    assert ks.main(["--setup-id-prefix", "--root", root]) == 0
+    assert json.loads(capsys.readouterr().out)["propuesta"] == "c"
+    assert ks.main(["--setup-id-prefix", "--root", root, "--id-prefix", "MAL"]) == 2
+    capsys.readouterr()
+    assert ks.main(["--setup-id-prefix", "--root", root, "--id-prefix", "ok", "--aplicar"]) == 0
+    assert json.loads(capsys.readouterr().out)["escrito"] is True
+
+
+def test_CA_15_aviso_renombrar_con_conocimiento_exportado(tmp_path):
+    tax = _taxonomia_graphiti()
+    tax["id_prefix"] = "viejo"
+    root = _proyecto(tmp_path, "c", tax, manifiesto=(
+        "graphiti-manifest.json", {"group_id": "c", "entradas": {"viejo.x": {"version": 1}}}))
+    r = ks.preparar_id_prefix(root, "nuevo", aplicar=True)
+    assert r["escrito"] is True          # no bloquea
+    aviso = [a for a in r["avisos"] if "knowledge_id" in a]
+    assert aviso and "viejo" in aviso[0] and "nuevo" in aviso[0] and "no migra" in aviso[0]
+
+
+def test_CA_15_aviso_renombrar_detecta_export_markdown(tmp_path):
+    tax = _taxonomia_graphiti()
+    tax["id_prefix"] = "viejo"
+    root = _proyecto(tmp_path, "c", tax)
+    exp = os.path.join(root, ".claude", "knowledge-services", "kwipu-export")
+    os.makedirs(exp)
+    with open(os.path.join(exp, "manifest.json"), "w", encoding="utf-8") as f:
+        json.dump({"entries": {"viejo.a": {}}}, f)
+    r = ks.preparar_id_prefix(root, "nuevo")
+    assert any("knowledge_id" in a for a in r["avisos"])
+
+
+def test_CA_15_sin_aviso_si_no_hay_nada_exportado_o_no_cambia(tmp_path):
+    tax = _taxonomia_graphiti()
+    tax["id_prefix"] = "viejo"
+    root = _proyecto(tmp_path, "c", tax)
+    assert not [a for a in ks.preparar_id_prefix(root, "nuevo")["avisos"] if "knowledge_id" in a]
+    root2 = _proyecto(tmp_path / "b", "c", tax, manifiesto=(
+        "graphiti-manifest.json", {"group_id": "c", "entradas": {"viejo.x": {}}}))
+    assert not [a for a in ks.preparar_id_prefix(root2, "viejo")["avisos"] if "knowledge_id" in a]
+
+
+def test_CA_15_aviso_manifiesto_ilegible_no_rompe(tmp_path):
+    tax = _taxonomia_graphiti()
+    tax["id_prefix"] = "viejo"
+    root = _proyecto(tmp_path, "c", tax)
+    with open(os.path.join(root, ".claude", "knowledge-services", "graphiti-manifest.json"), "w") as f:
+        f.write("{no json")
+    exp = os.path.join(root, ".claude", "knowledge-services", "kwipu-export")
+    os.makedirs(exp)
+    with open(os.path.join(exp, "manifest.json"), "w") as f:
+        f.write("[]")
+    r = ks.preparar_id_prefix(root, "nuevo")
+    assert r["ok"] and not [a for a in r["avisos"] if "knowledge_id" in a]

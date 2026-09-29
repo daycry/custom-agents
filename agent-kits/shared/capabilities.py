@@ -430,7 +430,7 @@ REGISTRO = [
         "doctor": _graphiti_doctor,
         "setup_step": "declara un backend `type: \"graphiti\"` con `enabled: true` en "
                       "`taxonomy.json` (`endpoint` local del servidor MCP, `group_id` propio del "
-                      "proyecto, `provider` y `mode`: empieza en `shadow`); no registra ningun "
+                      "proyecto (en instalaciones nuevas lo fija `knowledge-schema.py --setup-id-prefix`), `provider` y `mode`: empieza en `shadow`); no registra ningun "
                       "servidor MCP ni toca configuracion global de Claude Code — el adaptador "
                       "habla con el endpoint declarado y nada mas",
     },

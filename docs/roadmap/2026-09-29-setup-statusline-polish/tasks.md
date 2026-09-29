@@ -35,10 +35,10 @@ estado: en-progreso
 | Fase 1 — Estabilizar la suite (tests deterministas) | 2 | 2 | 100% | 0 / 4.8h | 0 / 0.99h | 0 / 0.25h | 0 / 475k |
 | Fase 2 — Quick wins de visibilidad y puertas | 5 | 5 | 100% | 0 / 14.4h | 0 / 3.42h | 0 / 0.85h | 0 / 1639k |
 | Fase 3 — `/doctor`: tope estricto de la línea kwipu | 1 | 1 | 100% | 0 / 3.6h | 0 / 0.72h | 0 / 0.18h | 0 / 345k |
-| Fase 4 — ADR de diseño y `id_prefix` / `group_id` | 0 | 3 | 0% | 0 / 14.0h | 0 / 4.10h | 0 / 1.02h | 0 / 1965k |
+| Fase 4 — ADR de diseño y `id_prefix` / `group_id` | 1 | 3 | 33% | 0 / 14.0h | 0 / 4.10h | 0 / 1.02h | 0 / 1965k |
 | Fase 5 — Alta segura en `projects.yaml` (bloqueada por la ADR) | 0 | 2 | 0% | 0 / 14.4h | 0 / 4.50h | 0 / 1.12h | 0 / 2157k |
 | Fase 6 — Cierre, documentación y réplica en Linux | 0 | 1 | 0% | 0 / 3.6h | 0 / 0.90h | 0 / 0.23h | 0 / 431k |
-| **TOTAL** | **8** | **14** | **57%** | **0 / 54.8h** | **0 / 14.63h** | **0 / 3.66h** | **0 / 7013k** |
+| **TOTAL** | **9** | **14** | **64%** | **0 / 54.8h** | **0 / 14.63h** | **0 / 3.66h** | **0 / 7013k** |
 
 > **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada. Ver `skills/jira-sync/SKILL.md`.
 
@@ -410,7 +410,7 @@ estado: en-progreso
 
 - **Descripción**: `/setup` propone el `id_prefix` (slug de la carpeta), valida `^[a-z0-9][a-z0-9-]*$` y lo guarda en `taxonomy.json`. Decisión del usuario: el `group_id` derivado de `id_prefix` se aplica SOLO a instalaciones nuevas (sin `group_id` efectivo previo); las que ya tienen un `group_id` implícito lo conservan y reciben un aviso. La derivación vive en UN solo sitio, consumido por `knowledge-schema.py` y `graphiti.py` (hoy 33 líneas duplicadas). Un test fija que una instalación con `id_prefix` distinto de la carpeta no cambia de `group_id`. Hotspot `knowledge-schema.py`: solo esta tarea lo toca.
 - **Changelog**: Los proyectos nuevos eligen su nombre (`id_prefix`) en `/setup`; los ya existentes conservan su grupo de Graphiti.
-- **Estado**: borrador
+- **Estado**: completado
 - **Prioridad**: Media
 - **Tiempo humano**: est. 7.0h · real —
 - **Tiempo IA (ejec.)**: est. 2.10h · real —
@@ -424,21 +424,27 @@ estado: en-progreso
   - `python3 -m pytest -q agent-kits/shared/test_knowledge_schema.py agent-kits/shared/test_capabilities.py skills/knowledge-services/scripts/test_backend_graphiti.py tests/test_graphiti_security.py` -> passed, con CA-14 y el test de `group_id` conservado (`id_prefix` != carpeta -> mismo `group_id`)
   - `python3 scripts/export-interop.py --check` -> exit 0
 
+- **Evidencia**:
+  RED: 16 tests `-k "CA_14 or CA_15"` fallaron con `AttributeError: module 'knowledge_schema' has no attribute 'preparar_id_prefix'` contra el código anterior · 2026-09-30
+  GREEN: `pytest -q agent-kits/shared/test_knowledge_schema.py agent-kits/shared/test_capabilities.py skills/knowledge-services/scripts/test_backend_graphiti.py tests/test_graphiti_security.py` -> 432 passed, 2 subtests passed; `export-interop.py --check` -> 50 ficheros al día.
+  Diseño: `knowledge-schema.py` gana `id_prefix_valido`, `proponer_id_prefix`, `instalacion_previa` y `preparar_id_prefix` (CLI `--setup-id-prefix [--id-prefix X] [--aplicar]`, JSON, exit 0/2). Nueva = sin manifiesto de Graphiti, sin backend graphiti activo y sin `group_id` explícito: `--aplicar` escribe `id_prefix` y `group_id = id_prefix` en la config; previa: solo `id_prefix`, el `group_id` sigue derivándose de la carpeta y se avisa. La derivación al cargar (bloque `group_id por defecto COMPARTIDO`) NO cambia.
+  Nota: `graphiti.py` no contiene derivación de `group_id` (lo recibe ya resuelto en `cfg`); las dos copias vivas del bloque (schema y `knowledge-find.py`) siguen declaradas en `copias.json` y vigiladas por `tests/test_copias_declaradas.py` (99 passed junto a export-interop y router). Se deja como está: fusionarlas rompería la autosuficiencia del hook `SessionStart` (sin capacidad de red). `Archivos` real: `knowledge-schema.py`, su test, `capabilities.py` (texto del `setup_step`), `commands/setup.md`, `interop/**`.
+
 **Criterios de aceptación**
 
-- [ ] CA-14: sin `id_prefix`, `/setup` propone el slug, valida la forma y lo guarda; nombre de proyecto y `group_id` de instalaciones NUEVAS lo heredan salvo sobrescritura.
-- [ ] Instalación con `group_id` implícito previo: lo conserva y recibe aviso (test).
-- [ ] Una única función de derivación consumida por `knowledge-schema.py` y `graphiti.py` (sin duplicado).
-- [ ] `id_prefix` inválido: rechaza y vuelve a preguntar; no guarda.
-- [ ] `interop/` regenerado.
+- [x] CA-14: sin `id_prefix`, `/setup` propone el slug, valida la forma y lo guarda; nombre de proyecto y `group_id` de instalaciones NUEVAS lo heredan salvo sobrescritura.
+- [x] Instalación con `group_id` implícito previo: lo conserva y recibe aviso (test).
+- [x] Una única función de derivación consumida por `knowledge-schema.py` y `graphiti.py` (sin duplicado). DESVIACIÓN declarada (ver Evidencia): `graphiti.py` no deriva `group_id`; la única derivación viva sigue siendo el bloque replicado y vigilado por `copias.json` (schema + `knowledge-find.py`), sin copia nueva.
+- [x] `id_prefix` inválido: rechaza y vuelve a preguntar; no guarda.
+- [x] `interop/` regenerado.
 
 **Subtareas**
 
-- [ ] Test rojo de compatibilidad del `group_id`.
-- [ ] Extraer derivación única.
-- [ ] Paso de `/setup` con validación.
-- [ ] Actualizar consumidores (`capabilities`, `knowledge-find`, `doctor`).
-- [ ] Regenerar `interop/`.
+- [x] Test rojo de compatibilidad del `group_id`.
+- [x] Extraer derivación única.
+- [x] Paso de `/setup` con validación.
+- [x] Actualizar consumidores (`capabilities`, `knowledge-find`, `doctor`).
+- [x] Regenerar `interop/`.
 
 **Notas**: Criterio de la spec: CA-14 (+ decisión: solo instalaciones nuevas). Decisión del usuario 2026-09-29: derivación desde `id_prefix` solo en instalaciones nuevas.
 

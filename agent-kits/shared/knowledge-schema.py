@@ -25,6 +25,7 @@ concreta (p. ej. `categories[2].routing.graphiti`) para que `/doctor` señale fi
 Uso:
   knowledge-schema.py <ruta-a-taxonomy.json>   # valida un fichero concreto; exit 0/1
   knowledge-schema.py --default                # valida (e imprime) la plantilla por defecto
+  knowledge-schema.py --setup-id-prefix [--root R] [--id-prefix X] [--aplicar]  # /setup: id_prefix (JSON); exit 0/2
 Exit codes: 0 válido · 1 con errores (se listan en stdout) · 2 uso/JSON ilegible.
 """
 import argparse
@@ -909,6 +910,147 @@ def cargar_taxonomia(root=None, fichero=None):
     return config, "default", None, errores
 
 
+# ------------------------------------------------------------------ id_prefix elegible (setup-statusline-polish T-10/T-11)
+# `/setup` propone el `id_prefix` (slug de la carpeta), lo valida y lo guarda. El `group_id` de
+# Graphiti se materializa desde el `id_prefix` SOLO en instalaciones NUEVAS: escribirlo en la
+# config (en vez de cambiar la derivación al cargar, `_con_group_id_por_defecto`) evita la
+# migración silenciosa de una instalación que ya publicó con el `group_id` de la carpeta.
+ID_PREFIX_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
+ID_PREFIX_MAX = 64
+_GRAPHITI_MANIFIESTOS = ("graphiti-manifest.json", "graphiti-manifest.pending.json")
+
+
+def id_prefix_valido(valor):
+    """`^[a-z0-9][a-z0-9-]*$` y hasta 64 caracteres (la misma forma que exige el alta de T-12)."""
+    return (isinstance(valor, str) and len(valor) <= ID_PREFIX_MAX
+            and bool(ID_PREFIX_RE.match(valor)))
+
+
+def proponer_id_prefix(root=None):
+    """Slug kebab-case de la carpeta del proyecto, acotado a 64; `ca` si no aporta nada."""
+    base = os.path.basename(os.path.abspath(root if root is not None else "."))
+    return _slug_kebab(base)[:ID_PREFIX_MAX].strip("-") or "ca"
+
+
+def _leer_json_dict(ruta):
+    """dict del JSON en `ruta`, o `None` (ausente, ilegible o de otra forma). Nunca lanza."""
+    try:
+        with open(ruta, "r", encoding="utf-8-sig") as f:
+            datos = json.load(f)
+    except (OSError, ValueError):
+        return None
+    return datos if isinstance(datos, dict) else None
+
+
+def _group_id_explicito(raw):
+    """¿Algún backend graphiti declara un `group_id` no vacío?"""
+    for _bid, bcfg in _graphiti_backends(raw):
+        cfg = bcfg.get("config")
+        gid = cfg.get("group_id") if isinstance(cfg, dict) else None
+        if isinstance(gid, str) and gid.strip():
+            return True
+    return False
+
+
+def instalacion_previa(raw, root):
+    """`(previa, motivos)`. Previa (conserva el `group_id` derivado de la carpeta) si hay un
+    manifiesto de Graphiti, un backend graphiti activo o un `group_id` explícito."""
+    motivos = []
+    dir_ks = os.path.join(root, ".claude", "knowledge-services")
+    if any(os.path.isfile(os.path.join(dir_ks, n)) for n in _GRAPHITI_MANIFIESTOS):
+        motivos.append("manifiesto de Graphiti")
+    if any(b.get("enabled") is True for _i, b in _graphiti_backends(raw)):
+        motivos.append("backend graphiti activo")
+    if _group_id_explicito(raw):
+        motivos.append("group_id explícito")
+    return bool(motivos), motivos
+
+
+def _conocimiento_exportado(raw, root):
+    """Fuentes LOCALES con conocimiento ya exportado (manifiestos con entradas). Sin red."""
+    fuentes = []
+    dir_ks = os.path.join(root, ".claude", "knowledge-services")
+    for nombre in _GRAPHITI_MANIFIESTOS:
+        datos = _leer_json_dict(os.path.join(dir_ks, nombre))
+        if datos and isinstance(datos.get("entradas"), dict) and datos["entradas"]:
+            fuentes.append(nombre)
+    backends = raw.get("backends") if isinstance(raw, dict) else None
+    for bid, bcfg in (backends.items() if isinstance(backends, dict) else []):
+        if not isinstance(bcfg, dict) or bcfg.get("type") != "markdown-export":
+            continue
+        cfg = bcfg.get("config")
+        export_dir = cfg.get("export_dir") if isinstance(cfg, dict) else None
+        if not isinstance(export_dir, str) or not export_dir.strip():
+            continue
+        for nombre in ("manifest.json", "manifest.pending.json"):
+            datos = _leer_json_dict(os.path.join(root, export_dir, nombre))
+            if datos and isinstance(datos.get("entries"), dict) and datos["entries"]:
+                fuentes.append(f"{bid}/{nombre}")
+    return fuentes
+
+
+def preparar_id_prefix(root=None, id_prefix=None, aplicar=False):
+    """Propone, valida y (con `aplicar`) guarda el `id_prefix` en `taxonomy.json`. Devuelve un dict
+    `{ok, propuesta, id_prefix, instalacion_previa, motivos_previa, avisos, escrito[, error]}`.
+    Los avisos NUNCA bloquean. Un `id_prefix` inválido, o un `taxonomy.json` ilegible/inválido, no
+    escribe nada. Sin `taxonomy.json`, `aplicar` lo crea desde la plantilla."""
+    root = os.path.abspath(root if root is not None else ".")
+    ruta = os.path.join(root, PROJECT_TAXONOMY_REL)
+    propuesta = proponer_id_prefix(root)
+    elegido = propuesta if id_prefix is None else id_prefix
+    salida = {"ok": False, "propuesta": propuesta, "id_prefix": elegido, "instalacion_previa": False,
+              "motivos_previa": [], "avisos": [], "escrito": False}
+    if not id_prefix_valido(elegido):
+        salida["error"] = (f"`id_prefix` inválido ({elegido!r}): debe cumplir "
+                           f"{ID_PREFIX_RE.pattern} y tener hasta {ID_PREFIX_MAX} caracteres")
+        return salida
+    existe = os.path.isfile(ruta)
+    raw = _leer_json_dict(ruta) if existe else default_taxonomy()
+    if raw is None:
+        salida["error"] = f"`{PROJECT_TAXONOMY_REL}` ilegible: no se modifica"
+        return salida
+    if existe and validar(raw, ruta):
+        salida["error"] = f"`{PROJECT_TAXONOMY_REL}` no es válido: corrígelo antes (no se modifica)"
+        return salida
+    previa, motivos = instalacion_previa(raw, root)
+    salida.update(instalacion_previa=previa, motivos_previa=motivos, ok=True)
+    avisos = salida["avisos"]
+    if previa and _graphiti_backends(raw) and not _group_id_explicito(raw):
+        derivado = _group_id_por_defecto(root)
+        avisos.append(f"instalación previa: conserva el group_id derivado de la carpeta "
+                      f"(`{derivado}`); el id_prefix `{elegido}` no lo cambia")
+    anterior = raw.get("id_prefix") or _slug_kebab(os.path.basename(root)) or "ca"
+    if anterior != elegido:
+        exportado = _conocimiento_exportado(raw, root)
+        if exportado:
+            avisos.append(f"renombrar id_prefix `{anterior}` -> `{elegido}` con conocimiento ya "
+                          f"exportado ({', '.join(exportado)}): cambian los knowledge_id de lo "
+                          f"nuevo y no migra lo ya publicado")
+    if aplicar:
+        raw["id_prefix"] = elegido
+        if not previa:
+            for _bid, bcfg in _graphiti_backends(raw):
+                if isinstance(bcfg.get("config"), dict):
+                    bcfg["config"]["group_id"] = elegido
+        os.makedirs(os.path.dirname(ruta), exist_ok=True)
+        tmp = ruta + f".{os.getpid()}.tmp"
+        try:
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(raw, f, ensure_ascii=False, indent=2)
+                f.write("\n")
+            os.replace(tmp, ruta)
+        except OSError as e:
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
+            salida.update(ok=False, error=f"no se pudo escribir `{PROJECT_TAXONOMY_REL}`: "
+                                          f"{type(e).__name__}")
+            return salida
+        salida["escrito"] = True
+    return salida
+
+
 def backend_ids_declarados(config):
     return set((config.get("backends") or {}).keys())
 
@@ -937,11 +1079,20 @@ def _construir_parser():
     ap = argparse.ArgumentParser(description=__doc__.strip().splitlines()[0])
     ap.add_argument("ruta", nargs="?", help="ruta a un taxonomy.json a validar")
     ap.add_argument("--default", action="store_true", help="valida la plantilla por defecto del plugin")
+    ap.add_argument("--setup-id-prefix", action="store_true", dest="setup_id_prefix",
+                    help="propone/valida el id_prefix (JSON en stdout); con --aplicar lo guarda")
+    ap.add_argument("--id-prefix", dest="id_prefix", default=None, help="id_prefix elegido")
+    ap.add_argument("--aplicar", action="store_true", help="escribe taxonomy.json (con --setup-id-prefix)")
+    ap.add_argument("--root", default=".", help="raiz del proyecto (con --setup-id-prefix)")
     return ap
 
 
 def main(argv=None):
     args = _construir_parser().parse_args(argv)
+    if args.setup_id_prefix:
+        r = preparar_id_prefix(args.root, args.id_prefix, args.aplicar)
+        print(json.dumps(r, ensure_ascii=False, indent=2))
+        return 0 if r["ok"] else 2
     if args.default:
         config = default_taxonomy()
         errores = validar(config, TEMPLATE_PATH)
