@@ -19,8 +19,8 @@ changelog: added         # skill nueva: sin esto, «regresion» (titulo de T-11)
 | Fase 1 - Config, redaccion compartida y capacidad | 3 | 3 | 100% (revisión cerrada en el intento 3; fix3 verificada por el orquestador) | 0 / 6.5h | 5.25 / 2.0h | 0 / 0.5h | ~180.8k out (37.8k + 17.3k + 14.4k + fix2 63.2k + fix3 48.1k; fix1 sin cifra de tokens: marcador cerrado en otra máquina sin pegar su salida) / 85k (T-01 0.22h · T-02 0.12h · T-03 0.07h · fix1 2.87h reloj incl. corte de sesión · fix2 1.09h · fix3 0.88h) |
 | Fase 2 - Recorder y puerta humana | 3 | 3 | 100% (3 intentos + 6 rondas fixN con verificación dirigida; 113 gaps cerrados) | 0 / 8h | 34.88 / 2.4h | 0 / 0.6h | ~1463.5k out (T-04 43.9k + T-05 16.1k + T-06 32.8k · fix1 165.2k · fix2 233.0k · fix3 227.1k · fix4 184.0k · fix4-bis 173.5k · fix5 272.8k · fix6 115.1k) / 120k (T-04 0.20h · T-05 0.07h · T-06 0.16h · fix1 1.32h · fix2 2.18h · fix3 7.22h · fix4 5.20h · fix4-bis 6.77h reloj incl. corte 429 · fix5 9.63h · fix6 2.13h) |
 | Fase 3 - Dedup, particion y ensamblador | 3 | 3 | 100% (intento 1 + D-f3 revisado antes + fix1/fix2 con verificación dirigida; #114-#147 cerrados) | 0 / 14h | 27.08 / 4.2h | 0 / 1.1h | ~784.8k out (T-07 35.7k + T-08 11.2k + T-09 101.4k · fix1 419.0k · fix2 217.5k) / 210k (T-07 0.17h · T-08 0.06h · T-09 5.86h reloj incl. ~2 días de corte · fix1 14.14h · fix2 6.85h) |
-| Fase 4 - Setup, doctor y cierre | 0 | 2 | 0% (revisión intento 1: 3 Important → fix1) | 0 / 11h | 6.96 / 3.3h | 0 / 0.8h | ~132.7k out (T-10 116.0k + T-11 16.7k) / 160k (T-10 4.09h · T-11 2.87h) |
-| **TOTAL** | **9** | **11** | **82%** | **0 / 39.5h** | **74.17 / 11.9h** | **0 / 3.0h** | **~2561.6k out / 575k** |
+| Fase 4 - Setup, doctor y cierre | 1 | 2 | 50% (T-10 completado tras 3 intentos + fix3/fix4 con verificación dirigida; T-11 pendiente de qa, documenter, 4-bis, changelog y retro) | 0 / 11h | 35.70 / 3.3h | 0 / 0.8h | ~1099.1k out (T-10 116.0k + T-11 16.7k · fix1 182.0k · fix2 367.0k · fix3 196.9k · fix4 220.5k) / 160k (T-10 4.09h · T-11 2.87h · fix1 8.92h · fix2 7.94h · fix3 6.59h · fix4 5.29h) |
+| **TOTAL** | **10** | **11** | **91%** | **0 / 39.5h** | **102.91 / 11.9h** | **0 / 3.0h** | **~3528.0k out / 575k** |
 
 ## Fase 1 - Config, redaccion compartida y capacidad
 
@@ -30,7 +30,6 @@ changelog: added         # skill nueva: sin esto, «regresion» (titulo de T-11)
 - **Tiempo IA**: real 0.22h (medido; usage-meter `training-data-services/T-01`, 13m, 37.8k out tok)
 - **Tiempo IA (fix1)**: real 2.87h (medido; usage-meter, artefacto training-data-services/T-01-fix1, 2h52m reloj incl. corte de sesión y reanudación, 17.80 EUR — cubre T-01/T-02/T-03 fix1; implementer `opus`)
 - **Tiempo IA (fix2)**: real 1.09h (medido; usage-meter, artefacto training-data-services/T-01-fix2, 29m reloj, 63.2k out tok, 7.35 EUR — cubre T-01/T-02/T-03 fix2; implementer `opus`)
-- **Tiempo IA (fix3)**: real 6.59h (medido; usage-meter `training-data-services/T-10-fix3`, 1h 44m de reloj, 196.9k out tok, 38.94 EUR; implementer `opus`) — cubre T-10 fix3 y T-11 fix3 (#180-#188, D-f5 enmendado N1-N9)
 - **Tiempo IA (fix3)**: real 0.88h (medido; usage-meter, artefacto training-data-services/T-01-fix3, 27m reloj, 48.1k out tok, 6.21 EUR — micro-ronda #26/#27/#29/#30; implementer `opus`)
 - **Prevision IA**: 35k in / 14k out tok
 - **Dependencias**: ninguna
@@ -263,11 +262,13 @@ changelog: added         # skill nueva: sin esto, «regresion» (titulo de T-11)
 ## Fase 4 - Setup, doctor y cierre
 
 ### T-10 - Opt-in en setup y doctor
-- **Estado**: en-progreso
+- **Estado**: completado
 - **Tiempo humano**: est. 4h · real -
 - **Tiempo IA**: real 4.09h (medido; usage-meter `training-data-services/T-10`, 1h de reloj, 116.0k out tok, 28.29 EUR; implementer `opus`) — incluye la redaccion inicial, en paralelo, de los tests de aislamiento de T-11 (`tests/test_training_data_services.py`, `tests/test_hooks_shell.py`), que se commitean en T-11
 - **Tiempo IA (fix1)**: real 8.92h (medido; usage-meter `training-data-services/T-10-fix1`, 2h 7m de reloj, 182.0k out tok, 48.93 EUR; implementer `opus`) — cubre T-10 fix1 y T-11 fix1 (#148-#164)
 - **Tiempo IA (fix2)**: real 7.94h (medido; usage-meter `training-data-services/T-10-fix2`, 9h 34m de reloj con dos cortes de sesion, 367.0k out tok, 79.27 EUR; implementer `opus` + cierre de puertas del orquestador) — cubre T-10 fix2 y T-11 fix2 (#165-#179, D-f4 enmendado M1-M13)
+- **Tiempo IA (fix3)**: real 6.59h (medido; usage-meter `training-data-services/T-10-fix3`, 1h 44m de reloj, 196.9k out tok, 38.94 EUR; implementer `opus`) — cubre T-10 fix3 y T-11 fix3 (#180-#188, D-f5 enmendado N1-N9)
+- **Tiempo IA (fix4)**: real 5.29h (medido; usage-meter `training-data-services/T-10-fix4`, 1h 23m de reloj, 220.5k out tok, 40.20 EUR; implementer `opus`) — cubre T-10 fix4 (#189-#193, #195, #196); verificacion dirigida del orquestador: 5/5 mutantes propios mueren
 - **Prevision IA**: 45k in / 18k out tok
 - **Dependencias**: T-09
 - **Tipo**: devops
@@ -1001,3 +1002,36 @@ Si confirma sin Critical ni Important: T-10/T-11 `completado`.
 - Los otros 7 van a la micro-ronda `fix4` (implementer `opus`, marcador `training-data-services/T-10-fix4`), con verificación dirigida del orquestador: mutantes propios por fila, Linux y puertas.
 - Si confirma: T-10/T-11 `completado`.
 - **Sin push hasta la reescritura del historial** (datos personales, PR #14): los commits se rebasan sobre la historia nueva.
+
+## Cierre de la Fase 4 (T-10, T-11) — fix4 VERIFICADA por el orquestador; se aplican las reglas de `sdd-proporcional` (decisión del usuario 2026-09-29, P5 = b): riesgo `alto`, Minor al backlog y sin ronda fix5
+
+**Verificación dirigida de fix4 (orquestador):**
+- Mutantes propios en una copia aislada, uno por fila de código: 5/5 mueren. Son el filtro de `_muestra` por el lector (#189), la cuenta de `otro_prefijo`/`validacion_ilegible` (#190/#191), la causa `id_prefix` en `index check` (#192), la caché de `training.json` (#195) y el resumen previo del `benchmark` (#196).
+- Suites `t10fix3`/`t10fix4`: 41 passed. `ledger-lint` 0/0.
+- El diff `3306c80..HEAD` no añade ningún dato personal.
+- Puertas del implementer:
+  - Windows: `1322 passed, 12 skipped`.
+  - Linux (uid 1000): fase `1314 passed, 20 skipped` y soak 3/3.
+  - Cobertura en checkout limpio: 95,08 % (fase) y 95,03 % (iniciativa), todos los ficheros ≥ 90.
+
+**Arbitraje de las dudas del implementer:**
+- **(1) #190.** Basta UNA versión plantada con otro prefijo para dar `con_omisiones`, exit 1. Es lo pedido: hay un caso que el dataset ignora y el usuario tiene que saberlo.
+- **(2) Estado de #190.** `con_omisiones` es correcto: comparte la semántica de «algo de la entrada no entra en el dataset».
+- **(3) #191.** Un `validation.json` con JSON roto (no de permisos) sigue contando solo en «otros avisos». Se registra como Minor **#197** y va al backlog.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia | Lente |
+|---|---|---|---|---|---|---|
+| 197 | Minor | Un `validation.json` con JSON roto (causa permanente, no de permisos) cuenta solo en «otros avisos». Con la firma igual, la frescura puede salir `al_dia` sin saber si esa versión era Gold. Es el mismo razonamiento de #191, pero con otra causa. | T-10 (#191) | diferido (backlog; regla de `sdd-proporcional` P2 = a: los Minor no bloquean el cierre) — arbitraje propuesto: contar `validation.json` ilegible por CUALQUIER causa permanente (JSON inválido, esquema) en `validacion_ilegible` | detectado por el implementer de fix4 (su nota 3); sin test todavía | implementer (fix4) |
+
+**Derivado a otras iniciativas** (no son gaps de esta):
+- **Línea kwipu de `/doctor`.** Tarda hasta 0,57 s más que su `tope_ms` bajo carga (`markdown_export.health`/`_urlopen_local`, de knowledge-services). Pasa a la iniciativa de pulido de la statusline y el setup.
+- **Tests que solo corren con la memoria local.** Unos 20 de `test_knowledge_find`/`test_knowledge_index` solo se ejecutan si existe `docs/knowledge/`. Pasarlos a un fixture es la reserva del PR #14 y va a la misma iniciativa.
+
+**Decisión del orquestador (2026-09-29).** T-10 pasa a `completado`: 0 Critical, 0 Important y 1 Minor diferido.
+
+T-11 sigue `en-progreso` hasta que se cierren estas puertas de su criterio:
+1. QA sin UI;
+2. documenter;
+3. 4-bis `knowledge-curator`;
+4. `changelog-sync`;
+5. `/retro` + `retro-gate.py`.
