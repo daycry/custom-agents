@@ -169,7 +169,7 @@ estado: borrador
 
 - **Descripción**: `herramienta_disponible` trata `TimeoutExpired` igual que un `ImportError`. Separarlos: el timeout se reintenta (timeout mayor) y, si persiste, queda «no verificado»; solo un import fallido real da «no disponible» (exit 2 con aviso). Nunca un % inventado.
 - **Changelog**: El gate de cobertura ya no dice «no disponible» por un arranque lento de Python.
-- **Estado**: borrador
+- **Estado**: completado
 - **Prioridad**: Alta
 - **Tiempo humano**: est. 1.8h · real —
 - **Tiempo IA (ejec.)**: est. 0.45h · real —
@@ -182,17 +182,22 @@ estado: borrador
 - **Verificación**:
   - `python3 -m pytest -q skills/unit-tests/scripts/test_coverage_gate.py` -> passed, con casos nuevos: timeout simulado + módulo presente -> no «no disponible»; módulo ausente -> exit 2 (CA-06)
 
+- **Evidencia**:
+  RED: test_timeout_con_modulo_presente_reintenta_* y test_timeout_persistente_es_no_verificado_* fallaron con AttributeError: module 'coverage_gate' has no attribute 'sondear_herramienta' (el código anterior trataba TimeoutExpired como ImportError) · 2026-09-29
+  GREEN: `pytest -q skills/unit-tests/scripts/test_coverage_gate.py` -> 23 passed, 5 failed; los 5 rojos (test_min_0_*, test_min_100_*, test_changed_only_* x2, test_json_y_md_*) son PREEXISTENTES en Windows (idénticos con el código anterior: 5 failed, 17 passed); los 6 tests nuevos pasan.
+  Semántica: import fallido real -> exit 2 «no disponible»; timeout -> 1 reintento (15s -> 60s); persistente -> exit 2 «no verificado»; nunca un % inventado.
+
 **Criterios de aceptación**
 
-- [ ] Con `pytest_cov` presente y un arranque lento simulado no informa «no disponible» (CA-06).
-- [ ] Si el módulo falta de verdad: exit 2 y aviso, sin porcentaje.
-- [ ] Un timeout persistente se informa como «no verificado», distinto de «no disponible».
+- [x] Con `pytest_cov` presente y un arranque lento simulado no informa «no disponible» (CA-06).
+- [x] Si el módulo falta de verdad: exit 2 y aviso, sin porcentaje.
+- [x] Un timeout persistente se informa como «no verificado», distinto de «no disponible».
 
 **Subtareas**
 
-- [ ] Tests rojos (timeout simulado; módulo ausente).
-- [ ] Separar excepciones en `herramienta_disponible` (líneas ~150-158).
-- [ ] Reintento acotado.
+- [x] Tests rojos (timeout simulado; módulo ausente).
+- [x] Separar excepciones en `herramienta_disponible` (líneas ~150-158).
+- [x] Reintento acotado.
 
 **Notas**: Criterio de la spec: CA-06.
 

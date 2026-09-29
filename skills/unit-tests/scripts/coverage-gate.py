@@ -147,23 +147,39 @@ def _local_bin(ruta, nombre):
     return p if os.path.isfile(p) else None
 
 
+# C-04: un arranque lento de Python NO es un import fallido. La sonda distingue tres estados y
+# un timeout se reintenta UNA vez con más margen antes de rendirse como «no verificado».
+TIMEOUTS_SONDA_PYTEST = (15, 60)
+
+
+def sondear_herramienta(stack, ruta):
+    """'disponible' | 'ausente' | 'no_verificado' (timeout persistente). Nunca lanza."""
+    if stack == "pytest":
+        for tiempo in TIMEOUTS_SONDA_PYTEST:
+            try:
+                r = subprocess.run([sys.executable, "-c", "import pytest, pytest_cov"],
+                                   cwd=ruta, capture_output=True, timeout=tiempo)
+            except subprocess.TimeoutExpired:
+                continue  # arranque lento: reintenta con un timeout mayor
+            except (OSError, subprocess.SubprocessError):
+                return "ausente"
+            return "disponible" if r.returncode == 0 else "ausente"
+        return "no_verificado"
+    if stack in ("jest", "vitest"):
+        ok = bool(_local_bin(ruta, stack) or shutil.which(stack))
+    elif stack == "phpunit":
+        local = os.path.join(ruta, "vendor", "bin", "phpunit")
+        ok = os.path.isfile(local) or shutil.which("phpunit") is not None
+    elif stack == "go":
+        ok = shutil.which("go") is not None
+    else:
+        ok = False
+    return "disponible" if ok else "ausente"
+
+
 def herramienta_disponible(stack, ruta):
     """¿Está la herramienta OFICIAL de este stack lista para ejecutar? Nunca lanza."""
-    if stack == "pytest":
-        try:
-            r = subprocess.run([sys.executable, "-c", "import pytest, pytest_cov"],
-                               cwd=ruta, capture_output=True, timeout=15)
-            return r.returncode == 0
-        except (OSError, subprocess.SubprocessError):
-            return False
-    if stack in ("jest", "vitest"):
-        return bool(_local_bin(ruta, stack) or shutil.which(stack))
-    if stack == "phpunit":
-        local = os.path.join(ruta, "vendor", "bin", "phpunit")
-        return os.path.isfile(local) or shutil.which("phpunit") is not None
-    if stack == "go":
-        return shutil.which("go") is not None
-    return False
+    return sondear_herramienta(stack, ruta) == "disponible"
 
 
 def comando_defecto(stack, ruta):
@@ -351,7 +367,13 @@ def evaluar(ruta, minimo, changed_only, base_ref, runner, root_arg=None):
         return {"ok": False, "exit": 2, "aviso": "no se detectó ningún stack soportado "
                 "(pytest/jest/vitest/phpunit/go): ¿faltan sus ficheros de manifiesto?"}
 
-    if not runner and not herramienta_disponible(stack, ruta):
+    estado = "disponible" if runner else sondear_herramienta(stack, ruta)
+    if estado == "no_verificado":
+        return {"ok": False, "exit": 2, "stack": stack,
+               "aviso": f"stack «{stack}»: la comprobación de la herramienta de cobertura agotó el "
+                        f"tiempo (no verificado, tras reintentar); no equivale a «no disponible» — "
+                        f"reintenta o pasa --runner. Nunca se inventa un porcentaje"}
+    if estado != "disponible":
         return {"ok": False, "exit": 2, "stack": stack,
                "aviso": f"stack «{stack}» detectado pero su herramienta de cobertura no está "
                         f"disponible (PATH/paquete) — nunca se inventa un porcentaje"}
