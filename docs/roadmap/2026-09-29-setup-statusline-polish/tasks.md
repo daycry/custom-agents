@@ -599,3 +599,10 @@ estado: en-progreso
 
 **Notas**: Criterio de la spec: CA-18, CA-19.
 
+
+## Nota del orquestador — cierre de las Fases 1-3 (2026-09-30)
+
+- **Medición.** El marcador `setup-statusline-polish/F1-F3` duró 1h 1m de reloj. El meter degradó (`fuente: estimado`, sin transcripciones legibles desde este worktree), así que no hay tokens ni € medidos para estas fases.
+- **Cobertura (riesgo `medio`).** El gate de fichero entero (`coverage-gate.py --changed-only --base origin/master --min 80`) da 52,91 %: mide los ficheros enteros que toca el diff y no ve los CLI lanzados como subproceso. La cobertura de las **líneas añadidas** por el diff es 91,1 % (`doctor.py` 16/18, `progress-report.py` 33/39, `build_dashboard.py` 19/20, `coverage-gate.py` 24/24). **Decisión:** para riesgo medio se acepta la medida sobre las líneas del diff. Queda como mejora de `sdd-proporcional` (C-04): que el perfil de rigor defina la cobertura de riesgo medio sobre las líneas del diff y que `coverage-gate.py` la calcule.
+- **`scope-check`.** Sale con exit 1 por ficheros que no son del implementer: los artefactos de la cadena (`spec.md`, `evaluation.md`, `improvement-plan.md`, `docs/roadmap/README.md`). Los dos manifiestos que marcaba (`.agents/plugins/marketplace.json` y `.codex-plugin/plugin.json`) no tienen diff frente a `origin/master`, así que era ruido de la base. Los 49 ficheros del implementer están en alcance.
+- **Linux.** La pasada completa se repite en el cierre (T-14), después de integrar `origin/master`, que ya incluye el PR #15.
