@@ -59,10 +59,16 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 
 
 def _cargar(ruta, nombre):
-    spec = importlib.util.spec_from_file_location(nombre, ruta)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
+    """Un script por RUTA sin dejar bytecode (#186: `dont_write_bytecode`, restaurado al salir)."""
+    previo = sys.dont_write_bytecode
+    sys.dont_write_bytecode = True
+    try:
+        spec = importlib.util.spec_from_file_location(nombre, ruta)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
+    finally:
+        sys.dont_write_bytecode = previo
 
 
 asm = _cargar(os.path.join(HERE, "dataset-assembler.py"), "tds_dataset_assembler_pfc")

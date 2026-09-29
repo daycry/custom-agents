@@ -192,6 +192,7 @@ _WINDOWS = os.name == "nt"
 NAME_SURROGATE = 0x20000000        # bit «name surrogate» de st_reparse_tag: symlink y junction (E4)
 _O_NOFOLLOW = getattr(os, "O_NOFOLLOW", 0)   # G6: POSIX; en Windows no existe (comprobacion posterior)
 _O_NONBLOCK = getattr(os, "O_NONBLOCK", 0)   # #135: POSIX; un FIFO plantado no bloquea el open (Windows: 0)
+_PERMISOS_PERMANENTES = not _WINDOWS   # N6 (#182 cara 2): en POSIX, EACCES/EPERM no son transitorios
 _PUBLICAR_CON_RENAME = _WINDOWS  # G2: `metadata.json` por `os.rename` (Windows) o `os.link` + retirar (POSIX)
 MENSAJE_AGOTADO = ("`{}` agoto los numeros de version (existe v{}): los `record` automaticos se rechazan; "
                    "graba con otro `variant`; no se escribe nada")
@@ -207,12 +208,24 @@ def _crono():
     return time.monotonic()
 
 
+def _cargar_por_ruta(nombre, ruta):
+    """#186 (el patron de `capabilities._cargar_por_ruta`): carga un script por RUTA sin dejar
+    bytecode (`dont_write_bytecode`, restaurado al salir): un diagnostico de solo lectura (`/doctor`,
+    `dataset-assembler.py --estado`) no escribe un `__pycache__` en el plugin."""
+    previo = sys.dont_write_bytecode
+    sys.dont_write_bytecode = True
+    try:
+        spec = importlib.util.spec_from_file_location(nombre, ruta)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
+    finally:
+        sys.dont_write_bytecode = previo
+
+
 def _cargar_schema():
     """`case_schema.py` de la MISMA skill (fuente unica del esquema, de los ids y de las rutas)."""
-    spec = importlib.util.spec_from_file_location("tds_case_schema", os.path.join(HERE, "case_schema.py"))
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
+    return _cargar_por_ruta("tds_case_schema", os.path.join(HERE, "case_schema.py"))
 
 
 cs = _cargar_schema()
@@ -324,10 +337,7 @@ def cargar_redact(dirs=None):
     for d in dirs if dirs is not None else _dirs_redact():
         ruta = os.path.join(d, "redact.py")
         if os.path.isfile(ruta):
-            spec = importlib.util.spec_from_file_location("tds_redact", ruta)
-            mod = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(mod)
-            return mod
+            return _cargar_por_ruta("tds_redact", ruta)                          # #186
     raise RedaccionNoDisponible(
         "no se encuentra agent-kits/shared/redact.py (fuente unica de la redaccion de secretos); "
         "reinstala el plugin completo: el recorder no graba casos sin redactar")
@@ -934,11 +944,20 @@ def _abrir_propio(ruta):
 
 # ------------------------------------------------------------------ lectura y escritura
 
+def _permiso_permanente(e):
+    """N6 (decidido): en POSIX, un `PermissionError` con `EACCES`/`EPERM` es PERMANENTE (permisos del
+    fichero: no se reintenta y no es una omision transitoria); en Windows, el mismo error es
+    «bloqueado o sin permisos» (un `os.replace` o un antivirus ajenos lo sueltan) y sigue siendo
+    transitorio."""
+    return _PERMISOS_PERMANENTES and isinstance(e, PermissionError) and e.errno in (errno.EACCES, errno.EPERM)
+
+
 def _json_bytes(obj):
     return (json.dumps(obj, ensure_ascii=False, indent=2, allow_nan=False) + "\n").encode("utf-8")
 
 
 SUSTITUIDO = "cambio entre la comprobacion y la lectura (sustituido)"
+SIN_PERMISOS = "sin permisos de lectura (revisa los permisos y reensambla)"      # N6 (POSIX)
 
 
 class _FicheroNoPropio(Rechazo):
@@ -1016,8 +1035,8 @@ def _leer_json_reintentando(ruta, previo=None, fstat_leido=None, decodificar=_js
             if fstat_leido is not None:
                 fstat_leido.append(st)
             return decodificar(datos), st.st_mtime
-        except PermissionError:
-            if intento == REINTENTOS - 1:
+        except PermissionError as e:
+            if intento == REINTENTOS - 1 or _permiso_permanente(e):              # N6: nada que esperar
                 raise
             if hasta is not None and _crono() + ESPERA_REINTENTO_S >= hasta:
                 raise _PlazoAgotado() from None          # #177: fue el PLAZO, no los reintentos
@@ -1068,7 +1087,6 @@ FICHEROS_INMUTABLES = ("metadata.json", "request.json", "context.json", "constra
 
 NO_GOLD = type("_NoGold", (), {"__repr__": lambda self: "NO_GOLD", "__slots__": ()})()   # F1: centinela
 CENTINELA_HASH = "!"               # M5: `content_hash` presente que no es un sha256 hex (nunca se retiene la cadena)
-TRANSITORIA = "!transitoria"       # M2: Gold que el ensamblador omitio por una causa TRANSITORIA
 _HEX64 = frozenset("0123456789abcdef")
 
 
@@ -1092,7 +1110,7 @@ def gold_de_version(validation):
 def firma_gold(gold):
     """F1 + M5: FIRMA de la entrada de un ensamblado: sha256 de una linea por Gold,
     `json.dumps([case_id, version, h], ensure_ascii=True)`, en orden `(case_id, version)` (UTF-8,
-    `\\n`). `gold` = `{(case_id, version): h}` con `h` de `gold_de_version` (o `TRANSITORIA`). Sin
+    `\\n`). `gold` = `{(case_id, version): h}` con `h` de `gold_de_version` (D-f5 O1). Sin
     ambiguedad (JSON por linea) y sin pagar el tamaño de nada que no sea un hash valido (M5)."""
     s = hashlib.sha256()
     for clave in sorted(gold):
@@ -1557,7 +1575,10 @@ def grabar(caso, config, raiz_proyecto=None, approved_by_human=False):
         caso["validation"] = dict(val, approved_by_human=True, approved_at=val.get("approved_at") or _ahora())
     fam, var = caso.get("family"), caso.get("variant")
     if "case_id" not in caso and isinstance(fam, str) and isinstance(var, str):
-        caso["case_id"] = cs.construir_case_id(config.get("id_prefix"), fam, var)
+        try:
+            caso["case_id"] = cs.construir_case_id(config.get("id_prefix"), fam, var)
+        except ValueError:
+            pass                                             # N4: `validar_caso` dice que campo pasa del tope
 
     width = cs.patrones_id(config)[2]
     store = raiz_store(config, raiz)
@@ -1992,6 +2013,8 @@ def _leer_de_version(dir_v, fichero, rel, fstat_leido=None, decodificar=_json_de
             return _cod("incompleta", f"{rel} incompleta: sin {fichero} ({que}); se conserva, reparala o graba otra "
                         "version")
         except OSError as e:
+            if _permiso_permanente(e):                                          # N6
+                return None, None, f"{rel} ilegible: {fichero} {SIN_PERMISOS}"
             return None, None, f"{rel} ilegible: {fichero} no se puede examinar ({e})"
         if _motivo_enlace(ruta, ruta) if _es_enlace_st(st) is None else _es_enlace_st(st):
             return None, None, f"{rel} omitida: {fichero} es un {MOTIVO_ENLACE}"
@@ -2023,6 +2046,8 @@ def _leer_de_version(dir_v, fichero, rel, fstat_leido=None, decodificar=_json_de
         except FileNotFoundError:
             return _cod("incompleta", f"{rel} incompleta: sin {fichero} (desaparecio al leerla)")
         except PermissionError as e:
+            if _permiso_permanente(e):                                          # N6
+                return None, None, f"{rel} ilegible: {fichero} {SIN_PERMISOS}"
             return None, None, (f"{rel} ilegible: {fichero} no legible tras {REINTENTOS} reintentos "
                                 f"(bloqueada o sin permisos): {e}")
         except (OSError, ValueError, RecursionError) as e:
@@ -2043,8 +2068,34 @@ def _json_y_crudo(datos):
     return _json_de(datos), datos
 
 
+def _motivo_case_id(meta, id_prefix):
+    """#181/N2: por que el `case_id` de un `metadata.json` ya parseado no vale, o None. Se mira JUSTO
+    despues de parsearlo (antes de leer `validation.json` y de guardar nada): `case_id` que no es texto,
+    mas largo que `CASE_ID_MAX` (nunca se retiene, CWE-400/770) o, con el `id_prefix` de training.json,
+    distinto de `construir_case_id(id_prefix, family, variant)`. Sin `id_prefix`, la regla permisiva de
+    siempre (`_case_id_casa`, mas abajo). El motivo NUNCA incluye el `case_id`."""
+    if not isinstance(meta, dict) or "case_id" not in meta:
+        return None                                   # lo explica la comprobacion de siempre
+    case_id = meta["case_id"]
+    if not isinstance(case_id, str):
+        return "metadata.json no casa con su ruta o con el esquema"
+    if len(case_id) > cs.CASE_ID_MAX:
+        return f"case_id demasiado largo (mas de {cs.CASE_ID_MAX} caracteres; no se lee)"
+    fam, var = meta.get("family"), meta.get("variant")
+    if id_prefix is None or not isinstance(fam, str) or not isinstance(var, str):
+        return None
+    try:
+        esperado = cs.construir_case_id(id_prefix, fam, var)
+    except ValueError:
+        esperado = None
+    if case_id != esperado:
+        return ("el case_id de metadata.json es de otro `id_prefix` que el de training.json (lo cambiaste?): "
+                "con otro id_prefix, usa otro root")
+    return None
+
+
 def _estado_version(store, nombre, dir_caso, numero, nombres, entrada_dir=None, firmas=None, crudos=None,
-                    tope=None, codigo=None, hasta=None, gold=None):
+                    tope=None, codigo=None, hasta=None, gold=None, id_prefix=None):
     """Estado de UNA version desde el disco: `(entrada|None, aviso|None, en_curso, mtime_meta)`.
     Con `firmas`, anota la firma (`st_ino`, tamaño, `mtime`) del `validation.json` leido (gap #89).
     Con `crudos` (dict, #130: el ensamblador), guarda los BYTES leidos de `metadata.json` y
@@ -2054,7 +2105,8 @@ def _estado_version(store, nombre, dir_caso, numero, nombres, entrada_dir=None, 
     pasa el suyo: un `metadata.json` o `validation.json` mayor omite la version con aviso sin cargarlo).
     T-10 fix1 (`resumen_store`): `codigo` (lista) recibe el codigo estructurado del aviso (#157), `hasta`
     acota los reintentos de los lectores (#163) y `gold` (dict) recibe `{(case_id, numero): content_hash}`
-    de cada Gold humano valido (#154: la frescura del dataset se compara por CONTENIDO)."""
+    de cada Gold humano valido (#154: la frescura del dataset se compara por CONTENIDO). `id_prefix`
+    (#181/N2): el de training.json; su `case_id` se comprueba antes de leer nada mas (`_motivo_case_id`)."""
     leido_m = [] if crudos is not None else None
     dec = _json_y_crudo if crudos is not None else _json_de
     crudo = {}
@@ -2091,6 +2143,12 @@ def _estado_version(store, nombre, dir_caso, numero, nombres, entrada_dir=None, 
                               f"(< {GRACIA_EN_CURSO_S:g} s): una grabacion en marcha"), True, None
         return None, aviso, False, None
     if aviso is None:
+        motivo_id = _motivo_case_id(meta, id_prefix)                     # #181/N2: antes de todo lo demas
+        if motivo_id:
+            meta = crudo = None
+            if codigo is not None:
+                codigo.append("case_id")
+            return None, f"{rel} omitida: {motivo_id}; no se indexa", False, None
         if hasta is not None and _crono() >= hasta:
             raise _PlazoAgotado()                           # #171: el plazo se mira ANTES de cada parseo
         leido = []
@@ -2167,6 +2225,27 @@ LISTADO_CADA = 64                  # #152: durante un listado, el plazo se mira 
 MARCAS_TRANSITORIAS = ("no legible tras", SUSTITUIDO, "desaparecio al leerla", "no se puede examinar")
 
 
+CAUSAS_AVISO = ("ausente", "ilegible", "sin permisos o bloqueado", "sin permisos", "esquema", "sustituido")
+
+
+def causa_aviso(aviso):
+    """N6 (D-f5): la CAUSA normalizada del aviso con el que se omitio una version (fuente unica; la
+    usan la marca del ensamblador y su texto): `sin permisos` (POSIX, permanente), `sin permisos o
+    bloqueado`, `ausente`, `sustituido` (tambien un enlace plantado), `esquema` o `ilegible`."""
+    if SIN_PERMISOS in aviso:
+        return "sin permisos"
+    if "no legible tras" in aviso or "no se puede examinar" in aviso or "(bloqueada o sin permisos)" in aviso:
+        return "sin permisos o bloqueado"
+    if "incompleta: sin " in aviso or "desaparecio al leerla" in aviso or "ya no esta" in aviso:
+        return "ausente"
+    if "sustituido" in aviso or "cambio durante la lectura" in aviso or MOTIVO_ENLACE in aviso \
+            or "enlace duro" in aviso or "no es el directorio esperado" in aviso or "otro dispositivo" in aviso:
+        return "sustituido"
+    if "esquema" in aviso or "no casa con su ruta" in aviso or "sin la forma del recorder" in aviso:
+        return "esquema"
+    return "ilegible"
+
+
 def _aviso_transitorio(aviso):
     """gap #105: el aviso de una version tiene causa TRANSITORIA (bloqueada o sin permisos un
     instante, sustituida durante la lectura, desaparecida al leerla, no examinable): la confirmacion
@@ -2176,7 +2255,8 @@ def _aviso_transitorio(aviso):
 
 
 def _estado_de_cases(store, raiz_proyecto=None, duenos=None, firmas=None, temporales_version=False,
-                     transitorias=None, crudos=None, tope=None, recorte=None, codigos=None, gold=None):
+                     transitorias=None, crudos=None, tope=None, recorte=None, codigos=None, gold=None,
+                     id_prefix=None):
     """`(entradas, avisos, en_curso, mtimes_meta, rels)` recorriendo `cases/` (la FUENTE). `avisos`
     y `en_curso` son dicts `rel -> texto`; `rels` indexa por `(<family>.<variant>, numero)` los `rel`
     de cada version con aviso (gap #69: la cola los retira en O(1)). Enlaces detectados por ENTRADA
@@ -2199,7 +2279,9 @@ def _estado_de_cases(store, raiz_proyecto=None, duenos=None, firmas=None, tempor
     hasta ahi) y anota `truncado`, `casos_vistos` (casos examinados enteros, tambien los omitidos,
     #155) y `casos_total`; los reintentos de los lectores tampoco pasan de ese instante (#163).
     `codigos` (dict opcional, #157) recibe `rel -> codigo` (`incompleta`, `huerfano`, `grande`) de los
-    avisos que lo tienen; `gold` (dict opcional, #154), `{(case_id, numero): content_hash}` de los Gold."""
+    avisos que lo tienen; `gold` (dict opcional, #154), `{(case_id, numero): content_hash}` de los Gold.
+    `id_prefix` (#181/N2): el de training.json (lo pasan el ensamblador y `resumen_store`); con el, una
+    version cuyo `case_id` no es `construir_case_id(id_prefix, family, variant)` se omite con aviso."""
     entradas, avisos, en_curso, mtimes, rels = {}, {}, {}, {}, {}
     duenos = {} if duenos is None else duenos
     hasta = recorte["hasta"] if recorte is not None else None
@@ -2290,6 +2372,8 @@ def _estado_de_cases(store, raiz_proyecto=None, duenos=None, firmas=None, tempor
                 cod = [] if codigos is not None else None
                 extra = {} if cod is None and hasta is None and gold is None else {"codigo": cod, "hasta": hasta,
                                                                                     "gold": gold}
+                if id_prefix is not None:
+                    extra["id_prefix"] = id_prefix                          # #181/N2
                 rel = f"cases/{nombre}/{nombres[0]}"
                 try:
                     e, aviso, curso, mtime_meta = _estado_version(store, nombre, dir_caso, v, nombres,
@@ -2395,7 +2479,7 @@ RESUMEN_PLAZO_S = 2.0              # T-10: tope del recorrido de `resumen_store`
                                    # en caliente y > 70 s en frio en Windows; con el tope, recuento PARCIAL)
 
 
-def resumen_store(store, raiz_proyecto=None, plazo_s=RESUMEN_PLAZO_S):
+def resumen_store(store, raiz_proyecto=None, plazo_s=RESUMEN_PLAZO_S, id_prefix=None):
     """Resumen de SOLO LECTURA del case store para `/doctor` (T-10, CA-07) y para
     `dataset-assembler.py --estado`, desde `cases/` con los MISMOS lectores seguros del recorrido
     (`_estado_de_cases`: sin seguir enlaces, por descriptor), nunca desde el indice (una cache).
@@ -2416,14 +2500,17 @@ def resumen_store(store, raiz_proyecto=None, plazo_s=RESUMEN_PLAZO_S):
     listado (#152/#165), antes de un parseo (#171) o de los reintentos de un lector (#163/#177)— corta y
     lo declara (`truncado`, `casos_vistos` de `casos_total`; con `listado_parcial`, `casos_total` es
     «al menos»): el recuento es entonces PARCIAL con lo ya contado, nunca un total inventado. `hasta` es
-    el instante (`_crono()`) en que vence el plazo (None sin tope). No escribe nada, no toma bloqueos, sin
-    red."""
+    el instante (`_crono()`) en que vence el plazo (None sin tope). `id_prefix` (#181/N2): el de
+    training.json (lo pasan `/doctor` y `--estado`); sin el, la regla permisiva de siempre. La `firma`
+    se calcula DENTRO del plazo (#181 d): si ya se agoto, el recuento es PARCIAL y `firma` es None. No
+    escribe nada, no toma bloqueos, sin red."""
     hasta = None if plazo_s is None else _crono() + plazo_s
     recorte = {"hasta": hasta}
     firmas, codigos, gold, transitorias = {}, {}, {}, set()
     entradas, avisos, en_curso, _m, _r = _estado_de_cases(store, raiz_proyecto, firmas=firmas, temporales_version=True,
                                                           transitorias=transitorias, tope=TOPE_JSON_CASO,
-                                                          recorte=recorte, codigos=codigos, gold=gold)
+                                                          recorte=recorte, codigos=codigos, gold=gold,
+                                                          **({"id_prefix": id_prefix} if id_prefix is not None else {}))
     por_estado = {s: 0 for s in cs.VALIDATION_STATUS}
     gold_ns = None
     for clave, e in entradas.items():
@@ -2437,10 +2524,15 @@ def resumen_store(store, raiz_proyecto=None, plazo_s=RESUMEN_PLAZO_S):
         if c in cuenta:
             cuenta[c] += 1
     gold = {k: v for k, v in gold.items() if k in entradas}
+    if hasta is not None and _crono() >= hasta:                             # #181 d: la firma, dentro del plazo
+        recorte["truncado"] = True
+        firma = None
+    else:
+        firma = firma_gold(gold)
     return {"por_estado": por_estado, "versiones": len(entradas), "incompletas": cuenta["incompleta"],
             "huerfanos": cuenta["huerfano"], "grandes": cuenta["grande"], "cortadas": cuenta["plazo"],
             "otros_avisos": len(avisos) - sum(cuenta.values()), "en_curso": len(en_curso),
-            "transitorias": len(transitorias), "gold": gold, "n_gold": len(gold), "firma": firma_gold(gold),
+            "transitorias": len(transitorias), "gold": gold, "n_gold": len(gold), "firma": firma,
             "gold_mtime_ns": gold_ns, "truncado": recorte["truncado"], "listado_parcial": recorte["listado_parcial"],
             "casos_vistos": recorte["casos_vistos"], "casos_total": recorte["casos_total"], "plazo_s": plazo_s,
             "hasta": hasta}

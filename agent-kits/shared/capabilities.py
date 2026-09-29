@@ -353,7 +353,9 @@ def _training_doctor(root):
         margen = tds["asm"].MARGEN_ESTADO_S
         total = plazo_restante(TRAINING_PLAZO_S + margen)
         plazo = TRAINING_PLAZO_S if total >= TRAINING_PLAZO_S + margen else max(0.0, total - margen)
-        res = tds["rec"].resumen_store(salud["root"], root or ".", plazo_s=plazo)
+        config = _estado_training(root)[0] or {}
+        # #181/N2: el `id_prefix` de training.json, EXPLICITO (sin el, la regla permisiva del recorder)
+        res = tds["rec"].resumen_store(salud["root"], root or ".", plazo_s=plazo, id_prefix=config.get("id_prefix"))
         ds = tds["asm"].estado_dataset(salud["root"], res)
         texto = tds["asm"].texto_estado(res, ds)
     except Exception as e:   # noqa: BLE001 — informar nunca bloquea (CA-07)

@@ -605,3 +605,32 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
+
+
+# ------------------------------------------------------------------ #187: campos **Changelog** <= 200
+# `changelog-sync` avisa de un campo **Changelog** de mas de 200 caracteres (lo respeta, pero pide
+# acortarlo). La fila #187 reescribe los de T-08 y T-09; el alcance de la ronda fix3 NO incluye los de
+# T-01, T-04…T-07 (tambien > 200: ver la Evidencia de #187), asi que el test vigila las tareas cuyo
+# campo ya se ha acortado y las de la Fase 4.
+TAREAS_CHANGELOG_CORTO = ("T-08", "T-09", "T-10", "T-11")
+
+
+def test_187_campos_changelog_de_t08_a_t11_sin_avisos_de_changelog_sync(tmp_path):
+    """#187: los campos **Changelog** de T-08…T-11 tienen <= 200 caracteres (una o dos frases) y
+    `changelog-sync --dry-run --only training-data-services` no da ningun aviso para ellos."""
+    with open(LEDGER, encoding="utf-8") as f:
+        ledger = f.read()
+    for t in TAREAS_CHANGELOG_CORTO:
+        bloque = ledger.split(f"### {t} - ", 1)[1].split("\n### ", 1)[0]
+        campo = re.search(r"^- \*\*Changelog\*\*: (.+)$", bloque, re.M).group(1)
+        assert len(campo) <= 200, (t, len(campo))
+    textos = {}
+    for fn in CABECERAS:
+        with open(os.path.join(ROOT, fn), encoding="utf-8") as f:
+            textos[fn] = _sin_seccion_de_la_iniciativa(f.read(), fn)
+    base = _simular_cierre(tmp_path, textos, ledger)
+    r = subprocess.run(base + ["--dry-run", "--json"], capture_output=True, text=True, encoding="utf-8", timeout=120)
+    assert r.returncode == 0, r.stderr
+    avisos = [a for a in json.loads(r.stdout)["avisos"]
+              if any(a.startswith(f"{SLUG} {t}:") for t in TAREAS_CHANGELOG_CORTO)]
+    assert avisos == [], avisos

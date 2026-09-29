@@ -94,6 +94,10 @@ PATRON_PREFIJO = re.compile(r"[a-z0-9][a-z0-9-]*")
 PATRON_HASH = re.compile(r"[a-z0-9]+:[0-9a-fA-F]+")
 PATRON_REFERENCIA = re.compile(r"(\S+)@v([0-9]+)", re.ASCII)   # forma canonica: ver _validar_supersedes
 VERSION_WIDTH_DEFECTO = 3
+FAMILY_MAX = 64                # #181/N4: topes en el ORIGEN (`validar_caso`/`validar_config`): el `case_id`
+VARIANT_MAX = 64               # legitimo mas largo es 32 + 1 + 64 + 1 + 64 = 162 caracteres, por debajo de
+ID_PREFIX_MAX = 32             # `CASE_ID_MAX` (fuente unica; lo exigen tambien el recorrido de `cases/` y
+CASE_ID_MAX = 200              # `construir_case_id`: un `case_id` gigante nunca se retiene)
 CLAVES_CONFIG = ("version", "enabled", "root", "id_prefix", "ids", "bridge_to_curator", "$comment")
 CLAVES_IDS = ("family_pattern", "variant_pattern", "version_width")
 ERRORES_REGEX = (re.error, OverflowError, RecursionError, MemoryError)
@@ -255,6 +259,8 @@ def validar_config(cfg, raiz_proyecto=None):
         pref = cfg.get("id_prefix")
         if not isinstance(pref, str) or not PATRON_PREFIJO.fullmatch(pref):
             errores.append(_err("id_prefix", "obligatorio con enabled: true; slug `^[a-z0-9][a-z0-9-]*$`"))
+        elif len(pref) > ID_PREFIX_MAX:                                      # #181/N4
+            errores.append(_err("id_prefix", f"como mucho {ID_PREFIX_MAX} caracteres"))
 
     ids = cfg.get("ids")
     if ids is not None:
@@ -309,8 +315,13 @@ def patrones_id(config=None):
 # ------------------------------------------------------------------ ids
 
 def construir_case_id(id_prefix, family, variant):
+    """`<id_prefix>-<family>.<variant>` (o `<family>.<variant>` sin prefijo). `ValueError` si pasa de
+    `CASE_ID_MAX` (#181: nunca se construye un `case_id` que el recorrido de `cases/` omitiria)."""
     base = f"{family}.{variant}"
-    return f"{id_prefix}-{base}" if id_prefix else base
+    case_id = f"{id_prefix}-{base}" if id_prefix else base
+    if len(case_id) > CASE_ID_MAX:
+        raise ValueError(f"case_id de {len(case_id)} caracteres, por encima de {CASE_ID_MAX}")
+    return case_id
 
 
 def referencia_version(case_id, version, width=VERSION_WIDTH_DEFECTO):
@@ -485,9 +496,11 @@ def validar_caso(caso, config=None):
         return [_err("(raiz)", "el caso debe ser un objeto JSON")]
     errores = []
     pat_fam, pat_var, width = patrones_id(config)
-    for campo, patron in (("family", pat_fam), ("variant", pat_var)):
+    for campo, patron, tope in (("family", pat_fam, FAMILY_MAX), ("variant", pat_var, VARIANT_MAX)):
         v = caso.get(campo)
-        if not isinstance(v, str) or not _casa(patron, v):
+        if isinstance(v, str) and len(v) > tope:                             # #181/N4: antes del patron
+            errores.append(_err(campo, f"como mucho {tope} caracteres"))
+        elif not isinstance(v, str) or not _casa(patron, v):
             errores.append(_err(campo, f"obligatorio; debe casar ENTERO con {patron}"))
         elif _componente_inseguro(v):
             errores.append(_err(campo, f"{_componente_inseguro(v)} (es un directorio del case store)"))
@@ -499,11 +512,17 @@ def validar_caso(caso, config=None):
     case_id = caso.get("case_id")
     if not _str_no_vacio(case_id):
         errores.append(_err("case_id", "obligatorio"))
+    elif len(case_id) > CASE_ID_MAX:                                         # #181/N4
+        errores.append(_err("case_id", f"como mucho {CASE_ID_MAX} caracteres"))
     elif isinstance(caso.get("family"), str) and isinstance(caso.get("variant"), str):
         base = f"{caso['family']}.{caso['variant']}"
         if config is not None:
-            esperado = construir_case_id(config.get("id_prefix"), caso["family"], caso["variant"])
-            if case_id != esperado:
+            try:                                    # N4: `construir_case_id` nunca lanza desde aqui
+                esperado = construir_case_id(config.get("id_prefix"), caso["family"], caso["variant"])
+            except ValueError as e:
+                esperado = None
+                errores.append(_err("case_id", str(e)))
+            if esperado is not None and case_id != esperado:
                 errores.append(_err("case_id", f"debe ser `{esperado}` (id_prefix + family.variant)"))
         elif not (case_id == base or (case_id.endswith("-" + base)
                                       and PATRON_PREFIJO.fullmatch(case_id[: -len(base) - 1] or "?"))):

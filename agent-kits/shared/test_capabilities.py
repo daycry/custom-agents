@@ -475,9 +475,9 @@ def test_t10_training_doctor_pasa_su_tope_de_tiempo_al_recuento(tmp_path, monkey
     vistos = []
     original = tds["rec"].resumen_store
 
-    def _espia(store, raiz=None, plazo_s=None):
+    def _espia(store, raiz=None, plazo_s=None, id_prefix=None):          # fix3 (#181/N2): id_prefix explicito
         vistos.append(plazo_s)
-        return original(store, raiz, plazo_s=plazo_s)
+        return original(store, raiz, plazo_s=plazo_s, id_prefix=id_prefix)
     monkeypatch.setattr(tds["rec"], "resumen_store", _espia)
     monkeypatch.setattr(cap_mod, "_cargar_tds", lambda: tds)
     _cap_training(proj)
@@ -583,9 +583,9 @@ def test_t10fix1_164_enumerar_pasa_el_plazo_que_queda_a_las_capacidades(tmp_path
     vistos = []
     original = tds["rec"].resumen_store
 
-    def _espia(store, raiz=None, plazo_s=None):
+    def _espia(store, raiz=None, plazo_s=None, id_prefix=None):          # fix3 (#181/N2): id_prefix explicito
         vistos.append(plazo_s)
-        return original(store, raiz, plazo_s=plazo_s)
+        return original(store, raiz, plazo_s=plazo_s, id_prefix=id_prefix)
     monkeypatch.setattr(tds["rec"], "resumen_store", _espia)
     monkeypatch.setattr(cap_mod, "_cargar_tds", lambda: tds)
     next(c for c in cap_mod.enumerar(proj, plazo_s=0.4) if c["id"] == "training")
@@ -627,9 +627,9 @@ def test_t10fix2_frescura_y_texto_vienen_del_ensamblador(tmp_path, monkeypatch):
     vistos = []
     original = tds["rec"].resumen_store
 
-    def _espia(store_, raiz=None, plazo_s=None):
+    def _espia(store_, raiz=None, plazo_s=None, id_prefix=None):         # fix3 (#181/N2): id_prefix explicito
         vistos.append(plazo_s)
-        return original(store_, raiz, plazo_s=plazo_s)
+        return original(store_, raiz, plazo_s=plazo_s, id_prefix=id_prefix)
     monkeypatch.setattr(tds["rec"], "resumen_store", _espia)
     monkeypatch.setattr(cap_mod, "_cargar_tds", lambda: tds)
     txt = next(c for c in cap_mod.enumerar(proj, plazo_s=1.0) if c["id"] == "training")["doctor"]
@@ -637,3 +637,49 @@ def test_t10fix2_frescura_y_texto_vienen_del_ensamblador(tmp_path, monkeypatch):
     res = original(str(store), proj, plazo_s=None)
     assert tds["asm"].texto_estado(res, tds["asm"].estado_dataset(str(store), res)) in txt
     assert cap_mod._texto_recuento(res, tds["asm"].estado_dataset(str(store), res)) in txt
+
+
+# ------------------------------------------------------------------ T-10 fix3 (#180, #181/N2)
+
+def test_t10fix3_181_doctor_pasa_el_id_prefix_de_training_json_y_un_store_normal_esta_al_dia(tmp_path, monkeypatch):
+    """#181/N2 (I4): `/doctor` (la capacidad) pasa a `resumen_store` el `id_prefix` de training.json;
+    con un store normal con prefijo, la frescura sale `al_dia` (nunca `n_gold=0`)."""
+    proj, cfg, store = _proyecto_training(tmp_path, estados=("approved", "approved"))
+    tds = _tds()
+    tds["asm"].ensamblar(cfg, proj, {"f1"}, fecha="20260928")
+    vistos = []
+    original = tds["rec"].resumen_store
+
+    def _espia(store_, raiz=None, plazo_s=None, id_prefix=None):
+        vistos.append(id_prefix)
+        return original(store_, raiz, plazo_s=plazo_s, id_prefix=id_prefix)
+    monkeypatch.setattr(tds["rec"], "resumen_store", _espia)
+    monkeypatch.setattr(cap_mod, "_cargar_tds", lambda: tds)
+    txt = _cap_training(proj)["doctor"]
+    assert vistos == ["geo"] and "dataset: al dia" in txt, (vistos, txt)
+    assert "approved 2" in txt, txt
+
+
+def test_t10fix3_180_parametros_forjados_no_salen_crudos_en_doctor_json(tmp_path):
+    """#180 (CWE-150): una marca con firma valida y `parametros.umbral` forjado (OSC + bidi; borrado de
+    pantalla + salto de linea) no llega cruda a `/doctor --json` (que escribe con `ensure_ascii=False`):
+    la fila de `training` no lleva ESC, U+202E, U+009B, U+2028 ni `\\n`."""
+    import subprocess
+    proj, cfg, store = _proyecto_training(tmp_path, estados=("approved",))
+    tds = _tds()
+    tds["asm"].ensamblar(cfg, proj, {"f0"}, fecha="20260928")
+    ruta = store / "exports" / ".ultimo.json"
+    buena = json.loads(ruta.read_text(encoding="utf-8"))
+    for lit in ("\x1b]0;pwn\x07‮", "\x1b[2J‮FALSO\n linea"):
+        marca = dict(buena, parametros=dict(buena["parametros"], umbral=lit))
+        ruta.write_text(json.dumps(marca, ensure_ascii=False), encoding="utf-8")
+        r = subprocess.run([sys.executable, os.path.join(HERE, "doctor.py"), "--root", proj, "--json"],
+                           capture_output=True, text=True, encoding="utf-8", errors="replace", cwd=proj, timeout=120)
+        assert r.returncode in (0, 1), r.stderr[-2000:]
+        filas = [json.dumps(l, ensure_ascii=False) for b in json.loads(r.stdout)["bloques"] for l in b["lineas"]
+                 if l.get("que") == "training"]
+        assert filas, r.stdout[-2000:]
+        for fila in filas:
+            texto = json.loads(fila)["detalle"]
+            assert not any(c in texto for c in ("\x1b", "‮", "\u009b", " ", "\n")), texto
+            assert "no verificable" in texto, texto

@@ -1474,16 +1474,18 @@ def test_t10fix2_168_b21_sin_atar_reaprobar_desactualiza_y_reensamblar_limpia(tm
 
 
 def test_t10fix2_168_nota_a_gold_excluido_por_un_aviso_permanente_sigue_al_dia(tmp_path):
-    """#168 (nota de A): un Gold que el ensamblador EXCLUYE por un aviso permanente de `leer_caso`
-    (trayectoria ilegible) sigue en la firma con su `content_hash`: `al_dia`, y reensamblar («ya
-    existe») lo deja `al_dia` (antes: «desactualizado» que reensamblar no limpiaba)."""
+    """#168 (nota de A), con D-f5 (fix3): un Gold que el ensamblador EXCLUYE por un aviso permanente de
+    `leer_caso` (trayectoria ilegible) sigue en la firma con su `content_hash` (misma firma: nunca un
+    «desactualizado» que reensamblar no limpia) y la marca lo registra como omitido: `con_omisiones`
+    (O3), y reensamblar («ya existe») lo deja `con_omisiones` (O4: veredicto cierto sin corregir)."""
     raiz, cfg, store = _store_basico(tmp_path)
     (store / "cases" / "a.x" / "v001" / "trajectory.jsonl").write_text("{roto\n", encoding="utf-8")
     r = _ensamblar(cfg, raiz, escribir=True)
     assert any(c["ref"] == "geo-a.x@v001" and c["particion"] is None for c in _manifest(r)["casos"])
-    assert _estado(store, raiz)["estado"] == "al_dia"
+    assert _marca(store)["firma"] == _vigentes(store, raiz)["firma"]
+    assert _estado(store, raiz)["estado"] == "con_omisiones"
     r2 = _ensamblar(cfg, raiz, escribir=True)
-    assert r2["existente"] is True and _estado(store, raiz)["estado"] == "al_dia"
+    assert r2["existente"] is True and _estado(store, raiz)["estado"] == "con_omisiones"
 
 
 def test_t10fix2_169_b22_ya_existe_reescribe_la_marca_nunca_por_mtime(tmp_path, monkeypatch):
@@ -1519,10 +1521,11 @@ def test_t10fix2_m1_una_version_incompleta_vieja_no_deja_la_frescura_sin_verific
 
 
 def test_t10fix2_m2_un_gold_omitido_por_una_causa_transitoria_desactualiza_y_reensamblar_limpia(tmp_path, monkeypatch):
-    """M2 (G2): un Gold que `leer_caso` omite por una causa TRANSITORIA («no legible tras N
-    reintentos») entra en la firma del ensamblador como `"!transitoria"`: nunca coincide con lo que
-    ve `/doctor` -> `desactualizado`; reensamblar sin el bloqueo lo limpia (antes: `al_dia` falso con
-    train 0 frente a 1)."""
+    """M2 (G2), sustituido por D-f5 O1-O3 (fix3): un Gold que `leer_caso` omite por una causa
+    TRANSITORIA («no legible tras N reintentos») sigue en la firma con su `content_hash` y la marca lo
+    registra como omitido (clase `transitorio`) -> `con_omisiones` (nunca el `al_dia` falso de G2, con
+    train 0 frente a 1); reensamblar sin el bloqueo lo limpia -> `al_dia`."""
+    monkeypatch.setattr(rec, "_PERMISOS_PERMANENTES", False)               # N6: la causa transitoria de Windows
     raiz, cfg, store = _store_basico(tmp_path)
     real = rec._abrir_lectura
     bloqueada = os.path.normcase(str(store / "cases" / "a.x" / "v002" / "request.json"))
@@ -1536,8 +1539,10 @@ def test_t10fix2_m2_un_gold_omitido_por_una_causa_transitoria_desactualiza_y_ree
     r = _ensamblar(cfg, raiz, escribir=True)
     assert any(c["ref"] == "geo-a.x@v002" and c["particion"] is None for c in _manifest(r)["casos"])
     monkeypatch.setattr(rec, "_abrir_lectura", real)
+    assert _marca(store)["omitidos_muestra"] == [{"ref": "geo-a.x@v002", "clase": "transitorio",
+                                                  "causa": "sin permisos o bloqueado"}]
     d = _estado(store, raiz)
-    assert d["estado"] == "desactualizado" and "mismo numero de Gold" in d["motivo"], d
+    assert d["estado"] == "con_omisiones" and "basta con reensamblar" in d["motivo"], d
     r2 = _ensamblar(cfg, raiz, escribir=True)
     assert r2["existente"] is False and _estado(store, raiz)["estado"] == "al_dia"
 
@@ -1619,7 +1624,8 @@ def test_t10fix2_171_el_ensamblador_aplica_el_mismo_tope_json_caso_que_doctor(tm
     r2 = _ensamblar(cfg2, raiz2, escribir=True, tope_fichero=2048)
     assert any(c["ref"] == "geo-a.x@v002" and c["particion"] is None for c in _manifest(r2)["casos"])
     assert _marca(store2)["firma"] == rec.resumen_store(str(store2), raiz2)["firma"]
-    assert _estado(store2, raiz2)["estado"] == "al_dia"
+    assert _estado(store2, raiz2)["estado"] == "con_omisiones"             # D-f5 (fix3): omision registrada
+    assert _marca(store2)["omitidos_muestra"][0]["causa"] == "ilegible"
 
 
 def _plantar_enlace_fichero(objetivo, enlace):
@@ -1697,7 +1703,8 @@ def test_t10fix2_m8_la_marca_se_publica_con_reemplazar_y_su_temporal_se_retira(t
         raise PermissionError(13, "bloqueado")
     monkeypatch.setattr(rec, "_reemplazar", falla)
     r = _ensamblar(cfg, raiz, escribir=True)
-    assert r["existente"] is False and r["aviso_marca"] and "no se pudo" in r["aviso_marca"]
+    assert r["existente"] is False and r["aviso_marca"] and "bloqueada por otro proceso" in r["aviso_marca"]
+    assert "el siguiente ensamblado la reescribe" in r["aviso_marca"] and asm.REMEDIO_MARCA not in r["aviso_marca"]
     assert (store / "exports" / asm.MARCA).read_bytes() == anterior
     assert not [n for n in os.listdir(str(store / "exports")) if n.startswith(rec.PREFIJO_TEMPORAL)]
     assert _estado(store, raiz)["estado"] == "desactualizado"
@@ -1956,7 +1963,8 @@ def test_t10fix2_178_esquema_y_lectura_de_la_marca_ramas():
     """#178: cada motivo de `_motivo_marca`, `_bytes_marca` con parametros que no caben y
     `_texto_parametros` sin parametros."""
     base = {"version": 1, "export_id": "20260101-0123456789ab", "directorio": "20260101-0123456789ab",
-            "firma": "a" * 64, "gold": 1, "creado": "2026-01-01T00:00:00Z", "parametros": {}}
+            "firma": "a" * 64, "gold": 1, "creado": "2026-01-01T00:00:00Z", "parametros": {},
+            "omitidos": 0, "omitidos_muestra": []}                            # D-f5 O2 (fix3)
     assert asm._motivo_marca(base) is None
     for cambio, motivo in (({"version": True}, "version"), ({"export_id": "x"}, "export_id"),
                            ({"directorio": "20260101-ffffffffffff"}, "directorio"), ({"firma": "A" * 64}, "firma"),
@@ -2033,3 +2041,414 @@ def test_t10fix2_178_estado_dataset_ramas_de_exports(tmp_path, monkeypatch):
         return real(ruta)
     monkeypatch.setattr(os, "scandir", roto)
     assert asm.estado_dataset(str(store), res)["estado"] == "no_verificable"
+
+
+# ------------------------------------------------------------------ T-10 fix3 (#180-#186, D-f5 con N1-N9)
+
+LITERALES_180 = ("\x1b]0;pwn\x07‮", "\x1b[2J‮FALSO\n linea")
+PROHIBIDOS_180 = ("\x1b", "‮", "\u009b", " ", "\n")
+PARAMETROS_OK = {"benchmark": ["bench"], "umbral": 0.8, "ventana": 3, "fraccion_boilerplate": 0.5,
+                 "n_min_boilerplate": 5, "presupuesto": 10_000_000, "tope_fichero": 16 * 1024 * 1024,
+                 "conservar_duplicados": False}
+MARCA_OK = {"version": 1, "export_id": "20260101-0123456789ab", "directorio": "20260101-0123456789ab",
+            "firma": "a" * 64, "gold": 1, "creado": "2026-01-01T00:00:00Z", "parametros": dict(PARAMETROS_OK),
+            "omitidos": 0, "omitidos_muestra": []}
+OMISION_OK = {"ref": "geo-a.x@v001", "clase": "permanente", "causa": "ausente"}
+
+
+def _sin_prohibidos(texto):
+    return not any(c in texto for c in PROHIBIDOS_180)
+
+
+def _escribir_marca_a_mano(store, marca):
+    (store / "exports" / asm.MARCA).write_text(json.dumps(marca, ensure_ascii=False), encoding="utf-8")
+
+
+def test_t10fix3_180_n1_parametros_con_el_esquema_exacto_del_ensamblador():
+    """#180/N1: `parametros` de la marca = EXACTAMENTE lo que escribe el ensamblador: `umbral` y
+    `fraccion_boilerplate` numeros finitos en (0, 1]; `ventana`, `n_min_boilerplate`, `presupuesto` y
+    `tope_fichero` enteros >= 1 (un bool no vale); `conservar_duplicados` bool; `benchmark` lista de
+    cadenas de <= 256 caracteres, `"<n> familias"` o ausente; tambien `{}`. Cualquier otra cosa (clave
+    desconocida incluida) -> marca invalida."""
+    assert asm._motivo_marca(MARCA_OK) is None
+    buenos = [{}, dict(PARAMETROS_OK, benchmark="400 familias"),
+              {k: v for k, v in PARAMETROS_OK.items() if k != "benchmark"}, dict(PARAMETROS_OK, umbral=1),
+              dict(PARAMETROS_OK, benchmark=["x" * 256, "ñandú"]), dict(PARAMETROS_OK, conservar_duplicados=True)]
+    for p in buenos:
+        assert asm._motivo_marca(dict(MARCA_OK, parametros=p)) is None, p
+    malos = [dict(PARAMETROS_OK, umbral=LITERALES_180[0]), dict(PARAMETROS_OK, umbral=LITERALES_180[1]),
+             dict(PARAMETROS_OK, umbral=0), dict(PARAMETROS_OK, umbral=1.5), dict(PARAMETROS_OK, umbral=float("nan")),
+             dict(PARAMETROS_OK, umbral=float("inf")), dict(PARAMETROS_OK, umbral=True), dict(PARAMETROS_OK, umbral="0.8"),
+             dict(PARAMETROS_OK, fraccion_boilerplate=0.0), dict(PARAMETROS_OK, ventana=0),
+             dict(PARAMETROS_OK, ventana=True), dict(PARAMETROS_OK, ventana=1.5), dict(PARAMETROS_OK, presupuesto="1"),
+             dict(PARAMETROS_OK, tope_fichero=0), dict(PARAMETROS_OK, n_min_boilerplate=LITERALES_180[0]),
+             dict(PARAMETROS_OK, conservar_duplicados=1), dict(PARAMETROS_OK, benchmark=[1]),
+             dict(PARAMETROS_OK, benchmark=["x" * 257]), dict(PARAMETROS_OK, benchmark="tres familias"),
+             dict(PARAMETROS_OK, benchmark="3 familias\n"), dict(PARAMETROS_OK, benchmark=LITERALES_180[1]),
+             dict(PARAMETROS_OK, benchmark={"a": 1}), dict(PARAMETROS_OK, extra=1),
+             {k: v for k, v in PARAMETROS_OK.items() if k != "n_min_boilerplate"}, []]
+    for p in malos:
+        assert asm._motivo_marca(dict(MARCA_OK, parametros=p)) is not None, p
+
+
+def test_t10fix3_180_n1_toda_marca_que_escribe_el_ensamblador_pasa_su_lector(tmp_path):
+    """#180/N1 (I1): ida y vuelta: toda marca que produce el escritor —la de un ensamblado real y la de
+    cada fallback de `_bytes_marca` (muestra recortada, `benchmark` resumido, `parametros` = {})— pasa
+    `_motivo_marca` y cabe en `TOPE_MARCA`."""
+    raiz, cfg, store = _store_basico(tmp_path)
+    _ensamblar(cfg, raiz, escribir=True)
+    assert asm._motivo_marca(_marca(store)) is None
+    largas = [{"ref": "g" * 200 + f"@v{i:03d}", "clase": "transitorio", "causa": "sin permisos o bloqueado"}
+              for i in range(10)]
+    variantes = [dict(MARCA_OK), dict(MARCA_OK, omitidos=40, omitidos_muestra=largas),
+                 dict(MARCA_OK, parametros=dict(PARAMETROS_OK, benchmark=["f" * 256] * 60)),
+                 dict(MARCA_OK, omitidos=40, omitidos_muestra=largas,
+                      parametros=dict(PARAMETROS_OK, benchmark=["f" * 256] * 60))]
+    for m in variantes:
+        datos = asm._bytes_marca(m)
+        assert len(datos) <= asm.TOPE_MARCA, len(datos)
+        leida = json.loads(datos)
+        assert asm._motivo_marca(leida) is None, (asm._motivo_marca(leida), leida)
+        assert leida["omitidos"] == m["omitidos"]
+
+
+def test_t10fix3_180_marca_forjada_con_escapes_no_llega_cruda_a_estado(tmp_path, capsys):
+    """#180 (CWE-150): una marca con firma valida y `parametros` forjados (`umbral` con OSC que cambia el
+    titulo del terminal, borrado de pantalla, bidi y un salto de linea) es INVALIDA (`no_verificable`):
+    ni el texto de `/doctor` (`texto_estado`) ni `--estado` ni `--estado --json` sacan ESC, U+202E,
+    U+009B, U+2028 ni `\\n`."""
+    raiz, cfg, store = _store_basico(tmp_path)
+    _ensamblar(cfg, raiz, escribir=True)
+    buena = _marca(store)
+    for lit in LITERALES_180:
+        _escribir_marca_a_mano(store, dict(buena, parametros=dict(buena["parametros"], umbral=lit)))
+        res = _vigentes(store, raiz)
+        d = asm.estado_dataset(str(store), res)
+        assert d["estado"] == "no_verificable", d
+        assert _sin_prohibidos(asm.texto_estado(res, d))
+        capsys.readouterr()
+        assert asm.main(["--estado", "--project-root", raiz]) == 2
+        salida = capsys.readouterr()
+        assert _sin_prohibidos(salida.out.rstrip("\n")) and _sin_prohibidos(salida.err.rstrip("\n")), salida
+        assert asm.main(["--estado", "--json", "--project-root", raiz]) == 2
+        datos = json.loads(capsys.readouterr().out)
+        assert _sin_prohibidos(datos["texto"]) and datos["dataset"]["parametros"] is None, datos["dataset"]
+
+
+def test_t10fix3_180_texto_parametros_escapa_todo_valor():
+    """#180 (b, defensa en profundidad): `_texto_parametros` pasa TODO valor por `rec._texto_ruta`,
+    aunque llegara uno que no pasara el esquema."""
+    for lit in LITERALES_180:
+        p = {"benchmark": [lit], "umbral": lit, "ventana": lit, "fraccion_boilerplate": lit,
+             "conservar_duplicados": lit}
+        assert _sin_prohibidos(asm._texto_parametros(p)), asm._texto_parametros(p)
+        assert _sin_prohibidos(asm._texto_parametros(dict(p, benchmark=lit)))
+
+
+def test_t10fix3_181_otro_id_prefix_excluido_en_los_dos_lados_y_fuera_del_export(tmp_path):
+    """#181/N2: una version con OTRO `id_prefix` (el de training.json cambio, o plantada) se omite en
+    `_estado_de_cases` en los DOS lados: ni `resumen_store` ni la pasada 1 la cuentan, no aparece en el
+    manifiesto ni en el export, y la frescura sale `al_dia`."""
+    raiz, cfg, store = _store_basico(tmp_path)
+    otra = dict(cfg, id_prefix="otro")
+    r = rec.grabar(_caso(family="c", variant="x", request="pieza de otro prefijo con tres agujeros"), otra, raiz)
+    rec.cambiar_estado(r["case_id"], 1, "approved", otra, raiz, approved_by_human=True)
+    assert r["case_id"] == "otro-c.x"
+    e = _ensamblar(cfg, raiz, escribir=True)
+    man = _manifest(e)
+    assert not any("otro-c.x" in c["ref"] or c["family"] == "c" for c in man["casos"]), man["casos"]
+    for f in asm.JSONL:
+        assert "otro-c.x" not in open(os.path.join(e["ruta"], f), encoding="utf-8").read()
+    assert any("cases/c.x" in a and "id_prefix" in a and "otro-c.x" not in a for a in e["avisos_store"]), e["avisos_store"]
+    res = rec.resumen_store(str(store), raiz, id_prefix="geo")
+    assert ("otro-c.x", 1) not in res["gold"] and res["n_gold"] == 3
+    assert _marca(store)["gold"] == 3 and asm.estado_dataset(str(store), res)["estado"] == "al_dia"
+    assert asm.main(["--estado", "--project-root", raiz]) == 0
+
+
+def test_t10fix3_182_b1_omision_permanente_con_omisiones_hasta_reensamblar(tmp_path):
+    """#182 cara 1 / D-f5 (B1 literal): se renombra `trajectory.jsonl` de un Gold -> ensamblar (el
+    Gold queda FUERA del dataset pero dentro de la firma, O1) -> `con_omisiones` -> se restaura ->
+    SIGUE `con_omisiones` (nunca un `al_dia` que oculte un Gold fuera del dataset) -> reensamblar ->
+    `al_dia`."""
+    raiz, cfg, store = _store_basico(tmp_path)
+    tr = store / "cases" / "a.x" / "v002" / "trajectory.jsonl"
+    aparte = tr.with_name("trajectory.jsonl.aparte")
+    tr.rename(aparte)
+    r = _ensamblar(cfg, raiz, escribir=True)
+    assert any(c["ref"] == "geo-a.x@v002" and c["particion"] is None for c in _manifest(r)["casos"])
+    m = _marca(store)
+    assert m["omitidos"] == 1 and m["omitidos_muestra"] == [dict(OMISION_OK, ref="geo-a.x@v002")], m
+    assert m["firma"] == _vigentes(store, raiz)["firma"]                  # O1: el omitido sigue en la firma
+    d = _estado(store, raiz)
+    assert d["estado"] == "con_omisiones", d
+    for trozo in ("1 Gold omitido", "geo-a.x@v002", "ausente", "reensambla", "set-status", "rejected"):
+        assert trozo in d["motivo"], (trozo, d["motivo"])
+    aparte.rename(tr)
+    assert _estado(store, raiz)["estado"] == "con_omisiones"
+    r2 = _ensamblar(cfg, raiz, escribir=True)
+    assert r2["existente"] is False and _marca(store)["omitidos"] == 0
+    assert _estado(store, raiz)["estado"] == "al_dia"
+
+
+def _sin_permiso_en(monkeypatch, ruta, errno_=13):
+    real = rec._abrir_lectura
+    objetivo = os.path.normcase(str(ruta))
+
+    def bloqueado(r):
+        if os.path.normcase(str(r)) == objetivo:
+            raise PermissionError(errno_, "sin permiso")
+        return real(r)
+    monkeypatch.setattr(rec, "_abrir_lectura", bloqueado)
+    monkeypatch.setattr(rec, "ESPERA_REINTENTO_S", 0.0)
+    return lambda: monkeypatch.setattr(rec, "_abrir_lectura", real)
+
+
+def test_t10fix3_182_b2_sin_permisos_con_omisiones_y_reensamblar_limpia(tmp_path, monkeypatch):
+    """#182 cara 2 / D-f5 (B2 literal): `chmod 000` en `request.json` de un Gold (POSIX sin root; como
+    root o en Windows, `PermissionError` simulado) -> `con_omisiones` con su clase y su causa (N6: en
+    POSIX `permanente`/«sin permisos», en Windows `transitorio`/«sin permisos o bloqueado») -> se
+    devuelve el permiso -> reensamblar -> `al_dia` (antes: `desactualizado` que reensamblar NUNCA
+    limpiaba)."""
+    raiz, cfg, store = _store_basico(tmp_path)
+    req = store / "cases" / "a.x" / "v002" / "request.json"
+    real_chmod = os.name != "nt" and hasattr(os, "geteuid") and os.geteuid() != 0
+    if real_chmod:
+        os.chmod(str(req), 0)
+        devolver = lambda: os.chmod(str(req), 0o644)                     # noqa: E731
+    else:
+        devolver = _sin_permiso_en(monkeypatch, req)
+    esperado = (("permanente", "sin permisos") if rec._PERMISOS_PERMANENTES
+                else ("transitorio", "sin permisos o bloqueado"))
+    try:
+        _ensamblar(cfg, raiz, escribir=True)
+    finally:
+        devolver()
+    m = _marca(store)
+    assert m["omitidos"] == 1 and m["omitidos_muestra"] == [
+        {"ref": "geo-a.x@v002", "clase": esperado[0], "causa": esperado[1]}], m
+    d = _estado(store, raiz)
+    assert d["estado"] == "con_omisiones" and esperado[1] in d["motivo"], d
+    if esperado[0] == "permanente":
+        assert "revisa los permisos" in d["motivo"], d
+    r2 = _ensamblar(cfg, raiz, escribir=True)
+    assert r2["existente"] is False and _estado(store, raiz)["estado"] == "al_dia"
+
+
+def test_t10fix3_182_n6_eacces_en_posix_es_permanente_en_el_ensamblador(tmp_path, monkeypatch):
+    """N6 (decidido), en cualquier plataforma: con `_PERMISOS_PERMANENTES` (POSIX) un `EACCES` es una
+    omision PERMANENTE, causa «sin permisos», con el remedio «revisa los permisos y reensambla»."""
+    import errno as _errno
+    monkeypatch.setattr(rec, "_PERMISOS_PERMANENTES", True)
+    raiz, cfg, store = _store_basico(tmp_path)
+    devolver = _sin_permiso_en(monkeypatch, store / "cases" / "a.x" / "v002" / "request.json", _errno.EACCES)
+    _ensamblar(cfg, raiz, escribir=True)
+    devolver()
+    assert _marca(store)["omitidos_muestra"] == [{"ref": "geo-a.x@v002", "clase": "permanente",
+                                                  "causa": "sin permisos"}]
+    d = _estado(store, raiz)
+    assert d["estado"] == "con_omisiones" and "revisa los permisos" in d["motivo"], d
+
+
+def test_t10fix3_182_muestra_de_10_con_el_numero_real_de_omisiones(tmp_path):
+    """D-f5: con 12 omisiones, la muestra guarda 10 y `omitidos` el numero real."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    for i in range(12):
+        _grabar(cfg, raiz, family=f"f{i:02d}", variant="x", request=f"pieza numero {i} con {i + 3} caras distintas")
+    _grabar(cfg, raiz, family="bench", variant="x", request="engranaje de doce dientes con eje de acero")
+    for i in range(12):
+        (store / "cases" / f"f{i:02d}.x" / "v001" / "trajectory.jsonl").write_text("{roto\n", encoding="utf-8")
+    _ensamblar(cfg, raiz, escribir=True)
+    m = _marca(store)
+    assert m["omitidos"] == 12 and len(m["omitidos_muestra"]) == 10, m
+    assert {(o["clase"], o["causa"]) for o in m["omitidos_muestra"]} == {("permanente", "ilegible")}
+    d = _estado(store, raiz)
+    assert d["estado"] == "con_omisiones" and "12 Gold omitidos" in d["motivo"], d
+
+
+def test_t10fix3_182_esquema_de_las_omisiones_de_la_marca():
+    """D-f5 O2 + N3: `omitidos` entero >= 0 (un bool no vale) y `omitidos_muestra` lista de <= 10
+    (y <= `omitidos`) objetos `{ref, clase, causa}`: `ref` CRUDA que casa `PATRON_REFERENCIA` con un
+    `case_id` <= `CASE_ID_MAX`, `clase` transitorio|permanente y `causa` normalizada. Si no, la marca es
+    invalida."""
+    for ok in (dict(MARCA_OK, omitidos=1, omitidos_muestra=[OMISION_OK]), dict(MARCA_OK, omitidos=5),
+               dict(MARCA_OK, omitidos=11, omitidos_muestra=[OMISION_OK] * 10),
+               dict(MARCA_OK, omitidos=1, omitidos_muestra=[dict(OMISION_OK, ref="p-ñandú.x@v001")])):
+        assert asm._motivo_marca(ok) is None, ok
+    malos = [{"omitidos": -1}, {"omitidos": 1.5}, {"omitidos": True}, {"omitidos": "1"},
+             {"omitidos": 11, "omitidos_muestra": [OMISION_OK] * 11},
+             {"omitidos": 0, "omitidos_muestra": [OMISION_OK]},
+             {"omitidos": 1, "omitidos_muestra": ["geo-a.x@v001"]},
+             {"omitidos": 1, "omitidos_muestra": [dict(OMISION_OK, ref="sin-arroba")]},
+             {"omitidos": 1, "omitidos_muestra": [dict(OMISION_OK, ref="'geo-\\xf1.x@v001'")]},
+             {"omitidos": 1, "omitidos_muestra": [dict(OMISION_OK, ref="g" * 201 + "@v001")]},
+             {"omitidos": 1, "omitidos_muestra": [dict(OMISION_OK, clase="otra")]},
+             {"omitidos": 1, "omitidos_muestra": [dict(OMISION_OK, causa="x")]},
+             {"omitidos": 1, "omitidos_muestra": [dict(OMISION_OK, extra=1)]},
+             {"omitidos_muestra": "x"}]
+    for cambio in malos:
+        assert asm._motivo_marca(dict(MARCA_OK, **cambio)) is not None, cambio
+    assert "esquema" in asm._motivo_marca({k: v for k, v in MARCA_OK.items() if k != "omitidos"})
+
+
+def test_t10fix3_182_n3_muestra_no_ascii_y_larga_cabe_en_4_kib_y_la_lee_su_lector(tmp_path):
+    """N3 (I2): con un `family_pattern` que admite no ASCII, la muestra guarda la referencia CRUDA (casa
+    `PATRON_REFERENCIA`; escapada no casaria) y se escapa solo al mostrarla; `_bytes_marca` recorta
+    primero la muestra hasta caber en 4 KiB (11 omisiones con `case_id` de 200 caracteres no ASCII), y el
+    lector la acepta."""
+    raiz, cfg, store = _proyecto(tmp_path, ids={"family_pattern": r"^\w+$", "variant_pattern": r"^\w+$"})
+    for i in range(3):
+        _grabar(cfg, raiz, family=f"ñandú{i}", variant="x", request=f"pieza no ascii numero {i} con ojales")
+    _grabar(cfg, raiz, family="bench", variant="x", request="engranaje de doce dientes con eje de acero")
+    for i in range(3):
+        (store / "cases" / f"ñandú{i}.x" / "v001" / "trajectory.jsonl").write_text("{roto\n", encoding="utf-8")
+    _ensamblar(cfg, raiz, escribir=True)
+    m = _marca(store)
+    assert m["omitidos"] == 3 and m["omitidos_muestra"][0]["ref"] == "geo-ñandú0.x@v001", m
+    d = _estado(store, raiz)
+    assert d["estado"] == "con_omisiones" and "ñ" not in d["motivo"] and "\\xf1" in d["motivo"], d
+    largas = [{"ref": "ñ" * 200 + f"@v{i:03d}", "clase": "permanente", "causa": "ilegible"} for i in range(11)]
+    datos = asm._bytes_marca(dict(MARCA_OK, omitidos=11, omitidos_muestra=largas[:10]))
+    leida = json.loads(datos)
+    assert len(datos) <= asm.TOPE_MARCA and asm._motivo_marca(leida) is None, len(datos)
+    assert leida["omitidos"] == 11 and 0 < len(leida["omitidos_muestra"]) < 10
+    assert leida["parametros"] == PARAMETROS_OK                          # recorta la muestra ANTES que nada
+
+
+def test_t10fix3_182_n3_escribir_marca_no_publica_lo_que_su_lector_rechazaria(tmp_path, monkeypatch):
+    """N3: `_escribir_marca` valida con `_motivo_marca` y con el tope los bytes EXACTOS que va a publicar:
+    si no pasan, no escribe (la marca anterior queda intacta, sin temporal) y avisa."""
+    raiz, cfg, store = _store_basico(tmp_path)
+    _ensamblar(cfg, raiz, escribir=True)
+    ruta = store / "exports" / asm.MARCA
+    antes = ruta.read_bytes()
+    for malos in (b'{"version": 1}\n', b"{" + b" " * (asm.TOPE_MARCA + 10) + b"}\n", b"no es json\n"):
+        monkeypatch.setattr(asm, "_bytes_marca", lambda m, _b=malos: _b)
+        r = _ensamblar(cfg, raiz, escribir=True)
+        assert r["existente"] is True and r["aviso_marca"] and "no se publica" in r["aviso_marca"], r["aviso_marca"]
+        assert ruta.read_bytes() == antes
+        assert not [n for n in os.listdir(str(store / "exports")) if n.startswith(rec.PREFIJO_TEMPORAL)]
+
+
+def test_t10fix3_182_o1_la_firma_ya_no_lleva_transitoria(tmp_path, monkeypatch):
+    """O1: todo Gold vigente entra en la firma con su `content_hash` saneado, lo haya incluido
+    `leer_caso` o no; `"!transitoria"` se retira (la firma describe solo el conjunto de Gold)."""
+    assert not hasattr(rec, "TRANSITORIA")
+    raiz, cfg, store = _store_basico(tmp_path)
+    devolver = _sin_permiso_en(monkeypatch, store / "cases" / "a.x" / "v001" / "request.json")
+    monkeypatch.setattr(rec, "_PERMISOS_PERMANENTES", False)
+    _ensamblar(cfg, raiz, escribir=True)
+    devolver()
+    assert _marca(store)["firma"] == _vigentes(store, raiz)["firma"]
+
+
+def test_t10fix3_183_todos_los_gold_rechazados_con_su_export_es_desactualizado(tmp_path, capsys):
+    """#183/N7: con exports y TODOS los Gold rechazados despues, la marca valida con `gold > 0` y su
+    export completo -> `desactualizado` (exit 1) con el remedio de archivarlo; tras archivar ese export
+    (o sin marca) -> `sin_gold`, como hoy."""
+    raiz, cfg, store = _store_basico(tmp_path)
+    r = _ensamblar(cfg, raiz, escribir=True)
+    for cid, v in (("geo-a.x", 1), ("geo-a.x", 2), ("geo-bench.x", 1)):
+        rec.cambiar_estado(cid, v, "rejected", cfg, raiz)
+    d = _estado(store, raiz)
+    assert d["estado"] == "desactualizado", d
+    for trozo in ("0 Gold vigentes frente a 3", os.path.basename(r["ruta"]), "no se puede reensamblar", "archivalo"):
+        assert trozo in d["motivo"], (trozo, d["motivo"])
+    assert asm.main(["--estado", "--project-root", raiz]) == 1
+    capsys.readouterr()
+    shutil.move(r["ruta"], str(tmp_path / "archivado"))
+    assert _estado(store, raiz)["estado"] == "sin_gold"
+    os.remove(str(store / "exports" / asm.MARCA))
+    assert _estado(store, raiz)["estado"] == "sin_gold"
+
+
+def test_t10fix3_184_marca_bloqueada_no_ordena_retirarla(tmp_path, monkeypatch):
+    """#184/N8: una marca VALIDA bloqueada (antivirus, backup) con plazo de sobra: agotar los reintentos
+    por `PermissionError` da «bloqueada por otro proceso o sin permisos: vuelve a pasar /doctor…», NUNCA
+    el remedio de retirarla; igual en `_escribir_marca` (el siguiente ensamblado la reescribe) y con el
+    `OSError` del `lstat`. Windows: bloqueo REAL (`CreateFileW`, share 0); POSIX: simulado."""
+    raiz, cfg, store = _store_basico(tmp_path)
+    _ensamblar(cfg, raiz, escribir=True)
+    res = _vigentes(store, raiz)
+    ruta = store / "exports" / asm.MARCA
+    monkeypatch.setattr(rec, "ESPERA_REINTENTO_S", 0.001)
+    soltar = _bloquear_exclusivo(ruta)
+    if soltar is None:
+        soltar = _sin_permiso_en(monkeypatch, ruta)
+    try:
+        d = asm.estado_dataset(str(store), res)
+        r = _ensamblar(cfg, raiz, escribir=True)
+    finally:
+        soltar()
+    assert d["estado"] == "no_verificable" and "bloqueada por otro proceso o sin permisos" in d["motivo"], d
+    assert "vuelve a pasar /doctor" in d["motivo"] and asm.REMEDIO_MARCA not in d["motivo"], d
+    assert r["existente"] is True and "bloqueada por otro proceso o sin permisos" in r["aviso_marca"], r["aviso_marca"]
+    assert asm.REMEDIO_MARCA not in r["aviso_marca"]
+    assert _estado(store, raiz)["estado"] == "al_dia"
+    real = rec._stat_sin_seguir
+
+    def lstat_roto(x):
+        if os.path.basename(str(x)) == asm.MARCA:
+            raise PermissionError(13, "no")
+        return real(x)
+    monkeypatch.setattr(rec, "_stat_sin_seguir", lstat_roto)
+    d = asm.estado_dataset(str(store), res)
+    assert "bloqueada por otro proceso o sin permisos" in d["motivo"] and asm.REMEDIO_MARCA not in d["motivo"], d
+    for ajena in ("{}", "x" * (asm.TOPE_MARCA + 1)):                     # el remedio queda para una ajena
+        monkeypatch.setattr(rec, "_stat_sin_seguir", real)
+        ruta.write_text(ajena, encoding="utf-8")
+        assert asm.REMEDIO_MARCA in asm.estado_dataset(str(store), res)["motivo"]
+
+
+def test_t10fix3_186_estado_no_deja_pycache_en_la_skill(tmp_path):
+    """#186: `dataset-assembler.py --estado` (solo lectura) sobre una COPIA de la skill no deja ningun
+    `__pycache__`: toda carga por ruta de la skill usa `dont_write_bytecode` (restaurado al salir)."""
+    copia = tmp_path / "plugin"
+    shutil.copytree(HERE, str(copia / "skills" / "training-data-services" / "scripts"),
+                    ignore=shutil.ignore_patterns("__pycache__", "test_*"))
+    shutil.copytree(os.path.normpath(os.path.join(HERE, "..", "..", "..", "agent-kits", "shared")),
+                    str(copia / "agent-kits" / "shared"), ignore=shutil.ignore_patterns("__pycache__", "test_*"))
+    raiz, cfg, store = _store_basico(tmp_path)
+    _ensamblar(cfg, raiz, escribir=True)
+    entorno = {k: v for k, v in os.environ.items() if k != "PYTHONDONTWRITEBYTECODE"}
+    script = copia / "skills" / "training-data-services" / "scripts" / "dataset-assembler.py"
+    r = subprocess.run([sys.executable, str(script), "--estado", "--project-root", raiz], capture_output=True,
+                       text=True, encoding="utf-8", env=entorno, timeout=120)
+    assert r.returncode == 0, r.stderr
+    caches = [os.path.relpath(b, str(copia)) for b, _d, _f in os.walk(str(copia)) if b.endswith("__pycache__")]
+    assert caches == [], caches
+
+
+def test_t10fix3_186_toda_carga_por_ruta_de_la_skill_usa_dont_write_bytecode():
+    """#186: cada funcion de un script de la skill (no test) que ejecuta un modulo por ruta
+    (`exec_module`) pone `sys.dont_write_bytecode` y lo restaura (`finally`)."""
+    import ast
+    vistos = 0
+    for fichero in sorted(os.listdir(HERE)):
+        if not fichero.endswith(".py") or fichero.startswith("test_"):
+            continue
+        fuente = open(os.path.join(HERE, fichero), encoding="utf-8").read()
+        for nodo in ast.walk(ast.parse(fuente)):
+            if isinstance(nodo, ast.FunctionDef) and "exec_module" in (ast.get_source_segment(fuente, nodo) or ""):
+                cuerpo = ast.get_source_segment(fuente, nodo)
+                vistos += 1
+                assert "dont_write_bytecode" in cuerpo and "finally" in cuerpo, (fichero, nodo.name)
+    assert vistos >= 3, vistos
+
+
+def test_t10fix3_n9_con_omisiones_exit_1_texto_y_ayudas(tmp_path, capsys):
+    """N9: `con_omisiones` entra en `EXIT_ESTADO` (exit 1), `TEXTO_DATASET` y las ayudas de `--estado`
+    (docstring del modulo y `--help`)."""
+    assert asm.EXIT_ESTADO["con_omisiones"] == 1 and "con_omisiones" in asm.TEXTO_DATASET
+    raiz, cfg, store = _store_basico(tmp_path)
+    (store / "cases" / "a.x" / "v001" / "trajectory.jsonl").write_text("{roto\n", encoding="utf-8")
+    _ensamblar(cfg, raiz, escribir=True)
+    capsys.readouterr()
+    assert asm.main(["--estado", "--project-root", raiz]) == 1
+    assert f"dataset: {asm.TEXTO_DATASET['con_omisiones']}" in capsys.readouterr().out
+    assert asm.main(["--estado", "--json", "--project-root", raiz]) == 1
+    assert json.loads(capsys.readouterr().out)["dataset"]["estado"] == "con_omisiones"
+    with pytest.raises(SystemExit):
+        asm.main(["--help"])
+    ayuda = capsys.readouterr().out
+    assert "con omisiones" in " ".join(ayuda.split()) and "con omisiones" in asm.__doc__, ayuda

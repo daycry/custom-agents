@@ -52,7 +52,7 @@ de dominio (métricas, simulación, herramientas) es del proyecto consumidor.
 | `version` | sí | `1` |
 | `enabled` | no (`false`) | Activa la capacidad `training` |
 | `root` | si `enabled` | Raíz del case store; la elige el proyecto (relativa a su raíz o absoluta, sin `~`); nunca dentro de `<proyecto>/docs/knowledge/` (resuelto con `realpath`, sin distinguir mayúsculas) |
-| `id_prefix` | si `enabled` | Slug que prefija el `case_id`: `<id_prefix>-<family>.<variant>` |
+| `id_prefix` | si `enabled` | Slug (≤ 32) que prefija el `case_id`: `<id_prefix>-<family>.<variant>` (`family`/`variant` ≤ 64); cambiarlo deja fuera los casos del store: usa otro `root` |
 | `ids` | no | `family_pattern` / `variant_pattern` (regex, sin puntos por defecto) · `version_width` (dígitos de `v<NNN>`, 3 por defecto) |
 | `bridge_to_curator` | no (`false`) | Un caso Gold puede proponerse como candidato a `knowledge-curator` (nunca se aprueba solo) |
 
@@ -96,8 +96,9 @@ externas (`graphify`): `references/case-schema.md`.
 
 - Sin `training.json` o con `enabled: false`: la capacidad no existe para el ciclo (CA-01). Inválido:
   `/doctor` lo informa con fichero y campo; nada se bloquea. Activo: `/doctor` da el recuento por estado
-  y la frescura del dataset (firma de la entrada frente a la marca del último ensamblado; tope de 2 s,
-  ~2 000 versiones en caliente y ~300 en frío, en sistemas de ficheros locales; «PARCIAL» si no llega:
+  y la frescura del dataset (firma de la entrada frente a la marca del último ensamblado, que registra
+  los Gold omitidos: ⚠️ `con_omisiones` hasta reensamblar; tope de 2 s, entre ~1 000 y ~2 000 versiones
+  en caliente según la carga, en sistemas de ficheros locales; «PARCIAL» si no llega:
   `dataset-assembler.py --estado` la verifica sin tope). Sin `python3`: el resto sigue.
 
 ## Scripts y rutas

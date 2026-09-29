@@ -13,6 +13,8 @@ import os
 import subprocess
 import sys
 
+import pytest
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 
@@ -917,3 +919,35 @@ def test_t10fix2_178_ramas_de_turnos_artefactos_y_validation():
     assert cs._es_clave_cot(5) is False
     errores = cs.validar_config(dict(CONFIG_OK, ids={"family_pattern": 5}))
     assert any(e["campo"] == "ids.family_pattern" and "no es una cadena" in e["mensaje"] for e in errores)
+
+
+# ------------------------------------------------------------------ T-10 fix3 (#181/N4)
+
+def test_t10fix3_181_n4_topes_de_family_variant_e_id_prefix_en_el_origen():
+    """#181/N4: `family` y `variant` <= 64 caracteres (`validar_caso`), `id_prefix` <= 32
+    (`validar_config`): el `case_id` legitimo mas largo (162) queda por debajo de `CASE_ID_MAX` = 200.
+    El error va en SU campo y `validar_caso` nunca lanza."""
+    assert cs.CASE_ID_MAX == 200 and cs.FAMILY_MAX == 64 and cs.VARIANT_MAX == 64 and cs.ID_PREFIX_MAX == 32
+    assert 32 + 1 + 64 + 1 + 64 < cs.CASE_ID_MAX
+    f64, v64 = "f" * 64, "v" * 64
+    assert cs.validar_caso(_caso(family=f64, variant=v64, case_id=f"geo-{f64}.{v64}"), CONFIG_OK) == []
+    campos = _campos(cs.validar_caso(_caso(family="f" * 65, case_id="geo-" + "f" * 65 + ".steep"), CONFIG_OK))
+    assert "family" in campos, campos
+    campos = _campos(cs.validar_caso(_caso(variant="v" * 65, case_id="geo-ramp." + "v" * 65), CONFIG_OK))
+    assert "variant" in campos, campos
+    assert cs.validar_config(dict(CONFIG_OK, id_prefix="p" * 32)) == []
+    assert "id_prefix" in _campos(cs.validar_config(dict(CONFIG_OK, id_prefix="p" * 33)))
+
+
+def test_t10fix3_181_case_id_mayor_que_el_tope_es_error_y_nunca_lanza():
+    """#181/N4: un `case_id` > `CASE_ID_MAX` es error de `case_id`; con una config SIN validar cuyo
+    `id_prefix` haria un `case_id` > 200, `validar_caso` devuelve el error en su campo (nunca lanza:
+    `construir_case_id` no lanza desde `validar_caso`); `construir_case_id` directo si lanza."""
+    largo = "geo-" + "x" * 300 + ".steep"
+    assert "case_id" in _campos(cs.validar_caso(_caso(case_id=largo)))
+    cfg = dict(CONFIG_OK, id_prefix="p" * 150)
+    errores = cs.validar_caso(_caso(family="f" * 60, case_id="p" * 150 + "-" + "f" * 60 + ".steep"), cfg)
+    assert "case_id" in _campos(errores), errores
+    with pytest.raises(ValueError):
+        cs.construir_case_id("p" * 150, "f" * 60, "steep")
+    assert cs.construir_case_id("geo", "ramp", "steep") == "geo-ramp.steep"

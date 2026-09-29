@@ -6060,3 +6060,209 @@ def test_t10fix2_177_un_fichero_sustituido_sin_parar_cortado_por_el_plazo_es_par
     assert r["truncado"] is True and r["cortadas"] == 1 and r["otros_avisos"] == 0 and r["transitorias"] == 0, r
     r = rec.resumen_store(str(store), raiz, plazo_s=None)                          # sin plazo: el #109 de siempre
     assert r["truncado"] is False and r["transitorias"] == 1 and r["cortadas"] == 0, r
+
+
+# ------------------------------------------------------------------ T-10 fix3 (#181/N2/N4, #182/N6)
+
+def _cs_id(cfg, fam, var):
+    return rec.cs.construir_case_id(cfg.get("id_prefix"), fam, var)
+
+
+def _gold_fix3(cfg, raiz, fam, var="steep"):
+    r = rec.grabar(_caso(family=fam, variant=var, case_id=_cs_id(cfg, fam, var)), cfg, raiz)
+    rec.cambiar_estado(r["case_id"], 1, "approved", cfg, raiz, approved_by_human=True)
+    return r
+
+
+def _meta_con_case_id(store, nombre, case_id):
+    meta = store / "cases" / nombre / "v001" / "metadata.json"
+    m = json.loads(meta.read_text(encoding="utf-8"))
+    m["case_id"] = case_id
+    meta.write_text(json.dumps(m), encoding="utf-8")
+
+
+def test_t10fix3_181_otro_id_prefix_se_omite_con_aviso_sin_nombrar_el_case_id(tmp_path):
+    """#181/N2: con el `id_prefix` de training.json, `_estado_de_cases` exige
+    `case_id == construir_case_id(id_prefix, family, variant)`: otro prefijo se omite con un aviso
+    PERMANENTE que nombra `cases/<nombre>` y la causa, nunca el `case_id`; sin `id_prefix`, la regla
+    permisiva de hoy."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    _gold_fix3(cfg, raiz, "a")
+    _gold_fix3(cfg, raiz, "b")
+    _meta_con_case_id(store, "b.steep", "zzzintruso-b.steep")
+    res = rec.resumen_store(str(store), raiz, id_prefix="geo")
+    assert res["n_gold"] == 1 and list(res["gold"]) == [("geo-a.steep", 1)], res["gold"]
+    assert res["transitorias"] == 0 and res["otros_avisos"] == 1, res
+    _e, avisos, _c, _m, _r = rec._estado_de_cases(str(store), raiz, id_prefix="geo")
+    aviso = avisos["cases/b.steep/v001"]
+    assert "zzzintruso" not in aviso and "cases/b.steep" in aviso and "otro `id_prefix`" in aviso, aviso
+    assert not rec._aviso_transitorio(aviso)
+    permisivo = rec.resumen_store(str(store), raiz)
+    assert permisivo["n_gold"] == 2, permisivo["gold"]
+
+
+def test_t10fix3_181_case_id_demasiado_largo_se_omite_antes_de_leer_validation(tmp_path, monkeypatch):
+    """#181/N2 (I3): la comprobacion del `case_id` va justo despues de parsear `metadata.json`, ANTES
+    de leer `validation.json` y de guardar nada en `firmas`/`crudos`/`gold`/`entradas`; el aviso dice
+    «case_id demasiado largo» sin el `case_id` (tambien sin `id_prefix`)."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    _gold_fix3(cfg, raiz, "a")
+    _meta_con_case_id(store, "a.steep", "geo-" + "y" * 5000 + "-a.steep")
+    leidos = []
+    real = rec._leer_de_version
+
+    def espia(dir_v, fichero, *a, **k):
+        leidos.append(fichero)
+        return real(dir_v, fichero, *a, **k)
+    monkeypatch.setattr(rec, "_leer_de_version", espia)
+    firmas, crudos, gold = {}, {}, {}
+    entradas, avisos, _c, _m, _r = rec._estado_de_cases(str(store), raiz, firmas=firmas, crudos=crudos, gold=gold)
+    assert entradas == {} and firmas == {} and crudos == {} and gold == {}
+    assert leidos == ["metadata.json"], leidos
+    aviso = avisos["cases/a.steep/v001"]
+    assert "case_id demasiado largo" in aviso and "yyyy" not in aviso and len(aviso) < 200, aviso
+
+
+def test_t10fix3_181_case_id_de_un_mb_no_retiene_memoria_durante_el_recorrido(tmp_path, monkeypatch):
+    """#181 (medido: 400 versiones con `case_id` de ~1 MB -> 240-401 MB retenidos, 3,1-7,8 s): la
+    memoria RETENIDA medida DURANTE el recorrido (tras cada version) no crece con el tamaño del
+    `case_id`: <= 100 B por Gold frente al mismo store con `case_id` normales; y `resumen_store`
+    respeta su plazo (<= plazo + 300 ms)."""
+    import gc
+    import tracemalloc
+    n = 12
+
+    def montar(sub, gigante):
+        (tmp_path / sub).mkdir()
+        raiz, cfg, store = _proyecto(tmp_path / sub)
+        for i in range(n):
+            fam = f"f{i:04d}"
+            _gold_fix3(cfg, raiz, fam)
+            if gigante:
+                _meta_con_case_id(store, f"{fam}.steep", "geo-" + "y" * 1_000_000 + f"-{fam}.steep")
+        return raiz, store
+
+    def pico(raiz, store):
+        muestras = []
+        real = rec._estado_version
+
+        def espia(*a, **k):
+            r = real(*a, **k)
+            muestras.append(tracemalloc.get_traced_memory()[0])
+            return r
+        monkeypatch.setattr(rec, "_estado_version", espia)
+        gc.collect()
+        tracemalloc.start()
+        base = tracemalloc.get_traced_memory()[0]
+        res = rec.resumen_store(str(store), raiz, plazo_s=None, id_prefix="geo")
+        tracemalloc.stop()
+        monkeypatch.setattr(rec, "_estado_version", real)
+        assert len(muestras) == n
+        return max(muestras) - base, res
+
+    normal, r_normal = pico(*montar("normal", False))
+    raiz_g, store_g = montar("gigante", True)
+    gigante, r_gigante = pico(raiz_g, store_g)
+    assert r_normal["n_gold"] == n and r_gigante["n_gold"] == 0 and r_gigante["otros_avisos"] == n, r_gigante
+    assert (gigante - normal) / n <= 100, (gigante, normal)
+    t0 = time.monotonic()
+    rec.resumen_store(str(store_g), raiz_g, plazo_s=0.2, id_prefix="geo")
+    assert time.monotonic() - t0 <= 0.2 + 0.3
+
+
+def test_t10fix3_181_la_firma_se_calcula_dentro_del_plazo(tmp_path, monkeypatch):
+    """#181 (d): `firma_gold` se calcula dentro del presupuesto: si el plazo ya se agoto al acabar el
+    recorrido, el recuento es PARCIAL y la firma no se calcula (None)."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    _gold_fix3(cfg, raiz, "a")
+    llamadas = []
+    real = rec.firma_gold
+    monkeypatch.setattr(rec, "firma_gold", lambda g: llamadas.append(1) or real(g))
+    ok = rec.resumen_store(str(store), raiz)
+    assert ok["firma"] is not None and not ok["truncado"] and llamadas == [1]
+    real_estado = rec._estado_de_cases
+    reloj = [0.0]
+
+    def recorrido_lento(*a, **k):
+        salida = real_estado(*a, **k)
+        reloj[0] += 100.0                                   # el recorrido consume todo el plazo
+        return salida
+    monkeypatch.setattr(rec, "_crono", lambda: reloj[0])
+    monkeypatch.setattr(rec, "_estado_de_cases", recorrido_lento)
+    llamadas.clear()
+    r = rec.resumen_store(str(store), raiz, plazo_s=2)
+    assert r["truncado"] is True and r["firma"] is None and llamadas == [], r
+
+
+def test_t10fix3_181_record_no_graba_family_ni_variant_por_encima_del_tope(tmp_path):
+    """#181/N4: `record` rechaza (sin escribir nada) un `family`/`variant` > 64 caracteres, asi que
+    ningun `case_id` grabado pasa de `CASE_ID_MAX`."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    for cambio in ({"family": "f" * 65}, {"variant": "v" * 65}):
+        c = _caso(**cambio)
+        c.pop("case_id")
+        with pytest.raises(rec.Rechazo) as e:
+            rec.grabar(c, cfg, raiz)
+        assert list(cambio)[0] in {x["campo"] for x in e.value.errores}, e.value.errores
+    assert not (store / "cases").exists() or not any((store / "cases").iterdir())
+
+
+def test_t10fix3_n6_eacces_en_posix_es_permanente_y_no_deja_parcial(tmp_path, monkeypatch):
+    """#182 cara 2 / N6 (decidido): en POSIX, `EACCES`/`EPERM` NO son transitorios (causa «sin
+    permisos»), asi que un `chmod 000` en `validation.json` ya no deja `/doctor` en «no verificado»
+    para siempre (M1). En Windows, `PermissionError` sigue siendo «sin permisos o bloqueado» y
+    transitorio. La plataforma se simula con `_PERMISOS_PERMANENTES`."""
+    import errno as _errno
+    raiz, cfg, store = _proyecto(tmp_path)
+    _gold_fix3(cfg, raiz, "a")
+    _gold_fix3(cfg, raiz, "b")
+    objetivo = os.path.normcase(str(store / "cases" / "b.steep" / "v001" / "validation.json"))
+    real = rec._abrir_lectura
+
+    def sin_permiso(ruta):
+        if os.path.normcase(str(ruta)) == objetivo:
+            raise PermissionError(_errno.EACCES, "Permission denied")
+        return real(ruta)
+    monkeypatch.setattr(rec, "_abrir_lectura", sin_permiso)
+    monkeypatch.setattr(rec, "ESPERA_REINTENTO_S", 0.0)
+    monkeypatch.setattr(rec, "_PERMISOS_PERMANENTES", True)
+    r = rec.resumen_store(str(store), raiz)
+    assert r["transitorias"] == 0 and r["otros_avisos"] == 1 and r["n_gold"] == 1, r
+    _e, avisos, _c, _m, _r = rec._estado_de_cases(str(store), raiz)
+    aviso = avisos["cases/b.steep/v001"]
+    assert "sin permisos" in aviso and "no legible tras" not in aviso and "Errno" not in aviso, aviso
+    assert rec.causa_aviso(aviso) == "sin permisos" and not rec._aviso_transitorio(aviso)
+    monkeypatch.setattr(rec, "_PERMISOS_PERMANENTES", False)
+    r = rec.resumen_store(str(store), raiz)
+    assert r["transitorias"] == 1, r
+    _e, avisos, _c, _m, _r = rec._estado_de_cases(str(store), raiz)
+    assert rec.causa_aviso(avisos["cases/b.steep/v001"]) == "sin permisos o bloqueado"
+
+
+def test_t10fix3_n6_causa_normalizada_de_cada_aviso():
+    """N6: la CAUSA normalizada de un aviso de version (fuente unica del recorder): `ausente`,
+    `ilegible`, `sin permisos o bloqueado`, `sin permisos`, `esquema` o `sustituido`."""
+    casos = {
+        "cases/a.x/v001 incompleta: sin trajectory.jsonl (danada); se conserva": "ausente",
+        "cases/a.x/v001 incompleta: sin request.json (desaparecio al leerla)": "ausente",
+        "'geo-a.x@v001' omitida: la version ya no esta (o esta duplicada) en cases/": "ausente",
+        ("cases/a.x/v001 ilegible: request.json no legible tras 40 reintentos (bloqueada o sin permisos): "
+         "x"): "sin permisos o bloqueado",
+        "cases/a.x/v001 ilegible: request.json no se puede examinar (x)": "sin permisos o bloqueado",
+        ("cases/a.x/v001 ilegible: request.json sin permisos de lectura (revisa los permisos y "
+         "reensambla)"): "sin permisos",
+        ("cases/a.x/v001 ilegible: request.json cambio entre la comprobacion y la lectura (sustituido) 3 "
+         "veces"): "sustituido",
+        "cases/a.x/v001 omitida: el directorio cambio durante la lectura (sustituido; no se usa)": "sustituido",
+        ("cases/a.x/v001 omitida: request.json es un enlace (symlink/junction): el case store no sigue "
+         "enlaces"): "sustituido",
+        "cases/a.x/v001 omitida: no pasa el esquema (request: obligatorio)": "esquema",
+        "cases/a.x/v001 omitida: metadata.json no casa con su ruta": "esquema",
+        "cases/a.x/v001 omitida: metadata.json o request.json sin la forma del recorder": "esquema",
+        "cases/a.x/v001 omitida: trajectory.jsonl ilegible (ValueError: JSON invalido o no finito)": "ilegible",
+        ("cases/a.x/v001 omitida: request.json: 99 bytes, por encima del tope de 9 bytes por fichero; no se "
+         "lee"): "ilegible",
+    }
+    for aviso, causa in casos.items():
+        assert rec.causa_aviso(aviso) == causa, (aviso, rec.causa_aviso(aviso))
+    assert set(casos.values()) == set(rec.CAUSAS_AVISO)

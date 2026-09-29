@@ -93,12 +93,14 @@ Salida (`<root>/exports/<export_id>/`):
     otra vez antes de publicarlo (#136), y si ya se retiro el aviso lo dice (no pide retirar nada). Un fallo a mitad deja el export sin manifiesto (incompleto) y
     lo dice. `exports/` que sea un enlace -> rechazo sin escribir.
 
-Marca del ultimo ensamblado y frescura (T-10, D-f4): tras un ensamblado real («escrito» o «ya existe»),
-con `exports/.lock` tomado, `exports/.ultimo.json` = `{version, export_id, directorio, firma, gold,
-creado, parametros}` (<= 4 KiB; nunca se reemplaza una que no sea de la pieza). `firma` describe la
-ENTRADA del ensamblado (los Gold humanos con su `content_hash`, `rec.firma_gold`), no lo que incluyo:
-`estado_dataset` (lo que ejecutan `/doctor` y `--estado`) la compara con la del store sin leer ningun
-`manifest.json`.
+Marca del ultimo ensamblado y frescura (T-10, D-f4/D-f5): tras un ensamblado real («escrito» o «ya
+existe»), con `exports/.lock` tomado, `exports/.ultimo.json` = `{version, export_id, directorio, firma,
+gold, creado, parametros, omitidos, omitidos_muestra}` (<= 4 KiB; nunca se reemplaza una que no sea de la
+pieza, y nunca se publica una que su propio lector rechazaria). `firma` describe la ENTRADA del ensamblado
+(TODOS los Gold humanos con su `content_hash`, `rec.firma_gold`, tambien los que `leer_caso` omitio), no
+lo que incluyo; `omitidos` cuenta los Gold que `leer_caso` omitio por un aviso (transitorio o
+permanente; D-f5 O2) y `omitidos_muestra` guarda hasta 10 con su clase y su causa. `estado_dataset` (lo
+que ejecutan `/doctor` y `--estado`) la compara con la del store sin leer ningun `manifest.json`.
 
 Uso (exit 0 ok o ya existente · 1 rechazo: capacidad apagada o config invalida, sin benchmark, familia
 de benchmark sin Gold, store manipulado, caso cambiado entre pasadas · 2 uso, E/S o sin `redact.py` ·
@@ -107,7 +109,8 @@ de benchmark sin Gold, store manipulado, caso cambiado entre pasadas · 2 uso, E
                        [--presupuesto 10000000] [--conservar-duplicados] [--fecha AAAAMMDD] [--dry-run]
                        [--espera-bloqueo 120] [--config <training.json>] [--project-root <dir>]
   dataset-assembler.py --estado [--json] [--config <training.json>] [--project-root <dir>]
-                       (solo lectura; exit 0 al dia o sin Gold · 1 desactualizado o sin export · 2 no verificable)
+                       (solo lectura; exit 0 al dia o sin Gold · 1 desactualizado, con omisiones o sin export
+                       · 2 no verificable)
 """
 import argparse
 import contextlib
@@ -116,6 +119,7 @@ import errno
 import hashlib
 import importlib.util
 import json
+import math
 import os
 import re
 import secrets
@@ -132,11 +136,17 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 
 
 def _cargar(fichero, nombre):
-    """Un script de la MISMA skill (fuente unica del recorder, del esquema y del dedup)."""
-    spec = importlib.util.spec_from_file_location(nombre, os.path.join(HERE, fichero))
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
+    """Un script de la MISMA skill (fuente unica del recorder, del esquema y del dedup), sin dejar
+    bytecode (#186: `--estado` es de solo lectura; `dont_write_bytecode`, restaurado al salir)."""
+    previo = sys.dont_write_bytecode
+    sys.dont_write_bytecode = True
+    try:
+        spec = importlib.util.spec_from_file_location(nombre, os.path.join(HERE, fichero))
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
+    finally:
+        sys.dont_write_bytecode = previo
 
 
 rec = _cargar("case-recorder.py", "tds_case_recorder_asm")
@@ -379,13 +389,20 @@ def _motivo(aviso, store):
 
 
 def _omision_transitoria(aviso):
-    """M2: el aviso con el que `leer_caso` omitio un Gold tiene causa TRANSITORIA (`_aviso_transitorio`
-    del recorder: bloqueado, sustituido, desaparecido, no examinable) o el directorio cambio mientras
-    se leia: reensamblar puede incluirlo."""
+    """D-f5 O2: el aviso con el que `leer_caso` omitio un Gold tiene causa TRANSITORIA
+    (`_aviso_transitorio` del recorder: bloqueado, sustituido, desaparecido, no examinable; N6: en POSIX
+    `EACCES`/`EPERM` no lo son) o el directorio cambio mientras se leia: basta con reensamblar."""
     return rec._aviso_transitorio(aviso) or "cambio durante la lectura" in aviso
 
 
-def cargar(store, config, raiz, ctx, acumulador=None, tope=TOPE_FICHERO, entrada=None):
+def _omision(ref, aviso):
+    """D-f5 O2 + N3/N6: una omision de la marca: la referencia CRUDA (se escapa solo al mostrarla), la
+    clase del aviso y su causa normalizada (`rec.causa_aviso`)."""
+    return {"ref": ref, "clase": "transitorio" if _omision_transitoria(aviso) else "permanente",
+            "causa": rec.causa_aviso(aviso)}
+
+
+def cargar(store, config, raiz, ctx, acumulador=None, tope=TOPE_FICHERO, entrada=None, omisiones=None):
     """Pasada 1 (H5): `(gold, otros, avisos_store, avisos)`. `gold`: `{ref, case_id, version, family,
     variant, supersedes_case, sha256, ficheros, content_hash}` (sin el caso: su texto va al
     `acumulador` y se descarta); `otros`: el resto de versiones con su motivo (manifiesto);
@@ -393,14 +410,18 @@ def cargar(store, config, raiz, ctx, acumulador=None, tope=TOPE_FICHERO, entrada
     `entrada` (dict opcional, D-f4 F1): recibe `{(case_id, version): h}` de la ENTRADA del ensamblado
     para su firma (`rec.firma_gold`), con la lectura de `validation.json` que DECIDIO el destino de
     cada version (M4): la de `leer_caso` si devolvio el caso (sin entrada si ya no es Gold); si lo
-    omitio con aviso, `rec.TRANSITORIA` con una causa transitoria (M2) o el `content_hash` del
-    recorrido (`_estado_de_cases`, el MISMO de `/doctor`) con una permanente. Un Gold excluido (sin
-    atar, duplicado, benchmark) sigue en la firma con su `content_hash` tal cual (saneado, M5). El
-    recorrido lee `metadata.json`/`validation.json` con `TOPE_JSON_CASO` (#171), no con `tope`."""
+    omitio con aviso (transitorio o permanente), el `content_hash` del recorrido (`_estado_de_cases`,
+    el MISMO de `/doctor`; D-f5 O1). Un Gold excluido (sin atar, duplicado, benchmark) sigue en la firma
+    con su `content_hash` tal cual (saneado, M5). `omisiones` (lista opcional, D-f5 O2) recibe una
+    `_omision` por cada Gold vigente que `leer_caso` omitio por un aviso (dedup, benchmark y «sin atar»
+    NO son omisiones: son el resultado del ensamblado). El recorrido lee `metadata.json`/
+    `validation.json` con `TOPE_JSON_CASO` (#171), no con `tope`, y exige el `id_prefix` de la config
+    (#181/N2)."""
     width = cs.patrones_id(config)[2]
     crudos, gold_rec = {}, {}
     entradas, av, en_curso, _mt, _rels = rec._estado_de_cases(store, raiz, crudos=crudos, tope=rec.TOPE_JSON_CASO,
-                                                              gold=gold_rec)   # #134/#171
+                                                              gold=gold_rec,   # #134/#171
+                                                              id_prefix=config.get("id_prefix"))   # #181/N2
     avisos_store = [av[k] for k in sorted(av)] + [en_curso[k] for k in sorted(en_curso)]
     gold, otros, avisos = [], [], []
     for clave in sorted(entradas):
@@ -413,11 +434,11 @@ def cargar(store, config, raiz, ctx, acumulador=None, tope=TOPE_FICHERO, entrada
             continue
         caso, hashes, aviso = leer_caso(ctx, store, e, config, width, previos, tope)
         if aviso:
-            if entrada is not None:
-                if _omision_transitoria(aviso):
-                    entrada[clave] = rec.TRANSITORIA                                   # M2
-                elif clave in gold_rec:
-                    entrada[clave] = gold_rec[clave]                                   # M4: la del recorrido
+            if clave in gold_rec:                                  # un Gold vigente (el que ve `/doctor`)
+                if entrada is not None:
+                    entrada[clave] = gold_rec[clave]                                   # D-f5 O1 (M4)
+                if omisiones is not None:
+                    omisiones.append(_omision(base["ref"], aviso))                     # D-f5 O2
             otros.append(dict(base, sha256=None, particion=None, motivo=_motivo(aviso, store)))
             continue
         h = rec.gold_de_version(caso["validation"])
@@ -534,8 +555,8 @@ def ensamblar(config, raiz_proyecto, benchmark, umbral=dd.UMBRAL_DEFECTO, ventan
     width = cs.patrones_id(config)[2]
     t0 = time.monotonic()
     acc = dd.Acumulador(ventana, presupuesto)
-    entrada = {}
-    gold, otros, avisos_store, avisos = cargar(store, config, raiz, ctx, acc, tope_fichero, entrada)
+    entrada, omisiones = {}, []
+    gold, otros, avisos_store, avisos = cargar(store, config, raiz, ctx, acc, tope_fichero, entrada, omisiones)
     firma, n_entrada = rec.firma_gold(entrada), len(entrada)                      # D-f4 F1
     entrada = None
     r_dd = acc.agrupar(umbral, fraccion_boilerplate,
@@ -574,7 +595,8 @@ def ensamblar(config, raiz_proyecto, benchmark, umbral=dd.UMBRAL_DEFECTO, ventan
               "aviso_marca": None}
     if escribir:
         marca = {"version": 1, "export_id": export_id, "firma": firma, "gold": n_entrada,
-                 "parametros": nucleo["parametros"]}                           # F2/M6 (ya redactados, #137)
+                 "parametros": nucleo["parametros"],                           # F2/M6 (ya redactados, #137)
+                 "omitidos": len(omisiones), "omitidos_muestra": _muestra(omisiones)}   # D-f5 O2
         salida["ruta"], salida["existente"], salida["manifest"], salida["aviso_marca"] = _publicar_export(
             ctx, store, export_id, base, pasada, espera_bloqueo, pasada1, marca)
     else:
@@ -622,14 +644,89 @@ def _bloqueo_tomado(exports):
 
 MARCA = ".ultimo.json"                          # D-f4 F2: marca del ultimo ensamblado (empieza por `.`: no es un export)
 TOPE_MARCA = 4 * 1024
-CLAVES_MARCA = ("version", "export_id", "directorio", "firma", "gold", "creado", "parametros")
+CLAVES_MARCA = ("version", "export_id", "directorio", "firma", "gold", "creado", "parametros", "omitidos",
+                "omitidos_muestra")
 PATRON_EXPORT_ID = re.compile(r"[0-9]{8}-[0-9a-f]{12}")
 PATRON_DIRECTORIO = re.compile(r"[0-9]{8}-[0-9a-f]{12}(\.([2-9]|[1-9][0-9]))?")        # M3: `.2`…`.99`
 PATRON_FIRMA = re.compile(r"[0-9a-f]{64}")
 MARGEN_ESTADO_S = 0.3                           # M10: margen propio de `estado_dataset` tras el recuento
 REMEDIO_MARCA = "retira `exports/.ultimo.json` a mano (solo ese nombre) y vuelve a ensamblar"
-UMBRAL_DOCTOR = ("el recuento de /doctor llega a ~2 000 versiones en caliente y ~300 en frio (medido, Windows); "
-                 "`dataset-assembler.py --estado` lo verifica sin tope: ~1 ms por version en caliente, ~7 ms en frio")
+MARCA_BLOQUEADA = ("bloqueada por otro proceso o sin permisos: vuelve a pasar /doctor; si persiste, revisa los "
+                   "permisos de `exports/.ultimo.json`")                   # #184/N8: NUNCA `REMEDIO_MARCA`
+UMBRAL_DOCTOR = ("el recuento de /doctor corta entre ~1 000 y ~2 000 versiones en caliente, segun la carga de la "
+                 "maquina (en frio depende del antivirus y del sistema de ficheros; medido, Windows); "
+                 "`dataset-assembler.py --estado` lo verifica sin tope: ~1-2 ms por version en caliente")   # #188
+MUESTRA_OMITIDOS = 10                           # D-f5 O2: Gold omitidos que guarda la marca como ejemplo
+CLASES_OMISION = ("transitorio", "permanente")
+FRACCIONES_PARAMETROS = ("umbral", "fraccion_boilerplate")                 # #180/N1: (0, 1], finitos
+ENTEROS_PARAMETROS = ("ventana", "n_min_boilerplate", "presupuesto", "tope_fichero")   # >= 1, nunca bool
+CLAVES_PARAMETROS = FRACCIONES_PARAMETROS + ENTEROS_PARAMETROS + ("conservar_duplicados",)
+BENCHMARK_MAX = 256                             # #180/N1: caracteres por familia de `benchmark`
+PATRON_BENCHMARK_RESUMIDO = re.compile(r"[0-9]{1,9} familias")          # el fallback de `_bytes_marca`
+
+
+class _MarcaBloqueada(str):
+    """#184/N8: el motivo de una marca que no se pudo examinar o leer por un bloqueo o por permisos
+    (antivirus, backup): no es una marca ajena, asi que nunca lleva `REMEDIO_MARCA`."""
+
+
+def _motivo_parametros(p):
+    """#180/N1: None si `p` es EXACTAMENTE lo que escribe el ensamblador (o `{}`, el fallback), o por que
+    no. El motivo nunca repite un valor de la entrada."""
+    if not isinstance(p, dict):
+        return "parametros invalidos (no es un objeto)"
+    if not p:
+        return None
+    if set(p) - {"benchmark"} != set(CLAVES_PARAMETROS):
+        return "parametros invalidos (claves distintas de las del ensamblador)"
+    for k in FRACCIONES_PARAMETROS:
+        v = p[k]
+        if isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v) or not 0 < v <= 1:
+            return f"parametros invalidos ({k} fuera de (0, 1])"
+    for k in ENTEROS_PARAMETROS:
+        if isinstance(p[k], bool) or not isinstance(p[k], int) or p[k] < 1:
+            return f"parametros invalidos ({k} no es un entero >= 1)"
+    if not isinstance(p["conservar_duplicados"], bool):
+        return "parametros invalidos (conservar_duplicados no es booleano)"
+    if "benchmark" in p:
+        b = p["benchmark"]
+        if isinstance(b, str):
+            if not PATRON_BENCHMARK_RESUMIDO.fullmatch(b):
+                return "parametros invalidos (benchmark resumido sin la forma `<n> familias`)"
+        elif not isinstance(b, list) or not all(isinstance(x, str) and len(x) <= BENCHMARK_MAX for x in b):
+            return f"parametros invalidos (benchmark: lista de familias de <= {BENCHMARK_MAX} caracteres)"
+    return None
+
+
+def _motivo_omisiones(n, muestra):
+    """D-f5 O2 + N3: None si `omitidos`/`omitidos_muestra` tienen el esquema de la marca, o por que no:
+    entero >= 0 (nunca bool) y lista de <= `MUESTRA_OMITIDOS` (y <= `n`) objetos `{ref, clase, causa}`,
+    con `ref` CRUDA que casa `PATRON_REFERENCIA` (`case_id` <= `CASE_ID_MAX`, version de <= 9 cifras)."""
+    if isinstance(n, bool) or not isinstance(n, int) or n < 0:
+        return "numero de Gold omitidos invalido"
+    if not isinstance(muestra, list) or len(muestra) > MUESTRA_OMITIDOS or len(muestra) > n:
+        return "muestra de Gold omitidos invalida"
+    for o in muestra:
+        if not isinstance(o, dict) or sorted(o) != ["causa", "clase", "ref"]:
+            return "muestra de Gold omitidos invalida"
+        m = cs.PATRON_REFERENCIA.fullmatch(o["ref"]) if isinstance(o["ref"], str) else None
+        if m is None or len(m.group(1)) > cs.CASE_ID_MAX or len(m.group(2)) > 9:
+            return "referencia de la muestra de omitidos invalida"
+        if o["clase"] not in CLASES_OMISION or o["causa"] not in rec.CAUSAS_AVISO:
+            return "clase o causa de la muestra de omitidos invalida"
+    return None
+
+
+def _muestra(omisiones):
+    """D-f5 O2: las primeras `MUESTRA_OMITIDOS` omisiones (en orden `(case_id, version)`), SIN las que la
+    redaccion cambiaria (lo que se persiste va redactado; una referencia redactada no se guarda)."""
+    muestra = []
+    for o in omisiones:
+        if len(muestra) == MUESTRA_OMITIDOS:
+            break
+        if rec.redactar_estructura(o["ref"]) == o["ref"]:
+            muestra.append(o)
+    return muestra
 
 
 def _motivo_marca(m):
@@ -647,9 +744,9 @@ def _motivo_marca(m):
         return "firma invalida"
     if isinstance(m["gold"], bool) or not isinstance(m["gold"], int) or m["gold"] < 0:
         return "numero de Gold invalido"
-    if not isinstance(m["creado"], str) or len(m["creado"]) > 64 or not isinstance(m["parametros"], dict):
+    if not isinstance(m["creado"], str) or len(m["creado"]) > 64:
         return "creado o parametros invalidos"
-    return None
+    return _motivo_parametros(m["parametros"]) or _motivo_omisiones(m["omitidos"], m["omitidos_muestra"])
 
 
 def _leer_marca(exports, hasta=None):
@@ -663,8 +760,8 @@ def _leer_marca(exports, hasta=None):
         st = rec._stat_sin_seguir(ruta)
     except FileNotFoundError:
         return None, None
-    except OSError as e:
-        return None, f"exports/{MARCA} no se puede examinar ({type(e).__name__})"
+    except OSError:
+        return None, _MarcaBloqueada(f"exports/{MARCA} no se puede examinar: {MARCA_BLOQUEADA}")   # #184/N8
     enlace = rec._es_enlace_st(st)
     if enlace is None:
         enlace = bool(rec._motivo_enlace(ruta, ruta))
@@ -680,22 +777,48 @@ def _leer_marca(exports, hasta=None):
         m, _mt = rec._leer_json_reintentando(ruta, st, None, _json, TOPE_MARCA, hasta)
     except rec._FicheroNoPropio as e:
         return None, f"exports/{MARCA}: {e.mensaje}"
+    except PermissionError:                                                  # #184/N8: agotados los reintentos
+        return None, _MarcaBloqueada(f"exports/{MARCA} {MARCA_BLOQUEADA}")
     except (OSError, ValueError, RecursionError) as e:
         return None, f"exports/{MARCA} no se puede leer ({type(e).__name__})"
     motivo = _motivo_marca(m)
     return (None, f"exports/{MARCA}: {motivo}") if motivo else (m, None)
 
 
+def _serializar_marca(marca):
+    return (json.dumps(marca, ensure_ascii=True, sort_keys=True) + "\n").encode("utf-8")
+
+
 def _bytes_marca(marca):
-    """Bytes de la marca (<= `TOPE_MARCA`): si los parametros no caben (muchas familias de benchmark),
-    `benchmark` se resume en su numero de familias (informativo, M6)."""
-    datos = (json.dumps(marca, ensure_ascii=True, sort_keys=True) + "\n").encode("utf-8")
+    """Bytes de la marca (<= `TOPE_MARCA`, N3): si no caben, se recorta PRIMERO la muestra de omitidos
+    (`omitidos` sigue siendo el numero real), despues `benchmark` se resume en su numero de familias y,
+    como ultimo recurso, `parametros` queda en `{}` (informativos, M6)."""
+    marca = dict(marca)
+    datos = _serializar_marca(marca)
+    muestra = list(marca.get("omitidos_muestra") or ())
+    while len(datos) > TOPE_MARCA and muestra:
+        muestra.pop()
+        marca["omitidos_muestra"] = list(muestra)
+        datos = _serializar_marca(marca)
+    bench = (marca.get("parametros") or {}).get("benchmark")
+    if len(datos) > TOPE_MARCA and isinstance(bench, list):
+        marca["parametros"] = dict(marca["parametros"], benchmark=f"{len(bench)} familias")
+        datos = _serializar_marca(marca)
     if len(datos) > TOPE_MARCA:
-        p = dict(marca["parametros"], benchmark=f"{len(marca['parametros'].get('benchmark') or ())} familias")
-        datos = (json.dumps(dict(marca, parametros=p), ensure_ascii=True, sort_keys=True) + "\n").encode("utf-8")
-    if len(datos) > TOPE_MARCA:
-        datos = (json.dumps(dict(marca, parametros={}), ensure_ascii=True, sort_keys=True) + "\n").encode("utf-8")
+        marca["parametros"] = {}
+        datos = _serializar_marca(marca)
     return datos
+
+
+def _motivo_bytes_marca(datos):
+    """N3: None si `datos` (los bytes EXACTOS que se van a publicar) pasan el lector de la marca
+    (`TOPE_MARCA` y `_motivo_marca`), o por que no."""
+    if len(datos) > TOPE_MARCA:
+        return f"{len(datos)} bytes, por encima de {TOPE_MARCA}"
+    try:
+        return _motivo_marca(_json(datos))
+    except (ValueError, RecursionError):
+        return "no es JSON"
 
 
 def _escribir_marca(ctx, exports, marca):
@@ -709,10 +832,16 @@ def _escribir_marca(ctx, exports, marca):
     sustituirla; el reemplazo solo cambia ese nombre."""
     nombre = f"exports/{MARCA}"
     _m, ajena = _leer_marca(exports)
+    if isinstance(ajena, _MarcaBloqueada):                                   # #184/N8
+        return f"{ajena} (no se ha reescrito: el export es valido; el siguiente ensamblado la reescribe)"
     if ajena:
         return f"{ajena}: no se reemplaza (no es una marca valida del ensamblador); {REMEDIO_MARCA}"
     datos = _bytes_marca(dict(marca, creado=datetime.datetime.now(datetime.timezone.utc)
                               .strftime("%Y-%m-%dT%H:%M:%SZ")))
+    motivo = _motivo_bytes_marca(datos)                                      # N3: nunca una que su lector rechace
+    if motivo:
+        return (f"{nombre} no se publica: la marca que se iba a escribir no pasaria su propio lector "
+                f"({motivo}); el export es valido; el siguiente ensamblado la reescribe")
     tmp = os.path.join(exports, rec.PREFIJO_TEMPORAL + secrets.token_hex(8))
     st = None
     try:
@@ -725,9 +854,14 @@ def _escribir_marca(ctx, exports, marca):
             os.fsync(f.fileno())
             _verificar(ctx, tmp, st)
         _m, ajena = _leer_marca(exports)
+        if isinstance(ajena, _MarcaBloqueada):                               # #184/N8
+            return f"{ajena} (no se ha reescrito: el export es valido; el siguiente ensamblado la reescribe)"
         if ajena:
             return f"{ajena}: no se reemplaza (no es una marca valida del ensamblador); {REMEDIO_MARCA}"
         rec._reemplazar(tmp, os.path.join(exports, MARCA))
+    except PermissionError:                                                  # #184/N8: bloqueada al reemplazar
+        return (f"{nombre} {MARCA_BLOQUEADA} (no se ha reescrito: el export es valido; el siguiente ensamblado "
+                "la reescribe)")
     except (OSError, Rechazo) as e:
         detalle = e.mensaje if isinstance(e, Rechazo) else type(e).__name__
         return (f"{nombre} no se pudo publicar ({rec._texto_seguro(detalle)}): el export es valido; el siguiente "
@@ -739,14 +873,31 @@ def _escribir_marca(ctx, exports, marca):
 
 
 def _texto_parametros(p):
-    """M6: los parametros del ultimo ensamblado, compactos (informativos)."""
+    """M6: los parametros del ultimo ensamblado, compactos (informativos). #180 (b, defensa en
+    profundidad): TODO valor pasa por `rec._texto_ruta`, aunque `_motivo_marca` ya valida su esquema."""
     if not p:
         return "sin parametros registrados"
+    t = rec._texto_ruta
     bench = p.get("benchmark")
-    bench = ",".join(rec._texto_ruta(b) for b in bench) if isinstance(bench, list) else rec._texto_ruta(bench)
-    duplicados = "conservados" if p.get("conservar_duplicados") else "uno por grupo"
-    return (f"benchmark={bench} umbral={p.get('umbral')} ventana={p.get('ventana')} "
-            f"boilerplate={p.get('fraccion_boilerplate')} duplicados={duplicados}")
+    bench = ",".join(t(b) for b in bench) if isinstance(bench, list) else t(bench)
+    duplicados = "conservados" if p.get("conservar_duplicados") is True else "uno por grupo"
+    return (f"benchmark={bench} umbral={t(p.get('umbral'))} ventana={t(p.get('ventana'))} "
+            f"boilerplate={t(p.get('fraccion_boilerplate'))} duplicados={duplicados}")
+
+
+def _texto_omisiones(marca, nombre):
+    """D-f5 O3 + N6: el motivo de `con_omisiones`: cuantos Gold omitio el ultimo ensamblado, un ejemplo
+    (la referencia ESCAPADA, su causa y su clase) y los remedios."""
+    n, muestra = marca["omitidos"], marca["omitidos_muestra"]
+    texto = f"{n} Gold omitido{'s' if n != 1 else ''} en el ultimo ensamblado `{nombre}`"
+    if muestra:
+        o = muestra[0]
+        texto += f" (p. ej. {rec._texto_ruta(o['ref'])}: {o['causa']}, {o['clase']})"
+    texto += (": corrige la causa y reensambla; si era transitoria, basta con reensamblar; si el contenido no se "
+              "puede recuperar, rechazalo (`set-status <case_id> <version> rejected`)")
+    if any(o["causa"] == "sin permisos" for o in muestra):
+        texto += "; sin permisos: revisa los permisos y reensambla"
+    return texto
 
 
 def _export_completo(exports, directorio):
@@ -779,11 +930,14 @@ def estado_dataset(store, resumen=None, hasta=None):
     `manifest.json` y mas viejo) u `otros` (un fichero suelto, un enlace); los nombres con `.` (la
     marca, el bloqueo, temporales) no cuentan. `estado`: `sin_gold`; `sin_export` (hay Gold y ningun
     export completo); `no_verificable` (sin marca —«reensambla para registrar el ultimo ensamblado»—,
-    marca ajena o invalida —`REMEDIO_MARCA`—, su export ya no esta completo, o `exports/` no se puede
-    recorrer); `parcial` (el recuento se CORTO o hubo un aviso TRANSITORIO, M1: «no verificado» con
-    `--estado`; salvo que los Gold ya contados superen los de la marca, M10: `desactualizado`);
-    `al_dia` (misma firma: mismo train/benchmark con los parametros del ultimo ensamblado, M6) o
-    `desactualizado` (otra firma; el motivo, por RECUENTO, sin nombrar casos)."""
+    marca ajena o invalida —`REMEDIO_MARCA`—, bloqueada o sin permisos —`MARCA_BLOQUEADA`, #184—, su
+    export ya no esta completo, o `exports/` no se puede recorrer); `parcial` (el recuento se CORTO o hubo
+    un aviso TRANSITORIO, M1: «no verificado» con `--estado`; salvo que los Gold ya contados superen los
+    de la marca, M10: `desactualizado`); `al_dia` (misma firma y ningun Gold omitido: mismo
+    train/benchmark con los parametros del ultimo ensamblado, M6); `con_omisiones` (misma firma y
+    `omitidos > 0`: D-f5 O3, «corrige la causa y reensambla»); o `desactualizado` (otra firma, el motivo
+    por RECUENTO sin nombrar casos; o 0 Gold vigentes frente a los de una marca valida cuyo export sigue
+    completo, #183)."""
     res = resumen if isinstance(resumen, dict) else {}
     n_gold = res.get("n_gold") or 0
     parcial = bool(res.get("truncado"))
@@ -843,6 +997,18 @@ def estado_dataset(store, resumen=None, hasta=None):
                 salida["incompletos"] += 1
     dudoso = parcial or transitorias
     if not n_gold and not dudoso:
+        if salida["exports"] and not agotado():                             # #183/N7: solo si hay exports
+            try:
+                marca, _ajena = _leer_marca(exports, limite)
+            except rec._PlazoAgotado:
+                marca = None
+            if marca is not None and marca["gold"] > 0 and _export_completo(exports, marca["directorio"]):
+                salida.update(estado="desactualizado", ultimo=marca["directorio"], export_id=marca["export_id"],
+                              parametros=marca["parametros"], motivo=(
+                                  f"0 Gold vigentes frente a {marca['gold']} en el ultimo ensamblado "
+                                  f"`{marca['directorio']}`: ese export contiene casos que ya no son Gold y no se "
+                                  "puede reensamblar sin Gold; si no debe usarse, archivalo a mano"))
+                return salida
         salida.update(estado="sin_gold", motivo="ningun caso Gold: nada que exportar")
         return salida
     if not salida["exports"]:
@@ -860,6 +1026,9 @@ def estado_dataset(store, resumen=None, hasta=None):
                                                f"(bloqueada); {UMBRAL_DOCTOR}")
         return salida
     if marca is None:
+        if isinstance(ajena, _MarcaBloqueada):                              # #184/N8: nunca retirarla
+            salida.update(estado="no_verificable", motivo=str(ajena))
+            return salida
         salida.update(estado="no_verificable", motivo=(f"{ajena}: {REMEDIO_MARCA}" if ajena else
                                                         f"sin marca del ultimo ensamblado (exports/{MARCA}): "
                                                         "reensambla para registrarlo"))
@@ -880,7 +1049,9 @@ def estado_dataset(store, resumen=None, hasta=None):
             salida.update(estado="parcial", motivo=(f"{que}: no se compara con el ultimo ensamblado `{nombre}`; "
                                                      f"{UMBRAL_DOCTOR}"))
         return salida
-    if res.get("firma") == marca["firma"]:
+    if res.get("firma") == marca["firma"] and marca["omitidos"]:            # D-f5 O3
+        salida.update(estado="con_omisiones", motivo=_texto_omisiones(marca, nombre))
+    elif res.get("firma") == marca["firma"]:
         salida.update(estado="al_dia", motivo=(f"ultimo ensamblado `{nombre}`, con los parametros del ultimo ensamblado "
                                                f"({_texto_parametros(marca['parametros'])})"))
     elif n_gold != marca["gold"]:
@@ -893,7 +1064,8 @@ def estado_dataset(store, resumen=None, hasta=None):
 
 
 TEXTO_DATASET = {"sin_gold": "sin Gold", "sin_export": "desactualizado", "desactualizado": "desactualizado",
-                 "al_dia": "al dia", "no_verificable": "no verificable", "parcial": "no verificado (PARCIAL)"}
+                 "al_dia": "al dia", "con_omisiones": "\u26a0\ufe0f con omisiones", "no_verificable": "no verificable",
+                 "parcial": "no verificado (PARCIAL)"}
 
 
 def texto_estado(res, ds):
@@ -1106,19 +1278,20 @@ def _publicar_en(ctx, store, export_id, base, pasada):
 
 # ------------------------------------------------------------------ CLI
 
-EXIT_ESTADO = {"al_dia": 0, "sin_gold": 0, "desactualizado": 1, "sin_export": 1, "no_verificable": 2, "parcial": 2}
+EXIT_ESTADO = {"al_dia": 0, "sin_gold": 0, "desactualizado": 1, "con_omisiones": 1, "sin_export": 1,
+               "no_verificable": 2, "parcial": 2}
 
 
 def _main_estado(args):
     """F4 (#176): `--estado`: `rec.resumen_store` COMPLETO (sin plazo) + `estado_dataset`, con el MISMO
     texto que `/doctor` (`texto_estado`) o `--json`. Solo lectura: no toma `exports/.lock` ni escribe
-    nada. Exit 0 `al_dia`/`sin_gold` · 1 `desactualizado`/`sin_export` · 2 `no_verificable`/`parcial`
-    y cualquier config o E/S que no permita verificarlo."""
+    nada. Exit 0 `al_dia`/`sin_gold` · 1 `desactualizado`/`con_omisiones`/`sin_export` · 2
+    `no_verificable`/`parcial` y cualquier config o E/S que no permita verificarlo."""
     try:
         config, raiz = rec._config_cli(args)
         rec.config_activa(config, raiz)
         store = rec.raiz_store(config, rec._raiz(raiz))
-        res = rec.resumen_store(store, raiz, plazo_s=None)
+        res = rec.resumen_store(store, raiz, plazo_s=None, id_prefix=config.get("id_prefix"))   # #181/N2
         ds = estado_dataset(store, res)
     except (Rechazo, OSError, ValueError, rec._EntradaIlegible, rec.RedaccionNoDisponible) as e:
         print(f"no verificable: {rec._texto_seguro(getattr(e, 'mensaje', e))}", file=sys.stderr)
@@ -1153,8 +1326,8 @@ def main(argv=None):
     ap.add_argument("--dry-run", action="store_true", help="imprime el manifiesto sin escribir nada")
     ap.add_argument("--estado", action="store_true",
                     help="solo lectura: recuento COMPLETO del store y frescura del dataset (lo mismo que /doctor, sin "
-                         "tope de tiempo ni exports/.lock); exit 0 al dia o sin Gold, 1 desactualizado o sin export, "
-                         "2 no verificable")
+                         "tope de tiempo ni exports/.lock); exit 0 al dia o sin Gold, 1 desactualizado, con omisiones "
+                         "o sin export, 2 no verificable")
     ap.add_argument("--json", action="store_true", help="con --estado: la salida en JSON")
     ap.add_argument("--config", help="training.json del proyecto (default: <project-root>/.claude/knowledge-services/training.json)")
     ap.add_argument("--project-root", help="raiz del proyecto (default: deducida de --config o cwd)")

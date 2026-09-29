@@ -2392,3 +2392,60 @@ def test_t10fix2_179_backends_que_no_son_objetos_es_error_de_config(tmp_path, da
     assert l["estado"] == doctor.ERROR and "taxonomy.json" in l["detalle"] and "backends" in l["detalle"], l
     assert "corrige" in l["arreglo"]
     assert doctor._leer_backend_entry(str(tmp_path), _cap(id_="midbackend")) == {}
+
+
+# ------------------------------------------------------------------ T-10/T-11 fix3 (#185): EN PROCESO
+# Las lineas que en el checkout principal solo cubria su `.claude/` local sin versionar (modelos de
+# `dev.json`, `find` de `localizar_plugin`, errores de uso de `main`), con `tmp_path` y configs
+# sinteticas: nunca el `.claude/` del checkout.
+
+def test_t10fix3_185_modelos_sin_objeto_sin_script_y_sin_json(tmp_path, monkeypatch):
+    """#185: `_modelos` con `modelos` que no es un objeto (❌), sin `model-tier.py` (ℹ️), con una salida
+    que no es JSON (⚠️) y con JSON (avisos -> ⚠️; sin avisos -> ✅ con los aplicados)."""
+    assert doctor._modelos({}, None, str(tmp_path)) == []
+    assert doctor._modelos_localizar_script(str(tmp_path)) == os.path.join(doctor.HERE, "model-tier.py")
+    [l] = doctor._modelos({"modelos": ["x"]}, None, str(tmp_path))
+    assert l["estado"] == doctor.ERROR and "no es un objeto" in l["detalle"]
+    monkeypatch.setattr(doctor, "_modelos_localizar_script", lambda _p: None)
+    [l] = doctor._modelos({"modelos": {"implementer": {"model": "opus"}}}, None, str(tmp_path))
+    assert l["estado"] == doctor.INFO and "no está para resolverlos" in l["detalle"]
+    monkeypatch.setattr(doctor, "_modelos_localizar_script", lambda _p: "model-tier.py")
+    monkeypatch.setattr(doctor, "_correr", lambda cmd, cwd=None: ("no es json", False))
+    [l] = doctor._modelos({"modelos": {"implementer": {"model": "opus"}}}, str(tmp_path), str(tmp_path))
+    assert l["estado"] == doctor.AVISO and "no devolvió JSON" in l["detalle"]
+    salida = json.dumps({"avisos": [], "agentes": [{"agente": "implementer", "fuente": {"model": "dev.json"}},
+                                                   {"agente": "qa", "fuente": {"model": "frontmatter"}}]})
+    monkeypatch.setattr(doctor, "_correr", lambda cmd, cwd=None: (salida, True))
+    [l] = doctor._modelos({"modelos": {"implementer": {"model": "opus"}}}, None, str(tmp_path))
+    assert l["estado"] == doctor.OK and "aplicados: implementer" in l["detalle"], l
+    ls = doctor._modelos_lineas_de_json({"avisos": ["modelo raro"]}, {"x": {}})
+    assert [x["estado"] for x in ls] == [doctor.AVISO] and "modelo raro" in ls[0]["detalle"]
+
+
+def test_t10fix3_185_localizar_plugin_por_find_en_el_claude_del_proyecto(tmp_path, monkeypatch):
+    """#185: `localizar_plugin` sin `--plugin-root` ni `CLAUDE_PLUGIN_ROOT` y fuera del plugin busca con
+    `find` bajo `$PWD/.claude` (y `$HOME/.claude`); un candidato que no es plugin se descarta."""
+    plugin = tmp_path / "proj" / ".claude" / "plugins" / "ca"
+    (plugin / "agents").mkdir(parents=True)
+    (plugin / "agent-kits" / "shared").mkdir(parents=True)
+    monkeypatch.chdir(str(tmp_path / "proj"))
+    monkeypatch.delenv("CLAUDE_PLUGIN_ROOT", raising=False)
+    monkeypatch.setattr(doctor, "HERE", str(tmp_path / "fuera" / "agent-kits" / "shared"))
+    monkeypatch.setattr(os.path, "expanduser", lambda p: str(tmp_path / "home") if p == "~" else p)
+    salida = f"{tmp_path / 'no-plugin' / 'agent-kits' / 'shared'}\n{plugin / 'agent-kits' / 'shared'}\n"
+    monkeypatch.setattr(doctor, "_correr", lambda cmd, cwd=None: (salida, True))
+    assert os.path.normcase(doctor.localizar_plugin()) == os.path.normcase(str(plugin))
+    monkeypatch.setattr(doctor, "_correr", lambda cmd, cwd=None: ("", True))
+    assert doctor.localizar_plugin() is None
+    assert doctor.localizar_plugin(str(tmp_path / "no-plugin")) is None
+
+
+def test_t10fix3_185_main_errores_de_uso(tmp_path, capsys):
+    """#185: `main` con `--hoy` que no es una fecha, `--root` que no es un directorio y `--plugin-root`
+    que no es un directorio -> exit 2 con el motivo en stderr, sin diagnosticar nada."""
+    assert doctor.main(["--root", str(tmp_path), "--hoy", "ayer"]) == 2
+    assert "no es una fecha" in capsys.readouterr().err
+    assert doctor.main(["--root", str(tmp_path / "no-existe")]) == 2
+    assert "no es un directorio" in capsys.readouterr().err
+    assert doctor.main(["--root", str(tmp_path), "--plugin-root", str(tmp_path / "no-existe")]) == 2
+    assert "--plugin-root" in capsys.readouterr().err

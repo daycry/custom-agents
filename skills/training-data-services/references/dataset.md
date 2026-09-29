@@ -109,21 +109,36 @@ python3 scripts/dataset-assembler.py --benchmark <family>[,<family>…] [--umbra
 El plugin **no** entrena, no sirve modelos y no corre el benchmark (CA-08): el proyecto usa los JSONL
 con su herramienta.
 
-**Marca del último ensamblado (T-10 fix2, diseño D-f4).** Tras un ensamblado REAL que acaba bien
-(«escrito» o «ya existe») y aún con `exports/.lock`, el ensamblador escribe `exports/.ultimo.json` =
-`{version, export_id, directorio, firma, gold, creado, parametros}` (≤ 4 KiB): `directorio` es el nombre
-REAL del export, `.2`…`.99` incluido (M3); `firma` = `case-recorder.firma_gold` de la **entrada** del
-ensamblado —los Gold humanos con su `content_hash`, saneado: un valor que no es un sha256 cuenta como
-el centinela `"!"`, nunca la cadena (M5)—, con la lectura de `validation.json` que decidió el destino de
-cada versión (la de `leer_caso`, o la del recorrido si `leer_caso` la omitió; `"!transitoria"` si la
-omitió por una causa transitoria, M2/M4). Un Gold excluido (sin atar, duplicado, benchmark, aviso
-permanente) sigue en la firma: describe la entrada, no el resultado. Los parámetros (`--benchmark`,
-`--umbral`, `--ventana`, `--boilerplate`, `--presupuesto`, `--conservar-duplicados`) NO entran en ella
-(M6): la marca los guarda a título informativo. Se publica desde un `.tmp-*` propio (`O_EXCL`, `fsync`)
-con `_reemplazar` del recorder, y el temporal se retira siempre; una marca existente que no es de la
-pieza (enlace, enlace duro, no regular, > 4 KiB, sin el esquema) **nunca se reemplaza** ni se sigue:
-aviso y el export sigue siendo válido. `--dry-run` no la escribe. Una marca que no se pudo escribir tras
-un export válido: exit 0 con aviso; el siguiente ensamblado («ya existe») la reescribe. Con
+**Marca del último ensamblado (T-10 fix2/fix3, diseños D-f4 y D-f5).** Tras un ensamblado REAL que acaba
+bien («escrito» o «ya existe») y aún con `exports/.lock`, el ensamblador escribe `exports/.ultimo.json` =
+`{version, export_id, directorio, firma, gold, creado, parametros, omitidos, omitidos_muestra}` (≤ 4 KiB):
+`directorio` es el nombre REAL del export, `.2`…`.99` incluido (M3); `firma` = `case-recorder.firma_gold`
+de la **entrada** del ensamblado —TODOS los Gold humanos vigentes con su `content_hash`, saneado: un valor
+que no es un sha256 cuenta como el centinela `"!"`, nunca la cadena (M5)—, con la lectura de
+`validation.json` que decidió el destino de cada versión (la de `leer_caso`, o la del recorrido si
+`leer_caso` la omitió por un aviso, M4). Un Gold excluido (sin atar, duplicado, benchmark, omitido)
+sigue en la firma: describe la entrada, no el resultado (D-f5 O1: ya no hay `"!transitoria"`).
+**Omisiones (D-f5 O2).** `omitidos` = cuántos Gold vigentes excluyó `leer_caso` por un aviso (transitorio
+o permanente); `omitidos_muestra` = hasta 10 `{ref, clase, causa}`: la referencia CRUDA `<case_id>@vNNN`
+(se escapa solo al mostrarla, N3), la clase (`transitorio`/`permanente`) y la causa normalizada
+(`ausente`, `ilegible`, `sin permisos o bloqueado`, `sin permisos`, `esquema`, `sustituido`; N6). Los
+Gold que excluyen el dedup, el benchmark o «sin atar» NO son omisiones: son el resultado del ensamblado.
+Una referencia que la redacción cambiaría no se guarda en la muestra (el número sigue siendo el real).
+**Parámetros (M6, #180/N1).** `--benchmark`, `--umbral`, `--ventana`, `--boilerplate`, `--presupuesto` y
+`--conservar-duplicados` NO entran en la firma: la marca los guarda a título informativo y su esquema es
+EXACTAMENTE el que escribe el ensamblador (`umbral` y `fraccion_boilerplate` en (0, 1]; `ventana`,
+`n_min_boilerplate`, `presupuesto` y `tope_fichero` enteros ≥ 1; `conservar_duplicados` booleano;
+`benchmark` lista de familias de ≤ 256 caracteres, `"<n> familias"` o ausente; o `{}`): una clave
+desconocida o un valor fuera de ese esquema hace la marca inválida, y el texto escapa igualmente todo
+valor (CWE-150). Si no cabe en 4 KiB, `_bytes_marca` recorta primero la muestra, después resume
+`benchmark` y, en último caso, deja `parametros` en `{}`; `_escribir_marca` valida con su propio lector
+los bytes EXACTOS que va a publicar y, si no pasan, no escribe y avisa (N3). Se publica desde un `.tmp-*`
+propio (`O_EXCL`, `fsync`) con `_reemplazar` del recorder, y el temporal se retira siempre; una marca
+existente que no es de la pieza (enlace, enlace duro, no regular, > 4 KiB, sin el esquema) **nunca se
+reemplaza** ni se sigue: aviso y el export sigue siendo válido. `--dry-run` no la escribe. Una marca que
+no se pudo escribir tras un export válido: exit 0 con aviso; el siguiente ensamblado («ya existe») la
+reescribe. Si estaba bloqueada o sin permisos (antivirus, backup), el aviso lo dice así y nunca pide
+retirarla (#184/N8). Con
 ensambladores a la vez, la última marca puede describir una instantánea más vieja: el resultado es
 `desactualizado` (cierto) y reensamblar lo limpia, nunca un `al_dia` falso (M13). Límite declarado (el
 G3 del recorder): entre la comprobación de la marca vigente y el reemplazo, un tercero con escritura en
@@ -139,23 +154,44 @@ y modificado hace menos de la gracia, o el más reciente si otro ensamblador tie
 **incompleto** (más viejo) y **otros** (un fichero suelto, un enlace); los nombres con `.` (la marca,
 el bloqueo, temporales) no cuentan. Estados: `sin_gold`; `sin_export` (hay Gold y ningún export);
 `no_verificable` (sin marca —«reensambla para registrar el último ensamblado»—, marca ajena o inválida
-—«retira `exports/.ultimo.json` a mano (solo ese nombre)»—, su export ya no está completo, o `exports/`
-es un enlace o no se puede listar); `al_dia` (misma firma: el mismo train/benchmark **con los parámetros
-del último ensamblado**, que el texto muestra); `desactualizado` (otra firma; el motivo, por recuento:
-«N Gold vigentes frente a M» o «mismo número de Gold, contenido distinto»); `parcial` («no verificado»:
+—«retira `exports/.ultimo.json` a mano (solo ese nombre)»—, marca bloqueada o sin permisos —«vuelve a
+pasar /doctor; si persiste, revisa los permisos de `exports/.ultimo.json`», nunca retirarla (#184/N8)—,
+su export ya no está completo, o `exports/` es un enlace o no se puede listar); `al_dia` (misma firma y
+ningún Gold omitido: el mismo train/benchmark **con los parámetros del último ensamblado**, que el texto
+muestra); `con_omisiones` (⚠️, D-f5 O3: misma firma y `omitidos > 0`: «N Gold omitidos en el último
+ensamblado `<dir>` (p. ej. `<ref>`: causa, clase): corrige la causa y reensambla; si era transitoria,
+basta con reensamblar; si el contenido no se puede recuperar, recházalo (`set-status … rejected`)», y
+con `sin permisos`, «revisa los permisos y reensambla»); `desactualizado` (otra firma; el motivo, por
+recuento: «N Gold vigentes frente a M» o «mismo número de Gold, contenido distinto»; y también con 0 Gold
+vigentes frente a los de una marca válida cuyo export sigue completo —ese export contiene casos que ya no
+son Gold y no se puede reensamblar sin Gold: archívalo a mano si no debe usarse, #183/N7—; sin marca o
+tras archivarlo, `sin_gold`); `parcial` («no verificado»:
 el recuento se cortó o hubo un aviso transitorio —salvo que los Gold ya contados superen los de la
 marca: entonces `desactualizado`, M10—). `estado_dataset` tiene un margen propio (`MARGEN_ESTADO_S` =
 0,3 s tras el plazo del recuento, dentro de los 5 s del bloque) y la lectura de la marca respeta el
-plazo aunque esté bloqueada (#170). La firma no ve cambios en los ficheros INMUTABLES de una versión
-(el export los excluye como «sin atar»): su remedio es `case-recorder.py index check` o volver a
-aprobarla.
+plazo aunque esté bloqueada (#170). **Qué limpia cada remedio (D-f5 O4).** Una omisión transitoria que
+ya pasó: reensamblar la incluye → `al_dia`; una permanente sin corregir sigue `con_omisiones` con su causa
+(un veredicto cierto, no «desactualizado»); una permanente corregida: reensamblar la incluye → `al_dia`.
+Ningún estado queda para siempre sin remedio y ningún `al_dia` oculta un Gold fuera del dataset. En
+POSIX, `EACCES`/`EPERM` no son transitorios (causa `sin permisos`), así que un `chmod 000` no deja
+`/doctor` en «no verificado» para siempre (N6). **Límite declarado (D-f5 O5, N5).** La firma no ve los
+ficheros INMUTABLES de una versión: entre dos ensamblados, `/doctor` no ve uno que se rompa (o que cambie:
+el export lo excluye como «sin atar») DESPUÉS del último ensamblado. Remedio: `dataset-assembler.py
+--dry-run` con los parámetros de la marca: si el `export_id` coincide con el de la marca, reensamblar no
+cambia nada; si no, reensambla (`index check` no ve los ficheros inmutables). **`id_prefix` (#181/N2).**
+El recorrido de los dos lados exige `case_id == <id_prefix>-<family>.<variant>` con el `id_prefix` de
+`training.json` (y ≤ 200 caracteres, `CASE_ID_MAX`; `family`/`variant` ≤ 64 e `id_prefix` ≤ 32 en el
+origen, N4): cambiar `id_prefix` con un store existente deja fuera sus casos (aviso permanente que nombra
+`cases/<nombre>`, nunca el `case_id`); en ese caso, usa otro `root`.
 
-**Umbral y `--estado` (#176).** El recuento de `/doctor` (2 s) llega a ~2 000 versiones en caliente y a
-~300 en frío (medido en Windows); por encima, la frescura sale «no verificado (PARCIAL)» y se verifica
-con `dataset-assembler.py --estado [--json]`: solo lectura, sin tope ni `exports/.lock`, recuento
-completo y el MISMO texto que `/doctor` (~1 ms por versión en caliente, ~7 ms en frío); exit 0 `al_dia`
-o `sin_gold` · 1 `desactualizado` o `sin_export` · 2 `no_verificable`, `parcial` o una config que no
-lo permite. Los topes son comprobaciones ENTRE llamadas al sistema: valen para
+**Umbral y `--estado` (#176, #188).** El recuento de `/doctor` (2 s) corta entre ~1 000 y ~2 000
+versiones en caliente, según la carga de la máquina (medido en Windows: ~2 000 con la máquina libre,
+0,7-1,4 × 10³ cargada); en frío depende del antivirus y del sistema de ficheros (la primera lectura de
+ficheros recién creados la domina el antivirus). Por encima, la frescura sale «no verificado (PARCIAL)» y
+se verifica con `dataset-assembler.py --estado [--json]`: solo lectura, sin tope ni `exports/.lock`,
+recuento completo y el MISMO texto que `/doctor` (~1-2 ms por versión en caliente; en frío, lo que dicten
+el antivirus y el sistema de ficheros); exit 0 `al_dia` o `sin_gold` · 1 `desactualizado`,
+`con_omisiones` o `sin_export` · 2 `no_verificable`, `parcial` o una config que no lo permite. Los topes son comprobaciones ENTRE llamadas al sistema: valen para
 **sistemas de ficheros locales**; una sola llamada que se bloquea (SMB colgado, un placeholder de
 OneDrive sin descargar) no la acota nada (M12).
 

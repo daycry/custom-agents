@@ -85,7 +85,17 @@ omitidas por una causa transitoria (`transitorias`) y los Gold humanos con su `c
 `firma` (`firma_gold`, la que compara la frescura del dataset con la marca del último ensamblado, D-f4).
 Cada categoría sale de un **código** que acompaña al aviso, nunca de su texto (que incluye nombres que
 elige un tercero, #157). Una versión cuyo `case_id` no casa `[<id_prefix>-]<family>.<variant>` de su
-directorio se omite con aviso (M5). Va **acotado en tiempo** (`RESUMEN_PLAZO_S` = 2 s; con
+directorio se omite con aviso (M5); con el `id_prefix` de `training.json` (`resumen_store(…, id_prefix=)`,
+EXPLÍCITO desde `/doctor`, `--estado` y el ensamblador, #181/N2) el `case_id` tiene que ser EXACTAMENTE
+`<id_prefix>-<family>.<variant>`, y uno de más de `CASE_ID_MAX` (200) caracteres se omite siempre. Se
+comprueba justo después de parsear `metadata.json`, antes de leer `validation.json` y de guardar nada
+(nunca se retiene un `case_id` gigante); el aviso nombra `cases/<nombre>` y la causa, nunca el
+`case_id`. Cambiar `id_prefix` con un store existente deja fuera sus casos: usa otro `root`. En POSIX,
+`EACCES`/`EPERM` no se reintentan ni son transitorios (causa «sin permisos», N6); en Windows,
+`PermissionError` sigue siendo «bloqueada o sin permisos» y transitorio. `causa_aviso` da la causa
+normalizada de cada aviso (fuente única: `ausente`, `ilegible`, `sin permisos o bloqueado`, `sin
+permisos`, `esquema`, `sustituido`). La `firma` se calcula DENTRO del plazo: si se agotó, el recuento es
+PARCIAL y `firma` es `None` (#181). Va **acotado en tiempo** (`RESUMEN_PLAZO_S` = 2 s; con
 `plazo_s=None`, sin tope: lo usa `dataset-assembler.py --estado`): hay UN bucle por versión —su estado y
 después sus `.tmp-*`, #165— y el plazo se mira antes de cada caso y de cada versión, antes de cada
 parseo (#171), cada `LISTADO_CADA` (64) entradas ITERADAS de cualquier listado (raíz, `cases/`, el
@@ -93,8 +103,8 @@ directorio del caso y el de cada versión, #152/#165) y en los reintentos de los
 bloqueo (#163); pasado el tope lo declara (`truncado`, «N de M casos», «al menos N» si cortó un listado;
 un caso omitido por enlace también cuenta como visto, #155; una versión cuya lectura cortó el plazo
 cuenta en `cortadas` con «se agotó el plazo de /doctor», #177) y conserva lo ya contado. El total exacto
-lo da `index check`. Medido (revisión previa D-f4, Windows): el tope llega a ~2 000 versiones en caliente
-y ~300 en frío. Límite declarado: las comprobaciones van ENTRE llamadas al sistema, así que el tope vale
+lo da `index check`. Medido (Windows): el tope corta entre ~1 000 y ~2 000 versiones en caliente según la
+carga de la máquina; en frío depende del antivirus y del sistema de ficheros (#188). Límite declarado: las comprobaciones van ENTRE llamadas al sistema, así que el tope vale
 para **sistemas de ficheros locales**; una sola llamada que se bloquea (SMB colgado, placeholder de
 OneDrive) no la acota nada.
 
