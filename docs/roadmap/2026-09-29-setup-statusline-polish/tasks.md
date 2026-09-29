@@ -88,7 +88,7 @@ estado: borrador
 
 - **Descripción**: Los ~20 tests de `tests/test_knowledge_find.py` y `tests/test_knowledge_index.py` que leen el `docs/knowledge/` real (ya no versionado) pasan a `evals/fixtures/project/docs/knowledge/` u otro fixture bajo `tests/fixtures/`. Las cifras de línea base se reformulan contra el fixture sin perder lo que prueban. Fixture sin datos personales.
 - **Changelog**: Las pruebas de búsqueda e índice de conocimiento funcionan en un clon limpio, sin la memoria local.
-- **Estado**: borrador
+- **Estado**: completado
 - **Prioridad**: Alta
 - **Tiempo humano**: est. 3.6h · real —
 - **Tiempo IA (ejec.)**: est. 0.72h · real —
@@ -102,19 +102,24 @@ estado: borrador
   - `python3 -m pytest -q tests/test_knowledge_find.py tests/test_knowledge_index.py` -> 0 failed en un árbol sin `docs/knowledge/` (CA-17)
   - `grep -rniE "@[a-z0-9-]+\.(com|tv|es)|C:\\Users|/home/[a-z]" evals/fixtures/project/docs/knowledge tests/fixtures` -> sin coincidencias
 
+- **Evidencia**:
+  RED: en un árbol sin docs/knowledge/ (git archive de HEAD) 20 tests de tests/test_knowledge_find.py y test_knowledge_index.py se SALTABAN (SKIPPED "no hay docs/knowledge/ real"): no verificaban nada en clon limpio · 2026-09-29
+  Migrados (20): find -> test_ca01_area_estimacion_*, test_ca02_consola_windows_cp1252_*, test_todas_las_entradas_reales_*, test_area_inexistente_sobre_el_corpus_real_*, test_real_tokens_por_hora_*, test_real_de_y_pato_*, test_ca03_related_adr010_*, test_ca04_show_adr012_*, test_enrutado_sobre_el_corpus_real_devops_* (+ los de la fixture `real` de 6 parametrizaciones en L676: 6 saltos) ; index -> test_el_indice_real_es_biyectivo_*, test_las_cifras_del_corpus_de_hoy, test_para_los_adr_el_area_*, test_quitar_una_fila_*, test_vaciar_el_area_*.
+  Fixture: tests/fixtures/knowledge-corpus/docs/knowledge/ (26 entradas sintéticas: 12 ADR, 5 GOT, 9 LES; sin datos personales). Cifras reformuladas: total del corpus 32 -> 26 (>= 26).
+
 **Criterios de aceptación**
 
-- [ ] Los ~20 tests afectados pasan con `docs/knowledge/` ausente (CA-17).
-- [ ] Ningún test lee `docs/knowledge/` de la raíz del repo.
-- [ ] El fixture no contiene datos personales (rutas relativas, `<stack>/…`).
-- [ ] Notas lista el conjunto exacto de tests migrados (cierra la incógnita de los «~20»).
+- [x] Los ~20 tests afectados pasan con `docs/knowledge/` ausente (CA-17).
+- [x] Ningún test lee `docs/knowledge/` de la raíz del repo.
+- [x] El fixture no contiene datos personales (rutas relativas, `<stack>/…`).
+- [x] Notas lista el conjunto exacto de tests migrados (cierra la incógnita de los «~20»).
 
 **Subtareas**
 
-- [ ] Enumerar los tests que dependen de `docs/knowledge/` real.
-- [ ] Ampliar el fixture con las entradas mínimas.
-- [ ] Reformular las cifras de línea base.
-- [ ] Ejecutar en árbol sin `docs/knowledge/`.
+- [x] Enumerar los tests que dependen de `docs/knowledge/` real.
+- [x] Ampliar el fixture con las entradas mínimas.
+- [x] Reformular las cifras de línea base.
+- [x] Ejecutar en árbol sin `docs/knowledge/`.
 
 **Notas**: Criterio de la spec: CA-17.
 

@@ -23,7 +23,8 @@ import shutil
 import pytest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-KNOWLEDGE = os.path.join(ROOT, "docs", "knowledge")
+CORPUS_ROOT = os.path.join(ROOT, "tests", "fixtures", "knowledge-corpus")
+KNOWLEDGE = os.path.join(CORPUS_ROOT, "docs", "knowledge")  # `docs/knowledge/` real ya no se versiona
 INDICE = os.path.join(KNOWLEDGE, "README.md")
 CARPETAS = ("adr", "gotchas", "lessons")
 
@@ -59,9 +60,8 @@ def ficheros(base):
 
 @pytest.fixture(scope="module")
 def real():
-    if not os.path.isfile(INDICE):
-        pytest.skip("no hay docs/knowledge/README.md")
-    return ROOT
+    assert os.path.isfile(INDICE), "falta el fixture tests/fixtures/knowledge-corpus"
+    return CORPUS_ROOT
 
 
 def test_el_indice_real_es_biyectivo_y_toda_fila_tiene_area(real):
@@ -70,11 +70,11 @@ def test_el_indice_real_es_biyectivo_y_toda_fila_tiene_area(real):
 
 
 def test_las_cifras_del_corpus_de_hoy(real):
-    """32 ficheros ↔ 32 filas (la spec decía 31: `GOT-006` entró el 2026-09-04, después del análisis)."""
+    """Ficheros ↔ filas del corpus sintético versionado (26 entradas: 12 ADR, 5 GOT, 9 LES)."""
     filas, fuera = lp.filas_knowledge_index(open(INDICE, encoding="utf-8").read())
     fs = ficheros(KNOWLEDGE)
     assert not fuera
-    assert len(filas) == len(fs) >= 31
+    assert len(filas) == len(fs) >= 26
     assert sorted(f["ruta"] for f in filas) == fs
     assert all(f["area"] for f in filas)
     assert all(f["id"] and re.match(r"^(?:[a-z0-9][a-z0-9-]*\.)?(ADR|GOT|LES|PAT)-\d{3}$", f["id"]) for f in filas), "ids legados ADR/GOT/LES-NNN o aprobados por el Knowledge Gate con prefijo <id_prefix>."
@@ -173,7 +173,7 @@ def test_quitar_una_fila_del_indice_real_pone_rojo_nombrando_el_fichero(copia_re
     victima = next(l for l in lineas if "| ADR-007 |" in l)
     idx.write_text("\n".join(l for l in lineas if l != victima), encoding="utf-8")
     errores = lp.lint_knowledge_index(str(copia_real))
-    assert len(errores) == 1 and "adr/ADR-007-deny-solo-con-alcance-de-agente.md" in errores[0], errores
+    assert len(errores) == 1 and "adr/ADR-007-deny-solo-agente.md" in errores[0], errores
 
 
 def test_vaciar_el_area_de_una_fila_real_pone_rojo_nombrando_el_id(copia_real):

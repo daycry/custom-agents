@@ -6,7 +6,8 @@ técnica (iniciativa `memory-retrieval`, Fase 1: T-01 capa 1 · T-02 `--related`
 Dos planos, a propósito:
   - un corpus SINTÉTICO en `tmp_path` para lo estructural (formato, orden, filtros, grafo, los tres
     estados del índice y las dos degradaciones): la regla se prueba sin depender del repo;
-  - el `docs/knowledge/` REAL para las cifras que la spec fija con línea base (9 entradas de
+  - un corpus VERSIONADO (`tests/fixtures/knowledge-corpus/`, sintético y sin datos personales) para
+    las cifras que la spec fija con línea base (9 entradas de
     «Estimación / calibración», `GOT-005` primero para «consola windows cp1252», `ADR-012` la más
     grande, `--related ADR-010` ≤ 1.600 caracteres).
 
@@ -25,7 +26,8 @@ import pytest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCRIPT = os.path.join(ROOT, "agent-kits", "shared", "knowledge-find.py")
-KNOWLEDGE_REAL = os.path.join(ROOT, "docs", "knowledge")
+CORPUS_ROOT = os.path.join(ROOT, "tests", "fixtures", "knowledge-corpus")
+KNOWLEDGE_REAL = os.path.join(CORPUS_ROOT, "docs", "knowledge")  # `docs/knowledge/` real ya no se versiona
 
 
 def _cargar():
@@ -260,10 +262,13 @@ def test_linea_compacta_nunca_pasa_de_120_ni_pierde_el_id_ni_la_ruta():
 # --------------------------------------------------------------- las cifras sobre el corpus REAL
 
 @pytest.fixture(scope="module")
-def real():
-    if not os.path.isdir(KNOWLEDGE_REAL):
-        pytest.skip("no hay docs/knowledge/ real")
-    return ROOT
+def real(tmp_path_factory):
+    """Copia del corpus versionado en un tmp: el índice FTS5 se escribe en su `.claude/`, nunca en el repo."""
+    assert os.path.isdir(KNOWLEDGE_REAL), "falta el fixture tests/fixtures/knowledge-corpus"
+    dst = tmp_path_factory.mktemp("corpus")
+    shutil.copytree(CORPUS_ROOT, str(dst), dirs_exist_ok=True)
+    os.makedirs(os.path.join(str(dst), ".claude"), exist_ok=True)
+    return str(dst)
 
 
 def _filas_de_area_en_el_indice(area_literal):
@@ -274,20 +279,20 @@ def _filas_de_area_en_el_indice(area_literal):
 def test_ca01_area_estimacion_devuelve_las_9_entradas_en_menos_de_1200_caracteres(real):
     esperadas = _filas_de_area_en_el_indice("Estimación / calibración")
     assert esperadas == 9, "la línea base de la spec (CA-01) son 9; si el corpus cambió, revisa la cifra"
-    code, out, err = run("--area", "estimacion", "--json")
+    code, out, err = run("--area", "estimacion", "--json", "--root", real)
     assert code == 0, err
     data = json.loads(out)
     ids = [a["id"] for a in data["aciertos"]]
     assert ids == [f"LES-00{i}" for i in range(1, 10)], ids
     assert all(a["area"] == "Estimación / calibración" for a in data["aciertos"])
     # la salida humana (lo que se inyecta) cabe en el tope de la spec: ≤ 300 tokens ≈ 1.200 caracteres
-    code, out, _ = run("--area", "estimacion")
+    code, out, _ = run("--area", "estimacion", "--root", real)
     assert code == 0 and len(out) <= 1200, len(out)
     assert out.count("\n") == 9
 
 
 def test_ca02_consola_windows_cp1252_pone_got005_primero(real):
-    code, out, err = run("consola windows cp1252", "--limit", "5")
+    code, out, err = run("consola windows cp1252", "--limit", "5", "--root", real)
     assert code == 0, err
     lineas = out.rstrip("\n").split("\n")
     assert lineas[0].startswith("GOT-005 · aceptada · "), lineas
@@ -296,7 +301,7 @@ def test_ca02_consola_windows_cp1252_pone_got005_primero(real):
 
 
 def test_todas_las_entradas_reales_caben_en_120_caracteres_por_linea(real):
-    code, out, _ = run("--limit", "0")
+    code, out, _ = run("--limit", "0", "--root", real)
     lineas = out.rstrip("\n").split("\n")
     n_ficheros = sum(len([f for f in os.listdir(os.path.join(KNOWLEDGE_REAL, d)) if f.endswith(".md")])
                      for d in ("adr", "gotchas", "lessons"))
@@ -307,7 +312,7 @@ def test_todas_las_entradas_reales_caben_en_120_caracteres_por_linea(real):
 
 
 def test_area_inexistente_sobre_el_corpus_real_no_imprime_nada(real):
-    code, out, err = run("--area", "no-existe-esta-area")
+    code, out, err = run("--area", "no-existe-esta-area", "--root", real)
     assert (code, out) == (0, ""), (code, out, err)
 
 
@@ -373,7 +378,7 @@ def test_titulo_area_e_id_pesan_por_encima_del_cuerpo(proyecto):
 
 def test_real_tokens_por_hora_trae_las_lecciones_de_estimacion_arriba(real):
     """La consulta que motivó el arreglo: con `--limit 10` (el default) llegan las 9 de estimación."""
-    code, out, err = run("cual es el ratio de tokens por hora que uso para estimar", "--json")
+    code, out, err = run("cual es el ratio de tokens por hora que uso para estimar", "--json", "--root", real)
     assert code == 0, err
     d = json.loads(out)
     assert d["consulta"]["tokens"] == ["ratio", "token", "hora", "estim"]
@@ -386,12 +391,12 @@ def test_real_tokens_por_hora_trae_las_lecciones_de_estimacion_arriba(real):
     assert len(estimacion) >= 8, (len(estimacion), ids)
     assert ids.index(estimacion[0]) <= 1, ("la doctrina de estimación no lidera", ids)
     # y con un hueco más entran TODAS las de estimación del corpus
-    code12, out12, err12 = run("cual es el ratio de tokens por hora que uso para estimar", "--json", "--limit", "12")
+    code12, out12, err12 = run("cual es el ratio de tokens por hora que uso para estimar", "--json", "--limit", "12", "--root", real)
     assert code12 == 0, err12
     d12 = json.loads(out12)
     est12 = [a["id"] for a in d12["aciertos"] if a_area(d12, a["id"]) == "Estimación / calibración"]
     assert len(est12) == 9, (len(est12), [a["id"] for a in d12["aciertos"]])
-    assert d["total"] < 32, "ya no puntúa el corpus entero"
+    assert d["total"] < len(os.listdir(os.path.join(KNOWLEDGE_REAL, "adr")) + os.listdir(os.path.join(KNOWLEDGE_REAL, "gotchas")) + os.listdir(os.path.join(KNOWLEDGE_REAL, "lessons"))), "ya no puntúa el corpus entero"
 
 
 def a_area(d, id_):
@@ -400,7 +405,7 @@ def a_area(d, id_):
 
 def test_real_de_y_pato_devuelven_cero(real):
     for texto in ("de", "quiero saber si el pato vuela hacia marte"):
-        code, out, err = run(texto, "--limit", "0")
+        code, out, err = run(texto, "--limit", "0", "--root", real)
         assert (code, out) == (0, ""), (texto, code, out, err)
 
 
@@ -529,7 +534,7 @@ def test_related_se_topa_a_1600_caracteres_y_lo_dice(tmp_path):
 
 
 def test_ca03_related_adr010_grafo_curado_en_menos_de_1600_caracteres(real):
-    code, out, err = run("--related", "ADR-010")
+    code, out, err = run("--related", "ADR-010", "--root", real)
     assert code == 0, err
     assert len(out) <= 1600, len(out)
     assert out.startswith("ADR-010 · aceptada · Memoria técnica / hooks · ")
@@ -580,12 +585,12 @@ def test_show_y_related_son_excluyentes(proyecto):
 
 
 def test_ca04_show_adr012_la_entrada_mas_grande_cabe_en_10800_caracteres(real):
-    code, out, err = run("--show", "ADR-012")
+    code, out, err = run("--show", "ADR-012", "--root", real)
     assert code == 0, err
     ruta = next(f for f in os.listdir(os.path.join(KNOWLEDGE_REAL, "adr")) if f.startswith("ADR-012-"))
     assert out == open(os.path.join(KNOWLEDGE_REAL, "adr", ruta), encoding="utf-8").read()
     assert len(out) <= 10800, len(out)
-    code, out, err = run("--show", "NO-EXISTE")
+    code, out, err = run("--show", "NO-EXISTE", "--root", real)
     assert code == 1 and out == "" and err.count("\n") == 1
 
 
@@ -676,10 +681,10 @@ def test_el_camino_con_indice_y_el_plano_dan_aciertos_identicos(proyecto, consul
 @pytest.mark.parametrize("consulta", [["consola windows cp1252"], ["--area", "estimacion"], ["hook de guardia"],
                                       ["jira transición", "--limit", "0"], ["changelog"], ["--tipo", "gotcha"]])
 def test_sobre_el_corpus_real_indice_y_plano_coinciden(real, consulta):
-    code, out, err = run(*consulta, "--json")
+    code, out, err = run(*consulta, "--json", "--root", real)
     assert code == 0, err
     con = json.loads(out)
-    code, out, err = run(*consulta, "--json", "--no-index")
+    code, out, err = run(*consulta, "--json", "--no-index", "--root", real)
     sin = json.loads(out)
     assert [a["id"] for a in con["aciertos"]] == [a["id"] for a in sin["aciertos"]]
     assert con["indice"] in ("construido", "reconstruido", "cache")
@@ -800,7 +805,7 @@ def test_enrutado_tipo_de_tarea_desconocido_avisa_y_no_bloquea(proyecto):
 
 
 def test_enrutado_sobre_el_corpus_real_devops_trae_hooks_y_consola(real):
-    code, out, _ = run("--tipo-tarea", "devops", "--json")
+    code, out, _ = run("--tipo-tarea", "devops", "--json", "--root", real)
     assert code == 0
     ids = {a["id"] for a in json.loads(out)["aciertos"]}
     assert {"ADR-007", "ADR-010", "GOT-005"} <= ids, ids
