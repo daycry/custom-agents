@@ -17,7 +17,7 @@ generacion:
 | | |
 |---|---|
 | **Fecha** | 2026-09-29 |
-| **Estado** | en-revision |
+| **Estado** | completado |
 | **Prioridad global** | Media |
 | **Solicitante** | usuario (vía `/pm-cycle`) |
 | **Spec** | [`spec.md`](spec.md) |

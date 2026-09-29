@@ -1,7 +1,7 @@
 ---
 spec: setup-statusline-polish
 descripcion: Pulido de /setup, statusline y puertas tras las iniciativas de conocimiento — iniciativa en curso en la statusline, ruta y coste correctos, dashboard que vuelve a leer las evaluaciones, tests deterministas, alta segura del proyecto en Kwipu y nombre de proyecto único
-estado: borrador
+estado: aprobada
 riesgo: medio             # piloto de sdd-proporcional: el punto 7 escribe en la config del stack del usuario (solo añade, con confirmación)
 creado: 2026-09-29
 actualizado: 2026-09-29
