@@ -799,3 +799,89 @@ Enmiendas:
 | 179 | Minor | **Preexistente, en el camino de #167:** `_leer_backend_entry` lanza `AttributeError` si `backends` o `backends.<id>` de `taxonomy.json` no son objetos (`doctor.py:1492`), y `_requiere_red` lo heredaría. **Arbitraje:** si no son objetos → ❌ de configuración de esa capacidad (sin traceback, exit 1); test con `{"backends": []}` y `{"backends": {"kwipu": 1}}` | T-10 (#167) | corregido (fix2): `_leer_backend_entry` devuelve `_EntradaInvalida` si `backends` o `backends.<id>` existen y no son objetos; `_linea_capacidad` lo pinta como error de configuracion de ESA capacidad (fichero y campo, arreglo «corrige …») -> exit 1, sin traceback; regla GENERICA (`grep -c training doctor.py` -> 0) | `test_doctor.py::test_t10fix2_179_backends_que_no_son_objetos_es_error_de_config` ×4 (`{"backends": []}`, `{"backends": {"midbackend": 1}}`, `"x"`, `[1]`); RED `AttributeError: 'str' object has no attribute 'get'` y `… no attribute '_EntradaInvalida'`; mutante (copia aislada `scratchpad/impl-f4fix2/copia`, `mutar.py`): 2/2 mueren | B (fuera de lente) |
 
 **Decisión del orquestador (2026-09-29):** D-f4 queda APROBADO con M1-M13 → ronda `fix2` (implementer `opus`, marcador `training-data-services/T-10-fix2`) sobre #165-#179 y **revisión intento 3 de 3**.
+
+## Revisión de dos lentes — intento 3: Fase 4 (T-10, T-11) — #165-#179 CERRADOS (los 2 Important reproducidos al revertir); 9 gaps NUEVOS (0 Critical, 2 Important, 7 Minor) → BUCLE AGOTADO: fix3 corta + verificación dirigida, lentes A+B+C+D, rango `a712ecb..ec110b6` (fix2)
+
+**Puertas (Lente A, Windows):**
+- `lint_plugin` 0 errores · `evals/check` 0 · `export-interop --check` 50 al día · `ledger-lint` 0/0 · `grep -c training doctor.py` 0 · `scope-check --base ed48590` 24 en alcance, 0 fuera.
+- Suites de la fase: `1313 passed, 12 skipped, 0 failed`.
+
+**Lente A:**
+- #165 reproducido. Con el recorder de `a712ecb`, los RED exactos del ledger. Con 2×10⁴ versiones reales: antes 8,3-10,9 s y `versiones=0`; ahora 2,031-2,039 s, `versiones=1`, `truncado`.
+- #166 reproducido con un cierre real en una copia: el test viejo da `AssertionError: CHANGELOG.md`; los nuevos dan `3 passed`.
+- #167, #168-#177 y #179 ✓. M1-M13 recorridos uno a uno contra el código.
+- CA-01…CA-12 y CA-14, cada uno con su test nombrado.
+- Fix2 no borra ningún test (+65).
+- Documentación coherente: `SKILL.md` 106 líneas, CONVENTIONS ES = EN, E24 casa con `resumen_store`.
+- Evidencia del ledger verificada relanzando #165, #166, #172, #179, scope-check y #178.
+
+**Lente B** (Windows + Linux `python:3.11-slim -m 2g`, usuario no root): #165-#173, #176, #177 y #179 ✓, cada uno con sondas propias.
+- Flujos de frescura: rechazar o re-aprobar, luego reensamblar → `al_dia`. Muerte a mitad → `.2` → `al_dia`. «ya existe» reescribe la marca. `--dry-run` no la escribe.
+- Marca ajena (enlace duro, symlink, 1 MiB, esquema distinto, FIFO, directorio) → rc 0 con aviso, sin reemplazarla.
+- M13: la marca vieja da `desactualizado` y reensamblar la limpia.
+- Linux sin rojos nuevos: los 5 de `test_doctor` son los mismos que da `a712ecb` en ese contenedor (falta `git` en la imagen).
+
+**Lente C:**
+- #171, #172, #173 ✓.
+- Marca: sin seguir enlaces (symlink, FIFO, directorio, sustitución entre `lstat` y `open`), `st_nlink`, 4 KiB, esquema y patrón de `directorio` ✓. `.tmp` propio ✓.
+- Forjar un `al_dia` exige escribir `<root>/exports/`, el mismo privilegio que escribir el store.
+- `--estado` es solo lectura y no crea `exports/`. `/doctor` no introduce red nueva.
+
+**Lente D:**
+- #165/M9 ✓: 2×10⁴ versiones → 2,010-2,040 s; 10⁵ no-`.tmp` → 0,24 s; 10⁴ casos → 2,003 s.
+- M5 con hash de 1 MB ✓.
+- Marca: escritura p50 4,4-4,8 ms, lectura p50 2,2-2,4 ms. Con un lector concurrente, 115/200 `PermissionError` absorbidos por `_reemplazar` (máximo 302 ms).
+- #170: 334-340 ms. Sin `training.json`, el coste está dentro del ruido.
+- Pasada 1 con 10³ Gold: la firma más la marca suman ~8 ms.
+
+**Fusión:**
+- C1 → #180; D1 → #181.
+- B1 + B2 → #182 (diseño D-f5).
+- B3 + nota «fuera de lente» de A → #183.
+- Nota «fuera de lente» de D (marca bloqueada → remedio de borrarla) → #184.
+- A1 → #185.
+- Nota «fuera de lente» de C (`--estado` deja `__pycache__`) → #186.
+- Nota «fuera de lente» de A (campos **Changelog** de T-08/T-09 por encima de 200 caracteres) → #187.
+- D6 (el M11 medido bajo carga no coincide con lo documentado) → #188.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia | Lente |
+|---|---|---|---|---|---|---|
+| 180 | **Important** | Los valores de `parametros` de la marca (`umbral`, `ventana`, `fraccion_boilerplate`) se pintan con `str()` sin escapar (`dataset-assembler.py:748`); `_motivo_marca` (`:635`/`:650`) solo exige que `parametros` sea un dict. Llegan crudos a `/doctor` (texto; en `--json` con `ensure_ascii=False`, `doctor.py:2302`, U+202E/U+009B salen crudos) y a `--estado`. Ejecutado: `parametros={"umbral":"\x1b]0;pwn\x07‮"}` con firma válida → OSC que cambia el título del terminal + bidi, estado `al_dia`; `"\x1b[2J‮FALSO\n linea"` → borrado de pantalla + línea falsa. Misma clase que #111/#153/#172. CWE-150. **Arbitraje:** (a) `_motivo_marca` valida el ESQUEMA de `parametros`: `umbral` y `fraccion_boilerplate` son números finitos en [0, 1]; `ventana` y `presupuesto`, enteros ≥ 1; `conservar_duplicados`, bool; `benchmark`, lista de cadenas que pasan `PATRON_FAMILIA`/`validar` (o ausente); claves desconocidas → marca inválida → `no_verificable` con remedio (#184); (b) defensa en profundidad: `_texto_parametros` pasa TODO valor por `rec._texto_ruta`; tests con los dos literales en texto, `--estado` y `/doctor --json` (sin ESC, U+202E, U+009B, U+2028 ni `\n`) | T-10 (D-f4 F2/F3/M6) | pendiente | | C (B) |
+| 181 | **Important** | M5 acota `content_hash` pero NO `case_id`. `_case_id_casa` (`case-recorder.py:2129`) acepta cualquier prefijo que case `PATRON_PREFIJO` (sin longitud máxima, `case_schema.py:93`), no solo el `id_prefix` configurado. El `case_id` queda retenido como clave de `gold`, `entradas` y `duenos`, y `firma_gold` (`case-recorder.py:2443`) corre fuera del plazo. Medido: 400 versiones con `metadata.json` de ~1 MB (bajo `TOPE_JSON_CASO`), `case_id = "geo-" + "y"*10**6 + "-fNNNN.steep"` y Gold real → `resumen_store(plazo_s=2)` 3,13-7,81 s, memoria de 12 MB a 240-401 MB (~1 MB/Gold), firma 1,1-2,0 s; `/doctor` 5,85-6,80 s con kwipu recortada. Nota «fuera de lente» de D: un `case_id` con otro prefijo pasa y llegaría al manifiesto y al export. CWE-400/770. **Arbitraje:** (a) `CASE_ID_MAX` = 200 caracteres (fuente única en `case_schema.py`), exigido por `validar_caso` y `construir_case_id` (`record` no graba uno mayor) y por `_estado_de_cases` en los DOS lados; (b) `_estado_de_cases` recibe el `id_prefix` de la config y exige `case_id == construir_case_id(id_prefix, family, variant)` (o `<nombre>` si la config no lo declara), no un prefijo cualquiera; (c) si no casa, la versión se omite con aviso permanente (código `case_id`), igual en `/doctor` y en el ensamblador; (d) `firma_gold` se calcula dentro del presupuesto (se mira el plazo antes, y si se agotó, `parcial`). Tests: `case_id` de 1 MB → omitido, memoria retenida ≤ 100 B por Gold (aserción POR Gold, matiz de A sobre M5), `resumen_store` ≤ plazo + 300 ms; `case_id` con otro prefijo → omitido en los dos lados y ausente del manifiesto y del export | T-10 (#165/M5) | pendiente | | D |
+| 182 | Minor | **Frescura ciega a las omisiones (dos caras):** (1) un Gold que `leer_caso` excluye por un aviso PERMANENTE en un fichero inmutable (ausente o ilegible) conserva su hash en la firma: se restaura el fichero → `/doctor` dice `al_dia` pero reensamblar cambia train (`dataset-assembler.py:420`; el límite de `references/dataset.md:149-151` solo cubre el sentido «sin atar»); ejecutado: `trajectory.jsonl` renombrado → ensamblar (train 1, `al_dia`) → restaurarlo → sigue `al_dia` → reensamblar da train 2. (2) Un `EACCES` PERMANENTE (`chmod 000`, Linux sin root) en un fichero no JSON se clasifica como transitorio (`MARCAS_TRANSITORIAS` incluye «no legible tras», `case-recorder.py:2167`): la firma lleva `"!transitoria"` → `desactualizado` que reensamblar NUNCA limpia (`dataset-assembler.py:381,417`). **Arbitraje:** diseño **D-f5** (abajo) | T-10 (#168/M2) | pendiente | | B |
+| 183 | Minor | Con exports y TODOS los Gold rechazados después, `estado_dataset` dice `sin_gold` y `--estado` sale 0 (`dataset-assembler.py:845`), aunque el export de la marca aún contiene esos casos en train y reensamblar se niega (`Rechazo`: familia de benchmark sin Gold). Viene de fix1. **Arbitraje:** con marca válida y `gold > 0` en ella y 0 Gold vigentes → `desactualizado`, motivo «0 Gold vigentes frente a N en el último ensamblado `<dir>`: ese export contiene casos que ya no son Gold y no se puede reensamblar sin Gold; si no debe usarse, archívalo a mano», exit 1; sin marca → `sin_gold` como hoy; test con el escenario literal | T-10 (#154) | pendiente | | B (A) |
+| 184 | Minor | Una marca VÁLIDA bloqueada un momento (antivirus, backup) y con plazo suficiente: tras 1 s de reintentos, `estado_dataset` da `no_verificable` con el remedio «retira `exports/.ultimo.json` a mano» (`dataset-assembler.py:684` → `:863`). Ordena borrar una marca buena por un bloqueo transitorio. **Arbitraje:** el motivo distingue la causa. Agotar los reintentos por `PermissionError` → «la marca está bloqueada por otro proceso (antivirus, backup): vuelve a pasar /doctor», NUNCA el remedio de retirarla. Ese remedio queda solo para una marca inválida o ajena (enlace, tamaño, esquema, `directorio`). Test con el bloqueo real en Windows (`CreateFileW`, share 0) y simulado en POSIX | T-10 (#170/M8) | pendiente | | D (B) |
+| 185 | Minor | #178: el «≥ 90 en cada fichero» sin `patch = subprocess` no se reproduce en un checkout LIMPIO: `doctor.py` da **89,85 %** (la Evidencia dice 91,32 %, que dependía del `.claude/` local sin versionar del checkout principal: 1291 stmts, 133 miss frente a 114). Los agregados siguen ✅ (fase 94,37 %, iniciativa 94,84 %). La CI y cualquier clon ven < 90 en ese fichero. **Arbitraje:** tests EN PROCESO de las líneas que hoy solo cubre el entorno local (con `tmp_path` y configs sintéticas, nunca el `.claude/` del checkout). La Evidencia se mide en un checkout LIMPIO (`git archive` a `tmp`), no en el principal. `doctor.py` ≥ 90 ahí | T-10/T-11 (#178) | pendiente | | A |
+| 186 | Minor | `dataset-assembler.py --estado` deja `skills/training-data-services/scripts/__pycache__` en el plugin: `_cargar` (`dataset-assembler.py:134-139`) no pone `dont_write_bytecode`. Es la misma promesa que #159 para `/doctor`: un diagnóstico de solo lectura no escribe en el plugin. **Arbitraje:** toda carga por ruta de los scripts de la skill usa el mismo patrón que `capabilities._cargar_por_ruta` (`dont_write_bytecode`, restaurado al salir). Test: `--estado` sobre una copia → 0 `__pycache__` nuevos | T-10 (#159) | pendiente | | C (fuera de lente) |
+| 187 | Minor | Los campos **Changelog** de T-08 (207 caracteres) y T-09 (240) pasan del tope de 200 de `changelog-sync`. Saltará al cerrar. **Arbitraje:** reescribirlos en ≤ 200 caracteres, una o dos frases. El test de #166 comprueba además que `changelog-sync --dry-run --only training-data-services` no da avisos para la iniciativa | T-08/T-09/T-11 | pendiente | | A (fuera de lente) |
+| 188 | Minor | M11 medido con la máquina cargada: `--estado` cuesta 1,55-1,72 ms por versión en caliente (la doc dice ~1 ms) y el corte del plazo real llega a 0,7-1,4×10³ versiones (la doc dice ~2×10³). El frío no se pudo aislar: la primera lectura de ficheros recién creados la domina el antivirus (59,5 ms por versión). **Arbitraje:** `references/dataset.md` y el texto del «no verificado» dan RANGOS y no un punto: ~1-2 ms por versión en caliente, corte entre ~10³ y 2×10³ versiones según la carga, y el frío depende del antivirus y del sistema de ficheros. Prosa, `TDD n/a` | T-10 (M11) | pendiente | | D |
+
+### Diseño D-f5 (orquestador, 2026-09-29) — PROPUESTA, pasa por revisión previa (Lente B) ANTES de implementarse
+
+Cubre #182. Sustituye la parte M2 de D-f4 («`"!transitoria"` en la firma»).
+
+**Principio.** `/doctor` no lee los ficheros inmutables del caso, así que no puede ver las omisiones. La marca las REGISTRA, y la frescura las informa como un estado propio, en vez de adivinar su causa.
+
+- **O1. Firma.** Todo Gold vigente entra en la firma de la entrada con su `content_hash` saneado (M5), lo haya incluido `leer_caso` o no. Se retira `"!transitoria"` y la firma vuelve a describir solo el conjunto de Gold. La lectura de `validation.json` que decidió el destino se sigue usando (M4).
+- **O2. Omisiones en la marca.** El ensamblador añade a la marca `omitidos`: el número de Gold vigentes que `leer_caso` excluyó por un aviso, transitorio o permanente. También añade `omitidos_muestra`: hasta 10 `case_id@vNNN` escapados, con la clase del aviso (`transitorio`/`permanente`, por `_aviso_transitorio`). Los Gold excluidos por dedup, benchmark o SIN_ATAR NO son omisiones: son el resultado del ensamblado. El esquema de la marca los valida (entero ≥ 0, lista ≤ 10 de cadenas con el patrón de referencia) y todo sigue ≤ 4 KiB.
+- **O3. Estado.** Firma igual y `omitidos == 0` → `al_dia`. Firma igual y `omitidos > 0` → estado nuevo `con_omisiones`, que se pinta como ⚠️ con el texto «N Gold omitidos en el último ensamblado `<dir>` (p. ej. `<ref>`: fichero ausente o ilegible). Corrige la causa y reensambla; si era transitoria, basta con reensamblar». `--estado` sale con exit 1. Firma distinta → `desactualizado`, como hoy.
+- **O4. Qué limpia cada remedio.**
+  - Omisión transitoria que ya pasó: reensamblar la incluye → `omitidos = 0` → `al_dia`.
+  - Omisión permanente sin corregir: sigue `con_omisiones` con su causa. Es un veredicto cierto, no «desactualizado».
+  - Omisión permanente corregida: reensamblar la incluye → `al_dia`.
+
+  Ningún estado se queda para siempre sin remedio, y ningún `al_dia` oculta un Gold fuera del dataset (#182, las dos caras).
+- **O5. Límite declarado.** Entre dos ensamblados, `/doctor` no ve un fichero inmutable que se rompa DESPUÉS del último ensamblado: la firma no lo ve (G5). Remedio: `index check` o reensamblar. Se documenta en `references/dataset.md`.
+
+**Escenarios que deben quedar en test:**
+- B1 literal: renombrar `trajectory.jsonl` → ensamblar → `con_omisiones` → restaurar → sigue `con_omisiones` → reensamblar → `al_dia`.
+- B2 literal: `chmod 000` en `request.json` (POSIX sin root; en Windows, `PermissionError` simulado) → `con_omisiones` con clase `transitorio` → devolver el permiso → reensamblar → `al_dia`.
+- Muestra con 11+ omisiones → 10 en la muestra y el número real en `omitidos`.
+- Marca con `omitidos` negativo o no entero, o con una muestra que no casa el patrón → marca inválida.
+
+**Decisión del orquestador (2026-09-29).** Intento 3 de 3 con 2 Important (#180, #181), correcciones locales sin cambio de protocolo, y #182 como Minor con diseño pequeño (D-f5). Por el objetivo del usuario («sin gaps ni errores»), se sigue el precedente de F2/F3:
+1. D-f5 pasa por revisión previa (Lente B).
+2. Ronda **fix3** (implementer `opus`, marcador `training-data-services/T-10-fix3`) sobre #180-#188.
+3. **Verificación dirigida** con lentes B+C+D (y A para #185/#187), Windows + Linux.
+
+Si confirma sin Critical ni Important: T-10/T-11 `completado`.
