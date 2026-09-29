@@ -5,7 +5,7 @@ estado: borrador
 riesgo: medio             # piloto de sdd-proporcional: el punto 7 escribe en la config del stack del usuario (solo añade, con confirmación)
 creado: 2026-09-29
 actualizado: 2026-09-29
-evaluacion: pendiente
+evaluacion: evaluation.md
 design: n/a
 plan: pendiente
 generacion:
@@ -19,7 +19,7 @@ generacion:
 
 # setup-statusline-polish — pulido de setup, statusline y puertas
 
-> **Evaluación:** pendiente
+> **Evaluación:** [`evaluation.md`](evaluation.md) (en-revision · go condicionado · ≈ 2.729 € de referencia humana, ≈ 266 € ejecutando con agentes)
 > **Plan de implementación:** pendiente
 
 > **Terminología:** *stack* = carpeta local del stack de grafos de conocimiento del usuario (`<stack>/`). *Iniciativa en curso* = la iniciativa en la que se trabaja ahora, distinta de «activa» (cualquier ledger no completado). `id_prefix` = clave de `taxonomy.json` que prefija los `knowledge_id`.
