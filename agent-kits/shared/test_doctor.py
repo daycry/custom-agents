@@ -828,20 +828,22 @@ def test_indice_fts5_ausente_informa_valido_ok_y_corrupto_avisa_sin_escribir(tmp
     assert av and "knowledge-index.sqlite" in av[0]["arreglo"]
 
 
-def test_repo_real_la_memoria_curada_se_ve_y_su_indice_pasa_el_lint():
-    """Humo sobre ESTE repo: la memoria curada se cuenta y su índice pasa el lint de T-04.
+def test_repo_real_la_memoria_curada_se_ve_y_su_indice_pasa_el_lint(tmp_path):
+    """Humo con el PLUGIN real (`plugin_root` = este repo, con su `scripts/lint_plugin.py`) sobre un
+    proyecto consumidor realista: la memoria curada se cuenta y su índice pasa el lint de T-04.
 
-    Antes este test afirmaba además que el informe traía aviso de `journal de sesión` o de
-    `calibración (CALIBRATION.md)`, y que por eso el repo nunca salía «Instalación sana».
-    Las dos premisas eran ESTADO DEL REPO, no comportamiento: en cuanto se escribe una entrada
-    de journal y se añade una fila de CALIBRATION al cerrar una iniciativa —que es justo lo que
-    el plugin manda hacer— los avisos desaparecen y el test se pone rojo por haber hecho las
-    cosas bien. Los dos avisos ya tienen cobertura propia con fixture más arriba, donde el estado
-    se controla; aquí se queda solo lo que no caduca."""
-    inf = diag(ROOT, ROOT)
+    El proyecto es una copia del fixture de evals (`evals/fixtures/project/`, contenido inventado),
+    no la memoria de ESTE repo: `docs/knowledge/` del propio repo es solo local y no está versionada,
+    así que en CI no existe. Antes el test afirmaba además avisos de journal/calibración, que eran
+    ESTADO DEL REPO, no comportamiento; esos avisos tienen cobertura propia con fixture más arriba."""
+    import shutil
+    proj = tmp_path / "proj"
+    shutil.copytree(os.path.join(ROOT, "evals", "fixtures", "project", "docs", "knowledge"),
+                    proj / "docs" / "knowledge")
+    inf = diag(proj, ROOT)
     cur = por_que(inf, "memoria curada", doctor.OK)
-    assert cur and int(re.search(r"(\d+) entrada", cur[0]["detalle"]).group(1)) >= 31
-    assert por_que(inf, "índice de memoria (README)", doctor.OK), "el índice real pasa el lint de T-04"
+    assert cur and int(re.search(r"(\d+) entrada", cur[0]["detalle"]).group(1)) == 2, cur
+    assert por_que(inf, "índice de memoria (README)", doctor.OK), "el índice del fixture pasa el lint de T-04"
 
 
 # --- estado efectivo del registro: los gaps de la revision I2 -----------------------------

@@ -1498,6 +1498,13 @@ RUTAS_DEL_CONSUMIDOR = {
 # …y los artefactos del consumidor que no son UN fichero sino una carpeta entera suya.
 PREFIJOS_DEL_CONSUMIDOR = ("docs/roadmap/", "docs/security-scan/")
 
+# TOLERANCIA 6 — memoria técnica LOCAL de este repo. `docs/knowledge/**` no se versiona (solo local;
+# la doctrina que viaja con el plugin está en `agent-kits/evaluator/assets/doctrina/`): en CI y en un
+# clon limpio no existe, así que una cita a `docs/knowledge/...` no es rot — ni aviso ni error si
+# falta. Y tampoco se ESCANEA como citante (ver `_DOC_EXCLUIDO`): así el linter da el mismo
+# veredicto con la carpeta que sin ella.
+PREFIJOS_MEMORIA_LOCAL = ("docs/knowledge/",)
+
 # TOLERANCIA 4 — rutas RETIRADAS que un documento histórico cita precisamente porque ya no existen
 # («se migraron a X», «se retiró el agente Y»). Borrar la cita falsificaría el registro; tolerarla
 # en silencio dejaría pasar la rot de verdad. Se enumera con el documento que las retiró.
@@ -1547,12 +1554,13 @@ COMANDOS_TOLERADOS = {
 _DIRS_DE_DOC = ("agents", "commands", "skills", "docs")
 # `docs/examples/` es un proyecto CONSUMIDOR de ejemplo (su ledger, sus comandos de negocio):
 # comprobar sus citas contra NUESTRO árbol no tiene sentido.
-_DOC_EXCLUIDO = ("docs/roadmap/", "docs/knowledge/journal/", "docs/examples/")
+# `docs/knowledge/` es memoria LOCAL no versionada (TOLERANCIA 6): se excluye entera, no solo el journal.
+_DOC_EXCLUIDO = ("docs/roadmap/", "docs/examples/") + PREFIJOS_MEMORIA_LOCAL
 
 
 def _ficheros_de_doc(root):
-    """Los `.md` de `agents/`, `commands/`, `skills/` y `docs/` (menos el registro: roadmap y
-    journal), como (ruta absoluta, ruta relativa con `/`)."""
+    """Los `.md` de `agents/`, `commands/`, `skills/` y `docs/` (menos el registro: roadmap,
+    ejemplos y la memoria local `docs/knowledge/`), como (ruta absoluta, ruta relativa con `/`)."""
     out = []
     for d in _DIRS_DE_DOC:
         base = os.path.join(root, d)
@@ -1607,6 +1615,8 @@ def _ruta_resuelve(root, ruta, citante):
     if os.path.exists(os.path.join(root, ruta)):
         return True
     if ruta in RUTAS_DEL_CONSUMIDOR or ruta.startswith(PREFIJOS_DEL_CONSUMIDOR):
+        return True
+    if ruta.startswith(PREFIJOS_MEMORIA_LOCAL):
         return True
     if ruta in RUTAS_RETIRADAS or ruta in PIEZAS_PLANIFICADAS:
         return True

@@ -7,8 +7,19 @@ import os
 import subprocess
 import sys
 
+import pytest
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SHARED = os.path.join(ROOT, "agent-kits", "shared")
+
+
+KNOWLEDGE = os.path.join(ROOT, "docs", "knowledge")
+# `docs/knowledge/` de ESTE repo es memoria local, no versionada: en CI no existe. Los tests que miran su
+# árbol REAL solo tienen sentido donde la carpeta está; el comportamiento de candidatos/aprobados ya se
+# prueba con fixtures en `agent-kits/knowledge-curator/test_curator_gate.py` y `test_knowledge_index_canonico.py`.
+solo_con_memoria_local = pytest.mark.skipif(
+    not os.path.isdir(KNOWLEDGE),
+    reason="docs/knowledge/ es memoria local de este repo, no versionada: sin ella no hay árbol real que validar")
 
 
 def _load_knowledge_index():
@@ -21,6 +32,7 @@ def _load_knowledge_index():
     return mod
 
 
+@solo_con_memoria_local
 def test_candidates_y_approved_existen_con_ownership():
     candidatos = os.path.join(ROOT, "docs", "knowledge", "candidates", "README.md")
     aprobados = os.path.join(ROOT, "docs", "knowledge", "approved", "README.md")
@@ -32,12 +44,14 @@ def test_candidates_y_approved_existen_con_ownership():
         assert "knowledge-curator" in texto
 
 
+@solo_con_memoria_local
 def test_subcarpetas_de_candidatos_presentes():
     base = os.path.join(ROOT, "docs", "knowledge", "candidates")
     for sub in ("pending", "needs_changes", "rejected"):
         assert os.path.isdir(os.path.join(base, sub)), f"falta docs/knowledge/candidates/{sub}"
 
 
+@solo_con_memoria_local
 def test_sin_arbol_projects_en_docs_knowledge():
     base = os.path.join(ROOT, "docs", "knowledge")
     for nombre in os.listdir(base):

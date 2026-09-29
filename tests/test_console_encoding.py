@@ -390,8 +390,11 @@ def _modos():
         "agent-kits/shared/capabilities.py":
             [("registro", lambda w: ["--root", w], (0,), None)],
         # Imprime `·` y áreas con acentos («Estimación / calibración») en cada acierto (memory-retrieval T-01).
+        # Sobre la memoria SINTÉTICA del fixture de evals, no la de este repo (solo local, no versionada:
+        # en CI no existe y la consulta salía vacía); `--no-index` para no escribir la caché en el fixture.
         "agent-kits/shared/knowledge-find.py":
-            [("consulta", lambda w: ["--area", "estimacion"], (0,), None)],
+            [("consulta", lambda w: ["--area", "estimacion", "--no-index",
+                                     "--root", os.path.join(ROOT, "evals", "fixtures", "project")], (0,), None)],
         "agent-kits/shared/ledger-lint.py":
             [("ledger", lambda w: [L], (0, 1), None)],
         "agent-kits/shared/outbox.py":
