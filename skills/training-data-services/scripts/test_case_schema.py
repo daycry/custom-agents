@@ -867,3 +867,53 @@ def test_t10fix2_173_root_admite_zwnj_y_zwj_y_sigue_rechazando_bidi_y_controles(
                  "\u2029"):
         errores = cs.validar_config(dict(CONFIG_OK, root=f"../a{malo}b"))
         assert any(e["campo"] == "root" for e in errores), repr(malo)
+
+
+# ------------------------------------------------------------------ T-10 fix2 #178: CLI y ramas EN PROCESO
+
+def test_t10fix2_178_cli_en_proceso_config_caso_y_errores(tmp_path, capsys):
+    """#178: `main([...])` en proceso (el mismo contrato que los tests por subproceso): exit 0/1/2."""
+    proj = tmp_path / "proj"
+    d = proj / ".claude" / "knowledge-services"
+    d.mkdir(parents=True)
+    cfg = d / "training.json"
+    cfg.write_text(json.dumps(dict(CONFIG_OK, root="../store")), encoding="utf-8")
+    assert cs.main(["config", str(cfg)]) == 0 and "OK" in capsys.readouterr().out
+    caso = tmp_path / "caso.json"
+    caso.write_text(json.dumps(CASO_OK), encoding="utf-8")
+    assert cs.main(["case", str(caso), "--config", str(cfg)]) == 0
+    assert cs.main(["case", str(caso)]) == 0
+    malo = tmp_path / "malo.json"
+    malo.write_text(json.dumps({"version": 1, "enabled": "si"}), encoding="utf-8")
+    assert cs.main(["config", str(malo), "--project-root", str(proj)]) == 1
+    assert "enabled" in capsys.readouterr().out
+    assert cs.main(["case", str(caso), "--config", str(malo)]) == 1
+    assert cs.main(["case", str(tmp_path / "no-existe.json")]) == 2
+    hondo = tmp_path / "hondo.json"
+    hondo.write_text("[" * 100_000, encoding="utf-8")
+    assert cs.main(["case", str(hondo)]) == 2 and cs.ANIDAMIENTO_JSON in capsys.readouterr().err
+    invalido = tmp_path / "invalido.json"
+    invalido.write_text(json.dumps(dict(CASO_OK, version=0)), encoding="utf-8")
+    assert cs.main(["case", str(invalido)]) == 1
+    assert cs._raiz_de(str(cfg)) == str(proj) and cs._raiz_de(str(cfg), "x") == "x"
+    assert cs._raiz_de(str(malo)) == os.getcwd()
+
+
+def test_t10fix2_178_ramas_de_turnos_artefactos_y_validation():
+    """#178: las ramas de error de `_validar_turno`, `_validar_artifacts` y `_validar_validation`."""
+    turnos = [{"role": "user", "content": 5}, {"role": "assistant", "tool_calls": "x"},
+              {"role": "assistant", "tool_calls": [{"name": "f", "arguments": 3}]}, {"role": "assistant"},
+              {"role": "user"}, {"role": "tool", "content": "ok"}, {"role": "user", "content": "x", "ts": 1}]
+    campos = _campos(cs.validar_caso(_caso(trajectory=turnos)))
+    for c in ("trajectory[0].content", "trajectory[1].tool_calls", "trajectory[2].tool_calls[0].arguments",
+              "trajectory[3].content", "trajectory[4].content", "trajectory[5].name", "trajectory[6].ts"):
+        assert c in campos, (c, campos)
+    campos = _campos(cs.validar_caso(_caso(artifacts=[{"hash": "sha256:" + "a" * 64, "kind": 3}])))
+    assert "artifacts[0].path" in campos and "artifacts[0].kind" in campos
+    assert "validation" in _campos(cs.validar_caso(_caso(validation="aprobada")))
+    campos = _campos(cs.validar_caso(_caso(validation={"status": "pending", "approved_by_human": False,
+                                                        "reviewer_note": 3})))
+    assert "validation.reviewer_note" in campos
+    assert cs._es_clave_cot(5) is False
+    errores = cs.validar_config(dict(CONFIG_OK, ids={"family_pattern": 5}))
+    assert any(e["campo"] == "ids.family_pattern" and "no es una cadena" in e["mensaje"] for e in errores)

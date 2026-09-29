@@ -436,3 +436,27 @@ def test_t09_140_el_puente_tiene_una_sola_ventana_de_creacion(tmp_path, monkeypa
     r = pfc.proponer(cfg, raiz, "geo-ramp.steep", 1, "GOTCHA")
     monkeypatch.undo()
     assert creados == [(os.path.basename(r["ruta"]), "xb")], creados
+
+
+# ------------------------------------------------------------------ T-10 fix2 #178: CLI EN PROCESO
+
+def test_t10fix2_178_cli_del_puente_en_proceso(tmp_path, capsys, monkeypatch):
+    """#178: `main([...])` del puente en proceso: candidato creado (0), rechazo con su motivo (1), tag
+    invalido (2, argparse), E/S (2) y sin `knowledge-schema.py` (2)."""
+    raiz, _cfg = _proyecto(tmp_path)
+    assert pfc.main(["geo-ramp.steep", "1", "--category", "GOTCHA", "--project-root", raiz, "--tag", "area:rampas"]) == 0
+    assert "OK candidato" in capsys.readouterr().out
+    assert pfc.main(["geo-ramp.steep", "1", "--category", "GOTCHA", "--project-root", raiz]) == 1
+    assert "rechazado" in capsys.readouterr().err
+    with pytest.raises(SystemExit):
+        pfc.main(["geo-ramp.steep", "1", "--category", "GOTCHA", "--project-root", raiz, "--tag", "mal tag"])
+
+    def falla(exc):
+        def _f(*a, **k):
+            raise exc
+        return _f
+    monkeypatch.setattr(pfc, "proponer", falla(OSError(5, "disco")))
+    assert pfc.main(["geo-ramp.steep", "1", "--category", "GOTCHA", "--project-root", raiz]) == 2
+    monkeypatch.setattr(pfc, "proponer", falla(pfc.KnowledgeServicesNoDisponible("sin taxonomia")))
+    assert pfc.main(["geo-ramp.steep", "1", "--category", "GOTCHA", "--project-root", raiz]) == 2
+    capsys.readouterr()

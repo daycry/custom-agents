@@ -786,3 +786,57 @@ def test_t07_141_cubos_por_componente_igual_que_la_fuerza_bruta(seed):
     for umbral in (0.5, 0.6, 0.7, 0.8):
         assert _grupos(dd.agrupar(docs, umbral=umbral, ventana=1, fraccion_boilerplate=1.0)) == \
             _fuerza_bruta(docs, umbral, 1, 1.0), (seed, umbral)
+
+
+# ------------------------------------------------------------------ T-10 fix2 #178: CLI EN PROCESO
+
+def test_t10fix2_178_cli_de_dedup_en_proceso(tmp_path, capsys):
+    """#178: `dedup.main([...])` en proceso: texto, `--json`, avisos, y cada error de uso (exit 2)."""
+    docs = tmp_path / "docs.jsonl"
+    texto = "genera una rampa de treinta grados con una bola roja que rueda sin salirse"
+    docs.write_text("".join(json.dumps({"id": f"c{i}", "family": "f", "text": texto}) + "\n" for i in range(3))
+                    + "\n" + json.dumps({"id": "c\u00e9", "family": "g", "text": "ok"}) + "\n", encoding="utf-8")
+    assert dd.main([str(docs)]) == 0
+    salida = capsys.readouterr()
+    assert "grupo: " in salida.out and "grupo(s) de near-duplicates" in salida.out
+    assert dd.main([str(docs), "--json"]) == 0 and json.loads(capsys.readouterr().out)["grupos"]
+    assert dd.main([str(docs), "--presupuesto", "3"]) == 0 and "r = " in capsys.readouterr().out
+    for contenido in ("{roto\n", "[1, 2]\n", json.dumps({"id": 1, "family": "f", "text": "x"}) + "\n"):
+        malo = tmp_path / "malo.jsonl"
+        malo.write_text(contenido, encoding="utf-8")
+        assert dd.main([str(malo)]) == 2 and "linea 1" in capsys.readouterr().err
+    (tmp_path / "latin1.jsonl").write_bytes(b"\xff\xfe\n")
+    assert dd.main([str(tmp_path / "latin1.jsonl")]) == 2 and "UTF-8" in capsys.readouterr().err
+    assert dd.main([str(tmp_path / "no-existe.jsonl")]) == 2
+    assert dd.main([str(docs), "--ventana", "0"]) == 2
+    with pytest.raises(ValueError):
+        dd.agrupar([("a", "f")])
+    with pytest.raises(ValueError):
+        dd._validar_parametros(3, 0.0, 10)
+    with pytest.raises(ValueError):
+        dd._validar_parametros(3, 0.5, 0)
+
+
+def _code_health():
+    ruta = os.path.join(HERE, "..", "..", "code-health", "scripts", "code-health.py")
+    spec = importlib.util.spec_from_file_location("code_health_178", ruta)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_t10fix2_178_cli_de_code_health_en_proceso(tmp_path, capsys):
+    """#178: el CLI de `code-health.py` (canonico de `shingles`, T-07) en proceso: ruta inexistente,
+    baseline ilegible o que no es un informe (exit 2), informe en Markdown y en JSON y con baseline."""
+    ch = _code_health()
+    (tmp_path / "a.py").write_text("def f(x):\n    # TODO: revisar\n    return x + 1\n" * 3, encoding="utf-8")
+    assert ch.main([str(tmp_path / "no-existe")]) == 2
+    (tmp_path / "base.json").write_text("[]", encoding="utf-8")
+    assert ch.main([str(tmp_path), "--baseline", str(tmp_path / "base.json")]) == 2
+    assert ch.main([str(tmp_path), "--baseline", str(tmp_path / "no.json")]) == 2
+    capsys.readouterr()
+    assert ch.main([str(tmp_path)]) == 0 and "TODO/FIXME" in capsys.readouterr().out
+    assert ch.main([str(tmp_path), "--json"]) == 0
+    informe = capsys.readouterr().out
+    (tmp_path / "prev.json").write_text(informe, encoding="utf-8")
+    assert ch.main([str(tmp_path), "--baseline", str(tmp_path / "prev.json"), "--exclude-tests"]) == 0

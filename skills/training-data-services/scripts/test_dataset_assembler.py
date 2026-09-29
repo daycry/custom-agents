@@ -1803,7 +1803,7 @@ def test_t10fix2_170_la_lectura_de_la_marca_respeta_el_plazo(tmp_path, monkeypat
                 raise PermissionError(13, "bloqueado")
             return real(r)
         monkeypatch.setattr(rec, "_abrir_lectura", bloqueado)
-        soltar = lambda: None                                       # noqa: E731
+        soltar = lambda: monkeypatch.setattr(rec, "_abrir_lectura", real)          # noqa: E731
     try:
         t0 = time.monotonic()
         hasta = rec._crono() + 0.05
@@ -1900,3 +1900,136 @@ def test_t10fix2_m12_el_limite_de_sistemas_de_ficheros_locales_esta_declarado():
         with open(os.path.join(raiz_repo, rel), encoding="utf-8") as f:
             texto = f.read()
         assert "sistemas de ficheros locales" in texto, rel
+
+
+# ------------------------------------------------------------------ T-10 fix2 #178: CLI y ramas EN PROCESO
+
+def test_t10fix2_178_cli_en_proceso_exit_y_mensajes(tmp_path, capsys, monkeypatch):
+    """#178: `main([...])` en proceso: ok, `--dry-run`, sin benchmark (1), fecha invalida (2), config
+    rota (2), otro ensamblador con el bloqueo (3), `Rechazo` con errores (1), E/S (2) y sin `redact.py` (2)."""
+    raiz, cfg, store = _store_basico(tmp_path)
+    assert asm.main(["--project-root", raiz, "--benchmark", "bench", "--fecha", FECHA]) == 0
+    assert " escrito: " in capsys.readouterr().out
+    assert asm.main(["--project-root", raiz, "--benchmark", "bench", "--fecha", FECHA]) == 0
+    assert "ya existe" in capsys.readouterr().out
+    assert asm.main(["--project-root", raiz, "--benchmark", "bench", "--fecha", FECHA, "--dry-run"]) == 0
+    assert json.loads(capsys.readouterr().out)["export_id"]
+    assert asm.main(["--project-root", raiz]) == 1 and "benchmark" in capsys.readouterr().err
+    assert asm.main(["--project-root", raiz, "--benchmark", "bench", "--fecha", "2026-13-01"]) == 2
+    roto = tmp_path / "roto.json"
+    roto.write_text("{", encoding="utf-8")
+    assert asm.main(["--config", str(roto), "--project-root", raiz, "--benchmark", "bench"]) == 2
+    malo = tmp_path / "proj" / ".claude" / "knowledge-services" / "training.json"
+    bueno = malo.read_text(encoding="utf-8")
+    malo.write_text(json.dumps({"version": 1, "enabled": "si"}), encoding="utf-8")
+    assert asm.main(["--project-root", raiz, "--benchmark", "bench"]) == 1
+    assert "enabled" in capsys.readouterr().err
+    malo.write_text(bueno, encoding="utf-8")
+    h, soltar = _con_lock_tomado(store, 30)
+    try:
+        _grabar(cfg, raiz, family="c", variant="x", request="escalera de caracol con barandilla de hierro forjado")
+        assert asm.main(["--project-root", raiz, "--benchmark", "bench", "--espera-bloqueo", "0.2"]) == 3
+    finally:
+        soltar.set()
+        h.join(10)
+
+    def falla(exc):
+        def _f(*a, **k):
+            raise exc
+        return _f
+    monkeypatch.setattr(asm, "ensamblar", falla(OSError(5, "disco")))
+    assert asm.main(["--project-root", raiz, "--benchmark", "bench"]) == 2
+    monkeypatch.setattr(asm, "ensamblar", falla(rec.RedaccionNoDisponible("sin redact")))
+    assert asm.main(["--project-root", raiz, "--benchmark", "bench"]) == 2
+    capsys.readouterr()
+
+
+def test_t10fix2_178_la_marca_avisa_en_la_salida_del_cli(tmp_path, capsys):
+    raiz, cfg, store = _store_basico(tmp_path)
+    (store / "exports").mkdir(parents=True)
+    (store / "exports" / asm.MARCA).write_text("{}", encoding="utf-8")
+    assert asm.main(["--project-root", raiz, "--benchmark", "bench", "--fecha", FECHA]) == 0
+    assert "aviso: " in capsys.readouterr().err
+
+
+def test_t10fix2_178_esquema_y_lectura_de_la_marca_ramas():
+    """#178: cada motivo de `_motivo_marca`, `_bytes_marca` con parametros que no caben y
+    `_texto_parametros` sin parametros."""
+    base = {"version": 1, "export_id": "20260101-0123456789ab", "directorio": "20260101-0123456789ab",
+            "firma": "a" * 64, "gold": 1, "creado": "2026-01-01T00:00:00Z", "parametros": {}}
+    assert asm._motivo_marca(base) is None
+    for cambio, motivo in (({"version": True}, "version"), ({"export_id": "x"}, "export_id"),
+                           ({"directorio": "20260101-ffffffffffff"}, "directorio"), ({"firma": "A" * 64}, "firma"),
+                           ({"gold": -1}, "Gold"), ({"creado": 5}, "creado"), ({"parametros": []}, "parametros")):
+        assert motivo in asm._motivo_marca(dict(base, **cambio)), cambio
+    assert "esquema" in asm._motivo_marca(dict(base, extra=1))
+    grande = dict(base, parametros={"benchmark": [f"familia-{i:04d}" for i in range(400)]})
+    datos = asm._bytes_marca(grande)
+    assert len(datos) <= asm.TOPE_MARCA and json.loads(datos)["parametros"]["benchmark"] == "400 familias"
+    enorme = dict(base, parametros={"benchmark": ["f"], "otro": "x" * 5000})
+    assert json.loads(asm._bytes_marca(enorme))["parametros"] == {}
+    assert asm._texto_parametros(None) == "sin parametros registrados"
+    assert "benchmark=a,b" in asm._texto_parametros({"benchmark": ["a", "b"], "conservar_duplicados": True})
+
+
+def test_t10fix2_178_leer_marca_ramas(tmp_path, monkeypatch):
+    """#178: `_leer_marca` con la marca que no se puede examinar, que es un directorio, que no es del
+    descriptor esperado y que no es JSON."""
+    ex = tmp_path / "exports"
+    ex.mkdir()
+    (ex / asm.MARCA).mkdir()
+    assert "no es un fichero regular" in asm._leer_marca(str(ex))[1]
+    os.rmdir(str(ex / asm.MARCA))
+    (ex / asm.MARCA).write_text("{roto", encoding="utf-8")
+    assert "no se puede leer" in asm._leer_marca(str(ex))[1]
+    real = rec._leer_json_reintentando
+
+    def ajeno(*a, **k):
+        raise rec._FicheroNoPropio("sustituido")
+    monkeypatch.setattr(rec, "_leer_json_reintentando", ajeno)
+    assert "sustituido" in asm._leer_marca(str(ex))[1]
+    monkeypatch.setattr(rec, "_leer_json_reintentando", real)
+
+    def sin_permiso(x):
+        raise PermissionError(13, "no")
+    monkeypatch.setattr(rec, "_stat_sin_seguir", sin_permiso)
+    assert "no se puede examinar" in asm._leer_marca(str(ex))[1]
+
+
+def test_t10fix2_178_estado_dataset_ramas_de_exports(tmp_path, monkeypatch):
+    """#178: `exports/` que no se puede listar, el export de la marca que ya no esta completo, un
+    corte a mitad del listado y el texto con exports incompletos/en curso/otros."""
+    raiz, cfg, store = _store_basico(tmp_path)
+    r = _ensamblar(cfg, raiz, escribir=True)
+    res = rec.resumen_store(str(store), raiz)
+    os.remove(os.path.join(r["ruta"], asm.MANIFEST))
+    (store / "exports" / "20250101-bbbbbbbbbbbb").mkdir()
+    d = asm.estado_dataset(str(store), res)
+    assert d["estado"] == "sin_export", d
+    otro = _ensamblar(cfg, raiz, escribir=True, umbral=0.5)
+    shutil.rmtree(otro["ruta"])
+    (store / "exports" / "20260101-000000000000").mkdir()
+    (store / "exports" / "20260101-000000000000" / asm.MANIFEST).write_text("{}", encoding="utf-8")
+    d = asm.estado_dataset(str(store), res)
+    assert d["estado"] == "no_verificable" and "ya no esta completo" in d["motivo"], d
+    for i in range(70):
+        (store / "exports" / f"x{i:03d}").write_text("x", encoding="utf-8")
+    reloj = iter(range(0, 10_000))
+    monkeypatch.setattr(rec, "_crono", lambda: next(reloj) * 0.1)
+    d = asm.estado_dataset(str(store), res, hasta=0.0)
+    assert d["estado"] == "parcial", d
+    monkeypatch.undo()
+    texto = asm.texto_estado(dict(res, grandes=1, cortadas=1, otros_avisos=1, en_curso=1, truncado=True,
+                                  listado_parcial=True, casos_vistos=1, casos_total=2, plazo_s=2.0),
+                             dict(asm.estado_dataset(str(store), res), incompletos=1, en_curso=1, otros=1))
+    for trozo in ("demasiado grandes 1", "cortadas por el tope 1", "otros avisos 1", "en curso 1", "al menos 2",
+                  "export(s) incompleto(s)", "export(s) en curso", "que no son un export"):
+        assert trozo in texto, (trozo, texto)
+    real = os.scandir
+
+    def roto(ruta="."):
+        if os.path.basename(str(ruta)) == "exports":
+            raise PermissionError(13, "no")
+        return real(ruta)
+    monkeypatch.setattr(os, "scandir", roto)
+    assert asm.estado_dataset(str(store), res)["estado"] == "no_verificable"

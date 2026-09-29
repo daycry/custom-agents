@@ -556,6 +556,46 @@ def test_174_el_bullet_de_t11_cuenta_lo_nuevo_de_la_ci(tmp_path):
     assert "CI" in bullet and "knowledge-services" in bullet, bullet
 
 
+# ------------------------------------------------------------------ #178: markdown_export.py EN PROCESO
+# `markdown_export.py` es fichero de la iniciativa (#94, `casefold`; declarado en T-11) y el gate de
+# cobertura de la iniciativa —sin `[run] patch = subprocess`— lo mide; las ramas que ningun test pisaba se
+# ejercitan aqui, con los helpers de su suite (`test_backend_markdown_export.py`, cargada por ruta).
+
+def _mx_suite():
+    ruta = os.path.join(ROOT, "skills", "knowledge-services", "scripts", "test_backend_markdown_export.py")
+    spec = importlib.util.spec_from_file_location("test_backend_markdown_export_178", ruta)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_178_markdown_export_host_permitido_ramas():
+    mx = _mx_suite()._cargar()
+    assert mx._host_permitido("http://[::1") is False
+    assert mx._host_permitido("ftp://127.0.0.1/x") is False
+    assert mx._host_permitido("http:///sin-host") is False
+    assert mx._host_permitido("http://localhost:1/health") is True
+    for resuelto, esperado in ((None, False), ("no-es-una-ip", False), ("10.0.0.7", True)):
+        mx._resolver_host_con_tope = lambda host, r=resuelto: r
+        assert mx._host_permitido("http://nombre.ejemplo/x") is esperado, resuelto
+
+
+def test_178_markdown_export_config_verify_y_health_ramas(tmp_path):
+    suite = _mx_suite()
+    mx = suite._cargar()
+    with pytest.raises(mx.ConfigInvalida):
+        mx._export_dir_resuelto({})
+    cfg = {"export_dir": str(tmp_path / "kwipu-export")}
+    mx.apply(mx.plan([suite._entrada(id_="mr.pattern.x", cuerpo="x")], cfg), cfg)
+    r = mx.verify(cfg)
+    assert r["ok"] is False and "health.url" in r["desfase"][0]["motivo"]
+    r = mx.verify(dict(cfg, health={"url": "http://8.8.8.8/health"}))
+    assert r["ok"] is False and "no local/privado" in r["desfase"][0]["motivo"]
+    with suite._ServidorFixturasContext({"/health": (200, b"[1, 2]")}) as srv:
+        r = mx.health({"health": {"url": f"{srv.base_url}/health", "timeout_ms": 2000}})
+    assert r["estado"] == "error" and "no es un objeto" in r["detalle"]
+
+
 def main():
     if pytest is None:
         print("test_training_data_services: pytest no instalado — suite omitida (pip install pytest)")
