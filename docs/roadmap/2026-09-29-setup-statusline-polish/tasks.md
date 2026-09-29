@@ -244,7 +244,7 @@ estado: borrador
 
 - **Descripción**: Excluir `*/.claude/jobs/*` y temporales de los `find ... | head -1` de la statusline y de `/setup` 5-bis, prefiriendo plugin instalado o proyecto. Un `HOME` falso con dos copias fija el criterio. Las otras ~74 apariciones del patrón quedan como deuda anotada (fuera de alcance; iniciativa propia con helper común).
 - **Changelog**: La statusline y `/setup` dejan de resolver rutas a copias temporales antiguas del plugin.
-- **Estado**: borrador
+- **Estado**: completado
 - **Prioridad**: Media
 - **Tiempo humano**: est. 3.0h · real —
 - **Tiempo IA (ejec.)**: est. 0.72h · real —
@@ -258,18 +258,23 @@ estado: borrador
   - `python3 -m pytest -q tests/test_hooks_shell.py -k jobs_temporal` -> passed (con copias en `$HOME/.claude/jobs/x/` y en el plugin, gana el plugin) (CA-04)
   - `python3 scripts/export-interop.py --check` -> exit 0
 
+- **Evidencia**:
+  RED: test_statusline_find_jobs_temporal_* devolvió `copia-vieja-jobs` en vez de `plugin-instalado`; test_setup_5bis_find_jobs_temporal_* devolvió `.../.claude/jobs/x/statusline/roadmap-statusline.sh` · 2026-09-29
+  GREEN: `pytest tests/test_hooks_shell.py -k "jobs_temporal or statusline"` -> 11 passed; `export-interop.py` regenerado (interop/{codex,opencode} setup) y `export-interop.py --check` -> 50 ficheros al día (exit 0).
+  Deuda anotada (fuera de alcance): ~74 apariciones más del patrón `find ... | head -1` en agents/, commands/, skills/, hooks/ (iniciativa propia con helper común).
+
 **Criterios de aceptación**
 
-- [ ] Con una copia vieja bajo `~/.claude/jobs` y otra en el plugin, la statusline y el `find` de 5-bis devuelven la del plugin o proyecto (CA-04).
-- [ ] `interop/` regenerado (`commands/setup.md` tocado).
-- [ ] La deuda de las ~74 apariciones restantes queda anotada en Notas.
+- [x] Con una copia vieja bajo `~/.claude/jobs` y otra en el plugin, la statusline y el `find` de 5-bis devuelven la del plugin o proyecto (CA-04).
+- [x] `interop/` regenerado (`commands/setup.md` tocado).
+- [x] La deuda de las ~74 apariciones restantes queda anotada en Notas.
 
 **Subtareas**
 
-- [ ] Test con `HOME` falso.
-- [ ] Ajustar `find` en el script y en 5-bis.
-- [ ] Regenerar `interop/`.
-- [ ] Anotar la deuda.
+- [x] Test con `HOME` falso.
+- [x] Ajustar `find` en el script y en 5-bis.
+- [x] Regenerar `interop/`.
+- [x] Anotar la deuda.
 
 **Notas**: Criterio de la spec: CA-04. Deuda anotada: ~74 apariciones más del patrón `find ... | head -1` en `agents/`, `commands/`, `skills/`, `hooks/`; iniciativa propia con helper común.
 

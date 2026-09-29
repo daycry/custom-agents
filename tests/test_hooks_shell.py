@@ -1065,6 +1065,51 @@ def test_statusline_coste_pequeno_positivo_nunca_se_muestra_como_cero(tmp_path, 
     assert rc == 0 and out.startswith("[Opus] " + esperado), (coste, out)
 
 
+def _informe_falso(destino, slug):
+    """Un `progress-report.py` de mentira que imprime UNA iniciativa activa con ese slug."""
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    destino.write_text(
+        "import json, sys\n"
+        f"print(json.dumps({{'activas': [{{'slug': '{slug}', 'completadas': 1, 'total': 2, 'pct': 50}}]}}))\n",
+        encoding="utf-8")
+
+
+def test_statusline_find_jobs_temporal_no_gana_al_plugin_instalado(tmp_path):
+    """C-02 / CA-04: con una copia vieja bajo `~/.claude/jobs` y otra en el plugin, gana el plugin."""
+    proj, _ = proyecto(tmp_path)
+    home = tmp_path / "home"
+    _informe_falso(home / ".claude" / "jobs" / "x" / "agent-kits" / "shared" / "progress-report.py", "copia-vieja-jobs")
+    _informe_falso(home / ".claude" / "plugins" / "cache" / "p" / "agent-kits" / "shared" / "progress-report.py",
+                   "plugin-instalado")
+    # el script se copia solo (sin `../agent-kits` al lado) para forzar la resolución por `find`
+    solo = tmp_path / "solo"
+    solo.mkdir()
+    sl = solo / "roadmap-statusline.sh"
+    sl.write_bytes(open(STATUSLINE, "rb").read())
+    env = env_de(proj, tmp_path)
+    r = subprocess.run([BASH, str(sl)], input=json.dumps({"model": {"display_name": "Opus"}}), capture_output=True,
+                       text=True, encoding="utf-8", errors="replace", env=env, cwd=str(proj), timeout=60)
+    assert r.returncode == 0
+    assert "plugin-instalado" in r.stdout and "copia-vieja-jobs" not in r.stdout, r.stdout
+
+
+def test_setup_5bis_find_jobs_temporal_no_gana_al_plugin_instalado(tmp_path):
+    """El `find` de /setup 5-bis (el que escribe la ruta ABSOLUTA en settings.json) ignora `~/.claude/jobs`."""
+    md = open(os.path.join(ROOT, "commands", "setup.md"), encoding="utf-8").read()
+    linea = next(l.strip() for l in md.splitlines() if l.strip().startswith('SL="$(find') and "roadmap-statusline.sh" in l)
+    home = tmp_path / "home"
+    for donde in (home / ".claude" / "jobs" / "x" / "statusline", home / ".claude" / "plugins" / "cache" / "p" / "statusline"):
+        donde.mkdir(parents=True)
+        (donde / "roadmap-statusline.sh").write_text("#!/usr/bin/env bash\n", encoding="utf-8")
+    proj = tmp_path / "proj"
+    proj.mkdir()
+    r = subprocess.run([BASH, "-c", linea + '\nprintf "%s" "$SL"'], capture_output=True, text=True, encoding="utf-8",
+                       errors="replace", cwd=str(proj), timeout=60,
+                       env={**os.environ, "HOME": str(home)})
+    ruta = r.stdout.replace("\\", "/")
+    assert "/plugins/cache/p/" in ruta and "/jobs/" not in ruta, (r.stdout, r.stderr)
+
+
 def test_statusline_stdin_vacio_exit_0(tmp_path):
     proj, _ = proyecto(tmp_path, activa=False)
     rc, out, _ = hook("statusline", "", env_de(proj, tmp_path))

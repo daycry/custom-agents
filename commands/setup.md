@@ -40,9 +40,9 @@ los valores actuales y ofrece cambiarlos.
    - **No** → persiste `"statusline": false` en `.claude/dev.json` y no toca `settings.json`.
    - **Sí** → resuelve la ruta del script **en tiempo de setup** y escríbela **ABSOLUTA** (la doc oficial de `statusLine` solo documenta `~` en `command`, no `${CLAUDE_PLUGIN_ROOT}`, y el `settings.json` de un plugin no admite la clave `statusLine`; verificado 2026-09-02):
      ```bash
-     SL="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type f -path '*statusline/roadmap-statusline.sh' 2>/dev/null | head -1)"
+     SL="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type f -path '*statusline/roadmap-statusline.sh' ! -path '*/.claude/jobs/*' 2>/dev/null | head -1)"
      ```
-     Luego **mergea** (sin pisar otras claves) en `.claude/settings.json` del proyecto el bloque oficial:
+     (El `find` excluye `*/.claude/jobs/*`: las copias temporales de trabajos antiguos no se eligen nunca; gana el plugin instalado o el proyecto.) Luego **mergea** (sin pisar otras claves) en `.claude/settings.json` del proyecto el bloque oficial:
      ```json
      { "statusLine": { "type": "command", "command": "<ruta absoluta de $SL>" } }
      ```
