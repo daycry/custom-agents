@@ -1981,6 +1981,75 @@ def verify(cfg):
 _MAX_EPISODIOS_VERIFY = 5000  # tope duro de la ampliacion de ventana de get_episodes (gap #39)
 
 
+# ------------------------------------------------------------------ aviso de grupo ajeno (T-11, CA-15)
+# Funcion OPCIONAL del contrato (`estado_grupo`): antes de la primera sincronizacion, ¿el `group_id`
+# ya contiene episodios de OTRO origen? Decision 2c: primero el ESTADO LOCAL (manifiesto publicado o
+# pendiente); la consulta al servidor es opt-in (`consultar_servidor`) y acotada a loopback; si no
+# responde, «no verificado». Nunca lanza, nunca escribe y nunca bloquea (es un aviso).
+_HOSTS_LOOPBACK = ("localhost", "127.0.0.1", "::1")
+
+
+def _resultado_grupo(estado, origen, aviso=""):
+    return {"estado": estado, "origen": origen, "aviso": aviso}
+
+
+def estado_grupo(cfg, consultar_servidor=False):
+    """`{"estado": "propio"|"vacio"|"otro_origen"|"no_verificado", "origen": "local"|"servidor",
+    "aviso": str}`. `propio`: el manifiesto local ya registra entradas de ESTE `group_id`.
+    `otro_origen`: el manifiesto local es de otro grupo, o el servidor (opt-in, loopback) ya
+    devuelve episodios del grupo antes de que este proyecto publique nada."""
+    cfg = cfg or {}
+    group_id = cfg.get("group_id")
+    if not isinstance(group_id, str) or not group_id.strip():
+        return _resultado_grupo("no_verificado", "local", "sin group_id: no hay grupo que comprobar")
+    for sufijo in ("", ".pending"):
+        datos = _leer_manifest_de(_manifest_path(cfg, sufijo))
+        grupo = _grupo_del_manifiesto(datos)
+        if grupo is None or not datos["entradas"]:
+            continue
+        if grupo == group_id:
+            return _resultado_grupo("propio", "local")
+        return _resultado_grupo(
+            "otro_origen", "local",
+            f"el manifiesto local pertenece al group_id `{_sanear_detalle(grupo)}`, no a "
+            f"`{_sanear_detalle(group_id)}`: la primera sincronizacion publicara todo en un grupo nuevo")
+    aviso_no = "sin sincronizaciones previas en el estado local; "
+    if not consultar_servidor:
+        return _resultado_grupo(
+            "no_verificado", "local",
+            aviso_no + "la consulta al servidor no se ha pedido (--consultar-servidor)")
+    if _modo(cfg) == "off":
+        return _resultado_grupo("no_verificado", "local", aviso_no + "`mode: off` no consulta al servidor")
+    endpoint = cfg.get("endpoint")
+    try:
+        host = urllib.parse.urlparse(endpoint).hostname if isinstance(endpoint, str) else None
+    except ValueError:
+        host = None
+    if host not in _HOSTS_LOOPBACK:
+        return _resultado_grupo(
+            "no_verificado", "local", aviso_no + "el endpoint no es loopback: no se consulta")
+    try:
+        cliente = ClienteMCP(endpoint, timeout_s=_timeout_s(cfg), allow_remote=False,
+                             max_respuesta_bytes=_max_respuesta_bytes(cfg))
+        cliente.initialize()
+        contenido = _contenido_tool_call(
+            cliente.tools_call("get_episodes", {"group_ids": [group_id], "max_episodes": 1}))
+    except Exception as e:  # noqa: BLE001 - nunca lanza (mismo contrato que health()/verify())
+        return _resultado_grupo(
+            "no_verificado", "servidor",
+            f"el servidor no responde ({type(e).__name__}); no verificado")
+    episodios = contenido if isinstance(contenido, list) else (
+        contenido.get("episodes") if isinstance(contenido, dict) else None)
+    if _error_de_respuesta(contenido) or not isinstance(episodios, list):
+        return _resultado_grupo("no_verificado", "servidor", "respuesta ilegible del servidor; no verificado")
+    if any(_episodio_del_grupo(ep, group_id, 1) for ep in episodios):
+        return _resultado_grupo(
+            "otro_origen", "servidor",
+            f"el grupo `{_sanear_detalle(group_id)}` ya tiene episodios en el servidor y este "
+            f"proyecto aun no ha publicado nada: proceden de otro origen")
+    return _resultado_grupo("vacio", "servidor")
+
+
 # ------------------------------------------------------------------ lectura enrutada (T-07)
 # `consultar` es la funcion OPCIONAL del contrato de adaptador que usa el router por intent de
 # `knowledge-find.py --intent` (CA-12): el NUCLEO no sabe que existe Graphiti, solo pregunta al

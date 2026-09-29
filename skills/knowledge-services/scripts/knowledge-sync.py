@@ -286,6 +286,13 @@ def _construir_parser():
                      help="imprime la propuesta de configuración del adaptador del backend "
                           "(función OPCIONAL `proponer_config` del contrato) y sale, sin aplicar "
                           "nada ni tocar la red (gap #36, CA-13)")
+    ap.add_argument("--avisos-grupo", action="store_true", dest="avisos_grupo",
+                     help="avisa si el `group_id` del backend ya trae episodios de otro origen "
+                          "(funcion OPCIONAL `estado_grupo`; primero estado local, sin bloquear; "
+                          "exit 0)")
+    ap.add_argument("--consultar-servidor", action="store_true", dest="consultar_servidor",
+                     help="con --avisos-grupo: ademas pregunta al servidor (opt-in, solo loopback; "
+                          "si no responde, «no verificado»)")
     ap.add_argument("--backends-dir", action="append", default=[], dest="backends_dir",
                      help="carpeta extra donde buscar el adaptador `type` (repetible; CA-12)")
     return ap
@@ -293,10 +300,14 @@ def _construir_parser():
 
 def main(argv=None):
     args = _construir_parser().parse_args(argv)
-    modos = [args.dry_run, args.check, args.rebuild, args.outbox_status, args.propose_config]
+    modos = [args.dry_run, args.check, args.rebuild, args.outbox_status, args.propose_config,
+             args.avisos_grupo]
     if sum(bool(m) for m in modos) > 1:
-        print("knowledge-sync: --dry-run, --check, --rebuild, --outbox-status y --propose-config "
-              "son excluyentes entre sí", file=sys.stderr)
+        print("knowledge-sync: --dry-run, --check, --rebuild, --outbox-status, --propose-config "
+              "y --avisos-grupo son excluyentes entre sí", file=sys.stderr)
+        return 2
+    if args.consultar_servidor and not args.avisos_grupo:
+        print("knowledge-sync: --consultar-servidor solo se usa con --avisos-grupo", file=sys.stderr)
         return 2
 
     try:
@@ -377,6 +388,32 @@ def main(argv=None):
             print(propuesta["texto"])
         else:
             print(json.dumps(propuesta, ensure_ascii=False, indent=2))
+        return 0
+
+    if args.avisos_grupo:
+        # T-11 (CA-15): aviso ANTES de la primera sincronizacion; no depende de `enabled` (se usa
+        # justo al activar el backend) y NUNCA bloquea (exit 0 con cualquier veredicto).
+        try:
+            adaptador_grupo = binit.cargar_adaptador(
+                tipo, directorios=[BACKENDS_DIR, *args.backends_dir])
+        except binit.AdaptadorNoDisponible as e:
+            print(f"knowledge-sync: {e}", file=sys.stderr)
+            return 2
+        estado_grupo = getattr(adaptador_grupo, "estado_grupo", None)
+        if not callable(estado_grupo):
+            print(f"knowledge-sync: el backend `{args.backend}` (`type: {tipo}`) no avisa de "
+                  f"grupos ajenos (su adaptador no define `estado_grupo`)", file=sys.stderr)
+            return 2
+        try:
+            grupo = estado_grupo(cfg, consultar_servidor=args.consultar_servidor)
+        except Exception as e:  # noqa: BLE001 - un adaptador que lanza no tumba el CLI (gap 90)
+            grupo = {"estado": "no_verificado", "origen": "local",
+                     "aviso": f"`estado_grupo` fallo: {_causa(e)}"}
+        if args.json:
+            print(json.dumps({"backend": args.backend, "grupo": grupo}, ensure_ascii=False, indent=2))
+        else:
+            print(f"grupo: {grupo.get('estado')} ({grupo.get('origen')})"
+                  + (f" · {grupo['aviso']}" if grupo.get("aviso") else ""))
         return 0
 
     if not decl.get("enabled", False):

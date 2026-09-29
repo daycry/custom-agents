@@ -35,10 +35,10 @@ estado: en-progreso
 | Fase 1 — Estabilizar la suite (tests deterministas) | 2 | 2 | 100% | 0 / 4.8h | 0 / 0.99h | 0 / 0.25h | 0 / 475k |
 | Fase 2 — Quick wins de visibilidad y puertas | 5 | 5 | 100% | 0 / 14.4h | 0 / 3.42h | 0 / 0.85h | 0 / 1639k |
 | Fase 3 — `/doctor`: tope estricto de la línea kwipu | 1 | 1 | 100% | 0 / 3.6h | 0 / 0.72h | 0 / 0.18h | 0 / 345k |
-| Fase 4 — ADR de diseño y `id_prefix` / `group_id` | 1 | 3 | 33% | 0 / 14.0h | 0 / 4.10h | 0 / 1.02h | 0 / 1965k |
+| Fase 4 — ADR de diseño y `id_prefix` / `group_id` | 2 | 3 | 67% | 0 / 14.0h | 0 / 4.10h | 0 / 1.02h | 0 / 1965k |
 | Fase 5 — Alta segura en `projects.yaml` (bloqueada por la ADR) | 0 | 2 | 0% | 0 / 14.4h | 0 / 4.50h | 0 / 1.12h | 0 / 2157k |
 | Fase 6 — Cierre, documentación y réplica en Linux | 0 | 1 | 0% | 0 / 3.6h | 0 / 0.90h | 0 / 0.23h | 0 / 431k |
-| **TOTAL** | **9** | **14** | **64%** | **0 / 54.8h** | **0 / 14.63h** | **0 / 3.66h** | **0 / 7013k** |
+| **TOTAL** | **10** | **14** | **71%** | **0 / 54.8h** | **0 / 14.63h** | **0 / 3.66h** | **0 / 7013k** |
 
 > **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada. Ver `skills/jira-sync/SKILL.md`.
 
@@ -452,7 +452,7 @@ estado: en-progreso
 
 - **Descripción**: Dos avisos sin bloqueo, cada uno con test (CA-15). (1) Renombrar `id_prefix` con conocimiento ya exportado: avisa de que cambian los `knowledge_id`, no migra. (2) `group_id` con episodios de otro origen antes de la primera sincronización, decisión 2c: primero el estado local (manifiesto publicado / `outbox`), después consulta al servidor solo si responde (loopback, opt-in, con el tope de red del adaptador); sin conexión degrada a «no verificado». Se suma el aviso de T-10 (instalación con `group_id` implícito conservado).
 - **Changelog**: `/setup` avisa cuando renombrar un proyecto cambia sus identificadores o cuando un grupo de Graphiti ya contiene datos de otro origen.
-- **Estado**: borrador
+- **Estado**: completado
 - **Prioridad**: Media
 - **Tiempo humano**: est. 5.0h · real —
 - **Tiempo IA (ejec.)**: est. 1.50h · real —
@@ -466,19 +466,24 @@ estado: en-progreso
   - `python3 -m pytest -q agent-kits/shared/test_knowledge_schema.py skills/knowledge-services/scripts/test_backend_graphiti.py skills/knowledge-services/scripts/test_knowledge_sync.py -k "aviso or CA_15"` -> passed (renombrado con export; episodios de otro origen local; servidor caído -> «no verificado»)
   - `python3 scripts/export-interop.py --check` -> exit 0
 
+- **Evidencia**:
+  RED: 17 tests nuevos (`-k "CA_15 or aviso"`) fallaron contra el código anterior con `AttributeError: module has no attribute 'estado_grupo'` (graphiti) y `unrecognized arguments: --avisos-grupo` (knowledge-sync) · 2026-09-30
+  GREEN: `pytest -q agent-kits/shared/test_knowledge_schema.py skills/knowledge-services/scripts/test_backend_graphiti.py skills/knowledge-services/scripts/test_knowledge_sync.py -k "aviso or CA_15"` -> 27 passed; `export-interop.py --check` -> 50 ficheros al día.
+  Diseño: (1) renombrar `id_prefix` con conocimiento exportado = aviso en `preparar_id_prefix` (T-10) que lee SOLO manifiestos locales (`graphiti-manifest*.json`, `manifest*.json` del `export_dir` de markdown-export); no migra. (2) `graphiti.estado_grupo(cfg, consultar_servidor)` (función OPCIONAL del contrato) + `knowledge-sync.py --avisos-grupo [--consultar-servidor]`: estado local primero (manifiesto propio -> `propio`; de otro `group_id` -> `otro_origen`), servidor solo con opt-in, solo hosts `localhost/127.0.0.1/::1`, `get_episodes` de 1 episodio con el tope de red del cliente MCP; caído/ilegible/`mode: off`/no loopback -> `no_verificado`. Siempre exit 0. `Archivos` real: además `skills/knowledge-services/backends/README.md`, `commands/setup.md`, `interop/**`; sin cambios en `knowledge-schema.py` respecto a T-10.
+
 **Criterios de aceptación**
 
-- [ ] Renombrar con conocimiento ya exportado advierte del cambio de `knowledge_id` y no migra (CA-15).
-- [ ] `group_id` con episodios de otro origen: aviso antes de la primera sincronización; primero estado local, luego servidor si responde; sin servidor -> «no verificado» (CA-15).
-- [ ] Ningún aviso bloquea (exit 0); solo hay red en la consulta opt-in acotada a loopback.
-- [ ] Cada aviso tiene su test.
+- [x] Renombrar con conocimiento ya exportado advierte del cambio de `knowledge_id` y no migra (CA-15).
+- [x] `group_id` con episodios de otro origen: aviso antes de la primera sincronización; primero estado local, luego servidor si responde; sin servidor -> «no verificado» (CA-15).
+- [x] Ningún aviso bloquea (exit 0); solo hay red en la consulta opt-in acotada a loopback.
+- [x] Cada aviso tiene su test.
 
 **Subtareas**
 
-- [ ] Definir el «estado local» que identifica el origen.
-- [ ] Aviso 1 (renombrado).
-- [ ] Aviso 2 (local -> servidor -> no verificado).
-- [ ] Enganche en `/setup` y regenerar `interop/`.
+- [x] Definir el «estado local» que identifica el origen.
+- [x] Aviso 1 (renombrado).
+- [x] Aviso 2 (local -> servidor -> no verificado).
+- [x] Enganche en `/setup` y regenerar `interop/`.
 
 **Notas**: Criterio de la spec: CA-15 (decisión 2c).
 

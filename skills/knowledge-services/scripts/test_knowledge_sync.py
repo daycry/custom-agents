@@ -617,3 +617,64 @@ def test_f3fix3_gap133_check_sin_desfase_sigue_saliendo_cero(tmp_path, capsys):
     assert ks_sync.main(["--backend", "testx", "--root", root, "--check",
                          "--backends-dir", FIXTURES_BACKENDS]) == 0
     assert "verify: ok" in capsys.readouterr().out
+
+
+# ------------------------------------------------------------------ setup-statusline-polish T-11 (CA-15)
+
+def _taxonomia_graphiti_sync(root, endpoint="http://127.0.0.1:1", **extra):
+    cfg = {"mode": "shadow", "endpoint": endpoint, "group_id": "proy", "allow_remote": False,
+           "timeout_ms": 800, "provider": {"llm": "none"}}
+    cfg.update(extra)
+    d = os.path.join(root, ".claude", "knowledge-services")
+    os.makedirs(d, exist_ok=True)
+    with open(os.path.join(d, "taxonomy.json"), "w", encoding="utf-8") as f:
+        json.dump({"version": 1, "id_prefix": "ks", "categories": [{"key": "X", "folder": "gotchas", "min_evidence": "observation"}],
+                   "backends": {"graphiti": {"type": "graphiti", "enabled": False,
+                                             "config": cfg}}}, f)
+    return d
+
+
+def test_CA_15_aviso_grupo_sin_optin_no_verificado_y_exit_0(tmp_path, capsys):
+    root = str(tmp_path)
+    _taxonomia_graphiti_sync(root)
+    assert ks_sync.main(["--backend", "graphiti", "--root", root, "--avisos-grupo", "--json"]) == 0
+    salida = json.loads(capsys.readouterr().out)
+    assert salida["grupo"]["estado"] == "no_verificado" and salida["backend"] == "graphiti"
+
+
+def test_CA_15_aviso_grupo_servidor_caido_con_optin_no_verificado_exit_0(tmp_path, capsys):
+    root = str(tmp_path)
+    _taxonomia_graphiti_sync(root)
+    assert ks_sync.main(["--backend", "graphiti", "--root", root, "--avisos-grupo",
+                         "--consultar-servidor"]) == 0
+    assert "no_verificado" in capsys.readouterr().out
+
+
+def test_CA_15_aviso_grupo_otro_origen_local_no_bloquea(tmp_path, capsys):
+    root = str(tmp_path)
+    d = _taxonomia_graphiti_sync(root)
+    with open(os.path.join(d, "graphiti-manifest.json"), "w", encoding="utf-8") as f:
+        json.dump({"group_id": "viejo", "entradas": {"a": {"version": 1}}}, f)
+    assert ks_sync.main(["--backend", "graphiti", "--root", root, "--avisos-grupo"]) == 0
+    salida = capsys.readouterr().out
+    assert "otro_origen" in salida and "viejo" in salida
+
+
+def test_CA_15_aviso_grupo_es_excluyente_con_los_otros_modos(tmp_path, capsys):
+    root = str(tmp_path)
+    _taxonomia_graphiti_sync(root)
+    assert ks_sync.main(["--backend", "graphiti", "--root", root, "--avisos-grupo", "--check"]) == 2
+
+
+def test_CA_15_consultar_servidor_sin_avisos_grupo_es_error_de_uso(tmp_path, capsys):
+    root = str(tmp_path)
+    _taxonomia_graphiti_sync(root)
+    assert ks_sync.main(["--backend", "graphiti", "--root", root, "--consultar-servidor"]) == 2
+
+
+def test_CA_15_aviso_grupo_adaptador_sin_la_funcion_sale_2(tmp_path, capsys):
+    root = str(tmp_path)
+    _taxonomy(root, _categorias())
+    assert ks_sync.main(["--backend", "testx", "--root", root, "--avisos-grupo",
+                         "--backends-dir", FIXTURES_BACKENDS]) == 2
+    assert "estado_grupo" in capsys.readouterr().err
