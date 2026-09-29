@@ -93,12 +93,21 @@ Salida (`<root>/exports/<export_id>/`):
     otra vez antes de publicarlo (#136), y si ya se retiro el aviso lo dice (no pide retirar nada). Un fallo a mitad deja el export sin manifiesto (incompleto) y
     lo dice. `exports/` que sea un enlace -> rechazo sin escribir.
 
+Marca del ultimo ensamblado y frescura (T-10, D-f4): tras un ensamblado real («escrito» o «ya existe»),
+con `exports/.lock` tomado, `exports/.ultimo.json` = `{version, export_id, directorio, firma, gold,
+creado, parametros}` (<= 4 KiB; nunca se reemplaza una que no sea de la pieza). `firma` describe la
+ENTRADA del ensamblado (los Gold humanos con su `content_hash`, `rec.firma_gold`), no lo que incluyo:
+`estado_dataset` (lo que ejecutan `/doctor` y `--estado`) la compara con la del store sin leer ningun
+`manifest.json`.
+
 Uso (exit 0 ok o ya existente · 1 rechazo: capacidad apagada o config invalida, sin benchmark, familia
 de benchmark sin Gold, store manipulado, caso cambiado entre pasadas · 2 uso, E/S o sin `redact.py` ·
 3 otro ensamblador tiene `exports/.lock`: reintenta; nunca un traceback):
   dataset-assembler.py --benchmark <family>[,<family>…] [--umbral 0.8] [--ventana 3] [--boilerplate 0.5]
                        [--presupuesto 10000000] [--conservar-duplicados] [--fecha AAAAMMDD] [--dry-run]
                        [--espera-bloqueo 120] [--config <training.json>] [--project-root <dir>]
+  dataset-assembler.py --estado [--json] [--config <training.json>] [--project-root <dir>]
+                       (solo lectura; exit 0 al dia o sin Gold · 1 desactualizado o sin export · 2 no verificable)
 """
 import argparse
 import contextlib
@@ -137,6 +146,7 @@ dd = _cargar("dedup.py", "tds_dedup_asm")
 Rechazo = rec.Rechazo
 FICHEROS = ("metadata.json", "request.json", "context.json", "constraints.json", "trajectory.jsonl",
             "metrics.json", "validation.json", "final/artifacts.json")
+FICHEROS_JSON_CASO = ("metadata.json", "validation.json")      # #171: los de `TOPE_JSON_CASO`
 CLAVES_TURNO = ("role", "content", "tool_calls", "name")
 JSONL = ("train.jsonl", "benchmark.jsonl")
 MANIFEST = "manifest.json"
@@ -292,12 +302,14 @@ def leer_caso(ctx, store, entrada, config, width, previos=None, tope=TOPE_FICHER
             return None, None, f"{rel} omitida: {sub} no es el directorio esperado (enlace o sustituido; no se sigue)"
     datos = {}
     for f in FICHEROS:
-        reutilizado = _reutilizable(dir_v, f, (previos or {}).get(f), antes[dir_v], tope)
+        reutilizado = _reutilizable(dir_v, f, (previos or {}).get(f), antes[dir_v],
+                                    min(tope, rec.TOPE_JSON_CASO) if f in FICHEROS_JSON_CASO else tope)
         if reutilizado is not None:
             datos[f] = reutilizado
             continue
         leido = []
-        obj, _m, aviso = rec._leer_de_version(dir_v, f, rel, leido, decodificar=bytes, tope=tope)
+        t = min(tope, rec.TOPE_JSON_CASO) if f in FICHEROS_JSON_CASO else tope   # #171: el tope del recorrido
+        obj, _m, aviso = rec._leer_de_version(dir_v, f, rel, leido, decodificar=bytes, tope=t)
         if aviso:
             return None, None, aviso
         if leido[-1].st_dev != antes[dir_v].st_dev:
@@ -366,14 +378,29 @@ def _motivo(aviso, store):
     return aviso if " omitida: " in aviso else f"omitida: {aviso}"
 
 
-def cargar(store, config, raiz, ctx, acumulador=None, tope=TOPE_FICHERO):
+def _omision_transitoria(aviso):
+    """M2: el aviso con el que `leer_caso` omitio un Gold tiene causa TRANSITORIA (`_aviso_transitorio`
+    del recorder: bloqueado, sustituido, desaparecido, no examinable) o el directorio cambio mientras
+    se leia: reensamblar puede incluirlo."""
+    return rec._aviso_transitorio(aviso) or "cambio durante la lectura" in aviso
+
+
+def cargar(store, config, raiz, ctx, acumulador=None, tope=TOPE_FICHERO, entrada=None):
     """Pasada 1 (H5): `(gold, otros, avisos_store, avisos)`. `gold`: `{ref, case_id, version, family,
     variant, supersedes_case, sha256, ficheros, content_hash}` (sin el caso: su texto va al
     `acumulador` y se descarta); `otros`: el resto de versiones con su motivo (manifiesto);
-    `avisos_store`: los del recorrido (dependen del reloj: solo `stderr`); `avisos`: deterministas."""
+    `avisos_store`: los del recorrido (dependen del reloj: solo `stderr`); `avisos`: deterministas.
+    `entrada` (dict opcional, D-f4 F1): recibe `{(case_id, version): h}` de la ENTRADA del ensamblado
+    para su firma (`rec.firma_gold`), con la lectura de `validation.json` que DECIDIO el destino de
+    cada version (M4): la de `leer_caso` si devolvio el caso (sin entrada si ya no es Gold); si lo
+    omitio con aviso, `rec.TRANSITORIA` con una causa transitoria (M2) o el `content_hash` del
+    recorrido (`_estado_de_cases`, el MISMO de `/doctor`) con una permanente. Un Gold excluido (sin
+    atar, duplicado, benchmark) sigue en la firma con su `content_hash` tal cual (saneado, M5). El
+    recorrido lee `metadata.json`/`validation.json` con `TOPE_JSON_CASO` (#171), no con `tope`."""
     width = cs.patrones_id(config)[2]
-    crudos = {}
-    entradas, av, en_curso, _mt, _rels = rec._estado_de_cases(store, raiz, crudos=crudos, tope=tope)   # #134
+    crudos, gold_rec = {}, {}
+    entradas, av, en_curso, _mt, _rels = rec._estado_de_cases(store, raiz, crudos=crudos, tope=rec.TOPE_JSON_CASO,
+                                                              gold=gold_rec)   # #134/#171
     avisos_store = [av[k] for k in sorted(av)] + [en_curso[k] for k in sorted(en_curso)]
     gold, otros, avisos = [], [], []
     for clave in sorted(entradas):
@@ -386,8 +413,16 @@ def cargar(store, config, raiz, ctx, acumulador=None, tope=TOPE_FICHERO):
             continue
         caso, hashes, aviso = leer_caso(ctx, store, e, config, width, previos, tope)
         if aviso:
+            if entrada is not None:
+                if _omision_transitoria(aviso):
+                    entrada[clave] = rec.TRANSITORIA                                   # M2
+                elif clave in gold_rec:
+                    entrada[clave] = gold_rec[clave]                                   # M4: la del recorrido
             otros.append(dict(base, sha256=None, particion=None, motivo=_motivo(aviso, store)))
             continue
+        h = rec.gold_de_version(caso["validation"])
+        if entrada is not None and h is not rec.NO_GOLD:
+            entrada[clave] = h                                                         # M4: la de `leer_caso`
         if not es_gold(caso["validation"]):
             otros.append(dict(base, sha256=None, particion=None, motivo=(
                 f"no Gold (validation.status = {caso['validation'].get('status')}, releido del disco)")))
@@ -499,7 +534,10 @@ def ensamblar(config, raiz_proyecto, benchmark, umbral=dd.UMBRAL_DEFECTO, ventan
     width = cs.patrones_id(config)[2]
     t0 = time.monotonic()
     acc = dd.Acumulador(ventana, presupuesto)
-    gold, otros, avisos_store, avisos = cargar(store, config, raiz, ctx, acc, tope_fichero)
+    entrada = {}
+    gold, otros, avisos_store, avisos = cargar(store, config, raiz, ctx, acc, tope_fichero, entrada)
+    firma, n_entrada = rec.firma_gold(entrada), len(entrada)                      # D-f4 F1
+    entrada = None
     r_dd = acc.agrupar(umbral, fraccion_boilerplate,
                        benchmark_ids={g["ref"] for g in gold if g["family"] in benchmark})   # #145
     acc = None
@@ -532,10 +570,13 @@ def ensamblar(config, raiz_proyecto, benchmark, umbral=dd.UMBRAL_DEFECTO, ventan
     def pasada(sumideros):
         _segunda_pasada(ctx, store, config, width, incluidos, sumideros, tope_fichero)
 
-    salida = {"export_id": export_id, "ruta": None, "existente": False, "lineas": None, "avisos_store": avisos_store}
+    salida = {"export_id": export_id, "ruta": None, "existente": False, "lineas": None, "avisos_store": avisos_store,
+              "aviso_marca": None}
     if escribir:
-        salida["ruta"], salida["existente"], salida["manifest"] = _publicar_export(ctx, store, export_id, base, pasada,
-                                                                                    espera_bloqueo, pasada1)
+        marca = {"version": 1, "export_id": export_id, "firma": firma, "gold": n_entrada,
+                 "parametros": nucleo["parametros"]}                           # F2/M6 (ya redactados, #137)
+        salida["ruta"], salida["existente"], salida["manifest"], salida["aviso_marca"] = _publicar_export(
+            ctx, store, export_id, base, pasada, espera_bloqueo, pasada1, marca)
     else:
         recoger = devolver_lineas is not False
         sumideros = {f: _Sumidero(recoger=recoger) for f in JSONL}
@@ -579,76 +620,189 @@ def _bloqueo_tomado(exports):
     return False
 
 
-def _casos_del_manifest(ruta, previo):
-    """`{(case_id, version): (content_hash|None, motivo)}` de las entradas `casos` de un `manifest.json`,
-    leido por descriptor con el tope por fichero (`rec._leer_json_reintentando`), o None si no se puede."""
-    try:
-        m, _mt = rec._leer_json_reintentando(ruta, previo, None, rec._json_de, TOPE_FICHERO)
-    except (OSError, ValueError, RecursionError, rec.Rechazo):
-        return None
-    casos = m.get("casos") if isinstance(m, dict) else None
-    if not isinstance(casos, list):
-        return None
-    out = {}
-    for c in casos:
-        if isinstance(c, dict) and isinstance(c.get("case_id"), str) and isinstance(c.get("version"), int):
-            out[(c["case_id"], c["version"])] = (c.get("content_hash"), c.get("motivo"))
-    return out
+MARCA = ".ultimo.json"                          # D-f4 F2: marca del ultimo ensamblado (empieza por `.`: no es un export)
+TOPE_MARCA = 4 * 1024
+CLAVES_MARCA = ("version", "export_id", "directorio", "firma", "gold", "creado", "parametros")
+PATRON_EXPORT_ID = re.compile(r"[0-9]{8}-[0-9a-f]{12}")
+PATRON_DIRECTORIO = re.compile(r"[0-9]{8}-[0-9a-f]{12}(\.([2-9]|[1-9][0-9]))?")        # M3: `.2`…`.99`
+PATRON_FIRMA = re.compile(r"[0-9a-f]{64}")
+MARGEN_ESTADO_S = 0.3                           # M10: margen propio de `estado_dataset` tras el recuento
+REMEDIO_MARCA = "retira `exports/.ultimo.json` a mano (solo ese nombre) y vuelve a ensamblar"
+UMBRAL_DOCTOR = ("el recuento de /doctor llega a ~2 000 versiones en caliente y ~300 en frio (medido, Windows); "
+                 "`dataset-assembler.py --estado` lo verifica sin tope: ~1 ms por version en caliente, ~7 ms en frio")
 
 
-def _ref(clave):
-    return rec._texto_ruta(cs.referencia_version(clave[0], clave[1]))
-
-
-def _frescura(gold, casos, parcial):
-    """None si el ultimo export recoge EXACTAMENTE los Gold vigentes (por contenido), o el motivo."""
-    for clave in sorted(gold):
-        if clave not in casos:
-            return f"{_ref(clave)} es Gold y no estaba en el ultimo export"
-        h_export, motivo = casos[clave]
-        if h_export is None:
-            if motivo != MOTIVO_SIN_ATAR:
-                return f"{_ref(clave)} es Gold y el ultimo export no lo incluyo"
-        elif gold[clave] is not None and gold[clave] != h_export:
-            return f"{_ref(clave)}: su contenido aprobado cambio desde el ultimo export"
-    if not parcial:
-        for clave in sorted(casos):
-            if casos[clave][0] is not None and clave not in gold:
-                return f"{_ref(clave)} ya no es Gold y sigue en el ultimo export"
+def _motivo_marca(m):
+    """None si `m` es una marca con el esquema de F2, o por que no lo es."""
+    if not isinstance(m, dict) or tuple(sorted(m)) != tuple(sorted(CLAVES_MARCA)):
+        return "no tiene el esquema de la marca"
+    if m["version"] != 1 or isinstance(m["version"], bool):
+        return "version de la marca desconocida"
+    if not isinstance(m["export_id"], str) or not PATRON_EXPORT_ID.fullmatch(m["export_id"]):
+        return "export_id invalido"
+    d = m["directorio"]
+    if not isinstance(d, str) or not PATRON_DIRECTORIO.fullmatch(d) or d.split(".", 1)[0] != m["export_id"]:
+        return "directorio invalido"
+    if not isinstance(m["firma"], str) or not PATRON_FIRMA.fullmatch(m["firma"]):
+        return "firma invalida"
+    if isinstance(m["gold"], bool) or not isinstance(m["gold"], int) or m["gold"] < 0:
+        return "numero de Gold invalido"
+    if not isinstance(m["creado"], str) or len(m["creado"]) > 64 or not isinstance(m["parametros"], dict):
+        return "creado o parametros invalidos"
     return None
 
 
-def estado_dataset(store, gold, hasta=None, parcial=False):
-    """Frescura del dataset para `/doctor` (T-10, CA-07), SOLO LECTURA y sin red: `{estado, exports,
-    incompletos, en_curso, otros, ultimo, motivo}`. `gold` = los Gold vigentes de `rec.resumen_store`
-    (`{(case_id, version): content_hash|None}`); `parcial` = ese recuento se corto (solo se comprueba lo
-    recorrido); `hasta` = instante de `rec._crono()` en que vence el plazo de `/doctor` (#152: el
-    recorrido de `exports/` va DENTRO del mismo plazo; agotado -> `parcial`, «no verificado»).
+def _leer_marca(exports, hasta=None):
+    """F3: `(marca, None)` si `exports/.ultimo.json` es una marca VALIDA de la pieza; `(None, None)` si
+    no existe; `(None, motivo)` si existe y no lo es (enlace, no regular, con enlaces duros, mayor de
+    `TOPE_MARCA`, ilegible o sin el esquema: ajena). Se abre sin seguir enlaces y se lee del
+    DESCRIPTOR comprobado (`rec._leer_json_reintentando`: misma identidad que su `lstat`, un solo
+    nombre, tope), con los reintentos acotados por `hasta` (#170: `rec._PlazoAgotado` se propaga)."""
+    ruta = os.path.join(exports, MARCA)
+    try:
+        st = rec._stat_sin_seguir(ruta)
+    except FileNotFoundError:
+        return None, None
+    except OSError as e:
+        return None, f"exports/{MARCA} no se puede examinar ({type(e).__name__})"
+    enlace = rec._es_enlace_st(st)
+    if enlace is None:
+        enlace = bool(rec._motivo_enlace(ruta, ruta))
+    if enlace:
+        return None, f"exports/{MARCA} es un {rec.MOTIVO_ENLACE}"
+    if not stat.S_ISREG(st.st_mode):
+        return None, f"exports/{MARCA} no es un fichero regular"
+    if st.st_nlink != 1:
+        return None, f"exports/{MARCA} es un enlace duro compartido ({st.st_nlink} nombres, CWE-59)"
+    if st.st_size > TOPE_MARCA:
+        return None, f"exports/{MARCA} ocupa {st.st_size} bytes, por encima de {TOPE_MARCA}"
+    try:
+        m, _mt = rec._leer_json_reintentando(ruta, st, None, _json, TOPE_MARCA, hasta)
+    except rec._FicheroNoPropio as e:
+        return None, f"exports/{MARCA}: {e.mensaje}"
+    except (OSError, ValueError, RecursionError) as e:
+        return None, f"exports/{MARCA} no se puede leer ({type(e).__name__})"
+    motivo = _motivo_marca(m)
+    return (None, f"exports/{MARCA}: {motivo}") if motivo else (m, None)
+
+
+def _bytes_marca(marca):
+    """Bytes de la marca (<= `TOPE_MARCA`): si los parametros no caben (muchas familias de benchmark),
+    `benchmark` se resume en su numero de familias (informativo, M6)."""
+    datos = (json.dumps(marca, ensure_ascii=True, sort_keys=True) + "\n").encode("utf-8")
+    if len(datos) > TOPE_MARCA:
+        p = dict(marca["parametros"], benchmark=f"{len(marca['parametros'].get('benchmark') or ())} familias")
+        datos = (json.dumps(dict(marca, parametros=p), ensure_ascii=True, sort_keys=True) + "\n").encode("utf-8")
+    if len(datos) > TOPE_MARCA:
+        datos = (json.dumps(dict(marca, parametros={}), ensure_ascii=True, sort_keys=True) + "\n").encode("utf-8")
+    return datos
+
+
+def _escribir_marca(ctx, exports, marca):
+    """F2/M8: publica `exports/.ultimo.json` CON `exports/.lock` tomado: `.tmp-<token>` propio con
+    `O_EXCL`, comprobado (G4) antes y despues de escribirle, `fsync`, y `rec._reemplazar` (reintentos
+    acotados; el reemplazo sustituye el NOMBRE: nunca escribe a traves de un enlace). Una marca
+    existente que no es de la pieza (`_leer_marca`) NO se reemplaza. El temporal se retira SIEMPRE en
+    un `finally` (`_retirar_temporal_propio`). Devuelve None o el aviso (el export es valido igual; el
+    siguiente ensamblado, «ya existe», la reescribe). Limite declarado (el G3 del recorder): entre la
+    comprobacion de la marca vigente y el reemplazo, un tercero con escritura en `exports/` puede
+    sustituirla; el reemplazo solo cambia ese nombre."""
+    nombre = f"exports/{MARCA}"
+    _m, ajena = _leer_marca(exports)
+    if ajena:
+        return f"{ajena}: no se reemplaza (no es una marca valida del ensamblador); {REMEDIO_MARCA}"
+    datos = _bytes_marca(dict(marca, creado=datetime.datetime.now(datetime.timezone.utc)
+                              .strftime("%Y-%m-%dT%H:%M:%SZ")))
+    tmp = os.path.join(exports, rec.PREFIJO_TEMPORAL + secrets.token_hex(8))
+    st = None
+    try:
+        f = rec._abrir_exclusivo(tmp)
+        with f:
+            st = os.fstat(f.fileno())
+            _verificar(ctx, tmp, st)
+            f.write(datos)
+            f.flush()
+            os.fsync(f.fileno())
+            _verificar(ctx, tmp, st)
+        _m, ajena = _leer_marca(exports)
+        if ajena:
+            return f"{ajena}: no se reemplaza (no es una marca valida del ensamblador); {REMEDIO_MARCA}"
+        rec._reemplazar(tmp, os.path.join(exports, MARCA))
+    except (OSError, Rechazo) as e:
+        detalle = e.mensaje if isinstance(e, Rechazo) else type(e).__name__
+        return (f"{nombre} no se pudo publicar ({rec._texto_seguro(detalle)}): el export es valido; el siguiente "
+                "ensamblado («ya existe») la reescribe")
+    finally:
+        if st is not None:
+            rec._retirar_temporal_propio(tmp, st)
+    return None
+
+
+def _texto_parametros(p):
+    """M6: los parametros del ultimo ensamblado, compactos (informativos)."""
+    if not p:
+        return "sin parametros registrados"
+    bench = p.get("benchmark")
+    bench = ",".join(rec._texto_ruta(b) for b in bench) if isinstance(bench, list) else rec._texto_ruta(bench)
+    duplicados = "conservados" if p.get("conservar_duplicados") else "uno por grupo"
+    return (f"benchmark={bench} umbral={p.get('umbral')} ventana={p.get('ventana')} "
+            f"boilerplate={p.get('fraccion_boilerplate')} duplicados={duplicados}")
+
+
+def _export_completo(exports, directorio):
+    """F3: `exports/<directorio>/` es un directorio real (no enlace) con un `manifest.json` REGULAR (no se lee)."""
+    d = os.path.join(exports, directorio)
+    if rec._tipo_entrada(d, d) != "dir":
+        return False
+    ruta_m = os.path.join(d, MANIFEST)
+    try:
+        st = rec._stat_sin_seguir(ruta_m)
+    except OSError:
+        return False
+    enlace = rec._es_enlace_st(st)
+    if enlace is None:
+        enlace = bool(rec._motivo_enlace(ruta_m, ruta_m))
+    return not enlace and stat.S_ISREG(st.st_mode)
+
+
+def estado_dataset(store, resumen=None, hasta=None):
+    """Frescura del dataset (T-10, CA-07; D-f4), SOLO LECTURA y sin red, para `/doctor` y `--estado`:
+    `{estado, exports, incompletos, en_curso, otros, ultimo, export_id, parametros, motivo}`. Responde a
+    «¿reensamblar ahora cambiaria la ENTRADA del ultimo ensamblado?», no a «¿que incluyo el export?»:
+    compara la `firma` de `resumen` (`rec.resumen_store`: los Gold humanos con su `content_hash`
+    saneado) con la de la marca `exports/.ultimo.json` (F2), sin leer ningun `manifest.json`. `hasta`
+    (default: el del resumen) = instante de `rec._crono()` en que vencio el plazo del recuento; esta
+    funcion tiene un margen PROPIO (`MARGEN_ESTADO_S`, M10) para listar `exports/` y leer la marca.
     Cada entrada de `exports/` (#156): `export` (directorio real con un `manifest.json` regular, sin
-    seguir enlaces), `en_curso` (directorio sin `manifest.json` modificado dentro de la gracia
-    `rec.GRACIA_EN_CURSO_S`, o el mas reciente de ellos si otro ensamblador tiene `exports/.lock`
-    tomado), `incompleto` (sin `manifest.json` y mas viejo) u `otros` (lo que no es un directorio de
-    export: un fichero suelto, un enlace). `ultimo` = el export de `manifest.json` con `mtime` mas
-    reciente. `estado`: `sin_gold`, `sin_export` (hay Gold y ningun export completo), `desactualizado`
-    / `al_dia` por CONTENIDO (#154): los Gold vigentes (`case_id@version` + `content_hash`) frente a los
-    `casos` del `manifest.json` del ultimo export —un Gold nuevo, uno cuyo contenido aprobado cambio o
-    uno que dejo de serlo lo desactualizan; re-aprobar o un `touch` no—, `parcial` o `no_verificable`
-    (`exports/` es un enlace o no se puede listar, o el manifiesto no se puede leer)."""
+    seguir enlaces), `en_curso` (sin `manifest.json` y modificado dentro de `rec.GRACIA_EN_CURSO_S`, o
+    el mas reciente si otro ensamblador tiene `exports/.lock` tomado), `incompleto` (sin
+    `manifest.json` y mas viejo) u `otros` (un fichero suelto, un enlace); los nombres con `.` (la
+    marca, el bloqueo, temporales) no cuentan. `estado`: `sin_gold`; `sin_export` (hay Gold y ningun
+    export completo); `no_verificable` (sin marca —«reensambla para registrar el ultimo ensamblado»—,
+    marca ajena o invalida —`REMEDIO_MARCA`—, su export ya no esta completo, o `exports/` no se puede
+    recorrer); `parcial` (el recuento se CORTO o hubo un aviso TRANSITORIO, M1: «no verificado» con
+    `--estado`; salvo que los Gold ya contados superen los de la marca, M10: `desactualizado`);
+    `al_dia` (misma firma: mismo train/benchmark con los parametros del ultimo ensamblado, M6) o
+    `desactualizado` (otra firma; el motivo, por RECUENTO, sin nombrar casos)."""
+    res = resumen if isinstance(resumen, dict) else {}
+    n_gold = res.get("n_gold") or 0
+    parcial = bool(res.get("truncado"))
+    transitorias = res.get("transitorias") or 0
+    hasta = res.get("hasta") if hasta is None else hasta
+    limite = None if hasta is None else hasta + MARGEN_ESTADO_S
     exports = os.path.join(store, "exports")
     salida = {"estado": None, "exports": 0, "incompletos": 0, "en_curso": 0, "otros": 0, "ultimo": None,
-              "motivo": ""}
-    gold = gold or {}
+              "export_id": None, "parametros": None, "motivo": ""}
 
     def agotado():
-        return hasta is not None and rec._crono() >= hasta
+        return limite is not None and rec._crono() >= limite
 
     def cortar():
-        salida.update(estado="parcial", motivo="se agoto el tope de tiempo de /doctor antes de recorrer exports/")
+        salida.update(estado="parcial", motivo=f"se agoto el tope de tiempo de /doctor antes de recorrer exports/ ({UMBRAL_DOCTOR})")
         return salida
     if agotado():
         return cortar()
     tipo = rec._tipo_entrada(exports, exports)
-    ultimo = None
     if tipo == "enlace" or tipo == "otro":
         salida.update(estado="no_verificable", motivo=("exports/ es un enlace: no se sigue" if tipo == "enlace"
                                                         else "exports/ no es un directorio"))
@@ -671,25 +825,14 @@ def estado_dataset(store, gold, hasta=None, parcial=False):
                 return cortar()
             if rec._tipo_entrada(e, e.path) != "dir":
                 salida["otros"] += 1
-                continue
-            ruta_m = os.path.join(e.path, MANIFEST)
-            try:
-                st = rec._stat_sin_seguir(ruta_m)
-            except OSError:
-                st = None
-            enlace = None if st is None else rec._es_enlace_st(st)
-            if enlace is None and st is not None:
-                enlace = bool(rec._motivo_enlace(ruta_m, ruta_m))
-            if st is None or enlace or not stat.S_ISREG(st.st_mode):
+            elif _export_completo(exports, e.name):
+                salida["exports"] += 1
+            else:
                 try:
                     mtime = rec._stat_sin_seguir(e.path).st_mtime
                 except OSError:
                     mtime = None
                 sin_manifest.append((mtime, e.name))
-                continue
-            salida["exports"] += 1
-            if ultimo is None or st.st_mtime_ns > ultimo[0]:
-                ultimo = (st.st_mtime_ns, e.name, ruta_m, st)
         vivo = _bloqueo_tomado(exports) if sin_manifest else False
         reciente = max(sin_manifest, key=lambda x: (x[0] or 0, x[1])) if vivo else None
         for mtime, nombre in sin_manifest:
@@ -698,27 +841,84 @@ def estado_dataset(store, gold, hasta=None, parcial=False):
                 salida["en_curso"] += 1
             else:
                 salida["incompletos"] += 1
-    if ultimo is not None:
-        salida["ultimo"] = ultimo[1]
-    if not gold:
+    dudoso = parcial or transitorias
+    if not n_gold and not dudoso:
         salida.update(estado="sin_gold", motivo="ningun caso Gold: nada que exportar")
         return salida
-    if ultimo is None:
-        salida.update(estado="sin_export", motivo="hay Gold y ningun export con manifest.json todavia")
+    if not salida["exports"]:
+        if n_gold:
+            salida.update(estado="sin_export", motivo="hay Gold y ningun export con manifest.json todavia")
+        else:
+            salida.update(estado="parcial", motivo=f"recuento PARCIAL sin ningun Gold contado todavia ({UMBRAL_DOCTOR})")
         return salida
     if agotado():
         return cortar()
-    nombre = rec._texto_ruta(ultimo[1])
-    casos = _casos_del_manifest(ultimo[2], ultimo[3])
-    if casos is None:
-        salida.update(estado="no_verificable", motivo=f"el manifest.json del ultimo export `{nombre}` no se puede leer")
+    try:
+        marca, ajena = _leer_marca(exports, limite)
+    except rec._PlazoAgotado:                                               # #170
+        salida.update(estado="parcial", motivo=f"exports/{MARCA} no se pudo leer antes del tope de /doctor "
+                                               f"(bloqueada); {UMBRAL_DOCTOR}")
         return salida
-    motivo = _frescura(gold, casos, parcial)
-    if motivo:
-        salida.update(estado="desactualizado", motivo=f"{motivo} (ultimo export `{nombre}`)")
+    if marca is None:
+        salida.update(estado="no_verificable", motivo=(f"{ajena}: {REMEDIO_MARCA}" if ajena else
+                                                        f"sin marca del ultimo ensamblado (exports/{MARCA}): "
+                                                        "reensambla para registrarlo"))
+        return salida
+    nombre = marca["directorio"]
+    salida.update(export_id=marca["export_id"], parametros=marca["parametros"])
+    if not _export_completo(exports, nombre):
+        salida.update(estado="no_verificable", motivo=(f"el export `{nombre}` del ultimo ensamblado ya no esta "
+                                                        "completo en exports/: reensambla"))
+        return salida
+    salida["ultimo"] = nombre
+    if dudoso:
+        if n_gold > marca["gold"]:                                          # M10: cierto aun siendo parcial
+            salida.update(estado="desactualizado", motivo=(f"al menos {n_gold} Gold vigentes frente a {marca['gold']} en "
+                                                            f"el ultimo ensamblado `{nombre}` (recuento parcial)"))
+        else:
+            que = "recuento PARCIAL" if parcial else f"aviso transitorio en {transitorias} version(es)"
+            salida.update(estado="parcial", motivo=(f"{que}: no se compara con el ultimo ensamblado `{nombre}`; "
+                                                     f"{UMBRAL_DOCTOR}"))
+        return salida
+    if res.get("firma") == marca["firma"]:
+        salida.update(estado="al_dia", motivo=(f"ultimo ensamblado `{nombre}`, con los parametros del ultimo ensamblado "
+                                               f"({_texto_parametros(marca['parametros'])})"))
+    elif n_gold != marca["gold"]:
+        salida.update(estado="desactualizado", motivo=(f"{n_gold} Gold vigentes frente a {marca['gold']} en el ultimo "
+                                                        f"ensamblado `{nombre}`"))
     else:
-        salida.update(estado="al_dia", motivo=f"ultimo export `{nombre}`")
+        salida.update(estado="desactualizado", motivo=(f"mismo numero de Gold ({n_gold}) que el ultimo ensamblado "
+                                                        f"`{nombre}`, contenido distinto"))
     return salida
+
+
+TEXTO_DATASET = {"sin_gold": "sin Gold", "sin_export": "desactualizado", "desactualizado": "desactualizado",
+                 "al_dia": "al dia", "no_verificable": "no verificable", "parcial": "no verificado (PARCIAL)"}
+
+
+def texto_estado(res, ds):
+    """Texto del recuento del case store y de la frescura del dataset (T-10): el MISMO en `/doctor`
+    (la capacidad `training` lo pinta) y en `--estado` (F4). `res` = `rec.resumen_store`, `ds` =
+    `estado_dataset`."""
+    estados = " · ".join(f"{k} {n}" for k, n in res["por_estado"].items())
+    partes = [f"casos: {estados} ({res['versiones']} versiones)",
+              f"incompletas {res['incompletas']} · temporales huerfanos {res['huerfanos']}"
+              + (f" · demasiado grandes {res['grandes']} (sin leer)" if res.get("grandes") else "")
+              + (f" · cortadas por el tope {res['cortadas']}" if res.get("cortadas") else "")
+              + (f" · otros avisos {res['otros_avisos']}" if res["otros_avisos"] else "")
+              + (f" · en curso {res['en_curso']}" if res["en_curso"] else "")]
+    if res["truncado"]:
+        total = f"al menos {res['casos_total']}" if res.get("listado_parcial") else f"{res['casos_total']}"
+        partes.append(f"recuento PARCIAL: {res['casos_vistos']} de {total} casos (tope de "
+                      f"{res['plazo_s']:g} s; el total lo da `case-recorder.py index check` y la frescura "
+                      "`dataset-assembler.py --estado`)")
+    dataset = f"dataset: {TEXTO_DATASET.get(ds['estado'], ds['estado'])} ({ds['motivo']})"
+    for clave, que in (("incompletos", "export(s) incompleto(s)"), ("en_curso", "export(s) en curso"),
+                       ("otros", "entrada(s) de exports/ que no son un export")):
+        if ds.get(clave):
+            dataset += f" · {ds[clave]} {que}"
+    partes.append(dataset)
+    return " · ".join(partes)
 
 
 # ------------------------------------------------------------------ escritura del export (sin destruir nada)
@@ -839,59 +1039,99 @@ def _bloqueo_exports(exports, espera, pasada1):
         bloqueo.__exit__(None, None, None)
 
 
-def _publicar_export(ctx, store, export_id, base, pasada, espera=ESPERA_BLOQUEO_EXPORTS_S, pasada1=0.0):
-    """`(ruta, existente, manifest)`. Bajo `exports/.lock` (#124; espera `espera` s, #143): crea
-    `exports/<export_id>[.N]/` con `os.mkdir` y los ficheros con `O_EXCL`; nunca sobrescribe ni borra
-    (ver docstring del modulo)."""
+def _publicar_export(ctx, store, export_id, base, pasada, espera=ESPERA_BLOQUEO_EXPORTS_S, pasada1=0.0, marca=None):
+    """`(ruta, existente, manifest, aviso_marca)`. Bajo `exports/.lock` (#124; espera `espera` s, #143):
+    crea `exports/<export_id>[.N]/` con `os.mkdir` y los ficheros con `O_EXCL`; nunca sobrescribe ni
+    borra (ver docstring del modulo). Con `marca` (D-f4 F2), al acabar bien («escrito» o «ya existe»)
+    y AUN con el bloqueo, escribe `exports/.ultimo.json` con el directorio REAL (M3); `aviso_marca` =
+    None o por que no se pudo (el export es valido igual, M8)."""
     exports = os.path.join(store, "exports")
     try:
         os.mkdir(exports)
     except FileExistsError:
         pass
     ctx.comprobar_dir(exports)          # directorio real, `realpath` IGUAL al esperado: un enlace -> rechazo
-    esperados = None
     with _bloqueo_exports(exports, espera, pasada1):
-        ctx.comprobar_dir(exports)
-        for n in range(1, MAX_EXPORTS_MISMO_ID + 1):
-            nombre = export_id if n == 1 else f"{export_id}.{n}"
-            destino = os.path.join(exports, nombre)
+        destino, existente, manifest = _publicar_en(ctx, store, export_id, base, pasada)
+        aviso = None
+        if marca is not None:
+            aviso = _escribir_marca(ctx, os.path.join(store, "exports"),
+                                    dict(marca, directorio=os.path.basename(destino)))
+    return destino, existente, manifest, aviso
+
+
+def _publicar_en(ctx, store, export_id, base, pasada):
+    """`(ruta, existente, manifest)` CON `exports/.lock` ya tomado (ver `_publicar_export`)."""
+    exports = os.path.join(store, "exports")
+    esperados = None
+    ctx.comprobar_dir(exports)
+    for n in range(1, MAX_EXPORTS_MISMO_ID + 1):
+        nombre = export_id if n == 1 else f"{export_id}.{n}"
+        destino = os.path.join(exports, nombre)
+        try:
+            os.mkdir(destino)
+        except FileExistsError:
+            if esperados is None:                                   # lo que se escribiria, sin escribir
+                esperados = {f: _Sumidero() for f in JSONL}
+                pasada(esperados)
+            manifest = _manifest(base, nombre, esperados)
+            if _identico(destino, _bytes_manifest(manifest), esperados):
+                return destino, True, manifest
+            continue
+        try:
+            ctx.comprobar_dir(destino)
+            abiertos = []
             try:
-                os.mkdir(destino)
-            except FileExistsError:
-                if esperados is None:                                   # lo que se escribiria, sin escribir
-                    esperados = {f: _Sumidero() for f in JSONL}
-                    pasada(esperados)
-                manifest = _manifest(base, nombre, esperados)
-                if _identico(destino, _bytes_manifest(manifest), esperados):
-                    return destino, True, manifest
-                continue
-            try:
-                ctx.comprobar_dir(destino)
-                abiertos = []
-                try:
-                    for f in JSONL:
-                        abiertos.append((f,) + _abrir_export(ctx, os.path.join(destino, f)))
-                    sumideros = {f: _Sumidero(fh) for f, fh, _st in abiertos}
-                    pasada(sumideros)
-                finally:
-                    for _f, fh, _st in abiertos:
-                        fh.close()
-                for f, _fh, st in abiertos:
-                    _verificar(ctx, os.path.join(destino, f), st)
-                manifest = _manifest(base, nombre, sumideros)
-                _publicar_manifest(ctx, destino, _bytes_manifest(manifest))
-            except Rechazo as e:
-                raise type(e)(f"{e.mensaje}; export incompleto en exports/{rec._texto_ruta(nombre)} (sin manifest.json): "
-                              "se conserva") from None
-            except OSError as e:
-                raise OSError(e.errno, f"{e.strerror or e}; export incompleto en exports/{rec._texto_ruta(nombre)} (sin "
-                                       "manifest.json): se conserva; vuelve a ensamblar (usara el siguiente sufijo)") from None
-            return destino, False, manifest
+                for f in JSONL:
+                    abiertos.append((f,) + _abrir_export(ctx, os.path.join(destino, f)))
+                sumideros = {f: _Sumidero(fh) for f, fh, _st in abiertos}
+                pasada(sumideros)
+            finally:
+                for _f, fh, _st in abiertos:
+                    fh.close()
+            for f, _fh, st in abiertos:
+                _verificar(ctx, os.path.join(destino, f), st)
+            manifest = _manifest(base, nombre, sumideros)
+            _publicar_manifest(ctx, destino, _bytes_manifest(manifest))
+        except Rechazo as e:
+            raise type(e)(f"{e.mensaje}; export incompleto en exports/{rec._texto_ruta(nombre)} (sin manifest.json): "
+                          "se conserva") from None
+        except OSError as e:
+            raise OSError(e.errno, f"{e.strerror or e}; export incompleto en exports/{rec._texto_ruta(nombre)} (sin "
+                                   "manifest.json): se conserva; vuelve a ensamblar (usara el siguiente sufijo)") from None
+        return destino, False, manifest
     raise Rechazo(f"exports/{export_id}…{MAX_EXPORTS_MISMO_ID}: todos ocupados por exports incompletos o distintos; "
                   "revisa exports/ a mano; no se ha escrito nada")
 
 
 # ------------------------------------------------------------------ CLI
+
+EXIT_ESTADO = {"al_dia": 0, "sin_gold": 0, "desactualizado": 1, "sin_export": 1, "no_verificable": 2, "parcial": 2}
+
+
+def _main_estado(args):
+    """F4 (#176): `--estado`: `rec.resumen_store` COMPLETO (sin plazo) + `estado_dataset`, con el MISMO
+    texto que `/doctor` (`texto_estado`) o `--json`. Solo lectura: no toma `exports/.lock` ni escribe
+    nada. Exit 0 `al_dia`/`sin_gold` · 1 `desactualizado`/`sin_export` · 2 `no_verificable`/`parcial`
+    y cualquier config o E/S que no permita verificarlo."""
+    try:
+        config, raiz = rec._config_cli(args)
+        rec.config_activa(config, raiz)
+        store = rec.raiz_store(config, rec._raiz(raiz))
+        res = rec.resumen_store(store, raiz, plazo_s=None)
+        ds = estado_dataset(store, res)
+    except (Rechazo, OSError, ValueError, rec._EntradaIlegible, rec.RedaccionNoDisponible) as e:
+        print(f"no verificable: {rec._texto_seguro(getattr(e, 'mensaje', e))}", file=sys.stderr)
+        return 2
+    texto = texto_estado(res, ds)
+    if args.json:
+        recuento = {k: v for k, v in res.items() if k not in ("gold", "hasta")}
+        print(json.dumps({"store": store, "recuento": recuento, "dataset": ds, "texto": texto}, ensure_ascii=True,
+                         sort_keys=True, indent=2))
+    else:
+        print(texto)
+    return EXIT_ESTADO.get(ds["estado"], 2)
+
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description="Ensamblador de dataset (solo Gold, particion por familia completa). "
@@ -911,9 +1151,16 @@ def main(argv=None):
                     help=f"segundos de espera de exports/.lock si otro ensamblador lo tiene (default "
                          f"{ESPERA_BLOQUEO_EXPORTS_S}; despues, exit 3 sin escribir nada)")
     ap.add_argument("--dry-run", action="store_true", help="imprime el manifiesto sin escribir nada")
+    ap.add_argument("--estado", action="store_true",
+                    help="solo lectura: recuento COMPLETO del store y frescura del dataset (lo mismo que /doctor, sin "
+                         "tope de tiempo ni exports/.lock); exit 0 al dia o sin Gold, 1 desactualizado o sin export, "
+                         "2 no verificable")
+    ap.add_argument("--json", action="store_true", help="con --estado: la salida en JSON")
     ap.add_argument("--config", help="training.json del proyecto (default: <project-root>/.claude/knowledge-services/training.json)")
     ap.add_argument("--project-root", help="raiz del proyecto (default: deducida de --config o cwd)")
     args = ap.parse_args(argv)
+    if args.estado:
+        return _main_estado(args)
     try:
         config, raiz = rec._config_cli(args)
         rec.config_activa(config, raiz)
@@ -941,7 +1188,7 @@ def main(argv=None):
         print(f"error de E/S: {rec._texto_seguro(e)}", file=sys.stderr)
         return 2
     m = r["manifest"]
-    for a in r["avisos_store"] + m["avisos"]:
+    for a in r["avisos_store"] + m["avisos"] + ([r["aviso_marca"]] if r.get("aviso_marca") else []):
         print(f"aviso: {rec._texto_seguro(a)}", file=sys.stderr)
     if args.dry_run:
         print(json.dumps(m, ensure_ascii=False, sort_keys=True, indent=2))

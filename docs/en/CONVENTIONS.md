@@ -210,10 +210,11 @@ if invalid, `declarado`/`ok` depending on whether the case store `root` exists; 
 creates it). With the store present, its `doctor` text adds (T-10, CA-07) the **case count per
 status** (`pending`/`approved`/`needs_changes`/`rejected`, read from `cases/` with the recorder's
 safe readers —`resumen_store`—, never from the index), incomplete versions and orphan temporaries,
-and the **dataset freshness** (the assembler's `estado_dataset`, by CONTENT: no Gold, no export yet,
-outdated if the current Gold set —`case_id@version` + `content_hash`— is not the one in the last
-export's `manifest.json`, or up to date; in-progress, incomplete and other entries are counted
-separately). No network, writes nothing and **time-bounded** (`TRAINING_PLAZO_S` = 2 s: measured,
+and the **dataset freshness** (the assembler's `estado_dataset`, design D-f4: the SIGNATURE of the
+input —the human Gold versions with their `content_hash`, `firma_gold`— against the one in the last
+assembly's mark, `exports/.ultimo.json`, without reading any manifest: no Gold, no export yet, outdated,
+up to date with that assembly's parameters, or unverifiable without a mark; in-progress, incomplete and
+other entries are counted separately; `dataset-assembler.py --estado` gives it with no cap). No network, writes nothing and **time-bounded** (`TRAINING_PLAZO_S` = 2 s: measured,
 10⁴ versions take 10.7 s warm and over 70 s cold on Windows; the actual cap is the smaller of that and
 what is left of the `/doctor` block, `capabilities.plazo_restante()`); past the cap the count is
 declared **PARTIAL** ("N of M cases"), never an invented total.

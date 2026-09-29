@@ -210,10 +210,11 @@ de la skill, sin red: `deshabilitado` sin fichero, ❌ con fichero y campo si es
 presente, su texto `doctor` añade (T-10, CA-07) el **recuento de casos por estado**
 (`pending`/`approved`/`needs_changes`/`rejected`, leído de `cases/` con los lectores seguros del
 recorder —`resumen_store`—, nunca del índice), las versiones incompletas y los temporales huérfanos
-y la **frescura del dataset** (`estado_dataset` del ensamblador, por CONTENIDO: sin Gold, ningún
-export, desactualizado si los Gold vigentes —`case_id@version` + `content_hash`— no son los del
-`manifest.json` del último export, o al día; los exports en curso, incompletos y otras entradas, por
-separado). Sin red, sin escribir nada y **acotado en tiempo** (`TRAINING_PLAZO_S` = 2 s: medido, 10⁴
+y la **frescura del dataset** (`estado_dataset` del ensamblador, diseño D-f4: la FIRMA de la entrada
+—los Gold humanos con su `content_hash`, `firma_gold`— frente a la de la marca del último ensamblado,
+`exports/.ultimo.json`, sin leer ningún manifiesto: sin Gold, ningún export, desactualizado, al día con
+los parámetros de ese ensamblado o no verificable sin marca; los exports en curso, incompletos y otras
+entradas, por separado; `dataset-assembler.py --estado` la da sin tope). Sin red, sin escribir nada y **acotado en tiempo** (`TRAINING_PLAZO_S` = 2 s: medido, 10⁴
 versiones tardan 10,7 s en caliente y más de 70 s en frío en Windows; el plazo real es el menor entre
 ese y lo que le quede al bloque de `/doctor`, `capabilities.plazo_restante()`); pasado el tope el
 recuento se declara **PARCIAL** («N de M casos»), nunca un total inventado.

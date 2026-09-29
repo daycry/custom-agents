@@ -109,19 +109,55 @@ python3 scripts/dataset-assembler.py --benchmark <family>[,<family>…] [--umbra
 El plugin **no** entrena, no sirve modelos y no corre el benchmark (CA-08): el proyecto usa los JSONL
 con su herramienta.
 
-**Frescura del dataset para `/doctor` (`estado_dataset(store, gold, hasta, parcial)`, T-10).** Solo
-lectura: un export cuenta si es un directorio real de `exports/` (sin seguir enlaces) con un
-`manifest.json` regular. Lo demás se separa en tres (T-10 fix1, #156): **en curso** (directorio sin
-`manifest.json` modificado hace menos de la gracia, o el más reciente si otro ensamblador tiene
-`exports/.lock` tomado: se sondea sin crearlo y se suelta al instante), **incompleto** (sin
-`manifest.json` y más viejo) y **otros** (un fichero suelto, un enlace). Estados: `sin_gold`,
-`sin_export` (hay Gold y ningún export), `desactualizado` / `al_dia` **por contenido** (#154): los Gold
-vigentes que da `resumen_store` (`case_id@version` + `content_hash`) frente a los `casos` del
-`manifest.json` del último export —un Gold nuevo, uno cuyo contenido aprobado cambió o uno que dejó de
-serlo lo desactualizan; re-aprobar, un `touch` o reensamblar el mismo día («ya existe») no—; con el
-recuento PARCIAL solo se comprueba lo recorrido. `parcial` («no verificado»): el recorrido de
-`exports/` va dentro del MISMO plazo de `/doctor` (#152) y se agotó; `no_verificable`: `exports/` es
-un enlace o el manifiesto no se puede leer (tope de 16 MiB por fichero).
+**Marca del último ensamblado (T-10 fix2, diseño D-f4).** Tras un ensamblado REAL que acaba bien
+(«escrito» o «ya existe») y aún con `exports/.lock`, el ensamblador escribe `exports/.ultimo.json` =
+`{version, export_id, directorio, firma, gold, creado, parametros}` (≤ 4 KiB): `directorio` es el nombre
+REAL del export, `.2`…`.99` incluido (M3); `firma` = `case-recorder.firma_gold` de la **entrada** del
+ensamblado —los Gold humanos con su `content_hash`, saneado: un valor que no es un sha256 cuenta como
+el centinela `"!"`, nunca la cadena (M5)—, con la lectura de `validation.json` que decidió el destino de
+cada versión (la de `leer_caso`, o la del recorrido si `leer_caso` la omitió; `"!transitoria"` si la
+omitió por una causa transitoria, M2/M4). Un Gold excluido (sin atar, duplicado, benchmark, aviso
+permanente) sigue en la firma: describe la entrada, no el resultado. Los parámetros (`--benchmark`,
+`--umbral`, `--ventana`, `--boilerplate`, `--presupuesto`, `--conservar-duplicados`) NO entran en ella
+(M6): la marca los guarda a título informativo. Se publica desde un `.tmp-*` propio (`O_EXCL`, `fsync`)
+con `_reemplazar` del recorder, y el temporal se retira siempre; una marca existente que no es de la
+pieza (enlace, enlace duro, no regular, > 4 KiB, sin el esquema) **nunca se reemplaza** ni se sigue:
+aviso y el export sigue siendo válido. `--dry-run` no la escribe. Una marca que no se pudo escribir tras
+un export válido: exit 0 con aviso; el siguiente ensamblado («ya existe») la reescribe. Con
+ensambladores a la vez, la última marca puede describir una instantánea más vieja: el resultado es
+`desactualizado` (cierto) y reensamblar lo limpia, nunca un `al_dia` falso (M13). Límite declarado (el
+G3 del recorder): entre la comprobación de la marca vigente y el reemplazo, un tercero con escritura en
+`exports/` puede sustituirla; el reemplazo solo cambia ese nombre.
+
+**Frescura del dataset (`estado_dataset(store, resumen, hasta)`, T-10; D-f4).** Solo lectura, sin red y
+sin leer ningún `manifest.json`: responde a «¿reensamblar ahora cambiaría la entrada del último
+ensamblado?», comparando la `firma` del resumen del recorder (`resumen_store`, el MISMO recorrido y el
+MISMO tope `TOPE_JSON_CASO` que la pasada 1: las omisiones permanentes —incompletas, grandes, enlaces—
+son las mismas en los dos lados, M1) con la de la marca. Un export cuenta si es un directorio real de
+`exports/` con un `manifest.json` regular; lo demás, en tres (#156): **en curso** (sin `manifest.json`
+y modificado hace menos de la gracia, o el más reciente si otro ensamblador tiene `exports/.lock`),
+**incompleto** (más viejo) y **otros** (un fichero suelto, un enlace); los nombres con `.` (la marca,
+el bloqueo, temporales) no cuentan. Estados: `sin_gold`; `sin_export` (hay Gold y ningún export);
+`no_verificable` (sin marca —«reensambla para registrar el último ensamblado»—, marca ajena o inválida
+—«retira `exports/.ultimo.json` a mano (solo ese nombre)»—, su export ya no está completo, o `exports/`
+es un enlace o no se puede listar); `al_dia` (misma firma: el mismo train/benchmark **con los parámetros
+del último ensamblado**, que el texto muestra); `desactualizado` (otra firma; el motivo, por recuento:
+«N Gold vigentes frente a M» o «mismo número de Gold, contenido distinto»); `parcial` («no verificado»:
+el recuento se cortó o hubo un aviso transitorio —salvo que los Gold ya contados superen los de la
+marca: entonces `desactualizado`, M10—). `estado_dataset` tiene un margen propio (`MARGEN_ESTADO_S` =
+0,3 s tras el plazo del recuento, dentro de los 5 s del bloque) y la lectura de la marca respeta el
+plazo aunque esté bloqueada (#170). La firma no ve cambios en los ficheros INMUTABLES de una versión
+(el export los excluye como «sin atar»): su remedio es `case-recorder.py index check` o volver a
+aprobarla.
+
+**Umbral y `--estado` (#176).** El recuento de `/doctor` (2 s) llega a ~2 000 versiones en caliente y a
+~300 en frío (medido en Windows); por encima, la frescura sale «no verificado (PARCIAL)» y se verifica
+con `dataset-assembler.py --estado [--json]`: solo lectura, sin tope ni `exports/.lock`, recuento
+completo y el MISMO texto que `/doctor` (~1 ms por versión en caliente, ~7 ms en frío); exit 0 `al_dia`
+o `sin_gold` · 1 `desactualizado` o `sin_export` · 2 `no_verificable`, `parcial` o una config que no
+lo permite. Los topes son comprobaciones ENTRE llamadas al sistema: valen para
+**sistemas de ficheros locales**; una sola llamada que se bloquea (SMB colgado, un placeholder de
+OneDrive sin descargar) no la acota nada (M12).
 
 ## Proponer un caso Gold al Curator (`scripts/propose-from-case.py`, CA-05)
 

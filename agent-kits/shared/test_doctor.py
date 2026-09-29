@@ -1668,7 +1668,9 @@ def test_bloque_capacidades_recorta_por_presupuesto_total(monkeypatch):
             return [{"id": f"cap{i}", "enabled": True, "health": None} for i in range(5)]
 
     monkeypatch.setattr(doctor, "_cargar_capabilities", lambda plugin_root: _CapMod())
-    monkeypatch.setattr(doctor, "_cargar_backends_loader", lambda plugin_root: (None, "d"))
+    # fix2 (#167): el presupuesto solo acota las capacidades que REQUIEREN red (backend declarado)
+    monkeypatch.setattr(doctor, "_cargar_backends_loader", lambda plugin_root: (object(), "d"))
+    monkeypatch.setattr(doctor, "_leer_backend_entry", lambda project, cap: {"type": "t"})
     monkeypatch.setattr(doctor, "CAPACIDADES_PRESUPUESTO_S", 0.05)
 
     llamadas = []
@@ -1699,7 +1701,9 @@ def test_bloque_capacidades_topa_tope_ms_al_presupuesto_restante(monkeypatch):
                     {"id": "cap1", "enabled": True, "health": None}]
 
     monkeypatch.setattr(doctor, "_cargar_capabilities", lambda plugin_root: _CapMod())
-    monkeypatch.setattr(doctor, "_cargar_backends_loader", lambda plugin_root: (None, "d"))
+    # fix2 (#167): el presupuesto solo acota las capacidades que REQUIEREN red (backend declarado)
+    monkeypatch.setattr(doctor, "_cargar_backends_loader", lambda plugin_root: (object(), "d"))
+    monkeypatch.setattr(doctor, "_leer_backend_entry", lambda project, cap: {"type": "t"})
     monkeypatch.setattr(doctor, "CAPACIDADES_PRESUPUESTO_S", 2.02)
 
     topes_recibidos = []
@@ -1730,7 +1734,9 @@ def test_bloque_capacidades_aviso_de_recorte_cita_el_tiempo_transcurrido_real(mo
             return [{"id": f"cap{i}", "enabled": True, "health": None} for i in range(3)]
 
     monkeypatch.setattr(doctor, "_cargar_capabilities", lambda plugin_root: _CapMod())
-    monkeypatch.setattr(doctor, "_cargar_backends_loader", lambda plugin_root: (None, "d"))
+    # fix2 (#167): el presupuesto solo acota las capacidades que REQUIEREN red (backend declarado)
+    monkeypatch.setattr(doctor, "_cargar_backends_loader", lambda plugin_root: (object(), "d"))
+    monkeypatch.setattr(doctor, "_leer_backend_entry", lambda project, cap: {"type": "t"})
     monkeypatch.setattr(doctor, "CAPACIDADES_PRESUPUESTO_S", 0.05)
 
     def _linea_lenta(project, cap, backends_mod, backends_dir, **kwargs):
@@ -1759,7 +1765,9 @@ def test_bloque_capacidades_no_comprueba_con_tope_ms_por_debajo_del_suelo(monkey
                     {"id": "cap1", "enabled": True, "health": None}]
 
     monkeypatch.setattr(doctor, "_cargar_capabilities", lambda plugin_root: _CapMod())
-    monkeypatch.setattr(doctor, "_cargar_backends_loader", lambda plugin_root: (None, "d"))
+    # fix2 (#167): el presupuesto solo acota las capacidades que REQUIEREN red (backend declarado)
+    monkeypatch.setattr(doctor, "_cargar_backends_loader", lambda plugin_root: (object(), "d"))
+    monkeypatch.setattr(doctor, "_leer_backend_entry", lambda project, cap: {"type": "t"})
     # presupuesto total suficiente para que cap0 arranque por encima del suelo, pero que tras
     # gastar los 50ms de cap0 deja a cap1 un resto por debajo de `_CAPACIDAD_TOPE_MS_MINIMO`.
     monkeypatch.setattr(doctor, "CAPACIDADES_PRESUPUESTO_S", 0.32)
@@ -2099,7 +2107,9 @@ def test_t10fix1_164_el_reloj_del_bloque_arranca_antes_de_enumerar(monkeypatch):
             return [{"id": f"cap{i}", "enabled": True, "health": None} for i in range(3)]
 
     monkeypatch.setattr(doctor, "_cargar_capabilities", lambda plugin_root: _CapMod())
-    monkeypatch.setattr(doctor, "_cargar_backends_loader", lambda plugin_root: (None, "d"))
+    # fix2 (#167): el recorte solo afecta a las capacidades que REQUIEREN red (backend declarado)
+    monkeypatch.setattr(doctor, "_cargar_backends_loader", lambda plugin_root: (object(), "d"))
+    monkeypatch.setattr(doctor, "_leer_backend_entry", lambda project, cap: {"type": "t"})
     monkeypatch.setattr(doctor, "CAPACIDADES_PRESUPUESTO_S", 0.32)
     comprobadas = []
 
@@ -2262,3 +2272,123 @@ def test_t10fix1_161_acepta_plazo_por_firma():
         return project
     assert doctor._acepta_plazo(con) and doctor._acepta_plazo(kw) and not doctor._acepta_plazo(sin)
     assert doctor._acepta_plazo(object()) is False            # sin firma inspeccionable: no lanza
+
+
+# ------------------------------------------------------------------ T-10 fix2 (#167, #179, M7): regla GENERICA
+
+def _cap_mod_lento(capacidades, segundos):
+    import time as time_mod
+
+    class _CapMod:
+        @staticmethod
+        def enumerar(project, plazo_s=None):
+            time_mod.sleep(segundos)
+            return [dict(c) for c in capacidades]
+    return _CapMod()
+
+
+def test_t10fix2_167_un_error_de_config_nunca_se_pierde_por_el_presupuesto(monkeypatch):
+    """#167: si `enumerar()` gasta el presupuesto del bloque (una capacidad que recuenta), las
+    capacidades SIN red se pintan igual (su fila ya esta calculada: coste cero) y un error de
+    configuracion nunca se descarta. El recorte solo cuenta y nombra las que requieren red (backend
+    declarado) y quedan sin comprobar."""
+    caps = [{"id": "gate", "enabled": False, "config_path": "t.json",
+             "health": {"estado": "error", "detalle": "categories: vacia", "fichero": "t.json"}},
+            {"id": "sinred", "enabled": True, "health": {"estado": "ok"}, "doctor": "sinred: activa"},
+            {"id": "conred", "enabled": True, "health": {"estado": "declarado"}, "doctor": "conred: activa"}]
+    monkeypatch.setattr(doctor, "_cargar_capabilities", lambda plugin_root: _cap_mod_lento(caps, 0.3))
+    monkeypatch.setattr(doctor, "_cargar_backends_loader", lambda plugin_root: (object(), "d"))
+    monkeypatch.setattr(doctor, "_leer_backend_entry",
+                        lambda project, cap: {"type": "t"} if cap["id"] == "conred" else {})
+    monkeypatch.setattr(doctor, "CAPACIDADES_PRESUPUESTO_S", 0.32)
+    red = []
+    monkeypatch.setattr(doctor, "_linea_capacidad_backend",
+                        lambda cap_id, tipo, *a, **k: red.append(cap_id) if tipo else None)
+    bloque = doctor.bloque_capacidades("plugin", "project", verbose=True)
+    por_id = {l["que"]: l for l in bloque["lineas"]}
+    assert por_id["gate"]["estado"] == doctor.ERROR and "t.json" in por_id["gate"]["detalle"]
+    assert por_id["sinred"]["estado"] == doctor.INFO and por_id["sinred"]["detalle"] == "sinred: activa"
+    assert red == [], red
+    recorte = [l for l in bloque["lineas"] if l["estado"] == doctor.AVISO and "recortada" in l["detalle"]]
+    assert len(recorte) == 1 and "conred" in recorte[0]["detalle"] and "sinred" not in recorte[0]["detalle"]
+    assert "1 capacidad(es)" in recorte[0]["detalle"]
+
+
+def test_t10fix2_167_exit_1_con_config_invalida_aunque_el_bloque_se_agote(monkeypatch, tmp_path):
+    """#167 (el escenario de la Lente B): config de una capacidad rota + un bloque que se agota en
+    `enumerar()` -> el error sale y `/doctor` sale con exit 1 (antes: exit 0 y una sola linea de recorte)."""
+    caps = [{"id": "gate", "enabled": False, "config_path": "t.json",
+             "health": {"estado": "error", "detalle": "JSON ilegible", "fichero": "t.json"}}]
+    monkeypatch.setattr(doctor, "_cargar_capabilities", lambda plugin_root: _cap_mod_lento(caps, 0.2))
+    monkeypatch.setattr(doctor, "CAPACIDADES_PRESUPUESTO_S", 0.1)
+    inf = doctor.diagnostico(str(tmp_path), None, None, verbose=True)
+    capas = next(b for b in inf["bloques"] if b["clave"] == "capacidades")
+    assert any(l["estado"] == doctor.ERROR and l["que"] == "gate" for l in capas["lineas"]), capas
+    assert inf["exit"] == 1
+
+
+def test_t10fix2_167_una_capacidad_sin_red_detras_de_una_lenta_sale(monkeypatch):
+    """#167: una capacidad sin red detras de una lenta (que ya gasto el presupuesto) pinta su fila."""
+    import time as time_mod
+    caps = [{"id": "lenta", "enabled": True, "health": {"estado": "declarado"}, "doctor": "lenta"},
+            {"id": "local", "enabled": True, "health": {"estado": "ok"}, "doctor": "local: 3 casos"}]
+    monkeypatch.setattr(doctor, "_cargar_capabilities", lambda plugin_root: _cap_mod_lento(caps, 0.0))
+    monkeypatch.setattr(doctor, "_cargar_backends_loader", lambda plugin_root: (object(), "d"))
+    monkeypatch.setattr(doctor, "_leer_backend_entry",
+                        lambda project, cap: {"type": "t"} if cap["id"] == "lenta" else {})
+    monkeypatch.setattr(doctor, "CAPACIDADES_PRESUPUESTO_S", 0.5)
+
+    def backend(cap_id, tipo, *a, **k):
+        if not tipo:
+            return None
+        time_mod.sleep(0.5)
+        return doctor.linea(doctor.INFO, f"{cap_id} (backend)", "timeout")
+    monkeypatch.setattr(doctor, "_linea_capacidad_backend", backend)
+    bloque = doctor.bloque_capacidades("plugin", "project", verbose=True)
+    nombres = [l["que"] for l in bloque["lineas"]]
+    assert "local" in nombres and "lenta (backend)" in nombres, nombres
+    assert not any("recortada" in l["detalle"] for l in bloque["lineas"]), bloque
+
+
+def test_t10fix2_m7_requiere_red_es_la_misma_condicion_de_linea_capacidad():
+    """M7: `_requiere_red` = activa, sin `health` en `error`, con backend declarado (`type`) y con el
+    cargador de backends disponible (`backends_mod is not None`)."""
+    assert doctor._requiere_red(_cap(), {"type": "t"}, object()) is True
+    assert doctor._requiere_red(_cap(), {"type": "t"}, None) is False
+    assert doctor._requiere_red(_cap(), {}, object()) is False
+    assert doctor._requiere_red(_cap(enabled=False), {"type": "t"}, object()) is False
+    assert doctor._requiere_red(_cap(health={"estado": "error"}), {"type": "t"}, object()) is False
+    assert doctor._requiere_red(_cap(), doctor._EntradaInvalida("x"), object()) is False
+
+
+def test_t10fix2_m7_la_entrada_del_backend_se_lee_una_vez_por_capacidad(monkeypatch):
+    """M7 (D3-6): `bloque_capacidades` lee la entrada del backend UNA vez por capacidad y la pasa a
+    `_requiere_red` y a `_linea_capacidad`."""
+    caps = [{"id": f"c{i}", "enabled": True, "health": {"estado": "declarado"}, "doctor": f"c{i}"} for i in range(3)]
+    monkeypatch.setattr(doctor, "_cargar_capabilities", lambda plugin_root: _cap_mod_lento(caps, 0.0))
+    monkeypatch.setattr(doctor, "_cargar_backends_loader", lambda plugin_root: (object(), "d"))
+    leidas = []
+
+    def leer(project, cap):
+        leidas.append(cap["id"])
+        return {}
+    monkeypatch.setattr(doctor, "_leer_backend_entry", leer)
+    doctor.bloque_capacidades("plugin", "project", verbose=True)
+    assert leidas == ["c0", "c1", "c2"], leidas
+
+
+@pytest.mark.parametrize("datos", [{"backends": []}, {"backends": {"midbackend": 1}}, {"backends": "x"},
+                                   {"backends": {"midbackend": [1]}}])
+def test_t10fix2_179_backends_que_no_son_objetos_es_error_de_config(tmp_path, datos):
+    """#179: `backends` o `backends.<id>` de la config que no son objetos -> error de configuracion de
+    ESA capacidad (fichero y campo, sin traceback): `/doctor` sale con exit 1."""
+    d = tmp_path / ".claude" / "knowledge-services"
+    d.mkdir(parents=True)
+    (d / "taxonomy.json").write_text(json.dumps(datos), encoding="utf-8")
+    cap = _cap(id_="midbackend", config_path=os.path.join(".claude", "knowledge-services", "taxonomy.json"))
+    entrada = doctor._leer_backend_entry(str(tmp_path), cap)
+    assert isinstance(entrada, doctor._EntradaInvalida), entrada
+    l = doctor._linea_capacidad(str(tmp_path), cap, backends_real, FIXTURES_BACKENDS)
+    assert l["estado"] == doctor.ERROR and "taxonomy.json" in l["detalle"] and "backends" in l["detalle"], l
+    assert "corrige" in l["arreglo"]
+    assert doctor._leer_backend_entry(str(tmp_path), _cap(id_="midbackend")) == {}

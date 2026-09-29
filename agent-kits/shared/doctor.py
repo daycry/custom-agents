@@ -1479,10 +1479,22 @@ def _cargar_backends_loader(plugin_root):
     return None, None
 
 
+class _EntradaInvalida:
+    """#179: la entrada `backends.<id>` de la config de una capacidad no se puede usar (`backends` o
+    `backends.<id>` no son objetos): error de CONFIGURACIÓN de esa capacidad, nunca un traceback."""
+
+    def __init__(self, detalle):
+        self.detalle = detalle
+
+    def get(self, _clave, defecto=None):
+        return defecto
+
+
 def _leer_backend_entry(project, cap):
     """Entrada cruda `backends.<id>` (`{"type", "enabled", "config": {...}}`) del `config_path`
     que la propia capacidad declara — genérico: solo busca su propio `cap['id']` dentro de su
-    propio fichero, nunca asume cuál es."""
+    propio fichero, nunca asume cuál es. `{}` si no hay; `_EntradaInvalida` (#179) si `backends` o
+    `backends.<id>` existen y no son objetos."""
     path = cap.get("config_path")
     if not path:
         return {}
@@ -1490,7 +1502,27 @@ def _leer_backend_entry(project, cap):
     datos, _err = _leer_json(ruta)
     if not isinstance(datos, dict):
         return {}
-    return ((datos.get("backends") or {}).get(cap["id"])) or {}
+    backends = datos.get("backends")
+    if backends is None:
+        return {}
+    if not isinstance(backends, dict):
+        return _EntradaInvalida(f"{path}: `backends` debe ser un objeto")
+    entrada = backends.get(cap["id"])
+    if entrada is None:
+        return {}
+    if not isinstance(entrada, dict):
+        return _EntradaInvalida(f"{path}: `backends.{cap['id']}` debe ser un objeto")
+    return entrada
+
+
+def _requiere_red(cap, entrada, backends_mod):
+    """#167/M7 (regla GENÉRICA): la capacidad se comprueba EN VIVO (red) en `_linea_capacidad` —
+    activa, sin `health` en `error`, con backend declarado (`type`) y con el cargador de backends
+    disponible—; las demás tienen su fila ya calculada (coste cero)."""
+    salud = cap.get("health")
+    estado = salud.get("estado") if isinstance(salud, dict) else salud
+    return (bool(cap.get("enabled")) and estado != "error" and backends_mod is not None
+            and isinstance(entrada, dict) and bool(entrada.get("type")))
 
 
 CAPACIDAD_TIMEOUT_MS_TOPE = 2000  # gap 94: ninguna comprobación de red individual pasa de esto
@@ -1590,22 +1622,28 @@ def _linea_capacidad_backend(cap_id, tipo, cfg_adaptador, backends_mod, backends
     return linea(INFO, f"{cap_id} (backend)", f"estado desconocido: {estado!r}", "revisa el adaptador de este backend")
 
 
-def _linea_capacidad(project, cap, backends_mod, backends_dir, tope_ms=CAPACIDAD_TIMEOUT_MS_TOPE):
+def _linea_capacidad(project, cap, backends_mod, backends_dir, tope_ms=CAPACIDAD_TIMEOUT_MS_TOPE, entrada=None):
     """Una fila por capacidad registrada (`capabilities.enumerar()`): error de configuración
-    primero (p. ej. `taxonomy.json` inválido, con fichero+detalle+arreglo), desactivada después, y
-    si está activa con backend declarado, la comprobación EN VIVO de `_linea_capacidad_backend`
-    (si no aplica, el texto genérico `doctor` de la propia capacidad, sin red). `tope_ms` (gap 124)
-    es el presupuesto de red RESTANTE del bloque, no siempre `CAPACIDAD_TIMEOUT_MS_TOPE`."""
+    primero (p. ej. `taxonomy.json` inválido, con fichero+detalle+arreglo; #179: `backends` o
+    `backends.<id>` que no son objetos), desactivada después, y si está activa con backend declarado,
+    la comprobación EN VIVO de `_linea_capacidad_backend` (si no aplica, el texto genérico `doctor` de
+    la propia capacidad, sin red). `tope_ms` (gap 124) es el presupuesto de red RESTANTE del bloque,
+    no siempre `CAPACIDAD_TIMEOUT_MS_TOPE`. `entrada` (M7): la de `_leer_backend_entry`, si el
+    llamador ya la leyó (una sola lectura por capacidad)."""
     salud = cap.get("health")
     estado = salud.get("estado") if isinstance(salud, dict) else salud
     if estado == "error":
         detalle = salud.get("detalle", "") if isinstance(salud, dict) else ""
         fichero = (salud.get("fichero") if isinstance(salud, dict) else None) or cap.get("config_path") or "?"
         return linea(ERROR, cap["id"], f"{fichero}: {detalle}", f"corrige `{fichero}`")
+    if entrada is None:
+        entrada = _leer_backend_entry(project, cap)
+    if isinstance(entrada, _EntradaInvalida):                                   # #179
+        fichero = cap.get("config_path") or "?"
+        return linea(ERROR, cap["id"], entrada.detalle, f"corrige `{fichero}`")
     if not cap.get("enabled"):
         return linea(INFO, cap["id"], "desactivado", "opcional: sigue el `setup_step` del registro si quieres activarla")
     if backends_mod is not None:
-        entrada = _leer_backend_entry(project, cap)
         l = _linea_capacidad_backend(cap["id"], entrada.get("type"), entrada.get("config") or {},
                                      backends_mod, backends_dir, project=project, tope_ms=tope_ms)
         if l is not None:
@@ -1667,25 +1705,33 @@ def bloque_capacidades(plugin_root, project, verbose=False):
     # activas nunca rebase `CAPACIDADES_PRESUPUESTO_S`; y el aviso de recorte cita el tiempo
     # transcurrido REAL, no el tope nominal configurado (pueden diferir si una sola capacidad
     # lenta ya lo rebasó por sí sola).
+    # #167 (regla GENÉRICA): el presupuesto solo acota la comprobación DE RED; una capacidad que no la
+    # requiere (`_requiere_red`: sin backend declarado, desactivada o con su config en error) pinta SIEMPRE
+    # su fila —ya calculada por `enumerar()`: coste cero—, así que un error de config nunca se pierde.
     ls = []
-    recortado = 0
-    for i, cap in enumerate(capacidades):
+    sin_comprobar = []
+    for cap in capacidades:
+        entrada = _leer_backend_entry(project, cap)                             # M7: una vez por capacidad
+        if not _requiere_red(cap, entrada, backends_mod):
+            ls.append(_linea_capacidad(project, cap, backends_mod, backends_dir, entrada=entrada))
+            continue
         transcurrido_s = time.monotonic() - inicio
         restante_s = CAPACIDADES_PRESUPUESTO_S - transcurrido_s
         # gap 133 (fix3): si lo que queda de presupuesto no llega ni al SUELO
         # (`_CAPACIDAD_TOPE_MS_MINIMO`), no tiene sentido comprobar con un timeout que ya sabemos
         # que va a declarar «apagado»/«error» un backend sano — se trata igual que presupuesto
         # agotado (se cuenta como recortada, no como comprobada con un dato falso).
-        if restante_s * 1000 < _CAPACIDAD_TOPE_MS_MINIMO:
-            recortado = len(capacidades) - i
-            break
+        if sin_comprobar or restante_s * 1000 < _CAPACIDAD_TOPE_MS_MINIMO:
+            sin_comprobar.append(cap["id"])
+            continue
         tope_ms = min(CAPACIDAD_TIMEOUT_MS_TOPE, int(restante_s * 1000))
-        ls.append(_linea_capacidad(project, cap, backends_mod, backends_dir, tope_ms=tope_ms))
-    if recortado:
+        ls.append(_linea_capacidad(project, cap, backends_mod, backends_dir, tope_ms=tope_ms, entrada=entrada))
+    if sin_comprobar:
         transcurrido_final_s = time.monotonic() - inicio
         ls.append(linea(AVISO, "capacidades opcionales",
-                         f"comprobación de red recortada: {recortado} capacidad(es) sin comprobar "
-                         f"(tope de {CAPACIDADES_PRESUPUESTO_S:.0f}s del bloque, {transcurrido_final_s:.1f}s transcurridos)",
+                         f"comprobación de red recortada: {len(sin_comprobar)} capacidad(es) sin comprobar "
+                         f"({', '.join(sin_comprobar)}; tope de {CAPACIDADES_PRESUPUESTO_S:.0f}s del bloque, "
+                         f"{transcurrido_final_s:.1f}s transcurridos)",
                          "vuelve a pasar /doctor, o revisa la red del backend más lento"))
     return {"clave": "capacidades", "titulo": "Capacidades opcionales", "lineas": ls}
 

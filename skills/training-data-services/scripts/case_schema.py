@@ -104,6 +104,17 @@ def _err(campo, mensaje):
     return {"campo": campo, "mensaje": mensaje}
 
 
+def texto_seguro(valor):
+    """#111/#153/#172 (CWE-150/451), FUENTE UNICA del escapado: un nombre o texto derivado de la
+    entrada (una clave de `training.json`, una ruta del store, el texto de un `re.error`) se muestra
+    ESCAPADO (`ascii()`, entre comillas) si tiene algo que escapar —caracteres de control, de formato
+    (U+202E), separadores de linea (U+2028) o no ASCII—: nunca una linea falsa ni una secuencia de
+    terminal en un mensaje. Un texto ASCII imprimible sale tal cual. La usan `validar_config` (en el
+    ORIGEN de sus errores) y `case-recorder._texto_ruta`."""
+    texto = str(valor)
+    return texto if texto.isascii() and texto.isprintable() else ascii(texto)
+
+
 def _componente_inseguro(v):
     """Motivo por el que `v` no puede ser un componente de ruta del case store (`family`,
     `variant`), o None. Independiente del patron del proyecto (CWE-22, gaps #4 y #20): el
@@ -197,6 +208,13 @@ def _str_no_vacio(v):
 # ------------------------------------------------------------------ training.json
 
 CATEGORIAS_PROHIBIDAS_ROOT = ("Cc", "Cf", "Zl", "Zp")
+ADMITIDOS_ROOT = frozenset("\u200c\u200d")   # #173: ZWNJ/ZWJ (Cf) son legitimos (persa, emoji compuestos)
+
+
+def _caracter_prohibido_root(c):
+    """#153/#173: control ASCII, o de las categorias Cc/Cf/Zl/Zp salvo ZWNJ/ZWJ: los bidi (U+200E/F,
+    U+202A-202E, U+2066-2069, U+061C), U+200B, U+2060, el BOM, el guion suave… siguen prohibidos."""
+    return ord(c) < 32 or (c not in ADMITIDOS_ROOT and unicodedata.category(c) in CATEGORIAS_PROHIBIDAS_ROOT)
 
 
 def validar_config(cfg, raiz_proyecto=None):
@@ -207,8 +225,8 @@ def validar_config(cfg, raiz_proyecto=None):
         return [_err("(raiz)", "training.json debe ser un objeto JSON")]
     errores = []
     for clave in cfg:
-        if clave not in CLAVES_CONFIG:
-            errores.append(_err(clave, f"clave desconocida (admitidas: {', '.join(CLAVES_CONFIG)})"))
+        if clave not in CLAVES_CONFIG:                  # #172: la clave la elige quien escribe el fichero
+            errores.append(_err(texto_seguro(clave), f"clave desconocida (admitidas: {', '.join(CLAVES_CONFIG)})"))
     if cfg.get("version") not in VERSIONES_SOPORTADAS or not _es_int(cfg.get("version")):
         errores.append(_err("version", f"obligatorio; versiones soportadas: {VERSIONES_SOPORTADAS}"))
     enabled = cfg.get("enabled", False)
@@ -226,11 +244,11 @@ def validar_config(cfg, raiz_proyecto=None):
             errores.append(_err("root", "obligatorio con enabled: true (ruta del case store elegida por el proyecto)"))
         elif root.startswith("~"):
             errores.append(_err("root", "`~` no se expande: usa una ruta relativa al proyecto o absoluta explicita"))
-        elif any(ord(c) < 32 or unicodedata.category(c) in CATEGORIAS_PROHIBIDAS_ROOT for c in root):
+        elif any(_caracter_prohibido_root(c) for c in root):
             # #153 (CWE-150): tambien los de control/formato Unicode (U+202E, CSI U+009B, U+2028/9, DEL):
-            # el `root` se pinta en `/doctor` y en los mensajes del recorder
+            # el `root` se pinta en `/doctor` y en los mensajes del recorder; #173: salvo ZWNJ/ZWJ
             errores.append(_err("root", "no puede contener caracteres de control ni de formato Unicode "
-                                        "(categorias Cc, Cf, Zl, Zp)"))
+                                        "(categorias Cc, Cf, Zl, Zp; se admiten U+200C y U+200D)"))
         elif _root_en_docs_knowledge(root, raiz_proyecto):
             errores.append(_err("root", "el case store no puede vivir dentro de docs/knowledge/ (ADR-019)"))
     if "id_prefix" in cfg or enabled:
@@ -244,8 +262,9 @@ def validar_config(cfg, raiz_proyecto=None):
             errores.append(_err("ids", "debe ser un objeto"))
         else:
             for clave in ids:
-                if clave not in CLAVES_IDS:
-                    errores.append(_err(f"ids.{clave}", f"clave desconocida (admitidas: {', '.join(CLAVES_IDS)})"))
+                if clave not in CLAVES_IDS:                 # #172
+                    errores.append(_err(f"ids.{texto_seguro(clave)}",
+                                        f"clave desconocida (admitidas: {', '.join(CLAVES_IDS)})"))
             for clave in ("family_pattern", "variant_pattern"):
                 if clave in ids:
                     if not isinstance(ids[clave], str):
@@ -254,7 +273,8 @@ def validar_config(cfg, raiz_proyecto=None):
                     try:
                         re.compile(ids[clave])
                     except ERRORES_REGEX as e:   # OverflowError/RecursionError tambien (gap #3)
-                        errores.append(_err(f"ids.{clave}", f"regex invalida: {type(e).__name__}: {e}"))
+                        errores.append(_err(f"ids.{clave}", f"regex invalida: {type(e).__name__}: "
+                                                            f"{texto_seguro(e)}"))          # #172
             if "version_width" in ids:
                 w = ids["version_width"]
                 if not _es_int(w) or not 1 <= w <= 6:

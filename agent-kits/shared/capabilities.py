@@ -328,32 +328,11 @@ def _training_health(root):
     return {"estado": "ok", "root": store, "detalle": f"case store en `{_texto(store)}`"}
 
 
-_TEXTO_DATASET = {"sin_gold": "sin Gold", "sin_export": "desactualizado", "desactualizado": "desactualizado",
-                  "al_dia": "al dia", "no_verificable": "no verificable", "parcial": "no verificado (PARCIAL)"}
-
-
 def _texto_recuento(res, ds):
-    """Texto de `/doctor` del recuento del case store (T-10) a partir de `resumen_store` del recorder
-    y `estado_dataset` del ensamblador (los veredictos son suyos; aqui solo se formatean)."""
-    estados = " · ".join(f"{k} {n}" for k, n in res["por_estado"].items())
-    partes = [f"casos: {estados} ({res['versiones']} versiones)",
-              f"incompletas {res['incompletas']} · temporales huerfanos {res['huerfanos']}"
-              + (f" · demasiado grandes {res['grandes']} (sin leer)" if res.get("grandes") else "")
-              + (f" · otros avisos {res['otros_avisos']}" if res["otros_avisos"] else "")
-              + (f" · en curso {res['en_curso']}" if res["en_curso"] else "")]
-    if res["truncado"]:
-        total = f"al menos {res['casos_total']}" if res.get("listado_parcial") else f"{res['casos_total']}"
-        partes.append(f"recuento PARCIAL: {res['casos_vistos']} de {total} casos (tope de "
-                      f"{res['plazo_s']:g} s; el total lo da `case-recorder.py index check`)")
-    dataset = f"dataset: {_TEXTO_DATASET.get(ds['estado'], ds['estado'])} ({ds['motivo']})"
-    for clave, que in (("incompletos", "export(s) incompleto(s)"), ("en_curso", "export(s) en curso"),
-                       ("otros", "entrada(s) de exports/ que no son un export")):
-        if ds.get(clave):
-            dataset += f" · {ds[clave]} {que}"
-    if res["truncado"] and ds["estado"] != "parcial":
-        dataset += " [parcial: solo lo recorrido]"
-    partes.append(dataset)
-    return " · ".join(partes)
+    """Texto de `/doctor` del recuento del case store y de la frescura del dataset (T-10): lo da el
+    ENSAMBLADOR (`texto_estado`, fuente unica: el mismo de `dataset-assembler.py --estado`); aqui solo
+    se delega (los veredictos y su texto son de la skill)."""
+    return _cargar_tds()["asm"].texto_estado(res, ds)
 
 
 def _training_doctor(root):
@@ -369,11 +348,17 @@ def _training_doctor(root):
     if tds is None:
         return f"{base} · recuento no disponible (sin los scripts de la skill training-data-services)"
     try:
-        res = tds["rec"].resumen_store(salud["root"], root or ".", plazo_s=plazo_restante(TRAINING_PLAZO_S))
-        ds = tds["asm"].estado_dataset(salud["root"], res["gold"], hasta=res["hasta"], parcial=res["truncado"])
+        # M10: `estado_dataset` tiene un margen propio tras el recuento; el total (recuento + margen) no pasa
+        # del tope de la capacidad ni de lo que le quede al bloque de `/doctor` (#164)
+        margen = tds["asm"].MARGEN_ESTADO_S
+        total = plazo_restante(TRAINING_PLAZO_S + margen)
+        plazo = TRAINING_PLAZO_S if total >= TRAINING_PLAZO_S + margen else max(0.0, total - margen)
+        res = tds["rec"].resumen_store(salud["root"], root or ".", plazo_s=plazo)
+        ds = tds["asm"].estado_dataset(salud["root"], res)
+        texto = tds["asm"].texto_estado(res, ds)
     except Exception as e:   # noqa: BLE001 — informar nunca bloquea (CA-07)
         return f"{base} · recuento no disponible ({type(e).__name__})"
-    return f"{base} · {_texto_recuento(res, ds)}"
+    return f"{base} · {texto}"
 
 
 REGISTRO = [

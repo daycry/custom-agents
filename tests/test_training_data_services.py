@@ -431,36 +431,129 @@ def _con_estado_completado(texto):
     return "\n".join(lineas + ["estado: completado"]) + "\n---\n" + resto
 
 
-def test_150_changelog_sync_generaria_las_11_entradas_bajo_added(tmp_path):
-    """#150: ninguna entrada ya presente en los CHANGELOG cita el slug entre comillas invertidas (el
-    chequeo de idempotencia de `changelog-sync` daría la iniciativa por sincronizada). #151: con
-    `changelog: added` en el frontmatter, las 11 tareas caen en `Added` aunque un título diga
-    «regresion». Se simula el cierre sobre una COPIA: el ledger real no cambia de estado."""
-    for fn in ("CHANGELOG.md", "CHANGELOG.es.md"):
-        with open(os.path.join(ROOT, fn), encoding="utf-8") as f:
-            texto = f.read()
-        assert f"`{SLUG}`" not in texto, fn
+CABECERAS = {"CHANGELOG.md": f"— `{SLUG}` initiative", "CHANGELOG.es.md": f"— iniciativa `{SLUG}`"}
+
+
+def _sin_seccion_de_la_iniciativa(texto, fn):
+    """#166: el CHANGELOG sin la(s) seccion(es) `### <Categoria> — … `training-data-services` …` que
+    `changelog-sync` escribe al cerrar (desde su cabecera hasta la siguiente `###`/`##`): el test es el
+    mismo antes y despues del cierre."""
+    fuera, saltando = [], False
+    for linea in texto.split("\n"):
+        if linea.startswith("### ") and CABECERAS[fn] in linea:
+            saltando = True
+            continue
+        if saltando and (linea.startswith("### ") or linea.startswith("## ")):
+            saltando = False
+        if not saltando:
+            fuera.append(linea)
+    return "\n".join(fuera)
+
+
+def _bloques(texto, fn):
+    """Las tareas `T-NN` de cada seccion de la iniciativa (categoria -> [T-NN])."""
+    out = {}
+    for trozo in texto.split("\n### ")[1:]:
+        cabecera, _sep, cuerpo = trozo.partition("\n")
+        if CABECERAS[fn] in cabecera:
+            cuerpo = cuerpo.split("\n## ", 1)[0].split("── ", 1)[0]
+            out[cabecera.split(" ", 1)[0]] = re.findall(r"^- \*\*(T-\d+) — ", cuerpo, re.M)
+    return out
+
+
+def _simular_cierre(tmp_path, textos, ledger):
+    """Copia (en `tmp_path`) de los dos CHANGELOG `textos` y del ledger con `estado: completado`."""
+    for fn, texto in textos.items():
         with open(str(tmp_path / fn), "w", encoding="utf-8", newline="") as f:
             f.write(texto)
-    with open(LEDGER, encoding="utf-8") as f:
-        ledger = f.read()
-    assert re.search(r"^changelog:\s*added\b", ledger.split("\n---\n", 1)[0], re.M), "falta `changelog: added`"
     destino = tmp_path / "docs" / "roadmap" / "2026-09-16-training-data-services"
-    destino.mkdir(parents=True)
+    destino.mkdir(parents=True, exist_ok=True)
     (destino / "tasks.md").write_text(_con_estado_completado(ledger), encoding="utf-8")
     script = os.path.join(ROOT, "skills", "changelog-sync", "scripts", "changelog-sync.py")
-    base = [sys.executable, script, "--root", str(tmp_path), "--dry-run", "--only", SLUG]
-    r = subprocess.run(base + ["--json"], capture_output=True, text=True, encoding="utf-8", timeout=120)
+    return [sys.executable, script, "--root", str(tmp_path), "--only", SLUG]
+
+
+def _comprobar_11_bajo_added(tmp_path, textos, ledger):
+    base = _simular_cierre(tmp_path, {fn: _sin_seccion_de_la_iniciativa(t, fn) for fn, t in textos.items()}, ledger)
+    for fn in textos:
+        with open(str(tmp_path / fn), encoding="utf-8") as f:
+            assert f"`{SLUG}`" not in f.read(), fn            # #150: nada fuera de su seccion cita el slug
+    r = subprocess.run(base + ["--dry-run", "--json"], capture_output=True, text=True, encoding="utf-8", timeout=120)
     assert r.returncode == 0, r.stderr
     pend = json.loads(r.stdout)["pendientes"]
     assert [(p["slug"], p["categoria"], p["tareas"]) for p in pend] == [(SLUG, "Added", 11)], pend
     assert sorted(pend[0]["ficheros"]) == ["CHANGELOG.es.md", "CHANGELOG.md"]
-    r = subprocess.run(base, capture_output=True, text=True, encoding="utf-8", timeout=120)
+    return base
+
+
+def test_150_changelog_sync_generaria_las_11_entradas_bajo_added(tmp_path):
+    """#150/#151/#166: invariante al cierre. Sobre COPIAS de los dos CHANGELOG (sin la seccion de la
+    iniciativa, si ya se escribio) y del ledger con `estado: completado`, `changelog-sync --dry-run
+    --only training-data-services --json` da UNA pendiente `Added` con 11 tareas en los dos ficheros
+    (nada fuera de su seccion cita el slug entre comillas invertidas; `changelog: added` gana a
+    «regresion»). Si los CHANGELOG reales ya tienen la seccion, trae T-01…T-11 bajo `Added`. El ledger
+    real no cambia de estado."""
+    textos = {}
+    for fn in CABECERAS:
+        with open(os.path.join(ROOT, fn), encoding="utf-8") as f:
+            textos[fn] = f.read()
+    with open(LEDGER, encoding="utf-8") as f:
+        ledger = f.read()
+    assert re.search(r"^changelog:\s*added\b", ledger.split("\n---\n", 1)[0], re.M), "falta `changelog: added`"
+    base = _comprobar_11_bajo_added(tmp_path, textos, ledger)
+    r = subprocess.run(base + ["--dry-run"], capture_output=True, text=True, encoding="utf-8", timeout=120)
     assert r.returncode == 0, r.stderr
     for cabecera in (f"### Added — `{SLUG}` initiative", f"### Added — iniciativa `{SLUG}`"):
         bloque = r.stdout.split(cabecera, 1)[1].split("\n### ", 1)[0].split("── ", 1)[0]
         tareas = re.findall(r"^- \*\*(T-\d+) — ", bloque, re.M)
         assert tareas == [f"T-{i:02d}" for i in range(1, 12)], (cabecera, tareas)
+    for fn, texto in textos.items():                         # tras el cierre real: su seccion, entera
+        if CABECERAS[fn] in texto:
+            assert _bloques(texto, fn) == {"Added": [f"T-{i:02d}" for i in range(1, 12)]}, fn
+
+
+def test_166_el_test_de_150_sigue_pasando_despues_del_cierre(tmp_path):
+    """#166: el cierre REAL (`changelog-sync` escribiendo en una copia) no pone en rojo el test de
+    #150: tras escribir, la copia trae T-01…T-11 bajo `Added` en los dos CHANGELOG y la misma
+    comprobacion (quitando la seccion ya escrita) vuelve a dar las 11 pendientes."""
+    textos = {}
+    for fn in CABECERAS:
+        with open(os.path.join(ROOT, fn), encoding="utf-8") as f:
+            textos[fn] = _sin_seccion_de_la_iniciativa(f.read(), fn)
+    with open(LEDGER, encoding="utf-8") as f:
+        ledger = f.read()
+    (tmp_path / "cierre").mkdir()
+    base = _simular_cierre(tmp_path / "cierre", textos, ledger)
+    r = subprocess.run(base,capture_output=True, text=True, encoding="utf-8", timeout=120)
+    assert r.returncode == 0, r.stderr
+    cerrados = {}
+    for fn in CABECERAS:
+        with open(str(tmp_path / "cierre" / fn), encoding="utf-8") as f:
+            cerrados[fn] = f.read()
+        assert _bloques(cerrados[fn], fn) == {"Added": [f"T-{i:02d}" for i in range(1, 12)]}, fn
+    (tmp_path / "otra").mkdir()
+    _comprobar_11_bajo_added(tmp_path / "otra", cerrados, ledger)
+
+
+def test_174_el_bullet_de_t11_cuenta_lo_nuevo_de_la_ci(tmp_path):
+    """#174: el campo **Changelog** de T-11 nombra lo nuevo de #94: la CI ejecuta tambien las suites de
+    `training-data-services` y `knowledge-services` (y un test de repo lo vigila)."""
+    with open(LEDGER, encoding="utf-8") as f:
+        ledger = f.read()
+    t11 = ledger.split("### T-11 - ", 1)[1].split("\n## ", 1)[0]
+    campo = re.search(r"^- \*\*Changelog\*\*: (.+)$", t11, re.M).group(1)
+    for palabra in ("CI", "training-data-services", "knowledge-services"):
+        assert palabra in campo, (palabra, campo)
+    assert len(campo) <= 200, len(campo)
+    textos = {}
+    for fn in CABECERAS:
+        with open(os.path.join(ROOT, fn), encoding="utf-8") as f:
+            textos[fn] = _sin_seccion_de_la_iniciativa(f.read(), fn)
+    base = _simular_cierre(tmp_path, textos, ledger)
+    r = subprocess.run(base + ["--dry-run"], capture_output=True, text=True, encoding="utf-8", timeout=120)
+    assert r.returncode == 0, r.stderr
+    bullet = next(l for l in r.stdout.splitlines() if l.startswith("- **T-11 — "))
+    assert "CI" in bullet and "knowledge-services" in bullet, bullet
 
 
 def main():

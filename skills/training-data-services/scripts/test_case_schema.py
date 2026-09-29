@@ -833,3 +833,37 @@ def test_t10fix1_153_root_con_formato_o_control_unicode_se_rechaza():
         errores = cs.validar_config(dict(CONFIG_OK, id_prefix="geo" + raro))
         assert any(e["campo"] == "id_prefix" for e in errores), repr(mal)
     assert cs.validar_config(dict(CONFIG_OK, root="../almacén de casos")) == []
+
+
+# ------------------------------------------------------------------ T-10 fix2 (revision intento 2, Fase 4)
+
+def test_t10fix2_172_los_errores_de_validar_config_salen_escapados_desde_el_origen():
+    """#172 (CWE-150): las CLAVES de `training.json`, las de `ids` y el texto de `re.error` llegan a la
+    salida de `/doctor`: `validar_config` las escapa en el ORIGEN (`texto_seguro`, fuente unica, la
+    misma regla que `case-recorder._texto_ruta`), nunca un U+202E ni un CSI U+009B en crudo."""
+    crudos = ("\u202e", "\u009b", "\x1b")
+    for cfg in (dict(CONFIG_OK, **{"\u202egnp.exe\u009b2J x": 1}),
+                dict(CONFIG_OK, ids={"\u202eX\u009b31m": 1}),
+                dict(CONFIG_OK, ids={"family_pattern": "(?<\u202e>a)"})):
+        errores = cs.validar_config(cfg)
+        assert errores, cfg
+        for e in errores:
+            for c in crudos:
+                assert c not in e["campo"] and c not in e["mensaje"], (e, repr(c))
+    e = cs.validar_config(dict(CONFIG_OK, **{"\u202egnp.exe\u009b2J x": 1}))[0]
+    assert e["campo"] == ascii("\u202egnp.exe\u009b2J x") and "clave desconocida" in e["mensaje"]
+    assert cs.validar_config(dict(CONFIG_OK, ids={"otra": 1}))[0]["campo"] == "ids.otra"
+    assert cs.texto_seguro("root") == "root" and cs.texto_seguro("almacén") == ascii("almacén")
+
+
+def test_t10fix2_173_root_admite_zwnj_y_zwj_y_sigue_rechazando_bidi_y_controles():
+    """#173: U+200C/U+200D (ZWNJ/ZWJ, categoria Cf) son legitimos en nombres (persa, emoji compuestos)
+    y se admiten en `root`; los controles bidi (U+200E/F, U+202A-202E, U+2066-2069, U+061C), U+200B,
+    U+2060, el BOM y el resto de Cc/Cf/Zl/Zp se siguen rechazando."""
+    for bueno in ("../\u0645\u06cc\u200c\u062e\u0648\u0627\u0647\u0645", "../casos-\U0001f469\u200d\U0001f4bb"):
+        assert cs.validar_config(dict(CONFIG_OK, root=bueno)) == [], repr(bueno)
+    for malo in ("\u200e", "\u200f", "\u202a", "\u202b", "\u202c", "\u202d", "\u202e", "\u2066", "\u2067",
+                 "\u2068", "\u2069", "\u061c", "\u200b", "\u2060", "\ufeff", "\u00ad", "\x7f", "\x9b", "\u2028",
+                 "\u2029"):
+        errores = cs.validar_config(dict(CONFIG_OK, root=f"../a{malo}b"))
+        assert any(e["campo"] == "root" for e in errores), repr(malo)

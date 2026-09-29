@@ -199,8 +199,9 @@ def _manifest(r):
 
 
 def _exports(store):
-    """Los exports de `exports/` (sin el `.lock` de la exclusion entre ensambladores, #124)."""
-    return sorted(n for n in os.listdir(store / "exports") if n != ".lock")
+    """Los exports de `exports/` (sin el `.lock` de la exclusion entre ensambladores, #124, ni la marca
+    `.ultimo.json` del ultimo ensamblado, D-f4: ningun nombre que empiece por `.`)."""
+    return sorted(n for n in os.listdir(store / "exports") if not n.startswith("."))
 
 
 def test_t09_solo_gold_entra_en_el_dataset(tmp_path):
@@ -334,7 +335,7 @@ def test_t09_reensamblar_lo_mismo_no_escribe_nada(tmp_path):
     antes = {p: open(os.path.join(r1["ruta"], p), "rb").read() for p in os.listdir(r1["ruta"])}
     r2 = _ensamblar(cfg, raiz)
     assert r2["existente"] is True and r2["ruta"] == r1["ruta"]
-    assert sorted(os.listdir(store / "exports")) == [".lock", os.path.basename(r1["ruta"])]
+    assert sorted(os.listdir(store / "exports")) == [".lock", asm.MARCA, os.path.basename(r1["ruta"])]   # D-f4
     assert {p: open(os.path.join(r1["ruta"], p), "rb").read() for p in os.listdir(r1["ruta"])} == antes
 
 
@@ -1021,10 +1022,11 @@ def test_t09_134_metadata_o_validation_por_encima_del_tope_se_omiten_en_el_recor
     enteros `metadata.json`/`validation.json` de TODAS las versiones (Gold o no): una version con uno
     de ellos por encima del tope se omite con aviso, sin cargarlo."""
     raiz, cfg, store = _store_basico(tmp_path)
+    # fix2 (#171/M6): el tope del RECORRIDO es `TOPE_JSON_CASO` (el mismo de `/doctor`), no `tope_fichero`
     with open(_gold_ruta(store, "b.x", 1) / "metadata.json", "ab") as f:      # rejected: no Gold
-        f.write(b" " * 8192)
+        f.write(b" " * (rec.TOPE_JSON_CASO + 1))
     with open(_gold_ruta(store, "b.y", 1) / "validation.json", "ab") as f:    # needs_changes
-        f.write(b" " * 8192)
+        f.write(b" " * (rec.TOPE_JSON_CASO + 1))
     r = _ensamblar(cfg, raiz, escribir=False, tope_fichero=4096)
     refs = {c["ref"] for c in r["manifest"]["casos"]}
     assert "geo-b.x@v001" not in refs and "geo-b.y@v001" not in refs
@@ -1272,8 +1274,8 @@ def test_t09_135_sha_de_un_fichero_del_export_no_se_bloquea_en_un_fifo(tmp_path,
 # ------------------------------------------------------------------ T-10: frescura del dataset para /doctor
 
 def _vigentes(store, raiz):
-    """Los Gold vigentes (`(case_id, version) -> content_hash`) tal como los ve `/doctor`."""
-    return rec.resumen_store(str(store), raiz)["gold"]
+    """El resumen del store tal como lo ve `/doctor` (D-f4: su `firma`, `n_gold`, `truncado`…)."""
+    return rec.resumen_store(str(store), raiz)
 
 
 def _viejo(ruta, segundos=3600):
@@ -1296,7 +1298,7 @@ def test_t10_estado_dataset_con_gold_y_ningun_export_esta_desactualizado(tmp_pat
 
 def test_t10_estado_dataset_al_dia_y_luego_desactualizado_por_un_gold_nuevo(tmp_path):
     raiz, cfg, store = _store_basico(tmp_path)
-    r = _ensamblar(cfg, raiz)
+    r = _ensamblar(cfg, raiz, escribir=True)
     nombre = os.path.basename(r["ruta"])
     d = asm.estado_dataset(str(store), _vigentes(store, raiz))
     assert d["estado"] == "al_dia" and d["exports"] == 1 and d["ultimo"] == nombre
@@ -1337,7 +1339,7 @@ def test_t10_estado_dataset_exports_que_es_un_enlace_no_se_sigue(tmp_path):
     (fuera / "x").mkdir(parents=True)
     (fuera / "x" / "manifest.json").write_text("{}", encoding="utf-8")
     _enlazar_dir(fuera, store / "exports")
-    d = asm.estado_dataset(str(store), {("geo-a.x", 1): None})
+    d = asm.estado_dataset(str(store), {"n_gold": 1, "firma": "0" * 64})
     assert d["estado"] == "no_verificable" and d["exports"] == 0 and "enlace" in d["motivo"]
 
 
@@ -1366,28 +1368,30 @@ def test_t10fix1_154_frescura_por_contenido_no_por_mtime(tmp_path):
     rec.cambiar_estado("geo-a.x", 1, "approved", cfg, raiz, approved_by_human=True)     # re-aprobar
     os.utime(str(val), ns=(4_000_000_000_000_000_000,) * 2)
     assert asm.estado_dataset(str(store), _vigentes(store, raiz))["estado"] == "al_dia"
-    rec.cambiar_estado("geo-bench.x", 1, "rejected", cfg, raiz)                        # deja de ser Gold
+    rec.cambiar_estado("geo-a.x", 2, "rejected", cfg, raiz)                            # deja de ser Gold
     d = asm.estado_dataset(str(store), _vigentes(store, raiz))
-    assert d["estado"] == "desactualizado" and "ya no es Gold" in d["motivo"], d
+    assert d["estado"] == "desactualizado" and "2 Gold vigentes frente a 3" in d["motivo"], d
 
 
 def test_t10fix1_154_un_gold_cuyo_contenido_cambio_desactualiza(tmp_path):
     raiz, cfg, store = _store_basico(tmp_path)
     _ensamblar(cfg, raiz, escribir=True)
-    gold = _vigentes(store, raiz)
+    res = _vigentes(store, raiz)
+    gold = dict(res["gold"])
     clave = sorted(k for k, h in gold.items() if h)[0]
-    gold[clave] = "0" * 64
-    d = asm.estado_dataset(str(store), gold)
-    assert d["estado"] == "desactualizado" and "contenido" in d["motivo"], d
+    gold[clave] = "0" * 64                                     # D-f4: la firma de otro contenido aprobado
+    d = asm.estado_dataset(str(store), dict(res, gold=gold, firma=rec.firma_gold(gold)))
+    assert d["estado"] == "desactualizado" and "contenido distinto" in d["motivo"], d
 
 
 def test_t10fix1_154_con_recuento_parcial_solo_se_comprueba_lo_recorrido(tmp_path):
     raiz, cfg, store = _store_basico(tmp_path)
     _ensamblar(cfg, raiz, escribir=True)
-    gold = _vigentes(store, raiz)
-    parte = dict([sorted(gold.items())[0]])
-    assert asm.estado_dataset(str(store), parte, parcial=True)["estado"] == "al_dia"
-    assert asm.estado_dataset(str(store), parte)["estado"] == "desactualizado"
+    res = _vigentes(store, raiz)
+    parte = dict([sorted(res["gold"].items())[0]])                # D-f4 + M10: lo recorrido, sin cortar ni no
+    parcial = dict(res, gold=parte, n_gold=1, firma=rec.firma_gold(parte), truncado=True)
+    assert asm.estado_dataset(str(store), parcial)["estado"] == "parcial"
+    assert asm.estado_dataset(str(store), dict(parcial, truncado=False))["estado"] == "desactualizado"
 
 
 def test_t10fix1_156_en_curso_incompleto_y_otros_son_categorias_distintas(tmp_path):
@@ -1416,3 +1420,483 @@ def test_t10fix1_152_el_recorrido_de_exports_va_dentro_del_plazo(tmp_path):
         (store / "exports" / f"2026010{i % 9}-{i:012d}").mkdir(parents=True)
     d = asm.estado_dataset(str(store), _vigentes(store, raiz), hasta=rec._crono() - 1)
     assert d["estado"] == "parcial" and "tope de tiempo" in d["motivo"] and d["exports"] == 0, d
+
+
+# ------------------------------------------------------------------ T-10 fix2: D-f4 (firma de la entrada + marca del ultimo ensamblado)
+
+def _estado(store, raiz, **kw):
+    return asm.estado_dataset(str(store), rec.resumen_store(str(store), raiz), **kw)
+
+
+def _marca(store):
+    with open(str(store / "exports" / asm.MARCA), encoding="utf-8") as f:
+        return json.load(f)
+
+
+def test_t10fix2_f2_el_ensamblado_real_escribe_la_marca_del_ultimo_ensamblado(tmp_path):
+    """F2 + M3 + M6: tras un ensamblado REAL («escrito» o «ya existe»), `exports/.ultimo.json` =
+    `{version, export_id, directorio, firma, gold, creado, parametros}` (<= 4 KiB): la firma es la de la
+    entrada que ve `/doctor` y `--dry-run` no la escribe."""
+    raiz, cfg, store = _store_basico(tmp_path)
+    _ensamblar(cfg, raiz, escribir=False)
+    assert not (store / "exports").exists()
+    r = _ensamblar(cfg, raiz, escribir=True)
+    m = _marca(store)
+    assert sorted(m) == sorted(asm.CLAVES_MARCA) and m["version"] == 1
+    assert m["directorio"] == os.path.basename(r["ruta"]) == m["export_id"] == r["export_id"]
+    res = rec.resumen_store(str(store), raiz)
+    assert m["firma"] == res["firma"] and m["gold"] == res["n_gold"] == 3
+    assert m["parametros"]["benchmark"] == ["bench"] and m["parametros"]["umbral"] == 0.8
+    assert (store / "exports" / asm.MARCA).stat().st_size <= asm.TOPE_MARCA
+    assert r["aviso_marca"] is None
+    d = _estado(store, raiz)
+    assert d["estado"] == "al_dia" and d["ultimo"] == m["directorio"], d
+    assert "con los parametros del ultimo ensamblado" in d["motivo"] and "benchmark=bench" in d["motivo"]
+
+
+def test_t10fix2_168_b21_sin_atar_reaprobar_desactualiza_y_reensamblar_limpia(tmp_path):
+    """#168 (B2-1 literal): se cambia `request.json` de un Gold -> el export lo excluye («sin atar») ->
+    se re-aprueba (el remedio del propio motivo) -> `/doctor` dice `desactualizado` (antes: `al_dia`,
+    y reensamblar escribia un export nuevo con ese caso en train) -> reensamblar -> `al_dia`."""
+    raiz, cfg, store = _store_basico(tmp_path)
+    _ensamblar(cfg, raiz, escribir=True)
+    req = store / "cases" / "a.x" / "v001" / "request.json"
+    req.write_text(json.dumps({"request": "rampa de treinta grados con bola AZUL"}), encoding="utf-8")
+    r1 = _ensamblar(cfg, raiz, escribir=True)
+    assert any(c["motivo"] == asm.MOTIVO_SIN_ATAR for c in _manifest(r1)["casos"])
+    assert _estado(store, raiz)["estado"] == "al_dia"      # la firma describe la entrada, no el resultado
+    rec.cambiar_estado("geo-a.x", 1, "approved", cfg, raiz, approved_by_human=True)
+    d = _estado(store, raiz)
+    assert d["estado"] == "desactualizado" and "mismo numero de Gold" in d["motivo"], d
+    r2 = _ensamblar(cfg, raiz, escribir=True)
+    assert r2["existente"] is False and not any(c["motivo"] == asm.MOTIVO_SIN_ATAR for c in _manifest(r2)["casos"])
+    assert _estado(store, raiz)["estado"] == "al_dia"
+
+
+def test_t10fix2_168_nota_a_gold_excluido_por_un_aviso_permanente_sigue_al_dia(tmp_path):
+    """#168 (nota de A): un Gold que el ensamblador EXCLUYE por un aviso permanente de `leer_caso`
+    (trayectoria ilegible) sigue en la firma con su `content_hash`: `al_dia`, y reensamblar («ya
+    existe») lo deja `al_dia` (antes: «desactualizado» que reensamblar no limpiaba)."""
+    raiz, cfg, store = _store_basico(tmp_path)
+    (store / "cases" / "a.x" / "v001" / "trajectory.jsonl").write_text("{roto\n", encoding="utf-8")
+    r = _ensamblar(cfg, raiz, escribir=True)
+    assert any(c["ref"] == "geo-a.x@v001" and c["particion"] is None for c in _manifest(r)["casos"])
+    assert _estado(store, raiz)["estado"] == "al_dia"
+    r2 = _ensamblar(cfg, raiz, escribir=True)
+    assert r2["existente"] is True and _estado(store, raiz)["estado"] == "al_dia"
+
+
+def test_t10fix2_169_b22_ya_existe_reescribe_la_marca_nunca_por_mtime(tmp_path, monkeypatch):
+    """#169 (B2-2 literal): E1 -> se rechaza un Gold -> E2 -> se re-aprueba -> reensamblar da E1
+    «ya existe» -> `al_dia` (la marca se reescribe tambien en «ya existe»; el ultimo export ya no se
+    elige por el `mtime` de su `manifest.json`)."""
+    monkeypatch.setattr(rec, "_ahora", lambda: "2026-09-29T10:00:00Z")    # re-aprobar da los mismos bytes
+    raiz, cfg, store = _store_basico(tmp_path)
+    e1 = _ensamblar(cfg, raiz, escribir=True)
+    rec.cambiar_estado("geo-a.x", 2, "rejected", cfg, raiz)
+    e2 = _ensamblar(cfg, raiz, escribir=True)
+    assert e2["export_id"] != e1["export_id"] and _marca(store)["directorio"] == e2["export_id"]
+    rec.cambiar_estado("geo-a.x", 2, "approved", cfg, raiz, approved_by_human=True)
+    d = _estado(store, raiz)
+    assert d["estado"] == "desactualizado" and "3 Gold vigentes frente a 2" in d["motivo"], d
+    e3 = _ensamblar(cfg, raiz, escribir=True)
+    assert e3["existente"] is True and e3["export_id"] == e1["export_id"]
+    assert _marca(store)["directorio"] == e1["export_id"]
+    d = _estado(store, raiz)
+    assert d["estado"] == "al_dia" and d["ultimo"] == e1["export_id"], d
+
+
+def test_t10fix2_m1_una_version_incompleta_vieja_no_deja_la_frescura_sin_verificar(tmp_path):
+    """M1 (G1): una omision PERMANENTE (version incompleta vieja) es la misma en los dos lados
+    (`_estado_de_cases`): se compara con normalidad -> `al_dia`, nunca `no_verificable` para siempre."""
+    raiz, cfg, store = _store_basico(tmp_path)
+    (store / "cases" / "a.x" / "v009").mkdir()
+    _viejo(store / "cases" / "a.x" / "v009")
+    _ensamblar(cfg, raiz, escribir=True)
+    res = rec.resumen_store(str(store), raiz)
+    assert res["incompletas"] == 1 and res["transitorias"] == 0
+    assert asm.estado_dataset(str(store), res)["estado"] == "al_dia"
+
+
+def test_t10fix2_m2_un_gold_omitido_por_una_causa_transitoria_desactualiza_y_reensamblar_limpia(tmp_path, monkeypatch):
+    """M2 (G2): un Gold que `leer_caso` omite por una causa TRANSITORIA («no legible tras N
+    reintentos») entra en la firma del ensamblador como `"!transitoria"`: nunca coincide con lo que
+    ve `/doctor` -> `desactualizado`; reensamblar sin el bloqueo lo limpia (antes: `al_dia` falso con
+    train 0 frente a 1)."""
+    raiz, cfg, store = _store_basico(tmp_path)
+    real = rec._abrir_lectura
+    bloqueada = os.path.normcase(str(store / "cases" / "a.x" / "v002" / "request.json"))
+
+    def bloqueado(ruta):
+        if os.path.normcase(str(ruta)) == bloqueada:
+            raise PermissionError(13, "bloqueado por otro proceso")
+        return real(ruta)
+    monkeypatch.setattr(rec, "_abrir_lectura", bloqueado)
+    monkeypatch.setattr(rec, "ESPERA_REINTENTO_S", 0.0)
+    r = _ensamblar(cfg, raiz, escribir=True)
+    assert any(c["ref"] == "geo-a.x@v002" and c["particion"] is None for c in _manifest(r)["casos"])
+    monkeypatch.setattr(rec, "_abrir_lectura", real)
+    d = _estado(store, raiz)
+    assert d["estado"] == "desactualizado" and "mismo numero de Gold" in d["motivo"], d
+    r2 = _ensamblar(cfg, raiz, escribir=True)
+    assert r2["existente"] is False and _estado(store, raiz)["estado"] == "al_dia"
+
+
+def test_t10fix2_m3_la_marca_guarda_el_directorio_real_con_su_sufijo(tmp_path):
+    """M3 (G3): `exports/<id>/` incompleto -> el ensamblado escribe `<id>.2`; la marca guarda ESE
+    directorio (validado con el patron) -> `al_dia`; reensamblar -> «ya existe» `<id>.2` -> `al_dia`."""
+    raiz, cfg, store = _store_basico(tmp_path)
+    export_id = _ensamblar(cfg, raiz, escribir=False)["export_id"]
+    (store / "exports" / export_id).mkdir(parents=True)
+    r = _ensamblar(cfg, raiz, escribir=True)
+    assert os.path.basename(r["ruta"]) == f"{export_id}.2"
+    m = _marca(store)
+    assert m["export_id"] == export_id and m["directorio"] == f"{export_id}.2"
+    assert _estado(store, raiz)["estado"] == "al_dia"
+    r2 = _ensamblar(cfg, raiz, escribir=True)
+    assert r2["existente"] is True and os.path.basename(r2["ruta"]) == f"{export_id}.2"
+    d = _estado(store, raiz)
+    assert d["estado"] == "al_dia" and d["ultimo"] == f"{export_id}.2", d
+    for malo in (f"{export_id}.1", f"{export_id}.100", f"{export_id}/../x", "20260101-ABCDEFABCDEF"):
+        assert not asm.PATRON_DIRECTORIO.fullmatch(malo), malo
+
+
+def test_t10fix2_m4_aba_la_firma_usa_la_lectura_que_decidio_el_destino(tmp_path, monkeypatch):
+    """M4 (G4): aprobada (H) en el recorrido -> rechazada DURANTE la pasada 1 (antes de `leer_caso`) ->
+    re-aprobada (H). La firma del ensamblado usa la lectura que decidio su destino (`leer_caso`: ya no
+    era Gold, sin entrada): tras re-aprobar, `desactualizado` (no un `al_dia` falso)."""
+    raiz, cfg, store = _store_basico(tmp_path)
+    real = asm.leer_caso
+
+    def leer(ctx, st, entrada, *a, **k):
+        if (entrada["case_id"], entrada["version"]) == ("geo-a.x", 1):
+            rec.cambiar_estado("geo-a.x", 1, "rejected", cfg, raiz)
+        return real(ctx, st, entrada, *a, **k)
+    monkeypatch.setattr(asm, "leer_caso", leer)
+    r = _ensamblar(cfg, raiz, escribir=True)
+    monkeypatch.setattr(asm, "leer_caso", real)
+    assert not any(c["ref"] == "geo-a.x@v001" and c["particion"] for c in _manifest(r)["casos"])
+    assert _marca(store)["gold"] == 2
+    rec.cambiar_estado("geo-a.x", 1, "approved", cfg, raiz, approved_by_human=True)
+    d = _estado(store, raiz)
+    assert d["estado"] == "desactualizado" and "3 Gold vigentes frente a 2" in d["motivo"], d
+
+
+def test_t10fix2_m5_un_gold_con_hash_invalido_es_el_mismo_centinela_en_los_dos_lados(tmp_path):
+    """M5: un `content_hash` de 1 MB (no es un sha256) cuenta como el centinela `"!"` en `/doctor` y
+    en la pasada 1: las firmas coinciden (`al_dia`) sin retener la cadena."""
+    raiz, cfg, store = _store_basico(tmp_path)
+    val = store / "cases" / "a.x" / "v001" / "validation.json"
+    v = json.loads(val.read_text(encoding="utf-8"))
+    v["content_hash"] = "x" * 1_000_000
+    val.write_text(json.dumps(v), encoding="utf-8")
+    r = _ensamblar(cfg, raiz, escribir=True)
+    assert any(c["ref"] == "geo-a.x@v001" and c["motivo"] == asm.MOTIVO_SIN_ATAR for c in _manifest(r)["casos"])
+    res = rec.resumen_store(str(store), raiz)
+    assert res["gold"][("geo-a.x", 1)] is rec.CENTINELA_HASH
+    assert asm.estado_dataset(str(store), res)["estado"] == "al_dia"
+
+
+def test_t10fix2_171_el_ensamblador_aplica_el_mismo_tope_json_caso_que_doctor(tmp_path):
+    """#171: el ensamblador lee `metadata.json`/`validation.json` con `TOPE_JSON_CASO` (no con
+    `tope_fichero`): un `validation.json` de 1 MiB + 1 omite la version en los DOS lados (misma
+    firma, `al_dia`) y uno de 1 MiB se lee aunque `tope_fichero` sea menor."""
+    raiz, cfg, store = _store_basico(tmp_path)
+    for fv, tam in (("a.x/v001", rec.TOPE_JSON_CASO + 1), ("a.x/v002", 2 * 1024)):
+        val = store / "cases" / fv / "validation.json"
+        datos = val.read_bytes().rstrip()
+        val.write_bytes(datos + b" " * (tam - len(datos)))
+    r = _ensamblar(cfg, raiz, escribir=True, tope_fichero=1024 * 1024 + 4096)
+    refs = {c["ref"]: c for c in _manifest(r)["casos"]}
+    assert "geo-a.x@v001" not in refs and refs["geo-a.x@v002"]["particion"] == "train", refs
+    res = rec.resumen_store(str(store), raiz)
+    assert res["grandes"] == 1 and asm.estado_dataset(str(store), res)["estado"] == "al_dia"
+    (tmp_path / "otro").mkdir()
+    raiz2, cfg2, store2 = _store_basico(tmp_path / "otro")           # validation.json entre tope_fichero y 1 MiB:
+    val = store2 / "cases" / "a.x" / "v002" / "validation.json"      # `leer_caso` lo omite (grande, permanente)
+    datos = val.read_bytes().rstrip()                                # y la firma usa la lectura del recorrido
+    val.write_bytes(datos + b" " * (4096 - len(datos)))
+    r2 = _ensamblar(cfg2, raiz2, escribir=True, tope_fichero=2048)
+    assert any(c["ref"] == "geo-a.x@v002" and c["particion"] is None for c in _manifest(r2)["casos"])
+    assert _marca(store2)["firma"] == rec.resumen_store(str(store2), raiz2)["firma"]
+    assert _estado(store2, raiz2)["estado"] == "al_dia"
+
+
+def _plantar_enlace_fichero(objetivo, enlace):
+    try:
+        os.symlink(str(objetivo), str(enlace))
+    except (OSError, NotImplementedError) as e:          # pragma: no cover - Windows sin privilegio
+        return str(e)
+    return None
+
+
+def test_t10fix2_m8_una_marca_ajena_no_se_reemplaza_ni_se_sigue(tmp_path):
+    """F2 + M8: una `exports/.ultimo.json` que no es de la pieza (enlace duro, symlink, fichero de
+    1 MiB, JSON sin el esquema) NO se reemplaza ni se sigue: el export es valido (aviso con el
+    remedio) y la frescura sale `no_verificable` con «retira `exports/.ultimo.json` a mano»."""
+    fuera = tmp_path / "ajeno.json"
+    casos = []
+    for tipo in ("duro", "symlink", "grande", "esquema"):
+        (tmp_path / tipo).mkdir()
+        raiz, cfg, store = _store_basico(tmp_path / tipo)
+        (store / "exports").mkdir(parents=True)
+        marca = store / "exports" / asm.MARCA
+        fuera.write_text('{"ajeno": true}', encoding="utf-8")
+        if tipo == "duro":
+            os.link(str(fuera), str(marca))
+        elif tipo == "symlink":
+            error = _plantar_enlace_fichero(fuera, marca)
+            if error:
+                casos.append(("symlink omitido", error))
+                continue
+        elif tipo == "grande":
+            with open(str(marca), "wb") as f:
+                f.truncate(1024 * 1024)
+        else:
+            marca.write_text('{"version": 1, "export_id": "x"}', encoding="utf-8")
+        antes = (fuera.read_bytes(), os.lstat(str(marca)).st_size)
+        creados, real = [], rec._abrir_exclusivo
+
+        def abrir(ruta):                                    # ni siquiera se crea el temporal de la marca
+            if os.path.normcase(os.path.dirname(str(ruta))) == os.path.normcase(str(store / "exports")):
+                creados.append(os.path.basename(str(ruta)))
+            return real(ruta)
+        rec._abrir_exclusivo = abrir
+        try:
+            r = _ensamblar(cfg, raiz, escribir=True)
+        finally:
+            rec._abrir_exclusivo = real
+        assert creados == [], (tipo, creados)
+        assert r["ruta"] and r["aviso_marca"] and asm.MARCA in r["aviso_marca"], (tipo, r["aviso_marca"])
+        assert (fuera.read_bytes(), os.lstat(str(marca)).st_size) == antes, tipo
+        d = _estado(store, raiz)
+        assert d["estado"] == "no_verificable" and "a mano (solo ese nombre)" in d["motivo"], (tipo, d)
+        casos.append((tipo, "ok"))
+    assert [c for c in casos if c[1] == "ok"], casos
+
+
+def test_t10fix2_m8_la_marca_se_publica_con_reemplazar_y_su_temporal_se_retira(tmp_path, monkeypatch):
+    """M8: la marca se publica con `rec._reemplazar` (reintentos acotados) desde un `.tmp-*` propio que
+    se retira en un `finally`; si no se puede publicar tras un export valido: aviso y la marca
+    anterior intacta (el siguiente ensamblado, «ya existe», la reescribe)."""
+    raiz, cfg, store = _store_basico(tmp_path)
+    usados = []
+    real = rec._reemplazar
+
+    def espia(origen, destino):
+        usados.append((os.path.basename(origen)[:5], os.path.basename(destino)))
+        return real(origen, destino)
+    monkeypatch.setattr(rec, "_reemplazar", espia)
+    _ensamblar(cfg, raiz, escribir=True)
+    assert usados == [(rec.PREFIJO_TEMPORAL, asm.MARCA)], usados
+    anterior = (store / "exports" / asm.MARCA).read_bytes()
+    monkeypatch.setattr(rec, "_reemplazar", real)
+    _grabar(cfg, raiz, family="c", variant="x", request="escalera de caracol con barandilla de hierro forjado")
+
+    def falla(origen, destino):
+        raise PermissionError(13, "bloqueado")
+    monkeypatch.setattr(rec, "_reemplazar", falla)
+    r = _ensamblar(cfg, raiz, escribir=True)
+    assert r["existente"] is False and r["aviso_marca"] and "no se pudo" in r["aviso_marca"]
+    assert (store / "exports" / asm.MARCA).read_bytes() == anterior
+    assert not [n for n in os.listdir(str(store / "exports")) if n.startswith(rec.PREFIJO_TEMPORAL)]
+    assert _estado(store, raiz)["estado"] == "desactualizado"
+    monkeypatch.setattr(rec, "_reemplazar", real)
+    r2 = _ensamblar(cfg, raiz, escribir=True)
+    assert r2["existente"] is True and _estado(store, raiz)["estado"] == "al_dia"
+
+
+def test_t10fix2_m8_muerte_a_mitad_deja_la_marca_anterior_intacta(tmp_path, monkeypatch):
+    """F2: una muerte entre el `.tmp` y el reemplazo deja la marca ANTERIOR intacta; un `.tmp-*`
+    huerfano en `exports/` no cuenta como export ni estorba al siguiente ensamblado."""
+    raiz, cfg, store = _store_basico(tmp_path)
+    _ensamblar(cfg, raiz, escribir=True)
+    anterior = (store / "exports" / asm.MARCA).read_bytes()
+
+    _grabar(cfg, raiz, family="c", variant="x", request="escalera de caracol con barandilla de hierro forjado")
+
+    def muere(origen, destino):
+        raise KeyboardInterrupt
+    monkeypatch.setattr(rec, "_reemplazar", muere)
+    with pytest.raises(KeyboardInterrupt):
+        _ensamblar(cfg, raiz, escribir=True)
+    assert (store / "exports" / asm.MARCA).read_bytes() == anterior
+    (store / "exports" / f"{rec.PREFIJO_TEMPORAL}deadbeef").write_bytes(b'{"medio')      # muerte «de verdad»
+    d = _estado(store, raiz)
+    assert d["estado"] == "desactualizado" and d["otros"] == 0 and d["exports"] == 2, d
+    monkeypatch.undo()
+    _ensamblar(cfg, raiz, escribir=True)
+    assert _estado(store, raiz)["estado"] == "al_dia"
+
+
+def test_t10fix2_m6_los_parametros_no_entran_en_la_firma(tmp_path):
+    """M6 (G6): los parametros del ensamblado NO entran en la firma (`/doctor` no sabe con cuales se
+    ensamblara): `al_dia` = «mismo train/benchmark con los parametros del ultimo ensamblado»; la marca
+    los guarda a titulo informativo."""
+    raiz, cfg, store = _store_basico(tmp_path)
+    _ensamblar(cfg, raiz, escribir=True)
+    f1 = _marca(store)["firma"]
+    _ensamblar(cfg, raiz, escribir=True, umbral=0.5, conservar_duplicados=True)
+    m = _marca(store)
+    assert m["firma"] == f1 and m["parametros"]["umbral"] == 0.5 and m["parametros"]["conservar_duplicados"] is True
+    d = _estado(store, raiz)
+    assert d["estado"] == "al_dia" and "umbral=0.5" in d["motivo"] and d["parametros"] == m["parametros"]
+
+
+def test_t10fix2_m10_parcial_con_mas_gold_de_los_de_la_marca_es_desactualizado(tmp_path):
+    """M10: con el recuento cortado, si los Gold YA contados superan los de la marca ->
+    `desactualizado` (cierto: lo contado es un subconjunto del recorrido completo); si no, «no
+    verificado (PARCIAL)» y el remedio `dataset-assembler.py --estado` con el umbral medido."""
+    raiz, cfg, store = _store_basico(tmp_path)
+    _ensamblar(cfg, raiz, escribir=True)
+    res = rec.resumen_store(str(store), raiz)
+    d = asm.estado_dataset(str(store), dict(res, truncado=True, n_gold=res["n_gold"] + 1, firma="0" * 64))
+    assert d["estado"] == "desactualizado" and "al menos 4 Gold" in d["motivo"], d
+    d = asm.estado_dataset(str(store), dict(res, truncado=True, n_gold=1, firma="0" * 64))
+    assert d["estado"] == "parcial" and "--estado" in d["motivo"] and "2 000 versiones" in d["motivo"], d
+    d = asm.estado_dataset(str(store), dict(res, transitorias=1))
+    assert d["estado"] == "parcial" and "transitori" in d["motivo"], d
+
+
+def test_t10fix2_m10_estado_dataset_tiene_margen_propio_tras_el_recuento(tmp_path):
+    """M10: `estado_dataset` tiene margen propio (`hasta + MARGEN_ESTADO_S`): aunque el recuento haya
+    agotado su plazo, lee la marca y lista `exports/`."""
+    raiz, cfg, store = _store_basico(tmp_path)
+    _ensamblar(cfg, raiz, escribir=True)
+    res = rec.resumen_store(str(store), raiz)
+    assert 0 < asm.MARGEN_ESTADO_S <= 0.3
+    d = asm.estado_dataset(str(store), res, hasta=rec._crono())
+    assert d["estado"] == "al_dia" and d["exports"] == 1, d
+
+
+def _bloquear_exclusivo(ruta):
+    """Abre `ruta` con `CreateFileW` y `dwShareMode = 0` (Windows): cualquier otro `open` falla con
+    `PermissionError` mientras el handle vive. None fuera de Windows."""
+    if os.name != "nt":
+        return None
+    import ctypes
+    from ctypes import wintypes
+    k32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    k32.CreateFileW.restype = wintypes.HANDLE
+    k32.CreateFileW.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD, wintypes.LPVOID,
+                                wintypes.DWORD, wintypes.DWORD, wintypes.HANDLE]
+    h = k32.CreateFileW(str(ruta), 0x80000000, 0, None, 3, 0x80, None)
+    assert h not in (None, wintypes.HANDLE(-1).value), ctypes.get_last_error()
+    return lambda: k32.CloseHandle(h)
+
+
+def test_t10fix2_170_la_lectura_de_la_marca_respeta_el_plazo(tmp_path, monkeypatch):
+    """#170: la marca con un bloqueo exclusivo (antivirus, backup): sus reintentos se acotan por el
+    plazo de `/doctor` (+ el margen propio de M10) y la frescura sale «no verificado (PARCIAL)»
+    (antes: 40 x 25 ms = 1 s con un plazo de 50 ms). En Windows el bloqueo es REAL (`CreateFileW`,
+    share 0); en POSIX, donde no hay bloqueo obligatorio, se simula con `PermissionError`."""
+    raiz, cfg, store = _store_basico(tmp_path)
+    _ensamblar(cfg, raiz, escribir=True)
+    res = rec.resumen_store(str(store), raiz)
+    ruta = store / "exports" / asm.MARCA
+    soltar = _bloquear_exclusivo(ruta)
+    if soltar is None:
+        real = rec._abrir_lectura
+
+        def bloqueado(r):
+            if os.path.basename(str(r)) == asm.MARCA:
+                raise PermissionError(13, "bloqueado")
+            return real(r)
+        monkeypatch.setattr(rec, "_abrir_lectura", bloqueado)
+        soltar = lambda: None                                       # noqa: E731
+    try:
+        t0 = time.monotonic()
+        hasta = rec._crono() + 0.05
+        d = asm.estado_dataset(str(store), res, hasta=hasta)
+        dura = time.monotonic() - t0
+    finally:
+        soltar()
+    assert d["estado"] == "parcial", d
+    assert dura <= 0.05 + asm.MARGEN_ESTADO_S + 0.3, dura
+    d = asm.estado_dataset(str(store), res, hasta=rec._crono() + 0.05)
+    assert d["estado"] == "al_dia", d
+
+
+def test_t10fix2_176_frescura_verificable_aunque_el_manifiesto_pase_del_tope(tmp_path):
+    """#176: a ~13 700 Gold el `manifest.json` pasa de `TOPE_FICHERO` y la frescura quedaba SIEMPRE
+    `no_verificable`: con D-f4 no se lee (solo se comprueba que sea un fichero regular) y
+    `--estado` la verifica sin tope."""
+    raiz, cfg, store = _store_basico(tmp_path)
+    r = _ensamblar(cfg, raiz, escribir=True)
+    man = os.path.join(r["ruta"], asm.MANIFEST)
+    with open(man, "r+b") as f:
+        f.truncate(asm.TOPE_FICHERO + 1)                            # disperso: el tamaño de ~13 700 Gold
+    assert _estado(store, raiz)["estado"] == "al_dia"
+    assert asm.main(["--estado", "--project-root", raiz]) == 0
+
+
+def test_t10fix2_176_estado_cli_exit_y_misma_salida_que_doctor(tmp_path, capsys):
+    """#176 / F4: `dataset-assembler.py --estado` (solo lectura, sin plazo, sin `exports/.lock`): la
+    MISMA salida que `/doctor` (texto y `--json`); exit 0 `al_dia`/`sin_gold` · 1
+    `desactualizado`/`sin_export` · 2 `no_verificable`/`parcial` o config que no vale."""
+    raiz, cfg, store = _store_basico(tmp_path)
+    assert asm.main(["--estado", "--project-root", raiz]) == 1                 # sin_export
+    assert "dataset: desactualizado" in capsys.readouterr().out
+    _ensamblar(cfg, raiz, escribir=True)
+    assert asm.main(["--estado", "--project-root", raiz]) == 0
+    texto = capsys.readouterr().out.strip()
+    esperado = asm.texto_estado(rec.resumen_store(str(store), raiz, plazo_s=None),
+                                asm.estado_dataset(str(store), rec.resumen_store(str(store), raiz, plazo_s=None)))
+    assert texto == esperado and "dataset: al dia" in texto and "PARCIAL" not in texto
+    assert asm.main(["--estado", "--json", "--project-root", raiz]) == 0
+    j = json.loads(capsys.readouterr().out)
+    assert j["dataset"]["estado"] == "al_dia" and j["recuento"]["n_gold"] == 3 and j["texto"] == esperado
+    assert "gold" not in j["recuento"] and "hasta" not in j["recuento"]
+    _grabar(cfg, raiz, family="c", variant="x", request="escalera de caracol con barandilla de hierro forjado")
+    assert asm.main(["--estado", "--project-root", raiz]) == 1
+    (store / "exports" / asm.MARCA).write_text("{}", encoding="utf-8")
+    assert asm.main(["--estado", "--project-root", raiz]) == 2
+    capsys.readouterr()
+    (tmp_path / "sin-config").mkdir()
+    assert asm.main(["--estado", "--project-root", str(tmp_path / "sin-config")]) == 2
+
+
+def test_t10fix2_176_estado_no_toma_el_bloqueo_ni_escribe(tmp_path):
+    """F4: `--estado` es de solo lectura y no espera a `exports/.lock` (otro ensamblador en marcha)."""
+    raiz, cfg, store = _store_basico(tmp_path)
+    _ensamblar(cfg, raiz, escribir=True)
+    antes = sorted((p, os.path.getsize(os.path.join(b, p))) for b, _d, fs in os.walk(str(store)) for p in fs
+                   if p != asm.BLOQUEO_EXPORTS)
+    h, soltar = _con_lock_tomado(store, 30)
+    try:
+        t0 = time.monotonic()
+        assert asm.main(["--estado", "--project-root", raiz]) == 0
+        assert time.monotonic() - t0 < 10
+    finally:
+        soltar.set()
+        h.join(10)
+    despues = sorted((p, os.path.getsize(os.path.join(b, p))) for b, _d, fs in os.walk(str(store)) for p in fs
+                     if p != asm.BLOQUEO_EXPORTS)
+    assert despues == antes
+
+
+def test_t10fix2_m13_seis_ensambladores_dejan_una_marca_coherente(tmp_path):
+    """M13: 6 ensambladores reales a la vez -> una sola marca, coherente con un export EXISTENTE y con
+    la firma del store (la de la pasada 1 del que la escribio): `al_dia`."""
+    raiz, cfg, store = _store_basico(tmp_path)
+    procs = [_ensamblador_proceso(raiz) for _ in range(6)]
+    salidas = [p.communicate(timeout=120) for p in procs]
+    assert [p.returncode for p in procs] == [0] * 6, salidas
+    m = _marca(store)
+    assert os.path.isfile(str(store / "exports" / m["directorio"] / asm.MANIFEST))
+    assert _exports(store) == [m["directorio"]]
+    assert m["firma"] == rec.resumen_store(str(store), raiz)["firma"]
+    assert _estado(store, raiz)["estado"] == "al_dia"
+    assert not [n for n in os.listdir(str(store / "exports")) if n.startswith(rec.PREFIJO_TEMPORAL)]
+
+
+def test_t10fix2_m12_el_limite_de_sistemas_de_ficheros_locales_esta_declarado():
+    """M12: una sola llamada del SO que se bloquea (SMB colgado, placeholder de OneDrive) no la acota
+    ninguna comprobacion ENTRE llamadas: el tope de `/doctor` vale para sistemas de ficheros locales.
+    Este test fija que el limite esta declarado en la doc de `/doctor` y en `references/dataset.md`."""
+    raiz_repo = os.path.normpath(os.path.join(HERE, "..", "..", ".."))
+    for rel in (os.path.join("commands", "doctor.md"),
+                os.path.join("skills", "training-data-services", "references", "dataset.md")):
+        with open(os.path.join(raiz_repo, rel), encoding="utf-8") as f:
+            texto = f.read()
+        assert "sistemas de ficheros locales" in texto, rel

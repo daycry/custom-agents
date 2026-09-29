@@ -415,13 +415,9 @@ def test_t10_training_doctor_informa_root_recuento_por_estado_y_dataset(tmp_path
 
 def test_t10_training_doctor_dataset_al_dia_tras_exportar(tmp_path):
     proj, cfg, store = _proyecto_training(tmp_path, estados=("approved",))
-    exp = store / "exports" / "20260928-aaaaaaaaaaaa"
-    exp.mkdir(parents=True)
-    gold = _tds()["rec"].resumen_store(str(store), proj)["gold"]
-    casos = [{"case_id": c, "version": v, "content_hash": h, "motivo": None} for (c, v), h in gold.items()]
-    (exp / "manifest.json").write_text(json.dumps({"casos": casos}), encoding="utf-8")
+    r = _tds()["asm"].ensamblar(cfg, proj, {"f0"}, fecha="20260928")          # D-f4: escribe la marca
     txt = _cap_training(proj)["doctor"]
-    assert "dataset: al dia" in txt and "20260928-aaaaaaaaaaaa" in txt
+    assert "dataset: al dia" in txt and os.path.basename(r["ruta"]) in txt and "20260928-" in txt
 
 
 def test_t10_training_doctor_sin_gold_no_hay_dataset_que_exportar(tmp_path):
@@ -598,3 +594,46 @@ def test_t10fix1_164_enumerar_pasa_el_plazo_que_queda_a_las_capacidades(tmp_path
     assert vistos[1] == 0
     next(c for c in cap_mod.enumerar(proj) if c["id"] == "training")
     assert vistos[2] == cap_mod.TRAINING_PLAZO_S
+
+
+# ------------------------------------------------------------------ T-10 fix2 (revision intento 2, Fase 4)
+
+def test_t10fix2_172_claves_y_regex_de_training_json_salen_escapadas_en_doctor(tmp_path, capsys):
+    """#172 (CWE-150): una clave hostil de `training.json`, una de `ids` y el texto de un `re.error` no
+    llegan en crudo (U+202E, CSI U+009B) a la salida de la capacidad —texto de `/doctor` y de la CLI—:
+    se escapan en el ORIGEN (`case_schema.validar_config`)."""
+    crudos = ("\u202e", "\x9b")
+    for extra in ({"\u202egnp.exe\x9b2J x": 1}, {"ids": {"\u202eX\x9b31m": 1}},
+                  {"ids": {"family_pattern": "(?<\u202e>a)"}}):
+        root = tmp_path / str(len(os.listdir(str(tmp_path))))
+        root.mkdir()
+        _training(str(root), enabled=True, root="../store", id_prefix="geo", **extra)
+        t = _cap_training(str(root))
+        assert t["health"]["estado"] == "error", t
+        for texto in (t["doctor"], t["health"]["detalle"], json.dumps(t["health"], ensure_ascii=False)):
+            assert not any(c in texto for c in crudos), texto
+        assert cap_mod.main(["--root", str(root)]) == 0
+        salida = capsys.readouterr().out
+        assert "training: enabled=False health=error" in salida and not any(c in salida for c in crudos), salida
+
+
+def test_t10fix2_frescura_y_texto_vienen_del_ensamblador(tmp_path, monkeypatch):
+    """F4: el texto del recuento y de la frescura es el del ensamblador (`texto_estado`, el mismo de
+    `dataset-assembler.py --estado`); la capacidad le pasa el resumen y un plazo que, con el margen
+    propio de `estado_dataset` (M10), no pasa de su tope."""
+    proj, cfg, store = _proyecto_training(tmp_path, estados=("approved",))
+    tds = _tds()
+    tds["asm"].ensamblar(cfg, proj, {"f0"}, fecha="20260928")
+    vistos = []
+    original = tds["rec"].resumen_store
+
+    def _espia(store_, raiz=None, plazo_s=None):
+        vistos.append(plazo_s)
+        return original(store_, raiz, plazo_s=plazo_s)
+    monkeypatch.setattr(tds["rec"], "resumen_store", _espia)
+    monkeypatch.setattr(cap_mod, "_cargar_tds", lambda: tds)
+    txt = next(c for c in cap_mod.enumerar(proj, plazo_s=1.0) if c["id"] == "training")["doctor"]
+    assert 0 <= vistos[0] <= 1.0 - tds["asm"].MARGEN_ESTADO_S + 1e-6, vistos
+    res = original(str(store), proj, plazo_s=None)
+    assert tds["asm"].texto_estado(res, tds["asm"].estado_dataset(str(store), res)) in txt
+    assert cap_mod._texto_recuento(res, tds["asm"].estado_dataset(str(store), res)) in txt

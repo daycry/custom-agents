@@ -40,7 +40,7 @@ de dominio (métricas, simulación, herramientas) es del proyecto consumidor.
 | `scripts/case_schema.py` | Validador stdlib de `training.json` y del caso (exit 0 válido · 1 errores · 2 uso/JSON ilegible). Fuente única de los vocabularios cerrados y del mapeo de `outcome`. |
 | `scripts/case-recorder.py` | Recorder (API importable + CLI `record` · `set-status` · `index` · `list`; todos aceptan `--config <training.json>` y `--project-root <dir>`). Graba cada intento como versión inmutable `cases/<family>.<variant>/v<NNN>/`. La redacción la delega en `agent-kits/shared/redact.py` (fuente única); sin él se niega a grabar. Un caso `corrected` exige que la versión que corrige exista y sea `failure` o `corrected`. |
 | `scripts/dedup.py` | Near-duplicates deterministas (shingles de palabras + Jaccard, sin embeddings ni red; boilerplate por frecuencia documental con 20 casos o más; índice PPJoin, no todos los pares; muestreo por valor declarado por encima de 10⁷ shingles). `shingles` es copia declarada de `code-health` (`agent-kits/shared/copias.json`). |
-| `scripts/dataset-assembler.py` | Ensamblador en dos pasadas en streaming: solo Gold leído de `validation.json` en disco y atado a su contenido (`content_hash`), benchmark por familia COMPLETA declarada con `--benchmark` (sin ella, exit 1), near-duplicates que cruzan excluidos del lado de train, `exports/<export_id>/` con `train.jsonl`/`benchmark.jsonl` (chat, redactados, con procedencia) y `manifest.json` el último; nunca sobrescribe ni borra. |
+| `scripts/dataset-assembler.py` | Ensamblador en dos pasadas en streaming: solo Gold leído de `validation.json` en disco y atado a su contenido (`content_hash`), benchmark por familia COMPLETA declarada con `--benchmark` (sin ella, exit 1), near-duplicates que cruzan excluidos del lado de train, `exports/<export_id>/` con `train.jsonl`/`benchmark.jsonl` (chat, redactados, con procedencia) y `manifest.json` el último; nunca sobrescribe ni borra. Tras cada ensamblado real deja la marca `exports/.ultimo.json` (firma de la entrada); `--estado [--json]`, solo lectura: la frescura sin tope (exit 0/1/2). |
 | `scripts/propose-from-case.py` | Puente opt-in (`bridge_to_curator`): un caso Gold → UN candidato en `docs/knowledge/candidates/pending/` con la forma de `curator-gate.py`; nunca aprueba ni sobrescribe. |
 | `assets/` | Plantillas del case store: `training.example.json`, ejemplo completo `case-store-example/` (caso con par fallo → corrección) y `README.md` con la estructura y cada fichero de versión (`metadata.json`, `validation.json`, `cases_index.jsonl`…). Ubicación: `docs/knowledge/adr/ADR-019-case-store-fuera-de-docs-knowledge.md`. |
 | Capacidad `training` | Entrada de `agent-kits/shared/capabilities.py`: `deshabilitado` sin fichero, `error` con fichero y campo si la config es inválida, `declarado`/`ok` según exista `root`. Sin red. |
@@ -96,7 +96,9 @@ externas (`graphify`): `references/case-schema.md`.
 
 - Sin `training.json` o con `enabled: false`: la capacidad no existe para el ciclo (CA-01). Inválido:
   `/doctor` lo informa con fichero y campo; nada se bloquea. Activo: `/doctor` da el recuento por estado
-  y si el dataset está desactualizado por contenido (tope de 2 s, «PARCIAL» si no llega). Sin `python3`: el resto sigue.
+  y la frescura del dataset (firma de la entrada frente a la marca del último ensamblado; tope de 2 s,
+  ~2 000 versiones en caliente y ~300 en frío, en sistemas de ficheros locales; «PARCIAL» si no llega:
+  `dataset-assembler.py --estado` la verifica sin tope). Sin `python3`: el resto sigue.
 
 ## Scripts y rutas
 

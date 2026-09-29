@@ -5623,8 +5623,8 @@ def test_t10_resumen_se_acota_en_tiempo_y_lo_declara(tmp_path, monkeypatch):
     raiz, _cfg, store = _store_con_estados(tmp_path)
     reloj = iter(range(0, 10_000))
     monkeypatch.setattr(rec, "_crono", lambda: next(reloj))
-    r = rec.resumen_store(str(store), raiz, plazo_s=3)
-    assert r["truncado"] is True and r["plazo_s"] == 3
+    r = rec.resumen_store(str(store), raiz, plazo_s=4)             # fix2 (#171): una mirada mas por version
+    assert r["truncado"] is True and r["plazo_s"] == 4
     assert 0 < r["casos_vistos"] < r["casos_total"] == 5
     assert sum(r["por_estado"].values()) == r["versiones"] < 5
     r0 = rec.resumen_store(str(store), raiz, plazo_s=0)
@@ -5649,7 +5649,7 @@ def test_t10_resumen_corta_tambien_dentro_de_un_caso_con_muchas_versiones(tmp_pa
         rec.grabar(_caso(), cfg, raiz)
     reloj = iter(range(0, 10_000))
     monkeypatch.setattr(rec, "_crono", lambda: next(reloj))
-    r = rec.resumen_store(str(store), raiz, plazo_s=3)
+    r = rec.resumen_store(str(store), raiz, plazo_s=5)             # fix2 (#171): una mirada mas por version
     assert r["truncado"] is True and r["casos_vistos"] == 0 and 0 < r["versiones"] < 4
 
 
@@ -5757,3 +5757,306 @@ def test_t10fix1_163_los_reintentos_de_los_lectores_respetan_el_plazo(tmp_path, 
     dura = time.monotonic() - t0
     assert dura < 0.9, dura
     assert r["versiones"] == 0
+
+
+# ------------------------------------------------------------------ T-10 fix2 (revision intento 2, Fase 4)
+
+import stat as _stat_mod
+
+
+class _RelojVirtual:
+    """Reloj monotono VIRTUAL para `rec._crono`: solo avanza con el trabajo SIMULADO (cada `scandir` y
+    cada entrada iterada cuestan lo que se diga): el coste de un sistema de ficheros lento sin crear 10^5
+    ficheros ni depender de la carga de la maquina."""
+
+    def __init__(self, por_listado=0.0, por_entrada=0.0):
+        self.t, self.por_listado, self.por_entrada = 0.0, por_listado, por_entrada
+
+    def __call__(self):
+        return self.t
+
+
+class _Falsa:
+    """Entrada de directorio simulada (un `.tmp-*` viejo): nombre, ruta y `stat` sin tocar el disco."""
+
+    def __init__(self, directorio, nombre, mtime):
+        self.name, self.path = nombre, os.path.join(directorio, nombre)
+        self._st = os.stat_result((_stat_mod.S_IFREG | 0o644, 0, 0, 1, 0, 0, 0, mtime, mtime, mtime))
+
+    def __fspath__(self):
+        return self.path
+
+    def stat(self, follow_symlinks=True):
+        return self._st
+
+    def is_dir(self, follow_symlinks=True):
+        return False
+
+    def is_symlink(self):
+        return False
+
+
+def _scandir_con_coste(monkeypatch, reloj, falsas=None):
+    """`os.scandir` que cobra `reloj.por_listado` por llamada y `reloj.por_entrada` por entrada
+    iterada; `falsas` = `{directorio: [entradas simuladas]}` que se anaden a su listado real."""
+    real = os.scandir
+    extra_por_dir = {os.path.normcase(os.path.abspath(str(d))): v for d, v in (falsas or {}).items()}
+
+    class _Iter:
+        def __init__(self, it, extra):
+            self.it, self.extra = it, extra
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_a):
+            self.it.close()
+
+        def __iter__(self):
+            for e in self.it:
+                reloj.t += reloj.por_entrada
+                yield e
+            for e in self.extra:
+                reloj.t += reloj.por_entrada
+                yield e
+
+    def _scandir(ruta="."):
+        reloj.t += reloj.por_listado
+        return _Iter(real(ruta), extra_por_dir.get(os.path.normcase(os.path.abspath(str(ruta))), ()))
+    monkeypatch.setattr(os, "scandir", _scandir)
+
+
+def test_t10fix2_165_muchas_versiones_el_plazo_corta_sin_dejar_el_recuento_a_cero(tmp_path, monkeypatch):
+    """#165 / M9 (CWE-400): un caso con miles de versiones. Antes, `resumen_store` listaba los `.tmp-*`
+    de CADA version (un `scandir` por version) ANTES de mirar el plazo: todo el tope se iba ahi y el
+    recuento salia a 0. Ahora hay un unico bucle por version (`_estado_version` y despues sus
+    `.tmp-*`) con el plazo mirado antes de cada una: corta en plazo y conserva lo ya contado."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    for _ in range(3):
+        rec.grabar(_caso(), cfg, raiz)
+    dir_caso = store / "cases" / "ramp.steep"
+    for n in range(4, 2004):
+        (dir_caso / f"v{n:03d}").mkdir()
+    reloj = _RelojVirtual(por_listado=0.001)                 # 1 ms por `scandir`: 2 003 versiones = 2 s
+    monkeypatch.setattr(rec, "_crono", reloj)
+    _scandir_con_coste(monkeypatch, reloj)
+    r = rec.resumen_store(str(store), raiz, plazo_s=1.0)
+    assert r["truncado"] is True and r["versiones"] == 3, r
+    assert reloj.t <= 1.0 + 0.3, reloj.t
+
+
+def test_t10fix2_165_el_listado_del_caso_mira_el_plazo_cada_listado_cada_entradas(tmp_path, monkeypatch):
+    """#165 / M9: el listado del directorio del caso (`_escanear_caso`, un `lstat` por entrada) mira el
+    plazo cada `LISTADO_CADA` entradas ITERADAS, no al terminar."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    rec.grabar(_caso(), cfg, raiz)
+    dir_caso = store / "cases" / "ramp.steep"
+    for n in range(2, 1502):
+        (dir_caso / f"v{n:03d}").mkdir()
+    reloj = _RelojVirtual(por_entrada=0.002)                 # 2 ms por entrada: 1 501 entradas = 3 s
+    monkeypatch.setattr(rec, "_crono", reloj)
+    _scandir_con_coste(monkeypatch, reloj)
+    r = rec.resumen_store(str(store), raiz, plazo_s=1.0)
+    assert r["truncado"] is True, r
+    assert reloj.t <= 1.0 + 0.3, reloj.t
+
+
+def test_t10fix2_165_millones_de_temporales_en_una_version_se_cortan_en_plazo(tmp_path, monkeypatch):
+    """#165 / M9: 1,5 x 10^5 `.tmp-*` viejos en UNA version (simulados): el recorrido de sus temporales
+    mira el plazo cada `LISTADO_CADA` entradas iteradas y marca `truncado` desde dentro; lo ya contado
+    (la propia version y los huerfanos vistos) se conserva."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    rec.grabar(_caso(), cfg, raiz)
+    dir_v = store / "cases" / "ramp.steep" / "v001"
+    viejo = time.time() - 3600
+    falsas = [_Falsa(str(dir_v), f"{rec.PREFIJO_TEMPORAL}{i:06d}", viejo) for i in range(150_000)]
+    reloj = _RelojVirtual(por_entrada=0.0001)               # 0,1 ms por entrada: 150 000 = 15 s
+    monkeypatch.setattr(rec, "_crono", reloj)
+    _scandir_con_coste(monkeypatch, reloj, {str(dir_v): falsas})
+    r = rec.resumen_store(str(store), raiz, plazo_s=0.5)
+    assert r["truncado"] is True and r["versiones"] == 1, r
+    assert 0 < r["huerfanos"] < 150_000, r["huerfanos"]
+    assert reloj.t <= 0.5 + 0.3, reloj.t
+
+
+def test_t10fix2_177_si_el_plazo_corta_los_reintentos_el_recuento_es_parcial_y_lo_dice(tmp_path, monkeypatch):
+    """#177: cuando es el PLAZO de `/doctor` quien corta los reintentos de un lector (no el numero de
+    reintentos), el recuento queda `truncado` y la version se cuenta como «cortada por el plazo»,
+    nunca como «no legible tras 40 reintentos» ni como un aviso mas."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    rec.grabar(_caso(), cfg, raiz)
+    real = rec._abrir_lectura
+
+    def bloqueado(ruta):
+        if os.path.basename(ruta) == "validation.json":
+            raise PermissionError(13, "bloqueado por otro proceso")
+        return real(ruta)
+    monkeypatch.setattr(rec, "_abrir_lectura", bloqueado)
+    r = rec.resumen_store(str(store), raiz, plazo_s=0.2)
+    assert r["truncado"] is True and r["cortadas"] == 1 and r["otros_avisos"] == 0, r
+    avisos = rec._estado_de_cases(str(store), raiz, recorte={"hasta": rec._crono() + 0.2})[1]
+    assert any("se agoto el plazo de /doctor" in a for a in avisos.values()), avisos
+    assert not any("reintentos (bloqueada" in a for a in avisos.values()), avisos
+
+
+def test_t10fix2_171_tope_json_caso_de_un_mib_para_metadata_y_validation(tmp_path):
+    """#171 (CWE-400/770): `TOPE_JSON_CASO` = 1 MiB (fuente unica) para `metadata.json` y
+    `validation.json`: `/doctor` cuenta «grande (sin leer)» un `validation.json` de 1 MiB + 1 y uno de
+    1 MiB justo se lee."""
+    assert rec.TOPE_JSON_CASO == 1024 * 1024
+    raiz, cfg, store = _proyecto(tmp_path)
+    for fam in ("a", "b"):
+        r = rec.grabar(_caso(family=fam, case_id=f"geo-{fam}.steep"), cfg, raiz)
+        rec.cambiar_estado(r["case_id"], 1, "approved", cfg, raiz, approved_by_human=True)
+    for fam, tam in (("a", rec.TOPE_JSON_CASO), ("b", rec.TOPE_JSON_CASO + 1)):
+        val = store / "cases" / f"{fam}.steep" / "v001" / "validation.json"
+        datos = val.read_bytes().rstrip()
+        val.write_bytes(datos + b" " * (tam - len(datos)))
+        assert val.stat().st_size == tam
+    r = rec.resumen_store(str(store), raiz)
+    assert r["versiones"] == 1 and r["grandes"] == 1 and r["por_estado"]["approved"] == 1, r
+
+
+def test_t10fix2_171_el_recorder_no_escribe_un_validation_json_mayor_que_el_tope(tmp_path):
+    """#171: `record`/`set-status` rechazan escribir un `validation.json` mayor que `TOPE_JSON_CASO`
+    (una nota de revisor enorme): lo que el recorder escribe siempre lo leen `/doctor` y el ensamblador."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    nota = "n" * (rec.TOPE_JSON_CASO + 10)
+    with pytest.raises(rec.Rechazo) as e:
+        rec.grabar(_caso(validation={"status": "pending", "approved_by_human": False, "reviewer_note": nota}),
+                   cfg, raiz)
+    assert "validation.json" in e.value.mensaje and not (store / "cases").exists()
+    r = rec.grabar(_caso(), cfg, raiz)
+    antes = (store / "cases" / "ramp.steep" / "v001" / "validation.json").read_bytes()
+    with pytest.raises(rec.Rechazo) as e:
+        rec.cambiar_estado(r["case_id"], 1, "needs_changes", cfg, raiz, reviewer_note=nota)
+    assert "validation.json" in e.value.mensaje
+    assert (store / "cases" / "ramp.steep" / "v001" / "validation.json").read_bytes() == antes
+
+
+def test_t10fix2_171_el_plazo_se_mira_antes_de_parsear_validation(tmp_path, monkeypatch):
+    """#171: `/doctor` mira el plazo ANTES de cada parseo: agotado tras `metadata.json`, el
+    `validation.json` de esa version ya no se lee (ni se parsea)."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    rec.grabar(_caso(), cfg, raiz)
+    reloj = _RelojVirtual()
+    monkeypatch.setattr(rec, "_crono", reloj)
+    leidos = []
+    real = rec._leer_json_reintentando
+
+    def lector(ruta, *a, **k):
+        leidos.append(os.path.basename(ruta))
+        reloj.t += 1.0
+        return real(ruta, *a, **k)
+    monkeypatch.setattr(rec, "_leer_json_reintentando", lector)
+    r = rec.resumen_store(str(store), raiz, plazo_s=0.5)
+    assert leidos == ["metadata.json"] and r["truncado"] is True and r["versiones"] == 0, (leidos, r)
+
+
+def test_t10fix2_m5_content_hash_invalido_es_un_centinela_sin_retener_la_cadena(tmp_path):
+    """M5 (D3-1): un `content_hash` que no casa `^[0-9a-f]{64}$` cuenta como el centinela fijo `"!"`
+    (distinto de ausente); `resumen_store` retiene el centinela, NUNCA la cadena (1 MB por Gold), y la
+    firma no paga su tamaño."""
+    import gc
+    import tracemalloc
+    raiz, cfg, store = _proyecto(tmp_path)
+    n = 8
+    for i in range(n):
+        r = rec.grabar(_caso(family=f"f{i}", case_id=f"geo-f{i}.steep"), cfg, raiz)
+        rec.cambiar_estado(r["case_id"], 1, "approved", cfg, raiz, approved_by_human=True)
+        val = store / "cases" / f"f{i}.steep" / "v001" / "validation.json"
+        v = json.loads(val.read_text(encoding="utf-8"))
+        v["content_hash"] = "x" * 1_000_000
+        val.write_text(json.dumps(v), encoding="utf-8")
+    gc.collect()
+    tracemalloc.start()
+    base = tracemalloc.get_traced_memory()[0]
+    res = rec.resumen_store(str(store), raiz)
+    gc.collect()
+    retenido = tracemalloc.get_traced_memory()[0] - base
+    tracemalloc.stop()
+    assert set(res["gold"].values()) == {rec.CENTINELA_HASH} and len(res["gold"]) == n
+    assert all(v is rec.CENTINELA_HASH for v in res["gold"].values())
+    assert retenido < 64 * 1024, retenido               # sin el centinela: >= 8 MB retenidos
+    t0 = time.perf_counter()
+    rec.firma_gold(res["gold"])
+    assert time.perf_counter() - t0 < 0.05
+
+
+def test_t10fix2_m5_gold_de_version_y_firma_sin_ambiguedad():
+    """F1 + M5: `gold_de_version` es la regla de Gold humano (`approved` y `approved_by_human is True`)
+    con el `content_hash` saneado; `firma_gold` = sha256 de lineas `json.dumps([case_id, version, h])`
+    ordenadas: ausente (`None`), centinela y un hash valido dan firmas distintas."""
+    h = "a" * 64
+    assert rec.gold_de_version({"status": "approved", "approved_by_human": True, "content_hash": h}) == h
+    assert rec.gold_de_version({"status": "approved", "approved_by_human": True}) is None
+    for malo in ("A" * 64, "a" * 63, 5, ["a" * 64], "a" * 64 + "\n"):
+        v = {"status": "approved", "approved_by_human": True, "content_hash": malo}
+        assert rec.gold_de_version(v) is rec.CENTINELA_HASH, malo
+    for no in ({"status": "approved", "approved_by_human": 1}, {"status": "pending"}, None, []):
+        assert rec.gold_de_version(no) is rec.NO_GOLD
+    firmas = {rec.firma_gold(g) for g in ({}, {("a", 1): None}, {("a", 1): "!"}, {("a", 1): h}, {("a", 2): None},
+                                         {("a\t1", 1): None}, {("a", 1): None, ("b", 1): None},
+                                         {("a1", 1): None}, {("a", 11): None}, {("a", 1): "None"})}
+    assert len(firmas) == 10                                # sin separadores, `a`+`11` y `a1`+`1` coincidirian
+    assert rec.firma_gold({("b", 1): h, ("a", 1): None}) == rec.firma_gold({("a", 1): None, ("b", 1): h})
+
+
+def test_t10fix2_m5_case_id_que_no_casa_el_patron_se_omite_con_aviso(tmp_path):
+    """M5: una version cuyo `case_id` no casa `[<id_prefix>-]<family>.<variant>` de su directorio se
+    omite con aviso en `_estado_de_cases` (el MISMO recorrido de `/doctor` y del ensamblador)."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    rec.grabar(_caso(), cfg, raiz)
+    meta = store / "cases" / "ramp.steep" / "v001" / "metadata.json"
+    m = json.loads(meta.read_text(encoding="utf-8"))
+    m["case_id"] = "GEO X-ramp.steep"
+    meta.write_text(json.dumps(m), encoding="utf-8")
+    entradas, avisos, _c, _m, _r = rec._estado_de_cases(str(store), raiz)
+    assert entradas == {} and any("no casa" in a for a in avisos.values()), avisos
+    r = rec.resumen_store(str(store), raiz)
+    assert r["versiones"] == 0 and r["otros_avisos"] == 1
+
+
+def test_t10fix2_m1_resumen_cuenta_las_versiones_con_aviso_transitorio(tmp_path, monkeypatch):
+    """M1: `resumen_store` declara `transitorias` (versiones omitidas por una causa TRANSITORIA,
+    `_aviso_transitorio`): con ellas la frescura no se da por buena; las omisiones permanentes no."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    for fam in ("a", "b"):
+        rec.grabar(_caso(family=fam, case_id=f"geo-{fam}.steep"), cfg, raiz)
+    os.remove(str(store / "cases" / "b.steep" / "v001" / "metadata.json"))
+    _envejecer(store)
+    r = rec.resumen_store(str(store), raiz)
+    assert r["transitorias"] == 0 and r["incompletas"] == 1
+    real = rec._abrir_lectura
+
+    def bloqueado(ruta):
+        if os.path.basename(os.path.dirname(os.path.dirname(ruta))) == "a.steep":
+            raise PermissionError(13, "bloqueado")
+        return real(ruta)
+    monkeypatch.setattr(rec, "_abrir_lectura", bloqueado)
+    monkeypatch.setattr(rec, "ESPERA_REINTENTO_S", 0.0)
+    r = rec.resumen_store(str(store), raiz, plazo_s=None)
+    assert r["transitorias"] == 1 and r["truncado"] is False, r
+
+
+def test_t10fix2_176_resumen_sin_plazo_recorre_todo(tmp_path, monkeypatch):
+    """F4: `resumen_store(plazo_s=None)` (lo que usa `dataset-assembler.py --estado`) no corta nunca."""
+    raiz, _cfg, store = _store_con_estados(tmp_path)
+    reloj = iter(range(0, 10_000))
+    monkeypatch.setattr(rec, "_crono", lambda: next(reloj))
+    r = rec.resumen_store(str(store), raiz, plazo_s=None)
+    assert r["truncado"] is False and r["versiones"] == 5 and r["hasta"] is None and r["plazo_s"] is None
+    assert r["n_gold"] == 2 and r["firma"] == rec.firma_gold(r["gold"])
+
+
+def test_t10fix2_177_un_fichero_sustituido_sin_parar_cortado_por_el_plazo_es_parcial(tmp_path, monkeypatch):
+    """#177: el reintento de «sustituido» (#109) acotado por el plazo de `/doctor` (#163): si es el PLAZO
+    quien lo corta, la version cuenta como cortada y el recuento queda PARCIAL, no como un aviso
+    «sustituido N veces» (transitorio) con `truncado` en False."""
+    raiz, cfg, store = _proyecto(tmp_path)
+    rec.grabar(_caso(), cfg, raiz)
+    monkeypatch.setattr(rec, "_misma_identidad", lambda previo, st: False)     # otro fichero en cada lectura
+    r = rec.resumen_store(str(store), raiz, plazo_s=0.05)
+    assert r["truncado"] is True and r["cortadas"] == 1 and r["otros_avisos"] == 0 and r["transitorias"] == 0, r
+    r = rec.resumen_store(str(store), raiz, plazo_s=None)                          # sin plazo: el #109 de siempre
+    assert r["truncado"] is False and r["transitorias"] == 1 and r["cortadas"] == 0, r

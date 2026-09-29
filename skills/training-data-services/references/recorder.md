@@ -78,15 +78,29 @@ escritura muy intensa, `check` puede reportar un **falso positivo** transitorio 
 `cases/` con los mismos lectores seguros (nunca el índice) y devuelve el recuento por estado
 (`pending`/`approved`/`needs_changes`/`rejected`), las versiones incompletas, los temporales
 huérfanos (también los de DENTRO de una versión, como `index check`, #149), las versiones con un
-`metadata.json`/`validation.json` por encima de `TOPE_FICHERO` (16 MiB: se mira el `st_size` del
-descriptor antes de leer y no se cargan, #148) y los Gold vigentes con su `content_hash` (para la
-frescura por contenido, #154). Cada categoría sale de un **código** que acompaña al aviso, nunca de su
-texto (que incluye nombres que elige un tercero, #157). Va **acotado en tiempo** (`RESUMEN_PLAZO_S` =
-2 s; medido en Windows: 10⁴ versiones tardan 10,7 s en caliente y más de 70 s en frío): pasado el tope
-corta entre casos, entre versiones o a mitad del listado de la raíz o de `cases/` (#152, «al menos N»)
-y lo declara (`truncado`, «N de M casos»; un caso omitido por enlace también cuenta como visto, #155);
-los reintentos de los lectores ante un bloqueo tampoco pasan del plazo (#163). El total exacto lo da
-`index check`.
+`metadata.json`/`validation.json` por encima de `TOPE_JSON_CASO` (1 MiB, fuente única del tope de esos
+dos ficheros: se mira el `st_size` del descriptor antes de leer y no se cargan, #148/#171), las
+omitidas por una causa transitoria (`transitorias`) y los Gold humanos con su `content_hash` **saneado**
+(`gold_de_version`: la cadena solo si es un sha256 hex; si no, el centinela `"!"`, nunca la cadena) y su
+`firma` (`firma_gold`, la que compara la frescura del dataset con la marca del último ensamblado, D-f4).
+Cada categoría sale de un **código** que acompaña al aviso, nunca de su texto (que incluye nombres que
+elige un tercero, #157). Una versión cuyo `case_id` no casa `[<id_prefix>-]<family>.<variant>` de su
+directorio se omite con aviso (M5). Va **acotado en tiempo** (`RESUMEN_PLAZO_S` = 2 s; con
+`plazo_s=None`, sin tope: lo usa `dataset-assembler.py --estado`): hay UN bucle por versión —su estado y
+después sus `.tmp-*`, #165— y el plazo se mira antes de cada caso y de cada versión, antes de cada
+parseo (#171), cada `LISTADO_CADA` (64) entradas ITERADAS de cualquier listado (raíz, `cases/`, el
+directorio del caso y el de cada versión, #152/#165) y en los reintentos de los lectores ante un
+bloqueo (#163); pasado el tope lo declara (`truncado`, «N de M casos», «al menos N» si cortó un listado;
+un caso omitido por enlace también cuenta como visto, #155; una versión cuya lectura cortó el plazo
+cuenta en `cortadas` con «se agotó el plazo de /doctor», #177) y conserva lo ya contado. El total exacto
+lo da `index check`. Medido (revisión previa D-f4, Windows): el tope llega a ~2 000 versiones en caliente
+y ~300 en frío. Límite declarado: las comprobaciones van ENTRE llamadas al sistema, así que el tope vale
+para **sistemas de ficheros locales**; una sola llamada que se bloquea (SMB colgado, placeholder de
+OneDrive) no la acota nada.
+
+El recorder nunca **escribe** un `metadata.json` o `validation.json` mayor que `TOPE_JSON_CASO`
+(`record` y `set-status` lo rechazan antes de escribir nada: una nota de revisión enorme, #171): lo que
+graba siempre lo leen `/doctor` y el ensamblador.
 
 ## Qué se redacta y concurrencia
 
