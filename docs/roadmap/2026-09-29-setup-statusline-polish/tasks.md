@@ -37,8 +37,8 @@ estado: en-progreso
 | Fase 3 — `/doctor`: tope estricto de la línea kwipu | 1 | 1 | 100% | 0 / 3.6h | 0 / 0.72h | 0 / 0.18h | 0 / 345k |
 | Fase 4 — ADR de diseño y `id_prefix` / `group_id` | 3 | 3 | 100% | 0 / 14.0h | 0 / 4.10h | 0 / 1.02h | 0 / 1965k |
 | Fase 5 — Alta segura en `projects.yaml` | 2 | 2 | 100% | 0 / 14.4h | 0 / 4.50h | 0 / 1.12h | 0 / 2157k |
-| Fase 6 — Cierre, documentación y réplica en Linux | 0 | 1 | 0% | 0 / 3.6h | 0 / 0.90h | 0 / 0.23h | 0 / 431k |
-| **TOTAL** | **13** | **14** | **93%** | **0 / 54.8h** | **0 / 14.63h** | **0 / 3.66h** | **0 / 7013k** |
+| Fase 6 — Cierre, documentación y réplica en Linux | 1 | 1 | 100% | 0 / 3.6h | 0.6 / 0.90h | 0 / 0.23h | 0 / 431k |
+| **TOTAL** | **14** | **14** | **100%** | **0 / 54.8h** | **0 / 14.63h** | **0 / 3.66h** | **0 / 7013k** |
 
 > **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada. Ver `skills/jira-sync/SKILL.md`.
 
@@ -580,21 +580,21 @@ estado: en-progreso
 
 ## Fase 6 — Cierre, documentación y réplica en Linux
 
-**Estado**: borrador · **Estimado**: 3.6h · **Real**: — · **Coste est.**: 186 € · **Tokens est.**: 431k
+**Estado**: completado · **Estimado**: 3.6h · **Real**: — · **Coste est.**: 186 € · **Tokens est.**: 431k
 
 ### T-14 — Cierre - Docs EN/ES, lint, suites y réplica en Linux
 
 - **Descripción**: Documentación bilingüe (`docs/en/`, README y CHANGELOG EN/ES), regeneración de `interop/`, lint, evals, suites (comparando el conjunto de rojos preexistentes en Windows) y réplica en Linux (contenedor `python:3.11-slim`, normalizando CRLF de los `.sh`). Sin datos personales en lo versionado. Medir el multiplicador de revisión real para calibrar `sdd-proporcional` (anotar en `/retro`).
 - **Changelog**: Documentación EN/ES y verificación completa (lint, evals, suites y réplica en Linux) de esta mejora.
-- **Estado**: borrador
+- **Estado**: completado
 - **Prioridad**: Alta
 - **Tiempo humano**: est. 3.6h · real —
-- **Tiempo IA (ejec.)**: est. 0.90h · real —
+- **Tiempo IA (ejec.)**: est. 0.90h · real 0.6h (estimado)
 - **Supervisión**: est. 0.23h (≈25 % IA) · real —
 - **Previsión IA**: 371k in / 60k out tok · 5.68 €
 - **Dependencias**: T-01..T-13
 - **Tipo**: docs
-- **Archivos**: `docs/README.md`, `docs/en/README.md`, `docs/INSTALL.md`, `docs/en/INSTALL.md`, `docs/FLOWS.md`, `docs/en/FLOWS.md`, `docs/observability.md`, `docs/en/observability.md`, `docs/CONVENTIONS.md`, `docs/en/CONVENTIONS.md`, `README.md`, `README.es.md`, `CHANGELOG.md`, `CHANGELOG.es.md`, `interop/**`
+- **Archivos**: `docs/README.md`, `docs/en/README.md`, `docs/INSTALL.md`, `docs/en/INSTALL.md`, `docs/FLOWS.md`, `docs/en/FLOWS.md`, `docs/observability.md`, `docs/en/observability.md`, `docs/CONVENTIONS.md`, `docs/en/CONVENTIONS.md`, `README.md`, `README.es.md`, `CHANGELOG.md`, `CHANGELOG.es.md`, `interop/**`, `skills/knowledge-services/scripts/knowledge-sync.py`, `skills/knowledge-services/scripts/test_knowledge_sync.py`, `skills/knowledge-services/scripts/test_kwipu_project_add.py`, `skills/knowledge-services/references/kwipu-adapter.md`, `commands/setup.md`, `docs/agents/CONTRACTS.md`, `docs/roadmap/2026-09-29-setup-statusline-polish/spec.md`, `docs/roadmap/2026-09-29-setup-statusline-polish/design.md`, `docs/roadmap/2026-09-29-setup-statusline-polish/evaluation.md`, `docs/roadmap/2026-09-29-setup-statusline-polish/improvement-plan.md`, `docs/roadmap/README.md` (artefactos propios de la iniciativa, declarados en el cierre)
 - **Cubre (tests)**: — (sin UI)
 - **Verificación**:
   - `python3 scripts/lint_plugin.py` -> exit 0
@@ -604,19 +604,26 @@ estado: en-progreso
   - `python3 agent-kits/shared/ledger-lint.py docs/roadmap/2026-09-29-setup-statusline-polish/tasks.md` -> 0 errores / 0 avisos
   - `python3 agent-kits/shared/scope-check.py docs/roadmap/2026-09-29-setup-statusline-polish` -> exit 0
 
+- **Evidencia**:
+  - TDD (#25): `RED: test_t14_gap25_la_causa_sanea_cc_cf_zl_zp_completos falló con AssertionError '‎' (Cf) · 2026-10-01`; `RED: test_t14_gap25_avisos_grupo_json_sin_backend_sale_en_ascii falló (salida no ASCII) · 2026-10-01`; GREEN: `test_knowledge_sync.py` 44 passed. #26: `RED: test_t14_gap26_la_regla_documentada_de_nombre_es_la_de_NOMBRE_RE falló con AssertionError: commands/setup.md · 2026-10-01`; GREEN tras documentar. #27: `TDD n/a: prosa`.
+  - Windows: `lint_plugin` -> 10 agentes · 0 errores · 3 avisos (preexistentes) · `evals/check` -> 151 casos · 0 errores · `export-interop --check` -> 50 ficheros al día (revertidos los cambios solo de fin de línea) · `tests/test_readme_badges.py` -> 10 conteos OK · `skills/knowledge-services` -> 472 passed, 1 failed (`test_fix4_gap70…`, flaky bajo carga: 5 passed en solitario) · README sin cambios de recuento (no hay piezas nuevas).
+  - Linux (`python:3.11-slim`, `-m 2g`, `.sh` en LF, `git init`, `pytest tests agent-kits skills evals` + lint + evals + interop + badges): lint 0 errores · evals 0 · interop 50 al día · badges OK · `3926 passed, 26 skipped, 3 failed`. Los 3 rojos: `test_progress_line_ruta_windows_con_backslashes` (rojo de entorno admitido), `test_todos_los_hooks_son_bash_valido_y_ejecutables` (artefacto: el `tar` en Windows perdió el bit +x; re-ejecutado con `git archive | docker` directo: pasa) y `test_bench_mide_in_process_no_solo_subproceso` (timing con el equipo cargado por la suite de Windows en paralelo; 11 passed en solitario en HEAD y en la base `5a08d45`). Segunda pasada de esos dos ficheros: 83 passed, 2 failed -> solo el de entorno y el bench (que en solitario pasa).
+  - CA-19: `git diff 5a08d45..HEAD | grep -E '^\+' | grep -ciE -f <patrones locales de datos personales, fuera del repo>` -> 0; sin `docs/knowledge/`, `CONTINUE-HERE.md` ni `.claude/` en el diff.
+  - CHANGELOG no tocado (lo genera `changelog-sync` al cerrar); los `Changelog` de T-01..T-14 ya estaban rellenos (en español, como el resto del ledger).
+
 **Criterios de aceptación**
 
-- [ ] CA-18 y CA-19 cumplidos (lint, evals, interop, suites, réplica Linux).
-- [ ] Docs EN y ES actualizadas en el mismo cambio.
-- [ ] Sin datos personales en ficheros versionados (`grep` de rutas de usuario y correo vacío).
-- [ ] Ninguna referencia a `docs/knowledge/` como versionado.
+- [x] CA-18 y CA-19 cumplidos (lint, evals, interop, suites, réplica Linux).
+- [x] Docs EN y ES actualizadas en el mismo cambio.
+- [x] Sin datos personales en ficheros versionados (`grep` de rutas de usuario y correo vacío).
+- [x] Ninguna referencia a `docs/knowledge/` como versionado.
 
 **Subtareas**
 
-- [ ] Docs y CHANGELOG (`changelog-sync`).
-- [ ] Lint + evals + interop.
-- [ ] Suites Windows (conjunto de rojos).
-- [ ] Réplica Linux.
+- [x] Docs y CHANGELOG (`changelog-sync`).
+- [x] Lint + evals + interop.
+- [x] Suites Windows (conjunto de rojos).
+- [x] Réplica Linux.
 
 **Notas**: Criterio de la spec: CA-18, CA-19.
 
@@ -723,8 +730,8 @@ Qué verificaron las lentes:
 
 | # | Grado | Gap | Tarea | Corrección | Evidencia | Lente |
 |---|---|---|---|---|---|---|
-| 25 | Minor | `_sanear_causa` no quita U+200E/U+200F/U+061C, y `--avisos-grupo --json` sale con `ensure_ascii=False`, así que C1 y bidi llegan crudos. Es la misma clase de fallo que #21, esta vez en `knowledge-sync` (`knowledge-sync.py:149,344`). El id lo escribe el propio usuario en su `taxonomy.json`. **Arbitraje:** la clase de `_sanear_causa` pasa a cubrir `Cc`/`Cf`/`Zl`/`Zp` completos, con el mismo criterio que `_escapar`, y el `--json` de `--avisos-grupo` se emite con `ensure_ascii=True`. Test | T-11 | pendiente (T-14) | | B+C |
-| 26 | Minor | La documentación conserva la regla antigua `^[a-z0-9][a-z0-9-]*$` para `id_prefix`/nombre, aunque el código ya exige `^[a-z]…` sin palabras reservadas: `commands/setup.md:77` y sus copias de interop, `skills/knowledge-services/references/kwipu-adapter.md:236`, `docs/agents/CONTRACTS.md` (E25) y `spec.md:102`. **Arbitraje:** documentar en todos esos sitios la regla que aplica el código, regenerar interop y añadir un test que compare la regla documentada con `NOMBRE_RE` | T-13 | pendiente (T-14) | | B+C (A) |
-| 27 | Minor | `validar_root` rechaza también los code points `Cn` que la base Unicode del Python en ejecución no conoce todavía, aunque en versiones posteriores ya estén asignados. PyYAML solo rechaza U+FFFE/U+FFFF, así que la regla va más allá de lo necesario. El caso es teórico y solo produce un exit 2 limpio, sin corromper nada. **Arbitraje:** se acepta como límite conservador y se declara en `references/kwipu-adapter.md` («una carpeta con caracteres recientes que el Python del usuario no conoce: usa `--nombre` y una `root` alternativa») | T-12 | pendiente (T-14) | | B+C |
+| 25 | Minor | `_sanear_causa` no quita U+200E/U+200F/U+061C, y `--avisos-grupo --json` sale con `ensure_ascii=False`, así que C1 y bidi llegan crudos. Es la misma clase de fallo que #21, esta vez en `knowledge-sync` (`knowledge-sync.py:149,344`). El id lo escribe el propio usuario en su `taxonomy.json`. **Arbitraje:** la clase de `_sanear_causa` pasa a cubrir `Cc`/`Cf`/`Zl`/`Zp` completos, con el mismo criterio que `_escapar`, y el `--json` de `--avisos-grupo` se emite con `ensure_ascii=True`. Test | T-11 | cerrado (T-14) | `test_t14_gap25_*` (RED→GREEN): `_sanear_causa` por categoría Cc/Cf/Zl/Zp; `--avisos-grupo --json` ASCII. | B+C |
+| 26 | Minor | La documentación conserva la regla antigua `^[a-z0-9][a-z0-9-]*$` para `id_prefix`/nombre, aunque el código ya exige `^[a-z]…` sin palabras reservadas: `commands/setup.md:77` y sus copias de interop, `skills/knowledge-services/references/kwipu-adapter.md:236`, `docs/agents/CONTRACTS.md` (E25) y `spec.md:102`. **Arbitraje:** documentar en todos esos sitios la regla que aplica el código, regenerar interop y añadir un test que compare la regla documentada con `NOMBRE_RE` | T-13 | cerrado (T-14) | `test_t14_gap26_la_regla_documentada_de_nombre_es_la_de_NOMBRE_RE` (RED→GREEN); interop regenerado. | B+C (A) |
+| 27 | Minor | `validar_root` rechaza también los code points `Cn` que la base Unicode del Python en ejecución no conoce todavía, aunque en versiones posteriores ya estén asignados. PyYAML solo rechaza U+FFFE/U+FFFF, así que la regla va más allá de lo necesario. El caso es teórico y solo produce un exit 2 limpio, sin corromper nada. **Arbitraje:** se acepta como límite conservador y se declara en `references/kwipu-adapter.md` («una carpeta con caracteres recientes que el Python del usuario no conoce: usa `--nombre` y una `root` alternativa») | T-12 | cerrado (T-14) | Límite declarado en `kwipu-adapter.md` (prosa, TDD n/a). | B+C |
 
 **Decisión del orquestador (2026-10-01).** Revisión cerrada con 0 Critical y 0 Important. #25-#27 son baratos y se hacen dentro de T-14, junto con la documentación ES/EN, el README, el CHANGELOG y la réplica en Linux, antes del PR.
