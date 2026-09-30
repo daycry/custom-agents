@@ -7,7 +7,7 @@ actualizado: "2026-09-30"
 spec: spec.md                 # enlace hacia atrás (misma carpeta)
 evaluacion: "evaluation.md"
 plan: improvement-plan.md     # el plan ya existe; T-09 es la tarea de diseño que bloquea T-12/T-13
-adr: "docs/knowledge/adr/ADR-020-alta-kwipu-append-only-en-projects-yaml.md"   # SOLO LOCAL: docs/knowledge/ no se versiona (PR #14)
+adr: "docs/knowledge/adr/ADR-021-alta-kwipu-append-only-en-projects-yaml.md"   # SOLO LOCAL: docs/knowledge/ no se versiona (PR #14)
 opcion_elegida: "O1"          # validada por el usuario el 2026-09-30 («sí a todo», vía orquestador)
 generacion:
   inicio: 2026-09-29T22:02:28Z
@@ -21,7 +21,7 @@ generacion:
 
 # Diseño — Alta del proyecto en `projects.yaml` de Kwipu (solo añade)
 
-> **Spec:** [`spec.md`](spec.md) (aprobada) · **Evaluación:** [`evaluation.md`](evaluation.md) (go condicionado, condiciones 1-3) · **Plan:** [`improvement-plan.md`](improvement-plan.md) (T-09 → T-12, T-13) · **ADR:** `ADR-020` `propuesta`, solo local en `docs/knowledge/adr/` (no se versiona; la decisión versionada es la sección «Decisión» de este documento)
+> **Spec:** [`spec.md`](spec.md) (aprobada) · **Evaluación:** [`evaluation.md`](evaluation.md) (go condicionado, condiciones 1-3) · **Plan:** [`improvement-plan.md`](improvement-plan.md) (T-09 → T-12, T-13) · **ADR:** `ADR-021` `propuesta`, solo local en `docs/knowledge/adr/` (no se versiona; la decisión versionada es la sección «Decisión» de este documento)
 
 | | |
 |---|---|
@@ -116,7 +116,7 @@ Descartadas:
 
 ### Decisión (enmienda a ADR-018 / PAT-001)
 
-*Decisión con O1, validada por el usuario el 2026-09-30. La ADR-020 local sigue `propuesta` hasta que la acepte quien cierre la puerta.*
+*Decisión con O1, validada por el usuario el 2026-09-30. La ADR-021 local sigue `propuesta` hasta que la acepte quien cierre la puerta.*
 
 1. **ADR-018 §2 se enmienda, no se deroga.** `projects.yaml` sigue sin ser plano de control ni fuente de verdad. El plugin no introduce `project_id` ni tenant, y no lo lee para decidir su comportamiento, salvo para comprobar idempotencia y conflicto en el alta. La fuente del nombre y de la carpeta sigue siendo `taxonomy.json` (`id_prefix`, `backends.<id>.config.export_dir`). La entrada en `projects.yaml` es una **proyección derivada** que se escribe una vez.
 2. **PAT-001 se acota con una excepción nombrada.** El adaptador (`markdown_export.py`), `knowledge-sync.py`, los hooks y `/doctor` siguen sin escribir en el stack y sin ejecutarlo. Una sola pieza, `skills/knowledge-services/scripts/kwipu-project-add.py`, invocada desde `/setup` 5-sexies, puede **añadir** una entrada, y solo con una confirmación explícita atada al hash del fichero. `build_view` y los reinicios se siguen imprimiendo, nunca se ejecutan. PAT-001 vive en `approved/` y solo `knowledge-curator` puede versionarlo, así que la v2 va como candidata (§7).
@@ -213,7 +213,7 @@ En cualquier otro caso es **nueva**: `/setup` materializa `group_id = id_prefix`
 | Escritor concurrente (editor o segundo `/setup`) | Baja | Medio | `--esperado <sha256>`, identidad y tamaño antes del `write`, relectura después; si el prefijo cambió, no se toca nada |
 | La copia contiene rutas de otros proyectos del usuario | Media | Medio si acaba versionada | Vive junto al original como `<stack>/kwipu/config/projects.yaml.bak-<AAAAMMDDTHHMMSSZ>` (fuera del repo del proyecto), nunca en `.claude/` |
 | El `export_dir` se indexa entero, incluido `manifest.json` si el stack permite `.json` | Baja | Bajo | Hoy `allowed_extensions` no incluye `.json`; se documenta en `kwipu-adapter.md` |
-| Enmienda no curada: PAT-001 sigue diciendo lo contrario en `approved/` | Alta hasta curar | Bajo | El orquestador la cura en local con `knowledge-curator` (PAT-001 v2 y la nota en ADR-018); la ADR-020 y este diseño lo citan |
+| Enmienda no curada: PAT-001 sigue diciendo lo contrario en `approved/` | Alta hasta curar | Bajo | El orquestador la cura en local con `knowledge-curator` (PAT-001 v2 y la nota en ADR-018); la ADR-021 y este diseño lo citan |
 
 ## 7. Preguntas abiertas
 
@@ -222,7 +222,7 @@ Ninguna que bloquee T-12/T-13. Resueltas el 2026-09-30:
 - **Opción:** O1.
 - **Copia:** `projects.yaml.bak-<AAAAMMDDTHHMMSSZ>` en el mismo directorio, con sufijo si el nombre ya existe.
 - **Comandos:** fijos, sin `reindex` configurable.
-- **Curación:** PAT-001 v2 y la nota «enmendada por ADR-020» en ADR-018 las hace el orquestador con `knowledge-curator`, en local.
+- **Curación:** PAT-001 v2 y la nota «enmendada por ADR-021» en ADR-018 las hace el orquestador con `knowledge-curator`, en local.
 
 ---
 

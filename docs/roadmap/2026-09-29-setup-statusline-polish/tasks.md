@@ -389,7 +389,7 @@ estado: en-progreso
 - **Verificación**:
   - lectura: la ADR existe en `docs/knowledge/adr/` con `estado: propuesta`, cita ADR-018, PAT-001 y §4, y fija forma de YAML, `root` y exit code
   - `grep -n "ADR-0" docs/knowledge/README.md` -> la fila de la ADR nueva en el índice
-  - Salida real (2026-09-30, orquestador): `design.md` → `estado: aprobado` y `opcion_elegida: "O1"` (validada por el usuario, «sí a todo»); sin placeholders `{{`; ADR-020 `propuesta` en `docs/knowledge/adr/` con su fila en el índice (memoria local, no versionada); la decisión versionada es la sección «Decisión» de `design.md`
+  - Salida real (2026-09-30, orquestador): `design.md` → `estado: aprobado` y `opcion_elegida: "O1"` (validada por el usuario, «sí a todo»); sin placeholders `{{`; ADR-021 `propuesta` en `docs/knowledge/adr/` con su fila en el índice (memoria local, no versionada); la decisión versionada es la sección «Decisión» de `design.md`
 
 **Criterios de aceptación**
 

@@ -1,5 +1,5 @@
 ---
-design: design.md         # T-09 (architect): O1, append in situ con bloque marcado; ADR-020 propuesta (solo local)
+design: design.md         # T-09 (architect): O1, append in situ con bloque marcado; ADR-021 propuesta (solo local)
 test-plan: n/a (sin UI)
 riesgo: medio             # piloto de sdd-proporcional
 generacion:
@@ -27,7 +27,7 @@ generacion:
 | **Responsable** | planner → implementer |
 | **Spec** | [`spec.md`](spec.md) |
 | **Evaluación** | [`evaluation.md`](evaluation.md) |
-| **Diseño** | [`design.md`](design.md) (aprobado · O1; ADR-020 `propuesta`, solo local) |
+| **Diseño** | [`design.md`](design.md) (aprobado · O1; ADR-021 `propuesta`, solo local) |
 
 ---
 
