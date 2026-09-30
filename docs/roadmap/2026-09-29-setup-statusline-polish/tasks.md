@@ -51,7 +51,7 @@ estado: en-progreso
 ### T-01 — C-06 - Test de 200 upserts sin reloj
 
 - **Descripción**: Sustituir `assertLess(t_sin_cambios, 10.0)` de `test_tiempos_200_upserts...` por una aserción sobre operaciones (0 `os.replace` y 0 escrituras en la pasada estable, con `mock`). La propiedad real es la linealidad, no los segundos.
-- **Changelog**: El test de 200 upserts del exportador Markdown deja de fallar según la carga de la máquina.
+- **Changelog**: The Markdown exporter's 200-upsert test no longer fails depending on machine load: it counts operations instead of seconds.
 - **Estado**: completado
 - **Prioridad**: Alta
 - **Tiempo humano**: est. 1.2h · real —
@@ -87,7 +87,7 @@ estado: en-progreso
 ### T-02 — C-09b - Tests de conocimiento sobre fixture versionado
 
 - **Descripción**: Los ~20 tests de `tests/test_knowledge_find.py` y `tests/test_knowledge_index.py` que leen el `docs/knowledge/` real (ya no versionado) pasan a `evals/fixtures/project/docs/knowledge/` u otro fixture bajo `tests/fixtures/`. Las cifras de línea base se reformulan contra el fixture sin perder lo que prueban. Fixture sin datos personales.
-- **Changelog**: Las pruebas de búsqueda e índice de conocimiento funcionan en un clon limpio, sin la memoria local.
+- **Changelog**: Knowledge search and index tests now run on a synthetic versioned corpus, so they pass in a clean clone without the local memory.
 - **Estado**: completado
 - **Prioridad**: Alta
 - **Tiempo humano**: est. 3.6h · real —
@@ -132,7 +132,7 @@ estado: en-progreso
 ### T-03 — C-03 - Statusline: coste correcto
 
 - **Descripción**: Reproducir el `$0,00` (coma decimal en `printf '%.2f'` bajo locale; redondeo) y arreglarlo con `LC_NUMERIC=C`; un coste positivo < 0,01 se muestra `<$0.01`, nunca como cero. Sin red ni subprocesos extra.
-- **Changelog**: La statusline muestra el coste de la sesión correctamente con cualquier locale.
+- **Changelog**: The statusline shows the session cost correctly under any locale (comma decimal separators included).
 - **Estado**: completado
 - **Prioridad**: Alta
 - **Tiempo humano**: est. 1.2h · real —
@@ -168,7 +168,7 @@ estado: en-progreso
 ### T-04 — C-04 - coverage-gate: sin falso «no disponible»
 
 - **Descripción**: `herramienta_disponible` trata `TimeoutExpired` igual que un `ImportError`. Separarlos: el timeout se reintenta (timeout mayor) y, si persiste, queda «no verificado»; solo un import fallido real da «no disponible» (exit 2 con aviso). Nunca un % inventado.
-- **Changelog**: El gate de cobertura ya no dice «no disponible» por un arranque lento de Python.
+- **Changelog**: The coverage gate no longer reports «not available» because of a slow Python start-up; it retries and says «not verified» instead.
 - **Estado**: completado
 - **Prioridad**: Alta
 - **Tiempo humano**: est. 1.8h · real —
@@ -204,7 +204,7 @@ estado: en-progreso
 ### T-05 — C-05 - Dashboard: leer las evaluaciones con las dos familias de etiquetas
 
 - **Descripción**: `_scan_leer_eval` acepta `Coste`/`Esfuerzo humano` (histórico) y `Tiempo humano`/`Coste humano a N EUR/h`/`Coste humano (N EUR/h)`, y recurre a `estado:` del frontmatter cuando no hay fila `Estado`. CA-07 revisado: `graphiti-memory` no tiene tabla de coste; el lector devuelve nulo para coste y esfuerzo con un aviso explícito que nombra la evaluación (no parsea prosa ni reescribe el registro). Ojo con «1,300 EUR» (coma de miles): no reutilizar `_num()` a ciegas.
-- **Changelog**: El dashboard vuelve a mostrar coste y esfuerzo de las evaluaciones recientes y avisa cuando una no tiene tabla.
+- **Changelog**: The dashboard shows cost and effort again for recent evaluations (both label families) and warns when an evaluation has no table.
 - **Estado**: completado
 - **Prioridad**: Media
 - **Tiempo humano**: est. 3.6h · real —
@@ -243,7 +243,7 @@ estado: en-progreso
 ### T-06 — C-02 - `find` que nunca elige temporales bajo `~/.claude/jobs`
 
 - **Descripción**: Excluir `*/.claude/jobs/*` y temporales de los `find ... | head -1` de la statusline y de `/setup` 5-bis, prefiriendo plugin instalado o proyecto. Un `HOME` falso con dos copias fija el criterio. Las otras ~74 apariciones del patrón quedan como deuda anotada (fuera de alcance; iniciativa propia con helper común).
-- **Changelog**: La statusline y `/setup` dejan de resolver rutas a copias temporales antiguas del plugin.
+- **Changelog**: The statusline and `/setup` no longer resolve paths to stale temporary copies of the plugin under `~/.claude/jobs`.
 - **Estado**: completado
 - **Prioridad**: Media
 - **Tiempo humano**: est. 3.0h · real —
@@ -281,7 +281,7 @@ estado: en-progreso
 ### T-07 — C-01 - Statusline: iniciativa en curso con varias activas
 
 - **Descripción**: Con 2+ ledgers activos la línea pasa a `📋 N activas · ▶ <slug> T-XX/YY NN%`. La iniciativa en curso sale del marcador abierto de `usage-meter` (lectura directa de `.claude/usage-state.json`, sin lanzar `usage-meter.py`; claves `<slug>/<artefacto>` y `docs/roadmap/<fecha>-<slug>/…`) y, si no hay, del `tasks.md` modificado más reciente. Un marcador de spec o evaluación sin ledger no muestra progreso (comportamiento fijado por test). La lógica va en `progress-report.py` con tests, no en bash; escaneo solo de `docs/roadmap/*/tasks.md`; una sola activa = salida idéntica.
-- **Changelog**: La statusline marca en qué iniciativa se está trabajando cuando hay varias activas.
+- **Changelog**: With several active initiatives, the statusline marks the one in progress (open usage marker, else the most recently changed ledger).
 - **Estado**: completado
 - **Prioridad**: Media
 - **Tiempo humano**: est. 4.8h · real —
@@ -329,7 +329,7 @@ estado: en-progreso
 ### T-08 — C-09a - `/doctor`: línea kwipu con `tope_ms` estricto
 
 - **Descripción**: Decisión 3a: tope estricto con timeout duro. Ejecutar la sonda kwipu en un hilo `daemon` con `join(timeout)` y abandonarlo si no termina (sin escrituras a medias), de modo que la línea no supere `tope_ms` + un margen fijo documentado. Medir antes la fuente del exceso (`_urlopen_local`, DNS, arranque del adaptador). Hotspot: tarea aislada, sin paralelizar con otras sobre `doctor.py`.
-- **Changelog**: `/doctor` ya no se demora más de su tope al consultar el servidor de conocimiento.
+- **Changelog**: `/doctor` never waits longer than its budget for the knowledge server line: the probe runs with a hard timeout.
 - **Estado**: completado
 - **Prioridad**: Media
 - **Tiempo humano**: est. 3.6h · real —
@@ -375,7 +375,7 @@ estado: en-progreso
 ### T-09 — ADR - Enmienda a ADR-018 / PAT-001 / constitución §4: alta que solo añade en `projects.yaml`
 
 - **Descripción**: Tarea de DISEÑO previa a C-07, a cargo del agente `architect`: ADR nueva `propuesta` (enmienda a ADR-018, PAT-001 y constitución §4) que autorice SOLO AÑADIR un bloque en el `projects.yaml` del stack, con vista previa, confirmación y copia de seguridad, y que resuelva la tensión de la escritura atómica (reemplazo) sobre un fichero que el plugin no creó. Debe fijar: forma(s) de YAML reconocidas (con la muestra anonimizada de `<stack>/kwipu/config/projects.yaml`), `root` absoluta o relativa, y código de salida de «forma no reconocida». Si no se acepta, C-07 se reduce a imprimir el bloque (-8 h humanas, -3 h IA). No estaba en la evaluación (+2 h humanas, +0,5 h IA declaradas).
-- **Changelog**: Nueva decisión de diseño que autoriza dar de alta el proyecto en Kwipu añadiendo un bloque, sin modificar lo existente.
+- **Changelog**: Design decision that allows registering the project in Kwipu by appending a marked block, without modifying existing content.
 - **Estado**: completado
 - **Prioridad**: Crítica
 - **Tiempo humano**: est. 2.0h · real —
@@ -410,7 +410,7 @@ estado: en-progreso
 ### T-10 — C-08a - `id_prefix` elegible y derivación de nombre y `group_id` (solo instalaciones nuevas)
 
 - **Descripción**: `/setup` propone el `id_prefix` (slug de la carpeta), valida `^[a-z0-9][a-z0-9-]*$` y lo guarda en `taxonomy.json`. Decisión del usuario: el `group_id` derivado de `id_prefix` se aplica SOLO a instalaciones nuevas (sin `group_id` efectivo previo); las que ya tienen un `group_id` implícito lo conservan y reciben un aviso. La derivación vive en UN solo sitio, consumido por `knowledge-schema.py` y `graphiti.py` (hoy 33 líneas duplicadas). Un test fija que una instalación con `id_prefix` distinto de la carpeta no cambia de `group_id`. Hotspot `knowledge-schema.py`: solo esta tarea lo toca.
-- **Changelog**: Los proyectos nuevos eligen su nombre (`id_prefix`) en `/setup`; los ya existentes conservan su grupo de Graphiti.
+- **Changelog**: New projects choose their name (`id_prefix`) in `/setup`; existing installations keep their Graphiti group.
 - **Estado**: completado
 - **Prioridad**: Media
 - **Tiempo humano**: est. 7.0h · real —
@@ -452,7 +452,7 @@ estado: en-progreso
 ### T-11 — C-08b - Avisos: renombrado con conocimiento exportado y `group_id` con episodios de otro origen
 
 - **Descripción**: Dos avisos sin bloqueo, cada uno con test (CA-15). (1) Renombrar `id_prefix` con conocimiento ya exportado: avisa de que cambian los `knowledge_id`, no migra. (2) `group_id` con episodios de otro origen antes de la primera sincronización, decisión 2c: primero el estado local (manifiesto publicado / `outbox`), después consulta al servidor solo si responde (loopback, opt-in, con el tope de red del adaptador); sin conexión degrada a «no verificado». Se suma el aviso de T-10 (instalación con `group_id` implícito conservado).
-- **Changelog**: `/setup` avisa cuando renombrar un proyecto cambia sus identificadores o cuando un grupo de Graphiti ya contiene datos de otro origen.
+- **Changelog**: `/setup` warns when renaming a project changes its identifiers or when a Graphiti group already holds data from another source.
 - **Estado**: completado
 - **Prioridad**: Media
 - **Tiempo humano**: est. 5.0h · real —
@@ -497,7 +497,7 @@ estado: en-progreso
 ### T-12 — C-07a - Script de alta en `projects.yaml` (solo añade)
 
 - **Descripción**: Script stdlib nuevo `skills/knowledge-services/scripts/kwipu-project-add.py` y sus tests. Implementa el flujo de la spec (pasos 2-7) según la forma y el contrato fijados por la ADR de T-09: reconoce formas concretas y rechaza el resto (no escribe, imprime el bloque y sale con el código documentado); homónimo con otra `root` -> conflicto; misma `root` -> no-op; si no existe: vista previa, confirmación, copia de seguridad (su fallo aborta), escritura atómica con relectura justo antes; valida `id_prefix` (`^[a-z0-9][a-z0-9-]*$`) y `root` contra inyección y `..`; comprueba que el destino es el `projects.yaml` del stack indicado; imprime los comandos de `build_view` y de reinicio sin ejecutarlos. Validación solo sobre copias en temporales; la ejecución real la lanza el usuario. Ejemplos con `<stack>/…`, sin datos personales.
-- **Changelog**: Nuevo script que da de alta el proyecto en Kwipu añadiendo un bloque, con vista previa, confirmación y copia de seguridad.
+- **Changelog**: New `kwipu-project-add.py`: registers the project in Kwipu's `projects.yaml` by appending a block, with preview, confirmation and backup.
 - **Estado**: completado
 - **Prioridad**: Alta
 - **Tiempo humano**: est. 9.0h · real —
@@ -541,7 +541,7 @@ estado: en-progreso
 ### T-13 — C-07b - Enganche en `/setup` 5-sexies
 
 - **Descripción**: `/setup` 5-sexies propone el `id_prefix` (T-10), invoca el script de alta con el `export_dir` de `taxonomy.json`, muestra la vista previa, pide confirmación y muestra los comandos de `build_view` y de reinicio que debe ejecutar el usuario (no los ejecuta). Degrada con aviso sin `python3`. Añade a `docs/agents/CONTRACTS.md` la arista nueva `/setup` -> script de alta.
-- **Changelog**: `/setup` ofrece dar de alta el proyecto en Kwipu con confirmación y sin tocar lo ya existente.
+- **Changelog**: `/setup` offers to register the project in Kwipu with explicit confirmation, never touching existing entries.
 - **Estado**: completado
 - **Prioridad**: Media
 - **Tiempo humano**: est. 5.4h · real —
@@ -585,7 +585,7 @@ estado: en-progreso
 ### T-14 — Cierre - Docs EN/ES, lint, suites y réplica en Linux
 
 - **Descripción**: Documentación bilingüe (`docs/en/`, README y CHANGELOG EN/ES), regeneración de `interop/`, lint, evals, suites (comparando el conjunto de rojos preexistentes en Windows) y réplica en Linux (contenedor `python:3.11-slim`, normalizando CRLF de los `.sh`). Sin datos personales en lo versionado. Medir el multiplicador de revisión real para calibrar `sdd-proporcional` (anotar en `/retro`).
-- **Changelog**: Documentación EN/ES y verificación completa (lint, evals, suites y réplica en Linux) de esta mejora.
+- **Changelog**: EN/ES documentation and a full verification pass (lint, evals, suites and a Linux replica) for this polish.
 - **Estado**: completado
 - **Prioridad**: Alta
 - **Tiempo humano**: est. 3.6h · real —
