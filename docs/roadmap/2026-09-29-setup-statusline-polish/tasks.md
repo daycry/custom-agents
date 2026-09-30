@@ -677,3 +677,30 @@ Lo que ya queda verificado, por lente:
 
 
 **Nota del orquestador (2026-09-30) sobre fix1:** se aceptan las tres desviaciones declaradas: en #1 el prefijo también debe ser igual antes de truncar, que es más estricto; en #4 se recorren los adaptadores que definen `estado_grupo`, porque el núcleo no puede nombrar un backend (gap #77); en #9 se usa un `_escapar` sin recortar. `scope-check --base 5a08d45` marca como fuera de alcance cinco artefactos de la cadena (`design.md`, `evaluation.md`, `improvement-plan.md`, `spec.md` y `docs/roadmap/README.md`), todos editados por el orquestador en #15/#16: se aceptan como excepción declarada.
+
+## Revisión de dos lentes — intento 2: fix1 — #1-#5, #7-#14 y #18 CERRADOS; 6 gaps NUEVOS (0 Critical, 2 Important, 4 Minor), lentes B+C, rango `95932dc...a8148b9` (fix1)
+
+Qué verificaron las lentes:
+
+- **Lente B.** Con un probe propio: 53 comprobaciones en Windows y en UNC, 58 en Linux sin root.
+  - #1 cerrado en los tres casos: dos `/setup` intercalados, rename entre el `write` y la relectura, y otro escritor.
+  - Cerrados también #2, #3, #4 (con 7 casos de `--avisos-grupo`), #7, #11 y #13.
+  - El camino normal (vista previa → `--apply` → re-pasada idempotente, también con CRLF, sin EOL final y en UNC) no tiene regresiones.
+  - Suites en Linux: 1530 passed; el único rojo es el de entorno de master.
+- **Lente C.** En Linux sin root:
+  - Cerrados #1, #8 (se revalida cada salto), #9 (recorrido exhaustivo de los 0x110000 code points por `_escapar`), #10 (enlace duro y ELOOP) y #18 (55 symlinks plantados que no se siguen).
+  - Sin `--consultar-servidor` no hay red.
+  - No hay datos personales.
+
+**Fusión:** B-G1 = C-N1 → #19; la nota fuera de lente de C sobre `validar_root` → #20; C-N2 → #21; C-N3 → #22; B-G2 → #23; B-G3 → #24.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia | Lente |
+|---|---|---|---|---|---|---|
+| 19 | **Important** | Si el `write` lanza, se asume que pudo escribir el bloque entero (`propios=[b"", bloque]`), así que se trunca el bloque idéntico de otro `/setup` que ya salió con «añadido» (`kwipu-project-add.py:433,453-459`). Se borran bytes ajenos y B informa de un estado falso. Reproducido en Windows, UNC y Linux: A pasa su `fstat`, B completa y sale con exit 0, y entonces el `write` de A lanza ENOSPC. CWE-367. **Arbitraje:** con `n is None`, `propios=[b""]` (en POSIX, un `write` que falla no escribió nada). Si el `write` lanzó, nunca se trunca. Test con el escenario literal | T-12 | pendiente | | B + C |
+| 20 | **Important** | `validar_root` acepta U+FFFE/U+FFFF (Cn) y sustitutos sueltos (Cs). Con los primeros, PyYAML da `ReaderError` sobre el `projects.yaml` resultante y la vista entera del stack deja de funcionar, no solo este proyecto. Con los segundos, `.encode("utf-8")` revienta al aplicar, cuando la copia ya existe. **Arbitraje:** `validar_root` rechaza también las categorías `Cn` y `Cs` (y cualquier carácter que no codifique a UTF-8 estricto). Test con los tres literales | T-12 | pendiente | | C (fuera de lente) |
+| 21 | Minor | En `--json`, el texto que viene de `projects.yaml` sale sin escapar C1 ni bidi, porque `json.dumps` solo escapa C0 (`kwipu-project-add.py:569`). CWE-150. **Arbitraje:** `ensure_ascii=True` en la salida `--json`. Test | T-12 | pendiente | | C |
+| 22 | Minor | El recorrido de `--avisos-grupo` sin `--backend` imprime el id del backend sin sanear (`knowledge-sync.py:350`). **Arbitraje:** el id pasa por el mismo saneado que los avisos (`_sanear_causa`). Test con un ESC | T-11 | pendiente | | C |
+| 23 | Minor | `commands/setup.md:96` (y sus copias en interop) sigue documentando que exit 1 significa «deshace solo lo añadido». Tras fix1 también puede significar «no se toca nada, tu bloque SÍ está, revísalo a mano». **Arbitraje:** documentar los dos significados de exit 1 y que el campo que manda es `bloque_presente`. Regenerar interop | T-13 | pendiente | | B |
+| 24 | Minor | `/setup` acepta un `id_prefix` que empieza por dígito o que es palabra reservada de YAML (`id_prefix_valido` no se alineó con la regla de #2), y el paso de Kwipu solo dice «Salida 2: corrígelos». **Arbitraje:** `id_prefix_valido` aplica la misma regla que el nombre de #2 (empieza por letra, sin palabras reservadas). `setup.md` indica pasar `--nombre <propuesta>` si el `id_prefix` no vale como nombre. Tests | T-10/T-13 | pendiente | | B |
+
+**Decisión del orquestador (2026-09-30):** 2 Important locales y baratos (#19 es una línea; #20 es la regla de `validar_root`) ⇒ micro-ronda `fix2` sobre #19-#24 e **intento 3** (el último) con la Lente B y la C.
