@@ -10,14 +10,14 @@ generacion:
   ratio_usado: 479326     # CALIBRATION.md (mediana de 5)
 verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige ledger-lint
 riesgo: medio              # piloto de sdd-proporcional
-estado: en-progreso
+estado: completado
 ---
 
 # Checklist de Tareas — setup-statusline-polish (pulido de setup, statusline y puertas)
 
 | | |
 |---|---|
-| **Estado** | en-progreso |
+| **Estado** | completado |
 | **Fecha** | 2026-09-29 |
 | **Plan** | [`improvement-plan.md`](./improvement-plan.md) |
 | **Diseño** | [`design.md`](./design.md) (aprobado, O1; decisión de T-09) |
@@ -735,3 +735,8 @@ Qué verificaron las lentes:
 | 27 | Minor | `validar_root` rechaza también los code points `Cn` que la base Unicode del Python en ejecución no conoce todavía, aunque en versiones posteriores ya estén asignados. PyYAML solo rechaza U+FFFE/U+FFFF, así que la regla va más allá de lo necesario. El caso es teórico y solo produce un exit 2 limpio, sin corromper nada. **Arbitraje:** se acepta como límite conservador y se declara en `references/kwipu-adapter.md` («una carpeta con caracteres recientes que el Python del usuario no conoce: usa `--nombre` y una `root` alternativa») | T-12 | cerrado (T-14) | Límite declarado en `kwipu-adapter.md` (prosa, TDD n/a). | B+C |
 
 **Decisión del orquestador (2026-10-01).** Revisión cerrada con 0 Critical y 0 Important. #25-#27 son baratos y se hacen dentro de T-14, junto con la documentación ES/EN, el README, el CHANGELOG y la réplica en Linux, antes del PR.
+
+## Cierre (orquestador, 2026-10-01)
+
+- **QA sin UI** (`testing/report.md`): 18 de 19 CA con su test ejecutado. `qa-gate` sale NO-VERDE porque no hay `results.json`, lo que es coherente con una iniciativa sin UI. CA-17 falla en Windows en 2 tests de `--show` (`test_knowledge_find`): la consola traduce los saltos de línea de la salida. Es un rojo de **entorno preexistente**: esos 2 tests ya fallaban en `5a08d45` (Lente A, intento 1) y pasan en Linux. Pasa al **backlog** como Minor diferido: normalizar los saltos de línea al leer la salida en el test (`newline=''`) o decodificar en binario.
+- **Knowledge Gate (local):** PAT-002, GOT-015 y LES-021 aprobadas; `knowledge-index` con 11 entradas y 0 errores.

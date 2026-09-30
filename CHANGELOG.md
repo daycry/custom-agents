@@ -9,6 +9,23 @@ and versioning follows [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed — `setup-statusline-polish` initiative (2026-09-29)
+
+- **T-01 — C-06 - Test de 200 upserts sin reloj** The Markdown exporter's 200-upsert test no longer fails depending on machine load: it counts operations instead of seconds. (`skills/knowledge-services/scripts/test_backend_markdown_export.py`)
+- **T-02 — C-09b - Tests de conocimiento sobre fixture versionado** Knowledge search and index tests now run on a synthetic versioned corpus, so they pass in a clean clone without the local memory. (`tests/test_knowledge_find.py`, `tests/test_knowledge_index.py`, `evals/fixtures/project/docs/knowledge/`)
+- **T-03 — C-03 - Statusline: coste correcto** The statusline shows the session cost correctly under any locale (comma decimal separators included). (`statusline/roadmap-statusline.sh`, `tests/test_hooks_shell.py`)
+- **T-04 — C-04 - coverage-gate: sin falso «no disponible»** The coverage gate no longer reports «not available» because of a slow Python start-up; it retries and says «not verified» instead. (`skills/unit-tests/scripts/coverage-gate.py`, `skills/unit-tests/scripts/test_coverage_gate.py`)
+- **T-05 — C-05 - Dashboard: leer las evaluaciones con las dos familias de etiquetas** The dashboard shows cost and effort again for recent evaluations (both label families) and warns when an evaluation has no table. (`skills/roadmap-dashboard/scripts/build_dashboard.py`, `tests/test_dashboard.py`, `skills/roadmap-dashboard/SKILL.md`)
+- **T-06 — C-02 - `find` que nunca elige temporales bajo `~/.claude/jobs`** The statusline and `/setup` no longer resolve paths to stale temporary copies of the plugin under `~/.claude/jobs`.
+- **T-07 — C-01 - Statusline: iniciativa en curso con varias activas** With several active initiatives, the statusline marks the one in progress (open usage marker, else the most recently changed ledger). (`statusline/roadmap-statusline.sh`, `agent-kits/shared/progress-report.py`, `agent-kits/shared/test_progress_report.py`)
+- **T-08 — C-09a - `/doctor`: línea kwipu con `tope_ms` estricto** `/doctor` never waits longer than its budget for the knowledge server line: the probe runs with a hard timeout. (`agent-kits/shared/doctor.py`, `agent-kits/shared/test_doctor.py`, `docs/agents/CONTRACTS.md`)
+- **T-09 — ADR - Enmienda a ADR-018 / PAT-001 / constitución §4: alta que solo añade en `projects.yaml`** Design decision that allows registering the project in Kwipu by appending a marked block, without modifying existing content. (`docs/knowledge/adr/`, `docs/knowledge/README.md`)
+- **T-10 — C-08a - `id_prefix` elegible y derivación de nombre y `group_id` (solo instalaciones nuevas)** New projects choose their name (`id_prefix`) in `/setup`; existing installations keep their Graphiti group.
+- **T-11 — C-08b - Avisos: renombrado con conocimiento exportado y `group_id` con episodios de otro origen** `/setup` warns when renaming a project changes its identifiers or when a Graphiti group already holds data from another source.
+- **T-12 — C-07a - Script de alta en `projects.yaml` (solo añade)** New `kwipu-project-add.py`: registers the project in Kwipu's `projects.yaml` by appending a block, with preview, confirmation and backup. (`skills/knowledge-services/scripts/kwipu-project-add.py`, `skills/knowledge-services/scripts/test_kwipu_project_add.py`, `skills/knowledge-services/references/kwipu-adapter.md`)
+- **T-13 — C-07b - Enganche en `/setup` 5-sexies** `/setup` offers to register the project in Kwipu with explicit confirmation, never touching existing entries.
+- **T-14 — Cierre - Docs EN/ES, lint, suites y réplica en Linux** EN/ES documentation and a full verification pass (lint, evals, suites and a Linux replica) for this polish.
+
 ### Added — `training-data-services` initiative (2026-09-16)
 
 - **T-01 — Esquema de `training.json` y del caso** New opt-in `training-data-services` skill: `training.json` config and a dependency-free case schema validator with closed status/outcome vocabularies.
