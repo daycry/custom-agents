@@ -83,6 +83,18 @@ los valores actuales y ofrece cambiarlos.
      ```bash
      python3 skills/knowledge-services/scripts/knowledge-sync.py --backend graphiti --avisos-grupo [--consultar-servidor]
      ```
+   - **Alta del proyecto en Kwipu (`projects.yaml`, C-07), solo si el backend `kwipu` está activo.** El stack es externo: este paso **solo AÑADE** un bloque marcado al `projects.yaml` del stack, con confirmación, y **NO ejecuta `build_view` ni reinicia contenedores** (los imprime; los lanzas tú). Pide la ruta del stack (`<stack>`, la carpeta que contiene `kwipu/config/`; **no la guardes** en `taxonomy.json`) y sigue estos pasos:
+     1. Nombre = el `id_prefix` de arriba; `root` = el `export_dir` de `taxonomy.json`, relativo a `<stack>/kwipu/config/` (si no existe, el script lo crea al aplicar).
+     2. **Vista previa** (no escribe): estado (`nuevo · presente · conflicto · no-reconocido`), el bloque exacto y el `sha256` del fichero:
+        ```bash
+        KPA="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type f -path '*skills/knowledge-services/scripts/kwipu-project-add.py' 2>/dev/null | head -1)"
+        python3 "$KPA" --stack <stack> --root .
+        ```
+     3. Salida `0` con `presente`: ya estaba dado de alta, no cambia nada. Salida `4` (conflicto de nombre o de `root`): no escribe; pide otro nombre y repite. Salida `3` (forma de `projects.yaml` no reconocida, enlace, fichero ausente): no escribe; muestra el bloque para que el usuario lo **pegue a mano** al final de `projects:`. Salida `2`: argumentos o taxonomía inválidos; corrígelos.
+     4. **Pide confirmación explícita** mostrando el bloque y el destino. Sin confirmación: no invoques `--apply` (exit 0, sin cambios).
+     5. Con confirmación: `python3 "$KPA" --stack <stack> --root . --apply --esperado <sha256 de la vista previa>`. Hace primero la copia `projects.yaml.bak-<AAAAMMDDTHHMMSSZ>` (si falla, aborta sin escribir), añade el bloque, relee y, si algo no cuadra, deshace solo lo añadido (salida `1`; si el fichero cambió desde la vista previa, repite la vista previa).
+     6. Muestra los comandos que imprime el script y **no los ejecutes**: `cd <stack>`, `python -m source_manager.build_view --config kwipu/config/projects.yaml --output kwipu/runtime/knowledge-view-v2` y `docker compose restart kwipu kwipu-bridge kwipu-mcp`.
+     7. Sin `python3`: degrada con aviso y ofrece el bloque para pegarlo a mano; nunca bloquea el resto del paso.
    - Por cada capacidad desactivada que el usuario quiera activar, sigue el `setup_step` que ella misma declara (p. ej. para un backend: `backends.<id>.enabled: true` + su `config` propia en `taxonomy.json`) — este paso **no** conecta nada por su cuenta (nada de auto-discovery de red); solo declara la config.
    - **Memoria de grafo (`graphiti`), si el usuario la quiere:** su `setup_step` pide declarar un backend `type: "graphiti"` con `enabled: true` en `taxonomy.json` — `endpoint` del servidor MCP **local**, `group_id` propio del proyecto (no compartas grupo entre proyectos), `provider` y `mode`. Empieza SIEMPRE en `mode: "shadow"` (sincroniza y no lee); pasa a `"read"` solo cuando `/doctor` lo dé sano y sin desfase, y declara entonces qué intents puede atender (`router.intents`, p. ej. `temporal`) para que `knowledge-find.py --intent` se sirva del grafo. Este paso **no registra ningún servidor MCP** ni toca la configuración global del runtime: solo escribe `taxonomy.json` del proyecto.
    - Menciona `/doctor` como la forma de comprobar, DESPUÉS de activar una capacidad con backend, si está sana en vivo (comprobación de red real, opcional y sin bloquear este paso).

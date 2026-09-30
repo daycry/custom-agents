@@ -389,6 +389,7 @@ flowchart LR
     A --> G[".claude/dev.json<br/>tdd · worktree · subagents · statusline<br/>revision.lenteSeguridad/lenteRendimiento ·<br/>tests.coberturaMinima<br/>(+ constitution decision)"]
     A -.->|"opt-in 5-bis"| SL[".claude/settings.json<br/>statusLine → roadmap-statusline.sh<br/>(absolute path)"]
     A --> H["docs/CONSTITUTION.md<br/>permanent principles (opt-in)<br/>read by ALL agents;<br/>lens A enforces them"]
+    A -.->|"opt-in 5-sexies"| KP["stack/kwipu/config/projects.yaml<br/>only APPENDS a marked block<br/>preview · confirmation · .bak copy<br/>(never runs build_view)"]
     C -.->|state| E[".claude/confluence-state.json"]
     D -.->|state| F[".claude/jira-state.json<br/>mapping · logged/day · bank"]
 ```

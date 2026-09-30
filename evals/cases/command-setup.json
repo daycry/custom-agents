@@ -40,6 +40,18 @@
         "redirect": "command:doctor"
       },
       "notes": "Vecino: DIAGNOSTICAR sin escribir es /doctor; /setup escribe la config."
+    },
+    {
+      "id": "setup-alta-kwipu",
+      "prompt": "Ya tengo el id_prefix; ahora dame de alta el proyecto en el projects.yaml de mi stack de Kwipu, enséñame el bloque antes de escribir nada y no ejecutes el build_view.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "kwipu-project-add.py"
+        ]
+      },
+      "notes": "C-07 (5-sexies): solo añade, con confirmación; imprime build_view y reinicio sin ejecutarlos."
     }
   ]
 }

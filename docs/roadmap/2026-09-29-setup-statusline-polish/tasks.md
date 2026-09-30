@@ -36,7 +36,7 @@ estado: en-progreso
 | Fase 2 — Quick wins de visibilidad y puertas | 5 | 5 | 100% | 0 / 14.4h | 0 / 3.42h | 0 / 0.85h | 0 / 1639k |
 | Fase 3 — `/doctor`: tope estricto de la línea kwipu | 1 | 1 | 100% | 0 / 3.6h | 0 / 0.72h | 0 / 0.18h | 0 / 345k |
 | Fase 4 — ADR de diseño y `id_prefix` / `group_id` | 3 | 3 | 100% | 0 / 14.0h | 0 / 4.10h | 0 / 1.02h | 0 / 1965k |
-| Fase 5 — Alta segura en `projects.yaml` (bloqueada por la ADR) | 1 | 2 | 50% | 0 / 14.4h | 0 / 4.50h | 0 / 1.12h | 0 / 2157k |
+| Fase 5 — Alta segura en `projects.yaml` (bloqueada por la ADR) | 2 | 2 | 100% | 0 / 14.4h | 0 / 4.50h | 0 / 1.12h | 0 / 2157k |
 | Fase 6 — Cierre, documentación y réplica en Linux | 0 | 1 | 0% | 0 / 3.6h | 0 / 0.90h | 0 / 0.23h | 0 / 431k |
 | **TOTAL** | **11** | **14** | **79%** | **0 / 54.8h** | **0 / 14.63h** | **0 / 3.66h** | **0 / 7013k** |
 
@@ -492,7 +492,7 @@ estado: en-progreso
 
 ## Fase 5 — Alta segura en `projects.yaml` (bloqueada por la ADR)
 
-**Estado**: borrador · **Estimado**: 14.4h · **Real**: — · **Coste est.**: 748 € · **Tokens est.**: 2157k
+**Estado**: completado · **Estimado**: 14.4h · **Real**: — · **Coste est.**: 748 € · **Tokens est.**: 2157k
 
 ### T-12 — C-07a - Script de alta en `projects.yaml` (solo añade)
 
@@ -542,7 +542,7 @@ estado: en-progreso
 
 - **Descripción**: `/setup` 5-sexies propone el `id_prefix` (T-10), invoca el script de alta con el `export_dir` de `taxonomy.json`, muestra la vista previa, pide confirmación y muestra los comandos de `build_view` y de reinicio que debe ejecutar el usuario (no los ejecuta). Degrada con aviso sin `python3`. Añade a `docs/agents/CONTRACTS.md` la arista nueva `/setup` -> script de alta.
 - **Changelog**: `/setup` ofrece dar de alta el proyecto en Kwipu con confirmación y sin tocar lo ya existente.
-- **Estado**: borrador
+- **Estado**: completado
 - **Prioridad**: Media
 - **Tiempo humano**: est. 5.4h · real —
 - **Tiempo IA (ejec.)**: est. 1.70h · real —
@@ -557,19 +557,22 @@ estado: en-progreso
   - `python3 scripts/lint_plugin.py` -> exit 0 sin avisos nuevos de rutas citadas
   - lectura: `commands/setup.md` 5-sexies enumera los pasos 1-7 de la spec, deja explícito que NO ejecuta `build_view` ni reinicia contenedores, y cita `<stack>/…`
 
+- **Evidencia**:
+  Verificación: `python3 scripts/export-interop.py --check` -> `50 ficheros al día` (exit 0, tras regenerar y revertir los cambios solo de fin de línea de `.agents/plugins/marketplace.json` y `.codex-plugin/plugin.json`); `python3 scripts/lint_plugin.py` -> 0 errores, 3 avisos (los de «nombre genérico» previos; el aviso de ruta citada que apareció al añadir la fila a `docs/README.md` se corrigió citando la ruta completa); `python3 evals/check.py` -> 0 errores (146 casos, +1 positivo `setup-alta-kwipu`); `pytest -q tests/test_graphiti_security.py tests/test_export_interop.py tests/test_skill_size.py tests/test_lint_plugin.py` -> 109 passed (la puerta CA-05 no marca el script nuevo: la mención de `commands/setup.md` es `kwipu-project-add.py`, no `knowledge-sync.py --backend graphiti`). Lectura: `commands/setup.md` 5-sexies enumera los pasos 1-7 de la spec (nombre/`root` -> vista previa -> exit 0/4/3/2 -> confirmación -> `--apply --esperado` con copia -> comandos impresos -> degradación sin `python3`), dice explícitamente que NO ejecuta `build_view` ni reinicia contenedores, y cita `<stack>/…` (la ruta no se guarda en `taxonomy.json`). Fila E20 nueva en `CONTRACTS.md` con su Puerta (`test_kwipu_project_add.py`). Fallos de la suite en Windows fuera de alcance y previos a este cambio: `test_confluence_scope::test_hook_still_marks_pending_for_regular_docs` y `test_hooks_shell::test_mark_docs_pending_marca_con_docs_y_no_con_security_scan` (verificado con `git stash`).
+
 **Criterios de aceptación**
 
-- [ ] 5-sexies invoca el script y respeta CA-13 (imprime, no ejecuta).
-- [ ] Fila nueva en `CONTRACTS.md` con Puerta (el linter no avisa).
-- [ ] Sin rutas ni datos personales en lo versionado.
-- [ ] `interop/` regenerado y `evals/cases/command-setup.json` al día.
+- [x] 5-sexies invoca el script y respeta CA-13 (imprime, no ejecuta).
+- [x] Fila nueva en `CONTRACTS.md` con Puerta (el linter no avisa).
+- [x] Sin rutas ni datos personales en lo versionado.
+- [x] `interop/` regenerado y `evals/cases/command-setup.json` al día.
 
 **Subtareas**
 
-- [ ] Editar 5-sexies.
-- [ ] Fila de la arista en `CONTRACTS.md`.
-- [ ] Regenerar `interop/`.
-- [ ] Casos de eval.
+- [x] Editar 5-sexies.
+- [x] Fila de la arista en `CONTRACTS.md`.
+- [x] Regenerar `interop/`.
+- [x] Casos de eval.
 
 **Notas**: Criterio de la spec: CA-13.
 
