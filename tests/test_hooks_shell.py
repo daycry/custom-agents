@@ -1015,6 +1015,76 @@ def test_ledger_lint_warn_exit_0_con_ledger_coherente_e_incoherente(tmp_path):
     assert rc == 0 and "T-01" in out, out
 
 
+# ------------------------------------------------ training-data-services T-11: case store ----
+
+PROHIBIDO_RED_SHELL = ("curl ", "wget ", "/dev/tcp/", "/dev/udp/", " nc ", "ncat ", "http://", "https://")
+PROHIBIDO_RED_PY = ("import socket", "urllib.request", "http.client", "import requests", "from urllib", "from http ")
+CASE_STORE = ("training.json", "case-recorder", "dataset-assembler", "cases_index", "training-data-services",
+              "propose-from-case")
+
+
+def _scripts_de_los_hooks():
+    """Los `.py` de `agent-kits/shared/` que invoca algún hook (por su nombre literal en el hook)."""
+    nombres = set()
+    for fn in os.listdir(HOOKS):
+        if fn.endswith((".sh", ".js")):
+            nombres |= set(re.findall(r"[a-z_-]+\.py", open(os.path.join(HOOKS, fn), encoding="utf-8").read()))
+    return sorted(p for p in (os.path.join(ROOT, "agent-kits", "shared", n) for n in nombres) if os.path.isfile(p))
+
+
+def test_hooks_no_nombran_el_case_store_ni_hacen_red():
+    """training-data-services (spec: «no hay hook que capture esto solo»; CONSTITUTION 2: sin red desde los
+    hooks): ningún hook ni script que invoquen menciona el case store o sus scripts, y ninguno abre red
+    (ni `curl`/`wget`/`/dev/tcp` en shell ni `socket`/`urllib`/`http.client` en Python)."""
+    for fn in sorted(os.listdir(HOOKS)):
+        if not fn.endswith((".sh", ".js")):
+            continue
+        texto = open(os.path.join(HOOKS, fn), encoding="utf-8").read()
+        for p in PROHIBIDO_RED_SHELL + CASE_STORE:
+            assert p not in texto, (fn, p)
+    scripts = _scripts_de_los_hooks()
+    assert len(scripts) >= 5, scripts
+    for ruta in scripts:
+        texto = open(ruta, encoding="utf-8").read()
+        for p in PROHIBIDO_RED_PY + ("case-recorder", "dataset-assembler", "cases_index", "training.json"):
+            assert p not in texto, (os.path.basename(ruta), p)
+
+
+def _arbol(d):
+    out = {}
+    for base, dirs, fs in os.walk(str(d)):
+        for n in dirs + fs:
+            p = os.path.join(base, n)
+            st = os.lstat(p)
+            out[os.path.relpath(p, str(d))] = (st.st_size, st.st_mtime_ns)
+    return out
+
+
+def test_hooks_no_tocan_el_case_store_con_la_capacidad_activa(tmp_path):
+    """Con `training.json` activo y un case store con casos, pasar TODOS los eventos de hook no crea,
+    cambia ni borra nada bajo el `root` del store (ni siquiera un `.lock`)."""
+    proj, led = proyecto(tmp_path)
+    d = proj / ".claude" / "knowledge-services"
+    d.mkdir(parents=True)
+    (d / "training.json").write_text(json.dumps({"version": 1, "enabled": True, "root": "../store",
+                                                 "id_prefix": "geo"}), encoding="utf-8")
+    ejemplo = os.path.join(ROOT, "skills", "training-data-services", "assets", "case-store-example")
+    shutil.copytree(ejemplo, str(tmp_path / "store"))
+    antes = _arbol(tmp_path / "store")
+    env = env_de(proj, tmp_path)
+    for nombre, payload in (("session-context.sh", {"hook_event_name": "SessionStart", "source": "startup",
+                                                    "session_id": "s1", "cwd": str(proj)}),
+                            ("user-prompt-capture.sh", prompt_submit(proj, prompt="graba el caso geo-ramp.steep")),
+                            ("progress-line.sh", post_tool(str(led))),
+                            ("subagent-progress.sh", {"hook_event_name": "SubagentStop", "session_id": "s1"}),
+                            ("ledger-lint-warn.sh", post_tool(str(led))),
+                            ("mark-docs-pending.sh", post_tool(str(led))),
+                            ("session-journal.sh", session_end(proj))):
+        rc, _out, _err = hook(nombre, payload, env)
+        assert rc == 0, nombre
+    assert _arbol(tmp_path / "store") == antes
+
+
 # ------------------------------------------------------------------ statusline ----
 
 def test_statusline_json_oficial_una_linea_con_modelo_coste_y_roadmap(tmp_path):

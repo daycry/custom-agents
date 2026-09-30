@@ -1084,7 +1084,7 @@ def taxonomia(root):
     `SessionStart` (`session-context.sh`) y el invariante del plan es que ningún hook alcance
     código con capacidad de red; `knowledge-schema.py` importa `urllib` (solo para PARSEAR URLs,
     pero el guardarraíl estático de `tests/test_knowledge_services.py` sigue las invocaciones de
-    forma transitiva y no distingue `urllib.parse` de `urllib.request`, con la allowlist vacía a
+    forma transitiva y no distingue el submódulo de parseo de `urllib` del de peticiones, con la allowlist vacía a
     propósito). El router no necesita validar: exige `enabled: true`, `type` y
     `router.intents.<intent> is True` — una taxonomía inválida no enruta, no enruta mal. La
     validación completa (y la derivación de `group_id`) siguen donde estaban: `knowledge-sync.py`,

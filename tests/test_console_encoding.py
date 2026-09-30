@@ -324,6 +324,17 @@ SIN_SIMBOLOS_EN_LA_SALIDA = {
     # T-08: adaptador Kwipu sin `__main__` (solo funciones del contrato de adaptador, consumidas
     # por `knowledge-sync.py` vía `importlib`); arrancado sin argumentos no imprime nada.
     "skills/knowledge-services/backends/markdown_export.py": "sin `__main__`: al arrancar no ejecuta nada ni imprime nada",
+    # training-data-services T-01/T-02: los mensajes de `case_schema.py` (campo: mensaje, rutas) son
+    # ASCII a proposito; entra en SCRIPTS por el docstring. `case-recorder.py` (T-04) tiene CLI
+    # (`record`); sus mensajes (`error: ...`, `rechazado: ...`, `<campo>: <mensaje>`) son ASCII.
+    "skills/training-data-services/scripts/case_schema.py":
+        "sus veredictos (`OK <ruta>` / `<ruta>: <campo>: <mensaje>`) son ASCII puro",
+    "skills/training-data-services/scripts/case-recorder.py":
+        "sus veredictos (`error: ...` / `rechazado: ...` / JSON del caso grabado) son ASCII puro",
+    # training-data-services T-07: `dedup.py` entra por el docstring; su salida es ASCII (los ids no
+    # ASCII se escapan con `ascii()`, los errores son ASCII).
+    "skills/training-data-services/scripts/dedup.py":
+        "sus veredictos (`grupo: ...`, el resumen y `error: ...`) son ASCII puro (ids escapados con ascii())",
     # graphiti-memory T-02: modulo PURO (sin red/disco), sin `__main__` (lo carga `graphiti.py`,
     # T-04, o los tests, por `importlib`); arrancado sin argumentos no imprime nada.
     "skills/knowledge-services/backends/graphiti_model.py": "sin `__main__`: al arrancar no ejecuta nada ni imprime nada",
@@ -408,6 +419,21 @@ def _modos():
             [("importar sin CLI", lambda w: [], (0,), None)],
         "skills/knowledge-services/backends/markdown_export.py":
             [("importar sin CLI", lambda w: [], (0,), None)],
+        # training-data-services T-01/T-02: ruta barata de uso (fichero ausente -> exit 2) y
+        # recorder (T-04) con `--config` ausente -> exit 2, sin tocar disco.
+        "skills/training-data-services/scripts/case_schema.py":
+            [("fichero ausente", lambda w: ["config", os.path.join(w, "no-existe-training.json")], (2,), None)],
+        # training-data-services T-07/T-09: dedup con fichero ausente (exit 2); el ensamblador y el
+        # puente imprimen `…` en su `--help`.
+        "skills/training-data-services/scripts/dedup.py":
+            [("fichero ausente", lambda w: [os.path.join(w, "no-existe-docs.jsonl")], (2,), None)],
+        "skills/training-data-services/scripts/dataset-assembler.py":
+            [("--help", lambda w: ["--help"], (0,), None)],
+        "skills/training-data-services/scripts/propose-from-case.py":
+            [("--help", lambda w: ["--help"], (0,), None)],
+        "skills/training-data-services/scripts/case-recorder.py":
+            [("config ausente", lambda w: ["record", os.path.join(w, "no-existe-caso.json"), "--config",
+                                            os.path.join(w, "no-existe-training.json")], (2,), None)],
         "skills/knowledge-services/backends/graphiti_model.py":
             [("importar sin CLI", lambda w: [], (0,), None)],
         "skills/knowledge-services/backends/graphiti.py":

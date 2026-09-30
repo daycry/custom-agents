@@ -9,6 +9,24 @@ and versioning follows [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Added — `training-data-services` initiative (2026-09-16)
+
+- **T-01 — Esquema de `training.json` y del caso** New opt-in `training-data-services` skill: `training.json` config and a dependency-free case schema validator with closed status/outcome vocabularies.
+- **T-02 — Consumir `redact.py` compartido y registrar la capacidad `training`** `/doctor` and `/setup` now list the opt-in `training` capability (off without `training.json`, no network), and case redaction reuses the plugin's single shared secret-redaction module.
+- **T-03 — Plantillas y estructura de directorios del case store** Case store templates ship with the skill: an example store with a failure-then-correction pair, an index sample and a field-by-field guide; the store lives outside Git and `docs/knowledge/`.
+- **T-04 — Recorder determinista (crear/actualizar caso)** New case recorder (`case-recorder.py record`): immutable, versioned cases with secrets redacted before touching disk; versions are never overwritten and rejected cases are kept.
+- **T-05 — Puerta de aprobacion humana para Gold** Gold is always a human action: `set-status … approved` fails unless `--approved-by-human` is passed; only `validation.json` is rewritten, atomically.
+- **T-06 — Indice `cases_index.jsonl` y consulta basica** Append-only `cases_index.jsonl` that can be listed, filtered, checked against `cases/` and rebuilt from it; corrupt lines are skipped with a warning. (`skills/training-data-services/scripts/case-recorder.py`, `skills/training-data-services/scripts/test_case_recorder.py`, `skills/training-data-services/SKILL.md`)
+- **T-07 — Deduplicacion por shingles (reutilizando `code-health.py`)** Near-duplicate detection without embeddings or network: word shingles and Jaccard similarity, boilerplate ignored, exact prefix filtering and deterministic groups.
+- **T-08 — Particion anti-leakage por familia** The dataset assembler reserves whole case families for the benchmark, refuses to export without one declared, and drops training cases that near-duplicate a benchmark case. (`skills/training-data-services/scripts/dataset-assembler.py`, `skills/training-data-services/scripts/test_dataset_assembler.py`)
+- **T-09 — Ensamblador de dataset y puente a `knowledge-curator`** Gold-only train/benchmark JSONL export with provenance and a hashed manifest that never overwrites an export, plus an opt-in bridge that proposes Gold to knowledge-curator.
+- **T-10 — Opt-in en setup y doctor** `/doctor` shows case counts per status and dataset freshness for an enabled `training` capability, time-bounded on large stores; `/setup` offers creating `training.json`.
+- **T-11 — Aislamiento, regresion, interop y cierre** Isolation tests guarantee only human-approved Gold reaches the dataset and hooks never touch the case store; CI now also runs the training-data-services and knowledge-services test suites.
+
+### Fixed — secret redaction (2026-09-28)
+
+- **Secret redaction now catches the JSON form `"password": "…"`** The shared redactor matched `password=…` and `password: …`, but not a sensitive key in quotes followed by its value in quotes (`"password"`, `"api_key"`, `"token"`, `"secret"`…), so that form could reach the session journal as written. It is now redacted whole, and structured data (tool-call arguments) redacts the text value of any sensitive key. (`agent-kits/shared/redact.py`, `agent-kits/shared/journal.py`)
+
 ### Changed
 
 - The plugin repository's own technical memory (`docs/knowledge/`) is no longer versioned; the tests that relied on it now use synthetic fixtures, and the linter treats citations to it as local memory.
