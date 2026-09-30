@@ -29,12 +29,14 @@ Uso:
 Exit codes: 0 válido · 1 con errores (se listan en stdout) · 2 uso/JSON ilegible.
 """
 import argparse
+import hashlib
 import ipaddress
 import json
 import math
 import os
 import re
 import sys
+import tempfile
 import unicodedata
 import urllib.parse
 
@@ -926,10 +928,29 @@ def id_prefix_valido(valor):
             and bool(ID_PREFIX_RE.match(valor)))
 
 
+# fix1 #2: el `id_prefix` propuesto es tambien la clave que `kwipu-project-add.py` escribe SIN
+# comillas en `projects.yaml`: tiene que ser texto para YAML 1.1 (empieza por letra, no reservada).
+_YAML_RESERVADAS = frozenset(("y", "n", "yes", "no", "on", "off", "true", "false", "null", "~"))
+
+
+def _texto_en_yaml(valor):
+    return bool(valor) and valor[0].isalpha() and valor.casefold() not in _YAML_RESERVADAS
+
+
 def proponer_id_prefix(root=None):
-    """Slug kebab-case de la carpeta del proyecto, acotado a 64; `ca` si no aporta nada."""
-    base = os.path.basename(os.path.abspath(root if root is not None else "."))
-    return _slug_kebab(base)[:ID_PREFIX_MAX].strip("-") or "ca"
+    """Slug kebab-case de la carpeta del proyecto, acotado a 64. Nunca propone un valor invalido
+    ni compartido (fix1 #2/#3): si el slug no es texto para YAML (`2048`, `yes`…) antepone `p-`;
+    si la carpeta no aporta un slug ASCII (`知識`, `проект`, `---`), `p-<8 hex del sha256 de la
+    ruta absoluta normalizada>`: determinista y distinto por proyecto (antes caia a `ca` y dos
+    proyectos asi compartian el `group_id` remoto)."""
+    ruta = os.path.abspath(root if root is not None else ".")
+    slug = _slug_kebab(os.path.basename(ruta))[:ID_PREFIX_MAX].strip("-")
+    if not slug:
+        normalizada = os.path.normcase(os.path.realpath(ruta))
+        return "p-" + hashlib.sha256(normalizada.encode("utf-8", "surrogatepass")).hexdigest()[:8]
+    if not _texto_en_yaml(slug):
+        slug = ("p-" + slug)[:ID_PREFIX_MAX].strip("-")
+    return slug
 
 
 def _leer_json_dict(ruta):
@@ -1033,17 +1054,24 @@ def preparar_id_prefix(root=None, id_prefix=None, aplicar=False):
                 if isinstance(bcfg.get("config"), dict):
                     bcfg["config"]["group_id"] = elegido
         os.makedirs(os.path.dirname(ruta), exist_ok=True)
-        tmp = ruta + f".{os.getpid()}.tmp"
+        tmp = None
         try:
-            with open(tmp, "w", encoding="utf-8") as f:
+            # fix1 #18: temporal con nombre aleatorio y `O_EXCL` (`mkstemp`) en el mismo
+            # directorio: ni predecible ni sigue un enlace plantado
+            fd, tmp = tempfile.mkstemp(prefix=".taxonomy.", suffix=".tmp",
+                                       dir=os.path.dirname(ruta))
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
                 json.dump(raw, f, ensure_ascii=False, indent=2)
                 f.write("\n")
+            # `mkstemp` crea con 0600: se conservan los permisos del fichero que se reemplaza
+            os.chmod(tmp, (os.stat(ruta).st_mode & 0o777) if existe else 0o644)
             os.replace(tmp, ruta)
         except OSError as e:
-            try:
-                os.remove(tmp)
-            except OSError:
-                pass
+            if tmp is not None:
+                try:
+                    os.remove(tmp)
+                except OSError:
+                    pass
             salida.update(ok=False, error=f"no se pudo escribir `{PROJECT_TAXONOMY_REL}`: "
                                           f"{type(e).__name__}")
             return salida

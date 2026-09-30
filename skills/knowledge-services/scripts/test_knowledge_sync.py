@@ -678,3 +678,80 @@ def test_CA_15_aviso_grupo_adaptador_sin_la_funcion_sale_2(tmp_path, capsys):
     assert ks_sync.main(["--backend", "testx", "--root", root, "--avisos-grupo",
                          "--backends-dir", FIXTURES_BACKENDS]) == 2
     assert "estado_grupo" in capsys.readouterr().err
+
+
+# ------------------------------------------------------------------ setup-statusline-polish fix1 #4
+
+def _taxonomia_dos_grupos(root):
+    """Dos backends que avisan de grupo (ids elegidos por el proyecto) y uno que no."""
+    cfg = {"mode": "shadow", "endpoint": "http://127.0.0.1:1", "allow_remote": False,
+           "timeout_ms": 800, "provider": {"llm": "none"}}
+    d = os.path.join(root, ".claude", "knowledge-services")
+    os.makedirs(d, exist_ok=True)
+    with open(os.path.join(d, "taxonomy.json"), "w", encoding="utf-8") as f:
+        json.dump({"version": 1, "id_prefix": "ks",
+                   "categories": [{"key": "X", "folder": "gotchas", "min_evidence": "observation"}],
+                   "backends": {
+                       "memoria-a": {"type": "graphiti", "enabled": False, "config": dict(cfg, group_id="a")},
+                       "memoria-b": {"type": "graphiti", "enabled": False, "config": dict(cfg, group_id="b")},
+                       "kwipu": {"type": "markdown-export", "enabled": False,
+                                 "config": {"export_dir": ".claude/knowledge-services/kwipu-export"}}}}, f)
+    return d
+
+
+def test_fix1_4_avisos_grupo_sin_backend_recorre_los_que_avisan_y_sale_0(tmp_path, capsys):
+    """#4: el id del backend lo elige el proyecto; sin `--backend` se recorren todos los backends
+    cuyo adaptador avisa de grupo (hoy los de `type` de memoria de grafo), y siempre exit 0."""
+    root = str(tmp_path)
+    d = _taxonomia_dos_grupos(root)
+    with open(os.path.join(d, "graphiti-manifest.json"), "w", encoding="utf-8") as f:
+        json.dump({"group_id": "viejo", "entradas": {"x": {"version": 1}}}, f)
+    assert ks_sync.main(["--root", root, "--avisos-grupo", "--json"]) == 0
+    salida = json.loads(capsys.readouterr().out)
+    assert [g["backend"] for g in salida["grupos"]] == ["memoria-a", "memoria-b"]
+    assert all(g["grupo"]["estado"] == "otro_origen" for g in salida["grupos"])
+    assert ks_sync.main(["--root", root, "--avisos-grupo"]) == 0
+    texto = capsys.readouterr().out
+    assert "memoria-a" in texto and "memoria-b" in texto and "kwipu" not in texto
+
+
+def test_fix1_4_avisos_grupo_sin_backend_nunca_bloquea(tmp_path, capsys):
+    root = str(tmp_path)
+    assert ks_sync.main(["--root", root, "--avisos-grupo"]) == 0             # sin taxonomy.json
+    capsys.readouterr()
+    d0 = os.path.join(root, ".claude", "knowledge-services")
+    os.makedirs(d0, exist_ok=True)
+    with open(os.path.join(d0, "taxonomy.json"), "w", encoding="utf-8") as f:
+        json.dump({"version": 1, "id_prefix": "ks", "categories": [
+            {"key": "X", "folder": "gotchas", "min_evidence": "observation"}], "backends": {}}, f)
+    assert ks_sync.main(["--root", root, "--avisos-grupo"]) == 0             # ninguno que avise
+    assert "no hay backends" in capsys.readouterr().out
+    d = os.path.join(root, ".claude", "knowledge-services")
+    os.makedirs(d, exist_ok=True)
+    with open(os.path.join(d, "taxonomy.json"), "w", encoding="utf-8") as f:
+        f.write("{no json")
+    assert ks_sync.main(["--root", root, "--avisos-grupo"]) == 0             # taxonomia rota
+    capsys.readouterr()
+    assert ks_sync.main(["--root", root, "--avisos-grupo", "--backends-dir", str(tmp_path / "x")]) == 0
+    capsys.readouterr()
+
+
+def test_fix1_4_sin_backend_fuera_de_avisos_grupo_es_error_de_uso(tmp_path, capsys):
+    assert ks_sync.main(["--root", str(tmp_path), "--dry-run"]) == 2
+    assert "--backend" in capsys.readouterr().err
+
+
+def test_fix1_4_setup_no_invoca_scripts_por_ruta_relativa_del_repo():
+    """#4: en un proyecto consumidor `skills/...` no existe; todo script se localiza con el `find`
+    de seis raíces (regla 5) y el paso de avisos no fija `--backend graphiti`."""
+    import re
+    raiz = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", ".."))
+    for rel in (("commands", "setup.md"), ("interop", "codex", "prompts", "setup.md"),
+                ("interop", "opencode", "commands", "setup.md")):
+        ruta = os.path.join(raiz, *rel)
+        if not os.path.isfile(ruta):
+            continue
+        texto = open(ruta, encoding="utf-8").read()
+        assert not re.search(r"python3?\s+(\./)?(skills|agent-kits)/", texto), rel
+        assert "--backend graphiti --avisos-grupo" not in texto, rel
+        assert "knowledge-sync.py" in texto and "--avisos-grupo" in texto, rel

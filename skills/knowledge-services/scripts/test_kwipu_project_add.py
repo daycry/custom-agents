@@ -5,6 +5,7 @@ CA-09..CA-13 van en el nombre de los tests (la `Verificacion` del ledger los sel
 """
 import ast
 import datetime
+import errno
 import hashlib
 import importlib.util
 import json
@@ -345,7 +346,7 @@ def test_ca12_nombre_alternativo_resuelve(tmp_path, capsys):
 def test_ca13_sin_esperado_o_con_hash_distinto(tmp_path, capsys):
     proj, stack, fich = montar(tmp_path)
     antes = fich.read_bytes()
-    assert correr(proj, stack, "--apply", capsys=capsys)[0] == 1
+    assert correr(proj, stack, "--apply", capsys=capsys)[0] == 2        # #13 (fix1): uso, no E/S
     assert correr(proj, stack, "--apply", "--esperado", "0" * 64, capsys=capsys)[0] == 1
     assert fich.read_bytes() == antes and copias(fich) == []
 
@@ -397,7 +398,9 @@ def test_ca13_grep_de_la_verificacion_sin_coincidencias():
 # ----------------------------------------------------------------------------------------------
 # Escritura: reversion y copias
 # ----------------------------------------------------------------------------------------------
-def test_reversion_trunca_solo_lo_anadido(tmp_path, capsys, monkeypatch):
+def test_fix1_1_otro_escritor_que_anade_despues_no_se_borra(tmp_path, capsys, monkeypatch):
+    """#1 (fix1): lo que sobra NO es solo el bloque propio -otro escritor añadió detras-, asi que
+    no se trunca nada (antes se truncaba a `len(previo)` y se borraban los bytes ajenos)."""
     proj, stack, fich = montar(tmp_path)
     antes = fich.read_bytes()
     real = os.write
@@ -409,9 +412,11 @@ def test_reversion_trunca_solo_lo_anadido(tmp_path, capsys, monkeypatch):
 
     monkeypatch.setattr(kpa, "_os_write", sucia)
     codigo, cap = apply_(proj, stack, fich, capsys)
-    assert codigo == 1 and "revirtió" in cap.out
-    assert fich.read_bytes() == antes
-    assert copias(fich)[0].read_bytes() == antes
+    final = fich.read_bytes()
+    assert final.endswith(b"# basura concurrente\n"), "un byte ajeno borrado"
+    assert final.startswith(antes) and b"# >>> custom-agents:demo" in final
+    assert codigo == 1 and "cambió durante la escritura" in cap.out and "SÍ está" in cap.out
+    assert "copia en" in cap.out and copias(fich)[0].read_bytes() == antes
 
 
 def test_prefijo_alterado_no_se_toca_y_se_senala_la_copia(tmp_path, capsys, monkeypatch):
@@ -427,8 +432,9 @@ def test_prefijo_alterado_no_se_toca_y_se_senala_la_copia(tmp_path, capsys, monk
 
     monkeypatch.setattr(kpa, "_os_write", mutante)
     codigo, cap = apply_(proj, stack, fich, capsys)
-    assert codigo == 1 and "prefijo" in cap.out and "copia en" in cap.out
+    assert codigo == 1 and "prefijo alterado" in cap.out and "copia en" in cap.out
     assert fich.read_bytes()[0:1] == b"X" and fich.read_bytes() != antes
+    assert b"# >>> custom-agents:demo" in fich.read_bytes() and "SÍ está" in cap.out
     assert copias(fich)[0].read_bytes() == antes
 
 
@@ -457,8 +463,9 @@ def test_el_fichero_cambia_justo_antes_de_escribir(tmp_path):
     proj, stack, fich = montar(tmp_path)
     previo, st = kpa._leer_fichero(str(fich))
     fich.write_bytes(previo + b"# otro\n")
-    ok, msg = kpa.escribir_anadiendo(str(fich), previo, st, b"x\n")
+    ok, msg, presente = kpa.escribir_anadiendo(str(fich), previo, st, b"x\n")
     assert ok is False and "cambió" in msg and fich.read_bytes() == previo + b"# otro\n"
+    assert presente is False
 
 
 def test_copias_nunca_pisan_otra(tmp_path, monkeypatch):
@@ -596,3 +603,251 @@ def test_lectura_sin_permiso_o_directorio_como_fichero(tmp_path, capsys):
     fich.mkdir()
     codigo, cap = correr(proj, stack, capsys=capsys)
     assert codigo == 3 and "no es un fichero regular" in cap.out
+
+
+# ----------------------------------------------------------------------------------------------
+# fix1 de la revisión (intento 1): #1/#7 truncado seguro, #2 nombres, #9 escapado, #10 enlaces,
+# #11 clave `root`, #13 uso, #5 espejo EN. Todo en `tmp_path`.
+# ----------------------------------------------------------------------------------------------
+BLOQUE_B = (b"  # >>> custom-agents:otro-setup\n  otro-setup:\n    root: \"../b\"\n"
+            b"  # <<< custom-agents:otro-setup <<<\n")
+
+
+def test_fix1_1_dos_setup_intercalados_no_borran_ningun_bloque(tmp_path, capsys, monkeypatch):
+    """#1: el `/setup` B completa su alta dentro de la ventana de A (entre el `fstat` y el `write`
+    de A). Antes, la verificacion de A truncaba a `len(previo)` y borraba el bloque de B, que B ya
+    habia dado por añadido. Ahora quedan los dos y A informa del estado real."""
+    proj, stack, fich = montar(tmp_path)
+    antes = fich.read_bytes()
+    previo, st = kpa._leer_fichero(str(fich))
+    real = os.write
+    dentro = []
+
+    def intercalada(fd, datos):
+        if not dentro:
+            dentro.append(fd)
+            kpa.escribir_anadiendo(str(fich), previo, st, BLOQUE_B)     # B, entero, en medio
+        return real(fd, datos)
+
+    monkeypatch.setattr(kpa, "_os_write", intercalada)
+    codigo, cap = apply_(proj, stack, fich, capsys)
+    final = fich.read_bytes()
+    assert BLOQUE_B in final, "el bloque de B (ya añadido) se borró"
+    assert b"# >>> custom-agents:demo" in final and final.startswith(antes)
+    assert codigo == 1 and "cambió durante la escritura" in cap.out and "SÍ está" in cap.out
+
+
+def test_fix1_1_editor_que_guarda_por_rename_no_pierde_la_edicion(tmp_path, capsys, monkeypatch):
+    """#1: un editor guarda por rename entre el `write` y la relectura. El truncado por RUTA
+    cortaba el fichero nuevo del editor (se perdia la edicion). Ahora la ruta ya no es el
+    descriptor: no se toca y se nombra el estado real del fichero que hay en la ruta."""
+    proj, stack, fich = montar(tmp_path)
+    real = os.write
+    esperado = []
+
+    def editor(fd, datos):
+        n = real(fd, datos)
+        contenido = fich.read_bytes() + b"  # edicion del usuario\n"
+        tmp = fich.parent / "projects.yaml.editor"
+        tmp.write_bytes(contenido)
+        try:
+            os.replace(tmp, fich)
+        except PermissionError:
+            tmp.unlink()
+            pytest.skip("este sistema no reemplaza un fichero abierto (Windows): el caso no existe")
+        esperado.append(contenido)
+        return n
+
+    monkeypatch.setattr(kpa, "_os_write", editor)
+    codigo, cap = apply_(proj, stack, fich, capsys)
+    assert fich.read_bytes() == esperado[0], "se perdió la edición del usuario"
+    assert codigo == 1 and "cambió durante la escritura" in cap.out and "SÍ está" in cap.out
+
+
+def test_fix1_7_fsync_con_eio_tras_escribir_informa_el_estado_real(tmp_path, capsys, monkeypatch):
+    """#7: el `fsync` del append lanza EIO. Antes la excepcion se saltaba la verificacion: el
+    bloque quedaba escrito y se informaba `escrito: false`. Ahora se verifica y, como lo que sobra
+    es exactamente lo propio con la identidad intacta, se revierte y se dice."""
+    proj, stack, fich = montar(tmp_path)
+    antes = fich.read_bytes()
+    real_write, real_fsync = os.write, os.fsync
+    tras = []
+
+    def escribe(fd, datos):
+        n = real_write(fd, datos)
+        tras.append(fd)
+        return n
+
+    def fsync(fd):
+        if tras:
+            raise OSError(errno.EIO, "EIO simulado")
+        return real_fsync(fd)
+
+    monkeypatch.setattr(kpa, "_os_write", escribe)
+    monkeypatch.setattr(kpa.os, "fsync", fsync)
+    codigo, cap = apply_(proj, stack, fich, capsys, "--json")
+    datos = json.loads(cap.out)
+    assert fich.read_bytes() == antes, "el bloque quedó escrito"
+    assert codigo == 1 and datos["escrito"] is False and datos["bloque_presente"] is False
+    assert "revirtió" in datos["mensaje"] and "NO está" in datos["mensaje"]
+
+
+def test_fix1_7_estado_real_si_no_se_puede_revertir(tmp_path, capsys, monkeypatch):
+    """#7: si tampoco se puede truncar, el bloque sigue ahi y asi se informa (`escrito: true`)."""
+    proj, stack, fich = montar(tmp_path)
+    real_write, real_fsync = os.write, os.fsync
+    tras = []
+
+    def escribe(fd, datos):
+        tras.append(fd)
+        return real_write(fd, datos)
+
+    def fsync(fd):
+        if tras:
+            raise OSError(errno.EIO, "EIO simulado")
+        return real_fsync(fd)
+
+    def sin_truncar(fd, tam):
+        raise OSError(errno.EIO, "ftruncate roto")
+
+    monkeypatch.setattr(kpa, "_os_write", escribe)
+    monkeypatch.setattr(kpa.os, "fsync", fsync)
+    monkeypatch.setattr(kpa.os, "ftruncate", sin_truncar)
+    codigo, cap = apply_(proj, stack, fich, capsys, "--json")
+    datos = json.loads(cap.out)
+    assert b"# >>> custom-agents:demo" in fich.read_bytes()
+    assert codigo == 1 and datos["escrito"] is True and datos["bloque_presente"] is True
+    assert "no se pudo revertir" in datos["mensaje"] and "SÍ está" in datos["mensaje"]
+
+
+def test_fix1_10_enlace_duro_creado_antes_de_escribir_no_recibe_el_bloque(tmp_path):
+    """#10: `nlink == 1` se comprueba tambien en el `fstat` previo al `write`."""
+    proj, stack, fich = montar(tmp_path)
+    previo, st = kpa._leer_fichero(str(fich))
+    otro = tmp_path / "duro.yaml"
+    try:
+        os.link(fich, otro)
+    except OSError:
+        pytest.skip("sin enlaces duros")
+    r = kpa.escribir_anadiendo(str(fich), previo, st, b"  # x\n")
+    assert fich.read_bytes() == previo and otro.read_bytes() == previo
+    assert r[0] is False and "cambió antes de escribir" in r[1]
+
+
+@pytest.mark.skipif(not hasattr(os, "O_NOFOLLOW"), reason="sin O_NOFOLLOW (Windows)")
+def test_fix1_10_la_escritura_no_sigue_un_enlace_simbolico(tmp_path, monkeypatch):
+    """#10: aun si la identidad no se pudiera comprobar, la escritura se abre con `O_NOFOLLOW`."""
+    proj, stack, fich = montar(tmp_path)
+    previo, st = kpa._leer_fichero(str(fich))
+    victima = tmp_path / "victima.yaml"
+    victima.write_bytes(previo)
+    fich.unlink()
+    os.symlink(victima, fich)
+    monkeypatch.setattr(kpa, "_misma_identidad", lambda a, b: True)
+    try:
+        r = kpa.escribir_anadiendo(str(fich), previo, st, b"  # x\n")
+        assert r[0] is False
+    except OSError:
+        pass
+    assert victima.read_bytes() == previo
+
+
+@pytest.mark.parametrize("nombre", [
+    "2024", "2048", "0x1f", "0b101", "1e3", "y", "n", "yes", "no", "on", "off", "true", "false", "null",
+])
+def test_fix1_2_nombre_que_yaml_no_lee_como_texto_se_rechaza(tmp_path, capsys, nombre):
+    proj, stack, fich = montar(tmp_path)
+    antes = fich.read_bytes()
+    codigo, cap = apply_(proj, stack, fich, capsys, "--nombre", nombre)
+    assert codigo == 2 and fich.read_bytes() == antes and copias(fich) == []
+    assert f"prueba `--nombre p-{nombre}`" in cap.err
+    assert kpa.nombre_valido(f"p-{nombre}")
+
+
+def test_fix1_2_carpeta_2048_sin_id_prefix_no_produce_un_nombre_numerico(tmp_path, capsys):
+    """El `id_prefix` por defecto sale del slug de la carpeta: `2048` daba una clave int en YAML."""
+    proj, stack, fich = montar(tmp_path)
+    tax = proj / ".claude" / "knowledge-services" / "taxonomy.json"
+    datos = json.loads(tax.read_text(encoding="utf-8"))
+    del datos["id_prefix"]
+    tax.write_text(json.dumps(datos), encoding="utf-8")
+    carpeta = tmp_path / "2048"
+    proj.rename(carpeta)
+    antes = fich.read_bytes()
+    codigo, cap = correr(carpeta, stack, "--apply", "--esperado", sha(antes), capsys=capsys)
+    assert codigo == 2 and fich.read_bytes() == antes
+    assert "prueba `--nombre p-2048`" in cap.err
+
+
+@pytest.mark.parametrize("root", ["a‮b", "a\u0085b", "a b", "a b", "a​b",
+                                  "a﻿b", "a­b", "a\x9bb"])
+def test_fix1_9_validar_root_rechaza_cc_cf_zl_zp(root):
+    with pytest.raises(kpa.Uso):
+        kpa.validar_root(root)
+
+
+def test_fix1_9_validar_root_admite_zwj_y_zwnj():
+    assert kpa.validar_root("a‍b‌c") == "a‍b‌c"
+
+
+def test_fix1_9_texto_de_projects_yaml_se_escapa_en_la_terminal(tmp_path, capsys):
+    """#9: claves entre comillas con ESC/C1 (duplicado) o BEL/bidi (conflicto) salian crudas."""
+    hostil = '"a\x1b[31m\x9b"'
+    proj, stack, fich = montar(tmp_path, yaml=f"projects:\n  {hostil}:\n    root: x\n  {hostil}:\n    root: y\n")
+    codigo, cap = correr(proj, stack, capsys=capsys)
+    assert codigo == 3 and "duplicado" in cap.out
+    assert "\x1b" not in cap.out and "\x9b" not in cap.out and "\\x1b" in cap.out
+
+    proj, stack, fich = montar(tmp_path / "b")
+    export = proj / ".claude" / "knowledge-services" / "kwipu-export"
+    rel = os.path.relpath(export, fich.parent.resolve()).replace(os.sep, "/")
+    fich.write_text(MUESTRA + f'  "x\x07‮y":\n    root: "{rel}"\n', encoding="utf-8")
+    codigo, cap = correr(proj, stack, capsys=capsys)
+    assert codigo == 4 and "dada de alta como" in cap.out
+    assert "\x07" not in cap.out and "‮" not in cap.out and "\\x07" in cap.out
+
+
+def test_fix1_9_la_ruta_de_la_entrada_se_escapa_en_la_terminal(tmp_path, capsys):
+    proj, stack, fich = montar(tmp_path)
+    raro = tmp_path / "st‮ack"
+    (tmp_path / "stack").rename(raro)
+    codigo, cap = correr(proj, raro, capsys=capsys)
+    assert codigo == 0 and "‮" not in cap.out and "\\u202e" in cap.out
+
+
+@pytest.mark.parametrize("clave", ['"root"', "'root'", "root ", '"root"  ', "'root' "])
+def test_fix1_11_clave_root_con_comillas_o_espacios_se_reconoce(tmp_path, capsys, clave):
+    """#11: con `"root":` o `root :` la `root` quedaba `None` y no saltaba el conflicto."""
+    proj, stack, fich = montar(tmp_path)
+    export = proj / ".claude" / "knowledge-services" / "kwipu-export"
+    rel = os.path.relpath(export, fich.parent.resolve()).replace(os.sep, "/")
+    fich.write_text(MUESTRA + f'  ajeno:\n    {clave}: "{rel}"\n', encoding="utf-8")
+    antes = fich.read_bytes()
+    codigo, cap = apply_(proj, stack, fich, capsys)
+    assert codigo == 4 and "ya está dada de alta como `ajeno`" in cap.out
+    assert fich.read_bytes() == antes and copias(fich) == []
+
+
+@pytest.mark.parametrize("linea", ["root\t: x", '"root"\t: x', '"ro\\x6ft": x', "? root", "root:x"])
+def test_fix1_11_otra_forma_de_la_clave_root_es_forma_no_reconocida(tmp_path, capsys, linea):
+    proj, stack, fich = montar(tmp_path, yaml=MUESTRA + f"  ajeno:\n    {linea}\n    enabled: true\n")
+    antes = fich.read_bytes()
+    codigo, cap = apply_(proj, stack, fich, capsys)
+    assert codigo == 3 and "no-reconocido" in cap.out
+    assert fich.read_bytes() == antes and copias(fich) == []
+
+
+def test_fix1_13_apply_sin_esperado_es_error_de_uso(tmp_path, capsys):
+    proj, stack, fich = montar(tmp_path)
+    antes = fich.read_bytes()
+    codigo, cap = correr(proj, stack, "--apply", capsys=capsys)
+    assert codigo == 2 and "--esperado" in cap.out and fich.read_bytes() == antes
+
+
+def test_fix1_5_la_fila_en_del_readme_nombra_el_alta_en_kwipu():
+    """#5: la fila `knowledge-services` de `docs/en/README.md` espeja a la de `docs/README.md`."""
+    raiz = os.path.normpath(os.path.join(HERE, "..", "..", ".."))
+    for rel in (("docs", "README.md"), ("docs", "en", "README.md")):
+        with open(os.path.join(raiz, *rel), encoding="utf-8") as f:
+            fila = next(l for l in f if l.startswith("| **knowledge-services** |"))
+        assert "kwipu-project-add.py" in fila, "/".join(rel)

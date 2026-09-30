@@ -10,8 +10,9 @@ solo es la VISTA PREVIA (estado, bloque, `sha256`). Con `--apply --esperado <sha
   kwipu-project-add.py --stack <stack> [--root R] [--backend kwipu] [--nombre N] [--json]
   kwipu-project-add.py --stack <stack> [...] --apply --esperado <sha256>
 
-Codigos de salida: 0 vista previa / añadido / ya presente (no-op) · 1 no escribio o revirtio por
-E/S (copia, hash distinto, identidad cambiada, verificacion posterior) · 2 uso (argumentos,
+Codigos de salida: 0 vista previa / añadido / ya presente (no-op) · 1 no escribio, revirtio o el
+fichero cambio durante la escritura (copia, hash distinto, identidad cambiada, verificacion
+posterior; `bloque_presente` dice el estado REAL) · 2 uso (argumentos, `--apply` sin `--esperado`,
 nombre o `root` invalidos, taxonomia sin backend `markdown-export`, destino que no es el del stack)
 · 3 forma NO reconocida (no escribe, imprime el bloque para pegarlo a mano) · 4 conflicto de
 nombre o de `root` (no escribe, pide otro nombre).
@@ -29,6 +30,7 @@ import re
 import shlex
 import stat
 import sys
+import unicodedata
 
 # Consola no UTF-8 (Windows cp1252) o tuberías: reconfigurar ANTES de leer/imprimir (GOT-005).
 for _s in (sys.stdin, sys.stdout, sys.stderr):
@@ -39,12 +41,16 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 SHARED = os.path.normpath(os.path.join(HERE, "..", "..", "..", "agent-kits", "shared"))
 BACKENDS_DIR = os.path.normpath(os.path.join(HERE, "..", "backends"))
 
-NOMBRE_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
+# #2 (fix1): la clave del proyecto se emite sin comillas, asi que tiene que ser TEXTO para YAML
+# 1.1: empieza por letra (`2024`, `0x1f`, `0b101` serian numeros) y no es una palabra reservada.
+NOMBRE_RE = re.compile(r"^[a-z][a-z0-9-]*$")
 NOMBRE_MAX = 64
+YAML_RESERVADAS = frozenset(("y", "n", "yes", "no", "on", "off", "true", "false", "null", "~"))
 MARCA_ABRE = "# >>> custom-agents:"
 MARCA_CIERRA = "# <<< custom-agents:"
 _REPARSE = 0x400                      # FILE_ATTRIBUTE_REPARSE_POINT (Windows)
 _O_BINARY = getattr(os, "O_BINARY", 0)
+_O_NOFOLLOW = getattr(os, "O_NOFOLLOW", 0)   # #10: la escritura no sigue enlaces (no existe en Windows)
 _os_write = os.write                  # indireccion: los tests inyectan escrituras rotas
 
 E_OK, E_IO, E_USO, E_FORMA, E_CONFLICTO = 0, 1, 2, 3, 4
@@ -88,6 +94,14 @@ def _sha(datos):
     return hashlib.sha256(datos).hexdigest()
 
 
+def _escapar(texto):
+    """#9 (fix1): texto de `projects.yaml` o de la entrada, listo para la TERMINAL. Mismo criterio
+    que `_sanear_detalle` del plugin (C0, C1, ESC, bidi, separadores de linea), pero sin recortar y
+    con el escape a la vista (`\\x1b`, `\\u202e`): aqui se muestran rutas que el usuario tiene que
+    leer y copiar tal cual son, y un espacio en su lugar mostraria otra ruta."""
+    return "".join(c if c == " " or c.isprintable() else repr(c)[1:-1] for c in str(texto))
+
+
 def _leer_fichero(ruta):
     """`(bytes, lstat)` del fichero regular, sin enlaces simbolicos ni duros compartidos. Lanza
     `FormaNoReconocida` si no cumple (ausente, enlace, no regular, `nlink > 1`)."""
@@ -126,6 +140,12 @@ _TOP_PROJECTS_RE = re.compile(r"^projects:[ ]*(#.*)?$")
 _TOP_PROJECTS_CUALQUIERA_RE = re.compile(r"""^["']?projects["']?[ ]*:""")
 _ALIAS_RE = re.compile(r"(?:^|[\s\-:\[\{,])[&*][A-Za-z0-9_]")
 _CLAVE = r"""(?:[A-Za-z0-9_][A-Za-z0-9_.\-]*|'[^'\\]*'|"[^"\\]*")"""
+# #11 (fix1): `root`, `"root"` y `'root'`, con espacios opcionales antes de `:`. Cualquier otra
+# forma que PUEDA ser la clave `root` (tabulador antes de `:`, `root:` pegado al valor, clave
+# compleja `?`, clave entre comillas con escapes) es forma no reconocida: si no, su `root` quedaba
+# `None` y el conflicto por misma carpeta no saltaba.
+_ROOT_CLAVE_RE = re.compile(r"""^ *(?:root|"root"|'root') *:(?:[ ]+(.*))?$""")
+_ROOT_DUDOSA_RE = re.compile(r"""^ *(?:\?|["'][^"':]*\\|["']?root["']?[ \t]*:)""")
 
 
 def _es_relleno(linea):
@@ -237,11 +257,13 @@ def analizar_yaml(datos):
         if s < actual[2]:
             raise FormaNoReconocida("indentación de campos incoherente")
         if s == actual[2]:
-            m = re.match(r"^ *root:(?:[ ]+(.*))?$", l)
+            m = _ROOT_CLAVE_RE.match(l)
             if m:
                 if actual[1] is not None:
                     raise FormaNoReconocida("`root` repetido en un proyecto")
                 actual[1] = _valor_root(m.group(1) or "")
+            elif _ROOT_DUDOSA_RE.match(l):
+                raise FormaNoReconocida("clave `root` (o una posible `root`) en una forma no reconocida")
     return {"eol": eol, "n": n, "paso": paso or 2,
             "proyectos": [(p[0], p[1]) for p in proyectos], "termina_en_eol": termina}
 
@@ -249,16 +271,47 @@ def analizar_yaml(datos):
 # ---------------------------------------------------------------------------------------------
 # Bloque, raiz y conflicto
 # ---------------------------------------------------------------------------------------------
+def nombre_valido(nombre):
+    """Texto para YAML 1.1 sin comillas (#2): `^[a-z][a-z0-9-]*$`, hasta 64 y no reservado."""
+    return (isinstance(nombre, str) and len(nombre) <= NOMBRE_MAX and bool(NOMBRE_RE.match(nombre))
+            and nombre.casefold() not in YAML_RESERVADAS)
+
+
+def _alternativa(nombre):
+    """Un nombre valido parecido (el slug, o `p-<slug>`), o `None` si no sale ninguno."""
+    slug = re.sub(r"[^a-z0-9]+", "-", str(nombre or "").lower()).strip("-")
+    if not slug:
+        return None
+    for candidato in (slug[:NOMBRE_MAX].strip("-"), f"p-{slug}"[:NOMBRE_MAX].strip("-")):
+        if nombre_valido(candidato):
+            return candidato
+    return None
+
+
 def validar_nombre(nombre):
-    if not isinstance(nombre, str) or len(nombre) > NOMBRE_MAX or not NOMBRE_RE.match(nombre):
-        raise Uso(f"nombre de proyecto inválido ({nombre!r}): debe cumplir {NOMBRE_RE.pattern} "
-                  f"y tener hasta {NOMBRE_MAX} caracteres")
+    if not nombre_valido(nombre):
+        alt = _alternativa(nombre)
+        raise Uso(f"nombre de proyecto inválido ({nombre!r}): debe cumplir {NOMBRE_RE.pattern}, "
+                  f"tener hasta {NOMBRE_MAX} caracteres y no ser una palabra reservada de YAML "
+                  f"({'/'.join(sorted(YAML_RESERVADAS))})"
+                  + (f"; prueba `--nombre {alt}`" if alt else ""))
     return nombre
 
 
+_ADMITIDOS_ROOT = frozenset("‌‍")   # ZWNJ/ZWJ: la misma salvedad que case_schema (#173)
+
+
+def _caracter_prohibido_root(c):
+    """#9 (fix1): control ASCII o categorias Cc/Cf/Zl/Zp (bidi como U+202E, NEL U+0085, U+2028…),
+    la regla de `case_schema.validar_config` (#153/#173); ademas comillas y barra invertida."""
+    return (ord(c) < 32 or c in "\"\\"
+            or (c not in _ADMITIDOS_ROOT and unicodedata.category(c) in ("Cc", "Cf", "Zl", "Zp")))
+
+
 def validar_root(root):
-    if not root or re.search(r"[\x00-\x1f\x7f\"\\]", root):
-        raise Uso("`root` vacía, con caracteres de control, comillas o barras invertidas")
+    if not root or any(_caracter_prohibido_root(c) for c in root):
+        raise Uso("`root` vacía, con caracteres de control o de formato (Cc/Cf/Zl/Zp), comillas "
+                  "o barras invertidas")
     return root
 
 
@@ -338,36 +391,109 @@ def _crear_copia(ruta, previo):
     raise OSError("sin nombre libre para la copia")
 
 
-def _truncar(ruta, tam):
-    fd = os.open(ruta, os.O_WRONLY | _O_BINARY)
+def _leer_fd(fd, desde, cuanto):
+    """`cuanto` bytes desde `desde`, leidos por el DESCRIPTOR (nunca por ruta)."""
+    os.lseek(fd, desde, os.SEEK_SET)
+    chunks, falta = [], max(cuanto, 0)
+    while falta > 0:
+        b = os.read(fd, min(falta, 1 << 20))
+        if not b:
+            break
+        chunks.append(b)
+        falta -= len(b)
+    return b"".join(chunks)
+
+
+def _presente_en_ruta(ruta, bloque_bytes):
+    """¿Está el bloque propio en lo que hay HOY en la ruta? `None` si no se puede leer."""
     try:
-        os.ftruncate(fd, tam)
-        os.fsync(fd)
-    finally:
-        os.close(fd)
+        with open(ruta, "rb") as f:
+            return bloque_bytes in f.read()
+    except OSError:
+        return None
 
 
-def escribir_anadiendo(ruta, previo, st_previo, bloque_bytes):
-    """Añade `bloque_bytes` en un solo `write`. Devuelve `(ok, mensaje)`; si la relectura no
-    cuadra y el prefijo sigue intacto, trunca al tamaño previo (solo quita lo añadido)."""
-    fd = os.open(ruta, os.O_WRONLY | os.O_APPEND | _O_BINARY)
+def _estado_real(presente):
+    return {True: "tu bloque SÍ está en el fichero", False: "tu bloque NO está en el fichero",
+            None: "no se ha podido comprobar si tu bloque está en el fichero"}[presente]
+
+
+def _verificar_o_revertir(fd, ruta, previo, st_previo, bloque_bytes, n, fallo, copia):
+    """#1/#7 (fix1). Tras el `write` (haya ido bien o haya lanzado `OSError` el propio `write` o
+    el `fsync`) se decide solo con lo que dice el DESCRIPTOR. Exito: misma identidad (descriptor
+    = lectura previa = ruta), `nlink == 1`, tamaño exacto y bytes `previo + bloque`. Si no, se
+    TRUNCA POR EL DESCRIPTOR unicamente si lo que sobra es, byte a byte, lo que ESTE proceso
+    escribio y nada mas cambio (identidad intacta, ruta sin reemplazar, tamaño exacto, prefijo
+    igual). En cualquier otro caso NO se toca el fichero: puede haber bytes ajenos (otro
+    `/setup`, un editor que guarda por rename, otro escritor que añade) y la constitucion §4
+    prohibe borrarlos. Devuelve `(ok, mensaje, presente)` con el estado REAL del bloque."""
+    base = len(previo)
+    # Lo que este proceso pudo dejar al final: si `write` informo `n`, esos `n` bytes; si lanzo,
+    # nada o el bloque entero (un `write` que lanza no informa de escrituras parciales).
+    propios = [bloque_bytes[:n]] if n is not None else [b"", bloque_bytes]
+    causa = (f"error de E/S tras escribir ({type(fallo).__name__})" if fallo is not None
+             else "la verificación posterior falló")
     try:
         st = os.fstat(fd)
-        if not _misma_identidad(st_previo, st) or st.st_size != len(previo):
-            return False, "el fichero cambió antes de escribir; no se ha tocado"
-        n = _os_write(fd, bloque_bytes)
-        os.fsync(fd)
+        prefijo = _leer_fd(fd, 0, base)
+        cola = _leer_fd(fd, base, st.st_size - base)
+        try:
+            st_ruta = os.lstat(ruta)
+        except OSError:
+            st_ruta = None
+    except OSError as e:
+        presente = _presente_en_ruta(ruta, bloque_bytes)
+        return False, (f"{causa} y no se pudo releer ({type(e).__name__}): no se toca nada; "
+                       f"revísalo a mano (copia en {copia}) · {_estado_real(presente)}"), presente
+    mismo = (_misma_identidad(st_previo, st) and st_ruta is not None and not _es_enlace(st_ruta)
+             and _misma_identidad(st, st_ruta))
+    if (fallo is None and n == len(bloque_bytes) and mismo and st.st_nlink == 1
+            and st.st_size == base + len(bloque_bytes) and prefijo == previo and cola == bloque_bytes):
+        return True, "", True
+    for propio in propios:
+        if not (mismo and prefijo == previo and st.st_size == base + len(propio) and cola == propio):
+            continue
+        if not propio:
+            return False, f"{causa}: no se llegó a añadir nada · {_estado_real(False)}", False
+        try:
+            os.ftruncate(fd, base)               # por el DESCRIPTOR, nunca por ruta
+            try:
+                os.fsync(fd)
+            except OSError:
+                pass                             # el tamaño se comprueba abajo con `fstat`
+            revertido = os.fstat(fd).st_size == base
+        except OSError:
+            revertido = False
+        if revertido:
+            return False, f"{causa}: se revirtió lo añadido (truncado) · {_estado_real(False)}", False
+        presente = _presente_en_ruta(ruta, bloque_bytes)
+        return False, (f"{causa} y no se pudo revertir: revísalo a mano (copia en {copia}) · "
+                       f"{_estado_real(presente)}"), presente
+    presente = _presente_en_ruta(ruta, bloque_bytes)
+    detalle = " (prefijo alterado)" if mismo and prefijo != previo else ""
+    return False, (f"el fichero cambió durante la escritura{detalle}: revísalo a mano "
+                   f"(copia en {copia}) · {_estado_real(presente)}"), presente
+
+
+def escribir_anadiendo(ruta, previo, st_previo, bloque_bytes, copia=None):
+    """Añade `bloque_bytes` en un solo `write` y lo verifica (#1/#7/#10, fix1). Devuelve
+    `(ok, mensaje, presente)`: `presente` es el estado REAL del bloque propio en el fichero
+    (`True`/`False`, o `None` si no se pudo comprobar). Ver `_verificar_o_revertir`."""
+    fd = os.open(ruta, os.O_RDWR | os.O_APPEND | _O_BINARY | _O_NOFOLLOW)
+    try:
+        st = os.fstat(fd)
+        if (not _misma_identidad(st_previo, st) or st.st_size != len(previo)
+                or st.st_nlink != 1 or not stat.S_ISREG(st.st_mode)):
+            return False, "el fichero cambió antes de escribir; no se ha tocado", False
+        n, fallo = None, None
+        try:
+            n = _os_write(fd, bloque_bytes)
+            os.fsync(fd)
+        except OSError as e:
+            fallo = e
+        return _verificar_o_revertir(fd, ruta, previo, st_previo, bloque_bytes, n, fallo, copia)
     finally:
         os.close(fd)
-    with open(ruta, "rb") as f:
-        despues = f.read()
-    if (n == len(bloque_bytes) and despues == previo + bloque_bytes
-            and _misma_identidad(st_previo, os.lstat(ruta))):
-        return True, ""
-    if despues[:len(previo)] == previo:
-        _truncar(ruta, len(previo))
-        return False, "la verificación posterior falló: se revirtió lo añadido (truncado)"
-    return False, "el prefijo del fichero cambió tras escribir: no se toca nada más"
 
 
 # ---------------------------------------------------------------------------------------------
@@ -427,13 +553,14 @@ def ejecutar(args, out):
         nombre, export_real, stack, kw, config_dir = _resolver(args)
         root_val = calcular_root(export_real, config_dir)
     except Uso as e:
-        print(f"kwipu-project-add: {e}", file=sys.stderr)
+        print(f"kwipu-project-add: {_escapar(e)}", file=sys.stderr)
         return E_USO
     ruta = os.path.join(config_dir, "projects.yaml")
     fecha = datetime.date.today().isoformat()
     defecto = {"eol": "\n", "n": 2, "paso": 2}
     res = {"estado": None, "nombre": nombre, "root": root_val, "destino": ruta, "sha256": None,
-           "bloque": None, "escrito": False, "copia": None, "mensaje": "", "comandos": []}
+           "bloque": None, "escrito": False, "bloque_presente": None, "copia": None, "mensaje": "",
+           "comandos": []}
 
     def emitir(codigo, comandos=False):
         if comandos:
@@ -441,20 +568,22 @@ def ejecutar(args, out):
         if args.json:
             print(json.dumps(res, ensure_ascii=False, indent=2), file=out)
             return codigo
-        print(f"estado: {res['estado']}" + (f" · {res['mensaje']}" if res["mensaje"] else ""),
+        # #9 (fix1): en modo texto se escapa todo lo que viene de `projects.yaml` o de la entrada
+        print(f"estado: {res['estado']}" + (f" · {_escapar(res['mensaje'])}" if res["mensaje"] else ""),
               file=out)
-        print(f"destino: {json.dumps(ruta, ensure_ascii=False)}", file=out)
+        print(f"destino: {_escapar(json.dumps(ruta, ensure_ascii=False))}", file=out)
         if res["sha256"]:
             print(f"sha256: {res['sha256']}", file=out)
         if res["copia"]:
-            print(f"copia de seguridad: {json.dumps(res['copia'], ensure_ascii=False)}", file=out)
+            print(f"copia de seguridad: {_escapar(json.dumps(res['copia'], ensure_ascii=False))}",
+                  file=out)
         if res["bloque"] and res["estado"] in ("nuevo", "no-reconocido"):
             print("bloque:", file=out)
             print(res["bloque"].rstrip("\r\n"), file=out)
         if comandos:
             print("Ejecútalos tú (este script NO los ejecuta):", file=out)
             for c in res["comandos"]:
-                print(f"  {c}", file=out)
+                print(f"  {_escapar(c)}", file=out)
         return codigo
 
     for parte in (kw, config_dir):
@@ -482,8 +611,11 @@ def ejecutar(args, out):
     if not args.apply:
         return emitir(E_OK)
 
-    if not args.esperado or args.esperado.lower() != res["sha256"]:
-        res["mensaje"] = "el fichero cambió desde la vista previa (o falta --esperado): repite la vista previa"
+    if not args.esperado:                     # #13 (fix1): es un error de USO, no de E/S
+        res["mensaje"] = "--apply exige --esperado <sha256 de la vista previa>"
+        return emitir(E_USO)
+    if args.esperado.lower() != res["sha256"]:
+        res["mensaje"] = "el fichero cambió desde la vista previa: repite la vista previa"
         return emitir(E_IO)
     try:
         os.makedirs(export_real, exist_ok=True)
@@ -494,13 +626,17 @@ def ejecutar(args, out):
     payload = (b"" if (forma["termina_en_eol"] or not previo) else forma["eol"].encode())
     payload += res["bloque"].encode("utf-8")
     try:
-        ok, msg = escribir_anadiendo(ruta, previo, st, payload)
-    except OSError as e:
-        ok, msg = False, f"error de E/S al escribir ({type(e).__name__})"
+        ok, msg, presente = escribir_anadiendo(ruta, previo, st, payload, copia=res["copia"])
+    except OSError as e:                      # antes del `write` (abrir, `fstat`): nada escrito
+        ok, msg, presente = (False, f"error de E/S al abrir para escribir ({type(e).__name__}); "
+                                    "no se ha tocado", False)
     if not ok:
-        res["mensaje"] = f"{msg} · copia en {res['copia']}"
+        # #7 (fix1): se informa el estado REAL del bloque (`bloque_presente`), no «no escrito»
+        res.update(escrito=bool(presente), bloque_presente=presente,
+                   mensaje=msg if "(copia en " in msg else f"{msg} · copia en {res['copia']}")
         return emitir(E_IO)
-    res.update(estado="añadido", escrito=True, mensaje="bloque añadido al final de `projects:`")
+    res.update(estado="añadido", escrito=True, bloque_presente=True,
+               mensaje="bloque añadido al final de `projects:`")
     return emitir(E_OK, comandos=True)
 
 

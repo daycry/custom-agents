@@ -3494,3 +3494,68 @@ class TestAvisoEstadoGrupoCA15(unittest.TestCase):
             r2 = self.mod.estado_grupo(self._cfg(srv.endpoint, group_id=""), consultar_servidor=True)
             self.assertEqual(r2["estado"], "no_verificado")
             self.assertEqual(srv.llamadas, [])
+
+    def test_fix1_8_redireccion_fuera_de_loopback_da_no_verificado_y_no_envia_nada(self):
+        """fix1 #8 (CWE-918): en «solo loopback» cada salto se revalida contra loopback. Antes un
+        307 del servidor local hacia una red PRIVADA (`allow_remote=False` la admite) recibia el
+        `initialize` y el `get_episodes` con el `group_id`. La IP privada (`10.1.2.3`) se simula
+        con la cache DNS y la conexion se desvia a un servidor local que cuenta lo que recibe."""
+        recibidas = []
+
+        class _Destino(BaseHTTPRequestHandler):
+            def do_POST(self):  # noqa: N802
+                largo = int(self.headers.get("Content-Length", 0))
+                recibidas.append(self.rfile.read(largo) if largo else b"")
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"jsonrpc": "2.0", "id": 1, "result": {}}).encode())
+
+            def log_message(self, *a, **k):
+                pass
+
+        destino = HTTPServer(("127.0.0.1", 0), _Destino)
+        threading.Thread(target=destino.serve_forever, daemon=True).start()
+        puerto_destino = destino.server_address[1]
+
+        class _Origen(BaseHTTPRequestHandler):
+            def do_POST(self):  # noqa: N802
+                largo = int(self.headers.get("Content-Length", 0))
+                self.rfile.read(largo) if largo else None
+                self.send_response(307)
+                self.send_header("Location", f"http://privado.test:{puerto_destino}/mcp")
+                self.end_headers()
+
+            def log_message(self, *a, **k):
+                pass
+
+        origen = HTTPServer(("127.0.0.1", 0), _Origen)
+        threading.Thread(target=origen.serve_forever, daemon=True).start()
+        real = self.mod._conectar_por_ip_si_http
+
+        def desvio(url, direcciones):
+            return [(u.replace("10.1.2.3", "127.0.0.1"), h) for u, h in real(url, direcciones)]
+
+        self.mod._dns_cache["privado.test"] = (["10.1.2.3"], time.time() + 300)
+        self.mod._conectar_por_ip_si_http = desvio
+        try:
+            r = self.mod.estado_grupo(
+                self._cfg(f"http://127.0.0.1:{origen.server_address[1]}/mcp"), consultar_servidor=True)
+        finally:
+            self.mod._conectar_por_ip_si_http = real
+            self.mod._dns_cache.pop("privado.test", None)
+            origen.shutdown(); origen.server_close()
+            destino.shutdown(); destino.server_close()
+        self.assertEqual(recibidas, [], "el destino privado recibió la consulta")
+        self.assertEqual(r["estado"], "no_verificado")
+
+    def test_fix1_8_el_modo_normal_sigue_admitiendo_redes_privadas(self):
+        """El «solo loopback» es SOLO de la consulta de avisos: `_validar_host` sin el flag no cambia."""
+        self.mod._dns_cache["privado.test"] = (["10.1.2.3"], time.time() + 300)
+        try:
+            self.assertEqual(self.mod._validar_host("http://privado.test:1/mcp", False), ["10.1.2.3"])
+            self.assertIsNone(self.mod._validar_host("http://privado.test:1/mcp", False, solo_loopback=True))
+            self.assertEqual(self.mod._validar_host("http://127.0.0.1:1/mcp", False, solo_loopback=True),
+                             ["127.0.0.1"])
+        finally:
+            self.mod._dns_cache.pop("privado.test", None)

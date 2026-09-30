@@ -3,6 +3,8 @@ import json
 import os
 import sys
 
+import pytest
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 
@@ -1094,9 +1096,12 @@ def test_CA_14_propone_el_slug_de_la_carpeta_y_valida_la_forma(tmp_path):
     assert not ks.id_prefix_valido(None)
 
 
-def test_CA_14_carpeta_sin_alfanumericos_propone_ca(tmp_path):
+def test_CA_14_carpeta_sin_alfanumericos_no_propone_ca(tmp_path):
+    """fix1 #3: sin slug ASCII ya no cae a `ca` (lo compartian todos esos proyectos)."""
+    import re
     root = _proyecto(tmp_path, "---", _taxonomia_graphiti())
-    assert ks.proponer_id_prefix(root) == "ca"
+    propuesta = ks.proponer_id_prefix(root)
+    assert propuesta != "ca" and re.fullmatch(r"p-[0-9a-f]{8}", propuesta)
 
 
 def test_CA_14_instalacion_nueva_guarda_id_prefix_y_group_id_explicito(tmp_path):
@@ -1236,3 +1241,73 @@ def test_CA_15_aviso_manifiesto_ilegible_no_rompe(tmp_path):
         f.write("[]")
     r = ks.preparar_id_prefix(root, "nuevo")
     assert r["ok"] and not [a for a in r["avisos"] if "knowledge_id" in a]
+
+
+# ------------------------------------------------------------------ setup-statusline-polish fix1 (#2, #3, #18)
+
+def test_fix1_3_carpetas_no_ascii_dan_group_id_distintos_estables_y_nunca_ca(tmp_path):
+    """#3: `知識` y `проект` compartian `ca` como `id_prefix` y, en instalacion nueva, como
+    `group_id` explicito: se mezclaba su memoria remota."""
+    a = _proyecto(tmp_path, "知識", _taxonomia_graphiti())
+    b = _proyecto(tmp_path, "проект", _taxonomia_graphiti())
+    pa, pb = ks.proponer_id_prefix(a), ks.proponer_id_prefix(b)
+    assert pa != pb and "ca" not in (pa, pb)
+    assert pa == ks.proponer_id_prefix(a) and pb == ks.proponer_id_prefix(b)      # deterministas
+    assert ks.id_prefix_valido(pa) and ks.id_prefix_valido(pb)
+    ra = ks.preparar_id_prefix(a, aplicar=True)
+    rb = ks.preparar_id_prefix(b, aplicar=True)
+    assert ra["propuesta"] == pa and rb["propuesta"] == pb
+    assert _group_id_efectivo(a) == pa != _group_id_efectivo(b) == pb
+
+
+def test_fix1_3_mismo_nombre_no_ascii_en_rutas_distintas_da_valores_distintos(tmp_path):
+    a = _proyecto(tmp_path / "uno", "知識")
+    b = _proyecto(tmp_path / "dos", "知識")
+    assert ks.proponer_id_prefix(a) != ks.proponer_id_prefix(b)
+
+
+@pytest.mark.parametrize("carpeta,esperada", [
+    ("2048", "p-2048"), ("2024", "p-2024"), ("0x1f", "p-0x1f"), ("yes", "p-yes"), ("On", "p-on"),
+    ("NULL", "p-null"), ("n", "p-n"), ("mi-proyecto", "mi-proyecto"),
+])
+def test_fix1_2_la_propuesta_siempre_es_texto_en_yaml(tmp_path, carpeta, esperada):
+    """#2: la propuesta es la clave que `kwipu-project-add.py` escribe sin comillas: nunca un
+    numero ni una palabra reservada de YAML 1.1 (antepone `p-`)."""
+    root = _proyecto(tmp_path, carpeta)
+    assert ks.proponer_id_prefix(root) == esperada
+
+
+def test_fix1_18_temporal_no_predecible_ni_sigue_lo_plantado(tmp_path):
+    """#18: el temporal era `taxonomy.json.<pid>.tmp`. Un directorio plantado con ese nombre hacia
+    fallar la escritura; un enlace simbolico plantado desviaba la escritura a otro fichero."""
+    root = _proyecto(tmp_path, "c", _taxonomia_graphiti())
+    ruta = os.path.join(root, ks.PROJECT_TAXONOMY_REL)
+    predecible = ruta + f".{os.getpid()}.tmp"
+    os.mkdir(predecible)
+    r = ks.preparar_id_prefix(root, "otro", aplicar=True)
+    assert r["ok"] and r["escrito"], r
+    assert _leer_tax(root)["id_prefix"] == "otro"
+    os.rmdir(predecible)
+    victima = tmp_path / "victima.txt"
+    victima.write_text("intacto", encoding="utf-8")
+    try:
+        os.symlink(str(victima), predecible)
+    except (OSError, NotImplementedError):
+        return                                   # sin enlaces simbolicos: basta el directorio
+    r = ks.preparar_id_prefix(root, "otro-mas", aplicar=True)
+    assert r["ok"] and victima.read_text(encoding="utf-8") == "intacto"
+    assert not os.path.islink(ruta) and _leer_tax(root)["id_prefix"] == "otro-mas"
+
+
+def test_fix1_18_si_falla_el_reemplazo_no_quedan_temporales(tmp_path, monkeypatch):
+    root = _proyecto(tmp_path, "c", _taxonomia_graphiti())
+    d = os.path.dirname(os.path.join(root, ks.PROJECT_TAXONOMY_REL))
+    antes = sorted(os.listdir(d))
+
+    def falla(*a, **k):
+        raise OSError("replace roto")
+
+    monkeypatch.setattr(ks.os, "replace", falla)
+    r = ks.preparar_id_prefix(root, "otro", aplicar=True)
+    assert r["ok"] is False and r["escrito"] is False
+    assert sorted(os.listdir(d)) == antes

@@ -274,7 +274,9 @@ def _construir_entradas_enrutadas(ki, ks, root, config, backend_id, indice):
 
 def _construir_parser():
     ap = argparse.ArgumentParser(description=__doc__.strip().splitlines()[0])
-    ap.add_argument("--backend", required=True, help="id declarado en taxonomy.json -> backends")
+    ap.add_argument("--backend", default=None,
+                     help="id declarado en taxonomy.json -> backends (obligatorio salvo con "
+                          "--avisos-grupo: sin él recorre todos los backends que avisan de grupo)")
     ap.add_argument("--root", default=".", help="raíz del proyecto (default: cwd)")
     ap.add_argument("--json", action="store_true")
     ap.add_argument("--dry-run", action="store_true", dest="dry_run")
@@ -298,6 +300,58 @@ def _construir_parser():
     return ap
 
 
+def _avisos_grupo_de_todos(args):
+    """setup-statusline-polish fix1 #4: `--avisos-grupo` sin `--backend`. El id del backend lo
+    elige el proyecto, asi que `/setup` no puede fijarlo: se recorren TODOS los backends declarados
+    cuyo adaptador define la funcion OPCIONAL `estado_grupo` (el nucleo no nombra ningun backend
+    concreto, gap #77; hoy solo la define el adaptador de memoria de grafo). Es un aviso: SIEMPRE
+    exit 0, tambien sin taxonomia, con taxonomia rota o con un adaptador que no carga."""
+    avisos, grupos = [], []
+    try:
+        ks = _cargar_por_ruta(os.path.join(SHARED, "knowledge-schema.py"), "ks_knowledge_schema")
+        binit = _cargar_por_ruta(os.path.join(BACKENDS_DIR, "__init__.py"), "ks_backends_init")
+        config, _o, _r, errores = ks.cargar_taxonomia(args.root)
+    except KitCompartidoNoDisponible as e:
+        config, errores = None, []
+        avisos.append(str(e))
+    for e in errores or []:
+        avisos.append(f"{e['fichero']}: {e['campo']}: {e['mensaje']}")
+    backends = (config.get("backends") if isinstance(config, dict) and not errores else None) or {}
+    for bid in sorted(backends):
+        decl = backends[bid] if isinstance(backends[bid], dict) else {}
+        tipo = decl.get("type")
+        if not tipo:
+            continue
+        try:
+            adaptador = binit.cargar_adaptador(tipo, directorios=[BACKENDS_DIR, *args.backends_dir])
+        except binit.AdaptadorNoDisponible as e:
+            avisos.append(f"`{bid}`: {e}")
+            continue
+        estado_grupo = getattr(adaptador, "estado_grupo", None)
+        if not callable(estado_grupo):
+            continue
+        cfg = dict(decl.get("config") or {})
+        cfg["_root"] = os.path.abspath(args.root)
+        try:
+            grupo = estado_grupo(cfg, consultar_servidor=args.consultar_servidor)
+        except Exception as e:  # noqa: BLE001 - un adaptador que lanza no tumba el CLI (gap 90)
+            grupo = {"estado": "no_verificado", "origen": "local",
+                     "aviso": f"`estado_grupo` fallo: {_causa(e)}"}
+        grupos.append({"backend": bid, "grupo": grupo})
+    if args.json:
+        print(json.dumps({"grupos": grupos, "avisos": avisos}, ensure_ascii=False, indent=2))
+        return 0
+    for a in avisos:
+        print(f"knowledge-sync: {_sanear_causa(a)}", file=sys.stderr)
+    if not grupos:
+        print("grupo: no hay backends que avisen de grupo en taxonomy.json (nada que comprobar)")
+    for g in grupos:
+        gr = g["grupo"]
+        print(f"grupo `{g['backend']}`: {gr.get('estado')} ({gr.get('origen')})"
+              + (f" · {gr['aviso']}" if gr.get("aviso") else ""))
+    return 0
+
+
 def main(argv=None):
     args = _construir_parser().parse_args(argv)
     modos = [args.dry_run, args.check, args.rebuild, args.outbox_status, args.propose_config,
@@ -308,6 +362,12 @@ def main(argv=None):
         return 2
     if args.consultar_servidor and not args.avisos_grupo:
         print("knowledge-sync: --consultar-servidor solo se usa con --avisos-grupo", file=sys.stderr)
+        return 2
+    if not args.backend:
+        if args.avisos_grupo:
+            return _avisos_grupo_de_todos(args)
+        print("knowledge-sync: falta --backend <id> (solo --avisos-grupo funciona sin él)",
+              file=sys.stderr)
         return 2
 
     try:

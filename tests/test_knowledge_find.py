@@ -261,12 +261,27 @@ def test_linea_compacta_nunca_pasa_de_120_ni_pierde_el_id_ni_la_ruta():
 
 # --------------------------------------------------------------- las cifras sobre el corpus REAL
 
+def _copiar_en_lf(origen, destino):
+    with open(origen, "rb") as f:
+        datos = f.read()
+    with open(destino, "wb") as f:
+        f.write(datos.replace(b"\r\n", b"\n"))
+    return destino
+
+
+def _leer_en_lf(ruta):
+    with open(ruta, "rb") as f:
+        return f.read().replace(b"\r\n", b"\n").decode("utf-8")
+
+
 @pytest.fixture(scope="module")
 def real(tmp_path_factory):
     """Copia del corpus versionado en un tmp: el índice FTS5 se escribe en su `.claude/`, nunca en el repo."""
     assert os.path.isdir(KNOWLEDGE_REAL), "falta el fixture tests/fixtures/knowledge-corpus"
     dst = tmp_path_factory.mktemp("corpus")
-    shutil.copytree(CORPUS_ROOT, str(dst), dirs_exist_ok=True)
+    # setup-statusline-polish fix1 #14: se normaliza a LF al copiar (un clon de Windows con
+    # `core.autocrlf=true` sin `.gitattributes` extrae el corpus con CRLF y CA-17 dejaba de cuadrar)
+    shutil.copytree(CORPUS_ROOT, str(dst), dirs_exist_ok=True, copy_function=_copiar_en_lf)
     os.makedirs(os.path.join(str(dst), ".claude"), exist_ok=True)
     return str(dst)
 
@@ -588,7 +603,7 @@ def test_ca04_show_adr012_la_entrada_mas_grande_cabe_en_10800_caracteres(real):
     code, out, err = run("--show", "ADR-012", "--root", real)
     assert code == 0, err
     ruta = next(f for f in os.listdir(os.path.join(KNOWLEDGE_REAL, "adr")) if f.startswith("ADR-012-"))
-    assert out == open(os.path.join(KNOWLEDGE_REAL, "adr", ruta), encoding="utf-8").read()
+    assert out == _leer_en_lf(os.path.join(KNOWLEDGE_REAL, "adr", ruta))
     assert len(out) <= 10800, len(out)
     code, out, err = run("--show", "NO-EXISTE", "--root", real)
     assert code == 1 and out == "" and err.count("\n") == 1
