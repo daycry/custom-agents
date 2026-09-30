@@ -221,3 +221,35 @@ El último `--check` debería reportar `verify: ok` una vez Kwipu haya corrido s
 `export_dir` — si sigue en desfase, el mensaje ya nombra el remedio exacto. Un `verify` con
 `razon: "nunca_sincronizado"` (manifest vacío/ausente) significa que todavía no se ha corrido ni
 un `apply` real — no es un desfase, es que nunca se publicó nada.
+
+## Alta del proyecto en `projects.yaml` (`kwipu-project-add.py`)
+
+Diseño O1 de `setup-statusline-polish` (C-07). El script **solo añade**: nunca reescribe un byte
+previo y el fichero conserva su identidad. Ejemplos con `<stack>/…` (la ruta del stack no se persiste).
+
+```bash
+KPA="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type f -path '*skills/knowledge-services/scripts/kwipu-project-add.py' 2>/dev/null | head -1)"
+python3 "$KPA" --stack <stack> --root .                            # vista previa: estado, bloque, sha256
+python3 "$KPA" --stack <stack> --root . --apply --esperado <sha256> # escribe (tras confirmar)
+```
+
+- **Nombre** = `id_prefix` de `taxonomy.json` (o `--nombre`); `^[a-z0-9][a-z0-9-]*$`, hasta 64.
+  **`root`** = `export_dir` del backend, relativa a `<stack>/kwipu/config/` (absoluta solo si no hay relativa);
+  si `export_dir` no existe, `--apply` lo crea. Debe quedar dentro del proyecto.
+- **Forma reconocida** (si no, exit 3 e imprime el bloque para pegarlo a mano): UTF-8 sin BOM, fin de línea
+  uniforme, sin tabuladores, `---`/`...`/`%`, anclas ni alias; una sola `projects:` de primer nivel, **última**
+  clave, sin valor en línea; hijos `nombre:` con sangría constante y `root` escalar de una línea; marcas del
+  plugin balanceadas.
+- **Conflicto** (sin distinguir mayúsculas; exit 4): mismo nombre con otra `root`, o misma `root` con otro
+  nombre. Mismo nombre y misma `root`: no-op (exit 0).
+- **Escritura**: fichero regular sin enlaces simbólicos ni duros compartidos; `sha256` e identidad iguales a
+  los de la vista previa (si no, exit 1); copia `projects.yaml.bak-<AAAAMMDDTHHMMSSZ>` con `O_EXCL` (sufijo
+  `-1`, `-2`… si existe; su fallo aborta); un solo `write` en `O_APPEND`, relectura y, si algo no cuadra,
+  truncado al tamaño previo (solo quita lo añadido).
+- **No ejecuta nada del stack.** Imprime, para que los lance el usuario:
+
+```text
+cd <stack>
+python -m source_manager.build_view --config kwipu/config/projects.yaml --output kwipu/runtime/knowledge-view-v2
+docker compose restart kwipu kwipu-bridge kwipu-mcp
+```

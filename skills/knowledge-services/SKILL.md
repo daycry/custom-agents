@@ -36,6 +36,7 @@ declare su propio `type` — el núcleo (`knowledge-sync.py`) no cambia al añad
 | Fichero | Qué es |
 |---|---|
 | `scripts/knowledge-sync.py` | Único punto de entrada; nunca menciona un backend concreto. |
+| `scripts/kwipu-project-add.py` | Alta del proyecto en `<stack>/kwipu/config/projects.yaml` (`/setup` 5-sexies, C-07): **solo añade** un bloque marcado, con vista previa + `sha256`, confirmación (`--apply --esperado`) y copia `.bak-<AAAAMMDDTHHMMSSZ>`. Exit 0 ok/no-op · 1 E/S o fichero cambiado · 2 uso · 3 forma no reconocida (imprime el bloque) · 4 conflicto. Contrato en `references/kwipu-adapter.md`. |
 | `backends/__init__.py` | Carga y valida el adaptador por `type` (`backends/README.md`: contrato completo de las 6 funciones). |
 | `backends/markdown_export.py` | Adaptador Kwipu (`type: "markdown-export"`): CA-17/CA-16, ver `references/kwipu-adapter.md`. |
 | `backends/graphiti.py` + `backends/graphiti_providers.py` | Adaptador Graphiti (`type: "graphiti"`, ADR-018): cliente MCP, `mode: shadow`/`read`, `rebuild`/`revoke` — ver `backends/README.md`. |
@@ -92,10 +93,11 @@ Añadir un backend nuevo: un fichero `backends/<type>.py` con las 6 funciones �
   a reencolado con backoff (`outbox.py`) y solo escala a `dead-letter` al agotar los reintentos —
   no se reintenta dentro de la misma corrida, sí en la siguiente (drenaje antes del sync fresco).
 - **`verify` nombra, no ejecuta** (CA-16): el reindexado real es del stack, nunca de este plugin.
+- **Una sola excepción a «no toca el stack»** (enmienda de ADR-018 / PAT-001, diseño O1): `kwipu-project-add.py` puede AÑADIR un bloque a `projects.yaml`, nunca modificar ni borrar; `build_view` y el reinicio de contenedores solo se imprimen.
 - **Sin dependencias externas**: todo el código de esta skill es stdlib puro.
 
 ## Qué NO hace
 
 - No decide taxonomía ni categorías (eso es `taxonomy.json`, por proyecto).
 - No aprueba ni rechaza conocimiento (eso es `knowledge-curator`).
-- No registra el backend en Kwipu/Graphiti por su cuenta (nada de "auto-discovery" de red).
+- No registra el backend en Kwipu/Graphiti por su cuenta (nada de "auto-discovery" de red); el alta en `projects.yaml` la lanza `/setup` con confirmación del usuario y solo añade.

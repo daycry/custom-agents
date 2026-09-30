@@ -36,7 +36,7 @@ estado: en-progreso
 | Fase 2 — Quick wins de visibilidad y puertas | 5 | 5 | 100% | 0 / 14.4h | 0 / 3.42h | 0 / 0.85h | 0 / 1639k |
 | Fase 3 — `/doctor`: tope estricto de la línea kwipu | 1 | 1 | 100% | 0 / 3.6h | 0 / 0.72h | 0 / 0.18h | 0 / 345k |
 | Fase 4 — ADR de diseño y `id_prefix` / `group_id` | 3 | 3 | 100% | 0 / 14.0h | 0 / 4.10h | 0 / 1.02h | 0 / 1965k |
-| Fase 5 — Alta segura en `projects.yaml` (bloqueada por la ADR) | 0 | 2 | 0% | 0 / 14.4h | 0 / 4.50h | 0 / 1.12h | 0 / 2157k |
+| Fase 5 — Alta segura en `projects.yaml` (bloqueada por la ADR) | 1 | 2 | 50% | 0 / 14.4h | 0 / 4.50h | 0 / 1.12h | 0 / 2157k |
 | Fase 6 — Cierre, documentación y réplica en Linux | 0 | 1 | 0% | 0 / 3.6h | 0 / 0.90h | 0 / 0.23h | 0 / 431k |
 | **TOTAL** | **11** | **14** | **79%** | **0 / 54.8h** | **0 / 14.63h** | **0 / 3.66h** | **0 / 7013k** |
 
@@ -498,7 +498,7 @@ estado: en-progreso
 
 - **Descripción**: Script stdlib nuevo `skills/knowledge-services/scripts/kwipu-project-add.py` y sus tests. Implementa el flujo de la spec (pasos 2-7) según la forma y el contrato fijados por la ADR de T-09: reconoce formas concretas y rechaza el resto (no escribe, imprime el bloque y sale con el código documentado); homónimo con otra `root` -> conflicto; misma `root` -> no-op; si no existe: vista previa, confirmación, copia de seguridad (su fallo aborta), escritura atómica con relectura justo antes; valida `id_prefix` (`^[a-z0-9][a-z0-9-]*$`) y `root` contra inyección y `..`; comprueba que el destino es el `projects.yaml` del stack indicado; imprime los comandos de `build_view` y de reinicio sin ejecutarlos. Validación solo sobre copias en temporales; la ejecución real la lanza el usuario. Ejemplos con `<stack>/…`, sin datos personales.
 - **Changelog**: Nuevo script que da de alta el proyecto en Kwipu añadiendo un bloque, con vista previa, confirmación y copia de seguridad.
-- **Estado**: borrador
+- **Estado**: completado
 - **Prioridad**: Alta
 - **Tiempo humano**: est. 9.0h · real —
 - **Tiempo IA (ejec.)**: est. 2.80h · real —
@@ -506,29 +506,35 @@ estado: en-progreso
 - **Previsión IA**: 1154k in / 188k out tok · 17.66 €
 - **Dependencias**: T-09 (ADR aceptada), T-11
 - **Tipo**: backend
-- **Archivos**: `skills/knowledge-services/scripts/kwipu-project-add.py`, `skills/knowledge-services/scripts/test_kwipu_project_add.py`, `skills/knowledge-services/references/kwipu-adapter.md`, `skills/knowledge-services/SKILL.md`, `evals/cases/skill-knowledge-services.json`
+- **Archivos**: `skills/knowledge-services/scripts/kwipu-project-add.py`, `skills/knowledge-services/scripts/test_kwipu_project_add.py`, `skills/knowledge-services/references/kwipu-adapter.md`, `skills/knowledge-services/SKILL.md`, `evals/cases/skill-knowledge-services.json`, `tests/test_console_encoding.py`
 - **Cubre (tests)**: — (sin UI)
 - **Verificación**:
   - `python3 -m pytest -q skills/knowledge-services/scripts/test_kwipu_project_add.py` -> passed con CA-09..CA-13 (mismo ID en el nombre del test)
   - `python3 -m pytest -q skills/knowledge-services/scripts/test_kwipu_project_add.py -k byte_a_byte` -> passed (resto del fichero idéntico)
   - `grep -nE "subprocess|os\.system" skills/knowledge-services/scripts/kwipu-project-add.py` -> sin coincidencias (`build_view` solo dentro de cadenas impresas)
 
+- **Evidencia**:
+  RED: `pytest -q skills/knowledge-services/scripts/test_kwipu_project_add.py` falló con `FileNotFoundError` (colección: `kwipu-project-add.py` no existe) · 2026-09-30. Nota honesta: el borrador del script se escribió antes que los tests; el rojo se obtuvo retirando el script y ejecutando la suite completa, y después se ajustaron 3 tests (`--nombre=-x` por argparse, ASCII en nombres de test, mutante del prefijo) y un bug real que el test destapó (`_crear_copia` borraba la copia con el fichero aún abierto: `PermissionError` en Windows).
+  GREEN: `pytest -q skills/knowledge-services/scripts/test_kwipu_project_add.py` -> 96 passed, 2 skipped (enlaces simbólicos: sin privilegio en Windows; corren en Linux). `-k byte_a_byte` -> 8 passed (LF, CRLF, sin EOL final, sin hijos, comentario, sangría 4, claves entre comillas). `grep -nE "subprocess|os\.system" skills/knowledge-services/scripts/kwipu-project-add.py` -> sin coincidencias (exit 1). Cobertura del script (coverage.py, todo el fichero es diff): 96 %. `lint_plugin` 0 errores; `evals/check` 0 errores (145 casos); `test_graphiti_security` + `test_skill_size` 85 passed; `skills/knowledge-services` + `test_console_encoding` 835 passed, 3 skipped.
+  Diseño O1 tal cual: solo añade (`O_APPEND`, un solo `write`, relectura, `ftruncate` al tamaño previo si algo no cuadra); comprobaciones de fichero regular, sin enlaces ni `nlink > 1`, misma identidad y `sha256` que la vista previa; copia `projects.yaml.bak-<AAAAMMDDTHHMMSSZ>` con `O_EXCL` y sufijo `-N`; exit 0/1/2/3/4; nombre = `id_prefix`; `root` = `export_dir` relativa a `kwipu/config/` (debe quedar dentro del proyecto; se crea si no existe); no importa `subprocess`. Ninguna prueba toca un `projects.yaml` real (todo en `tmp_path`, YAML sintéticos + la muestra anonimizada del diseño).
+  Réplica en Linux (`python:3.11-slim`, `-m 2g`, `.sh` en LF, `git init`): `test_kwipu_project_add.py` -> 98 passed (los 2 tests de enlaces corren) como root y como usuario no root; cobertura del script 97 %. Sacó a la luz `tests/test_console_encoding.py` (410 passed tras el arreglo): el script imprime no ASCII y exige su modo de arranque en `MODOS` (taxonomía inválida -> exit 2 con tilde); hasta que el script estuvo versionado el test no lo veía en Windows.
+
 **Criterios de aceptación**
 
-- [ ] CA-09: YAML reconocido sin el proyecto + confirmación -> copia de seguridad, exactamente un bloque añadido con `root` = `export_dir`, resto byte a byte igual.
-- [ ] CA-10: mismo proyecto y `root` -> no cambia nada y lo dice.
-- [ ] CA-11: forma no reconocida -> no escribe, imprime el bloque, exit distinto de 0 documentado.
-- [ ] CA-12: homónimo con otra `root` -> no escribe, muestra el conflicto, pide otro nombre.
-- [ ] CA-13: sin confirmación o con fallo de la copia -> no escribe; no ejecuta `build_view` ni reinicia contenedores.
-- [ ] Entradas inyectadas (saltos de línea, `:`, `#`, comillas, `..`) rechazadas con test.
+- [x] CA-09: YAML reconocido sin el proyecto + confirmación -> copia de seguridad, exactamente un bloque añadido con `root` = `export_dir`, resto byte a byte igual.
+- [x] CA-10: mismo proyecto y `root` -> no cambia nada y lo dice.
+- [x] CA-11: forma no reconocida -> no escribe, imprime el bloque, exit distinto de 0 documentado.
+- [x] CA-12: homónimo con otra `root` -> no escribe, muestra el conflicto, pide otro nombre.
+- [x] CA-13: sin confirmación o con fallo de la copia -> no escribe; no ejecuta `build_view` ni reinicia contenedores.
+- [x] Entradas inyectadas (saltos de línea, `:`, `#`, comillas, `..`) rechazadas con test.
 
 **Subtareas**
 
-- [ ] Reconocedor de formas (según la ADR).
-- [ ] Validaciones de `id_prefix` y `root`.
-- [ ] Copia + escritura atómica + relectura.
-- [ ] Tests de mutantes (nunca modificar ni borrar entradas).
-- [ ] Referencias en la skill.
+- [x] Reconocedor de formas (según la ADR).
+- [x] Validaciones de `id_prefix` y `root`.
+- [x] Copia + escritura atómica + relectura.
+- [x] Tests de mutantes (nunca modificar ni borrar entradas).
+- [x] Referencias en la skill.
 
 **Notas**: Criterio de la spec: CA-09..CA-13.
 
