@@ -99,7 +99,7 @@ Se reutilizan `usage-meter.py` (marcador abierto), `knowledge-schema.py` (`id_pr
 |---|---|
 | Corromper o pisar config ajena | Solo añade: un bloque marcado al final del fichero, sin reemplazarlo (O1 de `design.md`); copia de seguridad previa; vista previa + confirmación atada al `sha256`; si la verificación falla, solo se retira el bloque propio y nunca un byte ajeno |
 | Duplicar o secuestrar un proyecto existente | Conflicto de nombre con otra `root` → no escribe; misma `root` → no-op |
-| Inyección vía `id_prefix` o `root` (saltos de línea, `:`, `#`, comillas) | Validación estricta de forma (`^[a-z0-9][a-z0-9-]*$`) y de `root` antes de emitir; salida escapada |
+| Inyección vía `id_prefix` o `root` (saltos de línea, `:`, `#`, comillas) | Validación estricta de forma (`^[a-z][a-z0-9-]*$`, sin palabras reservadas de YAML) y de `root` antes de emitir; salida escapada |
 | Ruta fuera del stack (`..`, absoluta inesperada) | Normalización y comprobación de que el destino es el `projects.yaml` del stack indicado |
 | Datos personales en ficheros versionados | Ejemplos con `<stack>/…`; sin usuario, correo ni empresa |
 | Hooks o statusline con red | No hacen red |

@@ -71,6 +71,7 @@ import importlib.util
 import json
 import os
 import re
+import unicodedata
 import sys
 import time
 
@@ -142,11 +143,12 @@ def _cargar_por_ruta(ruta, nombre_modulo):
     return mod
 
 
-# Gap #93 (Minor, fix5): misma ampliacion que `_sanear_detalle` de los adaptadores -C1
-# (\x80-\x9f), separadores Unicode ( / ) y controles bidi (‪-‮,
-# ⁦-⁩)-: esta causa se imprime por stderr y se persiste en la dead-letter.
-_CONTROL_O_ANSI_RE = re.compile(
-    r"\x1b\[[0-9;]*[A-Za-z]|[\x00-\x1f\x7f-\x9f  ‪-‮⁦-⁩]")
+# Gap #93 (fix5) y #25 (T-14): la causa se imprime por stderr y se persiste en la dead-letter.
+# Se quitan las secuencias ANSI y TODA la clase Unicode Cc/Cf/Zl/Zp (C0, C1, bidi, marcas de
+# direccion U+200E/U+200F/U+061C, separadores de linea/parrafo), con el mismo criterio que
+# `_escapar` de kwipu-project-add.py. Sin caracteres literales invisibles en el fuente.
+_ANSI_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
+_CATEGORIAS_PELIGROSAS = frozenset(("Cc", "Cf", "Zl", "Zp"))
 _TOPE_CAUSA_CHARS = 400
 
 
@@ -156,7 +158,10 @@ def _sanear_causa(texto):
     el prefijo real del CLI, miles de caracteres). Se sanea ANTES de imprimirla por stderr y
     ANTES de persistirla como `causa` en la outbox/dead-letter. No es especifico de ningun
     backend: cualquier adaptador puede propagar texto de un tercero."""
-    return _CONTROL_O_ANSI_RE.sub(" ", str(texto))[:_TOPE_CAUSA_CHARS]
+    sin_ansi = _ANSI_RE.sub(" ", str(texto))
+    limpio = "".join(" " if unicodedata.category(c) in _CATEGORIAS_PELIGROSAS else c
+                     for c in sin_ansi)
+    return limpio[:_TOPE_CAUSA_CHARS]
 
 
 def _causa(e):
@@ -339,7 +344,8 @@ def _avisos_grupo_de_todos(args):
                      "aviso": f"`estado_grupo` fallo: {_causa(e)}"}
         grupos.append({"backend": bid, "grupo": grupo})
     if args.json:
-        print(json.dumps({"grupos": grupos, "avisos": avisos}, ensure_ascii=False, indent=2))
+        # #25: ASCII puro (C1 y bidi no llegan crudos al terminal)
+        print(json.dumps({"grupos": grupos, "avisos": avisos}, ensure_ascii=True, indent=2))
         return 0
     for a in avisos:
         print(f"knowledge-sync: {_sanear_causa(a)}", file=sys.stderr)

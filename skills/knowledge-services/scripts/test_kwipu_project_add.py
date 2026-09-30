@@ -942,3 +942,18 @@ def test_fix2_23_setup_documenta_los_dos_significados_de_exit_1():
 def test_fix2_24_setup_indica_pasar_nombre_si_el_id_prefix_no_vale(tmp_path):
     for rel, texto in _setup_md():
         assert '--nombre <propuesta>' in texto, rel
+
+
+def test_t14_gap26_la_regla_documentada_de_nombre_es_la_de_NOMBRE_RE():
+    """#26: la documentacion de `id_prefix`/nombre cita la MISMA regla que aplica el codigo, y la
+    antigua (`^[a-z0-9]...`) ya no aparece; las palabras reservadas de YAML se nombran."""
+    repo = os.path.abspath(os.path.join(os.path.dirname(SCRIPT), "..", "..", ".."))
+    fuentes = ["commands/setup.md", "skills/knowledge-services/references/kwipu-adapter.md",
+               "docs/agents/CONTRACTS.md", "docs/roadmap/2026-09-29-setup-statusline-polish/spec.md"]
+    for rel in fuentes:
+        with open(os.path.join(repo, rel), encoding="utf-8") as f:
+            texto = f.read()
+        assert "`%s`" % kpa.NOMBRE_RE.pattern in texto, rel
+        assert "^[a-z0-9][a-z0-9-]*$" not in texto, rel
+        assert "reservad" in texto, rel
+

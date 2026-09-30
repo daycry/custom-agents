@@ -592,6 +592,32 @@ def test_fix5_gap93_la_causa_sanea_bidi_separadores_unicode_y_c1():
     assert "abcdefg" == saneada.replace(" ", "")
 
 
+def test_t14_gap25_la_causa_sanea_cc_cf_zl_zp_completos():
+    """#25 (intento 3): U+200E/U+200F/U+061C (Cf) pasaban; la clase debe cubrir Cc/Cf/Zl/Zp."""
+    import unicodedata
+    mezcla = "a‎b‏c؜d​e⁠f﻿g h ijk­l"
+    saneada = ks_sync._sanear_causa(mezcla)
+    for c in saneada:
+        assert unicodedata.category(c) not in ("Cc", "Cf", "Zl", "Zp"), repr(c)
+    assert saneada.replace(" ", "") == "abcdefghijkl"
+    assert ks_sync._sanear_causa("ñandú 知識") == "ñandú 知識"
+
+
+def test_t14_gap25_avisos_grupo_json_sin_backend_sale_en_ascii(tmp_path, capsys):
+    root = str(tmp_path)
+    d = os.path.join(root, ".claude", "knowledge-services")
+    os.makedirs(d)
+    with open(os.path.join(d, "taxonomy.json"), "w", encoding="utf-8") as f:
+        json.dump({"version": 1, "id_prefix": "ks",
+                   "categories": [{"key": "X", "folder": "gotchas", "min_evidence": "observation"}],
+                   "backends": {"b‎ñ": {"type": "no-existe-t14", "enabled": False,
+                                                        "config": {}}}}, f)
+    assert ks_sync.main(["--root", root, "--avisos-grupo", "--json"]) == 0
+    crudo = capsys.readouterr().out
+    assert crudo.isascii(), crudo
+    assert json.loads(crudo)["avisos"], "el aviso de adaptador ausente debe existir"
+
+
 # ------------------------------------------------------------------ fix3 Fase 3 (#133)
 
 def test_f3fix3_gap133_check_imprime_el_veredicto_incompleto_y_sale_no_cero(tmp_path, capsys):

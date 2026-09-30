@@ -72,7 +72,7 @@ los valores actuales y ofrece cambiarlos.
    python3 "$SHAREDKIT/capabilities.py" --root .      # una línea por capacidad: id, enabled, health, doctor
    ```
    - Si no existe `.claude/knowledge-services/taxonomy.json`, ofrece crearlo desde la plantilla del plugin (`agent-kits/shared/templates/taxonomy.json`) — todos los backends nacen `enabled: false` (el Knowledge Gate funciona igual con la plantilla en memoria, sin escribir nada, si el usuario prefiere no crearlo).
-   - **Nombre del proyecto (`id_prefix`).** Propón el nombre con el script (no escribe nada sin `--aplicar`) y pide confirmación o uno propio; si no cumple `^[a-z0-9][a-z0-9-]*$` (hasta 64) el script sale con 2: rechaza, vuelve a preguntar y no guardes:
+   - **Nombre del proyecto (`id_prefix`).** Propón el nombre con el script (no escribe nada sin `--aplicar`) y pide confirmación o uno propio; si no cumple `^[a-z][a-z0-9-]*$` (hasta 64, y no es una palabra reservada de YAML: `y`, `n`, `yes`, `no`, `on`, `off`, `true`, `false`, `null`, `~`) el script sale con 2: rechaza, vuelve a preguntar y no guardes:
      ```bash
      python3 "$SHAREDKIT/knowledge-schema.py" --setup-id-prefix --root . [--id-prefix <nombre>] [--aplicar]   # JSON: propuesta, avisos, escrito; exit 0/2
      ```

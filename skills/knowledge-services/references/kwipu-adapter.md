@@ -233,9 +233,13 @@ python3 "$KPA" --stack <stack> --root .                            # vista previ
 python3 "$KPA" --stack <stack> --root . --apply --esperado <sha256> # escribe (tras confirmar)
 ```
 
-- **Nombre** = `id_prefix` de `taxonomy.json` (o `--nombre`); `^[a-z0-9][a-z0-9-]*$`, hasta 64.
+- **Nombre** = `id_prefix` de `taxonomy.json` (o `--nombre`); `^[a-z][a-z0-9-]*$` (empieza por letra), hasta 64 y sin palabras reservadas de YAML (`y`, `n`, `yes`, `no`, `on`, `off`, `true`, `false`, `null`, `~`).
   **`root`** = `export_dir` del backend, relativa a `<stack>/kwipu/config/` (absoluta solo si no hay relativa);
   si `export_dir` no existe, `--apply` lo crea. Debe quedar dentro del proyecto.
+  **Límite conocido:** `root` se rechaza (exit 2) si contiene un code point que la base Unicode del Python
+  en ejecución aún no conoce (categoría `Cn`), aunque versiones posteriores ya lo asignen; PyYAML solo rechaza
+  U+FFFE/U+FFFF, así que la regla es más conservadora de lo necesario. Con una carpeta de caracteres recientes,
+  usa `--nombre` y una `root` alternativa.
 - **Forma reconocida** (si no, exit 3 e imprime el bloque para pegarlo a mano): UTF-8 sin BOM, fin de línea
   uniforme, sin tabuladores, `---`/`...`/`%`, anclas ni alias; una sola `projects:` de primer nivel, **última**
   clave, sin valor en línea; hijos `nombre:` con sangría constante y `root` escalar de una línea; marcas del
