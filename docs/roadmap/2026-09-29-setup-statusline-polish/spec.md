@@ -6,7 +6,7 @@ riesgo: medio             # piloto de sdd-proporcional: el punto 7 escribe en la
 creado: 2026-09-29
 actualizado: 2026-09-29
 evaluacion: evaluation.md
-design: n/a
+design: design.md
 plan: improvement-plan.md
 generacion:
   inicio: 2026-09-29T18:47:03Z
@@ -20,6 +20,7 @@ generacion:
 # setup-statusline-polish — pulido de setup, statusline y puertas
 
 > **Evaluación:** [`evaluation.md`](evaluation.md) (en-revision · go condicionado · ≈ 2.729 € de referencia humana, ≈ 266 € ejecutando con agentes)
+> **Diseño:** [`design.md`](design.md) (aprobado · O1: alta en `projects.yaml` añadiendo un bloque marcado al final, sin reescribir nada)
 > **Plan de implementación:** [`improvement-plan.md`](improvement-plan.md)
 
 > **Terminología:** *stack* = carpeta local del stack de grafos de conocimiento del usuario (`<stack>/`). *Iniciativa en curso* = la iniciativa en la que se trabaja ahora, distinta de «activa» (cualquier ledger no completado). `id_prefix` = clave de `taxonomy.json` que prefija los `knowledge_id`.

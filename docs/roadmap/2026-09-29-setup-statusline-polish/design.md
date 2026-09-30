@@ -1,14 +1,14 @@
 ---
 design: "setup-statusline-polish"
 titulo: "Alta del proyecto en projects.yaml de Kwipu (solo añade) y enmienda a ADR-018 / PAT-001"
-estado: borrador              # borrador | aprobado | obsoleto
+estado: aprobado              # borrador | aprobado | obsoleto
 creado: "2026-09-30"
 actualizado: "2026-09-30"
 spec: spec.md                 # enlace hacia atrás (misma carpeta)
 evaluacion: "evaluation.md"
 plan: improvement-plan.md     # el plan ya existe; T-09 es la tarea de diseño que bloquea T-12/T-13
 adr: "docs/knowledge/adr/ADR-020-alta-kwipu-append-only-en-projects-yaml.md"   # SOLO LOCAL: docs/knowledge/ no se versiona (PR #14)
-opcion_elegida: "pendiente"   # pendiente | O1 | O2 | O3 — se fija SOLO tras la validación del usuario
+opcion_elegida: "O1"          # validada por el usuario el 2026-09-30 («sí a todo», vía orquestador)
 generacion:
   inicio: 2026-09-29T22:02:28Z
   fuente: estimado            # el meter degradó: carpeta de transcripciones no disponible
@@ -25,9 +25,9 @@ generacion:
 
 | | |
 |---|---|
-| **Estado** | borrador |
-| **Opción elegida** | pendiente — recomendada O1 |
-| **Validada por el usuario** | pendiente |
+| **Estado** | aprobado |
+| **Opción elegida** | O1 — append in situ con bloque marcado (O3 como degradación, exit 3) |
+| **Validada por el usuario** | 2026-09-30 («sí a todo», vía orquestador; `elegida: O1`) |
 
 ## 1. Contexto y restricciones
 
@@ -61,7 +61,7 @@ El script nunca reescribe el fichero. Tras la vista previa y la confirmación:
 
 1. `lstat` del destino: fichero regular, sin enlace simbólico ni *reparse point*, y `st_nlink == 1`. Si hay un enlace duro compartido, no se escribe (lección de #197 en `training-data-services`).
 2. Lee los bytes previos por un descriptor, comprueba que `fstat` coincide con el `lstat` (`st_dev`, `st_ino`) y que el `sha256` coincide con el `--esperado` de la vista previa.
-3. Crea una copia con `O_CREAT|O_EXCL`, le hace `fsync` y la relee para comparar el hash.
+3. Crea una copia `projects.yaml.bak-<AAAAMMDDTHHMMSSZ>` (UTC) en el mismo directorio, con `O_CREAT|O_EXCL`, le hace `fsync` y la relee para comparar el hash. Es el patrón que ya usa el stack (`docker-compose.yml.bak-…`). Si el nombre existe, prueba `-1`, `-2`…: nunca pisa otra copia.
 4. Abre con `O_WRONLY|O_APPEND` y comprueba de nuevo la identidad y que `st_size` sigue igual. Añade el bloque en **un solo** `os.write`, comprueba los bytes escritos y hace `fsync`.
 5. Relee el fichero. Debe ser `previo + bloque`, con la misma identidad y el par nombre→`root` presente. Si no lo es y el prefijo sigue intacto, `os.truncate(len(previo))`: solo quita los bytes que acaba de añadir. Si el prefijo cambió, no toca nada y señala la copia.
 
@@ -107,16 +107,16 @@ El script hace todo menos escribir. Reconoce la forma, detecta el conflicto y la
 
 **Recomendación del arquitecto:** **O1** (append in situ con bloque marcado). Es la única que cumple a la vez §4 al pie de la letra (criterio 1) y la decisión del usuario (criterio 2): no reescribe ni un byte previo, no cambia la identidad del fichero, y lo único que crea son los bytes del bloque, marcados, y la copia (`O_EXCL`). También es la de mayor reversibilidad (criterio 3). Cuesta lo mismo que O2 (criterio 4).
 
-**pendiente — a validar por el usuario.**
+**O1 — Append in situ con bloque marcado.** El usuario la validó el 2026-09-30. Cumple §4 sin enmienda (criterio 1) y la decisión «el setup añade» (criterio 2), y es la más reversible (criterio 3). O3 queda como camino de degradación: exit 3, imprime el bloque para pegar a mano.
 
-Descartadas (propuesta, se confirma en la pasada 2):
+Descartadas:
 
 - **O2**: viola §4 como está redactada (criterio 1) y su identidad perdida no se recupera (criterio 3).
 - **O3**: incumple la decisión «el setup añade» (criterio 2). Queda como la rama de degradación (exit 3) de O1.
 
 ### Decisión (enmienda a ADR-018 / PAT-001)
 
-*Propuesta con O1. Se reescribe en la pasada 2 si el usuario elige otra.*
+*Decisión con O1, validada por el usuario el 2026-09-30. La ADR-020 local sigue `propuesta` hasta que la acepte quien cierre la puerta.*
 
 1. **ADR-018 §2 se enmienda, no se deroga.** `projects.yaml` sigue sin ser plano de control ni fuente de verdad. El plugin no introduce `project_id` ni tenant, y no lo lee para decidir su comportamiento, salvo para comprobar idempotencia y conflicto en el alta. La fuente del nombre y de la carpeta sigue siendo `taxonomy.json` (`id_prefix`, `backends.<id>.config.export_dir`). La entrada en `projects.yaml` es una **proyección derivada** que se escribe una vez.
 2. **PAT-001 se acota con una excepción nombrada.** El adaptador (`markdown_export.py`), `knowledge-sync.py`, los hooks y `/doctor` siguen sin escribir en el stack y sin ejecutarlo. Una sola pieza, `skills/knowledge-services/scripts/kwipu-project-add.py`, invocada desde `/setup` 5-sexies, puede **añadir** una entrada, y solo con una confirmación explícita atada al hash del fichero. `build_view` y los reinicios se siguen imprimiendo, nunca se ejecutan. PAT-001 vive en `approved/` y solo `knowledge-curator` puede versionarlo, así que la v2 va como candidata (§7).
@@ -173,7 +173,7 @@ Si el fichero no acaba en fin de línea, el bloque empieza por uno; sigue siendo
 | `3` | **Forma no reconocida**: ausente, ilegible, fuera de la gramática, enlace simbólico o duro compartido, bloque del plugin incompleto. No escribe e imprime el bloque para pegar a mano |
 | `4` | Conflicto de nombre o de `root`. No escribe y pide otro nombre |
 
-**Comandos que imprime** (nunca los ejecuta; el script no importa `subprocess`). Si se declaran, se imprimen tal cual los de `backends.<id>.config.reindex` (lista de cadenas). Si no, los de la guía de operación del stack, con `<stack>` sustituido:
+**Comandos que imprime**, fijos y documentados en `kwipu-adapter.md` (nunca los ejecuta; el script no importa `subprocess`). No hay lista `reindex` configurable (decisión 2026-09-30). Son los de la guía de operación del stack, con `<stack>` sustituido:
 
 ```text
 cd <stack>
@@ -201,7 +201,6 @@ En cualquier otro caso es **nueva**: `/setup` materializa `group_id = id_prefix`
 | `commands/setup.md` (5-sexies) | Pide la ruta del stack (no la persiste), vista previa → confirmación → `--apply --esperado`, rama exit 3 (pegar a mano) y exit 4 (otro nombre); imprime los comandos | Modificado (T-13) |
 | `skills/knowledge-services/SKILL.md`, `skills/knowledge-services/references/kwipu-adapter.md` | Contrato del alta y excepción acotada a PAT-001 | Modificado (T-12) |
 | `docs/agents/CONTRACTS.md` | Arista `/setup` → `kwipu-project-add.py` con Puerta | Modificado (T-13) |
-| `agent-kits/shared/templates/taxonomy.json` | Opcional: `backends.kwipu.config.reindex` documentado (ausente = comandos por defecto) | Modificado (T-12, si se acepta) |
 | `interop/**` | Regenerado por `scripts/export-interop.py` tras tocar `commands/setup.md` | Generado (T-13) |
 
 ## 6. Riesgos y mitigaciones
@@ -212,17 +211,18 @@ En cualquier otro caso es **nueva**: `/setup` materializa `group_id = id_prefix`
 | Un `projects.yaml` válido pero fuera de la gramática (flujo, anclas, `projects` no al final) | Media | Bajo: no escribe, cae a pegar a mano | Exit 3 con el bloque impreso y la línea donde va. La gramática crece solo con muestras reales |
 | El proyecto se mueve o se borra y su `root` deja de existir | Media | Alto: `build_view` aborta toda la vista | El mensaje final lo avisa y dice qué bloque quitar. El plugin nunca borra la entrada (fuera de alcance) |
 | Escritor concurrente (editor o segundo `/setup`) | Baja | Medio | `--esperado <sha256>`, identidad y tamaño antes del `write`, relectura después; si el prefijo cambió, no se toca nada |
-| La copia contiene rutas de otros proyectos del usuario | Media | Medio si acaba versionada | Vive junto al original en `<stack>/kwipu/config/` (fuera del repo del proyecto), nunca en `.claude/` |
+| La copia contiene rutas de otros proyectos del usuario | Media | Medio si acaba versionada | Vive junto al original como `<stack>/kwipu/config/projects.yaml.bak-<AAAAMMDDTHHMMSSZ>` (fuera del repo del proyecto), nunca en `.claude/` |
 | El `export_dir` se indexa entero, incluido `manifest.json` si el stack permite `.json` | Baja | Bajo | Hoy `allowed_extensions` no incluye `.json`; se documenta en `kwipu-adapter.md` |
-| Enmienda no curada: PAT-001 sigue diciendo lo contrario en `approved/` | Alta hasta curar | Bajo | Candidata v2 para `knowledge-curator` (§7); la ADR-020 y este diseño lo citan |
+| Enmienda no curada: PAT-001 sigue diciendo lo contrario en `approved/` | Alta hasta curar | Bajo | El orquestador la cura en local con `knowledge-curator` (PAT-001 v2 y la nota en ADR-018); la ADR-020 y este diseño lo citan |
 
 ## 7. Preguntas abiertas
 
-- **Para el usuario (puerta):** ¿O1, O2, O3 o una variante?
-- **PAT-001 v2:** solo la puede aprobar `knowledge-curator`. ¿Se abre la candidata en `docs/knowledge/candidates/pending/` en la pasada 2 o al cerrar T-12?
-- **ADR-018:** añadir en su cabecera la nota «enmendada por ADR-020 (§2)». No está en el alcance de escritura de `architect`; queda para quien la acepte.
-- **`reindex` configurable** en `taxonomy.json`: ¿entra en T-12 o se imprimen siempre los comandos por defecto?
-- **La copia en `kwipu/config/`** añade un fichero sin seguimiento si el stack es un repo git. ¿Se acepta, o se prefiere un subdirectorio `backups/` junto al fichero?
+Ninguna que bloquee T-12/T-13. Resueltas el 2026-09-30:
+
+- **Opción:** O1.
+- **Copia:** `projects.yaml.bak-<AAAAMMDDTHHMMSSZ>` en el mismo directorio, con sufijo si el nombre ya existe.
+- **Comandos:** fijos, sin `reindex` configurable.
+- **Curación:** PAT-001 v2 y la nota «enmendada por ADR-020» en ADR-018 las hace el orquestador con `knowledge-curator`, en local.
 
 ---
 
@@ -231,3 +231,4 @@ En cualquier otro caso es **nueva**: `/setup` materializa `group_id = id_prefix`
 | Fecha | Cambio |
 |---|---|
 | 2026-09-30 | Diseño creado (`borrador`); tres opciones y la recomendación O1 presentadas al usuario vía el orquestador |
+| 2026-09-30 | Pasada 2: el usuario elige O1 → `aprobado`. Se fijan la copia `.bak-<AAAAMMDDTHHMMSSZ>` y los comandos fijos; `design:` enlazado en `spec.md` e `improvement-plan.md` |

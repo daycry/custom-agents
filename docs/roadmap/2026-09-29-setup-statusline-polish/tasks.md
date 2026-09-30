@@ -35,10 +35,10 @@ estado: en-progreso
 | Fase 1 — Estabilizar la suite (tests deterministas) | 2 | 2 | 100% | 0 / 4.8h | 0 / 0.99h | 0 / 0.25h | 0 / 475k |
 | Fase 2 — Quick wins de visibilidad y puertas | 5 | 5 | 100% | 0 / 14.4h | 0 / 3.42h | 0 / 0.85h | 0 / 1639k |
 | Fase 3 — `/doctor`: tope estricto de la línea kwipu | 1 | 1 | 100% | 0 / 3.6h | 0 / 0.72h | 0 / 0.18h | 0 / 345k |
-| Fase 4 — ADR de diseño y `id_prefix` / `group_id` | 2 | 3 | 67% | 0 / 14.0h | 0 / 4.10h | 0 / 1.02h | 0 / 1965k |
+| Fase 4 — ADR de diseño y `id_prefix` / `group_id` | 3 | 3 | 100% | 0 / 14.0h | 0 / 4.10h | 0 / 1.02h | 0 / 1965k |
 | Fase 5 — Alta segura en `projects.yaml` (bloqueada por la ADR) | 0 | 2 | 0% | 0 / 14.4h | 0 / 4.50h | 0 / 1.12h | 0 / 2157k |
 | Fase 6 — Cierre, documentación y réplica en Linux | 0 | 1 | 0% | 0 / 3.6h | 0 / 0.90h | 0 / 0.23h | 0 / 431k |
-| **TOTAL** | **10** | **14** | **71%** | **0 / 54.8h** | **0 / 14.63h** | **0 / 3.66h** | **0 / 7013k** |
+| **TOTAL** | **11** | **14** | **79%** | **0 / 54.8h** | **0 / 14.63h** | **0 / 3.66h** | **0 / 7013k** |
 
 > **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada. Ver `skills/jira-sync/SKILL.md`.
 
@@ -376,7 +376,7 @@ estado: en-progreso
 
 - **Descripción**: Tarea de DISEÑO previa a C-07, a cargo del agente `architect`: ADR nueva `propuesta` (enmienda a ADR-018, PAT-001 y constitución §4) que autorice SOLO AÑADIR un bloque en el `projects.yaml` del stack, con vista previa, confirmación y copia de seguridad, y que resuelva la tensión de la escritura atómica (reemplazo) sobre un fichero que el plugin no creó. Debe fijar: forma(s) de YAML reconocidas (con la muestra anonimizada de `<stack>/kwipu/config/projects.yaml`), `root` absoluta o relativa, y código de salida de «forma no reconocida». Si no se acepta, C-07 se reduce a imprimir el bloque (-8 h humanas, -3 h IA). No estaba en la evaluación (+2 h humanas, +0,5 h IA declaradas).
 - **Changelog**: Nueva decisión de diseño que autoriza dar de alta el proyecto en Kwipu añadiendo un bloque, sin modificar lo existente.
-- **Estado**: borrador
+- **Estado**: completado
 - **Prioridad**: Crítica
 - **Tiempo humano**: est. 2.0h · real —
 - **Tiempo IA (ejec.)**: est. 0.50h · real —
@@ -389,20 +389,21 @@ estado: en-progreso
 - **Verificación**:
   - lectura: la ADR existe en `docs/knowledge/adr/` con `estado: propuesta`, cita ADR-018, PAT-001 y §4, y fija forma de YAML, `root` y exit code
   - `grep -n "ADR-0" docs/knowledge/README.md` -> la fila de la ADR nueva en el índice
+  - Salida real (2026-09-30, orquestador): `design.md` → `estado: aprobado` y `opcion_elegida: "O1"` (validada por el usuario, «sí a todo»); sin placeholders `{{`; ADR-020 `propuesta` en `docs/knowledge/adr/` con su fila en el índice (memoria local, no versionada); la decisión versionada es la sección «Decisión» de `design.md`
 
 **Criterios de aceptación**
 
-- [ ] ADR `propuesta` aceptada por el usuario antes de arrancar T-12 y T-13 (puerta).
-- [ ] Fija las formas de `projects.yaml` reconocidas a partir de una muestra anonimizada (sin datos personales).
-- [ ] Declara el contrato de escritura: solo añade, vista previa, confirmación, copia de seguridad, atómica.
-- [ ] Índice `docs/knowledge/README.md` actualizado (recordatorio: `docs/knowledge/` es solo local, no se versiona).
+- [x] ADR `propuesta` aceptada por el usuario antes de arrancar T-12 y T-13 (puerta).
+- [x] Fija las formas de `projects.yaml` reconocidas a partir de una muestra anonimizada (sin datos personales).
+- [x] Declara el contrato de escritura: solo añade, vista previa, confirmación, copia de seguridad, atómica.
+- [x] Índice `docs/knowledge/README.md` actualizado (recordatorio: `docs/knowledge/` es solo local, no se versiona).
 
 **Subtareas**
 
-- [ ] Recabar muestra anonimizada de `projects.yaml`.
-- [ ] Opciones de encaje con trade-offs.
-- [ ] Validar con el usuario.
-- [ ] Escribir ADR + índice.
+- [x] Recabar muestra anonimizada de `projects.yaml`.
+- [x] Opciones de encaje con trade-offs.
+- [x] Validar con el usuario.
+- [x] Escribir ADR + índice.
 
 **Notas**: Criterio de la spec: Condiciones 1 y 2 de la evaluación.
 
@@ -503,7 +504,7 @@ estado: en-progreso
 - **Tiempo IA (ejec.)**: est. 2.80h · real —
 - **Supervisión**: est. 0.70h (≈25 % IA) · real —
 - **Previsión IA**: 1154k in / 188k out tok · 17.66 €
-- **Dependencias**: T-09 (ADR aceptada), T-11 · **BLOQUEADA por T-09 (ADR)**
+- **Dependencias**: T-09 (ADR aceptada), T-11
 - **Tipo**: backend
 - **Archivos**: `skills/knowledge-services/scripts/kwipu-project-add.py`, `skills/knowledge-services/scripts/test_kwipu_project_add.py`, `skills/knowledge-services/references/kwipu-adapter.md`, `skills/knowledge-services/SKILL.md`, `evals/cases/skill-knowledge-services.json`
 - **Cubre (tests)**: — (sin UI)
@@ -541,7 +542,7 @@ estado: en-progreso
 - **Tiempo IA (ejec.)**: est. 1.70h · real —
 - **Supervisión**: est. 0.42h (≈25 % IA) · real —
 - **Previsión IA**: 701k in / 114k out tok · 10.72 €
-- **Dependencias**: T-12 · **BLOQUEADA por T-09 (ADR)**
+- **Dependencias**: T-12
 - **Tipo**: docs
 - **Archivos**: `commands/setup.md`, `docs/agents/CONTRACTS.md`, `skills/knowledge-services/SKILL.md`, `docs/README.md`, `docs/FLOWS.md`, `docs/en/FLOWS.md`, `evals/cases/command-setup.json`, `interop/**`
 - **Cubre (tests)**: — (sin UI)
