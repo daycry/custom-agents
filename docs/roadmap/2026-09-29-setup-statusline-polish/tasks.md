@@ -704,3 +704,27 @@ Qué verificaron las lentes:
 | 24 | Minor | `/setup` acepta un `id_prefix` que empieza por dígito o que es palabra reservada de YAML (`id_prefix_valido` no se alineó con la regla de #2), y el paso de Kwipu solo dice «Salida 2: corrígelos». **Arbitraje:** `id_prefix_valido` aplica la misma regla que el nombre de #2 (empieza por letra, sin palabras reservadas). `setup.md` indica pasar `--nombre <propuesta>` si el `id_prefix` no vale como nombre. Tests | T-10/T-13 | corregido (fix2): `knowledge-schema.id_prefix_valido` aplica la regla del nombre de #2: `ID_PREFIX_RE = ^[a-z][a-z0-9-]*$` y fuera las reservadas de YAML 1.1 (sin distinguir mayúsculas); el error de `preparar_id_prefix` lo explica. `setup.md` paso 3: si la salida 2 es por el nombre, repetir con `--nombre <propuesta>` (también en el `--apply`). | RED contra `f74a45a` (tests nuevos sobre el código de `f74a45a`, Windows, 2026-09-30): `test_fix2_24_id_prefix_valido_rechaza_lo_que_yaml_no_lee_como_texto[2048, 0x1f, 0b101, 1abc, yes, on, true, null, y, n, off, false]` → `assert not True` (12); `test_fix2_24_preparar_id_prefix_rechaza_un_id_prefix_numerico` → `ok` True; `test_fix2_24_setup_indica_pasar_nombre_si_el_id_prefix_no_vale` → `AssertionError: ('commands', 'setup.md')`. GREEN: `test_knowledge_schema.py` en verde. | B |
 
 **Decisión del orquestador (2026-09-30):** 2 Important locales y baratos (#19 es una línea; #20 es la regla de `validar_root`) ⇒ micro-ronda `fix2` sobre #19-#24 e **intento 3** (el último) con la Lente B y la C.
+
+## Revisión de dos lentes — intento 3: fix2 — #19-#24 CERRADOS; 0 Critical, 0 Important, 3 Minor → REVISIÓN CERRADA (tope de 3 intentos respetado), lente B+C en una pasada, rango `f74a45a...c8506ff` (fix2)
+
+**Lente B+C** (sondas propias en Windows y en Linux sin root: 95 y 94 comprobaciones).
+
+| Fila | Estado | Qué se comprobó |
+|---|---|---|
+| #19 | ✓ | Escenario literal más cuatro variantes. Nunca se trunca un byte ajeno y el estado que se informa es el real. |
+| #20 | ✓ | Rechaza U+FFFE, U+FFFF, sustitutos sueltos y no-caracteres. Admite acentos, CJK, ZWNJ/ZWJ y emoji. Probado de extremo a extremo con carpetas `ñandú` y `知識-プ`. |
+| #21 | ✓ | La salida `--json` es ASCII puro. |
+| #22 | ✓ | Id saneado. |
+| #23 | ✓ | Las 3 copias coinciden e interop está al día. |
+| #24 | ✓ | `id_prefix_valido` y `proponer_id_prefix` coinciden con la regla de #2. |
+
+- **Camino normal:** con LF, CRLF, sin EOL final y con UNC, sin regresiones.
+- **Linux, conjunto de `ci.yml`:** HEAD 3925 passed, base 3900 passed. En los dos, el mismo rojo preexistente de entorno.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia | Lente |
+|---|---|---|---|---|---|---|
+| 25 | Minor | `_sanear_causa` no quita U+200E/U+200F/U+061C, y `--avisos-grupo --json` sale con `ensure_ascii=False`, así que C1 y bidi llegan crudos. Es la misma clase de fallo que #21, esta vez en `knowledge-sync` (`knowledge-sync.py:149,344`). El id lo escribe el propio usuario en su `taxonomy.json`. **Arbitraje:** la clase de `_sanear_causa` pasa a cubrir `Cc`/`Cf`/`Zl`/`Zp` completos, con el mismo criterio que `_escapar`, y el `--json` de `--avisos-grupo` se emite con `ensure_ascii=True`. Test | T-11 | pendiente (T-14) | | B+C |
+| 26 | Minor | La documentación conserva la regla antigua `^[a-z0-9][a-z0-9-]*$` para `id_prefix`/nombre, aunque el código ya exige `^[a-z]…` sin palabras reservadas: `commands/setup.md:77` y sus copias de interop, `skills/knowledge-services/references/kwipu-adapter.md:236`, `docs/agents/CONTRACTS.md` (E25) y `spec.md:102`. **Arbitraje:** documentar en todos esos sitios la regla que aplica el código, regenerar interop y añadir un test que compare la regla documentada con `NOMBRE_RE` | T-13 | pendiente (T-14) | | B+C (A) |
+| 27 | Minor | `validar_root` rechaza también los code points `Cn` que la base Unicode del Python en ejecución no conoce todavía, aunque en versiones posteriores ya estén asignados. PyYAML solo rechaza U+FFFE/U+FFFF, así que la regla va más allá de lo necesario. El caso es teórico y solo produce un exit 2 limpio, sin corromper nada. **Arbitraje:** se acepta como límite conservador y se declara en `references/kwipu-adapter.md` («una carpeta con caracteres recientes que el Python del usuario no conoce: usa `--nombre` y una `root` alternativa») | T-12 | pendiente (T-14) | | B+C |
+
+**Decisión del orquestador (2026-10-01).** Revisión cerrada con 0 Critical y 0 Important. #25-#27 son baratos y se hacen dentro de T-14, junto con la documentación ES/EN, el README, el CHANGELOG y la réplica en Linux, antes del PR.
