@@ -20,11 +20,11 @@ estado: en-progreso
 | **Estado** | en-progreso |
 | **Fecha** | 2026-09-29 |
 | **Plan** | [`improvement-plan.md`](./improvement-plan.md) |
-| **Diseño** | n/a (la ADR de T-09 cubre el encaje de C-07) |
+| **Diseño** | [`design.md`](./design.md) (aprobado, O1; decisión de T-09) |
 
 > **⚠️ Ledger canónico de progreso.** Este fichero es la **fuente única de verdad** del avance del plan. **Cualquier** implementador —el agente `implementer`, el chat principal, o un orquestador SDD externo— **debe** marcar aquí cada tarea (checkbox + estado) al completarla y actualizar el resumen. Los ledgers propios de otras herramientas son **espejo**, no fuente.
 
-> **Bloqueo por ADR.** T-12 y T-13 (C-07) están **bloqueadas por T-09** (ADR de `architect`). No se implementan hasta que el usuario acepte la ADR.
+> **Desbloqueo (2026-09-30).** T-09 cerró el diseño (O1, validado por el usuario): T-12 y T-13 ya están implementadas.
 
 ---
 
@@ -36,9 +36,9 @@ estado: en-progreso
 | Fase 2 — Quick wins de visibilidad y puertas | 5 | 5 | 100% | 0 / 14.4h | 0 / 3.42h | 0 / 0.85h | 0 / 1639k |
 | Fase 3 — `/doctor`: tope estricto de la línea kwipu | 1 | 1 | 100% | 0 / 3.6h | 0 / 0.72h | 0 / 0.18h | 0 / 345k |
 | Fase 4 — ADR de diseño y `id_prefix` / `group_id` | 3 | 3 | 100% | 0 / 14.0h | 0 / 4.10h | 0 / 1.02h | 0 / 1965k |
-| Fase 5 — Alta segura en `projects.yaml` (bloqueada por la ADR) | 2 | 2 | 100% | 0 / 14.4h | 0 / 4.50h | 0 / 1.12h | 0 / 2157k |
+| Fase 5 — Alta segura en `projects.yaml` | 2 | 2 | 100% | 0 / 14.4h | 0 / 4.50h | 0 / 1.12h | 0 / 2157k |
 | Fase 6 — Cierre, documentación y réplica en Linux | 0 | 1 | 0% | 0 / 3.6h | 0 / 0.90h | 0 / 0.23h | 0 / 431k |
-| **TOTAL** | **11** | **14** | **79%** | **0 / 54.8h** | **0 / 14.63h** | **0 / 3.66h** | **0 / 7013k** |
+| **TOTAL** | **13** | **14** | **93%** | **0 / 54.8h** | **0 / 14.63h** | **0 / 3.66h** | **0 / 7013k** |
 
 > **Horas → Jira.** El worklog que imputa `jira-sync` al completar cada tarea es **Tiempo IA (ejec.) + Supervisión** (real; o estimación si no hay real), topado a la jornada configurada. Ver `skills/jira-sync/SKILL.md`.
 
@@ -370,7 +370,7 @@ estado: en-progreso
 
 ## Fase 4 — ADR de diseño y `id_prefix` / `group_id`
 
-**Estado**: borrador · **Estimado**: 14.0h · **Real**: — · **Coste est.**: 726 € · **Tokens est.**: 1965k
+**Estado**: completado · **Estimado**: 14.0h · **Real**: — · **Coste est.**: 726 € · **Tokens est.**: 1965k
 
 ### T-09 — ADR - Enmienda a ADR-018 / PAT-001 / constitución §4: alta que solo añade en `projects.yaml`
 
@@ -490,7 +490,7 @@ estado: en-progreso
 
 ---
 
-## Fase 5 — Alta segura en `projects.yaml` (bloqueada por la ADR)
+## Fase 5 — Alta segura en `projects.yaml`
 
 **Estado**: completado · **Estimado**: 14.4h · **Real**: — · **Coste est.**: 748 € · **Tokens est.**: 2157k
 
@@ -627,3 +627,50 @@ estado: en-progreso
 - **Cobertura (riesgo `medio`).** El gate de fichero entero (`coverage-gate.py --changed-only --base origin/master --min 80`) da 52,91 %: mide los ficheros enteros que toca el diff y no ve los CLI lanzados como subproceso. La cobertura de las **líneas añadidas** por el diff es 91,1 % (`doctor.py` 16/18, `progress-report.py` 33/39, `build_dashboard.py` 19/20, `coverage-gate.py` 24/24). **Decisión:** para riesgo medio se acepta la medida sobre las líneas del diff. Queda como mejora de `sdd-proporcional` (C-04): que el perfil de rigor defina la cobertura de riesgo medio sobre las líneas del diff y que `coverage-gate.py` la calcule.
 - **`scope-check`.** Sale con exit 1 por ficheros que no son del implementer: los artefactos de la cadena (`spec.md`, `evaluation.md`, `improvement-plan.md`, `docs/roadmap/README.md`). Los dos manifiestos que marcaba (`.agents/plugins/marketplace.json` y `.codex-plugin/plugin.json`) no tienen diff frente a `origin/master`, así que era ruido de la base. Los 49 ficheros del implementer están en alcance.
 - **Linux.** La pasada completa se repite en el cierre (T-14), después de integrar `origin/master`, que ya incluye el PR #15.
+
+## Revisión de dos lentes — intento 1: T-01..T-13 — 18 gaps (0 Critical, 7 Important, 11 Minor), lentes A+B+C (riesgo `medio`: A+B más C, porque T-12 escribe en la configuración del stack del usuario), rango `5a08d45...98a8506`
+
+Lo que ya queda verificado, por lente:
+
+- **Lente A.** CA-01…CA-16 ✓ con la evidencia relanzada (CA-08 con una sola ejecución). T-12 cumple el diseño O1: solo añade, vista previa con `sha256`, copia `.bak` con `O_EXCL`, exits 0-4 y comandos impresos pero no ejecutados. Interop al día. Cobertura de las **líneas del diff 94,0 %** (612/651). Puertas: lint 0 errores, evals 0, interop 50, `ledger-lint` 0/0. CA-18/CA-19 quedan para T-14.
+- **Lente B** (Windows y Linux):
+  - kwipu acepta y rechaza las formas previstas, con idempotencia, `--esperado` obsoleto, CRLF y stack vía UNC en otra unidad.
+  - Las instalaciones antiguas no cambian de grupo.
+  - Statusline: activas, marcador, locale de coma y `jobs` ✓.
+  - `coverage-gate` distingue `disponible`/`ausente`/`no_verificado` ✓.
+  - El dashboard lee las 20 evaluaciones reales ✓.
+  - El hilo daemon de `/doctor` no escribe nada (AST) ✓.
+- **Lente C** (Linux sin root, junction real en Windows):
+  - No hay `subprocess` ni `os.system`, y no se siguen enlaces al leer.
+  - El TOCTOU entre la vista previa y `--apply` está cubierto con `sha256` + `fstat`.
+  - La copia `.bak` nunca pisa (hay 3 symlinks plantados que no se siguen).
+  - Probé la inyección de YAML por nombre, `root` y `export_dir` con `#`, `: `, anclas, comillas, U+2028 y U+202E: no crea claves nuevas.
+  - `--avisos-grupo` es opt-in y no manda credenciales.
+  - El hilo daemon no deja efectos.
+  - No hay datos personales.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia | Lente |
+|---|---|---|---|---|---|---|
+| 1 | **Important** | La reversión trunca a `len(previo)` **por ruta**, sin comprobar la identidad del fichero ni que lo que sobra sea exactamente su bloque (`kwipu-project-add.py:341,364-369`). Así borra bytes ajenos, y eso choca con la constitución §4 y con `design.md` §4.3. Escenarios dentro del modelo: dos `/setup` simultáneos (el truncado de B borra el bloque de A, que ya se había dado por «añadido»); un editor que guarda por rename entre el `write` y la relectura (se pierde la edición); otro escritor que añade después. CWE-367. **Arbitraje:** truncar solo si (a) el descriptor abierto conserva la identidad previa (`fstat`, `samestat`), (b) el tamaño es exactamente `len(previo)+len(bloque)` y (c) los bytes a partir de `len(previo)` son byte a byte el bloque propio. El truncado se hace por el descriptor, nunca por ruta. Si no se cumple, NO toca el fichero: sale con exit 1, «el fichero cambió durante la escritura: revísalo a mano (copia en `<bak>`)», y nombra el estado real (su bloque presente o no). Tests: dos `/setup` intercalados (los dos bloques quedan y ninguno se borra), rename entre `write` y relectura, y otro escritor que añade | T-12 | pendiente | | C |
+| 2 | **Important** | La clave del proyecto se emite sin comillas y `NOMBRE_RE` admite nombres que YAML no lee como texto: `2024`, `yes`, `on`, `true`, `null`, `0x1f`, `0b101` (`kwipu-project-add.py:42,281`). El `id_prefix` sale del slug de la carpeta, así que una carpeta `2048` lo produce sin que el usuario haga nada. Kwipu lee entonces `2024` como int y `build_view` aborta la vista entera. **Arbitraje:** un nombre válido empieza por letra y no es una palabra reservada de YAML 1.1 (`y/n/yes/no/on/off/true/false/null/~`, sin distinguir mayúsculas). `validar_nombre` rechaza el resto con exit 2 y propone una alternativa. `proponer_id_prefix` (T-10) nunca propone uno inválido: antepone `p-` si hace falta. Tests: todos los literales anteriores + la carpeta `2048` | T-12/T-10 | pendiente | | B |
+| 3 | **Important** | En una instalación nueva, `proponer_id_prefix` cae a `"ca"` y lo escribe como `group_id` explícito. Dos proyectos cuya carpeta tiene nombre no ASCII (`知識`, `проект`) comparten así el grupo remoto y se mezcla su memoria, lo que prohíbe `_con_group_id_por_defecto` (gaps #3/#23) (`knowledge-schema.py:932,1034`). **Arbitraje:** el valor por defecto sin slug ASCII pasa a `p-<8 hex del sha256 de la ruta absoluta normalizada del proyecto>`, determinista y distinto por proyecto. Se muestra al usuario, que puede cambiarlo. Tests: `知識` y `проект` dan valores distintos y estables, y ninguno es `ca` | T-10 | pendiente | | B |
+| 4 | **Important** | El paso de avisos de `/setup` llama a `knowledge-sync.py` por una ruta relativa del repo (`python3 skills/knowledge-services/scripts/…`, `commands/setup.md:84` y su copia en interop), sin el `find` de la regla 5. En un proyecto consumidor no existe y el aviso CA-15 no aparece nunca. Además fija `--backend graphiti`, cuando el id del backend lo elige el proyecto. **Arbitraje:** resolver el script con el `find` de seis raíces (regla 5, excluyendo `*/.claude/jobs/*`). `knowledge-sync.py --avisos-grupo` sin `--backend` recorre todos los backends de `type: graphiti` declarados y sale siempre con exit 0. Test de que `setup.md` no contiene ninguna invocación `python3 skills/…` + el test de la iteración | T-11 | pendiente | | A + B |
+| 5 | **Important** | La fila de `knowledge-services` en `docs/README.md` ya incluye el alta en Kwipu, pero su espejo `docs/en/README.md:107` no. Incumple la constitución §3 («en el mismo cambio»). **Arbitraje:** espejo EN en este cambio, más un test (o una comprobación de lint) de que la fila EN nombra `kwipu-project-add.py` | T-13 | pendiente | | A |
+| 6 | **Important** | El diff contradice una ADR `aceptada`: ADR-018 §2 dice «No hay `projects.yaml`». Su enmienda, ADR-021, sigue `propuesta`; ADR-018 no tiene la nota «enmendada por ADR-021»; y no existe la candidata PAT-001 v2. **Arbitraje (orquestador, memoria local):** `knowledge-curator` pasa ADR-021 a `aceptada` (la validó el usuario con «sí a todo», 2026-09-30), añade la nota de enmienda a ADR-018 y aprueba PAT-001 v2 (excepción: solo `kwipu-project-add.py` desde `/setup`). Como `docs/knowledge/` es solo local, la decisión versionada sigue siendo la sección «Decisión» de `design.md` | T-09 | pendiente | | A |
+| 7 | **Important** | Si falla el `fsync` del append, o la relectura lanza `OSError`, la excepción se salta la verificación y el truncado. El bloque queda escrito, pero se informa `escrito: false`, estado `nuevo` y exit 1, y el siguiente `/setup` dice `presente` (`kwipu-project-add.py:358-359,498-499`). Reporta un estado falso. **Arbitraje:** tras cualquier `OSError` posterior al `write`, se ejecuta la misma verificación y el truncado seguro de #1, y se informa el estado real. Test con `fsync` que lanza EIO | T-12 | pendiente | | B |
+| 8 | Minor | La consulta «solo loopback» de `--avisos-grupo` solo valida el endpoint inicial. Las redirecciones 307/308 se revalidan con `allow_remote=False`, que admite redes privadas (`graphiti.py:2027-2033,400`). Un 307 hacia `172.17.0.2` recibe el `initialize` y el `get_episodes` con el `group_id`. CWE-918. **Arbitraje:** en el modo «solo loopback», cada salto se revalida contra loopback; un redirect fuera de loopback da «no verificado». Test con dos servidores | T-11 | pendiente | | C |
+| 9 | Minor | El texto de `projects.yaml` sale crudo a la terminal en modo texto: claves entre comillas con ESC, BEL o C1 en los mensajes de conflicto o duplicado (`kwipu-project-add.py:228,306,310,444`). `validar_root` (`:260`) solo filtra C0: con U+202E el bloque que se muestra para confirmar se ve invertido, y con NEL (U+0085) PyYAML pliega el valor. CWE-150/451. **Arbitraje:** todo texto que venga de `projects.yaml` o de la entrada se escapa en modo texto con el helper de escapado del plugin. `validar_root` rechaza también `Cc`/`Cf`/`Zl`/`Zp` (la regla de `case_schema.validar_config`, #153/#173). Tests con los literales | T-12 | pendiente | | C (A) |
+| 10 | Minor | `nlink == 1` solo se comprueba al leer: el `fstat` previo al `write` (`:353-357`) no lo repite, y la escritura se abre sin `O_NOFOLLOW`. Un enlace duro creado en medio también recibe el bloque. CWE-367. **Arbitraje:** abrir con `O_NOFOLLOW` y repetir `nlink == 1` junto con la identidad en el `fstat` previo al `write`. Test | T-12 | pendiente | | C |
+| 11 | Minor | Una clave `root` escrita de otra forma en un proyecto existente (`"root":` entre comillas o `root :`) no se reconoce: su `root` queda `None` y el conflicto por misma `root` no salta, así que acaba habiendo un segundo proyecto sobre la misma carpeta (`kwipu-project-add.py:240`). **Arbitraje:** reconocer `root`, `"root"` y `'root'` con espacios opcionales antes de `:`. Cualquier otra forma de la clave `root` dentro de un proyecto es **forma no reconocida** (exit 3). Tests | T-12 | pendiente | | B (C) |
+| 12 | Minor | El `find` de `KPA` en 5-sexies no excluye `*/.claude/jobs/*` (`commands/setup.md:~94`), así que reintroduce el patrón que corrige T-06. **Arbitraje:** añadir `! -path '*/.claude/jobs/*'`, más un test de que todo `find` de `commands/setup.md` lo lleva | T-13 | pendiente | | A (B) |
+| 13 | Minor | `--apply` sin `--esperado` sale con exit 1 (E/S), cuando el diseño reserva el 2 para uso (`kwipu-project-add.py:485-487`; test en `:348`; `design.md:171-172`). **Arbitraje:** exit 2 con mensaje de uso; ajustar el test | T-12 | pendiente | | A |
+| 14 | Minor | CA-17 falla en Windows: el corpus fijo se extrae con CRLF (`core.autocrlf=true`) y `test_ca04_show_adr012` falla. La evidencia de T-02 («0 failed») no se reproduce en un clon de Windows. **Arbitraje:** `.gitattributes` con `tests/fixtures/knowledge-corpus/** text eol=lf`, y el test normaliza al leer | T-02 | pendiente | | A |
+| 15 | Minor | Ledger y cadena desfasados: la fila TOTAL dice 11/14 cuando las fases suman 13; «Diseño: n/a» sigue en la cabecera; el aviso «Bloqueo por ADR» sigue puesto; la Fase 4 figura como «borrador» con 3/3 hechas; `improvement-plan.md:22` dice «borrador». **Arbitraje (orquestador):** corregirlo y dejar la cabecera del ledger enlazada a `design.md` | — | pendiente | | A |
+| 16 | Minor | El modelo de amenazas de la spec dice «escritura atómica (temporal + reemplazo)», que es la O2 descartada (`spec.md:100`). **Arbitraje (orquestador):** sincronizar con O1 (bloque añadido al final, copia de seguridad y truncado seguro) | — | pendiente | | A |
+| 17 | Minor | Constitución §1 (TDD): en T-12 el script se escribió antes que los tests (declarado), y el RED salió de retirar el script, que da un error de colección y no un rojo de comportamiento. **Arbitraje:** no se reescribe la historia. Lo recoge la retro como lección; los tests de fix1 sí llevan un RED de comportamiento | T-12 | pendiente | | A |
+| 18 | Minor | `knowledge-schema.py:1036` abre el temporal con un nombre predecible (`.<pid>.tmp`) y sigue enlaces. Es config del propio proyecto, dentro del modelo con poco impacto. **Arbitraje:** temporal con `O_EXCL` y nombre aleatorio (`mkstemp` en el mismo directorio), reemplazo y retirada si falla | T-10 | pendiente | | C (B) |
+
+**Decisión del orquestador (2026-09-30)**
+- Se hace una ronda `fix1` (implementer, marcador `setup-statusline-polish/fix1`) con #1-#5, #7-#14 y #18.
+- El orquestador corrige #6 (curación local), #15 y #16. #17 va a la retro.
+- Después, intento 2 con las lentes B y C (y A sobre la documentación), dentro del tope de 3.

@@ -97,14 +97,14 @@ Se reutilizan `usage-meter.py` (marcador abierto), `knowledge-schema.py` (`id_pr
 
 | Amenaza | Mitigación |
 |---|---|
-| Corromper o pisar config ajena | Solo añade; copia de seguridad previa; escritura atómica (temporal + reemplazo); vista previa + confirmación |
+| Corromper o pisar config ajena | Solo añade: un bloque marcado al final del fichero, sin reemplazarlo (O1 de `design.md`); copia de seguridad previa; vista previa + confirmación atada al `sha256`; si la verificación falla, solo se retira el bloque propio y nunca un byte ajeno |
 | Duplicar o secuestrar un proyecto existente | Conflicto de nombre con otra `root` → no escribe; misma `root` → no-op |
 | Inyección vía `id_prefix` o `root` (saltos de línea, `:`, `#`, comillas) | Validación estricta de forma (`^[a-z0-9][a-z0-9-]*$`) y de `root` antes de emitir; salida escapada |
 | Ruta fuera del stack (`..`, absoluta inesperada) | Normalización y comprobación de que el destino es el `projects.yaml` del stack indicado |
 | Datos personales en ficheros versionados | Ejemplos con `<stack>/…`; sin usuario, correo ni empresa |
 | Hooks o statusline con red | No hacen red |
 
-**Escala:** un usuario, un `projects.yaml` de decenas de entradas, un `taxonomy.json`. La única concurrencia posible son dos `/setup` simultáneos; la escritura atómica y la relectura justo antes de escribir lo cubren. La statusline se ejecuta a cada refresco: el escaneo de iniciativas debe costar milisegundos (solo `docs/roadmap/*/tasks.md`, sin recorrer `docs/`).
+**Escala:** un usuario, un `projects.yaml` de decenas de entradas, un `taxonomy.json`. La única concurrencia posible son dos `/setup` simultáneos; la confirmación atada al `sha256`, el `fstat` antes de escribir y el truncado que solo retira el bloque propio lo cubren. La statusline se ejecuta a cada refresco: el escaneo de iniciativas debe costar milisegundos (solo `docs/roadmap/*/tasks.md`, sin recorrer `docs/`).
 
 **Riesgo `medio`:** escribe fuera del repo, pero solo añade, con confirmación y copia de seguridad.
 

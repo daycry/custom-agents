@@ -20,7 +20,7 @@ generacion:
 | | |
 |---|---|
 | **Fecha** | 2026-09-29 |
-| **Estado** | borrador |
+| **Estado** | en-progreso |
 | **Tipo** | Mejora / Bugfix / Infra |
 | **Prioridad** | Media |
 | **Solicitante** | usuario (vía `/pm-cycle`) |
