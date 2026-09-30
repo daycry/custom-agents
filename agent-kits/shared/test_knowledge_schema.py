@@ -1311,3 +1311,20 @@ def test_fix1_18_si_falla_el_reemplazo_no_quedan_temporales(tmp_path, monkeypatc
     r = ks.preparar_id_prefix(root, "otro", aplicar=True)
     assert r["ok"] is False and r["escrito"] is False
     assert sorted(os.listdir(d)) == antes
+
+
+# fix2 #24: `id_prefix_valido` aplica la regla del nombre de #2 (texto para YAML 1.1).
+@pytest.mark.parametrize("valor", ["2048", "0x1f", "0b101", "1abc", "yes", "No", "on", "true",
+                                         "null", "y", "n", "off", "false"])
+def test_fix2_24_id_prefix_valido_rechaza_lo_que_yaml_no_lee_como_texto(valor):
+    assert not ks.id_prefix_valido(valor)
+
+
+def test_fix2_24_id_prefix_valido_admite_texto(tmp_path):
+    assert ks.id_prefix_valido("abc-1") and ks.id_prefix_valido("p-2048") and ks.id_prefix_valido("yesno")
+
+
+def test_fix2_24_preparar_id_prefix_rechaza_un_id_prefix_numerico(tmp_path):
+    salida = ks.preparar_id_prefix(str(tmp_path), id_prefix="2048", aplicar=True)
+    assert salida["ok"] is False and salida["escrito"] is False and "YAML" in salida["error"]
+    assert not (tmp_path / ".claude" / "knowledge-services" / "taxonomy.json").exists()

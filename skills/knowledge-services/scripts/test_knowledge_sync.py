@@ -755,3 +755,19 @@ def test_fix1_4_setup_no_invoca_scripts_por_ruta_relativa_del_repo():
         assert not re.search(r"python3?\s+(\./)?(skills|agent-kits)/", texto), rel
         assert "--backend graphiti --avisos-grupo" not in texto, rel
         assert "knowledge-sync.py" in texto and "--avisos-grupo" in texto, rel
+
+
+def test_fix2_22_avisos_grupo_sanea_el_id_del_backend(tmp_path, capsys):
+    """#22: el recorrido de `--avisos-grupo` sin `--backend` imprimía el id del backend crudo."""
+    root = str(tmp_path)
+    d = _taxonomia_dos_grupos(root)
+    ruta = os.path.join(d, "taxonomy.json")
+    with open(ruta, encoding="utf-8") as f:
+        tax = json.load(f)
+    tax["backends"]["mem\x1b[2Jx‮"] = tax["backends"].pop("memoria-a")
+    with open(ruta, "w", encoding="utf-8") as f:
+        json.dump(tax, f)
+    assert ks_sync.main(["--root", root, "--avisos-grupo"]) == 0
+    cap = capsys.readouterr()
+    assert "\x1b" not in cap.out and "‮" not in cap.out
+    assert "mem" in cap.out and "memoria-b" in cap.out

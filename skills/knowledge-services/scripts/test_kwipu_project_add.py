@@ -851,3 +851,94 @@ def test_fix1_5_la_fila_en_del_readme_nombra_el_alta_en_kwipu():
         with open(os.path.join(raiz, *rel), encoding="utf-8") as f:
             fila = next(l for l in f if l.startswith("| **knowledge-services** |"))
         assert "kwipu-project-add.py" in fila, "/".join(rel)
+
+
+# ----------------------------------------------------------------------------------------------
+# fix2: #19 (write que lanza nunca trunca), #20 (validar_root Cn/Cs/UTF-8), #21 (--json ASCII),
+# #23/#24 (setup.md: los dos exit 1 y `--nombre`)
+# ----------------------------------------------------------------------------------------------
+def test_fix2_19_write_que_lanza_no_trunca_el_bloque_identico_de_otro_setup(tmp_path, capsys, monkeypatch):
+    """#19: A pasa su `fstat`; B (mismo nombre y `root`, bloque IDÉNTICO) completa y sale «añadido»;
+    entonces el `write` de A lanza ENOSPC. Antes A suponía que pudo escribir el bloque entero y
+    truncaba el de B (bytes ajenos, estado falso de B). En POSIX un `write` que falla no escribió
+    nada: A no trunca y nombra el estado real."""
+    proj, stack, fich = montar(tmp_path)
+    antes = fich.read_bytes()
+    previo, st = kpa._leer_fichero(str(fich))
+    real = os.write
+    resultado_b = []
+
+    def enospc_tras_b(fd, datos):
+        if not resultado_b:
+            resultado_b.append(None)
+            resultado_b[0] = kpa.escribir_anadiendo(str(fich), previo, st, datos)   # B, entero
+            raise OSError(errno.ENOSPC, "No space left on device")                  # y A falla
+        return real(fd, datos)
+
+    monkeypatch.setattr(kpa, "_os_write", enospc_tras_b)
+    codigo, cap = apply_(proj, stack, fich, capsys)
+    final = fich.read_bytes()
+    assert resultado_b[0][0] is True, "B debía completar su alta"
+    assert final.startswith(antes) and final.count(b"# >>> custom-agents:demo") == 1, \
+        "se truncó el bloque que B ya había dado por añadido"
+    assert codigo == 1
+    assert "SÍ está" in cap.out and "copia en" in cap.out
+
+
+def test_fix2_19_write_que_lanza_sin_escribir_nada_no_toca_el_fichero(tmp_path, monkeypatch):
+    proj, stack, fich = montar(tmp_path)
+    previo, st = kpa._leer_fichero(str(fich))
+
+    def falla(fd, d):
+        raise OSError(errno.ENOSPC, "No space left on device")
+
+    monkeypatch.setattr(kpa, "_os_write", falla)
+    ok, msg, presente = kpa.escribir_anadiendo(str(fich), previo, st, b"  x: 1\n")
+    assert ok is False and presente is False and "no se llegó a añadir nada" in msg
+    assert fich.read_bytes() == previo
+
+
+@pytest.mark.parametrize("root", ["a￾b", "a￿b", "a\ud800b"])
+def test_fix2_20_validar_root_rechaza_cn_cs_y_no_utf8(root):
+    with pytest.raises(kpa.Uso):
+        kpa.validar_root(root)
+
+
+def test_fix2_20_validar_root_sigue_admitiendo_texto_normal():
+    assert kpa.validar_root("../../proyecto/ñandú/知識") == "../../proyecto/ñandú/知識"
+
+
+def test_fix2_21_json_escapa_c1_y_bidi_de_projects_yaml(tmp_path, capsys):
+    """#21: `json.dumps(ensure_ascii=False)` solo escapaba C0; C1 y bidi de `projects.yaml` salían
+    crudos en `--json` (CWE-150)."""
+    proj, stack, fich = montar(tmp_path)
+    export = proj / ".claude" / "knowledge-services" / "kwipu-export"
+    rel = os.path.relpath(export, fich.parent.resolve()).replace(os.sep, "/")
+    fich.write_text(MUESTRA + f'  "x\x9b‮y":\n    root: "{rel}"\n', encoding="utf-8")
+    codigo, cap = correr(proj, stack, "--json", capsys=capsys)
+    assert codigo == 4
+    assert "\x9b" not in cap.out and "‮" not in cap.out
+    assert all(ord(c) < 128 for c in cap.out)
+    datos = json.loads(cap.out)
+    assert "x\x9b‮y" in datos["mensaje"]
+
+
+def _setup_md():
+    raiz = os.path.normpath(os.path.join(HERE, "..", "..", ".."))
+    for rel in (("commands", "setup.md"), ("interop", "codex", "prompts", "setup.md"),
+                ("interop", "opencode", "commands", "setup.md")):
+        ruta = os.path.join(raiz, *rel)
+        if os.path.isfile(ruta):
+            yield rel, open(ruta, encoding="utf-8").read()
+
+
+def test_fix2_23_setup_documenta_los_dos_significados_de_exit_1():
+    for rel, texto in _setup_md():
+        assert "bloque_presente" in texto, rel
+        assert "deshace solo lo añadido (salida `1`" not in texto, rel
+        assert "no toca nada" in texto, rel
+
+
+def test_fix2_24_setup_indica_pasar_nombre_si_el_id_prefix_no_vale(tmp_path):
+    for rel, texto in _setup_md():
+        assert '--nombre <propuesta>' in texto, rel

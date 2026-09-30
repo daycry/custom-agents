@@ -301,17 +301,28 @@ def validar_nombre(nombre):
 _ADMITIDOS_ROOT = frozenset("‌‍")   # ZWNJ/ZWJ: la misma salvedad que case_schema (#173)
 
 
+def _utf8_estricto(c):
+    try:
+        c.encode("utf-8")
+    except UnicodeEncodeError:
+        return False
+    return True
+
+
 def _caracter_prohibido_root(c):
     """#9 (fix1): control ASCII o categorias Cc/Cf/Zl/Zp (bidi como U+202E, NEL U+0085, U+2028…),
-    la regla de `case_schema.validar_config` (#153/#173); ademas comillas y barra invertida."""
-    return (ord(c) < 32 or c in "\"\\"
-            or (c not in _ADMITIDOS_ROOT and unicodedata.category(c) in ("Cc", "Cf", "Zl", "Zp")))
+    la regla de `case_schema.validar_config` (#153/#173); ademas comillas y barra invertida.
+    #20 (fix2): tambien Cn (U+FFFE/U+FFFF: PyYAML da `ReaderError` y cae la vista entera) y Cs
+    (sustitutos sueltos), y todo lo que no codifique a UTF-8 estricto."""
+    return (ord(c) < 32 or c in "\"\\" or not _utf8_estricto(c)
+            or (c not in _ADMITIDOS_ROOT
+                and unicodedata.category(c) in ("Cc", "Cf", "Zl", "Zp", "Cn", "Cs")))
 
 
 def validar_root(root):
     if not root or any(_caracter_prohibido_root(c) for c in root):
-        raise Uso("`root` vacía, con caracteres de control o de formato (Cc/Cf/Zl/Zp), comillas "
-                  "o barras invertidas")
+        raise Uso("`root` vacía, con caracteres de control, de formato, sin asignar o sustitutos "
+                  "(Cc/Cf/Zl/Zp/Cn/Cs, o que no codifican a UTF-8), comillas o barras invertidas")
     return root
 
 
@@ -428,9 +439,10 @@ def _verificar_o_revertir(fd, ruta, previo, st_previo, bloque_bytes, n, fallo, c
     `/setup`, un editor que guarda por rename, otro escritor que añade) y la constitucion §4
     prohibe borrarlos. Devuelve `(ok, mensaje, presente)` con el estado REAL del bloque."""
     base = len(previo)
-    # Lo que este proceso pudo dejar al final: si `write` informo `n`, esos `n` bytes; si lanzo,
-    # nada o el bloque entero (un `write` que lanza no informa de escrituras parciales).
-    propios = [bloque_bytes[:n]] if n is not None else [b"", bloque_bytes]
+    # Lo que este proceso pudo dejar al final: si `write` informo `n`, esos `n` bytes. #19 (fix2):
+    # si `write` LANZO, nada (en POSIX un `write` que falla no escribio): nunca se trunca, porque
+    # un bloque identico al final puede ser el de otro `/setup` que ya salio con «añadido».
+    propios = [bloque_bytes[:n]] if n is not None else [b""]
     causa = (f"error de E/S tras escribir ({type(fallo).__name__})" if fallo is not None
              else "la verificación posterior falló")
     try:
@@ -566,7 +578,8 @@ def ejecutar(args, out):
         if comandos:
             res["comandos"] = _comandos(stack)
         if args.json:
-            print(json.dumps(res, ensure_ascii=False, indent=2), file=out)
+            # #21 (fix2): ASCII puro; `ensure_ascii=False` solo escapaba C0 (C1 y bidi salian crudos)
+            print(json.dumps(res, ensure_ascii=True, indent=2), file=out)
             return codigo
         # #9 (fix1): en modo texto se escapa todo lo que viene de `projects.yaml` o de la entrada
         print(f"estado: {res['estado']}" + (f" · {_escapar(res['mensaje'])}" if res["mensaje"] else ""),

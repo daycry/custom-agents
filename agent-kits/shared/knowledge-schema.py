@@ -917,20 +917,21 @@ def cargar_taxonomia(root=None, fichero=None):
 # Graphiti se materializa desde el `id_prefix` SOLO en instalaciones NUEVAS: escribirlo en la
 # config (en vez de cambiar la derivación al cargar, `_con_group_id_por_defecto`) evita la
 # migración silenciosa de una instalación que ya publicó con el `group_id` de la carpeta.
-ID_PREFIX_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
+ID_PREFIX_RE = re.compile(r"^[a-z][a-z0-9-]*$")      # fix2 #24: empieza por letra (regla de #2)
 ID_PREFIX_MAX = 64
 _GRAPHITI_MANIFIESTOS = ("graphiti-manifest.json", "graphiti-manifest.pending.json")
-
-
-def id_prefix_valido(valor):
-    """`^[a-z0-9][a-z0-9-]*$` y hasta 64 caracteres (la misma forma que exige el alta de T-12)."""
-    return (isinstance(valor, str) and len(valor) <= ID_PREFIX_MAX
-            and bool(ID_PREFIX_RE.match(valor)))
 
 
 # fix1 #2: el `id_prefix` propuesto es tambien la clave que `kwipu-project-add.py` escribe SIN
 # comillas en `projects.yaml`: tiene que ser texto para YAML 1.1 (empieza por letra, no reservada).
 _YAML_RESERVADAS = frozenset(("y", "n", "yes", "no", "on", "off", "true", "false", "null", "~"))
+
+
+def id_prefix_valido(valor):
+    """`^[a-z][a-z0-9-]*$`, hasta 64 caracteres y no reservado en YAML 1.1: la misma regla que el
+    nombre de `kwipu-project-add.py` (fix2 #24, alineada con #2)."""
+    return (isinstance(valor, str) and len(valor) <= ID_PREFIX_MAX
+            and bool(ID_PREFIX_RE.match(valor)) and valor.casefold() not in _YAML_RESERVADAS)
 
 
 def _texto_en_yaml(valor):
@@ -1023,7 +1024,8 @@ def preparar_id_prefix(root=None, id_prefix=None, aplicar=False):
               "motivos_previa": [], "avisos": [], "escrito": False}
     if not id_prefix_valido(elegido):
         salida["error"] = (f"`id_prefix` inválido ({elegido!r}): debe cumplir "
-                           f"{ID_PREFIX_RE.pattern} y tener hasta {ID_PREFIX_MAX} caracteres")
+                           f"{ID_PREFIX_RE.pattern}, tener hasta {ID_PREFIX_MAX} caracteres y no "
+                           f"ser una palabra reservada de YAML ({'/'.join(sorted(_YAML_RESERVADAS))})")
         return salida
     existe = os.path.isfile(ruta)
     raw = _leer_json_dict(ruta) if existe else default_taxonomy()

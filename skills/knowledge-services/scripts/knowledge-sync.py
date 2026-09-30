@@ -347,7 +347,7 @@ def _avisos_grupo_de_todos(args):
         print("grupo: no hay backends que avisen de grupo en taxonomy.json (nada que comprobar)")
     for g in grupos:
         gr = g["grupo"]
-        print(f"grupo `{g['backend']}`: {gr.get('estado')} ({gr.get('origen')})"
+        print(f"grupo `{_sanear_causa(g['backend'])}`: {gr.get('estado')} ({gr.get('origen')})"
               + (f" · {gr['aviso']}" if gr.get("aviso") else ""))
     return 0
 
