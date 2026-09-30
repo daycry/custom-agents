@@ -71,6 +71,7 @@ import importlib.util
 import json
 import os
 import re
+import unicodedata
 import sys
 import time
 
@@ -142,11 +143,12 @@ def _cargar_por_ruta(ruta, nombre_modulo):
     return mod
 
 
-# Gap #93 (Minor, fix5): misma ampliacion que `_sanear_detalle` de los adaptadores -C1
-# (\x80-\x9f), separadores Unicode ( / ) y controles bidi (‪-‮,
-# ⁦-⁩)-: esta causa se imprime por stderr y se persiste en la dead-letter.
-_CONTROL_O_ANSI_RE = re.compile(
-    r"\x1b\[[0-9;]*[A-Za-z]|[\x00-\x1f\x7f-\x9f  ‪-‮⁦-⁩]")
+# Gap #93 (fix5) y #25 (T-14): la causa se imprime por stderr y se persiste en la dead-letter.
+# Se quitan las secuencias ANSI y TODA la clase Unicode Cc/Cf/Zl/Zp (C0, C1, bidi, marcas de
+# direccion U+200E/U+200F/U+061C, separadores de linea/parrafo), con el mismo criterio que
+# `_escapar` de kwipu-project-add.py. Sin caracteres literales invisibles en el fuente.
+_ANSI_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
+_CATEGORIAS_PELIGROSAS = frozenset(("Cc", "Cf", "Zl", "Zp"))
 _TOPE_CAUSA_CHARS = 400
 
 
@@ -156,7 +158,10 @@ def _sanear_causa(texto):
     el prefijo real del CLI, miles de caracteres). Se sanea ANTES de imprimirla por stderr y
     ANTES de persistirla como `causa` en la outbox/dead-letter. No es especifico de ningun
     backend: cualquier adaptador puede propagar texto de un tercero."""
-    return _CONTROL_O_ANSI_RE.sub(" ", str(texto))[:_TOPE_CAUSA_CHARS]
+    sin_ansi = _ANSI_RE.sub(" ", str(texto))
+    limpio = "".join(" " if unicodedata.category(c) in _CATEGORIAS_PELIGROSAS else c
+                     for c in sin_ansi)
+    return limpio[:_TOPE_CAUSA_CHARS]
 
 
 def _causa(e):
@@ -274,7 +279,9 @@ def _construir_entradas_enrutadas(ki, ks, root, config, backend_id, indice):
 
 def _construir_parser():
     ap = argparse.ArgumentParser(description=__doc__.strip().splitlines()[0])
-    ap.add_argument("--backend", required=True, help="id declarado en taxonomy.json -> backends")
+    ap.add_argument("--backend", default=None,
+                     help="id declarado en taxonomy.json -> backends (obligatorio salvo con "
+                          "--avisos-grupo: sin él recorre todos los backends que avisan de grupo)")
     ap.add_argument("--root", default=".", help="raíz del proyecto (default: cwd)")
     ap.add_argument("--json", action="store_true")
     ap.add_argument("--dry-run", action="store_true", dest="dry_run")
@@ -286,17 +293,87 @@ def _construir_parser():
                      help="imprime la propuesta de configuración del adaptador del backend "
                           "(función OPCIONAL `proponer_config` del contrato) y sale, sin aplicar "
                           "nada ni tocar la red (gap #36, CA-13)")
+    ap.add_argument("--avisos-grupo", action="store_true", dest="avisos_grupo",
+                     help="avisa si el `group_id` del backend ya trae episodios de otro origen "
+                          "(funcion OPCIONAL `estado_grupo`; primero estado local, sin bloquear; "
+                          "exit 0)")
+    ap.add_argument("--consultar-servidor", action="store_true", dest="consultar_servidor",
+                     help="con --avisos-grupo: ademas pregunta al servidor (opt-in, solo loopback; "
+                          "si no responde, «no verificado»)")
     ap.add_argument("--backends-dir", action="append", default=[], dest="backends_dir",
                      help="carpeta extra donde buscar el adaptador `type` (repetible; CA-12)")
     return ap
 
 
+def _avisos_grupo_de_todos(args):
+    """setup-statusline-polish fix1 #4: `--avisos-grupo` sin `--backend`. El id del backend lo
+    elige el proyecto, asi que `/setup` no puede fijarlo: se recorren TODOS los backends declarados
+    cuyo adaptador define la funcion OPCIONAL `estado_grupo` (el nucleo no nombra ningun backend
+    concreto, gap #77; hoy solo la define el adaptador de memoria de grafo). Es un aviso: SIEMPRE
+    exit 0, tambien sin taxonomia, con taxonomia rota o con un adaptador que no carga."""
+    avisos, grupos = [], []
+    try:
+        ks = _cargar_por_ruta(os.path.join(SHARED, "knowledge-schema.py"), "ks_knowledge_schema")
+        binit = _cargar_por_ruta(os.path.join(BACKENDS_DIR, "__init__.py"), "ks_backends_init")
+        config, _o, _r, errores = ks.cargar_taxonomia(args.root)
+    except KitCompartidoNoDisponible as e:
+        config, errores = None, []
+        avisos.append(str(e))
+    for e in errores or []:
+        avisos.append(f"{e['fichero']}: {e['campo']}: {e['mensaje']}")
+    backends = (config.get("backends") if isinstance(config, dict) and not errores else None) or {}
+    for bid in sorted(backends):
+        decl = backends[bid] if isinstance(backends[bid], dict) else {}
+        tipo = decl.get("type")
+        if not tipo:
+            continue
+        try:
+            adaptador = binit.cargar_adaptador(tipo, directorios=[BACKENDS_DIR, *args.backends_dir])
+        except binit.AdaptadorNoDisponible as e:
+            avisos.append(f"`{bid}`: {e}")
+            continue
+        estado_grupo = getattr(adaptador, "estado_grupo", None)
+        if not callable(estado_grupo):
+            continue
+        cfg = dict(decl.get("config") or {})
+        cfg["_root"] = os.path.abspath(args.root)
+        try:
+            grupo = estado_grupo(cfg, consultar_servidor=args.consultar_servidor)
+        except Exception as e:  # noqa: BLE001 - un adaptador que lanza no tumba el CLI (gap 90)
+            grupo = {"estado": "no_verificado", "origen": "local",
+                     "aviso": f"`estado_grupo` fallo: {_causa(e)}"}
+        grupos.append({"backend": bid, "grupo": grupo})
+    if args.json:
+        # #25: ASCII puro (C1 y bidi no llegan crudos al terminal)
+        print(json.dumps({"grupos": grupos, "avisos": avisos}, ensure_ascii=True, indent=2))
+        return 0
+    for a in avisos:
+        print(f"knowledge-sync: {_sanear_causa(a)}", file=sys.stderr)
+    if not grupos:
+        print("grupo: no hay backends que avisen de grupo en taxonomy.json (nada que comprobar)")
+    for g in grupos:
+        gr = g["grupo"]
+        print(f"grupo `{_sanear_causa(g['backend'])}`: {gr.get('estado')} ({gr.get('origen')})"
+              + (f" · {gr['aviso']}" if gr.get("aviso") else ""))
+    return 0
+
+
 def main(argv=None):
     args = _construir_parser().parse_args(argv)
-    modos = [args.dry_run, args.check, args.rebuild, args.outbox_status, args.propose_config]
+    modos = [args.dry_run, args.check, args.rebuild, args.outbox_status, args.propose_config,
+             args.avisos_grupo]
     if sum(bool(m) for m in modos) > 1:
-        print("knowledge-sync: --dry-run, --check, --rebuild, --outbox-status y --propose-config "
-              "son excluyentes entre sí", file=sys.stderr)
+        print("knowledge-sync: --dry-run, --check, --rebuild, --outbox-status, --propose-config "
+              "y --avisos-grupo son excluyentes entre sí", file=sys.stderr)
+        return 2
+    if args.consultar_servidor and not args.avisos_grupo:
+        print("knowledge-sync: --consultar-servidor solo se usa con --avisos-grupo", file=sys.stderr)
+        return 2
+    if not args.backend:
+        if args.avisos_grupo:
+            return _avisos_grupo_de_todos(args)
+        print("knowledge-sync: falta --backend <id> (solo --avisos-grupo funciona sin él)",
+              file=sys.stderr)
         return 2
 
     try:
@@ -377,6 +454,32 @@ def main(argv=None):
             print(propuesta["texto"])
         else:
             print(json.dumps(propuesta, ensure_ascii=False, indent=2))
+        return 0
+
+    if args.avisos_grupo:
+        # T-11 (CA-15): aviso ANTES de la primera sincronizacion; no depende de `enabled` (se usa
+        # justo al activar el backend) y NUNCA bloquea (exit 0 con cualquier veredicto).
+        try:
+            adaptador_grupo = binit.cargar_adaptador(
+                tipo, directorios=[BACKENDS_DIR, *args.backends_dir])
+        except binit.AdaptadorNoDisponible as e:
+            print(f"knowledge-sync: {e}", file=sys.stderr)
+            return 2
+        estado_grupo = getattr(adaptador_grupo, "estado_grupo", None)
+        if not callable(estado_grupo):
+            print(f"knowledge-sync: el backend `{args.backend}` (`type: {tipo}`) no avisa de "
+                  f"grupos ajenos (su adaptador no define `estado_grupo`)", file=sys.stderr)
+            return 2
+        try:
+            grupo = estado_grupo(cfg, consultar_servidor=args.consultar_servidor)
+        except Exception as e:  # noqa: BLE001 - un adaptador que lanza no tumba el CLI (gap 90)
+            grupo = {"estado": "no_verificado", "origen": "local",
+                     "aviso": f"`estado_grupo` fallo: {_causa(e)}"}
+        if args.json:
+            print(json.dumps({"backend": args.backend, "grupo": grupo}, ensure_ascii=False, indent=2))
+        else:
+            print(f"grupo: {grupo.get('estado')} ({grupo.get('origen')})"
+                  + (f" · {grupo['aviso']}" if grupo.get("aviso") else ""))
         return 0
 
     if not decl.get("enabled", False):

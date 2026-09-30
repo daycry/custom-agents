@@ -213,12 +213,14 @@ def _direccion_permitida(ip, allow_remote):
     return bool(ip.is_loopback or ip.is_private)
 
 
-def _validar_host(url, allow_remote):
+def _validar_host(url, allow_remote, solo_loopback=False):
     """Direcciones IP validadas de `url`, o `None` si el host no está permitido (fail-closed ante
     cualquier fallo de parseo/resolución). TODAS las direcciones resueltas de un host con nombre
     deben ser loopback/privadas (o autorizadas por `allow_remote`, salvo las SIEMPRE prohibidas de
     `_direccion_prohibida_siempre`) — un host que resuelve a varias IPs y solo alguna es privada
-    ya no basta (gap #34b, DNS rebinding parcial)."""
+    ya no basta (gap #34b, DNS rebinding parcial). Con `solo_loopback` (setup-statusline-polish
+    fix1 #8: la consulta opt-in de `estado_grupo`), TODAS tienen que ser loopback: una red privada
+    ya no basta, tampoco en un salto de redirección."""
     try:
         partes = urllib.parse.urlsplit(url)
     except ValueError:
@@ -243,6 +245,8 @@ def _validar_host(url, allow_remote):
         # `_direccion_prohibida_siempre` pueda ver que es 6to4/Teredo); lo que se devuelve para
         # conectar es la forma ya normalizada (IPv4 equivalente cuando la hay, gap #53).
         if not _direccion_permitida(ip, allow_remote):
+            return None
+        if solo_loopback and not _normalizar_ip(ip).is_loopback:
             return None
         ips.append(_normalizar_ip(ip))
     return [str(ip) for ip in ips]
@@ -383,7 +387,7 @@ def _origen(u):
     return (partes_u.scheme, partes_u.hostname, partes_u.port)
 
 
-def _post_json(url, payload, cabeceras, timeout_s, allow_remote):
+def _post_json(url, payload, cabeceras, timeout_s, allow_remote, solo_loopback=False):
     """POST JSON con seguimiento MANUAL de redirecciones: SOLO 307/308 se siguen (preservan el
     método; 301/302/303 se tratan como error citando la URL — gap #34d, antes se seguían los
     cinco códigos re-POSTeando el cuerpo completo a un destino no confiable), como máximo
@@ -397,7 +401,8 @@ def _post_json(url, payload, cabeceras, timeout_s, allow_remote):
     origen_actual = _origen(url)
     deadline = time.monotonic() + timeout_s
     for _ in range(_MAX_REDIRECCIONES + 1):
-        direcciones = _validar_host(url_actual, allow_remote)
+        direcciones = (_validar_host(url_actual, allow_remote, solo_loopback=True) if solo_loopback
+                       else _validar_host(url_actual, allow_remote))
         if direcciones is None:
             raise HostNoPermitido(_sanear_url_para_mensaje(url_actual))
         candidatos = _conectar_por_ip_si_http(url_actual, direcciones)
@@ -557,10 +562,12 @@ class ClienteMCP:
     `tools/call`, con `Mcp-Session-Id` capturado del handshake y reenviado en toda llamada
     posterior."""
 
-    def __init__(self, endpoint, timeout_s=3.0, allow_remote=False, max_respuesta_bytes=None):
+    def __init__(self, endpoint, timeout_s=3.0, allow_remote=False, max_respuesta_bytes=None,
+                 solo_loopback=False):
         self._url = _url_mcp(endpoint)
         self._timeout_s = timeout_s
         self._allow_remote = allow_remote
+        self._solo_loopback = solo_loopback      # fix1 #8: cada salto revalidado contra loopback
         self._session_id = None
         self._siguiente_id = 1
         # gap #70: tope duro de lectura por respuesta (`config.max_respuesta_kb`)
@@ -583,7 +590,8 @@ class ClienteMCP:
         resuelve el problema. Se reintenta UNA sola vez (`_reintentar_sesion=False` en el
         reintento) para no entrar en bucle si el servidor esta realmente caido."""
         try:
-            resp = _post_json(self._url, payload, self._cabeceras(), self._timeout_s, self._allow_remote)
+            resp = _post_json(self._url, payload, self._cabeceras(), self._timeout_s, self._allow_remote,
+                              solo_loopback=self._solo_loopback)
         except urllib.error.HTTPError as e:
             if _reintentar_sesion and self._session_id and e.code in (400, 404):
                 self._session_id = None
@@ -1979,6 +1987,75 @@ def verify(cfg):
 
 
 _MAX_EPISODIOS_VERIFY = 5000  # tope duro de la ampliacion de ventana de get_episodes (gap #39)
+
+
+# ------------------------------------------------------------------ aviso de grupo ajeno (T-11, CA-15)
+# Funcion OPCIONAL del contrato (`estado_grupo`): antes de la primera sincronizacion, ¿el `group_id`
+# ya contiene episodios de OTRO origen? Decision 2c: primero el ESTADO LOCAL (manifiesto publicado o
+# pendiente); la consulta al servidor es opt-in (`consultar_servidor`) y acotada a loopback; si no
+# responde, «no verificado». Nunca lanza, nunca escribe y nunca bloquea (es un aviso).
+_HOSTS_LOOPBACK = ("localhost", "127.0.0.1", "::1")
+
+
+def _resultado_grupo(estado, origen, aviso=""):
+    return {"estado": estado, "origen": origen, "aviso": aviso}
+
+
+def estado_grupo(cfg, consultar_servidor=False):
+    """`{"estado": "propio"|"vacio"|"otro_origen"|"no_verificado", "origen": "local"|"servidor",
+    "aviso": str}`. `propio`: el manifiesto local ya registra entradas de ESTE `group_id`.
+    `otro_origen`: el manifiesto local es de otro grupo, o el servidor (opt-in, loopback) ya
+    devuelve episodios del grupo antes de que este proyecto publique nada."""
+    cfg = cfg or {}
+    group_id = cfg.get("group_id")
+    if not isinstance(group_id, str) or not group_id.strip():
+        return _resultado_grupo("no_verificado", "local", "sin group_id: no hay grupo que comprobar")
+    for sufijo in ("", ".pending"):
+        datos = _leer_manifest_de(_manifest_path(cfg, sufijo))
+        grupo = _grupo_del_manifiesto(datos)
+        if grupo is None or not datos["entradas"]:
+            continue
+        if grupo == group_id:
+            return _resultado_grupo("propio", "local")
+        return _resultado_grupo(
+            "otro_origen", "local",
+            f"el manifiesto local pertenece al group_id `{_sanear_detalle(grupo)}`, no a "
+            f"`{_sanear_detalle(group_id)}`: la primera sincronizacion publicara todo en un grupo nuevo")
+    aviso_no = "sin sincronizaciones previas en el estado local; "
+    if not consultar_servidor:
+        return _resultado_grupo(
+            "no_verificado", "local",
+            aviso_no + "la consulta al servidor no se ha pedido (--consultar-servidor)")
+    if _modo(cfg) == "off":
+        return _resultado_grupo("no_verificado", "local", aviso_no + "`mode: off` no consulta al servidor")
+    endpoint = cfg.get("endpoint")
+    try:
+        host = urllib.parse.urlparse(endpoint).hostname if isinstance(endpoint, str) else None
+    except ValueError:
+        host = None
+    if host not in _HOSTS_LOOPBACK:
+        return _resultado_grupo(
+            "no_verificado", "local", aviso_no + "el endpoint no es loopback: no se consulta")
+    try:
+        cliente = ClienteMCP(endpoint, timeout_s=_timeout_s(cfg), allow_remote=False,
+                             max_respuesta_bytes=_max_respuesta_bytes(cfg), solo_loopback=True)
+        cliente.initialize()
+        contenido = _contenido_tool_call(
+            cliente.tools_call("get_episodes", {"group_ids": [group_id], "max_episodes": 1}))
+    except Exception as e:  # noqa: BLE001 - nunca lanza (mismo contrato que health()/verify())
+        return _resultado_grupo(
+            "no_verificado", "servidor",
+            f"el servidor no responde ({type(e).__name__}); no verificado")
+    episodios = contenido if isinstance(contenido, list) else (
+        contenido.get("episodes") if isinstance(contenido, dict) else None)
+    if _error_de_respuesta(contenido) or not isinstance(episodios, list):
+        return _resultado_grupo("no_verificado", "servidor", "respuesta ilegible del servidor; no verificado")
+    if any(_episodio_del_grupo(ep, group_id, 1) for ep in episodios):
+        return _resultado_grupo(
+            "otro_origen", "servidor",
+            f"el grupo `{_sanear_detalle(group_id)}` ya tiene episodios en el servidor y este "
+            f"proyecto aun no ha publicado nada: proceden de otro origen")
+    return _resultado_grupo("vacio", "servidor")
 
 
 # ------------------------------------------------------------------ lectura enrutada (T-07)

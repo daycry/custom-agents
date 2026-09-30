@@ -1097,6 +1097,147 @@ def test_statusline_json_oficial_una_linea_con_modelo_coste_y_roadmap(tmp_path):
     assert "📋 demo T-03/4" in lineas[0], out
 
 
+def _locale_coma():
+    """Un locale con coma decimal instalado en esta máquina, o None (en CI mínimo no hay)."""
+    try:
+        r = subprocess.run(["locale", "-a"], capture_output=True, text=True, encoding="utf-8", errors="replace",
+                           timeout=10)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    for nombre in r.stdout.split():
+        if nombre.lower().startswith(("de_de", "es_es", "fr_fr")):
+            chk = subprocess.run([BASH, "-c", 'printf "%.1f" 0.5'], capture_output=True, text=True,
+                                 encoding="utf-8", errors="replace",
+                                 env={**os.environ, "LC_ALL": nombre})
+            if "," in chk.stdout:  # 0.5 no es número válido y sale `0,0`: locale de coma activo
+                return nombre
+    return None
+
+
+def test_statusline_coste_con_locale_de_coma_decimal_sigue_siendo_punto(tmp_path):
+    """C-03 / CA-05: `printf '%.2f' 0.42` bajo un locale de coma daba `0,00` (invalid number)."""
+    loc = _locale_coma()
+    if loc is None:
+        pytest.skip("aviso: no hay locale de coma decimal instalado; la regresión no es simulable aquí")
+    proj, _ = proyecto(tmp_path, activa=False)
+    env = env_de(proj, tmp_path)
+    env["LC_ALL"] = loc
+    env.pop("LANG", None)
+    payload = {"model": {"display_name": "Opus"}, "cost": {"total_cost_usd": 0.42}}
+    rc, out, _ = hook("statusline", payload, env)
+    assert rc == 0 and "$0.42" in out and "0,00" not in out, out
+
+
+@pytest.mark.parametrize("coste, esperado", [(0.004, "<$0.01"), (0.0001, "<$0.01"), (0.42, "$0.42"),
+                                             (0.01, "$0.01"), (0, "$0.00"), (12.345, "$12.35")])
+def test_statusline_coste_pequeno_positivo_nunca_se_muestra_como_cero(tmp_path, coste, esperado):
+    proj, _ = proyecto(tmp_path, activa=False)
+    payload = {"model": {"display_name": "Opus"}, "cost": {"total_cost_usd": coste}}
+    rc, out, _ = hook("statusline", payload, env_de(proj, tmp_path))
+    assert rc == 0 and out.startswith("[Opus] " + esperado), (coste, out)
+
+
+def _informe_falso(destino, slug):
+    """Un `progress-report.py` de mentira que imprime UNA iniciativa activa con ese slug."""
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    destino.write_text(
+        "import json, sys\n"
+        f"print(json.dumps({{'activas': [{{'slug': '{slug}', 'completadas': 1, 'total': 2, 'pct': 50}}]}}))\n",
+        encoding="utf-8")
+
+
+def test_statusline_find_jobs_temporal_no_gana_al_plugin_instalado(tmp_path):
+    """C-02 / CA-04: con una copia vieja bajo `~/.claude/jobs` y otra en el plugin, gana el plugin."""
+    proj, _ = proyecto(tmp_path)
+    home = tmp_path / "home"
+    _informe_falso(home / ".claude" / "jobs" / "x" / "agent-kits" / "shared" / "progress-report.py", "copia-vieja-jobs")
+    _informe_falso(home / ".claude" / "plugins" / "cache" / "p" / "agent-kits" / "shared" / "progress-report.py",
+                   "plugin-instalado")
+    # el script se copia solo (sin `../agent-kits` al lado) para forzar la resolución por `find`
+    solo = tmp_path / "solo"
+    solo.mkdir()
+    sl = solo / "roadmap-statusline.sh"
+    sl.write_bytes(open(STATUSLINE, "rb").read())
+    env = env_de(proj, tmp_path)
+    r = subprocess.run([BASH, str(sl)], input=json.dumps({"model": {"display_name": "Opus"}}), capture_output=True,
+                       text=True, encoding="utf-8", errors="replace", env=env, cwd=str(proj), timeout=60)
+    assert r.returncode == 0
+    assert "plugin-instalado" in r.stdout and "copia-vieja-jobs" not in r.stdout, r.stdout
+
+
+def test_setup_5bis_find_jobs_temporal_no_gana_al_plugin_instalado(tmp_path):
+    """El `find` de /setup 5-bis (el que escribe la ruta ABSOLUTA en settings.json) ignora `~/.claude/jobs`."""
+    md = open(os.path.join(ROOT, "commands", "setup.md"), encoding="utf-8").read()
+    linea = next(l.strip() for l in md.splitlines() if l.strip().startswith('SL="$(find') and "roadmap-statusline.sh" in l)
+    home = tmp_path / "home"
+    for donde in (home / ".claude" / "jobs" / "x" / "statusline", home / ".claude" / "plugins" / "cache" / "p" / "statusline"):
+        donde.mkdir(parents=True)
+        (donde / "roadmap-statusline.sh").write_text("#!/usr/bin/env bash\n", encoding="utf-8")
+    proj = tmp_path / "proj"
+    proj.mkdir()
+    r = subprocess.run([BASH, "-c", linea + '\nprintf "%s" "$SL"'], capture_output=True, text=True, encoding="utf-8",
+                       errors="replace", cwd=str(proj), timeout=60,
+                       env={**os.environ, "HOME": str(home)})
+    ruta = r.stdout.replace("\\", "/")
+    assert "/plugins/cache/p/" in ruta and "/jobs/" not in ruta, (r.stdout, r.stderr)
+
+
+def test_fix1_12_todo_find_de_setup_excluye_los_temporales_de_jobs():
+    """setup-statusline-polish fix1 #12: cada `find` de seis raíces de `/setup` excluye
+    `~/.claude/jobs` (el de `KPA` en 5-sexies reintroducía el patrón que corrige T-06)."""
+    md = open(os.path.join(ROOT, "commands", "setup.md"), encoding="utf-8").read()
+    finds = [l.strip() for l in md.splitlines() if 'find "$PWD/.claude"' in l]
+    assert len(finds) >= 4, finds
+    sin = [l for l in finds if "! -path '*/.claude/jobs/*'" not in l]
+    assert not sin, sin
+
+
+def _varias_activas(tmp_path, slugs):
+    """Proyecto con un ledger activo por slug (copias del ledger de fixture)."""
+    proj, led = proyecto(tmp_path, slug=f"2026-01-01-{slugs[0]}")
+    for i, s in enumerate(slugs[1:], 2):
+        d = proj / "docs" / "roadmap" / f"2026-01-{i:02d}-{s}"
+        d.mkdir(parents=True)
+        (d / "tasks.md").write_text(led.read_text(encoding="utf-8"), encoding="utf-8")
+    return proj
+
+
+def _statusline_linea(proj, tmp_path):
+    rc, out, _ = hook("statusline", {"model": {"display_name": "Opus"}}, env_de(proj, tmp_path))
+    assert rc == 0
+    return out.strip()
+
+
+def test_statusline_ca01_en_curso_varias_activas_marca_la_del_marcador_abierto(tmp_path):
+    proj = _varias_activas(tmp_path, ["a", "b", "c", "training-data-services"])
+    (proj / ".claude" / "usage-state.json").write_text(
+        json.dumps({"training-data-services/F1-F3": {"inicio": "2026-09-29T10:00:00Z"}}), encoding="utf-8")
+    linea = _statusline_linea(proj, tmp_path)
+    assert "📋 4 activas · ▶ training-data-services T-03/4 75%" in linea, linea
+
+
+def test_statusline_ca02_en_curso_sin_marcador_marca_el_tasks_md_mas_reciente(tmp_path):
+    proj = _varias_activas(tmp_path, ["a", "b", "c"])
+    os.utime(proj / "docs" / "roadmap" / "2026-01-02-b" / "tasks.md", (4_000_000_000, 4_000_000_000))
+    linea = _statusline_linea(proj, tmp_path)
+    assert "📋 3 activas · ▶ b T-03/4" in linea, linea
+
+
+def test_statusline_ca03_en_curso_una_sola_activa_salida_identica_sin_flecha(tmp_path):
+    proj = _varias_activas(tmp_path, ["a"])
+    (proj / ".claude" / "usage-state.json").write_text(
+        json.dumps({"a/F1": {"inicio": "2026-09-29T10:00:00Z"}}), encoding="utf-8")
+    linea = _statusline_linea(proj, tmp_path)
+    assert linea == "[Opus] · 📋 a T-03/4 75%" and "▶" not in linea, linea
+
+
+def test_statusline_en_curso_usage_state_corrupto_no_rompe(tmp_path):
+    proj = _varias_activas(tmp_path, ["a", "b"])
+    (proj / ".claude" / "usage-state.json").write_text("{no es json", encoding="utf-8")
+    linea = _statusline_linea(proj, tmp_path)
+    assert "📋 2 activas · ▶ " in linea, linea
+
+
 def test_statusline_stdin_vacio_exit_0(tmp_path):
     proj, _ = proyecto(tmp_path, activa=False)
     rc, out, _ = hook("statusline", "", env_de(proj, tmp_path))

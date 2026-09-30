@@ -37,9 +37,9 @@ los valores actuales y ofrece cambiarlos.
    - **No** → persiste `"statusline": false` en `.claude/dev.json` y no toca `settings.json`.
    - **Sí** → resuelve la ruta del script **en tiempo de setup** y escríbela **ABSOLUTA** (la doc oficial de `statusLine` solo documenta `~` en `command`, no `${CLAUDE_PLUGIN_ROOT}`, y el `settings.json` de un plugin no admite la clave `statusLine`; verificado 2026-09-02):
      ```bash
-     SL="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type f -path '*statusline/roadmap-statusline.sh' 2>/dev/null | head -1)"
+     SL="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type f -path '*statusline/roadmap-statusline.sh' ! -path '*/.claude/jobs/*' 2>/dev/null | head -1)"
      ```
-     Luego **mergea** (sin pisar otras claves) en `.claude/settings.json` del proyecto el bloque oficial:
+     (El `find` excluye `*/.claude/jobs/*`: las copias temporales de trabajos antiguos no se eligen nunca; gana el plugin instalado o el proyecto.) Luego **mergea** (sin pisar otras claves) en `.claude/settings.json` del proyecto el bloque oficial:
      ```json
      { "statusLine": { "type": "command", "command": "<ruta absoluta de $SL>" } }
      ```
@@ -54,7 +54,7 @@ los valores actuales y ofrece cambiarlos.
    - Idempotente: si `revision.lenteSeguridad` o `revision.lenteRendimiento` ya existen, resume el valor actual de cada una y ofrece cambiarlo por separado.
 5-quater. **Modelos por agente (opcional, default = frontmatter).** Muestra la tabla efectiva con el script determinista y pregunta: "¿Quieres cambiar el modelo de algún agente para este proyecto? [No]".
    ```bash
-   SHAREDKIT="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type d -path '*agent-kits/shared' 2>/dev/null | head -1)"
+   SHAREDKIT="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type d -path '*agent-kits/shared' ! -path '*/.claude/jobs/*' 2>/dev/null | head -1)"
    python3 "$SHAREDKIT/model-tier.py" --all      # tabla: agente · model · effort · fuente (frontmatter / dev.json)
    ```
    - **No** → no escribas la clave (ausente = tiering del frontmatter, tabla de `docs/CONVENTIONS.md`).
@@ -67,10 +67,32 @@ los valores actuales y ofrece cambiarlos.
    - Idempotente: si `tests.coberturaMinima` ya existe, muestra el valor y ofrece cambiarlo o quitarlo.
 5-sexies. **Capacidades opcionales del plugin (registro `capabilities.py`, CA-14).** Lista las capacidades registradas (hoy el Knowledge Gate, siempre activo, los backends de `knowledge-services` —Kwipu y la memoria de grafo `graphiti`— y la captura de casos `training`) en un único paso, sin preguntar por cada una a mano:
    ```bash
-   SHAREDKIT="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type d -path '*agent-kits/shared' 2>/dev/null | head -1)"
+   SHAREDKIT="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type d -path '*agent-kits/shared' ! -path '*/.claude/jobs/*' 2>/dev/null | head -1)"
    python3 "$SHAREDKIT/capabilities.py" --root .      # una línea por capacidad: id, enabled, health, doctor
    ```
    - Si no existe `.claude/knowledge-services/taxonomy.json`, ofrece crearlo desde la plantilla del plugin (`agent-kits/shared/templates/taxonomy.json`) — todos los backends nacen `enabled: false` (el Knowledge Gate funciona igual con la plantilla en memoria, sin escribir nada, si el usuario prefiere no crearlo).
+   - **Nombre del proyecto (`id_prefix`).** Propón el nombre con el script (no escribe nada sin `--aplicar`) y pide confirmación o uno propio; si no cumple `^[a-z][a-z0-9-]*$` (hasta 64, y no es una palabra reservada de YAML: `y`, `n`, `yes`, `no`, `on`, `off`, `true`, `false`, `null`, `~`) el script sale con 2: rechaza, vuelve a preguntar y no guardes:
+     ```bash
+     python3 "$SHAREDKIT/knowledge-schema.py" --setup-id-prefix --root . [--id-prefix <nombre>] [--aplicar]   # JSON: propuesta, avisos, escrito; exit 0/2
+     ```
+     En una instalación **nueva** guarda también `group_id = id_prefix` en el backend de memoria de grafo; en una **previa** (manifiesto de Graphiti, backend activo o `group_id` explícito) conserva el `group_id` que ya tenía. Muestra tal cual los `avisos` del JSON (conserva el `group_id` de la carpeta; renombrar con conocimiento ya exportado cambia los `knowledge_id` y no migra): nunca bloquean.
+   - **Antes de la primera sincronización de Graphiti**, comprueba si su `group_id` ya trae episodios de otro origen. Primero mira el estado local; la consulta al servidor es opt-in (solo loopback) y, si no responde, dice «no verificado». Es un aviso: nunca bloquea (exit 0):
+     ```bash
+     KSYNC="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type f -path '*skills/knowledge-services/scripts/knowledge-sync.py' ! -path '*/.claude/jobs/*' 2>/dev/null | head -1)"
+     python3 "$KSYNC" --avisos-grupo [--consultar-servidor]   # sin --backend: recorre los backends que avisan de grupo (el id lo elige el proyecto); exit 0 siempre
+     ```
+   - **Alta del proyecto en Kwipu (`projects.yaml`, C-07), solo si el backend `kwipu` está activo.** El stack es externo: este paso **solo AÑADE** un bloque marcado al `projects.yaml` del stack, con confirmación, y **NO ejecuta `build_view` ni reinicia contenedores** (los imprime; los lanzas tú). Pide la ruta del stack (`<stack>`, la carpeta que contiene `kwipu/config/`; **no la guardes** en `taxonomy.json`) y sigue estos pasos:
+     1. Nombre = el `id_prefix` de arriba; `root` = el `export_dir` de `taxonomy.json`, relativo a `<stack>/kwipu/config/` (si no existe, el script lo crea al aplicar).
+     2. **Vista previa** (no escribe): estado (`nuevo · presente · conflicto · no-reconocido`), el bloque exacto y el `sha256` del fichero:
+        ```bash
+        KPA="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type f -path '*skills/knowledge-services/scripts/kwipu-project-add.py' ! -path '*/.claude/jobs/*' 2>/dev/null | head -1)"
+        python3 "$KPA" --stack <stack> --root .
+        ```
+     3. Salida `0` con `presente`: ya estaba dado de alta, no cambia nada. Salida `4` (conflicto de nombre o de `root`): no escribe; pide otro nombre y repite. Salida `3` (forma de `projects.yaml` no reconocida, enlace, fichero ausente): no escribe; muestra el bloque para que el usuario lo **pegue a mano** al final de `projects:`. Salida `2`: argumentos o taxonomía inválidos; corrígelos. Si lo que no vale es el nombre (un `id_prefix` que empieza por dígito o es palabra reservada de YAML, p. ej. de una instalación previa), el script propone uno (`prueba --nombre <propuesta>`): repite la vista previa añadiendo `--nombre <propuesta>` (y úsalo también en el `--apply`).
+     4. **Pide confirmación explícita** mostrando el bloque y el destino. Sin confirmación: no invoques `--apply` (exit 0, sin cambios).
+     5. Con confirmación: `python3 "$KPA" --stack <stack> --root . --apply --esperado <sha256 de la vista previa>`. Hace primero la copia `projects.yaml.bak-<AAAAMMDDTHHMMSSZ>` (si falla, aborta sin escribir), añade el bloque y relee. La salida `1` tiene **dos** significados y el campo que manda es `bloque_presente` (en `--json`; en texto, «tu bloque SÍ/NO está en el fichero»): (a) se deshizo solo lo añadido por este proceso y tu bloque **no** está; (b) el fichero cambió durante la escritura (otro `/setup`, un editor, otro escritor) y el script **no toca nada**: tu bloque puede **SÍ** estar, así que revísalo a mano con la copia `.bak` antes de repetir. Si el fichero cambió desde la vista previa, repite la vista previa.
+     6. Muestra los comandos que imprime el script y **no los ejecutes**: `cd <stack>`, `python -m source_manager.build_view --config kwipu/config/projects.yaml --output kwipu/runtime/knowledge-view-v2` y `docker compose restart kwipu kwipu-bridge kwipu-mcp`.
+     7. Sin `python3`: degrada con aviso y ofrece el bloque para pegarlo a mano; nunca bloquea el resto del paso.
    - Por cada capacidad desactivada que el usuario quiera activar, sigue el `setup_step` que ella misma declara (p. ej. para un backend: `backends.<id>.enabled: true` + su `config` propia en `taxonomy.json`) — este paso **no** conecta nada por su cuenta (nada de auto-discovery de red); solo declara la config.
    - **Memoria de grafo (`graphiti`), si el usuario la quiere:** su `setup_step` pide declarar un backend `type: "graphiti"` con `enabled: true` en `taxonomy.json` — `endpoint` del servidor MCP **local**, `group_id` propio del proyecto (no compartas grupo entre proyectos), `provider` y `mode`. Empieza SIEMPRE en `mode: "shadow"` (sincroniza y no lee); pasa a `"read"` solo cuando `/doctor` lo dé sano y sin desfase, y declara entonces qué intents puede atender (`router.intents`, p. ej. `temporal`) para que `knowledge-find.py --intent` se sirva del grafo. Este paso **no registra ningún servidor MCP** ni toca la configuración global del runtime: solo escribe `taxonomy.json` del proyecto.
    - **Capacidad `training`** (skill `training-data-services`): solo si el usuario quiere capturar casos para un dataset propio. Si no existe `.claude/knowledge-services/training.json`, ofrece crearlo copiando `<skill>/assets/training.example.json`, donde `<skill>` es la raíz de la skill que localiza el mismo `find` de seis raíces (`-type d -path '*skills/training-data-services'`; de ella salen `<skill>/assets/` y `<skill>/scripts/`), y pregunta dos cosas: el **`root` del case store** —fuera de Git y **nunca** dentro de `docs/knowledge/` (ADR-019; `case_schema.py` lo rechaza)— y el **`id_prefix`** de los casos (slug). Valida con `python3 <skill>/scripts/case_schema.py config .claude/knowledge-services/training.json` antes de darlo por hecho. **`bridge_to_curator` queda en `false`** salvo que el usuario diga explícitamente que quiere proponer casos Gold a `knowledge-curator` (nunca lo actives sin preguntar). Este paso no crea el case store (lo crea el recorder al grabar el primer caso) ni graba, aprueba o exporta nada. Sin el fichero, la capacidad no existe (cero impacto).

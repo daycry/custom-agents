@@ -1,0 +1,3 @@
+# Corpus fijo de conocimiento (setup-statusline-polish fix1 #14): siempre LF, tambien con
+# core.autocrlf=true en Windows (CA-17 compara byte a byte la salida de `--show`).
+tests/fixtures/knowledge-corpus/** text eol=lf

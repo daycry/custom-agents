@@ -40,6 +40,7 @@ Además de las 6 obligatorias, un adaptador puede exponer estas; el núcleo las 
 | `consultar` | `(cfg, consulta) -> {"aciertos": [...], "descartados": int, "motivo": str}` | el router de `knowledge-find.py --intent` (T-07, CA-12) | **es lo que hace ENRUTABLE a un backend**: un adaptador sin `consultar` puede publicar pero nunca servir una consulta. `consulta` = `{"intent", "texto", "limit", "area", "tipo", "claves", "iniciativa"}`; devuelve `aciertos` (lista), `descartados` (int, lo que se descartó fail-closed) y `motivo` (str); cada acierto tiene que traer `id`, `estado`, `evidencia` y `ruta` canónica (el núcleo descarta, fail-closed, el que no las traiga) y `motivo` NO VACÍO con 0 aciertos significa «no pude servir» → el núcleo degrada a local con ese motivo a la vista (nunca lanza, igual que `health`) |
 | `modo` | `(cfg) -> "off"\|"shadow"\|"read"` | `capabilities.py` (estado de la capacidad, sin red) | `modo(cfg)`: el adaptador es la fuente única del enum y del default de `mode`; quien lo necesite lo pregunta en vez de reimplementarlo |
 | `proponer_config` | `(taxonomy, cfg) -> dict` | `knowledge-sync.py --propose-config` | el adaptador sabe proponer su propia configuración a partir de la taxonomía del proyecto |
+| `estado_grupo` | `(cfg, consultar_servidor=False) -> {"estado", "origen", "aviso"}` | `knowledge-sync.py --avisos-grupo [--consultar-servidor]` (`/setup`, CA-15) | avisa, ANTES de la primera sincronización, si el `group_id` ya trae episodios de otro origen: primero estado local (manifiesto), después servidor solo con opt-in y en loopback; sin respuesta, `no_verificado`. Nunca bloquea (exit 0) |
 
 ## Carga y validación
 
@@ -189,6 +190,11 @@ decisión de que la extracción de entidades la hace el SERVIDOR, no el cliente)
   (`knowledge-sync.py --backend <id> --check`), diciendo además que un desfase fuera de esa ventana
   no se ve desde ahí. El ⚠️ se reserva a lo que SÍ es del backend: `desfase`, o `incompleto` cuando
   el manifiesto sí cabía en la ventana que se le pasó.
+  **Tope duro de `/doctor`** (C-09a): `health()` y `verify()` respetan cada uno su `timeout_ms`, pero se
+  ejecutan uno tras otro (medido con un blackhole TCP: 4,02 s con `tope_ms` = 2000). `/doctor` corre la
+  sonda en un hilo `daemon` y deja de esperar a `tope_ms` + `CAPACIDAD_MARGEN_MS` (500 ms); si no
+  termina, la fila es ⚠️ «no comprobado». Por eso ambas funciones deben ser de SOLO LECTURA: el hilo
+  abandonado sigue hasta que el proceso acaba y no debe dejar escrituras a medias.
   **Umbral con los DEFAULTS** (gap #140): la regla de coherencia de arriba, con los defaults
   (`max_respuesta_kb` 8192 KiB y ~3 KiB por episodio), cubre unos **2 700 episodios del grupo**.
   Por encima, la verificación sale `incompleto` —y con `mode: read` la lectura enrutada queda

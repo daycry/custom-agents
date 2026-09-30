@@ -221,6 +221,28 @@ def table_value(text, key):
     return None
 
 
+def table_value_any(text, keys, prefixes=()):
+    """Primer valor de `table_value` para cualquiera de `keys` (etiqueta exacta) o, si no hay,
+    la primera fila cuya etiqueta EMPIECE por alguno de `prefixes` (p. ej. «Coste humano a 50 EUR/h»).
+    El valor se devuelve como TEXTO: nunca se convierte a número (la coma de «1,300 EUR» es de miles)."""
+    for k in keys:
+        v = table_value(text, k)
+        if v:
+            return v
+    for line in text.splitlines():
+        if "|" not in line:
+            continue
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if len(cells) < 2:
+            continue
+        label = re.sub(r"[*`]", "", cells[0]).strip().lower()
+        if any(label.startswith(pf.lower()) for pf in prefixes):
+            val = re.sub(r"[*`]", "", cells[1]).strip()
+            if val:
+                return val
+    return None
+
+
 def _num(cell):
     """De una celda 'real / est' (p. ej. '34 / 40h', '380k / 420k', '—') → (real, est)."""
     parts = cell.split("/")
@@ -312,12 +334,14 @@ def _scan_leer_spec(rec, spec_p):
 
 def _scan_leer_eval(rec, eval_p):
     t = open(eval_p, encoding="utf-8", errors="replace").read()
-    rec["eval_estado"] = table_value(t, "Estado")
+    # Dos familias de etiquetas: histórica (Coste / Esfuerzo humano) y nueva (Tiempo humano /
+    # Coste humano a N EUR/h / Coste humano (N EUR/h)). Sin fila «Estado» → `estado:` del frontmatter.
+    rec["eval_estado"] = table_value(t, "Estado") or parse_frontmatter(t).get("estado")
     rec["prioridad"] = table_value(t, "Prioridad global")
     rec["caracteristicas"] = table_value(t, "Características") or \
         table_value(t, "Características evaluadas")
-    rec["coste"] = table_value(t, "Coste")
-    rec["esfuerzo"] = table_value(t, "Esfuerzo humano")
+    rec["coste"] = table_value_any(t, ("Coste",), ("Coste humano",))
+    rec["esfuerzo"] = table_value_any(t, ("Esfuerzo humano", "Tiempo humano"))
     rec["tokens"] = table_value(t, "Tokens IA")
     rec["multiplicador"] = table_value(t, "Multiplicador productividad")
 

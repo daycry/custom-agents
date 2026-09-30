@@ -592,6 +592,32 @@ def test_fix5_gap93_la_causa_sanea_bidi_separadores_unicode_y_c1():
     assert "abcdefg" == saneada.replace(" ", "")
 
 
+def test_t14_gap25_la_causa_sanea_cc_cf_zl_zp_completos():
+    """#25 (intento 3): U+200E/U+200F/U+061C (Cf) pasaban; la clase debe cubrir Cc/Cf/Zl/Zp."""
+    import unicodedata
+    mezcla = "a‎b‏c؜d​e⁠f﻿g h ijk­l"
+    saneada = ks_sync._sanear_causa(mezcla)
+    for c in saneada:
+        assert unicodedata.category(c) not in ("Cc", "Cf", "Zl", "Zp"), repr(c)
+    assert saneada.replace(" ", "") == "abcdefghijkl"
+    assert ks_sync._sanear_causa("ñandú 知識") == "ñandú 知識"
+
+
+def test_t14_gap25_avisos_grupo_json_sin_backend_sale_en_ascii(tmp_path, capsys):
+    root = str(tmp_path)
+    d = os.path.join(root, ".claude", "knowledge-services")
+    os.makedirs(d)
+    with open(os.path.join(d, "taxonomy.json"), "w", encoding="utf-8") as f:
+        json.dump({"version": 1, "id_prefix": "ks",
+                   "categories": [{"key": "X", "folder": "gotchas", "min_evidence": "observation"}],
+                   "backends": {"b‎ñ": {"type": "no-existe-t14", "enabled": False,
+                                                        "config": {}}}}, f)
+    assert ks_sync.main(["--root", root, "--avisos-grupo", "--json"]) == 0
+    crudo = capsys.readouterr().out
+    assert crudo.isascii(), crudo
+    assert json.loads(crudo)["avisos"], "el aviso de adaptador ausente debe existir"
+
+
 # ------------------------------------------------------------------ fix3 Fase 3 (#133)
 
 def test_f3fix3_gap133_check_imprime_el_veredicto_incompleto_y_sale_no_cero(tmp_path, capsys):
@@ -617,3 +643,157 @@ def test_f3fix3_gap133_check_sin_desfase_sigue_saliendo_cero(tmp_path, capsys):
     assert ks_sync.main(["--backend", "testx", "--root", root, "--check",
                          "--backends-dir", FIXTURES_BACKENDS]) == 0
     assert "verify: ok" in capsys.readouterr().out
+
+
+# ------------------------------------------------------------------ setup-statusline-polish T-11 (CA-15)
+
+def _taxonomia_graphiti_sync(root, endpoint="http://127.0.0.1:1", **extra):
+    cfg = {"mode": "shadow", "endpoint": endpoint, "group_id": "proy", "allow_remote": False,
+           "timeout_ms": 800, "provider": {"llm": "none"}}
+    cfg.update(extra)
+    d = os.path.join(root, ".claude", "knowledge-services")
+    os.makedirs(d, exist_ok=True)
+    with open(os.path.join(d, "taxonomy.json"), "w", encoding="utf-8") as f:
+        json.dump({"version": 1, "id_prefix": "ks", "categories": [{"key": "X", "folder": "gotchas", "min_evidence": "observation"}],
+                   "backends": {"graphiti": {"type": "graphiti", "enabled": False,
+                                             "config": cfg}}}, f)
+    return d
+
+
+def test_CA_15_aviso_grupo_sin_optin_no_verificado_y_exit_0(tmp_path, capsys):
+    root = str(tmp_path)
+    _taxonomia_graphiti_sync(root)
+    assert ks_sync.main(["--backend", "graphiti", "--root", root, "--avisos-grupo", "--json"]) == 0
+    salida = json.loads(capsys.readouterr().out)
+    assert salida["grupo"]["estado"] == "no_verificado" and salida["backend"] == "graphiti"
+
+
+def test_CA_15_aviso_grupo_servidor_caido_con_optin_no_verificado_exit_0(tmp_path, capsys):
+    root = str(tmp_path)
+    _taxonomia_graphiti_sync(root)
+    assert ks_sync.main(["--backend", "graphiti", "--root", root, "--avisos-grupo",
+                         "--consultar-servidor"]) == 0
+    assert "no_verificado" in capsys.readouterr().out
+
+
+def test_CA_15_aviso_grupo_otro_origen_local_no_bloquea(tmp_path, capsys):
+    root = str(tmp_path)
+    d = _taxonomia_graphiti_sync(root)
+    with open(os.path.join(d, "graphiti-manifest.json"), "w", encoding="utf-8") as f:
+        json.dump({"group_id": "viejo", "entradas": {"a": {"version": 1}}}, f)
+    assert ks_sync.main(["--backend", "graphiti", "--root", root, "--avisos-grupo"]) == 0
+    salida = capsys.readouterr().out
+    assert "otro_origen" in salida and "viejo" in salida
+
+
+def test_CA_15_aviso_grupo_es_excluyente_con_los_otros_modos(tmp_path, capsys):
+    root = str(tmp_path)
+    _taxonomia_graphiti_sync(root)
+    assert ks_sync.main(["--backend", "graphiti", "--root", root, "--avisos-grupo", "--check"]) == 2
+
+
+def test_CA_15_consultar_servidor_sin_avisos_grupo_es_error_de_uso(tmp_path, capsys):
+    root = str(tmp_path)
+    _taxonomia_graphiti_sync(root)
+    assert ks_sync.main(["--backend", "graphiti", "--root", root, "--consultar-servidor"]) == 2
+
+
+def test_CA_15_aviso_grupo_adaptador_sin_la_funcion_sale_2(tmp_path, capsys):
+    root = str(tmp_path)
+    _taxonomy(root, _categorias())
+    assert ks_sync.main(["--backend", "testx", "--root", root, "--avisos-grupo",
+                         "--backends-dir", FIXTURES_BACKENDS]) == 2
+    assert "estado_grupo" in capsys.readouterr().err
+
+
+# ------------------------------------------------------------------ setup-statusline-polish fix1 #4
+
+def _taxonomia_dos_grupos(root):
+    """Dos backends que avisan de grupo (ids elegidos por el proyecto) y uno que no."""
+    cfg = {"mode": "shadow", "endpoint": "http://127.0.0.1:1", "allow_remote": False,
+           "timeout_ms": 800, "provider": {"llm": "none"}}
+    d = os.path.join(root, ".claude", "knowledge-services")
+    os.makedirs(d, exist_ok=True)
+    with open(os.path.join(d, "taxonomy.json"), "w", encoding="utf-8") as f:
+        json.dump({"version": 1, "id_prefix": "ks",
+                   "categories": [{"key": "X", "folder": "gotchas", "min_evidence": "observation"}],
+                   "backends": {
+                       "memoria-a": {"type": "graphiti", "enabled": False, "config": dict(cfg, group_id="a")},
+                       "memoria-b": {"type": "graphiti", "enabled": False, "config": dict(cfg, group_id="b")},
+                       "kwipu": {"type": "markdown-export", "enabled": False,
+                                 "config": {"export_dir": ".claude/knowledge-services/kwipu-export"}}}}, f)
+    return d
+
+
+def test_fix1_4_avisos_grupo_sin_backend_recorre_los_que_avisan_y_sale_0(tmp_path, capsys):
+    """#4: el id del backend lo elige el proyecto; sin `--backend` se recorren todos los backends
+    cuyo adaptador avisa de grupo (hoy los de `type` de memoria de grafo), y siempre exit 0."""
+    root = str(tmp_path)
+    d = _taxonomia_dos_grupos(root)
+    with open(os.path.join(d, "graphiti-manifest.json"), "w", encoding="utf-8") as f:
+        json.dump({"group_id": "viejo", "entradas": {"x": {"version": 1}}}, f)
+    assert ks_sync.main(["--root", root, "--avisos-grupo", "--json"]) == 0
+    salida = json.loads(capsys.readouterr().out)
+    assert [g["backend"] for g in salida["grupos"]] == ["memoria-a", "memoria-b"]
+    assert all(g["grupo"]["estado"] == "otro_origen" for g in salida["grupos"])
+    assert ks_sync.main(["--root", root, "--avisos-grupo"]) == 0
+    texto = capsys.readouterr().out
+    assert "memoria-a" in texto and "memoria-b" in texto and "kwipu" not in texto
+
+
+def test_fix1_4_avisos_grupo_sin_backend_nunca_bloquea(tmp_path, capsys):
+    root = str(tmp_path)
+    assert ks_sync.main(["--root", root, "--avisos-grupo"]) == 0             # sin taxonomy.json
+    capsys.readouterr()
+    d0 = os.path.join(root, ".claude", "knowledge-services")
+    os.makedirs(d0, exist_ok=True)
+    with open(os.path.join(d0, "taxonomy.json"), "w", encoding="utf-8") as f:
+        json.dump({"version": 1, "id_prefix": "ks", "categories": [
+            {"key": "X", "folder": "gotchas", "min_evidence": "observation"}], "backends": {}}, f)
+    assert ks_sync.main(["--root", root, "--avisos-grupo"]) == 0             # ninguno que avise
+    assert "no hay backends" in capsys.readouterr().out
+    d = os.path.join(root, ".claude", "knowledge-services")
+    os.makedirs(d, exist_ok=True)
+    with open(os.path.join(d, "taxonomy.json"), "w", encoding="utf-8") as f:
+        f.write("{no json")
+    assert ks_sync.main(["--root", root, "--avisos-grupo"]) == 0             # taxonomia rota
+    capsys.readouterr()
+    assert ks_sync.main(["--root", root, "--avisos-grupo", "--backends-dir", str(tmp_path / "x")]) == 0
+    capsys.readouterr()
+
+
+def test_fix1_4_sin_backend_fuera_de_avisos_grupo_es_error_de_uso(tmp_path, capsys):
+    assert ks_sync.main(["--root", str(tmp_path), "--dry-run"]) == 2
+    assert "--backend" in capsys.readouterr().err
+
+
+def test_fix1_4_setup_no_invoca_scripts_por_ruta_relativa_del_repo():
+    """#4: en un proyecto consumidor `skills/...` no existe; todo script se localiza con el `find`
+    de seis raíces (regla 5) y el paso de avisos no fija `--backend graphiti`."""
+    import re
+    raiz = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", ".."))
+    for rel in (("commands", "setup.md"), ("interop", "codex", "prompts", "setup.md"),
+                ("interop", "opencode", "commands", "setup.md")):
+        ruta = os.path.join(raiz, *rel)
+        if not os.path.isfile(ruta):
+            continue
+        texto = open(ruta, encoding="utf-8").read()
+        assert not re.search(r"python3?\s+(\./)?(skills|agent-kits)/", texto), rel
+        assert "--backend graphiti --avisos-grupo" not in texto, rel
+        assert "knowledge-sync.py" in texto and "--avisos-grupo" in texto, rel
+
+
+def test_fix2_22_avisos_grupo_sanea_el_id_del_backend(tmp_path, capsys):
+    """#22: el recorrido de `--avisos-grupo` sin `--backend` imprimía el id del backend crudo."""
+    root = str(tmp_path)
+    d = _taxonomia_dos_grupos(root)
+    ruta = os.path.join(d, "taxonomy.json")
+    with open(ruta, encoding="utf-8") as f:
+        tax = json.load(f)
+    tax["backends"]["mem\x1b[2Jx‮"] = tax["backends"].pop("memoria-a")
+    with open(ruta, "w", encoding="utf-8") as f:
+        json.dump(tax, f)
+    assert ks_sync.main(["--root", root, "--avisos-grupo"]) == 0
+    cap = capsys.readouterr()
+    assert "\x1b" not in cap.out and "‮" not in cap.out
+    assert "mem" in cap.out and "memoria-b" in cap.out

@@ -3400,3 +3400,162 @@ class TestGraphitiFase3Fix4(unittest.TestCase):
             salida = self.mod.consultar(self._cfg(srv.endpoint), {"texto": "memoria", "limit": 10})
         self.assertEqual(salida["aciertos"], [], salida)
         self.assertIn("ilegible", salida.get("motivo", ""), salida)
+
+
+# ------------------------------------------------------------------ setup-statusline-polish T-11
+# Aviso de `group_id` con episodios de OTRO origen antes de la primera sincronizacion (CA-15,
+# decision 2c): primero el estado local; la consulta al servidor es opt-in, solo loopback, y si no
+# responde degrada a «no verificado». Nunca lanza.
+
+class TestAvisoEstadoGrupoCA15(unittest.TestCase):
+    def setUp(self):
+        self.mod = _cargar("graphiti.py", "ks_backend_graphiti_test_estado_grupo")
+        self.tmp = tempfile.mkdtemp(prefix="ks-graphiti-eg-")
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _cfg(self, endpoint="http://127.0.0.1:1", **extra):
+        cfg = {"_root": self.tmp, "group_id": "proy", "endpoint": endpoint,
+               "allow_remote": False, "timeout_ms": 1500, "provider": {"llm": "none"}}
+        cfg.update(extra)
+        return cfg
+
+    def _episodios(self, lista):
+        return {"get_episodes": lambda _a: {"structuredContent": {"episodes": lista}}}
+
+    def test_aviso_estado_local_propio_no_consulta_al_servidor(self):
+        cfg = self._cfg()
+        self.mod._escribir_manifest(cfg, {"group_id": "proy", "entradas": {"a": {"version": 1}}})
+        with _ServidorMCPContext(respuestas_tools=self._episodios([{"name": "x"}])) as srv:
+            cfg["endpoint"] = srv.endpoint
+            r = self.mod.estado_grupo(cfg, consultar_servidor=True)
+            self.assertEqual((r["estado"], r["origen"]), ("propio", "local"))
+            self.assertEqual(srv.llamadas, [])          # el estado local basta: sin red
+
+    def test_aviso_manifiesto_pendiente_tambien_cuenta_como_local(self):
+        cfg = self._cfg()
+        self.mod._escribir_manifest(cfg, {"group_id": "proy", "entradas": {"a": {}}}, sufijo=".pending")
+        self.assertEqual(self.mod.estado_grupo(cfg)["estado"], "propio")
+
+    def test_aviso_manifiesto_de_otro_group_id_es_otro_origen_local(self):
+        cfg = self._cfg()
+        self.mod._escribir_manifest(cfg, {"group_id": "viejo", "entradas": {"a": {}}})
+        r = self.mod.estado_grupo(cfg)
+        self.assertEqual((r["estado"], r["origen"]), ("otro_origen", "local"))
+        self.assertIn("viejo", r["aviso"])
+
+    def test_aviso_sin_optin_no_toca_la_red_y_dice_no_verificado(self):
+        with _ServidorMCPContext() as srv:
+            r = self.mod.estado_grupo(self._cfg(srv.endpoint))
+            self.assertEqual(srv.llamadas, [])
+        self.assertEqual(r["estado"], "no_verificado")
+        self.assertIn("--consultar-servidor", r["aviso"])
+
+    def test_aviso_servidor_con_episodios_de_otro_origen(self):
+        eps = [{"name": "ajeno@1", "group_id": "proy"}]
+        with _ServidorMCPContext(respuestas_tools=self._episodios(eps)) as srv:
+            r = self.mod.estado_grupo(self._cfg(srv.endpoint), consultar_servidor=True)
+        self.assertEqual((r["estado"], r["origen"]), ("otro_origen", "servidor"))
+        self.assertIn("proy", r["aviso"])
+
+    def test_aviso_servidor_con_grupo_vacio(self):
+        with _ServidorMCPContext(respuestas_tools=self._episodios([])) as srv:
+            r = self.mod.estado_grupo(self._cfg(srv.endpoint), consultar_servidor=True)
+        self.assertEqual((r["estado"], r["origen"]), ("vacio", "servidor"))
+
+    def test_aviso_episodios_de_otro_grupo_no_cuentan(self):
+        eps = [{"name": "z@1", "group_id": "otro"}]
+        with _ServidorMCPContext(respuestas_tools=self._episodios(eps)) as srv:
+            r = self.mod.estado_grupo(self._cfg(srv.endpoint), consultar_servidor=True)
+        self.assertEqual(r["estado"], "vacio")
+
+    def test_CA_15_servidor_caido_degrada_a_no_verificado(self):
+        r = self.mod.estado_grupo(self._cfg("http://127.0.0.1:1"), consultar_servidor=True)
+        self.assertEqual(r["estado"], "no_verificado")
+        self.assertIn("no responde", r["aviso"])
+
+    def test_CA_15_respuesta_ilegible_o_error_es_no_verificado(self):
+        for resp in ({"structuredContent": {"episodes": 42}}, {"structuredContent": {"error": "boom"}}):
+            with _ServidorMCPContext(respuestas_tools={"get_episodes": lambda _a, r=resp: r}) as srv:
+                r = self.mod.estado_grupo(self._cfg(srv.endpoint), consultar_servidor=True)
+            self.assertEqual(r["estado"], "no_verificado", resp)
+
+    def test_CA_15_endpoint_no_loopback_no_se_consulta(self):
+        for ep in ("http://10.0.0.5:8001/mcp", "http://192.168.1.4:8001/mcp", "", None):
+            r = self.mod.estado_grupo(self._cfg(ep, allow_remote=True), consultar_servidor=True)
+            self.assertEqual(r["estado"], "no_verificado", ep)
+
+    def test_CA_15_mode_off_o_sin_group_id_no_consultan(self):
+        with _ServidorMCPContext() as srv:
+            r = self.mod.estado_grupo(self._cfg(srv.endpoint, mode="off"), consultar_servidor=True)
+            self.assertEqual(r["estado"], "no_verificado")
+            r2 = self.mod.estado_grupo(self._cfg(srv.endpoint, group_id=""), consultar_servidor=True)
+            self.assertEqual(r2["estado"], "no_verificado")
+            self.assertEqual(srv.llamadas, [])
+
+    def test_fix1_8_redireccion_fuera_de_loopback_da_no_verificado_y_no_envia_nada(self):
+        """fix1 #8 (CWE-918): en «solo loopback» cada salto se revalida contra loopback. Antes un
+        307 del servidor local hacia una red PRIVADA (`allow_remote=False` la admite) recibia el
+        `initialize` y el `get_episodes` con el `group_id`. La IP privada (`10.1.2.3`) se simula
+        con la cache DNS y la conexion se desvia a un servidor local que cuenta lo que recibe."""
+        recibidas = []
+
+        class _Destino(BaseHTTPRequestHandler):
+            def do_POST(self):  # noqa: N802
+                largo = int(self.headers.get("Content-Length", 0))
+                recibidas.append(self.rfile.read(largo) if largo else b"")
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"jsonrpc": "2.0", "id": 1, "result": {}}).encode())
+
+            def log_message(self, *a, **k):
+                pass
+
+        destino = HTTPServer(("127.0.0.1", 0), _Destino)
+        threading.Thread(target=destino.serve_forever, daemon=True).start()
+        puerto_destino = destino.server_address[1]
+
+        class _Origen(BaseHTTPRequestHandler):
+            def do_POST(self):  # noqa: N802
+                largo = int(self.headers.get("Content-Length", 0))
+                self.rfile.read(largo) if largo else None
+                self.send_response(307)
+                self.send_header("Location", f"http://privado.test:{puerto_destino}/mcp")
+                self.end_headers()
+
+            def log_message(self, *a, **k):
+                pass
+
+        origen = HTTPServer(("127.0.0.1", 0), _Origen)
+        threading.Thread(target=origen.serve_forever, daemon=True).start()
+        real = self.mod._conectar_por_ip_si_http
+
+        def desvio(url, direcciones):
+            return [(u.replace("10.1.2.3", "127.0.0.1"), h) for u, h in real(url, direcciones)]
+
+        self.mod._dns_cache["privado.test"] = (["10.1.2.3"], time.time() + 300)
+        self.mod._conectar_por_ip_si_http = desvio
+        try:
+            r = self.mod.estado_grupo(
+                self._cfg(f"http://127.0.0.1:{origen.server_address[1]}/mcp"), consultar_servidor=True)
+        finally:
+            self.mod._conectar_por_ip_si_http = real
+            self.mod._dns_cache.pop("privado.test", None)
+            origen.shutdown(); origen.server_close()
+            destino.shutdown(); destino.server_close()
+        self.assertEqual(recibidas, [], "el destino privado recibió la consulta")
+        self.assertEqual(r["estado"], "no_verificado")
+
+    def test_fix1_8_el_modo_normal_sigue_admitiendo_redes_privadas(self):
+        """El «solo loopback» es SOLO de la consulta de avisos: `_validar_host` sin el flag no cambia."""
+        self.mod._dns_cache["privado.test"] = (["10.1.2.3"], time.time() + 300)
+        try:
+            self.assertEqual(self.mod._validar_host("http://privado.test:1/mcp", False), ["10.1.2.3"])
+            self.assertIsNone(self.mod._validar_host("http://privado.test:1/mcp", False, solo_loopback=True))
+            self.assertEqual(self.mod._validar_host("http://127.0.0.1:1/mcp", False, solo_loopback=True),
+                             ["127.0.0.1"])
+        finally:
+            self.mod._dns_cache.pop("privado.test", None)

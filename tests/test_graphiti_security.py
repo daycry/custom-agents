@@ -1451,7 +1451,8 @@ def _exenta(etiqueta, texto):
     return permitidos is None or _backend_de(texto) in permitidos
 _PRIMITIVAS_ESCRITURA = ("add_memory", "add_triplet", "clear_graph", "delete_episode",
                          "delete_entity_edge", "delete_group")
-_FLAGS_SOLO_LECTURA = ("--check", "--dry-run", "--outbox-status", "--propose-config")
+_FLAGS_SOLO_LECTURA = ("--check", "--dry-run", "--outbox-status", "--propose-config",
+                        "--avisos-grupo")
 # Gap #157: `--check` NO blanquea una linea que ademas publica; y una publicacion no siempre se
 # escribe con `--backend <id>` a secas (`apply`/`revoke` son subcomandos del mismo camino).
 _TOKENS_DE_ESCRITURA = ("apply", "revoke", "--rebuild")
@@ -1650,6 +1651,14 @@ _MUTANTES_INVOCACION = (
     ("ruta en variable, estilo de la SKILL.md",
      'python3 "$KSSKILL" --backend graphiti --root .'),
 )
+
+
+def test_aviso_de_grupo_del_sincronizador_es_solo_lectura_para_la_puerta_ca05(tmp_path):
+    """T-11 (CA-15): `--avisos-grupo` no escribe en el grafo (estado local + un `get_episodes` opt-in
+    en loopback), asi que `/setup` puede nombrarlo; la puerta no debe confundirlo con publicar."""
+    root = _repo_de_piezas(tmp_path, {"commands/setup.md": "# setup"+chr(10)+chr(10)+
+        "python3 skills/knowledge-services/scripts/knowledge-sync.py --backend graphiti --avisos-grupo"+chr(10)})
+    assert _ofensores_de_sincronizador(root) == []
 
 
 def test_mutantes_de_invocacion_del_sincronizador_no_pasan_la_puerta(tmp_path):

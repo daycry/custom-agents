@@ -187,6 +187,57 @@ def activas(root):
     return out
 
 
+def _slug_de_clave(clave):
+    """Slug de la iniciativa de una clave del usage-meter: `<slug>/<artefacto>` o
+    `docs/roadmap/<fecha>-<slug>/<artefacto>`. None si no se reconoce."""
+    partes = [x for x in str(clave).replace("\\", "/").split("/") if x]
+    if partes[:2] == ["docs", "roadmap"]:
+        partes = partes[2:]
+    if len(partes) < 2:   # sin artefacto no es una clave del meter
+        return None
+    return re.sub(r"^\d{4}-\d{2}-\d{2}-", "", partes[0]) or None
+
+
+def iniciativa_en_curso(rs, estado, mtime=os.path.getmtime):
+    """Slug de la iniciativa en la que se trabaja entre las activas `rs` (función pura salvo `mtime`).
+
+    1) marcador ABIERTO (sin `ultimoCierre`) del usage-meter cuya clave apunta a una activa con
+       ledger (uno de spec/evaluación sin ledger no cuenta); si hay varios, el de inicio más reciente;
+    2) si no hay, la activa cuyo `tasks.md` se modificó más recientemente. None si `rs` está vacía."""
+    if not rs:
+        return None
+    por_slug = {r["slug"]: r for r in rs}
+    abiertos = []
+    if isinstance(estado, dict):
+        for clave, m in estado.items():
+            if not isinstance(m, dict) or "ultimoCierre" in m:
+                continue
+            slug = _slug_de_clave(clave)
+            if slug in por_slug:
+                abiertos.append((str(m.get("inicio") or ""), slug))
+    if abiertos:
+        return max(abiertos)[1]
+
+    def _t(r):
+        try:
+            return mtime(r["path"])
+        except OSError:
+            return 0
+    return max(rs, key=_t)["slug"]
+
+
+def _leer_usage_state(root):
+    """`<proyecto>/.claude/usage-state.json` (root = <proyecto>/docs/roadmap), lectura directa:
+    sin lanzar usage-meter. Ausente o corrupto -> {}."""
+    proyecto = os.path.dirname(os.path.dirname(os.path.abspath(root)))
+    try:
+        with open(os.path.join(proyecto, ".claude", "usage-state.json"), encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
 def marcadores_huerfanos(root="."):
     """Marcadores abiertos (sin cierre) de usage-meter.py status sobre el estado del PROYECTO
     (`<root>/.claude/usage-state.json`, no el cwd); None si el meter no está o falla."""
@@ -227,7 +278,10 @@ def cmd_active(args):
     if args.json:
         for r in rs:
             r["linea"] = linea(r)
-        print(json.dumps({"activas": rs}, ensure_ascii=False))
+        salida = {"activas": rs}
+        if len(rs) > 1:   # con una sola activa la salida es idéntica a la de siempre
+            salida["iniciativa_en_curso"] = iniciativa_en_curso(rs, _leer_usage_state(args.root))
+        print(json.dumps(salida, ensure_ascii=False))
         return 0
     if not rs:
         print(SIN_ACTIVAS)

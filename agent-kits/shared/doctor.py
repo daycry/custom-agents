@@ -91,6 +91,7 @@ import re
 import shutil
 import subprocess
 import sys
+import threading
 import time
 
 # Consola Windows (cp1252) o tuberías: reconfigurar ANTES de leer o imprimir nada (GOT-005).
@@ -1587,6 +1588,14 @@ _CAPACIDAD_TOPE_MS_MINIMO = 300  # gap 133 (fix3, knowledge-services): nunca rec
                                  # timeout que ya sabemos que va a dar un falso apagado.
 
 
+CAPACIDAD_MARGEN_MS = 500        # C-09a (tope estricto): margen FIJO sobre `tope_ms`. Medido con un
+                                 # blackhole TCP: `health()` y `verify()` respetan cada uno su
+                                 # timeout, pero se ejecutan uno tras otro (2 x tope_ms = 4,02 s con
+                                 # tope_ms=2000). La sonda corre en un hilo `daemon` y /doctor deja
+                                 # de esperar a `tope_ms` + este margen; el hilo abandonado no
+                                 # escribe nada (health/verify son solo lectura).
+
+
 CAPACIDAD_VENTANA_TOPE = 200     # gap #119 (fix2 de la Fase 3 del ciclo en curso): /doctor es un
                                  # DIAGNOSTICO, no una verificacion exhaustiva. Un adaptador que
                                  # declare `max_episodes` (la ventana de lectura que barre su
@@ -1632,6 +1641,34 @@ def _cfg_con_timeout_topado(cfg_adaptador, tope_ms=CAPACIDAD_TIMEOUT_MS_TOPE):
 
 def _linea_capacidad_backend(cap_id, tipo, cfg_adaptador, backends_mod, backends_dir,
                              project=None, tope_ms=CAPACIDAD_TIMEOUT_MS_TOPE):
+    """Envoltorio con TOPE DURO (C-09a, CA-16): ejecuta `_linea_capacidad_backend_sonda` en un hilo
+    `daemon` y espera como mucho `tope_ms` + `CAPACIDAD_MARGEN_MS`; si no termina, lo abandona y
+    devuelve un aviso «no comprobado». Sin tipo declarado devuelve None (sin hilo). Nunca lanza."""
+    if not tipo:
+        return None
+    caja = {}
+
+    def _correr():
+        try:
+            caja["linea"] = _linea_capacidad_backend_sonda(cap_id, tipo, cfg_adaptador, backends_mod,
+                                                           backends_dir, project=project, tope_ms=tope_ms)
+        except Exception as e:  # noqa: BLE001 — una sonda rota no tumba /doctor
+            caja["linea"] = linea(AVISO, f"{cap_id} (backend)", f"la comprobación lanzó {type(e).__name__}: {e}",
+                                  "revisa la configuración del backend en `taxonomy.json`")
+
+    hilo = threading.Thread(target=_correr, name=f"doctor-sonda-{cap_id}", daemon=True)
+    hilo.start()
+    tope_s = (max(int(tope_ms or 0), _CAPACIDAD_TOPE_MS_MINIMO) + CAPACIDAD_MARGEN_MS) / 1000.0
+    hilo.join(timeout=tope_s)
+    if hilo.is_alive():
+        return linea(AVISO, f"{cap_id} (backend)",
+                     f"no comprobado: el backend no respondió dentro del tope de {tope_s:.1f}s de /doctor",
+                     "revisa que el servicio esté encendido y responda, y vuelve a pasar /doctor")
+    return caja.get("linea")
+
+
+def _linea_capacidad_backend_sonda(cap_id, tipo, cfg_adaptador, backends_mod, backends_dir,
+                                   project=None, tope_ms=CAPACIDAD_TIMEOUT_MS_TOPE):
     """Comprobación de red EN VIVO de una capacidad con backend declarado (`type` + su
     `config` propia), vía el contrato de adaptador (`health`/`verify`) — `cfg_adaptador` es
     EXACTAMENTE lo que `knowledge-sync.py` le pasaría (`decl.get("config")`, nunca la entrada

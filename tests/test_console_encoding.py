@@ -391,6 +391,11 @@ def _modos():
         "skills/knowledge-services/scripts/knowledge-sync.py":
             [("taxonomia invalida", lambda w: [
                 "--backend", "kwipu", "--root", os.path.join(w, "kc-taxonomia-invalida"), "--check"], (2,), None)],
+        # setup-statusline-polish T-12: misma taxonomia INVALIDA del taller -> `Uso` con tilde
+        # ("no puede estar vacía") por stderr y exit 2, sin tocar ningun `projects.yaml`.
+        "skills/knowledge-services/scripts/kwipu-project-add.py":
+            [("taxonomia invalida", lambda w: [
+                "--stack", w, "--root", os.path.join(w, "kc-taxonomia-invalida")], (2,), None)],
         # gap 69: la taxonomia rota del `taller` (`evidence_levels: []`) hace que `evaluar()`
         # reenvie el error de `knowledge-schema.validar()` con tilde ("no puede estar vacía");
         # `--decision reject` no exime esa comprobacion (se hace ANTES de mirar la decision).

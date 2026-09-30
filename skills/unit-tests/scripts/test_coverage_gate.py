@@ -260,3 +260,109 @@ def test_runner_que_no_deja_fichero_exit_2():
     write(d, "pyproject.toml", "[project]\nname='x'\n")
     code, data, _ = run(d, ".", "--runner", f"{sys.executable} -c \"pass\"")
     assert code == 2 and "no se generó" in data["aviso"]
+
+
+# ------------------------------------------------------------ C-04: timeout != ausente ----
+
+def _sonda_falsa(secuencia):
+    """subprocess.run falso: cada elemento es un returncode (int) o una excepción a lanzar."""
+    llamadas = []
+
+    def fake(cmd, **kw):
+        llamadas.append(kw.get("timeout"))
+        r = secuencia[min(len(llamadas) - 1, len(secuencia) - 1)]
+        if isinstance(r, BaseException):
+            raise r
+        return subprocess.CompletedProcess(cmd, r, b"", b"")
+    return fake, llamadas
+
+
+def _con_subprocess_falso(secuencia, ruta="."):
+    fake, llamadas = _sonda_falsa(secuencia)
+    real = cg.subprocess.run
+    cg.subprocess.run = fake
+    try:
+        return cg.sondear_herramienta("pytest", ruta), llamadas
+    finally:
+        cg.subprocess.run = real
+
+
+def test_timeout_con_modulo_presente_reintenta_y_no_dice_no_disponible():
+    estado, llamadas = _con_subprocess_falso([subprocess.TimeoutExpired("x", 15), 0])
+    assert estado == "disponible"
+    assert len(llamadas) == 2 and llamadas[1] > llamadas[0], llamadas
+
+
+def test_timeout_persistente_es_no_verificado_no_no_disponible():
+    estado, llamadas = _con_subprocess_falso([subprocess.TimeoutExpired("x", 15)])
+    assert estado == "no_verificado"
+    assert len(llamadas) == 2, "reintento acotado: una sola repetición"
+
+
+def test_import_fallido_real_es_ausente():
+    estado, llamadas = _con_subprocess_falso([1])
+    assert estado == "ausente" and len(llamadas) == 1, "un import fallido no se reintenta"
+
+
+def test_herramienta_disponible_sigue_siendo_bool():
+    fake, _ = _sonda_falsa([0])
+    real = cg.subprocess.run
+    cg.subprocess.run = fake
+    try:
+        assert cg.herramienta_disponible("pytest", ".") is True
+    finally:
+        cg.subprocess.run = real
+
+
+def test_evaluar_timeout_persistente_exit_2_con_aviso_no_verificado_sin_porcentaje():
+    d = tempfile.mkdtemp(prefix="cg-")
+    write(d, "pyproject.toml", "[project]\nname='x'\n")
+    fake, _ = _sonda_falsa([subprocess.TimeoutExpired("x", 15)])
+    real = cg.subprocess.run
+    cg.subprocess.run = fake
+    try:
+        res = cg.evaluar(d, 80, False, None, None)
+    finally:
+        cg.subprocess.run = real
+    assert res["exit"] == 2 and "no verificado" in res["aviso"] and "no está disponible" not in res["aviso"]
+    assert "global" not in res
+
+
+def test_evaluar_modulo_ausente_sigue_dando_exit_2_no_disponible():
+    d = tempfile.mkdtemp(prefix="cg-")
+    write(d, "pyproject.toml", "[project]\nname='x'\n")
+    fake, _ = _sonda_falsa([1])
+    real = cg.subprocess.run
+    cg.subprocess.run = fake
+    try:
+        res = cg.evaluar(d, 80, False, None, None)
+    finally:
+        cg.subprocess.run = real
+    assert res["exit"] == 2 and "no está disponible" in res["aviso"]
+
+
+
+def test_sondear_herramienta_stacks_no_pytest_y_desconocido(monkeypatch=None):
+    d = tempfile.mkdtemp(prefix="cg-")
+    real_which = cg.shutil.which
+    try:
+        cg.shutil.which = lambda nombre: "/x/" + nombre
+        assert cg.sondear_herramienta("jest", d) == "disponible"
+        assert cg.sondear_herramienta("vitest", d) == "disponible"
+        assert cg.sondear_herramienta("phpunit", d) == "disponible"
+        assert cg.sondear_herramienta("go", d) == "disponible"
+        cg.shutil.which = lambda nombre: None
+        for stack in ("jest", "vitest", "phpunit", "go", "desconocido"):
+            assert cg.sondear_herramienta(stack, d) == "ausente", stack
+    finally:
+        cg.shutil.which = real_which
+
+
+def test_sondear_herramienta_pytest_oserror_es_ausente():
+    fake, _ = _sonda_falsa([OSError("sin python")])
+    real = cg.subprocess.run
+    cg.subprocess.run = fake
+    try:
+        assert cg.sondear_herramienta("pytest", ".") == "ausente"
+    finally:
+        cg.subprocess.run = real
