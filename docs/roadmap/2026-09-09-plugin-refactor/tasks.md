@@ -3289,7 +3289,7 @@ Desviaciones nuevas de esta correccion: **50-53**; reescritas: **45** y **48**.
 - **Supervisión**: est. 0,08h (≈25 % IA) · real —
 - **Previsión IA**: 105k in / 16k out tok · 1,1 € tokens · coste tarea 101 €
 - **Dependencias**: T-20 y T-21 completadas (los cuatro tramos cerrados)
-- **Archivos**: `docs/roadmap/2026-09-09-plugin-refactor/tasks.md`, `docs/roadmap/2026-09-09-plugin-refactor/improvement-plan.md` (estado), `docs/roadmap/2026-09-09-plugin-refactor/spec.md` (`estado: implementada`), `docs/roadmap/2026-09-09-plugin-refactor/retro.md` (nuevo, lo escribe `/retro`), `docs/roadmap/CALIBRATION.md` (fila), `docs/roadmap/README.md` (fila), `CHANGELOG.md`, `CHANGELOG.es.md`, los ficheros con marcas `<!--m:…-->` vivas que muevan (`skills/changelog-sync/references/medicion-escalera.md`, `skills/changelog-sync/SKILL.md`, `docs/CONVENTIONS.md`, `docs/en/CONVENTIONS.md`; y los históricos solo si T-19 no se hizo)
+- **Archivos**: `docs/roadmap/2026-09-09-plugin-refactor/tasks.md`, `docs/roadmap/2026-09-09-plugin-refactor/improvement-plan.md` (estado), `docs/roadmap/2026-09-09-plugin-refactor/spec.md` (`estado: implementada`), `docs/roadmap/2026-09-09-plugin-refactor/retro.md` (nuevo, lo escribe `/retro`), `docs/roadmap/2026-09-09-plugin-refactor/testing/calibration.md`, `docs/roadmap/2026-09-09-plugin-refactor/testing/calibration.json`, `docs/roadmap/CALIBRATION.md` (fila), `docs/roadmap/README.md` (fila), `CHANGELOG.md`, `CHANGELOG.es.md`, los ficheros con marcas `<!--m:…-->` vivas que muevan (`skills/changelog-sync/references/medicion-escalera.md`, `skills/changelog-sync/SKILL.md`, `docs/CONVENTIONS.md`, `docs/en/CONVENTIONS.md`; y los históricos solo si T-19 no se hizo)
 - **Verificación**:
   - `python agent-kits/shared/ledger-lint.py docs/roadmap/2026-09-09-plugin-refactor/tasks.md` → exit 0 con `estado: completado` y 22/22 tareas marcadas
   - `python skills/changelog-sync/scripts/changelog-sync.py --check` → exit 0 y `plugin-refactor` con 22 bullets (0 tareas sin campo `Changelog`) · `grep -c "plugin-refactor" CHANGELOG.md CHANGELOG.es.md` → `≥ 1` cada uno
@@ -3310,6 +3310,8 @@ Desviaciones nuevas de esta correccion: **50-53**; reescritas: **45** y **48**.
 - [ ] Confluence opt-in (si procede); handoff: `brief-budget` (sobre `task-brief.py` partido) y F2 de `project-specialization`
 
 **Notas**: La retro de esta iniciativa compara por primera vez horas IA **medidas en Windows** contra estas estimaciones (T-04 garantiza que las 22 ventanas se midan con el código corregido). Desviación objetivo ≤ +30 % en horas IA (la única muestra comparable dio +66 %).
+
+**Evidencia de calibración recuperada (2026-10-06)**: ya hay una muestra compatible de Claude Code: 14.145.747 tokens y 59.932 segundos de intervalos distintos → **849.708 tokens/hora**. Se usaron 38 de 41 marcadores, con deduplicación de respuestas y ventanas compartidas. Informe: `testing/calibration.md`; datos numéricos: `testing/calibration.json` (ambos forman parte de los archivos de T-22). Es una muestra parcial, no una medición completa de las 22 tareas ni del cierre Codex. La medición deja de estar bloqueada por falta de transcripciones; siguen pendientes los demás criterios de T-22 y la incorporación formal a la mediana al cerrar. Los criterios originales de cierre se conservan.
 
 ## Revision de dos lentes - intento 1 (tramo R1: T-01..T-04): 5 Important, 10 Minor (lentes A+B)
 
@@ -4251,3 +4253,37 @@ esas citas falsearia la doc; tolerarlas en silencio seria el agujero que B-5 den
 `PIEZAS_PLANIFICADAS` / `COMANDOS_PLANIFICADOS` **con caducidad automatica**: si la pieza aparece en
 el arbol, el linter pide que se quite la tolerancia (caso 58). La tercera,
 `scripts/coverage-gate.py` en `LES-013`, si era podredumbre y esta corregida.
+
+## Revisión de dos lentes — intento 2: T-22, muestra de calibración recuperada — sin gaps pendientes
+
+2026-10-06. Alcance: `testing/calibration.md`, `testing/calibration.json`, nota de
+T-22 y sección de muestra abierta en `CALIBRATION.md`. No es una revisión final
+del refactor ni acredita los demás criterios de T-22. Lentes A+B por subagentes
+genéricos, contexto fresco (`reviewer` no disponible como tipo de agente).
+Lentes C/D no aplican: `review-lens-select.py --base HEAD --json` devuelve ambas
+`false`; el diff es documentación. TDD n/a: prosa y datos de medición.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| CAL-B1 | Important | El primer cálculo provisional usaba la unión de solapamientos (52.968 s, 961.424 tokens/hora), distinta de la suma de ventanas del contrato vigente | T-22 | **Corregido**: suma de intervalos distintos, contando la ventana compartida una vez; 59.932 s → 849.708 tokens/hora. La unión queda solo como diagnóstico | `CALIBRATION.md`, definición; `testing/calibration.json`, `clock_seconds_unique_windows` y `tokens_hour_unique_windows`; A+B intento 2: sin gaps |
+
+La primera revisión B validó offsets, fronteras de línea, deduplicación de IDs
+y último uso de streaming. La segunda revisión A confirma fórmula, alcance
+parcial, privacidad, archivos declarados y ratio global intacto; B confirma el
+denominador corregido y la coherencia de los tres documentos. No quedan gaps
+Critical/Important en esta muestra. No se promueven ADR ni se cierra la iniciativa.
+Jira no publica eventos: `.claude/jira.json` tiene `enabled: false`.
+
+**Verificación ejecutada**:
+
+- Auditoría numérica independiente del JSON publicado: 38 ventanas, 37 intervalos
+  distintos, 59.932 s, numerador 14.145.747 y redondeo 849.708; exit 0.
+- Parser real `usage-meter._ratio_calibrado(CALIBRATION.md)`: `(479326, 5)`;
+  no se incorpora la muestra abierta a la mediana.
+- `python -m pytest agent-kits/shared/test_usage_meter.py -q -k 'calibr or ratio'`:
+  **8 passed, 52 deselected**.
+- `scope-check.py docs/roadmap/2026-09-09-plugin-refactor --base HEAD --json`:
+  exit 0, cinco archivos en alcance, ninguno fuera y sin avisos; `.claude/settings.json`
+  queda excluido por el patrón predeterminado y es un archivo local preexistente.
+- `git diff --check`: exit 0. El lint del ledger mantiene 0 incoherencias y
+  13 avisos de cabeceras históricas ajenas a esta muestra.

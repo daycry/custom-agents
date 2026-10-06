@@ -63,6 +63,19 @@ Cada fila sale de un `/retro` de una iniciativa **cerrada**. Lo leen dos piezas:
 > de las 5 iniciativas medidas**. Ojo: `tipoCambioUsdEur` (0,92) sigue siendo un **supuesto**, no un
 > dato verificado — revísalo antes de usar estas cifras para facturar.
 
+## Medición disponible de una iniciativa abierta
+
+El 2026-10-06 se recuperó una muestra histórica de `plugin-refactor` en Claude
+Code: **14.145.747 tokens / (59.932 segundos / 3.600) = 849.708 tokens/hora**.
+Se examinaron 41 marcadores y se usaron 38, con 37 intervalos distintos. La
+[evidencia y las exclusiones](2026-09-09-plugin-refactor/testing/calibration.md)
+explican la deduplicación de respuestas y de ventanas compartidas.
+
+La muestra es parcial: no incluye las 22 tareas completas ni el cierre actual
+en Codex. Ya existe una medición compatible; su incorporación a la tabla y a la
+mediana espera al cierre de la iniciativa. **No cambia el ratio vigente de
+479.326 tokens/hora** ni las horas derivadas en los artefactos históricos.
+
 ## Aprendizajes acumulados (lo que ya no hay que volver a descubrir)
 
 1. **El default de 300.000 tok/hora subestima el ritmo real en ~1,6×.** Con la mediana medida
