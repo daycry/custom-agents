@@ -192,3 +192,14 @@ pendientes ni promociones de memoria. Tras las lentes, puerta completa repetida:
 cerrado de plugin-refactor (sin error). JUnit: scratchpad/ecc-closure-tests.xml.
 Changelog --check, ledger-lint, scope y retro-gate en verde. Este cierre documental
 se comitea y sube como último paso autorizado; no se ejecuta PR/merge/release.
+
+## Aclaración posterior sobre el catálogo completo — 2026-10-06
+
+Ante la pregunta del usuario por el resto del catálogo, se añade
+catalog-inventory.md: 293 skills, 68 agentes y 94 comandos, **455 fuentes únicas**
+fijadas al commit original. Extracción de metadatos e inventario completos;
+evaluación semántica individual pendiente. Se registran rutas propuestas de
+comparación y atribución MIT de los extractos, sin instalar ni importar piezas.
+La primera entrega sigue completada; la adopción general de ECC no se declara
+completada. No se confunden nuestras guías iniciales con migraciones completas
+de python-patterns/react-patterns ni plugin-catalog con un comando ECC importado.

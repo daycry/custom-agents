@@ -29,6 +29,11 @@ Su paquete [ecc-universal](https://github.com/affaan-m/ECC/blob/ef648e01899ba3e8
 incluye ejecutables, adaptadores y recursos; una skill suelta no instala esos
 ejecutables. Su licencia principal es MIT. Nuestra adaptación no copia su código.
 
+El [inventario completo por pieza](catalog-inventory.md) enumera las 455 fuentes
+y distingue la adaptación inicial de la evaluación individual pendiente. Esta
+comparación arquitectónica no equivale a haber revisado o integrado todo el
+catálogo. Las guías propias de Python/React no migran íntegramente sus skills.
+
 | Componente | ECC comprobado | Nuestro contrato | Decisión |
 |---|---|---|---|
 | Agentes | Roles por lenguaje y oficio, además de planificación/revisión | Roles estables con un artefacto y dueño por responsabilidad | Mantener roles; incorporar criterio específico como skills |
