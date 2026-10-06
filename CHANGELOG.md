@@ -9,6 +9,19 @@ and versioning follows [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed — `brief-budget` initiative (2026-09-09)
+
+- **T-01 — Budget regression across roadmap ledgers** Real ledgers are checked with design, constitution and memory; briefs fit the budget or report the exact irreducible minimum. (`docs/roadmap/CALIBRATION.md`, `agent-kits/shared/test_task_brief.py`)
+- **T-02 — Relevant design modules** Concrete file paths select relevant design modules; designs without a module table use a bounded fallback. (`agent-kits/shared/task-brief.py`, `agent-kits/shared/test_task_brief.py`, `agent-kits/architect/templates/design.md`)
+- **T-03 — Verification without execution history** Evidence links back to the ledger; commands, expected results, acceptance criteria and current decisions remain intact. (`agent-kits/shared/task-brief.py`, `agent-kits/shared/test_task_brief.py`, `docs/roadmap/2026-09-09-brief-budget/**`)
+- **T-04 — Bounded review gaps** Only the task's relevant gaps from the latest attempt are included, within a dedicated section budget. (`agent-kits/shared/task-brief.py`, `agent-kits/shared/test_task_brief.py`, `docs/roadmap/2026-09-09-brief-budget/**`)
+- **T-05 — Section budgets** Design, gaps and verification have individual caps; global adjustment preserves memory and the persona floor, warning when a contract requires task division. (`agent-kits/shared/task-brief.py`, `agent-kits/shared/test_task_brief.py`, `docs/roadmap/2026-09-09-brief-budget/**`)
+- **T-06 — Review and closure** Independent review and regressions close the brief-budget initiative with measured behavior, a retrospective and synchronized exports. (`agent-kits/shared/task-brief.py`, `agent-kits/shared/test_task_brief.py`, `docs/roadmap/2026-09-09-brief-budget/**`)
+
+### Fixed — `hooks-runtime` initiative (2026-10-06)
+
+- **T-01 — Portable interpreters and runtime limits** All three runtimes use native Python and Git Bash on Windows. Codex exports SessionEnd at 3 s; apply_patch/Edit preserve messages and sensitive-document exclusions, and SessionStart includes compact.
+
 ### Added — `training-data-services` initiative (2026-09-16)
 
 - **T-01 — Esquema de `training.json` y del caso** New opt-in `training-data-services` skill: `training.json` config and a dependency-free case schema validator with closed status/outcome vocabularies.

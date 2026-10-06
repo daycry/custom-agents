@@ -169,9 +169,9 @@ sustituye, y aquí está dicho.
 | Skills bajo demanda | ✅ herramienta Skill | ✅ `$nombre` o activación por `description` | ✅ herramienta `skill` |
 | Comandos | ✅ `/nombre` | ⚠️ `/prompt:nombre` (**o** `/prompts:nombre`), **solo en `~/.codex/`** (Codex no tiene prompts por proyecto) y marcados como *deprecated* por OpenAI en favor de skills | ✅ `/nombre` |
 | Delegar en un agente por nombre | ✅ herramienta Agent, con `model` por invocación | ⚠️ en lenguaje natural; Codex **no auto-invoca** agentes custom, hay que pedirlo | ✅ herramienta `task` |
-| Aviso de progreso al editar el ledger | ✅ `PostToolUse` | ❌ Codex solo dispara Pre/PostToolUse para `Bash`; los tres hooks miran `Write\|Edit` → **no viajan** | ✅ `tool.execute.after` |
-| Contexto al arrancar la sesión | ✅ `SessionStart` (índice + roadmap + journal + memoria) | ✅ `SessionStart` (`startup\|resume\|clear`) | ⚠️ sin hook que inyecte contexto → se sustituye por `custom-agents-index.md` en `instructions`: **el índice de piezas sí, lo dinámico no** |
-| Journal de sesión | ✅ `SessionEnd` | ✅ `SessionEnd` — traducido a shell form (`bash "${CLAUDE_PLUGIN_ROOT}/...`, comillas dobles como el resto de hooks); **pendiente de verificar en Codex real: expansión de `${CLAUDE_PLUGIN_ROOT}` dentro de comillas dobles** (checklist M-01 de esta iniciativa) | ⚠️ se dispara en `session.idle`; `journal.py` es idempotente por `session_id`, así que **actualiza** la entrada en vez de duplicarla |
+| Aviso de progreso al editar el ledger | ✅ `PostToolUse` | ✅ `PostToolUse` para `apply_patch`, con rutas extraídas del parche | ✅ `tool.execute.after` |
+| Contexto al arrancar la sesión | ✅ `SessionStart` (índice + roadmap + journal + memoria) | ✅ `SessionStart` (`startup\|resume\|clear\|compact`) | ⚠️ índice estático en `instructions`; sin contexto dinámico de sesión |
+| Journal de sesión | ✅ `SessionEnd`, timeout 5 s | ✅ `SessionEnd`, timeout 3 s, launcher Node en shell form | ⚠️ captura en `session.idle`; se materializa mediante `journal.py replay` |
 | Captura del turno del usuario | ✅ `UserPromptSubmit` | ✅ `UserPromptSubmit` | ❌ sin evento documentado → el journal se queda con su parte determinista (git + ledger) |
 | Fin de subagente | ✅ `SubagentStop` | ✅ `SubagentStop` | ❌ sin evento equivalente |
 | **Guardrail de guardia por agente** (`implementer`, `architect`) | ✅ `deny` real vía `hooks:` del frontmatter (`ADR-007`) | ❌ no existe hook por agente → el agente lo **auto-comprueba** con `guardrail-check.py` (el preámbulo se lo dice y le da el comando) | ❌ igual que Codex; `permission` acota herramientas, no rutas |
@@ -179,6 +179,24 @@ sustituye, y aquí está dicho.
 | Statusline del roadmap | ✅ opt-in | ❌ | ❌ |
 | **Memoria de grafo** (capacidad `graphiti`, opt-in) | ✅ `/doctor` la comprueba en vivo por su adaptador | ✅ igual: el adaptador habla HTTP con el endpoint declarado, no con el MCP del runtime | ✅ igual; sin hook de contexto, el estado solo se ve al pasar `/doctor` |
 | `permission` de OpenCode | — | — | ⚠️ el instalador **no lo toca** si ya existe: OpenCode aplica «la última regla que casa», así que añadir `skill: {"*": "allow"}` detrás de un `deny` tuyo te lo abriría. Si tienes política propia, comprueba que las skills `custom-agents` no caigan en un `deny`. |
+
+### Arranque portable de los hooks
+
+Los tres runtimes usan `hooks/run-hook.mjs`: requiere Node 18+ (el mismo requisito del instalador)
+y Python 3. En Windows busca Python nativo (`python3`, `python` o `py -3`) y Git Bash en PATH;
+descarta el `bash.exe` de System32 que lanza WSL. `CUSTOM_AGENTS_PYTHON` permite indicar un
+intérprete concreto. El payload viaja por stdin, nunca como código de shell.
+
+SessionEnd y UserPromptSubmit llaman directamente a `journal.py`, sin Bash. Los demás hooks
+usan Bash con un adaptador `python3` al intérprete seleccionado. Si falta una herramienta,
+se avisa por stderr y se continúa con exit 0. Las guardias de implementer y architect conservan su alcance por agente.
+
+Codex limita SessionEnd a 3 s; el exportador ajusta ese timeout sin cambiar los 5 s de Claude Code.
+El límite interno de captura es 2,2 s. OpenCode captura en session.idle y necesita replay manual
+para materializar el journal. Tras actualizar un plugin hay que iniciar una sesión nueva; las
+pruebas con payloads no sustituyen la comprobación de eventos dentro de cada aplicación.
+Contratos verificados el 2026-10-06: [Codex](https://learn.chatgpt.com/docs/hooks),
+[Claude Code](https://code.claude.com/docs/en/hooks), [OpenCode](https://opencode.ai/docs/plugins/).
 
 Los tres huecos que más importan:
 
@@ -193,9 +211,9 @@ Los tres huecos que más importan:
   recibe la instrucción de comprobarlo él (`guardrail-check.py pre-tool --agent implementer`) antes
   de un git destructivo o de escribir en `docs/roadmap/` fuera de `tasks.md`. Es una regla de
   prompt, no una barrera: en esos runtimes, revisa el diff.
-- **Los avisos de progreso no llegan a Codex.** No es un fallo de configuración: Codex solo emite
-  Pre/PostToolUse para `Bash`. Registrarlos sería prometer un aviso que nunca se dispara, así que
-  `interop/codex/hooks.json` los omite a propósito (lo afirma `tests/test_export_interop.py`).
+- **Los eventos difieren por runtime.** Codex entrega los cambios de apply_patch en
+  `tool_input.command`; el launcher los convierte a `edits[].file_path` para los hooks de shell.
+  Los avisos del linter se envuelven en `systemMessage`, que también puede mostrar OpenCode.
 
 ---
 
@@ -229,3 +247,8 @@ linter y lo falla `tests/test_export_interop.py`.
 | `.codex-plugin/plugin.json` · `.agents/plugins/marketplace.json` | manifiestos de Codex (generados) |
 | `interop/codex/` · `interop/opencode/` | árboles traducidos (generados) |
 | `tests/test_export_interop.py` · `tests/installer.test.mjs` · `tests/opencode-plugin.test.mjs` | las puertas |
+
+
+## Presupuesto del brief
+
+El brief acota diseño a 1.600 caracteres, gaps a 1.600 y verificación a 800. Incluye el diseño elegido para las rutas coincidentes de la tarea y enlaza las evidencias históricas al ledger. Conserva completos los requisitos, las notas de decisión y los criterios de aceptación. Las secciones auxiliares comparten el margen global antes de asignar la persona. Si el mínimo protegido supera 10.000 caracteres, informa de su tamaño exacto: hay que dividir la tarea antes de delegarla. Memoria, persona y contrato de retorno conservan sus reglas existentes.

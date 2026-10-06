@@ -301,8 +301,9 @@ def _hook_a_shell_form(h, evento="?"):
     """Codex no tiene el contrato de `args` (exec form) VERIFICADO como Claude Code (gap 16 de la
     revisión intento 1 de `session-end-durable-capture`, C5 · CWE-78): un hook en exec form
     (`command: bash`, `args: ["<ruta>"]`) se traduce a SHELL FORM (`command: 'bash "<ruta>"'`), más
-    portable, y sin depender de que el runtime destino soporte `args` sueltos. El resto de campos
-    (p.ej. `timeout`) se conserva tal cual.
+    portable, y sin depender de que el runtime destino soporte `args` sueltos. También admite
+    el launcher Node del plugin con el argumento literal session-journal.sh. El resto de campos
+    se conserva aquí; codex_hooks_json aplica el máximo SessionEnd de 3 segundos.
 
     Un hook SIN `args` (ya en shell form: la mayoría) pasa TAL CUAL, sin tocar — no es de la
     incumbencia de esta función. Un hook CON `args` (exec form) traduce a shell form SOLO si
@@ -329,6 +330,13 @@ def _hook_a_shell_form(h, evento="?"):
         return dict(h)               # no es exec form: nada que traducir (la mayoría de los hooks)
     cmd = h.get("command")
     args = h.get("args")
+    if (cmd == "node" and isinstance(args, list) and len(args) == 2
+            and args[0] == "${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.mjs"
+            and args[1] in ("session-journal.sh",)):
+        nh = dict(h)
+        nh["command"] = 'node "%s" "%s"' % tuple(args)
+        nh.pop("args")
+        return nh
     if not (cmd in _COMANDOS_SHELL_TRADUCIBLES and isinstance(args, list) and len(args) == 1
             and isinstance(args[0], str) and _ARG_SEGURO_RE.match(args[0])):
         raise ValueError(f"_hook_a_shell_form: el hook de {evento!r} (command={cmd!r}) tiene args "
@@ -342,26 +350,29 @@ def _hook_a_shell_form(h, evento="?"):
 def codex_hooks_json(root):
     """`interop/codex/hooks.json` — los hooks del plugin filtrados y corregidos para Codex:
 
-    - `SessionStart`: matcher `startup|resume|clear` (Codex NO tiene `compact`; la compactación
-      son sus eventos `PreCompact`/`PostCompact`, que este plugin no usa).
-    - `SessionEnd` y `UserPromptSubmit`: iguales (el journal y la captura del turno funcionan);
-      `SessionEnd` en exec form se traduce a shell form (`_hook_a_shell_form`, gap 16).
+    - `SessionStart`: matcher `startup|resume|clear|compact`.
+    - `SessionEnd`: exec form a shell form y timeout máximo 3 s (contrato Codex).
+    - `UserPromptSubmit`: captura del turno con launcher compartido.
     - `SubagentStop`: existe en Codex; se mantiene.
-    - `PostToolUse`: **se omite**. Codex solo dispara Pre/PostToolUse para la herramienta `Bash`,
-      y los tres hooks del plugin reaccionan a `Write|Edit|MultiEdit`: registrarlos sería declarar
-      un aviso que nunca llega. Lo cubre `docs/INTEROP.md` (tabla de degradación).
+    - `PostToolUse`: apply_patch; run-hook.mjs convierte tool_input.command a edits[].file_path.
     """
     src = json.loads(leer(os.path.join(root, "hooks", "hooks.json")))["hooks"]
     out = {}
-    for evento in ("SessionStart", "UserPromptSubmit", "SubagentStop", "SessionEnd"):
+    for evento in ("SessionStart", "UserPromptSubmit", "SubagentStop", "SessionEnd", "PostToolUse"):
         grupos = []
         for g in src.get(evento, []):
             ng = {}
             if evento == "SessionStart":
-                ng["matcher"] = "startup|resume|clear"
+                ng["matcher"] = "startup|resume|clear|compact"
+            elif evento == "PostToolUse":
+                ng["matcher"] = "^apply_patch$"
             elif "matcher" in g:
                 ng["matcher"] = g["matcher"]
             ng["hooks"] = [_hook_a_shell_form(h, evento) for h in g.get("hooks", [])]
+            if evento == "SessionEnd":
+                for hook in ng["hooks"]:
+                    if hook.get("timeout", 1) > 3:
+                        hook["timeout"] = 3
             grupos.append(ng)
         if grupos:
             out[evento] = grupos

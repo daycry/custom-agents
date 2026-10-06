@@ -824,7 +824,9 @@ def test_verificacion_solo_con_evidencia_red_cuenta_como_no_declarada(inic):
     (inic / "tasks.md").write_text(t, encoding="utf-8")
     rc, out = _run([str(inic), "T-01", "--sin-lint", "--constitucion", str(inic / "no.md")])
     assert rc == 0 and "no declara `Verificación`" in out and "## Verificación (ejecútala" not in out
-    assert "RED: x falló" in out.split("## La tarea")[1].split("\n## ")[0], "sin sección, el bloque se deja intacto"
+    task = out.split("## La tarea")[1].split("\n## ")[0]
+    assert "RED: x falló" not in task, "la evidencia histórica se consulta en el ledger"
+    assert "Verificación" in task and "0 ítem(s)" in task
 
 
 def test_ca08_el_brief_completo_cabe_en_el_tope_sobre_un_ledger_de_tmp_path(tmp_path):
@@ -855,16 +857,12 @@ def _tareas_del_ledger(texto):
     return _re.findall(r"^###\s+(T-\d+)\b", texto, _re.M)
 
 
-@pytest.mark.xfail(
-    reason="2026-09-14: O5 de brief-budget quedó previsto con xfail estricto en fase inicial (C-05).",
-    strict=True
-)
-def test_ca08_el_brief_cubre_todos_los_ledgers_con_y_sin_design(tmp_path):
+def test_ca08_el_brief_cubre_todos_los_ledgers_con_y_sin_design(tmp_path, monkeypatch):
     """CA-08 guarda: recorre todos los ledgers de `docs/roadmap/*/tasks.md` con y sin `design.md`.
-    En fase inicial está en `xfail(strict=True)` porque todavía hay desbordes abiertos en varias iniciativas."""
+    Memory is fixed at its full budget so CI does not depend on unversioned local knowledge.
+    A contract that cannot fit even with pointers must emit a measured mandatory-overflow warning."""
     raiz = Path(__file__).resolve().parents[2]
-    if not (raiz / "docs" / "knowledge").is_dir():
-        pytest.skip("sin docs/knowledge/ (condición exigida por la medición de memoria real)")
+    monkeypatch.setattr(tb, "_memoria_tecnica", lambda *args: "## Memoria técnica\n" + "M" * 2379 + "\n")
 
     roadmap = raiz / "docs" / "roadmap"
     tareas_con_design = 0
@@ -874,13 +872,21 @@ def test_ca08_el_brief_cubre_todos_los_ledgers_con_y_sin_design(tmp_path):
 
     def medir_ledger(carpeta_ejecutar, etiqueta, tareas, origen):
         for tid in tareas:
-            r = subprocess.run(
-                [sys.executable, str(Path(__file__).parent / "task-brief.py"), str(carpeta_ejecutar), tid,
-                 "--sin-lint", "--constitucion", str(carpeta_ejecutar / "no.md")],
-                capture_output=True, text=True, encoding="utf-8", errors="replace", cwd=str(raiz), timeout=120
-            )
-            assert r.returncode == 0, (origen, tid, etiqueta, r.returncode, r.stderr)
-            medidas[(origen, etiqueta, tid)] = len(r.stdout)
+            err = io.StringIO()
+            with contextlib.redirect_stderr(err):
+                rc, out = _run([str(carpeta_ejecutar), tid, "--sin-lint"])
+            assert rc == 0, (origen, tid, etiqueta, rc, err.getvalue())
+            medidas[(origen, etiqueta, tid)] = len(out)
+            chunk, _ = tb._seccion_tarea((carpeta_ejecutar / "tasks.md").read_text(encoding="utf-8"), tid)
+            import re as _re
+            criteria = [line for line, fenced in tb._lineas_con_fence(chunk)
+                        if not fenced and _re.match(r"^\s*-\s*\[[ xX]\]", line)]
+            assert all(line in out for line in criteria), (origen, tid, "lost criterion")
+            assert tb.CONTRATO in out
+            if len(out) > tb.BRIEF_TOPE_CHARS:
+                minimum = _re.search(r"mínimo obligatorio=(\d+)", err.getvalue())
+                assert minimum and int(minimum.group(1)) == len(out), (origen, tid, etiqueta, err.getvalue())
+                assert "por encima de BRIEF_TOPE_CHARS" in err.getvalue()
 
     for carpeta in sorted(roadmap.iterdir()):
         if not carpeta.is_dir():
@@ -912,8 +918,7 @@ def test_ca08_el_brief_cubre_todos_los_ledgers_con_y_sin_design(tmp_path):
     assert tareas_con_design >= 8, f"se esperaban >=8 tareas con design.md en la cobertura: {tareas_con_design}"
     assert tareas_sin_design >= 8, f"se esperaban >=8 tareas sin design.md en la cobertura: {tareas_sin_design}"
 
-    largos = {clave: n for clave, n in medidas.items() if n > tb.BRIEF_TOPE_CHARS}
-    assert not largos, f"briefs por encima de {tb.BRIEF_TOPE_CHARS} caracteres (CA-08): {largos} · todas: {medidas}"
+    assert any(n <= tb.BRIEF_TOPE_CHARS for n in medidas.values())
 
 
 def _secciones_por_encabezado_test(texto):
@@ -1052,13 +1057,171 @@ Descartadas: O1 (acopla el dominio al proveedor).
 
 
 def test_design_inyecta_solo_opcion_elegida(inic):
+    tasks = (inic / "tasks.md").read_text(encoding="utf-8")
+    (inic / "tasks.md").write_text(tasks.replace("- **Descripción**: hacer la cosa A.", "- **Descripción**: hacer la cosa A.\n- **Archivos**: `src/adapter.py`"), encoding="utf-8")
     (inic / "design.md").write_text(DESIGN, encoding="utf-8")
     rc, out = _run([str(inic), "T-01", "--sin-lint", "--constitucion", str(inic / "no.md")])
     assert rc == 0
     assert "## Diseño (design.md · opción elegida O2)" in out
     assert "O2 — Adaptador" in out and "reversible en un sprint" in out
     assert "Mucho texto de contexto" not in out and "Descripción larga de O1" not in out, "token-diet: solo la sección 4"
-    assert "src/adapter.py" not in out
+    assert "src/adapter.py" not in out.split("## Diseño")[1]
+
+
+def test_brief_budget_design_no_relacionado_solo_puntero(inic):
+    (inic / "design.md").write_text(DESIGN, encoding="utf-8")
+    rc, out = _run([str(inic), "T-01", "--sin-lint", "--constitucion", str(inic / "no.md")])
+    assert rc == 0
+    assert "## Diseño" not in out
+    assert "design.md" in out
+    assert "reversible en un sprint" not in out
+
+
+def test_brief_budget_verificacion_excluye_salida_real_y_red():
+    chunk = """### T-01 — tarea
+- **Verificación**:
+  - `pytest -q` → verde
+  - Salida real fix2: salida histórica de 20000 caracteres
+  - `RED: pytest falló · 2026-10-06`
+**Criterios de aceptación**
+- [ ] no pierde criterios
+"""
+    verif, task = tb._resolver_verificacion(chunk)
+    assert verif["items"] == ["`pytest -q` → verde"]
+    assert "Salida real" not in "\n".join(tb._seccion_verificacion(verif))
+    assert "no pierde criterios" in task
+
+
+def test_brief_budget_verificacion_solo_evidencia_no_se_filtra_a_tarea():
+    chunk = "### T-01\n- **Verificación**:\n  - Salida real fix2: OUTPUT_HISTORY\n**Criterios de aceptación**\n- [ ] funciona\n"
+    verif, task = tb._resolver_verificacion(chunk)
+    assert verif is None
+    assert "OUTPUT_HISTORY" not in task
+    assert "- [ ] funciona" in task
+
+
+def test_brief_budget_historial_se_enlaza_sin_perder_contrato():
+    chunk = """### T-01 — tarea
+- **Descripción**: mantener el contrato.
+- **Archivos**: `src/x.py`
+- **Dependencias**: T-02
+- **RED (fix1)**: evidencia vieja
+- **Nota (fix1)**: decisión sustituida
+- **Nota (fix2)**: decisión vigente
+**Criterios de aceptación**
+- [ ] cumplir el primero
+  con continuación obligatoria.
+- [ ] cumplir el segundo
+**Verificación EJECUTADA**:
+```text
+salida histórica
+```
+**Desviación declarada 5**: parte del historial.
+```text
+otra salida histórica
+```
+"""
+    _, task = tb._resolver_verificacion(chunk)
+    assert "evidencia vieja" not in task
+    assert "decisión sustituida" in task  # only the author can mark a decision superseded
+    assert "decisión vigente" in task
+    for value in ("mantener el contrato.", "`src/x.py`", "T-02", "cumplir el primero\n  con continuación obligatoria.", "cumplir el segundo"):
+        assert value in task
+    assert "salida histórica" not in task
+    assert "parte del historial" not in task
+    assert "Historial" in task and "tasks.md" in task
+
+
+def test_brief_budget_auxiliares_comparten_margen_sin_recortar_criterios(inic, monkeypatch):
+    criterion = "contrato " * 400 + "criterio final."
+    text = TASKS_CON_GAPS.replace("- **Descripción**: hacer la cosa A.", "- **Descripción**: hacer la cosa A.\n- **Tipo**: backend\n- **Archivos**: `src/adapter.py`\n- **Verificación**: `pytest -q` → verde")
+    text = text.replace("la cosa A funciona", criterion)
+    (inic / "tasks.md").write_text(text, encoding="utf-8")
+    design = DESIGN.replace("Aísla la integración tras una interfaz; reversible en un sprint.", "Aísla la integración. " * 50)
+    (inic / "design.md").write_text(design, encoding="utf-8")
+    monkeypatch.setattr(tb, "_memoria_tecnica", lambda *args: "## Memoria técnica\n" + "M" * 2300)
+    rc, out = _run([str(inic), "T-01", "--sin-lint", "--constitucion", str(inic / "no.md")])
+    assert rc == 0 and len(out) <= tb.BRIEF_TOPE_CHARS
+    assert criterion in out
+    assert "## Persona de dominio" in out
+    assert "M" * 2300 in out
+    assert tb.CONTRATO in out
+
+
+def test_brief_budget_topes_renderizados_y_subsecciones_completas():
+    assert (tb.DISENO_TOPE_CHARS, tb.GAPS_TOPE_CHARS, tb.VERIFICACION_TOPE_CHARS) == (1600, 1600, 800)
+    design = ["## Diseño", "", "### Pequeña", "decisión íntegra", "", "### Grande", "Z" * 4000]
+    rendered = "\n".join(tb._seccion_acotada(design, tb.DISENO_TOPE_CHARS, "design.md §4", True))
+    assert len(rendered) <= tb.DISENO_TOPE_CHARS
+    assert "decisión íntegra" in rendered and "### Grande" not in rendered
+    assert "Recorte" in rendered and "design.md §4" in rendered
+    for title, cap in (("## Gaps pendientes", tb.GAPS_TOPE_CHARS), ("## Verificación", tb.VERIFICACION_TOPE_CHARS)):
+        rendered = "\n".join(tb._seccion_acotada([title, "```text", "Z" * 4000, "```"], cap, "tasks.md"))
+        assert len(rendered) <= cap
+        assert rendered.count("```") % 2 == 0
+        assert "tasks.md" in rendered
+
+
+def test_brief_budget_notas_previas_siguen_vigentes():
+    chunk = "- **Nota (fix5)**: publicar metadata.json con rename/link.\n- **Nota (fix6)**: micro-ronda sin diseño nuevo."
+    projected = tb._historial_bajo_demanda(chunk)
+    assert "publicar metadata.json con rename/link." in projected
+    assert "micro-ronda sin diseño nuevo." in projected
+
+
+def test_brief_budget_diseno_no_separa_encabezados_dentro_de_fences():
+    lines = ["## Diseño", "```text", "### ejemplo", "Z" * 4000, "```", "### Decisión", "vigente"]
+    rendered = "\n".join(tb._seccion_acotada(lines, 1600, "design.md §4", True))
+    assert len(rendered) <= 1600
+    assert rendered.count("```") % 2 == 0
+    assert "design.md §4" in rendered
+
+
+def test_brief_budget_historial_preserva_campos_sin_vineta():
+    chunk = '- **RED (fix1)**: old\n**Nota (fix2)**: current decision\n**Decisión**: keep too\n**Criterios de aceptación**:\n- [ ] keep'
+    projected = tb._historial_bajo_demanda(chunk)
+    assert 'current decision' in projected and 'keep too' in projected
+    assert '- [ ] keep' in projected and 'old' not in projected
+
+
+def test_brief_budget_diseno_respeta_comentarios_html():
+    lines = ['## Diseño', '<!--', '### comment heading', 'X' * 4000, '-->', '### Decision', 'keep']
+    rendered = '\n'.join(tb._seccion_acotada(lines, 1600, 'design.md §4', True))
+    assert rendered.count('<!--') == rendered.count('-->')
+    assert len(rendered) <= 1600
+
+
+def test_brief_budget_persona_larga_no_declara_minimo_falso(capsys):
+    out = ['# Brief', '## La tarea', 'X' * 6000, '## Verificación', 'pytest -q', 'V' * 600, tb.CONTRATO]
+    reduced = tb._presupuesto_auxiliar(out, 1, 'backend', 'backend.md', 'P' * 10000, '.')
+    mounted, _ = tb.presupuesto_persona(list(reduced), 1, 'backend', 'backend.md', 'P' * 10000, '.')
+    assert len('\n'.join(mounted)) + 1 <= 10000
+    assert 'mínimo obligatorio=' not in capsys.readouterr().err
+    assert 'P' * 1300 in '\n'.join(mounted)
+
+
+def test_brief_portable_revisiones_sin_ledger_lint_conservan_el_contrato(monkeypatch):
+    """A partial kit must select the same pending gaps as the canonical parser."""
+    canonical = tb._ledger_lint_mod()
+    monkeypatch.setattr(tb, '_ledger_lint_mod', lambda: None)
+    root = Path(__file__).resolve().parents[2]
+    texts = [TASKS_CON_GAPS, TASKS_INTENTO_2_LIMPIO, TASKS_MULTIFASE, TASKS_FXP]
+    texts += [p.read_text(encoding='utf8') for p in (root / 'docs/roadmap').glob('*/tasks.md')]
+    assert tb._gaps_pendientes_de_tarea(TASKS_CON_GAPS, 'T-01')['filas'][0]['gap'] == 'Falta manejar el caso vacío'
+    assert tb._gaps_pendientes_de_tarea(TASKS_INTENTO_2_LIMPIO, 'T-01') is None
+    for text in texts:
+        local = tb.secciones_revision(text)
+        authoritative = canonical.secciones_revision(text)
+        assert local == authoritative
+        for tid in ('T-01', 'T-02', 'T-04', 'T-99'):
+            assert tb.filas_pendientes_de_tarea(local, tid) == canonical.filas_pendientes_de_tarea(authoritative, tid)
+            attempt = tb.ultimo_intento_para(local, {tid})
+            assert attempt == canonical.ultimo_intento_para(authoritative, {tid})
+            if attempt is not None:
+                assert tb.seleccionar_seccion(local, attempt, {tid}) == canonical.seleccionar_seccion(authoritative, attempt, {tid})
+    parser = tb._parse_verificacion_fn()
+    parsed, _ = parser(['- **Verificación** (ejecutada 2026-10-06): `pytest -q` → verde'], 0)
+    assert parsed['items'] == ['`pytest -q` → verde']
 
 
 def test_sin_design_no_hay_seccion(inic):

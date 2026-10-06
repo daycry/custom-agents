@@ -9,6 +9,20 @@ y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Fixed — iniciativa `brief-budget` (2026-09-09)
+
+- **T-01 — C-05: test CA-08 sobre todos los ledgers (`xfail` fechado en fase inicial)** La prueba del presupuesto recorre los ledgers reales con diseño, constitución y memoria; exige tamaño acotado o aviso exacto del mínimo irreducible. (`docs/roadmap/CALIBRATION.md`, `agent-kits/shared/test_task_brief.py`)
+- **T-02 — O2: diseño solo si la tarea lo necesita** El brief selecciona módulos de diseño por rutas concretas y omite los ajenos; el diseño sin tabla conserva un respaldo acotado. (`agent-kits/shared/task-brief.py`, `agent-kits/shared/test_task_brief.py`, `agent-kits/architect/templates/design.md`)
+- **T-03 — O4: `Verificación` sin salida pegada** El brief enlaza la evidencia ejecutada al ledger y conserva comandos, resultados esperados, criterios y decisiones vigentes. (`agent-kits/shared/task-brief.py`, `agent-kits/shared/test_task_brief.py`, `docs/roadmap/2026-09-09-brief-budget/**`)
+- **T-04 — O3: `## Gaps pendientes de revisión` acotado y por tarea** Los gaps relevantes se limitan a la tarea y al último intento; su sección tiene presupuesto propio. (`agent-kits/shared/task-brief.py`, `agent-kits/shared/test_task_brief.py`, `docs/roadmap/2026-09-09-brief-budget/**`)
+- **T-05 — C-01: constantes `*_TOPE_CHARS` por sección** Diseño, gaps y verificación tienen topes propios; el ajuste global preserva memoria y suelo de persona e informa contratos que requieren dividirse. (`agent-kits/shared/task-brief.py`, `agent-kits/shared/test_task_brief.py`, `docs/roadmap/2026-09-09-brief-budget/**`)
+- **T-06 — Revisión de dos lentes y cierre** Revisión y regresiones cierran el presupuesto del brief con informe real, retrospectiva y exportación sin deriva. (`agent-kits/shared/task-brief.py`, `agent-kits/shared/test_task_brief.py`, `docs/roadmap/2026-09-09-brief-budget/**`)
+
+### Fixed — iniciativa `hooks-runtime` (2026-10-06)
+
+- **T-01 — Resolver intérpretes y respetar los límites de cada runtime** Los tres runtimes usan Python nativo y Git Bash en Windows; Codex respeta SessionEnd de 3 s y los eventos apply_patch/Edit conservan avisos y exclusiones de documentación.
+
+
 ### Added — iniciativa `training-data-services` (2026-09-16)
 
 - **T-01 — Esquema de `training.json` y del caso** New opt-in `training-data-services` skill: `training.json` config and a dependency-free case schema validator with closed status/outcome vocabularies.

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """hooks/hooks.json en exec form (session-end-durable-capture T-03, CA-09):
-`SessionEnd` declara `command: bash` + `args: [...]` (no una línea de shell) y `timeout: 5` (era
+`SessionEnd` declara `command: node` + `args: [launcher, script]` (no una línea de shell) y `timeout: 5` (era
 45: el trabajo pesado ya no corre en el teardown). `scripts/lint_plugin.py` sigue resolviendo el
 script referenciado en `args` (antes solo miraba `command`). Ejecutar:
 python3 -m pytest -q tests/test_hooks_config.py"""
@@ -26,8 +26,8 @@ def _session_end_hook():
 def test_session_end_usa_exec_form_con_timeout_5():
     h = _session_end_hook()
     assert h["type"] == "command"
-    assert h["command"] == "bash"
-    assert h["args"] == ["${CLAUDE_PLUGIN_ROOT}/hooks/session-journal.sh"]
+    assert h["command"] == "node"
+    assert h["args"] == ["${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.mjs", "session-journal.sh"]
     assert h["timeout"] == 5
 
 

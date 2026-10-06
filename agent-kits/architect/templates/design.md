@@ -96,6 +96,8 @@ Descartadas: {{DESCARTADAS}} (motivo por opción).
 
 ## 5. Impacto en módulos y ficheros
 
+Usa rutas concretas del repositorio entre backticks en la primera columna. El generador del brief compara estas rutas con `Archivos` y `Dependencias` de la tarea; conserva el diseño acotado si la tabla no es parseable.
+
 | Módulo / fichero (ruta real) | Cambio | Nuevo / modificado |
 |---|---|---|
 | `{{RUTA_1}}` | {{CAMBIO_1}} | {{NM_1}} |

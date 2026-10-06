@@ -18,21 +18,21 @@
 #   tiempo → todos los hooks de SessionEnd comparten un presupuesto de 1,5 s que sube hasta el
 #            `timeout` por hook (máx. 60 s) → hooks.json declara `timeout: 5` (era 45: el trabajo
 #            pesado —git, IA, log de prompts— ya no corre aquí, corre en `replay`) y pasa a EXEC
-#            FORM (`command: bash`, `args: [...]`, CA-09) para que el runtime no tenga que
+#            FORM (`command: node`, `args: [launcher, script]`) para que el runtime no tenga que
 #            tokenizar una línea de shell en el camino más corto posible.
 #
 # Prueba manual:
 #   echo '{"hook_event_name":"SessionEnd","session_id":"s1","reason":"other","cwd":"'"$PWD"'"}' | bash hooks/session-journal.sh
 #
 # Nota de seguridad (gap 16 de la revisión intento 1, C5 · CWE-78): `hooks/hooks.json` declara este
-# hook en EXEC FORM (`command: bash`, `args: [...]`) — un contrato VERIFICADO en Claude Code
+# hook en EXEC FORM (`command: node`, `args: [...]`) — un contrato VERIFICADO en Claude Code
 # (`hooks.md`, 2026-09-17): el runtime pasa `args` como argv, nunca por una shell que interprete
 # el payload. Si un runtime NO soportara `args` y en su lugar ejecutara literalmente `bash` a
 # secas (sin fichero de script) leyendo el payload de la sesión por stdin como si fuera un script
 # de shell, este propio fichero JAMÁS llegaría a correr — no hay ninguna guarda que este script
 # pueda poner para defenderse de un escenario en el que él mismo no se invoca; es técnicamente
 # imposible resolverlo desde dentro. La mitigación real está en NO declarar exec form para
-# runtimes sin verificar: `export-interop.py` traduce este hook a SHELL FORM (`bash "<ruta>"`)
+# runtimes sin verificar: `export-interop.py` traduce este hook a SHELL FORM (`node "<launcher>" "<script>"`)
 # para `interop/codex/hooks.json`, así que Codex nunca ve `args` sueltos. Ver `M-01` en el ledger
 # de la iniciativa (checklist manual: verificar en Codex real que el hook SessionEnd honra `args`).
 set -u

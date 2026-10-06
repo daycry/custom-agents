@@ -168,9 +168,9 @@ lost or substituted, and it is stated here.
 | On-demand skills | ✅ Skill tool | ✅ `$name` or activation by `description` | ✅ `skill` tool |
 | Commands | ✅ `/name` | ⚠️ `/prompt:name` (**or** `/prompts:name`), **only under `~/.codex/`** (Codex has no per-project prompts) and marked *deprecated* by OpenAI in favour of skills | ✅ `/name` |
 | Delegating to an agent by name | ✅ Agent tool, with per-invocation `model` | ⚠️ in natural language; Codex **does not auto-invoke** custom agents, you must ask | ✅ `task` tool |
-| Progress notice when the ledger is edited | ✅ `PostToolUse` | ❌ Codex only fires Pre/PostToolUse for `Bash`; all three hooks watch `Write\|Edit` → they **do not travel** | ✅ `tool.execute.after` |
-| Context at session start | ✅ `SessionStart` (index + roadmap + journal + memory) | ✅ `SessionStart` (`startup\|resume\|clear`) | ⚠️ no hook can inject context → substituted by `custom-agents-index.md` in `instructions`: **the piece index yes, the dynamic part no** |
-| Session journal | ✅ `SessionEnd` | ✅ `SessionEnd` — translated to shell form (`bash "${CLAUDE_PLUGIN_ROOT}/...`, double quotes like the rest of the hooks); **still to be verified on a real Codex: how `${CLAUDE_PLUGIN_ROOT}` expands inside double quotes** (this initiative's M-01 checklist) | ⚠️ fires on `session.idle`; `journal.py` is idempotent per `session_id`, so it **updates** the entry instead of duplicating it |
+| Progress notice when the ledger is edited | ✅ `PostToolUse` | ✅ `PostToolUse` for `apply_patch`, with paths extracted from the patch | ✅ `tool.execute.after` |
+| Context at session start | ✅ `SessionStart` (index + roadmap + journal + memory) | ✅ `SessionStart` (`startup\|resume\|clear\|compact`) | ⚠️ static index in `instructions`; no dynamic session context |
+| Session journal | ✅ `SessionEnd`, 5 s timeout | ✅ `SessionEnd`, 3 s timeout, shell-form Node launcher | ⚠️ captures on `session.idle`; materialized through `journal.py replay` |
 | Capturing the user's turn | ✅ `UserPromptSubmit` | ✅ `UserPromptSubmit` | ❌ no documented event → the journal keeps its deterministic half (git + ledger) |
 | Subagent finished | ✅ `SubagentStop` | ✅ `SubagentStop` | ❌ no equivalent event |
 | **Per-agent guard hook** (`implementer`, `architect`) | ✅ real `deny` via the frontmatter's `hooks:` (`ADR-007`) | ❌ no per-agent hook exists → the agent **self-checks** with `guardrail-check.py` (the preamble tells it so and hands it the command) | ❌ same as Codex; `permission` bounds tools, not paths |
@@ -178,6 +178,24 @@ lost or substituted, and it is stated here.
 | Roadmap status line | ✅ opt-in | ❌ | ❌ |
 | **Graph memory** (`graphiti` capability, opt-in) | ✅ `/doctor` checks it live through its adapter | ✅ same: the adapter talks HTTP to the endpoint declared in `taxonomy.json`, not to the runtime's MCP | ✅ same; with no context hook, its state only shows up when you run `/doctor` |
 | OpenCode's `permission` | — | — | ⚠️ the installer **leaves it alone** when it already exists: OpenCode applies "the last matching rule", so adding `skill: {"*": "allow"}` after a `deny` of yours would open it back up. If you have your own policy, check that the `custom-agents` skills do not fall into a `deny`. |
+
+### Portable hook startup
+
+All three runtimes use `hooks/run-hook.mjs`, requiring Node 18+ (already required by the installer)
+and Python 3. On Windows it finds native Python (`python3`, `python` or `py -3`) and Git Bash in PATH;
+it excludes System32's WSL launcher. Set `CUSTOM_AGENTS_PYTHON` to select a specific interpreter.
+Payloads travel through stdin and are never interpreted as shell code.
+
+SessionEnd and UserPromptSubmit call `journal.py` directly, without Bash. Other hooks run through
+Bash with a `python3` adapter for the selected interpreter. Missing tools produce a stderr warning
+and exit 0. The implementer and architect guards remain scoped to their agents.
+
+Codex caps SessionEnd at 3 s; the exporter adjusts it while preserving Claude Code's 5 s.
+The capture process has an internal 2.2 s limit. OpenCode captures on session.idle and needs manual
+replay to materialize the journal. Start a new session after updating a plugin; payload tests do not
+replace checking event delivery within each application.
+Contracts checked on 2026-10-06: [Codex](https://learn.chatgpt.com/docs/hooks),
+[Claude Code](https://code.claude.com/docs/en/hooks), [OpenCode](https://opencode.ai/docs/plugins/).
 
 The three gaps that matter most:
 
@@ -192,9 +210,9 @@ The three gaps that matter most:
   to check it itself (`guardrail-check.py pre-tool --agent implementer`) before a destructive git
   command or before writing into `docs/roadmap/` outside `tasks.md`. That is a prompt rule, not a
   barrier: in those runtimes, review the diff.
-- **Progress notices never reach Codex.** This is not a misconfiguration: Codex only emits
-  Pre/PostToolUse for `Bash`. Registering them would promise a notice that never fires, so
-  `interop/codex/hooks.json` omits them on purpose (asserted by `tests/test_export_interop.py`).
+- **Events differ across runtimes.** Codex supplies apply_patch changes in `tool_input.command`;
+  the launcher converts them to `edits[].file_path` for the shell hooks. Linter notices are wrapped
+  in `systemMessage`, which OpenCode can also display.
 
 ---
 
@@ -228,3 +246,8 @@ characters** (OpenCode validates it and, past that, the skill does not load). Th
 | `.codex-plugin/plugin.json` · `.agents/plugins/marketplace.json` | Codex manifests (generated) |
 | `interop/codex/` · `interop/opencode/` | translated trees (generated) |
 | `tests/test_export_interop.py` · `tests/installer.test.mjs` · `tests/opencode-plugin.test.mjs` | the gates |
+
+
+## Brief budget
+
+The task brief caps design at 1,600 characters, review gaps at 1,600 and verification at 800. It includes the selected design only for matching task paths and links historical execution evidence to the ledger. Current requirements, decision notes and acceptance criteria remain complete. Optional sections share the remaining global budget before persona allocation. If the protected minimum exceeds 10,000 characters, the generator reports its exact size; split the task before delegation. Memory and persona limits and the return contract retain their existing rules.

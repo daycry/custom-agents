@@ -6,15 +6,15 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/mark-docs-pending.sh\""
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.mjs\" mark-docs-pending.sh"
           },
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/ledger-lint-warn.sh\""
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.mjs\" ledger-lint-warn.sh"
           },
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/progress-line.sh\""
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.mjs\" progress-line.sh"
           }
         ]
       }
@@ -24,7 +24,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/subagent-progress.sh\""
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.mjs\" subagent-progress.sh"
           }
         ]
       }
@@ -35,7 +35,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/session-context.sh\""
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.mjs\" session-context.sh"
           }
         ]
       }
@@ -45,8 +45,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/session-journal.sh"],
+            "command": "node",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.mjs", "session-journal.sh"],
             "timeout": 5
           }
         ]
@@ -57,7 +57,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/user-prompt-capture.sh\"",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.mjs\" user-prompt-capture.sh",
             "timeout": 5
           }
         ]

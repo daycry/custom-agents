@@ -193,7 +193,7 @@ def test_stage_creates_exact_scope_and_marker():
         code, out, _ = run(["--stage", "--root", str(proj), "--config", str(proj / "confluence.json")])
         assert code == 0, out
         out_dir = proj / "docs" / "confluence"
-        staged = sorted(str(p.relative_to(out_dir)) for p in out_dir.rglob("*") if p.is_file())
+        staged = sorted(p.relative_to(out_dir).as_posix() for p in out_dir.rglob("*") if p.is_file())
         # exactamente los 4 en alcance (incluido docs/knowledge/README.md, T-16 de
         # knowledge-capture, y docs/knowledge/gotchas/ejemplo.md, knowledge-split)
         # + el marcador de staging (gap C1: NO se llama README.md, para no
@@ -415,8 +415,10 @@ def run_hook(file_path, project_dir):
     payload = json.dumps({"tool_input": {"file_path": file_path}})
     env = dict(os.environ)
     env["CLAUDE_PROJECT_DIR"] = str(project_dir)
-    r = subprocess.run(["bash", str(HOOK)], input=payload, capture_output=True,
-                        text=True, encoding="utf-8", errors="replace", cwd=str(project_dir), env=env)
+    env["CUSTOM_AGENTS_PYTHON"] = sys.executable
+    r = subprocess.run(["node", str(ROOT / "hooks" / "run-hook.mjs"), HOOK.name],
+                        input=payload, capture_output=True, text=True, encoding="utf-8",
+                        errors="replace", cwd=str(project_dir), env=env, timeout=25)
     return r.returncode, project_dir / ".claude" / ".confluence-pending"
 
 

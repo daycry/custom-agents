@@ -92,7 +92,7 @@ export const CustomAgentsHooks = async ({ directory, worktree, client, $ }) => {
         }
       }
       try {
-        const p = spawn("bash", [join(hooksDir, script)], {
+        const p = spawn("node", [join(hooksDir, "run-hook.mjs"), script], {
           cwd: worktree || directory,
           env: {
             ...process.env,
@@ -112,6 +112,7 @@ export const CustomAgentsHooks = async ({ directory, worktree, client, $ }) => {
           fin("")
         }, timeoutMs)
         let out = ""
+        p.stdout.setEncoding("utf8")
         p.stdout.on("data", (d) => {
           out += d.toString("utf8")
         })

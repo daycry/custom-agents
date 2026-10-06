@@ -106,6 +106,12 @@ MEMORIA_TOPE_CHARS = 2400      # ≤ 600 tokens de memoria en el brief (spec CA-
 MEMORIA_LIMIT = 12             # aciertos que se piden; el tope de caracteres es el que manda
 MEMORIA_TIMEOUT = 20           # s: knowledge-find.py es local y determinista; si se cuelga, sin sección
 BRIEF_TOPE_CHARS = 10000       # brief completo ≤ 2.500 tokens (spec CA-08); lo afirma el test sobre el ledger real
+# Measurement 2026-10-06: project-specialization had Design 3506 chars and
+# Verification 3523; historical gaps reached 4396 (spec §1). These caps reserve
+# room for the protected task, memory and persona, before the global adjustment.
+DISENO_TOPE_CHARS = 1600
+GAPS_TOPE_CHARS = 1600
+VERIFICACION_TOPE_CHARS = 800
 # Persona de dominio (project-specialization T-01, revisión intento 1 gap 2): el fichero de
 # `.claude/personas/<tipo>.md` del proyecto se pega ÍNTEGRO, sin la casilla propia que el diseño
 # nunca fijó (spec.md: «MEMORIA_TOPE_CHARS no se toca: la persona usa su propia casilla» — pero esa
@@ -1018,15 +1024,65 @@ def _resolver_verificacion(chunk):
     """Lee la `Verificación` declarada ANTES de emitir la tarea, porque el bloque de la tarea la
     sustituye por un puntero a la sección (una vez en el brief, no dos). Devuelve `(verif, chunk_brief)`."""
     verif = _verificacion_de_tarea(chunk)
+    declared = verif is not None
     if verif:
         items_red = [x for x in verif["items"] if _es_evidencia_red(x)]
-        verif["items"] = [x for x in verif["items"] if not _es_evidencia_red(x)]
+        verif["items"] = [x for x in verif["items"] if not _es_evidencia_red(x)
+                          and not re.match(r"^(?:Salida real|Salida ejecutada|Evidencia|Resultado real)\b", x, re.I)]
         verif["omitidos_red"] = len(items_red)
         if not verif["items"]:
             # solo evidencia RED: no hay comando que ejecutar; la sección lo dice como «no declara»
             verif = None
-    chunk_brief = _chunk_sin_presupuesto(_chunk_sin_verificacion(chunk, len(verif["items"])) if verif else chunk)
-    return verif, chunk_brief
+    chunk_brief = _chunk_sin_presupuesto(_chunk_sin_verificacion(chunk, len(verif["items"]) if verif else 0) if declared else chunk)
+    return verif, _historial_bajo_demanda(chunk_brief)
+
+
+def _historial_bajo_demanda(chunk):
+    """Omit identified execution history, preserving task criteria and current decisions."""
+    lines = _lineas_con_fence(chunk)
+    history = re.compile(r"^\s*(?:-\s*)?\*\*(?:RED\b|Evidencia(?: de ejecuci[oó]n)?\b|Verificaci[oó]n (?:RE-)?EJECUTADA\b|Inventario de partida\b|Desviaci[oó]n declarada\b)", re.I)
+    result, omit, removed = [], False, False
+    for i, (line, fenced) in enumerate(lines):
+        if not fenced:
+            if history.match(line):
+                omit, removed = True, True
+                continue
+            if (re.match(r"^\s*(?:-\s*)?\*\*[^*]+\*\*", line)
+                    or re.match(r"^\s*-\s*\[[ xX]\]", line)):
+                omit = False
+        if not omit:
+            result.append(line)
+    if removed:
+        result += ["", "> Historial de ejecución y notas anteriores: consulta esta tarea en tasks.md."]
+    return "\n".join(result)
+
+
+def _seccion_acotada(lines, tope, puntero, subsecciones=False):
+    """Cap complete rendered section; keep closed fences and whole design subsections."""
+    text = "\n".join(lines)
+    if len(text) <= tope:
+        return lines
+    footer = f"\n\n> Recorte: consulta {puntero} para el contenido completo.\n"
+    room = max(0, tope - len(footer))
+    if subsecciones:
+        parts = [""]
+        states = _estado_estructura_por_linea(text)
+        for i, (line, fenced) in enumerate(_lineas_con_fence(text)):
+            previous_open = any(states[i - 1]) if i else False
+            if not fenced and not previous_open and re.match(r"^###\s", line):
+                parts.append("")
+            parts[-1] += line + "\n"
+        kept = ""
+        for part in parts:
+            if len(kept) + len(part) > room:
+                break
+            kept += part
+        if not kept:
+            kept = lines[0] + "\n"
+    else:
+        kept, _ = _recorte_seguro(text, room)
+    print(f"⚠️  {lines[0]}: {len(text)} → ≤{tope} caracteres; consulta {puntero}.", file=sys.stderr)
+    return [kept.rstrip() + footer]
 
 
 def _seccion_tarea_y_gaps(chunk_brief, tasks_text, tid):
@@ -1035,17 +1091,18 @@ def _seccion_tarea_y_gaps(chunk_brief, tasks_text, tid):
     # gaps pendientes (roles-and-jira-flow T-03): redespacho tras una revisión con gaps para ESTA tarea
     gaps = _gaps_pendientes_de_tarea(tasks_text, tid)
     if gaps:
-        out += ["## Gaps pendientes de revisión (intento "
+        section = ["## Gaps pendientes de revisión (intento "
                 f"{gaps['intento']} — corrige ANTES de re-verificar)", ""]
         for f_ in gaps["filas"]:
-            out += [f"- **[{f_['grado']}]** {f_['gap']}",
+            section += [f"- **[{f_['grado']}]** {f_['gap']}",
                     f"  - Corrección sugerida: {f_['correccion']}",
                     f"  - Evidencia/escenario: {f_['evidencia']}"]
-        out += ["",
+        section += ["",
                 "**Verifica antes de corregir** (disciplina de `agents/implementer.md`): comprueba cada "
                 "señalamiento contra el código y la spec. Si es correcto, corrígelo. Si es INCORRECTO, "
                 "**rebátelo con evidencia** (`fichero:línea` + por qué está bien como está) en tu informe "
                 "— no lo apliques a ciegas ni lo descartes sin evidencia.", ""]
+        out += _seccion_acotada(section, GAPS_TOPE_CHARS, "la última revisión de esta tarea en tasks.md")
     return out
 
 
@@ -1060,13 +1117,14 @@ def _seccion_verificacion(verif):
             "Ejecuta EXACTAMENTE esa verificación (todos los ítems) cuando creas haber terminado y pega su "
             "salida real en tu informe (no «debería pasar»: el resultado). Si no pasa, la tarea NO está `DONE`."]
     if verif["ejecutada"]:
-        out += ["", f"> Verificación ya ejecutada antes ({verif['ejecutada'].split(' — ')[0]}): "
+        date = re.search(r"\d{4}-\d{2}-\d{2}", verif["ejecutada"])
+        out += ["", f"> Verificación ya ejecutada antes ({'ejecutada ' + date.group(0) if date else 'en el ledger'}): "
                     "**re-ejecútala** — la salida grabada en el ledger es de otra sesión, no vale como evidencia tuya."]
     if verif.get("omitidos_red"):
         out += ["", f"> {verif['omitidos_red']} ítem(s) `RED: …` de la ejecución anterior omitido(s): son evidencia "
                     "del rojo de otra sesión, no comandos; si TDD está activo, produce tu propio rojo."]
     out += [""]
-    return out
+    return _seccion_acotada(out, VERIFICACION_TOPE_CHARS, "la Verificación de esta tarea en tasks.md")
 
 
 def _seccion_memoria(carpeta, chunk, tipo, knowledge_find):
@@ -1075,12 +1133,16 @@ def _seccion_memoria(carpeta, chunk, tipo, knowledge_find):
     return [memoria] if memoria else []      # un solo elemento: quitarlo deja el brief byte a byte como sin memoria (CA-09)
 
 
-def _seccion_diseno_y_arquitectura(carpeta, plan_p):
+def _seccion_diseno_y_arquitectura(carpeta, plan_p, chunk=""):
     out = []
     diseno = _design_elegida(carpeta)
     if diseno:
-        out += [f"## Diseño (design.md · opción elegida {diseno[0]})", "", diseno[1],
-                "", "Respeta esta opción: no rediseñes; una duda de arquitectura es `DONE_WITH_CONCERNS`, no un cambio.", ""]
+        if _tarea_toca_diseno(carpeta, chunk):
+            section = [f"## Diseño (design.md · opción elegida {diseno[0]})", "", diseno[1],
+                       "", "Respeta esta opción: no rediseñes; una duda de arquitectura es `DONE_WITH_CONCERNS`, no un cambio.", ""]
+            out += _seccion_acotada(section, DISENO_TOPE_CHARS, "design.md §4", subsecciones=True)
+        else:
+            out += [f"> Diseño: design.md §4 · opción {diseno[0]}; sin impacto declarado en esta tarea.", ""]
     if os.path.isfile(plan_p):
         plan_text = open(plan_p, encoding="utf-8", errors="replace").read()
         arq = _seccion_plan(plan_text, r"Arquitectura")
@@ -1089,6 +1151,34 @@ def _seccion_diseno_y_arquitectura(carpeta, plan_p):
     else:
         out += ["> (Sin improvement-plan.md — iniciativa de vía rápida: el ledger es todo el plan.)", ""]
     return out
+
+
+def _tarea_toca_diseno(carpeta, chunk):
+    text = open(os.path.join(carpeta, "design.md"), encoding="utf-8", errors="replace").read()
+    impact = _seccion_plan(text, r"5\.\s*Impacto")
+    paths = []
+    for line in (impact or "").splitlines():
+        if line.startswith("|"):
+            paths += re.findall(r"`([^`]+)`", line.split("|", 2)[1])
+    paths = [p.replace("\\", "/") for p in paths if "{{" not in p]
+    if not paths:
+        print("⚠️  design.md §5 no parseable: se conserva el diseño acotado.", file=sys.stderr)
+        return True
+    fields = []
+    collecting = False
+    for line, fenced in _lineas_con_fence(chunk):
+        if fenced:
+            continue
+        match = re.match(r"^\s*-\s*\*\*(?:Archivos?|Archivo\(s\)|Dependencias)\*\*\s*:\s*(.*)", line, re.I)
+        if match:
+            collecting = True
+            fields.append(match.group(1))
+        elif collecting and line.startswith(("  ", "\t")):
+            fields.append(line)
+        else:
+            collecting = False
+    refs = "\n".join(fields).replace("\\", "/")
+    return any(re.search(r"(?<![\w/.-])" + re.escape(p) + r"(?![\w/.-])", refs) for p in paths)
 
 
 def _seccion_constitucion(args):
@@ -1136,9 +1226,53 @@ def presupuesto_persona(out, persona_insert_idx, tipo, persona_ruta, persona_con
     # nota de recorte va aparte).
     tope_cuerpo = max(PERSONA_SUELO_CHARS, min(PERSONA_TOPE_CHARS, margen_real))
     bloque = _persona_delimitada(tipo, persona_contenido, ruta_aviso, tope_cuerpo)
+    # Count the actual truncation note and heading neutralization, plus CLI newline.
+    # Only the flexible allowance shrinks; the guaranteed content floor is unchanged.
+    while bloque and tope_cuerpo > PERSONA_SUELO_CHARS:
+        mounted = out[:persona_insert_idx] + bloque + out[persona_insert_idx:]
+        excess = len("\n".join(mounted)) + 1 - BRIEF_TOPE_CHARS
+        if excess <= 0:
+            break
+        tope_cuerpo = max(PERSONA_SUELO_CHARS, tope_cuerpo - excess)
+        bloque = _persona_delimitada(tipo, persona_contenido, ruta_aviso, tope_cuerpo)
     if bloque:
         out[persona_insert_idx:persona_insert_idx] = bloque
     return out, resto
+
+
+def _presupuesto_auxiliar(out, persona_insert_idx, tipo, persona_ruta, persona_contenido, carpeta):
+    """Fit optional sections before assigning persona's unchanged floor and memory budget."""
+    def length(items):
+        mounted, _ = presupuesto_persona(list(items), persona_insert_idx, tipo, persona_ruta, persona_contenido, carpeta)
+        return len("\n".join(mounted)) + 1  # CLI's terminating newline is part of the budget.
+
+    def ranges(items):
+        starts = [i for i, text in enumerate(items) if text.startswith(("## ", "> Diseño:"))]
+        return [(i, starts[n + 1] if n + 1 < len(starts) else len(items))
+                for n, i in enumerate(starts)
+                if items[i].startswith(("## Diseño", "## Gaps pendientes", "## Verificación"))]
+
+    while length(out) > BRIEF_TOPE_CHARS:
+        spans = ranges(out)
+        choices = []
+        for start, end in spans:
+            header = out[start].split("\n", 1)[0]
+            target = "design.md §4" if header.startswith("## Diseño") else "esta tarea en tasks.md"
+            pointer = f"{header}\n\n> Consulta {target} antes de implementar y ejecutar la verificación.\n"
+            old = "\n".join(out[start:end])
+            if len(old) > len(pointer):
+                choices.append((len(old) - len(pointer), start, end, old, pointer, target))
+        if not choices:
+            print(f"⚠️  mínimo obligatorio={length(out)} > {BRIEF_TOPE_CHARS}; divide la tarea o consulta su contrato completo; no se recortan criterios, memoria ni persona.", file=sys.stderr)
+            break
+        _, start, end, old, pointer, target = max(choices)
+        excess = length(out) - BRIEF_TOPE_CHARS
+        cap = max(len(pointer), len(old) - excess - 2)
+        reduced = _seccion_acotada(old.split("\n"), cap, target, old.startswith("## Diseño"))
+        if len("\n".join(reduced)) >= len(old) or cap <= len(pointer):
+            reduced = [pointer]
+        out[start:end] = reduced
+    return out
 
 
 def _avisa_si_excede_tope(tid, texto, resto_sin_persona):
@@ -1216,11 +1350,12 @@ def main(argv=None):
     out += _seccion_tarea_y_gaps(chunk_brief, tasks_text, tid)
     out += _seccion_verificacion(verif)
     out += _seccion_memoria(args.carpeta, chunk, tipo, args.knowledge_find)
-    out += _seccion_diseno_y_arquitectura(args.carpeta, plan_p)
+    out += _seccion_diseno_y_arquitectura(args.carpeta, plan_p, chunk)
     out += _seccion_constitucion(args)
     out += _seccion_tdd(args)
     out += ["", CONTRATO]
 
+    out = _presupuesto_auxiliar(out, persona_insert_idx, tipo, persona_ruta, persona_contenido, args.carpeta)
     out, resto_sin_persona = presupuesto_persona(
         out, persona_insert_idx, tipo, persona_ruta, persona_contenido, args.carpeta)
 

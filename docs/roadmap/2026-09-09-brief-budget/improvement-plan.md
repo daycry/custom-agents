@@ -1,8 +1,9 @@
 ---
 design: n/a
-estado: en-progreso        # borrador | en-progreso | completado | cancelado
+test-plan: n/a (sin UI)
+estado: completado        # borrador | en-progreso | completado | cancelado
 creado: 2026-09-09
-actualizado: 2026-09-14
+actualizado: 2026-10-06
 prioridad: alta
 solicitante: usuario (decisión de lanzar la iniciativa aparte; opción B del hallazgo)
 solicitud: opción del usuario del 2026-09-09 de cerrar el bloque de F1 y abrir iniciativa aparte
@@ -19,9 +20,15 @@ generacion:            # ventana compartida con este plan, spec.md y evaluation.
 
 # Plan de implementación — 2026-09-09-brief-budget
 
+## Ajuste de ejecución — 2026-10-06
+
+Se conserva el plan y sus estimaciones originales. El ajuste de la spec permite enlazar evidencias históricas, preservando criterios y todas las notas de decisión. Si el mínimo obligatorio no cabe después de reducir las secciones auxiliares, se declara su tamaño y hay que dividir la tarea antes de delegarla. Topes: diseño 1.600, gaps 1.600 y verificación 800. El presupuesto global se ajusta antes de la persona sin cambiar sus invariantes.
+
+El cierre de brief-budget entrega su dependencia a plugin-refactor; no cierra las tareas ajenas de ese ledger. ECC permanece documentado y aplazado. Las mediciones y revisiones quedan en tasks.md y testing/report.md.
+
 ## Resumen
 
-- Estado: en-progreso
+- Estado: completado
 - Objetivo: que el brief de subagente vuelva a cumplir `BRIEF_TOPE_CHARS = 10000` sin subir el tope y sin recortar contrato ni persona.
 - Alcance: los cinco cambios de `analysis.md` O1–O5 + revisión de dos lentes + cierre.
 - Dependencia externa explícita: coordinación con `plugin-refactor` para mantener intacto `task-brief.py`.
@@ -49,13 +56,13 @@ La orden queda fija por decisión del usuario:
 
 | Fase | Estado | Esfuerzo base | Coste base | Tokens base (in / out) |
 |---|---|---|---|---|
-| Fase 0 — Guardarraíl de todos los ledgers | pendiente | 3,0 h | 151,79 € | 230 k |
-| Fase 1 — Diseño bajo demanda | pendiente | 6,0 h | 304,05 € | 380 k / 60 k |
-| Fase 2 — Verificación sin evidencia | pendiente | 2,0 h | 101,46 € | 140 k / 20 k |
-| Fase 3 — Gaps de la tarea + tope | pendiente | 1,5 h | 76,13 € | 110 k / 15 k |
-| Fase 4 — Presupuestos por sección | pendiente | 4,0 h | 202,78 € | 360 k / 40 k |
-| Revisión de dos lentes (transversal) | pendiente | 5,5 h | 280,39 € | 1,19 M |
-| Cierre y puertas | pendiente | 1,5 h | 75,00 € | 55 k |
+| Fase 0 — Guardarraíl de todos los ledgers | completado | 3,0 h | 151,79 € | 230 k |
+| Fase 1 — Diseño bajo demanda | completado | 6,0 h | 304,05 € | 380 k / 60 k |
+| Fase 2 — Verificación sin evidencia | completado | 2,0 h | 101,46 € | 140 k / 20 k |
+| Fase 3 — Gaps de la tarea + tope | completado | 1,5 h | 76,13 € | 110 k / 15 k |
+| Fase 4 — Presupuestos por sección | completado | 4,0 h | 202,78 € | 360 k / 40 k |
+| Revisión de dos lentes (transversal) | completado | 5,5 h | 280,39 € | 1,19 M |
+| Cierre y puertas | completado | 1,5 h | 75,00 € | 55 k |
 
 ## Estrategia de medición y validación
 

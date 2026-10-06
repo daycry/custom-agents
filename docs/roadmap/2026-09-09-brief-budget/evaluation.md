@@ -22,7 +22,7 @@ generacion:            # ventana única: spec.md + evaluation.md (la spec la cre
 | **Estado** | completado |
 | **Prioridad global** | Alta |
 | **Solicitante** | usuario (decisión del 2026-09-09 de atacar la causa en iniciativa aparte, opción B; hallazgo de la Lente B, intento 2, F1 de `project-specialization`) |
-| **Spec** | [`spec.md`](spec.md) — `borrador`, derivada por el evaluator del análisis |
+| **Spec** | [`spec.md`](spec.md) — `aprobada`, ajuste del contrato y cierre documentados el 2026-10-06 |
 | **Plan** | [`improvement-plan.md`](improvement-plan.md) |
 | **Características evaluadas** | 5 (O1-O5 del análisis) + 3 líneas de proceso presupuestadas aparte |
 
@@ -340,3 +340,7 @@ Para **ejecutar** lo aprobado, genera el plan detallado con el agente **`planner
 | Fecha | Cambio |
 |---|---|
 | 2026-09-09 | Evaluación creada desde `analysis.md` (única fuente del alcance) junto con `spec.md` (`borrador`); estado `en-revision`; `Plan` pendiente. Medición del meter degradada a `estimado` (Windows, sin carpeta de transcripciones) |
+
+## Cierre técnico — 2026-10-06
+
+Las cinco opciones están implementadas y verificadas. Se mantiene el presupuesto histórico; no se atribuyen a esta ejecución los consumos estimados de septiembre. La spec aplica la excepción de mínimo protegido con la constitución real. Ver [testing/report.md](testing/report.md) y [retro.md](retro.md).

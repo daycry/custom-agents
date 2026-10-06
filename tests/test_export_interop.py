@@ -30,8 +30,7 @@ for _s in (sys.stdin, sys.stdout, sys.stderr):
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # Tope de `description` de una skill en OpenCode (doc oficial: «1-1024 characters»).
 OPENCODE_DESC_MAX = 1024
-# Eventos que Codex dispara. `PostToolUse` NO entra: Codex solo lo emite para la herramienta
-# Bash y los hooks del plugin reaccionan a Write/Edit (ver docs/INTEROP.md).
+# Eventos verificados en la documentación oficial de Codex, 2026-10-06.
 CODEX_EVENTOS_OK = {"SessionStart", "UserPromptSubmit", "SubagentStop", "SessionEnd",
                     "PreToolUse", "PostToolUse", "Stop", "PreCompact", "PostCompact",
                     "SubagentStart", "PermissionRequest"}
@@ -46,6 +45,28 @@ def _mod():
 
 
 MOD = _mod()
+
+
+def test_exportacion_detecta_artefactos_ausentes_y_modificados(tmp_path, capsys):
+    plan = {'interop/codex/hooks.json': '{"hooks": {}}\n', 'interop/opencode/opencode.json': '{}\n'}
+    assert MOD.escribir(str(tmp_path), plan, quiet=True) == 0
+    assert MOD.comprobar(str(tmp_path), plan) == 0
+    (tmp_path / 'interop/codex/hooks.json').write_text('changed', encoding='utf8')
+    (tmp_path / 'interop/opencode/opencode.json').unlink()
+    assert MOD.comprobar(str(tmp_path), plan) == 1
+    output = capsys.readouterr().out
+    assert 'DESINCRONIZADO interop/codex/hooks.json' in output
+    assert 'FALTA         interop/opencode/opencode.json' in output
+
+
+def test_indice_opencode_degrada_si_falta_el_kit(tmp_path):
+    for folder in ('agents', 'commands', 'skills/demo'):
+        (tmp_path / folder).mkdir(parents=True)
+    (tmp_path / 'agents/demo.md').write_text('---\ndescription: Demo agent.\n---\nBody', encoding='utf8')
+    (tmp_path / 'skills/demo/SKILL.md').write_text('---\nname: demo\ndescription: Demo skill.\n---\nBody', encoding='utf8')
+    index = MOD.opencode_indice(str(tmp_path))
+    assert '**Agentes**' in index and '**Skills**' in index
+    assert 'Demo agent' in index and 'Demo skill' in index
 
 
 def leer(rel):
@@ -133,11 +154,10 @@ def test_codex_hooks_solo_eventos_que_dispara():
     assert h, "hooks.json de Codex vacío"
     desconocidos = set(h) - CODEX_EVENTOS_OK
     assert not desconocidos, "eventos que Codex no conoce: %s" % desconocidos
-    # PostToolUse queda fuera A PROPÓSITO: solo dispara para Bash y los hooks miran Write/Edit.
-    assert "PostToolUse" not in h, "PostToolUse no puede viajar a Codex (solo dispara para Bash)"
-    # SessionStart sin `compact`: ese matcher es de Claude Code.
+    assert h["PostToolUse"][0]["matcher"] == "^apply_patch$"
+    assert len(h["PostToolUse"][0]["hooks"]) == 3
     for grupo in h.get("SessionStart", []):
-        assert "compact" not in grupo.get("matcher", ""), "`compact` no es un source de Codex"
+        assert "compact" in grupo.get("matcher", "")
 
 
 def test_codex_session_end_va_en_shell_form_no_exec_form():
@@ -153,11 +173,22 @@ def test_codex_session_end_va_en_shell_form_no_exec_form():
     assert src.get("args"), "hooks/hooks.json ya no declara SessionEnd en exec form: revisa este test"
     h = json.loads(leer("interop/codex/hooks.json"))["hooks"]["SessionEnd"][0]["hooks"][0]
     assert "args" not in h
-    assert h["command"] == 'bash "%s"' % src["args"][0]
-    assert h.get("timeout") == src.get("timeout")
+    assert h["command"] == 'node "%s" "%s"' % tuple(src["args"])
+    assert h.get("timeout") == 3
     # mismo formato (comillas dobles) que los otros hooks de shell form del propio fichero
     otro = json.loads(leer("interop/codex/hooks.json"))["hooks"]["SessionStart"][0]["hooks"][0]["command"]
-    assert otro.startswith('bash "') and h["command"].startswith('bash "')
+    assert otro.startswith('node "') and h["command"].startswith('node "')
+
+
+def test_codex_hooks_respetan_limite_session_end_y_runner_windows():
+    hooks = json.loads(MOD.codex_hooks_json(ROOT))["hooks"]
+    assert hooks["SessionEnd"][0]["hooks"][0]["timeout"] == 3
+    assert hooks["UserPromptSubmit"][0]["hooks"][0]["timeout"] == 5
+    for groups in hooks.values():
+        for group in groups:
+            for hook in group["hooks"]:
+                assert hook["command"].startswith('node "')
+                assert 'run-hook.mjs' in hook["command"]
 
 
 def test_hook_a_shell_form_pasa_intacto_lo_que_no_es_exec_form():

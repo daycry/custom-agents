@@ -1,0 +1,2 @@
+*.sh text eol=lf
+hooks/runtime-bin/python3 text eol=lf

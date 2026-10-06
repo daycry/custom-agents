@@ -11,13 +11,13 @@ tools: Read, Grep, Glob, Bash, Write, Edit
 # Hook DE GUARDIA con alcance SOLO de este agente (nunca en hooks/hooks.json: planner/evaluator/
 # analyst escriben en docs/roadmap/ legítimamente — ADR-007). Decide guardrail-check.py
 # (determinista, con tests); sin python3 no bloquea; desactivable en .claude/dev.json `guardrails`.
-# ${CLAUDE_PLUGIN_ROOT} es variable de entorno del proceso del hook; si no está, fallback `find`.
+# CLAUDE_PLUGIN_ROOT es variable de entorno del hook; si no está, Node busca en las seis raíces.
 hooks:
   PreToolUse:
     - matcher: "Write|Edit|MultiEdit|NotebookEdit|Bash"
       hooks:
         - type: command
-          command: 'f="${CLAUDE_PLUGIN_ROOT}/hooks/implementer-guardrail.sh"; [ -f "$f" ] || f="$(find "${CLAUDE_PROJECT_DIR:-$PWD}/.claude" "${CLAUDE_PROJECT_DIR:-$PWD}/.codex" "${CLAUDE_PROJECT_DIR:-$PWD}/.opencode" "${HOME:-}/.claude" "${HOME:-}/.codex" "${HOME:-}/.config/opencode" -type f -path "*hooks/implementer-guardrail.sh" 2>/dev/null | head -1)"; [ -f "$f" ] && exec bash "$f"; exit 0'
+          command: node -e "const fs=require('node:fs'),p=require('node:path'),cp=require('node:child_process'),e=process.env,b=e.CLAUDE_PROJECT_DIR||process.cwd(),h=e.HOME||e.USERPROFILE||'.',roots=[e.CLAUDE_PLUGIN_ROOT,p.join(b,'.claude'),p.join(b,'.codex'),p.join(b,'.opencode'),p.join(h,'.claude'),p.join(h,'.codex'),p.join(h,'.config','opencode')].filter(Boolean);let f;function scan(r){try{const f=p.join(r,'hooks','run-hook.mjs');if(fs.existsSync(f))return f;for(const d of fs.readdirSync(r,{withFileTypes:true})){if(d.isDirectory()){const f=scan(p.join(r,d.name));if(f)return f;}}}catch{}}for(const r of roots){f=scan(r);if(f)break;}if(f)cp.spawnSync(process.execPath,[f,'implementer-guardrail.sh'],{stdio:'inherit'});"
 # Dependencias declaradas (convención del repo; ver docs/CONVENTIONS.md).
 dependencies:
   skills:                    # reflejar el progreso en Jira (opcional, opt-in)
