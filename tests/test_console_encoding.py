@@ -367,6 +367,8 @@ def _modos():
     release = ('{"tag_name":"v1.0.0","body":"Arreglos 🐛 y mejoras 👍","assets":'
                '[{"name":"tool_linux_amd64.tar.gz","browser_download_url":"https://x/y"}]}')
     return {
+        "skills/plugin-panel/scripts/build_panel.py":
+            [("catalogo JSON", lambda w: ["--json"], (0,), None)],
         "agent-kits/nemesis/tools/pick_asset.py":
             [("release con emoji", lambda w: ["linux", "amd64"], (0,), release)],
         "agent-kits/qa/coverage-check.py":

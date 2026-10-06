@@ -1,6 +1,6 @@
 ---
 spec: ecc-capabilities
-estado: aprobada
+estado: implementada
 creado: 2026-10-06
 actualizado: 2026-10-06
 plan: improvement-plan.md

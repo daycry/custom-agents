@@ -9,6 +9,14 @@ and versioning follows [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Added — `ecc-capabilities` initiative (2026-10-06)
+
+- **T-01 — Compare ECC, Graphify and current memory** Documents selective ECC adoption and Graphify as a possible structural complement to curated memory. (`docs/roadmap/2026-10-06-ecc-capabilities/**`, `docs/roadmap/README.md`)
+- **T-02 — Research before building** Analyst and architect can compare existing solutions before designing integrations or tools with research-first.
+- **T-03 — Capability control panel** plugin-catalog generates a searchable local catalog with central redaction and runtime/memory source presence.
+- **T-04 — Practices for the three stacks** Development roles gain task-specific guidance for CodeIgniter 4, Python and React.
+- **T-05 — Validate, document and push the branch** The first ECC integration preserves contracts across all three runtimes and documents its capabilities and memory limits.
+
 ### Fixed — `plugin-refactor` initiative (2026-09-09)
 
 - **T-01 — Accurate TODO detection** The code health report excludes its own detector descriptions and Spanish prose, removing eight false positives.

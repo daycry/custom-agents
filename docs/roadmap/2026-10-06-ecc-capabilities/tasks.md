@@ -1,6 +1,6 @@
 ---
 tasks: ecc-capabilities
-estado: en-progreso
+estado: completado
 creado: 2026-10-06
 actualizado: 2026-10-06
 verificacion: obligatoria
@@ -27,12 +27,12 @@ autoriza push de la rama. No solicita PR/merge ni release.
 
 | Fase | Completadas | Total | Progreso |
 |---|---|---|---|
-| Fase 1 | 4 | 5 | 80% |
-| **TOTAL** | **4** | **5** | **80%** |
+| Fase 1 | 5 | 5 | 100% |
+| **TOTAL** | **5** | **5** | **100%** |
 
 ## Fase 1 — Integración
 
-**Estado**: en-progreso
+**Estado**: completado
 
 ### T-01 — Comparar ECC, Graphify y memoria actual
 
@@ -67,7 +67,7 @@ Evidencia ejecutada: testing/report.md (2026-10-06); interop --check: 52 fichero
 - **Estado**: completado
 - **Descripción**: inventario público de agentes/skills/comandos/tools/hooks; HTML local buscable y JSON; presencia de fuentes sin afirmar ejecución o salud.
 - **Changelog**: plugin-catalog genera un panel local buscable del catálogo, con redacción central y presencia de fuentes de runtime y memoria.
-- **Archivos**: `skills/plugin-panel/**`, `commands/plugin-catalog.md`, `tests/test_plugin_panel.py`, `evals/cases/skill-plugin-panel.json`, `evals/cases/command-plugin-catalog.json`, `docs/PLUGIN-PANEL.md`, `docs/en/PLUGIN-PANEL.md`, `interop/**`
+- **Archivos**: `skills/plugin-panel/**`, `commands/plugin-catalog.md`, `tests/test_plugin_panel.py`, `tests/test_console_encoding.py`, `evals/cases/skill-plugin-panel.json`, `evals/cases/command-plugin-catalog.json`, `docs/PLUGIN-PANEL.md`, `docs/en/PLUGIN-PANEL.md`, `interop/**`
 - **Verificación**: pytest tests/test_plugin_panel.py; coverage-gate changed-only al 90 %; navegador con búsqueda/filtros y viewport móvil.
 **Criterios de aceptación**:
   - [x] Metadatos redactados, cuerpos privados excluidos, symlinks rechazados y salida ajena preservada.
@@ -98,13 +98,13 @@ Evidencia ejecutada: testing/report.md (2026-10-06); interop --check: 52 fichero
 
 ### T-05 — Validar, documentar y publicar la rama
 
-- **Estado**: en-progreso
+- **Estado**: completado
 - **Descripción**: documentación bilingüe, fuentes generadas, revisión adversarial, pruebas afectadas, cobertura del script y commit/push; integración a master pendiente.
 - **Changelog**: La primera integración de ECC conserva los contratos de los tres runtimes y documenta sus capacidades y límites de memoria.
 - **Archivos**: `docs/README.md`, `docs/en/README.md`, `CLAUDE.md`, `docs/FLOWS.md`, `docs/en/FLOWS.md`, `docs/INTEROP.md`, `docs/en/INTEROP.md`, `README.md`, `README.es.md`, `CHANGELOG.md`, `CHANGELOG.es.md`, `docs/roadmap/CALIBRATION.md`, `docs/roadmap/README.md`, `docs/roadmap/2026-10-06-ecc-capabilities/**`, `interop/**`, `.codex-plugin/**`, `.agents/plugins/**`
 - **Verificación**: scope-check base 0d9ce74; revisión A+B (C/D según selector); linter, evals, export --check, pruebas afectadas y coverage gate; git diff --check y push normal.
 **Criterios de aceptación**:
-  - [ ] Puertas y evidencias registradas; memoria sin migración ni promociones automáticas.
+  - [x] Puertas y evidencias registradas; memoria sin migración ni promociones automáticas.
 
 TDD n/a: metadatos y documentación; el código del panel sigue TDD en T-03.
 
@@ -150,3 +150,45 @@ Resultado: **0 Critical, 0 Important, 0 Minor pendientes**. Sin entradas nuevas
 de conocimiento que promover. Jira no activo para esta iniciativa; no se envían
 mensajes externos. T-05 conserva el cierre/publicación pendiente hasta ejecutar
 el push de la entrega.
+
+## Cierre técnico de la entrega
+
+T-05 completada: código y comparación publicados con commit `ad7f9d7`;
+`git push origin fix/hooks-brief-budget-ecc` ejecutado, exit 0, remoto actualizado
+`0d9ce74..ad7f9d7`. El cierre documental se añade después de verificar ese push.
+Pruebas finales: panel 14 passed/1 skipped en Windows y Linux, conjunto de
+metadatos/panel 97 passed/1 skipped; exports/consola 469 passed; índice 14 passed;
+Playwright 4 passed y qa-gate VERDE. Cobertura changed-only 92,11 %. Linter 0
+errores/3 avisos previos; evals 167 casos/0 errores; export 52 al día; ledger-lint
+0 incoherencias/0 avisos; revisión A+B intento 2 sin gaps pendientes.
+
+Spec implementada, plan y ledger completados: **5/5**. Piloto Graphify y futuras
+ampliaciones conservan su estado pendiente en comparison.md, fuera de esta
+primera entrega. PR/master y release no solicitados; no se ejecutan.
+
+Comprobación posterior al primer push: al entrar el nuevo script en `git ls-files`,
+la suite UTF-8 exige registrar su modo de arranque. RED: cuatro casos fallaron por
+MODOS ausente/KeyError (scratchpad/ecc-console-registration-red.xml), con 913 casos aprobados.
+Se registra `--json`, que imprime metadatos públicos no ASCII; no cambia producción
+ni se admite un skip. La corrección añade tests/test_console_encoding.py a T-03.
+GREEN específico: 8 passed, 442 deselected, sin skips. Se repite la puerta completa
+de consola/metadatos antes del cierre publicado. No cambia el script aprobado.
+
+## Revisión de dos lentes — intento 3: Fase 1 (T-03/T-05) — registro y cierre
+
+A+B en contexto fresco, fallback genérico; C/D no activadas. Solo delta posterior
+a `ad7f9d7`; sin cambios de producción ni reapertura de criterios aprobados.
+
+| Criterio | Veredicto | Evidencia |
+|---|---|---|
+| Registro del arranque real UTF-8 | ✓ | --json emite metadatos no ASCII; Lente B independiente: 8 passed, sin skips |
+| RED, alcance y constitución | ✓ | Falta de MODOS reproducida, test declarado en T-03; ledger y changelogs bilingües |
+| E2/E3, retro y medición | ✓ | Lente A ejecutó export --check: exit 0, 52 al día; fila sin ratio y mediana preservada |
+| Push inicial y cierre honesto | ✓ | Rama remota en ad7f9d7; segundo push documental todavía por ejecutar |
+
+Resultado independiente: **0 Critical, 0 Important, 0 Minor nuevos**. No hay gaps
+pendientes ni promociones de memoria. Tras las lentes, puerta completa repetida:
+**917 passed, 0 failed, 0 skipped**, un aviso histórico de marcador en el ledger
+cerrado de plugin-refactor (sin error). JUnit: scratchpad/ecc-closure-tests.xml.
+Changelog --check, ledger-lint, scope y retro-gate en verde. Este cierre documental
+se comitea y sube como último paso autorizado; no se ejecuta PR/merge/release.

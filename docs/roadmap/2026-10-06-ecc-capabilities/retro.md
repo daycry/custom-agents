@@ -1,7 +1,7 @@
 ---
 retro: ecc-capabilities
 fecha: 2026-10-06
-estado: en-revision
+estado: cierre-tecnico-local
 ---
 
 # Retro — primera integración ECC
@@ -28,6 +28,10 @@ de metadatos. La primera comparación mencionaba runtimes, pero no entregaba la
 matriz comprometida. Serializar/truncar antes de redactar dejaba sin protección
 una asignación entrecomillada y un PEM largo; dos tests rojos lo reprodujeron.
 Ahora se redacta el texto original antes del resumen y la exportación.
+La comprobación tras versionar el script activó su entrada en la suite de consola:
+faltaba declarar el arranque JSON. Se registra y valida sin exenciones; la puerta
+completa final ejecutó 917 casos aprobados. Un tercer pase independiente valida
+ese registro y el cierre documental, sin cambios de producción ni gaps nuevos.
 
 Validación y límites en [testing/report.md](testing/report.md); historial de los
 pases en [tasks.md](tasks.md). La ventana de uso no permite inventar tokens ni

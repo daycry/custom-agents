@@ -9,6 +9,14 @@ y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Added — iniciativa `ecc-capabilities` (2026-10-06)
+
+- **T-01 — Comparar ECC, Graphify y memoria actual** Se documenta la adopción selectiva de ECC y el encaje de Graphify como complemento estructural de la memoria curada. (`docs/roadmap/2026-10-06-ecc-capabilities/**`, `docs/roadmap/README.md`)
+- **T-02 — Investigar antes de construir** Analyst y architect pueden comparar soluciones existentes antes de diseñar integraciones o herramientas con research-first.
+- **T-03 — Control panel de capacidades** plugin-catalog genera un panel local buscable del catálogo, con redacción central y presencia de fuentes de runtime y memoria.
+- **T-04 — Guías específicas de los tres stacks** Los roles de desarrollo disponen de guías específicas para CodeIgniter 4, Python y React, cargadas según el stack de la tarea.
+- **T-05 — Validar, documentar y publicar la rama** La primera integración de ECC conserva los contratos de los tres runtimes y documenta sus capacidades y límites de memoria.
+
 ### Fixed — iniciativa `plugin-refactor` (2026-09-09)
 
 - **T-01 — C-04: detector de TODO de `code-health.py`, 8 → 0** El informe de salud del código deja de contar como TODO su propia descripción del detector y la prosa castellana («TODO el histórico…»): los 8 falsos positivos pasan a 0.

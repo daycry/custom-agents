@@ -46,6 +46,12 @@ el runner Playwright y su reporter JSON. `NODE_PATH` debe resolver esa instalaci
 - `evals/check.py`: **47 ficheros, 167 casos, 0 errores** (101 positivos/66 negativos).
 - `export-interop.py --check`: **exit 0, 52 ficheros al día** para Codex y OpenCode.
 - Índice de sesión: **14 passed**, conservando sus límites de contexto.
+- Después de versionar el script, cuatro casos de la suite de consola exigieron
+  registrar su arranque en `MODOS`. Se añadió `--json` sin cambiar producción:
+  **8 passed** en los casos específicos del panel, sin skips.
+- Puerta completa posterior al registro: **917 passed, 0 failed, 0 skipped**
+  (cifras medidas, índice del roadmap, consola e insignias del README). Un aviso
+  histórico sobre un marcador citado en plugin-refactor, sin errores nuevos.
 - Validator de skill-creator: las cinco skills nuevas válidas.
 - Exportaciones y consola UTF-8: **469 passed** (`test_export_interop.py` y
   `test_console_encoding.py`), sin omisiones.
@@ -65,6 +71,8 @@ La revisión adversarial A+B encontró dos Important en el intento 1, reproducid
 y corregidos. El intento 2 validó ambas correcciones sin gaps nuevos: **0 Critical,
 0 Important, 0 Minor pendientes**. El HTML se regeneró tras el arreglo de redacción
 y Playwright repitió los cuatro casos con qa-gate VERDE.
+El intento 3 revisó el registro UTF-8 y el cierre documental sin gaps nuevos;
+el código de producción permaneció igual al aprobado en el intento 2.
 
 El piloto Graphify sigue definido en [comparison.md](../comparison.md), pendiente
 de ejecución. No se afirma mejora de recuperación ni equivalencia de sus
