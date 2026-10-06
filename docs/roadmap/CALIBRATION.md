@@ -33,12 +33,13 @@ Cada fila sale de un `/retro` de una iniciativa **cerrada**. Lo leen dos piezas:
 | 2026-09-18 | session-end-durable-capture | −57 % humanas (6,0 h vs 14 h est.); IA **+168 %** (11,27 h a juicio vs 4,2 h est.) | — (sin medición: el meter degradó en el sandbox, sin transcripciones) | **(estimado)** — sin tokens medidos ni horas-IA independientes; derivarlo sería circular | El bucle de revisión: 7 pasadas (3+1 por tramo) y 97 gaps frente a 2 revisiones presupuestadas; cada corrección sobre el camino crítico de la cola abría estados intermedios sin barrido (5 de 6 Critical) — ver [`LES-016`](../knowledge/lessons/LES-016-implementer-estados-intermedios-de-una-cola-tienen-dueno.md) | Con cola/concurrencia/estado durable: revisión + corrección como línea propia con 3 intentos por tramo, y una tarea de diseño «estados intermedios y su recuperación» antes de implementar |
 | 2026-09-19 | knowledge-services | −100 % humanas (0 h vs 56 h est.: ejecución íntegra por agentes); IA de implementación −63 % (6,15 h vs 16,8 h est., mezcla de medido en ventanas compartidas y estimado) + **11 rondas de corrección y 12 pasadas de lentes no presupuestadas** (185 gaps) | −72 % en ventanas de tarea (~230k vs 815k; sin contar revisores) | **(estimado)** las horas IA son repartos de ventanas compartidas y estimaciones: derivar el ratio sería circular | el coste real fue la revisión adversarial, no la implementación; un diseño fijado por el orquestador en una tabla de gaps produjo 2 Critical | presupuestar la revisión de dos lentes como partida propia; un marcador de usage-meter por tarea sin solape |
 | 2026-09-29 | training-data-services | −100 % humanas (0 h vs 39,5 h est.: ejecución íntegra por agentes); IA **+761 %** (105,86 h medidas vs 12,3 h est.): ≈ 12 h de implementación y ≈ 94 h de revisión y corrección (15 secciones, 206 gaps: 1 C · 31 I · 174 M; 6 diseños rehechos dentro del bucle) | ×6,1 en salida (~3,53 M vs 575k est.); 750,23 € medidos | **(estimado)** — las horas IA las derivó el propio meter con el ratio vigente (479326), así que calcular un ratio con ellas sería circular | Objetivo «sin gaps» que hizo bloqueante cada Minor, más lentes sin modelo de amenaza ni escala declarados; el tope de 3 intentos no funcionó como tope | Nivel de riesgo en la spec (`sdd-proporcional`): ×2,2 de revisión en `alto`; modelo de amenaza y escala obligatorios; Minor al backlog; diseño aprobado antes del bucle; ver [retro](2026-09-16-training-data-services/retro.md) |
+| 2026-10-06 | plugin-refactor | no comparable: muestra parcial | no comparable: muestra parcial | 849708 | Revisión y corrección prolongadas; 38 marcadores válidos, 37 intervalos, con streaming y ventanas compartidas deduplicados | Ventanas por tarea desde el inicio; tokens facturables / reloj independiente; conservar límites de la muestra; ver [retro](2026-09-09-plugin-refactor/retro.md) |
 
 
 | 2026-10-06 | brief-budget | no medido; estimación histórica conservada | no medido (sesión Codex sin meter compatible) | **(estimado)** — sin nueva muestra, ratio vigente intacto | historial acumulado, cortes estructurales y overhead de persona; constitución real no incluida en medición corta | medir comando normal y contexto de referencia por separado; conservar decisiones; dividir contratos irreducibles; ver [retro](2026-09-09-brief-budget/retro.md) |
 | 2026-10-06 | hooks-runtime | no medido | no medido | **(estimado)** — sin nueva muestra, ratio vigente intacto | Windows seleccionaba WSL y no python3; SessionEnd exportaba5 frente a límite3; contrato Codex PostToolUse obsoleto | launcher común, Python nativo en captura, pruebas de payload y caché activa; ver [retro](2026-10-06-hooks-runtime/retro.md) |
 
-> Ratio vigente: 479326 tokens/hora (mediana de 5 muestras)
+> Ratio vigente: 531798.5 tokens/hora (mediana de 6 muestras)
 >
 > **Qué cuenta para esa mediana (auditoría de las 10 filas, 2026-09-12, T-17).** Solo las **5**
 > primeras tienen un `tokens/hora` **medido** (tokens facturables ÷ reloj real de sus ventanas):
@@ -48,7 +49,7 @@ Cada fila sale de un `/retro` de una iniciativa **cerrada**. Lo leen dos piezas:
 > marcan ahora **`(estimado)`**: su celda llevaba el ratio **heredado**, no medido, y
 > `usage-meter.py` las estaba contando como muestras —la mediana se alimentaba de su propia
 > salida—. Esta línea-resumen ya decía «mediana de 5» mientras el parser contaba **7**: la prosa
-> tenía razón y el código no. Con el filtro, ambos dicen 5 y el ratio vigente **no cambia**
+> tenía razón y el código no. En aquella corrección, ambos quedaron en 5 y el ratio entonces vigente **no cambió**
 > (mediana de 300050 · 421674 · **479326** · 584271 · 1048061), así que no hay ninguna hora
 > re-derivada por este arreglo.
 
@@ -63,18 +64,17 @@ Cada fila sale de un `/retro` de una iniciativa **cerrada**. Lo leen dos piezas:
 > de las 5 iniciativas medidas**. Ojo: `tipoCambioUsdEur` (0,92) sigue siendo un **supuesto**, no un
 > dato verificado — revísalo antes de usar estas cifras para facturar.
 
-## Medición disponible de una iniciativa abierta
+## Incorporación de la muestra de plugin-refactor (2026-10-06)
 
-El 2026-10-06 se recuperó una muestra histórica de `plugin-refactor` en Claude
-Code: **14.145.747 tokens / (59.932 segundos / 3.600) = 849.708 tokens/hora**.
-Se examinaron 41 marcadores y se usaron 38, con 37 intervalos distintos. La
-[evidencia y las exclusiones](2026-09-09-plugin-refactor/testing/calibration.md)
-explican la deduplicación de respuestas y de ventanas compartidas.
+El cierre técnico incorpora **849708 tokens/hora**: 14.145.747 tokens facturables /
+(59.932 s /3.600), 38 marcadores válidos y 37 intervalos distintos. La
+[evidencia](2026-09-09-plugin-refactor/testing/calibration.md) explica exclusiones
+y deduplicación. La muestra es parcial: no mide las 22 tareas completas ni el
+cierre actual Codex. No se calculan desviaciones presupuestarias totales.
 
-La muestra es parcial: no incluye las 22 tareas completas ni el cierre actual
-en Codex. Ya existe una medición compatible; su incorporación a la tabla y a la
-mediana espera al cierre de la iniciativa. **No cambia el ratio vigente de
-479.326 tokens/hora** ni las horas derivadas en los artefactos históricos.
+La mediana automática tiene seis muestras: 300050, 421674, 479326, 584271,
+849708 y 1048061. **(479326+584271)/2 = 531798.5**. El parser se verifica
+independientemente durante el cierre técnico. No se re-derivan las horas históricas ni su ratio_usado.
 
 ## Aprendizajes acumulados (lo que ya no hay que volver a descubrir)
 

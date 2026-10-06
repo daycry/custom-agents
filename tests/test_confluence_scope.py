@@ -164,7 +164,7 @@ def test_status_sync_classification():
         proj = fresh_root(tmp)
         readme = proj / "docs" / "README.md"
         state = {
-            "docs/README.md": {"hash": sha256_text(readme.read_text(encoding="utf-8")), "pageId": "1"},
+            "docs/README.md": {"hash": hashlib.sha256(readme.read_bytes()).hexdigest(), "pageId": "1"},
             "docs/roadmap/init1/spec.md": {"hash": "0" * 64, "pageId": "2"},
             # docs/roadmap/init1/... no tiene entrada equivalente para todo -> el resto sale pendiente
         }

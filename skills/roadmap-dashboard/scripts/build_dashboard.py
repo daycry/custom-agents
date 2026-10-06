@@ -127,21 +127,7 @@ def _gen_valor(k, v):
     return None if v.lower() in ("", "null", "~", "none") else v
 
 
-def parse_generacion(text):
-    """Lee el bloque `generacion:` del frontmatter (iniciativa coste-generacion):
-    coste real de producir el documento. Devuelve dict o None (sin bloque = sin datos,
-    NUNCA 0 inventado). Parser tolerante: claves anidadas por indentación y dict
-    inline para tokens_reales."""
-    m = re.match(r"^\s*---\s*\n(.*?)\n---\s*\n", text, re.S)
-    if not m:
-        return None
-    lines = m.group(1).splitlines()
-    try:
-        start = next(i for i, ln in enumerate(lines)
-                     if re.match(r"^generacion\s*:", ln))
-    except StopIteration:
-        return None
-
+def _generacion_de_lineas(lines, start):
     gen = {}
     i = start + 1
     while i < len(lines):
@@ -162,6 +148,24 @@ def parse_generacion(text):
             gen[k] = _gen_valor(k, v)
         i += 1
     return gen or None
+
+
+def parse_generacion(text):
+    """Lee el bloque `generacion:` del frontmatter (iniciativa coste-generacion):
+    coste real de producir el documento. Devuelve dict o None (sin bloque = sin datos,
+    NUNCA 0 inventado). Parser tolerante: claves anidadas por indentación y dict
+    inline para tokens_reales."""
+    m = re.match(r"^\s*---\s*\n(.*?)\n---\s*\n", text, re.S)
+    if not m:
+        return None
+    lines = m.group(1).splitlines()
+    try:
+        start = next(i for i, ln in enumerate(lines)
+                     if re.match(r"^generacion\s*:", ln))
+    except StopIteration:
+        return None
+
+    return _generacion_de_lineas(lines, start)
 
 
 def _miles(n):
@@ -687,6 +691,27 @@ def contar_fuentes(inits):
     return {"estimados": estimados, "medidos": medidos, "otros": otros, "total": total}
 
 
+def _clave_ventana_generacion(g, t):
+    clave = None
+    if isinstance(t, dict) and g.get("inicio") and g.get("fin"):
+        clave = (g.get("inicio"), g.get("fin"), g.get("horas_ia"),
+                 tuple(sorted(t.items())))
+    return clave
+
+
+def _sumar_generacion(g, t, toks, horas, docs_con_tokens, eur, eur_ok):
+    if isinstance(t, dict):
+        # facturables: entrada + creación de caché + salida (convención usage-meter)
+        toks += (t.get("entrada") or 0) + (t.get("cache_creacion") or 0) + (t.get("salida") or 0)
+        docs_con_tokens += 1
+    horas += g.get("horas_ia") or 0
+    if g.get("eur") is not None:
+        eur += g["eur"]
+    else:
+        eur_ok = False
+    return toks, horas, docs_con_tokens, eur, eur_ok
+
+
 def _proceso_gen_stats(gen):
     """Acumula tokens/horas/€ de un `generacion` dict, deduplicando ventanas compartidas.
     Una MISMA ventana de medición puede estar declarada en dos artefactos (el planner mide
@@ -701,25 +726,15 @@ def _proceso_gen_stats(gen):
     vistas = set()
     for g in gen.values():
         t = g.get("tokens_reales")
-        clave = None
-        if isinstance(t, dict) and g.get("inicio") and g.get("fin"):
-            clave = (g.get("inicio"), g.get("fin"), g.get("horas_ia"),
-                     tuple(sorted(t.items())))
+        clave = _clave_ventana_generacion(g, t)
         duplicada = clave is not None and clave in vistas
         if clave is not None:
             vistas.add(clave)
         fuentes.add(g.get("fuente") or "?")
         if duplicada:
             continue  # ventana compartida ya contada
-        if isinstance(t, dict):
-            # facturables: entrada + creación de caché + salida (convención usage-meter)
-            toks += (t.get("entrada") or 0) + (t.get("cache_creacion") or 0) + (t.get("salida") or 0)
-            docs_con_tokens += 1
-        horas += g.get("horas_ia") or 0
-        if g.get("eur") is not None:
-            eur += g["eur"]
-        else:
-            eur_ok = False
+        toks, horas, docs_con_tokens, eur, eur_ok = _sumar_generacion(
+            g, t, toks, horas, docs_con_tokens, eur, eur_ok)
     ventanas = len(vistas) or len(gen)
     return {"toks": toks, "horas": horas, "eur": eur, "eur_ok": eur_ok,
             "fuentes": fuentes, "ventanas": ventanas, "docs_con_tokens": docs_con_tokens}
@@ -744,14 +759,7 @@ def _proceso_fila(r):
     return fila, s
 
 
-def render_proceso_md(inits):
-    """Sección 'Coste de proceso': lo que costó PRODUCIR los artefactos del ciclo
-    (spec/eval/plan/tasks), medido por usage-meter (bloque generacion:). Separado
-    del coste de implementación. Sin bloque → 'sin datos' (nunca 0 inventado)."""
-    out = ["## 🧾 Coste de proceso (generación de artefactos)", "",
-           "> Lo que costó **producir** spec / evaluación / plan / tasks "
-           "(tokens reales de `usage-meter`; horas = tokens × ratio calibrado; "
-           "fechas solo contexto). Separado del coste de implementación de arriba.", ""]
+def _totales_de_proceso(inits):
     rows, tot_tok, tot_h, tot_eur, con_datos = [], 0, 0.0, 0.0, 0
     eur_incompleto = False
     for r in inits:
@@ -766,6 +774,31 @@ def render_proceso_md(inits):
             tot_eur += s["eur"]
         else:
             eur_incompleto = True
+    return rows, tot_tok, tot_h, tot_eur, con_datos, eur_incompleto
+
+
+def _fuentes_de_proceso(inits):
+    out = []
+    f = contar_fuentes(inits)
+    if f["total"]:
+        resto = (f", {f['otros']} sin `fuente:` reconocible" if f["otros"] else "")
+        out += ["", f"> **{f['estimados']} de {f['total']} bloques `generacion:` con "
+                    f"`fuente: estimado`** ({f['medidos']} con `fuente: medido`{resto}). Un bloque "
+                    f"`estimado` es una estimación a juicio con formato de medida: no calibra "
+                    f"nada. Las filas de `CALIBRATION.md` marcadas `(estimado)` quedan fuera de "
+                    f"la mediana que usa `usage-meter.py`."]
+    return out
+
+
+def render_proceso_md(inits):
+    """Sección 'Coste de proceso': lo que costó PRODUCIR los artefactos del ciclo
+    (spec/eval/plan/tasks), medido por usage-meter (bloque generacion:). Separado
+    del coste de implementación. Sin bloque → 'sin datos' (nunca 0 inventado)."""
+    out = ["## 🧾 Coste de proceso (generación de artefactos)", "",
+           "> Lo que costó **producir** spec / evaluación / plan / tasks "
+           "(tokens reales de `usage-meter`; horas = tokens × ratio calibrado; "
+           "fechas solo contexto). Separado del coste de implementación de arriba.", ""]
+    rows, tot_tok, tot_h, tot_eur, con_datos, eur_incompleto = _totales_de_proceso(inits)
     out += ["| Iniciativa | Tokens facturables | Horas-IA | Coste | Artefactos medidos |",
             "|---|---|---|---|---|"]
     out += rows
@@ -783,18 +816,11 @@ def render_proceso_md(inits):
 
     # E7: cuántos de estos números son una MEDIDA y cuántos una estimación con formato de medida.
     # Va después de la tabla, no dentro: es un juicio sobre la tabla entera, no sobre una fila.
-    f = contar_fuentes(inits)
-    if f["total"]:
-        resto = (f", {f['otros']} sin `fuente:` reconocible" if f["otros"] else "")
-        out += ["", f"> **{f['estimados']} de {f['total']} bloques `generacion:` con "
-                    f"`fuente: estimado`** ({f['medidos']} con `fuente: medido`{resto}). Un bloque "
-                    f"`estimado` es una estimación a juicio con formato de medida: no calibra "
-                    f"nada. Las filas de `CALIBRATION.md` marcadas `(estimado)` quedan fuera de "
-                    f"la mediana que usa `usage-meter.py`."]
+    out += _fuentes_de_proceso(inits)
     return "\n".join(out)
 
 
-def main():
+def _dashboard_parser():
     ap = argparse.ArgumentParser()
     ap.add_argument("--root", default="docs/roadmap")
     ap.add_argument("--html", help="ruta de salida del HTML (vista local)")
@@ -804,6 +830,29 @@ def main():
     ap.add_argument("--json", action="store_true", help="volcar JSON a stdout")
     ap.add_argument("--strict", action="store_true",
                     help="salir con código 1 si hay avisos (para CI)")
+    return ap
+
+
+def _dashboard_archivos(args, inits):
+    if args.html:
+        os.makedirs(os.path.dirname(os.path.abspath(args.html)), exist_ok=True)
+        with open(args.html, "w", encoding="utf-8") as f:
+            f.write(render_html(inits, args.root))
+        print(f"[roadmap-dashboard] HTML: {len(inits)} iniciativa(s) -> {args.html}")
+    if args.md:
+        os.makedirs(os.path.dirname(os.path.abspath(args.md)), exist_ok=True)
+        with open(args.md, "w", encoding="utf-8") as f:
+            f.write(render_markdown(inits, args.root))
+        print(f"[roadmap-dashboard] MD: {len(inits)} iniciativa(s) -> {args.md}")
+    if args.metrics_md:
+        os.makedirs(os.path.dirname(os.path.abspath(args.metrics_md)), exist_ok=True)
+        with open(args.metrics_md, "w", encoding="utf-8") as f:
+            f.write(render_metrics_md(inits, args.root))
+        print(f"[roadmap-dashboard] MÉTRICAS: -> {args.metrics_md}")
+
+
+def main():
+    ap = _dashboard_parser()
     args = ap.parse_args()
 
     if not os.path.isdir(args.root):
@@ -827,21 +876,7 @@ def main():
                 f["estimados"], f["medidos"], f["total"])
             r["generacion_otros"] = f["otros"]
         print(json.dumps(inits, ensure_ascii=False, indent=2))
-    if args.html:
-        os.makedirs(os.path.dirname(os.path.abspath(args.html)), exist_ok=True)
-        with open(args.html, "w", encoding="utf-8") as f:
-            f.write(render_html(inits, args.root))
-        print(f"[roadmap-dashboard] HTML: {len(inits)} iniciativa(s) -> {args.html}")
-    if args.md:
-        os.makedirs(os.path.dirname(os.path.abspath(args.md)), exist_ok=True)
-        with open(args.md, "w", encoding="utf-8") as f:
-            f.write(render_markdown(inits, args.root))
-        print(f"[roadmap-dashboard] MD: {len(inits)} iniciativa(s) -> {args.md}")
-    if args.metrics_md:
-        os.makedirs(os.path.dirname(os.path.abspath(args.metrics_md)), exist_ok=True)
-        with open(args.metrics_md, "w", encoding="utf-8") as f:
-            f.write(render_metrics_md(inits, args.root))
-        print(f"[roadmap-dashboard] MÉTRICAS: -> {args.metrics_md}")
+    _dashboard_archivos(args, inits)
     if not any([args.html, args.md, args.metrics_md, args.json]):
         print(f"[roadmap-dashboard] {len(inits)} iniciativa(s) encontradas")
 

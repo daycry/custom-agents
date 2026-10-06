@@ -34,6 +34,7 @@ FALSO de la suite del adaptador y se levantan servidores efimeros propios en `12
 Ejecutar: python -m pytest -q tests/test_graphiti_security.py
 """
 import ast
+import hashlib
 import importlib.util
 import json
 import os
@@ -106,16 +107,25 @@ _MAX_SALTOS = 5
 _EXT_ESCANEABLES = ("py", "sh")
 _EXT_NO_ESCANEABLES = ("js", "mjs", "ps1", "cmd")
 _EJECUTABLES_NO_ESCANEABLES_PERMITIDOS = ()
+# Reviewed full inline bootstraps, not arbitrary `.join(root, 'hooks', name)`.
+# Changes to these commands require a deliberate security review and new fingerprints.
+_BOOTSTRAP_NODE_HASHES = {
+    "d496e3e458dae7e9f20ecad2474c172b3a6dac6c52b3062cb0989ab76cafa961",
+    "bb33644a5fa25a3f796135a0e540d48fc232daed161e1c0c41af3059c246bf0e",
+}
+# The scanner admits exactly the audited launcher, not arbitrary JavaScript.
+# Normalize only line endings; a code change must update this fingerprint after review.
+_LAUNCHER_NODE_HASH = "15957a0c7282db0dec830141edb3252e51dd6751d0d39ca8f1f239b63ad55e21"
 _EXT_RE = "|".join(_EXT_ESCANEABLES + _EXT_NO_ESCANEABLES)
 # Gap #155 (Important, fix1 Fase 4): el lookahead final quita los falsos positivos del escaneo de
 # CODIGO (`hashlib.sha256` casaba como `hashlib.sh`). Hace falta porque a partir de este fix una
 # cita que no resuelve YA NO se descarta en silencio: es un fallo. Gap #182 (fix2): el prefijo
 # opcional `$VAR/` o `${VAR:-…}/` se captura aparte (`var`), porque sin fallback por basename una
 # cita `"$SHARED/journal.py"` solo se puede resolver sabiendo a que apunta `SHARED`.
-_RUTA_RE = re.compile(r"""(?:\$\{?(?P<var>\w+)[^}\s"'/]*\}?)?(?P<ruta>[\w./\\-]+\.(?:%s))(?![\w])"""
+_RUTA_RE = re.compile(r"""(?:\$\{?(?P<var>\w+)[^}\s"'/]*\}?)?(?P<ruta>[\w./\\-]+\.(?:%s))(?![\w.])"""
                       % _EXT_RE)
 # Token de una cita dentro de una cadena de shell (`bash "${X}/hooks/a.sh"`, `python3 "$S/b.py"`).
-_TOKEN_SCRIPT_RE = re.compile(r"""[^\s"'`;|&()]*\.(?:%s)(?![\w])""" % _EXT_RE)
+_TOKEN_SCRIPT_RE = re.compile(r"""[^\s"'`;|&()]*\.(?:%s)(?![\w.])""" % _EXT_RE)
 _EXPANSION_SHELL_RE = re.compile(r"\$\{[^}]*\}|\$\w+")
 # Lista blanca EXPLICITA de citas que no corresponden a un fichero del repo. Vacia a proposito:
 # todo hook del plugin invoca scripts del plugin. Añadir una entrada aqui es una decision
@@ -129,6 +139,7 @@ _CITAS_SIN_FICHERO_PERMITIDAS = ()
 # el directorio va en una variable de Python (`os.path.join(shared, "knowledge-find.py")`)- se
 # declaran aqui UNA A UNA: `(fichero que cita, nombre citado) -> destino`.
 _CITAS_POR_NOMBRE = {
+    ("hooks/run-hook.mjs", "journal.py"): "agent-kits/shared/journal.py",
     ("hooks/session-context.sh", "knowledge-find.py"): "agent-kits/shared/knowledge-find.py",
     ("hooks/session-context.sh", "progress-report.py"): "agent-kits/shared/progress-report.py",
     ("agent-kits/shared/knowledge-find.py", "__init__.py"):
@@ -389,6 +400,9 @@ def _resolver_cita_de_codigo(m, ruta_citante, texto_citante, root):
 
 
 def _es_no_escaneable(cita):
+    # Only the known launcher is scanned as JavaScript; other JS remains fail-closed.
+    if _parte_literal(cita).lstrip("/") == "hooks/run-hook.mjs":
+        return False
     return cita.rsplit(".", 1)[-1].lower() in _EXT_NO_ESCANEABLES
 
 
@@ -431,10 +445,8 @@ def _cadenas_inline(root=ROOT):
                 for hook in bloque.get("hooks") or []:
                     # gap #183: el comentario final no es parte de lo que se ejecuta
                     cadenas.append(("hooks/hooks.json %s command" % evento,
-                                    _sin_comentario_shell(str(hook.get("command", "")))))
-                    for indice, arg in enumerate(hook.get("args") or []):
-                        cadenas.append(("hooks/hooks.json %s args[%d]" % (evento, indice),
-                                        _sin_comentario_shell(str(arg))))
+                                    _sin_comentario_shell(str(hook.get("command", ""))) + " " +
+                                    " ".join(str(arg) for arg in hook.get("args") or [])))
     base_agentes = os.path.join(root, "agents")
     if os.path.isdir(base_agentes):
         for nombre in sorted(os.listdir(base_agentes)):
@@ -456,12 +468,22 @@ def _recorrido_hooks(root=ROOT):
     `({etiqueta relativa: ruta absoluta}, [(origen, cita) de las citas que NO resuelven])`."""
     pendientes, sin_resolver = set(), []
     for origen, cadena in _cadenas_inline(root):
+        usa_launcher = "hooks/run-hook.mjs" in cadena or hashlib.sha256(
+            cadena.strip().encode("utf8")).hexdigest() in _BOOTSTRAP_NODE_HASHES
         for cita in sorted(_citas_de_cadena(cadena)):
+            variables = [re.match(r"\$\{?(\w+)", expansion).group(1)
+                         for expansion in _EXPANSION_SHELL_RE.findall(cita)]
+            if any(variable not in _VARIABLES_DE_RAIZ for variable in variables):
+                sin_resolver.append((origen, cita))
+                continue
+            if cita == "run-hook.mjs" and usa_launcher:
+                cita = "hooks/run-hook.mjs"
             if _es_no_escaneable(cita):   # gap #177: nada que la puerta sepa escanear
                 if cita not in _EJECUTABLES_NO_ESCANEABLES_PERMITIDOS:
                     sin_resolver.append((origen, cita))
                 continue
-            resuelta = _resolver(_parte_literal(cita), root)
+            launcher = os.path.join(root, "hooks", "run-hook.mjs") if usa_launcher else None
+            resuelta = _resolver(_parte_literal(cita), root, citante=launcher)
             if resuelta:
                 pendientes.add(resuelta)
             elif cita not in _CITAS_SIN_FICHERO_PERMITIDAS:
@@ -475,6 +497,8 @@ def _recorrido_hooks(root=ROOT):
                 continue
             vistos[etiqueta] = resuelta
             codigo = _codigo(resuelta)
+            if etiqueta == "hooks/run-hook.mjs":
+                codigo = re.sub(r"(?m)^\s*//.*$", "", codigo)
             for m in sorted(_RUTA_RE.finditer(codigo), key=lambda x: x.group(0)):
                 cita = m.group(0)
                 if _es_no_escaneable(cita):
@@ -501,6 +525,29 @@ def _fuentes_ejecutables(root=ROOT):
     return fuentes
 
 
+def _egress_por_js(texto):
+    """The nominal launcher only imports four local Node builtins; unknown imports fail closed."""
+    motivos = []
+    modules = re.findall(r"\b(?:from|import)\s*['\"]([^'\"]+)['\"]", texto)
+    for args in re.findall(r"\b(?:require|import)\s*\(([^)]*)\)", texto):
+        try:
+            module = ast.literal_eval(args.strip())
+            if not isinstance(module, str):
+                raise ValueError("not a literal module")
+            modules.append(module)
+        except (ValueError, SyntaxError):
+            motivos.append("import JavaScript no literal")
+    for module in modules:
+        if module.removeprefix("node:") not in {"child_process", "fs", "path", "url"}:
+            motivos.append("import JavaScript " + module)
+    if re.search(r"\b(?:fetch|WebSocket)\s*\(", texto):
+        motivos.append("JavaScript fetch/WebSocket")
+    for command in re.findall(r"\b(?:spawn|spawnSync|exec|execSync|execFile|execFileSync)\s*\(\s*['\"]([^'\"]+)['\"]", texto):
+        if command.split() and _binario(command.split()[0]) in _BINARIOS_DE_EGRESS:
+            motivos.append("argv JavaScript " + command.split()[0])
+    return motivos
+
+
 def _ofensores_de_red(root=ROOT, excepciones=None):
     """`[(etiqueta, motivo)]` de todo lo que un hook alcanza y toca la red. `excepciones` (por
     defecto `_EGRESS_OPT_IN_DECLARADO`) retira SOLO los motivos declarados del fichero declarado, y
@@ -521,6 +568,11 @@ def _ofensores_de_red(root=ROOT, excepciones=None):
             propios += [t for t in _tokens_de_shell(bajo) if t in _BINARIOS_DE_RED]
         else:                             # gap #173: argv/shell/exec/claude en el AST del codigo
             propios += sorted(set(_egress_por_ast(ruta)))
+            if etiqueta == "hooks/run-hook.mjs":
+                raw = _texto(ruta).replace("\r\n", "\n")
+                if hashlib.sha256(raw.encode("utf8")).hexdigest() != _LAUNCHER_NODE_HASH:
+                    propios.append("launcher JavaScript no revisado")
+                propios += _egress_por_js(texto)
         declarada = excepciones.get(etiqueta)
         if declarada and ruta and not _egress_del_journal_sin_condicion(_texto(ruta)):
             propios = [m for m in propios if m not in declarada["motivos"]]
@@ -612,6 +664,9 @@ def _repo_minimo(tmp_path, hooks_json=None, agente=None, ficheros=None):
     _lf = lambda c: c.replace(chr(13) + chr(10), chr(10))
     if agente:
         _escribir(os.path.join(root, "agents", "implementer.md"), _lf(agente))
+        if "run-hook.mjs" in agente:
+            _escribir(os.path.join(root, "hooks", "run-hook.mjs"),
+                      _lf(_texto(os.path.join(ROOT, "hooks", "run-hook.mjs"))))
     for rel, contenido in (ficheros or {}).items():
         _escribir(os.path.join(root, *rel.split("/")), _lf(contenido))
     return root

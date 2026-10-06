@@ -119,68 +119,6 @@ for _s in (sys.stdin, sys.stdout, sys.stderr):
     try: _s.reconfigure(encoding="utf-8", errors="replace")
     except Exception: pass  # noqa: BLE001 — sin reconfigure, ya leído o None (capsys, pythonw)
 
-# --8<-- sanear_detalle (funcion) — REPLICADO LITERAL en las CINCO copias declaradas del bloque `sanear_detalle` de agent-kits/shared/copias.json
-# Gap #93 (Minor, fix5): la clase [\x00-\x1f\x7f] dejaba pasar tres familias que TAMBIEN
-# falsifican una linea de log o invierten visualmente el texto de un mensaje/`causa`: los
-# controles C1 (\x80-\x9f, entre ellos CSI \x9b), los separadores Unicode de linea/parrafo
-# ( / , que muchos visores rompen como salto de linea) y los controles bidi
-# (‪-‮ RLO/LRO..., ⁦-⁩ isolates), con los que un texto hostil del servidor
-# puede reordenar lo que el humano lee sin cambiar un solo byte del resto.
-_CONTROL_O_ANSI_RE = re.compile(
-    r"\x1b\[[0-9;]*[A-Za-z]|[\x00-\x1f\x7f-\x9f  ‪-‮⁦-⁩]")
-_SANEADO_TOPE_CHARS = 200
-
-
-def _sanear_detalle(texto):
-    """Recorta a 200 caracteres y sustituye caracteres de control (incluidas las secuencias ANSI
-    `ESC[...`, los C1, los separadores Unicode y los controles bidi) por un espacio; ver
-    comentario arriba para el porque de cada regla."""
-    saneado = _CONTROL_O_ANSI_RE.sub(" ", str(texto))
-    return saneado[:_SANEADO_TOPE_CHARS]
-# --8<-- fin sanear_detalle (funcion)
-
-
-# --8<-- group_id por defecto COMPARTIDO (memoria de grafo, T-07-fix1) — REPLICADO LITERAL en agent-kits/shared/knowledge-schema.py y agent-kits/shared/knowledge-find.py
-# Gap #97 (Critical, fix1 Fase 3): la derivacion del `group_id` por defecto (el slug Unicode del
-# directorio del proyecto) la aplicaba SOLO el validador al cargar la taxonomia, asi que el router
-# de `knowledge-find.py` -que NO carga el validador, para que ningun hook alcance codigo con
-# capacidad de red- servia al adaptador la config CRUDA; con la plantilla de fabrica (que no trae
-# `group_id`) el backend cortaba con «sin group_id» y la consulta devolvia 0 en la configuracion
-# NOMINAL. La regla vive aqui, una sola vez, y sin un solo import de red.
-_SLUG_UNICODE_SEP_RE = re.compile(r"[\W_]+", re.UNICODE)
-
-
-def _slug_unicode(nombre):
-    """Slug consciente de Unicode (NFKC + minusculas + separador de restos no alfanumericos),
-    para `group_id` (T-01-fix2 gap #23). A diferencia de un slug solo ASCII, conserva
-    letras/digitos no latinos (acentos, CJK, cirilico...) en vez de descartarlos todos y caer a
-    cadena vacia. Sin fallback fijo a proposito: ver `_group_id_por_defecto`."""
-    if not nombre:
-        return ""
-    normalizado = unicodedata.normalize("NFKC", nombre).lower()
-    return _SLUG_UNICODE_SEP_RE.sub("-", normalizado).strip("-")
-
-
-def _group_id_por_defecto(root):
-    """Slug Unicode del directorio del proyecto (`root=None` -> cwd real), o `""` si el nombre no
-    aporta ningun caracter alfanumerico. SIN fallback fijo: dos instalaciones con nombres "raros"
-    no pueden acabar compartiendo grupo remoto (fusionaria su memoria)."""
-    return _slug_unicode(os.path.basename(os.path.abspath(root if root is not None else ".")))
-
-
-def _config_con_group_id(cfg, root):
-    """Config EFECTIVA de un backend: la declarada MAS el `group_id` derivado si no lo trae (o lo
-    trae vacio). Nunca pisa un `group_id` explicito."""
-    efectiva = dict(cfg or {})
-    declarado = efectiva.get("group_id")
-    if not (isinstance(declarado, str) and declarado.strip()):
-        derivado = _group_id_por_defecto(root)
-        if derivado:
-            efectiva["group_id"] = derivado
-    return efectiva
-# --8<-- fin group_id por defecto COMPARTIDO
-
-
 VERSION_JSON = 1
 LINEA_MAX = 120            # ≤ 30 tokens por acierto (spec CA-02)
 LIMIT_DEFAULT = 10         # `--limit 0` = sin tope
@@ -258,6 +196,68 @@ INDICE_NOMBRE = "knowledge-index.sqlite"   # en <root>/.claude/ (+ .gitignore)
 INDICE_VERSION = "1"                        # entra en el hash: cambiar el esquema invalida el índice
 CAMPOS = ("id", "tipo", "estado", "estado_detalle", "area", "titular", "ruta", "ruta_corta", "iniciativa",
           "fecha", "sucesores", "sustituye", "texto")
+
+# --8<-- sanear_detalle (funcion) — REPLICADO LITERAL en las CINCO copias declaradas del bloque `sanear_detalle` de agent-kits/shared/copias.json
+# Gap #93 (Minor, fix5): la clase [\x00-\x1f\x7f] dejaba pasar tres familias que TAMBIEN
+# falsifican una linea de log o invierten visualmente el texto de un mensaje/`causa`: los
+# controles C1 (\x80-\x9f, entre ellos CSI \x9b), los separadores Unicode de linea/parrafo
+# ( / , que muchos visores rompen como salto de linea) y los controles bidi
+# (‪-‮ RLO/LRO..., ⁦-⁩ isolates), con los que un texto hostil del servidor
+# puede reordenar lo que el humano lee sin cambiar un solo byte del resto.
+_CONTROL_O_ANSI_RE = re.compile(
+    r"\x1b\[[0-9;]*[A-Za-z]|[\x00-\x1f\x7f-\x9f  ‪-‮⁦-⁩]")
+_SANEADO_TOPE_CHARS = 200
+
+
+def _sanear_detalle(texto):
+    """Recorta a 200 caracteres y sustituye caracteres de control (incluidas las secuencias ANSI
+    `ESC[...`, los C1, los separadores Unicode y los controles bidi) por un espacio; ver
+    comentario arriba para el porque de cada regla."""
+    saneado = _CONTROL_O_ANSI_RE.sub(" ", str(texto))
+    return saneado[:_SANEADO_TOPE_CHARS]
+# --8<-- fin sanear_detalle (funcion)
+
+
+# --8<-- group_id por defecto COMPARTIDO (memoria de grafo, T-07-fix1) — REPLICADO LITERAL en agent-kits/shared/knowledge-schema.py y agent-kits/shared/knowledge-find.py
+# Gap #97 (Critical, fix1 Fase 3): la derivacion del `group_id` por defecto (el slug Unicode del
+# directorio del proyecto) la aplicaba SOLO el validador al cargar la taxonomia, asi que el router
+# de `knowledge-find.py` -que NO carga el validador, para que ningun hook alcance codigo con
+# capacidad de red- servia al adaptador la config CRUDA; con la plantilla de fabrica (que no trae
+# `group_id`) el backend cortaba con «sin group_id» y la consulta devolvia 0 en la configuracion
+# NOMINAL. La regla vive aqui, una sola vez, y sin un solo import de red.
+_SLUG_UNICODE_SEP_RE = re.compile(r"[\W_]+", re.UNICODE)
+
+
+def _slug_unicode(nombre):
+    """Slug consciente de Unicode (NFKC + minusculas + separador de restos no alfanumericos),
+    para `group_id` (T-01-fix2 gap #23). A diferencia de un slug solo ASCII, conserva
+    letras/digitos no latinos (acentos, CJK, cirilico...) en vez de descartarlos todos y caer a
+    cadena vacia. Sin fallback fijo a proposito: ver `_group_id_por_defecto`."""
+    if not nombre:
+        return ""
+    normalizado = unicodedata.normalize("NFKC", nombre).lower()
+    return _SLUG_UNICODE_SEP_RE.sub("-", normalizado).strip("-")
+
+
+def _group_id_por_defecto(root):
+    """Slug Unicode del directorio del proyecto (`root=None` -> cwd real), o `""` si el nombre no
+    aporta ningun caracter alfanumerico. SIN fallback fijo: dos instalaciones con nombres "raros"
+    no pueden acabar compartiendo grupo remoto (fusionaria su memoria)."""
+    return _slug_unicode(os.path.basename(os.path.abspath(root if root is not None else ".")))
+
+
+def _config_con_group_id(cfg, root):
+    """Config EFECTIVA de un backend: la declarada MAS el `group_id` derivado si no lo trae (o lo
+    trae vacio). Nunca pisa un `group_id` explicito."""
+    efectiva = dict(cfg or {})
+    declarado = efectiva.get("group_id")
+    if not (isinstance(declarado, str) and declarado.strip()):
+        derivado = _group_id_por_defecto(root)
+        if derivado:
+            efectiva["group_id"] = derivado
+    return efectiva
+# --8<-- fin group_id por defecto COMPARTIDO
+
 
 # ------------------------------------------------------------------ normalización
 
@@ -1444,8 +1444,51 @@ def _imprimir_resultado(args, indice, corpus, consulta, total, aciertos, router=
             print(linea_compacta(a))
 
 
-def main(argv=None):
-    args = _construir_parser().parse_args(argv)
+def _imprimir_consulta_router(args, indice, corpus, texto_router, claves_router, enrutado, aciertos_backend, router):
+    consulta = {"texto": texto_router, "area": args.area, "tipo": args.tipo,
+                "limit": args.limit, "intent": args.intent}
+    if enrutado:
+        consulta.update({"contexto": args.contexto or "", "tipo_tarea": args.tipo_tarea or "",
+                         "iniciativa": args.iniciativa or "", "claves": claves_router})
+    # Gap #141 (fix3 Fase 3): cada descarte con SU causa (el núcleo y el post-filtro no se
+    # depuran igual). Gap #142: el `motivo` del backend que SÍ sirvió (donde viaja
+    # `fuera_de_ventana`) solo salía en `--json`; en texto —la forma que prescribe
+    # `knowledge-check.md`— el recorte de la respuesta era invisible.
+    if router.get("sin_terna"):
+        print(f"knowledge-find: {router['sin_terna']} acierto(s) de `{router['backend']}` "
+              f"descartados por no traer id/estado/evidencia/ruta", file=sys.stderr)
+    if router.get("filtrados"):
+        print(f"knowledge-find: {router['filtrados']} acierto(s) de `{router['backend']}` "
+              f"descartados por el post-filtro `--tipo`/`--area`", file=sys.stderr)
+    if router.get("motivo"):
+        print(f"knowledge-find: `{router['backend']}`: {router['motivo']}", file=sys.stderr)
+    _imprimir_resultado(args, indice, corpus, consulta, len(aciertos_backend),
+                        aciertos_backend, router=router)
+
+
+def _consulta_router_cli(args, root, texto, enrutado, indice, corpus):
+    # Gap #103 (Important): en el camino enrutado se perdian `--contexto/--tipo-tarea/
+    # --iniciativa` (al backend llegaba `texto: ""`), que es justo la forma que prescribe
+    # `knowledge-check.md` y la que usa `session-context.sh`. Ahora se deriva el MISMO texto
+    # que usa el camino local (las claves del enrutado por area) y las claves viajan tambien
+    # como tales; si el backend no sirve nada, `consultar_intent` degrada y se sirve lo local.
+    texto_router, claves_router = texto, []
+    if enrutado:
+        claves_router, _aviso_claves = claves_enrutado(args.contexto or "", args.tipo_tarea or "")
+        texto_router = " ".join(claves_router)
+    aciertos_backend, router = consultar_intent(
+        root, args.intent, texto=texto_router, limit=args.limit, area=args.area, tipo=args.tipo,
+        directorios=args.backends_dir, claves=claves_router, iniciativa=args.iniciativa or "")
+    if router["origen"] == "local":
+        print(f"knowledge-find: intent `{args.intent}` atendido en local: {router['motivo']}",
+              file=sys.stderr)
+    else:
+        _imprimir_consulta_router(args, indice, corpus, texto_router, claves_router, enrutado, aciertos_backend, router)
+        return router, True
+    return router, False
+
+
+def _validar_args_consulta(args):
     if args.intent and (args.related or args.show):
         print("knowledge-find: `--intent` es de la capa 1; no se combina con `--related`/`--show`",
               file=sys.stderr)
@@ -1454,6 +1497,14 @@ def main(argv=None):
         print("knowledge-find: `--intent` enruta la memoria del PROYECTO; no se combina con `--doctrina`",
               file=sys.stderr)
         return 2
+    return None
+
+
+def main(argv=None):
+    args = _construir_parser().parse_args(argv)
+    error = _validar_args_consulta(args)
+    if error is not None:
+        return error
     root = resolver_root(args.root)
     texto = " ".join(args.texto)
     corpus = "doctrina" if args.doctrina else "proyecto"
@@ -1469,41 +1520,8 @@ def main(argv=None):
         return 2
     router = None
     if args.intent:
-        # Gap #103 (Important): en el camino enrutado se perdian `--contexto/--tipo-tarea/
-        # --iniciativa` (al backend llegaba `texto: ""`), que es justo la forma que prescribe
-        # `knowledge-check.md` y la que usa `session-context.sh`. Ahora se deriva el MISMO texto
-        # que usa el camino local (las claves del enrutado por area) y las claves viajan tambien
-        # como tales; si el backend no sirve nada, `consultar_intent` degrada y se sirve lo local.
-        texto_router, claves_router = texto, []
-        if enrutado:
-            claves_router, _aviso_claves = claves_enrutado(args.contexto or "", args.tipo_tarea or "")
-            texto_router = " ".join(claves_router)
-        aciertos_backend, router = consultar_intent(
-            root, args.intent, texto=texto_router, limit=args.limit, area=args.area, tipo=args.tipo,
-            directorios=args.backends_dir, claves=claves_router, iniciativa=args.iniciativa or "")
-        if router["origen"] == "local":
-            print(f"knowledge-find: intent `{args.intent}` atendido en local: {router['motivo']}",
-                  file=sys.stderr)
-        else:
-            consulta = {"texto": texto_router, "area": args.area, "tipo": args.tipo,
-                        "limit": args.limit, "intent": args.intent}
-            if enrutado:
-                consulta.update({"contexto": args.contexto or "", "tipo_tarea": args.tipo_tarea or "",
-                                 "iniciativa": args.iniciativa or "", "claves": claves_router})
-            # Gap #141 (fix3 Fase 3): cada descarte con SU causa (el núcleo y el post-filtro no se
-            # depuran igual). Gap #142: el `motivo` del backend que SÍ sirvió (donde viaja
-            # `fuera_de_ventana`) solo salía en `--json`; en texto —la forma que prescribe
-            # `knowledge-check.md`— el recorte de la respuesta era invisible.
-            if router.get("sin_terna"):
-                print(f"knowledge-find: {router['sin_terna']} acierto(s) de `{router['backend']}` "
-                      f"descartados por no traer id/estado/evidencia/ruta", file=sys.stderr)
-            if router.get("filtrados"):
-                print(f"knowledge-find: {router['filtrados']} acierto(s) de `{router['backend']}` "
-                      f"descartados por el post-filtro `--tipo`/`--area`", file=sys.stderr)
-            if router.get("motivo"):
-                print(f"knowledge-find: `{router['backend']}`: {router['motivo']}", file=sys.stderr)
-            _imprimir_resultado(args, indice, corpus, consulta, len(aciertos_backend),
-                                aciertos_backend, router=router)
+        router, atendido = _consulta_router_cli(args, root, texto, enrutado, indice, corpus)
+        if atendido:
             return 0
     aciertos, total, consulta = _ejecutar_consulta(args, entradas, path, texto, enrutado)
     if args.intent:

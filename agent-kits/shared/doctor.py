@@ -365,6 +365,20 @@ def _bloque_plugin_hooks_recorrer(plugin_root, datos):
     return eventos, errs, warns, fuente
 
 
+def _avisos_hooks_lineas(errs, warns):
+    ls = []
+    for msg in errs:
+        rel = _rel_de(msg)
+        ls.append(linea(ERROR, "hook sin script", msg,
+                        f"falta `{rel}`: reinstala o actualiza el plugin (`claude plugin update "
+                        f"custom-agents`); un hook roto es una pieza muerta"))
+    for msg in warns:
+        rel = _rel_de(msg)
+        ls.append(linea(AVISO, "hook no ejecutable", msg,
+                        f"`chmod +x {rel}` (y `git update-index --chmod=+x {rel}` si lo versionas)"))
+    return ls
+
+
 def _bloque_plugin_hooks_lineas(eventos, errs, warns, fuente, modo="plugin"):
     """Traduce el recuento de eventos/errores/avisos a líneas del informe.
 
@@ -391,15 +405,7 @@ def _bloque_plugin_hooks_lineas(eventos, errs, warns, fuente, modo="plugin"):
                                                  f"existen y son ejecutables ({fuente})"))
     else:
         ls.append(linea(INFO, "hooks registrados", f"{' · '.join(eventos) or 'ninguno'} ({fuente})"))
-    for msg in errs:
-        rel = _rel_de(msg)
-        ls.append(linea(ERROR, "hook sin script", msg,
-                        f"falta `{rel}`: reinstala o actualiza el plugin (`claude plugin update "
-                        f"custom-agents`); un hook roto es una pieza muerta"))
-    for msg in warns:
-        rel = _rel_de(msg)
-        ls.append(linea(AVISO, "hook no ejecutable", msg,
-                        f"`chmod +x {rel}` (y `git update-index --chmod=+x {rel}` si lo versionas)"))
+    ls.extend(_avisos_hooks_lineas(errs, warns))
     return ls
 
 
@@ -485,25 +491,7 @@ def _misma_ruta(a, b):
     return _clave_ruta(a) == _clave_ruta(b)
 
 
-def _fuentes_instalados(path, clave, project):
-    """Entradas de `installed_plugins.json` para `clave`, con el scope que ellas mismas declaran.
-
-    Una entrada de scope `project` **o `local`** vale para SU proyecto (`projectPath`), no para
-    cualquiera: un alta hecha desde otro repo no dice nada de esta raíz. Un `scope` que no sea
-    ninguno de los tres documentados NO cuenta (antes caía a `user`, el lado permisivo: una
-    entrada ajena valía para todos) y se avisa.
-    """
-    datos, _err = _leer_json(path)
-    if not isinstance(datos, dict):
-        return []
-    nodo = datos.get("plugins")
-    if not isinstance(nodo, dict) or clave not in nodo:
-        return []
-    entradas = nodo[clave]
-    if isinstance(entradas, dict):
-        entradas = [entradas]
-    if not isinstance(entradas, list):
-        return []
+def _fuentes_de_entradas(entradas, path, clave, project):
     fuentes = []
     for e in entradas:
         e = e if isinstance(e, dict) else {}
@@ -529,6 +517,28 @@ def _fuentes_instalados(path, clave, project):
                         "fuente": "installed_plugins.json", "habilitado": None, "valor": None,
                         "invalido": False, "aplica": aplica, "motivo": motivo})
     return fuentes
+
+
+def _fuentes_instalados(path, clave, project):
+    """Entradas de `installed_plugins.json` para `clave`, con el scope que ellas mismas declaran.
+
+    Una entrada de scope `project` **o `local`** vale para SU proyecto (`projectPath`), no para
+    cualquiera: un alta hecha desde otro repo no dice nada de esta raíz. Un `scope` que no sea
+    ninguno de los tres documentados NO cuenta (antes caía a `user`, el lado permisivo: una
+    entrada ajena valía para todos) y se avisa.
+    """
+    datos, _err = _leer_json(path)
+    if not isinstance(datos, dict):
+        return []
+    nodo = datos.get("plugins")
+    if not isinstance(nodo, dict) or clave not in nodo:
+        return []
+    entradas = nodo[clave]
+    if isinstance(entradas, dict):
+        entradas = [entradas]
+    if not isinstance(entradas, list):
+        return []
+    return _fuentes_de_entradas(entradas, path, clave, project)
 
 
 def _fuentes_enabled(path, scope, clave):
@@ -598,6 +608,23 @@ def _niveles_settings(project, cfg):
     return list(vistos.values())
 
 
+def _estado_de_fuentes(clave, fuentes):
+    aplican = [f for f in fuentes if f["aplica"]]
+    explicitas = [f for f in aplican if isinstance(f["valor"], bool)]
+    mandan = []
+    for nivel in ORDEN_SCOPES:
+        mandan = [f for f in explicitas if f["scope"] == nivel]
+        if mandan:
+            break
+    altas = [f for f in aplican if not f["invalido"] and f["valor"] is not False]
+    habilitado = all(f["valor"] is True for f in mandan) if mandan else bool(altas)
+    return {"clave": clave, "habilitado": habilitado, "fuentes": fuentes, "aplican": aplican,
+            "mandan": mandan, "apagadas": [f for f in mandan if f["valor"] is False],
+            "invalidas": [f for f in aplican if f["invalido"]],
+            "ignoradas": [f for f in fuentes if not f["aplica"]],
+            "desconocidas": [f for f in fuentes if f.get("scope_desconocido")]}
+
+
 def estado_plugin(plugin_root, project, cfg=None):
     """**Estado EFECTIVO** del plugin para ESTA raíz: la única definición de «está activo».
 
@@ -628,20 +655,7 @@ def estado_plugin(plugin_root, project, cfg=None):
     for scope, path in _niveles_settings(project, cfg):
         fuentes += _fuentes_enabled(path, scope, clave)
 
-    aplican = [f for f in fuentes if f["aplica"]]
-    explicitas = [f for f in aplican if isinstance(f["valor"], bool)]
-    mandan = []
-    for nivel in ORDEN_SCOPES:
-        mandan = [f for f in explicitas if f["scope"] == nivel]
-        if mandan:
-            break
-    altas = [f for f in aplican if not f["invalido"] and f["valor"] is not False]
-    habilitado = all(f["valor"] is True for f in mandan) if mandan else bool(altas)
-    return {"clave": clave, "habilitado": habilitado, "fuentes": fuentes, "aplican": aplican,
-            "mandan": mandan, "apagadas": [f for f in mandan if f["valor"] is False],
-            "invalidas": [f for f in aplican if f["invalido"]],
-            "ignoradas": [f for f in fuentes if not f["aplica"]],
-            "desconocidas": [f for f in fuentes if f.get("scope_desconocido")]}
+    return _estado_de_fuentes(clave, fuentes)
 
 
 def registro_plugin(project, cfg=None, plugin_root=None):
@@ -655,6 +669,13 @@ def registro_plugin(project, cfg=None, plugin_root=None):
     est = estado_plugin(plugin_root, project, cfg)
     return [{k: f[k] for k in ("fichero", "scope", "clave", "fuente", "habilitado")}
             for f in est["aplican"]]
+
+
+def _raiz_y_cache_plugin(plugin_root, cfg):
+    raiz = os.path.normcase(os.path.abspath(plugin_root)) if plugin_root else ""
+    cache = os.path.normcase(os.path.abspath(os.path.join(cfg, "plugins", "cache")))
+    en_cache = bool(raiz) and (raiz == cache or raiz.startswith(cache + os.sep))
+    return raiz, en_cache
 
 
 def modo_instalacion(plugin_root, project, cfg=None):
@@ -673,9 +694,7 @@ def modo_instalacion(plugin_root, project, cfg=None):
     est = estado_plugin(plugin_root, project, cfg)
     hits = [{k: f[k] for k in ("fichero", "scope", "clave", "fuente", "habilitado")}
             for f in est["aplican"]]
-    raiz = os.path.normcase(os.path.abspath(plugin_root)) if plugin_root else ""
-    cache = os.path.normcase(os.path.abspath(os.path.join(cfg, "plugins", "cache")))
-    en_cache = bool(raiz) and (raiz == cache or raiz.startswith(cache + os.sep))
+    raiz, en_cache = _raiz_y_cache_plugin(plugin_root, cfg)
     base = {"registro": hits, "estado": est}
     if est["habilitado"]:
         razon = ("la raíz cuelga de `plugins/cache/` y el registro lo da por activo" if en_cache
@@ -789,6 +808,36 @@ def _toml_habilitado(path, clave):
                                                   else f"`enabled` vale `{v!r}`, que no es un booleano")
 
 
+def _registro_codex_explicito(activos, apagados, errores, claves):
+    if activos:
+        return [linea(OK, "registro en Codex",
+                      " · ".join(f"`{c}` con `enabled = true` en {p} (scope {s})"
+                                 for p, s, c in activos))]
+    if apagados:
+        p, s, c = apagados[0]
+        return [linea(AVISO, "registro en Codex",
+                      f"`{c}` está en {p} (scope {s}) con `enabled = false`: Codex no lo carga",
+                      f"pon `enabled = true` en `[plugins.\"{c}\"]` de {p} o reinstala con "
+                      f"`npx @daycry/custom-agents install -p codex`")]
+    if errores:
+        return [linea(AVISO, "registro en Codex", " · ".join(dict.fromkeys(errores)),
+                      "usa Python 3.11+ para este diagnóstico, o mira a mano `[plugins."
+                      f"\"{claves[0]}\"] enabled` en tu `config.toml`")]
+    return None
+
+
+def _clasificar_claves_codex(fuentes, claves, activos, apagados, errores):
+    for path, scope, _base in fuentes:
+        for clave in claves:
+            valor, err = _toml_habilitado(path, clave)
+            if err:
+                errores.append(f"{path}: {err}")
+            if valor is True:
+                activos.append((path, scope, clave))
+            elif valor is False:
+                apagados.append((path, scope, clave))
+
+
 def _bloque_registro_codex(project, clave_cc):
     """Fila «registro en Codex»: `enabled = true` en el `config.toml` del scope, que es lo único
     que hace que Codex cargue el plugin (copiar sus ficheros no basta). Mismo criterio que
@@ -806,29 +855,10 @@ def _bloque_registro_codex(project, clave_cc):
     activos, apagados, errores = [], [], []
     copiado = [base for _p, _s, base in fuentes
                if os.path.isdir(os.path.join(base, "plugins", PLUGIN_NOMBRE))]
-    for path, scope, _base in fuentes:
-        for clave in claves:
-            valor, err = _toml_habilitado(path, clave)
-            if err:
-                errores.append(f"{path}: {err}")
-            if valor is True:
-                activos.append((path, scope, clave))
-            elif valor is False:
-                apagados.append((path, scope, clave))
-    if activos:
-        return [linea(OK, "registro en Codex",
-                      " · ".join(f"`{c}` con `enabled = true` en {p} (scope {s})"
-                                 for p, s, c in activos))]
-    if apagados:
-        p, s, c = apagados[0]
-        return [linea(AVISO, "registro en Codex",
-                      f"`{c}` está en {p} (scope {s}) con `enabled = false`: Codex no lo carga",
-                      f"pon `enabled = true` en `[plugins.\"{c}\"]` de {p} o reinstala con "
-                      f"`npx @daycry/custom-agents install -p codex`")]
-    if errores:
-        return [linea(AVISO, "registro en Codex", " · ".join(dict.fromkeys(errores)),
-                      "usa Python 3.11+ para este diagnóstico, o mira a mano `[plugins."
-                      f"\"{claves[0]}\"] enabled` en tu `config.toml`")]
+    _clasificar_claves_codex(fuentes, claves, activos, apagados, errores)
+    explicito = _registro_codex_explicito(activos, apagados, errores, claves)
+    if explicito is not None:
+        return explicito
     if copiado:
         return [linea(AVISO, "registro en Codex",
                       f"los ficheros del plugin están en {os.path.join(copiado[0], 'plugins', PLUGIN_NOMBRE)} "
@@ -1630,6 +1660,105 @@ def _cfg_con_timeout_topado(cfg_adaptador, tope_ms=CAPACIDAD_TIMEOUT_MS_TOPE):
     return cfg
 
 
+def _verificacion_incompleta(cap_id, verificacion, cfg_adaptador, aviso_verify):
+    sin_confirmar = verificacion.get("no_verificado") or "?"
+    # gap #148 (Important, fix4 de la Fase 3 del ciclo en curso): esa rama se combinaba con
+    # el recorte de ventana de #119 (`CAPACIDAD_VENTANA_TOPE`) y convertia TODA instalacion
+    # con mas entradas que la ventana en un ⚠️ permanente, con un remedio («sube
+    # `max_respuesta_kb`/`max_episodes`») que el propio /doctor pisa al recortar. Si el
+    # backend declara un `total` (entradas a verificar) MAYOR que la ventana que /doctor le
+    # paso, el limite es NUESTRO, no suyo: la fila lo dice (informativa) y manda a la
+    # verificacion completa, que no la hace un diagnostico rapido.
+    ventana = cfg_adaptador.get("max_episodes")
+    total = verificacion.get("total")
+    if (isinstance(total, int) and not isinstance(total, bool)
+            and isinstance(ventana, int) and total > ventana):
+        return linea(INFO, f"{cap_id} (backend)",
+                     f"verificación acotada a {ventana} de {total} entrada(s) por /doctor "
+                     f"(diagnóstico rápido): {sin_confirmar} sin confirmar; un desfase "
+                     f"fuera de esa ventana no se ve desde aquí",
+                     "verificación completa: `python skills/knowledge-services/scripts/"
+                     "knowledge-sync.py --backend <id> --check`")
+    # El conteo se dice UNA vez: el `aviso` del adaptador ya lo trae (#148), asi que ese
+    # fragmento no se repite detras del nuestro.
+    extra = " · ".join(t for t in aviso_verify.split(" · ")
+                       if f"{sin_confirmar} entrada(s) sin confirmar" not in t)
+    return linea(AVISO, f"{cap_id} (backend)",
+                 f"verificación incompleta: {sin_confirmar} entrada(s) sin confirmar"
+                 + (f" · {extra}" if extra else ""),
+                 _sanear_detalle(verificacion.get("remedio") or "")
+                 or "sube los topes de lectura del backend (`max_respuesta_kb`/"
+                    "`max_episodes`) en `taxonomy.json` y vuelve a pasar /doctor")
+
+
+def _linea_verificacion_backend(cap_id, verificacion, aviso_verify):
+    if verificacion.get("estado") == "no_verificable":
+        # gap #152 (Minor, fix4 de la Fase 3 del ciclo en curso): el CUARTO veredicto («no he
+        # podido verificar»: backend en `mode: off`, sin endpoint, respuesta ilegible) caia en
+        # la rama de desfase y salia como «export atrasado (0 desfase(s)): sin motivo
+        # detallado» — un atraso inventado sobre una verificacion que no llego a hacerse.
+        return linea(INFO, f"{cap_id} (backend)",
+                     "verificación no disponible: "
+                     + (_sanear_detalle(verificacion.get("razon") or "") or "sin motivo detallado"),
+                     _sanear_detalle(verificacion.get("remedio") or "")
+                     or "normal si el backend no está en modo verificable; revisa su `config` "
+                        "en `taxonomy.json` si esperabas verificación")
+    if verificacion.get("ok", True):
+        if aviso_verify:
+            # gap #133/#147: el `aviso` de un `verify` SIN desfase (p. ej. el remedio de
+            # migracion `--rebuild` del gap #126) se tiraba: ningun consumidor lo mostraba.
+            return linea(AVISO, f"{cap_id} (backend)", f"sano, sin desfase, con aviso: {aviso_verify}",
+                         _sanear_detalle(verificacion.get("remedio") or "")
+                         or "sigue el remedio que nombra el aviso del backend")
+        return linea(OK, f"{cap_id} (backend)", "sano, sin desfase")
+    if verificacion.get("razon") == "nunca_sincronizado":
+        # gap 119: distinto de un desfase real (gap 87) — todavía no hay ninguna publicación
+        # previa, así que "export atrasado (0 desfase(s))" sería engañoso (no hay nada atrasado,
+        # simplemente no se ha sincronizado nunca).
+        return linea(AVISO, f"{cap_id} (backend)", "nunca sincronizado (sin publicación previa)",
+                     "publica por primera vez: `python skills/knowledge-services/scripts/knowledge-sync.py --rebuild`")
+    desfases = verificacion.get("desfase") or []
+    primero = desfases[0] if desfases else {}
+    extra = f" · … y {len(desfases) - 1} más" if len(desfases) > 1 else ""
+    return linea(AVISO, f"{cap_id} (backend)",
+                 f"export atrasado ({len(desfases)} desfase(s)): {primero.get('motivo', 'sin motivo detallado')}{extra}",
+                 primero.get("remedio", "reindexa el backend externo"))
+
+
+def _verificacion_backend(cap_id, adaptador, cfg_adaptador):
+    try:
+        verificacion = adaptador.verify(cfg_adaptador) or {}
+    except Exception as e:       # noqa: BLE001
+        return linea(AVISO, f"{cap_id} (backend)", f"`verify()` lanzó {type(e).__name__}: {e}",
+                     "revisa la configuración de red del backend en `taxonomy.json`")
+    # gap #133 (Important, fix3 de la Fase 3 del ciclo en curso): `verify()` tiene TRES
+    # veredictos, no dos. Con la ventana de lectura cortada (`estado: incompleto`), «sin
+    # desfase» es mentira: el adaptador no ha podido mirar. Y como /doctor recorta la ventana
+    # a `CAPACIDAD_VENTANA_TOPE`, esa rama es la NORMAL en cuanto el grupo crece — pintarla
+    # como OK dejaba a /doctor estructuralmente incapaz de avisar de un desfase real.
+    aviso_verify = _sanear_detalle(verificacion.get("aviso") or "")
+    if verificacion.get("estado") == "incompleto" or verificacion.get("no_verificado"):
+        return _verificacion_incompleta(cap_id, verificacion, cfg_adaptador, aviso_verify)
+    return _linea_verificacion_backend(cap_id, verificacion, aviso_verify)
+
+
+def _linea_backend_no_sano(cap_id, estado, detalle):
+    if estado == "off":
+        if "timeout" in detalle.lower():
+            return linea(INFO, f"{cap_id} (backend)", f"timeout comprobando la salud ({detalle})",
+                         "normal si el stack externo está apagado o es lento; enciéndelo/ajusta el timeout y vuelve a pasar /doctor")
+        return linea(INFO, f"{cap_id} (backend)", detalle or "sin conexión",
+                     "normal si el stack externo está apagado; enciéndelo y vuelve a pasar /doctor")
+    if estado == "degradado":
+        return linea(AVISO, f"{cap_id} (backend)", detalle or "degradado", "revisa el estado del stack externo")
+    if estado == "error":
+        # gap 100: el ❌ de /doctor se reserva para un error de CONFIG de la propia capacidad
+        # (taxonomy.json inválido, ver `_linea_capacidad`); un backend externo en error es un
+        # AVISO — /doctor no debe salir con exit 1 solo porque el stack externo esté caído/mal.
+        return linea(AVISO, f"{cap_id} (backend)", detalle or "error", "revisa el stack externo y `taxonomy.json`")
+    return linea(INFO, f"{cap_id} (backend)", f"estado desconocido: {estado!r}", "revisa el adaptador de este backend")
+
+
 def _linea_capacidad_backend(cap_id, tipo, cfg_adaptador, backends_mod, backends_dir,
                              project=None, tope_ms=CAPACIDAD_TIMEOUT_MS_TOPE):
     """Comprobación de red EN VIVO de una capacidad con backend declarado (`type` + su
@@ -1658,91 +1787,8 @@ def _linea_capacidad_backend(cap_id, tipo, cfg_adaptador, backends_mod, backends
     estado = salud.get("estado")
     detalle = salud.get("detalle", "") or ""
     if estado == "sano":
-        try:
-            verificacion = adaptador.verify(cfg_adaptador) or {}
-        except Exception as e:       # noqa: BLE001
-            return linea(AVISO, f"{cap_id} (backend)", f"`verify()` lanzó {type(e).__name__}: {e}",
-                         "revisa la configuración de red del backend en `taxonomy.json`")
-        # gap #133 (Important, fix3 de la Fase 3 del ciclo en curso): `verify()` tiene TRES
-        # veredictos, no dos. Con la ventana de lectura cortada (`estado: incompleto`), «sin
-        # desfase» es mentira: el adaptador no ha podido mirar. Y como /doctor recorta la ventana
-        # a `CAPACIDAD_VENTANA_TOPE`, esa rama es la NORMAL en cuanto el grupo crece — pintarla
-        # como OK dejaba a /doctor estructuralmente incapaz de avisar de un desfase real.
-        aviso_verify = _sanear_detalle(verificacion.get("aviso") or "")
-        if verificacion.get("estado") == "incompleto" or verificacion.get("no_verificado"):
-            sin_confirmar = verificacion.get("no_verificado") or "?"
-            # gap #148 (Important, fix4 de la Fase 3 del ciclo en curso): esa rama se combinaba con
-            # el recorte de ventana de #119 (`CAPACIDAD_VENTANA_TOPE`) y convertia TODA instalacion
-            # con mas entradas que la ventana en un ⚠️ permanente, con un remedio («sube
-            # `max_respuesta_kb`/`max_episodes`») que el propio /doctor pisa al recortar. Si el
-            # backend declara un `total` (entradas a verificar) MAYOR que la ventana que /doctor le
-            # paso, el limite es NUESTRO, no suyo: la fila lo dice (informativa) y manda a la
-            # verificacion completa, que no la hace un diagnostico rapido.
-            ventana = cfg_adaptador.get("max_episodes")
-            total = verificacion.get("total")
-            if (isinstance(total, int) and not isinstance(total, bool)
-                    and isinstance(ventana, int) and total > ventana):
-                return linea(INFO, f"{cap_id} (backend)",
-                             f"verificación acotada a {ventana} de {total} entrada(s) por /doctor "
-                             f"(diagnóstico rápido): {sin_confirmar} sin confirmar; un desfase "
-                             f"fuera de esa ventana no se ve desde aquí",
-                             "verificación completa: `python skills/knowledge-services/scripts/"
-                             "knowledge-sync.py --backend <id> --check`")
-            # El conteo se dice UNA vez: el `aviso` del adaptador ya lo trae (#148), asi que ese
-            # fragmento no se repite detras del nuestro.
-            extra = " · ".join(t for t in aviso_verify.split(" · ")
-                               if f"{sin_confirmar} entrada(s) sin confirmar" not in t)
-            return linea(AVISO, f"{cap_id} (backend)",
-                         f"verificación incompleta: {sin_confirmar} entrada(s) sin confirmar"
-                         + (f" · {extra}" if extra else ""),
-                         _sanear_detalle(verificacion.get("remedio") or "")
-                         or "sube los topes de lectura del backend (`max_respuesta_kb`/"
-                            "`max_episodes`) en `taxonomy.json` y vuelve a pasar /doctor")
-        if verificacion.get("estado") == "no_verificable":
-            # gap #152 (Minor, fix4 de la Fase 3 del ciclo en curso): el CUARTO veredicto («no he
-            # podido verificar»: backend en `mode: off`, sin endpoint, respuesta ilegible) caia en
-            # la rama de desfase y salia como «export atrasado (0 desfase(s)): sin motivo
-            # detallado» — un atraso inventado sobre una verificacion que no llego a hacerse.
-            return linea(INFO, f"{cap_id} (backend)",
-                         "verificación no disponible: "
-                         + (_sanear_detalle(verificacion.get("razon") or "") or "sin motivo detallado"),
-                         _sanear_detalle(verificacion.get("remedio") or "")
-                         or "normal si el backend no está en modo verificable; revisa su `config` "
-                            "en `taxonomy.json` si esperabas verificación")
-        if verificacion.get("ok", True):
-            if aviso_verify:
-                # gap #133/#147: el `aviso` de un `verify` SIN desfase (p. ej. el remedio de
-                # migracion `--rebuild` del gap #126) se tiraba: ningun consumidor lo mostraba.
-                return linea(AVISO, f"{cap_id} (backend)", f"sano, sin desfase, con aviso: {aviso_verify}",
-                             _sanear_detalle(verificacion.get("remedio") or "")
-                             or "sigue el remedio que nombra el aviso del backend")
-            return linea(OK, f"{cap_id} (backend)", "sano, sin desfase")
-        if verificacion.get("razon") == "nunca_sincronizado":
-            # gap 119: distinto de un desfase real (gap 87) — todavía no hay ninguna publicación
-            # previa, así que "export atrasado (0 desfase(s))" sería engañoso (no hay nada atrasado,
-            # simplemente no se ha sincronizado nunca).
-            return linea(AVISO, f"{cap_id} (backend)", "nunca sincronizado (sin publicación previa)",
-                         "publica por primera vez: `python skills/knowledge-services/scripts/knowledge-sync.py --rebuild`")
-        desfases = verificacion.get("desfase") or []
-        primero = desfases[0] if desfases else {}
-        extra = f" · … y {len(desfases) - 1} más" if len(desfases) > 1 else ""
-        return linea(AVISO, f"{cap_id} (backend)",
-                     f"export atrasado ({len(desfases)} desfase(s)): {primero.get('motivo', 'sin motivo detallado')}{extra}",
-                     primero.get("remedio", "reindexa el backend externo"))
-    if estado == "off":
-        if "timeout" in detalle.lower():
-            return linea(INFO, f"{cap_id} (backend)", f"timeout comprobando la salud ({detalle})",
-                         "normal si el stack externo está apagado o es lento; enciéndelo/ajusta el timeout y vuelve a pasar /doctor")
-        return linea(INFO, f"{cap_id} (backend)", detalle or "sin conexión",
-                     "normal si el stack externo está apagado; enciéndelo y vuelve a pasar /doctor")
-    if estado == "degradado":
-        return linea(AVISO, f"{cap_id} (backend)", detalle or "degradado", "revisa el estado del stack externo")
-    if estado == "error":
-        # gap 100: el ❌ de /doctor se reserva para un error de CONFIG de la propia capacidad
-        # (taxonomy.json inválido, ver `_linea_capacidad`); un backend externo en error es un
-        # AVISO — /doctor no debe salir con exit 1 solo porque el stack externo esté caído/mal.
-        return linea(AVISO, f"{cap_id} (backend)", detalle or "error", "revisa el stack externo y `taxonomy.json`")
-    return linea(INFO, f"{cap_id} (backend)", f"estado desconocido: {estado!r}", "revisa el adaptador de este backend")
+        return _verificacion_backend(cap_id, adaptador, cfg_adaptador)
+    return _linea_backend_no_sano(cap_id, estado, detalle)
 
 
 def _linea_capacidad(project, cap, backends_mod, backends_dir, tope_ms=CAPACIDAD_TIMEOUT_MS_TOPE,
@@ -2246,27 +2292,22 @@ AVISO_SIN_RED = ("sin red por diseño: `/doctor` NO consulta el marketplace, as�
                  "decirte si hay una versión más nueva")
 
 
-def _bloque_version_plugin(plugin_root):
-    """Líneas + versión detectada del manifiesto del plugin (o None si no se pudo leer).
+def _avisos_version_sin_manifiestos(errores, ls):
+    if errores:
+        ls.append(linea(ERROR, "plugin.json", " · ".join(errores),
+                        "restaura el manifiesto: reinstálalo "
+                        "(`npx @daycry/custom-agents install -p <runtime>`)"))
+    else:
+        ls.append(linea(AVISO, "versión del plugin",
+                        "sin manifiesto del plugin: no hay `.claude-plugin/plugin.json` ni "
+                        "`.codex-plugin/plugin.json` en la raíz detectada",
+                        "actualiza la instalación (`npx @daycry/custom-agents install -p <runtime>`) "
+                        "para que viaje el manifiesto"))
 
-    Dos manifiestos posibles: `.claude-plugin/plugin.json` (el de la fuente; viaja a Claude Code y
-    a la instalación de OpenCode) y `.codex-plugin/plugin.json` (Codex). Se prueban en ese orden y
-    la versión es la misma en los dos (la garantiza `tests/test_export_interop.py`).
 
-    El DETALLE de un fichero AUSENTE no es «falta el campo `version`»: `_leer_json` devuelve
-    `(None, None)` cuando el path no existe (solo da error si el fichero existe y está roto), y el
-    `else` de antes interpretaba ese `None` como «manifiesto sin versión» — decía «añade el campo»
-    para un fichero que no estaba, y el remedio no arreglaba nada. Hoy se distinguen los tres
-    casos: ausente (instalación que no copia el manifiesto), presente sin campo, y presente roto.
-    """
+def _version_plugin_localizado(plugin_root):
     ls = []
     version = None
-    if not plugin_root:
-        ls.append(linea(INFO, "versión del plugin", "no legible: el plugin no está localizado",
-                        "ver la línea ❌ del bloque Plugin; "
-                        + AVISO_SIN_RED))
-        return ls, None
-
     manifiestos = [(".claude-plugin", "plugin.json"), (".codex-plugin", "plugin.json")]
     errores = []
     for carpeta, nombre in manifiestos:
@@ -2289,17 +2330,32 @@ def _bloque_version_plugin(plugin_root):
         ls.append(linea(INFO, "versión del plugin", f"{version}{origen} — {AVISO_SIN_RED}"))
         return ls, version
 
-    if errores:
-        ls.append(linea(ERROR, "plugin.json", " · ".join(errores),
-                        "restaura el manifiesto: reinstálalo "
-                        "(`npx @daycry/custom-agents install -p <runtime>`)"))
-    else:
-        ls.append(linea(AVISO, "versión del plugin",
-                        "sin manifiesto del plugin: no hay `.claude-plugin/plugin.json` ni "
-                        "`.codex-plugin/plugin.json` en la raíz detectada",
-                        "actualiza la instalación (`npx @daycry/custom-agents install -p <runtime>`) "
-                        "para que viaje el manifiesto"))
+    _avisos_version_sin_manifiestos(errores, ls)
     return ls, version
+
+
+def _bloque_version_plugin(plugin_root):
+    """Líneas + versión detectada del manifiesto del plugin (o None si no se pudo leer).
+
+    Dos manifiestos posibles: `.claude-plugin/plugin.json` (el de la fuente; viaja a Claude Code y
+    a la instalación de OpenCode) y `.codex-plugin/plugin.json` (Codex). Se prueban en ese orden y
+    la versión es la misma en los dos (la garantiza `tests/test_export_interop.py`).
+
+    El DETALLE de un fichero AUSENTE no es «falta el campo `version`»: `_leer_json` devuelve
+    `(None, None)` cuando el path no existe (solo da error si el fichero existe y está roto), y el
+    `else` de antes interpretaba ese `None` como «manifiesto sin versión» — decía «añade el campo»
+    para un fichero que no estaba, y el remedio no arreglaba nada. Hoy se distinguen los tres
+    casos: ausente (instalación que no copia el manifiesto), presente sin campo, y presente roto.
+    """
+    ls = []
+    version = None
+    if not plugin_root:
+        ls.append(linea(INFO, "versión del plugin", "no legible: el plugin no está localizado",
+                        "ver la línea ❌ del bloque Plugin; "
+                        + AVISO_SIN_RED))
+        return ls, None
+
+    return _version_plugin_localizado(plugin_root)
 
 
 def _bloque_version_vista(project, version):

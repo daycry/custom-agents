@@ -9,6 +9,31 @@ and versioning follows [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed — `plugin-refactor` initiative (2026-09-09)
+
+- **T-01 — Accurate TODO detection** The code health report excludes its own detector descriptions and Spanish prose, removing eight false positives.
+- **T-02 — Exclude generated code** Add --exclude-path to code health; the default output stays unchanged.
+- **T-03 — Task brief functions** Split brief sections and persona sizing into functions while preserving the emitted bytes.
+- **T-04 — Bounded usage windows** Exclude responses before the measurement window, tolerate timestamps without time zones and report independent wall time.
+- **T-05 — Knowledge lookup functions** Split lookup responsibilities while preserving its JSON contract.
+- **T-06 — Doctor functions** Separate diagnostic blocks and installation states while preserving verdicts and exit codes.
+- **T-07 — Dashboard functions** Separate rendering responsibilities while preserving HTML, Markdown and JSON.
+- **T-08 — Linter functions** Separate checks while preserving error, warning and CLI contracts.
+- **T-09 — Declared copies** Register portable shared code copies and verify their literal identity with one test gate.
+- **T-10 — Unregistered copy gate** Fail lint when shared sentinels or fallback blocks are not registered.
+- **T-11 — Scope exclusions** Exclude orchestrator files by default and accept additional project exclusions.
+- **T-12 — Installed command names** Show marketplace command namespaces in doctor and current documentation.
+- **T-13 — Plans without UI** Use the shared test-plan: n/a (sin UI) marker so QA can verify a project without requesting nonexistent UI tests.
+- **T-14 — Component contracts** Document calls, flags, outputs, files, markers and executable gates between plugin components.
+- **T-15 — Dependent files and exports** Declare generated files and their documentation in task scope; regenerate and verify interop exports.
+- **T-16 — Reference checks** Warn about missing scripts, commands and executable contract gates.
+- **T-17 — Measured versus estimated usage** Expose estimated measurement blocks and exclude inherited ratios from calibration samples.
+- **T-18 — Prompt security review** Select the security lens when consumer-controlled text reaches a prompt or brief.
+- **T-19 — Dated historical figures** Freeze figures in historical documents while continuing to verify live measurements.
+- **T-20 — Independent reviews** Review each refactor stage with two independent lenses and retain contract evidence in the ledger.
+- **T-21 — Review corrections** Resolve review findings while preserving pure-refactor tests and contracts; verify the Node launcher traversal and the byte-hash Confluence fixture.
+- **T-22 — Technical closure** Reduce the five hotspots from 36 to 15 long functions and record the retrospective and partial measured calibration of 849708 tokens/hour. PR integration remains pending.
+
 ### Fixed — `brief-budget` initiative (2026-09-09)
 
 - **T-01 — Budget regression across roadmap ledgers** Real ledgers are checked with design, constitution and memory; briefs fit the budget or report the exact irreducible minimum. (`docs/roadmap/CALIBRATION.md`, `agent-kits/shared/test_task_brief.py`)

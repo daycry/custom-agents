@@ -1,8 +1,8 @@
 ---
 tasks: plugin-refactor
-estado: en-progreso       # borrador | en-progreso | completado | cancelado — R1 y R2 integradas en master; R3 (F3) implementada y revisada (3 intentos + 4.ª pasada) y R4a (T-11…T-14) implementada y corregida tras el intento 1, ambas pendientes de commit e integración
+estado: completado       # cierre técnico local; integración PR/master y CI remota pendiente
 creado: 2026-09-10
-actualizado: 2026-09-12
+actualizado: 2026-10-06
 generacion:              # ventana compartida con improvement-plan.md
   inicio: 2026-09-10T11:55:46Z
   fin: 2026-09-10T12:00:57Z
@@ -19,7 +19,7 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 
 | | |
 |---|---|
-| **Estado** | en-progreso |
+| **Estado** | completado (técnico local; integración pendiente) |
 | **Fecha** | 2026-09-10 |
 | **Plan** | [`improvement-plan.md`](./improvement-plan.md) |
 | **Diseño** | [`design.md`](./design.md) — opción O1 (`ADR-016` `propuesta`) |
@@ -41,9 +41,9 @@ verificacion: obligatoria   # cada T-XX lleva `- **Verificación**:`; lo exige l
 | Fase 1 — Línea base limpia y la cicatriz | 4 | 4 | 100% | — / 11,5h | 0,52 / 1,29h | 0,13 / 0,32h | — / 619k |
 | Fase 2 — Los otros cuatro hotspots | 4 | 4 | 100% | — / 14,0h | 1,52 / 1,60h | 0,39 / 0,40h | — / 767k |
 | Fase 3 — Un solo mecanismo de copias declaradas (O1) | 2 | 2 | 100% | — / 4,0h | 4,58 / 0,50h | 1,15 / 0,13h | 2.191k / 239k |
-| Fase 4 — Encadenamiento E1–E11 | 8 | 9 | 89% | — / 30,5h | 8,35 / 3,64h | 2,10 / 0,91h | 1.298k+ / 1.745k |
-| Fase 5 — Proceso: revisión por tramo, corrección y cierre | 0 | 3 | 0% | 0 / 14,0h | 0 / 1,80h | 0 / 0,45h | 0 / 864k |
-| **TOTAL** | **18** | **22** | **82%** | **— / 74,0h** | **14,97 / 8,83h** | **3,77 / 2,21h** | **— / 4.234k** |
+| Fase 4 — Encadenamiento E1–E11 | 9 | 9 | 100% | — / 30,5h | 8,35 / 3,64h | 2,10 / 0,91h | 1.298k+ / 1.745k |
+| Fase 5 — Proceso: revisión por tramo, corrección y cierre | 3 | 3 | 100% | 0 / 14,0h | 0 / 1,80h | 0 / 0,45h | 0 / 864k |
+| **TOTAL** | **22** | **22** | **100%** | **— / 74,0h** | **14,97 / 8,83h** | **3,77 / 2,21h** | **— / 4.234k** |
 
 > Horas **base** (sin colchón; con el margen del 20 %: 88,8 h humanas · 10,6 h IA · 2,65 h supervisión). Tokens = facturables (in + out + creación de caché). Coste base **3.734 €** (4.479 € con margen). Heredado de `evaluation.md` por característica; diferencias declaradas en el plan (P-1 y C-13 (i) hechas, C-14 propuesta).
 
@@ -1766,283 +1766,52 @@ $ # `test_t12_la_doc_viva_de_ESTE_repo_no_deja_aviso`, que sigue verde en la cor
 
 ### T-13 — C-08 (E1): `test-plan: n/a (sin UI)` en `planner`, `dev-cycle` y `qa` a la vez
 
-- **Descripción**: hoy `planner` genera `test-plan.md` «si hay UI», `qa` sin `test-plan.md` avisa «hay que (re)generarlo con `planner`» (`agents/qa.md:94`) y `dev-cycle` Fase 3 invoca `qa` siempre: bucle que resuelve la prosa del orquestador. Resolución en las tres piezas: `planner` emite `test-plan: n/a (sin UI)` en el **frontmatter de `improvement-plan.md`** (`ADR-017`, `propuesta`; **este plan ya lo lleva**); `dev-cycle` Fase 3 lo lee antes de despachar `qa`; `qa` con el marcador termina limpio (exit 0, una línea en el informe: «sin UI por diseño»), y sin marcador ni `test-plan.md` avisa **una vez** con el comando que lo fija y termina (no bucle). `coverage-check.py` reconoce el marcador (sigue exit 0 con aviso, ahora sin pedir regenerar). `qa-gate.py` no cambia de contrato (S-7).
+- **Descripción**: Coordinar el marcador sin UI entre planner, dev-cycle y qa conforme al contrato vigente de esta tarea.
 - **Changelog**: Una iniciativa sin interfaz declara `test-plan: n/a (sin UI)` en su plan y `qa` termina limpio en vez de pedir un test-plan que no existe.
 - **Estado**: completado
 - **Tiempo humano**: est. 3,0h · real — (todo IA)
 - **Tiempo IA (ejec.)**: est. 0,35h · real **0,20h (medido)** — `{"artefacto":"plugin-refactor/T-13","inicio":"2026-09-11T17:47:27Z","fin":"2026-09-11T17:55:10Z","fuente":"medido","tokens_reales":{"entrada":86,"salida":23560,"cache_creacion":71419,"cache_lectura":8958302,"respuestas":43},"eur":5.07,"horas_ia":0.2,"duracion":"12m","duracion_reloj":"8m","ratio_usado":479326.0,"ratio_origen":"CALIBRATION.md (mediana de 7)"}` · **+0,30h (estimado)** de la corrección del intento 1 de R4a (marcador `plugin-refactor/R4a-fix1`) · **+0,90h (medido, prorrateado)** de la del intento 2 (marcador `plugin-refactor/R4a-fix2`, 1,56h medidas para las cuatro tareas; ver desviación 25) → **total real 1,40h** · **+0,70h (estimado, prorrateado)** de la correccion del intento 3 — marcador `plugin-refactor/R4a-fix3`, abierto a mitad de pasada (desviacion 30): lo medido por el meter son **0,12h** del tramo final, `{"artefacto":"plugin-refactor/R4a-fix3","inicio":"2026-09-11T23:26:20Z","fin":"2026-09-11T23:30:50Z","fuente":"medido","tokens_reales":{"entrada":24,"salida":17455,"cache_creacion":41014,"cache_lectura":2680313,"respuestas":12},"eur":1.87,"horas_ia":0.12,"duracion":"7m","duracion_reloj":"4m"}`, y el reparto de la pasada entera (~1,60h) entre las cuatro tareas se declara **estimado** por volumen de trabajo -> **total real 2,10h** · **+0,45h (medido, prorrateado)** de la corrección del intento 4 — marcador `plugin-refactor/R4a-fix4`, abierto ANTES de tocar nada (a diferencia del `fix3`, desviación 30) y por tanto **medida de la pasada entera**: `{"artefacto":"plugin-refactor/R4a-fix4","inicio":"2026-09-12T00:04:47Z","fin":"2026-09-12T00:57:49Z","fuente":"medido","tokens_reales":{"entrada":268,"salida":96212,"cache_creacion":438167,"cache_lectura":17792288,"respuestas":134},"eur":12.92,"horas_ia":1.12,"duracion":"1h 7m","duracion_reloj":"53m","ratio_usado":479326.0,"ratio_origen":"CALIBRATION.md (mediana de 7)"}` → **1,12h medidas** para las cuatro tareas, repartidas por volumen de trabajo (desviación 32) → **total real 2,55h**
 - **Supervisión**: est. 0,09h (≈25 % IA) · real **0,53h** (25 % de 2,10h; el tramo del `fix3` va como estimado, desviacion 30) · **+0,11h** del `fix4` (25 % de 0,45h medidas) → **total real 0,64h**
 - **Previsión IA**: 123k in / 18k out tok · 1,3 € tokens · coste tarea 151 €
-- **Dependencias**: T-12 (orden del tramo). Conviene tras T-14 en la matriz, pero se hace antes: es la muestra de que el método funciona (§8-bis punto 3)
-- **Archivos**: `agents/planner.md`, `commands/dev-cycle.md`, `agents/qa.md`, `agent-kits/planner/templates/improvement-plan.md`, `agent-kits/qa/coverage-check.py`, `tests/test_coverage_check.py` (el test que YA existe del kit de qa: vive en `tests/`, no en `agent-kits/qa/` — el plan escribió la ruta a ojo; no se crea un segundo fichero), `docs/agents/planner.md`, `docs/agents/qa.md`, `docs/FLOWS.md`, `docs/en/FLOWS.md`, `evals/cases/agent-planner.json`, `evals/cases/agent-qa.json`, `evals/cases/command-dev-cycle.json`, `interop/**` (regenerado: `agents/` y `commands/` tocados), `docs/knowledge/adr/ADR-017-marcador-test-plan-n-a-en-el-frontmatter-del-plan.md` (pasa a `aceptada` con la revisión del tramo; en `fix2` se corrige además la frase que describía el ⚠️ como si mirara solo `Archivos` — el `estado:` NO se toca, lo promueve el orquestador) · **fix3 (R4a-30…R4a-36)**: sin ficheros nuevos — `coverage-check.py`, `tests/test_coverage_check.py`, `agents/qa.md`, `docs/agents/qa.md`, el ADR y `interop/**` ya estaban declarados · **fix4 (B4-2/B4-3/B4-4)**: sin ficheros nuevos — `agent-kits/qa/coverage-check.py`, `tests/test_coverage_check.py`, `agent-kits/shared/scope-check.py` y `agent-kits/shared/test_scope_check.py` (las dos firmas nuevas de la arista E12, que viven en el kit compartido) y `docs/agents/qa.md` (la ficha que describe `rutas_ui_degradado` y las pistas de interfaz)
+- **Dependencias**: T-12; precede a T-14 (§8-bis punto 3).
+- **Archivos**: `agents/planner.md`, `commands/dev-cycle.md`, `agents/qa.md`, `agent-kits/planner/templates/improvement-plan.md`, `agent-kits/qa/coverage-check.py`, `tests/test_coverage_check.py`, `agent-kits/shared/scope-check.py`, `agent-kits/shared/test_scope_check.py`, `docs/agents/planner.md`, `docs/agents/qa.md`, `docs/FLOWS.md`, `docs/en/FLOWS.md`, `evals/cases/agent-planner.json`, `evals/cases/agent-qa.json`, `evals/cases/command-dev-cycle.json`, `interop/**`, `docs/knowledge/adr/ADR-017-marcador-test-plan-n-a-en-el-frontmatter-del-plan.md`, `docs/roadmap/2026-09-09-plugin-refactor/testing/history/T-13.md`
 - **Verificación**:
   - `grep -n "test-plan: n/a" agents/planner.md commands/dev-cycle.md agents/qa.md agent-kits/planner/templates/improvement-plan.md agent-kits/qa/coverage-check.py` → 5 ficheros con el marcador (mismo literal en los cinco)
   - `python agent-kits/qa/coverage-check.py docs/roadmap/2026-09-09-plugin-refactor/tasks.md docs/roadmap/2026-09-09-plugin-refactor/test-plan.md docs/roadmap/2026-09-09-plugin-refactor/spec.md; echo $?` → exit 0 y una línea «test-plan: n/a (sin UI) declarado en improvement-plan.md» (no «regenéralo con planner»); test con fixture sin marcador → aviso con el comando que lo fija, exit 0
   - `grep -c "regenerarlo con \`planner\`\|(re)generarlo con" agents/qa.md` → `0` (la contradicción E1 desaparece del texto)
   - `python scripts/export-interop.py && python scripts/export-interop.py --check` → al día · `python evals/check.py` → `0 errores` (casos nuevos: «plan sin UI» en planner y qa) · `python scripts/lint_plugin.py` → `0 errores`, `commands/dev-cycle.md` y `agents/qa.md` sin aviso de tamaño
-  - `wc -l commands/dev-cycle.md` → `≤ 200` (hoy 198: la lectura del marcador cabe en la Fase 3 sin engordar)
+  - `python scripts/lint_plugin.py` → sin aviso de tamaño para dev-cycle/qa (desviación 18 en el anexo histórico)
 
 **Criterios de aceptación**
-- [x] CA-14: con `test-plan: n/a (sin UI)` en el plan, `dev-cycle` Fase 3 lo lee y `qa` termina limpio y lo deja en el informe; sin marcador ni `test-plan.md`, aviso único con el comando que lo fija y exit 0 — **se comprueba en vivo sobre esta iniciativa** al llegar a su Fase 3 · *literal de HEAD restaurado (gap R4a-4); lo que lo da por cumplido y lo que queda pendiente, en la **desviación 22***
+- [x] CA-14: con `test-plan: n/a (sin UI)` en el plan, `dev-cycle` Fase 3 lo lee y `qa` termina limpio y lo deja en el informe; sin marcador ni `test-plan.md`, aviso único con el comando que lo fija y exit 0 — **se comprueba en vivo sobre esta iniciativa** al llegar a su Fase 3 · *literal de HEAD restaurado (gap R4a-4); lo que lo da por cumplido y lo que queda pendiente, en la [desviación 22](testing/history/T-13.md)*
 - [x] Mismo literal del marcador en las tres piezas, la plantilla del planner y `coverage-check.py` (fila E1 de la matriz de T-14 lo cita)
 - [x] `qa-gate.py` sin cambios; `interop/` regenerado; evals con caso positivo nuevo en `agent-planner.json` y `agent-qa.json`
 - [x] `docs/agents/planner.md`, `docs/agents/qa.md` y `docs/FLOWS.md` (+EN) describen el caso sin UI (E3: quien describe la pieza se actualiza en la misma tarea)
 
 **Subtareas**
-- [x] `planner.md` §0 y plantilla: emitir el marcador cuando no hay UI (en vez de omitir el fichero en silencio)
-- [x] `dev-cycle.md` Fase 3: leer el frontmatter; **decidido: invocar `qa` en modo «sin UI»**, no saltarlo (escrito en el paso 3 de la Fase 3), con la línea para el ledger
-- [x] `qa.md` P1 + `coverage-check.py`: salida limpia con marcador; aviso único sin él; 6 casos nuevos en `tests/test_coverage_check.py`
-- [x] Regenerar `interop/`; evals; docs que describen; `Verificación` re-ejecutada tras el último cambio
-- Commit `T-13: …`: lo hace el orquestador tras la revisión de dos lentes
+- [x] Planner §0 y plantilla: emitir el marcador sin UI.
+- [x] Dev-cycle Fase 3: leerlo e invocar qa sin UI; anotarlo en el ledger.
+- [x] Qa P1 y coverage-check: salida limpia/aviso; seis regresiones.
+- [x] Interop, evals, docs y Verificación actualizados.
 
-**Desviación declarada 18 — con el marcador, los criterios `[GWT]` de la spec dejan de forzar exit 1; y `wc -l commands/dev-cycle.md` ya no puede dar ≤ 200.** (a) **La grande.** La `Descripción` decía que `coverage-check.py` «sigue exit 0 con aviso, ahora sin pedir regenerar», dando por hecho que el marcador solo tocaba el texto. Falso en esta misma iniciativa: `coverage-check.py` tiene desde antes una regla dura —un criterio `- [ ] [GWT] CA-XX` de la spec sin `test-plan.md` es cobertura que falta, **exit 1**— y la `spec.md` de `plugin-refactor` trae **13 criterios [GWT]**. Con la implementación literal («el marcador no cambia exit codes»), CA-14 se caía en vivo: la puerta salía en rojo justo en la iniciativa que estrena el marcador. Resuelto invirtiendo la precedencia y escribiéndolo: **con `test-plan: n/a (sin UI)` declarado, los `[GWT]` no fuerzan exit 1** — sin UI no hay E2E que los cubra y su evidencia es el campo `Verificación` de la tarea que los cierra, que es exactamente como se verifican los 13 de esta spec (pytest, `lint_plugin`, `code-health`, `export-interop --check`). **No se silencian**: se imprime una línea ℹ️ con cuántos son y sus IDs, y el `--json` trae `test_plan_na: true`, para que la revisión pueda cazar un marcador puesto para esquivar la puerta. **Sin marcador, la regla vieja sigue intacta** (test explícito: los mismos [GWT] sin marcador siguen en exit 1) — no se ha aflojado la puerta, se ha acotado a su supuesto. (b) La `Verificación` pedía `wc -l commands/dev-cycle.md` → `≤ 200` («hoy 198»): el fichero está en **211 líneas desde antes de este tramo** (`git show HEAD:commands/dev-cycle.md | wc -l` → 211), así que el número del plan estaba caducado. Lo que la `Verificación` quería garantizar —que la lectura del marcador no engorde el comando— sí se cumple y se comprueba mejor: `git diff --numstat` da **`1 1`** en `commands/dev-cycle.md` (una línea cambiada, cero añadidas), y el linter no emite aviso de tamaño ni para `dev-cycle.md` ni para `qa.md`. (c) El marcador solo cuenta en el **frontmatter** del plan (test propio): citado en la prosa —como lo cita ahora la doc— no exime a nadie.
+**Contrato vigente** (2026-10-06; detalle y evidencia en el anexo):
+- Solo frontmatter cerrado: `test-plan: n/a (sin UI)`; BOM UTF-8, comillas y EOF admitidos;
+  variantes laxas avisan. No exime una cita en prosa. GWT sin test-plan no fuerzan rojo:
+  se listan IDs y `test_plan_na`, sin afirmar cobertura E2E.
+- `qa`: ledger-lint + coverage-check, pruebas de código aplicables e informe «sin UI por diseño»;
+  sin URL, Playwright ni capturas. Sin marcador/test-plan: aviso único, comando corrector, exit 0.
+- UI: ledger y diff, staging/exclusiones incluidos; origen ledger/diff, `eximidos`,
+  `eximidos_exigidos`. Sin Git/base/repo válido, causa explícita en `rutas_ui_degradado`.
+- E12 reutiliza repo_root/resolver_base/ficheros_cambiados; repo_root_detalle conserva stderr y
+  distingue Git ausente, repo ausente y fallo con `.git`; fallback `getattr` para kits anteriores.
+- Pistas `.astro/.twig/.svg`, assets/web/components; carpetas sin barra se contrastan en disco.
+  Un archivo regular sin extensión no es carpeta; pista solo de carpeta exige `EXT_INTERFAZ`.
+- Linter sustituye `wc -l ≤ 200` (desviación 18); `qa-gate.py` no cambia.
 
-**Verificación ejecutada (salida real, tras el último cambio):**
-```
-$ grep -l "test-plan: n/a (sin UI)" agents/planner.md commands/dev-cycle.md agents/qa.md \
-      agent-kits/planner/templates/improvement-plan.md agent-kits/qa/coverage-check.py | wc -l
-5                     <- el MISMO literal en los cinco
+**Notas**: [Historial íntegro](testing/history/T-13.md): desviaciones 18/22, fix1…fix4 y salidas.
+`ADR-017` justifica el marcador. Consultar el anexo al necesitar el detalle de una corrección.
 
-$ python agent-kits/qa/coverage-check.py docs/roadmap/2026-09-09-plugin-refactor/tasks.md \
-      docs/roadmap/2026-09-09-plugin-refactor/test-plan.md \
-      docs/roadmap/2026-09-09-plugin-refactor/spec.md ; echo $?
-[OK] test-plan: n/a (sin UI) declarado en improvement-plan.md: iniciativa sin UI por diseno,
-     la puerta de cobertura no aplica
-[i]  13 criterio(s) [GWT] de la spec (CA-01, CA-02, CA-03, CA-05, CA-06, CA-07, CA-11, CA-12,
-     CA-14, CA-16, CA-17, CA-18, CA-19) no se cubren con E2E porque no hay UI: su evidencia es
-     el campo `Verificacion` de la tarea que los cierra en tasks.md
-{"applies": false, "gwt_sin_id": 0, "test_plan_na": true}
-0                     <- CA-14 EN VIVO. Antes de la desviacion (a) esto salia 1 con 13 lineas ❌
-
-$ grep -c "regenerarlo con \`planner\`|(re)generarlo con" agents/qa.md
-0                     <- la contradiccion E1 desaparece del texto
-
-$ python tests/test_coverage_check.py ; echo $?
-OK: coverage-check con criterios [GWT] y marcador sin-UI - todo pasa.
-0                     <- 6 casos nuevos: marcador -> exit 0 sin citar `planner` · sin marcador ->
-                         aviso UNA vez con el comando que lo fija · [GWT]+marcador -> exit 0 y
-                         listados · [GWT] SIN marcador -> sigue exit 1 · marcador en la prosa no
-                         exime · sin improvement-plan.md, comportamiento clasico
-
-$ python -m pytest -q tests/test_coverage_check.py tests/test_qa_gate.py tests/test_console_encoding.py
-297 passed in 41.16s        <- `qa-gate.py` sin tocar (S-7) y la consola cp1252 aguanta la linea nueva
-
-$ python scripts/export-interop.py && python scripts/export-interop.py --check
-export-interop: 48 ficheros escritos (codex + opencode)
-export-interop --check: 48 ficheros al dia          exit=0
-$ python evals/check.py
-evals/check: 38 ficheros · 137 casos (82 positivos, 55 negativos) · 38 piezas del repo · 0 errores
-$ python scripts/lint_plugin.py ; echo $?
-lint_plugin: 9 agentes · 0 errores · 3 avisos
-0                     <- los 3 avisos son los de siempre (nombre generico de retro/roadmap-status/
-                         setup); NINGUN aviso de tamano para dev-cycle.md ni qa.md
-
-$ wc -l commands/dev-cycle.md  ·  git show HEAD:commands/dev-cycle.md | wc -l
-211  ·  211            <- ver desviacion 18 (b): el numero del plan («hoy 198») estaba caducado
-$ git diff --numstat commands/dev-cycle.md agents/qa.md agents/planner.md
-1  1  commands/dev-cycle.md
-1  1  agents/qa.md
-1  1  agents/planner.md     <- una linea cambiada por pieza, CERO anadidas: el comando no engorda
-```
-
-**Corrección post-revisión — intento 1 del tramo R4a (`fix1`, 2026-09-11): gaps R4a-2 (Important), R4a-6 (Important), R4a-7, R4a-8, R4a-9 y R4a-17.**
-La trazabilidad prometida («no se silencian: se listan») solo existía si la spec usaba `[GWT]` con ID: una
-spec de UI normal dejaba **una línea con ✅** y nada más, y ese ✅ se lee en el informe de `qa` como
-«cobertura OK» donde no se comprobó cobertura ninguna.
-
-- La línea del marcador es **ℹ️, nunca ✅**, y lo dice con todas las letras: «la puerta de cobertura NO se
-  ha ejecutado (no es “cobertura OK”)».
-- `que_se_exime()` lista SIEMPRE lo eximido, por escalera: criterios `[GWT]` → criterios `CA-XX` de la
-  spec → tareas del ledger → «no hay nada que eximir», con esas palabras. Sale también en `eximidos`.
-- `rutas_con_pinta_de_ui()` contrasta el marcador contra el **alcance declarado** (los campos `Archivos`;
-  `scope-check.py` garantiza que el diff está contenido en ellos, así que la puerta no necesita git) y
-  emite ⚠️ si hay rutas de interfaz. Los documentos (`.md`/`.txt`) no cuentan por el nombre de su carpeta:
-  `agent-kits/planner/templates/improvement-plan.md` es una plantilla de texto, no una vista (falso
-  positivo real de este mismo repo, cazado al re-ejecutar la verificación).
-- R4a-7: `MARCADOR_RE` exige clave de **primer nivel**, va **anclada al final** (solo tolera comentario
-  YAML) y acepta la forma **citada**. R4a-8: `utf-8-sig` al leer plan, spec y ledger.
-- R4a-9: `test_plan_na` se calcula antes de ramificar y sale en las **cuatro** salidas del `--json`.
-- R4a-6: `ADR-017` recoge qué exime el marcador, qué no y qué se lista — **sigue `propuesta`**, la
-  promoción es del orquestador al cerrar el tramo. R4a-17: la tilde de «línea» en la plantilla del plan.
-- `agents/qa.md` manda copiar `eximidos` y `rutas_ui` al informe y prohíbe presentar la ℹ️ como cobertura OK.
-
-**Desviación declarada 22 — qué da por cumplido CA-14 y qué queda pendiente (gap R4a-4).** El literal de
-HEAD está restaurado, incluido «**se comprueba en vivo sobre esta iniciativa** al llegar a su Fase 3».
-Se marca cumplido con esta evidencia y este límite: lo que `commands/dev-cycle.md` paso 3 define como
-**qa en modo «sin UI»** es exactamente `ledger-lint.py` + `coverage-check.py` sobre la carpeta de la
-iniciativa (sin Playwright ni URL), y las dos puertas se han ejecutado hoy sobre ESTA carpeta con el
-marcador puesto: exit 0, ℹ️ (no ✅), 13 `[GWT]` eximidos y enumerados, y sin pedir que se regenere nada.
-Lo que **no** ha ocurrido todavía es el **despacho del agente `qa`** por el orquestador, que es suyo y
-llega al cerrar el tramo; si ese despacho contradijera lo de aquí, el criterio se reabre. Se declara en
-vez de reescribir el criterio para que case con lo entregado, que es lo que la revisión señaló.
-
-**Verificación re-ejecutada tras el último cambio (salida real):**
-```
-$ python agent-kits/qa/coverage-check.py docs/roadmap/2026-09-09-plugin-refactor/tasks.md \
-      docs/roadmap/2026-09-09-plugin-refactor/test-plan.md \
-      docs/roadmap/2026-09-09-plugin-refactor/spec.md ; echo $?
-ℹ️  test-plan: n/a (sin UI) declarado en improvement-plan.md: iniciativa sin UI por diseno, la
-    puerta de cobertura NO se ha ejecutado (no es «cobertura OK»)
-ℹ️  se eximen 13 criterio(s) [GWT] de la spec (CA-01, CA-02, CA-03, CA-05, CA-06, CA-07, CA-11,
-    CA-12, CA-14, CA-16, CA-17, CA-18, CA-19): su evidencia es el campo `Verificacion` de la
-    tarea que los cierra en tasks.md (ejecutado y pegado por implementer), no un E2E
-{"applies": false, "gwt_sin_id": 0, "test_plan_na": true, "eximidos": [...13...],
- "rutas_ui": []}
-0                     <- CA-14 en vivo (ver desviacion 22). Ni un ✅ en la salida
-
-$ python tests/test_coverage_check.py ; echo $?
-OK: coverage-check con criterios [GWT] y marcador sin-UI - todo pasa.
-0                     <- 6 casos previos + 13 nuevos: ni un ✅ con marcador · exencion listada en
-                         las tres ramas de la escalera · «no hay nada que eximir» · ⚠️ de rutas
-                         de UI y su ausencia · un .md no es UI · anidado / basura detras no
-                         eximen · las dos comillas si · BOM · `test_plan_na` en las 4 salidas
-
-$ grep -c "regenerarlo con \`planner\`|(re)generarlo con" agents/qa.md      -> 0
-$ python -m pytest -q tests/test_qa_gate.py -p no:cacheprovider           -> qa-gate.py intacto (S-7)
-$ python scripts/export-interop.py --check   -> 48 ficheros al dia            exit 0
-$ python evals/check.py                      -> 137 casos · 0 errores         exit 0
-$ grep -n "^estado:" docs/knowledge/adr/ADR-017-*.md
-4:estado: propuesta          <- NO se promueve aqui: lo hace el orquestador al cerrar el tramo
-```
-
-**Notas**: Este plan es la **primera iniciativa** que lleva el marcador (frontmatter de `improvement-plan.md`, junto a `design:`); hasta que T-13 exista lo lee una persona. `ADR-017` recoge por qué el frontmatter del plan y no el ledger ni un `test-plan.md` vacío.
-
-**Corrección post-revisión — intento 2 del tramo R4a (`fix2`, 2026-09-11): gap R4a-19 (Important) + R4a-22, R4a-23, R4a-24 y R4a-26.**
-El grande es R4a-19, y era de fondo: el ⚠️ de «rutas con pinta de interfaz» miraba los campos `Archivos`
-del ledger apoyándose en una premisa **falsa escrita en el propio código** («`scope-check.py` ya garantiza
-que el diff está contenido en estos campos»). No lo garantiza: lo **excluido** —por defecto o por
-`alcance.excluir`— está en el diff y **no** en `Archivos`. Con eso, el caso que `agents/qa.md` manda cazar
-era invisible por **composición de las dos puertas**.
-
-- **R4a-19.** `rutas_con_pinta_de_ui(tasks_text, tasks_path)` lee ahora el **diff** además del ledger, con
-  los helpers de git **importados de `scope-check.py`** (`repo_root`/`resolver_base`/`ficheros_cambiados`:
-  misma base —merge-base con main/master, o HEAD en la rama principal— y misma unión `git diff ∪ git
-  status`), en vez de duplicar esa escalera. La salida dice **de dónde sale cada ruta** (`ruta [diff]`,
-  `[ledger]`, `[diff+ledger]`; clave `rutas_ui_origen`). Sin git o sin base determinable **no calla**:
-  `rutas_ui_degradado` trae el motivo y la salida avisa de que solo se ha mirado el alcance declarado, que
-  no incluye lo excluido. La premisa falsa se ha **borrado** del comentario y sustituida por el porqué real.
-- **R4a-22.** «Se eximen N» queda solo para los `[GWT]` (lo único que la puerta exigía); en los peldaños 2 y
-  3 la línea dice «**se listan para la revisión** N … la puerta no exigía cobertura de estos». JSON:
-  `eximidos_exigidos`.
-- **R4a-23.** `MARCADOR_RE` pasa a canónico (sin `re.I` en la clave, espacio obligatorio tras los dos
-  puntos). Las tres formas que colaban se atienden con `MARCADOR_RE_LAXO`: **se aceptan pero avisan** («el
-  `grep` del literal no lo encuentra escrito así») y salen en `marcador_no_canonico`.
-- **R4a-24.** El frontmatter puede cerrar en el fin de fichero sin salto final.
-- **R4a-26.** `UI_PISTAS` suma `.astro`, `.twig`, `.svg`, `assets/`, `web/` y `components` como nombre de
-  fichero.
-
-**Verificación re-ejecutada tras el último cambio (salida real):**
-```
-$ python tests/test_coverage_check.py
-OK: coverage-check con criterios [GWT] y marcador sin-UI - todo pasa.      exit 0
-
-$ # ESCENARIO COMPUESTO EXACTO del gap (repo git de verdad, fuera del repo del plugin):
-$ #   .claude/dev.json {"alcance":{"excluir":["src/components/**"]}}
-$ #   diff con Boton.tsx, Panel.vue y estilos.css; plan con `test-plan: n/a (sin UI)`
-$ # ---------- ANTES (HEAD) ----------
-$ python agent-kits/shared/scope-check.py docs/roadmap/2026-01-01-x     -> exit 0
-   ❌ fuera de alcance (0): -        ℹ️ excluidos (4): los tres de interfaz + .claude/dev.json
-$ python agent-kits/qa/coverage-check.py .../tasks.md .../test-plan.md  -> exit 0
-   {"applies": false, ..., "test_plan_na": true, "eximidos": ["T-01"], "rutas_ui": []}
-   ^^^ las dos puertas en verde y CERO rastro de la interfaz: el hueco
-$ # ---------- AHORA ----------
-$ python agent-kits/shared/scope-check.py docs/roadmap/2026-01-01-x     -> exit 0 (sin cambio)
-$ python agent-kits/qa/coverage-check.py .../tasks.md .../test-plan.md  -> exit 0
-   ⚠️  hay 3 ruta(s) con pinta de interfaz (src/components/Boton.tsx [diff],
-       src/components/Panel.vue [diff], src/components/estilos.css [diff]) y el plan declara
-       «test-plan: n/a (sin UI)»: o el marcador sobra, o esas rutas no son UI - dilo en el ledger
-       antes de que la revision lo pregunte ([diff] = fichero cambiado, [ledger] = campo `Archivos`)
-   {"rutas_ui": [los 3], "rutas_ui_origen": {los 3: "diff"}, "rutas_ui_degradado": null,
-    "eximidos_exigidos": false, "marcador_no_canonico": null}
-   (el mismo escenario vive como test: `tests/test_coverage_check.py::escenario_r4a19`)
-
-$ # R4a-22 / R4a-23 / R4a-24 / R4a-26: casos nuevos dentro de la misma suite-script
-   - «se listan para la revision» sin [GWT] y «se eximen» solo con [GWT] (eximidos_exigidos)
-   - 3 formas no canonicas: exit 0, test_plan_na true, marcador_no_canonico con el literal, ⚠️
-   - frontmatter cerrado en EOF sin salto final -> exit 0 y test_plan_na true
-   - .astro/.twig/.svg/assets//web//components.ts detectados; los .md siguen sin disparar
-
-$ # LINUX (obligatorio antes de devolver): python:3.11-slim + git + dos2unix, chmod +x sobre los .sh
-$ python tests/test_coverage_check.py            (modo script, el que corre la CI)
-OK: coverage-check con criterios [GWT] y marcador sin-UI - todo pasa.      EXIT_SCRIPT=0
-$ python -m pytest -q agent-kits/shared/test_scope_check.py agent-kits/shared/test_doctor.py
-91 passed, 16 skipped in 10.29s
-   ^^^ en Linux NO existe el rojo del bit de ejecucion: los 91 en verde (incluido el caso nuevo
-       de T-12 y el del bit, que aqui si corre)
-```
-
-**Verificacion RE-EJECUTADA tras el `fix3` (R4a-30…R4a-36) — salida real:**
-
-```
-$ grep -c "test-plan: n/a" agents/planner.md commands/dev-cycle.md agents/qa.md \
-         agent-kits/planner/templates/improvement-plan.md agent-kits/qa/coverage-check.py
-agents/planner.md:1 · commands/dev-cycle.md:1 · agents/qa.md:1 ·
-agent-kits/planner/templates/improvement-plan.md:2 · agent-kits/qa/coverage-check.py:7
-                           <- el mismo literal en las 5 piezas (R4a-31 endurece la regex, no el literal)
-
-$ python agent-kits/qa/coverage-check.py docs/roadmap/2026-09-09-plugin-refactor/tasks.md \
-         docs/roadmap/2026-09-09-plugin-refactor/test-plan.md \
-         docs/roadmap/2026-09-09-plugin-refactor/spec.md ; echo $?
-(i) test-plan: n/a (sin UI) declarado en improvement-plan.md: ... la puerta de cobertura NO se ha
-    ejecutado (no es «cobertura OK»)
-(i) se eximen 13 criterio(s) [GWT] de la spec (CA-01 … CA-19): su evidencia es el campo
-    `Verificacion` de la tarea que los cierra en tasks.md
-{"applies": false, "gwt_sin_id": 0, "test_plan_na": true, "marcador_no_canonico": null,
- "eximidos": [...13...], "eximidos_exigidos": true, "rutas_ui": [], "rutas_ui_origen": {},
- "rutas_ui_degradado": null}
-0                          <- `rutas_ui_degradado: null` AQUI es verdad: rama de trabajo con
-                              commits propios, el diff SI aporta ficheros (R4a-30 distingue los casos)
-
-$ grep -c "regenerarlo con `planner`\|(re)generarlo con" agents/qa.md   -> 0
-$ wc -l commands/dev-cycle.md  ·  git show HEAD:commands/dev-cycle.md | wc -l   -> 211 · 211
-                           <- ver desviacion 18 (b): el numero del plan («hoy 198») estaba caducado
-$ python tests/test_coverage_check.py ; echo $?
-OK: coverage-check con criterios [GWT] y marcador sin-UI — todo pasa.
-0                          <- en Windows Y en el contenedor Linux (modo script, como pide el fichero)
-$ python scripts/export-interop.py --check   -> 48 ficheros al dia
-$ python evals/check.py ; echo $?            -> 0
-```
-
-**Correccion post-revision — intento 4 del tramo R4a (`fix4`, 2026-09-12): gaps B4-2, B4-3 y B4-4 (Minor).**
-Los tres son de la misma pieza (`agent-kits/qa/coverage-check.py`) y de las dos familias que la lente
-venia acotando: **por que no hay diff** y **que tiene pinta de interfaz**.
-
-- **B4-2 (tercera causa).** `repo_root()` devolvia None por DOS motivos declarados (sin git / no es un
-  repo) y por un TERCERO que nadie contaba: la carpeta SI es un repositorio y `git rev-parse` falla igual
-  (config rota, `safe.directory` de una carpeta de otro usuario, repo corrupto). Las dos piezas afirmaban
-  «esto no es un repositorio git» y mandaban a hacer un `git init` sobre un repo que ya existe, tirando
-  por el camino el stderr de git, que ERA el diagnostico. Ahora `repo_root_detalle()` conserva ese stderr,
-  `hay_git_dir()` sube por los padres buscando `.git` (pregunta al sistema de ficheros, no a git) y
-  `motivo_sin_repo()` devuelve LA causa con su remedio. `coverage-check` la consume por `getattr` —arista
-  **E12**, que pasa de cinco firmas a **siete**— y cae al mensaje de dos causas si el kit es viejo, que es
-  la degradacion que esa arista exige. El exit 2 de `scope-check` distingue ya **cinco** situaciones.
-- **B4-3 (falsos NEGATIVOS).** `src/components` o `frontend` sin barra son la forma que `scope-check.casa()`
-  soporta a proposito para declarar una carpeta, y exigir la barra los dejaba fuera. Se resuelve como lo
-  resuelve `casa()`: preguntando al disco. Si el token ES un directorio del repo, cuenta; si no —el fichero
-  sin extension llamado `public` o `assets`—, no. Asi se recupera el negativo **sin reabrir R4a-36**.
-- **B4-4 (falsos POSITIVOS).** Cuando la unica pista es el nombre de la carpeta, la extension tiene que
-  estar en `EXT_INTERFAZ`. Caen los seis que enumero la lente y el caso mas realista —el backend puro, que
-  es justo quien declara «sin UI»— deja de tener que desmontar el aviso a mano.
-
-**Verificacion re-ejecutada tras el ultimo cambio (salida real):**
-```
-$ python tests/test_coverage_check.py ; echo $?        # EN MODO SCRIPT, como el bucle de CI
-OK: coverage-check con criterios [GWT] y marcador sin-UI — todo pasa.
-0
-   escenario_b42()      -> tercera causa: motivo con «hay un `.git`», sin «esto no es un repositorio
-                           git», con `safe.directory` y con el stderr de git entre comillas angulares;
-                           y las dos firmas nuevas de la arista E12 existen y son invocables
-   escenario_b43_b44()  -> B4-3: `src/components` y `frontend` (carpetas reales) = True con raiz y
-                           False sin ella; `public`/`assets` como FICHERO siguen en False
-                           B4-4: los 6 falsos positivos en False; `db/views/lista.tsx`,
-                           `templates/mail.twig`, `static/app.js`, `assets/estilo.css`,
-                           `screens/Home.swift`, `e2e/login.spec.ts`, `web/app.js` y
-                           `public/index.html` siguen en True (la pista no se ha aflojado)
-   los 6 falsos positivos van TAMBIEN en la lista `falsos` del escenario R4a-36, que es declarativa
-
-$ # la degradacion sigue siendo degradacion: ningun camino nuevo tumba la puerta de qa
-$ grep -c "rutas_ui_degradado" agent-kits/qa/coverage-check.py   -> sigue en las 4 ramas del --json
-```
+---
 
 ### T-14 — C-06: matriz de contratos pieza → pieza (`docs/agents/CONTRACTS.md`)
 
@@ -2300,7 +2069,7 @@ ledger-lint: 0 incoherencias . 0 avisos (tasks.md)                              
 
 - **Descripción**: `planner` (prompt + plantilla de `tasks.md`) exige `interop/**` y **las piezas que describen a la pieza tocada** (según la columna «Piezas que describen» de la matriz de T-14) en `Archivos` de toda tarea que toque `commands/`, `agents/` o `hooks/`; `implementer` regenera `interop/` con `python scripts/export-interop.py` antes de cerrar la tarea; la **Lente A** (`lens-prompts.md`) ejecuta `python scripts/export-interop.py --check` y lo cita ✓/✗ por criterio. `scope-check.py` ya acepta los ficheros generados si están en `Archivos` (patrón `interop/**`, no fichero a fichero, para no engordar el brief — GOT-009).
 - **Changelog**: Las tareas que tocan un agente, comando o hook enumeran `interop/**` y las piezas que lo describen; `implementer` regenera `interop/` y la Lente A comprueba `export-interop.py --check`.
-- **Estado**: en-progreso
+- **Estado**: completado
 - **Tiempo humano**: est. 3,0h · real — (todo IA)
 - **Tiempo IA (ejec.)**: est. 0,35h · real **0,17h (medido)** — `{"artefacto":"plugin-refactor/T-15","inicio":"2026-09-12T01:09:20Z","fin":"2026-09-12T01:14:30Z","fuente":"medido","tokens_reales":{"entrada":64,"salida":17251,"cache_creacion":63811,"cache_lectura":2689511,"respuestas":32},"eur":2.0,"horas_ia":0.17,"duracion":"10m","duracion_reloj":"5m","ratio_usado":479326.0,"ratio_origen":"CALIBRATION.md (mediana de 7)"}`
 - **Supervisión**: est. 0,09h (≈25 % IA) · real **0,04h** (25 % de 0,17h)
@@ -2318,7 +2087,7 @@ ledger-lint: 0 incoherencias . 0 avisos (tasks.md)                              
 - [x] CA-15: plantilla y `planner.md` exigen `interop/**` + piezas que describen cuando la tarea toca `commands/`/`agents/`/`hooks/`; `implementer.md` regenera; `lens-prompts.md` (Lente A) ejecuta `--check` y lo cita ✓/✗ — `agents/planner.md` P3-bis (dos viñetas, E2 y E3) + ítem de DoD; `agent-kits/planner/templates/tasks.md` comentario guía del campo `Archivos`; `agents/implementer.md` P3 (viñeta «regenera lo generado ANTES de cerrarla») + dos ítems de DoD; `lens-prompts.md` criterio **(6)** de la Lente A, que **ejecuta** `python3 scripts/export-interop.py --check` y cita exit code y salida como ✓/✗ (literal verificado en el fichero tras el gap B-3: la desviación 49 lo había dejado en `python3 export-interop.py --check`, que era una ruta que no existe desde la raíz)
 - [x] La lista de «piezas que describen» se toma de la matriz (T-14), no se improvisa por tarea — las cuatro piezas la nombran por su ruta (`docs/agents/CONTRACTS.md`) y por su **columna** («Piezas que describen»); la regla base (`docs/agents/<x>.md` + fila de `docs/README.md` + `FLOWS.md`/espejo + `evals/cases/`) queda declarada SOLO como fallback para una pieza que no salga en ninguna arista, no como alternativa a la matriz
 - [x] `interop/` regenerado y `--check` verde; evals en verde; docs que describen actualizadas — `export-interop.py` → 48 ficheros escritos, `--check` → 48 al día exit 0; `evals/check.py` → 0 errores; `lint_plugin.py` → 0 errores · 3 avisos (los 3 preexistentes de nombre genérico, sin aviso de tamaño en los dos agentes tocados); `docs/agents/planner.md` (paso 3-bis + regla clave), `docs/agents/implementer.md` (viñeta de «Qué hace») y `agent-kits/planner/README.md` actualizados **en esta misma tarea** (que es justo lo que pide E3)
-- [ ] El brief de una tarea con `interop/**` en `Archivos` sigue bajo el tope de 10.000 caracteres — **NO cumplido; queda abierto con la desviación 36** (gap A-2 del intento 1: estaba marcado y no correspondía). Lo que sí se mide y sí se cumple es el delta: el patrón cuesta **1.773 caracteres menos** que enumerar los 46 ficheros generados (línea `Archivos` de 1.420 → 3.193 con la enumeración). El valor ABSOLUTO del brief de T-13 (35.827) está por encima del tope desde antes de esta tarea y por causas que no son `Archivos` — lo atribuye el propio script, no yo
+- [x] El brief de una tarea con `interop/**` en `Archivos` sigue bajo el tope de 10.000 caracteres — cierre 2026-10-06: T-13 normal, 9.998 caracteres Unicode incluyendo el salto final, exit 0. La medición de septiembre y la desviación 36 se conservan debajo como historia; el historial íntegro de T-13 pasa a `testing/history/T-13.md`.
 
 **Subtareas**
 - [x] `planner.md` P3-bis («El campo `Archivos` incluye lo GENERADO y lo que DESCRIBE») + ítem de DoD con su `grep`; plantilla `tasks.md` con el comentario guía de 11 líneas y el ejemplo real en el campo
@@ -3217,7 +2986,7 @@ Desviaciones nuevas de esta correccion: **50-53**; reescritas: **45** y **48**.
 
 ## Fase 5 — Proceso: revisión por tramo, corrección y cierre
 
-**Estado**: borrador · **Estimado**: 14,0h · **Real**: — · **Coste est.**: 707 € · **Tokens est.**: 864k · **Tramo**: —
+**Estado**: completado · **Estimado**: 14,0h · **Real**: — · **Coste est.**: 707 € · **Tokens est.**: 864k · **Tramo**: —
 
 > Líneas de proceso P-2, P-3 y P-4 de la evaluación (**condición 2 del go: no se recortan**; 16 % del base). P-1 (`architect`) ya está hecha fuera del plan (`design.md` `aprobado`, 0,71 h IA / 9,16 € medidos).
 
@@ -3225,7 +2994,7 @@ Desviaciones nuevas de esta correccion: **50-53**; reescritas: **45** y **48**.
 
 - **Descripción**: al cerrar cada tramo, `/dev-cycle` invoca la skill `adversarial-review` (Lentes A y B en paralelo con contexto fresco; C y D condicionales por `review-lens-select.py` — T-18 cambia su criterio a partir de R4). En un refactor (R1-R3) la **Lente B** (regresiones) es la que trabaja, con las capturas de contratos (`$CAPTURAS/*-antes` vs `*-despues`) y `suite-antes.txt` como evidencia; en R4 la **Lente A** revisa contra esta spec, la matriz de T-14 y `ROLES.md`. Traza obligatoria en este ledger: «Revisión de dos lentes — intento N» por tramo, con gaps graduados Critical/Important/Minor. Bucle acotado a 3 por tramo. Con el tramo cerrado sin gaps pendientes, las entradas `propuesta` de la iniciativa se promueven (`ADR-016` en R3; `ADR-017` en R4).
 - **Changelog**: Cada tramo del refactor pasa una revisión adversarial de dos lentes con las capturas de contratos como evidencia, y la traza queda en el ledger.
-- **Estado**: borrador
+- **Estado**: completado
 - **Tiempo humano**: est. 6,0h · real —
 - **Tiempo IA (ejec.)**: est. 0,75h · real —
 - **Supervisión**: est. 0,19h (≈25 % IA) · real —
@@ -3239,28 +3008,31 @@ Desviaciones nuevas de esta correccion: **50-53**; reescritas: **45** y **48**.
   - lectura: cada traza lista gaps por severidad, el rebate con evidencia o la corrección (T-21) y el nº de intento; al cerrar R3, `grep -n "^estado:" docs/knowledge/adr/ADR-016-*.md` → `aceptada (validada: revisión de dos lentes, …)`
 
 **Criterios de aceptación**
-- [ ] Cuatro tramos revisados con traza «Revisión de dos lentes — intento N» y gaps graduados; ninguno supera 3 intentos
-- [ ] Lente B en R1-R3 recibe las capturas de contratos y `suite-antes.txt` como evidencia (citadas en la traza)
-- [ ] Lente A en R4 revisa contra spec, `CONTRACTS.md` y `ROLES.md`; `export-interop.py --check` citado ✓/✗ (T-15 en vivo)
-- [ ] `ADR-016` y `ADR-017` promovidos según el contrato de `knowledge-write.md` si el tramo cierra sin gaps pendientes
+- [x] Cuatro tramos revisados con traza «Revisión de dos lentes — intento N» y gaps graduados; límite de 3 con las excepciones autorizadas explícitamente y documentadas
+- [x] Lente B en R1-R3 recibe las capturas de contratos y `suite-antes.txt` como evidencia (citadas en la traza)
+- [x] Lente A en R4 revisa contra spec, `CONTRACTS.md` y `ROLES.md`; `export-interop.py --check` citado ✓/✗ (T-15 en vivo)
+- [x] `ADR-016` y `ADR-017` promovidos según el contrato de `knowledge-write.md` si el tramo cierra sin gaps pendientes
 
 **Subtareas**
-- [ ] R1 tras T-04 · R2 tras T-08 · R3 tras T-10 · R4 tras T-19 (o R4a/R4b si > 10 Important en el intento 1)
-- [ ] Traza por tramo; promoción de ADR; `Verificación`
+- [x] R1 tras T-04 · R2 tras T-08 · R3 tras T-10 · R4 tras T-19 (o R4a/R4b si > 10 Important en el intento 1)
+- [x] Traza por tramo; promoción de ADR; `Verificación`
 
 **Notas**: `memory-retrieval` midió +66 % de IA real por tres revisiones (38 gaps) no presupuestadas: esta línea y T-21 existen para absorberlo. El orquestador lleva el contador de intentos y el worklog `[revisión]`.
+
+
+**Aplicación al cierre**: el límite actual es 3 intentos; las cuartas pasadas históricas de R3/R4a fueron autorizadas expresamente por el usuario y se conservan como excepción, no como cumplimiento ficticio del límite. Las cabeceras se normalizan para que el parser vea las 13 trazas históricas; el cuerpo no cambia.
 
 ### T-21 — P-3: corrección post-revisión (igual a la revisión)
 
 - **Descripción**: corregir los gaps Critical e Important de cada tramo (los Minor se aceptan como deuda con motivo o se corrigen si son de una línea), re-ejecutar la `Verificación` de las tareas afectadas y la puerta del tramo (`release.py --dry-run`), y actualizar la traza del intento. En el bloque (a) una corrección **nunca** toca un test existente ni un contrato congelado: si la revisión pide eso, es un cambio de comportamiento → fuera de (a), se anota y va por su cauce. Un gap rebatido con evidencia (comando + salida) cuenta como resuelto.
-- **Changelog**: Los gaps de la revisión adversarial de cada tramo se corrigen o se rebaten con evidencia antes de cerrar el tramo, sin tocar tests existentes ni contratos congelados.
-- **Estado**: borrador
+- **Changelog**: Se resuelven los gaps de revisión; el refactor conserva contratos y tests. La validación complementaria sigue el launcher Node y usa hashes de bytes en el fixture Confluence.
+- **Estado**: completado
 - **Tiempo humano**: est. 6,0h · real —
 - **Tiempo IA (ejec.)**: est. 0,75h · real —
 - **Supervisión**: est. 0,19h (≈25 % IA) · real —
 - **Previsión IA**: 263k in / 40k out tok · 2,8 € tokens · coste tarea 303 €
 - **Dependencias**: T-20 (cada tramo, tras su intento 1). Se marca `completado` cuando los cuatro tramos han cerrado su bucle
-- **Archivos**: los de las tareas afectadas en cada tramo (se listan en la traza), `docs/roadmap/2026-09-09-plugin-refactor/tasks.md` (traza actualizada), `interop/**` si la corrección toca `agents/`/`commands/`
+- **Archivos**: los de las tareas afectadas en cada tramo (se listan en la traza), `docs/roadmap/2026-09-09-plugin-refactor/tasks.md` (traza actualizada), `docs/roadmap/2026-09-09-plugin-refactor/testing/closure.md`, `docs/roadmap/2026-09-09-plugin-refactor/testing/closure-metrics.json`, `docs/roadmap/2026-09-09-plugin-refactor/testing/code-health-closure-baseline.json`, `tests/test_hook_launcher_security.py`, `tests/test_graphiti_security.py`, `tests/test_confluence_scope.py`, `interop/**` si la corrección toca `agents/`/`commands/`
 - **Verificación**:
   - Por tramo: re-ejecutar la `Verificación` completa de cada tarea tocada por la corrección → mismas salidas esperadas (pegadas en la traza del intento N+1)
   - Bloque (a): `git diff --stat <inicio-del-tramo>..HEAD -- tests agent-kits/shared/test_*.py skills/*/scripts/test_*.py` → solo `test_code_health.py` (T-01/T-02) y `tests/test_copias_declaradas.py` (T-09) — ningún test existente tocado por una corrección
@@ -3268,22 +3040,42 @@ Desviaciones nuevas de esta correccion: **50-53**; reescritas: **45** y **48**.
   - lectura: la traza del intento final de cada tramo lista 0 gaps Critical/Important pendientes (o los aceptados como deuda por el usuario, con motivo)
 
 **Criterios de aceptación**
-- [ ] 0 gaps Critical/Important pendientes al cerrar cada tramo (corregidos o rebatidos con evidencia; deuda solo con OK del usuario)
-- [ ] Ninguna corrección del bloque (a) modifica un test existente ni un contrato congelado (diff de tests limitado a los tres ficheros declarados)
-- [ ] Puertas del tramo en verde tras la corrección: `release.py --dry-run`, `export-interop.py --check`, `ledger-lint`
-- [ ] Si la corrección tocó `agents/`/`commands/`, `interop/` regenerado y las piezas que describen actualizadas (E2/E3 en vivo)
+- [x] 0 gaps Critical/Important pendientes al cerrar cada tramo (corregidos o rebatidos con evidencia; deuda solo con OK del usuario)
+- [x] Ninguna corrección del bloque (a) modifica un test existente ni un contrato congelado (diff de tests limitado a los tres ficheros declarados)
+- [x] Puertas del tramo en verde tras la corrección: `release.py --dry-run`, `export-interop.py --check`, `ledger-lint`
+- [x] Si la corrección tocó `agents/`/`commands/`, `interop/` regenerado y las piezas que describen actualizadas (E2/E3 en vivo)
 
 **Subtareas**
-- [ ] Por tramo: corregir/rebatir · re-verificar tareas afectadas · puerta del tramo · traza intento N+1
-- [ ] Anotar deuda aceptada (si la hay) con motivo y dueño
+- [x] Por tramo: corregir/rebatir · re-verificar tareas afectadas · puerta del tramo · traza intento N+1
+- [x] Anotar deuda aceptada (si la hay) con motivo y dueño
 
 **Notas**: Igual a la revisión por diseño (LES-009, `memory-retrieval`). Si un tramo cierra en el intento 1 sin gaps, las horas no consumidas se declaran en la retro, no se reasignan.
+
+**Corrección de cierre (2026-10-06)**: bloque (a), extracción mecánica en los
+cinco archivos; **36 → 15** funciones >30. Las tres funciones largas restantes
+de task-brief son del parser literal incorporado por iniciativas posteriores;
+se conserva ese bloque completo. Los otros cuatro archivos suman 12 (≤14).
+Ningún test existente cambia en (a); firmas, flags y exit codes preservados.
+REFACTOR sobre contratos existentes, sin atribuir un ciclo RED nuevo.
+
+**Validación complementaria, fuera del bloque (a)**: la línea base limpia Linux
+detectó 9 fallos anteriores. Cuatro del escáner de seguridad y cuatro de doctor
+correspondían al launcher Node incorporado por hooks-runtime. El escáner ahora
+alcanza el launcher y sus scripts, conserva el rechazo de otros JS y detecta
+fetch; el linter no exige bit ejecutable al .mjs invocado con node, sin pedir chmod +x.
+El fixture de Confluence compara el hash de bytes, igual que producción, para
+no normalizar CRLF solo en su oráculo. No cambia Confluence en producción.
+Archivos de tests declarados arriba para esta validación, sin legitimarlos
+como parte del refactor puro. RED: los dos casos de
+test_hook_launcher_security.py fallaron el 2026-10-06 antes de la corrección;
+GREEN: 90 passed en launcher, escáner y Confluence. El detalle definitivo de
+QA y de las métricas está en testing/closure.md.
 
 ### T-22 — P-4: cierre — `changelog-sync`, `release.py --dry-run`, `/retro` + `retro-gate`
 
 - **Descripción**: cierre de `/dev-cycle` (Fase 6): este ledger a `estado: completado` con todas las tareas marcadas; `changelog-sync` genera las entradas `[Unreleased]` (EN) / `[Sin publicar]` (ES) con un bullet por `T-XX` (campo `Changelog` de cada tarea, ≤ 200 caracteres); `export-interop.py --check` y `release.py --dry-run` en verde; **re-medición E11** (`changelog-sync.py --medicion --json`: cerrar este ledger mueve `ledgers_cerrados`, `tareas`, `camino_changelog`… — si T-19 no se hizo, actualizar marcador y prosa adyacente en los ficheros que fallen, sin tocar citas históricas; si se hizo, solo los vivos); `/retro` con `retro.md` + fila en `CALIBRATION.md` (**primera fila medida en Windows**, con el ratio real tokens/hora de las 22 tareas) y `retro-gate.py` exit 0. Transiciones: spec → `implementada`, plan → `completado`, fila del índice del roadmap actualizada. Confluence: opt-in según `confluence-optin.md` (sin bloquear). Después arrancan `brief-budget` y F2 de `project-specialization`.
-- **Changelog**: Cierre del refactor medido del plugin: 32 → ≤ 16 funciones largas en los cinco hotspots, copias declaradas con un test de identidad y doce contratos entre piezas declarados y vigilados.
-- **Estado**: borrador
+- **Changelog**: Cierre técnico del refactor: 36→15 funciones largas, copias y contratos verificados, retro y calibración parcial de 849708 tokens/hora. Integración por PR pendiente.
+- **Estado**: completado
 - **Tiempo humano**: est. 2,0h · real —
 - **Tiempo IA (ejec.)**: est. 0,30h · real —
 - **Supervisión**: est. 0,08h (≈25 % IA) · real —
@@ -3299,21 +3091,24 @@ Desviaciones nuevas de esta correccion: **50-53**; reescritas: **45** y **48**.
   - Cierre del objetivo §8: `python skills/code-health/scripts/code-health.py . --exclude-tests --exclude-path interop --json --baseline docs/roadmap/2026-09-09-plugin-refactor/code-health-baseline-2.json` → `funciones largas` «↓ mejora» (cifra final pegada: hotspots ≤ 16, `todos` = 1)
 
 **Criterios de aceptación**
-- [ ] Ledger `completado` y lint exit 0; CHANGELOG ES/EN con un bullet por tarea desde el campo `Changelog`
-- [ ] `release.py --dry-run`, `export-interop.py --check`, linter y evals en verde; `test_cifras_medidas` y `test_roadmap_index` en verde tras la re-medición
-- [ ] `retro.md` + fila en `CALIBRATION.md` con ratio **medido** (`retro-gate.py` exit 0); spec `implementada`; índice del roadmap con estado y cifras reales
-- [ ] Cifra final del §8 pegada: funciones largas en los cinco hotspots ≤ 16, TODO = 1, copias declaradas 7/7, `CONTRACTS.md` 12 aristas (E1–E11 del plan + E12, el acoplamiento entre kits nacido en T-13; desviacion 29)
+- [x] Ledger `completado` y lint exit 0; CHANGELOG ES/EN con un bullet por tarea desde el campo `Changelog`
+- [x] `release.py --dry-run`, `export-interop.py --check`, linter y evals en verde; `test_cifras_medidas` y `test_roadmap_index` en verde tras la re-medición
+- [x] `retro.md` + fila en `CALIBRATION.md` con ratio **medido** (`retro-gate.py` exit 0); spec `implementada`; índice del roadmap con estado y cifras reales
+- [x] Cifra final del §8 pegada: funciones largas en los cinco hotspots ≤ 16, TODO = 9 (actuales, sin nuevos por este diff; T-01 histórico aprobó 0), copias declaradas 19/19, `CONTRACTS.md` 12 aristas (E1–E11 del plan + E12, el acoplamiento entre kits nacido en T-13; desviacion 29)
 
 **Subtareas**
-- [ ] Marcar estados; `changelog-sync`; re-medición E11 y actualización de vivos
-- [ ] Puertas: `--check`, `--dry-run`, lint, evals; `/retro` + `retro-gate`; transiciones spec/plan/índice
-- [ ] Confluence opt-in (si procede); handoff: `brief-budget` (sobre `task-brief.py` partido) y F2 de `project-specialization`
+- [x] Marcar estados; `changelog-sync`; re-medición E11 y actualización de vivos
+- [x] Puertas: `--check`, `--dry-run`, lint, evals; `/retro` + `retro-gate`; transiciones spec/plan/índice
+- [x] Confluence opt-in (si procede); handoff: `brief-budget` (sobre `task-brief.py` partido) y F2 de `project-specialization`
 
 **Notas**: La retro de esta iniciativa compara por primera vez horas IA **medidas en Windows** contra estas estimaciones (T-04 garantiza que las 22 ventanas se midan con el código corregido). Desviación objetivo ≤ +30 % en horas IA (la única muestra comparable dio +66 %).
 
-**Evidencia de calibración recuperada (2026-10-06)**: ya hay una muestra compatible de Claude Code: 14.145.747 tokens y 59.932 segundos de intervalos distintos → **849.708 tokens/hora**. Se usaron 38 de 41 marcadores, con deduplicación de respuestas y ventanas compartidas. Informe: `testing/calibration.md`; datos numéricos: `testing/calibration.json` (ambos forman parte de los archivos de T-22). Es una muestra parcial, no una medición completa de las 22 tareas ni del cierre Codex. La medición deja de estar bloqueada por falta de transcripciones; siguen pendientes los demás criterios de T-22 y la incorporación formal a la mediana al cerrar. Los criterios originales de cierre se conservan.
+**Evidencia de calibración recuperada (2026-10-06)**: ya hay una muestra compatible de Claude Code: 14.145.747 tokens y 59.932 segundos de intervalos distintos → **849.708 tokens/hora**. Se usaron 38 de 41 marcadores, con deduplicación de respuestas y ventanas compartidas. Informe: `testing/calibration.md`; datos numéricos: `testing/calibration.json` (ambos forman parte de los archivos de T-22). Es una muestra parcial, no una medición completa de las 22 tareas ni del cierre Codex. La medición deja de estar bloqueada por falta de transcripciones; la muestra se incorpora formalmente a la mediana durante este cierre técnico; el consumo completo permanece no medido. Los criterios originales de cierre se conservan.
 
-## Revision de dos lentes - intento 1 (tramo R1: T-01..T-04): 5 Important, 10 Minor (lentes A+B)
+
+**Aplicación al cierre**: cierre técnico local del 2026-10-06. Las cifras vigentes son 15 funciones largas, 19 bloques registrados y 9 TODO posteriores, sin TODO nuevo por este diff. T-01 aprobó 8→0, corrigiendo el literal TODO=1 de septiembre. CA-02 usa la base comparable de testing/code-health-closure-baseline.json; el histórico permanece intacto. La calibración es compatible y medida, pero parcial (38 marcadores/37 intervalos), no las 22 tareas completas. No se afirma una desviación presupuestaria total. La integración por PR a master y CI remota verde queda pendiente de autorización; no se ha publicado ni integrado nada.
+
+## Revisión de dos lentes — intento 1: (tramo R1: T-01..T-04): 5 Important, 10 Minor (lentes A+B)
 
 Lentes A (conformidad con ledger/plan/spec, criterio de prosa) y B (persona `test`) al agente `reviewer`,
 en paralelo, contexto fresco. `review-lens-select.py --base HEAD`: `lente_c`/`lente_d: false`. Puerta previa
@@ -3398,7 +3193,7 @@ así que miden esa cola final, no el esfuerzo completo de corrección — de ah�
 15 gaps quedan a juicio, marcadas `(estimado)` en cada tarea, siguiendo la misma disciplina que T-01/T-04 ya
 aplicaban para sus propios marcadores no representativos.
 
-## Revision de dos lentes - intento 2 (tramo R1): 1 Important, 2 Minor — verificacion determinista del orquestador (lente caida)
+## Revisión de dos lentes — intento 2: (tramo R1): 1 Important, 2 Minor — verificacion determinista del orquestador (lente caida)
 
 La Lente B del intento 2 murio por el limite de sesion antes de reproducir nada (tercera caida de agente del
 dia). En vez de relanzarla, el orquestador ejecuto **los oraculos deterministas** que le habia pedido, sobre
@@ -3429,7 +3224,7 @@ revision (marcador `plugin-refactor/revision-R1-intento2`): medido: 12 respuesta
 **Sin segunda opinion de contexto fresco** (dicho, no escondido): la calidad de la prosa de los tests nuevos y la
 redaccion de `docs/observability.md`. El orquestador las leyo por encima; no es una lente.
 
-## Revision de dos lentes - intento 3 (tramo R1): 0 gaps — verificacion determinista del orquestador; TRAMO R1 CERRADO
+## Revisión de dos lentes — intento 3: (tramo R1): 0 gaps — verificacion determinista del orquestador; TRAMO R1 CERRADO
 
 Tercer y ultimo intento del bucle acotado. Sin lentes (las dos ultimas cayeron por la API); el orquestador ejecuto
 los oraculos que la tabla del intento 2 fijaba, sobre copias en ruta corta y sin tocar el repo:
@@ -3454,7 +3249,7 @@ la cache. **Sin segunda opinion de contexto fresco** en los intentos 2 y 3 (dich
 **Commits del tramo** (los hace el orquestador, uno por tarea; CA-09 de T-03 se cumple por commit — el de T-03 no toca
 `agents/`, `commands/` ni ningun `SKILL.md`): ver `git log` de `feature/plugin-refactor` tras esta seccion.
 
-## Revision de dos lentes - intento 1 (tramo R2: T-05..T-08): 0 Critical, 0 Important, 3 Minor (lentes A+B) — TRAMO R2 CERRADO
+## Revisión de dos lentes — intento 1: (tramo R2: T-05..T-08): 0 Critical, 0 Important, 3 Minor (lentes A+B) — TRAMO R2 CERRADO
 
 Dos lentes de contexto fresco (agente `reviewer`, opus) en paralelo sobre `git diff HEAD` (4 scripts + ledger), con
 marcador medido desde la sesion principal (`plugin-refactor/revision-R2-intento1`):
@@ -3518,7 +3313,7 @@ mejora, el centinela en banda de `_calibracion_leer`, la repeticion del A-7 y lo
 **Commits del tramo** (los hace el orquestador, uno por tarea; CA-09 se cumple por commit: ninguno toca `agents/`,
 `commands/` ni ningun `SKILL.md`): ver `git log` de `feature/plugin-refactor` tras esta seccion.
 
-## Revision de dos lentes - intento 1 (tramo R3: T-09..T-10): 6 Important, 7 Minor (lentes A+B)
+## Revisión de dos lentes — intento 1: (tramo R3: T-09..T-10): 6 Important, 7 Minor (lentes A+B)
 
 > Coordenadas `fichero:linea` de esta tabla: las del arbol **en el momento del intento 1** (antes de la correccion). Tras el intento 2 varias se desplazaron (`_respaldo_declarado` a `lint_plugin.py:850-865`, `maxsplit=1` a `:873`, igualdad de centinela a `:908`, NFKD a `:875`; `copias.json` tiene 124 lineas y el bloque `docstring_uso_exit` esta en `:110-121`). Se conservan como registro historico (N-1 del intento 2).
 
@@ -3562,7 +3357,7 @@ para el orquestador**: `Changelog` de T-01 (207) y T-04 (350) pasan de 200 (tram
 (Lente A): `sustituciones` es un `str.replace` global sobre el bloque; si un identificador declarado fuera subcadena de
 otro enmascararia divergencia — hoy no ocurre; se escribe en `ADR-016` como limite conocido.
 
-## Revision de dos lentes - intento 2 (tramo R3): 1 Important, 9 Minor — los 13 gaps del intento 1 cerrados
+## Revisión de dos lentes — intento 2: (tramo R3): 1 Important, 9 Minor — los 13 gaps del intento 1 cerrados
 
 Lentes A+B vivas, marcador `plugin-refactor/revision-R3-intento2`:
 `{"eur":12.05,"horas_ia":1.63,"duracion_reloj":"44m","tokens_reales":{"entrada":303,"salida":129150,"cache_creacion":653081,"cache_lectura":11573108,"respuestas":119},"fuente":"medido"}`.
@@ -3597,7 +3392,7 @@ centinelas largos que difieran despues del 70 son indistinguibles); `_id_sugerid
 los casos nuevos se verificaron llamando a `casos_copias_declaradas()` y `casos_copias_registro_fino()` directamente.
 **Sin segunda opinion de contexto fresco**: ninguna, las dos lentes vivieron. Bucle: intento 3 = ultimo.
 
-## Revision de dos lentes - intento 3 (tramo R3, ULTIMO del bucle): B-1..B-5 cerrados; residual 1 Important + 4 Minor
+## Revisión de dos lentes — intento 3: (tramo R3, ULTIMO del bucle): B-1..B-5 cerrados; residual 1 Important + 4 Minor
 
 Verificacion determinista del orquestador (arbol desechable, 5 escenarios de la Lente B del intento 2: poda del corpus
 -> rojo nombrando la categoria; par arbitrario en `sustituciones` -> 2 rojos del esquema; renombrado del canonico en
@@ -3633,7 +3428,7 @@ decision de una cuarta pasada o de aceptarlos como limite conocido en `ADR-016` 
 `propuesta` hasta esa decision. `copias.json` y `tests/test_copias_declaradas.py` siguen **sin trackear**: los anade el
 commit de T-09.
 
-## Revision de dos lentes - 4.a pasada (tramo R3, fuera del bucle acotado, autorizada por el usuario el 2026-09-11): R3-1..R3-3 cerrados — TRAMO R3 CERRADO
+## Revisión de dos lentes — intento 4: 4.a pasada (tramo R3, fuera del bucle acotado, autorizada por el usuario el 2026-09-11): R3-1..R3-3 cerrados — TRAMO R3 CERRADO
 
 El bucle acotado (3 intentos) termino con 1 Important + 2 Minor de codigo declarados. El orquestador presento las dos
 opciones (cuarta pasada corta o aceptar el residual como limite en `ADR-016`); el usuario eligio la cuarta pasada.
@@ -3659,7 +3454,7 @@ ficheros ajenos al tramo: `.claude/*`, `CONTINUE-HERE*.md`, `feature-pendiente.b
 **Commits del tramo** (orquestador, uno por tarea): ver `git log` de `feature/plugin-refactor` tras esta seccion. El de
 T-09 incluye `git add` de `agent-kits/shared/copias.json` y `tests/test_copias_declaradas.py`.
 
-## Revision de dos lentes - intento 1 (tramo R4a: T-11..T-14): 6 Important, 12 Minor (lentes A+B)
+## Revisión de dos lentes — intento 1: (tramo R4a: T-11..T-14): 6 Important, 12 Minor (lentes A+B)
 
 Lentes A (conformidad) y B (persona «puertas de calidad») en paralelo, marcador
 `plugin-refactor/revision-R4a-intento1`:
@@ -3788,7 +3583,7 @@ $ diff /out/head.txt /out/fix.txt | grep '^<' | wc -l   ->  0   (ninguna línea 
 se hizo ANTES de cualquier push, como manda la leccion de la tanda anterior: 1.525 verdes y solo los 3 artefactos
 conocidos del contenedor (marcas de tiempo y bit de ejecucion), ninguno nuevo de R4a.
 
-## Revision de dos lentes - intento 2 (tramo R4a): 18/18 cerrados; nuevos 3 Important, 7 Minor
+## Revisión de dos lentes — intento 2: (tramo R4a): 18/18 cerrados; nuevos 3 Important, 7 Minor
 
 Una lente fresca (B, «puertas de calidad») sobre el **delta del intento 2**; la conformidad la cerro la Lente A en el
 intento 1. Marcador `plugin-refactor/revision-R4a-intento2`:
@@ -3876,7 +3671,7 @@ ya conocido, que salta en la entrada más grande del momento. Además, un rojo q
 **se corrigió dentro del propio intento**; la corrida final ya lo tiene verde.
 
 
-## Revision de dos lentes - intento 3 (tramo R4a): 10/10 cerrados; nuevos 2 Important, 10 Minor
+## Revisión de dos lentes — intento 3: (tramo R4a): 10/10 cerrados; nuevos 2 Important, 10 Minor
 
 Lente fresca (B, «puertas de calidad») sobre el delta del intento 3. Marcador
 `plugin-refactor/revision-R4a-intento3`: `{"eur":9.31,"horas_ia":1.0,"duracion_reloj":"29m","fuente":"medido"}`.
@@ -4064,7 +3859,7 @@ comprobando antes que `git diff` de ambos estaba vacio — en vez de declararlos
 cuadrar la puerta, que es lo que la tabla de racionalizacion prohibe. `export-interop.py --check`
 sigue en **48 ficheros al dia** despues de restaurarlos.
 
-## Revision de dos lentes - intento 4 (tramo R4a): 16/16 cerrados; 0 Important, 7 Minor — veredicto de la lente: «no listo»
+## Revisión de dos lentes — intento 4: (tramo R4a): 16/16 cerrados; 0 Important, 7 Minor — veredicto de la lente: «no listo»
 
 Lente fresca (B) sobre el delta del intento 4, con encargo explicito de pronunciarse sobre el cierre. Marcador
 `plugin-refactor/revision-R4a-intento4`. **Los 16 gaps del intento 3: cerrados los 16**, y los dos Important
@@ -4181,7 +3976,7 @@ tras comprobar que el diff esta vacio, en vez de declararlos en `Archivos` para 
 `export-interop.py --check` sigue en **48 ficheros al dia** despues. Que haya pasado dos veces seguidas lo
 convierte en candidato a gotcha en la retro del cierre, no en una nota mas de este ledger.
 
-## Revision de dos lentes - intento 1 (tramo R4b: T-15..T-19): 1 Critical, 9 Important, 16 Minor (lentes A+B)
+## Revisión de dos lentes — intento 1: (tramo R4b: T-15..T-19): 1 Critical, 9 Important, 16 Minor (lentes A+B)
 
 Lentes A (conformidad) y B («puertas de calidad y tests que caducan») en paralelo. Marcador
 `plugin-refactor/revision-R4b-intento1`. **El usuario ordena resolver TODOS los problemas**: no hay tope de intentos.
@@ -4287,3 +4082,81 @@ Jira no publica eventos: `.claude/jira.json` tiene `enabled: false`.
   queda excluido por el patrón predeterminado y es un archivo local preexistente.
 - `git diff --check`: exit 0. El lint del ledger mantiene 0 incoherencias y
   13 avisos de cabeceras históricas ajenas a esta muestra.
+
+## Revisión de dos lentes — intento 1: cierre técnico (T-15, T-20, T-21, T-22)
+
+2026-10-06. Lentes A+B en paralelo con contexto fresco, subagentes genéricos
+(reviewer no disponible). El diff inicial conservaba los tests. A verificó el
+archivo histórico de T-13 sin pérdida de líneas, brief normal 9.998 y export
+50 al día. B comparó HEAD y candidato y reprodujo dos NameError. Este intento
+no declara QA verde ni la integración; las recomendaciones de capturas y
+conciliación histórica se incorporan al informe de cierre.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 1 | Important | La extracción de seleccionar_seccion perdió intento | T-21 | Corregido: se restaura íntegro el parser literal original | test_las_copias_declaradas_son_identicas[secciones_revision]; test_gaps_intento_repetido_tarea_sin_mencion_cae_en_la_ultima_con_aviso; 174 passed |
+| 2 | Important | La extracción de filas_pendientes_de_tarea perdió tarea | T-21 | Corregido: se restaura íntegro el parser literal original | test_las_copias_declaradas_son_identicas[secciones_revision]; test_fxp_aprobado_t04_rechaza_por_el_critical_cruzado_de_otra_seccion_del_mismo_intento; 174 passed |
+
+Los helpers descartados no quedan en el diff. Se cumple la propuesta literal
+de B, sin alterar las copias registradas ni sus contratos. Las capturas se
+amplían a HTML/MD/JSON y al JSON de scope-check. Jira no activo: sin publicación.
+
+## Revisión de dos lentes — intento 2: cierre técnico (T-15, T-20, T-21, T-22)
+
+2026-10-06. A+B con contexto fresco. A aprobó criterios, alcance, conciliación
+histórica, parser restaurado y export; un Minor de prosa. B aprobó las cinco
+extracciones puras y reprodujo dos Important en la validación complementaria.
+Selector: C=false, D=false, sin avisos. Se conserva la tabla completa del intento
+1 y no se reabren sus aprobaciones. Jira no activo: sin publicación.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 1 | Important | Import HTTPS/argv de red/fetch con espacio pasaban en el launcher | T-21 | Corregido: imports nominales, dinámica no literal rechazada, fetch y argv detectados | test_node_launcher_network_mutants_do_not_pass, 3 casos RED antes/GREEN después; suite 94 passed |
+| 2 | Important | Un join con raíz externa se sustituyó por el launcher limpio local | T-21 | Corregido: se elimina inferencia por join; fingerprints del bootstrap inline completo revisado | test_foreign_node_launcher_path_is_never_replaced_by_local_source, RED antes/GREEN después; suite 94 passed |
+| 3 | Minor | La prosa decía exige lectura, pero el linter solo omite X_OK para node/mjs | T-21 | Corregido: la prosa describe no exigir bit ejecutable | testing/closure.md y nota de T-21; sin cambiar comportamiento |
+
+RED: cuatro casos de test_hook_launcher_security.py fallaron el 2026-10-06
+antes del arreglo de este intento. GREEN: 94 passed. La revisión final se
+aplica sobre la propuesta local completa; PR/master y CI remota permanecen
+pendientes de autorización, sin afirmar integración definitiva.
+
+## Revisión de dos lentes — intento 3: cierre preparado (T-15, T-20, T-21, T-22)
+
+2026-10-06. A: todos los criterios aprobados, sin gaps; incluye honestidad de
+muestra parcial, QA y propuesta local con integración pendiente. B conserva
+la aprobación del refactor puro y señala dos Important en el escáner. Selector
+C=false, D=false. Jira no activo: sin publicación. Tabla del intento 2 intacta.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| 1 | Important | Un alias ordinario de spawnSync permitía argv curl | T-21 | Corregido: el launcher nominal debe coincidir con el fingerprint de su fuente revisada; cualquier JS distinto se rechaza, además del análisis de imports/argv | test_node_launcher_network_mutants_do_not_pass[alias spawnSync], RED antes/GREEN después; 96 passed |
+| 2 | Important | FOREIGN_ROOT se borraba antes de resolver y elegía una fuente local | T-21 | Corregido: expansión de variables de raíz desconocidas se declara sin resolver | test_foreign_root_variable_does_not_resolve_to_local_launcher, RED antes/GREEN después; 96 passed |
+
+Los ocho contratos del launcher pasan; los dos casos nuevos tuvieron RED el
+2026-10-06. Suite complementaria actual: 96 passed. La corrección es concreta
+y está verificada, pero la skill limita a tres intentos: no se lanza una cuarta
+comprobación independiente sin autorización. T-20/T-21/T-22 siguen abiertos por
+esa comprobación final, no por falta de implementación o medición compatible.
+La propuesta de cierre y la mediana prevista de seis muestras quedan preparadas;
+CALIBRATION.md conserva cinco muestras hasta cerrar formalmente este ledger.
+
+## Revisión de dos lentes — intento 4: cierre técnico (T-15, T-20, T-21, T-22)
+
+2026-10-06. Cuarto pase autorizado explícitamente por el usuario tras detener
+el bucle en el tercero. Lentes A+B por subagentes genéricos: reviewer por nombre
+no disponible. Scope con base HEAD: exit 0, fuera de alcance [], avisos [].
+Selector C=false, D=false, sin avisos. Jira no activo: no se publica nada.
+Se traspasan las tablas completas de los intentos anteriores; se conservan
+las aprobaciones y se comprueban las dos correcciones del tercero.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| B3-1 | Important resuelto | Alias de spawnSync evadía detección de argv de red | T-21 | Fuente nominal completa protegida por SHA256 tras normalizar LF | B4 verifica fuente real y cuatro mutaciones rechazadas, incluido alias y fetch indirecto; A4 confirma fingerprint y contrato dedicado |
+| B3-2 | Important resuelto | Una variable de raíz desconocida se sustituía por la fuente local | T-21 | Rechazo de expansión desconocida antes de resolver | B4 verifica cuatro formas de FOREIGN_ROOT sin alcanzar fuente local; A4 confirma contrato dedicado |
+| Final | Sin gaps | A: todos los criterios conservados o aprobados; B: sin defectos nuevos | T-20, T-21, T-22 | Cierre técnico local; integración pendiente | 0 Critical, 0 Important, 0 Minor nuevos; B4 ejecuta los ocho contratos: 8 passed; suite complementaria anterior: 96 passed |
+
+ADR-017 promovida al formato canónico de aceptación en la memoria local.
+La calibración parcial compatible entra formalmente en CALIBRATION.md:
+849708 tokens/hora; seis muestras y mediana 531798.5. No se reescriben
+horas históricas ni se atribuye consumo completo a las 22 tareas.
+PR a master y CI remota siguen pendientes; no hay publicación ni release.

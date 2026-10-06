@@ -9,9 +9,9 @@ descripcion: >
   §8-bis del análisis, que SÍ cambia comportamiento y se presupuesta como características propias. La
   decisión del §5 (copias declaradas vs módulo vendorizado) NO se toma aquí: va a `architect`.
   Fuente única del alcance: `analysis.md` de esta carpeta.
-estado: aprobada
+estado: implementada       # cierre técnico local 2026-10-06; integración pendiente
 creado: 2026-09-10
-actualizado: 2026-09-10
+actualizado: 2026-10-06
 evaluacion: evaluation.md
 design: design.md          # `aprobado` 2026-09-10 — decisión del §5: O1 (registro de copias declaradas + un test de identidad); ADR-016 `propuesta`
 plan: improvement-plan.md   # `en-progreso` 2026-09-10 — 22 tareas en 5 fases y 4 tramos de revisión; 74,0 h base / 88,8 h con margen / ~4.479 € (hereda la evaluación: P-1 y C-13 (i) ya hechas, E11 como propuesta C-14)
@@ -211,3 +211,7 @@ Objetivo medible (§8): funciones largas en los 5 hotspots **32 → ≤ 16** sin
 - **S-6** C-07 (c) necesita que las reglas «al tocar X regenera Y» estén enumeradas en un sitio parseable (la matriz de C-06); sin eso, (c) no es lintable. Por eso C-06 precede a C-07.
 - **S-7** El `test-plan: n/a (sin UI)` de C-08 se emite en el frontmatter de `improvement-plan.md` (o donde fije `planner`); `qa-gate.py` no cambia de contrato.
 - **S-8** Windows es el único entorno donde E7 está observado; el test de CA-19 se hace con `cwd` sintético (con espacios) para que corra igual en CI Linux.
+
+## Cierre técnico — 2026-10-06
+
+22/22 tareas implementadas y verificadas localmente. [Informe](testing/closure.md) y [retro](retro.md). Las métricas del cierre se comparan con la fuente anterior al mismo diff; la foto de septiembre se conserva. Hotspots 36→15, nuevas funciones≤32 líneas AST; CA-06 fue corregido por T-01 a 8→0 y los nueve TODO actuales pertenecen a características posteriores. La muestra de calibración es parcial y no acredita el consumo completo. PR a master y CI remota verde quedan pendientes de autorización; no se publica release.

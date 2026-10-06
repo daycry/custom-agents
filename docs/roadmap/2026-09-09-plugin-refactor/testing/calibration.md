@@ -57,7 +57,7 @@ por el reloj real, nunca por `horas_ia`, que ya deriva del ratio calibrado.
 Los contadores de Codex observados en esta máquina requieren otro adaptador; no se
 introducen como si fueran transcripciones Claude ni se les aplican sus tarifas.
 
-La medición histórica queda disponible; la incorporación a la mediana automática
-se reserva al cierre de la iniciativa, como exige `CALIBRATION.md`. El ratio
-global vigente sigue en 479.326 tokens/hora. Esta muestra parcial no acredita el
-consumo completo de las 22 tareas ni sus desviaciones presupuestarias.
+La muestra se incorpora a CALIBRATION.md durante el cierre técnico del 2026-10-06.
+El parser toma seis muestras y devuelve la mediana 531798.5 tokens/hora.
+Las horas históricas y ratio_usado permanecen intactos. La muestra parcial no
+acredita el consumo completo de las 22 tareas ni sus desviaciones presupuestarias.

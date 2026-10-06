@@ -115,6 +115,103 @@ VALID_TOOLS = {
     "Read", "Write", "Edit", "Grep", "Glob", "Bash",
     "WebFetch", "WebSearch", "Agent", "Task", "NotebookEdit",
 }
+_CITA_PREFIJOS = ("agents", "commands", "skills", "agent-kits", "scripts", "tests",
+                  "hooks", "docs", "evals", "statusline", "install", "interop")
+# Extensiones ordenadas de MÁS a MENOS larga: si `js` fuese antes que `json`, `hooks/hooks.json`
+# se leería como `hooks/hooks.js` y el aviso sería un falso positivo garantizado.
+_CITA_EXTS = "mjs|json|yaml|yml|toml|py|sh|js|md"
+# El lookbehind descarta la ruta que ya cuelga de otra cosa: en `"$UTSKILL/scripts/coverage-gate.py"`
+# el prefijo real lo aporta la variable, así que `scripts/coverage-gate.py` NO es una ruta del repo.
+CITA_RUTA_RE = re.compile(
+    r"(?<![-A-Za-z0-9_./$])(?:" + "|".join(_CITA_PREFIJOS) + r")/[-A-Za-z0-9_./]+\.(?:"
+    + _CITA_EXTS + r")(?::\d+)?(?![-A-Za-z0-9_.])")
+# Tramo entre acentos graves: solo ahí se buscan rutas y comandos (una ruta en prosa suelta suele
+# ser un ejemplo narrado, no una cita).
+CITA_BACKTICK_RE = re.compile(r"`([^`\n]+)`")
+# `/comando` o `/custom-agents:comando` (forma con espacio de nombres del plugin, T-12) al principio
+# del tramo entre acentos.
+CITA_COMANDO_RE = re.compile(r"^/(?:custom-agents:)?([a-z][a-z0-9-]*)(?=\s|$)")
+# Fila de arista de la matriz de contratos, con la celda en negrita o sin ella (gap B-7).
+FILA_ARISTA_RE = re.compile(r"^\|\s*(?:\*\*|__)?\s*E\d")
+
+# TOLERANCIA 1 — artefactos del proyecto CONSUMIDOR. Los escribe una pieza de este plugin DENTRO
+# del proyecto que lo instala; en este repo no existen y por diseño nunca existirán. `CONTRACTS.md`
+# ya declara así `docs/CONSTITUTION.md` en el comando de su §3.
+RUTAS_DEL_CONSUMIDOR = {
+    "docs/CONSTITUTION.md",          # `/setup` (opt-in)
+    "docs/RAG-INDEX.md",             # `documenter`
+    "docs/roadmap/BACKLOG.md",       # `/pm-backlog`
+    "docs/roadmap/DRIFT.md",         # `/spec-drift`
+    "docs/roadmap/brief.md",         # `/roadmap-brief`
+    "docs/roadmap/dashboard.md",     # `/roadmap-status`
+    "docs/roadmap/metrics.md",       # `/roadmap-metrics`
+    "docs/security-scan/config.md",  # `nemesis`
+    "docs/security-scan/STATE.md",   # `nemesis`
+    "tests/E2E-example.spec.mjs",    # `qa` (ejemplo que escribe en el proyecto)
+}
+# …y los artefactos del consumidor que no son UN fichero sino una carpeta entera suya.
+PREFIJOS_DEL_CONSUMIDOR = ("docs/roadmap/", "docs/security-scan/")
+
+# TOLERANCIA 6 — memoria técnica LOCAL de este repo. `docs/knowledge/**` no se versiona (solo local;
+# la doctrina que viaja con el plugin está en `agent-kits/evaluator/assets/doctrina/`): en CI y en un
+# clon limpio no existe, así que una cita a `docs/knowledge/...` no es rot — ni aviso ni error si
+# falta. Y tampoco se ESCANEA como citante (ver `_DOC_EXCLUIDO`): así el linter da el mismo
+# veredicto con la carpeta que sin ella.
+PREFIJOS_MEMORIA_LOCAL = ("docs/knowledge/",)
+
+# TOLERANCIA 4 — rutas RETIRADAS que un documento histórico cita precisamente porque ya no existen
+# («se migraron a X», «se retiró el agente Y»). Borrar la cita falsificaría el registro; tolerarla
+# en silencio dejaría pasar la rot de verdad. Se enumera con el documento que las retiró.
+RUTAS_RETIRADAS = {
+    "docs/knowledge/LESSONS.md": "ADR-006 (un fichero por entrada)",
+    "docs/knowledge/gotchas.md": "ADR-006 (un fichero por entrada)",
+    "agents/pdfy.md": "ADR-011 (agente retirado)",
+    "docs/agents/pdfy.md": "ADR-011 (agente retirado)",
+    "evals/cases/agent-pdfy.json": "ADR-011 (agente retirado)",
+    "evals/cases/skill-discovery.json": "ADR-011 (skill absorbida por `analyst`)",
+}
+
+# TOLERANCIA 5 — piezas DISEÑADAS Y PLANIFICADAS que la doc describe a propósito antes de que
+# estén en el árbol. No es rot y el propio documento lo dice: `docs/SPECIALIZATION.md` declara que
+# el registro canónico, `/specialize` y sus scripts «son el contrato de F2 … no en el árbol
+# todavía». La lista existe para que esa deuda ENVEJEZCA a la vista: si la pieza aparece, el
+# linter avisa de que sobra la tolerancia (`_tolerancias_caducadas`).
+PIEZAS_PLANIFICADAS = {
+    "commands/specialize.md": "F2 del tercer bucle (docs/SPECIALIZATION.md)",
+    "agent-kits/shared/pieces-registry.py": "F2 del tercer bucle (ADR-014)",
+    "agent-kits/shared/role-collision.py": "F2 del tercer bucle (ADR-014)",
+    "agent-kits/shared/project-scan.py": "F2 del tercer bucle (ADR-014)",
+}
+COMANDOS_PLANIFICADOS = {"specialize": "F2 del tercer bucle (docs/SPECIALIZATION.md)"}
+# TOLERANCIA 2 — `x` es el nombre-comodín del repo en los ejemplos (`commands/x.md`, `docs/x.md`,
+# `tests/test_x.py`, `skills/x/SKILL.md`). No confundir con una ruta real: ningún fichero del repo
+# se llama así.
+STEMS_PLACEHOLDER = {"x", "test_x"}
+# TOLERANCIA 3 — comandos que NO son piezas de este plugin: nativos de Claude Code y comodines de
+# la documentación. `/doctor`, `/retro`… sí son nuestros y NO van aquí.
+COMANDOS_TOLERADOS = {
+    "clear", "agents", "reload-plugins", "help", "config", "skill", "statusline",  # nativos
+    "exit", "resume",                                                              # nativos (sesión)
+    "plugin",                                                                      # nativo
+    "algo", "nombre", "comando", "x",                                              # comodines
+    "comandos", "commands", "command", "name",   # la palabra «comando» citada en prosa ES/EN
+}
+
+
+# Carpetas de prosa que se escanean, y lo que se salta dentro de `docs/`.
+# Gap B-5 de la revisión de R4b: con solo `agents/`, `commands/` y `skills/` las tres
+# comprobaciones daban **0 avisos**, y dejaban fuera 3 de las 4 familias de piezas que la columna
+# «Piezas que describen» de la arista E3 enumera — justo donde vive la doc que envejece. Con
+# `docs/` dentro aparecen podredumbres reales (un comando citado que ya no existe, un script
+# movido de sitio). `docs/roadmap/**` y el journal quedan fuera: son REGISTRO fechado, no doc
+# viva — un ledger cerrado cita a propósito rutas del día en que se cerró.
+_DIRS_DE_DOC = ("agents", "commands", "skills", "docs")
+# `docs/examples/` es un proyecto CONSUMIDOR de ejemplo (su ledger, sus comandos de negocio):
+# comprobar sus citas contra NUESTRO árbol no tiene sentido.
+# `docs/knowledge/` es memoria LOCAL no versionada (TOLERANCIA 6): se excluye entera, no solo el journal.
+_DOC_EXCLUIDO = ("docs/roadmap/", "docs/examples/") + PREFIJOS_MEMORIA_LOCAL
+
+
 # --8<-- criterio de consola COMPARTIDO (windows-console T-04/T-05) — REPLICADO LITERAL en
 # scripts/lint_plugin.py y en tests/test_console_encoding.py. No lo edites en uno solo:
 # `test_linter_y_suite_replican_el_mismo_bloque` compara los dos textos byte a byte, y
@@ -570,27 +667,7 @@ def _lint_namespacing(commands_dir, skills_dir):
     return warnings
 
 
-def lint(root):
-    errors, warnings = [], []
-    agents_dir = os.path.join(root, "agents")
-    skills_dir = os.path.join(root, "skills")
-    kits_dir = os.path.join(root, "agent-kits")
-    commands_dir = os.path.join(root, "commands")
-
-    if not os.path.isdir(agents_dir):
-        errors.append(f"No existe el directorio de agentes: {agents_dir}")
-        return errors, warnings
-
-    fm_err, fm_warn, agent_names, dep_graph = _lint_agentes_frontmatter(agents_dir)
-    errors.extend(fm_err)
-    warnings.extend(fm_warn)
-
-    ref_err, ref_warn = _lint_agentes_referencias(root, agents_dir, skills_dir, kits_dir, agent_names)
-    errors.extend(ref_err)
-    warnings.extend(ref_warn)
-
-    errors.extend(_lint_ciclos_agentes(dep_graph))
-
+def _lint_estructura_global(root, commands_dir, skills_dir, errors, warnings):
     # --- hooks/hooks.json: JSON válido + commands que existen (ejecutable = aviso) ---
     h_err, h_warn = lint_hooks(root)
     errors.extend(h_err)
@@ -622,6 +699,30 @@ def lint(root):
     errors.extend(cop_err)
     warnings.extend(cop_warn)
 
+
+
+def lint(root):
+    errors, warnings = [], []
+    agents_dir = os.path.join(root, "agents")
+    skills_dir = os.path.join(root, "skills")
+    kits_dir = os.path.join(root, "agent-kits")
+    commands_dir = os.path.join(root, "commands")
+
+    if not os.path.isdir(agents_dir):
+        errors.append(f"No existe el directorio de agentes: {agents_dir}")
+        return errors, warnings
+
+    fm_err, fm_warn, agent_names, dep_graph = _lint_agentes_frontmatter(agents_dir)
+    errors.extend(fm_err)
+    warnings.extend(fm_warn)
+
+    ref_err, ref_warn = _lint_agentes_referencias(root, agents_dir, skills_dir, kits_dir, agent_names)
+    errors.extend(ref_err)
+    warnings.extend(ref_warn)
+
+    errors.extend(_lint_ciclos_agentes(dep_graph))
+
+    _lint_estructura_global(root, commands_dir, skills_dir, errors, warnings)
     # --- Citas que envejecen (T-16, C-07): rutas, /comandos y filas de la matriz de contratos ---
     for _err, _warn in (comprobar_rutas_citadas(root),
                         comprobar_comandos_citados(root),
@@ -823,6 +924,23 @@ def _py_del_arbol(root):
     return sorted(out, key=lambda t: t[1])
 
 
+def _registrar_bloques_copias(datos, marcadores, respaldos):
+    for b in datos.get("bloques") or []:
+        if not isinstance(b, dict):
+            continue
+        for c in b.get("copias") or []:
+            if not isinstance(c, dict) or not isinstance(c.get("ruta"), str):
+                continue
+            ruta = c["ruta"].replace("\\", "/")
+            for clave in ("inicio", "fin"):
+                txt = c.get(clave)
+                if isinstance(txt, str) and txt.lstrip().startswith("#"):
+                    marcadores.setdefault(ruta, []).append(txt.strip().lstrip("#").strip())
+            nombres = {n for n in (c.get("respaldos") or []) if isinstance(n, str)}
+            if nombres:
+                respaldos.setdefault(ruta, []).append((nombres, c.get("inicio"), c.get("fin")))
+
+
 def _copias_registradas(root):
     """(marcadores, respaldos) de `agent-kits/shared/copias.json`: {ruta: [centinela…]} y
     {ruta: [(nombres, inicio, fin)…]} — una entrada por COPIA, no por bloque, para poder exigir que
@@ -844,20 +962,7 @@ def _copias_registradas(root):
             datos = json.load(fh)
     except (OSError, ValueError, UnicodeDecodeError):
         return marcadores, respaldos
-    for b in datos.get("bloques") or []:
-        if not isinstance(b, dict):
-            continue
-        for c in b.get("copias") or []:
-            if not isinstance(c, dict) or not isinstance(c.get("ruta"), str):
-                continue
-            ruta = c["ruta"].replace("\\", "/")
-            for clave in ("inicio", "fin"):
-                txt = c.get(clave)
-                if isinstance(txt, str) and txt.lstrip().startswith("#"):
-                    marcadores.setdefault(ruta, []).append(txt.strip().lstrip("#").strip())
-            nombres = {n for n in (c.get("respaldos") or []) if isinstance(n, str)}
-            if nombres:
-                respaldos.setdefault(ruta, []).append((nombres, c.get("inicio"), c.get("fin")))
+    _registrar_bloques_copias(datos, marcadores, respaldos)
     return marcadores, respaldos
 
 
@@ -915,6 +1020,48 @@ def _id_sugerido(texto):
     return re.sub(r"_+", "_", re.sub(r"[^0-9a-zA-Z]+", "_", base)).strip("_").lower() or "sin_nombre"
 
 
+def _comprobar_copias_archivo(rel, texto, marcadores, respaldos, errores):
+    declarados = marcadores.get(rel, [])
+    lineas = texto.splitlines()
+    vistos = {}
+    for n, linea in enumerate(lineas, 1):
+        m = _MARCADOR_COPIA_RE.match(linea)
+        if m:
+            marca = m.group(1)
+            if marca not in declarados:
+                errores.append(
+                    f"{rel}:{n}: bloque replicado con centinela `{marca[:70]}` SIN fila en "
+                    f"{'/'.join(COPIAS_REGISTRO)} — declara el bloque (id sugerido "
+                    f"`{_id_sugerido(marca)}`) o quita el centinela (ADR-016)")
+            else:
+                vistos[marca] = vistos.get(marca, 0) + 1
+                if vistos[marca] > declarados.count(marca):
+                    errores.append(
+                        f"{rel}:{n}: el centinela `{marca[:70]}` aparece {vistos[marca]} veces "
+                        f"en este fichero y {'/'.join(COPIAS_REGISTRO)} declara "
+                        f"{declarados.count(marca)} — una copia de más del mismo bloque en un "
+                        f"fichero YA declarado no la compara nadie: quítala o declárala como "
+                        f"copia aparte (ADR-016)")
+            continue
+        for nombre in _nombres_de_respaldo(linea):
+            if _respaldo_declarado(nombre, n, lineas, respaldos.get(rel, ())):
+                continue
+            errores.append(
+                f"{rel}:{n}: constante de respaldo `{nombre}` SIN fila en "
+                f"{'/'.join(COPIAS_REGISTRO)} — declárala en el bloque de su canónico "
+                f"(id sugerido `{_id_sugerido(nombre)}`) (ADR-016)")
+
+
+def _comprobar_copias_arbol(root, marcadores, respaldos):
+    errores = []
+    for p, rel in _py_del_arbol(root):
+        _, texto = _leer(p)
+        if texto is None:
+            continue
+        _comprobar_copias_archivo(rel, texto, marcadores, respaldos, errores)
+    return errores, []
+
+
 def comprobar_copias_declaradas(root):
     """(errores, avisos) — ADR-016: ningún bloque replicado del árbol vive FUERA del registro.
 
@@ -941,41 +1088,7 @@ def comprobar_copias_declaradas(root):
     clave `detecta`): una copia sin centinela y sin nombre `_*_FALLBACK` no se ve desde aquí.
     """
     marcadores, respaldos = _copias_registradas(root)
-    errores = []
-    for p, rel in _py_del_arbol(root):
-        _, texto = _leer(p)
-        if texto is None:
-            continue
-        declarados = marcadores.get(rel, [])
-        lineas = texto.splitlines()
-        vistos = {}
-        for n, linea in enumerate(lineas, 1):
-            m = _MARCADOR_COPIA_RE.match(linea)
-            if m:
-                marca = m.group(1)
-                if marca not in declarados:
-                    errores.append(
-                        f"{rel}:{n}: bloque replicado con centinela `{marca[:70]}` SIN fila en "
-                        f"{'/'.join(COPIAS_REGISTRO)} — declara el bloque (id sugerido "
-                        f"`{_id_sugerido(marca)}`) o quita el centinela (ADR-016)")
-                else:
-                    vistos[marca] = vistos.get(marca, 0) + 1
-                    if vistos[marca] > declarados.count(marca):
-                        errores.append(
-                            f"{rel}:{n}: el centinela `{marca[:70]}` aparece {vistos[marca]} veces "
-                            f"en este fichero y {'/'.join(COPIAS_REGISTRO)} declara "
-                            f"{declarados.count(marca)} — una copia de más del mismo bloque en un "
-                            f"fichero YA declarado no la compara nadie: quítala o declárala como "
-                            f"copia aparte (ADR-016)")
-                continue
-            for nombre in _nombres_de_respaldo(linea):
-                if _respaldo_declarado(nombre, n, lineas, respaldos.get(rel, ())):
-                    continue
-                errores.append(
-                    f"{rel}:{n}: constante de respaldo `{nombre}` SIN fila en "
-                    f"{'/'.join(COPIAS_REGISTRO)} — declárala en el bloque de su canónico "
-                    f"(id sugerido `{_id_sugerido(nombre)}`) (ADR-016)")
-    return errores, []
+    return _comprobar_copias_arbol(root, marcadores, respaldos)
 
 
 def lint_console_encoding(root):
@@ -1398,6 +1511,26 @@ def _es_ejecutable(fp):
     return os.access(fp, os.X_OK)
 
 
+def _lint_eventos_hooks(root, hooks, errs, warns):
+    for evento, grupos in hooks.items():
+        if not isinstance(grupos, list):
+            errs.append(f"hooks/hooks.json: `{evento}` debe ser una lista de grupos")
+            continue
+        cmds = []
+        for g in grupos:
+            for h in (g.get("hooks", []) if isinstance(g, dict) else []):
+                if isinstance(h, dict) and h.get("type") == "command":
+                    # Exec form (`command: bash`, `args: [...]`, session-end-durable-capture T-03):
+                    # la ruta del script vive en `args`, no en `command`; se escanean los dos.
+                    # --8<-- hook_cmd_con_args (cmds desde command+args) — REPLICADO LITERAL en scripts/lint_plugin.py y en agent-kits/shared/doctor.py
+                    args = h.get("args") if isinstance(h.get("args"), list) else []
+                    cmds.append(" ".join([str(h.get("command", ""))] + [str(a) for a in args]))
+                    # --8<-- fin hook_cmd_con_args
+        e, w = lint_hook_commands(root, cmds, f"hooks/hooks.json [{evento}]")
+        errs.extend(e)
+        warns.extend(w)
+
+
 def lint_hooks(root):
     """(errores, avisos) de hooks/hooks.json (vacíos si no existe el fichero)."""
     path = os.path.join(root, "hooks", "hooks.json")
@@ -1420,23 +1553,7 @@ def lint_hooks(root):
         fp = os.path.join(hooks_dir, fn)
         if fn.endswith(".json") and os.path.isfile(fp) and _es_ejecutable(fp):
             warns.append(f"hooks/{fn}: un .json no debería ser ejecutable (chmod -x; `git update-index --chmod=-x`)")
-    for evento, grupos in hooks.items():
-        if not isinstance(grupos, list):
-            errs.append(f"hooks/hooks.json: `{evento}` debe ser una lista de grupos")
-            continue
-        cmds = []
-        for g in grupos:
-            for h in (g.get("hooks", []) if isinstance(g, dict) else []):
-                if isinstance(h, dict) and h.get("type") == "command":
-                    # Exec form (`command: bash`, `args: [...]`, session-end-durable-capture T-03):
-                    # la ruta del script vive en `args`, no en `command`; se escanean los dos.
-                    # --8<-- hook_cmd_con_args (cmds desde command+args) — REPLICADO LITERAL en scripts/lint_plugin.py y en agent-kits/shared/doctor.py
-                    args = h.get("args") if isinstance(h.get("args"), list) else []
-                    cmds.append(" ".join([str(h.get("command", ""))] + [str(a) for a in args]))
-                    # --8<-- fin hook_cmd_con_args
-        e, w = lint_hook_commands(root, cmds, f"hooks/hooks.json [{evento}]")
-        errs.extend(e)
-        warns.extend(w)
+    _lint_eventos_hooks(root, hooks, errs, warns)
     return errs, warns
 
 
@@ -1449,7 +1566,7 @@ def lint_hook_commands(root, cmds, origen):
             fp = os.path.join(root, rel)
             if not os.path.isfile(fp):
                 errs.append(f"{origen}: el command referencia `{rel}`, que no existe")
-            elif not os.access(fp, os.X_OK):
+            elif not (rel.endswith(".mjs") and re.match(r'^\s*node\s+', cmd)) and not os.access(fp, os.X_OK):
                 warns.append(f"{origen}: `{rel}` no es ejecutable (chmod +x recomendado; se lanza con `bash`)")
     return errs, warns
 
@@ -1461,103 +1578,6 @@ def lint_hook_commands(root, cmds, origen):
 # ---------------------------------------------------------------------------
 
 # Carpetas de primer nivel del repo que pueden abrir una ruta citada.
-_CITA_PREFIJOS = ("agents", "commands", "skills", "agent-kits", "scripts", "tests",
-                  "hooks", "docs", "evals", "statusline", "install", "interop")
-# Extensiones ordenadas de MÁS a MENOS larga: si `js` fuese antes que `json`, `hooks/hooks.json`
-# se leería como `hooks/hooks.js` y el aviso sería un falso positivo garantizado.
-_CITA_EXTS = "mjs|json|yaml|yml|toml|py|sh|js|md"
-# El lookbehind descarta la ruta que ya cuelga de otra cosa: en `"$UTSKILL/scripts/coverage-gate.py"`
-# el prefijo real lo aporta la variable, así que `scripts/coverage-gate.py` NO es una ruta del repo.
-CITA_RUTA_RE = re.compile(
-    r"(?<![-A-Za-z0-9_./$])(?:" + "|".join(_CITA_PREFIJOS) + r")/[-A-Za-z0-9_./]+\.(?:"
-    + _CITA_EXTS + r")(?::\d+)?(?![-A-Za-z0-9_.])")
-# Tramo entre acentos graves: solo ahí se buscan rutas y comandos (una ruta en prosa suelta suele
-# ser un ejemplo narrado, no una cita).
-CITA_BACKTICK_RE = re.compile(r"`([^`\n]+)`")
-# `/comando` o `/custom-agents:comando` (forma con espacio de nombres del plugin, T-12) al principio
-# del tramo entre acentos.
-CITA_COMANDO_RE = re.compile(r"^/(?:custom-agents:)?([a-z][a-z0-9-]*)(?=\s|$)")
-# Fila de arista de la matriz de contratos, con la celda en negrita o sin ella (gap B-7).
-FILA_ARISTA_RE = re.compile(r"^\|\s*(?:\*\*|__)?\s*E\d")
-
-# TOLERANCIA 1 — artefactos del proyecto CONSUMIDOR. Los escribe una pieza de este plugin DENTRO
-# del proyecto que lo instala; en este repo no existen y por diseño nunca existirán. `CONTRACTS.md`
-# ya declara así `docs/CONSTITUTION.md` en el comando de su §3.
-RUTAS_DEL_CONSUMIDOR = {
-    "docs/CONSTITUTION.md",          # `/setup` (opt-in)
-    "docs/RAG-INDEX.md",             # `documenter`
-    "docs/roadmap/BACKLOG.md",       # `/pm-backlog`
-    "docs/roadmap/DRIFT.md",         # `/spec-drift`
-    "docs/roadmap/brief.md",         # `/roadmap-brief`
-    "docs/roadmap/dashboard.md",     # `/roadmap-status`
-    "docs/roadmap/metrics.md",       # `/roadmap-metrics`
-    "docs/security-scan/config.md",  # `nemesis`
-    "docs/security-scan/STATE.md",   # `nemesis`
-    "tests/E2E-example.spec.mjs",    # `qa` (ejemplo que escribe en el proyecto)
-}
-# …y los artefactos del consumidor que no son UN fichero sino una carpeta entera suya.
-PREFIJOS_DEL_CONSUMIDOR = ("docs/roadmap/", "docs/security-scan/")
-
-# TOLERANCIA 6 — memoria técnica LOCAL de este repo. `docs/knowledge/**` no se versiona (solo local;
-# la doctrina que viaja con el plugin está en `agent-kits/evaluator/assets/doctrina/`): en CI y en un
-# clon limpio no existe, así que una cita a `docs/knowledge/...` no es rot — ni aviso ni error si
-# falta. Y tampoco se ESCANEA como citante (ver `_DOC_EXCLUIDO`): así el linter da el mismo
-# veredicto con la carpeta que sin ella.
-PREFIJOS_MEMORIA_LOCAL = ("docs/knowledge/",)
-
-# TOLERANCIA 4 — rutas RETIRADAS que un documento histórico cita precisamente porque ya no existen
-# («se migraron a X», «se retiró el agente Y»). Borrar la cita falsificaría el registro; tolerarla
-# en silencio dejaría pasar la rot de verdad. Se enumera con el documento que las retiró.
-RUTAS_RETIRADAS = {
-    "docs/knowledge/LESSONS.md": "ADR-006 (un fichero por entrada)",
-    "docs/knowledge/gotchas.md": "ADR-006 (un fichero por entrada)",
-    "agents/pdfy.md": "ADR-011 (agente retirado)",
-    "docs/agents/pdfy.md": "ADR-011 (agente retirado)",
-    "evals/cases/agent-pdfy.json": "ADR-011 (agente retirado)",
-    "evals/cases/skill-discovery.json": "ADR-011 (skill absorbida por `analyst`)",
-}
-
-# TOLERANCIA 5 — piezas DISEÑADAS Y PLANIFICADAS que la doc describe a propósito antes de que
-# estén en el árbol. No es rot y el propio documento lo dice: `docs/SPECIALIZATION.md` declara que
-# el registro canónico, `/specialize` y sus scripts «son el contrato de F2 … no en el árbol
-# todavía». La lista existe para que esa deuda ENVEJEZCA a la vista: si la pieza aparece, el
-# linter avisa de que sobra la tolerancia (`_tolerancias_caducadas`).
-PIEZAS_PLANIFICADAS = {
-    "commands/specialize.md": "F2 del tercer bucle (docs/SPECIALIZATION.md)",
-    "agent-kits/shared/pieces-registry.py": "F2 del tercer bucle (ADR-014)",
-    "agent-kits/shared/role-collision.py": "F2 del tercer bucle (ADR-014)",
-    "agent-kits/shared/project-scan.py": "F2 del tercer bucle (ADR-014)",
-}
-COMANDOS_PLANIFICADOS = {"specialize": "F2 del tercer bucle (docs/SPECIALIZATION.md)"}
-# TOLERANCIA 2 — `x` es el nombre-comodín del repo en los ejemplos (`commands/x.md`, `docs/x.md`,
-# `tests/test_x.py`, `skills/x/SKILL.md`). No confundir con una ruta real: ningún fichero del repo
-# se llama así.
-STEMS_PLACEHOLDER = {"x", "test_x"}
-# TOLERANCIA 3 — comandos que NO son piezas de este plugin: nativos de Claude Code y comodines de
-# la documentación. `/doctor`, `/retro`… sí son nuestros y NO van aquí.
-COMANDOS_TOLERADOS = {
-    "clear", "agents", "reload-plugins", "help", "config", "skill", "statusline",  # nativos
-    "exit", "resume",                                                              # nativos (sesión)
-    "plugin",                                                                      # nativo
-    "algo", "nombre", "comando", "x",                                              # comodines
-    "comandos", "commands", "command", "name",   # la palabra «comando» citada en prosa ES/EN
-}
-
-
-# Carpetas de prosa que se escanean, y lo que se salta dentro de `docs/`.
-# Gap B-5 de la revisión de R4b: con solo `agents/`, `commands/` y `skills/` las tres
-# comprobaciones daban **0 avisos**, y dejaban fuera 3 de las 4 familias de piezas que la columna
-# «Piezas que describen» de la arista E3 enumera — justo donde vive la doc que envejece. Con
-# `docs/` dentro aparecen podredumbres reales (un comando citado que ya no existe, un script
-# movido de sitio). `docs/roadmap/**` y el journal quedan fuera: son REGISTRO fechado, no doc
-# viva — un ledger cerrado cita a propósito rutas del día en que se cerró.
-_DIRS_DE_DOC = ("agents", "commands", "skills", "docs")
-# `docs/examples/` es un proyecto CONSUMIDOR de ejemplo (su ledger, sus comandos de negocio):
-# comprobar sus citas contra NUESTRO árbol no tiene sentido.
-# `docs/knowledge/` es memoria LOCAL no versionada (TOLERANCIA 6): se excluye entera, no solo el journal.
-_DOC_EXCLUIDO = ("docs/roadmap/", "docs/examples/") + PREFIJOS_MEMORIA_LOCAL
-
-
 def _ficheros_de_doc(root):
     """Los `.md` de `agents/`, `commands/`, `skills/` y `docs/` (menos el registro: roadmap,
     ejemplos y la memoria local `docs/knowledge/`), como (ruta absoluta, ruta relativa con `/`)."""
@@ -1694,6 +1714,39 @@ def _tolerancias_caducadas(root):
     return [], avisos
 
 
+def _avisos_fila_contrato(root, num, linea, avisos):
+    celdas = celdas_md(linea)
+    arista = (celdas[0].split("·")[0].strip() if celdas else "?") or "?"
+    if len(celdas) < 9:
+        avisos.append(f"docs/agents/CONTRACTS.md:{num}: la fila de la arista {arista} tiene "
+                      f"{len(celdas)} columnas y el encabezado declara 9 (su §3 regla 2: "
+                      f"cambiar el orden o el número rompe esta lectura)")
+        return
+    puerta = celdas[7].strip()
+    if not puerta:
+        avisos.append(f"docs/agents/CONTRACTS.md:{num}: la arista {arista} no tiene Puerta "
+                      f"(su §3 regla 1: o un comando ejecutable, o «puerta pendiente: la trae "
+                      f"T-XX», o «sin puerta (decisión del usuario, <fecha>)»)")
+        return
+    for m in CITA_RUTA_RE.finditer(puerta):
+        ruta = m.group(0).split(":")[0]
+        if not _ruta_resuelve(root, ruta, "docs/agents/CONTRACTS.md"):
+            avisos.append(f"docs/agents/CONTRACTS.md:{num}: la Puerta de la arista {arista} "
+                          f"nombra `{ruta}`, que no existe")
+
+
+def _avisos_tabla_contratos(root, lineas):
+    avisos = []
+    for num, linea in enumerate(lineas, start=1):
+        # La fila se reconoce por su celda de arista, con o sin negrita: anclar en `| E` literal
+        # dejaba escapar las filas escritas `| **E4** · …` (gap B-7), que son las que alguien ha
+        # resaltado — es decir, justo las que más se editan.
+        if not FILA_ARISTA_RE.match(linea):
+            continue
+        _avisos_fila_contrato(root, num, linea, avisos)
+    return [], avisos
+
+
 def comprobar_matriz_contratos(root):
     """AVISOS sobre `docs/agents/CONTRACTS.md`: (1) una fila de arista (`| E…`) con la columna
     **Puerta** vacía —«una arista sin puerta ejecutable se rompe en silencio», regla 1 de su §3— y
@@ -1711,32 +1764,7 @@ def comprobar_matriz_contratos(root):
             lineas = f.read().splitlines()
     except (OSError, UnicodeDecodeError):
         return [], []
-    avisos = []
-    for num, linea in enumerate(lineas, start=1):
-        # La fila se reconoce por su celda de arista, con o sin negrita: anclar en `| E` literal
-        # dejaba escapar las filas escritas `| **E4** · …` (gap B-7), que son las que alguien ha
-        # resaltado — es decir, justo las que más se editan.
-        if not FILA_ARISTA_RE.match(linea):
-            continue
-        celdas = celdas_md(linea)
-        arista = (celdas[0].split("·")[0].strip() if celdas else "?") or "?"
-        if len(celdas) < 9:
-            avisos.append(f"docs/agents/CONTRACTS.md:{num}: la fila de la arista {arista} tiene "
-                          f"{len(celdas)} columnas y el encabezado declara 9 (su §3 regla 2: "
-                          f"cambiar el orden o el número rompe esta lectura)")
-            continue
-        puerta = celdas[7].strip()
-        if not puerta:
-            avisos.append(f"docs/agents/CONTRACTS.md:{num}: la arista {arista} no tiene Puerta "
-                          f"(su §3 regla 1: o un comando ejecutable, o «puerta pendiente: la trae "
-                          f"T-XX», o «sin puerta (decisión del usuario, <fecha>)»)")
-            continue
-        for m in CITA_RUTA_RE.finditer(puerta):
-            ruta = m.group(0).split(":")[0]
-            if not _ruta_resuelve(root, ruta, "docs/agents/CONTRACTS.md"):
-                avisos.append(f"docs/agents/CONTRACTS.md:{num}: la Puerta de la arista {arista} "
-                              f"nombra `{ruta}`, que no existe")
-    return [], avisos
+    return _avisos_tabla_contratos(root, lineas)
 
 
 def main():

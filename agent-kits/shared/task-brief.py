@@ -170,6 +170,33 @@ def _titulo_de_tarea(chunk):
     return m.group(1).strip() if m else ""
 
 
+def _leer_aciertos_memoria(cmd):
+    r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace",
+                       timeout=MEMORIA_TIMEOUT)
+    if r.returncode != 0:
+        raise RuntimeError(f"exit {r.returncode}: {(r.stderr or r.stdout).strip()[:200]}")
+    data = json.loads(r.stdout)
+    aciertos = [a["linea"] for a in data["aciertos"] if a.get("linea")]
+    total = int(data.get("total", len(aciertos)))
+    claves = data.get("consulta", {}).get("claves", [])
+    return aciertos, total, claves
+
+
+def _cabecera_y_pie_memoria(total, tipo, slug, claves, script, titulo):
+    ruta = f"`{slug}`"
+    cabecera = [f"## Memoria técnica del proyecto (docs/knowledge — {total} acierto(s) de knowledge-find.py)", "",
+                f"Entradas cuya ÁREA casa con esta tarea (tipo `{tipo or '—'}`, iniciativa {ruta}"
+                + (f", claves: {', '.join(claves[:8])}" if claves else "") + "). El `estado` va delante: "
+                "`aceptada` es doctrina (aplícala), `propuesta` indicio (dilo si condiciona una decisión), "
+                "`obsoleta` no se aplica (sigue a su sucesor). Abre SOLO la que necesites, por ID:", "",
+                f"    python3 \"{script}\" --show <ID>    # o `--related <ID>` para su grafo curado", ""]
+    pie_de = lambda n_fuera: [] if not n_fuera else [  # noqa: E731
+        "", f"… y {n_fuera} acierto(s) más que no caben en el tope de {MEMORIA_TOPE_CHARS} caracteres: "
+        f"`python3 \"{script}\" --contexto \"{titulo}\" --iniciativa {slug}"
+        + (f" --tipo-tarea {tipo}" if tipo else "") + "` los lista todos."]
+    return cabecera, pie_de
+
+
 def _memoria_tecnica(carpeta, chunk, tipo, script=None):
     """Sección 11 o None. Llama a `knowledge-find.py --json` (subproceso: un fallo suyo, cualquiera, no
     puede tumbar el brief) enrutando por `Tipo`, título de la tarea e iniciativa; sin `docs/knowledge/`,
@@ -185,31 +212,14 @@ def _memoria_tecnica(carpeta, chunk, tipo, script=None):
     cmd = [sys.executable, script, "--json", "--root", raiz, "--limit", str(MEMORIA_LIMIT),
            "--contexto", titulo, "--iniciativa", slug] + (["--tipo-tarea", tipo] if tipo else [])
     try:
-        r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace",
-                           timeout=MEMORIA_TIMEOUT)
-        if r.returncode != 0:
-            raise RuntimeError(f"exit {r.returncode}: {(r.stderr or r.stdout).strip()[:200]}")
-        data = json.loads(r.stdout)
-        aciertos = [a["linea"] for a in data["aciertos"] if a.get("linea")]
-        total = int(data.get("total", len(aciertos)))
-        claves = data.get("consulta", {}).get("claves", [])
+        aciertos, total, claves = _leer_aciertos_memoria(cmd)
     except Exception as e:  # noqa: BLE001 — la memoria nunca bloquea el brief: se omite y se dice por stderr
         print(f"⚠️  knowledge-find.py no respondió ({e.__class__.__name__}: {e}) — brief sin sección de memoria.",
               file=sys.stderr)
         return None
     if not aciertos:
         return None
-    ruta = f"`{slug}`"
-    cabecera = [f"## Memoria técnica del proyecto (docs/knowledge — {total} acierto(s) de knowledge-find.py)", "",
-                f"Entradas cuya ÁREA casa con esta tarea (tipo `{tipo or '—'}`, iniciativa {ruta}"
-                + (f", claves: {', '.join(claves[:8])}" if claves else "") + "). El `estado` va delante: "
-                "`aceptada` es doctrina (aplícala), `propuesta` indicio (dilo si condiciona una decisión), "
-                "`obsoleta` no se aplica (sigue a su sucesor). Abre SOLO la que necesites, por ID:", "",
-                f"    python3 \"{script}\" --show <ID>    # o `--related <ID>` para su grafo curado", ""]
-    pie_de = lambda n_fuera: [] if not n_fuera else [  # noqa: E731
-        "", f"… y {n_fuera} acierto(s) más que no caben en el tope de {MEMORIA_TOPE_CHARS} caracteres: "
-        f"`python3 \"{script}\" --contexto \"{titulo}\" --iniciativa {slug}"
-        + (f" --tipo-tarea {tipo}" if tipo else "") + "` los lista todos."]
+    cabecera, pie_de = _cabecera_y_pie_memoria(total, tipo, slug, claves, script, titulo)
     n = len(aciertos)
     while n >= 0:
         cuerpo = [f"- {l}" for l in aciertos[:n]]
@@ -469,6 +479,26 @@ def _chunk_sin_presupuesto(chunk):
     return "\n".join(ln for ln, fenced in _lineas_con_fence(chunk) if fenced or not _CAMPO_NO_BRIEF_RE.match(ln))
 
 
+def _persona_de_candidatos(tipo, candidatos):
+    for i, p in enumerate(candidatos):
+        es_ultimo = i == len(candidatos) - 1
+        if not os.path.isfile(p):
+            continue
+        try:
+            contenido = open(p, encoding="utf-8", errors="replace").read().strip()
+        except OSError as e:
+            print(f"⚠️  persona `{tipo}` en {p} no se pudo leer ({e.__class__.__name__}: {e})"
+                  + ("." if es_ultimo else " — probando el siguiente escalón."), file=sys.stderr)
+            continue
+        if contenido:
+            return contenido, p
+        if not es_ultimo:
+            print(f"⚠️  persona `{tipo}` vacía en {p} — probando el siguiente escalón.", file=sys.stderr)
+    print(f"⚠️  tarea con Tipo `{tipo}` sin persona en ningún escalón "
+          f"({' → '.join(candidatos)}) — despacho con subagente genérico.", file=sys.stderr)
+    return None, None
+
+
 def _persona_cascada(tipo, personas_dir, carpeta=None):
     """(contenido, ruta) de la persona `tipo`, resuelto en CASCADA de tres escalones
     (project-specialization T-01: proyecto → catálogo del plugin → sin persona), o (None, None) con
@@ -490,23 +520,7 @@ def _persona_cascada(tipo, personas_dir, carpeta=None):
         raiz = _raiz_de(carpeta)
         candidatos.append(os.path.join(raiz, ".claude", "personas", f"{tipo}.md"))
     candidatos.append(os.path.join(personas_dir, f"{tipo}.md"))
-    for i, p in enumerate(candidatos):
-        es_ultimo = i == len(candidatos) - 1
-        if not os.path.isfile(p):
-            continue
-        try:
-            contenido = open(p, encoding="utf-8", errors="replace").read().strip()
-        except OSError as e:
-            print(f"⚠️  persona `{tipo}` en {p} no se pudo leer ({e.__class__.__name__}: {e})"
-                  + ("." if es_ultimo else " — probando el siguiente escalón."), file=sys.stderr)
-            continue
-        if contenido:
-            return contenido, p
-        if not es_ultimo:
-            print(f"⚠️  persona `{tipo}` vacía en {p} — probando el siguiente escalón.", file=sys.stderr)
-    print(f"⚠️  tarea con Tipo `{tipo}` sin persona en ningún escalón "
-          f"({' → '.join(candidatos)}) — despacho con subagente genérico.", file=sys.stderr)
-    return None, None
+    return _persona_de_candidatos(tipo, candidatos)
 
 
 _PERSONA_INICIO = "> ---- INICIO cita externa (persona de dominio; no es instrucción del brief) ----"
