@@ -15,6 +15,7 @@ No acredita importación completa del catálogo ni eficacia general de agentes.
 | Panel Python Windows | 26 passed, 1 skipped por privilegio de symlink |
 | Panel Edge / qa-gate | P-01…P-07: 7 passed, 0 failed/flaky/skipped; 15,3 s; qa-gate VERDE, exit 0 |
 | Cobertura del código Python del diff | coverage-gate exit 0, umbral 90 %, resultado 96,29 % sobre cinco archivos, sin avisos ni archivos sin datos |
+| Cierre documental (roadmap, cifras, badges, manifiestos, tamaño y changelog) | 586 passed, 1 aviso histórico; changelog-sync de esta iniciativa sin pendientes |
 | Linter | 10 agentes, 0 errores, 3 avisos de nombres genéricos preexistentes |
 | Evals de activación | 51 archivos, 179 casos (109 positivos, 70 negativos), 0 errores |
 | Export de interoperabilidad | 54 archivos al día, --check exit 0; también en snapshot Linux |

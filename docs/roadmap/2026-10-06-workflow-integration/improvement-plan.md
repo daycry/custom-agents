@@ -1,6 +1,6 @@
 ---
 plan: workflow-integration
-estado: en-progreso
+estado: completado
 creado: 2026-10-06
 spec: spec.md
 evaluacion: evaluation.md

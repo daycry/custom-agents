@@ -9,11 +9,20 @@ and versioning follows [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
-### Changed — native workflow integration (2026-10-06)
+### Changed — `workflow-integration` initiative (2026-10-06)
 
-- Shared role/phase/stack/area selection carries guidance IDs into task briefs and preserves existing review, QA and knowledge gates. `/work-context` exposes the same selection without starting another cycle.
-- Consolidate the three initial stack guides into `stack-practices`; add backend, frontend, delivery, capability audit and outcome evaluation guides. Outcome reporting reads existing JUnit evidence with explicit comparison conditions and measured or absent usage data.
-- The local capability panel shows native role responsibilities and routed guides. Optional cited AST context remains separate from approved memory; OneDrive CLOUD placeholders are supported while redirecting and unknown reparse points are excluded.
+- **T-01 — Traceable catalog decisions and workflow contract** Document decisions and limits of adapted capabilities, preserve legal notices and use native public names.
+- **T-02 — Shared catalog and deterministic guidance selection** Select guidance by role, stack and area from bounded manifests without executing project code. (`agent-kits/shared/capability-catalog.json`, `agent-kits/shared/capability-route.py`, `tests/test_capability_route.py`)
+- **T-03 — Consolidated stack guidance and retirement of initial maps** Consolidate initial guidance into stack-practices and retire replaced maps and references. (`skills/stack-practices/**`, `skills/codeigniter-practices/**`, `skills/python-practices/**`)
+- **T-04 — Backend, frontend and delivery guidance** Add backend, frontend and delivery criteria with concrete references and evaluated activation. (`skills/backend-practices/**`, `skills/frontend-quality/**`, `skills/delivery-practices/**`)
+- **T-05 — Capability audit and outcome evaluation** Audit capabilities and compare observed JUnit outcomes under explicit conditions without invented metrics. (`skills/capability-audit/**`, `skills/outcome-evals/**`, `evals/**`)
+- **T-06 — Memory context and isolated structural pilot** Add cited AST queries and an isolated pilot while preserving existing memory governance. (`agent-kits/shared/**`, `tests/test_code_context.py`, `docs/WORK-CONTEXT.md`)
+- **T-07 — Guidance selection across roles, cycles and briefs** Share guidance across roles, cycles and briefs while preserving size limits and quality gates. (`agents/**`, `commands/dev-cycle.md`, `commands/pm-cycle.md`)
+- **T-08 — Interactive panel for the native workflow** Modernize the panel with descriptive hooks, accessible navigation and six stages showing their native roles. (`skills/plugin-panel/**`, `commands/work-context.md`, `tests/test_plugin_panel.py`)
+- **T-09 — Retire replaced assets and refresh generated distribution** Refresh distribution and multi-runtime exports from their canonical sources and retire replaced assets.
+- **T-10 — Independent review, coverage and Windows/Linux/browser QA** Validate Windows, Linux, Edge and coverage; resolve every verified review finding. (`docs/roadmap/2026-10-06-workflow-integration/testing/**`, `tests/**`)
+- **T-11 — Bilingual documentation, retrospective and closure records** Synchronize bilingual documentation, evidence, retrospective, changelogs and future phases with explicit limits. (`docs/**`, `CHANGELOG.md`, `CHANGELOG.es.md`)
+- **T-12 — Publish the branch and verify the remote commit** Publish the authorized branch and verify that the remote commit matches the local delivery. (`docs/roadmap/2026-10-06-workflow-integration/tasks.md`)
 
 ### Added — `capability-foundation` initiative (2026-10-06)
 

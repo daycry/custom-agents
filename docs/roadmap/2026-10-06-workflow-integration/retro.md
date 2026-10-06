@@ -1,7 +1,7 @@
 ---
 retro: workflow-integration
 fecha: 2026-10-06
-estado: cierre-tecnico-verificado
+estado: completado
 ---
 
 # Retro — núcleo común de capacidades

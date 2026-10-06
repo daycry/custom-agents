@@ -1,6 +1,6 @@
 ---
 spec: workflow-integration
-estado: aprobada
+estado: implementada
 creado: 2026-10-06
 actualizado: 2026-10-06
 evaluacion: evaluation.md

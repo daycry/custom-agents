@@ -9,7 +9,7 @@ they have been implemented.
 
 | Phase | Delivery | Status |
 |---|---|---|
-| 1. Shared core | Multi-runtime hooks, guidance selection, workflow, briefs, optional structural context, outcome evaluation and panel | Implementation verified; closure and publication tracked in [workflow-integration](../roadmap/2026-10-06-workflow-integration/tasks.md) |
+| 1. Shared core | Multi-runtime hooks, guidance selection, workflow, briefs, optional structural context, outcome evaluation and panel | Completed and published; evidence in [workflow-integration](../roadmap/2026-10-06-workflow-integration/tasks.md) |
 | 2. User extensions | Recognize user agents, skills, tools and MCP in Claude, Codex and OpenCode; show origin, conflicts and verified availability | Design and implementation pending |
 | 3. Catalog capabilities | Thoroughly compare existing skills, tools, agents and commands from the reference catalog; integrate useful improvements without duplicating responsibilities | Pending; the earlier inventory does not replace functional analysis |
 | 4. Memory and evaluation | Measure retrieval, freshness and usefulness; compare improvements against existing Markdown, journal and backends before deciding changes | Pending; the current AST pilot does not prove retrieval effectiveness |

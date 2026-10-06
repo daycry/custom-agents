@@ -1,6 +1,6 @@
 ---
 tasks: workflow-integration
-estado: en-progreso
+estado: completado
 creado: 2026-10-06
 actualizado: 2026-10-06
 verificacion: obligatoria
@@ -20,12 +20,12 @@ obligatorios se conservan. La autorización no incluye PR, merge ni release.
 
 | Fase | Completadas | Total | Progreso |
 |---|---|---|---|
-| Fase 1 | 11 | 12 | 92% |
-| **TOTAL** | **11** | **12** | **92%** |
+| Fase 1 | 12 | 12 | 100% |
+| **TOTAL** | **12** | **12** | **100%** |
 
 ## Fase 1 — Integración
 
-**Estado**: en-progreso
+**Estado**: completado
 
 ### T-01 — Decisiones trazables del catálogo y contrato del workflow
 
@@ -143,21 +143,21 @@ obligatorios se conservan. La autorización no incluye PR, merge ni release.
 - **Descripción**: Documentación bilingüe, retro, estados y changelogs.
 - **Dependencias**: T-10.
 - **Archivos**: `docs/**`, `CHANGELOG.md`, `CHANGELOG.es.md`
-- **Verificación**: Docs ES/EN, informe final, retro y continuidad por fases escritos; notas Unreleased actuales y meter cerrado sin medición compatible; sincronización final tras push.
+- **Verificación**: Docs ES/EN, informe final, retro y continuidad por fases escritos; meter cerrado sin medición compatible; changelog-sync de esta iniciativa y traducción EN verificados en el cierre.
 - **Changelog**: Sincroniza documentación bilingüe, evidencias, retro, changelogs y fases futuras con límites explícitos.
 **Criterios de aceptación**:
   - [x] Resultado verificado contra spec.md; sin gaps introducidos pendientes.
 
 ### T-12 — Publicación de rama y comprobación remota
 
-- **Estado**: en-progreso
+- **Estado**: completado
 - **Descripción**: Publicación de rama y comprobación remota.
 - **Dependencias**: T-11.
 - **Archivos**: `docs/roadmap/2026-10-06-workflow-integration/tasks.md`
-- **Verificación**: Pendiente de ejecutar commit/push y comprobar git ls-remote frente a HEAD; no se anticipa publicación.
+- **Verificación**: git push -u origin fix/hooks-workflow-integration: exit 0; git ls-remote confirma d46df6aeb6ba5e8dadd028974f0a4b7d5e8aafbb igual a HEAD; cierre documental en commit posterior.
 - **Changelog**: Publica la rama autorizada y comprueba que el commit remoto coincide con la entrega local.
 **Criterios de aceptación**:
-  - [ ] Resultado verificado contra spec.md; sin gaps introducidos pendientes.
+  - [x] Resultado verificado contra spec.md; sin gaps introducidos pendientes.
 
 ## Evidencia durante la implementación
 
@@ -296,3 +296,22 @@ excluidos. Linter final: cero errores, tres avisos previos; evals 51/179 y expor
 públicos sin referencias prohibidas. Se corrigió la posición de la fila propia
 GOT-016 en su índice privado; ambos permanecen ignorados y no se distribuyen.
 Meter cerrado: fuente estimado, tokens/horas IA/€ nulos; mediana sin cambios.
+
+
+## Publicación comprobada y cierre — 2026-10-06
+
+Commit de implementación d46df6aeb6ba5e8dadd028974f0a4b7d5e8aafbb.
+`git push -u origin fix/hooks-workflow-integration`: exit 0, rama creada.
+`git ls-remote --heads origin refs/heads/fix/hooks-workflow-integration` devuelve
+ese mismo SHA, igual a HEAD. Se completa T-12 con evidencia real; los estados,
+calibración y notas finales se publican en un segundo commit de documentación.
+No se abre PR ni se hace merge/release. Configuración del usuario sin modificar
+ni versionar; memoria privada sin publicar. Fase 1 cerrada, 12/12; la integración
+por fases continúa con las extensiones propias descritas en el roadmap.
+
+
+Comprobación del cierre documental: 586 passed, un aviso histórico preexistente;
+changelog-sync --only workflow-integration --check: exit 0, sin pendientes ni
+campos degradados (12 campos explícitos), avisos solo de seis ledgers legacy.
+Traducción EN de las doce notas conservando rutas. Scope final: 170 archivos,
+cero fuera de alcance/avisos/info; settings del usuario excluidos.

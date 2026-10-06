@@ -9,7 +9,7 @@ acredita que estén implementadas.
 
 | Fase | Entrega | Estado |
 |---|---|---|
-| 1. Núcleo común | Hooks multi-runtime, selección de guías, workflow, briefs, contexto estructural opcional, evaluación de resultados y panel | Implementación verificada; cierre y publicación en [workflow-integration](roadmap/2026-10-06-workflow-integration/tasks.md) |
+| 1. Núcleo común | Hooks multi-runtime, selección de guías, workflow, briefs, contexto estructural opcional, evaluación de resultados y panel | Completada y publicada; evidencia en [workflow-integration](roadmap/2026-10-06-workflow-integration/tasks.md) |
 | 2. Extensiones del usuario | Reconocer agentes, skills, tools y MCP propios en Claude, Codex y OpenCode; mostrar origen, conflictos y disponibilidad comprobada | Pendiente de diseño e implementación |
 | 3. Capacidades del catálogo | Comparar en profundidad las skills, tools, agentes y comandos existentes en el catálogo de referencia; integrar únicamente mejoras útiles, sin duplicar responsabilidades | Pendiente; el inventario previo no sustituye al análisis funcional |
 | 4. Memoria y evaluación | Medir recuperación, vigencia y utilidad; comparar mejoras con Markdown, journal y backends actuales antes de decidir cambios | Pendiente; el piloto AST actual no demuestra eficacia de recuperación |
