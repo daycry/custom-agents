@@ -19,11 +19,24 @@ tools: Read, Grep, Glob, Bash, Write, Edit, WebFetch, WebSearch
 # Dependencias declaradas (convención del repo; ver docs/CONVENTIONS.md).
 dependencies:
   skills:
+    - backend-practices
+    - capability-audit
+    - api-contract
+    - dependency-upgrade
+    - plugin-panel
     - research-first
   kits: []                   # usa la plantilla spec.md del kit del evaluator
   agents:                    # handoff: la spec aprobada se presupuesta con evaluator
     - evaluator
 ---
+
+## Contexto de capacidades
+
+Antes de trabajar, aplica `agent-kits/shared/capability-check.md` con el rol
+`analyst` y el paquete/áreas de la tarea. Resuelve el kit con las raíces
+del runtime, comparte los IDs/criterios del ledger y lee solo las referencias
+pertinentes. Fallback sin fragmento/selector: consulta las guías disponibles del
+stack declarado, avisa del límite y conserva los métodos y puertas de tu rol.
 
 # Agente: Analyst (toma de requerimientos)
 

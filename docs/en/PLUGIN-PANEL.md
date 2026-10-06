@@ -1,5 +1,12 @@
 # Plugin capability panel
 
+Hooks appear in one card per event. `PostToolUse` lists its three handlers within
+that card; the HTML counter measures distinct events. The JSON keeps one entry
+per handler and `counts.hooks` counts handlers. Full hook commands remain excluded.
+Recognized actions show names, purposes and triggers; timeouts appear when
+configured in the source. Names and purposes come from the registered script's
+public `panel-title` and `panel-description` headers. Scripts are never executed.
+
 **English** · [Español](../PLUGIN-PANEL.md)
 
 The plugin-catalog command uses plugin-panel to explore agents, skills, commands,
@@ -18,10 +25,18 @@ finds its own bundle; `--root <bundle>` inspects another catalog without importi
 its code. Native Python supports Windows without WSL, Tkinter, extra Python
 packages or a server.
 
-Only public frontmatter and hooks/hooks.json are read. Bodies, hook commands,
-environment variables and private memory contents are excluded. The central
+The inventory extracts public frontmatter, hooks/hooks.json and metadata from
+the first eight lines of scripts recognized by the bundled launcher. Executable
+bodies, full commands, environment values and private memory are excluded from
+the output. The central
 redactor runs before export. Names, models and tools describe declarations,
 not which tools are available in the current session.
+
+The bundled local template offers section navigation, inventory cards, filters
+and expandable role and capability details. It adapts to mobile, supports keyboard
+controls and respects reduced motion. It needs no server or third-party assets.
+If the template is missing, HTML generation reports the issue while JSON remains
+available.
 
 Runtime and memory indicators show **source presence in the inspected bundle**.
 They do not establish service health, access, consumer configuration or hook
@@ -32,6 +47,11 @@ root produces exit 2 with no metadata export; the user's main task continues.
 Reads and inventory are bounded and symlinks rejected. HTML writes are atomic
 and replace only output bearing this generator's marker. Rebuild to refresh.
 
-See the [ECC and Graphify comparison](../roadmap/2026-10-06-ecc-capabilities/comparison.md)
-for adoption decisions. ECC 2.2.3 inspired the capability navigation; the stdlib
-implementation is original.
+See the [architecture and memory decisions](../roadmap/2026-10-06-capability-foundation/comparison.md)
+for the design rationale. The panel is an original stdlib implementation.
+
+“Guides by role” reads the inspected bundle's capability registry. These rows
+are separate from catalog cards and do not prove that guides were applied.
+An absent/invalid registry leaves the catalog usable with an explicit limitation.
+`/work-context` selects from the same registry by role/phase/stack/area using the
+task's package manifests.

@@ -15,6 +15,14 @@ tools: Read, Grep, Glob, Bash, Write, Edit
 # Campos informativos: Claude Code ignora claves extra del frontmatter.
 dependencies:
   skills:                    # publicar el plan en Confluence (opcional) y volcarlo a Jira (opcional)
+    - stack-practices
+    - backend-practices
+    - frontend-quality
+    - delivery-practices
+    - outcome-evals
+    - api-contract
+    - dependency-upgrade
+    - code-health
     - confluence-publish
     - jira-sync
   kits:                      # plantillas en .claude/agent-kits/ + fragmentos compartidos
@@ -22,6 +30,14 @@ dependencies:
     - agent-kits/shared
   agents: []                 # otros agentes de los que depende (ninguno)
 ---
+
+## Contexto de capacidades
+
+Antes de trabajar, aplica `agent-kits/shared/capability-check.md` con el rol
+`planner` y el paquete/áreas de la tarea. Resuelve el kit con las raíces
+del runtime, comparte los IDs/criterios del ledger y lee solo las referencias
+pertinentes. Fallback sin fragmento/selector: consulta las guías disponibles del
+stack declarado, avisa del límite y conserva los métodos y puertas de tu rol.
 
 # Agente: Planner (generador de planes)
 

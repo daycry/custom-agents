@@ -9,13 +9,19 @@ y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
-### Added — iniciativa `ecc-capabilities` (2026-10-06)
+### Changed — integración nativa del workflow (2026-10-06)
 
-- **T-01 — Comparar ECC, Graphify y memoria actual** Se documenta la adopción selectiva de ECC y el encaje de Graphify como complemento estructural de la memoria curada. (`docs/roadmap/2026-10-06-ecc-capabilities/**`, `docs/roadmap/README.md`)
+- La selección común por rol/fase/stack/área lleva IDs de guías a los briefs y conserva las puertas de revisión, QA y conocimiento. `/work-context` expone esa selección sin iniciar otro ciclo.
+- Se consolidan las tres guías iniciales en `stack-practices` y se añaden guías de backend, frontend, entrega, auditoría de capacidades y evaluación de resultados. El reporte de resultados lee JUnit ya ejecutado, con condiciones explícitas de comparación y datos de consumo medidos o ausentes.
+- El panel local muestra responsabilidades nativas y guías por rol. El contexto AST con citas sigue separado de la memoria aprobada; se admiten marcadores CLOUD de OneDrive y se excluyen puntos de reanálisis que redirigen o son desconocidos.
+
+### Added — iniciativa `capability-foundation` (2026-10-06)
+
+- **T-01 — Comparar catálogo de referencia, Graphify y memoria actual** Se documenta la adopción selectiva de catálogo de referencia y el encaje de Graphify como complemento estructural de la memoria curada. (`docs/roadmap/2026-10-06-capability-foundation/**`, `docs/roadmap/README.md`)
 - **T-02 — Investigar antes de construir** Analyst y architect pueden comparar soluciones existentes antes de diseñar integraciones o herramientas con research-first.
 - **T-03 — Control panel de capacidades** plugin-catalog genera un panel local buscable del catálogo, con redacción central y presencia de fuentes de runtime y memoria.
 - **T-04 — Guías específicas de los tres stacks** Los roles de desarrollo disponen de guías específicas para CodeIgniter 4, Python y React, cargadas según el stack de la tarea.
-- **T-05 — Validar, documentar y publicar la rama** La primera integración de ECC conserva los contratos de los tres runtimes y documenta sus capacidades y límites de memoria.
+- **T-05 — Validar, documentar y publicar la rama** La primera integración de catálogo de referencia conserva los contratos de los tres runtimes y documenta sus capacidades y límites de memoria.
 
 ### Fixed — iniciativa `plugin-refactor` (2026-09-09)
 

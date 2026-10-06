@@ -69,6 +69,11 @@ Antes de auditar, lee el índice de `docs/knowledge/` (si existe) y abre las ent
 - `coverage-check.py` — cobertura criterios↔tests: `tasks.md` ↔ `test-plan.md` ↔ criterios `[GWT]` de la spec (con tests).
 - `templates/report.md` — plantilla del informe.
 
-## Capacidades incorporadas desde la comparación ECC
+## Contexto técnico común
 
-codeigniter-practices, python-practices y react-practices: contexto técnico bajo demanda según stack y versiones del consumidor; sin precarga de todas ni roles adicionales.
+Aplica `agent-kits/shared/capability-check.md` con tu rol y el paquete/áreas de
+la tarea. La selección comparte criterios y escenarios del ledger; consulta
+solo mapas/referencias pertinentes. Stack-practices consolida PHP/CodeIgniter,
+Python y React. Los métodos, artefactos y puertas del rol conservan su dueño.
+Sin selector o guía disponible, avisa del límite y continúa con el contrato de
+la tarea; no confundas selección con ejecución, tools o permisos.

@@ -28,12 +28,30 @@ flowchart TD
     D2 -.->|CALIBRATION.md| P1
 ```
 
+## Contexto técnico común
+
+`/work-context` y `agent-kits/shared/capability-check.md` usan el mismo registro
+del bundle. Planner registra IDs y escenarios en cada tarea; los roles siguientes
+comparten esos criterios. Los manifiestos seleccionan guías: no ejecutan código,
+otorgan permisos ni demuestran tools disponibles. La instalación parcial avisa y
+continúa. TDD, revisión independiente, qa-gate y Knowledge Gate conservan dueño.
+
+```mermaid
+flowchart LR
+  Paquete[Paquete y áreas de tarea] --> Seleccion[Selección común de capacidades]
+  Seleccion --> Diseno[Architect y planner]
+  Diseno --> Ledger[IDs y escenarios por tarea]
+  Ledger --> Implementacion[Implementer]
+  Ledger --> Revision[Reviewer]
+  Ledger --> Pruebas[QA]
+  Pruebas --> Memoria[Knowledge Gate]
+```
+
 ## 1 · La cadena completa de una iniciativa
 
-Research-first aporta comparación bajo demanda a analyst/architect antes de
-integraciones o herramientas nuevas. Codeigniter-practices, python-practices y
-react-practices aportan contexto según stack a implementer/reviewer/qa, sin
-precargar todas las guías ni cambiar los dueños del ciclo.
+Research-first aporta investigación dirigida. La selección común conecta
+stack-practices, backend-practices, frontend-quality y delivery-practices con
+diseño, planificación, implementación, revisión y QA. La carga es bajo demanda.
 
 Fase de **producto**: `analyst → evaluator` (+ `architect` opcional tras el go). Fase de **desarrollo**: `planner → implementer → qa`. La revisión adversarial despacha sus lentes al agente de solo lectura `reviewer`.
 

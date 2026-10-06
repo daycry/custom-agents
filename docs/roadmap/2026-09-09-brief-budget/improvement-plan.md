@@ -24,7 +24,7 @@ generacion:            # ventana compartida con este plan, spec.md y evaluation.
 
 Se conserva el plan y sus estimaciones originales. El ajuste de la spec permite enlazar evidencias históricas, preservando criterios y todas las notas de decisión. Si el mínimo obligatorio no cabe después de reducir las secciones auxiliares, se declara su tamaño y hay que dividir la tarea antes de delegarla. Topes: diseño 1.600, gaps 1.600 y verificación 800. El presupuesto global se ajusta antes de la persona sin cambiar sus invariantes.
 
-El cierre de brief-budget entrega su dependencia a plugin-refactor; no cierra las tareas ajenas de ese ledger. ECC permanece documentado y aplazado. Las mediciones y revisiones quedan en tasks.md y testing/report.md.
+El cierre de brief-budget entrega su dependencia a plugin-refactor; no cierra las tareas ajenas de ese ledger. catálogo de referencia permanece documentado y aplazado. Las mediciones y revisiones quedan en tasks.md y testing/report.md.
 
 ## Resumen
 

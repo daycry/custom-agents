@@ -3000,7 +3000,7 @@ Desviaciones nuevas de esta correccion: **50-53**; reescritas: **45** y **48**.
 - **Supervisión**: est. 0,19h (≈25 % IA) · real —
 - **Previsión IA**: 263k in / 40k out tok · 2,8 € tokens · coste tarea 303 €
 - **Dependencias**: R1 → tras T-04 · R2 → tras T-08 · R3 → tras T-10 · R4 → tras T-19 (o T-18 si C-14 se descarta). La tarea se marca `completado` cuando los cuatro tramos tienen su traza
-- **Archivos**: `docs/roadmap/2026-09-09-plugin-refactor/tasks.md` (trazas), `docs/knowledge/adr/ADR-016-copias-declaradas-con-test-de-identidad.md` y `ADR-017-…` (`estado` → `aceptada (validada: revisión de dos lentes, AAAA-MM-DD, intento N)`), `docs/knowledge/README.md` (estado en las filas)
+- **Archivos**: `docs/roadmap/2026-09-09-plugin-refactor/tasks.md` (trazas), `docs/knowledge/adr/ADR-016-copias-declaradas-con-test-de-identidad.md` y `docs/knowledge/adr/ADR-017-marcador-test-plan-n-a-en-el-frontmatter-del-plan.md` (`estado` → `aceptada (validada: revisión de dos lentes, AAAA-MM-DD, intento N)`), `docs/knowledge/README.md` (estado en las filas)
 - **Verificación**:
   - `grep -c "Revisión de dos lentes — intento" docs/roadmap/2026-09-09-plugin-refactor/tasks.md` → `≥ 4` (una traza por tramo como mínimo)
   - `python agent-kits/shared/ledger-lint.py docs/roadmap/2026-09-09-plugin-refactor/tasks.md` → exit 0 tras cada traza

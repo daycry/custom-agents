@@ -1092,6 +1092,32 @@ def test_brief_budget_verificacion_excluye_salida_real_y_red():
     assert "no pierde criterios" in task
 
 
+def test_selected_capabilities_reach_brief_without_loading_manuals(inic):
+    path = inic / 'tasks.md'
+    path.write_text(path.read_text(encoding='utf-8').replace('- **Descripción**: hacer la cosa A.', '- **Descripción**: hacer la cosa A.\n- **Capacidades**: stack-practices, backend-practices'), encoding='utf-8')
+    rc, output = _run([str(inic), 'T-01', '--sin-lint', '--constitucion', str(inic / 'no.md')])
+    assert rc == 0
+    assert '## Capacidades de la tarea' in output
+    assert 'skills/stack-practices/SKILL.md' in output
+    assert 'skills/backend-practices/SKILL.md' in output
+    assert 'Una consulta con parámetros' not in output
+    assert 'la cosa A funciona' in output
+    assert len(output) <= tb.BRIEF_TOPE_CHARS
+
+
+def test_capabilities_are_ignored_inside_fences_and_unknown_ids(capsys):
+    assert tb._seccion_capacidades('```\n- **Capacidades**: stack-practices\n```') == []
+    result = '\n'.join(tb._seccion_capacidades('- **Capacidades**: ../outside, foreign-guide'))
+    assert result == ''
+    assert 'capacidad' in capsys.readouterr().err.lower()
+
+
+def test_missing_capability_module_does_not_block_brief(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(tb, '__file__', str(tmp_path / 'task-brief.py'))
+    assert tb._seccion_capacidades('- **Capacidades**: stack-practices') == []
+    assert 'capacidad' in capsys.readouterr().err.lower()
+
+
 def test_brief_budget_verificacion_solo_evidencia_no_se_filtra_a_tarea():
     chunk = "### T-01\n- **Verificación**:\n  - Salida real fix2: OUTPUT_HISTORY\n**Criterios de aceptación**\n- [ ] funciona\n"
     verif, task = tb._resolver_verificacion(chunk)

@@ -29,6 +29,13 @@ hooks:
 # Dependencias declaradas (convención del repo; ver docs/CONVENTIONS.md).
 dependencies:
   skills:
+    - stack-practices
+    - backend-practices
+    - frontend-quality
+    - delivery-practices
+    - capability-audit
+    - api-contract
+    - knowledge-services
     - research-first
   kits:                      # plantilla design.md + fragmentos compartidos (knowledge-write, docs-style, constitution)
     - agent-kits/architect
@@ -36,6 +43,14 @@ dependencies:
   agents:                    # handoff: el diseño aprobado lo descompone planner
     - planner
 ---
+
+## Contexto de capacidades
+
+Antes de trabajar, aplica `agent-kits/shared/capability-check.md` con el rol
+`architect` y el paquete/áreas de la tarea. Resuelve el kit con las raíces
+del runtime, comparte los IDs/criterios del ledger y lee solo las referencias
+pertinentes. Fallback sin fragmento/selector: consulta las guías disponibles del
+stack declarado, avisa del límite y conserva los métodos y puertas de tu rol.
 
 # Agente: Architect (diseño con opciones)
 

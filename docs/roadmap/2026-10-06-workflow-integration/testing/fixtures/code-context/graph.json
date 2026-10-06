@@ -1,0 +1,198 @@
+{
+  "directed": false,
+  "multigraph": false,
+  "graph": {},
+  "nodes": [
+    {
+      "id": "order_orderservice",
+      "label": "OrderService",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 0,
+      "file_type": "code",
+      "norm_label": "orderservice",
+      "source_file": "order.php",
+      "source_location": "L4"
+    },
+    {
+      "id": "order_orderservice_total",
+      "label": ".total()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 0,
+      "file_type": "code",
+      "norm_label": ".total()",
+      "source_file": "order.php",
+      "source_location": "L6"
+    },
+    {
+      "id": "orderview_formattotal",
+      "label": "formatTotal()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 1,
+      "file_type": "code",
+      "norm_label": "formattotal()",
+      "source_file": "OrderView.tsx",
+      "source_location": "L1"
+    },
+    {
+      "id": "orderview_orderview",
+      "label": "OrderView()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 1,
+      "file_type": "code",
+      "norm_label": "orderview()",
+      "source_file": "OrderView.tsx",
+      "source_location": "L5"
+    },
+    {
+      "id": "worker_normalize_name",
+      "label": "normalize_name()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 2,
+      "file_type": "code",
+      "norm_label": "normalize_name()",
+      "source_file": "worker.py",
+      "source_location": "L1"
+    },
+    {
+      "id": "worker_process_order",
+      "label": "process_order()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 2,
+      "file_type": "code",
+      "norm_label": "process_order()",
+      "source_file": "worker.py",
+      "source_location": "L5"
+    },
+    {
+      "id": "order",
+      "label": "order.php",
+      "_origin": "ast",
+      "community": 0,
+      "file_type": "code",
+      "norm_label": "order.php",
+      "source_file": "order.php",
+      "source_location": "L1"
+    },
+    {
+      "id": "orderview",
+      "label": "OrderView.tsx",
+      "_origin": "ast",
+      "community": 1,
+      "file_type": "code",
+      "norm_label": "orderview.tsx",
+      "source_file": "OrderView.tsx",
+      "source_location": "L1"
+    },
+    {
+      "id": "worker",
+      "label": "worker.py",
+      "_origin": "ast",
+      "community": 2,
+      "file_type": "code",
+      "norm_label": "worker.py",
+      "source_file": "worker.py",
+      "source_location": "L1"
+    }
+  ],
+  "links": [
+    {
+      "source": "orderview_orderview",
+      "target": "orderview_formattotal",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "OrderView.tsx",
+      "source_location": "L6",
+      "weight": 1.0
+    },
+    {
+      "source": "worker_process_order",
+      "target": "worker_normalize_name",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "worker.py",
+      "source_location": "L6",
+      "weight": 1.0
+    },
+    {
+      "source": "order",
+      "target": "order_orderservice",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "order.php",
+      "source_location": "L4",
+      "weight": 1.0
+    },
+    {
+      "source": "orderview",
+      "target": "orderview_formattotal",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "OrderView.tsx",
+      "source_location": "L1",
+      "weight": 1.0
+    },
+    {
+      "source": "orderview",
+      "target": "orderview_orderview",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "OrderView.tsx",
+      "source_location": "L5",
+      "weight": 1.0
+    },
+    {
+      "source": "worker",
+      "target": "worker_normalize_name",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "worker.py",
+      "source_location": "L1",
+      "weight": 1.0
+    },
+    {
+      "source": "worker",
+      "target": "worker_process_order",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "worker.py",
+      "source_location": "L5",
+      "weight": 1.0
+    },
+    {
+      "source": "order_orderservice",
+      "target": "order_orderservice_total",
+      "relation": "method",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "order.php",
+      "source_location": "L6",
+      "weight": 1.0
+    }
+  ],
+  "hyperedges": [],
+  "built_at_commit": "2059b7af8f8ffc50e5fcb8973e804dc37213eb0f"
+}

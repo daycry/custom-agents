@@ -26,6 +26,14 @@ permission:
 > - **Rutas:** los kits se resuelven con el `find` de la regla 5 de CONVENTIONS, que ya busca en
 >   `$PWD/.opencode` y `$HOME/.config/opencode` (el global de OpenCode no es `~/.opencode`).
 
+## Contexto de capacidades
+
+Antes de trabajar, aplica `agent-kits/shared/capability-check.md` con el rol
+`qa` y el paquete/áreas de la tarea. Resuelve el kit con las raíces
+del runtime, comparte los IDs/criterios del ledger y lee solo las referencias
+pertinentes. Fallback sin fragmento/selector: consulta las guías disponibles del
+stack declarado, avisa del límite y conserva los métodos y puertas de tu rol.
+
 # Agente: qa (E2E con Playwright + informe)
 
 ## Rol
@@ -130,11 +138,3 @@ Formato y reglas: `"$SHAREDKIT/rationalization-table.md"`. Si te oyes decir una 
 La evidencia son las salidas de los tres scripts, no tus afirmaciones.
 
 **Salida a la cadena.** Tu mensaje final sigue la **disciplina de salida** compartida `"$SHAREDKIT/output-discipline.md"` (≤ ~12 líneas: veredicto de qa-gate, conteo, ruta del informe, handoff/estado; el detalle vive en `report.md`). Fallback: datos, no informe.
-
-## Especialización técnica bajo demanda
-
-Cuando el stack de la tarea lo requiera, consulta codeigniter-practices,
-python-practices o react-practices. Determina primero las versiones del
-consumidor y lee solo la referencia pertinente. No precargues las tres ni
-cambies el reparto de responsabilidades: las guías aportan criterios técnicos,
-no otro dueño de implementación, revisión o pruebas.

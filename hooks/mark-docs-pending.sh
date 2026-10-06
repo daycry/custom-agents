@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# panel-title: Documentación pendiente
+# panel-description: Marca la documentación editada como pendiente de sincronizar con Confluence. No publica nada automáticamente.
 # Hook PostToolUse (Write/Edit/MultiEdit): marca que hay documentación pendiente de
 # sincronizar con Confluence. NO publica nada y NO depende de git.
 #

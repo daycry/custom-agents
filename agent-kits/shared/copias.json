@@ -515,6 +515,30 @@
         {"ruta": "agent-kits/shared/capabilities.py", "inicio": "# --8<-- modo del backend (funcion publica del contrato, T-08-fix1) — REPLICADO LITERAL en las copias declaradas del bloque `modo_backend` de agent-kits/shared/copias.json", "fin": "# --8<-- fin modo del backend"}
       ],
       "guardarrail_previo": "ninguno: `capabilities._graphiti_modo` reimplementaba el enum y el default a mano"
+    },
+    {
+      "id": "cloud_path_guard",
+      "mecanismo": "A",
+      "que_es": "OneDrive CLOUD placeholders remain local; redirecting and unknown reparse points are excluded. Tag contract: https://learn.microsoft.com/en-us/windows/win32/fileio/reparse-point-tags (verified 2026-10-06).",
+      "canonico": "agent-kits/shared/capability-route.py",
+      "copias": [
+        {
+          "ruta": "agent-kits/shared/capability-route.py",
+          "inicio": "# --8<-- cloud path guard SHARED",
+          "fin": "# --8<-- end cloud path guard SHARED"
+        },
+        {
+          "ruta": "skills/plugin-panel/scripts/build_panel.py",
+          "inicio": "# --8<-- cloud path guard SHARED",
+          "fin": "# --8<-- end cloud path guard SHARED"
+        },
+        {
+          "ruta": "skills/outcome-evals/scripts/report_outcomes.py",
+          "inicio": "# --8<-- cloud path guard SHARED",
+          "fin": "# --8<-- end cloud path guard SHARED"
+        }
+      ],
+      "guardarrail_previo": "tests/test_cloud_paths.py"
     }
   ]
 }

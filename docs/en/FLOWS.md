@@ -28,12 +28,30 @@ flowchart TD
     D2 -.->|CALIBRATION.md| P1
 ```
 
+## Common technical context
+
+`/work-context` and `agent-kits/shared/capability-check.md` use the same trusted
+catalog. Planner records IDs and scenarios in each task; subsequent roles share
+those criteria. Local manifests only select guidance; they cannot execute code,
+grant permissions or prove tool availability. Partial installs warn and continue.
+TDD, independent review, qa-gate and Knowledge Gate keep their existing owners.
+
+```mermaid
+flowchart LR
+  Package[Task package and areas] --> Selection[Shared capability selection]
+  Selection --> Design[Architect and planner]
+  Design --> Ledger[Task IDs and scenarios]
+  Ledger --> Implement[Implementer]
+  Ledger --> Review[Reviewer]
+  Ledger --> QA[QA]
+  QA --> Memory[Knowledge Gate]
+```
+
 ## 1 · The complete chain of an initiative
 
-Research-first supports analyst/architect when comparing integrations or new
-tools. Codeigniter-practices, python-practices and react-practices supply stack
-context to implementer/reviewer/qa on demand, without preloading every guide
-or changing ownership of cycle artifacts.
+Research-first supports targeted research. A shared capability selection step routes
+stack-practices, backend-practices, frontend-quality and delivery-practices to
+design, planning, implementation, review and QA. Context is loaded on demand.
 
 **Product** phase: `analyst → evaluator` (+ optional `architect` after the go). **Development** phase: `planner → implementer → qa`. The adversarial review dispatches its lenses to the read-only `reviewer` agent.
 

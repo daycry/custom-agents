@@ -16,6 +16,15 @@ Ejecuta el ciclo de una iniciativa de forma explícita y fiable. Objetivo: **$AR
 Mantén `docs/roadmap/<fecha>-<slug>/tasks.md` como **ledger canónico** de progreso en todo el
 ciclo (ver regla 8 de `docs/CONVENTIONS.md`).
 
+## Contexto técnico compartido
+
+Antes de despachar roles, aplica `agent-kits/shared/capability-check.md` sobre
+el paquete y áreas del objetivo. Comparte selección/procedencia con los roles;
+planner registra los IDs y escenarios por tarea. Implementer, reviewer y qa
+usan los mismos criterios técnicos. Repite selección solo ante hechos nuevos.
+Sin selector, avisa y sigue con guías disponibles; conserva las puertas del ciclo.
+Este paso no inicia servicios ni genera piezas de proyecto.
+
 ## Fase 0 — Preparación
 1. Deriva un `<slug>` corto en kebab-case del objetivo y fija/crea la carpeta `docs/roadmap/<fecha>-<slug>/` (reutilízala si ya existe).
 2. Ofrece añadir al `CLAUDE.md` del proyecto (si no está) la **regla de ledger canónico**: "El progreso de un plan se registra en `docs/roadmap/<…>/tasks.md`; cualquier implementador debe marcar ahí cada tarea; los ledgers propios son espejo, no fuente."

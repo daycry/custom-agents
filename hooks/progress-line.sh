@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# panel-title: Progreso de la iniciativa
+# panel-description: Muestra el avance de la iniciativa cuando cambia su ledger. Evita repetir actualizaciones idénticas consecutivas.
 # Hook PostToolUse (Write/Edit/MultiEdit): cuando se edita un ledger canónico
 # `docs/roadmap/*/tasks.md`, emite UNA línea de progreso determinista
 # (`progress-report.py line`) como `systemMessage` — el usuario ve el avance sin

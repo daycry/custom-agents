@@ -21,11 +21,11 @@
 [![npx](https://img.shields.io/badge/install-npx-cb3837.svg?logo=npm&logoColor=white)](docs/en/INTEROP.md)
 [![SDD](https://img.shields.io/badge/methodology-Spec--Driven-2ea44f.svg)](docs/en/FLOWS.md)
 [![Agents](https://img.shields.io/badge/agents-10-0ea5e9.svg)](docs/en/README.md)
-[![Skills](https://img.shields.io/badge/skills-19-0ea5e9.svg)](docs/en/README.md)
-[![Commands](https://img.shields.io/badge/commands-12-0ea5e9.svg)](docs/en/README.md)
+[![Skills](https://img.shields.io/badge/skills-27-0ea5e9.svg)](docs/en/README.md)
+[![Commands](https://img.shields.io/badge/commands-14-0ea5e9.svg)](docs/en/README.md)
 [![Portable skills](https://img.shields.io/badge/portable%20skills-AGENTS.md%20%C2%B7%20Cursor-0ea5e9.svg)](docs/en/INSTALL.md#using-the-skills-outside-claude-code-portable-package)
 
-From idea to tested, documented code: `requirements → budget → plan → implementation → adversarial review → E2E → docs`, with **control gates** at every step, **real cost measured in tokens**, and learning that calibrates the next estimates. Ten agents, twelve commands, self-contained (no dependencies on other plugins) — and it runs in **three runtimes**: Claude Code, Codex and OpenCode.
+From idea to tested, documented code: `requirements → budget → plan → implementation → adversarial review → E2E → docs`, with **control gates** at every step, **real cost measured in tokens**, and learning that calibrates the next estimates. Ten agents, fourteen commands, self-contained (no dependencies on other plugins) — and it runs in **three runtimes**: Claude Code, Codex and OpenCode.
 
 > **How you type the commands.** Installed as a plugin, the real name carries the plugin
 > namespace: **`/custom-agents:dev-cycle`**, `/custom-agents:retro`, `/custom-agents:doctor`…
@@ -106,7 +106,7 @@ npx @daycry/custom-agents            # interactive menu; marks the runtimes it d
 
 | Runtime | Install | What you get |
 |---|---|---|
-| **Claude Code** | `/plugin marketplace add daycry/custom-agents` (or the installer) | Everything: 10 agents, 13 commands, 24 skills, hooks, status line |
+| **Claude Code** | `/plugin marketplace add daycry/custom-agents` (or the installer) | Everything: 10 agents, 14 commands, 27 skills, hooks, status line |
 | **Codex** | `codex plugin marketplace add daycry/custom-agents` (or the installer) | Skills, agents as `.toml`, commands as `/prompt:<name>` (sometimes `/prompts:<name>`), session hooks |
 | **OpenCode** | `npx @daycry/custom-agents install -p opencode` | Skills, agents, commands, hook adapter |
 
@@ -206,7 +206,7 @@ flowchart LR
 ```
 
 <details>
-<summary><b>The 10 agents and the 13 commands</b> (click to expand)</summary>
+<summary><b>The 10 agents and the 14 commands</b> (click to expand)</summary>
 
 | Agent | What it does |
 |--------|----------|
@@ -237,9 +237,10 @@ flowchart LR
 | `/retro` | Closes the loop: deviations + causes → `CALIBRATION.md`. |
 | `/confluence-pull` | Confluence → local `docs/` (PM without git). |
 | `/plugin-catalog` | Search agents, skills, commands, declared tools and hooks in a local capability panel. |
+| `/work-context` | Relevant guides by role, stack and task area. |
 | `/doctor` | Deterministic install diagnosis: tools, plugin/hooks, statusline, `.claude/` configs, work state — ✅/⚠️/❌ verdict with the fix per line, read-only, no network. |
 
-Shared skills: `jira-sync` · `confluence-publish` / `confluence-pull` · `roadmap-dashboard` · `debug-root-cause` · `adversarial-review` · `cybersecurity` · `to-pdf` · `rates-verify` · `plugin-dev` · `quick-implement` · `tdd` · `code-health` · `dependency-upgrade` · `changelog-sync` · `unit-tests` · `api-contract` · `knowledge-services` · `training-data-services` · `research-first` · `plugin-panel` · `codeigniter-practices` · `python-practices` · `react-practices`. Deterministic scripts (all with tests): `usage-meter` · `task-brief` · `model-tier` · `journal` · `code-health` · `deps-inventory` · `worklog` · `qa-gate` · `ledger-lint` · `coverage-check` · `build_dashboard` · `lint_plugin`.
+Shared skills: `jira-sync` · `confluence-publish` / `confluence-pull` · `roadmap-dashboard` · `debug-root-cause` · `adversarial-review` · `cybersecurity` · `to-pdf` · `rates-verify` · `plugin-dev` · `quick-implement` · `tdd` · `code-health` · `dependency-upgrade` · `changelog-sync` · `unit-tests` · `api-contract` · `knowledge-services` · `training-data-services` · `research-first` · `plugin-panel` · `stack-practices` · `backend-practices` · `frontend-quality` · `delivery-practices` · `capability-audit` · `outcome-evals`. Deterministic scripts (all with tests): `usage-meter` · `task-brief` · `model-tier` · `journal` · `code-health` · `deps-inventory` · `worklog` · `qa-gate` · `ledger-lint` · `coverage-check` · `build_dashboard` · `lint_plugin`.
 
 </details>
 

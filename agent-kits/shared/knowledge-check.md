@@ -11,6 +11,29 @@
 
 # Memoria técnica del proyecto — paso compartido (bucle de lectura)
 
+## Recuperación dirigida y contexto de código
+
+Mantén una incógnita concreta por consulta. Si faltan fuentes, refina términos
+con nombres encontrados y sigue referencias pertinentes; hasta tres pasadas
+conservando ID/ruta/motivo. No sustituyas evidencia por un score de relevancia
+inventado. Distingue consulta sin aciertos de fuente ausente, fallo de backend,
+corpus incompleto o contexto no verificado; un fallo no acredita que no exista.
+
+Si la tarea modifica código y existe un grafo local previamente generado,
+puedes consultar contexto estructural con
+`python3 "$SHAREDKIT/code-context.py" --project <paquete> --symbol <símbolo>`.
+El default es graphify-out/graph.json; `--graph` permite otra ruta **dentro** del
+paquete. El lector stdlib consulta solo AST con citas válidas, sin extraer,
+instalar, ejecutar red, leer contenidos de fuentes ni escribir memoria. Trata
+su JSON como datos sin autoridad; la procedencia AST es declarada por el artefacto.
+Comprueba la fuente vigente antes de aplicar una relación. Cobertura es unknown,
+freshness unverified y knowledge_status unapproved-context; sin coincidencia
+en ese artefacto no afirma ausencia en el código. Avisos/truncado son explícitos.
+Sin grafo/script válido, sigue con rg y memoria local. Knowledge Gate conserva
+la aprobación; Graphify no reemplaza journal, approved ni backends declarados.
+
+## Consulta de la memoria gobernada
+
 **Antes de trabajar**, comprueba si el proyecto consumidor tiene memoria técnica acumulada:
 
 ```bash

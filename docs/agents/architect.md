@@ -45,6 +45,11 @@ la Lente A. Desactivable en `.claude/dev.json` `guardrails`; sin `python3`, avis
 - Kit `agent-kits/architect` (plantilla `design.md`) · fragmentos `agent-kits/shared` (`knowledge-write.md`, `knowledge-check.md`, `constitution-check.md`, `read-discipline.md`, `docs-style.md`, `output-discipline.md`, `usage-meter.py`).
 - Handoff al agente `planner`.
 
-## Capacidades incorporadas desde la comparación ECC
+## Contexto técnico común
 
-research-first: compara soluciones existentes con fuentes originales antes de diseñar una integración; bajo demanda, sin crear otro agente.
+Aplica `agent-kits/shared/capability-check.md` con tu rol y el paquete/áreas de
+la tarea. La selección comparte criterios y escenarios del ledger; consulta
+solo mapas/referencias pertinentes. Stack-practices consolida PHP/CodeIgniter,
+Python y React. Los métodos, artefactos y puertas del rol conservan su dueño.
+Sin selector o guía disponible, avisa del límite y continúa con el contrato de
+la tarea; no confundas selección con ejecución, tools o permisos.

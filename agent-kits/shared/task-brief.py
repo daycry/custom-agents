@@ -1147,6 +1147,35 @@ def _seccion_memoria(carpeta, chunk, tipo, knowledge_find):
     return [memoria] if memoria else []      # un solo elemento: quitarlo deja el brief byte a byte como sin memoria (CA-09)
 
 
+def _seccion_capacidades(chunk):
+    """Mount only trusted guide pointers from the planner's task metadata."""
+    match = re.search(r"^-\s+\*\*Capacidades\*\*:\s*([^\n]+)", sin_vallas(chunk), re.M)
+    if not match:
+        return []
+    try:
+        import importlib.util
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "capability-route.py")
+        spec = importlib.util.spec_from_file_location("brief_capability_route", path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        catalog = module.load_catalog()
+        if module.validate_catalog(catalog):
+            raise ValueError("invalid bundled catalog")
+        names = {entry["id"] for entry in catalog["capabilities"]}
+        declared = [name.strip().strip('`') for name in match[1][:1000].split(',')]
+        chosen = sorted({name for name in declared if name in names})
+        if len(match[1]) > 1000 or any(name not in names for name in declared):
+            print("⚠️ capacidades: metadatos desconocidos o extensos; consulta el campo del ledger.", file=sys.stderr)
+        if not chosen:
+            return []
+        return ["## Capacidades de la tarea", "",
+                "Comparte estos criterios con reviewer y qa; lee solo el mapa y referencias pertinentes.",
+                *[f"- `{name}` → `skills/{name}/SKILL.md`" for name in chosen], ""]
+    except (OSError, ValueError, UnicodeError, RecursionError):
+        print("⚠️ capacidades: selector/registro no disponible; sigue con el contrato de la tarea.", file=sys.stderr)
+        return []
+
+
 def _seccion_diseno_y_arquitectura(carpeta, plan_p, chunk=""):
     out = []
     diseno = _design_elegida(carpeta)
@@ -1264,14 +1293,14 @@ def _presupuesto_auxiliar(out, persona_insert_idx, tipo, persona_ruta, persona_c
         starts = [i for i, text in enumerate(items) if text.startswith(("## ", "> Diseño:"))]
         return [(i, starts[n + 1] if n + 1 < len(starts) else len(items))
                 for n, i in enumerate(starts)
-                if items[i].startswith(("## Diseño", "## Gaps pendientes", "## Verificación"))]
+                if items[i].startswith(("## Diseño", "## Gaps pendientes", "## Verificación", "## Capacidades"))]
 
     while length(out) > BRIEF_TOPE_CHARS:
         spans = ranges(out)
         choices = []
         for start, end in spans:
             header = out[start].split("\n", 1)[0]
-            target = "design.md §4" if header.startswith("## Diseño") else "esta tarea en tasks.md"
+            target = "design.md §4" if header.startswith("## Diseño") else "agent-kits/shared/capability-check.md y el campo Capacidades de tasks.md" if header.startswith("## Capacidades") else "esta tarea en tasks.md"
             pointer = f"{header}\n\n> Consulta {target} antes de implementar y ejecutar la verificación.\n"
             old = "\n".join(out[start:end])
             if len(old) > len(pointer):
@@ -1363,6 +1392,7 @@ def main(argv=None):
 
     out += _seccion_tarea_y_gaps(chunk_brief, tasks_text, tid)
     out += _seccion_verificacion(verif)
+    out += _seccion_capacidades(chunk)
     out += _seccion_memoria(args.carpeta, chunk, tipo, args.knowledge_find)
     out += _seccion_diseno_y_arquitectura(args.carpeta, plan_p, chunk)
     out += _seccion_constitucion(args)

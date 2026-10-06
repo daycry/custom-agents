@@ -220,7 +220,7 @@ La expectativa antigua de conservar RED con verificación vacía se actualizó a
 
 Lente A+B y lente B independientes: 0 Critical, 0 Important, 0 Minor pendientes. Correcciones verificadas por lectura y 11 tests brief_budget / 3 regresiones enfocadas verdes. C+D no detectaron riesgos introducidos en el diff coordinado de hooks/brief. QA y cierre documental a cargo del orquestador.
 
-Puerta de alcance coordinada: unión exacta de los campos Archivos de hooks-runtime y brief-budget, `scope-check --base HEAD` exit 0, sin avisos ni producción excluida. `.claude/settings.json` era ajeno y queda sin modificar. ECC solo conserva su análisis autorizado.
+Puerta de alcance coordinada: unión exacta de los campos Archivos de hooks-runtime y brief-budget, `scope-check --base HEAD` exit 0, sin avisos ni producción excluida. `.claude/settings.json` era ajeno y queda sin modificar. catálogo de referencia solo conserva su análisis autorizado.
 
 ## Cierre — 2026-10-06
 

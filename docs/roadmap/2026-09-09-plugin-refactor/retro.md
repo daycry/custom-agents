@@ -48,6 +48,6 @@ alcance. Archivar historia dejando contrato operativo y aceptación en el ledger
 Memoria técnica: **sin entradas nuevas**; los aprendizajes se apoyan en GOT-005,
 GOT-009, GOT-010 y ADR-016/017 ya existentes, sin duplicar doctrina.
 
-Siguiente iniciativa recomendada: project-specialization F2. ECC permanece
+Siguiente iniciativa recomendada: project-specialization F2. catálogo de referencia permanece
 documentado para estudiar sus paquetes, skills, agents, tools, hooks y workflows
 más adelante, conforme al alcance indicado por el usuario.

@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# panel-title: Captura del cierre
+# panel-description: Guarda un pequeño envelope local al cerrar la sesión para procesarlo después. El cierre no lee transcripciones ni ejecuta Git, IA o red.
 # Hook SessionEnd (sin matcher: también `clear`, porque un /clear cierra una unidad de trabajo):
 # CAPTURA ULTRALIGERA y ATÓMICA (session-end-durable-capture T-03, spec CA-01): deja un *envelope*
 # en la outbox local (`.claude/journal/outbox/`, vía `agent-kits/shared/journal.py capture-end`) y

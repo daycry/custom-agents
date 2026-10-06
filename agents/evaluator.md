@@ -16,6 +16,11 @@ tools: Read, Grep, Glob, Bash, Write, Edit
 # Campos informativos: Claude Code ignora claves extra del frontmatter.
 dependencies:
   skills:                    # publicar la spec/evaluación en Confluence (opcional)
+    - research-first
+    - capability-audit
+    - outcome-evals
+    - dependency-upgrade
+    - code-health
     - confluence-publish
   kits:                      # plantilla en .claude/agent-kits/ + fragmentos compartidos
     - agent-kits/evaluator
@@ -23,6 +28,10 @@ dependencies:
   agents:                    # handoff: lo aprobado se ejecuta con planner
     - planner
 ---
+
+## Contexto de capacidades
+
+Resuelve `agent-kits/shared/capability-check.md` para evaluator. Sin pieza, avisa y conserva guías/puertas.
 
 # Agente: Evaluator (evaluaciones / presupuestos)
 

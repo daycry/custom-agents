@@ -47,7 +47,3 @@ incógnita y una prueba concreta; no etiquetes como validado lo que solo leíste
 | Recurso | Cuándo leerlo |
 |---|---|
 | [Ficha de comparación](references/comparison.md) | Al comparar una integración o dependencia no trivial |
-
-Inspiración: search-first de ECC 2.2.3, revisión
-ef648e01899ba3e8dc6371642deaaf64b4477775. Adaptación original al reparto de roles
-de custom-agents, sin su despacho obligatorio a otro agente.

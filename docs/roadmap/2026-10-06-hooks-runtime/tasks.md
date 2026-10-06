@@ -21,7 +21,7 @@ Vía rápida, sin presupuesto nuevo. No se publica una versión ni se ejecutan s
 - **Estado**: completado
 - **Changelog**: Los tres runtimes usan Python nativo y Git Bash en Windows; Codex respeta SessionEnd de 3 s y los eventos apply_patch/Edit conservan avisos y exclusiones de documentación.
 - **Tipo**: backend
-- **Archivos**: `docs/roadmap/CALIBRATION.md`, `.gitattributes`, `hooks/**`, `agents/implementer.md`, `agents/architect.md`, `scripts/export-interop.py`, `tests/test_export_interop.py`, `tests/test_hooks_config.py`, `tests/test_hooks_shell.py`, `tests/test_confluence_scope.py`, `tests/hook-runtime.test.mjs`, `interop/**`, `docs/INTEROP.md`, `docs/en/INTEROP.md`, `CHANGELOG.md`, `CHANGELOG.es.md`, `docs/roadmap/README.md`, `docs/roadmap/2026-10-06-ecc-capabilities/analysis.md`
+- **Archivos**: `docs/roadmap/CALIBRATION.md`, `.gitattributes`, `hooks/**`, `agents/implementer.md`, `agents/architect.md`, `scripts/export-interop.py`, `tests/test_export_interop.py`, `tests/test_hooks_config.py`, `tests/test_hooks_shell.py`, `tests/test_confluence_scope.py`, `tests/hook-runtime.test.mjs`, `interop/**`, `docs/INTEROP.md`, `docs/en/INTEROP.md`, `CHANGELOG.md`, `CHANGELOG.es.md`, `docs/roadmap/README.md`, `docs/roadmap/2026-10-06-capability-foundation/analysis.md`
 - **Dependencias**: ninguna
 - **Verificación**: `node --test tests/hook-runtime.test.mjs` → captura UTF-8, outbox, SessionStart y adaptador OpenCode verdes; `python -m pytest tests/test_export_interop.py tests/test_hooks_config.py -q` → verde; `python scripts/export-interop.py --check` → sin deriva; `python scripts/lint_plugin.py` → 0 errores; `python evals/check.py` → 0 errores.
 **Criterios de aceptación**:
@@ -45,8 +45,8 @@ OpenCode usa session.idle para capturar; no ofrece las mismas garantías de inye
 
 - **Archivos** adicionales de T-01: `.gitattributes` (LF para las entradas Bash y el shim tras checkout).
 
-Alcance auxiliar: el análisis ECC y su fila del índice ya estaban en el árbol al iniciar este
-cambio. Se conservan y se documenta la preferencia posterior por los tres stacks. ECC sigue sin
+Alcance auxiliar: el análisis catálogo de referencia y su fila del índice ya estaban en el árbol al iniciar este
+cambio. Se conservan y se documenta la preferencia posterior por los tres stacks. catálogo de referencia sigue sin
 implementación; se declaran aquí para que la puerta de alcance examine el diff completo.
 
 ## Resumen de progreso

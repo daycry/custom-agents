@@ -32,6 +32,9 @@ flowchart LR
 
 Antes de añadir o tocar un agente, lee [`CONVENTIONS.md`](CONVENTIONS.md): define dónde va cada cosa y cómo se declaran las dependencias entre agentes para que no se pisen. Para una **visión visual de los flujos** (cadena de agentes, ciclos PM/dev, Jira, Confluence, métricas), ver [`FLOWS.md`](FLOWS.md). Para qué mide el plugin (coste por artefacto/tarea), la **visibilidad en vivo** (línea de progreso del ledger por hook, contexto de retoma al arrancar/compactar, statusline opt-in) y cómo convive con monitores de sesión, ver [`observability.md`](observability.md). Para el **tercer bucle** (especialización por proyecto: `.claude/personas/` en cascada, registro canónico de piezas, escalera de decisión y las dos puertas de `/specialize`), ver [`SPECIALIZATION.md`](SPECIALIZATION.md).
 
+
+**Contexto de trabajo:** [`WORK-CONTEXT.md`](WORK-CONTEXT.md) documenta la selección común de guías, su paso al ledger y los briefs, el panel local y el contexto estructural opcional.
+
 ## Agentes disponibles
 
 | Agente | Qué hace | Dependencias | Documentación |
@@ -70,6 +73,7 @@ Dirigen la cadena invocando a los agentes **por nombre** y con puertas de contro
 | **`/dev-cycle <objetivo>`** | Desarrollo | Ciclo completo `evaluación → plan → implementación → pruebas → documentación` | **La cadena nativa del plugin es el único motor** (disciplina opt-in en `.claude/dev.json`: TDD, worktrees, subagentes frescos). Si arranca sobre una carpeta con spec+evaluación de `/pm-cycle`, sigue directo en la planificación. |
 | **`/pm-backlog [criterio]`** | Producto / cartera | Lee todas las `evaluation.md` y **prioriza** (solo lectura) | Escribe `docs/roadmap/BACKLOG.md` con orden recomendado (quick wins vs. apuestas grandes). No planifica; remite a `/dev-cycle` para ejecutar. |
 | **`/plugin-catalog`** | Capacidades | Lee el catálogo público del plugin | HTML local buscable con herramientas declaradas y hooks. |
+| `/work-context` | Selecciona guías por rol, fase, stack y área; manifiestos locales y procedencia explícita. |
 | **`/roadmap-status`** | Visibilidad | Escanea `docs/roadmap/*/` (solo lectura) | Genera el dashboard `docs/roadmap/dashboard.html` (local) y `dashboard.md` (se publica en Confluence para PMs sin git) vía skill `roadmap-dashboard`. |
 | **`/roadmap-metrics`** | Presupuesto | Compara real vs estimado (solo lectura) | Informe `docs/roadmap/metrics.md`: producción (IA+supervisión), horas humanas y tokens **reales vs estimados** con desviaciones y total de cartera (skill `roadmap-dashboard`). |
 | **`/roadmap-brief`** | Dirección | One-pager de cartera → PDF | Combina estado + prioridades + real vs estimado en un brief ejecutivo (`brief.pdf`) vía `to-pdf`. |
@@ -92,9 +96,12 @@ Así se separan los roles: **`/pm-cycle`** decide *qué* y *cuánto cuesta* (una
 | **confluence-pull** | Sentido **inverso**: baja Confluence → `docs/` local, para PMs sin git. Reutiliza `confluence.json` y el mapa `confluence-state.json`; preserva el frontmatter local, avisa de conflictos y confirma antes de escribir. Solo lee de Confluence. | comando `/confluence-pull` |
 | **research-first** | Compara soluciones existentes antes de integraciones o nuevas herramientas; fuentes originales y límites explícitos. | analyst, architect |
 | **plugin-panel** | Panel local buscable del catálogo, JSON determinista, metadatos redactados y presencia de fuentes. | `/plugin-catalog` |
-| **codeigniter-practices** | Decisiones específicas de Model, Query Builder y fallos de transacción CI4. | implementer, reviewer, qa |
-| **python-practices** | Cancelación, concurrencia Python y contratos de scripts portables. | implementer, reviewer, qa |
-| **react-practices** | Estado derivado React, efectos y respuestas obsoletas. | implementer, reviewer, qa |
+| **stack-practices** | Guías por versión para PHP/CodeIgniter, Python y React; estado, persistencia, concurrencia y pruebas. | architect, planner, implementer, reviewer, qa |
+| **backend-practices** | APIs, autorización por recurso, errores, idempotencia y migraciones compatibles. | analyst, architect, planner, implementer, reviewer, qa |
+| **frontend-quality** | Teclado, foco, formularios, estados remotos y rendimiento medido. | architect, planner, implementer, reviewer, qa |
+| **delivery-practices** | Contenedores, readiness, recuperación y límites de acceso MCP. | architect, planner, implementer, reviewer, qa |
+| **capability-audit** | Auditoría semántica de utilidad, vigencia, solapes y coste de carga. | analyst, evaluator, architect, reviewer |
+| **outcome-evals** | Corpus, checks y comparación reproducible de resultados; mediciones ausentes explícitas. | evaluator, planner, reviewer, qa |
 | **roadmap-dashboard** | Escanea `docs/roadmap/*/` y genera un dashboard **HTML** (vista local), **Markdown** (para publicar en Confluence) o **JSON** (estado, prioridad y presupuesto por iniciativa). Solo lectura. | comandos `/roadmap-status`, `/pm-backlog`; skill `confluence-publish` |
 | **debug-root-cause** | Depuración sistemática hasta la causa raíz en 4 fases con evidencia obligatoria (reproducción mínima → aislamiento → hipótesis probada → fix + regresión); prohibido arreglar a ciegas. | `/dev-cycle` (gancho automático al 3.er rojo de qa); a demanda |
 | **adversarial-review** | Revisión adversarial de un diff con lentes de contexto fresco en paralelo: A (conformidad con spec/plan/constitución, ✓/✗ por criterio), B (solo defectos de corrección), C (seguridad, **condicional**) y D (rendimiento, **condicional**) — ambas condicionales las decide `review-lens-select.py` por rutas/líneas sensibles o patrones de riesgo (N+1, `await`/regex en bucle, `sleep` bloqueante) del diff; `dev.json` `revision.lenteSeguridad`/`revision.lenteRendimiento`. Fusión, graduación Critical/Important/Minor, bucle acotado a 3 con rebate por evidencia, traza «Revisión de dos lentes — intento N» en el ledger. **Fuente única del método**; también a demanda sobre una rama sin ledger. | `/dev-cycle` (Fase 3), `quick-implement`; a demanda («revísame este diff») |
@@ -130,3 +137,5 @@ custom-agents/               (se despliega como .claude/)
     ├── agents/              # un doc por agente
     └── knowledge/           # memoria técnica: adr/ · gotchas/ · lessons/ · journal/ (bitácora de sesión, generada) · README.md (índice)
 ```
+
+**Integración por fases:** [INTEGRATION-ROADMAP.md](INTEGRATION-ROADMAP.md) fija el orden de entregas y los límites actuales de reconocimiento de extensiones propias.

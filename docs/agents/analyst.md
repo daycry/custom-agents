@@ -37,6 +37,11 @@ encadena). El analyst nunca presupuesta.
 `documenter`. Se ofrece desde `/pm-cycle` cuando el objetivo llega poco definido; también es la vía
 de remediación cuando `nemesis` propone convertir hallazgos en iniciativas.
 
-## Capacidades incorporadas desde la comparación ECC
+## Contexto técnico común
 
-research-first: compara soluciones existentes con fuentes originales antes de diseñar una integración; bajo demanda, sin crear otro agente.
+Aplica `agent-kits/shared/capability-check.md` con tu rol y el paquete/áreas de
+la tarea. La selección comparte criterios y escenarios del ledger; consulta
+solo mapas/referencias pertinentes. Stack-practices consolida PHP/CodeIgniter,
+Python y React. Los métodos, artefactos y puertas del rol conservan su dueño.
+Sin selector o guía disponible, avisa del límite y continúa con el contrato de
+la tarea; no confundas selección con ejecución, tools o permisos.

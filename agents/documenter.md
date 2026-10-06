@@ -20,12 +20,22 @@ tools: Read, Grep, Glob, Bash, Write, Edit
 # Campos informativos: Claude Code ignora claves extra del frontmatter.
 dependencies:
   skills:                    # sincroniza los docs generados en Confluence (opt-in)
+    - knowledge-services
+    - plugin-panel
     - confluence-publish
   kits:                      # taxonomía + plantillas + fragmentos compartidos
     - agent-kits/documenter
     - agent-kits/shared
   agents: []                 # no depende de otros agentes
 ---
+
+## Contexto de capacidades
+
+Antes de trabajar, aplica `agent-kits/shared/capability-check.md` con el rol
+`documenter` y el paquete/áreas de la tarea. Resuelve el kit con las raíces
+del runtime, comparte los IDs/criterios del ledger y lee solo las referencias
+pertinentes. Fallback sin fragmento/selector: consulta las guías disponibles del
+stack declarado, avisa del límite y conserva los métodos y puertas de tu rol.
 
 # Agente: Documenter (documentación estructurada del proyecto)
 

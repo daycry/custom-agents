@@ -82,6 +82,7 @@ Invocan a los agentes **por nombre** y con puertas de control sobre la carpeta d
 | `/setup` | Onboarding en una pasada: `rates.json`, opt-ins Confluence/Jira, constitución (`docs/CONSTITUTION.md`), `dev.json` (disciplina, statusline 5-bis, lente de seguridad de la revisión 5-ter). Idempotente. |
 | `/doctor` | Diagnóstico de la INSTALACIÓN (solo lectura; sin red salvo capacidades opcionales activadas, acotada a hosts locales y a un tope total): herramientas, plugin + hooks registrados, statusline, configs de `.claude/` y estado del trabajo. Veredicto ✅/⚠️/❌ por línea con el comando que lo arregla; `--json`. `agent-kits/shared/doctor.py`, exit 1 si hay ❌. Primera parada cuando algo «no salta». |
 | `/plugin-catalog` | Explora las capacidades del plugin en un control panel local. |
+| `/work-context` | Selecciona guías por rol, fase, stack y área; manifiestos locales y procedencia explícita. |
 | `/pm-backlog` · `/roadmap-status` · `/roadmap-metrics` · `/roadmap-live` · `/roadmap-brief` | Cartera y visibilidad (solo lectura): backlog priorizado · dashboard · real vs estimado + coste de proceso medido · Jira en vivo · one-pager PDF. |
 | `/spec-drift [slug]` | Gobernanza: deriva spec↔código de las specs `implementada` (vigente/derivado/no-verificable con evidencia) → `docs/roadmap/DRIFT.md`. Solo lectura; la corrección va por /pm-cycle. |
 | `/retro <slug>` | Cierre de aprendizaje: real vs estimado + causas + **ratio tokens/hora medido** → `docs/roadmap/CALIBRATION.md` (lo leen evaluator y usage-meter). Muestra las **candidatas a lección** del journal (`journal.py candidatas`, nacen `propuesta`) y es la **puerta** del cierre de `/dev-cycle` (`retro-gate.py`: sin `retro.md` + fila no hay cierre). |
@@ -97,9 +98,12 @@ Invocan a los agentes **por nombre** y con puertas de control sobre la carpeta d
 | `confluence-publish` / `confluence-pull` | Espejo `docs/` ↔ Confluence, opt-in, idempotente por manifiesto; nunca `docs/security-scan/`. (evaluator, planner, qa, documenter / comando) |
 | `research-first` | Compara soluciones existentes antes de integraciones o nuevas herramientas; fuentes originales y límites explícitos. (analyst, architect) |
 | `plugin-panel` | Panel local buscable del catálogo, JSON determinista, metadatos redactados y presencia de fuentes. (/plugin-catalog) |
-| `codeigniter-practices` | Decisiones específicas de Model, Query Builder y fallos de transacción CI4. (implementer, reviewer, qa) |
-| `python-practices` | Cancelación, concurrencia Python y contratos de scripts portables. (implementer, reviewer, qa) |
-| `react-practices` | Estado derivado React, efectos y respuestas obsoletas. (implementer, reviewer, qa) |
+| `stack-practices` | Guías por versión para PHP/CodeIgniter, Python y React; estado, persistencia, concurrencia y pruebas. (architect, planner, implementer, reviewer, qa) |
+| `backend-practices` | APIs, autorización por recurso, errores, idempotencia y migraciones compatibles. (analyst, architect, planner, implementer, reviewer, qa) |
+| `frontend-quality` | Teclado, foco, formularios, estados remotos y rendimiento medido. (architect, planner, implementer, reviewer, qa) |
+| `delivery-practices` | Contenedores, readiness, recuperación y límites de acceso MCP. (architect, planner, implementer, reviewer, qa) |
+| `capability-audit` | Auditoría semántica de utilidad, vigencia, solapes y coste de carga. (analyst, evaluator, architect, reviewer) |
+| `outcome-evals` | Corpus, checks y comparación reproducible de resultados; mediciones ausentes explícitas. (evaluator, planner, reviewer, qa) |
 | `roadmap-dashboard` | Escaneo de `docs/roadmap/` → HTML/md/JSON + métricas real-vs-estimado y coste de proceso (`build_dashboard.py`). (/roadmap-status, /pm-backlog, /roadmap-metrics) |
 | `debug-root-cause` | Causa raíz en 4 fases con evidencia; prohibido arreglar a ciegas. (/dev-cycle al 3.er rojo; a demanda) |
 | `adversarial-review` | Revisión adversarial del diff: lentes A (spec/plan) + B (corrección) + C seguridad condicional (`review-lens-select.py`, con tests); fusión, Critical/Important/Minor, bucle acotado, rebate con evidencia, traza en el ledger. Fuente única del método. (/dev-cycle Fase 3, quick-implement; a demanda «revísame este diff») |

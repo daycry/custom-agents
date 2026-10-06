@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# panel-title: Cierre de subagente
+# panel-description: Informa del estado de las iniciativas activas cuando termina un subagente.
 # Hook SubagentStop: cuando termina un subagente (p. ej. una tarea despachada por
 # /dev-cycle con `subagentes: true`), emite el estado de las iniciativas del roadmap
 # que están `en-progreso` (`progress-report.py active`) como `systemMessage`, para que

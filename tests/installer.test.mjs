@@ -1785,19 +1785,19 @@ test("gap B-11: un timeout que no es un entero > 0 avisa y cae al defecto", () =
 // ------------------------------------------------------------------ gap B-12: matar el árbol
 
 test("gap B-12: al expirar se mata el ÁRBOL y el mensaje dice cómo subir el timeout",
-  { skip: process.platform !== "win32" ? "solo en Windows" : false }, async () => {
+  { skip: process.platform !== "win32" ? "solo en Windows" : false }, () => {
     const tmp = tmpProj()
     try {
       const hogar = join(tmp, "home"), bin = join(tmp, "bin")
       mkdirSync(join(hogar, ".codex"), { recursive: true })
       mkdirSync(bin)
       const marca = join(tmp, "el-nieto-siguio-vivo.txt")
-      // El nieto (un `node`) escribe la marca a los 3 s: si al expirar solo se mata al `cmd.exe`,
-      // sigue vivo y la marca aparece. Es el síntoma que se midió con `tasklist`.
+      // Identifica un nieto real y comprueba su vida cuando retorna la limpieza. Una marca
+      // escrita durante WMIC/CIM no prueba que siga vivo después de matar el árbol.
       writeFileSync(join(bin, "codex.cmd"), [
         "@echo off",
         "if \"%~1\"==\"--version\" (echo codex-cli 0.130.0& exit /b 0)",
-        `"${process.execPath}" -e "setTimeout(()=>require('fs').writeFileSync(process.env.MARCA,'vivo'),3000)"`,
+        `"${process.execPath}" -e "require('fs').writeFileSync(process.env.MARCA,JSON.stringify({pid:process.pid}));setInterval(()=>{},1000)"`,
         "exit /b 0",
         "",
       ].join("\r\n"))
@@ -1807,9 +1807,20 @@ test("gap B-12: al expirar se mata el ÁRBOL y el mensaje dice cómo subir el ti
       const out = cli(["install", "-p", "codex", "--scope", "user", "-y"], { env })
       assert.match(out, /expiró a los 1 s/, "un `ETIMEDOUT` pelado no dice nada al usuario")
       assert.match(out, /CUSTOM_AGENTS_EXEC_TIMEOUT_MS/)
-      await new Promise((r) => setTimeout(r, 4000))
-      assert.ok(!existsSync(marca), "el nieto sobrevivió al timeout: hay que matar el árbol")
+      assert.ok(existsSync(marca), "la fixture debe iniciar un nieto real antes de comprobar su terminación")
+      const { pid } = JSON.parse(readFileSync(marca, "utf8"))
+      let vivo = true
+      try { process.kill(pid, 0) } catch (e) {
+        if (e.code !== "ESRCH") throw e
+        vivo = false
+      }
+      assert.ok(!vivo, "el nieto sobrevivió a la limpieza del timeout: hay que matar el árbol")
     } finally {
+      // Solo el PID creado por esta fixture; evita un huérfano incluso con la variante roja.
+      if (existsSync(join(tmp, "el-nieto-siguio-vivo.txt"))) {
+        const { pid } = JSON.parse(readFileSync(join(tmp, "el-nieto-siguio-vivo.txt"), "utf8"))
+        try { execFileSync(join(process.env.SystemRoot, "System32", "taskkill.exe"), ["/T", "/F", "/PID", String(pid)], { stdio: "ignore" }) } catch { /* ya terminó */ }
+      }
       rmSync(tmp, { recursive: true, force: true })
     }
   })

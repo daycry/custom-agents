@@ -1,0 +1,35 @@
+{
+  "target": "skill:frontend-quality",
+  "cases": [
+    {
+      "id": "frontend-quality-literal",
+      "prompt": "calidad frontend",
+      "trigger": "literal",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "frontend-quality"
+        ]
+      }
+    },
+    {
+      "id": "frontend-quality-parafrasis",
+      "prompt": "El modal pierde foco al cerrar y el formulario no anuncia errores cuando uso el teclado.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "frontend-quality"
+        ]
+      }
+    },
+    {
+      "id": "frontend-quality-negativo",
+      "prompt": "Solo quiero decidir dónde poner el estado React de un componente.",
+      "expect": {
+        "activates": false,
+        "redirect": "skill:stack-practices"
+      }
+    }
+  ]
+}

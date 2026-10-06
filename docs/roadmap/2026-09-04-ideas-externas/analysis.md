@@ -2,7 +2,7 @@
 analisis: ideas-externas
 descripcion: >
   Comparativa de `custom-agents` con dos toolkits públicos de Claude Code — `thedotmack/claude-mem`
-  (memoria persistente) y `WorldFlowAI/everything-claude-code` (agentes, comandos, skills, rules y
+  (memoria persistente) y `catalogo-referencia` (agentes, comandos, skills, rules y
   hooks) — para extraer ideas aprovechables. Precede a la spec: aquí no hay plan ni presupuesto.
 estado: borrador
 creado: 2026-09-04
@@ -15,10 +15,10 @@ absorbido_en: docs/roadmap/2026-09-09-project-specialization/analysis.md (las id
 
 ## Lo primero, porque cambia cómo leer el resto
 
-**`WorldFlowAI/everything-claude-code` es un espejo congelado de `affaan-m/everything-claude-code`.**
+**`catalogo-referencia` es un espejo congelado de `catalogo-referencia`.**
 Su `README.md`, su `plugin.json` y su `marketplace.json` apuntan todos a `affaan-m` como
 `homepage`/`repository`/`author`, y las instrucciones de instalación dicen
-`/plugin marketplace add affaan-m/everything-claude-code`. La única capa propia es
+`/plugin marketplace add catalogo-referencia`. La única capa propia es
 `WORLDFLOWAI.md`, una guía de adopción interna. Señales de actividad: **27 commits**, un solo autor
 aparente, ficheros de ejemplo fechados en **enero de 2026** y `rules/performance.md` hablando de
 modelos de esa época. Las ~1,5 k estrellas que muestra la página son casi seguro heredadas del fork.
@@ -50,7 +50,7 @@ cazado** — es la mejor prueba empírica de que el nuestro vale lo que cuesta.
 
 Lo comprobé contra los tres huecos medidos en [`memory-retrieval/analysis.md`](../2026-09-04-memory-retrieval/analysis.md):
 
-| Nuestro hueco medido | `claude-mem` | `everything-claude-code` |
+| Nuestro hueco medido | `claude-mem` | `catálogo de referencia` |
 |---|---|---|
 | 0 tokens de memoria inyectados al arrancar | inyecta de verdad, con búsqueda | **0 también — y por un bug** (stderr en vez de stdout) que nadie ha detectado |
 | 17 de 31 entradas que nadie cita (recuperación) | **resuelto**: `search` → `timeline` → `get_observations`, con coste en tokens declarado | **no existe** recuperación: `utils.js` tiene `findFiles`/`grepFile` sin usar para memoria |
@@ -58,7 +58,7 @@ Lo comprobé contra los tres huecos medidos en [`memory-retrieval/analysis.md`](
 | journal con 0 entradas | captura sin filtro y comprime con IA | **peor**: plantillas que nunca se rellenan |
 
 **Conclusión: `claude-mem` es el único de los dos con algo que aprender sobre memoria, y ya está
-recogido en el análisis anterior.** De `everything-claude-code` lo que se aprende es otra cosa.
+recogido en el análisis anterior.** De `catálogo de referencia` lo que se aprende es otra cosa.
 
 ## Las ocho ideas que sí valen
 

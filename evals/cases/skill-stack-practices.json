@@ -1,0 +1,35 @@
+{
+  "target": "skill:stack-practices",
+  "cases": [
+    {
+      "id": "stack-practices-literal",
+      "prompt": "guías de stack",
+      "trigger": "literal",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "stack-practices"
+        ]
+      }
+    },
+    {
+      "id": "stack-practices-parafrasis",
+      "prompt": "Nuestro servicio CI4 y worker Python necesitan criterios comunes para cambiar persistencia y cancelación.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "stack-practices"
+        ]
+      }
+    },
+    {
+      "id": "stack-practices-negativo",
+      "prompt": "Actualiza las versiones de dependencias.",
+      "expect": {
+        "activates": false,
+        "redirect": "skill:dependency-upgrade"
+      }
+    }
+  ]
+}

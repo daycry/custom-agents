@@ -32,6 +32,9 @@ flowchart LR
 
 Before adding or touching an agent, read [`CONVENTIONS.md`](CONVENTIONS.md): it defines where everything goes and how dependencies between agents are declared so they do not step on each other. For a **visual overview of the flows** (agent chain, PM/dev cycles, Jira, Confluence, metrics), see [`FLOWS.md`](FLOWS.md). For what the plugin measures (cost per artifact/task), the **live visibility** (ledger progress line per hook, resume context on startup/compaction, opt-in status line) and how it coexists with live session monitors, see [`observability.md`](observability.md). For the **third loop** (project specialization: cascading `.claude/personas/`, the canonical piece registry, the decision ladder and `/specialize`'s two gates), see [`SPECIALIZATION.md`](SPECIALIZATION.md).
 
+
+**Work context:** [`WORK-CONTEXT.md`](WORK-CONTEXT.md) documents shared guide selection, propagation to the ledger and briefs, the local panel and optional structural context.
+
 ## Available agents
 
 > Per-agent docs and roadmap artifacts are currently Spanish-only.
@@ -73,6 +76,7 @@ They drive the chain by invoking agents **by name** and with control gates, over
 | **`/dev-cycle <goal>`** | Development | Full cycle `evaluation → plan → implementation → tests → documentation` | **The plugin's native chain is the only engine** (opt-in discipline in `.claude/dev.json`: TDD, worktrees, fresh subagents). If started on a folder holding a spec+evaluation from `/pm-cycle`, it continues straight into planning. |
 | **`/pm-backlog [criterion]`** | Product / portfolio | Reads every `evaluation.md` and **prioritizes** (read-only) | Writes `docs/roadmap/BACKLOG.md` with a recommended order (quick wins vs. big bets). It does not plan; it defers to `/dev-cycle` for execution. |
 | **`/plugin-catalog`** | Capabilities | Reads the public plugin catalog | Local searchable HTML with declared tools and hooks. |
+| `/work-context` | Select relevant guides by role, phase, stack and area; local manifests, explicit provenance. |
 | **`/roadmap-status`** | Visibility | Scans `docs/roadmap/*/` (read-only) | Generates the dashboard `docs/roadmap/dashboard.html` (local) and `dashboard.md` (published to Confluence for PMs without git) via the `roadmap-dashboard` skill. |
 | **`/roadmap-metrics`** | Budget | Compares actual vs. estimated (read-only) | Report `docs/roadmap/metrics.md`: production (AI+supervision), human hours and **actual vs. estimated** tokens with deviations and a portfolio total (`roadmap-dashboard` skill). |
 | **`/roadmap-brief`** | Management | Portfolio one-pager → PDF | Combines status + priorities + actual vs. estimated into an executive brief (`brief.pdf`) via `to-pdf`. |
@@ -95,9 +99,12 @@ This is how roles are separated: **`/pm-cycle`** decides *what* and *how much it
 | **confluence-pull** | The **reverse** direction: pulls Confluence → local `docs/`, for PMs without git. Reuses `confluence.json` and the `confluence-state.json` map; preserves local frontmatter, warns about conflicts and confirms before writing. Only reads from Confluence. | command `/confluence-pull` |
 | **research-first** | Compare existing solutions before integrations or new tooling; original sources and explicit access limits. | analyst, architect |
 | **plugin-panel** | Searchable local capability panel, deterministic JSON, redacted metadata and source presence. | `/plugin-catalog` |
-| **codeigniter-practices** | CI4 Model, Query Builder and transaction failure decisions. | implementer, reviewer, qa |
-| **python-practices** | Python cancellation, concurrency and portable script contracts. | implementer, reviewer, qa |
-| **react-practices** | React derived state, effects and stale responses. | implementer, reviewer, qa |
+| **stack-practices** | Version-aware PHP/CodeIgniter, Python and React guidance for persistence, concurrency, state and tests. | architect, planner, implementer, reviewer, qa |
+| **backend-practices** | API contracts, resource authorization, errors, idempotency and compatible migrations. | analyst, architect, planner, implementer, reviewer, qa |
+| **frontend-quality** | Keyboard, focus, forms, remote states and measured UI performance. | architect, planner, implementer, reviewer, qa |
+| **delivery-practices** | Containers, readiness, recovery and MCP access boundaries. | architect, planner, implementer, reviewer, qa |
+| **capability-audit** | Semantic audit of usefulness, currency, overlaps and context cost. | analyst, evaluator, architect, reviewer |
+| **outcome-evals** | Corpus, checks and reproducible outcome comparisons with explicit missing measurements. | evaluator, planner, reviewer, qa |
 | **roadmap-dashboard** | Scans `docs/roadmap/*/` and generates an **HTML** dashboard (local view), **Markdown** (for publishing to Confluence) or **JSON** (state, priority and budget per initiative). Read-only. | commands `/roadmap-status`, `/pm-backlog`; skill `confluence-publish` |
 | **debug-root-cause** | Systematic debugging down to the root cause in 4 phases with mandatory evidence (minimal reproduction → isolation → tested hypothesis → fix + regression); blind fixing is forbidden. | `/dev-cycle` (automatic hook on qa's 3rd red); on demand |
 | **adversarial-review** | Adversarial review of a diff with fresh-context lenses in parallel: A (conformance with spec/plan/constitution, ✓/✗ per criterion), B (correctness defects only), C (security, **conditional**) and D (performance, **conditional**) — both conditional lenses decided by `review-lens-select.py` from sensitive paths/lines or performance-risk patterns (N+1, `await`/regex in a loop, blocking `sleep`) in the diff; `dev.json` `revision.lenteSeguridad`/`revision.lenteRendimiento`. Merge, Critical/Important/Minor grading, loop bounded to 3 with evidence-based rebuttal, "Revisión de dos lentes — intento N" trace in the ledger. **Single source of the method**; also on demand over a branch without a ledger. | `/dev-cycle` (Phase 3), `quick-implement`; on demand ("review this diff") |
@@ -133,3 +140,5 @@ custom-agents/               (deployed as .claude/)
     ├── agents/              # one doc per agent
     └── knowledge/           # technical memory: adr/ · gotchas/ · lessons/ · journal/ (session log, generated) · README.md (index)
 ```
+
+**Phased integration:** [INTEGRATION-ROADMAP.md](INTEGRATION-ROADMAP.md) defines delivery order and current limits for recognizing user extensions.

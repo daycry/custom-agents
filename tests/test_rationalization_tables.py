@@ -20,6 +20,8 @@ MIN_FILAS, MAX_FILAS, MAX_LINEAS = 6, 8, 25
 
 # pieza → (fichero, heading del bloque DoD/veredicto ante el que debe ir la tabla)
 PIEZAS = {
+    "capability-audit": ("skills/capability-audit/SKILL.md", "## Salida y evidencia"),
+    "outcome-evals": ("skills/outcome-evals/SKILL.md", "## Salida y evidencia"),
     "research-first": ("skills/research-first/SKILL.md", "## Salida de la comparación"),
     "implementer": ("agents/implementer.md", "## ANTES DE CERRAR (DoD)"),
     "adversarial-review": ("skills/adversarial-review/SKILL.md", "### 6. Salida y traza"),
@@ -133,6 +135,11 @@ def test_fragmento_compartido_existe_e_inventariado():
 def test_cabecera_del_fragmento_es_la_misma_que_en_las_piezas():
     for nombre, (rel, _dod) in PIEZAS.items():
         assert CABECERA in leer(rel), f"{rel}: sin la cabecera exacta"
+
+
+def test_audit_and_outcomes_tables_prevent_unmeasured_verdicts():
+    for name in ("capability-audit", "outcome-evals"):
+        _check_pieza(name)
 
 
 def main():

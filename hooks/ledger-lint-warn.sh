@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# panel-title: Validación del ledger
+# panel-description: Revisa la estructura de tasks.md tras una edición e informa de incoherencias. Los avisos no bloquean el trabajo.
 # Hook PostToolUse (Write/Edit/MultiEdit): valida el ledger canónico tasks.md
 # con ledger-lint.py en MODO AVISO cada vez que se edita. Determinista: ocurre
 # siempre, sin depender del prompt. NUNCA bloquea la edición (siempre exit 0).

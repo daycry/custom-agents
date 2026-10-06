@@ -26,6 +26,10 @@ permission:
 > - **Rutas:** los kits se resuelven con el `find` de la regla 5 de CONVENTIONS, que ya busca en
 >   `$PWD/.opencode` y `$HOME/.config/opencode` (el global de OpenCode no es `~/.opencode`).
 
+## Contexto de capacidades
+
+Resuelve `agent-kits/shared/capability-check.md` para evaluator. Sin pieza, avisa y conserva guías/puertas.
+
 # Agente: Evaluator (evaluaciones / presupuestos)
 
 ## Rol

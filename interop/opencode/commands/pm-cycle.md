@@ -19,6 +19,15 @@ Comparte la **misma carpeta por iniciativa** que `/dev-cycle` — `docs/roadmap/
 para que, cuando se decida ejecutar, `/dev-cycle` recoja el testigo sin repetir trabajo
 (ver reglas 7 y 8 de `docs/CONVENTIONS.md`).
 
+## Contexto técnico compartido
+
+Antes de despachar roles, aplica `agent-kits/shared/capability-check.md` sobre
+el paquete y áreas del objetivo. Comparte selección/procedencia con los roles;
+planner registra los IDs y escenarios por tarea. Implementer, reviewer y qa
+usan los mismos criterios técnicos. Repite selección solo ante hechos nuevos.
+Sin selector, avisa y sigue con guías disponibles; conserva las puertas del ciclo.
+Este paso no inicia servicios ni genera piezas de proyecto.
+
 ## Fase 0 — Preparación
 1. Deriva un `<slug>` corto en kebab-case del objetivo y fija/crea la carpeta `docs/roadmap/<fecha>-<slug>/` (reutilízala si ya existe; usa el mismo slug en toda la cadena).
 2. Si el usuario pasa una spec ya existente en esa carpeta, se evaluará; si pasa la idea/requisitos por el prompt, el `evaluator` **creará primero** la `spec.md` (estado `borrador`) y luego la evaluará.

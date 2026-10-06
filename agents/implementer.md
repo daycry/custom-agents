@@ -21,16 +21,27 @@ hooks:
 # Dependencias declaradas (convención del repo; ver docs/CONVENTIONS.md).
 dependencies:
   skills:                    # reflejar el progreso en Jira (opcional, opt-in)
+    - stack-practices
+    - backend-practices
+    - frontend-quality
+    - delivery-practices
+    - api-contract
+    - unit-tests
     - jira-sync
     - confluence-publish     # opt-in: sincroniza docs/ al CERRAR CADA FASE (D3), no por tarea
-    - codeigniter-practices
-    - python-practices
-    - react-practices
   kits:                      # fragmentos compartidos (constitution-check, knowledge-check/-write)
     - agent-kits/shared
   agents:                    # handoff al terminar: pruebas E2E
     - qa
 ---
+
+## Contexto de capacidades
+
+Antes de trabajar, aplica `agent-kits/shared/capability-check.md` con el rol
+`implementer` y el paquete/áreas de la tarea. Resuelve el kit con las raíces
+del runtime, comparte los IDs/criterios del ledger y lee solo las referencias
+pertinentes. Fallback sin fragmento/selector: consulta las guías disponibles del
+stack declarado, avisa del límite y conserva los métodos y puertas de tu rol.
 
 # Agente: Implementer (ejecución del plan)
 
@@ -141,11 +152,3 @@ No marques una tarea (ni el plan) como completada sin mostrar la evidencia:
 Si algún check falla, la tarea sigue `en-progreso`: no la cierres.
 
 **Salida a la cadena.** Tu mensaje final al orquestador sigue la **disciplina de salida** compartida (`SHAREDKIT=$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type d -path '*agent-kits/shared' 2>/dev/null | head -1)` → `"$SHAREDKIT/output-discipline.md"`): ≤ ~12 líneas — qué tareas cerraste, evidencia de la comprobación, estado del ledger, handoff a qa. El detalle vive en `tasks.md`. Fallback: datos, no recap de pasos.
-
-## Especialización técnica bajo demanda
-
-Cuando el stack de la tarea lo requiera, consulta codeigniter-practices,
-python-practices o react-practices. Determina primero las versiones del
-consumidor y lee solo la referencia pertinente. No precargues las tres ni
-cambies el reparto de responsabilidades: las guías aportan criterios técnicos,
-no otro dueño de implementación, revisión o pruebas.

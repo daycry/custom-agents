@@ -17,6 +17,7 @@ for _s in (sys.stdin, sys.stdout, sys.stderr):
 MARKER = '<!doctype html><!-- custom-agents plugin-panel v1 -->'
 MAX_BYTES = 512 * 1024
 MAX_FILES = 1000
+TEMPLATE = Path(__file__).resolve().parents[1] / 'references/panel.html'
 
 
 def _load_redactor():
@@ -43,12 +44,23 @@ def _redact_values(value):
     return value
 
 
-def _unsafe_link(path):
+# --8<-- cloud path guard SHARED
+def _linked(path):
     try:
         info = path.lstat()
-        return path.is_symlink() or bool(getattr(info, 'st_file_attributes', 0) & 0x400)
+        if path.is_symlink():
+            return True
+        if not getattr(info, 'st_file_attributes', 0) & 0x400:
+            return False
+        # Windows CLOUD variants describe sync placeholders, not path redirects.
+        # Unknown reparse tags stay excluded, including junctions and symlinks.
+        tag = getattr(info, 'st_reparse_tag', 0)
+        return (tag & 0xFFFF0FFF) != 0x9000001A
     except FileNotFoundError:
         return False
+# --8<-- end cloud path guard SHARED
+
+_unsafe_link = _linked
 
 
 def _guard_path(root, path):
@@ -125,6 +137,34 @@ def _catalog(root, kind, warnings):
     return entries
 
 
+def _hook_metadata(root, hook, group, metadata):
+    launcher = '${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.mjs'
+    script = None
+    arguments = hook.get('args')
+    if hook.get('command') == 'node' and isinstance(arguments, list) and len(arguments) == 2 and arguments[0] == launcher:
+        script = arguments[1]
+    elif isinstance(hook.get('command'), str):
+        match = re.fullmatch(r'node "\$\{CLAUDE_PLUGIN_ROOT\}/hooks/run-hook\.mjs" ([a-z][a-z0-9-]{0,63}\.sh)', hook['command'])
+        if match:
+            script = match.group(1)
+    if not isinstance(script, str) or not re.fullmatch(r'[a-z][a-z0-9-]{0,63}\.sh', script):
+        return {}
+    if script not in metadata:
+        fields = {'title': script, 'description': 'Descripción pública no disponible en esta instantánea.'}
+        try:
+            for line in _read(root, root / 'hooks' / script).splitlines()[:8]:
+                for key in ('title', 'description'):
+                    prefix = '# panel-' + key + ': '
+                    if line.startswith(prefix):
+                        fields[key] = REDACTOR(line[len(prefix):])[:300]
+        except (OSError, ValueError, UnicodeError):
+            pass
+        metadata[script] = fields
+    matcher = group.get('matcher')
+    return {'handler': script, **metadata[script],
+            'matcher': REDACTOR(matcher)[:160] if isinstance(matcher, str) else ''}
+
+
 def _hooks(root, warnings):
     path = root / 'hooks/hooks.json'
     if not path.exists():
@@ -133,12 +173,12 @@ def _hooks(root, warnings):
         events = json.loads(_read(root, path)).get('hooks', {})
         if not isinstance(events, dict):
             raise ValueError('invalid events')
-        result = []
+        result, metadata = [], {}
         for event in sorted(events):
             for group in events[event]:
                 for hook in group.get('hooks', []):
                     timeout = hook.get('timeout')
-                    result.append({'event': event, 'timeout': timeout if isinstance(timeout, (int, float)) else None, 'scope': 'global'})
+                    result.append({'event': event, 'timeout': timeout if isinstance(timeout, (int, float)) else None, 'scope': 'global', **_hook_metadata(root, hook, group, metadata)})
         return result
     except (OSError, UnicodeError, ValueError, TypeError, AttributeError):
         warnings.append('hooks/hooks.json: inventory unavailable')
@@ -168,7 +208,42 @@ def build_inventory(root):
     data['counts'] = {kind: len(data[kind]) for kind in ('agents', 'skills', 'commands', 'tools', 'hooks')}
     data['runtimes'] = {runtime: _presence(root, relative) for runtime, relative in {'claude': 'hooks/hooks.json', 'codex': 'interop/codex/hooks.json', 'opencode': 'interop/opencode/plugins/custom-agents-hooks.js'}.items()}
     data['memory'] = {'approved_directory': _presence(root, 'docs/knowledge/approved'), 'graphify_artifact': _presence(root, 'graphify-out/graph.json')}
+    data['workflow'] = _workflow(root, data['warnings'])
     return _redact_values(data)
+
+
+def _workflow(root, warnings):
+    source = 'agent-kits/shared/capability-catalog.json'
+    result = {'source': source, 'selection_only': True, 'roles': {}}
+    if not (root / source).exists():
+        return result
+    try:
+        # --root chooses inspected data only. Executable validation stays in this bundle.
+        path = Path(__file__).resolve().parents[3] / 'agent-kits/shared/capability-route.py'
+        spec = importlib.util.spec_from_file_location('panel_capability_route', path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        catalog = json.loads(_read(root, root / source))
+        if module.validate_catalog(catalog, bundle=root):
+            raise ValueError('invalid catalog')
+        result['roles'] = {role: sorted(entry['id'] for entry in catalog['capabilities'] if role in entry['roles']) for role in module.ROLES}
+    except (OSError, ValueError, UnicodeError, RecursionError):
+        warnings.append(f'{source}: routing metadata unavailable')
+    return result
+
+
+def _workflow_html(data):
+    roles = data.get('workflow', {}).get('roles', {})
+    responsibilities = {entry['name']: entry['description'] for entry in data.get('agents', [])}
+    rows = ''.join(
+        '<article class="workflow-role" id="role-' + html.escape(role) + '" data-role="' + html.escape(role) + '"><div class="role-heading"><span class="role-avatar" aria-hidden="true">' + html.escape(role[:2].upper()) + '</span><h3>' + html.escape(role) + '</h3></div>'
+        + '<details><summary>Responsabilidades y guías</summary><p class="responsibility">Responsabilidad: ' + html.escape(responsibilities.get(role, 'Definición del rol no disponible en esta instantánea')) + '</p>'
+        + '<p>Guías seleccionadas:</p><div>' + ''.join('<span class="guide-chip">' + html.escape(guide) + '</span>' for guide in guides) + '</div></details></article>'
+        for role, guides in roles.items()
+    )
+    if not rows:
+        rows = '<p>Registro de selección ausente o inválido. El catálogo de archivos sigue disponible.</p>'
+    return '<section id="workflow"><div class="section-head"><div><h2>Tu workflow, rol a rol</h2><p>Responsabilidades propias y guías compartidas por el ciclo. Esta selección no acredita ejecución, acceso a herramientas ni permisos.</p></div><span class="section-pill">Una cadena compartida</span></div><div class="workflow-roles">' + rows + '</div></section>'
 
 
 def _cards(data):
@@ -177,26 +252,56 @@ def _cards(data):
         for entry in data[kind]:
             esc = lambda value: html.escape(str(value), quote=True)
             detail = esc(entry['model'] or ', '.join(entry['tools']))
-            cards.append(f'<article data-kind="{kind}" class="card"><small>{kind} · {detail}</small><h2>{esc(entry["name"])}</h2><p>{esc(entry["description"])}</p><code>{esc(entry["source"])}</code></article>')
+            labels = {'agents': 'AGENTE', 'skills': 'SKILL', 'commands': 'COMANDO'}
+            teaser = entry['description'][:130].rsplit(' ', 1)[0] if len(entry['description']) > 130 else entry['description']
+            cards.append(f'<article data-kind="{kind}" class="card"><small>{labels[kind]} · {detail}</small><h2>{esc(entry["name"])}</h2><p>{esc(teaser)}{"…" if len(teaser) < len(entry["description"]) else ""}</p><details><summary>Ver función y origen</summary><p>{esc(entry["description"])}</p><code>{esc(entry["source"])}</code></details></article>')
     for tool in data['tools']:
-        cards.append(f'<article data-kind="tools" class="card"><small>DECLARED TOOL</small><h2>{html.escape(tool)}</h2><p>Availability depends on the current runtime.</p></article>')
+        cards.append(f'<article data-kind="tools" class="card"><small>HERRAMIENTA DECLARADA</small><h2>{html.escape(tool)}</h2><p>El acceso depende de las herramientas habilitadas en la sesión y del runtime actual.</p></article>')
+    grouped = {}
     for hook in data['hooks']:
-        cards.append(f'<article data-kind="hooks" class="card"><small>GLOBAL HOOK</small><h2>{html.escape(hook["event"])}</h2><p>Timeout: {html.escape(str(hook["timeout"]))} s. Definition only; execution not measured.</p></article>')
+        grouped.setdefault(hook['event'], []).append(hook)
+    for event, hooks in grouped.items():
+        handlers = ''.join(
+            '<li><strong>' + html.escape(hook.get('title', f'Acción {index}')) + '</strong>'
+            + ('<p>' + html.escape(hook['description']) + '</p><code>' + html.escape(hook['handler']) + '</code><span class="hook-meta">Activación: '
+               + html.escape(hook['matcher'].replace('|', ' · ') or 'Cada ocurrencia del evento') + '</span>' if 'handler' in hook else '<p>Función pública no identificada en esta definición.</p>')
+            + ('<span class="hook-meta"> · Timeout: ' + html.escape(str(hook['timeout'])) + ' s</span>' if hook['timeout'] is not None else '') + '</li>'
+            for index, hook in enumerate(hooks, 1)
+        )
+        cards.append(f'<article data-kind="hooks" class="card"><small>EVENTO DE HOOK</small><h2>{html.escape(event)}</h2><p>{len(hooks)} acciones configuradas. Su ejecución no se mide en este panel.</p><ul class="hook-handlers">{handlers}</ul></article>')
     return '\n'.join(cards)
 
 
+def _flow_html(data):
+    stages = [
+        ('discover', 'Descubrir', 'Definir requisitos y evaluar alcance, esfuerzo y riesgos.', ('analyst', 'evaluator')),
+        ('design', 'Diseñar', 'Comparar opciones y definir la arquitectura de la iniciativa.', ('architect',)),
+        ('plan', 'Planificar', 'Ordenar tareas, dependencias y criterios de aceptación.', ('planner',)),
+        ('build', 'Construir', 'Implementar las tareas del plan y sus pruebas.', ('implementer',)),
+        ('review', 'Revisar', 'Comprobar conformidad y defectos con revisión independiente.', ('reviewer',)),
+        ('validate', 'Validar', 'Ejecutar QA y revisar seguridad cuando corresponda.', ('qa', 'nemesis')),
+    ]
+    available = {entry['name'] for entry in data['agents']} & set(data.get('workflow', {}).get('roles', {}))
+    buttons, panels = [], []
+    for index, (identifier, title, purpose, roles) in enumerate(stages):
+        buttons.append(f'<button type="button" id="flow-button-{identifier}" aria-controls="flow-{identifier}" aria-pressed="{str(index == 0).lower()}">{title}</button>')
+        links = ''.join(f'<a href="#role-{role}">{role} →</a>' for role in roles if role in available)
+        panels.append(f'<div class="flow-detail" id="flow-{identifier}" aria-labelledby="flow-button-{identifier}" {"hidden" if index else ""}><strong>{title}</strong><p>{purpose}</p><div class="flow-role-links">{links or "Roles no disponibles en esta instantánea."}</div></div>')
+    return '<div class="flow-steps" aria-label="Etapas del workflow">' + ''.join(buttons) + '</div>' + ''.join(panels)
+
+
 def render_html(data):
-    stats = ''.join(f'<div class="stat"><strong>{count}</strong><span>{kind}</span></div>' for kind, count in data['counts'].items())
+    counts = {**data['counts'], 'hooks': len({hook['event'] for hook in data['hooks']})}
+    labels = {'agents': 'Agentes', 'skills': 'Skills', 'commands': 'Comandos', 'tools': 'Herramientas', 'hooks': 'Eventos de hook'}
+    stats = ''.join(f'<div class="stat"><strong>{count}</strong><span>{labels[kind]}</span></div>' for kind, count in counts.items())
     notes = html.escape(json.dumps({'runtimes': data['runtimes'], 'memory': data['memory'], 'warnings': data['warnings']}, ensure_ascii=False, indent=2))
-    return MARKER + '''
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
-<title>Custom Agents · Control panel</title><style>
-:root{color-scheme:dark;font-family:system-ui,sans-serif;background:#0b1120;color:#e7edf7}*{box-sizing:border-box}body{margin:0}main{max-width:1280px;margin:auto;padding:48px 28px}.tag{color:#62d4bf;font-size:12px;letter-spacing:.18em;text-transform:uppercase}h1{font-size:clamp(32px,5vw,50px);letter-spacing:-.04em;margin:12px 0}header p{max-width:760px;color:#94a3b8;line-height:1.6}.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin:28px 0}.stat,.card{background:#121c2e;border:1px solid #26344b;border-radius:14px}.stat{padding:18px}.stat strong{display:block;font-size:30px}.stat span,small{color:#8b9fb9;font-size:12px}.controls{display:flex;gap:12px;margin-bottom:24px}input,select{padding:14px 18px;border:1px solid #31435e;border-radius:10px;background:#121c2e;color:#e7edf7;font:inherit}input{flex:1;min-width:0}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}.card{padding:22px;overflow-wrap:anywhere}.card h2{font-size:19px;margin:14px 0}.card p{color:#aebdd0;line-height:1.55;font-size:14px}.card code{font-size:11px;color:#6ed7c6}details{margin-top:28px;padding:20px;border:1px solid #26344b;border-radius:12px}pre{white-space:pre-wrap;font-size:12px;color:#aebdd0}footer{font-size:12px;color:#8b9fb9;margin-top:32px}@media(max-width:640px){main{padding:28px 16px}.stats{grid-template-columns:repeat(3,1fr)}.controls{flex-direction:column}}
-</style></head><body><main><header><div class="tag">Custom Agents / Local capabilities</div><h1>Your plugin, at a glance.</h1><p>Explore agents, skills, commands, declared tools and global hooks. This snapshot reads public definitions. It does not run hooks, change settings or establish service health.</p></header><section class="stats">''' + stats + '''</section>
-<div class="controls"><input id="search" type="search" placeholder="Search capabilities…" aria-label="Search capabilities"><select id="kind" aria-label="Capability type"><option value="all">All capabilities</option><option>agents</option><option>skills</option><option>commands</option><option>tools</option><option>hooks</option></select></div><p id="results" aria-live="polite"></p><section class="grid">''' + _cards(data) + '''</section><details><summary>Runtime and memory source presence</summary><pre>''' + notes + '''</pre></details><footer>Static local snapshot · Rebuild to refresh · Agent guards live in agent definitions. Workflow orchestration lives in commands; initiative progress lives in the roadmap dashboard.</footer></main><script>
-const search=document.getElementById('search'),kind=document.getElementById('kind'),cards=[...document.querySelectorAll('.card')];function filter(){let count=0;const query=search.value.toLocaleLowerCase();for(const card of cards){const visible=(kind.value==='all'||card.dataset.kind===kind.value)&&card.textContent.toLocaleLowerCase().includes(query);card.hidden=!visible;if(visible)count++;}document.getElementById('results').textContent=count+' capabilities shown';}search.addEventListener('input',filter);kind.addEventListener('change',filter);filter();
-</script></body></html>'''
+    try:
+        template = _read(TEMPLATE.parent, TEMPLATE)
+    except (OSError, UnicodeError, ValueError):
+        raise ValueError('bundled panel template unavailable') from None
+    values = {'STATS': stats, 'CARDS': _cards(data), 'WORKFLOW': _workflow_html(data), 'NOTES': notes, 'FLOW': _flow_html(data)}
+    return MARKER + re.sub(r'@@(STATS|CARDS|WORKFLOW|NOTES|FLOW)@@', lambda match: values[match.group(1)], template)
+
 
 
 def _write_html(path, text):

@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# panel-title: Contexto de sesión
+# panel-description: Recupera trabajo pendiente del journal y aporta contexto al iniciar, retomar o compactar una sesión.
 # Hook SessionStart (matcher `startup|resume|compact`): inyecta como contexto de sesión
 #   (0) RECONCILIACIÓN PRESUPUESTADA del journal (session-end-durable-capture T-05, gap 13 de la
 #       revisión: hasta esta pieza nadie invocaba `journal.py replay` fuera de una prueba manual, así

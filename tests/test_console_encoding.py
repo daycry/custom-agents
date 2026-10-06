@@ -367,6 +367,13 @@ def _modos():
     release = ('{"tag_name":"v1.0.0","body":"Arreglos 🐛 y mejoras 👍","assets":'
                '[{"name":"tool_linux_amd64.tar.gz","browser_download_url":"https://x/y"}]}')
     return {
+        "skills/outcome-evals/scripts/report_outcomes.py":
+            [("resultados JSON", lambda w: [os.path.join(w, "outcomes.json")], (0,), None)],
+        "agent-kits/shared/code-context.py":
+            [("sin grafo", lambda w: ["--project", w, "--symbol", "missing"], (2,), None)],
+        "agent-kits/shared/capability-route.py":
+            [("catalogo JSON", lambda w: ["--check", "--json"], (0,), None),
+             ("seleccion local", lambda w: ["--project", w, "--stack", "python", "--json"], (0,), None)],
         "skills/plugin-panel/scripts/build_panel.py":
             [("catalogo JSON", lambda w: ["--json"], (0,), None)],
         "agent-kits/nemesis/tools/pick_asset.py":
@@ -515,6 +522,8 @@ def taller(tmp_path_factory):
     (w / "src").mkdir()
     (w / "src" / "a.py").write_text("def f():\n    return 1\n" * 3, encoding="utf-8")
     (w / "requirements.txt").write_text("requests==2.0.0\n", encoding="utf-8")
+    (w / "outcomes.xml").write_text('<testsuite tests="1"><testcase name="contract"/></testsuite>', encoding="utf-8")
+    (w / "outcomes.json").write_text(json.dumps({"version": 1, "runs": [{"id": "run-1", "case": "console", "variant": "baseline", "revision": "a" * 40, "fixture_sha256": "b" * 64, "conditions": "local", "result": "outcomes.xml", "measurements": None}]}), encoding="utf-8")
     (w / "api.json").write_text(json.dumps(
         {"openapi": "3.0.3", "info": {"title": "Demo", "version": "1.0.0"}, "paths": {}}), encoding="utf-8")
     (w / "results.json").write_text(json.dumps({"suites": [{"title": "s", "specs": [
@@ -665,6 +674,24 @@ def test_los_exentos_de_simbolos_lo_estan_por_medicion(rel, encoding, taller):
     assert not any(b > 127 for b in salida), (
         f"{rel} SÍ imprime no-ASCII con PYTHONIOENCODING={encoding}: sácalo de "
         f"SIN_SIMBOLOS_EN_LA_SALIDA para que se le exija salida UTF-8 íntegra\n{salida[:300]!r}")
+
+
+@pytest.mark.parametrize('encoding', ENCODINGS)
+@pytest.mark.parametrize('rel', [
+    'agent-kits/shared/capability-route.py',
+    'agent-kits/shared/code-context.py',
+    'skills/outcome-evals/scripts/report_outcomes.py',
+])
+def test_native_context_clis_in_non_utf8_consoles(rel, encoding, taller):
+    # ASCII source does not require a source-symbol exemption. Exercise CLI modes
+    # explicitly because their bounded JSON data may contain Unicode at runtime.
+    source = open(os.path.join(ROOT, rel), encoding='utf-8').read()
+    assert snippet_al_arrancar(source)
+    for label, args, exits, stdin in MODOS[rel]:
+        result = _ejecutar(rel, args(taller), stdin, encoding)
+        assert result.returncode in exits, (rel, label, result.stderr)
+        output = (result.stdout + result.stderr).decode('utf-8')
+        assert 'Traceback' not in output and 'UnicodeEncodeError' not in output
 
 
 # --------------------------------------------------------------- 3. el lado STDIN del mismo bug

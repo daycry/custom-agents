@@ -4,6 +4,8 @@ Fragmentos de prompt que usan **varios** agentes y que deben tener **una única 
 
 | Fragmento | Qué contiene | Lo usan |
 |-----------|--------------|---------|
+| `capability-check.md`, `capability-route.py`, `capability-catalog.json` | Selección común por rol/fase/stack/área; manifiestos locales acotados, procedencia y fallback; sin ejecución de código del proyecto | Todos los roles, `/work-context`, `/pm-cycle`, `/dev-cycle` |
+| `code-context.py` | Consulta stdlib de AST citado en un grafo local existente: límites, fuentes dentro del paquete, cobertura/frescura no verificadas; sin extracción ni promoción de conocimiento | `architect`, `implementer`, `reviewer`, `qa`, paso `knowledge-check.md` |
 | `estimation-defaults.md` | Parámetros de estimación (tarifa, supervisión, margen, FTE…) + regla de `.claude/rates.json` | `evaluator`, `planner` |
 | `confluence-optin.md` | Paso «Sincronizar con Confluence (opt-in)» | `evaluator`, `planner`, `qa`, `documenter` |
 | `ledger-lint.py` | Validación mecánica del ledger `tasks.md` (exit code; `--warn-only` para el hook); con `verificacion: obligatoria` en el frontmatter, una tarea sin `- **Verificación**:` es incoherencia dura (sin la clave: aviso solo si el ledger ya usa el campo — los ledgers legacy validan idéntico); expone `parse_ledger()` como módulo (campo `verificacion` por tarea) | `implementer`, `qa`, `/dev-cycle`, hook `ledger-lint-warn.sh`, `progress-report.py` |

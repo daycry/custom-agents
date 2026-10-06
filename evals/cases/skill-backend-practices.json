@@ -1,0 +1,35 @@
+{
+  "target": "skill:backend-practices",
+  "cases": [
+    {
+      "id": "backend-practices-literal",
+      "prompt": "criterios backend",
+      "trigger": "literal",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "backend-practices"
+        ]
+      }
+    },
+    {
+      "id": "backend-practices-parafrasis",
+      "prompt": "Tenemos clientes antiguos y necesitamos cambiar una columna mientras siguen leyendo y escribiendo.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "backend-practices"
+        ]
+      }
+    },
+    {
+      "id": "backend-practices-negativo",
+      "prompt": "Necesito validar mecánicamente una spec OpenAPI.",
+      "expect": {
+        "activates": false,
+        "redirect": "skill:api-contract"
+      }
+    }
+  ]
+}

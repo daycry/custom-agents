@@ -1,0 +1,35 @@
+{
+  "target": "skill:delivery-practices",
+  "cases": [
+    {
+      "id": "delivery-practices-literal",
+      "prompt": "preparar entrega",
+      "trigger": "literal",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "delivery-practices"
+        ]
+      }
+    },
+    {
+      "id": "delivery-practices-parafrasis",
+      "prompt": "Necesito revisar la imagen que se va a publicar y comprobar arranque y recuperación.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "delivery-practices"
+        ]
+      }
+    },
+    {
+      "id": "delivery-practices-negativo",
+      "prompt": "Necesito una auditoría completa de vulnerabilidades del código.",
+      "expect": {
+        "activates": false,
+        "redirect": "skill:cybersecurity"
+      }
+    }
+  ]
+}

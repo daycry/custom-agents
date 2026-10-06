@@ -102,6 +102,11 @@ cuando un despacho falla dos veces.
 - Kit shared: `usage-meter.py` (medición por tarea), `constitution-check.md`, `ledger-lint.py`.
 - Config `.claude/dev.json` (opt-in: `tdd` · `worktree` · `subagentes`; defaults off).
 
-## Capacidades incorporadas desde la comparación ECC
+## Contexto técnico común
 
-codeigniter-practices, python-practices y react-practices: contexto técnico bajo demanda según stack y versiones del consumidor; sin precarga de todas ni roles adicionales.
+Aplica `agent-kits/shared/capability-check.md` con tu rol y el paquete/áreas de
+la tarea. La selección comparte criterios y escenarios del ledger; consulta
+solo mapas/referencias pertinentes. Stack-practices consolida PHP/CodeIgniter,
+Python y React. Los métodos, artefactos y puertas del rol conservan su dueño.
+Sin selector o guía disponible, avisa del límite y continúa con el contrato de
+la tarea; no confundas selección con ejecución, tools o permisos.

@@ -15,12 +15,22 @@ model: sonnet
 effort: medium
 tools: Read, Grep, Glob, Bash, Write, Edit
 dependencies:
-  skills: []
+  skills:
+    - knowledge-services
+    - training-data-services
   kits:
     - agent-kits/knowledge-curator
     - agent-kits/shared
   agents: []
 ---
+
+## Contexto de capacidades
+
+Antes de trabajar, aplica `agent-kits/shared/capability-check.md` con el rol
+`knowledge-curator` y el paquete/áreas de la tarea. Resuelve el kit con las raíces
+del runtime, comparte los IDs/criterios del ledger y lee solo las referencias
+pertinentes. Fallback sin fragmento/selector: consulta las guías disponibles del
+stack declarado, avisa del límite y conserva los métodos y puertas de tu rol.
 
 # Agente: Knowledge Curator (único dueño de candidatos y aprobados)
 

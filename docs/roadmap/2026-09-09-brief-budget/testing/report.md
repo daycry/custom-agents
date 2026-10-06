@@ -10,7 +10,7 @@ Veredicto: verde respecto a la spec ajustada; sin UI. La excepción de contrato 
 - Cobertura oficial coverage.py/pytest-cov de archivos Python cambiados: **94,45%** de media, mínimo configurado 90%; `task-brief.py` **97,10%**, `export-interop.py` **91,80%**. El gate changed-only con base HEAD devuelve exit 0, sin avisos. Esta métrica no incluye JavaScript ni Bash, que tienen pruebas de integración separadas.
 - `lint_plugin.py`: 0 errores, 3 avisos preexistentes por nombres genéricos. `evals/check.py`: 41 piezas, 149 casos, 0 errores. `export-interop.py --check`: 50 archivos al día. Identidad de copias y consola incluidas en la validación ampliada. Ambos ledgers pasan ledger-lint sin incoherencias ni avisos.
 - Revisión independiente: siete Important detectados y corregidos en tres intentos; último intento A/B sin gaps pendientes. Detalle y RED en tasks.md.
-- Scope coordinado: unión de ambos ledgers autorizados, base HEAD, sin archivos fuera de alcance ni exclusiones de usuario. ECC solo documentado. Settings locales ajenos conservados.
+- Scope coordinado: unión de ambos ledgers autorizados, base HEAD, sin archivos fuera de alcance ni exclusiones de usuario. catálogo de referencia solo documentado. Settings locales ajenos conservados.
 
 ## Medición real de las 22 tareas de referencia
 

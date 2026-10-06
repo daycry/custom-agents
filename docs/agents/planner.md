@@ -81,3 +81,12 @@ Vocabulario **único** para plan, fase y tarea (un plan/tarea recién generado n
 **Prioridades** (cuatro niveles con color, default `Media`):
 
 `Baja` 🟢 · `Media` 🟡 · `Alta` 🟠 · `Crítica` 🔴
+
+## Contexto técnico común
+
+Aplica `agent-kits/shared/capability-check.md` con tu rol y el paquete/áreas de
+la tarea. La selección comparte criterios y escenarios del ledger; consulta
+solo mapas/referencias pertinentes. Stack-practices consolida PHP/CodeIgniter,
+Python y React. Los métodos, artefactos y puertas del rol conservan su dueño.
+Sin selector o guía disponible, avisa del límite y continúa con el contrato de
+la tarea; no confundas selección con ejecución, tools o permisos.

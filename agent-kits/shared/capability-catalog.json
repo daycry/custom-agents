@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "capabilities": [
+    {"id":"research-first","roles":["analyst","architect","evaluator"],"stacks":[],"areas":["research"]},
+    {"id":"stack-practices","roles":["architect","planner","implementer","reviewer","qa"],"stacks":["codeigniter4","php","python","react"],"areas":[]},
+    {"id":"backend-practices","roles":["analyst","architect","planner","implementer","reviewer","qa"],"stacks":["codeigniter4","php"],"areas":["api","data"]},
+    {"id":"frontend-quality","roles":["architect","planner","implementer","reviewer","qa"],"stacks":["react"],"areas":["frontend","accessibility"]},
+    {"id":"delivery-practices","roles":["architect","planner","implementer","reviewer","qa"],"stacks":[],"areas":["delivery","mcp"]},
+    {"id":"capability-audit","roles":["analyst","evaluator","architect","reviewer"],"stacks":[],"areas":["catalog"]},
+    {"id":"outcome-evals","roles":["evaluator","planner","qa","reviewer"],"stacks":[],"areas":["evaluation"]},
+    {"id":"api-contract","roles":["analyst","architect","planner","implementer","reviewer","qa"],"stacks":[],"areas":["api"]},
+    {"id":"dependency-upgrade","roles":["analyst","evaluator","planner"],"stacks":[],"areas":["dependencies"]},
+    {"id":"cybersecurity","roles":["reviewer","nemesis"],"stacks":[],"areas":["security"]},
+    {"id":"unit-tests","roles":["implementer","qa"],"stacks":[],"areas":["testing"]},
+    {"id":"code-health","roles":["evaluator","planner","reviewer"],"stacks":[],"areas":["performance","catalog"]},
+    {"id":"knowledge-services","roles":["knowledge-curator","documenter","architect"],"stacks":[],"areas":["memory"]},
+    {"id":"training-data-services","roles":["knowledge-curator","qa"],"stacks":[],"areas":["evaluation"]},
+    {"id":"plugin-panel","roles":["analyst","documenter"],"stacks":[],"areas":["catalog"]}
+  ]
+}

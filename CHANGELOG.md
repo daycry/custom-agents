@@ -9,13 +9,19 @@ and versioning follows [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
-### Added — `ecc-capabilities` initiative (2026-10-06)
+### Changed — native workflow integration (2026-10-06)
 
-- **T-01 — Compare ECC, Graphify and current memory** Documents selective ECC adoption and Graphify as a possible structural complement to curated memory. (`docs/roadmap/2026-10-06-ecc-capabilities/**`, `docs/roadmap/README.md`)
+- Shared role/phase/stack/area selection carries guidance IDs into task briefs and preserves existing review, QA and knowledge gates. `/work-context` exposes the same selection without starting another cycle.
+- Consolidate the three initial stack guides into `stack-practices`; add backend, frontend, delivery, capability audit and outcome evaluation guides. Outcome reporting reads existing JUnit evidence with explicit comparison conditions and measured or absent usage data.
+- The local capability panel shows native role responsibilities and routed guides. Optional cited AST context remains separate from approved memory; OneDrive CLOUD placeholders are supported while redirecting and unknown reparse points are excluded.
+
+### Added — `capability-foundation` initiative (2026-10-06)
+
+- **T-01 — Compare reference capabilities, Graphify and current memory** Documents selective capability adoption and Graphify as a possible structural complement to curated memory. (`docs/roadmap/2026-10-06-capability-foundation/**`, `docs/roadmap/README.md`)
 - **T-02 — Research before building** Analyst and architect can compare existing solutions before designing integrations or tools with research-first.
 - **T-03 — Capability control panel** plugin-catalog generates a searchable local catalog with central redaction and runtime/memory source presence.
 - **T-04 — Practices for the three stacks** Development roles gain task-specific guidance for CodeIgniter 4, Python and React.
-- **T-05 — Validate, document and push the branch** The first ECC integration preserves contracts across all three runtimes and documents its capabilities and memory limits.
+- **T-05 — Validate, document and push the branch** The first capability integration preserves contracts across all three runtimes and documents its capabilities and memory limits.
 
 ### Fixed — `plugin-refactor` initiative (2026-09-09)
 

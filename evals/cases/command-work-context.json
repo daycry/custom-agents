@@ -1,0 +1,35 @@
+{
+  "target": "command:work-context",
+  "cases": [
+    {
+      "id": "work-context-literal",
+      "prompt": "/work-context . implementer python api: selecciona las guías del plugin",
+      "trigger": "literal",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "capability-route"
+        ]
+      }
+    },
+    {
+      "id": "work-context-parafrasis",
+      "prompt": "Qué guías del plugin corresponden a este paquete Python cuando diseño su API?",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "capability-route"
+        ]
+      }
+    },
+    {
+      "id": "work-context-negativo",
+      "prompt": "Genera el panel HTML con todas las piezas del plugin.",
+      "expect": {
+        "activates": false,
+        "redirect": "command:plugin-catalog"
+      }
+    }
+  ]
+}

@@ -21,6 +21,14 @@ dependencies:
   agents: []         # otros agentes de los que depende (ninguno por ahora)
 ---
 
+## Contexto de capacidades
+
+Antes de trabajar, aplica `agent-kits/shared/capability-check.md` con el rol
+`nemesis` y el paquete/áreas de la tarea. Resuelve el kit con las raíces
+del runtime, comparte los IDs/criterios del ledger y lee solo las referencias
+pertinentes. Fallback sin fragmento/selector: consulta las guías disponibles del
+stack declarado, avisa del límite y conserva los métodos y puertas de tu rol.
+
 # Agente: Nemesis (orquestador)
 
 ## Rol
