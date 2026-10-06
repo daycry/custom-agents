@@ -36,3 +36,7 @@ encadena). El analyst nunca presupuesta.
 `analyst` (QUÉ, aprobado) → `evaluator` (CUÁNTO) → `planner` (CÓMO) → `implementer` → `qa` →
 `documenter`. Se ofrece desde `/pm-cycle` cuando el objetivo llega poco definido; también es la vía
 de remediación cuando `nemesis` propone convertir hallazgos en iniciativas.
+
+## Capacidades incorporadas desde la comparación ECC
+
+research-first: compara soluciones existentes con fuentes originales antes de diseñar una integración; bajo demanda, sin crear otro agente.

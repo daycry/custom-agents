@@ -20,6 +20,7 @@ flowchart TD
     DIR(["👔 Management"]) --> V1["/roadmap-brief<br/>one-pager PDF"]
     TODOS(["👀 Anyone"]) --> V0["/doctor<br/>is it installed correctly?"]
     TODOS --> V2["/roadmap-status<br/>dashboard"]
+    TODOS --> V5["/plugin-catalog<br/>plugin capabilities"]
     TODOS --> V3["/roadmap-metrics<br/>actual vs estimated"]
     TODOS --> V4["/roadmap-live<br/>live Jira"]
     P1 -->|go| D1
@@ -28,6 +29,11 @@ flowchart TD
 ```
 
 ## 1 · The complete chain of an initiative
+
+Research-first supports analyst/architect when comparing integrations or new
+tools. Codeigniter-practices, python-practices and react-practices supply stack
+context to implementer/reviewer/qa on demand, without preloading every guide
+or changing ownership of cycle artifacts.
 
 **Product** phase: `analyst → evaluator` (+ optional `architect` after the go). **Development** phase: `planner → implementer → qa`. The adversarial review dispatches its lenses to the read-only `reviewer` agent.
 

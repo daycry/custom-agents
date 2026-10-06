@@ -106,7 +106,7 @@ npx @daycry/custom-agents            # interactive menu; marks the runtimes it d
 
 | Runtime | Install | What you get |
 |---|---|---|
-| **Claude Code** | `/plugin marketplace add daycry/custom-agents` (or the installer) | Everything: 10 agents, 12 commands, 18 skills, hooks, status line |
+| **Claude Code** | `/plugin marketplace add daycry/custom-agents` (or the installer) | Everything: 10 agents, 13 commands, 24 skills, hooks, status line |
 | **Codex** | `codex plugin marketplace add daycry/custom-agents` (or the installer) | Skills, agents as `.toml`, commands as `/prompt:<name>` (sometimes `/prompts:<name>`), session hooks |
 | **OpenCode** | `npx @daycry/custom-agents install -p opencode` | Skills, agents, commands, hook adapter |
 
@@ -206,7 +206,7 @@ flowchart LR
 ```
 
 <details>
-<summary><b>The 10 agents and the 12 commands</b> (click to expand)</summary>
+<summary><b>The 10 agents and the 13 commands</b> (click to expand)</summary>
 
 | Agent | What it does |
 |--------|----------|
@@ -236,9 +236,10 @@ flowchart LR
 | `/spec-drift` | Does the code still honor the implemented specs? |
 | `/retro` | Closes the loop: deviations + causes → `CALIBRATION.md`. |
 | `/confluence-pull` | Confluence → local `docs/` (PM without git). |
+| `/plugin-catalog` | Search agents, skills, commands, declared tools and hooks in a local capability panel. |
 | `/doctor` | Deterministic install diagnosis: tools, plugin/hooks, statusline, `.claude/` configs, work state — ✅/⚠️/❌ verdict with the fix per line, read-only, no network. |
 
-Shared skills: `jira-sync` · `confluence-publish` / `confluence-pull` · `roadmap-dashboard` · `debug-root-cause` · `adversarial-review` · `cybersecurity` · `to-pdf` · `rates-verify` · `plugin-dev` · `quick-implement` · `tdd` · `code-health` · `dependency-upgrade` · `changelog-sync` · `unit-tests` · `api-contract` · `knowledge-services` · `training-data-services`. Deterministic scripts (all with tests): `usage-meter` · `task-brief` · `model-tier` · `journal` · `code-health` · `deps-inventory` · `worklog` · `qa-gate` · `ledger-lint` · `coverage-check` · `build_dashboard` · `lint_plugin`.
+Shared skills: `jira-sync` · `confluence-publish` / `confluence-pull` · `roadmap-dashboard` · `debug-root-cause` · `adversarial-review` · `cybersecurity` · `to-pdf` · `rates-verify` · `plugin-dev` · `quick-implement` · `tdd` · `code-health` · `dependency-upgrade` · `changelog-sync` · `unit-tests` · `api-contract` · `knowledge-services` · `training-data-services` · `research-first` · `plugin-panel` · `codeigniter-practices` · `python-practices` · `react-practices`. Deterministic scripts (all with tests): `usage-meter` · `task-brief` · `model-tier` · `journal` · `code-health` · `deps-inventory` · `worklog` · `qa-gate` · `ledger-lint` · `coverage-check` · `build_dashboard` · `lint_plugin`.
 
 </details>
 

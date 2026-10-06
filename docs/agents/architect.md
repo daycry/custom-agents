@@ -44,3 +44,7 @@ la Lente A. Desactivable en `.claude/dev.json` `guardrails`; sin `python3`, avis
 ## Dependencias
 - Kit `agent-kits/architect` (plantilla `design.md`) · fragmentos `agent-kits/shared` (`knowledge-write.md`, `knowledge-check.md`, `constitution-check.md`, `read-discipline.md`, `docs-style.md`, `output-discipline.md`, `usage-meter.py`).
 - Handoff al agente `planner`.
+
+## Capacidades incorporadas desde la comparación ECC
+
+research-first: compara soluciones existentes con fuentes originales antes de diseñar una integración; bajo demanda, sin crear otro agente.

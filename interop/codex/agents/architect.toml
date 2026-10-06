@@ -150,4 +150,12 @@ Formato y reglas: `"$SHAREDKIT/rationalization-table.md"`. Si te oyes decir una 
 - [ ] ADR `propuesta` + fila en `docs/knowledge/README.md` si cruza el umbral (o `adr: n/a` justificado); `design:` en `spec.md` (y en `improvement-plan.md` si existe).
 - [ ] Bloque `generacion:` rellenado (o `fuente: estimado` con aviso); handoff a `planner` con la opción a respetar.
 Pega en tu resumen el `grep` de placeholders, la opción elegida y la ruta del ADR.
+
+## Investigación previa bajo demanda
+
+Ante una integración, dependencia o herramienta nueva, usa research-first para
+comparar lo existente antes de diseñar. Busca en el repo y, con WebFetch/WebSearch
+si están disponibles, en fuentes originales. Un canal sin acceso se declara
+como límite. Conserva tu artefacto y responsabilidad; la investigación no
+instala paquetes ni requiere otro agente. No la precargues para tareas rutinarias.
 '''

@@ -105,9 +105,9 @@ Cinco garantías del instalador, con test cada una en `tests/installer.test.mjs`
 
 | Pieza del plugin | Claude Code | Codex | OpenCode |
 |---|---|---|---|
-| **Skills** (18) | `.claude/skills/` | `skills/` del plugin (el manifiesto apunta ahí) | `.opencode/skills/` — *o* `.claude/skills/`, que lee de forma nativa |
+| **Skills** (24) | `.claude/skills/` | `skills/` del plugin (el manifiesto apunta ahí) | `.opencode/skills/` — *o* `.claude/skills/`, que lee de forma nativa |
 | **Agentes** (10) | `agents/*.md` | `.codex/agents/*.toml` (generado) | `.opencode/agents/*.md` (generado) |
-| **Comandos** (12) | `commands/*.md` (`/nombre`) | `~/.codex/prompts/*.md` (`/prompt:nombre`, a veces `/prompts:nombre`) | `.opencode/commands/*.md` (`/nombre`) |
+| **Comandos** (13) | `commands/*.md` (`/nombre`) | `~/.codex/prompts/*.md` (`/prompt:nombre`, a veces `/prompts:nombre`) | `.opencode/commands/*.md` (`/nombre`) |
 | **Hooks** | `hooks/hooks.json` | `interop/codex/hooks.json` (subconjunto) | `.opencode/plugins/custom-agents-hooks.js` (adaptador JS) |
 | **Kits** (`agent-kits/`) | `.claude/agent-kits/` | dentro del plugin | `.opencode/agent-kits/` |
 | **Manifiesto** (`plugin.json`, de donde sale la versión) | dentro del plugin instalado (`.claude-plugin/`) | `.codex-plugin/plugin.json` | `.claude-plugin/plugin.json` — lo que `/doctor` lee para decir la versión (con fallback al de Codex) |

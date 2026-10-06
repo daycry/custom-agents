@@ -11,6 +11,9 @@ tools: Read, Grep, Glob, Bash
 dependencies:
   skills:                    # el método, la graduación y la tabla de racionalización viven en la skill
     - adversarial-review
+    - codeigniter-practices
+    - python-practices
+    - react-practices
   kits:                      # fragmentos: personas (Lente B), docs-style (Lente A en prosa), output-discipline
     - agent-kits/shared
   agents: []                 # no hace handoff: devuelve su salida a la skill/orquestador
@@ -77,3 +80,11 @@ Fuera de mi lente (no reportado): <si viste algo de otra lente, una línea para 
   («Racionalizaciones del REVISOR que NO valen») — aplícala tal cual; aquí no se duplica.
 - Salida ≤ lo necesario para que la skill fusione (`"$SHAREDKIT/output-discipline.md"`): tablas, no ensayo.
 - Si no puedes obtener el diff o los artefactos, `NEEDS_CONTEXT: <qué>`; nunca revises de memoria.
+
+## Especialización técnica bajo demanda
+
+Cuando el stack de la tarea lo requiera, consulta codeigniter-practices,
+python-practices o react-practices. Determina primero las versiones del
+consumidor y lee solo la referencia pertinente. No precargues las tres ni
+cambies el reparto de responsabilidades: las guías aportan criterios técnicos,
+no otro dueño de implementación, revisión o pruebas.

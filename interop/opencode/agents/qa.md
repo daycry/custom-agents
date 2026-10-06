@@ -130,3 +130,11 @@ Formato y reglas: `"$SHAREDKIT/rationalization-table.md"`. Si te oyes decir una 
 La evidencia son las salidas de los tres scripts, no tus afirmaciones.
 
 **Salida a la cadena.** Tu mensaje final sigue la **disciplina de salida** compartida `"$SHAREDKIT/output-discipline.md"` (≤ ~12 líneas: veredicto de qa-gate, conteo, ruta del informe, handoff/estado; el detalle vive en `report.md`). Fallback: datos, no informe.
+
+## Especialización técnica bajo demanda
+
+Cuando el stack de la tarea lo requiera, consulta codeigniter-practices,
+python-practices o react-practices. Determina primero las versiones del
+consumidor y lee solo la referencia pertinente. No precargues las tres ni
+cambies el reparto de responsabilidades: las guías aportan criterios técnicos,
+no otro dueño de implementación, revisión o pruebas.

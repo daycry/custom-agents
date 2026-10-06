@@ -34,3 +34,7 @@ tier propio (`opus` · `effort: high`, override en `dev.json` `modelos.reviewer`
 ## Dependencias
 - Skill `adversarial-review` (método, graduación, tabla del revisor, prompts literales).
 - Fragmentos `agent-kits/shared`: `personas/`, `docs-style.md`, `constitution-check.md`, `output-discipline.md`.
+
+## Capacidades incorporadas desde la comparación ECC
+
+codeigniter-practices, python-practices y react-practices: contexto técnico bajo demanda según stack y versiones del consumidor; sin precarga de todas ni roles adicionales.

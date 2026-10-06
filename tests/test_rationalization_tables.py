@@ -20,6 +20,7 @@ MIN_FILAS, MAX_FILAS, MAX_LINEAS = 6, 8, 25
 
 # pieza → (fichero, heading del bloque DoD/veredicto ante el que debe ir la tabla)
 PIEZAS = {
+    "research-first": ("skills/research-first/SKILL.md", "## Salida de la comparación"),
     "implementer": ("agents/implementer.md", "## ANTES DE CERRAR (DoD)"),
     "adversarial-review": ("skills/adversarial-review/SKILL.md", "### 6. Salida y traza"),
     "qa": ("agents/qa.md", "## ANTES DE CERRAR (DoD)"),
@@ -139,6 +140,10 @@ def main():
         globals()[fn]()
     print(f"test_rationalization_tables: {len([n for n in globals() if n.startswith('test_')])} tests OK")
     return 0
+
+
+def test_research_first_verifica_sesgos_de_adopcion():
+    _check_pieza("research-first")
 
 
 if __name__ == "__main__":

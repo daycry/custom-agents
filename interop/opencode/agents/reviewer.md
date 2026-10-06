@@ -87,3 +87,11 @@ Fuera de mi lente (no reportado): <si viste algo de otra lente, una línea para 
   («Racionalizaciones del REVISOR que NO valen») — aplícala tal cual; aquí no se duplica.
 - Salida ≤ lo necesario para que la skill fusione (`"$SHAREDKIT/output-discipline.md"`): tablas, no ensayo.
 - Si no puedes obtener el diff o los artefactos, `NEEDS_CONTEXT: <qué>`; nunca revises de memoria.
+
+## Especialización técnica bajo demanda
+
+Cuando el stack de la tarea lo requiera, consulta codeigniter-practices,
+python-practices o react-practices. Determina primero las versiones del
+consumidor y lee solo la referencia pertinente. No precargues las tres ni
+cambies el reparto de responsabilidades: las guías aportan criterios técnicos,
+no otro dueño de implementación, revisión o pruebas.

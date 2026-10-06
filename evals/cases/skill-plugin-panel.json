@@ -1,0 +1,35 @@
+{
+  "target": "skill:plugin-panel",
+  "cases": [
+    {
+      "id": "plugin-panel-literal",
+      "prompt": "panel de capacidades",
+      "trigger": "literal",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "plugin-panel"
+        ]
+      }
+    },
+    {
+      "id": "plugin-panel-parafrasis",
+      "prompt": "Quiero explorar las capacidades instaladas del bundle en un HTML local.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "plugin-panel"
+        ]
+      }
+    },
+    {
+      "id": "plugin-panel-negativo",
+      "prompt": "Muestra el progreso y presupuesto de las iniciativas del roadmap.",
+      "expect": {
+        "activates": false,
+        "redirect": "skill:roadmap-dashboard"
+      }
+    }
+  ]
+}

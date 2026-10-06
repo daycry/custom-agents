@@ -20,6 +20,7 @@ flowchart TD
     DIR(["👔 Dirección"]) --> V1["/roadmap-brief<br/>one-pager PDF"]
     TODOS(["👀 Cualquiera"]) --> V0["/doctor<br/>¿está bien instalado?"]
     TODOS --> V2["/roadmap-status<br/>dashboard"]
+    TODOS --> V5["/plugin-catalog<br/>capacidades del plugin"]
     TODOS --> V3["/roadmap-metrics<br/>real vs estimado"]
     TODOS --> V4["/roadmap-live<br/>Jira en vivo"]
     P1 -->|go| D1
@@ -28,6 +29,11 @@ flowchart TD
 ```
 
 ## 1 · La cadena completa de una iniciativa
+
+Research-first aporta comparación bajo demanda a analyst/architect antes de
+integraciones o herramientas nuevas. Codeigniter-practices, python-practices y
+react-practices aportan contexto según stack a implementer/reviewer/qa, sin
+precargar todas las guías ni cambiar los dueños del ciclo.
 
 Fase de **producto**: `analyst → evaluator` (+ `architect` opcional tras el go). Fase de **desarrollo**: `planner → implementer → qa`. La revisión adversarial despacha sus lentes al agente de solo lectura `reviewer`.
 

@@ -1,0 +1,35 @@
+{
+  "target": "skill:research-first",
+  "cases": [
+    {
+      "id": "research-first-literal",
+      "prompt": "investiga antes de construir",
+      "trigger": "literal",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "research-first"
+        ]
+      }
+    },
+    {
+      "id": "research-first-parafrasis",
+      "prompt": "Compara alternativas para una integración sin instalar nada.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "research-first"
+        ]
+      }
+    },
+    {
+      "id": "research-first-negativo",
+      "prompt": "Diseña opciones de arquitectura con los requisitos ya fijados.",
+      "expect": {
+        "activates": false,
+        "redirect": "agent:architect"
+      }
+    }
+  ]
+}

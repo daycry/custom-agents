@@ -15,10 +15,11 @@ description: >
 model: sonnet
 effort: medium
 # tools: Write/Edit SOLO para spec.md + índice README bajo docs/roadmap/. No toca código.
-tools: Read, Grep, Glob, Bash, Write, Edit
+tools: Read, Grep, Glob, Bash, Write, Edit, WebFetch, WebSearch
 # Dependencias declaradas (convención del repo; ver docs/CONVENTIONS.md).
 dependencies:
-  skills: []                 # el checklist de descubrimiento vive aquí (ADR-011: skill `discovery` retirada, fusionada)
+  skills:
+    - research-first
   kits: []                   # usa la plantilla spec.md del kit del evaluator
   agents:                    # handoff: la spec aprobada se presupuesta con evaluator
     - evaluator
@@ -109,3 +110,11 @@ No des la spec por lista hasta poder mostrar:
 - [ ] Bloque `generacion:` en el frontmatter rellenado con el JSON de `usage-meter.py close` (o marcado `fuente: estimado` con su aviso si degradó).
 - [ ] Handoff a `evaluator` indicado explícitamente como siguiente paso.
 Pega en tu resumen la ruta de la spec y el resultado del `grep` de placeholders como evidencia.
+
+## Investigación previa bajo demanda
+
+Ante una integración, dependencia o herramienta nueva, usa research-first para
+comparar lo existente antes de diseñar. Busca en el repo y, con WebFetch/WebSearch
+si están disponibles, en fuentes originales. Un canal sin acceso se declara
+como límite. Conserva tu artefacto y responsabilidad; la investigación no
+instala paquetes ni requiere otro agente. No la precargues para tareas rutinarias.

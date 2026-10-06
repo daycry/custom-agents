@@ -9,6 +9,11 @@ version_fuente: 2.2.3
 
 # Capacidades de ECC que podemos incorporar a custom agents
 
+> Actualización de alcance: el usuario autoriza el 2026-10-06 integrar capacidades
+> y delega decisiones técnicas. El análisis inicial de abajo se conserva como
+> propuesta histórica. La [comparación detallada](comparison.md), [spec](spec.md)
+> y [ledger](tasks.md) registran la primera entrega y la evaluación de Graphify.
+
 > Decisión del usuario, 2026-10-06: los futuros packs deben contemplar PHP/CodeIgniter 4,
 > Python y frontend/React. Paquetes, skills, agentes, herramientas, hooks y workflows de ECC
 > quedan documentados para una fase posterior; no se implementan en el trabajo actual.

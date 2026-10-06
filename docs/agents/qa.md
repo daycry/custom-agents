@@ -68,3 +68,7 @@ Antes de auditar, lee el índice de `docs/knowledge/` (si existe) y abre las ent
 - `qa-gate.py` — **veredicto determinista** verde/rojo sobre `results.json` (exit code; con tests).
 - `coverage-check.py` — cobertura criterios↔tests: `tasks.md` ↔ `test-plan.md` ↔ criterios `[GWT]` de la spec (con tests).
 - `templates/report.md` — plantilla del informe.
+
+## Capacidades incorporadas desde la comparación ECC
+
+codeigniter-practices, python-practices y react-practices: contexto técnico bajo demanda según stack y versiones del consumidor; sin precarga de todas ni roles adicionales.

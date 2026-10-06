@@ -1,0 +1,35 @@
+{
+  "target": "skill:codeigniter-practices",
+  "cases": [
+    {
+      "id": "codeigniter-practices-literal",
+      "prompt": "patrones de CodeIgniter 4",
+      "trigger": "literal",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "codeigniter-practices"
+        ]
+      }
+    },
+    {
+      "id": "codeigniter-practices-parafrasis",
+      "prompt": "Una operación CI4 confirma éxito aunque la segunda escritura SQL falla.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "codeigniter-practices"
+        ]
+      }
+    },
+    {
+      "id": "codeigniter-practices-negativo",
+      "prompt": "Valida una spec OpenAPI antes de implementar la API.",
+      "expect": {
+        "activates": false,
+        "redirect": "skill:api-contract"
+      }
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "target": "command:plugin-catalog",
+  "cases": [
+    {
+      "id": "catalog-literal",
+      "prompt": "Explora el catálogo del plugin en un control panel HTML local",
+      "trigger": "literal",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "plugin-panel"
+        ]
+      }
+    },
+    {
+      "id": "catalog-parafrasis",
+      "prompt": "Quiero navegar por los agentes, skills y herramientas declaradas del plugin.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "plugin-panel"
+        ]
+      }
+    },
+    {
+      "id": "catalog-negativo",
+      "prompt": "Genera un dashboard de estados y presupuestos de iniciativas.",
+      "expect": {
+        "activates": false,
+        "redirect": "command:roadmap-status"
+      }
+    }
+  ]
+}

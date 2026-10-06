@@ -101,3 +101,7 @@ cuando un despacho falla dos veces.
 - Agente `qa` (handoff de pruebas al terminar).
 - Kit shared: `usage-meter.py` (medición por tarea), `constitution-check.md`, `ledger-lint.py`.
 - Config `.claude/dev.json` (opt-in: `tdd` · `worktree` · `subagentes`; defaults off).
+
+## Capacidades incorporadas desde la comparación ECC
+
+codeigniter-practices, python-practices y react-practices: contexto técnico bajo demanda según stack y versiones del consumidor; sin precarga de todas ni roles adicionales.

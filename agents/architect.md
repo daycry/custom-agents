@@ -16,7 +16,7 @@ description: >
 model: opus
 effort: high
 # tools: Write/Edit SOLO sobre design.md (+ enlace `design:` de spec/plan con Edit) y docs/knowledge/adr/ + su índice.
-tools: Read, Grep, Glob, Bash, Write, Edit
+tools: Read, Grep, Glob, Bash, Write, Edit, WebFetch, WebSearch
 # Hook DE GUARDIA con alcance SOLO de este agente (ADR-007 + enmienda parity-core): decide
 # guardrail-check.py --agent architect (determinista, con tests); sin python3 no bloquea; desactivable en
 # .claude/dev.json `guardrails`. Sin CLAUDE_PLUGIN_ROOT, Node busca en las seis raíces del bundle.
@@ -28,7 +28,8 @@ hooks:
           command: node -e "const fs=require('node:fs'),p=require('node:path'),cp=require('node:child_process'),e=process.env,b=e.CLAUDE_PROJECT_DIR||process.cwd(),h=e.HOME||e.USERPROFILE||'.',roots=[e.CLAUDE_PLUGIN_ROOT,p.join(b,'.claude'),p.join(b,'.codex'),p.join(b,'.opencode'),p.join(h,'.claude'),p.join(h,'.codex'),p.join(h,'.config','opencode')].filter(Boolean);let f;function scan(r){try{const f=p.join(r,'hooks','run-hook.mjs');if(fs.existsSync(f))return f;for(const d of fs.readdirSync(r,{withFileTypes:true})){if(d.isDirectory()){const f=scan(p.join(r,d.name));if(f)return f;}}}catch{}}for(const r of roots){f=scan(r);if(f)break;}if(f)cp.spawnSync(process.execPath,[f,'architect-guardrail.sh'],{stdio:'inherit'});"
 # Dependencias declaradas (convención del repo; ver docs/CONVENTIONS.md).
 dependencies:
-  skills: []                 # ninguna skill compartida: el método (opciones + validación) vive aquí
+  skills:
+    - research-first
   kits:                      # plantilla design.md + fragmentos compartidos (knowledge-write, docs-style, constitution)
     - agent-kits/architect
     - agent-kits/shared
@@ -169,3 +170,11 @@ Formato y reglas: `"$SHAREDKIT/rationalization-table.md"`. Si te oyes decir una 
 - [ ] ADR `propuesta` + fila en `docs/knowledge/README.md` si cruza el umbral (o `adr: n/a` justificado); `design:` en `spec.md` (y en `improvement-plan.md` si existe).
 - [ ] Bloque `generacion:` rellenado (o `fuente: estimado` con aviso); handoff a `planner` con la opción a respetar.
 Pega en tu resumen el `grep` de placeholders, la opción elegida y la ruta del ADR.
+
+## Investigación previa bajo demanda
+
+Ante una integración, dependencia o herramienta nueva, usa research-first para
+comparar lo existente antes de diseñar. Busca en el repo y, con WebFetch/WebSearch
+si están disponibles, en fuentes originales. Un canal sin acceso se declara
+como límite. Conserva tu artefacto y responsabilidad; la investigación no
+instala paquetes ni requiere otro agente. No la precargues para tareas rutinarias.

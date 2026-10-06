@@ -1,0 +1,35 @@
+{
+  "target": "skill:react-practices",
+  "cases": [
+    {
+      "id": "react-practices-literal",
+      "prompt": "revisa efectos React",
+      "trigger": "literal",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "react-practices"
+        ]
+      }
+    },
+    {
+      "id": "react-practices-parafrasis",
+      "prompt": "Mi componente mantiene estado derivado y sobrescribe resultados con peticiones antiguas.",
+      "trigger": "parafrasis",
+      "expect": {
+        "activates": true,
+        "mentions": [
+          "react-practices"
+        ]
+      }
+    },
+    {
+      "id": "react-practices-negativo",
+      "prompt": "Sube la cobertura unitaria del repositorio sin cambiar el diseño de componentes.",
+      "expect": {
+        "activates": false,
+        "redirect": "skill:unit-tests"
+      }
+    }
+  ]
+}
