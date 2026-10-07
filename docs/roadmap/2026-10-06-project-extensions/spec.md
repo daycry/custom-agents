@@ -1,6 +1,6 @@
 ---
 spec: project-extensions
-estado: completado
+estado: implementada
 creado: 2026-10-06
 evaluacion: evaluation.md
 plan: improvement-plan.md
