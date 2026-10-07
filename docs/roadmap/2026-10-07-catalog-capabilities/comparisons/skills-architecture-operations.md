@@ -8,8 +8,10 @@ El progreso se mantiene en [tasks.md](../tasks.md), T-03.
 
 [architecture-reading-evidence.json](architecture-reading-evidence.json)
 registra hashes, tamaños, rangos y fuentes técnicas. Incluye también el cuerpo
-de S014, cuya evaluación **sigue pendiente**: tiene 35 recursos locales aún no
-leídos. Los cuerpos o secciones de otras piezas usados como dependencia/caller
+de S014, cuya evaluación quedó pendiente en ese checkpoint: tenía 35 recursos
+locales aún no leídos. Esa lectura se completó después en la
+[ficha Angular](skills-angular.md), con evidencia propia; el JSON anterior
+conserva su alcance histórico. Los cuerpos o secciones de otras piezas usados como dependencia/caller
 no incrementan el contador de skills evaluadas. Los adaptadores/generadores
 operativos completos siguen en T-06. No se ejecutó código del corpus.
 
