@@ -1,6 +1,6 @@
 ---
 tasks: project-extensions
-estado: en-progreso
+estado: completado
 creado: 2026-10-06
 actualizado: 2026-10-07
 verificacion: obligatoria
@@ -25,18 +25,19 @@ generacion:
 Autorización: fases de integración y decisiones técnicas delegadas por el usuario;
 push cuando esté listo. Sin PR, merge ni release. Base b067099. Rama propia
 feat/project-extensions; settings preexistentes no se modifican ni versionan.
-Meter abierto en estado privado; sin consumo compatible no se inventan cifras.
+Meter cerrado en estado privado, ventana parcial declarada; sin consumo
+compatible no se inventan cifras.
 
 ## Resumen de progreso
 
 | Fase | Completadas | Total | Progreso |
 |---|---|---|---|
-| Fase 1 | 8 | 10 | 80% |
-| **TOTAL** | **8** | **10** | **80%** |
+| Fase 1 | 10 | 10 | 100% |
+| **TOTAL** | **10** | **10** | **100%** |
 
 ## Fase 1 — Reconocimiento e integración
 
-**Estado**: en-progreso
+**Estado**: completado
 
 ### T-01 — Contratos y arquitectura de extensiones
 
@@ -126,36 +127,36 @@ Meter abierto en estado privado; sin consumo compatible no se inventan cifras.
 
 - **Estado**: completado
 - **Descripción**: Revisión, cobertura y QA multi-runtime.
-- **Changelog**: Verifica parsing, privacidad, selección, briefs y panel en Windows, Linux y Edge con revisión independiente.
+- **Changelog**: Verifica parsing, privacidad, selección, briefs y panel en Windows, Linux y Edge con revisión independiente y hace portables las pruebas de release.
 - **Dependencias**: T-07.
 - **Archivos**: `tests/**`, `docs/roadmap/2026-10-06-project-extensions/testing/**`
-- **Verificación**: Gates Windows/Linux/Node/Edge ejecutados y delimitados en testing/report.md; cobertura de producción cambiada 92,16% (741/804). Ciclo inicial A+B+D y delta QA A+B cerrados sin gaps ni deuda aceptada.
+- **Verificación**: Gates técnicos de testing/report.md ejecutados; cobertura de producción 92,16% (741/804). Cierre adicional: release Windows 27 passed/62,39 s, Linux 27 passed/3,86 s; docs Windows 557 passed/25,96 s. Ciclos inicial, YAML y fixtures terminan sin gaps ni deuda.
 **Criterios de aceptación**:
-  - [x] Contrato de spec.md comprobado; límites y errores cubiertos, sin gaps pendientes.
+  - [x] Contrato verificado con evidencia ejecutada y sin gaps pendientes.
 
 
 ### T-09 — Retro, estados y changelogs
 
-- **Estado**: en-progreso
+- **Estado**: completado
 - **Descripción**: Retro, estados y changelogs.
 - **Changelog**: Registra resultados, límites y retrospectiva de la integración y sincroniza las notas de cambios.
 - **Dependencias**: T-08.
 - **Archivos**: `docs/**`, `CHANGELOG.md`, `CHANGELOG.es.md`
-- **Verificación**: Informe QA y retro escritos con consumo compatible nulo y límites explícitos; sincronización de changelogs y estados finales pendiente de comprobar la publicación.
+- **Verificación**: Retro e informe QA finales, meter compatible nulo, estados consistentes y changelogs ES/EN sincronizados. Changelog --check sin pendientes y ledger-lint 0 incoherencias/0 avisos; publicación técnica observada y cierre documental comprobado.
 **Criterios de aceptación**:
-  - [ ] Contrato de spec.md comprobado; límites y errores cubiertos, sin gaps pendientes.
+  - [x] Contrato verificado con evidencia ejecutada y sin gaps pendientes.
 
 
 ### T-10 — Push y comprobación remota
 
-- **Estado**: borrador
+- **Estado**: completado
 - **Descripción**: Push y comprobación remota.
 - **Changelog**: Publica la rama de extensiones y contrasta su SHA con el remoto sin merge ni release.
 - **Dependencias**: T-08 y entrega documental de T-09; las notas y estados finales se confirman después del primer push verificado.
 - **Archivos**: `docs/roadmap/2026-10-06-project-extensions/tasks.md`
-- **Verificación**: escenarios específicos del contrato, revisión y evidencia ejecutable antes de cerrar.
+- **Verificación**: Push observado de 9f591ac707f96a0a191db2f9d62efdec3418819d; git ls-remote coincide exactamente con HEAD el 2026-10-07. El commit documental final conserva este delivery como ancestro y se publica después de sus gates.
 **Criterios de aceptación**:
-  - [ ] Contrato de spec.md comprobado; límites y errores cubiertos, sin gaps pendientes.
+  - [x] Contrato de spec.md comprobado; límites y errores cubiertos, sin gaps pendientes.
 
 ## Evidencia
 
@@ -415,3 +416,75 @@ Protocolo de publicación: primer commit de delta QA, informe y retro; push y
 contraste del SHA remoto. Después se cierran T-09/T-10, se generan changelogs
 y se publica el commit documental final. Esto permite registrar evidencia real
 sin afirmar un push futuro como hecho. Sin PR, merge ni release.
+
+## Publicación observada
+
+Primer push de feat/project-extensions confirmado el 2026-10-07: HEAD y
+refs/heads/feat/project-extensions devuelven ambos
+9f591ac707f96a0a191db2f9d62efdec3418819d. Incluye 87772c1 y el delta QA.
+El cierre documental se publica en un commit descendiente, sin modificar
+settings, crear PR, merge o release. Las fases 3 y 4 siguen pendientes.
+
+## QA del cierre documental — fixtures Windows de release
+
+La comprobación adicional da 3 failed/580 passed/1 aviso histórico en 82,61 s;
+XML privado extensions-closure-green.xml (el nombre no determina su resultado).
+Tres fallos en test_release.py: mensaje con separador POSIX esperado en Windows,
+commit CRLF sin cambios y caso sin identidad que cambia la conversión de Git
+al excluir su config global. Tests y scripts/release.py no habían cambiado
+frente a b067099: son límites preexistentes de la fixture, no una regresión
+de producción. No se omiten ni se presentan como verdes.
+
+Corrección solo del oráculo: escribir fixture inicial en LF explícito, fijar
+core.autocrlf=false dentro de su repo temporal, esperar la ruta nativa y escribir
+la variante final LF en bytes. Se conservan asserts de CRLF sin LF suelto,
+comandos manuales y degradación sin identidad. El release de producción no cambia.
+T-08/T-09 se reabren; publicación técnica observada y demás gates se conservan.
+
+Primera revalidación de release: 1 failed/25 passed, 68,89 s. El caso sin
+identidad llega ahora al commit y Git Windows infiere una identidad aunque
+la config global/sistema esté excluida. El oráculo necesita prohibir inferencia
+(user.useConfigOnly=true en el repo temporal) y excluir variables de identidad
+heredadas en ese caso. No se toca Git del consumidor ni scripts/release.py.
+Se conserva el fallo en extensions-release-portable-green.xml y se revalida.
+
+## Revisión de dos lentes — intento 1: Fase 1 (T-08/T-09) — cierre documental R7
+
+Revalidación normal: release 26 passed, 64,16 s. Revisión del cierre documental
+A+B, intento 1 contra 9f591ac, limitada al delta de tests: A sin gaps; B detecta
+un Important en la protección de identidad (R7). El entorno puede configurar
+user.name/user.email con GIT_CONFIG_COUNT y KEY_n/VALUE_n aunque se retiren
+variables directas y archivos de config. Root reproduce exit 0 frente a 1:
+extensions-release-config-env-red.xml, 1 failed, 3,71 s.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| R7 | Important | El test sin identidad hereda config Git por variables | T-08 | Excluir GIT_CONFIG* del entorno del subprocess; regresión parametrizada real antes del fix | Nuevo caso True: 1 failed, 3,18 s, extensions-release-config-param-red.xml |
+
+Se conserva lo aprobado (LF/CRLF, ruta nativa, aislamiento de repo y asserts).
+El nuevo caso configura Git mediante monkeypatch antes de construir el entorno;
+el fix retira las variables de configuración y vuelve a fijar global/sistema a
+devnull. No cambia producción ni configuración real del usuario. Pendiente de
+GREEN y revisión intento 2 del ciclo del cierre documental, máximo tres.
+
+## Revisión de dos lentes — intento 2: Fase 1 (T-08/T-09) — cierre documental sin gaps
+
+A+B, contexto fresco y solo lectura; scope 10 en alcance/0 fuera/0 avisos,
+settings excluido, C=false/D=false. Mismo ciclo de fixtures contra 9f591ac,
+sin reiniciar lo aprobado. Subagentes genéricos, tier de referencia sin override.
+
+| Criterio | Veredicto | Evidencia independiente |
+|---|---|---|
+| R7, identidad por config de Git en entorno | ✓ corregido | A/B: filtro GIT_CONFIG* anterior a GLOBAL/SYSTEM=devnull; incluye COUNT/KEY/VALUE y PARAMETERS |
+| Regresión dedicada antes del fix | ✓ | A: XML RED contiene assert 0==1 del caso True; dos casos dirigidos verdes en 5,00 s |
+| Aislamiento y asserts de degradación | ✓ conservado | Repo temporal y entorno subprocess; monkeypatch restaura variables; asserts de mensaje, exit, versiones y traceback intactos |
+| LF/CRLF y comando de reparación | ✓ conservado | Sin evidencia nueva que contradiga el intento 1 |
+| Alcance y estado al revisar | ✓ | A: tests declarados y tareas abiertas; no anticipa cierre ni revalidación Linux |
+
+Cero Critical/Important/Minor pendientes o aceptados como deuda. Jira-flow del
+intento 1 devuelve ops vacío (desactivado); se comprueba igualmente el intento 2.
+QA final posterior: release Windows 27 passed, 62,39 s; release Linux 27 passed,
+3,86 s. Documentos Windows 557 passed, 25,96 s; cierre público Linux previo al
+último ajuste de identidad 552 passed, 17,23 s, con un aviso histórico.
+No se suma el solape ni se presenta la ejecución Linux previa como posterior.
+Changelogs ES/EN comprobados; settings del consumidor permanecen sin tocar.

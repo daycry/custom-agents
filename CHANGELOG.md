@@ -9,6 +9,19 @@ and versioning follows [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Added — `project-extensions` initiative (2026-10-06)
+
+- **T-01 — Extension contracts and architecture** Define native contracts and extension discovery limits across the three runtimes. (`docs/roadmap/2026-10-06-project-extensions/**`, `docs/roadmap/README.md`, `docs/INTEGRATION-ROADMAP.md`)
+- **T-02 — Bounded discovery across runtimes** Recognize local agents, skills, personas, tool sources and MCP declarations without executing them or exposing private configuration. (`agent-kits/shared/project-pieces.py`, `tests/test_project_pieces.py`, `tests/test_console_encoding.py`)
+- **T-03 — Verifiable ownership, identity and conflicts** Distinguish ownership and identity and show source and invocation conflicts without overwriting user components. (`agent-kits/shared/project-pieces.py`, `tests/test_project_pieces.py`)
+- **T-04 — Shared explicit extension selection** Share explicit extension selections across roles and tasks using IDs and provenance. (`agent-kits/shared/capability-check.md`, `agent-kits/shared/project-pieces.py`, `commands/work-context.md`)
+- **T-05 — Task briefs and project personas** Transfer bounded references into task briefs and preserve project persona priority. (`agent-kits/shared/task-brief.py`, `agent-kits/shared/test_task_brief.py`, `agent-kits/shared/project-pieces.py`)
+- **T-06 — Panel extensions with sources and conflicts** Show user extensions in the panel with search, filters, sources and identifiable conflicts. (`skills/plugin-panel/**`, `tests/test_plugin_panel.py`, `evals/cases/skill-plugin-panel.json`)
+- **T-07 — Workflow, distribution and bilingual documentation** Integrate the shared method, exports and bilingual documentation with verified portable distribution.
+- **T-08 — Review, coverage and QA across runtimes** Verify parsing, privacy, selection, briefs and the panel on Windows, Linux and Edge with independent review and make release tests portable. (`tests/**`, `docs/roadmap/2026-10-06-project-extensions/testing/**`)
+- **T-09 — Retrospective, states and changelogs** Record integration outcomes, limits and the retrospective, and synchronize change notes. (`docs/**`, `CHANGELOG.md`, `CHANGELOG.es.md`)
+- **T-10 — Publish the branch and verify the remote commit** Publish the extension branch and verify its remote SHA without merging or releasing. (`docs/roadmap/2026-10-06-project-extensions/tasks.md`)
+
 ### Changed — `workflow-integration` initiative (2026-10-06)
 
 - **T-01 — Traceable catalog decisions and workflow contract** Document decisions and limits of adapted capabilities, preserve legal notices and use native public names.

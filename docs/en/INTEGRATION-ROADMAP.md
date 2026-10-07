@@ -10,7 +10,7 @@ they have been implemented.
 | Phase | Delivery | Status |
 |---|---|---|
 | 1. Shared core | Multi-runtime hooks, guidance selection, workflow, briefs, optional structural context, outcome evaluation and panel | Completed and published; evidence in [workflow-integration](../roadmap/2026-10-06-workflow-integration/tasks.md) |
-| 2. User extensions | Recognize user agents, skills, personas, tools and MCP in Claude, Codex and OpenCode; show origin, conflicts and unverified availability | In progress; reader, selection, briefs and panel implemented on branch, pending review and closure. [Plan and evidence](../roadmap/2026-10-06-project-extensions/tasks.md) |
+| 2. User extensions | Recognize user agents, skills, personas, tools and MCP in Claude, Codex and OpenCode; show origin, conflicts and unverified availability | Completed and published on feat/project-extensions; ten tasks, review and QA closed. [Plan and evidence](../roadmap/2026-10-06-project-extensions/tasks.md) |
 | 3. Catalog capabilities | Thoroughly compare existing skills, tools, agents and commands from the reference catalog; integrate useful improvements and verify actual runtime guard scope | Pending; the earlier inventory does not replace functional analysis or dispatch testing |
 | 4. Memory and evaluation | Measure retrieval, freshness and usefulness; compare improvements against existing Markdown, journal and backends before deciding changes | Pending; the current AST pilot does not prove retrieval effectiveness |
 
@@ -30,16 +30,17 @@ to its current contracts.
 | Tool | Displays declared names and OpenCode JS/TS sources | Does not execute exports or establish permissions or availability |
 | MCP server | Inventories project, user and agent declarations; flags invalid Claude definitions and declared disabling | Does not connect servers or export endpoints, commands, variables or credentials |
 
-`feat/project-extensions` contains this integration, which is not published yet.
+`feat/project-extensions` contains the published and verified integration.
 The shared reader feeds `/work-context`, ledger selection, brief references and
 the panel's independent filters. It preserves duplicates and displays sources;
 session capabilities must be checked before invocation. It reuses the
 [specialization](SPECIALIZATION.md) O1 contract to validate ownership read-only;
 generation and adoption retain their separate plan.
 
-Executed results and pending gates are in the phase 2 ledger; partial tests do
-not establish closure or publication. The published phase 1 catalog retains its
-recorded delivery in its own ledger.
+Results, the QA report, the retro and the remote verification are in the
+phase 2 ledger. Closure establishes extension recognition and selection; it
+does not establish adoption, generation or phases 3 and 4. The published phase 1
+catalog retains its recorded delivery in its own ledger.
 
 **Scope check pending in phase 3:** current Claude documentation says plugin
 agents ignore `hooks`, `mcpServers` and `permissionMode` in their frontmatter.

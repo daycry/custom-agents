@@ -1,6 +1,6 @@
 ---
 test-plan: project-extensions
-estado: aprobado
+estado: completado
 creado: 2026-10-06
 ---
 

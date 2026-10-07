@@ -21,6 +21,10 @@ baseline revisado: `87772c1`. La publicación se registra por separado en
 | Evals de activación | 182 casos, 112 positivos/70 negativos, 51 archivos, 0 errores |
 | Export de interoperabilidad | 54 archivos al día; también comprobado en Linux tras el delta |
 | Release check | Metadatos 1.22.0 coherentes; no se publica una release |
+| Cierre documental Windows, sin suite release | 557 passed, 1 aviso histórico; 25,96 s |
+| Release Windows, fixtures finales | 27 passed, 0 failed; 62,39 s |
+| Cierre público Linux antes del último ajuste de identidad | 552 passed, 1 aviso histórico; 17,23 s |
+| Release Linux después del último ajuste de identidad | 27 passed, 0 failed; 3,86 s |
 
 El snapshot Linux incluye archivos públicos con sus modos Git y finales LF
 declarados para shell. Excluye settings del usuario y evidencia privada. El
@@ -60,6 +64,15 @@ reales. El delta tiene un ciclo de revisión A+B independiente, con selector
 C=false/D=false. Su resultado se recoge en el ledger; no reinicia el ciclo
 anterior ni cuenta el defecto como deuda aceptada.
 
+El cierre documental adicional encuentra tres supuestos de Linux en tests de
+release que no habían cambiado en esta fase. Se aíslan bytes LF/CRLF y config
+Git del repo temporal, se espera la ruta nativa y se prohíbe inferir identidad.
+La revisión de ese delta de tests A+B detecta un Important adicional: config Git
+heredada mediante GIT_CONFIG_COUNT. Se reproduce y añade una regresión antes
+del filtro de GIT_CONFIG*. El intento 2 conserva los asserts originales y
+termina sin gaps ni deuda. Las suites finales de release pasan en ambos sistemas;
+scripts/release.py no cambia. La evidencia previa con fallos permanece registrada.
+
 El escenario Edge P-01 inicialmente buscaba el primer code de la tarjeta; la
 tarjeta también contiene el alias del conflicto. Se corrige solo el selector
 del test para comprobar la fuente dentro de details. Producto y requisito no
@@ -88,3 +101,8 @@ extensions-indentless-green.xml, extensions-coverage-v6.json,
 extensions-linux-v2/linux-pytest.xml, extensions-linux-v3/linux-pytest.xml y
 panel-preview/extensions-results.json, workflow-results.json y capturas. No se
 publican logs privados ni transcripciones. Veredictos y publicación: [ledger](../tasks.md).
+
+Evidencias del cierre: extensions-docs-final-green.xml,
+extensions-release-portable-green3.xml, extensions-closure-linux-v2/linux-pytest.xml
+y extensions-release-linux-final/linux-pytest.xml. Los XML que contienen los RED
+previos no se sustituyen ni se interpretan por su nombre.

@@ -10,7 +10,7 @@ acredita que estén implementadas.
 | Fase | Entrega | Estado |
 |---|---|---|
 | 1. Núcleo común | Hooks multi-runtime, selección de guías, workflow, briefs, contexto estructural opcional, evaluación de resultados y panel | Completada y publicada; evidencia en [workflow-integration](roadmap/2026-10-06-workflow-integration/tasks.md) |
-| 2. Extensiones del usuario | Reconocer agentes, skills, personas, tools y MCP propios en Claude, Codex y OpenCode; mostrar origen, conflictos y disponibilidad sin verificar | En progreso; lector, selección, briefs y panel implementados en rama, pendientes de revisión y cierre. [Plan y evidencia](roadmap/2026-10-06-project-extensions/tasks.md) |
+| 2. Extensiones del usuario | Reconocer agentes, skills, personas, tools y MCP propios en Claude, Codex y OpenCode; mostrar origen, conflictos y disponibilidad sin verificar | Completada y publicada en feat/project-extensions; diez tareas, revisión y QA cerradas. [Plan y evidencia](roadmap/2026-10-06-project-extensions/tasks.md) |
 | 3. Capacidades del catálogo | Comparar en profundidad las skills, tools, agentes y comandos existentes en el catálogo de referencia; integrar mejoras útiles y verificar el alcance real de guardias por runtime | Pendiente; el inventario previo no sustituye al análisis funcional ni a la prueba de despacho |
 | 4. Memoria y evaluación | Medir recuperación, vigencia y utilidad; comparar mejoras con Markdown, journal y backends actuales antes de decidir cambios | Pendiente; el piloto AST actual no demuestra eficacia de recuperación |
 
@@ -30,15 +30,16 @@ Las guías existentes en el plugin se mantienen sujetas a sus contratos actuales
 | Tool | Muestra nombres declarados y fuentes JS/TS de OpenCode | No ejecuta exports ni acredita permisos o disponibilidad |
 | Servidor MCP | Inventaría declaraciones de proyecto, usuario y agentes; señala definiciones Claude inválidas y desactivación declarada | No conecta servidores ni exporta endpoints, comandos, variables o credenciales |
 
-`feat/project-extensions` contiene esta integración todavía sin publicar. El
+`feat/project-extensions` contiene esta integración publicada y verificada. El
 lector compartido alimenta `/work-context`, la selección del ledger, las
 referencias del brief y el panel con filtros independientes. Preserva duplicados
 y muestra fuentes; antes de invocar hay que contrastar las capacidades de la
 sesión. Reutiliza el contrato O1 de [especialización](SPECIALIZATION.md) para
 validar propiedad en modo lectura; generación/adopción siguen en su plan propio.
 
-Los resultados ejecutados y los gates pendientes están en el ledger de fase 2;
-las pruebas parciales no acreditan cierre ni publicación. El catálogo publicado
+Los resultados, el informe QA, la retro y la comprobación remota están en el
+ledger de fase 2. El cierre acredita reconocimiento y selección de extensiones;
+no acredita adopción, generación ni las fases 3 y 4. El catálogo publicado
 de fase 1 mantiene su entrega registrada en su propio ledger.
 
 **Comprobación de alcance pendiente en fase 3:** la documentación Claude actual

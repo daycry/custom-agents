@@ -29,6 +29,14 @@ se reabre la tarea y se añade RED antes del fix. El delta se revisa por separad
 no se oculta como deuda ni se reinicia el contador del ciclo ya aprobado.
 La evidencia de cada revisión permanece en tasks.md.
 
+Las pruebas adicionales del cierre exponen tres oráculos de release no portables:
+ruta POSIX, conversión LF/CRLF e identidad inferida por Git. Se corrigen solo
+las fixtures temporales. Un ciclo A+B específico detecta además identidad por
+config Git en variables de entorno; la regresión precede al filtro y el segundo
+pase termina sin gaps. Release final: 27 passed en Windows y 27 en Linux;
+comprobaciones documentales Windows: 557 passed. No cambia release.py ni Git
+del consumidor. La publicación técnica previa y sus gates siguen siendo válidos.
+
 Windows baseline: 698 passed/2 skipped; delta: 239 passed/2 skipped. Linux
 completo: 4023 passed/29 skipped/8 subtests; delta: 702 passed/1 skipped.
 Node Windows: 134 passed; Node Linux: 131 passed/3 skipped. Edge: cuatro
