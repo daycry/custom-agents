@@ -1,0 +1,851 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-07",
+  "evaluated_skill_ids": [
+    "S053",
+    "S054"
+  ],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "source": [
+    {
+      "id": "S054",
+      "sha256": "ddad12451a0d582c6ef1b197b7be193bef613cbc74eba4117fcb74fc7a4ecd00",
+      "bytes": 14149,
+      "lines": 377,
+      "read_ranges": [
+        [
+          1,
+          377
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": [
+        "R-b074e432e361",
+        "R-ac3c322987fa",
+        "R-0fe5dcabdfb7",
+        "R-95b5ae2a73e0",
+        "R-30610fcbd0b0",
+        "R-3b02f94e1e1a",
+        "R-bfbbc1c8e8e9",
+        "R-091ff88fa6e3",
+        "R-5224873745a6",
+        "R-78fa8e7a7d56",
+        "R-9d24574fa402"
+      ]
+    },
+    {
+      "id": "R-b074e432e361",
+      "sha256": "a6d119252c8ff2eda7aa7b345c2254fd6bdaf14056f6b5bf54835a2738ff310d",
+      "bytes": 19899,
+      "lines": 545,
+      "read_ranges": [
+        [
+          1,
+          545
+        ]
+      ],
+      "reading_scope": "full-dependency"
+    },
+    {
+      "id": "R-ac3c322987fa",
+      "sha256": "320d50ff2965efeabd6f07c2be134e11da160293e958c1bc27c309d613839ad2",
+      "bytes": 6892,
+      "lines": 189,
+      "read_ranges": [
+        [
+          1,
+          189
+        ]
+      ],
+      "reading_scope": "full-dependency"
+    },
+    {
+      "id": "R-0fe5dcabdfb7",
+      "sha256": "ee6e4c0990f8d538cae1c85aa194e01e9ca2336e5d993ef68eb608b96cb0d82c",
+      "bytes": 6392,
+      "lines": 150,
+      "read_ranges": [
+        [
+          1,
+          150
+        ]
+      ],
+      "reading_scope": "full-dependency"
+    },
+    {
+      "id": "R-95b5ae2a73e0",
+      "sha256": "6f5beed1e96f685c09ffa7f614f9673ba68f1466a60830252b8b9138efe05e84",
+      "bytes": 8643,
+      "lines": 258,
+      "read_ranges": [
+        [
+          1,
+          258
+        ]
+      ],
+      "reading_scope": "full-dependency"
+    },
+    {
+      "id": "R-30610fcbd0b0",
+      "sha256": "6f17e7a99aafe252ecd0b9212fb5f606be50b8ce1685f5a6435e46e87ffeb970",
+      "bytes": 135,
+      "lines": 8,
+      "read_ranges": [
+        [
+          1,
+          8
+        ]
+      ],
+      "reading_scope": "full-dependency"
+    },
+    {
+      "id": "R-3b02f94e1e1a",
+      "sha256": "c254d1411dfd2a191c380c605fedfe8c5b37daf8f5c4bec55844b06c22403624",
+      "bytes": 28114,
+      "lines": 675,
+      "read_ranges": [
+        [
+          1,
+          675
+        ]
+      ],
+      "reading_scope": "full-dependency"
+    },
+    {
+      "id": "R-bfbbc1c8e8e9",
+      "sha256": "43215ad15ce0c6585c13b1c45cbba6bf8df0dc459b663ddca77c0b86c459c283",
+      "bytes": 11036,
+      "lines": 334,
+      "read_ranges": [
+        [
+          1,
+          334
+        ]
+      ],
+      "reading_scope": "full-dependency"
+    },
+    {
+      "id": "R-091ff88fa6e3",
+      "sha256": "a2e90e34ee589827592248dbc801bee90f1d5db6d2330e2d5004e4694b8e06f9",
+      "bytes": 91144,
+      "lines": 2290,
+      "read_ranges": [
+        [
+          1,
+          2290
+        ]
+      ],
+      "reading_scope": "full-dependency"
+    },
+    {
+      "id": "R-5224873745a6",
+      "sha256": "99dfa99ae0f7c6e2e15ed5b5bf3c46e91a5f089f4060ba93d5da5e85e04fd308",
+      "bytes": 1010,
+      "lines": 31,
+      "read_ranges": [
+        [
+          1,
+          31
+        ]
+      ],
+      "reading_scope": "full-dependency"
+    },
+    {
+      "id": "R-78fa8e7a7d56",
+      "sha256": "34f121c143a676d330f06209618aae8cb08f8155298cb5fa70c893314bf9b303",
+      "bytes": 2256,
+      "lines": 68,
+      "read_ranges": [
+        [
+          1,
+          68
+        ]
+      ],
+      "reading_scope": "full-dependency"
+    },
+    {
+      "id": "R-9d24574fa402",
+      "sha256": "acf556e8a8023347b35988bb490927a4e9f65f2579b03f26cad610687656605b",
+      "bytes": 51338,
+      "lines": 1420,
+      "read_ranges": [
+        [
+          1,
+          1420
+        ]
+      ],
+      "reading_scope": "full-dependency"
+    },
+    {
+      "id": "S053",
+      "sha256": "d494867b456999cad53c51c89fa2cf8da101f76ea875286987f52e5d45f72221",
+      "bytes": 4536,
+      "lines": 132,
+      "read_ranges": [
+        [
+          1,
+          132
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": [
+        "R-93b17f9535e7",
+        "R-09bf01be57cc"
+      ]
+    },
+    {
+      "id": "R-93b17f9535e7",
+      "sha256": "8af9150b6dca782cc3cb938e0c2267ad85ee4772eaf3ec30c0b91a848d108a44",
+      "bytes": 391,
+      "lines": 18,
+      "read_ranges": [
+        [
+          1,
+          18
+        ]
+      ],
+      "reading_scope": "full-dependency"
+    },
+    {
+      "id": "R-09bf01be57cc",
+      "sha256": "3e07e0b2916fbcdd7670648548d418ee87bdce0c6548c48e298965e5db387fcd",
+      "bytes": 2391,
+      "lines": 69,
+      "read_ranges": [
+        [
+          1,
+          69
+        ]
+      ],
+      "reading_scope": "full-dependency"
+    },
+    {
+      "id": "R-b18149810e30",
+      "sha256": "d3bf18be2af61791b25bcb8fb7cc44b911bf9d59579fbcfc0c6af16579574db6",
+      "bytes": 2980,
+      "lines": 100,
+      "read_ranges": [
+        [
+          1,
+          100
+        ]
+      ],
+      "reading_scope": "full-dependency"
+    },
+    {
+      "id": "R-bf8034b7b095",
+      "sha256": "0ac9f619f326a5465f04ddc4cdade192132b6a47d011067af00b7a5d17f5efed",
+      "bytes": 5587,
+      "lines": 199,
+      "read_ranges": [
+        [
+          1,
+          199
+        ]
+      ],
+      "reading_scope": "full-dependency"
+    },
+    {
+      "id": "R-07b6abd1ac04",
+      "sha256": "111d993be01f5ca3145f7693862695a87a23994810f972e2bc914dfaf102d7a1",
+      "bytes": 3876,
+      "lines": 120,
+      "read_ranges": [
+        [
+          1,
+          120
+        ]
+      ],
+      "reading_scope": "full-dependency"
+    },
+    {
+      "id": "R-1cc73263eabb",
+      "sha256": "4724276f27684b45dd05282fd8b1e2b7e1dcf76eb72952b8b491bc3da7c4f846",
+      "bytes": 9745,
+      "lines": 270,
+      "read_ranges": [
+        [
+          1,
+          115
+        ],
+        [
+          175,
+          222
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "R-1f1eff6fddd0",
+      "sha256": "a5b3c3f4ed27f1d9d9c607d6819aab9985ad446239ea7d2825d4b040d2d8d87e",
+      "bytes": 10454,
+      "lines": 306,
+      "read_ranges": [
+        [
+          166,
+          224
+        ],
+        [
+          250,
+          270
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "R-e966ed94a355",
+      "sha256": "a928085325e32f821a2a89be85bb26cab40e67c24c9869782d85e0b22b50173b",
+      "bytes": 2098,
+      "lines": 58,
+      "read_ranges": [
+        [
+          1,
+          58
+        ]
+      ],
+      "reading_scope": "full-dependency"
+    },
+    {
+      "id": "R-076e8356b72b",
+      "sha256": "c9a84bd7993cb65e532a16b1872ce468b869ec40aac2d743aa03bcbf6a6dd5a8",
+      "bytes": 21878,
+      "lines": 742,
+      "read_ranges": [
+        [
+          426,
+          444
+        ],
+        [
+          450,
+          470
+        ],
+        [
+          573,
+          641
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "R-a48aec12c9dd",
+      "sha256": "0375d4675abee59ff38a187e5df19db50b8795d962d4c735672f305094f558d9",
+      "bytes": 33225,
+      "lines": 254,
+      "read_ranges": [
+        [
+          41,
+          50
+        ],
+        [
+          134,
+          159
+        ],
+        [
+          203,
+          216
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "R-51572fc69e66",
+      "sha256": "f5361a21a63fc9258920c4ab9fe9d57adcb52e9d6bdd22e7a94eb9349be86c7a",
+      "bytes": 1574,
+      "lines": 47,
+      "read_ranges": [
+        [
+          1,
+          47
+        ]
+      ],
+      "reading_scope": "full-dependency"
+    },
+    {
+      "id": "C043",
+      "sha256": "8fbb0ee1f344f47f4f1b8595231338a28bdc0c015daa4644af3b343194bae0d1",
+      "bytes": 3809,
+      "lines": 107,
+      "read_ranges": [
+        [
+          1,
+          107
+        ]
+      ],
+      "reading_scope": "full-dependency"
+    },
+    {
+      "id": "C018",
+      "sha256": "c8f94e2d2517539fd3e3cf05edb5a7187a887d76f2c936798e93e546f8b30ebb",
+      "bytes": 4521,
+      "lines": 178,
+      "read_ranges": [
+        [
+          1,
+          178
+        ]
+      ],
+      "reading_scope": "full-dependency"
+    },
+    {
+      "id": "C036",
+      "sha256": "30514ada563953a1eafa46a09644831969aaae7672068777267e0b801814e7d9",
+      "bytes": 2839,
+      "lines": 114,
+      "read_ranges": [
+        [
+          1,
+          114
+        ]
+      ],
+      "reading_scope": "full-dependency"
+    },
+    {
+      "id": "C035",
+      "sha256": "cd2052ae1b9c49f75ad81aae6e236be959cc6656d32e3b8f3e6e13d2d3bd2d3c",
+      "bytes": 1645,
+      "lines": 66,
+      "read_ranges": [
+        [
+          1,
+          66
+        ]
+      ],
+      "reading_scope": "full-dependency"
+    },
+    {
+      "id": "C037",
+      "sha256": "4c6dfbea0a0a9105121410391b05983f71f4317ccf166a52955fc5972600fcce",
+      "bytes": 2648,
+      "lines": 59,
+      "read_ranges": [
+        [
+          1,
+          59
+        ]
+      ],
+      "reading_scope": "full-dependency"
+    },
+    {
+      "id": "C066",
+      "sha256": "8d2faf47b1322c24a1dfa221b2f5e85b9e766fcd1d460c157c472246a3b86846",
+      "bytes": 1263,
+      "lines": 41,
+      "read_ranges": [
+        [
+          1,
+          41
+        ]
+      ],
+      "reading_scope": "full-dependency"
+    },
+    {
+      "id": "C065",
+      "sha256": "dc939242028d24119b985e6ad4fee3d6c8185f6bd19c716535384149bc9876f3",
+      "bytes": 853,
+      "lines": 39,
+      "read_ranges": [
+        [
+          1,
+          39
+        ]
+      ],
+      "reading_scope": "full-dependency"
+    },
+    {
+      "id": "C072",
+      "sha256": "19addecbc1b224deda7e3a55a16f7412a973958e4be9cdaeeb93449ee9d37598",
+      "bytes": 907,
+      "lines": 31,
+      "read_ranges": [
+        [
+          1,
+          31
+        ]
+      ],
+      "reading_scope": "full-dependency"
+    }
+  ],
+  "native": [
+    {
+      "path": "agents/knowledge-curator.md",
+      "sha256": "82ef6ca5d12661f75cd95aeda7a9c2831de2c5a4c3c1fc3ec2480538103136c7",
+      "bytes": 10710,
+      "lines": 160,
+      "read_ranges": [
+        [
+          1,
+          160
+        ]
+      ],
+      "reading_scope": "full-body"
+    },
+    {
+      "path": "agent-kits/knowledge-curator/curator-gate.py",
+      "sha256": "a4ecaf647f3a2a460536984bc09b39f4dd1e2c369e8290ff61e4bf7e518d7f48",
+      "bytes": 31229,
+      "lines": 539,
+      "read_ranges": [
+        [
+          266,
+          334
+        ],
+        [
+          410,
+          498
+        ]
+      ],
+      "reading_scope": "counterpart-sections"
+    },
+    {
+      "path": "agent-kits/shared/journal.py",
+      "sha256": "acfb3802d49f424ea14cbfdbdaae52b72196bd837080767fbe351a78e898be5b",
+      "bytes": 130305,
+      "lines": 2351,
+      "read_ranges": [
+        [
+          1,
+          133
+        ],
+        [
+          2045,
+          2128
+        ]
+      ],
+      "reading_scope": "counterpart-sections"
+    },
+    {
+      "path": "agent-kits/shared/knowledge-find.py",
+      "sha256": "a9850598679d713cfa1dab69bd1379392b3d48455fbfd9fc215f07bea40ab7a4",
+      "bytes": 79696,
+      "lines": 1538,
+      "read_ranges": [
+        [
+          1,
+          96
+        ]
+      ],
+      "reading_scope": "counterpart-sections"
+    },
+    {
+      "path": "skills/training-data-services/SKILL.md",
+      "sha256": "0beeb8a4e7bda5f61f3cbeff46c39d4f231bd3363389f0760c1c1f2f76a06572",
+      "bytes": 9099,
+      "lines": 108,
+      "read_ranges": [
+        [
+          1,
+          108
+        ]
+      ],
+      "reading_scope": "full-body"
+    },
+    {
+      "path": "skills/training-data-services/scripts/propose-from-case.py",
+      "sha256": "2abc053becfee8ec62620e57c14b5ee5ba065ea3b021879ec3e7ec51fbf61f31",
+      "bytes": 15834,
+      "lines": 290,
+      "read_ranges": [
+        [
+          1,
+          62
+        ]
+      ],
+      "reading_scope": "counterpart-sections"
+    },
+    {
+      "path": "docs/SPECIALIZATION.md",
+      "sha256": "01b1ae964b6de4246355423cd97949195d2ee25c691d736e6906e943ad40173c",
+      "bytes": 7334,
+      "lines": 135,
+      "read_ranges": [
+        [
+          1,
+          130
+        ]
+      ],
+      "reading_scope": "counterpart-sections"
+    },
+    {
+      "path": "agent-kits/shared/knowledge-write.md",
+      "sha256": "9f35f672b961341de66b0cc1061ccb39ef38245fbe78f3629f0e168e800e336e",
+      "bytes": 8330,
+      "lines": 106,
+      "read_ranges": [
+        [
+          1,
+          106
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "iteration-reading-evidence.json"
+    },
+    {
+      "path": "agent-kits/shared/knowledge-check.md",
+      "sha256": "bab98db4ee27fc074ff65252b92739bc913768fc9058e9a8caa9475c3041d1ac",
+      "bytes": 8910,
+      "lines": 104,
+      "read_ranges": [
+        [
+          1,
+          104
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "iteration-reading-evidence.json"
+    },
+    {
+      "path": "agent-kits/shared/capability-check.md",
+      "sha256": "c0dfede7cdd890952ebf4eab114fe6fef01c123350c6060b3053121797a48c20",
+      "bytes": 4559,
+      "lines": 70,
+      "read_ranges": [
+        [
+          1,
+          70
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "iteration-reading-evidence.json"
+    },
+    {
+      "path": "docs/PROJECT-EXTENSIONS.md",
+      "sha256": "555001170f339a4bb0ff9a69a4833e3c25dc2b9fc435c3b3639a3652a837d54c",
+      "bytes": 7629,
+      "lines": 128,
+      "read_ranges": [
+        [
+          1,
+          128
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "iteration-reading-evidence.json"
+    },
+    {
+      "path": "skills/capability-audit/SKILL.md",
+      "sha256": "0a8579a37efbc067bfb6b4dc3f8759a49f50a2a72acc89116f24bbd125406dd9",
+      "bytes": 2109,
+      "lines": 39,
+      "read_ranges": [
+        [
+          1,
+          39
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "iteration-reading-evidence.json"
+    },
+    {
+      "path": "skills/capability-audit/references/method.md",
+      "sha256": "13928d323c2a19dabdafac3d98fb396e40aa82600e3ff13191fd03c4872c03ed",
+      "bytes": 2001,
+      "lines": 34,
+      "read_ranges": [
+        [
+          1,
+          34
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "iteration-reading-evidence.json"
+    },
+    {
+      "path": "skills/adversarial-review/SKILL.md",
+      "sha256": "6511ee78dfad3bd5ae2aba956dd268c08f368c8419069784fea72e1d8fd28f36",
+      "bytes": 17719,
+      "lines": 200,
+      "read_ranges": [
+        [
+          1,
+          33
+        ]
+      ],
+      "reading_scope": "counterpart-sections",
+      "reuse_from": "iteration-reading-evidence.json"
+    },
+    {
+      "path": "hooks/session-journal.sh",
+      "sha256": "aa94df90b96c5a8254684dee709a01614c7ff190f5eef39885123f02be9898e0",
+      "bytes": 5389,
+      "lines": 73,
+      "read_ranges": [
+        [
+          1,
+          73
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "operations-reading-evidence.json"
+    },
+    {
+      "path": "hooks/session-context.sh",
+      "sha256": "c03d51f917c15bcfd7bc3913a309ffd0a9f1b0d8692392cd3f228a73822ed0e2",
+      "bytes": 18029,
+      "lines": 303,
+      "read_ranges": [
+        [
+          1,
+          303
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "operations-reading-evidence.json"
+    },
+    {
+      "path": "agent-kits/shared/outbox.py",
+      "sha256": "77bd33a5a69b4d97216701a8cf07a8a6fef2163126e5448562767bca4c3794f8",
+      "bytes": 45318,
+      "lines": 837,
+      "read_ranges": [
+        [
+          237,
+          302
+        ]
+      ],
+      "reading_scope": "counterpart-sections",
+      "reuse_from": "operations-reading-evidence.json"
+    },
+    {
+      "path": "skills/knowledge-services/SKILL.md",
+      "sha256": "b0ea2a944ffc08a46416dea76eac7e93bed9f52c6eb6bb7776a67b9452646121",
+      "bytes": 6756,
+      "lines": 101,
+      "read_ranges": [
+        [
+          1,
+          48
+        ]
+      ],
+      "reading_scope": "counterpart-sections",
+      "reuse_from": "operations-reading-evidence.json"
+    },
+    {
+      "path": "skills/debug-root-cause/SKILL.md",
+      "sha256": "07d0384901d5f78918d5f9545cd4d8f3a188bf2fb96974f892ba1a519879528b",
+      "bytes": 6651,
+      "lines": 94,
+      "read_ranges": [
+        [
+          1,
+          94
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "reading-evidence.json"
+    },
+    {
+      "path": "agent-kits/shared/read-discipline.md",
+      "sha256": "40511d5a85d2ccac7cde3cc8df2610459852d86d389749807042b5caee879fcd",
+      "bytes": 1707,
+      "lines": 17,
+      "read_ranges": [
+        [
+          1,
+          17
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "reading-evidence.json"
+    },
+    {
+      "path": "commands/work-context.md",
+      "sha256": "830b5f37649bd1c8945013096e5930ca425a3c384e5d1dd52c1765f5f32821ec",
+      "bytes": 1610,
+      "lines": 25,
+      "read_ranges": [
+        [
+          1,
+          25
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "workflow-reading-evidence.json"
+    },
+    {
+      "path": "skills/unit-tests/SKILL.md",
+      "sha256": "bfb1b3899fd657b8beb70522e5f7d834869d22609da94b028c6dc82c7d577bc7",
+      "bytes": 7017,
+      "lines": 109,
+      "read_ranges": [
+        [
+          1,
+          109
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "workflow-reading-evidence.json"
+    }
+  ],
+  "local_resource_totals": {
+    "read": 13,
+    "inventoried": 13,
+    "bytes": 229641,
+    "lines": 6055
+  },
+  "pending_reading": [],
+  "dependency_observations": [
+    {
+      "kind": "official-documentation",
+      "url": "https://code.claude.com/docs/en/hooks.md",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "Stop/SessionEnd lifecycle; hook_event_name; agent_id; exit-0 stderr delivery; async decisions"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "0d73badaaa14e02eaabe13df3fcbbeb1dbd8f8977501f9cb77477e4105154271"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://code.claude.com/docs/en/cli-reference.md",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "allowedTools permission rules versus tools availability; max-turns; print mode"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "a3f76aa69d70cf7e771dd69f465bcdef4b2be7652048df32d2cc164afac3c18d"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://docs.python.org/3.13/library/urllib.request.html",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "Default HTTPRedirectHandler and automatic redirect handling"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "468b5c86697fd4b47127d848fb99c98b9736e2350ccba93b6cb5ed75d5def78f"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://docs.python.org/3.13/library/pathlib.html",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "Path.is_file and Path.is_dir follow_symlinks defaults, Python 3.13"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "90048ef5d8c01a3519e4d3c0f0fcfce68de2740b8da2563f2a3212d042286f8f"
+    }
+  ],
+  "excluded_from_execution_audit": [
+    "Source observation/model calls/imports/promotions/generation/migration/deletion were not executed",
+    "Full runtime dispatch, source tests outside owned directories, memory architecture and efficacy remain T-06/T-07/T-09/T-12/T-14",
+    "Native counterpart section readings do not validate their whole implementations"
+  ],
+  "measurements": {
+    "tokens": null,
+    "latency_seconds": null
+  }
+}
