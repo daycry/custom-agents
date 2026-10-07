@@ -51,9 +51,10 @@ No se ha lanzado ninguna de estas aplicaciones ni sus scripts.
 
 ## Estado de la comparación
 
-Inventariadas: 455 piezas principales y 4.212 archivos totales.
-Evaluadas semánticamente en esta fase: **cero**. Integradas a partir de esta
-comparación completa: **cero**. Las adaptaciones acotadas de la fase anterior
+Inventariadas: 455 piezas principales y 4.212 archivos totales. Al cerrar T-01
+había **cero** evaluadas semánticamente; `semantic_reviews_at_inventory` conserva
+ese snapshot y no es un contador vivo. El avance de comparación e integración
+se registra en [tasks.md](tasks.md). Las adaptaciones acotadas de la fase anterior
 no se convierten en evaluación exhaustiva por coincidir sus hashes.
 
 Las fichas siguen el [contrato de auditoría](audit-contract.md). El progreso

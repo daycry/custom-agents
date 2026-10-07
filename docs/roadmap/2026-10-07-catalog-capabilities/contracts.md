@@ -34,7 +34,10 @@ estructurales, tres entradas de panel y 30 archivos relacionados con paneles.
 [audit-contract.md](audit-contract.md) fija las fichas. La pertenencia a un
 directorio no acredita dependencias ni callers; su lectura sigue pendiente.
 
-Evaluadas semánticamente en esta fase: cero. No se ejecuta código de origen.
+Al cerrar el inventario T-01 había cero evaluadas semánticamente. El progreso
+actual se registra en [tasks.md](tasks.md); las primeras fichas están en
+[comparisons/skills-foundations.md](comparisons/skills-foundations.md).
+No se ejecuta código de origen.
 
 ## Prueba nativa OpenCode 2.0.12
 

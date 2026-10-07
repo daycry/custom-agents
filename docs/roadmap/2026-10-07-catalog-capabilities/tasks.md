@@ -53,11 +53,13 @@ Meter privado abierto; sin respuestas compatibles no se inventa consumo.
 
 ### T-03 — Comparación semántica de las 293 skills
 
-- **Estado**: borrador
+- **Estado**: en-progreso
 - **Descripción**: Leer cuerpos, recursos y callers de todas las skills; registrar contenido único y comparación concreta, incluyendo dominios técnicos y memoria.
 - **Dependencias**: T-01.
 - **Archivos**: `docs/roadmap/2026-10-07-catalog-capabilities/**`
-- **Verificación**: Pendiente: una ficha por ID, secciones comparadas, hashes, recurso/validación y contador de revisión completo.
+- **Verificación**: 5/293 skills evaluadas semánticamente (S001–S005), cuerpos completos, recursos locales y consumidores pertinentes comprobados. comparisons/skills-foundations.md conserva contratos, contenido único, destinos propuestos, escenarios estáticos y validaciones no ejecutadas; comparisons/reading-evidence.json registra hashes y rangos de 18 fuentes y 13 archivos propios. Helper privado build_skill_read_evidence.py, Python 3.13, exit 0. Integradas desde esta comparación: 0; quedan 288 skills y la revisión operativa de adaptadores/generadores en T-06. T-03 no está cerrada.
+- **Notas**: TDD n/a: prosa/config de comparación, sin modificación de producción. Los consumidores leídos parcialmente no se cuentan como otras piezas evaluadas; las validaciones de activación son estáticas y no acreditan invocación nativa.
+- **Comprobaciones del checkpoint**: ledger-lint 0 incoherencias/0 avisos; test_roadmap_index 50 passed; lint_plugin 0 errores/3 avisos históricos; scope-check 9 archivos propios en alcance/0 fuera, settings ajenos excluidos. check_skill_comparison_docs.py: 18 hashes de origen/13 propios coincidentes, enlaces locales válidos, JSON válido, diff limpio y 0 referencias públicas prohibidas en los 9 documentos del checkpoint. Estas puertas validan estructura/trazabilidad, no integración funcional.
 **Criterios de aceptación**:
   - [ ] Contrato y resultado de la tarea comprobados con evidencia ejecutada; límites y errores cubiertos.
 

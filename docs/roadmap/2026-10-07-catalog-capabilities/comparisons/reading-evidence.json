@@ -1,0 +1,439 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "scope": "S001-S005 bodies and necessary caller sections; native counterparts",
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source": [
+    {
+      "id": "S001",
+      "sha256": "2762f21d09d199009ed4f95b28c911436b367c30963dc5ddb48b8e1ad7fc1585",
+      "bytes": 6546,
+      "lines": 146,
+      "read_ranges": [
+        [
+          1,
+          146
+        ]
+      ],
+      "reading_scope": "full-body",
+      "directory_resources": []
+    },
+    {
+      "id": "S002",
+      "sha256": "64f57e232c3533877403703bc95b3c75df9de23f657899a306f13c703009ff57",
+      "bytes": 10278,
+      "lines": 257,
+      "read_ranges": [
+        [
+          1,
+          257
+        ]
+      ],
+      "reading_scope": "full-body",
+      "directory_resources": []
+    },
+    {
+      "id": "S003",
+      "sha256": "57fa683e356b6f5612bc6d7dc101ae39c126e6edf9a48f4ec53afea3e80d7e5d",
+      "bytes": 4696,
+      "lines": 147,
+      "read_ranges": [
+        [
+          1,
+          147
+        ]
+      ],
+      "reading_scope": "full-body",
+      "directory_resources": []
+    },
+    {
+      "id": "S004",
+      "sha256": "e7fb390a6663b46ea5d3c2876753a5ce32ba3bad1889686b21a42894caa1742d",
+      "bytes": 2100,
+      "lines": 74,
+      "read_ranges": [
+        [
+          1,
+          74
+        ]
+      ],
+      "reading_scope": "full-body",
+      "directory_resources": []
+    },
+    {
+      "id": "S005",
+      "sha256": "0cdbfe3c822ff50d21df8cd0e20c72407a6f5658089edc0e96e79a03927cb956",
+      "bytes": 5627,
+      "lines": 154,
+      "read_ranges": [
+        [
+          1,
+          154
+        ]
+      ],
+      "reading_scope": "full-body",
+      "directory_resources": []
+    },
+    {
+      "id": "A001",
+      "sha256": "88e684476cbc449a2444a1218a79034d275465f375ce45b6d86ab99958bf45e7",
+      "bytes": 7339,
+      "lines": 149,
+      "read_ranges": [
+        [
+          1,
+          149
+        ]
+      ],
+      "reading_scope": "full-body",
+      "directory_resources": null
+    },
+    {
+      "id": "S007",
+      "sha256": "96bb21eb37760f596789f84ec0a5dad4ef92fc2255e35cd7b88dc4234062b8c1",
+      "bytes": 7625,
+      "lines": 182,
+      "read_ranges": [
+        [
+          166,
+          182
+        ]
+      ],
+      "reading_scope": "caller-sections",
+      "directory_resources": null
+    },
+    {
+      "id": "S240",
+      "sha256": "c451a63f96077f92ef6b40c4310f5a470a5d05103a181af518b115c4e828292c",
+      "bytes": 9586,
+      "lines": 265,
+      "read_ranges": [
+        [
+          175,
+          211
+        ]
+      ],
+      "reading_scope": "caller-sections",
+      "directory_resources": null
+    },
+    {
+      "id": "S290",
+      "sha256": "65e322383510de25bd5fc6fce4b0980d99d38b341f09bea662bd9a410e20c016",
+      "bytes": 13182,
+      "lines": 471,
+      "read_ranges": [
+        [
+          453,
+          471
+        ]
+      ],
+      "reading_scope": "caller-sections",
+      "directory_resources": null
+    },
+    {
+      "id": "S176",
+      "sha256": "2497888dd543ca7bdf5d0cb4d90fce023eb2c1c14f860f0af8e8be42423131b4",
+      "bytes": 22450,
+      "lines": 348,
+      "read_ranges": [
+        [
+          45,
+          88
+        ]
+      ],
+      "reading_scope": "caller-sections",
+      "directory_resources": null
+    },
+    {
+      "id": "S231",
+      "sha256": "51c18b4e28285bb876ef469e47c6f53108b5a9f900950a60e897c3c24826a65e",
+      "bytes": 13168,
+      "lines": 424,
+      "read_ranges": [
+        [
+          227,
+          251
+        ]
+      ],
+      "reading_scope": "caller-sections",
+      "directory_resources": null
+    },
+    {
+      "id": "S229",
+      "sha256": "f3208d44a5d553038c42e046cec4dc16e4a3d90a9dbf931f883a2e21919a64a9",
+      "bytes": 11466,
+      "lines": 342,
+      "read_ranges": [
+        [
+          240,
+          260
+        ]
+      ],
+      "reading_scope": "caller-sections",
+      "directory_resources": null
+    },
+    {
+      "id": "C077",
+      "sha256": "1c87ad417400006ad380bccc7c17b1f1fe71148f99f4a3015c0b6a7d5baf4edc",
+      "bytes": 7335,
+      "lines": 265,
+      "read_ranges": [
+        [
+          247,
+          265
+        ]
+      ],
+      "reading_scope": "caller-sections",
+      "directory_resources": null
+    },
+    {
+      "id": "C076",
+      "sha256": "e2a41010af97104e3f6819b7a6ddc381b529c8b6a0cac46e8cfc13578dc51cde",
+      "bytes": 5820,
+      "lines": 170,
+      "read_ranges": [
+        [
+          150,
+          169
+        ]
+      ],
+      "reading_scope": "caller-sections",
+      "directory_resources": null
+    },
+    {
+      "id": "A055",
+      "sha256": "17d0286b4f101e27b818cad026a6bfc1f9fd3e7f9b52c8414e6ea2a05481995a",
+      "bytes": 11411,
+      "lines": 167,
+      "read_ranges": [
+        [
+          143,
+          167
+        ]
+      ],
+      "reading_scope": "caller-sections",
+      "directory_resources": null
+    },
+    {
+      "id": "R-591e7a1672e1",
+      "sha256": "59e855c382ccab4670dcd293721365d88d400c5d499fd93c1572ce9c1ccb6b6d",
+      "bytes": 31763,
+      "lines": 1199,
+      "read_ranges": [
+        [
+          186,
+          220
+        ],
+        [
+          289,
+          334
+        ],
+        [
+          380,
+          410
+        ],
+        [
+          802,
+          845
+        ]
+      ],
+      "reading_scope": "caller-sections",
+      "directory_resources": null
+    },
+    {
+      "id": "R-03ffcc8e6e9e",
+      "sha256": "9583fe1ac4109a8a3c94c5ffaf8a331d6e9997c8657494ef2a95dbf3a65b5414",
+      "bytes": 22743,
+      "lines": 482,
+      "read_ranges": [
+        [
+          1,
+          56
+        ]
+      ],
+      "reading_scope": "caller-sections",
+      "directory_resources": null
+    },
+    {
+      "id": "R-0243aba303d6",
+      "sha256": "26343a5800b06cbb70ce72587d033ec31aec2a76ca0905e247744789015b1f16",
+      "bytes": 16885,
+      "lines": 571,
+      "read_ranges": [
+        [
+          43,
+          85
+        ]
+      ],
+      "reading_scope": "caller-sections",
+      "directory_resources": null
+    }
+  ],
+  "native": [
+    {
+      "path": "skills/frontend-quality/SKILL.md",
+      "sha256": "7b6916e32d90731b8f81ee3eb36695dd9f62d498f132ac61bd7b9fd39066f4b0",
+      "bytes": 1062,
+      "lines": 23,
+      "read_ranges": [
+        [
+          1,
+          23
+        ]
+      ]
+    },
+    {
+      "path": "skills/frontend-quality/references/interaction-performance.md",
+      "sha256": "aa2fbb759c0854e7db4b4db13141469f10573e19138301078b9ad0846157322f",
+      "bytes": 2483,
+      "lines": 40,
+      "read_ranges": [
+        [
+          1,
+          40
+        ]
+      ]
+    },
+    {
+      "path": "skills/outcome-evals/SKILL.md",
+      "sha256": "a9fc451f8c60a1850fc69a992a6710660b886e249294b34d9374b5f6ccd791ae",
+      "bytes": 2232,
+      "lines": 40,
+      "read_ranges": [
+        [
+          1,
+          40
+        ]
+      ]
+    },
+    {
+      "path": "skills/outcome-evals/references/protocol.md",
+      "sha256": "84dbf7945fde5694c87abd7c7d611ddd6a2aea26ca78062467f3b7d70ca262c6",
+      "bytes": 3323,
+      "lines": 56,
+      "read_ranges": [
+        [
+          1,
+          56
+        ]
+      ]
+    },
+    {
+      "path": "skills/outcome-evals/scripts/report_outcomes.py",
+      "sha256": "d0722d2c34585e7f8a7f355de3b5b948e2fdd44d14ec2a2daf8edbc527b1c6ad",
+      "bytes": 8159,
+      "lines": 175,
+      "read_ranges": [
+        [
+          1,
+          175
+        ]
+      ]
+    },
+    {
+      "path": "skills/debug-root-cause/SKILL.md",
+      "sha256": "07d0384901d5f78918d5f9545cd4d8f3a188bf2fb96974f892ba1a519879528b",
+      "bytes": 6651,
+      "lines": 94,
+      "read_ranges": [
+        [
+          1,
+          94
+        ]
+      ]
+    },
+    {
+      "path": "skills/capability-audit/SKILL.md",
+      "sha256": "0a8579a37efbc067bfb6b4dc3f8759a49f50a2a72acc89116f24bbd125406dd9",
+      "bytes": 2109,
+      "lines": 39,
+      "read_ranges": [
+        [
+          1,
+          39
+        ]
+      ]
+    },
+    {
+      "path": "skills/capability-audit/references/method.md",
+      "sha256": "13928d323c2a19dabdafac3d98fb396e40aa82600e3ff13191fd03c4872c03ed",
+      "bytes": 2001,
+      "lines": 34,
+      "read_ranges": [
+        [
+          1,
+          34
+        ]
+      ]
+    },
+    {
+      "path": "agent-kits/shared/capability-check.md",
+      "sha256": "c0dfede7cdd890952ebf4eab114fe6fef01c123350c6060b3053121797a48c20",
+      "bytes": 4559,
+      "lines": 70,
+      "read_ranges": [
+        [
+          1,
+          70
+        ]
+      ]
+    },
+    {
+      "path": "agent-kits/shared/read-discipline.md",
+      "sha256": "40511d5a85d2ccac7cde3cc8df2610459852d86d389749807042b5caee879fcd",
+      "bytes": 1707,
+      "lines": 17,
+      "read_ranges": [
+        [
+          1,
+          17
+        ]
+      ]
+    },
+    {
+      "path": "agents/qa.md",
+      "sha256": "914e408cfd3c72d5dc731de9f5665f6414d0b9f8a28a5860c73acdcebe51085e",
+      "bytes": 18622,
+      "lines": 139,
+      "read_ranges": [
+        [
+          85,
+          123
+        ]
+      ]
+    },
+    {
+      "path": "agents/architect.md",
+      "sha256": "53647cef5f8d7b42084446410057de58501b8a7d6989baec5cc6688f6ac19b3a",
+      "bytes": 15544,
+      "lines": 195,
+      "read_ranges": [
+        [
+          1,
+          85
+        ],
+        [
+          129,
+          152
+        ]
+      ]
+    },
+    {
+      "path": "skills/plugin-dev/SKILL.md",
+      "sha256": "d116703db8ebb30c4a4f225960cfbfe3e1d6d526cb4faa81ac9b16d8458b8ed5",
+      "bytes": 13971,
+      "lines": 167,
+      "read_ranges": [
+        [
+          1,
+          41
+        ],
+        [
+          74,
+          138
+        ]
+      ]
+    }
+  ]
+}

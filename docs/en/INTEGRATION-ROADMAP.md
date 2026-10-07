@@ -11,7 +11,7 @@ they have been implemented.
 |---|---|---|
 | 1. Shared core | Multi-runtime hooks, guidance selection, workflow, briefs, optional structural context, outcome evaluation and panel | Completed and published; evidence in [workflow-integration](../roadmap/2026-10-06-workflow-integration/tasks.md) |
 | 2. User extensions | Recognize user agents, skills, personas, tools and MCP in Claude, Codex and OpenCode; show origin, conflicts and unverified availability | Completed and published on feat/project-extensions; ten tasks, review and QA closed. [Plan and evidence](../roadmap/2026-10-06-project-extensions/tasks.md) |
-| 3. Catalog capabilities | Thoroughly compare existing skills, tools, agents and commands from the reference catalog; integrate useful improvements and verify actual runtime guard scope | In progress (1/16); complete inventory reconciled: 455 primary pieces and 4,212 files, including panels. Semantic comparison and integration pending. [Plan and evidence](../roadmap/2026-10-07-catalog-capabilities/tasks.md) |
+| 3. Catalog capabilities | Thoroughly compare existing skills, tools, agents and commands from the reference catalog; integrate useful improvements and verify actual runtime guard scope | In progress (1/16); complete inventory reconciled: 455 primary pieces and 4,212 files, including panels. Semantic comparison started; integration pending. [Plan and evidence](../roadmap/2026-10-07-catalog-capabilities/tasks.md) |
 | 4. Memory and evaluation | Measure retrieval, freshness and usefulness; compare improvements against existing Markdown, journal and backends before deciding changes | Pending; the current AST pilot does not prove retrieval effectiveness |
 
 No new technical packages will be created to fill gaps in the reference catalog.
