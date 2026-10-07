@@ -111,3 +111,61 @@ No se introduce un registro basado en transcripciones para suplir la identidad.
 La [documentación oficial de hooks](https://learn.chatgpt.com/docs/hooks)
 remite a los esquemas y advierte que main puede diferir de la release;
 esta lectura usa la revisión de la versión instalada, no main.
+
+## Personas e instrucciones nativas
+
+Contraste documental del 2026-10-07 a petición del usuario. Las páginas oficiales
+consultadas no definen `personas/` como categoría o carpeta de carga nativa.
+Esto describe el contrato documentado; no es una prueba de ejecución nueva.
+
+| Entorno | Mecanismo documentado |
+|---|---|
+| Claude Code | Agentes Markdown con frontmatter YAML en `.claude/agents/` o `~/.claude/agents/`; el cuerpo contiene las instrucciones del especialista. [Subagents](https://code.claude.com/docs/en/sub-agents) |
+| Codex | Agentes TOML en `.codex/agents/` o `~/.codex/agents/`, con `name`, `description` y `developer_instructions`. La especialización se expresa en estas instrucciones. [Subagents](https://learn.chatgpt.com/docs/agent-configuration/subagents) |
+| OpenCode V2 | Agentes Markdown en `.opencode/agents/` o `~/.config/opencode/agents/`; el cuerpo es el prompt `system`. En configuración se usa `agents.<id>.system`. [Agents V2](https://opencode.ai/v2/docs/agents) |
+
+Codex también ofrece `personality = none | friendly | pragmatic`: estilo de
+comunicación para modelos compatibles, no perfiles de dominio. No se debe
+mapear `Tipo: facturacion` a esta opción.
+[Configuration Reference](https://learn.chatgpt.com/docs/config-file/config-reference).
+
+Para reglas persistentes comunes, ambos documentan `AGENTS.md`.
+[Codex AGENTS.md](https://learn.chatgpt.com/docs/agent-configuration/agents-md).
+En OpenCode V2, `instructions` se acepta en el esquema pero actualmente no
+carga archivos, globs o URLs; tampoco hay fallback a `CLAUDE.md`.
+[Instructions V2](https://opencode.ai/v2/docs/instructions/).
+OpenCode V1 documenta `agent` y `prompt`; el export debe distinguir versiones.
+[Agents V1](https://opencode.ai/docs/agents/).
+
+Matices de la matriz aportada por el usuario: contexto propio significa una
+sesión o ventana del subagente, no aislamiento del filesystem ni ausencia de
+contexto heredado. Configurar tools/permisos por agente está sujeto a los límites
+de la sesión y del entorno; Codex reaplica las restricciones activas del padre.
+En Claude, las capacidades del frontmatter de agentes de proyecto/usuario no
+se deben atribuir automáticamente a agentes del plugin: los campos ignorados
+están registrados al principio de este contrato.
+
+**Criterio para el diseño pendiente:** priorizar las ubicaciones y campos nativos
+cuando se crea un especialista invocable. Una persona que solo aporta criterios
+de dominio a una tarea puede seguir siendo un perfil acotado del brief, sin
+crear otro agente que duplique el rol. La propuesta de nuevas carpetas
+`.codex/personas/` y `.opencode/personas/` no acredita compatibilidad nativa y
+no debe presentarse como estándar. Preservar los perfiles existentes de
+`.claude/personas/` como compatibilidad del plugin; resolver almacenamiento,
+selección y composición compartida en T-08 antes de cambiar el lector.
+
+Estado actual comprobado por lectura: `task-brief.py` sigue resolviendo persona
+proyecto `.claude/personas/` → catálogo → sin persona con aviso. Este contraste
+no modifica el lector, exports ni permisos. T-09/T-11/T-13/T-15 deben alinear
+inventario, brief, export y panel; T-14 debe comprobar carga y contenido efectivo
+por versión, incluyendo perfiles ausentes, colisiones y límites del brief.
+
+**Lectura de agentes TOML del proyecto:** `project-pieces.py` ya descubre
+`.codex/agents/*.toml` en esta rama, exige instrucciones como string y extrae
+metadata pública y referencias. Se ejecutaron tres tests seleccionados por
+`-k codex` y el test de descubrimiento de agentes nativos: cuatro pasaron.
+Son fixtures del lector propio, no prueba de invocación en Codex. Detectar
+una declaración no acredita que el runtime la haya cargado o autorizado.
+La instalación local del plugin 1.22.0 comprobada no contiene ese lector;
+la funcionalidad del repositorio todavía requiere distribución para esa
+instalación. No se modificó el caché del plugin.

@@ -81,6 +81,14 @@ Este perfil sí entra en el brief con sus límites existentes; no se convierte e
 un agente. Las personas personales detectadas se pueden referenciar como
 material; no añaden un cuarto escalón automático a esa cascada.
 
+`personas/` es una convención de custom-agents. La documentación oficial
+consultada no define un cargador de `.codex/personas/` o `.opencode/personas/`.
+La especialización nativa se expresa en las instrucciones de los agentes;
+las reglas generales del proyecto usan `AGENTS.md`. La opción `personality`
+de Codex controla el estilo de comunicación, no el dominio de una tarea.
+El contraste y el diseño pendiente están en
+[contratos de personas](roadmap/2026-10-07-catalog-capabilities/contracts.md#personas-e-instrucciones-nativas).
+
 ## Panel e inventario directo
 
 `/plugin-catalog` incluye el proyecto actual. El panel mantiene conteos separados

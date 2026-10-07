@@ -71,6 +71,13 @@ profile enters the brief under its existing limits and remains distinct from
 an agent. Detected personal personas can be referenced as material; they do
 not add a fourth automatic step to the cascade.
 
+`personas/` is a custom-agents convention. The official documentation reviewed
+does not define a loader for `.codex/personas/` or `.opencode/personas/`.
+Native specialization belongs in agent instructions; general project rules
+use `AGENTS.md`. Codex's `personality` option controls communication style,
+not a task's domain. See the
+[persona contracts and pending design](../roadmap/2026-10-07-catalog-capabilities/contracts.md#personas-e-instrucciones-nativas).
+
 ## Panel and direct inventory
 
 Plugin-catalog includes the current project. The panel separates bundle counts
