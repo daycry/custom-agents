@@ -255,3 +255,27 @@ def test_repo_real_exporta_y_pasa_el_check(tmp_path):
     ag = (out / "AGENTS.md").read_text(encoding="utf-8")
     assert all(f"`skills/{s}/SKILL.md`" in ag for s in esperadas)
     shutil.rmtree(out)
+
+
+def test_portable_panel_includes_extension_reader_dependencies_and_runs(tmp_path):
+    import json
+    out, project, home = tmp_path / 'portable', tmp_path / 'consumer', tmp_path / 'home'
+    project.mkdir(); home.mkdir()
+    agents = project / '.claude/agents'
+    agents.mkdir(parents=True)
+    (agents / 'billing.md').write_text('---\nname: billing\ndescription: Bills\n---\nPRIVATE BODY\n', encoding='utf-8')
+    ES.exportar(ROOT, str(out), 'all', quiet=True)
+    for name in ('project-pieces.py', 'capability-route.py', 'redact.py'):
+        assert (out / 'agent-kits/shared' / name).is_file(), name
+    result = subprocess.run([sys.executable, str(out / 'skills/plugin-panel/scripts/build_panel.py'), '--project', str(project), '--home', str(home), '--runtime', 'claude-code', '--json'], capture_output=True, encoding='utf-8', timeout=20)
+    assert result.returncode == 0, result.stderr
+    data = json.loads(result.stdout)
+    assert not data['extensions']['partial']
+    assert [p['name'] for p in data['extensions']['pieces']] == ['billing']
+    assert 'PRIVATE BODY' not in result.stdout
+
+
+def test_shared_reader_transitive_dependencies_are_closed_without_other_skills():
+    assert set(ES.fragmentos_shared(ROOT, ['agent-kits/shared/project-pieces.py'])) >= {
+        'agent-kits/shared/project-pieces.py', 'agent-kits/shared/capability-route.py', 'agent-kits/shared/redact.py',
+    }

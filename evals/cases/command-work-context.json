@@ -2,6 +2,12 @@
   "target": "command:work-context",
   "cases": [
     {
+      "id": "work-context-extensions-literal",
+      "prompt": "reconoce agentes, skills, personas, tools y MCP propios",
+      "trigger": "literal",
+      "expect": { "activates": true, "mentions": ["project-pieces"] }
+    },
+    {
       "id": "work-context-literal",
       "prompt": "/work-context . implementer python api: selecciona las guías del plugin",
       "trigger": "literal",

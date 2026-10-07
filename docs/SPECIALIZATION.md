@@ -18,6 +18,11 @@ tienen el ciclo (`tasks.md`) y la memoria (`docs/knowledge/README.md`): un **reg
 > más abajo son el **contrato de F2** (`design.md` `ADR-014`, `tasks.md` T-04…T-18): están diseñados y
 > planificados, **no en el árbol todavía**. Mismo patrón que `docs/agents/ROLES.md` con `/specialize`.
 
+El lector de [extensiones propias](PROJECT-EXTENSIONS.md) reconoce las piezas
+existentes y valida un registro O1 aportado por el proyecto en modo lectura.
+Ese inventario derivado no entrega la generación, adopción, reconstrucción ni
+las puertas de escritura de F2; su estado se sigue en el ledger independiente.
+
 ## Qué es el bucle
 
 ```

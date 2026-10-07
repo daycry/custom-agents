@@ -2,6 +2,12 @@
   "target": "command:plugin-catalog",
   "cases": [
     {
+      "id": "catalog-extensions-literal",
+      "prompt": "incluye extensiones de proyecto y usuario",
+      "trigger": "literal",
+      "expect": { "activates": true, "mentions": ["plugin-panel"] }
+    },
+    {
       "id": "catalog-literal",
       "prompt": "Explora el catálogo del plugin en un control panel HTML local",
       "trigger": "literal",

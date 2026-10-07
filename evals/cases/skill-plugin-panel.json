@@ -2,6 +2,12 @@
   "target": "skill:plugin-panel",
   "cases": [
     {
+      "id": "plugin-panel-extensions-literal",
+      "prompt": "incluye extensiones propias de proyecto y usuario",
+      "trigger": "literal",
+      "expect": { "activates": true, "mentions": ["project-pieces"] }
+    },
+    {
       "id": "plugin-panel-literal",
       "prompt": "panel de capacidades",
       "trigger": "literal",

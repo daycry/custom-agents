@@ -236,9 +236,13 @@ flowchart LR
 | `/spec-drift` | Does the code still honor the implemented specs? |
 | `/retro` | Closes the loop: deviations + causes → `CALIBRATION.md`. |
 | `/confluence-pull` | Confluence → local `docs/` (PM without git). |
-| `/plugin-catalog` | Search agents, skills, commands, declared tools and hooks in a local capability panel. |
-| `/work-context` | Relevant guides by role, stack and task area. |
+| `/plugin-catalog` | Search bundle capabilities and your project/user extensions, with sources and conflicts. |
+| `/work-context` | Relevant guides and explicitly selected extensions for the task. |
 | `/doctor` | Deterministic install diagnosis: tools, plugin/hooks, statusline, `.claude/` configs, work state — ✅/⚠️/❌ verdict with the fix per line, read-only, no network. |
+
+Your agents, skills, personas, tool sources and MCP remain in native project/user
+folders. Discovery preserves your files and distinguishes declarations from
+session availability. [Extension guide](docs/en/PROJECT-EXTENSIONS.md).
 
 Shared skills: `jira-sync` · `confluence-publish` / `confluence-pull` · `roadmap-dashboard` · `debug-root-cause` · `adversarial-review` · `cybersecurity` · `to-pdf` · `rates-verify` · `plugin-dev` · `quick-implement` · `tdd` · `code-health` · `dependency-upgrade` · `changelog-sync` · `unit-tests` · `api-contract` · `knowledge-services` · `training-data-services` · `research-first` · `plugin-panel` · `stack-practices` · `backend-practices` · `frontend-quality` · `delivery-practices` · `capability-audit` · `outcome-evals`. Deterministic scripts (all with tests): `usage-meter` · `task-brief` · `model-tier` · `journal` · `code-health` · `deps-inventory` · `worklog` · `qa-gate` · `ledger-lint` · `coverage-check` · `build_dashboard` · `lint_plugin`.
 

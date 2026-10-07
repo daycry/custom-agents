@@ -1118,6 +1118,78 @@ def test_missing_capability_module_does_not_block_brief(tmp_path, monkeypatch, c
     assert 'capacidad' in capsys.readouterr().err.lower()
 
 
+@pytest.fixture()
+def extension_task(tmp_path):
+    project, home = tmp_path / 'project', tmp_path / 'home'
+    home.mkdir()
+    initiative = project / 'docs/roadmap/2026-10-06-extension'
+    initiative.mkdir(parents=True)
+    (initiative / 'tasks.md').write_text(TASKS, encoding='utf-8')
+    (initiative / 'improvement-plan.md').write_text(PLAN, encoding='utf-8')
+    agent = project / '.claude/agents/billing.md'
+    agent.parent.mkdir(parents=True)
+    agent.write_text('---\nname: billing\ndescription: Billing guidance\n---\nPRIVATE EXTENSION BODY\n', encoding='utf-8')
+    spec = importlib.util.spec_from_file_location('brief_extension_test', Path(__file__).with_name('project-pieces.py'))
+    reader = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(reader)
+    identity = reader.discover(project, home=home, runtime='claude-code')['pieces'][0]['id']
+    return project, home, initiative, identity
+
+
+def test_selected_extension_reaches_complete_brief_as_reference_only(extension_task):
+    project, home, initiative, identity = extension_task
+    path = initiative / 'tasks.md'
+    path.write_text(TASKS.replace('- **Descripción**: hacer la cosa A.', '- **Descripción**: hacer la cosa A.\n- **Extensiones**: ' + identity), encoding='utf-8')
+    rc, output = _run([str(initiative), 'T-01', '--sin-lint', '--constitucion', str(initiative / 'no.md'), '--runtime', 'claude-code', '--extensions-home', str(home)])
+    assert rc == 0 and '## Extensiones de la tarea' in output
+    assert 'project/.claude/agents/billing.md' in output
+    assert 'PRIVATE EXTENSION BODY' not in output
+    assert 'la cosa A funciona' in output and len(output) <= tb.BRIEF_TOPE_CHARS
+    assert 'disponibilidad' in output
+
+
+def test_extension_metadata_inside_fences_is_not_selected(extension_task):
+    _, home, initiative, identity = extension_task
+    chunk = '```md\n- **Extensiones**: ' + identity + '\n```'
+    assert tb._seccion_extensiones(chunk, str(initiative), home=home) == []
+
+
+def test_removed_extension_warns_and_preserves_task_brief(extension_task, capsys):
+    project, home, initiative, identity = extension_task
+    (project / '.claude/agents/billing.md').unlink()
+    assert tb._seccion_extensiones('- **Extensiones**: ' + identity, str(initiative), home=home) == []
+    assert 'extensiones' in capsys.readouterr().err.lower()
+
+
+def test_brief_extension_selection_rejects_ambiguous_fields_and_unbounded_ids(extension_task, capsys):
+    _, home, initiative, identity = extension_task
+    for chunk in ('- **Extensiones**: ../private', '- **Extensiones**: ' + ','.join([identity]*21), '- **Extensiones**: ' + identity + '\n- **Extensiones**: ' + identity):
+        assert tb._seccion_extensiones(chunk, str(initiative), home=home) == []
+        assert 'extensiones' in capsys.readouterr().err.lower()
+
+
+def test_partial_extension_install_does_not_block_brief(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(tb, '__file__', str(tmp_path / 'task-brief.py'))
+    assert tb._seccion_extensiones('- **Extensiones**: ext-' + 'a'*20, str(tmp_path)) == []
+    assert 'extensiones' in capsys.readouterr().err.lower()
+
+
+def test_extension_references_are_bounded_and_do_not_borrow_task_budget(extension_task):
+    project, home, initiative, _ = extension_task
+    for i in range(20):
+        directory = project / '.claude/skills' / ('billing' + str(i) + 'x' * 100)
+        directory.mkdir(parents=True)
+        (directory / 'SKILL.md').write_text('---\nname: billing' + str(i) + '\ndescription: guidance\n---\nPRIVATE SKILL BODY\n', encoding='utf-8')
+    spec = importlib.util.spec_from_file_location('brief_extension_many', Path(__file__).with_name('project-pieces.py'))
+    reader = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(reader)
+    identities = [p['id'] for p in reader.discover(project, home=home, runtime='claude-code')['pieces'] if p['kind']=='skill']
+    chunk = '- **Extensiones**: ' + ', '.join(identities)
+    section = '\n'.join(tb._seccion_extensiones(chunk, str(initiative), runtime='claude-code', home=home))
+    assert section and len(section) <= 1000 and 'tasks.md' in section
+    assert 'PRIVATE SKILL BODY' not in section
+
+
 def test_brief_budget_verificacion_solo_evidencia_no_se_filtra_a_tarea():
     chunk = "### T-01\n- **Verificación**:\n  - Salida real fix2: OUTPUT_HISTORY\n**Criterios de aceptación**\n- [ ] funciona\n"
     verif, task = tb._resolver_verificacion(chunk)

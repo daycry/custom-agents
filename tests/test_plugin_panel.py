@@ -43,6 +43,100 @@ def test_catalog_metadata_redacted_without_private_bodies(panel, bundle):
     assert inventory['hooks'][0] == {'event': 'SessionStart', 'timeout': 3, 'scope': 'global'}
 
 
+@pytest.fixture
+def extension_sources(tmp_path):
+    project, home = tmp_path / 'consumer', tmp_path / 'user'
+    project.mkdir()
+    home.mkdir()
+    for base in (project, home):
+        write(base, '.claude/agents/billing.md', '---\nname: billing\ndescription: Billing specialist\n---\nPRIVATE EXTENSION BODY\n')
+    write(project, '.claude/personas/billing.md', 'PRIVATE PERSONA BODY\n')
+    write(project, '.agents/skills/tax/SKILL.md', '---\nname: tax\ndescription: Tax guidance\n---\nPRIVATE SKILL BODY\n')
+    write(project, '.codex/agents/tax.toml', 'name="tax"\ndescription="Tax specialist"\ndeveloper_instructions="PRIVATE INSTRUCTIONS"\n')
+    write(project, '.opencode/tools/invoice.ts', 'throw new Error("NEVER EXECUTE THIS");\n')
+    write(project, '.mcp.json', json.dumps({'mcpServers': {'ledger': {'type': 'http', 'url': 'https://example.test/private-token', 'headers': {'Authorization': 'private-token'}}}}))
+    write(home, '.claude.json', json.dumps({'projects': {str(project): {'disabledMcpServers': ['ledger']}}}))
+    return project, home
+
+
+def test_project_extensions_are_separate_from_bundle_counts(panel, bundle, extension_sources):
+    project, home = extension_sources
+    baseline = panel.build_inventory(bundle)
+    data = panel.build_inventory(bundle, project=project, home=home)
+    assert data['counts'] == baseline['counts']
+    extensions = data['extensions']
+    assert {p['runtime'] for p in extensions['pieces']} == {'claude-code', 'codex', 'opencode'}
+    assert {'agent', 'skill', 'persona', 'tool-source', 'mcp'} <= {p['kind'] for p in extensions['pieces']}
+    assert {p['scope'] for p in extensions['pieces']} == {'project', 'user'}
+    assert extensions['conflicts'] and all(p['availability']=='unverified' for p in extensions['pieces'])
+    public = json.dumps(data)
+    assert not any(value in public for value in ('PRIVATE EXTENSION BODY', 'PRIVATE PERSONA BODY', 'PRIVATE SKILL BODY', 'PRIVATE INSTRUCTIONS', 'NEVER EXECUTE THIS', 'private-token', 'example.test'))
+
+
+def test_extension_cards_have_origins_conflicts_and_unverified_availability(panel, bundle, extension_sources):
+    project, home = extension_sources
+    output = panel.render_html(panel.build_inventory(bundle, project=project, home=home))
+    assert 'id="extensions"' in output and 'href="#extensions"' in output
+    assert 'id="extension-scope"' in output and 'id="extension-runtime"' in output
+    assert 'id="extension-kind"' in output and 'id="extension-search"' in output
+    assert 'data-scope="project"' in output and 'data-scope="user"' in output
+    assert 'Nombre repetido' in output and 'Disponibilidad sin verificar' in output
+    assert 'Deshabilitado en la configuración' in output
+    assert 'PRIVATE EXTENSION BODY' not in output and 'private-token' not in output
+
+
+def test_invalid_mcp_definition_is_visible_without_claiming_connection(panel, bundle, extension_sources):
+    project, home = extension_sources
+    write(project, '.mcp.json', json.dumps({'mcpServers': {'ledger': {'url': 'https://example.test/private-token'}}}))
+    output = panel.render_html(panel.build_inventory(bundle, project=project, home=home))
+    assert 'Declaración MCP inválida' in output and 'Disponibilidad sin verificar' in output
+    assert 'private-token' not in output
+
+
+def test_conflict_card_identifies_the_repeated_invocation_name(panel, bundle, extension_sources):
+    project, home = extension_sources
+    write(project, '.claude/skills/tdd/SKILL.md', '---\nname: special-guidance\ndescription: Guidance\n---\nPRIVATE BODY\n')
+    output = panel.render_html(panel.build_inventory(bundle, project=project, home=home, runtime='claude-code'))
+    assert 'Nombre repetido: <code>tdd</code>' in output
+
+
+def test_extension_metadata_html_is_escaped_and_redacted(panel, bundle, extension_sources):
+    project, home = extension_sources
+    write(project, '.claude/agents/billing.md', '---\nname: "<img src=x onerror=alert(1)>"\ndescription: "token=Password123456"\n---\n')
+    output = panel.render_html(panel.build_inventory(bundle, project=project, home=home, runtime='claude-code'))
+    assert '<img src=x onerror=alert(1)>' not in output
+    assert '&lt;img src=x onerror=alert(1)&gt;' in output
+    assert 'Password123456' not in output and '[secreto redactado]' in output
+
+
+def test_extension_reader_failure_keeps_bundle_panel_usable(panel, bundle, tmp_path, monkeypatch):
+    def missing_reader():
+        raise FileNotFoundError('must not echo private path')
+    monkeypatch.setattr(panel, '_load_pieces', missing_reader)
+    data = panel.build_inventory(bundle, project=tmp_path)
+    assert data['counts']['agents']==1 and data['extensions']['partial']
+    assert data['extensions']['warnings'] and not data['extensions']['pieces']
+    output = panel.render_html(data)
+    assert 'demo' in output and 'must not echo private path' not in output
+
+
+def test_inspected_root_cannot_supply_executable_extension_reader(panel, bundle, extension_sources):
+    project, home = extension_sources
+    write(bundle, 'agent-kits/shared/project-pieces.py', 'raise RuntimeError("UNTRUSTED READER EXECUTED")')
+    data = panel.build_inventory(bundle, project=project, home=home, runtime='codex')
+    assert data['extensions']['pieces'] and not data['extensions']['partial']
+    assert {p['runtime'] for p in data['extensions']['pieces']} == {'codex'}
+
+
+def test_cli_accepts_project_and_explicit_custom_user_root(panel, bundle, extension_sources, capsys):
+    project, home = extension_sources
+    custom = home / 'portable'
+    write(custom, 'agents/custom.toml', 'name="custom"\ndescription="Personal"\ndeveloper_instructions="private"\n')
+    assert panel.main(['--root', str(bundle), '--project', str(project), '--home', str(home), '--runtime', 'codex', '--user-root', 'codex='+str(custom), '--json']) == 0
+    data = json.loads(capsys.readouterr().out)
+    assert any(p['name']=='custom' and p['scope']=='user' for p in data['extensions']['pieces'])
+
+
 def test_hook_event_card_groups_handlers_without_changing_json_inventory(panel, bundle):
     write(bundle, 'hooks/hooks.json', json.dumps({'hooks': {
         'PostToolUse': [

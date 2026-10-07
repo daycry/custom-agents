@@ -37,6 +37,10 @@ PLUGROOT="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "
 han pasado > 90 días, re-verifica** con su sección «cómo re-verificar» y actualiza la fecha de la fila en el
 mismo cambio. Redacción de docs/agentes/skills: `agent-kits/shared/docs-style.md`.
 
+El alcance nativo importa: Claude ignora `hooks`, `mcpServers` y `permissionMode`
+del frontmatter de agentes cargados desde plugins. Consulta ese límite en los
+contratos; declarar el campo no acredita que la guardia se ejecute en ese modo.
+
 Duda entre kit privado y skill → **empieza privado**; promociona a `skills/` el día que un
 segundo agente lo necesite (regla 3). Duda entre agente y comando → si decide *puertas* y
 *orquesta* a otros, es comando; si *hace* un trabajo con criterio propio, es agente.

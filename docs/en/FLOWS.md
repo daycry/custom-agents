@@ -36,9 +36,17 @@ those criteria. Local manifests only select guidance; they cannot execute code,
 grant permissions or prove tool availability. Partial installs warn and continue.
 TDD, independent review, qa-gate and Knowledge Gate keep their existing owners.
 
+The same fragment uses `project-pieces.py` to inspect project and user extensions.
+Planner records IDs and sources in `Extensiones` and `Procedencia de extensiones`.
+Briefs refresh the selection and carry bounded references; personas retain `Tipo`.
+Roles check session availability before invocation. [Folders and contracts](PROJECT-EXTENSIONS.md).
+
 ```mermaid
 flowchart LR
   Package[Task package and areas] --> Selection[Shared capability selection]
+  Personal[Project and user declarations] --> Reader[Local extension inventory]
+  Reader --> Choice[Explicit IDs and sources]
+  Choice --> Ledger
   Selection --> Design[Architect and planner]
   Design --> Ledger[Task IDs and scenarios]
   Ledger --> Implement[Implementer]

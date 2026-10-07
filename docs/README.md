@@ -35,6 +35,8 @@ Antes de añadir o tocar un agente, lee [`CONVENTIONS.md`](CONVENTIONS.md): defi
 
 **Contexto de trabajo:** [`WORK-CONTEXT.md`](WORK-CONTEXT.md) documenta la selección común de guías, su paso al ledger y los briefs, el panel local y el contexto estructural opcional.
 
+**Piezas propias:** [`PROJECT-EXTENSIONS.md`](PROJECT-EXTENSIONS.md) explica carpetas nativas, agentes/skills/personas/tools/MCP, selección por ID, conflictos y disponibilidad.
+
 ## Agentes disponibles
 
 | Agente | Qué hace | Dependencias | Documentación |
@@ -72,8 +74,8 @@ Dirigen la cadena invocando a los agentes **por nombre** y con puertas de contro
 | **`/pm-cycle <objetivo>`** | Producto / PM | `spec → evaluación` (agente `evaluator`) | Cierra en la puerta go/no-go. En *go* deja spec `aprobada` + evaluación `completado` y **ofrece** el handoff a `/dev-cycle` (sin ejecutarlo). Salidas opt-in de cierre: brief PDF (skill `to-pdf`) y handoff a Jira. No planifica ni implementa. |
 | **`/dev-cycle <objetivo>`** | Desarrollo | Ciclo completo `evaluación → plan → implementación → pruebas → documentación` | **La cadena nativa del plugin es el único motor** (disciplina opt-in en `.claude/dev.json`: TDD, worktrees, subagentes frescos). Si arranca sobre una carpeta con spec+evaluación de `/pm-cycle`, sigue directo en la planificación. |
 | **`/pm-backlog [criterio]`** | Producto / cartera | Lee todas las `evaluation.md` y **prioriza** (solo lectura) | Escribe `docs/roadmap/BACKLOG.md` con orden recomendado (quick wins vs. apuestas grandes). No planifica; remite a `/dev-cycle` para ejecutar. |
-| **`/plugin-catalog`** | Capacidades | Lee el catálogo público del plugin | HTML local buscable con herramientas declaradas y hooks. |
-| `/work-context` | Selecciona guías por rol, fase, stack y área; manifiestos locales y procedencia explícita. |
+| **`/plugin-catalog`** | Capacidades | Lee el bundle y las extensiones de proyecto/usuario | HTML local con fuentes, conflictos y filtros por origen/runtime. |
+| `/work-context` | Contexto | Selecciona guías y extensiones de tarea con IDs, manifiestos locales y procedencia explícita | Contexto compartido para el ciclo; no inicia otra cadena. |
 | **`/roadmap-status`** | Visibilidad | Escanea `docs/roadmap/*/` (solo lectura) | Genera el dashboard `docs/roadmap/dashboard.html` (local) y `dashboard.md` (se publica en Confluence para PMs sin git) vía skill `roadmap-dashboard`. |
 | **`/roadmap-metrics`** | Presupuesto | Compara real vs estimado (solo lectura) | Informe `docs/roadmap/metrics.md`: producción (IA+supervisión), horas humanas y tokens **reales vs estimados** con desviaciones y total de cartera (skill `roadmap-dashboard`). |
 | **`/roadmap-brief`** | Dirección | One-pager de cartera → PDF | Combina estado + prioridades + real vs estimado en un brief ejecutivo (`brief.pdf`) vía `to-pdf`. |
@@ -95,7 +97,7 @@ Así se separan los roles: **`/pm-cycle`** decide *qué* y *cuánto cuesta* (una
 | **confluence-publish** | Publica/espeja la doc del proyecto en Confluence vía el conector Atlassian (Rovo MCP), con **política curada** (opt-out sobre `include: ["**/*.md"]`, resumen en su `SKILL.md` sección "qué sube y qué no" y tabla normativa en `references/config-and-policy.md`; el asistente y el algoritmo de publicación también en `references/`) y **staging generado** (`confluence-scope.py --stage` regenera `docs/confluence/`). Cada proyecto elige espacio y anclaje (raíz o hijo del árbol) en `.claude/confluence.json`; idempotente (crea/actualiza). | planner, evaluator, documenter, implementer, `/retro`, `/spec-drift`, `/roadmap-brief` |
 | **confluence-pull** | Sentido **inverso**: baja Confluence → `docs/` local, para PMs sin git. Reutiliza `confluence.json` y el mapa `confluence-state.json`; preserva el frontmatter local, avisa de conflictos y confirma antes de escribir. Solo lee de Confluence. | comando `/confluence-pull` |
 | **research-first** | Compara soluciones existentes antes de integraciones o nuevas herramientas; fuentes originales y límites explícitos. | analyst, architect |
-| **plugin-panel** | Panel local buscable del catálogo, JSON determinista, metadatos redactados y presencia de fuentes. | `/plugin-catalog` |
+| **plugin-panel** | Panel local del bundle y extensiones propias; JSON determinista, origen, conflictos y disponibilidad sin verificar. | `/plugin-catalog` |
 | **stack-practices** | Guías por versión para PHP/CodeIgniter, Python y React; estado, persistencia, concurrencia y pruebas. | architect, planner, implementer, reviewer, qa |
 | **backend-practices** | APIs, autorización por recurso, errores, idempotencia y migraciones compatibles. | analyst, architect, planner, implementer, reviewer, qa |
 | **frontend-quality** | Teclado, foco, formularios, estados remotos y rendimiento medido. | architect, planner, implementer, reviewer, qa |

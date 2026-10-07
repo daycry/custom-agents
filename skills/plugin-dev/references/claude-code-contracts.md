@@ -9,8 +9,10 @@ la fecha de la fila. Fuente de todas las filas: `https://code.claude.com/docs/en
 |---|---|---|
 | Hooks (eventos, stdin, salida JSON, exit codes, placeholders) | `hooks.md` | 2026-09-03 |
 | `SessionEnd` (stdin, `reason`, no bloquea, presupuesto 1,5 s) y hooks `prompt`/`agent` (solo decisión `ok/reason`) | `hooks.md` + `hooks-guide.md` | 2026-09-03 (memory-health) |
-| Frontmatter de subagente (`model`, `effort`, `tools`, …) y prioridad del modelo | `sub-agents.md` | 2026-09-03 |
+| Frontmatter de subagente (`model`, `effort`, `tools`, …), prioridad del modelo y campos ignorados en plugins | `sub-agents.md` | 2026-10-07 |
+| MCP: scopes, transportes, preferencias de desactivación y campos inválidos | `mcp.md` | 2026-10-07 |
 | Frontmatter de skill y relación commands ↔ skills | `skills.md` | 2026-09-03 |
+| Nombres de invocación de skills/comandos, metadata opcional y alias del directorio | `skills.md` | 2026-10-07 |
 | CLI headless (`-p`, `--bare`, `--output-format`, `--allowedTools`…) | `headless.md` | 2026-09-03 |
 | `statusLine` en `settings.json` | `statusline.md` | 2026-09-03 |
 | `plugin.json` / marketplace / `claude plugin` CLI / `${CLAUDE_PLUGIN_ROOT}` | `plugins-reference.md` | 2026-09-03 |
@@ -41,12 +43,25 @@ la fecha de la fila. Fuente de todas las filas: `https://code.claude.com/docs/en
 | `tools` | nombres, `Agent`, `Agent(tipo)`, `mcp__<server>` | **Sí**, mínimos | `reviewer` sin Write/Edit por construcción |
 | `disallowedTools` | nombres, `mcp__*` | No | Preferimos lista blanca `tools` |
 | `skills` | lista (precarga el contenido COMPLETO) | Solo si la skill hace falta en TODAS las ejecuciones (token-diet) | ≈15k tokens por precarga opt-in |
-| `hooks` | `PreToolUse`/`PostToolUse`/`Stop` con alcance del agente | **Sí**, solo guardia del `implementer` | ADR-007 |
+| `hooks` | `PreToolUse`/`PostToolUse`/`Stop` con alcance del agente **nativo de proyecto/usuario**; ignorado en agentes de plugin | Declarado en `implementer`; no acredita ejecución al instalar como plugin | ADR-007; revisión de alcance pendiente en la fase de capacidades |
 | `isolation` | `worktree` | **No** | Choca con el opt-in `worktree` de `dev.json` |
 | `memory` | `user` · `project` · `local` | **No** | La memoria del proyecto es `docs/knowledge/` (versionada, revisable) |
 | `permissionMode`, `maxTurns`, `background`, `color`, `mcpServers`, `initialPrompt` | ver doc | No | Sin necesidad hoy |
 
 **Prioridad del modelo (v2.1.251+):** (1) parámetro `model` por invocación del Agent tool → (2) frontmatter (`inherit` = sesión) → (3) `CLAUDE_CODE_SUBAGENT_MODEL` → (4) sesión. Antes de v2.1.251 la variable de entorno mandaba sobre todo. `CLAUDE_CODE_SUBAGENT_MODEL_FORCE=1` (v2.1.257+) fuerza la variable para todos. Valores fuera del `availableModels` de la organización se sustituyen. **El Agent tool NO documenta parámetro `effort`** → `model-tier.py` lo declara informativo. El thinking del subagente hereda el de la sesión (v2.1.198+), sin ajuste por agente.
+
+**Alcance de plugin, verificado 2026-10-07:** Claude ignora `hooks`, `mcpServers`
+y `permissionMode` del frontmatter de agentes distribuidos como plugin. Esos
+campos sí pertenecen al contrato de agentes nativos de proyecto/usuario. La
+presencia del wrapper del implementer no prueba su ejecución en modo plugin;
+la fase de capacidades debe validar el despacho y ajustar su implementación
+sin imponer una guardia indiscriminada a toda la sesión.
+
+**MCP, verificado 2026-10-07:** el lector admite `stdio`, `http`, `sse`, `ws` y
+`streamable-http` como alias de HTTP. Las URL requieren type explícito; SDK no
+es un transporte válido en archivos locales. La desactivación de servidores
+normales procede de `projects[<proyecto>].disabledMcpServers` en `~/.claude.json`,
+separada de aprobación y de la conexión efectiva. [Fuente](https://code.claude.com/docs/en/mcp).
 
 ## 3. Skills (`skills.md`)
 

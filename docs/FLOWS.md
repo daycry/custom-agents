@@ -36,9 +36,18 @@ comparten esos criterios. Los manifiestos seleccionan guías: no ejecutan códig
 otorgan permisos ni demuestran tools disponibles. La instalación parcial avisa y
 continúa. TDD, revisión independiente, qa-gate y Knowledge Gate conservan dueño.
 
+El mismo fragmento usa `project-pieces.py` para reconocer extensiones de proyecto
+y usuario. Planner registra IDs y fuentes en `Extensiones` y `Procedencia de
+extensiones`. El brief refresca esa selección y transfiere referencias acotadas;
+las personas mantienen `Tipo`. Los roles contrastan disponibilidad con la sesión
+antes de invocar. [Carpetas y contratos](PROJECT-EXTENSIONS.md).
+
 ```mermaid
 flowchart LR
   Paquete[Paquete y áreas de tarea] --> Seleccion[Selección común de capacidades]
+  Propias[Declaraciones de proyecto y usuario] --> Lector[Inventario local de extensiones]
+  Lector --> Eleccion[IDs y fuentes explícitos]
+  Eleccion --> Ledger
   Seleccion --> Diseno[Architect y planner]
   Diseno --> Ledger[IDs y escenarios por tarea]
   Ledger --> Implementacion[Implementer]

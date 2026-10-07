@@ -374,6 +374,9 @@ def _modos():
         "agent-kits/shared/capability-route.py":
             [("catalogo JSON", lambda w: ["--check", "--json"], (0,), None),
              ("seleccion local", lambda w: ["--project", w, "--stack", "python", "--json"], (0,), None)],
+        "agent-kits/shared/project-pieces.py":
+            [("extensiones JSON", lambda w: ["--project", os.path.join(w, "extensions"), "--project-only", "--runtime", "claude-code", "--json"], (0,), None),
+             ("extensiones texto", lambda w: ["--project", os.path.join(w, "extensions"), "--project-only", "--runtime", "claude-code"], (0,), None)],
         "skills/plugin-panel/scripts/build_panel.py":
             [("catalogo JSON", lambda w: ["--json"], (0,), None)],
         "agent-kits/nemesis/tools/pick_asset.py":
@@ -522,6 +525,9 @@ def taller(tmp_path_factory):
     (w / "src").mkdir()
     (w / "src" / "a.py").write_text("def f():\n    return 1\n" * 3, encoding="utf-8")
     (w / "requirements.txt").write_text("requests==2.0.0\n", encoding="utf-8")
+    extensions = w / "extensions" / ".claude" / "agents"
+    extensions.mkdir(parents=True)
+    (extensions / "billing.md").write_text("---\nname: billing\ndescription: Facturación 🐛\n---\n", encoding="utf-8")
     (w / "outcomes.xml").write_text('<testsuite tests="1"><testcase name="contract"/></testsuite>', encoding="utf-8")
     (w / "outcomes.json").write_text(json.dumps({"version": 1, "runs": [{"id": "run-1", "case": "console", "variant": "baseline", "revision": "a" * 40, "fixture_sha256": "b" * 64, "conditions": "local", "result": "outcomes.xml", "measurements": None}]}), encoding="utf-8")
     (w / "api.json").write_text(json.dumps(
@@ -679,6 +685,7 @@ def test_los_exentos_de_simbolos_lo_estan_por_medicion(rel, encoding, taller):
 @pytest.mark.parametrize('encoding', ENCODINGS)
 @pytest.mark.parametrize('rel', [
     'agent-kits/shared/capability-route.py',
+    'agent-kits/shared/project-pieces.py',
     'agent-kits/shared/code-context.py',
     'skills/outcome-evals/scripts/report_outcomes.py',
 ])
@@ -692,6 +699,10 @@ def test_native_context_clis_in_non_utf8_consoles(rel, encoding, taller):
         assert result.returncode in exits, (rel, label, result.stderr)
         output = (result.stdout + result.stderr).decode('utf-8')
         assert 'Traceback' not in output and 'UnicodeEncodeError' not in output
+        if rel.endswith('project-pieces.py') and '--json' in args(taller):
+            import json
+            inventory = json.loads(result.stdout.decode('utf-8'))
+            assert inventory['pieces'][0]['description'] == 'Facturación 🐛'
 
 
 # --------------------------------------------------------------- 3. el lado STDIN del mismo bug

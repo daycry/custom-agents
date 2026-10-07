@@ -100,12 +100,15 @@ y **respeta la opción elegida** (enlaza `design:` ↔ `plan:`). Puerta: OK del 
 
       ```bash
       SHAREDKIT="$(find "$PWD/.claude" "$PWD/.codex" "$PWD/.opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" -type d -path '*agent-kits/shared' 2>/dev/null | head -1)"
-      python3 "$SHAREDKIT/task-brief.py" "docs/roadmap/<fecha>-<slug>" T-XX
+      python3 "$SHAREDKIT/task-brief.py" "docs/roadmap/<fecha>-<slug>" T-XX --runtime <claude-code|codex|opencode>
       ```
 
-      El script valida el ledger (`ledger-lint`) y extrae SOLO lo que hace falta para esa tarea:
+      Sustituye el runtime por el de esta sesión. Si la selección usó otro home,
+      raíz personal o paquete, conserva esos valores con `--extensions-*` del
+      método común. El script valida el ledger (`ledger-lint`) y extrae SOLO lo que hace falta para esa tarea:
 
       - **Tarea + criterios + fase**, tal cual el ledger.
+      - **Extensiones seleccionadas**, IDs revalidados en las fuentes actuales del runtime y referencias ≤1000 caracteres; sin precargar prompts o manuales. Contrasta disponibilidad y permisos con la sesión antes de invocar. Un aviso conserva el contrato y los gates del ciclo.
       - **Persona de dominio** (si la tarea lleva `- **Tipo**: <tipo>`), cascada de tres escalones desde `project-specialization` T-01: `.claude/personas/<tipo>.md` DEL PROYECTO primero, doctrina propia del equipo; **gana si existe y se puede leer** — un fichero vacío o un `OSError` al leerlo (p. ej. OneDrive «solo en la nube» sin red) cae al siguiente escalón sin bloquear. Si no hay perfil de proyecto (o cayó), el perfil corto de `agent-kits/shared/personas/<tipo>.md` del catálogo del plugin. Los tipos son **libres**, no hay lista cerrada. Sin etiqueta → subagente genérico; etiqueta sin persona en ningún escalón → aviso y genérico, nunca bloquea.
       - **Opción elegida de `design.md`** (si existe y está `aprobado`; solo esa sección).
       - **Arquitectura + constitución** (si existe) **+ el contrato de retorno**.

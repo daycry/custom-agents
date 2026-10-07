@@ -18,12 +18,31 @@ From a checkout:
 ```powershell
 python skills/plugin-panel/scripts/build_panel.py --html panel.html
 python skills/plugin-panel/scripts/build_panel.py --json
+python skills/plugin-panel/scripts/build_panel.py --project . --runtime codex --html panel.html
 ```
 
 Installed bundles resolve the skill through their runtime roots. The generator
 finds its own bundle; `--root <bundle>` inspects another catalog without importing
 its code. Native Python supports Windows without WSL, Tkinter, extra Python
 packages or a server.
+
+Include your components with `--project <root>` and the actual session runtime
+in `--runtime claude-code|codex|opencode`. `--cwd <package>` inspects its skill
+ancestor chain. Personal sources are included by default; `--project-only`
+excludes them and `--user-root <runtime>=<path>` selects another root. `all`
+compares declarations without claiming that one session loaded every runtime.
+
+“Tus extensiones” has independent search and kind/origin/runtime filters. Its
+declarations do not change bundle counts. Cards retain ID, source, ownership and
+conflicts. Disabled MCP entries describe configuration; connection and permissions
+remain unverified. OpenCode tools are definition sources, without inferred exports.
+Personas retain the brief's `Tipo` contract and remain distinct from agents.
+
+The generator imports `project-pieces.py` from its own bundle, never inspected
+`--root` data. Reader failure preserves the bundle catalog with an explicit
+partial inventory. JSON adds `extensions` only when a project is requested,
+keeping `schema_version: 1` and existing counts. Task selection follows the
+[shared extension method](PROJECT-EXTENSIONS.md).
 
 The inventory extracts public frontmatter, hooks/hooks.json and metadata from
 the first eight lines of scripts recognized by the bundled launcher. Executable
@@ -40,7 +59,8 @@ available.
 
 Runtime and memory indicators show **source presence in the inspected bundle**.
 They do not establish service health, access, consumer configuration or hook
-execution. Agent guards remain in their definitions.
+execution. The extension section separately inventories local project/user
+declarations; it does not measure health or invoke servers.
 
 Malformed/unreadable inputs produce warnings. Missing bundled redactor or invalid
 root produces exit 2 with no metadata export; the user's main task continues.

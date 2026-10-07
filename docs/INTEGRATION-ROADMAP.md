@@ -10,8 +10,8 @@ acredita que estén implementadas.
 | Fase | Entrega | Estado |
 |---|---|---|
 | 1. Núcleo común | Hooks multi-runtime, selección de guías, workflow, briefs, contexto estructural opcional, evaluación de resultados y panel | Completada y publicada; evidencia en [workflow-integration](roadmap/2026-10-06-workflow-integration/tasks.md) |
-| 2. Extensiones del usuario | Reconocer agentes, skills, tools y MCP propios en Claude, Codex y OpenCode; mostrar origen, conflictos y disponibilidad comprobada | Pendiente de diseño e implementación |
-| 3. Capacidades del catálogo | Comparar en profundidad las skills, tools, agentes y comandos existentes en el catálogo de referencia; integrar únicamente mejoras útiles, sin duplicar responsabilidades | Pendiente; el inventario previo no sustituye al análisis funcional |
+| 2. Extensiones del usuario | Reconocer agentes, skills, personas, tools y MCP propios en Claude, Codex y OpenCode; mostrar origen, conflictos y disponibilidad sin verificar | En progreso; lector, selección, briefs y panel implementados en rama, pendientes de revisión y cierre. [Plan y evidencia](roadmap/2026-10-06-project-extensions/tasks.md) |
+| 3. Capacidades del catálogo | Comparar en profundidad las skills, tools, agentes y comandos existentes en el catálogo de referencia; integrar mejoras útiles y verificar el alcance real de guardias por runtime | Pendiente; el inventario previo no sustituye al análisis funcional ni a la prueba de despacho |
 | 4. Memoria y evaluación | Medir recuperación, vigencia y utilidad; comparar mejoras con Markdown, journal y backends actuales antes de decidir cambios | Pendiente; el piloto AST actual no demuestra eficacia de recuperación |
 
 No se crearán paquetes técnicos nuevos para rellenar huecos del catálogo de
@@ -20,21 +20,29 @@ su incorporación frente a lo que ya tenemos. La selección será opcional y
 adaptada al proyecto, sin imponer paquetes por stack a todos los usuarios.
 Las guías existentes en el plugin se mantienen sujetas a sus contratos actuales.
 
-## Qué reconoce hoy el plugin
+## Qué reconoce la rama de extensiones
 
 | Componente propio | Comportamiento actual | Límite |
 |---|---|---|
-| Agente Markdown con frontmatter | Panel e índice leen `agents/*.md` de la raíz inspeccionada | No combinan automáticamente todas las instalaciones ni formatos de los tres runtimes; no añaden roles al workflow |
-| Skill con frontmatter | Panel e índice leen `skills/*/SKILL.md` de esa raíz | El selector del workflow usa el catálogo empaquetado; descubrir una skill no la registra en él |
+| Agente | Lector y panel reconocen Markdown, TOML y roles de configuración de proyecto/usuario por runtime | Una declaración no prueba carga; complementa los roles del ciclo |
+| Skill con frontmatter | Inventario de fuentes nativas y compatibles, con selección explícita por ID | El contenido se consulta bajo demanda; no se añade automáticamente al catálogo empaquetado |
 | Persona de dominio | El brief prioriza `.claude/personas/<tipo>.md` del proyecto | Es una persona para el brief, no un agente independiente; los tipos son libres |
-| Tool | El panel resume los nombres declarados en el frontmatter de los agentes | No es un registro de herramientas propias ni prueba de ejecución o permisos |
-| Servidor MCP | No hay inventario de servidores MCP en el panel | Su configuración, conexión y herramientas expuestas no se detectan actualmente |
+| Tool | Muestra nombres declarados y fuentes JS/TS de OpenCode | No ejecuta exports ni acredita permisos o disponibilidad |
+| Servidor MCP | Inventaría declaraciones de proyecto, usuario y agentes; señala definiciones Claude inválidas y desactivación declarada | No conecta servidores ni exporta endpoints, comandos, variables o credenciales |
 
-La raíz de inspección se elige explícitamente. El reconocimiento del runtime y
-el inventario del plugin son funciones diferentes; listar un fichero no prueba
-que la sesión lo haya cargado. La fase 2 deberá preservar las piezas del usuario,
-resolver colisiones por origen y distinguir **declarada**, **detectada** y
-**disponible en la sesión**. No ejecutará herramientas ni conectará servidores
-por el mero hecho de encontrarlos. Reutilizará el contrato de
-[especialización](SPECIALIZATION.md), cuya cascada de personas está implementada
-y cuyo registro/adopción siguen siendo trabajo pendiente.
+`feat/project-extensions` contiene esta integración todavía sin publicar. El
+lector compartido alimenta `/work-context`, la selección del ledger, las
+referencias del brief y el panel con filtros independientes. Preserva duplicados
+y muestra fuentes; antes de invocar hay que contrastar las capacidades de la
+sesión. Reutiliza el contrato O1 de [especialización](SPECIALIZATION.md) para
+validar propiedad en modo lectura; generación/adopción siguen en su plan propio.
+
+Los resultados ejecutados y los gates pendientes están en el ledger de fase 2;
+las pruebas parciales no acreditan cierre ni publicación. El catálogo publicado
+de fase 1 mantiene su entrega registrada en su propio ledger.
+
+**Comprobación de alcance pendiente en fase 3:** la documentación Claude actual
+indica que los agentes de plugin ignoran `hooks`, `mcpServers` y `permissionMode`
+de su frontmatter. La guardia declarada del implementer debe probarse por modo
+de instalación y ajustarse antes de afirmar su cobertura en plugins. Véanse los
+[contratos verificados](../skills/plugin-dev/references/claude-code-contracts.md).

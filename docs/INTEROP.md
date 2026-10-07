@@ -251,4 +251,12 @@ linter y lo falla `tests/test_export_interop.py`.
 
 ## Presupuesto del brief
 
+Agentes, skills, personas, fuentes de tools y MCP propios se reconocen mediante
+el lector compartido para los tres runtimes. La selección conserva IDs, origen
+y referencias nativas; no convierte formatos ni infiere carga, conexión o
+permisos. [Guía de extensiones](PROJECT-EXTENSIONS.md). En el brief fija el runtime
+y las mismas raíces del inventario; las referencias ocupan ≤1000 caracteres y
+comparten el margen auxiliar. La generación/adopción mantiene el plan independiente
+de project-specialization.
+
 El brief acota diseño a 1.600 caracteres, gaps a 1.600 y verificación a 800. Incluye el diseño elegido para las rutas coincidentes de la tarea y enlaza las evidencias históricas al ledger. Conserva completos los requisitos, las notas de decisión y los criterios de aceptación. Las secciones auxiliares comparten el margen global antes de asignar la persona. Si el mínimo protegido supera 10.000 caracteres, informa de su tamaño exacto: hay que dividir la tarea antes de delegarla. Memoria, persona y contrato de retorno conservan sus reglas existentes.

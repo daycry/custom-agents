@@ -194,7 +194,29 @@ def _presence(root, relative):
         return 'unavailable'
 
 
-def build_inventory(root):
+def _load_pieces():
+    path = Path(__file__).resolve().parents[3] / 'agent-kits/shared/project-pieces.py'
+    spec = importlib.util.spec_from_file_location('panel_project_pieces', path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _extensions(project, home, runtime, cwd, include_user, user_roots):
+    try:
+        module = _load_pieces()
+        roots = module.parse_user_roots(user_roots or [])
+        return module.discover(project, home=home, runtime=runtime, cwd=cwd,
+                               include_user=include_user, user_roots=roots)
+    except (OSError, ValueError, UnicodeError, RecursionError, ImportError, AttributeError, SyntaxError):
+        return {'version': 1, 'pieces': [], 'conflicts': [], 'orphans': [],
+                'registry_status': 'unknown', 'partial': True,
+                'evidence': 'local declarations; session availability not measured',
+                'warnings': ['Extension declarations unavailable; check project roots and bundled reader.']}
+
+
+def build_inventory(root, *, project=None, home=None, runtime='all', cwd=None,
+                    include_user=True, user_roots=None):
     if REDACTOR is None:
         raise ValueError('bundled redactor unavailable')
     root = Path(root).resolve()
@@ -209,6 +231,8 @@ def build_inventory(root):
     data['runtimes'] = {runtime: _presence(root, relative) for runtime, relative in {'claude': 'hooks/hooks.json', 'codex': 'interop/codex/hooks.json', 'opencode': 'interop/opencode/plugins/custom-agents-hooks.js'}.items()}
     data['memory'] = {'approved_directory': _presence(root, 'docs/knowledge/approved'), 'graphify_artifact': _presence(root, 'graphify-out/graph.json')}
     data['workflow'] = _workflow(root, data['warnings'])
+    if project is not None:
+        data['extensions'] = _extensions(project, home, runtime, cwd, include_user, user_roots)
     return _redact_values(data)
 
 
@@ -290,17 +314,80 @@ def _flow_html(data):
     return '<div class="flow-steps" aria-label="Etapas del workflow">' + ''.join(buttons) + '</div>' + ''.join(panels)
 
 
+def _extension_card(piece, conflicts):
+    esc = lambda value: html.escape(str(value), quote=True)
+    kinds = {'agent': 'AGENTE', 'skill': 'SKILL', 'command': 'COMANDO',
+             'persona': 'PERSONA', 'tool-source': 'FUENTE DE TOOL', 'mcp': 'SERVIDOR MCP DECLARADO'}
+    scopes = {'project': 'Proyecto', 'user': 'Usuario', 'local': 'Local del proyecto'}
+    ownership = {'managed': 'Gestionada', 'modified': 'Modificada',
+                 'unmanaged': 'Propia · sin registro', 'unknown': 'Propiedad sin verificar'}
+    source = piece['source'] + ('#' + piece['locator'] if piece['locator'] else '')
+    repeated = [item for item in conflicts if piece['id'] in item['ids']]
+    conflict_html = ''.join('<p class="extension-conflict">Nombre repetido: <code>' + esc(item['name']) + '</code>; '
+                          + ('coincide con <code>' + esc(item['bundled_source']) + '</code> del plugin.'
+                             if 'bundled_source' in item else 'contrasta las fuentes con el runtime antes de invocar.') + '</p>'
+                          for item in repeated)
+    status = '<span class="extension-status">Disponibilidad sin verificar</span>'
+    if piece.get('enabled') is False:
+        status += '<span class="extension-status">Deshabilitado en la configuración</span>'
+    if piece.get('definition_status') == 'invalid':
+        status += '<span class="extension-status">Declaración MCP inválida</span>'
+    details = '<p>Propiedad: ' + esc(ownership[piece['ownership']]) + '.</p><code>' + esc(source) + '</code>'
+    details += '<p>Identificador para la tarea:</p><code class="extension-id">' + esc(piece['id']) + '</code>'
+    if piece.get('root_id', 'project') != 'project':
+        details += '<p>Raíz de usuario: <code>' + esc(piece['root_id']) + '</code></p>'
+    if piece.get('owner_agent'):
+        details += '<p>Declarado para el agente: ' + esc(piece['owner_agent']) + '.</p>'
+    if piece.get('declared_tools'):
+        details += '<p>Tools declaradas: ' + esc(', '.join(piece['declared_tools'])) + '.</p>'
+    if piece.get('declared_permissions'):
+        details += '<p>Reglas declaradas: ' + esc(json.dumps(piece['declared_permissions'], ensure_ascii=False)) + '. La sesión determina los permisos efectivos.</p>'
+    return ('<article class="card extension-card" data-kind="' + esc(piece['kind'])
+            + '" data-scope="' + esc(piece['scope']) + '" data-runtime="' + esc(piece['runtime']) + '">'
+            + '<small>' + esc(kinds[piece['kind']]) + ' · ' + esc(scopes[piece['scope']]) + '</small>'
+            + '<h2>' + esc(piece['name']) + '</h2><p>' + esc(piece['description']) + '</p>'
+            + '<p class="extension-runtime">' + esc(piece['runtime']) + '</p>' + status + conflict_html
+            + '<details><summary>Origen, propiedad e identificador</summary>' + details + '</details></article>')
+
+
+def _extensions_html(data):
+    inventory = data.get('extensions')
+    if inventory is None:
+        body = '<p class="extension-empty">Las extensiones de proyecto no se incluyeron en esta instantánea.</p>'
+        total = 0
+    else:
+        total = len(inventory['pieces'])
+        body = ''.join(_extension_card(piece, inventory['conflicts']) for piece in inventory['pieces'])
+        if not body:
+            body = '<p class="extension-empty">No se encontraron declaraciones en las fuentes inspeccionadas.</p>'
+        body = '<div class="grid" id="extension-cards">' + body + '</div>'
+        if inventory['warnings']:
+            body += '<details class="extension-warnings"><summary>Inventario parcial · ' + str(len(inventory['warnings'])) + ' aviso(s)</summary><ul>'
+            body += ''.join('<li>' + html.escape(warning) + '</li>' for warning in inventory['warnings']) + '</ul></details>'
+    controls = '''<div class="controls extension-controls"><div class="search-wrap"><input id="extension-search" type="search" placeholder="Buscar extensiones propias" aria-label="Buscar extensiones"></div>
+<select id="extension-kind" aria-label="Tipo de extensión"><option value="all">Todos los tipos</option><option value="agent">Agentes</option><option value="skill">Skills</option><option value="persona">Personas</option><option value="command">Comandos</option><option value="tool-source">Fuentes de tools</option><option value="mcp">MCP</option></select>
+<select id="extension-scope" aria-label="Origen de extensión"><option value="all">Todos los orígenes</option><option value="project">Proyecto</option><option value="user">Usuario</option><option value="local">Local del proyecto</option></select>
+<select id="extension-runtime" aria-label="Runtime de extensión"><option value="all">Todos los runtimes</option><option value="claude-code">Claude Code</option><option value="codex">Codex</option><option value="opencode">OpenCode</option></select></div>
+<p id="extension-results" aria-live="polite"></p>'''
+    return ('<section id="extensions"><div class="section-head"><div><h2>Tus extensiones</h2>'
+            + '<p>Declaraciones de proyecto y usuario. La sesión determina carga, conexión y permisos; los roles del ciclo se mantienen.</p></div>'
+            + '<span class="section-pill">' + str(total) + ' declaraciones</span></div>' + controls + body + '</section>')
+
+
 def render_html(data):
     counts = {**data['counts'], 'hooks': len({hook['event'] for hook in data['hooks']})}
     labels = {'agents': 'Agentes', 'skills': 'Skills', 'commands': 'Comandos', 'tools': 'Herramientas', 'hooks': 'Eventos de hook'}
     stats = ''.join(f'<div class="stat"><strong>{count}</strong><span>{labels[kind]}</span></div>' for kind, count in counts.items())
-    notes = html.escape(json.dumps({'runtimes': data['runtimes'], 'memory': data['memory'], 'warnings': data['warnings']}, ensure_ascii=False, indent=2))
+    sources = {'runtimes': data['runtimes'], 'memory': data['memory'], 'warnings': data['warnings']}
+    if 'extensions' in data:
+        sources['extensions'] = {key: data['extensions'][key] for key in ('registry_status', 'warnings', 'orphans')}
+    notes = html.escape(json.dumps(sources, ensure_ascii=False, indent=2))
     try:
         template = _read(TEMPLATE.parent, TEMPLATE)
     except (OSError, UnicodeError, ValueError):
         raise ValueError('bundled panel template unavailable') from None
-    values = {'STATS': stats, 'CARDS': _cards(data), 'WORKFLOW': _workflow_html(data), 'NOTES': notes, 'FLOW': _flow_html(data)}
-    return MARKER + re.sub(r'@@(STATS|CARDS|WORKFLOW|NOTES|FLOW)@@', lambda match: values[match.group(1)], template)
+    values = {'STATS': stats, 'CARDS': _cards(data), 'WORKFLOW': _workflow_html(data), 'NOTES': notes, 'FLOW': _flow_html(data), 'EXTENSIONS': _extensions_html(data)}
+    return MARKER + re.sub(r'@@(STATS|CARDS|WORKFLOW|NOTES|FLOW|EXTENSIONS)@@', lambda match: values[match.group(1)], template)
 
 
 
@@ -327,9 +414,17 @@ def main(argv=None):
     parser.add_argument('--root', default=str(Path(__file__).resolve().parents[3]))
     parser.add_argument('--html')
     parser.add_argument('--json', action='store_true')
+    parser.add_argument('--project', help='project root to inspect for local extensions')
+    parser.add_argument('--cwd', help='task package within the project root')
+    parser.add_argument('--home', help='user root to inspect')
+    parser.add_argument('--runtime', choices=('claude-code', 'codex', 'opencode', 'all'), default='all')
+    parser.add_argument('--project-only', action='store_true')
+    parser.add_argument('--user-root', action='append', default=[], metavar='RUNTIME=PATH')
     args = parser.parse_args(argv)
     try:
-        data = build_inventory(args.root)
+        data = build_inventory(args.root, project=args.project, home=args.home,
+                               runtime=args.runtime, cwd=args.cwd, include_user=not args.project_only,
+                               user_roots=args.user_root)
         if args.html:
             _write_html(args.html, render_html(data))
         if args.json or not args.html:

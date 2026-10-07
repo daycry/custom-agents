@@ -19,12 +19,32 @@ En un checkout:
 ```powershell
 python skills/plugin-panel/scripts/build_panel.py --html panel.html
 python skills/plugin-panel/scripts/build_panel.py --json
+python skills/plugin-panel/scripts/build_panel.py --project . --runtime codex --html panel.html
 ```
 
 En una instalación, localiza la skill en las raíces del runtime. El script
 identifica el bundle por su propia ubicación. `--root <bundle>` permite inspeccionar
 otro catálogo; no importa código del catálogo inspeccionado. Python nativo funciona
 en Windows; no necesita WSL, Tkinter, paquetes Python adicionales ni servidor.
+
+Para incluir piezas propias, usa `--project <raíz>` y el runtime real en
+`--runtime claude-code|codex|opencode`. `--cwd <paquete>` inspecciona skills de
+su cadena de directorios. Las fuentes personales se incluyen por defecto;
+`--project-only` las excluye y `--user-root <runtime>=<ruta>` permite otra raíz.
+`all` compara declaraciones entre entornos, sin afirmar que una sesión cargue todas.
+
+«Tus extensiones» tiene búsqueda y filtros propios por tipo, origen y runtime.
+Sus declaraciones no alteran los conteos del bundle. Cada tarjeta conserva ID,
+fuente, estado de propiedad y conflictos. MCP deshabilitados se indican como
+configuración declarada; conexión y permisos permanecen sin verificar. Tools
+OpenCode son fuentes de definición, sin inferir exports. Personas siguen su
+contrato de `Tipo` en los briefs, sin convertirse en agentes.
+
+El generador carga `project-pieces.py` de su propio bundle, nunca del `--root`
+inspeccionado. Un fallo del lector conserva el catálogo del bundle e indica
+inventario parcial. El JSON añade `extensions` solo cuando se pide proyecto,
+manteniendo `schema_version: 1` y los conteos anteriores. Para seleccionar
+extensiones en tareas sigue [el método común](PROJECT-EXTENSIONS.md).
 
 El inventario extrae frontmatters públicos, hooks/hooks.json y los metadatos
 de las ocho primeras líneas de scripts reconocidos del launcher empaquetado.
@@ -35,7 +55,8 @@ declaran, sin afirmar disponibilidad de herramientas en la sesión.
 
 Claude/Codex/OpenCode y memoria muestran **presencia de fuentes en el bundle
 inspeccionado**, no salud, acceso, configuración del proyecto consumidor ni
-ejecución de hooks. Las guardias de agentes siguen en sus definiciones.
+ejecución de hooks. La sección de extensiones inventaría aparte las declaraciones
+locales del proyecto/usuario; no mide salud ni invoca servidores.
 
 Archivos malformados o no legibles dejan avisos. Sin redactor empaquetado o raíz
 válida, exit 2 y diagnóstico, sin emitir metadatos. El flujo del usuario continúa.

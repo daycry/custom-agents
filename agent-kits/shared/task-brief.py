@@ -987,6 +987,14 @@ def _parse_args(argv):
     ap.add_argument("--dev-json", default=None, help="ruta explícita de .claude/dev.json (default: derivada de la carpeta)")
     ap.add_argument("--knowledge-find", default=None,
                     help="ruta de knowledge-find.py (default: el del mismo kit; solo para tests)")
+    ap.add_argument("--runtime", choices=('claude-code', 'codex', 'opencode', 'all'), default='all',
+                    help="runtime de las extensiones seleccionadas; all solo inventaría declaraciones")
+    ap.add_argument("--extensions-home", help="raíz de usuario para inventariar extensiones")
+    ap.add_argument("--extensions-cwd", help="paquete de la tarea dentro de la raíz de proyecto")
+    ap.add_argument("--extensions-project-only", action="store_true",
+                    help="excluir extensiones de usuario")
+    ap.add_argument("--extensions-user-root", action="append", default=[], metavar="RUNTIME=PATH",
+                    help="raíz personalizada explícita del runtime; no modifica configuración")
     return ap.parse_args(argv)
 
 
@@ -1176,6 +1184,46 @@ def _seccion_capacidades(chunk):
         return []
 
 
+def _seccion_extensiones(chunk, carpeta, *, runtime='all', home=None, cwd=None,
+                        include_user=True, user_roots=None):
+    """Refresh selected declarations and transfer bounded pointers, never their bodies."""
+    matches = re.findall(r"^[ \t]*-[ \t]+\*\*Extensiones\*\*:[ \t]*([^\n]*)", sin_vallas(chunk), re.M)
+    if not matches:
+        return []
+    try:
+        if len(matches) != 1 or len(matches[0]) > 1000:
+            raise ValueError('ambiguous or excessive extension metadata')
+        identifiers = [value.strip().strip('`') for value in matches[0].split(',') if value.strip()]
+        import importlib.util
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'project-pieces.py')
+        spec = importlib.util.spec_from_file_location('brief_project_pieces', path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        roots = module.parse_user_roots(user_roots or [])
+        inventory = module.discover(_raiz_de(carpeta), home=home, cwd=cwd,
+                                    runtime=runtime, include_user=include_user, user_roots=roots)
+        selected = module.select_pieces(inventory, identifiers, runtime=runtime)
+        if selected['warnings']:
+            print('⚠️ extensiones: selección parcial o conflicto; contrasta fuentes y disponibilidad en la sesión.', file=sys.stderr)
+        if not selected['selected']:
+            return []
+        out = ['## Extensiones de la tarea', '',
+               'Referencias explícitas: verifica disponibilidad y permisos en la sesión; los roles del ciclo se mantienen.']
+        footer = ['', '> Selección y procedencia completas: campo Extensiones de tasks.md.', '']
+        for piece in selected['selected']:
+            reference = piece['source'] + ('#' + piece['locator'] if piece['locator'] else '')
+            reference = reference.replace('`', '\\u0060')
+            line = f"- `{piece['id']}` · {piece['runtime']}/{piece['kind']} · `{reference}`"
+            if len('\n'.join(out + [line] + footer)) > 1000:
+                print('⚠️ extensiones: referencias adicionales bajo demanda en tasks.md.', file=sys.stderr)
+                break
+            out.append(line)
+        return out + footer
+    except (OSError, ValueError, UnicodeError, RecursionError, ImportError, AttributeError):
+        print('⚠️ extensiones: lector o selección no disponibles; sigue con el contrato de la tarea.', file=sys.stderr)
+        return []
+
+
 def _seccion_diseno_y_arquitectura(carpeta, plan_p, chunk=""):
     out = []
     diseno = _design_elegida(carpeta)
@@ -1293,14 +1341,14 @@ def _presupuesto_auxiliar(out, persona_insert_idx, tipo, persona_ruta, persona_c
         starts = [i for i, text in enumerate(items) if text.startswith(("## ", "> Diseño:"))]
         return [(i, starts[n + 1] if n + 1 < len(starts) else len(items))
                 for n, i in enumerate(starts)
-                if items[i].startswith(("## Diseño", "## Gaps pendientes", "## Verificación", "## Capacidades"))]
+                if items[i].startswith(("## Diseño", "## Gaps pendientes", "## Verificación", "## Capacidades", "## Extensiones"))]
 
     while length(out) > BRIEF_TOPE_CHARS:
         spans = ranges(out)
         choices = []
         for start, end in spans:
             header = out[start].split("\n", 1)[0]
-            target = "design.md §4" if header.startswith("## Diseño") else "agent-kits/shared/capability-check.md y el campo Capacidades de tasks.md" if header.startswith("## Capacidades") else "esta tarea en tasks.md"
+            target = "design.md §4" if header.startswith("## Diseño") else "agent-kits/shared/capability-check.md y el campo Capacidades de tasks.md" if header.startswith("## Capacidades") else "el campo Extensiones y su procedencia en tasks.md" if header.startswith("## Extensiones") else "esta tarea en tasks.md"
             pointer = f"{header}\n\n> Consulta {target} antes de implementar y ejecutar la verificación.\n"
             old = "\n".join(out[start:end])
             if len(old) > len(pointer):
@@ -1393,6 +1441,10 @@ def main(argv=None):
     out += _seccion_tarea_y_gaps(chunk_brief, tasks_text, tid)
     out += _seccion_verificacion(verif)
     out += _seccion_capacidades(chunk)
+    out += _seccion_extensiones(chunk, args.carpeta, runtime=args.runtime,
+                               home=args.extensions_home, cwd=args.extensions_cwd,
+                               include_user=not args.extensions_project_only,
+                               user_roots=args.extensions_user_root)
     out += _seccion_memoria(args.carpeta, chunk, tipo, args.knowledge_find)
     out += _seccion_diseno_y_arquitectura(args.carpeta, plan_p, chunk)
     out += _seccion_constitucion(args)

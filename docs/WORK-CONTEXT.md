@@ -25,6 +25,14 @@ escenarios, y explican cualquier delta por hechos nuevos en el ledger. La
 selección no habilita herramientas ni reemplaza TDD, revisión, QA o Knowledge Gate.
 Sin pieza opcional válida, avisa y sigue con el contrato de la tarea.
 
+`project-pieces.py` complementa ese registro con un inventario derivado de
+declaraciones propias de proyecto y usuario. Planner elige hasta 20 IDs en
+`Extensiones` y registra fuentes y motivo en `Procedencia de extensiones`.
+El brief refresca la selección para el runtime declarado y transfiere solo
+referencias acotadas; omite piezas borradas o de otro runtime con aviso.
+Personas conservan su cascada por `Tipo`. No se modifica el catálogo del bundle
+ni se crea otro registro persistente. [Carpetas, comandos y límites](PROJECT-EXTENSIONS.md).
+
 Las capacidades de stack están consolidadas en stack-practices; backend-practices,
 frontend-quality y delivery-practices aportan criterios transversales. Capability-audit
 evalúa utilidad/vigencia/solapes, mientras el panel enumera fuentes. Outcome-evals

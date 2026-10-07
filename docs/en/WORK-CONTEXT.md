@@ -25,6 +25,14 @@ changes driven by new facts in the ledger. Selection grants no tool access and
 does not replace TDD, review, QA or Knowledge Gate. Missing optional components
 warn and preserve the task contract.
 
+`project-pieces.py` complements the catalog with a derived project/user
+declaration inventory. Planner selects up to 20 IDs in `Extensiones` and records
+sources/reasons in `Procedencia de extensiones`. Briefs refresh the selection
+for the declared runtime and transfer bounded references; removed components
+and IDs from another runtime are omitted with a warning. Personas retain their
+`Tipo` cascade. The bundle catalog remains separate, without another persistent
+registry. [Folders, commands and limits](PROJECT-EXTENSIONS.md).
+
 Stack guidance is consolidated in stack-practices. Backend-practices,
 frontend-quality and delivery-practices provide cross-cutting criteria.
 Capability-audit evaluates utility/currency/overlaps; the panel inventories sources.

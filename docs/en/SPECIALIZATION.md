@@ -18,6 +18,11 @@ work but not **where** it is working. The third loop closes that gap with the sa
 > two gates" are the **F2 contract** (`design.md` `ADR-014`, `tasks.md` T-04…T-18): designed and
 > planned, **not in the tree yet**. Same pattern as `docs/agents/ROLES.md` for `/specialize`.
 
+The [user-extension reader](PROJECT-EXTENSIONS.md) recognizes existing pieces
+and validates a project-supplied O1 registry in read-only mode. That derived
+inventory does not deliver F2 generation, adoption, rebuilding or write gates;
+their state remains in the separate specialization ledger.
+
 ## What the loop is
 
 ```
