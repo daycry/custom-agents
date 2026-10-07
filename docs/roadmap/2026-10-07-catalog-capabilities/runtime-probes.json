@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "observed_on": "2026-10-07",
+  "runtime": "opencode",
+  "runtime_version": "2.0.12",
+  "official_source_revision": "2670273ff17da96f85c5826ced57aa1b368754fa",
+  "isolation": {
+    "own_temporary_project": true,
+    "own_configuration_and_xdg_roots": true,
+    "inherited_provider_credentials": false,
+    "project_discovery_disabled": true,
+    "model_prompts_submitted": 0,
+    "warming_enabled": false,
+    "reference_corpus_code_executed": false
+  },
+  "current_adapter": {
+    "sha256": "1092f3b894c5ee208d4eb9a46ed76361015180632207ec7edf630dcd4cb65bf9",
+    "load_status": "failed",
+    "reason": "Plugin must export a default definition with an id and an effect or setup function."
+  },
+  "positive_control": {
+    "id": "custom-agents-contract-probe",
+    "load_status": "active",
+    "setup_observed": true,
+    "tool_hook_registered": true,
+    "permission_hook_registered": true
+  },
+  "native_config_observations": {
+    "native_and_legacy_agents_loaded": true,
+    "native_and_legacy_commands_normalized": true,
+    "legacy_permission_normalized_to_rules": true,
+    "legacy_mcp_normalized_to_servers": true,
+    "disabled_mcp_normalized_to_disabled": true
+  },
+  "readiness": {
+    "awaited_native_activation": true,
+    "initial_empty_inventory_not_treated_as_failure": true
+  },
+  "limits": {
+    "guard_dispatch_tested": false,
+    "tool_execution_tested": false,
+    "instruction_loading_tested": false,
+    "native_command_dispatch_tested": false,
+    "consumer_mcp_connections_tested": false
+  },
+  "shutdown": {
+    "process_terminal": true,
+    "exit_code": 0
+  }
+}
