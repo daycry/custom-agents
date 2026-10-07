@@ -1,0 +1,1113 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-07",
+  "evaluated_skill_ids": [
+    "S066",
+    "S067",
+    "S068"
+  ],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "source": [
+    {
+      "id": "S066",
+      "sha256": "f4d418c1407a0792e05e5bfea64635e752cdcfb97827851665c6c9902e7063d4",
+      "bytes": 29039,
+      "lines": 256,
+      "read_ranges": [
+        [
+          1,
+          256
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S067",
+      "sha256": "43b6e45cc3f15d8de113ed2aa9884528a9207f83f6bb1901f72a712698705706",
+      "bytes": 16024,
+      "lines": 564,
+      "read_ranges": [
+        [
+          1,
+          564
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S068",
+      "sha256": "6823d9984c060597a312b867c317e0969e1cb0a2dec19730ce944fe789f41d38",
+      "bytes": 2358,
+      "lines": 109,
+      "read_ranges": [
+        [
+          1,
+          109
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "R-f32e9908e99d",
+      "sha256": "acf278be79dae9fdc323cf81059ec05fff32751617eef9bb5be3a2bdc9175f6b",
+      "bytes": 4551,
+      "lines": 159,
+      "read_ranges": [
+        [
+          1,
+          159
+        ]
+      ],
+      "reading_scope": "full-dependency"
+    },
+    {
+      "id": "R-107cc1b36ad6",
+      "sha256": "6fc60f9f286b04f61462e2b9e469a12a715097e71e48c1194e222795fc29160e",
+      "bytes": 6819,
+      "lines": 261,
+      "read_ranges": [
+        [
+          1,
+          261
+        ]
+      ],
+      "reading_scope": "full-dependency"
+    },
+    {
+      "id": "R-3d88a89426ff",
+      "sha256": "7945724035a5fe77f9b89e15fe28b5b8c405b625a3d9fb27cfae7c590df1fa2a",
+      "bytes": 5185,
+      "lines": 135,
+      "read_ranges": [
+        [
+          1,
+          135
+        ]
+      ],
+      "reading_scope": "full-dependency"
+    },
+    {
+      "id": "R-d817606eaf0d",
+      "sha256": "b2d645c8e6da1958d913c82cf408013ada2ea14962126e1575566cea55465cf2",
+      "bytes": 5417,
+      "lines": 215,
+      "read_ranges": [
+        [
+          1,
+          215
+        ]
+      ],
+      "reading_scope": "full-dependency"
+    },
+    {
+      "id": "R-abb3c5c9477d",
+      "sha256": "8dbf2a2cbedb962fbfed379749baddcad9164779159411ae248a42c0ebc2e9fc",
+      "bytes": 1300,
+      "lines": 66,
+      "read_ranges": [
+        [
+          1,
+          66
+        ]
+      ],
+      "reading_scope": "full-dependency"
+    },
+    {
+      "id": "R-1576f07f9bd1",
+      "sha256": "3c069a2460702e1715e6b21408287401f1faa8d343045c98534d59fbd22a0e56",
+      "bytes": 3026,
+      "lines": 97,
+      "read_ranges": [
+        [
+          1,
+          97
+        ]
+      ],
+      "reading_scope": "full-dependency"
+    },
+    {
+      "id": "R-6c35567dd4b8",
+      "sha256": "8a32c0552c8b309e961ef3f68a56ae84b0b1d411c17f23675ec26b685dea5e9a",
+      "bytes": 1022,
+      "lines": 31,
+      "read_ranges": [
+        [
+          1,
+          31
+        ]
+      ],
+      "reading_scope": "full-dependency"
+    },
+    {
+      "id": "R-6e2d9fc34efa",
+      "sha256": "58f0acc56331b8d554dd036b8a1d5b2305a908e3960ff1e2d7e55223d5918bc3",
+      "bytes": 862,
+      "lines": 29,
+      "read_ranges": [
+        [
+          1,
+          29
+        ]
+      ],
+      "reading_scope": "full-dependency"
+    },
+    {
+      "id": "R-6ea226102b9c",
+      "sha256": "09314a247342c12698deb308c2d0ffcf80b58341274bb8f9bba63fa03ce33323",
+      "bytes": 1400,
+      "lines": 57,
+      "read_ranges": [
+        [
+          1,
+          57
+        ]
+      ],
+      "reading_scope": "full-dependency"
+    },
+    {
+      "id": "R-73513665cef7",
+      "sha256": "b3bfb0ed86bfa71d29c076de5363656265218aa5fb8abd26edf285e652a2b234",
+      "bytes": 768,
+      "lines": 30,
+      "read_ranges": [
+        [
+          1,
+          30
+        ]
+      ],
+      "reading_scope": "full-dependency"
+    },
+    {
+      "id": "S104",
+      "sha256": "5ceac13c9b99c97340f9a47c081737aceee1f803ed9045b7fbc980243b01db03",
+      "bytes": 23194,
+      "lines": 436,
+      "read_ranges": [
+        [
+          14,
+          28
+        ],
+        [
+          80,
+          114
+        ],
+        [
+          261,
+          294
+        ],
+        [
+          385,
+          410
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "S176",
+      "sha256": "2497888dd543ca7bdf5d0cb4d90fce023eb2c1c14f860f0af8e8be42423131b4",
+      "bytes": 22450,
+      "lines": 348,
+      "read_ranges": [
+        [
+          54,
+          61
+        ],
+        [
+          77,
+          86
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "S212",
+      "sha256": "c26114356edb15f0340e5af66b6f4444892bdf376b053a7152312fd04d22aced",
+      "bytes": 4436,
+      "lines": 142,
+      "read_ranges": [
+        [
+          100,
+          111
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "A015",
+      "sha256": "2715aa7b58fae3667493a089afbfa891dfe20d24e555e90ddfdd732d10104d1f",
+      "bytes": 7671,
+      "lines": 210,
+      "read_ranges": [
+        [
+          201,
+          210
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "A023",
+      "sha256": "26a78d27db9a035204c9c517314c880a5ea4419500da319acdb643b84d59b0b8",
+      "bytes": 15239,
+      "lines": 252,
+      "read_ranges": [
+        [
+          241,
+          252
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "C021",
+      "sha256": "589c18404b15703bd306023d0210b8f974a395dc4b00c5bc70d41cb64a0da627",
+      "bytes": 4085,
+      "lines": 164,
+      "read_ranges": [
+        [
+          157,
+          164
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "C022",
+      "sha256": "631142330e5884cd0dae2d404d183b0dda4c5f6b1752a21e7d1e70b0be6d2e28",
+      "bytes": 3955,
+      "lines": 116,
+      "read_ranges": [
+        [
+          108,
+          116
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "C023",
+      "sha256": "22d547f9a255ddbbcebdcc90ca48a6865896f8cf00d39ed5d3e49504d716c363",
+      "bytes": 3839,
+      "lines": 144,
+      "read_ranges": [
+        [
+          136,
+          144
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "S022",
+      "sha256": "9b983d0297a983110fdfda8dce55d19b750ca3e53ef155d75a3eff740d3874b8",
+      "bytes": 13349,
+      "lines": 562,
+      "read_ranges": [
+        [
+          1,
+          562
+        ]
+      ],
+      "reading_scope": "full-dependency",
+      "reuse_from": "iteration-reading-evidence.json"
+    },
+    {
+      "id": "S238",
+      "sha256": "114d0e5480ce3ad263316c639ce0c401396e1d9fbec3cf15b3c962ae16f376db",
+      "bytes": 3605,
+      "lines": 113,
+      "read_ranges": [
+        [
+          1,
+          113
+        ]
+      ],
+      "reading_scope": "full-dependency"
+    },
+    {
+      "id": "S277",
+      "sha256": "f26e518e6922fe0796f5b6a55349a409f5b03745c4eeed9be80b4c66d890d852",
+      "bytes": 2997,
+      "lines": 110,
+      "read_ranges": [
+        [
+          1,
+          110
+        ]
+      ],
+      "reading_scope": "full-dependency"
+    },
+    {
+      "id": "S060",
+      "sha256": "51f719cf28a6d3c43e511a2c75e903a41d566205f8e93a2eeb276e0c1eb92463",
+      "bytes": 9023,
+      "lines": 170,
+      "read_ranges": [
+        [
+          1,
+          170
+        ]
+      ],
+      "reading_scope": "full-dependency",
+      "reuse_from": "contract-cost-reading-evidence.json"
+    }
+  ],
+  "native": [
+    {
+      "path": "skills/plugin-panel/SKILL.md",
+      "sha256": "396a3f0a779abc4705f202f3ddf1b0769240de5f8002f50ad84fbf5f01610c85",
+      "bytes": 2877,
+      "lines": 47,
+      "read_ranges": [
+        [
+          1,
+          47
+        ]
+      ],
+      "reading_scope": "full-body"
+    },
+    {
+      "path": "skills/roadmap-dashboard/SKILL.md",
+      "sha256": "bddffa7c3f46bf5caee7bdb765c1b3560f718f43f0e241cbcf72c5a9407add17",
+      "bytes": 4824,
+      "lines": 67,
+      "read_ranges": [
+        [
+          1,
+          67
+        ]
+      ],
+      "reading_scope": "full-body"
+    },
+    {
+      "path": "skills/delivery-practices/SKILL.md",
+      "sha256": "67702b1115bc6d57c4eafbf9dab8d10abaab6b333d4ab330d828f30353770c96",
+      "bytes": 1132,
+      "lines": 24,
+      "read_ranges": [
+        [
+          1,
+          24
+        ]
+      ],
+      "reading_scope": "full-body"
+    },
+    {
+      "path": "skills/backend-practices/SKILL.md",
+      "sha256": "130015328c98c14cfb7b55385fb6d438eb1c3d0baf46543c49e84e2f2d723f1e",
+      "bytes": 1109,
+      "lines": 24,
+      "read_ranges": [
+        [
+          1,
+          24
+        ]
+      ],
+      "reading_scope": "full-body"
+    },
+    {
+      "path": "skills/frontend-quality/SKILL.md",
+      "sha256": "7b6916e32d90731b8f81ee3eb36695dd9f62d498f132ac61bd7b9fd39066f4b0",
+      "bytes": 1062,
+      "lines": 23,
+      "read_ranges": [
+        [
+          1,
+          23
+        ]
+      ],
+      "reading_scope": "full-body"
+    },
+    {
+      "path": "skills/frontend-quality/references/interaction-performance.md",
+      "sha256": "aa2fbb759c0854e7db4b4db13141469f10573e19138301078b9ad0846157322f",
+      "bytes": 2483,
+      "lines": 40,
+      "read_ranges": [
+        [
+          1,
+          40
+        ]
+      ],
+      "reading_scope": "full-body"
+    },
+    {
+      "path": "skills/delivery-practices/references/delivery-tools.md",
+      "sha256": "d780afa91569449a0adc61e26a4a11bacedbc27a2b3fd8a1118e7ee469879cb9",
+      "bytes": 2653,
+      "lines": 44,
+      "read_ranges": [
+        [
+          1,
+          44
+        ]
+      ],
+      "reading_scope": "full-body"
+    },
+    {
+      "path": "docs/observability.md",
+      "sha256": "c469c01dde0463170845e0bfebdeed548e612b174acbba3f1441f640dc3b65d2",
+      "bytes": 24492,
+      "lines": 205,
+      "read_ranges": [
+        [
+          1,
+          23
+        ],
+        [
+          194,
+          205
+        ]
+      ],
+      "reading_scope": "counterpart-sections"
+    },
+    {
+      "path": "agent-kits/shared/task-brief.py",
+      "sha256": "5219e44c9d20d05499764e9c3debab5bfe4253e9a9773cfa776b15f20c93e034",
+      "bytes": 84504,
+      "lines": 1465,
+      "read_ranges": [
+        [
+          502,
+          524
+        ]
+      ],
+      "reading_scope": "counterpart-sections"
+    },
+    {
+      "path": "agent-kits/shared/project-pieces.py",
+      "sha256": "7ea4bfb07323c8b84242aa246d6e3ee24a5bf11bbf045f706b519a583256a3cd",
+      "bytes": 38009,
+      "lines": 805,
+      "read_ranges": [
+        [
+          627,
+          642
+        ]
+      ],
+      "reading_scope": "counterpart-sections"
+    },
+    {
+      "path": "agent-kits/shared/knowledge-write.md",
+      "sha256": "9f35f672b961341de66b0cc1061ccb39ef38245fbe78f3629f0e168e800e336e",
+      "bytes": 8330,
+      "lines": 106,
+      "read_ranges": [
+        [
+          1,
+          106
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "cpp-dotnet-reading-evidence.json"
+    },
+    {
+      "path": "agent-kits/shared/knowledge-check.md",
+      "sha256": "bab98db4ee27fc074ff65252b92739bc913768fc9058e9a8caa9475c3041d1ac",
+      "bytes": 8910,
+      "lines": 104,
+      "read_ranges": [
+        [
+          1,
+          104
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "cpp-dotnet-reading-evidence.json"
+    },
+    {
+      "path": "agent-kits/shared/capability-check.md",
+      "sha256": "c0dfede7cdd890952ebf4eab114fe6fef01c123350c6060b3053121797a48c20",
+      "bytes": 4559,
+      "lines": 70,
+      "read_ranges": [
+        [
+          1,
+          70
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "cpp-dotnet-reading-evidence.json"
+    },
+    {
+      "path": "docs/PROJECT-EXTENSIONS.md",
+      "sha256": "555001170f339a4bb0ff9a69a4833e3c25dc2b9fc435c3b3639a3652a837d54c",
+      "bytes": 7629,
+      "lines": 128,
+      "read_ranges": [
+        [
+          1,
+          128
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "cpp-dotnet-reading-evidence.json"
+    },
+    {
+      "path": "skills/adversarial-review/SKILL.md",
+      "sha256": "6511ee78dfad3bd5ae2aba956dd268c08f368c8419069784fea72e1d8fd28f36",
+      "bytes": 17719,
+      "lines": 200,
+      "read_ranges": [
+        [
+          1,
+          33
+        ]
+      ],
+      "reading_scope": "counterpart-sections",
+      "reuse_from": "cpp-dotnet-reading-evidence.json"
+    },
+    {
+      "path": "agents/planner.md",
+      "sha256": "20c3211e632c102ff9fb6371f8a76275b030aedb7f0eb0768a14446d0bbf7ce8",
+      "bytes": 21386,
+      "lines": 150,
+      "read_ranges": [
+        [
+          70,
+          96
+        ]
+      ],
+      "reading_scope": "counterpart-sections",
+      "reuse_from": "cpp-dotnet-reading-evidence.json"
+    },
+    {
+      "path": "skills/unit-tests/SKILL.md",
+      "sha256": "bfb1b3899fd657b8beb70522e5f7d834869d22609da94b028c6dc82c7d577bc7",
+      "bytes": 7017,
+      "lines": 109,
+      "read_ranges": [
+        [
+          1,
+          109
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "cpp-dotnet-reading-evidence.json"
+    },
+    {
+      "path": "commands/work-context.md",
+      "sha256": "830b5f37649bd1c8945013096e5930ca425a3c384e5d1dd52c1765f5f32821ec",
+      "bytes": 1610,
+      "lines": 25,
+      "read_ranges": [
+        [
+          1,
+          25
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "cpp-dotnet-reading-evidence.json"
+    },
+    {
+      "path": "skills/tdd/SKILL.md",
+      "sha256": "8d144cd02ca19b8e08c083cf9a79d66ed3961127ada437bc2a3f548b94666716",
+      "bytes": 8959,
+      "lines": 119,
+      "read_ranges": [
+        [
+          1,
+          119
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "cpp-dotnet-reading-evidence.json"
+    },
+    {
+      "path": "skills/stack-practices/SKILL.md",
+      "sha256": "c44933dab261ee24ae0daf38b9d1d11e02084ad04cd05fb84d03ab2110f60751",
+      "bytes": 1490,
+      "lines": 28,
+      "read_ranges": [
+        [
+          1,
+          28
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "cpp-dotnet-reading-evidence.json"
+    },
+    {
+      "path": "skills/research-first/SKILL.md",
+      "sha256": "ae43e6baaad2124c1613e981489b5ed6933c54bfd12c63e5897004b4a80bf760",
+      "bytes": 2996,
+      "lines": 49,
+      "read_ranges": [
+        [
+          1,
+          49
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "cpp-dotnet-reading-evidence.json"
+    },
+    {
+      "path": "agents/analyst.md",
+      "sha256": "c15e86fa198a20f4bf30fa47077633ce707c91d30268852f6cf090d66c7f1f82",
+      "bytes": 10305,
+      "lines": 133,
+      "read_ranges": [
+        [
+          1,
+          133
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "cpp-dotnet-reading-evidence.json"
+    },
+    {
+      "path": "agents/documenter.md",
+      "sha256": "5cf54fad833a770cf47aa1a1448feb498e9b4c81970204557d3da4afb3aa554c",
+      "bytes": 16181,
+      "lines": 214,
+      "read_ranges": [
+        [
+          1,
+          76
+        ]
+      ],
+      "reading_scope": "counterpart-sections",
+      "reuse_from": "cpp-dotnet-reading-evidence.json"
+    },
+    {
+      "path": "agents/qa.md",
+      "sha256": "914e408cfd3c72d5dc731de9f5665f6414d0b9f8a28a5860c73acdcebe51085e",
+      "bytes": 18622,
+      "lines": 139,
+      "read_ranges": [
+        [
+          85,
+          123
+        ]
+      ],
+      "reading_scope": "counterpart-sections",
+      "reuse_from": "cpp-dotnet-reading-evidence.json"
+    },
+    {
+      "path": "skills/debug-root-cause/SKILL.md",
+      "sha256": "07d0384901d5f78918d5f9545cd4d8f3a188bf2fb96974f892ba1a519879528b",
+      "bytes": 6651,
+      "lines": 94,
+      "read_ranges": [
+        [
+          1,
+          94
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "cpp-dotnet-reading-evidence.json"
+    },
+    {
+      "path": "skills/unit-tests/scripts/coverage-gate.py",
+      "sha256": "2e35368942828d482c269220056a70a586e4722e74479bbd8c28da16a08e62d9",
+      "bytes": 18801,
+      "lines": 462,
+      "read_ranges": [
+        [
+          1,
+          85
+        ],
+        [
+          98,
+          141
+        ],
+        [
+          211,
+          293
+        ]
+      ],
+      "reading_scope": "counterpart-sections",
+      "reuse_from": "cpp-dotnet-reading-evidence.json"
+    },
+    {
+      "path": "agent-kits/shared/capability-route.py",
+      "sha256": "a56b51900407e1262e394a67fe38086920d29efba446c31c83c7d0797b714c8c",
+      "bytes": 9552,
+      "lines": 205,
+      "read_ranges": [
+        [
+          1,
+          115
+        ]
+      ],
+      "reading_scope": "counterpart-sections",
+      "reuse_from": "cpp-dotnet-reading-evidence.json"
+    }
+  ],
+  "local_resource_totals": {
+    "read": 0,
+    "inventoried": 0,
+    "bytes": 0,
+    "lines": 0
+  },
+  "external_rule_reads": {
+    "count": 10,
+    "bytes": 30350,
+    "lines": 1080
+  },
+  "pending_reading": [],
+  "dependency_observations": [
+    {
+      "kind": "official-documentation",
+      "url": "https://www.gov.uk/government/publications/the-uk-sanctions-list",
+      "resolved_url": "https://www.gov.uk/government/publications/the-uk-sanctions-list",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "28 January 2026 closure of OFSI consolidated list and UK Sanctions List as current source"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "e9ffca673ef9275df2a0bf8b5cb1da501896c0d174685b2fe4db2bf488e940b9"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://content.govdelivery.com/accounts/USDHSCBP/bulletins/3f01456",
+      "resolved_url": "https://content.govdelivery.com/accounts/USDHSCBP/bulletins/3f01456",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "CBP guidance suspending duty-free treatment from 29 August 2025 and exceptions"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "10d927c326429dec8ba3ae492df29bd20f404211d1d3f94814c3e81d0c728ff8"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://ofac.treasury.gov/faqs/5",
+      "resolved_url": "https://ofac.treasury.gov/faqs/5",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "Steps 1, 4 and 5: regimes, identity investigation, authorizations and blocking versus rejection"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "43d73b527f19401cdc85e4bee0d0f1aa561cdcb99d6768cfc6c0c7f01907a869"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://www.wto.org/english/tratop_e/cusval_e/cusval_info_e.htm",
+      "resolved_url": "https://www.wto.org/english/tratop_e/cusval_e/cusval_info_e.htm",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "Six methods, importer-requested order of deductive/computed methods and transaction value"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "9f2482055552780fa240371fb189eca2080326625746d5acdb5b403323edf268"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://api.dart.dev/dart-async/FutureRecord2/wait.html",
+      "resolved_url": "https://api.dart.dev/dart-async/FutureRecord2/wait.html",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "Record wait completion of all futures, ParallelWaitError values and errors"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "035e7586ace6b78c7bbe91177f07d33d0d55d75f635b16ac3f3ebb8986626cae"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://dart.dev/tools/diagnostics/const_constructor_with_non_const_super",
+      "resolved_url": "https://dart.dev/tools/diagnostics/const_constructor_with_non_const_super",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "Const constructor cannot invoke a non-const superclass constructor"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "5474f5b89666f0937447069cc6d674013f084cf7484959b7f7174a08cde77084"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://api.flutter.dev/flutter/widgets/BuildContext/mounted.html",
+      "resolved_url": "https://api.flutter.dev/flutter/widgets/BuildContext/mounted.html",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "BuildContext validity across asynchronous gaps"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "f223c5fc06df8938b6952a2016e122047291d0bf9b9381f640be3dd23634fcec"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://docs.flutter.dev/perf/best-practices",
+      "resolved_url": "https://docs.flutter.dev/perf/best-practices",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "Same widget instance and const optimization, reusable widgets"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "8943f5cec1d70ff6be8bccb03207c33fea322b47e74ef2c3e42cd98abc14743e"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://raw.githubusercontent.com/rrousselGit/freezed/master/packages/freezed/migration_guide.md",
+      "resolved_url": "https://raw.githubusercontent.com/rrousselGit/freezed/master/packages/freezed/migration_guide.md",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "Full v2-to-v3 migration guide: abstract/sealed factory classes and pattern matching"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "7b9574841ab7b126c03fa4053d8cb45de5132569fa08e8b3d0158895d058308a"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://pub.dev/packages/go_router/changelog",
+      "resolved_url": "https://pub.dev/packages/go_router/changelog",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "v5 breaking changes removing GoRouterRefreshStream"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "e299df1d2802c4353aafc99197d291f7b883290e66ef547657f0da24789f290c"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://riverpod.dev/docs/whats_new",
+      "resolved_url": "https://riverpod.dev/docs/whats_new",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "AsyncValue valueOrNull rename, automatic retry and new testing utilities in v3"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "3d510158cc18ab80e7a5263aa786c9d92005b2127e1e244c9e44494511dcc646"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://pub.dev/packages/dio",
+      "resolved_url": "https://pub.dev/packages/dio",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "Concurrent versus queued interception, next/resolve/reject and CancelToken"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "99b5630fda73c18f91f1288e56ac06c10be864157c5bf9866d6e67603d94f3b5"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://riverpod.dev/docs/how_to/testing",
+      "resolved_url": "https://riverpod.dev/docs/how_to/testing",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "Independent containers, ProviderContainer.test, listen for automatic disposal and ProviderScope"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "be418220aa55b2ec251357d3e2e7225b15461719e3d51e79d86371cacfc84e97"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://docs.flutter.dev/testing/errors",
+      "resolved_url": "https://docs.flutter.dev/testing/errors",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "Framework/dispatcher error handlers and ErrorWidget build fallback"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "90baf94c641da258a085f6af3a6ad67b0ab9d3e3393f596c18c2702b5583d22a"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://grafana.com/docs/grafana/latest/visualizations/dashboards/build-dashboards/view-dashboard-json-model.md",
+      "resolved_url": "https://grafana.com/docs/grafana/latest/visualizations/dashboards/build-dashboards/view-dashboard-json-model.md",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "Classic, V1 Resource and V2 Resource schemas"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "953b643058979cdff98026f10b582cda22c5d0aa28489f1d8c43f526db803ebc"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://signoz.io/docs/userguide/manage-dashboards/",
+      "resolved_url": "https://signoz.io/docs/userguide/manage-dashboards/",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "Instrumented application prerequisite and JSON/Grafana dashboard import"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "6a056fa06d342e8d5eef1618edfa4baaec5f701113e7bc7ac9b1e71ca85c3a37"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://prometheus.io/docs/practices/histograms/",
+      "resolved_url": "https://prometheus.io/docs/practices/histograms/",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "Summary quantiles cannot be aggregated, histogram buckets and histogram_quantile"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "64ea1782b13a88c2394662aa27e39bfa01da4b0a5b17f9c6c3a303bcbbf54e5e"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://dart.dev/effective-dart/style",
+      "resolved_url": "https://dart.dev/effective-dart/style",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "lowerCamelCase constants and exceptions for existing/generated conventions"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "09e2de5597fa57a4b021f7396c7a8f788443042aa1bc85b959524c61e0c95051"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://dart.dev/tools/dart-format",
+      "resolved_url": "https://dart.dev/tools/dart-format",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "Default/configured line length and formatter-managed trailing commas"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "a79c4ba689a02e9060a4a374d5c258d6a29913ef23874c04687518fcaa736a73"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://code.claude.com/docs/en/hooks",
+      "resolved_url": "https://code.claude.com/docs/en/hooks",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "Tool-name matchers and hook JSON input; consumer file path extraction"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "2ee0de4f29b650611b7c60ad45ea47c8366f1c6b30162c278bd8ec17ee3af79e"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://pub.dev/packages/flutter_secure_storage",
+      "resolved_url": "https://pub.dev/packages/flutter_secure_storage",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "Android cipher/migration changes from version 10 and Web prerequisites"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "3a9ead45c09862a82aa4a5577dead53d70480cdf4facdb8f6850bba89c5fe190"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://library.iccwbo.org/content/tfb/BOOKS/BK_0049/BK_0049_05_RulesSea.htm",
+      "resolved_url": "https://library.iccwbo.org/content/tfb/BOOKS/BK_0049/BK_0049_05_RulesSea.htm",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "FOB on-board delivery/risk and FCA for prior delivery at container terminals"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "8b4134e23d6ee65f912f0465db40ad4e6a8afe41f5ba8d64e41699192caa2ffa"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://www.wcoomd.org/~/media/wco/public/global/pdf/topics/nomenclature/instruments-and-tools/hs-interpretation-general-rules/general_rules_interpret_hs.pdf?la=en",
+      "resolved_url": "https://www.wcoomd.org/~/media/wco/public/global/pdf/topics/nomenclature/instruments-and-tools/hs-interpretation-general-rules/general_rules_interpret_hs.pdf?la=en",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "web-pdf",
+      "sections_read": [
+        "One-page rules 1-6 including 2(b), 3(a)-(c), 5 and subheading comparisons"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "1426f6bebcc4ac2e4035f09259463f6005dd5e624f727b82ef9d2b52d6a0b819",
+      "pdf_pages_read": [
+        0
+      ],
+      "web_line_range": [
+        0,
+        49
+      ]
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://www.govinfo.gov/content/pkg/USCODE-2024-title19/html/USCODE-2024-title19-chap4-subtitleIII-partV-sec1592.htm",
+      "resolved_url": "https://www.govinfo.gov/content/pkg/USCODE-2024-title19/html/USCODE-2024-title19-chap4-subtitleIII-partV-sec1592.htm",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "Edition 2024 section 1592(c)(2)-(4): maximum penalties and prior disclosure eligibility/interest"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "0a1a374365dc5b10d32c550bbc66c5585a00b9d9a713ffc2a3cf48709eb4fce9",
+      "edition": "2024; not a proof of current law for a future case"
+    }
+  ],
+  "rejected_document_fetches": [
+    {
+      "kind": "official-documentation-fetch-rejected",
+      "url": "https://uscode.house.gov/view.xhtml?req=granuleid:USC-prelim-title19-section1592&num=0&edition=prelim",
+      "document_http_status": 200,
+      "reason": "HTTP 200 returned a maintenance page, not the statute",
+      "replacement_url": "https://www.govinfo.gov/content/pkg/USCODE-2024-title19/html/USCODE-2024-title19-chap4-subtitleIII-partV-sec1592.htm"
+    },
+    {
+      "kind": "official-documentation-fetch-rejected",
+      "url": "https://academy.iccwbo.org/incoterms/article/incoterms-2020-fas-or-fob/",
+      "document_http_status": 403,
+      "reason": "HTTP 403: document unavailable by direct transport",
+      "replacement_url": "https://library.iccwbo.org/content/tfb/BOOKS/BK_0049/BK_0049_05_RulesSea.htm"
+    },
+    {
+      "kind": "official-documentation-fetch-rejected",
+      "url": "https://www.govinfo.gov/content/pkg/USCODE-2025-title19/html/USCODE-2025-title19-chap4-subtitleIII-partV-sec1592.htm",
+      "document_http_status": 200,
+      "reason": "HTTP 200 redirected to /error; edition 2025 document not supplied",
+      "replacement_url": "https://www.govinfo.gov/content/pkg/USCODE-2024-title19/html/USCODE-2024-title19-chap4-subtitleIII-partV-sec1592.htm"
+    }
+  ],
+  "excluded_from_execution_audit": [
+    "No source scripts/snippets/tests, compilers, legal filings, screening, services or dashboards executed",
+    "Agents/commands, inherited global rules and operational support remain T-04/T-05/T-06/T-08/T-09/T-10/T-12/T-13/T-14",
+    "Partial counterpart readings do not validate whole implementations"
+  ],
+  "measurements": {
+    "tokens": null,
+    "latency_seconds": null
+  }
+}
