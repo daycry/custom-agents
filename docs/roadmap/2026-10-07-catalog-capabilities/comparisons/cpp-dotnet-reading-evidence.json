@@ -1,0 +1,847 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-07",
+  "evaluated_skill_ids": [
+    "S061",
+    "S062",
+    "S063",
+    "S064",
+    "S065"
+  ],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "source": [
+    {
+      "id": "S061",
+      "sha256": "f870b47d3493b0ad0b6e3808a679ac3c429b60f03193af6c9dc0e0d9e6981436",
+      "bytes": 22291,
+      "lines": 724,
+      "read_ranges": [
+        [
+          1,
+          724
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S062",
+      "sha256": "a92fb5da9b7e3cd1b4dee185b3eb9d0a55352af6396bf996d2eef72d683784df",
+      "bytes": 9175,
+      "lines": 325,
+      "read_ranges": [
+        [
+          1,
+          325
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S063",
+      "sha256": "03bd2ef6e08191cd336e9b8e7a55c29040e7a3225defdaeab1b51d983565661f",
+      "bytes": 4345,
+      "lines": 123,
+      "read_ranges": [
+        [
+          1,
+          123
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S064",
+      "sha256": "ee93aae975fa9d44bebc33be010b24435d38177e77395c697048622d9be68ad1",
+      "bytes": 8726,
+      "lines": 322,
+      "read_ranges": [
+        [
+          1,
+          322
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S065",
+      "sha256": "4214d79be7d1bcb62587cf6364e96ed3b70b875ec41871ac632e827ef96b370e",
+      "bytes": 4289,
+      "lines": 141,
+      "read_ranges": [
+        [
+          1,
+          141
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S091",
+      "sha256": "efcc5b7c850d5a2f1b853c25a92b392fa0bf62451e5799b9a5efb905dbf45337",
+      "bytes": 6477,
+      "lines": 161,
+      "read_ranges": [
+        [
+          16,
+          24
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "S092",
+      "sha256": "188b226ec0dfd4304d6c9b60498b5f0dc2b3c97b14e159e5bde5db323ad45721",
+      "bytes": 4401,
+      "lines": 133,
+      "read_ranges": [
+        [
+          16,
+          24
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "S102",
+      "sha256": "823a1b8f75495022227bb9af4537eb5c0b1c62793d68b74c6bd1af14eea79786",
+      "bytes": 3831,
+      "lines": 128,
+      "read_ranges": [
+        [
+          8,
+          22
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "S110",
+      "sha256": "d89f8cb5235f7896b014aae4aa94026bd1a38bc6add956d3fc7ccf2963f2adb7",
+      "bytes": 7941,
+      "lines": 281,
+      "read_ranges": [
+        [
+          258,
+          266
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "S171",
+      "sha256": "f4d2501b1abb19f7ef5f73b21afa5a7ea51c5dc3d766e8dbd239ec548899213f",
+      "bytes": 5293,
+      "lines": 114,
+      "read_ranges": [
+        [
+          108,
+          114
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "S217",
+      "sha256": "e98058f34c3338014d0b9ef0c821d932d6820284d40d1eaf4f716bceb9147db0",
+      "bytes": 16077,
+      "lines": 387,
+      "read_ranges": [
+        [
+          129,
+          137
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "S284",
+      "sha256": "0ade130619dfc73781d6a4beaf79b65b6d3ac70f0751dce0844a8f9fd39167aa",
+      "bytes": 5630,
+      "lines": 188,
+      "read_ranges": [
+        [
+          184,
+          188
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "S291",
+      "sha256": "cbc93a1e2514ecdcee30da744aa13eb6c0ebe4948ca3dfff52b287df4f9f0814",
+      "bytes": 30577,
+      "lines": 888,
+      "read_ranges": [
+        [
+          883,
+          888
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "S293",
+      "sha256": "997937ac9dc11779c6bb6c16833630836a22f1b2f115482982f6350474fa8ff1",
+      "bytes": 7438,
+      "lines": 244,
+      "read_ranges": [
+        [
+          239,
+          244
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "A013",
+      "sha256": "c34ee3291505ea66d4330268babbd9cbc899e32b7869ca71cca1690b4ce3cf22",
+      "bytes": 3972,
+      "lines": 81,
+      "read_ranges": [
+        [
+          64,
+          81
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "A012",
+      "sha256": "0a06faff0f6be85989a22c79647743d872c3348ca772ee860f048035473c1675",
+      "bytes": 4108,
+      "lines": 99,
+      "read_ranges": [
+        [
+          76,
+          99
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "A014",
+      "sha256": "34652d6a39387d0d008a90804b1b271ae62bba77abaf9537b79bd7705b1724e0",
+      "bytes": 5692,
+      "lines": 110,
+      "read_ranges": [
+        [
+          85,
+          110
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "A039",
+      "sha256": "9d9cdcde2f90ba36ac488065beaa4fc3b74ff5a91507e504b9ea2cc608213cf8",
+      "bytes": 7275,
+      "lines": 159,
+      "read_ranges": [
+        [
+          55,
+          79
+        ],
+        [
+          146,
+          159
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "C009",
+      "sha256": "6bd5d550a008568a9227c942c9b71038c430ab63b32fcf96d0a9b5f416eacb9f",
+      "bytes": 5880,
+      "lines": 251,
+      "read_ranges": [
+        [
+          1,
+          62
+        ],
+        [
+          238,
+          251
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "C008",
+      "sha256": "58a0e058207bb8e96d6fe02f1a71db77157f30121dd5c7aec32c0f4a91523576",
+      "bytes": 3456,
+      "lines": 132,
+      "read_ranges": [
+        [
+          114,
+          132
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "C007",
+      "sha256": "0850ec6adad0e96d832ebf584c34788a8d98998a8e05743166c1c1e0057c23ef",
+      "bytes": 4030,
+      "lines": 173,
+      "read_ranges": [
+        [
+          158,
+          173
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "C046",
+      "sha256": "58b3eb75ebcc4ca1399dcf7b8e8e135cf0af4fcd476d1de6ce4c34f88c71eec9",
+      "bytes": 4064,
+      "lines": 129,
+      "read_ranges": [
+        [
+          109,
+          121
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "S029",
+      "sha256": "57c7f8440b7bd4c91c0d325640b5c6fb7a3dc7fc05595946c7bc705761a987a7",
+      "bytes": 3648,
+      "lines": 98,
+      "read_ranges": [
+        [
+          1,
+          98
+        ]
+      ],
+      "reading_scope": "full-dependency",
+      "reuse_from": "brand-ui-reading-evidence.json"
+    },
+    {
+      "id": "S049",
+      "sha256": "a1ccc0ecfe30ae53db26a73159a80ecad8c63a6a96c461a297789d889bf9ad2c",
+      "bytes": 4370,
+      "lines": 132,
+      "read_ranges": [
+        [
+          1,
+          132
+        ]
+      ],
+      "reading_scope": "full-dependency",
+      "reuse_from": "business-reading-evidence.json"
+    }
+  ],
+  "native": [
+    {
+      "path": "skills/unit-tests/scripts/coverage-gate.py",
+      "sha256": "2e35368942828d482c269220056a70a586e4722e74479bbd8c28da16a08e62d9",
+      "bytes": 18801,
+      "lines": 462,
+      "read_ranges": [
+        [
+          1,
+          85
+        ],
+        [
+          98,
+          141
+        ],
+        [
+          211,
+          293
+        ]
+      ],
+      "reading_scope": "counterpart-sections"
+    },
+    {
+      "path": "agent-kits/shared/capability-route.py",
+      "sha256": "a56b51900407e1262e394a67fe38086920d29efba446c31c83c7d0797b714c8c",
+      "bytes": 9552,
+      "lines": 205,
+      "read_ranges": [
+        [
+          1,
+          115
+        ]
+      ],
+      "reading_scope": "counterpart-sections"
+    },
+    {
+      "path": "agent-kits/shared/knowledge-write.md",
+      "sha256": "9f35f672b961341de66b0cc1061ccb39ef38245fbe78f3629f0e168e800e336e",
+      "bytes": 8330,
+      "lines": 106,
+      "read_ranges": [
+        [
+          1,
+          106
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "contract-cost-reading-evidence.json"
+    },
+    {
+      "path": "agent-kits/shared/knowledge-check.md",
+      "sha256": "bab98db4ee27fc074ff65252b92739bc913768fc9058e9a8caa9475c3041d1ac",
+      "bytes": 8910,
+      "lines": 104,
+      "read_ranges": [
+        [
+          1,
+          104
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "contract-cost-reading-evidence.json"
+    },
+    {
+      "path": "agent-kits/shared/capability-check.md",
+      "sha256": "c0dfede7cdd890952ebf4eab114fe6fef01c123350c6060b3053121797a48c20",
+      "bytes": 4559,
+      "lines": 70,
+      "read_ranges": [
+        [
+          1,
+          70
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "contract-cost-reading-evidence.json"
+    },
+    {
+      "path": "docs/PROJECT-EXTENSIONS.md",
+      "sha256": "555001170f339a4bb0ff9a69a4833e3c25dc2b9fc435c3b3639a3652a837d54c",
+      "bytes": 7629,
+      "lines": 128,
+      "read_ranges": [
+        [
+          1,
+          128
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "contract-cost-reading-evidence.json"
+    },
+    {
+      "path": "skills/adversarial-review/SKILL.md",
+      "sha256": "6511ee78dfad3bd5ae2aba956dd268c08f368c8419069784fea72e1d8fd28f36",
+      "bytes": 17719,
+      "lines": 200,
+      "read_ranges": [
+        [
+          1,
+          33
+        ]
+      ],
+      "reading_scope": "counterpart-sections",
+      "reuse_from": "contract-cost-reading-evidence.json"
+    },
+    {
+      "path": "agents/planner.md",
+      "sha256": "20c3211e632c102ff9fb6371f8a76275b030aedb7f0eb0768a14446d0bbf7ce8",
+      "bytes": 21386,
+      "lines": 150,
+      "read_ranges": [
+        [
+          70,
+          96
+        ]
+      ],
+      "reading_scope": "counterpart-sections",
+      "reuse_from": "contract-cost-reading-evidence.json"
+    },
+    {
+      "path": "skills/unit-tests/SKILL.md",
+      "sha256": "bfb1b3899fd657b8beb70522e5f7d834869d22609da94b028c6dc82c7d577bc7",
+      "bytes": 7017,
+      "lines": 109,
+      "read_ranges": [
+        [
+          1,
+          109
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "contract-cost-reading-evidence.json"
+    },
+    {
+      "path": "commands/work-context.md",
+      "sha256": "830b5f37649bd1c8945013096e5930ca425a3c384e5d1dd52c1765f5f32821ec",
+      "bytes": 1610,
+      "lines": 25,
+      "read_ranges": [
+        [
+          1,
+          25
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "contract-cost-reading-evidence.json"
+    },
+    {
+      "path": "agent-kits/qa/qa-gate.py",
+      "sha256": "276f2ae90aa12111c6f5ddac2678c5ac930d97c16f7606e5bc6292f5c0e6a23b",
+      "bytes": 6483,
+      "lines": 150,
+      "read_ranges": [
+        [
+          1,
+          68
+        ]
+      ],
+      "reading_scope": "counterpart-sections",
+      "reuse_from": "contract-cost-reading-evidence.json"
+    },
+    {
+      "path": "skills/jira-sync/SKILL.md",
+      "sha256": "244c9b1bf72d85621240bca46b6d6904a3ef00cb96cae9d3adb55bb4a5587bff",
+      "bytes": 12409,
+      "lines": 162,
+      "read_ranges": [
+        [
+          1,
+          85
+        ]
+      ],
+      "reading_scope": "counterpart-sections",
+      "reuse_from": "contract-cost-reading-evidence.json"
+    },
+    {
+      "path": "skills/confluence-publish/SKILL.md",
+      "sha256": "19a9f0b4069e837e16424d06e8e98752522a485d7ce239e5e14c5ea33794eb65",
+      "bytes": 13342,
+      "lines": 196,
+      "read_ranges": [
+        [
+          1,
+          65
+        ]
+      ],
+      "reading_scope": "counterpart-sections",
+      "reuse_from": "contract-cost-reading-evidence.json"
+    },
+    {
+      "path": "skills/tdd/SKILL.md",
+      "sha256": "8d144cd02ca19b8e08c083cf9a79d66ed3961127ada437bc2a3f548b94666716",
+      "bytes": 8959,
+      "lines": 119,
+      "read_ranges": [
+        [
+          1,
+          119
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "brand-ui-reading-evidence.json"
+    },
+    {
+      "path": "skills/stack-practices/SKILL.md",
+      "sha256": "c44933dab261ee24ae0daf38b9d1d11e02084ad04cd05fb84d03ab2110f60751",
+      "bytes": 1490,
+      "lines": 28,
+      "read_ranges": [
+        [
+          1,
+          28
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "brand-ui-reading-evidence.json"
+    },
+    {
+      "path": "skills/research-first/SKILL.md",
+      "sha256": "ae43e6baaad2124c1613e981489b5ed6933c54bfd12c63e5897004b4a80bf760",
+      "bytes": 2996,
+      "lines": 49,
+      "read_ranges": [
+        [
+          1,
+          49
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "brand-ui-reading-evidence.json"
+    },
+    {
+      "path": "agents/analyst.md",
+      "sha256": "c15e86fa198a20f4bf30fa47077633ce707c91d30268852f6cf090d66c7f1f82",
+      "bytes": 10305,
+      "lines": 133,
+      "read_ranges": [
+        [
+          1,
+          133
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "brand-ui-reading-evidence.json"
+    },
+    {
+      "path": "agents/documenter.md",
+      "sha256": "5cf54fad833a770cf47aa1a1448feb498e9b4c81970204557d3da4afb3aa554c",
+      "bytes": 16181,
+      "lines": 214,
+      "read_ranges": [
+        [
+          1,
+          76
+        ]
+      ],
+      "reading_scope": "counterpart-sections",
+      "reuse_from": "brand-ui-reading-evidence.json"
+    },
+    {
+      "path": "agents/qa.md",
+      "sha256": "914e408cfd3c72d5dc731de9f5665f6414d0b9f8a28a5860c73acdcebe51085e",
+      "bytes": 18622,
+      "lines": 139,
+      "read_ranges": [
+        [
+          85,
+          123
+        ]
+      ],
+      "reading_scope": "counterpart-sections",
+      "reuse_from": "brand-ui-reading-evidence.json"
+    },
+    {
+      "path": "skills/debug-root-cause/SKILL.md",
+      "sha256": "07d0384901d5f78918d5f9545cd4d8f3a188bf2fb96974f892ba1a519879528b",
+      "bytes": 6651,
+      "lines": 94,
+      "read_ranges": [
+        [
+          1,
+          94
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "business-reading-evidence.json"
+    }
+  ],
+  "local_resource_totals": {
+    "read": 0,
+    "inventoried": 0,
+    "bytes": 0,
+    "lines": 0
+  },
+  "pending_reading": [],
+  "dependency_observations": [
+    {
+      "kind": "official-documentation",
+      "url": "https://raw.githubusercontent.com/isocpp/CppCoreGuidelines/master/CppCoreGuidelines.md",
+      "resolved_url": "https://raw.githubusercontent.com/isocpp/CppCoreGuidelines/master/CppCoreGuidelines.md",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "C.64 moved-from state, CP.21 multiple mutex locking and C++17 scoped_lock"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "27b53e7de83994ffe5c4e4c302a97a2fe83e48eccc7b09a0d734906609079ca7"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://cmake.org/cmake/help/v3.20/module/GoogleTest.html",
+      "resolved_url": "https://cmake.org/cmake/help/v3.20/module/GoogleTest.html",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "gtest_discover_tests, executable discovery, cross-compiling emulator and discovery modes"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "dfdbc9041e6140787f6293b03b48340a733596e3b7dbd02e3e2ad712d5b45004"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://cmake.org/cmake/help/v3.26/manual/ctest.1.html",
+      "resolved_url": "https://cmake.org/cmake/help/v3.26/manual/ctest.1.html",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "3.26 --no-tests=error and command-line versus script-mode empty test behavior"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "6fce4dce98c7b9ebbea20c527fde0d6fb6fe7f1918317d8c9bdac397c9760665"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://clang.llvm.org/docs/SourceBasedCodeCoverage.html",
+      "resolved_url": "https://clang.llvm.org/docs/SourceBasedCodeCoverage.html",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "Instrumentation of product code and LLVM_PROFILE_FILE process/merge patterns"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "353d75f37f19999b1efc9dec5ae4e6a1ba02d4976a3842f070633d9d213186a1"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://raw.githubusercontent.com/catchorg/Catch2/devel/docs/migrate-v2-to-v3.md",
+      "resolved_url": "https://raw.githubusercontent.com/catchorg/Catch2/devel/docs/migrate-v2-to-v3.md",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "v3 split headers, static library and amalgamated implementation"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "63f260e2b36100a9d2cf23ef009a14cc44d0169c765287c9c647ff18aed52f64"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://api.xunit.net/v3/3.0.1/Xunit.IAsyncLifetime.html",
+      "resolved_url": "https://api.xunit.net/v3/3.0.1/Xunit.IAsyncLifetime.html",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "IAsyncLifetime inherits IAsyncDisposable"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "cdf7afc647d7a8d12bd612069b4478d23e21993119850db62958e44713bc53a0"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://learn.microsoft.com/en-us/ef/core/testing/choosing-a-testing-strategy",
+      "resolved_url": "https://learn.microsoft.com/en-us/ef/core/testing/choosing-a-testing-strategy",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "Database fakes, in-memory differences, no transactions or raw SQL"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "c93675ebbbc79fa36a9720241c5eb9a01dd4f0fe2aa3195b58047834ae50cb16"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-test",
+      "resolved_url": "https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-test",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "Runner selection and VSTest versus Microsoft.Testing.Platform options"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "d3f67746b00aa983351d6525f6dc251a39fcaeedb64025cea27b41c6a2aa3b1a"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://docs.stripe.com/api/subscriptions/cancel",
+      "resolved_url": "https://docs.stripe.com/api/subscriptions/cancel",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "Cancellation scope, pending invoice items/prorations and automatic collection"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "cdf9d9700c0c4c717d4870acb94e38aafff126054c33bdaf8ff6f11b538d4eb8"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://docs.stripe.com/refunds",
+      "resolved_url": "https://docs.stripe.com/refunds",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "Pending/failed refund states and resolution"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "8c38cd9ad8f38cc86328ba0c0d65b74cf7a29e836ffed597af3230cd1a470f56"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://docs.stripe.com/customer-management",
+      "resolved_url": "https://docs.stripe.com/customer-management",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "Customer management features and limitations for subscription changes"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "8137ba4c7e3fc2944b09a69aa5dc2bd147609904ec373e0e9f5053faa8d343cd"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://fluentassertions.com/introduction",
+      "resolved_url": "https://fluentassertions.com/introduction",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "Version-specific commercial licensing terms"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "5cd3a77f361a424772a3916181f94984edd04514be8836ce2976fff680231e35"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://clang.llvm.org/docs/UsersManual.html",
+      "resolved_url": "https://clang.llvm.org/docs/UsersManual.html",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "Address/thread/memory sanitizer incompatibility and link flags"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "3ca60a6fe9c023094d91fe63601a3fc81939b61c05d0011d432902843a5d9f65"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://api.xunit.net/v3/3.0.1/v3.3.0.1-Xunit.IAsyncLifetime.InitializeAsync.html",
+      "resolved_url": "https://api.xunit.net/v3/3.0.1/v3.3.0.1-Xunit.IAsyncLifetime.InitializeAsync.html",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "InitializeAsync returns ValueTask in v3.0.1"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "8f4bd135061863130335ddc0407ac4789f72350c1f46973754f45c4ff41a3a24"
+    }
+  ],
+  "rejected_document_fetches": [
+    {
+      "kind": "official-documentation-fetch-rejected",
+      "url": "https://fluentassertions.com/introduction/",
+      "document_http_status": 404,
+      "reason": "HTTP Error 404: Not Found",
+      "replacement_url": "https://fluentassertions.com/introduction"
+    }
+  ],
+  "excluded_from_execution_audit": [
+    "No compared snippets/scripts/tests, builds, services, collectors, publishing or billing operations executed",
+    "Full agents/commands, runtime dispatch, reports and efficacy remain T-04/T-05/T-06/T-08/T-10/T-12/T-14",
+    "Counterpart section readings do not validate whole implementations"
+  ],
+  "measurements": {
+    "tokens": null,
+    "latency_seconds": null
+  }
+}
