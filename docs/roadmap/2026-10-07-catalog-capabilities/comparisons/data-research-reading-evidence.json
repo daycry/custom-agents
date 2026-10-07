@@ -1,0 +1,884 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-07",
+  "evaluated_skill_ids": [
+    "S069",
+    "S070",
+    "S071",
+    "S072"
+  ],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "source": [
+    {
+      "id": "S069",
+      "sha256": "662e884d58f4089bd8e090ef8d32042b85a5d9b4715906a89072002704451c0a",
+      "bytes": 25520,
+      "lines": 776,
+      "read_ranges": [
+        [
+          1,
+          776
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S070",
+      "sha256": "59e98c2c2871627ee42984a1509da0d2c3e92d80b10b04d4f93338e5e0c9b0d6",
+      "bytes": 2832,
+      "lines": 74,
+      "read_ranges": [
+        [
+          1,
+          74
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S071",
+      "sha256": "dad2f1964295eee14a96e06213ce3f60992bbcdc1f37a50c828bbc2e1abd79dd",
+      "bytes": 12034,
+      "lines": 430,
+      "read_ranges": [
+        [
+          1,
+          430
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S072",
+      "sha256": "ca02a97ff8cd794c55a1313ab423a6a165fdf2ce59059a73e08f7cfd957b5319",
+      "bytes": 6057,
+      "lines": 170,
+      "read_ranges": [
+        [
+          1,
+          170
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "A016",
+      "sha256": "945c107dea01ca74e3e9bc3a5841e79e744673e8f14697e88cf1cfd9c01a1cc5",
+      "bytes": 5314,
+      "lines": 100,
+      "read_ranges": [
+        [
+          90,
+          98
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "S099",
+      "sha256": "ebc8e7ab299a6649f575e218f0c25f4d869017b8ad4b5f7725cedceaf82700e5",
+      "bytes": 4425,
+      "lines": 117,
+      "read_ranges": [
+        [
+          112,
+          117
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "S141",
+      "sha256": "ef5e4353d1d90a75ad0b9c435d831c178187b4be407b9270e2d32b2bb64589bc",
+      "bytes": 13385,
+      "lines": 263,
+      "read_ranges": [
+        [
+          254,
+          262
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "S176",
+      "sha256": "2497888dd543ca7bdf5d0cb4d90fce023eb2c1c14f860f0af8e8be42423131b4",
+      "bytes": 22450,
+      "lines": 348,
+      "read_ranges": [
+        [
+          31,
+          39
+        ],
+        [
+          52,
+          60
+        ],
+        [
+          70,
+          78
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "S180",
+      "sha256": "cab57c6a6d7e0bab99329945edda900811c40ec929b47aa95611f9df58f7391d",
+      "bytes": 12169,
+      "lines": 413,
+      "read_ranges": [
+        [
+          406,
+          413
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "S211",
+      "sha256": "fb0c7644f32b22ee030071c71fa00bda1825f955f7304a375ef299a7290227f2",
+      "bytes": 15281,
+      "lines": 401,
+      "read_ranges": [
+        [
+          396,
+          401
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "S217",
+      "sha256": "e98058f34c3338014d0b9ef0c821d932d6820284d40d1eaf4f716bceb9147db0",
+      "bytes": 16077,
+      "lines": 387,
+      "read_ranges": [
+        [
+          112,
+          120
+        ],
+        [
+          127,
+          135
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "S234",
+      "sha256": "6cabb1cd03174a0584ff3538371c780aba90da156db15260691278ed3307d8fe",
+      "bytes": 11977,
+      "lines": 404,
+      "read_ranges": [
+        [
+          398,
+          404
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "S238",
+      "sha256": "114d0e5480ce3ad263316c639ce0c401396e1d9fbec3cf15b3c962ae16f376db",
+      "bytes": 3605,
+      "lines": 113,
+      "read_ranges": [
+        [
+          1,
+          113
+        ]
+      ],
+      "reading_scope": "full-dependency",
+      "reuse_from": "trade-flutter-reading-evidence.json"
+    },
+    {
+      "id": "S022",
+      "sha256": "9b983d0297a983110fdfda8dce55d19b750ca3e53ef155d75a3eff740d3874b8",
+      "bytes": 13349,
+      "lines": 562,
+      "read_ranges": [
+        [
+          1,
+          562
+        ]
+      ],
+      "reading_scope": "full-dependency",
+      "reuse_from": "trade-flutter-reading-evidence.json"
+    }
+  ],
+  "native": [
+    {
+      "path": "skills/backend-practices/SKILL.md",
+      "sha256": "130015328c98c14cfb7b55385fb6d438eb1c3d0baf46543c49e84e2f2d723f1e",
+      "bytes": 1109,
+      "lines": 24,
+      "read_ranges": [
+        [
+          1,
+          24
+        ]
+      ],
+      "reading_scope": "full-body"
+    },
+    {
+      "path": "skills/backend-practices/references/contracts-data.md",
+      "sha256": "589af44a6c37b7355ed8d088c7a8e341b42a131ce5b0d1c89c06e6cde2d2bdab",
+      "bytes": 3093,
+      "lines": 43,
+      "read_ranges": [
+        [
+          1,
+          43
+        ]
+      ],
+      "reading_scope": "full-body"
+    },
+    {
+      "path": "skills/delivery-practices/SKILL.md",
+      "sha256": "67702b1115bc6d57c4eafbf9dab8d10abaab6b333d4ab330d828f30353770c96",
+      "bytes": 1132,
+      "lines": 24,
+      "read_ranges": [
+        [
+          1,
+          24
+        ]
+      ],
+      "reading_scope": "full-body"
+    },
+    {
+      "path": "skills/outcome-evals/SKILL.md",
+      "sha256": "a9fc451f8c60a1850fc69a992a6710660b886e249294b34d9374b5f6ccd791ae",
+      "bytes": 2232,
+      "lines": 40,
+      "read_ranges": [
+        [
+          1,
+          40
+        ]
+      ],
+      "reading_scope": "full-body"
+    },
+    {
+      "path": "skills/outcome-evals/references/protocol.md",
+      "sha256": "84dbf7945fde5694c87abd7c7d611ddd6a2aea26ca78062467f3b7d70ca262c6",
+      "bytes": 3323,
+      "lines": 56,
+      "read_ranges": [
+        [
+          1,
+          56
+        ]
+      ],
+      "reading_scope": "full-body"
+    },
+    {
+      "path": "skills/research-first/SKILL.md",
+      "sha256": "ae43e6baaad2124c1613e981489b5ed6933c54bfd12c63e5897004b4a80bf760",
+      "bytes": 2996,
+      "lines": 49,
+      "read_ranges": [
+        [
+          1,
+          49
+        ]
+      ],
+      "reading_scope": "full-body"
+    },
+    {
+      "path": "skills/research-first/references/comparison.md",
+      "sha256": "09e2fc4a0c15e8a3f8b79afad65ba769f73691a2e5aa26fbfaf578c445349c48",
+      "bytes": 810,
+      "lines": 14,
+      "read_ranges": [
+        [
+          1,
+          14
+        ]
+      ],
+      "reading_scope": "full-body"
+    },
+    {
+      "path": "skills/training-data-services/SKILL.md",
+      "sha256": "0beeb8a4e7bda5f61f3cbeff46c39d4f231bd3363389f0760c1c1f2f76a06572",
+      "bytes": 9099,
+      "lines": 108,
+      "read_ranges": [
+        [
+          1,
+          90
+        ]
+      ],
+      "reading_scope": "counterpart-sections"
+    },
+    {
+      "path": "docs/PROJECT-EXTENSIONS.md",
+      "sha256": "b37c2dfd826652015489870097a133ff56b68094cd3c89d8f2f3164556ff217c",
+      "bytes": 8169,
+      "lines": 136,
+      "read_ranges": [
+        [
+          1,
+          136
+        ]
+      ],
+      "reading_scope": "full-body"
+    },
+    {
+      "path": "agents/architect.md",
+      "sha256": "53647cef5f8d7b42084446410057de58501b8a7d6989baec5cc6688f6ac19b3a",
+      "bytes": 15544,
+      "lines": 195,
+      "read_ranges": [
+        [
+          184,
+          195
+        ]
+      ],
+      "reading_scope": "counterpart-sections"
+    },
+    {
+      "path": "agents/analyst.md",
+      "sha256": "c15e86fa198a20f4bf30fa47077633ce707c91d30268852f6cf090d66c7f1f82",
+      "bytes": 10305,
+      "lines": 133,
+      "read_ranges": [
+        [
+          122,
+          133
+        ]
+      ],
+      "reading_scope": "counterpart-sections"
+    },
+    {
+      "path": "agents/documenter.md",
+      "sha256": "5cf54fad833a770cf47aa1a1448feb498e9b4c81970204557d3da4afb3aa554c",
+      "bytes": 16181,
+      "lines": 214,
+      "read_ranges": [
+        [
+          106,
+          137
+        ]
+      ],
+      "reading_scope": "counterpart-sections"
+    },
+    {
+      "path": "skills/capability-audit/SKILL.md",
+      "sha256": "0a8579a37efbc067bfb6b4dc3f8759a49f50a2a72acc89116f24bbd125406dd9",
+      "bytes": 2109,
+      "lines": 39,
+      "read_ranges": [
+        [
+          1,
+          39
+        ]
+      ],
+      "reading_scope": "full-body"
+    },
+    {
+      "path": "skills/capability-audit/references/method.md",
+      "sha256": "13928d323c2a19dabdafac3d98fb396e40aa82600e3ff13191fd03c4872c03ed",
+      "bytes": 2001,
+      "lines": 34,
+      "read_ranges": [
+        [
+          1,
+          34
+        ]
+      ],
+      "reading_scope": "full-body"
+    },
+    {
+      "path": "agent-kits/shared/knowledge-write.md",
+      "sha256": "9f35f672b961341de66b0cc1061ccb39ef38245fbe78f3629f0e168e800e336e",
+      "bytes": 8330,
+      "lines": 106,
+      "read_ranges": [
+        [
+          1,
+          106
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "trade-flutter-reading-evidence.json"
+    },
+    {
+      "path": "agent-kits/shared/knowledge-check.md",
+      "sha256": "bab98db4ee27fc074ff65252b92739bc913768fc9058e9a8caa9475c3041d1ac",
+      "bytes": 8910,
+      "lines": 104,
+      "read_ranges": [
+        [
+          1,
+          104
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "trade-flutter-reading-evidence.json"
+    },
+    {
+      "path": "agent-kits/shared/capability-check.md",
+      "sha256": "c0dfede7cdd890952ebf4eab114fe6fef01c123350c6060b3053121797a48c20",
+      "bytes": 4559,
+      "lines": 70,
+      "read_ranges": [
+        [
+          1,
+          70
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "trade-flutter-reading-evidence.json"
+    },
+    {
+      "path": "skills/adversarial-review/SKILL.md",
+      "sha256": "6511ee78dfad3bd5ae2aba956dd268c08f368c8419069784fea72e1d8fd28f36",
+      "bytes": 17719,
+      "lines": 200,
+      "read_ranges": [
+        [
+          1,
+          33
+        ]
+      ],
+      "reading_scope": "counterpart-sections",
+      "reuse_from": "trade-flutter-reading-evidence.json"
+    },
+    {
+      "path": "agents/planner.md",
+      "sha256": "20c3211e632c102ff9fb6371f8a76275b030aedb7f0eb0768a14446d0bbf7ce8",
+      "bytes": 21386,
+      "lines": 150,
+      "read_ranges": [
+        [
+          70,
+          96
+        ]
+      ],
+      "reading_scope": "counterpart-sections",
+      "reuse_from": "trade-flutter-reading-evidence.json"
+    },
+    {
+      "path": "agents/qa.md",
+      "sha256": "914e408cfd3c72d5dc731de9f5665f6414d0b9f8a28a5860c73acdcebe51085e",
+      "bytes": 18622,
+      "lines": 139,
+      "read_ranges": [
+        [
+          85,
+          123
+        ]
+      ],
+      "reading_scope": "counterpart-sections",
+      "reuse_from": "trade-flutter-reading-evidence.json"
+    },
+    {
+      "path": "commands/work-context.md",
+      "sha256": "830b5f37649bd1c8945013096e5930ca425a3c384e5d1dd52c1765f5f32821ec",
+      "bytes": 1610,
+      "lines": 25,
+      "read_ranges": [
+        [
+          1,
+          25
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "trade-flutter-reading-evidence.json"
+    },
+    {
+      "path": "skills/unit-tests/SKILL.md",
+      "sha256": "bfb1b3899fd657b8beb70522e5f7d834869d22609da94b028c6dc82c7d577bc7",
+      "bytes": 7017,
+      "lines": 109,
+      "read_ranges": [
+        [
+          1,
+          109
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "trade-flutter-reading-evidence.json"
+    },
+    {
+      "path": "skills/stack-practices/SKILL.md",
+      "sha256": "c44933dab261ee24ae0daf38b9d1d11e02084ad04cd05fb84d03ab2110f60751",
+      "bytes": 1490,
+      "lines": 28,
+      "read_ranges": [
+        [
+          1,
+          28
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "trade-flutter-reading-evidence.json"
+    },
+    {
+      "path": "skills/delivery-practices/references/delivery-tools.md",
+      "sha256": "d780afa91569449a0adc61e26a4a11bacedbc27a2b3fd8a1118e7ee469879cb9",
+      "bytes": 2653,
+      "lines": 44,
+      "read_ranges": [
+        [
+          1,
+          44
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "trade-flutter-reading-evidence.json"
+    }
+  ],
+  "local_resource_totals": {
+    "read": 0,
+    "inventoried": 0,
+    "bytes": 0,
+    "lines": 0
+  },
+  "pending_reading": [],
+  "dependency_observations": [
+    {
+      "kind": "official-documentation",
+      "url": "https://ai.google.dev/gemini-api/docs/deprecations",
+      "resolved_url": "https://ai.google.dev/gemini-api/docs/deprecations",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "Gemini 2.0 flash/lite shutdown table: 1 June 2026"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "2daa046f52f68b2b3f3d42072cb54ba3629dfc98365b9c7999d7e81ce27a481b"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://ai.google.dev/gemini-api/docs/rate-limits",
+      "resolved_url": "https://ai.google.dev/gemini-api/docs/rate-limits",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "Project-scoped RPM/TPM/RPD, usage tiers and spend-based quotas"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "36ecf9fd8e26439f546b81e77b81520c7d16f2e8c456a6bc1c6fb5a89500502c"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://ai.google.dev/gemini-api/docs/pricing",
+      "resolved_url": "https://ai.google.dev/gemini-api/docs/pricing",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "Free versus paid tier and content-use distinction; no universal free production promise"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "13ee2bcb1779d59c6201c446b523249e788214dc41cfd148bb2d4ce177d7c0d7"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://ai.google.dev/gemini-api/docs/structured-output",
+      "resolved_url": "https://ai.google.dev/gemini-api/docs/structured-output",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "JSON Schema support and application validation for semantic errors"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "6e38571dc67a34d8a1658fda87ea259a36db9ed60bd3cc5941a3cf6d48225701"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://developers.notion.com/guides/get-started/upgrade-guide-2025-09-03",
+      "resolved_url": "https://developers.notion.com/guides/get-started/upgrade-guide-2025-09-03",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "2025-09-03 data sources migration; legacy 2022-06-28 and multi-source failures"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "da982c17543ace2cfc178f3aace75e2636a8c4570af2604a3b9e34f48130cca9"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://developers.notion.com/reference/request-limits",
+      "resolved_url": "https://developers.notion.com/reference/request-limits",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "Per-connection and per-workspace budgets; rate-limit reasons and Retry-After"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "cc19c9e6af1eed2e5e2e56bd6224b68f015562963fff505240e92ac897d488cb"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://requests.readthedocs.io/en/latest/user/quickstart/",
+      "resolved_url": "https://requests.readthedocs.io/en/latest/user/quickstart/",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "Timeout is not whole-download deadline; JSON parsing does not establish HTTP success"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "c2b869b188097265f8decaeb14972116b2c861b0358e89977cbf43283f34d3b5"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows",
+      "resolved_url": "https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "Scheduled jobs default branch, possible delay/drop and 60-day public-repository inactivity"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "2bfe12dc7fbb103f09642295c9176882e2c1d0ee2923fcc19355cb030bca5ecb"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://docs.github.com/en/billing/concepts/product-billing/github-actions",
+      "resolved_url": "https://docs.github.com/en/billing/concepts/product-billing/github-actions",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "Public standard hosted runners versus private quotas and larger runner billing"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "d1ecaa892a328d65430ac9c28a885edd5f407368571fd6990b950c91ff3155e0"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://www.postgresql.org/docs/18/sql-altertable.html",
+      "resolved_url": "https://www.postgresql.org/docs/18/sql-altertable.html",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "Default ACCESS EXCLUSIVE lock; non-volatile default metadata versus table rewrites"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "8bba6e92a73e841a441d8738e26a2d09f3e13dbe206dd0e8fdab8cefbb08ed75"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://www.postgresql.org/docs/18/sql-createindex.html",
+      "resolved_url": "https://www.postgresql.org/docs/18/sql-createindex.html",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "IF NOT EXISTS name check; concurrent transaction prohibition, waits and invalid-index failure"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "6ae02dbd53d4c60d223731a618f933e5438998bb60214e4da524b673c99b03d2"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://www.postgresql.org/docs/18/plpgsql-transactions.html",
+      "resolved_url": "https://www.postgresql.org/docs/18/plpgsql-transactions.html",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "Top-level CALL/DO and restrictions on transactional control"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "901fec0c5a1a9f8d075333330019f1b1db3d48655a8624da97af22922a3cb8bf"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://www.postgresql.org/docs/18/protocol-flow.html",
+      "resolved_url": "https://www.postgresql.org/docs/18/protocol-flow.html",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "Multi-statement simple Query executes in implicit transaction unless explicitly controlled"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "ddbc0ac76d24d1356cec27c53c4c8844b04b9d5e37904ea55c3b9d720f1cf9bd"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://docs.djangoproject.com/en/6.0/howto/writing-migrations/",
+      "resolved_url": "https://docs.djangoproject.com/en/6.0/howto/writing-migrations/",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "Non-atomic data migrations, historical models, database alias and batch transactions"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "212a00e0b8513f5fd68701cd111afeca342ba69acbdeaeb9e9fb481fb449e823"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://www.prisma.io/docs/orm/migrations/how-migrations-work",
+      "resolved_url": "https://www.prisma.io/docs/orm/migrations/how-migrations-work",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "Current migration plan/db migrate contract and differences from ORM 7 migrate commands"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "45601d83db5f2a816ef82cbd63f768e41003bb2d24a1b07b7e7539ee0ebb4c52"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://orm.drizzle.team/docs/migrations",
+      "resolved_url": "https://orm.drizzle.team/docs/migrations",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "Database-first/code-first and generate/migrate choices; no runner transaction proof"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "8f5e51550ca7ec043f46d8637e43d324d0a8bf43bb31d96f96b001099f84f9d2"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://raw.githubusercontent.com/kysely-org/kysely-ctl/main/README.md",
+      "resolved_url": "https://raw.githubusercontent.com/kysely-org/kysely-ctl/main/README.md",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "Full README: configuration, migration provider, destroyOnExit, command forms and rollback limitations"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "679d6286e9ac0f8329a79c0cc86155965818225ddb9d8557d1bcfb1b2136dc6e"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://raw.githubusercontent.com/golang-migrate/migrate/master/database/postgres/README.md",
+      "resolved_url": "https://raw.githubusercontent.com/golang-migrate/migrate/master/database/postgres/README.md",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "Full postgres driver README: multi-statement mode and concurrent-index separate-file requirement"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "6f48b0232f667d7b8aa2a9d7e3a04c5eeb92ec221ccd9fa66a6ab9d9514eff0e"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://raw.githubusercontent.com/golang-migrate/migrate/master/cmd/migrate/README.md",
+      "resolved_url": "https://raw.githubusercontent.com/golang-migrate/migrate/master/cmd/migrate/README.md",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "Full CLI README: up/down/goto, force changes version without migration and lock timeout"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "743424c4b81a4c575582329f4e11dd2c6bacbdcc4ca2bcb4fdcb6cc43bff8794"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://raw.githubusercontent.com/firecrawl/firecrawl-mcp-server/main/README.md",
+      "resolved_url": "https://raw.githubusercontent.com/firecrawl/firecrawl-mcp-server/main/README.md",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "Keyless tool subset, authorization/secret handling, search versus fetching, bounded crawl and internal terminal polling"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "eae4e5cdda2e82acdb27dd94394a06518cad7dd6825d017fc4032da7bea91c3d",
+      "additional_read_ranges": [
+        [
+          598,
+          658
+        ]
+      ]
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://raw.githubusercontent.com/exa-labs/exa-mcp-server/main/README.md",
+      "resolved_url": "https://raw.githubusercontent.com/exa-labs/exa-mcp-server/main/README.md",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "Full README: default web_search_exa/web_fetch_exa, optional advanced search, tool replacement and authentication"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "08a2ffb7efbfd07dbadac74435f8cabb2a265cc3389dfcc4a3303b42c21a934f"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://raw.githubusercontent.com/ramnes/notion-sdk-py/2.2.1/notion_client/client.py",
+      "resolved_url": "https://raw.githubusercontent.com/ramnes/notion-sdk-py/2.2.1/notion_client/client.py",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "Full 2.2.1 client source: 2022-06-28 default, headers and error classes"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "cfcbd4bac96644a86d1bade39d48a85c058d2b33b263259bd3ccd1eaf577e9bf"
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://raw.githubusercontent.com/golang-migrate/migrate/master/database/postgres/postgres.go",
+      "resolved_url": "https://raw.githubusercontent.com/golang-migrate/migrate/master/database/postgres/postgres.go",
+      "checked_at": "2026-10-07",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "sections_read": [
+        "Run and runStatement: split enabled versus whole-file ExecContext"
+      ],
+      "document_http_status": 200,
+      "document_sha256": "82499bc18aa7dc88519eadcff6e0f758a8323d58b352c8011e5cbaa7b8a7ce34",
+      "read_ranges": [
+        [
+          265,
+          318
+        ]
+      ]
+    }
+  ],
+  "rejected_document_fetches": [
+    {
+      "kind": "official-documentation-fetch-rejected",
+      "url": "https://raw.githubusercontent.com/ramnes/notion-sdk-py/v2.2.1/notion_client/client.py",
+      "document_http_status": 404,
+      "reason": "Version tag with v prefix does not exist at this URL",
+      "replacement_url": "https://raw.githubusercontent.com/ramnes/notion-sdk-py/2.2.1/notion_client/client.py"
+    }
+  ],
+  "excluded_from_execution_audit": [
+    "No source code, snippets, tests, database migrations, scraping jobs or authenticated MCP calls executed",
+    "Directory examples do not establish executable resources, model learning or runtime integration",
+    "Agent/command integration and operational tool contracts remain T-04/T-05/T-06/T-08/T-09/T-10/T-11/T-12/T-14",
+    "Partial counterpart readings do not validate their complete implementations"
+  ],
+  "measurements": {
+    "tokens": null,
+    "latency_seconds": null
+  }
+}
