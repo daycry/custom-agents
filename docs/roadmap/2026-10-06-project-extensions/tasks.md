@@ -5,6 +5,17 @@ creado: 2026-10-06
 actualizado: 2026-10-07
 verificacion: obligatoria
 changelog: Added
+generacion:
+  inicio: 2026-10-06T15:27:09Z
+  fin: 2026-10-07T09:22:58Z
+  fuente: estimado
+  tokens_reales: null
+  eur: null
+  horas_ia: null
+  duracion: null
+  duracion_reloj: 17h 56m
+  ratio_usado: 531798.5
+  ratio_origen: CALIBRATION.md (mediana de 6)
 ---
 
 # Extensiones de proyecto — ledger
@@ -20,8 +31,8 @@ Meter abierto en estado privado; sin consumo compatible no se inventan cifras.
 
 | Fase | Completadas | Total | Progreso |
 |---|---|---|---|
-| Fase 1 | 6 | 10 | 60% |
-| **TOTAL** | **6** | **10** | **60%** |
+| Fase 1 | 8 | 10 | 80% |
+| **TOTAL** | **8** | **10** | **80%** |
 
 ## Fase 1 — Reconocimiento e integración
 
@@ -41,14 +52,14 @@ Meter abierto en estado privado; sin consumo compatible no se inventan cifras.
 
 ### T-02 — Descubrimiento multi-runtime acotado
 
-- **Estado**: en-progreso
+- **Estado**: completado
 - **Descripción**: Descubrimiento multi-runtime acotado.
 - **Changelog**: Reconoce agentes, skills, personas, fuentes de tools y MCP locales sin ejecutarlos ni exponer su configuración privada.
 - **Dependencias**: T-01.
 - **Archivos**: `agent-kits/shared/project-pieces.py`, `tests/test_project_pieces.py`, `tests/test_console_encoding.py`
-- **Verificación**: Lector y panel: 132 passed/2 skipped en extensions-review-fix2-green.xml; incluido en Windows final 698 passed/2 skipped. Límites, parsing, privacidad y regresiones revalidados por A/B/D.
+- **Verificación**: Baseline incluido en Windows 698 passed/2 skipped; delta YAML 239 passed/2 skipped y Linux 702 passed/1 skipped. A/B del ciclo QA revalidan siete casos cada uno sin gaps; detalle y evidencia en testing/report.md.
 **Criterios de aceptación**:
-  - [x] Contrato de spec.md comprobado para esta tarea; límites y errores cubiertos, sin gaps pendientes.
+  - [x] Contrato de spec.md y caso YAML sin sangría revalidados; límites y errores cubiertos, sin gaps pendientes.
 
 
 ### T-03 — Propiedad, identidad y colisiones verificables
@@ -113,24 +124,24 @@ Meter abierto en estado privado; sin consumo compatible no se inventan cifras.
 
 ### T-08 — Revisión, cobertura y QA multi-runtime
 
-- **Estado**: en-progreso
+- **Estado**: completado
 - **Descripción**: Revisión, cobertura y QA multi-runtime.
 - **Changelog**: Verifica parsing, privacidad, selección, briefs y panel en Windows, Linux y Edge con revisión independiente.
 - **Dependencias**: T-07.
 - **Archivos**: `tests/**`, `docs/roadmap/2026-10-06-project-extensions/testing/**`
-- **Verificación**: escenarios específicos del contrato, revisión y evidencia ejecutable antes de cerrar.
+- **Verificación**: Gates Windows/Linux/Node/Edge ejecutados y delimitados en testing/report.md; cobertura de producción cambiada 92,16% (741/804). Ciclo inicial A+B+D y delta QA A+B cerrados sin gaps ni deuda aceptada.
 **Criterios de aceptación**:
-  - [ ] Contrato de spec.md comprobado; límites y errores cubiertos, sin gaps pendientes.
+  - [x] Contrato de spec.md comprobado; límites y errores cubiertos, sin gaps pendientes.
 
 
 ### T-09 — Retro, estados y changelogs
 
-- **Estado**: borrador
+- **Estado**: en-progreso
 - **Descripción**: Retro, estados y changelogs.
 - **Changelog**: Registra resultados, límites y retrospectiva de la integración y sincroniza las notas de cambios.
 - **Dependencias**: T-08.
 - **Archivos**: `docs/**`, `CHANGELOG.md`, `CHANGELOG.es.md`
-- **Verificación**: escenarios específicos del contrato, revisión y evidencia ejecutable antes de cerrar.
+- **Verificación**: Informe QA y retro escritos con consumo compatible nulo y límites explícitos; sincronización de changelogs y estados finales pendiente de comprobar la publicación.
 **Criterios de aceptación**:
   - [ ] Contrato de spec.md comprobado; límites y errores cubiertos, sin gaps pendientes.
 
@@ -140,7 +151,7 @@ Meter abierto en estado privado; sin consumo compatible no se inventan cifras.
 - **Estado**: borrador
 - **Descripción**: Push y comprobación remota.
 - **Changelog**: Publica la rama de extensiones y contrasta su SHA con el remoto sin merge ni release.
-- **Dependencias**: T-09.
+- **Dependencias**: T-08 y entrega documental de T-09; las notas y estados finales se confirman después del primer push verificado.
 - **Archivos**: `docs/roadmap/2026-10-06-project-extensions/tasks.md`
 - **Verificación**: escenarios específicos del contrato, revisión y evidencia ejecutable antes de cerrar.
 **Criterios de aceptación**:
@@ -356,3 +367,51 @@ la delegación técnica existente: conservar el baseline revisado en un commit
 local, corregir el caso como delta de QA y aplicar un nuevo ciclo acotado de
 revisión solo a ese delta. El ciclo anterior no se relanza ni reinicia; mantiene
 sus tres intentos y todos los veredictos. Sin push antes del fix y sus gates.
+
+Baseline local revisado: 87772c1, todavía sin push. RED QA YAML: 3 failed/4
+passed/95 deselected; XML privado extensions-indentless-red.xml, 2026-10-07.
+Casos nuevos: referencia, definición inline y args privados con lista exterior
+sin sangría. La corrección conserva la detección de límites de indentación y
+salida de la sección; identifica la entrada antes de cerrar el campo activo.
+
+GREEN QA YAML: 239 passed/2 skipped, 77,09 s; XML privado
+extensions-indentless-green.xml. Incluye lector, panel, briefs y distribución
+portable. Cobertura ejecutable del diff completo contra b067099: 92,16%
+(741/804); informe privado extensions-coverage-v6.json. Puerta del nuevo delta
+contra 87772c1: tres ficheros en alcance, cero fuera y cero avisos; settings
+preexistente excluido. Selector C=false/D=false: revisión A+B, intento 1 del
+ciclo de QA separado. No se reinicia el ciclo inicial aprobado.
+
+## Revisión de dos lentes — intento 1: Fase 1 (T-02/T-08) — delta QA sin gaps
+
+Nuevo ciclo acotado contra 87772c1, solo la corrección YAML posterior al
+baseline aprobado. A+B por subagentes genéricos, contexto fresco y solo lectura;
+reviewer no está expuesto como tipo de Agent. Tier de referencia opus/high del
+frontmatter, sin override. Selector C=false/D=false. Ambos ejecutan siete tests
+dirigidos verdes; no modifican código ni leen los settings ajenos.
+
+| Criterio | Veredicto | Evidencia independiente |
+|---|---|---|
+| Referencias y definiciones MCP sin sangría | ✓ | A/B: siete casos dirigidos; project-pieces.py identifica entrada antes del límite raíz |
+| Listas privadas anidadas y salida de sección | ✓ | A/B: indentaciones 0/2/4; campo tools posterior no produce servidores |
+| TDD y verificación declarada | ✓ | A: XML RED con tres fallos reales; GREEN 239 passed/2 skipped |
+| Cobertura del diff completo | ✓ | A: recálculo independiente 741/804=92,16%, sin contar archivos de tests |
+| Alcance, constitución y estados | ✓ | A: tres ficheros declarados; TDD, stdlib y privacidad; tareas abiertas al revisar, sin publicación anticipada |
+| Criterios del ciclo inicial | ✓ conservado | Sin evidencia nueva del delta que contradiga lo aprobado; generados/OpenAPI no afectados |
+
+Gaps: cero Critical/Important/Minor, sin deuda aceptada. El ciclo inicial
+conserva sus tres intentos. Jira-flow --batch devuelve ops vacío: Jira
+desactivado, sin issue asociado; no se publica ningún mensaje externo.
+
+Linux posterior al delta: 702 passed/1 skipped, 33,03 s; export --check 54 al
+día. XML privado extensions-linux-v3/linux-pytest.xml. La suite completa del
+baseline no se presenta como posterior al fix. No cambian fuentes Node ni UI.
+
+Meter cerrado: ventana parcial 17h 56m de reloj, incluyendo esperas; fuente
+estimado sin respuestas compatibles, tokens/horas IA/eur nulos. No es esfuerzo
+IA ni una nueva muestra de calibración. La retro delimita lo no medido.
+
+Protocolo de publicación: primer commit de delta QA, informe y retro; push y
+contraste del SHA remoto. Después se cierran T-09/T-10, se generan changelogs
+y se publica el commit documental final. Esto permite registrar evidencia real
+sin afirmar un push futuro como hecho. Sin PR, merge ni release.

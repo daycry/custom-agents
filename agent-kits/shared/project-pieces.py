@@ -245,11 +245,11 @@ def _agent_servers(raw):
                     if name.strip():
                         servers.append((_scalar(name), {}, 'reference'))
             continue
-        if not line.startswith((' ', '\t')):
+        entry = re.match(r'^([ ]*)-[ ]+(.+)$', line) if active else None
+        if not line.startswith((' ', '\t')) and entry is None:
             active, current = False, None
         if not active:
             continue
-        entry = re.match(r'^([ ]*)-[ ]+(.+)$', line)
         if entry:
             indentation = len(entry[1])
             if entry_indent is None:

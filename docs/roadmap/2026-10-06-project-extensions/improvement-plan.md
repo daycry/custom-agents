@@ -26,4 +26,9 @@ que una declaración concede permisos. La configuración del consumidor se conse
 | T-07 | Workflow, distribución y documentos bilingües | T-05/T-06 |
 | T-08 | Revisión, cobertura y QA multi-runtime | T-07 |
 | T-09 | Retro, estados y changelogs | T-08 |
-| T-10 | Push y comprobación remota | T-09 |
+| T-10 | Push y comprobación remota | T-08 y entrega documental de T-09 |
+
+El cierre documental se confirma después de contrastar el primer push: así el
+ledger y los changelogs finales pueden citar una publicación observada. Se
+publica después ese commit de cierre, sin PR, merge ni release. La dependencia
+es de entrega técnica y documental, no de una afirmación anticipada del remoto.

@@ -466,9 +466,12 @@ def test_opencode_permissions_expose_only_keys_and_actions_not_patterns(reader, 
 
 
 @pytest.mark.parametrize('inline', [False, True])
-def test_claude_agent_scoped_mcp_preserves_reference_or_inline_kind(reader, locations, inline):
+@pytest.mark.parametrize('indent', [0, 2])
+def test_claude_agent_scoped_mcp_preserves_reference_or_inline_kind(reader, locations, inline, indent):
     project, home = locations
-    value = ('  - ledger:\n      type: stdio\n      command: private-command\n      env:\n        TOKEN: private-token\n' if inline else '  - ledger\n')
+    pad = ' ' * indent
+    child = pad + ' ' * 4
+    value = (pad + '- ledger:\n' + child + 'type: stdio\n' + child + 'command: private-command\n' + child + 'env:\n' + child + '  TOKEN: private-token\n' if inline else pad + '- ledger\n')
     put(project, '.claude/agents/billing.md', '---\nname: billing\ndescription: Billing\nmcpServers:\n' + value + '---\nPrivate body\n')
     result = reader.discover(project, home=home, runtime='claude-code')
     server = next(piece for piece in result['pieces'] if piece['kind'] == 'mcp')
@@ -645,7 +648,7 @@ def test_invalid_claude_disable_preferences_do_not_assign_an_enabled_state(reade
     assert result['partial'] and result['pieces'][0]['enabled'] is None
 
 
-@pytest.mark.parametrize('indent', [2, 4])
+@pytest.mark.parametrize('indent', [0, 2, 4])
 def test_agent_mcp_nested_private_lists_are_not_server_identities(reader, locations, indent):
     project, home = locations
     pad = ' ' * indent
