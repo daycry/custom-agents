@@ -1237,4 +1237,11 @@ Puertas finales: lint_plugin cero errores/tres avisos históricos de nombres;
 104 archivos propios en alcance/cero fuera y un settings ajeno excluido entre
 105 cambios detectados. Scan de 881
 archivos públicos: cero referencias o nombres prohibidos. Diff sin errores.
-Commit/push del bloque se registran después de comprobar su resultado.
+Publicación comprobada el 2026-10-08: commit
+`54e8b3f8e117bfc1f9f4a83951f77631541b1549`, push de
+`feat/catalog-capabilities` exit 0 y `git ls-remote --heads` coincide con HEAD.
+Después del push, 56 exports siguen al día y el único archivo sin seguimiento
+es `.claude/settings.json` ajeno, intacto y nunca incluido en el commit. La
+memoria local ADR-023/ADR-007 también permanece fuera de Git. Este registro
+documenta la entrega verificada del bloque; T-02/T-08/T-09/T-14/T-15 conservan
+sus pendientes globales. Las skills siguen aplazadas en 79/293 evaluadas.
