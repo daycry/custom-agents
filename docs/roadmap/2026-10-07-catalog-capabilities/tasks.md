@@ -1851,3 +1851,17 @@ sin espacios finales ni defecto funcional. Se conserva ese diagnóstico y se
 comprueba con `git -c core.whitespace=-blank-at-eof diff --cached --check`:
 exit 0. La excepción es solo para esa preferencia de estilo y solo por llamada;
 no cambia configuración, fuentes validadas, gates del plugin ni sus hashes.
+
+### Publicación verificada del Bloque 8
+
+Commit de implementación/documentación/evidencia:
+`e6fc5ff2a37a854ee0a2ccfcd5c7cb56abeb7640`, 26 archivos propios.
+Push a `feat/catalog-capabilities` exit 0; `git ls-remote --heads origin`
+confirma exactamente ese SHA. Solo queda sin seguimiento el settings ajeno;
+no se modifica ni añade. Memoria local, fuentes de investigación, fixtures y
+artefactos privados permanecen fuera de Git.
+
+Este registro de entrega se incorpora en un segundo commit documental.
+Al verificar su push, se detiene el trabajo a petición del usuario. No se
+declara completa la iniciativa: quedan los pendientes y límites registrados
+arriba, sin comenzar otra fase ni añadir skills nuevas.
