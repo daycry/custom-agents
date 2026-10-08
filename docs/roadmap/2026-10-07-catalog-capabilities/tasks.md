@@ -1609,3 +1609,16 @@ de ese comando inicial. La repetición usa `--files` con los 18 archivos propios
 explícitos: C/D false, sin motivos ni avisos, excluyendo settings antes de
 cualquier lectura. El aislamiento de las copias de QA sigue acreditado por
 sus manifiestos; no se extiende esa afirmación al primer selector del workspace.
+
+### Publicación verificada del Bloque 7
+
+Commit de cambios y evidencia:
+`80689b79e166415e19ebcf88b4039e27eae44546`, 18 archivos propios.
+Push a `feat/catalog-capabilities` exit 0; `git ls-remote --heads origin`
+confirma exactamente ese SHA. Tras el push, export --check sigue en exit 0
+con 56 archivos al día. Solo permanece sin seguimiento `.claude/settings.json`;
+no se modificó ni incluyó en los commits. GOT-017 e índice de memoria local
+siguen fuera de Git; el incidente de lectura del selector consta arriba.
+
+Este registro de entrega se incorpora en un commit documental separado.
+No se declara cerrada la iniciativa ni se inicia otra fase en esta entrega.
