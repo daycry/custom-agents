@@ -1,0 +1,690 @@
+{
+  "version": 1,
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "checked_at": "2026-10-08",
+  "evaluated_skill_ids": [
+    "S078",
+    "S079"
+  ],
+  "integrated_skill_ids": [],
+  "evidence_kind": "human/model reading recorded; hash verification is not semantic validation",
+  "source_code_executed": false,
+  "source_tests_executed": false,
+  "source": [
+    {
+      "id": "S078",
+      "sha256": "1f9189ece910eb90a5d2cd520a9a6238ccb89a3e48629ac1ad9b55ec3eb21f88",
+      "bytes": 13134,
+      "lines": 458,
+      "read_ranges": [
+        [
+          1,
+          458
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "S079",
+      "sha256": "14abe2b635054dff872c07d4993057e614b48ac718c0431f1299931be7d69516",
+      "bytes": 21116,
+      "lines": 735,
+      "read_ranges": [
+        [
+          1,
+          735
+        ]
+      ],
+      "reading_scope": "full-body",
+      "semantic_review": "complete-proposal-not-integrated",
+      "directory_resources": []
+    },
+    {
+      "id": "A018",
+      "sha256": "d116bccee67db3d1f52f54f819a04467fe7dd2b0004ec85d21f218a6aacf6346",
+      "bytes": 7985,
+      "lines": 169,
+      "read_ranges": [
+        [
+          135,
+          163
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "A017",
+      "sha256": "643f1445336ef801f49cc56a00ad09af3435124ef841f4b023be19ee50662b29",
+      "bytes": 9519,
+      "lines": 252,
+      "read_ranges": [
+        [
+          230,
+          251
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "S008",
+      "sha256": "5847fc20cf0fd0d00c0c2dbacca03472c5a43af429978cf874dd41ecc144dc53",
+      "bytes": 5922,
+      "lines": 216,
+      "read_ranges": [
+        [
+          111,
+          128
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "S175",
+      "sha256": "488f83a5c3766043e0ff98466f8d5534f69863d9adebda8b4d2903f00860e312",
+      "bytes": 3899,
+      "lines": 57,
+      "read_ranges": [
+        [
+          26,
+          40
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "S217",
+      "sha256": "e98058f34c3338014d0b9ef0c821d932d6820284d40d1eaf4f716bceb9147db0",
+      "bytes": 16077,
+      "lines": 387,
+      "read_ranges": [
+        [
+          117,
+          129
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "S234",
+      "sha256": "6cabb1cd03174a0584ff3538371c780aba90da156db15260691278ed3307d8fe",
+      "bytes": 11977,
+      "lines": 404,
+      "read_ranges": [
+        [
+          390,
+          403
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "R-591e7a1672e1",
+      "sha256": "59e855c382ccab4670dcd293721365d88d400c5d499fd93c1572ce9c1ccb6b6d",
+      "bytes": 31763,
+      "lines": 1199,
+      "read_ranges": [
+        [
+          152,
+          177
+        ],
+        [
+          200,
+          222
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "R-03ffcc8e6e9e",
+      "sha256": "9583fe1ac4109a8a3c94c5ffaf8a331d6e9997c8657494ef2a95dbf3a65b5414",
+      "bytes": 22743,
+      "lines": 482,
+      "read_ranges": [
+        [
+          65,
+          80
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    },
+    {
+      "id": "R-6a2e152ec772",
+      "sha256": "8469faa352fdab0720d516196806c25c529c76013bb7b799eddc77938f8d10ef",
+      "bytes": 5512,
+      "lines": 1,
+      "read_ranges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "reading_scope": "caller-sections"
+    }
+  ],
+  "native": [
+    {
+      "path": "skills/backend-practices/SKILL.md",
+      "sha256": "130015328c98c14cfb7b55385fb6d438eb1c3d0baf46543c49e84e2f2d723f1e",
+      "bytes": 1109,
+      "lines": 24,
+      "read_ranges": [
+        [
+          1,
+          24
+        ]
+      ],
+      "reading_scope": "full-body"
+    },
+    {
+      "path": "skills/backend-practices/references/contracts-data.md",
+      "sha256": "589af44a6c37b7355ed8d088c7a8e341b42a131ce5b0d1c89c06e6cde2d2bdab",
+      "bytes": 3093,
+      "lines": 43,
+      "read_ranges": [
+        [
+          1,
+          43
+        ]
+      ],
+      "reading_scope": "full-body"
+    },
+    {
+      "path": "skills/stack-practices/SKILL.md",
+      "sha256": "c44933dab261ee24ae0daf38b9d1d11e02084ad04cd05fb84d03ab2110f60751",
+      "bytes": 1490,
+      "lines": 28,
+      "read_ranges": [
+        [
+          1,
+          28
+        ]
+      ],
+      "reading_scope": "full-body"
+    },
+    {
+      "path": "skills/stack-practices/references/python.md",
+      "sha256": "b2ec29e4ded82c5cd9968abfb91bf46e2d3e7b7e17233ad3cb0a01d055a6bb20",
+      "bytes": 3719,
+      "lines": 51,
+      "read_ranges": [
+        [
+          1,
+          51
+        ]
+      ],
+      "reading_scope": "full-body"
+    },
+    {
+      "path": "skills/tdd/SKILL.md",
+      "sha256": "8d144cd02ca19b8e08c083cf9a79d66ed3961127ada437bc2a3f548b94666716",
+      "bytes": 8959,
+      "lines": 119,
+      "read_ranges": [
+        [
+          1,
+          119
+        ]
+      ],
+      "reading_scope": "full-body"
+    },
+    {
+      "path": "skills/unit-tests/SKILL.md",
+      "sha256": "bfb1b3899fd657b8beb70522e5f7d834869d22609da94b028c6dc82c7d577bc7",
+      "bytes": 7017,
+      "lines": 109,
+      "read_ranges": [
+        [
+          1,
+          109
+        ]
+      ],
+      "reading_scope": "full-body"
+    },
+    {
+      "path": "agent-kits/shared/capability-check.md",
+      "sha256": "c0dfede7cdd890952ebf4eab114fe6fef01c123350c6060b3053121797a48c20",
+      "bytes": 4559,
+      "lines": 70,
+      "read_ranges": [
+        [
+          1,
+          70
+        ]
+      ],
+      "reading_scope": "full-body"
+    },
+    {
+      "path": "skills/cybersecurity/references/language-patterns/python.md",
+      "sha256": "b65652d35198bb1f5f685ea0f0580e9310a79ff6bd349feaacc4be8cab6e5439",
+      "bytes": 8193,
+      "lines": 211,
+      "read_ranges": [
+        [
+          1,
+          211
+        ]
+      ],
+      "reading_scope": "full-body"
+    },
+    {
+      "path": "skills/delivery-practices/SKILL.md",
+      "sha256": "67702b1115bc6d57c4eafbf9dab8d10abaab6b333d4ab330d828f30353770c96",
+      "bytes": 1132,
+      "lines": 24,
+      "read_ranges": [
+        [
+          1,
+          24
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "deploy-design-team-reading-evidence.json"
+    },
+    {
+      "path": "skills/delivery-practices/references/delivery-tools.md",
+      "sha256": "d780afa91569449a0adc61e26a4a11bacedbc27a2b3fd8a1118e7ee469879cb9",
+      "bytes": 2653,
+      "lines": 44,
+      "read_ranges": [
+        [
+          1,
+          44
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "deploy-design-team-reading-evidence.json"
+    },
+    {
+      "path": "agents/qa.md",
+      "sha256": "914e408cfd3c72d5dc731de9f5665f6414d0b9f8a28a5860c73acdcebe51085e",
+      "bytes": 18622,
+      "lines": 139,
+      "read_ranges": [
+        [
+          85,
+          123
+        ]
+      ],
+      "reading_scope": "counterpart-sections",
+      "reuse_from": "deploy-design-team-reading-evidence.json"
+    },
+    {
+      "path": "skills/adversarial-review/SKILL.md",
+      "sha256": "6511ee78dfad3bd5ae2aba956dd268c08f368c8419069784fea72e1d8fd28f36",
+      "bytes": 17719,
+      "lines": 200,
+      "read_ranges": [
+        [
+          1,
+          33
+        ]
+      ],
+      "reading_scope": "counterpart-sections",
+      "reuse_from": "deploy-design-team-reading-evidence.json"
+    },
+    {
+      "path": "skills/capability-audit/SKILL.md",
+      "sha256": "0a8579a37efbc067bfb6b4dc3f8759a49f50a2a72acc89116f24bbd125406dd9",
+      "bytes": 2109,
+      "lines": 39,
+      "read_ranges": [
+        [
+          1,
+          39
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "deploy-design-team-reading-evidence.json"
+    },
+    {
+      "path": "skills/capability-audit/references/method.md",
+      "sha256": "13928d323c2a19dabdafac3d98fb396e40aa82600e3ff13191fd03c4872c03ed",
+      "bytes": 2001,
+      "lines": 34,
+      "read_ranges": [
+        [
+          1,
+          34
+        ]
+      ],
+      "reading_scope": "full-body",
+      "reuse_from": "deploy-design-team-reading-evidence.json"
+    }
+  ],
+  "local_resource_totals": {
+    "read": 0,
+    "inventoried": 0,
+    "bytes": 0,
+    "lines": 0
+  },
+  "pending_reading": [],
+  "dependency_observations": [
+    {
+      "kind": "official-documentation",
+      "url": "https://docs.celeryq.dev/en/stable/userguide/tasks.html",
+      "resolved_url": "https://docs.celeryq.dev/en/stable/userguide/tasks.html",
+      "checked_at": "2026-10-08",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "document_http_status": 200,
+      "document_sha256": "9dd4ee411fa42b31882a5ada5a60813a7d8c2af7f8f4d03b2449556518a31de5",
+      "read_ranges": [
+        [
+          20,
+          55
+        ],
+        [
+          490,
+          524
+        ],
+        [
+          687,
+          710
+        ]
+      ],
+      "sections_read": [
+        "tasks selected documentation sections"
+      ]
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://docs.celeryq.dev/en/stable/userguide/canvas.html",
+      "resolved_url": "https://docs.celeryq.dev/en/stable/userguide/canvas.html",
+      "checked_at": "2026-10-08",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "document_http_status": 200,
+      "document_sha256": "8ddc1e339e18a76b36db2878b12b25f510eb8084131894988ff38de36ed82715",
+      "read_ranges": [
+        [
+          505,
+          564
+        ],
+        [
+          580,
+          619
+        ]
+      ],
+      "sections_read": [
+        "canvas selected documentation sections"
+      ]
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://docs.celeryq.dev/en/stable/userguide/testing.html",
+      "resolved_url": "https://docs.celeryq.dev/en/stable/userguide/testing.html",
+      "checked_at": "2026-10-08",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "document_http_status": 200,
+      "document_sha256": "7e1245fb3bb63a9deedc096b61a3bbab68766737398caec74b86fb39abe2c4a4",
+      "read_ranges": [
+        [
+          21,
+          42
+        ],
+        [
+          54,
+          96
+        ]
+      ],
+      "sections_read": [
+        "testing selected documentation sections"
+      ]
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://docs.celeryq.dev/en/stable/django/first-steps-with-django.html",
+      "resolved_url": "https://docs.celeryq.dev/en/stable/django/first-steps-with-django.html",
+      "checked_at": "2026-10-08",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "document_http_status": 200,
+      "document_sha256": "e2e80b816af7aa03e9fa866ee748194944b3002a18081e0d4f59f798b55abcb8",
+      "read_ranges": [
+        [
+          164,
+          201
+        ]
+      ],
+      "sections_read": [
+        "django-celery selected documentation sections"
+      ]
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://docs.celeryq.dev/en/stable/getting-started/backends-and-brokers/redis.html",
+      "resolved_url": "https://docs.celeryq.dev/en/stable/getting-started/backends-and-brokers/redis.html",
+      "checked_at": "2026-10-08",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "document_http_status": 200,
+      "document_sha256": "9e2c424d98645ed469d9585a674d43ac95bea0d79148fc6158409a7989a3a8b0",
+      "read_ranges": [
+        [
+          38,
+          52
+        ],
+        [
+          89,
+          122
+        ]
+      ],
+      "sections_read": [
+        "redis selected documentation sections"
+      ]
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://docs.celeryq.dev/en/stable/userguide/periodic-tasks.html",
+      "resolved_url": "https://docs.celeryq.dev/en/stable/userguide/periodic-tasks.html",
+      "checked_at": "2026-10-08",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "document_http_status": 200,
+      "document_sha256": "cd25089717f925bcc5ecbcb9479bfe45b93357a7cf67100f88682e3921259273",
+      "read_ranges": [
+        [
+          20,
+          59
+        ],
+        [
+          111,
+          124
+        ]
+      ],
+      "sections_read": [
+        "beat selected documentation sections"
+      ]
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://docs.djangoproject.com/en/5.2/topics/db/transactions/",
+      "resolved_url": "https://docs.djangoproject.com/en/5.2/topics/db/transactions/",
+      "checked_at": "2026-10-08",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "document_http_status": 200,
+      "document_sha256": "2b61b12e76baa7f58bef27a1501ba0666296af7eeda51f01c481a464e29b46b4",
+      "read_ranges": [
+        [
+          257,
+          298
+        ],
+        [
+          328,
+          374
+        ],
+        [
+          299,
+          328
+        ]
+      ],
+      "sections_read": [
+        "transactions selected documentation sections"
+      ]
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://docs.djangoproject.com/en/5.2/ref/models/querysets/",
+      "resolved_url": "https://docs.djangoproject.com/en/5.2/ref/models/querysets/",
+      "checked_at": "2026-10-08",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "document_http_status": 200,
+      "document_sha256": "0c294edde61b2d4e59233a6a130eb36118db8bc6a21055cf17ea46946057d548",
+      "read_ranges": [
+        [
+          1340,
+          1408
+        ],
+        [
+          1653,
+          1695
+        ],
+        [
+          1707,
+          1747
+        ]
+      ],
+      "sections_read": [
+        "querysets selected documentation sections"
+      ]
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://docs.djangoproject.com/en/5.2/ref/models/constraints/",
+      "resolved_url": "https://docs.djangoproject.com/en/5.2/ref/models/constraints/",
+      "checked_at": "2026-10-08",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "document_http_status": 200,
+      "document_sha256": "842717afee2b10959695e088bcba0e7628b618a106ef1b7981cd05015b4c5ec4",
+      "read_ranges": [
+        [
+          101,
+          129
+        ]
+      ],
+      "sections_read": [
+        "constraints selected documentation sections"
+      ]
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://docs.djangoproject.com/en/5.2/topics/auth/customizing/",
+      "resolved_url": "https://docs.djangoproject.com/en/5.2/topics/auth/customizing/",
+      "checked_at": "2026-10-08",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "document_http_status": 200,
+      "document_sha256": "c2e1da1912ffbdfc2bccf0745da3d57166f095f9b79c494d8e26f0fa691c7450",
+      "read_ranges": [
+        [
+          321,
+          364
+        ],
+        [
+          567,
+          584
+        ]
+      ],
+      "sections_read": [
+        "custom-user selected documentation sections"
+      ]
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://docs.djangoproject.com/en/5.2/topics/cache/",
+      "resolved_url": "https://docs.djangoproject.com/en/5.2/topics/cache/",
+      "checked_at": "2026-10-08",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "document_http_status": 200,
+      "document_sha256": "ddae1112e6e4c656a24bfb154dcc84966d75b30b1f3f038e6e16cfd13ade547e",
+      "read_ranges": [
+        [
+          650,
+          672
+        ],
+        [
+          974,
+          1006
+        ]
+      ],
+      "sections_read": [
+        "cache selected documentation sections"
+      ]
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://www.django-rest-framework.org/api-guide/permissions/",
+      "resolved_url": "https://www.django-rest-framework.org/api-guide/permissions/",
+      "checked_at": "2026-10-08",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "document_http_status": 200,
+      "document_sha256": "9bdbc697b70e34ecca89f94f4363b084cb8f95fec10983fac5560d046d359383",
+      "read_ranges": [
+        [
+          175,
+          195
+        ]
+      ],
+      "sections_read": [
+        "permissions selected documentation sections"
+      ]
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://www.django-rest-framework.org/api-guide/pagination/",
+      "resolved_url": "https://www.django-rest-framework.org/api-guide/pagination/",
+      "checked_at": "2026-10-08",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "document_http_status": 200,
+      "document_sha256": "d204b476a4e70ba1e47b0fa4b3d901c9e3c51a1e7de317a3fec52d0e55a5800a",
+      "read_ranges": [
+        [
+          145,
+          170
+        ]
+      ],
+      "sections_read": [
+        "pagination selected documentation sections"
+      ]
+    },
+    {
+      "kind": "official-documentation",
+      "url": "https://docs.celeryq.dev/en/stable/faq.html",
+      "resolved_url": "https://docs.celeryq.dev/en/stable/faq.html",
+      "checked_at": "2026-10-08",
+      "api_executed": false,
+      "reading_transport": "stdlib-http",
+      "document_http_status": 200,
+      "document_sha256": "27a4dab785df875fba20e86f0f0b85c5740854bccddec5552bd5eaf983f89607",
+      "read_ranges": [
+        [
+          552,
+          561
+        ]
+      ],
+      "sections_read": [
+        "faq selected documentation sections"
+      ]
+    }
+  ],
+  "rejected_document_fetches": [],
+  "excluded_from_execution_audit": [
+    "No source code, snippets, tests, packages, migrations, workers, brokers, payment calls or authenticated services executed",
+    "Eager execution is not proof of native worker transport, crash recovery, locks, scheduler or chord behaviour",
+    "Source caller sections do not count as evaluation of other skills or agents",
+    "Native counterparts read as guidance; this block does not validate every rule or scanner finding"
+  ],
+  "measurements": {
+    "tokens": null,
+    "latency_seconds": null
+  }
+}
