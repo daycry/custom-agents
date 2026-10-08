@@ -1,0 +1,65 @@
+{
+  "observed_on": "2026-10-08",
+  "scope": "Native role contract evidence and reviewer export permissions",
+  "qa_gate": {
+    "script": "agent-kits/qa/qa-gate.py",
+    "input_format": "qa-gate statistics normalized from pytest JUnit; not Playwright",
+    "counts": {
+      "expected": 78,
+      "unexpected": 0,
+      "flaky": 0,
+      "skipped": 0
+    },
+    "exit_code": 0,
+    "verdict": "VERDE",
+    "inputs": [
+      {
+        "input": "role-contract-reviewed.xml",
+        "sha256": "67092c8d8110609adbe61da3cacd5706cf1d23e5fa9d76ad0810d05f6ec91f37",
+        "counts": {
+          "expected": 78,
+          "unexpected": 0,
+          "flaky": 0,
+          "skipped": 0
+        }
+      }
+    ],
+    "limitations": [
+      "Native fixture experiments are separate evidence, not counted as unit tests.",
+      "Unique identities from the final 78-case run; earlier repeated runs are excluded."
+    ]
+  },
+  "diff_coverage": {
+    "base": "18f58e3",
+    "instrument": "coverage.py",
+    "instrument_version": "7.16.2",
+    "file": "scripts/export-interop.py",
+    "covered": 5,
+    "executable_added": 5,
+    "missing": [],
+    "percentage": 100.0,
+    "minimum": 90,
+    "source_sha256_lf": "8d7bb6237e14f2b2a54883d2ce2161f3f4ec13d907876ba86fa496e51e08f4d1",
+    "input": "role-contract-reviewed-coverage.json",
+    "input_sha256": "7e36817cc87d52cfc3e3e5d66e61f62045dccb27b53b349f243fdf55b716d97c",
+    "initial_source_file_collection_invalid": true,
+    "scope_note": "Executable added lines of the exporter only; generated text is not counted twice."
+  },
+  "source_sha256_lf": {
+    "scripts/export-interop.py": "8d7bb6237e14f2b2a54883d2ce2161f3f4ec13d907876ba86fa496e51e08f4d1",
+    "agents/reviewer.md": "13f2d14ed92757eabfc86fa4c09c88b142732a962d124d51df4f3425544fa5e0",
+    "skills/adversarial-review/SKILL.md": "0e8b656b392f2fb198d46ea38eeed610dc521434efc63902120992fcd4787f1e",
+    "interop/codex/agents/reviewer.toml": "42b0a4a51af726e04167f0a574710cda281c01f89c7b50546d42940939b3f30d",
+    "interop/opencode/agents/reviewer.md": "120803faa610e85d79bd3aff666531d51ed6b46e08f71c423e363b85b10849b4"
+  },
+  "production_role_dispatch_delivered": false,
+  "remaining": [
+    "Role dispatcher and tool-input normalization",
+    "Native role ID migration",
+    "Persisted installation trust",
+    "Commands",
+    "Dashboard",
+    "Memory retrieval",
+    "Global initiative acceptance"
+  ]
+}

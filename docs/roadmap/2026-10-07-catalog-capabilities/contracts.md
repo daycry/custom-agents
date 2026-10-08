@@ -22,6 +22,77 @@ Claude. No se usa una transcripción privada como interfaz estable de identidad.
 Los esquemas/código del runtime instalado y una prueba nativa deben resolver
 esas incógnitas antes de elegir el mecanismo de guardia.
 
+La incógnita de identidad se resolvió después con las fuentes fijadas y
+fixtures nativas descritas en la siguiente sección, «Identidad y control previos por rol».
+La distribución todavía requiere conectar ese despacho.
+
+## Identidad y control previos por rol — 2026-10-08
+
+[native-role-contract-evidence.json](native-role-contract-evidence.json)
+conserva 14 casos Claude, 12 comprobaciones Codex y tres experimentos OpenCode.
+Son pruebas de mecanismo con dispatchers privados, no guardias distribuidas.
+Los binarios están fijados por hash; homes, proyectos, permisos de prueba,
+PATH y proveedores loopback son propios, sin credenciales externas ni uso del
+estado del consumidor. El código del corpus no se ejecuta.
+
+| Runtime fijado | Identidad nativa observada | Bloqueo y controles ejecutados |
+|---|---|---|
+| Claude 2.1.287 | PreToolUse agent_type; subagentes también agent_id. Tipo del hijo prevalece sobre el del padre | Sin registro de plugin, frontmatter no bloquea Write. Registro propio devuelve deny y evita escribir; planner, principal sin identidad y agentes bare/desconocidos escriben. Delegación Agent real, no solo selección de agente principal |
+| Codex 0.161.0 | PreToolUse agent_type/agent_id del hijo; principal sin estos campos. session_id compartido con raíz; agent_id identifica el hilo hijo | Evaluador actual rechaza push forzado antes de ejecutarlo; rol ajeno llega a Git local sin refs/remotos. Comando inocuo ejecutado por ambos. Claimed type dentro de tool_input no es identidad del agente ejecutante |
+| OpenCode 2.0.12 | execute.before event.agent y sessionID; API confirma agent y parentID del hijo real | Evaluador actual bloquea spec de implementer y código de architect; permite tasks/design, planner y architect bare del usuario. Dos delegaciones nativas reales, con hijo protegido bloqueado e hijo ajeno permitido |
+
+El ID identifica el rol efectivo, no la procedencia del prompt. Claude acepta
+--agents con el mismo ID scoped y la prueba confirma que sustituye su prompt;
+el evento conserva custom-agents:implementer. Codex permite name en TOML
+independiente del filename, y capas/bindings superiores sustituyen el rol.
+OpenCode Agent.Info carece de ruta/origen. Por ello se protegerán IDs exactos,
+con la misma política ante una personalización deliberada del mismo ID. Los
+IDs bare ajenos no seleccionarán política. Los IDs propios Codex/OpenCode
+custom-agents-<rol> son una decisión de diseño pendiente de export/migración.
+
+No se guarda un registro de rol por session_id ni se infiere desde transcripts.
+El dispatcher debe usar metadata del evento y runtime fijado por su invocador.
+Un deny no concede permisos cuando no bloquea: conserva el flujo nativo normal.
+Confianza persistida, versiones/clientes diferentes y todas las herramientas
+no quedan acreditados por estos experimentos.
+
+### Codex: permisos heredados y corrección del export
+
+Las fuentes del commit 979011409de0a60b52f179721948e65531d26144 proyectan
+overrides tipados del rol y vuelven a aplicar permisos vivos del padre. No
+proyectan sandbox_mode, aprobación ni hooks independientes desde su TOML.
+Dos roles propios con sandbox_mode="read-only" se cargaron y escribieron
+sentinels mediante Set-Content bajo un padre con permiso de escritura.
+El campo se retira del export del reviewer; el preámbulo explica la herencia,
+en vez de declarar una protección que no existe. Una sesión padre con sandbox
+de solo lectura es otro modo de uso, no una autoridad independiente del hijo.
+
+La política de revisión sigue exigiendo no modificar código. Su cumplimiento
+no se acredita por el nombre de un campo ignorado. OpenCode conserva deny
+para herramientas de edición; Bash/shell se sujeta a los permisos respectivos.
+Estas restricciones y la guardia de flujo no son un sandbox universal para
+MCP, herramientas alojadas, procesos continuados o escrituras indirectas.
+
+### OpenCode: rechazo previo sin correlación de llamadas
+
+La Promise API permite lanzar Error en execute.before: el archivo solicitado
+queda ausente y el modelo recibe error unknown con razón de la política; la
+sesión puede continuar. La prueba de permission.evaluate devuelve
+permission.rejected. Se elige el callback previo para recibir input y rol
+directamente. Una llamada rechazada no emite execute.after. CodeMode pasa por
+before en las fuentes, pero reutiliza el ID externo: no se debe correlacionar
+permisos mediante una tabla indexada únicamente por sessionID/toolcallID.
+CodeMode anidado está contrastado en código, no ejecutado por estas fixtures.
+
+Fuentes primarias contrastadas: [Claude hooks](https://code.claude.com/docs/en/hooks)
+y [subagentes](https://code.claude.com/docs/en/sub-agents),
+[Codex hooks](https://learn.chatgpt.com/docs/hooks),
+[Codex roles](https://github.com/openai/codex/blob/979011409de0a60b52f179721948e65531d26144/codex-rs/core/src/agent/role.rs)
+y [herencia de permisos](https://github.com/openai/codex/blob/979011409de0a60b52f179721948e65531d26144/codex-rs/core/src/agent/child_config.rs),
+[OpenCode Promise tool](https://github.com/anomalyco/opencode/blob/2670273ff17da96f85c5826ced57aa1b368754fa/packages/interface/src/promise/tool.ts)
+y [child dispatch](https://github.com/anomalyco/opencode/blob/2670273ff17da96f85c5826ced57aa1b368754fa/packages/core/src/tool/plugin/subagent.ts).
+Los contratos son versionados; no se extrapola su soporte a todos los runtimes.
+
 ## Baseline nativo Claude y Codex — 2026-10-08, antes de la corrección
 
 [claude-hook-evidence.json](claude-hook-evidence.json) registra fixtures

@@ -61,7 +61,7 @@ hooks, conexiones de backend ni utilidad de recuperación.
 - **Descripción**: Contrastar esquemas y código de las versiones instaladas; resolver identidad, confianza, hooks y configuración OpenCode V2 antes de elegir mecanismos.
 - **Dependencias**: T-01.
 - **Archivos**: `docs/roadmap/2026-10-07-catalog-capabilities/**`
-- **Verificación**: Contratos iniciales OpenCode 2.0.12 y Codex 0.160.1 conservados en runtime-probes.json/contracts.md; transporte OpenCode V2 validado después, con guardias pendientes. Nuevas fixtures aisladas Claude 2.1.287 (binario fijado): contexto/captura UTF-8 positivos, envelope ausente con presupuesto predeterminado y presente con override propio 5.000 ms; control lento propio y recuperación de checkpoint ejecutados. Codex se actualizó a 0.161.0: nueva copia/fuente fijadas, caché ausente tras instalador, add activa pero cambia enabled global, contexto/captura positivos con bypass de fixture; evento terminal no observado en exec y causa pendiente. claude-hook-evidence.json y codex-activation-evidence.json separan versiones, resultados y límites. Confianza persistida, identidad/allow-deny por rol y cierre efectivo siguen pendientes.
+- **Verificación**: Los contratos iniciales y sus fallos quedan preservados en runtime-probes.json/contracts.md. Después se verificaron contexto, captura UTF-8 y cierre natural en Claude 2.1.287, Codex 0.161.0 y OpenCode 2.0.12: evidencia de cierre e instalación en terminal-qa-evidence.json y fichas nativas enlazadas. native-role-contract-evidence.json añade 14 casos Claude, 12 comprobaciones Codex y tres experimentos OpenCode con identidad efectiva, bloqueo previo y controles permitidos en fixtures propias. La identidad nativa no certifica procedencia del prompt. Persisten pendientes la confianza de instalación real, normalización completa e integración de guardias por rol; no se cierra T-02 por las pruebas del mecanismo.
 **Criterios de aceptación**:
   - [ ] Contrato y resultado de la tarea comprobados con evidencia ejecutada; límites y errores cubiertos.
 
@@ -139,7 +139,7 @@ hooks, conexiones de backend ni utilidad de recuperación.
 - **Descripción**: Comparar configuración y scripts realmente usados, dependencias y API, ejecución, permisos y aislamiento; evaluar soporte del control panel.
 - **Dependencias**: T-01/T-02.
 - **Archivos**: `docs/roadmap/2026-10-07-catalog-capabilities/**`
-- **Verificación**: Triaje operativo iniciado con contratos/probes y valoración de memoria en operational-priorities.md. Comparación funcional completa, implementación y validación de despacho pendientes; la lectura dirigida no acredita eficacia.
+- **Verificación**: Triaje operativo y valoración de memoria en operational-priorities.md. comparisons/hooks-role-policy.md y role-hook-reading-evidence.json comparan 19 cuerpos completos y un helper parcial, con diferencias y destinos concretos de política previa; quedan 24 cuerpos inmediatos y 16 descendientes de metadata pendientes. No se ejecutó código del corpus. Comparación global, implementación y validación funcional de esos destinos pendientes; la lectura dirigida no acredita eficacia.
 - **Paneles/comandos en paralelo (2026-10-08)**: Tres entradas de dashboard y recursos relacionados contrastados por lectura; IDs, hashes, rangos y fuentes propias en comparisons/panel-reading-evidence.json. Propuestas de proyección read-only, procedencia y desconocidos en comparisons/operational-panel-commands.md. Plataforma de readiness, servicios/almacenamiento del control operativo y fuente de observación compatible pendientes; cero fichas globales cerradas o integraciones nuevas.
 **Criterios de aceptación**:
   - [ ] Contrato y resultado de la tarea comprobados con evidencia ejecutada; límites y errores cubiertos.
@@ -165,7 +165,7 @@ hooks, conexiones de backend ni utilidad de recuperación.
 - **Descripción**: Convertir diferencias verificadas en destinos propios, opcionales y compartidos; cerrar diseño y acotar archivos antes de modificar producción.
 - **Dependencias**: Contratos T-02 y comparación pertinente T-03/T-04/T-05/T-06/T-07 por bloque; aceptación global tras completar esas tareas. Hooks/comandos/panel/memoria no esperan al contenido opcional aplazado.
 - **Archivos**: `docs/roadmap/2026-10-07-catalog-capabilities/**`
-- **Verificación**: design.md abre el bloque de integridad del checkpoint con defectos comprobados en captura/rotación, alternativas y criterios. Diseño restante de runtime/capacidades pendiente; no se declara consolidación global entregada.
+- **Verificación**: design.md fija integridad del checkpoint, cierre e instalación y, en el bloque 3, identidad nativa, IDs propios, políticas por rol y migración que preserve personalizaciones. Los mecanismos se prueban en fixtures propias; dispatcher y migración del bloque 3 siguen sin distribuir. Diseño restante de capacidades pendiente; no se declara consolidación global entregada.
 - **Diseño operativo en curso (2026-10-08)**: Panel de catálogo, diagnóstico de consumidor y roadmap conservan responsabilidades separadas. Handoff propuesto reutiliza journal/ledger; observaciones requieren fuente compatible antes de tasas. Codex add habilita globalmente aunque el destino sea proyecto; T-09 debe resolver caché nativa respetando el estado global previo, sin remove como rollback ni confundir installed con enabled. Estos destinos y restricciones no acreditan implementación.
 **Criterios de aceptación**:
   - [ ] Contrato y resultado de la tarea comprobados con evidencia ejecutada; límites y errores cubiertos.
@@ -178,7 +178,7 @@ hooks, conexiones de backend ni utilidad de recuperación.
 - **Descripción**: Implementar mecanismos reales por contrato y versión para Claude/Codex/OpenCode, incluido soporte V2; probar identidad, concurrencia y degradación.
 - **Dependencias**: T-02/T-08.
 - **Archivos**: `hooks/**`, `interop/**`, `agent-kits/shared/**`, `scripts/**`, `install/**`, `tests/**`, `agents/**`, `docs/**`
-- **Verificación**: Bloque de checkpoint implementado y revisado: opt-out coherente, rotación atómica/lectura acotada, CLI portable y reclamación exclusiva con identidad comprobada y errores de transacción visibles. QA final Windows: 200 passed/12 skipped; Linux: 212 passed. Launcher: 12 passed tras las correcciones. Cobertura ejecutable añadida combinada Windows/Linux: 50/53, 94,34%. Evidencia y límites en el segundo intento de revisión. Guardias por rol y carga/despacho nativos pendientes; no se da T-09 por completada.
+- **Verificación**: Checkpoint, supervisión de cierre y aislamiento de instalación entregados en bloques anteriores; terminal-qa-evidence.json conserva QA, cobertura y límites de ese snapshot. En el bloque actual se retira del exporter Codex el sandbox por rol sin efecto y se corrigen las instrucciones de reviewer. Identidad y bloqueo previos probados con dispatchers privados en native-role-contract-evidence.json. Falta integrar normalización, dispatcher e IDs propios en el bundle; no se da T-09 por completada.
 - **RED del bloque de checkpoint (2026-10-08)**: `test_journal.py -k 'capture_respeta_journal_en_forma_objeto or rotar_fallo_conserva_checkpoint or rotar_lee_solo_cola'`: 4 failed/1 passed, 150 deselected. `{activo: false}` creó un log; los fallos simulados de fsync/replace no conservaron el original; la rotación leyó el archivo completo (`read(-1)`). Evidencia obtenida antes de modificar producción.
 - **RED de compatibilidad Windows (2026-10-08)**: `test_journal.py -x -q`: 1 failed/4 passed; `test_write_sin_rastro_del_plugin_no_escribe_nada` recibió `docs\knowledge\journal\2026-10-08-sesion.md` en vez de la ruta relativa con `/`. Se amplía el bloque para normalizar la salida CLI, sin cambiar rutas internas.
 - **RED de reclamación exclusiva (2026-10-08)**: probe propio con trazas de `os.replace` reprodujo dos movimientos exitosos del mismo origen en Windows (iteración 2); el test de 100 reclamaciones concurrentes falló en la iteración 1 con dos ganadores. El test de cerrojo no disponible también falló: entregó el item en vez de mantenerlo pendiente. Se serializa la transacción de reclamación con cerrojo de SO no bloqueante; pendientes intactos si no se obtiene.
@@ -236,7 +236,7 @@ hooks, conexiones de backend ni utilidad de recuperación.
 - **Descripción**: Verificar aceptación completa y eficacia observable por escenario, carga nativa, regresiones, cobertura y revisión independiente por fase.
 - **Dependencias**: Verificar cada bloque entregado de T-09/T-11/T-12/T-13; aceptación global tras T-09/T-10/T-11/T-12/T-13, sin cerrar por una entrega parcial.
 - **Archivos**: `tests/**`, `evals/**`, `docs/roadmap/2026-10-07-catalog-capabilities/**`
-- **Verificación**: Bloque de checkpoint: Windows/Linux y launcher en verde, diff ejecutable 94,34%, A+B sin gaps pendientes en intento 2; qa-gate VERDE a partir de resultados pytest reales. Detalle al final del ledger. Pendientes para la iniciativa: despacho nativo, demás escenarios/capacidades, UI Edge y aceptación completa.
+- **Verificación**: Cada bloque conserva su QA y fuente fijada al final del ledger; terminal-qa-evidence.json corresponde al snapshot previo. Bloque actual: RED/GREEN del campo Codex ignorado, 78 tests export/roadmap y cobertura oficial del exporter. Las pruebas nativas de identidad son evidencia separada, no se suman como unit tests. Pendientes para la iniciativa: integración del despacho por rol, demás escenarios/capacidades, UI Edge y aceptación completa.
 **Criterios de aceptación**:
   - [ ] Contrato y resultado de la tarea comprobados con evidencia ejecutada; límites y errores cubiertos.
 
@@ -246,7 +246,7 @@ hooks, conexiones de backend ni utilidad de recuperación.
 - **Descripción**: Retirar recursos y callers sustituidos, refrescar dependencias/manifiestos/exports y docs ES/EN; comprobar referencias y nombres públicos.
 - **Dependencias**: Verificación del bloque pertinente de T-14 para docs/exports de cada entrega; aceptación global tras completar T-14.
 - **Archivos**: `skills/**`, `agents/**`, `commands/**`, `agent-kits/**`, `scripts/**`, `interop/**`, `.codex-plugin/**`, `.agents/plugins/**`, `.claude-plugin/**`, `docs/**`, `README.md`, `README.es.md`, `CLAUDE.md`, `tests/**`, `evals/**`
-- **Verificación**: Pendiente: linter, exports, evals, manifiestos, tamaño, copias y scan de marca sin hallazgos; cero aliases vacíos o callers obsoletos.
+- **Verificación**: Cada bloque conserva gates de linter, exports, alcance y referencias en su revisión al final del ledger. El actual corrige productor, instrucciones dependientes y documentación ES/EN de reviewer, sin añadir aliases ni retirar personalizaciones. Continúan pendientes la migración de IDs del bloque 3, restantes recursos y aceptación global de limpieza/distribución.
 **Criterios de aceptación**:
   - [ ] Contrato y resultado de la tarea comprobados con evidencia ejecutada; límites y errores cubiertos.
 
@@ -768,7 +768,7 @@ coverage.py/c8 de líneas añadidas ejecutables: **869/946 = 91,86%**, mínimo
 90%; se conservan líneas sin cubrir. Los probes nativos no se usan como
 cobertura instrumentada. [Resumen verificable](terminal-qa-evidence.json).
 
-Payload final congelado y verificado nativamente:
+Payload del bloque anterior (snapshot 18f58e3) verificado nativamente:
 
 - Claude 2.1.287: cierre headless, envelope antes de salida, debug SessionEnd
   completed status 0; el stream no emite respuesta SessionEnd.
@@ -818,3 +818,130 @@ corpus sin cambios ni ejecución. Correspondencia final: hashes de producción,
 fichas públicas/privadas y 100 enlaces locales comprobados; nombres públicos
 limpios. Los hashes de doctor/journal en la lectura operativa son históricos,
 conservados y contrastados con sus snapshots, no con el payload final.
+
+## Siguiente bloque operativo — identidad y guardias nativas
+
+El turno anterior fue progreso: commit/push 18f58e3 verificado remoto, cierre
+nativo en tres runtimes y configuración source reparada por elección del usuario.
+Se retoma T-02/T-08/T-09/T-14/T-15 sobre HEAD 18f58e3, sin tocar settings ajenos.
+Tres investigaciones independientes en paralelo contrastan metadata y bloqueo
+nativo por rol en Claude, Codex y OpenCode; solo fixtures propias y proveedores
+loopback, sin ejecutar código del corpus. Diseño y criterios en design.md,
+«Bloque 3». La lectura y los controles nativos positivos y negativos confirman
+identidad en los tres runtimes. Nombre e
+ID scoped no acreditan procedencia del prompt: se decide usar IDs propios
+con semántica de rol protegido y una migración que preserve personalizaciones.
+Las pruebas de mecanismo no se declaran implementación entregada.
+
+Resultados paralelos preservados en native-role-contract-evidence.json:
+Claude 14 casos, Codex 12 comprobaciones y OpenCode tres experimentos, incluidos
+dos hijos reales. Los controles nativos demuestran ID efectivo, bloqueo previo,
+sesión principal sin rol, rol ajeno permitido y límites de procedencia. Claude
+usa política simplificada de fixture; Codex/OpenCode llaman al evaluador actual.
+No se certifica normalización de todas las herramientas, instalación de la
+guardia ni confianza persistida por estas pruebas.
+
+Hallazgo reproducido del export Codex: sandbox_mode="read-only" en dos TOMLs
+se acepta, pero ambos subagentes escriben sentinels vía Set-Content cuando el
+padre tiene permiso. La proyección nativa no aplica ese campo ni hooks por rol.
+Se corrige el export y la documentación activa ES/EN sin cambiar permisos del
+consumidor. Los nombres canónicos/bare actuales aún no migran: el namespace y
+su retirada segura pertenecen al siguiente bloque de integración.
+
+- RED: test_reviewer_no_declara_sandbox_independiente_inexistente falló el
+  2026-10-08 porque reviewer.toml exportaba sandbox_mode. Se corrige el productor,
+  se regenera interop y el mismo caso queda GREEN.
+- QA del bloque: export + roadmap, 78 passed. La primera cobertura no recopiló
+  datos por usar un fichero como --source; no se usa como medición. Se repite
+  export con --source=scripts, 28 passed y datos oficiales coverage.py válidos.
+  El XML y la colección vacía anteriores se conservan privados.
+
+Las descripciones activas de reviewer ya no prometen solo lectura por
+construcción: su responsabilidad de no modificar código y las restricciones
+reales por runtime quedan explícitas. Bash conserva permisos del runtime;
+Write/Edit ausentes o permission.edit deny no cubren toda escritura indirecta.
+No se incorpora ninguna skill ni se cambia el writer/lifetime del bloque previo.
+
+La comparación de política previa queda en
+[hooks-role-policy.md](comparisons/hooks-role-policy.md): 19 cuerpos completos,
+un helper parcial y lecturas pendientes explícitas. Se prioriza protección
+frente a bypass de verificación Git después de conectar el dispatcher; la
+protección de configuración de calidad es candidata opt-in. Se descartan
+retries como autorización. Ninguna de estas políticas nuevas se distribuye
+en este bloque; no hay ejecución del corpus ni alta de paquetes técnicos.
+
+## Revisión de dos lentes — intento 1: Fase 1 (T-02, T-06, T-08, T-09, T-14, T-15) — identidad nativa y permisos de reviewer
+
+Nuevo bloque sobre base 18f58e3; no reinicia el bucle de cierre/instalación
+anterior. Lentes A+B+D independientes y paralelas, con prompts literales;
+fallback por subagentes genéricos porque reviewer no está disponible en esta
+sesión. Selector actual: C false, D true por rutas del exporter y su suite;
+no código de guardia añadido. Todas las lentes leen el diff completo y las
+fichas nuevas; A/B contrastan las fuentes privadas sin ejecutarlas.
+
+| Criterio | Resultado | Evidencia |
+|---|---|---|
+| Identidad y bloqueo nativos, T-02 | ✓ | 14 casos Claude, 12 checks Codex, tres experimentos OpenCode; hashes privados/públicos coincidentes, dos hijos OpenCode contrastados |
+| Comparación acotada, T-06 | ✓ | 19 cuerpos completos, uno parcial, 24 inmediatos y 16 descendientes pendientes; 44 hashes/rangos comprobados |
+| Diseño y entrega separados, T-08/T-09 | ✓ | IDs y migración previstos; dispatcher privado; campo Codex ignorado retirado, sin promesa de integración |
+| RED/GREEN, QA y cobertura, T-14 | ✓ | Test rojo previo al productor, mismo test verde; QA 78 passed; coverage.py y diff ejecutable 5/5 |
+| Export canónico y formato | ✓ | A/B/D ejecutan --check, exit 0, 55 ficheros al día; B ejecuta 28 tests, todos passed |
+| Límites activos de reviewer, T-15 | ✗ | A-E3: productor y método conservaban garantía por construcción, replicada en los cuerpos generados |
+| Corrección y rendimiento del código añadido | ✓ | B y D sin hallazgos; dos callsites coherentes, selección O(1), sin E/S ni recorridos adicionales |
+| Alcance y estados globales | ✓ | Solo T-01 completada; settings ajenos excluidos, integración y confianza real pendientes |
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| A-E3 | Important | Instrucciones activas prometen solo lectura por construcción | T-15 | Pendiente en intento 1; corregido y revalidado en intento 2 | agents/reviewer.md y skills/adversarial-review/SKILL.md conservaban el claim, copiado a ambos exports; contradicción con el límite nativo medido |
+
+Fusión: cero Critical, un Important, cero Minor en intento 1. No se rebaja
+el gap ni se declara deuda. Se corrige el productor canónico, se regenera
+interop y se actualiza el método; no se altera el estado del consumidor.
+TDD n/a para estos deltas de prompt/documentación. El RED/GREEN del cambio
+ejecutable del exporter queda preservado arriba y en sus XML privados.
+
+## Revisión de dos lentes — intento 2: Fase 1 (T-02, T-06, T-08, T-09, T-14, T-15) — instrucciones y exports coherentes
+
+A reevalúa solo A-E3 y sus deltas, sin reabrir lo aprobado. Verifica
+agents/reviewer.md, la instrucción del método y ambos cuerpos regenerados;
+responsabilidad de no modificar y permisos reales de Bash quedan explícitos.
+Ejecuta --check: exit 0, 55 ficheros al día. Comprueba XML actual: 78 tests,
+cero fallos/errores/skipped. B/D del intento 1 se conservan: no hay nuevo
+cambio ejecutable desde sus dictámenes. A-E3: **corregido**. Cero gaps
+Critical/Important/Minor pendientes; no hay entrada de memoria propuesta
+nueva en este bloque para promover.
+
+QA actual: [role-contract-qa-evidence.json](role-contract-qa-evidence.json),
+qa-gate VERDE exit 0, **78 tests únicos passed**, cero failed, flaky,
+skipped o interrupted. El input deriva de JUnit pytest, no de Playwright.
+Cobertura oficial coverage.py 7.16.2: **5/5 líneas ejecutables añadidas,
+100%**, mínimo 90%, solo el exporter; no se cuentan copias generadas como
+código adicional. La primera colección sin datos no participa; XML/datos
+anteriores permanecen privados. Los probes nativos no se suman al conteo.
+
+La corrección y la evidencia del mecanismo quedan entregables. T-02/T-06/
+T-08/T-09/T-14/T-15 permanecen abiertas por su aceptación global. Siguiente
+paso concreto: conectar política central con metadata nativa, normalizar
+todos los targets soportados y migrar IDs propios preservando agentes de
+usuario. Después comandos, dashboard y recuperación de memoria; skills
+siguen aplazadas en 79/293 evaluadas, 214 pendientes.
+
+B contrasta por separado la derivación de la ficha QA final: 78 identidades
+únicas, XML sin fallos, hashes oficiales coincidentes y diff recalculado
+5/5, sin volver a ejecutar el publicador ni abrir otra revisión global.
+
+Jira-flow de ambos intentos: gaps/revision, actor reviewer, batch, tareas
+T-02/T-06/T-08/T-09/T-14/T-15; exit 0 y ops vacías porque Jira está desactivado.
+No se publica ningún mensaje externo.
+
+Gates finales: export --check 55 al día; linter 0 errores/3 avisos históricos
+de nombres genéricos; ledger-lint 0 incoherencias/0 avisos; roadmap index
+50 passed tras actualizar la traza. No se suman esas repeticiones a los
+78 tests únicos de QA. Scope contra 18f58e3: 25 archivos propios en alcance,
+cero fuera/cero avisos, settings ajenos excluidos. Checker final: 199 enlaces
+locales, 22 hashes de procedencia nativa y 44 hashes/rangos del corpus
+coincidentes, fuente fijada limpia, JSON y nombres públicos válidos, cero
+referencias prohibidas. El exporter y las fuentes finales quedan fijados
+en role-contract-qa-evidence.json; los hashes previos en terminal-qa-evidence.json
+pertenecen al snapshot 18f58e3. Sin ejecución del corpus ni activación de la
+caché real. La limpieza rechazada por política sigue pendiente.

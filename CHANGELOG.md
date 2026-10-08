@@ -9,6 +9,10 @@ and versioning follows [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed — Codex reviewer permission claims
+
+- Remove an ineffective per-role sandbox field from the reviewer export and explain inherited Codex permissions. Distinguish OpenCode edit-tool restrictions from shell permissions; document native role identity and preexecution checks without presenting fixture dispatchers as installed guards.
+
 ### Fixed — Codex native installation and diagnosis
 
 - Validate native cache before project activation, prepare registration in an isolated home and preserve global marketplace preferences. Handle equivalent quoted TOML keys and scoped native paths; distinguish configuration from the bounded native CLI listing in status and doctor.

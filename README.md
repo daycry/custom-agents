@@ -215,7 +215,7 @@ flowchart LR
 | **architect** | Design with options (opt-in): 2-3 alternatives with trade-offs → `design.md` validated in chunks with you, plus the ADR. Does not estimate or plan. |
 | **planner** | Executable plan: phases and `T-XX` tasks with verifiable acceptance criteria and a per-phase budget. |
 | **implementer** | Writes the code phase by phase on a branch/worktree, with `tasks.md` as the canonical ledger and per-task measured cost. |
-| **reviewer** | One review lens (A/B/C) on fresh context, read-only by construction; structured output that `adversarial-review` merges. |
+| **reviewer** | One review lens (A/B/C) on fresh context, reviews without modifying code; structured output that `adversarial-review` merges. |
 | **qa** | E2E with Playwright (local hosts only), verdict via `qa-gate.py`, md+pdf report with evidence. |
 | **documenter** | Technical and product documentation derived from the project itself, once at cycle close. |
 | **knowledge-curator** | Reviews and approves/rejects candidates in `docs/knowledge/candidates/`; only writer of `approved/` and `rejected/` (`curator-gate.py`). |

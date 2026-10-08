@@ -108,3 +108,63 @@ la cabecera de origen absoluto de FileDiff.Info.patch producido por el runtime,
 para informar la eliminación del documento original cuando sale de docs/.
 Los paths confirmados del resultado y los orígenes del diff nativo se deduplican;
 el fallback de entrada se conserva para herramientas compatibles sin output nativo.
+
+## Bloque 3: identidad y guardias nativas por rol
+
+La captura/lifetime e instalación se verificaron en el bloque anterior. Ahora
+se conecta el evaluador existente guardrail-check.py al evento previo de
+herramienta de cada runtime. No se infiere el rol de instrucciones, historial,
+transcripts ni campos del input controlados por el modelo.
+
+Las fuentes fijadas exponen identidad nativa en los tres runtimes: agent_type
+en Claude y Codex, y agent en OpenCode V2. En Claude un agente de plugin tiene
+ID custom-agents:<rol>. Codex y OpenCode exponen el nombre sin procedencia de
+la configuración seleccionada. Claude también admite overrides de un ID
+completo mediante --agents: el namespace por sí solo no prueba el origen.
+
+Decisión técnica dentro de la autorización del usuario: usar
+custom-agents-<rol> como ID nativo en Codex/OpenCode, conservando el rol
+canónico agents/<rol>.md. Es una convención del plugin para evitar colisiones,
+no un namespace oficial adicional. Mapa generado único de IDs por runtime,
+consumido por dispatcher y exports/contexto; no se crean roles duplicados.
+Solo los IDs exactos de implementer y architect activan su política actual.
+Planner, principal sin identidad y agentes con otros IDs mantienen el flujo
+normal de permisos. Definir expresamente el mismo ID propio personaliza ese
+rol y conserva su política; no se afirma que su prompt pertenezca al plugin.
+Instalación y migración deben preservar o rechazar conflictos de archivos y
+bindings del consumidor. Los exports bare anteriores se retiran solo si son
+copias propias sin cambios; los personalizados se conservan con diagnóstico.
+
+Alternativas descartadas: aplicar política al nombre bare puede restringir
+un agente ajeno; sandbox_mode por agente Codex no prueba aislamiento frente
+a overrides heredados; claimed role en la petición es controlado por el modelo.
+Un segundo evaluador por runtime duplicaría política y produciría divergencias.
+
+Claude necesita PreToolUse en hooks del plugin: el frontmatter de sus agentes
+no impone hooks en ese modo. El dispatcher decide únicamente tras reconocer
+un ID protegido exacto. Sigue prohibido aplicar deny indiscriminado a todos
+los agentes. Codex usa su evento nativo previo y contrato JSON. OpenCode puede
+rechazar execute.before: la prueba de Promise API bloquea antes de escribir
+y la sesión continúa tras recibir el error. No se correlaciona decisión con
+permission.evaluate mediante una tabla de toolcall IDs: CodeMode reutiliza
+el ID externo en llamadas anidadas y esa tabla podría confundir decisiones.
+
+Criterios de entrega del bloque:
+
+1. Mapa/exports, catálogo y delegación usan IDs propios coherentemente;
+   la migración conserva agentes modificados y bindings del usuario.
+2. Selección únicamente desde metadata nativa y argumento de runtime fijo;
+   claimed role en tool_input/prompt no selecciona la política.
+3. Deny/allow nativos para implementer y architect; controles planner,
+   principal y agente personalizado acreditan ausencia de interferencia.
+4. Normalización previa de targets originales/destinos y herramientas de
+   escritura observadas. No se confunde guardrail con aprobación normal ni
+   se anuncia una frontera universal de sandbox para cualquier herramienta.
+5. Evaluador único, degradación visible, opt-out conservado; RED/GREEN,
+   cobertura del diff >=90%, revisión independiente, docs ES/EN y exports
+   coherentes antes del push de la implementación.
+
+Las pruebas de mecanismo usan dispatchers privados y no acreditan todavía
+que la distribución instalada los conecte. El bypass de confianza de una
+fixture propia no prueba confianza persistida del consumidor. No se activa
+ningún backend de memoria ni se incorpora una skill en este bloque.

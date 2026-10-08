@@ -54,6 +54,19 @@ Codex necesita caché instalada además de enabled.
 Confianza persistida y guardias siguen abiertas. Esta repriorización no
 declara completadas esas tareas.
 
+La siguiente investigación completa pruebas de identidad y bloqueo previo
+con dispatchers privados en los tres runtimes:
+[native-role-contract-evidence.json](native-role-contract-evidence.json).
+Claude/Codex entregan agent_type; OpenCode entrega event.agent y confirma
+delegación real. Esos nombres no acreditan origen del prompt. El diseño
+elige IDs protegidos exactos y namespacing propio Codex/OpenCode, con migración
+que preserve agentes y bindings del usuario. Su conexión a la distribución
+sigue pendiente. El export del reviewer deja de añadir sandbox_mode por rol
+en Codex: dos hijos nativos escribieron con esa clave bajo permisos heredados
+del padre. El diagnóstico futuro debe distinguir responsabilidad de revisión,
+guardia por hook y sandbox efectivo; no convertir presencia de configuración
+en protección acreditada.
+
 Trabajo paralelo del 2026-10-08: contratos/pruebas nativas por runtime y
 comparación estática de paneles/comandos. La
 [comparación operativa](comparisons/operational-panel-commands.md) delimita

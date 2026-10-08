@@ -9,6 +9,10 @@ y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Fixed — Permisos declarados del reviewer en Codex
+
+- Retirar del export del reviewer un campo de sandbox por rol sin efecto y explicar los permisos heredados en Codex. Diferenciar permisos de edición de OpenCode y permisos de shell; documentar identidad y bloqueo nativos sin presentar los dispatchers de prueba como guardias instaladas.
+
 ### Fixed — Instalación y diagnóstico nativos de Codex
 
 - Validar la caché nativa antes de activar el proyecto, preparar el registro en un home aislado y conservar las preferencias globales del marketplace. Resolver claves TOML entrecomilladas equivalentes y rutas nativas por scope; separar configuración y listado acotado de la CLI en status y doctor.

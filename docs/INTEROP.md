@@ -151,7 +151,7 @@ es exactamente lo que exigen los tres runtimes.
 |---|---|---|
 | `description` | `description` | `description` |
 | `tools` con Write/Edit | — | `permission.edit: allow\|deny` |
-| `tools` sin escritura (`reviewer`) | `sandbox_mode = "read-only"` | `permission.edit: deny` |
+| `tools` sin escritura (`reviewer`) | Responsabilidad en el prompt; permisos heredados del padre | `permission.edit: deny` para herramientas de edición |
 | `effort` (`medium`/`high`) | `model_reasoning_effort` | — |
 | `model` (`sonnet`/`opus`) | — *(hereda de la sesión)* | `temperature` (0.1 / 0.2) |
 | cuerpo del prompt | `developer_instructions` | cuerpo del `.md` |
@@ -202,7 +202,7 @@ sustituye, y aquí está dicho.
 | Captura del turno del usuario | ✅ `UserPromptSubmit` | ✅ `UserPromptSubmit` | `session.prompt`, antes de admisión: petición provisional, con exclusión `<private>` |
 | Fin de subagente | ✅ `SubagentStop` | ✅ `SubagentStop` | ❌ sin evento equivalente |
 | **Guardia por agente** (`implementer`, `architect`) | Los agentes de plugin ignoran `hooks:`; adaptación nativa pendiente | Autocomprobación de prompt; despacho nativo pendiente | Autocomprobación de prompt; despacho nativo pendiente |
-| `reviewer` de solo lectura | ✅ sin Write/Edit en `tools` | ✅ `sandbox_mode = "read-only"` | ✅ `permission.edit: deny` |
+| `reviewer` de solo lectura | Sin Write/Edit; Bash sigue sujeto a permisos y responsabilidad del rol | El TOML no impone sandbox independiente; hereda permisos del padre | `permission.edit: deny`; no equivale a prohibir toda escritura desde shell |
 | Statusline del roadmap | ✅ opt-in | ❌ | ❌ |
 | **Memoria de grafo** (capacidad `graphiti`, opt-in) | ✅ `/doctor` la comprueba en vivo por su adaptador | ✅ igual: el adaptador habla HTTP con el endpoint declarado, no con el MCP del runtime | Mismo adaptador opt-in; no se activa ningún backend al instalar |
 | Permisos de OpenCode | — | — | El instalador conserva `permission`/`permissions` y no añade grants globales. |

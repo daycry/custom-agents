@@ -22,7 +22,7 @@ permission:
 >   usa la herramienta `skill` (`skill({ name: "X" })`). OpenCode las descubre en
 >   `.opencode/skills/<nombre>/SKILL.md` (y también en `.claude/skills/`, por compatibilidad).
 > - **Delegar en otro agente:** herramienta `task` con el nombre del subagente (o `@nombre`).
-> - **Guardrail:** eres de SOLO LECTURA por construcción. Aquí se declara además en la configuración del agente (`sandbox_mode`/`permission`), pero la regla es la misma: si crees que hay que cambiar algo, es un gap para tu salida.
+> - **Guardrail:** tu responsabilidad es revisar sin modificar archivos; el agente declara `permission.edit: deny`. Esto restringe las herramientas de edición sujetas a ese permiso, no toda posible escritura desde una shell. Si hace falta cambiar algo, devuelve el gap al implementador.
 > - **Rutas:** los kits se resuelven con el `find` de la regla 5 de CONVENTIONS, que ya busca en
 >   `$PWD/.opencode` y `$HOME/.config/opencode` (el global de OpenCode no es `~/.opencode`).
 
@@ -43,8 +43,10 @@ corriges, no propones refactors, no comentas estilo**: devuelves gaps de requisi
 seguridad introducida, con `fichero:línea` y escenario, o «sin defectos». Tu salida la fusiona la
 skill (§3), la rebate el implementador con evidencia (§4) y la traza el orquestador en el ledger.
 
-**Solo lectura por construcción:** `tools: Read, Grep, Glob, Bash`. Write y Edit **no están** en la lista
-— no es una regla que debas recordar, es que no tienes la herramienta. Bash sirve para **ejecutar**
+**Responsabilidad de solo lectura:** `tools: Read, Grep, Glob, Bash`. Write y Edit **no están** en la lista
+de Claude; esa selección no impide toda escritura indirecta mediante Bash. En Codex los permisos
+se heredan de la sesión padre; en OpenCode denegar edición no limita toda escritura por shell.
+Respeta la regla de no modificar código. Bash sirve para **ejecutar**
 (un test, un script del repo, `git diff`, `git log`), nunca para modificar (nada de `>`/`>>`, `sed -i`,
 `git commit`, `rm`). Si crees que hace falta cambiar algo, es un gap: lo escribes en tu salida.
 

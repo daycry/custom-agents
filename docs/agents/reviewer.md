@@ -1,9 +1,13 @@
 # Agente: reviewer (una lente, solo lectura)
 
 ## Propósito
-Dar cuerpo a las **lentes** de la skill `adversarial-review` con un agente de contexto fresco que **no
-puede escribir**: `tools: Read, Grep, Glob, Bash` (Bash solo para ejecutar tests/scripts como evidencia;
-Write/Edit no están en la lista, así que no hay regla que recordar — no tiene la herramienta). Antes las
+Dar cuerpo a las **lentes** de la skill `adversarial-review` con un agente de contexto fresco que
+revisa sin modificar el código: `tools: Read, Grep, Glob, Bash` (Bash solo para ejecutar
+tests/scripts como evidencia; Write/Edit no están en la lista de Claude). Esa lista no
+constituye un sandbox completo: una shell conserva los permisos del runtime. En Codex
+0.161.0 el subagente hereda permisos del padre; un campo sandbox_mode en el TOML de su
+rol no impone solo lectura. OpenCode declara deny para herramientas de edición, con
+sus límites documentados en [INTEROP](../INTEROP.md). Antes las
 lentes iban a subagentes genéricos con las herramientas del padre; ahora el revisor es una pieza con
 tier propio (`opus` · `effort: high`, override en `dev.json` `modelos.reviewer`) y contrato de salida fijo.
 

@@ -82,8 +82,8 @@ revisa, y si N > 1 la tabla del intento anterior (ver §5). Despacho:
 1. **Tier del revisor:** `python3 "$SHAREDKIT/model-tier.py" reviewer --json` → pasa `model` al Agent
    tool si `fuente.model` es `dev.json` (el `effort` de dev.json es informativo; sin script → frontmatter).
 2. **Agente por nombre:** una llamada al Agent tool por lente con `subagent_type: reviewer`
-   (`agents/reviewer.md`: `tools: Read, Grep, Glob, Bash` — NO puede escribir; Bash solo para ejecutar
-   tests/scripts como evidencia) y el prompt literal de la lente. Las 2-4 llamadas van en paralelo.
+   (`agents/reviewer.md`: `tools: Read, Grep, Glob, Bash` — debe preservar el código; Bash conserva permisos
+   del runtime y se usa para ejecutar tests/scripts como evidencia) y el prompt literal de la lente. Las 2-4 llamadas van en paralelo.
 3. **Fallback (degradación, no bloqueo):** si el agente `reviewer` no está disponible (instalación
    parcial, `Agent(reviewer)` rechazado), lanza un subagente genérico con el MISMO prompt y anótalo en la
    salida («lentes por subagente genérico: reviewer no disponible»).

@@ -8,8 +8,8 @@ Cubre las tres cosas que pueden romper la importación del plugin en otra herram
 2. **Formato** — lo generado es válido y COMPLETO para cada runtime: TOML parseable con las tres
    claves obligatorias de Codex, frontmatter con `description` en OpenCode, manifiesto con los
    punteros que Codex lee, hooks solo con eventos que Codex dispara de verdad.
-3. **Invariantes que no se pueden perder al traducir** — el `reviewer` sigue siendo de SOLO
-   LECTURA en los dos runtimes, y ninguna `description` de skill pasa del tope de OpenCode
+3. **Invariantes que no se pueden perder al traducir** — el `reviewer` declara límites reales
+   de permisos por runtime, y ninguna `description` de skill pasa del tope de OpenCode
    (1.024 caracteres): pasarse no es un aviso, es una skill que NO carga.
 
 Ejecutar: python3 -m pytest -q tests/test_export_interop.py   (o `python3 tests/test_export_interop.py`)
@@ -304,11 +304,11 @@ def test_generados_llevan_marca():
 
 # --------------------------------------------------------------------- 3. invariantes
 
-def test_reviewer_sigue_siendo_solo_lectura():
-    """El invariante «un revisor que puede escribir deja de ser revisor», en los dos runtimes."""
+def test_reviewer_no_declara_sandbox_independiente_inexistente():
+    """Codex 0.161.0 conserva permisos del padre: el TOML no impone read-only."""
     with open(os.path.join(ROOT, "interop", "codex", "agents", "reviewer.toml"), "rb") as f:
         codex = tomllib.load(f)
-    assert codex.get("sandbox_mode") == "read-only", "reviewer sin sandbox de solo lectura en Codex"
+    assert "sandbox_mode" not in codex, "Codex ignora este campo por rol; no debe exportarse como protección"
     bloque, _ = MOD.partir_frontmatter(leer("interop/opencode/agents/reviewer.md"))
     assert re.search(r"^\s+edit: deny$", bloque, re.M), "reviewer con `edit` permitido en OpenCode"
 

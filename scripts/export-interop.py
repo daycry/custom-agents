@@ -101,9 +101,8 @@ PRE_COMANDO = """> **Adaptación a {runtime}** (fichero generado; la fuente es `
 > Las skills se invocan {skills}. Todo lo demás (puertas, artefactos, ledger) no cambia.
 """
 
-# Guardrail por agente: qué se pierde y qué se puede recuperar en cada runtime. Honestidad
-# explícita — un hook `PreToolUse` con `deny` de alcance por-agente solo existe en Claude Code
-# (ADR-007), así que aquí el agente lo aplica él mismo o el sandbox lo cubre en parte.
+# Política actual por rol. El despacho nativo está probado en fixtures propias,
+# pero su conexión a la distribución sigue pendiente.
 GUARDRAIL_CON_HOOK = {
     "implementer": ("el hook de guardia `implementer-guardrail.sh` (alcance en `docs/roadmap/`, rama de "
                     "trabajo, git no destructivo) **no está impuesto** en este runtime. Antes de un "
@@ -116,9 +115,16 @@ GUARDRAIL_CON_HOOK = {
                   "este runtime: es tu responsabilidad no tocar nada más. Puedes verificarlo con "
                   "`agent-kits/shared/guardrail-check.py pre-tool --agent architect`."),
 }
-GUARDRAIL_SOLO_LECTURA = ("eres de SOLO LECTURA por construcción. Aquí se declara además en la "
-                          "configuración del agente (`sandbox_mode`/`permission`), pero la regla es la "
-                          "misma: si crees que hay que cambiar algo, es un gap para tu salida.")
+GUARDRAIL_SOLO_LECTURA = {
+    "Codex": ("tu responsabilidad es revisar sin modificar archivos. El subagente usa los permisos "
+              "heredados del padre: su TOML no impone un sandbox de solo lectura independiente. "
+              "Una sesión padre con permisos de escritura también permite escribir al subagente. "
+              "Si hace falta cambiar algo, devuelve el gap al implementador."),
+    "OpenCode": ("tu responsabilidad es revisar sin modificar archivos; el agente declara "
+                 "`permission.edit: deny`. Esto restringe las herramientas de edición sujetas a "
+                 "ese permiso, no toda posible escritura desde una shell. Si hace falta cambiar "
+                 "algo, devuelve el gap al implementador."),
+}
 GUARDRAIL_NINGUNO = "este agente no tiene hook de guardia propio; se aplican los guardrails del proyecto."
 
 DELEGAR = {
@@ -185,10 +191,10 @@ def tools_de(bloque):
     return [t.strip() for t in campo(bloque, "tools").split(",") if t.strip()]
 
 
-def guardrail_de(nombre, tools):
+def guardrail_de(nombre, tools, runtime):
     if nombre in GUARDRAIL_CON_HOOK:
         return GUARDRAIL_CON_HOOK[nombre]
-    return GUARDRAIL_NINGUNO if (set(tools) & HERR_ESCRITURA) else GUARDRAIL_SOLO_LECTURA
+    return GUARDRAIL_NINGUNO if (set(tools) & HERR_ESCRITURA) else GUARDRAIL_SOLO_LECTURA[runtime]
 
 
 # --- Serialización ------------------------------------------------------------------------------
@@ -383,7 +389,7 @@ def codex_hooks_json(root):
 
 def codex_agente(nombre, bloque, cuerpo):
     tools = tools_de(bloque)
-    pre = PRE_AGENTE_CODEX.format(nombre=nombre, guardrail=guardrail_de(nombre, tools))
+    pre = PRE_AGENTE_CODEX.format(nombre=nombre, guardrail=guardrail_de(nombre, tools, "Codex"))
     lineas = [cabecera("toml", "agents/%s.md" % nombre),
               "# Copia este fichero a `.codex/agents/` (proyecto) o `~/.codex/agents/` (usuario).\n",
               "name = %s" % toml_str(nombre),
@@ -391,10 +397,7 @@ def codex_agente(nombre, bloque, cuerpo):
     efecto = EFFORT_CODEX.get(campo(bloque, "effort"))
     if efecto:
         lineas.append("model_reasoning_effort = %s" % toml_str(efecto))
-    # Un agente sin herramienta de escritura es de solo lectura POR CONSTRUCCIÓN (reviewer): en
-    # Codex eso se declara, no se recuerda.
-    if not (set(tools) & HERR_ESCRITURA):
-        lineas.append('sandbox_mode = "read-only"')
+    # Codex 0.161.0 no proyecta sandbox_mode desde el TOML del rol; hereda permisos del padre.
     lineas.append("developer_instructions = %s" % toml_multi(pre + "\n" + cuerpo.lstrip("\n")))
     return "\n".join(lineas) + "\n"
 
@@ -432,7 +435,7 @@ def permisos_opencode(tools):
 
 def opencode_agente(nombre, bloque, cuerpo):
     tools = tools_de(bloque)
-    pre = PRE_AGENTE_OPENCODE.format(nombre=nombre, guardrail=guardrail_de(nombre, tools))
+    pre = PRE_AGENTE_OPENCODE.format(nombre=nombre, guardrail=guardrail_de(nombre, tools, "OpenCode"))
     pares = [
         ("description", json.dumps(campo(bloque, "description"), ensure_ascii=False)),
         # Todas las piezas del plugin son subagentes: las despacha un orquestador por nombre.
