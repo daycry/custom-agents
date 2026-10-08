@@ -9,6 +9,10 @@ y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Fixed — Integridad del checkpoint de sesión
+
+- Respetar el objeto journal desactivado al capturar turnos, rotar logs atómicamente con lectura acotada y serializar la reclamación de la cola entre consumidores. Las rutas de la CLI del journal usan `/` también en Windows. La validación del despacho nativo sigue en curso.
+
 ### Added — iniciativa `project-extensions` (2026-10-06)
 
 - **T-01 — Contratos y arquitectura de extensiones** Define contratos nativos y límites del reconocimiento de extensiones en los tres runtimes. (`docs/roadmap/2026-10-06-project-extensions/**`, `docs/roadmap/README.md`, `docs/INTEGRATION-ROADMAP.md`)

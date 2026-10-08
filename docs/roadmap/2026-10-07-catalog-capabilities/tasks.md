@@ -155,15 +155,15 @@ hooks, conexiones de backend ni utilidad de recuperación.
 
 ## Fase 2 — Integración
 
-**Estado**: borrador
+**Estado**: en-progreso
 
 ### T-08 — Diseño nativo de capacidades y workflow
 
-- **Estado**: borrador
+- **Estado**: en-progreso
 - **Descripción**: Convertir diferencias verificadas en destinos propios, opcionales y compartidos; cerrar diseño y acotar archivos antes de modificar producción.
 - **Dependencias**: Contratos T-02 y comparación pertinente T-03/T-04/T-05/T-06/T-07 por bloque; aceptación global tras completar esas tareas. Hooks/comandos/panel/memoria no esperan al contenido opcional aplazado.
 - **Archivos**: `docs/roadmap/2026-10-07-catalog-capabilities/**`
-- **Verificación**: Pendiente: design.md con alternativas y trazabilidad por ID; criterios útiles conservados y responsabilidades no duplicadas.
+- **Verificación**: design.md abre el bloque de integridad del checkpoint con defectos comprobados en captura/rotación, alternativas y criterios. Diseño restante de runtime/capacidades pendiente; no se declara consolidación global entregada.
 **Criterios de aceptación**:
   - [ ] Contrato y resultado de la tarea comprobados con evidencia ejecutada; límites y errores cubiertos.
 
@@ -171,11 +171,14 @@ hooks, conexiones de backend ni utilidad de recuperación.
 
 ### T-09 — Guardias y despacho nativo multi-runtime
 
-- **Estado**: borrador
+- **Estado**: en-progreso
 - **Descripción**: Implementar mecanismos reales por contrato y versión para Claude/Codex/OpenCode, incluido soporte V2; probar identidad, concurrencia y degradación.
 - **Dependencias**: T-02/T-08.
 - **Archivos**: `hooks/**`, `interop/**`, `agent-kits/shared/**`, `scripts/**`, `tests/**`, `agents/**`, `docs/**`
-- **Verificación**: Pendiente: RED antes del código, pruebas propias de bloqueo/allow por rol y carga/despacho nativos, sin frontmatter ignorado como garantía.
+- **Verificación**: Bloque de checkpoint implementado y revisado: opt-out coherente, rotación atómica/lectura acotada, CLI portable y reclamación exclusiva con identidad comprobada y errores de transacción visibles. QA final Windows: 200 passed/12 skipped; Linux: 212 passed. Launcher: 12 passed tras las correcciones. Cobertura ejecutable añadida combinada Windows/Linux: 50/53, 94,34%. Evidencia y límites en el segundo intento de revisión. Guardias por rol y carga/despacho nativos pendientes; no se da T-09 por completada.
+- **RED del bloque de checkpoint (2026-10-08)**: `test_journal.py -k 'capture_respeta_journal_en_forma_objeto or rotar_fallo_conserva_checkpoint or rotar_lee_solo_cola'`: 4 failed/1 passed, 150 deselected. `{activo: false}` creó un log; los fallos simulados de fsync/replace no conservaron el original; la rotación leyó el archivo completo (`read(-1)`). Evidencia obtenida antes de modificar producción.
+- **RED de compatibilidad Windows (2026-10-08)**: `test_journal.py -x -q`: 1 failed/4 passed; `test_write_sin_rastro_del_plugin_no_escribe_nada` recibió `docs\knowledge\journal\2026-10-08-sesion.md` en vez de la ruta relativa con `/`. Se amplía el bloque para normalizar la salida CLI, sin cambiar rutas internas.
+- **RED de reclamación exclusiva (2026-10-08)**: probe propio con trazas de `os.replace` reprodujo dos movimientos exitosos del mismo origen en Windows (iteración 2); el test de 100 reclamaciones concurrentes falló en la iteración 1 con dos ganadores. El test de cerrojo no disponible también falló: entregó el item en vez de mantenerlo pendiente. Se serializa la transacción de reclamación con cerrojo de SO no bloqueante; pendientes intactos si no se obtiene.
 **Criterios de aceptación**:
   - [ ] Contrato y resultado de la tarea comprobados con evidencia ejecutada; límites y errores cubiertos.
 
@@ -221,21 +224,21 @@ hooks, conexiones de backend ni utilidad de recuperación.
 
 ## Fase 3 — Verificación y cierre
 
-**Estado**: borrador
+**Estado**: en-progreso
 
 ### T-14 — QA funcional, cobertura y revisión
 
-- **Estado**: borrador
+- **Estado**: en-progreso
 - **Descripción**: Verificar aceptación completa y eficacia observable por escenario, carga nativa, regresiones, cobertura y revisión independiente por fase.
 - **Dependencias**: Verificar cada bloque entregado de T-09/T-11/T-12/T-13; aceptación global tras T-09/T-10/T-11/T-12/T-13, sin cerrar por una entrega parcial.
 - **Archivos**: `tests/**`, `evals/**`, `docs/roadmap/2026-10-07-catalog-capabilities/**`
-- **Verificación**: Pendiente: Windows/Linux/Edge, cobertura del diff ≥90%, evidencia nativa y A+B con C/D según selector, cero gaps pendientes.
+- **Verificación**: Bloque de checkpoint: Windows/Linux y launcher en verde, diff ejecutable 94,34%, A+B sin gaps pendientes en intento 2; qa-gate VERDE a partir de resultados pytest reales. Detalle al final del ledger. Pendientes para la iniciativa: despacho nativo, demás escenarios/capacidades, UI Edge y aceptación completa.
 **Criterios de aceptación**:
   - [ ] Contrato y resultado de la tarea comprobados con evidencia ejecutada; límites y errores cubiertos.
 
 ### T-15 — Limpieza, distribución y documentación
 
-- **Estado**: borrador
+- **Estado**: en-progreso
 - **Descripción**: Retirar recursos y callers sustituidos, refrescar dependencias/manifiestos/exports y docs ES/EN; comprobar referencias y nombres públicos.
 - **Dependencias**: Verificación del bloque pertinente de T-14 para docs/exports de cada entrega; aceptación global tras completar T-14.
 - **Archivos**: `skills/**`, `agents/**`, `commands/**`, `agent-kits/**`, `scripts/**`, `interop/**`, `.codex-plugin/**`, `.agents/plugins/**`, `.claude-plugin/**`, `docs/**`, `README.md`, `README.es.md`, `CLAUDE.md`, `tests/**`, `evals/**`
@@ -284,3 +287,84 @@ Al añadir la evidencia nativa de OpenCode, scope-check conserva 13 ficheros
 propios en alcance/cero fuera/cero avisos (14 cambiados contando settings
 excluidos). El scan público sigue sin hallazgos. Los digests y agregados del
 manifiesto y el enlace al método se contrastaron con el mapa privado: exit 0.
+
+## Revisión de dos lentes — intento 1: Fase 2 (T-08, T-09, T-14, T-15) — bloque de checkpoint
+
+Lentes A+B mediante subagentes de contexto fresco; no se dispone de la herramienta
+Agent del plugin en esta sesión. Selector contra 47e9ddc: C=false/D=false, sin
+avisos. Alcance: diez archivos propios/cero fuera; settings ajenos excluidos.
+No se ha revisado ni cerrado el resto de las tareas multi-runtime.
+
+| Criterio | Veredicto inicial | Evidencia |
+|---|---|---|
+| T-08: diseño previo, alternativas, bloque acotado | ✓ | design.md, criterios del primer bloque y pendientes explícitos |
+| T-09: opt-out booleano/objeto, privacidad, rotación acotada y atómica | ✓ | test_journal.py, casos capture/rotar y fallos fsync/replace |
+| T-09: CLI portable y reclamación exclusiva | ✓ | aserciones de rutas y cien contenciones en test_outbox.py |
+| Constitución: cerrojo sin seguir enlaces ajenos | ✗ | A-1, outbox.py reclamar abría .claim.lock sin validar |
+| Corrección: errores de transacción visibles | ✗ | B-1, excepción de processing/ dañado absorbida como None |
+| T-14: evidencia de pruebas y TDD | ✓ parcial | rojos registrados; Windows 198 passed/11 skipped y Linux 209 passed antes de estos fixes; cobertura final pendiente |
+| T-15: docs ES/EN, sin marca nueva, alcance declarado | ✓ | observability y changelogs bilingües; scope-check |
+| No cerrar tareas globales sin aceptación completa | ✓ | T-08/T-09/T-14/T-15 siguen en-progreso |
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| A-1 | Important | .claim.lock seguía symlink externo | T-09 | Corregido: lstat previo, O_NOFOLLOW donde existe y contraste descriptor/ruta antes del cerrojo; pendiente revalidación independiente | RED Linux: test_reclamar_rechaza_cerrojo_enlace_sin_abrirlo falla al abrir enlace; test_reclamar_rechaza_cerrojo_sustituido_antes_de_abrir falla Windows/Linux. GREEN dirigido: Linux 5 passed; Windows 4 passed/1 skipped (symlinks sin privilegio), 2026-10-08 |
+| B-1 | Important | except absorbía errores de _reclamar | T-09 | Corregido: captura solo errores de adquisición; transacción fuera del except y liberación en finally; pendiente revalidación independiente | RED test_reclamar_error_de_transaccion_no_parece_cola_vacia: DID NOT RAISE OSError en Windows/Linux; GREEN dirigido anterior incluye fallo observable y posterior recuperación, 2026-10-08 |
+
+Rojo de revisión antes de modificar producción: Windows 2 failed/1 skipped;
+Linux 3 failed, todos los casos dirigidos a los gaps. No hay deuda aceptada ni
+gaps rebatidos. Segundo intento y QA final del bloque pendientes. No se promueve
+conocimiento de otras tareas en progreso.
+
+Jira: planner local de evento gaps/actor reviewer/intento 1 devuelve ops=[];
+enabled no es true. No se publica nada externo.
+
+## Revisión de dos lentes — intento 2: Fase 2 (T-08, T-09, T-14, T-15) — checkpoint sin gaps pendientes
+
+A+B de contexto fresco revalidan solo las correcciones con la tabla completa del
+intento anterior. C/D siguen false según selector, sin avisos. No se reabre lo
+aprobado sin evidencia nueva. A-1/B-1 corregidos y verificados por ambas lentes;
+cero Critical, Important o Minor pendientes en este bloque.
+
+| Criterio corregido | Veredicto | Evidencia independiente |
+|---|---|---|
+| A-1: enlace rechazado e identidad contrastada antes de bloquear | ✓ | outbox.py:592–602; test_outbox.py:130,149. Lente A ejecuta Windows 4 passed/1 skipped y Linux 5 passed; el enlace sin privilegios de Windows se verifica en Linux |
+| B-1: errores de la transacción llegan al llamador y el cerrojo se libera | ✓ | outbox.py:611–620; test_outbox.py:119 verifica excepción, pendiente y recuperación. Lente B ejecuta Windows 4 passed/1 skipped |
+| Docs ES/EN y ámbito del bloque | ✓ | observability ES/EN explican enlaces, identidad y diagnóstico; tareas globales siguen en-progreso |
+
+QA final después de esas correcciones, 2026-10-08:
+
+- Python nativo Windows 3.13: journal/outbox completos, 200 passed/12 skipped,
+  141,05 s. Los skips corresponden a POSIX/permisos/enlaces no disponibles allí;
+  no acreditan ACL de NTFS. Python nativo Linux 3.14.4 en WSL Ubuntu: 212 passed,
+  135,23 s, sin skips; mismos pytest 9.1.1 y coverage 7.16.2, dependencias de
+  prueba aisladas en /tmp, sin instalación global.
+- coverage.py oficial mide ambos módulos; unión de líneas ejecutadas en ambos
+  sistemas intersectada con líneas añadidas ejecutables contra 47e9ddc:
+  journal 16/19, outbox 34/34, total 50/53 = 94,34% (umbral ≥90%). Las dos
+  líneas CLI ejecutadas en subprocess no se instrumentan y cuentan como ausentes;
+  no se extrapola cobertura a runtime nativo ni al resto del proyecto.
+- qa-gate VERDE: 412 passed, 0 failed/flaky/interrupted, 12 skipped. Entrada
+  normalizada desde los casos JUnit reales de esas dos ejecuciones pytest;
+  no se presenta como una ejecución de Playwright.
+- node --test tests/hook-runtime.test.mjs: 12 passed/0 failed, 33,05 s. Prueba
+  launchers/fixtures propios, incluida captura UTF-8 y cierre dentro de 3 s;
+  el adaptador OpenCode V1 invocado por fixture no acredita carga nativa V2,
+  ni este tiempo acredita el presupuesto de cierre por defecto de Claude.
+- tests/test_console_encoding.py + tests/test_roadmap_index.py: 512 passed
+  antes del registro final de revisión, 235,26 s.
+- Linter: cero errores/tres avisos históricos; export-interop --check: 54
+  archivos al día. Scope-check: diez propios/cero fuera/cero avisos; settings
+  ajenos excluidos. No se ejecutan scripts del corpus ni se activan backends.
+
+Evidencias brutas locales ignoradas: scratchpad/.venv/memory-{win,linux}.xml,
+coverage-memory-{win,linux}.json, memory-diff-coverage.json y memory-qa-gate.json.
+Son respaldos de este bloque, no distribución del plugin. La aceptación global
+de T-08/T-09/T-14/T-15 permanece abierta por los criterios restantes.
+
+Comprobación del registro final: test_roadmap_index 50 passed (0,97 s),
+ledger-lint cero incoherencias/cero avisos, diff --check limpio y scan de
+contenido/nombres de los diez archivos públicos sin marca de origen.
+Jira evento revision/actor reviewer/intento 2: ops=[], disabled; sin envíos.
+Este checkpoint se publica en feat/catalog-capabilities; el SHA final se
+contrasta con origin después del push, sin merge ni release.

@@ -78,6 +78,27 @@ Reverting the status line: remove the `statusLine` key from `.claude/settings.js
 
 ### Guarantee contract for durable `SessionEnd` capture
 
+Capture honors both `sesion.journal: false` and
+`sesion.journal: {"activo": false}`. At the size limit, rotation reads only
+the log tail and writes a private temporary file before replacing the original
+atomically. A write, fsync or replacement failure preserves the previous
+checkpoint. Abrupt termination may leave an ignored temporary file without
+truncating the original. The CLI outputs of `journal.py write` and `index`
+use relative paths with `/` on Windows as well.
+Envelope claims use a non-blocking OS lock, `.claim.lock`: msvcrt on Windows
+and flock on POSIX. Only its owner moves items; without the lock, items stay
+pending. The presence of the file does not mean the lock is held.
+Links are rejected, and descriptor identity is checked before locking it.
+A transaction failure reaches the caller for diagnosis instead of being
+treated as an empty queue.
+
+A declared 5 s timeout does not establish the time available to a Claude
+plugin hook: the default teardown budget is 1.5 s, and plugin timeouts do not
+increase it. In-process benchmark numbers exclude launcher/runtime startup.
+Native dispatch and total elapsed time must be checked per runtime before
+claiming a native capture guarantee.
+[Official SessionEnd contract](https://code.claude.com/docs/en/hooks#sessionend-input).
+
 `SessionEnd` leaves an atomic envelope; `SessionStart` (or `journal.py replay`/`recover` on demand)
 does the real materialization. The table below says what EACH way of ending a session guarantees —
 and what **nobody** guarantees:

@@ -143,6 +143,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 
 # Consola Windows (cp1252) o tuberías: reconfigurar ANTES de leer o imprimir nada (GOT-005).
@@ -316,7 +317,7 @@ _QUEUE_MARKER = ".custom-agents-journal"    # marcador: este directorio lo creó
 
 
 _CONTENIDO_DE_LA_COLA = frozenset(
-    {"outbox", "processing", "done", "dead-letter", ".gitignore", ".replay.lock", _QUEUE_MARKER,
+    {"outbox", "processing", "done", "dead-letter", ".gitignore", ".replay.lock", ".claim.lock", _QUEUE_MARKER,
      ".durabilidad-degradada", ".permisos-degradados", ".reclamacion-degradada"})
 
 
@@ -1303,19 +1304,32 @@ def log_path(root, session_id):
 
 
 def _rotar(path):
-    """Si el log supera LOG_MAX_BYTES, conserva los ÚLTIMOS ~½ LOG_MAX_BYTES cortando por línea."""
+    """Conserva la cola por líneas mediante reemplazo atómico; un fallo deja el original intacto."""
+    temporal = None
     try:
         if os.path.getsize(path) <= LOG_MAX_BYTES:
             return
+        tope = LOG_MAX_BYTES // 2
         with open(path, "rb") as fh:
-            data = fh.read()
-        cola = data[-(LOG_MAX_BYTES // 2):]
+            fh.seek(-tope, os.SEEK_END)
+            cola = fh.read(tope)
         salto = cola.find(b"\n")
-        cola = cola[salto + 1:] if salto != -1 else cola
-        with open(path, "wb") as fh:
+        if salto == -1:
+            return
+        cola = cola[salto + 1:]
+        fd, temporal = tempfile.mkstemp(prefix=os.path.basename(path) + ".tmp-",
+                                       dir=os.path.dirname(os.path.abspath(path)))
+        with os.fdopen(fd, "wb") as fh:
             fh.write(cola)
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.replace(temporal, path)
     except OSError:
         pass
+    finally:
+        if temporal:
+            with contextlib.suppress(OSError):
+                os.remove(temporal)
 
 
 def _purgar_logs(dirpath, excepto=None, ahora=None):
@@ -1351,7 +1365,7 @@ def capture(root, payload):
     if not proyecto_con_plugin(root):
         return None
     ses = _dev_sesion(root)
-    if ses.get("journal") is False or ses.get("captura") is False:
+    if not _journal_activo(root) or ses.get("captura") is False:
         return None
     texto = redactar(prompt.strip())
     if len(texto) > CAPTURA_MAX_CHARS:
@@ -2225,7 +2239,7 @@ def cmd_write(a):
         p, _ = escribir_sesion(a.root, a.session_id, a.reason, a.transcript, a.fuente, a.enrich, a.ia)
     if p is None:                       # sin rastro del plugin: silencio (exit 0, sin stdout)
         return 0
-    print(os.path.relpath(p, a.root))
+    print(os.path.relpath(p, a.root).replace(os.sep, "/"))
     return 0
 
 
@@ -2239,7 +2253,7 @@ def cmd_latest(a):
 def cmd_index(a):
     p = index(a.root)
     if p:
-        print(os.path.relpath(p, a.root))
+        print(os.path.relpath(p, a.root).replace(os.sep, "/"))
     return 0
 
 

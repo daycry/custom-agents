@@ -74,6 +74,27 @@ con el ledger canónico: **¿cómo va la iniciativa ahora mismo?** Todo determin
 
 Reversión de la statusline: quitar la clave `statusLine` de `.claude/settings.json`.
 
+La captura respeta tanto `sesion.journal: false` como
+`sesion.journal: {"activo": false}`. Al alcanzar el tope, la rotación lee
+solo la cola del log y la guarda en un temporal privado con reemplazo atómico.
+Si falla la escritura, el fsync o el reemplazo, conserva el checkpoint anterior.
+Un corte brusco puede dejar un temporal ignorado, sin truncar el original.
+La reclamación de envelopes usa un cerrojo de SO no bloqueante `.claim.lock`:
+msvcrt en Windows y flock en POSIX. Solo el dueño mueve items; sin cerrojo,
+quedan pendientes. La existencia del fichero no significa que esté ocupado.
+Se rechazan enlaces y se comprueba la identidad del descriptor antes de
+bloquearlo. Un fallo de la transacción se comunica al llamador para su
+diagnóstico; no se confunde con una cola vacía.
+Las salidas CLI de `journal.py write` e `index` usan rutas relativas con `/`
+también en Windows.
+
+El timeout declarado de 5 s no demuestra que un hook de plugin Claude
+disponga de ese tiempo: el presupuesto de cierre es 1,5 s por defecto y los
+timeouts de plugins no lo amplían. Los números del benchmark in-process no
+incluyen el arranque del launcher/runtime. El despacho y tiempo total deben
+comprobarse por runtime antes de atribuir una garantía nativa de captura.
+[Contrato oficial de SessionEnd](https://code.claude.com/docs/en/hooks#sessionend-input).
+
 ### Contrato de garantías de la captura durable de `SessionEnd`
 
 `SessionEnd` deja un envelope atómico; `SessionStart` (o `journal.py replay`/`recover` a demanda)

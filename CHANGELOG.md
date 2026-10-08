@@ -9,6 +9,10 @@ and versioning follows [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed — Session checkpoint integrity
+
+- Honor the disabled journal object during prompt capture, rotate logs atomically with bounded reads, and serialize queue claims across consumers. Journal CLI paths use `/` on Windows as well. Native runtime dispatch validation remains in progress.
+
 ### Added — `project-extensions` initiative (2026-10-06)
 
 - **T-01 — Extension contracts and architecture** Define native contracts and extension discovery limits across the three runtimes. (`docs/roadmap/2026-10-06-project-extensions/**`, `docs/roadmap/README.md`, `docs/INTEGRATION-ROADMAP.md`)

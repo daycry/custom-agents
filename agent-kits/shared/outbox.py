@@ -35,9 +35,9 @@ Contrato (todas las funciones son deterministas, no lanzan por errores de disco 
       `<clave>.json.intentos`), o va a `dead-letter/` con causa «reintentos agotados» al superar
       MAX_INTENTOS (revisión intento 1, gaps 1/22). Después mueve UN envelope pendiente de
       `outbox/` a `processing/` con `os.replace` (mismo nombre de fichero en origen y destino): la
-      exclusividad la da el sistema de ficheros, no un cerrojo propio — si dos procesos reclaman a
-      la vez, solo uno consigue mover el fichero (el `rename` del perdedor falla porque el origen
-      ya no existe) y el otro recibe `None`. Al mover, el mtime del destino se refresca a "ahora"
+      exclusividad la da un cerrojo de SO no bloqueante sobre `.claim.lock`; sin adquirirlo no
+      se entrega ningún item. Los renames por sí solos no garantizan exclusividad en todos los
+      filesystems. Al mover, el mtime del destino se refresca a "ahora"
       (gap 25 Critical de la revisión intento 2): el TTL de huérfanos se mide desde la RECLAMACIÓN,
       no desde la creación del envelope — sin esto, un envelope que esperó > `processing_ttl_s` en
       `outbox/` (el caso normal: `replay` corre horas después) se entregaba a DOS trabajadores a la
@@ -102,6 +102,7 @@ import math
 import os
 import re
 import shutil
+import stat
 import sys
 import tempfile
 import time
@@ -580,6 +581,46 @@ def _reclamar_huerfanos(dir_, ttl_s, claiming_ttl_s=CLAIMING_TTL_S):
 
 
 def reclamar(dir_, processing_ttl_s=PROCESSING_TTL_S, errores=None, claiming_ttl_s=CLAIMING_TTL_S):
+    """Serializa el barrido y claim con un cerrojo de SO no bloqueante; sin él, no entrega items."""
+    if not os.path.isdir(dir_):
+        return None
+    fd, unlock = None, None
+    try:
+        try:
+            path = os.path.join(dir_, ".claim.lock")
+            try:
+                previo = os.lstat(path)
+            except FileNotFoundError:
+                previo = None
+            if previo is not None and (not stat.S_ISREG(previo.st_mode) or previo.st_nlink != 1):
+                return None
+            fd = os.open(path, os.O_RDWR | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0), 0o600)
+            abierto, actual = os.fstat(fd), os.lstat(path)
+            # Windows no ofrece O_NOFOLLOW: comprobar identidad antes de bloquear el descriptor.
+            if (not stat.S_ISREG(actual.st_mode) or actual.st_nlink != 1
+                    or (abierto.st_dev, abierto.st_ino) != (actual.st_dev, actual.st_ino)):
+                return None
+            if os.name == "nt":
+                import msvcrt
+                msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
+                unlock = lambda: msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
+            else:
+                import fcntl
+                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                unlock = lambda: fcntl.flock(fd, fcntl.LOCK_UN)
+        except (OSError, ImportError):
+            return None
+        return _reclamar(dir_, processing_ttl_s, errores, claiming_ttl_s)
+    finally:
+        if unlock:
+            with contextlib.suppress(OSError):
+                unlock()
+        if fd is not None:
+            with contextlib.suppress(OSError):
+                os.close(fd)
+
+
+def _reclamar(dir_, processing_ttl_s=PROCESSING_TTL_S, errores=None, claiming_ttl_s=CLAIMING_TTL_S):
     """Reclama UN envelope pendiente: primero re-encola/dead-letter los huérfanos de `processing/`
     (gap 1; si se pasa una lista en `errores`, se le añaden los errores del barrido — gap 52 de la
     revisión intento 3: antes `_reclamar_huerfanos` los calculaba y `reclamar` los descartaba, así
@@ -601,10 +642,9 @@ def reclamar(dir_, processing_ttl_s=PROCESSING_TTL_S, errores=None, claiming_ttl
     lo lee ANTES que el mtime). Los candidatos con backoff pendiente (`no_antes_de` en el futuro,
     validado y con tope por `_no_antes_de_valido`, gap 26/51) se saltan.
 
-    La exclusividad frente a un segundo proceso concurrente la da el propio `os.replace`: el
-    origen desaparece con la primera reclamación que se ejecuta, así que la segunda falla con
-    `FileNotFoundError` (o `PermissionError` en Windows si el fichero ya no está) y se salta ese
-    candidato. Devuelve `None` si no hay nada pendiente, si todos los candidatos listados ya fueron
+    `reclamar` mantiene un cerrojo de SO durante esta transacción; los renames por sí solos
+    no garantizan exclusividad en todos los filesystems. Devuelve `None` si no hay nada pendiente,
+    si todos los candidatos listados ya fueron
     reclamados por otro proceso entre el `listdir` y el `replace`, si tienen backoff pendiente, o si
     ninguno pudo refrescar su mtime al reclamarlo. `claiming_ttl_s` (N-1 Critical) es el tope para
     recuperar un `.claiming` huérfano de una reclamación interrumpida a medias (ver
