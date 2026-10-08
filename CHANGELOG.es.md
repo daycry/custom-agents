@@ -9,6 +9,10 @@ y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Changed — Evidencia nativa de hooks y comparación operativa
+
+- Registrar pruebas nativas aisladas de Claude/Codex, límites de cierre y recuperación. Comparar paneles operativos y 18 cuerpos de comandos, con dependencias incompletas e integraciones propuestas explícitas.
+
 ### Fixed — Transporte OpenCode V2
 
 - Sustituir el adaptador V1 incompatible por un paquete local nativo con captura de peticiones, contexto acotado y captura durable al terminar la ejecución. Conservar permisos e instrucciones del usuario; retirar solo copias antiguas conocidas sin modificaciones. La validación de guardias nativas sigue abierta.

@@ -1,6 +1,6 @@
 # Contratos iniciales verificados — 2026-10-07
 
-Versiones locales, obtenidas con --version: Codex CLI 0.160.1, Claude Code
+Versiones iniciales, obtenidas con --version el 2026-10-07: Codex CLI 0.160.1, Claude Code
 2.1.287, OpenCode 2.0.12. Son versiones observadas, no mínimos de soporte
 definitivos. El plan todavía no acredita carga ni ejecución nativa de guardias.
 
@@ -21,6 +21,58 @@ No se infiere agent_type en PreToolUse Codex porque lo documente otro evento o
 Claude. No se usa una transcripción privada como interfaz estable de identidad.
 Los esquemas/código del runtime instalado y una prueba nativa deben resolver
 esas incógnitas antes de elegir el mecanismo de guardia.
+
+## Validación nativa Claude y Codex — 2026-10-08
+
+[claude-hook-evidence.json](claude-hook-evidence.json) registra fixtures
+headless propias de Claude 2.1.287 con binario fijado por hash, configuración
+y home temporales y modelo simulado en loopback. Contexto y captura UTF-8
+llegan al runtime. Con el presupuesto predeterminado falta el envelope
+terminal en la prueba fijada, aunque el checkpoint permanece; `recover`
+recupera el turno como recuperado_sin_cierre, exit 0. Con override de 5.000 ms
+la misma definición de hooks conserva contexto, captura y envelope.
+
+Un control propio SessionEnd espera 2.200 ms y declara timeout 5: se cancela
+con el presupuesto predeterminado y termina con override 5.000 ms antes de
+salir el padre. El resultado preliminar había completado una vez sin override;
+se conserva como observación histórica, sin garantía de fiabilidad.
+[Claude hooks](https://code.claude.com/docs/en/hooks) documenta presupuesto
+de 1,5 s, que el timeout de plugin no eleva, y la variable
+CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS. El override se aplicó únicamente a
+fixtures propias; no se añadió a configuración del consumidor. El cierre
+dentro del presupuesto predeterminado sigue pendiente de corrección.
+
+[codex-activation-evidence.json](codex-activation-evidence.json) separa dos
+versiones: el ejecutable instalado cambió de 0.160.1 a 0.161.0 durante las
+pruebas. La evidencia histórica conserva su hash/fuente y sus límites; las
+nuevas pruebas usan copia fijada de 0.161.0 y fuente oficial
+`979011409de0a60b52f179721948e65531d26144`.
+
+El instalador registra marketplace y enabled, pero la caché nativa sigue sin
+instalar y los hooks no cargan. `codex plugin add custom-agents@daycry --json`
+activa la caché; repetirlo refresca contenido de la misma versión.
+`plugin list --available --json` distingue installed de enabled. El alta
+escribe enabled=true en la configuración de usuario, incluso con false
+previo y override CLI false. No ofrece scope ni no-enable; remove borra caché
+y la entrada de usuario, por lo que no sirve de rollback inocuo.
+
+Tras instalar, contexto y captura Unicode funcionan con bypass de confianza
+solo en la fixture. Ese bypass no acredita revisión persistida del hash.
+En cuatro exec actuales no aparece envelope SessionEnd; un observador propio
+tampoco recibe el evento en tres ejecuciones. La lectura del runtime distingue
+ThreadUnsubscribe de shutdown de sesión; no se atribuye la ausencia a timeout
+ni se declara equivalente exec finalizado a SessionEnd emitido. El ciclo
+terminal efectivo y las guardias siguen pendientes.
+
+Un primer error de activación de 0.160.1 desapareció al repetir tras cambiar
+atributos de la copia privada. No se aisló la causa. La matriz posterior no
+fijó versión/hash y no demuestra necesidad de chmod. No se trasladó ese
+workaround a producción.
+
+T-08/T-09 deben corregir instalación sin sobrescribir la preferencia global
+al instalar para proyecto, separar declaración/caché/confianza/carga/ejecución
+en diagnóstico y panel, y validar cierre y allow/deny por rol en los tres
+runtimes. Ningún resultado de este bloque acredita integración terminada.
 
 ## Corpus reconciliado
 

@@ -61,7 +61,7 @@ hooks, conexiones de backend ni utilidad de recuperación.
 - **Descripción**: Contrastar esquemas y código de las versiones instaladas; resolver identidad, confianza, hooks y configuración OpenCode V2 antes de elegir mecanismos.
 - **Dependencias**: T-01.
 - **Archivos**: `docs/roadmap/2026-10-07-catalog-capabilities/**`
-- **Verificación**: OpenCode 2.0.12: fuente oficial fijada leída y carga nativa aislada ejecutada; adaptador V1 failed, control positivo active con hooks registrados, configuración V1/V2 normalizada y agentes de ambas formas cargados. Codex 0.160.1: esquema y constructor leídos, agent_id/agent_type opcionales en PreToolUse para ThreadSpawn, sin inferirlos de otro evento. runtime-probes.json/contracts.md conservan evidencia. Despacho/bloqueo, instrucciones efectivas, carga Codex y validación nativa Claude pendientes.
+- **Verificación**: Contratos iniciales OpenCode 2.0.12 y Codex 0.160.1 conservados en runtime-probes.json/contracts.md; transporte OpenCode V2 validado después, con guardias pendientes. Nuevas fixtures aisladas Claude 2.1.287 (binario fijado): contexto/captura UTF-8 positivos, envelope ausente con presupuesto predeterminado y presente con override propio 5.000 ms; control lento propio y recuperación de checkpoint ejecutados. Codex se actualizó a 0.161.0: nueva copia/fuente fijadas, caché ausente tras instalador, add activa pero cambia enabled global, contexto/captura positivos con bypass de fixture; evento terminal no observado en exec y causa pendiente. claude-hook-evidence.json y codex-activation-evidence.json separan versiones, resultados y límites. Confianza persistida, identidad/allow-deny por rol y cierre efectivo siguen pendientes.
 **Criterios de aceptación**:
   - [ ] Contrato y resultado de la tarea comprobados con evidencia ejecutada; límites y errores cubiertos.
 
@@ -124,11 +124,12 @@ hooks, conexiones de backend ni utilidad de recuperación.
 
 ### T-05 — Comparación de los 94 comandos
 
-- **Estado**: borrador
+- **Estado**: en-progreso
 - **Descripción**: Revisar intención, artefactos y despacho de comandos frente a los ciclos propios; identificar operaciones útiles y callers que cambiarían.
 - **Dependencias**: T-01/T-02.
 - **Archivos**: `docs/roadmap/2026-10-07-catalog-capabilities/**`
 - **Verificación**: Pendiente: fichas por ID, disparadores y escenarios positivos/negativos, con dueño por artefacto.
+- **Comparación operativa parcial (2026-10-08)**: 18/94 cuerpos de comandos leídos, recursos concretos y límites en comparisons/command-reading-evidence.json; quedan 76 cuerpos y closures pendientes. comparisons/operational-panel-commands.md propone consolidar contexto, diagnóstico, coste y criterios de workflow sobre dueños existentes. Cero fichas globales cerradas, cero integraciones y cero routing nativo probado por esta comparación; no se añaden skills.
 **Criterios de aceptación**:
   - [ ] Contrato y resultado de la tarea comprobados con evidencia ejecutada; límites y errores cubiertos.
 
@@ -139,6 +140,7 @@ hooks, conexiones de backend ni utilidad de recuperación.
 - **Dependencias**: T-01/T-02.
 - **Archivos**: `docs/roadmap/2026-10-07-catalog-capabilities/**`
 - **Verificación**: Triaje operativo iniciado con contratos/probes y valoración de memoria en operational-priorities.md. Comparación funcional completa, implementación y validación de despacho pendientes; la lectura dirigida no acredita eficacia.
+- **Paneles/comandos en paralelo (2026-10-08)**: Tres entradas de dashboard y recursos relacionados contrastados por lectura; IDs, hashes, rangos y fuentes propias en comparisons/panel-reading-evidence.json. Propuestas de proyección read-only, procedencia y desconocidos en comparisons/operational-panel-commands.md. Plataforma de readiness, servicios/almacenamiento del control operativo y fuente de observación compatible pendientes; cero fichas globales cerradas o integraciones nuevas.
 **Criterios de aceptación**:
   - [ ] Contrato y resultado de la tarea comprobados con evidencia ejecutada; límites y errores cubiertos.
 
@@ -164,6 +166,7 @@ hooks, conexiones de backend ni utilidad de recuperación.
 - **Dependencias**: Contratos T-02 y comparación pertinente T-03/T-04/T-05/T-06/T-07 por bloque; aceptación global tras completar esas tareas. Hooks/comandos/panel/memoria no esperan al contenido opcional aplazado.
 - **Archivos**: `docs/roadmap/2026-10-07-catalog-capabilities/**`
 - **Verificación**: design.md abre el bloque de integridad del checkpoint con defectos comprobados en captura/rotación, alternativas y criterios. Diseño restante de runtime/capacidades pendiente; no se declara consolidación global entregada.
+- **Diseño operativo en curso (2026-10-08)**: Panel de catálogo, diagnóstico de consumidor y roadmap conservan responsabilidades separadas. Handoff propuesto reutiliza journal/ledger; observaciones requieren fuente compatible antes de tasas. Codex add habilita globalmente aunque el destino sea proyecto; T-09 debe resolver caché nativa respetando el estado global previo, sin remove como rollback ni confundir installed con enabled. Estos destinos y restricciones no acreditan implementación.
 **Criterios de aceptación**:
   - [ ] Contrato y resultado de la tarea comprobados con evidencia ejecutada; límites y errores cubiertos.
 
@@ -179,6 +182,7 @@ hooks, conexiones de backend ni utilidad de recuperación.
 - **RED del bloque de checkpoint (2026-10-08)**: `test_journal.py -k 'capture_respeta_journal_en_forma_objeto or rotar_fallo_conserva_checkpoint or rotar_lee_solo_cola'`: 4 failed/1 passed, 150 deselected. `{activo: false}` creó un log; los fallos simulados de fsync/replace no conservaron el original; la rotación leyó el archivo completo (`read(-1)`). Evidencia obtenida antes de modificar producción.
 - **RED de compatibilidad Windows (2026-10-08)**: `test_journal.py -x -q`: 1 failed/4 passed; `test_write_sin_rastro_del_plugin_no_escribe_nada` recibió `docs\knowledge\journal\2026-10-08-sesion.md` en vez de la ruta relativa con `/`. Se amplía el bloque para normalizar la salida CLI, sin cambiar rutas internas.
 - **RED de reclamación exclusiva (2026-10-08)**: probe propio con trazas de `os.replace` reprodujo dos movimientos exitosos del mismo origen en Windows (iteración 2); el test de 100 reclamaciones concurrentes falló en la iteración 1 con dos ganadores. El test de cerrojo no disponible también falló: entregó el item en vez de mantenerlo pendiente. Se serializa la transacción de reclamación con cerrojo de SO no bloqueante; pendientes intactos si no se obtiene.
+- **RED nativo de instalación/cierre (2026-10-08)**: Instalador real Codex deja marketplace/enabled pero plugin list lo muestra sin instalar; tras add hay contexto/captura, con efecto global comprobado incluso desde false previo. Claude fijado captura UTF-8/contexto pero no deja envelope con presupuesto predeterminado; misma definición con override propio 5.000 ms sí lo deja. Control SessionEnd propio 2.200 ms/timeout 5 cancela por defecto y completa con override. recover sobre checkpoint de sesión nativa terminada conserva el turno como recuperado_sin_cierre, exit 0. Producción intacta; no se aplica workaround chmod con causa no aislada. Evidencia y límites en contracts.md y JSONs nativos.
 **Criterios de aceptación**:
   - [ ] Contrato y resultado de la tarea comprobados con evidencia ejecutada; límites y errores cubiertos.
 
@@ -523,3 +527,58 @@ test_roadmap_index 50 passed; export-interop --check 55 al día; diff --check
 limpio. Scope-check: 28 archivos propios/cero fuera/cero avisos, settings ajenos
 excluidos y conservados. Scan de esos contenidos/nombres sin marca del corpus.
 El SHA publicado se contrasta con origin después del push a feat/catalog-capabilities.
+
+## Revisión de dos lentes — intento 1: Fase 1 (T-02, T-05, T-06, T-08, T-09, T-14, T-15) — evidencia operativa
+
+Lentes A+B por subagentes genéricos de contexto fresco: reviewer no disponible
+como herramienta nativa. Scope-check contra 90a41f8: diez archivos propios
+en alcance, cero fuera/cero avisos; settings ajenos excluidos y sin cambios.
+Selector C/D false: solo documentación/evidencia, sin producción modificada.
+
+| Criterio | Veredicto | Evidencia |
+|---|---|---|
+| Estados y alcance | ✓ | T-02/T-05/T-06/T-08/T-09/T-14/T-15 abiertas; aceptación global sin marcar |
+| Comparación semántica | ✗ inicial | C004 tenía destino de conversación incorrecto; gap deduplicado A/B-1 |
+| Constitución y dueños | ✓ | Sin segundo ledger, dependencias nuevas, escrituras ajenas ni acciones externas |
+| Evidencia y límites | ✓ | Fixtures Claude fijadas, recovery y 12 hashes Codex; versiones, bypass y ausencia de evento separados |
+| Exports y OpenAPI | n/a | No cambian hooks/agents/commands de producción ni spec API |
+| Prosa, privacidad y trazabilidad | ✓ | Enlaces válidos, sin nombres públicos prohibidos y dependencias pendientes explícitas |
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| A/B-1 | Important | C004 se consolidaba como conversación y perdía su contrato de checkpoints Git | T-05/T-08 | Separar C001 y C004; conservar SHA, diferencias de archivos y artefactos tests/cobertura en ledger/QA, sin stash/commit automático ni confundir con checkpoint de prompts. Corregido, pendiente de revisión independiente | Fuente C004:13–53 y propuesta privada coinciden; fila pública corregida |
+
+Comprobaciones documentales ejecutadas: pytest test_roadmap_index, 50 passed
+(0,10 s); ledger-lint cero incoherencias/cero avisos. Helper privado
+check_operational_evidence.py: 60 registros de origen y 18 propios con
+hash/bytes/líneas LF/rangos comprobados, 12 hashes privados Codex, cuatro
+fixtures Claude coincidentes, recovery positivo, 56 enlaces locales válidos,
+JSON/nombres públicos válidos y fuente fijada sin cambios; exit 0.
+Son pruebas de trazabilidad y estructura, no eficacia ni entrega funcional.
+TDD n/a: prosa/evidencia; los rojos nativos se conservaron en T-09. Sin
+producción modificada, la cobertura ejecutable del diff no aplica.
+
+## Revisión de dos lentes — intento 2: Fase 1 (T-02, T-05, T-06, T-08, T-09, T-14, T-15) — evidencia operativa sin gaps pendientes
+
+A+B por nuevos subagentes genéricos de contexto fresco, con tabla completa
+del intento anterior. Re-evaluación de la corrección y su traza; criterios
+aprobados conservados salvo evidencia nueva. C/D no aplican en este diff
+documental. Sin defectos restantes: cero Critical, Important o Minor.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| A/B-1 | Important | Destino incorrecto de C004 | T-05/T-08 | Corregido y verificado independientemente: C001 conversación; C004 anclas Git/evidencia en ledger/QA, límites y recursos pendientes | A2 y B2 contrastan fuente C004:13–53, propuesta privada y filas públicas 52–53 |
+
+Ambas lentes validan conservación de SHA, diferencias y artefactos tests/
+cobertura, ausencia de stash/commit automático, sin log duplicado y sin
+confundir journal con Git. No se promueven entradas de knowledge porque
+este bloque no crea ninguna. Jira-flow del intento 1: ops vacías, Jira
+desactivado; nada publicado. El intento 2 conserva la misma degradación.
+
+Los gates documentales del intento anterior siguen aplicando; la corrección
+solo cambia una fila de prosa. Comprobación final de ledger, correspondencia,
+JSON, enlaces, nombres y alcance antes del commit; no se atribuye a esta
+revisión QA funcional del plugin. Las tareas globales y el objetivo continúan
+en progreso. Próxima implementación: activar caché Codex conservando scope
+y preferencias, corregir cierre por defecto y probar el lifecycle terminal
+real antes de anunciar guardias o paridad entre runtimes.

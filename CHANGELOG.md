@@ -9,7 +9,11 @@ and versioning follows [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
-### Fixed ? OpenCode V2 transport
+### Changed — Native hook evidence and operational comparison
+
+- Record isolated native Claude/Codex findings, terminal-budget limits and recovery evidence. Compare operational panels and 18 command bodies while keeping incomplete dependencies and proposed integrations explicit.
+
+### Fixed — OpenCode V2 transport
 
 - Replace the incompatible V1 adapter with a native local package for prompt capture, bounded session context and durable execution-end capture. Preserve consumer permissions and instructions; retire only known unchanged legacy copies. Native guard validation remains open.
 

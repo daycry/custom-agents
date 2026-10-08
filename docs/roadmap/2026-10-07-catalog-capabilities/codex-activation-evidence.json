@@ -1,0 +1,114 @@
+{
+  "observed_at": "2026-10-08",
+  "historical_runtime": {
+    "version": "0.160.1",
+    "native_sha256": "9e7c59c05cc1ce5677b1f94e835b2ac038ca3be14504e78d558eacdb0ea3f55d",
+    "source_commit": "d27764b82f7118f674371e6d6e76271d9d606edb",
+    "installer_marketplace_and_enabled_only": "not installed; no hooks",
+    "native_add_initial_result": "os error 5 activating cache",
+    "native_add_retry_after_private_chmod": "succeeded",
+    "chmod_causal_explanation": "unproven; retry was not controlled",
+    "native_hook_positive": "context, prompt, SessionEnd envelope with bypass",
+    "unchanged_binary_snapshot_available": false
+  },
+  "current_runtime": {
+    "version": "0.161.0",
+    "native_sha256": "a0f89acca07a511734cac7fddee26b2106fab68918717bc90df16104a0760a30",
+    "pinned_private_binary": true,
+    "source_commit": "979011409de0a60b52f179721948e65531d26144",
+    "activation_without_chmod": "first add succeeded in a fresh own HOME/cache after installer, untrusted and bypass exec; no chmod",
+    "runtime_hook_positive": [
+      "SessionStart context delivered to model",
+      "UserPromptSubmit exact Unicode captured"
+    ],
+    "runtime_hook_negative": [
+      "No SessionEnd envelope in four current invocations",
+      "No native SessionEnd observer event in three modified-cache own invocations",
+      "No event after own archive; mechanism not isolated"
+    ],
+    "negative_is_timeout_proof": false,
+    "native_add_scope": "unconditionally enables plugin in user config; project config is separate",
+    "config_override_preserves_global_disabled": false,
+    "same_version_source_change_refreshed": true,
+    "native_installed_state": "plugin list --available --json has installed=true; enabled independent field"
+  },
+  "isolation": {
+    "own_home_and_project": true,
+    "loopback_only_provider": true,
+    "provider_credentials_inherited": false,
+    "authorization_header_present": false,
+    "trust_bypass_is_persisted_trust": false,
+    "consumer_config_mutated": false,
+    "reference_corpus_executed": false
+  },
+  "recommended_next_actions": [
+    "Preserve native user enabled entry during project cache activation with an explicit safe transaction; do not native remove as rollback",
+    "Do not add chmod production workaround without isolated runtime-specific reproduction",
+    "Verify SessionEnd current runtime through authoritative lifecycle events before claiming native closure",
+    "Doctor status must distinguish enabled configuration from actual installed cache"
+  ],
+  "private_evidence": [
+    {
+      "file": "activation-sequence-01/summary.json",
+      "sha256": "baba1c4b8e439d9d9bfa97a64dc80982a167049b9bdbdd7149808beee668e73e"
+    },
+    {
+      "file": "activation-sequence-01/scope-summary.json",
+      "sha256": "c5ca01aff7b079ae036573598f58d29133af922a9d30f7b12b46568c06fcaa61"
+    },
+    {
+      "file": "activation-sequence-01/terminal-161-summary.json",
+      "sha256": "f641005fe8e3590e28da83c2b152ef4eb9be864a4cbeb5efd98d3073ee08b16c"
+    },
+    {
+      "file": "activation-sequence-01/version-current.json",
+      "sha256": "d998581b90c3b0c79d620a5f2fc78bba97cc2f18379f9412ff2d37cd83c3effe"
+    },
+    {
+      "file": "activation-sequence-01/pinned-version.json",
+      "sha256": "7a73544589acf4aab14399da4dcee158d468bf91487fc53e097232a54326795e"
+    },
+    {
+      "file": "activation-sequence-01/first-add.json",
+      "sha256": "bc568bc6c5ed942d78175c2bee6feb0e9527f4790deccc47daa3b6af059200d6"
+    },
+    {
+      "file": "activation-sequence-01/list-json.json",
+      "sha256": "23f1ad310075a889b3e316d92b01ef65f0b5309efc2b5197935d5f48fe621615"
+    },
+    {
+      "file": "activation-sequence-01/no-daemon-exec.json",
+      "sha256": "5344417e398a43df7b458d090487cd7ed88f1171ec74c9321733ae3605950150"
+    },
+    {
+      "file": "activation-sequence-01/archive-own-thread.json",
+      "sha256": "adb9ee4b8707923ca79738c6a929af4f762281cf1ceb058db303d716d35326c0"
+    },
+    {
+      "file": "activation-sequence-01/add-global-false-cli-false.json",
+      "sha256": "29cbcd107c8cf217d32fb83f2a25b557047034067a7f2e7988717db9a3b06406"
+    },
+    {
+      "file": "activation-sequence-01/same-version-marker-one.json",
+      "sha256": "7180ed71f443df5b66f55f044afd559d7575682a00d8adb636bb1be41ca27dd3"
+    },
+    {
+      "file": "activation-sequence-01/same-version-marker-two.json",
+      "sha256": "b1d48c8cf4c2e78ca6a530346a692e475282015a5d8c721ede3a126a9e93aeb6"
+    }
+  ],
+  "unversioned_attributes_matrix": {
+    "cases": [
+      "none",
+      "files",
+      "directories"
+    ],
+    "native_add_exit_codes": [
+      0,
+      0,
+      0
+    ],
+    "version_and_hash_not_recorded": true,
+    "runtime_specific_cause_not_proven": true
+  }
+}

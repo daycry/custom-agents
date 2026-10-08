@@ -40,9 +40,23 @@ operativa no acredita completar la comparación de 455 piezas.
 Los [contratos](contracts.md) y [probes](runtime-probes.json) conservan gaps
 observados: frontmatter de guardias ignorado en agentes de plugin Claude,
 identidad opcional en PreToolUse Codex y carga V1 fallida en OpenCode V2.
-El control positivo V2 registra callbacks, pero no demuestra despacho.
+El control positivo V2 inicial solo registra callbacks. La entrega posterior
+ya valida transporte nativo de contexto, captura, write y cierre/replay;
+sus límites siguen en transport_validation de runtime-probes.json.
 El timeout declarado tampoco demuestra captura dentro del presupuesto de
-teardown. Esta repriorización no declara ninguno de esos gaps corregido.
+teardown. Claude y Codex tienen nuevas pruebas en claude-hook-evidence.json y
+codex-activation-evidence.json: el checkpoint se recupera aunque falte el
+cierre Claude; Codex necesita caché instalada además de enabled. El cierre
+por defecto, confianza y guardias siguen abiertos. Esta repriorización no
+declara completadas esas tareas.
+
+Trabajo paralelo del 2026-10-08: contratos/pruebas nativas por runtime y
+comparación estática de paneles/comandos. La
+[comparación operativa](comparisons/operational-panel-commands.md) delimita
+las tres entradas de dashboard, sus recursos y 18/94 cuerpos de comandos
+leídos. Dependencias pendientes, cero fichas globales cerradas y cero nuevas
+integraciones de ese bloque. Las propuestas reutilizan doctor, journal,
+ledger y medidor, con estados desconocidos y lectura como base.
 
 ## Memoria: valoración inicial y comprobaciones pendientes
 
