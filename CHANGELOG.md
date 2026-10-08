@@ -9,6 +9,14 @@ and versioning follows [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed — Approved memory retrieval
+
+- Include valid approved Markdown in local search, complete-entry views, declared relations and backend fallback. Preserve namespaced IDs, knowledge versions and evidence across the cache and plain reader; share local taxonomy and approved parsing without loading network services. Diagnose invalid corpora, ambiguous IDs and paths outside declared folders.
+
+### Changed — Session continuity evidence
+
+- Compare session command contracts and propose a read-only continuation view over the existing ledger and journal. Record four isolated Codex closure probes, including a guard degradation under child load; retain unsuccessful evidence without claiming a launcher fix or a three-second guarantee.
+
 ### Fixed — Memory capabilities and lifecycle documentation
 
 - Reconcile the existing Kwipu projection and opt-in Graphiti retrieval contracts, server provider guidance and local fallback. Distinguish runtime capture budgets from launcher startup; update lifecycle diagrams to match the distributed native guard dispatcher.

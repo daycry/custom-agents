@@ -16,7 +16,9 @@ description: >
 
 # knowledge-services — de `approved/` a un backend externo, sin acoplar el plugin a ninguno
 
-`docs/knowledge/approved/` es el origen canónico (Git, revisado, curado por `knowledge-curator`).
+`docs/knowledge/approved/` es el origen Markdown canónico, curado por `knowledge-curator`.
+Su versionado en Git depende de la política del proyecto; la memoria propia de este repositorio
+está excluida de Git. La recuperación local consulta tanto este corpus como ADR/GOT/LES legados.
 Esta skill lo **proyecta** hacia fuera mediante los adaptadores Kwipu y Graphiti; otros backends
 pueden declarar su propio `type` sin cambiar el núcleo (`knowledge-sync.py`). Instalar la skill
 no habilita ni configura ningún servicio externo.
@@ -44,6 +46,7 @@ no habilita ni configura ningún servicio externo.
 | `agent-kits/shared/knowledge-find.py` | Recuperación local y router por `--intent`: lectura externa autorizada o fallback local con motivo; lee `backends/README.md` al configurar esa lectura. |
 | `agent-kits/shared/knowledge-schema.py` | Taxonomía del proyecto (`taxonomy.json`), fail-closed. |
 | `agent-kits/shared/knowledge-index.py` | Índice de `approved/`. |
+| `agent-kits/shared/knowledge-local.py` + `knowledge-taxonomy-local.py` | Lectores compartidos sin red: corpus aprobado y reglas locales de taxonomía. |
 | `agent-kits/shared/outbox.py` | Staging/dead-letter reutilizado (CA-15), nunca reimplementado aquí. |
 | `agent-kits/shared/capabilities.py` | Registro de capacidades opcionales (`/setup`, `/doctor`, T-09). |
 

@@ -357,7 +357,7 @@
     {
       "id": "taxonomy_fallback",
       "mecanismo": "A",
-      "que_es": "Contenido por defecto de taxonomy.json (knowledge-services T-01/T-01-fix1, ADR-018): el respaldo embebido de knowledge-schema.py tiene que reflejar el MISMO contenido que la plantilla que se lee del disco, o `default_taxonomy()` devuelve datos distintos segun si `templates/taxonomy.json` viaja o no con el paquete.",
+      "que_es": "Contenido por defecto de taxonomy.json (knowledge-services T-01/T-01-fix1, ADR-018): el respaldo embebido unico de knowledge-taxonomy-local.py tiene que reflejar el MISMO contenido que la plantilla que se lee del disco, o `default_taxonomy()` devuelve datos distintos segun si `templates/taxonomy.json` viaja o no con el paquete. knowledge-schema.py reexporta su atributo de compatibilidad mediante delegacion estandar, sin otro literal ni binding copiado.",
       "canonico": "agent-kits/shared/templates/taxonomy.json",
       "copias": [
         {
@@ -366,7 +366,7 @@
           "fin": "]"
         },
         {
-          "ruta": "agent-kits/shared/knowledge-schema.py",
+          "ruta": "agent-kits/shared/knowledge-taxonomy-local.py",
           "inicio": "\"version\": 1,",
           "fin": "]",
           "sustituciones": [
@@ -380,7 +380,7 @@
           ]
         }
       ],
-      "guardarrail_previo": "agent-kits/shared/test_knowledge_schema.py::test_default_fallback_coincide_con_el_template (nuevo, compara ademas como DATOS, no solo como texto)"
+      "guardarrail_previo": "agent-kits/shared/test_knowledge_schema.py::test_default_fallback_coincide_con_el_template compara como DATOS el owner knowledge-taxonomy-local.py; tests/test_knowledge_approved_retrieval.py::test_a1_compatibility_fallback_is_forwarded_without_new_definition verifica identidad de reexport y linter sin definicion de respaldo en el wrapper"
     },
     {
       "id": "sanear_detalle",

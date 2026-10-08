@@ -21,6 +21,30 @@ un modelo o embedder desde el cliente. La configuración efectiva y el coste de 
 dependen del servidor; `provider.llm: none` omite esas instrucciones, sin desactivar por sí solo
 la extracción del servidor.
 
+## Autoridad y recuperación local
+
+El Markdown local es canónico. `knowledge-find.py` recupera ADR/GOT/LES legados y entradas
+válidas de `approved/` con su ID completo, versión, estado, evidencia y ruta. Query y relaciones
+JSON conservan `version` del conocimiento; `--show --json` conserva `version: 1` del envelope
+y añade `knowledge_version`. Las relaciones aprobadas incluyen sus enlaces declarados.
+
+La categoría determina el tipo de consulta, independientemente de la carpeta: DECISION →
+`adr`, GOTCHA/PATTERN → `gotcha`, LESSON → `leccion`; una categoría propia usa su etiqueta
+normalizada. `aprobado` comparte prioridad con `aceptada`, sin cambiar su estado almacenado.
+La caché SQLite es reconstruible y conserva los mismos metadatos que el recorrido plano.
+
+La lectura local usa reglas compartidas sin cargar adaptadores ni validar conexiones.
+Una configuración de servicio inválida no elimina la memoria local; una taxonomía local o
+corpus aprobado inválido excluye ese corpus con diagnóstico y conserva el legado válido.
+Se rechazan IDs aprobados duplicados y rutas fuera de las carpetas declaradas. Una colisión
+entre legado y aprobado hace fallar `--show`/`--related` en vez de elegir el primero.
+`candidates/` no participa. Validar carpeta, forma y estado no acredita aprobación humana
+o semántica; esta lectura no promueve entradas ni cambia la política del Curator.
+
+Los backends siguen siendo proyecciones opcionales. Una lectura externa autorizada conserva
+versiones válidas; errores o respuestas incompatibles degradan a la recuperación local con
+motivo. El versionado del Markdown en Git depende de la política del proyecto consumidor.
+
 ## Nombre de fichero
 
 `type` → `<type con "-" por "_">.py` (p. ej. `"markdown-export"` → `markdown_export.py`). Las

@@ -12,8 +12,16 @@ Sustituye «lee el índice de 3.685 tokens y decide» por «pregunta y recibe» 
   2. --related → grafo CURADO de una entrada (sucesión · misma iniciativa · misma área). NO cronología.
   3. --show    → la entrada completa.
 
-Corpus (fuente de verdad, en git): `<root>/docs/knowledge/{adr,gotchas,lessons}/*.md` más el índice
+Corpus local: `<root>/docs/knowledge/{adr,gotchas,lessons}/*.md` más el índice
 `docs/knowledge/README.md` — que aporta el `Área` y el titular de los ADR (su frontmatter no los lleva).
+También lee `docs/knowledge/approved/` según la taxonomía local compartida: únicamente entradas
+válidas con estado `aprobado`, IDs completos, evidencia y versiones canónicas. Un corpus approved
+inválido degrada al legado con diagnóstico; candidates nunca se consultan. No promueve entradas.
+DECISION/GOTCHA/PATTERN/LESSON se asignan por category a adr/gotcha/gotcha/leccion; categorías
+propias conservan category y usan su etiqueta normalizada en `--tipo`, independientemente del folder.
+`aprobado` comparte prioridad con `aceptada`. Related añade enlaces declarados sin inferir sucesión.
+JSON conserva version del conocimiento; show mantiene envelope version:1 y añade knowledge_version.
+La recuperación local no carga servicios; solo `--intent` permite el backend explícitamente opt-in.
 `<root>` = `--root` → `$CLAUDE_PROJECT_DIR` → directorio actual.
 
 Área y tipo se casan NORMALIZADOS (minúsculas, sin acentos, por token con prefijo), no por cadena
@@ -127,7 +135,7 @@ TITULAR_MIN_DURO = 12      # con la ruta abreviada, el área cede antes de bajar
 CARPETAS = (("adr", "adr"), ("gotchas", "gotcha"), ("lessons", "leccion"))   # carpeta → tipo
 TIPO_DE_PREFIJO = {"ADR": "adr", "GOT": "gotcha", "LES": "leccion"}
 TIPO_ORDEN = {"adr": 0, "gotcha": 1, "leccion": 2}
-ESTADO_ORDEN = {"aceptada": 0, "propuesta": 1, "obsoleta": 2}
+ESTADO_ORDEN = {"aceptada": 0, "aprobado": 0, "propuesta": 1, "obsoleta": 2}
 SINONIMOS_TIPO = {
     "adr": "adr", "adrs": "adr",
     "gotcha": "gotcha", "gotchas": "gotcha", "got": "gotcha",
@@ -193,9 +201,9 @@ PESO_CUERPO = 1
 CUERPO_REPETIDO = 3            # apariciones en el cuerpo a partir de las cuales suma un PESO_CUERPO más
 BONUS_TODAS_EN_CAMPOS = 3      # todas las raíces de la consulta casan en ID/titular/área
 INDICE_NOMBRE = "knowledge-index.sqlite"   # en <root>/.claude/ (+ .gitignore)
-INDICE_VERSION = "1"                        # entra en el hash: cambiar el esquema invalida el índice
+INDICE_VERSION = "2"                        # approved metadata adds cache columns; old caches rebuild
 CAMPOS = ("id", "tipo", "estado", "estado_detalle", "area", "titular", "ruta", "ruta_corta", "iniciativa",
-          "fecha", "sucesores", "sustituye", "texto")
+          "fecha", "sucesores", "sustituye", "texto", "version", "evidencia", "enlaces", "category")
 
 # --8<-- sanear_detalle (funcion) — REPLICADO LITERAL en las CINCO copias declaradas del bloque `sanear_detalle` de agent-kits/shared/copias.json
 # Gap #93 (Minor, fix5): la clase [\x00-\x1f\x7f] dejaba pasar tres familias que TAMBIEN
@@ -497,7 +505,50 @@ def ficheros_corpus(root):
                         out.append((f"{carpeta}/{fn}", f.read()))
                 except OSError:
                     continue
+    out.extend(_ficheros_approved(root))
     return out
+
+
+def _ficheros_approved(root):
+    """Validated local snapshot; service configuration never loads backend code here."""
+    if not os.path.isdir(os.path.join(root, "docs", "knowledge", "approved")):
+        return []
+    try:
+        reader = _cargar_modulo(os.path.join(HERE, "knowledge-local.py"), "kf_local")
+        config, _origin, _path, errors = reader._TAXONOMY.cargar_taxonomia(root)
+        records = {}
+        if not errors:
+            records, errors = reader.build_index(root, config=config, include_source=True)
+        if errors:
+            reason = _sanear_detalle(errors[0].get("mensaje"))
+            print(f"knowledge-find: approved no válido ({len(errors)} error(es)): {reason}; se sirve legado", file=sys.stderr)
+            records = {}
+        snapshot = {"config": config, "entries": records}
+        files = [("__approved_meta__.json", json.dumps(snapshot, ensure_ascii=False, sort_keys=True).encode("utf-8"))]
+        files.extend((meta["ruta_rel"], meta["texto"].encode("utf-8")) for meta in records.values())
+        return files
+    except Exception as exc:  # optional local corpus: a partial kit preserves legacy retrieval
+        print(f"knowledge-find: approved no disponible: {_sanear_detalle(exc)}; se sirve legado", file=sys.stderr)
+        return []
+
+
+def _entrada_approved(root_rel, meta):
+    """Normalize canonical metadata without shortening namespaced IDs or states."""
+    fm = meta["frontmatter"]
+    category = fm["category"]
+    tipo = {"DECISION": "adr", "GOTCHA": "gotcha", "PATTERN": "gotcha",
+            "LESSON": "leccion"}.get(category, normaliza(category))
+    tags = "- " + " - ".join(meta.get("tags") or [])
+    return {
+        "id": fm["id"], "tipo": tipo, "category": category, "version": meta["version"],
+        "estado": fm["estado"], "estado_detalle": fm["estado"],
+        "evidencia": meta.get("evidencia"), "enlaces": meta["enlaces"],
+        "area": fm.get("area") or _area_de_tags(tags),
+        "titular": fm.get("titulo") or _titular_del_cuerpo(meta["cuerpo"]),
+        "ruta": "docs/knowledge/" + root_rel, "ruta_corta": root_rel,
+        "iniciativa": iniciativa_de(fm, {}), "fecha": fm.get("fecha") or "",
+        "sucesores": [], "sustituye": [], "texto": meta["texto"], "origen": "proyecto",
+    }
 
 
 def hash_corpus(ficheros):
@@ -519,12 +570,20 @@ def parsear_corpus(ficheros):
         if rel == "README.md":
             for fila in parse_indice(_texto(data)):
                 filas_por_ruta[fila["ruta_rel"]] = fila
+    approved = {}
+    for rel, data in ficheros:
+        if rel == "__approved_meta__.json":
+            approved = json.loads(_texto(data))["entries"]
+    approved_by_path = {meta["ruta_rel"]: meta for meta in approved.values()}
     out = []
     for rel, data in ficheros:
         if rel == "README.md" or "/" not in rel:
             continue
         carpeta, fn = rel.split("/", 1)
-        out.append(leer_entrada(carpeta, tipo_de[carpeta], fn, _texto(data), filas_por_ruta))
+        if carpeta == "approved":
+            out.append(_entrada_approved(rel, approved_by_path[rel]))
+        else:
+            out.append(leer_entrada(carpeta, tipo_de[carpeta], fn, _texto(data), filas_por_ruta))
     return out
 
 
@@ -616,6 +675,9 @@ def _fila_a_entrada(row):
     e = dict(zip(CAMPOS, row))
     e["sucesores"] = json.loads(e["sucesores"] or "[]")
     e["sustituye"] = json.loads(e["sustituye"] or "[]")
+    e["enlaces"] = json.loads(e["enlaces"] or "[]")
+    if e["version"] is not None:
+        e["version"] = int(e["version"])
     return e
 
 
@@ -651,7 +713,7 @@ def construir_indice(path, entradas, h):
             con.executemany("INSERT INTO meta VALUES (?, ?)", [("hash", h), ("version", INDICE_VERSION)])
             con.executemany(
                 f"INSERT INTO entradas(orden, {', '.join(CAMPOS)}) VALUES ({', '.join('?' * (len(CAMPOS) + 1))})",
-                [(n,) + tuple(json.dumps(e[c], ensure_ascii=False) if c in ("sucesores", "sustituye") else e[c]
+                [(n,) + tuple(json.dumps(e.get(c, []), ensure_ascii=False) if c in ("sucesores", "sustituye", "enlaces") else e.get(c)
                               for c in CAMPOS) for n, e in enumerate(entradas)])
             con.executemany("INSERT INTO fts(id, titular, area, texto) VALUES (?, ?, ?, ?)",
                             [(e["id"], e["titular"], e["area"], e["texto"]) for e in entradas])
@@ -816,7 +878,7 @@ def buscar_enrutado(entradas, contexto="", tipo_tarea="", iniciativa="", tipo=""
     tipo_n = tipo_normalizado(tipo) if tipo else None
     out = []
     for e in entradas:
-        if tipo and (tipo_n is None or e["tipo"] != tipo_n):
+        if tipo and e["tipo"] != (tipo_n or (normaliza(tipo) if e.get("category") else None)):
             continue
         p = puntuacion_enrutado(e, claves, iniciativa)
         if p > 0:
@@ -840,7 +902,7 @@ def buscar(entradas, texto="", area="", tipo="", limit=LIMIT_DEFAULT, candidatos
     for e in entradas:
         if candidatos is not None and toks and e["id"] not in candidatos:
             continue
-        if tipo and (tipo_n is None or e["tipo"] != tipo_n):
+        if tipo and e["tipo"] != (tipo_n or (normaliza(tipo) if e.get("category") else None)):
             continue
         if area_toks and not filtra_area(e, area_toks):
             continue
@@ -910,6 +972,10 @@ def acierto_json(e):
     # renombrada — los consumidores del corpus local ven exactamente el mismo objeto que antes.
     if e.get("evidencia"):
         salida["evidencia"] = e["evidencia"]
+    if e.get("version") is not None:
+        salida["version"] = e["version"]
+    if e.get("category"):
+        salida["category"] = e["category"]
     return salida
 
 
@@ -981,11 +1047,15 @@ def _relaciones_area(entradas, e):
 
 def relaciones(entradas, e):
     """Las tres relaciones CURADAS de `e` (nunca cronología): sucesión, iniciativa, área."""
-    return {
+    result = {
         "sucesion": _relaciones_sucesion(entradas, e),
         "iniciativa": _relaciones_iniciativa(entradas, e),
         "area": _relaciones_area(entradas, e),
     }
+    if e.get("category"):
+        linked = set(e.get("enlaces") or [])
+        result["enlaces"] = sorted((x for x in entradas if x["id"] in linked), key=clave_orden)
+    return result
 
 
 def _linea_sucesion(rel, x, id_):
@@ -1006,6 +1076,8 @@ def texto_related(e, rel):
         (f"Misma área ({e['area']}):" if e["area"] else "Misma área (sin área):",
          [linea_compacta(x) for x in rel["area"]], e["area"]),
     ]
+    if "enlaces" in rel:
+        grupos.append(("Enlaces declarados:", [linea_compacta(x) for x in rel["enlaces"]], None))
     visibles = [min(len(ls), RELATED_MAX_POR_GRUPO) for _t, ls, _a in grupos]
 
     def render():
@@ -1036,6 +1108,8 @@ def json_related(e, rel, indice):
         "iniciativa": {"clave": e["iniciativa"], "aciertos": [acierto_json(x) for x in rel["iniciativa"]]},
         "area": {"clave": e["area"], "aciertos": [acierto_json(x) for x in rel["area"]]},
     }}
+    if "enlaces" in rel:
+        data["relaciones"]["enlaces"] = {"aciertos": [acierto_json(x) for x in rel["enlaces"]]}
     if indice.get("indice_motivo"):
         data["indice_motivo"] = indice["indice_motivo"]
     return data
@@ -1130,13 +1204,21 @@ def acierto_remoto(bruto, backend_id):
     de las `CLAVES_ACIERTO_REMOTO`."""
     if not isinstance(bruto, dict):
         return None
+    version = bruto.get("version")
+    if version is not None:
+        if isinstance(version, bool) or not isinstance(version, (int, str)):
+            return None
+        if isinstance(version, int) and version < 1:
+            return None
+        if isinstance(version, str) and (not version.strip() or _sanear_detalle(version) != version):
+            return None
     for clave in CLAVES_ACIERTO_REMOTO:
         valor = bruto.get(clave)
         if not isinstance(valor, str) or not valor.strip():
             return None
     # Gap #98: `_sanear_detalle` en CADA campo de origen backend (tope + sin controles/ANSI/bidi):
     # el adaptador ya sanea, pero el nucleo no puede fiarse de que TODO adaptador lo haga.
-    return {
+    result = {
         "id": _sanear_detalle(bruto["id"]).strip(),
         "tipo": _sanear_detalle(bruto.get("tipo") or bruto.get("categoria") or "").strip(),
         "estado": _sanear_detalle(bruto["estado"]).strip(),
@@ -1150,6 +1232,9 @@ def acierto_remoto(bruto, backend_id):
         "fecha": _sanear_detalle(bruto.get("fecha") or "").strip(),
         "origen": f"backend:{backend_id}",
     }
+    if bruto.get("version") is not None:
+        result["version"] = bruto["version"]
+    return result
 
 
 def filtrar_remotos(aciertos, tipo="", area=""):
@@ -1366,6 +1451,10 @@ def _modo_show(args, indice, corpus, e):
         data = {"version": VERSION_JSON, "indice": indice["indice"], "corpus": corpus, "id": e["id"], "tipo": e["tipo"],
                 "estado": e["estado"], "estado_detalle": e["estado_detalle"], "area": e["area"],
                 "titular": e["titular"], "ruta": e["ruta"], "origen": e.get("origen", "proyecto"), "contenido": e["texto"]}
+        if e.get("version") is not None:
+            data["knowledge_version"] = e["version"]
+        if e.get("evidencia"):
+            data["evidencia"] = e["evidencia"]
         if indice.get("indice_motivo"):
             data["indice_motivo"] = indice["indice_motivo"]
         print(json.dumps(data, ensure_ascii=False))
@@ -1386,6 +1475,9 @@ def _modo_related(args, entradas, indice, corpus, e):
 def _despachar_id(args, entradas, indice, root, corpus):
     """Capas 2 y 3 (`--related`/`--show`): resuelve el ID y despacha. Devuelve el exit code."""
     id_ = args.related or args.show
+    if sum(e["id"].upper() == id_.strip().upper() for e in entradas) > 1:
+        print(f"knowledge-find: ID ambiguo `{_sanear_detalle(id_)}` entre corpus locales; no se elige una entrada", file=sys.stderr)
+        return 1
     e = buscar_id(entradas, id_)
     if e is None:
         donde = DOCTRINA_REL if args.doctrina else os.path.join(root, "docs", "knowledge")

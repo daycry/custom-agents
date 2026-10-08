@@ -316,3 +316,48 @@ Se fija LF explícito y se verifica la relación completa en JSON, conservando
 el tope humano y su marcador de truncamiento. No cambia el lector de memoria.
 La QA final usa una copia de fuentes sin bytecode generado; el scanner de
 seguridad mantiene su política estricta sobre todos los archivos inspeccionados.
+
+## Bloque 8: cierre bajo carga y autoridad de recuperación local
+
+Base `b8e6192`. El objetivo vuelve a activo; nuevas skills siguen aplazadas.
+Se mantienen dos investigaciones independientes antes de modificar producción:
+diagnóstico causal de SessionEnd y auditoría de recuperación/governance local.
+
+El contraste de cierre usa dos fixtures frescas propias con idénticos hooks
+completos, observers, intérprete, instrumentación y presupuesto nativo de 3 s.
+Una completa un turno raíz; otra añade dos hijos nativos con una mutación
+protegida y una permitida por rol. La instrumentación se separa del atajo del
+stub que antes respondía directamente sin crear hijos. Se miden arranque del
+Node, bootstrap, captura, cleanup, observer y envelope antes de salida natural.
+Un éxito no acredita resolver el fallo histórico. Un par ambiguo admite solo
+un par adicional en orden inverso; se conservan todos los resultados.
+
+La revisión de memoria contrasta autoridad de `approved/`, documentos curados
+ADR/GOT/LES, recuperación local y proyecciones, con fuentes/tests exactos.
+No activa backend ni publica o promociona propuestas. Cualquier corrección
+necesita diseño de autoridad y tests RED antes de tocar el lector. La auditoría
+de comandos en paralelo delimita selección/retoma sin añadir otro almacén.
+
+### Recuperación aprobada: decisión de implementación
+
+La recuperación local incorporará `approved/` mediante un lector compartido
+sin capacidad de red. Se extraen las reglas locales de taxonomía y el lector
+aprobado de sus validadores actuales; no se copian parsers ni se importa el
+validador de servicios desde hooks. Schema/index/sync conservan validación
+completa de backends. Una configuración de servicio inválida no invalida la
+lectura Markdown local; una taxonomía local o corpus aprobado inválido sí
+degrada ese corpus con motivo explícito, conservando lectura legada válida.
+
+Las entradas approved conservan ID completo, versión, estado, evidencia y
+ruta canónica en query/show/related y fallback. Aciertos/related llevan versión
+de conocimiento; --show mantiene `version: 1` del envelope y añade
+`knowledge_version`. Caché y lectura plana tienen los mismos resultados;
+cambios de taxonomía o contenido invalidan la caché. No se leen candidatos ni
+rutas que escapen a las carpetas aprobadas declaradas. Colisiones de ID no
+eligen el primer archivo: se diagnostican, y show/related rechazan ambigüedad.
+
+No se migra memoria existente ni se cambia la política de promoción. Indexar
+forma/carpeta/estado no demuestra que una aprobación humana o semántica ocurrió.
+El límite entre propuestas, validación legada y escritura del Curator sigue
+como auditoría de gobierno pendiente. La extracción incluye distribución y
+registro de copias; tests RED preceden a producción y gate de diff ≥90 %.

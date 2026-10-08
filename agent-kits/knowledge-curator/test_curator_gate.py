@@ -518,7 +518,9 @@ def test_kit_compartido_solo_falta_knowledge_index_degrada_sin_traceback(monkeyp
     import shutil
     with tempfile.TemporaryDirectory() as shared_falso:
         shutil.copy(os.path.join(cg.SHARED, "knowledge-schema.py"), shared_falso)
+        shutil.copy(os.path.join(cg.SHARED, "knowledge-taxonomy-local.py"), shared_falso)
         # deliberadamente NO se copia knowledge-index.py
+        assert not os.path.exists(os.path.join(shared_falso, "knowledge-index.py"))
         monkeypatch.setattr(cg, "SHARED", shared_falso)
         with tempfile.TemporaryDirectory() as tmp:
             ruta = _escribir(tmp, "c.md", CANDIDATO_COMPLETO)

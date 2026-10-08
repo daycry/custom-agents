@@ -9,6 +9,14 @@ y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Fixed — Recuperación de memoria aprobada
+
+- Incluir Markdown aprobado válido en búsqueda local, vista completa, relaciones declaradas y respaldo del backend. Conservar IDs completos, versiones y evidencia en caché y recorrido plano; compartir taxonomía local y lector aprobado sin cargar servicios de red. Diagnosticar corpus inválidos, IDs ambiguos y rutas fuera de carpetas declaradas.
+
+### Changed — Evidencia de continuidad de sesión
+
+- Comparar contratos de comandos de sesión y proponer una vista de retoma de solo lectura sobre ledger y journal existentes. Registrar cuatro pruebas Codex aisladas de cierre, incluida una degradación de guardia bajo carga de hijos; conservar fallos sin declarar corregido el launcher ni garantizar tres segundos.
+
 ### Fixed — Capacidades de memoria y documentación del ciclo de sesión
 
 - Reconciliar la proyección Kwipu y la lectura opt-in Graphiti existentes, las indicaciones de proveedor al servidor y el respaldo local. Distinguir presupuestos de captura por runtime y arranque del launcher; actualizar diagramas con el dispatcher de guardias nativas distribuido.

@@ -1622,3 +1622,232 @@ siguen fuera de Git; el incidente de lectura del selector consta arriba.
 
 Este registro de entrega se incorpora en un commit documental separado.
 No se declara cerrada la iniciativa ni se inicia otra fase en esta entrega.
+
+## Bloque operativo 8 — cierre bajo carga y recuperación canónica
+
+El usuario reactiva el objetivo completo tras la entrega `b8e6192`. El turno
+anterior produjo progreso verificable: dos commits publicados y 438 tests verdes.
+Skills aplazadas; foco hooks/comandos/panel/memoria. Tres auditorías independientes
+en paralelo: causalidad del cierre, continuidad por comandos y gobierno local.
+No leen settings ajenos, conversaciones o journals ni ejecutan código del corpus.
+
+El contraste de cierre fija dos fixtures frescas y hooks completos iguales,
+variando solo actividad de dos hijos nativos frente a raíz. La instrumentación
+no corta el despacho del stub. Producción y límite de 3 s intactos hasta prueba
+causal. Es diagnóstico privado, TDD n/a; resultados y límites pendientes.
+
+Auditoría local identifica dos huecos funcionales: el corpus recuperado omite
+`approved/` y el router pierde `version`. Diseño de extracción y contrato
+aprobado en design.md. RED antes de producción: ocho fallos en
+`tests/test_knowledge_approved_retrieval.py` (1,45 s), approved-only ausente,
+show/related exit 1, fallback vacío, caché sin entradas y `KeyError: version`.
+Segundo RED: nueve fallos de corpus inválido, ambigüedad, independencia de
+config de servicio y traversal. Logs propios separados bajo
+`scratchpad/.venv/memory-approved-retrieval/audit-red-20261008-01/` y `-02/`.
+El diseño preserva legacy, estados y políticas de promoción; no activa backend.
+
+RED adicional `-03`: dos fallos demuestran que configuración/enabled de backend
+inválidos eliminaban la lectura local. RED `-04`: nueve fallos cubren categoría
+con carpeta propia, prioridad de aprobado, enlaces explícitos fuera del área,
+versiones remotas bool/list/dict/controladas y junction hacia candidatos.
+Estos casos preceden sus correcciones; los logs anteriores quedan intactos.
+
+### Contraste nativo bajo carga: resultado parcial
+
+[Evidencia de carga](session-closure-load-evidence.json): cuatro fixtures propias
+con Codex 0.161.0 y hooks completos. Los cuatro manifiestos contienen 326 archivos
+idénticos, comprobados en distribución y caché. SessionEnd del plugin informa
+`completed` en 1308/2338/1807/3075 ms; todos capturan un envelope de raíz correcto
+antes de salir naturalmente con código 0. Se conserva el 3075 tal como lo devuelve
+el runtime: no se declara cumplimiento estricto de tres segundos.
+
+La primera muestra con dos hijos permite crear `src/architect.txt` protegido:
+su guardia termina con entradas vacías después de expirar el presupuesto hijo,
+sin job header registrado. El mismo payload evaluado directamente devuelve
+deny. Hay líneas de trace intercaladas inválidas, preservadas con línea/hash;
+la ausencia de un stage no se trata como prueba absoluta. Los controles
+posteriores bloquean, pero varían turnos/tiempos y no prueban que cambiar de
+intérprete resuelva el fallo. No hay cambio de launcher, supervisor o guardia.
+La eficacia de guardias y la fiabilidad de cierre permanecen abiertas.
+
+### Comparación de continuidad sin otro almacén
+
+[Ficha de continuidad](comparisons/commands-session-continuity.md) y su evidencia
+registran lecturas de cuerpos, recursos y contratos propios. Proponen una
+fachada de retoma de solo lectura sobre journal/progress/ledger, con selección
+exacta y pruebas históricas distinguidas del estado vigente. No está implementada,
+no aumenta el conteo global de fichas ni crea aliases, servicios o fases nuevas.
+Las lecturas parciales y la cadena secundaria pendiente quedan explícitas.
+
+### Validación inicial conservada, sin aceptación prematura
+
+La primera cobertura Windows del snapshot de fuentes propio mide 460/499 líneas
+ejecutables añadidas (92,18 %). Ejecuta 407 passed/1 skipped/4 failed: tres fallos
+son dependencias ausentes de la copia (`evals/check.py` para copias declaradas),
+y uno hereda el Git ancestral de scratchpad. Esos resultados se conservan;
+el harness siguiente necesita dependencias completas y un Git propio antes
+de atribuir verde. El skip es una fixture symlink de Windows, por justificar
+con su identidad exacta en la evidencia final. Linux, sin memoria real, pasa
+las pruebas sintéticas de symlinks; los skips de corpus real no cuentan como
+validaciones ejecutadas de ese corpus.
+
+Lint del workspace detecta un alias `_TAXONOMY_FALLBACK` de compatibilidad sin
+fila de registro en schema. Evals: 51 piezas/182 casos, exit 0. Export interop
+--check: 56 archivos al día, exit 0. Portable privado: 189 archivos, check 0.
+Ledger: cero incoherencias/avisos. Estas comprobaciones no sustituyen la QA
+ni cierran la revisión del código; el lint rojo requiere corrección validada.
+
+## Revisión de dos lentes — intento 1: Fase 2 (T-07, T-08, T-14, T-15) — Bloque 8
+
+Lentes A+B+C por subagentes genéricos frescos: reviewer nativo no disponible;
+tier frontmatter opus/high, sin override. Scope contra `b8e6192`: exit 0,
+cero fuera/avisos; settings ajeno excluido. Selector con ocho archivos propios
+explícitos, excluyendo settings antes de leer: C true por SQL f-string con
+columnas constantes; D false. C verifica parametrización y contención sin
+hallazgos. A ejecuta export --check (56 archivos, exit 0). QA final pendiente.
+
+| Criterio | Veredicto | Evidencia |
+|---|---|---|
+| Recuperación, ID/version, categorías, enlaces, caché y respaldo local | ✓ | A/B leen diff completo y tests sintéticos; B ejecuta 36 passed |
+| TDD y límites de evidencia/estado global | ✓ | RED previos conservados; ningún T global cerrado |
+| Documentación bilingüe y generados | ✓ | Contrato/índices/FLOWS/changelogs; export --check 0 |
+| Registro de alias de compatibilidad | ✗ | A reproduce lint rojo en schema |
+| Nuevas aristas con puerta declarada | ✗ | A cita CONTRACTS regla de alta |
+| Datos opcionales incompatibles degradan sin perder legado | ✗ | B reproduce TypeError en query con/sin índice |
+| Helpers ausentes degradan sin traceback | ✗ | B contrasta CLI nuevo y base en kits propios |
+| Seguridad introducida | ✓ | C: SQL parametrizado, rutas contenidas, lector sin red; 11 tests propios passed |
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| A1-01 | Important | Alias `_TAXONOMY_FALLBACK` sin registro, schema:188 | T-07/T-15 | pendiente: binding declarado y test de identidad, sin copiar literal | lint dirigido y lint workspace rojo |
+| A1-02 | Important | find/index/schema → helpers no están en CONTRACTS | T-08/T-15 | pendiente: filas de contrato con puerta | CONTRACTS:11–12 y diff |
+| B1 | Important | `area: [test]` admitida en approved aborta también legado | T-07/T-14 | pendiente: validar campos usados por recuperación y degradar con motivo | reproducciones propias query/--no-index, find:549–552 |
+| B2 | Important | Kit parcial sin nuevos helpers aborta al importar | T-07/T-14 | pendiente: carga y API/CLI con diagnóstico | index:90/schema:54; contraste exacto con base |
+
+Fusión: cero Critical, cuatro Important, cero Minor. No se rebate ni rebaja
+ninguno. Producción congelada durante revisión; la siguiente corrección exige
+RED dedicado y otro intento antes de QA/entrega. Detalles privados A1/B1/C1
+preservados, sin publicar payloads ni contenido del consumidor.
+
+Jira del intento 1: plan `--event gaps --actor reviewer --task T-07,T-08,T-14,T-15
+--intento 1 --batch --json`, exit 0; desactivado, `ops: []`. Nada publicado.
+Corrección A1-02: CONTRACTS declara E25–E28 con firmas/resultados y suites
+ejecutables; incluye la arista interna local → taxonomy además de las tres
+aristas de consumidor. TDD n/a: documentación, pendiente revalidación A2.
+
+### Corrección del intento 1 con RED dedicado
+
+RED `-05`: trece fallos reproducen metadatos opcionales incompatibles en caché/
+recorrido plano y imports de helpers ausentes. RED `-06`: el test A1 demuestra
+la definición adicional del respaldo en schema. RED `-07`: cinco fallos de
+evidencia y tags incompatibles completan la frontera de metadatos consumidos.
+Logs originales separados y conservados. GREEN `-06`: 55 passed, 13,64 s.
+
+A1-01 se corrige mediante reexportación estándar `__getattr__`: el wrapper
+devuelve el mismo objeto del helper y no define otro respaldo. No se debilita
+el registro ni se fabrica una segunda copia; template/helper siguen siendo
+los únicos cuerpos comparados. El test dedicado verifica identidad y lint.
+B1 valida forma de etiquetas consumidas solo al recuperar; el índice completo
+conserva su política anterior. B2 captura carga fallida y devuelve diagnóstico
+en API/CLI; sin helper no finge validación ni copia el parser.
+
+Fuentes finales congeladas en `frozen-20261008-03`, con Git/HOME propios,
+dependencias de copias declaradas y sin memoria real/bytecode. QA Windows con
+JUnit y cobertura, QA Linux equivalente y revisión 2 siguen pendientes al
+escribir esta nota. No se altera la evidencia de snapshots rechazados.
+
+## Revisión de dos lentes — intento 2: Fase 2 (T-07, T-08, T-14, T-15) — Bloque 8 corregido
+
+Lentes A+B+C por subagentes genéricos frescos; traspaso completo del intento 1,
+sin reabrir aprobados ni hallazgos rebatidos (no hubo rebates). Scope exit 0;
+C aplica por el SQL de columnas constantes, D false. A ejecuta export --check:
+56 archivos al día, exit 0. Revisión anterior a la aceptación final de QA.
+
+| Criterio | Veredicto | Evidencia |
+|---|---|---|
+| A1-01: respaldo único y reexportación de compatibilidad | ✓ | A verifica identidad, ausencia de definición adicional y test de lint |
+| A1-02: contratos nuevos declarados y vigilados | ✓ | E25–E28, nueve columnas, puertas y docs correspondientes |
+| B1: metadatos inválidos conservan legado | ✓ | A/B: tipos solo include_source; B reproduce seis campos con/sin caché |
+| B2: kit parcial sin traceback | ✓ | B: helpers ausentes, SyntaxError y RuntimeError, API/CLI con diagnóstico |
+| TDD, docs bilingües, generados y límites globales | ✓ | A: RED -05/-06/-07, estados abiertos, --check 0 |
+| Seguridad introducida | ✓ | C: rutas fijas, delegación limitada, schema completo intacto, SQL parametrizado |
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| A1-01 | Important | Definición de respaldo adicional | T-07/T-15 | corregido | test A1; A2/B2 verifican forwarding al mismo objeto |
+| A1-02 | Important | Nuevas aristas ausentes | T-08/T-15 | corregido | CONTRACTS E25–E28, A2 verifica formato/puertas |
+| B1 | Important | Listas opcionales abortan recuperación | T-07/T-14 | corregido | tests B1; 21 escenarios B2, 19 tests dirigidos A2/B2 |
+| B2 | Important | Imports parciales abortan CLI | T-07/T-14 | corregido | tests B2 y fixtures independientes ausente/roto |
+
+Fusión: cero Critical/Important/Minor pendientes. C2 ejecuta 30 passed/25
+deselected en HOME propio; no confunde esa selección con la QA completa.
+No se promueve memoria ni se cierra ningún T global de esta iniciativa.
+
+### QA final del Bloque 8
+
+[Evidencia de recuperación](memory-approved-retrieval-evidence.json): Windows
+**430 passed/1 skipped**, 431 casos parametrizados y 377 identidades padre;
+Linux **405 passed/20 skipped**, 425 parametrizados y 384 identidades padre;
+paquete portable **15 passed**, cero skips. Cada cohorte tiene qa-gate VERDE,
+cero fallos/errores/flaky. Son suites dirigidas que se solapan entre plataformas;
+no se suman como tests únicos ni se presentan como toda la CI.
+
+Windows: Python 3.13.0/pytest 9.1.1/coverage 7.16.2, 220,73 s. Su único skip es
+`test_gap6_symlink_fuera_de_la_carpeta_aprobada_falla`, por permisos de symlink;
+las junctions propias y los symlinks Linux sí pasan. Los skips Linux requieren
+memoria real deliberadamente ausente: no acreditan validación de ese corpus.
+Linux: Python 3.11.16/pytest 9.1.1, 29,30 s, imagen propia fijada y red `none`.
+Ambas copias contienen exactamente las mismas 477 fuentes del manifiesto final;
+los ocho archivos implementados coinciden con sus fuentes actuales. Homes, TMP,
+Git y datos de memoria son propios; no settings o servicios del consumidor.
+
+Cobertura oficial del diff: **473/524 líneas ejecutables añadidas = 90,27 %**,
+supera el gate global ≥90 %. Las métricas por módulo se conservan sin inflarlas:
+los tests de wrappers parciales ejecutan copias byte idénticas fuera del filtro
+de fuente canónica, por lo que sus ramas no se atribuyen a esos módulos. No se
+afirma ≥90 % por archivo. Los rojos y resultados rechazados anteriores siguen
+identificados con hashes; los nuevos artefactos no los sobrescriben.
+
+Comprobaciones de entrega: lint workspace cero errores/tres avisos históricos,
+evals 51 piezas/182 casos y cero errores, interop 56 archivos al día, ledger cero
+incoherencias/avisos. Portable: 189 archivos/check 0 y ambos helpers byte idénticos.
+La copia de entrega tiene un cuarto aviso de modo ejecutable de hooks.json
+por metadatos de su Git vacío/NTFS; se conserva el log. El Git real declara su
+modo correcto y el lint real da los tres avisos anteriores, sin cambiar modos.
+Scan inicial de 874 fuentes públicas propias: cero referencias/nombres vetados;
+settings y memoria local se excluyen antes de leer. Evidencia final añadida
+después de esa copia; su scan y revisión de consistencia quedan para la entrega.
+
+Aceptación acotada: recuperación aprobada corregida, distribución validada,
+documentación y comparación/diagnóstico con límites explícitos. El fallo de
+guardia bajo carga, la eficacia nativa de memoria, benchmark Graphiti, propuesta
+de retoma y comparación general siguen abiertos. Nuevas skills aplazadas.
+Publicación pendiente al escribir este bloque; no se inicia otra fase.
+
+Jira del intento 2: `--event revision --actor reviewer --task T-07,T-08,T-14,T-15
+--intento 2 --batch --json`, exit 0; desactivado, `ops: []`. Nada publicado.
+
+### Consistencia y puertas antes de publicar
+
+Dos controles independientes frescos de la evidencia final verifican hashes,
+477 fuentes, mapas Windows/Linux, ocho fuentes actuales, XML/padres/skips,
+gates derivados de resultados reales y portable. Recalculan cobertura desde
+diff y JSON oficial: 473/524, 90,27 %, sin discrepancias ni gaps nuevos.
+No repiten suites ni ejecutan builders que reescriban evidencia.
+
+Scan final de 875 archivos públicos propios: cero referencias/nombres vetados;
+settings ajeno y memoria local excluidos antes de cualquier lectura. Los ocho
+hashes implementados siguen iguales al snapshot validado. Git declara
+hooks.json `100644`. Scope final: 26 archivos propios en alcance, settings
+excluido, cero fuera/avisos. Selector solo con ocho paths propios: C true por
+SQL de columnas constantes, D false, cero avisos. Ledger y diff --check: exit 0.
+La rama remota sigue en la base `b8e6192` antes de publicar; no hay cambios
+ajenos staged. Tras entregar los commits y verificar el remoto, se detiene
+este bloque conforme a la instrucción del usuario. El objetivo global no se
+declara completado y esta entrega no inicia otra fase.
+
+El check del índice al añadir helpers nuevos detecta dos líneas vacías al EOF,
+sin espacios finales ni defecto funcional. Se conserva ese diagnóstico y se
+comprueba con `git -c core.whitespace=-blank-at-eof diff --cached --check`:
+exit 0. La excepción es solo para esa preferencia de estilo y solo por llamada;
+no cambia configuración, fuentes validadas, gates del plugin ni sus hashes.

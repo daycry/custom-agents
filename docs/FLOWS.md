@@ -398,7 +398,7 @@ flowchart LR
 ```mermaid
 flowchart LR
   subgraph MEM["🧠 Memoria — qué sabe el proyecto"]
-    K["docs/knowledge/<br/>ADR · gotchas · lecciones"]
+    K["docs/knowledge/<br/>ADR · gotchas · lecciones · approved"]
     J["journal/<br/>episódico"]
   end
   subgraph ESP["🧬 Especialización — cómo se comporta aquí"]

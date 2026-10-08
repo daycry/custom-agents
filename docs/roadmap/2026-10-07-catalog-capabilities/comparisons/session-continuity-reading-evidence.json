@@ -1,0 +1,480 @@
+{
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "observed_on": "2026-10-08",
+  "own_baseline": "b8e6192fab8ecbe82c7e829e8164fb59ead40ed9",
+  "scope": "Directed session continuity comparison: C079/C085/C087, mandatory local resource chain, scoped callers and secondary C004",
+  "inventory_commands": 94,
+  "scope_command_bodies_read_complete": 4,
+  "session_command_bodies_read_complete": 3,
+  "scope_resources_read_complete": 6,
+  "scope_callers_read_partial": 2,
+  "complete_global_fiche_increment": 0,
+  "integrated_commands": 0,
+  "production_changed": false,
+  "tokens": null,
+  "latency_ms": null,
+  "records": [
+    {
+      "id": "C004",
+      "revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+      "sha256": "92926e49d18f18d52244f14d5f0962e69b2fc9c65dcf3b5775b1649a2aa494be",
+      "hash_match": true,
+      "bytes": 1622,
+      "lines": 78,
+      "ranges": [
+        [
+          1,
+          78
+        ]
+      ],
+      "model_read": "complete",
+      "boundary": "Secondary checkpoint body; verification chain remains open",
+      "execution": "not executed",
+      "semantic_complete": false,
+      "integrated": false
+    },
+    {
+      "id": "C079",
+      "revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+      "sha256": "b09bcb22feb10adbba50accd5dd97d09b60897aa94d05c6c12b6e579cb69cbac",
+      "hash_match": true,
+      "bytes": 8105,
+      "lines": 181,
+      "ranges": [
+        [
+          1,
+          181
+        ]
+      ],
+      "model_read": "complete",
+      "boundary": "Resume command body",
+      "execution": "not executed",
+      "semantic_complete": false,
+      "integrated": false
+    },
+    {
+      "id": "C085",
+      "revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+      "sha256": "a9488a8819d6c65fe4777f07ea72de6b0c4ee94f90c6bb33b3b8841916222db4",
+      "hash_match": true,
+      "bytes": 9702,
+      "lines": 275,
+      "ranges": [
+        [
+          1,
+          275
+        ]
+      ],
+      "model_read": "complete",
+      "boundary": "Save command body",
+      "execution": "not executed",
+      "semantic_complete": false,
+      "integrated": false
+    },
+    {
+      "id": "C087",
+      "revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+      "sha256": "87d9eccf2c89fc7dc26f79c83ea1713f3ef51bfe7357c6ff5fa2e09c2d76d5e0",
+      "hash_match": true,
+      "bytes": 14834,
+      "lines": 339,
+      "ranges": [
+        [
+          1,
+          339
+        ]
+      ],
+      "model_read": "complete",
+      "boundary": "Session selection command and inline resource callers",
+      "execution": "not executed",
+      "semantic_complete": false,
+      "integrated": false
+    },
+    {
+      "id": "R-6f176fdf443b",
+      "revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+      "sha256": "cbfac8b5aa349b01de0ddced7aeaea99a5df4e8306c3077ef08aacc4d5700555",
+      "hash_match": true,
+      "bytes": 16008,
+      "lines": 545,
+      "ranges": [
+        [
+          1,
+          545
+        ]
+      ],
+      "model_read": "complete",
+      "boundary": "Session record resource",
+      "execution": "not executed",
+      "semantic_complete": false,
+      "integrated": false
+    },
+    {
+      "id": "R-4cdf2ec0b48f",
+      "revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+      "sha256": "a601ab52fddf9b2d2010460815eb8820e14dce3268efca0dce79dd4bc4b6d2fc",
+      "hash_match": true,
+      "bytes": 12365,
+      "lines": 481,
+      "ranges": [
+        [
+          1,
+          481
+        ]
+      ],
+      "model_read": "complete",
+      "boundary": "Alias resource",
+      "execution": "not executed",
+      "semantic_complete": false,
+      "integrated": false
+    },
+    {
+      "id": "R-076e8356b72b",
+      "revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+      "sha256": "c9a84bd7993cb65e532a16b1872ce468b869ec40aac2d743aa03bcbf6a6dd5a8",
+      "hash_match": true,
+      "bytes": 21878,
+      "lines": 742,
+      "ranges": [
+        [
+          1,
+          742
+        ]
+      ],
+      "model_read": "complete",
+      "boundary": "Shared utility dependency, completed in this reading",
+      "execution": "not executed",
+      "semantic_complete": false,
+      "integrated": false
+    },
+    {
+      "id": "R-e004ae305ac0",
+      "revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+      "sha256": "0a39212f81838cd9756ade0048c296a6f79acf6dc8416ded6b15cd8c5be07ae8",
+      "hash_match": true,
+      "bytes": 7802,
+      "lines": 245,
+      "ranges": [
+        [
+          1,
+          245
+        ]
+      ],
+      "model_read": "complete",
+      "boundary": "Data root dependency",
+      "execution": "not executed",
+      "semantic_complete": false,
+      "integrated": false
+    },
+    {
+      "id": "R-4f8126d33200",
+      "revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+      "sha256": "542126cf47247161dd26713a1f33d34af2881db46435ac8ecef76a8be31c062c",
+      "hash_match": true,
+      "bytes": 2985,
+      "lines": 109,
+      "ranges": [
+        [
+          1,
+          109
+        ]
+      ],
+      "model_read": "complete",
+      "boundary": "Path containment dependency",
+      "execution": "not executed",
+      "semantic_complete": false,
+      "integrated": false
+    },
+    {
+      "id": "R-4a236023dc1d",
+      "revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+      "sha256": "c36f288d96abcbababfc3284f11ab807eb040853bcdf9b97dcd7ac77506df86c",
+      "hash_match": true,
+      "bytes": 7707,
+      "lines": 167,
+      "ranges": [
+        [
+          1,
+          167
+        ]
+      ],
+      "model_read": "complete",
+      "boundary": "Direct locator dependency of C087",
+      "execution": "not executed",
+      "semantic_complete": false,
+      "integrated": false
+    },
+    {
+      "id": "R-1e25c3ead298",
+      "revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+      "sha256": "7e26a5f0812a3717d053367d9b4db2f70e9d40434b7a05c849051266e8c1e75c",
+      "hash_match": true,
+      "bytes": 30775,
+      "lines": 840,
+      "ranges": [
+        [
+          1,
+          45
+        ],
+        [
+          700,
+          785
+        ]
+      ],
+      "model_read": "partial",
+      "boundary": "Scoped startup consumer; other imports and global hook fiche remain open",
+      "execution": "not executed",
+      "semantic_complete": false,
+      "integrated": false
+    },
+    {
+      "id": "C071",
+      "revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+      "sha256": "ccd0082c4df1395a272d735765a593891736c48a0bcfbf2f296f84eca5b8509b",
+      "hash_match": true,
+      "bytes": 14093,
+      "lines": 447,
+      "ranges": [
+        [
+          421,
+          442
+        ]
+      ],
+      "model_read": "partial",
+      "boundary": "Scoped caller of C085; product workflow fiche remains open",
+      "execution": "not executed",
+      "semantic_complete": false,
+      "integrated": false
+    }
+  ],
+  "own_baseline_reads": [
+    {
+      "path": "commands/work-context.md",
+      "baseline": "b8e6192fab8ecbe82c7e829e8164fb59ead40ed9",
+      "sha256": "830b5f37649bd1c8945013096e5930ca425a3c384e5d1dd52c1765f5f32821ec",
+      "bytes": 1610,
+      "lines": 25,
+      "ranges": [
+        [
+          1,
+          25
+        ]
+      ],
+      "model_read": "complete",
+      "boundary": "Only listed ranges are claimed; hash covers the entire file",
+      "execution": "not executed for this comparison"
+    },
+    {
+      "path": "agent-kits/shared/knowledge-check.md",
+      "baseline": "b8e6192fab8ecbe82c7e829e8164fb59ead40ed9",
+      "sha256": "bab98db4ee27fc074ff65252b92739bc913768fc9058e9a8caa9475c3041d1ac",
+      "bytes": 8910,
+      "lines": 104,
+      "ranges": [
+        [
+          1,
+          104
+        ]
+      ],
+      "model_read": "complete",
+      "boundary": "Only listed ranges are claimed; hash covers the entire file",
+      "execution": "not executed for this comparison"
+    },
+    {
+      "path": "agent-kits/shared/knowledge-write.md",
+      "baseline": "b8e6192fab8ecbe82c7e829e8164fb59ead40ed9",
+      "sha256": "9f35f672b961341de66b0cc1061ccb39ef38245fbe78f3629f0e168e800e336e",
+      "bytes": 8330,
+      "lines": 106,
+      "ranges": [
+        [
+          1,
+          106
+        ]
+      ],
+      "model_read": "complete",
+      "boundary": "Only listed ranges are claimed; hash covers the entire file",
+      "execution": "not executed for this comparison"
+    },
+    {
+      "path": "agent-kits/shared/journal.py",
+      "baseline": "b8e6192fab8ecbe82c7e829e8164fb59ead40ed9",
+      "sha256": "11af8ac4cb15f452c4a94443e3f487758d53ddb68ebc2831f07c76b4f9375c30",
+      "bytes": 115990,
+      "lines": 2153,
+      "ranges": [
+        [
+          1380,
+          1484
+        ],
+        [
+          1536,
+          1600
+        ],
+        [
+          1691,
+          1718
+        ],
+        [
+          2127,
+          2132
+        ]
+      ],
+      "model_read": "partial",
+      "boundary": "Only listed ranges are claimed; hash covers the entire file",
+      "execution": "not executed for this comparison"
+    },
+    {
+      "path": "agent-kits/shared/progress-report.py",
+      "baseline": "b8e6192fab8ecbe82c7e829e8164fb59ead40ed9",
+      "sha256": "54670550bac41af028dcb96b8d98d64e67924310b0ef72d435b03f91cb97ea03",
+      "bytes": 11090,
+      "lines": 287,
+      "ranges": [
+        [
+          209,
+          262
+        ]
+      ],
+      "model_read": "partial",
+      "boundary": "Only listed ranges are claimed; hash covers the entire file",
+      "execution": "not executed for this comparison"
+    },
+    {
+      "path": "hooks/session-context.sh",
+      "baseline": "b8e6192fab8ecbe82c7e829e8164fb59ead40ed9",
+      "sha256": "ddc28853490322ebf9f4caa316d92f2918ccc653f15fc548934676047b66f256",
+      "bytes": 18323,
+      "lines": 313,
+      "ranges": [
+        [
+          196,
+          236
+        ],
+        [
+          256,
+          292
+        ]
+      ],
+      "model_read": "partial",
+      "boundary": "Only listed ranges are claimed; hash covers the entire file",
+      "execution": "not executed for this comparison"
+    },
+    {
+      "path": "hooks/session-journal.sh",
+      "baseline": "b8e6192fab8ecbe82c7e829e8164fb59ead40ed9",
+      "sha256": "aa94df90b96c5a8254684dee709a01614c7ff190f5eef39885123f02be9898e0",
+      "bytes": 5389,
+      "lines": 73,
+      "ranges": [
+        [
+          1,
+          73
+        ]
+      ],
+      "model_read": "complete",
+      "boundary": "Only listed ranges are claimed; hash covers the entire file",
+      "execution": "not executed for this comparison"
+    },
+    {
+      "path": "agent-kits/shared/knowledge-find.py",
+      "baseline": "b8e6192fab8ecbe82c7e829e8164fb59ead40ed9",
+      "sha256": "a9850598679d713cfa1dab69bd1379392b3d48455fbfd9fc215f07bea40ab7a4",
+      "bytes": 79696,
+      "lines": 1538,
+      "ranges": [
+        [
+          86,
+          116
+        ],
+        [
+          1087,
+          1130
+        ],
+        [
+          1201,
+          1310
+        ],
+        [
+          1469,
+          1489
+        ]
+      ],
+      "model_read": "partial",
+      "boundary": "Only listed ranges are claimed; hash covers the entire file",
+      "execution": "not executed for this comparison"
+    }
+  ],
+  "dependency_edges": [
+    {
+      "caller": "C079",
+      "target": "C085",
+      "kind": "counterpart reference"
+    },
+    {
+      "caller": "C085",
+      "target": "C079",
+      "kind": "resume reference"
+    },
+    {
+      "caller": "C085",
+      "target": "R-6f176fdf443b",
+      "kind": "filename contract reference"
+    },
+    {
+      "caller": "C087",
+      "target": "R-6f176fdf443b",
+      "kind": "direct module load"
+    },
+    {
+      "caller": "C087",
+      "target": "R-4cdf2ec0b48f",
+      "kind": "direct module load"
+    },
+    {
+      "caller": "C087",
+      "target": "R-4a236023dc1d",
+      "kind": "direct module load"
+    },
+    {
+      "caller": "R-6f176fdf443b",
+      "target": "R-076e8356b72b",
+      "kind": "local import"
+    },
+    {
+      "caller": "R-4cdf2ec0b48f",
+      "target": "R-076e8356b72b",
+      "kind": "local import"
+    },
+    {
+      "caller": "R-076e8356b72b",
+      "target": "R-e004ae305ac0",
+      "kind": "local import"
+    },
+    {
+      "caller": "R-e004ae305ac0",
+      "target": "R-4f8126d33200",
+      "kind": "local import"
+    },
+    {
+      "caller": "R-1e25c3ead298",
+      "target": "R-4cdf2ec0b48f",
+      "kind": "scoped startup caller"
+    },
+    {
+      "caller": "C071",
+      "target": "C085",
+      "kind": "scoped workflow caller"
+    }
+  ],
+  "limits": [
+    "No source code executed and no native routing, probes, inference or external service validation performed.",
+    "Mandatory local resource chain read completely; operational hook and product callers read only at the listed boundaries. Their global fiches and unscoped dependencies remain open.",
+    "C004 verification dependency and cleanup policy remain open; it is not a completed checkpoint evaluation.",
+    "Complete body/resource reading does not equal integration, native activation, measured utility or global semantic closure.",
+    "Own large modules read only at the listed ranges; no complete memory or security audit claimed.",
+    "No consumer configuration or raw journal/transcript was read.",
+    "Public evidence contains no source filenames, source paths or source brand; private companion retains exact paths and hashes for review.",
+    "Proposed native command identity, selector schema and caller/export changes require T-08 ownership decision."
+  ]
+}
