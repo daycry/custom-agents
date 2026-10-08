@@ -25,6 +25,17 @@ y callers, no solo resúmenes extraídos. La auditoría de skills incluye todos 
 dominios del corpus; su incorporación concreta se decide por utilidad y solape.
 La memoria se compara aquí y se mide en fase 4 antes de modificar su gobierno.
 
+## Prioridad operativa del 2026-10-08
+
+Por petición del usuario, T-03/T-10 quedan aplazadas en 79/293 skills
+evaluadas. Se priorizan hooks, comandos, dashboard y memoria según
+[operational-priorities.md](operational-priorities.md). T-02/T-06/T-07
+alimentan primero el diseño y entrega de los bloques pertinentes; T-05 se
+aplica a los comandos de cada bloque. T-08/T-11/T-13 y sus verificaciones
+dependen del contenido que utilizan, sin esperar a todas las skills,
+agentes o integraciones opcionales. Se conserva la aceptación global de
+las 16 tareas, incluida la comparación pendiente para cuando se retome.
+
 T-08 traduce diferencias verificadas a un diseño sin duplicar roles ni gates.
 T-09 aborda guardias y contratos nativos antes de ampliar automatizaciones.
 Las tareas de integración pueden agrupar piezas relacionadas, conservando

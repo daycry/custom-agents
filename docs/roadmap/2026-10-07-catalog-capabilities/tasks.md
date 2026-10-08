@@ -16,6 +16,20 @@ cuando esté listo. Base 6187b12; rama feat/catalog-capabilities. No PR,
 integración en main ni release. Settings ajenos intactos y fuera del índice.
 Meter privado abierto; sin respuestas compatibles no se inventa consumo.
 
+Prioridad del usuario del 2026-10-08: hooks, comandos, dashboard y memoria.
+T-03/T-10 aplazadas en 79/293 skills evaluadas; quedan 214. S080–S082 tienen
+lectura privada parcial, no evaluación completada. Dependencias por bloque
+y valoración inicial de memoria en
+[operational-priorities.md](operational-priorities.md). No se cierra el
+objetivo ni se convierte la comparación restante en una entrega realizada.
+
+Comprobación de la repriorización: TDD n/a, solo documentación. 50 tests de
+test_roadmap_index pasaron (0,13 s); ledger-lint cero incoherencias/cero avisos;
+scope-check contra f8828f9, cuatro documentos en alcance/cero fuera, settings
+ajenos excluidos; 13 enlaces locales válidos y scan de nombres/contenido sin
+referencias prohibidas. Diff limpio. Estas puertas no prueban despacho de
+hooks, conexiones de backend ni utilidad de recuperación.
+
 ## Resumen de progreso
 
 | Fase | Completadas | Total | Progreso |
@@ -120,21 +134,21 @@ Meter privado abierto; sin respuestas compatibles no se inventa consumo.
 
 ### T-06 — Tools, MCP, hooks, reglas y workflows
 
-- **Estado**: borrador
+- **Estado**: en-progreso
 - **Descripción**: Comparar configuración y scripts realmente usados, dependencias y API, ejecución, permisos y aislamiento; evaluar soporte del control panel.
 - **Dependencias**: T-01/T-02.
 - **Archivos**: `docs/roadmap/2026-10-07-catalog-capabilities/**`
-- **Verificación**: Pendiente: inventario de recursos reconciliado y fichas funcionales; validaciones no ejecutadas señaladas explícitamente.
+- **Verificación**: Triaje operativo iniciado con contratos/probes y valoración de memoria en operational-priorities.md. Comparación funcional completa, implementación y validación de despacho pendientes; la lectura dirigida no acredita eficacia.
 **Criterios de aceptación**:
   - [ ] Contrato y resultado de la tarea comprobados con evidencia ejecutada; límites y errores cubiertos.
 
 ### T-07 — Arquitectura y candidatos de memoria
 
-- **Estado**: borrador
+- **Estado**: en-progreso
 - **Descripción**: Comparar recuperación, aprendizaje, persistencia y gobierno frente a memoria propia; delimitar los experimentos que exige la fase 4.
-- **Dependencias**: T-03/T-06.
+- **Dependencias**: Comparación pertinente de T-03 (S053–S054 ya disponible) y recursos de memoria de T-06; no espera a las skills aplazadas.
 - **Archivos**: `docs/roadmap/2026-10-07-catalog-capabilities/**`
-- **Verificación**: Pendiente: comparación de mecanismos y casos; no sustituir memoria ni declarar benchmark entregado.
+- **Verificación**: Valoración inicial en operational-priorities.md: Kwipu publica/verifica sin consulta enrutada; Graphiti expone consulta con puerta de salud/verificación y respaldo local. Lectura dirigida de adaptadores/router y comparación S053–S054, sin conexiones ni mediciones nuevas. Auditoría completa de mecanismos/casos y benchmark pendientes.
 **Criterios de aceptación**:
   - [ ] Contrato y resultado de la tarea comprobados con evidencia ejecutada; límites y errores cubiertos.
 
@@ -146,7 +160,7 @@ Meter privado abierto; sin respuestas compatibles no se inventa consumo.
 
 - **Estado**: borrador
 - **Descripción**: Convertir diferencias verificadas en destinos propios, opcionales y compartidos; cerrar diseño y acotar archivos antes de modificar producción.
-- **Dependencias**: T-03/T-04/T-05/T-06/T-07.
+- **Dependencias**: Contratos T-02 y comparación pertinente T-03/T-04/T-05/T-06/T-07 por bloque; aceptación global tras completar esas tareas. Hooks/comandos/panel/memoria no esperan al contenido opcional aplazado.
 - **Archivos**: `docs/roadmap/2026-10-07-catalog-capabilities/**`
 - **Verificación**: Pendiente: design.md con alternativas y trazabilidad por ID; criterios útiles conservados y responsabilidades no duplicadas.
 **Criterios de aceptación**:
@@ -178,7 +192,7 @@ Meter privado abierto; sin respuestas compatibles no se inventa consumo.
 
 - **Estado**: borrador
 - **Descripción**: Integrar procedimientos útiles y despacho en roles/ciclos propios; compartir selección y conservar puertas, artefactos y extensiones del proyecto.
-- **Dependencias**: T-08/T-09/T-10.
+- **Dependencias**: Diseño y despacho pertinentes de T-08/T-09; comandos requieren su comparación T-05. T-10 solo para consumidores de skills concretas; no bloquea el resto de comandos.
 - **Archivos**: `agents/**`, `commands/**`, `agent-kits/**`, `interop/**`, `evals/**`, `tests/**`, `docs/**`
 - **Verificación**: Pendiente: pruebas de transferencia entre fases, roles y briefs; exports al día y destinos de contenido comprobados.
 **Criterios de aceptación**:
@@ -198,7 +212,7 @@ Meter privado abierto; sin respuestas compatibles no se inventa consumo.
 
 - **Estado**: borrador
 - **Descripción**: Incorporar funciones útiles del control panel comparado al panel propio, con fuentes, métricas observadas y guardias declaradas/contrastadas diferenciadas.
-- **Dependencias**: T-06/T-08/T-09/T-10/T-11/T-12.
+- **Dependencias**: Comparación/diseño T-06/T-08 y contratos de los componentes mostrados de T-09/T-11/T-12; T-10 solo para altas concretas. No espera a todas las piezas opcionales.
 - **Archivos**: `skills/plugin-panel/**`, `commands/plugin-catalog.md`, `interop/**`, `evals/**`, `tests/**`, `docs/**`
 - **Verificación**: Pendiente: Edge escritorio/móvil/teclado, filtros y navegación, privacidad y ausencia de datos, sin anunciar un snapshot como servicio vivo.
 **Criterios de aceptación**:
@@ -212,7 +226,7 @@ Meter privado abierto; sin respuestas compatibles no se inventa consumo.
 
 - **Estado**: borrador
 - **Descripción**: Verificar aceptación completa y eficacia observable por escenario, carga nativa, regresiones, cobertura y revisión independiente por fase.
-- **Dependencias**: T-09/T-10/T-11/T-12/T-13.
+- **Dependencias**: Verificar cada bloque entregado de T-09/T-11/T-12/T-13; aceptación global tras T-09/T-10/T-11/T-12/T-13, sin cerrar por una entrega parcial.
 - **Archivos**: `tests/**`, `evals/**`, `docs/roadmap/2026-10-07-catalog-capabilities/**`
 - **Verificación**: Pendiente: Windows/Linux/Edge, cobertura del diff ≥90%, evidencia nativa y A+B con C/D según selector, cero gaps pendientes.
 **Criterios de aceptación**:
@@ -222,7 +236,7 @@ Meter privado abierto; sin respuestas compatibles no se inventa consumo.
 
 - **Estado**: borrador
 - **Descripción**: Retirar recursos y callers sustituidos, refrescar dependencias/manifiestos/exports y docs ES/EN; comprobar referencias y nombres públicos.
-- **Dependencias**: T-14.
+- **Dependencias**: Verificación del bloque pertinente de T-14 para docs/exports de cada entrega; aceptación global tras completar T-14.
 - **Archivos**: `skills/**`, `agents/**`, `commands/**`, `agent-kits/**`, `scripts/**`, `interop/**`, `.codex-plugin/**`, `.agents/plugins/**`, `.claude-plugin/**`, `docs/**`, `README.md`, `README.es.md`, `CLAUDE.md`, `tests/**`, `evals/**`
 - **Verificación**: Pendiente: linter, exports, evals, manifiestos, tamaño, copias y scan de marca sin hallazgos; cero aliases vacíos o callers obsoletos.
 **Criterios de aceptación**:

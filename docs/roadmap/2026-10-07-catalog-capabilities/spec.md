@@ -23,6 +23,12 @@ que sea la revisión más reciente del catálogo.
 
 ## Aceptación
 
+Prioridad del usuario del 2026-10-08: aplazar nuevas skills y avanzar por
+bloques de hooks, comandos, dashboard y memoria. El
+[punto de reanudación](operational-priorities.md) conserva las 79/293 skills
+evaluadas y define dependencias por bloque. El alcance final siguiente no
+se declara completado ni se elimina por ese cambio de secuencia.
+
 1. Reconciliar los 455 IDs/hashes existentes y enumerar recursos, tools, MCP,
    reglas, contextos, hooks, workflows y control panel de la revisión fijada.
    Fuentes originales y rutas de investigación se mantienen privadas; las
