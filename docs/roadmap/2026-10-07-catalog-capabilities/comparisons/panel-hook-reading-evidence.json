@@ -1,0 +1,190 @@
+{
+  "schema_version": 1,
+  "revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "source_audit_sha256": "1696a7ae32d86699aae47aeb331aa52a29fdb8c00999d7967b13f94631b596d7",
+  "reads": [
+    {
+      "id": "R-7b761940e6db",
+      "sha256": "686e865a6a2ffc35d15ac932f52d181b059e06daf06b7dd0bc3174402b94c813",
+      "bytes": 68144,
+      "lines": 954,
+      "ranges": [
+        [
+          1,
+          148
+        ],
+        [
+          480,
+          609
+        ],
+        [
+          689,
+          817
+        ]
+      ],
+      "model_read": "partial",
+      "execution": "not executed",
+      "semantic_complete": false,
+      "integrated": false
+    },
+    {
+      "id": "R-ec2c637e28f7",
+      "sha256": "65a4a24ec7a1780879490a6cc1a8a13b601e11be61da8dab5982aa487fc63150",
+      "bytes": 55632,
+      "lines": 1191,
+      "ranges": [
+        [
+          547,
+          627
+        ],
+        [
+          974,
+          1191
+        ]
+      ],
+      "model_read": "partial",
+      "execution": "not executed",
+      "semantic_complete": false,
+      "integrated": false
+    },
+    {
+      "id": "R-8ab9d88e012a",
+      "sha256": "4ad4c54fb7be1d0b543317a2874006784a390346ef8939b986d4ceb3fcd5ad17",
+      "bytes": 41621,
+      "lines": 956,
+      "ranges": [
+        [
+          39,
+          108
+        ],
+        [
+          751,
+          888
+        ]
+      ],
+      "model_read": "partial",
+      "execution": "not executed",
+      "semantic_complete": false,
+      "integrated": false
+    },
+    {
+      "id": "R-63a3f246ea91",
+      "sha256": "1f956ee3f98c43213b247d347389fb202c40bbab9e908a3fdc78b760f2891808",
+      "bytes": 11269,
+      "lines": 318,
+      "ranges": [
+        [
+          1,
+          318
+        ]
+      ],
+      "model_read": "complete",
+      "execution": "not executed",
+      "semantic_complete": false,
+      "integrated": false
+    },
+    {
+      "id": "R-2169b7ad85cf",
+      "sha256": "d43b6b19924b0d8e51384a91fc99008d9e759ea237ebb2e7dec4f653e97f1ce5",
+      "bytes": 15363,
+      "lines": 358,
+      "ranges": [
+        [
+          1,
+          358
+        ]
+      ],
+      "model_read": "complete",
+      "execution": "not executed",
+      "semantic_complete": false,
+      "integrated": false
+    },
+    {
+      "id": "R-eb81734c4b22",
+      "sha256": "2c2a07631930713a55b18c6e24f92eec22b020e12253f0e2464dea1d19340374",
+      "bytes": 15886,
+      "lines": 357,
+      "ranges": [
+        [
+          1,
+          357
+        ]
+      ],
+      "model_read": "complete",
+      "execution": "not executed",
+      "semantic_complete": false,
+      "integrated": false
+    },
+    {
+      "id": "R-c01714e02ad5",
+      "sha256": "bfc86bea11715af50f0f0a099bd38b5ad50c16ca937eb47ac8bb29d1bfb071e9",
+      "bytes": 8905,
+      "lines": 141,
+      "ranges": [
+        [
+          1,
+          141
+        ]
+      ],
+      "model_read": "complete",
+      "execution": "not executed",
+      "semantic_complete": false,
+      "integrated": false
+    },
+    {
+      "id": "R-76c4ca3b8cd8",
+      "sha256": "a6294088a8b539f3529db6253170734983a4b8e7247adfd176b2066a39249b2e",
+      "bytes": 2211,
+      "lines": 97,
+      "ranges": [
+        [
+          1,
+          97
+        ]
+      ],
+      "model_read": "complete",
+      "execution": "not executed",
+      "semantic_complete": false,
+      "integrated": false
+    },
+    {
+      "id": "R-aad1fe03e214",
+      "sha256": "3efcc93c9c631876f824e61f97945a8260fba9ad7ea14baffee3de0781b74bcb",
+      "bytes": 1801,
+      "lines": 57,
+      "ranges": [
+        [
+          1,
+          57
+        ]
+      ],
+      "model_read": "complete",
+      "execution": "not executed",
+      "semantic_complete": false,
+      "integrated": false
+    },
+    {
+      "id": "R-bd1a34e14842",
+      "sha256": "d148be4433d2c84d34d0a79ddbc43617c4d9a91d13a1137f5398f4dd181049ef",
+      "bytes": 4521,
+      "lines": 79,
+      "ranges": [
+        [
+          1,
+          79
+        ]
+      ],
+      "model_read": "complete",
+      "execution": "not executed",
+      "semantic_complete": false,
+      "integrated": false
+    }
+  ],
+  "scope": "Directed hook metadata and navigation comparison; three partial entrypoint rereads and seven complete resource rereads.",
+  "upstream_execution": false,
+  "consumer_settings_read": false,
+  "historical_reads_preserved": true,
+  "dependency_closure_claimed": false,
+  "global_dashboard_evaluation_complete": false,
+  "production_validation": "in progress; see task ledger"
+}

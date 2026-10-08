@@ -1,0 +1,329 @@
+{
+  "observed_on": "2026-10-08",
+  "base": "d3a2490a798485f5b0f982b6e04f2b55bd9c633b",
+  "scope": "Operational blocks 5/6: doctor priorities and runtime hook declarations in the panel/adapter",
+  "review_approved": true,
+  "review_attempt": 2,
+  "review_state": "A and B2 accepted; D1 retained on unchanged performance scope; B1 corrected, no pending gaps",
+  "sources": [
+    {
+      "file": "agent-kits/shared/doctor.py",
+      "sha256": "7fa850aea05f1395f7156cbc76666407bdab7b8cdd26586737764d0fdad7fe7c",
+      "sha256_lf": "d88aa8be838c00f808dd0e64c81ec2b1dccaeea85e858a629886f73e5debf261"
+    },
+    {
+      "file": "agent-kits/shared/test_doctor.py",
+      "sha256": "47793b469ecd7e00e4400e01e68d9eb0347238adf810d1c0b0af93ac4112d720",
+      "sha256_lf": "1efbd79a57d2b326ff1a36d2cbb120c8111d9d3e9cd4cc0b93a990f4005391a9"
+    },
+    {
+      "file": "skills/plugin-panel/scripts/build_panel.py",
+      "sha256": "523f1caba194879f587df4a80b41478348e245b7c0bfa62f62b6b9ec92a54d4b",
+      "sha256_lf": "523f1caba194879f587df4a80b41478348e245b7c0bfa62f62b6b9ec92a54d4b"
+    },
+    {
+      "file": "skills/plugin-panel/references/panel.html",
+      "sha256": "377387799bc68a99fa7d8b9efbb613c80a4fdfa12d379ab4417e388f0cdefbed",
+      "sha256_lf": "377387799bc68a99fa7d8b9efbb613c80a4fdfa12d379ab4417e388f0cdefbed"
+    },
+    {
+      "file": "hooks/opencode-plugin.js",
+      "sha256": "edff6dedef30057ab9defc44789587d404a4572c17f1b0b31a08c6925aaf4219",
+      "sha256_lf": "edff6dedef30057ab9defc44789587d404a4572c17f1b0b31a08c6925aaf4219"
+    },
+    {
+      "file": "tests/test_plugin_panel.py",
+      "sha256": "40214a253e9b76d4103ee61d588522e69c3eeca631eb6c8d3c3000702e602aaa",
+      "sha256_lf": "40214a253e9b76d4103ee61d588522e69c3eeca631eb6c8d3c3000702e602aaa"
+    },
+    {
+      "file": "tests/opencode-plugin.test.mjs",
+      "sha256": "7302fc476d4ed39b1483c976569d7e9b431f9778ec65b5924bf65f0c87f85439",
+      "sha256_lf": "7302fc476d4ed39b1483c976569d7e9b431f9778ec65b5924bf65f0c87f85439"
+    },
+    {
+      "file": "interop/opencode/plugins/custom-agents/index.js",
+      "sha256": "edff6dedef30057ab9defc44789587d404a4572c17f1b0b31a08c6925aaf4219",
+      "sha256_lf": "edff6dedef30057ab9defc44789587d404a4572c17f1b0b31a08c6925aaf4219"
+    }
+  ],
+  "canonical_reports": [
+    {
+      "id": "doctor-priorities-final-full-green.xml",
+      "sha256": "9e45689a1f7da67ea7be916378b87283cd52c9d91f20f9ea0ecf650b257cd78e",
+      "environment": "Windows",
+      "counts": {
+        "passed": 207,
+        "failed": 0,
+        "skipped": 1
+      },
+      "skips": [
+        {
+          "test": "test_hook_sin_bit_ejecutable_es_aviso_con_chmod",
+          "reason": "el bit +x por fichero no existe en Windows: chmod no lo quita y os.access(X_OK) miente; CI Linux es la puerta"
+        }
+      ]
+    },
+    {
+      "id": "doctor-linux-ba9b7f4a15f0/output/doctor-linux.xml",
+      "sha256": "0729afd211f0daaf70eca683c4bc08aef655eb5c1b11acf0b613f7e862950011",
+      "environment": "Linux offline",
+      "counts": {
+        "passed": 207,
+        "failed": 0,
+        "skipped": 1
+      },
+      "skips": [
+        {
+          "test": "test_status_stubs_no_dependen_de_pathext_del_host",
+          "reason": "PATHEXT is a Windows executable selector"
+        }
+      ]
+    },
+    {
+      "id": "dashboard-comparison/panel-runtime-filter-full.xml",
+      "sha256": "72551f12c13ea92d8eefa9017be9683971eaee8027723241f530c8fc9081930f",
+      "environment": "Windows",
+      "counts": {
+        "passed": 84,
+        "failed": 0,
+        "skipped": 2
+      },
+      "skips": [
+        {
+          "test": "test_symlinks_outside_bundle_are_never_read",
+          "reason": "symlinks unavailable"
+        },
+        {
+          "test": "test_linked_runtime_declaration_is_rejected",
+          "reason": "symlinks unavailable"
+        }
+      ]
+    },
+    {
+      "id": "panel-adapter-linux-final-8fb8dc5c4423/output/panel-final.xml",
+      "sha256": "c36e9f461f379b1cfea635c493ac8e7f3017a176221ef547470e44d67c7c7a2f",
+      "environment": "Linux offline",
+      "counts": {
+        "passed": 85,
+        "failed": 0,
+        "skipped": 1
+      },
+      "skips": [
+        {
+          "test": "test_windows_directory_junction_is_not_followed",
+          "reason": "Windows junction contract"
+        }
+      ]
+    },
+    {
+      "id": "dashboard-comparison/adapter-full-green.xml",
+      "sha256": "1665e0b86a0e32f6b03d1a8504c7f92f9145cf3b8647bdb8cd08967223c88491",
+      "environment": "Windows",
+      "counts": {
+        "passed": 19,
+        "failed": 0,
+        "skipped": 0
+      },
+      "skips": []
+    },
+    {
+      "id": "panel-adapter-linux-procps-image/output-lf/current-adapter-lf-full.xml",
+      "sha256": "b9560deafcff177fcc8e32c8a3e4e65aff5c3de04543a250dd6300cf08bb2c5a",
+      "environment": "Linux offline with procps/init and canonical LF",
+      "counts": {
+        "passed": 19,
+        "failed": 0,
+        "skipped": 0
+      },
+      "skips": []
+    },
+    {
+      "id": "dashboard-comparison/export-final.xml",
+      "sha256": "ec6d6d6275c090f49756791f27a0808febd7d328cb61f02ef060a1357c60f4a7",
+      "environment": "Windows",
+      "counts": {
+        "passed": 35,
+        "failed": 0,
+        "skipped": 0
+      },
+      "skips": []
+    },
+    {
+      "id": "browser-20761f6945/results.json",
+      "sha256": "fc396d163779d3e7312ae9f21b7e3167fb26a17e2c3a833499e9d2b690c66ee6",
+      "environment": "Edge / fresh Playwright profile",
+      "counts": {
+        "passed": 9,
+        "failed": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "id": "browser-f0c7ab08ef/results.json",
+      "sha256": "474b7b8e1e95e01613bd40004cc103d840fd2c1f79caf4fc9597144aa18b5742",
+      "environment": "Edge / fresh Playwright profile",
+      "counts": {
+        "passed": 4,
+        "failed": 0,
+        "skipped": 0
+      }
+    }
+  ],
+  "unique_test_identities": 361,
+  "qa_gate": {
+    "verdict": "VERDE",
+    "counts": {
+      "passed": 361,
+      "failed": 0,
+      "flaky": 0,
+      "skipped": 0,
+      "interrupted": 0
+    },
+    "flaky_sin_justificar": [],
+    "flaky_justificados": {},
+    "threshold": "verde ⟺ 0 failed, 0 flaky sin justificar, 0 interrumpidos y ≥1 test ejecutado"
+  },
+  "tdd": [
+    {
+      "id": "doctor-priorities-red.xml",
+      "sha256": "d717b90e5f4f97d0fcf702814cf0cf09e6ad8ea808f795ebdf5bbff9b354d7a9",
+      "cases": 10,
+      "failed": 10
+    },
+    {
+      "id": "doctor-priorities-order-red.xml",
+      "sha256": "5ff68e118b2a9db4524a953a3d90e304f72a96d27d390fc3628ce6c3422b129c",
+      "cases": 1,
+      "failed": 1
+    },
+    {
+      "id": "doctor-priorities-final-green.xml",
+      "sha256": "26757a0736c3304920d2557292a56bf25be6e6de93e96ea2e42dafdc8f28ca22",
+      "cases": 11,
+      "failed": 0
+    },
+    {
+      "id": "dashboard-comparison/panel-runtime-red.xml",
+      "sha256": "4e29c29cb88e951dd8a6fde56e720c4618e708202c7bfe64c3f9c8804c516d4b",
+      "cases": 17,
+      "failed": 17
+    },
+    {
+      "id": "dashboard-comparison/adapter-catalog-red.xml",
+      "sha256": "93d41ff8d73cb6c3e12efba61bdb3de8883a3def4252f373a9c0346563d0c8a8",
+      "cases": 3,
+      "failed": 3
+    },
+    {
+      "id": "dashboard-comparison/panel-runtime-filter-red.xml",
+      "sha256": "c1013303c9157085093b14741b4826e595d4338a82c4445246141a3d22e78752",
+      "cases": 3,
+      "failed": 3
+    },
+    {
+      "id": "dashboard-comparison/panel-runtime-filter-green.xml",
+      "sha256": "377ec2e1bac59f81ca7f8280274395552281e3da83e7eb6a4ff36bcecef58e16",
+      "cases": 3,
+      "failed": 0
+    }
+  ],
+  "coverage": [
+    {
+      "file": "agent-kits/shared/doctor.py",
+      "covered": 19,
+      "executable_added": 19,
+      "instrument": "coverage.py",
+      "report": "doctor-priorities-final-full-coverage.json",
+      "source_sha256_lf": "d88aa8be838c00f808dd0e64c81ec2b1dccaeea85e858a629886f73e5debf261",
+      "report_sha256": "6150d1b1738f4b0fca00309fd0a1b5850bb216a3c792ba486f024c55898a3ed3",
+      "percentage": 100.0
+    },
+    {
+      "file": "skills/plugin-panel/scripts/build_panel.py",
+      "covered": 167,
+      "executable_added": 168,
+      "instrument": "coverage.py",
+      "report": "dashboard-comparison/panel-runtime-final-coverage.json",
+      "source_sha256_lf": "523f1caba194879f587df4a80b41478348e245b7c0bfa62f62b6b9ec92a54d4b",
+      "report_sha256": "82b845213efdb1e3b5b540bb72b9dd828684475aea7507e0d021e84fe1a1ca1b",
+      "percentage": 99.4
+    },
+    {
+      "file": "hooks/opencode-plugin.js",
+      "covered": 33,
+      "executable_added": 34,
+      "instrument": "c8/V8",
+      "report": "dashboard-comparison/adapter-coverage/coverage-final.json",
+      "source_sha256_lf": "edff6dedef30057ab9defc44789587d404a4572c17f1b0b31a08c6925aaf4219",
+      "report_sha256": "c76aedd534d0a3c0bbc7ccb6208635e9723243081e680bd4449a3939309f9a4f",
+      "percentage": 97.06
+    }
+  ],
+  "aggregate_diff_coverage": {
+    "covered": 219,
+    "executable_added": 221,
+    "percentage": 99.1
+  },
+  "integration": {
+    "complete_command_fiches": 1,
+    "command_concepts_integrated_locally": 1,
+    "command_id": "C030",
+    "owner": "doctor",
+    "new_skills": 0,
+    "skills_evaluated": 79,
+    "skills_pending": 214
+  },
+  "linux_validation": {
+    "network": "none",
+    "mounts": "owned readonly tar/runner and output only",
+    "base_image_id": "sha256:498cbddf7fb350ad9af89f2e752ab31bdbf8bed26e77854273f1f9f28a524713",
+    "derived_image_id": "sha256:ee6b1d8543257a61226665c0c2168c3b565885c8af50b846f2d46b19aa0630ac",
+    "procps_version": "2:4.0.4-9",
+    "init": "docker --init / docker-init",
+    "git_attributes_lf_transform_count": 8,
+    "canonical_blobs_verified": true,
+    "summary_sha256": "a30c51c9ead38eb4cacf89680aa903b3ccb871dc1e253f2dbe1fcb22c0d5b77b"
+  },
+  "rejected_preparatory_runs": [
+    {
+      "id": "browser-07d98eb074/results.json",
+      "sha256": "b0134168d09cba3bd018f73bdbcc4dbbe91cc9dbb466a4dc5ef9c29b8c9ed353",
+      "reason": "Edge startup with fake/long OS known-folder paths; 7 passes and 1 runner startup failure; not final QA."
+    },
+    {
+      "id": "browser-a2fa481e1d/results.json",
+      "sha256": "7cd9a64cd0efe77da8724513965e6d8953e2d090c6d160ae29a56d8f07a3255b",
+      "reason": "Edge startup and runner selectors counting extensions as bundle cards; 5 passes, 4 runner failures; corrected environment/selectors, assertions retained."
+    },
+    {
+      "id": "Linux initial snapshot",
+      "reason": "Missing ps and PID1 without reaper; baseline and current reproduce the same three failures, observed zombie state."
+    },
+    {
+      "id": "Linux procps raw Windows snapshot",
+      "reason": "18/19; Bash syntax rejects CRLF. QA LF copy follows .gitattributes and equals unchanged Git canonical blobs; final 19/19."
+    },
+    {
+      "id": "Doctor initial filepath coverage",
+      "reason": "No official coverage data; rejected. Final module/directory coverage used."
+    }
+  ],
+  "limits": [
+    "Scoped acceptance does not complete global tasks or memory efficacy.",
+    "Inline HTML JavaScript is exercised by real DOM and browser tests, outside the Python/adapter statement coverage denominator.",
+    "Static declarations do not prove runtime loading/execution; native delta is separately scoped.",
+    "Rejected preparatory reporters are preserved separately and are not normalized as successful canonical cases.",
+    "No user settings read, consumer cache activation or external backend activation."
+  ],
+  "review_lenses": [
+    "A",
+    "B",
+    "D"
+  ],
+  "security_lens_selected": false,
+  "review_context": "Fresh generic reviewers; native reviewer tool unavailable",
+  "pending_critical": [],
+  "pending_important": [],
+  "pending_minor": []
+}

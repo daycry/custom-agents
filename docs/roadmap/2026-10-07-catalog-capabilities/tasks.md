@@ -1245,3 +1245,190 @@ es `.claude/settings.json` ajeno, intacto y nunca incluido en el commit. La
 memoria local ADR-023/ADR-007 también permanece fuera de Git. Este registro
 documenta la entrega verificada del bloque; T-02/T-08/T-09/T-14/T-15 conservan
 sus pendientes globales. Las skills siguen aplazadas en 79/293 evaluadas.
+
+## Bloque operativo 5 — diagnóstico con acciones prioritarias
+
+Base comprobada: `d3a2490a798485f5b0f982b6e04f2b55bd9c633b`. El turno anterior
+fue progreso: corrigió y publicó guardias/IDs/migración con SHA remoto verificado.
+Se continúa T-05/T-08/T-11, conservando skills aplazadas y aceptación global abierta.
+
+Comparación pertinente completa: C030 (84 líneas), motor R-3d9f69328581
+(1.085 líneas) y callers A031 (55) / S052 (46), contra revisión fijada y hashes
+coincidentes. Lectura estática, sin ejecutar el corpus. No cierra globalmente
+esos callers ni integra skills. El contraste propio cubre filas, registros,
+ensamblado, rendering y CLI de doctor, ambos comandos doctor/setup y exportación
+de sus cuerpos; no se afirma lectura de todos los checkers de doctor.
+
+Diseño registrado en design.md antes de producir código. Dueño: doctor;
+añadir acciones derivadas a JSON/Markdown y actualizar consumidores/docs.
+Se conserva el contrato de filas y se descartan scores de inventario. El panel
+se investiga en paralelo; su selector hoy no cambia la fuente de hooks y no
+reconoce los handlers Codex con argumento runtime. Ese gap alimentará el siguiente
+bloque, sin convertir la presencia de archivos en carga o ejecución probadas.
+
+TDD/QA en progreso. Un test histórico diagnostica el repo real; se trasladará
+a proyecto temporal con fuentes propias antes de correr la suite, para conservar
+la comprobación del linter sin leer `.claude/settings.json` ajeno. No hay push
+de este bloque hasta verificar implementación y revisión.
+
+## Bloque operativo 6 — hooks por runtime en el panel
+
+Investigación paralela completada: 29 lecturas propias/de origen con hashes y
+rangos privados, diez hashes de origen coincidentes. Siete recursos releídos
+completos y tres entrypoints parcialmente; se conservan sus lecturas completas
+históricas sin cerrar dependencias globales. No se ejecuta código del corpus.
+
+Repro propio del reader actual: los tres selectores presentan ocho handlers
+Claude y SessionEnd 5 s; Codex declara 3 s. Regex de metadata no reconoce guardia
+ni argumentos runtime. Footer conserva ubicación anterior de guardias y móvil
+oculta Fuentes. Navegación y seis etapas ya tienen solución y tests históricos;
+no se atribuye su bug antiguo al estado actual.
+
+Diseño Bloque 6 registrado antes de producir código. Dueños: build_panel,
+plantilla y contrato de bindings consumido por adapter OpenCode. T-06/T-08/T-13
+y sus gates se aplican en paralelo al Bloque 5. Mantener estados de carga y
+ejecución desconocidos, fuentes/runtime y presupuestos exactos; sin nuevo
+servidor, escritor de memoria ni conexión de servicios. TDD, QA y delta nativo
+propio pendientes; no se publica este bloque hasta su revisión independiente.
+
+### Implementación y QA de los Bloques 5/6
+
+Doctor incorpora `acciones_prioritarias` sin cambiar filas, conteos o exit:
+errores antes de avisos, desempate canónico, total completo y hasta tres acciones
+con bloque/ordinal. Markdown presenta esa selección antes de las tablas. El
+test de linter utiliza consumidor temporal y la suite aísla homes/registro;
+el settings ajeno no se lee. TDD: diez RED iniciales, diez GREEN; un RED de
+orden Markdown y once GREEN finales. Suite Windows final **207 passed/1 skipped**
+(chmod); Linux **207 passed/1 skipped** (PATHEXT). Cada caso omitido por plataforma
+pasa en la otra. Cobertura oficial del diff **19/19 = 100%**. La primera
+invocación de cobertura por filepath no produjo datos válidos; se conserva
+como diagnóstico rechazado y se utiliza el informe final por módulo/directorio.
+
+Panel incorpora fuentes independientes, 23 handlers y **17 grupos** declarados:
+Claude 8/6, Codex 8/6, OpenCode 7/5. Muestra fuente/localizador, función, activación,
+guardia por ID y procedencia/unidad del presupuesto. Booleanos, no finitos e
+integer de 400 dígitos degradan a inválido; handlers no identificados permanecen
+desconocidos. El JSON estricto consumido por OpenCode gobierna registros,
+handlers, filtros y supervisión, sin importar JavaScript desde el catálogo.
+No se modifica el normalizador, launcher, mapa de roles ni installer.
+
+TDD panel: 17 RED iniciales → GREEN; dos RED de número/mapa booleano → nueve
+GREEN; cinco RED de comportamiento/bindings incompatibles → cinco GREEN.
+Adapter: tres RED de catálogo inexistente → GREEN; suite Windows **19/19**.
+Cobertura oficial del diff Python **167/168 = 99,40%**, adapter **33/34 = 97,06%**.
+Suite panel tras B1: Windows **84 passed/2 skipped** por symlinks; Linux final
+**85 passed/1 skipped** por junction Windows. Las omisiones de plataforma quedan
+cubiertas por los controles de la otra plataforma. La plantilla se ejercita
+mediante DOM real y navegador, fuera de esos denominadores de statements.
+
+Navegador Edge: nueve casos finales pasan, sin retries automáticos. Inventario,
+filtro de los tres runtimes, presupuestos e identidades, enlaces, foco/historial,
+destino ausente, seis etapas, Fuentes móvil, movimiento reducido, skip link y
+extensiones independientes. Dos ejecuciones previas se conservan rechazadas:
+arranque Edge con directorios de perfil falsos/largos, y selectors del runner
+que incluían extensiones al contar catálogo. Se corrigen entorno y selectores,
+conservando las assertions; no se presentan como passes ni como fallos del panel.
+La generación inspecciona solo fixtures/homes propios; Edge usa perfil temporal
+nuevo y conserva los known folders del sistema necesarios para arrancar.
+
+El [delta nativo OpenCode](panel-native-delta-evidence.json) verifica dos casos
+con el adapter modificado: deny previo al observer, patch permitido con bytes
+exactos, cuerpos de agentes nativos cargados, notificación documental observada
+y salida natural cero. Proveedor loopback y homes/config/proyecto propios; no
+activa caché del consumidor. No acredita todos los handlers informativos ni
+captura durable de memoria. Los snapshots anteriores permanecen inmutables.
+
+QA adicional: export-interop regenera 56 archivos y `--check` confirma los 56
+al día; tests del exportador **35 passed**. `evals/check`: 51 piezas, 182 casos,
+cero errores. Linter cero errores y tres avisos históricos; ledger cero/ cero.
+Gates finales, contraste de entorno Linux, revisión A y publicación aún pendientes.
+
+## Revisión de dos lentes — intento 1: Bloques 5/6 (T-05/T-13) — filtro de extensiones
+
+Nuevo ciclo acotado para este diff desde `d3a2490`, separado del bloque de
+guardias aceptado en intento 5. Contexto fresco: lentes B y D genéricas porque
+el tool `reviewer` no está disponible. Selector automático: C false; D true
+por await en los bucles del adapter. D no encuentra degradación introducida:
+tres handlers secuenciales y cuatro registros ya existían; doctor añade dos
+pasadas lineales y panel tiene fuentes/inventario acotados. A queda para el
+diff y evidencias finales; este pase no acepta ni publica el bloque.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| B1 | Important | Excepción de runtime de catálogo aplicada también a extensiones | T-13 | Corregido tras el pase; condición limitada a `sectionId === 'catalog'` | Tres RED reales Node/DOM (agent/skill/mcp) → tres GREEN, suite 84/2, Linux 85/1, navegador H-09 |
+
+Sin rebates ni deuda aceptada. Cero Critical/Minor; el único Important se
+traspasa a intento 2 para revalidación independiente. Jira del pase: `gaps`,
+exit 0 con `--batch`, `ops: []`, desactivado; sin publicación. La primera llamada
+sin `--batch` fue rechazada antes de generar operaciones y se corrigió.
+
+## Revisión de dos lentes — intento 2: Bloques 5/6 (T-05/T-13) — revalidación de B1
+
+Lente B nueva, contexto fresco, recibe la tabla completa del intento 1:
+reevalúa solo la corrección y no reabre áreas aprobadas sin evidencia nueva.
+Confirma B1 corregido, hashes congelados y regresión 3/3; su control independiente
+recorre 2.592 combinaciones de runtime/tipo/origen/búsqueda, sin discrepancias.
+Cero Critical/Important/Minor en B. Se conserva el veredicto D sin cambio de
+productores que altere su análisis; A y QA final todavía no autorizan entrega.
+
+Jira del intento 2: `revision`, exit 0 con `--batch`, `ops: []`, desactivado;
+sin publicación. Cuatro casos históricos de navegador de extensiones también
+pasan después de actualizar su contador a grupos runtime/evento. La generación
+y ejecución usan consumidores propios y conservan sin cambios sus fixtures.
+
+### Puerta QA final de los Bloques 5/6
+
+[panel-command-qa-evidence.json](panel-command-qa-evidence.json) une reportes
+canónicos por módulo/título: **361 identidades únicas**, todas con ejecución
+positiva, cero failed/flaky/interrupted y ninguna omisión sin cubrir. Los skips
+por plataforma conservan identidad/motivo en cada reporter y su pass en el
+otro sistema; no se convierten en tests nuevos. `qa-gate.py` exit 0, VERDE.
+Cobertura oficial agregada del diff **219/221 = 99,10%**; cada script supera 90%.
+No se suma dos veces la copia generada del adapter ni se incluye HTML en el
+denominador de statements Python/Node.
+
+Linux adapter final **19/19**, exit 0. Se conservan preparaciones rechazadas:
+imagen sin `ps` y sin reaper, y snapshot crudo del checkout Windows con CRLF.
+A/B con adapter/tests originales `d3a2490` reproduce las mismas tres identidades
+de fallo; `/proc` comprueba hijos zombie con PPID 1. Imagen QA privada derivada
+del pin existente incorpora procps de fuentes oficiales Debian; las pruebas
+corren offline con `--init`, tar/runner propios readonly y salida propia,
+sin montar workspace, home ni socket. Con procps pasan las dos limpiezas;
+queda un fallo de contexto. `bash -n` reproduce `in\r` en el shell crudo y pasa
+con LF. Las ocho normalizaciones en la copia QA obedecen `.gitattributes` y
+coinciden byte/hash con los blobs canónicos de HEAD y `d3a2490`. La suite final
+canónica pasa sin cambiar fuentes, tests, assertions ni plazos. No se borra ni
+presenta como verde ninguna preparación rechazada.
+
+Las rutas, hashes y conteos de XML RED/GREEN, oficiales de cobertura, reportes
+de navegador y QA Linux figuran en la ficha pública. Evidencia privada de
+doctor en `scratchpad/.venv/doctor-priorities-*`; panel/adapter Windows en
+`scratchpad/.venv/dashboard-comparison/`; Linux doctor en
+`scratchpad/.venv/doctor-linux-ba9b7f4a15f0/`; panel final en
+`scratchpad/.venv/panel-adapter-linux-final-8fb8dc5c4423/`; adapter LF final y
+prueba de checkout canónico en `scratchpad/.venv/panel-adapter-linux-procps-image/`.
+Estos artefactos no se versionan; la ficha exporta exclusivamente datos propios
+acotados y hashes, sin prompts, memoria privada ni credenciales.
+
+### Aceptación acotada y parada solicitada
+
+La lente A fresca contrasta fuentes, diff, tests, docs, las fichas y todos los
+hashes/reporters privados del QA público; cuenta de forma independiente las
+361 identidades. Conformidad por criterio: comparación C030/destinos, diseño
+previo y alcance, prioridades/empates/límite/filas/exit/CLI, fuentes/grupos/
+handlers/identidades/presupuestos/desconocidos, lectura acotada/catálogo consumido,
+UI y delta nativo, TDD/ejecución/cobertura, documentación ES/EN/constitución.
+Todos ✓. Su propio `export-interop.py --check`: exit 0, 56 archivos al día.
+Lentes **A+B+D**, contexto fresco mediante subagentes genéricos; C no seleccionada
+por el selector automático. **0 Critical, 0 Important, 0 Minor pendientes**.
+B1 queda corregido y revalidado, sin rebates ni deuda. Los Bloques 5/6 se
+aceptan para publicar; el intento 2 cierra este ciclo acotado.
+
+No se crearon entradas nuevas de conocimiento que promocionar en estos bloques;
+las anteriores aceptadas se conservan fuera de Git. Las fichas de lectura
+históricas mantienen el estado anterior a entrega. Se consolida un concepto
+de comando (C030) en doctor; no se suman nuevas skills ni se cierran los callers
+globales. Tampoco se cierran T-02/T-05/T-06/T-08/T-09/T-11/T-13/T-14/T-15 globales
+o la eficacia de memoria. El 2026-10-08 el usuario solicita explícitamente
+hacer los commits, push de la rama y **parar al acabar este bloque**. No se
+inicia la siguiente fase ni se reanudan las 214 skills pendientes.

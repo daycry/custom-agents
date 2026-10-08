@@ -26,10 +26,15 @@ nada**: cada línea lleva su veredicto y, si algo falla, **qué comando lo arreg
    python3 "$DOC" --verbose  # incluye las capacidades opt-in sin su fichero de config (alias --all)
    ```
 
-2. Presenta el informe tal cual y **resume en 2-3 líneas**: cuántos ✅/⚠️/❌ y, si hay ❌, el
-   primero con su arreglo. No repitas la tabla en prosa.
-3. Si hay ❌ o ⚠️ que el usuario quiera resolver ahora, ofrece el arreglo que indica la propia
-   línea (normalmente `/setup`, `rates-verify`, o un `chmod +x`); no lo apliques sin su OK.
+2. Presenta el informe tal cual y **resume en 2-3 líneas** los conteos y las
+   `acciones_prioritarias` calculadas por el script. Son hasta tres filas con
+   arreglo: errores antes de avisos, con su bloque y ordinal originales; el
+   total y las tablas conservan el resto. No inventes un score ni reordenes
+   por cantidad de piezas. Sin acciones no se acredita salud o ejecución global.
+3. Si el usuario quiere resolver los hallazgos, usa los arreglos de sus propias
+   filas. Aplica los ajustes que ya haya autorizado; si falta autorización para
+   un cambio, presenta ese cambio concreto antes de pedir aprobación. El
+   diagnóstico y su lista de prioridades no ejecutan los remedios.
 
 ## Notas
 - **Qué es cada símbolo**: ✅ correcto · ⚠️ funciona pero a medias (opt-in a medio configurar,

@@ -432,6 +432,36 @@ flowchart LR
 > writing anything and gives a ✅/⚠️/❌ verdict per line with the fix next to it. It is the first stop when a hook
 > "does not fire" or a skill does not activate; `/setup` offers it when `.claude/` already has config.
 
+```mermaid
+flowchart LR
+    Checks[Canonical doctor rows] --> Report[Complete tables and counts]
+    Checks --> Priority[Errors before warnings with a remedy]
+    Priority --> Actions[Up to three actions with block and row]
+    Actions --> Output[The same selection in JSON and Markdown]
+    Report --> Output
+```
+
+Actions do not execute remedies. Informational rows remain in the report and
+do not produce recommendations. Enabled optional capabilities may check their
+backend within the network budget; the report alone does not prove hook
+execution or global health.
+
+The `/plugin-catalog` catalog follows a separate read-only flow:
+
+```mermaid
+flowchart LR
+    Claude[Claude registry] --> Panel[Inventory by runtime and event]
+    Codex[Codex registry] --> Panel
+    Catalog[OpenCode adapter JSON catalog] --> Adapter[OpenCode registration and supervision]
+    Catalog --> Panel
+    Roles[Central role map] --> Panel
+    Panel --> View[HTML and JSON with sources and limits]
+```
+
+The panel executes neither doctor nor hooks. Source presence and declared budgets
+do not prove loading or execution; OpenCode's terminal stream has its own contract
+and does not inherit Codex's teardown timeout.
+
 Details on each file: rule 9 of [`CONVENTIONS.md`](CONVENTIONS.md). Atlassian connector
 behaviors: [`atlassian-connector-notes.md` (Spanish)](../atlassian-connector-notes.md).
 

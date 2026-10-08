@@ -2507,6 +2507,20 @@ def bloque_journal(plugin_root, project):
 
 # ------------------------------------------------------------------ informe
 
+def _acciones_prioritarias(bloques):
+    """Recomienda hasta tres arreglos existentes: errores antes de avisos, orden estable."""
+    acciones = []
+    for estado in (ERROR, AVISO):
+        for bloque in bloques:
+            for ordinal, fila in enumerate(bloque["lineas"], 1):
+                arreglo = fila["arreglo"]
+                if fila["estado"] == estado and isinstance(arreglo, str) and arreglo.strip():
+                    acciones.append({"bloque": bloque["clave"], "linea": ordinal,
+                                     "estado": fila["estado"], "que": fila["que"],
+                                     "detalle": fila["detalle"], "arreglo": arreglo})
+    return {"total": len(acciones), "limite": 3, "acciones": acciones[:3]}
+
+
 def diagnostico(project, plugin_root_explicito=None, hoy=None, verbose=False):
     plugin_root = localizar_plugin(plugin_root_explicito)
     bloques = [bloque_herramientas(),
@@ -2525,6 +2539,7 @@ def diagnostico(project, plugin_root_explicito=None, hoy=None, verbose=False):
             "plugin_root": plugin_root,
             "bloques": bloques,
             "resumen": resumen,
+            "acciones_prioritarias": _acciones_prioritarias(bloques),
             "exit": 1 if resumen[ERROR] else 0}
 
 
@@ -2536,6 +2551,17 @@ def render_md(inf):
     plug = f"`{inf['plugin_root']}`" if inf["plugin_root"] else "no localizado"
     out = ["# `/doctor` — diagnóstico de la instalación", "",
            f"**Proyecto**: `{inf['proyecto']}` · **Plugin**: {plug}", ""]
+    prioridades = inf["acciones_prioritarias"]
+    out += ["## Acciones prioritarias", "",
+            f"**{len(prioridades['acciones'])} de {prioridades['total']} hallazgo(s) con arreglo** "
+            f"(máximo {prioridades['limite']}; errores antes de avisos).", ""]
+    for ordinal, accion in enumerate(prioridades["acciones"], 1):
+        out.append(f"{ordinal}. [{_celda(accion['bloque'])} · fila {accion['linea']}] "
+                   f"{ICONO[accion['estado']]} {_celda(accion['que'])}: {_celda(accion['detalle'])}. "
+                   f"Arreglo sugerido: {_celda(accion['arreglo'])}")
+    if not prioridades["acciones"]:
+        out.append("No hay recomendaciones con arreglo en las comprobaciones realizadas.")
+    out += ["", "Los arreglos son recomendaciones; este diagnóstico no los ejecuta.", ""]
     for b in inf["bloques"]:
         out += [f"## {b['titulo']}", "", "| | Comprobación | Detalle | Arreglo sugerido |", "|---|---|---|---|"]
         for l in b["lineas"]:
@@ -2546,13 +2572,13 @@ def render_md(inf):
     out += ["## Resumen", "",
             f"**{r[OK]} ✅ · {r[AVISO]} ⚠️ · {r[ERROR]} ❌ · {r[INFO]} ℹ️**", ""]
     if r[ERROR]:
-        out.append(f"Hay {r[ERROR]} problema(s) que **rompen** algo del plugin: aplica el arreglo de "
+        out.append(f"Las comprobaciones realizadas detectan {r[ERROR]} error(es): aplica el arreglo de "
                    f"cada línea ❌ y vuelve a pasar `/doctor` (exit 1).")
     elif r[AVISO]:
-        out.append(f"Nada roto: {r[AVISO]} aviso(s) de cosas a medias que **degradan sin bloquear** "
+        out.append(f"Sin errores en las comprobaciones realizadas: {r[AVISO]} aviso(s) que **degradan sin bloquear** "
                    f"(exit 0).")
     else:
-        out.append("Instalación sana: nada roto ni a medias (exit 0).")
+        out.append("Sin errores ni avisos en las comprobaciones realizadas (exit 0).")
     out.append("")
     out.append("Las líneas ℹ️ son informativas (opcional no instalado, opt-in apagado, estado del "
                "trabajo): no hay nada que arreglar en ellas.")

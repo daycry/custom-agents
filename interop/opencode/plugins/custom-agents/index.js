@@ -7,8 +7,20 @@ import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const home = process.env.HOME || process.env.USERPROFILE || '.';
-const postHooks = ['mark-docs-pending.sh', 'ledger-lint-warn.sh', 'progress-line.sh'];
-const writing = new Set(['edit', 'write', 'patch', 'multiedit', 'apply_patch']);
+// custom-agents hook-catalog:start
+const hookCatalog = JSON.parse(`{
+  "schema_version": 1,
+  "bindings": [
+    {"id":"guard","domain":"tool","native_event":"execute.before","event":"PreToolUse","handlers":["native-guardrail"],"timeout_ms":10500,"behavior":"guard","activation":"Exact own implementer and architect agent IDs; current project location"},
+    {"id":"prompt","domain":"session","native_event":"prompt","event":"UserPromptSubmit","handlers":["user-prompt-capture.sh"],"timeout_ms":20000,"behavior":"informative","activation":"Text prompt in the current project location"},
+    {"id":"context","domain":"session","native_event":"context","event":"SessionStart","handlers":["session-context.sh"],"timeout_ms":20000,"behavior":"informative","activation":"System context array in the current project location; unchanged context may reuse its cache"},
+    {"id":"post","domain":"tool","native_event":"execute.after","event":"PostToolUse","handlers":["mark-docs-pending.sh","ledger-lint-warn.sh","progress-line.sh"],"timeout_ms":20000,"behavior":"informative","activation":"Completed writing tool in the current project location","tools":["edit","write","patch","multiedit","apply_patch"]},
+    {"id":"capture","domain":"event","native_events":["session.execution.succeeded","session.execution.failed","session.execution.interrupted","session.idle"],"idle_status_event":"session.status","idle_status":"idle","event":"SessionEnd","handlers":["session-journal.sh"],"timeout_ms":20000,"behavior":"informative","activation":"Execution/idle stream observation in the current project location; not a teardown hook"}
+  ]
+}`);
+// custom-agents hook-catalog:end
+const bindings = Object.fromEntries(hookCatalog.bindings.map(binding => [binding.id, binding]));
+const writing = new Set(bindings.post.tools);
 const readOnly = new Set(['read', 'glob', 'grep', 'list', 'ls', 'webfetch', 'websearch']);
 const normalized = path => process.platform === 'win32' ? resolve(path).toLowerCase() : resolve(path);
 const sameLocation = (a, b) => typeof a?.directory === 'string' && typeof b?.directory === 'string'
@@ -129,7 +141,8 @@ export default {
             stdio: ['pipe', 'pipe', 'pipe'],
           });
           children.add(entry);
-          timer = setTimeout(() => { report(); void entry.stop(); }, guard ? 10500 : 20000);
+          const budget = hookCatalog.bindings.find(binding => binding.handlers.includes(script)).timeout_ms;
+          timer = setTimeout(() => { report(); void entry.stop(); }, budget);
           child.stdout.setEncoding('utf8');
           child.stdout.on('data', chunk => {
             if (cancelled) return;
@@ -145,13 +158,13 @@ export default {
       });
     }
 
-    await ctx.tool.hook('execute.before', async event => {
+    const callbacks = { guard: async event => {
       if (!guardedIDs?.has(event?.agent)) return;
       let decision;
       try {
         const cwd = await project(event.sessionID);
         if (!cwd) return;
-        const output = await run('native-guardrail', {
+        const output = await run(bindings.guard.handlers[0], {
           agent: event.agent, tool_name: event.tool, tool_input: event.input, cwd,
         });
         decision = JSON.parse(output);
@@ -163,19 +176,19 @@ export default {
       } catch { warnGuard(); return; }
       // A before-hook Error is a native tool failure; no decision is cached by call ID.
       if (decision.decision === 'deny') throw new Error('custom-agents: ' + decision.reason.slice(0, 2048));
-    });
+    },
 
-    await ctx.session.hook('prompt', async event => {
+    prompt: async event => {
       try {
         if (typeof event?.prompt?.text !== 'string') return;
         const cwd = await project(event.sessionID);
-        if (cwd) { invalidate(); await run('user-prompt-capture.sh', {
+        if (cwd) { invalidate(); await run(bindings.prompt.handlers[0], {
           hook_event_name: 'UserPromptSubmit', session_id: event.sessionID, prompt: event.prompt.text, cwd,
         }); }
       } catch { warn(); }
-    });
+    },
 
-    await ctx.session.hook('context', async event => {
+    context: async event => {
       try {
         if (!Array.isArray(event?.system)) return;
         const cwd = await project(event.sessionID);
@@ -184,7 +197,7 @@ export default {
         let text;
         if (before && cached?.sessionID === event.sessionID && cached.signature === before && Date.now() < cached.until) text = cached.text;
         else {
-          const output = await run('session-context.sh', {
+          const output = await run(bindings.context.handlers[0], {
             hook_event_name: 'SessionStart', source: 'resume', session_id: event.sessionID, cwd,
           });
           text = JSON.parse(output)?.hookSpecificOutput?.additionalContext;
@@ -197,9 +210,9 @@ export default {
         }
         if (typeof text === 'string' && text && !controller.signal.aborted) event.system.push({ type: 'text', text });
       } catch { warn(); }
-    });
+    },
 
-    await ctx.tool.hook('execute.after', async event => {
+    post: async event => {
       try {
         if (event?.status !== 'completed') return;
         const cwd = await project(event.sessionID);
@@ -226,7 +239,7 @@ export default {
               : { command: patch.split('\n').map(line => line.trimStart()).join('\n') },
         };
         const messages = [];
-        for (const script of postHooks) {
+        for (const script of bindings.post.handlers) {
           const output = await run(script, payload);
           try { const text = JSON.parse(output)?.systemMessage; if (text) messages.push(String(text)); }
           catch { /* A missing diagnostic is not a failed tool execution. */ }
@@ -235,18 +248,21 @@ export default {
           ...event.result.metadata, customAgentsMessages: messages,
         };
       } catch { warn(); }
-    });
+    } };
+    for (const binding of hookCatalog.bindings) {
+      if (binding.domain !== 'event') await ctx[binding.domain].hook(binding.native_event, callbacks[binding.id]);
+    }
 
     const events = (async () => {
       try {
         for await (const event of ctx.event.subscribe({ signal: controller.signal })) {
-          const idle = ['session.execution.succeeded', 'session.execution.failed', 'session.execution.interrupted', 'session.idle'].includes(event.type)
-            || (event.type === 'session.status' && event.data?.status?.type === 'idle');
+          const idle = bindings.capture.native_events.includes(event.type)
+            || (event.type === bindings.capture.idle_status_event && event.data?.status?.type === bindings.capture.idle_status);
           // V2's local stream omits location; session.get remains authoritative in every case.
           if (!idle || (event.location && !sameLocation(event.location, location))) continue;
           try {
             const cwd = await project(event.data?.sessionID);
-            if (cwd) { invalidate(); await run('session-journal.sh', {
+            if (cwd) { invalidate(); await run(bindings.capture.handlers[0], {
               hook_event_name: 'SessionEnd', session_id: event.data.sessionID, reason: 'other', cwd,
             }); invalidate(); }
           } catch { warn(); }

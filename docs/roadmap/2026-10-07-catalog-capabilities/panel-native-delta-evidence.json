@@ -1,0 +1,28 @@
+{
+  "runtime": "OpenCode 2.0.12",
+  "native_sha256": "58d550b26e9241759a6906c65f1e0605eaf512d63cbaf6d8eb472375b9311c95",
+  "adapter_sha256": "edff6dedef30057ab9defc44789587d404a4572c17f1b0b31a08c6925aaf4219",
+  "normalizer_sha256": "17fcd2ba07097e84287fbb3ffb8d53677dadf5285681e213dd50d35ae2d869e0",
+  "cases": 2,
+  "native_denials_before_observer": 1,
+  "native_patch_successes": 1,
+  "native_agent_bodies_verified": true,
+  "exact_allowed_sha256": "7e6518373b1a8cf5eed9717076284744ba44ace422c7877442aebcceecc42a23",
+  "informational_docs_pending_effect_observed": true,
+  "natural_exit_code": 0,
+  "loopback_requests": 4,
+  "external_provider_requests": 0,
+  "consumer_settings_read": false,
+  "artifacts": {
+    "result.json": "478af2387e1d82e7beb57f8dad167c1e71f59c7c01a45842bd0f89bbb38f34ac",
+    "distribution-source-hashes.json": "c96674556a63029d4a6b387e19f3cb34bcf69a981e462f72e67b8bf7ef129c98",
+    "events.jsonl": "bd75e0acc100b405abd552043b8ec860b776eafe8c4a9552cc4858605435f42e",
+    "requests.json": "04938eccdd486dc8f69ad5e37625fce48731698fb2373c7fb36bd4a54a52bcfe"
+  },
+  "limits": [
+    "Owned project, config, homes, binary and loopback model; no consumer cache activated.",
+    "This delta validates the modified adapter with the unchanged final normalizer; previous runtime matrices retain their original hashes.",
+    "Two role-guard cases and the documentation notification effect do not certify all informational handlers or durable memory capture.",
+    "Codex SessionEnd and global memory efficacy remain open in their separate evidence."
+  ]
+}

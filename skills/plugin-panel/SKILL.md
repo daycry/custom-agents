@@ -22,8 +22,12 @@ la skill roadmap-dashboard; este panel muestra capacidades.
 3. Entrega el HTML y resume sus avisos. Un archivo presente no acredita que
    el hook se haya ejecutado ni que un servicio esté sano.
 
-El inventario extrae frontmatters públicos, el registro global de hooks y
-metadatos de las cabeceras de scripts reconocidos del launcher del bundle.
+El inventario extrae frontmatters públicos y declaraciones de hooks por runtime.
+Claude/Codex leen sus registros; OpenCode aporta un JSON acotado que gobierna el
+adapter. El panel lo lee como datos sin importar JavaScript inspeccionado.
+Agrupa runtime y evento, conserva handlers y fuente, y distingue timeout de
+registro y supervisión del adapter. Carga y ejecución quedan sin verificar.
+Las funciones informativas provienen de cabeceras de handlers reconocidos.
 Muestra herramientas declaradas por los agentes, sin afirmar acceso a ellas
 en esta sesión. De memoria solo muestra presencia de directorio aprobado y
 artefacto Graphify; no lee entradas, grafos, transcripciones ni credenciales.

@@ -30,4 +30,6 @@ entre entornos. El panel separa el bundle y las extensiones. Un fallo del lector
 de extensiones conserva el catálogo del bundle con aviso. No modifica, adopta
 ni ejecuta las piezas encontradas; contrasta disponibilidad antes de invocarlas.
 Entrega el fichero generado y distingue catálogo, presencia de fuente y
-ejecución real. Para progreso de iniciativas usa roadmap-dashboard.
+ejecución real. Explica los grupos de hooks por runtime/evento, sus handlers,
+fuentes y presupuestos; el timeout de registro y la supervisión del adapter
+son contratos distintos. Una declaración no acredita carga ni ejecución. Para progreso de iniciativas usa roadmap-dashboard.

@@ -6,13 +6,32 @@ El comando `/plugin-catalog` usa plugin-panel para mostrar agentes, skills,
 comandos, tools declaradas y hooks globales. La búsqueda y los filtros funcionan
 en un HTML autónomo. El progreso de iniciativas sigue en roadmap-dashboard.
 
-Los hooks se agrupan en una tarjeta por evento. `PostToolUse` muestra sus tres
-handlers dentro de esa tarjeta; el contador HTML mide eventos distintos. El JSON
-conserva una entrada por handler y `counts.hooks` cuenta esos handlers. El panel
-no muestra comandos completos. Cada acción identificada muestra su nombre,
-función y activación; el timeout aparece cuando está configurado en la fuente.
-Los nombres y funciones se extraen de las cabeceras públicas `panel-title` y
-`panel-description` del script registrado. No se ejecutan esos scripts.
+Los hooks se agrupan por **runtime y evento**, con una tarjeta por grupo.
+`PostToolUse` conserva tres handlers en cada runtime. El contador HTML mide
+grupos; el JSON conserva una entrada por handler, `counts.hooks` cuenta acciones
+y `hook_group_count` cuenta grupos. `--runtime` selecciona las fuentes de hooks
+y extensiones; `all` compara los tres entornos. El filtro HTML de runtime afecta
+solo a los hooks, sin ocultar otras capacidades del bundle.
+
+Cada acción tiene ID estable, fuente y localizador, canal nativo, función pública,
+activación y comportamiento. Claude lee `hooks/hooks.json`; Codex lee
+`interop/codex/hooks.json`. OpenCode lee un JSON estricto acotado entre marcadores
+en `hooks/opencode-plugin.js`: ese catálogo gobierna el adapter y no se importa
+como código JavaScript. `hook_sources` describe cada fuente como declarada,
+ausente o inválida; una fuente fallida no se sustituye por otro runtime.
+
+El timeout de Claude/Codex tiene unidad segundos y procedencia de registro.
+OpenCode muestra milisegundos de supervisión del adapter; su captura por stream
+de idle/ejecución no es un hook de teardown nativo. Presupuesto declarado,
+ausente e inválido son estados distintos; no se inventa un valor predeterminado.
+La guardia identifica sus roles mediante el mapa central del bundle; configuración,
+carga y ejecución son evidencias distintas. `load_status` y `execution_status`
+permanecen `unknown` en este catálogo estático.
+
+Los nombres y funciones informativas se extraen de las cabeceras públicas
+`panel-title` y `panel-description` del handler reconocido. El panel excluye los
+comandos completos y no ejecuta scripts, hooks ni diagnósticos. Los enlaces de
+acción restauran filtros y foco; Fuentes permanece accesible en móvil.
 
 En un checkout:
 
@@ -46,7 +65,7 @@ inventario parcial. El JSON añade `extensions` solo cuando se pide proyecto,
 manteniendo `schema_version: 1` y los conteos anteriores. Para seleccionar
 extensiones en tareas sigue [el método común](PROJECT-EXTENSIONS.md).
 
-El inventario extrae frontmatters públicos, hooks/hooks.json y los metadatos
+El inventario extrae frontmatters públicos, registros de hooks por runtime y los metadatos
 de las ocho primeras líneas de scripts reconocidos del launcher empaquetado.
 Excluye de la salida cuerpos ejecutables, comandos completos, valores del entorno
 y memoria privada. Aplica el redactor

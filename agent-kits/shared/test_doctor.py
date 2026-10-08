@@ -38,7 +38,7 @@ ICONOS = {v: k for k, v in doctor.ICONO.items()}
 def _isolated_subprocess_env(extra=None):
     keys = {"SYSTEMROOT", "WINDIR", "COMSPEC", "PATHEXT", "PROCESSOR_ARCHITECTURE",
             "NUMBER_OF_PROCESSORS", "HOME", "USERPROFILE", "CODEX_HOME", "CLAUDE_CONFIG_DIR",
-            "APPDATA", "LOCALAPPDATA", "XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_CACHE_HOME",
+            "APPDATA", "LOCALAPPDATA", "PROGRAMDATA", "XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_CACHE_HOME",
             "XDG_STATE_HOME", "TEMP", "TMP", "NO_COLOR", "PYTHONIOENCODING"}
     env = {k: v for k, v in os.environ.items() if k.upper() in keys}
     env["PATH"] = os.environ["CUSTOM_AGENTS_TEST_PATH"]
@@ -136,7 +136,7 @@ def _registro_de_la_maquina_fuera(tmp_path_factory, monkeypatch):
     monkeypatch.setenv("CODEX_HOME", str(base / "codex"))
     for var in ("HOME", "USERPROFILE"):
         monkeypatch.setenv(var, str(base / "home"))
-    for var, sub in {"APPDATA": "appdata", "LOCALAPPDATA": "localappdata",
+    for var, sub in {"APPDATA": "appdata", "LOCALAPPDATA": "localappdata", "PROGRAMDATA": "programdata",
                      "XDG_CONFIG_HOME": "xdg-config", "XDG_DATA_HOME": "xdg-data",
                      "XDG_CACHE_HOME": "xdg-cache", "XDG_STATE_HOME": "xdg-state",
                      "TEMP": "temp", "TMP": "temp"}.items():
@@ -161,6 +161,7 @@ def _registro_de_la_maquina_fuera(tmp_path_factory, monkeypatch):
     monkeypatch.setenv("CUSTOM_AGENTS_TEST_PATH", os.pathsep.join(tool_dirs))
     monkeypatch.setattr(doctor, "_estado_codex_nativo", lambda project: {
         "state": "unknown", "enabled": None, "version": None, "reason": "own-fixture"})
+    monkeypatch.setattr(doctor, "managed_settings_path", lambda: "")
 
 # ------------------------------------------------------------------ tests
 
@@ -484,10 +485,10 @@ def test_json_gana_modo_y_registro_sin_perder_ninguna_clave(tmp_path, monkeypatc
     assert plug_b["registro"][0]["habilitado"] is True
 
 
-def test_repo_real_usa_el_criterio_del_linter_para_los_hooks():
+def test_repo_real_usa_el_criterio_del_linter_para_los_hooks(tmp_path):
     """Con el plugin real (que sí trae `scripts/lint_plugin.py`) el veredicto de hooks se delega
     en `lint_hook_commands` — una sola definición de «hook roto» en el repo."""
-    inf = diag(ROOT, ROOT)
+    inf = diag(proyecto(tmp_path), ROOT)
     hooks = [l for l in lineas(inf) if l["que"] == "hooks registrados"]
     assert len(hooks) == 1
     assert "lint_plugin.py" in hooks[0]["detalle"]
@@ -829,7 +830,7 @@ def test_memoria_sin_docs_knowledge_es_informativa_y_exit_0(tmp_path):
     assert mem["titulo"].lower().startswith("memoria")
     assert all(l["estado"] == doctor.INFO for l in mem["lineas"]), mem["lineas"]
     assert any("docs/knowledge/" in l["detalle"] for l in mem["lineas"])
-    assert inf["exit"] == 0 and "Instalación sana" in doctor.render_md(inf)
+    assert inf["exit"] == 0 and "Sin errores ni avisos en las comprobaciones realizadas" in doctor.render_md(inf)
 
 
 def test_memoria_curada_se_cuenta_por_familia_y_por_estado(tmp_path):
@@ -2872,3 +2873,118 @@ def test_f3fix4_gap152_verify_no_verificable_es_informativo_con_su_razon(tmp_pat
     assert linea["estado"] == doctor.INFO, linea
     assert "mode: off" in linea["detalle"], linea
     assert "export atrasado" not in linea["detalle"], linea
+
+
+# ------------------------------------------------------------------ acciones prioritarias: contrato de presentación
+
+def _diagnostico_con_filas(monkeypatch, bloques):
+    """Informe real con comprobaciones propias en memoria: no lee configuración del host."""
+    monkeypatch.setattr(doctor, "localizar_plugin", lambda explicit=None: None)
+    nombres = ("bloque_herramientas", "bloque_plugin", "bloque_configs", "bloque_estado",
+               "bloque_capacidades", "bloque_memoria", "bloque_journal", "bloque_version")
+    for i, nombre in enumerate(nombres):
+        bloque = bloques[i] if i < len(bloques) else {
+            "clave": f"vacio-{i}", "titulo": "Vacío", "lineas": []}
+        monkeypatch.setattr(doctor, nombre, lambda *args, _b=bloque, **kwargs: _b)
+    return doctor.diagnostico(".")
+
+
+def test_prioridades_errores_antes_de_avisos_empates_estables_y_limite(monkeypatch):
+    bloques = [
+        {"clave": "herramientas", "titulo": "Herramientas", "lineas": [
+            doctor.linea(doctor.AVISO, "aviso inicial", "aviso", "arreglo común"),
+            doctor.linea(doctor.INFO, "opcional", "información", "opcional"),
+            doctor.linea(doctor.ERROR, "primer error", "roto uno", "arreglo común")]},
+        {"clave": "plugin", "titulo": "Plugin", "lineas": [
+            doctor.linea(doctor.ERROR, "segundo error", "roto dos", "reinstala"),
+            doctor.linea(doctor.AVISO, "aviso posterior", "aviso dos", "revisa")]},
+    ]
+    antes = json.dumps(bloques, ensure_ascii=False)
+    inf = _diagnostico_con_filas(monkeypatch, bloques)
+    prioridades = inf["acciones_prioritarias"]
+    assert prioridades["total"] == 4 and prioridades["limite"] == 3
+    assert [(a["bloque"], a["linea"], a["que"]) for a in prioridades["acciones"]] == [
+        ("herramientas", 3, "primer error"), ("plugin", 1, "segundo error"),
+        ("herramientas", 1, "aviso inicial")]
+    assert [a["arreglo"] for a in prioridades["acciones"]] == [
+        "arreglo común", "reinstala", "arreglo común"]
+    assert all(set(a) == {"bloque", "linea", "estado", "que", "detalle", "arreglo"}
+               for a in prioridades["acciones"])
+    assert json.dumps(bloques, ensure_ascii=False) == antes
+    assert all(set(l) == {"estado", "que", "detalle", "arreglo"} for l in lineas(inf))
+    assert inf["resumen"] == {"ok": 0, "aviso": 2, "error": 2, "info": 1}
+    assert inf["exit"] == 1
+
+
+@pytest.mark.parametrize("filas,total,exit_code", [
+    ([], 0, 0),
+    ([doctor.linea(doctor.INFO, "opcional", "no configurado", "activa si quieres")], 0, 0),
+    ([doctor.linea(doctor.OK, "declarado", "sin prueba de ejecución", "comprueba")], 0, 0),
+    ([doctor.linea(doctor.ERROR, "sin arreglo", "roto", "")], 0, 1),
+    ([doctor.linea(doctor.AVISO, "sin arreglo", "degradado", " \t\r\n")], 0, 0),
+    ([doctor.linea(doctor.AVISO, "con arreglo", "degradado", "  revisa  ")], 1, 0),
+])
+def test_prioridades_vacias_y_sin_remedio_no_cambian_exit(monkeypatch, filas, total, exit_code):
+    inf = _diagnostico_con_filas(monkeypatch, [
+        {"clave": "plugin", "titulo": "Plugin", "lineas": filas}])
+    assert inf["acciones_prioritarias"]["total"] == total
+    assert len(inf["acciones_prioritarias"]["acciones"]) == total
+    if total:
+        assert inf["acciones_prioritarias"]["acciones"][0]["arreglo"] == "  revisa  "
+    assert inf["exit"] == exit_code
+
+
+def test_prioridades_markdown_y_json_comparten_seleccion_y_texto_hostil(monkeypatch):
+    filas = [doctor.linea(doctor.AVISO, f"aviso-{i}", "detalle", f"remedio-{i}")
+             for i in range(4)]
+    filas.append(doctor.linea(doctor.ERROR, "error|propio\nnombre", "detalle|A\nB", "  arregla|C\nD  "))
+    inf = _diagnostico_con_filas(monkeypatch, [{"clave": "plugin", "titulo": "Plugin", "lineas": filas}])
+    js = json.loads(json.dumps(inf, ensure_ascii=False))
+    acciones = js["acciones_prioritarias"]["acciones"]
+    assert [a["linea"] for a in acciones] == [5, 1, 2]
+    assert acciones[0]["arreglo"] == "  arregla|C\nD  "
+    md = doctor.render_md(inf)
+    resumen = md.split("## Acciones prioritarias", 1)[1].split("\n## ", 1)[0]
+    assert "3 de 5" in resumen
+    assert "error\\|propio nombre" in resumen
+    assert "detalle\\|A B" in resumen and "arregla\\|C D" in resumen
+    assert "remedio-0" in resumen and "remedio-1" in resumen
+    assert "remedio-2" not in resumen and "remedio-3" not in resumen
+    assert veredictos_md(md) == [l["estado"] for l in lineas(js)]
+
+
+def test_prioridades_no_afirma_salud_global_con_comprobaciones_vacias(monkeypatch):
+    inf = _diagnostico_con_filas(monkeypatch, [])
+    md = doctor.render_md(inf)
+    assert "Instalación sana" not in md and "Nada roto" not in md
+    assert "comprobaciones realizadas" in md
+    assert "0 de 0" in md
+
+
+def test_prioridades_markdown_muestra_arreglos_antes_de_tablas(monkeypatch):
+    inf = _diagnostico_con_filas(monkeypatch, [{"clave": "plugin", "titulo": "Plugin", "lineas": [
+        doctor.linea(doctor.ERROR, "configuración rota", "config ilegible", "corrige configuración")]}])
+    md = doctor.render_md(inf)
+    assert md.index("**Proyecto**") < md.index("## Acciones prioritarias")
+    assert md.index("## Acciones prioritarias") < md.index("## Plugin")
+    assert md.count("## Acciones prioritarias") == 1
+
+
+def test_prioridades_cli_json_md_sin_escrituras_ni_remedios(tmp_path):
+    proj = proyecto(tmp_path, dev__json={"tdd": "sí", "tddd": True},
+                    rates__json={"precioTokens": {"input": 0, "output": 0}})
+    antes = snapshot(proj)
+    cfg = os.environ["CLAUDE_CONFIG_DIR"]
+    home = os.environ["HOME"]
+    antes_cfg, antes_home = snapshot(cfg), snapshot(home)
+    js = run("--root", str(proj), "--json")
+    md = run("--root", str(proj))
+    assert js.returncode == md.returncode == 1
+    inf = json.loads(js.stdout)
+    assert inf["acciones_prioritarias"]["total"] >= 3
+    seleccion = md.stdout.split("## Acciones prioritarias", 1)[1].split("\n## ", 1)[0]
+    for accion in inf["acciones_prioritarias"]["acciones"]:
+        assert doctor._celda(accion["que"]) in seleccion
+        assert doctor._celda(accion["arreglo"]) in seleccion
+    assert snapshot(proj) == antes
+    assert snapshot(cfg) == antes_cfg and snapshot(home) == antes_home

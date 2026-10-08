@@ -9,6 +9,18 @@ y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Fixed — Contratos de hooks por runtime en el panel
+
+- Leer fuentes de hooks separadas de Claude, Codex y OpenCode; agrupar runtime y evento y mostrar función, activación, fuente, identidades y procedencia del presupuesto. Consumir el mismo catálogo declarativo en el adapter OpenCode; conservar carga/ejecución desconocidas y filtros, enlaces, historial y Fuentes accesibles en móvil.
+
+### Changed — Arreglos prioritarios del diagnóstico
+
+- Derivar hasta tres acciones de doctor desde sus filas de error y aviso, conservando referencias de bloque/fila, informe completo y exit codes. Mantener la misma prioridad en JSON y Markdown; reconciliar comprobaciones opcionales de red en setup y la autorización ya concedida para arreglos.
+
+### Fixed — Guardias nativas y migración conservadora
+
+- Enrutar identidades propias de Claude, Codex y OpenCode mediante un normalizador de mutaciones y política central. Conservar gramática Unicode/contexto/heredoc, acotar scans de heredocs incompletos y migrar solo exports antiguos atribuibles; preservar agentes personalizados y bindings ambiguos. Registrar revisión independiente y hashes de cohortes nativas, manteniendo separada la eficacia SessionEnd.
+
 ### Fixed — Permisos declarados del reviewer en Codex
 
 - Retirar del export del reviewer un campo de sandbox por rol sin efecto y explicar los permisos heredados en Codex. Diferenciar permisos de edición de OpenCode y permisos de shell; documentar identidad y bloqueo nativos sin presentar los dispatchers de prueba como guardias instaladas.

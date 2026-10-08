@@ -182,10 +182,18 @@ test('a concurrent mutation prevents saving an in-flight context', async () => {
   } finally { await cleanup?.(); rmSync(dir, { recursive: true, force: true }); }
 });
 
-async function isolatedPlugin(dir, launcher) {
+async function isolatedPlugin(dir, launcher, changeCatalog) {
   const folder = join(dir, 'hooks'); mkdirSync(folder, { recursive: true });
   writeFileSync(join(dir, 'package.json'), '{"type":"module"}');
-  writeFileSync(join(folder, 'adapter.js'), readFileSync(new URL('../hooks/opencode-plugin.js', import.meta.url)));
+  let source = readFileSync(new URL('../hooks/opencode-plugin.js', import.meta.url), 'utf8');
+  if (changeCatalog) {
+    const expression = /(\/\/ custom-agents hook-catalog:start\r?\nconst hookCatalog = JSON\.parse\(`)([\s\S]*?)(`\);\r?\n\/\/ custom-agents hook-catalog:end)/;
+    const match = source.match(expression);
+    assert.ok(match, 'The adapter must carry its own strict JSON registration catalog');
+    const catalog = JSON.parse(match[2]); changeCatalog(catalog);
+    source = source.replace(expression, (_, before, body, after) => before + JSON.stringify(catalog) + after);
+  }
+  writeFileSync(join(folder, 'adapter.js'), source);
   writeFileSync(join(folder, 'run-hook.mjs'), launcher);
   return (await import(pathToFileURL(join(folder, 'adapter.js')).href)).default;
 }
@@ -200,6 +208,53 @@ test('native adapter identifies its runtime independently of consumer payload', 
     await until(() => existsSync(join(dir, 'end-argv.json')));
     assert.deepEqual(JSON.parse(readFileSync(join(dir, 'end-argv.json'), 'utf8')), ['session-journal.sh', '--runtime=opencode']);
   } finally { await cleanup?.(); rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('catalog binding and handler edits govern native registration and dispatch', async () => {
+  const dir = project(); let cleanup;
+  try {
+    const adapter = await isolatedPlugin(dir, `process.stdout.write(JSON.stringify({systemMessage:process.argv[2]}));`, catalog => {
+      const post = catalog.bindings.find(item => item.id === 'post');
+      post.native_event = 'own.after'; post.handlers = ['progress-line.sh'];
+    });
+    const ctx = opencodeContext(dir); cleanup = await adapter.setup(ctx);
+    assert.ok(ctx.hooks.has('tool.own.after'));
+    assert.equal(ctx.hooks.has('tool.execute.after'), false);
+    const event = { sessionID:'catalog', tool:'write', status:'completed', input:{filePath:'docs/own.md'}, result:{metadata:{own:true}} };
+    await ctx.hooks.get('tool.own.after')(event);
+    assert.deepEqual(event.result.metadata.customAgentsMessages, ['progress-line.sh']);
+    assert.equal(event.result.metadata.own, true);
+  } finally { await cleanup?.(); rmSync(dir, { recursive:true, force:true }); }
+});
+
+test('catalog stream events drive capture without changing native payload translation', async () => {
+  const dir = project(); let cleanup;
+  try {
+    const adapter = await isolatedPlugin(dir, `import fs from 'node:fs';fs.writeFileSync('stream-args.json',JSON.stringify(process.argv.slice(2)));`, catalog => {
+      catalog.bindings.find(item => item.id === 'capture').native_events = ['own.completed'];
+    });
+    const ctx = opencodeContext(dir); cleanup = await adapter.setup(ctx);
+    ctx.emit({type:'session.execution.succeeded', data:{sessionID:'catalog'}});
+    await new Promise(resolve => setTimeout(resolve, 100));
+    assert.equal(existsSync(join(dir,'stream-args.json')), false);
+    ctx.emit({type:'own.completed', data:{sessionID:'catalog'}});
+    await until(() => existsSync(join(dir,'stream-args.json')));
+    assert.deepEqual(JSON.parse(readFileSync(join(dir,'stream-args.json'),'utf8')), ['session-journal.sh','--runtime=opencode']);
+  } finally { await cleanup?.(); rmSync(dir,{recursive:true,force:true}); }
+});
+
+test('catalog supervision budget terminates a delayed informational handler', async () => {
+  const dir = project(); let cleanup;
+  const saved = console.warn; console.warn = () => {};
+  try {
+    const adapter = await isolatedPlugin(dir, `import fs from 'node:fs';setTimeout(()=>fs.writeFileSync('late-catalog-handler','late'),3000);`, catalog => {
+      catalog.bindings.find(item => item.id === 'prompt').timeout_ms = 1;
+    });
+    const ctx = opencodeContext(dir); cleanup = await adapter.setup(ctx);
+    await ctx.hooks.get('session.prompt')({sessionID:'catalog-budget',prompt:{text:'own bounded fixture'}});
+    await new Promise(resolve => setTimeout(resolve,400));
+    assert.equal(existsSync(join(dir,'late-catalog-handler')), false);
+  } finally { console.warn=saved; await cleanup?.(); rmSync(dir,{recursive:true,force:true}); }
 });
 
 test('cleanup terminates its launcher tree and settles the pending hook', async () => {

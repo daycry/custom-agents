@@ -60,7 +60,7 @@ test('P-01 three runtimes, origins and counts are distinct from the bundle', asy
   const errors = []; page.on('pageerror', error => errors.push(error.message)); await page.reload();
   const counts = inventory.counts;
   expect((await page.locator('.stat strong').allTextContents()).map(Number)).toEqual([
-    counts.agents, counts.skills, counts.commands, counts.tools, new Set(inventory.hooks.map(h => h.event)).size,
+    counts.agents, counts.skills, counts.commands, counts.tools, new Set(inventory.hooks.map(h => `${h.runtime}:${h.event}`)).size,
   ]);
   await expect(page.locator('#extensions .card')).toHaveCount(inventory.extensions.pieces.length);
   for (const runtime of ['claude-code', 'codex', 'opencode']) {

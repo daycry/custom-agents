@@ -211,3 +211,72 @@ por separado. Se conservan los fallos como evidencia. Las fichas de
 de parser y reintentos intermitentes por identidad; no atribuyen la matriz
 histórica completa a la fuente final. La aceptación de este bloque se registra
 en el ledger; la eficacia SessionEnd y aceptación de memoria siguen abiertas.
+
+## Bloque 5: acciones prioritarias del diagnóstico
+
+La comparación completa de C030 y su motor confirma el valor de ordenar los
+arreglos de un diagnóstico reproducible. Sus puntuaciones por cantidad de
+piezas, cadenas presentes y supuesta latencia no acreditan calidad ni ejecución;
+se descartan. El destino es `/doctor`, dueño actual de las comprobaciones, con
+`doctor.py` como única fuente de filas, resumen y acciones. No se crea otro
+comando, escritor de estado ni skill. Las decisiones técnicas ya están delegadas.
+
+El JSON añade `acciones_prioritarias` con `{total, limite, acciones}`. `total`
+cuenta filas `error`/`aviso` con arreglo no vacío; `limite` es tres. Cada acción
+conserva bloque, ordinal de fila desde uno, estado, comprobación, detalle y
+arreglo exactos. Prioridad: error antes de aviso; desempate por orden canónico
+de bloque y fila. Dos problemas distintos con el mismo remedio siguen siendo
+dos hallazgos. Las filas informativas o sin arreglo no originan recomendaciones.
+
+Markdown muestra la misma selección y su total. Todas las tablas, filas de
+cuatro campos, conteos y exit permanecen. No se ejecuta ningún arreglo ni se
+deduce una ruta de la prosa. La ausencia de errores se expresa respecto a las
+comprobaciones realizadas, sin anunciar salud global o ejecución de hooks.
+`/setup` debe describir la excepción de red ya existente para capacidades
+activadas, en vez de prometer un diagnóstico siempre sin red.
+
+Aceptación del bloque: RED/GREEN de prioridad, empate, truncamiento, ausencia
+de remedios, problemas distintos con el mismo remedio, texto con pipes/newlines,
+identidad JSON/Markdown y preservación de filas/exit. Prueba de CLI en proyecto
+y home propios, sin cambios en configuración; no diagnosticar el workspace real
+porque contiene settings del usuario. QA de la suite propia en fixtures, diff
+>=90%, docs ES/EN, exports, revisión independiente y push comprobado. T-05/T-11
+globales y la comparación de otros comandos siguen abiertas.
+
+## Bloque 6: hooks declarados por runtime en el panel
+
+La comparación operativa verifica el valor de metadatos por componente, estados
+desconocidos explícitos y navegación accesible. El lector actual ignora runtime
+para hooks, pierde los launchers con argumento de runtime y muestra el presupuesto
+Claude en la vista Codex. Se corrige sobre plugin-panel, conservando el HTML
+autónomo, lectores canónicos y el registro de extensiones existente.
+
+Claude se obtiene de `hooks/hooks.json`; Codex, de `interop/codex/hooks.json`.
+OpenCode usa un catálogo JSON literal acotado dentro de su adapter, delimitado
+por centinelas exactos. Ese mismo catálogo define bindings, handlers y presupuestos
+que consume el adapter; los callbacks y transformaciones permanecen en JavaScript.
+El panel valida y lee exclusivamente el JSON, sin importar ni ejecutar JavaScript
+del bundle inspeccionado. No se crea un sidecar que duplique constantes sin uso.
+El generador distribuye el adapter con su contrato integrado.
+
+Cada handler declara runtime, evento/canal nativo, fuente/localizador, ID,
+propósito, activación, comportamiento informativo/guardia, identidad del mapa
+propio cuando corresponda y timeout con procedencia. Booleanos, valores no finitos
+o no positivos no son timeouts válidos. Un timeout ausente se muestra como no
+declarado; no se inventa el default del runtime. La guardia muestra el alcance
+real y no acredita procedencia del prompt ni sandbox universal.
+
+La vista `all` agrupa por runtime/evento y cuenta handlers y grupos explícitos;
+un runtime concreto inspecciona solo su declaración. Fuente inválida/ausente se
+presenta como desconocida o inventario parcial, sin sustituirla por Claude ni
+confundir ausencia de evidencia con ausencia de hooks. Carga y ejecución siguen
+sin verificar; no se invoca doctor, health/verify ni un servidor al generar HTML.
+
+UI: filtro por runtime de hooks, funciones y presupuestos legibles, fuentes
+accesibles también en móvil, foco/teclado, hashes/IDs inexistentes seguros,
+historial y etapas existentes conservados. Probar metadatos hostiles, lectura
+acotada, sources enlazadas, drift del contrato frente a callbacks, agrupación y
+selección entre entornos. El refactor de bindings se valida con la suite del
+adapter y un delta OpenCode nativo aislado, sin activar cachés del consumidor.
+La proyección futura de doctor será opt-in; no se añade analítica sintética,
+otro almacén de tareas ni nuevas skills en este bloque.

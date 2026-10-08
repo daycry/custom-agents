@@ -2,8 +2,10 @@
 """Read public plugin definitions and build a local capability panel."""
 import argparse
 import html
+import hashlib
 import importlib.util
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -137,52 +139,200 @@ def _catalog(root, kind, warnings):
     return entries
 
 
-def _hook_metadata(root, hook, group, metadata):
+HOOK_HANDLERS = frozenset(('native-guardrail', 'mark-docs-pending.sh', 'ledger-lint-warn.sh',
+                         'progress-line.sh', 'subagent-progress.sh', 'session-context.sh',
+                         'session-journal.sh', 'user-prompt-capture.sh'))
+RUNTIME_NAMES = {'claude-code': 'claude', 'codex': 'codex', 'opencode': 'opencode'}
+HOOK_SOURCES = {'claude-code': 'hooks/hooks.json', 'codex': 'interop/codex/hooks.json',
+                'opencode': 'hooks/opencode-plugin.js'}
+CATALOG_START = '// custom-agents hook-catalog:start'
+CATALOG_END = '// custom-agents hook-catalog:end'
+
+
+def _hook_metadata(root, hook, group, metadata, runtime):
     launcher = '${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.mjs'
     script = None
     arguments = hook.get('args')
-    if hook.get('command') == 'node' and isinstance(arguments, list) and len(arguments) == 2 and arguments[0] == launcher:
+    suffix = None
+    if hook.get('command') == 'node' and isinstance(arguments, list) and len(arguments) in (2, 3) and arguments[0] == launcher:
         script = arguments[1]
+        suffix = arguments[2] if len(arguments) == 3 else None
     elif isinstance(hook.get('command'), str):
-        match = re.fullmatch(r'node "\$\{CLAUDE_PLUGIN_ROOT\}/hooks/run-hook\.mjs" ([a-z][a-z0-9-]{0,63}\.sh)', hook['command'])
+        match = re.fullmatch(r'node "\$\{CLAUDE_PLUGIN_ROOT\}/hooks/run-hook\.mjs" (?:(?:"([a-z][a-z0-9.-]{0,63})")|([a-z][a-z0-9.-]{0,63}))(?: (--runtime=(?:claude|codex|opencode)))?', hook['command'])
         if match:
-            script = match.group(1)
-    if not isinstance(script, str) or not re.fullmatch(r'[a-z][a-z0-9-]{0,63}\.sh', script):
+            script = match.group(1) or match.group(2)
+            suffix = match.group(3)
+    if script not in HOOK_HANDLERS or (suffix is not None and suffix != '--runtime=' + RUNTIME_NAMES[runtime]):
         return {}
+    return _handler_metadata(root, script, group, metadata)
+
+
+def _handler_metadata(root, script, group, metadata):
     if script not in metadata:
         fields = {'title': script, 'description': 'Descripción pública no disponible en esta instantánea.'}
-        try:
-            for line in _read(root, root / 'hooks' / script).splitlines()[:8]:
-                for key in ('title', 'description'):
-                    prefix = '# panel-' + key + ': '
-                    if line.startswith(prefix):
-                        fields[key] = REDACTOR(line[len(prefix):])[:300]
-        except (OSError, ValueError, UnicodeError):
-            pass
+        if script == 'native-guardrail':
+            fields = {'title': 'Guardia de roles',
+                      'description': 'Aplica las políticas centrales del implementer y architect cuando coincide su identidad nativa. El nombre no acredita procedencia del prompt ni un sandbox universal.'}
+        else:
+            try:
+                for line in _read(root, root / 'hooks' / script).splitlines()[:8]:
+                    for key in ('title', 'description'):
+                        prefix = '# panel-' + key + ': '
+                        if line.startswith(prefix):
+                            fields[key] = REDACTOR(line[len(prefix):])[:300]
+            except (OSError, ValueError, UnicodeError):
+                pass
         metadata[script] = fields
     matcher = group.get('matcher')
     return {'handler': script, **metadata[script],
             'matcher': REDACTOR(matcher)[:160] if isinstance(matcher, str) else ''}
 
 
-def _hooks(root, warnings):
-    path = root / 'hooks/hooks.json'
-    if not path.exists():
-        return []
+def _positive_number(value):
     try:
-        events = json.loads(_read(root, path)).get('hooks', {})
+        return type(value) in (int, float) and math.isfinite(value) and value > 0
+    except OverflowError:
+        return False
+
+
+def _unique_object(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError('duplicate JSON key')
+        result[key] = value
+    return result
+
+
+def _role_ids(root, runtime, warnings):
+    source = 'agent-kits/shared/native-roles.json'
+    try:
+        text = _read(root, root / source)
+        if len(text.encode('utf-8')) > 65536:
+            raise ValueError('role map too large')
+        mapping = json.loads(text, object_pairs_hook=_unique_object)
+        roles = mapping['runtimes'][RUNTIME_NAMES[runtime]]
+        prefix = 'custom-agents:' if runtime == 'claude-code' else 'custom-agents-'
+        result = [roles[role] for role in ('implementer', 'architect')]
+        if type(mapping.get('schema_version')) is not int or mapping['schema_version'] != 1 or result != [prefix + role for role in ('implementer', 'architect')]:
+            raise ValueError('invalid native identities')
+        return result
+    except (OSError, ValueError, UnicodeError, TypeError, KeyError, RecursionError):
+        warnings.append(f'{runtime}: native role identity metadata unavailable')
+        return []
+
+
+def _hook_record(runtime, event, native_event, source, locator, timeout, provenance, meta, roles, warnings):
+    valid = _positive_number(timeout)
+    status = 'declared' if valid else 'absent' if timeout is None else 'invalid'
+    if status == 'invalid':
+        warnings.append(f'{runtime}: invalid declared hook timeout')
+    guard = meta.get('handler') == 'native-guardrail'
+    return {'id': 'hook-' + hashlib.sha256(f'{runtime}:{source}:{locator}'.encode('utf-8')).hexdigest()[:16],
+            'runtime': runtime, 'event': event, 'native_event': native_event, 'source': source,
+            'locator': locator, 'scope': 'global', 'behavior': 'guard' if guard else 'informative' if 'handler' in meta else 'unknown',
+            'timeout': timeout if valid else None, 'timeout_status': status,
+            'timeout_unit': 'ms' if provenance == 'adapter-supervision' else 's',
+            'timeout_provenance': provenance, 'load_status': 'unknown', 'execution_status': 'unknown',
+            'role_ids': roles if guard else [], 'identity_status': 'declared' if guard and roles else 'unknown', **meta}
+
+
+def _opencode_bindings(text):
+    if text.count(CATALOG_START) != 1 or text.count(CATALOG_END) != 1:
+        raise ValueError('missing or duplicate catalog markers')
+    literal = text.split(CATALOG_START, 1)[1].split(CATALOG_END, 1)[0].strip()
+    before, after = 'const hookCatalog = JSON.parse(`', '`);'
+    if not literal.startswith(before) or not literal.endswith(after) or len(literal.encode('utf-8')) > 65536:
+        raise ValueError('invalid catalog literal')
+    payload = literal[len(before):-len(after)]
+    # No JavaScript interpolation or extra statements can be interpreted as data.
+    if '`' in payload or '${' in payload:
+        raise ValueError('executable catalog interpolation')
+    catalog = json.loads(payload, object_pairs_hook=_unique_object)
+    if type(catalog.get('schema_version')) is not int or catalog['schema_version'] != 1:
+        raise ValueError('invalid catalog version')
+    bindings = catalog.get('bindings')
+    expected = {'guard': ('tool', 'PreToolUse', 'guard'), 'prompt': ('session', 'UserPromptSubmit', 'informative'),
+                'context': ('session', 'SessionStart', 'informative'), 'post': ('tool', 'PostToolUse', 'informative'),
+                'capture': ('event', 'SessionEnd', 'informative')}
+    allowed_handlers = {'guard': {'native-guardrail'}, 'prompt': {'user-prompt-capture.sh'},
+                        'context': {'session-context.sh'}, 'capture': {'session-journal.sh'},
+                        'post': {'mark-docs-pending.sh', 'ledger-lint-warn.sh', 'progress-line.sh'}}
+    if not isinstance(bindings, list) or len(bindings) != len(expected):
+        raise ValueError('invalid binding list')
+    found = set()
+    for binding in bindings:
+        identifier = binding['id']
+        if identifier in found or identifier not in expected:
+            raise ValueError('invalid binding ID')
+        found.add(identifier)
+        if tuple(binding.get(key) for key in ('domain', 'event', 'behavior')) != expected[identifier]:
+            raise ValueError('invalid callback binding')
+        handlers = binding.get('handlers')
+        if not isinstance(handlers, list) or not 1 <= len(handlers) <= 8 or any(type(item) is not str or item not in HOOK_HANDLERS for item in handlers) or len(set(handlers)) != len(handlers):
+            raise ValueError('invalid binding handlers')
+        if any(handler not in allowed_handlers[identifier] for handler in handlers) or identifier != 'post' and len(handlers) != 1:
+            raise ValueError('invalid callback handler')
+        if not _positive_number(binding.get('timeout_ms')):
+            raise ValueError('invalid adapter budget')
+        names = binding.get('native_events') if identifier == 'capture' else [binding.get('native_event')]
+        if not isinstance(names, list) or not 1 <= len(names) <= 16 or any(type(name) is not str or not re.fullmatch(r'[a-z][a-z0-9.-]{0,99}', name) for name in names):
+            raise ValueError('invalid native events')
+        if type(binding.get('activation')) is not str or len(binding['activation']) > 300:
+            raise ValueError('invalid activation')
+        if identifier == 'capture' and (not isinstance(binding.get('idle_status_event'), str) or not re.fullmatch(r'[a-z][a-z0-9.-]{0,99}', binding['idle_status_event']) or binding.get('idle_status') != 'idle'):
+            raise ValueError('invalid idle binding')
+        if identifier == 'post' and (not isinstance(binding.get('tools'), list) or not 1 <= len(binding['tools']) <= 32 or any(type(tool) is not str or not re.fullmatch(r'[a-z][a-z0-9_]{0,63}', tool) for tool in binding['tools'])):
+            raise ValueError('invalid tool activation')
+    return bindings
+
+
+def _hooks(root, runtime, warnings):
+    source = HOOK_SOURCES[runtime]
+    path = root / source
+    if not path.exists():
+        warnings.append(f'{source}: declaration source missing; hooks unknown')
+        return [], {'source': source, 'status': 'missing'}
+    try:
+        text = _read(root, path)
+        result, metadata = [], {}
+        roles = None
+        if runtime == 'opencode':
+            for binding in _opencode_bindings(text):
+                native_event = (', '.join(binding['native_events']) + ', ' + binding['idle_status_event'] + ' (' + binding['idle_status'] + ')') if binding['domain'] == 'event' else binding['domain'] + '.' + binding['native_event']
+                for index, handler in enumerate(binding['handlers']):
+                    meta = _handler_metadata(root, handler, {'matcher': binding['activation']}, metadata)
+                    if handler == 'native-guardrail' and roles is None:
+                        roles = _role_ids(root, runtime, warnings)
+                    result.append(_hook_record(runtime, binding['event'], native_event, source,
+                                  'hook-catalog/bindings/' + binding['id'] + '/handlers/' + str(index),
+                                  binding['timeout_ms'], 'adapter-supervision', meta, roles or [], warnings))
+            return result, {'source': source, 'status': 'declared'}
+        events = json.loads(text, object_pairs_hook=_unique_object).get('hooks', {})
         if not isinstance(events, dict):
             raise ValueError('invalid events')
-        result, metadata = [], {}
+        if len(events) > 64:
+            raise ValueError('too many events')
         for event in sorted(events):
-            for group in events[event]:
-                for hook in group.get('hooks', []):
-                    timeout = hook.get('timeout')
-                    result.append({'event': event, 'timeout': timeout if isinstance(timeout, (int, float)) else None, 'scope': 'global', **_hook_metadata(root, hook, group, metadata)})
-        return result
-    except (OSError, UnicodeError, ValueError, TypeError, AttributeError):
-        warnings.append('hooks/hooks.json: inventory unavailable')
-        return []
+            groups = events[event]
+            if not isinstance(event, str) or len(event) > 128 or not isinstance(groups, list) or len(groups) > 64:
+                raise ValueError('invalid event groups')
+            for group_index, group in enumerate(groups):
+                if not isinstance(group, dict) or not isinstance(group.get('hooks'), list):
+                    raise ValueError('invalid hook group')
+                for index, hook in enumerate(group['hooks']):
+                    if not isinstance(hook, dict) or len(result) >= MAX_FILES:
+                        raise ValueError('invalid or oversized hook inventory')
+                    meta = _hook_metadata(root, hook, group, metadata, runtime)
+                    if meta.get('handler') == 'native-guardrail' and roles is None:
+                        roles = _role_ids(root, runtime, warnings)
+                    result.append(_hook_record(runtime, event, event, source,
+                                  'hooks/' + event + '/' + str(group_index) + '/' + str(index),
+                                  hook.get('timeout'), 'runtime-registration', meta, roles or [], warnings))
+        return result, {'source': source, 'status': 'declared'}
+    except (OSError, UnicodeError, ValueError, TypeError, AttributeError, KeyError, RecursionError):
+        warnings.append(f'{source}: declaration inventory unavailable; hooks unknown')
+        return [], {'source': source, 'status': 'invalid'}
 
 
 def _presence(root, relative):
@@ -226,7 +376,13 @@ def build_inventory(root, *, project=None, home=None, runtime='all', cwd=None,
     for kind in ('agents', 'skills', 'commands'):
         data[kind] = _catalog(root, kind, data['warnings'])
     data['tools'] = sorted({tool for entry in data['agents'] for tool in entry['tools']})
-    data['hooks'] = _hooks(root, data['warnings'])
+    selected = tuple(RUNTIME_NAMES) if runtime == 'all' else (runtime,)
+    data['hooks'], data['hook_sources'] = [], {}
+    for selected_runtime in selected:
+        records, status = _hooks(root, selected_runtime, data['warnings'])
+        data['hooks'].extend(records)
+        data['hook_sources'][selected_runtime] = status
+    data['hook_group_count'] = len({(hook['runtime'], hook['event']) for hook in data['hooks']})
     data['counts'] = {kind: len(data[kind]) for kind in ('agents', 'skills', 'commands', 'tools', 'hooks')}
     data['runtimes'] = {runtime: _presence(root, relative) for runtime, relative in {'claude': 'hooks/hooks.json', 'codex': 'interop/codex/hooks.json', 'opencode': 'interop/opencode/plugins/custom-agents/index.js'}.items()}
     data['memory'] = {'approved_directory': _presence(root, 'docs/knowledge/approved'), 'graphify_artifact': _presence(root, 'graphify-out/graph.json')}
@@ -283,17 +439,36 @@ def _cards(data):
         cards.append(f'<article data-kind="tools" class="card"><small>HERRAMIENTA DECLARADA</small><h2>{html.escape(tool)}</h2><p>El acceso depende de las herramientas habilitadas en la sesión y del runtime actual.</p></article>')
     grouped = {}
     for hook in data['hooks']:
-        grouped.setdefault(hook['event'], []).append(hook)
-    for event, hooks in grouped.items():
+        grouped.setdefault((hook.get('runtime', 'unknown'), hook['event']), []).append(hook)
+    for (runtime, event), hooks in grouped.items():
         handlers = ''.join(
-            '<li><strong>' + html.escape(hook.get('title', f'Acción {index}')) + '</strong>'
+            '<li id="' + html.escape(hook.get('id', 'hook-unknown-' + str(index))) + '"><strong>' + html.escape(hook.get('title', f'Acción {index}')) + '</strong>'
             + ('<p>' + html.escape(hook['description']) + '</p><code>' + html.escape(hook['handler']) + '</code><span class="hook-meta">Activación: '
                + html.escape(hook['matcher'].replace('|', ' · ') or 'Cada ocurrencia del evento') + '</span>' if 'handler' in hook else '<p>Función pública no identificada en esta definición.</p>')
-            + ('<span class="hook-meta"> · Timeout: ' + html.escape(str(hook['timeout'])) + ' s</span>' if hook['timeout'] is not None else '') + '</li>'
+            + _hook_details(hook) + ('<a class="hook-link" href="#' + html.escape(hook['id']) + '">Enlace a acción</a>' if 'id' in hook else '') + '</li>'
             for index, hook in enumerate(hooks, 1)
         )
-        cards.append(f'<article data-kind="hooks" class="card"><small>EVENTO DE HOOK</small><h2>{html.escape(event)}</h2><p>{len(hooks)} acciones configuradas. Su ejecución no se mide en este panel.</p><ul class="hook-handlers">{handlers}</ul></article>')
+        cards.append(f'<article data-kind="hooks" data-runtime="{html.escape(runtime)}" class="card"><small>EVENTO DE HOOK · {html.escape(runtime)}</small><h2>{html.escape(event)}</h2><p>{len(hooks)} acciones configuradas. Carga sin verificar · ejecución sin verificar.</p><ul class="hook-handlers">{handlers}</ul></article>')
     return '\n'.join(cards)
+
+
+def _hook_details(hook):
+    esc = lambda value: html.escape(str(value), quote=True)
+    unit = hook.get('timeout_unit', 's')
+    timeout = hook.get('timeout')
+    label = 'Supervisión del adapter' if hook.get('timeout_provenance') == 'adapter-supervision' else 'Timeout'
+    budget = f'{label}: {esc(timeout)} {esc(unit)}' if timeout is not None else 'Presupuesto inválido' if hook.get('timeout_status') == 'invalid' else 'Timeout: no declarado'
+    source = hook.get('source', 'Fuente no identificada')
+    provenance = 'Presupuesto del adapter; no equivale a un timeout de registro del runtime.' if hook.get('timeout_provenance') == 'adapter-supervision' else 'Presupuesto declarado en el registro del runtime; no acredita finalización dentro del límite.'
+    identity = ''
+    if hook.get('behavior') == 'guard':
+        roles = hook.get('role_ids', [])
+        identity = '<p>Identidad declarada: ' + (esc(', '.join(roles)) if roles else 'sin verificar') + '. Guardia global con alcance por identidad; configuración y ejecución son evidencias distintas.</p>'
+    return ('<span class="hook-meta"> · ' + budget + '</span><details><summary>Fuente, contrato y límites</summary><p>Canal nativo: '
+            + esc(hook.get('native_event', hook['event'])) + '</p><p>Comportamiento: '
+            + {'guard': 'Guardia de roles', 'informative': 'Informativo'}.get(hook.get('behavior'), 'Sin identificar')
+            + ' · ámbito global.</p>' + identity + '<p>' + provenance + '</p><code>'
+            + esc(source) + '#' + esc(hook.get('locator', '')) + '</code></details>')
 
 
 def _flow_html(data):
@@ -375,10 +550,12 @@ def _extensions_html(data):
 
 
 def render_html(data):
-    counts = {**data['counts'], 'hooks': len({hook['event'] for hook in data['hooks']})}
-    labels = {'agents': 'Agentes', 'skills': 'Skills', 'commands': 'Comandos', 'tools': 'Herramientas', 'hooks': 'Eventos de hook'}
+    counts = {**data['counts'], 'hooks': len({(hook.get('runtime', 'unknown'), hook['event']) for hook in data['hooks']})}
+    labels = {'agents': 'Agentes', 'skills': 'Skills', 'commands': 'Comandos', 'tools': 'Herramientas', 'hooks': 'Registros de hook'}
     stats = ''.join(f'<div class="stat"><strong>{count}</strong><span>{labels[kind]}</span></div>' for kind, count in counts.items())
-    sources = {'runtimes': data['runtimes'], 'memory': data['memory'], 'warnings': data['warnings']}
+    sources = {'runtimes': data['runtimes'], 'memory': data['memory'], 'warnings': data['warnings'],
+               'hook_sources': data.get('hook_sources', {}), 'hook_handlers': data['counts']['hooks'],
+               'hook_groups': counts['hooks']}
     if 'extensions' in data:
         sources['extensions'] = {key: data['extensions'][key] for key in ('registry_status', 'warnings', 'orphans')}
     notes = html.escape(json.dumps(sources, ensure_ascii=False, indent=2))

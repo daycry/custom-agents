@@ -44,15 +44,17 @@ El control positivo V2 inicial solo registra callbacks. La entrega posterior
 ya valida transporte nativo de contexto, captura, write y cierre/replay;
 sus límites siguen en transport_validation de runtime-probes.json.
 El timeout declarado tampoco demuestra captura dentro del presupuesto de
-teardown. El payload final supervisado tiene pruebas nativas de cierre en
+teardown. El payload supervisado conserva pruebas históricas de cierre en
 [Claude](claude-hook-evidence.json), [Codex](codex-lifecycle-evidence.json) y
 [OpenCode](opencode-lifecycle-evidence.json). Claude conserva un envelope antes
 de salir y confirma status 0 en debug; Codex completa SessionEnd en 1745 ms
 dentro de los 3 s declarados; OpenCode valida dos loops y replay. Las fichas
 conservan los resultados históricos anteriores a la supervisión y sus límites.
-Codex necesita caché instalada además de enabled.
-Confianza persistida y guardias siguen abiertas. Esta repriorización no
-declara completadas esas tareas.
+Codex necesita caché instalada además de enabled. La cohorte posterior de
+[integración nativa](native-role-integration-evidence.json) conserva fallos
+de SessionEnd Codex y una recuperación manual comprobada: la durabilidad y
+eficacia de memoria dentro del teardown siguen pendientes. La medición
+histórica de 1745 ms no acredita la cohorte final.
 
 La siguiente investigación completa pruebas de identidad y bloqueo previo
 con dispatchers privados en los tres runtimes:
@@ -60,8 +62,12 @@ con dispatchers privados en los tres runtimes:
 Claude/Codex entregan agent_type; OpenCode entrega event.agent y confirma
 delegación real. Esos nombres no acreditan origen del prompt. El diseño
 elige IDs protegidos exactos y namespacing propio Codex/OpenCode, con migración
-que preserve agentes y bindings del usuario. Su conexión a la distribución
-sigue pendiente. El export del reviewer deja de añadir sandbox_mode por rol
+que preserve agentes y bindings del usuario. La conexión a la distribución,
+su migración y las guardias quedaron entregadas en `54e8b3f8` y aceptadas en
+el intento 5 del bloque acotado: [QA](native-role-qa-evidence.json) y
+[cohortes nativas](native-role-integration-evidence.json). Cada cohorte conserva
+sus hashes y límites; no se atribuye toda la matriz al último parser.
+El export del reviewer deja de añadir sandbox_mode por rol
 en Codex: dos hijos nativos escribieron con esa clave bajo permisos heredados
 del padre. El diagnóstico futuro debe distinguir responsabilidad de revisión,
 guardia por hook y sandbox efectivo; no convertir presencia de configuración
@@ -72,8 +78,19 @@ comparación estática de paneles/comandos. La
 [comparación operativa](comparisons/operational-panel-commands.md) delimita
 las tres entradas de dashboard, sus recursos y 18/94 cuerpos de comandos
 leídos. Dependencias pendientes, cero fichas globales cerradas y cero nuevas
-integraciones de ese bloque. Las propuestas reutilizan doctor, journal,
-ledger y medidor, con estados desconocidos y lectura como base.
+integraciones de aquel bloque de investigación. Las propuestas reutilizan
+doctor, journal, ledger y medidor, con estados desconocidos y lectura como base.
+
+El siguiente bloque operativo consolida [acciones prioritarias en doctor](comparisons/commands-diagnostics.md)
+y [declaraciones de hooks por runtime en el panel](comparisons/panel-hook-contracts.md).
+La ficha C030 se completa por su cuerpo, motor y callers pertinentes; la
+lectura histórica de 18 cuerpos no se convierte en 18 fichas terminadas.
+El panel distingue procedencia, timeout de registro y presupuesto del adapter;
+la carga y ejecución permanecen desconocidas sin observación compatible.
+Ambos bloques quedan aceptados por revisión A+B+D y [QA final](panel-command-qa-evidence.json),
+con B1 corregido y sin gaps pendientes. No cierran T-05/T-13 globales ni la
+investigación de memoria; las skills permanecen aplazadas. Por petición expresa
+del usuario se publica este bloque y se detiene el trabajo antes de otra fase.
 
 ## Memoria: valoración inicial y comprobaciones pendientes
 

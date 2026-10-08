@@ -1,0 +1,132 @@
+{
+  "source_revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+  "inventory_commands": 94,
+  "command_bodies_read": 18,
+  "complete_command_fiches": 1,
+  "integrated_commands": 0,
+  "observed_on": "2026-10-08",
+  "scope": "C030 diagnostic priorities; native health, agent and skill contracts remain separate",
+  "records": [
+    {
+      "id": "C030",
+      "revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+      "sha256": "dc420f85cdbfab6671338227b5673b4feed564c4294a12c304b6d79cf0346ec2",
+      "bytes": 3170,
+      "lines": 84,
+      "ranges": [
+        [
+          1,
+          84
+        ]
+      ],
+      "model_read": "complete",
+      "execution": "not executed",
+      "semantic_complete": true,
+      "semantic_scope": "Diagnostic command contract only; caller fiches remain open",
+      "integrated": false
+    },
+    {
+      "id": "R-3d9f69328581",
+      "revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+      "sha256": "cab3a6d0fa74a08fd484a929c1c769f723afbd01818f4ca549d2966d6458c1ea",
+      "bytes": 35498,
+      "lines": 1085,
+      "ranges": [
+        [
+          1,
+          1085
+        ]
+      ],
+      "model_read": "complete",
+      "execution": "not executed",
+      "semantic_complete": false,
+      "semantic_scope": "Diagnostic command contract only; caller fiches remain open",
+      "integrated": false
+    },
+    {
+      "id": "A031",
+      "revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+      "sha256": "16b5cd0cd03ba4de2a9cc6b737c8cc0d4e52d3fdc423a1c2bcdd6496d65d4cfd",
+      "bytes": 4923,
+      "lines": 55,
+      "ranges": [
+        [
+          1,
+          55
+        ]
+      ],
+      "model_read": "complete",
+      "execution": "not executed",
+      "semantic_complete": false,
+      "semantic_scope": "Diagnostic command contract only; caller fiches remain open",
+      "integrated": false
+    },
+    {
+      "id": "S052",
+      "revision": "ef648e01899ba3e8dc6371642deaaf64b4477775",
+      "sha256": "f228cd383a9063b3a0116c5aea02565e859992f63fae5e799adf9c9e44e2454d",
+      "bytes": 1190,
+      "lines": 46,
+      "ranges": [
+        [
+          1,
+          46
+        ]
+      ],
+      "model_read": "complete",
+      "execution": "not executed",
+      "semantic_complete": false,
+      "semantic_scope": "Diagnostic command contract only; caller fiches remain open",
+      "integrated": false
+    }
+  ],
+  "own_baseline": [
+    {
+      "path": "commands/doctor.md",
+      "baseline": "d3a2490",
+      "sha256_lf": "378f9fd5bfa56eda4e6b9fd03bf4aa13dcd6e6fa2064dce1190a910932d4c49b",
+      "model_read": "complete",
+      "boundary": "Complete command body",
+      "ranges": "Not retained by reader; no inferred full-range claim"
+    },
+    {
+      "path": "commands/setup.md",
+      "baseline": "d3a2490",
+      "sha256_lf": "1e724a9986dcad1963793545ce85b1679f4719f87fad3e95a10fc4d55482b9cf",
+      "model_read": "complete",
+      "boundary": "Complete command body",
+      "ranges": "Not retained by reader; no inferred full-range claim"
+    },
+    {
+      "path": "agent-kits/shared/doctor.py",
+      "baseline": "d3a2490",
+      "sha256_lf": "ee27a9374c00505cb2d1b83eba4874a3fe70cc2fa3d6d924e95b70e665c79d34",
+      "model_read": "partial",
+      "boundary": "Scoped named utilities, plugin/runtime registration, diagnosis assembly, Markdown and CLI; not all checkers",
+      "ranges": "Not retained by reader; no inferred full-range claim"
+    },
+    {
+      "path": "agent-kits/shared/test_doctor.py",
+      "baseline": "d3a2490",
+      "sha256_lf": "4eff8ed3dc385b38e083da035383231a9a5baa73647635172012eecdc3614fde",
+      "model_read": "partial",
+      "boundary": "Scoped helpers and relevant JSON/Markdown/exit/no-write/linter tests; not entire suite",
+      "ranges": "Not retained by reader; no inferred full-range claim"
+    },
+    {
+      "path": "scripts/export-interop.py",
+      "baseline": "d3a2490",
+      "sha256_lf": "9fc0001a1a2836875a699219e0c2c710a2b700d30f814d1e61bde4da41f84555",
+      "model_read": "partial",
+      "boundary": "Complete codex_prompt and opencode_comando function bodies",
+      "ranges": "Not retained by reader; no inferred full-range claim"
+    }
+  ],
+  "limits": [
+    "Historical eighteen body reads are not eighteen complete semantic evaluations.",
+    "No upstream code was executed; production is an independent implementation.",
+    "Caller bodies were read for the diagnostic dependency; global caller fiches are not closed.",
+    "Named own source sections were read; original exact ranges were not retained and are not reconstructed as proof.",
+    "Token cost and latency remain unmeasured without compatible meter data."
+  ]
+}

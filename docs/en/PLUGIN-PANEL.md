@@ -1,11 +1,29 @@
 # Plugin capability panel
 
-Hooks appear in one card per event. `PostToolUse` lists its three handlers within
-that card; the HTML counter measures distinct events. The JSON keeps one entry
-per handler and `counts.hooks` counts handlers. Full hook commands remain excluded.
-Recognized actions show names, purposes and triggers; timeouts appear when
-configured in the source. Names and purposes come from the registered script's
-public `panel-title` and `panel-description` headers. Scripts are never executed.
+Hooks appear in one card per **runtime and event**. `PostToolUse` retains three
+handlers in each runtime. HTML counts groups; JSON retains one entry per handler,
+`counts.hooks` counts actions and `hook_group_count` counts groups. `--runtime`
+selects hook and extension sources; `all` compares the three runtimes. The HTML
+runtime filter affects hooks while retaining other bundle capabilities.
+
+Each action has a stable ID, source and locator, native channel, public purpose,
+activation and behavior. Claude reads `hooks/hooks.json`; Codex reads
+`interop/codex/hooks.json`. OpenCode reads bounded strict JSON between markers in
+`hooks/opencode-plugin.js`: the catalog governs the adapter and is never imported
+as JavaScript. `hook_sources` reports each source as declared, missing or invalid;
+a failed source is never replaced with another runtime's hooks.
+
+Claude/Codex timeouts use seconds with registration provenance. OpenCode shows
+milliseconds of adapter supervision; its idle/execution stream capture is not a
+native teardown hook. Declared, absent and invalid budgets remain distinct;
+no default is invented. The guard obtains role identities from the central bundle
+map; configuration, loading and execution are different evidence. `load_status`
+and `execution_status` remain `unknown` in this static catalog.
+
+Informational names and purposes come from recognized handlers' public
+`panel-title` and `panel-description` headers. The panel excludes full commands
+and never executes scripts, hooks or diagnostics. Action links restore filters
+and focus; Sources stays reachable on mobile.
 
 **English** · [Español](../PLUGIN-PANEL.md)
 
@@ -44,7 +62,7 @@ partial inventory. JSON adds `extensions` only when a project is requested,
 keeping `schema_version: 1` and existing counts. Task selection follows the
 [shared extension method](PROJECT-EXTENSIONS.md).
 
-The inventory extracts public frontmatter, hooks/hooks.json and metadata from
+The inventory extracts public frontmatter, runtime hook registries and metadata from
 the first eight lines of scripts recognized by the bundled launcher. Executable
 bodies, full commands, environment values and private memory are excluded from
 the output. The central

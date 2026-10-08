@@ -433,6 +433,36 @@ flowchart LR
 > escribir nada y da un veredicto ✅/⚠️/❌ por línea con el arreglo al lado. Es la primera parada cuando un hook
 > «no salta» o una skill no se activa; `/setup` la ofrece si ya hay config en `.claude/`.
 
+```mermaid
+flowchart LR
+    Comprobaciones[Filas canónicas de doctor] --> Informe[Tablas y conteos completos]
+    Comprobaciones --> Prioridad[Errores antes de avisos con arreglo]
+    Prioridad --> Acciones[Hasta tres acciones con bloque y fila]
+    Acciones --> Salida[La misma selección en JSON y Markdown]
+    Informe --> Salida
+```
+
+Las acciones no ejecutan arreglos. Las líneas informativas se conservan en el
+informe y no originan recomendaciones. Las capacidades opcionales activadas
+pueden comprobar su backend con red acotada; el informe no acredita por sí solo
+ejecución de hooks ni salud global.
+
+El catálogo de `/plugin-catalog` sigue un flujo de lectura independiente:
+
+```mermaid
+flowchart LR
+    Claude[Registro Claude] --> Panel[Inventario por runtime y evento]
+    Codex[Registro Codex] --> Panel
+    Catalogo[Catálogo JSON del adapter OpenCode] --> Adapter[Registros y supervisión OpenCode]
+    Catalogo --> Panel
+    Roles[Mapa central de roles] --> Panel
+    Panel --> Vista[HTML y JSON con fuentes y límites]
+```
+
+El panel no ejecuta doctor ni los hooks. Presencia y presupuestos declarados
+no acreditan carga o ejecución; el stream de cierre OpenCode tiene su propio
+contrato, sin heredar el timeout de teardown Codex.
+
 Detalle de cada fichero: regla 9 de [`CONVENTIONS.md`](CONVENTIONS.md). Comportamientos del
 conector Atlassian: [`atlassian-connector-notes.md`](atlassian-connector-notes.md).
 
