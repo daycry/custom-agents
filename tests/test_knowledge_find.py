@@ -119,7 +119,7 @@ def proyecto(tmp_path):
     for rel, contenido in ENTRADAS.items():
         p = kn / rel
         p.parent.mkdir(parents=True, exist_ok=True)
-        p.write_text(contenido, encoding="utf-8")
+        p.write_text(contenido, encoding="utf-8", newline="\n")
     (kn / "README.md").write_text(README, encoding="utf-8")
     (tmp_path / ".claude").mkdir()
     return tmp_path
@@ -534,9 +534,15 @@ def test_ca03_related_adr010_grafo_curado_en_menos_de_1600_caracteres(real):
     assert len(out) <= 1600, len(out)
     assert out.startswith("ADR-010 · aceptada · Memoria técnica / hooks · ")
     assert "Sucesión" in out and "Misma iniciativa (memory-health)" in out and "Misma área" in out
-    # comparte «Memoria técnica» con ADR-006 y «hooks» con ADR-007: eso es el grafo, no la fecha
+    # La vista humana está topada: un corpus mayor puede dejar relaciones fuera de pantalla.
     area = out.split("Misma área")[1]
-    assert "ADR-006 · " in area and "ADR-007 · " in area, area
+    assert "ADR-006 · " in area, area
+    code_json, out_json, err_json = run("--related", "ADR-010", "--json")
+    assert code_json == 0, err_json
+    ids = {entry["id"] for entry in json.loads(out_json)["relaciones"]["area"]["aciertos"]}
+    assert {"ADR-006", "ADR-007"} <= ids
+    if "ADR-007 · " not in area:
+        assert re.search(r"… y \d+ más", area), "el recorte de relaciones se declara"
     for l in out.split("\n"):
         assert not re.match(r"^\s*\d{4}-\d{2}-\d{2}", l), l
 

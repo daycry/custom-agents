@@ -318,8 +318,11 @@ flowchart TD
 > **Session journal** (memory-health + memory-retrieval F4 + **session-end-durable-capture**): on every
 > turn, `UserPromptSubmit` appends the user's text to a raw, unversioned log
 > (`.claude/session-prompts-<session_id>.log`, `<private>` opt-out, obvious secrets redacted — that log
-> is also the session's **checkpoint**). `SessionEnd` (`timeout: 5`, exec form) no longer does the heavy
-> work in the teardown: the launcher invokes `journal-capture.py` to write only an **atomic envelope** (≤ 64 KiB, no
+> is also the session's **checkpoint**). Claude registers `SessionEnd` with a 5 s timeout
+> in exec form; Codex registers it with 3 s and a shell command. That includes startup;
+> registration does not guarantee a completed closure. OpenCode captures on
+> `session.execution`, within its adapter budget, rather than as SessionEnd teardown.
+> The launcher invokes `journal-capture.py` to write only an **atomic envelope** (≤ 64 KiB, no
 > git/AI/network, CA-01) into a local **outbox** (`agent-kits/shared/outbox.py`). **Materialization**
 > runs afterwards, recoverably: `SessionStart` calls `journal.py replay --budget-ms 300 --max 3` (drains
 > the outbox reusing git/prompt log/opt-in AI, never blocks startup) and `journal.py recover` (a session
@@ -341,10 +344,10 @@ flowchart LR
     OCP["OpenCode V2: session.prompt"] --> H5
     OCI["OpenCode V2: session.execution<br/>succeeded · failed · interrupted"] --> H4
     SS["session: startup · resume · compact"] --> H3["SessionStart hook<br/>session-context.sh"]
-    H3 -->|"additionalContext: piece index (≤ 45 lines, hash-cached)<br/>+ resume ≤ 15 lines (in-progress task)<br/>+ journal ≤ 25 lines (startup · resume only)"| C(["🧠 Claude's context"])
+    H3 -->|"additionalContext: piece index (≤ 45 lines, hash-cached)<br/>+ resume ≤ 15 lines (in-progress task)<br/>+ journal ≤ 25 lines (startup · resume only)"| C(["🧠 session context"])
     UP["user turn"] --> H5["UserPromptSubmit hook<br/>user-prompt-capture.sh (timeout 5)"]
     H5 -->|"journal.py capture (no stdout, exit 0; private opt-out; secrets redacted)"| LOG[(".claude/session-prompts-sid.log<br/>unversioned · 0600 · 30-day purge<br/>= session checkpoint")]
-    SE["session ends: exit · /clear · logout"] --> H4["SessionEnd hook<br/>session-journal.sh (timeout 5, exec form)"]
+    SE["Claude: closure / clear<br/>Codex: main thread ends"] --> H4["shared capture<br/>Claude: registration 5 s · Codex: registration 3 s<br/>OpenCode: adapter 20 s"]
     H4 -->|"journal-capture.py<br/>(atomic envelope ≤ 64 KiB, no materializer/git/AI/network)"| OB[(".claude/journal/outbox/<br/>event_id.json")]
     OB -->|"journal.py replay --budget-ms 300 --max 3<br/>(claim → materialize with git/log/opt-in AI → done/dead-letter)"| H3
     LOG -->|"journal.py recover<br/>(no envelope, no live session, window → recuperado_sin_cierre)"| H3
@@ -361,20 +364,22 @@ flowchart LR
 
 ## 6c · Deterministic guardrails of the `implementer` (agent-scoped guard hook)
 
-> The implementer's hard rules no longer depend on the model remembering them: a `PreToolUse`
-> hook registered **only in its frontmatter** (`agents/implementer.md`) enforces them through
-> `guardrail-check.py` (a script with tests). Other agents do not carry it: `planner`/`evaluator`
-> legitimately write to `docs/roadmap/` (ADR-007). Can be switched off in `.claude/dev.json`.
+> Distributed guards use a global dispatcher before tool execution, matching exact owned
+> native IDs from the generated map. `native-guardrail.py` normalizes mutations and applies
+> `guardrail-check.py`; similar names do not give unknown roles restrictions.
+> Claude ignores hook frontmatter in plugin agents; local copies retain their wrapper.
+> The map does not prove prompt origin or an effective sandbox. ADR-023 and CONVENTIONS
+> rule 8; opt-out in `.claude/dev.json`.
 
 ```mermaid
 flowchart LR
-    T["implementer attempts<br/>Write · Edit · MultiEdit · NotebookEdit · Bash"] --> W["PreToolUse hook<br/>implementer-guardrail.sh"]
-    W -->|"no python3"| M(["systemMessage (once)<br/>+ exit 0: never blocks"])
+    T["owned implementer attempts a mutation<br/>Claude · Codex · OpenCode"] --> W["pre-tool dispatcher<br/>native-guardrail.py + ID map"]
+    W -->|"no Python"| M(["degradation diagnostic<br/>+ exit 0: never blocks"])
     W --> G["guardrail-check.py pre-tool<br/>(dev.json → guardrails)"]
     G -->|"docs/roadmap/** ≠ tasks.md<br/>docs/security-scan/**"| D(["❌ deny + reason:<br/>«only tasks.md; planner changes the plan»"])
     G -->|"HEAD on main/master<br/>+ write outside the ledger"| D2(["❌ deny: «work on feature/<slug>»"])
     G -->|"git push --force · branch -D<br/>checkout main from a feature<br/>rm -rf / ~ .git"| D3(["❌ deny + how to proceed"])
-    G -->|"everything else"| A(["✅ no output, exit 0<br/>(normal permission flow)"])
+    G -->|"everything else"| A(["✅ no deny, exit 0<br/>(normal permission flow)"])
     D & D2 & D3 -.->|"read the reason, switch file/branch"| T
 ```
 

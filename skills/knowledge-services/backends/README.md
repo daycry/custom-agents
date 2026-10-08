@@ -7,6 +7,20 @@ núcleo **nunca** menciona un backend concreto; añadir uno nuevo es un fichero 
 directorio (o en cualquier carpeta que el llamador añada a `--backends-dir`, ver CA-12), sin
 tocar `knowledge-sync.py` ni `backends/__init__.py`.
 
+## Alcance de los adaptadores incluidos
+
+| Adaptador | Publicación y verificación | Consulta desde el plugin |
+|---|---|---|
+| `markdown-export` (Kwipu) | Exporta Markdown y manifiesto propios; consulta salud/snapshot del bridge para verificar. Nombra el reindexado externo sin ejecutarlo. | No expone `consultar` ni `puede_leer`; la consulta del grafo pertenece al stack externo. |
+| `graphiti` | Publica y verifica episodios mediante MCP. `off` evita conexiones y rechaza escrituras; `shadow` (default) permite sincronizar, sin autorizar consultas. | `read` permite solicitar lectura mediante `knowledge-find.py --intent`; exige backend habilitado, intent declarado como `true`, grupo propio efectivo, `health` sano y `verify` completo sin desfase. Un rechazo o fallo degrada a la búsqueda local con motivo. |
+
+Instalar el plugin no activa estos servicios. La publicación sigue limitada a las entradas
+aprobadas que el `routing` del proyecto autoriza. Los proveedores de `graphiti_providers.py`
+orientan la extracción mediante instrucciones enviadas al servidor: no configuran ni ejecutan
+un modelo o embedder desde el cliente. La configuración efectiva y el coste de esos servicios
+dependen del servidor; `provider.llm: none` omite esas instrucciones, sin desactivar por sí solo
+la extracción del servidor.
+
 ## Nombre de fichero
 
 `type` → `<type con "-" por "_">.py` (p. ej. `"markdown-export"` → `markdown_export.py`). Las

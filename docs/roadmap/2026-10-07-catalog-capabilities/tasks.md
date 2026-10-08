@@ -1449,3 +1449,163 @@ Este registro se incorpora en un commit documental separado. Se conserva la
 instrucción de detener el objetivo tras publicar, con pendientes globales
 documentados, sin iniciar otra fase. El panel local actualizado está generado
 fuera de Git; no contiene fixtures de extensiones ni configura el consumidor.
+
+## Bloque operativo 7 — diagnóstico de cierre y contrato de memoria
+
+El usuario pide continuar después de la parada anterior. Base `470e92e`,
+T-02/T-07/T-09/T-14/T-15; nuevas skills todavía aplazadas. Se aplica
+`debug-root-cause`: no modificar el cierre sin hipótesis probada. La evidencia
+histórica de timeout nativo y falta de envelope se conserva, sin extrapolar
+el tiempo del negocio a toda la ejecución. Contrato Codex reconsultado en
+`https://learn.chatgpt.com/docs/hooks`: SessionEnd síncrono, default 1 s,
+máximo 3 s; `async` no amplía el presupuesto. Fuente oficial local
+`d27764b82f7118f674371e6d6e76271d9d606edb`,
+`codex-rs/hooks/src/events/session_end.rs`, constantes 20–23.
+
+La auditoría de T-07 confirma documentación obsoleta en la skill existente:
+Graphiti presentado como futuro y toda consulta atribuida al stack externo,
+pese a las funciones de lectura/router presentes. Se reconcilian mapa,
+contrato y docs ES/EN; no se incorpora otra skill ni se activa un servicio.
+Las referencias de proveedores son instrucciones al servidor, sin acreditar
+modelo efectivo o coste. Se elimina la promesa genérica de captura <100 ms.
+FLOWS distingue presupuestos/eventos por runtime y actualiza el claim antiguo
+de guardias solo por frontmatter con el dispatcher ya entregado.
+
+Archivos del bloque documental: skill y README del adaptador existentes,
+README raíz ES/EN, docs/README ES/EN, FLOWS ES/EN, changelogs ES/EN y roadmap.
+TDD n/a: prosa; producción del cierre intacta hasta prueba de causa. Se
+validarán contratos existentes, lint/evals/exports/ledger y revisión A+B.
+No se cierran tareas globales ni se atribuye utilidad medida a un backend.
+
+### Diagnóstico y corrección del entorno de QA del Bloque 7
+
+La primera tanda produjo 405 elementos JUnit: cuatro fallos; pytest declara
+399 tests y dos subtests pasados. Se conserva íntegra, sin convertirla en verde.
+El runner directo del exportador falla al recibir tests con fixtures; pytest
+es la invocación compatible y pasa los 35 tests en base y cambio actual.
+
+Contraste A/B con las mismas fuentes y memoria curada en copias privadas:
+base `470e92e` y actual reproducen los tres fallos de knowledge-find; el
+scanner de hooks pasa en ambas copias sin bytecode. No se modifica el scanner.
+La caché `.pyc` local hizo fallar su lectura UTF-8 estricta en el workspace.
+
+RED: `test_show_imprime_la_entrada_completa_tal_cual` y
+`test_show_json_envuelve_el_contenido_con_su_ficha`: la fixture escribe CRLF
+en Windows aunque los assertions requieren el contenido LF original.
+Solo fijar `newline="\n"` en la escritura privada hace pasar ambos tests.
+La corrección pública aplica esa misma escritura, sin alterar el lector.
+
+RED: `test_ca03_related_adr010_grafo_curado_en_menos_de_1600_caracteres`
+exige ADR-007 en una vista humana topada a seis entradas por grupo. Al
+crecer el corpus puede quedar fuera de la vista. El test ahora exige
+ADR-006/ADR-007 en la relación JSON completa, conserva el tope de 1600
+caracteres y exige el marcador si ADR-007 no cabe en la vista compacta.
+Fuentes/tests ejecutables de producción intactos; cobertura del diff n/a
+porque el único código modificado es de prueba.
+
+## Revisión de dos lentes — intento 1: Fase 2 (T-07, T-15) — contrato y diagnóstico parcial
+
+Lentes A+B por subagentes genéricos frescos, sin agente reviewer nativo
+disponible; tier declarado opus/high, sin override de proyecto. Scope exit 0;
+selector C/D false, sin motivos. Ninguna lente implementó los cambios.
+
+| Criterio | Veredicto | Evidencia |
+|---|---|---|
+| Contratos de memoria y proveedores vigentes | ✓ | A1/B1 contrastan router, `puede_leer`, adaptadores y proveedores |
+| Diagnóstico sin promesa de fix ni cierre global | ✓ | Tres cohortes separadas; hashes instrumentados/originales; histórico abierto |
+| Alcance, espejos y generación | ✓ | Scope cero fuera; A1 ejecuta export --check: 56 al día, exit 0 |
+| No activar backends ni añadir skills | ✓ | Solo mapa/docs/evidencia; estados globales preservados |
+| Verificación final no inventada | ✓ | QA aún pendiente al revisar; ninguna T global cerrada |
+
+Gaps: cero Critical/Important/Minor. B1 verifica 12 hashes de evidencia y 15
+snapshots de cohortes. La tanda QA posterior expone problemas de fixture/
+invocación ya registrados arriba; los cambios de tests requieren el intento 2.
+
+Jira del intento 1: `jira-flow.py plan --event revision --actor reviewer
+--task T-07,T-15 --batch --intento 1 --json`, exit 0; desactivado, `ops: []`.
+
+## Revisión de dos lentes — intento 2: Fase 2 (T-07, T-14, T-15) — fixtures de memoria
+
+Lentes A+B por nuevos subagentes genéricos frescos; C/D false, sin motivos.
+Traspaso íntegro de aprobación A1/B1, sin reabrirla al no existir evidencia nueva.
+Scope exit 0: tests bajo T-14/T-15, resto del bloque bajo su alcance previo.
+
+| Criterio | Veredicto | Evidencia |
+|---|---|---|
+| Fixture LF sin cambiar assertions ni lector | ✓ | A2/B2 leen línea 122; A/B y variante LF verificadas |
+| Relaciones completas y salida humana acotada | ✓ | JSON exige ambos IDs; ≤1600 y aviso de truncado conservados |
+| RED/GREEN con procedencia explícita | ✓ | A2/B2 verifican hashes XML/logs; GREEN privado equivalente, no byte idéntico al test público |
+| Generados y contratos mantenidos | ✓ | A2 ejecuta --check: exit 0, 56 archivos al día |
+| QA y aceptación global no inventadas | ✓ | Suite final aún en marcha al revisar; ninguna T global cerrada |
+
+Gaps: cero Critical/Important/Minor. La QA final debe validar el test público
+exacto en el snapshot con overlay, no atribuirle por identidad el GREEN privado.
+
+Jira del intento 2: `jira-flow.py plan --event revision --actor reviewer
+--task T-07,T-14,T-15 --batch --intento 2 --json`, exit 0; desactivado, `ops: []`.
+
+### Resultado del diagnóstico nativo y QA final del Bloque 7
+
+[SessionEnd reducido](session-closure-diagnosis-evidence.json): Codex 0.161.0,
+dos cierres instrumentados completan captura antes de salir en 1251/1492 ms.
+El segundo usa cero turnos y cero peticiones al proveedor; el primero una
+petición a un stub local propio. Un override con shell anidado falla en 864 ms
+por comillas y se rechaza. Hashes originales e instrumentados diferenciados.
+El mínimo no reproduce el timeout histórico bajo carga de subagentes;
+no hay causa probada ni cambio de producción. La fiabilidad sigue abierta.
+
+La primera copia final produjo 402/403 pruebas de memoria verdes: el único
+rojo hereda el Git del workspace y su exclusión de scratchpad en vez de un
+`.gitignore` propio. Se conserva el resultado. Inicializar Git únicamente en
+la copia de QA corrige esa fixture: el delta dedicado pasa 1/1. La repetición
+completa posterior tiene artefactos separados, sin sobrescribir ningún rojo.
+
+[QA final](memory-contract-qa-evidence.json): **403 pruebas de memoria + 35
+de exportación = 438 identidades únicas**, cero fallos, errores, skips o flaky;
+qa-gate VERDE. Memoria: 246,78 s; exportación: 1,74 s. Es una tanda dirigida,
+no toda la suite del repositorio. Entorno Python 3.13.0/pytest 8.4.2, homes y
+Git propios, sin `.pyc`; servicios simulados locales. El entorno inicial
+reporta 403 casos padre y dos subtests separados; el final ejecuta los
+subtests dentro de su caso padre. No se han eliminado pruebas por ese conteo.
+
+[Contraste causal y procedencia](memory-contract-test-diagnosis-evidence.json):
+917 hashes de la copia siguen intactos tras ejecutar (865 fuentes + 52 archivos
+de memoria curada). El test público coincide exactamente con el snapshot:
+SHA256 `9bbf23e962b92a4e15aadd98c740189f28a861b6d45bef5ed4fe26a94ed2864e`.
+Los dos RED de `--show` y el RED de relación compacta quedan verdes con los
+cambios registrados; no cambia el lector, el scanner ni código de producción.
+Cobertura del diff n/a: solo prosa y código de fixtures de prueba.
+
+Dos checks independientes adicionales verifican GOT-017, sus cuatro campos,
+unicidad, fuente e índice. Detectan una frase Minor en la ficha causal que
+atribuía LF explícito también al README: se corrige a entradas sintéticas;
+ambos revalidan el delta y aprueban con cero gaps. GOT-017 se promociona con
+traza `aceptada (validada: revisión de dos lentes, 2026-10-08, intento 2)` en
+su entrada e índice locales, ignorados por Git. No se promociona ninguna
+otra propuesta. Esta entrada nueva es posterior a la fixture congelada de
+52 archivos de QA; no se atribuye su validación a esa tanda.
+
+Aceptación acotada: documentación, diagnóstico parcial y fixtures corregidas.
+Sin nuevas skills, activación de backend, configuración del consumidor ni
+cierre global de T-02/T-07/T-09/T-14/T-15. La auditoría completa de memoria,
+el benchmark de Graphiti y la reproducción causal del cierre siguen abiertos.
+
+### Puertas finales y límite del verificador de revisión
+
+Lint final: cero errores, tres avisos históricos de nombres. La promoción de
+GOT-017 requería entrecomillar `estado` por sus dos puntos internos; se corrige
+solo esa serialización YAML y el lint vuelve a verde. Evals: 51 piezas,
+182 casos, cero errores. Export --check: 56 archivos al día. Ledger: cero
+incoherencias/cero avisos. Diff --check: exit 0. Scope contra `470e92e`:
+18 archivos propios en alcance, cero fuera, settings ajeno excluido, cero avisos.
+Scan público: 872 archivos, cero nombres/referencias prohibidos; excluye el
+settings ajeno antes de leer. No se publica memoria local ignorada por Git.
+
+Incidente acotado del selector: su invocación `--base 470e92e` incluye todos
+los archivos sin seguimiento y lee indirectamente `.claude/settings.json`.
+No se mostró su contenido ni se modificó o añadió al índice. Se detecta al
+inspeccionar el verificador y se registra la lectura; no se afirma aislamiento
+de ese comando inicial. La repetición usa `--files` con los 18 archivos propios
+explícitos: C/D false, sin motivos ni avisos, excluyendo settings antes de
+cualquier lectura. El aislamiento de las copias de QA sigue acreditado por
+sus manifiestos; no se extiende esa afirmación al primer selector del workspace.

@@ -1,7 +1,7 @@
 ---
 name: knowledge-services
 description: >
-  Publica `docs/knowledge/approved/` a backends externos (Kwipu, futuros como Graphiti) por
+  Publica `docs/knowledge/approved/` a backends externos (Kwipu y Graphiti) por
   config de proyecto (`taxonomy.json`), sin acoplar el plugin a ninguno — `knowledge-sync.py
   --backend <id> [--dry-run|--check|--rebuild]` carga un adaptador por `type` (6 funciones:
   `health/plan/apply/verify/rebuild/revoke`), aplica `routing` ANTES de construir entradas
@@ -17,15 +17,17 @@ description: >
 # knowledge-services — de `approved/` a un backend externo, sin acoplar el plugin a ninguno
 
 `docs/knowledge/approved/` es el origen canónico (Git, revisado, curado por `knowledge-curator`).
-Esta skill lo **proyecta** hacia fuera: hoy Kwipu (grafo local), mañana cualquier otro backend que
-declare su propio `type` — el núcleo (`knowledge-sync.py`) no cambia al añadir uno.
+Esta skill lo **proyecta** hacia fuera mediante los adaptadores Kwipu y Graphiti; otros backends
+pueden declarar su propio `type` sin cambiar el núcleo (`knowledge-sync.py`). Instalar la skill
+no habilita ni configura ningún servicio externo.
 
 ## Cuándo NO usarla
 
 - Para curar o aprobar conocimiento: eso es `knowledge-curator` (`curator-gate.py`) sobre
   `docs/knowledge/candidates/`. Esta skill solo lee `approved/`, nunca escribe ahí.
-- Para consultar el grafo ya publicado (queries, respuestas): eso es del stack de Kwipu/Graphiti,
-  fuera del plugin.
+- Para consultar conocimiento: usa `agent-kits/shared/knowledge-find.py`. Su router por `--intent`
+  puede consultar Graphiti si está autorizado en modo `read`; la consulta de Kwipu pertenece
+  al stack externo porque `markdown-export` solo publica y verifica, sin funciones de lectura.
 - Para reindexar Kwipu de verdad (`build_view`, reiniciar contenedores): esta skill **nombra** el
   remedio (`verify`), nunca lo ejecuta — es responsabilidad del stack externo (CA-16).
 - Sin `taxonomy.json` con `backends.<id>.enabled: true`, no hay nada que sincronizar: `/doctor`
@@ -38,7 +40,8 @@ declare su propio `type` — el núcleo (`knowledge-sync.py`) no cambia al añad
 | `scripts/knowledge-sync.py` | Único punto de entrada; nunca menciona un backend concreto. |
 | `backends/__init__.py` | Carga y valida el adaptador por `type` (`backends/README.md`: contrato completo de las 6 funciones). |
 | `backends/markdown_export.py` | Adaptador Kwipu (`type: "markdown-export"`): CA-17/CA-16, ver `references/kwipu-adapter.md`. |
-| `backends/graphiti.py` + `backends/graphiti_providers.py` | Adaptador Graphiti (`type: "graphiti"`, ADR-018): cliente MCP, `mode: shadow`/`read`, `rebuild`/`revoke` — ver `backends/README.md`. |
+| `backends/graphiti.py` + `backends/graphiti_providers.py` | Adaptador Graphiti (`type: "graphiti"`, ADR-018): cliente MCP, `mode: off`/`shadow`/`read` (default `shadow`), `rebuild`/`revoke`; los proveedores orientan la extracción del servidor — ver `backends/README.md`. |
+| `agent-kits/shared/knowledge-find.py` | Recuperación local y router por `--intent`: lectura externa autorizada o fallback local con motivo; lee `backends/README.md` al configurar esa lectura. |
 | `agent-kits/shared/knowledge-schema.py` | Taxonomía del proyecto (`taxonomy.json`), fail-closed. |
 | `agent-kits/shared/knowledge-index.py` | Índice de `approved/`. |
 | `agent-kits/shared/outbox.py` | Staging/dead-letter reutilizado (CA-15), nunca reimplementado aquí. |

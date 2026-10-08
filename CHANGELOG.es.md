@@ -9,6 +9,11 @@ y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Fixed — Capacidades de memoria y documentación del ciclo de sesión
+
+- Reconciliar la proyección Kwipu y la lectura opt-in Graphiti existentes, las indicaciones de proveedor al servidor y el respaldo local. Distinguir presupuestos de captura por runtime y arranque del launcher; actualizar diagramas con el dispatcher de guardias nativas distribuido.
+- Escribir fixtures de memoria con LF explícito en Windows y comprobar relaciones completas mediante JSON, conservando límites y avisos de truncamiento de la vista compacta. Mantener el escáner de hooks estricto; validar copias limpias de fuentes sin bytecode generado.
+
 ### Fixed — Contratos de hooks por runtime en el panel
 
 - Leer fuentes de hooks separadas de Claude, Codex y OpenCode; agrupar runtime y evento y mostrar función, activación, fuente, identidades y procedencia del presupuesto. Consumir el mismo catálogo declarativo en el adapter OpenCode; conservar carga/ejecución desconocidas y filtros, enlaces, historial y Fuentes accesibles en móvil.

@@ -1,0 +1,386 @@
+{
+  "version": 1,
+  "scope": "Local Windows contract diagnosis, shared curated-memory fixture, tracked source snapshots, and final isolated QA",
+  "baseline_revision": "470e92e61d94d37ece49c1adda8479200e9f997d",
+  "runtime": {
+    "platform": "win32",
+    "python": "3.13.0",
+    "pytest": "8.4.2"
+  },
+  "counting": {
+    "original": "403 parent test items plus 2 separately reported unittest subtests = 405 XML cases",
+    "final": "403 parent test items; unittest subtests run within their parent case",
+    "original_runtime_versions": "Not captured by the original runner; no version inferred.",
+    "subtest_parent_case_present_in_final_xml": true
+  },
+  "isolation": {
+    "consumer_configuration_read_or_modified": false,
+    "source": "Git tracked files plus permitted current tracked overlays",
+    "curated_memory": "Same README and ADR/GOT/LES fixture; no journals or raw conversations",
+    "bytecode": "Clean snapshots; Python -B and PYTHONDONTWRITEBYTECODE=1",
+    "final_git_repository": {
+      "root_matches_snapshot": true,
+      "gitignore_sha256": "5f06d69763d8a35a5985ac26f58ef0ae1a5c71ca64772a213f6272fc9a31db69",
+      "bytecode_files_before": 0
+    },
+    "pytest_plugin_autoload": {
+      "ab_and_private_probes": false,
+      "final": true
+    }
+  },
+  "source_hash_algorithm": "SHA256(sorted(relative_path UTF8 + NUL + SHA256(file_bytes) binary))",
+  "snapshots": {
+    "baseline": {
+      "files_sha256": "fbb48f7df7a3022960e2b870ee188082306b3f2c6242334cf5e476cf9df0d853",
+      "knowledge_find_test_sha256": "44fd7aca5146b93d36e77017450e6268e8d1f702c791c3488d71892f3d98fad0"
+    },
+    "current_before_test_correction": {
+      "files_sha256": "72451a77c0062435761421cafff17c857f9b3090bbb660070f7089842ef4fda5",
+      "knowledge_find_test_sha256": "44fd7aca5146b93d36e77017450e6268e8d1f702c791c3488d71892f3d98fad0"
+    },
+    "private_lf_json_correction": {
+      "knowledge_find_test_sha256": "c79f34b4d39fc08f826fa737c42ab0f9930baa6ff5950779a9a138564000d22c"
+    },
+    "final": {
+      "source_files": 865,
+      "files_sha256": "fa9f91bbb3c32fec19b1785416b103daabfd2b64e9929046704665f148683855",
+      "knowledge_find_test_sha256": "9bbf23e962b92a4e15aadd98c740189f28a861b6d45bef5ed4fe26a94ed2864e",
+      "manifest": {
+        "path": "scratchpad/.venv/memory-contract-qa/final-snapshot/source-manifest.json",
+        "sha256": "93f40b636fa89cc40dfef5df75862c43ec2aafed13152b3418536a9e72215575"
+      },
+      "manifest_files_changed_after_tests": [],
+      "current_test_matches_snapshot": true
+    }
+  },
+  "shared_curated_corpus": {
+    "files": 52,
+    "files_sha256": "2ced78fa7d7a9de9e6ef0d6dc603e15c36dd90a30d3941f59bd1f68c38c3ddb6",
+    "final_files": 52,
+    "final_files_sha256": "2ced78fa7d7a9de9e6ef0d6dc603e15c36dd90a30d3941f59bd1f68c38c3ddb6"
+  },
+  "original_results_preserved": {
+    "contracts": {
+      "counts": {
+        "tests": 405,
+        "failures": 4,
+        "errors": 0,
+        "skipped": 0
+      },
+      "console": "399 passed, 4 failed, 2 subtests passed",
+      "log": {
+        "path": "scratchpad/.venv/memory-contract-qa/contracts.log",
+        "sha256": "cdcbdd2c89613ca1c2d662b6ab96e4872d44aaa75e937d700b11d74b9554eaf6"
+      },
+      "xml": {
+        "path": "scratchpad/.venv/memory-contract-qa/contracts.xml",
+        "sha256": "971f06d2b8c9fa7102ecf982acddbfd0e5017c279b2f8a85f54636cac499b614"
+      }
+    },
+    "exports_script": {
+      "invocation": "python -X utf8 tests/test_export_interop.py",
+      "result": "TypeError: fixture arguments tmp_path and quote missing in manual __main__ runner",
+      "log": {
+        "path": "scratchpad/.venv/memory-contract-qa/exports.log",
+        "sha256": "d10b2ccde1efd4721e808a22e72c5c4e29b5ac29af18f1cf345f7976debeb368"
+      }
+    }
+  },
+  "diagnosis": [
+    {
+      "case": "related ADR-010",
+      "cause": "Expanded curated corpus exceeds the compact per-group view; ADR-007 remains in the full JSON relation.",
+      "test_correction": "Check compact ADR-006, full JSON relation IDs ADR-006 and ADR-007, and visible truncation marker when ADR-007 is absent from compact output."
+    },
+    {
+      "case": "Two --show comparisons",
+      "cause": "Windows Path.write_text default translates LF into CRLF; the production reader retains CR/LF in decoded UTF-8 text.",
+      "probe_bytes_hex": "610d0a620d0a",
+      "test_correction": "Write synthetic input entries with explicit newline=LF; README writing is unchanged."
+    },
+    {
+      "case": "Hook network scanner",
+      "cause": "Original workspace contained generated binary bytecode under hooks/__pycache__, which the recursive UTF8 scanner encounters.",
+      "proof": "Clean source passes; injecting only private valid bytecode reproduces the decoding failure.",
+      "production_scanner_modified": false
+    },
+    {
+      "case": "Exports",
+      "cause": "Manual script runner bypasses pytest fixture injection and parametrization.",
+      "correct_invocation": "python -X utf8 -B -m pytest -q tests/test_export_interop.py"
+    },
+    {
+      "case": "First final snapshot Git harness",
+      "cause": "Snapshot without a private Git repository inherited the parent scratchpad ignore rule; test_el_indice_esta_en_gitignore requires the copied .gitignore as the reported rule source.",
+      "rejected_result_retained": "403 parent cases: 402 pass and 1 harness failure",
+      "fixture_correction": "Initialize Git only in the private source snapshot with an empty template directory.",
+      "source_modified_for_correction": false,
+      "validation": "Exact failed case rerun, followed by a full independent repeat using final-git filenames."
+    }
+  ],
+  "cohorts": {
+    "baseline-four": {
+      "exit_code": 1,
+      "counts": {
+        "tests": 4,
+        "failures": 3,
+        "errors": 0,
+        "skipped": 0
+      },
+      "seconds": 7.75,
+      "log": {
+        "path": "scratchpad/.venv/memory-contract-qa/ab-probe/baseline-four.log",
+        "sha256": "02d910a92918ebe4c308ea88178f658bc7f84f689dd27ce8ad475a67291ca4c5"
+      },
+      "xml": {
+        "path": "scratchpad/.venv/memory-contract-qa/ab-probe/baseline-four.xml",
+        "sha256": "cc5aa5214ceae3efb59cdcc7e36d6498286dbcbedb6467f443a2f61372b8646b"
+      },
+      "bytecode_files_after": 0
+    },
+    "current-four": {
+      "exit_code": 1,
+      "counts": {
+        "tests": 4,
+        "failures": 3,
+        "errors": 0,
+        "skipped": 0
+      },
+      "seconds": 5.21,
+      "log": {
+        "path": "scratchpad/.venv/memory-contract-qa/ab-probe/current-four.log",
+        "sha256": "bcf0a2f64087b49b3be43dd3aa40fd585ce31a9387bf0d5d4edd4be352eb295a"
+      },
+      "xml": {
+        "path": "scratchpad/.venv/memory-contract-qa/ab-probe/current-four.xml",
+        "sha256": "2af906efcb1493e2bed4b046077b751616269c17bae7fddc6577352137283f2f"
+      },
+      "bytecode_files_after": 0
+    },
+    "baseline-export": {
+      "exit_code": 0,
+      "counts": {
+        "tests": 35,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "seconds": 7.13,
+      "log": {
+        "path": "scratchpad/.venv/memory-contract-qa/ab-probe/baseline-export.log",
+        "sha256": "264b7a9b08f60b64c7c595e371da9e8ac4ea0a65f8a0dd31ee2e12874c545b26"
+      },
+      "xml": {
+        "path": "scratchpad/.venv/memory-contract-qa/ab-probe/baseline-export.xml",
+        "sha256": "a7eb44179cc4e482f18c7a694014c2520d6f4c55218ab2d6c87ea0b853211108"
+      },
+      "bytecode_files_after": 0
+    },
+    "current-export": {
+      "exit_code": 0,
+      "counts": {
+        "tests": 35,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "seconds": 4.5,
+      "log": {
+        "path": "scratchpad/.venv/memory-contract-qa/ab-probe/current-export.log",
+        "sha256": "d0b35e9830f10ac5200fb275d7276b791c9adb309dfa4e9bd734502ffed078df"
+      },
+      "xml": {
+        "path": "scratchpad/.venv/memory-contract-qa/ab-probe/current-export.xml",
+        "sha256": "9466a9ed87eb56c431e4ac63703628301edb7fd135123e8c124e270f305a04be"
+      },
+      "bytecode_files_after": 0
+    },
+    "current-lf-show-only": {
+      "exit_code": 0,
+      "counts": {
+        "tests": 2,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "seconds": 1.71,
+      "log": {
+        "path": "scratchpad/.venv/memory-contract-qa/ab-probe/current-lf-show-only.log",
+        "sha256": "9e95bd34ad5263d3d2b05c2f519aa9f64673dfdb9c5e627dfcc8ccb39e274759"
+      },
+      "xml": {
+        "path": "scratchpad/.venv/memory-contract-qa/ab-probe/current-lf-show-only.xml",
+        "sha256": "719d7d2309c6a67a333a567a3d128f0850a18d32de3a6962aa1c315731315206"
+      },
+      "bytecode_files_after": 0
+    },
+    "current-lf-json-four": {
+      "exit_code": 0,
+      "counts": {
+        "tests": 4,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "seconds": 4.93,
+      "log": {
+        "path": "scratchpad/.venv/memory-contract-qa/ab-probe/current-lf-json-four.log",
+        "sha256": "f4494520977d13fab3978bf58bdab04f1701a4a274db9f9b686fa07e09cd43cb"
+      },
+      "xml": {
+        "path": "scratchpad/.venv/memory-contract-qa/ab-probe/current-lf-json-four.xml",
+        "sha256": "bd57c136c4f5d9795027817f9465331d3ceab59e80da3d479fe757828c7101d7"
+      }
+    },
+    "current-bytecode-hook-only": {
+      "exit_code": 1,
+      "counts": {
+        "tests": 1,
+        "failures": 1,
+        "errors": 0,
+        "skipped": 0
+      },
+      "seconds": 1.32,
+      "log": {
+        "path": "scratchpad/.venv/memory-contract-qa/ab-probe/current-bytecode-hook-only.log",
+        "sha256": "2096f2251fca4e229260e8972d458ba1d3edca91d3c7467426aa344e67a0cabf"
+      },
+      "xml": {
+        "path": "scratchpad/.venv/memory-contract-qa/ab-probe/current-bytecode-hook-only.xml",
+        "sha256": "465c9a022f173b02025ceb2628e51f97d173de815fb5ddc6b7fe847e09f4ccb3"
+      }
+    },
+    "rejected-final-harness-contracts": {
+      "exit_code": 1,
+      "counts": {
+        "tests": 403,
+        "failures": 1,
+        "errors": 0,
+        "skipped": 0
+      },
+      "seconds": 256.78,
+      "log": {
+        "path": "scratchpad/.venv/memory-contract-qa/final-snapshot/contracts.log",
+        "sha256": "40a073312bd9f86008713c60606f39510035a22bc27ea091a8160944804c191b"
+      },
+      "xml": {
+        "path": "scratchpad/.venv/memory-contract-qa/final-snapshot/contracts.xml",
+        "sha256": "a085fc11bbd53fde27195f150027a13bdb5d606c2ac60bf24a0146e618c42927"
+      },
+      "bytecode_files_after": 0
+    },
+    "first-final-harness-exports": {
+      "exit_code": 0,
+      "counts": {
+        "tests": 35,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "seconds": 4.81,
+      "log": {
+        "path": "scratchpad/.venv/memory-contract-qa/final-snapshot/exports.log",
+        "sha256": "7e6b128aea7343b2117053dea4f9e72aebf7df92116ad391c3448b1dedf35c95"
+      },
+      "xml": {
+        "path": "scratchpad/.venv/memory-contract-qa/final-snapshot/exports.xml",
+        "sha256": "ae5461252c55e2b535c678bb811f42880d81628389f96af03ad0c35c90b50991"
+      },
+      "bytecode_files_after": 0
+    },
+    "git-fixture-rerun": {
+      "exit_code": 0,
+      "counts": {
+        "tests": 1,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "seconds": 0.91,
+      "log": {
+        "path": "scratchpad/.venv/memory-contract-qa/final-snapshot/git-fixture-rerun.log",
+        "sha256": "bc127f12acc2b1cf5240c5be1f4bcb03d0bdcef8c02e6ff3224b489b059760f2"
+      },
+      "xml": {
+        "path": "scratchpad/.venv/memory-contract-qa/final-snapshot/git-fixture-rerun.xml",
+        "sha256": "56507d4f982389101a6fc2ad4a48327db3d68a04eb34dda139d5caa1d46cf649"
+      }
+    },
+    "final-git-contracts": {
+      "exit_code": 0,
+      "counts": {
+        "tests": 403,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "seconds": 246.78,
+      "log": {
+        "path": "scratchpad/.venv/memory-contract-qa/final-snapshot/final-git-contracts.log",
+        "sha256": "5bdb1f6aabfee3a52d175d7fdb97b9bcd1fdbc847c1bb84293b8596cac647286"
+      },
+      "xml": {
+        "path": "scratchpad/.venv/memory-contract-qa/final-snapshot/final-git-contracts.xml",
+        "sha256": "f4eb438fb0c1dea2be47693dd53643a8ca180c16a880cbd29327c8bd1f80d638"
+      },
+      "bytecode_files_after": 0
+    },
+    "final-git-exports": {
+      "exit_code": 0,
+      "counts": {
+        "tests": 35,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "seconds": 1.74,
+      "log": {
+        "path": "scratchpad/.venv/memory-contract-qa/final-snapshot/final-git-exports.log",
+        "sha256": "b1f3259835dfad52fad06151f4dca89e2ddf5e2665f6206a0b5332f72c723ca4"
+      },
+      "xml": {
+        "path": "scratchpad/.venv/memory-contract-qa/final-snapshot/final-git-exports.xml",
+        "sha256": "ed1ab017c17b8128646d242d76efd7437fafd433b1514c6379daf995bf19d0f2"
+      },
+      "bytecode_files_after": 0
+    }
+  },
+  "commands": {
+    "ab": "python -B scratchpad/.venv/memory-contract-qa/baseline_probe.py",
+    "private_causal_probes": "python -B scratchpad/.venv/memory-contract-qa/supplement_probe.py",
+    "final_snapshot": "python -B scratchpad/.venv/memory-contract-qa/final_snapshot_qa.py",
+    "final_git_fixture_init": "git -c init.templateDir= init --quiet",
+    "final_git_repeat": "python -B scratchpad/.venv/memory-contract-qa/final_git_repeat.py",
+    "final_contracts_cwd": "scratchpad/.venv/memory-contract-qa/final-snapshot/source",
+    "final_contracts": "python -X utf8 -B -m pytest -p no:cacheprovider -q tests/test_knowledge_router.py tests/test_knowledge_find.py tests/test_knowledge_services.py skills/knowledge-services/scripts/test_knowledge_sync.py skills/knowledge-services/scripts/test_backend_graphiti.py --junitxml=../final-git-contracts.xml",
+    "final_exports": "python -X utf8 -B -m pytest -p no:cacheprovider -q tests/test_export_interop.py --junitxml=../final-git-exports.xml"
+  },
+  "reports": [
+    {
+      "path": "scratchpad/.venv/memory-contract-qa/ab-probe/report.json",
+      "sha256": "dea3e509830479f2d1861f62ac70006ca67ce4dc42553bd7c2a86b90fcd983c2"
+    },
+    {
+      "path": "scratchpad/.venv/memory-contract-qa/ab-probe/supplement-report.json",
+      "sha256": "929b0f73db29863cb88dd0af28905cdd07dcc390c0060e9e2e66a8139d5a1354"
+    },
+    {
+      "path": "scratchpad/.venv/memory-contract-qa/final-snapshot/summary.json",
+      "sha256": "f027b92ff40f510a08d15b0f9f802bf4882f2760485e92a4df56cfdf391a2364"
+    },
+    {
+      "path": "scratchpad/.venv/memory-contract-qa/final-snapshot/git-fixture-rerun.json",
+      "sha256": "d40834782bc13cac767c0b2794ae5bf5ef07c79ca8e26091fe8bfd5a01eb576f"
+    },
+    {
+      "path": "scratchpad/.venv/memory-contract-qa/final-snapshot/final-git-summary.json",
+      "sha256": "7e9adad70624dc4371c9fde4884bb365a128c6dca1960541a2cca38bc97d1178"
+    }
+  ],
+  "limits": [
+    "A/B diagnoses only the four original failures; it is not a complete baseline suite.",
+    "Final suite covers the five memory contract modules and export interoperability; it is not the full repository suite.",
+    "Snapshots freeze tracked source and one shared curated corpus at capture time; untracked consumer files are excluded.",
+    "Raw original failures remain preserved; corrected test results are a separate cohort."
+  ]
+}

@@ -280,3 +280,39 @@ selección entre entornos. El refactor de bindings se valida con la suite del
 adapter y un delta OpenCode nativo aislado, sin activar cachés del consumidor.
 La proyección futura de doctor será opt-in; no se añade analítica sintética,
 otro almacén de tareas ni nuevas skills en este bloque.
+
+## Bloque 7: diagnóstico del cierre y contrato de memoria vigente
+
+Se retoma desde `470e92e` tras la petición de continuar. El fallo SessionEnd
+Codex se investiga con reproducción, aislamiento y una hipótesis probada antes
+de cambiar producción. El límite nativo de tres segundos incluye el arranque
+del comando; un negocio rápido no acredita un cierre completo. Las pruebas
+usan proyectos, homes y cachés privados, sin modificar la instalación real.
+No se aumenta el timeout por encima del contrato nativo.
+
+La reconciliación documental distingue dos adaptadores ya existentes: Kwipu
+proyecta documentos y verifica su publicación; Graphiti también permite lectura
+enrutada explícita en modo `read`, condicionada por salud, verificación completa
+y permisos del proyecto. `off`/`shadow` no conceden lectura. La memoria local
+sigue siendo canónica y ofrece respaldo. Los proveedores declarados orientan
+al servidor: no acreditan su configuración ni el coste de extracción.
+
+Alcance: T-02/T-07/T-09/T-14/T-15, diagnóstico privado con evidencia pública
+sin datos del consumidor, mapa de la skill existente, contrato del adaptador,
+índice bilingüe y changelogs. No se añaden skills, backends ni conexiones. Si la
+hipótesis de cierre no queda demostrada, se conserva el fallo y sus límites;
+no se transforma una investigación parcial en un fix. Prosa: TDD n/a. Las
+pruebas de contratos existentes, lint, exports y revisión independiente deben
+validar la reconciliación antes de publicarla.
+
+Los diagramas también distinguen los presupuestos de cada runtime y corrigen
+la referencia antigua a guardias solo por frontmatter: la distribución ya usa
+identidades propias exactas y dispatcher global. No cambia la política.
+
+La primera tanda dirigida expone fixtures de consulta incompatibles con Windows
+y un miembro del grafo esperado fuera de la vista compacta. El contraste con
+la base reproduce esos tres fallos; una fixture LF corrige los dos `--show`.
+Se fija LF explícito y se verifica la relación completa en JSON, conservando
+el tope humano y su marcador de truncamiento. No cambia el lector de memoria.
+La QA final usa una copia de fuentes sin bytecode generado; el scanner de
+seguridad mantiene su política estricta sobre todos los archivos inspeccionados.

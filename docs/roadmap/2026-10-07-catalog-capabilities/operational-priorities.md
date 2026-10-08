@@ -132,10 +132,10 @@ Fuentes propias contrastadas por lectura dirigida:
 [reconciliación propuesta](../../knowledge/adr/ADR-020-graphiti-reconciliador-explicito-y-episodios-sin-uuid.md).
 El router exige consulta/permiso de lectura, acota al grupo de proyecto y
 degrada a local ante indisponibilidad. Esto describe código leído, no una
-conexión actual ni una prueba de eficacia. La documentación de
-[knowledge-services](../../../skills/knowledge-services/SKILL.md) conserva
-texto que presenta Graphiti como futuro y la consulta como externa, pese a
-esas funciones existentes; T-07/T-15 deben reconciliarlo con el contrato real.
+conexión actual ni una prueba de eficacia. La auditoría detectó que la
+documentación de [knowledge-services](../../../skills/knowledge-services/SKILL.md)
+presentaba Graphiti como futuro y toda consulta como externa. El Bloque 7
+reconcilia ese texto con las funciones existentes, sin cerrar T-07/T-15 globales.
 
 [Graphiti oficial](https://github.com/getzep/graphiti) documenta relaciones,
 procedencia y vigencia temporal con recuperación híbrida; requiere operar
@@ -149,3 +149,30 @@ contexto y coste observado. Incluir revocación, reconstrucción, duplicados,
 backend caído y respaldo local. La prueba de publicación no sustituye este
 benchmark. No se activan servicios, conectan cuentas o cambian datos de memoria
 por esta valoración; la selección del backend queda condicionada a resultados.
+
+## Continuación: cierre y documentación de memoria
+
+Tras publicar los Bloques 5/6 y detenerse, el usuario pide continuar. El Bloque 7
+reconcilia el mapa de knowledge-services con las funciones ya existentes: Kwipu
+proyecta/verifica; Graphiti permite lectura explícita `read` con sus puertas de
+salud/verificación y respaldo local. Los proveedores orientan al servidor, sin
+acreditar modelos efectivos o costes. No se añaden skills ni se activa un backend.
+
+El [diagnóstico reducido de SessionEnd](session-closure-diagnosis-evidence.json)
+conserva tres cohortes separadas. Dos cierres instrumentados completan captura
+en 1251 y 1492 ms; el segundo no usa turnos ni solicita al proveedor. El intento
+de override con shell anidado falla por comillas y se rechaza como mejora.
+Las fuentes instrumentadas y originales conservan hashes distintos.
+
+El mínimo no reproduce el timeout histórico bajo carga de subagentes. No hay
+hipótesis causal probada: producción y presupuestos permanecen intactos. La
+fiabilidad del cierre sigue abierta; esos éxitos no convierten en verde los
+fallos anteriores ni prueban durabilidad general de memoria.
+
+La [QA dirigida del contrato de memoria](memory-contract-qa-evidence.json)
+valida 403 pruebas de memoria y 35 de exportación en una copia con Git y homes
+propios, sin bytecode. Se corrigen únicamente fixtures LF en Windows y la
+comprobación de relaciones completas; el lector y el scanner permanecen intactos.
+El [contraste causal](memory-contract-test-diagnosis-evidence.json) conserva
+los intentos rechazados y distingue cada entorno. No valida toda la suite
+del repositorio ni mide eficacia de recuperación o cierre nativo bajo carga.

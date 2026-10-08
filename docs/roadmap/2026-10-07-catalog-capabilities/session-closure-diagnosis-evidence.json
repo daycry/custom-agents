@@ -1,0 +1,267 @@
+{
+  "schema_version": 1,
+  "recorded_on": "2026-10-08",
+  "status": "partial-diagnosis",
+  "runtime": {
+    "name": "Codex",
+    "version": "0.161.0",
+    "binary_sha256": "a0f89acca07a511734cac7fddee26b2106fab68918717bc90df16104a0760a30",
+    "platform": "Windows",
+    "source_revision_recorded_by_native_fixture": "979011409de0a60b52f179721948e65531d26144"
+  },
+  "official_executor_source_read": {
+    "repository": "openai/codex",
+    "checkout_revision": "d27764b82f7118f674371e6d6e76271d9d606edb",
+    "executed": false,
+    "files": [
+      {
+        "path": "codex-rs/hooks/src/engine/command_runner.rs",
+        "sha256": "22361fa937559be9c84b644b1f579149a00916a32265c8bf7555500247a8feb7"
+      },
+      {
+        "path": "codex-rs/hooks/src/engine/discovery.rs",
+        "sha256": "dc2382defed655f5f361b223becf325362534e5af5354a5a235e1d1a6adb5ce3"
+      },
+      {
+        "path": "codex-rs/core/src/session/mod.rs",
+        "sha256": "04313e5b1d5d4a1d4ae5c349a7ddd0e372f06b88a566d548a547f9c68e82e577"
+      },
+      {
+        "path": "codex-rs/core/src/shell.rs",
+        "sha256": "ce51a72325243aa34d19906fb040d7113387b6bcc016af51ad53ccf75ada9d42"
+      }
+    ]
+  },
+  "experiment_scope": {
+    "native_operation": "thread/start followed by thread/archive",
+    "one_turn_initial_control_recorded_separately": true,
+    "plugin_registration": "owned local marketplace and cache",
+    "home_and_project": "new owned isolated fixtures",
+    "session_end_handlers": "plugin capture and owned user observer only",
+    "consumer_state_mutated": false,
+    "credentials_loaded": false,
+    "production_code_changed": false,
+    "network": "no remote provider; initial control uses an owned loopback stub"
+  },
+  "cohorts": [
+    {
+      "id": "closure-diagnostic-01",
+      "variant": "nested-command-override",
+      "accepted_as_timing_comparison": false,
+      "experiment_result": "rejected-nested-shell-quoting-error",
+      "model_turn_used": false,
+      "provider_requests": 0,
+      "provider_scope": "none",
+      "natural_process_exit": 0,
+      "envelope_before_exit": false,
+      "envelope_session_matches_root": false,
+      "session_end_runs": [
+        {
+          "source": "user",
+          "status": "completed",
+          "duration_ms": 884,
+          "errors": []
+        },
+        {
+          "source": "plugin",
+          "status": "failed",
+          "duration_ms": 864,
+          "errors": [
+            "node:internal/modules/cjs/loader:1408"
+          ]
+        }
+      ],
+      "private_timing_ms": {
+        "native_notification_to_node_ready": null,
+        "capture_call": null,
+        "confirmed_cleanup": null
+      },
+      "source_snapshot": [
+        {
+          "source": "hooks/run-hook.mjs",
+          "sha256": "0543243de0761d38116e055f55e11854ba0875e9a89eb2af44b0c4b635251111",
+          "unmodified_source_sha256": "b47ca085a7b8ac66b583579b67013a97ee370e88c1eb90a8798afe433cb3687b",
+          "private_timing_instrumentation": true
+        },
+        {
+          "source": "hooks/runtime-supervisor.py",
+          "sha256": "94ee94cbd46dd3243c1c0818ea7cc868b0a13118905726d651c1e53959040136",
+          "unmodified_source_sha256": "af568b0f3a17d2fc7dedbd0c21fe1f844fd833e54a89831737a6b79c47660ba3",
+          "private_timing_instrumentation": true
+        },
+        {
+          "source": "agent-kits/shared/journal-capture.py",
+          "sha256": "e5256fdd5966fcc4bf4deb5da54176ab220d0be2c851bd7a55ff4e2d36d03607",
+          "unmodified_source_sha256": "63231769b0b0aea05395bade4c88c8f27d5f2c64ada7e94d4ca75abed6d13503",
+          "private_timing_instrumentation": true
+        },
+        {
+          "source": "agent-kits/shared/outbox.py",
+          "sha256": "9ff5cb708fb8794b552171c6521218aba939b5df5e288c01e84609d85b8cb12d"
+        },
+        {
+          "source": "interop/codex/hooks.json",
+          "sha256": "984a73bed9e5466d6766dbab880174c82fcf2c0f797bf3152de74080f65eef61",
+          "private_session_end_only": true
+        }
+      ],
+      "raw_evidence_sha256": {
+        "summary.json": "c3bfa223cf76f8fa4ac82a6eb13473aa73c1b7d5a172fd9b85e07a84b3ecc7a0",
+        "protocol.json": "4a09797d7c952d5e363fbfaecff1069c85dc3e16038ae586c9c43a7010424e6f",
+        "source-provenance.json": "77d6276776ecc453bf88552dc44970327c5ec00c60f815f448c94a8743955850",
+        "probe-source.py": "cc8a81db322d2ab252a73fa6c365eff3e3ae24f219f771962844f9732fde9622"
+      }
+    },
+    {
+      "id": "closure-diagnostic-02",
+      "variant": "original-launcher-with-private-timing-instrumentation",
+      "accepted_as_timing_comparison": true,
+      "experiment_result": "successful-minimal-capture",
+      "model_turn_used": true,
+      "provider_requests": 1,
+      "provider_scope": "owned-loopback-stub",
+      "natural_process_exit": 0,
+      "envelope_before_exit": true,
+      "envelope_session_matches_root": true,
+      "session_end_runs": [
+        {
+          "source": "user",
+          "status": "completed",
+          "duration_ms": 857,
+          "errors": []
+        },
+        {
+          "source": "plugin",
+          "status": "completed",
+          "duration_ms": 1251,
+          "errors": []
+        }
+      ],
+      "private_timing_ms": {
+        "native_notification_to_node_ready": 747,
+        "capture_call": 32,
+        "confirmed_cleanup": 167
+      },
+      "source_snapshot": [
+        {
+          "source": "hooks/run-hook.mjs",
+          "sha256": "0543243de0761d38116e055f55e11854ba0875e9a89eb2af44b0c4b635251111",
+          "unmodified_source_sha256": "b47ca085a7b8ac66b583579b67013a97ee370e88c1eb90a8798afe433cb3687b",
+          "private_timing_instrumentation": true
+        },
+        {
+          "source": "hooks/runtime-supervisor.py",
+          "sha256": "94ee94cbd46dd3243c1c0818ea7cc868b0a13118905726d651c1e53959040136",
+          "unmodified_source_sha256": "af568b0f3a17d2fc7dedbd0c21fe1f844fd833e54a89831737a6b79c47660ba3",
+          "private_timing_instrumentation": true
+        },
+        {
+          "source": "agent-kits/shared/journal-capture.py",
+          "sha256": "e5256fdd5966fcc4bf4deb5da54176ab220d0be2c851bd7a55ff4e2d36d03607",
+          "unmodified_source_sha256": "63231769b0b0aea05395bade4c88c8f27d5f2c64ada7e94d4ca75abed6d13503",
+          "private_timing_instrumentation": true
+        },
+        {
+          "source": "agent-kits/shared/outbox.py",
+          "sha256": "9ff5cb708fb8794b552171c6521218aba939b5df5e288c01e84609d85b8cb12d"
+        },
+        {
+          "source": "interop/codex/hooks.json",
+          "sha256": "3d08378f1c4580439f45ddaee65f4e3fc122bd62bc787f0701698f07b6ea436f",
+          "private_session_end_only": true
+        }
+      ],
+      "raw_evidence_sha256": {
+        "summary.json": "1064f3cbdaeb53194711bba4e4ba917649d65c48af894066db08ae7779a8bc0b",
+        "protocol.json": "e803f07cd85ade773f42a0bd735cd346d86eae7d83a48c5628bd2a4162569ee9",
+        "source-provenance.json": "c41cef1499805f14c22d314f1b7a0070a0b3d063e75817a93f5a12a808a9793b",
+        "probe-source.py": "a3f7a61316b66518c91252d095e86de81ab12d5a07230848dc0253de9a09a06e"
+      }
+    },
+    {
+      "id": "closure-diagnostic-03",
+      "variant": "original-launcher-with-private-timing-instrumentation",
+      "accepted_as_timing_comparison": true,
+      "experiment_result": "successful-minimal-capture",
+      "model_turn_used": false,
+      "provider_requests": 0,
+      "provider_scope": "none",
+      "natural_process_exit": 0,
+      "envelope_before_exit": true,
+      "envelope_session_matches_root": true,
+      "session_end_runs": [
+        {
+          "source": "user",
+          "status": "completed",
+          "duration_ms": 1065,
+          "errors": []
+        },
+        {
+          "source": "plugin",
+          "status": "completed",
+          "duration_ms": 1492,
+          "errors": []
+        }
+      ],
+      "private_timing_ms": {
+        "native_notification_to_node_ready": 960,
+        "capture_call": 21,
+        "confirmed_cleanup": 165
+      },
+      "source_snapshot": [
+        {
+          "source": "hooks/run-hook.mjs",
+          "sha256": "0543243de0761d38116e055f55e11854ba0875e9a89eb2af44b0c4b635251111",
+          "unmodified_source_sha256": "b47ca085a7b8ac66b583579b67013a97ee370e88c1eb90a8798afe433cb3687b",
+          "private_timing_instrumentation": true
+        },
+        {
+          "source": "hooks/runtime-supervisor.py",
+          "sha256": "94ee94cbd46dd3243c1c0818ea7cc868b0a13118905726d651c1e53959040136",
+          "unmodified_source_sha256": "af568b0f3a17d2fc7dedbd0c21fe1f844fd833e54a89831737a6b79c47660ba3",
+          "private_timing_instrumentation": true
+        },
+        {
+          "source": "agent-kits/shared/journal-capture.py",
+          "sha256": "e5256fdd5966fcc4bf4deb5da54176ab220d0be2c851bd7a55ff4e2d36d03607",
+          "unmodified_source_sha256": "63231769b0b0aea05395bade4c88c8f27d5f2c64ada7e94d4ca75abed6d13503",
+          "private_timing_instrumentation": true
+        },
+        {
+          "source": "agent-kits/shared/outbox.py",
+          "sha256": "9ff5cb708fb8794b552171c6521218aba939b5df5e288c01e84609d85b8cb12d"
+        },
+        {
+          "source": "interop/codex/hooks.json",
+          "sha256": "3d08378f1c4580439f45ddaee65f4e3fc122bd62bc787f0701698f07b6ea436f",
+          "private_session_end_only": true
+        }
+      ],
+      "raw_evidence_sha256": {
+        "summary.json": "50ba80c9d193eb344ea6a43ca6377c9c68ea6365985b71b6233216efaa44fa1c",
+        "protocol.json": "64df0c53430b75365ad7a84c698c78f73d6a808dbab6cc271b18045cbfbfa791",
+        "source-provenance.json": "b84d26bad4a04fbc4c97896b1ada165249acd8c919af6deec848fc6607107543",
+        "probe-source.py": "cc8a81db322d2ab252a73fa6c365eff3e3ae24f219f771962844f9732fde9622"
+      }
+    }
+  ],
+  "diagnosis": {
+    "historical_failure_reference": "native-role-integration-evidence.json#codex.memory_closure_checks",
+    "historical_failure_retained": "Native 3s timeout with no envelope before exit remains open.",
+    "reproduction": "The reduced original-launcher experiments completed capture; the historical timeout was not reproduced.",
+    "discarded_explanation": "A deterministic failure of the capture writer is inconsistent with the observed minimal successes.",
+    "unattributed_condition": "Historical executor startup variability and scenario load before Node have not been causally isolated.",
+    "causal_hypothesis_proven": false,
+    "nested_override": "The private commandWindows override retained the outer shell and failed with MODULE_NOT_FOUND due to nested quoting. It is rejected as a proposed improvement and as a successful timing comparison.",
+    "next_change": "No production change is justified by this partial diagnosis; retain the native closure reliability gap."
+  },
+  "limits": [
+    "Only the reduced capture-plus-observer scenario was exercised; native guard and subagent load matrices were not reexecuted.",
+    "Capture-call timing measures the writer only and is not total hook duration or a guarantee for every native runtime.",
+    "Timing instrumentation changes the private source bytes; these are not byte-identical launcher executions.",
+    "The recorded original source hashes and private instrumented source hashes are distinguished for every cohort.",
+    "One initial control used one owned loopback model turn; subsequent archive experiments used zero model turns and zero provider requests.",
+    "The native hook deadline remains 3s; successful samples do not establish a worst-case startup bound.",
+    "No durable memory closure or parser matrix is declared globally complete."
+  ]
+}
