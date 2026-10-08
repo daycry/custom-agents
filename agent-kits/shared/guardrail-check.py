@@ -2,11 +2,11 @@
 """
 guardrail-check.py — guardrails DETERMINISTAS del `implementer` (hook PreToolUse).
 
-(Iniciativa deterministic-guardrails: las reglas «no toques docs/roadmap/ salvo tasks.md»,
-«trabaja en rama» y «sin git destructivo» pasan de prosa a script con tests. Lo invoca el
-wrapper `hooks/implementer-guardrail.sh`, registrado SOLO en el frontmatter `hooks:` de
-`agents/implementer.md` — nunca en `hooks/hooks.json` global: planner/evaluator/analyst
-escriben en docs/roadmap/ legítimamente. Ver docs/knowledge/adr/ADR-007.)
+Las reglas se comparten entre wrappers locales de agentes y el dispatcher
+native-guardrail.py. El dispatcher selecciona solo IDs propios desde metadata
+nativa; planner/evaluator/analyst y la sesión principal mantienen sus permisos.
+Los hooks del frontmatter no se ejecutan en agentes Claude de plugin ni en TOML
+Codex. Registro y límites: docs/knowledge/adr/ADR-023-guardias-por-identidad-nativa.md.
 
 Uso:
   guardrail-check.py pre-tool [--project-dir DIR] [--agent implementer|architect]   # JSON del hook por stdin
@@ -67,12 +67,19 @@ DEFAULTS = {"alcance": True, "git": True, "ramaPrincipal": True}
 
 
 # ---------------------------------------------------------------- config ----
-def load_config(project_dir):
+def load_config(project_dir, max_bytes=None):
     """Devuelve (config dict con las 3 claves, activo bool). Nunca lanza."""
     path = os.path.join(project_dir, ".claude", "dev.json")
     try:
-        with open(path, encoding="utf-8") as fh:
-            data = json.load(fh)
+        if max_bytes is None:
+            with open(path, encoding="utf-8") as fh:
+                data = json.load(fh)
+        else:
+            with open(path, "rb") as fh:
+                raw = fh.read(max_bytes + 1)
+            if len(raw) > max_bytes:
+                raise ValueError("config limit")
+            data = json.loads(raw.decode("utf-8"))
     except (OSError, ValueError, UnicodeDecodeError):
         return dict(DEFAULTS), True
     g = data.get("guardrails", True) if isinstance(data, dict) else True
@@ -199,11 +206,11 @@ def check_alcance(rel):
 
 
 # ------------------------------------------------------------------- git ----
-def current_branch(project_dir):
+def current_branch(project_dir, timeout=5):
     """Nombre de la rama o None si no hay git / no se puede saber."""
     try:
         r = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=project_dir or None,
-                           capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=5)
+                           capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout)
     except (OSError, subprocess.SubprocessError):
         return None
     if r.returncode != 0:

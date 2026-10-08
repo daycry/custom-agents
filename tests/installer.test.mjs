@@ -9,7 +9,7 @@
 
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, chmodSync, symlinkSync, linkSync } from "node:fs"
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, chmodSync, symlinkSync, linkSync, truncateSync } from "node:fs"
 import { tmpdir, homedir } from "node:os"
 import { join, dirname, resolve, delimiter } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -49,10 +49,11 @@ const cli = (args, opts = {}) => {
   const merged={...process.env,...requested}
   const requestedPath=Object.entries(requested).find(([key])=>/^path$/i.test(key))?.[1]
   const inheritedPath=process.env.PATH || process.env.Path
-  const env=Object.fromEntries(Object.entries(merged).filter(([key])=>!/^path$/i.test(key)
-    && !/^(?:OPENAI|ANTHROPIC|AZURE_OPENAI|CLAUDE|CODEX|OPENCODE|GEMINI|GOOGLE|AWS|GITHUB|GH|HF|HUGGING_FACE|MISTRAL|COHERE|DEEPSEEK|XAI|GROQ|TOGETHER|FIREWORKS|OPENROUTER).*(?:KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL|AUTH)/i.test(key)))
+  const allowed=/^(?:SystemRoot|WINDIR|COMSPEC|PATHEXT|OS|PROCESSOR_ARCHITECTURE|NO_COLOR|CI|HOME|USERPROFILE|CODEX_HOME|APPDATA|LOCALAPPDATA|XDG_CONFIG_HOME|CLAUDE_CONFIG_DIR|CODEX_FAKE_LOG|CODEX_FAKE_FAIL_ADD|CUSTOM_AGENTS_EXEC_TIMEOUT_MS|MARCA|NODE_V8_COVERAGE)$/i
+  const env=Object.fromEntries(Object.entries(merged).filter(([key])=>allowed.test(key)))
+  const ownedTemp=join(ownedHome,'temp');mkdirSync(ownedTemp,{recursive:true})
   Object.assign(env,{NO_COLOR:"1",HOME:ownedHome,USERPROFILE:ownedHome,CODEX_HOME:ownedCodex,
-    PATH:requestedPath && requestedPath!==inheritedPath ? requestedPath : [SUITE_BIN,SAFE_SYSTEM_PATH].join(delimiter)})
+    TEMP:ownedTemp,TMP:ownedTemp,PATH:requestedPath && requestedPath!==inheritedPath ? requestedPath : [SUITE_BIN,SAFE_SYSTEM_PATH].join(delimiter)})
   for(const [key,fallback] of [['APPDATA',join(ownedHome,'AppData/Roaming')],['LOCALAPPDATA',join(ownedHome,'AppData/Local')],
     ['XDG_CONFIG_HOME',join(ownedHome,'.config')],['CLAUDE_CONFIG_DIR',join(ownedHome,'.claude')]]) {
     if(!requested[key] || requested[key]===process.env[key]) env[key]=fallback
@@ -61,6 +62,298 @@ const cli = (args, opts = {}) => {
 }
 
 const VERSION = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")).version
+
+test("native role migration preserves consumer agents and explicit bindings", () => {
+  const proj = tmpProj()
+  try {
+    const dir = join(proj, '.opencode', 'agents')
+    mkdirSync(dir, {recursive:true})
+    const bare = join(dir, 'reviewer.md'), native = join(dir, 'custom-agents-reviewer.md')
+    writeFileSync(bare, 'consumer bare reviewer\n')
+    writeFileSync(native, 'consumer named reviewer\n')
+    const cfg = join(proj, 'opencode.json')
+    writeFileSync(cfg, JSON.stringify({agent:{'custom-agents-architect':{prompt:'consumer inline role'}}}))
+    const out = cli(['install','-p','opencode','--dir',proj,'-y'])
+    assert.equal(readFileSync(bare,'utf8'), 'consumer bare reviewer\n')
+    assert.equal(readFileSync(native,'utf8'), 'consumer named reviewer\n')
+    assert.ok(!existsSync(join(dir,'custom-agents-architect.md')))
+    assert.match(out, /conservad|conflict/i)
+    const man = JSON.parse(readFileSync(join(proj,'.opencode',MANIFEST),'utf8'))
+    assert.ok(!man.files.includes(native.split('\\').join('/')))
+    assert.equal(man.estado,'incompleto','conflicted roles must not be declared fully installed')
+  } finally { rmSync(proj,{recursive:true,force:true}) }
+})
+
+test("native role uninstall preserves edits made after installation", () => {
+  const proj = tmpProj()
+  try {
+    const dest = join(proj,'.opencode'), role = join(dest,'agents','custom-agents-reviewer.md')
+    mkdirSync(dirname(role),{recursive:true}); writeFileSync(role,'consumer edit\n')
+    const path = role.split('\\').join('/')
+    writeFileSync(join(dest,MANIFEST),JSON.stringify({plugin:'custom-agents',provider:'opencode',scope:'project',
+      files:[path],nativeAgents:{[path]:createHash('sha256').update('owned original\n').digest('hex')}}))
+    cli(['uninstall','-p','opencode','--dir',proj])
+    assert.equal(readFileSync(role,'utf8'),'consumer edit\n')
+  } finally { rmSync(proj,{recursive:true,force:true}) }
+})
+
+const nativeMigrationFixture = (runtime = 'codex') => {
+  const root = tmpProj(), project = join(root,'project'), out = join(project,`.${runtime}`,'agents')
+  const source = join(root,'exports'), mapDir = join(root,'agent-kits','shared')
+  mkdirSync(out,{recursive:true}); mkdirSync(source); mkdirSync(mapDir,{recursive:true}); mkdirSync(join(root,'install'))
+  mkdirSync(join(project,'.git'))
+  writeFileSync(join(mapDir,'native-roles.json'),JSON.stringify({runtimes:{[runtime]:{reviewer:'custom-agents-reviewer'}}}))
+  const sha = text => createHash('sha256').update(text.replace(/\r\n/g,'\n')).digest('hex')
+  writeFileSync(join(root,'install','native-agent-legacy.json'),JSON.stringify({runtimes:{[runtime]:{reviewer:sha('legacy own\n')}}}))
+  const ext = runtime === 'codex' ? '.toml' : '.md'
+  const bare = join(out,'reviewer'+ext), native = join(out,'custom-agents-reviewer'+ext)
+  writeFileSync(join(source,'custom-agents-reviewer'+ext),'new own\n')
+  const config = join(project,runtime === 'codex' ? 'config.toml' : 'opencode.json')
+  const step = {from:'exports',to:out,nativeAgents:{runtime,scope:'project',projectDir:project,configs:[config]}}
+  const norm = path => path.split('\\').join('/')
+  const manifest = {plugin:'custom-agents',provider:runtime,files:[norm(bare)],nativeAgents:{}}
+  return {root,project,out,bare,native,config,step,manifest,norm,sha}
+}
+
+test("native role migration recognizes only inventoried exact legacy bytes", () => {
+  const f = nativeMigrationFixture()
+  try {
+    writeFileSync(f.bare,'legacy own\r\n')
+    let plan = installerModule.planificarAgentesNativos(f.step,f.manifest,f.root)
+    assert.deepEqual(plan.actions.map(a=>a.type),['copy','retire'])
+    plan = installerModule.planificarAgentesNativos(f.step,{...f.manifest,files:[]},f.root)
+    assert.deepEqual(plan.actions.map(a=>a.type),['copy'])
+    writeFileSync(f.bare,'legacy own\nconsumer change\n')
+    plan = installerModule.planificarAgentesNativos(f.step,f.manifest,f.root)
+    assert.deepEqual(plan.actions.map(a=>a.type),['copy'])
+  } finally {rmSync(f.root,{recursive:true,force:true})}
+})
+
+test("native role migration preserves legacy bindings, global copies and ambiguous roots", () => {
+  const f = nativeMigrationFixture()
+  try {
+    writeFileSync(f.bare,'legacy own\n')
+    writeFileSync(f.config,`[agents.consumer]\nconfig_file = ${JSON.stringify(f.bare.split('\\').join('/'))}\n`)
+    assert.deepEqual(installerModule.planificarAgentesNativos(f.step,f.manifest,f.root).actions.map(a=>a.type),['copy'])
+    writeFileSync(f.config,'')
+    const globalStep={...f.step,nativeAgents:{...f.step.nativeAgents,scope:'user'}}
+    assert.deepEqual(installerModule.planificarAgentesNativos(globalStep,f.manifest,f.root).actions.map(a=>a.type),['copy'])
+    rmSync(join(f.project,'.git'),{recursive:true}); writeFileSync(join(f.project,'.git'),'gitdir: unknown\n')
+    assert.deepEqual(installerModule.planificarAgentesNativos(f.step,f.manifest,f.root).actions.map(a=>a.type),['copy'])
+  } finally {rmSync(f.root,{recursive:true,force:true})}
+})
+
+test("native role migration updates own hashes, preserves edits and detects quoted TOML bindings", () => {
+  const f = nativeMigrationFixture()
+  try {
+    writeFileSync(f.native,'previous own\n')
+    f.manifest.files.push(f.norm(f.native));f.manifest.nativeAgents[f.norm(f.native)]=f.sha('previous own\n')
+    assert.equal(installerModule.planificarAgentesNativos(f.step,f.manifest,f.root).actions.length,1)
+    writeFileSync(f.native,'consumer changed\n')
+    assert.equal(installerModule.planificarAgentesNativos(f.step,f.manifest,f.root).actions.length,0)
+    writeFileSync(f.native,'previous own\n')
+    for (const text of [`[agents.'custom-agents-reviewer']\nconfig_file='consumer.toml'\n`,
+      `agents = { "custom-agents-reviewer" = { config_file = 'consumer.toml' } }\n`]) {
+      writeFileSync(f.config,text)
+      assert.equal(installerModule.planificarAgentesNativos(f.step,f.manifest,f.root).actions.length,0)
+    }
+  } finally {rmSync(f.root,{recursive:true,force:true})}
+})
+
+test("native role migration never overwrites unverifiable JSONC or file-reference bindings", () => {
+  const f = nativeMigrationFixture('opencode')
+  try {
+    writeFileSync(f.bare,'legacy own\n')
+    writeFileSync(f.config,JSON.stringify({agent:{consumer:{prompt:`{file:${f.bare.split('\\').join('/')}}`}}}))
+    assert.deepEqual(installerModule.planificarAgentesNativos(f.step,f.manifest,f.root).actions.map(a=>a.type),['copy'])
+    writeFileSync(f.config,'{ // valid JSONC requiring a native parser\n "agent": {} }')
+    const plan=installerModule.planificarAgentesNativos(f.step,f.manifest,f.root)
+    assert.equal(plan.actions.length,0); assert.match(plan.warnings.join('\n'),/no verificable/)
+  } finally {rmSync(f.root,{recursive:true,force:true})}
+})
+
+test("OpenCode V2 native role migration preserves agents IDs and file-reference bindings", () => {
+  const f=nativeMigrationFixture('opencode')
+  try {
+    writeFileSync(f.bare,'legacy own\n')
+    writeFileSync(f.config,JSON.stringify({agents:{consumer:{system:`{file:${f.bare.split('\\').join('/')}}`}}}))
+    let plan=installerModule.planificarAgentesNativos(f.step,f.manifest,f.root)
+    assert.deepEqual(plan.actions.map(a=>a.type),['copy'])
+    writeFileSync(f.config,JSON.stringify({agents:{'custom-agents-reviewer':{system:'consumer own role'}}}))
+    plan=installerModule.planificarAgentesNativos(f.step,f.manifest,f.root)
+    assert.equal(plan.actions.length,0)
+  } finally {rmSync(f.root,{recursive:true,force:true})}
+})
+
+test("OpenCode V2 native role migration preserves file references outside agent maps", () => {
+  const f=nativeMigrationFixture('opencode')
+  try {
+    writeFileSync(f.bare,'legacy own\n')
+    const relativeBare='.opencode/agents/reviewer.md'
+    for (const config of [
+      {commands:{review:{prompt:`{file:${relativeBare}}`}}},
+      {instructions:[`{file:${relativeBare}}`]},
+      {[`{file:${relativeBare}}`]:'consumer key reference'},
+      {commands:{'custom-agents-reviewer':{prompt:'consumer command ID only'}}}
+    ]) {
+      writeFileSync(f.config,JSON.stringify(config))
+      const plan=installerModule.planificarAgentesNativos(f.step,f.manifest,f.root)
+      assert.deepEqual(plan.actions.map(a=>a.type),config.commands?.['custom-agents-reviewer'] ? ['copy','retire'] : ['copy'])
+    }
+  } finally {rmSync(f.root,{recursive:true,force:true})}
+})
+
+test("OpenCode V2 native role migration conserves unresolved home and environment file references", () => {
+  const f=nativeMigrationFixture('opencode')
+  try {
+    writeFileSync(f.bare,'legacy own\n')
+    for (const instructions of [['{file:~/repo/.opencode/agents/reviewer.md}'],['{file:{env:OWN_ROLE_PATH}}'],['{env:OWN_CONFIG_FRAGMENT}']]) {
+      writeFileSync(f.config,JSON.stringify({instructions}))
+      const plan=installerModule.planificarAgentesNativos(f.step,f.manifest,f.root)
+      assert.equal(plan.actions.length,0)
+      assert.match(plan.warnings.join('\n'),/referencia dinámica de configuración no verificable/)
+    }
+  } finally {rmSync(f.root,{recursive:true,force:true})}
+})
+
+test("OpenCode native role migration preserves explicit command agent bindings and legacy mode IDs", () => {
+  const f=nativeMigrationFixture('opencode')
+  try {
+    writeFileSync(f.bare,'legacy own\n')
+    for (const config of [
+      {commands:{review:{template:'consumer command',agent:'reviewer'}}},
+      {command:{review:{template:'consumer command',agent:'reviewer'}}},
+      {mode:{reviewer:{prompt:'consumer mode'}}},
+      {mode:{'custom-agents-reviewer':{prompt:'consumer mode'}}},
+      {default_agent:'reviewer'}
+    ]) {
+      writeFileSync(f.config,JSON.stringify(config))
+      const plan=installerModule.planificarAgentesNativos(f.step,f.manifest,f.root)
+      assert.deepEqual(plan.actions.map(a=>a.type),config.mode?.['custom-agents-reviewer'] ? [] : ['copy'])
+    }
+  } finally {rmSync(f.root,{recursive:true,force:true})}
+})
+
+test("OpenCode native role migration preserves legacy files when Markdown command references cannot be verified", () => {
+  const f=nativeMigrationFixture('opencode')
+  try {
+    writeFileSync(f.bare,'legacy own\n')
+    for (const directory of ['command','commands']) {
+      const folder=join(f.project,'.opencode',directory,'nested')
+      mkdirSync(folder,{recursive:true})
+      writeFileSync(join(folder,'consumer.md'),'---\nagent: reviewer\n---\nConsumer command\n')
+      const plan=installerModule.planificarAgentesNativos(f.step,f.manifest,f.root)
+      assert.deepEqual(plan.actions.map(a=>a.type),['copy'])
+      assert.match(plan.warnings.join('\n'),/comandos Markdown.*no verificable/)
+      rmSync(join(f.project,'.opencode',directory),{recursive:true})
+    }
+    assert.deepEqual(installerModule.planificarAgentesNativos(f.step,f.manifest,f.root).actions.map(a=>a.type),['copy','retire'])
+  } finally {rmSync(f.root,{recursive:true,force:true})}
+})
+
+test("OpenCode native role migration has no legacy warning on a fresh namespaced install", () => {
+  const f=nativeMigrationFixture('opencode')
+  try {
+    const folder=join(f.project,'.opencode','commands')
+    mkdirSync(folder,{recursive:true})
+    writeFileSync(join(folder,'consumer.md'),'---\nagent: reviewer\n---\nConsumer command\n')
+    const plan=installerModule.planificarAgentesNativos(f.step,f.manifest,f.root)
+    assert.deepEqual(plan.actions.map(a=>a.type),['copy'])
+    assert.deepEqual(plan.warnings,[], 'no legacy file exists whose retirement needs verification')
+  } finally {rmSync(f.root,{recursive:true,force:true})}
+})
+
+test("OpenCode native role migration bounds command discovery and conserves legacy files on unsafe layers", () => {
+  for (const scenario of ['junction','depth','count','known-layer']) {
+    const f=nativeMigrationFixture('opencode')
+    try {
+      writeFileSync(f.bare,'legacy own\n')
+      const dir=join(f.project,'.opencode','commands')
+      if (scenario==='junction') {
+        const external=join(f.root,'owned-command-target');mkdirSync(external)
+        writeFileSync(join(external,'consumer.md'),'---\nagent: reviewer\n---\n')
+        symlinkSync(external,dir,process.platform==='win32'?'junction':'dir')
+      } else if (scenario==='depth') {
+        mkdirSync(join(dir,...Array(18).fill('nested')),{recursive:true})
+      } else if (scenario==='count') {
+        mkdirSync(dir)
+        for (let index=0;index<4097;index++) writeFileSync(join(dir,index+'.txt'),'')
+      } else {
+        const layer=join(f.root,'own-known-runtime-layer')
+        mkdirSync(join(layer,'command'),{recursive:true})
+        writeFileSync(join(layer,'command','consumer.md'),'---\nagent: reviewer\n---\n')
+        f.step.nativeAgents.agentDirs=[join(layer,'agents')]
+      }
+      const plan=installerModule.planificarAgentesNativos(f.step,f.manifest,f.root)
+      assert.deepEqual(plan.actions.map(a=>a.type),['copy'])
+      assert.match(plan.warnings.join('\n'),/comandos Markdown.*no verificable/)
+    } finally {rmSync(f.root,{recursive:true,force:true})}
+  }
+})
+
+test("native role migration rejects hardlinks and unsafe role map paths", () => {
+  const f = nativeMigrationFixture()
+  try {
+    const consumer=join(f.root,'consumer');writeFileSync(consumer,'consumer\n');linkSync(consumer,f.native)
+    const plan=installerModule.planificarAgentesNativos(f.step,f.manifest,f.root)
+    assert.equal(plan.actions.length,0);assert.match(plan.warnings.join('\n'),/conflicto/)
+    writeFileSync(join(f.root,'agent-kits','shared','native-roles.json'),JSON.stringify({runtimes:{codex:{reviewer:'../escape'}}}))
+    assert.throws(()=>installerModule.planificarAgentesNativos(f.step,f.manifest,f.root),/invalid native role map/)
+  } finally {rmSync(f.root,{recursive:true,force:true})}
+})
+
+test("native role migration refuses an agents directory junction outside its runtime base", () => {
+  const f = nativeMigrationFixture()
+  try {
+    const outside=join(f.root,'outside');mkdirSync(outside)
+    rmSync(f.out,{recursive:true});symlinkSync(outside,f.out,process.platform==='win32'?'junction':'dir')
+    const plan=installerModule.planificarAgentesNativos(f.step,f.manifest,f.root)
+    assert.equal(plan.actions.length,0)
+    assert.match(plan.warnings.join('\n'),/outside runtime base/)
+  } finally {rmSync(f.root,{recursive:true,force:true})}
+})
+
+test("Codex native role migration preserves an agent bound by its TOML name in another file", () => {
+  const f=nativeMigrationFixture()
+  try {
+    const custom=join(f.out,'consumer-choice.toml')
+    writeFileSync(custom,'name="custom-agents-reviewer"\ndeveloper_instructions="consumer prompt"\n')
+    const plan=installerModule.planificarAgentesNativos(f.step,f.manifest,f.root)
+    assert.equal(plan.actions.length,0)
+    assert.equal(readFileSync(custom,'utf8'),'name="custom-agents-reviewer"\ndeveloper_instructions="consumer prompt"\n')
+  } finally {rmSync(f.root,{recursive:true,force:true})}
+})
+
+test("Codex native role migration detects TOML name collisions in nested discovery", () => {
+  const f=nativeMigrationFixture()
+  try {
+    const nested=join(f.out,'consumer','nested.toml');mkdirSync(dirname(nested))
+    writeFileSync(nested,'name="custom-agents-reviewer"\ndeveloper_instructions="consumer prompt"\n')
+    assert.equal(installerModule.planificarAgentesNativos(f.step,f.manifest,f.root).actions.length,0)
+  } finally {rmSync(f.root,{recursive:true,force:true})}
+})
+
+test("Codex native role migration recognizes the declared name of an explicitly bound role file", () => {
+  const f=nativeMigrationFixture()
+  try {
+    const custom=join(f.project,'consumer-role.toml')
+    writeFileSync(custom,'name="custom-agents-reviewer"\ndeveloper_instructions="consumer prompt"\n')
+    writeFileSync(f.config,'[agents.consumer_alias]\nconfig_file="consumer-role.toml"\n')
+    assert.equal(installerModule.planificarAgentesNativos(f.step,f.manifest,f.root).actions.length,0)
+  } finally {rmSync(f.root,{recursive:true,force:true})}
+})
+
+test("native role migration conserves oversized agent and configuration files", () => {
+  const f=nativeMigrationFixture()
+  try {
+    writeFileSync(f.native,'');truncateSync(f.native,1024*1024+1)
+    let plan=installerModule.planificarAgentesNativos(f.step,f.manifest,f.root)
+    assert.equal(plan.actions.length,0);assert.match(plan.warnings.join('\n'),/size bound/)
+    rmSync(f.native);writeFileSync(f.config,'');truncateSync(f.config,1024*1024+1)
+    plan=installerModule.planificarAgentesNativos(f.step,f.manifest,f.root)
+    assert.equal(plan.actions.length,0);assert.match(plan.warnings.join('\n'),/no verificable/)
+  } finally {rmSync(f.root,{recursive:true,force:true})}
+})
 
 /** PATH sin ninguna CLI de runtime, pero con lo justo para que `where`/`which` sigan funcionando. */
 const SIN_CLI = [tmpdir(), process.platform === "win32"
@@ -115,7 +408,7 @@ process.exit(1)
 `)
   const executable=join(bin,process.platform==='win32'?'codex.cmd':'codex')
   writeFileSync(executable,process.platform==='win32'
-    ? `@echo off\r\n"${process.execPath}" "${script}" %*\r\n`
+    ? `@echo off\r\nif "%~2"=="list" goto ownList\r\n"${process.execPath}" "${script}" %*\r\nexit /b %errorlevel%\r\n:ownList\r\nsetlocal\r\nif defined CODEX_FAKE_LOG >>"%CODEX_FAKE_LOG%" echo %*\r\nset "own_config=%CD%\\.codex\\config.toml"\r\nif not exist "%own_config%" set "own_config=%CODEX_HOME%\\config.toml"\r\nset "own_enabled=true"\r\nset "own_declared=0"\r\nset "own_installed=[]"\r\n"%SystemRoot%\\System32\\findstr.exe" /C:"enabled = false" "%own_config%" >nul 2>&1\r\nif not errorlevel 1 set "own_enabled=false"\r\n"%SystemRoot%\\System32\\findstr.exe" /C:"custom-agents@daycry" "%own_config%" >nul 2>&1\r\nif not errorlevel 1 set "own_declared=1"\r\nif exist "%CODEX_HOME%\\plugins\\cache\\daycry\\custom-agents\\${VERSION}\\.codex-plugin\\plugin.json" if "%own_declared%"=="1" set "own_installed=[{\"pluginId\":\"custom-agents@daycry\",\"version\":\"${VERSION}\",\"installed\":true,\"enabled\":%own_enabled%}]"\r\necho {\"installed\":%own_installed%,\"available\":[]}\r\nexit /b 0\r\n`
     : `#!/bin/sh\nexec '${process.execPath.replace(/'/g,"'\\''")}' '${script.replace(/'/g,"'\\''")}' "$@"\n`)
   if(process.platform!=='win32') chmodSync(executable,0o755)
 }
@@ -470,7 +763,7 @@ test("install → idempotente → uninstall preciso", () => {
     const man = JSON.parse(readFileSync(join(proj, ".opencode", MANIFEST), "utf8"))
     assert.equal(man.provider, "opencode")
     assert.ok(man.files.length > 100, "el manifiesto debe listar lo instalado")
-    assert.ok(existsSync(join(proj, ".opencode", "agents", "reviewer.md")))
+    assert.ok(existsSync(join(proj, ".opencode", "agents", "custom-agents-reviewer.md")))
     assert.ok(existsSync(join(proj, ".opencode", "plugins", ADAPTADOR_OPENCODE, "index.js")))
     assert.ok(existsSync(join(proj, "opencode.json")))
     // El manifiesto viaja también: `/doctor` lee `<raíz>/.claude-plugin/plugin.json` para decir la
@@ -495,7 +788,7 @@ test("install → idempotente → uninstall preciso", () => {
     cli(["uninstall", "-p", "opencode", "--dir", proj, "-q"])
     assert.ok(existsSync(ajeno), "uninstall borró un fichero que no era suyo")
     assert.ok(existsSync(join(proj, "opencode.json")), "uninstall borró la config del usuario")
-    assert.ok(!existsSync(join(proj, ".opencode", "agents", "reviewer.md")))
+    assert.ok(!existsSync(join(proj, ".opencode", "agents", "custom-agents-reviewer.md")))
     assert.ok(!existsSync(join(proj, ".opencode", ".claude-plugin", "plugin.json")),
       "uninstall dejó el manifiesto huérfano")
     assert.ok(!existsSync(join(proj, ".opencode", MANIFEST)))

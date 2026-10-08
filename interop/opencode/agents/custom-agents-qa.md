@@ -1,21 +1,31 @@
-# GENERADO por scripts/export-interop.py desde agents/qa.md — no lo edites a mano.
-# Regenera con `python3 scripts/export-interop.py`; el porqué está en `docs/INTEROP.md`.
+---
+description: "Audita un plan ejecutando sus tests E2E con Playwright contra la app local, captura evidencias (screenshots) y genera un informe md + pdf con checklist manual, en docs/roadmap/<fecha>-<slug>/testing/. Lee el test-plan.md del plan (bloques E2E-xx automáticos y M-xx manuales). Solo opera contra hosts locales/privados (guardrail). Instala Playwright bajo permiso. Úsalo cuando el usuario pida QA/E2E, \"prueba la UI\", \"tests end-to-end\", \"audita el plan con Playwright\"."
+mode: subagent
+temperature: 0.2
+permission:
+  read: allow
+  grep: allow
+  glob: allow
+  list: allow
+  edit: allow
+  shell: allow
+  webfetch: deny
+  websearch: deny
+  subagent: deny
+  skill: allow
+---
+<!-- GENERADO por scripts/export-interop.py desde agents/qa.md — no lo edites a mano.
+     Regenera con `python3 scripts/export-interop.py`; el porqué está en `docs/INTEROP.md`. -->
 
-# Copia este fichero a `.codex/agents/` (proyecto) o `~/.codex/agents/` (usuario).
-
-name = "qa"
-description = "Audita un plan ejecutando sus tests E2E con Playwright contra la app local, captura evidencias (screenshots) y genera un informe md + pdf con checklist manual, en docs/roadmap/<fecha>-<slug>/testing/. Lee el test-plan.md del plan (bloques E2E-xx automáticos y M-xx manuales). Solo opera contra hosts locales/privados (guardrail). Instala Playwright bajo permiso. Úsalo cuando el usuario pida QA/E2E, \"prueba la UI\", \"tests end-to-end\", \"audita el plan con Playwright\"."
-model_reasoning_effort = "medium"
-developer_instructions = '''
-> **Adaptación a Codex** (fichero generado; la fuente es `agents/qa.md`).
-> - **Skills:** donde el cuerpo diga «invoca la skill `X` con la herramienta Skill», en Codex se
->   menciona `$X` (o se deja que Codex la active por su `description`). Las skills del plugin se
->   cargan desde el propio plugin.
-> - **Delegar en otro agente:** no hay herramienta Agent; se pide en lenguaje natural nombrando al
->   agente («delega en `reviewer` la lente B»). Codex no auto-invoca agentes custom: hay que pedirlo.
+> **Adaptación a OpenCode** (fichero generado; la fuente es `agents/qa.md`).
+> - **Skills:** donde el cuerpo diga «invoca la skill `X` con la herramienta Skill», en OpenCode se
+>   usa la herramienta `skill` (`skill({ name: "X" })`). OpenCode las descubre en
+>   `.opencode/skills/<nombre>/SKILL.md` (y también en `.claude/skills/`, por compatibilidad).
+> - **Delegar en otro agente:** herramienta `subagent` con `agent: "custom-agents-reviewer"`.
+>   En el cuerpo, los roles propios se resuelven con este mapa: analyst → `custom-agents-analyst`; architect → `custom-agents-architect`; documenter → `custom-agents-documenter`; evaluator → `custom-agents-evaluator`; implementer → `custom-agents-implementer`; knowledge-curator → `custom-agents-knowledge-curator`; nemesis → `custom-agents-nemesis`; planner → `custom-agents-planner`; qa → `custom-agents-qa`; reviewer → `custom-agents-reviewer`. Conserva nombres y rutas de agentes del consumidor.
 > - **Guardrail:** este agente no tiene hook de guardia propio; se aplican los guardrails del proyecto.
 > - **Rutas:** los kits se resuelven con el `find` de la regla 5 de CONVENTIONS, que ya busca en
->   `$PWD/.codex` y `$HOME/.codex` (donde el instalador deja el plugin en Codex).
+>   `$PWD/.opencode` y `$HOME/.config/opencode` (el global de OpenCode no es `~/.opencode`).
 
 ## Contexto de capacidades
 
@@ -129,4 +139,3 @@ Formato y reglas: `"$SHAREDKIT/rationalization-table.md"`. Si te oyes decir una 
 La evidencia son las salidas de los tres scripts, no tus afirmaciones.
 
 **Salida a la cadena.** Tu mensaje final sigue la **disciplina de salida** compartida `"$SHAREDKIT/output-discipline.md"` (≤ ~12 líneas: veredicto de qa-gate, conteo, ruta del informe, handoff/estado; el detalle vive en `report.md`). Fallback: datos, no informe.
-'''

@@ -178,7 +178,7 @@ hooks, conexiones de backend ni utilidad de recuperación.
 - **Descripción**: Implementar mecanismos reales por contrato y versión para Claude/Codex/OpenCode, incluido soporte V2; probar identidad, concurrencia y degradación.
 - **Dependencias**: T-02/T-08.
 - **Archivos**: `hooks/**`, `interop/**`, `agent-kits/shared/**`, `scripts/**`, `install/**`, `tests/**`, `agents/**`, `docs/**`
-- **Verificación**: Checkpoint, supervisión de cierre y aislamiento de instalación entregados en bloques anteriores; terminal-qa-evidence.json conserva QA, cobertura y límites de ese snapshot. En el bloque actual se retira del exporter Codex el sandbox por rol sin efecto y se corrigen las instrucciones de reviewer. Identidad y bloqueo previos probados con dispatchers privados en native-role-contract-evidence.json. Falta integrar normalización, dispatcher e IDs propios en el bundle; no se da T-09 por completada.
+- **Verificación**: Checkpoint, cierre e instalación de bloques anteriores conservan sus fichas por snapshot. El bloque publicado 8b51edd corrige los permisos de reviewer y acredita mecanismos nativos. El bloque local actual conecta normalización, dispatcher, IDs propios y migración; tests dirigidos verdes, aceptación nativa final y revisión independientes en progreso. La primera distribución con PreToolUse de 5 s falló por timeout y se conserva como RED real; registro de 10 s en validación. T-09 permanece abierta.
 - **RED del bloque de checkpoint (2026-10-08)**: `test_journal.py -k 'capture_respeta_journal_en_forma_objeto or rotar_fallo_conserva_checkpoint or rotar_lee_solo_cola'`: 4 failed/1 passed, 150 deselected. `{activo: false}` creó un log; los fallos simulados de fsync/replace no conservaron el original; la rotación leyó el archivo completo (`read(-1)`). Evidencia obtenida antes de modificar producción.
 - **RED de compatibilidad Windows (2026-10-08)**: `test_journal.py -x -q`: 1 failed/4 passed; `test_write_sin_rastro_del_plugin_no_escribe_nada` recibió `docs\knowledge\journal\2026-10-08-sesion.md` en vez de la ruta relativa con `/`. Se amplía el bloque para normalizar la salida CLI, sin cambiar rutas internas.
 - **RED de reclamación exclusiva (2026-10-08)**: probe propio con trazas de `os.replace` reprodujo dos movimientos exitosos del mismo origen en Windows (iteración 2); el test de 100 reclamaciones concurrentes falló en la iteración 1 con dos ganadores. El test de cerrojo no disponible también falló: entregó el item en vez de mantenerlo pendiente. Se serializa la transacción de reclamación con cerrojo de SO no bloqueante; pendientes intactos si no se obtiene.
@@ -945,3 +945,296 @@ referencias prohibidas. El exporter y las fuentes finales quedan fijados
 en role-contract-qa-evidence.json; los hashes previos en terminal-qa-evidence.json
 pertenecen al snapshot 18f58e3. Sin ejecución del corpus ni activación de la
 caché real. La limpieza rechazada por política sigue pendiente.
+
+## Bloque en progreso: guardias con identidad nativa y migración de agentes
+
+Base: `8b51edd9ae1af020e0eb96bf92933e1f55edbaed`. T-02/T-08/T-09/T-14/T-15
+siguen abiertas. Implementación local todavía sin revisión final, commit ni push.
+Skills aplazadas: 79/293 evaluadas, 214 pendientes; sin ampliar el catálogo.
+
+El dispatcher selecciona IDs propios de un mapa generado por runtime y consulta
+la política central existente. No acepta el rol declarado dentro del input de la
+herramienta. Codex y OpenCode exportan nombres con prefijo del plugin. La migración
+usa manifiesto y hashes, conserva archivos ajenos/modificados y declara estado
+incompleto ante conflictos. El contexto expone IDs del runtime. OpenCode evalúa
+antes de ejecutar, sin reutilizar decisiones entre llamadas.
+
+Evidencia TDD privada conservada, 2026-10-08:
+
+- RED: entrada nativa del launcher falló por `unknown hook` antes del destino
+  directo Python; mismo test GREEN para los tres runtimes.
+- RED: entrada de contexto recibió `missing` antes de propagar el runtime fijo;
+  mismo test GREEN.
+- RED: timeout de branch y lectura limitada de config fallaron por `TypeError`
+  antes de extender las APIs centrales; mismos tests GREEN, defaults conservados.
+- RED: adapter OpenCode permitió escrituras protegidas antes de `execute.before`;
+  mismos tests GREEN con política real. Diagnóstico de opt-out: RED y mismo GREEN.
+- RED: MultiEdit incompleto perdió el diagnóstico; mismo test GREEN. El stand-in
+  inicial descartado no cuenta como evidencia TDD.
+- RED: installer sobrescribía un agente del consumidor; GREEN de conflictos,
+  junction exterior, estado incompleto e ID propio desde otro nombre de archivo.
+- RED: descripción del export no compartía el ID del mapa; mismo caso GREEN.
+
+QA parcial: núcleo Python **140 passed**, normalizador **82 passed** y cobertura
+oficial de su diff **202/206 = 98,06%**; installer dirigido **9/9**, V8 oficial del
+diff **188/194 = 96,91%**. No se suman estos conjuntos como tests únicos ni se
+presentan como QA final. Exporter: **56 archivos al día**. La suite amplia del
+installer conserva un fallo de fixture: consultas a la CLI simulada rozan 3 s;
+se reproduce `cli-timeout` sin cambio funcional en config/cache. Se corrige el
+shim de prueba antes de dar por válida la suite; no se cambia producción.
+
+La distribución real detectó un defecto pendiente: Claude recibe JSON `deny`,
+pero el proceso no termina dentro de 5 s; el runtime descarta la decisión y
+permite escribir. El control aislado sin suites concurrentes reproduce el fallo
+(callback total 6.261 ms). Codex también registró un callback cancelado de 5.115 ms.
+Se conservan protocolos y archivos fallidos y se investiga cierre/cleanup antes
+de declarar eficaz la protección. OpenCode observa bloqueo anterior a escritura
+en su primer caso real; matriz completa e hijos siguen en ejecución. No se afirma
+paridad completa ni sandbox para herramientas arbitrarias.
+
+El marketplace local Codex se reparó con autorización: origen Git oficial
+`daycry/custom-agents`. Solo cambian dos campos; el resto de config y tres hashes
+de payloads cacheados coinciden. No se refresca ni activa la caché real.
+
+Registro posterior: PreToolUse Claude/Codex **10 s**, adapter OpenCode **10,5 s**,
+presupuesto interno **4,5 s**, contención conservada. El diagnóstico privado de
+una copia instrumentada midió 802 ms y no reprodujo hang; se conserva separado
+de las pruebas de eficacia. La distribución final Codex 0.161.0 alcanza **14/14
+checks de guardia** reales: deny de spec implementer, src architect y force Git;
+allow de tasks/design/planner/agente bare/chat principal; metadata de los hijos
+correlacionada y hashes de cache/fuente coincidentes. Los callbacks previos tardan
+3.350–8.032 ms y no agotan los 10 s. La fixture usa catálogo de modelo compatible
+del cliente y proveedor loopback propio, sin credenciales ni cambios del usuario.
+
+El mismo experimento conserva **dos checks SessionEnd fallidos**: timeout nativo
+de 3.041 ms y sin envelope en outbox antes del exit. Un experimento anterior sí
+capturó envelope antes de un aviso de timeout. No se publica 16/16 verde, no se
+amplían los 3 s ni se confunde captura con materialización. Se investiga el coste
+de arranque/cierre y la recuperación del prompt retenido por separado. La matriz
+Claude de 10 s ya acredita bloqueos y permisos, pero sigue en ejecución. OpenCode
+verificó efectos correctos; una fixture anterior omitía cargar los prompts de
+agente al desactivar discovery de proyecto, por lo que no cuenta como aceptación
+de la distribución completa; la fixture final debe acreditar el prompt cargado.
+
+Claude final: **13/13 casos nativos passed**, cinco deny aceptados antes de escribir
+y ocho allow; todos con salida natural 0. Incluye cuatro hijos reales, controles
+bare/principal y override explícito del mismo ID. Las fuentes ejecutables de
+guardia coinciden en todos los casos; los primeros prompts preceden correcciones
+de prosa, con hashes por caso preservados. La proyección pública en
+[native-role-integration-evidence.json](native-role-integration-evidence.json)
+excluye rutas privadas, prompts y payloads; no afirma todavía OpenCode completo.
+
+Diagnóstico separado de memoria: dos copias instrumentadas, sin cambio de
+producción, midieron escritura del envelope en 45/63 ms. El mínimo venv completó
+SessionEnd en 2.704 ms; el mínimo base escribió antes de un timeout de 3.077 ms
+durante cierre. El coste previo a Node fue 1.623/2.498 ms. No se confunden esos
+diagnósticos con pruebas de eficacia de la distribución intacta. En el fixture
+original cerrado sin envelope, `journal.py recover` recuperó **1 de 1 candidata**
+desde el prompt UTF-8 retenido, sin avisos y con `recuperado_sin_cierre`. Es prueba
+de recuperación a demanda; no acredita retoma automática por TTL. Se mantiene
+el fallo de cierre original visible y la aceptación global de memoria abierta.
+
+## Revisión de dos lentes — intento 1: guardias nativas y migración sobre 8b51edd
+
+Scope previo: 101 archivos propios en alcance, cero fuera/cero avisos;
+`.claude/settings.json` ajeno excluido. Selector: C true por ruta de sesión;
+D true por lectura síncrona del instalador y exporter. Fallback de reviewer por
+subagentes genéricos con prompts literales y contexto fresco. B/C independientes
+ya finalizaron; A/D pendientes. No es todavía una revisión final aprobada.
+
+| # | Grado | Gap | Tarea | Estado y evidencia |
+|---|---|---|---|---|
+| B-1 | Important | `splitlines()` divide caracteres Unicode/CR dentro de contenido patch válido y degrada a allow | T-09 | Corregido en productor, pendiente revalidación independiente. RED 24 fallos + 2 CRLF válidos; mismos 26 GREEN y suite 108 passed. Delta nativo Codex Unicode: deny de spec y tasks permitido con 29 bytes UTF-8 exactos, salida natural 0; snapshot conservado |
+| B-2 | Important | Preflight ignora `agents` V2 y puede retirar un bare referenciado | T-09 | Corregido en productor, pendiente revalidación independiente. Test dedicado RED/GREEN; se inspeccionan ambos mapas `agent`/`agents`, con IDs y referencias `{file:…}` |
+| C-1 | Important | Contexto válido ` *** Add File: …` se confunde con header, permitiendo Update protegido | T-09 | Corregido en productor; pendiente revalidación independiente. RED seis fallos y ocho controles válidos; mismos catorce GREEN, suite 122 passed. Deltas nativos Codex y OpenCode: Update protegido intacto y Update permitido con contenido UTF-8 exacto; snapshot 9827f5fd preservado |
+| R-1 | Important | `Environment ID:own` válido sin espacio no se reconoce y degrada la guardia a allow | T-09 | Corregido en productor, pendiente revisión final y delta nativo. Se conserva RED contra gramática pinned OpenCode y GREEN en mismos casos; parser final 3347254b |
+| R-2 | Important | Heredoc con delimitador válido distinto de EOF, con o sin `cat`, degrada la guardia a allow | T-09 | Corregido en productor según `stripHeredoc` nativo: delimitador ASCII, comillas emparejadas y whitespace ECMAScript. RED 17 fallos reales, 34 dirigidos GREEN y suite 156 passed; cobertura 211/215 = 98,14%. Revisión final y delta nativo pendientes |
+| B-3 | Important | Una referencia `{file:…}` fuera de `agent`/`agents` puede perder su agente bare durante migración | T-09 | Corregido en productor; referencias en valores/claves de toda config, sin reclamar IDs desde comandos. `~/` y variables de entorno no resueltas conservan archivos con diagnóstico. RED/GREEN dedicados; tests actuales 16/16, cobertura 231/235 = 98,30%. Revisión final pendiente |
+
+No se rebajan hallazgos ni se aceptan como deuda. Los tests dedicados y deltas
+nativos deben conservarse con hashes de cada snapshot. La matriz ASCII previa
+no se anuncia ejecutada contra el parser corregido; sirve como baseline junto
+a las regresiones y los deltas posteriores. Los fallos SessionEnd no pasan a
+verde por haber aprobado las guardias.
+
+La lente A no encontró nuevos gaps de requisito o constitución en el bloque;
+la aceptación de sus criterios de publicación y QA sigue pendiente. La lente D
+no encontró regresiones de rendimiento medibles. OpenCode final acredita ocho
+casos baseline (seis de matriz y dos hijos reales), más cuatro casos de regresión
+Unicode/contexto sobre el parser 9827f5fd, con prompts de agente verificados y
+salida natural cero. Los experimentos fallidos de modelo/seed de fixture se
+conservan separados; no cuentan como pruebas verdes.
+
+QA de raíz sobre ese snapshot: **180 tests Python passed**. Node: **36/37**
+pasaron; SessionStart emitió `child cleanup confirmation timed out` en el primer
+pase y pasó sin cambios de fuente en el reintento dirigido (**1/1**). La evidencia
+mantiene ambos resultados y el test se registra como flaky, sin afirmar una
+causa raíz demostrada. Cobertura oficial del diff del launcher, adapter y APIs
+centrales: **69/71 = 97,18%**. Quedan las correcciones de gramática/referencias,
+su revalidación independiente y la consolidación de QA del bloque.
+
+Jira por intento 1: `jira-flow.py plan --event gaps --actor reviewer --task T-09
+--intento 1 --json`, exit 0, `ops: []`; configuración desactivada, sin publicación.
+
+## Revisión de dos lentes — intento 2: guardias nativas — límites de patches
+
+La comprobación técnica dirigida B verificó las correcciones B-1/B-2/B-3/R-1/R-2
+contra tests RED/GREEN y hashes actuales. La lente C de contexto fresco confirmó
+de forma independiente un nuevo gap R-3; es la misma causa señalada por B, no dos
+defectos distintos. No se declara revisión aprobada ni cierre de T-09. La tabla
+completa del intento 1 se conserva arriba; no hay rebates ni deuda aceptada.
+
+| # | Grado | Gap | Tarea | Corrección y evidencia |
+|---|---|---|---|---|
+| R-3 | Important | Los límites entre archivos después de Add/Delete requieren trim nativo, pero el normalizador preserva indentación como en Update y permite el patch protegido por degradación | T-09 | Corregido en parser 43f6c5ce: Add/Delete usan trim ECMAScript; Update conserva contexto con trimEnd estructural. RED/GREEN, C-1 retenido; revisión 3 y delta nativo pendientes |
+| R-4 | Important | `strip()`/`rstrip()` Python no retiran BOM donde `trim()`/`trimEnd()` nativos sí lo hacen, y un patch protegido válido degrada a allow | T-09 | Corregido en parser 43f6c5ce: whitespace ECMAScript en headers/rutas/marcadores; EOF no convierte whitespace posterior en contenido. RED 40 fallos reales + tres controles, mismos 43 GREEN y suite 199 passed; cobertura oficial 227/231 = 98,27%. Revisión 3 y delta nativo pendientes |
+
+El pase final usará revisores nuevos y revaluará las correcciones, con el estado
+de esta tabla. La evidencia nativa iniciada antes de R-3 conserva su snapshot
+3347254b; se añade un delta propio para la última corrección. No se reescriben
+resultados previos como si hubieran ejecutado la fuente final.
+
+Jira por intento 2: `jira-flow.py plan --event gaps --actor reviewer --task T-09
+--intento 2 --json`, exit 0, `ops: []`; desactivado, sin publicación.
+
+El normalizador extrae mutaciones de los esquemas soportados; no reimplementa
+el validador ni la aplicación de patches del runtime. Conserva la tolerancia
+previa para move-only y chunks vacíos, sin afirmar que el runtime los acepte.
+Las decisiones por targets y la exención de enlaces de diseño siguen evaluadas
+por el script central, con contenido/contexto UTF-8 original preservado.
+
+## Revisión de dos lentes — intento 3: guardias nativas — validación de rutas
+
+La lente C de contexto fresco finalizó sobre parser 43f6c5ce: **un Important
+pendiente, cero Critical/Minor**. Su nueva evidencia impide aprobar el bloque.
+El pase final conjunto A/B/D y el push no se completan: se alcanza el límite de
+tres intentos y se devuelve la decisión de continuación. Las correcciones previas
+no se promueven a aceptación global ni se marca completada ninguna tarea abierta.
+
+| # | Grado | Gap | Tarea | Corrección y evidencia |
+|---|---|---|---|---|
+| R-5 | Important | Validar la ruta con `path.strip()` Python rechaza un nombre U+0085 válido y omite la guardia de otro archivo protegido del mismo patch | T-09 | Pendiente, CWE-863. Repro propio de C: primer Add con ruta NEL y segundo Delete de spec devuelve continue/input-unrecognized; primer Add src/a y mismo Delete devuelve deny. Fuente native-guardrail.py:58, hash 43f6c5ce. Contrato ECMAScript conserva NEL; resolución/aplicación pinned no elimina el carácter. Sin ejecutar upstream |
+
+Propuesta de continuación: alinear la comprobación de ruta vacía con el conjunto
+de whitespace ya definido, conservar NEL como parte del nombre y verificar todos
+los targets. Exigir RED/GREEN del mismo payload, control permitido, prueba nativa
+aislada e independiente revisión final antes del commit/push. No se ha aplicado
+esta corrección tras alcanzar el límite; no se acepta el gap como deuda.
+
+QA de raíz final del snapshot: **257 tests Python passed**, incluido el parser
+199/199. OpenCode conserva 24 casos nativos entre baseline y deltas: ocho baseline,
+cuatro Unicode/contexto, seis Environment/heredoc y seis sangría/BOM. Cada cohorte
+conserva sus hashes; los seis últimos prueban R-3/R-4 con la fuente 43f6c5ce, no
+R-5. Salidas naturales cero y controles permitidos con bytes exactos. La ficha
+pública declara revisión no aprobada; unit tests verdes no resuelven este gap.
+
+Las protecciones adicionales de migración conservan bindings de
+`command`/`commands.*.agent` y las definiciones legacy `mode`, según contrato
+pinned. La presencia de comandos Markdown en las capas conocidas impide retirar
+exports bare, sin intentar interpretar YAML: las copias nuevas siguen su
+preflight. Se conserva diagnóstico; el estado puede quedar incompleto aunque no
+haya bare que retirar, porque cualquier aviso afecta al estado del instalador.
+Esta limitación se registra, sin anunciar una migración plenamente verificada.
+
+Consolidación QA del bloque (sin aprobar la revisión): **374 identidades únicas**,
+373 passed y un flaky justificado; cero failed/skipped/interrupted. Los XML se
+unen por identidad y se conservan el fallo inicial y reintento de SessionStart.
+Installer final 19/19 y cobertura 272/276 = 98,55%; hash LF 2edeab74.
+Cobertura oficial agregada del diff ejecutable: **663/677 = 97,93%**. Excluye
+generados, JSON, prosa y tests. [native-role-qa-evidence.json](native-role-qa-evidence.json)
+declara `review_approved: false` y R-5 pendiente; el verde de unit tests no
+autoriza publicación. Jira por intento 3: exit 0, `ops: []`, desactivado.
+
+Decisión de continuación solicitada al usuario el 2026-10-08: autorizar otro
+ciclo acotado para corregir R-5 y completar revisión, o replanificar. El usuario
+autorizó explícitamente corregir y completar la revisión. No se hace commit/push
+de esta implementación sin resolver el gap.
+La última entrega remota comprobada continúa en 8b51edd.
+
+## Revisión de dos lentes — intento 4: ciclo adicional autorizado — R-5
+
+Autorización expresa del usuario tras el límite de tres intentos; nuevo ciclo
+acotado de hasta tres pases (intentos 4–6) para corregir y completar la revisión.
+La plataforma rechaza crear revisores nuevos con
+`agent thread limit reached`. Se revalidan las correcciones con los revisores
+anteriores, independientes de quienes las implementaron. Se declara la pérdida
+de contexto fresco; no se presenta esta degradación como un pase de agentes nuevos.
+
+R-5 corregido en productor bbd3608c: validación de ruta vacía con whitespace
+ECMAScript, conservando NEL. RED real de 17 regresiones, mismos 17 GREEN;
+suite 216 passed y cobertura oficial 227/231 = 98,27%. Sin cambio de API/política.
+La auditoría del normalizador no encuentra trims sin charset. La lente C verifica
+la corrección de forma independiente. Delta OpenCode real: dos casos con parser
+bbd3608c; el Delete protegido se bloquea antes de ambos efectos, el Delete
+permitido y Add NEL conservan bytes exactos. Salida natural cero. Las cohortes
+anteriores mantienen sus hashes originales.
+
+La limitación de diagnóstico Markdown sin legacy se corrige en este ciclo:
+se conserva el discovery acotado y el impedimento de retirar bare no verificable,
+pero el aviso se emite solo cuando hay una copia antigua real. Test dedicado RED
+por warnings inesperados; GREEN del mismo caso y dos controles de preservación
+(3/3). Installer final LF cbcd7d50: 20 casos dirigidos, 19 pasan y el A/B falla
+por consulta nativa de fixture no disponible. Primer reintento A/B vuelve a
+fallar; una consulta mínima y una copia diagnóstica pasan, sin acreditar el test
+canónico. Un posterior reintento del mismo test canónico pasa sin cambios en
+fuente, límites ni assertions. Se conserva como flaky con los tres XML; no se
+atribuye una causa demostrada. Cobertura oficial del diff installer: 276/280 =
+98,57%. Fuentes y limitaciones históricas permanecen en los registros.
+
+La lente D encuentra R-6 Important: un heredoc sin cierre con 16.000 LF y JSON
+de 32.187 bytes excede 5.002 ms después de READY, por encima del presupuesto
+interno de 4.500 ms. La expresión regular reintenta la apertura con coste
+cuadrático. No se acepta como deuda ni se cambia el presupuesto para ocultarlo.
+Jira por intento 4: exit 0, `ops: []`; desactivado, sin publicación.
+
+## Revisión de dos lentes — intento 5: scanner lineal y evidencia final
+
+R-6 corregido en normalizador 17fcd2ba: scanner lineal de heredoc, conservando
+delimiter ASCII-word, quotes coincidentes, `cat` opcional, whitespace ECMAScript,
+cierre literal y cuerpo exacto. TDD: dos fallos RED acotados tras READY y tres
+controles preválidos; mismos cinco GREEN. Suite 221 passed, cobertura oficial
+255/261 = 97,70%. No cambia la API, política central ni los permisos nativos.
+
+La lente B independiente compara 20.000 casos pequeños con la gramática previa:
+cero diferencias. La lente D compara 4.608 casos, 576 wrappers reconocidos y cero
+discrepancias. Sus cinco evaluaciones por caso tras READY miden máximos de
+2,565 ms para cierre ausente/mixto y 24,473 ms para casos válidos protegidos o
+permitidos; todos por debajo de 4.500 ms y 64 KiB JSON. Corpus acotados, sin
+afirmar equivalencia universal. Revisores reutilizados por límite de plataforma,
+independientes de la implementación; no se declara contexto fresco.
+
+Delta OpenCode real sobre el parser final: dos casos heredoc, deny protegido y
+patch permitido con bytes exactos, prompts nativos cargados y salida natural
+cero. La ficha [native-role-integration-evidence.json](native-role-integration-evidence.json)
+conserva 28 casos OpenCode por cohortes, 13 Claude y 14 checks Codex baseline
+más su delta; cada snapshot identifica su fuente. No anuncia toda la matriz
+ejecutada contra el parser final ni transforma SessionEnd en verde.
+
+QA final: 282 tests Python de raíz passed, 221 del parser incluidos. Se unen
+reportes por identidad con exports, installer y Node: **397 identidades únicas**,
+395 passed, dos flaky justificados, cero failed/skipped/interrupted; qa-gate
+exit 0. Los fallos de SessionStart y A/B siguen visibles y sus reintentos no
+suman pruebas únicas. Cobertura oficial agregada del diff: **695/711 = 97,75%**.
+[native-role-qa-evidence.json](native-role-qa-evidence.json) recoge fuentes,
+instrumentos y límites. La lente A acepta el bloque con todos los criterios
+conformes: alcance, R-5/R-6, eficacia/trazabilidad de cohortes nativas, migración,
+QA/flaky, cobertura, generado/documentación y constitución. Lentes A+B+C+D:
+**0 Critical, 0 Important, 0 Minor pendientes**. Los hallazgos de los intentos
+anteriores quedan corregidos y revalidados, sin rebates ni deuda aceptada.
+
+| # | Grado original | Gap | Tarea | Corrección y evidencia |
+|---|---|---|---|---|
+| R-5 | Important | Ruta NEL omitía otro target protegido | T-09 | Corregido; RED/GREEN, delta OpenCode bbd3608c y revalidación C/A |
+| R-6 | Important | Heredoc incompleto excedía presupuesto interno | T-09 | Corregido; scanner 17fcd2ba, dos RED/cinco GREEN, 221 tests, equivalencia B/C/D, medición D tras READY y delta nativo final |
+
+Se acepta y autoriza publicar **este bloque**, con contexto reutilizado declarado.
+Ninguna tarea global abierta ni la memoria se marca completada. ADR-023 se
+promueve en memoria local; sustituye la ubicación exclusiva de ADR-007 y
+mantiene su alcance por rol. Esos documentos locales están fuera de Git.
+Jira por intento 5: `revision`, exit 0, `ops: []`; desactivado, sin publicación.
+Puertas finales: lint_plugin cero errores/tres avisos históricos de nombres;
+56 exports al día; ledger-lint cero incoherencias/cero avisos; scope-check
+104 archivos propios en alcance/cero fuera y un settings ajeno excluido entre
+105 cambios detectados. Scan de 881
+archivos públicos: cero referencias o nombres prohibidos. Diff sin errores.
+Commit/push del bloque se registran después de comprobar su resultado.

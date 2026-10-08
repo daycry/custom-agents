@@ -10,6 +10,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 HERE = Path(__file__).parent
 SCRIPT = HERE / "skill-index.py"
 REPO = HERE.parent.parent
@@ -228,6 +230,66 @@ def test_json(tmp_path):
     assert d["texto"] == "\n".join(d["lineas"])
     assert "Segunda frase" not in d["texto"]           # recorte en la primera frase
     assert any(l.startswith("/cmd-0 <objetivo> [rapido | completo] — ") for l in d["lineas"])
+
+
+def test_runtime_map_translates_owned_agents_and_invalidates_shared_cache(tmp_path):
+    root = plugin(tmp_path, n_agents=2)
+    mapping = {'schema_version': 1, 'runtimes': {
+        r: {'agent-0': ('custom-agents:' if r == 'claude' else 'custom-agents-') + 'agent-0'}
+        for r in ('claude', 'codex', 'opencode')}}
+    shared = root / 'agent-kits/shared'
+    shared.mkdir(parents=True)
+    (shared / 'native-roles.json').write_text(json.dumps(mapping), encoding='utf8')
+    cache = tmp_path / 'shared-cache'
+    outputs = []
+    for runtime in ('claude', 'codex', 'opencode'):
+        rc, out, err = run(['--root', str(root), '--runtime', runtime, '--cache', str(cache), '--json'])
+        assert rc == 0 and not err
+        idx = json.loads(out)
+        assert idx['cache'] is False
+        native = mapping['runtimes'][runtime]['agent-0']
+        assert any(l.startswith(native + ' — ') for l in idx['lineas'])
+        assert any(l.startswith('agent-1 — ') for l in idx['lineas'])
+        assert any(l.startswith('/cmd-0 ') for l in idx['lineas'])
+        outputs.append(idx)
+    assert len({i['hash'] for i in outputs}) == 3
+    assert 'spawn_agent' in outputs[1]['texto']
+    assert 'subagent' in outputs[2]['texto'] and '(Agent)' not in outputs[2]['texto']
+    canonical = si.generar(str(root), cache=str(cache))
+    assert any(l.startswith('agent-0 — ') for l in canonical['lineas'])
+    assert canonical['cache'] is False
+
+
+@pytest.mark.parametrize('bad_map', [None, '{invalid', '[]', '{"schema_version":2,"runtimes":{}}',
+                                     '{"schema_version":1,"runtimes":{"unknown":{}}}',
+                                     '{"schema_version":1,"runtimes":{"codex":[]}}',
+                                     '{"schema_version":1,"runtimes":{"codex":{"agent-0":"bad\\nname"}}}'])
+def test_missing_or_invalid_runtime_map_keeps_canonical_names_without_failing(tmp_path, bad_map):
+    root = plugin(tmp_path)
+    if bad_map is not None:
+        shared = root / 'agent-kits/shared'
+        shared.mkdir(parents=True)
+        (shared / 'native-roles.json').write_text(bad_map, encoding='utf8')
+    idx = si.generar(str(root), runtime='codex')
+    assert any(line.startswith('agent-0 — ') for line in idx['lineas'])
+    assert 'custom-agents-agent-0' not in idx['texto']
+
+
+def test_native_mapping_change_refreshes_cache_without_changing_frontmatter(tmp_path):
+    root = plugin(tmp_path)
+    shared = root / 'agent-kits/shared'
+    shared.mkdir(parents=True)
+    path = shared / 'native-roles.json'
+    mapping = {'schema_version': 1, 'runtimes': {'codex': {'agent-0': 'custom-agents-agent-0'}}}
+    path.write_text(json.dumps(mapping), encoding='utf8')
+    cache = tmp_path / 'cache'
+    old = si.generar(str(root), runtime='codex', cache=str(cache))
+    assert si.generar(str(root), runtime='codex', cache=str(cache))['cache'] is True
+    mapping['runtimes']['codex']['agent-0'] = 'custom-agents-renamed'
+    path.write_text(json.dumps(mapping), encoding='utf8')
+    updated = si.generar(str(root), runtime='codex', cache=str(cache))
+    assert updated['cache'] is False and updated['hash'] != old['hash']
+    assert 'custom-agents-renamed — ' in updated['texto']
 
 
 def test_dev_json_off_y_corrupto(tmp_path):

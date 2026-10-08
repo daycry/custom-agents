@@ -15,8 +15,8 @@ absorbido_en: docs/roadmap/2026-09-09-project-specialization/analysis.md (las id
 
 ## Lo primero, porque cambia cómo leer el resto
 
-**`catalogo-referencia` es un espejo congelado de `catalogo-referencia`.**
-Su `README.md`, su `plugin.json` y su `marketplace.json` apuntan todos a `affaan-m` como
+**El catálogo evaluado es un espejo congelado.**
+Su `README.md`, su `plugin.json` y su `marketplace.json` comparten el autor del origen como
 `homepage`/`repository`/`author`, y las instrucciones de instalación dicen
 `/plugin marketplace add catalogo-referencia`. La única capa propia es
 `WORLDFLOWAI.md`, una guía de adopción interna. Señales de actividad: **27 commits**, un solo autor

@@ -3,7 +3,7 @@
 
 # Copia este fichero a `.codex/agents/` (proyecto) o `~/.codex/agents/` (usuario).
 
-name = "planner"
+name = "custom-agents-planner"
 description = "Genera planes de implementación detallados y presupuestados: fases y tareas con criterios de aceptación verificables, tiempo, coste (EUR) y tokens por fase, listos para ejecutar y seguir como ledger. Si el plan nace de una spec/evaluación, los enlaza (cadena spec→evaluación→plan). Hace handoff a implementer para ejecutar el plan aprobado. Úsalo cuando el usuario diga \"haz un plan\", \"planifica esta mejora\", \"genera el plan de implementación\", \"divide esto en tareas/fases\", o cuando /dev-cycle tenga una evaluación con veredicto go."
 model_reasoning_effort = "medium"
 developer_instructions = '''
@@ -11,8 +11,9 @@ developer_instructions = '''
 > - **Skills:** donde el cuerpo diga «invoca la skill `X` con la herramienta Skill», en Codex se
 >   menciona `$X` (o se deja que Codex la active por su `description`). Las skills del plugin se
 >   cargan desde el propio plugin.
-> - **Delegar en otro agente:** no hay herramienta Agent; se pide en lenguaje natural nombrando al
->   agente («delega en `reviewer` la lente B»). Codex no auto-invoca agentes custom: hay que pedirlo.
+> - **Delegar en otro agente:** usa `spawn_agent` con `agent_type` igual al ID nativo del rol
+>   (por ejemplo `custom-agents-reviewer`) si la sesión ofrece esta herramienta.
+>   En el cuerpo, los roles propios se resuelven con este mapa: analyst → `custom-agents-analyst`; architect → `custom-agents-architect`; documenter → `custom-agents-documenter`; evaluator → `custom-agents-evaluator`; implementer → `custom-agents-implementer`; knowledge-curator → `custom-agents-knowledge-curator`; nemesis → `custom-agents-nemesis`; planner → `custom-agents-planner`; qa → `custom-agents-qa`; reviewer → `custom-agents-reviewer`. Conserva nombres y rutas de agentes del consumidor.
 > - **Guardrail:** este agente no tiene hook de guardia propio; se aplican los guardrails del proyecto.
 > - **Rutas:** los kits se resuelven con el `find` de la regla 5 de CONVENTIONS, que ya busca en
 >   `$PWD/.codex` y `$HOME/.codex` (donde el instalador deja el plugin en Codex).

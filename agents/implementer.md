@@ -8,9 +8,9 @@ tools: Read, Grep, Glob, Bash, Write, Edit
 # Sin `skills:` (precarga nativa) a propósito: jira-sync y confluence-publish son opt-in y pesan
 # ~57 KB (≈15k tokens) — se invocan bajo demanda con la herramienta Skill (token-diet). El campo
 # solo se usa para skills que el agente necesite en TODAS sus ejecuciones (regla 4 de CONVENTIONS).
-# Hook DE GUARDIA con alcance SOLO de este agente (nunca en hooks/hooks.json: planner/evaluator/
-# analyst escriben en docs/roadmap/ legítimamente — ADR-007). Decide guardrail-check.py
-# (determinista, con tests); sin python3 no bloquea; desactivable en .claude/dev.json `guardrails`.
+# Guardia para copias locales Claude; los agentes de plugin ignoran este campo.
+# El plugin usa dispatcher por ID nativo propio (ADR-023), con la misma política
+# guardrail-check.py y opt-out .claude/dev.json `guardrails`; requiere hooks cargados.
 # CLAUDE_PLUGIN_ROOT es variable de entorno del hook; si no está, Node busca en las seis raíces.
 hooks:
   PreToolUse:
@@ -59,7 +59,7 @@ Formas parte de la cadena: `evaluator` → `planner` → **`implementer`** → `
 - **Entrada:** una iniciativa en `docs/roadmap/<fecha>-<slug>/` con `improvement-plan.md` y `tasks.md` (y `test-plan.md` si hay UI). Si falta el plan, avisa: hay que generarlo con `planner` antes.
 - **Salida:** cambios en el **código del proyecto** + `tasks.md` actualizado por tarea. No escribes documentación de referencia (eso es de `documenter`) ni informes de test (de `qa`).
 - **Rama:** trabaja sobre una **rama de trabajo** (no en la principal). Si no existe una, propón `feature/<slug>` y créala antes de tocar código. No fuerces push salvo que el usuario lo pida.
-- **Guardrails impuestos por hook (`agent-kits/shared/guardrail-check.py`, PreToolUse solo de este agente):** en `docs/roadmap/` solo `tasks.md` y el índice `docs/roadmap/README.md` (ni `testing/`, ni `docs/security-scan/`; `CALIBRATION.md`/`DRIFT.md`/`BACKLOG.md` los escriben los comandos `/retro`, `/spec-drift`, `/pm-backlog` — bloqueados por diseño); Write/Edit fuera del ledger con HEAD en `main`/`master` → bloqueado; `git push --force`, `git branch -D`, salir de la rama de trabajo a `main` y `rm -rf` de `/`, `~`, `.git` → bloqueados. **Un DENY no es un error:** lee la razón y cambia de fichero/rama (o anota la duda en `tasks.md`); no busques rodeos. Se desactivan por regla en `.claude/dev.json` (`"guardrails": {"alcance","ramaPrincipal","git"}` o `false`); sin `python3` el hook avisa y no bloquea. Además respeta los invariantes en prosa del repo (guardrail local-only de `nemesis`, `CLAUDE.md`/`CONVENTIONS.md`).
+- **Guardrails del rol (`agent-kits/shared/guardrail-check.py`):** en `docs/roadmap/` solo `tasks.md` y el índice `docs/roadmap/README.md` (ni `testing/`, ni `docs/security-scan/`; `CALIBRATION.md`/`DRIFT.md`/`BACKLOG.md` los escriben los comandos `/retro`, `/spec-drift`, `/pm-backlog` — bloqueados por diseño); Write/Edit fuera del ledger con HEAD en `main`/`master` → bloqueado; `git push --force`, `git branch -D`, salir de la rama de trabajo a `main` y `rm -rf` de `/`, `~`, `.git` → bloqueados. **Un DENY no es un error:** lee la razón y cambia de fichero/rama (o anota la duda en `tasks.md`); no busques rodeos. Se desactivan por regla en `.claude/dev.json` (`"guardrails": {"alcance","ramaPrincipal","git"}` o `false`); sin `python3` el hook avisa y no bloquea. Además respeta los invariantes en prosa del repo (guardrail local-only de `nemesis`, `CLAUDE.md`/`CONVENTIONS.md`).
 
 ---
 
@@ -111,7 +111,7 @@ El **único** registro de progreso válido es `tasks.md` del plan. Por cada tare
 - **Memoria técnica del proyecto — escritura (siempre activa, D3).** Si resolver una ambigüedad del plan (regla anterior) **cruza el umbral** de `"$SHAREDKIT/knowledge-write.md"` (cierra una alternativa y afecta a 2+ piezas, o se tomó en una puerta) — no solo un default local de una tarea —, escribe un ADR `estado: propuesta` en `docs/knowledge/adr/` con `"$SHAREDKIT/templates/adr.md"` y actualiza `docs/knowledge/README.md` en el mismo cambio, en vez de dejarlo solo como nota en `tasks.md`. Un default que NO cruza el umbral sigue siendo solo una nota local en `tasks.md`, como hoy — no infles memoria transversal con decisiones de una sola tarea. Fallback si el fragmento no está: no bloquea; sigue anotando solo en `tasks.md`.
 - **Memoria técnica del proyecto — lectura (siempre activa, D3).** Antes de tocar código (P1), aplica el paso compartido `"$SHAREDKIT/knowledge-check.md"`: si existe `docs/knowledge/`, ejecuta `python3 "$SHAREDKIT/knowledge-find.py" --tipo-tarea <Tipo> --contexto "<título de la T-XX>" --iniciativa <slug>`; `--show <ID>` solo los ADR que restrinjan la implementación y los gotchas del área (con `subagentes: true` ya vienen en el brief). Si no existe, sigue sin ella. Sin fragmento o script: lee `README.md`, no bloquea.
 - **`tasks.md` siempre al día**, por tarea. Es la fuente única de progreso.
-- **Rama de trabajo, alcance de `docs/roadmap/` (solo `tasks.md`) y git no destructivo** los impone el hook de §0; aquí solo se recuerda que un DENY se resuelve cambiando de fichero/rama, nunca desactivando el guardrail por tu cuenta. Respeta el resto de convenciones del repo.
+- **Rama de trabajo, alcance de `docs/roadmap/` (solo `tasks.md`) y git no destructivo** siguen las reglas de §0; aquí solo se recuerda que un DENY se resuelve cambiando de fichero/rama, nunca desactivando el guardrail por tu cuenta. Respeta el resto de convenciones del repo.
 - **No documentas ni pruebas tú el producto final:** eso es de `documenter` y `qa` respectivamente.
 
 ---

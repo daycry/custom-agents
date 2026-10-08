@@ -8,10 +8,10 @@ permission:
   glob: allow
   list: allow
   edit: allow
-  bash: allow
+  shell: allow
   webfetch: deny
   websearch: deny
-  task: deny
+  subagent: deny
   skill: allow
 ---
 <!-- GENERADO por scripts/export-interop.py desde agents/planner.md — no lo edites a mano.
@@ -21,7 +21,8 @@ permission:
 > - **Skills:** donde el cuerpo diga «invoca la skill `X` con la herramienta Skill», en OpenCode se
 >   usa la herramienta `skill` (`skill({ name: "X" })`). OpenCode las descubre en
 >   `.opencode/skills/<nombre>/SKILL.md` (y también en `.claude/skills/`, por compatibilidad).
-> - **Delegar en otro agente:** herramienta `task` con el nombre del subagente (o `@nombre`).
+> - **Delegar en otro agente:** herramienta `subagent` con `agent: "custom-agents-reviewer"`.
+>   En el cuerpo, los roles propios se resuelven con este mapa: analyst → `custom-agents-analyst`; architect → `custom-agents-architect`; documenter → `custom-agents-documenter`; evaluator → `custom-agents-evaluator`; implementer → `custom-agents-implementer`; knowledge-curator → `custom-agents-knowledge-curator`; nemesis → `custom-agents-nemesis`; planner → `custom-agents-planner`; qa → `custom-agents-qa`; reviewer → `custom-agents-reviewer`. Conserva nombres y rutas de agentes del consumidor.
 > - **Guardrail:** este agente no tiene hook de guardia propio; se aplican los guardrails del proyecto.
 > - **Rutas:** los kits se resuelven con el `find` de la regla 5 de CONVENTIONS, que ya busca en
 >   `$PWD/.opencode` y `$HOME/.config/opencode` (el global de OpenCode no es `~/.opencode`).

@@ -192,17 +192,56 @@ lost or substituted, and it is stated here.
 | **Plugin registration** (what makes it load) | ✅ `installed_plugins.json` + `enabledPlugins`, via the CLI or written by the installer — ⚠️ with `--mode copy` there is no registration: the bundle sits in `.claude/` and the runtime never learns about it (`/doctor` flags it) | Native CLI ≥0.161.0: cache validated before declaring marketplace and activation. Project mode prepares registration in a private `CODEX_HOME` and writes local configuration; `status` and `/doctor` distinguish declaration, native listing and execution | V2 local package in `plugins` of `opencode.json`; `status` and `/doctor` check the declaration, not execution |
 | On-demand skills | ✅ Skill tool | ✅ `$name` or activation by `description` | ✅ `skill` tool |
 | Commands | ✅ `/name` | ⚠️ `/prompt:name` (**or** `/prompts:name`), **only under `~/.codex/`** (Codex has no per-project prompts) and marked *deprecated* by OpenAI in favour of skills | ✅ `/name` |
-| Delegating to an agent by name | ✅ Agent tool, with per-invocation `model` | ⚠️ in natural language; Codex **does not auto-invoke** custom agents, you must ask | ✅ `task` tool |
+| Delegating to an agent by name | Agent with `subagent_type: custom-agents:<role>` | `spawn_agent` with `agent_type: custom-agents-<role>`; the model decides when to delegate | V2 `subagent` with `agent: custom-agents-<role>` |
 | Progress notice when the ledger is edited | ✅ `PostToolUse` | ✅ `PostToolUse` for `apply_patch`, with paths extracted from the patch | ✅ `tool.execute.after` |
 | Context at session start | ✅ `SessionStart` (index + roadmap + journal + memory) | ✅ `SessionStart` (`startup\|resume\|clear\|compact`) | Native `session.context` hook: current index, roadmap, journal and memory in outgoing context |
 | Session journal | `SessionEnd`: isolated canonical capture; headless evidence without extending the native budget, with documented startup limits | `SessionEnd`: 3 s export and canonical capture; verified by archiving the active thread in the same app-server | `session.execution.succeeded/failed/interrupted`; canonical capture and bounded replay on the next context |
 | Capturing the user's turn | ✅ `UserPromptSubmit` | ✅ `UserPromptSubmit` | `session.prompt`, before admission: provisional request with `<private>` exclusion |
 | Subagent finished | ✅ `SubagentStop` | ✅ `SubagentStop` | ❌ no equivalent event |
-| **Per-agent guard** (`implementer`, `architect`) | Plugin agents ignore `hooks:`; native adaptation pending | Prompt self-check; native dispatch pending | Prompt self-check; native dispatch pending |
+| **Per-agent guard** (`implementer`, `architect`) | Global `PreToolUse` dispatcher selects owned IDs; plugin agent `hooks:` is ignored | `PreToolUse` dispatcher selects owned IDs | V2 `tool.execute.before` selects owned IDs; final validation for all three runtimes remains in the roadmap |
 | Read-only `reviewer` | No Write/Edit; Bash remains subject to permissions and role responsibility | Role TOML does not impose an independent sandbox; inherits parent permissions | `permission.edit: deny`; does not prohibit every possible write through a shell |
 | Roadmap status line | ✅ opt-in | ❌ | ❌ |
 | **Graph memory** (`graphiti` capability, opt-in) | ✅ `/doctor` checks it live through its adapter | ✅ same: the adapter talks HTTP to the endpoint declared in `taxonomy.json`, not to the runtime's MCP | Same opt-in adapter; installing activates no backend |
 | OpenCode permissions | — | — | The installer preserves `permission`/`permissions` and adds no global grants. |
+
+### Agent identity and upgrades
+
+Canonical agents remain `agents/<role>.md`. Native exports use
+`.codex/agents/custom-agents-<role>.toml` and
+`.opencode/agents/custom-agents-<role>.md`; generated prompts and session context
+use the same IDs from `agent-kits/shared/native-roles.json`. Consumer agents with
+other IDs keep their normal permissions. An ID identifies a role to the runtime,
+but does not prove prompt provenance: redefining an exact plugin ID may still
+make its operations subject to role guards.
+
+The installer checks known project/user agent directories and configurations.
+It preserves foreign or modified files, links and ambiguous references, marking
+conflicts as incomplete installation. An old unprefixed export is removed only
+when owned by the prior manifest, matching the published hash and lacking bindings
+within a regular Git repository boundary. Global old copies, worktrees using a
+`.git` file and unverifiable references are preserved with diagnostics. It does
+not scan other projects. Uninstall also preserves later edits to owned agents.
+OpenCode file references are checked throughout the configuration, including
+commands, instructions and keys. Unverifiable `~/` paths or environment
+substitutions preserve agents with diagnostics; the installer does not read
+secrets to resolve those references.
+Markdown commands in known configuration layers also preserve old agents: the
+installer does not interpret their frontmatter to authorize deletion. Its
+diagnostic identifies the need to check those references before manual removal.
+
+Guards evaluate all supported mutation targets, including move sources and
+destinations. Claude supports Write/Edit/MultiEdit/NotebookEdit and Bash/PowerShell
+command rules; Codex supports `apply_patch` and commands emitted as Bash; OpenCode
+V2 supports write/edit/patch/shell (`path`, `oldString`/`newString`, `patchText`).
+Unrecognized input or input above 64 KiB continues with diagnostics; arbitrary
+indirect shell/MCP writes are not comprehensively inspected.
+
+Native evaluation has a 4.5 s internal budget; Claude/Codex before-tool registrations
+declare 10 s and OpenCode waits up to 10.5 s including startup and cleanup. The
+first 5 s registration discarded a valid deny because of total Windows latency;
+failed evidence is retained. Final matrix acceptance is in the
+[ledger](../roadmap/2026-10-07-catalog-capabilities/tasks.md), with the decision in
+[design](../roadmap/2026-10-07-catalog-capabilities/design.md).
 
 ### OpenCode V2 transport
 
@@ -243,7 +282,8 @@ it excludes System32's WSL launcher. Set `CUSTOM_AGENTS_PYTHON` to select a spec
 Payloads travel through stdin and are never interpreted as shell code.
 
 SessionEnd invokes canonical `journal-capture.py` with isolated Python (`-I -S`);
-UserPromptSubmit invokes `journal.py capture`, without Bash. Other hooks run through
+the before-tool guard also uses isolated Python without Bash. UserPromptSubmit
+invokes `journal.py capture`, without Bash. Other hooks run through
 Bash with a `python3` adapter for the selected interpreter. Missing tools produce a stderr warning
 and exit 0. The implementer and architect guards remain scoped to their agents.
 
@@ -266,9 +306,10 @@ The three gaps that matter most:
   namespace — because Claude Code only reads `hooks/hooks.json` inside a plugin. `/doctor` says so
   in the "hooks registrados" row (⚠️, not ✅) and `status` in "registered: no".
 
-- **Native guards remain pending.** `guardrail-check.py` decides restrictions by role,
-  but testing its launcher does not prove that a runtime supplies agent identity and
-  applies `deny`. Claude plugin agents ignore `hooks:`; adaptation remains open in the roadmap.
+- **Guards depend on loading and scope.** The dispatcher selects owned IDs from native
+  metadata and uses the central policy. Unknown tools, incomplete input and errors
+  degrade; arbitrary shell/MCP requires runtime permissions. The final native matrix
+  remains open in the roadmap; launcher tests do not replace it.
 - **Events differ across runtimes.** Codex supplies apply_patch changes in `tool_input.command`;
   the launcher converts them to `edits[].file_path` for the shell hooks. Linter notices are wrapped
   in `systemMessage`; OpenCode V2 stores them in `result.metadata.customAgentsMessages`,

@@ -28,6 +28,26 @@ export default {
     let cached, generation = 0;
     const invalidate = () => { cached = undefined; generation++; };
     const warn = () => console.warn('custom-agents: informational hook unavailable; continuing');
+    const warnGuard = () => console.warn('custom-agents: role guard unavailable; normal permissions continue');
+    let guardedIDs;
+    // The generated map also drives exports and the Python dispatcher.
+    try {
+      const path = join(hooks, '..', 'agent-kits', 'shared', 'native-roles.json');
+      const info = await lstat(path);
+      if (!info.isFile() || info.size > 65536) throw new Error('role map');
+      const file = await open(path, 'r');
+      try {
+        const buffer = Buffer.alloc(65537);
+        const { bytesRead } = await file.read(buffer, 0, buffer.length, 0);
+        if (bytesRead > 65536) throw new Error('role map');
+        const mapping = JSON.parse(buffer.subarray(0, bytesRead).toString('utf8'));
+        const roles = mapping?.runtimes?.opencode;
+        if (mapping?.schema_version !== 1 || typeof roles?.implementer !== 'string'
+            || typeof roles?.architect !== 'string' || !roles.implementer || !roles.architect
+            || roles.implementer === roles.architect) throw new Error('role map');
+        guardedIDs = new Set([roles.implementer, roles.architect]);
+      } finally { await file.close(); }
+    } catch { warnGuard(); }
 
     // Only metadata is scanned; unsafe or oversized trees disable reuse.
     async function signature(cwd) {
@@ -80,6 +100,7 @@ export default {
     function run(script, payload) {
       return new Promise(resolveResult => {
         if (controller.signal.aborted) return resolveResult('');
+        const guard = script === 'native-guardrail', report = guard ? warnGuard : warn;
         let child, timer, finished = false, output = '', diagnostic = false, cancelled = false, stopping;
         let settle;
         const done = new Promise(resolveDone => { settle = resolveDone; });
@@ -108,21 +129,41 @@ export default {
             stdio: ['pipe', 'pipe', 'pipe'],
           });
           children.add(entry);
-          timer = setTimeout(() => { warn(); void entry.stop(); }, 20000);
+          timer = setTimeout(() => { report(); void entry.stop(); }, guard ? 10500 : 20000);
           child.stdout.setEncoding('utf8');
           child.stdout.on('data', chunk => {
             if (cancelled) return;
             output += chunk;
-            if (output.length > 65536) { output = ''; warn(); void entry.stop(); }
+            if (output.length > 65536) { output = ''; report(); void entry.stop(); }
           });
           child.stderr.on('data', () => { diagnostic = true; }); // Never log payloads or consumer paths.
           child.stdin.on('error', () => {});
-          child.on('error', () => { diagnostic = true; warn(); });
-          child.on('close', async code => { await stopping; if (code || diagnostic) warn(); finish(code || cancelled ? '' : output); });
+          child.on('error', () => { diagnostic = true; report(); });
+          child.on('close', async code => { await stopping; if (code || (!guard && diagnostic)) report(); finish(code || cancelled ? '' : output); });
           child.stdin.end(JSON.stringify(payload), 'utf8');
-        } catch { warn(); if (child?.pid) void entry.stop(); else finish(''); }
+        } catch { report(); if (child?.pid) void entry.stop(); else finish(''); }
       });
     }
+
+    await ctx.tool.hook('execute.before', async event => {
+      if (!guardedIDs?.has(event?.agent)) return;
+      let decision;
+      try {
+        const cwd = await project(event.sessionID);
+        if (!cwd) return;
+        const output = await run('native-guardrail', {
+          agent: event.agent, tool_name: event.tool, tool_input: event.input, cwd,
+        });
+        decision = JSON.parse(output);
+        if (!['deny', 'continue'].includes(decision?.decision)) throw new Error('guard result');
+        if (decision.decision === 'deny' && (typeof decision.reason !== 'string' || !decision.reason.trim()))
+          throw new Error('guard result');
+        if (decision.diagnostic === 'guardrails-disabled') console.warn('custom-agents: role guards disabled by project configuration');
+        else if (decision.diagnostic) warnGuard();
+      } catch { warnGuard(); return; }
+      // A before-hook Error is a native tool failure; no decision is cached by call ID.
+      if (decision.decision === 'deny') throw new Error('custom-agents: ' + decision.reason.slice(0, 2048));
+    });
 
     await ctx.session.hook('prompt', async event => {
       try {

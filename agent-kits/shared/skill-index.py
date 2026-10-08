@@ -51,6 +51,14 @@ CABECERA = [
     "Si el usuario describe algo que casa con una skill, invócala (herramienta Skill) en vez de improvisar.",
     "Los comandos se invocan por `/` o por descripción, como las skills; los agentes se delegan por nombre (Agent).",
 ]
+CABECERAS_RUNTIME = {
+    "claude": [CABECERA[0], CABECERA[1],
+               "Comandos por `/`; delega con Agent y subagent_type igual al ID nativo del rol."],
+    "codex": [CABECERA[0], "Activa las skills con `$nombre` cuando apliquen a la tarea.",
+              "Comandos por descripción; delega con spawn_agent y agent_type igual al ID nativo disponible."],
+    "opencode": [CABECERA[0], "Invoca las skills con `skill` cuando apliquen a la tarea.",
+                 "Comandos por `/`; delega con subagent y agent igual al ID nativo disponible."],
+}
 GRUPOS = (("command", "Comandos:"), ("skill", "Skills:"), ("agent", "Agentes:"))
 _GATILLO_RE = re.compile(r"\b(Úsal[oa]|Usal[oa]|Use (?:this |it )?when|Invócal[oa])\b", re.I)
 
@@ -189,8 +197,10 @@ def hint_corto(hint):
     return "<args>"
 
 
-def hash_frontmatters(ps):
+def hash_frontmatters(ps, runtime=None, mapping=None):
     h = hashlib.sha256(f"v{VERSION}\n".encode("utf-8"))
+    if runtime:
+        h.update(json.dumps([runtime, mapping or {}], sort_keys=True).encode("utf-8"))
     for kind, nombre, _desc, _hint, raw in ps:
         h.update(f"{kind}:{nombre}\n{raw}\n\0".encode("utf-8"))
     return h.hexdigest()[:16]
@@ -225,8 +235,9 @@ def _cupos(ps):
     return cupo
 
 
-def _lineas(ps, ancho):
-    lineas = list(CABECERA)
+def _lineas(ps, ancho, runtime=None, mapping=None):
+    lineas = list(CABECERAS_RUNTIME.get(runtime, CABECERA))
+    roles = (mapping or {}).get("runtimes", {}).get(runtime, {})
     cupos = _cupos(ps)
     for kind, titulo in GRUPOS:
         items = [p for p in ps if p[0] == kind]
@@ -239,7 +250,7 @@ def _lineas(ps, ancho):
         else:
             lineas_extra = []
         for _k, nombre, desc, hint, _raw in visibles:
-            etiqueta = f"/{nombre}" if kind == "command" else nombre
+            etiqueta = f"/{nombre}" if kind == "command" else roles.get(nombre, nombre) if kind == "agent" else nombre
             h = hint_corto(hint)
             if h:
                 tope = ancho // 2 - len(etiqueta) - 1        # el hint no roba más de media línea
@@ -253,20 +264,20 @@ def _lineas(ps, ancho):
     return lineas
 
 
-def construir(ps):
+def construir(ps, runtime=None, mapping=None):
     """Índice dentro de los topes: si con LIMITE_LINEA por línea el total excede LIMITE_CHARS, el
     ancho por línea baja de 5 en 5 (determinista) hasta caber. Devuelve None sin piezas."""
     if not ps:
         return None
     ancho = LIMITE_LINEA
     while True:
-        lineas = _lineas(ps, ancho)
+        lineas = _lineas(ps, ancho, runtime=runtime, mapping=mapping)
         texto = "\n".join(lineas)
         if len(texto) <= LIMITE_CHARS or ancho <= 40:
             break
         ancho -= 5
     return {"lineas": lineas, "texto": texto, "chars": len(texto), "n_lineas": len(lineas),
-            "ancho": ancho, "hash": hash_frontmatters(ps), "piezas": len(ps)}
+            "ancho": ancho, "hash": hash_frontmatters(ps, runtime=runtime, mapping=mapping), "piezas": len(ps)}
 
 
 # ------------------------------------------------------------------ config + caché
@@ -320,19 +331,38 @@ def escribir_cache(path, idx):
             pass
 
 
-def generar(root, cache=None, usar_cache=True):
+def leer_native_roles(root):
+    """Lee solo el mapa del bundle; no inventa prefijos para agentes ajenos."""
+    try:
+        with open(os.path.join(root, "agent-kits", "shared", "native-roles.json"), encoding="utf-8") as f:
+            mapping = json.load(f)
+        if mapping.get("schema_version") != 1 or not isinstance(mapping.get("runtimes"), dict):
+            return {}
+        for runtime, roles in mapping["runtimes"].items():
+            if runtime not in CABECERAS_RUNTIME or not isinstance(roles, dict):
+                return {}
+            if not all(isinstance(k, str) and isinstance(v, str) and re.fullmatch(r"[a-z0-9:-]+", v)
+                       for k, v in roles.items()):
+                return {}
+        return mapping
+    except (OSError, ValueError, AttributeError):
+        return {}
+
+
+def generar(root, cache=None, usar_cache=True, runtime=None):
     """Texto del índice (o None). Usa/renueva la caché si `cache` es una ruta y `usar_cache`."""
     ps = piezas(root)
     if not ps:
         return None
-    h = hash_frontmatters(ps)
+    mapping = leer_native_roles(root) if runtime else None
+    h = hash_frontmatters(ps, runtime=runtime, mapping=mapping)
     if cache and usar_cache:
         h_cache, texto_cache = leer_cache(cache)
         if h_cache == h and texto_cache:
             return {"texto": texto_cache, "hash": h, "cache": True, "piezas": len(ps),
                     "chars": len(texto_cache), "n_lineas": texto_cache.count("\n") + 1,
                     "lineas": texto_cache.split("\n")}
-    idx = construir(ps)
+    idx = construir(ps, runtime=runtime, mapping=mapping)
     idx["cache"] = False
     if cache and usar_cache:
         escribir_cache(cache, idx)
@@ -343,6 +373,7 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description="índice compacto de comandos/skills/agentes del plugin")
     ap.add_argument("--root", help="raíz del plugin (default: CLAUDE_PLUGIN_ROOT → este kit → find)")
     ap.add_argument("--json", action="store_true")
+    ap.add_argument("--runtime", choices=tuple(CABECERAS_RUNTIME), help="IDs y delegación del runtime; sin él, índice canónico")
     ap.add_argument("--no-cache", action="store_true", help="ignora y no escribe la caché")
     ap.add_argument("--cache", metavar="FICHERO", help=f"ruta de la caché (default: <proyecto>/.claude/{CACHE_NOMBRE})")
     args = ap.parse_args(argv)
@@ -355,7 +386,7 @@ def main(argv=None):
         if not root or not es_plugin(root):
             return 0
         cache = args.cache or (os.path.join(proj, ".claude", CACHE_NOMBRE) if proj else None)
-        idx = generar(root, cache=cache, usar_cache=not args.no_cache)
+        idx = generar(root, cache=cache, usar_cache=not args.no_cache, runtime=args.runtime)
         if not idx:
             return 0
         if args.json:

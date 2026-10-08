@@ -12,7 +12,9 @@
 //   · IDEMPOTENTE — reinstalar sobre lo mismo no duplica ni rompe nada.
 //   · NO PISA lo del usuario — los JSON de configuración se FUSIONAN; un valor que ya existe
 //     se respeta y se dice. Los ficheros del PLUGIN sí se sobrescriben siempre: es lo que hace
-//     que reinstalar sirva para actualizar. La excepción declarada es `json-set`, que pone las
+//     que reinstalar sirva para actualizar. Los agentes nativos sólo se actualizan cuando sus
+//     bytes coinciden con el inventario propio; agentes ajenos/modificados se conservan.
+//     La excepción declarada es `json-set`, que pone las
 //     claves del REGISTRO del runtime (las que lo hacen cargar el plugin) y apunta cuáles.
 //   · DESINSTALABLE — cada instalación deja un manifiesto con la lista EXACTA de lo que escribió;
 //     `uninstall` borra eso y nada más (nunca un `rm -rf` de una carpeta que no creó él).
@@ -313,6 +315,237 @@ export function retirarArtefacto(paso, destino, dryRun = false) {
     unlinkSync(paso.to)
   }
   return true
+}
+
+/** Native role copies are managed by recorded bytes, never by their agent name. */
+export function planificarAgentesNativos(paso, previo = {}, root = ROOT) {
+  previo = previo || {}
+  const {runtime, scope, configs = []} = paso.nativeAgents
+  const map = leerJson(join(root,'agent-kits/shared/native-roles.json'))?.runtimes?.[runtime]
+  if (!map || typeof map !== 'object' || Array.isArray(map)) throw new Error('native role map unavailable')
+  const legacy = leerJson(join(root,'install/native-agent-legacy.json'))?.runtimes?.[runtime] || {}
+  const raiz = resolve(paso.to), ext = runtime === 'codex' ? '.toml' : '.md'
+  const norm = p => resolve(p).split(sep).join('/')
+  const hash = p => createHash('sha256').update(readFileSync(p,'utf8').replace(/\r\n/g,'\n')).digest('hex')
+  const files = new Set((previo.plugin === PLUGIN && previo.provider === runtime ? previo.files || [] : []).map(norm))
+  const recorded = previo.plugin === PLUGIN && previo.provider === runtime ? previo.nativeAgents || {} : {}
+  const actions = [], released = [], warnings = [], bindings = new Set()
+  let agentFilesInspected = false
+  const layers = [...configs]
+  const agentDirs = [raiz,...(paso.nativeAgents.agentDirs || [])]
+  let repositoryBoundary = null
+  // Only repository layers are read here. Parent profiles outside an identified
+  // repository are not permission to inspect unrelated consumer configuration.
+  if (scope === 'project' && paso.nativeAgents.projectDir) {
+    let dir = resolve(paso.nativeAgents.projectDir)
+    const candidates = []
+    while (true) {
+      candidates.push(dir)
+      if (existsSync(join(dir,'.git'))) {
+        const marker = lstatSync(join(dir,'.git'))
+        if (marker.isDirectory() && !marker.isSymbolicLink()) repositoryBoundary = dir
+        break
+      }
+      const parent = dirname(dir)
+      if (parent === dir) break
+      dir = parent
+    }
+    if (repositoryBoundary) for (const folder of candidates) {
+      agentDirs.push(join(folder,`.${runtime}`,'agents'))
+      if (runtime === 'codex') layers.push(join(folder,'.codex','config.toml'))
+      else layers.push(join(folder,'opencode.json'),join(folder,'opencode.jsonc'))
+    }
+  }
+  let uncertain = false
+  let legacyReferencesUncertain = false
+  const nativeName = path => {
+    const st=lstatSync(path)
+    if (!st.isFile() || st.isSymbolicLink() || st.nlink > 1 || st.size > 1024*1024) throw new Error('agent metadata unavailable')
+    const names=rutasToml(readFileSync(path,'utf8')).filter(row=>row.ruta==='name')
+    if (names.length > 1) throw new Error('duplicate native agent name')
+    if (!names.length) return undefined
+    const name=cadenaToml(names[0].valor)
+    if (name === null || !name) throw new Error('native agent name is not verifiable')
+    return name
+  }
+  for (const cfg of [...new Set(layers.map(p => resolve(p)))]) {
+    if (!existsSync(cfg)) continue
+    try {
+      const info=lstatSync(cfg)
+      if (!info.isFile() || info.isSymbolicLink() || info.size>1024*1024) throw new Error('configuration metadata size/type bound')
+      const text = readFileSync(cfg,'utf8')
+      if (runtime === 'codex') {
+        for (const item of rutasToml(text)) {
+          const match = item.ruta.match(/^agents\.([A-Za-z0-9_-]+)(?:\.|$)/)
+          if (match) bindings.add(match[1])
+          // A config_file can bind an arbitrary key to one of the old files.
+          if (item.ruta.startsWith('agents.') && item.ruta.endsWith('.config_file')) {
+            const target = cadenaToml(item.valor)
+            if (typeof target !== 'string') uncertain = true
+            else {
+              const path=resolve(dirname(cfg),target)
+              bindings.add(norm(path))
+              const name=nativeName(path)
+              if (name) bindings.add(name)
+            }
+          }
+        }
+      } else {
+        const parsed = JSON.parse(text.replace(/^\uFEFF/,''))
+        if (typeof parsed.default_agent === 'string') bindings.add(parsed.default_agent)
+        let unresolvedReference = false
+        const references = value => {
+          if (typeof value === 'string') {
+            // Native config substitution covers values and keys before parsing.
+            // Resolve only explicit paths; do not inspect consumer environment.
+            if (/\{env:[^}]+\}/.test(value)) uncertain = unresolvedReference = true
+            for (const match of value.matchAll(/\{file:([^}]+)\}/g)) {
+              if (match[1].startsWith('~/') || match[1].includes('{env:')) uncertain = unresolvedReference = true
+              else bindings.add(norm(resolve(dirname(cfg),match[1])))
+            }
+          } else if (Array.isArray(value)) value.forEach(references)
+          else if (value && typeof value === 'object') for (const [key,item] of Object.entries(value)) {
+            references(key);references(item)
+          }
+        }
+        for (const key of ['agent','agents','mode']) {
+          const agents = parsed[key]
+          if (agents != null && (typeof agents !== 'object' || Array.isArray(agents))) uncertain = true
+          else {
+            for (const name of Object.keys(agents || {})) bindings.add(name)
+          }
+        }
+        for (const key of ['command','commands']) {
+          const commands=parsed[key]
+          if (commands != null && (typeof commands !== 'object' || Array.isArray(commands))) uncertain = true
+          else for (const command of Object.values(commands || {})) {
+            if (typeof command?.agent === 'string') bindings.add(command.agent)
+            else if (command?.agent != null) uncertain = true
+          }
+        }
+        references(parsed)
+        if (unresolvedReference) warnings.push(`${rel(cfg)}: referencia dinámica de configuración no verificable; agentes conservados`)
+      }
+    } catch { uncertain = true; warnings.push(`${rel(cfg)}: configuración no verificable; agentes conservados`) }
+  }
+  // OpenCode loads recursive command Markdown using its full YAML parser.
+  // Without that parser, metadata presence is evidence against safe retirement,
+  // not permission to infer a command's agent or inspect its body.
+  const legacyWarnings = []
+  let legacyCopyPresent = false
+  if (runtime === 'opencode') {
+    const dirs = [...new Set(agentDirs.flatMap(dir=>['command','commands'].map(name=>join(dirname(resolve(dir)),name))))]
+    for (const dir of dirs) {
+      if (!existsSync(dir)) continue
+      try {
+        if (lstatSync(dirname(dir)).isSymbolicLink()) throw new Error('runtime directory link')
+        const pending=[{path:dir,depth:0}]
+        let scanned=0, found=false
+        while (pending.length && !found) {
+          const folder=pending.pop(), info=lstatSync(folder.path)
+          if (!info.isDirectory() || info.isSymbolicLink() || folder.depth>16) throw new Error('command discovery boundary')
+          for (const entry of readdirSync(folder.path,{withFileTypes:true})) {
+            if (++scanned>4096) throw new Error('command discovery count bound')
+            const path=join(folder.path,entry.name), st=lstatSync(path)
+            if (st.isSymbolicLink()) throw new Error('command discovery link')
+            if (st.isDirectory()) pending.push({path,depth:folder.depth+1})
+            else if (entry.name.toLowerCase().endsWith('.md')) {found=true;break}
+          }
+        }
+        if (found) {
+          legacyReferencesUncertain=true
+          legacyWarnings.push(`${rel(dir)}: referencias de comandos Markdown no verificables; copia anterior conservada`)
+        }
+      } catch {
+        legacyReferencesUncertain=true
+        legacyWarnings.push(`${rel(dir)}: descubrimiento de comandos Markdown no verificable; copia anterior conservada`)
+      }
+    }
+  }
+  const seguro = file => {
+    const abs = resolve(file), relativePath = relative(raiz,abs)
+    if (!relativePath || isAbsolute(relativePath) || relativePath === '..' || relativePath.startsWith(`..${sep}`)) throw new Error('native agent path outside destination')
+    let parent = dirname(abs)
+    while (!existsSync(parent)) parent = dirname(parent)
+    const base = resolve(paso.nativeAgents.base || dirname(raiz))
+    if (existsSync(base)) {
+      const real = relative(realpathSync(base),realpathSync(parent))
+      if (isAbsolute(real) || real === '..' || real.startsWith(`..${sep}`)) throw new Error('native agent parent outside runtime base')
+    }
+    if (existsSync(raiz)) {
+      const real = relative(realpathSync(raiz),realpathSync(parent))
+      if (isAbsolute(real) || real === '..' || real.startsWith(`..${sep}`)) throw new Error('native agent parent outside real destination')
+    }
+    let st
+    try { st = lstatSync(abs) } catch (e) { if (e.code !== 'ENOENT') throw e }
+    if (st && (!st.isFile() || st.isSymbolicLink() || st.nlink > 1)) throw new Error('native agent is not a private regular file')
+    if (st && st.size>1024*1024) throw new Error('native agent size bound')
+    return st ? hash(abs) : null
+  }
+  for (const [role,id] of Object.entries(map)) {
+    if (!/^[a-z][a-z0-9-]*$/.test(role) || !/^[a-z][a-z0-9-]*$/.test(id) || id === role) throw new Error('invalid native role map')
+    const target = join(raiz,id+ext), bare = join(raiz,role+ext), source = join(root,paso.from,id+ext)
+    released.push(norm(target),norm(bare))
+    let current, old
+    try { current = seguro(target); old = seguro(bare) }
+    catch (e) { warnings.push(`${rel(target)}: conflicto (${e.message}); conservado`); continue }
+    legacyCopyPresent ||= old !== null
+    // Codex reads the declared TOML name, which may differ from its filename.
+    if (!agentFilesInspected) {
+      agentFilesInspected = true
+      for (const dir of [...new Set(agentDirs.map(p=>resolve(p)))]) {
+        if (!existsSync(dir)) continue
+        const folder=lstatSync(dir)
+        if (!folder.isDirectory() || folder.isSymbolicLink()) {
+          uncertain=true;warnings.push(`${rel(dir)}: directorio de agentes no verificable; agentes conservados`);continue
+        }
+        const paths = [], pending = [{path:dir,depth:0}]
+        let scanned=0
+        try {
+          while (pending.length) {
+            const folder=pending.pop()
+            if (folder.depth>16) throw new Error('agent discovery depth bound')
+            for (const entry of readdirSync(folder.path,{withFileTypes:true})) {
+              if (++scanned>4096) throw new Error('agent discovery count bound')
+              const path=join(folder.path,entry.name)
+              if (entry.isSymbolicLink()) throw new Error('agent discovery link')
+              if (runtime==='codex' && entry.isDirectory()) pending.push({path,depth:folder.depth+1})
+              else if (entry.name.endsWith(ext)) paths.push(path)
+            }
+          }
+        } catch { uncertain=true;warnings.push(`${rel(dir)}: descubrimiento de agentes no verificable; agentes conservados`) }
+        for (const path of paths) {
+        try {
+          if (runtime === 'opencode') {
+            const st=lstatSync(path)
+            if (!st.isFile() || st.isSymbolicLink() || st.nlink > 1) throw new Error('agent metadata is not a private regular file')
+            const name=path.slice(dir.length+1,-ext.length)
+            if (Object.values(map).includes(name) && norm(dir) !== norm(raiz)) bindings.add(name)
+            continue
+          }
+          const name=nativeName(path)
+          if (name && Object.values(map).includes(name) && norm(path) !== norm(join(raiz,name+ext))) bindings.add(name)
+        } catch { uncertain=true;warnings.push(`${rel(path)}: identidad nativa no verificable; agentes conservados`) }
+        }
+      }
+    }
+    if (uncertain || bindings.has(id) || bindings.has(norm(target))) {
+      warnings.push(`${rel(target)}: binding existente o no verificable; conservado`); continue
+    }
+    if (current !== null && (!files.has(norm(target)) || recorded[norm(target)] !== current)) {
+      warnings.push(`${rel(target)}: agente ajeno o modificado; conservado`); continue
+    }
+    if (!existsSync(source)) throw new Error(`native role export missing: ${id}`)
+    actions.push({type:'copy',to:target,from:source,before:current,sha256:hash(source)})
+    if (old !== null) {
+      if (scope === 'project' && repositoryBoundary && !legacyReferencesUncertain && !bindings.has(role) && !bindings.has(norm(bare))
+          && files.has(norm(bare)) && old === legacy[role]) {
+        actions.push({type:'retire',to:bare,before:old})
+      } else warnings.push(`${rel(bare)}: copia anterior conservada; propiedad, bindings o referencias externas no acreditados`)
+    }
+  }
+  if (legacyCopyPresent) warnings.push(...legacyWarnings)
+  return {actions,released,warnings}
 }
 
 /** Fusión conservadora: lo que ya existe MANDA. Devuelve [resultado, claves añadidas]. */
@@ -1327,10 +1560,12 @@ function ejecutar(provider, opts) {
   })
   const escritos = []
   const retirados = new Set()
+  const nativeAgents = {...(leerJson(join(provider.destino(opts.scope,opts.dir,opts.modo),manifiestoDe(provider,opts.modo)))?.nativeAgents || {})}
   const registro = []   // lo que no es un fichero nuestro: comandos y claves de configuración
   const avisos = []
   const completed = new Set()
   let nativePending=false
+  let roleMigrationPending=false
   let n = 0
 
   // Qué ficheros del registro habíamos creado NOSOTROS en una instalación anterior. Al reinstalar
@@ -1363,6 +1598,7 @@ function ejecutar(provider, opts) {
       installedAt: new Date().toISOString(),
       ...(estado === "completo" ? {} : { estado, error: String(error?.message || error) }),
       files: [...new Set([...(manPrevio?.files || []).filter(f => !retirados.has(f)), ...escritos.map((f) => f.split(sep).join("/"))])].sort(),
+      ...(Object.keys(nativeAgents).length ? {nativeAgents} : {}),
       registro: fusionarRegistro(manPrevio?.registro || [], registro),
     })
   }
@@ -1411,6 +1647,32 @@ function ejecutar(provider, opts) {
         avisos.push(`${rel(paso.to)} tiene cambios locales: conservado; migración pendiente de revisión`)
       }
     } else if (paso.type === "copy") {
+      if (paso.nativeAgents) {
+        const migration = planificarAgentesNativos(paso,manPrevio)
+        avisos.push(...migration.warnings)
+        if (migration.warnings.length) roleMigrationPending=true
+        const retiring = new Set(migration.actions.filter(a=>a.type==='retire').map(a=>a.to.split(sep).join('/')))
+        for (const path of migration.released) {
+          if (!retiring.has(path)) { retirados.add(path); delete nativeAgents[path] }
+        }
+        for (const action of migration.actions) {
+          say(`  ${ARROW} ${rel(action.to)} ${dim(action.type === 'retire' ? '(retirada de agente propio)' : '(agente nativo)')}`)
+          if (opts.dryRun) continue
+          if (action.type === 'retire') {
+            if (!retirarArtefacto({to:action.to,sha256:[action.before]},paso.to)) throw new Error('native agent changed before retirement')
+            const path = action.to.split(sep).join('/');retirados.add(path);delete nativeAgents[path]
+          } else {
+            const now = existsSync(action.to) ? createHash('sha256').update(readFileSync(action.to,'utf8').replace(/\r\n/g,'\n')).digest('hex') : null
+            if (now !== action.before) throw new Error('native agent changed before copy')
+            escritos.push(action.to); nativeAgents[action.to.split(sep).join('/')] = action.sha256
+            guardar('incompleto',new Error('copiando agente nativo'))
+            mkdirSync(dirname(action.to),{recursive:true})
+            escribirAtomico(action.to,readFileSync(action.from,'utf8'))
+            n++
+          }
+        }
+        continue
+      }
       const abs = join(ROOT, paso.from)
       if (!existsSync(abs)) {
         avisos.push(`no encuentro ${paso.from} en el paquete — paso omitido`)
@@ -1643,7 +1905,10 @@ function ejecutar(provider, opts) {
     }
   }
 
-  guardar(nativePending ? "incompleto" : "completo",nativePending ? "registro/caché nativa pendientes" : undefined)
+  const pending = nativePending || roleMigrationPending
+  guardar(pending ? "incompleto" : "completo",pending
+    ? [nativePending ? 'registro/caché nativa pendientes' : '',roleMigrationPending ? 'migración de agentes pendiente; conflictos conservados' : ''].filter(Boolean).join('; ')
+    : undefined)
   avisos.push(...drenarAvisosEscritura())
   return { n, avisos }
   }
@@ -1813,6 +2078,14 @@ function deshacerInstalacion(p, dest, file, man, opts) {
   let n = 0
   for (const f of files) {
     const abs = f.split("/").join(sep)
+    if (man.nativeAgents && Object.hasOwn(man.nativeAgents,f)) {
+      const agentRoot = p.id === 'codex' ? join(dirname(dirname(dest)),'agents') : join(dest,'agents')
+      try {
+        if (retirarArtefacto({to:abs,sha256:[man.nativeAgents[f]]},agentRoot)) n++
+        else say(`  ${WARN} ${dim(`${rel(abs)}: agente modificado, conservado`)}`)
+      } catch { say(`  ${WARN} ${dim(`${rel(abs)}: propiedad/ruta no verificable, conservado`)}`) }
+      continue
+    }
     try { if (existsSync(abs)) { rmSync(abs, { force: true }); n++ } } catch { /* sigue */ }
   }
   for (const a of deshacerRegistro(man.registro || [])) say(`  ${WARN} ${dim(a)}`)

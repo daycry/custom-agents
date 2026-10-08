@@ -1,0 +1,753 @@
+{
+  "schema_version": 1,
+  "base": "8b51edd9ae1af020e0eb96bf92933e1f55edbaed",
+  "scope": "Native role guards; global initiative and memory closure remain open",
+  "validation_status": "Native cohorts validated individually; corrected guard, role IDs and conservative migration block accepted in review attempt 5; global initiative and memory remain open",
+  "current_normalizer_sha256": "17fcd2ba07097e84287fbb3ffb8d53677dadf5285681e213dd50d35ae2d869e0",
+  "independent_review": {
+    "attempt": 5,
+    "approved": true,
+    "pending_important": [],
+    "context_freshness": "Prior independent reviewers reused because platform rejected new threads; reviewers did not implement the corrections."
+  },
+  "baseline_note": "Execution hashes below identify the tested baseline before parser corrections B-1/C-1; they do not claim execution of the current parser.",
+  "production_source_sha256": {
+    "hooks/hooks.json": "3a3f71c990afaf59e77dff951a54427cf88a4206149bef0abd160f8fdd7e16bd",
+    "hooks/run-hook.mjs": "b47ca085a7b8ac66b583579b67013a97ee370e88c1eb90a8798afe433cb3687b",
+    "hooks/runtime-supervisor.py": "af568b0f3a17d2fc7dedbd0c21fe1f844fd833e54a89831737a6b79c47660ba3",
+    "agent-kits/shared/native-guardrail.py": "89823d386a7c84ed63d1c3d49186838ca49d4424d39e232857197aaf1b631da4",
+    "agent-kits/shared/guardrail-check.py": "d99c6808cf16b207df8c479dc770fcb62d357e8ab3668d475c4d452fc5de529f",
+    "agent-kits/shared/native-roles.json": "96d4db96b92b12b264201820969d0938cfdd83381210effb1b833a5f62be672a"
+  },
+  "claude": {
+    "runtime": "Claude Code 2.1.287",
+    "runtime_sha256": "6d5be51f0edfe3429cd1a9885950db31c1e59eb9a2c9a30a47e64179d2ff98b4",
+    "guard_timeout_seconds": 10,
+    "passed_cases": 13,
+    "cases": [
+      {
+        "case": "implementer-spec",
+        "agent": "custom-agents:implementer",
+        "subagent": "",
+        "target": "spec",
+        "exit_code": 0,
+        "process_terminal": true,
+        "expected_target_exists": false,
+        "target_exists": false,
+        "write_native_roles": [
+          "custom-agents:implementer"
+        ],
+        "accepted_native_deny": true,
+        "child_identity_correlated": true,
+        "scoped_role_override": false,
+        "raw_evidence_sha256": {
+          "stdout.jsonl": "94110bb47f85dc177c50009df6deb8cdb4c4e4486abe82e2d4da842f872a76e7",
+          "stderr.txt": "b62fe7db543f334ca783b1c92fbe20f3962906b1351a0f12ea985d5e38002d4e",
+          "requests.json": "1aaa4f0a680a4eaa6003c41ea34b935f25fd1296968427175527c130514793f3",
+          "debug.log": "727099871c56cbcd24d5cc012144cbd4f6ede48b11c3be2ad50425b2059ad6a5",
+          "events.jsonl": "a0331bf7a8b7ea3aeeb5577951be634ab0f5f6f6c7e47ae50c5bc7b29cc77ce5"
+        }
+      },
+      {
+        "case": "implementer-tasks",
+        "agent": "custom-agents:implementer",
+        "subagent": "",
+        "target": "tasks",
+        "exit_code": 0,
+        "process_terminal": true,
+        "expected_target_exists": true,
+        "target_exists": true,
+        "write_native_roles": [
+          "custom-agents:implementer"
+        ],
+        "accepted_native_deny": false,
+        "child_identity_correlated": true,
+        "scoped_role_override": false,
+        "raw_evidence_sha256": {
+          "stdout.jsonl": "c14ba9de854af878dc4ae27dede061c854f372cadd84c1c5c00aaaa218c2ac47",
+          "stderr.txt": "b62fe7db543f334ca783b1c92fbe20f3962906b1351a0f12ea985d5e38002d4e",
+          "requests.json": "d46711c855960ad40659cf0ad9c10d1c9350a72104bc3f4d07512c446fb131f3",
+          "debug.log": "ae74dcb88c3238e99204f127a531c53c01cc9c1e3d6ac1b0cc1db86ab6103392",
+          "events.jsonl": "85f5b9a8dca9e30f1e1481f576a4453cc6ff0f2a86639d45e12a9aac61caef66"
+        }
+      },
+      {
+        "case": "architect-src",
+        "agent": "custom-agents:architect",
+        "subagent": "",
+        "target": "src",
+        "exit_code": 0,
+        "process_terminal": true,
+        "expected_target_exists": false,
+        "target_exists": false,
+        "write_native_roles": [
+          "custom-agents:architect"
+        ],
+        "accepted_native_deny": true,
+        "child_identity_correlated": true,
+        "scoped_role_override": false,
+        "raw_evidence_sha256": {
+          "stdout.jsonl": "e73f6d25a8cc6d2a5c36ef1c8985a0bb7d0fc85d338f3d197fb8dd76d562f81e",
+          "stderr.txt": "b62fe7db543f334ca783b1c92fbe20f3962906b1351a0f12ea985d5e38002d4e",
+          "requests.json": "475331b7adafda0d2e0d12128f6f3d82a9ba2aa4f40abf4a598bc5ad91d272cb",
+          "debug.log": "b732643b937d2492d5f8ec8bef26d3e2f5bc228a904af7d278803c59d6f4d5f6",
+          "events.jsonl": "c9fd050582e9ab7aa1504a5bb91b9ffeaeab45ab36aeb89f9233b80f149ece8e"
+        }
+      },
+      {
+        "case": "architect-design",
+        "agent": "custom-agents:architect",
+        "subagent": "",
+        "target": "design",
+        "exit_code": 0,
+        "process_terminal": true,
+        "expected_target_exists": true,
+        "target_exists": true,
+        "write_native_roles": [
+          "custom-agents:architect"
+        ],
+        "accepted_native_deny": false,
+        "child_identity_correlated": true,
+        "scoped_role_override": false,
+        "raw_evidence_sha256": {
+          "stdout.jsonl": "8f65b9f0796eb70f17d62e5660e8bf432893c65ae85869d37383adf05c783820",
+          "stderr.txt": "b62fe7db543f334ca783b1c92fbe20f3962906b1351a0f12ea985d5e38002d4e",
+          "requests.json": "b0f764c6187e30049d57ee86eb5861cf04cebb259f4c5096d5176eb15707cf1f",
+          "debug.log": "a4ae6ab7e4059e4db31ba209cfb6f09d0aafff914065c601e336d4f69cab8525",
+          "events.jsonl": "6dc913cc225ba9c21f5f6c97d221566bcd1eb43ffea9dbe40b8bbc5eabd32ecc"
+        }
+      },
+      {
+        "case": "planner-spec",
+        "agent": "custom-agents:planner",
+        "subagent": "",
+        "target": "spec",
+        "exit_code": 0,
+        "process_terminal": true,
+        "expected_target_exists": true,
+        "target_exists": true,
+        "write_native_roles": [
+          "custom-agents:planner"
+        ],
+        "accepted_native_deny": false,
+        "child_identity_correlated": true,
+        "scoped_role_override": false,
+        "raw_evidence_sha256": {
+          "stdout.jsonl": "8f23707dc0a453c4188a56420c3eb624b6fcb3c20c802150295f41ad28243062",
+          "stderr.txt": "b62fe7db543f334ca783b1c92fbe20f3962906b1351a0f12ea985d5e38002d4e",
+          "requests.json": "f7eb8b88b231421968c25342c34c645c21d2715b5c0639f45c10d610cd69f23c",
+          "debug.log": "d4ee0a5ff4595ae5fe17d3eb47736e690aee337bb6e693a6c16bf0fcaed83d44",
+          "events.jsonl": "9a34c18a3f38dedfb5004c9977086170a968fffe24585f14aee8dbde18b76aa4"
+        }
+      },
+      {
+        "case": "bare-user-spec",
+        "agent": "implementer",
+        "subagent": "",
+        "target": "spec",
+        "exit_code": 0,
+        "process_terminal": true,
+        "expected_target_exists": true,
+        "target_exists": true,
+        "write_native_roles": [
+          "implementer"
+        ],
+        "accepted_native_deny": false,
+        "child_identity_correlated": true,
+        "scoped_role_override": false,
+        "raw_evidence_sha256": {
+          "stdout.jsonl": "07e8bbe6ec530f880c55c38614bf714ef15a04eebc577121c4792313cfbde564",
+          "stderr.txt": "b62fe7db543f334ca783b1c92fbe20f3962906b1351a0f12ea985d5e38002d4e",
+          "requests.json": "be987f413d3711ed64d5c37d548d52a5c8f38f49b480210ed9eb899bec7b5e9b",
+          "debug.log": "b9cbb59eac9da7d017bbbbc4c90f74bc38dfb43fa8af68d6ce7accb79782c225",
+          "events.jsonl": "8b68ce5e2cda3596628327b6955e55610028a82bbae8b43fbdc39ec4d20d16ff"
+        }
+      },
+      {
+        "case": "main-unidentified-spec",
+        "agent": "",
+        "subagent": "",
+        "target": "spec",
+        "exit_code": 0,
+        "process_terminal": true,
+        "expected_target_exists": true,
+        "target_exists": true,
+        "write_native_roles": [
+          null
+        ],
+        "accepted_native_deny": false,
+        "child_identity_correlated": true,
+        "scoped_role_override": false,
+        "raw_evidence_sha256": {
+          "stdout.jsonl": "fde388dd9e32c03c96a1cbdcd7f144b619929177f54aab9e8ef97bd30f8a5785",
+          "stderr.txt": "b62fe7db543f334ca783b1c92fbe20f3962906b1351a0f12ea985d5e38002d4e",
+          "requests.json": "a2fb17cae4b214a3b2aaa845fb5778e119c46afae30b3bb227cfb9707678ccb3",
+          "debug.log": "ffe5356e2d5956d06bb7d1f0169d30a8ec0040786cc8f474a66c22175d48f5a4",
+          "events.jsonl": "66add0949603628c6b92847ab7807ffa860c488fa8f626f7f12280541cf6fad8"
+        }
+      },
+      {
+        "case": "child-implementer-spec",
+        "agent": "",
+        "subagent": "custom-agents:implementer",
+        "target": "spec",
+        "exit_code": 0,
+        "process_terminal": true,
+        "expected_target_exists": false,
+        "target_exists": false,
+        "write_native_roles": [
+          "custom-agents:implementer"
+        ],
+        "accepted_native_deny": true,
+        "child_identity_correlated": true,
+        "scoped_role_override": false,
+        "raw_evidence_sha256": {
+          "stdout.jsonl": "263ddfa331855226a88b1bb0fdd5ce3c11e96e8c262e733a88c5064f32b4056c",
+          "stderr.txt": "b62fe7db543f334ca783b1c92fbe20f3962906b1351a0f12ea985d5e38002d4e",
+          "requests.json": "a9ea86310303f10bd7d4ef8cd583d4529ca7fb5b9db559c3f0d582b9cb78343a",
+          "debug.log": "ac25bdea91101447726fc824b655661fa3f6779888750574a3dd9158b4455f94",
+          "events.jsonl": "e2031b9328953ba2184384dfe0c385c01937e872dcaf7e751818a8d00b7aeb32"
+        }
+      },
+      {
+        "case": "child-architect-src",
+        "agent": "",
+        "subagent": "custom-agents:architect",
+        "target": "src",
+        "exit_code": 0,
+        "process_terminal": true,
+        "expected_target_exists": false,
+        "target_exists": false,
+        "write_native_roles": [
+          "custom-agents:architect"
+        ],
+        "accepted_native_deny": true,
+        "child_identity_correlated": true,
+        "scoped_role_override": false,
+        "raw_evidence_sha256": {
+          "stdout.jsonl": "6477936057f175d71d57c89ac6c213fa9309b9b58b93a56ec1a4555688ab524c",
+          "stderr.txt": "b62fe7db543f334ca783b1c92fbe20f3962906b1351a0f12ea985d5e38002d4e",
+          "requests.json": "71e21905e2d0b8de5c689207ce238143b41559a788380005f946e6fe642cb804",
+          "debug.log": "412a1d3f3254ff8316ee48f8ba079c48e4e14cc0152f17627c8f7bb3f7964359",
+          "events.jsonl": "b62b9e1a5e6c94dd1a8d12c384040e81414138a0e0dee89269a739cfd4c048c8"
+        }
+      },
+      {
+        "case": "child-planner-spec",
+        "agent": "",
+        "subagent": "custom-agents:planner",
+        "target": "spec",
+        "exit_code": 0,
+        "process_terminal": true,
+        "expected_target_exists": true,
+        "target_exists": true,
+        "write_native_roles": [
+          "custom-agents:planner"
+        ],
+        "accepted_native_deny": false,
+        "child_identity_correlated": true,
+        "scoped_role_override": false,
+        "raw_evidence_sha256": {
+          "stdout.jsonl": "8be89c42769816d0fa304a06f2eb728a00a79c70d140f9216106dae9f3ecff87",
+          "stderr.txt": "b62fe7db543f334ca783b1c92fbe20f3962906b1351a0f12ea985d5e38002d4e",
+          "requests.json": "8eed466562ef44fd1a408aec6fb43116ff43f6a4becb2ad79b0430f9b45295e6",
+          "debug.log": "96f422df815e5ee43d94d372441ad4ea48f75e449ed6cb50715115a4ed0ca76d",
+          "events.jsonl": "522803a76103f99f1e69da9da1910918e596678287665d7f00799c9b589edfcb"
+        }
+      },
+      {
+        "case": "child-bare-user-spec",
+        "agent": "",
+        "subagent": "implementer",
+        "target": "spec",
+        "exit_code": 0,
+        "process_terminal": true,
+        "expected_target_exists": true,
+        "target_exists": true,
+        "write_native_roles": [
+          "implementer"
+        ],
+        "accepted_native_deny": false,
+        "child_identity_correlated": true,
+        "scoped_role_override": false,
+        "raw_evidence_sha256": {
+          "stdout.jsonl": "70a5296fb4367112531724fcc10a1b0503d4a55533b65ac008d739f3dd3be919",
+          "stderr.txt": "b62fe7db543f334ca783b1c92fbe20f3962906b1351a0f12ea985d5e38002d4e",
+          "requests.json": "65a758c2e9f3b9e184e9eb78414fb66e9e2a3528fe09a645f118db7c379b4ec4",
+          "debug.log": "f7cf26eca48c74c6a4b478518e625e0444d9edfec184023fdef9d28263bd9f68",
+          "events.jsonl": "e317802245848b69290e50e02d2b62956db35fe6a5642c36a0a699f52e799692"
+        }
+      },
+      {
+        "case": "scoped-override-spec",
+        "agent": "custom-agents:implementer",
+        "subagent": "",
+        "target": "spec",
+        "exit_code": 0,
+        "process_terminal": true,
+        "expected_target_exists": false,
+        "target_exists": false,
+        "write_native_roles": [
+          "custom-agents:implementer"
+        ],
+        "accepted_native_deny": true,
+        "child_identity_correlated": true,
+        "scoped_role_override": true,
+        "raw_evidence_sha256": {
+          "stdout.jsonl": "5235b6b4098aa4014dba26dad2b5ef713e64910bf1fab0d37bcff8bf9a4373ec",
+          "stderr.txt": "b62fe7db543f334ca783b1c92fbe20f3962906b1351a0f12ea985d5e38002d4e",
+          "requests.json": "32e040efcf243e875ce568e8673687d1648ae54a5cc64d1ee3ebc5955369a46a",
+          "debug.log": "1d9b2892e32aebcfe324a11561418ff9d9acf726d1f9c9d3b6af328b2b032893",
+          "events.jsonl": "cad7b3ddbbad6504cf9a35cdbe9d7fd6c71e7d68952acc85acfb2a20e49e5c2c"
+        }
+      },
+      {
+        "case": "protected-parent-bare-child",
+        "agent": "custom-agents:implementer",
+        "subagent": "implementer",
+        "target": "spec",
+        "exit_code": 0,
+        "process_terminal": true,
+        "expected_target_exists": true,
+        "target_exists": true,
+        "write_native_roles": [
+          "implementer"
+        ],
+        "accepted_native_deny": false,
+        "child_identity_correlated": true,
+        "scoped_role_override": true,
+        "raw_evidence_sha256": {
+          "stdout.jsonl": "c6b23a005d1e29883cd124ffecaaf12ec712da3a4651cb463e4d58ad33657583",
+          "stderr.txt": "b62fe7db543f334ca783b1c92fbe20f3962906b1351a0f12ea985d5e38002d4e",
+          "requests.json": "47af1d2d5d05dfdb37037136425d997a058f4adf5b9a2aab82197cc2d55dff6f",
+          "debug.log": "4fe2561fb7ec35fcd5b1930241d58c09b4c05db4647166321de5ce73ef802baa",
+          "events.jsonl": "c4d3a8664b5e6a7db65fe280bfa6a521e88651ed3608b2cf32cac463de3bd613"
+        }
+      }
+    ],
+    "prompt_revisions": "Per-case prompt source hashes remain in the private proof; early cases predate prose-only corrections. Guard execution sources above match every case.",
+    "private_proof_sha256": "e58e2a459a29cd8d00d8aedebeffb60ae9f483ebea3ecd040062198da5677f65"
+  },
+  "codex": {
+    "runtime": "0.161.0",
+    "runtime_sha256": "a0f89acca07a511734cac7fddee26b2106fab68918717bc90df16104a0760a30",
+    "source_commit": "979011409de0a60b52f179721948e65531d26144",
+    "guard_timeout_seconds": 10,
+    "passed_checks": 14,
+    "checks": {
+      "native_exit_zero": true,
+      "native_completed_turn": true,
+      "no_authorization_header": true,
+      "all_expected_file_states": true,
+      "implementer_spec_native_denied": true,
+      "implementer_tasks_native_allowed": true,
+      "architect_src_native_denied": true,
+      "architect_design_native_allowed": true,
+      "architect_force_git_native_denied": true,
+      "planner_native_allowed": true,
+      "bare_consumer_native_allowed": true,
+      "bare_consumer_force_git_reaches_git": true,
+      "main_claimed_role_does_not_interfere": true,
+      "native_child_identity_and_shared_root_session": true
+    },
+    "before_tool_results": [
+      {
+        "status": "completed",
+        "duration_ms": 3350
+      },
+      {
+        "status": "blocked",
+        "duration_ms": 6075
+      },
+      {
+        "status": "completed",
+        "duration_ms": 5006
+      },
+      {
+        "status": "blocked",
+        "duration_ms": 4636
+      },
+      {
+        "status": "completed",
+        "duration_ms": 6888
+      },
+      {
+        "status": "completed",
+        "duration_ms": 6545
+      },
+      {
+        "status": "completed",
+        "duration_ms": 8032
+      },
+      {
+        "status": "blocked",
+        "duration_ms": 6494
+      },
+      {
+        "status": "completed",
+        "duration_ms": 4611
+      }
+    ],
+    "memory_closure_checks": {
+      "session_end_completed": false,
+      "session_end_envelope_before_exit": false
+    },
+    "memory_closure_result": "Native 3s timeout; no envelope before exit in this experiment. Retained separately from successful guard checks.",
+    "raw_evidence_sha256": {
+      "summary.json": "9a70882b92a0aa6b06cd6bad261513eff5581a880483c79a7796b894e03f5dac",
+      "protocol.json": "7ff54af02b8998f962c82a4949aebbbba4cbbddd21dff2868bc920fd4dac3228",
+      "requests.json": "08fde72b45b055a7eaa9fd51af341bf94a98fe13016db9c140c83622c262c75c",
+      "events.jsonl": "8be0e2188958c6a9d2e43f8e638e780ff7c0f789efe2a1c63ad7371617e9cc96",
+      "source-provenance.json": "332b8fc6c0aaa4cc1183ec4cd8774f2e0cd934e3f17018be6a938aa8cba9da17"
+    },
+    "parser_regression_delta": {
+      "normalizer_sha256": "9827f5fd7af914bbaafd983b63ff6b17ac70ba4502328aca931145a5d7cad45f",
+      "passed_checks": 11,
+      "checks": {
+        "natural_native_exit_zero": true,
+        "native_turn_completed": true,
+        "no_provider_authorization": true,
+        "native_custom_patch_schema_advertised": true,
+        "native_child_metadata": true,
+        "unicode_add_protected_denied": true,
+        "unicode_add_allowed_exact_utf8": true,
+        "header_context_protected_update_denied": true,
+        "header_context_allowed_update_exact_utf8": true,
+        "snapshot_and_cache_bytes_match": true,
+        "final_normalizer_snapshot": true
+      },
+      "unicode_delta": {
+        "protected_file_absent": true,
+        "allowed_exact_utf8": true,
+        "expected_sha256": "d468b928d7080a68702af8f254af3a1bac50e37ded9fa9f3249f213500feee0f",
+        "actual_sha256": "d468b928d7080a68702af8f254af3a1bac50e37ded9fa9f3249f213500feee0f",
+        "expected_bytes": 29,
+        "actual_bytes": 29,
+        "content_codepoints": [
+          "U+00F1",
+          "U+0085",
+          "U+2028",
+          "U+2029",
+          "U+000D"
+        ]
+      },
+      "context_delta": {
+        "protected_content_unchanged": true,
+        "allowed_content_exact": true,
+        "protected_sha256": "39cecfce3c0a7dda754983d37047e6b897971606d0c58eb97c3202898dd7b415",
+        "expected_protected_sha256": "39cecfce3c0a7dda754983d37047e6b897971606d0c58eb97c3202898dd7b415",
+        "allowed_sha256": "1fb820d73cb46e7a2255aa781c2ee9a4578794a13f0cc5c87f3becb66b67a5fd",
+        "expected_allowed_sha256": "1fb820d73cb46e7a2255aa781c2ee9a4578794a13f0cc5c87f3becb66b67a5fd",
+        "protected_bytes": 113,
+        "allowed_bytes": 113
+      },
+      "before_tool_results": [
+        {
+          "status": "blocked",
+          "duration_ms": 2874
+        },
+        {
+          "status": "blocked",
+          "duration_ms": 2847
+        },
+        {
+          "status": "completed",
+          "duration_ms": 2834
+        },
+        {
+          "status": "completed",
+          "duration_ms": 2562
+        }
+      ],
+      "memory_closure_checks": {
+        "SessionEnd_completed": false,
+        "root_envelope_before_exit": false
+      },
+      "private_proof_sha256": "9e7cb0716a1be6b9ead3c3b0ad0cd704b66550d401a96b4b743c1b5f2d07b3f0",
+      "raw_evidence_sha256": {
+        "summary.json": "b37b9647c17c4fd44bf508a4cf2db3a4431de8e0b8c984580b06dfe6677cd4d6",
+        "protocol.json": "c9a26d5f75e7e62a6aeb534c8fcb1e9741c912db7f8a3cc09fd11ee73d3e8436",
+        "requests.json": "73f1f8d6e6c896fa168d04e8456e01e56ae957e54470d2cabf19d08f2b13bac0",
+        "events.jsonl": "7154f2f2d43bb2b10db7b036020c767d6ec2c04f86b57456c6504712f602077b",
+        "source-provenance.json": "79d11565a88e30084cf0c691bc160ce5d2cb5031edc684cde2b2e04d97369727",
+        "probe-source.py": "30a41e18bf20dea0f56cd12ac33c84d9a7c38ac1ad5afa2656eec23a7b9e090e"
+      },
+      "limits": {
+        "old_matrix_reexecuted_on_final_snapshot": false,
+        "source_corpus_executed": false,
+        "consumer_state_mutated": false,
+        "observer_policy_used": false,
+        "CodeMode_exercised": false
+      }
+    }
+  },
+  "opencode": {
+    "runtime": "OpenCode 2.0.12",
+    "runtime_sha256": "58d550b26e9241759a6906c65f1e0605eaf512d63cbaf6d8eb472375b9311c95",
+    "baseline_cases": 8,
+    "parser_regression_cases": 4,
+    "proofs": [
+      {
+        "mode": "matrix",
+        "cases": 6,
+        "source_normalizer_sha256": "89823d386a7c84ed63d1c3d49186838ca49d4424d39e232857197aaf1b631da4",
+        "sdk_central_denials": 2,
+        "sdk_native_successes": 0,
+        "native_markdown_bodies_verified": true,
+        "natural_exit_code": 0,
+        "loopback_requests": 12,
+        "external_provider_requests": 0,
+        "source_snapshot_sha256": "332fec15e63962d146c2cdc9c42265820c90c5ff3ec40eef2cc45e0d7c69f5d6",
+        "result_sha256": "782dfe26af9453334eee3cea47e1874e60826211f78b65f104e4a1ea8882506b"
+      },
+      {
+        "mode": "children",
+        "cases": 2,
+        "source_normalizer_sha256": "89823d386a7c84ed63d1c3d49186838ca49d4424d39e232857197aaf1b631da4",
+        "sdk_central_denials": 1,
+        "sdk_native_successes": 0,
+        "native_markdown_bodies_verified": true,
+        "natural_exit_code": 0,
+        "loopback_requests": 8,
+        "external_provider_requests": 0,
+        "source_snapshot_sha256": "332fec15e63962d146c2cdc9c42265820c90c5ff3ec40eef2cc45e0d7c69f5d6",
+        "result_sha256": "180573e790a489ac5c77528f089274e538793c3649f91652ab8718c853ca80a5",
+        "real_children_with_parentID": 2
+      },
+      {
+        "mode": "unicode",
+        "cases": 2,
+        "source_normalizer_sha256": "9827f5fd7af914bbaafd983b63ff6b17ac70ba4502328aca931145a5d7cad45f",
+        "sdk_central_denials": 1,
+        "sdk_native_successes": 1,
+        "native_markdown_bodies_verified": true,
+        "natural_exit_code": 0,
+        "loopback_requests": 4,
+        "external_provider_requests": 0,
+        "source_snapshot_sha256": "ceb63386b0a49995789fbd6f8886b9ddd9bd9148bd6eeb8b08b97765fd46753e",
+        "result_sha256": "8135b6fdc101acb9030640e53969779e7d68a098a6528b9d8aabe8be25758afc"
+      },
+      {
+        "mode": "context",
+        "cases": 2,
+        "source_normalizer_sha256": "9827f5fd7af914bbaafd983b63ff6b17ac70ba4502328aca931145a5d7cad45f",
+        "sdk_central_denials": 1,
+        "sdk_native_successes": 1,
+        "native_markdown_bodies_verified": true,
+        "natural_exit_code": 0,
+        "loopback_requests": 4,
+        "external_provider_requests": 0,
+        "source_snapshot_sha256": "ceb63386b0a49995789fbd6f8886b9ddd9bd9148bd6eeb8b08b97765fd46753e",
+        "result_sha256": "831823d99232fa221f80a61f3b3a0d42aa8248163d0773d37609db91a1a86b0d",
+        "protected_sha256": "a4f7fb5e721a17fa250464d9796505ce842cb4b6b4e9b4b077eef6103c9165b4",
+        "allowed_sha256": "1b068eece13eadc3c535ff222a3f65a19ee99fe0a7d2f948aa84a80cc5de9562"
+      }
+    ],
+    "private_proof_sha256": "fd516cb68d84f7d230fd08fed18ddaf301624f6531cc067cbf710b1fe8d22b80",
+    "excluded_failed_runs": [
+      {
+        "reason": "native model stub hid patch; allowed control unavailable"
+      },
+      {
+        "reason": "native model stub hid patch and fixture seed CRLF mismatch"
+      },
+      {
+        "reason": "protected file unchanged; fixture Windows write_text seeded CRLF while assertion expected LF"
+      }
+    ],
+    "limits": [
+      "ASCII matrix and child proof preserve their earlier exact source hashes; final normalizer delta covers both reviewed regressions independently.",
+      "Observer only records events; guard denial precedes it so denied calls do not appear in observer before events.",
+      "Own loopback model and isolated homes/config/project/native binary; no consumer installation or external provider execution."
+    ],
+    "grammar_delta": {
+      "cases": 6,
+      "proofs": [
+        {
+          "variant": "environment",
+          "cases": 2,
+          "role": "custom-agents-implementer",
+          "sdk_central_denials": 1,
+          "sdk_native_patch_successes": 1,
+          "exact_allowed_sha256": "7e6518373b1a8cf5eed9717076284744ba44ace422c7877442aebcceecc42a23",
+          "normalizer_sha256": "3347254bbbd53e6440f2d54123e737727c8251157975ebb064266795ff46bd51",
+          "source_snapshot_sha256": "3ec8bb4add893afeac9b18fd48891c3dbdfdbcb6eaa7cfc15e356c64b4b5f235",
+          "result_sha256": "44978ba16b4c87c56ced1f7703830b8343c3a052502d499adb6a9eda23405040",
+          "native_markdown_bodies_verified": true,
+          "natural_exit_code": 0,
+          "loopback_requests": 4,
+          "external_provider_requests": 0
+        },
+        {
+          "variant": "heredoc",
+          "cases": 2,
+          "role": "custom-agents-implementer",
+          "sdk_central_denials": 1,
+          "sdk_native_patch_successes": 1,
+          "exact_allowed_sha256": "7e6518373b1a8cf5eed9717076284744ba44ace422c7877442aebcceecc42a23",
+          "normalizer_sha256": "3347254bbbd53e6440f2d54123e737727c8251157975ebb064266795ff46bd51",
+          "source_snapshot_sha256": "3ec8bb4add893afeac9b18fd48891c3dbdfdbcb6eaa7cfc15e356c64b4b5f235",
+          "result_sha256": "81e7b8e7ffed916573a42605dca1cdd666557d3a92cc112cab0a9e4a60d0916d",
+          "native_markdown_bodies_verified": true,
+          "natural_exit_code": 0,
+          "loopback_requests": 4,
+          "external_provider_requests": 0
+        },
+        {
+          "variant": "heredoc-cat",
+          "cases": 2,
+          "role": "custom-agents-implementer",
+          "sdk_central_denials": 1,
+          "sdk_native_patch_successes": 1,
+          "exact_allowed_sha256": "7e6518373b1a8cf5eed9717076284744ba44ace422c7877442aebcceecc42a23",
+          "normalizer_sha256": "3347254bbbd53e6440f2d54123e737727c8251157975ebb064266795ff46bd51",
+          "source_snapshot_sha256": "3ec8bb4add893afeac9b18fd48891c3dbdfdbcb6eaa7cfc15e356c64b4b5f235",
+          "result_sha256": "3a3b51712e9aeb5319ab1ba0073b9b3857840227544c1880d5a57788b09c5a08",
+          "native_markdown_bodies_verified": true,
+          "natural_exit_code": 0,
+          "loopback_requests": 4,
+          "external_provider_requests": 0
+        }
+      ],
+      "private_proof_sha256": "fe6edf7ed4fc4d9becc6abd1b99136e1b15eeb97c12e9801eac386e68233a0df",
+      "limits": [
+        "This cohort predates boundary/whitespace corrections R-3/R-4; exact execution hashes are retained."
+      ]
+    },
+    "boundary_whitespace_delta": {
+      "cases": 6,
+      "indentation": {
+        "runtime": "OpenCode 2.0.12",
+        "native_sha256": "58d550b26e9241759a6906c65f1e0605eaf512d63cbaf6d8eb472375b9311c95",
+        "regression": "multiAdd first src/control and second indented header docs/roadmap/own/spec.md denied atomically; counterpart tasks.md allowed",
+        "cases": 2,
+        "role": "custom-agents-implementer",
+        "sdk_central_second_path_denials": 1,
+        "sdk_native_multiAdd_successes": 1,
+        "exact_allowed_tasks_sha256": "7e6518373b1a8cf5eed9717076284744ba44ace422c7877442aebcceecc42a23",
+        "exact_allowed_control_sha256": "73cb3858a687a8494ca3323053016282f3dad39d42cf62ca4e79dda2aac7d9ac",
+        "normalizer_sha256": "43f6c5ce0dc0a188fb95a9328d3d5ea48f72ce3268d282d6f669f213a5153497",
+        "source_snapshot_sha256": "38b58ec91df436ac2de62c7be545b01875cde53cb61b796b5af4502affa4ee06",
+        "result_sha256": "8ad01a2ab5ed9b2544d3d58670bbce921142f99acd48c74d14c26bc44d5384e2",
+        "native_markdown_bodies_verified": true,
+        "natural_exit_code": 0,
+        "loopback_requests": 4,
+        "external_provider_requests": 0,
+        "limitations": [
+          "Separate R3 snapshot; previous matrix/child/Unicode/context/grammar cohorts retain their original source hashes.",
+          "Observer only records events; protected multiAdd call was denied before the observer and before either file effect.",
+          "Owned model gpt-own-fixture enables the native patch tool; loopback provider, isolated homes/config/project/native binary, no consumer settings."
+        ]
+      },
+      "bom": {
+        "proofs": [
+          {
+            "variant": "bom-add",
+            "cases": 2,
+            "role": "custom-agents-implementer",
+            "sdk_central_denials": 1,
+            "sdk_native_patch_successes": 1,
+            "normalizer_sha256": "43f6c5ce0dc0a188fb95a9328d3d5ea48f72ce3268d282d6f669f213a5153497",
+            "source_snapshot_sha256": "38b58ec91df436ac2de62c7be545b01875cde53cb61b796b5af4502affa4ee06",
+            "result_sha256": "f117f30da4bce5ca1d474b9342e006d2ae1abf99432365c5a40ed10da17735eb",
+            "native_markdown_bodies_verified": true,
+            "natural_exit_code": 0,
+            "loopback_requests": 4,
+            "external_provider_requests": 0,
+            "exact_allowed_sha256": "7e6518373b1a8cf5eed9717076284744ba44ace422c7877442aebcceecc42a23"
+          },
+          {
+            "variant": "bom-update",
+            "cases": 2,
+            "role": "custom-agents-architect",
+            "sdk_central_denials": 1,
+            "sdk_native_patch_successes": 1,
+            "normalizer_sha256": "43f6c5ce0dc0a188fb95a9328d3d5ea48f72ce3268d282d6f669f213a5153497",
+            "source_snapshot_sha256": "38b58ec91df436ac2de62c7be545b01875cde53cb61b796b5af4502affa4ee06",
+            "result_sha256": "05365814c5671465f5bdd04e25168f9e5597c9fc3fa818475a1d859ddde3489f",
+            "native_markdown_bodies_verified": true,
+            "natural_exit_code": 0,
+            "loopback_requests": 4,
+            "external_provider_requests": 0,
+            "protected_sha256": "7e6518373b1a8cf5eed9717076284744ba44ace422c7877442aebcceecc42a23",
+            "allowed_sha256": "7aa7a5359173d05b63cfd682e3c38487f3cb4f7f1d60659fe59fab1505977d4c"
+          }
+        ],
+        "limits": [
+          "Separate R4 snapshot; earlier proof cohorts retain their original source hashes.",
+          "Actual production role Markdown loaded by native directory discovery; observer only records events.",
+          "Owned gpt-own-fixture model exposes native patch; all provider traffic loopback, isolated homes/config/project/native binary, no consumer settings."
+        ]
+      },
+      "private_proof_sha256": {
+        "indentation": "e834117c21c9ddabe9d483bb21817720332af5623e03a32af23cd20d9a8e5210",
+        "bom": "c1a25e29d14944618dcbfbc6aa1741f7ed3c0847a17c83742c3e57dd81f3a71f"
+      },
+      "limits": [
+        "R-3/R-4 delta uses the historical 43f6c5ce source; it does not test or resolve R-5."
+      ]
+    },
+    "nel_filename_delta": {
+      "cases": 2,
+      "proof": {
+        "runtime": "OpenCode 2.0.12",
+        "runtime_sha256": "58d550b26e9241759a6906c65f1e0605eaf512d63cbaf6d8eb472375b9311c95",
+        "normalizer_sha256": "bbd3608c9a5fdd8082820b163266397cc9cc6b3aa557e138de324983e60a7dcf",
+        "native_role": "custom-agents-implementer",
+        "cases": 2,
+        "protected_delete_denied_before_both_file_effects": true,
+        "allowed_delete_and_nel_add_exact_bytes": true,
+        "allowed_nel_content_sha256": "73cb3858a687a8494ca3323053016282f3dad39d42cf62ca4e79dda2aac7d9ac",
+        "native_markdown_bodies_verified": true,
+        "natural_exit_code": 0,
+        "loopback_requests": 4,
+        "external_provider_requests": 0,
+        "raw_evidence_sha256": {
+          "result.json": "de413522e80151b2008bc46c436a6d790e14da69d4068842dade8bec5f27bc1c",
+          "distribution-source-hashes.json": "3916ad4af9e97d6d4257b5f8f7ba11bb7614d132b6bb452f058ac92a6aaa2a10",
+          "requests.json": "b1683e4b3c89e9e500cb8763d188972ae60fccc69efd7c0fc5726176a7d0e4d3",
+          "events.jsonl": "395635d08be4998ba44df53e77bc66a4b1971c8e0b7f74c68ca89e4e9f03d2b2",
+          "server-output.json": "f102a4ef91487b0f331bc2e18121a820584d7468137d556aa915b827b174ce62"
+        },
+        "limits": [
+          "Own isolated fixture and loopback model; observer only records and does not implement policy.",
+          "R-5 alone is executed against this snapshot; previous native cohorts retain their exact hashes.",
+          "Consumer installation/cache is not activated; global memory closure remains open."
+        ]
+      },
+      "private_proof_sha256": "0ae2f7a8a36292540cbef8da63eb13b6d6d2afa7a472f3ada8a71c07415539c8"
+    },
+    "linear_heredoc_delta": {
+      "cases": 2,
+      "proofs": [
+        {
+          "variant": "heredoc",
+          "cases": 2,
+          "role": "custom-agents-implementer",
+          "sdk_central_denials": 1,
+          "sdk_native_patch_successes": 1,
+          "exact_allowed_sha256": "7e6518373b1a8cf5eed9717076284744ba44ace422c7877442aebcceecc42a23",
+          "normalizer_sha256": "17fcd2ba07097e84287fbb3ffb8d53677dadf5285681e213dd50d35ae2d869e0",
+          "source_snapshot_sha256": "588e9b574b6a116cd36e2dd4e7c2692ed5ba7e1046666c120ffe8cd895e379b2",
+          "result_sha256": "29a7d0b92df04b6e4ca212299367b64cd30448d1bd3581e62df7abfc1f4c1c47",
+          "native_markdown_bodies_verified": true,
+          "natural_exit_code": 0,
+          "loopback_requests": 4,
+          "external_provider_requests": 0
+        }
+      ],
+      "private_proof_sha256": "d217acf7ed6edc326cf66b4448badebd6cbae665ac8ec9d5ef87e1b9be2f7d11",
+      "limits": [
+        "R-6 linear scanner native heredoc delta; previous matrix/child/Unicode/context snapshots retain their original source hashes.",
+        "Observer only records events; protected call was denied before observer before event.",
+        "Owned model gpt-own-fixture enables the native patch tool; all provider traffic loopback, own config/homes/project/binary, no consumer settings."
+      ]
+    }
+  },
+  "limits": [
+    "Owned runtime IDs identify roles, not prompt provenance.",
+    "Fixtures use isolated homes, projects, loopback providers and runtime binaries; consumer cache is not activated.",
+    "Earlier 5s native guard failures remain preserved; the instrumented timing probes are diagnostics, not production efficacy evidence.",
+    "Unknown or incomplete tools degrade and retain runtime permissions; guards are not a universal shell/MCP sandbox."
+  ]
+}

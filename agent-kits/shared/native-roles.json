@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "runtimes": {
+    "claude": {
+      "analyst": "custom-agents:analyst",
+      "architect": "custom-agents:architect",
+      "documenter": "custom-agents:documenter",
+      "evaluator": "custom-agents:evaluator",
+      "implementer": "custom-agents:implementer",
+      "knowledge-curator": "custom-agents:knowledge-curator",
+      "nemesis": "custom-agents:nemesis",
+      "planner": "custom-agents:planner",
+      "qa": "custom-agents:qa",
+      "reviewer": "custom-agents:reviewer"
+    },
+    "codex": {
+      "analyst": "custom-agents-analyst",
+      "architect": "custom-agents-architect",
+      "documenter": "custom-agents-documenter",
+      "evaluator": "custom-agents-evaluator",
+      "implementer": "custom-agents-implementer",
+      "knowledge-curator": "custom-agents-knowledge-curator",
+      "nemesis": "custom-agents-nemesis",
+      "planner": "custom-agents-planner",
+      "qa": "custom-agents-qa",
+      "reviewer": "custom-agents-reviewer"
+    },
+    "opencode": {
+      "analyst": "custom-agents-analyst",
+      "architect": "custom-agents-architect",
+      "documenter": "custom-agents-documenter",
+      "evaluator": "custom-agents-evaluator",
+      "implementer": "custom-agents-implementer",
+      "knowledge-curator": "custom-agents-knowledge-curator",
+      "nemesis": "custom-agents-nemesis",
+      "planner": "custom-agents-planner",
+      "qa": "custom-agents-qa",
+      "reviewer": "custom-agents-reviewer"
+    }
+  }
+}

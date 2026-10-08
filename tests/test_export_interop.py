@@ -47,6 +47,76 @@ def _mod():
 MOD = _mod()
 
 
+def test_native_roles_map_and_exports_use_exact_owned_ids():
+    plan = MOD.generar(ROOT)
+    assert 'agent-kits/shared/native-roles.json' in plan
+    mapping = json.loads(plan['agent-kits/shared/native-roles.json'])
+    roles = [n for n, _, _ in MOD.piezas(ROOT, 'agents')]
+    assert mapping == {'schema_version': 1, 'runtimes': {
+        runtime: {n: ('custom-agents:' if runtime == 'claude' else 'custom-agents-') + n
+                  for n in roles} for runtime in ('claude', 'codex', 'opencode')}}
+    for role in roles:
+        native = mapping['runtimes']['codex'][role]
+        assert tomllib.loads(plan[f'interop/codex/agents/{native}.toml'])['name'] == native
+        assert f'interop/opencode/agents/{native}.md' in plan
+        assert f'interop/codex/agents/{role}.toml' not in plan
+
+
+def test_delegation_adapts_owned_ids_without_rewriting_source_body():
+    body = 'Delegate reviewer. Read agents/reviewer.md and user-reviewer instructions.\n'
+    codex = MOD.codex_agente('architect', 'description: Own\ntools: Read', body)
+    assert 'spawn_agent' in codex and 'agent_type' in codex
+    assert 'reviewer → `custom-agents-reviewer`' in codex
+    assert body in codex
+    opencode = MOD.opencode_agente('architect', 'description: Own\ntools: Read', body)
+    assert '`subagent`' in opencode and 'agent: "custom-agents-reviewer"' in opencode
+    assert body in opencode
+
+
+def test_obsolete_generated_exports_are_removed_without_touching_unowned_files(tmp_path, capsys):
+    own = tmp_path / 'interop/codex/agents/architect.toml'
+    own.parent.mkdir(parents=True)
+    own.write_text(MOD.cabecera('toml', 'agents/architect.md') + 'old export\n', encoding='utf8')
+    user = tmp_path / 'interop/codex/agents/consumer.toml'
+    user.write_text('name = "consumer"\n', encoding='utf8')
+    plan = {'interop/codex/agents/custom-agents-architect.toml': 'new export\n'}
+    assert MOD.comprobar(str(tmp_path), plan) == 1
+    assert 'OBSOLETO' in capsys.readouterr().out
+    assert MOD.escribir(str(tmp_path), plan, quiet=True) == 0
+    assert not own.exists() and user.read_text(encoding='utf8') == 'name = "consumer"\n'
+    assert MOD.comprobar(str(tmp_path), plan) == 0
+
+
+@pytest.mark.parametrize('quote', ['', '"'])
+def test_codex_exports_known_launcher_runtime_and_pretool_registration(tmp_path, quote):
+    (tmp_path / 'hooks').mkdir()
+    command = 'node "${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.mjs" ' + quote + 'session-context.sh' + quote
+    guard = 'node "${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.mjs" ' + quote + 'native-guardrail' + quote + ' --runtime=claude'
+    src = {'hooks': {'SessionStart': [{'hooks': [{'command': command, 'timeout': 5}]}],
+                     'PreToolUse': [{'matcher': 'Write|Bash', 'hooks': [{'command': guard, 'timeout': 5}]}]}}
+    (tmp_path / 'hooks/hooks.json').write_text(json.dumps(src), encoding='utf8')
+    hooks = json.loads(MOD.codex_hooks_json(str(tmp_path)))['hooks']
+    assert hooks['SessionStart'][0]['hooks'][0]['command'] == command + ' --runtime=codex'
+    assert hooks['PreToolUse'][0]['matcher'] == '^(Bash|apply_patch|PowerShell)$'
+    assert hooks['PreToolUse'][0]['hooks'][0]['command'] == guard.replace('--runtime=claude', '--runtime=codex')
+
+
+def test_opencode_v2_permission_actions_match_native_shell_and_subagent():
+    permissions = MOD.permisos_opencode(['Read'])
+    assert permissions['shell'] == 'deny' and permissions['subagent'] == 'deny'
+    assert 'bash' not in permissions and 'task' not in permissions
+    permissions = MOD.permisos_opencode(['Read', 'Bash', 'Agent'])
+    assert permissions['shell'] == 'allow' and permissions['subagent'] == 'allow'
+
+
+def test_guard_description_uses_the_same_native_map_as_exported_name():
+    mapping = {'schema_version': 1, 'runtimes': {'codex': {'architect': 'custom-agents-own-architect'}}}
+    exported = tomllib.loads(MOD.codex_agente('architect', 'description: Owned\ntools: Read, Edit', 'Own body', mapping))
+    assert exported['name'] == 'custom-agents-own-architect'
+    assert 'ID exacto `custom-agents-own-architect`' in exported['developer_instructions']
+    assert '{native_id}' not in exported['developer_instructions']
+
+
 def test_opencode_exporta_paquete_nativo_y_config_sin_instructions():
     plan = MOD.generar(ROOT)
     package = json.loads(plan['interop/opencode/plugins/custom-agents/package.json'])
@@ -111,8 +181,8 @@ def test_cubre_todas_las_piezas():
     plan = MOD.generar(ROOT)
     agentes = [f[:-3] for f in sorted(os.listdir(os.path.join(ROOT, "agents"))) if f.endswith(".md")]
     comandos = [f[:-3] for f in sorted(os.listdir(os.path.join(ROOT, "commands"))) if f.endswith(".md")]
-    faltan = [r for n in agentes for r in (f"interop/codex/agents/{n}.toml",
-                                           f"interop/opencode/agents/{n}.md") if r not in plan]
+    faltan = [r for n in agentes for r in (f"interop/codex/agents/custom-agents-{n}.toml",
+                                           f"interop/opencode/agents/custom-agents-{n}.md") if r not in plan]
     faltan += [r for n in comandos for r in (f"interop/codex/prompts/{n}.md",
                                              f"interop/opencode/commands/{n}.md") if r not in plan]
     assert not faltan, "piezas sin traducir: %s" % faltan
@@ -306,18 +376,18 @@ def test_generados_llevan_marca():
 
 def test_reviewer_no_declara_sandbox_independiente_inexistente():
     """Codex 0.161.0 conserva permisos del padre: el TOML no impone read-only."""
-    with open(os.path.join(ROOT, "interop", "codex", "agents", "reviewer.toml"), "rb") as f:
+    with open(os.path.join(ROOT, "interop", "codex", "agents", "custom-agents-reviewer.toml"), "rb") as f:
         codex = tomllib.load(f)
     assert "sandbox_mode" not in codex, "Codex ignora este campo por rol; no debe exportarse como protección"
-    bloque, _ = MOD.partir_frontmatter(leer("interop/opencode/agents/reviewer.md"))
+    bloque, _ = MOD.partir_frontmatter(leer("interop/opencode/agents/custom-agents-reviewer.md"))
     assert re.search(r"^\s+edit: deny$", bloque, re.M), "reviewer con `edit` permitido en OpenCode"
 
 
 def test_agentes_con_escritura_la_conservan():
     """La traducción no puede DEJAR SIN herramientas a quien las declara (p. ej. implementer)."""
-    bloque, _ = MOD.partir_frontmatter(leer("interop/opencode/agents/implementer.md"))
+    bloque, _ = MOD.partir_frontmatter(leer("interop/opencode/agents/custom-agents-implementer.md"))
     assert re.search(r"^\s+edit: allow$", bloque, re.M)
-    assert re.search(r"^\s+bash: allow$", bloque, re.M)
+    assert re.search(r"^\s+shell: allow$", bloque, re.M)
 
 
 def test_descripciones_de_skill_caben_en_opencode():

@@ -168,3 +168,46 @@ Las pruebas de mecanismo usan dispatchers privados y no acreditan todavía
 que la distribución instalada los conecte. El bypass de confianza de una
 fixture propia no prueba confianza persistida del consumidor. No se activa
 ningún backend de memoria ni se incorpora una skill en este bloque.
+
+## Bloque 4: conexión de guardias e instalación de IDs propios
+
+El bloque local sobre 8b51edd conecta el mapa generado, normalizador y evaluador
+central con PreToolUse Claude/Codex y `tool.execute.before` OpenCode V2. Usa solo
+metadata de identidad del runtime. Sin ID propio reconocido no consulta la
+configuración ni Git y continúa. No toma decisiones de guardia desde el input,
+texto del prompt, nombre de sesión ni identidad del agente padre. Cada operación
+se evalúa por separado, aun cuando un runtime reutilice el ID externo de llamada.
+
+Los IDs con prefijo reducen colisiones; no prueban procedencia del prompt. Una
+redefinición exacta continúa siendo ese rol para el runtime. El instalador
+comprueba las capas conocidas, conserva agentes ajenos/modificados, referencias
+ambiguas y enlaces, y declara estado incompleto ante conflictos. La retirada de
+los exports anteriores exige manifiesto propio, hash publicado y un límite Git
+regular sin bindings. Las copias globales y worktrees ambiguos se conservan.
+
+El dispatcher traduce todas las mutaciones de los esquemas soportados, incluyendo
+origen/destino de patch. La excepción de enlaces de diseño se evalúa por hunk;
+move/delete se consideran mutaciones completas. No se pretende inspeccionar
+toda escritura indirecta desde shell/MCP. Input incompleto, superior a 64 KiB,
+herramientas desconocidas o fallos internos mantienen los permisos del runtime
+con diagnóstico cuando corresponda. El opt-out explícito se conserva.
+
+La decisión de ubicación aceptada en el intento 5 reemplaza la exclusividad de
+frontmatter de ADR-007, manteniendo el alcance por rol (ADR-023 en memoria local).
+Las copias locales Claude conservan sus wrappers; los agentes de plugin no
+ejecutan ese campo. Las instrucciones expresan reglas del rol y requisitos
+reales de carga, sin prometer una frontera universal de permisos.
+
+Las primeras pruebas de la distribución de 5 s detectaron que el runtime
+descarta `deny` si el proceso tarda en cerrar. Un control aislado reproduce
+6.261 ms y un diagnóstico separado mide 802 ms: arranque/cleanup Windows
+varían, sin evidencia de un cuelgue permanente. Se mantiene la contención y
+el presupuesto interno de 4,5 s; el registro previo Claude/Codex pasa a 10 s y
+OpenCode a 10,5 s incluyendo arranque/cierre. SessionEnd Codex sigue limitado a
+3 s. La captura escrita antes del cierre y el aviso del runtime se comprueban
+por separado. Se conservan los fallos como evidencia. Las fichas de
+[ejecución nativa](native-role-integration-evidence.json) y
+[QA](native-role-qa-evidence.json) registran cohortes con sus hashes, correcciones
+de parser y reintentos intermitentes por identidad; no atribuyen la matriz
+histórica completa a la fuente final. La aceptación de este bloque se registra
+en el ledger; la eficacia SessionEnd y aceptación de memoria siguen abiertas.

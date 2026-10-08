@@ -3,4 +3,6 @@
 set -u
 HERE="$(cd "$(dirname "$BASH_SOURCE")" && pwd)"
 export PATH="$HERE/runtime-bin:$PATH"
-exec bash "$HERE/$1"
+HOOK="$1"
+shift
+exec bash "$HERE/$HOOK" "$@"

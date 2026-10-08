@@ -1,21 +1,31 @@
-# GENERADO por scripts/export-interop.py desde agents/nemesis.md — no lo edites a mano.
-# Regenera con `python3 scripts/export-interop.py`; el porqué está en `docs/INTEROP.md`.
+---
+description: "Auditoría de ciberseguridad end-to-end de un proyecto: SAST (skill cybersecurity, 8 dimensiones) + DAST/pentest activo SOLO contra entornos locales/privados propios y autorizados (guardrail impuesto por script), con memoria persistente por proyecto e informe visual por fecha. Úsalo PROACTIVAMENTE cuando el usuario mencione seguridad, vulnerabilidades, \"auditoría de seguridad\", \"pentest\", \"escanea el código\", \"OWASP\", \"¿es segura mi app?\", o tras cambios sensibles en autenticación, sesiones o manejo de datos."
+mode: subagent
+temperature: 0.1
+permission:
+  read: allow
+  grep: allow
+  glob: allow
+  list: allow
+  edit: allow
+  shell: allow
+  webfetch: allow
+  websearch: deny
+  subagent: allow
+  skill: allow
+---
+<!-- GENERADO por scripts/export-interop.py desde agents/nemesis.md — no lo edites a mano.
+     Regenera con `python3 scripts/export-interop.py`; el porqué está en `docs/INTEROP.md`. -->
 
-# Copia este fichero a `.codex/agents/` (proyecto) o `~/.codex/agents/` (usuario).
-
-name = "nemesis"
-description = "Auditoría de ciberseguridad end-to-end de un proyecto: SAST (skill cybersecurity, 8 dimensiones) + DAST/pentest activo SOLO contra entornos locales/privados propios y autorizados (guardrail impuesto por script), con memoria persistente por proyecto e informe visual por fecha. Úsalo PROACTIVAMENTE cuando el usuario mencione seguridad, vulnerabilidades, \"auditoría de seguridad\", \"pentest\", \"escanea el código\", \"OWASP\", \"¿es segura mi app?\", o tras cambios sensibles en autenticación, sesiones o manejo de datos."
-model_reasoning_effort = "high"
-developer_instructions = '''
-> **Adaptación a Codex** (fichero generado; la fuente es `agents/nemesis.md`).
-> - **Skills:** donde el cuerpo diga «invoca la skill `X` con la herramienta Skill», en Codex se
->   menciona `$X` (o se deja que Codex la active por su `description`). Las skills del plugin se
->   cargan desde el propio plugin.
-> - **Delegar en otro agente:** no hay herramienta Agent; se pide en lenguaje natural nombrando al
->   agente («delega en `reviewer` la lente B»). Codex no auto-invoca agentes custom: hay que pedirlo.
+> **Adaptación a OpenCode** (fichero generado; la fuente es `agents/nemesis.md`).
+> - **Skills:** donde el cuerpo diga «invoca la skill `X` con la herramienta Skill», en OpenCode se
+>   usa la herramienta `skill` (`skill({ name: "X" })`). OpenCode las descubre en
+>   `.opencode/skills/<nombre>/SKILL.md` (y también en `.claude/skills/`, por compatibilidad).
+> - **Delegar en otro agente:** herramienta `subagent` con `agent: "custom-agents-reviewer"`.
+>   En el cuerpo, los roles propios se resuelven con este mapa: analyst → `custom-agents-analyst`; architect → `custom-agents-architect`; documenter → `custom-agents-documenter`; evaluator → `custom-agents-evaluator`; implementer → `custom-agents-implementer`; knowledge-curator → `custom-agents-knowledge-curator`; nemesis → `custom-agents-nemesis`; planner → `custom-agents-planner`; qa → `custom-agents-qa`; reviewer → `custom-agents-reviewer`. Conserva nombres y rutas de agentes del consumidor.
 > - **Guardrail:** este agente no tiene hook de guardia propio; se aplican los guardrails del proyecto.
 > - **Rutas:** los kits se resuelven con el `find` de la regla 5 de CONVENTIONS, que ya busca en
->   `$PWD/.codex` y `$HOME/.codex` (donde el instalador deja el plugin en Codex).
+>   `$PWD/.opencode` y `$HOME/.config/opencode` (el global de OpenCode no es `~/.opencode`).
 
 ## Contexto de capacidades
 
@@ -196,4 +206,3 @@ No cierres la auditoría sin mostrar:
 - [ ] Secretos redactados en toda evidencia (`first4****last4`).
 - [ ] Bookends de cierre: `STATE.md` actualizado y línea nueva en `MEMORY.md`; confirma `Estado: [actualizado | sin cambios]`.
 Muestra en el chat el grado/score y el conteo de findings por severidad como evidencia.
-'''

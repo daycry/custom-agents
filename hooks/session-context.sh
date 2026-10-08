@@ -54,6 +54,16 @@
 #   echo '{"hook_event_name":"SessionStart","source":"startup"}' | bash hooks/session-context.sh
 set -u
 
+# Selector del launcher, nunca de los campos del payload ni de variables del consumidor.
+RUNTIME="claude"
+case "${1:-}" in
+  --runtime=claude) RUNTIME="claude" ;;
+  --runtime=codex) RUNTIME="codex" ;;
+  --runtime=opencode) RUNTIME="opencode" ;;
+  "") ;;
+  *) exit 0 ;;
+esac
+
 INPUT="$(cat 2>/dev/null || true)"
 
 command -v python3 >/dev/null 2>&1 || exit 0
@@ -180,7 +190,7 @@ fi
 
 # (1) Índice de piezas (el script decide caché, dev.json y localización del plugin; exit 0 siempre).
 if [ -f "$SHARED/skill-index.py" ]; then
-  idx="$(CLAUDE_PROJECT_DIR="$ROOT" python3 "$SHARED/skill-index.py" 2>/dev/null || true)"
+  idx="$(CLAUDE_PROJECT_DIR="$ROOT" python3 "$SHARED/skill-index.py" --runtime "$RUNTIME" 2>/dev/null || true)"
   [ -n "$idx" ] && partes="${partes:+$partes
 
 }$idx"

@@ -356,7 +356,8 @@ const codex = {
       ...PAYLOAD_COMUN.map((p) => ({ type: "copy", from: p, to: join(plugin, p) })),
       { type: "copy", from: ".codex-plugin", to: join(plugin, ".codex-plugin") },
       { type: "copy", from: "interop/codex/hooks.json", to: join(plugin, "interop", "codex", "hooks.json") },
-      { type: "copy", from: "interop/codex/agents", to: join(base, "agents") },
+      { type: "copy", from: "interop/codex/agents", to: join(base, "agents"),
+        nativeAgents: {runtime:"codex", scope, projectDir:dir, base, agentDirs:[join(GLOBAL_DIR.codex,'agents')], configs:[config, join(GLOBAL_DIR.codex,"config.toml")]} },
       // Los prompts (`/prompts:<n>`) solo se leen desde CODEX_HOME: Codex no tiene prompts por
       // proyecto. Se avisa siempre, porque con `--scope project` es lo ÚNICO que sale del proyecto.
       {
@@ -511,7 +512,9 @@ const opencode = {
         config: { to: cfg, remove: { plugin: [anterior], plugins: [anterior], instructions: [idxRel] } },
       },
       ...PAYLOAD_COMUN.map((p) => ({ type: "copy", from: p, to: join(base, p) })),
-      { type: "copy", from: "interop/opencode/agents", to: join(base, "agents") },
+      { type: "copy", from: "interop/opencode/agents", to: join(base, "agents"),
+        nativeAgents: {runtime:"opencode", scope, projectDir:dir, base, agentDirs:[join(GLOBAL_DIR.opencode,'agents')], configs:[cfg, cfg.replace(/\.json$/,'.jsonc'),
+          join(GLOBAL_DIR.opencode,'opencode.json'),join(GLOBAL_DIR.opencode,'opencode.jsonc')]} },
       { type: "copy", from: "interop/opencode/commands", to: join(base, "commands") },
       // El manifiesto del plugin viaja también aquí: sin él `/doctor` no puede decir la versión
       // instalada (lee `<raíz>/.claude-plugin/plugin.json`) y OpenCode no tiene ningún otro origen

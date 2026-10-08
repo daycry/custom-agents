@@ -8,7 +8,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const root = dirname(here);
 const known = new Set(['session-journal.sh', 'user-prompt-capture.sh', 'session-context.sh',
   'subagent-progress.sh', 'mark-docs-pending.sh', 'ledger-lint-warn.sh', 'progress-line.sh',
-  'implementer-guardrail.sh', 'architect-guardrail.sh']);
+  'implementer-guardrail.sh', 'architect-guardrail.sh', 'native-guardrail']);
 const hook = process.argv[2];
 const runtime = process.argv[3] || '--runtime=claude';
 const warn = message => process.stderr.write(`custom-agents hooks: ${message}\n`);
@@ -46,13 +46,18 @@ async function main() {
   const py = python();
   if (!py) { warn('Python unavailable; hook skipped'); return; }
   let command, args;
-  // Teardown uses native Python directly: no WSL, Bash, find, git or shell startup.
-  if (hook === 'session-journal.sh' || hook === 'user-prompt-capture.sh') {
+  const guard = hook === 'native-guardrail';
+  // Capture and native guards use contained Python without shell startup.
+  if (guard || hook === 'session-journal.sh' || hook === 'user-prompt-capture.sh') {
     command = py.command;
-    args = hook === 'session-journal.sh'
+    args = guard
+      ? [...py.args, '-I', '-S', join(root, 'agent-kits', 'shared', 'native-guardrail.py'),
+        '--runtime', runtime.slice('--runtime='.length), '--output', runtime === '--runtime=opencode' ? 'structured' : 'native']
+      : hook === 'session-journal.sh'
       ? [...py.args, '-I', '-S', join(root, 'agent-kits', 'shared', 'journal-capture.py')]
       : [...py.args, join(root, 'agent-kits', 'shared', 'journal.py'), 'capture'];
-    if (env.CLAUDE_PROJECT_DIR) args.push('--root', env.CLAUDE_PROJECT_DIR);
+    if (guard) args.push('--project-dir', env.CLAUDE_PROJECT_DIR || process.cwd());
+    else if (env.CLAUDE_PROJECT_DIR) args.push('--root', env.CLAUDE_PROJECT_DIR);
   } else {
     command = windows ? candidates(['bash.exe'])[0] : 'bash';
     if (!command) { warn('Git Bash unavailable; hook skipped'); return; }
@@ -62,6 +67,7 @@ async function main() {
       if (env.CLAUDE_PROJECT_DIR) env.CLAUDE_PROJECT_DIR = env.CLAUDE_PROJECT_DIR.replaceAll('\\', '/');
     }
     args = [join(here, 'runtime-entry.sh'), hook];
+    if (hook === 'session-context.sh') args.push(runtime);
   }
   const post = ['mark-docs-pending.sh', 'ledger-lint-warn.sh', 'progress-line.sh'].includes(hook);
   let input;
@@ -80,7 +86,7 @@ async function main() {
     } catch { /* malformed input remains informational; shell hooks degrade */ }
   }
   if (windows) {
-    const mode = ['session-journal.sh', 'user-prompt-capture.sh'].includes(hook) ? 'python' : 'exec';
+    const mode = guard || ['session-journal.sh', 'user-prompt-capture.sh'].includes(hook) ? 'python' : 'exec';
     args = [...py.args, '-I', '-S', join(here, 'runtime-supervisor.py'), 'run', String(process.pid), mode, command, ...args];
     command = py.command;
   }
@@ -124,9 +130,10 @@ async function main() {
     const timer = setTimeout(() => {
       if (!child.pid) return;
       timedOut = true;
-      // Leave room for native teardown and tree cleanup. Capture does no deferred work.
+      // This is the child budget. Native guard registrations also leave room
+      // for launcher startup and confirmed tree cleanup. Capture does no deferred work.
       void stop();
-    }, hook === 'session-journal.sh' ? (runtime === '--runtime=claude' ? 800 : 2200) : 20000);
+    }, guard ? 4500 : hook === 'session-journal.sh' ? (runtime === '--runtime=claude' ? 800 : 2200) : 20000);
     let output = '';
     if (post) {
       child.stdout.setEncoding('utf8');

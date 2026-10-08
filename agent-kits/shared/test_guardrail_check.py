@@ -324,3 +324,21 @@ def test_cli_agent_flag_y_env(tmp_path):
     r = subprocess.run([sys.executable, SCRIPT, "pre-tool", "--project-dir", str(tmp_path)],
                        input=payload, capture_output=True, text=True, encoding="utf-8", errors="replace", env={k: v for k, v in os.environ.items() if k != "CLAUDE_AGENT_NAME"})
     assert r.returncode == 0 and r.stdout.strip() == "", "implementer por defecto: src/app.py permitido en rama (sin git → sin ramaPrincipal)"
+
+
+def test_branch_query_accepts_hook_budget_and_degrades_on_timeout(monkeypatch):
+    def timed_out(*args, **kwargs):
+        assert kwargs["timeout"] == 0.5
+        raise subprocess.TimeoutExpired(args[0], kwargs["timeout"])
+    monkeypatch.setattr(gc.subprocess, "run", timed_out)
+    assert gc.current_branch(PROJ, timeout=0.5) is None
+
+
+def test_config_hook_limit_does_not_accept_oversized_optout(tmp_path):
+    folder = tmp_path / ".claude"
+    folder.mkdir()
+    path = folder / "dev.json"
+    path.write_text(json.dumps({"guardrails": False, "notes": "x" * 65536}), encoding="utf-8")
+    assert gc.load_config(str(tmp_path), max_bytes=65536) == (gc.DEFAULTS, True)
+    path.write_text('{"guardrails":false}', encoding="utf-8")
+    assert gc.load_config(str(tmp_path), max_bytes=65536) == (dict.fromkeys(gc.DEFAULTS, False), False)

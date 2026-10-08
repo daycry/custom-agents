@@ -17,9 +17,9 @@ model: opus
 effort: high
 # tools: Write/Edit SOLO sobre design.md (+ enlace `design:` de spec/plan con Edit) y docs/knowledge/adr/ + su índice.
 tools: Read, Grep, Glob, Bash, Write, Edit, WebFetch, WebSearch
-# Hook DE GUARDIA con alcance SOLO de este agente (ADR-007 + enmienda parity-core): decide
-# guardrail-check.py --agent architect (determinista, con tests); sin python3 no bloquea; desactivable en
-# .claude/dev.json `guardrails`. Sin CLAUDE_PLUGIN_ROOT, Node busca en las seis raíces del bundle.
+# Guardia para copias locales Claude; los agentes de plugin ignoran este campo.
+# El plugin selecciona el ID nativo propio (ADR-023), con guardrail-check.py --agent architect.
+# Opt-out .claude/dev.json `guardrails`. Sin CLAUDE_PLUGIN_ROOT busca el bundle local.
 hooks:
   PreToolUse:
     - matcher: "Write|Edit|MultiEdit|NotebookEdit|Bash"
@@ -73,7 +73,7 @@ usuario lo pide.
   complejidad por característica son insumo, no los recalculas).
 - **Salida:** `docs/roadmap/<fecha>-<slug>/design.md` con la plantilla del kit (formato FIJO) y, si la
   decisión cruza el umbral, un ADR en `docs/knowledge/adr/`.
-- **Alcance de escritura (impuesto por hook de guardia — `guardrail-check.py --agent architect`, PreToolUse solo de este agente):** escribes SOLO (a) `design.md`
+- **Alcance de escritura del rol (`guardrail-check.py --agent architect`):** escribes SOLO (a) `design.md`
   de la iniciativa, (b) el campo `design:` del frontmatter de `spec.md` y de `improvement-plan.md` (si ya
   existe) más su callout de una línea — **con Edit**, no reescribiendo el fichero; el hook solo deja pasar
   Edits que contengan `design:`/`design.md` —, (c) `docs/knowledge/adr/ADR-NNN-<slug>.md` y la fila del índice

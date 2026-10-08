@@ -5,7 +5,8 @@ description: "Abre un dashboard VIVO del estado del roadmap leyendo Jira en tiem
      Regenera con `python3 scripts/export-interop.py`; el porqué está en `docs/INTEROP.md`. -->
 
 > **Adaptación a OpenCode** (fichero generado; la fuente es `commands/roadmap-live.md`).
-> Este comando ORQUESTA agentes. En OpenCode no hay herramienta Agent: se delega con la herramienta `task` nombrando al subagente (o `@nombre`), definido en `.opencode/agents/`.
+> Este comando ORQUESTA agentes. En OpenCode no hay herramienta Agent: usa `subagent` con el campo `agent` igual al ID nativo, definido en `.opencode/agents/`.
+> En el cuerpo, los roles propios se resuelven con este mapa: analyst → `custom-agents-analyst`; architect → `custom-agents-architect`; documenter → `custom-agents-documenter`; evaluator → `custom-agents-evaluator`; implementer → `custom-agents-implementer`; knowledge-curator → `custom-agents-knowledge-curator`; nemesis → `custom-agents-nemesis`; planner → `custom-agents-planner`; qa → `custom-agents-qa`; reviewer → `custom-agents-reviewer`. Conserva nombres y rutas de agentes del consumidor.
 > Las skills se invocan con la herramienta `skill` (`skill({ name: "nombre" })`). Todo lo demás (puertas, artefactos, ledger) no cambia.
 
 # /roadmap-live — estado del roadmap en vivo desde Jira
