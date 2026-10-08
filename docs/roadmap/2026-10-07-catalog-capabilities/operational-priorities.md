@@ -46,6 +46,22 @@ teardown. Esta repriorización no declara ninguno de esos gaps corregido.
 
 ## Memoria: valoración inicial y comprobaciones pendientes
 
+### Dirección de diseño aceptada por el usuario
+
+El 2026-10-08 el usuario aceptó la recomendación de memoria:
+
+1. Mantener la memoria local versionada como base canónica.
+2. Mejorar primero la captura fiable y la recuperación local.
+3. Incorporar propuestas de aprendizaje con evidencia y revisión, usando
+   los servicios de memoria existentes.
+4. Conservar Kwipu como proyección documental y evaluar Graphiti para
+   relaciones e historial con consultas reales y métricas comparables.
+5. Condicionar cualquier ampliación del backend a los resultados medidos.
+
+Es una decisión de dirección, no evidencia de implementación ni de benchmark.
+El siguiente bloque operativo sigue siendo hooks en los tres runtimes,
+incluida la captura durable que sostiene la continuidad de memoria.
+
 La [comparación S053–S054](comparisons/skills-session-learning-memory.md)
 ya distingue captura por tool, propuestas pequeñas con trigger/evidencia y
 evolución hacia piezas reutilizables. Parte de la automatización anunciada
