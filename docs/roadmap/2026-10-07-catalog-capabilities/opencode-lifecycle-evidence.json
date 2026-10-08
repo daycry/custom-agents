@@ -1,0 +1,199 @@
+{
+  "schema_version": 1,
+  "observed_on": "2026-10-08",
+  "observation": "final frozen supervised payload; fresh transport-06-supervision after private harness UTF-8 fix",
+  "result": "passed",
+  "runtime": {
+    "name": "opencode",
+    "version": "2.0.12",
+    "binary_sha256": "58d550b26e9241759a6906c65f1e0605eaf512d63cbaf6d8eb472375b9311c95",
+    "official_source_revision": "2670273ff17da96f85c5826ced57aa1b368754fa"
+  },
+  "installation": {
+    "scope": "own project; same final frozen production snapshot",
+    "installer_exit": 0,
+    "adapter_sha256": "53c653bcd7cd39bed9a0aae6962f5cc117ba0e2ebecdda5136b15006a64f0d99",
+    "payload_provenance": [
+      {
+        "path": "hooks/run-hook.mjs",
+        "sha256": "5635a84af17a9aeb4911b081bc698d086bf296cc831981dfd27cad99ae128f5b"
+      },
+      {
+        "path": "hooks/runtime-supervisor.py",
+        "sha256": "af568b0f3a17d2fc7dedbd0c21fe1f844fd833e54a89831737a6b79c47660ba3"
+      },
+      {
+        "path": "agent-kits/shared/journal-capture.py",
+        "sha256": "63231769b0b0aea05395bade4c88c8f27d5f2c64ada7e94d4ca75abed6d13503"
+      },
+      {
+        "path": "agent-kits/shared/journal.py",
+        "sha256": "11af8ac4cb15f452c4a94443e3f487758d53ddb68ebc2831f07c76b4f9375c30"
+      },
+      {
+        "path": "agent-kits/shared/outbox.py",
+        "sha256": "9ff5cb708fb8794b552171c6521218aba939b5df5e288c01e84609d85b8cb12d"
+      },
+      {
+        "path": "plugins/custom-agents/index.js",
+        "sha256": "53c653bcd7cd39bed9a0aae6962f5cc117ba0e2ebecdda5136b15006a64f0d99"
+      },
+      {
+        "path": ".claude-plugin/plugin.json",
+        "sha256": "f55c8cdefd6ee9ba0e100bb550b0af286dbbad826345ad80315eff0a013397ad"
+      }
+    ]
+  },
+  "native_transport": {
+    "plugin_state": "active",
+    "held_prompts": 2,
+    "active_agent_loops": 2,
+    "loopback_model_requests": 4,
+    "unicode_prompt_capture": true,
+    "unicode_sentinel": "accented Latin character plus supplementary-plane emoji",
+    "private_turn_excluded": true,
+    "context_callback": true,
+    "write_and_post_tool_dispatch": true,
+    "terminal_dispatch": true,
+    "terminal_envelope_native_session_matches": true,
+    "terminal_envelope_versions": [
+      "1.22.0"
+    ],
+    "terminal_envelope_observed_before_server_exit": true,
+    "replay_materialized_in_next_native_session": true,
+    "server_exit_code": 0,
+    "process_terminal": true,
+    "whole_fixture_duration_s": 43.829,
+    "cleanup_forced": false
+  },
+  "isolation": {
+    "own_git_root": true,
+    "own_home_userprofile_appdata_localappdata_xdg_config_data_cache_state_and_temp": true,
+    "environment_keys": [
+      "APPDATA",
+      "COMSPEC",
+      "CUSTOM_AGENTS_PYTHON",
+      "HOME",
+      "LOCALAPPDATA",
+      "NO_PROXY",
+      "NUMBER_OF_PROCESSORS",
+      "OPENCODE_CONFIG",
+      "OPENCODE_CONFIG_PROJECT_DISABLE",
+      "OPENCODE_DISABLE_AUTOUPDATE",
+      "OPENCODE_DISABLE_FFF",
+      "OPENCODE_DISABLE_MODELS_FETCH",
+      "OPENCODE_FILEWATCHER_DISABLE",
+      "OPENCODE_SERVER_PASSWORD",
+      "OPENCODE_TEST_HOME",
+      "PATH",
+      "PATHEXT",
+      "PROCESSOR_ARCHITECTURE",
+      "PYTHONIOENCODING",
+      "SYSTEMROOT",
+      "TEMP",
+      "TMP",
+      "USERPROFILE",
+      "WINDIR",
+      "XDG_CACHE_HOME",
+      "XDG_CONFIG_HOME",
+      "XDG_DATA_HOME",
+      "XDG_STATE_HOME"
+    ],
+    "inherited_provider_credential_keys": [],
+    "model_provider": "owned loopback SSE with synthetic fixture API key",
+    "project_discovery_disabled": true,
+    "models_fetch_and_update_disabled": true,
+    "reference_corpus_executed": false
+  },
+  "limits": {
+    "ui_tested": false,
+    "runtime_cli_serve_tested": true,
+    "native_plugin_slash_commands_tested": false,
+    "guard_dispatch_tested": false,
+    "consumer_mcp_connections_tested": false,
+    "whole_fixture_duration_is_not_per_hook_latency": true,
+    "prior_attempt": "transport-05-supervision ended natural 0 but its private harness failed decoding observer UTF-8 before terminal/replay assertions"
+  },
+  "private_evidence_references": [
+    "scratchpad/.venv/opencode-current/transport-06-supervision/result.json",
+    "scratchpad/.venv/opencode-current/transport-06-supervision/installer.json",
+    "scratchpad/.venv/opencode-current/transport-06-supervision/native-version.json",
+    "scratchpad/.venv/opencode-current/transport-06-supervision/git-init.json",
+    "scratchpad/.venv/opencode-current/transport-06-supervision/server-output.json",
+    "scratchpad/.venv/opencode-current/transport-06-supervision/context-observed.json",
+    "scratchpad/.venv/opencode-current/transport-06-supervision/tool-observed.json",
+    "scratchpad/.venv/opencode-current/transport-06-supervision/terminal-envelopes.json",
+    "scratchpad/.venv/opencode-current/transport-06-supervision/requests.json",
+    "scratchpad/.venv/opencode-current/transport-06-supervision/events-observed.jsonl"
+  ],
+  "previous_private_harness_failure": {
+    "schema_version": 1,
+    "observed_on": "2026-10-08",
+    "result": "harness_failed",
+    "runtime": {
+      "name": "opencode",
+      "version": "2.0.12",
+      "binary_sha256": "58d550b26e9241759a6906c65f1e0605eaf512d63cbaf6d8eb472375b9311c95",
+      "source_commit": "2670273ff17da96f85c5826ced57aa1b368754fa"
+    },
+    "installation": {
+      "payload_provenance": [
+        {
+          "path": "hooks/run-hook.mjs",
+          "sha256": "5635a84af17a9aeb4911b081bc698d086bf296cc831981dfd27cad99ae128f5b"
+        },
+        {
+          "path": "hooks/runtime-supervisor.py",
+          "sha256": "af568b0f3a17d2fc7dedbd0c21fe1f844fd833e54a89831737a6b79c47660ba3"
+        },
+        {
+          "path": "agent-kits/shared/journal-capture.py",
+          "sha256": "63231769b0b0aea05395bade4c88c8f27d5f2c64ada7e94d4ca75abed6d13503"
+        },
+        {
+          "path": "agent-kits/shared/journal.py",
+          "sha256": "11af8ac4cb15f452c4a94443e3f487758d53ddb68ebc2831f07c76b4f9375c30"
+        },
+        {
+          "path": "agent-kits/shared/outbox.py",
+          "sha256": "9ff5cb708fb8794b552171c6521218aba939b5df5e288c01e84609d85b8cb12d"
+        },
+        {
+          "path": "plugins/custom-agents/index.js",
+          "sha256": "53c653bcd7cd39bed9a0aae6962f5cc117ba0e2ebecdda5136b15006a64f0d99"
+        },
+        {
+          "path": ".claude-plugin/plugin.json",
+          "sha256": "f55c8cdefd6ee9ba0e100bb550b0af286dbbad826345ad80315eff0a013397ad"
+        }
+      ]
+    },
+    "observed_cases": {
+      "plugin_active": true,
+      "unicode_prompt_capture": true,
+      "private_turn_excluded": true,
+      "first_loop_outcome": "succeeded",
+      "loopback_model_requests": 2,
+      "server_exit_code": 0,
+      "cleanup_forced": false
+    },
+    "failure": {
+      "phase": "read owned context observer JSON",
+      "kind": "UnicodeDecodeError",
+      "cause": "private Python harness omitted explicit UTF-8 encoding and used Windows cp1252",
+      "production_change_needed": false
+    },
+    "limits": {
+      "second_active_loop_tested": false,
+      "replay_tested": false,
+      "ui_tested": false,
+      "guard_dispatch_tested": false,
+      "consumer_mcp_connections_tested": false
+    },
+    "private_evidence_references": [
+      "scratchpad/.venv/opencode-current/transport-05-supervision/result.json",
+      "scratchpad/.venv/opencode-current/transport-05-supervision/context-observed.json",
+      "scratchpad/.venv/opencode-current/transport-05-supervision/server-output.json"
+    ]
+  }
+}

@@ -44,10 +44,14 @@ El control positivo V2 inicial solo registra callbacks. La entrega posterior
 ya valida transporte nativo de contexto, captura, write y cierre/replay;
 sus límites siguen en transport_validation de runtime-probes.json.
 El timeout declarado tampoco demuestra captura dentro del presupuesto de
-teardown. Claude y Codex tienen nuevas pruebas en claude-hook-evidence.json y
-codex-activation-evidence.json: el checkpoint se recupera aunque falte el
-cierre Claude; Codex necesita caché instalada además de enabled. El cierre
-por defecto, confianza y guardias siguen abiertos. Esta repriorización no
+teardown. El payload final supervisado tiene pruebas nativas de cierre en
+[Claude](claude-hook-evidence.json), [Codex](codex-lifecycle-evidence.json) y
+[OpenCode](opencode-lifecycle-evidence.json). Claude conserva un envelope antes
+de salir y confirma status 0 en debug; Codex completa SessionEnd en 1745 ms
+dentro de los 3 s declarados; OpenCode valida dos loops y replay. Las fichas
+conservan los resultados históricos anteriores a la supervisión y sus límites.
+Codex necesita caché instalada además de enabled.
+Confianza persistida y guardias siguen abiertas. Esta repriorización no
 declara completadas esas tareas.
 
 Trabajo paralelo del 2026-10-08: contratos/pruebas nativas por runtime y

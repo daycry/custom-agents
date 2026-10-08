@@ -42,6 +42,8 @@ export const PLUGIN_ID = `${PLUGIN}@${MKT}`
 export const FUENTE_DEFECTO = "daycry/custom-agents"
 /** Primera versión de Codex con `codex plugin marketplace add` (la que exige también claude-mem). */
 export const CODEX_MIN = "0.128.0"
+/** Native add/cache isolation contract verified against Codex 0.161.0. */
+export const CODEX_NATIVE_MIN = "0.161.0"
 
 // El HOME se lee EN CADA LLAMADA, nunca al importar: los tests inyectan uno temporal por `env` y
 // el instalador tiene que verlo (antes se congelaba en una constante de módulo).
@@ -342,7 +344,7 @@ const codex = {
   label: "Codex",
   blurb: "plugin + agentes `.toml` + comandos como prompts",
   detect: () => existsSync(GLOBAL_DIR.codex),
-  hint: "El plugin solo carga si está HABILITADO: el instalador pone `enabled = true` en tu `config.toml`.",
+  hint: "Comprueba la caché nativa con `codex plugin list --marketplace daycry --available --json`.",
   // En Codex el plugin vive en su propia carpeta y el marketplace lo declara. Los agentes son
   // TOML en `agents/`, y los prompts SOLO existen en CODEX_HOME (no hay prompts por proyecto).
   plan({ root, dir, scope, version }) {
@@ -381,11 +383,11 @@ const codex = {
         // reinstalación (gap M-01, verificado con la CLI de Codex en 0.155.1).
         upsert: { plugins: "name" },
       },
-      // Copiar el plugin no basta: Codex solo lo carga si el marketplace está dado de alta y el
-      // plugin HABILITADO. Lo primero es cosa de su CLI (opcional: sin `codex` se dice el comando
-      // pendiente); lo segundo es una línea en el `config.toml` del scope, que sí ponemos nosotros.
-      {
+      // Copying declares the payload. Native add must materialize the runtime cache before
+      // activation. Project marketplace registration happens only in the isolated native home.
+      ...(scope === "user" ? [{
         type: "exec",
+        id: "codex-marketplace",
         cmd: "codex",
         // Codex espera la RAÍZ del marketplace (el padre de `.agents/`): busca el manifiesto en
         // `<raíz>/.agents/plugins/marketplace.json` y resuelve `source.path` contra la raíz (por
@@ -399,6 +401,7 @@ const codex = {
         opcional: true,
         siFalla: "aviso",
         minVersion: CODEX_MIN,
+        codexMarketplace: {config: join(GLOBAL_DIR.codex,"config.toml"), root: resolve(join(mktRoot,".."))},
         // Si el marketplace `daycry` ya existe apuntando a OTRA fuente, es del usuario: el
         // instalador NO lo borra por su cuenta (borrarlo y re-crearlo con la nuestra es pisarle la
         // configuración sin preguntar). Por defecto se avisa con el comando exacto; solo con
@@ -408,19 +411,28 @@ const codex = {
           args: ["plugin", "marketplace", "remove", MKT],
           soloConForce: true,
         },
+      }] : []),
+      {
+        type: "codex-native-add", id: "codex-cache", ...(scope === "user" ? {requires:"codex-marketplace"} : {}),
+        cmd: "codex", args: ["plugin", "add", PLUGIN_ID, "--json"], cwd: dir,
+        scope, version, minVersion: CODEX_NATIVE_MIN, marketplaceRoot: resolve(join(mktRoot,"..")),
+        ...(scope === "project" ? {codexMarketplace:{config,root:resolve(dir)}} : {}),
       },
-      { type: "toml-set", to: config, tabla: `plugins."${PLUGIN_ID}"`, clave: "enabled", valor: true },
+      ...(scope === "project" ? [
+        {type:"toml-set",requires:"codex-cache",to:config,tabla:`marketplaces.${MKT}`,clave:"source_type",valor:"local",restaurar:true},
+        {type:"toml-set",requires:"codex-cache",to:config,tabla:`marketplaces.${MKT}`,clave:"source",valor:resolve(dir),restaurar:true},
+      ] : []),
+      { type: "toml-set", requires: "codex-cache", to: config, tabla: `plugins."${PLUGIN_ID}"`, clave: "enabled", valor: true },
       // `[features] hooks` es una preferencia global del usuario: se enciende (los hooks del plugin
       // no corren sin ella) pero desinstalar NO la apaga, porque puede haberla puesto él.
-      { type: "toml-set", to: config, tabla: "features", clave: "hooks", valor: true, deshacer: false },
+      { type: "toml-set", requires: "codex-cache", to: config, tabla: "features", clave: "hooks", valor: true, deshacer: false },
     ]
     return pasos
   },
   destino: (scope, dir) =>
     join(scope === "user" ? GLOBAL_DIR.codex : join(dir, ".codex"), "plugins", "custom-agents"),
   restart: "Reinicia Codex (los skills y prompts se leen al arrancar la sesión).",
-  // Codex carga el plugin solo si está HABILITADO en el `config.toml` del scope: es esa línea, y
-  // no la copia de ficheros, la que dice si está instalado de verdad.
+  // This descriptor proves the explicit declaration in this scope. Native cache state is queried separately.
   registro: (scope, dir) => [
     { fichero: join(scope === "user" ? GLOBAL_DIR.codex : join(dir, ".codex"), "config.toml"),
       tipo: "toml-verdadero", ruta: `plugins."${PLUGIN_ID}".enabled` },

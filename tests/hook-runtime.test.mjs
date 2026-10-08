@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -56,6 +56,133 @@ test('native capture and SessionEnd persist UTF8 data inside 3s', () => {
     assert.equal(ended.status, 0, ended.stderr);
     assert.equal(ended.stdout, '');
     assert.equal(readdirSync(join(dir, '.claude', 'journal', 'outbox')).filter(f => f.endsWith('.json')).length, 1);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('SessionEnd capture is independent of slow materialization startup', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'custom-agents-teardown-'));
+  try {
+    const bundle = join(dir, 'plugin');
+    cpSync(join(root, 'hooks'), join(bundle, 'hooks'), { recursive: true });
+    cpSync(join(root, 'agent-kits', 'shared'), join(bundle, 'agent-kits', 'shared'), { recursive: true });
+    const journal = join(bundle, 'agent-kits', 'shared', 'journal.py');
+    writeFileSync(journal, 'import time; time.sleep(2)\n' + readFileSync(journal, 'utf8'));
+    mkdirSync(join(dir, 'docs', 'roadmap'), { recursive: true });
+    const result = spawnSync(process.execPath, [join(bundle, 'hooks', 'run-hook.mjs'), 'session-journal.sh'], {
+      cwd: dir, input: JSON.stringify({ cwd: dir, session_id: 'bounded-startup', reason: 'other' }),
+      encoding: 'utf8', timeout: 5000,
+      env: { ...process.env, CLAUDE_PROJECT_DIR: dir, CUSTOM_AGENTS_PYTHON: process.env.TEST_PYTHON || 'python' },
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.ok(existsSync(join(dir, '.claude', 'journal', 'outbox')), 'durable capture must not wait for materialization imports');
+    assert.equal(readdirSync(join(dir, '.claude', 'journal', 'outbox')).filter(f => f.endsWith('.json')).length, 1);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('SessionEnd timeout terminates its child tree before returning', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'custom-agents-timeout-'));
+  try {
+    const bundle = join(dir, 'plugin');
+    cpSync(join(root, 'hooks'), join(bundle, 'hooks'), { recursive: true });
+    mkdirSync(join(bundle, 'agent-kits', 'shared'), { recursive: true });
+    const marker = join(dir, 'orphan.txt');
+    const program = `import subprocess, sys, time, pathlib\nchild = subprocess.Popen([sys.executable, '-I', '-S', '-c', "import time,pathlib; time.sleep(3); pathlib.Path(" + repr(${JSON.stringify(marker)}) + ").write_text('orphan')"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)\npathlib.Path(${JSON.stringify(marker + '.started')}).write_text(str(child.pid))\ntime.sleep(10)\n`;
+    writeFileSync(join(bundle, 'agent-kits', 'shared', 'journal-capture.py'), program);
+    const result = spawnSync(process.execPath, [join(bundle, 'hooks', 'run-hook.mjs'), 'session-journal.sh'], {
+      cwd: dir, input: '{}', encoding: 'utf8', timeout: 8000,
+      env: { ...process.env, CUSTOM_AGENTS_PYTHON: process.env.TEST_PYTHON || 'python' },
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.ok(existsSync(marker + '.started'), 'fixture must actually spawn a descendant before timeout');
+    spawnSync(process.execPath, ['-e', 'setTimeout(()=>{},3500)'], { timeout: 6000 });
+    assert.equal(existsSync(marker), false, 'a timed-out hook must leave no live descendants');
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('SessionEnd cleans descendants after its direct child has already exited', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'custom-agents-exited-parent-'));
+  try {
+    const bundle = join(dir, 'plugin');
+    cpSync(join(root, 'hooks'), join(bundle, 'hooks'), { recursive: true });
+    mkdirSync(join(bundle, 'agent-kits', 'shared'), { recursive: true });
+    const marker = join(dir, 'orphan.txt');
+    const program = `import subprocess, sys, pathlib\nchild = subprocess.Popen([sys.executable, '-I', '-S', '-c', "import time,pathlib; time.sleep(3); pathlib.Path(" + repr(${JSON.stringify(marker)}) + ").write_text('orphan')"])\npathlib.Path(${JSON.stringify(marker + '.started')}).write_text(str(child.pid))\n`;
+    writeFileSync(join(bundle, 'agent-kits', 'shared', 'journal-capture.py'), program);
+    const result = spawnSync(process.execPath, [join(bundle, 'hooks', 'run-hook.mjs'), 'session-journal.sh'], {
+      cwd: dir, input: '{}', encoding: 'utf8', timeout: 8000,
+      env: { ...process.env, CUSTOM_AGENTS_PYTHON: process.env.TEST_PYTHON || 'python' },
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.ok(existsSync(marker + '.started'), 'fixture must spawn its descendant');
+    assert.equal(existsSync(marker), false, 'a completed direct child must not disable descendant cleanup');
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('forced termination of the Windows launcher closes its descendant job', { skip: process.platform !== 'win32' }, async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'custom-agents-owner-kill-'));
+  let launcher, descendant;
+  try {
+    const bundle = join(dir, 'plugin');
+    cpSync(join(root, 'hooks'), join(bundle, 'hooks'), { recursive: true });
+    mkdirSync(join(bundle, 'agent-kits', 'shared'), { recursive: true });
+    const marker = join(dir, 'orphan.txt');
+    writeFileSync(join(bundle, 'agent-kits', 'shared', 'journal-capture.py'),
+      `import subprocess,sys,pathlib,time\nchild=subprocess.Popen([sys.executable,'-I','-S','-c',"import time,pathlib; time.sleep(3); pathlib.Path("+repr(${JSON.stringify(marker)})+").write_text('orphan')"],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)\npathlib.Path(${JSON.stringify(marker + '.started')}).write_text(str(child.pid))\ntime.sleep(10)\n`);
+    launcher = spawn(process.execPath, [join(bundle, 'hooks', 'run-hook.mjs'), 'session-journal.sh', '--runtime=codex'], {
+      cwd: dir, stdio: ['pipe', 'ignore', 'ignore'],
+      env: { ...process.env, CUSTOM_AGENTS_PYTHON: process.env.TEST_PYTHON || 'python' },
+    });
+    launcher.stdin.end('{}');
+    await until(() => existsSync(marker + '.started'));
+    descendant = Number(readFileSync(marker + '.started', 'utf8'));
+    const closed = new Promise(resolve => launcher.on('close', resolve));
+    launcher.kill('SIGKILL'); // Deliberately kill only Node, without taskkill /T.
+    await closed;
+    await new Promise(resolve => setTimeout(resolve, 3300));
+    assert.equal(existsSync(marker), false, 'closing the owner must close the only Job Object handle');
+  } finally {
+    launcher?.kill('SIGKILL');
+    if (descendant) spawnSync('taskkill', ['/PID', String(descendant), '/T', '/F'], { stdio: 'ignore', windowsHide: true });
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('unavailable Windows supervision skips business code without exposing its payload', { skip: process.platform !== 'win32' }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'custom-agents-no-supervisor-'));
+  try {
+    const bundle = join(dir, 'plugin');
+    cpSync(join(root, 'hooks'), join(bundle, 'hooks'), { recursive: true });
+    rmSync(join(bundle, 'hooks', 'runtime-supervisor.py'));
+    mkdirSync(join(bundle, 'agent-kits', 'shared'), { recursive: true });
+    const marker = join(dir, 'business-ran');
+    writeFileSync(join(bundle, 'agent-kits', 'shared', 'journal-capture.py'), `import pathlib\npathlib.Path(${JSON.stringify(marker)}).write_text('unsafe')\n`);
+    const result = spawnSync(process.execPath, [join(bundle, 'hooks', 'run-hook.mjs'), 'session-journal.sh'], {
+      cwd: dir, input: '{"prompt":"PRIVATE_SENTINEL"}', encoding: 'utf8', timeout: 3000,
+      env: { ...process.env, CUSTOM_AGENTS_PYTHON: process.env.TEST_PYTHON || 'python' },
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(existsSync(marker), false);
+    assert.equal(result.stdout, '');
+    assert.equal(result.stderr.includes('PRIVATE_SENTINEL'), false);
+    assert.match(result.stderr, /supervision unavailable|hook failed/);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('malformed Windows job confirmation is rejected before forwarding diagnostics', { skip: process.platform !== 'win32' }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'custom-agents-bad-confirmation-'));
+  try {
+    const bundle = join(dir, 'plugin');
+    cpSync(join(root, 'hooks'), join(bundle, 'hooks'), { recursive: true });
+    writeFileSync(join(bundle, 'hooks', 'runtime-supervisor.py'),
+      "import sys,time\nprint('PRIVATE_BAD_CONFIRMATION',file=sys.stderr,flush=True)\ntime.sleep(5)\n");
+    const result = spawnSync(process.execPath, [join(bundle, 'hooks', 'run-hook.mjs'), 'session-journal.sh'], {
+      cwd: dir, input: '{}', encoding: 'utf8', timeout: 5000,
+      env: { ...process.env, CUSTOM_AGENTS_PYTHON: process.env.TEST_PYTHON || 'python' },
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stdout, '');
+    assert.equal(result.stderr.includes('PRIVATE_BAD_CONFIRMATION'), false);
+    assert.match(result.stderr, /supervision unavailable/);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 

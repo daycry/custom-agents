@@ -319,7 +319,7 @@ flowchart TD
 > turn, `UserPromptSubmit` appends the user's text to a raw, unversioned log
 > (`.claude/session-prompts-<session_id>.log`, `<private>` opt-out, obvious secrets redacted — that log
 > is also the session's **checkpoint**). `SessionEnd` (`timeout: 5`, exec form) no longer does the heavy
-> work in the teardown: `journal.py capture-end` writes only an **atomic envelope** (≤ 64 KiB, no
+> work in the teardown: the launcher invokes `journal-capture.py` to write only an **atomic envelope** (≤ 64 KiB, no
 > git/AI/network, CA-01) into a local **outbox** (`agent-kits/shared/outbox.py`). **Materialization**
 > runs afterwards, recoverably: `SessionStart` calls `journal.py replay --budget-ms 300 --max 3` (drains
 > the outbox reusing git/prompt log/opt-in AI, never blocks startup) and `journal.py recover` (a session
@@ -345,7 +345,7 @@ flowchart LR
     UP["user turn"] --> H5["UserPromptSubmit hook<br/>user-prompt-capture.sh (timeout 5)"]
     H5 -->|"journal.py capture (no stdout, exit 0; private opt-out; secrets redacted)"| LOG[(".claude/session-prompts-sid.log<br/>unversioned · 0600 · 30-day purge<br/>= session checkpoint")]
     SE["session ends: exit · /clear · logout"] --> H4["SessionEnd hook<br/>session-journal.sh (timeout 5, exec form)"]
-    H4 -->|"journal.py capture-end<br/>(atomic envelope ≤ 64 KiB, no git/AI/network, CA-01, &lt; 100 ms)"| OB[(".claude/journal/outbox/<br/>event_id.json")]
+    H4 -->|"journal-capture.py<br/>(atomic envelope ≤ 64 KiB, no materializer/git/AI/network)"| OB[(".claude/journal/outbox/<br/>event_id.json")]
     OB -->|"journal.py replay --budget-ms 300 --max 3<br/>(claim → materialize with git/log/opt-in AI → done/dead-letter)"| H3
     LOG -->|"journal.py recover<br/>(no envelope, no live session, window → recuperado_sin_cierre)"| H3
     H3 -->|"journal.py write (idempotent by session_id, atomic)"| J[("docs/knowledge/journal/<br/>YYYY-MM-DD-slug.md")]

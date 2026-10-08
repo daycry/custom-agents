@@ -13,6 +13,8 @@ import importlib.util
 import json
 import os
 import re
+import shutil
+import shlex
 import subprocess
 import sys
 
@@ -21,18 +23,33 @@ import pytest
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
 SCRIPT = os.path.join(HERE, "doctor.py")
+_NODE_EXECUTABLE = shutil.which("node")
 
 spec = importlib.util.spec_from_file_location("doctor", SCRIPT)
 doctor = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(doctor)
+_NATIVE_CODEX_QUERY = doctor._estado_codex_nativo
 
 ICONOS = {v: k for k, v in doctor.ICONO.items()}
 
 
 # ------------------------------------------------------------------ utilidades
 
+def _isolated_subprocess_env(extra=None):
+    keys = {"SYSTEMROOT", "WINDIR", "COMSPEC", "PATHEXT", "PROCESSOR_ARCHITECTURE",
+            "NUMBER_OF_PROCESSORS", "HOME", "USERPROFILE", "CODEX_HOME", "CLAUDE_CONFIG_DIR",
+            "APPDATA", "LOCALAPPDATA", "XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_CACHE_HOME",
+            "XDG_STATE_HOME", "TEMP", "TMP", "NO_COLOR", "PYTHONIOENCODING"}
+    env = {k: v for k, v in os.environ.items() if k.upper() in keys}
+    env["PATH"] = os.environ["CUSTOM_AGENTS_TEST_PATH"]
+    env.update(extra or {})
+    if os.name == "nt":
+        env["PATHEXT"] = ".COM;.EXE;.BAT;.CMD"
+    return env
+
+
 def run(*args, root=None):
-    env = {k: v for k, v in os.environ.items() if k != "CLAUDE_PLUGIN_ROOT"}
+    env = _isolated_subprocess_env()
     return subprocess.run([sys.executable, SCRIPT, *args], capture_output=True, text=True, encoding="utf-8", errors="replace",
                           cwd=root or ROOT, env=env)
 
@@ -119,8 +136,108 @@ def _registro_de_la_maquina_fuera(tmp_path_factory, monkeypatch):
     monkeypatch.setenv("CODEX_HOME", str(base / "codex"))
     for var in ("HOME", "USERPROFILE"):
         monkeypatch.setenv(var, str(base / "home"))
+    for var, sub in {"APPDATA": "appdata", "LOCALAPPDATA": "localappdata",
+                     "XDG_CONFIG_HOME": "xdg-config", "XDG_DATA_HOME": "xdg-data",
+                     "XDG_CACHE_HOME": "xdg-cache", "XDG_STATE_HOME": "xdg-state",
+                     "TEMP": "temp", "TMP": "temp"}.items():
+        (base / sub).mkdir(exist_ok=True)
+        monkeypatch.setenv(var, str(base / sub))
+    own_bin = base / "bin"
+    own_bin.mkdir()
+    shim = own_bin / "runtime-stub.mjs"
+    shim.write_text('console.log(JSON.stringify({installed:[],available:[]}));\n', encoding="utf-8")
+    if _NODE_EXECUTABLE:
+        for name in ("codex", "claude", "opencode"):
+            stub = own_bin / (name + ".cmd" if os.name == "nt" else name)
+            text = (f'@echo off\n"{_NODE_EXECUTABLE}" "{shim}"\n' if os.name == "nt" else
+                    f'#!/bin/sh\nexec {shlex.quote(_NODE_EXECUTABLE)} {shlex.quote(str(shim))}\n')
+            stub.write_text(text, encoding="utf-8")
+            stub.chmod(0o755)
+    tool_dirs = [str(own_bin), os.path.dirname(sys.executable)]
+    if _NODE_EXECUTABLE:
+        tool_dirs.append(os.path.dirname(_NODE_EXECUTABLE))
+    if os.name == "nt":
+        tool_dirs.append(os.path.join(os.environ.get("SYSTEMROOT", "C:\\Windows"), "System32"))
+    monkeypatch.setenv("CUSTOM_AGENTS_TEST_PATH", os.pathsep.join(tool_dirs))
+    monkeypatch.setattr(doctor, "_estado_codex_nativo", lambda project: {
+        "state": "unknown", "enabled": None, "version": None, "reason": "own-fixture"})
 
 # ------------------------------------------------------------------ tests
+
+@pytest.mark.parametrize("native,level,fragment", [
+    ({"state": "absent", "enabled": None, "version": None, "reason": ""}, doctor.AVISO, "no figura"),
+    ({"state": "installed", "enabled": False, "version": "1.22.0", "reason": ""}, doctor.AVISO, "desactivado"),
+    ({"state": "installed", "enabled": True, "version": "1.22.0", "reason": ""}, doctor.OK, "confianza"),
+    ({"state": "unknown", "enabled": None, "version": None, "reason": "cli-unavailable"}, doctor.INFO, "desconocido"),
+])
+def test_codex_declaracion_no_acredita_instalacion_ni_ejecucion(tmp_path, monkeypatch, native, level, fragment):
+    proj = proyecto(tmp_path)
+    (proj / ".codex").mkdir()
+    (proj / ".codex" / "config.toml").write_text(
+        '[plugins."custom-agents@daycry"]\nenabled = true\n', encoding="utf-8")
+    monkeypatch.setattr(doctor, "_estado_codex_nativo", lambda project: native)
+    rows = doctor._bloque_registro_codex(str(proj), "custom-agents@daycry")
+    declared = next(row for row in rows if row["que"] == "registro en Codex")
+    actual = next(row for row in rows if row["que"] == "estado nativo en Codex")
+    assert declared["estado"] == doctor.OK
+    assert actual["estado"] == level
+    assert fragment in actual["detalle"]
+    assert "hooks ejecutados" not in actual["detalle"]
+
+def test_codex_native_wrapper_falla_sin_exponer_error_ni_config(tmp_path, monkeypatch):
+    proj = proyecto(tmp_path)
+    monkeypatch.setattr(doctor.shutil, "which", lambda name: "node")
+    def fake_run(args, **kwargs):
+        assert args[1].endswith("codex-plugin-state.mjs")
+        assert kwargs["cwd"] == str(proj)
+        assert kwargs["encoding"] == "utf-8"
+        assert kwargs["timeout"] <= 10
+        return subprocess.CompletedProcess(args, 1, '{"secret":"PRIVATE_SENTINEL"}', "PRIVATE_SENTINEL")
+    monkeypatch.setattr(doctor.subprocess, "run", fake_run)
+    native = _NATIVE_CODEX_QUERY(str(proj))
+    assert native["state"] == "unknown"
+    assert "PRIVATE_SENTINEL" not in json.dumps(native)
+
+@pytest.mark.parametrize("output,expected", [
+    ('{"state":"installed","enabled":true,"version":"1.22.0","source":"PRIVATE_SENTINEL"}', "installed"),
+    ('{"state":"absent","enabled":null,"version":null}', "absent"),
+    ('{"state":"installed","enabled":"true","version":"1.22.0"}', "unknown"),
+    ('{"state":"installed","enabled":true,"version":"PRIVATE_SENTINEL\\n"}', "unknown"),
+    ('{"state":"absent","enabled":true,"version":null}', "unknown"),
+    ('[]', "unknown"),
+    ('not json PRIVATE_SENTINEL', "unknown"),
+    ('x' * 4097, "unknown"),
+])
+def test_codex_native_wrapper_valida_y_filtra_respuesta(tmp_path, monkeypatch, output, expected):
+    proj = proyecto(tmp_path)
+    monkeypatch.setattr(doctor.shutil, "which", lambda name: "node")
+    monkeypatch.setattr(doctor.subprocess, "run", lambda args, **kwargs:
+                        subprocess.CompletedProcess(args, 0, output, "PRIVATE_SENTINEL"))
+    native = _NATIVE_CODEX_QUERY(str(proj))
+    assert native["state"] == expected
+    assert "PRIVATE_SENTINEL" not in json.dumps(native)
+
+def test_codex_native_wrapper_sin_node_o_timeout_es_desconocido(tmp_path, monkeypatch):
+    proj = proyecto(tmp_path)
+    monkeypatch.setattr(doctor.shutil, "which", lambda name: None)
+    assert _NATIVE_CODEX_QUERY(str(proj))["reason"] == "node-unavailable"
+    monkeypatch.setattr(doctor.shutil, "which", lambda name: "node")
+    def timeout(args, **kwargs):
+        raise subprocess.TimeoutExpired(args, kwargs["timeout"])
+    monkeypatch.setattr(doctor.subprocess, "run", timeout)
+    assert _NATIVE_CODEX_QUERY(str(proj))["state"] == "unknown"
+
+def test_codex_native_wrapper_resuelve_root_relativo_una_sola_vez(tmp_path, monkeypatch):
+    proj = proyecto(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(doctor.shutil, "which", lambda name: "node")
+    def fake_run(args, **kwargs):
+        assert args[-1] == str(proj)
+        assert kwargs["cwd"] == str(proj)
+        return subprocess.CompletedProcess(args, 0,
+            '{"state":"installed","enabled":true,"version":"1.22.0"}', "")
+    monkeypatch.setattr(doctor.subprocess, "run", fake_run)
+    assert _NATIVE_CODEX_QUERY("proj")["state"] == "installed"
 
 def test_proyecto_sin_config_no_tiene_errores_y_exit_0(tmp_path):
     """Un proyecto virgen (sin `.claude/`) no está roto: todo ✅ o informativo, exit 0."""
@@ -1240,7 +1357,7 @@ def _status(proj, cfg, env_extra=None):
     node = shutil.which("node")
     if not node:
         return None
-    env = dict(os.environ, CLAUDE_CONFIG_DIR=str(cfg), NO_COLOR="1", **(env_extra or {}))
+    env = _isolated_subprocess_env(dict(CLAUDE_CONFIG_DIR=str(cfg), NO_COLOR="1", **(env_extra or {})))
     r = subprocess.run([node, os.path.join(ROOT, "install", "install.mjs"), "status", "--dir", str(proj)],
                        capture_output=True, text=True, encoding="utf-8", errors="replace", env=env)
     assert r.returncode == 0, r.stderr
@@ -1252,6 +1369,42 @@ def _status(proj, cfg, env_extra=None):
         elif re.match(r"^ {2}\S", l):
             actual = re.split(r"\s{2,}", l.strip())[0]
     return out
+
+
+def test_status_subprocess_no_hereda_cli_ni_credenciales_del_host(tmp_path, monkeypatch):
+    """B-I5: el mock del doctor no aísla el subprocess del instalador."""
+    import shutil
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("sin Node para el subprocess propio")
+    host_bin = tmp_path / "host-bin"
+    host_bin.mkdir()
+    monkeypatch.setenv("PATH", str(host_bin) + os.pathsep + os.environ["PATH"])
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "OWN_TEST_SENTINEL")
+    def own_run(args, **kwargs):
+        cli_env = kwargs["env"]
+        assert str(host_bin) not in cli_env["PATH"]
+        assert "ANTHROPIC_API_KEY" not in cli_env
+        assert os.path.isfile(os.path.join(cli_env["PATH"].split(os.pathsep)[0],
+                                           "codex.cmd" if os.name == "nt" else "codex"))
+        return subprocess.CompletedProcess(args, 0, "", "")
+    monkeypatch.setattr(subprocess, "run", own_run)
+    assert _status(proyecto(tmp_path), tmp_path / "cfg") == {}
+
+
+@pytest.mark.skipif(os.name != "nt", reason="PATHEXT is a Windows executable selector")
+def test_status_stubs_no_dependen_de_pathext_del_host(tmp_path, monkeypatch):
+    """B-I5: .EXE solo omitía nuestros .cmd y alcanzaba un runtime vecino a Node."""
+    if not _NODE_EXECUTABLE:
+        pytest.skip("sin Node")
+    monkeypatch.setenv("PATHEXT", ".EXE")
+    def own_run(args, **kwargs):
+        env = kwargs["env"]
+        assert ".CMD" in env["PATHEXT"].upper().split(";")
+        assert os.path.isfile(os.path.join(env["PATH"].split(os.pathsep)[0], "codex.cmd"))
+        return subprocess.CompletedProcess(args, 0, "", "")
+    monkeypatch.setattr(subprocess, "run", own_run)
+    assert _status(proyecto(tmp_path), tmp_path / "cfg") == {}
 
 
 def _registrado(filas):

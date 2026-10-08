@@ -335,6 +335,8 @@ def _hook_a_shell_form(h, evento="?"):
             and args[1] in ("session-journal.sh",)):
         nh = dict(h)
         nh["command"] = 'node "%s" "%s"' % tuple(args)
+        if evento == "SessionEnd":
+            nh["command"] += " --runtime=codex"
         nh.pop("args")
         return nh
     if not (cmd in _COMANDOS_SHELL_TRADUCIBLES and isinstance(args, list) and len(args) == 1

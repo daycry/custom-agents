@@ -22,7 +22,7 @@ Claude. No se usa una transcripción privada como interfaz estable de identidad.
 Los esquemas/código del runtime instalado y una prueba nativa deben resolver
 esas incógnitas antes de elegir el mecanismo de guardia.
 
-## Validación nativa Claude y Codex — 2026-10-08
+## Baseline nativo Claude y Codex — 2026-10-08, antes de la corrección
 
 [claude-hook-evidence.json](claude-hook-evidence.json) registra fixtures
 headless propias de Claude 2.1.287 con binario fijado por hash, configuración
@@ -73,6 +73,36 @@ T-08/T-09 deben corregir instalación sin sobrescribir la preferencia global
 al instalar para proyecto, separar declaración/caché/confianza/carga/ejecución
 en diagnóstico y panel, y validar cierre y allow/deny por rol en los tres
 runtimes. Ningún resultado de este bloque acredita integración terminada.
+
+### Captura canónica y lifecycle verificados después de la corrección
+
+El launcher llama al escritor único `journal-capture.py` con Python `-I -S`.
+`journal.py capture-end` reutiliza esa política; replay/recover conservan la
+materialización. La captura no carga el materializador, no abre transcript,
+no invoca git/IA/red y rechaza payloads sobredimensionados. Hash y número de
+registros proceden de una misma lectura física. La versión se obtiene del
+manifiesto del bundle Claude, Codex o package, sin leer el del consumidor.
+
+El deadline del hijo es 800 ms en Claude y 2.200 ms en Codex/OpenCode,
+seleccionado por un literal del launcher/export/adapter, nunca por metadata
+del payload. Al agotar el tiempo se termina el árbol y se espera `close`.
+No se aumenta el presupuesto en settings del consumidor. Las dos fixtures
+headless finales de Claude 2.1.287 fijado conservan contexto, UTF-8 y envelope
+al observar la salida del padre. Los tiempos externos de arranque siguen
+siendo variables: no se promete un total universal inferior a 1,5 s.
+[claude-hook-evidence.json](claude-hook-evidence.json) separa baseline y fuente
+final, seis rojos reproducidos, QA y límites.
+
+Codex 0.161.0 sí emite `SessionEnd` al archivar un hilo activo en el mismo
+app-server: `thread/start` → `turn/start` → `turn/completed` → `thread/archive`
+→ shutdown. Las pruebas anteriores usaban `exec`/ThreadUnsubscribe o una
+instancia diferente sin el hilo cargado; su ausencia de evento no era prueba
+de un fallo del hook. La fixture del payload corregido registra cierre
+canónico en 2.536 ms, un envelope con UUID exacto y versión 1.22.0 antes de
+terminar app-server, contexto y Unicode, una petición loopback y exit 0.
+[codex-lifecycle-evidence.json](codex-lifecycle-evidence.json) conserva hashes,
+secuencia y límites. Es una medición, sin garantía de latencia universal,
+prueba de salida TUI, confianza persistida ni guardias funcionales.
 
 ## Corpus reconciliado
 
@@ -176,6 +206,43 @@ No se introduce un registro basado en transcripciones para suplir la identidad.
 La [documentación oficial de hooks](https://learn.chatgpt.com/docs/hooks)
 remite a los esquemas y advierte que main puede diferir de la release;
 esta lectura usa la revisión de la versión instalada, no main.
+
+## Registro Codex y propiedad del cierre — corrección final de lifetime
+
+La instalación por proyecto prepara un `CODEX_HOME` privado con una copia
+regular del config de usuario. Solo enlaza el namespace `daycry` de caché;
+el registro CLI usa un cwd neutral de esa copia y overrides literales de
+origen. `plugin add` conserva el cwd del proyecto y los requisitos nativos.
+Tras comprobar ID, versión y ruta de caché, declara origen y activación local.
+No cambia la preferencia global ni la restaura desde una copia completa.
+Las claves TOML equivalentes se decodifican; las rutas relativas nativas se
+rechazan por scope, sin confundir variables de entorno de un MCP.
+[Prueba A/B con origen global ajeno y deshabilitado](codex-installation-evidence.json).
+
+La caché de versión es compartida: el proyecto B puede reemplazar el payload
+usado por A. Uninstall conserva esa caché, deshabilita el plugin y restaura
+cada clave de origen solo si no fue editada después. No apaga hooks globales.
+La consulta nativa compartida de status/doctor es de solo lectura y acotada:
+separa listado local, declaración por scope y ejecución observada.
+
+En Windows, un Job Object cuyo handle no heredable posee Node contiene el
+negocio antes de ejecutarlo. Cerrar Node alcanza los descendientes incluso
+si Python terminó; la contención fallida omite el hook. En POSIX, el adaptador
+posee el grupo del launcher y la limpieza conserva al owner mientras termina
+sus hijos. La supervisión añade confirmación acotada y puede avisar bajo carga
+del sistema; no amplía el presupuesto del runtime ni garantiza latencia total.
+[Fuentes congeladas, regresiones y QA de supervisión](terminal-capture-evidence.json).
+
+Las fichas nativas anteriores conservan sus hashes como snapshots previos.
+La fuente supervisada final también se probó en los tres runtimes:
+Claude conserva envelope antes de salir y confirma status 0 en el log nativo,
+sin override; Codex emite `SessionEnd` tras archive/Shutdown del hilo activo,
+completa el handler canónico en 1.745 ms con timeout de tres segundos y sale
+naturalmente; OpenCode conserva contexto, captura UTF-8/private, write/post,
+cierre y replay en dos loops nativos. Su fixture tarda 43,829 s en conjunto,
+no por hook. [Codex](codex-lifecycle-evidence.json),
+[OpenCode](opencode-lifecycle-evidence.json). Son fixtures propias headless;
+no prueban UI, confianza persistida, guardias por rol ni MCP del consumidor.
 
 ## Personas e instrucciones nativas
 

@@ -13,7 +13,7 @@ changelog: Changed
 
 Autorización: integración por fases, decisiones técnicas delegadas y push
 cuando esté listo. Base 6187b12; rama feat/catalog-capabilities. No PR,
-integración en main ni release. Settings ajenos intactos y fuera del índice.
+integración en main ni release. `.claude/settings.json` ajeno intacto y fuera del índice.
 Meter privado abierto; sin respuestas compatibles no se inventa consumo.
 
 Prioridad del usuario del 2026-10-08: hooks, comandos, dashboard y memoria.
@@ -582,3 +582,239 @@ revisión QA funcional del plugin. Las tareas globales y el objetivo continúan
 en progreso. Próxima implementación: activar caché Codex conservando scope
 y preferencias, corregir cierre por defecto y probar el lifecycle terminal
 real antes de anunciar guardias o paridad entre runtimes.
+
+## Implementación de cierre e instalación — T-02/T-09/T-14/T-15
+
+Trabajo paralelo autorizado por el usuario: captura y lifetime de procesos,
+instalación/caché Codex y revisión independiente. Doctor, documentación y
+traza coordinados por el orquestador. Las skills siguen aplazadas; ninguna
+tarea global se cierra por este bloque. Base del diff: b5a611a.
+
+La captura terminal se extrae a `journal-capture.py`: un solo writer durable,
+sin importar la materialización del journal, con snapshot físico compartido
+por identidad y secuencia. El launcher recibe el runtime por argumento fijo,
+no por texto del consumidor. El export de Codex declara tres segundos y
+añade `--runtime=codex`; OpenCode declara `--runtime=opencode` al lanzarlo.
+La instalación Codex valida la caché nativa antes de activar el scope local.
+Doctor y status distinguen declaración, listado nativo, confianza y ejecución.
+
+Rojos observados antes de implementar, 2026-10-08:
+
+- RED: `SessionEnd capture is independent of slow materialization startup`
+  falló: sin envelope con arranque de materializador de dos segundos.
+- RED: `test_capture_end_hash_y_sequence_comparten_snapshot_fisico` falló:
+  sequence 2 combinada con hash del snapshot anterior de una línea.
+- RED: `SessionEnd timeout terminates its child tree before returning` falló:
+  un descendiente escribió después de retornar el launcher.
+- RED: `test_capture_version_uses_packaged_runtime_manifest` falló: manifests
+  Codex y package-only devolvían 0.0.0.
+- RED: `test_partial_journal_bundle_reports_missing_capture_without_blocking`
+  falló: exit 1 y traceback al faltar el helper canónico.
+- RED: `test_native_capture_rejects_oversized_payload_without_partial_envelope`
+  falló: payload excesivo producía envelope.
+- RED: export `test_codex_hooks_respetan_limite_session_end_y_runner_windows`
+  falló: SessionEnd sin argumento literal de runtime.
+- RED: `native adapter identifies its runtime independently of consumer
+  payload` falló: argv sin runtime declarado por el adaptador.
+- RED: cinco casos de doctor para estado nativo fallaron por ausencia del
+  lector; después, el caso relativo de B-I4 falló porque se resolvía dos veces.
+  GREEN de los quince casos actuales, sin CLI del consumidor.
+
+## Revisiones parciales de corrección — cierre e instalación
+
+B por revisores genéricos de contexto fresco, porque Agent(reviewer) no está
+disponible. Estos pases parciales no constituyen la puerta completa A+B+D.
+Scope-check: 34 archivos propios, cero fuera/cero avisos; únicamente settings
+ajenos excluidos. Selector: C false; D true por espera del supervisor, lectura
+de configuración y export. Falta cerrar QA y revisión completa del payload final.
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| B-T1 | Important | Padre Python termina pero nieto conserva pipes y evita deadline | T-09 | En corrección: ownership del árbol independiente de exitCode | Fixture Windows: nieto mantuvo pipes 3163 ms tras salida del padre |
+| B-T2 | Important | Grupo Python separado sobrevive al cleanup del adaptador POSIX | T-09 | En corrección: lifecycle del grupo y ownership del adaptador | Contraste de código; reproducción Linux del revisor no ejecutada por falta de binario local |
+| B-I1 | Important | Claves TOML quoted/bare duplicaban tabla equivalente | T-09 | Normalizar segmentos decodificados y rechazar cabeceras inválidas; revisión 2 en curso | RED previo y tests dedicados del instalador |
+| B-I2 | Important | Ruta relativa nativa entrecomillada eludía validación | T-09 | Clasificar clave decodificada y scope nativo; revisión 2 en curso | RED previo y fixtures typed paths |
+| B-I3 | Important | MCP env.config_file se trataba como ruta nativa | T-09 | Clasificar por scope, no solo nombre final; revisión 2 en curso | RED previo y fixture MCP preservada |
+| B-I4 | Important | Doctor duplicaba raíz relativa en cwd y argv | T-09 | Absolutizar una sola vez | RED dedicado, GREEN quince casos de wrapper/estado |
+| B-I5 | Important | CLI tests heredaban PATH real | T-14 | HOME/configdirs/PATH propios con stubs y credenciales filtradas; revisión 2 en curso | RED de aislamiento y pruebas propias |
+
+Hipótesis de upsert de marketplace descartada con evidencia: el binario
+oficial fijado 0.161.0 rechaza un origen diferente ya registrado. Esto no
+recupera una preimagen inexistente de la configuración del consumidor.
+
+Incidente de aislamiento: un test antiguo llegó al registro real de Codex y
+dejó `marketplaces.daycry` apuntando a una carpeta temporal. La creación del
+backup de caché falló con AccessDenied antes de activar el plugin. No se
+dispone de preimagen de esa entrada; su reparación requiere el origen
+anterior consultado al usuario. No se restaura el config completo, no se
+ejecuta chmod ni se afirma que todos sus bytes permanecieron intactos.
+Los probes posteriores usan solo homes, PATH, proyectos y proveedores propios.
+El audit privado de este incidente queda fuera de Git y no publica rutas del usuario.
+
+La revisión automática rechazó limpiar directorios auxiliares vacíos creados
+fuera del workspace con el motivo `blocked by policy`. Esa limpieza no se
+reintenta; no impide continuar las correcciones del plugin. Sigue pendiente.
+
+QA previa a la corrección de lifetime: journal 150 passed/10 skipped;
+export 28 passed; adaptador OpenCode 14 passed; doctor 184 passed/1 skipped.
+La ejecución instrumentada conjunta dio 357 passed/11 skipped/14 deselected;
+los catorce casos excluidos son capacidades ajenas a este diff. No se usa
+esta medición como cobertura final de fuentes que cambiaron después.
+Pruebas nativas previas conservadas por hash en las fichas: Claude headless,
+Codex app-server con archive del hilo activo y OpenCode V2 con replay.
+La nueva supervisión obliga a contrastar otra vez el payload final antes del push.
+
+Segundo pase B parcial del instalador: B-I1–B-I4 verificados corregidos;
+B-I5 corregido en tests del instalador, reabierto con evidencia nueva en
+`test_doctor.py:_status`, cuyo subprocess heredaba PATH y credenciales.
+Nuevo Important B-I6: `execFileSync` con SIGTERM espera una CLI no cooperativa;
+fixture Linux propia con timeout 200 ms retornó a los 1292 ms. Sin una salida
+posterior, el catch de cleanup no se alcanzaba. Cero Critical/Minor.
+
+- RED: `test_status_subprocess_no_hereda_cli_ni_credenciales_del_host` falló
+  porque el PATH del subprocess contenía el directorio host simulado y una
+  credencial sentinel. Corregido con entorno permitido y stubs propios para
+  los tres runtimes; el subprocess no depende del mock inprocess de doctor.
+- B-I6 en corrección: worker Node con watchdog asíncrono y pipes internos,
+  que limpia el árbol antes de retornar; outer wait también acotado. El rojo
+  propio Windows dejó un descendiente vivo y bloqueo de cwd al limpiar.
+- La ejecución Python instrumentada posterior se interrumpió deliberadamente
+  al detectar B-I5 en doctor. No cuenta como QA verde ni cobertura final;
+  mostró además un fallo sin resumen final que debe resolverse al repetir.
+
+Rojos dedicados de lifetime preservados, 2026-10-08:
+
+- RED: `SessionEnd cleans descendants after its direct child has already exited`
+  falló: marker del nieto presente tras la salida del padre Windows.
+- RED: `cleanup of the real launcher reaches its Python process` falló:
+  marker posterior al cleanup en POSIX con grupo Python separado.
+- RED: `test_group_cleanup_keeps_owner_running_and_kills_children` falló:
+  SIGSTOP al grupo owner y ausencia de SIGSTOP individual del hijo.
+  Los tres escenarios tienen GREEN dedicado en las fuentes congeladas.
+
+A completa sin gaps confirmados; D sin hallazgos de rendimiento atribuibles.
+B intento 3 verifica T1/T2/I1–I4/I6 corregidos y devuelve un Important I5:
+PATHEXT `.EXE` omitía nuestros stubs `.cmd` y podía ejecutar un codex.exe
+vecino al Node incluido en PATH. Fixture independiente propia reprodujo
+`hostSiblingRuntimeExecuted: true`, sin CLI del consumidor.
+El bucle automático de tres pases se detiene. El orquestador decide continuar
+únicamente con esta corrección de aislamiento de tests y su verificación
+dirigida independiente; no acepta deuda ni reinicia el contador de revisión.
+
+- RED: `test_status_stubs_no_dependen_de_pathext_del_host` falló porque el
+  subprocess conservaba PATHEXT `.EXE`. Se fija el selector Windows del
+  entorno de tests para incluir los stubs propios; GREEN de los dos casos
+  dedicados de aislamiento. No cambia producción.
+- QA Python de fuentes finales: 357 passed/11 skipped/14 deselected, más dos
+  fallos de export viejo detectados mientras se terminaba de regenerar la
+  distribución. Corrección por exportador canónico: --check exit 0, 55 al día;
+  suite export completa posterior: 28 passed. No son fallos intermitentes de
+  la misma fuente; la distribución generada cambió entre ambas ejecuciones.
+
+Verificación independiente dirigida de I5 sobre el intento 3: misma fixture
+Windows con Node/codex.exe propios y PATHEXT `.EXE`, ahora
+`hostSiblingRuntimeExecuted: false`. B confirma cero gaps pendientes de su
+tabla, sin ampliar el pase. El cambio solo afecta el entorno de tests.
+
+## Revisión de dos lentes — intento 3: Fase 1 (T-02, T-09, T-14, T-15) — cierre e instalación
+
+Fusión final A+B+D por subagentes genéricos: Agent(reviewer) no está disponible.
+Los pases B parciales y sus correcciones se conservan arriba; A revisa el diff
+completo y los contratos, plan y constitución; D revisa el diff completo y
+fixtures de rendimiento. C no aplica según selector automático; D sí por
+esperas del supervisor y lecturas síncronas de instalación/exportación.
+Esta sección cierra el bloque de captura/lifetime, instalación y diagnóstico,
+sin dar por terminadas las guardias ni las tareas globales de la iniciativa.
+
+| Criterio A | Veredicto | Evidencia y límite |
+|---|---|---|
+| Scope y contratos por runtime | ✓ | Diff propio contrastado con Archivos; settings ajenos preservados; instalación ≥0.161.0 y límites de cada runtime documentados |
+| Captura canónica y ownership del cierre | ✓ | Writer único; Job Object Windows y grupo POSIX; pruebas de descendientes, pipes y muerte del padre; evidencia nativa final en tres runtimes |
+| Scope Codex y preferencias del consumidor | ✓ | Config temporal privada, caché compartida, validación antes de activar; restauración de source por clave; colisión con origen ajeno explícita |
+| Doctor/estado y límites de observabilidad | ✓ | Consulta nativa compartida, estado desconocido cuando no hay evidencia; no equipara enabled con confianza o ejecución |
+| TDD, QA y distribución | ✓ | REDs trazados arriba; baseline nativo y cinco REDs del lector; cobertura oficial del diff y export canónico. El RED inicial del helper no se recupera de su consola y no se inventa |
+| Documentación y tareas abiertas | ✓ | ES/EN, changelog, evidencia fechada y hashes; T-01 sigue siendo la única tarea global completada |
+
+| # | Grado | Gap | Tarea | Corrección | Evidencia |
+|---|---|---|---|---|---|
+| B-T1 | Important | Padre terminado y nieto conservando pipes evitaban deadline | T-09 | Corregido: ownership del árbol independiente de exitCode | RED de nieto Windows; GREEN runtime 34/34 y supervisor; cierre nativo final |
+| B-T2 | Important | Grupo Python separado sobrevivía al cleanup del adaptador | T-09 | Corregido: ownership del grupo POSIX y cleanup sin detener owner | Dos REDs POSIX dedicados; cuatro casos Linux GREEN |
+| B-I1 | Important | Claves TOML quoted/bare duplicaban tabla equivalente | T-09 | Corregido: segmentos decodificados y cabeceras válidas | RED de tabla comentada: 2 !== 1; tests instalador GREEN |
+| B-I2 | Important | Ruta relativa quoted eludía validación nativa | T-09 | Corregido: clasificación por scope y clave decodificada | RED skills.config sin excepción; fixture relativa GREEN |
+| B-I3 | Important | MCP env.config_file se confundía con ruta nativa | T-09 | Corregido: scope exacto de rutas tipadas | Fixture conserva env ordinario; revisión B sin gap |
+| B-I4 | Important | Doctor duplicaba raíz relativa | T-09 | Corregido: raíz absoluta una sola vez | RED relativo; suite doctor y 18 casos finales de status/aislamiento GREEN |
+| B-I5 | Important | PATH/PATHEXT permitían CLI del host en tests | T-14 | Corregido: entorno permitido y stubs seleccionados por PATHEXT propio | REDs sentinel y PATHEXT; verificación independiente dirigida hostSiblingRuntimeExecuted false |
+| B-I6 | Important | CLI no cooperativa bloqueaba execFileSync tras deadline | T-09 | Corregido: worker con watchdog y cleanup, outer wait acotado | Reproducción Linux 200 ms → 1292 ms anterior; helper final 5/5 y cobertura 6/6 GREEN |
+
+Cero Critical/Important/Minor pendientes en el bloque. La continuación
+dirigida de B-I5 fue decisión explícita del orquestador tras detener el bucle
+de tres intentos; no se contabiliza como cuarto pase global ni deuda aceptada.
+La hipótesis de upsert sigue descartada con evidencia del binario fijado.
+No se promueven entradas de knowledge: este bloque no creó ninguna.
+
+D: cero hallazgos atribuibles al diff. 36 fixtures finales de cierre y seis
+pares baseline/final; arranque externo domina las medidas y el baseline ya
+supera 1,5 s en cinco de seis pares. Dos avisos de cleanup en 42 fixtures
+conservaron envelope y status 0. No se promete latencia universal por debajo
+del presupuesto nativo en cualquier equipo.
+
+QA final: `qa-gate.py` VERDE, 1091 ejecuciones passed, 11 skipped, cero failed,
+flaky o interrupted en la selección final. Son ejecuciones con repeticiones
+dirigidas, no 1091 tests únicos. La clase export anterior completa (28 casos,
+dos fallos) se sustituye por sus 28 casos GREEN tras regenerar; su XML rojo
+permanece privado. La ejecución interrumpida no participa. Los 14 casos de
+capacidades ajenas se excluyeron expresamente de pytest. Cobertura oficial
+coverage.py/c8 de líneas añadidas ejecutables: **869/946 = 91,86%**, mínimo
+90%; se conservan líneas sin cubrir. Los probes nativos no se usan como
+cobertura instrumentada. [Resumen verificable](terminal-qa-evidence.json).
+
+Payload final congelado y verificado nativamente:
+
+- Claude 2.1.287: cierre headless, envelope antes de salida, debug SessionEnd
+  completed status 0; el stream no emite respuesta SessionEnd.
+- Codex 0.161.0: un app-server y archive del hilo activo; SessionEnd 1745 ms
+  con timeout 3 s sin modificar, envelope antes de salida natural.
+- OpenCode 2.0.12: dos loops activos, UTF-8, write/post, cierre y replay;
+  43,829 s es duración de fixture completa, no latencia individual del hook.
+
+Fichas públicas: [Claude](claude-hook-evidence.json),
+[Codex](codex-lifecycle-evidence.json), [OpenCode](opencode-lifecycle-evidence.json),
+[supervisión](terminal-capture-evidence.json) e
+[instalación](codex-installation-evidence.json). Conservan hashes y resultados
+anteriores sin atribuirlos al payload final. Homes, proyectos, proveedores
+y credenciales de pruebas son propios; no se prueba TUI, todas las formas
+de salida, confianza persistida, guardias por rol ni activación del consumidor.
+
+Resolución del incidente de registro: el usuario eligió el repositorio
+oficial `daycry/custom-agents`. Se cambian únicamente source_type y source
+de marketplaces.daycry a git y https://github.com/daycry/custom-agents.git.
+Se comprueba igualdad de toda la configuración parseada salvo esas dos
+claves y de los tres payloads de caché conocidos. No se recupera la preimagen
+desconocida, no se refresca ni activa la caché real. Audit privado sin
+credenciales, fuera de Git. La limpieza rechazada por política sigue pendiente.
+
+T-02/T-09/T-14/T-15 permanecen en-progreso por su aceptación global pendiente.
+Siguiente bloque: identidad efectiva y allow/deny por rol; después comandos,
+dashboard y recuperación de memoria. Skills siguen aplazadas: 79/293 evaluadas,
+214 pendientes, cero altas de esa comparación en este bloque.
+
+Jira-flow de esta fusión: `plan --event revision --actor reviewer --batch
+--task T-02,T-09,T-14,T-15 --intento 3 --json`, ops vacías porque Jira está
+desactivado; no se publica nada. La primera llamada sin --batch devolvió
+error de argumentos y ops vacías; se corrigió la invocación, sin mutación.
+
+Cierre documental independiente A: cero gaps confirmados y condiciones
+previas resueltas. Verifica hashes de las doce fuentes finales, los diez
+registros de QA, siete XML, cobertura y fichas nativas de los tres runtimes.
+No certifica TDD histórico completo del helper cuyo RED inicial no se recupera.
+Repite export --check exit 0/55; no cambia producción ni amplía la revisión B.
+
+Verificaciones finales del bloque: linter 0 errores/3 avisos históricos de
+nombres genéricos, ledger-lint 0 incoherencias/0 avisos, roadmap index 50 passed,
+export 55 al día, git diff --check sin errores. Scope: 41 archivos propios,
+cero fuera/cero avisos; settings ajenos excluidos y preservados. Correspondencia
+histórica: 60 registros de fuente, 18 propios y 12 hashes nativos privados,
+corpus sin cambios ni ejecución. Correspondencia final: hashes de producción,
+fichas públicas/privadas y 100 enlaces locales comprobados; nombres públicos
+limpios. Los hashes de doctor/journal en la lectura operativa son históricos,
+conservados y contrastados con sus snapshots, no con el payload final.

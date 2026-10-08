@@ -184,7 +184,7 @@ def test_codex_session_end_va_en_shell_form_no_exec_form():
     assert src.get("args"), "hooks/hooks.json ya no declara SessionEnd en exec form: revisa este test"
     h = json.loads(leer("interop/codex/hooks.json"))["hooks"]["SessionEnd"][0]["hooks"][0]
     assert "args" not in h
-    assert h["command"] == 'node "%s" "%s"' % tuple(src["args"])
+    assert h["command"] == ('node "%s" "%s"' % tuple(src["args"])) + ' --runtime=codex'
     assert h.get("timeout") == 3
     # mismo formato (comillas dobles) que los otros hooks de shell form del propio fichero
     otro = json.loads(leer("interop/codex/hooks.json"))["hooks"]["SessionStart"][0]["hooks"][0]["command"]
@@ -193,6 +193,7 @@ def test_codex_session_end_va_en_shell_form_no_exec_form():
 
 def test_codex_hooks_respetan_limite_session_end_y_runner_windows():
     hooks = json.loads(MOD.codex_hooks_json(ROOT))["hooks"]
+    assert hooks["SessionEnd"][0]["hooks"][0]["command"].endswith(' --runtime=codex')
     assert hooks["SessionEnd"][0]["hooks"][0]["timeout"] == 3
     assert hooks["UserPromptSubmit"][0]["hooks"][0]["timeout"] == 5
     for groups in hooks.values():

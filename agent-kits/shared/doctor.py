@@ -811,12 +811,12 @@ def _toml_habilitado(path, clave):
 def _registro_codex_explicito(activos, apagados, errores, claves):
     if activos:
         return [linea(OK, "registro en Codex",
-                      " · ".join(f"`{c}` con `enabled = true` en {p} (scope {s})"
+                      "Declaración: " + " · ".join(f"`{c}` con `enabled = true` en {p} (scope {s})"
                                  for p, s, c in activos))]
     if apagados:
         p, s, c = apagados[0]
         return [linea(AVISO, "registro en Codex",
-                      f"`{c}` está en {p} (scope {s}) con `enabled = false`: Codex no lo carga",
+                      f"`{c}` está en {p} (scope {s}) con `enabled = false` en esa configuración",
                       f"pon `enabled = true` en `[plugins.\"{c}\"]` de {p} o reinstala con "
                       f"`npx @daycry/custom-agents install -p codex`")]
     if errores:
@@ -838,10 +838,8 @@ def _clasificar_claves_codex(fuentes, claves, activos, apagados, errores):
                 apagados.append((path, scope, clave))
 
 
-def _bloque_registro_codex(project, clave_cc):
-    """Fila «registro en Codex»: `enabled = true` en el `config.toml` del scope, que es lo único
-    que hace que Codex cargue el plugin (copiar sus ficheros no basta). Mismo criterio que
-    `install.mjs status`.
+def _bloque_config_codex(project, clave_cc):
+    """Configuración declarada por scope; no demuestra instalación, confianza ni ejecución.
 
     Se miran DOS claves: la que escribe siempre el instalador (`PLUGIN_ID` de
     `install/providers.mjs`, `custom-agents@daycry`) y la que se dedujo de la raíz de Claude Code,
@@ -871,6 +869,66 @@ def _bloque_registro_codex(project, clave_cc):
                       f"Codex está en esta máquina ({' · '.join(detectados)}) y el plugin no está "
                       f"instalado ahí — opcional: `npx @daycry/custom-agents install -p codex`")]
     return [linea(INFO, "registro en Codex", "Codex no está en esta máquina: nada que comprobar")]
+
+
+def _estado_codex_nativo(project):
+    """Consulta el helper compartido; nunca expone stdout/stderr del runtime ni repara configs."""
+    project = os.path.abspath(project)
+    unknown = {"state": "unknown", "enabled": None, "version": None, "reason": "query-unavailable"}
+    node = shutil.which("node")
+    if not node:
+        return dict(unknown, reason="node-unavailable")
+    try:
+        result = subprocess.run(
+            [node, os.path.join(HERE, "codex-plugin-state.mjs"), "--project", project],
+            cwd=project, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10)
+        if result.returncode or len(result.stdout) > 4096:
+            return unknown
+        native = json.loads(result.stdout)
+        if not isinstance(native, dict) or native.get("state") not in ("installed", "absent", "unknown"):
+            return unknown
+        enabled, version = native.get("enabled"), native.get("version")
+        if native["state"] == "installed":
+            if not isinstance(enabled, bool) or not isinstance(version, str) or not re.fullmatch(r"[A-Za-z0-9.+-]{1,64}", version):
+                return unknown
+        elif enabled is not None or version is not None:
+            return unknown
+        reasons = {"cli-unavailable", "cli-timeout", "cli-failed", "invalid-json", "unsupported-schema"}
+        reason = native.get("reason")
+        return {"state": native["state"], "enabled": enabled, "version": version,
+                "reason": reason if isinstance(reason, str) and reason in reasons else ""}
+    except (OSError, subprocess.SubprocessError, ValueError):
+        return unknown
+
+
+def _bloque_registro_codex(project, clave_cc):
+    rows = _bloque_config_codex(project, clave_cc)
+    if not (os.path.isdir(_codex_home()) or os.path.isdir(os.path.join(project, ".codex"))):
+        return rows
+    native = _estado_codex_nativo(project)
+    if native["state"] == "unknown":
+        reasons = {"node-unavailable": "Node no está disponible", "cli-unavailable": "la CLI de Codex no está disponible",
+                   "cli-timeout": "la consulta nativa agotó su tiempo", "cli-failed": "la CLI no completó la consulta",
+                   "invalid-json": "la CLI devolvió JSON ilegible", "unsupported-schema": "la respuesta usa un esquema no compatible"}
+        reason = reasons.get(native.get("reason"), "no se pudo consultar la instalación nativa en este proyecto")
+        rows.append(linea(INFO, "estado nativo en Codex",
+                          f"Estado desconocido: {reason}. "
+                          "La declaración de config no acredita carga ni ejecución.",
+                          "codex plugin list --marketplace daycry --available --json"))
+    elif native["state"] == "absent":
+        rows.append(linea(AVISO, "estado nativo en Codex",
+                          "El plugin no figura en el listado local de la CLI en este proyecto; "
+                          "este resultado no prueba ausencia de archivos ni ejecución de hooks.",
+                          "npx @daycry/custom-agents install -p codex"))
+    elif not native["enabled"]:
+        rows.append(linea(AVISO, "estado nativo en Codex",
+                          f"El runtime reconoce la versión {native['version']}, desactivado en este proyecto.",
+                          "revisa la configuración de plugins del proyecto y del usuario"))
+    else:
+        rows.append(linea(OK, "estado nativo en Codex",
+                          f"El runtime reconoce la versión {native['version']} habilitada en este proyecto; "
+                          "la confianza de los hooks y su ejecución requieren evidencia de una sesión."))
+    return rows
 
 
 def _resolver_spec_opencode(spec, cfg_path):

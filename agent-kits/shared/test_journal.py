@@ -1018,6 +1018,72 @@ def test_capture_end_idempotente_por_evento_x5(tmp_path):
     assert len(outbox_pendientes(proj)) == 1
 
 
+def test_capture_end_hash_y_sequence_comparten_snapshot_fisico(tmp_path, monkeypatch):
+    """A concurrent prompt cannot mix the old hash with a newer line count."""
+    import builtins
+    import hashlib
+    proj, _ = proyecto(tmp_path, con_git=False)
+    path = journal.log_path(str(proj), "s1")
+    original = '{"prompt":"old\u2028value"}\n'.encode("utf-8")
+    with open(path, "wb") as fh:
+        fh.write(original)
+    reads = []
+
+    @contextlib.contextmanager
+    def changing_log(name, *args, **kwargs):
+        with builtins.open(name, *args, **kwargs) as fh:
+            if str(name) == path:
+                reads.append(name)
+            yield fh
+        if str(name) == path and len(reads) == 1:
+            with builtins.open(path, "ab") as fh:
+                fh.write(b'{"prompt":"new"}\n')
+
+    def changing_open(name, *args, **kwargs):
+        return changing_log(name, *args, **kwargs) if str(name) == path else builtins.open(name, *args, **kwargs)
+
+    monkeypatch.setattr(journal._capture_mod, "open", changing_open, raising=False)
+    envelope = json.loads(open(journal.capture_end(str(proj), session_end_payload(proj)), encoding="utf-8").read())
+    assert envelope["sequence"] == 1
+    assert envelope["event_id"] == journal._event_id("s1", "other", journal.SCHEMA_VERSION, hashlib.sha256(original).hexdigest())
+    assert len(reads) == 1
+
+
+@pytest.mark.parametrize("manifest", [".codex-plugin/plugin.json", "package.json"])
+def test_capture_version_uses_packaged_runtime_manifest(tmp_path, monkeypatch, manifest):
+    bundle = tmp_path / "bundle"
+    shared = bundle / "agent-kits" / "shared"
+    shared.mkdir(parents=True)
+    path = bundle / manifest
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text('{"version":"2.3.4"}', encoding="utf-8")
+    monkeypatch.setattr(journal._capture_mod, "HERE", str(shared))
+    assert journal._plugin_version() == "2.3.4"
+
+
+def test_partial_journal_bundle_reports_missing_capture_without_blocking(tmp_path):
+    script = tmp_path / "journal.py"
+    shutil.copyfile(SCRIPT, script)
+    result = subprocess.run([sys.executable, str(script), "capture-end"], input="{}",
+                            capture_output=True, encoding="utf-8", timeout=10)
+    assert result.returncode == 0
+    assert result.stdout == ""
+    assert "journal-capture.py unavailable" in result.stderr
+    assert "Traceback" not in result.stderr
+
+
+def test_native_capture_rejects_oversized_payload_without_partial_envelope(tmp_path):
+    proj, _ = proyecto(tmp_path, con_git=False)
+    payload = session_end_payload(proj)
+    payload["reason"] = "x" * (70 * 1024)
+    result = subprocess.run([sys.executable, os.path.join(HERE, "journal-capture.py"), "--root", str(proj)],
+                            input=json.dumps(payload), capture_output=True, encoding="utf-8", timeout=10)
+    assert result.returncode == 0
+    assert result.stdout == ""
+    assert outbox_pendientes(proj) == []
+    assert "payload exceeds capture limit" in result.stderr
+
+
 def test_capture_end_no_invoca_git_ni_claude(tmp_path, monkeypatch):
     """CA-01: dobles de `git` y `claude` en PATH que dejan una marca si se ejecutan; capture-end
     nunca los invoca (sin git, sin IA, sin red en el teardown)."""

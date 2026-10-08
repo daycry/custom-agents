@@ -299,6 +299,8 @@ SCRIPTS = descubrir()
 # no-ASCII en el fuente. `test_los_exentos_de_simbolos_lo_estan_por_medicion` comprueba que la
 # exención sigue siendo cierta ejecutando el modo declarado.
 SIN_SIMBOLOS_EN_LA_SALIDA = {
+    "agent-kits/shared/journal-capture.py":
+        "valid SessionEnd payloads persist an envelope without emitting context; limit warnings are ASCII",
     "agent-kits/nemesis/tools/pick_asset.py":
         "su veredicto es una URL (ASCII) o un exit 2 mudo; entra en SCRIPTS por leer el JSON de stdin",
     # session-end-durable-capture T-01/T-02: módulos SIN `__main__` (los consume `journal.py` por
@@ -392,6 +394,9 @@ def _modos():
             [("deny", lambda w: ["pre-tool", "--project-dir", "."], (0,), deny)],
         "agent-kits/shared/journal.py":
             [("draft", lambda w: ["draft", "--root", "."], (0,), None)],
+        "agent-kits/shared/journal-capture.py":
+            [("native durable capture", lambda w: ["--root", os.path.join(w, "native-capture")], (0,),
+              '{"session_id":"console-🐍","reason":"other"}')],
         # knowledge-services T-01/T-02/T-13 (gap 28): modos mas baratos que emiten un veredicto real.
         "agent-kits/shared/knowledge-schema.py":
             [("default", lambda w: ["--default"], (0,), None)],
@@ -523,6 +528,7 @@ def taller(tmp_path_factory):
     import json
     w = tmp_path_factory.mktemp("consola")
     (w / "src").mkdir()
+    (w / "native-capture" / "docs" / "roadmap").mkdir(parents=True)
     (w / "src" / "a.py").write_text("def f():\n    return 1\n" * 3, encoding="utf-8")
     (w / "requirements.txt").write_text("requests==2.0.0\n", encoding="utf-8")
     extensions = w / "extensions" / ".claude" / "agents"
@@ -1276,6 +1282,51 @@ print(sys.stdin.read())
     ("solo mencionado en un comentario", False, "# lee de sys.stdin\nprint(1)\n"),
     ("no lo usa", False, "import sys\nprint(sys.argv)\n"),
 ]
+
+
+@pytest.mark.parametrize("encoding", ENCODINGS)
+def test_native_durable_capture_preserves_utf8_payload(encoding, tmp_path):
+    import json
+    project = tmp_path / "own-capture"
+    (project / "docs" / "roadmap").mkdir(parents=True)
+    payload = {"session_id": "console-🐍", "reason": "other", "cwd": "proyecto-á"}
+    result = subprocess.run([sys.executable, os.path.join(ROOT, "agent-kits", "shared", "journal-capture.py"),
+                             "--root", str(project)], input=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+                            capture_output=True, env={**os.environ, "PYTHONIOENCODING": encoding}, timeout=10)
+    assert result.returncode == 0
+    assert result.stdout == b"" and result.stderr == b""
+    envelopes = list((project / ".claude" / "journal" / "outbox").glob("*.json"))
+    assert len(envelopes) == 1
+    persisted = json.loads(envelopes[0].read_text(encoding="utf-8"))
+    assert persisted["session_id"] == payload["session_id"]
+    assert persisted["cwd"] == payload["cwd"]
+
+
+@pytest.mark.parametrize("encoding", ["cp1252", "ascii", "utf-8"])
+def test_supervised_native_capture_preserves_utf8_payload(encoding, tmp_path):
+    import json
+    import shutil
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("native Node launcher unavailable")
+    project = tmp_path / "own-supervised-capture"
+    (project / "docs" / "roadmap").mkdir(parents=True)
+    payload = {"session_id": "console-\U0001f40d", "reason": "other", "cwd": "proyecto-\u00e1"}
+    result = subprocess.run([node, os.path.join(ROOT, "hooks", "run-hook.mjs"),
+                             "session-journal.sh", "--runtime=codex"],
+                            input=json.dumps(payload, ensure_ascii=False).encode("utf-8"), capture_output=True,
+                            env={**os.environ, "PYTHONIOENCODING": encoding,
+                                 "CUSTOM_AGENTS_PYTHON": sys.executable, "CLAUDE_PROJECT_DIR": str(project)}, timeout=8)
+    assert result.returncode == 0
+    assert result.stdout == b""
+    assert b"UnicodeEncodeError" not in result.stderr
+    assert b"customAgentsJob" not in result.stderr
+    assert payload["session_id"].encode("utf-8") not in result.stderr
+    envelopes = list((project / ".claude" / "journal" / "outbox").glob("*.json"))
+    assert len(envelopes) == 1
+    persisted = json.loads(envelopes[0].read_text(encoding="utf-8"))
+    assert persisted["session_id"] == payload["session_id"]
+    assert persisted["cwd"] == payload["cwd"]
 
 
 @pytest.mark.parametrize("nombre,esperado,src",

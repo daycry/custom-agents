@@ -1,0 +1,382 @@
+{
+  "recorded_at": "2026-10-08",
+  "scope": "Terminal capture, process lifetime, Codex native installation and diagnosis",
+  "qa_gate": {
+    "script": "agent-kits/qa/qa-gate.py",
+    "exit_code": 0,
+    "verdict": "VERDE",
+    "counts": {
+      "expected": 1091,
+      "unexpected": 0,
+      "flaky": 0,
+      "skipped": 11
+    },
+    "interrupted": 0,
+    "input_format": "qa-gate statistics normalized from JUnit and retained tool-console summaries; not Playwright",
+    "inputs": [
+      {
+        "input": "terminal-final-python.xml",
+        "sha256": "7146328fd7608139e39146184fc6666a8839bde6b854b65e42500ca22e7d12d8",
+        "counts": {
+          "expected": 331,
+          "unexpected": 0,
+          "flaky": 0,
+          "skipped": 11
+        },
+        "excluded_cases": [
+          "test_opencode_exporta_paquete_nativo_y_config_sin_instructions",
+          "test_exportacion_detecta_artefactos_ausentes_y_modificados",
+          "test_indice_opencode_degrada_si_falta_el_kit",
+          "test_arbol_generado_al_dia",
+          "test_generacion_determinista",
+          "test_cubre_todas_las_piezas",
+          "test_codex_agentes_toml_valido",
+          "test_codex_manifiesto_apunta_a_lo_que_existe",
+          "test_codex_marketplace_valido",
+          "test_codex_hooks_solo_eventos_que_dispara",
+          "test_codex_session_end_va_en_shell_form_no_exec_form",
+          "test_codex_hooks_respetan_limite_session_end_y_runner_windows",
+          "test_hook_a_shell_form_pasa_intacto_lo_que_no_es_exec_form",
+          "test_hook_a_shell_form_falla_con_args_invalidos_en_vez_de_exportar_tal_cual",
+          "test_hook_a_shell_form_arg_seguro_con_placeholder_no_lanza",
+          "test_hook_a_shell_form_command_bash_produce_comillas_dobles_no_shlex_quote",
+          "test_hook_a_shell_form_intercepta_sh_no_solo_bash",
+          "test_hook_a_shell_form_falla_con_command_no_literal_bash_o_sh_con_args",
+          "test_opencode_agentes_frontmatter",
+          "test_opencode_config_valida",
+          "test_opencode_adaptador_de_hooks_es_copia_fiel",
+          "test_generados_llevan_marca",
+          "test_reviewer_sigue_siendo_solo_lectura",
+          "test_agentes_con_escritura_la_conservan",
+          "test_descripciones_de_skill_caben_en_opencode",
+          "test_skills_nombre_coincide_con_carpeta",
+          "test_campo_plieta_escalares_de_bloque",
+          "test_toml_multi_escapa_cuerpo_con_triple_comilla"
+        ]
+      },
+      {
+        "input": "terminal-final-export.xml",
+        "sha256": "b67d3285245d9b4757ac395cfe522462a23b414850cb65852076b2b84e1bf1e5",
+        "counts": {
+          "expected": 28,
+          "unexpected": 0,
+          "flaky": 0,
+          "skipped": 0
+        },
+        "excluded_cases": []
+      },
+      {
+        "input": "terminal-final-node.xml",
+        "sha256": "00312b2070dd23541afb218921539247b91fe9b11c76eebf8e827aff65a4c438",
+        "counts": {
+          "expected": 34,
+          "unexpected": 0,
+          "flaky": 0,
+          "skipped": 0
+        },
+        "excluded_cases": []
+      },
+      {
+        "input": "terminal-final-docs.xml",
+        "sha256": "6ac7af601f1bad3c03a0af5948826037010256979bf905ff948649a2b97f63f2",
+        "counts": {
+          "expected": 526,
+          "unexpected": 0,
+          "flaky": 0,
+          "skipped": 0
+        },
+        "excluded_cases": []
+      },
+      {
+        "input": "terminal-test-isolation-final.xml",
+        "sha256": "23d29e22871a53e80d55c0f582ac4f1a2de5e30f2045f8a314c7ec37e8880756",
+        "counts": {
+          "expected": 2,
+          "unexpected": 0,
+          "flaky": 0,
+          "skipped": 0
+        },
+        "excluded_cases": []
+      },
+      {
+        "input": "terminal-supervisor.xml",
+        "sha256": "c41251569738f770cc145e906a05f61cc5c01051dfffe2c84a9fd6b1c1f9db11",
+        "counts": {
+          "expected": 9,
+          "unexpected": 0,
+          "flaky": 0,
+          "skipped": 0
+        },
+        "excluded_cases": []
+      },
+      {
+        "input": "terminal-final-doctor-status.xml",
+        "sha256": "77686ce742b4fac7b496d1bb1fca785f21bc36fe5bfc61df076d4972a6014e14",
+        "counts": {
+          "expected": 18,
+          "unexpected": 0,
+          "flaky": 0,
+          "skipped": 0
+        },
+        "excluded_cases": []
+      },
+      {
+        "input": "codex-cache-scope/qa-final.json",
+        "sha256": "406ae53c48e6ba0210f46113a9e9eafb1d663b3fc3cbd015d6ebb5464b729861",
+        "console_chunk": "be2cec",
+        "counts": {
+          "expected": 132,
+          "unexpected": 0,
+          "flaky": 0,
+          "skipped": 0
+        },
+        "scope_note": "installer/providers stable final SHA; helper source was subsequently corrected and its final checks are separate"
+      },
+      {
+        "input": "codex-cache-scope/qa-final.json",
+        "sha256": "406ae53c48e6ba0210f46113a9e9eafb1d663b3fc3cbd015d6ebb5464b729861",
+        "console_chunk": "d1fed2",
+        "counts": {
+          "expected": 5,
+          "unexpected": 0,
+          "flaky": 0,
+          "skipped": 0
+        },
+        "scope_note": "Final native query helper checks"
+      },
+      {
+        "input": "codex-cache-scope/qa-final.json",
+        "sha256": "406ae53c48e6ba0210f46113a9e9eafb1d663b3fc3cbd015d6ebb5464b729861",
+        "console_chunk": "9a0b8d",
+        "counts": {
+          "expected": 6,
+          "unexpected": 0,
+          "flaky": 0,
+          "skipped": 0
+        },
+        "scope_note": "Final native query helper checks"
+      }
+    ],
+    "limitations": [
+      "Counts are test executions including directed repeats, not unique test identities.",
+      "Old export class (28 cases, 2 failures) replaced by complete regenerated export class; raw failing XML retained.",
+      "Interrupted earlier collection excluded; not evidence of a green run.",
+      "Full installer run used stable installer/providers; helper changed afterwards and has separate final checks.",
+      "Native lifecycle probes are separate evidence and not counted as unit tests."
+    ]
+  },
+  "diff_coverage": {
+    "base": "b5a611a",
+    "files": [
+      {
+        "file": "hooks/run-hook.mjs",
+        "instrument": "c8 official V8 line mapping",
+        "covered": 73,
+        "mapped_added": 79,
+        "missing": [
+          44,
+          45,
+          117,
+          118,
+          119,
+          120
+        ]
+      },
+      {
+        "file": "hooks/opencode-plugin.js",
+        "instrument": "c8 official V8 line mapping",
+        "covered": 2,
+        "mapped_added": 2,
+        "missing": []
+      },
+      {
+        "file": "install/install.mjs",
+        "instrument": "c8 official V8 line mapping",
+        "covered": 325,
+        "mapped_added": 342,
+        "missing": [
+          492,
+          669,
+          1097,
+          1098,
+          1103,
+          1104,
+          1203,
+          1204,
+          1506,
+          1507,
+          1508,
+          1514,
+          1515,
+          1547,
+          1548,
+          1549,
+          1550
+        ]
+      },
+      {
+        "file": "install/providers.mjs",
+        "instrument": "c8 official V8 line mapping",
+        "covered": 21,
+        "mapped_added": 21,
+        "missing": []
+      },
+      {
+        "file": "agent-kits/shared/codex-plugin-state.mjs",
+        "instrument": "c8 official V8 line mapping",
+        "covered": 123,
+        "mapped_added": 126,
+        "missing": [
+          18,
+          19,
+          20
+        ]
+      },
+      {
+        "file": "agent-kits/shared/doctor.py",
+        "instrument": "coverage.py executable line mapping",
+        "covered": 40,
+        "mapped_added": 40,
+        "missing": []
+      },
+      {
+        "file": "agent-kits/shared/journal.py",
+        "instrument": "coverage.py executable line mapping",
+        "covered": 4,
+        "mapped_added": 8,
+        "missing": [
+          275,
+          276,
+          277,
+          278
+        ]
+      },
+      {
+        "file": "agent-kits/shared/journal-capture.py",
+        "instrument": "coverage.py executable line mapping",
+        "covered": 144,
+        "mapped_added": 175,
+        "missing": [
+          43,
+          49,
+          50,
+          95,
+          96,
+          124,
+          126,
+          131,
+          132,
+          165,
+          215,
+          218,
+          224,
+          268,
+          269,
+          282,
+          283,
+          284,
+          285,
+          286,
+          287,
+          288,
+          289,
+          290,
+          291,
+          292,
+          293,
+          294,
+          295,
+          296,
+          300
+        ]
+      },
+      {
+        "file": "hooks/runtime-supervisor.py",
+        "instrument": "coverage.py executable line mapping",
+        "covered": 135,
+        "mapped_added": 151,
+        "missing": [
+          71,
+          78,
+          81,
+          141,
+          142,
+          143,
+          157,
+          170,
+          181,
+          182,
+          184,
+          194,
+          195,
+          205,
+          207,
+          213
+        ]
+      },
+      {
+        "file": "scripts/export-interop.py",
+        "instrument": "coverage.py executable line mapping",
+        "covered": 2,
+        "mapped_added": 2,
+        "missing": []
+      }
+    ],
+    "covered": 869,
+    "mapped_added": 946,
+    "percentage": 91.86,
+    "minimum": 90,
+    "source_sha256_lf": {
+      "hooks/run-hook.mjs": "5635a84af17a9aeb4911b081bc698d086bf296cc831981dfd27cad99ae128f5b",
+      "hooks/opencode-plugin.js": "53c653bcd7cd39bed9a0aae6962f5cc117ba0e2ebecdda5136b15006a64f0d99",
+      "install/install.mjs": "94a456fecbca0e2ef481c8ee86659c56030cd490ef2f0de9968843cffcc61483",
+      "install/providers.mjs": "220944e024d00ae2f5030082e64d645e265bb592a91ca1f091b464ae40cebb64",
+      "agent-kits/shared/codex-plugin-state.mjs": "7d9219d1ffc3a09483842d7f4b75172b74c702a3241c746987dc5dcb3306e821",
+      "agent-kits/shared/doctor.py": "ee27a9374c00505cb2d1b83eba4874a3fe70cc2fa3d6d924e95b70e665c79d34",
+      "agent-kits/shared/journal.py": "11af8ac4cb15f452c4a94443e3f487758d53ddb68ebc2831f07c76b4f9375c30",
+      "agent-kits/shared/journal-capture.py": "63231769b0b0aea05395bade4c88c8f27d5f2c64ada7e94d4ca75abed6d13503",
+      "hooks/runtime-supervisor.py": "af568b0f3a17d2fc7dedbd0c21fe1f844fd833e54a89831737a6b79c47660ba3",
+      "scripts/export-interop.py": "d7f2f53e42c3103d773090045e172161b470b2b24005846e8bfc0e02348c4ff4"
+    },
+    "notes": [
+      "Official c8 and coverage.py data; no coverage attributed to native probes.",
+      "Identical fixture adapter/launcher modules normalized with unchanged V8 offsets and source-length checks; stubs excluded.",
+      "Generated byte-identical adapter verified by exporter; not counted twice.",
+      "New files staged for complete diff mapping; missing executable lines retained."
+    ]
+  },
+  "source_sha256_lf": {
+    "hooks/run-hook.mjs": "5635a84af17a9aeb4911b081bc698d086bf296cc831981dfd27cad99ae128f5b",
+    "hooks/runtime-supervisor.py": "af568b0f3a17d2fc7dedbd0c21fe1f844fd833e54a89831737a6b79c47660ba3",
+    "hooks/opencode-plugin.js": "53c653bcd7cd39bed9a0aae6962f5cc117ba0e2ebecdda5136b15006a64f0d99",
+    "agent-kits/shared/journal-capture.py": "63231769b0b0aea05395bade4c88c8f27d5f2c64ada7e94d4ca75abed6d13503",
+    "agent-kits/shared/journal.py": "11af8ac4cb15f452c4a94443e3f487758d53ddb68ebc2831f07c76b4f9375c30",
+    "agent-kits/shared/codex-plugin-state.mjs": "7d9219d1ffc3a09483842d7f4b75172b74c702a3241c746987dc5dcb3306e821",
+    "agent-kits/shared/doctor.py": "ee27a9374c00505cb2d1b83eba4874a3fe70cc2fa3d6d924e95b70e665c79d34",
+    "install/install.mjs": "94a456fecbca0e2ef481c8ee86659c56030cd490ef2f0de9968843cffcc61483",
+    "install/providers.mjs": "220944e024d00ae2f5030082e64d645e265bb592a91ca1f091b464ae40cebb64",
+    "scripts/export-interop.py": "d7f2f53e42c3103d773090045e172161b470b2b24005846e8bfc0e02348c4ff4",
+    "interop/codex/hooks.json": "d039ece9a523d4b667594a56a378d977a83ab33af87437ae7fd921e5a9e4aea3",
+    "interop/opencode/plugins/custom-agents/index.js": "53c653bcd7cd39bed9a0aae6962f5cc117ba0e2ebecdda5136b15006a64f0d99"
+  },
+  "native_evidence": {
+    "claude": "claude-hook-evidence.json",
+    "codex": "codex-lifecycle-evidence.json",
+    "opencode": "opencode-lifecycle-evidence.json"
+  },
+  "remaining": [
+    "Role guards and persisted trust",
+    "Commands",
+    "Dashboard",
+    "Memory retrieval",
+    "Global initiative acceptance"
+  ],
+  "consumer_source_repair": {
+    "user_selected": "https://github.com/daycry/custom-agents.git",
+    "only_source_and_source_type_changed": true,
+    "other_parsed_config_preserved": true,
+    "known_cached_payloads_unchanged": true,
+    "cache_refreshed": false,
+    "original_preimage_recovered": false
+  }
+}

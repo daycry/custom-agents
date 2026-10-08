@@ -47,7 +47,7 @@ sin él no hay hooks, ni statusline, ni namespace de comandos. El instalador esc
 | Runtime | Qué se copia | Qué se **registra** (y dónde) |
 |---|---|---|
 | **Claude Code** | con `--mode plugin` no copia nada en tu proyecto: el paquete va al caché de plugins | `claude plugin marketplace add` + `claude plugin install` si tienes la CLI en el PATH; si no, el mismo registro a mano: `plugins/known_marketplaces.json`, `plugins/installed_plugins.json` y `enabledPlugins` de `settings.json` (scope user) o `.claude/settings.json` con `extraKnownMarketplaces` (scope project) |
-| **Codex** | plugin en `~/.codex/plugins/custom-agents/`, agentes `.toml` y prompts | `codex plugin marketplace add` si la CLI está en el PATH (y es ≥ 0.128.0), más `[plugins."custom-agents@daycry"] enabled = true` y `[features] hooks = true` en el `config.toml` del scope, que es lo que Codex mira al arrancar |
+| **Codex** | bundle bajo `.codex/plugins/custom-agents/` del scope, agentes `.toml` y prompts | caché mediante `codex plugin add` (CLI ≥ 0.161.0); registro `marketplaces.daycry`, `plugins."custom-agents@daycry".enabled` y `features.hooks` en el config del scope después del éxito |
 | **OpenCode** | agentes, comandos, skills, kits y el adaptador de hooks en `plugins/` | `plugins: ["./.opencode/plugins/custom-agents"]` en `opencode.json` (ruta absoluta en scope user), añadido a lo que ya tuvieras |
 
 **La vía preferida siempre es la CLI oficial del runtime.** El respaldo —escribir el registro
@@ -77,6 +77,33 @@ de tu `CLAUDE_CONFIG_DIR`. Mirar solo los dos últimos daba «registrado: sí» 
 `claude plugin disable --scope local`.
 Dentro de Claude Code, lo mismo con más detalle: `/doctor`.
 
+Codex distingue la declaración por scope del estado que devuelve la CLI en
+el proyecto actual. `status` y `/doctor` comparten un lector que consulta
+`codex plugin list --marketplace daycry --available --json`, con tiempo acotado
+y sin volcar otras entradas, rutas de origen ni errores privados. Si falta la
+CLI o su respuesta no se puede comprobar, el estado nativo es desconocido.
+Una instalación habilitada no acredita confianza del hash de hooks ni su
+ejecución; eso requiere revisar una sesión del runtime.
+
+En scope project, `plugin add` trabaja con un `CODEX_HOME` temporal: copia
+regular de la configuración de usuario y un enlace limitado al namespace de
+caché `daycry`. Su setter cambia esa copia, y la activación se escribe en el
+proyecto al completar la instalación. Dos proyectos conservan sus propios
+orígenes y no cambian el marketplace ni la preferencia global del usuario.
+La caché de versión continúa compartida y una actualización puede cambiar
+el contenido usado por otros proyectos. Los conflictos de origen requieren
+`--force-marketplace`; una configuración con rutas relativas que no puede
+preservarse en la copia se rechaza, sin reintentar contra el home real.
+No se usa `plugin remove` como rollback ni se fuerza `chmod` en el caché.
+
+Al desinstalar, se restaura cada clave de origen solo si todavía conserva el
+valor escrito por el instalador; las ediciones posteriores y otros campos
+se mantienen. La activación del plugin queda deshabilitada, sin apagar
+`features.hooks` ni eliminar la caché compartida. Si la instalación nativa
+falla, el manifiesto conserva el paso pendiente y no se declara activación.
+La validación de rutas de la copia distingue campos nativos y sus scopes;
+un valor de entorno de un MCP llamado `config_file` no es una ruta del runtime.
+
 Cinco garantías del instalador, con test cada una en `tests/installer.test.mjs`:
 
 1. **Idempotente** — reinstalar deja el mismo árbol y no duplica entradas de configuración.
@@ -96,7 +123,7 @@ Cinco garantías del instalador, con test cada una en `tests/installer.test.mjs`
 | Runtime | Cómo |
 |---|---|
 | **Claude Code** | `/plugin marketplace add daycry/custom-agents` + `/plugin install custom-agents` (es lo que hace `--mode plugin`). Copiar el bundle como `.claude/` del proyecto (`docs/INSTALL.md`) equivale a `--mode copy`: sin hooks, sin statusline y sin namespace. |
-| **Codex** | `codex plugin marketplace add daycry/custom-agents` (lee `.codex-plugin/plugin.json` y `.agents/plugins/marketplace.json` del repo). Los agentes `.toml` y los prompts se copian a mano desde `interop/codex/` (o los pone el instalador). |
+| **Codex** | `codex plugin marketplace add daycry/custom-agents` seguido de `codex plugin add custom-agents@daycry`. Esta vía nativa habilita el plugin en config de usuario. Para conservar esa preferencia al instalar por proyecto, usa el instalador. |
 | **OpenCode** | Copiar `interop/opencode/` a `.opencode/` + `skills/`, `agent-kits/` y `hooks/` dentro. Si ya tienes el bundle de Claude Code en `.claude/`, OpenCode **reutiliza esas skills** sin copiar nada (compatibilidad nativa). |
 
 ---
@@ -165,13 +192,13 @@ sustituye, y aquí está dicho.
 
 | Capacidad | Claude Code | Codex | OpenCode |
 |---|---|---|---|
-| **Registro del plugin** (qué lo hace cargar) | ✅ `installed_plugins.json` + `enabledPlugins`, por CLI o escrito por el instalador — ⚠️ con `--mode copy` no hay registro: el bundle está en `.claude/` y el runtime no se entera (`/doctor` lo marca) | ⚠️ `enabled = true` en `config.toml` lo pone el instalador, pero el **marketplace** necesita `codex plugin marketplace add`: sin la CLI en el PATH se imprime el comando y queda a medias hasta que lo ejecutes | Paquete local V2 en `plugins` de `opencode.json`; `status` y `/doctor` comprueban la declaración, no la ejecución |
+| **Registro del plugin** (qué lo hace cargar) | ✅ `installed_plugins.json` + `enabledPlugins`, por CLI o escrito por el instalador — ⚠️ con `--mode copy` no hay registro: el bundle está en `.claude/` y el runtime no se entera (`/doctor` lo marca) | CLI nativa ≥0.161.0: caché validada antes de declarar marketplace y activación. En modo proyecto, registro preparado en un `CODEX_HOME` privado y configuración local; `status` y `/doctor` separan declaración, listado nativo y ejecución | Paquete local V2 en `plugins` de `opencode.json`; `status` y `/doctor` comprueban la declaración, no la ejecución |
 | Skills bajo demanda | ✅ herramienta Skill | ✅ `$nombre` o activación por `description` | ✅ herramienta `skill` |
 | Comandos | ✅ `/nombre` | ⚠️ `/prompt:nombre` (**o** `/prompts:nombre`), **solo en `~/.codex/`** (Codex no tiene prompts por proyecto) y marcados como *deprecated* por OpenAI en favor de skills | ✅ `/nombre` |
 | Delegar en un agente por nombre | ✅ herramienta Agent, con `model` por invocación | ⚠️ en lenguaje natural; Codex **no auto-invoca** agentes custom, hay que pedirlo | ✅ herramienta `task` |
 | Aviso de progreso al editar el ledger | ✅ `PostToolUse` | ✅ `PostToolUse` para `apply_patch`, con rutas extraídas del parche | ✅ `tool.execute.after` |
 | Contexto al arrancar la sesión | ✅ `SessionStart` (índice + roadmap + journal + memoria) | ✅ `SessionStart` (`startup\|resume\|clear\|compact`) | Hook nativo `session.context`: índice actual, roadmap, journal y memoria en el contexto de salida |
-| Journal de sesión | `SessionEnd`, 5 s declarados; presupuesto nativo pendiente de validar | `SessionEnd`, export con 3 s y launcher Node en shell form; despacho nativo pendiente | `session.execution.succeeded/failed/interrupted`; replay acotado en el siguiente contexto |
+| Journal de sesión | `SessionEnd`: captura canónica aislada; evidencia headless sin ampliar el presupuesto nativo, con límites de arranque documentados | `SessionEnd`: export con 3 s y captura canónica; verificado al archivar el hilo activo en el mismo app-server | `session.execution.succeeded/failed/interrupted`; captura canónica y replay acotado en el siguiente contexto |
 | Captura del turno del usuario | ✅ `UserPromptSubmit` | ✅ `UserPromptSubmit` | `session.prompt`, antes de admisión: petición provisional, con exclusión `<private>` |
 | Fin de subagente | ✅ `SubagentStop` | ✅ `SubagentStop` | ❌ sin evento equivalente |
 | **Guardia por agente** (`implementer`, `architect`) | Los agentes de plugin ignoran `hooks:`; adaptación nativa pendiente | Autocomprobación de prompt; despacho nativo pendiente | Autocomprobación de prompt; despacho nativo pendiente |
@@ -219,17 +246,20 @@ y Python 3. En Windows busca Python nativo (`python3`, `python` o `py -3`) y Git
 descarta el `bash.exe` de System32 que lanza WSL. `CUSTOM_AGENTS_PYTHON` permite indicar un
 intérprete concreto. El payload viaja por stdin, nunca como código de shell.
 
-SessionEnd y UserPromptSubmit llaman directamente a `journal.py`, sin Bash. Los demás hooks
+SessionEnd llama al escritor canónico `journal-capture.py` con Python aislado (`-I -S`);
+UserPromptSubmit llama a `journal.py capture`, sin Bash. Los demás hooks
 usan Bash con un adaptador `python3` al intérprete seleccionado. Si falta una herramienta,
 se avisa por stderr y se continúa con exit 0. Las guardias de implementer y architect conservan su alcance por agente.
 
-Codex limita SessionEnd a 3 s; el exportador ajusta ese timeout. Claude Code tiene
-5 s declarados en nuestro registro; validar el presupuesto efectivo de su cierre
-nativo sigue pendiente (la declaración no demuestra que el runtime lo aplique).
-El límite interno de captura es 2,2 s. OpenCode V2 captura al terminar la ejecución y materializa
+Codex limita SessionEnd a 3 s; el exportador ajusta ese timeout. Claude Code dispone
+de 1,5 s por defecto, aunque nuestro plugin declare 5 s. El deadline interno del
+hijo es 800 ms en Claude y 2.200 ms en Codex/OpenCode, por argumento literal del
+adaptador. Se espera el cierre del árbol de procesos al agotar el tiempo. Las fixtures
+headless finales Claude 2.1.287 y Codex 0.161.0 verifican captura y cierre; no acreditan
+latencia universal, salida TUI ni guardias. OpenCode V2 captura al terminar la ejecución y materializa
 con replay acotado en el siguiente contexto. Tras actualizar un plugin hay que iniciar una sesión nueva; las
 pruebas con payloads no sustituyen la comprobación de eventos dentro de cada aplicación.
-Contratos verificados el 2026-10-06: [Codex](https://learn.chatgpt.com/docs/hooks),
+Contratos contrastados el 2026-10-08; evidencia en [contratos del roadmap](roadmap/2026-10-07-catalog-capabilities/contracts.md): [Codex](https://learn.chatgpt.com/docs/hooks),
 [Claude Code](https://code.claude.com/docs/en/hooks), [OpenCode](https://opencode.ai/docs/plugins/).
 
 Los tres huecos que más importan:

@@ -14,6 +14,13 @@ hashes, tamaños, rangos y límites. Los nombres y rutas originales permanecen
 en el mapa privado. Leer un cuerpo no demuestra carga, permisos ni eficacia.
 Tokens y latencia no se han medido con una fuente compatible.
 
+Los hashes propios de doctor y journal describen el snapshot leído antes del
+bloque de cierre e instalación, conservado en Git y en las fixtures privadas.
+No describen sus cuerpos finales: el estado nativo de doctor y la captura
+canónica posterior se documentan en [contracts.md](../contracts.md) y
+[terminal-qa-evidence.json](../terminal-qa-evidence.json). Las propuestas de
+esta lectura siguen pendientes; los hashes históricos no se sobrescriben.
+
 ## Funciones útiles para el panel propio
 
 | Fuente | Contrato leído | Comparación y destino propuesto |

@@ -9,6 +9,14 @@ y el versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Fixed — Instalación y diagnóstico nativos de Codex
+
+- Validar la caché nativa antes de activar el proyecto, preparar el registro en un home aislado y conservar las preferencias globales del marketplace. Resolver claves TOML entrecomilladas equivalentes y rutas nativas por scope; separar configuración y listado acotado de la CLI en status y doctor.
+
+### Fixed — Captura canónica de cierre
+
+- Aislar la captura durable de la materialización del journal, usar una sola lectura del log para identidad y secuencia y resolver versiones del bundle instalado. Acotar el trabajo hijo por runtime, terminar su árbol al agotar el tiempo y conservar la recuperación de prompts; verificar cierre headless nativo sin cambiar los timeouts del consumidor.
+
 ### Changed — Evidencia nativa de hooks y comparación operativa
 
 - Registrar pruebas nativas aisladas de Claude/Codex, límites de cierre y recuperación. Comparar paneles operativos y 18 cuerpos de comandos, con dependencias incompletas e integraciones propuestas explícitas.

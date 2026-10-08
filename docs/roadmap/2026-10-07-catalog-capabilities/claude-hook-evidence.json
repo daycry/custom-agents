@@ -110,5 +110,198 @@
     "capture_context_and_envelope_observed": true,
     "slow_default_run_completed_once": true,
     "not_a_reliability_guarantee": true
+  },
+  "cases_scope": "historical payload before capture extraction; preserved baseline",
+  "capture_extraction_before_lifetime_fix": {
+    "source_sha256_lf": {
+      "hooks/run-hook.mjs": "5336285d17d901580defa800604b3de4a587820793e49da523c4ae818596ffc6",
+      "agent-kits/shared/journal-capture.py": "63231769b0b0aea05395bade4c88c8f27d5f2c64ada7e94d4ca75abed6d13503",
+      "agent-kits/shared/journal.py": "11af8ac4cb15f452c4a94443e3f487758d53ddb68ebc2831f07c76b4f9375c30",
+      "agent-kits/shared/test_journal.py": "1abf89fdc12a798c013c3ff3f75a0df10aebe197f75663816e2b5c823fe7683a",
+      "tests/hook-runtime.test.mjs": "09cc353dee43e9a067fb4208c00bb2b986d3794aceb80dc5a8a157c30183857a",
+      "tests/test_console_encoding.py": "dd43ff8d6a4dbdda8a074a6ebeceeeb5d9b3d89f59289c938dd09ac76a68021f"
+    },
+    "native_final_source_cases": [
+      {
+        "runtime": "claude",
+        "runtime_version": "2.1.287 (Claude Code)",
+        "runtime_sha256": "6d5be51f0edfe3429cd1a9885950db31c1e59eb9a2c9a30a47e64179d2ff98b4",
+        "runtime_unchanged": true,
+        "hook_registration_sha256": "b06c6120e183576a3607d1851e0813dec5a177b64b733ccb91cfbf494e2f8191",
+        "native_prompt_capture": true,
+        "native_terminal_envelope": true,
+        "loopback_requests": 1,
+        "native_utf8_capture": true,
+        "native_model_received_plugin_context": true,
+        "slow_end_ms": 0,
+        "native_end_budget_override_ms": null,
+        "slow_end_started": false,
+        "slow_end_completed": false,
+        "parent_exit_snapshot": {
+          "observed_at_ms": 1791457721251,
+          "native_terminal_envelope_when_parent_exit_observed": true,
+          "native_prompt_capture_when_parent_exit_observed": true
+        },
+        "external_provider_credentials_inherited": false,
+        "nonessential_traffic_disabled": true,
+        "exit_code": 0,
+        "process_terminal": true,
+        "reference_source_executed": false,
+        "label": "terminal-fix-native-exit-snapshot"
+      },
+      {
+        "runtime": "claude",
+        "runtime_version": "2.1.287 (Claude Code)",
+        "runtime_sha256": "6d5be51f0edfe3429cd1a9885950db31c1e59eb9a2c9a30a47e64179d2ff98b4",
+        "runtime_unchanged": true,
+        "hook_registration_sha256": "b06c6120e183576a3607d1851e0813dec5a177b64b733ccb91cfbf494e2f8191",
+        "native_prompt_capture": true,
+        "native_terminal_envelope": true,
+        "loopback_requests": 1,
+        "native_utf8_capture": true,
+        "native_model_received_plugin_context": true,
+        "slow_end_ms": 0,
+        "native_end_budget_override_ms": null,
+        "slow_end_started": false,
+        "slow_end_completed": false,
+        "parent_exit_snapshot": {
+          "observed_at_ms": 1791457856148,
+          "native_terminal_envelope_when_parent_exit_observed": true,
+          "native_prompt_capture_when_parent_exit_observed": true
+        },
+        "external_provider_credentials_inherited": false,
+        "nonessential_traffic_disabled": true,
+        "exit_code": 0,
+        "process_terminal": true,
+        "reference_source_executed": false,
+        "label": "terminal-fix-native-exit-snapshot-2"
+      }
+    ],
+    "red": [
+      {
+        "test": "hook-runtime: SessionEnd capture is independent of slow materialization startup",
+        "observed_failure": "outbox absent when materializer startup takes 2 s; child deadline 2200 ms"
+      },
+      {
+        "test": "test_capture_end_hash_y_sequence_comparten_snapshot_fisico",
+        "observed_failure": "sequence=2 while identity hashes prior one-line snapshot"
+      },
+      {
+        "test": "hook-runtime: SessionEnd timeout terminates its child tree before returning",
+        "observed_failure": "descendant wrote orphan marker after launcher return"
+      },
+      {
+        "test": "test_capture_version_uses_packaged_runtime_manifest",
+        "observed_failure": "Codex and package-only manifests both returned 0.0.0"
+      },
+      {
+        "test": "test_partial_journal_bundle_reports_missing_capture_without_blocking",
+        "observed_failure": "CLI exit1 and traceback for missing canonical helper"
+      },
+      {
+        "test": "test_native_capture_rejects_oversized_payload_without_partial_envelope",
+        "observed_failure": "oversized metadata payload produced envelope instead of bounded rejection"
+      }
+    ],
+    "green": {
+      "journal_suite": {
+        "passed": 150,
+        "skipped": 10
+      },
+      "windows_hook_runtime": {
+        "passed": 14,
+        "failed": 0
+      },
+      "windows_timeout_started_descendant": {
+        "passed": 1,
+        "failed": 0
+      },
+      "posix_directed": {
+        "passed": 3,
+        "failed": 0,
+        "node": "23.8.0",
+        "official_archive_sha256": "78d24ff80a52f7dd3a94542d7598163624fcda7be1d4777bc9161d8c8d15267f"
+      },
+      "console_new_capture": {
+        "passed": 10,
+        "failed": 0,
+        "conditions": [
+          "cp1252",
+          "ascii",
+          "actual UTF8 payload persisted"
+        ]
+      }
+    },
+    "limits": [
+      "No claim of universal total process startup below 1.5 s: owned new-path and warm launch totals ranged 1494-1841 ms; native pinned default-budget runs passed.",
+      "Own new source paths are not an OS cold-cache measurement.",
+      "Claude child work deadline is800ms; Codex and OpenCode explicit trusted runtime argument retains2200ms; OS process startup is outside the internal deadline.",
+      "Timeout can leave a retained prompt log for journal recover; it is not equivalent to a confirmed terminal envelope.",
+      "Full guard identity enforcement remains outside this patch."
+    ]
+  },
+  "final_supervision_evidence": "terminal-capture-evidence.json",
+  "final_supervised_native_case": {
+    "runtime": "claude",
+    "runtime_version": "2.1.287 (Claude Code)",
+    "runtime_sha256": "6d5be51f0edfe3429cd1a9885950db31c1e59eb9a2c9a30a47e64179d2ff98b4",
+    "runtime_unchanged": true,
+    "hook_registration_sha256": "b06c6120e183576a3607d1851e0813dec5a177b64b733ccb91cfbf494e2f8191",
+    "native_prompt_capture": true,
+    "native_terminal_envelope": true,
+    "loopback_requests": 1,
+    "native_utf8_capture": true,
+    "native_model_received_plugin_context": true,
+    "slow_end_ms": 0,
+    "native_end_budget_override_ms": null,
+    "slow_end_started": false,
+    "slow_end_completed": false,
+    "parent_exit_snapshot": {
+      "observed_at_ms": 1791461630547,
+      "native_terminal_envelope_when_parent_exit_observed": true,
+      "native_prompt_capture_when_parent_exit_observed": true
+    },
+    "native_hook_event_summary": [
+      {
+        "subtype": "hook_started",
+        "hook_event": "SessionStart",
+        "exit_code": null,
+        "outcome": null
+      },
+      {
+        "subtype": "hook_response",
+        "hook_event": "SessionStart",
+        "exit_code": 0,
+        "outcome": "success"
+      },
+      {
+        "subtype": "hook_started",
+        "hook_event": "UserPromptSubmit",
+        "exit_code": null,
+        "outcome": null
+      },
+      {
+        "subtype": "hook_response",
+        "hook_event": "UserPromptSubmit",
+        "exit_code": 0,
+        "outcome": "success"
+      }
+    ],
+    "native_session_end_responses": [],
+    "native_session_end_response_emitted": false,
+    "external_provider_credentials_inherited": false,
+    "nonessential_traffic_disabled": true,
+    "exit_code": 0,
+    "process_terminal": true,
+    "reference_source_executed": false,
+    "label": "terminal-supervision-final-native",
+    "native_debug_session_end_completed_status": 0,
+    "native_debug_verification": "native debug log confirms completion; SessionEnd stream response is not emitted",
+    "source_sha256_lf": {
+      "hooks/run-hook.mjs": "5635a84af17a9aeb4911b081bc698d086bf296cc831981dfd27cad99ae128f5b",
+      "hooks/runtime-supervisor.py": "af568b0f3a17d2fc7dedbd0c21fe1f844fd833e54a89831737a6b79c47660ba3",
+      "agent-kits/shared/journal-capture.py": "63231769b0b0aea05395bade4c88c8f27d5f2c64ada7e94d4ca75abed6d13503",
+      "agent-kits/shared/journal.py": "11af8ac4cb15f452c4a94443e3f487758d53ddb68ebc2831f07c76b4f9375c30"
+    }
   }
 }

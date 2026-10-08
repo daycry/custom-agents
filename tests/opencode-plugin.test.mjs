@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync, rmSync, existsSync } from 'node:fs';
+import { cpSync, mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync, rmSync, existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import { tmpdir } from 'node:os';
@@ -190,6 +190,18 @@ async function isolatedPlugin(dir, launcher) {
   return (await import(pathToFileURL(join(folder, 'adapter.js')).href)).default;
 }
 
+test('native adapter identifies its runtime independently of consumer payload', async () => {
+  const dir = project(); let cleanup;
+  try {
+    const adapter = await isolatedPlugin(dir, `import fs from 'node:fs';
+      if(process.argv[2]==='session-journal.sh') fs.writeFileSync('end-argv.json',JSON.stringify(process.argv.slice(2)));`);
+    const ctx = opencodeContext(dir); cleanup = await adapter.setup(ctx);
+    ctx.emit({ type: 'session.execution.succeeded', data: { sessionID: 'runtime-test', runtime: 'claude' } });
+    await until(() => existsSync(join(dir, 'end-argv.json')));
+    assert.deepEqual(JSON.parse(readFileSync(join(dir, 'end-argv.json'), 'utf8')), ['session-journal.sh', '--runtime=opencode']);
+  } finally { await cleanup?.(); rmSync(dir, { recursive: true, force: true }); }
+});
+
 test('cleanup terminates its launcher tree and settles the pending hook', async () => {
   const dir = project(); let cleanup, pending, pid;
   try {
@@ -210,6 +222,57 @@ test('cleanup terminates its launcher tree and settles the pending hook', async 
     }
     await cleanup?.(); await pending;
     rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('cleanup of the real launcher reaches its Python process', async () => {
+  const dir = project(); let cleanup, pid;
+  try {
+    const adapter = await isolatedPlugin(dir, readFileSync(new URL('../hooks/run-hook.mjs', import.meta.url), 'utf8'));
+    cpSync(new URL('../hooks/runtime-supervisor.py', import.meta.url), join(dir, 'hooks', 'runtime-supervisor.py'));
+    mkdirSync(join(dir, 'agent-kits', 'shared'), { recursive: true });
+    const marker = join(dir, 'after-cleanup');
+    const pidfile = join(dir, 'python.pid');
+    writeFileSync(join(dir, 'agent-kits', 'shared', 'journal-capture.py'),
+      `import os,time,pathlib\npathlib.Path(${JSON.stringify(pidfile)}).write_text(str(os.getpid()))\ntime.sleep(3)\npathlib.Path(${JSON.stringify(marker)}).write_text('late')\n`);
+    const ctx = opencodeContext(dir); cleanup = await adapter.setup(ctx);
+    ctx.emit({ type: 'session.execution.succeeded', data: { sessionID: 'own-real-cleanup' } });
+    await until(() => existsSync(pidfile));
+    pid = Number(readFileSync(pidfile, 'utf8'));
+    await cleanup(); cleanup = null;
+    await new Promise(resolve => setTimeout(resolve, 3300));
+    assert.equal(existsSync(marker), false, 'Python must not continue after adapter cleanup');
+  } finally {
+    if (pid) {
+      if (process.platform === 'win32') { try { execFileSync('taskkill', ['/PID', String(pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true }); } catch {} }
+      else { try { process.kill(pid, 'SIGKILL'); } catch {} }
+    }
+    await cleanup?.(); rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('real adapter teardown cleans background descendants after the capture parent exits', async () => {
+  const dir = project(); let cleanup, pid;
+  try {
+    const adapter = await isolatedPlugin(dir, readFileSync(new URL('../hooks/run-hook.mjs', import.meta.url), 'utf8'));
+    cpSync(new URL('../hooks/runtime-supervisor.py', import.meta.url), join(dir, 'hooks', 'runtime-supervisor.py'));
+    mkdirSync(join(dir, 'agent-kits', 'shared'), { recursive: true });
+    const marker = join(dir, 'late-background');
+    const pidfile = join(dir, 'background.pid');
+    writeFileSync(join(dir, 'agent-kits', 'shared', 'journal-capture.py'),
+      `import subprocess,sys,pathlib\nchild=subprocess.Popen([sys.executable,'-I','-S','-c',"import time,pathlib; time.sleep(3); pathlib.Path("+repr(${JSON.stringify(marker)})+").write_text('late')"],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)\npathlib.Path(${JSON.stringify(pidfile)}).write_text(str(child.pid))\n`);
+    const ctx = opencodeContext(dir); cleanup = await adapter.setup(ctx);
+    ctx.emit({ type: 'session.execution.succeeded', data: { sessionID: 'own-background' } });
+    await until(() => existsSync(pidfile));
+    pid = Number(readFileSync(pidfile, 'utf8'));
+    await new Promise(resolve => setTimeout(resolve, 3300));
+    assert.equal(existsSync(marker), false, 'normal completion must clean descendants with redirected pipes');
+  } finally {
+    if (pid) {
+      if (process.platform === 'win32') { try { execFileSync('taskkill', ['/PID', String(pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true }); } catch {} }
+      else { try { process.kill(pid, 'SIGKILL'); } catch {} }
+    }
+    await cleanup?.(); rmSync(dir, { recursive: true, force: true });
   }
 });
 

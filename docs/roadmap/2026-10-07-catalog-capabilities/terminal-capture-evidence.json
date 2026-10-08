@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "source_freeze": "terminal-supervision-b1-fix",
+  "sha256_raw": {
+    "hooks/run-hook.mjs": "5635a84af17a9aeb4911b081bc698d086bf296cc831981dfd27cad99ae128f5b",
+    "hooks/runtime-supervisor.py": "af568b0f3a17d2fc7dedbd0c21fe1f844fd833e54a89831737a6b79c47660ba3",
+    "hooks/opencode-plugin.js": "53c653bcd7cd39bed9a0aae6962f5cc117ba0e2ebecdda5136b15006a64f0d99",
+    "agent-kits/shared/journal.py": "11af8ac4cb15f452c4a94443e3f487758d53ddb68ebc2831f07c76b4f9375c30",
+    "agent-kits/shared/journal-capture.py": "63231769b0b0aea05395bade4c88c8f27d5f2c64ada7e94d4ca75abed6d13503",
+    "tests/hook-runtime.test.mjs": "c9b09cf6a1cfe44b28ff91ebc8f20c85c33998f1fd41dcec289cc7573ebaf143",
+    "tests/opencode-plugin.test.mjs": "de020ad4d79be73b6af5662cf399d65e710e27951b3544bef29472565e2a5730",
+    "tests/test_hook_supervisor.py": "3ec9d6480f25a4767f9c7ff7dfe872b09bf3457694fde1ec5e84929bf9e29154",
+    "tests/test_console_encoding.py": "6197241cc85ec4fe90fd3c8c881f116b2e88c8912988d3265bcd60f7a76c4d5e",
+    "agent-kits/shared/test_journal.py": "ec2bdb512f048dffecbccddc9c44d04fea8a1be213935c0ba8045a34f3feaf57"
+  },
+  "sha256_lf": {
+    "hooks/run-hook.mjs": "5635a84af17a9aeb4911b081bc698d086bf296cc831981dfd27cad99ae128f5b",
+    "hooks/runtime-supervisor.py": "af568b0f3a17d2fc7dedbd0c21fe1f844fd833e54a89831737a6b79c47660ba3",
+    "hooks/opencode-plugin.js": "53c653bcd7cd39bed9a0aae6962f5cc117ba0e2ebecdda5136b15006a64f0d99",
+    "agent-kits/shared/journal.py": "11af8ac4cb15f452c4a94443e3f487758d53ddb68ebc2831f07c76b4f9375c30",
+    "agent-kits/shared/journal-capture.py": "63231769b0b0aea05395bade4c88c8f27d5f2c64ada7e94d4ca75abed6d13503",
+    "tests/hook-runtime.test.mjs": "c9b09cf6a1cfe44b28ff91ebc8f20c85c33998f1fd41dcec289cc7573ebaf143",
+    "tests/opencode-plugin.test.mjs": "de020ad4d79be73b6af5662cf399d65e710e27951b3544bef29472565e2a5730",
+    "tests/test_hook_supervisor.py": "3ec9d6480f25a4767f9c7ff7dfe872b09bf3457694fde1ec5e84929bf9e29154",
+    "tests/test_console_encoding.py": "9fe1bfe82f217394d53859818ef9a8255f0a19948251a84f9d6c582a57f91830",
+    "agent-kits/shared/test_journal.py": "1abf89fdc12a798c013c3ff3f75a0df10aebe197f75663816e2b5c823fe7683a"
+  },
+  "checks": {
+    "windows_runtime_adapter": {
+      "passed": 33,
+      "failed": 0,
+      "additional_malformed_header_passed": 1
+    },
+    "posix_owned_process_tests": {
+      "passed": 4,
+      "failed": 0
+    },
+    "supervisor_unit": {
+      "passed": 9,
+      "failed": 0
+    },
+    "win32_api_coverage_fixture": {
+      "run": true,
+      "close": true,
+      "invalid_owner": true,
+      "utf8": true
+    },
+    "supervisor_and_utf8_final": {
+      "passed": 12,
+      "failed": 0,
+      "includes_supervisor_unit": 9,
+      "includes_console_codecs": 3
+    }
+  },
+  "red_evidence": [
+    {
+      "test": "SessionEnd cleans descendants after its direct child has already exited",
+      "failure": "descendant marker survived direct parent exit on Windows"
+    },
+    {
+      "test": "cleanup of the real launcher reaches its Python process",
+      "failure": "after-cleanup marker existed on POSIX with detached inner Python group"
+    },
+    {
+      "test": "test_group_cleanup_keeps_owner_running_and_kills_children",
+      "failure": "owner group received SIGSTOP; child lacked individual SIGSTOP"
+    }
+  ],
+  "limitations": [
+    "Process scheduling under concurrent full suites produced a cleanup confirmation timeout; native budgets are unchanged.",
+    "No guarantee of universal total OS process startup below 1.5 seconds."
+  ],
+  "node_linux": {
+    "version": "v23.8.0",
+    "distro": "Ubuntu",
+    "relative_path": "scratchpad/.venv/linux-node-23-8/node-v23.8.0-linux-x64/bin/node",
+    "archive_sha256": "78d24ff80a52f7dd3a94542d7598163624fcda7be1d4777bc9161d8c8d15267f"
+  },
+  "final_native_evidence": {
+    "claude": "claude-hook-evidence.json",
+    "codex": "codex-lifecycle-evidence.json",
+    "opencode": "opencode-lifecycle-evidence.json"
+  }
+}

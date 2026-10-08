@@ -19,18 +19,23 @@
     "activation_without_chmod": "first add succeeded in a fresh own HOME/cache after installer, untrusted and bypass exec; no chmod",
     "runtime_hook_positive": [
       "SessionStart context delivered to model",
-      "UserPromptSubmit exact Unicode captured"
-    ],
-    "runtime_hook_negative": [
-      "No SessionEnd envelope in four current invocations",
-      "No native SessionEnd observer event in three modified-cache own invocations",
-      "No event after own archive; mechanism not isolated"
+      "UserPromptSubmit exact Unicode captured",
+      "SessionEnd after archive of active loaded thread in the same app-server; envelope observed before app-server exit"
     ],
     "negative_is_timeout_proof": false,
     "native_add_scope": "unconditionally enables plugin in user config; project config is separate",
     "config_override_preserves_global_disabled": false,
     "same_version_source_change_refreshed": true,
-    "native_installed_state": "plugin list --available --json has installed=true; enabled independent field"
+    "native_installed_state": "plugin list --available --json has installed=true; enabled independent field",
+    "historical_lifecycle_attempts": {
+      "observations": [
+        "No SessionEnd envelope in four current invocations",
+        "No native SessionEnd observer event in three modified-cache own invocations",
+        "No event after own archive; mechanism not isolated"
+      ],
+      "interpretation": "exec closes by ThreadUnsubscribe; archive from a different app-server has no loaded thread. Neither fixture tests Op::Shutdown or proves a timeout."
+    },
+    "current_lifecycle_evidence": "codex-lifecycle-evidence.json"
   },
   "isolation": {
     "own_home_and_project": true,
@@ -42,10 +47,10 @@
     "reference_corpus_executed": false
   },
   "recommended_next_actions": [
-    "Preserve native user enabled entry during project cache activation with an explicit safe transaction; do not native remove as rollback",
-    "Do not add chmod production workaround without isolated runtime-specific reproduction",
-    "Verify SessionEnd current runtime through authoritative lifecycle events before claiming native closure",
-    "Doctor status must distinguish enabled configuration from actual installed cache"
+    "Keep project cache activation isolated from user enabled preferences; no native remove rollback",
+    "Separate declared config, native installed/enabled view, hook trust and observed execution",
+    "Verify role-based guard identity and allow/deny in native sessions",
+    "No production chmod workaround without isolated runtime reproduction"
   ],
   "private_evidence": [
     {

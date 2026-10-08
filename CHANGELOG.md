@@ -9,6 +9,14 @@ and versioning follows [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed — Codex native installation and diagnosis
+
+- Validate native cache before project activation, prepare registration in an isolated home and preserve global marketplace preferences. Handle equivalent quoted TOML keys and scoped native paths; distinguish configuration from the bounded native CLI listing in status and doctor.
+
+### Fixed — Canonical terminal capture
+
+- Isolate durable capture from deferred journal materialization, use a single log snapshot for event identity and sequence, and resolve packaged runtime versions. Bound child work by runtime, terminate its process tree on timeout, and retain prompt recovery; verify native headless closure without changing consumer timeout settings.
+
 ### Changed — Native hook evidence and operational comparison
 
 - Record isolated native Claude/Codex findings, terminal-budget limits and recovery evidence. Compare operational panels and 18 command bodies while keeping incomplete dependencies and proposed integrations explicit.

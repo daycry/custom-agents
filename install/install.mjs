@@ -21,16 +21,18 @@
 
 import {
   readFileSync, writeFileSync, existsSync, mkdirSync, cpSync, statSync, rmSync, readdirSync, rmdirSync,
-  renameSync, chmodSync, realpathSync, lstatSync, unlinkSync,
+  renameSync, chmodSync, realpathSync, lstatSync, unlinkSync, mkdtempSync, symlinkSync,
 } from "node:fs"
 import { createHash } from "node:crypto"
 import { dirname, join, resolve, relative, sep, isAbsolute } from "node:path"
 import { fileURLToPath } from "node:url"
 import { createInterface, emitKeypressEvents } from "node:readline"
 import { execFileSync } from "node:child_process"
+import { tmpdir } from "node:os"
+import { queryCodexPlugin } from "../agent-kits/shared/codex-plugin-state.mjs"
 import {
   PROVIDERS, IDS, getProvider, buildPlan, MANIFEST, MANIFEST_PLUGIN, MANIFIESTOS,
-  enPath, rutaDe, estadoCli, manifiestoDe, sitiosManifiesto, PRECEDENCIA_SETTINGS,
+  enPath, rutaDe, estadoCli, manifiestoDe, sitiosManifiesto, PRECEDENCIA_SETTINGS, codexHome, MKT, PLUGIN, PLUGIN_ID,
 } from "./providers.mjs"
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..")
@@ -448,27 +450,46 @@ export function igualSalvo(a, b, volatiles = []) {
 
 /**
  * Nombre de tabla TOML en forma canónica para poder COMPARARLO: sin espacios sobrantes y con las
- * claves entrecomilladas siempre en comillas dobles. `[ plugins . 'custom-agents@daycry' ]` y
+ * segmentos equivalentes con la misma escritura canónica. `[ plugins . 'custom-agents@daycry' ]` y
  * `[plugins."custom-agents@daycry"]` son la MISMA tabla para Codex; compararlas con `===` creaba
  * una segunda tabla duplicada y dejaba el `config.toml` ilegible.
  */
 export function normalizarTabla(nombre) {
-  const partes = []
-  let cur = "", i = 0
-  const cierra = () => { if (cur.trim()) partes.push(cur.trim()); cur = "" }
-  while (i < nombre.length) {
-    const ch = nombre[i]
-    if (ch === '"' || ch === "'") {
-      const fin = nombre.indexOf(ch, i + 1)
-      if (fin === -1) { cur += nombre.slice(i); break }
-      cierra()
-      partes.push(JSON.stringify(nombre.slice(i + 1, fin)))
-      i = fin + 1
-    } else if (ch === ".") { cierra(); i++ }
-    else { cur += ch; i++ }
+  if(!nombre.trim()) return "" // Empty table prefix means the TOML document root.
+  const partes=[]
+  let i=0
+  while(i<nombre.length) {
+    while(/\s/.test(nombre[i] || "") && i<nombre.length) i++
+    let key
+    if(nombre[i]==='"' || nombre[i]==="'") {
+      const end=finCadenaToml(nombre,i)
+      if(end<0) throw new Error("unsupported or malformed TOML key")
+      key=cadenaToml(nombre.slice(i,end+1))
+      if(key===null) throw new Error("unsupported or malformed TOML key")
+      i=end+1
+    } else {
+      const m=nombre.slice(i).match(/^[A-Za-z0-9_-]+/)
+      if(!m) throw new Error("unsupported or malformed TOML key")
+      key=m[0];i+=key.length
+    }
+    partes.push(/^[A-Za-z0-9_-]+$/.test(key) ? key : JSON.stringify(key))
+    while(/\s/.test(nombre[i] || "") && i<nombre.length) i++
+    if(i===nombre.length) break
+    if(nombre[i]!=="." || ++i===nombre.length) throw new Error("unsupported or malformed TOML key")
   }
-  cierra()
+  if(!partes.length) throw new Error("unsupported or malformed TOML key")
   return partes.join(".")
+}
+
+/** End of a single-line TOML string, respecting escaped quotes in basic strings. */
+function finCadenaToml(text,start) {
+  const quote=text[start]
+  for(let i=start+1;i<text.length;i++) {
+    if(quote==='"' && text[i]==="\\") {i++;continue}
+    if(text[i]===quote) return i
+    if(text[i]==="\n" || text[i]==="\r") return -1
+  }
+  return -1
 }
 
 /**
@@ -494,7 +515,7 @@ function avanzarLexico(linea, st) {
       continue
     }
     if (c === '"' || c === "'") {
-      const j = linea.indexOf(c, i + 1)
+      const j = finCadenaToml(linea,i)
       i = j === -1 ? linea.length : j + 1
       continue
     }
@@ -522,13 +543,16 @@ function analizarToml(lineas) {
   for (let i = 0; i < lineas.length; i++) {
     const fuera = !st.multi && st.corchetes === 0
     libre.push(fuera)
-    const m = fuera && lineas[i].trim().match(/^(\[\[?)\s*(.*?)\s*(\]\]?)$/)
+    const encabezado=fuera ? partirValor(lineas[i].trim())[0].trim() : ""
+    const m = fuera && encabezado.match(/^(\[\[?)\s*(.*?)\s*(\]\]?)$/)
     if (m && m[1].length === m[3].length) {
+      if(!m[2].trim()) throw new Error("unsupported or malformed TOML table")
       const nombre = normalizarTabla(m[2])
       cabeceras.push({ i, nombre, doble: m[1] === "[[" })
       tablaActual = nombre
       continue                                                 // la cabecera no cuenta corchetes
     }
+    if(fuera && encabezado.startsWith("[")) throw new Error("unsupported or malformed TOML table")
     if (fuera) {
       const term = lineas[i].endsWith("\r\n") ? "\r\n" : lineas[i].endsWith("\n") ? "\n" : ""
       const cuerpo = term ? lineas[i].slice(0, -term.length) : lineas[i]
@@ -561,7 +585,7 @@ function partirComas(dentro) {
   while (i < dentro.length) {
     const ch = dentro[i]
     if (ch === '"' || ch === "'") {
-      const fin = dentro.indexOf(ch, i + 1)
+      const fin = finCadenaToml(dentro,i)
       if (fin === -1) return null
       cur += dentro.slice(i, fin + 1)
       i = fin + 1
@@ -618,7 +642,7 @@ export function partirAsignacion(cuerpo) {
   while (i < cuerpo.length) {
     const ch = cuerpo[i]
     if (ch === '"' || ch === "'") {
-      const fin = cuerpo.indexOf(ch, i + 1)
+      const fin = finCadenaToml(cuerpo,i)
       if (fin === -1) return null
       bruta += cuerpo.slice(i, fin + 1)
       i = fin + 1
@@ -642,7 +666,7 @@ function prefijoClave(bruta) {
   while (i < bruta.length) {
     const ch = bruta[i]
     if (ch === '"' || ch === "'") {
-      const fin = bruta.indexOf(ch, i + 1)
+      const fin = finCadenaToml(bruta,i)
       if (fin === -1) { cur += bruta.slice(i); break }
       cur += bruta.slice(i, fin + 1)
       i = fin + 1
@@ -661,7 +685,7 @@ function partirValor(resto) {
   let q = null
   for (let i = 0; i < resto.length; i++) {
     const c = resto[i]
-    if (q) { if (c === q) q = null }
+    if (q) { if(q==='"' && c==="\\") i++; else if (c === q) q = null }
     else if (c === '"' || c === "'") q = c
     else if (c === "#") return [resto.slice(0, i), resto.slice(i)]
   }
@@ -987,10 +1011,10 @@ function matarArbol(pid) {
   }
 }
 
-function correr(cmd, args, cwd) {
+function correr(cmd, args, cwd, env = process.env) {
   if (TIMEOUT.aviso && !avisadoTimeout) { avisadoTimeout = true; say(`  ${WARN} ${dim(TIMEOUT.aviso)}`) }
   const opciones = {
-    encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], cwd,
+    encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], cwd, env,
     // Sin timeout, una CLI que se queda pensando (o pidiendo algo por stdin) cuelga el `npx`
     // para siempre y sin una línea en pantalla. 120 s de sobra; `CUSTOM_AGENTS_EXEC_TIMEOUT_MS`
     // para quien tenga una máquina lenta o quiera apretarlo en CI.
@@ -1016,6 +1040,218 @@ function correr(cmd, args, cwd) {
     }
     throw e
   }
+}
+
+/**
+ * Native cache installation, with project enablement isolated from the user's config.
+ * Codex 0.161's setter always enables in CODEX_HOME. A private regular config snapshot and
+ * a link only to our marketplace cache let native staging/version replacement stay native.
+ * Relative config paths resolve against the snapshot home: keep native rejections, never
+ * retry using an empty config or the real home. System-managed requirements remain native.
+ */
+export function instalarCodexNativo({dir,scope,version,marketplaceRoot,home=codexHome(),tempRoot=tmpdir(),
+  runner=(args,o)=>correr("codex",args,o.cwd,o.env)}={}) {
+  const realHome=resolve(home)
+  validarCacheCodex(realHome)
+  const args=["plugin","add",PLUGIN_ID,"--json"]
+  let isolated=null, link=null
+  try {
+    let nativeHome=realHome
+    if(scope==="project") {
+      isolated=mkdtempSync(join(tempRoot,"custom-agents-codex-"))
+      nativeHome=isolated
+      const userConfig=join(realHome,"config.toml")
+      // readFile follows any user symlink; the destination is always our own regular file.
+      const contents=existsSync(userConfig) ? readFileSync(userConfig) : Buffer.from("")
+      validarSnapshotCodex(contents.toString("utf8"))
+      writeFileSync(join(isolated,"config.toml"),contents,{flag:"wx",mode:0o600})
+      const namespace=join(realHome,"plugins","cache",MKT)
+      mkdirSync(namespace,{recursive:true})
+      mkdirSync(join(isolated,"plugins","cache"),{recursive:true})
+      link=join(isolated,"plugins","cache",MKT)
+      symlinkSync(namespace,link,process.platform==="win32" ? "junction" : "dir")
+    } else if(scope!=="user") throw new Error("unsupported Codex installation scope")
+    const options={cwd:dir,env:{...process.env,CODEX_HOME:nativeHome}}
+    let nativeArgs=args
+    if(scope==="project") {
+      const sourceRoot=resolve(marketplaceRoot || dir)
+      // A project layer can outrank the snapshot. Pin only the requested marketplace source
+      // for these native operations, while managed admission requirements still apply.
+      const sourceOverrides=["-c",`marketplaces.${MKT}.source_type="local"`,"-c",`marketplaces.${MKT}.source=${JSON.stringify(sourceRoot)}`]
+      const sourceState=comprobarFuenteCodex(join(nativeHome,"config.toml"),sourceRoot)
+      if(sourceState==="unknown") throw new Error("ambiguous marketplace source in isolated Codex config")
+      // Registry mutations must see the snapshot as user config, not a higher-precedence
+      // project entry that Codex refuses to remove. Native add retains the actual project cwd.
+      const registryCwd=join(nativeHome,"registry-cwd")
+      mkdirSync(registryCwd)
+      const registryOptions={...options,cwd:registryCwd}
+      // Replacing only the private snapshot's registry does not change the user's marketplace.
+      if(sourceState==="conflict") runner(["plugin","marketplace","remove",MKT],registryOptions)
+      runner(["plugin","marketplace","add",sourceRoot,...sourceOverrides],registryOptions)
+      nativeArgs=[...args,...sourceOverrides]
+    }
+    const raw=runner(nativeArgs,options)
+    let result
+    try {result=JSON.parse(String(raw))} catch {throw new Error("Codex native add returned invalid JSON")}
+    if(result?.pluginId!==PLUGIN_ID || result.version!==version || typeof result.installedPath!=="string") {
+      throw new Error("Codex native add returned an unexpected plugin or version")
+    }
+    const expected=join(realHome,"plugins","cache",MKT,PLUGIN,version)
+    const alias=join(nativeHome,"plugins","cache",MKT,PLUGIN,version)
+    if(!mismaRuta(result.installedPath,alias) || !existsSync(expected) || !statSync(expected).isDirectory()
+      || !mismaRuta(realpathSync(result.installedPath),expected)) {
+      throw new Error("Codex native add did not materialize the expected cache entry")
+    }
+    return {pluginId:PLUGIN_ID,version:result.version,installedPath:expected}
+  } finally {
+    // Unlink the owned junction first. Cleanup never recursively follows a link into the cache.
+    if(link) {try {unlinkSync(link)} catch {/* creation may have failed */}}
+    if(isolated) rmSync(isolated,{recursive:true,force:true})
+  }
+}
+
+/** The shared native cache must already identify this bundle before we replace it. */
+export function validarCacheCodex(home) {
+  const root=join(home,"plugins","cache",MKT,PLUGIN)
+  if(!existsSync(root)) return
+  const repository=leerJson(join(ROOT,".codex-plugin","plugin.json"))?.repository
+  if(typeof repository!=="string" || !repository) throw new Error("Codex cache ownership cannot be verified")
+  for(const entry of readdirSync(root,{withFileTypes:true})) {
+    if(!entry.isDirectory()) continue
+    const manifest=leerJson(join(root,entry.name,".codex-plugin","plugin.json"))
+    if(manifest?.name!==PLUGIN || manifest.repository!==repository) {
+      throw new Error("foreign or unverifiable Codex cache ownership; native replacement declined")
+    }
+  }
+}
+
+function cadenaToml(raw) {
+  if((raw[0]!=='"' && raw[0]!=="'") || finCadenaToml(raw,0)!==raw.length-1) return null
+  let value=raw.slice(1,-1)
+  if(/[\x00-\x08\x0A-\x1F\x7F]/.test(value)) return null
+  if(raw[0]==="'") return value
+  const escapes={b:"\b",t:"\t",n:"\n",f:"\f",r:"\r",'"':'"',"\\":"\\"}
+  let decoded=""
+  for(let i=0;i<value.length;i++) {
+    if(value[i]!=="\\") {decoded+=value[i];continue}
+    const code=value[++i]
+    if(Object.hasOwn(escapes,code)) decoded+=escapes[code]
+    else if(code==="u" || code==="U") {
+      const n=code==="u" ? 4 : 8, hex=value.slice(i+1,i+1+n)
+      if(hex.length!==n || !/^[0-9a-f]+$/i.test(hex)) return null
+      const point=parseInt(hex,16)
+      if(point>0x10FFFF || point>=0xD800 && point<=0xDFFF) return null
+      decoded+=String.fromCodePoint(point);i+=n
+    } else return null
+  }
+  return decoded
+}
+
+/** Guard the existing source before invoking a native registry mutation. */
+export function comprobarFuenteCodex(file,expectedRoot) {
+  if(!existsSync(file)) return "absent"
+  let text
+  try {text=readFileSync(file,"utf8")} catch {return "unknown"}
+  const prefix=normalizarTabla(`marketplaces.${MKT}`)
+  let entries
+  try {entries=rutasToml(text).filter(entry=>entry.ruta===prefix || entry.ruta.startsWith(`${prefix}.`))}
+  catch {return "unknown"}
+  if(!entries.length) {
+    const declared=analizarToml(text.split(/(?<=\n)/)).cabeceras.some(c=>c.nombre===prefix || c.nombre.startsWith(`${prefix}.`))
+    return declared ? "unknown" : "absent"
+  }
+  const field=name=>entries.filter(e=>e.ruta===`${prefix}.${name}`)
+  const types=field("source_type"), sources=field("source")
+  if(types.length!==1 || sources.length!==1) return "unknown"
+  const type=cadenaToml(types[0].valor), source=cadenaToml(sources[0].valor)
+  if(type===null || source===null) return "unknown"
+  if(type!=="local") return "conflict"
+  if(!isAbsolute(source)) return "unknown"
+  return mismaRuta(source,expectedRoot) ? "same" : "conflict"
+}
+
+/** Typed path fields from the pinned 0.161 config schema; reject ambiguous snapshots. */
+export function validarSnapshotCodex(text) {
+  const rootScalar=new Set(["model_instructions_file","js_repl_node_path","sqlite_home","log_dir","model_catalog_json",
+    "experimental_compact_prompt_file"])
+  const profileScalar=new Set(["model_instructions_file","js_repl_node_path","model_catalog_json","experimental_compact_prompt_file"])
+  for(const entry of rutasToml(text)) {
+    const route=entry.ruta,leaf=route.split(".").at(-1)
+    const profile=/^profiles\.(?:[A-Za-z0-9_-]+|"(?:\\.|[^"\\])*")\.([A-Za-z0-9_-]+)$/.test(route)
+    const scalar=rootScalar.has(route) || profile && profileScalar.has(leaf)
+      || /^agents\.(?:[A-Za-z0-9_-]+|"(?:\\.|[^"\\])*")\.config_file$/.test(route)
+      || /^mcp_servers\.(?:[A-Za-z0-9_-]+|"(?:\\.|[^"\\])*")\.cwd$/.test(route)
+      || route==="skills.config.path"
+      || /^otel\.(?:exporter|trace_exporter|metrics_exporter)\.otlp-(?:http|grpc)\.tls\.(?:ca-certificate|client-certificate|client-private-key)$/.test(route)
+    const vector=route==="js_repl_node_module_dirs" || profile && leaf==="js_repl_node_module_dirs"
+      || route==="sandbox_workspace_write.writable_roots"
+    let values
+    if(route==="skills.config") {
+      if(!entry.valor.startsWith("[") || !entry.valor.endsWith("]")) throw new Error("ambiguous relative config path in skills.config")
+      const selectors=partirComas(entry.valor.slice(1,-1))
+      if(selectors===null) throw new Error("ambiguous relative config path in skills.config")
+      values=[]
+      for(const selector of selectors) {
+        if(!selector.trim().startsWith("{") || !selector.trim().endsWith("}")) throw new Error("ambiguous relative config path in skills.config")
+        const fields=rutasToml(`selector = ${selector}`)
+        if(fields.some(f=>f.ruta==="selector")) throw new Error("ambiguous relative config path in skills.config")
+        values.push(...fields.filter(f=>f.ruta==="selector.path").map(f=>f.valor))
+      }
+    } else if(scalar) values=[entry.valor]
+    else if(vector) {
+      if(!entry.valor.startsWith("[") || !entry.valor.endsWith("]")) throw new Error(`ambiguous relative config path in ${leaf}; use absolute paths before project installation`)
+      values=partirComas(entry.valor.slice(1,-1))
+      if(values===null) throw new Error(`ambiguous relative config path in ${leaf}; use absolute paths before project installation`)
+    } else continue
+    for(const raw of values) {
+      const value=cadenaToml(raw.trim())
+      if(value===null || !isAbsolute(value)) throw new Error(`relative or ambiguous config path in ${leaf}; use absolute paths before project installation`)
+    }
+  }
+}
+
+const mismoValorToml=(a,b)=>a===b || cadenaToml(a)!==null && cadenaToml(a)===cadenaToml(b)
+
+/** Restore only a recorded own key when the user has not subsequently changed its value. */
+export function restaurarClaveToml(text,table,key,record) {
+  const prefix=normalizarTabla(table), target=`${prefix}.${normalizarTabla(key)}`
+  const hits=rutasToml(text).filter(e=>e.ruta===target)
+  if(hits.length!==1 || !mismoValorToml(hits[0].valor,record.escrito)) return text
+  const lines=text.split(/(?<=\n)/), index=analizarToml(lines)
+  const assignment=index.asignaciones.find(e=>e.ruta===target || target.startsWith(`${e.ruta}.`))
+  if(!assignment) throw new Error("cannot safely restore owned TOML key")
+  const editInline=(raw,base)=>{
+    const value=partirValor(raw)[0].trim()
+    if(base===target) return record.previo
+    if(!value.startsWith("{") || !value.endsWith("}")) throw new Error("cannot safely restore inline TOML key")
+    const parts=partirComas(value.slice(1,-1))
+    if(parts===null) throw new Error("cannot safely restore inline TOML key")
+    const remaining=[]
+    for(const part of parts) {
+      const parsed=partirAsignacion(part)
+      if(!parsed) throw new Error("cannot safely restore inline TOML key")
+      const route=`${base}.${normalizarTabla(parsed.bruta)}`
+      if(route===target || target.startsWith(`${route}.`)) {
+        const replacement=editInline(parsed.resto,route)
+        if(replacement!==null) remaining.push(`${parsed.sangria}${parsed.bruta} = ${replacement}`)
+      } else remaining.push(part)
+    }
+    return remaining.length ? `{${remaining.join(",")}}` : "{}"
+  }
+  const replacement=assignment.ruta===target ? record.previo : editInline(assignment.resto,assignment.ruta)
+  const original=lines[assignment.i], end=original.endsWith("\r\n") ? "\r\n" : original.endsWith("\n") ? "\n" : ""
+  const comment=partirValor(assignment.resto)[1]
+  lines[assignment.i]=replacement===null ? (comment ? `${assignment.sangria}${comment}${end}` : "")
+    : `${assignment.sangria}${assignment.bruta} = ${replacement}${comment ? ` ${comment}` : ""}${end}`
+  let updated=lines.join("")
+  if(record.tablaCreada && !rutasToml(updated).some(e=>e.ruta===prefix || e.ruta.startsWith(`${prefix}.`))) {
+    const updatedLines=updated.split(/(?<=\n)/), headers=analizarToml(updatedLines).cabeceras
+    if(!headers.some(h=>h.nombre.startsWith(`${prefix}.`))) {
+      for(const header of headers.filter(h=>h.nombre===prefix)) updatedLines[header.i]=""
+      updated=updatedLines.join("")
+    }
+  }
+  return updated
 }
 
 /** ¿Este fallo de `execFileSync` es el del `timeout`? (Node lo cuenta de dos maneras). */
@@ -1093,6 +1329,8 @@ function ejecutar(provider, opts) {
   const retirados = new Set()
   const registro = []   // lo que no es un fichero nuestro: comandos y claves de configuración
   const avisos = []
+  const completed = new Set()
+  let nativePending=false
   let n = 0
 
   // Qué ficheros del registro habíamos creado NOSOTROS en una instalación anterior. Al reinstalar
@@ -1160,6 +1398,11 @@ function ejecutar(provider, opts) {
 
   function ejecutarPlan() {
   for (const paso of plan) {
+    if(paso.requires && !completed.has(paso.requires) && !opts.dryRun) {
+      avisos.push(`${paso.type}: pendiente; no se completó ${paso.requires}`)
+      if(provider.id==="codex") nativePending=true
+      continue
+    }
     if (paso.type === "retire") {
       if (retirarArtefacto(paso, provider.destino(opts.scope, opts.dir, opts.modo), opts.dryRun)) {
         retirados.add(paso.to.split(sep).join("/"))
@@ -1226,9 +1469,51 @@ function ejecutar(provider, opts) {
       else { mkdirSync(dirname(paso.to), { recursive: true }); writeFileSync(paso.to, paso.content, "utf8") }
       escritos.push(paso.to)
       n++
+    } else if (paso.type === "codex-native-add") {
+      const command=[paso.cmd,...paso.args].join(" ")
+      if(paso.codexMarketplace) {
+        const sourceState=comprobarFuenteCodex(paso.codexMarketplace.config,paso.codexMarketplace.root)
+        if(sourceState==="unknown" || sourceState==="conflict" && !opts.forceMarketplace) {
+          avisos.push("marketplace del proyecto: fuente existente ajena o ambigua; registro y activación pendientes (usa --force-marketplace para reemplazar una fuente conocida)")
+          nativePending=true
+          continue
+        }
+      }
+      if(opts.dryRun) {say(`  ${ARROW} ${dim("$")} ${command} ${dim("(caché nativa; activación del scope después del éxito)")}`);continue}
+      const state=estadoCli(paso.cmd), nativeVersion=state==="si" ? versionDe(paso.cmd) : null
+      if(state!=="si" || !versionSuficiente(nativeVersion,paso.minVersion)) {
+        avisos.push(`caché nativa pendiente: se requiere Codex ejecutable >= ${paso.minVersion}; no se habilita el plugin`)
+        nativePending=true
+        continue
+      }
+      say(`  ${ARROW} ${dim("ejecutando")} ${dim("$")} ${command}${dim("…")}`)
+      try {
+        const native=instalarCodexNativo({dir:paso.cwd,scope:paso.scope,version:paso.version,marketplaceRoot:paso.marketplaceRoot})
+        registro.push({exec:command,nativeCache:native.installedPath})
+        completed.add(paso.id)
+        n++
+      } catch(error) {
+        volcar(salidaDe(error))
+        throw new Error(`${command}: ${primeraLinea(salidaDe(error))}; el plugin no se habilita`)
+      }
     } else if (paso.type === "exec") {
       const cmdTexto = [paso.cmd, ...paso.args].join(" ")
       const apunte = { exec: cmdTexto, ...(paso.deshacer ? { deshacer: paso.deshacer } : {}) }
+      let replaceMarketplace=false
+      if(paso.codexMarketplace) {
+        const sourceState=comprobarFuenteCodex(paso.codexMarketplace.config,paso.codexMarketplace.root)
+        if(sourceState==="unknown") {
+          avisos.push("marketplace Codex: no puedo determinar con seguridad la fuente existente; registro y activación pendientes")
+          continue
+        }
+        if(sourceState==="conflict") {
+          if(!opts.forceMarketplace) {
+            avisos.push(`el marketplace ya está dado de alta desde otra fuente y NO lo toco. Si quieres la de custom-agents: ${paso.cmd} plugin marketplace remove ${MKT} && ${cmdTexto} (o repite con --force-marketplace)`)
+            continue
+          }
+          replaceMarketplace=true
+        }
+      }
       if (opts.dryRun) {
         say(`  ${ARROW} ${dim("$")} ${cmdTexto}`)
         registro.push(apunte)
@@ -1258,6 +1543,11 @@ function ejecutar(provider, opts) {
       // en qué está el instalador mientras corre el `timeout`.
       say(`  ${ARROW} ${dim("ejecutando")} ${dim("$")} ${cmdTexto}${dim("…")}`)
       try {
+        if(replaceMarketplace) {
+          correr(paso.cmd,paso.siYaExiste.args,paso.cwd)
+          apunte.forzado=[paso.cmd,...paso.siYaExiste.args].join(" ")
+          avisos.push("--force-marketplace: sustituyo la fuente anterior del marketplace")
+        }
         correr(paso.cmd, paso.args, paso.cwd)
       } catch (e) {
         const salida = salidaDe(e)
@@ -1288,6 +1578,7 @@ function ejecutar(provider, opts) {
       }
       say(`  ${OK} ${dim("$")} ${cmdTexto}`)
       registro.push(apunte)
+      if(paso.id) completed.add(paso.id)
       n++
     } else if (paso.type === "json-set") {
       // A diferencia de `merge`, esto SÍ pisa: son las claves del registro del runtime, las que
@@ -1328,18 +1619,31 @@ function ejecutar(provider, opts) {
       n += cambia ? 1 : 0
     } else if (paso.type === "toml-set") {
       const previo = existsSync(paso.to) ? readFileSync(paso.to, "utf8") : ""
+      let undo
+      if(paso.restaurar) {
+        const prefix=normalizarTabla(paso.tabla), target=`${prefix}.${normalizarTabla(paso.clave)}`
+        const hits=rutasToml(previo).filter(e=>e.ruta===target)
+        if(hits.length>1) throw new Error("ambiguous owned TOML key")
+        const old=(manPrevio?.registro || []).find(e=>e["toml-set"]===paso.to && e.tabla===paso.tabla && e.clave===paso.clave)?.restaurar
+        const wrote=typeof paso.valor==="string" ? JSON.stringify(paso.valor) : String(paso.valor)
+        const tableExists=analizarToml(previo.split(/(?<=\n)/)).cabeceras.some(h=>h.nombre===prefix)
+          || rutasToml(previo).some(e=>e.ruta===prefix || e.ruta.startsWith(`${prefix}.`))
+        const tableOwned=registro.some(e=>e["toml-set"]===paso.to && e.tabla===paso.tabla && e.restaurar?.tablaCreada)
+        undo=old && hits.length===1 && mismoValorToml(hits[0].valor,old.escrito) ? old
+          : {escrito:wrote,previo:hits[0]?.valor ?? null,tablaCreada:!tableExists || tableOwned}
+      }
       const nuevo = ponerToml(previo, paso.tabla, paso.clave, paso.valor, { fichero: rel(paso.to) })
       if (opts.dryRun) {
         say(`  ${ARROW} ${rel(paso.to)} ${dim(`([${paso.tabla}] ${paso.clave} = ${paso.valor})`)}`)
       } else if (nuevo !== previo) {
         escribirAtomico(paso.to, nuevo)
       }
-      if (paso.deshacer !== false) registro.push({ "toml-set": paso.to, tabla: paso.tabla, clave: paso.clave })
+      if (paso.deshacer !== false) registro.push({ "toml-set": paso.to, tabla: paso.tabla, clave: paso.clave,...(undo ? {restaurar:undo} : {}) })
       n += nuevo !== previo ? 1 : 0
     }
   }
 
-  guardar("completo")
+  guardar(nativePending ? "incompleto" : "completo",nativePending ? "registro/caché nativa pendientes" : undefined)
   avisos.push(...drenarAvisosEscritura())
   return { n, avisos }
   }
@@ -1578,8 +1882,8 @@ function deshacerRegistro(registro) {
       // `soloSiExiste`: si el usuario ya borró la tabla, desinstalar NO se la vuelve a crear.
       let nuevo
       try {
-        nuevo = ponerToml(previo, e.tabla, e.clave, false,
-          { soloSiExiste: true, fichero: rel(e["toml-set"]) })
+        nuevo = e.restaurar ? restaurarClaveToml(previo,e.tabla,e.clave,e.restaurar)
+          : ponerToml(previo, e.tabla, e.clave, false,{ soloSiExiste: true, fichero: rel(e["toml-set"]) })
       } catch (err) {
         avisos.push(err.message)
         continue
@@ -1759,8 +2063,8 @@ function cmdStatus(opts) {
         `${man.estado === "incompleto" ? WARN : OK} ${scope}${man.modo ? `/${man.modo}` : ""}: ` +
         `v${man.version}, ${(man.files || []).length} fichero(s) ${dim(rel(dest))}` +
         (man.estado === "incompleto" ? ` ${yellow("(instalación incompleta)")}` : ""))
-      // Copiar ficheros no es instalar: el registro se mira aparte del manifiesto, y puede
-      // decir «sí» sin manifiesto (instalado por la CLI del runtime) o «no» con él (`--mode copy`).
+      // Registration declarations and installer payload are separate. For Codex, the boolean
+      // proves only a declaration in this scope; native cache state is queried below.
       const { registrado, donde, apagadoEn, invalidoEn } = leerRegistro(
         typeof p.registro === "function" ? p.registro(scope, opts.dir) : [])
       if (registrado || apagadoEn || invalidoEn || delScope.length) {
@@ -1768,7 +2072,7 @@ function cmdStatus(opts) {
           ? `— está dado de alta pero APAGADO en ${rel(apagadoEn)}: el runtime lo ignora`
           : invalidoEn
             ? `— la clave está en ${rel(invalidoEn)} con un valor que no habilita: no cuenta como alta`
-            : "— el runtime no lo carga; falta darlo de alta"
+            : p.id === "codex" ? "— sin declaración de activación en este scope" : "— el runtime no lo carga; falta darlo de alta"
         delScope.push(`${registrado ? OK : WARN} ${scope}: registrado: ${registrado ? "sí" : "no"}` +
           (registrado ? ` ${dim(rel(donde))}` : ` ${dim(porQue)}`))
       }
@@ -1777,6 +2081,12 @@ function cmdStatus(opts) {
     const det = p.detect()
     say(`  ${bold(p.label.padEnd(13))} ${det ? dim("runtime detectado") : dim("runtime no detectado")}`)
     for (const f of filas) say(`      ${f}`)
+    if(p.id === "codex") {
+      const native=queryCodexPlugin({cwd:opts.dir})
+      const state=native.state==="installed" ? `instalado; habilitado: ${native.enabled ? "sí" : "no"}; v${native.version}`
+        : native.state==="absent" ? "ausente" : "desconocido (consulta nativa no disponible)"
+      say(`      ${dim(`estado nativo en Codex: ${state}`)}`)
+    }
     if (!filas.length) say(`      ${dim("— sin instalar por este instalador")}`)
   }
   say(`\n  ${dim("Instala con:")} npx @daycry/custom-agents install -p <${IDS.join("|")}>\n`)

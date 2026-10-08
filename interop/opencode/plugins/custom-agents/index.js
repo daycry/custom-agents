@@ -102,9 +102,9 @@ export default {
           finished = true; clearTimeout(timer); children.delete(entry); settle(); resolveResult(value);
         };
         try {
-          child = spawn('node', [join(hooks, 'run-hook.mjs'), script], {
+          child = spawn('node', [join(hooks, 'run-hook.mjs'), script, '--runtime=opencode'], {
             cwd: payload.cwd, windowsHide: true, detached: process.platform !== 'win32',
-            env: { ...process.env, CLAUDE_PROJECT_DIR: payload.cwd },
+            env: { ...process.env, CLAUDE_PROJECT_DIR: payload.cwd, CUSTOM_AGENTS_HOOK_OWN_GROUP: '1' },
             stdio: ['pipe', 'pipe', 'pipe'],
           });
           children.add(entry);

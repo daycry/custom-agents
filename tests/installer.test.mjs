@@ -30,8 +30,35 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..")
 const CLI = join(ROOT, "install", "install.mjs")
 
 const tmpProj = () => mkdtempSync(join(tmpdir(), "ca-install-"))
-const cli = (args, opts = {}) =>
-  execFileSync(process.execPath, [CLI, ...args], { encoding: "utf8", env: { ...process.env, NO_COLOR: "1" }, ...opts })
+// Even old tests with no env override must never register marketplaces in a real Codex home.
+const SUITE_HOME = tmpProj()
+const SUITE_BIN=join(SUITE_HOME,'stub-bin')
+mkdirSync(SUITE_BIN)
+for(const name of ['codex','claude','opencode']) {
+  const executable=join(SUITE_BIN,process.platform==='win32' ? `${name}.cmd` : name)
+  writeFileSync(executable,process.platform==='win32'
+    ? '@echo off\r\nif "%~1"=="--version" (echo fixture 0.0.0 & exit /b 0)\r\nexit /b 69\r\n'
+    : '#!/bin/sh\nif [ "$1" = "--version" ]; then echo "fixture 0.0.0"; exit 0; fi\nexit 69\n')
+  if(process.platform!=='win32') chmodSync(executable,0o755)
+}
+const SAFE_SYSTEM_PATH=process.platform==='win32' ? join(process.env.SystemRoot || 'C:\\Windows','System32') : '/usr/bin:/bin'
+const cli = (args, opts = {}) => {
+  const requested=opts.env || {}
+  const ownedHome=requested.HOME && requested.HOME!==process.env.HOME ? requested.HOME : SUITE_HOME
+  const ownedCodex=requested.CODEX_HOME && requested.CODEX_HOME!==process.env.CODEX_HOME ? requested.CODEX_HOME : join(ownedHome,".codex")
+  const merged={...process.env,...requested}
+  const requestedPath=Object.entries(requested).find(([key])=>/^path$/i.test(key))?.[1]
+  const inheritedPath=process.env.PATH || process.env.Path
+  const env=Object.fromEntries(Object.entries(merged).filter(([key])=>!/^path$/i.test(key)
+    && !/^(?:OPENAI|ANTHROPIC|AZURE_OPENAI|CLAUDE|CODEX|OPENCODE|GEMINI|GOOGLE|AWS|GITHUB|GH|HF|HUGGING_FACE|MISTRAL|COHERE|DEEPSEEK|XAI|GROQ|TOGETHER|FIREWORKS|OPENROUTER).*(?:KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL|AUTH)/i.test(key)))
+  Object.assign(env,{NO_COLOR:"1",HOME:ownedHome,USERPROFILE:ownedHome,CODEX_HOME:ownedCodex,
+    PATH:requestedPath && requestedPath!==inheritedPath ? requestedPath : [SUITE_BIN,SAFE_SYSTEM_PATH].join(delimiter)})
+  for(const [key,fallback] of [['APPDATA',join(ownedHome,'AppData/Roaming')],['LOCALAPPDATA',join(ownedHome,'AppData/Local')],
+    ['XDG_CONFIG_HOME',join(ownedHome,'.config')],['CLAUDE_CONFIG_DIR',join(ownedHome,'.claude')]]) {
+    if(!requested[key] || requested[key]===process.env[key]) env[key]=fallback
+  }
+  return execFileSync(process.execPath,[CLI,...args],{encoding:"utf8",...opts,env})
+}
 
 const VERSION = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")).version
 
@@ -53,30 +80,127 @@ const conPath = (ruta, extra = {}) => ({
 
 /** Un `codex` de mentira: contesta a `--version` y apunta en un log lo que le piden. */
 function codexFalso(bin) {
-  if (process.platform === "win32") {
-    writeFileSync(join(bin, "codex.cmd"), [
-      "@echo off",
-      "if \"%~1\"==\"--version\" goto ver",
-      "echo %* >> \"%CODEX_FAKE_LOG%\"",
-      "echo marketplace added",
-      "exit /b 0",
-      ":ver",
-      "echo codex-cli 0.130.0",
-      "exit /b 0",
-      "",
-    ].join("\r\n"))
-  } else {
-    const p = join(bin, "codex")
-    writeFileSync(p, [
-      "#!/bin/sh",
-      "if [ \"$1\" = \"--version\" ]; then echo 'codex-cli 0.130.0'; exit 0; fi",
-      "echo \"$@\" >> \"$CODEX_FAKE_LOG\"",
-      "echo 'marketplace added'",
-      "",
-    ].join("\n"))
-    chmodSync(p, 0o755)
-  }
+  const script=join(bin,"codex-owned.mjs")
+  writeFileSync(script,`
+import {mkdirSync,writeFileSync,readFileSync,existsSync,appendFileSync,cpSync} from 'node:fs'
+import {join,dirname} from 'node:path'
+const args=process.argv.slice(2), home=process.env.CODEX_HOME, realHome=join(process.env.HOME,'.codex')
+if(args[0]==='--version'){console.log('codex-cli 0.161.0');process.exit(0)}
+if(process.env.CODEX_FAKE_LOG) appendFileSync(process.env.CODEX_FAKE_LOG,args.join(' ')+'\\n')
+const marker=join(home,'.owned-marketplace-source')
+if(args[1]==='marketplace'){
+  mkdirSync(realHome,{recursive:true})
+  if(args[2]==='add')writeFileSync(marker,args[3])
+  console.log('marketplace added');process.exit(0)
 }
+
+if(args[1]==='add'){
+  if(process.env.CODEX_FAKE_FAIL_ADD==='1'){console.error('owned native add rejection');process.exit(5)}
+  const root=readFileSync(marker,'utf8')
+  const marketplace=JSON.parse(readFileSync(join(root,'.agents/plugins/marketplace.json'),'utf8'))
+  const entry=marketplace.plugins.find(p=>p.name==='custom-agents')
+  const source=join(root,entry.source.path), installed=join(home,'plugins/cache/daycry/custom-agents',entry.version)
+  mkdirSync(dirname(installed),{recursive:true});cpSync(source,installed,{recursive:true,force:true})
+  console.log(JSON.stringify({pluginId:'custom-agents@daycry',version:entry.version,installedPath:installed}));process.exit(0)
+}
+if(args[1]==='list'){
+  const version=${JSON.stringify(VERSION)}, installed=join(home,'plugins/cache/daycry/custom-agents',version)
+  const config=join(process.cwd(),'.codex/config.toml')
+  const global=join(home,'config.toml')
+  const text=existsSync(config)?readFileSync(config,'utf8'):existsSync(global)?readFileSync(global,'utf8'):''
+  const declared=text.includes('custom-agents@daycry'), enabled=declared && !text.includes('enabled = false')
+  console.log(JSON.stringify({installed:existsSync(installed)&&declared?[{pluginId:'custom-agents@daycry',version,installed:true,enabled}]:[],available:[]}));process.exit(0)
+}
+process.exit(1)
+`)
+  const executable=join(bin,process.platform==='win32'?'codex.cmd':'codex')
+  writeFileSync(executable,process.platform==='win32'
+    ? `@echo off\r\n"${process.execPath}" "${script}" %*\r\n`
+    : `#!/bin/sh\nexec '${process.execPath.replace(/'/g,"'\\''")}' '${script.replace(/'/g,"'\\''")}' "$@"\n`)
+  if(process.platform!=='win32') chmodSync(executable,0o755)
+}
+
+test('installer fixture: default CLI execution never inherits a runtime from host PATH',()=>{
+  const temp=tmpProj(),previous=process.env.PATH,previousLog=process.env.CODEX_FAKE_LOG
+  try {
+    const bin=join(temp,'host-bin'),log=join(temp,'host-runtime.log');mkdirSync(bin);codexFalso(bin)
+    process.env.PATH=[bin,SIN_CLI].join(delimiter);process.env.CODEX_FAKE_LOG=log
+    cli(['status','-p','codex','--dir',temp])
+    assert.ok(!existsSync(log),'default wrapper executed inherited host runtime')
+  } finally {
+    if(previous===undefined) delete process.env.PATH; else process.env.PATH=previous
+    if(previousLog===undefined) delete process.env.CODEX_FAKE_LOG; else process.env.CODEX_FAKE_LOG=previousLog
+    rmSync(temp,{recursive:true,force:true})
+  }
+})
+
+test('Codex project native: A/B preserve global preferences and foreign source; uninstall restores own registry keys',()=>{
+  const tmp=tmpProj()
+  try {
+    const hogar=join(tmp,'home'),codex=join(hogar,'.codex'),bin=join(tmp,'bin'),foreign=join(tmp,'foreign')
+    for(const p of [codex,bin,foreign])mkdirSync(p,{recursive:true})
+    codexFalso(bin)
+    const global=join(codex,'config.toml'), before=`# unrelated user settings\n[plugins."custom-agents@daycry"]\nenabled = false\n[marketplaces.daycry]\nsource_type = "local"\nsource = ${JSON.stringify(foreign)}\n`
+    writeFileSync(global,before)
+    const env=conPath([bin,SIN_CLI].join(delimiter),{HOME:hogar,USERPROFILE:hogar,CODEX_HOME:codex})
+    for(const name of ['A','B']) {
+      const project=join(tmp,name);mkdirSync(project)
+      cli(['install','-p','codex','--dir',project,'-y','-q'],{env})
+      assert.equal(readFileSync(global,'utf8'),before)
+      const config=join(project,'.codex/config.toml')
+      assert.match(readFileSync(config,'utf8'),/enabled = true/)
+      assert.match(cli(['status','--dir',project],{env}),/estado nativo en Codex: instalado; habilitado: sí/)
+      // A user's additional setting in our table survives precise removal of our two keys.
+      writeFileSync(config,readFileSync(config,'utf8').replace('source_type = "local"','source_type = "local"\nother = 42'))
+      cli(['uninstall','-p','codex','--dir',project,'-q'],{env})
+      const after=readFileSync(config,'utf8')
+      assert.match(after,/other = 42/)
+      assert.doesNotMatch(after,/source_type|source = /)
+      assert.match(after,/enabled = false/)
+      assert.equal(readFileSync(global,'utf8'),before)
+    }
+  } finally {rmSync(tmp,{recursive:true,force:true})}
+})
+
+test('Codex project native: failure preserves prior activation and a foreign project registry requires force',()=>{
+  const tmp=tmpProj()
+  try {
+    const hogar=join(tmp,'home'),codex=join(hogar,'.codex'),bin=join(tmp,'bin'),project=join(tmp,'project'),foreign=join(tmp,'foreign')
+    for(const p of [codex,bin,join(project,'.codex'),foreign])mkdirSync(p,{recursive:true})
+    codexFalso(bin)
+    const global=join(codex,'config.toml');writeFileSync(global,'# untouched\n')
+    const config=join(project,'.codex/config.toml'),before=`[marketplaces.daycry]\nsource_type = "local"\nsource = ${JSON.stringify(foreign)}\nother = 42\n[plugins."custom-agents@daycry"]\nenabled = false\n`
+    writeFileSync(config,before)
+    const env=conPath([bin,SIN_CLI].join(delimiter),{HOME:hogar,USERPROFILE:hogar,CODEX_HOME:codex})
+    cli(['install','-p','codex','--dir',project,'-y','-q'],{env})
+    assert.equal(readFileSync(config,'utf8'),before)
+    assert.ok(!existsSync(join(codex,'plugins/cache/daycry/custom-agents')))
+    assert.throws(()=>cli(['install','-p','codex','--dir',project,'-y','--force-marketplace','-q'],{env:{...env,CODEX_FAKE_FAIL_ADD:'1'}}))
+    assert.equal(readFileSync(config,'utf8'),before)
+    assert.equal(readFileSync(global,'utf8'),'# untouched\n')
+    cli(['install','-p','codex','--dir',project,'-y','--force-marketplace','-q'],{env})
+    assert.match(readFileSync(config,'utf8'),/enabled = true/)
+    cli(['uninstall','-p','codex','--dir',project,'-q'],{env})
+    assert.equal(readFileSync(config,'utf8'),ponerToml(before,'features','hooks',true))
+    assert.equal(readFileSync(global,'utf8'),'# untouched\n')
+  } finally {rmSync(tmp,{recursive:true,force:true})}
+})
+
+test('Codex user native: foreign marketplace is protected before a CLI that would accept upsert',()=>{
+  const tmp=tmpProj()
+  try {
+    const hogar=join(tmp,'home'),codex=join(hogar,'.codex'),bin=join(tmp,'bin'),foreign=join(tmp,'foreign'),log=join(tmp,'native.log')
+    for(const p of [codex,bin,foreign])mkdirSync(p,{recursive:true})
+    codexFalso(bin)
+    const config=join(codex,'config.toml'),before=`[marketplaces.daycry]\nsource_type = "local"\nsource = ${JSON.stringify(foreign)}\n[plugins."custom-agents@daycry"]\nenabled = false\n`
+    writeFileSync(config,before)
+    const env=conPath([bin,SIN_CLI].join(delimiter),{HOME:hogar,USERPROFILE:hogar,CODEX_HOME:codex,CODEX_FAKE_LOG:log})
+    cli(['install','-p','codex','--scope','user','-y','-q'],{env})
+    assert.equal(readFileSync(config,'utf8'),before)
+    assert.ok(!existsSync(log),'no registration or plugin add command should be invoked')
+    assert.ok(!existsSync(join(codex,'plugins/cache/daycry/custom-agents')))
+  } finally {rmSync(tmp,{recursive:true,force:true})}
+})
 
 /**
  * Un `claude` de mentira que hace lo que hace la CLI real con `plugin install --scope project`:
@@ -191,9 +315,9 @@ test("cada proveedor declara lo mínimo y produce un plan no vacío", () => {
     const plan = buildPlan(p, { root: ROOT, dir: "/proy", scope: "project", version: "9.9.9" })
     assert.ok(plan.length, `${p.id}: plan vacío`)
     for (const paso of plan) {
-      assert.ok(["copy", "merge", "write", "exec", "json-set", "toml-set", "retire"].includes(paso.type),
+      assert.ok(["copy", "merge", "write", "exec", "codex-native-add", "json-set", "toml-set", "retire"].includes(paso.type),
         `${p.id}: paso raro ${paso.type}`)
-      if (paso.type === "exec") assert.ok(paso.cmd && Array.isArray(paso.args), `${p.id}: exec sin comando`)
+      if (paso.type === "exec" || paso.type === "codex-native-add") assert.ok(paso.cmd && Array.isArray(paso.args), `${p.id}: exec sin comando`)
       else assert.ok(paso.to, `${p.id}: paso sin destino`)
       if (paso.type === "copy") assert.ok(existsSync(join(ROOT, paso.from)), `${p.id}: falta ${paso.from}`)
     }
@@ -483,13 +607,15 @@ test("status: Codex y OpenCode también dicen si el runtime los tiene dados de a
 
     const proj2 = tmpProj()
     try {
-      cli(["install", "-p", "codex", "--dir", proj2, "-q"])
-      const s = cli(["status", "--dir", proj2])
+      const bin=join(proj2,'bin');mkdirSync(bin);codexFalso(bin)
+      const env=conPath([bin,SIN_CLI].join(delimiter),{HOME:join(proj2,'home'),USERPROFILE:join(proj2,'home')})
+      cli(["install", "-p", "codex", "--dir", proj2, "-q"],{env})
+      const s = cli(["status", "--dir", proj2],{env})
       assert.match(s, /project: registrado: sí/, "Codex: `enabled = true` en config.toml")
       // y si el usuario lo apaga, `status` lo dice: es la única fuente de verdad del runtime
       const toml = join(proj2, ".codex", "config.toml")
       writeFileSync(toml, readFileSync(toml, "utf8").replace("enabled = true", "enabled = false"))
-      assert.match(cli(["status", "--dir", proj2]), /project: registrado: no/)
+      assert.match(cli(["status", "--dir", proj2],{env}), /project: registrado: no/)
     } finally {
       rmSync(proj2, { recursive: true, force: true })
     }
@@ -731,8 +857,8 @@ test("versionSuficiente compara como un humano, no como una cadena", () => {
   assert.equal(versionSuficiente(null, "0.128.0"), false)
 })
 
-test("Codex: el plan da de alta el marketplace y habilita el plugin en config.toml", () => {
-  const plan = buildPlan(getProvider("codex"), { root: ROOT, dir: "/proy", scope: "project", version: "9.9.9" })
+test("Codex: el plan user registra marketplace y habilita solo tras native add", () => {
+  const plan = buildPlan(getProvider("codex"), { root: ROOT, dir: "/proy", scope: "user", version: "9.9.9" })
   const ex = plan.find((p) => p.type === "exec")
   assert.equal(ex.cmd, "codex")
   assert.deepEqual(ex.args.slice(0, 3), ["plugin", "marketplace", "add"])
@@ -800,7 +926,7 @@ test("sin la CLI del runtime, el comando pendiente se dice en vez de fallar", ()
     const out = cli(["install", "-p", "codex", "--scope", "user", "-y"],
       { env: conPath(SIN_CLI, { HOME: hogar, USERPROFILE: hogar }) })
     assert.match(out, /codex plugin marketplace add/, "hay que decir el comando que queda pendiente")
-    assert.ok(existsSync(join(hogar, ".codex", "config.toml")), "el resto de la instalación sigue")
+    assert.ok(!existsSync(join(hogar, ".codex", "config.toml")), "sin native add no se declara activación")
   } finally {
     rmSync(tmp, { recursive: true, force: true })
   }
@@ -1157,7 +1283,7 @@ test("gap 8: una CLI colgada no bloquea el instalador (timeout) y se dice qué s
     assert.ok(tardo < 30_000, `el timeout no cortó: ${tardo} ms`)
     assert.match(out, /ejecutando/, "antes de lanzar hay que decir qué se lanza")
     assert.match(out, /codex plugin marketplace add/)
-    assert.ok(existsSync(join(hogar, ".codex", "config.toml")), "y el resto de la instalación sigue")
+    assert.ok(!existsSync(join(hogar, ".codex", "config.toml")), "sin registro exitoso no se habilita")
   } finally {
     rmSync(tmp, { recursive: true, force: true })
   }
@@ -1418,7 +1544,8 @@ function instalarCodexCon(toml) {
   mkdirSync(join(hogar, ".codex"), { recursive: true })
   const config = join(hogar, ".codex", "config.toml")
   writeFileSync(config, toml, "utf8")
-  const env = conPath(SIN_CLI, { HOME: hogar, USERPROFILE: hogar })
+  const bin=join(tmp,'bin');mkdirSync(bin);codexFalso(bin)
+  const env = conPath([bin,SIN_CLI].join(delimiter), { HOME: hogar, USERPROFILE: hogar })
   let salida = "", error = null
   try { salida = cli(["install", "-p", "codex", "--scope", "user", "-y"], { env }) } catch (e) { error = e }
   return { tmp, config, env, salida, error, texto: () => readFileSync(config, "utf8") }
@@ -1854,10 +1981,10 @@ test("gap B-12: al expirar se mata el ÁRBOL y el mensaje dice cómo subir el ti
         "",
       ].join("\r\n"))
       const env = conPath([bin, SIN_CLI].join(delimiter), {
-        HOME: hogar, USERPROFILE: hogar, MARCA: marca, CUSTOM_AGENTS_EXEC_TIMEOUT_MS: "1000",
+        HOME: hogar, USERPROFILE: hogar, MARCA: marca, CUSTOM_AGENTS_EXEC_TIMEOUT_MS: "5000",
       })
       const out = cli(["install", "-p", "codex", "--scope", "user", "-y"], { env })
-      assert.match(out, /expiró a los 1 s/, "un `ETIMEDOUT` pelado no dice nada al usuario")
+      assert.match(out, /expiró a los 5 s/, "un `ETIMEDOUT` pelado no dice nada al usuario")
       assert.match(out, /CUSTOM_AGENTS_EXEC_TIMEOUT_MS/)
       assert.ok(existsSync(marca), "la fixture debe iniciar un nieto real antes de comprobar su terminación")
       const { pid } = JSON.parse(readFileSync(marca, "utf8"))

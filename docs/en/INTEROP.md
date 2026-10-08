@@ -48,7 +48,7 @@ those files:
 | Runtime | What gets copied | What gets **registered** (and where) |
 |---|---|---|
 | **Claude Code** | with `--mode plugin` nothing is copied into your project: the package goes to the plugin cache | `claude plugin marketplace add` + `claude plugin install` if the CLI is on your PATH; otherwise the same registry written directly: `plugins/known_marketplaces.json`, `plugins/installed_plugins.json` and `enabledPlugins` in `settings.json` (user scope), or `.claude/settings.json` with `extraKnownMarketplaces` (project scope) |
-| **Codex** | plugin in `~/.codex/plugins/custom-agents/`, `.toml` agents and prompts | `codex plugin marketplace add` if the CLI is on your PATH (and is ≥ 0.128.0), plus `[plugins."custom-agents@daycry"] enabled = true` and `[features] hooks = true` in the scope's `config.toml`, which is what Codex reads at startup |
+| **Codex** | bundle under the scope's `.codex/plugins/custom-agents/`, `.toml` agents and prompts | cache through `codex plugin add` (CLI ≥ 0.161.0); register `marketplaces.daycry`, `plugins."custom-agents@daycry".enabled` and `features.hooks` in the scope config after success |
 | **OpenCode** | agents, commands, skills, kits and the hook adapter under `plugins/` | `plugins: ["./.opencode/plugins/custom-agents"]` in `opencode.json` (absolute path in user scope), appended to whatever you already had |
 
 **The runtime's official CLI is always the preferred route.** The fallback — writing the registry
@@ -77,6 +77,31 @@ project > User"): `managed-settings.json` > `.claude/settings.local.json` > `.cl
 the `settings.json` in your `CLAUDE_CONFIG_DIR`. Looking only at the last two reported "registered:
 yes" for a plugin turned off with `claude plugin disable --scope local`. Inside Claude Code, the same with more detail: `/doctor`.
 
+Codex separates declared scope configuration from the CLI's view in the
+current project. `status` and `/doctor` share a bounded reader for
+`codex plugin list --marketplace daycry --available --json`; it filters out
+other entries, source paths and private errors. Missing CLI or an unsupported
+response leaves native state unknown. An enabled installation establishes
+neither hook-hash trust nor execution; inspect a native session for evidence.
+
+For project scope, `plugin add` uses a temporary `CODEX_HOME` with a regular
+copy of user configuration and a link limited to the `daycry` cache namespace.
+Its setter changes that copy; project activation follows installation success.
+Two projects retain their own sources without changing the user's marketplace
+or global enabled preference. Version cache remains shared; updating it can
+change content used by other projects. Source conflicts require
+`--force-marketplace`. Relative paths that cannot be preserved in the snapshot
+are rejected, with no retry against the real home. Neither `plugin remove`
+rollback nor forced cache `chmod` is used.
+
+Uninstall restores each source key only while it still holds the value
+written by the installer; later edits and other fields remain intact.
+Plugin activation becomes disabled without switching off `features.hooks`
+or deleting shared cache. Native installation failure leaves a pending
+manifest step and does not declare activation. Snapshot path validation
+distinguishes native fields and scopes; an MCP environment variable called
+`config_file` is not a runtime path.
+
 Five guarantees, each with a test in `tests/installer.test.mjs`:
 
 1. **Idempotent** — reinstalling leaves the same tree and duplicates no config entries.
@@ -96,7 +121,7 @@ Five guarantees, each with a test in `tests/installer.test.mjs`:
 | Runtime | How |
 |---|---|
 | **Claude Code** | `/plugin marketplace add daycry/custom-agents` + `/plugin install custom-agents` (that is what `--mode plugin` does). Copying the bundle as the project's `.claude/` (`docs/en/INSTALL.md`) is the equivalent of `--mode copy`: no hooks, no statusline, no namespace. |
-| **Codex** | `codex plugin marketplace add daycry/custom-agents` (it reads the repo's `.codex-plugin/plugin.json` and `.agents/plugins/marketplace.json`). The `.toml` agents and the prompts are copied from `interop/codex/` (or the installer places them). |
+| **Codex** | `codex plugin marketplace add daycry/custom-agents` followed by `codex plugin add custom-agents@daycry`. This native route enables the plugin in user config. Use the installer to preserve that preference for project installation. |
 | **OpenCode** | Copy `interop/opencode/` to `.opencode/` plus `skills/`, `agent-kits/` and `hooks/` inside it. If you already have the Claude Code bundle in `.claude/`, OpenCode **reuses those skills** with nothing copied (native compatibility). |
 
 ---
@@ -164,13 +189,13 @@ lost or substituted, and it is stated here.
 
 | Capability | Claude Code | Codex | OpenCode |
 |---|---|---|---|
-| **Plugin registration** (what makes it load) | ✅ `installed_plugins.json` + `enabledPlugins`, via the CLI or written by the installer — ⚠️ with `--mode copy` there is no registration: the bundle sits in `.claude/` and the runtime never learns about it (`/doctor` flags it) | ⚠️ `enabled = true` in `config.toml` is written by the installer, but the **marketplace** needs `codex plugin marketplace add`: without the CLI on your PATH the command is printed and it stays half-done until you run it | V2 local package in `plugins` of `opencode.json`; `status` and `/doctor` check the declaration, not execution |
+| **Plugin registration** (what makes it load) | ✅ `installed_plugins.json` + `enabledPlugins`, via the CLI or written by the installer — ⚠️ with `--mode copy` there is no registration: the bundle sits in `.claude/` and the runtime never learns about it (`/doctor` flags it) | Native CLI ≥0.161.0: cache validated before declaring marketplace and activation. Project mode prepares registration in a private `CODEX_HOME` and writes local configuration; `status` and `/doctor` distinguish declaration, native listing and execution | V2 local package in `plugins` of `opencode.json`; `status` and `/doctor` check the declaration, not execution |
 | On-demand skills | ✅ Skill tool | ✅ `$name` or activation by `description` | ✅ `skill` tool |
 | Commands | ✅ `/name` | ⚠️ `/prompt:name` (**or** `/prompts:name`), **only under `~/.codex/`** (Codex has no per-project prompts) and marked *deprecated* by OpenAI in favour of skills | ✅ `/name` |
 | Delegating to an agent by name | ✅ Agent tool, with per-invocation `model` | ⚠️ in natural language; Codex **does not auto-invoke** custom agents, you must ask | ✅ `task` tool |
 | Progress notice when the ledger is edited | ✅ `PostToolUse` | ✅ `PostToolUse` for `apply_patch`, with paths extracted from the patch | ✅ `tool.execute.after` |
 | Context at session start | ✅ `SessionStart` (index + roadmap + journal + memory) | ✅ `SessionStart` (`startup\|resume\|clear\|compact`) | Native `session.context` hook: current index, roadmap, journal and memory in outgoing context |
-| Session journal | `SessionEnd`, 5 s declared; native budget still needs validation | `SessionEnd`, 3 s export with shell-form Node launcher; native dispatch still pending | `session.execution.succeeded/failed/interrupted`; bounded replay on the next context |
+| Session journal | `SessionEnd`: isolated canonical capture; headless evidence without extending the native budget, with documented startup limits | `SessionEnd`: 3 s export and canonical capture; verified by archiving the active thread in the same app-server | `session.execution.succeeded/failed/interrupted`; canonical capture and bounded replay on the next context |
 | Capturing the user's turn | ✅ `UserPromptSubmit` | ✅ `UserPromptSubmit` | `session.prompt`, before admission: provisional request with `<private>` exclusion |
 | Subagent finished | ✅ `SubagentStop` | ✅ `SubagentStop` | ❌ no equivalent event |
 | **Per-agent guard** (`implementer`, `architect`) | Plugin agents ignore `hooks:`; native adaptation pending | Prompt self-check; native dispatch pending | Prompt self-check; native dispatch pending |
@@ -217,17 +242,20 @@ and Python 3. On Windows it finds native Python (`python3`, `python` or `py -3`)
 it excludes System32's WSL launcher. Set `CUSTOM_AGENTS_PYTHON` to select a specific interpreter.
 Payloads travel through stdin and are never interpreted as shell code.
 
-SessionEnd and UserPromptSubmit call `journal.py` directly, without Bash. Other hooks run through
+SessionEnd invokes canonical `journal-capture.py` with isolated Python (`-I -S`);
+UserPromptSubmit invokes `journal.py capture`, without Bash. Other hooks run through
 Bash with a `python3` adapter for the selected interpreter. Missing tools produce a stderr warning
 and exit 0. The implementer and architect guards remain scoped to their agents.
 
-Codex caps SessionEnd at 3 s; the exporter adjusts that timeout. Our Claude Code
-registration declares 5 s; its effective native shutdown budget still needs
-validation (a declaration does not prove that the runtime applies it).
-The capture process has an internal 2.2 s limit. OpenCode V2 captures on execution end and materializes
+Codex caps SessionEnd at 3 s; the exporter adjusts that timeout. Claude Code has
+1.5 s by default even though this plugin declares 5 s. The internal child deadline
+is 800 ms in Claude and 2,200 ms in Codex/OpenCode, selected by a literal adapter
+argument. Timeout waits for child-tree closure. Final headless Claude 2.1.287 and
+Codex 0.161.0 fixtures verify capture and closure; they establish no universal latency,
+TUI exit or functional guard guarantee. OpenCode V2 captures on execution end and materializes
 with bounded replay in the next `session.context`. Start a new session after updating a plugin; payload tests do not
 replace checking event delivery within each application.
-Contracts checked on 2026-10-06: [Codex](https://learn.chatgpt.com/docs/hooks),
+Contracts checked on 2026-10-08; evidence in [roadmap contracts](../roadmap/2026-10-07-catalog-capabilities/contracts.md): [Codex](https://learn.chatgpt.com/docs/hooks),
 [Claude Code](https://code.claude.com/docs/en/hooks), [OpenCode](https://opencode.ai/docs/plugins/).
 
 The three gaps that matter most:
